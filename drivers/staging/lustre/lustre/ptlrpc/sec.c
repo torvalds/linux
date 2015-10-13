@@ -1982,6 +1982,7 @@ int sptlrpc_svc_alloc_rs(struct ptlrpc_request *req, int msglen)
 	rc = policy->sp_sops->alloc_rs(req, msglen);
 	if (unlikely(rc == -ENOMEM)) {
 		struct ptlrpc_service_part *svcpt = req->rq_rqbd->rqbd_svcpt;
+
 		if (svcpt->scp_service->srv_max_reply_size <
 		   msglen + sizeof(struct ptlrpc_reply_state)) {
 			/* Just return failure if the size is too big */

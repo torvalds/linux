@@ -166,6 +166,7 @@ static void osc_page_fini(const struct lu_env *env,
 			  struct cl_page_slice *slice)
 {
 	struct osc_page *opg = cl2osc_page(slice);
+
 	CDEBUG(D_TRACE, "%p\n", opg);
 	LASSERT(opg->ops_lock == NULL);
 }
@@ -512,6 +513,7 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 					cl_offset(obj, page->cp_index));
 	if (result == 0) {
 		struct osc_io *oio = osc_env_io(env);
+
 		opg->ops_srvlock = osc_io_srvlock(oio);
 		cl_page_slice_add(page, &opg->ops_cl, obj,
 				&osc_page_ops);
@@ -624,6 +626,7 @@ static int discard_pagevec(const struct lu_env *env, struct cl_io *io,
 
 	for (count = 0, i = 0; i < max_index; i++) {
 		struct cl_page *page = pvec[i];
+
 		if (cl_page_own_try(env, io, page) == 0) {
 			/* free LRU page only if nobody is using it.
 			 * This check is necessary to avoid freeing the pages

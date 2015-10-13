@@ -157,6 +157,7 @@ static inline void *lustre_cfg_buf(struct lustre_cfg *lcfg, int index)
 	int i;
 	int offset;
 	int bufcount;
+
 	LASSERT (lcfg != NULL);
 	LASSERT (index >= 0);
 
@@ -174,6 +175,7 @@ static inline void lustre_cfg_bufs_init(struct lustre_cfg_bufs *bufs,
 					struct lustre_cfg *lcfg)
 {
 	int i;
+
 	bufs->lcfg_bufcount = lcfg->lcfg_bufcount;
 	for (i = 0; i < bufs->lcfg_bufcount; i++) {
 		bufs->lcfg_buflen[i] = lcfg->lcfg_buflens[i];
@@ -200,6 +202,7 @@ static inline char *lustre_cfg_string(struct lustre_cfg *lcfg, int index)
 		int last = min((int)lcfg->lcfg_buflens[index],
 			       cfs_size_round(lcfg->lcfg_buflens[index]) - 1);
 		char lost = s[last];
+
 		s[last] = '\0';
 		if (lost != '\0') {
 			CWARN("Truncated buf %d to '%s' (lost '%c'...)\n",

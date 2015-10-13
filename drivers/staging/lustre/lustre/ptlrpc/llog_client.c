@@ -118,6 +118,7 @@ static int llog_client_open(const struct lu_env *env,
 
 	if (name) {
 		char *tmp;
+
 		tmp = req_capsule_client_sized_get(&req->rq_pill, &RMF_NAME,
 						   strlen(name) + 1);
 		LASSERT(tmp);

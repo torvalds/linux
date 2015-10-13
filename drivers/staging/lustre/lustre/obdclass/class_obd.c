@@ -477,6 +477,7 @@ extern int class_procfs_clean(void);
 static int __init init_obdclass(void)
 {
 	int i, err;
+
 	int lustre_register_fs(void);
 
 	LCONSOLE_INFO("Lustre: Build Version: "BUILD_VERSION"\n");
@@ -548,6 +549,7 @@ static int __init init_obdclass(void)
 static void cleanup_obdclass(void)
 {
 	int i;
+
 	int lustre_unregister_fs(void);
 
 	lustre_unregister_fs();
@@ -555,6 +557,7 @@ static void cleanup_obdclass(void)
 	misc_deregister(&obd_psdev);
 	for (i = 0; i < class_devno_max(); i++) {
 		struct obd_device *obd = class_num2obd(i);
+
 		if (obd && obd->obd_set_up &&
 		    OBT(obd) && OBP(obd, detach)) {
 			/* XXX should this call generic detach otherwise? */

@@ -486,6 +486,7 @@ static inline int obd_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 	if (ldt != NULL) {
 		struct lu_context  session_ctx;
 		struct lu_env env;
+
 		lu_context_init(&session_ctx, LCT_SESSION);
 		session_ctx.lc_thread = NULL;
 		lu_context_enter(&session_ctx);
@@ -577,6 +578,7 @@ static inline void obd_cleanup_client_import(struct obd_device *obd)
 	down_write(&obd->u.cli.cl_sem);
 	if (obd->u.cli.cl_import) {
 		struct obd_import *imp;
+
 		imp = obd->u.cli.cl_import;
 		CDEBUG(D_CONFIG, "%s: client import never connected\n",
 		       obd->obd_name);

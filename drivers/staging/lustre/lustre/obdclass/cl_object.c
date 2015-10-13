@@ -567,6 +567,7 @@ static unsigned cl_env_hops_hash(struct cfs_hash *lh,
 static void *cl_env_hops_obj(struct hlist_node *hn)
 {
 	struct cl_env *cle = hlist_entry(hn, struct cl_env, ce_node);
+
 	LASSERT(cle->ce_magic == &cl_env_init0);
 	return (void *)cle;
 }
@@ -582,6 +583,7 @@ static int cl_env_hops_keycmp(const void *key, struct hlist_node *hn)
 static void cl_env_hops_noop(struct cfs_hash *hs, struct hlist_node *hn)
 {
 	struct cl_env *cle = hlist_entry(hn, struct cl_env, ce_node);
+
 	LASSERT(cle->ce_magic == &cl_env_init0);
 }
 

@@ -91,6 +91,7 @@ static void cfs_kernel_cap_pack(kernel_cap_t kcap, cfs_cap_t *cap)
 cfs_cap_t cfs_curproc_cap_pack(void)
 {
 	cfs_cap_t cap;
+
 	cfs_kernel_cap_pack(current_cap(), &cap);
 	return cap;
 }

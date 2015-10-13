@@ -299,6 +299,7 @@ ksocknal_recv_kiov (ksock_conn_t *conn)
 	lnet_kiov_t *kiov = conn->ksnc_rx_kiov;
 	int nob;
 	int rc;
+
 	LASSERT(conn->ksnc_rx_nkiov > 0);
 
 	/* Never touch conn->ksnc_rx_kiov or change connection
@@ -2240,6 +2241,7 @@ ksocknal_find_timed_out_conn (ksock_peer_t *peer)
 
 	list_for_each (ctmp, &peer->ksnp_conns) {
 		int error;
+
 		conn = list_entry (ctmp, ksock_conn_t, ksnc_list);
 
 		/* Don't need the {get,put}connsock dance to deref ksnc_sock */

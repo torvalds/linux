@@ -1006,6 +1006,7 @@ static inline int lu_dirent_calc_size(int namelen, __u16 attr)
 
 	if (attr & LUDA_TYPE) {
 		const unsigned align = sizeof(struct luda_type) - 1;
+
 		size = (sizeof(struct lu_dirent) + namelen + align) & ~align;
 		size += sizeof(struct luda_type);
 	} else

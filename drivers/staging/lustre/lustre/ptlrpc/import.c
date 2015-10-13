@@ -454,6 +454,7 @@ int ptlrpc_reconnect_import(struct obd_import *imp)
 	if (atomic_read(&imp->imp_inval_count) > 0) {
 		int rc;
 		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
+
 		rc = l_wait_event(imp->imp_recovery_waitq,
 				  (atomic_read(&imp->imp_inval_count) == 0),
 				  &lwi);
@@ -535,6 +536,7 @@ static int import_select_connection(struct obd_import *imp)
 	   trying to reconnect on it.) */
 	if (tried_all && (imp->imp_conn_list.next == &imp_conn->oic_item)) {
 		struct adaptive_timeout *at = &imp->imp_at.iat_net_latency;
+
 		if (at_get(at) < CONNECTION_SWITCH_MAX) {
 			at_measured(at, at_get(at) + CONNECTION_SWITCH_INC);
 			if (at_get(at) > CONNECTION_SWITCH_MAX)

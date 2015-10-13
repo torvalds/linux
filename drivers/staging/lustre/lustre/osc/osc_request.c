@@ -1179,6 +1179,7 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 		    OBD_FAIL_CHECK(OBD_FAIL_OSC_CHECKSUM_RECEIVE)) {
 			unsigned char *ptr = kmap(pga[i]->pg);
 			int off = pga[i]->off & ~CFS_PAGE_MASK;
+
 			memcpy(ptr + off, "bad1", min(4, nob));
 			kunmap(pga[i]->pg);
 		}
@@ -1886,6 +1887,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	i = 0;
 	list_for_each_entry(oap, &rpc_list, oap_rpc_item) {
 		struct cl_page *page = oap2cl_page(oap);
+
 		if (clerq == NULL) {
 			clerq = cl_req_alloc(env, page, crt,
 					     1 /* only 1-object rpcs for now */);
@@ -2091,6 +2093,7 @@ static int osc_enqueue_fini(struct ptlrpc_request *req, struct ost_lvb *lvb,
 		/* The request was created before ldlm_cli_enqueue call. */
 		if (rc == ELDLM_LOCK_ABORTED) {
 			struct ldlm_reply *rep;
+
 			rep = req_capsule_server_get(&req->rq_pill,
 						     &RMF_DLM_REP);
 
@@ -2277,6 +2280,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
  no_match:
 	if (intent) {
 		LIST_HEAD(cancels);
+
 		req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 					   &RQF_LDLM_ENQUEUE_LVB);
 		if (req == NULL)
@@ -2301,6 +2305,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	if (rqset) {
 		if (!rc) {
 			struct osc_enqueue_args *aa;
+
 			CLASSERT (sizeof(*aa) <= sizeof(req->rq_async_args));
 			aa = ptlrpc_req_async_args(req);
 			aa->oa_ei = einfo;
@@ -3170,6 +3175,7 @@ static int osc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 	switch (stage) {
 	case OBD_CLEANUP_EARLY: {
 		struct obd_import *imp;
+
 		imp = obd->u.cli.cl_import;
 		CDEBUG(D_HA, "Deactivating import %s\n", obd->obd_name);
 		/* ptlrpc_abort_inflight to stop an mds_lov_synchronize */

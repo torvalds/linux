@@ -247,6 +247,7 @@ static int osc_extent_sanity_check0(struct osc_extent *ext,
 
 	if (ext->oe_osclock) {
 		struct cl_lock_descr *descr;
+
 		descr = &ext->oe_osclock->cll_descr;
 		if (!(descr->cld_start <= ext->oe_start &&
 		      descr->cld_end >= ext->oe_max_end)) {
@@ -475,6 +476,7 @@ static void osc_extent_insert(struct osc_object *obj, struct osc_extent *ext)
 static void osc_extent_erase(struct osc_extent *ext)
 {
 	struct osc_object *obj = ext->oe_obj;
+
 	LASSERT(osc_object_is_locked(obj));
 	if (ext->oe_intree) {
 		rb_erase(&ext->oe_node, &obj->oo_root);
@@ -868,6 +870,7 @@ int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 		int offset = oap->oap_page_off & ~CFS_PAGE_MASK;
 		int count = oap->oap_count + (offset & (blocksize - 1));
 		int end = (offset + oap->oap_count) & (blocksize - 1);
+
 		if (end)
 			count += blocksize - end;
 
@@ -1510,6 +1513,7 @@ static int osc_enter_cache_try(struct client_obd *cli,
 static int ocw_granted(struct client_obd *cli, struct osc_cache_waiter *ocw)
 {
 	int rc;
+
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	rc = list_empty(&ocw->ocw_entry);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
@@ -1632,6 +1636,7 @@ wakeup:
 static int osc_max_rpc_in_flight(struct client_obd *cli, struct osc_object *osc)
 {
 	int hprpc = !!list_empty(&osc->oo_hp_exts);
+
 	return rpcs_in_flight(cli) >= cli->cl_max_rpcs_in_flight + hprpc;
 }
 
@@ -1693,6 +1698,7 @@ static int osc_makes_rpc(struct client_obd *cli, struct osc_object *osc,
 static void osc_update_pending(struct osc_object *obj, int cmd, int delta)
 {
 	struct client_obd *cli = osc_cli(obj);
+
 	if (cmd & OBD_BRW_WRITE) {
 		atomic_add(delta, &obj->oo_nr_writes);
 		atomic_add(delta, &cli->cl_pending_w_pages);
@@ -2566,6 +2572,7 @@ int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
 
 	list_for_each_entry(oap, list, oap_pending_item) {
 		struct cl_page *cp = oap2cl_page(oap);
+
 		if (cp->cp_index > end)
 			end = cp->cp_index;
 		if (cp->cp_index < start)
@@ -2851,6 +2858,7 @@ int osc_cache_writeback_range(const struct lu_env *env, struct osc_object *obj,
 			result += ext->oe_nr_pages;
 			if (!discard) {
 				struct list_head *list = NULL;
+
 				if (hp) {
 					EASSERT(!ext->oe_hp, ext);
 					ext->oe_hp = 1;
@@ -2924,6 +2932,7 @@ int osc_cache_writeback_range(const struct lu_env *env, struct osc_object *obj,
 
 	if (hp || discard) {
 		int rc;
+
 		rc = osc_cache_wait_range(env, obj, start, end);
 		if (result >= 0 && rc < 0)
 			result = rc;

@@ -715,6 +715,7 @@ static int cl_page_in_io(const struct cl_page *page, const struct cl_io *io)
 		 */
 		if (!cl_io_is_append(io)) {
 			const struct cl_io_rw_common *crw = &(io->u.ci_rw);
+
 			start = cl_offset(page->cp_obj, idx);
 			end   = cl_offset(page->cp_obj, idx + 1);
 			result = crw->crw_pos < end &&
@@ -1311,6 +1312,7 @@ static void cl_req_free(const struct lu_env *env, struct cl_req *req)
 	if (req->crq_o != NULL) {
 		for (i = 0; i < req->crq_nrobjs; ++i) {
 			struct cl_object *obj = req->crq_o[i].ro_obj;
+
 			if (obj != NULL) {
 				lu_object_ref_del_at(&obj->co_lu,
 						     &req->crq_o[i].ro_obj_ref,

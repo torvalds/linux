@@ -2440,6 +2440,7 @@ ksocknal_base_startup(void)
 
 	for (i = 0; i < *ksocknal_tunables.ksnd_nconnds; i++) {
 		char name[16];
+
 		spin_lock_bh(&ksocknal_data.ksnd_connd_lock);
 		ksocknal_data.ksnd_connd_starting++;
 		spin_unlock_bh(&ksocknal_data.ksnd_connd_lock);
@@ -2705,6 +2706,7 @@ ksocknal_start_schedulers(struct ksock_sched_info *info)
 		long id;
 		char name[20];
 		ksock_sched_t *sched;
+
 		id = KSOCK_THREAD_ID(info->ksi_cpt, info->ksi_nthreads + i);
 		sched = &info->ksi_scheds[KSOCK_THREAD_SID(id)];
 		snprintf(name, sizeof(name), "socknal_sd%02d_%02d",

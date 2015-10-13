@@ -1054,6 +1054,7 @@ EXPORT_SYMBOL(lu_site_fini);
 int lu_site_init_finish(struct lu_site *s)
 {
 	int result;
+
 	mutex_lock(&lu_sites_guard);
 	result = lu_context_refill(&lu_shrink_env.le_ctx);
 	if (result == 0)

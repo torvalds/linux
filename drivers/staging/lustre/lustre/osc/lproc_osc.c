@@ -377,6 +377,7 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *obd = m->private;
 	int i;
+
 	DECLARE_CKSUM_NAME;
 
 	if (obd == NULL)
@@ -400,6 +401,7 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	int i;
+
 	DECLARE_CKSUM_NAME;
 	char kernbuf[10];
 
@@ -627,6 +629,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 	for (i = 0; i < OBD_HIST_MAX; i++) {
 		unsigned long r = cli->cl_read_page_hist.oh_buckets[i];
 		unsigned long w = cli->cl_write_page_hist.oh_buckets[i];
+
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
@@ -650,6 +653,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 	for (i = 0; i < OBD_HIST_MAX; i++) {
 		unsigned long r = cli->cl_read_rpc_hist.oh_buckets[i];
 		unsigned long w = cli->cl_write_rpc_hist.oh_buckets[i];
+
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
@@ -673,6 +677,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 	for (i = 0; i < OBD_HIST_MAX; i++) {
 		unsigned long r = cli->cl_read_offset_hist.oh_buckets[i];
 		unsigned long w = cli->cl_write_offset_hist.oh_buckets[i];
+
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",

@@ -166,6 +166,7 @@ const char *ll_opcode2str(__u32 opcode)
 	 *	ptlrpc_internal.h needs to be modified.
 	 */
 	__u32 offset = opcode_offset(opcode);
+
 	LASSERTF(offset < LUSTRE_MAX_OPCODES,
 		 "offset %u >= LUSTRE_MAX_OPCODES %u\n",
 		 offset, LUSTRE_MAX_OPCODES);
@@ -239,6 +240,7 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 	}
 	for (i = 0; i < LUSTRE_MAX_OPCODES; i++) {
 		__u32 opcode = ll_rpc_opcode_table[i].opcode;
+
 		lprocfs_counter_init(svc_stats,
 				     EXTRA_MAX_OPCODES + i, svc_counter_config,
 				     ll_opcode2str(opcode), "usec");

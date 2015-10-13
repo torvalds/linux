@@ -1352,6 +1352,7 @@ static bool ptlrpc_server_allow_normal(struct ptlrpc_service_part *svcpt,
 				       bool force)
 {
 	int running = svcpt->scp_nthrs_running;
+
 	if (unlikely(svcpt->scp_service->srv_req_portal == MDS_REQUEST_PORTAL &&
 		     CFS_FAIL_PRECHECK(OBD_FAIL_PTLRPC_CANCEL_RESEND))) {
 		/* leave just 1 thread for normal RPCs */
@@ -1722,6 +1723,7 @@ put_conn:
 	if (likely(svc->srv_stats != NULL && request->rq_reqmsg != NULL)) {
 		__u32 op = lustre_msg_get_opc(request->rq_reqmsg);
 		int opc = opcode_offset(op);
+
 		if (opc > 0 && !(op == LDLM_ENQUEUE || op == MDS_REINT)) {
 			LASSERT(opc < LUSTRE_MAX_OPCODES);
 			lprocfs_counter_add(svc->srv_stats,
@@ -2256,6 +2258,7 @@ static int ptlrpc_start_hr_threads(void)
 
 		for (j = 0; j < hrp->hrp_nthrs; j++) {
 			struct	ptlrpc_hr_thread *hrt = &hrp->hrp_thrs[j];
+
 			rc = PTR_ERR(kthread_run(ptlrpc_hr_main,
 						 &hrp->hrp_thrs[j],
 						 "ptlrpc_hr%02d_%03d",

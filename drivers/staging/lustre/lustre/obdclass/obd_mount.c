@@ -177,6 +177,7 @@ static int lustre_start_simple(char *obdname, char *type, char *uuid,
 			       char *s1, char *s2, char *s3, char *s4)
 {
 	int rc;
+
 	CDEBUG(D_MOUNT, "Starting obd %s (typ=%s)\n", obdname, type);
 
 	rc = do_lcfg(obdname, 0, LCFG_ATTACH, type, uuid, NULL, NULL);
@@ -979,6 +980,7 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 		} else if (strncmp(s1, "param=", 6) == 0) {
 			int length;
 			char *tail = strchr(s1 + 6, ',');
+
 			if (tail == NULL)
 				length = strlen(s1);
 			else

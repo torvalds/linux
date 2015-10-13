@@ -103,6 +103,7 @@ static int ptlrpc_ping(struct obd_import *imp)
 static void ptlrpc_update_next_ping(struct obd_import *imp, int soon)
 {
 	int time = soon ? PING_INTERVAL_SHORT : PING_INTERVAL;
+
 	if (imp->imp_state == LUSTRE_IMP_DISCON) {
 		int dtime = max_t(int, CONNECTION_SWITCH_MIN,
 				  AT_OFF ? 0 :
@@ -135,6 +136,7 @@ static long pinger_check_timeout(unsigned long time)
 	mutex_lock(&pinger_mutex);
 	list_for_each_entry(item, &timeout_list, ti_chain) {
 		int ti_timeout = item->ti_timeout;
+
 		if (timeout > ti_timeout)
 			timeout = ti_timeout;
 		break;

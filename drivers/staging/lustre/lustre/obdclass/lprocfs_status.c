@@ -672,6 +672,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	if (ret.lc_count != 0) {
 		/* first argument to do_div MUST be __u64 */
 		__u64 sum = ret.lc_sum;
+
 		do_div(sum, ret.lc_count);
 		ret.lc_sum = sum;
 	} else
@@ -718,6 +719,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		if (ret.lc_sum > 0 && ret.lc_count > 0) {
 			/* first argument to do_div MUST be __u64 */
 			__u64 sum = ret.lc_sum;
+
 			do_div(sum, ret.lc_count);
 			ret.lc_sum = sum;
 			seq_printf(m,
@@ -733,6 +735,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		if (ret.lc_sum > 0 && ret.lc_count != 0) {
 			/* first argument to do_div MUST be __u64 */
 			__u64 sum = ret.lc_sum;
+
 			do_div(sum, ret.lc_count);
 			ret.lc_sum = sum;
 			seq_printf(m,
@@ -783,6 +786,7 @@ EXPORT_SYMBOL(lprocfs_rd_state);
 int lprocfs_at_hist_helper(struct seq_file *m, struct adaptive_timeout *at)
 {
 	int i;
+
 	for (i = 0; i < AT_BINS; i++)
 		seq_printf(m, "%3u ", at->at_hist[i]);
 	seq_printf(m, "\n");
@@ -1314,6 +1318,7 @@ int lprocfs_write_frac_u64_helper(const char *buffer, unsigned long count,
 
 	if (*end == '.') {
 		int i;
+
 		pbuf = end + 1;
 
 		/* need to limit frac_d to a __u32 */

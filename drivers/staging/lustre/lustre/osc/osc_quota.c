@@ -158,6 +158,7 @@ static void *
 oqi_key(struct hlist_node *hnode)
 {
 	struct osc_quota_info *oqi;
+
 	oqi = hlist_entry(hnode, struct osc_quota_info, oqi_hash);
 	return &oqi->oqi_id;
 }

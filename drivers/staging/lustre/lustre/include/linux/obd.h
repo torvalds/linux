@@ -70,6 +70,7 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 					  const char *func, int line)
 {
 	unsigned long cur = jiffies;
+
 	while (1) {
 		if (spin_trylock(&lock->lock)) {
 			LASSERT(lock->task == NULL);

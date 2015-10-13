@@ -177,6 +177,7 @@ struct obd_ioctl_hdr {
 static inline int obd_ioctl_packlen(struct obd_ioctl_data *data)
 {
 	int len = cfs_size_round(sizeof(struct obd_ioctl_data));
+
 	len += cfs_size_round(data->ioc_inllen1);
 	len += cfs_size_round(data->ioc_inllen2);
 	len += cfs_size_round(data->ioc_inllen3);

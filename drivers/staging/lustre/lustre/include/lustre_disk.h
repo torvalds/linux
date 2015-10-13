@@ -223,6 +223,7 @@ static inline void check_lcd(char *obd_name, int index,
 			     struct lsd_client_data *lcd)
 {
 	int length = sizeof(lcd->lcd_uuid);
+
 	if (strnlen((char *)lcd->lcd_uuid, length) == length) {
 		lcd->lcd_uuid[length - 1] = '\0';
 
@@ -236,6 +237,7 @@ static inline void lsd_le_to_cpu(struct lr_server_data *buf,
 				 struct lr_server_data *lsd)
 {
 	int i;
+
 	memcpy(lsd->lsd_uuid, buf->lsd_uuid, sizeof(lsd->lsd_uuid));
 	lsd->lsd_last_transno     = le64_to_cpu(buf->lsd_last_transno);
 	lsd->lsd_compat14	 = le64_to_cpu(buf->lsd_compat14);
@@ -263,6 +265,7 @@ static inline void lsd_cpu_to_le(struct lr_server_data *lsd,
 				 struct lr_server_data *buf)
 {
 	int i;
+
 	memcpy(buf->lsd_uuid, lsd->lsd_uuid, sizeof(buf->lsd_uuid));
 	buf->lsd_last_transno     = cpu_to_le64(lsd->lsd_last_transno);
 	buf->lsd_compat14	 = cpu_to_le64(lsd->lsd_compat14);

@@ -126,6 +126,7 @@ static void class_handle_unhash_nolock(struct portals_handle *h)
 void class_handle_unhash(struct portals_handle *h)
 {
 	struct handle_bucket *bucket;
+
 	bucket = handle_hash + (h->h_cookie & HANDLE_HASH_MASK);
 
 	spin_lock(&bucket->lock);
@@ -233,6 +234,7 @@ static int cleanup_all_handles(void)
 void class_handle_cleanup(void)
 {
 	int count;
+
 	LASSERT(handle_hash != NULL);
 
 	count = cleanup_all_handles();

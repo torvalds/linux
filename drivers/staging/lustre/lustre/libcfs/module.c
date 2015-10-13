@@ -293,6 +293,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile, unsigned long cmd,
 
 	default: {
 		struct libcfs_ioctl_handler *hand;
+
 		err = -EINVAL;
 		down_read(&ioctl_list_sem);
 		list_for_each_entry(hand, &ioctl_list, item) {

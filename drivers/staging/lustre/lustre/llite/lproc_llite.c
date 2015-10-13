@@ -1017,6 +1017,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	for (id = 0; id < LPROC_LL_FILE_OPCODES; id++) {
 		__u32 type = llite_opcode_table[id].type;
 		void *ptr = NULL;
+
 		if (type & LPROCFS_TYPE_REGS)
 			ptr = "regs";
 		else if (type & LPROCFS_TYPE_BYTES)

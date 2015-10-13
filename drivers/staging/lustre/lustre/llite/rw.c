@@ -327,6 +327,7 @@ static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 	 * the RPC boundary from needing an extra read RPC. */
 	if (ria->ria_pages == 0) {
 		long beyond_rpc = (ria->ria_start + ret) % PTLRPC_MAX_BRW_PAGES;
+
 		if (/* beyond_rpc != 0 && */ beyond_rpc < ret)
 			ret -= beyond_rpc;
 	}
@@ -343,6 +344,7 @@ out:
 void ll_ra_count_put(struct ll_sb_info *sbi, unsigned long len)
 {
 	struct ll_ra_info *ra = &sbi->ll_ra_info;
+
 	atomic_sub(len, &ra->ra_cur_pages);
 }
 
@@ -355,6 +357,7 @@ static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which)
 void ll_ra_stats_inc(struct address_space *mapping, enum ra_stat which)
 {
 	struct ll_sb_info *sbi = ll_i2sbi(mapping->host);
+
 	ll_ra_stats_inc_sbi(sbi, which);
 }
 

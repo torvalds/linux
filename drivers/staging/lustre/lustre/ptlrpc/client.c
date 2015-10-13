@@ -660,6 +660,7 @@ int ptlrpc_request_pack(struct ptlrpc_request *request,
 			__u32 version, int opcode)
 {
 	int rc;
+
 	rc = ptlrpc_request_bufs_pack(request, version, opcode, NULL, NULL);
 	if (rc)
 		return rc;
@@ -1089,6 +1090,7 @@ static int ptlrpc_check_status(struct ptlrpc_request *req)
 	if (lustre_msg_get_type(req->rq_repmsg) == PTL_RPC_MSG_ERR) {
 		struct obd_import *imp = req->rq_import;
 		__u32 opc = lustre_msg_get_opc(req->rq_reqmsg);
+
 		if (ptlrpc_console_allow(req))
 			LCONSOLE_ERROR_MSG(0x011, "%s: Communicating with %s, operation %s failed with %d.\n",
 					   imp->imp_obd->obd_name,

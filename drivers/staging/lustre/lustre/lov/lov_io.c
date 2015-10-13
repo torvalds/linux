@@ -330,6 +330,7 @@ static void lov_io_slice_init(struct lov_io *lio,
 
 	case CIT_FAULT: {
 		pgoff_t index = io->u.ci_fault.ft_index;
+
 		lio->lis_pos = cl_offset(io->ci_obj, index);
 		lio->lis_endpos = cl_offset(io->ci_obj, index + 1);
 		break;

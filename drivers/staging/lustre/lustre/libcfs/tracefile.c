@@ -652,6 +652,7 @@ void cfs_trace_debug_print(void)
 		while (p < ((char *)page_address(page) + tage->used)) {
 			struct ptldebug_header *hdr;
 			int len;
+
 			hdr = (void *)p;
 			p += sizeof(*hdr);
 			file = p;

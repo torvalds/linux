@@ -51,6 +51,7 @@ static struct kmem_cache *ll_inode_cachep;
 static struct inode *ll_alloc_inode(struct super_block *sb)
 {
 	struct ll_inode_info *lli;
+
 	ll_stats_ops_tally(ll_s2sbi(sb), LPROC_LL_ALLOC_INODE, 1);
 	OBD_SLAB_ALLOC_PTR_GFP(lli, ll_inode_cachep, GFP_NOFS);
 	if (lli == NULL)
@@ -64,6 +65,7 @@ static void ll_inode_destroy_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ll_inode_info *ptr = ll_i2info(inode);
+
 	OBD_SLAB_FREE_PTR(ptr, ll_inode_cachep);
 }
 

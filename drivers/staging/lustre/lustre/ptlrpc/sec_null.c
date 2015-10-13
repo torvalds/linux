@@ -84,6 +84,7 @@ int null_ctx_sign(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 
 	if (!req->rq_import->imp_dlm_fake) {
 		struct obd_device *obd = req->rq_import->imp_obd;
+
 		null_encode_sec_part(req->rq_reqbuf,
 				     obd->u.cli.cl_sp_me);
 	}

@@ -955,6 +955,7 @@ static int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	if (KEY_IS(KEY_INIT_RECOV_BACKUP)) {
 		struct obd_import *imp = class_exp2cliimp(exp);
 		int value;
+
 		if (vallen != sizeof(int))
 			return -EINVAL;
 		value = *(int *)val;
@@ -1058,6 +1059,7 @@ static int mgc_import_event(struct obd_device *obd,
 		break;
 	case IMP_EVENT_INVALIDATE: {
 		struct ldlm_namespace *ns = obd->obd_namespace;
+
 		ldlm_namespace_cleanup(ns, LDLM_FL_LOCAL_ONLY);
 		break;
 	}
@@ -1648,6 +1650,7 @@ static int mgc_process_config(struct obd_device *obd, u32 len, void *buf)
 				rc = mgc_process_log(obd, cld->cld_recover);
 			} else {
 				struct config_llog_data *cir = cld->cld_recover;
+
 				cld->cld_recover = NULL;
 				config_log_put(cir);
 			}

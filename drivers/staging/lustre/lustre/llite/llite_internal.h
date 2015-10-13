@@ -995,6 +995,7 @@ static inline struct obd_export *ll_s2mdexp(struct super_block *sb)
 static inline struct client_obd *sbi2mdc(struct ll_sb_info *sbi)
 {
 	struct obd_device *obd = sbi->ll_md_exp->exp_obd;
+
 	if (obd == NULL)
 		LBUG();
 	return &obd->u.cli;

@@ -447,6 +447,7 @@ static inline char *obd_uuid2str(const struct obd_uuid *uuid)
 		/* Obviously not safe, but for printfs, no real harm done...
 		   we're always null-terminated, even in a race. */
 		static char temp[sizeof(*uuid)];
+
 		memcpy(temp, uuid->uuid, sizeof(*uuid) - 1);
 		temp[sizeof(*uuid) - 1] = '\0';
 		return temp;

@@ -851,6 +851,7 @@ int class_process_config(struct lustre_cfg *lcfg)
 	}
 	case LCFG_MARKER: {
 		struct cfg_marker *marker;
+
 		marker = lustre_cfg_buf(lcfg, 1);
 		CDEBUG(D_IOCTL, "marker %d (%#x) %.16s %s\n", marker->cm_step,
 		       marker->cm_flags, marker->cm_tgtname, marker->cm_comment);
@@ -1015,6 +1016,7 @@ int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 				rc = -EROFS;
 				if (var->fops && var->fops->write) {
 					mm_segment_t oldfs;
+
 					oldfs = get_fs();
 					set_fs(KERNEL_DS);
 					rc = (var->fops->write)(&fakefile, sval,
@@ -1091,6 +1093,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		/* Figure out config state info */
 		if (lcfg->lcfg_command == LCFG_MARKER) {
 			struct cfg_marker *marker = lustre_cfg_buf(lcfg, 1);
+
 			lustre_swab_cfg_marker(marker, swab,
 					       LUSTRE_CFG_BUFLEN(lcfg, 1));
 			CDEBUG(D_CONFIG, "Marker, inst_flg=%#x mark_flg=%#x\n",

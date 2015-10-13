@@ -282,6 +282,7 @@ static int pool_proc_open(struct inode *inode, struct file *file)
 	rc = seq_open(file, &pool_proc_ops);
 	if (!rc) {
 		struct seq_file *s = file->private_data;
+
 		s->private = inode->i_private;
 	}
 	return rc;

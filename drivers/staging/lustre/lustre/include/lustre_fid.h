@@ -532,6 +532,7 @@ static inline void ost_fid_build_resid(const struct lu_fid *fid,
 {
 	if (fid_is_mdt0(fid) || fid_is_idif(fid)) {
 		struct ost_id oi;
+
 		oi.oi.oi_id = 0; /* gcc 4.7.2 complains otherwise */
 		if (fid_to_ostid(fid, &oi) != 0)
 			return;
@@ -547,6 +548,7 @@ static inline void ost_fid_from_resid(struct lu_fid *fid,
 	if (fid_seq_is_mdt0(name->name[LUSTRE_RES_ID_VER_OID_OFF])) {
 		/* old resid */
 		struct ost_id oi;
+
 		ostid_set_seq(&oi, name->name[LUSTRE_RES_ID_VER_OID_OFF]);
 		ostid_set_id(&oi, name->name[LUSTRE_RES_ID_SEQ_OFF]);
 		ostid_to_fid(fid, &oi, 0);

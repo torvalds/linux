@@ -85,6 +85,7 @@ static void lov_putref(struct obd_device *obd)
 		LIST_HEAD(kill);
 		int i;
 		struct lov_tgt_desc *tgt, *n;
+
 		CDEBUG(D_CONFIG, "destroying %d lov targets\n",
 		       lov->lov_death_row);
 		for (i = 0; i < lov->desc.ld_tgt_count; i++) {
@@ -833,6 +834,7 @@ static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 	switch (stage) {
 	case OBD_CLEANUP_EARLY: {
 		int i;
+
 		for (i = 0; i < lov->desc.ld_tgt_count; i++) {
 			if (!lov->lov_tgts[i] || !lov->lov_tgts[i]->ltd_active)
 				continue;
@@ -869,6 +871,7 @@ static int lov_cleanup(struct obd_device *obd)
 	lprocfs_obd_cleanup(obd);
 	if (lov->lov_tgts) {
 		int i;
+
 		obd_getref(obd);
 		for (i = 0; i < lov->desc.ld_tgt_count; i++) {
 			if (!lov->lov_tgts[i])
@@ -1256,6 +1259,7 @@ static int lov_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 	/* If we are not waiting for responses on async requests, return. */
 	if (rc || !rqset || list_empty(&rqset->set_requests)) {
 		int err;
+
 		if (rc)
 			atomic_set(&set->set_completes, 0);
 		err = lov_fini_setattr_set(set);
@@ -1348,6 +1352,7 @@ static int lov_statfs_async(struct obd_export *exp, struct obd_info *oinfo,
 
 	if (rc || list_empty(&rqset->set_requests)) {
 		int err;
+
 		if (rc)
 			atomic_set(&set->set_completes, 0);
 		err = lov_fini_statfs_set(set);

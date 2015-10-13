@@ -224,6 +224,7 @@ static void cfs_crypto_performance_test(unsigned char alg_id,
 		       cfs_crypto_hash_name(alg_id), err);
 	} else {
 		unsigned long   tmp;
+
 		tmp = ((bcount * buf_len / jiffies_to_msecs(end - start)) *
 		       1000) / (1024 * 1024);
 		cfs_crypto_hash_speeds[alg_id] = (int)tmp;

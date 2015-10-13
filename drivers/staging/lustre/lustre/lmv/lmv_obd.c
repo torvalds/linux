@@ -560,6 +560,7 @@ int lmv_check_connect(struct obd_device *obd)
  out_disc:
 	while (i-- > 0) {
 		int rc2;
+
 		tgt = lmv->tgts[i];
 		if (tgt == NULL)
 			continue;
@@ -1084,6 +1085,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 	}
 	case LL_IOC_HSM_CT_START: {
 		struct lustre_kernelcomm *lk = karg;
+
 		if (lk->lk_flags & LK_FLG_STOP)
 			rc = lmv_hsm_ct_unregister(lmv, cmd, len, lk, uarg);
 		else
@@ -1335,6 +1337,7 @@ static int lmv_cleanup(struct obd_device *obd)
 	fld_client_fini(&lmv->lmv_fld);
 	if (lmv->tgts != NULL) {
 		int i;
+
 		for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 			if (lmv->tgts[i] == NULL)
 				continue;
@@ -1813,6 +1816,7 @@ lmv_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 
 	if (body->valid & OBD_MD_MDS) {
 		struct lu_fid rid = body->fid1;
+
 		CDEBUG(D_INODE, "Request attrs for "DFID"\n",
 		       PFID(&rid));
 
@@ -2692,6 +2696,7 @@ static int lmv_quotactl(struct obd_device *unused, struct obd_export *exp,
 	curspace = curinodes = 0;
 	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 		int err;
+
 		tgt = lmv->tgts[i];
 
 		if (tgt == NULL || tgt->ltd_exp == NULL || tgt->ltd_active == 0)
@@ -2727,6 +2732,7 @@ static int lmv_quotacheck(struct obd_device *unused, struct obd_export *exp,
 
 	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 		int err;
+
 		tgt = lmv->tgts[i];
 		if (tgt == NULL || tgt->ltd_exp == NULL || !tgt->ltd_active) {
 			CERROR("lmv idx %d inactive\n", i);

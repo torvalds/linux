@@ -227,6 +227,7 @@ static int lov_sublock_lock(const struct lu_env *env,
 			result = CLO_REPEAT;
 		} else if (lsep) {
 			struct lov_sublock_env *subenv;
+
 			subenv = lov_sublock_env_get(env, parent, lls);
 			if (IS_ERR(subenv)) {
 				lov_sublock_unlock(env, sublock,
@@ -981,6 +982,7 @@ static int lov_lock_fits_into(const struct lu_env *env,
 		result = cl_lock_ext_match(&lov->lls_orig, need);
 	else if (lov->lls_nr == 1) {
 		struct cl_lock_descr *got = &lov->lls_sub[0].sub_got;
+
 		result = lov_lock_stripe_is_matching(env,
 						     cl2lov(slice->cls_obj),
 						     lov->lls_sub[0].sub_stripe,
@@ -1151,6 +1153,7 @@ static void lov_empty_lock_fini(const struct lu_env *env,
 				struct cl_lock_slice *slice)
 {
 	struct lov_lock *lck = cl2lov_lock(slice);
+
 	OBD_SLAB_FREE_PTR(lck, lov_lock_kmem);
 }
 

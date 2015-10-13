@@ -49,6 +49,7 @@
 __u32 get_uuid2int(const char *name, int len)
 {
 	__u32 key0 = 0x12a3fe2d, key1 = 0x37abe8f9;
+
 	while (len--) {
 		__u32 key = key1 + (key0 ^ (*name++ * 7152373));
 

@@ -1039,6 +1039,7 @@ static int vvp_io_commit_write(const struct lu_env *env,
 				need_clip = false;
 			} else if (last_index == pg->cp_index) {
 				int size_to = i_size_read(inode) & ~CFS_PAGE_MASK;
+
 				if (to < size_to)
 					to = size_to;
 			}

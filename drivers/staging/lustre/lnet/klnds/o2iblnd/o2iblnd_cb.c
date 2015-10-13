@@ -2154,6 +2154,7 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	unsigned long flags;
 	int rc;
 	struct sockaddr_in *peer_addr;
+
 	LASSERT(!in_interrupt());
 
 	/* cmid inherits 'context' from the corresponding listener id */
@@ -2169,6 +2170,7 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	if (*kiblnd_tunables.kib_require_priv_port &&
 	    ntohs(peer_addr->sin_port) >= PROT_SOCK) {
 		__u32 ip = ntohl(peer_addr->sin_addr.s_addr);
+
 		CERROR("Peer's port (%pI4h:%hu) is not privileged\n",
 		       &ip, ntohs(peer_addr->sin_port));
 		goto failed;
