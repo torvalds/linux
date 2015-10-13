@@ -291,9 +291,22 @@ static int gpio_led_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void gpio_led_shutdown(struct platform_device *pdev)
+{
+	struct gpio_leds_priv *priv = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < priv->num_leds; i++) {
+		struct gpio_led_data *led = &priv->leds[i];
+
+		gpio_led_set(&led->cdev, LED_OFF);
+	}
+}
+
 static struct platform_driver gpio_led_driver = {
 	.probe		= gpio_led_probe,
 	.remove		= gpio_led_remove,
+	.shutdown	= gpio_led_shutdown,
 	.driver		= {
 		.name	= "leds-gpio",
 		.of_match_table = of_gpio_leds_match,
