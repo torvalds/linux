@@ -59,14 +59,11 @@
 #define DMAR_IRTA_REG	0xb8    /* Interrupt remapping table addr register */
 
 #define OFFSET_STRIDE		(9)
-/*
-#define dmar_readl(dmar, reg) readl(dmar + reg)
-#define dmar_readq(dmar, reg) ({ \
-		u32 lo, hi; \
-		lo = readl(dmar + reg); \
-		hi = readl(dmar + reg + 4); \
-		(((u64) hi) << 32) + lo; })
-*/
+
+#ifdef CONFIG_64BIT
+#define dmar_readq(a) readq(a)
+#define dmar_writeq(a,v) writeq(v,a)
+#else
 static inline u64 dmar_readq(void __iomem *addr)
 {
 	u32 lo, hi;
@@ -80,6 +77,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 	writel((u32)val, addr);
 	writel((u32)(val >> 32), addr + 4);
 }
+#endif
 
 #define DMAR_VER_MAJOR(v)		(((v) & 0xf0) >> 4)
 #define DMAR_VER_MINOR(v)		((v) & 0x0f)
