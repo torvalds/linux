@@ -150,7 +150,7 @@ struct del_all_sta {
 };
 
 struct del_sta {
-	u8 au8MacAddr[ETH_ALEN];
+	u8 mac_addr[ETH_ALEN];
 };
 
 struct power_mgmt_param {
@@ -2544,7 +2544,7 @@ static void Handle_DelStation(struct host_if_drv *hif_drv,
 
 	pu8CurrByte = strWID.val;
 
-	memcpy(pu8CurrByte, pstrDelStaParam->au8MacAddr, ETH_ALEN);
+	memcpy(pu8CurrByte, pstrDelStaParam->mac_addr, ETH_ALEN);
 
 	s32Error = send_config_pkt(SET_CFG, &strWID, 1,
 				   get_id_from_handler(hif_drv));
@@ -4758,9 +4758,9 @@ s32 host_int_del_station(struct host_if_drv *hif_drv, const u8 *pu8MacAddr)
 	msg.drv = hif_drv;
 
 	if (pu8MacAddr == NULL)
-		memset(pstrDelStationMsg->au8MacAddr, 255, ETH_ALEN);
+		memset(pstrDelStationMsg->mac_addr, 255, ETH_ALEN);
 	else
-		memcpy(pstrDelStationMsg->au8MacAddr, pu8MacAddr, ETH_ALEN);
+		memcpy(pstrDelStationMsg->mac_addr, pu8MacAddr, ETH_ALEN);
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (s32Error)
