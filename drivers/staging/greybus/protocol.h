@@ -46,7 +46,7 @@ struct gb_protocol {
 };
 
 int __gb_protocol_register(struct gb_protocol *protocol, struct module *module);
-int gb_protocol_deregister(struct gb_protocol *protocol);
+void gb_protocol_deregister(struct gb_protocol *protocol);
 
 #define gb_protocol_register(protocol) \
 	__gb_protocol_register(protocol, THIS_MODULE)

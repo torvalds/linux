@@ -102,36 +102,24 @@ EXPORT_SYMBOL_GPL(__gb_protocol_register);
 
 /*
  * De-register a previously registered protocol.
- *
- * XXX Currently this fails (and reports an error to the caller) if
- * XXX the protocol is currently in use.  We may want to forcefully
- * XXX kill off a protocol and all its active users at some point.
- * XXX But I think that's better handled by quiescing modules that
- * XXX have users and having those users drop their reference.
- *
- * Returns true if successful, false otherwise.
  */
-int gb_protocol_deregister(struct gb_protocol *protocol)
+void gb_protocol_deregister(struct gb_protocol *protocol)
 {
-	u8 protocol_count = 0;
-
 	if (!protocol)
-		return 0;
+		return;
 
 	spin_lock_irq(&gb_protocols_lock);
 	protocol = gb_protocol_find(protocol->id, protocol->major,
 				    protocol->minor);
-	if (protocol) {
-		protocol_count = protocol->count;
-		if (!protocol_count)
-			list_del(&protocol->links);
+	if (WARN_ON(!protocol || protocol->count)) {
+		spin_unlock_irq(&gb_protocols_lock);
+		return;
 	}
+
+	list_del(&protocol->links);
 	spin_unlock_irq(&gb_protocols_lock);
 
-	if (protocol)
-		pr_info("Deregistered %s protocol.\n", protocol->name);
-
-	return protocol && !protocol_count;
+	pr_info("Deregistered %s protocol.\n", protocol->name);
 }
 EXPORT_SYMBOL_GPL(gb_protocol_deregister);
 
