@@ -1013,6 +1013,7 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 
 	(void) ocrdma_mbx_dealloc_lkey(dev, mr->hwmr.fr_mr, mr->hwmr.lkey);
 
+	kfree(mr->pages);
 	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
 
 	/* it could be user registered memory. */
@@ -2177,6 +2178,61 @@ static int get_encoded_page_size(int pg_sz)
 	return i;
 }
 
+static int ocrdma_build_reg(struct ocrdma_qp *qp,
+			    struct ocrdma_hdr_wqe *hdr,
+			    struct ib_reg_wr *wr)
+{
+	u64 fbo;
+	struct ocrdma_ewqe_fr *fast_reg = (struct ocrdma_ewqe_fr *)(hdr + 1);
+	struct ocrdma_mr *mr = get_ocrdma_mr(wr->mr);
+	struct ocrdma_pbl *pbl_tbl = mr->hwmr.pbl_table;
+	struct ocrdma_pbe *pbe;
+	u32 wqe_size = sizeof(*fast_reg) + sizeof(*hdr);
+	int num_pbes = 0, i;
+
+	wqe_size = roundup(wqe_size, OCRDMA_WQE_ALIGN_BYTES);
+
+	hdr->cw |= (OCRDMA_FR_MR << OCRDMA_WQE_OPCODE_SHIFT);
+	hdr->cw |= ((wqe_size / OCRDMA_WQE_STRIDE) << OCRDMA_WQE_SIZE_SHIFT);
+
+	if (wr->access & IB_ACCESS_LOCAL_WRITE)
+		hdr->rsvd_lkey_flags |= OCRDMA_LKEY_FLAG_LOCAL_WR;
+	if (wr->access & IB_ACCESS_REMOTE_WRITE)
+		hdr->rsvd_lkey_flags |= OCRDMA_LKEY_FLAG_REMOTE_WR;
+	if (wr->access & IB_ACCESS_REMOTE_READ)
+		hdr->rsvd_lkey_flags |= OCRDMA_LKEY_FLAG_REMOTE_RD;
+	hdr->lkey = wr->key;
+	hdr->total_len = mr->ibmr.length;
+
+	fbo = mr->ibmr.iova - mr->pages[0];
+
+	fast_reg->va_hi = upper_32_bits(mr->ibmr.iova);
+	fast_reg->va_lo = (u32) (mr->ibmr.iova & 0xffffffff);
+	fast_reg->fbo_hi = upper_32_bits(fbo);
+	fast_reg->fbo_lo = (u32) fbo & 0xffffffff;
+	fast_reg->num_sges = mr->npages;
+	fast_reg->size_sge = get_encoded_page_size(mr->ibmr.page_size);
+
+	pbe = pbl_tbl->va;
+	for (i = 0; i < mr->npages; i++) {
+		u64 buf_addr = mr->pages[i];
+
+		pbe->pa_lo = cpu_to_le32((u32) (buf_addr & PAGE_MASK));
+		pbe->pa_hi = cpu_to_le32((u32) upper_32_bits(buf_addr));
+		num_pbes += 1;
+		pbe++;
+
+		/* if the pbl is full storing the pbes,
+		 * move to next pbl.
+		*/
+		if (num_pbes == (mr->hwmr.pbl_size/sizeof(u64))) {
+			pbl_tbl++;
+			pbe = (struct ocrdma_pbe *)pbl_tbl->va;
+		}
+	}
+
+	return 0;
+}
 
 static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 			   struct ib_send_wr *send_wr)
@@ -2303,6 +2359,9 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 		case IB_WR_FAST_REG_MR:
 			status = ocrdma_build_fr(qp, hdr, wr);
+			break;
+		case IB_WR_REG_MR:
+			status = ocrdma_build_reg(qp, hdr, reg_wr(wr));
 			break;
 		default:
 			status = -EINVAL;
@@ -3054,6 +3113,12 @@ struct ib_mr *ocrdma_alloc_mr(struct ib_pd *ibpd,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
+	mr->pages = kcalloc(max_num_sg, sizeof(u64), GFP_KERNEL);
+	if (!mr->pages) {
+		status = -ENOMEM;
+		goto pl_err;
+	}
+
 	status = ocrdma_get_pbl_info(dev, mr, max_num_sg);
 	if (status)
 		goto pbl_err;
@@ -3077,6 +3142,8 @@ struct ib_mr *ocrdma_alloc_mr(struct ib_pd *ibpd,
 mbx_err:
 	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
 pbl_err:
+	kfree(mr->pages);
+pl_err:
 	kfree(mr);
 	return ERR_PTR(-ENOMEM);
 }
@@ -3262,4 +3329,27 @@ mbx_err:
 pbl_err:
 	kfree(mr);
 	return ERR_PTR(status);
+}
+
+static int ocrdma_set_page(struct ib_mr *ibmr, u64 addr)
+{
+	struct ocrdma_mr *mr = get_ocrdma_mr(ibmr);
+
+	if (unlikely(mr->npages == mr->hwmr.num_pbes))
+		return -ENOMEM;
+
+	mr->pages[mr->npages++] = addr;
+
+	return 0;
+}
+
+int ocrdma_map_mr_sg(struct ib_mr *ibmr,
+		     struct scatterlist *sg,
+		     int sg_nents)
+{
+	struct ocrdma_mr *mr = get_ocrdma_mr(ibmr);
+
+	mr->npages = 0;
+
+	return ib_sg_to_pages(ibmr, sg, sg_nents, ocrdma_set_page);
 }

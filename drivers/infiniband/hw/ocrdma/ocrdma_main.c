@@ -180,6 +180,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.reg_user_mr = ocrdma_reg_user_mr;
 
 	dev->ibdev.alloc_mr = ocrdma_alloc_mr;
+	dev->ibdev.map_mr_sg = ocrdma_map_mr_sg;
 	dev->ibdev.alloc_fast_reg_page_list = ocrdma_alloc_frmr_page_list;
 	dev->ibdev.free_fast_reg_page_list = ocrdma_free_frmr_page_list;
 
