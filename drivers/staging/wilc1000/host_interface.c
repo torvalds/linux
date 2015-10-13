@@ -133,7 +133,7 @@ struct channel_attr {
 struct beacon_attr {
 	u32 interval;
 	u32 dtim_period;
-	u32 u32HeadLen;
+	u32 head_len;
 	u8 *pu8Head;
 	u32 u32TailLen;
 	u8 *pu8Tail;
@@ -2338,7 +2338,7 @@ static void Handle_AddBeacon(struct host_if_drv *hif_drv,
 
 	strWID.id = (u16)WID_ADD_BEACON;
 	strWID.type = WID_BIN;
-	strWID.size = pstrSetBeaconParam->u32HeadLen + pstrSetBeaconParam->u32TailLen + 16;
+	strWID.size = pstrSetBeaconParam->head_len + pstrSetBeaconParam->u32TailLen + 16;
 	strWID.val = kmalloc(strWID.size, GFP_KERNEL);
 	if (strWID.val == NULL)
 		goto ERRORHANDLER;
@@ -2354,13 +2354,13 @@ static void Handle_AddBeacon(struct host_if_drv *hif_drv,
 	*pu8CurrByte++ = ((pstrSetBeaconParam->dtim_period >> 16) & 0xFF);
 	*pu8CurrByte++ = ((pstrSetBeaconParam->dtim_period >> 24) & 0xFF);
 
-	*pu8CurrByte++ = (pstrSetBeaconParam->u32HeadLen & 0xFF);
-	*pu8CurrByte++ = ((pstrSetBeaconParam->u32HeadLen >> 8) & 0xFF);
-	*pu8CurrByte++ = ((pstrSetBeaconParam->u32HeadLen >> 16) & 0xFF);
-	*pu8CurrByte++ = ((pstrSetBeaconParam->u32HeadLen >> 24) & 0xFF);
+	*pu8CurrByte++ = (pstrSetBeaconParam->head_len & 0xFF);
+	*pu8CurrByte++ = ((pstrSetBeaconParam->head_len >> 8) & 0xFF);
+	*pu8CurrByte++ = ((pstrSetBeaconParam->head_len >> 16) & 0xFF);
+	*pu8CurrByte++ = ((pstrSetBeaconParam->head_len >> 24) & 0xFF);
 
-	memcpy(pu8CurrByte, pstrSetBeaconParam->pu8Head, pstrSetBeaconParam->u32HeadLen);
-	pu8CurrByte += pstrSetBeaconParam->u32HeadLen;
+	memcpy(pu8CurrByte, pstrSetBeaconParam->pu8Head, pstrSetBeaconParam->head_len);
+	pu8CurrByte += pstrSetBeaconParam->head_len;
 
 	*pu8CurrByte++ = (pstrSetBeaconParam->u32TailLen & 0xFF);
 	*pu8CurrByte++ = ((pstrSetBeaconParam->u32TailLen >> 8) & 0xFF);
@@ -4643,7 +4643,7 @@ s32 host_int_add_beacon(struct host_if_drv *hif_drv, u32 u32Interval,
 	msg.drv = hif_drv;
 	pstrSetBeaconParam->interval = u32Interval;
 	pstrSetBeaconParam->dtim_period = u32DTIMPeriod;
-	pstrSetBeaconParam->u32HeadLen = u32HeadLen;
+	pstrSetBeaconParam->head_len = u32HeadLen;
 	pstrSetBeaconParam->pu8Head = kmalloc(u32HeadLen, GFP_KERNEL);
 	if (pstrSetBeaconParam->pu8Head == NULL) {
 		s32Error = -ENOMEM;
