@@ -49,6 +49,10 @@
 
 #include "xenbus_probe.h"
 
+#define XENBUS_PAGES(_grants)	(DIV_ROUND_UP(_grants, XEN_PFN_PER_PAGE))
+
+#define XENBUS_MAX_RING_PAGES	(XENBUS_PAGES(XENBUS_MAX_RING_GRANTS))
+
 struct xenbus_map_node {
 	struct list_head next;
 	union {
@@ -56,7 +60,8 @@ struct xenbus_map_node {
 			struct vm_struct *area;
 		} pv;
 		struct {
-			struct page *pages[XENBUS_MAX_RING_GRANTS];
+			struct page *pages[XENBUS_MAX_RING_PAGES];
+			unsigned long addrs[XENBUS_MAX_RING_GRANTS];
 			void *addr;
 		} hvm;
 	};
@@ -591,19 +596,42 @@ failed:
 	return err;
 }
 
+struct map_ring_valloc_hvm
+{
+	unsigned int idx;
+
+	/* Why do we need two arrays? See comment of __xenbus_map_ring */
+	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
+	unsigned long addrs[XENBUS_MAX_RING_GRANTS];
+};
+
+static void xenbus_map_ring_setup_grant_hvm(unsigned long gfn,
+					    unsigned int goffset,
+					    unsigned int len,
+					    void *data)
+{
+	struct map_ring_valloc_hvm *info = data;
+	unsigned long vaddr = (unsigned long)gfn_to_virt(gfn);
+
+	info->phys_addrs[info->idx] = vaddr;
+	info->addrs[info->idx] = vaddr;
+
+	info->idx++;
+}
+
 static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 				      grant_ref_t *gnt_ref,
 				      unsigned int nr_grefs,
 				      void **vaddr)
 {
 	struct xenbus_map_node *node;
-	int i;
 	int err;
 	void *addr;
 	bool leaked = false;
-	/* Why do we need two arrays? See comment of __xenbus_map_ring */
-	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
-	unsigned long addrs[XENBUS_MAX_RING_GRANTS];
+	struct map_ring_valloc_hvm info = {
+		.idx = 0,
+	};
+	unsigned int nr_pages = XENBUS_PAGES(nr_grefs);
 
 	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
 		return -EINVAL;
@@ -614,24 +642,22 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 	if (!node)
 		return -ENOMEM;
 
-	err = alloc_xenballooned_pages(nr_grefs, node->hvm.pages);
+	err = alloc_xenballooned_pages(nr_pages, node->hvm.pages);
 	if (err)
 		goto out_err;
 
-	for (i = 0; i < nr_grefs; i++) {
-		unsigned long pfn = page_to_pfn(node->hvm.pages[i]);
-		phys_addrs[i] = (unsigned long)pfn_to_kaddr(pfn);
-		addrs[i] = (unsigned long)pfn_to_kaddr(pfn);
-	}
+	gnttab_foreach_grant(node->hvm.pages, nr_grefs,
+			     xenbus_map_ring_setup_grant_hvm,
+			     &info);
 
 	err = __xenbus_map_ring(dev, gnt_ref, nr_grefs, node->handles,
-				phys_addrs, GNTMAP_host_map, &leaked);
+				info.phys_addrs, GNTMAP_host_map, &leaked);
 	node->nr_handles = nr_grefs;
 
 	if (err)
 		goto out_free_ballooned_pages;
 
-	addr = vmap(node->hvm.pages, nr_grefs, VM_MAP | VM_IOREMAP,
+	addr = vmap(node->hvm.pages, nr_pages, VM_MAP | VM_IOREMAP,
 		    PAGE_KERNEL);
 	if (!addr) {
 		err = -ENOMEM;
@@ -649,14 +675,13 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 
  out_xenbus_unmap_ring:
 	if (!leaked)
-		xenbus_unmap_ring(dev, node->handles, node->nr_handles,
-				  addrs);
+		xenbus_unmap_ring(dev, node->handles, nr_grefs, info.addrs);
 	else
 		pr_alert("leaking %p size %u page(s)",
-			 addr, nr_grefs);
+			 addr, nr_pages);
  out_free_ballooned_pages:
 	if (!leaked)
-		free_xenballooned_pages(nr_grefs, node->hvm.pages);
+		free_xenballooned_pages(nr_pages, node->hvm.pages);
  out_err:
 	kfree(node);
 	return err;
@@ -782,13 +807,33 @@ static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 	return err;
 }
 
+struct unmap_ring_vfree_hvm
+{
+	unsigned int idx;
+	unsigned long addrs[XENBUS_MAX_RING_GRANTS];
+};
+
+static void xenbus_unmap_ring_setup_grant_hvm(unsigned long gfn,
+					      unsigned int goffset,
+					      unsigned int len,
+					      void *data)
+{
+	struct unmap_ring_vfree_hvm *info = data;
+
+	info->addrs[info->idx] = (unsigned long)gfn_to_virt(gfn);
+
+	info->idx++;
+}
+
 static int xenbus_unmap_ring_vfree_hvm(struct xenbus_device *dev, void *vaddr)
 {
 	int rv;
 	struct xenbus_map_node *node;
 	void *addr;
-	unsigned long addrs[XENBUS_MAX_RING_GRANTS];
-	int i;
+	struct unmap_ring_vfree_hvm info = {
+		.idx = 0,
+	};
+	unsigned int nr_pages;
 
 	spin_lock(&xenbus_valloc_lock);
 	list_for_each_entry(node, &xenbus_valloc_pages, next) {
@@ -808,18 +853,20 @@ static int xenbus_unmap_ring_vfree_hvm(struct xenbus_device *dev, void *vaddr)
 		return GNTST_bad_virt_addr;
 	}
 
-	for (i = 0; i < node->nr_handles; i++)
-		addrs[i] = (unsigned long)pfn_to_kaddr(page_to_pfn(node->hvm.pages[i]));
+	nr_pages = XENBUS_PAGES(node->nr_handles);
+
+	gnttab_foreach_grant(node->hvm.pages, node->nr_handles,
+			     xenbus_unmap_ring_setup_grant_hvm,
+			     &info);
 
 	rv = xenbus_unmap_ring(dev, node->handles, node->nr_handles,
-			       addrs);
+			       info.addrs);
 	if (!rv) {
 		vunmap(vaddr);
-		free_xenballooned_pages(node->nr_handles, node->hvm.pages);
+		free_xenballooned_pages(nr_pages, node->hvm.pages);
 	}
 	else
-		WARN(1, "Leaking %p, size %u page(s)\n", vaddr,
-		     node->nr_handles);
+		WARN(1, "Leaking %p, size %u page(s)\n", vaddr, nr_pages);
 
 	kfree(node);
 	return rv;
