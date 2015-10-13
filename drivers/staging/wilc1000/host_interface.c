@@ -71,7 +71,7 @@ struct host_if_wpa_attr {
 	u8 *seq;
 	u8 seq_len;
 	u8 index;
-	u8 u8Keylen;
+	u8 key_len;
 	u8 u8Ciphermode;
 };
 
@@ -1890,9 +1890,9 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 				memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->attr.wpa.seq, 8);
 
 			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.index, 1);
-			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
+			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.key_len, 1);
 			memcpy(pu8keybuf + 16, pstrHostIFkeyAttr->attr.wpa.key,
-				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
+				    pstrHostIFkeyAttr->attr.wpa.key_len);
 
 			strWIDList[0].id = (u16)WID_11I_MODE;
 			strWIDList[0].type = WID_CHAR;
@@ -1930,9 +1930,9 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 
 			memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->attr.wpa.seq, 8);
 			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.index, 1);
-			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
+			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.key_len, 1);
 			memcpy(pu8keybuf + 16, pstrHostIFkeyAttr->attr.wpa.key,
-				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
+				    pstrHostIFkeyAttr->attr.wpa.key_len);
 
 			strWID.id = (u16)WID_ADD_RX_GTK;
 			strWID.type = WID_STR;
@@ -1970,9 +1970,9 @@ _WPARxGtk_end_case_:
 
 			memcpy(pu8keybuf, pstrHostIFkeyAttr->attr.wpa.mac_addr, 6);
 			memcpy(pu8keybuf + 6, &pstrHostIFkeyAttr->attr.wpa.index, 1);
-			memcpy(pu8keybuf + 7, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
+			memcpy(pu8keybuf + 7, &pstrHostIFkeyAttr->attr.wpa.key_len, 1);
 			memcpy(pu8keybuf + 8, pstrHostIFkeyAttr->attr.wpa.key,
-				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
+				    pstrHostIFkeyAttr->attr.wpa.key_len);
 
 			strWIDList[0].id = (u16)WID_11I_MODE;
 			strWIDList[0].type = WID_CHAR;
@@ -2004,9 +2004,9 @@ _WPARxGtk_end_case_:
 			}
 
 			memcpy(pu8keybuf, pstrHostIFkeyAttr->attr.wpa.mac_addr, 6);
-			memcpy(pu8keybuf + 6, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
+			memcpy(pu8keybuf + 6, &pstrHostIFkeyAttr->attr.wpa.key_len, 1);
 			memcpy(pu8keybuf + 7, pstrHostIFkeyAttr->attr.wpa.key,
-				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
+				    pstrHostIFkeyAttr->attr.wpa.key_len);
 
 			strWID.id = (u16)WID_ADD_PTK;
 			strWID.type = WID_STR;
@@ -3370,7 +3370,7 @@ s32 host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
 		}
 	}
 
-	msg.body.key_info.attr.wpa.u8Keylen = u8KeyLen;
+	msg.body.key_info.attr.wpa.key_len = u8KeyLen;
 	msg.body.key_info.attr.wpa.u8Ciphermode = u8Ciphermode;
 	msg.body.key_info.attr.wpa.mac_addr = mac_addr;
 	msg.drv = hif_drv;
@@ -3435,7 +3435,7 @@ s32 host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 	}
 
 	msg.body.key_info.attr.wpa.index = u8KeyIdx;
-	msg.body.key_info.attr.wpa.u8Keylen = u8KeyLen;
+	msg.body.key_info.attr.wpa.key_len = u8KeyLen;
 	msg.body.key_info.attr.wpa.seq_len = u32KeyRSClen;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
