@@ -340,10 +340,23 @@ extern void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
 				void *chip_data, irq_flow_handler_t handler,
 				void *handler_data, const char *handler_name);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
-extern struct irq_domain *irq_domain_add_hierarchy(struct irq_domain *parent,
+extern struct irq_domain *irq_domain_create_hierarchy(struct irq_domain *parent,
 			unsigned int flags, unsigned int size,
-			struct device_node *node,
+			struct fwnode_handle *fwnode,
 			const struct irq_domain_ops *ops, void *host_data);
+
+static inline struct irq_domain *irq_domain_add_hierarchy(struct irq_domain *parent,
+					    unsigned int flags,
+					    unsigned int size,
+					    struct device_node *node,
+					    const struct irq_domain_ops *ops,
+					    void *host_data)
+{
+	return irq_domain_create_hierarchy(parent, flags, size,
+					   of_node_to_fwnode(node),
+					   ops, host_data);
+}
+
 extern int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 				   unsigned int nr_irqs, int node, void *arg,
 				   bool realloc);
