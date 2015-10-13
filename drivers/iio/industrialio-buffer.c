@@ -568,6 +568,22 @@ static void iio_buffer_deactivate_all(struct iio_dev *indio_dev)
 		iio_buffer_deactivate(buffer);
 }
 
+static int iio_buffer_enable(struct iio_buffer *buffer,
+	struct iio_dev *indio_dev)
+{
+	if (!buffer->access->enable)
+		return 0;
+	return buffer->access->enable(buffer, indio_dev);
+}
+
+static int iio_buffer_disable(struct iio_buffer *buffer,
+	struct iio_dev *indio_dev)
+{
+	if (!buffer->access->disable)
+		return 0;
+	return buffer->access->disable(buffer, indio_dev);
+}
+
 static void iio_buffer_update_bytes_per_datum(struct iio_dev *indio_dev,
 	struct iio_buffer *buffer)
 {
@@ -719,6 +735,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 static int iio_enable_buffers(struct iio_dev *indio_dev,
 	struct iio_device_config *config)
 {
+	struct iio_buffer *buffer;
 	int ret;
 
 	indio_dev->active_scan_mask = config->scan_mask;
@@ -753,6 +770,12 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 		indio_dev->info->hwfifo_set_watermark(indio_dev,
 			config->watermark);
 
+	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
+		ret = iio_buffer_enable(buffer, indio_dev);
+		if (ret)
+			goto err_disable_buffers;
+	}
+
 	indio_dev->currentmode = config->mode;
 
 	if (indio_dev->setup_ops->postenable) {
@@ -760,12 +783,16 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 		if (ret) {
 			dev_dbg(&indio_dev->dev,
 			       "Buffer not started: postenable failed (%d)\n", ret);
-			goto err_run_postdisable;
+			goto err_disable_buffers;
 		}
 	}
 
 	return 0;
 
+err_disable_buffers:
+	list_for_each_entry_continue_reverse(buffer, &indio_dev->buffer_list,
+					     buffer_list)
+		iio_buffer_disable(buffer, indio_dev);
 err_run_postdisable:
 	indio_dev->currentmode = INDIO_DIRECT_MODE;
 	if (indio_dev->setup_ops->postdisable)
@@ -778,6 +805,7 @@ err_undo_config:
 
 static int iio_disable_buffers(struct iio_dev *indio_dev)
 {
+	struct iio_buffer *buffer;
 	int ret = 0;
 	int ret2;
 
@@ -794,6 +822,12 @@ static int iio_disable_buffers(struct iio_dev *indio_dev)
 
 	if (indio_dev->setup_ops->predisable) {
 		ret2 = indio_dev->setup_ops->predisable(indio_dev);
+		if (ret2 && !ret)
+			ret = ret2;
+	}
+
+	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
+		ret2 = iio_buffer_disable(buffer, indio_dev);
 		if (ret2 && !ret)
 			ret = ret2;
 	}

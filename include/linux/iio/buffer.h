@@ -33,6 +33,11 @@ struct iio_buffer;
  *			storage.
  * @set_bytes_per_datum:set number of bytes per datum
  * @set_length:		set number of datums in buffer
+ * @enable:             called if the buffer is attached to a device and the
+ *                      device starts sampling. Calls are balanced with
+ *                      @disable.
+ * @disable:            called if the buffer is attached to a device and the
+ *                      device stops sampling. Calles are balanced with @enable.
  * @release:		called when the last reference to the buffer is dropped,
  *			should free all resources allocated by the buffer.
  * @modes:		Supported operating modes by this buffer type
@@ -57,6 +62,9 @@ struct iio_buffer_access_funcs {
 
 	int (*set_bytes_per_datum)(struct iio_buffer *buffer, size_t bpd);
 	int (*set_length)(struct iio_buffer *buffer, int length);
+
+	int (*enable)(struct iio_buffer *buffer, struct iio_dev *indio_dev);
+	int (*disable)(struct iio_buffer *buffer, struct iio_dev *indio_dev);
 
 	void (*release)(struct iio_buffer *buffer);
 
