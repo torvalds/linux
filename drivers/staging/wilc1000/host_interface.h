@@ -200,7 +200,7 @@ typedef void (*wilc_remain_on_chan_ready)(void *); /*Remain on channel callback 
  */
 struct rcvd_net_info {
 	u8 *buffer;
-	u32 u32Length;
+	u32 len;
 };
 
 struct hidden_net_info {

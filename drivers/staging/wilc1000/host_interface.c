@@ -4439,7 +4439,7 @@ void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	msg.id = HOST_IF_MSG_RCVD_NTWRK_INFO;
 	msg.drv = hif_drv;
 
-	msg.body.net_info.u32Length = u32Length;
+	msg.body.net_info.len = u32Length;
 	msg.body.net_info.buffer = kmalloc(u32Length, GFP_KERNEL);
 	memcpy(msg.body.net_info.buffer, pu8Buffer, u32Length);
 
