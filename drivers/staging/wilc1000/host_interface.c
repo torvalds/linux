@@ -145,7 +145,7 @@ struct set_multicast {
 };
 
 struct del_all_sta {
-	u8 au8Sta_DelAllSta[MAX_NUM_STA][ETH_ALEN];
+	u8 del_all_sta[MAX_NUM_STA][ETH_ALEN];
 	u8 u8Num_AssocSta;
 };
 
@@ -2506,8 +2506,8 @@ static void Handle_DelAllSta(struct host_if_drv *hif_drv,
 	*(pu8CurrByte++) = pstrDelAllStaParam->u8Num_AssocSta;
 
 	for (i = 0; i < MAX_NUM_STA; i++) {
-		if (memcmp(pstrDelAllStaParam->au8Sta_DelAllSta[i], au8Zero_Buff, ETH_ALEN))
-			memcpy(pu8CurrByte, pstrDelAllStaParam->au8Sta_DelAllSta[i], ETH_ALEN);
+		if (memcmp(pstrDelAllStaParam->del_all_sta[i], au8Zero_Buff, ETH_ALEN))
+			memcpy(pu8CurrByte, pstrDelAllStaParam->del_all_sta[i], ETH_ALEN);
 		else
 			continue;
 
@@ -4793,9 +4793,14 @@ s32 host_int_del_allstation(struct host_if_drv *hif_drv,
 
 	for (i = 0; i < MAX_NUM_STA; i++) {
 		if (memcmp(pu8MacAddr[i], au8Zero_Buff, ETH_ALEN)) {
-			memcpy(pstrDelAllStationMsg->au8Sta_DelAllSta[i], pu8MacAddr[i], ETH_ALEN);
-			PRINT_D(CFG80211_DBG, "BSSID = %x%x%x%x%x%x\n", pstrDelAllStationMsg->au8Sta_DelAllSta[i][0], pstrDelAllStationMsg->au8Sta_DelAllSta[i][1], pstrDelAllStationMsg->au8Sta_DelAllSta[i][2], pstrDelAllStationMsg->au8Sta_DelAllSta[i][3], pstrDelAllStationMsg->au8Sta_DelAllSta[i][4],
-				pstrDelAllStationMsg->au8Sta_DelAllSta[i][5]);
+			memcpy(pstrDelAllStationMsg->del_all_sta[i], pu8MacAddr[i], ETH_ALEN);
+			PRINT_D(CFG80211_DBG, "BSSID = %x%x%x%x%x%x\n",
+				pstrDelAllStationMsg->del_all_sta[i][0],
+				pstrDelAllStationMsg->del_all_sta[i][1],
+				pstrDelAllStationMsg->del_all_sta[i][2],
+				pstrDelAllStationMsg->del_all_sta[i][3],
+				pstrDelAllStationMsg->del_all_sta[i][4],
+				pstrDelAllStationMsg->del_all_sta[i][5]);
 			u8AssocNumb++;
 		}
 	}
