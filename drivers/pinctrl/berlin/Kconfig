@@ -6,15 +6,15 @@ config PINCTRL_BERLIN
 	select REGMAP_MMIO
 
 config PINCTRL_BERLIN_BG2
-	bool
+	def_bool MACH_BERLIN_BG2
 	select PINCTRL_BERLIN
 
 config PINCTRL_BERLIN_BG2CD
-	bool
+	def_bool MACH_BERLIN_BG2CD
 	select PINCTRL_BERLIN
 
 config PINCTRL_BERLIN_BG2Q
-	bool
+	def_bool MACH_BERLIN_BG2Q
 	select PINCTRL_BERLIN
 
 config PINCTRL_BERLIN_BG4CT
