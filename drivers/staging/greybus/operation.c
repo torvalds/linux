@@ -827,7 +827,7 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 	operation = gb_operation_create_incoming(connection, operation_id,
 						type, data, size);
 	if (!operation) {
-		dev_err(&connection->dev, "can't create operation\n");
+		dev_err(&connection->dev, "can't create incoming operation\n");
 		return;
 	}
 
@@ -864,14 +864,16 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 
 	operation = gb_operation_find_outgoing(connection, operation_id);
 	if (!operation) {
-		dev_err(&connection->dev, "operation not found\n");
+		dev_err(&connection->dev, "unexpected response 0x%04hx received\n",
+				operation_id);
 		return;
 	}
 
 	message = operation->response;
 	message_size = sizeof(*message->header) + message->payload_size;
 	if (!errno && size != message_size) {
-		dev_err(&connection->dev, "bad message (0x%02hhx) size (%zu != %zu)\n",
+		dev_err(&connection->dev,
+			"malformed response of type 0x%02hhx received (%zu != %zu)\n",
 			message->header->type, size, message_size);
 		errno = -EMSGSIZE;
 	}
@@ -903,13 +905,13 @@ void gb_connection_recv(struct gb_connection *connection,
 	u16 operation_id;
 
 	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
-		dev_err(&connection->dev, "dropping %zu received bytes\n",
+		dev_warn(&connection->dev, "dropping %zu received bytes\n",
 			size);
 		return;
 	}
 
 	if (size < sizeof(header)) {
-		dev_err(&connection->dev, "message too small\n");
+		dev_err(&connection->dev, "short message received\n");
 		return;
 	}
 
@@ -918,8 +920,8 @@ void gb_connection_recv(struct gb_connection *connection,
 	msg_size = le16_to_cpu(header.size);
 	if (size < msg_size) {
 		dev_err(&connection->dev,
-			"incomplete message received for type 0x%02hhx: 0x%04x (%zu < %zu)\n",
-			header.type, le16_to_cpu(header.operation_id), size,
+			"incomplete message 0x%04hx of type 0x%02hhx received (%zu < %zu)\n",
+			le16_to_cpu(header.operation_id), header.type, size,
 			msg_size);
 		return;		/* XXX Should still complete operation */
 	}
@@ -1027,7 +1029,8 @@ int gb_operation_sync_timeout(struct gb_connection *connection, int type,
 
 	ret = gb_operation_request_send_sync_timeout(operation, timeout);
 	if (ret) {
-		dev_err(&connection->dev, "synchronous operation failed: 0x%02hhx (%d)\n",
+		dev_err(&connection->dev,
+			"synchronous operation of type 0x%02hhx failed: %d\n",
 			type, ret);
 	} else {
 		if (response_size) {
