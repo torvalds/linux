@@ -506,11 +506,7 @@ static int gb_gpio_irq_map(struct irq_domain *domain, unsigned int irq,
 
 	irq_set_chip_data(irq, ggc);
 	irq_set_chip_and_handler(irq, ggc->irqchip, ggc->irq_handler);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
 	/*
 	 * No set-up of the hardware will happen if IRQ_TYPE_NONE
 	 * is passed as default type.
@@ -523,9 +519,6 @@ static int gb_gpio_irq_map(struct irq_domain *domain, unsigned int irq,
 
 static void gb_gpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, 0);
-#endif
 	irq_set_chip_and_handler(irq, NULL, NULL);
 	irq_set_chip_data(irq, NULL);
 }
