@@ -101,7 +101,7 @@ struct scan_attr {
 	u8 *ch_freq_list;
 	u8 ch_list_len;
 	u8 *ies;
-	size_t IEsLen;
+	size_t ies_len;
 	wilc_scan_result pfScanResult;
 	void *pvUserArg;
 	struct hidden_network strHiddenNetwork;
@@ -892,7 +892,7 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 		strWIDList[u32WidsCount].id = WID_INFO_ELEMENT_PROBE;
 		strWIDList[u32WidsCount].type = WID_BIN_DATA;
 		strWIDList[u32WidsCount].val = pstrHostIFscanAttr->ies;
-		strWIDList[u32WidsCount].size = pstrHostIFscanAttr->IEsLen;
+		strWIDList[u32WidsCount].size = pstrHostIFscanAttr->ies_len;
 		u32WidsCount++;
 	}
 
@@ -4066,7 +4066,7 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 	msg.body.scan_info.ch_freq_list = kmalloc(u8ChnlListLen, GFP_KERNEL);
 	memcpy(msg.body.scan_info.ch_freq_list, pu8ChnlFreqList, u8ChnlListLen);
 
-	msg.body.scan_info.IEsLen = IEsLen;
+	msg.body.scan_info.ies_len = IEsLen;
 	msg.body.scan_info.ies = kmalloc(IEsLen, GFP_KERNEL);
 	memcpy(msg.body.scan_info.ies, pu8IEs, IEsLen);
 
