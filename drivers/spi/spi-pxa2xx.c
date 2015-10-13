@@ -730,7 +730,7 @@ static unsigned int quark_x1000_get_clk_div(int rate, u32 *dds)
 	mul = (1 << 24) >> 1;
 
 	/* Calculate initial quot */
-	q1 = DIV_ROUND_CLOSEST(fref1, rate);
+	q1 = DIV_ROUND_UP(fref1, rate);
 
 	/* Scale q1 if it's too big */
 	if (q1 > 256) {
@@ -755,7 +755,7 @@ static unsigned int quark_x1000_get_clk_div(int rate, u32 *dds)
 
 	/* Case 2 */
 
-	q2 = DIV_ROUND_CLOSEST(fref2, rate);
+	q2 = DIV_ROUND_UP(fref2, rate);
 	r2 = abs(fref2 / q2 - rate);
 
 	/*
@@ -774,13 +774,13 @@ static unsigned int quark_x1000_get_clk_div(int rate, u32 *dds)
 		mul = (1 << 24) * 2 / 5;
 	}
 
-	/* Check case 3 only If the divisor is big enough */
+	/* Check case 3 only if the divisor is big enough */
 	if (fref / rate >= 80) {
 		u64 fssp;
 		u32 m;
 
 		/* Calculate initial quot */
-		q1 = DIV_ROUND_CLOSEST(fref, rate);
+		q1 = DIV_ROUND_UP(fref, rate);
 		m = (1 << 24) / q1;
 
 		/* Get the remainder */
