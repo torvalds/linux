@@ -178,12 +178,14 @@ int iwl_mvm_tof_responder_cmd(struct iwl_mvm *mvm,
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TOF_SUPPORT))
 		return -EINVAL;
 
-	if (vif->p2p || vif->type != NL80211_IFTYPE_AP) {
+	if (vif->p2p || vif->type != NL80211_IFTYPE_AP ||
+	    !mvmvif->ap_ibss_active) {
 		IWL_ERR(mvm, "Cannot start responder, not in AP mode\n");
 		return -EIO;
 	}
 
 	cmd->sta_id = mvmvif->bcast_sta.sta_id;
+	memcpy(cmd->bssid, vif->addr, ETH_ALEN);
 	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_CMD,
 						    IWL_ALWAYS_LONG_GROUP, 0),
 				    0, sizeof(*cmd), cmd);

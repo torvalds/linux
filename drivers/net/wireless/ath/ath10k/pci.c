@@ -2609,12 +2609,9 @@ static int ath10k_pci_request_irq(struct ath10k *ar)
 		return ath10k_pci_request_irq_legacy(ar);
 	case 1:
 		return ath10k_pci_request_irq_msi(ar);
-	case MSI_NUM_REQUEST:
+	default:
 		return ath10k_pci_request_irq_msix(ar);
 	}
-
-	ath10k_warn(ar, "unknown irq configuration upon request\n");
-	return -EINVAL;
 }
 
 static void ath10k_pci_free_irq(struct ath10k *ar)
@@ -2657,7 +2654,7 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 
 	/* Try MSI-X */
 	if (ath10k_pci_irq_mode == ATH10K_PCI_IRQ_AUTO) {
-		ar_pci->num_msi_intrs = MSI_NUM_REQUEST;
+		ar_pci->num_msi_intrs = MSI_ASSIGN_CE_MAX + 1;
 		ret = pci_enable_msi_range(ar_pci->pdev, ar_pci->num_msi_intrs,
 					   ar_pci->num_msi_intrs);
 		if (ret > 0)
@@ -2705,18 +2702,13 @@ static int ath10k_pci_deinit_irq(struct ath10k *ar)
 	switch (ar_pci->num_msi_intrs) {
 	case 0:
 		ath10k_pci_deinit_irq_legacy(ar);
-		return 0;
-	case 1:
-		/* fall-through */
-	case MSI_NUM_REQUEST:
-		pci_disable_msi(ar_pci->pdev);
-		return 0;
+		break;
 	default:
 		pci_disable_msi(ar_pci->pdev);
+		break;
 	}
 
-	ath10k_warn(ar, "unknown irq configuration upon deinit\n");
-	return -EINVAL;
+	return 0;
 }
 
 static int ath10k_pci_wait_for_target_init(struct ath10k *ar)

@@ -37,6 +37,7 @@
 #define BRCMF_SDIO_VAL		0x00020000
 #define BRCMF_MSGBUF_VAL	0x00040000
 #define BRCMF_PCIE_VAL		0x00080000
+#define BRCMF_FWCON_VAL		0x00100000
 
 /* set default print format */
 #undef pr_fmt
@@ -78,6 +79,7 @@ do {								\
 #define BRCMF_GLOM_ON()		(brcmf_msg_level & BRCMF_GLOM_VAL)
 #define BRCMF_EVENT_ON()	(brcmf_msg_level & BRCMF_EVENT_VAL)
 #define BRCMF_FIL_ON()		(brcmf_msg_level & BRCMF_FIL_VAL)
+#define BRCMF_FWCON_ON()	(brcmf_msg_level & BRCMF_FWCON_VAL)
 
 #else /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
 
@@ -90,6 +92,7 @@ do {								\
 #define BRCMF_GLOM_ON()		0
 #define BRCMF_EVENT_ON()	0
 #define BRCMF_FIL_ON()		0
+#define BRCMF_FWCON_ON()	0
 
 #endif /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
 

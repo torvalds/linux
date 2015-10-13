@@ -236,89 +236,6 @@ static int brcmf_roamoff;
 module_param_named(roamoff, brcmf_roamoff, int, S_IRUSR);
 MODULE_PARM_DESC(roamoff, "do not use internal roaming engine");
 
-/* Quarter dBm units to mW
- * Table starts at QDBM_OFFSET, so the first entry is mW for qdBm=153
- * Table is offset so the last entry is largest mW value that fits in
- * a u16.
- */
-
-#define QDBM_OFFSET 153		/* Offset for first entry */
-#define QDBM_TABLE_LEN 40	/* Table size */
-
-/* Smallest mW value that will round up to the first table entry, QDBM_OFFSET.
- * Value is ( mW(QDBM_OFFSET - 1) + mW(QDBM_OFFSET) ) / 2
- */
-#define QDBM_TABLE_LOW_BOUND 6493	/* Low bound */
-
-/* Largest mW value that will round down to the last table entry,
- * QDBM_OFFSET + QDBM_TABLE_LEN-1.
- * Value is ( mW(QDBM_OFFSET + QDBM_TABLE_LEN - 1) +
- * mW(QDBM_OFFSET + QDBM_TABLE_LEN) ) / 2.
- */
-#define QDBM_TABLE_HIGH_BOUND 64938	/* High bound */
-
-static const u16 nqdBm_to_mW_map[QDBM_TABLE_LEN] = {
-/* qdBm:	+0	+1	+2	+3	+4	+5	+6	+7 */
-/* 153: */ 6683, 7079, 7499, 7943, 8414, 8913, 9441, 10000,
-/* 161: */ 10593, 11220, 11885, 12589, 13335, 14125, 14962, 15849,
-/* 169: */ 16788, 17783, 18836, 19953, 21135, 22387, 23714, 25119,
-/* 177: */ 26607, 28184, 29854, 31623, 33497, 35481, 37584, 39811,
-/* 185: */ 42170, 44668, 47315, 50119, 53088, 56234, 59566, 63096
-};
-
-static u16 brcmf_qdbm_to_mw(u8 qdbm)
-{
-	uint factor = 1;
-	int idx = qdbm - QDBM_OFFSET;
-
-	if (idx >= QDBM_TABLE_LEN)
-		/* clamp to max u16 mW value */
-		return 0xFFFF;
-
-	/* scale the qdBm index up to the range of the table 0-40
-	 * where an offset of 40 qdBm equals a factor of 10 mW.
-	 */
-	while (idx < 0) {
-		idx += 40;
-		factor *= 10;
-	}
-
-	/* return the mW value scaled down to the correct factor of 10,
-	 * adding in factor/2 to get proper rounding.
-	 */
-	return (nqdBm_to_mW_map[idx] + factor / 2) / factor;
-}
-
-static u8 brcmf_mw_to_qdbm(u16 mw)
-{
-	u8 qdbm;
-	int offset;
-	uint mw_uint = mw;
-	uint boundary;
-
-	/* handle boundary case */
-	if (mw_uint <= 1)
-		return 0;
-
-	offset = QDBM_OFFSET;
-
-	/* move mw into the range of the table */
-	while (mw_uint < QDBM_TABLE_LOW_BOUND) {
-		mw_uint *= 10;
-		offset -= 40;
-	}
-
-	for (qdbm = 0; qdbm < QDBM_TABLE_LEN - 1; qdbm++) {
-		boundary = nqdBm_to_mW_map[qdbm] + (nqdBm_to_mW_map[qdbm + 1] -
-						    nqdBm_to_mW_map[qdbm]) / 2;
-		if (mw_uint < boundary)
-			break;
-	}
-
-	qdbm += (u8) offset;
-
-	return qdbm;
-}
 
 static u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
 			       struct cfg80211_chan_def *ch)
@@ -860,6 +777,37 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 	s32 err = 0;
 
 	brcmf_dbg(TRACE, "Enter, idx=%d, type=%d\n", ifp->bssidx, type);
+
+	/* WAR: There are a number of p2p interface related problems which
+	 * need to be handled initially (before doing the validate).
+	 * wpa_supplicant tends to do iface changes on p2p device/client/go
+	 * which are not always possible/allowed. However we need to return
+	 * OK otherwise the wpa_supplicant wont start. The situation differs
+	 * on configuration and setup (p2pon=1 module param). The first check
+	 * is to see if the request is a change to station for p2p iface.
+	 */
+	if ((type == NL80211_IFTYPE_STATION) &&
+	    ((vif->wdev.iftype == NL80211_IFTYPE_P2P_CLIENT) ||
+	     (vif->wdev.iftype == NL80211_IFTYPE_P2P_GO) ||
+	     (vif->wdev.iftype == NL80211_IFTYPE_P2P_DEVICE))) {
+		brcmf_dbg(TRACE, "Ignoring cmd for p2p if\n");
+		/* Now depending on whether module param p2pon=1 was used the
+		 * response needs to be either 0 or EOPNOTSUPP. The reason is
+		 * that if p2pon=1 is used, but a newer supplicant is used then
+		 * we should return an error, as this combination wont work.
+		 * In other situations 0 is returned and supplicant will start
+		 * normally. It will give a trace in cfg80211, but it is the
+		 * only way to get it working. Unfortunately this will result
+		 * in situation where we wont support new supplicant in
+		 * combination with module param p2pon=1, but that is the way
+		 * it is. If the user tries this then unloading of driver might
+		 * fail/lock.
+		 */
+		if (cfg->p2p.p2pdev_dynamically)
+			return -EOPNOTSUPP;
+		else
+			return 0;
+	}
 	err = brcmf_vif_change_validate(wiphy_to_cfg(wiphy), vif, type);
 	if (err) {
 		brcmf_err("iface validation failed: err=%d\n", err);
@@ -875,18 +823,6 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 		infra = 0;
 		break;
 	case NL80211_IFTYPE_STATION:
-		/* Ignore change for p2p IF. Unclear why supplicant does this */
-		if ((vif->wdev.iftype == NL80211_IFTYPE_P2P_CLIENT) ||
-		    (vif->wdev.iftype == NL80211_IFTYPE_P2P_GO)) {
-			brcmf_dbg(TRACE, "Ignoring cmd for p2p if\n");
-			/* WAR: It is unexpected to get a change of VIF for P2P
-			 * IF, but it happens. The request can not be handled
-			 * but returning EPERM causes a crash. Returning 0
-			 * without setting ieee80211_ptr->iftype causes trace
-			 * (WARN_ON) but it works with wpa_supplicant
-			 */
-			return 0;
-		}
 		infra = 1;
 		break;
 	case NL80211_IFTYPE_AP:
@@ -2017,16 +1953,14 @@ static s32
 brcmf_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 			    enum nl80211_tx_power_setting type, s32 mbm)
 {
-
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct net_device *ndev = cfg_to_ndev(cfg);
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	u16 txpwrmw;
-	s32 err = 0;
-	s32 disable = 0;
-	s32 dbm = MBM_TO_DBM(mbm);
+	s32 err;
+	s32 disable;
+	u32 qdbm = 127;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(TRACE, "Enter %d %d\n", type, mbm);
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
@@ -2035,12 +1969,20 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 		break;
 	case NL80211_TX_POWER_LIMITED:
 	case NL80211_TX_POWER_FIXED:
-		if (dbm < 0) {
+		if (mbm < 0) {
 			brcmf_err("TX_POWER_FIXED - dbm is negative\n");
 			err = -EINVAL;
 			goto done;
 		}
+		qdbm =  MBM_TO_DBM(4 * mbm);
+		if (qdbm > 127)
+			qdbm = 127;
+		qdbm |= WL_TXPWR_OVERRIDE;
 		break;
+	default:
+		brcmf_err("Unsupported type %d\n", type);
+		err = -EINVAL;
+		goto done;
 	}
 	/* Make sure radio is off or on as far as software is concerned */
 	disable = WL_RADIO_SW_DISABLE << 16;
@@ -2048,52 +1990,44 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (err)
 		brcmf_err("WLC_SET_RADIO error (%d)\n", err);
 
-	if (dbm > 0xffff)
-		txpwrmw = 0xffff;
-	else
-		txpwrmw = (u16) dbm;
-	err = brcmf_fil_iovar_int_set(ifp, "qtxpower",
-				      (s32)brcmf_mw_to_qdbm(txpwrmw));
+	err = brcmf_fil_iovar_int_set(ifp, "qtxpower", qdbm);
 	if (err)
 		brcmf_err("qtxpower error (%d)\n", err);
-	cfg->conf->tx_power = dbm;
 
 done:
-	brcmf_dbg(TRACE, "Exit\n");
+	brcmf_dbg(TRACE, "Exit %d (qdbm)\n", qdbm & ~WL_TXPWR_OVERRIDE);
 	return err;
 }
 
-static s32 brcmf_cfg80211_get_tx_power(struct wiphy *wiphy,
-				       struct wireless_dev *wdev,
-				       s32 *dbm)
+static s32
+brcmf_cfg80211_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
+			    s32 *dbm)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
-	s32 txpwrdbm;
-	u8 result;
-	s32 err = 0;
+	struct net_device *ndev = cfg_to_ndev(cfg);
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	s32 qdbm = 0;
+	s32 err;
 
 	brcmf_dbg(TRACE, "Enter\n");
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
-	err = brcmf_fil_iovar_int_get(ifp, "qtxpower", &txpwrdbm);
+	err = brcmf_fil_iovar_int_get(ifp, "qtxpower", &qdbm);
 	if (err) {
 		brcmf_err("error (%d)\n", err);
 		goto done;
 	}
-
-	result = (u8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
-	*dbm = (s32) brcmf_qdbm_to_mw(result);
+	*dbm = (qdbm & ~WL_TXPWR_OVERRIDE) / 4;
 
 done:
-	brcmf_dbg(TRACE, "Exit\n");
+	brcmf_dbg(TRACE, "Exit (0x%x %d)\n", qdbm, *dbm);
 	return err;
 }
 
 static s32
 brcmf_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *ndev,
-			       u8 key_idx, bool unicast, bool multicast)
+				  u8 key_idx, bool unicast, bool multicast)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	u32 index;
@@ -4747,7 +4681,8 @@ void brcmf_cfg80211_free_netdev(struct net_device *ndev)
 	ifp = netdev_priv(ndev);
 	vif = ifp->vif;
 
-	brcmf_free_vif(vif);
+	if (vif)
+		brcmf_free_vif(vif);
 	free_netdev(ndev);
 }
 
@@ -4983,7 +4918,7 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 		brcmf_dbg(CONN, "AP mode link down\n");
 		complete(&cfg->vif_disabled);
 		if (ifp->vif->mbss)
-			brcmf_remove_interface(ifp->drvr, ifp->bssidx);
+			brcmf_remove_interface(ifp);
 		return 0;
 	}
 
@@ -6211,9 +6146,10 @@ static void brcmf_free_wiphy(struct wiphy *wiphy)
 }
 
 struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
-						  struct device *busdev)
+						  struct device *busdev,
+						  bool p2pdev_forced)
 {
-	struct net_device *ndev = drvr->iflist[0]->ndev;
+	struct net_device *ndev = brcmf_get_ifp(drvr, 0)->ndev;
 	struct brcmf_cfg80211_info *cfg;
 	struct wiphy *wiphy;
 	struct brcmf_cfg80211_vif *vif;
@@ -6303,7 +6239,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 			*cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	}
 
-	err = brcmf_p2p_attach(cfg);
+	err = brcmf_p2p_attach(cfg, p2pdev_forced);
 	if (err) {
 		brcmf_err("P2P initilisation failed (%d)\n", err);
 		goto wiphy_unreg_out;
@@ -6331,6 +6267,7 @@ wiphy_unreg_out:
 priv_out:
 	wl_deinit_priv(cfg);
 	brcmf_free_vif(vif);
+	ifp->vif = NULL;
 wiphy_out:
 	brcmf_free_wiphy(wiphy);
 	return NULL;

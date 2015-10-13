@@ -2125,7 +2125,8 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 
 		/** Set SDIO Single Port RX Aggr Info */
 		if (priv->adapter->iface_type == MWIFIEX_SDIO &&
-		    ISSUPP_SDIO_SPA_ENABLED(priv->adapter->fw_cap_info)) {
+		    ISSUPP_SDIO_SPA_ENABLED(priv->adapter->fw_cap_info) &&
+		    !priv->adapter->host_disable_sdio_rx_aggr) {
 			sdio_sp_rx_aggr_enable = true;
 			ret = mwifiex_send_cmd(priv,
 					       HostCmd_CMD_SDIO_SP_RX_AGGR_CFG,

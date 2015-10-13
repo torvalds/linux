@@ -115,9 +115,8 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
 			local_tx_pd = (struct txpd *)(head_ptr + hroom);
 		if (adapter->iface_type == MWIFIEX_USB) {
-			adapter->data_sent = true;
 			ret = adapter->if_ops.host_to_card(adapter,
-							   MWIFIEX_USB_EP_DATA,
+							   priv->usb_port,
 							   skb, NULL);
 		} else {
 			ret = adapter->if_ops.host_to_card(adapter,
@@ -130,7 +129,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 
 	switch (ret) {
 	case -ENOSR:
-		mwifiex_dbg(adapter, ERROR, "data: -ENOSR is returned\n");
+		mwifiex_dbg(adapter, DATA, "data: -ENOSR is returned\n");
 		break;
 	case -EBUSY:
 		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
@@ -142,8 +141,6 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		mwifiex_dbg(adapter, ERROR, "data: -EBUSY is returned\n");
 		break;
 	case -1:
-		if (adapter->iface_type != MWIFIEX_PCIE)
-			adapter->data_sent = false;
 		mwifiex_dbg(adapter, ERROR,
 			    "mwifiex_write_data_async failed: 0x%X\n",
 			    ret);
@@ -151,8 +148,6 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
-		if (adapter->iface_type != MWIFIEX_PCIE)
-			adapter->data_sent = false;
 		break;
 	case 0:
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
@@ -193,9 +188,8 @@ static int mwifiex_host_to_card(struct mwifiex_adapter *adapter,
 	}
 
 	if (adapter->iface_type == MWIFIEX_USB) {
-		adapter->data_sent = true;
 		ret = adapter->if_ops.host_to_card(adapter,
-						   MWIFIEX_USB_EP_DATA,
+						   priv->usb_port,
 						   skb, NULL);
 	} else {
 		ret = adapter->if_ops.host_to_card(adapter,
@@ -222,16 +216,12 @@ static int mwifiex_host_to_card(struct mwifiex_adapter *adapter,
 		mwifiex_dbg(adapter, ERROR, "data: -EBUSY is returned\n");
 		break;
 	case -1:
-		if (adapter->iface_type != MWIFIEX_PCIE)
-			adapter->data_sent = false;
 		mwifiex_dbg(adapter, ERROR,
 			    "mwifiex_write_data_async failed: 0x%X\n", ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
-		if (adapter->iface_type != MWIFIEX_PCIE)
-			adapter->data_sent = false;
 		break;
 	case 0:
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
@@ -305,9 +295,6 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 				      tx_info->bss_type);
 	if (!priv)
 		goto done;
-
-	if (adapter->iface_type == MWIFIEX_USB)
-		adapter->data_sent = false;
 
 	mwifiex_set_trans_start(priv->netdev);
 	if (!status) {
