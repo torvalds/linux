@@ -461,20 +461,16 @@ handle_locking_key(struct input_dev *visorinput_dev,
 		   int keycode, int desired_state)
 {
 	int led;
-	char *sled;
 
 	switch (keycode) {
 	case KEY_CAPSLOCK:
 		led = LED_CAPSL;
-		sled = "CAP";
 		break;
 	case KEY_SCROLLLOCK:
 		led = LED_SCROLLL;
-		sled = "SCR";
 		break;
 	case KEY_NUMLOCK:
 		led = LED_NUML;
-		sled = "NUM";
 		break;
 	default:
 		led = -1;
