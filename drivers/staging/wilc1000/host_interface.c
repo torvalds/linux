@@ -155,7 +155,7 @@ struct del_sta {
 
 struct power_mgmt_param {
 	bool enabled;
-	u32 u32Timeout;
+	u32 timeout;
 };
 
 struct set_ip_addr {
@@ -4881,8 +4881,7 @@ s32 host_int_set_power_mgmt(struct host_if_drv *hif_drv,
 	msg.drv = hif_drv;
 
 	pstrPowerMgmtParam->enabled = bIsEnabled;
-	pstrPowerMgmtParam->u32Timeout = u32Timeout;
-
+	pstrPowerMgmtParam->timeout = u32Timeout;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (s32Error)
