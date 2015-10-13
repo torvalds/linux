@@ -306,15 +306,14 @@ static irqreturn_t i40evf_msix_aq(int irq, void *data)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
 	u32 val;
-	u32 ena_mask;
 
 	/* handle non-queue interrupts */
-	val = rd32(hw, I40E_VFINT_ICR01);
-	ena_mask = rd32(hw, I40E_VFINT_ICR0_ENA1);
+	rd32(hw, I40E_VFINT_ICR01);
+	rd32(hw, I40E_VFINT_ICR0_ENA1);
 
 
-	val = rd32(hw, I40E_VFINT_DYN_CTL01);
-	val = val | I40E_VFINT_DYN_CTL01_CLEARPBA_MASK;
+	val = rd32(hw, I40E_VFINT_DYN_CTL01) |
+	      I40E_VFINT_DYN_CTL01_CLEARPBA_MASK;
 	wr32(hw, I40E_VFINT_DYN_CTL01, val);
 
 	/* schedule work on the private workqueue */
