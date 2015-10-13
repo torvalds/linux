@@ -9,6 +9,15 @@ config IIO_BUFFER_CB
 	  Should be selected by any drivers that do in-kernel push
 	  usage.  That is, those where the data is pushed to the consumer.
 
+config IIO_BUFFER_DMA
+	tristate
+	help
+	  Provides the generic IIO DMA buffer infrastructure that can be used by
+	  drivers for devices with DMA support to implement the IIO buffer.
+
+	  Should be selected by drivers that want to use the generic DMA buffer
+	  infrastructure.
+
 config IIO_KFIFO_BUF
 	tristate "Industrial I/O buffering based on kfifo"
 	help
