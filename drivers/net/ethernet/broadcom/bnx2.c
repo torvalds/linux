@@ -8476,6 +8476,8 @@ err_out_disable:
 	pci_disable_device(pdev);
 
 err_out:
+	kfree(bp->temp_stats_blk);
+
 	return rc;
 }
 
