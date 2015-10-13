@@ -344,7 +344,6 @@ struct qib_swqe {
 		struct ib_send_wr wr;   /* don't use wr.sg_list */
 		struct ib_ud_wr ud_wr;
 		struct ib_reg_wr reg_wr;
-		struct ib_fast_reg_wr fast_reg_wr;
 		struct ib_rdma_wr rdma_wr;
 		struct ib_atomic_wr atomic_wr;
 	};
@@ -1051,12 +1050,6 @@ int qib_map_mr_sg(struct ib_mr *ibmr,
 		  struct scatterlist *sg,
 		  int sg_nents);
 
-struct ib_fast_reg_page_list *qib_alloc_fast_reg_page_list(
-				struct ib_device *ibdev, int page_list_len);
-
-void qib_free_fast_reg_page_list(struct ib_fast_reg_page_list *pl);
-
-int qib_fast_reg_mr(struct qib_qp *qp, struct ib_send_wr *wr);
 int qib_reg_mr(struct qib_qp *qp, struct ib_reg_wr *wr);
 
 struct ib_fmr *qib_alloc_fmr(struct ib_pd *pd, int mr_access_flags,

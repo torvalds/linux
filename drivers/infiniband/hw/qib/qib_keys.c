@@ -336,62 +336,6 @@ bail:
 }
 
 /*
- * Initialize the memory region specified by the work reqeust.
- */
-int qib_fast_reg_mr(struct qib_qp *qp, struct ib_send_wr *send_wr)
-{
-	struct ib_fast_reg_wr *wr = fast_reg_wr(send_wr);
-	struct qib_lkey_table *rkt = &to_idev(qp->ibqp.device)->lk_table;
-	struct qib_pd *pd = to_ipd(qp->ibqp.pd);
-	struct qib_mregion *mr;
-	u32 rkey = wr->rkey;
-	unsigned i, n, m;
-	int ret = -EINVAL;
-	unsigned long flags;
-	u64 *page_list;
-	size_t ps;
-
-	spin_lock_irqsave(&rkt->lock, flags);
-	if (pd->user || rkey == 0)
-		goto bail;
-
-	mr = rcu_dereference_protected(
-		rkt->table[(rkey >> (32 - ib_qib_lkey_table_size))],
-		lockdep_is_held(&rkt->lock));
-	if (unlikely(mr == NULL || qp->ibqp.pd != mr->pd))
-		goto bail;
-
-	if (wr->page_list_len > mr->max_segs)
-		goto bail;
-
-	ps = 1UL << wr->page_shift;
-	if (wr->length > ps * wr->page_list_len)
-		goto bail;
-
-	mr->user_base = wr->iova_start;
-	mr->iova = wr->iova_start;
-	mr->lkey = rkey;
-	mr->length = wr->length;
-	mr->access_flags = wr->access_flags;
-	page_list = wr->page_list->page_list;
-	m = 0;
-	n = 0;
-	for (i = 0; i < wr->page_list_len; i++) {
-		mr->map[m]->segs[n].vaddr = (void *) page_list[i];
-		mr->map[m]->segs[n].length = ps;
-		if (++n == QIB_SEGSZ) {
-			m++;
-			n = 0;
-		}
-	}
-
-	ret = 0;
-bail:
-	spin_unlock_irqrestore(&rkt->lock, flags);
-	return ret;
-}
-
-/*
  * Initialize the memory region specified by the work request.
  */
 int qib_reg_mr(struct qib_qp *qp, struct ib_reg_wr *wr)
