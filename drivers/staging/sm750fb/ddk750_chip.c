@@ -34,54 +34,21 @@ logical_chip_type_t getChipType(void)
 	return chip;
 }
 
-static inline unsigned int calcPLL(pll_value_t *pPLL)
-{
-	return (pPLL->inputFreq * pPLL->M / pPLL->N / (1 << pPLL->OD) /
-		(1 << pPLL->POD));
-}
-
-static unsigned int getPllValue(clock_type_t clockType, pll_value_t *pPLL)
-{
-	unsigned int ulPllReg = 0;
-
-	pPLL->inputFreq = DEFAULT_INPUT_CLOCK;
-	pPLL->clockType = clockType;
-
-	switch (clockType) {
-	case MXCLK_PLL:
-		ulPllReg = PEEK32(MXCLK_PLL_CTRL);
-		break;
-	case PRIMARY_PLL:
-		ulPllReg = PEEK32(PANEL_PLL_CTRL);
-		break;
-	case SECONDARY_PLL:
-		ulPllReg = PEEK32(CRT_PLL_CTRL);
-		break;
-	case VGA0_PLL:
-		ulPllReg = PEEK32(VGA_PLL0_CTRL);
-		break;
-	case VGA1_PLL:
-		ulPllReg = PEEK32(VGA_PLL1_CTRL);
-		break;
-	}
-
-	pPLL->M = FIELD_GET(ulPllReg, PANEL_PLL_CTRL, M);
-	pPLL->N = FIELD_GET(ulPllReg, PANEL_PLL_CTRL, N);
-	pPLL->OD = FIELD_GET(ulPllReg, PANEL_PLL_CTRL, OD);
-	pPLL->POD = FIELD_GET(ulPllReg, PANEL_PLL_CTRL, POD);
-
-	return calcPLL(pPLL);
-}
-
 static unsigned int getChipClock(void)
 {
-	pll_value_t pll;
-#if 1
+	unsigned int pll_reg;
+	unsigned int M, N, OD, POD;
+
 	if (getChipType() == SM750LE)
 		return MHz(130);
-#endif
 
-	return getPllValue(MXCLK_PLL, &pll);
+	pll_reg = PEEK32(MXCLK_PLL_CTRL);
+	M = FIELD_GET(pll_reg, PANEL_PLL_CTRL, M);
+	N = FIELD_GET(pll_reg, PANEL_PLL_CTRL, N);
+	OD = FIELD_GET(pll_reg, PANEL_PLL_CTRL, OD);
+	POD = FIELD_GET(pll_reg, PANEL_PLL_CTRL, POD);
+
+	return DEFAULT_INPUT_CLOCK * M / N / (1 << OD) / (1 << POD);
 }
 
 /*
