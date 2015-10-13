@@ -392,6 +392,10 @@
 	status = "okay";
 };
 
+&pxp {
+	status = "okay";
+};
+
 &iomuxc {
 	imx6x-sabreauto {
 		pinctrl_audmux_3: audmux-3 {
