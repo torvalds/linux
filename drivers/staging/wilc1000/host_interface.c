@@ -90,7 +90,7 @@ union host_if_key_attr {
 };
 
 struct key_attr {
-	enum KEY_TYPE enuKeyType;
+	enum KEY_TYPE type;
 	u8 u8KeyAction;
 	union host_if_key_attr uniHostIFkeyAttr;
 };
@@ -1778,7 +1778,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 	s8 s8idxarray[1];
 	s8 ret = 0;
 
-	switch (pstrHostIFkeyAttr->enuKeyType) {
+	switch (pstrHostIFkeyAttr->type) {
 
 
 	case WEP:
@@ -3210,7 +3210,7 @@ int host_int_remove_wep_key(struct host_if_drv *hif_drv, u8 index)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	msg.id = HOST_IF_MSG_KEY;
-	msg.body.key_info.enuKeyType = WEP;
+	msg.body.key_info.type = WEP;
 	msg.body.key_info.u8KeyAction = REMOVEKEY;
 	msg.drv = hif_drv;
 	msg.body.key_info.uniHostIFkeyAttr.wep.index = index;
@@ -3239,7 +3239,7 @@ s32 host_int_set_WEPDefaultKeyID(struct host_if_drv *hif_drv, u8 u8Index)
 
 
 	msg.id = HOST_IF_MSG_KEY;
-	msg.body.key_info.enuKeyType = WEP;
+	msg.body.key_info.type = WEP;
 	msg.body.key_info.u8KeyAction = DEFAULTKEY;
 	msg.drv = hif_drv;
 
@@ -3273,7 +3273,7 @@ s32 host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
 
 
 	msg.id = HOST_IF_MSG_KEY;
-	msg.body.key_info.enuKeyType = WEP;
+	msg.body.key_info.type = WEP;
 	msg.body.key_info.u8KeyAction = ADDKEY;
 	msg.drv = hif_drv;
 
@@ -3323,7 +3323,7 @@ s32 host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 			PRINT_INFO(HOSTAPD_DBG, "KEY is %x\n", pu8WepKey[i]);
 	}
 	msg.id = HOST_IF_MSG_KEY;
-	msg.body.key_info.enuKeyType = WEP;
+	msg.body.key_info.type = WEP;
 	msg.body.key_info.u8KeyAction = ADDKEY_AP;
 	msg.drv = hif_drv;
 
@@ -3378,7 +3378,7 @@ s32 host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
 
 
 	msg.id = HOST_IF_MSG_KEY;
-	msg.body.key_info.enuKeyType = WPAPtk;
+	msg.body.key_info.type = WPAPtk;
 	if (mode == AP_MODE) {
 		msg.body.key_info.u8KeyAction = ADDKEY_AP;
 		msg.body.key_info.uniHostIFkeyAttr.wpa.u8keyidx = u8Idx;
@@ -3461,7 +3461,7 @@ s32 host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 
 
 	msg.id = HOST_IF_MSG_KEY;
-	msg.body.key_info.enuKeyType = WPARxGtk;
+	msg.body.key_info.type = WPARxGtk;
 	msg.drv = hif_drv;
 
 	if (mode == AP_MODE) {
@@ -3521,7 +3521,7 @@ s32 host_int_set_pmkid_info(struct host_if_drv *hif_drv, struct host_if_pmkid_at
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	msg.id = HOST_IF_MSG_KEY;
-	msg.body.key_info.enuKeyType = PMKSA;
+	msg.body.key_info.type = PMKSA;
 	msg.body.key_info.u8KeyAction = ADDKEY;
 	msg.drv = hif_drv;
 
