@@ -2187,6 +2187,7 @@ out:
  * @tx_ring:  ptr to the ring to send
  * @skb:      ptr to the skb we're sending
  * @hdr_len:  ptr to the size of the packet header
+ * @cd_type_cmd_tso_mss: ptr to u64 object
  * @cd_tunneling: ptr to context descriptor bits
  *
  * Returns 0 if no TSO can happen, 1 if tso is going, or error
@@ -2246,6 +2247,7 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
  * @tx_ring:  ptr to the ring to send
  * @skb:      ptr to the skb we're sending
  * @tx_flags: the collected send information
+ * @cd_type_cmd_tso_mss: ptr to u64 object
  *
  * Returns 0 if no Tx timestamp can happen and 1 if the timestamp will happen
  **/
@@ -2288,6 +2290,7 @@ static int i40e_tsyn(struct i40e_ring *tx_ring, struct sk_buff *skb,
  * @tx_flags: pointer to Tx flags currently set
  * @td_cmd: Tx descriptor command bits to set
  * @td_offset: Tx descriptor header offsets to set
+ * @tx_ring: Tx descriptor ring
  * @cd_tunneling: ptr to context desc bits
  **/
 static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
