@@ -680,6 +680,7 @@ int scif_unregister_window(struct scif_window *window)
 			}
 		} else {
 			/* Return ENXIO since unregistration is in progress */
+			mutex_lock(&ep->rma_info.rma_lock);
 			return -ENXIO;
 		}
 retry:
