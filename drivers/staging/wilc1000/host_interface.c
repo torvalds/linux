@@ -104,7 +104,7 @@ struct scan_attr {
 	size_t ies_len;
 	wilc_scan_result result;
 	void *arg;
-	struct hidden_network strHiddenNetwork;
+	struct hidden_network hidden_network;
 };
 
 struct connect_attr {
@@ -865,21 +865,21 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 	strWIDList[u32WidsCount].id = (u16)WID_SSID_PROBE_REQ;
 	strWIDList[u32WidsCount].type = WID_STR;
 
-	for (i = 0; i < pstrHostIFscanAttr->strHiddenNetwork.u8ssidnum; i++)
-		valuesize += ((pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo[i].u8ssidlen) + 1);
+	for (i = 0; i < pstrHostIFscanAttr->hidden_network.u8ssidnum; i++)
+		valuesize += ((pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].u8ssidlen) + 1);
 	pu8HdnNtwrksWidVal = kmalloc(valuesize + 1, GFP_KERNEL);
 	strWIDList[u32WidsCount].val = pu8HdnNtwrksWidVal;
 	if (strWIDList[u32WidsCount].val != NULL) {
 		pu8Buffer = strWIDList[u32WidsCount].val;
 
-		*pu8Buffer++ = pstrHostIFscanAttr->strHiddenNetwork.u8ssidnum;
+		*pu8Buffer++ = pstrHostIFscanAttr->hidden_network.u8ssidnum;
 
-		PRINT_D(HOSTINF_DBG, "In Handle_ProbeRequest number of ssid %d\n", pstrHostIFscanAttr->strHiddenNetwork.u8ssidnum);
+		PRINT_D(HOSTINF_DBG, "In Handle_ProbeRequest number of ssid %d\n", pstrHostIFscanAttr->hidden_network.u8ssidnum);
 
-		for (i = 0; i < pstrHostIFscanAttr->strHiddenNetwork.u8ssidnum; i++) {
-			*pu8Buffer++ = pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo[i].u8ssidlen;
-			memcpy(pu8Buffer, pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo[i].pu8ssid, pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo[i].u8ssidlen);
-			pu8Buffer += pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo[i].u8ssidlen;
+		for (i = 0; i < pstrHostIFscanAttr->hidden_network.u8ssidnum; i++) {
+			*pu8Buffer++ = pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].u8ssidlen;
+			memcpy(pu8Buffer, pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].pu8ssid, pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].u8ssidlen);
+			pu8Buffer += pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].u8ssidlen;
 		}
 
 
@@ -952,9 +952,9 @@ ERRORHANDLER:
 		kfree(pstrHostIFscanAttr->ies);
 		pstrHostIFscanAttr->ies = NULL;
 	}
-	if (pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo != NULL)	{
-		kfree(pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo);
-		pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo = NULL;
+	if (pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo != NULL)	{
+		kfree(pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo);
+		pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo = NULL;
 	}
 
 	if (pu8HdnNtwrksWidVal != NULL)
@@ -4050,8 +4050,8 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 	msg.id = HOST_IF_MSG_SCAN;
 
 	if (pstrHiddenNetwork != NULL) {
-		msg.body.scan_info.strHiddenNetwork.pstrHiddenNetworkInfo = pstrHiddenNetwork->pstrHiddenNetworkInfo;
-		msg.body.scan_info.strHiddenNetwork.u8ssidnum = pstrHiddenNetwork->u8ssidnum;
+		msg.body.scan_info.hidden_network.pstrHiddenNetworkInfo = pstrHiddenNetwork->pstrHiddenNetworkInfo;
+		msg.body.scan_info.hidden_network.u8ssidnum = pstrHiddenNetwork->u8ssidnum;
 
 	} else
 		PRINT_D(HOSTINF_DBG, "pstrHiddenNetwork IS EQUAL TO NULL\n");
