@@ -127,7 +127,7 @@ struct rcvd_async_info {
 };
 
 struct channel_attr {
-	u8 u8SetChan;
+	u8 set_ch;
 };
 
 struct beacon_attr {
@@ -342,7 +342,7 @@ static s32 Handle_SetChannel(struct host_if_drv *hif_drv,
 
 	strWID.id = (u16)WID_CURRENT_CHANNEL;
 	strWID.type = WID_CHAR;
-	strWID.val = (char *)&(pstrHostIFSetChan->u8SetChan);
+	strWID.val = (char *)&(pstrHostIFSetChan->set_ch);
 	strWID.size = sizeof(char);
 
 	PRINT_D(HOSTINF_DBG, "Setting channel\n");
@@ -3786,7 +3786,7 @@ int host_int_set_mac_chnl_num(struct host_if_drv *hif_drv, u8 channel)
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_CHANNEL;
-	msg.body.channel_info.u8SetChan = channel;
+	msg.body.channel_info.set_ch = channel;
 	msg.drv = hif_drv;
 
 	result = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
