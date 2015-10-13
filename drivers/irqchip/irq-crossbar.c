@@ -94,7 +94,7 @@ static int allocate_gic_irq(struct irq_domain *domain, unsigned virq,
 	if (i < 0)
 		return -ENODEV;
 
-	args.np = domain->parent->of_node;
+	args.np = irq_domain_get_of_node(domain->parent);
 	args.args_count = 3;
 	args.args[0] = 0;	/* SPI */
 	args.args[1] = i;
@@ -172,7 +172,7 @@ static int crossbar_domain_xlate(struct irq_domain *d,
 				 unsigned long *out_hwirq,
 				 unsigned int *out_type)
 {
-	if (d->of_node != controller)
+	if (irq_domain_get_of_node(d) != controller)
 		return -EINVAL;	/* Shouldn't happen, really... */
 	if (intsize != 3)
 		return -EINVAL;	/* Not GIC compliant */

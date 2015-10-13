@@ -142,7 +142,7 @@ static int vf610_mscm_ir_domain_alloc(struct irq_domain *domain, unsigned int vi
 					      &vf610_mscm_ir_irq_chip,
 					      domain->host_data);
 
-	gic_data.np = domain->parent->of_node;
+	gic_data.np = irq_domain_get_of_node(domain->parent);
 
 	if (mscm_ir_data->is_nvic) {
 		gic_data.args_count = 1;
@@ -205,7 +205,8 @@ static int __init vf610_mscm_ir_of_init(struct device_node *node,
 		goto out_unmap;
 	}
 
-	if (of_device_is_compatible(domain->parent->of_node, "arm,armv7m-nvic"))
+	if (of_device_is_compatible(irq_domain_get_of_node(domain->parent),
+				    "arm,armv7m-nvic"))
 		mscm_ir_data->is_nvic = true;
 
 	cpu_pm_register_notifier(&mscm_ir_notifier_block);

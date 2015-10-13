@@ -102,7 +102,7 @@ void irq_domain_remove(struct irq_domain *domain)
 
 	pr_debug("Removed domain %s\n", domain->name);
 
-	of_node_put(domain->of_node);
+	of_node_put(irq_domain_get_of_node(domain));
 	kfree(domain);
 }
 EXPORT_SYMBOL_GPL(irq_domain_remove);
@@ -208,10 +208,12 @@ struct irq_domain *irq_find_matching_host(struct device_node *node,
 	 */
 	mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(h, &irq_domain_list, link) {
+		struct device_node *of_node;
+		of_node = irq_domain_get_of_node(h);
 		if (h->ops->match)
 			rc = h->ops->match(h, node, bus_token);
 		else
-			rc = ((h->of_node != NULL) && (h->of_node == node) &&
+			rc = ((of_node != NULL) && (of_node == node) &&
 			      ((bus_token == DOMAIN_BUS_ANY) ||
 			       (h->bus_token == bus_token)));
 
@@ -336,10 +338,12 @@ EXPORT_SYMBOL_GPL(irq_domain_associate);
 void irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 			       irq_hw_number_t hwirq_base, int count)
 {
+	struct device_node *of_node;
 	int i;
 
+	of_node = irq_domain_get_of_node(domain);
 	pr_debug("%s(%s, irqbase=%i, hwbase=%i, count=%i)\n", __func__,
-		of_node_full_name(domain->of_node), irq_base, (int)hwirq_base, count);
+		of_node_full_name(of_node), irq_base, (int)hwirq_base, count);
 
 	for (i = 0; i < count; i++) {
 		irq_domain_associate(domain, irq_base + i, hwirq_base + i);
@@ -359,12 +363,14 @@ EXPORT_SYMBOL_GPL(irq_domain_associate_many);
  */
 unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 {
+	struct device_node *of_node;
 	unsigned int virq;
 
 	if (domain == NULL)
 		domain = irq_default_domain;
 
-	virq = irq_alloc_desc_from(1, of_node_to_nid(domain->of_node));
+	of_node = irq_domain_get_of_node(domain);
+	virq = irq_alloc_desc_from(1, of_node_to_nid(of_node));
 	if (!virq) {
 		pr_debug("create_direct virq allocation failed\n");
 		return 0;
@@ -399,6 +405,7 @@ EXPORT_SYMBOL_GPL(irq_create_direct_mapping);
 unsigned int irq_create_mapping(struct irq_domain *domain,
 				irq_hw_number_t hwirq)
 {
+	struct device_node *of_node;
 	int virq;
 
 	pr_debug("irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
@@ -412,6 +419,8 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	}
 	pr_debug("-> using domain @%p\n", domain);
 
+	of_node = irq_domain_get_of_node(domain);
+
 	/* Check if mapping already exists */
 	virq = irq_find_mapping(domain, hwirq);
 	if (virq) {
@@ -420,8 +429,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	}
 
 	/* Allocate a virtual interrupt number */
-	virq = irq_domain_alloc_descs(-1, 1, hwirq,
-				      of_node_to_nid(domain->of_node));
+	virq = irq_domain_alloc_descs(-1, 1, hwirq, of_node_to_nid(of_node));
 	if (virq <= 0) {
 		pr_debug("-> virq allocation failed\n");
 		return 0;
@@ -433,7 +441,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	}
 
 	pr_debug("irq %lu on domain %s mapped to virtual irq %u\n",
-		hwirq, of_node_full_name(domain->of_node), virq);
+		hwirq, of_node_full_name(of_node), virq);
 
 	return virq;
 }
@@ -460,10 +468,12 @@ EXPORT_SYMBOL_GPL(irq_create_mapping);
 int irq_create_strict_mappings(struct irq_domain *domain, unsigned int irq_base,
 			       irq_hw_number_t hwirq_base, int count)
 {
+	struct device_node *of_node;
 	int ret;
 
+	of_node = irq_domain_get_of_node(domain);
 	ret = irq_alloc_descs(irq_base, irq_base, count,
-			      of_node_to_nid(domain->of_node));
+			      of_node_to_nid(of_node));
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -590,14 +600,16 @@ static int virq_debug_show(struct seq_file *m, void *private)
 		   "name", "mapped", "linear-max", "direct-max", "devtree-node");
 	mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(domain, &irq_domain_list, link) {
+		struct device_node *of_node;
 		int count = 0;
+		of_node = irq_domain_get_of_node(domain);
 		radix_tree_for_each_slot(slot, &domain->revmap_tree, &iter, 0)
 			count++;
 		seq_printf(m, "%c%-16s  %6u  %10u  %10u  %s\n",
 			   domain == irq_default_domain ? '*' : ' ', domain->name,
 			   domain->revmap_size + count, domain->revmap_size,
 			   domain->revmap_direct_max_irq,
-			   domain->of_node ? of_node_full_name(domain->of_node) : "");
+			   of_node ? of_node_full_name(of_node) : "");
 	}
 	mutex_unlock(&irq_domain_mutex);
 

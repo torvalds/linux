@@ -128,7 +128,7 @@ static int gicv2m_irq_gic_domain_alloc(struct irq_domain *domain,
 	struct irq_data *d;
 	int err;
 
-	args.np = domain->parent->of_node;
+	args.np = irq_domain_get_of_node(domain->parent);
 	args.args_count = 3;
 	args.args[0] = 0;
 	args.args[1] = hwirq - 32;

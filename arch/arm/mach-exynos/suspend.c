@@ -184,7 +184,7 @@ static int exynos_pmu_domain_xlate(struct irq_domain *domain,
 				   unsigned long *out_hwirq,
 				   unsigned int *out_type)
 {
-	if (domain->of_node != controller)
+	if (irq_domain_get_of_node(domain) != controller)
 		return -EINVAL;	/* Shouldn't happen, really... */
 	if (intsize != 3)
 		return -EINVAL;	/* Not GIC compliant */
@@ -217,7 +217,7 @@ static int exynos_pmu_domain_alloc(struct irq_domain *domain,
 					      &exynos_pmu_chip, NULL);
 
 	parent_args = *args;
-	parent_args.np = domain->parent->of_node;
+	parent_args.np = irq_domain_get_of_node(domain->parent);
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &parent_args);
 }
 

@@ -1267,7 +1267,7 @@ static int its_irq_gic_domain_alloc(struct irq_domain *domain,
 {
 	struct of_phandle_args args;
 
-	args.np = domain->parent->of_node;
+	args.np = irq_domain_get_of_node(domain->parent);
 	args.args_count = 3;
 	args.args[0] = GIC_IRQ_TYPE_LPI;
 	args.args[1] = hwirq;

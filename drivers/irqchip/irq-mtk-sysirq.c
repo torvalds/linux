@@ -106,7 +106,7 @@ static int mtk_sysirq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 					      &mtk_sysirq_chip,
 					      domain->host_data);
 
-	gic_data.np = domain->parent->of_node;
+	gic_data.np = irq_domain_get_of_node(domain->parent);
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &gic_data);
 }
 
