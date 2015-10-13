@@ -364,7 +364,7 @@ static void wilc_wlan_parse_response_frame(u8 *info, int size)
 
 static int wilc_wlan_parse_info_frame(u8 *info, int size)
 {
-	wilc_mac_cfg_t *pd = (wilc_mac_cfg_t *)&g_mac;
+	wilc_mac_cfg_t *pd = &g_mac;
 	u32 wid, len;
 	int type = WILC_CFG_RSP_STATUS;
 
