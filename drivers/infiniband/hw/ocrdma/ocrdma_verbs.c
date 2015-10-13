@@ -2133,41 +2133,6 @@ static void ocrdma_build_read(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 	ext_rw->len = hdr->total_len;
 }
 
-static void build_frmr_pbes(struct ib_fast_reg_wr *wr,
-			    struct ocrdma_pbl *pbl_tbl,
-			    struct ocrdma_hw_mr *hwmr)
-{
-	int i;
-	u64 buf_addr = 0;
-	int num_pbes;
-	struct ocrdma_pbe *pbe;
-
-	pbe = (struct ocrdma_pbe *)pbl_tbl->va;
-	num_pbes = 0;
-
-	/* go through the OS phy regions & fill hw pbe entries into pbls. */
-	for (i = 0; i < wr->page_list_len; i++) {
-		/* number of pbes can be more for one OS buf, when
-		 * buffers are of different sizes.
-		 * split the ib_buf to one or more pbes.
-		 */
-		buf_addr = wr->page_list->page_list[i];
-		pbe->pa_lo = cpu_to_le32((u32) (buf_addr & PAGE_MASK));
-		pbe->pa_hi = cpu_to_le32((u32) upper_32_bits(buf_addr));
-		num_pbes += 1;
-		pbe++;
-
-		/* if the pbl is full storing the pbes,
-		 * move to next pbl.
-		*/
-		if (num_pbes == (hwmr->pbl_size/sizeof(u64))) {
-			pbl_tbl++;
-			pbe = (struct ocrdma_pbe *)pbl_tbl->va;
-		}
-	}
-	return;
-}
-
 static int get_encoded_page_size(int pg_sz)
 {
 	/* Max size is 256M 4096 << 16 */
@@ -2231,50 +2196,6 @@ static int ocrdma_build_reg(struct ocrdma_qp *qp,
 		}
 	}
 
-	return 0;
-}
-
-static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
-			   struct ib_send_wr *send_wr)
-{
-	u64 fbo;
-	struct ib_fast_reg_wr *wr = fast_reg_wr(send_wr);
-	struct ocrdma_ewqe_fr *fast_reg = (struct ocrdma_ewqe_fr *)(hdr + 1);
-	struct ocrdma_mr *mr;
-	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
-	u32 wqe_size = sizeof(*fast_reg) + sizeof(*hdr);
-
-	wqe_size = roundup(wqe_size, OCRDMA_WQE_ALIGN_BYTES);
-
-	if (wr->page_list_len > dev->attr.max_pages_per_frmr)
-		return -EINVAL;
-
-	hdr->cw |= (OCRDMA_FR_MR << OCRDMA_WQE_OPCODE_SHIFT);
-	hdr->cw |= ((wqe_size / OCRDMA_WQE_STRIDE) << OCRDMA_WQE_SIZE_SHIFT);
-
-	if (wr->page_list_len == 0)
-		BUG();
-	if (wr->access_flags & IB_ACCESS_LOCAL_WRITE)
-		hdr->rsvd_lkey_flags |= OCRDMA_LKEY_FLAG_LOCAL_WR;
-	if (wr->access_flags & IB_ACCESS_REMOTE_WRITE)
-		hdr->rsvd_lkey_flags |= OCRDMA_LKEY_FLAG_REMOTE_WR;
-	if (wr->access_flags & IB_ACCESS_REMOTE_READ)
-		hdr->rsvd_lkey_flags |= OCRDMA_LKEY_FLAG_REMOTE_RD;
-	hdr->lkey = wr->rkey;
-	hdr->total_len = wr->length;
-
-	fbo = wr->iova_start - (wr->page_list->page_list[0] & PAGE_MASK);
-
-	fast_reg->va_hi = upper_32_bits(wr->iova_start);
-	fast_reg->va_lo = (u32) (wr->iova_start & 0xffffffff);
-	fast_reg->fbo_hi = upper_32_bits(fbo);
-	fast_reg->fbo_lo = (u32) fbo & 0xffffffff;
-	fast_reg->num_sges = wr->page_list_len;
-	fast_reg->size_sge =
-		get_encoded_page_size(1 << wr->page_shift);
-	mr = (struct ocrdma_mr *) (unsigned long)
-		dev->stag_arr[(hdr->lkey >> 8) & (OCRDMA_MAX_STAG - 1)];
-	build_frmr_pbes(wr, mr->hwmr.pbl_table, &mr->hwmr);
 	return 0;
 }
 
@@ -2356,9 +2277,6 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 					sizeof(struct ocrdma_sge)) /
 				OCRDMA_WQE_STRIDE) << OCRDMA_WQE_SIZE_SHIFT;
 			hdr->lkey = wr->ex.invalidate_rkey;
-			break;
-		case IB_WR_FAST_REG_MR:
-			status = ocrdma_build_fr(qp, hdr, wr);
 			break;
 		case IB_WR_REG_MR:
 			status = ocrdma_build_reg(qp, hdr, reg_wr(wr));
@@ -2627,7 +2545,7 @@ static void ocrdma_update_wc(struct ocrdma_qp *qp, struct ib_wc *ibwc,
 		ibwc->opcode = IB_WC_SEND;
 		break;
 	case OCRDMA_FR_MR:
-		ibwc->opcode = IB_WC_FAST_REG_MR;
+		ibwc->opcode = IB_WC_REG_MR;
 		break;
 	case OCRDMA_LKEY_INV:
 		ibwc->opcode = IB_WC_LOCAL_INV;
@@ -3146,26 +3064,6 @@ pbl_err:
 pl_err:
 	kfree(mr);
 	return ERR_PTR(-ENOMEM);
-}
-
-struct ib_fast_reg_page_list *ocrdma_alloc_frmr_page_list(struct ib_device
-							  *ibdev,
-							  int page_list_len)
-{
-	struct ib_fast_reg_page_list *frmr_list;
-	int size;
-
-	size = sizeof(*frmr_list) + (page_list_len * sizeof(u64));
-	frmr_list = kzalloc(size, GFP_KERNEL);
-	if (!frmr_list)
-		return ERR_PTR(-ENOMEM);
-	frmr_list->page_list = (u64 *)(frmr_list + 1);
-	return frmr_list;
-}
-
-void ocrdma_free_frmr_page_list(struct ib_fast_reg_page_list *page_list)
-{
-	kfree(page_list);
 }
 
 #define MAX_KERNEL_PBE_SIZE 65536

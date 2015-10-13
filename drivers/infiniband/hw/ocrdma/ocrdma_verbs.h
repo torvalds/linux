@@ -128,9 +128,5 @@ struct ib_mr *ocrdma_alloc_mr(struct ib_pd *pd,
 int ocrdma_map_mr_sg(struct ib_mr *ibmr,
 		     struct scatterlist *sg,
 		     int sg_nents);
-struct ib_fast_reg_page_list *ocrdma_alloc_frmr_page_list(struct ib_device
-							*ibdev,
-							int page_list_len);
-void ocrdma_free_frmr_page_list(struct ib_fast_reg_page_list *page_list);
 
 #endif				/* __OCRDMA_VERBS_H__ */
