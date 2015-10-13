@@ -874,16 +874,15 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			ret = -ENOTSUPP;
 			break;
 		}
+	} else if (!inst) {
+		ret = -ENODEV;
+		goto out;
 	}
 
 	if (nfula[NFULA_CFG_MODE]) {
-		struct nfulnl_msg_config_mode *params;
-		params = nla_data(nfula[NFULA_CFG_MODE]);
+		struct nfulnl_msg_config_mode *params =
+			nla_data(nfula[NFULA_CFG_MODE]);
 
-		if (!inst) {
-			ret = -ENODEV;
-			goto out;
-		}
 		nfulnl_set_mode(inst, params->copy_mode,
 				ntohl(params->copy_range));
 	}
@@ -891,40 +890,23 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	if (nfula[NFULA_CFG_TIMEOUT]) {
 		__be32 timeout = nla_get_be32(nfula[NFULA_CFG_TIMEOUT]);
 
-		if (!inst) {
-			ret = -ENODEV;
-			goto out;
-		}
 		nfulnl_set_timeout(inst, ntohl(timeout));
 	}
 
 	if (nfula[NFULA_CFG_NLBUFSIZ]) {
 		__be32 nlbufsiz = nla_get_be32(nfula[NFULA_CFG_NLBUFSIZ]);
 
-		if (!inst) {
-			ret = -ENODEV;
-			goto out;
-		}
 		nfulnl_set_nlbufsiz(inst, ntohl(nlbufsiz));
 	}
 
 	if (nfula[NFULA_CFG_QTHRESH]) {
 		__be32 qthresh = nla_get_be32(nfula[NFULA_CFG_QTHRESH]);
 
-		if (!inst) {
-			ret = -ENODEV;
-			goto out;
-		}
 		nfulnl_set_qthresh(inst, ntohl(qthresh));
 	}
 
 	if (nfula[NFULA_CFG_FLAGS]) {
 		u16 flags = ntohs(nla_get_be16(nfula[NFULA_CFG_FLAGS]));
-
-		if (!inst) {
-			ret = -ENODEV;
-			goto out;
-		}
 
 		if (flags & NFULNL_CFG_F_CONNTRACK &&
 		    !rcu_access_pointer(nfnl_ct_hook)) {
