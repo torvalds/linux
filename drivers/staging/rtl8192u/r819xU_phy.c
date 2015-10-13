@@ -1110,7 +1110,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev,
 		case eRfOn:
 			/* RF-A, RF-B */
 			/* enable RF-Chip A/B - 0x860[4] */
-			rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4,
+			rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT(4),
 					 0x1);
 			/* analog to digital on - 0x88c[9:8] */
 			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300,
@@ -1135,7 +1135,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev,
 		case eRfOff:
 			/* RF-A, RF-B */
 			/* disable RF-Chip A/B - 0x860[4] */
-			rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4,
+			rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT(4),
 					 0x0);
 			/* analog to digital off, for power save */
 			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf00,

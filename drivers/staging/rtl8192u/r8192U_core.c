@@ -233,7 +233,7 @@ static void CamResetAllEntry(struct net_device *dev)
 	 * condition, Cam can not be reset because upper layer will not set
 	 * this static key again.
 	 */
-	ulcommand |= BIT31 | BIT30;
+	ulcommand |= BIT(31) | BIT(30);
 	write_nic_dword(dev, RWCAM, ulcommand);
 
 }
@@ -242,7 +242,7 @@ static void CamResetAllEntry(struct net_device *dev)
 void write_cam(struct net_device *dev, u8 addr, u32 data)
 {
 	write_nic_dword(dev, WCAMI, data);
-	write_nic_dword(dev, RWCAM, BIT31 | BIT16 | (addr & 0xff));
+	write_nic_dword(dev, RWCAM, BIT(31) | BIT(16) | (addr & 0xff));
 }
 
 u32 read_cam(struct net_device *dev, u8 addr)
@@ -2412,7 +2412,7 @@ static void rtl8192_get_eeprom_size(struct net_device *dev)
 	read_nic_word_E(dev, EPROM_CMD, &curCR);
 	RT_TRACE(COMP_EPROM,
 		 "read from Reg EPROM_CMD(%x):%x\n", EPROM_CMD, curCR);
-	/* whether need I consider BIT5? */
+	/* whether need I consider BIT(5?) */
 	priv->epromtype =
 		(curCR & Cmd9346CR_9356SEL) ? EPROM_93c56 : EPROM_93c46;
 	RT_TRACE(COMP_EPROM,
@@ -5180,14 +5180,14 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 		 dev, EntryNo, KeyIndex, KeyType, MacAddr);
 
 	if (DefaultKey)
-		usConfig |= BIT15 | (KeyType << 2);
+		usConfig |= BIT(15) | (KeyType << 2);
 	else
-		usConfig |= BIT15 | (KeyType << 2) | KeyIndex;
+		usConfig |= BIT(15) | (KeyType << 2) | KeyIndex;
 
 
 	for (i = 0; i < CAM_CONTENT_COUNT; i++) {
 		TargetCommand  = i + CAM_CONTENT_COUNT * EntryNo;
-		TargetCommand |= BIT31 | BIT16;
+		TargetCommand |= BIT(31) | BIT(16);
 
 		if (i == 0) { /* MAC|Config */
 			TargetContent = (u32)(*(MacAddr + 0)) << 16 |
