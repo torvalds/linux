@@ -35,7 +35,6 @@ struct hsu_dma_chip {
 	unsigned int			length;
 	unsigned int			offset;
 	struct hsu_dma			*hsu;
-	struct hsu_dma_platform_data	*pdata;
 };
 
 #if IS_ENABLED(CONFIG_HSU_DMA)

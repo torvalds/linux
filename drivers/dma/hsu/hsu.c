@@ -146,7 +146,7 @@ irqreturn_t hsu_dma_irq(struct hsu_dma_chip *chip, unsigned short nr)
 	u32 sr;
 
 	/* Sanity check */
-	if (nr >= chip->pdata->nr_channels)
+	if (nr >= chip->hsu->nr_channels)
 		return IRQ_NONE;
 
 	hsuc = &chip->hsu->chan[nr];
@@ -375,7 +375,6 @@ static void hsu_dma_free_chan_resources(struct dma_chan *chan)
 int hsu_dma_probe(struct hsu_dma_chip *chip)
 {
 	struct hsu_dma *hsu;
-	struct hsu_dma_platform_data *pdata = chip->pdata;
 	void __iomem *addr = chip->regs + chip->offset;
 	unsigned short i;
 	int ret;
@@ -386,25 +385,16 @@ int hsu_dma_probe(struct hsu_dma_chip *chip)
 
 	chip->hsu = hsu;
 
-	if (!pdata) {
-		pdata = devm_kzalloc(chip->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
+	/* Calculate nr_channels from the IO space length */
+	hsu->nr_channels = (chip->length - chip->offset) / HSU_DMA_CHAN_LENGTH;
 
-		chip->pdata = pdata;
-
-		/* Guess nr_channels from the IO space length */
-		pdata->nr_channels = (chip->length - chip->offset) /
-				     HSU_DMA_CHAN_LENGTH;
-	}
-
-	hsu->chan = devm_kcalloc(chip->dev, pdata->nr_channels,
+	hsu->chan = devm_kcalloc(chip->dev, hsu->nr_channels,
 				 sizeof(*hsu->chan), GFP_KERNEL);
 	if (!hsu->chan)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&hsu->dma.channels);
-	for (i = 0; i < pdata->nr_channels; i++) {
+	for (i = 0; i < hsu->nr_channels; i++) {
 		struct hsu_dma_chan *hsuc = &hsu->chan[i];
 
 		hsuc->vchan.desc_free = hsu_dma_desc_free;
@@ -440,7 +430,7 @@ int hsu_dma_probe(struct hsu_dma_chip *chip)
 	if (ret)
 		return ret;
 
-	dev_info(chip->dev, "Found HSU DMA, %d channels\n", pdata->nr_channels);
+	dev_info(chip->dev, "Found HSU DMA, %d channels\n", hsu->nr_channels);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hsu_dma_probe);
@@ -452,7 +442,7 @@ int hsu_dma_remove(struct hsu_dma_chip *chip)
 
 	dma_async_device_unregister(&hsu->dma);
 
-	for (i = 0; i < chip->pdata->nr_channels; i++) {
+	for (i = 0; i < hsu->nr_channels; i++) {
 		struct hsu_dma_chan *hsuc = &hsu->chan[i];
 
 		tasklet_kill(&hsuc->vchan.task);
