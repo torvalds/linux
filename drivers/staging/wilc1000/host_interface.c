@@ -159,7 +159,7 @@ struct power_mgmt_param {
 };
 
 struct set_ip_addr {
-	u8 *au8IPAddr;
+	u8 *ip_addr;
 	u8 idx;
 };
 
@@ -3079,12 +3079,12 @@ static int hostIFthread(void *pvArg)
 
 		case HOST_IF_MSG_SET_IPADDRESS:
 			PRINT_D(HOSTINF_DBG, "HOST_IF_MSG_SET_IPADDRESS\n");
-			Handle_set_IPAddress(msg.drv, msg.body.ip_info.au8IPAddr, msg.body.ip_info.idx);
+			Handle_set_IPAddress(msg.drv, msg.body.ip_info.ip_addr, msg.body.ip_info.idx);
 			break;
 
 		case HOST_IF_MSG_GET_IPADDRESS:
 			PRINT_D(HOSTINF_DBG, "HOST_IF_MSG_SET_IPADDRESS\n");
-			Handle_get_IPAddress(msg.drv, msg.body.ip_info.au8IPAddr, msg.body.ip_info.idx);
+			Handle_get_IPAddress(msg.drv, msg.body.ip_info.ip_addr, msg.body.ip_info.idx);
 			break;
 
 		case HOST_IF_MSG_SET_MAC_ADDRESS:
@@ -5162,7 +5162,7 @@ s32 host_int_setup_ipaddress(struct host_if_drv *hif_drv, u8 *u16ipadd, u8 idx)
 
 	msg.id = HOST_IF_MSG_SET_IPADDRESS;
 
-	msg.body.ip_info.au8IPAddr = u16ipadd;
+	msg.body.ip_info.ip_addr = u16ipadd;
 	msg.drv = hif_drv;
 	msg.body.ip_info.idx = idx;
 
@@ -5189,7 +5189,7 @@ s32 host_int_get_ipaddress(struct host_if_drv *hif_drv, u8 *u16ipadd, u8 idx)
 
 	msg.id = HOST_IF_MSG_GET_IPADDRESS;
 
-	msg.body.ip_info.au8IPAddr = u16ipadd;
+	msg.body.ip_info.ip_addr = u16ipadd;
 	msg.drv = hif_drv;
 	msg.body.ip_info.idx = idx;
 
