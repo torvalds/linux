@@ -75,12 +75,21 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger,
 {
 	unsigned int irq;
 	unsigned int irq_type = acpi_gsi_get_irq_type(trigger, polarity);
-	struct irq_domain *d = irq_find_matching_fwnode(acpi_gsi_domain_id,
-							DOMAIN_BUS_ANY);
 
-	irq = irq_create_mapping(d, gsi);
-	if (!irq)
-		return -EINVAL;
+	if (acpi_gsi_domain_id) {
+		struct irq_fwspec fwspec;
+
+		fwspec.fwnode = acpi_gsi_domain_id;
+		fwspec.param[0] = gsi;
+		fwspec.param[1] = irq_type;
+		fwspec.param_count = 2;
+
+		return irq_create_fwspec_mapping(&fwspec);
+	} else {
+		irq = irq_create_mapping(NULL, gsi);
+		if (!irq)
+			return -EINVAL;
+	}
 
 	/* Set irq type if specified and different than the current one */
 	if (irq_type != IRQ_TYPE_NONE &&
@@ -103,3 +112,16 @@ void acpi_unregister_gsi(u32 gsi)
 	irq_dispose_mapping(irq);
 }
 EXPORT_SYMBOL_GPL(acpi_unregister_gsi);
+
+/**
+ * acpi_set_irq_model - Setup the GSI irqdomain information
+ * @model: the value assigned to acpi_irq_model
+ * @fwnode: the irq_domain identifier for mapping and looking up
+ *          GSI interrupts
+ */
+void __init acpi_set_irq_model(enum acpi_irq_model_id model,
+			       struct fwnode_handle *fwnode)
+{
+	acpi_irq_model = model;
+	acpi_gsi_domain_id = fwnode;
+}
