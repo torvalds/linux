@@ -159,13 +159,6 @@ void rds_iw_send_init_ring(struct rds_iw_connection *ic)
 			printk(KERN_WARNING "RDS/IW: ib_alloc_mr failed\n");
 			break;
 		}
-
-		send->s_page_list = ib_alloc_fast_reg_page_list(
-			ic->i_cm_id->device, fastreg_message_size);
-		if (IS_ERR(send->s_page_list)) {
-			printk(KERN_WARNING "RDS/IW: ib_alloc_fast_reg_page_list failed\n");
-			break;
-		}
 	}
 }
 
@@ -177,8 +170,6 @@ void rds_iw_send_clear_ring(struct rds_iw_connection *ic)
 	for (i = 0, send = ic->i_sends; i < ic->i_send_ring.w_nr; i++, send++) {
 		BUG_ON(!send->s_mr);
 		ib_dereg_mr(send->s_mr);
-		BUG_ON(!send->s_page_list);
-		ib_free_fast_reg_page_list(send->s_page_list);
 		if (send->s_send_wr.opcode == 0xdead)
 			continue;
 		if (send->s_rm)
@@ -227,7 +218,7 @@ void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context)
 			continue;
 		}
 
-		if (wc.opcode == IB_WC_FAST_REG_MR && wc.wr_id == RDS_IW_FAST_REG_WR_ID) {
+		if (wc.opcode == IB_WC_REG_MR && wc.wr_id == RDS_IW_REG_WR_ID) {
 			ic->i_fastreg_posted = 1;
 			continue;
 		}
@@ -252,7 +243,7 @@ void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context)
 				if (send->s_rm)
 					rds_iw_send_unmap_rm(ic, send, wc.status);
 				break;
-			case IB_WR_FAST_REG_MR:
+			case IB_WR_REG_MR:
 			case IB_WR_RDMA_WRITE:
 			case IB_WR_RDMA_READ:
 			case IB_WR_RDMA_READ_WITH_INV:
@@ -770,24 +761,26 @@ out:
 	return ret;
 }
 
-static void rds_iw_build_send_fastreg(struct rds_iw_device *rds_iwdev, struct rds_iw_connection *ic, struct rds_iw_send_work *send, int nent, int len, u64 sg_addr)
+static int rds_iw_build_send_reg(struct rds_iw_send_work *send,
+				 struct scatterlist *sg,
+				 int sg_nents)
 {
-	BUG_ON(nent > send->s_page_list->max_page_list_len);
-	/*
-	 * Perform a WR for the fast_reg_mr. Each individual page
-	 * in the sg list is added to the fast reg page list and placed
-	 * inside the fast_reg_mr WR.
-	 */
-	send->s_fast_reg_wr.wr.opcode = IB_WR_FAST_REG_MR;
-	send->s_fast_reg_wr.length = len;
-	send->s_fast_reg_wr.rkey = send->s_mr->rkey;
-	send->s_fast_reg_wr.page_list = send->s_page_list;
-	send->s_fast_reg_wr.page_list_len = nent;
-	send->s_fast_reg_wr.page_shift = PAGE_SHIFT;
-	send->s_fast_reg_wr.access_flags = IB_ACCESS_REMOTE_WRITE;
-	send->s_fast_reg_wr.iova_start = sg_addr;
+	int n;
+
+	n = ib_map_mr_sg(send->s_mr, sg, sg_nents, PAGE_SIZE);
+	if (unlikely(n != sg_nents))
+		return n < 0 ? n : -EINVAL;
+
+	send->s_reg_wr.wr.opcode = IB_WR_REG_MR;
+	send->s_reg_wr.wr.wr_id = 0;
+	send->s_reg_wr.wr.num_sge = 0;
+	send->s_reg_wr.mr = send->s_mr;
+	send->s_reg_wr.key = send->s_mr->rkey;
+	send->s_reg_wr.access = IB_ACCESS_REMOTE_WRITE;
 
 	ib_update_fast_reg_key(send->s_mr, send->s_remap_count++);
+
+	return 0;
 }
 
 int rds_iw_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
@@ -808,6 +801,7 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	int sent;
 	int ret;
 	int num_sge;
+	int sg_nents;
 
 	rds_iwdev = ib_get_client_data(ic->i_cm_id->device, &rds_iw_client);
 
@@ -861,6 +855,7 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	scat = &op->op_sg[0];
 	sent = 0;
 	num_sge = op->op_count;
+	sg_nents = 0;
 
 	for (i = 0; i < work_alloc && scat != &op->op_sg[op->op_count]; i++) {
 		send->s_rdma_wr.wr.send_flags = 0;
@@ -904,7 +899,7 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 			len = ib_sg_dma_len(ic->i_cm_id->device, scat);
 
 			if (send->s_rdma_wr.wr.opcode == IB_WR_RDMA_READ_WITH_INV)
-				send->s_page_list->page_list[j] = ib_sg_dma_address(ic->i_cm_id->device, scat);
+				sg_nents++;
 			else {
 				send->s_sge[j].addr = ib_sg_dma_address(ic->i_cm_id->device, scat);
 				send->s_sge[j].length = len;
@@ -951,8 +946,12 @@ int rds_iw_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	 * fastreg_mr (or possibly a dma_mr)
 	 */
 	if (!op->op_write) {
-		rds_iw_build_send_fastreg(rds_iwdev, ic, &ic->i_sends[fr_pos],
-			op->op_count, sent, conn->c_xmit_rm->m_rs->rs_user_addr);
+		ret = rds_iw_build_send_reg(&ic->i_sends[fr_pos],
+					    &op->op_sg[0], sg_nents);
+		if (ret) {
+			printk(KERN_WARNING "RDS/IW: failed to reg send mem\n");
+			goto out;
+		}
 		work_alloc++;
 	}
 
