@@ -66,7 +66,7 @@ struct cfg_param_attr {
 };
 
 struct host_if_wpa_attr {
-	u8 *pu8key;
+	u8 *key;
 	const u8 *pu8macaddr;
 	u8 *pu8seq;
 	u8 u8seqlen;
@@ -1891,7 +1891,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 
 			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.u8keyidx, 1);
 			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
-			memcpy(pu8keybuf + 16, pstrHostIFkeyAttr->attr.wpa.pu8key,
+			memcpy(pu8keybuf + 16, pstrHostIFkeyAttr->attr.wpa.key,
 				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
 
 			strWIDList[0].id = (u16)WID_11I_MODE;
@@ -1931,7 +1931,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->attr.wpa.pu8seq, 8);
 			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.u8keyidx, 1);
 			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
-			memcpy(pu8keybuf + 16, pstrHostIFkeyAttr->attr.wpa.pu8key,
+			memcpy(pu8keybuf + 16, pstrHostIFkeyAttr->attr.wpa.key,
 				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
 
 			strWID.id = (u16)WID_ADD_RX_GTK;
@@ -1946,7 +1946,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			up(&hif_drv->hSemTestKeyBlock);
 		}
 _WPARxGtk_end_case_:
-		kfree(pstrHostIFkeyAttr->attr.wpa.pu8key);
+		kfree(pstrHostIFkeyAttr->attr.wpa.key);
 		kfree(pstrHostIFkeyAttr->attr.wpa.pu8seq);
 		if (ret == -1)
 			return ret;
@@ -1971,7 +1971,7 @@ _WPARxGtk_end_case_:
 			memcpy(pu8keybuf, pstrHostIFkeyAttr->attr.wpa.pu8macaddr, 6);
 			memcpy(pu8keybuf + 6, &pstrHostIFkeyAttr->attr.wpa.u8keyidx, 1);
 			memcpy(pu8keybuf + 7, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
-			memcpy(pu8keybuf + 8, pstrHostIFkeyAttr->attr.wpa.pu8key,
+			memcpy(pu8keybuf + 8, pstrHostIFkeyAttr->attr.wpa.key,
 				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
 
 			strWIDList[0].id = (u16)WID_11I_MODE;
@@ -2005,7 +2005,7 @@ _WPARxGtk_end_case_:
 
 			memcpy(pu8keybuf, pstrHostIFkeyAttr->attr.wpa.pu8macaddr, 6);
 			memcpy(pu8keybuf + 6, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
-			memcpy(pu8keybuf + 7, pstrHostIFkeyAttr->attr.wpa.pu8key,
+			memcpy(pu8keybuf + 7, pstrHostIFkeyAttr->attr.wpa.key,
 				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
 
 			strWID.id = (u16)WID_ADD_PTK;
@@ -2020,7 +2020,7 @@ _WPARxGtk_end_case_:
 		}
 
 _WPAPtk_end_case_:
-		kfree(pstrHostIFkeyAttr->attr.wpa.pu8key);
+		kfree(pstrHostIFkeyAttr->attr.wpa.key);
 		if (ret == -1)
 			return ret;
 
@@ -3352,20 +3352,18 @@ s32 host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
 
-	msg.body.key_info.attr.wpa.pu8key = kmalloc(u8PtkKeylen, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wpa.pu8key, pu8Ptk, u8PtkKeylen);
+	msg.body.key_info.attr.wpa.key = kmalloc(u8PtkKeylen, GFP_KERNEL);
+	memcpy(msg.body.key_info.attr.wpa.key, pu8Ptk, u8PtkKeylen);
 
 	if (pu8RxMic != NULL) {
-		memcpy(msg.body.key_info.attr.wpa.pu8key + 16,
-			    pu8RxMic, RX_MIC_KEY_LEN);
+		memcpy(msg.body.key_info.attr.wpa.key + 16, pu8RxMic, RX_MIC_KEY_LEN);
 		if (INFO) {
 			for (i = 0; i < RX_MIC_KEY_LEN; i++)
 				PRINT_INFO(CFG80211_DBG, "PairwiseRx[%d] = %x\n", i, pu8RxMic[i]);
 		}
 	}
 	if (pu8TxMic != NULL) {
-		memcpy(msg.body.key_info.attr.wpa.pu8key + 24,
-			    pu8TxMic, TX_MIC_KEY_LEN);
+		memcpy(msg.body.key_info.attr.wpa.key + 24, pu8TxMic, TX_MIC_KEY_LEN);
 		if (INFO) {
 			for (i = 0; i < TX_MIC_KEY_LEN; i++)
 				PRINT_INFO(CFG80211_DBG, "PairwiseTx[%d] = %x\n", i, pu8TxMic[i]);
@@ -3427,18 +3425,14 @@ s32 host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
 
-	msg.body.key_info.attr.wpa.pu8key = kmalloc(u8KeyLen, GFP_KERNEL);
-
-	memcpy(msg.body.key_info.attr.wpa.pu8key,
-		    pu8RxGtk, u8GtkKeylen);
+	msg.body.key_info.attr.wpa.key = kmalloc(u8KeyLen, GFP_KERNEL);
+	memcpy(msg.body.key_info.attr.wpa.key, pu8RxGtk, u8GtkKeylen);
 
 	if (pu8RxMic != NULL) {
-		memcpy(msg.body.key_info.attr.wpa.pu8key + 16,
-			    pu8RxMic, RX_MIC_KEY_LEN);
+		memcpy(msg.body.key_info.attr.wpa.key + 16, pu8RxMic, RX_MIC_KEY_LEN);
 	}
 	if (pu8TxMic != NULL) {
-		memcpy(msg.body.key_info.attr.wpa.pu8key + 24,
-			    pu8TxMic, TX_MIC_KEY_LEN);
+		memcpy(msg.body.key_info.attr.wpa.key + 24, pu8TxMic, TX_MIC_KEY_LEN);
 	}
 
 	msg.body.key_info.attr.wpa.u8keyidx = u8KeyIdx;
