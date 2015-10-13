@@ -173,6 +173,12 @@ config DRM_VGEM
 	  as used by Mesa's software renderer for enhanced performance.
 	  If M is selected the module will be called vgem.
 
+config DRM_VIVANTE
+	tristate "Vivante GCCore"
+	depends on DRM
+	help
+	  Choose this option if you have a Vivante graphics card.
+	  If M is selected, the module will be called vivante.
 
 source "drivers/gpu/drm/exynos/Kconfig"
 
