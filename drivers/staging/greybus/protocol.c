@@ -144,9 +144,6 @@ struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor)
 
 	if (protocol)
 		WARN_ON(protocol_count == U8_MAX);
-	else
-		pr_err("protocol id %hhu version %hhu.%hhu not found\n",
-			id, major, minor);
 
 	return protocol;
 }

@@ -551,8 +551,13 @@ int gb_connection_bind_protocol(struct gb_connection *connection)
 	protocol = gb_protocol_get(connection->protocol_id,
 				   connection->major,
 				   connection->minor);
-	if (!protocol)
+	if (!protocol) {
+		dev_warn(&connection->dev,
+				"protocol 0x%02hhx version %hhu.%hhu not found\n",
+				connection->protocol_id,
+				connection->major, connection->minor);
 		return 0;
+	}
 	connection->protocol = protocol;
 
 	/*
