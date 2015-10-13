@@ -70,7 +70,7 @@ struct host_if_wpa_attr {
 	const u8 *mac_addr;
 	u8 *seq;
 	u8 seq_len;
-	u8 u8keyidx;
+	u8 index;
 	u8 u8Keylen;
 	u8 u8Ciphermode;
 };
@@ -1889,7 +1889,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			if (pstrHostIFkeyAttr->attr.wpa.seq != NULL)
 				memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->attr.wpa.seq, 8);
 
-			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.u8keyidx, 1);
+			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.index, 1);
 			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
 			memcpy(pu8keybuf + 16, pstrHostIFkeyAttr->attr.wpa.key,
 				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
@@ -1929,7 +1929,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 				PRINT_ER("Couldn't handle WPARxGtk while enuHostIFstate is not HOST_IF_CONNECTED\n");
 
 			memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->attr.wpa.seq, 8);
-			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.u8keyidx, 1);
+			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.index, 1);
 			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
 			memcpy(pu8keybuf + 16, pstrHostIFkeyAttr->attr.wpa.key,
 				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
@@ -1969,7 +1969,7 @@ _WPARxGtk_end_case_:
 			}
 
 			memcpy(pu8keybuf, pstrHostIFkeyAttr->attr.wpa.mac_addr, 6);
-			memcpy(pu8keybuf + 6, &pstrHostIFkeyAttr->attr.wpa.u8keyidx, 1);
+			memcpy(pu8keybuf + 6, &pstrHostIFkeyAttr->attr.wpa.index, 1);
 			memcpy(pu8keybuf + 7, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
 			memcpy(pu8keybuf + 8, pstrHostIFkeyAttr->attr.wpa.key,
 				    pstrHostIFkeyAttr->attr.wpa.u8Keylen);
@@ -3347,7 +3347,7 @@ s32 host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
 	msg.body.key_info.type = WPAPtk;
 	if (mode == AP_MODE) {
 		msg.body.key_info.action = ADDKEY_AP;
-		msg.body.key_info.attr.wpa.u8keyidx = u8Idx;
+		msg.body.key_info.attr.wpa.index = u8Idx;
 	}
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
@@ -3434,7 +3434,7 @@ s32 host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 		memcpy(msg.body.key_info.attr.wpa.key + 24, pu8TxMic, TX_MIC_KEY_LEN);
 	}
 
-	msg.body.key_info.attr.wpa.u8keyidx = u8KeyIdx;
+	msg.body.key_info.attr.wpa.index = u8KeyIdx;
 	msg.body.key_info.attr.wpa.u8Keylen = u8KeyLen;
 	msg.body.key_info.attr.wpa.seq_len = u32KeyRSClen;
 
