@@ -472,7 +472,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 	sig_reg->sge.addr = 0;
 	sig_reg->sge.length = scsi_transfer_length(iser_task->sc);
 
-	iser_dbg("sig reg: lkey: 0x%x, rkey: 0x%x, addr: 0x%llx, length: %u\n",
+	iser_dbg("lkey=0x%x rkey=0x%x addr=0x%llx length=%u\n",
 		 sig_reg->sge.lkey, sig_reg->rkey, sig_reg->sge.addr,
 		 sig_reg->sge.length);
 err:
@@ -484,47 +484,41 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 			    struct iser_reg_resources *rsc,
 			    struct iser_mem_reg *reg)
 {
-	struct ib_conn *ib_conn = &iser_task->iser_conn->ib_conn;
-	struct iser_device *device = ib_conn->device;
-	struct ib_mr *mr = rsc->mr;
-	struct ib_fast_reg_page_list *frpl = rsc->frpl;
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
-	struct ib_fast_reg_wr *wr;
-	int offset, size, plen;
-
-	plen = iser_sg_to_page_vec(mem, device->ib_device, frpl->page_list,
-				   &offset, &size);
-	if (plen * SIZE_4K < size) {
-		iser_err("fast reg page_list too short to hold this SG\n");
-		return -EINVAL;
-	}
+	struct ib_mr *mr = rsc->mr;
+	struct ib_reg_wr *wr;
+	int n;
 
 	if (!rsc->mr_valid)
 		iser_inv_rkey(iser_tx_next_wr(tx_desc), mr);
 
-	wr = fast_reg_wr(iser_tx_next_wr(tx_desc));
-	wr->wr.opcode = IB_WR_FAST_REG_MR;
+	n = ib_map_mr_sg(mr, mem->sg, mem->size, SIZE_4K);
+	if (unlikely(n != mem->size)) {
+		iser_err("failed to map sg (%d/%d)\n",
+			 n, mem->size);
+		return n < 0 ? n : -EINVAL;
+	}
+
+	wr = reg_wr(iser_tx_next_wr(tx_desc));
+	wr->wr.opcode = IB_WR_REG_MR;
 	wr->wr.wr_id = ISER_FASTREG_LI_WRID;
 	wr->wr.send_flags = 0;
-	wr->iova_start = frpl->page_list[0] + offset;
-	wr->page_list = frpl;
-	wr->page_list_len = plen;
-	wr->page_shift = SHIFT_4K;
-	wr->length = size;
-	wr->rkey = mr->rkey;
-	wr->access_flags = (IB_ACCESS_LOCAL_WRITE  |
-			    IB_ACCESS_REMOTE_WRITE |
-			    IB_ACCESS_REMOTE_READ);
+	wr->wr.num_sge = 0;
+	wr->mr = mr;
+	wr->key = mr->rkey;
+	wr->access = IB_ACCESS_LOCAL_WRITE  |
+		     IB_ACCESS_REMOTE_WRITE |
+		     IB_ACCESS_REMOTE_READ;
+
 	rsc->mr_valid = 0;
 
 	reg->sge.lkey = mr->lkey;
 	reg->rkey = mr->rkey;
-	reg->sge.addr = frpl->page_list[0] + offset;
-	reg->sge.length = size;
+	reg->sge.addr = mr->iova;
+	reg->sge.length = mr->length;
 
-	iser_dbg("fast reg: lkey=0x%x, rkey=0x%x, addr=0x%llx,"
-		 " length=0x%x\n", reg->sge.lkey, reg->rkey,
-		 reg->sge.addr, reg->sge.length);
+	iser_dbg("lkey=0x%x rkey=0x%x addr=0x%llx length=0x%x\n",
+		 reg->sge.lkey, reg->rkey, reg->sge.addr, reg->sge.length);
 
 	return 0;
 }
