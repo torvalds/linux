@@ -1541,6 +1541,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 		/* Fill platform data with the default values */
 		pdata->is_private = true;
+		pdata->is_memcpy = true;
 		pdata->chan_allocation_order = CHAN_ALLOCATION_ASCENDING;
 		pdata->chan_priority = CHAN_PRIORITY_ASCENDING;
 	} else if (pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS) {
@@ -1653,10 +1654,13 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	dma_writel(dw, CLEAR.DST_TRAN, dw->all_chan_mask);
 	dma_writel(dw, CLEAR.ERROR, dw->all_chan_mask);
 
-	dma_cap_set(DMA_MEMCPY, dw->dma.cap_mask);
+	/* Set capabilities */
 	dma_cap_set(DMA_SLAVE, dw->dma.cap_mask);
 	if (pdata->is_private)
 		dma_cap_set(DMA_PRIVATE, dw->dma.cap_mask);
+	if (pdata->is_memcpy)
+		dma_cap_set(DMA_MEMCPY, dw->dma.cap_mask);
+
 	dw->dma.dev = chip->dev;
 	dw->dma.device_alloc_chan_resources = dwc_alloc_chan_resources;
 	dw->dma.device_free_chan_resources = dwc_free_chan_resources;
