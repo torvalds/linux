@@ -829,7 +829,7 @@ again:
 static int connect_ring(struct backend_info *be)
 {
 	struct xenbus_device *dev = be->dev;
-	unsigned int ring_ref[XENBUS_MAX_RING_PAGES];
+	unsigned int ring_ref[XENBUS_MAX_RING_GRANTS];
 	unsigned int evtchn, nr_grefs, ring_page_order;
 	unsigned int pers_grants;
 	char protocol[64] = "";

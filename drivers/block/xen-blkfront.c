@@ -111,7 +111,7 @@ MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the
 	__CONST_RING_SIZE(blkif, XEN_PAGE_SIZE * (info)->nr_ring_pages)
 
 #define BLK_MAX_RING_SIZE	\
-	__CONST_RING_SIZE(blkif, XEN_PAGE_SIZE * XENBUS_MAX_RING_PAGES)
+	__CONST_RING_SIZE(blkif, XEN_PAGE_SIZE * XENBUS_MAX_RING_GRANTS)
 
 /*
  * ring-ref%i i=(-1UL) would take 11 characters + 'ring-ref' is 8, so 19
@@ -133,7 +133,7 @@ struct blkfront_info
 	int vdevice;
 	blkif_vdev_t handle;
 	enum blkif_state connected;
-	int ring_ref[XENBUS_MAX_RING_PAGES];
+	int ring_ref[XENBUS_MAX_RING_GRANTS];
 	unsigned int nr_ring_pages;
 	struct blkif_front_ring ring;
 	unsigned int evtchn, irq;
@@ -1413,7 +1413,7 @@ static int setup_blkring(struct xenbus_device *dev,
 	struct blkif_sring *sring;
 	int err, i;
 	unsigned long ring_size = info->nr_ring_pages * XEN_PAGE_SIZE;
-	grant_ref_t gref[XENBUS_MAX_RING_PAGES];
+	grant_ref_t gref[XENBUS_MAX_RING_GRANTS];
 
 	for (i = 0; i < info->nr_ring_pages; i++)
 		info->ring_ref[i] = GRANT_INVALID_REF;
@@ -2284,9 +2284,9 @@ static int __init xlblk_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	if (xen_blkif_max_ring_order > XENBUS_MAX_RING_PAGE_ORDER) {
+	if (xen_blkif_max_ring_order > XENBUS_MAX_RING_GRANT_ORDER) {
 		pr_info("Invalid max_ring_order (%d), will use default max: %d.\n",
-			xen_blkif_max_ring_order, XENBUS_MAX_RING_PAGE_ORDER);
+			xen_blkif_max_ring_order, XENBUS_MAX_RING_GRANT_ORDER);
 		xen_blkif_max_ring_order = 0;
 	}
 
