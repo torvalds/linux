@@ -884,28 +884,6 @@ static int iwch_map_mr_sg(struct ib_mr *ibmr,
 	return ib_sg_to_pages(ibmr, sg, sg_nents, iwch_set_page);
 }
 
-static struct ib_fast_reg_page_list *iwch_alloc_fastreg_pbl(
-					struct ib_device *device,
-					int page_list_len)
-{
-	struct ib_fast_reg_page_list *page_list;
-
-	page_list = kmalloc(sizeof *page_list + page_list_len * sizeof(u64),
-			    GFP_KERNEL);
-	if (!page_list)
-		return ERR_PTR(-ENOMEM);
-
-	page_list->page_list = (u64 *)(page_list + 1);
-	page_list->max_page_list_len = page_list_len;
-
-	return page_list;
-}
-
-static void iwch_free_fastreg_pbl(struct ib_fast_reg_page_list *page_list)
-{
-	kfree(page_list);
-}
-
 static int iwch_destroy_qp(struct ib_qp *ib_qp)
 {
 	struct iwch_dev *rhp;
@@ -1483,8 +1461,6 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.dealloc_mw = iwch_dealloc_mw;
 	dev->ibdev.alloc_mr = iwch_alloc_mr;
 	dev->ibdev.map_mr_sg = iwch_map_mr_sg;
-	dev->ibdev.alloc_fast_reg_page_list = iwch_alloc_fastreg_pbl;
-	dev->ibdev.free_fast_reg_page_list = iwch_free_fastreg_pbl;
 	dev->ibdev.attach_mcast = iwch_multicast_attach;
 	dev->ibdev.detach_mcast = iwch_multicast_detach;
 	dev->ibdev.process_mad = iwch_process_mad;
