@@ -138,7 +138,15 @@ struct msm_dsi_host {
 	struct work_struct err_work;
 	struct workqueue_struct *workqueue;
 
+	/* DSI 6G TX buffer*/
 	struct drm_gem_object *tx_gem_obj;
+
+	/* DSI v2 TX buffer */
+	void *tx_buf;
+	dma_addr_t tx_buf_paddr;
+
+	int tx_size;
+
 	u8 *rx_buf;
 
 	struct drm_display_mode *mode;
@@ -983,29 +991,46 @@ static void dsi_wait4video_eng_busy(struct msm_dsi_host *msm_host)
 static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 {
 	struct drm_device *dev = msm_host->dev;
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
 	u32 iova;
 
-	mutex_lock(&dev->struct_mutex);
-	msm_host->tx_gem_obj = msm_gem_new(dev, size, MSM_BO_UNCACHED);
-	if (IS_ERR(msm_host->tx_gem_obj)) {
-		ret = PTR_ERR(msm_host->tx_gem_obj);
-		pr_err("%s: failed to allocate gem, %d\n", __func__, ret);
-		msm_host->tx_gem_obj = NULL;
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
+		mutex_lock(&dev->struct_mutex);
+		msm_host->tx_gem_obj = msm_gem_new(dev, size, MSM_BO_UNCACHED);
+		if (IS_ERR(msm_host->tx_gem_obj)) {
+			ret = PTR_ERR(msm_host->tx_gem_obj);
+			pr_err("%s: failed to allocate gem, %d\n",
+				__func__, ret);
+			msm_host->tx_gem_obj = NULL;
+			mutex_unlock(&dev->struct_mutex);
+			return ret;
+		}
+
+		ret = msm_gem_get_iova_locked(msm_host->tx_gem_obj, 0, &iova);
+		if (ret) {
+			pr_err("%s: failed to get iova, %d\n", __func__, ret);
+			return ret;
+		}
 		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
 
-	ret = msm_gem_get_iova_locked(msm_host->tx_gem_obj, 0, &iova);
-	if (ret) {
-		pr_err("%s: failed to get iova, %d\n", __func__, ret);
-		return ret;
-	}
-	mutex_unlock(&dev->struct_mutex);
+		if (iova & 0x07) {
+			pr_err("%s: buf NOT 8 bytes aligned\n", __func__);
+			return -EINVAL;
+		}
 
-	if (iova & 0x07) {
-		pr_err("%s: buf NOT 8 bytes aligned\n", __func__);
-		return -EINVAL;
+		msm_host->tx_size = msm_host->tx_gem_obj->size;
+	} else {
+		msm_host->tx_buf = dma_alloc_coherent(dev->dev, size,
+					&msm_host->tx_buf_paddr, GFP_KERNEL);
+		if (!msm_host->tx_buf) {
+			ret = -ENOMEM;
+			pr_err("%s: failed to allocate tx buf, %d\n",
+				__func__, ret);
+			return ret;
+		}
+
+		msm_host->tx_size = size;
 	}
 
 	return 0;
@@ -1022,14 +1047,19 @@ static void dsi_tx_buf_free(struct msm_dsi_host *msm_host)
 		msm_host->tx_gem_obj = NULL;
 		mutex_unlock(&dev->struct_mutex);
 	}
+
+	if (msm_host->tx_buf)
+		dma_free_coherent(dev->dev, msm_host->tx_size, msm_host->tx_buf,
+			msm_host->tx_buf_paddr);
 }
 
 /*
  * prepare cmd buffer to be txed
  */
-static int dsi_cmd_dma_add(struct drm_gem_object *tx_gem,
-			const struct mipi_dsi_msg *msg)
+static int dsi_cmd_dma_add(struct msm_dsi_host *msm_host,
+			   const struct mipi_dsi_msg *msg)
 {
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	struct mipi_dsi_packet packet;
 	int len;
 	int ret;
@@ -1042,17 +1072,20 @@ static int dsi_cmd_dma_add(struct drm_gem_object *tx_gem,
 	}
 	len = (packet.size + 3) & (~0x3);
 
-	if (len > tx_gem->size) {
+	if (len > msm_host->tx_size) {
 		pr_err("%s: packet size is too big\n", __func__);
 		return -EINVAL;
 	}
 
-	data = msm_gem_vaddr(tx_gem);
-
-	if (IS_ERR(data)) {
-		ret = PTR_ERR(data);
-		pr_err("%s: get vaddr failed, %d\n", __func__, ret);
-		return ret;
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
+		data = msm_gem_vaddr(msm_host->tx_gem_obj);
+		if (IS_ERR(data)) {
+			ret = PTR_ERR(data);
+			pr_err("%s: get vaddr failed, %d\n", __func__, ret);
+			return ret;
+		}
+	} else {
+		data = msm_host->tx_buf;
 	}
 
 	/* MSM specific command format in memory */
@@ -1118,17 +1151,21 @@ static int dsi_long_read_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 	return msg->rx_len;
 }
 
-
 static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 {
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
-	u32 iova;
+	u32 dma_base;
 	bool triggered;
 
-	ret = msm_gem_get_iova(msm_host->tx_gem_obj, 0, &iova);
-	if (ret) {
-		pr_err("%s: failed to get iova: %d\n", __func__, ret);
-		return ret;
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
+		ret = msm_gem_get_iova(msm_host->tx_gem_obj, 0, &dma_base);
+		if (ret) {
+			pr_err("%s: failed to get iova: %d\n", __func__, ret);
+			return ret;
+		}
+	} else {
+		dma_base = msm_host->tx_buf_paddr;
 	}
 
 	reinit_completion(&msm_host->dma_comp);
@@ -1136,7 +1173,7 @@ static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 	dsi_wait4video_eng_busy(msm_host);
 
 	triggered = msm_dsi_manager_cmd_xfer_trigger(
-						msm_host->id, iova, len);
+						msm_host->id, dma_base, len);
 	if (triggered) {
 		ret = wait_for_completion_timeout(&msm_host->dma_comp,
 					msecs_to_jiffies(200));
@@ -1208,7 +1245,7 @@ static int dsi_cmds2buf_tx(struct msm_dsi_host *msm_host,
 	int bllp_len = msm_host->mode->hdisplay *
 			dsi_get_bpp(msm_host->format) / 8;
 
-	len = dsi_cmd_dma_add(msm_host->tx_gem_obj, msg);
+	len = dsi_cmd_dma_add(msm_host, msg);
 	if (!len) {
 		pr_err("%s: failed to add cmd type = 0x%x\n",
 			__func__,  msg->type);
@@ -1898,11 +1935,12 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 	return ret;
 }
 
-void msm_dsi_host_cmd_xfer_commit(struct mipi_dsi_host *host, u32 iova, u32 len)
+void msm_dsi_host_cmd_xfer_commit(struct mipi_dsi_host *host, u32 dma_base,
+				  u32 len)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
-	dsi_write(msm_host, REG_DSI_DMA_BASE, iova);
+	dsi_write(msm_host, REG_DSI_DMA_BASE, dma_base);
 	dsi_write(msm_host, REG_DSI_DMA_LEN, len);
 	dsi_write(msm_host, REG_DSI_TRIG_DMA, 1);
 
