@@ -921,7 +921,6 @@ struct i915_fbc {
 
 	struct intel_fbc_work {
 		struct delayed_work work;
-		struct intel_crtc *crtc;
 		struct drm_framebuffer *fb;
 	} *fbc_work;
 

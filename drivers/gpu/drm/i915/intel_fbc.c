@@ -334,14 +334,13 @@ bool intel_fbc_enabled(struct drm_i915_private *dev_priv)
 	return dev_priv->fbc.enabled;
 }
 
-static void intel_fbc_enable(struct intel_crtc *crtc,
-			     const struct drm_framebuffer *fb)
+static void intel_fbc_enable(const struct drm_framebuffer *fb)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = fb->dev->dev_private;
+	struct intel_crtc *crtc = dev_priv->fbc.crtc;
 
 	dev_priv->fbc.enable_fbc(crtc);
 
-	dev_priv->fbc.crtc = crtc;
 	dev_priv->fbc.fb_id = fb->base.id;
 	dev_priv->fbc.y = crtc->base.y;
 }
@@ -351,8 +350,8 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 	struct intel_fbc_work *work =
 		container_of(to_delayed_work(__work),
 			     struct intel_fbc_work, work);
-	struct drm_i915_private *dev_priv = work->crtc->base.dev->dev_private;
-	struct drm_framebuffer *crtc_fb = work->crtc->base.primary->fb;
+	struct drm_i915_private *dev_priv = work->fb->dev->dev_private;
+	struct drm_framebuffer *crtc_fb = dev_priv->fbc.crtc->base.primary->fb;
 
 	mutex_lock(&dev_priv->fbc.lock);
 	if (work == dev_priv->fbc.fbc_work) {
@@ -360,7 +359,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 		 * the prior work.
 		 */
 		if (crtc_fb == work->fb)
-			intel_fbc_enable(work->crtc, work->fb);
+			intel_fbc_enable(work->fb);
 
 		dev_priv->fbc.fbc_work = NULL;
 	}
@@ -400,15 +399,15 @@ static void intel_fbc_schedule_enable(struct intel_crtc *crtc)
 	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
 
 	intel_fbc_cancel_work(dev_priv);
+	dev_priv->fbc.crtc = crtc;
 
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL) {
 		DRM_ERROR("Failed to allocate FBC work structure\n");
-		intel_fbc_enable(crtc, crtc->base.primary->fb);
+		intel_fbc_enable(crtc->base.primary->fb);
 		return;
 	}
 
-	work->crtc = crtc;
 	work->fb = crtc->base.primary->fb;
 	INIT_DELAYED_WORK(&work->work, intel_fbc_work_fn);
 
@@ -984,11 +983,8 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 
 	mutex_lock(&dev_priv->fbc.lock);
 
-	if (dev_priv->fbc.enabled)
+	if (dev_priv->fbc.enabled || dev_priv->fbc.fbc_work)
 		fbc_bits = INTEL_FRONTBUFFER_PRIMARY(dev_priv->fbc.crtc->pipe);
-	else if (dev_priv->fbc.fbc_work)
-		fbc_bits = INTEL_FRONTBUFFER_PRIMARY(
-					dev_priv->fbc.fbc_work->crtc->pipe);
 	else
 		fbc_bits = dev_priv->fbc.possible_framebuffer_bits;
 
