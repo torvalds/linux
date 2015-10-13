@@ -1204,7 +1204,8 @@ static int hdm_enqueue_thread(void *data)
 static int run_enqueue_thread(struct most_c_obj *c, int channel_id)
 {
 	struct task_struct *task =
-		kthread_run(&hdm_enqueue_thread, c, "hdm_fifo_%d", channel_id);
+		kthread_run(hdm_enqueue_thread, c, "hdm_fifo_%d",
+			    channel_id);
 
 	if (IS_ERR(task))
 		return PTR_ERR(task);

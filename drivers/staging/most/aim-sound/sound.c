@@ -279,7 +279,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	channel->substream = substream;
 
 	if (cfg->direction == MOST_CH_TX) {
-		channel->playback_task = kthread_run(&playback_thread, channel,
+		channel->playback_task = kthread_run(playback_thread, channel,
 						     "most_audio_playback");
 		if (IS_ERR(channel->playback_task)) {
 			pr_err("Couldn't start thread\n");
