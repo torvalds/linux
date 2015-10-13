@@ -239,7 +239,7 @@ enum scan_conn_timer {
 static struct host_if_drv *wfidrv_list[NUM_CONCURRENT_IFC + 1];
 struct host_if_drv *terminated_handle;
 struct host_if_drv *gWFiDrvHandle;
-bool g_obtainingIP = false;
+bool g_obtainingIP;
 u8 P2P_LISTEN_STATE;
 static struct task_struct *HostIFthreadHandler;
 static WILC_MsgQueueHandle gMsgQHostIF;
@@ -256,7 +256,7 @@ u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
 static u8 gapu8RcvdAssocResp[MAX_ASSOC_RESP_FRAME_SIZE];
 
-bool gbScanWhileConnected = false;
+bool gbScanWhileConnected;
 
 static s8 gs8Rssi;
 static s8 gs8lnkspd;
