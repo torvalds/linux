@@ -140,7 +140,7 @@ struct beacon_attr {
 };
 
 struct set_multicast {
-	bool bIsEnabled;
+	bool enabled;
 	u32 u32count;
 };
 
@@ -2796,10 +2796,10 @@ static void Handle_SetMulticastFilter(struct host_if_drv *hif_drv,
 		goto ERRORHANDLER;
 
 	pu8CurrByte = strWID.val;
-	*pu8CurrByte++ = (strHostIfSetMulti->bIsEnabled & 0xFF);
-	*pu8CurrByte++ = ((strHostIfSetMulti->bIsEnabled >> 8) & 0xFF);
-	*pu8CurrByte++ = ((strHostIfSetMulti->bIsEnabled >> 16) & 0xFF);
-	*pu8CurrByte++ = ((strHostIfSetMulti->bIsEnabled >> 24) & 0xFF);
+	*pu8CurrByte++ = (strHostIfSetMulti->enabled & 0xFF);
+	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 8) & 0xFF);
+	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 16) & 0xFF);
+	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 24) & 0xFF);
 
 	*pu8CurrByte++ = (strHostIfSetMulti->u32count & 0xFF);
 	*pu8CurrByte++ = ((strHostIfSetMulti->u32count >> 8) & 0xFF);
@@ -4912,7 +4912,7 @@ s32 host_int_setup_multicast_filter(struct host_if_drv *hif_drv,
 	msg.id = HOST_IF_MSG_SET_MULTICAST_FILTER;
 	msg.drv = hif_drv;
 
-	pstrMulticastFilterParam->bIsEnabled = bIsEnabled;
+	pstrMulticastFilterParam->enabled = bIsEnabled;
 	pstrMulticastFilterParam->u32count = u32count;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
