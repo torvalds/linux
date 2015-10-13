@@ -1439,17 +1439,17 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 {
 	struct packet_fanout *f = pt->af_packet_priv;
 	unsigned int num = READ_ONCE(f->num_members);
+	struct net *net = read_pnet(&f->net);
 	struct packet_sock *po;
 	unsigned int idx;
 
-	if (!net_eq(dev_net(dev), read_pnet(&f->net)) ||
-	    !num) {
+	if (!net_eq(dev_net(dev), net) || !num) {
 		kfree_skb(skb);
 		return 0;
 	}
 
 	if (fanout_has_flag(f, PACKET_FANOUT_FLAG_DEFRAG)) {
-		skb = ip_check_defrag(skb, IP_DEFRAG_AF_PACKET);
+		skb = ip_check_defrag(net, skb, IP_DEFRAG_AF_PACKET);
 		if (!skb)
 			return 0;
 	}

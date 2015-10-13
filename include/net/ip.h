@@ -506,11 +506,11 @@ static inline bool ip_defrag_user_in_between(u32 user,
 	return user >= lower_bond && user <= upper_bond;
 }
 
-int ip_defrag(struct sk_buff *skb, u32 user);
+int ip_defrag(struct net *net, struct sk_buff *skb, u32 user);
 #ifdef CONFIG_INET
-struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user);
+struct sk_buff *ip_check_defrag(struct net *net, struct sk_buff *skb, u32 user);
 #else
-static inline struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
+static inline struct sk_buff *ip_check_defrag(struct net *net, struct sk_buff *skb, u32 user)
 {
 	return skb;
 }

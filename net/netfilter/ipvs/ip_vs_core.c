@@ -694,7 +694,7 @@ static inline int ip_vs_gather_frags(struct netns_ipvs *ipvs,
 	int err;
 
 	local_bh_disable();
-	err = ip_defrag(skb, user);
+	err = ip_defrag(ipvs->net, skb, user);
 	local_bh_enable();
 	if (!err)
 		ip_send_check(ip_hdr(skb));
