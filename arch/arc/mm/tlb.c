@@ -856,15 +856,15 @@ void arc_mmu_init(void)
  *      the duplicate one.
  * -Knob to be verbose abt it.(TODO: hook them up to debugfs)
  */
-volatile int dup_pd_verbose = 1;/* Be slient abt it or complain (default) */
+volatile int dup_pd_silent; /* Be slient abt it or complain (default) */
 
 void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			  struct pt_regs *regs)
 {
-	int set, way, n;
-	unsigned long flags, is_valid;
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
-	unsigned int pd0[mmu->ways], pd1[mmu->ways];
+	unsigned int pd0[mmu->ways];
+	unsigned long flags;
+	int set;
 
 	local_irq_save(flags);
 
@@ -874,14 +874,16 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 	/* loop thru all sets of TLB */
 	for (set = 0; set < mmu->sets; set++) {
 
+		int is_valid, way;
+
 		/* read out all the ways of current set */
 		for (way = 0, is_valid = 0; way < mmu->ways; way++) {
 			write_aux_reg(ARC_REG_TLBINDEX,
 					  SET_WAY_TO_IDX(mmu, set, way));
 			write_aux_reg(ARC_REG_TLBCOMMAND, TLBRead);
 			pd0[way] = read_aux_reg(ARC_REG_TLBPD0);
-			pd1[way] = read_aux_reg(ARC_REG_TLBPD1);
 			is_valid |= pd0[way] & _PAGE_PRESENT;
+			pd0[way] &= PAGE_MASK;
 		}
 
 		/* If all the WAYS in SET are empty, skip to next SET */
@@ -890,30 +892,28 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 
 		/* Scan the set for duplicate ways: needs a nested loop */
 		for (way = 0; way < mmu->ways - 1; way++) {
+
+			int n;
+
 			if (!pd0[way])
 				continue;
 
 			for (n = way + 1; n < mmu->ways; n++) {
-				if ((pd0[way] & PAGE_MASK) ==
-				    (pd0[n] & PAGE_MASK)) {
+				if (pd0[way] != pd0[n])
+					continue;
 
-					if (dup_pd_verbose) {
-						pr_info("Duplicate PD's @"
-							"[%d:%d]/[%d:%d]\n",
-						     set, way, set, n);
-						pr_info("TLBPD0[%u]: %08x\n",
-						     way, pd0[way]);
-					}
+				if (!dup_pd_silent)
+					pr_info("Dup TLB PD0 %08x @ set %d ways %d,%d\n",
+						pd0[way], set, way, n);
 
-					/*
-					 * clear entry @way and not @n. This is
-					 * critical to our optimised loop
-					 */
-					pd0[way] = pd1[way] = 0;
-					write_aux_reg(ARC_REG_TLBINDEX,
+				/*
+				 * clear entry @way and not @n.
+				 * This is critical to our optimised loop
+				 */
+				pd0[way] = 0;
+				write_aux_reg(ARC_REG_TLBINDEX,
 						SET_WAY_TO_IDX(mmu, set, way));
-					__tlb_entry_erase();
-				}
+				__tlb_entry_erase();
 			}
 		}
 	}
