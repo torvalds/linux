@@ -355,16 +355,14 @@ static int rk_spdif_probe(struct platform_device *pdev)
 		goto err_pm_runtime;
 	}
 
-	ret = snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM\n");
-		goto err_pcm_register;
+		goto err_pm_runtime;
 	}
 
 	return 0;
 
-err_pcm_register:
-	snd_dmaengine_pcm_unregister(&pdev->dev);
 err_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
 
@@ -381,8 +379,6 @@ static int rk_spdif_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(spdif->mclk);
 	clk_disable_unprepare(spdif->hclk);
-	snd_dmaengine_pcm_unregister(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }
