@@ -69,8 +69,6 @@ void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
 			dev_put(physdev);
 	}
 #endif
-	/* Drop reference to owner of hook which queued us. */
-	module_put(entry->elem->owner);
 }
 EXPORT_SYMBOL_GPL(nf_queue_entry_release_refs);
 
@@ -78,9 +76,6 @@ EXPORT_SYMBOL_GPL(nf_queue_entry_release_refs);
 bool nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 {
 	struct nf_hook_state *state = &entry->state;
-
-	if (!try_module_get(entry->elem->owner))
-		return false;
 
 	if (state->in)
 		dev_hold(state->in);

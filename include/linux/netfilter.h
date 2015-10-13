@@ -90,7 +90,6 @@ struct nf_hook_ops {
 	/* User fills in from here down. */
 	nf_hookfn		*hook;
 	struct net_device	*dev;
-	struct module		*owner;
 	void			*priv;
 	u_int8_t		pf;
 	unsigned int		hooknum;

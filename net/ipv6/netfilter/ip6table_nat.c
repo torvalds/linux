@@ -70,7 +70,6 @@ static struct nf_hook_ops nf_nat_ipv6_ops[] __read_mostly = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= ip6table_nat_in,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP6_PRI_NAT_DST,
@@ -78,7 +77,6 @@ static struct nf_hook_ops nf_nat_ipv6_ops[] __read_mostly = {
 	/* After packet filtering, change source */
 	{
 		.hook		= ip6table_nat_out,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP6_PRI_NAT_SRC,
@@ -86,7 +84,6 @@ static struct nf_hook_ops nf_nat_ipv6_ops[] __read_mostly = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= ip6table_nat_local_fn,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP6_PRI_NAT_DST,
@@ -94,7 +91,6 @@ static struct nf_hook_ops nf_nat_ipv6_ops[] __read_mostly = {
 	/* After packet filtering, change source */
 	{
 		.hook		= ip6table_nat_fn,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP6_PRI_NAT_SRC,

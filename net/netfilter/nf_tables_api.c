@@ -1433,7 +1433,6 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		for (i = 0; i < afi->nops; i++) {
 			ops = &basechain->ops[i];
 			ops->pf		= family;
-			ops->owner	= afi->owner;
 			ops->hooknum	= hooknum;
 			ops->priority	= priority;
 			ops->priv	= chain;
