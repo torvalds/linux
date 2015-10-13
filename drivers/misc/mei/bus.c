@@ -91,7 +91,7 @@ out:
  * __mei_cl_recv - internal client receive (read)
  *
  * @cl: host client
- * @buf: buffer to send
+ * @buf: buffer to receive
  * @length: buffer length
  *
  * Return: read size in bytes of < 0 on error
@@ -188,7 +188,7 @@ EXPORT_SYMBOL_GPL(mei_cldev_send);
  * mei_cldev_recv - client receive (read)
  *
  * @cldev: me client device
- * @buf: buffer to send
+ * @buf: buffer to receive
  * @length: buffer length
  *
  * Return: read size in bytes of < 0 on error
