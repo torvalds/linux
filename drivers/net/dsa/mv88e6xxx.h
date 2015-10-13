@@ -402,12 +402,6 @@ struct mv88e6xxx_priv_state {
 	int		id; /* switch product id */
 	int		num_ports;	/* number of switch ports */
 
-	/* hw bridging */
-
-	DECLARE_BITMAP(fid_bitmap, VLAN_N_VID);	/* FIDs 1 to 4095 available */
-	u16 fid[DSA_MAX_PORTS];			/* per (non-bridged) port FID */
-	u16 bridge_mask[DSA_MAX_PORTS];		/* br groups (indexed by FID) */
-
 	unsigned long port_state_update_mask;
 	u8 port_state[DSA_MAX_PORTS];
 
@@ -464,8 +458,6 @@ int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int addr, int regnum,
 int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
 int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 		      struct phy_device *phydev, struct ethtool_eee *e);
-int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
-int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
 int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *vid);
 int mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 vid);

@@ -1276,7 +1276,7 @@ int dsa_slave_netdevice_event(struct notifier_block *unused,
 			goto out;
 
 		err = dsa_slave_master_changed(dev);
-		if (err)
+		if (err && err != -EOPNOTSUPP)
 			netdev_warn(dev, "failed to reflect master change\n");
 
 		break;

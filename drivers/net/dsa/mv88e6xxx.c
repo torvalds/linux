@@ -1046,11 +1046,6 @@ static int _mv88e6xxx_atu_flush(struct dsa_switch *ds, u16 fid, bool static_too)
 	return _mv88e6xxx_atu_flush_move(ds, &entry, static_too);
 }
 
-static int _mv88e6xxx_flush_fid(struct dsa_switch *ds, int fid)
-{
-	return _mv88e6xxx_atu_flush(ds, fid, false);
-}
-
 static int _mv88e6xxx_atu_move(struct dsa_switch *ds, u16 fid, int from_port,
 			       int to_port, bool static_too)
 {
@@ -1112,130 +1107,21 @@ abort:
 	return ret;
 }
 
-/* Must be called with smi lock held */
-static int _mv88e6xxx_update_port_config(struct dsa_switch *ds, int port)
+static int _mv88e6xxx_port_vlan_map_set(struct dsa_switch *ds, int port,
+					u16 output_ports)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	u8 fid = ps->fid[port];
-	u16 reg = fid << 12;
+	const u16 mask = (1 << ps->num_ports) - 1;
+	int reg;
 
-	if (dsa_is_cpu_port(ds, port))
-		reg |= ds->phys_port_mask;
-	else
-		reg |= (ps->bridge_mask[fid] |
-		       (1 << dsa_upstream_port(ds))) & ~(1 << port);
+	reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_BASE_VLAN);
+	if (reg < 0)
+		return reg;
+
+	reg &= ~mask;
+	reg |= output_ports & mask;
 
 	return _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_BASE_VLAN, reg);
-}
-
-/* Must be called with smi lock held */
-static int _mv88e6xxx_update_bridge_config(struct dsa_switch *ds, int fid)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int port;
-	u32 mask;
-	int ret;
-
-	mask = ds->phys_port_mask;
-	while (mask) {
-		port = __ffs(mask);
-		mask &= ~(1 << port);
-		if (ps->fid[port] != fid)
-			continue;
-
-		ret = _mv88e6xxx_update_port_config(ds, port);
-		if (ret)
-			return ret;
-	}
-
-	return _mv88e6xxx_flush_fid(ds, fid);
-}
-
-/* Bridge handling functions */
-
-int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int ret = 0;
-	u32 nmask;
-	int fid;
-
-	/* If the bridge group is not empty, join that group.
-	 * Otherwise create a new group.
-	 */
-	fid = ps->fid[port];
-	nmask = br_port_mask & ~(1 << port);
-	if (nmask)
-		fid = ps->fid[__ffs(nmask)];
-
-	nmask = ps->bridge_mask[fid] | (1 << port);
-	if (nmask != br_port_mask) {
-		netdev_err(ds->ports[port],
-			   "join: Bridge port mask mismatch fid=%d mask=0x%x expected 0x%x\n",
-			   fid, br_port_mask, nmask);
-		return -EINVAL;
-	}
-
-	mutex_lock(&ps->smi_mutex);
-
-	ps->bridge_mask[fid] = br_port_mask;
-
-	if (fid != ps->fid[port]) {
-		clear_bit(ps->fid[port], ps->fid_bitmap);
-		ps->fid[port] = fid;
-		ret = _mv88e6xxx_update_bridge_config(ds, fid);
-	}
-
-	mutex_unlock(&ps->smi_mutex);
-
-	return ret;
-}
-
-int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	u8 fid, newfid;
-	int ret;
-
-	fid = ps->fid[port];
-
-	if (ps->bridge_mask[fid] != br_port_mask) {
-		netdev_err(ds->ports[port],
-			   "leave: Bridge port mask mismatch fid=%d mask=0x%x expected 0x%x\n",
-			   fid, br_port_mask, ps->bridge_mask[fid]);
-		return -EINVAL;
-	}
-
-	/* If the port was the last port of a bridge, we are done.
-	 * Otherwise assign a new fid to the port, and fix up
-	 * the bridge configuration.
-	 */
-	if (br_port_mask == (1 << port))
-		return 0;
-
-	mutex_lock(&ps->smi_mutex);
-
-	newfid = find_next_zero_bit(ps->fid_bitmap, VLAN_N_VID, 1);
-	if (unlikely(newfid > ps->num_ports)) {
-		netdev_err(ds->ports[port], "all first %d FIDs are used\n",
-			   ps->num_ports);
-		ret = -ENOSPC;
-		goto unlock;
-	}
-
-	ps->fid[port] = newfid;
-	set_bit(newfid, ps->fid_bitmap);
-	ps->bridge_mask[fid] &= ~(1 << port);
-	ps->bridge_mask[newfid] = 1 << port;
-
-	ret = _mv88e6xxx_update_bridge_config(ds, fid);
-	if (!ret)
-		ret = _mv88e6xxx_update_bridge_config(ds, newfid);
-
-unlock:
-	mutex_unlock(&ps->smi_mutex);
-
-	return ret;
 }
 
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
@@ -1547,6 +1433,7 @@ static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
 	struct mv88e6xxx_vtu_stu_entry vlan = {
 		.valid = true,
 		.vid = vid,
+		.fid = vid, /* We use one FID per VLAN */
 	};
 	int i;
 
@@ -1580,22 +1467,10 @@ static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
 				return err;
 		}
 
-		/* Non-bridged ports and bridge groups use FIDs from 1 to
-		 * num_ports; VLANs use FIDs from num_ports+1 to 4095.
-		 */
-		vlan.fid = find_next_zero_bit(ps->fid_bitmap, VLAN_N_VID,
-					      ps->num_ports + 1);
-		if (unlikely(vlan.fid == VLAN_N_VID)) {
-			pr_err("no more FID available for VLAN %d\n", vid);
-			return -ENOSPC;
-		}
-
 		/* Clear all MAC addresses from the new database */
 		err = _mv88e6xxx_atu_flush(ds, vlan.fid, true);
 		if (err)
 			return err;
-
-		set_bit(vlan.fid, ps->fid_bitmap);
 	}
 
 	*entry = vlan;
@@ -1635,7 +1510,6 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mv88e6xxx_vtu_stu_entry vlan;
-	bool keep = false;
 	int i, err;
 
 	mutex_lock(&ps->smi_mutex);
@@ -1653,28 +1527,22 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 	vlan.data[port] = GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 
 	/* keep the VLAN unless all ports are excluded */
+	vlan.valid = false;
 	for (i = 0; i < ps->num_ports; ++i) {
 		if (dsa_is_cpu_port(ds, i))
 			continue;
 
 		if (vlan.data[i] != GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER) {
-			keep = true;
+			vlan.valid = true;
 			break;
 		}
 	}
 
-	vlan.valid = keep;
 	err = _mv88e6xxx_vtu_loadpurge(ds, &vlan);
 	if (err)
 		goto unlock;
 
 	err = _mv88e6xxx_atu_remove(ds, vlan.fid, port, false);
-	if (err)
-		goto unlock;
-
-	if (!keep)
-		clear_bit(vlan.fid, ps->fid_bitmap);
-
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 
@@ -1801,37 +1669,13 @@ static int _mv88e6xxx_atu_load(struct dsa_switch *ds,
 	return _mv88e6xxx_atu_cmd(ds, GLOBAL_ATU_OP_LOAD_DB);
 }
 
-static int _mv88e6xxx_port_vid_to_fid(struct dsa_switch *ds, int port, u16 vid)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	struct mv88e6xxx_vtu_stu_entry vlan;
-	int err;
-
-	if (vid == 0)
-		return ps->fid[port];
-
-	err = _mv88e6xxx_port_vtu_getnext(ds, port, vid - 1, &vlan);
-	if (err)
-		return err;
-
-	if (vlan.vid == vid)
-		return vlan.fid;
-
-	return -ENOENT;
-}
-
 static int _mv88e6xxx_port_fdb_load(struct dsa_switch *ds, int port,
 				    const unsigned char *addr, u16 vid,
 				    u8 state)
 {
 	struct mv88e6xxx_atu_entry entry = { 0 };
-	int ret;
 
-	ret = _mv88e6xxx_port_vid_to_fid(ds, port, vid);
-	if (ret < 0)
-		return ret;
-
-	entry.fid = ret;
+	entry.fid = vid; /* We use one FID per VLAN */
 	entry.state = state;
 	ether_addr_copy(entry.mac, addr);
 	if (state != GLOBAL_ATU_DATA_STATE_UNUSED) {
@@ -1846,6 +1690,10 @@ int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 			       const struct switchdev_obj_port_fdb *fdb,
 			       struct switchdev_trans *trans)
 {
+	/* We don't use per-port FDB */
+	if (fdb->vid == 0)
+		return -EOPNOTSUPP;
+
 	/* We don't need any dynamic resource from the kernel (yet),
 	 * so skip the prepare phase.
 	 */
@@ -1943,15 +1791,10 @@ int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mv88e6xxx_atu_entry next;
-	u16 fid;
+	u16 fid = *vid; /* We use one FID per VLAN */
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-
-	ret = _mv88e6xxx_port_vid_to_fid(ds, port, *vid);
-	if (ret < 0)
-		goto unlock;
-	fid = ret;
 
 	do {
 		if (is_broadcast_ether_addr(addr)) {
@@ -2003,7 +1846,7 @@ static void mv88e6xxx_bridge_work(struct work_struct *work)
 static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int ret, fid;
+	int ret;
 	u16 reg;
 
 	mutex_lock(&ps->smi_mutex);
@@ -2129,7 +1972,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 			reg |= PORT_CONTROL_2_FORWARD_UNKNOWN;
 	}
 
-	reg |= PORT_CONTROL_2_8021Q_FALLBACK;
+	reg |= PORT_CONTROL_2_8021Q_SECURE;
 
 	if (reg) {
 		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
@@ -2222,19 +2065,11 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	if (ret)
 		goto abort;
 
-	/* Port based VLAN map: give each port its own address
-	 * database, allow the CPU port to talk to each of the 'real'
-	 * ports, and allow each of the 'real' ports to only talk to
-	 * the upstream port.
+	/* Port based VLAN map: do not give each port its own address
+	 * database, and allow every port to egress frames on all other ports.
 	 */
-	fid = port + 1;
-	ps->fid[port] = fid;
-	set_bit(fid, ps->fid_bitmap);
-
-	if (!dsa_is_cpu_port(ds, port))
-		ps->bridge_mask[fid] = 1 << port;
-
-	ret = _mv88e6xxx_update_port_config(ds, port);
+	reg = BIT(ps->num_ports) - 1; /* all ports */
+	ret = _mv88e6xxx_port_vlan_map_set(ds, port, reg & ~port);
 	if (ret)
 		goto abort;
 
