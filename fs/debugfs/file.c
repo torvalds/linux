@@ -450,6 +450,18 @@ static const struct file_operations fops_bool = {
 	.llseek =	default_llseek,
 };
 
+static const struct file_operations fops_bool_ro = {
+	.read =		debugfs_read_file_bool,
+	.open =		simple_open,
+	.llseek =	default_llseek,
+};
+
+static const struct file_operations fops_bool_wo = {
+	.write =	debugfs_write_file_bool,
+	.open =		simple_open,
+	.llseek =	default_llseek,
+};
+
 /**
  * debugfs_create_bool - create a debugfs file that is used to read and write a boolean value
  * @name: a pointer to a string containing the name of the file to create.
@@ -477,7 +489,8 @@ static const struct file_operations fops_bool = {
 struct dentry *debugfs_create_bool(const char *name, umode_t mode,
 				   struct dentry *parent, bool *value)
 {
-	return debugfs_create_file(name, mode, parent, value, &fops_bool);
+	return debugfs_create_mode(name, mode, parent, value, &fops_bool,
+				   &fops_bool_ro, &fops_bool_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_bool);
 
