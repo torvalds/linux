@@ -453,15 +453,18 @@ static int imx_set_trip_temp(struct thermal_zone_device *tz, int trip,
 {
 	struct imx_thermal_data *data = tz->devdata;
 
-	if (trip == IMX_TRIP_CRITICAL)
-		return -EPERM;
+	if (trip == IMX_TRIP_CRITICAL) {
+		data->temp_critical = temp;
+		if (data->socdata->version == TEMPMON_IMX6SX)
+			imx_set_panic_temp(data, temp);
+	}
 
-	if (temp > IMX_TEMP_PASSIVE)
-		return -EINVAL;
-
-	data->temp_passive = temp;
-
-	imx_set_alarm_temp(data, temp);
+	if (trip == IMX_TRIP_PASSIVE) {
+		if (temp > IMX_TEMP_PASSIVE)
+			return -EINVAL;
+		data->temp_passive = temp;
+		imx_set_alarm_temp(data, temp);
+	}
 
 	return 0;
 }
@@ -818,7 +821,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	mutex_init(&data->mutex);
 	data->tz = thermal_zone_device_register("imx_thermal_zone",
 						IMX_TRIP_NUM,
-						BIT(IMX_TRIP_PASSIVE), data,
+						(1 << IMX_TRIP_NUM) - 1, data,
 						&imx_tz_ops, NULL,
 						IMX_PASSIVE_DELAY,
 						IMX_POLLING_DELAY);
