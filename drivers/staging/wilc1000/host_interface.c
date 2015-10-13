@@ -99,7 +99,7 @@ struct scan_attr {
 	u8 src;
 	u8 type;
 	u8 *ch_freq_list;
-	u8 u8ChnlListLen;
+	u8 ch_list_len;
 	u8 *pu8IEs;
 	size_t IEsLen;
 	wilc_scan_result pfScanResult;
@@ -905,17 +905,17 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 	strWIDList[u32WidsCount].id = WID_SCAN_CHANNEL_LIST;
 	strWIDList[u32WidsCount].type = WID_BIN_DATA;
 
-	if (pstrHostIFscanAttr->ch_freq_list != NULL && pstrHostIFscanAttr->u8ChnlListLen > 0) {
+	if (pstrHostIFscanAttr->ch_freq_list != NULL && pstrHostIFscanAttr->ch_list_len > 0) {
 		int i;
 
-		for (i = 0; i < pstrHostIFscanAttr->u8ChnlListLen; i++)	{
+		for (i = 0; i < pstrHostIFscanAttr->ch_list_len; i++)	{
 			if (pstrHostIFscanAttr->ch_freq_list[i] > 0)
 				pstrHostIFscanAttr->ch_freq_list[i] = pstrHostIFscanAttr->ch_freq_list[i] - 1;
 		}
 	}
 
 	strWIDList[u32WidsCount].val = pstrHostIFscanAttr->ch_freq_list;
-	strWIDList[u32WidsCount].size = pstrHostIFscanAttr->u8ChnlListLen;
+	strWIDList[u32WidsCount].size = pstrHostIFscanAttr->ch_list_len;
 	u32WidsCount++;
 
 	strWIDList[u32WidsCount].id = WID_START_SCAN_REQ;
@@ -4062,7 +4062,7 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 	msg.body.scan_info.pfScanResult = ScanResult;
 	msg.body.scan_info.pvUserArg = pvUserArg;
 
-	msg.body.scan_info.u8ChnlListLen = u8ChnlListLen;
+	msg.body.scan_info.ch_list_len = u8ChnlListLen;
 	msg.body.scan_info.ch_freq_list = kmalloc(u8ChnlListLen, GFP_KERNEL);
 	memcpy(msg.body.scan_info.ch_freq_list, pu8ChnlFreqList, u8ChnlListLen);
 
