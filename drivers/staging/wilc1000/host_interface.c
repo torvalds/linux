@@ -115,7 +115,7 @@ struct connect_attr {
 	size_t ies_len;
 	u8 security;
 	wilc_connect_result result;
-	void *pvUserArg;
+	void *arg;
 	enum AUTHTYPE tenuAuth_type;
 	u8 u8channel;
 	void *pJoinParams;
@@ -1054,7 +1054,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	hif_drv->strWILC_UsrConnReq.u8security = pstrHostIFconnectAttr->security;
 	hif_drv->strWILC_UsrConnReq.tenuAuth_type = pstrHostIFconnectAttr->tenuAuth_type;
 	hif_drv->strWILC_UsrConnReq.pfUserConnectResult = pstrHostIFconnectAttr->result;
-	hif_drv->strWILC_UsrConnReq.u32UserConnectPvoid = pstrHostIFconnectAttr->pvUserArg;
+	hif_drv->strWILC_UsrConnReq.u32UserConnectPvoid = pstrHostIFconnectAttr->arg;
 
 	strWIDList[u32WidsCount].id = WID_SUCCESS_FRAME_COUNT;
 	strWIDList[u32WidsCount].type = WID_INT;
@@ -1274,7 +1274,7 @@ ERRORHANDLER:
 							       &strConnectInfo,
 							       MAC_DISCONNECTED,
 							       NULL,
-							       pstrHostIFconnectAttr->pvUserArg);
+							       pstrHostIFconnectAttr->arg);
 			hif_drv->enuHostIFstate = HOST_IF_IDLE;
 			if (strConnectInfo.pu8ReqIEs != NULL) {
 				kfree(strConnectInfo.pu8ReqIEs);
@@ -3615,7 +3615,7 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 	msg.body.con_info.tenuAuth_type = tenuAuth_type;
 	msg.body.con_info.u8channel = u8channel;
 	msg.body.con_info.result = pfConnectResult;
-	msg.body.con_info.pvUserArg = pvUserArg;
+	msg.body.con_info.arg = pvUserArg;
 	msg.body.con_info.pJoinParams = pJoinParams;
 	msg.drv = hif_drv ;
 
