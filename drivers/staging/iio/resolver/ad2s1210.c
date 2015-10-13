@@ -633,7 +633,7 @@ error_ret:
 }
 
 static const struct iio_info ad2s1210_info = {
-	.read_raw = &ad2s1210_read_raw,
+	.read_raw = ad2s1210_read_raw,
 	.attrs = &ad2s1210_attribute_group,
 	.driver_module = THIS_MODULE,
 };

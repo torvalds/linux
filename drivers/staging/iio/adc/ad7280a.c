@@ -817,7 +817,7 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info ad7280_info = {
-	.read_raw = &ad7280_read_raw,
+	.read_raw = ad7280_read_raw,
 	.event_attrs = &ad7280_event_attrs_group,
 	.attrs = &ad7280_attrs_group,
 	.driver_module = THIS_MODULE,

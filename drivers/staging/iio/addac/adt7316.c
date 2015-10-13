@@ -2152,7 +2152,7 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 
 		ret = devm_request_threaded_irq(dev, chip->bus.irq,
 						NULL,
-						&adt7316_event_handler,
+						adt7316_event_handler,
 						chip->bus.irq_flags |
 						IRQF_ONESHOT,
 						indio_dev->name,
