@@ -381,18 +381,18 @@ void tcp_openreq_init_rwin(struct request_sock *req,
 
 	window_clamp = READ_ONCE(tp->window_clamp);
 	/* Set this up on the first call only */
-	req->window_clamp = window_clamp ? : dst_metric(dst, RTAX_WINDOW);
+	req->rsk_window_clamp = window_clamp ? : dst_metric(dst, RTAX_WINDOW);
 
 	/* limit the window selection if the user enforce a smaller rx buffer */
 	if (sk_listener->sk_userlocks & SOCK_RCVBUF_LOCK &&
-	    (req->window_clamp > full_space || req->window_clamp == 0))
-		req->window_clamp = full_space;
+	    (req->rsk_window_clamp > full_space || req->rsk_window_clamp == 0))
+		req->rsk_window_clamp = full_space;
 
 	/* tcp_full_space because it is guaranteed to be the first packet */
 	tcp_select_initial_window(full_space,
 		mss - (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
-		&req->rcv_wnd,
-		&req->window_clamp,
+		&req->rsk_rcv_wnd,
+		&req->rsk_window_clamp,
 		ireq->wscale_ok,
 		&rcv_wscale,
 		dst_metric(dst, RTAX_INITRWND));
@@ -512,9 +512,9 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 			if (sysctl_tcp_fack)
 				tcp_enable_fack(newtp);
 		}
-		newtp->window_clamp = req->window_clamp;
-		newtp->rcv_ssthresh = req->rcv_wnd;
-		newtp->rcv_wnd = req->rcv_wnd;
+		newtp->window_clamp = req->rsk_window_clamp;
+		newtp->rcv_ssthresh = req->rsk_rcv_wnd;
+		newtp->rcv_wnd = req->rsk_rcv_wnd;
 		newtp->rx_opt.wscale_ok = ireq->wscale_ok;
 		if (newtp->rx_opt.wscale_ok) {
 			newtp->rx_opt.snd_wscale = ireq->snd_wscale;
@@ -707,7 +707,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	/* RFC793: "first check sequence number". */
 
 	if (paws_reject || !tcp_in_window(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq,
-					  tcp_rsk(req)->rcv_nxt, tcp_rsk(req)->rcv_nxt + req->rcv_wnd)) {
+					  tcp_rsk(req)->rcv_nxt, tcp_rsk(req)->rcv_nxt + req->rsk_rcv_wnd)) {
 		/* Out of window: send ACK and drop. */
 		if (!(flg & TCP_FLAG_RST))
 			req->rsk_ops->send_ack(sk, skb, req);

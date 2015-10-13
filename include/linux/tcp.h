@@ -356,8 +356,8 @@ static inline struct tcp_sock *tcp_sk(const struct sock *sk)
 
 struct tcp_timewait_sock {
 	struct inet_timewait_sock tw_sk;
-	u32			  tw_rcv_nxt;
-	u32			  tw_snd_nxt;
+#define tw_rcv_nxt tw_sk.__tw_common.skc_tw_rcv_nxt
+#define tw_snd_nxt tw_sk.__tw_common.skc_tw_snd_nxt
 	u32			  tw_rcv_wnd;
 	u32			  tw_ts_offset;
 	u32			  tw_ts_recent;

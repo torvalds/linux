@@ -803,7 +803,7 @@ static void tcp_v4_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 	 */
 	tcp_v4_send_ack(skb, (sk->sk_state == TCP_LISTEN) ?
 			tcp_rsk(req)->snt_isn + 1 : tcp_sk(sk)->snd_nxt,
-			tcp_rsk(req)->rcv_nxt, req->rcv_wnd,
+			tcp_rsk(req)->rcv_nxt, req->rsk_rcv_wnd,
 			tcp_time_stamp,
 			req->ts_recent,
 			0,
