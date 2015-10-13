@@ -940,6 +940,32 @@ static int gic_irq_domain_xlate(struct irq_domain *d,
 	return ret;
 }
 
+static int gic_irq_domain_translate(struct irq_domain *d,
+				    struct irq_fwspec *fwspec,
+				    unsigned long *hwirq,
+				    unsigned int *type)
+{
+	if (is_of_node(fwspec->fwnode)) {
+		if (fwspec->param_count < 3)
+			return -EINVAL;
+
+		/* Get the interrupt number and add 16 to skip over SGIs */
+		*hwirq = fwspec->param[1] + 16;
+
+		/*
+		 * For SPIs, we need to add 16 more to get the GIC irq
+		 * ID number
+		 */
+		if (!fwspec->param[0])
+			*hwirq += 16;
+
+		*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 #ifdef CONFIG_SMP
 static int gic_secondary_init(struct notifier_block *nfb, unsigned long action,
 			      void *hcpu)
@@ -965,10 +991,9 @@ static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	int i, ret;
 	irq_hw_number_t hwirq;
 	unsigned int type = IRQ_TYPE_NONE;
-	struct of_phandle_args *irq_data = arg;
+	struct irq_fwspec *fwspec = arg;
 
-	ret = gic_irq_domain_xlate(domain, irq_data->np, irq_data->args,
-				   irq_data->args_count, &hwirq, &type);
+	ret = gic_irq_domain_translate(domain, fwspec, &hwirq, &type);
 	if (ret)
 		return ret;
 
@@ -979,7 +1004,7 @@ static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 }
 
 static const struct irq_domain_ops gic_irq_domain_hierarchy_ops = {
-	.xlate = gic_irq_domain_xlate,
+	.translate = gic_irq_domain_translate,
 	.alloc = gic_irq_domain_alloc,
 	.free = irq_domain_free_irqs_top,
 };

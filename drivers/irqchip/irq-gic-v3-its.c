@@ -1265,15 +1265,19 @@ static int its_irq_gic_domain_alloc(struct irq_domain *domain,
 				    unsigned int virq,
 				    irq_hw_number_t hwirq)
 {
-	struct of_phandle_args args;
+	struct irq_fwspec fwspec;
 
-	args.np = irq_domain_get_of_node(domain->parent);
-	args.args_count = 3;
-	args.args[0] = GIC_IRQ_TYPE_LPI;
-	args.args[1] = hwirq;
-	args.args[2] = IRQ_TYPE_EDGE_RISING;
+	if (irq_domain_get_of_node(domain->parent)) {
+		fwspec.fwnode = domain->parent->fwnode;
+		fwspec.param_count = 3;
+		fwspec.param[0] = GIC_IRQ_TYPE_LPI;
+		fwspec.param[1] = hwirq;
+		fwspec.param[2] = IRQ_TYPE_EDGE_RISING;
+	} else {
+		return -EINVAL;
+	}
 
-	return irq_domain_alloc_irqs_parent(domain, virq, 1, &args);
+	return irq_domain_alloc_irqs_parent(domain, virq, 1, &fwspec);
 }
 
 static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,

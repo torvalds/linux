@@ -737,32 +737,30 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static int gic_irq_domain_xlate(struct irq_domain *d,
-				struct device_node *controller,
-				const u32 *intspec, unsigned int intsize,
-				unsigned long *out_hwirq, unsigned int *out_type)
+static int gic_irq_domain_translate(struct irq_domain *d,
+				    struct irq_fwspec *fwspec,
+				    unsigned long *hwirq,
+				    unsigned int *type)
 {
-	if (irq_domain_get_of_node(d) != controller)
-		return -EINVAL;
-	if (intsize < 3)
-		return -EINVAL;
+	if (is_of_node(fwspec->fwnode)) {
+		if (fwspec->param_count < 3)
+			return -EINVAL;
 
-	switch(intspec[0]) {
-	case 0:			/* SPI */
-		*out_hwirq = intspec[1] + 32;
-		break;
-	case 1:			/* PPI */
-		*out_hwirq = intspec[1] + 16;
-		break;
-	case GIC_IRQ_TYPE_LPI:	/* LPI */
-		*out_hwirq = intspec[1];
-		break;
-	default:
-		return -EINVAL;
+		/* Get the interrupt number and add 16 to skip over SGIs */
+		*hwirq = fwspec->param[1] + 16;
+
+		/*
+		 * For SPIs, we need to add 16 more to get the GIC irq
+		 * ID number
+		 */
+		if (!fwspec->param[0])
+			*hwirq += 16;
+
+		*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
+		return 0;
 	}
 
-	*out_type = intspec[2] & IRQ_TYPE_SENSE_MASK;
-	return 0;
+	return -EINVAL;
 }
 
 static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
@@ -771,10 +769,9 @@ static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	int i, ret;
 	irq_hw_number_t hwirq;
 	unsigned int type = IRQ_TYPE_NONE;
-	struct of_phandle_args *irq_data = arg;
+	struct irq_fwspec *fwspec = arg;
 
-	ret = gic_irq_domain_xlate(domain, irq_data->np, irq_data->args,
-				   irq_data->args_count, &hwirq, &type);
+	ret = gic_irq_domain_translate(domain, fwspec, &hwirq, &type);
 	if (ret)
 		return ret;
 
@@ -797,7 +794,7 @@ static void gic_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 }
 
 static const struct irq_domain_ops gic_irq_domain_ops = {
-	.xlate = gic_irq_domain_xlate,
+	.translate = gic_irq_domain_translate,
 	.alloc = gic_irq_domain_alloc,
 	.free = gic_irq_domain_free,
 };
