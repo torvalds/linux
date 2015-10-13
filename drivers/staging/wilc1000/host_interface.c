@@ -136,7 +136,7 @@ struct beacon_attr {
 	u32 head_len;
 	u8 *head;
 	u32 tail_len;
-	u8 *pu8Tail;
+	u8 *tail;
 };
 
 struct set_multicast {
@@ -2367,8 +2367,8 @@ static void Handle_AddBeacon(struct host_if_drv *hif_drv,
 	*pu8CurrByte++ = ((pstrSetBeaconParam->tail_len >> 16) & 0xFF);
 	*pu8CurrByte++ = ((pstrSetBeaconParam->tail_len >> 24) & 0xFF);
 
-	if (pstrSetBeaconParam->pu8Tail > 0)
-		memcpy(pu8CurrByte, pstrSetBeaconParam->pu8Tail, pstrSetBeaconParam->tail_len);
+	if (pstrSetBeaconParam->tail > 0)
+		memcpy(pu8CurrByte, pstrSetBeaconParam->tail, pstrSetBeaconParam->tail_len);
 	pu8CurrByte += pstrSetBeaconParam->tail_len;
 
 	s32Error = send_config_pkt(SET_CFG, &strWID, 1,
@@ -2379,7 +2379,7 @@ static void Handle_AddBeacon(struct host_if_drv *hif_drv,
 ERRORHANDLER:
 	kfree(strWID.val);
 	kfree(pstrSetBeaconParam->head);
-	kfree(pstrSetBeaconParam->pu8Tail);
+	kfree(pstrSetBeaconParam->tail);
 }
 
 static void Handle_DelBeacon(struct host_if_drv *hif_drv)
@@ -4653,14 +4653,14 @@ s32 host_int_add_beacon(struct host_if_drv *hif_drv, u32 u32Interval,
 	pstrSetBeaconParam->tail_len = u32TailLen;
 
 	if (u32TailLen > 0) {
-		pstrSetBeaconParam->pu8Tail = kmalloc(u32TailLen, GFP_KERNEL);
-		if (pstrSetBeaconParam->pu8Tail == NULL) {
+		pstrSetBeaconParam->tail = kmalloc(u32TailLen, GFP_KERNEL);
+		if (pstrSetBeaconParam->tail == NULL) {
 			s32Error = -ENOMEM;
 			goto ERRORHANDLER;
 		}
-		memcpy(pstrSetBeaconParam->pu8Tail, pu8Tail, u32TailLen);
+		memcpy(pstrSetBeaconParam->tail, pu8Tail, u32TailLen);
 	} else {
-		pstrSetBeaconParam->pu8Tail = NULL;
+		pstrSetBeaconParam->tail = NULL;
 	}
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
@@ -4672,8 +4672,8 @@ ERRORHANDLER:
 		if (pstrSetBeaconParam->head != NULL)
 			kfree(pstrSetBeaconParam->head);
 
-		if (pstrSetBeaconParam->pu8Tail != NULL)
-			kfree(pstrSetBeaconParam->pu8Tail);
+		if (pstrSetBeaconParam->tail != NULL)
+			kfree(pstrSetBeaconParam->tail);
 	}
 
 	return s32Error;
