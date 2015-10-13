@@ -979,20 +979,45 @@ every time right after the runtime_resume() callback has returned
 (alternatively, the runtime_suspend() callback will have to check if the
 device should really be suspended and return -EAGAIN if that is not the case).
 
-The runtime PM of PCI devices is disabled by default.  It is also blocked by
-pci_pm_init() that runs the pm_runtime_forbid() helper function.  If a PCI
-driver implements the runtime PM callbacks and intends to use the runtime PM
-framework provided by the PM core and the PCI subsystem, it should enable this
-feature by executing the pm_runtime_enable() helper function.  However, the
-driver should not call the pm_runtime_allow() helper function unblocking
-the runtime PM of the device.  Instead, it should allow user space or some
-platform-specific code to do that (user space can do it via sysfs), although
-once it has called pm_runtime_enable(), it must be prepared to handle the
+The runtime PM of PCI devices is enabled by default by the PCI core.  PCI
+device drivers do not need to enable it and should not attempt to do so.
+However, it is blocked by pci_pm_init() that runs the pm_runtime_forbid()
+helper function.  In addition to that, the runtime PM usage counter of
+each PCI device is incremented by local_pci_probe() before executing the
+probe callback provided by the device's driver.
+
+If a PCI driver implements the runtime PM callbacks and intends to use the
+runtime PM framework provided by the PM core and the PCI subsystem, it needs
+to decrement the device's runtime PM usage counter in its probe callback
+function.  If it doesn't do that, the counter will always be different from
+zero for the device and it will never be runtime-suspended.  The simplest
+way to do that is by calling pm_runtime_put_noidle(), but if the driver
+wants to schedule an autosuspend right away, for example, it may call
+pm_runtime_put_autosuspend() instead for this purpose.  Generally, it
+just needs to call a function that decrements the devices usage counter
+from its probe routine to make runtime PM work for the device.
+
+It is important to remember that the driver's runtime_suspend() callback
+may be executed right after the usage counter has been decremented, because
+user space may already have cuased the pm_runtime_allow() helper function
+unblocking the runtime PM of the device to run via sysfs, so the driver must
+be prepared to cope with that.
+
+The driver itself should not call pm_runtime_allow(), though.  Instead, it
+should let user space or some platform-specific code do that (user space can
+do it via sysfs as stated above), but it must be prepared to handle the
 runtime PM of the device correctly as soon as pm_runtime_allow() is called
-(which may happen at any time).  [It also is possible that user space causes
-pm_runtime_allow() to be called via sysfs before the driver is loaded, so in
-fact the driver has to be prepared to handle the runtime PM of the device as
-soon as it calls pm_runtime_enable().]
+(which may happen at any time, even before the driver is loaded).
+
+When the driver's remove callback runs, it has to balance the decrementation
+of the device's runtime PM usage counter at the probe time.  For this reason,
+if it has decremented the counter in its probe callback, it must run
+pm_runtime_get_noresume() in its remove callback.  [Since the core carries
+out a runtime resume of the device and bumps up the device's usage counter
+before running the driver's remove callback, the runtime PM of the device
+is effectively disabled for the duration of the remove execution and all
+runtime PM helper functions incrementing the device's usage counter are
+then effectively equivalent to pm_runtime_get_noresume().]
 
 The runtime PM framework works by processing requests to suspend or resume
 devices, or to check if they are idle (in which cases it is reasonable to

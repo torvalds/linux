@@ -2517,11 +2517,11 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 	 * If a task dies, then it sets TASK_DEAD in tsk->state and calls
 	 * schedule one last time. The schedule call will never return, and
 	 * the scheduled task must drop that reference.
-	 * The test for TASK_DEAD must occur while the runqueue locks are
-	 * still held, otherwise prev could be scheduled on another cpu, die
-	 * there before we look at prev->state, and then the reference would
-	 * be dropped twice.
-	 *		Manfred Spraul <manfred@colorfullife.com>
+	 *
+	 * We must observe prev->state before clearing prev->on_cpu (in
+	 * finish_lock_switch), otherwise a concurrent wakeup can get prev
+	 * running on another CPU and we could rave with its RUNNING -> DEAD
+	 * transition, resulting in a double drop.
 	 */
 	prev_state = prev->state;
 	vtime_task_switch(prev);
@@ -4934,7 +4934,15 @@ void init_idle(struct task_struct *idle, int cpu)
 	idle->state = TASK_RUNNING;
 	idle->se.exec_start = sched_clock();
 
-	do_set_cpus_allowed(idle, cpumask_of(cpu));
+#ifdef CONFIG_SMP
+	/*
+	 * Its possible that init_idle() gets called multiple times on a task,
+	 * in that case do_set_cpus_allowed() will not do the right thing.
+	 *
+	 * And since this is boot we can forgo the serialization.
+	 */
+	set_cpus_allowed_common(idle, cpumask_of(cpu));
+#endif
 	/*
 	 * We're having a chicken and egg problem, even though we are
 	 * holding rq->lock, the cpu isn't yet set to this cpu so the
@@ -4951,7 +4959,7 @@ void init_idle(struct task_struct *idle, int cpu)
 
 	rq->curr = rq->idle = idle;
 	idle->on_rq = TASK_ON_RQ_QUEUED;
-#if defined(CONFIG_SMP)
+#ifdef CONFIG_SMP
 	idle->on_cpu = 1;
 #endif
 	raw_spin_unlock(&rq->lock);
@@ -4966,7 +4974,7 @@ void init_idle(struct task_struct *idle, int cpu)
 	idle->sched_class = &idle_sched_class;
 	ftrace_graph_init_idle_task(idle, cpu);
 	vtime_init_idle(idle, cpu);
-#if defined(CONFIG_SMP)
+#ifdef CONFIG_SMP
 	sprintf(idle->comm, "%s/%d", INIT_TASK_COMM, cpu);
 #endif
 }
