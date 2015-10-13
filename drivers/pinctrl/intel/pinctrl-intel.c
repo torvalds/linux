@@ -861,26 +861,6 @@ static struct irq_chip intel_gpio_irqchip = {
 	.irq_set_wake = intel_gpio_irq_wake,
 };
 
-static void intel_gpio_irq_init(struct intel_pinctrl *pctrl)
-{
-	size_t i;
-
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		const struct intel_community *community;
-		void __iomem *base;
-		unsigned gpp;
-
-		community = &pctrl->communities[i];
-		base = community->regs;
-
-		for (gpp = 0; gpp < community->ngpps; gpp++) {
-			/* Mask and clear all interrupts */
-			writel(0, base + community->ie_offset + gpp * 4);
-			writel(0xffff, base + GPI_IS + gpp * 4);
-		}
-	}
-}
-
 static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 {
 	int ret;
@@ -1086,6 +1066,26 @@ int intel_pinctrl_suspend(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_pinctrl_suspend);
+
+static void intel_gpio_irq_init(struct intel_pinctrl *pctrl)
+{
+	size_t i;
+
+	for (i = 0; i < pctrl->ncommunities; i++) {
+		const struct intel_community *community;
+		void __iomem *base;
+		unsigned gpp;
+
+		community = &pctrl->communities[i];
+		base = community->regs;
+
+		for (gpp = 0; gpp < community->ngpps; gpp++) {
+			/* Mask and clear all interrupts */
+			writel(0, base + community->ie_offset + gpp * 4);
+			writel(0xffff, base + GPI_IS + gpp * 4);
+		}
+	}
+}
 
 int intel_pinctrl_resume(struct device *dev)
 {
