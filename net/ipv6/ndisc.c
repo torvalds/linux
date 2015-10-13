@@ -67,6 +67,7 @@
 #include <net/flow.h>
 #include <net/ip6_checksum.h>
 #include <net/inet_common.h>
+#include <net/l3mdev.h>
 #include <linux/proc_fs.h>
 
 #include <linux/netfilter.h>
@@ -147,6 +148,7 @@ struct neigh_table nd_tbl = {
 	.gc_thresh2 =	 512,
 	.gc_thresh3 =	1024,
 };
+EXPORT_SYMBOL_GPL(nd_tbl);
 
 static void ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data)
 {
@@ -441,8 +443,11 @@ static void ndisc_send_skb(struct sk_buff *skb,
 
 	if (!dst) {
 		struct flowi6 fl6;
+		int oif = l3mdev_fib_oif(skb->dev);
 
-		icmpv6_flow_init(sk, &fl6, type, saddr, daddr, skb->dev->ifindex);
+		icmpv6_flow_init(sk, &fl6, type, saddr, daddr, oif);
+		if (oif != skb->dev->ifindex)
+			fl6.flowi6_flags |= FLOWI_FLAG_L3MDEV_SRC;
 		dst = icmp6_dst_alloc(skb->dev, &fl6);
 		if (IS_ERR(dst)) {
 			kfree_skb(skb);
@@ -766,7 +771,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 
 	ifp = ipv6_get_ifaddr(dev_net(dev), &msg->target, dev, 1);
 	if (ifp) {
-
+have_ifp:
 		if (ifp->flags & (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)) {
 			if (dad) {
 				/*
@@ -791,6 +796,18 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		idev = ifp->idev;
 	} else {
 		struct net *net = dev_net(dev);
+
+		/* perhaps an address on the master device */
+		if (netif_is_l3_slave(dev)) {
+			struct net_device *mdev;
+
+			mdev = netdev_master_upper_dev_get_rcu(dev);
+			if (mdev) {
+				ifp = ipv6_get_ifaddr(net, &msg->target, mdev, 1);
+				if (ifp)
+					goto have_ifp;
+			}
+		}
 
 		idev = in6_dev_get(dev);
 		if (!idev) {
@@ -1483,6 +1500,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	struct flowi6 fl6;
 	int rd_len;
 	u8 ha_buf[MAX_ADDR_LEN], *ha = NULL;
+	int oif = l3mdev_fib_oif(dev);
 	bool ret;
 
 	if (ipv6_get_lladdr(dev, &saddr_buf, IFA_F_TENTATIVE)) {
@@ -1499,7 +1517,10 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	}
 
 	icmpv6_flow_init(sk, &fl6, NDISC_REDIRECT,
-			 &saddr_buf, &ipv6_hdr(skb)->saddr, dev->ifindex);
+			 &saddr_buf, &ipv6_hdr(skb)->saddr, oif);
+
+	if (oif != skb->dev->ifindex)
+		fl6.flowi6_flags |= FLOWI_FLAG_L3MDEV_SRC;
 
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error) {

@@ -68,6 +68,7 @@
 #include <net/xfrm.h>
 #include <net/inet_common.h>
 #include <net/dsfield.h>
+#include <net/l3mdev.h>
 
 #include <asm/uaccess.h>
 
@@ -496,6 +497,9 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
 
+	if (!fl6.flowi6_oif)
+		fl6.flowi6_oif = l3mdev_master_ifindex(skb->dev);
+
 	dst = icmpv6_route_lookup(net, skb, sk, &fl6);
 	if (IS_ERR(dst))
 		goto out;
@@ -575,7 +579,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	fl6.daddr = ipv6_hdr(skb)->saddr;
 	if (saddr)
 		fl6.saddr = *saddr;
-	fl6.flowi6_oif = skb->dev->ifindex;
+	fl6.flowi6_oif = l3mdev_fib_oif(skb->dev);
 	fl6.fl6_icmp_type = ICMPV6_ECHO_REPLY;
 	fl6.flowi6_mark = mark;
 	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));

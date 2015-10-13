@@ -81,6 +81,7 @@
 #include <net/ip.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/l3mdev.h>
 #include <linux/if_tunnel.h>
 #include <linux/rtnetlink.h>
 #include <linux/netconf.h>
@@ -2146,7 +2147,7 @@ addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 		      unsigned long expires, u32 flags)
 {
 	struct fib6_config cfg = {
-		.fc_table = RT6_TABLE_PREFIX,
+		.fc_table = l3mdev_fib_table(dev) ? : RT6_TABLE_PREFIX,
 		.fc_metric = IP6_RT_PRIO_ADDRCONF,
 		.fc_ifindex = dev->ifindex,
 		.fc_expires = expires,
@@ -2179,8 +2180,9 @@ static struct rt6_info *addrconf_get_prefix_route(const struct in6_addr *pfx,
 	struct fib6_node *fn;
 	struct rt6_info *rt = NULL;
 	struct fib6_table *table;
+	u32 tb_id = l3mdev_fib_table(dev) ? : RT6_TABLE_PREFIX;
 
-	table = fib6_get_table(dev_net(dev), RT6_TABLE_PREFIX);
+	table = fib6_get_table(dev_net(dev), tb_id);
 	if (!table)
 		return NULL;
 
@@ -2211,7 +2213,7 @@ out:
 static void addrconf_add_mroute(struct net_device *dev)
 {
 	struct fib6_config cfg = {
-		.fc_table = RT6_TABLE_LOCAL,
+		.fc_table = l3mdev_fib_table(dev) ? : RT6_TABLE_LOCAL,
 		.fc_metric = IP6_RT_PRIO_ADDRCONF,
 		.fc_ifindex = dev->ifindex,
 		.fc_dst_len = 8,
@@ -3028,6 +3030,10 @@ retry:
 static void addrconf_addr_gen(struct inet6_dev *idev, bool prefix_route)
 {
 	struct in6_addr addr;
+
+	/* no link local addresses on L3 master devices */
+	if (netif_is_l3_master(idev->dev))
+		return;
 
 	ipv6_addr_set(&addr, htonl(0xFE800000), 0, 0, 0);
 
