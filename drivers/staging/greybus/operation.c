@@ -828,7 +828,7 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 						type, data, size);
 	if (!operation) {
 		dev_err(&connection->dev, "can't create operation\n");
-		return;		/* XXX Respond with pre-allocated ENOMEM */
+		return;
 	}
 
 	ret = gb_operation_get_active(operation);
