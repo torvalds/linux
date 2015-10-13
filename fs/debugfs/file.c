@@ -352,6 +352,8 @@ static int debugfs_size_t_get(void *data, u64 *val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_size_t, debugfs_size_t_get, debugfs_size_t_set,
 			"%llu\n");	/* %llu and %zu are more or less the same */
+DEFINE_SIMPLE_ATTRIBUTE(fops_size_t_ro, debugfs_size_t_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(fops_size_t_wo, NULL, debugfs_size_t_set, "%llu\n");
 
 /**
  * debugfs_create_size_t - create a debugfs file that is used to read and write an size_t value
@@ -366,7 +368,8 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_size_t, debugfs_size_t_get, debugfs_size_t_set,
 struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
 				     struct dentry *parent, size_t *value)
 {
-	return debugfs_create_file(name, mode, parent, value, &fops_size_t);
+	return debugfs_create_mode(name, mode, parent, value, &fops_size_t,
+				   &fops_size_t_ro, &fops_size_t_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_size_t);
 
