@@ -1153,6 +1153,52 @@ error:
 	return err;
 }
 
+static int
+mlx5_alloc_priv_descs(struct ib_device *device,
+		      struct mlx5_ib_mr *mr,
+		      int ndescs,
+		      int desc_size)
+{
+	int size = ndescs * desc_size;
+	int add_size;
+	int ret;
+
+	add_size = max_t(int, MLX5_UMR_ALIGN - ARCH_KMALLOC_MINALIGN, 0);
+
+	mr->descs_alloc = kzalloc(size + add_size, GFP_KERNEL);
+	if (!mr->descs_alloc)
+		return -ENOMEM;
+
+	mr->descs = PTR_ALIGN(mr->descs_alloc, MLX5_UMR_ALIGN);
+
+	mr->desc_map = dma_map_single(device->dma_device, mr->descs,
+				      size, DMA_TO_DEVICE);
+	if (dma_mapping_error(device->dma_device, mr->desc_map)) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	return 0;
+err:
+	kfree(mr->descs_alloc);
+
+	return ret;
+}
+
+static void
+mlx5_free_priv_descs(struct mlx5_ib_mr *mr)
+{
+	if (mr->descs) {
+		struct ib_device *device = mr->ibmr.device;
+		int size = mr->max_descs * mr->desc_size;
+
+		dma_unmap_single(device->dma_device, mr->desc_map,
+				 size, DMA_TO_DEVICE);
+		kfree(mr->descs_alloc);
+		mr->descs = NULL;
+	}
+}
+
 static int clean_mr(struct mlx5_ib_mr *mr)
 {
 	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.device);
@@ -1171,6 +1217,8 @@ static int clean_mr(struct mlx5_ib_mr *mr)
 		kfree(mr->sig);
 		mr->sig = NULL;
 	}
+
+	mlx5_free_priv_descs(mr);
 
 	if (!umred) {
 		err = destroy_mkey(dev, mr);
@@ -1261,6 +1309,14 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 	if (mr_type == IB_MR_TYPE_MEM_REG) {
 		access_mode = MLX5_ACCESS_MODE_MTT;
 		in->seg.log2_page_size = PAGE_SHIFT;
+
+		err = mlx5_alloc_priv_descs(pd->device, mr,
+					    ndescs, sizeof(u64));
+		if (err)
+			goto err_free_in;
+
+		mr->desc_size = sizeof(u64);
+		mr->max_descs = ndescs;
 	} else if (mr_type == IB_MR_TYPE_SIGNATURE) {
 		u32 psv_index[2];
 
@@ -1317,6 +1373,7 @@ err_destroy_psv:
 			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
 				     mr->sig->psv_wire.psv_idx);
 	}
+	mlx5_free_priv_descs(mr);
 err_free_sig:
 	kfree(mr->sig);
 err_free_in:
@@ -1407,4 +1464,40 @@ int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 
 done:
 	return ret;
+}
+
+static int mlx5_set_page(struct ib_mr *ibmr, u64 addr)
+{
+	struct mlx5_ib_mr *mr = to_mmr(ibmr);
+	__be64 *descs;
+
+	if (unlikely(mr->ndescs == mr->max_descs))
+		return -ENOMEM;
+
+	descs = mr->descs;
+	descs[mr->ndescs++] = cpu_to_be64(addr | MLX5_EN_RD | MLX5_EN_WR);
+
+	return 0;
+}
+
+int mlx5_ib_map_mr_sg(struct ib_mr *ibmr,
+		      struct scatterlist *sg,
+		      int sg_nents)
+{
+	struct mlx5_ib_mr *mr = to_mmr(ibmr);
+	int n;
+
+	mr->ndescs = 0;
+
+	ib_dma_sync_single_for_cpu(ibmr->device, mr->desc_map,
+				   mr->desc_size * mr->max_descs,
+				   DMA_TO_DEVICE);
+
+	n = ib_sg_to_pages(ibmr, sg, sg_nents, mlx5_set_page);
+
+	ib_dma_sync_single_for_device(ibmr->device, mr->desc_map,
+				      mr->desc_size * mr->max_descs,
+				      DMA_TO_DEVICE);
+
+	return n;
 }

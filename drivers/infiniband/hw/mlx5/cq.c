@@ -109,6 +109,9 @@ static enum ib_wc_opcode get_umr_comp(struct mlx5_ib_wq *wq, int idx)
 	case IB_WR_LOCAL_INV:
 		return IB_WC_LOCAL_INV;
 
+	case IB_WR_REG_MR:
+		return IB_WC_REG_MR;
+
 	case IB_WR_FAST_REG_MR:
 		return IB_WC_FAST_REG_MR;
 
