@@ -102,10 +102,10 @@ static size_t br_get_link_af_size_filtered(const struct net_device *dev,
 	rcu_read_lock();
 	if (br_port_exists(dev)) {
 		p = br_port_get_rcu(dev);
-		vg = nbp_vlan_group(p);
+		vg = nbp_vlan_group_rcu(p);
 	} else if (dev->priv_flags & IFF_EBRIDGE) {
 		br = netdev_priv(dev);
-		vg = br_vlan_group(br);
+		vg = br_vlan_group_rcu(br);
 	}
 	num_vlan_infos = br_get_num_vlan_infos(vg, filter_mask);
 	rcu_read_unlock();
@@ -253,7 +253,7 @@ static int br_fill_ifvlaninfo_compressed(struct sk_buff *skb,
 	 * if vlaninfo represents a range
 	 */
 	pvid = br_get_pvid(vg);
-	list_for_each_entry(v, &vg->vlan_list, vlist) {
+	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
 		flags = 0;
 		if (!br_vlan_should_use(v))
 			continue;
@@ -303,7 +303,7 @@ static int br_fill_ifvlaninfo(struct sk_buff *skb,
 	u16 pvid;
 
 	pvid = br_get_pvid(vg);
-	list_for_each_entry(v, &vg->vlan_list, vlist) {
+	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
 		if (!br_vlan_should_use(v))
 			continue;
 
@@ -386,22 +386,27 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		struct nlattr *af;
 		int err;
 
+		/* RCU needed because of the VLAN locking rules (rcu || rtnl) */
+		rcu_read_lock();
 		if (port)
-			vg = nbp_vlan_group(port);
+			vg = nbp_vlan_group_rcu(port);
 		else
-			vg = br_vlan_group(br);
+			vg = br_vlan_group_rcu(br);
 
-		if (!vg || !vg->num_vlans)
+		if (!vg || !vg->num_vlans) {
+			rcu_read_unlock();
 			goto done;
-
+		}
 		af = nla_nest_start(skb, IFLA_AF_SPEC);
-		if (!af)
+		if (!af) {
+			rcu_read_unlock();
 			goto nla_put_failure;
-
+		}
 		if (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)
 			err = br_fill_ifvlaninfo_compressed(skb, vg);
 		else
 			err = br_fill_ifvlaninfo(skb, vg);
+		rcu_read_unlock();
 		if (err)
 			goto nla_put_failure;
 		nla_nest_end(skb, af);
