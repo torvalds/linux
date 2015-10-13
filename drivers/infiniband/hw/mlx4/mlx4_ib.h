@@ -129,10 +129,17 @@ struct mlx4_ib_cq {
 	struct list_head		recv_qp_list;
 };
 
+#define MLX4_MR_PAGES_ALIGN 0x40
+
 struct mlx4_ib_mr {
 	struct ib_mr		ibmr;
+	__be64			*pages;
+	dma_addr_t		page_map;
+	u32			npages;
+	u32			max_pages;
 	struct mlx4_mr		mmr;
 	struct ib_umem	       *umem;
+	void			*pages_alloc;
 };
 
 struct mlx4_ib_mw {
@@ -714,6 +721,9 @@ int mlx4_ib_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *mlx4_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
 			       u32 max_num_sg);
+int mlx4_ib_map_mr_sg(struct ib_mr *ibmr,
+		      struct scatterlist *sg,
+		      int sg_nents);
 struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
 							       int page_list_len);
 void mlx4_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list);

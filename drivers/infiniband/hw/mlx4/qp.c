@@ -112,6 +112,7 @@ static const __be32 mlx4_ib_opcode[] = {
 	[IB_WR_SEND_WITH_INV]			= cpu_to_be32(MLX4_OPCODE_SEND_INVAL),
 	[IB_WR_LOCAL_INV]			= cpu_to_be32(MLX4_OPCODE_LOCAL_INVAL),
 	[IB_WR_FAST_REG_MR]			= cpu_to_be32(MLX4_OPCODE_FMR),
+	[IB_WR_REG_MR]				= cpu_to_be32(MLX4_OPCODE_FMR),
 	[IB_WR_MASKED_ATOMIC_CMP_AND_SWP]	= cpu_to_be32(MLX4_OPCODE_MASKED_ATOMIC_CS),
 	[IB_WR_MASKED_ATOMIC_FETCH_AND_ADD]	= cpu_to_be32(MLX4_OPCODE_MASKED_ATOMIC_FA),
 	[IB_WR_BIND_MW]				= cpu_to_be32(MLX4_OPCODE_BIND_MW),
@@ -2505,6 +2506,22 @@ static __be32 convert_access(int acc)
 		cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_READ);
 }
 
+static void set_reg_seg(struct mlx4_wqe_fmr_seg *fseg,
+			struct ib_reg_wr *wr)
+{
+	struct mlx4_ib_mr *mr = to_mmr(wr->mr);
+
+	fseg->flags		= convert_access(wr->access);
+	fseg->mem_key		= cpu_to_be32(wr->key);
+	fseg->buf_list		= cpu_to_be64(mr->page_map);
+	fseg->start_addr	= cpu_to_be64(mr->ibmr.iova);
+	fseg->reg_len		= cpu_to_be64(mr->ibmr.length);
+	fseg->offset		= 0; /* XXX -- is this just for ZBVA? */
+	fseg->page_size		= cpu_to_be32(ilog2(mr->ibmr.page_size));
+	fseg->reserved[0]	= 0;
+	fseg->reserved[1]	= 0;
+}
+
 static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg,
 		struct ib_fast_reg_wr *wr)
 {
@@ -2864,6 +2881,14 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				set_fmr_seg(wqe, fast_reg_wr(wr));
 				wqe  += sizeof (struct mlx4_wqe_fmr_seg);
 				size += sizeof (struct mlx4_wqe_fmr_seg) / 16;
+				break;
+
+			case IB_WR_REG_MR:
+				ctrl->srcrb_flags |=
+					cpu_to_be32(MLX4_WQE_CTRL_STRONG_ORDER);
+				set_reg_seg(wqe, reg_wr(wr));
+				wqe  += sizeof(struct mlx4_wqe_fmr_seg);
+				size += sizeof(struct mlx4_wqe_fmr_seg) / 16;
 				break;
 
 			case IB_WR_BIND_MW:

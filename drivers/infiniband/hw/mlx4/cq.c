@@ -819,6 +819,7 @@ repoll:
 			break;
 		case MLX4_OPCODE_FMR:
 			wc->opcode    = IB_WC_FAST_REG_MR;
+			/* TODO: wc->opcode    = IB_WC_REG_MR; */
 			break;
 		case MLX4_OPCODE_LOCAL_INVAL:
 			wc->opcode    = IB_WC_LOCAL_INV;
