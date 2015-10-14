@@ -85,7 +85,7 @@
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 	SNDRV_CTL_ELEM_ACCESS_READWRITE, \
 	.tlv.p  = (tlv_array),\
-	.info = snd_soc_info_volsw, \
+	.info = snd_soc_info_volsw_sx, \
 	.get = snd_soc_get_volsw_sx,\
 	.put = snd_soc_put_volsw_sx, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
@@ -155,7 +155,7 @@
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 	SNDRV_CTL_ELEM_ACCESS_READWRITE, \
 	.tlv.p  = (tlv_array), \
-	.info = snd_soc_info_volsw, \
+	.info = snd_soc_info_volsw_sx, \
 	.get = snd_soc_get_volsw_sx, \
 	.put = snd_soc_put_volsw_sx, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
@@ -563,6 +563,8 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
+int snd_soc_info_volsw_sx(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_info *uinfo);
 #define snd_soc_info_bool_ext		snd_ctl_boolean_mono_info
 int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
