@@ -207,11 +207,6 @@ static const struct comedi_lrange cb_pcidas_ao_ranges = {
 	}
 };
 
-enum trimpot_model {
-	AD7376,
-	AD8402,
-};
-
 enum cb_pcidas_boardid {
 	BOARD_PCIDAS1602_16,
 	BOARD_PCIDAS1200,
@@ -228,11 +223,11 @@ struct cb_pcidas_board {
 	int ai_speed;		/*  fastest conversion period in ns */
 	int ao_scan_speed;	/*  analog output scan speed for 1602 series */
 	int fifo_size;		/*  number of samples fifo can hold */
-	enum trimpot_model trimpot;
 	unsigned int is_16bit;		/* ai/ao is 1=16-bit; 0=12-bit */
 	unsigned int use_alt_range:1;	/* use alternate ai range table */
 	unsigned int has_ao:1;		/* has 2 analog output channels */
 	unsigned int has_ao_fifo:1;	/* analog output has fifo */
+	unsigned int has_ad8402:1;	/* trimpot type 1=AD8402; 0=AD7376 */
 	unsigned int has_dac08:1;
 	unsigned int is_1602:1;
 };
@@ -243,10 +238,10 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.ai_speed	= 5000,
 		.ao_scan_speed	= 10000,
 		.fifo_size	= 512,
-		.trimpot	= AD8402,
 		.is_16bit	= 1,
 		.has_ao		= 1,
 		.has_ao_fifo	= 1,
+		.has_ad8402	= 1,
 		.has_dac08	= 1,
 		.is_1602	= 1,
 	},
@@ -254,7 +249,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1200",
 		.ai_speed	= 3200,
 		.fifo_size	= 1024,
-		.trimpot	= AD7376,
 		.has_ao		= 1,
 	},
 	[BOARD_PCIDAS1602_12] = {
@@ -262,7 +256,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.ai_speed	= 3200,
 		.ao_scan_speed	= 4000,
 		.fifo_size	= 1024,
-		.trimpot	= AD7376,
 		.has_ao		= 1,
 		.has_ao_fifo	= 1,
 		.is_1602	= 1,
@@ -271,14 +264,13 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1200/jr",
 		.ai_speed	= 3200,
 		.fifo_size	= 1024,
-		.trimpot	= AD7376,
 	},
 	[BOARD_PCIDAS1602_16_JR] = {
 		.name		= "pci-das1602/16/jr",
 		.ai_speed	= 5000,
 		.fifo_size	= 512,
-		.trimpot	= AD8402,
 		.is_16bit	= 1,
+		.has_ad8402	= 1,
 		.has_dac08	= 1,
 		.is_1602	= 1,
 	},
@@ -286,13 +278,11 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1000",
 		.ai_speed	= 4000,
 		.fifo_size	= 1024,
-		.trimpot	= AD7376,
 	},
 	[BOARD_PCIDAS1001] = {
 		.name		= "pci-das1001",
 		.ai_speed	= 6800,
 		.fifo_size	= 1024,
-		.trimpot	= AD7376,
 		.use_alt_range	= 1,
 		.has_ao		= 1,
 	},
@@ -300,7 +290,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1002",
 		.ai_speed	= 6800,
 		.fifo_size	= 1024,
-		.trimpot	= AD7376,
 		.has_ao		= 1,
 	},
 };
@@ -634,12 +623,12 @@ static void cb_pcidas_trimpot_write(struct comedi_device *dev,
 {
 	const struct cb_pcidas_board *board = dev->board_ptr;
 
-	if (board->trimpot == AD7376) {
-		/* write 7-bit value to trimpot */
-		cb_pcidas_calib_write(dev, val, 7, true);
-	} else {	/* AD8402 */
-		/* write 10-bit channel/value to trimpot */
+	if (board->has_ad8402) {
+		/* write 10-bit channel/value to AD8402 trimpot */
 		cb_pcidas_calib_write(dev, (chan << 8) | val, 10, true);
+	} else {
+		/* write 7-bit value to AD7376 trimpot */
+		cb_pcidas_calib_write(dev, val, 7, true);
 	}
 }
 
@@ -1402,17 +1391,18 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[5];
 	s->type		= COMEDI_SUBD_CALIB;
 	s->subdev_flags	= SDF_WRITABLE | SDF_INTERNAL;
-	if (board->trimpot == AD7376) {
-		s->n_chan	= 1;
-		s->maxdata	= 0x7f;
-	} else {	/* AD8402 */
+	if (board->has_ad8402) {
 		/*
-		 * For pci-das1602/16:
+		 * pci-das1602/16 have an AD8402 trimpot:
 		 *   chan 0 : adc gain
 		 *   chan 1 : adc postgain offset
 		 */
 		s->n_chan	= 2;
 		s->maxdata	= 0xff;
+	} else {
+		/* all other boards have an AD7376 trimpot */
+		s->n_chan	= 1;
+		s->maxdata	= 0x7f;
 	}
 	s->insn_write	= cb_pcidas_trimpot_insn_write;
 
