@@ -111,8 +111,8 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 		retval = vib->minor;
 		goto error;
 	}
-	dev = device_create(&vibrator_class, &connection->dev, MKDEV(0, 0), vib,
-			    "vibrator%d", vib->minor);
+	dev = device_create(&vibrator_class, &connection->bundle->dev,
+			    MKDEV(0, 0), vib, "vibrator%d", vib->minor);
 	if (IS_ERR(dev)) {
 		retval = -EINVAL;
 		goto err_ida_remove;
