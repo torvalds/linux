@@ -520,6 +520,8 @@ EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
  *	@id: object ID
  *	@obj: object to dump
  *	@cb: function to call with a filled object
+ *
+ *	rtnl_lock must be held.
  */
 int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
 			    switchdev_obj_dump_cb_t *cb)
@@ -528,6 +530,8 @@ int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
 	struct net_device *lower_dev;
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
+
+	ASSERT_RTNL();
 
 	if (ops && ops->switchdev_port_obj_dump)
 		return ops->switchdev_port_obj_dump(dev, obj, cb);
@@ -1097,6 +1101,8 @@ static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
 	struct net_device *dev = NULL;
 	int nhsel;
 
+	ASSERT_RTNL();
+
 	/* For this route, all nexthop devs must be on the same switch. */
 
 	for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
@@ -1327,10 +1333,11 @@ void switchdev_port_fwd_mark_set(struct net_device *dev,
 	u32 mark = dev->ifindex;
 	u32 reset_mark = 0;
 
-	if (group_dev && joining) {
-		mark = switchdev_port_fwd_mark_get(dev, group_dev);
-	} else if (group_dev && !joining) {
-		if (dev->offload_fwd_mark == mark)
+	if (group_dev) {
+		ASSERT_RTNL();
+		if (joining)
+			mark = switchdev_port_fwd_mark_get(dev, group_dev);
+		else if (dev->offload_fwd_mark == mark)
 			/* Ohoh, this port was the mark reference port,
 			 * but it's leaving the group, so reset the
 			 * mark for the remaining ports in the group.
