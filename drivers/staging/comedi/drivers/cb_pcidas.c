@@ -303,7 +303,7 @@ struct cb_pcidas_private {
 	unsigned long pcibar4;
 	/* bits to write to registers */
 	unsigned int ctrl;
-	unsigned int s5933_intcsr_bits;
+	unsigned int amcc_intcsr;
 	unsigned int ao_ctrl;
 	/* fifo buffers */
 	unsigned short ai_buffer[AI_BUFFER_SIZE];
@@ -1168,7 +1168,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	/*  make sure mailbox 4 is empty */
 	inl_p(devpriv->amcc + AMCC_OP_REG_IMB4);
 	/*  clear interrupt on amcc s5933 */
-	outl(devpriv->s5933_intcsr_bits | INTCSR_INBOX_INTR_STATUS,
+	outl(devpriv->amcc_intcsr | INTCSR_INBOX_INTR_STATUS,
 	     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	status = inw(devpriv->pcibar1 + PCIDAS_CTRL_REG);
@@ -1433,11 +1433,10 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	/*  make sure mailbox 4 is empty */
 	inl(devpriv->amcc + AMCC_OP_REG_IMB4);
 	/* Set bits to enable incoming mailbox interrupts on amcc s5933. */
-	devpriv->s5933_intcsr_bits =
-	    INTCSR_INBOX_BYTE(3) | INTCSR_INBOX_SELECT(3) |
-	    INTCSR_INBOX_FULL_INT;
+	devpriv->amcc_intcsr = INTCSR_INBOX_BYTE(3) | INTCSR_INBOX_SELECT(3) |
+			       INTCSR_INBOX_FULL_INT;
 	/*  clear and enable interrupt on amcc s5933 */
-	outl(devpriv->s5933_intcsr_bits | INTCSR_INBOX_INTR_STATUS,
+	outl(devpriv->amcc_intcsr | INTCSR_INBOX_INTR_STATUS,
 	     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	return 0;
