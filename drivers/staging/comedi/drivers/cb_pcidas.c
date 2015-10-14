@@ -466,44 +466,18 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int wait_for_nvram_ready(unsigned long s5933_base_addr)
-{
-	static const int timeout = 1000;
-	unsigned int i;
-
-	for (i = 0; i < timeout; i++) {
-		if ((inb(s5933_base_addr +
-			 AMCC_OP_REG_MCSR_NVCMD) & MCSR_NV_BUSY)
-		    == 0)
-			return 0;
-		udelay(1);
-	}
-	return -1;
-}
-
-static int nvram_read(struct comedi_device *dev, unsigned int address,
-		      u8 *data)
+static int cb_pcidas_eeprom_ready(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned long context)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	unsigned long iobase = devpriv->s5933_config;
+	unsigned int status;
 
-	if (wait_for_nvram_ready(iobase) < 0)
-		return -ETIMEDOUT;
-
-	outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_LOW_ADDR,
-	     iobase + AMCC_OP_REG_MCSR_NVCMD);
-	outb(address & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
-	outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_HIGH_ADDR,
-	     iobase + AMCC_OP_REG_MCSR_NVCMD);
-	outb((address >> 8) & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
-	outb(MCSR_NV_ENABLE | MCSR_NV_READ, iobase + AMCC_OP_REG_MCSR_NVCMD);
-
-	if (wait_for_nvram_ready(iobase) < 0)
-		return -ETIMEDOUT;
-
-	*data = inb(iobase + AMCC_OP_REG_MCSR_NVDATA);
-
-	return 0;
+	status = inb(devpriv->s5933_config + AMCC_OP_REG_MCSR_NVCMD);
+	if ((status & MCSR_NV_BUSY) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int cb_pcidas_eeprom_insn_read(struct comedi_device *dev,
@@ -511,16 +485,38 @@ static int cb_pcidas_eeprom_insn_read(struct comedi_device *dev,
 				      struct comedi_insn *insn,
 				      unsigned int *data)
 {
-	u8 nvram_data;
-	int retval;
+	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int ret;
+	int i;
 
-	retval = nvram_read(dev, CR_CHAN(insn->chanspec), &nvram_data);
-	if (retval < 0)
-		return retval;
+	for (i = 0; i < insn->n; i++) {
+		/* make sure eeprom is ready */
+		ret = comedi_timeout(dev, s, insn, cb_pcidas_eeprom_ready, 0);
+		if (ret)
+			return ret;
 
-	data[0] = nvram_data;
+		/* set address (chan) and read operation */
+		outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_LOW_ADDR,
+		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVCMD);
+		outb(chan & 0xff,
+		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVDATA);
+		outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_HIGH_ADDR,
+		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVCMD);
+		outb((chan >> 8) & 0xff,
+		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVDATA);
+		outb(MCSR_NV_ENABLE | MCSR_NV_READ,
+		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVCMD);
 
-	return 1;
+		/* wait for data to be returned */
+		ret = comedi_timeout(dev, s, insn, cb_pcidas_eeprom_ready, 0);
+		if (ret)
+			return ret;
+
+		data[i] = inb(devpriv->s5933_config + AMCC_OP_REG_MCSR_NVDATA);
+	}
+
+	return insn->n;
 }
 
 static void cb_pcidas_calib_write(struct comedi_device *dev,
