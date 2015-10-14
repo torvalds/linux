@@ -756,7 +756,7 @@ static int mgc_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			    void *data, int flag)
 {
 	struct lustre_handle lockh;
-	struct config_llog_data *cld = (struct config_llog_data *)data;
+	struct config_llog_data *cld = data;
 	int rc = 0;
 
 	switch (flag) {
@@ -860,7 +860,7 @@ static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
 		       void *data, __u32 lvb_len, void *lvb_swabber,
 		       struct lustre_handle *lockh)
 {
-	struct config_llog_data *cld = (struct config_llog_data *)data;
+	struct config_llog_data *cld = data;
 	struct ldlm_enqueue_info einfo = {
 		.ei_type	= type,
 		.ei_mode	= mode,
@@ -973,7 +973,7 @@ static int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	if (KEY_IS(KEY_SET_INFO)) {
 		struct mgs_send_param *msp;
 
-		msp = (struct mgs_send_param *)val;
+		msp = val;
 		rc =  mgc_set_mgs_param(exp, msp);
 		return rc;
 	}
