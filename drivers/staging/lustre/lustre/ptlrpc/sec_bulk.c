@@ -540,8 +540,7 @@ int sptlrpc_get_bulk_checksum(struct ptlrpc_bulk_desc *desc, __u8 alg,
 		memcpy(buf, hashbuf, buflen);
 	} else {
 		bufsize = buflen;
-		err = cfs_crypto_hash_final(hdesc, (unsigned char *)buf,
-					    &bufsize);
+		err = cfs_crypto_hash_final(hdesc, buf, &bufsize);
 	}
 
 	if (err)
