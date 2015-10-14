@@ -131,6 +131,10 @@ void start_kernel_secondary(void)
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
+	/* Some SMP H/w setup - for each cpu */
+	if (plat_smp_ops.init_irq_cpu)
+		plat_smp_ops.init_irq_cpu(cpu);
+
 	if (machine_desc->init_cpu_smp)
 		machine_desc->init_cpu_smp(cpu);
 
