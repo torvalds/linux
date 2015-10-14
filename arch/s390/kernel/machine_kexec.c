@@ -35,43 +35,37 @@ extern const unsigned long long relocate_kernel_len;
 #ifdef CONFIG_CRASH_DUMP
 
 /*
- * Create ELF notes for one CPU
- */
-static void add_elf_notes(int cpu)
-{
-	struct save_area *sa = (void *) 4608 + store_prefix();
-	void *ptr;
-
-	memcpy((void *) (4608UL + sa->pref_reg), sa, sizeof(*sa));
-	ptr = (u64 *) per_cpu_ptr(crash_notes, cpu);
-	ptr = fill_cpu_elf_notes(ptr, sa, NULL);
-	memset(ptr, 0, sizeof(struct elf_note));
-}
-
-/*
  * Initialize CPU ELF notes
  */
 static void setup_regs(void)
 {
-	unsigned long sa = S390_lowcore.prefixreg_save_area + SAVE_AREA_BASE;
-	struct _lowcore *lc;
+	struct save_area *sa, *sa_0;
+	unsigned long prefix;
 	int cpu, this_cpu;
 
-	/* Get lowcore pointer from store status of this CPU (absolute zero) */
-	lc = (struct _lowcore *)(unsigned long)S390_lowcore.prefixreg_save_area;
+	/* setup_regs is called with the prefix register = 0 */
+	sa_0 = (struct save_area *) SAVE_AREA_BASE;
+
+	/* Get status of this CPU out of absolute zero */
+	prefix = (unsigned long) S390_lowcore.prefixreg_save_area;
+	sa = (struct save_area *)(prefix + SAVE_AREA_BASE);
+	memcpy(sa, sa_0, sizeof(struct save_area));
+	if (MACHINE_HAS_VX) {
+		struct _lowcore *lc = (struct _lowcore *) prefix;
+		save_vx_regs_safe((void *) lc->vector_save_area_addr);
+	}
+
+	/* Get status of the other CPUs */
 	this_cpu = smp_find_processor_id(stap());
-	add_elf_notes(this_cpu);
 	for_each_online_cpu(cpu) {
 		if (cpu == this_cpu)
 			continue;
 		if (smp_store_status(cpu))
 			continue;
-		add_elf_notes(cpu);
+		prefix = (unsigned long) S390_lowcore.prefixreg_save_area;
+		sa = (struct save_area *)(prefix + SAVE_AREA_BASE);
+		memcpy(sa, sa_0, sizeof(struct save_area));
 	}
-	if (MACHINE_HAS_VX)
-		save_vx_regs_safe((void *) lc->vector_save_area_addr);
-	/* Copy dump CPU store status info to absolute zero */
-	memcpy((void *) SAVE_AREA_BASE, (void *) sa, sizeof(struct save_area));
 }
 
 /*

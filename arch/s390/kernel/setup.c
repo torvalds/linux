@@ -661,15 +661,6 @@ static void __init reserve_kernel(void)
 #endif
 }
 
-static void __init reserve_elfcorehdr(void)
-{
-#ifdef CONFIG_CRASH_DUMP
-	if (is_kdump_kernel())
-		memblock_reserve(elfcorehdr_addr - OLDMEM_BASE,
-				 PAGE_ALIGN(elfcorehdr_size));
-#endif
-}
-
 static void __init setup_memory(void)
 {
 	struct memblock_region *reg;
@@ -841,6 +832,11 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.brk = (unsigned long) &_end;
 
 	parse_early_param();
+#ifdef CONFIG_CRASH_DUMP
+	/* Deactivate elfcorehdr= kernel parameter */
+	elfcorehdr_addr = ELFCORE_ADDR_MAX;
+#endif
+
 	os_info_init();
 	setup_ipl();
 
@@ -849,7 +845,6 @@ void __init setup_arch(char **cmdline_p)
 	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
-	reserve_elfcorehdr();
 	memblock_allow_resize();
 
 	/* Get information about *all* installed memory */

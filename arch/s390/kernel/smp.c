@@ -608,9 +608,8 @@ int smp_store_status(int cpu)
  *    stored the registers of the boot CPU in the memory of the old system.
  * 4) kdump and the old kernel stored the CPU state
  *    condition: OLDMEM_BASE != NULL && is_kdump_kernel()
- *    The state of all CPUs is stored in ELF sections in the memory of the
- *    old system. The ELF sections are picked up by the crash_dump code
- *    via elfcorehdr_addr.
+ *    This case does not exist for s390 anymore, setup_arch explicitly
+ *    deactivates the elfcorehdr= kernel parameter
  */
 void __init smp_save_dump_cpus(void)
 {
@@ -619,9 +618,6 @@ void __init smp_save_dump_cpus(void)
 	struct save_area_ext *sa_ext;
 	bool is_boot_cpu;
 
-	if (is_kdump_kernel())
-		/* Previous system stored the CPU states. Nothing to do. */
-		return;
 	if (!(OLDMEM_BASE || ipl_info.type == IPL_TYPE_FCP_DUMP))
 		/* No previous system present, normal boot. */
 		return;
