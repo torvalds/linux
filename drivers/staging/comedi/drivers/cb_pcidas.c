@@ -112,16 +112,18 @@
 #define PCIDAS_AI_PACER_MASK	PCIDAS_AI_PACER(3) /* pacer source bits */
 #define PCIDAS_AI_EOC		BIT(14)	/* adc not busy */
 
-#define TRIG_CONTSTAT		 4	/* TRIGGER CONTROL/STATUS register */
-#define   SW_TRIGGER		0x1	/* software start trigger */
-#define   EXT_TRIGGER		0x2	/* ext. start trigger */
-#define   ANALOG_TRIGGER	0x3	/* ext. analog trigger */
-#define   TRIGGER_MASK		0x3	/* start trigger mask */
-#define   TGPOL			0x04	/* invert trigger (1602 only) */
-#define   TGSEL			0x08	/* edge/level trigerred (1602 only) */
-#define   TGEN			0x10	/* enable external start trigger */
-#define   BURSTE		0x20	/* burst mode enable */
-#define   XTRCL			0x80	/* clear external trigger */
+#define PCIDAS_TRIG_REG		0x04	/* TRIGGER CONTROL/STATUS register */
+#define PCIDAS_TRIG_SEL(x)	(((x) & 0x3) << 0)
+#define PCIDAS_TRIG_SEL_NONE	PCIDAS_TRIG_SEL(0) /* no start trigger */
+#define PCIDAS_TRIG_SEL_SW	PCIDAS_TRIG_SEL(1) /* software start trigger */
+#define PCIDAS_TRIG_SEL_EXT	PCIDAS_TRIG_SEL(2) /* ext. start trigger */
+#define PCIDAS_TRIG_SEL_ANALOG	PCIDAS_TRIG_SEL(3) /* ext. analog trigger */
+#define PCIDAS_TRIG_SEL_MASK	PCIDAS_TRIG_SEL(3) /* start trigger mask */
+#define PCIDAS_TRIG_POL		BIT(2)	/* invert trigger (1602 only) */
+#define PCIDAS_TRIG_MODE	BIT(3)	/* edge/level trigerred (1602 only) */
+#define PCIDAS_TRIG_EN		BIT(4)	/* enable external start trigger */
+#define PCIDAS_TRIG_BURSTE	BIT(5)	/* burst mode enable */
+#define PCIDAS_TRIG_CLR		BIT(7)	/* clear external trigger */
 
 #define CALIBRATION_REG		6	/* CALIBRATION register */
 #define   SELECT_8800_BIT	0x100	/* select 8800 caldac */
@@ -859,7 +861,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	/*  make sure CAL_EN_BIT is disabled */
 	outw(0, devpriv->pcibar1 + CALIBRATION_REG);
 	/*  initialize before settings pacer source and count values */
-	outw(0, devpriv->pcibar1 + TRIG_CONTSTAT);
+	outw(PCIDAS_TRIG_SEL_NONE, devpriv->pcibar1 + PCIDAS_TRIG_REG);
 	/*  clear fifo */
 	outw(0, devpriv->pcibar2 + PCIDAS_AI_FIFO_CLR_REG);
 
@@ -913,19 +915,19 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	/*  set start trigger and burst mode */
 	bits = 0;
 	if (cmd->start_src == TRIG_NOW) {
-		bits |= SW_TRIGGER;
+		bits |= PCIDAS_TRIG_SEL_SW;
 	} else {	/* TRIG_EXT */
-		bits |= EXT_TRIGGER | TGEN | XTRCL;
+		bits |= PCIDAS_TRIG_SEL_EXT | PCIDAS_TRIG_EN | PCIDAS_TRIG_CLR;
 		if (board->is_1602) {
 			if (cmd->start_arg & CR_INVERT)
-				bits |= TGPOL;
+				bits |= PCIDAS_TRIG_POL;
 			if (cmd->start_arg & CR_EDGE)
-				bits |= TGSEL;
+				bits |= PCIDAS_TRIG_MODE;
 		}
 	}
 	if (cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1)
-		bits |= BURSTE;
-	outw(bits, devpriv->pcibar1 + TRIG_CONTSTAT);
+		bits |= PCIDAS_TRIG_BURSTE;
+	outw(bits, devpriv->pcibar1 + PCIDAS_TRIG_REG);
 
 	return 0;
 }
@@ -1036,7 +1038,7 @@ static int cb_pcidas_cancel(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  disable start trigger source and burst mode */
-	outw(0, devpriv->pcibar1 + TRIG_CONTSTAT);
+	outw(PCIDAS_TRIG_SEL_NONE, devpriv->pcibar1 + PCIDAS_TRIG_REG);
 	outw(PCIDAS_AI_PACER_SW, devpriv->pcibar1 + PCIDAS_AI_REG);
 
 	return 0;
