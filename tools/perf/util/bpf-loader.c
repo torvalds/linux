@@ -255,6 +255,46 @@ int bpf__load(struct bpf_object *obj)
 	return 0;
 }
 
+int bpf__foreach_tev(struct bpf_object *obj,
+		     bpf_prog_iter_callback_t func,
+		     void *arg)
+{
+	struct bpf_program *prog;
+	int err;
+
+	bpf_object__for_each_program(prog, obj) {
+		struct probe_trace_event *tev;
+		struct perf_probe_event *pev;
+		struct bpf_prog_priv *priv;
+		int i, fd;
+
+		err = bpf_program__get_private(prog,
+				(void **)&priv);
+		if (err || !priv) {
+			pr_debug("bpf: failed to get private field\n");
+			return -EINVAL;
+		}
+
+		pev = &priv->pev;
+		for (i = 0; i < pev->ntevs; i++) {
+			tev = &pev->tevs[i];
+
+			fd = bpf_program__fd(prog);
+			if (fd < 0) {
+				pr_debug("bpf: failed to get file descriptor\n");
+				return fd;
+			}
+
+			err = (*func)(tev, fd, arg);
+			if (err) {
+				pr_debug("bpf: call back failed, stop iterate\n");
+				return err;
+			}
+		}
+	}
+	return 0;
+}
+
 #define bpf__strerror_head(err, buf, size) \
 	char sbuf[STRERR_BUFSIZE], *emsg;\
 	if (!size)\

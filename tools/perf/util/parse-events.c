@@ -530,12 +530,49 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 	return ret;
 }
 
+struct __add_bpf_event_param {
+	struct parse_events_evlist *data;
+	struct list_head *list;
+};
+
+static int add_bpf_event(struct probe_trace_event *tev, int fd,
+			 void *_param)
+{
+	LIST_HEAD(new_evsels);
+	struct __add_bpf_event_param *param = _param;
+	struct parse_events_evlist *evlist = param->data;
+	struct list_head *list = param->list;
+	int err;
+
+	pr_debug("add bpf event %s:%s and attach bpf program %d\n",
+		 tev->group, tev->event, fd);
+
+	err = parse_events_add_tracepoint(&new_evsels, &evlist->idx, tev->group,
+					  tev->event, evlist->error, NULL);
+	if (err) {
+		struct perf_evsel *evsel, *tmp;
+
+		pr_debug("Failed to add BPF event %s:%s\n",
+			 tev->group, tev->event);
+		list_for_each_entry_safe(evsel, tmp, &new_evsels, node) {
+			list_del(&evsel->node);
+			perf_evsel__delete(evsel);
+		}
+		return err;
+	}
+	pr_debug("adding %s:%s\n", tev->group, tev->event);
+
+	list_splice(&new_evsels, list);
+	return 0;
+}
+
 int parse_events_load_bpf_obj(struct parse_events_evlist *data,
 			      struct list_head *list,
 			      struct bpf_object *obj)
 {
 	int err;
 	char errbuf[BUFSIZ];
+	struct __add_bpf_event_param param = {data, list};
 	static bool registered_unprobe_atexit = false;
 
 	if (IS_ERR(obj) || !obj) {
@@ -567,13 +604,14 @@ int parse_events_load_bpf_obj(struct parse_events_evlist *data,
 		goto errout;
 	}
 
-	/*
-	 * Temporary add a dummy event here so we can check whether
-	 * basic bpf loader works. Following patches will replace
-	 * dummy event by useful evsels.
-	 */
-	return parse_events_add_numeric(data, list, PERF_TYPE_SOFTWARE,
-					PERF_COUNT_SW_DUMMY, NULL);
+	err = bpf__foreach_tev(obj, add_bpf_event, &param);
+	if (err) {
+		snprintf(errbuf, sizeof(errbuf),
+			 "Attach events in BPF object failed");
+		goto errout;
+	}
+
+	return 0;
 errout:
 	data->error->help = strdup("(add -v to see detail)");
 	data->error->str = strdup(errbuf);
