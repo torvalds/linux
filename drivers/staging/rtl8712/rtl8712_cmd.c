@@ -340,8 +340,7 @@ _next:
 		memset(pdesc, 0, TXDESC_SIZE);
 		pcmd = cmd_hdl_filter(padapter, pcmd);
 		if (pcmd) { /* if pcmd != NULL, cmd will be handled by f/w */
-			struct dvobj_priv *pdvobj = (struct dvobj_priv *)
-						    &padapter->dvobjpriv;
+			struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 			u8 blnPending = 0;
 
 			pcmdpriv->cmd_issued_cnt++;
