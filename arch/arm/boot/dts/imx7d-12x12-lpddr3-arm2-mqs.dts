@@ -24,8 +24,9 @@
 };
 
 &mqs {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_mqs>;
+	pinctrl-1 = <&pinctrl_mqs>;
 	clocks = <&clks IMX7D_SAI1_ROOT_CLK>;
 	clock-names = "mclk";
 	status = "okay";
