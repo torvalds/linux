@@ -171,8 +171,6 @@ static inline unsigned int DAC_CHAN_EN(unsigned int channel)
 #define PCIDAS_AO_FIFO_REG	0x00
 #define PCIDAS_AO_FIFO_CLR_REG	0x02
 
-#define IS_UNIPOLAR		0x4	/* unipolar range mask */
-
 /* analog input ranges for most boards */
 static const struct comedi_lrange cb_pcidas_ranges = {
 	8, {
@@ -371,7 +369,7 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 	/* set mux limits and gain */
 	bits = BEGIN_SCAN(chan) | END_SCAN(chan) | GAIN_BITS(range);
 	/* set unipolar/bipolar */
-	if (range & IS_UNIPOLAR)
+	if (comedi_range_is_unipolar(s, range))
 		bits |= UNIP;
 	/* set single-ended/differential */
 	if (aref != AREF_DIFF)
@@ -857,6 +855,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	struct cb_pcidas_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
 	unsigned int bits;
 	unsigned long flags;
 
@@ -870,9 +869,9 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	/*  set mux limits, gain and pacer source */
 	bits = BEGIN_SCAN(CR_CHAN(cmd->chanlist[0])) |
 	    END_SCAN(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1])) |
-	    GAIN_BITS(CR_RANGE(cmd->chanlist[0]));
+	    GAIN_BITS(range0);
 	/*  set unipolar/bipolar */
-	if (CR_RANGE(cmd->chanlist[0]) & IS_UNIPOLAR)
+	if (comedi_range_is_unipolar(s, range0))
 		bits |= UNIP;
 	/*  set singleended/differential */
 	if (CR_AREF(cmd->chanlist[0]) != AREF_DIFF)
