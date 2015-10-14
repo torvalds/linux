@@ -206,7 +206,6 @@ static int ad7780_probe(struct spi_device *spi)
 	indio_dev->info = &ad7780_info;
 
 	if (pdata && gpio_is_valid(pdata->gpio_pdrst)) {
-
 		ret = devm_gpio_request_one(&spi->dev,
 					    pdata->gpio_pdrst,
 					    GPIOF_OUT_INIT_LOW,

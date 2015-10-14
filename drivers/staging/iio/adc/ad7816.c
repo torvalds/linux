@@ -38,7 +38,6 @@
 #define AD7816_TEMP_FLOAT_OFFSET	2
 #define AD7816_TEMP_FLOAT_MASK		0x3
 
-
 /*
  * struct ad7816_chip_info - chip specific information
  */
@@ -69,7 +68,6 @@ static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 		return ret;
 	}
 	gpio_set_value(chip->rdwr_pin, 1);
-
 
 	if (chip->mode == AD7816_PD) { /* operating mode 2 */
 		gpio_set_value(chip->convert_pin, 1);
@@ -202,7 +200,6 @@ static IIO_DEVICE_ATTR(channel, S_IRUGO | S_IWUSR,
 		ad7816_show_channel,
 		ad7816_store_channel,
 		0);
-
 
 static ssize_t ad7816_show_value(struct device *dev,
 				 struct device_attribute *attr,
