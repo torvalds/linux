@@ -1234,7 +1234,7 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 
 static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 {
-	struct comedi_device *dev = (struct comedi_device *)d;
+	struct comedi_device *dev = d;
 	const struct cb_pcidas_board *board = dev->board_ptr;
 	struct cb_pcidas_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
