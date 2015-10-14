@@ -125,13 +125,13 @@
 #define PCIDAS_TRIG_BURSTE	BIT(5)	/* burst mode enable */
 #define PCIDAS_TRIG_CLR		BIT(7)	/* clear external trigger */
 
-#define CALIBRATION_REG		6	/* CALIBRATION register */
-#define   SELECT_8800_BIT	0x100	/* select 8800 caldac */
-#define   SELECT_TRIMPOT_BIT	0x200	/* select ad7376 trim pot */
-#define   SELECT_DAC08_BIT	0x400	/* select dac08 caldac */
-#define   CAL_SRC_BITS(x)	(((x) & 0x7) << 11)
-#define   CAL_EN_BIT		0x4000	/* calibration source enable */
-#define   SERIAL_DATA_IN_BIT	0x8000	/* serial data bit going to caldac */
+#define PCIDAS_CALIB_REG	0x06	/* CALIBRATION register */
+#define PCIDAS_CALIB_8800_SEL	BIT(8)	/* select 8800 caldac */
+#define PCIDAS_CALIB_TRIM_SEL	BIT(9)	/* select ad7376 trim pot */
+#define PCIDAS_CALIB_DAC08_SEL	BIT(10)	/* select dac08 caldac */
+#define PCIDAS_CALIB_SRC(x)	(((x) & 0x7) << 11)
+#define PCIDAS_CALIB_EN		BIT(14)	/* calibration source enable */
+#define PCIDAS_CALIB_DATA	BIT(15)	/* serial data bit going to caldac */
 
 #define DAC_CSR			0x8	/* dac control and status register */
 #define   DACEN			0x02	/* dac enable */
@@ -327,7 +327,7 @@ static inline unsigned int cal_enable_bits(struct comedi_device *dev)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 
-	return CAL_EN_BIT | CAL_SRC_BITS(devpriv->calibration_source);
+	return PCIDAS_CALIB_EN | PCIDAS_CALIB_SRC(devpriv->calibration_source);
 }
 
 static int cb_pcidas_ai_eoc(struct comedi_device *dev,
@@ -359,10 +359,10 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 	/* enable calibration input if appropriate */
 	if (insn->chanspec & CR_ALT_SOURCE) {
 		outw(cal_enable_bits(dev),
-		     devpriv->pcibar1 + CALIBRATION_REG);
+		     devpriv->pcibar1 + PCIDAS_CALIB_REG);
 		chan = 0;
 	} else {
-		outw(0, devpriv->pcibar1 + CALIBRATION_REG);
+		outw(0, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	}
 
 	/* set mux limits and gain */
@@ -545,11 +545,11 @@ static void write_calibration_bitstream(struct comedi_device *dev,
 
 	for (bit = 1 << (bitstream_length - 1); bit; bit >>= 1) {
 		if (bitstream & bit)
-			register_bits |= SERIAL_DATA_IN_BIT;
+			register_bits |= PCIDAS_CALIB_DATA;
 		else
-			register_bits &= ~SERIAL_DATA_IN_BIT;
+			register_bits &= ~PCIDAS_CALIB_DATA;
 		udelay(write_delay);
-		outw(register_bits, devpriv->pcibar1 + CALIBRATION_REG);
+		outw(register_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	}
 }
 
@@ -565,10 +565,10 @@ static void caldac_8800_write(struct comedi_device *dev,
 				    bitstream_length);
 
 	udelay(caldac_8800_udelay);
-	outw(cal_enable_bits(dev) | SELECT_8800_BIT,
-	     devpriv->pcibar1 + CALIBRATION_REG);
+	outw(cal_enable_bits(dev) | PCIDAS_CALIB_8800_SEL,
+	     devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	udelay(caldac_8800_udelay);
-	outw(cal_enable_bits(dev), devpriv->pcibar1 + CALIBRATION_REG);
+	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
 }
 
 static int cb_pcidas_caldac_insn_write(struct comedi_device *dev,
@@ -599,12 +599,12 @@ static void dac08_write(struct comedi_device *dev, unsigned int value)
 	value |= cal_enable_bits(dev);
 
 	/* latch the new value into the caldac */
-	outw(value, devpriv->pcibar1 + CALIBRATION_REG);
+	outw(value, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	udelay(1);
-	outw(value | SELECT_DAC08_BIT,
-	     devpriv->pcibar1 + CALIBRATION_REG);
+	outw(value | PCIDAS_CALIB_DAC08_SEL,
+	     devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	udelay(1);
-	outw(value, devpriv->pcibar1 + CALIBRATION_REG);
+	outw(value, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	udelay(1);
 }
 
@@ -635,15 +635,15 @@ static int trimpot_7376_write(struct comedi_device *dev, uint8_t value)
 	unsigned int register_bits;
 	static const int ad7376_udelay = 1;
 
-	register_bits = cal_enable_bits(dev) | SELECT_TRIMPOT_BIT;
+	register_bits = cal_enable_bits(dev) | PCIDAS_CALIB_TRIM_SEL;
 	udelay(ad7376_udelay);
-	outw(register_bits, devpriv->pcibar1 + CALIBRATION_REG);
+	outw(register_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 
 	write_calibration_bitstream(dev, register_bits, bitstream,
 				    bitstream_length);
 
 	udelay(ad7376_udelay);
-	outw(cal_enable_bits(dev), devpriv->pcibar1 + CALIBRATION_REG);
+	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
 
 	return 0;
 }
@@ -660,15 +660,15 @@ static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
 	unsigned int register_bits;
 	static const int ad8402_udelay = 1;
 
-	register_bits = cal_enable_bits(dev) | SELECT_TRIMPOT_BIT;
+	register_bits = cal_enable_bits(dev) | PCIDAS_CALIB_TRIM_SEL;
 	udelay(ad8402_udelay);
-	outw(register_bits, devpriv->pcibar1 + CALIBRATION_REG);
+	outw(register_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 
 	write_calibration_bitstream(dev, register_bits, bitstream,
 				    bitstream_length);
 
 	udelay(ad8402_udelay);
-	outw(cal_enable_bits(dev), devpriv->pcibar1 + CALIBRATION_REG);
+	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
 
 	return 0;
 }
@@ -858,8 +858,8 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	unsigned int bits;
 	unsigned long flags;
 
-	/*  make sure CAL_EN_BIT is disabled */
-	outw(0, devpriv->pcibar1 + CALIBRATION_REG);
+	/*  make sure PCIDAS_CALIB_EN is disabled */
+	outw(0, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	/*  initialize before settings pacer source and count values */
 	outw(PCIDAS_TRIG_SEL_NONE, devpriv->pcibar1 + PCIDAS_TRIG_REG);
 	/*  clear fifo */
