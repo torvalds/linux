@@ -3055,6 +3055,7 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 	u32 pv;
 	int rc;
 	int count;
+	struct clk *clk;
 
 	if (index < 0)
 		return NULL;
@@ -3080,8 +3081,25 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 
 	if (of_property_read_string_index(clkspec.np, "clock-output-names",
 					  index,
-					  &clk_name) < 0)
-		clk_name = clkspec.np->name;
+					  &clk_name) < 0) {
+		/*
+		 * Best effort to get the name if the clock has been
+		 * registered with the framework. If the clock isn't
+		 * registered, we return the node name as the name of
+		 * the clock as long as #clock-cells = 0.
+		 */
+		clk = of_clk_get_from_provider(&clkspec);
+		if (IS_ERR(clk)) {
+			if (clkspec.args_count == 0)
+				clk_name = clkspec.np->name;
+			else
+				clk_name = NULL;
+		} else {
+			clk_name = __clk_get_name(clk);
+			clk_put(clk);
+		}
+	}
+
 
 	of_node_put(clkspec.np);
 	return clk_name;
