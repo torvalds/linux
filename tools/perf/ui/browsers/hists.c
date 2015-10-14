@@ -1496,7 +1496,7 @@ do_zoom_thread(struct hist_browser *browser, struct popup_action *act)
 		thread__zput(browser->hists->thread_filter);
 		ui_helpline__pop();
 	} else {
-		ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
+		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s(%d) thread\"",
 				   thread->comm_set ? thread__comm_str(thread) : "",
 				   thread->tid);
 		browser->hists->thread_filter = thread__get(thread);
@@ -1540,7 +1540,7 @@ do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
 	} else {
 		if (map == NULL)
 			return 0;
-		ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
+		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s DSO\"",
 				   __map__is_kernel(map) ? "the Kernel" : map->dso->short_name);
 		browser->hists->dso_filter = map->dso;
 		perf_hpp__set_elide(HISTC_DSO, true);
@@ -1761,14 +1761,15 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"For multiple event sessions:\n\n"				\
 	"TAB/UNTAB     Switch events\n\n"				\
 	"For symbolic views (--sort has sym):\n\n"			\
-	"->            Zoom into DSO/Threads & Annotate current symbol\n" \
-	"<-            Zoom out\n"					\
+	"ENTER         Zoom into DSO/Threads & Annotate current symbol\n" \
+	"ESC           Zoom out\n"					\
 	"a             Annotate current symbol\n"			\
 	"C             Collapse all callchains\n"			\
 	"d             Zoom into current DSO\n"				\
 	"E             Expand all callchains\n"				\
 	"F             Toggle percentage of filtered entries\n"		\
 	"H             Display column headers\n"			\
+	"m             Display context menu\n"				\
 	"S             Zoom into current Processor Socket\n"		\
 
 	/* help messages are sorted by lexical order of the hotkey */
@@ -1889,7 +1890,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case '/':
 			if (ui_browser__input_window("Symbol to show",
-					"Please enter the name of symbol you want to see",
+					"Please enter the name of symbol you want to see.\n"
+					"To remove the filter later, press / + ENTER.",
 					buf, "ENTER: OK, ESC: Cancel",
 					delay_secs * 2) == K_ENTER) {
 				hists->symbol_filter_str = *buf ? buf : NULL;
@@ -1934,6 +1936,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
+		case 'm':
 			/* menu */
 			break;
 		case K_ESC:

@@ -768,8 +768,8 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"UP/DOWN/PGUP\n"
 		"PGDN/SPACE    Navigate\n"
 		"q/ESC/CTRL+C  Exit\n\n"
-		"->            Go to target\n"
-		"<-            Exit\n"
+		"ENTER         Go to target\n"
+		"ESC           Exit\n"
 		"H             Cycle thru hottest instructions\n"
 		"j             Toggle showing jump to target arrows\n"
 		"J             Toggle showing number of jump sources on targets\n"
@@ -1056,7 +1056,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		goto out_free_offsets;
 	}
 
-	ui_helpline__push("Press <- or ESC to exit");
+	ui_helpline__push("Press ESC to exit");
 
 	notes = symbol__annotation(sym);
 	browser.start = map__rip_2objdump(map, sym->start);
