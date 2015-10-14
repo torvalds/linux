@@ -296,4 +296,33 @@
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
 	};
+
+	hdmi: hdmi@200a0000 {
+		compatible = "rockchip,rk3228-hdmi";
+		reg = <0x200a0000 0x20000>,
+		      <0x12030000 0x10000>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates14 6>, <&clk_gates3 7>, <&clk_hdmi_cec>;
+		clock-names = "pclk_hdmi", "hdcp_clk_hdmi", "cec_clk_hdmi";
+		rockchip,hdmi_audio_source = <0>;
+		rockchip,hdcp_enable = <0>;
+		rockchip,cec_enable = <0>;
+		status = "disabled";
+	};
+
+	hdmi_hdcp2: hdmi_hdcp2@20090000 {
+		compatible = "rockchip,rk3228-hdmi-hdcp2";
+		reg = <0x20090000 0x10000>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&aclk_hdcp>,
+			 <&clk_gates14 12>,
+			 <&clk_gates14 11>,
+			 <&clk_hdcp>;
+		clock-names = "aclk_hdcp2",
+			      "hclk_hdcp2_mmu",
+			      "pclk_hdcp2",
+			      "hdcp2_clk_hdmi";
+		status = "disabled";
+	};
  };
