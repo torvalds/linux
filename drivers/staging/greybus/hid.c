@@ -86,7 +86,7 @@ static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 
 	ret = gb_operation_request_send_sync(operation);
 	if (ret) {
-		dev_err(&operation->connection->dev,
+		dev_err(&operation->connection->bundle->dev,
 			"failed to set report: %d\n", ret);
 	} else {
 		ret = len;
@@ -104,7 +104,7 @@ static int gb_hid_irq_handler(u8 type, struct gb_operation *op)
 	struct gb_hid_input_report_request *request = op->request->payload;
 
 	if (type != GB_HID_TYPE_IRQ_EVENT) {
-		dev_err(&connection->dev,
+		dev_err(&connection->bundle->dev,
 			"unsupported unsolicited request\n");
 		return -EINVAL;
 	}
@@ -403,7 +403,7 @@ static int gb_hid_init(struct gb_hid *ghid)
 
 	hid->driver_data = ghid;
 	hid->ll_driver = &gb_hid_ll_driver;
-	hid->dev.parent = &ghid->connection->dev;
+	hid->dev.parent = &ghid->connection->bundle->dev;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,15,0)
 	hid->hid_get_raw_report = gb_hid_get_raw_report;
 	hid->hid_output_raw_report = gb_hid_output_raw_report;
@@ -412,7 +412,8 @@ static int gb_hid_init(struct gb_hid *ghid)
 
 	/* Set HID device's name */
 	snprintf(hid->name, sizeof(hid->name), "%s %04hX:%04hX",
-		 dev_name(&ghid->connection->dev), hid->vendor, hid->product);
+		 dev_name(&ghid->connection->bundle->dev),
+		 hid->vendor, hid->product);
 
 	return 0;
 }
