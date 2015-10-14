@@ -975,6 +975,12 @@ static void check_process_timers(struct task_struct *tsk,
 	if (!READ_ONCE(tsk->signal->cputimer.running))
 		return;
 
+        /*
+	 * Signify that a thread is checking for process timers.
+	 * Write access to this field is protected by the sighand lock.
+	 */
+	sig->cputimer.checking_timer = true;
+
 	/*
 	 * Collect the current process totals.
 	 */
@@ -1029,6 +1035,8 @@ static void check_process_timers(struct task_struct *tsk,
 	sig->cputime_expires.sched_exp = sched_expires;
 	if (task_cputime_zero(&sig->cputime_expires))
 		stop_process_timers(sig);
+
+	sig->cputimer.checking_timer = false;
 }
 
 /*
@@ -1142,8 +1150,22 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	}
 
 	sig = tsk->signal;
-	/* Check if cputimer is running. This is accessed without locking. */
-	if (READ_ONCE(sig->cputimer.running)) {
+	/*
+	 * Check if thread group timers expired when the cputimer is
+	 * running and no other thread in the group is already checking
+	 * for thread group cputimers. These fields are read without the
+	 * sighand lock. However, this is fine because this is meant to
+	 * be a fastpath heuristic to determine whether we should try to
+	 * acquire the sighand lock to check/handle timers.
+	 *
+	 * In the worst case scenario, if 'running' or 'checking_timer' gets
+	 * set but the current thread doesn't see the change yet, we'll wait
+	 * until the next thread in the group gets a scheduler interrupt to
+	 * handle the timer. This isn't an issue in practice because these
+	 * types of delays with signals actually getting sent are expected.
+	 */
+	if (READ_ONCE(sig->cputimer.running) &&
+	    !READ_ONCE(sig->cputimer.checking_timer)) {
 		struct task_cputime group_sample;
 
 		sample_cputime_atomic(&group_sample, &sig->cputimer.cputime_atomic);
