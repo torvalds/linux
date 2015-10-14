@@ -167,7 +167,7 @@ static int gdm_tty_recv_complete(void *data,
 
 static void gdm_tty_send_complete(void *arg)
 {
-	struct gdm *gdm = (struct gdm *)arg;
+	struct gdm *gdm = arg;
 
 	if (!GDM_TTY_READY(gdm))
 		return;

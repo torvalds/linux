@@ -367,7 +367,7 @@ fail:
 
 static int set_mac_address(u8 *data, void *arg)
 {
-	struct phy_dev *phy_dev = (struct phy_dev *)arg;
+	struct phy_dev *phy_dev = arg;
 	struct lte_udev *udev = phy_dev->priv_dev;
 	struct tlv *tlv = (struct tlv *)data;
 	u8 mac_address[ETH_ALEN] = {0, };
@@ -410,8 +410,8 @@ static void do_rx(struct work_struct *work)
 		list_del(&r->to_host_list);
 		spin_unlock_irqrestore(&rx->to_host_lock, flags);
 
-		phy_dev = (struct phy_dev *)r->cb_data;
-		udev = (struct lte_udev *)phy_dev->priv_dev;
+		phy_dev = r->cb_data;
+		udev = phy_dev->priv_dev;
 		hci = (struct hci_packet *)r->buf;
 		cmd_evt = gdm_dev16_to_cpu(&udev->gdm_ed, hci->cmd_evt);
 

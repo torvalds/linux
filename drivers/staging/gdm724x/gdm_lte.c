@@ -377,11 +377,11 @@ static s32 gdm_lte_tx_nic_type(struct net_device *dev, struct sk_buff *skb)
 		break;
 	case ETH_P_IP:
 		nic_type |= NIC_TYPE_F_IPV4;
-		ip = (struct iphdr *)network_data;
+		ip = network_data;
 
 		/* Check DHCPv4 */
 		if (ip->protocol == IPPROTO_UDP) {
-			struct udphdr *udp = (struct udphdr *)
+			struct udphdr *udp =
 					(network_data + sizeof(struct iphdr));
 			if (ntohs(udp->dest) == 67 || ntohs(udp->dest) == 68)
 				nic_type |= NIC_TYPE_F_DHCP;
@@ -389,15 +389,15 @@ static s32 gdm_lte_tx_nic_type(struct net_device *dev, struct sk_buff *skb)
 		break;
 	case ETH_P_IPV6:
 		nic_type |= NIC_TYPE_F_IPV6;
-		ipv6 = (struct ipv6hdr *)network_data;
+		ipv6 = network_data;
 
 		if (ipv6->nexthdr == IPPROTO_ICMPV6) /* Check NDP request */ {
-			struct icmp6hdr *icmp6 = (struct icmp6hdr *)
+			struct icmp6hdr *icmp6 =
 					(network_data + sizeof(struct ipv6hdr));
 			if (icmp6->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION)
 				nic_type |= NIC_TYPE_ICMPV6;
 		} else if (ipv6->nexthdr == IPPROTO_UDP) /* Check DHCPv6 */ {
-			struct udphdr *udp = (struct udphdr *)
+			struct udphdr *udp =
 					(network_data + sizeof(struct ipv6hdr));
 			if (ntohs(udp->dest) == 546 || ntohs(udp->dest) == 547)
 				nic_type |= NIC_TYPE_F_DHCP;
@@ -814,9 +814,9 @@ static int gdm_lte_receive_pkt(struct phy_dev *phy_dev, char *buf, int len)
 
 static int rx_complete(void *arg, void *data, int len, int context)
 {
-	struct phy_dev *phy_dev = (struct phy_dev *)arg;
+	struct phy_dev *phy_dev = arg;
 
-	return gdm_lte_receive_pkt(phy_dev, (char *)data, len);
+	return gdm_lte_receive_pkt(phy_dev, data, len);
 }
 
 void start_rx_proc(struct phy_dev *phy_dev)

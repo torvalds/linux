@@ -153,7 +153,7 @@ static void put_rx_struct(struct rx_cxt *rx, struct mux_rx *r)
 
 static int up_to_host(struct mux_rx *r)
 {
-	struct mux_dev *mux_dev = (struct mux_dev *)r->mux_dev;
+	struct mux_dev *mux_dev = r->mux_dev;
 	struct mux_pkt_header *mux_header;
 	unsigned int start_flag;
 	unsigned int payload_size;
@@ -262,7 +262,7 @@ static void remove_rx_submit_list(struct mux_rx *r, struct rx_cxt *rx)
 static void gdm_mux_rcv_complete(struct urb *urb)
 {
 	struct mux_rx *r = urb->context;
-	struct mux_dev *mux_dev = (struct mux_dev *)r->mux_dev;
+	struct mux_dev *mux_dev = r->mux_dev;
 	struct rx_cxt *rx = &mux_dev->rx;
 	unsigned long flags;
 
