@@ -43,7 +43,6 @@
 #define int_tofp(X) ((int64_t)(X) << FRAC_BITS)
 #define fp_toint(X) ((X) >> FRAC_BITS)
 
-
 static inline int32_t mul_fp(int32_t x, int32_t y)
 {
 	return ((int64_t)x * (int64_t)y) >> FRAC_BITS;
@@ -593,10 +592,42 @@ static int core_get_min_pstate(void)
 
 static int core_get_max_pstate(void)
 {
-	u64 value;
+	u64 tar;
+	u64 plat_info;
+	int max_pstate;
+	int err;
 
-	rdmsrl(MSR_PLATFORM_INFO, value);
-	return (value >> 8) & 0xFF;
+	rdmsrl(MSR_PLATFORM_INFO, plat_info);
+	max_pstate = (plat_info >> 8) & 0xFF;
+
+	err = rdmsrl_safe(MSR_TURBO_ACTIVATION_RATIO, &tar);
+	if (!err) {
+		/* Do some sanity checking for safety */
+		if (plat_info & 0x600000000) {
+			u64 tdp_ctrl;
+			u64 tdp_ratio;
+			int tdp_msr;
+
+			err = rdmsrl_safe(MSR_CONFIG_TDP_CONTROL, &tdp_ctrl);
+			if (err)
+				goto skip_tar;
+
+			tdp_msr = MSR_CONFIG_TDP_NOMINAL + tdp_ctrl;
+			err = rdmsrl_safe(tdp_msr, &tdp_ratio);
+			if (err)
+				goto skip_tar;
+
+			if (tdp_ratio - 1 == tar) {
+				max_pstate = tar;
+				pr_debug("max_pstate=TAC %x\n", max_pstate);
+			} else {
+				goto skip_tar;
+			}
+		}
+	}
+
+skip_tar:
+	return max_pstate;
 }
 
 static int core_get_turbo_pstate(void)
