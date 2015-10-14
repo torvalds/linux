@@ -4283,14 +4283,46 @@ decay_load_missed(unsigned long load, unsigned long missed_updates, int idx)
 	return load;
 }
 
-/*
+/**
+ * __update_cpu_load - update the rq->cpu_load[] statistics
+ * @this_rq: The rq to update statistics for
+ * @this_load: The current load
+ * @pending_updates: The number of missed updates
+ * @active: !0 for NOHZ_FULL
+ *
  * Update rq->cpu_load[] statistics. This function is usually called every
- * scheduler tick (TICK_NSEC). With tickless idle this will not be called
- * every tick. We fix it up based on jiffies.
+ * scheduler tick (TICK_NSEC).
+ *
+ * This function computes a decaying average:
+ *
+ *   load[i]' = (1 - 1/2^i) * load[i] + (1/2^i) * load
+ *
+ * Because of NOHZ it might not get called on every tick which gives need for
+ * the @pending_updates argument.
+ *
+ *   load[i]_n = (1 - 1/2^i) * load[i]_n-1 + (1/2^i) * load_n-1
+ *             = A * load[i]_n-1 + B ; A := (1 - 1/2^i), B := (1/2^i) * load
+ *             = A * (A * load[i]_n-2 + B) + B
+ *             = A * (A * (A * load[i]_n-3 + B) + B) + B
+ *             = A^3 * load[i]_n-3 + (A^2 + A + 1) * B
+ *             = A^n * load[i]_0 + (A^(n-1) + A^(n-2) + ... + 1) * B
+ *             = A^n * load[i]_0 + ((1 - A^n) / (1 - A)) * B
+ *             = (1 - 1/2^i)^n * (load[i]_0 - load) + load
+ *
+ * In the above we've assumed load_n := load, which is true for NOHZ_FULL as
+ * any change in load would have resulted in the tick being turned back on.
+ *
+ * For regular NOHZ, this reduces to:
+ *
+ *   load[i]_n = (1 - 1/2^i)^n * load[i]_0
+ *
+ * see decay_load_misses(). For NOHZ_FULL we get to subtract and add the extra
+ * term. See the @active paramter.
  */
 static void __update_cpu_load(struct rq *this_rq, unsigned long this_load,
-			      unsigned long pending_updates)
+			      unsigned long pending_updates, int active)
 {
+	unsigned long tickless_load = active ? this_rq->cpu_load[0] : 0;
 	int i, scale;
 
 	this_rq->nr_load_updates++;
@@ -4302,8 +4334,9 @@ static void __update_cpu_load(struct rq *this_rq, unsigned long this_load,
 
 		/* scale is effectively 1 << i now, and >> i divides by scale */
 
-		old_load = this_rq->cpu_load[i];
+		old_load = this_rq->cpu_load[i] - tickless_load;
 		old_load = decay_load_missed(old_load, pending_updates - 1, i);
+		old_load += tickless_load;
 		new_load = this_load;
 		/*
 		 * Round up the averaging division if load is increasing. This
@@ -4358,7 +4391,7 @@ static void update_idle_cpu_load(struct rq *this_rq)
 	pending_updates = curr_jiffies - this_rq->last_load_update_tick;
 	this_rq->last_load_update_tick = curr_jiffies;
 
-	__update_cpu_load(this_rq, load, pending_updates);
+	__update_cpu_load(this_rq, load, pending_updates, 0);
 }
 
 /*
@@ -4381,7 +4414,7 @@ void update_cpu_load_nohz(void)
 		 * We were idle, this means load 0, the current load might be
 		 * !0 due to remote wakeups and the sort.
 		 */
-		__update_cpu_load(this_rq, 0, pending_updates);
+		__update_cpu_load(this_rq, 0, pending_updates, 0);
 	}
 	raw_spin_unlock(&this_rq->lock);
 }
@@ -4397,7 +4430,7 @@ void update_cpu_load_active(struct rq *this_rq)
 	 * See the mess around update_idle_cpu_load() / update_cpu_load_nohz().
 	 */
 	this_rq->last_load_update_tick = jiffies;
-	__update_cpu_load(this_rq, load, 1);
+	__update_cpu_load(this_rq, load, 1, 1);
 }
 
 /*
