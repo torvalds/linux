@@ -266,7 +266,7 @@ config TEGRA_SOCTHERM
 
 config DB8500_CPUFREQ_COOLING
 	tristate "DB8500 cpufreq cooling"
-	depends on ARCH_U8500
+	depends on ARCH_U8500 || COMPILE_TEST
 	depends on CPU_THERMAL
 	default y
 	help
