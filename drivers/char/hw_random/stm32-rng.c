@@ -160,7 +160,7 @@ static int stm32_rng_probe(struct platform_device *ofdev)
 #ifdef CONFIG_PM
 static int stm32_rng_runtime_suspend(struct device *dev)
 {
-	struct stm32_rng_private *priv = dev_get_drvdata(pdev);
+	struct stm32_rng_private *priv = dev_get_drvdata(dev);
 
 	stm32_rng_cleanup(&priv->rng);
 
@@ -169,7 +169,7 @@ static int stm32_rng_runtime_suspend(struct device *dev)
 
 static int stm32_rng_runtime_resume(struct device *dev)
 {
-	struct stm32_rng_private *priv = dev_get_drvdata(pdev);
+	struct stm32_rng_private *priv = dev_get_drvdata(dev);
 
 	return stm32_rng_init(&priv->rng);
 }
