@@ -170,7 +170,7 @@ void r8712_usb_write_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	unsigned int pipe;
 	struct _adapter *padapter = (struct _adapter *)pintfhdl->adapter;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
-	struct io_queue *pio_queue = (struct io_queue *)padapter->pio_queue;
+	struct io_queue *pio_queue = padapter->pio_queue;
 	struct dvobj_priv *pdvobj = (struct dvobj_priv *)pintfpriv->intf_dev;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 	struct urb *piorw_urb = pintfpriv->piorw_urb;
@@ -259,7 +259,7 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	struct recv_buf	*precvbuf = (struct recv_buf *)rmem;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 	struct dvobj_priv *pdvobj = (struct dvobj_priv *)pintfpriv->intf_dev;
-	struct _adapter *adapter = (struct _adapter *)pdvobj->padapter;
+	struct _adapter *adapter = pdvobj->padapter;
 	struct recv_priv *precvpriv = &adapter->recvpriv;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
@@ -400,7 +400,7 @@ u32 r8712_usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	u32 ret, bwritezero;
 	struct urb *purb = NULL;
 	struct _adapter *padapter = (struct _adapter *)pintfhdl->adapter;
-	struct dvobj_priv *pdvobj = (struct dvobj_priv   *)&padapter->dvobjpriv;
+	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)wmem;
 	struct usb_device *pusbd = pdvobj->pusbdev;
