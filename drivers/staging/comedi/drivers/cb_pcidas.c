@@ -506,9 +506,10 @@ static int nvram_read(struct comedi_device *dev, unsigned int address,
 	return 0;
 }
 
-static int eeprom_read_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas_eeprom_insn_read(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_insn *insn,
+				      unsigned int *data)
 {
 	u8 nvram_data;
 	int retval;
@@ -1357,13 +1358,13 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/*  serial EEPROM, */
+	/* Memory subdevice - serial EEPROM */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_MEMORY;
-	s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-	s->n_chan = 256;
-	s->maxdata = 0xff;
-	s->insn_read = eeprom_read_insn;
+	s->type		= COMEDI_SUBD_MEMORY;
+	s->subdev_flags	= SDF_READABLE | SDF_INTERNAL;
+	s->n_chan	= 256;
+	s->maxdata	= 0xff;
+	s->insn_read	= cb_pcidas_eeprom_insn_read;
 
 	/* Calibration subdevice - 8800 caldac */
 	s = &dev->subdevices[4];
