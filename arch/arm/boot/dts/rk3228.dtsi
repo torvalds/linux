@@ -1,4 +1,5 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/rkfb/rk_fb.h>
 
 #include "skeleton.dtsi"
 #include "rk3228-clocks.dtsi"
@@ -262,6 +263,27 @@
 				  "Mali_PP0_MMU_IRQ",
 				  "Mali_PP1_IRQ",
 				  "Mali_PP1_MMU_IRQ";
+	};
+
+	fb: fb {
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <NO_DUAL>;
+	};
+
+	rk_screen: rk_screen {
+		compatible = "rockchip,screen";
+	};
+
+	vop: vop@20050000 {
+		compatible = "rockchip,rk3228-lcdc";
+
+		rockchip,cabc_mode = <0>;
+		rockchip,pwr18 = <0>;
+		rockchip,iommu-enabled = <1>;
+		reg = <0x20050000 0x300>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&aclk_vop>, <&dclk_vop0>, <&hclk_vio>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
 	};
 
 	vop_mmu {
