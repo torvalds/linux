@@ -469,7 +469,7 @@ static void __gb_lights_channel_v4l2_config(struct led_flash_setting *channel_s,
 static int gb_lights_light_v4l2_register(struct gb_light *light)
 {
 	struct gb_connection *connection = get_conn_from_light(light);
-	struct device *dev = &connection->dev;
+	struct device *dev = &connection->bundle->dev;
 	struct v4l2_flash_config *sd_cfg;
 	struct led_classdev_flash *fled;
 	struct led_classdev_flash *iled = NULL;
@@ -529,7 +529,7 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 {
 	struct gb_connection *connection = get_conn_from_light(light);
 
-	dev_err(&connection->dev, "no support for v4l2 subdevices\n");
+	dev_err(&connection->bundle->dev, "no support for v4l2 subdevices\n");
 	return 0;
 }
 
@@ -791,7 +791,7 @@ static int gb_lights_channel_flash_config(struct gb_channel *channel)
 {
 	struct gb_connection *connection = get_conn_from_channel(channel);
 
-	dev_err(&connection->dev, "no support for flash devices\n");
+	dev_err(&connection->bundle->dev, "no support for flash devices\n");
 	return 0;
 }
 
@@ -1090,7 +1090,7 @@ static int gb_lights_setup(struct gb_lights *glights)
 	for (i = 0; i < glights->lights_count; i++) {
 		ret = gb_lights_light_config(glights, i);
 		if (ret < 0) {
-			dev_err(&connection->dev,
+			dev_err(&connection->bundle->dev,
 				"Fail to configure lights device\n");
 			goto out;
 		}
@@ -1104,6 +1104,7 @@ out:
 static int gb_lights_event_recv(u8 type, struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
+	struct device *dev = &connection->bundle->dev;
 	struct gb_lights *glights = connection->private;
 	struct gb_message *request;
 	struct gb_lights_event_request *payload;
@@ -1112,16 +1113,14 @@ static int gb_lights_event_recv(u8 type, struct gb_operation *op)
 	u8 event;
 
 	if (type != GB_LIGHTS_TYPE_EVENT) {
-		dev_err(&connection->dev,
-			"Unsupported unsolicited event: %u\n", type);
+		dev_err(dev, "Unsupported unsolicited event: %u\n", type);
 		return -EINVAL;
 	}
 
 	request = op->request;
 
 	if (request->payload_size < sizeof(*payload)) {
-		dev_err(&connection->dev,
-			"Wrong event size received (%zu < %zu)\n",
+		dev_err(dev, "Wrong event size received (%zu < %zu)\n",
 			request->payload_size, sizeof(*payload));
 		return -EINVAL;
 	}
@@ -1130,8 +1129,7 @@ static int gb_lights_event_recv(u8 type, struct gb_operation *op)
 	light_id = payload->light_id;
 
 	if (light_id >= glights->lights_count || !&glights->lights[light_id]) {
-		dev_err(&connection->dev,
-			"Event received for unconfigured light id: %d\n",
+		dev_err(dev, "Event received for unconfigured light id: %d\n",
 			light_id);
 		return -EINVAL;
 	}
