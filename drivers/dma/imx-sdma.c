@@ -1271,6 +1271,7 @@ static int sdma_channel_pause(struct dma_chan *chan)
 static int sdma_channel_resume(struct dma_chan *chan)
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
+	struct sdma_engine *sdma = sdmac->sdma;
 	unsigned long flags;
 
 	if (!(sdmac->flags & IMX_DMA_SG_LOOP))
