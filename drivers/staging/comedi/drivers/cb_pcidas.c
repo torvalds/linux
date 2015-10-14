@@ -156,8 +156,8 @@ static inline unsigned int DAC_CHAN_EN(unsigned int channel)
 /*
  * PCI BAR2 Register map (devpriv->pcibar2)
  */
-#define ADCDATA			0	/* ADC DATA register */
-#define ADCFIFOCLR		2	/* ADC FIFO CLEAR */
+#define PCIDAS_AI_DATA_REG	0x00
+#define PCIDAS_AI_FIFO_CLR_REG	0x02
 
 /*
  * PCI BAR3 Register map (dev->iobase)
@@ -379,12 +379,12 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 	outw(bits, devpriv->pcibar1 + ADCMUX_CONT);
 
 	/* clear fifo */
-	outw(0, devpriv->pcibar2 + ADCFIFOCLR);
+	outw(0, devpriv->pcibar2 + PCIDAS_AI_FIFO_CLR_REG);
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(0, devpriv->pcibar2 + ADCDATA);
+		outw(0, devpriv->pcibar2 + PCIDAS_AI_DATA_REG);
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, cb_pcidas_ai_eoc, 0);
@@ -392,7 +392,7 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 			return ret;
 
 		/* read data */
-		data[n] = inw(devpriv->pcibar2 + ADCDATA);
+		data[n] = inw(devpriv->pcibar2 + PCIDAS_AI_DATA_REG);
 	}
 
 	/* return the number of samples read/written */
@@ -866,7 +866,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	/*  initialize before settings pacer source and count values */
 	outw(0, devpriv->pcibar1 + TRIG_CONTSTAT);
 	/*  clear fifo */
-	outw(0, devpriv->pcibar2 + ADCFIFOCLR);
+	outw(0, devpriv->pcibar2 + PCIDAS_AI_FIFO_CLR_REG);
 
 	/*  set mux limits, gain and pacer source */
 	bits = BEGIN_SCAN(CR_CHAN(cmd->chanlist[0])) |
@@ -1249,8 +1249,8 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	if (status & ADHFI) {
 		/*  read data */
 		num_samples = comedi_nsamples_left(s, half_fifo);
-		insw(devpriv->pcibar2 + ADCDATA, devpriv->ai_buffer,
-		     num_samples);
+		insw(devpriv->pcibar2 + PCIDAS_AI_DATA_REG,
+		     devpriv->ai_buffer, num_samples);
 		comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
 
 		if (cmd->stop_src == TRIG_COUNT &&
@@ -1271,7 +1271,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 			if ((ADNE & inw(devpriv->pcibar1 +
 					INT_ADCFIFO)) == 0)
 				break;
-			val = inw(devpriv->pcibar2 + ADCDATA);
+			val = inw(devpriv->pcibar2 + PCIDAS_AI_DATA_REG);
 			comedi_buf_write_samples(s, &val, 1);
 
 			if (cmd->stop_src == TRIG_COUNT &&
