@@ -925,6 +925,14 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
 		args->value = ctx->flags & CONTEXT_NO_ZEROMAP;
 		break;
+	case I915_CONTEXT_PARAM_GTT_SIZE:
+		if (ctx->ppgtt)
+			args->value = ctx->ppgtt->base.total;
+		else if (to_i915(dev)->mm.aliasing_ppgtt)
+			args->value = to_i915(dev)->mm.aliasing_ppgtt->base.total;
+		else
+			args->value = to_i915(dev)->gtt.base.total;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
