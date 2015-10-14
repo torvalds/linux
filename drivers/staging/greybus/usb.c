@@ -57,7 +57,8 @@ static void hcd_stop(struct usb_hcd *hcd)
 	ret = gb_operation_sync(dev->connection, GB_USB_TYPE_HCD_STOP,
 				NULL, 0, NULL, 0);
 	if (ret)
-		dev_err(&dev->connection->dev, "HCD stop failed '%d'\n", ret);
+		dev_err(&dev->connection->bundle->dev,
+			"HCD stop failed '%d'\n", ret);
 }
 
 static int hcd_start(struct usb_hcd *hcd)
@@ -69,7 +70,8 @@ static int hcd_start(struct usb_hcd *hcd)
 	ret = gb_operation_sync(dev->connection, GB_USB_TYPE_HCD_START,
 				NULL, 0, NULL, 0);
 	if (ret) {
-		dev_err(&dev->connection->dev, "HCD start failed '%d'\n", ret);
+		dev_err(&dev->connection->bundle->dev,
+			"HCD start failed '%d'\n", ret);
 		return ret;
 	}
 
@@ -161,7 +163,7 @@ static struct hc_driver usb_gb_hc_driver = {
 
 static int gb_usb_connection_init(struct gb_connection *connection)
 {
-	struct device *dev = &connection->dev;
+	struct device *dev = &connection->bundle->dev;
 	struct gb_usb_device *gb_usb_dev;
 	struct usb_hcd *hcd;
 
@@ -184,7 +186,7 @@ static int gb_usb_connection_init(struct gb_connection *connection)
 	 *        Disable for now.
 	 */
 	if (1) {
-		dev_warn(&connection->dev, "USB protocol disabled\n");
+		dev_warn(dev, "USB protocol disabled\n");
 		retval = -EPROTONOSUPPORT;
 		goto err_put_hcd;
 	}
