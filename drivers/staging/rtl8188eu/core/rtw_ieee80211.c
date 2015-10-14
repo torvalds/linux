@@ -1103,7 +1103,7 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 
 void dump_ies(u8 *buf, u32 buf_len)
 {
-	u8 *pos = (u8 *)buf;
+	u8 *pos = buf;
 	u8 id, len;
 
 	while (pos-buf <= buf_len) {
@@ -1119,7 +1119,7 @@ void dump_ies(u8 *buf, u32 buf_len)
 
 void dump_wps_ie(u8 *ie, u32 ie_len)
 {
-	u8 *pos = (u8 *)ie;
+	u8 *pos = ie;
 	u16 id;
 	u16 len;
 	u8 *wps_ie;
