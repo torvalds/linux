@@ -1365,13 +1365,13 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	s->maxdata = 0xff;
 	s->insn_read = eeprom_read_insn;
 
-	/*  8800 caldac */
+	/* Calibration subdevice - 8800 caldac */
 	s = &dev->subdevices[4];
-	s->type = COMEDI_SUBD_CALIB;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	s->n_chan = 8;
-	s->maxdata = 0xff;
-	s->insn_write = cb_pcidas_caldac_insn_write;
+	s->type		= COMEDI_SUBD_CALIB;
+	s->subdev_flags	= SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan	= 8;
+	s->maxdata	= 0xff;
+	s->insn_write	= cb_pcidas_caldac_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
