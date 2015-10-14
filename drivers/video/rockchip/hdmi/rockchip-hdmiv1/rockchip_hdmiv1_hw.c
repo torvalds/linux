@@ -581,8 +581,8 @@ static int rockchip_hdmiv1_config_video(struct hdmi *hdmi_drv,
 		return 0;
 	/* Disable video and audio output */
 	hdmi_msk_reg(hdmi_dev, AV_MUTE,
-		     m_AUDIO_MUTE | m_VIDEO_BLACK,
-		     v_AUDIO_MUTE(1) | v_VIDEO_MUTE(1));
+		     m_AUDIO_MUTE | m_AUDIO_PD | m_VIDEO_BLACK,
+		     v_AUDIO_MUTE(1) | v_AUDIO_PD(1) | v_VIDEO_MUTE(1));
 
 	/* Input video mode is SDR RGB24bit,
 	   Data enable signal from external */
@@ -799,7 +799,7 @@ static int rockchip_hdmiv1_config_audio(struct hdmi *hdmi_drv,
 
 	/* set_audio source I2S */
 	if (hdmi_dev->audiosrc == HDMI_AUDIO_SRC_IIS) {
-		hdmi_writel(hdmi_dev, AUDIO_CTRL1, 0x00);
+		hdmi_writel(hdmi_dev, AUDIO_CTRL1, 0x01);
 		hdmi_writel(hdmi_dev, AUDIO_SAMPLE_RATE, rate);
 		hdmi_writel(hdmi_dev, AUDIO_I2S_MODE,
 			    v_I2S_MODE(I2S_STANDARD) |
@@ -857,8 +857,12 @@ int rockchip_hdmiv1_control_output(struct hdmi *hdmi_drv, int enable)
 
 		if (mutestatus && (m_AUDIO_MUTE | m_VIDEO_BLACK)) {
 			hdmi_msk_reg(hdmi_dev, AV_MUTE,
-				     m_AUDIO_MUTE | m_VIDEO_BLACK,
-				     v_AUDIO_MUTE(0) | v_VIDEO_MUTE(0));
+				     m_AUDIO_MUTE |
+				     m_AUDIO_PD |
+				     m_VIDEO_BLACK,
+				     v_AUDIO_MUTE(0) |
+				     v_AUDIO_PD(0) |
+				     v_VIDEO_MUTE(0));
 		}
 		rockchip_hdmiv1_av_mute(hdmi_drv, 0);
 	} else {
@@ -866,10 +870,11 @@ int rockchip_hdmiv1_control_output(struct hdmi *hdmi_drv, int enable)
 		if (enable & HDMI_VIDEO_MUTE)
 			mutestatus |= v_VIDEO_MUTE(1);
 		if (enable & HDMI_AUDIO_MUTE)
-			mutestatus |= v_AUDIO_MUTE(1);
+			mutestatus |= (v_AUDIO_MUTE(1) | v_AUDIO_PD(1));
 		hdmi_msk_reg(hdmi_dev, AV_MUTE,
-			     m_AUDIO_MUTE | m_VIDEO_BLACK,
+			     m_AUDIO_MUTE | m_AUDIO_PD | m_VIDEO_BLACK,
 			     mutestatus);
+
 		if (enable == (HDMI_VIDEO_MUTE | HDMI_AUDIO_MUTE)) {
 			rockchip_hdmiv1_av_mute(hdmi_drv, 1);
 			msleep(100);
