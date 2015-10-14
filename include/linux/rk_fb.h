@@ -245,24 +245,28 @@ enum {
 
 //display data format
 enum data_format {
-	ARGB888 = 0,
+	ARGB888,
 	RGB888,
 	RGB565,
-	YUV420 = 4,
-	YUV422,
-	YUV444,
 	XRGB888,
 	XBGR888,
 	ABGR888,
-	YUV420_A = 10,
-	YUV422_A,
-	YUV444_A,
-	YUV420_NV21,
-	FBDC_RGB_565 = 0x26,
+	FBDC_RGB_565,
 	FBDC_ARGB_888,
 	FBDC_RGBX_888,
 	FBDC_ABGR_888,
+	YUV420,
+	YUV422,
+	YUV444,
+	YUV420_A,
+	YUV422_A,
+	YUV444_A,
+	YUV420_NV21,
 };
+#define IS_YUV_FMT(fmt) ((fmt >= YUV420) ? 1 : 0)
+#define IS_RGB_FMT(fmt) ((fmt < YUV420) ? 1 : 0)
+#define IS_FBDC_FMT(fmt) \
+	(((fmt >= FBDC_RGB_565) && (fmt <= FBDC_ABGR_888)) ? 1 : 0)
 
 enum
 {

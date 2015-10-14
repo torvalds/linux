@@ -2152,7 +2152,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		data_format &= ~CSC_MASK;
 		fb_data_fmt = rk_fb_data_fmt(data_format, 0);
 		reg_win_data->reg_area_data[i].data_format = fb_data_fmt;
-		if (fb_data_fmt >= FBDC_RGB_565) {
+		if (IS_FBDC_FMT(fb_data_fmt)) {
 			reg_win_data->reg_area_data[i].fbdc_en = 1;
 			reg_win_data->reg_area_data[i].fbdc_cor_en = 1;
 		} else {
@@ -2172,7 +2172,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		}
 
 		/* buf offset should be 2 pix align*/
-		if (win_par->area_par[i].x_offset % 2 == 1) {
+		if ((win_par->area_par[i].x_offset % 2 == 1) &&
+		    IS_YUV_FMT(fb_data_fmt)) {
 			win_par->area_par[i].x_offset += 1;
 			win_par->area_par[i].xact -= 1;
 		}
@@ -2235,11 +2236,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 				    xoffset * pixel_width / 8;
 			}
 		}
-		if ((fb_data_fmt != YUV420) &&
-		    (fb_data_fmt != YUV420_NV21) &&
-		    (fb_data_fmt != YUV422) &&
-                    (fb_data_fmt != YUV444) &&
-                    dev_drv->iommu_enabled) {
+		if (IS_RGB_FMT(fb_data_fmt) && dev_drv->iommu_enabled) {
                         buff_len = reg_win_data->reg_area_data[i].y_offset +
                                 reg_win_data->reg_area_data[i].xvir *
                                 reg_win_data->reg_area_data[i].yact *
@@ -3097,7 +3094,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	win->colorspace = CSC_FORMAT(data_format);
 	data_format &= ~CSC_MASK;
 	fb_data_fmt = rk_fb_data_fmt(data_format, var->bits_per_pixel);
-	if (fb_data_fmt >= FBDC_RGB_565) {
+	if (IS_FBDC_FMT(fb_data_fmt)) {
 		win->area[0].fbdc_en = 1;
 		win->area[0].fbdc_cor_en = 1;
 	} else {
