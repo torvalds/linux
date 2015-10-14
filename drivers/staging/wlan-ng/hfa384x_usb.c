@@ -1194,7 +1194,7 @@ int hfa384x_cmd_download(hfa384x_t *hw, u16 mode, u16 lowaddr,
 ----------------------------------------------------------------*/
 int hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis)
 {
-	int result = 0;
+	int result;
 
 	result = usb_reset_device(hw->usb);
 	if (result < 0) {
