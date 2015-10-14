@@ -22,7 +22,7 @@ int gb_control_get_manifest_size_operation(struct gb_interface *intf)
 	ret = gb_operation_sync(connection, GB_CONTROL_TYPE_GET_MANIFEST_SIZE,
 				NULL, 0, &response, sizeof(response));
 	if (ret) {
-		dev_err(&connection->dev,
+		dev_err(&connection->bundle->dev,
 			"%s: Manifest size get operation failed (%d)\n",
 			__func__, ret);
 		return ret;
@@ -74,7 +74,7 @@ static int gb_control_request_recv(u8 type, struct gb_operation *op)
 	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
 		if (!gb_operation_response_alloc(op, sizeof(*version),
 						 GFP_KERNEL)) {
-			dev_err(&connection->dev,
+			dev_err(&connection->bundle->dev,
 				"%s: error allocating response\n", __func__);
 			return -ENOMEM;
 		}
