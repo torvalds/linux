@@ -3234,7 +3234,7 @@ kiblnd_cq_completion(struct ib_cq *cq, void *arg)
 	 * consuming my CQ I could be called after all completions have
 	 * occurred.  But in this case, ibc_nrx == 0 && ibc_nsends_posted == 0
 	 * and this CQ is about to be destroyed so I NOOP. */
-	kib_conn_t *conn = (kib_conn_t *)arg;
+	kib_conn_t *conn = arg;
 	struct kib_sched_info *sched = conn->ibc_sched;
 	unsigned long flags;
 
