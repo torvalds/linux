@@ -353,7 +353,7 @@ static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
 static inline u32 msg_importance(struct tipc_msg *m)
 {
 	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
-		return msg_bits(m, 5, 13, 0x7);
+		return msg_bits(m, 9, 0, 0x7);
 	if (likely(msg_isdata(m) && !msg_errcode(m)))
 		return msg_user(m);
 	return TIPC_SYSTEM_IMPORTANCE;
@@ -362,7 +362,7 @@ static inline u32 msg_importance(struct tipc_msg *m)
 static inline void msg_set_importance(struct tipc_msg *m, u32 i)
 {
 	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
-		msg_set_bits(m, 5, 13, 0x7, i);
+		msg_set_bits(m, 9, 0, 0x7, i);
 	else if (likely(i < TIPC_SYSTEM_IMPORTANCE))
 		msg_set_user(m, i);
 	else
