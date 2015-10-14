@@ -167,16 +167,9 @@ static inline unsigned int DAC_CHAN_EN(unsigned int channel)
 /*
  * PCI BAR4 Register map (devpriv->pcibar4)
  */
-
-/* analog output registers for 100x, 1200 series */
-static inline unsigned int DAC_DATA_REG(unsigned int channel)
-{
-	return 2 * (channel & 0x1);
-}
-
-/* analog output registers for 1602 series*/
-#define DACDATA			0	/* DAC DATA register */
-#define DACFIFOCLR		2	/* DAC FIFO CLEAR */
+#define PCIDAS_AO_DATA_REG(x)	(0x00 + ((x) * 2))
+#define PCIDAS_AO_FIFO_REG	0x00
+#define PCIDAS_AO_FIFO_CLR_REG	0x02
 
 #define IS_UNIPOLAR		0x4	/* unipolar range mask */
 
@@ -452,7 +445,7 @@ static int cb_pcidas_ao_nofifo_winsn(struct comedi_device *dev,
 	s->readback[chan] = data[0];
 
 	/* send data */
-	outw(data[0], devpriv->pcibar4 + DAC_DATA_REG(chan));
+	outw(data[0], devpriv->pcibar4 + PCIDAS_AO_DATA_REG(chan));
 
 	return insn->n;
 }
@@ -468,7 +461,7 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
 	unsigned long flags;
 
 	/* clear dac fifo */
-	outw(0, devpriv->pcibar4 + DACFIFOCLR);
+	outw(0, devpriv->pcibar4 + PCIDAS_AO_FIFO_CLR_REG);
 
 	/* set channel and range */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -483,7 +476,7 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
 	s->readback[chan] = data[0];
 
 	/* send data */
-	outw(data[0], devpriv->pcibar4 + DACDATA);
+	outw(data[0], devpriv->pcibar4 + PCIDAS_AO_FIFO_REG);
 
 	return insn->n;
 }
@@ -1064,7 +1057,8 @@ static void cb_pcidas_ao_load_fifo(struct comedi_device *dev,
 	nbytes = comedi_buf_read_samples(s, devpriv->ao_buffer, nsamples);
 
 	nsamples = comedi_bytes_to_samples(s, nbytes);
-	outsw(devpriv->pcibar4 + DACDATA, devpriv->ao_buffer, nsamples);
+	outsw(devpriv->pcibar4 + PCIDAS_AO_FIFO_REG,
+	      devpriv->ao_buffer, nsamples);
 }
 
 static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
@@ -1127,7 +1121,7 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  clear fifo */
-	outw(0, devpriv->pcibar4 + DACFIFOCLR);
+	outw(0, devpriv->pcibar4 + PCIDAS_AO_FIFO_CLR_REG);
 
 	/*  load counters */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
