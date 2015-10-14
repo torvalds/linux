@@ -520,6 +520,7 @@ void bpf_prog_put(struct bpf_prog *prog)
 {
 	if (atomic_dec_and_test(&prog->aux->refcnt)) {
 		free_used_maps(prog->aux);
+		bpf_prog_uncharge_memlock(prog);
 		bpf_prog_free(prog);
 	}
 }
