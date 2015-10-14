@@ -34,6 +34,9 @@ struct f_loopback {
 
 	struct usb_ep		*in_ep;
 	struct usb_ep		*out_ep;
+
+	unsigned                qlen;
+	unsigned                buflen;
 };
 
 static inline struct f_loopback *func_to_loop(struct usb_function *f)
@@ -41,13 +44,10 @@ static inline struct f_loopback *func_to_loop(struct usb_function *f)
 	return container_of(f, struct f_loopback, function);
 }
 
-static unsigned qlen;
-static unsigned buflen;
-
 /*-------------------------------------------------------------------------*/
 
 static struct usb_interface_descriptor loopback_intf = {
-	.bLength =		sizeof loopback_intf,
+	.bLength =		sizeof(loopback_intf),
 	.bDescriptorType =	USB_DT_INTERFACE,
 
 	.bNumEndpoints =	2,
@@ -251,7 +251,7 @@ static void loopback_complete(struct usb_ep *ep, struct usb_request *req)
 		}
 
 		/* queue the buffer for some later OUT packet */
-		req->length = buflen;
+		req->length = loop->buflen;
 		status = usb_ep_queue(ep, req, GFP_ATOMIC);
 		if (status == 0)
 			return;
@@ -288,7 +288,9 @@ static void disable_loopback(struct f_loopback *loop)
 
 static inline struct usb_request *lb_alloc_ep_req(struct usb_ep *ep, int len)
 {
-	return alloc_ep_req(ep, len, buflen);
+	struct f_loopback	*loop = ep->driver_data;
+
+	return alloc_ep_req(ep, len, loop->buflen);
 }
 
 static int enable_endpoint(struct usb_composite_dev *cdev, struct f_loopback *loop,
@@ -315,7 +317,7 @@ static int enable_endpoint(struct usb_composite_dev *cdev, struct f_loopback *lo
 	 * we buffer at most 'qlen' transfers; fewer if any need more
 	 * than 'buflen' bytes each.
 	 */
-	for (i = 0; i < qlen && result == 0; i++) {
+	for (i = 0; i < loop->qlen && result == 0; i++) {
 		req = lb_alloc_ep_req(ep, 0);
 		if (!req)
 			goto fail1;
@@ -388,10 +390,10 @@ static struct usb_function *loopback_alloc(struct usb_function_instance *fi)
 	lb_opts->refcnt++;
 	mutex_unlock(&lb_opts->lock);
 
-	buflen = lb_opts->bulk_buflen;
-	qlen = lb_opts->qlen;
-	if (!qlen)
-		qlen = 32;
+	loop->buflen = lb_opts->bulk_buflen;
+	loop->qlen = lb_opts->qlen;
+	if (!loop->qlen)
+		loop->qlen = 32;
 
 	loop->function.name = "loopback";
 	loop->function.bind = loopback_bind;
