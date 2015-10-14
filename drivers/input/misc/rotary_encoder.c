@@ -26,6 +26,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/pm.h>
 
 #define DRV_NAME "rotary-encoder"
 
@@ -180,6 +181,8 @@ static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct devic
 					"rotary-encoder,rollover", NULL);
 	pdata->half_period = !!of_get_property(np,
 					"rotary-encoder,half-period", NULL);
+	pdata->wakeup_source = !!of_get_property(np,
+					"wakeup-source", NULL);
 
 	return pdata;
 }
@@ -280,6 +283,8 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		goto exit_free_irq_b;
 	}
 
+	device_init_wakeup(&pdev->dev, pdata->wakeup_source);
+
 	platform_set_drvdata(pdev, encoder);
 
 	return 0;
@@ -306,6 +311,8 @@ static int rotary_encoder_remove(struct platform_device *pdev)
 	struct rotary_encoder *encoder = platform_get_drvdata(pdev);
 	const struct rotary_encoder_platform_data *pdata = encoder->pdata;
 
+	device_init_wakeup(&pdev->dev, false);
+
 	free_irq(encoder->irq_a, encoder);
 	free_irq(encoder->irq_b, encoder);
 	gpio_free(pdata->gpio_a);
@@ -320,11 +327,41 @@ static int rotary_encoder_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int rotary_encoder_suspend(struct device *dev)
+{
+	struct rotary_encoder *encoder = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev)) {
+		enable_irq_wake(encoder->irq_a);
+		enable_irq_wake(encoder->irq_b);
+	}
+
+	return 0;
+}
+
+static int rotary_encoder_resume(struct device *dev)
+{
+	struct rotary_encoder *encoder = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev)) {
+		disable_irq_wake(encoder->irq_a);
+		disable_irq_wake(encoder->irq_b);
+	}
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(rotary_encoder_pm_ops,
+		 rotary_encoder_suspend, rotary_encoder_resume);
+
 static struct platform_driver rotary_encoder_driver = {
 	.probe		= rotary_encoder_probe,
 	.remove		= rotary_encoder_remove,
 	.driver		= {
 		.name	= DRV_NAME,
+		.pm	= &rotary_encoder_pm_ops,
 		.of_match_table = of_match_ptr(rotary_encoder_of_match),
 	}
 };
