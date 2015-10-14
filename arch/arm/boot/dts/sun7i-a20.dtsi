@@ -107,7 +107,7 @@
 				720000	1200000
 				528000	1100000
 				312000	1000000
-				144000	900000
+				144000	1000000
 				>;
 			#cooling-cells = <2>;
 			cooling-min-level = <0>;
@@ -463,6 +463,14 @@
 			reg = <0x01c200b4 0x4>;
 			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
 			clock-output-names = "ir1";
+		};
+
+		keypad_clk: clk@01c200c4 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-mod0-clk";
+			reg = <0x01c200c4 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "keypad";
 		};
 
 		usb_clk: clk@01c200cc {

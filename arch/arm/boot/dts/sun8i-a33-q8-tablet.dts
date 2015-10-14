@@ -1,7 +1,5 @@
 /*
- * Copyright 2015 Chen-Yu Tsai
- *
- * Chen-Yu Tsai <wens@csie.org>
+ * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,56 +40,26 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/dts-v1/;
+#include "sun8i-a33.dtsi"
+#include "sun8i-q8-common.dtsi"
+
+/ {
+	model = "Q8 A33 Tablet";
+	compatible = "allwinner,q8-a33", "allwinner,sun8i-a33";
+};
+
 /*
- * AXP202/209 Integrated Power Management Chip
- * http://www.x-powers.com/product/AXP20X.php
- * http://dl.linux-sunxi.org/AXP/AXP209%20Datasheet%20v1.0_cn.pdf
+ * FIXME for now we only support host mode and rely on u-boot to have
+ * turned on Vbus which is controlled by the axp223 pmic on the board.
+ *
+ * Once we have axp223 support we should switch to fully supporting otg.
  */
+&usb_otg {
+	dr_mode = "host";
+	status = "okay";
+};
 
-&axp209 {
-	compatible = "x-powers,axp209";
-	interrupt-controller;
-	#interrupt-cells = <1>;
-
-	regulators {
-		/* Default work frequency for buck regulators */
-		x-powers,dcdc-freq = <1500>;
-
-		reg_dcdc2: dcdc2 {
-			regulator-name = "dcdc2";
-		};
-
-		reg_dcdc3: dcdc3 {
-			regulator-name = "dcdc3";
-		};
-
-		reg_ldo1: ldo1 {
-			/* LDO1 is a fixed output regulator */
-			regulator-always-on;
-			regulator-min-microvolt = <1300000>;
-			regulator-max-microvolt = <1300000>;
-			regulator-name = "ldo1";
-		};
-
-		reg_ldo2: ldo2 {
-			regulator-name = "ldo2";
-		};
-
-		reg_ldo3: ldo3 {
-			regulator-name = "ldo3";
-		};
-
-		reg_ldo4: ldo4 {
-			regulator-name = "ldo4";
-		};
-
-		reg_ldo5: ldo5 {
-			regulator-name = "ldo5";
-		};
-	};
-
-	usb_power_supply: usb_power_supply {
-		compatible = "x-powers,axp202-usb-power-supply";
-		status = "disabled";
-	};
+&usbphy {
+	status = "okay";
 };
