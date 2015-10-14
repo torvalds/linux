@@ -230,13 +230,13 @@ struct cb_pcidas_board {
 	const char *name;
 	int ai_nchan;		/*  Inputs in single-ended mode */
 	int ai_speed;		/*  fastest conversion period in ns */
-	int ao_nchan;		/*  number of analog out channels */
-	int has_ao_fifo;	/*  analog output has fifo */
 	int ao_scan_speed;	/*  analog output scan speed for 1602 series */
 	int fifo_size;		/*  number of samples fifo can hold */
 	const struct comedi_lrange *ranges;
 	enum trimpot_model trimpot;
 	unsigned int is_16bit;	/*  ADC/DAC resolution 1=16-bit; 0=12-bit */
+	unsigned int has_ao:1;	/*  has 2 analog output channels */
+	unsigned int has_ao_fifo:1;	/*  analog output has fifo */
 	unsigned int has_dac08:1;
 	unsigned int is_1602:1;
 };
@@ -246,13 +246,13 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1602/16",
 		.ai_nchan	= 16,
 		.ai_speed	= 5000,
-		.ao_nchan	= 2,
-		.has_ao_fifo	= 1,
 		.ao_scan_speed	= 10000,
 		.fifo_size	= 512,
 		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD8402,
 		.is_16bit	= 1,
+		.has_ao		= 1,
+		.has_ao_fifo	= 1,
 		.has_dac08	= 1,
 		.is_1602	= 1,
 	},
@@ -260,21 +260,21 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1200",
 		.ai_nchan	= 16,
 		.ai_speed	= 3200,
-		.ao_nchan	= 2,
 		.fifo_size	= 1024,
 		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD7376,
+		.has_ao		= 1,
 	},
 	[BOARD_PCIDAS1602_12] = {
 		.name		= "pci-das1602/12",
 		.ai_nchan	= 16,
 		.ai_speed	= 3200,
-		.ao_nchan	= 2,
-		.has_ao_fifo	= 1,
 		.ao_scan_speed	= 4000,
 		.fifo_size	= 1024,
 		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD7376,
+		.has_ao		= 1,
+		.has_ao_fifo	= 1,
 		.is_1602	= 1,
 	},
 	[BOARD_PCIDAS1200_JR] = {
@@ -308,19 +308,19 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1001",
 		.ai_nchan	= 16,
 		.ai_speed	= 6800,
-		.ao_nchan	= 2,
 		.fifo_size	= 1024,
 		.ranges		= &cb_pcidas_alt_ranges,
 		.trimpot	= AD7376,
+		.has_ao		= 1,
 	},
 	[BOARD_PCIDAS1002] = {
 		.name		= "pci-das1002",
 		.ai_nchan	= 16,
 		.ai_speed	= 6800,
-		.ao_nchan	= 2,
 		.fifo_size	= 1024,
 		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD7376,
+		.has_ao		= 1,
 	},
 };
 
@@ -1352,7 +1352,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	devpriv->control_status = pci_resource_start(pcidev, 1);
 	devpriv->adc_fifo = pci_resource_start(pcidev, 2);
 	dev->iobase = pci_resource_start(pcidev, 3);
-	if (board->ao_nchan)
+	if (board->has_ao)
 		devpriv->ao_registers = pci_resource_start(pcidev, 4);
 
 	/*  disable and clear interrupts on amcc s5933 */
@@ -1401,10 +1401,10 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 
 	/* analog output subdevice */
 	s = &dev->subdevices[1];
-	if (board->ao_nchan) {
+	if (board->has_ao) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = board->ao_nchan;
+		s->n_chan = 2;
 		s->maxdata = board->is_16bit ? 0xffff : 0x0fff;
 		s->range_table = &cb_pcidas_ao_ranges;
 		/* default to no fifo (*insn_write) */
