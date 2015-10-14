@@ -4316,7 +4316,9 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 			DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
 	}
 
-	if (!drm_dp_channel_eq_ok(link_status, intel_dp->lane_count)) {
+	/* if link training is requested we should perform it always */
+	if ((intel_dp->compliance_test_type == DP_TEST_LINK_TRAINING) ||
+		(!drm_dp_channel_eq_ok(link_status, intel_dp->lane_count))) {
 		DRM_DEBUG_KMS("%s: channel EQ not ok, retraining\n",
 			      intel_encoder->base.name);
 		intel_dp_start_link_train(intel_dp);
