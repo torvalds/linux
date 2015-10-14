@@ -325,6 +325,15 @@
 			interrupts = <0x0 0x4c 0x4>;
 		};
 
+		usb0: dwusb@19000000 {
+			status = "disabled";
+			compatible = "snps,dwc3";
+			reg =  <0x0 0x19000000 0x0 0x100000>;
+			interrupts = <0x0 0x5d 0x4>;
+			dma-coherent;
+			dr_mode = "host";
+		};
+
 		pcie0: pcie@1f2b0000 {
 			status = "disabled";
 			device_type = "pci";
