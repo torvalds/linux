@@ -312,7 +312,7 @@ static inline unsigned int inet_csk_listen_poll(const struct sock *sk)
 			(POLLIN | POLLRDNORM) : 0;
 }
 
-int inet_csk_listen_start(struct sock *sk, const int nr_table_entries);
+int inet_csk_listen_start(struct sock *sk, int backlog);
 void inet_csk_listen_stop(struct sock *sk);
 
 void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
