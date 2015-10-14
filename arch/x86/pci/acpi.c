@@ -401,7 +401,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	int node;
 
 	if (pci_ignore_seg)
-		domain = 0;
+		root->segment = domain = 0;
 
 	if (domain && !pci_domains_supported) {
 		printk(KERN_WARNING "pci_bus %04x:%02x: "
