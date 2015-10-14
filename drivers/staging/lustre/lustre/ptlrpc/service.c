@@ -1872,7 +1872,7 @@ ptlrpc_check_rqbd_pool(struct ptlrpc_service_part *svcpt)
 static int
 ptlrpc_retry_rqbds(void *arg)
 {
-	struct ptlrpc_service_part *svcpt = (struct ptlrpc_service_part *)arg;
+	struct ptlrpc_service_part *svcpt = arg;
 
 	svcpt->scp_rqbd_timeout = 0;
 	return -ETIMEDOUT;
@@ -1979,7 +1979,7 @@ ptlrpc_wait_event(struct ptlrpc_service_part *svcpt,
  */
 static int ptlrpc_main(void *arg)
 {
-	struct ptlrpc_thread *thread = (struct ptlrpc_thread *)arg;
+	struct ptlrpc_thread *thread = arg;
 	struct ptlrpc_service_part *svcpt = thread->t_svcpt;
 	struct ptlrpc_service *svc = svcpt->scp_service;
 	struct ptlrpc_reply_state *rs;
@@ -2181,7 +2181,7 @@ static int hrt_dont_sleep(struct ptlrpc_hr_thread *hrt,
  */
 static int ptlrpc_hr_main(void *arg)
 {
-	struct ptlrpc_hr_thread	*hrt = (struct ptlrpc_hr_thread *)arg;
+	struct ptlrpc_hr_thread	*hrt = arg;
 	struct ptlrpc_hr_partition *hrp = hrt->hrt_partition;
 	LIST_HEAD	(replies);
 	char threadname[20];
