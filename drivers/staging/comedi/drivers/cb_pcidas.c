@@ -533,42 +533,49 @@ static int eeprom_read_insn(struct comedi_device *dev,
 	return 1;
 }
 
-static void write_calibration_bitstream(struct comedi_device *dev,
-					unsigned int register_bits,
-					unsigned int bitstream,
-					unsigned int bitstream_length)
+static void cb_pcidas_calib_write(struct comedi_device *dev,
+				  unsigned int val, unsigned int len,
+				  bool trimpot)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	static const int write_delay = 1;
+	unsigned int calib_bits = cal_enable_bits(dev);
 	unsigned int bit;
 
-	for (bit = 1 << (bitstream_length - 1); bit; bit >>= 1) {
-		if (bitstream & bit)
-			register_bits |= PCIDAS_CALIB_DATA;
-		else
-			register_bits &= ~PCIDAS_CALIB_DATA;
-		udelay(write_delay);
-		outw(register_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
+	if (trimpot) {
+		/* select trimpot */
+		calib_bits |= PCIDAS_CALIB_TRIM_SEL;
+		outw(calib_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	}
+
+	/* write bitstream to calibration device */
+	for (bit = 1 << (len - 1); bit; bit >>= 1) {
+		if (val & bit)
+			calib_bits |= PCIDAS_CALIB_DATA;
+		else
+			calib_bits &= ~PCIDAS_CALIB_DATA;
+		udelay(1);
+		outw(calib_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
+	}
+	udelay(1);
+
+	calib_bits = cal_enable_bits(dev);
+
+	if (!trimpot) {
+		/* select caldac */
+		outw(calib_bits | PCIDAS_CALIB_8800_SEL,
+		     devpriv->pcibar1 + PCIDAS_CALIB_REG);
+		udelay(1);
+	}
+
+	/* latch value to trimpot/caldac */
+	outw(calib_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 }
 
 static void cb_pcidas_caldac_8800_write(struct comedi_device *dev,
 					unsigned int chan, unsigned int val)
 {
-	struct cb_pcidas_private *devpriv = dev->private;
-
-	/* write 11-bit value */
-	write_calibration_bitstream(dev, cal_enable_bits(dev),
-				    ((chan & 0x7) << 8) | val, 11);
-	udelay(1);
-
-	/* select caldac */
-	outw(cal_enable_bits(dev) | PCIDAS_CALIB_8800_SEL,
-	     devpriv->pcibar1 + PCIDAS_CALIB_REG);
-	udelay(1);
-
-	/* latch value */
-	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
+	/* write 11-bit value to caldac */
+	cb_pcidas_calib_write(dev, ((chan & 0x7) << 8) | val, 11, false);
 }
 
 static int cb_pcidas_caldac_insn_write(struct comedi_device *dev,
@@ -630,40 +637,15 @@ static int cb_pcidas_dac08_insn_write(struct comedi_device *dev,
 static void cb_pcidas_trimpot_7376_write(struct comedi_device *dev,
 					 unsigned int val)
 {
-	struct cb_pcidas_private *devpriv = dev->private;
-	unsigned int calib_bits;
-
-	/* select trimpot */
-	calib_bits = cal_enable_bits(dev) | PCIDAS_CALIB_TRIM_SEL;
-	udelay(1);
-	outw(calib_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
-
-	/* write 7-bit value */
-	write_calibration_bitstream(dev, calib_bits, val, 7);
-	udelay(1);
-
-	/* latch value */
-	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
+	/* write 7-bit value to trimpot */
+	cb_pcidas_calib_write(dev, val, 7, true);
 }
 
 static void cb_pcidas_trimpot_8402_write(struct comedi_device *dev,
 					 unsigned int chan, unsigned int val)
 {
-	struct cb_pcidas_private *devpriv = dev->private;
-	unsigned int calib_bits;
-
-	/* select trimpot */
-	calib_bits = cal_enable_bits(dev) | PCIDAS_CALIB_TRIM_SEL;
-	udelay(1);
-	outw(calib_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
-
-	/* write 10-bit value */
-	write_calibration_bitstream(dev, calib_bits,
-				    ((chan & 0x3) << 8) | val, 10);
-	udelay(1);
-
-	/* latch value */
-	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
+	/* write 10-bit value to trimpot */
+	cb_pcidas_calib_write(dev, ((chan & 0x3) << 8) | val, 10, true);
 }
 
 static void cb_pcidas_trimpot_write(struct comedi_device *dev,
