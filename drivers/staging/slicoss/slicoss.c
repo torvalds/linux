@@ -1309,7 +1309,7 @@ static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page)
 	unsigned long flags;
 
 	cmdaddr = page;
-	cmd = (struct slic_hostcmd *)cmdaddr;
+	cmd = cmdaddr;
 	cmdcnt = 0;
 
 	phys_addr = virt_to_bus((void *)page);
@@ -1342,7 +1342,7 @@ static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page)
 		phys_addrl += SLIC_HOSTCMD_SIZE;
 		cmdaddr += SLIC_HOSTCMD_SIZE;
 
-		cmd = (struct slic_hostcmd *)cmdaddr;
+		cmd = cmdaddr;
 		cmdcnt++;
 	}
 
@@ -2055,7 +2055,6 @@ static void slic_xmit_complete(struct adapter *adapter)
 		*/
 		slic_handle_word.handle_token = rspbuf->hosthandle;
 		hcmd =
-		    (struct slic_hostcmd *)
 			adapter->slic_handles[slic_handle_word.handle_index].
 									address;
 /*      hcmd = (struct slic_hostcmd *) rspbuf->hosthandle; */
@@ -2135,7 +2134,7 @@ static void slic_interrupt_card_up(u32 isr, struct adapter *adapter,
 
 static irqreturn_t slic_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *)dev_id;
+	struct net_device *dev = dev_id;
 	struct adapter *adapter = netdev_priv(dev);
 	u32 isr;
 
@@ -2881,7 +2880,7 @@ static void slic_init_adapter(struct net_device *netdev,
 	adapter->busnumber = pcidev->bus->number;
 	adapter->slotnumber = ((pcidev->devfn >> 3) & 0x1F);
 	adapter->functionnumber = (pcidev->devfn & 0x7);
-	adapter->slic_regs = (__iomem struct slic_regs *)memaddr;
+	adapter->slic_regs = memaddr;
 	adapter->irq = pcidev->irq;
 /*	adapter->netdev = netdev;*/
 	adapter->chipid = chip_idx;
