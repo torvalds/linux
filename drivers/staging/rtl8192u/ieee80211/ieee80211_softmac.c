@@ -1463,10 +1463,8 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 				}
 				memcpy(&ieee->current_network, net, sizeof(struct ieee80211_network));
 
-				if (!ssidbroad) {
-					strncpy(ieee->current_network.ssid, tmp_ssid, IW_ESSID_MAX_SIZE);
-					ieee->current_network.ssid_len = tmp_ssid_len;
-				}
+				strncpy(ieee->current_network.ssid, tmp_ssid, IW_ESSID_MAX_SIZE);
+				ieee->current_network.ssid_len = tmp_ssid_len;
 				printk(KERN_INFO"Linking with %s,channel:%d, qos:%d, myHT:%d, networkHT:%d\n",ieee->current_network.ssid,ieee->current_network.channel, ieee->current_network.qos_data.supported, ieee->pHTInfo->bEnableHT, ieee->current_network.bssht.bdSupportHT);
 
 				//ieee->pHTInfo->IOTAction = 0;
