@@ -143,6 +143,55 @@ static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t rotary_encoder_quarter_period_irq(int irq, void *dev_id)
+{
+	struct rotary_encoder *encoder = dev_id;
+	unsigned char sum;
+	int state;
+
+	state = rotary_encoder_get_state(encoder->pdata);
+
+	/*
+	 * We encode the previous and the current state using a byte.
+	 * The previous state in the MSB nibble, the current state in the LSB
+	 * nibble. Then use a table to decide the direction of the turn.
+	 */
+	sum = (encoder->last_stable << 4) + state;
+	switch (sum) {
+	case 0x31:
+	case 0x10:
+	case 0x02:
+	case 0x23:
+		encoder->dir = 0; /* clockwise */
+		break;
+
+	case 0x13:
+	case 0x01:
+	case 0x20:
+	case 0x32:
+		encoder->dir = 1; /* counter-clockwise */
+		break;
+
+	default:
+		/*
+		 * Ignore all other values. This covers the case when the
+		 * state didn't change (a spurious interrupt) and the
+		 * cases where the state changed by two steps, making it
+		 * impossible to tell the direction.
+		 *
+		 * In either case, don't report any event and save the
+		 * state for later.
+		 */
+		goto out;
+	}
+
+	rotary_encoder_report_event(encoder);
+
+out:
+	encoder->last_stable = state;
+	return IRQ_HANDLED;
+}
+
 #ifdef CONFIG_OF
 static const struct of_device_id rotary_encoder_of_match[] = {
 	{ .compatible = "rotary-encoder", },
@@ -157,6 +206,7 @@ static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct devic
 	struct device_node *np = dev->of_node;
 	struct rotary_encoder_platform_data *pdata;
 	enum of_gpio_flags flags;
+	int error;
 
 	if (!of_id || !np)
 		return NULL;
@@ -178,8 +228,23 @@ static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct devic
 	pdata->relative_axis =
 		of_property_read_bool(np, "rotary-encoder,relative-axis");
 	pdata->rollover = of_property_read_bool(np, "rotary-encoder,rollover");
-	pdata->half_period =
-		of_property_read_bool(np, "rotary-encoder,half-period");
+
+	error = of_property_read_u32(np, "rotary-encoder,steps-per-period",
+				     &pdata->steps_per_period);
+	if (error) {
+		/*
+		 * The 'half-period' property has been deprecated, you must use
+		 * 'steps-per-period' and set an appropriate value, but we still
+		 * need to parse it to maintain compatibility.
+		 */
+		if (of_property_read_bool(np, "rotary-encoder,half-period")) {
+			pdata->steps_per_period = 2;
+		} else {
+			/* Fallback to one step per period behavior */
+			pdata->steps_per_period = 1;
+		}
+	}
+
 	pdata->wakeup_source = of_property_read_bool(np, "wakeup-source");
 
 	return pdata;
@@ -251,12 +316,23 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	encoder->irq_a = gpio_to_irq(pdata->gpio_a);
 	encoder->irq_b = gpio_to_irq(pdata->gpio_b);
 
-	/* request the IRQs */
-	if (pdata->half_period) {
+	switch (pdata->steps_per_period) {
+	case 4:
+		handler = &rotary_encoder_quarter_period_irq;
+		encoder->last_stable = rotary_encoder_get_state(pdata);
+		break;
+	case 2:
 		handler = &rotary_encoder_half_period_irq;
 		encoder->last_stable = rotary_encoder_get_state(pdata);
-	} else {
+		break;
+	case 1:
 		handler = &rotary_encoder_irq;
+		break;
+	default:
+		dev_err(dev, "'%d' is not a valid steps-per-period value\n",
+			pdata->steps_per_period);
+		err = -EINVAL;
+		goto exit_free_gpio_b;
 	}
 
 	err = request_irq(encoder->irq_a, handler,
