@@ -31,7 +31,6 @@
 #include "mesh.h"
 #include "wep.h"
 #include "led.h"
-#include "cfg.h"
 #include "debugfs.h"
 
 void ieee80211_configure_filter(struct ieee80211_local *local)

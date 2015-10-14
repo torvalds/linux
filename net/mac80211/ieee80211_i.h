@@ -34,6 +34,8 @@
 #include "sta_info.h"
 #include "debug.h"
 
+extern const struct cfg80211_ops mac80211_config_ops;
+
 struct ieee80211_local;
 
 /* Maximum number of broadcast/multicast frames to buffer when some of the

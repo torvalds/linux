@@ -17,7 +17,6 @@
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
-#include "cfg.h"
 #include "rate.h"
 #include "mesh.h"
 #include "wme.h"
