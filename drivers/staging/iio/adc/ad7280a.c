@@ -488,7 +488,7 @@ static int ad7280_channel_init(struct ad7280_state *st)
 
 	st->channels = kcalloc((st->slave_num + 1) * 12 + 2,
 			       sizeof(*st->channels), GFP_KERNEL);
-	if (st->channels == NULL)
+	if (!st->channels)
 		return -ENOMEM;
 
 	for (dev = 0, cnt = 0; dev <= st->slave_num; dev++)
@@ -550,7 +550,7 @@ static int ad7280_attr_init(struct ad7280_state *st)
 	st->iio_attr = kcalloc(2, sizeof(*st->iio_attr) *
 			       (st->slave_num + 1) * AD7280A_CELLS_PER_DEV,
 			       GFP_KERNEL);
-	if (st->iio_attr == NULL)
+	if (!st->iio_attr)
 		return -ENOMEM;
 
 	for (dev = 0, cnt = 0; dev <= st->slave_num; dev++)
@@ -687,7 +687,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 	int i, ret;
 
 	channels = kcalloc(st->scan_cnt, sizeof(*channels), GFP_KERNEL);
-	if (channels == NULL)
+	if (!channels)
 		return IRQ_HANDLED;
 
 	ret = ad7280_read_all_channels(st, st->scan_cnt, channels);
@@ -842,7 +842,7 @@ static int ad7280_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL)
+	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
