@@ -4374,7 +4374,7 @@ static int rocker_port_bridge_ageing_time(struct rocker_port *rocker_port,
 }
 
 static int rocker_port_attr_set(struct net_device *dev,
-				struct switchdev_attr *attr,
+				const struct switchdev_attr *attr,
 				struct switchdev_trans *trans)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);

@@ -215,7 +215,7 @@ int switchdev_port_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 EXPORT_SYMBOL_GPL(switchdev_port_attr_get);
 
 static int __switchdev_port_attr_set(struct net_device *dev,
-				     struct switchdev_attr *attr,
+				     const struct switchdev_attr *attr,
 				     struct switchdev_trans *trans)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
@@ -274,7 +274,7 @@ static void switchdev_port_attr_set_work(struct work_struct *work)
 }
 
 static int switchdev_port_attr_set_defer(struct net_device *dev,
-					 struct switchdev_attr *attr)
+					 const struct switchdev_attr *attr)
 {
 	struct switchdev_attr_set_work *asw;
 
@@ -303,7 +303,8 @@ static int switchdev_port_attr_set_defer(struct net_device *dev,
  *	system is not left in a partially updated state due to
  *	failure from driver/device.
  */
-int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
+int switchdev_port_attr_set(struct net_device *dev,
+			    const struct switchdev_attr *attr)
 {
 	struct switchdev_trans trans;
 	int err;
