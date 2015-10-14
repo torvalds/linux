@@ -332,7 +332,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/*
 	 * Switch FS and GS.
 	 *
-	 * These are even more complicated than FS and GS: they have
+	 * These are even more complicated than DS and ES: they have
 	 * 64-bit bases are that controlled by arch_prctl.  Those bases
 	 * only differ from the values in the GDT or LDT if the selector
 	 * is 0.
