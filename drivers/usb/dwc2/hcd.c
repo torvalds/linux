@@ -1500,6 +1500,8 @@ static void dwc2_port_resume(struct dwc2_hsotg *hsotg)
 	u32 hprt0;
 	u32 pcgctl;
 
+	spin_lock_irqsave(&hsotg->lock, flags);
+
 	/*
 	 * If hibernation is supported, Phy clock is already resumed
 	 * after registers restore.
@@ -1508,10 +1510,11 @@ static void dwc2_port_resume(struct dwc2_hsotg *hsotg)
 		pcgctl = dwc2_readl(hsotg->regs + PCGCTL);
 		pcgctl &= ~PCGCTL_STOPPCLK;
 		dwc2_writel(pcgctl, hsotg->regs + PCGCTL);
+		spin_unlock_irqrestore(&hsotg->lock, flags);
 		usleep_range(20000, 40000);
+		spin_lock_irqsave(&hsotg->lock, flags);
 	}
 
-	spin_lock_irqsave(&hsotg->lock, flags);
 	hprt0 = dwc2_read_hprt0(hsotg);
 	hprt0 |= HPRT0_RES;
 	hprt0 &= ~HPRT0_SUSP;
