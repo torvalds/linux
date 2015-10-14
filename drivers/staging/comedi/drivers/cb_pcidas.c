@@ -164,6 +164,10 @@ static inline unsigned int DAC_CHAN_EN(unsigned int channel)
 #define DIO_8255		4
 #define DAC8254			8
 
+/*
+ * PCI BAR4 Register map (devpriv->pcibar4)
+ */
+
 /* analog output registers for 100x, 1200 series */
 static inline unsigned int DAC_DATA_REG(unsigned int channel)
 {
@@ -318,7 +322,7 @@ struct cb_pcidas_private {
 	unsigned long s5933_config;
 	unsigned long pcibar1;
 	unsigned long pcibar2;
-	unsigned long ao_registers;
+	unsigned long pcibar4;
 	/* bits to write to registers */
 	unsigned int adc_fifo_bits;
 	unsigned int s5933_intcsr_bits;
@@ -448,7 +452,7 @@ static int cb_pcidas_ao_nofifo_winsn(struct comedi_device *dev,
 	s->readback[chan] = data[0];
 
 	/* send data */
-	outw(data[0], devpriv->ao_registers + DAC_DATA_REG(chan));
+	outw(data[0], devpriv->pcibar4 + DAC_DATA_REG(chan));
 
 	return insn->n;
 }
@@ -464,7 +468,7 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
 	unsigned long flags;
 
 	/* clear dac fifo */
-	outw(0, devpriv->ao_registers + DACFIFOCLR);
+	outw(0, devpriv->pcibar4 + DACFIFOCLR);
 
 	/* set channel and range */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -479,7 +483,7 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
 	s->readback[chan] = data[0];
 
 	/* send data */
-	outw(data[0], devpriv->ao_registers + DACDATA);
+	outw(data[0], devpriv->pcibar4 + DACDATA);
 
 	return insn->n;
 }
@@ -1060,7 +1064,7 @@ static void cb_pcidas_ao_load_fifo(struct comedi_device *dev,
 	nbytes = comedi_buf_read_samples(s, devpriv->ao_buffer, nsamples);
 
 	nsamples = comedi_bytes_to_samples(s, nbytes);
-	outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer, nsamples);
+	outsw(devpriv->pcibar4 + DACDATA, devpriv->ao_buffer, nsamples);
 }
 
 static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
@@ -1123,7 +1127,7 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  clear fifo */
-	outw(0, devpriv->ao_registers + DACFIFOCLR);
+	outw(0, devpriv->pcibar4 + DACFIFOCLR);
 
 	/*  load counters */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -1187,7 +1191,7 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 		outw(devpriv->adc_fifo_bits | DAEMI,
 		     devpriv->pcibar1 + INT_ADCFIFO);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-		if (inw(devpriv->ao_registers + DAC_CSR) & DAC_EMPTY) {
+		if (inw(devpriv->pcibar4 + DAC_CSR) & DAC_EMPTY) {
 			if (cmd->stop_src == TRIG_COUNT &&
 			    async->scans_done >= cmd->stop_arg) {
 				async->events |= COMEDI_CB_EOA;
@@ -1341,7 +1345,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	devpriv->pcibar2 = pci_resource_start(pcidev, 2);
 	dev->iobase = pci_resource_start(pcidev, 3);
 	if (board->has_ao)
-		devpriv->ao_registers = pci_resource_start(pcidev, 4);
+		devpriv->pcibar4 = pci_resource_start(pcidev, 4);
 
 	/*  disable and clear interrupts on amcc s5933 */
 	outl(INTCSR_INBOX_INTR_STATUS,
