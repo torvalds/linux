@@ -48,7 +48,7 @@ struct ad7816_chip_info {
 	u16 rdwr_pin;
 	u16 convert_pin;
 	u16 busy_pin;
-	u8  oti_data[AD7816_CS_MAX+1];
+	u8  oti_data[AD7816_CS_MAX + 1];
 	u8  channel_id;	/* 0 always be temperature */
 	u8  mode;
 };
