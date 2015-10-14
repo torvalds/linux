@@ -1580,7 +1580,20 @@ static int dce_v11_0_audio_init(struct amdgpu_device *adev)
 
 	adev->mode_info.audio.enabled = true;
 
-	adev->mode_info.audio.num_pins = 7;
+	switch (adev->asic_type) {
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+		adev->mode_info.audio.num_pins = 7;
+		break;
+	case CHIP_ELLESMERE:
+		adev->mode_info.audio.num_pins = 8;
+		break;
+	case CHIP_BAFFIN:
+		adev->mode_info.audio.num_pins = 6;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	for (i = 0; i < adev->mode_info.audio.num_pins; i++) {
 		adev->mode_info.audio.pin[i].channels = -1;
@@ -2899,6 +2912,16 @@ static int dce_v11_0_early_init(void *handle)
 		adev->mode_info.num_crtc = 2;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 9;
+		break;
+	case CHIP_ELLESMERE:
+		adev->mode_info.num_crtc = 6;
+		adev->mode_info.num_hpd = 6;
+		adev->mode_info.num_dig = 6;
+		break;
+	case CHIP_BAFFIN:
+		adev->mode_info.num_crtc = 5;
+		adev->mode_info.num_hpd = 5;
+		adev->mode_info.num_dig = 5;
 		break;
 	default:
 		/* FIXME: not supported yet */
