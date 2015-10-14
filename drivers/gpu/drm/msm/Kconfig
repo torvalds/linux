@@ -54,3 +54,11 @@ config DRM_MSM_DSI_20NM_PHY
 	default y
 	help
 	  Choose this option if the 20nm DSI PHY is used on the platform.
+
+config DRM_MSM_DSI_28NM_8960_PHY
+	bool "Enable DSI 28nm 8960 PHY driver in MSM DRM"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if the 28nm DSI PHY 8960 variant is used on the
+	  platform.
