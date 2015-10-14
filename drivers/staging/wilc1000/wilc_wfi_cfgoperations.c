@@ -35,7 +35,6 @@ static u8 op_ifcs;
 extern u8 u8ConnectedSSID[6];
 
 u8 g_wilc_initialized = 1;
-extern linux_wlan_t *g_linux_wlan;
 extern bool g_obtainingIP;
 
 #define CHAN2G(_channel, _freq, _flags) {	 \
@@ -2192,7 +2191,6 @@ void WILC_WFI_add_wilcvendorspec(u8 *buff)
  *  @date	01 JUL 2012
  *  @version
  */
-extern linux_wlan_t *g_linux_wlan;
 extern bool bEnablePS;
 static int mgmt_tx(struct wiphy *wiphy,
 		   struct wireless_dev *wdev,

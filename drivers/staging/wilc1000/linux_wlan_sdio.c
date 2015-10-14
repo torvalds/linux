@@ -23,7 +23,6 @@
 
 
 struct sdio_func *local_sdio_func;
-extern linux_wlan_t *g_linux_wlan;
 extern int wilc_netdev_init(void);
 extern void wilc_handle_isr(void);
 

@@ -24,8 +24,6 @@ struct wilc_wfi_radiotap_cb_hdr {
 	u16 tx_flags;
 } __attribute__((packed));
 
-extern linux_wlan_t *g_linux_wlan;
-
 static struct net_device *wilc_wfi_mon; /* global monitor netdev */
 
 extern int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
