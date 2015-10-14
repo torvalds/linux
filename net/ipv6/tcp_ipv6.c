@@ -1363,6 +1363,7 @@ static int tcp_v6_rcv(struct sk_buff *skb)
 	th = tcp_hdr(skb);
 	hdr = ipv6_hdr(skb);
 
+lookup:
 	sk = __inet6_lookup_skb(&tcp_hashinfo, skb, th->source, th->dest,
 				inet6_iif(skb));
 	if (!sk)
@@ -1382,8 +1383,12 @@ process:
 			reqsk_put(req);
 			goto discard_it;
 		}
-		if (sk->sk_state == TCP_LISTEN)
+		if (likely(sk->sk_state == TCP_LISTEN)) {
 			nsk = tcp_check_req(sk, skb, req, false);
+		} else {
+			inet_csk_reqsk_queue_drop(sk, req);
+			goto lookup;
+		}
 		if (!nsk) {
 			reqsk_put(req);
 			goto discard_it;

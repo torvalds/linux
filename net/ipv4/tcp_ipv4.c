@@ -1572,6 +1572,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->ip_dsfield = ipv4_get_dsfield(iph);
 	TCP_SKB_CB(skb)->sacked	 = 0;
 
+lookup:
 	sk = __inet_lookup_skb(&tcp_hashinfo, skb, th->source, th->dest);
 	if (!sk)
 		goto no_tcp_socket;
@@ -1587,8 +1588,12 @@ process:
 		sk = req->rsk_listener;
 		if (tcp_v4_inbound_md5_hash(sk, skb))
 			goto discard_and_relse;
-		if (sk->sk_state == TCP_LISTEN)
+		if (likely(sk->sk_state == TCP_LISTEN)) {
 			nsk = tcp_check_req(sk, skb, req, false);
+		} else {
+			inet_csk_reqsk_queue_drop(sk, req);
+			goto lookup;
+		}
 		if (!nsk) {
 			reqsk_put(req);
 			goto discard_it;
