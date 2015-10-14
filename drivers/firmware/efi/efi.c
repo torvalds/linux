@@ -26,20 +26,21 @@
 #include <linux/platform_device.h>
 
 struct efi __read_mostly efi = {
-	.mps        = EFI_INVALID_TABLE_ADDR,
-	.acpi       = EFI_INVALID_TABLE_ADDR,
-	.acpi20     = EFI_INVALID_TABLE_ADDR,
-	.smbios     = EFI_INVALID_TABLE_ADDR,
-	.smbios3    = EFI_INVALID_TABLE_ADDR,
-	.sal_systab = EFI_INVALID_TABLE_ADDR,
-	.boot_info  = EFI_INVALID_TABLE_ADDR,
-	.hcdp       = EFI_INVALID_TABLE_ADDR,
-	.uga        = EFI_INVALID_TABLE_ADDR,
-	.uv_systab  = EFI_INVALID_TABLE_ADDR,
-	.fw_vendor  = EFI_INVALID_TABLE_ADDR,
-	.runtime    = EFI_INVALID_TABLE_ADDR,
-	.config_table  = EFI_INVALID_TABLE_ADDR,
-	.esrt       = EFI_INVALID_TABLE_ADDR,
+	.mps			= EFI_INVALID_TABLE_ADDR,
+	.acpi			= EFI_INVALID_TABLE_ADDR,
+	.acpi20			= EFI_INVALID_TABLE_ADDR,
+	.smbios			= EFI_INVALID_TABLE_ADDR,
+	.smbios3		= EFI_INVALID_TABLE_ADDR,
+	.sal_systab		= EFI_INVALID_TABLE_ADDR,
+	.boot_info		= EFI_INVALID_TABLE_ADDR,
+	.hcdp			= EFI_INVALID_TABLE_ADDR,
+	.uga			= EFI_INVALID_TABLE_ADDR,
+	.uv_systab		= EFI_INVALID_TABLE_ADDR,
+	.fw_vendor		= EFI_INVALID_TABLE_ADDR,
+	.runtime		= EFI_INVALID_TABLE_ADDR,
+	.config_table		= EFI_INVALID_TABLE_ADDR,
+	.esrt			= EFI_INVALID_TABLE_ADDR,
+	.properties_table	= EFI_INVALID_TABLE_ADDR,
 };
 EXPORT_SYMBOL(efi);
 
@@ -62,6 +63,9 @@ static int __init parse_efi_cmdline(char *str)
 		pr_warn("need at least one option\n");
 		return -EINVAL;
 	}
+
+	if (parse_option_str(str, "debug"))
+		set_bit(EFI_DBG, &efi.flags);
 
 	if (parse_option_str(str, "noruntime"))
 		disable_runtime = true;
@@ -362,6 +366,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{SMBIOS3_TABLE_GUID, "SMBIOS 3.0", &efi.smbios3},
 	{UGA_IO_PROTOCOL_GUID, "UGA", &efi.uga},
 	{EFI_SYSTEM_RESOURCE_TABLE_GUID, "ESRT", &efi.esrt},
+	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
 	{NULL_GUID, NULL, NULL},
 };
 
@@ -421,6 +426,24 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 	}
 	pr_cont("\n");
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);
+
+	/* Parse the EFI Properties table if it exists */
+	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {
+		efi_properties_table_t *tbl;
+
+		tbl = early_memremap(efi.properties_table, sizeof(*tbl));
+		if (tbl == NULL) {
+			pr_err("Could not map Properties table!\n");
+			return -ENOMEM;
+		}
+
+		if (tbl->memory_protection_attribute &
+		    EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA)
+			set_bit(EFI_NX_PE_DATA, &efi.flags);
+
+		early_memunmap(tbl, sizeof(*tbl));
+	}
+
 	return 0;
 }
 
@@ -489,7 +512,6 @@ static __initdata struct {
 };
 
 struct param_info {
-	int verbose;
 	int found;
 	void *params;
 };
@@ -520,21 +542,20 @@ static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
 		else
 			*(u64 *)dest = val;
 
-		if (info->verbose)
+		if (efi_enabled(EFI_DBG))
 			pr_info("  %s: 0x%0*llx\n", dt_params[i].name,
 				dt_params[i].size * 2, val);
 	}
 	return 1;
 }
 
-int __init efi_get_fdt_params(struct efi_fdt_params *params, int verbose)
+int __init efi_get_fdt_params(struct efi_fdt_params *params)
 {
 	struct param_info info;
 	int ret;
 
 	pr_info("Getting EFI parameters from FDT:\n");
 
-	info.verbose = verbose;
 	info.found = 0;
 	info.params = params;
 
@@ -590,12 +611,13 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
 		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
 		     EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
-		     EFI_MEMORY_RUNTIME))
+		     EFI_MEMORY_RUNTIME | EFI_MEMORY_MORE_RELIABLE))
 		snprintf(pos, size, "|attr=0x%016llx]",
 			 (unsigned long long)attr);
 	else
-		snprintf(pos, size, "|%3s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+		snprintf(pos, size, "|%3s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
 			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
+			 attr & EFI_MEMORY_MORE_RELIABLE ? "MR" : "",
 			 attr & EFI_MEMORY_XP      ? "XP"  : "",
 			 attr & EFI_MEMORY_RP      ? "RP"  : "",
 			 attr & EFI_MEMORY_WP      ? "WP"  : "",

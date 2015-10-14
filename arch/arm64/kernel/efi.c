@@ -51,15 +51,6 @@ static struct mm_struct efi_mm = {
 	INIT_MM_CONTEXT(efi_mm)
 };
 
-static int uefi_debug __initdata;
-static int __init uefi_debug_setup(char *str)
-{
-	uefi_debug = 1;
-
-	return 0;
-}
-early_param("uefi_debug", uefi_debug_setup);
-
 static int __init is_normal_ram(efi_memory_desc_t *md)
 {
 	if (md->attribute & EFI_MEMORY_WB)
@@ -171,14 +162,14 @@ static __init void reserve_regions(void)
 	efi_memory_desc_t *md;
 	u64 paddr, npages, size;
 
-	if (uefi_debug)
+	if (efi_enabled(EFI_DBG))
 		pr_info("Processing EFI memory map:\n");
 
 	for_each_efi_memory_desc(&memmap, md) {
 		paddr = md->phys_addr;
 		npages = md->num_pages;
 
-		if (uefi_debug) {
+		if (efi_enabled(EFI_DBG)) {
 			char buf[64];
 
 			pr_info("  0x%012llx-0x%012llx %s",
@@ -194,11 +185,11 @@ static __init void reserve_regions(void)
 
 		if (is_reserve_region(md)) {
 			memblock_reserve(paddr, size);
-			if (uefi_debug)
+			if (efi_enabled(EFI_DBG))
 				pr_cont("*");
 		}
 
-		if (uefi_debug)
+		if (efi_enabled(EFI_DBG))
 			pr_cont("\n");
 	}
 
@@ -210,7 +201,7 @@ void __init efi_init(void)
 	struct efi_fdt_params params;
 
 	/* Grab UEFI information placed in FDT by stub */
-	if (!efi_get_fdt_params(&params, uefi_debug))
+	if (!efi_get_fdt_params(&params))
 		return;
 
 	efi_system_table = params.system_table;
