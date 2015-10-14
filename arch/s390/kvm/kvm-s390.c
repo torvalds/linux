@@ -2837,38 +2837,6 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	return kvm_s390_store_status_unloaded(vcpu, addr);
 }
 
-/*
- * store additional status at address
- */
-int kvm_s390_store_adtl_status_unloaded(struct kvm_vcpu *vcpu,
-					unsigned long gpa)
-{
-	/* Only bits 0-53 are used for address formation */
-	if (!(gpa & ~0x3ff))
-		return 0;
-
-	return write_guest_abs(vcpu, gpa & ~0x3ff,
-			       (void *)&vcpu->run->s.regs.vrs, 512);
-}
-
-int kvm_s390_vcpu_store_adtl_status(struct kvm_vcpu *vcpu, unsigned long addr)
-{
-	if (!test_kvm_facility(vcpu->kvm, 129))
-		return 0;
-
-	/*
-	 * The guest VXRS are in the host VXRs due to the lazy
-	 * copying in vcpu load/put. We can simply call save_fpu_regs()
-	 * to save the current register state because we are in the
-	 * middle of a load/put cycle.
-	 *
-	 * Let's update our copies before we save it into the save area.
-	 */
-	save_fpu_regs();
-
-	return kvm_s390_store_adtl_status_unloaded(vcpu, addr);
-}
-
 static void __disable_ibs_on_vcpu(struct kvm_vcpu *vcpu)
 {
 	kvm_check_request(KVM_REQ_ENABLE_IBS, vcpu);

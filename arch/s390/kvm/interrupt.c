@@ -25,6 +25,7 @@
 #include <asm/isc.h>
 #include <asm/gmap.h>
 #include <asm/switch_to.h>
+#include <asm/nmi.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "trace-s390.h"
@@ -406,8 +407,10 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 {
 	unsigned long ext_sa_addr;
 	freg_t fprs[NUM_FPRS];
+	union mci mci;
 	int rc;
 
+	mci.val = mchk->mcic;
 	/* take care of lazy register loading via vcpu load/put */
 	save_fpu_regs();
 	save_access_regs(vcpu->run->s.regs.acrs);
@@ -415,7 +418,15 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 	/* Extended save area */
 	rc = read_guest_lc(vcpu, __LC_VX_SAVE_AREA_ADDR, &ext_sa_addr,
 			    sizeof(unsigned long));
-	rc |= kvm_s390_vcpu_store_adtl_status(vcpu, ext_sa_addr);
+	/* Only bits 0-53 are used for address formation */
+	ext_sa_addr &= ~0x3ffUL;
+	if (!rc && mci.vr && ext_sa_addr && test_kvm_facility(vcpu->kvm, 129)) {
+		if (write_guest_abs(vcpu, ext_sa_addr, vcpu->run->s.regs.vrs,
+				    512))
+			mci.vr = 0;
+	} else {
+		mci.vr = 0;
+	}
 
 	/* General interruption information */
 	rc |= put_guest_lc(vcpu, 1, (u8 __user *) __LC_AR_MODE_ID);
@@ -423,7 +434,7 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 			     &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 	rc |= read_guest_lc(vcpu, __LC_MCK_NEW_PSW,
 			    &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
-	rc |= put_guest_lc(vcpu, mchk->mcic, (u64 __user *) __LC_MCCK_CODE);
+	rc |= put_guest_lc(vcpu, mci.val, (u64 __user *) __LC_MCCK_CODE);
 
 	/* Register-save areas */
 	if (MACHINE_HAS_VX) {
