@@ -221,7 +221,7 @@ static void ptlrpc_pinger_process_import(struct obd_import *imp,
 
 static int ptlrpc_pinger_main(void *arg)
 {
-	struct ptlrpc_thread *thread = (struct ptlrpc_thread *)arg;
+	struct ptlrpc_thread *thread = arg;
 
 	/* Record that the thread is running */
 	thread_set_flags(thread, SVC_RUNNING);
