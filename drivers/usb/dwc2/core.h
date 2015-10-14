@@ -579,6 +579,15 @@ struct dwc2_hregs_backup {
  *                      - USB_DR_MODE_PERIPHERAL
  *                      - USB_DR_MODE_HOST
  *                      - USB_DR_MODE_OTG
+ * @hcd_enabled		Host mode sub-driver initialization indicator.
+ * @gadget_enabled	Peripheral mode sub-driver initialization indicator.
+ * @ll_hw_enabled	Status of low-level hardware resources.
+ * @phy:                The otg phy transceiver structure for phy control.
+ * @uphy:               The otg phy transceiver structure for old USB phy control.
+ * @plat:               The platform specific configuration data. This can be removed once
+ *                      all SoCs support usb transceiver.
+ * @supplies:           Definition of USB power supplies
+ * @phyif:              PHY interface width
  * @lock:		Spinlock that protects all the driver data structures
  * @priv:		Stores a pointer to the struct usb_hcd
  * @queuing_high_bandwidth: True if multiple packets of a high-bandwidth
@@ -671,12 +680,6 @@ struct dwc2_hregs_backup {
  * These are for peripheral mode:
  *
  * @driver:             USB gadget driver
- * @phy:                The otg phy transceiver structure for phy control.
- * @uphy:               The otg phy transceiver structure for old USB phy control.
- * @plat:               The platform specific configuration data. This can be removed once
- *                      all SoCs support usb transceiver.
- * @supplies:           Definition of USB power supplies
- * @phyif:              PHY interface width
  * @dedicated_fifos:    Set if the hardware has dedicated IN-EP fifos.
  * @num_of_eps:         Number of available EPs (excluding EP0)
  * @debug_root:         Root directrory for debugfs.
@@ -706,10 +709,13 @@ struct dwc2_hsotg {
 	enum usb_dr_mode dr_mode;
 	unsigned int hcd_enabled:1;
 	unsigned int gadget_enabled:1;
+	unsigned int ll_hw_enabled:1;
 
 	struct phy *phy;
 	struct usb_phy *uphy;
+	struct dwc2_hsotg_plat *plat;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(dwc2_hsotg_supply_names)];
+	u32 phyif;
 
 	spinlock_t lock;
 	void *priv;
@@ -812,9 +818,6 @@ struct dwc2_hsotg {
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 	/* Gadget structures */
 	struct usb_gadget_driver *driver;
-	struct dwc2_hsotg_plat *plat;
-
-	u32 phyif;
 	int fifo_mem;
 	unsigned int dedicated_fifos:1;
 	unsigned char num_of_eps;
@@ -1103,7 +1106,8 @@ extern void dwc2_set_all_params(struct dwc2_core_params *params, int value);
 
 extern int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
 
-
+extern int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
+extern int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
 
 /*
  * Dump core registers and SPRAM

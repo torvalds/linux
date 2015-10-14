@@ -25,15 +25,11 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/clk.h>
-#include <linux/regulator/consumer.h>
 #include <linux/of_platform.h>
-#include <linux/phy/phy.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/phy.h>
-#include <linux/platform_data/s3c-hsotg.h>
 
 #include "core.h"
 #include "hw.h"
@@ -3077,50 +3073,6 @@ static struct usb_ep_ops dwc2_hsotg_ep_ops = {
 };
 
 /**
- * dwc2_hsotg_phy_enable - enable platform phy dev
- * @hsotg: The driver state
- *
- * A wrapper for platform code responsible for controlling
- * low-level USB code
- */
-static void dwc2_hsotg_phy_enable(struct dwc2_hsotg *hsotg)
-{
-	struct platform_device *pdev = to_platform_device(hsotg->dev);
-
-	dev_dbg(hsotg->dev, "pdev 0x%p\n", pdev);
-
-	if (hsotg->uphy)
-		usb_phy_init(hsotg->uphy);
-	else if (hsotg->plat && hsotg->plat->phy_init)
-		hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
-	else {
-		phy_init(hsotg->phy);
-		phy_power_on(hsotg->phy);
-	}
-}
-
-/**
- * dwc2_hsotg_phy_disable - disable platform phy dev
- * @hsotg: The driver state
- *
- * A wrapper for platform code responsible for controlling
- * low-level USB code
- */
-static void dwc2_hsotg_phy_disable(struct dwc2_hsotg *hsotg)
-{
-	struct platform_device *pdev = to_platform_device(hsotg->dev);
-
-	if (hsotg->uphy)
-		usb_phy_shutdown(hsotg->uphy);
-	else if (hsotg->plat && hsotg->plat->phy_exit)
-		hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
-	else {
-		phy_power_off(hsotg->phy);
-		phy_exit(hsotg->phy);
-	}
-}
-
-/**
  * dwc2_hsotg_init - initalize the usb core
  * @hsotg: The driver state
  */
@@ -3200,14 +3152,12 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 	hsotg->gadget.dev.of_node = hsotg->dev->of_node;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
-				    hsotg->supplies);
-	if (ret) {
-		dev_err(hsotg->dev, "failed to enable supplies: %d\n", ret);
-		goto err;
+	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) {
+		ret = dwc2_lowlevel_hw_enable(hsotg);
+		if (ret)
+			goto err;
 	}
 
-	dwc2_hsotg_phy_enable(hsotg);
 	if (!IS_ERR_OR_NULL(hsotg->uphy))
 		otg_set_peripheral(hsotg->uphy->otg, &hsotg->gadget);
 
@@ -3260,9 +3210,9 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 
 	if (!IS_ERR_OR_NULL(hsotg->uphy))
 		otg_set_peripheral(hsotg->uphy->otg, NULL);
-	dwc2_hsotg_phy_disable(hsotg);
 
-	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
+	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
+		dwc2_lowlevel_hw_disable(hsotg);
 
 	return 0;
 }
@@ -3602,14 +3552,10 @@ static inline void dwc2_hsotg_of_probe(struct dwc2_hsotg *hsotg) { }
 int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 {
 	struct device *dev = hsotg->dev;
-	struct dwc2_hsotg_plat *plat = dev->platform_data;
 	int epnum;
 	int ret;
 	int i;
 	u32 p_tx_fifo[] = DWC2_G_P_LEGACY_TX_FIFO_SIZE;
-
-	/* Set default UTMI width */
-	hsotg->phyif = GUSBCFG_PHYIF16;
 
 	/* Initialize to legacy fifo configuration values */
 	hsotg->g_rx_fifo_sz = 2048;
@@ -3624,32 +3570,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	for (i = 0; i < MAX_EPS_CHANNELS; i++)
 		dev_dbg(dev, "Periodic TXFIFO%2d size: %d\n", i,
 						hsotg->g_tx_fifo_sz[i]);
-	/*
-	 * If platform probe couldn't find a generic PHY or an old style
-	 * USB PHY, fall back to pdata
-	 */
-	if (IS_ERR_OR_NULL(hsotg->phy) && IS_ERR_OR_NULL(hsotg->uphy)) {
-		plat = dev_get_platdata(dev);
-		if (!plat) {
-			dev_err(dev,
-			"no platform data or transceiver defined\n");
-			return -EPROBE_DEFER;
-		}
-		hsotg->plat = plat;
-	} else if (hsotg->phy) {
-		/*
-		 * If using the generic PHY framework, check if the PHY bus
-		 * width is 8-bit and set the phyif appropriately.
-		 */
-		if (phy_get_bus_width(hsotg->phy) == 8)
-			hsotg->phyif = GUSBCFG_PHYIF8;
-	}
-
-	hsotg->clk = devm_clk_get(dev, "otg");
-	if (IS_ERR(hsotg->clk)) {
-		hsotg->clk = NULL;
-		dev_dbg(dev, "cannot get otg clock\n");
-	}
 
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &dwc2_hsotg_gadget_ops;
@@ -3658,38 +3578,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 		hsotg->gadget.is_otg = 1;
 	else if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
-
-	/* reset the system */
-
-	ret = clk_prepare_enable(hsotg->clk);
-	if (ret) {
-		dev_err(dev, "failed to enable otg clk\n");
-		goto err_clk;
-	}
-
-
-	/* regulators */
-
-	for (i = 0; i < ARRAY_SIZE(hsotg->supplies); i++)
-		hsotg->supplies[i].supply = dwc2_hsotg_supply_names[i];
-
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(hsotg->supplies),
-				 hsotg->supplies);
-	if (ret) {
-		dev_err(dev, "failed to request supplies: %d\n", ret);
-		goto err_clk;
-	}
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
-				    hsotg->supplies);
-
-	if (ret) {
-		dev_err(dev, "failed to enable supplies: %d\n", ret);
-		goto err_clk;
-	}
-
-	/* usb phy enable */
-	dwc2_hsotg_phy_enable(hsotg);
 
 	/*
 	 * Force Device mode before initialization.
@@ -3708,7 +3596,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	ret = dwc2_hsotg_hw_cfg(hsotg);
 	if (ret) {
 		dev_err(hsotg->dev, "Hardware configuration failed: %d\n", ret);
-		goto err_clk;
+		return ret;
 	}
 
 	dwc2_hsotg_init(hsotg);
@@ -3720,35 +3608,28 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
 	if (!hsotg->ctrl_buff) {
 		dev_err(dev, "failed to allocate ctrl request buff\n");
-		ret = -ENOMEM;
-		goto err_supplies;
+		return -ENOMEM;
 	}
 
 	hsotg->ep0_buff = devm_kzalloc(hsotg->dev,
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
 	if (!hsotg->ep0_buff) {
 		dev_err(dev, "failed to allocate ctrl reply buff\n");
-		ret = -ENOMEM;
-		goto err_supplies;
+		return -ENOMEM;
 	}
 
 	ret = devm_request_irq(hsotg->dev, irq, dwc2_hsotg_irq, IRQF_SHARED,
 				dev_name(hsotg->dev), hsotg);
 	if (ret < 0) {
-		dwc2_hsotg_phy_disable(hsotg);
-		clk_disable_unprepare(hsotg->clk);
-		regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
-				       hsotg->supplies);
 		dev_err(dev, "cannot claim IRQ for gadget\n");
-		goto err_supplies;
+		return ret;
 	}
 
 	/* hsotg->num_of_eps holds number of EPs other than ep0 */
 
 	if (hsotg->num_of_eps == 0) {
 		dev_err(dev, "wrong number of EPs (zero)\n");
-		ret = -EINVAL;
-		goto err_supplies;
+		return -EINVAL;
 	}
 
 	/* setup endpoint information */
@@ -3762,8 +3643,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 						     GFP_KERNEL);
 	if (!hsotg->ctrl_req) {
 		dev_err(dev, "failed to allocate ctrl req\n");
-		ret = -ENOMEM;
-		goto err_supplies;
+		return -ENOMEM;
 	}
 
 	/* initialise the endpoints now the core has been initialised */
@@ -3776,30 +3656,13 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 								epnum, 0);
 	}
 
-	/* disable power and clock */
-	dwc2_hsotg_phy_disable(hsotg);
-
-	ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
-				    hsotg->supplies);
-	if (ret) {
-		dev_err(dev, "failed to disable supplies: %d\n", ret);
-		goto err_supplies;
-	}
-
 	ret = usb_add_gadget_udc(dev, &hsotg->gadget);
 	if (ret)
-		goto err_supplies;
+		return ret;
 
 	dwc2_hsotg_dump(hsotg);
 
 	return 0;
-
-err_supplies:
-	dwc2_hsotg_phy_disable(hsotg);
-err_clk:
-	clk_disable_unprepare(hsotg->clk);
-
-	return ret;
 }
 
 /**
@@ -3809,7 +3672,6 @@ err_clk:
 int dwc2_hsotg_remove(struct dwc2_hsotg *hsotg)
 {
 	usb_del_gadget_udc(&hsotg->gadget);
-	clk_disable_unprepare(hsotg->clk);
 
 	return 0;
 }
@@ -3817,10 +3679,9 @@ int dwc2_hsotg_remove(struct dwc2_hsotg *hsotg)
 int dwc2_hsotg_suspend(struct dwc2_hsotg *hsotg)
 {
 	unsigned long flags;
-	int ret = 0;
 
 	if (hsotg->lx_state != DWC2_L0)
-		return ret;
+		return 0;
 
 	if (hsotg->driver) {
 		int ep;
@@ -3835,40 +3696,27 @@ int dwc2_hsotg_suspend(struct dwc2_hsotg *hsotg)
 		hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 
-		dwc2_hsotg_phy_disable(hsotg);
-
 		for (ep = 0; ep < hsotg->num_of_eps; ep++) {
 			if (hsotg->eps_in[ep])
 				dwc2_hsotg_ep_disable(&hsotg->eps_in[ep]->ep);
 			if (hsotg->eps_out[ep])
 				dwc2_hsotg_ep_disable(&hsotg->eps_out[ep]->ep);
 		}
-
-		ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
-					     hsotg->supplies);
-		clk_disable(hsotg->clk);
 	}
 
-	return ret;
+	return 0;
 }
 
 int dwc2_hsotg_resume(struct dwc2_hsotg *hsotg)
 {
 	unsigned long flags;
-	int ret = 0;
 
 	if (hsotg->lx_state == DWC2_L2)
-		return ret;
+		return 0;
 
 	if (hsotg->driver) {
 		dev_info(hsotg->dev, "resuming usb gadget %s\n",
 			 hsotg->driver->driver.name);
-
-		clk_enable(hsotg->clk);
-		ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
-					    hsotg->supplies);
-
-		dwc2_hsotg_phy_enable(hsotg);
 
 		spin_lock_irqsave(&hsotg->lock, flags);
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
@@ -3877,5 +3725,5 @@ int dwc2_hsotg_resume(struct dwc2_hsotg *hsotg)
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 	}
 
-	return ret;
+	return 0;
 }
