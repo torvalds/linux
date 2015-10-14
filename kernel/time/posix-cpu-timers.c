@@ -249,7 +249,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 		 * but barriers are not required because update_gt_cputime()
 		 * can handle concurrent updates.
 		 */
-		WRITE_ONCE(cputimer->running, 1);
+		WRITE_ONCE(cputimer->running, true);
 	}
 	sample_cputime_atomic(times, &cputimer->cputime_atomic);
 }
@@ -918,7 +918,7 @@ static inline void stop_process_timers(struct signal_struct *sig)
 	struct thread_group_cputimer *cputimer = &sig->cputimer;
 
 	/* Turn off cputimer->running. This is done without locking. */
-	WRITE_ONCE(cputimer->running, 0);
+	WRITE_ONCE(cputimer->running, false);
 }
 
 static u32 onecputick;
