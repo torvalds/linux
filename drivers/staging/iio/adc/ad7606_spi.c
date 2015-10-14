@@ -44,8 +44,8 @@ static int ad7606_spi_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	indio_dev = ad7606_probe(&spi->dev, spi->irq, NULL,
-			   spi_get_device_id(spi)->driver_data,
-			   &ad7606_spi_bops);
+				 spi_get_device_id(spi)->driver_data,
+				 &ad7606_spi_bops);
 
 	if (IS_ERR(indio_dev))
 		return PTR_ERR(indio_dev);

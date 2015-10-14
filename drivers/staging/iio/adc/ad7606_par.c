@@ -16,7 +16,7 @@
 #include "ad7606.h"
 
 static int ad7606_par16_read_block(struct device *dev,
-				 int count, void *buf)
+				   int count, void *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -32,7 +32,7 @@ static const struct ad7606_bus_ops ad7606_par16_bops = {
 };
 
 static int ad7606_par8_read_block(struct device *dev,
-				 int count, void *buf)
+				  int count, void *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -69,9 +69,9 @@ static int ad7606_par_probe(struct platform_device *pdev)
 	remap_size = resource_size(res);
 
 	indio_dev = ad7606_probe(&pdev->dev, irq, addr,
-			  platform_get_device_id(pdev)->driver_data,
-			  remap_size > 1 ? &ad7606_par16_bops :
-			  &ad7606_par8_bops);
+				 platform_get_device_id(pdev)->driver_data,
+				 remap_size > 1 ? &ad7606_par16_bops :
+				 &ad7606_par8_bops);
 
 	if (IS_ERR(indio_dev))
 		return PTR_ERR(indio_dev);
