@@ -3672,7 +3672,7 @@ static int rocker_port_fdb_flush(struct rocker_port *rocker_port,
 	    rocker_port->stp_state == BR_STATE_FORWARDING)
 		return 0;
 
-	flags |= ROCKER_OP_FLAG_REMOVE;
+	flags |= ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_REMOVE;
 
 	spin_lock_irqsave(&rocker->fdb_tbl_lock, lock_flags);
 
@@ -4382,8 +4382,7 @@ static int rocker_port_attr_set(struct net_device *dev,
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
-		err = rocker_port_stp_update(rocker_port, trans,
-					     ROCKER_OP_FLAG_NOWAIT,
+		err = rocker_port_stp_update(rocker_port, trans, 0,
 					     attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
@@ -4517,7 +4516,7 @@ static int rocker_port_fdb_del(struct rocker_port *rocker_port,
 			       const struct switchdev_obj_port_fdb *fdb)
 {
 	__be16 vlan_id = rocker_port_vid_to_vlan(rocker_port, fdb->vid, NULL);
-	int flags = ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_REMOVE;
+	int flags = ROCKER_OP_FLAG_REMOVE;
 
 	if (!rocker_port_is_bridged(rocker_port))
 		return -EINVAL;
