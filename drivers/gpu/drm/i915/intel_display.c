@@ -2914,16 +2914,16 @@ u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
 			   struct drm_i915_gem_object *obj,
 			   unsigned int plane)
 {
-	const struct i915_ggtt_view *view = &i915_ggtt_view_normal;
+	struct i915_ggtt_view view;
 	struct i915_vma *vma;
 	u64 offset;
 
-	if (intel_rotation_90_or_270(intel_plane->base.state->rotation))
-		view = &i915_ggtt_view_rotated;
+	intel_fill_fb_ggtt_view(&view, intel_plane->base.fb,
+				intel_plane->base.state);
 
-	vma = i915_gem_obj_to_ggtt_view(obj, view);
+	vma = i915_gem_obj_to_ggtt_view(obj, &view);
 	if (WARN(!vma, "ggtt vma for display object not found! (view=%u)\n",
-		view->type))
+		view.type))
 		return -1;
 
 	offset = vma->node.start;

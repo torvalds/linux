@@ -553,7 +553,7 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 
 	if (a->type != b->type)
 		return false;
-	if (a->type == I915_GGTT_VIEW_PARTIAL)
+	if (a->type != I915_GGTT_VIEW_NORMAL)
 		return !memcmp(&a->params, &b->params, sizeof(a->params));
 	return true;
 }
