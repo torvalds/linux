@@ -153,7 +153,9 @@ static inline unsigned int DAC_CHAN_EN(unsigned int channel)
 	return 1 << (5 + (channel & 0x1));	/*  enable channel 0 or 1 */
 };
 
-/* analog input fifo */
+/*
+ * PCI BAR2 Register map (devpriv->pcibar2)
+ */
 #define ADCDATA			0	/* ADC DATA register */
 #define ADCFIFOCLR		2	/* ADC FIFO CLEAR */
 
@@ -315,7 +317,7 @@ struct cb_pcidas_private {
 	/* base addresses */
 	unsigned long s5933_config;
 	unsigned long pcibar1;
-	unsigned long adc_fifo;
+	unsigned long pcibar2;
 	unsigned long ao_registers;
 	/* bits to write to registers */
 	unsigned int adc_fifo_bits;
@@ -380,12 +382,12 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 	outw(bits, devpriv->pcibar1 + ADCMUX_CONT);
 
 	/* clear fifo */
-	outw(0, devpriv->adc_fifo + ADCFIFOCLR);
+	outw(0, devpriv->pcibar2 + ADCFIFOCLR);
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(0, devpriv->adc_fifo + ADCDATA);
+		outw(0, devpriv->pcibar2 + ADCDATA);
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, cb_pcidas_ai_eoc, 0);
@@ -393,7 +395,7 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 			return ret;
 
 		/* read data */
-		data[n] = inw(devpriv->adc_fifo + ADCDATA);
+		data[n] = inw(devpriv->pcibar2 + ADCDATA);
 	}
 
 	/* return the number of samples read/written */
@@ -866,7 +868,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	/*  initialize before settings pacer source and count values */
 	outw(0, devpriv->pcibar1 + TRIG_CONTSTAT);
 	/*  clear fifo */
-	outw(0, devpriv->adc_fifo + ADCFIFOCLR);
+	outw(0, devpriv->pcibar2 + ADCFIFOCLR);
 
 	/*  set mux limits, gain and pacer source */
 	bits = BEGIN_SCAN(CR_CHAN(cmd->chanlist[0])) |
@@ -1248,7 +1250,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	if (status & ADHFI) {
 		/*  read data */
 		num_samples = comedi_nsamples_left(s, half_fifo);
-		insw(devpriv->adc_fifo + ADCDATA, devpriv->ai_buffer,
+		insw(devpriv->pcibar2 + ADCDATA, devpriv->ai_buffer,
 		     num_samples);
 		comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
 
@@ -1270,7 +1272,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 			if ((ADNE & inw(devpriv->pcibar1 +
 					INT_ADCFIFO)) == 0)
 				break;
-			val = inw(devpriv->adc_fifo);
+			val = inw(devpriv->pcibar2 + ADCDATA);
 			comedi_buf_write_samples(s, &val, 1);
 
 			if (cmd->stop_src == TRIG_COUNT &&
@@ -1336,7 +1338,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 
 	devpriv->s5933_config = pci_resource_start(pcidev, 0);
 	devpriv->pcibar1 = pci_resource_start(pcidev, 1);
-	devpriv->adc_fifo = pci_resource_start(pcidev, 2);
+	devpriv->pcibar2 = pci_resource_start(pcidev, 2);
 	dev->iobase = pci_resource_start(pcidev, 3);
 	if (board->has_ao)
 		devpriv->ao_registers = pci_resource_start(pcidev, 4);
