@@ -362,21 +362,8 @@ static int __switchdev_port_obj_add(struct net_device *dev,
 	return err;
 }
 
-/**
- *	switchdev_port_obj_add - Add port object
- *
- *	@dev: port device
- *	@id: object ID
- *	@obj: object to add
- *
- *	Use a 2-phase prepare-commit transaction model to ensure
- *	system is not left in a partially updated state due to
- *	failure from driver/device.
- *
- *	rtnl_lock must be held.
- */
-int switchdev_port_obj_add(struct net_device *dev,
-			   const struct switchdev_obj *obj)
+static int switchdev_port_obj_add_now(struct net_device *dev,
+				      const struct switchdev_obj *obj)
 {
 	struct switchdev_trans trans;
 	int err;
@@ -418,17 +405,52 @@ int switchdev_port_obj_add(struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(switchdev_port_obj_add);
+
+static void switchdev_port_obj_add_deferred(struct net_device *dev,
+					    const void *data)
+{
+	const struct switchdev_obj *obj = data;
+	int err;
+
+	err = switchdev_port_obj_add_now(dev, obj);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
+			   err, obj->id);
+}
+
+static int switchdev_port_obj_add_defer(struct net_device *dev,
+					const struct switchdev_obj *obj)
+{
+	return switchdev_deferred_enqueue(dev, obj, sizeof(*obj),
+					  switchdev_port_obj_add_deferred);
+}
 
 /**
- *	switchdev_port_obj_del - Delete port object
+ *	switchdev_port_obj_add - Add port object
  *
  *	@dev: port device
  *	@id: object ID
- *	@obj: object to delete
+ *	@obj: object to add
+ *
+ *	Use a 2-phase prepare-commit transaction model to ensure
+ *	system is not left in a partially updated state due to
+ *	failure from driver/device.
+ *
+ *	rtnl_lock must be held and must not be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is not set.
  */
-int switchdev_port_obj_del(struct net_device *dev,
+int switchdev_port_obj_add(struct net_device *dev,
 			   const struct switchdev_obj *obj)
+{
+	if (obj->flags & SWITCHDEV_F_DEFER)
+		return switchdev_port_obj_add_defer(dev, obj);
+	ASSERT_RTNL();
+	return switchdev_port_obj_add_now(dev, obj);
+}
+EXPORT_SYMBOL_GPL(switchdev_port_obj_add);
+
+static int switchdev_port_obj_del_now(struct net_device *dev,
+				      const struct switchdev_obj *obj)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
 	struct net_device *lower_dev;
@@ -444,12 +466,50 @@ int switchdev_port_obj_del(struct net_device *dev,
 	 */
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = switchdev_port_obj_del(lower_dev, obj);
+		err = switchdev_port_obj_del_now(lower_dev, obj);
 		if (err)
 			break;
 	}
 
 	return err;
+}
+
+static void switchdev_port_obj_del_deferred(struct net_device *dev,
+					    const void *data)
+{
+	const struct switchdev_obj *obj = data;
+	int err;
+
+	err = switchdev_port_obj_del_now(dev, obj);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(dev, "failed (err=%d) to del object (id=%d)\n",
+			   err, obj->id);
+}
+
+static int switchdev_port_obj_del_defer(struct net_device *dev,
+					const struct switchdev_obj *obj)
+{
+	return switchdev_deferred_enqueue(dev, obj, sizeof(*obj),
+					  switchdev_port_obj_del_deferred);
+}
+
+/**
+ *	switchdev_port_obj_del - Delete port object
+ *
+ *	@dev: port device
+ *	@id: object ID
+ *	@obj: object to delete
+ *
+ *	rtnl_lock must be held and must not be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is not set.
+ */
+int switchdev_port_obj_del(struct net_device *dev,
+			   const struct switchdev_obj *obj)
+{
+	if (obj->flags & SWITCHDEV_F_DEFER)
+		return switchdev_port_obj_del_defer(dev, obj);
+	ASSERT_RTNL();
+	return switchdev_port_obj_del_now(dev, obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
 

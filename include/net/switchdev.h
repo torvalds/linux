@@ -69,6 +69,7 @@ enum switchdev_obj_id {
 
 struct switchdev_obj {
 	enum switchdev_obj_id id;
+	u32 flags;
 };
 
 /* SWITCHDEV_OBJ_ID_PORT_VLAN */
