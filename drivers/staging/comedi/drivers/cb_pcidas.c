@@ -130,15 +130,8 @@
 #define   DACEN			0x02	/* dac enable */
 #define   DAC_MODE_UPDATE_BOTH	0x80	/* update both dacs */
 
-static inline unsigned int DAC_RANGE(unsigned int channel, unsigned int range)
-{
-	return (range & 0x3) << (8 + 2 * (channel & 0x1));
-}
-
-static inline unsigned int DAC_RANGE_MASK(unsigned int channel)
-{
-	return 0x3 << (8 + 2 * (channel & 0x1));
-};
+#define   DAC_RANGE(c, r)	(((r) & 0x3) << (8 + 2 * ((c) & 0x1)))
+#define   DAC_RANGE_MASK(c)	DAC_RANGE((c), 0x3)
 
 /* bits for 1602 series only */
 #define   DAC_EMPTY		0x1	/* fifo empty, read, write clear */
@@ -148,10 +141,7 @@ static inline unsigned int DAC_RANGE_MASK(unsigned int channel)
 #define   DAC_PACER_EXT_FALL	0x10	/* ext. pacing, falling edge */
 #define   DAC_PACER_EXT_RISE	0x18	/* ext. pacing, rising edge */
 
-static inline unsigned int DAC_CHAN_EN(unsigned int channel)
-{
-	return 1 << (5 + (channel & 0x1));	/*  enable channel 0 or 1 */
-};
+#define   DAC_CHAN_EN(c)	BIT(5 + ((c) & 0x1))
 
 /*
  * PCI BAR2 Register map (devpriv->pcibar2)
@@ -1108,13 +1098,13 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	/*  set channel limits, gain */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
 		/*  enable channel */
-		devpriv->ao_control_bits |=
-		    DAC_CHAN_EN(CR_CHAN(cmd->chanlist[i]));
+		devpriv->ao_control_bits |= DAC_CHAN_EN(chan);
 		/*  set range */
-		devpriv->ao_control_bits |= DAC_RANGE(CR_CHAN(cmd->chanlist[i]),
-						      CR_RANGE(cmd->
-							       chanlist[i]));
+		devpriv->ao_control_bits |= DAC_RANGE(chan, range);
 	}
 
 	/*  disable analog out before settings pacer source and count values */
