@@ -137,6 +137,10 @@ int __inet_inherit_port(const struct sock *sk, struct sock *child)
 
 	spin_lock(&head->lock);
 	tb = inet_csk(sk)->icsk_bind_hash;
+	if (unlikely(!tb)) {
+		spin_unlock(&head->lock);
+		return -ENOENT;
+	}
 	if (tb->port != port) {
 		/* NOTE: using tproxy and redirecting skbs to a proxy
 		 * on a different listener port breaks the assumption
