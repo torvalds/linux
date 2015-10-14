@@ -695,20 +695,20 @@ static void visorhba_serverdown_complete(struct visorhba_devdata *devdata)
 		pendingdel = &devdata->pending[i];
 		switch (pendingdel->cmdtype) {
 		case CMD_SCSI_TYPE:
-			scsicmd = (struct scsi_cmnd *)pendingdel->sent;
+			scsicmd = pendingdel->sent;
 			scsicmd->result = DID_RESET << 16;
 			if (scsicmd->scsi_done)
 				scsicmd->scsi_done(scsicmd);
 			break;
 		case CMD_SCSITASKMGMT_TYPE:
-			cmdrsp = (struct uiscmdrsp *)pendingdel->sent;
+			cmdrsp = pendingdel->sent;
 			cmdrsp->scsitaskmgmt.notifyresult_handle
 							= TASK_MGMT_FAILED;
 			wake_up_all((wait_queue_head_t *)
 				    cmdrsp->scsitaskmgmt.notify_handle);
 			break;
 		case CMD_VDISKMGMT_TYPE:
-			cmdrsp = (struct uiscmdrsp *)pendingdel->sent;
+			cmdrsp = pendingdel->sent;
 			cmdrsp->vdiskmgmt.notifyresult_handle
 							= VDISK_MGMT_FAILED;
 			wake_up_all((wait_queue_head_t *)
