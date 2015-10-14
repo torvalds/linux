@@ -150,7 +150,7 @@ alloc_io_queue_fail:
 
 void r8712_free_io_queue(struct _adapter *adapter)
 {
-	struct io_queue *pio_queue = (struct io_queue *)(adapter->pio_queue);
+	struct io_queue *pio_queue = adapter->pio_queue;
 
 	if (pio_queue) {
 		kfree(pio_queue->pallocated_free_ioreqs_buf);
