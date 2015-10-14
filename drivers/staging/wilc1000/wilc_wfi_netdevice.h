@@ -148,12 +148,12 @@ typedef struct {
 
 } struct_frame_reg;
 
-typedef struct {
+struct wilc_vif {
 	u8 aSrcAddress[ETH_ALEN];
 	u8 aBSSID[ETH_ALEN];
 	struct host_if_drv *drvHandler;
 	struct net_device *wilc_netdev;
-} tstrInterfaceInfo;
+};
 
 struct wilc {
 	int mac_status;
@@ -163,7 +163,7 @@ struct wilc {
 	#endif
 	int close;
 	u8 u8NoIfcs;
-	tstrInterfaceInfo strInterfaceInfo[NUM_CONCURRENT_IFC];
+	struct wilc_vif strInterfaceInfo[NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
 
 	struct semaphore txq_add_to_head_cs;
