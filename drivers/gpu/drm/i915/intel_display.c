@@ -15101,12 +15101,9 @@ static void readout_plane_state(struct intel_crtc *crtc,
 
 		plane_state = to_intel_plane_state(p->base.state);
 
-		if (p->base.type == DRM_PLANE_TYPE_PRIMARY) {
+		if (p->base.type == DRM_PLANE_TYPE_PRIMARY)
 			plane_state->visible = primary_get_hw_state(crtc);
-			if (plane_state->visible)
-				crtc->base.state->plane_mask |=
-					1 << drm_plane_index(&p->base);
-		} else {
+		else {
 			if (active)
 				p->disable_plane(&p->base, &crtc->base);
 
