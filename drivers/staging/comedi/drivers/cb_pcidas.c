@@ -581,21 +581,19 @@ static int cb_pcidas_caldac_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* 1602/16 pregain offset */
-static void dac08_write(struct comedi_device *dev, unsigned int value)
+static void cb_pcidas_dac08_write(struct comedi_device *dev, unsigned int val)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 
-	value &= 0xff;
-	value |= cal_enable_bits(dev);
+	val |= cal_enable_bits(dev);
 
 	/* latch the new value into the caldac */
-	outw(value, devpriv->pcibar1 + PCIDAS_CALIB_REG);
+	outw(val, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	udelay(1);
-	outw(value | PCIDAS_CALIB_DAC08_SEL,
+	outw(val | PCIDAS_CALIB_DAC08_SEL,
 	     devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	udelay(1);
-	outw(value, devpriv->pcibar1 + PCIDAS_CALIB_REG);
+	outw(val, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 	udelay(1);
 }
 
@@ -610,7 +608,7 @@ static int cb_pcidas_dac08_insn_write(struct comedi_device *dev,
 		unsigned int val = data[insn->n - 1];
 
 		if (s->readback[chan] != val) {
-			dac08_write(dev, val);
+			cb_pcidas_dac08_write(dev, val);
 			s->readback[chan] = val;
 		}
 	}
@@ -1415,7 +1413,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		s->readback[i] = s->maxdata / 2;
 	}
 
-	/* Calibration subdevice - dac08 caldac */
+	/* Calibration subdevice - pci-das1602/16 pregain offset (dac08) */
 	s = &dev->subdevices[6];
 	if (board->has_dac08) {
 		s->type		= COMEDI_SUBD_CALIB;
@@ -1429,7 +1427,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 			return ret;
 
 		for (i = 0; i < s->n_chan; i++) {
-			dac08_write(dev, s->maxdata / 2);
+			cb_pcidas_dac08_write(dev, s->maxdata / 2);
 			s->readback[i] = s->maxdata / 2;
 		}
 	} else {
