@@ -159,10 +159,12 @@ static inline unsigned int DAC_CHAN_EN(unsigned int channel)
 #define ADCDATA			0	/* ADC DATA register */
 #define ADCFIFOCLR		2	/* ADC FIFO CLEAR */
 
-/* pacer, counter, dio registers */
-#define ADC8254			0
-#define DIO_8255		4
-#define DAC8254			8
+/*
+ * PCI BAR3 Register map (dev->iobase)
+ */
+#define PCIDAS_AI_8254_BASE	0x00
+#define PCIDAS_8255_BASE	0x04
+#define PCIDAS_AO_8254_BASE	0x08
 
 /*
  * PCI BAR4 Register map (devpriv->pcibar4)
@@ -1353,12 +1355,12 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	}
 	dev->irq = pcidev->irq;
 
-	dev->pacer = comedi_8254_init(dev->iobase + ADC8254,
+	dev->pacer = comedi_8254_init(dev->iobase + PCIDAS_AI_8254_BASE,
 				      I8254_OSC_BASE_10MHZ, I8254_IO8, 0);
 	if (!dev->pacer)
 		return -ENOMEM;
 
-	devpriv->ao_pacer = comedi_8254_init(dev->iobase + DAC8254,
+	devpriv->ao_pacer = comedi_8254_init(dev->iobase + PCIDAS_AO_8254_BASE,
 					     I8254_OSC_BASE_10MHZ,
 					     I8254_IO8, 0);
 	if (!devpriv->ao_pacer)
@@ -1415,7 +1417,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 
 	/* 8255 */
 	s = &dev->subdevices[2];
-	ret = subdev_8255_init(dev, s, NULL, DIO_8255);
+	ret = subdev_8255_init(dev, s, NULL, PCIDAS_8255_BASE);
 	if (ret)
 		return ret;
 
