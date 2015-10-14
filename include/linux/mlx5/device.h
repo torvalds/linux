@@ -439,7 +439,8 @@ struct mlx5_init_seg {
 	__be32			cmdq_addr_h;
 	__be32			cmdq_addr_l_sz;
 	__be32			cmd_dbell;
-	__be32			rsvd1[121];
+	__be32			rsvd1[120];
+	__be32			initializing;
 	struct health_buffer	health;
 	__be32			rsvd2[884];
 	__be32			health_counter;

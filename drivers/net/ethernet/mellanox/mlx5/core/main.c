@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/io-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
@@ -151,6 +152,25 @@ static struct mlx5_profile profile[] = {
 		},
 	},
 };
+
+#define FW_INIT_TIMEOUT_MILI	2000
+#define FW_INIT_WAIT_MS		2
+
+static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili)
+{
+	unsigned long end = jiffies + msecs_to_jiffies(max_wait_mili);
+	int err = 0;
+
+	while (fw_initializing(dev)) {
+		if (time_after(jiffies, end)) {
+			err = -EBUSY;
+			break;
+		}
+		msleep(FW_INIT_WAIT_MS);
+	}
+
+	return err;
+}
 
 static int set_dma_caps(struct pci_dev *pdev)
 {
@@ -910,6 +930,13 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	err = mlx5_cmd_init(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed initializing command interface, aborting\n");
+		goto out_err;
+	}
+
+	err = wait_fw_init(dev, FW_INIT_TIMEOUT_MILI);
+	if (err) {
+		dev_err(&dev->pdev->dev, "Firmware over %d MS in initializing state, aborting\n",
+			FW_INIT_TIMEOUT_MILI);
 		goto out_err;
 	}
 
