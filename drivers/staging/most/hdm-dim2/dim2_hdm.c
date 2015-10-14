@@ -279,7 +279,7 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
  */
 static int deliver_netinfo_thread(void *data)
 {
-	struct dim2_hdm *dev = (struct dim2_hdm *)data;
+	struct dim2_hdm *dev = data;
 
 	while (!kthread_should_stop()) {
 		wait_event_interruptible(dev->netinfo_waitq,
@@ -450,7 +450,7 @@ static void dim2_tasklet_fn(unsigned long data)
  */
 static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
 {
-	struct dim2_hdm *dev = (struct dim2_hdm *)_dev;
+	struct dim2_hdm *dev = _dev;
 	struct dim_channel *buffer[DMA_CHANNELS + 1];
 	unsigned long flags;
 
