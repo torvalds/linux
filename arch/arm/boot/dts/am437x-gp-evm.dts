@@ -595,8 +595,17 @@
 
 		attb-gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 
+		/*
+		 * 0x264 represents the offset of padconf register of
+		 * gpio3_22 from am43xx_pinmux base.
+		 */
+		interrupts-extended = <&gpio3 22 IRQ_TYPE_NONE>,
+				      <&am43xx_pinmux 0x264>;
+		interrupt-names = "tsc", "wakeup";
+
 		touchscreen-size-x = <1024>;
 		touchscreen-size-y = <600>;
+		wakeup-source;
 	};
 
 	ov2659@30 {
