@@ -118,7 +118,7 @@ gb_i2c_operation_create(struct gb_connection *connection,
 	u32 i;
 
 	if (msg_count > (u32)U16_MAX) {
-		dev_err(&connection->dev, "msg_count (%u) too big\n",
+		dev_err(&connection->bundle->dev, "msg_count (%u) too big\n",
 			msg_count);
 		return NULL;
 	}
@@ -312,7 +312,7 @@ static int gb_i2c_connection_init(struct gb_connection *connection)
 	adapter->timeout = gb_i2c_dev->timeout_msec * HZ / 1000;
 	adapter->retries = gb_i2c_dev->retries;
 
-	adapter->dev.parent = &connection->dev;
+	adapter->dev.parent = &connection->bundle->dev;
 	snprintf(adapter->name, sizeof(adapter->name), "Greybus i2c adapter");
 	i2c_set_adapdata(adapter, gb_i2c_dev);
 
