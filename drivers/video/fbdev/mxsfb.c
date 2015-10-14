@@ -952,13 +952,13 @@ static int mxsfb_pan_display(struct fb_var_screeninfo *var,
 		host->base + LCDC_CTRL1 + REG_SET);
 
 	ret = wait_for_completion_timeout(&host->flip_complete, HZ / 2);
-	if (ret < 0) {
+	if (!ret) {
 		dev_err(fb_info->device,
 			"mxs wait for pan flip timeout\n");
-		ret = -ETIMEDOUT;
+		return -ETIMEDOUT;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int mxsfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
