@@ -536,11 +536,28 @@ int parse_events_load_bpf_obj(struct parse_events_evlist *data,
 {
 	int err;
 	char errbuf[BUFSIZ];
+	static bool registered_unprobe_atexit = false;
 
 	if (IS_ERR(obj) || !obj) {
 		snprintf(errbuf, sizeof(errbuf),
 			 "Internal error: load bpf obj with NULL");
 		err = -EINVAL;
+		goto errout;
+	}
+
+	/*
+	 * Register atexit handler before calling bpf__probe() so
+	 * bpf__probe() don't need to unprobe probe points its already
+	 * created when failure.
+	 */
+	if (!registered_unprobe_atexit) {
+		atexit(bpf__clear);
+		registered_unprobe_atexit = true;
+	}
+
+	err = bpf__probe(obj);
+	if (err) {
+		bpf__strerror_probe(obj, err, errbuf, sizeof(errbuf));
 		goto errout;
 	}
 
