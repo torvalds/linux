@@ -1129,8 +1129,16 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 
 	if (chan->mode == L2CAP_MODE_ERTM &&
 	    chan->unacked_frames > 0 &&
-	    chan->state == BT_CONNECTED)
+	    chan->state == BT_CONNECTED) {
 		err = __l2cap_wait_ack(sk, chan);
+
+		/* After waiting for ACKs, check whether shutdown
+		 * has already been actioned to close the L2CAP
+		 * link such as by l2cap_disconnection_req().
+		 */
+		if (sk->sk_shutdown)
+			goto has_shutdown;
+	}
 
 	sk->sk_shutdown = SHUTDOWN_MASK;
 	release_sock(sk);
@@ -1162,6 +1170,7 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 		err = bt_sock_wait_state(sk, BT_CLOSED,
 					 sk->sk_lingertime);
 
+has_shutdown:
 	l2cap_chan_put(chan);
 	sock_put(sk);
 
