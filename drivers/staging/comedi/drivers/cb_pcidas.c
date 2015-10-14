@@ -297,7 +297,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 struct cb_pcidas_private {
 	struct comedi_8254 *ao_pacer;
 	/* base addresses */
-	unsigned long s5933_config;
+	unsigned long amcc;	/* pcibar0 */
 	unsigned long pcibar1;
 	unsigned long pcibar2;
 	unsigned long pcibar4;
@@ -474,7 +474,7 @@ static int cb_pcidas_eeprom_ready(struct comedi_device *dev,
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned int status;
 
-	status = inb(devpriv->s5933_config + AMCC_OP_REG_MCSR_NVCMD);
+	status = inb(devpriv->amcc + AMCC_OP_REG_MCSR_NVCMD);
 	if ((status & MCSR_NV_BUSY) == 0)
 		return 0;
 	return -EBUSY;
@@ -498,22 +498,21 @@ static int cb_pcidas_eeprom_insn_read(struct comedi_device *dev,
 
 		/* set address (chan) and read operation */
 		outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_LOW_ADDR,
-		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVCMD);
-		outb(chan & 0xff,
-		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVDATA);
+		     devpriv->amcc + AMCC_OP_REG_MCSR_NVCMD);
+		outb(chan & 0xff, devpriv->amcc + AMCC_OP_REG_MCSR_NVDATA);
 		outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_HIGH_ADDR,
-		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVCMD);
+		     devpriv->amcc + AMCC_OP_REG_MCSR_NVCMD);
 		outb((chan >> 8) & 0xff,
-		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVDATA);
+		     devpriv->amcc + AMCC_OP_REG_MCSR_NVDATA);
 		outb(MCSR_NV_ENABLE | MCSR_NV_READ,
-		     devpriv->s5933_config + AMCC_OP_REG_MCSR_NVCMD);
+		     devpriv->amcc + AMCC_OP_REG_MCSR_NVCMD);
 
 		/* wait for data to be returned */
 		ret = comedi_timeout(dev, s, insn, cb_pcidas_eeprom_ready, 0);
 		if (ret)
 			return ret;
 
-		data[i] = inb(devpriv->s5933_config + AMCC_OP_REG_MCSR_NVDATA);
+		data[i] = inb(devpriv->amcc + AMCC_OP_REG_MCSR_NVDATA);
 	}
 
 	return insn->n;
@@ -1161,16 +1160,16 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	async = s->async;
 	cmd = &async->cmd;
 
-	s5933_status = inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+	s5933_status = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	if ((INTCSR_INTR_ASSERTED & s5933_status) == 0)
 		return IRQ_NONE;
 
 	/*  make sure mailbox 4 is empty */
-	inl_p(devpriv->s5933_config + AMCC_OP_REG_IMB4);
+	inl_p(devpriv->amcc + AMCC_OP_REG_IMB4);
 	/*  clear interrupt on amcc s5933 */
 	outl(devpriv->s5933_intcsr_bits | INTCSR_INBOX_INTR_STATUS,
-	     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+	     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	status = inw(devpriv->pcibar1 + PCIDAS_CTRL_REG);
 
@@ -1268,7 +1267,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->s5933_config = pci_resource_start(pcidev, 0);
+	devpriv->amcc = pci_resource_start(pcidev, 0);
 	devpriv->pcibar1 = pci_resource_start(pcidev, 1);
 	devpriv->pcibar2 = pci_resource_start(pcidev, 2);
 	dev->iobase = pci_resource_start(pcidev, 3);
@@ -1277,7 +1276,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 
 	/*  disable and clear interrupts on amcc s5933 */
 	outl(INTCSR_INBOX_INTR_STATUS,
-	     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+	     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	ret = request_irq(pcidev->irq, cb_pcidas_interrupt, IRQF_SHARED,
 			  dev->board_name, dev);
@@ -1432,14 +1431,14 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	}
 
 	/*  make sure mailbox 4 is empty */
-	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4);
+	inl(devpriv->amcc + AMCC_OP_REG_IMB4);
 	/* Set bits to enable incoming mailbox interrupts on amcc s5933. */
 	devpriv->s5933_intcsr_bits =
 	    INTCSR_INBOX_BYTE(3) | INTCSR_INBOX_SELECT(3) |
 	    INTCSR_INBOX_FULL_INT;
 	/*  clear and enable interrupt on amcc s5933 */
 	outl(devpriv->s5933_intcsr_bits | INTCSR_INBOX_INTR_STATUS,
-	     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+	     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	return 0;
 }
@@ -1449,9 +1448,9 @@ static void cb_pcidas_detach(struct comedi_device *dev)
 	struct cb_pcidas_private *devpriv = dev->private;
 
 	if (devpriv) {
-		if (devpriv->s5933_config)
+		if (devpriv->amcc)
 			outl(INTCSR_INBOX_INTR_STATUS,
-			     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+			     devpriv->amcc + AMCC_OP_REG_INTCSR);
 		kfree(devpriv->ao_pacer);
 	}
 	comedi_pci_detach(dev);
