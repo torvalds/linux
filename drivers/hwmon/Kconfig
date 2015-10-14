@@ -321,6 +321,14 @@ config SENSORS_APPLESMC
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of applesmc.
 
+config SENSORS_ARM_SCPI
+	tristate "ARM SCPI Sensors"
+	depends on ARM_SCPI_PROTOCOL
+	help
+	  This driver provides support for temperature, voltage, current
+	  and power sensors available on ARM Ltd's SCP based platforms. The
+	  actual number and type of sensors exported depend on the platform.
+
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
 	depends on X86 && I2C
