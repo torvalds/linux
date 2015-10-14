@@ -571,13 +571,6 @@ static void cb_pcidas_calib_write(struct comedi_device *dev,
 	outw(calib_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 }
 
-static void cb_pcidas_caldac_8800_write(struct comedi_device *dev,
-					unsigned int chan, unsigned int val)
-{
-	/* write 11-bit value to caldac */
-	cb_pcidas_calib_write(dev, ((chan & 0x7) << 8) | val, 11, false);
-}
-
 static int cb_pcidas_caldac_insn_write(struct comedi_device *dev,
 				       struct comedi_subdevice *s,
 				       struct comedi_insn *insn,
@@ -589,7 +582,9 @@ static int cb_pcidas_caldac_insn_write(struct comedi_device *dev,
 		unsigned int val = data[insn->n - 1];
 
 		if (s->readback[chan] != val) {
-			cb_pcidas_caldac_8800_write(dev, chan, val);
+			/* write 11-bit channel/value to caldac */
+			cb_pcidas_calib_write(dev, (chan << 8) | val, 11,
+					      false);
 			s->readback[chan] = val;
 		}
 	}
@@ -634,20 +629,6 @@ static int cb_pcidas_dac08_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void cb_pcidas_trimpot_7376_write(struct comedi_device *dev,
-					 unsigned int val)
-{
-	/* write 7-bit value to trimpot */
-	cb_pcidas_calib_write(dev, val, 7, true);
-}
-
-static void cb_pcidas_trimpot_8402_write(struct comedi_device *dev,
-					 unsigned int chan, unsigned int val)
-{
-	/* write 10-bit value to trimpot */
-	cb_pcidas_calib_write(dev, ((chan & 0x3) << 8) | val, 10, true);
-}
-
 static void cb_pcidas_trimpot_write(struct comedi_device *dev,
 				    unsigned int chan, unsigned int val)
 {
@@ -655,10 +636,12 @@ static void cb_pcidas_trimpot_write(struct comedi_device *dev,
 
 	switch (board->trimpot) {
 	case AD7376:
-		cb_pcidas_trimpot_7376_write(dev, val);
+		/* write 7-bit value to trimpot */
+		cb_pcidas_calib_write(dev, val, 7, true);
 		break;
 	case AD8402:
-		cb_pcidas_trimpot_8402_write(dev, chan, val);
+		/* write 10-bit channel/value to trimpot */
+		cb_pcidas_calib_write(dev, (chan << 8) | val, 10, true);
 		break;
 	default:
 		dev_err(dev->class_dev, "driver bug?\n");
@@ -1414,8 +1397,11 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < s->n_chan; i++) {
-		cb_pcidas_caldac_8800_write(dev, i, s->maxdata / 2);
-		s->readback[i] = s->maxdata / 2;
+		unsigned int val = s->maxdata / 2;
+
+		/* write 11-bit channel/value to caldac */
+		cb_pcidas_calib_write(dev, (i << 8) | val, 11, false);
+		s->readback[i] = val;
 	}
 
 	/* Calibration subdevice - trim potentiometer */
