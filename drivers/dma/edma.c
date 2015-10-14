@@ -968,8 +968,7 @@ static void edma_free_channel(struct edma_cc *ecc, unsigned channel)
 	edma_setup_interrupt(ecc, channel, NULL, NULL);
 	/* REVISIT should probably take out of shadow region 0 */
 
-	memcpy_toio(ecc->base + PARM_OFFSET(channel), &dummy_paramset,
-		    PARM_SIZE);
+	edma_write_slot(ecc, channel, &dummy_paramset);
 	clear_bit(channel, ecc->edma_inuse);
 }
 
