@@ -252,7 +252,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	}
 
 	spin_lock_init(&hsotg->lock);
-	mutex_init(&hsotg->init_mutex);
 
 	/* Detect config values from hardware */
 	retval = dwc2_get_hwparams(hsotg);

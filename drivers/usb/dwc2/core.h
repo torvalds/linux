@@ -712,7 +712,6 @@ struct dwc2_hsotg {
 	struct regulator_bulk_data supplies[ARRAY_SIZE(dwc2_hsotg_supply_names)];
 
 	spinlock_t lock;
-	struct mutex init_mutex;
 	void *priv;
 	int     irq;
 	struct clk *clk;

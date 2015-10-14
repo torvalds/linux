@@ -3193,7 +3193,6 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 		return -EINVAL;
 	}
 
-	mutex_lock(&hsotg->init_mutex);
 	WARN_ON(hsotg->driver);
 
 	driver->driver.bus = NULL;
@@ -3220,12 +3219,9 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 
 	dev_info(hsotg->dev, "bound driver %s\n", driver->driver.name);
 
-	mutex_unlock(&hsotg->init_mutex);
-
 	return 0;
 
 err:
-	mutex_unlock(&hsotg->init_mutex);
 	hsotg->driver = NULL;
 	return ret;
 }
@@ -3245,8 +3241,6 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 
 	if (!hsotg)
 		return -ENODEV;
-
-	mutex_lock(&hsotg->init_mutex);
 
 	/* all endpoints should be shutdown */
 	for (ep = 1; ep < hsotg->num_of_eps; ep++) {
@@ -3269,8 +3263,6 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 	dwc2_hsotg_phy_disable(hsotg);
 
 	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
-
-	mutex_unlock(&hsotg->init_mutex);
 
 	return 0;
 }
@@ -3307,7 +3299,6 @@ static int dwc2_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 		return 0;
 	}
 
-	mutex_lock(&hsotg->init_mutex);
 	spin_lock_irqsave(&hsotg->lock, flags);
 	if (is_on) {
 		hsotg->enabled = 1;
@@ -3321,7 +3312,6 @@ static int dwc2_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 	spin_unlock_irqrestore(&hsotg->lock, flags);
-	mutex_unlock(&hsotg->init_mutex);
 
 	return 0;
 }
@@ -3832,8 +3822,6 @@ int dwc2_hsotg_suspend(struct dwc2_hsotg *hsotg)
 	if (hsotg->lx_state != DWC2_L0)
 		return ret;
 
-	mutex_lock(&hsotg->init_mutex);
-
 	if (hsotg->driver) {
 		int ep;
 
@@ -3861,8 +3849,6 @@ int dwc2_hsotg_suspend(struct dwc2_hsotg *hsotg)
 		clk_disable(hsotg->clk);
 	}
 
-	mutex_unlock(&hsotg->init_mutex);
-
 	return ret;
 }
 
@@ -3873,8 +3859,6 @@ int dwc2_hsotg_resume(struct dwc2_hsotg *hsotg)
 
 	if (hsotg->lx_state == DWC2_L2)
 		return ret;
-
-	mutex_lock(&hsotg->init_mutex);
 
 	if (hsotg->driver) {
 		dev_info(hsotg->dev, "resuming usb gadget %s\n",
@@ -3892,7 +3876,6 @@ int dwc2_hsotg_resume(struct dwc2_hsotg *hsotg)
 			dwc2_hsotg_core_connect(hsotg);
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 	}
-	mutex_unlock(&hsotg->init_mutex);
 
 	return ret;
 }
