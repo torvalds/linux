@@ -546,22 +546,21 @@ void dw_spi_remove_host(struct dw_spi *dws)
 
 	if (dws->dma_ops && dws->dma_ops->dma_exit)
 		dws->dma_ops->dma_exit(dws);
-	spi_enable_chip(dws, 0);
-	/* Disable clk */
-	spi_set_clk(dws, 0);
+
+	spi_shutdown_chip(dws);
 }
 EXPORT_SYMBOL_GPL(dw_spi_remove_host);
 
 int dw_spi_suspend_host(struct dw_spi *dws)
 {
-	int ret = 0;
+	int ret;
 
 	ret = spi_master_suspend(dws->master);
 	if (ret)
 		return ret;
-	spi_enable_chip(dws, 0);
-	spi_set_clk(dws, 0);
-	return ret;
+
+	spi_shutdown_chip(dws);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dw_spi_suspend_host);
 
