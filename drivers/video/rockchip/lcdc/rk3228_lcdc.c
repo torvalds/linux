@@ -156,17 +156,17 @@ static void vop_load_csc_table(struct vop_device *vop_dev, u32 offset,
 
 	csc_val = table[1] << 16 | table[0];
 	vop_writel(vop_dev, offset, csc_val);
-	csc_val = table[3] << 16 | table[2];
+	csc_val = table[4] << 16 | table[2];
 	vop_writel(vop_dev, offset + 4, csc_val);
-	csc_val = table[5] << 16 | table[4];
+	csc_val = table[6] << 16 | table[5];
 	vop_writel(vop_dev, offset + 8, csc_val);
-	csc_val = table[7] << 16 | table[6];
+	csc_val = table[9] << 16 | table[8];
 	vop_writel(vop_dev, offset + 0xc, csc_val);
-	csc_val = table[8];
-	vop_writel(vop_dev, offset + 0x10, csc_val);
-	csc_val = table[9];
-	vop_writel(vop_dev, offset + 0x14, csc_val);
 	csc_val = table[10];
+	vop_writel(vop_dev, offset + 0x10, csc_val);
+	csc_val = table[3];
+	vop_writel(vop_dev, offset + 0x14, csc_val);
+	csc_val = table[7];
 	vop_writel(vop_dev, offset + 0x18, csc_val);
 	csc_val = table[11];
 	vop_writel(vop_dev, offset + 0x1c, csc_val);
@@ -547,10 +547,10 @@ static void vop_post_csc_cfg(struct rk_lcdc_driver *dev_drv)
 			vop_win_csc_mode(vop_dev, win, VOP_Y2R_CSC_MPEG);
 	}
 
-	val = 0;
+	val = V_YUV2YUV_POST_Y2R_EN(0) | V_YUV2YUV_POST_EN(0) |
+		V_YUV2YUV_POST_R2Y_EN(0);
 	/* Y2R */
-	if ((win_csc == COLOR_YCBCR && output_color == COLOR_RGB) ||
-	    (win_csc == COLOR_YCBCR && output_color == COLOR_YCBCR_BT2020)) {
+	if (win_csc == COLOR_YCBCR && output_color == COLOR_YCBCR_BT2020) {
 		val |= V_YUV2YUV_POST_Y2R_EN(1);
 		vop_load_csc_table(vop_dev, POST_YUV2YUV_Y2R_COE,
 				   csc_y2r_bt709_full);
@@ -591,6 +591,9 @@ static void vop_post_csc_cfg(struct rk_lcdc_driver *dev_drv)
 					   csc_r2y_bt709_full);
 	}
 
+	DBG(1, "win_csc=%d output_color=%d val=%llx overlay_mode=%d\n",
+	    win_csc, output_color, val, overlay_mode);
+	vop_msk_reg(vop_dev, SYS_CTRL, V_OVERLAY_MODE(overlay_mode));
 	vop_msk_reg(vop_dev, YUV2YUV_POST, val);
 }
 
