@@ -647,9 +647,6 @@ static int trimpot_7376_write(struct comedi_device *dev, u8 value)
 	return 0;
 }
 
-/* For 1602/16 only
- * ch 0 : adc gain
- * ch 1 : adc postgain offset */
 static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
 			      u8 value)
 {
@@ -1442,18 +1439,23 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		s->readback[i] = s->maxdata / 2;
 	}
 
-	/*  trim potentiometer */
+	/* Calibration subdevice - trim potentiometer */
 	s = &dev->subdevices[5];
-	s->type = COMEDI_SUBD_CALIB;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->type		= COMEDI_SUBD_CALIB;
+	s->subdev_flags	= SDF_WRITABLE | SDF_INTERNAL;
 	if (board->trimpot == AD7376) {
-		s->n_chan = 1;
-		s->maxdata = 0x7f;
-	} else {
-		s->n_chan = 2;
-		s->maxdata = 0xff;
+		s->n_chan	= 1;
+		s->maxdata	= 0x7f;
+	} else {	/* AD8402 */
+		/*
+		 * For pci-das1602/16:
+		 *   chan 0 : adc gain
+		 *   chan 1 : adc postgain offset
+		 */
+		s->n_chan	= 2;
+		s->maxdata	= 0xff;
 	}
-	s->insn_write = cb_pcidas_trimpot_insn_write;
+	s->insn_write	= cb_pcidas_trimpot_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
