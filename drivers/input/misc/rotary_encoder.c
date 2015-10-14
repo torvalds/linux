@@ -175,14 +175,12 @@ static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct devic
 	pdata->gpio_b = of_get_gpio_flags(np, 1, &flags);
 	pdata->inverted_b = flags & OF_GPIO_ACTIVE_LOW;
 
-	pdata->relative_axis = !!of_get_property(np,
-					"rotary-encoder,relative-axis", NULL);
-	pdata->rollover = !!of_get_property(np,
-					"rotary-encoder,rollover", NULL);
-	pdata->half_period = !!of_get_property(np,
-					"rotary-encoder,half-period", NULL);
-	pdata->wakeup_source = !!of_get_property(np,
-					"wakeup-source", NULL);
+	pdata->relative_axis =
+		of_property_read_bool(np, "rotary-encoder,relative-axis");
+	pdata->rollover = of_property_read_bool(np, "rotary-encoder,rollover");
+	pdata->half_period =
+		of_property_read_bool(np, "rotary-encoder,half-period");
+	pdata->wakeup_source = of_property_read_bool(np, "wakeup-source");
 
 	return pdata;
 }
