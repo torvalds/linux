@@ -79,7 +79,7 @@ static int __init iptable_security_init(void)
 	int ret;
 
 	ret = register_pernet_subsys(&iptable_security_net_ops);
-        if (ret < 0)
+	if (ret < 0)
 		return ret;
 
 	sectbl_ops = xt_hook_link(&security_table, iptable_security_hook);
