@@ -645,26 +645,24 @@ static void cb_pcidas_trimpot_7376_write(struct comedi_device *dev,
 	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
 }
 
-static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
-			      u8 value)
+static void cb_pcidas_trimpot_8402_write(struct comedi_device *dev,
+					 unsigned int chan, unsigned int val)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	static const int bitstream_length = 10;
-	unsigned int bitstream = ((channel & 0x3) << 8) | (value & 0xff);
-	unsigned int register_bits;
-	static const int ad8402_udelay = 1;
+	unsigned int calib_bits;
 
-	register_bits = cal_enable_bits(dev) | PCIDAS_CALIB_TRIM_SEL;
-	udelay(ad8402_udelay);
-	outw(register_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
+	/* select trimpot */
+	calib_bits = cal_enable_bits(dev) | PCIDAS_CALIB_TRIM_SEL;
+	udelay(1);
+	outw(calib_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 
-	write_calibration_bitstream(dev, register_bits, bitstream,
-				    bitstream_length);
+	/* write 10-bit value */
+	write_calibration_bitstream(dev, calib_bits,
+				    ((chan & 0x3) << 8) | val, 10);
+	udelay(1);
 
-	udelay(ad8402_udelay);
+	/* latch value */
 	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
-
-	return 0;
 }
 
 static void cb_pcidas_trimpot_write(struct comedi_device *dev,
@@ -677,7 +675,7 @@ static void cb_pcidas_trimpot_write(struct comedi_device *dev,
 		cb_pcidas_trimpot_7376_write(dev, val);
 		break;
 	case AD8402:
-		trimpot_8402_write(dev, chan, val);
+		cb_pcidas_trimpot_8402_write(dev, chan, val);
 		break;
 	default:
 		dev_err(dev->class_dev, "driver bug?\n");
