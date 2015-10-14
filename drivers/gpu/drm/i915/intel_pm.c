@@ -2430,7 +2430,7 @@ static void ilk_wm_merge(struct drm_device *dev,
 	 * enabled sometime later.
 	 */
 	if (IS_GEN5(dev) && !merged->fbc_wm_enabled &&
-	    intel_fbc_enabled(dev_priv)) {
+	    intel_fbc_is_active(dev_priv)) {
 		for (level = 2; level <= max_level; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
 

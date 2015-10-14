@@ -915,9 +915,7 @@ struct i915_fbc {
 
 	bool false_color;
 
-	/* Tracks whether the HW is actually enabled, not whether the feature is
-	 * possible. */
-	bool enabled;
+	bool active;
 
 	struct intel_fbc_work {
 		struct delayed_work work;
@@ -926,9 +924,9 @@ struct i915_fbc {
 
 	const char *no_fbc_reason;
 
-	bool (*fbc_enabled)(struct drm_i915_private *dev_priv);
-	void (*enable_fbc)(struct intel_crtc *crtc);
-	void (*disable_fbc)(struct drm_i915_private *dev_priv);
+	bool (*is_active)(struct drm_i915_private *dev_priv);
+	void (*activate)(struct intel_crtc *crtc);
+	void (*deactivate)(struct drm_i915_private *dev_priv);
 };
 
 /**
