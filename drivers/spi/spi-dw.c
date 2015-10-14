@@ -36,8 +36,6 @@ struct chip_data {
 
 	u8 poll_mode;		/* 1 means use poll mode */
 
-	u32 rx_threshold;
-	u32 tx_threshold;
 	u8 enable_dma;
 	u16 clk_div;		/* baud rate divider */
 	u32 speed_hz;		/* baud rate */
@@ -425,9 +423,6 @@ static int dw_spi_setup(struct spi_device *spi)
 
 		chip->poll_mode = chip_info->poll_mode;
 		chip->type = chip_info->type;
-
-		chip->rx_threshold = 0;
-		chip->tx_threshold = 0;
 	}
 
 	chip->tmode = 0; /* Tx & Rx */
