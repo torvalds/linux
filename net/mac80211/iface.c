@@ -709,7 +709,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	if (hw_reconf_flags)
 		ieee80211_hw_config(local, hw_reconf_flags);
 
-	ieee80211_recalc_ps(local, -1);
+	ieee80211_recalc_ps(local);
 
 	if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
@@ -1016,7 +1016,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 			drv_remove_interface(local, sdata);
 	}
 
-	ieee80211_recalc_ps(local, -1);
+	ieee80211_recalc_ps(local);
 
 	if (cancel_scan)
 		flush_delayed_work(&local->scan_work);

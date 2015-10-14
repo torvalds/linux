@@ -1241,11 +1241,6 @@ enum ieee80211_smps_mode {
  * @flags: configuration flags defined above
  *
  * @listen_interval: listen interval in units of beacon interval
- * @max_sleep_period: the maximum number of beacon intervals to sleep for
- *	before checking the beacon for a TIM bit (managed mode only); this
- *	value will be only achievable between DTIM frames, the hardware
- *	needs to check for the multicast traffic bit in DTIM beacons.
- *	This variable is valid only when the CONF_PS flag is set.
  * @ps_dtim_period: The DTIM period of the AP we're connected to, for use
  *	in power saving. Power saving will not be enabled until a beacon
  *	has been received and the DTIM period is known.
@@ -1275,7 +1270,6 @@ enum ieee80211_smps_mode {
 struct ieee80211_conf {
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
-	int max_sleep_period;
 
 	u16 listen_interval;
 	u8 ps_dtim_period;

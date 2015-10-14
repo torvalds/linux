@@ -1951,7 +1951,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
-	ieee80211_recalc_ps(local, -1);
+	ieee80211_recalc_ps(local);
 
 	/*
 	 * The sta might be in psm against the ap (e.g. because
