@@ -771,13 +771,13 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 	int intReturn = false;
 
 /*
-	There are the BSSID information in the bssid.sa_data array.
-	If cmd is IW_PMKSA_FLUSH, it means the wpa_supplicant wants to clear
-	all the PMKID information. If cmd is IW_PMKSA_ADD, it means the
-	wpa_supplicant wants to add a PMKID/BSSID to driver.
-	If cmd is IW_PMKSA_REMOVE, it means the wpa_supplicant wants to
-	remove a PMKID/BSSID from driver.
-*/
+ *	There are the BSSID information in the bssid.sa_data array.
+ *	If cmd is IW_PMKSA_FLUSH, it means the wpa_supplicant wants to clear
+ *	all the PMKID information. If cmd is IW_PMKSA_ADD, it means the
+ *	wpa_supplicant wants to add a PMKID/BSSID to driver.
+ *	If cmd is IW_PMKSA_REMOVE, it means the wpa_supplicant wants to
+ *	remove a PMKID/BSSID from driver.
+ */
 	if (pPMK == NULL)
 		return -EINVAL;
 	memcpy(strIssueBssid, pPMK->bssid.sa_data, ETH_ALEN);
@@ -792,7 +792,8 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 			if (!memcmp(psecuritypriv->PMKIDList[j].Bssid,
 			    strIssueBssid, ETH_ALEN)) {
 				/* BSSID is matched, the same AP => rewrite
-				 * with new PMKID. */
+				 * with new PMKID.
+				 */
 				netdev_info(dev, "r8712u: %s: BSSID exists in the PMKList.\n",
 					    __func__);
 				memcpy(psecuritypriv->PMKIDList[j].PMKID,
@@ -824,7 +825,8 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 			if (!memcmp(psecuritypriv->PMKIDList[j].Bssid,
 			    strIssueBssid, ETH_ALEN)) {
 				/* BSSID is matched, the same AP => Remove
-				 * this PMKID information and reset it. */
+				 * this PMKID information and reset it.
+				 */
 				eth_zero_addr(psecuritypriv->PMKIDList[j].Bssid);
 				psecuritypriv->PMKIDList[j].bUsed = false;
 				break;
@@ -1561,7 +1563,8 @@ static int r8711_wx_set_enc(struct net_device *dev,
 	} else {
 		wep.KeyLength = 0;
 		if (keyindex_provided == 1) { /* set key_id only, no given
-					       * KeyMaterial(erq->length==0).*/
+					       * KeyMaterial(erq->length==0).
+					       */
 			padapter->securitypriv.PrivacyKeyIndex = key;
 			switch (padapter->securitypriv.DefKeylen[key]) {
 			case 5:
@@ -2214,7 +2217,8 @@ static iw_handler r8711_handlers[] = {
 	r8711_wx_set_wap,		/* SIOCSIWAP */
 	r8711_wx_get_wap,		/* SIOCGIWAP */
 	r871x_wx_set_mlme,		/* request MLME operation;
-					 *  uses struct iw_mlme */
+					 *  uses struct iw_mlme
+					 */
 	dummy,				/* SIOCGIWAPLIST -- deprecated */
 	r8711_wx_set_scan,		/* SIOCSIWSCAN */
 	r8711_wx_get_scan,		/* SIOCGIWSCAN */
