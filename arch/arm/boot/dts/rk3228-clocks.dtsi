@@ -1546,21 +1546,21 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					aclk_gpu_div: aclk_gpu_div {
+					clk_gpu_div: clk_gpu_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
-						clocks = <&aclk_gpu>;
-						clock-output-names = "aclk_gpu";
+						clocks = <&clk_gpu>;
+						clock-output-names = "clk_gpu";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
 					};
 
-					aclk_gpu: aclk_gpu_mux {
+					clk_gpu: clk_gpu_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <5 2>;
 						clocks = <&clk_cpll>, <&clk_gpll>, <&hdmi_phy_clk>, <&usb480m>;
-						clock-output-names = "aclk_gpu";
+						clock-output-names = "clk_gpu";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
@@ -1601,7 +1601,7 @@
 					 testclk: testclk_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 4>;
-						clocks = <&clk_wifi>, <&dummy>, <&clk_core>, <&clk_gates7 0>, <&aclk_iep>, <&aclk_gpu>, <&aclk_peri>, <&aclk_core>;
+						clocks = <&clk_wifi>, <&dummy>, <&clk_core>, <&clk_gates7 0>, <&aclk_iep>, <&clk_gpu>, <&aclk_peri>, <&aclk_core>;
 						clock-output-names = "testclk";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
@@ -1883,7 +1883,7 @@
 					<&dummy>,	<&dummy>,
 
 					<&dummy>,	<&dummy>,
-					<&aclk_gpu>,	<&aclk_gpu>;
+					<&clk_gpu>,	<&clk_gpu>;
 
 					clock-output-names =
 					"clk_ddrphy",	"clk4x_ddrphy",

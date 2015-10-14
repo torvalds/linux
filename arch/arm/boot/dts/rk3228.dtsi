@@ -90,7 +90,7 @@
 		rockchip,clocks-init-parent =
 			<&clk_i2s0_pll &clk_cpll>, <&clk_i2s1_pll &clk_cpll>,
 			<&clk_i2s2_pll &clk_cpll>, <&clk_spdif_pll &clk_cpll>,
-			<&aclk_gpu &clk_cpll>, <&dclk_vop0 &hdmi_phy_clk>,
+			<&clk_gpu &clk_cpll>, <&dclk_vop0 &hdmi_phy_clk>,
 			<&aclk_bus &clk_cpll>, <&aclk_peri &clk_cpll>,
 			<&clk_sdmmc0 &clk_cpll>, <&clk_emmc &clk_cpll>,
 			<&clk_sdio &clk_cpll>, <&aclk_vpu &clk_cpll>,
@@ -102,7 +102,7 @@
 			<&aclk_peri 250000000>, <&hclk_peri 125000000>,
 			<&pclk_peri 62500000>, <&clk_mac 125000000>,
 			<&aclk_iep 250000000>, <&hclk_vio 125000000>,
-			<&aclk_rga 250000000>, <&aclk_gpu 250000000>,
+			<&aclk_rga 250000000>, <&clk_gpu 250000000>,
 			<&aclk_vpu 25000000>, <&clk_vdec_core 250000000>,
 			<&clk_vdec_cabac 250000000>;
 /*
