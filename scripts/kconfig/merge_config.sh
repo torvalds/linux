@@ -77,7 +77,7 @@ while true; do
 	esac
 done
 
-if [ "$#" -lt 2 ] ; then
+if [ "$#" -lt 1 ] ; then
 	usage
 	exit
 fi
