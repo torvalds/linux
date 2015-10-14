@@ -97,17 +97,20 @@
 #define PCIDAS_CTRL_LADFUL	BIT(13)	/* fifo overflow / clear */
 #define PCIDAS_CTRL_DAEMI	BIT(14)	/* dac fifo empty int status / clear */
 
-#define ADCMUX_CONT		2	/* ADC CHANNEL MUX AND CONTROL reg */
-#define   BEGIN_SCAN(x)		((x) & 0xf)
-#define   END_SCAN(x)		(((x) & 0xf) << 4)
-#define   GAIN_BITS(x)		(((x) & 0x3) << 8)
-#define   UNIP			0x800	/* Analog front-end unipolar mode */
-#define   SE			0x400	/* Inputs in single-ended mode */
-#define   PACER_MASK		0x3000	/* pacer source bits */
-#define   PACER_INT		0x1000	/* int. pacer */
-#define   PACER_EXT_FALL	0x2000	/* ext. falling edge */
-#define   PACER_EXT_RISE	0x3000	/* ext. rising edge */
-#define   EOC			0x4000	/* adc not busy */
+#define PCIDAS_AI_REG		0x02	/* ADC CHANNEL MUX AND CONTROL reg */
+#define PCIDAS_AI_FIRST(x)	((x) & 0xf)
+#define PCIDAS_AI_LAST(x)	(((x) & 0xf) << 4)
+#define PCIDAS_AI_CHAN(x)	(PCIDAS_AI_FIRST(x) | PCIDAS_AI_LAST(x))
+#define PCIDAS_AI_GAIN(x)	(((x) & 0x3) << 8)
+#define PCIDAS_AI_SE		BIT(10)	/* Inputs in single-ended mode */
+#define PCIDAS_AI_UNIP		BIT(11)	/* Analog front-end unipolar mode */
+#define PCIDAS_AI_PACER(x)	(((x) & 0x3) << 12)
+#define PCIDAS_AI_PACER_SW	PCIDAS_AI_PACER(0) /* software pacer */
+#define PCIDAS_AI_PACER_INT	PCIDAS_AI_PACER(1) /* int. pacer */
+#define PCIDAS_AI_PACER_EXTN	PCIDAS_AI_PACER(2) /* ext. falling edge */
+#define PCIDAS_AI_PACER_EXTP	PCIDAS_AI_PACER(3) /* ext. rising edge */
+#define PCIDAS_AI_PACER_MASK	PCIDAS_AI_PACER(3) /* pacer source bits */
+#define PCIDAS_AI_EOC		BIT(14)	/* adc not busy */
 
 #define TRIG_CONTSTAT		 4	/* TRIGGER CONTROL/STATUS register */
 #define   SW_TRIGGER		0x1	/* software start trigger */
@@ -333,8 +336,8 @@ static int cb_pcidas_ai_eoc(struct comedi_device *dev,
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned int status;
 
-	status = inw(devpriv->pcibar1 + ADCMUX_CONT);
-	if (status & EOC)
+	status = inw(devpriv->pcibar1 + PCIDAS_AI_REG);
+	if (status & PCIDAS_AI_EOC)
 		return 0;
 	return -EBUSY;
 }
@@ -361,14 +364,14 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 	}
 
 	/* set mux limits and gain */
-	bits = BEGIN_SCAN(chan) | END_SCAN(chan) | GAIN_BITS(range);
+	bits = PCIDAS_AI_CHAN(chan) | PCIDAS_AI_GAIN(range);
 	/* set unipolar/bipolar */
 	if (comedi_range_is_unipolar(s, range))
-		bits |= UNIP;
+		bits |= PCIDAS_AI_UNIP;
 	/* set single-ended/differential */
 	if (aref != AREF_DIFF)
-		bits |= SE;
-	outw(bits, devpriv->pcibar1 + ADCMUX_CONT);
+		bits |= PCIDAS_AI_SE;
+	outw(bits, devpriv->pcibar1 + PCIDAS_AI_REG);
 
 	/* clear fifo */
 	outw(0, devpriv->pcibar2 + PCIDAS_AI_FIFO_CLR_REG);
@@ -861,21 +864,21 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	outw(0, devpriv->pcibar2 + PCIDAS_AI_FIFO_CLR_REG);
 
 	/*  set mux limits, gain and pacer source */
-	bits = BEGIN_SCAN(CR_CHAN(cmd->chanlist[0])) |
-	    END_SCAN(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1])) |
-	    GAIN_BITS(range0);
+	bits = PCIDAS_AI_FIRST(CR_CHAN(cmd->chanlist[0])) |
+	       PCIDAS_AI_LAST(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1])) |
+	       PCIDAS_AI_GAIN(range0);
 	/*  set unipolar/bipolar */
 	if (comedi_range_is_unipolar(s, range0))
-		bits |= UNIP;
+		bits |= PCIDAS_AI_UNIP;
 	/*  set singleended/differential */
 	if (CR_AREF(cmd->chanlist[0]) != AREF_DIFF)
-		bits |= SE;
+		bits |= PCIDAS_AI_SE;
 	/*  set pacer source */
 	if (cmd->convert_src == TRIG_EXT || cmd->scan_begin_src == TRIG_EXT)
-		bits |= PACER_EXT_RISE;
+		bits |= PCIDAS_AI_PACER_EXTP;
 	else
-		bits |= PACER_INT;
-	outw(bits, devpriv->pcibar1 + ADCMUX_CONT);
+		bits |= PCIDAS_AI_PACER_INT;
+	outw(bits, devpriv->pcibar1 + PCIDAS_AI_REG);
 
 	/*  load counters */
 	if (cmd->scan_begin_src == TRIG_TIMER ||
@@ -1034,8 +1037,7 @@ static int cb_pcidas_cancel(struct comedi_device *dev,
 
 	/*  disable start trigger source and burst mode */
 	outw(0, devpriv->pcibar1 + TRIG_CONTSTAT);
-	/*  software pacer source */
-	outw(0, devpriv->pcibar1 + ADCMUX_CONT);
+	outw(PCIDAS_AI_PACER_SW, devpriv->pcibar1 + PCIDAS_AI_REG);
 
 	return 0;
 }
