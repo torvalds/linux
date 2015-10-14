@@ -12,6 +12,7 @@
 #include "bpf-loader.h"
 #include "probe-event.h"
 #include "probe-finder.h" // for MAX_PROBES
+#include "llvm-utils.h"
 
 #define DEFINE_PRINT_FN(name, level) \
 static int libbpf_##name(const char *fmt, ...)	\
@@ -33,7 +34,7 @@ struct bpf_prog_priv {
 	struct perf_probe_event pev;
 };
 
-struct bpf_object *bpf__prepare_load(const char *filename)
+struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 {
 	struct bpf_object *obj;
 	static bool libbpf_initialized;
@@ -45,7 +46,19 @@ struct bpf_object *bpf__prepare_load(const char *filename)
 		libbpf_initialized = true;
 	}
 
-	obj = bpf_object__open(filename);
+	if (source) {
+		int err;
+		void *obj_buf;
+		size_t obj_buf_sz;
+
+		err = llvm__compile_bpf(filename, &obj_buf, &obj_buf_sz);
+		if (err)
+			return ERR_PTR(err);
+		obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, filename);
+		free(obj_buf);
+	} else
+		obj = bpf_object__open(filename);
+
 	if (!obj) {
 		pr_debug("bpf: failed to load %s\n", filename);
 		return ERR_PTR(-EINVAL);

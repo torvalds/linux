@@ -626,11 +626,12 @@ errout:
 
 int parse_events_load_bpf(struct parse_events_evlist *data,
 			  struct list_head *list,
-			  char *bpf_file_name)
+			  char *bpf_file_name,
+			  bool source)
 {
 	struct bpf_object *obj;
 
-	obj = bpf__prepare_load(bpf_file_name);
+	obj = bpf__prepare_load(bpf_file_name, source);
 	if (IS_ERR(obj) || !obj) {
 		char errbuf[BUFSIZ];
 		int err;
