@@ -668,7 +668,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->netdev_features &= ~NETIF_F_RXCSUM;
 
 	if (IWL_MVM_SW_TX_CSUM_OFFLOAD)
-		hw->netdev_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+		hw->netdev_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			NETIF_F_TSO | NETIF_F_TSO6;
 
 	ret = ieee80211_register_hw(mvm->hw);
 	if (ret)

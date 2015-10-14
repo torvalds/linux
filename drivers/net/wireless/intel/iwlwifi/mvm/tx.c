@@ -64,6 +64,7 @@
  *****************************************************************************/
 #include <linux/ieee80211.h>
 #include <linux/etherdevice.h>
+#include <linux/tcp.h>
 
 #include "iwl-trans.h"
 #include "iwl-eeprom-parse.h"
@@ -425,11 +426,39 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	return 0;
 }
 
+static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb_gso,
+			  struct ieee80211_sta *sta,
+			  struct sk_buff_head *mpdus_skb)
+{
+	struct sk_buff *tmp, *next;
+	char cb[sizeof(skb_gso->cb)];
+
+	memcpy(cb, skb_gso->cb, sizeof(cb));
+	next = skb_gso_segment(skb_gso, 0);
+	if (IS_ERR(next))
+		return -EINVAL;
+	else if (next)
+		consume_skb(skb_gso);
+
+	while (next) {
+		tmp = next;
+		next = tmp->next;
+		memcpy(tmp->cb, cb, sizeof(tmp->cb));
+
+		tmp->prev = NULL;
+		tmp->next = NULL;
+
+		__skb_queue_tail(mpdus_skb, tmp);
+	}
+
+	return 0;
+}
+
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
-int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
-		   struct ieee80211_sta *sta)
+static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
+			   struct ieee80211_sta *sta)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -523,6 +552,51 @@ drop_unlock_sta:
 	spin_unlock(&mvmsta->lock);
 drop:
 	return -1;
+}
+
+int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
+		   struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct sk_buff_head mpdus_skbs;
+	unsigned int payload_len;
+	int ret;
+
+	if (WARN_ON_ONCE(!mvmsta))
+		return -1;
+
+	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
+		return -1;
+
+	if (!skb_is_gso(skb))
+		return iwl_mvm_tx_mpdu(mvm, skb, sta);
+
+	payload_len = skb_tail_pointer(skb) - skb_transport_header(skb) -
+		tcp_hdrlen(skb) + skb->data_len;
+
+	if (payload_len <= skb_shinfo(skb)->gso_size)
+		return iwl_mvm_tx_mpdu(mvm, skb, sta);
+
+	__skb_queue_head_init(&mpdus_skbs);
+
+	ret = iwl_mvm_tx_tso(mvm, skb, sta, &mpdus_skbs);
+	if (ret)
+		return ret;
+
+	if (WARN_ON(skb_queue_empty(&mpdus_skbs)))
+		return ret;
+
+	while (!skb_queue_empty(&mpdus_skbs)) {
+		struct sk_buff *skb = __skb_dequeue(&mpdus_skbs);
+
+		ret = iwl_mvm_tx_mpdu(mvm, skb, sta);
+		if (ret) {
+			__skb_queue_purge(&mpdus_skbs);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
