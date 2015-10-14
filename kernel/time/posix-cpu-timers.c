@@ -864,6 +864,13 @@ static void check_thread_timers(struct task_struct *tsk,
 	unsigned long long expires;
 	unsigned long soft;
 
+	/*
+	 * If cputime_expires is zero, then there are no active
+	 * per thread CPU timers.
+	 */
+	if (task_cputime_zero(&tsk->cputime_expires))
+		return;
+
 	expires = check_timers_list(timers, firing, prof_ticks(tsk));
 	tsk_expires->prof_exp = expires_to_cputime(expires);
 
@@ -960,6 +967,13 @@ static void check_process_timers(struct task_struct *tsk,
 	struct list_head *timers = sig->cpu_timers;
 	struct task_cputime cputime;
 	unsigned long soft;
+
+	/*
+	 * If cputimer is not running, then there are no active
+	 * process wide timers (POSIX 1.b, itimers, RLIMIT_CPU).
+	 */
+	if (!READ_ONCE(tsk->signal->cputimer.running))
+		return;
 
 	/*
 	 * Collect the current process totals.
@@ -1169,12 +1183,8 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 	 * put them on the firing list.
 	 */
 	check_thread_timers(tsk, &firing);
-	/*
-	 * If there are any active process wide timers (POSIX 1.b, itimers,
-	 * RLIMIT_CPU) cputimer must be running.
-	 */
-	if (READ_ONCE(tsk->signal->cputimer.running))
-		check_process_timers(tsk, &firing);
+
+	check_process_timers(tsk, &firing);
 
 	/*
 	 * We must release these locks before taking any timer's lock.
