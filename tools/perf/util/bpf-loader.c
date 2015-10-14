@@ -243,6 +243,18 @@ int bpf__unprobe(struct bpf_object *obj)
 	return ret;
 }
 
+int bpf__load(struct bpf_object *obj)
+{
+	int err;
+
+	err = bpf_object__load(obj);
+	if (err) {
+		pr_debug("bpf: load objects failed\n");
+		return err;
+	}
+	return 0;
+}
+
 #define bpf__strerror_head(err, buf, size) \
 	char sbuf[STRERR_BUFSIZE], *emsg;\
 	if (!size)\
@@ -272,6 +284,16 @@ int bpf__strerror_probe(struct bpf_object *obj __maybe_unused,
 	bpf__strerror_entry(EEXIST, "Probe point exist. Try use 'perf probe -d \"*\"'");
 	bpf__strerror_entry(EPERM, "You need to be root, and /proc/sys/kernel/kptr_restrict should be 0\n");
 	bpf__strerror_entry(ENOENT, "You need to check probing points in BPF file\n");
+	bpf__strerror_end(buf, size);
+	return 0;
+}
+
+int bpf__strerror_load(struct bpf_object *obj __maybe_unused,
+		       int err, char *buf, size_t size)
+{
+	bpf__strerror_head(err, buf, size);
+	bpf__strerror_entry(EINVAL, "%s: Are you root and runing a CONFIG_BPF_SYSCALL kernel?",
+			    emsg)
 	bpf__strerror_end(buf, size);
 	return 0;
 }

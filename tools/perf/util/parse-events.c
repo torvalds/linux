@@ -561,6 +561,12 @@ int parse_events_load_bpf_obj(struct parse_events_evlist *data,
 		goto errout;
 	}
 
+	err = bpf__load(obj);
+	if (err) {
+		bpf__strerror_load(obj, err, errbuf, sizeof(errbuf));
+		goto errout;
+	}
+
 	/*
 	 * Temporary add a dummy event here so we can check whether
 	 * basic bpf loader works. Following patches will replace
