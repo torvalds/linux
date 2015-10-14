@@ -1785,8 +1785,7 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 	if (param == NULL)
 		return -ENOMEM;
 	param->cmd = IEEE_CMD_SET_ENCRYPTION;
-	memset(param->sta_addr, 0xff, ETH_ALEN);
-
+	eth_broadcast_addr(param->sta_addr);
 	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
 	if (pext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
 		param->u.crypt.set_tx = 0;
