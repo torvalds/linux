@@ -130,7 +130,7 @@ struct edma {
 
 	struct edma_soc_info *info;
 	int		id;
-
+	bool		unused_chan_list_done;
 	/* The edma_inuse bit for each PaRAM slot is clear unless the
 	 * channel is in use ... by ARM or DSP, for QDMA, or whatever.
 	 */
@@ -264,7 +264,6 @@ static inline void clear_bits(int offset, int len, unsigned long *p)
 }
 
 /*****************************************************************************/
-static struct edma *edma_cc[EDMA_MAX_CC];
 static int arch_num_cc;
 
 /* dummy param set used to (re)initialize parameter RAM slots */
@@ -490,14 +489,18 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 static int prepare_unused_channel_list(struct device *dev, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	int i, count, ctlr;
+	struct edma *cc = data;
+	int i, count;
 	struct of_phandle_args  dma_spec;
 
 	if (dev->of_node) {
+		struct platform_device *dma_pdev;
+
 		count = of_property_count_strings(dev->of_node, "dma-names");
 		if (count < 0)
 			return 0;
 		for (i = 0; i < count; i++) {
+
 			if (of_parse_phandle_with_args(dev->of_node, "dmas",
 						       "#dma-cells", i,
 						       &dma_spec))
@@ -508,8 +511,12 @@ static int prepare_unused_channel_list(struct device *dev, void *data)
 				continue;
 			}
 
+			dma_pdev = of_find_device_by_node(dma_spec.np);
+			if (&dma_pdev->dev != cc->dev)
+				continue;
+
 			clear_bit(EDMA_CHAN_SLOT(dma_spec.args[0]),
-				  edma_cc[0]->edma_unused);
+				  cc->edma_unused);
 			of_node_put(dma_spec.np);
 		}
 		return 0;
@@ -517,11 +524,11 @@ static int prepare_unused_channel_list(struct device *dev, void *data)
 
 	/* For non-OF case */
 	for (i = 0; i < pdev->num_resources; i++) {
-		if ((pdev->resource[i].flags & IORESOURCE_DMA) &&
-				(int)pdev->resource[i].start >= 0) {
-			ctlr = EDMA_CTLR(pdev->resource[i].start);
+		struct resource	*res = &pdev->resource[i];
+
+		if ((res->flags & IORESOURCE_DMA) && (int)res->start >= 0) {
 			clear_bit(EDMA_CHAN_SLOT(pdev->resource[i].start),
-				  edma_cc[ctlr]->edma_unused);
+				  cc->edma_unused);
 		}
 	}
 
@@ -529,8 +536,6 @@ static int prepare_unused_channel_list(struct device *dev, void *data)
 }
 
 /*-----------------------------------------------------------------------*/
-
-static bool unused_chan_list_done;
 
 /* Resource alloc/free:  dma channels, parameter RAM slots */
 
@@ -564,77 +569,73 @@ static bool unused_chan_list_done;
  *
  * Returns the number of the channel, else negative errno.
  */
-int edma_alloc_channel(int channel,
+int edma_alloc_channel(struct edma *cc, int channel,
 		void (*callback)(unsigned channel, u16 ch_status, void *data),
 		void *data,
 		enum dma_event_q eventq_no)
 {
-	unsigned i, done = 0, ctlr = 0;
+	unsigned done = 0;
 	int ret = 0;
 
-	if (!unused_chan_list_done) {
+	if (!cc->unused_chan_list_done) {
 		/*
 		 * Scan all the platform devices to find out the EDMA channels
 		 * used and clear them in the unused list, making the rest
 		 * available for ARM usage.
 		 */
-		ret = bus_for_each_dev(&platform_bus_type, NULL, NULL,
-				prepare_unused_channel_list);
+		ret = bus_for_each_dev(&platform_bus_type, NULL, cc,
+				       prepare_unused_channel_list);
 		if (ret < 0)
 			return ret;
 
-		unused_chan_list_done = true;
+		cc->unused_chan_list_done = true;
 	}
 
 	if (channel >= 0) {
-		ctlr = EDMA_CTLR(channel);
+		if (cc->id != EDMA_CTLR(channel)) {
+			dev_err(cc->dev, "%s: ID mismatch for eDMA%d: %d\n",
+				__func__, cc->id, EDMA_CTLR(channel));
+			return -EINVAL;
+		}
 		channel = EDMA_CHAN_SLOT(channel);
 	}
 
 	if (channel < 0) {
-		for (i = 0; i < arch_num_cc; i++) {
-			channel = 0;
-			for (;;) {
-				channel = find_next_bit(edma_cc[i]->edma_unused,
-						edma_cc[i]->num_channels,
-						channel);
-				if (channel == edma_cc[i]->num_channels)
-					break;
-				if (!test_and_set_bit(channel,
-						edma_cc[i]->edma_inuse)) {
-					done = 1;
-					ctlr = i;
-					break;
-				}
-				channel++;
-			}
-			if (done)
+		channel = 0;
+		for (;;) {
+			channel = find_next_bit(cc->edma_unused,
+						cc->num_channels, channel);
+			if (channel == cc->num_channels)
 				break;
+			if (!test_and_set_bit(channel, cc->edma_inuse)) {
+				done = 1;
+				break;
+			}
+			channel++;
 		}
 		if (!done)
 			return -ENOMEM;
-	} else if (channel >= edma_cc[ctlr]->num_channels) {
+	} else if (channel >= cc->num_channels) {
 		return -EINVAL;
-	} else if (test_and_set_bit(channel, edma_cc[ctlr]->edma_inuse)) {
+	} else if (test_and_set_bit(channel, cc->edma_inuse)) {
 		return -EBUSY;
 	}
 
 	/* ensure access through shadow region 0 */
-	edma_or_array2(edma_cc[ctlr], EDMA_DRAE, 0, channel >> 5, BIT(channel & 0x1f));
+	edma_or_array2(cc, EDMA_DRAE, 0, channel >> 5, BIT(channel & 0x1f));
 
 	/* ensure no events are pending */
-	edma_stop(EDMA_CTLR_CHAN(ctlr, channel));
-	memcpy_toio(edma_cc[ctlr]->base + PARM_OFFSET(channel), &dummy_paramset,
+	edma_stop(cc, EDMA_CTLR_CHAN(cc->id, channel));
+	memcpy_toio(cc->base + PARM_OFFSET(channel), &dummy_paramset,
 		    PARM_SIZE);
 
 	if (callback)
-		setup_dma_interrupt(edma_cc[ctlr],
-				    EDMA_CTLR_CHAN(ctlr, channel), callback,
-				    data);
+		setup_dma_interrupt(cc, EDMA_CTLR_CHAN(cc->id, channel),
+				    callback, data);
 
-	map_dmach_queue(edma_cc[ctlr], channel, eventq_no);
+	map_dmach_queue(cc, channel, eventq_no);
 
-	return EDMA_CTLR_CHAN(ctlr, channel);
+	return EDMA_CTLR_CHAN(cc->id, channel);
 }
 EXPORT_SYMBOL(edma_alloc_channel);
 
@@ -650,22 +651,25 @@ EXPORT_SYMBOL(edma_alloc_channel);
  * will not be reactivated by linking, chaining, or software calls to
  * edma_start().
  */
-void edma_free_channel(unsigned channel)
+void edma_free_channel(struct edma *cc, unsigned channel)
 {
-	unsigned ctlr;
 
-	ctlr = EDMA_CTLR(channel);
+	if (cc->id != EDMA_CTLR(channel)) {
+		dev_err(cc->dev, "%s: ID mismatch for eDMA%d: %d\n", __func__,
+			cc->id, EDMA_CTLR(channel));
+		return;
+	}
 	channel = EDMA_CHAN_SLOT(channel);
 
-	if (channel >= edma_cc[ctlr]->num_channels)
+	if (channel >= cc->num_channels)
 		return;
 
-	setup_dma_interrupt(edma_cc[ctlr], channel, NULL, NULL);
+	setup_dma_interrupt(cc, channel, NULL, NULL);
 	/* REVISIT should probably take out of shadow region 0 */
 
-	memcpy_toio(edma_cc[ctlr]->base + PARM_OFFSET(channel), &dummy_paramset,
+	memcpy_toio(cc->base + PARM_OFFSET(channel), &dummy_paramset,
 		    PARM_SIZE);
-	clear_bit(channel, edma_cc[ctlr]->edma_inuse);
+	clear_bit(channel, cc->edma_inuse);
 }
 EXPORT_SYMBOL(edma_free_channel);
 
@@ -683,35 +687,29 @@ EXPORT_SYMBOL(edma_free_channel);
  *
  * Returns the number of the slot, else negative errno.
  */
-int edma_alloc_slot(unsigned ctlr, int slot)
+int edma_alloc_slot(struct edma *cc, int slot)
 {
-	if (!edma_cc[ctlr])
-		return -EINVAL;
-
-	if (slot >= 0)
+	if (slot > 0)
 		slot = EDMA_CHAN_SLOT(slot);
-
 	if (slot < 0) {
-		slot = edma_cc[ctlr]->num_channels;
+		slot = cc->num_channels;
 		for (;;) {
-			slot = find_next_zero_bit(edma_cc[ctlr]->edma_inuse,
-					edma_cc[ctlr]->num_slots, slot);
-			if (slot == edma_cc[ctlr]->num_slots)
+			slot = find_next_zero_bit(cc->edma_inuse, cc->num_slots,
+						  slot);
+			if (slot == cc->num_slots)
 				return -ENOMEM;
-			if (!test_and_set_bit(slot, edma_cc[ctlr]->edma_inuse))
+			if (!test_and_set_bit(slot, cc->edma_inuse))
 				break;
 		}
-	} else if (slot < edma_cc[ctlr]->num_channels ||
-			slot >= edma_cc[ctlr]->num_slots) {
+	} else if (slot < cc->num_channels || slot >= cc->num_slots) {
 		return -EINVAL;
-	} else if (test_and_set_bit(slot, edma_cc[ctlr]->edma_inuse)) {
+	} else if (test_and_set_bit(slot, cc->edma_inuse)) {
 		return -EBUSY;
 	}
 
-	memcpy_toio(edma_cc[ctlr]->base + PARM_OFFSET(slot), &dummy_paramset,
-		    PARM_SIZE);
+	memcpy_toio(cc->base + PARM_OFFSET(slot), &dummy_paramset, PARM_SIZE);
 
-	return EDMA_CTLR_CHAN(ctlr, slot);
+	return slot;
 }
 EXPORT_SYMBOL(edma_alloc_slot);
 
@@ -723,20 +721,15 @@ EXPORT_SYMBOL(edma_alloc_slot);
  * Callers are responsible for ensuring the slot is inactive, and will
  * not be activated.
  */
-void edma_free_slot(unsigned slot)
+void edma_free_slot(struct edma *cc, unsigned slot)
 {
-	unsigned ctlr;
 
-	ctlr = EDMA_CTLR(slot);
 	slot = EDMA_CHAN_SLOT(slot);
-
-	if (slot < edma_cc[ctlr]->num_channels ||
-		slot >= edma_cc[ctlr]->num_slots)
+	if (slot < cc->num_channels || slot >= cc->num_slots)
 		return;
 
-	memcpy_toio(edma_cc[ctlr]->base + PARM_OFFSET(slot), &dummy_paramset,
-		    PARM_SIZE);
-	clear_bit(slot, edma_cc[ctlr]->edma_inuse);
+	memcpy_toio(cc->base + PARM_OFFSET(slot), &dummy_paramset, PARM_SIZE);
+	clear_bit(slot, cc->edma_inuse);
 }
 EXPORT_SYMBOL(edma_free_slot);
 
@@ -751,16 +744,15 @@ EXPORT_SYMBOL(edma_free_slot);
  *
  * Returns the position of the current active slot
  */
-dma_addr_t edma_get_position(unsigned slot, bool dst)
+dma_addr_t edma_get_position(struct edma *cc, unsigned slot, bool dst)
 {
-	u32 offs, ctlr = EDMA_CTLR(slot);
+	u32 offs;
 
 	slot = EDMA_CHAN_SLOT(slot);
-
 	offs = PARM_OFFSET(slot);
 	offs += dst ? PARM_DST : PARM_SRC;
 
-	return edma_read(edma_cc[ctlr], offs);
+	return edma_read(cc, offs);
 }
 
 /**
@@ -770,21 +762,15 @@ dma_addr_t edma_get_position(unsigned slot, bool dst)
  *
  * The originating slot should not be part of any active DMA transfer.
  */
-void edma_link(unsigned from, unsigned to)
+void edma_link(struct edma *cc, unsigned from, unsigned to)
 {
-	unsigned ctlr_from, ctlr_to;
-
-	ctlr_from = EDMA_CTLR(from);
 	from = EDMA_CHAN_SLOT(from);
-	ctlr_to = EDMA_CTLR(to);
 	to = EDMA_CHAN_SLOT(to);
+	if (from >= cc->num_slots || to >= cc->num_slots)
+		return;
 
-	if (from >= edma_cc[ctlr_from]->num_slots)
-		return;
-	if (to >= edma_cc[ctlr_to]->num_slots)
-		return;
-	edma_parm_modify(edma_cc[ctlr_from], PARM_LINK_BCNTRLD, from, 0xffff0000,
-				PARM_OFFSET(to));
+	edma_parm_modify(cc, PARM_LINK_BCNTRLD, from, 0xffff0000,
+			 PARM_OFFSET(to));
 }
 EXPORT_SYMBOL(edma_link);
 
@@ -802,16 +788,13 @@ EXPORT_SYMBOL(edma_link);
  * calls to set up those parameters in small pieces, and provides
  * complete control over all transfer options.
  */
-void edma_write_slot(unsigned slot, const struct edmacc_param *param)
+void edma_write_slot(struct edma *cc, unsigned slot,
+		     const struct edmacc_param *param)
 {
-	unsigned ctlr;
-
-	ctlr = EDMA_CTLR(slot);
 	slot = EDMA_CHAN_SLOT(slot);
-
-	if (slot >= edma_cc[ctlr]->num_slots)
+	if (slot >= cc->num_slots)
 		return;
-	memcpy_toio(edma_cc[ctlr]->base + PARM_OFFSET(slot), param, PARM_SIZE);
+	memcpy_toio(cc->base + PARM_OFFSET(slot), param, PARM_SIZE);
 }
 EXPORT_SYMBOL(edma_write_slot);
 
@@ -823,17 +806,12 @@ EXPORT_SYMBOL(edma_write_slot);
  * Use this to read data from a parameter RAM slot, perhaps to
  * save them as a template for later reuse.
  */
-void edma_read_slot(unsigned slot, struct edmacc_param *param)
+void edma_read_slot(struct edma *cc, unsigned slot, struct edmacc_param *param)
 {
-	unsigned ctlr;
-
-	ctlr = EDMA_CTLR(slot);
 	slot = EDMA_CHAN_SLOT(slot);
-
-	if (slot >= edma_cc[ctlr]->num_slots)
+	if (slot >= cc->num_slots)
 		return;
-	memcpy_fromio(param, edma_cc[ctlr]->base + PARM_OFFSET(slot),
-		      PARM_SIZE);
+	memcpy_fromio(param, cc->base + PARM_OFFSET(slot), PARM_SIZE);
 }
 EXPORT_SYMBOL(edma_read_slot);
 
@@ -848,18 +826,19 @@ EXPORT_SYMBOL(edma_read_slot);
  * This temporarily disables EDMA hardware events on the specified channel,
  * preventing them from triggering new transfers on its behalf
  */
-void edma_pause(unsigned channel)
+void edma_pause(struct edma *cc, unsigned channel)
 {
-	unsigned ctlr;
-
-	ctlr = EDMA_CTLR(channel);
+	if (cc->id != EDMA_CTLR(channel)) {
+		dev_err(cc->dev, "%s: ID mismatch for eDMA%d: %d\n", __func__,
+			cc->id, EDMA_CTLR(channel));
+		return;
+	}
 	channel = EDMA_CHAN_SLOT(channel);
 
-	if (channel < edma_cc[ctlr]->num_channels) {
+	if (channel < cc->num_channels) {
 		unsigned int mask = BIT(channel & 0x1f);
 
-		edma_shadow0_write_array(edma_cc[ctlr], SH_EECR, channel >> 5,
-					 mask);
+		edma_shadow0_write_array(cc, SH_EECR, channel >> 5, mask);
 	}
 }
 EXPORT_SYMBOL(edma_pause);
@@ -870,36 +849,39 @@ EXPORT_SYMBOL(edma_pause);
  *
  * This re-enables EDMA hardware events on the specified channel.
  */
-void edma_resume(unsigned channel)
+void edma_resume(struct edma *cc, unsigned channel)
 {
-	unsigned ctlr;
-
-	ctlr = EDMA_CTLR(channel);
+	if (cc->id != EDMA_CTLR(channel)) {
+		dev_err(cc->dev, "%s: ID mismatch for eDMA%d: %d\n", __func__,
+			cc->id, EDMA_CTLR(channel));
+		return;
+	}
 	channel = EDMA_CHAN_SLOT(channel);
 
-	if (channel < edma_cc[ctlr]->num_channels) {
+	if (channel < cc->num_channels) {
 		unsigned int mask = BIT(channel & 0x1f);
 
-		edma_shadow0_write_array(edma_cc[ctlr], SH_EESR, channel >> 5,
-					 mask);
+		edma_shadow0_write_array(cc, SH_EESR, channel >> 5, mask);
 	}
 }
 EXPORT_SYMBOL(edma_resume);
 
-int edma_trigger_channel(unsigned channel)
+int edma_trigger_channel(struct edma *cc, unsigned channel)
 {
-	unsigned ctlr;
 	unsigned int mask;
 
-	ctlr = EDMA_CTLR(channel);
+	if (cc->id != EDMA_CTLR(channel)) {
+		dev_err(cc->dev, "%s: ID mismatch for eDMA%d: %d\n", __func__,
+			cc->id, EDMA_CTLR(channel));
+		return -EINVAL;
+	}
 	channel = EDMA_CHAN_SLOT(channel);
 	mask = BIT(channel & 0x1f);
 
-	edma_shadow0_write_array(edma_cc[ctlr], SH_ESR, (channel >> 5), mask);
+	edma_shadow0_write_array(cc, SH_ESR, (channel >> 5), mask);
 
 	pr_debug("EDMA: ESR%d %08x\n", (channel >> 5),
-		 edma_shadow0_read_array(edma_cc[ctlr], SH_ESR,
-					 (channel >> 5)));
+		 edma_shadow0_read_array(cc, SH_ESR, (channel >> 5)));
 	return 0;
 }
 EXPORT_SYMBOL(edma_trigger_channel);
@@ -915,15 +897,16 @@ EXPORT_SYMBOL(edma_trigger_channel);
  *
  * Returns zero on success, else negative errno.
  */
-int edma_start(unsigned channel)
+int edma_start(struct edma *cc, unsigned channel)
 {
-	unsigned ctlr;
-
-	ctlr = EDMA_CTLR(channel);
+	if (cc->id != EDMA_CTLR(channel)) {
+		dev_err(cc->dev, "%s: ID mismatch for eDMA%d: %d\n", __func__,
+			cc->id, EDMA_CTLR(channel));
+		return -EINVAL;
+	}
 	channel = EDMA_CHAN_SLOT(channel);
 
-	if (channel < edma_cc[ctlr]->num_channels) {
-		struct edma *cc = edma_cc[ctlr];
+	if (channel < cc->num_channels) {
 		int j = channel >> 5;
 		unsigned int mask = BIT(channel & 0x1f);
 
@@ -962,15 +945,16 @@ EXPORT_SYMBOL(edma_start);
  * may not be resumed, and the channel's Parameter RAM should be
  * reinitialized before being reused.
  */
-void edma_stop(unsigned channel)
+void edma_stop(struct edma *cc, unsigned channel)
 {
-	unsigned ctlr;
-
-	ctlr = EDMA_CTLR(channel);
+	if (cc->id != EDMA_CTLR(channel)) {
+		dev_err(cc->dev, "%s: ID mismatch for eDMA%d: %d\n", __func__,
+			cc->id, EDMA_CTLR(channel));
+		return;
+	}
 	channel = EDMA_CHAN_SLOT(channel);
 
-	if (channel < edma_cc[ctlr]->num_channels) {
-		struct edma *cc = edma_cc[ctlr];
+	if (channel < cc->num_channels) {
 		int j = channel >> 5;
 		unsigned int mask = BIT(channel & 0x1f);
 
@@ -1005,15 +989,16 @@ EXPORT_SYMBOL(edma_stop);
  *
  *****************************************************************************/
 
-void edma_clean_channel(unsigned channel)
+void edma_clean_channel(struct edma *cc, unsigned channel)
 {
-	unsigned ctlr;
-
-	ctlr = EDMA_CTLR(channel);
+	if (cc->id != EDMA_CTLR(channel)) {
+		dev_err(cc->dev, "%s: ID mismatch for eDMA%d: %d\n", __func__,
+			cc->id, EDMA_CTLR(channel));
+		return;
+	}
 	channel = EDMA_CHAN_SLOT(channel);
 
-	if (channel < edma_cc[ctlr]->num_channels) {
-		struct edma *cc = edma_cc[ctlr];
+	if (channel < cc->num_channels) {
 		int j = (channel >> 5);
 		unsigned int mask = BIT(channel & 0x1f);
 
@@ -1037,25 +1022,34 @@ EXPORT_SYMBOL(edma_clean_channel);
  *
  * Can be used to move a channel to a selected event queue.
  */
-void edma_assign_channel_eventq(unsigned channel, enum dma_event_q eventq_no)
+void edma_assign_channel_eventq(struct edma *cc, unsigned channel,
+				enum dma_event_q eventq_no)
 {
-	unsigned ctlr;
-
-	ctlr = EDMA_CTLR(channel);
+	if (cc->id != EDMA_CTLR(channel)) {
+		dev_err(cc->dev, "%s: ID mismatch for eDMA%d: %d\n", __func__,
+			cc->id, EDMA_CTLR(channel));
+		return;
+	}
 	channel = EDMA_CHAN_SLOT(channel);
 
-	if (channel >= edma_cc[ctlr]->num_channels)
+	if (channel >= cc->num_channels)
 		return;
 
 	/* default to low priority queue */
 	if (eventq_no == EVENTQ_DEFAULT)
-		eventq_no = edma_cc[ctlr]->default_queue;
-	if (eventq_no >= edma_cc[ctlr]->num_tc)
+		eventq_no = cc->default_queue;
+	if (eventq_no >= cc->num_tc)
 		return;
 
-	map_dmach_queue(edma_cc[ctlr], channel, eventq_no);
+	map_dmach_queue(cc, channel, eventq_no);
 }
 EXPORT_SYMBOL(edma_assign_channel_eventq);
+
+struct edma *edma_get_data(struct device *edma_dev)
+{
+	return dev_get_drvdata(edma_dev);
+}
+
 
 static int edma_setup_from_hw(struct device *dev, struct edma_soc_info *pdata,
 			      struct edma *edma_cc, int cc_id)
@@ -1278,11 +1272,10 @@ static int edma_probe(struct platform_device *pdev)
 		}
 	}
 
-	edma_cc[dev_id] = devm_kzalloc(dev, sizeof(struct edma), GFP_KERNEL);
-	if (!edma_cc[dev_id])
+	cc = devm_kzalloc(dev, sizeof(struct edma), GFP_KERNEL);
+	if (!cc)
 		return -ENOMEM;
 
-	cc = edma_cc[dev_id];
 	cc->dev = dev;
 	cc->id = dev_id;
 	dev_set_drvdata(dev, cc);

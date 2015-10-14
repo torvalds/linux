@@ -92,32 +92,40 @@ enum dma_event_q {
 
 #define EDMA_MAX_CC               2
 
+struct edma;
+
+struct edma *edma_get_data(struct device *edma_dev);
+
 /* alloc/free DMA channels and their dedicated parameter RAM slots */
-int edma_alloc_channel(int channel,
+int edma_alloc_channel(struct edma *cc, int channel,
 	void (*callback)(unsigned channel, u16 ch_status, void *data),
 	void *data, enum dma_event_q);
-void edma_free_channel(unsigned channel);
+void edma_free_channel(struct edma *cc, unsigned channel);
 
 /* alloc/free parameter RAM slots */
-int edma_alloc_slot(unsigned ctlr, int slot);
-void edma_free_slot(unsigned slot);
+int edma_alloc_slot(struct edma *cc, int slot);
+void edma_free_slot(struct edma *cc, unsigned slot);
 
 /* calls that operate on part of a parameter RAM slot */
-dma_addr_t edma_get_position(unsigned slot, bool dst);
-void edma_link(unsigned from, unsigned to);
+dma_addr_t edma_get_position(struct edma *cc, unsigned slot, bool dst);
+void edma_link(struct edma *cc, unsigned from, unsigned to);
 
 /* calls that operate on an entire parameter RAM slot */
-void edma_write_slot(unsigned slot, const struct edmacc_param *params);
-void edma_read_slot(unsigned slot, struct edmacc_param *params);
+void edma_write_slot(struct edma *cc, unsigned slot,
+		     const struct edmacc_param *params);
+void edma_read_slot(struct edma *cc, unsigned slot,
+		    struct edmacc_param *params);
 
 /* channel control operations */
-int edma_start(unsigned channel);
-void edma_stop(unsigned channel);
-void edma_clean_channel(unsigned channel);
-void edma_pause(unsigned channel);
-void edma_resume(unsigned channel);
+int edma_start(struct edma *cc, unsigned channel);
+void edma_stop(struct edma *cc, unsigned channel);
+void edma_clean_channel(struct edma *cc, unsigned channel);
+void edma_pause(struct edma *cc, unsigned channel);
+void edma_resume(struct edma *cc, unsigned channel);
+int edma_trigger_channel(struct edma *cc, unsigned channel);
 
-void edma_assign_channel_eventq(unsigned channel, enum dma_event_q eventq_no);
+void edma_assign_channel_eventq(struct edma *cc, unsigned channel,
+				enum dma_event_q eventq_no);
 
 struct edma_rsv_info {
 
@@ -140,7 +148,5 @@ struct edma_soc_info {
 	s8	(*queue_priority_mapping)[2];
 	const s16	(*xbar_chans)[2];
 };
-
-int edma_trigger_channel(unsigned);
 
 #endif
