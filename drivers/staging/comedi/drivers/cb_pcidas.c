@@ -72,10 +72,6 @@
 
 #define AI_BUFFER_SIZE		1024	/* max ai fifo size */
 #define AO_BUFFER_SIZE		1024	/* max ao fifo size */
-#define NUM_CHANNELS_8800	8
-#define NUM_CHANNELS_7376	1
-#define NUM_CHANNELS_8402	2
-#define NUM_CHANNELS_DAC08	1
 
 /* Control/Status registers */
 #define INT_ADCFIFO		0	/* INTERRUPT / ADC FIFO register */
@@ -1459,7 +1455,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	s->n_chan = NUM_CHANNELS_8800;
+	s->n_chan = 8;
 	s->maxdata = 0xff;
 	s->insn_write = cb_pcidas_caldac_insn_write;
 
@@ -1477,10 +1473,10 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	if (board->trimpot == AD7376) {
-		s->n_chan = NUM_CHANNELS_7376;
+		s->n_chan = 1;
 		s->maxdata = 0x7f;
 	} else {
-		s->n_chan = NUM_CHANNELS_8402;
+		s->n_chan = 2;
 		s->maxdata = 0xff;
 	}
 	s->insn_write = cb_pcidas_trimpot_insn_write;
@@ -1499,7 +1495,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	if (board->has_dac08) {
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		s->n_chan = NUM_CHANNELS_DAC08;
+		s->n_chan = 1;
 		s->maxdata = 0xff;
 		s->insn_write = cb_pcidas_dac08_insn_write;
 
