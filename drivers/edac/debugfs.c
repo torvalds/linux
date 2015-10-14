@@ -98,7 +98,7 @@ int edac_create_debugfs_nodes(struct mem_ctl_info *mci)
 	mci->debugfs = parent;
 	return 0;
 nomem:
-	debugfs_remove(mci->debugfs);
+	edac_debugfs_remove_recursive(mci->debugfs);
 	return -ENOMEM;
 }
 

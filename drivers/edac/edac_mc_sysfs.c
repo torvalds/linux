@@ -976,7 +976,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 	edac_dbg(0, "\n");
 
 #ifdef CONFIG_EDAC_DEBUG
-	debugfs_remove(mci->debugfs);
+	edac_debugfs_remove_recursive(mci->debugfs);
 #endif
 #ifdef CONFIG_EDAC_LEGACY_SYSFS
 	edac_delete_csrow_objects(mci);
