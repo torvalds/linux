@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
 #include <linux/list.h>
+#include <net/ip_fib.h>
 
 #define SWITCHDEV_F_NO_RECURSE		BIT(0)
 #define SWITCHDEV_F_SKIP_EOPNOTSUPP	BIT(1)
@@ -59,8 +60,6 @@ struct switchdev_attr {
 	} u;
 };
 
-struct fib_info;
-
 enum switchdev_obj_id {
 	SWITCHDEV_OBJ_ID_UNDEFINED,
 	SWITCHDEV_OBJ_ID_PORT_VLAN,
@@ -88,7 +87,7 @@ struct switchdev_obj_ipv4_fib {
 	struct switchdev_obj obj;
 	u32 dst;
 	int dst_len;
-	struct fib_info *fi;
+	struct fib_info fi;
 	u8 tos;
 	u8 type;
 	u32 nlflags;
@@ -101,7 +100,7 @@ struct switchdev_obj_ipv4_fib {
 /* SWITCHDEV_OBJ_ID_PORT_FDB */
 struct switchdev_obj_port_fdb {
 	struct switchdev_obj obj;
-	const unsigned char *addr;
+	unsigned char addr[ETH_ALEN];
 	u16 vid;
 	u16 ndm_state;
 };
