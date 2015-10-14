@@ -1798,6 +1798,66 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	return iwl_pcie_send_hcmd_sync(trans, cmd);
 }
 
+static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
+			     struct iwl_txq *txq, u8 hdr_len,
+			     struct iwl_cmd_meta *out_meta,
+			     struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+{
+	struct iwl_queue *q = &txq->q;
+	u16 tb2_len;
+	int i;
+
+	/*
+	 * Set up TFD's third entry to point directly to remainder
+	 * of skb's head, if any
+	 */
+	tb2_len = skb_headlen(skb) - hdr_len;
+
+	if (tb2_len > 0) {
+		dma_addr_t tb2_phys = dma_map_single(trans->dev,
+						     skb->data + hdr_len,
+						     tb2_len, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(trans->dev, tb2_phys))) {
+			iwl_pcie_tfd_unmap(trans, out_meta,
+					   &txq->tfds[q->write_ptr]);
+			return -EINVAL;
+		}
+		iwl_pcie_txq_build_tfd(trans, txq, tb2_phys, tb2_len, false);
+	}
+
+	/* set up the remaining entries to point to the data */
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		dma_addr_t tb_phys;
+		int tb_idx;
+
+		if (!skb_frag_size(frag))
+			continue;
+
+		tb_phys = skb_frag_dma_map(trans->dev, frag, 0,
+					   skb_frag_size(frag), DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
+			iwl_pcie_tfd_unmap(trans, out_meta,
+					   &txq->tfds[q->write_ptr]);
+			return -EINVAL;
+		}
+		tb_idx = iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
+						skb_frag_size(frag), false);
+
+		out_meta->flags |= BIT(tb_idx + CMD_TB_BITMAP_POS);
+	}
+
+	trace_iwlwifi_dev_tx(trans->dev, skb,
+			     &txq->tfds[txq->q.write_ptr],
+			     sizeof(struct iwl_tfd),
+			     &dev_cmd->hdr, IWL_HCMD_SCRATCHBUF_SIZE + tb1_len,
+			     skb->data + hdr_len, tb2_len);
+	trace_iwlwifi_dev_tx_data(trans->dev, skb,
+				  hdr_len, skb->len - hdr_len);
+	return 0;
+}
+
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_cmd *dev_cmd, int txq_id)
 {
@@ -1809,12 +1869,11 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	struct iwl_queue *q;
 	dma_addr_t tb0_phys, tb1_phys, scratch_phys;
 	void *tb1_addr;
-	u16 len, tb1_len, tb2_len;
+	u16 len, tb1_len;
 	bool wait_write_ptr;
 	__le16 fc;
 	u8 hdr_len;
 	u16 wifi_seq;
-	int i;
 
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
@@ -1910,56 +1969,12 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		goto out_err;
 	iwl_pcie_txq_build_tfd(trans, txq, tb1_phys, tb1_len, false);
 
-	/*
-	 * Set up TFD's third entry to point directly to remainder
-	 * of skb's head, if any
-	 */
-	tb2_len = skb_headlen(skb) - hdr_len;
-	if (tb2_len > 0) {
-		dma_addr_t tb2_phys = dma_map_single(trans->dev,
-						     skb->data + hdr_len,
-						     tb2_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, tb2_phys))) {
-			iwl_pcie_tfd_unmap(trans, out_meta,
-					   &txq->tfds[q->write_ptr]);
-			goto out_err;
-		}
-		iwl_pcie_txq_build_tfd(trans, txq, tb2_phys, tb2_len, false);
-	}
-
-	/* set up the remaining entries to point to the data */
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		dma_addr_t tb_phys;
-		int tb_idx;
-
-		if (!skb_frag_size(frag))
-			continue;
-
-		tb_phys = skb_frag_dma_map(trans->dev, frag, 0,
-					   skb_frag_size(frag), DMA_TO_DEVICE);
-
-		if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
-			iwl_pcie_tfd_unmap(trans, out_meta,
-					   &txq->tfds[q->write_ptr]);
-			goto out_err;
-		}
-		tb_idx = iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
-						skb_frag_size(frag), false);
-
-		out_meta->flags |= BIT(tb_idx + CMD_TB_BITMAP_POS);
-	}
+	if (unlikely(iwl_fill_data_tbs(trans, skb, txq, hdr_len,
+				       out_meta, dev_cmd, tb1_len)))
+		goto out_err;
 
 	/* Set up entry for this TFD in Tx byte-count array */
 	iwl_pcie_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));
-
-	trace_iwlwifi_dev_tx(trans->dev, skb,
-			     &txq->tfds[txq->q.write_ptr],
-			     sizeof(struct iwl_tfd),
-			     &dev_cmd->hdr, IWL_HCMD_SCRATCHBUF_SIZE + tb1_len,
-			     skb->data + hdr_len, tb2_len);
-	trace_iwlwifi_dev_tx_data(trans->dev, skb,
-				  hdr_len, skb->len - hdr_len);
 
 	wait_write_ptr = ieee80211_has_morefrags(fc);
 
