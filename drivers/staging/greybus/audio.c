@@ -341,13 +341,14 @@ static int gb_i2s_mgmt_report_event_recv(u8 type, struct gb_operation *op)
 	char *event_name;
 
 	if (type != GB_I2S_MGMT_TYPE_REPORT_EVENT) {
-		dev_err(&connection->dev, "Invalid request type: %d\n",
+		dev_err(&connection->bundle->dev, "Invalid request type: %d\n",
 			type);
 		return -EINVAL;
 	}
 
 	if (op->request->payload_size < sizeof(*req)) {
-		dev_err(&connection->dev, "Short request received (%zu < %zu)\n",
+		dev_err(&connection->bundle->dev,
+			"Short request received (%zu < %zu)\n",
 			op->request->payload_size, sizeof(*req));
 		return -EINVAL;
 	}
@@ -385,12 +386,12 @@ static int gb_i2s_mgmt_report_event_recv(u8 type, struct gb_operation *op)
 		event_name = "DATA_LEN";
 		break;
 	default:
-		dev_warn(&connection->dev, "Unknown I2S Event received: %d\n",
-			 req->event);
+		dev_warn(&connection->bundle->dev,
+			 "Unknown I2S Event received: %d\n", req->event);
 		return -EINVAL;
 	}
 
-	dev_warn(&connection->dev, "I2S Event received: %d - '%s'\n",
+	dev_warn(&connection->bundle->dev, "I2S Event received: %d - '%s'\n",
 		 req->event, event_name);
 
 	return 0;
