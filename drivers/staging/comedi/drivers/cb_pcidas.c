@@ -634,18 +634,12 @@ static void cb_pcidas_trimpot_write(struct comedi_device *dev,
 {
 	const struct cb_pcidas_board *board = dev->board_ptr;
 
-	switch (board->trimpot) {
-	case AD7376:
+	if (board->trimpot == AD7376) {
 		/* write 7-bit value to trimpot */
 		cb_pcidas_calib_write(dev, val, 7, true);
-		break;
-	case AD8402:
+	} else {	/* AD8402 */
 		/* write 10-bit channel/value to trimpot */
 		cb_pcidas_calib_write(dev, (chan << 8) | val, 10, true);
-		break;
-	default:
-		dev_err(dev->class_dev, "driver bug?\n");
-		break;
 	}
 }
 
