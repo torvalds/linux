@@ -59,7 +59,7 @@ static void *alloc_qos_entry(void)
 
 static void free_qos_entry(void *entry)
 {
-	struct qos_entry_s *qentry = (struct qos_entry_s *)entry;
+	struct qos_entry_s *qentry = entry;
 	unsigned long flags;
 
 	spin_lock_irqsave(&qos_free_list.lock, flags);

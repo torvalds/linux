@@ -339,7 +339,7 @@ static void gdm_wimax_ind_if_updown(struct net_device *dev, int if_up)
 static int gdm_wimax_open(struct net_device *dev)
 {
 	struct nic *nic = netdev_priv(dev);
-	struct fsm_s *fsm = (struct fsm_s *)nic->sdk_data[SIOC_DATA_FSM].buf;
+	struct fsm_s *fsm = nic->sdk_data[SIOC_DATA_FSM].buf;
 
 	netif_start_queue(dev);
 
@@ -351,7 +351,7 @@ static int gdm_wimax_open(struct net_device *dev)
 static int gdm_wimax_close(struct net_device *dev)
 {
 	struct nic *nic = netdev_priv(dev);
-	struct fsm_s *fsm = (struct fsm_s *)nic->sdk_data[SIOC_DATA_FSM].buf;
+	struct fsm_s *fsm = nic->sdk_data[SIOC_DATA_FSM].buf;
 
 	netif_stop_queue(dev);
 
@@ -378,7 +378,7 @@ static int gdm_wimax_ioctl_get_data(struct data_s *dst, struct data_s *src)
 	if (src->size) {
 		if (!dst->buf)
 			return -EINVAL;
-		if (copy_to_user((void __user *)dst->buf, src->buf, size))
+		if (copy_to_user(dst->buf, src->buf, size))
 			return -EFAULT;
 	}
 	return 0;
@@ -401,7 +401,7 @@ static int gdm_wimax_ioctl_set_data(struct data_s *dst, struct data_s *src)
 			return -ENOMEM;
 	}
 
-	if (copy_from_user(dst->buf, (void __user *)src->buf, src->size)) {
+	if (copy_from_user(dst->buf, src->buf, src->size)) {
 		kdelete(&dst->buf);
 		return -EFAULT;
 	}
@@ -435,7 +435,7 @@ static void gdm_wimax_ind_fsm_update(struct net_device *dev, struct fsm_s *fsm)
 static void gdm_update_fsm(struct net_device *dev, struct fsm_s *new_fsm)
 {
 	struct nic *nic = netdev_priv(dev);
-	struct fsm_s *cur_fsm = (struct fsm_s *)
+	struct fsm_s *cur_fsm =
 					nic->sdk_data[SIOC_DATA_FSM].buf;
 
 	if (!cur_fsm)
@@ -483,7 +483,7 @@ static int gdm_wimax_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				 * before gdm_wimax_ioctl_set_data is called.
 				 */
 				gdm_update_fsm(dev,
-					       (struct fsm_s *)req->data.buf);
+					       req->data.buf);
 			}
 			ret = gdm_wimax_ioctl_set_data(
 				&nic->sdk_data[req->data_id], &req->data);
@@ -798,7 +798,7 @@ cleanup:
 void unregister_wimax_device(struct phy_dev *phy_dev)
 {
 	struct nic *nic = netdev_priv(phy_dev->netdev);
-	struct fsm_s *fsm = (struct fsm_s *)nic->sdk_data[SIOC_DATA_FSM].buf;
+	struct fsm_s *fsm = nic->sdk_data[SIOC_DATA_FSM].buf;
 
 	if (fsm)
 		fsm->m_status = M_INIT;
