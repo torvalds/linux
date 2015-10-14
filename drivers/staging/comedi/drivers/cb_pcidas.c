@@ -1106,7 +1106,8 @@ static int cb_pcidas_ao_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
+static void cb_pcidas_ao_interrupt(struct comedi_device *dev,
+				   unsigned int status)
 {
 	const struct cb_pcidas_board *board = dev->board_ptr;
 	struct cb_pcidas_private *devpriv = dev->private;
@@ -1178,7 +1179,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 
 	/*  check for analog output interrupt */
 	if (status & (PCIDAS_CTRL_DAHFI | PCIDAS_CTRL_DAEMI))
-		handle_ao_interrupt(dev, status);
+		cb_pcidas_ao_interrupt(dev, status);
 	/*  check for analog input interrupts */
 	/*  if fifo half-full */
 	if (status & PCIDAS_CTRL_ADHFI) {
