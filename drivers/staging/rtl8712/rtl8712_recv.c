@@ -158,7 +158,7 @@ int r8712_free_recvframe(union recv_frame *precvframe,
 static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 					   struct recv_stat *prxstat)
 {
-	u16 drvinfo_sz = 0;
+	u16 drvinfo_sz;
 
 	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0)&0x000f0000)>>16;
 	drvinfo_sz <<= 3;
