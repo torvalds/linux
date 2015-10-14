@@ -176,8 +176,8 @@ static int gb_raw_connection_init(struct gb_connection *connection)
 	if (retval)
 		goto error_cdev;
 
-	raw->device = device_create(raw_class, &connection->dev, raw->dev, raw,
-				    "gb!raw%d", minor);
+	raw->device = device_create(raw_class, &connection->bundle->dev,
+				    raw->dev, raw, "gb!raw%d", minor);
 	if (IS_ERR(raw->device)) {
 		retval = PTR_ERR(raw->device);
 		goto error_device;
