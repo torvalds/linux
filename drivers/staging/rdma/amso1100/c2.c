@@ -548,7 +548,7 @@ static irqreturn_t c2_interrupt(int irq, void *dev_id)
 {
 	unsigned int netisr0, dmaisr;
 	int handled = 0;
-	struct c2_dev *c2dev = (struct c2_dev *) dev_id;
+	struct c2_dev *c2dev = dev_id;
 
 	/* Process CCILNET interrupts */
 	netisr0 = readl(c2dev->regs + C2_NISR0);
