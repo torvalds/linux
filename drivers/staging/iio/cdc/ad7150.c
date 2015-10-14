@@ -179,12 +179,9 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev,
 		/* Note completely different from the adaptive versions */
 	case IIO_EV_TYPE_THRESH:
 		value = chip->threshold[rising][chan];
-		ret = i2c_smbus_write_word_data(chip->client,
+		return i2c_smbus_write_word_data(chip->client,
 						ad7150_addresses[chan][3],
 						swab16(value));
-		if (ret < 0)
-			return ret;
-		return 0;
 	case IIO_EV_TYPE_MAG_ADAPTIVE:
 		sens = chip->mag_sensitivity[rising][chan];
 		timeout = chip->mag_timeout[rising][chan];
