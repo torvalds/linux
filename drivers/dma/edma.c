@@ -991,14 +991,12 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 	INIT_LIST_HEAD(&dma->channels);
 }
 
-static struct of_dma_filter_info edma_filter_info = {
-	.filter_fn = edma_filter_fn,
-};
-
 static int edma_probe(struct platform_device *pdev)
 {
 	struct edma_cc *ecc;
 	struct device_node *parent_node = pdev->dev.parent->of_node;
+	struct platform_device *parent_pdev =
+					to_platform_device(pdev->dev.parent);
 	int ret;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -1015,7 +1013,10 @@ static int edma_probe(struct platform_device *pdev)
 	if (!ecc->cc)
 		return -ENODEV;
 
-	ecc->ctlr = pdev->id;
+	ecc->ctlr = parent_pdev->id;
+	if (ecc->ctlr < 0)
+		ecc->ctlr = 0;
+
 	ecc->dummy_slot = edma_alloc_slot(ecc->cc, EDMA_SLOT_ANY);
 	if (ecc->dummy_slot < 0) {
 		dev_err(&pdev->dev, "Can't allocate PaRAM dummy slot\n");
@@ -1038,10 +1039,8 @@ static int edma_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ecc);
 
 	if (parent_node) {
-		dma_cap_set(DMA_SLAVE, edma_filter_info.dma_cap);
-		dma_cap_set(DMA_CYCLIC, edma_filter_info.dma_cap);
-		of_dma_controller_register(parent_node, of_dma_simple_xlate,
-					   &edma_filter_info);
+		of_dma_controller_register(parent_node, of_dma_xlate_by_chan_id,
+					   &ecc->dma_slave);
 	}
 
 	dev_info(&pdev->dev, "TI EDMA DMA engine driver\n");

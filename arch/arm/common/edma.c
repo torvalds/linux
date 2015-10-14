@@ -1227,24 +1227,7 @@ static int edma_probe(struct platform_device *pdev)
 		.parent = &pdev->dev,
 	};
 
-	/* When booting with DT the pdev->id is -1 */
-	if (dev_id < 0)
-		dev_id = arch_num_cc;
-
-	if (dev_id >= EDMA_MAX_CC) {
-		dev_err(dev,
-			"eDMA3 with device id 0 and 1 is supported (id: %d)\n",
-			dev_id);
-		return -EINVAL;
-	}
-
 	if (node) {
-		/* Check if this is a second instance registered */
-		if (arch_num_cc) {
-			dev_err(dev, "only one EDMA instance is supported via DT\n");
-			return -ENODEV;
-		}
-
 		info = edma_setup_info_from_dt(dev, node);
 		if (IS_ERR(info)) {
 			dev_err(dev, "failed to get DT data\n");
@@ -1278,6 +1261,11 @@ static int edma_probe(struct platform_device *pdev)
 
 	cc->dev = dev;
 	cc->id = dev_id;
+	/* When booting with DT the pdev->id is -1 */
+	if (dev_id < 0) {
+		cc->id = 0;
+		dev_id = arch_num_cc;
+	}
 	dev_set_drvdata(dev, cc);
 
 	cc->base = devm_ioremap_resource(dev, mem);
