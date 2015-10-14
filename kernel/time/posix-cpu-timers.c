@@ -1117,17 +1117,12 @@ static inline int task_cputime_expired(const struct task_cputime *sample,
 static inline int fastpath_timer_check(struct task_struct *tsk)
 {
 	struct signal_struct *sig;
-	cputime_t utime, stime;
-
-	task_cputime(tsk, &utime, &stime);
 
 	if (!task_cputime_zero(&tsk->cputime_expires)) {
-		struct task_cputime task_sample = {
-			.utime = utime,
-			.stime = stime,
-			.sum_exec_runtime = tsk->se.sum_exec_runtime
-		};
+		struct task_cputime task_sample;
 
+		task_cputime(tsk, &task_sample.utime, &task_sample.stime);
+		task_sample.sum_exec_runtime = tsk->se.sum_exec_runtime;
 		if (task_cputime_expired(&task_sample, &tsk->cputime_expires))
 			return 1;
 	}
