@@ -26,13 +26,13 @@
 		compatible = "gpio-leds";
 		led1 {
 			label = "led1:heart";
-			gpios = <&gpc1 0 1>;
+			gpios = <&gpc1 0 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 		led2 {
 			label = "led2:mmc0";
-			gpios = <&gpc1 2 1>;
+			gpios = <&gpc1 2 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 			linux,default-trigger = "mmc0";
 		};
@@ -44,7 +44,7 @@
 		home_key {
 			interrupt-parent = <&gpx2>;
 			interrupts = <2 0>;
-			gpios = <&gpx2 2 0>;
+			gpios = <&gpx2 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_HOME>;
 			label = "home key";
 			debounce-interval = <10>;
@@ -57,7 +57,7 @@
 		regulator-name = "p3v3_en";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpa1 1 1>;
+		gpio = <&gpa1 1 GPIO_ACTIVE_LOW>;
 		enable-active-high;
 		regulator-always-on;
 	};

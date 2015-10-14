@@ -16,6 +16,7 @@
 
 /dts-v1/;
 #include "exynos4210.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 
 / {
@@ -45,7 +46,7 @@
 			regulator-name = "VMEM_VDD_2.8V";
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
-			gpio = <&gpx1 1 0>;
+			gpio = <&gpx1 1 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -57,35 +58,35 @@
 
 		up {
 			label = "Up";
-			gpios = <&gpx2 0 1>;
+			gpios = <&gpx2 0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_UP>;
 			gpio-key,wakeup;
 		};
 
 		down {
 			label = "Down";
-			gpios = <&gpx2 1 1>;
+			gpios = <&gpx2 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_DOWN>;
 			gpio-key,wakeup;
 		};
 
 		back {
 			label = "Back";
-			gpios = <&gpx1 7 1>;
+			gpios = <&gpx1 7 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_BACK>;
 			gpio-key,wakeup;
 		};
 
 		home {
 			label = "Home";
-			gpios = <&gpx1 6 1>;
+			gpios = <&gpx1 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
 			gpio-key,wakeup;
 		};
 
 		menu {
 			label = "Menu";
-			gpios = <&gpx1 5 1>;
+			gpios = <&gpx1 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_MENU>;
 			gpio-key,wakeup;
 		};
@@ -94,7 +95,7 @@
 	leds {
 		compatible = "gpio-leds";
 		status {
-			gpios = <&gpx1 3 1>;
+			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
