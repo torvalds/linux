@@ -31,17 +31,14 @@
 /* Slave spi_dev related */
 struct chip_data {
 	u8 cs;			/* chip select pin */
-	u8 n_bytes;		/* current is a 1/2/4 byte op */
 	u8 tmode;		/* TR/TO/RO/EEPROM */
 	u8 type;		/* SPI/SSP/MicroWire */
 
 	u8 poll_mode;		/* 1 means use poll mode */
 
-	u32 dma_width;
 	u32 rx_threshold;
 	u32 tx_threshold;
 	u8 enable_dma;
-	u8 bits_per_word;
 	u16 clk_div;		/* baud rate divider */
 	u32 speed_hz;		/* baud rate */
 	void (*cs_control)(u32 command);
@@ -294,8 +291,6 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	int ret;
 
 	dws->dma_mapped = 0;
-	dws->n_bytes = chip->n_bytes;
-	dws->dma_width = chip->dma_width;
 
 	dws->tx = (void *)transfer->tx_buf;
 	dws->tx_end = dws->tx + transfer->len;
@@ -324,6 +319,8 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	} else if (transfer->bits_per_word == 16) {
 		dws->n_bytes = 2;
 		dws->dma_width = 2;
+	} else {
+		return -EINVAL;
 	}
 	/* Default SPI mode is SCPOL = 0, SCPH = 0 */
 	cr0 = (transfer->bits_per_word - 1)
@@ -436,15 +433,6 @@ static int dw_spi_setup(struct spi_device *spi)
 		chip->rx_threshold = 0;
 		chip->tx_threshold = 0;
 	}
-
-	if (spi->bits_per_word == 8) {
-		chip->n_bytes = 1;
-		chip->dma_width = 1;
-	} else if (spi->bits_per_word == 16) {
-		chip->n_bytes = 2;
-		chip->dma_width = 2;
-	}
-	chip->bits_per_word = spi->bits_per_word;
 
 	chip->tmode = 0; /* Tx & Rx */
 
