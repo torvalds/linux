@@ -1036,8 +1036,10 @@ int rsnd_src_probe(struct platform_device *pdev,
 	int i, nr, ret;
 
 	ops = NULL;
-	if (rsnd_is_gen1(priv))
+	if (rsnd_is_gen1(priv)) {
 		ops = &rsnd_src_gen1_ops;
+		dev_warn(dev, "Gen1 support will be removed soon\n");
+	}
 	if (rsnd_is_gen2(priv))
 		ops = &rsnd_src_gen2_ops;
 	if (!ops) {
