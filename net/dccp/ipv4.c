@@ -828,7 +828,7 @@ lookup:
 		if (likely(sk->sk_state == DCCP_LISTEN)) {
 			nsk = dccp_check_req(sk, skb, req);
 		} else {
-			inet_csk_reqsk_queue_drop(sk, req);
+			inet_csk_reqsk_queue_drop_and_put(sk, req);
 			goto lookup;
 		}
 		if (!nsk) {

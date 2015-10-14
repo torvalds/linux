@@ -546,6 +546,13 @@ void inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req)
 }
 EXPORT_SYMBOL(inet_csk_reqsk_queue_drop);
 
+void inet_csk_reqsk_queue_drop_and_put(struct sock *sk, struct request_sock *req)
+{
+	inet_csk_reqsk_queue_drop(sk, req);
+	reqsk_put(req);
+}
+EXPORT_SYMBOL(inet_csk_reqsk_queue_drop_and_put);
+
 static void reqsk_timer_handler(unsigned long data)
 {
 	struct request_sock *req = (struct request_sock *)data;
@@ -608,8 +615,7 @@ static void reqsk_timer_handler(unsigned long data)
 		return;
 	}
 drop:
-	inet_csk_reqsk_queue_drop(sk_listener, req);
-	reqsk_put(req);
+	inet_csk_reqsk_queue_drop_and_put(sk_listener, req);
 }
 
 static void reqsk_queue_hash_req(struct request_sock *req,

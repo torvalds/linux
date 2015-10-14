@@ -1591,7 +1591,7 @@ process:
 		if (likely(sk->sk_state == TCP_LISTEN)) {
 			nsk = tcp_check_req(sk, skb, req, false);
 		} else {
-			inet_csk_reqsk_queue_drop(sk, req);
+			inet_csk_reqsk_queue_drop_and_put(sk, req);
 			goto lookup;
 		}
 		if (!nsk) {
