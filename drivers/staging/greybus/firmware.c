@@ -43,7 +43,8 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 		 intf->unipro_mfg_id, intf->unipro_prod_id,
 		 intf->ara_vend_id, intf->ara_prod_id, stage);
 
-	return request_firmware(&firmware->fw, firmware_name, &connection->dev);
+	return request_firmware(&firmware->fw, firmware_name,
+				&connection->bundle->dev);
 }
 
 static int gb_firmware_size_request(struct gb_operation *op)
@@ -52,7 +53,7 @@ static int gb_firmware_size_request(struct gb_operation *op)
 	struct gb_firmware *firmware = connection->private;
 	struct gb_firmware_size_request *size_request = op->request->payload;
 	struct gb_firmware_size_response *size_response;
-	struct device *dev = &connection->dev;
+	struct device *dev = &connection->bundle->dev;
 	int ret;
 
 	if (op->request->payload_size != sizeof(*size_request)) {
@@ -88,7 +89,7 @@ static int gb_firmware_get_firmware(struct gb_operation *op)
 	struct gb_firmware *firmware = connection->private;
 	struct gb_firmware_get_firmware_request *firmware_request = op->request->payload;
 	struct gb_firmware_get_firmware_response *firmware_response;
-	struct device *dev = &connection->dev;
+	struct device *dev = &connection->bundle->dev;
 	unsigned int offset, size;
 
 	if (op->request->payload_size != sizeof(*firmware_request)) {
@@ -122,7 +123,7 @@ static int gb_firmware_ready_to_boot(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_firmware_ready_to_boot_request *rtb_request = op->request->payload;
-	struct device *dev = &connection->dev;
+	struct device *dev = &connection->bundle->dev;
 	u8 status;
 
 	if (op->request->payload_size != sizeof(*rtb_request)) {
@@ -155,7 +156,7 @@ static int gb_firmware_request_recv(u8 type, struct gb_operation *op)
 	case GB_FIRMWARE_TYPE_READY_TO_BOOT:
 		return gb_firmware_ready_to_boot(op);
 	default:
-		dev_err(&op->connection->dev,
+		dev_err(&op->connection->bundle->dev,
 			"unsupported request: %hhu\n", type);
 		return -EINVAL;
 	}
@@ -185,7 +186,7 @@ static int gb_firmware_connection_init(struct gb_connection *connection)
 	ret = gb_operation_sync(connection, GB_FIRMWARE_TYPE_AP_READY, NULL, 0,
 				NULL, 0);
 	if (ret)
-		dev_err(&connection->dev, "Failed to send AP READY (%d)\n", ret);
+		dev_err(&connection->bundle->dev, "Failed to send AP READY (%d)\n", ret);
 
 	return 0;
 }
