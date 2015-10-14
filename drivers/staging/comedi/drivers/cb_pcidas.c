@@ -231,11 +231,11 @@ struct cb_pcidas_board {
 	int ai_speed;		/*  fastest conversion period in ns */
 	int ao_scan_speed;	/*  analog output scan speed for 1602 series */
 	int fifo_size;		/*  number of samples fifo can hold */
-	const struct comedi_lrange *ranges;
 	enum trimpot_model trimpot;
-	unsigned int is_16bit;	/*  ADC/DAC resolution 1=16-bit; 0=12-bit */
-	unsigned int has_ao:1;	/*  has 2 analog output channels */
-	unsigned int has_ao_fifo:1;	/*  analog output has fifo */
+	unsigned int is_16bit;		/* ai/ao is 1=16-bit; 0=12-bit */
+	unsigned int use_alt_range:1;	/* use alternate ai range table */
+	unsigned int has_ao:1;		/* has 2 analog output channels */
+	unsigned int has_ao_fifo:1;	/* analog output has fifo */
 	unsigned int has_dac08:1;
 	unsigned int is_1602:1;
 };
@@ -246,7 +246,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.ai_speed	= 5000,
 		.ao_scan_speed	= 10000,
 		.fifo_size	= 512,
-		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD8402,
 		.is_16bit	= 1,
 		.has_ao		= 1,
@@ -258,7 +257,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1200",
 		.ai_speed	= 3200,
 		.fifo_size	= 1024,
-		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD7376,
 		.has_ao		= 1,
 	},
@@ -267,7 +265,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.ai_speed	= 3200,
 		.ao_scan_speed	= 4000,
 		.fifo_size	= 1024,
-		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD7376,
 		.has_ao		= 1,
 		.has_ao_fifo	= 1,
@@ -277,14 +274,12 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1200/jr",
 		.ai_speed	= 3200,
 		.fifo_size	= 1024,
-		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD7376,
 	},
 	[BOARD_PCIDAS1602_16_JR] = {
 		.name		= "pci-das1602/16/jr",
 		.ai_speed	= 5000,
 		.fifo_size	= 512,
-		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD8402,
 		.is_16bit	= 1,
 		.has_dac08	= 1,
@@ -294,22 +289,20 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1000",
 		.ai_speed	= 4000,
 		.fifo_size	= 1024,
-		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD7376,
 	},
 	[BOARD_PCIDAS1001] = {
 		.name		= "pci-das1001",
 		.ai_speed	= 6800,
 		.fifo_size	= 1024,
-		.ranges		= &cb_pcidas_alt_ranges,
 		.trimpot	= AD7376,
+		.use_alt_range	= 1,
 		.has_ao		= 1,
 	},
 	[BOARD_PCIDAS1002] = {
 		.name		= "pci-das1002",
 		.ai_speed	= 6800,
 		.fifo_size	= 1024,
-		.ranges		= &cb_pcidas_ranges,
 		.trimpot	= AD7376,
 		.has_ao		= 1,
 	},
@@ -1383,7 +1376,8 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->len_chanlist = s->n_chan;
 	s->maxdata = board->is_16bit ? 0xffff : 0x0fff;
-	s->range_table = board->ranges;
+	s->range_table	= board->use_alt_range ? &cb_pcidas_alt_ranges
+					       : &cb_pcidas_ranges;
 	s->insn_read = cb_pcidas_ai_rinsn;
 	s->insn_config = ai_config_insn;
 	s->do_cmd = cb_pcidas_ai_cmd;
