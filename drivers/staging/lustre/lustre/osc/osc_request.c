@@ -2665,7 +2665,7 @@ static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 					       data->ioc_offset);
 		goto out;
 	case OBD_IOC_POLL_QUOTACHECK:
-		err = osc_quota_poll_check(exp, (struct if_quotacheck *)karg);
+		err = osc_quota_poll_check(exp, karg);
 		goto out;
 	case OBD_IOC_PING_TARGET:
 		err = ptlrpc_obd_ping(obd);
@@ -2732,8 +2732,7 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		ptlrpc_req_finished(req);
 		return rc;
 	} else if (KEY_IS(KEY_FIEMAP)) {
-		struct ll_fiemap_info_key *fm_key =
-				(struct ll_fiemap_info_key *)key;
+		struct ll_fiemap_info_key *fm_key = key;
 		struct ldlm_res_id res_id;
 		ldlm_policy_data_t policy;
 		struct lustre_handle lockh;
@@ -2855,7 +2854,7 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		struct client_obd *cli = &obd->u.cli;
 
 		LASSERT(cli->cl_cache == NULL); /* only once */
-		cli->cl_cache = (struct cl_client_cache *)val;
+		cli->cl_cache = val;
 		atomic_inc(&cli->cl_cache->ccc_users);
 		cli->cl_lru_left = &cli->cl_cache->ccc_lru_left;
 
