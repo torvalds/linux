@@ -651,23 +651,15 @@ static const struct snd_soc_component_driver davinci_i2s_component = {
 static int davinci_i2s_probe(struct platform_device *pdev)
 {
 	struct davinci_mcbsp_dev *dev;
-	struct resource *mem, *ioarea, *res;
+	struct resource *mem, *res;
+	void __iomem *io_base;
 	int *dma;
 	int ret;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
-
-	ioarea = devm_request_mem_region(&pdev->dev, mem->start,
-					 resource_size(mem),
-					 pdev->name);
-	if (!ioarea) {
-		dev_err(&pdev->dev, "McBSP region already claimed\n");
-		return -EBUSY;
-	}
+	io_base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(io_base))
+		return PTR_ERR(io_base);
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_mcbsp_dev),
 			   GFP_KERNEL);
@@ -679,12 +671,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		return -ENODEV;
 	clk_enable(dev->clk);
 
-	dev->base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (!dev->base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENOMEM;
-		goto err_release_clk;
-	}
+	dev->base = io_base;
 
 	dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK].addr =
 	    (dma_addr_t)(mem->start + DAVINCI_MCBSP_DXR_REG);

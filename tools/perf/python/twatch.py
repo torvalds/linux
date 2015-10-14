@@ -18,10 +18,20 @@ import perf
 def main():
 	cpus = perf.cpu_map()
 	threads = perf.thread_map()
-	evsel = perf.evsel(task = 1, comm = 1, mmap = 0,
+	evsel = perf.evsel(type	  = perf.TYPE_SOFTWARE,
+			   config = perf.COUNT_SW_DUMMY,
+			   task = 1, comm = 1, mmap = 0, freq = 0,
 			   wakeup_events = 1, watermark = 1,
 			   sample_id_all = 1,
 			   sample_type = perf.SAMPLE_PERIOD | perf.SAMPLE_TID | perf.SAMPLE_CPU)
+
+	"""What we want are just the PERF_RECORD_ lifetime events for threads,
+	 using the default, PERF_TYPE_HARDWARE + PERF_COUNT_HW_CYCLES & freq=1
+	 (the default), makes perf reenable irq_vectors:local_timer_entry, when
+	 disabling nohz, not good for some use cases where all we want is to get
+	 threads comes and goes... So use (perf.TYPE_SOFTWARE, perf_COUNT_SW_DUMMY,
+	 freq=0) instead."""
+
 	evsel.open(cpus = cpus, threads = threads);
 	evlist = perf.evlist(cpus, threads)
 	evlist.add(evsel)

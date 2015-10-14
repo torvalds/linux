@@ -88,8 +88,14 @@ static void adf_dev_restore(struct adf_accel_dev *accel_dev)
 	struct pci_dev *parent = pdev->bus->self;
 	uint16_t bridge_ctl = 0;
 
+	if (accel_dev->is_vf)
+		return;
+
 	dev_info(&GET_DEV(accel_dev), "Resetting device qat_dev%d\n",
 		 accel_dev->accel_id);
+
+	if (!parent)
+		parent = pdev;
 
 	if (!pci_wait_for_pending_transaction(pdev))
 		dev_info(&GET_DEV(accel_dev),
@@ -206,7 +212,7 @@ static struct pci_error_handlers adf_err_handler = {
  * QAT acceleration device accel_dev.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_enable_aer(struct adf_accel_dev *accel_dev, struct pci_driver *adf)
 {

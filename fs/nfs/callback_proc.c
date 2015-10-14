@@ -40,8 +40,11 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR));
 
 	inode = nfs_delegation_find_inode(cps->clp, &args->fh);
-	if (inode == NULL)
+	if (inode == NULL) {
+		trace_nfs4_cb_getattr(cps->clp, &args->fh, NULL,
+				-ntohl(res->status));
 		goto out;
+	}
 	nfsi = NFS_I(inode);
 	rcu_read_lock();
 	delegation = rcu_dereference(nfsi->delegation);
@@ -60,6 +63,7 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 	res->status = 0;
 out_iput:
 	rcu_read_unlock();
+	trace_nfs4_cb_getattr(cps->clp, &args->fh, inode, -ntohl(res->status));
 	iput(inode);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(res->status));
@@ -194,6 +198,7 @@ unlock:
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&free_me_list);
 	pnfs_put_layout_hdr(lo);
+	trace_nfs4_cb_layoutrecall_inode(clp, &args->cbl_fh, ino, -rv);
 	iput(ino);
 out:
 	return rv;
@@ -554,7 +559,7 @@ __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy,
 	status = htonl(NFS4_OK);
 
 	nfs41_set_target_slotid(fc_tbl, args->crsa_target_highest_slotid);
-	nfs41_server_notify_target_slotid_update(cps->clp);
+	nfs41_notify_server(cps->clp);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;

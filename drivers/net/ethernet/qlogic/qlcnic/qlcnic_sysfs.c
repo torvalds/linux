@@ -7,10 +7,6 @@
 
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-
-#include "qlcnic.h"
-#include "qlcnic_hw.h"
-
 #include <linux/swab.h>
 #include <linux/dma-mapping.h>
 #include <net/ip.h>
@@ -23,6 +19,9 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #endif
+
+#include "qlcnic.h"
+#include "qlcnic_hw.h"
 
 int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
 {

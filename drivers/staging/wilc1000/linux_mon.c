@@ -6,20 +6,15 @@
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-
-#ifndef SIMULATION
 #include "wilc_wfi_cfgoperations.h"
 #include "linux_wlan_common.h"
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
-#endif
+
 #ifdef WILC_FULLY_HOSTING_AP
 #include "wilc_host_ap.h"
 #endif
 #ifdef WILC_AP_EXTERNAL_MLME
-#ifdef SIMULATION
-#include "wilc_wfi_cfgoperations.h"
-#endif
 
 struct wilc_wfi_radiotap_hdr {
 	struct ieee80211_radiotap_header hdr;
@@ -39,9 +34,7 @@ extern linux_wlan_t *g_linux_wlan;
 
 static struct net_device *wilc_wfi_mon; /* global monitor netdev */
 
-#ifdef SIMULATION
-extern int WILC_WFI_Tx(struct sk_buff *skb, struct net_device *dev);
-#elif USE_WIRELESS
+#if USE_WIRELESS
 extern int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
 #endif
 
@@ -237,14 +230,12 @@ static void mgmt_tx_complete(void *priv, int status)
 }
 static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 {
-	linux_wlan_t *nic;
 	struct tx_complete_mon_data *mgmt_tx = NULL;
 
 	if (dev == NULL) {
 		PRINT_D(HOSTAPD_DBG, "ERROR: dev == NULL\n");
 		return WILC_FAIL;
 	}
-	nic = netdev_priv(dev);
 
 	netif_stop_queue(dev);
 	mgmt_tx = kmalloc(sizeof(struct tx_complete_mon_data), GFP_ATOMIC);
@@ -298,7 +289,6 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
-	struct ieee80211_radiotap_header *rtap_hdr;
 	u32 rtap_len, i, ret = 0;
 	struct WILC_WFI_mon_priv  *mon_priv;
 
@@ -318,7 +308,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 		return WILC_FAIL;
 	}
 
-	rtap_hdr = (struct ieee80211_radiotap_header *)skb->data;
 
 	rtap_len = ieee80211_get_radiotap_len(skb->data);
 	if (skb->len < rtap_len) {
@@ -378,9 +367,7 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	PRINT_INFO(HOSTAPD_DBG, "SKB netdevice name = %s\n", skb->dev->name);
 	PRINT_INFO(HOSTAPD_DBG, "MONITOR real dev name = %s\n", mon_priv->real_ndev->name);
 
-	#ifdef SIMULATION
-	ret = WILC_WFI_Tx(skb, mon_priv->real_ndev);
-	#elif USE_WIRELESS
+	#if USE_WIRELESS
 	/* Identify if Ethernet or MAC header (data or mgmt) */
 	memcpy(srcAdd, &skb->data[10], 6);
 	memcpy(bssid, &skb->data[16], 6);
@@ -493,9 +480,9 @@ static void WILC_WFI_mon_setup(struct net_device *dev)
 	/* dev->destructor = free_netdev; */
 	PRINT_INFO(CORECONFIG_DBG, "In Ethernet setup function\n");
 	ether_setup(dev);
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	memset(dev->dev_addr, 0, ETH_ALEN);
+	eth_zero_addr(dev->dev_addr);
 
 	#ifdef USE_WIRELESS
 	{
@@ -571,7 +558,7 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_devi
  *  @date	12 JUL 2012
  *  @version	1.0
  */
-int WILC_WFI_deinit_mon_interface()
+int WILC_WFI_deinit_mon_interface(void)
 {
 	bool rollback_lock = false;
 

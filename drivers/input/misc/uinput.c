@@ -320,10 +320,8 @@ static int uinput_validate_absbits(struct input_dev *dev)
 	 * Check if absmin/absmax/absfuzz/absflat are sane.
 	 */
 
-	for (cnt = 0; cnt < ABS_CNT; cnt++) {
+	for_each_set_bit(cnt, dev->absbit, ABS_CNT) {
 		int min, max;
-		if (!test_bit(cnt, dev->absbit))
-			continue;
 
 		min = input_abs_get_min(dev, cnt);
 		max = input_abs_get_max(dev, cnt);

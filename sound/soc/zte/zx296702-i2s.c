@@ -380,7 +380,7 @@ static int zx_i2s_probe(struct platform_device *pdev)
 	struct zx_i2s_info *zx_i2s;
 	int ret;
 
-	zx_i2s =  kzalloc(sizeof(*zx_i2s), GFP_KERNEL);
+	zx_i2s = devm_kzalloc(&pdev->dev, sizeof(*zx_i2s), GFP_KERNEL);
 	if (!zx_i2s)
 		return -ENOMEM;
 
@@ -401,8 +401,8 @@ static int zx_i2s_probe(struct platform_device *pdev)
 	writel_relaxed(0, zx_i2s->reg_base + ZX_I2S_FIFO_CTRL);
 	platform_set_drvdata(pdev, zx_i2s);
 
-	ret = snd_soc_register_component(&pdev->dev, &zx_i2s_component,
-					 &zx_i2s_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev, &zx_i2s_component,
+					      &zx_i2s_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Register DAI failed: %d\n", ret);
 		return ret;

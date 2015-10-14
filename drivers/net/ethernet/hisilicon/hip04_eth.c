@@ -816,7 +816,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct hip04_priv *priv;
 	struct resource *res;
-	unsigned int irq;
+	int irq;
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct hip04_priv));
@@ -965,7 +965,6 @@ static struct platform_driver hip04_mac_driver = {
 	.remove	= hip04_remove,
 	.driver	= {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= hip04_mac_match,
 	},
 };

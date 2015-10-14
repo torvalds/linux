@@ -67,14 +67,12 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 	}
 
 	/* Check if the core is loaded, if not, too hard */
-	cpu = vcpu->cpu;
+	cpu = vcpu->arch.thread_cpu;
 	if (cpu < 0 || cpu >= nr_cpu_ids) {
 		this_icp->rm_action |= XICS_RM_KICK_VCPU;
 		this_icp->rm_kick_target = vcpu;
 		return;
 	}
-	/* In SMT cpu will always point to thread 0, we adjust it */
-	cpu += vcpu->arch.ptid;
 
 	smp_mb();
 	kvmhv_rm_send_ipi(cpu);

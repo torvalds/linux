@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <linux/reboot.h>
+#include "common.h"
 #include "prm.h"
 
 /**

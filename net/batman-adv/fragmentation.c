@@ -25,6 +25,7 @@
 #include <linux/if_ether.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/pkt_sched.h>
 #include <linux/skbuff.h>
@@ -66,7 +67,7 @@ void batadv_frag_purge_orig(struct batadv_orig_node *orig_node,
 			    bool (*check_cb)(struct batadv_frag_table_entry *))
 {
 	struct batadv_frag_table_entry *chain;
-	uint8_t i;
+	u8 i;
 
 	for (i = 0; i < BATADV_FRAG_BUFFER_COUNT; i++) {
 		chain = &orig_node->fragments[i];
@@ -110,8 +111,10 @@ static int batadv_frag_size_limit(void)
  * without searching for the right position.
  */
 static bool batadv_frag_init_chain(struct batadv_frag_table_entry *chain,
-				   uint16_t seqno)
+				   u16 seqno)
 {
+	lockdep_assert_held(&chain->lock);
+
 	if (chain->seqno == seqno)
 		return false;
 
@@ -145,8 +148,8 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 	struct batadv_frag_list_entry *frag_entry_new = NULL, *frag_entry_curr;
 	struct batadv_frag_list_entry *frag_entry_last = NULL;
 	struct batadv_frag_packet *frag_packet;
-	uint8_t bucket;
-	uint16_t seqno, hdr_size = sizeof(struct batadv_frag_packet);
+	u8 bucket;
+	u16 seqno, hdr_size = sizeof(struct batadv_frag_packet);
 	bool ret = false;
 
 	/* Linearize packet to avoid linearizing 16 packets in a row when doing
@@ -351,7 +354,7 @@ bool batadv_frag_skb_fwd(struct sk_buff *skb,
 	struct batadv_orig_node *orig_node_dst = NULL;
 	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_frag_packet *packet;
-	uint16_t total_size;
+	u16 total_size;
 	bool ret = false;
 
 	packet = (struct batadv_frag_packet *)skb->data;

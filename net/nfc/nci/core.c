@@ -351,6 +351,20 @@ int nci_prop_cmd(struct nci_dev *ndev, __u8 oid, size_t len, __u8 *payload)
 }
 EXPORT_SYMBOL(nci_prop_cmd);
 
+int nci_core_reset(struct nci_dev *ndev)
+{
+	return __nci_request(ndev, nci_reset_req, 0,
+			     msecs_to_jiffies(NCI_RESET_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_core_reset);
+
+int nci_core_init(struct nci_dev *ndev)
+{
+	return __nci_request(ndev, nci_init_req, 0,
+			     msecs_to_jiffies(NCI_INIT_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_core_init);
+
 static int nci_open_device(struct nci_dev *ndev)
 {
 	int rc = 0;
@@ -386,6 +400,10 @@ static int nci_open_device(struct nci_dev *ndev)
 	if (!rc) {
 		rc = __nci_request(ndev, nci_init_req, 0,
 				   msecs_to_jiffies(NCI_INIT_TIMEOUT));
+	}
+
+	if (ndev->ops->post_setup) {
+		rc = ndev->ops->post_setup(ndev);
 	}
 
 	if (!rc) {

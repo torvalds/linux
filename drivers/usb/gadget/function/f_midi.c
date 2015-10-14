@@ -329,6 +329,10 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	unsigned i;
 	int err;
 
+	/* For Control Device interface we do nothing */
+	if (intf == 0)
+		return 0;
+
 	err = f_midi_start_ep(midi, f, midi->in_ep);
 	if (err)
 		return err;

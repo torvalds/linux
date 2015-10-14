@@ -1,5 +1,9 @@
 Binding for Synopsys IntelliDDR Multi Protocol Memory Controller
 
+This controller has an optional ECC support in half-bus width (16-bit)
+configuration. The ECC controller corrects one bit error and detects
+two bit errors.
+
 Required properties:
  - compatible: Should be 'xlnx,zynq-ddrc-a05'
  - reg: Base address and size of the controllers memory area

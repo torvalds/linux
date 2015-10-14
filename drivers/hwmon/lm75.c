@@ -104,7 +104,7 @@ static inline long lm75_reg_to_mc(s16 temp, u8 resolution)
 
 /* sysfs attributes for hwmon */
 
-static int lm75_read_temp(void *dev, long *temp)
+static int lm75_read_temp(void *dev, int *temp)
 {
 	struct lm75_data *data = lm75_update_device(dev);
 

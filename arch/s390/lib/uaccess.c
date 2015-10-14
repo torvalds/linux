@@ -15,7 +15,7 @@
 #include <asm/mmu_context.h>
 #include <asm/facility.h>
 
-static struct static_key have_mvcos = STATIC_KEY_INIT_FALSE;
+static DEFINE_STATIC_KEY_FALSE(have_mvcos);
 
 static inline unsigned long copy_from_user_mvcos(void *x, const void __user *ptr,
 						 unsigned long size)
@@ -104,7 +104,7 @@ static inline unsigned long copy_from_user_mvcp(void *x, const void __user *ptr,
 
 unsigned long __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (static_key_false(&have_mvcos))
+	if (static_branch_likely(&have_mvcos))
 		return copy_from_user_mvcos(to, from, n);
 	return copy_from_user_mvcp(to, from, n);
 }
@@ -177,7 +177,7 @@ static inline unsigned long copy_to_user_mvcs(void __user *ptr, const void *x,
 
 unsigned long __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (static_key_false(&have_mvcos))
+	if (static_branch_likely(&have_mvcos))
 		return copy_to_user_mvcos(to, from, n);
 	return copy_to_user_mvcs(to, from, n);
 }
@@ -240,7 +240,7 @@ static inline unsigned long copy_in_user_mvc(void __user *to, const void __user 
 
 unsigned long __copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
-	if (static_key_false(&have_mvcos))
+	if (static_branch_likely(&have_mvcos))
 		return copy_in_user_mvcos(to, from, n);
 	return copy_in_user_mvc(to, from, n);
 }
@@ -312,7 +312,7 @@ static inline unsigned long clear_user_xc(void __user *to, unsigned long size)
 
 unsigned long __clear_user(void __user *to, unsigned long size)
 {
-	if (static_key_false(&have_mvcos))
+	if (static_branch_likely(&have_mvcos))
 			return clear_user_mvcos(to, size);
 	return clear_user_xc(to, size);
 }
@@ -370,23 +370,10 @@ long __strncpy_from_user(char *dst, const char __user *src, long size)
 }
 EXPORT_SYMBOL(__strncpy_from_user);
 
-/*
- * The "old" uaccess variant without mvcos can be enforced with the
- * uaccess_primary kernel parameter. This is mainly for debugging purposes.
- */
-static int uaccess_primary __initdata;
-
-static int __init parse_uaccess_pt(char *__unused)
-{
-	uaccess_primary = 1;
-	return 0;
-}
-early_param("uaccess_primary", parse_uaccess_pt);
-
 static int __init uaccess_init(void)
 {
-	if (!uaccess_primary && test_facility(27))
-		static_key_slow_inc(&have_mvcos);
+	if (test_facility(27))
+		static_branch_enable(&have_mvcos);
 	return 0;
 }
 early_initcall(uaccess_init);

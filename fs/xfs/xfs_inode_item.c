@@ -703,17 +703,10 @@ xfs_iflush_abort(
 	xfs_inode_log_item_t	*iip = ip->i_itemp;
 
 	if (iip) {
-		struct xfs_ail	*ailp = iip->ili_item.li_ailp;
 		if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
-			spin_lock(&ailp->xa_lock);
-			if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
-				/* xfs_trans_ail_delete() drops the AIL lock. */
-				xfs_trans_ail_delete(ailp, &iip->ili_item,
-						stale ?
-						     SHUTDOWN_LOG_IO_ERROR :
+			xfs_trans_ail_remove(&iip->ili_item,
+					     stale ? SHUTDOWN_LOG_IO_ERROR :
 						     SHUTDOWN_CORRUPT_INCORE);
-			} else
-				spin_unlock(&ailp->xa_lock);
 		}
 		iip->ili_logged = 0;
 		/*

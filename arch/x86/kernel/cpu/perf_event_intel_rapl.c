@@ -86,6 +86,10 @@ static const char *rapl_domain_names[NR_RAPL_DOMAINS] __initconst = {
 			 1<<RAPL_IDX_RAM_NRG_STAT|\
 			 1<<RAPL_IDX_PP1_NRG_STAT)
 
+/* Knights Landing has PKG, RAM */
+#define RAPL_IDX_KNL	(1<<RAPL_IDX_PKG_NRG_STAT|\
+			 1<<RAPL_IDX_RAM_NRG_STAT)
+
 /*
  * event code: LSB 8 bits, passed in attr->config
  * any other bit is reserved
@@ -486,6 +490,18 @@ static struct attribute *rapl_events_hsw_attr[] = {
 	NULL,
 };
 
+static struct attribute *rapl_events_knl_attr[] = {
+	EVENT_PTR(rapl_pkg),
+	EVENT_PTR(rapl_ram),
+
+	EVENT_PTR(rapl_pkg_unit),
+	EVENT_PTR(rapl_ram_unit),
+
+	EVENT_PTR(rapl_pkg_scale),
+	EVENT_PTR(rapl_ram_scale),
+	NULL,
+};
+
 static struct attribute_group rapl_pmu_events_group = {
 	.name = "events",
 	.attrs = NULL, /* patched at runtime */
@@ -730,6 +746,10 @@ static int __init rapl_pmu_init(void)
 		rapl_cntr_mask = RAPL_IDX_SRV;
 		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
 		break;
+	case 87: /* Knights Landing */
+		rapl_add_quirk(rapl_hsw_server_quirk);
+		rapl_cntr_mask = RAPL_IDX_KNL;
+		rapl_pmu_events_group.attrs = rapl_events_knl_attr;
 
 	default:
 		/* unsupported */

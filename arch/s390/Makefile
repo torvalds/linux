@@ -33,6 +33,8 @@ mflags-$(CONFIG_MARCH_Z196)   := -march=z196
 mflags-$(CONFIG_MARCH_ZEC12)  := -march=zEC12
 mflags-$(CONFIG_MARCH_Z13)   := -march=z13
 
+export CC_FLAGS_MARCH := $(mflags-y)
+
 aflags-y += $(mflags-y)
 cflags-y += $(mflags-y)
 

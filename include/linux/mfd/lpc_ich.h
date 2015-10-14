@@ -20,12 +20,6 @@
 #ifndef LPC_ICH_H
 #define LPC_ICH_H
 
-/* Watchdog resources */
-#define ICH_RES_IO_TCO		0
-#define ICH_RES_IO_SMI		1
-#define ICH_RES_MEM_OFF		2
-#define ICH_RES_MEM_GCS_PMC	0
-
 /* GPIO resources */
 #define ICH_RES_GPIO	0
 #define ICH_RES_GPE0	1

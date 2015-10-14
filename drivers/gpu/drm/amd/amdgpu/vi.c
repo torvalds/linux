@@ -203,6 +203,17 @@ static const u32 tonga_mgcg_cgcg_init[] =
 	mmHDP_XDP_CGTT_BLK_CTRL, 0xc0000fff, 0x00000104,
 };
 
+static const u32 fiji_mgcg_cgcg_init[] =
+{
+	mmCGTT_DRM_CLK_CTRL0, 0xffffffff, 0x00600100,
+	mmPCIE_INDEX, 0xffffffff, 0x0140001c,
+	mmPCIE_DATA, 0x000f0000, 0x00000000,
+	mmSMC_IND_INDEX_4, 0xffffffff, 0xC060000C,
+	mmSMC_IND_DATA_4, 0xc0000fff, 0x00000100,
+	mmCGTT_DRM_CLK_CTRL0, 0xff000fff, 0x00000100,
+	mmHDP_XDP_CGTT_BLK_CTRL, 0xc0000fff, 0x00000104,
+};
+
 static const u32 iceland_mgcg_cgcg_init[] =
 {
 	mmPCIE_INDEX, 0xffffffff, ixPCIE_CNTL2,
@@ -231,6 +242,11 @@ static void vi_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 iceland_mgcg_cgcg_init,
 						 (const u32)ARRAY_SIZE(iceland_mgcg_cgcg_init));
+		break;
+	case CHIP_FIJI:
+		amdgpu_program_register_sequence(adev,
+						 fiji_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
 		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
@@ -261,7 +277,7 @@ static u32 vi_get_xclk(struct amdgpu_device *adev)
 	u32 reference_clock = adev->clock.spll.reference_freq;
 	u32 tmp;
 
-	if (adev->flags & AMDGPU_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return reference_clock;
 
 	tmp = RREG32_SMC(ixCG_CLKPIN_CNTL_2);
@@ -362,6 +378,26 @@ static struct amdgpu_allowed_register_entry cz_allowed_read_registers[] = {
 
 static struct amdgpu_allowed_register_entry vi_allowed_read_registers[] = {
 	{mmGRBM_STATUS, false},
+	{mmGRBM_STATUS2, false},
+	{mmGRBM_STATUS_SE0, false},
+	{mmGRBM_STATUS_SE1, false},
+	{mmGRBM_STATUS_SE2, false},
+	{mmGRBM_STATUS_SE3, false},
+	{mmSRBM_STATUS, false},
+	{mmSRBM_STATUS2, false},
+	{mmSRBM_STATUS3, false},
+	{mmSDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET, false},
+	{mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET, false},
+	{mmCP_STAT, false},
+	{mmCP_STALLED_STAT1, false},
+	{mmCP_STALLED_STAT2, false},
+	{mmCP_STALLED_STAT3, false},
+	{mmCP_CPF_BUSY_STAT, false},
+	{mmCP_CPF_STALLED_STAT1, false},
+	{mmCP_CPF_STATUS, false},
+	{mmCP_CPC_BUSY_STAT, false},
+	{mmCP_CPC_STALLED_STAT1, false},
+	{mmCP_CPC_STATUS, false},
 	{mmGB_ADDR_CONFIG, false},
 	{mmMC_ARB_RAMCFG, false},
 	{mmGB_TILE_MODE0, false},
@@ -449,6 +485,7 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 		asic_register_table = tonga_allowed_read_registers;
 		size = ARRAY_SIZE(tonga_allowed_read_registers);
 		break;
+	case CHIP_FIJI:
 	case CHIP_TONGA:
 	case CHIP_CARRIZO:
 		asic_register_table = cz_allowed_read_registers;
@@ -751,7 +788,7 @@ static void vi_gpu_soft_reset(struct amdgpu_device *adev, u32 reset_mask)
 		srbm_soft_reset =
 			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE1, 1);
 
-	if (!(adev->flags & AMDGPU_IS_APU)) {
+	if (!(adev->flags & AMD_IS_APU)) {
 		if (reset_mask & AMDGPU_RESET_MC)
 		srbm_soft_reset =
 			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
@@ -968,10 +1005,13 @@ static void vi_pcie_gen3_enable(struct amdgpu_device *adev)
 	u32 mask;
 	int ret;
 
+	if (pci_is_root_bus(adev->pdev->bus))
+		return;
+
 	if (amdgpu_pcie_gen2 == 0)
 		return;
 
-	if (adev->flags & AMDGPU_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return;
 
 	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
@@ -999,7 +1039,7 @@ static void vi_enable_doorbell_aperture(struct amdgpu_device *adev,
 	u32 tmp;
 
 	/* not necessary on CZ */
-	if (adev->flags & AMDGPU_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return;
 
 	tmp = RREG32(mmBIF_DOORBELL_APER_EN);
@@ -1127,6 +1167,74 @@ static const struct amdgpu_ip_block_version tonga_ip_blocks[] =
 	},
 };
 
+static const struct amdgpu_ip_block_version fiji_ip_blocks[] =
+{
+	/* ORDER MATTERS! */
+	{
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
+		.major = 2,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &vi_common_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_GMC,
+		.major = 8,
+		.minor = 5,
+		.rev = 0,
+		.funcs = &gmc_v8_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_IH,
+		.major = 3,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &tonga_ih_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_SMC,
+		.major = 7,
+		.minor = 1,
+		.rev = 0,
+		.funcs = &fiji_dpm_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_DCE,
+		.major = 10,
+		.minor = 1,
+		.rev = 0,
+		.funcs = &dce_v10_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_GFX,
+		.major = 8,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &gfx_v8_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
+		.major = 3,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &sdma_v3_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 6,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &uvd_v6_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_VCE,
+		.major = 3,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &vce_v3_0_ip_funcs,
+	},
+};
+
 static const struct amdgpu_ip_block_version cz_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
@@ -1202,6 +1310,10 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		adev->ip_blocks = topaz_ip_blocks;
 		adev->num_ip_blocks = ARRAY_SIZE(topaz_ip_blocks);
 		break;
+	case CHIP_FIJI:
+		adev->ip_blocks = fiji_ip_blocks;
+		adev->num_ip_blocks = ARRAY_SIZE(fiji_ip_blocks);
+		break;
 	case CHIP_TONGA:
 		adev->ip_blocks = tonga_ip_blocks;
 		adev->num_ip_blocks = ARRAY_SIZE(tonga_ip_blocks);
@@ -1248,7 +1360,7 @@ static int vi_common_early_init(void *handle)
 	bool smc_enabled = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		adev->smc_rreg = &cz_smc_rreg;
 		adev->smc_wreg = &cz_smc_wreg;
 	} else {
@@ -1279,6 +1391,7 @@ static int vi_common_early_init(void *handle)
 		if (amdgpu_smc_load_fw && smc_enabled)
 			adev->firmware.smu_load = true;
 		break;
+	case CHIP_FIJI:
 	case CHIP_TONGA:
 		adev->has_uvd = true;
 		adev->cg_flags = 0;
@@ -1290,7 +1403,8 @@ static int vi_common_early_init(void *handle)
 	case CHIP_CARRIZO:
 		adev->has_uvd = true;
 		adev->cg_flags = 0;
-		adev->pg_flags = AMDGPU_PG_SUPPORT_UVD | AMDGPU_PG_SUPPORT_VCE;
+		/* Disable UVD pg */
+		adev->pg_flags = /* AMDGPU_PG_SUPPORT_UVD | */AMDGPU_PG_SUPPORT_VCE;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		if (amdgpu_smc_load_fw && smc_enabled)
 			adev->firmware.smu_load = true;

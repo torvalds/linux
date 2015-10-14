@@ -186,19 +186,11 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 	if (count > io_limit)
 		count = io_limit;
 
-	switch (at24->use_smbus) {
-	case I2C_SMBUS_I2C_BLOCK_DATA:
+	if (at24->use_smbus) {
 		/* Smaller eeproms can work given some SMBus extension calls */
 		if (count > I2C_SMBUS_BLOCK_MAX)
 			count = I2C_SMBUS_BLOCK_MAX;
-		break;
-	case I2C_SMBUS_WORD_DATA:
-		count = 2;
-		break;
-	case I2C_SMBUS_BYTE_DATA:
-		count = 1;
-		break;
-	default:
+	} else {
 		/*
 		 * When we have a better choice than SMBus calls, use a
 		 * combined I2C message. Write address; then read up to
@@ -229,27 +221,10 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 	timeout = jiffies + msecs_to_jiffies(write_timeout);
 	do {
 		read_time = jiffies;
-		switch (at24->use_smbus) {
-		case I2C_SMBUS_I2C_BLOCK_DATA:
-			status = i2c_smbus_read_i2c_block_data(client, offset,
-					count, buf);
-			break;
-		case I2C_SMBUS_WORD_DATA:
-			status = i2c_smbus_read_word_data(client, offset);
-			if (status >= 0) {
-				buf[0] = status & 0xff;
-				buf[1] = status >> 8;
-				status = count;
-			}
-			break;
-		case I2C_SMBUS_BYTE_DATA:
-			status = i2c_smbus_read_byte_data(client, offset);
-			if (status >= 0) {
-				buf[0] = status;
-				status = count;
-			}
-			break;
-		default:
+		if (at24->use_smbus) {
+			status = i2c_smbus_read_i2c_block_data_or_emulated(client, offset,
+									   count, buf);
+		} else {
 			status = i2c_transfer(client->adapter, msg, 2);
 			if (status == 2)
 				status = count;
@@ -686,7 +661,6 @@ static int at24_remove(struct i2c_client *client)
 static struct i2c_driver at24_driver = {
 	.driver = {
 		.name = "at24",
-		.owner = THIS_MODULE,
 	},
 	.probe = at24_probe,
 	.remove = at24_remove,

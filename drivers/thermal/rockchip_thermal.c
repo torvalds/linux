@@ -64,7 +64,7 @@ struct rockchip_tsadc_chip {
 	void (*control)(void __iomem *reg, bool on);
 
 	/* Per-sensor methods */
-	int (*get_temp)(int chn, void __iomem *reg, long *temp);
+	int (*get_temp)(int chn, void __iomem *reg, int *temp);
 	void (*set_tshut_temp)(int chn, void __iomem *reg, long temp);
 	void (*set_tshut_mode)(int chn, void __iomem *reg, enum tshut_mode m);
 };
@@ -191,7 +191,7 @@ static u32 rk_tsadcv2_temp_to_code(long temp)
 	return 0;
 }
 
-static long rk_tsadcv2_code_to_temp(u32 code)
+static int rk_tsadcv2_code_to_temp(u32 code)
 {
 	unsigned int low = 0;
 	unsigned int high = ARRAY_SIZE(v2_code_table) - 1;
@@ -277,7 +277,7 @@ static void rk_tsadcv2_control(void __iomem *regs, bool enable)
 	writel_relaxed(val, regs + TSADCV2_AUTO_CON);
 }
 
-static int rk_tsadcv2_get_temp(int chn, void __iomem *regs, long *temp)
+static int rk_tsadcv2_get_temp(int chn, void __iomem *regs, int *temp)
 {
 	u32 val;
 
@@ -366,7 +366,7 @@ static irqreturn_t rockchip_thermal_alarm_irq_thread(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int rockchip_thermal_get_temp(void *_sensor, long *out_temp)
+static int rockchip_thermal_get_temp(void *_sensor, int *out_temp)
 {
 	struct rockchip_thermal_sensor *sensor = _sensor;
 	struct rockchip_thermal_data *thermal = sensor->thermal;
@@ -374,7 +374,7 @@ static int rockchip_thermal_get_temp(void *_sensor, long *out_temp)
 	int retval;
 
 	retval = tsadc->get_temp(sensor->id, thermal->regs, out_temp);
-	dev_dbg(&thermal->pdev->dev, "sensor %d - temp: %ld, retval: %d\n",
+	dev_dbg(&thermal->pdev->dev, "sensor %d - temp: %d, retval: %d\n",
 		sensor->id, *out_temp, retval);
 
 	return retval;

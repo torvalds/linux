@@ -677,13 +677,13 @@ static void fbtft_merge_fbtftops(struct fbtft_ops *dst, struct fbtft_ops *src)
  *
  */
 struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
-					struct device *dev)
+					struct device *dev,
+					struct fbtft_platform_data *pdata)
 {
 	struct fb_info *info;
 	struct fbtft_par *par;
 	struct fb_ops *fbops = NULL;
 	struct fb_deferred_io *fbdefio = NULL;
-	struct fbtft_platform_data *pdata = dev->platform_data;
 	u8 *vmem = NULL;
 	void *txbuf = NULL;
 	void *buf = NULL;
@@ -828,7 +828,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 
 	par = info->par;
 	par->info = info;
-	par->pdata = dev->platform_data;
+	par->pdata = pdata;
 	par->debug = display->debug;
 	par->buf = buf;
 	spin_lock_init(&par->dirty_lock);
@@ -1076,6 +1076,11 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 	p = of_prop_next_u32(prop, NULL, &val);
 	if (!p)
 		return -EINVAL;
+
+	par->fbtftops.reset(par);
+	if (par->gpio.cs != -1)
+		gpio_set_value(par->gpio.cs, 0);  /* Activate chip */
+
 	while (p) {
 		if (val & FBTFT_OF_INIT_CMD) {
 			val &= 0xFFFF;
@@ -1260,12 +1265,11 @@ EXPORT_SYMBOL(fbtft_init_display);
  */
 static int fbtft_verify_gpios(struct fbtft_par *par)
 {
-	struct fbtft_platform_data *pdata;
+	struct fbtft_platform_data *pdata = par->pdata;
 	int i;
 
 	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
 
-	pdata = par->info->device->platform_data;
 	if (pdata->display.buswidth != 9 && par->startbyte == 0 &&
 							par->gpio.dc < 0) {
 		dev_err(par->info->device,
@@ -1383,10 +1387,9 @@ int fbtft_probe_common(struct fbtft_display *display,
 		pdata = fbtft_probe_dt(dev);
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
-		dev->platform_data = pdata;
 	}
 
-	info = fbtft_framebuffer_alloc(display, dev);
+	info = fbtft_framebuffer_alloc(display, dev, pdata);
 	if (!info)
 		return -ENOMEM;
 
@@ -1433,15 +1436,11 @@ int fbtft_probe_common(struct fbtft_display *display,
 
 	/* 9-bit SPI setup */
 	if (par->spi && display->buswidth == 9) {
-		par->spi->bits_per_word = 9;
-		ret = par->spi->master->setup(par->spi);
-		if (ret) {
+		if (par->spi->master->bits_per_word_mask & SPI_BPW_MASK(9)) {
+			par->spi->bits_per_word = 9;
+		} else {
 			dev_warn(&par->spi->dev,
 				"9-bit SPI not available, emulating using 8-bit.\n");
-			par->spi->bits_per_word = 8;
-			ret = par->spi->master->setup(par->spi);
-			if (ret)
-				goto out_release;
 			/* allocate buffer with room for dc bits */
 			par->extra = devm_kzalloc(par->info->device,
 				par->txbuf.len + (par->txbuf.len / 8) + 8,

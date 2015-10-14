@@ -114,6 +114,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_HASH,
 	BPF_MAP_TYPE_ARRAY,
 	BPF_MAP_TYPE_PROG_ARRAY,
+	BPF_MAP_TYPE_PERF_EVENT_ARRAY,
 };
 
 enum bpf_prog_type {
@@ -249,6 +250,28 @@ enum bpf_func_id {
 	 * Return: 0 on success
 	 */
 	BPF_FUNC_get_current_comm,
+
+	/**
+	 * bpf_get_cgroup_classid(skb) - retrieve a proc's classid
+	 * @skb: pointer to skb
+	 * Return: classid if != 0
+	 */
+	BPF_FUNC_get_cgroup_classid,
+	BPF_FUNC_skb_vlan_push, /* bpf_skb_vlan_push(skb, vlan_proto, vlan_tci) */
+	BPF_FUNC_skb_vlan_pop,  /* bpf_skb_vlan_pop(skb) */
+
+	/**
+	 * bpf_skb_[gs]et_tunnel_key(skb, key, size, flags)
+	 * retrieve or populate tunnel metadata
+	 * @skb: pointer to skb
+	 * @key: pointer to 'struct bpf_tunnel_key'
+	 * @size: size of 'struct bpf_tunnel_key'
+	 * @flags: room for future extensions
+	 * Retrun: 0 on success
+	 */
+	BPF_FUNC_skb_get_tunnel_key,
+	BPF_FUNC_skb_set_tunnel_key,
+	BPF_FUNC_perf_event_read,	/* u64 bpf_perf_event_read(&map, index) */
 	__BPF_FUNC_MAX_ID,
 };
 
@@ -269,6 +292,12 @@ struct __sk_buff {
 	__u32 ifindex;
 	__u32 tc_index;
 	__u32 cb[5];
+	__u32 hash;
+};
+
+struct bpf_tunnel_key {
+	__u32 tunnel_id;
+	__u32 remote_ipv4;
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */

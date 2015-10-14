@@ -96,13 +96,13 @@ void named_cluster_distribute(struct net *net, struct sk_buff *skb)
 		dnode = node->addr;
 		if (in_own_node(net, dnode))
 			continue;
-		if (!tipc_node_active_links(node))
+		if (!tipc_node_is_up(node))
 			continue;
 		oskb = pskb_copy(skb, GFP_ATOMIC);
 		if (!oskb)
 			break;
 		msg_set_destnode(buf_msg(oskb), dnode);
-		tipc_link_xmit_skb(net, oskb, dnode, dnode);
+		tipc_node_xmit_skb(net, oskb, dnode, dnode);
 	}
 	rcu_read_unlock();
 
@@ -223,7 +223,7 @@ void tipc_named_node_up(struct net *net, u32 dnode)
 			 &tn->nametbl->publ_list[TIPC_ZONE_SCOPE]);
 	rcu_read_unlock();
 
-	tipc_link_xmit(net, &head, dnode, dnode);
+	tipc_node_xmit(net, &head, dnode, dnode);
 }
 
 static void tipc_publ_subscribe(struct net *net, struct publication *publ,

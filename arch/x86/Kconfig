@@ -27,7 +27,8 @@ config X86
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_GCOV_PROFILE_ALL
-	select ARCH_HAS_PMEM_API
+	select ARCH_HAS_PMEM_API		if X86_64
+	select ARCH_HAS_MMIO_FLUSH
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
@@ -41,6 +42,7 @@ config X86
 	select ARCH_USE_CMPXCHG_LOCKREF		if X86_64
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH if SMP
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION	if X86_32
@@ -133,7 +135,7 @@ config X86
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_UID16			if X86_32
+	select HAVE_UID16			if X86_32 || IA32_EMULATION
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
 	select IRQ_FORCED_THREADING
@@ -955,6 +957,7 @@ config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
 
 config X86_MCE
 	bool "Machine Check / overheating reporting"
+	select GENERIC_ALLOCATOR
 	default y
 	---help---
 	  Machine Check support allows the processor to notify the
@@ -1002,19 +1005,42 @@ config X86_THERMAL_VECTOR
 	def_bool y
 	depends on X86_MCE_INTEL
 
-config VM86
-	bool "Enable VM86 support" if EXPERT
-	default y
+config X86_LEGACY_VM86
+	bool "Legacy VM86 support"
+	default n
 	depends on X86_32
 	---help---
-	  This option is required by programs like DOSEMU to run
-	  16-bit real mode legacy code on x86 processors. It also may
-	  be needed by software like XFree86 to initialize some video
-	  cards via BIOS. Disabling this option saves about 6K.
+	  This option allows user programs to put the CPU into V8086
+	  mode, which is an 80286-era approximation of 16-bit real mode.
+
+	  Some very old versions of X and/or vbetool require this option
+	  for user mode setting.  Similarly, DOSEMU will use it if
+	  available to accelerate real mode DOS programs.  However, any
+	  recent version of DOSEMU, X, or vbetool should be fully
+	  functional even without kernel VM86 support, as they will all
+	  fall back to software emulation. Nevertheless, if you are using
+	  a 16-bit DOS program where 16-bit performance matters, vm86
+	  mode might be faster than emulation and you might want to
+	  enable this option.
+
+	  Note that any app that works on a 64-bit kernel is unlikely to
+	  need this option, as 64-bit kernels don't, and can't, support
+	  V8086 mode. This option is also unrelated to 16-bit protected
+	  mode and is not needed to run most 16-bit programs under Wine.
+
+	  Enabling this option increases the complexity of the kernel
+	  and slows down exception handling a tiny bit.
+
+	  If unsure, say N here.
+
+config VM86
+       bool
+       default X86_LEGACY_VM86
 
 config X86_16BIT
 	bool "Enable support for 16-bit segments" if EXPERT
 	default y
+	depends on MODIFY_LDT_SYSCALL
 	---help---
 	  This option is required by programs like Wine to run 16-bit
 	  protected mode legacy code on x86 processors.  Disabling
@@ -1282,6 +1308,7 @@ config HIGHMEM
 config X86_PAE
 	bool "PAE (Physical Address Extension) Support"
 	depends on X86_32 && !HIGHMEM4G
+	select SWIOTLB
 	---help---
 	  PAE is required for NX support, and furthermore enables
 	  larger swapspace support for non-overcommit purposes. It
@@ -1426,10 +1453,14 @@ config ILLEGAL_POINTER_VALUE
 
 source "mm/Kconfig"
 
+config X86_PMEM_LEGACY_DEVICE
+	bool
+
 config X86_PMEM_LEGACY
-	bool "Support non-standard NVDIMMs and ADR protected memory"
+	tristate "Support non-standard NVDIMMs and ADR protected memory"
 	depends on PHYS_ADDR_T_64BIT
 	depends on BLK_DEV
+	select X86_PMEM_LEGACY_DEVICE
 	select LIBNVDIMM
 	help
 	  Treat memory marked using the non-standard e820 type of 12 as used
@@ -1509,6 +1540,7 @@ config X86_RESERVE_LOW
 
 config MATH_EMULATION
 	bool
+	depends on MODIFY_LDT_SYSCALL
 	prompt "Math emulation" if X86_32
 	---help---
 	  Linux can emulate a math coprocessor (used for floating point
@@ -1724,6 +1756,7 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call"
+	select KEXEC_CORE
 	---help---
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -1740,8 +1773,8 @@ config KEXEC
 
 config KEXEC_FILE
 	bool "kexec file based system call"
+	select KEXEC_CORE
 	select BUILD_BIN2C
-	depends on KEXEC
 	depends on X86_64
 	depends on CRYPTO=y
 	depends on CRYPTO_SHA256=y
@@ -2052,6 +2085,22 @@ config CMDLINE_OVERRIDE
 
 	  This is used to work around broken boot loaders.  This should
 	  be set to 'N' under normal conditions.
+
+config MODIFY_LDT_SYSCALL
+	bool "Enable the LDT (local descriptor table)" if EXPERT
+	default y
+	---help---
+	  Linux can allow user programs to install a per-process x86
+	  Local Descriptor Table (LDT) using the modify_ldt(2) system
+	  call.  This is required to run 16-bit or segmented code such as
+	  DOSEMU or some Wine programs.  It is also used by some very old
+	  threading libraries.
+
+	  Enabling this feature adds a small amount of overhead to
+	  context switches and increases the low-level kernel attack
+	  surface.  Disabling it removes the modify_ldt(2) system call.
+
+	  Saying 'N' here may make sense for embedded or server kernels.
 
 source "kernel/livepatch/Kconfig"
 
@@ -2522,7 +2571,7 @@ config IA32_EMULATION
 	depends on X86_64
 	select BINFMT_ELF
 	select COMPAT_BINFMT_ELF
-	select HAVE_UID16
+	select ARCH_WANT_OLD_COMPAT_IPC
 	---help---
 	  Include code to run legacy 32-bit programs under a
 	  64-bit kernel. You should likely turn this on, unless you're
@@ -2536,7 +2585,7 @@ config IA32_AOUT
 
 config X86_X32
 	bool "x32 ABI for 64-bit mode"
-	depends on X86_64 && IA32_EMULATION
+	depends on X86_64
 	---help---
 	  Include code to run binaries for the x32 native 32-bit ABI
 	  for 64-bit processors.  An x32 process gets access to the
@@ -2550,7 +2599,6 @@ config X86_X32
 config COMPAT
 	def_bool y
 	depends on IA32_EMULATION || X86_X32
-	select ARCH_WANT_OLD_COMPAT_IPC
 
 if COMPAT
 config COMPAT_FOR_U64_ALIGNMENT

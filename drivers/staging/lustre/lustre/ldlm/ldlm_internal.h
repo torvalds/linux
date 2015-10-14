@@ -209,7 +209,7 @@ struct ldlm_state {
 
 /* interval tree, for LDLM_EXTENT. */
 extern struct kmem_cache *ldlm_interval_slab; /* slab cache for ldlm_interval */
-extern void ldlm_interval_attach(struct ldlm_interval *n, struct ldlm_lock *l);
+void ldlm_interval_attach(struct ldlm_interval *n, struct ldlm_lock *l);
 struct ldlm_interval *ldlm_interval_detach(struct ldlm_lock *l);
 struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock);
 void ldlm_interval_free(struct ldlm_interval *node);

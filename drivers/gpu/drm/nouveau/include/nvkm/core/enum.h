@@ -10,12 +10,11 @@ struct nvkm_enum {
 };
 
 const struct nvkm_enum *nvkm_enum_find(const struct nvkm_enum *, u32 value);
-const struct nvkm_enum *nvkm_enum_print(const struct nvkm_enum *, u32 value);
 
 struct nvkm_bitfield {
 	u32 mask;
 	const char *name;
 };
 
-void nvkm_bitfield_print(const struct nvkm_bitfield *, u32 value);
+void nvkm_snprintbf(char *, int, const struct nvkm_bitfield *, u32 value);
 #endif

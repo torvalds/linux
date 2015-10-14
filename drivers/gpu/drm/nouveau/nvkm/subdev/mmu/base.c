@@ -21,10 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/mmu.h>
-#include <subdev/fb.h>
+#include "priv.h"
 
 #include <core/gpuobj.h>
+#include <subdev/fb.h>
 
 void
 nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
@@ -32,12 +32,12 @@ nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
 	struct nvkm_vm *vm = vma->vm;
 	struct nvkm_mmu *mmu = vm->mmu;
 	struct nvkm_mm_node *r;
-	int big = vma->node->type != mmu->spg_shift;
+	int big = vma->node->type != mmu->func->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
-	u32 pde  = (offset >> mmu->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << mmu->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (mmu->pgt_bits - bits);
+	u32 pde  = (offset >> mmu->func->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << mmu->func->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (mmu->func->pgt_bits - bits);
 	u32 end, len;
 
 	delta = 0;
@@ -46,14 +46,14 @@ nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
 		u32 num  = r->length >> bits;
 
 		while (num) {
-			struct nvkm_gpuobj *pgt = vm->pgt[pde].obj[big];
+			struct nvkm_memory *pgt = vm->pgt[pde].mem[big];
 
 			end = (pte + num);
 			if (unlikely(end >= max))
 				end = max;
 			len = end - pte;
 
-			mmu->map(vma, pgt, node, pte, len, phys, delta);
+			mmu->func->map(vma, pgt, node, pte, len, phys, delta);
 
 			num -= len;
 			pte += len;
@@ -67,7 +67,7 @@ nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
 		}
 	}
 
-	mmu->flush(vm);
+	mmu->func->flush(vm);
 }
 
 static void
@@ -76,20 +76,20 @@ nvkm_vm_map_sg_table(struct nvkm_vma *vma, u64 delta, u64 length,
 {
 	struct nvkm_vm *vm = vma->vm;
 	struct nvkm_mmu *mmu = vm->mmu;
-	int big = vma->node->type != mmu->spg_shift;
+	int big = vma->node->type != mmu->func->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
-	u32 pde  = (offset >> mmu->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << mmu->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (mmu->pgt_bits - bits);
+	u32 pde  = (offset >> mmu->func->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << mmu->func->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (mmu->func->pgt_bits - bits);
 	unsigned m, sglen;
 	u32 end, len;
 	int i;
 	struct scatterlist *sg;
 
 	for_each_sg(mem->sg->sgl, sg, mem->sg->nents, i) {
-		struct nvkm_gpuobj *pgt = vm->pgt[pde].obj[big];
+		struct nvkm_memory *pgt = vm->pgt[pde].mem[big];
 		sglen = sg_dma_len(sg) >> PAGE_SHIFT;
 
 		end = pte + sglen;
@@ -100,7 +100,7 @@ nvkm_vm_map_sg_table(struct nvkm_vma *vma, u64 delta, u64 length,
 		for (m = 0; m < len; m++) {
 			dma_addr_t addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
 
-			mmu->map_sg(vma, pgt, mem, pte, 1, &addr);
+			mmu->func->map_sg(vma, pgt, mem, pte, 1, &addr);
 			num--;
 			pte++;
 
@@ -115,7 +115,7 @@ nvkm_vm_map_sg_table(struct nvkm_vma *vma, u64 delta, u64 length,
 			for (; m < sglen; m++) {
 				dma_addr_t addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
 
-				mmu->map_sg(vma, pgt, mem, pte, 1, &addr);
+				mmu->func->map_sg(vma, pgt, mem, pte, 1, &addr);
 				num--;
 				pte++;
 				if (num == 0)
@@ -125,7 +125,7 @@ nvkm_vm_map_sg_table(struct nvkm_vma *vma, u64 delta, u64 length,
 
 	}
 finish:
-	mmu->flush(vm);
+	mmu->func->flush(vm);
 }
 
 static void
@@ -135,24 +135,24 @@ nvkm_vm_map_sg(struct nvkm_vma *vma, u64 delta, u64 length,
 	struct nvkm_vm *vm = vma->vm;
 	struct nvkm_mmu *mmu = vm->mmu;
 	dma_addr_t *list = mem->pages;
-	int big = vma->node->type != mmu->spg_shift;
+	int big = vma->node->type != mmu->func->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
-	u32 pde  = (offset >> mmu->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << mmu->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (mmu->pgt_bits - bits);
+	u32 pde  = (offset >> mmu->func->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << mmu->func->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (mmu->func->pgt_bits - bits);
 	u32 end, len;
 
 	while (num) {
-		struct nvkm_gpuobj *pgt = vm->pgt[pde].obj[big];
+		struct nvkm_memory *pgt = vm->pgt[pde].mem[big];
 
 		end = (pte + num);
 		if (unlikely(end >= max))
 			end = max;
 		len = end - pte;
 
-		mmu->map_sg(vma, pgt, mem, pte, len, list);
+		mmu->func->map_sg(vma, pgt, mem, pte, len, list);
 
 		num  -= len;
 		pte  += len;
@@ -163,7 +163,7 @@ nvkm_vm_map_sg(struct nvkm_vma *vma, u64 delta, u64 length,
 		}
 	}
 
-	mmu->flush(vm);
+	mmu->func->flush(vm);
 }
 
 void
@@ -183,24 +183,24 @@ nvkm_vm_unmap_at(struct nvkm_vma *vma, u64 delta, u64 length)
 {
 	struct nvkm_vm *vm = vma->vm;
 	struct nvkm_mmu *mmu = vm->mmu;
-	int big = vma->node->type != mmu->spg_shift;
+	int big = vma->node->type != mmu->func->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
-	u32 pde  = (offset >> mmu->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << mmu->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (mmu->pgt_bits - bits);
+	u32 pde  = (offset >> mmu->func->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << mmu->func->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (mmu->func->pgt_bits - bits);
 	u32 end, len;
 
 	while (num) {
-		struct nvkm_gpuobj *pgt = vm->pgt[pde].obj[big];
+		struct nvkm_memory *pgt = vm->pgt[pde].mem[big];
 
 		end = (pte + num);
 		if (unlikely(end >= max))
 			end = max;
 		len = end - pte;
 
-		mmu->unmap(pgt, pte, len);
+		mmu->func->unmap(vma, pgt, pte, len);
 
 		num -= len;
 		pte += len;
@@ -210,7 +210,7 @@ nvkm_vm_unmap_at(struct nvkm_vma *vma, u64 delta, u64 length)
 		}
 	}
 
-	mmu->flush(vm);
+	mmu->func->flush(vm);
 }
 
 void
@@ -225,7 +225,7 @@ nvkm_vm_unmap_pgt(struct nvkm_vm *vm, int big, u32 fpde, u32 lpde)
 	struct nvkm_mmu *mmu = vm->mmu;
 	struct nvkm_vm_pgd *vpgd;
 	struct nvkm_vm_pgt *vpgt;
-	struct nvkm_gpuobj *pgt;
+	struct nvkm_memory *pgt;
 	u32 pde;
 
 	for (pde = fpde; pde <= lpde; pde++) {
@@ -233,16 +233,14 @@ nvkm_vm_unmap_pgt(struct nvkm_vm *vm, int big, u32 fpde, u32 lpde)
 		if (--vpgt->refcount[big])
 			continue;
 
-		pgt = vpgt->obj[big];
-		vpgt->obj[big] = NULL;
+		pgt = vpgt->mem[big];
+		vpgt->mem[big] = NULL;
 
 		list_for_each_entry(vpgd, &vm->pgd_list, head) {
-			mmu->map_pgt(vpgd->obj, pde, vpgt->obj);
+			mmu->func->map_pgt(vpgd->obj, pde, vpgt->mem);
 		}
 
-		mutex_unlock(&nv_subdev(mmu)->mutex);
-		nvkm_gpuobj_ref(NULL, &pgt);
-		mutex_lock(&nv_subdev(mmu)->mutex);
+		nvkm_memory_del(&pgt);
 	}
 }
 
@@ -252,34 +250,23 @@ nvkm_vm_map_pgt(struct nvkm_vm *vm, u32 pde, u32 type)
 	struct nvkm_mmu *mmu = vm->mmu;
 	struct nvkm_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
 	struct nvkm_vm_pgd *vpgd;
-	struct nvkm_gpuobj *pgt;
-	int big = (type != mmu->spg_shift);
+	int big = (type != mmu->func->spg_shift);
 	u32 pgt_size;
 	int ret;
 
-	pgt_size  = (1 << (mmu->pgt_bits + 12)) >> type;
+	pgt_size  = (1 << (mmu->func->pgt_bits + 12)) >> type;
 	pgt_size *= 8;
 
-	mutex_unlock(&nv_subdev(mmu)->mutex);
-	ret = nvkm_gpuobj_new(nv_object(vm->mmu), NULL, pgt_size, 0x1000,
-			      NVOBJ_FLAG_ZERO_ALLOC, &pgt);
-	mutex_lock(&nv_subdev(mmu)->mutex);
+	ret = nvkm_memory_new(mmu->subdev.device, NVKM_MEM_TARGET_INST,
+			      pgt_size, 0x1000, true, &vpgt->mem[big]);
 	if (unlikely(ret))
 		return ret;
 
-	/* someone beat us to filling the PDE while we didn't have the lock */
-	if (unlikely(vpgt->refcount[big]++)) {
-		mutex_unlock(&nv_subdev(mmu)->mutex);
-		nvkm_gpuobj_ref(NULL, &pgt);
-		mutex_lock(&nv_subdev(mmu)->mutex);
-		return 0;
-	}
-
-	vpgt->obj[big] = pgt;
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		mmu->map_pgt(vpgd->obj, pde, vpgt->obj);
+		mmu->func->map_pgt(vpgd->obj, pde, vpgt->mem);
 	}
 
+	vpgt->refcount[big]++;
 	return 0;
 }
 
@@ -293,20 +280,20 @@ nvkm_vm_get(struct nvkm_vm *vm, u64 size, u32 page_shift, u32 access,
 	u32 fpde, lpde, pde;
 	int ret;
 
-	mutex_lock(&nv_subdev(mmu)->mutex);
+	mutex_lock(&vm->mutex);
 	ret = nvkm_mm_head(&vm->mm, 0, page_shift, msize, msize, align,
 			   &vma->node);
 	if (unlikely(ret != 0)) {
-		mutex_unlock(&nv_subdev(mmu)->mutex);
+		mutex_unlock(&vm->mutex);
 		return ret;
 	}
 
-	fpde = (vma->node->offset >> mmu->pgt_bits);
-	lpde = (vma->node->offset + vma->node->length - 1) >> mmu->pgt_bits;
+	fpde = (vma->node->offset >> mmu->func->pgt_bits);
+	lpde = (vma->node->offset + vma->node->length - 1) >> mmu->func->pgt_bits;
 
 	for (pde = fpde; pde <= lpde; pde++) {
 		struct nvkm_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
-		int big = (vma->node->type != mmu->spg_shift);
+		int big = (vma->node->type != mmu->func->spg_shift);
 
 		if (likely(vpgt->refcount[big])) {
 			vpgt->refcount[big]++;
@@ -318,11 +305,11 @@ nvkm_vm_get(struct nvkm_vm *vm, u64 size, u32 page_shift, u32 access,
 			if (pde != fpde)
 				nvkm_vm_unmap_pgt(vm, big, fpde, pde - 1);
 			nvkm_mm_free(&vm->mm, &vma->node);
-			mutex_unlock(&nv_subdev(mmu)->mutex);
+			mutex_unlock(&vm->mutex);
 			return ret;
 		}
 	}
-	mutex_unlock(&nv_subdev(mmu)->mutex);
+	mutex_unlock(&vm->mutex);
 
 	vma->vm = NULL;
 	nvkm_vm_ref(vm, &vma->vm, NULL);
@@ -334,27 +321,49 @@ nvkm_vm_get(struct nvkm_vm *vm, u64 size, u32 page_shift, u32 access,
 void
 nvkm_vm_put(struct nvkm_vma *vma)
 {
-	struct nvkm_vm *vm = vma->vm;
-	struct nvkm_mmu *mmu = vm->mmu;
+	struct nvkm_mmu *mmu;
+	struct nvkm_vm *vm;
 	u32 fpde, lpde;
 
 	if (unlikely(vma->node == NULL))
 		return;
-	fpde = (vma->node->offset >> mmu->pgt_bits);
-	lpde = (vma->node->offset + vma->node->length - 1) >> mmu->pgt_bits;
+	vm = vma->vm;
+	mmu = vm->mmu;
 
-	mutex_lock(&nv_subdev(mmu)->mutex);
-	nvkm_vm_unmap_pgt(vm, vma->node->type != mmu->spg_shift, fpde, lpde);
+	fpde = (vma->node->offset >> mmu->func->pgt_bits);
+	lpde = (vma->node->offset + vma->node->length - 1) >> mmu->func->pgt_bits;
+
+	mutex_lock(&vm->mutex);
+	nvkm_vm_unmap_pgt(vm, vma->node->type != mmu->func->spg_shift, fpde, lpde);
 	nvkm_mm_free(&vm->mm, &vma->node);
-	mutex_unlock(&nv_subdev(mmu)->mutex);
+	mutex_unlock(&vm->mutex);
 
 	nvkm_vm_ref(NULL, &vma->vm, NULL);
 }
 
 int
-nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
-	       u32 block, struct nvkm_vm **pvm)
+nvkm_vm_boot(struct nvkm_vm *vm, u64 size)
 {
+	struct nvkm_mmu *mmu = vm->mmu;
+	struct nvkm_memory *pgt;
+	int ret;
+
+	ret = nvkm_memory_new(mmu->subdev.device, NVKM_MEM_TARGET_INST,
+			      (size >> mmu->func->spg_shift) * 8, 0x1000, true, &pgt);
+	if (ret == 0) {
+		vm->pgt[0].refcount[0] = 1;
+		vm->pgt[0].mem[0] = pgt;
+		nvkm_memory_boot(pgt, vm);
+	}
+
+	return ret;
+}
+
+int
+nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
+	       u32 block, struct lock_class_key *key, struct nvkm_vm **pvm)
+{
+	static struct lock_class_key _key;
 	struct nvkm_vm *vm;
 	u64 mm_length = (offset + length) - mm_offset;
 	int ret;
@@ -363,11 +372,12 @@ nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	if (!vm)
 		return -ENOMEM;
 
+	__mutex_init(&vm->mutex, "&vm->mutex", key ? key : &_key);
 	INIT_LIST_HEAD(&vm->pgd_list);
 	vm->mmu = mmu;
 	kref_init(&vm->refcount);
-	vm->fpde = offset >> (mmu->pgt_bits + 12);
-	vm->lpde = (offset + length - 1) >> (mmu->pgt_bits + 12);
+	vm->fpde = offset >> (mmu->func->pgt_bits + 12);
+	vm->lpde = (offset + length - 1) >> (mmu->func->pgt_bits + 12);
 
 	vm->pgt  = vzalloc((vm->lpde - vm->fpde + 1) * sizeof(*vm->pgt));
 	if (!vm->pgt) {
@@ -390,10 +400,12 @@ nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 
 int
 nvkm_vm_new(struct nvkm_device *device, u64 offset, u64 length, u64 mm_offset,
-	    struct nvkm_vm **pvm)
+	    struct lock_class_key *key, struct nvkm_vm **pvm)
 {
-	struct nvkm_mmu *mmu = nvkm_mmu(device);
-	return mmu->create(mmu, offset, length, mm_offset, pvm);
+	struct nvkm_mmu *mmu = device->mmu;
+	if (!mmu->func->create)
+		return -EINVAL;
+	return mmu->func->create(mmu, offset, length, mm_offset, key, pvm);
 }
 
 static int
@@ -410,38 +422,33 @@ nvkm_vm_link(struct nvkm_vm *vm, struct nvkm_gpuobj *pgd)
 	if (!vpgd)
 		return -ENOMEM;
 
-	nvkm_gpuobj_ref(pgd, &vpgd->obj);
+	vpgd->obj = pgd;
 
-	mutex_lock(&nv_subdev(mmu)->mutex);
+	mutex_lock(&vm->mutex);
 	for (i = vm->fpde; i <= vm->lpde; i++)
-		mmu->map_pgt(pgd, i, vm->pgt[i - vm->fpde].obj);
+		mmu->func->map_pgt(pgd, i, vm->pgt[i - vm->fpde].mem);
 	list_add(&vpgd->head, &vm->pgd_list);
-	mutex_unlock(&nv_subdev(mmu)->mutex);
+	mutex_unlock(&vm->mutex);
 	return 0;
 }
 
 static void
 nvkm_vm_unlink(struct nvkm_vm *vm, struct nvkm_gpuobj *mpgd)
 {
-	struct nvkm_mmu *mmu = vm->mmu;
 	struct nvkm_vm_pgd *vpgd, *tmp;
-	struct nvkm_gpuobj *pgd = NULL;
 
 	if (!mpgd)
 		return;
 
-	mutex_lock(&nv_subdev(mmu)->mutex);
+	mutex_lock(&vm->mutex);
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
 		if (vpgd->obj == mpgd) {
-			pgd = vpgd->obj;
 			list_del(&vpgd->head);
 			kfree(vpgd);
 			break;
 		}
 	}
-	mutex_unlock(&nv_subdev(mmu)->mutex);
-
-	nvkm_gpuobj_ref(NULL, &pgd);
+	mutex_unlock(&vm->mutex);
 }
 
 static void
@@ -476,5 +483,60 @@ nvkm_vm_ref(struct nvkm_vm *ref, struct nvkm_vm **ptr, struct nvkm_gpuobj *pgd)
 	}
 
 	*ptr = ref;
+	return 0;
+}
+
+static int
+nvkm_mmu_oneinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_mmu *mmu = nvkm_mmu(subdev);
+	if (mmu->func->oneinit)
+		return mmu->func->oneinit(mmu);
+	return 0;
+}
+
+static int
+nvkm_mmu_init(struct nvkm_subdev *subdev)
+{
+	struct nvkm_mmu *mmu = nvkm_mmu(subdev);
+	if (mmu->func->init)
+		mmu->func->init(mmu);
+	return 0;
+}
+
+static void *
+nvkm_mmu_dtor(struct nvkm_subdev *subdev)
+{
+	struct nvkm_mmu *mmu = nvkm_mmu(subdev);
+	if (mmu->func->dtor)
+		return mmu->func->dtor(mmu);
+	return mmu;
+}
+
+static const struct nvkm_subdev_func
+nvkm_mmu = {
+	.dtor = nvkm_mmu_dtor,
+	.oneinit = nvkm_mmu_oneinit,
+	.init = nvkm_mmu_init,
+};
+
+void
+nvkm_mmu_ctor(const struct nvkm_mmu_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_mmu *mmu)
+{
+	nvkm_subdev_ctor(&nvkm_mmu, device, index, 0, &mmu->subdev);
+	mmu->func = func;
+	mmu->limit = func->limit;
+	mmu->dma_bits = func->dma_bits;
+	mmu->lpg_shift = func->lpg_shift;
+}
+
+int
+nvkm_mmu_new_(const struct nvkm_mmu_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_mmu **pmmu)
+{
+	if (!(*pmmu = kzalloc(sizeof(**pmmu), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_mmu_ctor(func, device, index, *pmmu);
 	return 0;
 }

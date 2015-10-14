@@ -1,6 +1,8 @@
-/* bnx2x.h: Broadcom Everest network driver.
+/* bnx2x.h: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +32,7 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.710.51-0"
+#define DRV_MODULE_VERSION      "1.712.30-0"
 #define DRV_MODULE_RELDATE      "2014/02/10"
 #define BNX2X_BC_VER            0x040200
 
@@ -1227,6 +1229,10 @@ struct bnx2x_slowpath {
 	} mac_rdata;
 
 	union {
+		struct eth_classify_rules_ramrod_data	e2;
+	} vlan_rdata;
+
+	union {
 		struct tstorm_eth_mac_filter_config	e1x;
 		struct eth_filter_rules_ramrod_data	e2;
 	} rx_mode_rdata;
@@ -1386,6 +1392,8 @@ enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 	BNX2X_SP_RTNL_TX_STOP,
 	BNX2X_SP_RTNL_GET_DRV_VERSION,
+	BNX2X_SP_RTNL_ADD_VXLAN_PORT,
+	BNX2X_SP_RTNL_DEL_VXLAN_PORT,
 };
 
 enum bnx2x_iov_flag {
@@ -1408,6 +1416,9 @@ struct bnx2x_sp_objs {
 
 	/* Queue State object */
 	struct bnx2x_queue_sp_obj q_obj;
+
+	/* VLANs object */
+	struct bnx2x_vlan_mac_obj vlan_obj;
 };
 
 struct bnx2x_fp_stats {
@@ -1422,6 +1433,13 @@ enum {
 	SUB_MF_MODE_UNKNOWN = 0,
 	SUB_MF_MODE_UFP,
 	SUB_MF_MODE_NPAR1_DOT_5,
+	SUB_MF_MODE_BD,
+};
+
+struct bnx2x_vlan_entry {
+	struct list_head link;
+	u16 vid;
+	bool hw;
 };
 
 struct bnx2x {
@@ -1636,6 +1654,8 @@ struct bnx2x {
 	u8			mf_sub_mode;
 #define IS_MF_UFP(bp)		(IS_MF_SD(bp) && \
 				 bp->mf_sub_mode == SUB_MF_MODE_UFP)
+#define IS_MF_BD(bp)		(IS_MF_SD(bp) && \
+				 bp->mf_sub_mode == SUB_MF_MODE_BD)
 
 	u8			wol;
 
@@ -1860,8 +1880,6 @@ struct bnx2x {
 	int					dcb_version;
 
 	/* CAM credit pools */
-
-	/* used only in sriov */
 	struct bnx2x_credit_pool_obj		vlans_pool;
 
 	struct bnx2x_credit_pool_obj		macs_pool;
@@ -1924,6 +1942,12 @@ struct bnx2x {
 	u16 rx_filter;
 
 	struct bnx2x_link_report_data		vf_link_vars;
+	struct list_head vlan_reg;
+	u16 vlan_cnt;
+	u16 vlan_credit;
+	u16 vxlan_dst_port;
+	u8 vxlan_dst_port_count;
+	bool accept_any_vlan;
 };
 
 /* Tx queues may be less or equal to Rx queues */
@@ -1951,23 +1975,14 @@ extern int num_queues;
 #define RSS_IPV6_TCP_CAP_MASK						\
 	TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY
 
-/* func init flags */
-#define FUNC_FLG_RSS		0x0001
-#define FUNC_FLG_STATS		0x0002
-/* removed  FUNC_FLG_UNMATCHED	0x0004 */
-#define FUNC_FLG_TPA		0x0008
-#define FUNC_FLG_SPQ		0x0010
-#define FUNC_FLG_LEADING	0x0020	/* PF only */
-#define FUNC_FLG_LEADING_STATS	0x0040
 struct bnx2x_func_init_params {
 	/* dma */
-	dma_addr_t	fw_stat_map;	/* valid iff FUNC_FLG_STATS */
-	dma_addr_t	spq_map;	/* valid iff FUNC_FLG_SPQ */
+	bool		spq_active;
+	dma_addr_t	spq_map;
+	u16		spq_prod;
 
-	u16		func_flgs;
 	u16		func_id;	/* abs fid */
 	u16		pf_id;
-	u16		spq_prod;	/* valid iff FUNC_FLG_SPQ */
 };
 
 #define for_each_cnic_queue(bp, var) \
@@ -2077,6 +2092,11 @@ struct bnx2x_func_init_params {
 int bnx2x_set_mac_one(struct bnx2x *bp, u8 *mac,
 		      struct bnx2x_vlan_mac_obj *obj, bool set,
 		      int mac_type, unsigned long *ramrod_flags);
+
+int bnx2x_set_vlan_one(struct bnx2x *bp, u16 vlan,
+		       struct bnx2x_vlan_mac_obj *obj, bool set,
+		       unsigned long *ramrod_flags);
+
 /**
  * bnx2x_del_all_macs - delete all MACs configured for the specific MAC object
  *
@@ -2481,6 +2501,7 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 #define VF_ACQUIRE_THRESH		3
 #define VF_ACQUIRE_MAC_FILTERS		1
 #define VF_ACQUIRE_MC_FILTERS		10
+#define VF_ACQUIRE_VLAN_FILTERS		2 /* VLAN0 + 'real' VLAN */
 
 #define GOOD_ME_REG(me_reg) (((me_reg) & ME_REG_VF_VALID) && \
 			    (!((me_reg) & ME_REG_VF_ERR)))
@@ -2553,6 +2574,10 @@ void bnx2x_notify_link_changed(struct bnx2x *bp);
 			(IS_MF_SD_STORAGE_PERSONALITY_ONLY(bp) ||	\
 			 IS_MF_SI_STORAGE_PERSONALITY_ONLY(bp))
 
+/* Determines whether BW configuration arrives in 100Mb units or in
+ * percentages from actual physical link speed.
+ */
+#define IS_MF_PERCENT_BW(bp) (IS_MF_SI(bp) || IS_MF_UFP(bp) || IS_MF_BD(bp))
 
 #define SET_FLAG(value, mask, flag) \
 	do {\
@@ -2577,6 +2602,8 @@ void bnx2x_set_local_cmng(struct bnx2x *bp);
 
 void bnx2x_update_mng_version(struct bnx2x *bp);
 
+void bnx2x_update_mfw_dump(struct bnx2x *bp);
+
 #define MCPR_SCRATCH_BASE(bp) \
 	(CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
 
@@ -2588,5 +2615,10 @@ void bnx2x_set_rx_ts(struct bnx2x *bp, struct sk_buff *skb);
 
 #define BNX2X_MAX_PHC_DRIFT 31000000
 #define BNX2X_PTP_TX_TIMEOUT
+
+/* Re-configure all previously configured vlan filters.
+ * Meant for implicit re-load flows.
+ */
+int bnx2x_vlan_reconfigure_vid(struct bnx2x *bp);
 
 #endif /* bnx2x.h */

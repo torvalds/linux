@@ -1,6 +1,7 @@
 /*
  * Linux performance counter support for ARC
  *
+ * Copyright (C) 2014-2015 Synopsys, Inc. (www.synopsys.com)
  * Copyright (C) 2011-2013 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
@@ -12,8 +13,8 @@
 #ifndef __ASM_PERF_EVENT_H
 #define __ASM_PERF_EVENT_H
 
-/* real maximum varies per CPU, this is the maximum supported by the driver */
-#define ARC_PMU_MAX_HWEVENTS	64
+/* Max number of counters that PCT block may ever have */
+#define ARC_PERF_MAX_COUNTERS	32
 
 #define ARC_REG_CC_BUILD	0xF6
 #define ARC_REG_CC_INDEX	0x240
@@ -28,15 +29,22 @@
 #define ARC_REG_PCT_CONFIG	0x254
 #define ARC_REG_PCT_CONTROL	0x255
 #define ARC_REG_PCT_INDEX	0x256
+#define ARC_REG_PCT_INT_CNTL	0x25C
+#define ARC_REG_PCT_INT_CNTH	0x25D
+#define ARC_REG_PCT_INT_CTRL	0x25E
+#define ARC_REG_PCT_INT_ACT	0x25F
+
+#define ARC_REG_PCT_CONFIG_USER	(1 << 18)	/* count in user mode */
+#define ARC_REG_PCT_CONFIG_KERN	(1 << 19)	/* count in kernel mode */
 
 #define ARC_REG_PCT_CONTROL_CC	(1 << 16)	/* clear counts */
 #define ARC_REG_PCT_CONTROL_SN	(1 << 17)	/* snapshot */
 
 struct arc_reg_pct_build {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int m:8, c:8, r:6, s:2, v:8;
+	unsigned int m:8, c:8, r:5, i:1, s:2, v:8;
 #else
-	unsigned int v:8, s:2, r:6, c:8, m:8;
+	unsigned int v:8, s:2, i:1, r:5, c:8, m:8;
 #endif
 };
 
@@ -95,10 +103,13 @@ static const char * const arc_pmu_ev_hw_map[] = {
 
 	/* counts condition */
 	[PERF_COUNT_HW_INSTRUCTIONS] = "iall",
-	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = "ijmp",
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = "ijmp", /* Excludes ZOL jumps */
 	[PERF_COUNT_ARC_BPOK]         = "bpok",	  /* NP-NT, PT-T, PNT-NT */
+#ifdef CONFIG_ISA_ARCV2
+	[PERF_COUNT_HW_BRANCH_MISSES] = "bpmp",
+#else
 	[PERF_COUNT_HW_BRANCH_MISSES] = "bpfail", /* NP-T, PT-NT, PNT-T */
-
+#endif
 	[PERF_COUNT_ARC_LDC] = "imemrdc",	/* Instr: mem read cached */
 	[PERF_COUNT_ARC_STC] = "imemwrc",	/* Instr: mem write cached */
 

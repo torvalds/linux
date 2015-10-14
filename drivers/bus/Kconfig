@@ -36,7 +36,6 @@ config ARM_CCI400_PORT_CTRL
 
 config ARM_CCI500_PMU
 	bool "ARM CCI500 PMU support"
-	default y
 	depends on (ARM && CPU_V7) || ARM64
 	depends on PERF_EVENTS
 	select ARM_CCI_PMU

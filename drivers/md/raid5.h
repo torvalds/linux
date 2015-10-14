@@ -265,7 +265,7 @@ struct stripe_head_state {
 	int dec_preread_active;
 	unsigned long ops_request;
 
-	struct bio *return_bi;
+	struct bio_list return_bi;
 	struct md_rdev *blocked_rdev;
 	int handle_bad_blocks;
 };
@@ -475,6 +475,9 @@ struct r5conf {
 	int			bypass_threshold; /* preread nice */
 	int			skip_copy; /* Don't copy data from bio to stripe cache */
 	struct list_head	*last_hold; /* detect hold_list promotions */
+
+	/* bios to have bi_end_io called after metadata is synced */
+	struct bio_list		return_bi;
 
 	atomic_t		reshape_stripes; /* stripes with pending writes for reshape */
 	/* unfortunately we need two cache names as we temporarily have

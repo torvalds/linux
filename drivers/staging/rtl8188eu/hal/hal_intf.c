@@ -131,14 +131,6 @@ void rtw_hal_get_hwreg(struct adapter *adapt, u8 variable, u8 *val)
 		adapt->HalFunc.GetHwRegHandler(adapt, variable, val);
 }
 
-u8 rtw_hal_set_def_var(struct adapter *adapt, enum hal_def_variable var,
-		      void *val)
-{
-	if (adapt->HalFunc.SetHalDefVarHandler)
-		return adapt->HalFunc.SetHalDefVarHandler(adapt, var, val);
-	return _FAIL;
-}
-
 u8 rtw_hal_get_def_var(struct adapter *adapt,
 		       enum hal_def_variable var, void *val)
 {
@@ -154,22 +146,6 @@ void rtw_hal_set_odm_var(struct adapter *adapt,
 	if (adapt->HalFunc.SetHalODMVarHandler)
 		adapt->HalFunc.SetHalODMVarHandler(adapt, var,
 						      val1, set);
-}
-
-void rtw_hal_enable_interrupt(struct adapter *adapt)
-{
-	if (adapt->HalFunc.enable_interrupt)
-		adapt->HalFunc.enable_interrupt(adapt);
-	else
-		DBG_88E("%s: HalFunc.enable_interrupt is NULL!\n", __func__);
-}
-
-void rtw_hal_disable_interrupt(struct adapter *adapt)
-{
-	if (adapt->HalFunc.disable_interrupt)
-		adapt->HalFunc.disable_interrupt(adapt);
-	else
-		DBG_88E("%s: HalFunc.disable_interrupt is NULL!\n", __func__);
 }
 
 u32 rtw_hal_inirp_init(struct adapter *adapt)
@@ -267,14 +243,6 @@ u32 rtw_hal_read_rfreg(struct adapter *adapt, enum rf_radio_path rfpath,
 		data = adapt->HalFunc.read_rfreg(adapt, rfpath, regaddr,
 						    bitmask);
 	return data;
-}
-
-void rtw_hal_write_rfreg(struct adapter *adapt, enum rf_radio_path rfpath,
-			 u32 regaddr, u32 bitmask, u32 data)
-{
-	if (adapt->HalFunc.write_rfreg)
-		adapt->HalFunc.write_rfreg(adapt, rfpath, regaddr,
-					      bitmask, data);
 }
 
 void rtw_hal_set_bwmode(struct adapter *adapt,

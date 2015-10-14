@@ -57,6 +57,7 @@
 #include <linux/mutex.h>
 #undef DEBUG
 #include <linux/usb.h>
+#include <linux/usb/ch9.h>
 #include <linux/ratelimit.h>
 
 /*
@@ -79,12 +80,20 @@
 #define IOCNR_SOFT_RESET		7
 /* Get device_id string: */
 #define LPIOC_GET_DEVICE_ID(len) _IOC(_IOC_READ, 'P', IOCNR_GET_DEVICE_ID, len)
-/* The following ioctls were added for http://hpoj.sourceforge.net: */
-/* Get two-int array:
- * [0]=current protocol (1=7/1/1, 2=7/1/2, 3=7/1/3),
- * [1]=supported protocol mask (mask&(1<<n)!=0 means 7/1/n supported): */
+/* The following ioctls were added for http://hpoj.sourceforge.net:
+ * Get two-int array:
+ * [0]=current protocol
+ *     (1=USB_CLASS_PRINTER/1/1, 2=USB_CLASS_PRINTER/1/2,
+ *         3=USB_CLASS_PRINTER/1/3),
+ * [1]=supported protocol mask (mask&(1<<n)!=0 means
+ *     USB_CLASS_PRINTER/1/n supported):
+ */
 #define LPIOC_GET_PROTOCOLS(len) _IOC(_IOC_READ, 'P', IOCNR_GET_PROTOCOLS, len)
-/* Set protocol (arg: 1=7/1/1, 2=7/1/2, 3=7/1/3): */
+/*
+ * Set protocol
+ *     (arg: 1=USB_CLASS_PRINTER/1/1, 2=USB_CLASS_PRINTER/1/2,
+ *         3=USB_CLASS_PRINTER/1/3):
+ */
 #define LPIOC_SET_PROTOCOL _IOC(_IOC_WRITE, 'P', IOCNR_SET_PROTOCOL, 0)
 /* Set channel number (HP Vendor-specific command): */
 #define LPIOC_HP_SET_CHANNEL _IOC(_IOC_WRITE, 'P', IOCNR_HP_SET_CHANNEL, 0)
@@ -146,8 +155,10 @@ struct usblp {
 	int			readcount;		/* Counter for reads */
 	int			ifnum;			/* Interface number */
 	struct usb_interface	*intf;			/* The interface */
-	/* Alternate-setting numbers and endpoints for each protocol
-	 * (7/1/{index=1,2,3}) that the device supports: */
+	/*
+	 * Alternate-setting numbers and endpoints for each protocol
+	 * (USB_CLASS_PRINTER/1/{index=1,2,3}) that the device supports:
+	 */
 	struct {
 		int				alt_setting;
 		struct usb_endpoint_descriptor	*epwrite;
@@ -1206,19 +1217,23 @@ abort_ret:
  * but our requirements are too intricate for simple match to handle.
  *
  * The "proto_bias" option may be used to specify the preferred protocol
- * for all USB printers (1=7/1/1, 2=7/1/2, 3=7/1/3).  If the device
- * supports the preferred protocol, then we bind to it.
+ * for all USB printers (1=USB_CLASS_PRINTER/1/1, 2=USB_CLASS_PRINTER/1/2,
+ * 3=USB_CLASS_PRINTER/1/3).  If the device supports the preferred protocol,
+ * then we bind to it.
  *
- * The best interface for us is 7/1/2, because it is compatible
- * with a stream of characters. If we find it, we bind to it.
+ * The best interface for us is USB_CLASS_PRINTER/1/2, because it
+ * is compatible with a stream of characters. If we find it, we bind to it.
  *
  * Note that the people from hpoj.sourceforge.net need to be able to
- * bind to 7/1/3 (MLC/1284.4), so we provide them ioctls for this purpose.
+ * bind to USB_CLASS_PRINTER/1/3 (MLC/1284.4), so we provide them ioctls
+ * for this purpose.
  *
- * Failing 7/1/2, we look for 7/1/3, even though it's probably not
- * stream-compatible, because this matches the behaviour of the old code.
+ * Failing USB_CLASS_PRINTER/1/2, we look for USB_CLASS_PRINTER/1/3,
+ * even though it's probably not stream-compatible, because this matches
+ * the behaviour of the old code.
  *
- * If nothing else, we bind to 7/1/1 - the unidirectional interface.
+ * If nothing else, we bind to USB_CLASS_PRINTER/1/1
+ * - the unidirectional interface.
  */
 static int usblp_select_alts(struct usblp *usblp)
 {
@@ -1236,7 +1251,8 @@ static int usblp_select_alts(struct usblp *usblp)
 	for (i = 0; i < if_alt->num_altsetting; i++) {
 		ifd = &if_alt->altsetting[i];
 
-		if (ifd->desc.bInterfaceClass != 7 || ifd->desc.bInterfaceSubClass != 1)
+		if (ifd->desc.bInterfaceClass != USB_CLASS_PRINTER ||
+		    ifd->desc.bInterfaceSubClass != 1)
 			if (!(usblp->quirks & USBLP_QUIRK_BAD_CLASS))
 				continue;
 
@@ -1262,8 +1278,10 @@ static int usblp_select_alts(struct usblp *usblp)
 		if (!epwrite || (ifd->desc.bInterfaceProtocol > 1 && !epread))
 			continue;
 
-		/* Turn off reads for 7/1/1 (unidirectional) interfaces
-		 * and buggy bidirectional printers. */
+		/*
+		 * Turn off reads for USB_CLASS_PRINTER/1/1 (unidirectional)
+		 * interfaces and buggy bidirectional printers.
+		 */
 		if (ifd->desc.bInterfaceProtocol == 1) {
 			epread = NULL;
 		} else if (usblp->quirks & USBLP_QUIRK_BIDIR) {
@@ -1406,12 +1424,12 @@ static int usblp_resume(struct usb_interface *intf)
 }
 
 static const struct usb_device_id usblp_ids[] = {
-	{ USB_DEVICE_INFO(7, 1, 1) },
-	{ USB_DEVICE_INFO(7, 1, 2) },
-	{ USB_DEVICE_INFO(7, 1, 3) },
-	{ USB_INTERFACE_INFO(7, 1, 1) },
-	{ USB_INTERFACE_INFO(7, 1, 2) },
-	{ USB_INTERFACE_INFO(7, 1, 3) },
+	{ USB_DEVICE_INFO(USB_CLASS_PRINTER, 1, 1) },
+	{ USB_DEVICE_INFO(USB_CLASS_PRINTER, 1, 2) },
+	{ USB_DEVICE_INFO(USB_CLASS_PRINTER, 1, 3) },
+	{ USB_INTERFACE_INFO(USB_CLASS_PRINTER, 1, 1) },
+	{ USB_INTERFACE_INFO(USB_CLASS_PRINTER, 1, 2) },
+	{ USB_INTERFACE_INFO(USB_CLASS_PRINTER, 1, 3) },
 	{ USB_DEVICE(0x04b8, 0x0202) },	/* Seiko Epson Receipt Printer M129C */
 	{ }						/* Terminating entry */
 };

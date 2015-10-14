@@ -71,7 +71,7 @@ static struct csc_cfg csc_convert[CSC_MAX] = {
 	},
 };
 
-#define FMT(name, a, r, g, b, e0, e1, e2, e3, alpha, tight, c, cnt, fp, cs) { \
+#define FMT(name, a, r, g, b, e0, e1, e2, e3, alpha, tight, c, cnt, fp, cs, yuv) { \
 		.base = { .pixel_format = DRM_FORMAT_ ## name }, \
 		.bpc_a = BPC ## a ## A,                          \
 		.bpc_r = BPC ## r,                               \
@@ -83,7 +83,8 @@ static struct csc_cfg csc_convert[CSC_MAX] = {
 		.cpp = c,                                        \
 		.unpack_count = cnt,                             \
 		.fetch_type = fp,                                \
-		.chroma_sample = cs                              \
+		.chroma_sample = cs,                             \
+		.is_yuv = yuv,                                   \
 }
 
 #define BPC0A 0
@@ -95,30 +96,49 @@ static struct csc_cfg csc_convert[CSC_MAX] = {
 static const struct mdp_format formats[] = {
 	/*  name      a  r  g  b   e0 e1 e2 e3  alpha   tight  cpp cnt ... */
 	FMT(ARGB8888, 8, 8, 8, 8,  1, 0, 2, 3,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
 	FMT(ABGR8888, 8, 8, 8, 8,  2, 0, 1, 3,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
 	FMT(RGBA8888, 8, 8, 8, 8,  3, 1, 0, 2,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
 	FMT(BGRA8888, 8, 8, 8, 8,  3, 2, 0, 1,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
 	FMT(XRGB8888, 8, 8, 8, 8,  1, 0, 2, 3,  false,  true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
 	FMT(RGB888,   0, 8, 8, 8,  1, 0, 2, 0,  false,  true,  3,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
 	FMT(BGR888,   0, 8, 8, 8,  2, 0, 1, 0,  false,  true,  3,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
 	FMT(RGB565,   0, 5, 6, 5,  1, 0, 2, 0,  false,  true,  2,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
 	FMT(BGR565,   0, 5, 6, 5,  2, 0, 1, 0,  false,  true,  2,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
 
 	/* --- RGB formats above / YUV formats below this line --- */
 
+	/* 2 plane YUV */
 	FMT(NV12,     0, 8, 8, 8,  1, 2, 0, 0,  false,  true,  2, 2,
-			MDP_PLANE_PSEUDO_PLANAR, CHROMA_420),
+			MDP_PLANE_PSEUDO_PLANAR, CHROMA_420, true),
 	FMT(NV21,     0, 8, 8, 8,  2, 1, 0, 0,  false,  true,  2, 2,
-			MDP_PLANE_PSEUDO_PLANAR, CHROMA_420),
+			MDP_PLANE_PSEUDO_PLANAR, CHROMA_420, true),
+	FMT(NV16,     0, 8, 8, 8,  1, 2, 0, 0,  false,  true,  2, 2,
+			MDP_PLANE_PSEUDO_PLANAR, CHROMA_H2V1, true),
+	FMT(NV61,     0, 8, 8, 8,  2, 1, 0, 0,  false,  true,  2, 2,
+			MDP_PLANE_PSEUDO_PLANAR, CHROMA_H2V1, true),
+	/* 1 plane YUV */
+	FMT(VYUY,     0, 8, 8, 8,  2, 0, 1, 0,  false,  true,  2, 4,
+			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
+	FMT(UYVY,     0, 8, 8, 8,  1, 0, 2, 0,  false,  true,  2, 4,
+			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
+	FMT(YUYV,     0, 8, 8, 8,  0, 1, 0, 2,  false,  true,  2, 4,
+			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
+	FMT(YVYU,     0, 8, 8, 8,  0, 2, 0, 1,  false,  true,  2, 4,
+			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
+	/* 3 plane YUV */
+	FMT(YUV420,   0, 8, 8, 8,  2, 1, 0, 0,  false,  true,  1, 1,
+			MDP_PLANE_PLANAR, CHROMA_420, true),
+	FMT(YVU420,   0, 8, 8, 8,  1, 2, 0, 0,  false,  true,  1, 1,
+			MDP_PLANE_PLANAR, CHROMA_420, true),
 };
 
 /*

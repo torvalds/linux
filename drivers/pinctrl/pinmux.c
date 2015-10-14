@@ -313,8 +313,7 @@ static int pinmux_func_name_to_selector(struct pinctrl_dev *pctldev,
 
 	/* See if this pctldev has this function */
 	while (selector < nfuncs) {
-		const char *fname = ops->get_function_name(pctldev,
-							   selector);
+		const char *fname = ops->get_function_name(pctldev, selector);
 
 		if (!strcmp(function, fname))
 			return selector;
@@ -322,8 +321,7 @@ static int pinmux_func_name_to_selector(struct pinctrl_dev *pctldev,
 		selector++;
 	}
 
-	pr_err("%s does not support function %s\n",
-	       pinctrl_dev_get_name(pctldev), function);
+	dev_err(pctldev->dev, "function '%s' not supported\n", function);
 	return -EINVAL;
 }
 

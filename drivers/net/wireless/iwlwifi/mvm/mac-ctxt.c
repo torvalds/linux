@@ -1312,9 +1312,8 @@ static void iwl_mvm_csa_count_down(struct iwl_mvm *mvm,
 	}
 }
 
-int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
-			    struct iwl_rx_cmd_buffer *rxb,
-			    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
+			     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_extended_beacon_notif *beacon = (void *)pkt->data;
@@ -1365,8 +1364,6 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 			RCU_INIT_POINTER(mvm->csa_tx_blocked_vif, NULL);
 		}
 	}
-
-	return 0;
 }
 
 static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
@@ -1415,9 +1412,8 @@ static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 		iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL);
 }
 
-int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
-				    struct iwl_rx_cmd_buffer *rxb,
-				    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
+				     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_missed_beacons_notif *mb = (void *)pkt->data;
@@ -1434,5 +1430,4 @@ int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_beacon_loss_iterator,
 						   mb);
-	return 0;
 }

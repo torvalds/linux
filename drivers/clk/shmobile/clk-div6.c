@@ -11,12 +11,12 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 
 #define CPG_DIV6_CKSTP		BIT(8)
 #define CPG_DIV6_DIV(d)		((d) & 0x3f)
@@ -133,13 +133,13 @@ static u8 cpg_div6_clock_get_parent(struct clk_hw *hw)
 
 	hw_index = (clk_readl(clock->reg) >> clock->src_shift) &
 		   (BIT(clock->src_width) - 1);
-	for (i = 0; i < __clk_get_num_parents(hw->clk); i++) {
+	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
 		if (clock->parents[i] == hw_index)
 			return i;
 	}
 
 	pr_err("%s: %s DIV6 clock set to invalid parent %u\n",
-	       __func__, __clk_get_name(hw->clk), hw_index);
+	       __func__, clk_hw_get_name(hw), hw_index);
 	return 0;
 }
 
@@ -149,7 +149,7 @@ static int cpg_div6_clock_set_parent(struct clk_hw *hw, u8 index)
 	u8 hw_index;
 	u32 mask;
 
-	if (index >= __clk_get_num_parents(hw->clk))
+	if (index >= clk_hw_get_num_parents(hw))
 		return -EINVAL;
 
 	mask = ~((BIT(clock->src_width) - 1) << clock->src_shift);

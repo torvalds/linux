@@ -596,6 +596,12 @@ static int cz_dpm_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (amdgpu_dpm) {
+		int ret;
+		/* init the sysfs and debugfs files late */
+		ret = amdgpu_pm_sysfs_init(adev);
+		if (ret)
+			return ret;
+
 		/* powerdown unused blocks for now */
 		cz_dpm_powergate_uvd(adev, true);
 		cz_dpm_powergate_vce(adev, true);
@@ -631,10 +637,6 @@ static int cz_dpm_sw_init(void *handle)
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
 	if (amdgpu_dpm == 1)
 		amdgpu_pm_print_power_states(adev);
-
-	ret = amdgpu_pm_sysfs_init(adev);
-	if (ret)
-		goto dpm_init_failed;
 
 	mutex_unlock(&adev->pm.mutex);
 	DRM_INFO("amdgpu: dpm initialized\n");
@@ -1596,9 +1598,9 @@ static int cz_dpm_update_low_memory_pstate(struct amdgpu_device *adev)
 
 	if (pi->sys_info.nb_dpm_enable) {
 		if (ps->force_high)
-			cz_dpm_nbdpm_lm_pstate_enable(adev, true);
-		else
 			cz_dpm_nbdpm_lm_pstate_enable(adev, false);
+		else
+			cz_dpm_nbdpm_lm_pstate_enable(adev, true);
 	}
 
 	return ret;

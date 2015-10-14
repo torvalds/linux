@@ -44,6 +44,7 @@ static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 
 MODULE_FIRMWARE("amdgpu/topaz_mc.bin");
 MODULE_FIRMWARE("amdgpu/tonga_mc.bin");
+MODULE_FIRMWARE("amdgpu/fiji_mc.bin");
 
 static const u32 golden_settings_tonga_a11[] =
 {
@@ -57,6 +58,19 @@ static const u32 golden_settings_tonga_a11[] =
 };
 
 static const u32 tonga_mgcg_cgcg_init[] =
+{
+	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
+};
+
+static const u32 golden_settings_fiji_a10[] =
+{
+	mmVM_PRT_APERTURE0_LOW_ADDR, 0x0fffffff, 0x0fffffff,
+	mmVM_PRT_APERTURE1_LOW_ADDR, 0x0fffffff, 0x0fffffff,
+	mmVM_PRT_APERTURE2_LOW_ADDR, 0x0fffffff, 0x0fffffff,
+	mmVM_PRT_APERTURE3_LOW_ADDR, 0x0fffffff, 0x0fffffff,
+};
+
+static const u32 fiji_mgcg_cgcg_init[] =
 {
 	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
 };
@@ -89,6 +103,14 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_iceland_a11,
 						 (const u32)ARRAY_SIZE(golden_settings_iceland_a11));
+		break;
+	case CHIP_FIJI:
+		amdgpu_program_register_sequence(adev,
+						 fiji_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_fiji_a10,
+						 (const u32)ARRAY_SIZE(golden_settings_fiji_a10));
 		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
@@ -201,6 +223,9 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_TONGA:
 		chip_name = "tonga";
+		break;
+	case CHIP_FIJI:
+		chip_name = "fiji";
 		break;
 	case CHIP_CARRIZO:
 		return 0;
@@ -628,19 +653,12 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	tmp = RREG32(mmVM_CONTEXT1_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, DUMMY_PAGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PDE0_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, VALID_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, VALID_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, READ_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, READ_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_BLOCK_SIZE,
 			    amdgpu_vm_block_size - 9);
@@ -737,7 +755,7 @@ static int gmc_v8_0_vm_init(struct amdgpu_device *adev)
 	adev->vm_manager.nvm = AMDGPU_NUM_OF_VMIDS;
 
 	/* base offset of vram pages */
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		u64 tmp = RREG32(mmMC_VM_FB_OFFSET);
 		tmp <<= 22;
 		adev->vm_manager.vram_base_offset = tmp;
@@ -816,7 +834,7 @@ static int gmc_v8_0_early_init(void *handle)
 	gmc_v8_0_set_gart_funcs(adev);
 	gmc_v8_0_set_irq_funcs(adev);
 
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
 	} else {
 		u32 tmp = RREG32(mmMC_SEQ_MISC0);
@@ -825,6 +843,13 @@ static int gmc_v8_0_early_init(void *handle)
 	}
 
 	return 0;
+}
+
+static int gmc_v8_0_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
 }
 
 static int gmc_v8_0_sw_init(void *handle)
@@ -934,7 +959,7 @@ static int gmc_v8_0_hw_init(void *handle)
 
 	gmc_v8_0_mc_program(adev);
 
-	if (!(adev->flags & AMDGPU_IS_APU)) {
+	if (!(adev->flags & AMD_IS_APU)) {
 		r = gmc_v8_0_mc_load_microcode(adev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
@@ -953,6 +978,7 @@ static int gmc_v8_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	amdgpu_irq_put(adev, &adev->mc.vm_fault, 0);
 	gmc_v8_0_gart_disable(adev);
 
 	return 0;
@@ -1147,7 +1173,7 @@ static int gmc_v8_0_soft_reset(void *handle)
 
 	if (tmp & (SRBM_STATUS__MCB_BUSY_MASK | SRBM_STATUS__MCB_NON_DISPLAY_BUSY_MASK |
 		   SRBM_STATUS__MCC_BUSY_MASK | SRBM_STATUS__MCD_BUSY_MASK)) {
-		if (!(adev->flags & AMDGPU_IS_APU))
+		if (!(adev->flags & AMD_IS_APU))
 			srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
 							SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
 	}
@@ -1236,6 +1262,12 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 	addr = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_ADDR);
 	status = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_STATUS);
 	mc_client = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_MCCLIENT);
+	/* reset addr and status */
+	WREG32_P(mmVM_CONTEXT1_CNTL2, 1, ~1);
+
+	if (!addr && !status)
+		return 0;
+
 	dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
 		entry->src_id, entry->src_data);
 	dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
@@ -1243,8 +1275,6 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 	dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 		status);
 	gmc_v8_0_vm_decode_fault(adev, status, addr, mc_client);
-	/* reset addr and status */
-	WREG32_P(mmVM_CONTEXT1_CNTL2, 1, ~1);
 
 	return 0;
 }
@@ -1263,7 +1293,7 @@ static int gmc_v8_0_set_powergating_state(void *handle,
 
 const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 	.early_init = gmc_v8_0_early_init,
-	.late_init = NULL,
+	.late_init = gmc_v8_0_late_init,
 	.sw_init = gmc_v8_0_sw_init,
 	.sw_fini = gmc_v8_0_sw_fini,
 	.hw_init = gmc_v8_0_hw_init,

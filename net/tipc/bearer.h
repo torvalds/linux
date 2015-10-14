@@ -217,5 +217,8 @@ void tipc_bearer_cleanup(void);
 void tipc_bearer_stop(struct net *net);
 void tipc_bearer_send(struct net *net, u32 bearer_id, struct sk_buff *buf,
 		      struct tipc_media_addr *dest);
+void tipc_bearer_xmit(struct net *net, u32 bearer_id,
+		      struct sk_buff_head *xmitq,
+		      struct tipc_media_addr *dst);
 
 #endif	/* _TIPC_BEARER_H */

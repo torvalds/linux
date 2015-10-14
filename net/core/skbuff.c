@@ -340,7 +340,7 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
 
 	if (skb && frag_size) {
 		skb->head_frag = 1;
-		if (virt_to_head_page(data)->pfmemalloc)
+		if (page_is_pfmemalloc(virt_to_head_page(data)))
 			skb->pfmemalloc = 1;
 	}
 	return skb;
@@ -392,7 +392,7 @@ EXPORT_SYMBOL(napi_alloc_frag);
 /**
  *	__netdev_alloc_skb - allocate an skbuff for rx on a specific device
  *	@dev: network device to receive on
- *	@length: length to allocate
+ *	@len: length to allocate
  *	@gfp_mask: get_free_pages mask, passed to alloc_skb
  *
  *	Allocate a new &sk_buff and assign it a usage count of one. The
@@ -461,7 +461,7 @@ EXPORT_SYMBOL(__netdev_alloc_skb);
 /**
  *	__napi_alloc_skb - allocate skbuff for rx in a specific NAPI instance
  *	@napi: napi instance this buffer was allocated for
- *	@length: length to allocate
+ *	@len: length to allocate
  *	@gfp_mask: get_free_pages mask, passed to alloc_skb and alloc_pages
  *
  *	Allocate a new sk_buff for use in NAPI receive.  This buffer will
@@ -2958,11 +2958,12 @@ EXPORT_SYMBOL_GPL(skb_append_pagefrags);
  */
 unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len)
 {
+	unsigned char *data = skb->data;
+
 	BUG_ON(len > skb->len);
-	skb->len -= len;
-	BUG_ON(skb->len < skb->data_len);
-	skb_postpull_rcsum(skb, skb->data, len);
-	return skb->data += len;
+	__skb_pull(skb, len);
+	skb_postpull_rcsum(skb, data, len);
+	return skb->data;
 }
 EXPORT_SYMBOL_GPL(skb_pull_rcsum);
 
@@ -4022,8 +4023,8 @@ EXPORT_SYMBOL(skb_checksum_setup);
  * Otherwise returns the provided skb. Returns NULL in error cases
  * (e.g. transport_len exceeds skb length or out-of-memory).
  *
- * Caller needs to set the skb transport header and release the returned skb.
- * Provided skb is consumed.
+ * Caller needs to set the skb transport header and free any returned skb if it
+ * differs from the provided skb.
  */
 static struct sk_buff *skb_checksum_maybe_trim(struct sk_buff *skb,
 					       unsigned int transport_len)
@@ -4032,16 +4033,12 @@ static struct sk_buff *skb_checksum_maybe_trim(struct sk_buff *skb,
 	unsigned int len = skb_transport_offset(skb) + transport_len;
 	int ret;
 
-	if (skb->len < len) {
-		kfree_skb(skb);
+	if (skb->len < len)
 		return NULL;
-	} else if (skb->len == len) {
+	else if (skb->len == len)
 		return skb;
-	}
 
 	skb_chk = skb_clone(skb, GFP_ATOMIC);
-	kfree_skb(skb);
-
 	if (!skb_chk)
 		return NULL;
 
@@ -4066,8 +4063,8 @@ static struct sk_buff *skb_checksum_maybe_trim(struct sk_buff *skb,
  * If the skb has data beyond the given transport length, then a
  * trimmed & cloned skb is checked and returned.
  *
- * Caller needs to set the skb transport header and release the returned skb.
- * Provided skb is consumed.
+ * Caller needs to set the skb transport header and free any returned skb if it
+ * differs from the provided skb.
  */
 struct sk_buff *skb_checksum_trimmed(struct sk_buff *skb,
 				     unsigned int transport_len,
@@ -4079,23 +4076,26 @@ struct sk_buff *skb_checksum_trimmed(struct sk_buff *skb,
 
 	skb_chk = skb_checksum_maybe_trim(skb, transport_len);
 	if (!skb_chk)
-		return NULL;
+		goto err;
 
-	if (!pskb_may_pull(skb_chk, offset)) {
-		kfree_skb(skb_chk);
-		return NULL;
-	}
+	if (!pskb_may_pull(skb_chk, offset))
+		goto err;
 
 	__skb_pull(skb_chk, offset);
 	ret = skb_chkf(skb_chk);
 	__skb_push(skb_chk, offset);
 
-	if (ret) {
-		kfree_skb(skb_chk);
-		return NULL;
-	}
+	if (ret)
+		goto err;
 
 	return skb_chk;
+
+err:
+	if (skb_chk && skb_chk != skb)
+		kfree_skb(skb_chk);
+
+	return NULL;
+
 }
 EXPORT_SYMBOL(skb_checksum_trimmed);
 

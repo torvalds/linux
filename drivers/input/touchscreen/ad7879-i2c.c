@@ -94,7 +94,6 @@ MODULE_DEVICE_TABLE(i2c, ad7879_id);
 static struct i2c_driver ad7879_i2c_driver = {
 	.driver = {
 		.name	= "ad7879",
-		.owner	= THIS_MODULE,
 		.pm	= &ad7879_pm_ops,
 	},
 	.probe		= ad7879_i2c_probe,

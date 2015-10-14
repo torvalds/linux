@@ -409,29 +409,11 @@ static int rebalance3(struct shadow_spine *s, struct dm_btree_info *info,
 	return 0;
 }
 
-static int get_nr_entries(struct dm_transaction_manager *tm,
-			  dm_block_t b, uint32_t *result)
-{
-	int r;
-	struct dm_block *block;
-	struct btree_node *n;
-
-	r = dm_tm_read_lock(tm, b, &btree_node_validator, &block);
-	if (r)
-		return r;
-
-	n = dm_block_data(block);
-	*result = le32_to_cpu(n->header.nr_entries);
-
-	return dm_tm_unlock(tm, block);
-}
-
 static int rebalance_children(struct shadow_spine *s,
 			      struct dm_btree_info *info,
 			      struct dm_btree_value_type *vt, uint64_t key)
 {
 	int i, r, has_left_sibling, has_right_sibling;
-	uint32_t child_entries;
 	struct btree_node *n;
 
 	n = dm_block_data(shadow_current(s));
@@ -457,10 +439,6 @@ static int rebalance_children(struct shadow_spine *s,
 	i = lower_bound(n, key);
 	if (i < 0)
 		return -ENODATA;
-
-	r = get_nr_entries(info->tm, value64(n, i), &child_entries);
-	if (r)
-		return r;
 
 	has_left_sibling = i > 0;
 	has_right_sibling = i < (le32_to_cpu(n->header.nr_entries) - 1);
@@ -544,14 +522,6 @@ static int remove_raw(struct shadow_spine *s, struct dm_btree_info *info,
 	return r;
 }
 
-static struct dm_btree_value_type le64_type = {
-	.context = NULL,
-	.size = sizeof(__le64),
-	.inc = NULL,
-	.dec = NULL,
-	.equal = NULL
-};
-
 int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 		    uint64_t *keys, dm_block_t *new_root)
 {
@@ -559,12 +529,14 @@ int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 	int index = 0, r = 0;
 	struct shadow_spine spine;
 	struct btree_node *n;
+	struct dm_btree_value_type le64_vt;
 
+	init_le64_type(info->tm, &le64_vt);
 	init_shadow_spine(&spine, info);
 	for (level = 0; level < info->levels; level++) {
 		r = remove_raw(&spine, info,
 			       (level == last_level ?
-				&info->value_type : &le64_type),
+				&info->value_type : &le64_vt),
 			       root, keys[level], (unsigned *)&index);
 		if (r < 0)
 			break;
@@ -654,11 +626,13 @@ static int remove_one(struct dm_btree_info *info, dm_block_t root,
 	int index = 0, r = 0;
 	struct shadow_spine spine;
 	struct btree_node *n;
+	struct dm_btree_value_type le64_vt;
 	uint64_t k;
 
+	init_le64_type(info->tm, &le64_vt);
 	init_shadow_spine(&spine, info);
 	for (level = 0; level < last_level; level++) {
-		r = remove_raw(&spine, info, &le64_type,
+		r = remove_raw(&spine, info, &le64_vt,
 			       root, keys[level], (unsigned *) &index);
 		if (r < 0)
 			goto out;

@@ -51,6 +51,8 @@ struct fib6_config {
 	struct nlattr	*fc_mp;
 
 	struct nl_info	fc_nlinfo;
+	struct nlattr	*fc_encap;
+	u16		fc_encap_type;
 };
 
 struct fib6_node {
@@ -273,7 +275,8 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 	     struct nl_info *info, struct mx6_config *mxc);
 int fib6_del(struct rt6_info *rt, struct nl_info *info);
 
-void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info);
+void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info,
+		     unsigned int flags);
 
 void fib6_run_gc(unsigned long expires, struct net *net, bool force);
 

@@ -22,6 +22,7 @@
 #include <linux/ktime.h>
 #include <linux/percpu.h>
 #include <linux/lockref.h>
+#include <linux/rhashtable.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -203,13 +204,15 @@ enum {
 };
 
 struct lm_lockname {
+	struct gfs2_sbd *ln_sbd;
 	u64 ln_number;
 	unsigned int ln_type;
 };
 
 #define lm_name_equal(name1, name2) \
-        (((name1)->ln_number == (name2)->ln_number) && \
-         ((name1)->ln_type == (name2)->ln_type))
+        (((name1)->ln_number == (name2)->ln_number) &&	\
+	 ((name1)->ln_type == (name2)->ln_type) &&	\
+	 ((name1)->ln_sbd == (name2)->ln_sbd))
 
 
 struct gfs2_glock_operations {
@@ -241,7 +244,7 @@ enum {
 };
 
 struct gfs2_lkstats {
-	s64 stats[GFS2_NR_LKSTATS];
+	u64 stats[GFS2_NR_LKSTATS];
 };
 
 enum {
@@ -327,7 +330,6 @@ enum {
 
 struct gfs2_glock {
 	struct hlist_bl_node gl_list;
-	struct gfs2_sbd *gl_sbd;
 	unsigned long gl_flags;		/* GLF_... */
 	struct lm_lockname gl_name;
 
@@ -341,7 +343,6 @@ struct gfs2_glock {
 		     gl_req:2,		/* State in last dlm request */
 		     gl_reply:8;	/* Last reply from the dlm */
 
-	unsigned int gl_hash;
 	unsigned long gl_demote_time; /* time of first demote request */
 	long gl_hold_time;
 	struct list_head gl_holders;
@@ -367,7 +368,7 @@ struct gfs2_glock {
 			loff_t end;
 		} gl_vm;
 	};
-	struct rcu_head gl_rcu;
+	struct rhash_head gl_node;
 };
 
 #define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
@@ -835,7 +836,7 @@ static inline void gfs2_glstats_inc(struct gfs2_glock *gl, int which)
 
 static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 {
-	const struct gfs2_sbd *sdp = gl->gl_sbd;
+	const struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	preempt_disable();
 	this_cpu_ptr(sdp->sd_lkstats)->lkstats[gl->gl_name.ln_type].stats[which]++;
 	preempt_enable();

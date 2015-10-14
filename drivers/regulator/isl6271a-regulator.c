@@ -156,7 +156,6 @@ MODULE_DEVICE_TABLE(i2c, isl6271a_id);
 static struct i2c_driver isl6271a_i2c_driver = {
 	.driver = {
 		.name = "isl6271a",
-		.owner = THIS_MODULE,
 	},
 	.probe = isl6271a_probe,
 	.id_table = isl6271a_id,

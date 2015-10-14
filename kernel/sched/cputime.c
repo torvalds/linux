@@ -555,48 +555,43 @@ drop_precision:
 }
 
 /*
- * Atomically advance counter to the new value. Interrupts, vcpu
- * scheduling, and scaling inaccuracies can cause cputime_advance
- * to be occasionally called with a new value smaller than counter.
- * Let's enforce atomicity.
+ * Adjust tick based cputime random precision against scheduler runtime
+ * accounting.
  *
- * Normally a caller will only go through this loop once, or not
- * at all in case a previous caller updated counter the same jiffy.
- */
-static void cputime_advance(cputime_t *counter, cputime_t new)
-{
-	cputime_t old;
-
-	while (new > (old = READ_ONCE(*counter)))
-		cmpxchg_cputime(counter, old, new);
-}
-
-/*
- * Adjust tick based cputime random precision against scheduler
- * runtime accounting.
+ * Tick based cputime accounting depend on random scheduling timeslices of a
+ * task to be interrupted or not by the timer.  Depending on these
+ * circumstances, the number of these interrupts may be over or
+ * under-optimistic, matching the real user and system cputime with a variable
+ * precision.
+ *
+ * Fix this by scaling these tick based values against the total runtime
+ * accounted by the CFS scheduler.
+ *
+ * This code provides the following guarantees:
+ *
+ *   stime + utime == rtime
+ *   stime_i+1 >= stime_i, utime_i+1 >= utime_i
+ *
+ * Assuming that rtime_i+1 >= rtime_i.
  */
 static void cputime_adjust(struct task_cputime *curr,
-			   struct cputime *prev,
+			   struct prev_cputime *prev,
 			   cputime_t *ut, cputime_t *st)
 {
 	cputime_t rtime, stime, utime;
+	unsigned long flags;
 
-	/*
-	 * Tick based cputime accounting depend on random scheduling
-	 * timeslices of a task to be interrupted or not by the timer.
-	 * Depending on these circumstances, the number of these interrupts
-	 * may be over or under-optimistic, matching the real user and system
-	 * cputime with a variable precision.
-	 *
-	 * Fix this by scaling these tick based values against the total
-	 * runtime accounted by the CFS scheduler.
-	 */
+	/* Serialize concurrent callers such that we can honour our guarantees */
+	raw_spin_lock_irqsave(&prev->lock, flags);
 	rtime = nsecs_to_cputime(curr->sum_exec_runtime);
 
 	/*
-	 * Update userspace visible utime/stime values only if actual execution
-	 * time is bigger than already exported. Note that can happen, that we
-	 * provided bigger values due to scaling inaccuracy on big numbers.
+	 * This is possible under two circumstances:
+	 *  - rtime isn't monotonic after all (a bug);
+	 *  - we got reordered by the lock.
+	 *
+	 * In both cases this acts as a filter such that the rest of the code
+	 * can assume it is monotonic regardless of anything else.
 	 */
 	if (prev->stime + prev->utime >= rtime)
 		goto out;
@@ -606,22 +601,46 @@ static void cputime_adjust(struct task_cputime *curr,
 
 	if (utime == 0) {
 		stime = rtime;
-	} else if (stime == 0) {
-		utime = rtime;
-	} else {
-		cputime_t total = stime + utime;
-
-		stime = scale_stime((__force u64)stime,
-				    (__force u64)rtime, (__force u64)total);
-		utime = rtime - stime;
+		goto update;
 	}
 
-	cputime_advance(&prev->stime, stime);
-	cputime_advance(&prev->utime, utime);
+	if (stime == 0) {
+		utime = rtime;
+		goto update;
+	}
 
+	stime = scale_stime((__force u64)stime, (__force u64)rtime,
+			    (__force u64)(stime + utime));
+
+	/*
+	 * Make sure stime doesn't go backwards; this preserves monotonicity
+	 * for utime because rtime is monotonic.
+	 *
+	 *  utime_i+1 = rtime_i+1 - stime_i
+	 *            = rtime_i+1 - (rtime_i - utime_i)
+	 *            = (rtime_i+1 - rtime_i) + utime_i
+	 *            >= utime_i
+	 */
+	if (stime < prev->stime)
+		stime = prev->stime;
+	utime = rtime - stime;
+
+	/*
+	 * Make sure utime doesn't go backwards; this still preserves
+	 * monotonicity for stime, analogous argument to above.
+	 */
+	if (utime < prev->utime) {
+		utime = prev->utime;
+		stime = rtime - utime;
+	}
+
+update:
+	prev->stime = stime;
+	prev->utime = utime;
 out:
 	*ut = prev->utime;
 	*st = prev->stime;
+	raw_spin_unlock_irqrestore(&prev->lock, flags);
 }
 
 void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)

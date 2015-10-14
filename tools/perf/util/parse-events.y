@@ -255,7 +255,7 @@ PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
 	list_add_tail(&term->list, head);
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_pmu(list, &data->idx, "cpu", head));
+	ABORT_ON(parse_events_add_pmu(data, list, "cpu", head));
 	parse_events__free_terms(head);
 	$$ = list;
 }

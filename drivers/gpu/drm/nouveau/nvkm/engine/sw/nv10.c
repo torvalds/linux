@@ -21,102 +21,48 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/sw.h>
+#include "priv.h"
+#include "chan.h"
+#include "nvsw.h"
 
-struct nv10_sw_priv {
-	struct nvkm_sw base;
-};
-
-struct nv10_sw_chan {
-	struct nvkm_sw_chan base;
-};
-
-/*******************************************************************************
- * software object classes
- ******************************************************************************/
-
-static int
-nv10_sw_flip(struct nvkm_object *object, u32 mthd, void *args, u32 size)
-{
-	struct nv10_sw_chan *chan = (void *)nv_engctx(object->parent);
-	if (chan->base.flip)
-		return chan->base.flip(chan->base.flip_data);
-	return -EINVAL;
-}
-
-static struct nvkm_omthds
-nv10_sw_omthds[] = {
-	{ 0x0500, 0x0500, nv10_sw_flip },
-	{}
-};
-
-static struct nvkm_oclass
-nv10_sw_sclass[] = {
-	{ 0x016e, &nvkm_object_ofuncs, nv10_sw_omthds },
-	{}
-};
+#include <nvif/ioctl.h>
 
 /*******************************************************************************
  * software context
  ******************************************************************************/
 
-static int
-nv10_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		     struct nvkm_oclass *oclass, void *data, u32 size,
-		     struct nvkm_object **pobject)
-{
-	struct nv10_sw_chan *chan;
-	int ret;
-
-	ret = nvkm_sw_context_create(parent, engine, oclass, &chan);
-	*pobject = nv_object(chan);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static struct nvkm_oclass
-nv10_sw_cclass = {
-	.handle = NV_ENGCTX(SW, 0x04),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv10_sw_context_ctor,
-		.dtor = _nvkm_sw_context_dtor,
-		.init = _nvkm_sw_context_init,
-		.fini = _nvkm_sw_context_fini,
-	},
+static const struct nvkm_sw_chan_func
+nv10_sw_chan = {
 };
+
+static int
+nv10_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifo,
+		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
+{
+	struct nvkm_sw_chan *chan;
+
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &chan->object;
+
+	return nvkm_sw_chan_ctor(&nv10_sw_chan, sw, fifo, oclass, chan);
+}
 
 /*******************************************************************************
  * software engine/subdev functions
  ******************************************************************************/
 
-static int
-nv10_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
-{
-	struct nv10_sw_priv *priv;
-	int ret;
-
-	ret = nvkm_sw_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_engine(priv)->cclass = &nv10_sw_cclass;
-	nv_engine(priv)->sclass = nv10_sw_sclass;
-	nv_subdev(priv)->intr = nv04_sw_intr;
-	return 0;
-}
-
-struct nvkm_oclass *
-nv10_sw_oclass = &(struct nvkm_oclass) {
-	.handle = NV_ENGINE(SW, 0x10),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv10_sw_ctor,
-		.dtor = _nvkm_sw_dtor,
-		.init = _nvkm_sw_init,
-		.fini = _nvkm_sw_fini,
-	},
+static const struct nvkm_sw_func
+nv10_sw = {
+	.chan_new = nv10_sw_chan_new,
+	.sclass = {
+		{ nvkm_nvsw_new, { -1, -1, NVIF_IOCTL_NEW_V0_SW_NV10 } },
+		{}
+	}
 };
+
+int
+nv10_sw_new(struct nvkm_device *device, int index, struct nvkm_sw **psw)
+{
+	return nvkm_sw_new_(&nv10_sw, device, index, psw);
+}

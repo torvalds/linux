@@ -770,11 +770,11 @@ static u32 dce_v8_0_line_buffer_adjust(struct amdgpu_device *adev,
 			buffer_alloc = 2;
 		} else if (mode->crtc_hdisplay < 4096) {
 			tmp = 0;
-			buffer_alloc = (adev->flags & AMDGPU_IS_APU) ? 2 : 4;
+			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		} else {
 			DRM_DEBUG_KMS("Mode too big for LB!\n");
 			tmp = 0;
-			buffer_alloc = (adev->flags & AMDGPU_IS_APU) ? 2 : 4;
+			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		}
 	} else {
 		tmp = 1;

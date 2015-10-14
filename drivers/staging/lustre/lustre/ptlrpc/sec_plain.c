@@ -444,7 +444,7 @@ struct ptlrpc_sec *plain_create_sec(struct obd_import *imp,
 	LASSERT(SPTLRPC_FLVR_POLICY(sf->sf_rpc) == SPTLRPC_POLICY_PLAIN);
 
 	plsec = kzalloc(sizeof(*plsec), GFP_NOFS);
-	if (plsec == NULL)
+	if (!plsec)
 		return NULL;
 
 	/*

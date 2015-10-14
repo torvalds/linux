@@ -58,6 +58,7 @@
 
 #define pr_fmt(fmt) "virtio-mmio: " fmt
 
+#include <linux/acpi.h>
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -732,12 +733,21 @@ static struct of_device_id virtio_mmio_match[] = {
 };
 MODULE_DEVICE_TABLE(of, virtio_mmio_match);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id virtio_mmio_acpi_match[] = {
+	{ "LNRO0005", },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, virtio_mmio_acpi_match);
+#endif
+
 static struct platform_driver virtio_mmio_driver = {
 	.probe		= virtio_mmio_probe,
 	.remove		= virtio_mmio_remove,
 	.driver		= {
 		.name	= "virtio-mmio",
 		.of_match_table	= virtio_mmio_match,
+		.acpi_match_table = ACPI_PTR(virtio_mmio_acpi_match),
 	},
 };
 

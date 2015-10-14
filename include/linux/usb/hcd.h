@@ -564,9 +564,9 @@ extern void usb_ep0_reinit(struct usb_device *);
 
 /*-------------------------------------------------------------------------*/
 
-/* class requests from USB 3.0 hub spec, table 10-5 */
-#define SetHubDepth		(0x3000 | HUB_SET_DEPTH)
-#define GetPortErrorCount	(0x8000 | HUB_GET_PORT_ERR_COUNT)
+/* class requests from USB 3.1 hub spec, table 10-7 */
+#define SetHubDepth		(0x2000 | HUB_SET_DEPTH)
+#define GetPortErrorCount	(0xa300 | HUB_GET_PORT_ERR_COUNT)
 
 /*
  * Generic bandwidth allocation constants/support

@@ -3175,7 +3175,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 		hw->hs_phy_type);
 	dev_dbg(hsotg->dev, "  fs_phy_type=%d\n",
 		hw->fs_phy_type);
-	dev_dbg(hsotg->dev, "  utmi_phy_data_wdith=%d\n",
+	dev_dbg(hsotg->dev, "  utmi_phy_data_width=%d\n",
 		hw->utmi_phy_data_width);
 	dev_dbg(hsotg->dev, "  num_dev_ep=%d\n",
 		hw->num_dev_ep);

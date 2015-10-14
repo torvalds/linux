@@ -912,11 +912,11 @@ static void ipu_irq_handle(struct ipu_soc *ipu, const int *regs, int num_regs)
 	}
 }
 
-static void ipu_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ipu_irq_handler(struct irq_desc *desc)
 {
 	struct ipu_soc *ipu = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	const int int_reg[] = { 0, 1, 2, 3, 10, 11, 12, 13, 14};
-	struct irq_chip *chip = irq_get_chip(irq);
 
 	chained_irq_enter(chip, desc);
 
@@ -925,11 +925,11 @@ static void ipu_irq_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void ipu_err_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ipu_err_irq_handler(struct irq_desc *desc)
 {
 	struct ipu_soc *ipu = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	const int int_reg[] = { 4, 5, 8, 9};
-	struct irq_chip *chip = irq_get_chip(irq);
 
 	chained_irq_enter(chip, desc);
 
@@ -1099,8 +1099,7 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 	}
 
 	ret = irq_alloc_domain_generic_chips(ipu->domain, 32, 1, "IPU",
-					     handle_level_irq, 0,
-					     IRQF_VALID, 0);
+					     handle_level_irq, 0, 0, 0);
 	if (ret < 0) {
 		dev_err(ipu->dev, "failed to alloc generic irq chips\n");
 		irq_domain_remove(ipu->domain);

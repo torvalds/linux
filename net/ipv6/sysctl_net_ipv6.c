@@ -17,6 +17,9 @@
 #include <net/inet_frag.h>
 
 static int one = 1;
+static int auto_flowlabels_min;
+static int auto_flowlabels_max = IP6_AUTO_FLOW_LABEL_MAX;
+
 
 static struct ctl_table ipv6_table_template[] = {
 	{
@@ -45,7 +48,9 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.auto_flowlabels,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &auto_flowlabels_min,
+		.extra2		= &auto_flowlabels_max
 	},
 	{
 		.procname	= "fwmark_reflect",
@@ -71,6 +76,13 @@ static struct ctl_table ipv6_table_template[] = {
 	{
 		.procname	= "flowlabel_state_ranges",
 		.data		= &init_net.ipv6.sysctl.flowlabel_state_ranges,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "ip_nonlocal_bind",
+		.data		= &init_net.ipv6.sysctl.ip_nonlocal_bind,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
@@ -117,6 +129,7 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 	ipv6_table[5].data = &net->ipv6.sysctl.idgen_retries;
 	ipv6_table[6].data = &net->ipv6.sysctl.idgen_delay;
 	ipv6_table[7].data = &net->ipv6.sysctl.flowlabel_state_ranges;
+	ipv6_table[8].data = &net->ipv6.sysctl.ip_nonlocal_bind;
 
 	ipv6_route_table = ipv6_route_sysctl_init(net);
 	if (!ipv6_route_table)

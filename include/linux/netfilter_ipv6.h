@@ -9,15 +9,6 @@
 
 #include <uapi/linux/netfilter_ipv6.h>
 
-
-#ifdef CONFIG_NETFILTER
-int ip6_route_me_harder(struct sk_buff *skb);
-__sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
-			unsigned int dataoff, u_int8_t protocol);
-
-int ipv6_netfilter_init(void);
-void ipv6_netfilter_fini(void);
-
 /*
  * Hook functions for ipv6 to allow xt_* modules to be built-in even
  * if IPv6 is a module.
@@ -30,6 +21,14 @@ struct nf_ipv6_ops {
 			int (*output)(struct sock *, struct sk_buff *));
 };
 
+#ifdef CONFIG_NETFILTER
+int ip6_route_me_harder(struct sk_buff *skb);
+__sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
+			unsigned int dataoff, u_int8_t protocol);
+
+int ipv6_netfilter_init(void);
+void ipv6_netfilter_fini(void);
+
 extern const struct nf_ipv6_ops __rcu *nf_ipv6_ops;
 static inline const struct nf_ipv6_ops *nf_get_ipv6_ops(void)
 {
@@ -39,6 +38,7 @@ static inline const struct nf_ipv6_ops *nf_get_ipv6_ops(void)
 #else /* CONFIG_NETFILTER */
 static inline int ipv6_netfilter_init(void) { return 0; }
 static inline void ipv6_netfilter_fini(void) { return; }
+static inline const struct nf_ipv6_ops *nf_get_ipv6_ops(void) { return NULL; }
 #endif /* CONFIG_NETFILTER */
 
 #endif /*__LINUX_IP6_NETFILTER_H*/

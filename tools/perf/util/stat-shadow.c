@@ -85,7 +85,7 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
 		update_stats(&runtime_cycles_stats[ctx][cpu], count[0]);
 	else if (perf_stat_evsel__is(counter, CYCLES_IN_TX))
-		update_stats(&runtime_transaction_stats[ctx][cpu], count[0]);
+		update_stats(&runtime_cycles_in_tx_stats[ctx][cpu], count[0]);
 	else if (perf_stat_evsel__is(counter, TRANSACTION_START))
 		update_stats(&runtime_transaction_stats[ctx][cpu], count[0]);
 	else if (perf_stat_evsel__is(counter, ELISION_START))
@@ -398,20 +398,18 @@ void perf_stat__print_shadow_stats(FILE *out, struct perf_evsel *evsel,
 				" #   %5.2f%% aborted cycles         ",
 				100.0 * ((total2-avg) / total));
 	} else if (perf_stat_evsel__is(evsel, TRANSACTION_START) &&
-		   avg > 0 &&
 		   runtime_cycles_in_tx_stats[ctx][cpu].n != 0) {
 		total = avg_stats(&runtime_cycles_in_tx_stats[ctx][cpu]);
 
-		if (total)
+		if (avg)
 			ratio = total / avg;
 
 		fprintf(out, " # %8.0f cycles / transaction   ", ratio);
 	} else if (perf_stat_evsel__is(evsel, ELISION_START) &&
-		   avg > 0 &&
 		   runtime_cycles_in_tx_stats[ctx][cpu].n != 0) {
 		total = avg_stats(&runtime_cycles_in_tx_stats[ctx][cpu]);
 
-		if (total)
+		if (avg)
 			ratio = total / avg;
 
 		fprintf(out, " # %8.0f cycles / elision       ", ratio);

@@ -609,7 +609,7 @@ xfs_setattr_nonsize(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_NOT_SIZE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
 	if (error)
-		goto out_dqrele;
+		goto out_trans_cancel;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
@@ -640,7 +640,7 @@ xfs_setattr_nonsize(
 						NULL, capable(CAP_FOWNER) ?
 						XFS_QMOPT_FORCE_RES : 0);
 			if (error)	/* out of quota */
-				goto out_trans_cancel;
+				goto out_unlock;
 		}
 	}
 
@@ -729,10 +729,10 @@ xfs_setattr_nonsize(
 
 	return 0;
 
+out_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-out_dqrele:
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
 	return error;

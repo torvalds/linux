@@ -18,6 +18,8 @@ Properties:
               interrupt (NAND_EVTER_STAT).  If there is only one,
               that interrupt reports both types of event.
 
+- little-endian : If this property is absent, the big-endian mode will
+                  be in use as default for registers.
 
 - ranges : Each range corresponds to a single chipselect, and covers
            the entire access window as configured.
@@ -34,6 +36,7 @@ Example:
 		#size-cells = <1>;
 		reg = <0x0 0xffe1e000 0 0x2000>;
 		interrupts = <16 2 19 2>;
+		little-endian;
 
 		/* NOR, NAND Flashes and CPLD on board */
 		ranges = <0x0 0x0 0x0 0xee000000 0x02000000

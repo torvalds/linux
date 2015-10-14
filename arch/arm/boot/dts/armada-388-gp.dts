@@ -81,10 +81,6 @@
 				pinctrl-0 = <&i2c0_pins>;
 				status = "okay";
 				clock-frequency = <100000>;
-				/*
-				 * The EEPROM located at adresse 54 is needed
-				 * for the boot - DO NOT ERASE IT -
-				 */
 
 				expander0: pca9555@20 {
 					compatible = "nxp,pca9555";
@@ -111,6 +107,10 @@
 					reg = <0x21>;
 				};
 
+				eeprom@57 {
+					compatible = "atmel,24c64";
+					reg = <0x57>;
+				};
 			};
 
 			serial@12000 {
@@ -301,9 +301,11 @@
 	reg_sata0: pwr-sata0 {
 		compatible = "regulator-fixed";
 		regulator-name = "pwr_en_sata0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
 		enable-active-high;
 		regulator-always-on;
-
+		gpio = <&expander0 2 GPIO_ACTIVE_HIGH>;
 	};
 
 	reg_5v_sata0: v5-sata0 {

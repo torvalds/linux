@@ -51,7 +51,11 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		goto out;
 	}
 
-	cmd->role_id = wlvif->role_id;
+	/* scan on the dev role if the regular one is not started */
+	if (wlcore_is_p2p_mgmt(wlvif))
+		cmd->role_id = wlvif->dev_role_id;
+	else
+		cmd->role_id = wlvif->role_id;
 
 	if (WARN_ON(cmd->role_id == WL12XX_INVALID_ROLE_ID)) {
 		ret = -EINVAL;
@@ -223,9 +227,20 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 				    SCAN_TYPE_PERIODIC);
 	wl18xx_adjust_channels(cmd, cmd_channels);
 
-	cmd->short_cycles_sec = 0;
-	cmd->long_cycles_sec = cpu_to_le16(req->interval);
-	cmd->short_cycles_count = 0;
+	if (c->num_short_intervals && c->long_interval &&
+	    c->long_interval > req->interval) {
+		cmd->short_cycles_msec = cpu_to_le16(req->interval);
+		cmd->long_cycles_msec = cpu_to_le16(c->long_interval);
+		cmd->short_cycles_count = c->num_short_intervals;
+	} else {
+		cmd->short_cycles_msec = 0;
+		cmd->long_cycles_msec = cpu_to_le16(req->interval);
+		cmd->short_cycles_count = 0;
+	}
+	wl1271_debug(DEBUG_SCAN, "short_interval: %d, long_interval: %d, num_short: %d",
+		     le16_to_cpu(cmd->short_cycles_msec),
+		     le16_to_cpu(cmd->long_cycles_msec),
+		     cmd->short_cycles_count);
 
 	cmd->total_cycles = 0;
 

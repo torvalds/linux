@@ -16,7 +16,9 @@ properties, each containing a 'gpio-list':
 GPIO properties should be named "[<name>-]gpios", with <name> being the purpose
 of this GPIO for the device. While a non-existent <name> is considered valid
 for compatibility reasons (resolving to the "gpios" property), it is not allowed
-for new bindings.
+for new bindings. Also, GPIO properties named "[<name>-]gpio" are valid and old
+bindings use it, but are only supported for compatibility reasons and should not
+be used for newer bindings since it has been deprecated.
 
 GPIO properties can contain one or more GPIO phandles, but only in exceptional
 cases should they contain more than one. If your device uses several GPIOs with

@@ -106,6 +106,306 @@ static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 				    sizeof(tx_ant_cmd), &tx_ant_cmd);
 }
 
+static void iwl_free_fw_paging(struct iwl_mvm *mvm)
+{
+	int i;
+
+	if (!mvm->fw_paging_db[0].fw_paging_block)
+		return;
+
+	for (i = 0; i < NUM_OF_FW_PAGING_BLOCKS; i++) {
+		if (!mvm->fw_paging_db[i].fw_paging_block) {
+			IWL_DEBUG_FW(mvm,
+				     "Paging: block %d already freed, continue to next page\n",
+				     i);
+
+			continue;
+		}
+
+		__free_pages(mvm->fw_paging_db[i].fw_paging_block,
+			     get_order(mvm->fw_paging_db[i].fw_paging_size));
+	}
+	kfree(mvm->trans->paging_download_buf);
+	memset(mvm->fw_paging_db, 0, sizeof(mvm->fw_paging_db));
+}
+
+static int iwl_fill_paging_mem(struct iwl_mvm *mvm, const struct fw_img *image)
+{
+	int sec_idx, idx;
+	u32 offset = 0;
+
+	/*
+	 * find where is the paging image start point:
+	 * if CPU2 exist and it's in paging format, then the image looks like:
+	 * CPU1 sections (2 or more)
+	 * CPU1_CPU2_SEPARATOR_SECTION delimiter - separate between CPU1 to CPU2
+	 * CPU2 sections (not paged)
+	 * PAGING_SEPARATOR_SECTION delimiter - separate between CPU2
+	 * non paged to CPU2 paging sec
+	 * CPU2 paging CSS
+	 * CPU2 paging image (including instruction and data)
+	 */
+	for (sec_idx = 0; sec_idx < IWL_UCODE_SECTION_MAX; sec_idx++) {
+		if (image->sec[sec_idx].offset == PAGING_SEPARATOR_SECTION) {
+			sec_idx++;
+			break;
+		}
+	}
+
+	if (sec_idx >= IWL_UCODE_SECTION_MAX) {
+		IWL_ERR(mvm, "driver didn't find paging image\n");
+		iwl_free_fw_paging(mvm);
+		return -EINVAL;
+	}
+
+	/* copy the CSS block to the dram */
+	IWL_DEBUG_FW(mvm, "Paging: load paging CSS to FW, sec = %d\n",
+		     sec_idx);
+
+	memcpy(page_address(mvm->fw_paging_db[0].fw_paging_block),
+	       image->sec[sec_idx].data,
+	       mvm->fw_paging_db[0].fw_paging_size);
+
+	IWL_DEBUG_FW(mvm,
+		     "Paging: copied %d CSS bytes to first block\n",
+		     mvm->fw_paging_db[0].fw_paging_size);
+
+	sec_idx++;
+
+	/*
+	 * copy the paging blocks to the dram
+	 * loop index start from 1 since that CSS block already copied to dram
+	 * and CSS index is 0.
+	 * loop stop at num_of_paging_blk since that last block is not full.
+	 */
+	for (idx = 1; idx < mvm->num_of_paging_blk; idx++) {
+		memcpy(page_address(mvm->fw_paging_db[idx].fw_paging_block),
+		       image->sec[sec_idx].data + offset,
+		       mvm->fw_paging_db[idx].fw_paging_size);
+
+		IWL_DEBUG_FW(mvm,
+			     "Paging: copied %d paging bytes to block %d\n",
+			     mvm->fw_paging_db[idx].fw_paging_size,
+			     idx);
+
+		offset += mvm->fw_paging_db[idx].fw_paging_size;
+	}
+
+	/* copy the last paging block */
+	if (mvm->num_of_pages_in_last_blk > 0) {
+		memcpy(page_address(mvm->fw_paging_db[idx].fw_paging_block),
+		       image->sec[sec_idx].data + offset,
+		       FW_PAGING_SIZE * mvm->num_of_pages_in_last_blk);
+
+		IWL_DEBUG_FW(mvm,
+			     "Paging: copied %d pages in the last block %d\n",
+			     mvm->num_of_pages_in_last_blk, idx);
+	}
+
+	return 0;
+}
+
+static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
+				   const struct fw_img *image)
+{
+	struct page *block;
+	dma_addr_t phys = 0;
+	int blk_idx = 0;
+	int order, num_of_pages;
+	int dma_enabled;
+
+	if (mvm->fw_paging_db[0].fw_paging_block)
+		return 0;
+
+	dma_enabled = is_device_dma_capable(mvm->trans->dev);
+
+	/* ensure BLOCK_2_EXP_SIZE is power of 2 of PAGING_BLOCK_SIZE */
+	BUILD_BUG_ON(BIT(BLOCK_2_EXP_SIZE) != PAGING_BLOCK_SIZE);
+
+	num_of_pages = image->paging_mem_size / FW_PAGING_SIZE;
+	mvm->num_of_paging_blk = ((num_of_pages - 1) /
+				    NUM_OF_PAGE_PER_GROUP) + 1;
+
+	mvm->num_of_pages_in_last_blk =
+		num_of_pages -
+		NUM_OF_PAGE_PER_GROUP * (mvm->num_of_paging_blk - 1);
+
+	IWL_DEBUG_FW(mvm,
+		     "Paging: allocating mem for %d paging blocks, each block holds 8 pages, last block holds %d pages\n",
+		     mvm->num_of_paging_blk,
+		     mvm->num_of_pages_in_last_blk);
+
+	/* allocate block of 4Kbytes for paging CSS */
+	order = get_order(FW_PAGING_SIZE);
+	block = alloc_pages(GFP_KERNEL, order);
+	if (!block) {
+		/* free all the previous pages since we failed */
+		iwl_free_fw_paging(mvm);
+		return -ENOMEM;
+	}
+
+	mvm->fw_paging_db[blk_idx].fw_paging_block = block;
+	mvm->fw_paging_db[blk_idx].fw_paging_size = FW_PAGING_SIZE;
+
+	if (dma_enabled) {
+		phys = dma_map_page(mvm->trans->dev, block, 0,
+				    PAGE_SIZE << order, DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(mvm->trans->dev, phys)) {
+			/*
+			 * free the previous pages and the current one since
+			 * we failed to map_page.
+			 */
+			iwl_free_fw_paging(mvm);
+			return -ENOMEM;
+		}
+		mvm->fw_paging_db[blk_idx].fw_paging_phys = phys;
+	} else {
+		mvm->fw_paging_db[blk_idx].fw_paging_phys = PAGING_ADDR_SIG |
+			blk_idx << BLOCK_2_EXP_SIZE;
+	}
+
+	IWL_DEBUG_FW(mvm,
+		     "Paging: allocated 4K(CSS) bytes (order %d) for firmware paging.\n",
+		     order);
+
+	/*
+	 * allocate blocks in dram.
+	 * since that CSS allocated in fw_paging_db[0] loop start from index 1
+	 */
+	for (blk_idx = 1; blk_idx < mvm->num_of_paging_blk + 1; blk_idx++) {
+		/* allocate block of PAGING_BLOCK_SIZE (32K) */
+		order = get_order(PAGING_BLOCK_SIZE);
+		block = alloc_pages(GFP_KERNEL, order);
+		if (!block) {
+			/* free all the previous pages since we failed */
+			iwl_free_fw_paging(mvm);
+			return -ENOMEM;
+		}
+
+		mvm->fw_paging_db[blk_idx].fw_paging_block = block;
+		mvm->fw_paging_db[blk_idx].fw_paging_size = PAGING_BLOCK_SIZE;
+
+		if (dma_enabled) {
+			phys = dma_map_page(mvm->trans->dev, block, 0,
+					    PAGE_SIZE << order,
+					    DMA_BIDIRECTIONAL);
+			if (dma_mapping_error(mvm->trans->dev, phys)) {
+				/*
+				 * free the previous pages and the current one
+				 * since we failed to map_page.
+				 */
+				iwl_free_fw_paging(mvm);
+				return -ENOMEM;
+			}
+			mvm->fw_paging_db[blk_idx].fw_paging_phys = phys;
+		} else {
+			mvm->fw_paging_db[blk_idx].fw_paging_phys =
+				PAGING_ADDR_SIG |
+				blk_idx << BLOCK_2_EXP_SIZE;
+		}
+
+		IWL_DEBUG_FW(mvm,
+			     "Paging: allocated 32K bytes (order %d) for firmware paging.\n",
+			     order);
+	}
+
+	return 0;
+}
+
+static int iwl_save_fw_paging(struct iwl_mvm *mvm,
+			      const struct fw_img *fw)
+{
+	int ret;
+
+	ret = iwl_alloc_fw_paging_mem(mvm, fw);
+	if (ret)
+		return ret;
+
+	return iwl_fill_paging_mem(mvm, fw);
+}
+
+/* send paging cmd to FW in case CPU2 has paging image */
+static int iwl_send_paging_cmd(struct iwl_mvm *mvm, const struct fw_img *fw)
+{
+	int blk_idx;
+	__le32 dev_phy_addr;
+	struct iwl_fw_paging_cmd fw_paging_cmd = {
+		.flags =
+			cpu_to_le32(PAGING_CMD_IS_SECURED |
+				    PAGING_CMD_IS_ENABLED |
+				    (mvm->num_of_pages_in_last_blk <<
+				    PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS)),
+		.block_size = cpu_to_le32(BLOCK_2_EXP_SIZE),
+		.block_num = cpu_to_le32(mvm->num_of_paging_blk),
+	};
+
+	/* loop for for all paging blocks + CSS block */
+	for (blk_idx = 0; blk_idx < mvm->num_of_paging_blk + 1; blk_idx++) {
+		dev_phy_addr =
+			cpu_to_le32(mvm->fw_paging_db[blk_idx].fw_paging_phys >>
+				    PAGE_2_EXP_SIZE);
+		fw_paging_cmd.device_phy_addr[blk_idx] = dev_phy_addr;
+	}
+
+	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(FW_PAGING_BLOCK_CMD,
+						    IWL_ALWAYS_LONG_GROUP, 0),
+				    0, sizeof(fw_paging_cmd), &fw_paging_cmd);
+}
+
+/*
+ * Send paging item cmd to FW in case CPU2 has paging image
+ */
+static int iwl_trans_get_paging_item(struct iwl_mvm *mvm)
+{
+	int ret;
+	struct iwl_fw_get_item_cmd fw_get_item_cmd = {
+		.item_id = cpu_to_le32(IWL_FW_ITEM_ID_PAGING),
+	};
+
+	struct iwl_fw_get_item_resp *item_resp;
+	struct iwl_host_cmd cmd = {
+		.id = iwl_cmd_id(FW_GET_ITEM_CMD, IWL_ALWAYS_LONG_GROUP, 0),
+		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
+		.data = { &fw_get_item_cmd, },
+	};
+
+	cmd.len[0] = sizeof(struct iwl_fw_get_item_cmd);
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret) {
+		IWL_ERR(mvm,
+			"Paging: Failed to send FW_GET_ITEM_CMD cmd (err = %d)\n",
+			ret);
+		return ret;
+	}
+
+	item_resp = (void *)((struct iwl_rx_packet *)cmd.resp_pkt)->data;
+	if (item_resp->item_id != cpu_to_le32(IWL_FW_ITEM_ID_PAGING)) {
+		IWL_ERR(mvm,
+			"Paging: got wrong item in FW_GET_ITEM_CMD resp (item_id = %u)\n",
+			le32_to_cpu(item_resp->item_id));
+		ret = -EIO;
+		goto exit;
+	}
+
+	mvm->trans->paging_download_buf = kzalloc(MAX_PAGING_IMAGE_SIZE,
+						  GFP_KERNEL);
+	if (!mvm->trans->paging_download_buf) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+	mvm->trans->paging_req_addr = le32_to_cpu(item_resp->item_val);
+	mvm->trans->paging_db = mvm->fw_paging_db;
+	IWL_DEBUG_FW(mvm,
+		     "Paging: got paging request address (paging_req_addr 0x%08x)\n",
+		     mvm->trans->paging_req_addr);
+
+exit:
+	iwl_free_resp(&cmd);
+
+	return ret;
+}
+
 static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 			 struct iwl_rx_packet *pkt, void *data)
 {
@@ -213,7 +513,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	const struct fw_img *fw;
 	int ret, i;
 	enum iwl_ucode_type old_type = mvm->cur_ucode;
-	static const u8 alive_cmd[] = { MVM_ALIVE };
+	static const u16 alive_cmd[] = { MVM_ALIVE };
 	struct iwl_sf_region st_fwrd_space;
 
 	if (ucode_type == IWL_UCODE_REGULAR &&
@@ -244,6 +544,11 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	ret = iwl_wait_notification(&mvm->notif_wait, &alive_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
 	if (ret) {
+		if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+			IWL_ERR(mvm,
+				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
+				iwl_read_prph(mvm->trans, SB_CPU_1_STATUS),
+				iwl_read_prph(mvm->trans, SB_CPU_2_STATUS));
 		mvm->cur_ucode = old_type;
 		return ret;
 	}
@@ -267,6 +572,40 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	}
 
 	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
+
+	/*
+	 * configure and operate fw paging mechanism.
+	 * driver configures the paging flow only once, CPU2 paging image
+	 * included in the IWL_UCODE_INIT image.
+	 */
+	if (fw->paging_mem_size) {
+		/*
+		 * When dma is not enabled, the driver needs to copy / write
+		 * the downloaded / uploaded page to / from the smem.
+		 * This gets the location of the place were the pages are
+		 * stored.
+		 */
+		if (!is_device_dma_capable(mvm->trans->dev)) {
+			ret = iwl_trans_get_paging_item(mvm);
+			if (ret) {
+				IWL_ERR(mvm, "failed to get FW paging item\n");
+				return ret;
+			}
+		}
+
+		ret = iwl_save_fw_paging(mvm, fw);
+		if (ret) {
+			IWL_ERR(mvm, "failed to save the FW paging image\n");
+			return ret;
+		}
+
+		ret = iwl_send_paging_cmd(mvm, fw);
+		if (ret) {
+			IWL_ERR(mvm, "failed to send the paging cmd\n");
+			iwl_free_fw_paging(mvm);
+			return ret;
+		}
+	}
 
 	/*
 	 * Note: all the queues are enabled as part of the interface
@@ -314,7 +653,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 {
 	struct iwl_notification_wait calib_wait;
-	static const u8 init_complete[] = {
+	static const u16 init_complete[] = {
 		INIT_COMPLETE_NOTIF,
 		CALIB_RES_NOTIF_PHY_DB
 	};
@@ -444,12 +783,6 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 		return;
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(mvm, "Bad return from SHARED_MEM_CFG (0x%08X)\n",
-			pkt->hdr.flags);
-		goto exit;
-	}
-
 	mem_cfg = (void *)pkt->data;
 
 	mvm->shared_mem_cfg.shared_mem_addr =
@@ -473,14 +806,18 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 		le32_to_cpu(mem_cfg->page_buff_size);
 	IWL_DEBUG_INFO(mvm, "SHARED MEM CFG: got memory offsets/sizes\n");
 
-exit:
 	iwl_free_resp(&cmd);
 }
 
 int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 				struct iwl_mvm_dump_desc *desc,
-				unsigned int delay)
+				struct iwl_fw_dbg_trigger_tlv *trigger)
 {
+	unsigned int delay = 0;
+
+	if (trigger)
+		delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
+
 	if (test_and_set_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status))
 		return -EBUSY;
 
@@ -491,6 +828,7 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 		 le32_to_cpu(desc->trig_desc.type));
 
 	mvm->fw_dump_desc = desc;
+	mvm->fw_dump_trig = trigger;
 
 	queue_delayed_work(system_wq, &mvm->fw_dump_wk, delay);
 
@@ -498,7 +836,8 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 }
 
 int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
-			   const char *str, size_t len, unsigned int delay)
+			   const char *str, size_t len,
+			   struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_mvm_dump_desc *desc;
 
@@ -510,14 +849,13 @@ int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
 	desc->trig_desc.type = cpu_to_le32(trig);
 	memcpy(desc->trig_desc.data, str, len);
 
-	return iwl_mvm_fw_dbg_collect_desc(mvm, desc, delay);
+	return iwl_mvm_fw_dbg_collect_desc(mvm, desc, trigger);
 }
 
 int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
 				struct iwl_fw_dbg_trigger_tlv *trigger,
 				const char *fmt, ...)
 {
-	unsigned int delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
 	u16 occurrences = le16_to_cpu(trigger->occurrences);
 	int ret, len = 0;
 	char buf[64];
@@ -541,8 +879,9 @@ int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
 		len = strlen(buf) + 1;
 	}
 
-	ret = iwl_mvm_fw_dbg_collect(mvm, le32_to_cpu(trigger->id), buf,
-				     len, delay);
+	ret = iwl_mvm_fw_dbg_collect(mvm, le32_to_cpu(trigger->id), buf, len,
+				     trigger);
+
 	if (ret)
 		return ret;
 
@@ -676,8 +1015,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 	}
 
-	if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 10)
-		iwl_mvm_get_shared_mem_conf(mvm);
+	iwl_mvm_get_shared_mem_conf(mvm);
 
 	ret = iwl_mvm_sf_update(mvm, NULL, false);
 	if (ret)
@@ -760,6 +1098,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+	if (iwl_mvm_is_csum_supported(mvm) &&
+	    mvm->cfg->features & NETIF_F_RXCSUM)
+		iwl_trans_write_prph(mvm->trans, RX_EN_CSUM, 0x3);
+
 	/* allow FW/transport low power modes if not during restart */
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		iwl_mvm_unref(mvm, IWL_MVM_REF_UCODE_DOWN);
@@ -815,9 +1157,8 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
-				    struct iwl_rx_cmd_buffer *rxb,
-				    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_card_state_notif *card_state_notif = (void *)pkt->data;
@@ -828,13 +1169,10 @@ int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & CT_KILL_CARD_DISABLED) ?
 			  "Reached" : "Not reached");
-
-	return 0;
 }
 
-int iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
-			    struct iwl_rx_cmd_buffer *rxb,
-			    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
+			     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mfuart_load_notif *mfuart_notif = (void *)pkt->data;
@@ -845,5 +1183,4 @@ int iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
 		       le32_to_cpu(mfuart_notif->external_ver),
 		       le32_to_cpu(mfuart_notif->status),
 		       le32_to_cpu(mfuart_notif->duration));
-	return 0;
 }

@@ -23,7 +23,7 @@ config IOMMU_IO_PGTABLE
 config IOMMU_IO_PGTABLE_LPAE
 	bool "ARMv7/v8 Long Descriptor Format"
 	select IOMMU_IO_PGTABLE
-	depends on ARM || ARM64 || COMPILE_TEST
+	depends on HAS_DMA && (ARM || ARM64 || COMPILE_TEST)
 	help
 	  Enable support for the ARM long descriptor pagetable format.
 	  This allocator supports 4K/2M/1G, 16K/32M and 64K/512M page
@@ -42,7 +42,7 @@ config IOMMU_IO_PGTABLE_LPAE_SELFTEST
 endmenu
 
 config IOMMU_IOVA
-	bool
+	tristate
 
 config OF_IOMMU
        def_bool y
@@ -222,7 +222,7 @@ config TEGRA_IOMMU_SMMU
 	select IOMMU_API
 	help
 	  This driver supports the IOMMU hardware (SMMU) found on NVIDIA Tegra
-	  SoCs (Tegra30 up to Tegra132).
+	  SoCs (Tegra30 up to Tegra210).
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"

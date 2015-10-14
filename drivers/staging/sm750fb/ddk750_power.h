@@ -1,12 +1,11 @@
 #ifndef DDK750_POWER_H__
 #define DDK750_POWER_H__
 
-typedef enum _DPMS_t
-{
-    crtDPMS_ON = 0x0,
-    crtDPMS_STANDBY = 0x1,
-    crtDPMS_SUSPEND = 0x2,
-    crtDPMS_OFF = 0x3,
+typedef enum _DPMS_t {
+	crtDPMS_ON = 0x0,
+	crtDPMS_STANDBY = 0x1,
+	crtDPMS_SUSPEND = 0x2,
+	crtDPMS_OFF = 0x3,
 }
 DPMS_t;
 

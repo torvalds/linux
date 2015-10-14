@@ -12,14 +12,13 @@
 
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/irqdomain.h>
 
 #include <asm/exception.h>
-
-#include "irqchip.h"
 
 #define IRQ_SOURCE_REG		0
 #define IRQ_MASK_REG		0x04

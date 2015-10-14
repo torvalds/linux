@@ -14,8 +14,10 @@ libperf-y += find_next_bit.o
 libperf-y += help.o
 libperf-y += kallsyms.o
 libperf-y += levenshtein.o
+libperf-y += llvm-utils.o
 libperf-y += parse-options.o
 libperf-y += parse-events.o
+libperf-y += perf_regs.o
 libperf-y += path.o
 libperf-y += rbtree.o
 libperf-y += bitmap.o
@@ -67,18 +69,25 @@ libperf-y += target.o
 libperf-y += rblist.o
 libperf-y += intlist.o
 libperf-y += vdso.o
+libperf-y += counts.o
 libperf-y += stat.o
 libperf-y += stat-shadow.o
 libperf-y += record.o
 libperf-y += srcline.o
 libperf-y += data.o
 libperf-$(CONFIG_X86) += tsc.o
+libperf-$(CONFIG_AUXTRACE) += tsc.o
 libperf-y += cloexec.o
 libperf-y += thread-stack.o
 libperf-$(CONFIG_AUXTRACE) += auxtrace.o
+libperf-$(CONFIG_AUXTRACE) += intel-pt-decoder/
+libperf-$(CONFIG_AUXTRACE) += intel-pt.o
+libperf-$(CONFIG_AUXTRACE) += intel-bts.o
 libperf-y += parse-branch-options.o
+libperf-y += parse-regs-options.o
 
 libperf-$(CONFIG_LIBELF) += symbol-elf.o
+libperf-$(CONFIG_LIBELF) += probe-file.o
 libperf-$(CONFIG_LIBELF) += probe-event.o
 
 ifndef CONFIG_LIBELF
@@ -95,7 +104,6 @@ libperf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
 
 libperf-y += scripting-engines/
 
-libperf-$(CONFIG_PERF_REGS) += perf_regs.o
 libperf-$(CONFIG_ZLIB) += zlib.o
 libperf-$(CONFIG_LZMA) += lzma.o
 

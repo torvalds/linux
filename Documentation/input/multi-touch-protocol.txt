@@ -361,7 +361,7 @@ For win8 devices with both T and C coordinates, the position mapping is
    ABS_MT_POSITION_X := T_X
    ABS_MT_POSITION_Y := T_Y
    ABS_MT_TOOL_X := C_X
-   ABS_MT_TOOL_X := C_Y
+   ABS_MT_TOOL_Y := C_Y
 
 Unfortunately, there is not enough information to specify both the touching
 ellipse and the tool ellipse, so one has to resort to approximations.  One

@@ -56,14 +56,6 @@ nfsd4_block_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 	u32 device_generation = 0;
 	int error;
 
-	/*
-	 * We do not attempt to support I/O smaller than the fs block size,
-	 * or not aligned to it.
-	 */
-	if (args->lg_minlength < block_size) {
-		dprintk("pnfsd: I/O too small\n");
-		goto out_layoutunavailable;
-	}
 	if (seg->offset & (block_size - 1)) {
 		dprintk("pnfsd: I/O misaligned\n");
 		goto out_layoutunavailable;

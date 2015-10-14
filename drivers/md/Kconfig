@@ -393,7 +393,7 @@ config DM_MULTIPATH
 	# of SCSI_DH if the latter isn't defined but if
 	# it is, DM_MULTIPATH must depend on it.  We get a build
 	# error if SCSI_DH=m and DM_MULTIPATH=y
-	depends on SCSI_DH || !SCSI_DH
+	depends on !SCSI_DH || SCSI
 	---help---
 	  Allow volume managers to support multipath hardware.
 
@@ -478,7 +478,7 @@ config DM_LOG_WRITES
 	  This device-mapper target takes two devices, one device to use
 	  normally, one to log all write operations done to the first device.
 	  This is for use by file system developers wishing to verify that
-	  their fs is writing a consitent file system at all times by allowing
+	  their fs is writing a consistent file system at all times by allowing
 	  them to replay the log in a variety of ways and to check the
 	  contents.
 

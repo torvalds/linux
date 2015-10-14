@@ -26,6 +26,7 @@
 #include <asm/machdep.h>
 #include <asm/mmu_context.h>
 #include <asm/hw_irq.h>
+#include "book3s.h"
 
 /* #define DEBUG_MMU */
 /* #define DEBUG_SR */

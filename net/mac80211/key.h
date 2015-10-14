@@ -115,9 +115,6 @@ struct ieee80211_key {
 		} gen;
 	} u;
 
-	/* number of times this key has been used */
-	int tx_rx_count;
-
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
 		struct dentry *stalink;

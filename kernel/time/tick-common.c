@@ -304,9 +304,6 @@ void tick_check_new_device(struct clock_event_device *newdev)
 	int cpu;
 
 	cpu = smp_processor_id();
-	if (!cpumask_test_cpu(cpu, newdev->cpumask))
-		goto out_bc;
-
 	td = &per_cpu(tick_cpu_device, cpu);
 	curdev = td->evtdev;
 
@@ -401,7 +398,6 @@ void tick_shutdown(unsigned int cpu)
 		 * the set mode function!
 		 */
 		clockevent_set_state(dev, CLOCK_EVT_STATE_DETACHED);
-		dev->mode = CLOCK_EVT_MODE_UNUSED;
 		clockevents_exchange_device(dev, NULL);
 		dev->event_handler = clockevents_handle_noop;
 		td->evtdev = NULL;

@@ -175,10 +175,8 @@ xprt_rdma_format_addresses6(struct rpc_xprt *xprt, struct sockaddr *sap)
 }
 
 static void
-xprt_rdma_format_addresses(struct rpc_xprt *xprt)
+xprt_rdma_format_addresses(struct rpc_xprt *xprt, struct sockaddr *sap)
 {
-	struct sockaddr *sap = (struct sockaddr *)
-					&rpcx_to_rdmad(xprt).addr;
 	char buf[128];
 
 	switch (sap->sa_family) {
@@ -272,8 +270,8 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 
 	xprt_clear_connected(xprt);
 
-	rpcrdma_buffer_destroy(&r_xprt->rx_buf);
 	rpcrdma_ep_destroy(&r_xprt->rx_ep, &r_xprt->rx_ia);
+	rpcrdma_buffer_destroy(&r_xprt->rx_buf);
 	rpcrdma_ia_close(&r_xprt->rx_ia);
 
 	xprt_rdma_free_addresses(xprt);
@@ -302,7 +300,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	struct rpc_xprt *xprt;
 	struct rpcrdma_xprt *new_xprt;
 	struct rpcrdma_ep *new_ep;
-	struct sockaddr_in *sin;
+	struct sockaddr *sap;
 	int rc;
 
 	if (args->addrlen > sizeof(xprt->addr)) {
@@ -333,26 +331,20 @@ xprt_setup_rdma(struct xprt_create *args)
 	 * Set up RDMA-specific connect data.
 	 */
 
-	/* Put server RDMA address in local cdata */
-	memcpy(&cdata.addr, args->dstaddr, args->addrlen);
+	sap = (struct sockaddr *)&cdata.addr;
+	memcpy(sap, args->dstaddr, args->addrlen);
 
 	/* Ensure xprt->addr holds valid server TCP (not RDMA)
 	 * address, for any side protocols which peek at it */
 	xprt->prot = IPPROTO_TCP;
 	xprt->addrlen = args->addrlen;
-	memcpy(&xprt->addr, &cdata.addr, xprt->addrlen);
+	memcpy(&xprt->addr, sap, xprt->addrlen);
 
-	sin = (struct sockaddr_in *)&cdata.addr;
-	if (ntohs(sin->sin_port) != 0)
+	if (rpc_get_port(sap))
 		xprt_set_bound(xprt);
 
-	dprintk("RPC:       %s: %pI4:%u\n",
-		__func__, &sin->sin_addr.s_addr, ntohs(sin->sin_port));
-
-	/* Set max requests */
 	cdata.max_requests = xprt->max_reqs;
 
-	/* Set some length limits */
 	cdata.rsize = RPCRDMA_MAX_SEGS * PAGE_SIZE; /* RDMA write max */
 	cdata.wsize = RPCRDMA_MAX_SEGS * PAGE_SIZE; /* RDMA read max */
 
@@ -375,8 +367,7 @@ xprt_setup_rdma(struct xprt_create *args)
 
 	new_xprt = rpcx_to_rdmax(xprt);
 
-	rc = rpcrdma_ia_open(new_xprt, (struct sockaddr *) &cdata.addr,
-				xprt_rdma_memreg_strategy);
+	rc = rpcrdma_ia_open(new_xprt, sap, xprt_rdma_memreg_strategy);
 	if (rc)
 		goto out1;
 
@@ -409,7 +400,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
 			  xprt_rdma_connect_worker);
 
-	xprt_rdma_format_addresses(xprt);
+	xprt_rdma_format_addresses(xprt, sap);
 	xprt->max_payload = new_xprt->rx_ia.ri_ops->ro_maxpages(new_xprt);
 	if (xprt->max_payload == 0)
 		goto out4;
@@ -420,6 +411,9 @@ xprt_setup_rdma(struct xprt_create *args)
 	if (!try_module_get(THIS_MODULE))
 		goto out4;
 
+	dprintk("RPC:       %s: %s:%s\n", __func__,
+		xprt->address_strings[RPC_DISPLAY_ADDR],
+		xprt->address_strings[RPC_DISPLAY_PORT]);
 	return xprt;
 
 out4:
@@ -653,31 +647,30 @@ static void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 	if (xprt_connected(xprt))
 		idle_time = (long)(jiffies - xprt->last_used) / HZ;
 
-	seq_printf(seq,
-	  "\txprt:\trdma %u %lu %lu %lu %ld %lu %lu %lu %Lu %Lu "
-	  "%lu %lu %lu %Lu %Lu %Lu %Lu %lu %lu %lu\n",
-
-	   0,	/* need a local port? */
-	   xprt->stat.bind_count,
-	   xprt->stat.connect_count,
-	   xprt->stat.connect_time,
-	   idle_time,
-	   xprt->stat.sends,
-	   xprt->stat.recvs,
-	   xprt->stat.bad_xids,
-	   xprt->stat.req_u,
-	   xprt->stat.bklog_u,
-
-	   r_xprt->rx_stats.read_chunk_count,
-	   r_xprt->rx_stats.write_chunk_count,
-	   r_xprt->rx_stats.reply_chunk_count,
-	   r_xprt->rx_stats.total_rdma_request,
-	   r_xprt->rx_stats.total_rdma_reply,
-	   r_xprt->rx_stats.pullup_copy_count,
-	   r_xprt->rx_stats.fixup_copy_count,
-	   r_xprt->rx_stats.hardway_register_count,
-	   r_xprt->rx_stats.failed_marshal_count,
-	   r_xprt->rx_stats.bad_reply_count);
+	seq_puts(seq, "\txprt:\trdma ");
+	seq_printf(seq, "%u %lu %lu %lu %ld %lu %lu %lu %llu %llu ",
+		   0,	/* need a local port? */
+		   xprt->stat.bind_count,
+		   xprt->stat.connect_count,
+		   xprt->stat.connect_time,
+		   idle_time,
+		   xprt->stat.sends,
+		   xprt->stat.recvs,
+		   xprt->stat.bad_xids,
+		   xprt->stat.req_u,
+		   xprt->stat.bklog_u);
+	seq_printf(seq, "%lu %lu %lu %llu %llu %llu %llu %lu %lu %lu %lu\n",
+		   r_xprt->rx_stats.read_chunk_count,
+		   r_xprt->rx_stats.write_chunk_count,
+		   r_xprt->rx_stats.reply_chunk_count,
+		   r_xprt->rx_stats.total_rdma_request,
+		   r_xprt->rx_stats.total_rdma_reply,
+		   r_xprt->rx_stats.pullup_copy_count,
+		   r_xprt->rx_stats.fixup_copy_count,
+		   r_xprt->rx_stats.hardway_register_count,
+		   r_xprt->rx_stats.failed_marshal_count,
+		   r_xprt->rx_stats.bad_reply_count,
+		   r_xprt->rx_stats.nomsg_call_count);
 }
 
 static int

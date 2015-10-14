@@ -518,7 +518,6 @@ static struct i2c_driver max8660_driver = {
 	.probe = max8660_probe,
 	.driver		= {
 		.name	= "max8660",
-		.owner	= THIS_MODULE,
 	},
 	.id_table	= max8660_id,
 };

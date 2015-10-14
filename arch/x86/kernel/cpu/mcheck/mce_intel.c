@@ -146,6 +146,27 @@ void mce_intel_hcpu_update(unsigned long cpu)
 	per_cpu(cmci_storm_state, cpu) = CMCI_STORM_NONE;
 }
 
+static void cmci_toggle_interrupt_mode(bool on)
+{
+	unsigned long flags, *owned;
+	int bank;
+	u64 val;
+
+	raw_spin_lock_irqsave(&cmci_discover_lock, flags);
+	owned = this_cpu_ptr(mce_banks_owned);
+	for_each_set_bit(bank, owned, MAX_NR_BANKS) {
+		rdmsrl(MSR_IA32_MCx_CTL2(bank), val);
+
+		if (on)
+			val |= MCI_CTL2_CMCI_EN;
+		else
+			val &= ~MCI_CTL2_CMCI_EN;
+
+		wrmsrl(MSR_IA32_MCx_CTL2(bank), val);
+	}
+	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
+}
+
 unsigned long cmci_intel_adjust_timer(unsigned long interval)
 {
 	if ((this_cpu_read(cmci_backoff_cnt) > 0) &&
@@ -175,7 +196,7 @@ unsigned long cmci_intel_adjust_timer(unsigned long interval)
 		 */
 		if (!atomic_read(&cmci_storm_on_cpus)) {
 			__this_cpu_write(cmci_storm_state, CMCI_STORM_NONE);
-			cmci_reenable();
+			cmci_toggle_interrupt_mode(true);
 			cmci_recheck();
 		}
 		return CMCI_POLL_INTERVAL;
@@ -184,22 +205,6 @@ unsigned long cmci_intel_adjust_timer(unsigned long interval)
 		/* We have shiny weather. Let the poll do whatever it thinks. */
 		return interval;
 	}
-}
-
-static void cmci_storm_disable_banks(void)
-{
-	unsigned long flags, *owned;
-	int bank;
-	u64 val;
-
-	raw_spin_lock_irqsave(&cmci_discover_lock, flags);
-	owned = this_cpu_ptr(mce_banks_owned);
-	for_each_set_bit(bank, owned, MAX_NR_BANKS) {
-		rdmsrl(MSR_IA32_MCx_CTL2(bank), val);
-		val &= ~MCI_CTL2_CMCI_EN;
-		wrmsrl(MSR_IA32_MCx_CTL2(bank), val);
-	}
-	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
 }
 
 static bool cmci_storm_detect(void)
@@ -223,7 +228,7 @@ static bool cmci_storm_detect(void)
 	if (cnt <= CMCI_STORM_THRESHOLD)
 		return false;
 
-	cmci_storm_disable_banks();
+	cmci_toggle_interrupt_mode(false);
 	__this_cpu_write(cmci_storm_state, CMCI_STORM_ACTIVE);
 	r = atomic_add_return(1, &cmci_storm_on_cpus);
 	mce_timer_kick(CMCI_STORM_INTERVAL);
@@ -246,7 +251,6 @@ static void intel_threshold_interrupt(void)
 		return;
 
 	machine_check_poll(MCP_TIMESTAMP, this_cpu_ptr(&mce_banks_owned));
-	mce_notify_irq();
 }
 
 /*
@@ -435,7 +439,7 @@ static void intel_init_cmci(void)
 	cmci_recheck();
 }
 
-void intel_init_lmce(void)
+static void intel_init_lmce(void)
 {
 	u64 val;
 
@@ -448,9 +452,26 @@ void intel_init_lmce(void)
 		wrmsrl(MSR_IA32_MCG_EXT_CTL, val | MCG_EXT_CTL_LMCE_EN);
 }
 
+static void intel_clear_lmce(void)
+{
+	u64 val;
+
+	if (!lmce_supported())
+		return;
+
+	rdmsrl(MSR_IA32_MCG_EXT_CTL, val);
+	val &= ~MCG_EXT_CTL_LMCE_EN;
+	wrmsrl(MSR_IA32_MCG_EXT_CTL, val);
+}
+
 void mce_intel_feature_init(struct cpuinfo_x86 *c)
 {
 	intel_init_thermal(c);
 	intel_init_cmci();
 	intel_init_lmce();
+}
+
+void mce_intel_feature_clear(struct cpuinfo_x86 *c)
+{
+	intel_clear_lmce();
 }

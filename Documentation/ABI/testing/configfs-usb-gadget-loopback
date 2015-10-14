@@ -5,4 +5,4 @@ Description:
 		The attributes:
 
 		qlen		- depth of loopback queue
-		bulk_buflen	- buffer length
+		buflen		- buffer length

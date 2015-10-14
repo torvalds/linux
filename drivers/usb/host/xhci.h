@@ -119,6 +119,10 @@ struct xhci_cap_regs {
 #define HCC_LTC(p)		((p) & (1 << 6))
 /* true: no secondary Stream ID Support */
 #define HCC_NSS(p)		((p) & (1 << 7))
+/* true: HC supports Stopped - Short Packet */
+#define HCC_SPC(p)		((p) & (1 << 9))
+/* true: HC has Contiguous Frame ID Capability */
+#define HCC_CFC(p)		((p) & (1 << 11))
 /* Max size for Primary Stream Arrays - 2^(n+1), where n is bits 12:15 */
 #define HCC_MAX_PSA(p)		(1 << ((((p) >> 12) & 0xf) + 1))
 /* Extended Capabilities pointer from PCI base - section 5.3.6 */
@@ -891,6 +895,8 @@ struct xhci_virt_ep {
 	/* Bandwidth checking storage */
 	struct xhci_bw_info	bw_info;
 	struct list_head	bw_endpoint_list;
+	/* Isoch Frame ID checking storage */
+	int			next_frame_id;
 };
 
 enum xhci_overhead_type {
@@ -1059,8 +1065,8 @@ struct xhci_transfer_event {
 #define COMP_STOP	26
 /* Same as COMP_EP_STOPPED, but the transferred length in the event is invalid */
 #define COMP_STOP_INVAL	27
-/* Control Abort Error - Debug Capability - control pipe aborted */
-#define COMP_DBG_ABORT	28
+/* Same as COMP_EP_STOPPED, but a short packet detected */
+#define COMP_STOP_SHORT	28
 /* Max Exit Latency Too Large Error */
 #define COMP_MEL_ERR	29
 /* TRB type 30 reserved */
@@ -1165,6 +1171,7 @@ enum xhci_setup_dev {
 
 /* Isochronous TRB specific fields */
 #define TRB_SIA			(1<<31)
+#define TRB_FRAME_ID(p)		(((p) & 0x7ff) << 20)
 
 struct xhci_generic_trb {
 	__le32 field[4];
@@ -1600,6 +1607,8 @@ struct xhci_driver_overrides {
 	int (*reset)(struct usb_hcd *hcd);
 	int (*start)(struct usb_hcd *hcd);
 };
+
+#define	XHCI_CFC_DELAY		10
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
 static inline struct xhci_hcd *hcd_to_xhci(struct usb_hcd *hcd)

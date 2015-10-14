@@ -130,12 +130,8 @@ static int plug_init(struct Qdisc *sch, struct nlattr *opt)
 	q->unplug_indefinite = false;
 
 	if (opt == NULL) {
-		/* We will set a default limit of 100 pkts (~150kB)
-		 * in case tx_queue_len is not available. The
-		 * default value is completely arbitrary.
-		 */
-		u32 pkt_limit = qdisc_dev(sch)->tx_queue_len ? : 100;
-		q->limit = pkt_limit * psched_mtu(qdisc_dev(sch));
+		q->limit = qdisc_dev(sch)->tx_queue_len
+		           * psched_mtu(qdisc_dev(sch));
 	} else {
 		struct tc_plug_qopt *ctl = nla_data(opt);
 

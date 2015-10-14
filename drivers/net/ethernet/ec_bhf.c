@@ -604,19 +604,7 @@ static struct pci_driver pci_driver = {
 	.probe		= ec_bhf_probe,
 	.remove		= ec_bhf_remove,
 };
-
-static int __init ec_bhf_init(void)
-{
-	return pci_register_driver(&pci_driver);
-}
-
-static void __exit ec_bhf_exit(void)
-{
-	pci_unregister_driver(&pci_driver);
-}
-
-module_init(ec_bhf_init);
-module_exit(ec_bhf_exit);
+module_pci_driver(pci_driver);
 
 module_param(polling_frequency, long, S_IRUGO);
 MODULE_PARM_DESC(polling_frequency, "Polling timer frequency in ns");

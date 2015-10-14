@@ -4,6 +4,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014, Intel Corporation
  * Copyright 2014  Intel Mobile Communications GmbH
+ * Copyright 2015  Intel Deutschland GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -11,6 +12,7 @@
 #include <linux/ieee80211.h>
 #include <linux/log2.h>
 #include <net/cfg80211.h>
+#include <linux/rtnetlink.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
@@ -35,20 +37,28 @@ void ieee80211_tdls_peer_del_work(struct work_struct *wk)
 	mutex_unlock(&local->mtx);
 }
 
-static void ieee80211_tdls_add_ext_capab(struct ieee80211_local *local,
+static void ieee80211_tdls_add_ext_capab(struct ieee80211_sub_if_data *sdata,
 					 struct sk_buff *skb)
 {
-	u8 *pos = (void *)skb_put(skb, 7);
+	struct ieee80211_local *local = sdata->local;
 	bool chan_switch = local->hw.wiphy->features &
 			   NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
+	bool wider_band = ieee80211_hw_check(&local->hw, TDLS_WIDER_BW);
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
+	bool vht = sband && sband->vht_cap.vht_supported;
+	u8 *pos = (void *)skb_put(skb, 10);
 
 	*pos++ = WLAN_EID_EXT_CAPABILITY;
-	*pos++ = 5; /* len */
+	*pos++ = 8; /* len */
 	*pos++ = 0x0;
 	*pos++ = 0x0;
 	*pos++ = 0x0;
 	*pos++ = chan_switch ? WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH : 0;
 	*pos++ = WLAN_EXT_CAPA5_TDLS_ENABLED;
+	*pos++ = 0;
+	*pos++ = 0;
+	*pos++ = (vht && wider_band) ? WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED : 0;
 }
 
 static u8
@@ -284,6 +294,60 @@ static void ieee80211_tdls_add_wmm_param_ie(struct ieee80211_sub_if_data *sdata,
 }
 
 static void
+ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
+				   struct sta_info *sta)
+{
+	/* IEEE802.11ac-2013 Table E-4 */
+	u16 centers_80mhz[] = { 5210, 5290, 5530, 5610, 5690, 5775 };
+	struct cfg80211_chan_def uc = sta->tdls_chandef;
+	enum nl80211_chan_width max_width = ieee80211_get_sta_bw(&sta->sta);
+	int i;
+
+	/* only support upgrading non-narrow channels up to 80Mhz */
+	if (max_width == NL80211_CHAN_WIDTH_5 ||
+	    max_width == NL80211_CHAN_WIDTH_10)
+		return;
+
+	if (max_width > NL80211_CHAN_WIDTH_80)
+		max_width = NL80211_CHAN_WIDTH_80;
+
+	if (uc.width == max_width)
+		return;
+	/*
+	 * Channel usage constrains in the IEEE802.11ac-2013 specification only
+	 * allow expanding a 20MHz channel to 80MHz in a single way. In
+	 * addition, there are no 40MHz allowed channels that are not part of
+	 * the allowed 80MHz range in the 5GHz spectrum (the relevant one here).
+	 */
+	for (i = 0; i < ARRAY_SIZE(centers_80mhz); i++)
+		if (abs(uc.chan->center_freq - centers_80mhz[i]) <= 30) {
+			uc.center_freq1 = centers_80mhz[i];
+			uc.width = NL80211_CHAN_WIDTH_80;
+			break;
+		}
+
+	if (!uc.center_freq1)
+		return;
+
+	/* proceed to downgrade the chandef until usable or the same */
+	while (uc.width > max_width &&
+	       !cfg80211_reg_can_beacon(sdata->local->hw.wiphy,
+					&uc, sdata->wdev.iftype))
+		ieee80211_chandef_downgrade(&uc);
+
+	if (!cfg80211_chandef_identical(&uc, &sta->tdls_chandef)) {
+		tdls_dbg(sdata, "TDLS ch width upgraded %d -> %d\n",
+			 sta->tdls_chandef.width, uc.width);
+
+		/*
+		 * the station is not yet authorized when BW upgrade is done,
+		 * locking is not required
+		 */
+		sta->tdls_chandef = uc;
+	}
+}
+
+static void
 ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb, const u8 *peer,
 				   u8 action_code, bool initiator,
@@ -320,7 +384,7 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		offset = noffset;
 	}
 
-	ieee80211_tdls_add_ext_capab(local, skb);
+	ieee80211_tdls_add_ext_capab(sdata, skb);
 
 	/* add the QoS element if we support it */
 	if (local->hw.queues >= IEEE80211_NUM_ACS &&
@@ -350,15 +414,17 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		offset = noffset;
 	}
 
-	rcu_read_lock();
+	mutex_lock(&local->sta_mtx);
 
 	/* we should have the peer STA if we're already responding */
 	if (action_code == WLAN_TDLS_SETUP_RESPONSE) {
 		sta = sta_info_get(sdata, peer);
 		if (WARN_ON_ONCE(!sta)) {
-			rcu_read_unlock();
+			mutex_unlock(&local->sta_mtx);
 			return;
 		}
+
+		sta->tdls_chandef = sdata->vif.bss_conf.chandef;
 	}
 
 	ieee80211_tdls_add_oper_classes(sdata, skb);
@@ -384,10 +450,6 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		ieee80211_ie_build_ht_cap(pos, &ht_cap, ht_cap.cap);
 	} else if (action_code == WLAN_TDLS_SETUP_RESPONSE &&
 		   ht_cap.ht_supported && sta->sta.ht_cap.ht_supported) {
-		/* disable SMPS in TDLS responder */
-		sta->sta.ht_cap.cap |= WLAN_HT_CAP_SM_PS_DISABLED
-					<< IEEE80211_HT_CAP_SM_PS_SHIFT;
-
 		/* the peer caps are already intersected with our own */
 		memcpy(&ht_cap, &sta->sta.ht_cap, sizeof(ht_cap));
 
@@ -448,9 +510,16 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 
 		pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
 		ieee80211_ie_build_vht_cap(pos, &vht_cap, vht_cap.cap);
+
+		/*
+		 * if both peers support WIDER_BW, we can expand the chandef to
+		 * a wider compatible one, up to 80MHz
+		 */
+		if (test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW))
+			ieee80211_tdls_chandef_vht_upgrade(sdata, sta);
 	}
 
-	rcu_read_unlock();
+	mutex_unlock(&local->sta_mtx);
 
 	/* add any remaining IEs */
 	if (extra_ies_len) {
@@ -474,14 +543,16 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	u8 *pos;
 
-	rcu_read_lock();
+	mutex_lock(&local->sta_mtx);
 
 	sta = sta_info_get(sdata, peer);
 	ap_sta = sta_info_get(sdata, ifmgd->bssid);
 	if (WARN_ON_ONCE(!sta || !ap_sta)) {
-		rcu_read_unlock();
+		mutex_unlock(&local->sta_mtx);
 		return;
 	}
+
+	sta->tdls_chandef = sdata->vif.bss_conf.chandef;
 
 	/* add any custom IEs that go before the QoS IE */
 	if (extra_ies_len) {
@@ -530,12 +601,19 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 
 	/* only include VHT-operation if not on the 2.4GHz band */
 	if (band != IEEE80211_BAND_2GHZ && sta->sta.vht_cap.vht_supported) {
+		/*
+		 * if both peers support WIDER_BW, we can expand the chandef to
+		 * a wider compatible one, up to 80MHz
+		 */
+		if (test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW))
+			ieee80211_tdls_chandef_vht_upgrade(sdata, sta);
+
 		pos = skb_put(skb, 2 + sizeof(struct ieee80211_vht_operation));
 		ieee80211_ie_build_vht_oper(pos, &sta->sta.vht_cap,
-					    &sdata->vif.bss_conf.chandef);
+					    &sta->tdls_chandef);
 	}
 
-	rcu_read_unlock();
+	mutex_unlock(&local->sta_mtx);
 
 	/* add any remaining IEs */
 	if (extra_ies_len) {
@@ -784,7 +862,7 @@ ieee80211_tdls_build_mgmt_packet_data(struct ieee80211_sub_if_data *sdata,
 			       max(sizeof(struct ieee80211_mgmt),
 				   sizeof(struct ieee80211_tdls_data)) +
 			       50 + /* supported rates */
-			       7 + /* ext capab */
+			       10 + /* ext capab */
 			       26 + /* max(WMM-info, WMM-param) */
 			       2 + max(sizeof(struct ieee80211_ht_cap),
 				       sizeof(struct ieee80211_ht_operation)) +
@@ -983,7 +1061,16 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_smps_mode smps_mode = sdata->u.mgd.driver_smps_mode;
 	int ret;
+
+	/* don't support setup with forced SMPS mode that's not off */
+	if (smps_mode != IEEE80211_SMPS_AUTOMATIC &&
+	    smps_mode != IEEE80211_SMPS_OFF) {
+		tdls_dbg(sdata, "Aborting TDLS setup due to SMPS mode %d\n",
+			 smps_mode);
+		return -ENOTSUPP;
+	}
 
 	mutex_lock(&local->mtx);
 
@@ -1146,6 +1233,74 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
+static void iee80211_tdls_recalc_chanctx(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *ctx;
+
+	mutex_lock(&local->chanctx_mtx);
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (conf) {
+		ctx = container_of(conf, struct ieee80211_chanctx, conf);
+		ieee80211_recalc_chanctx_chantype(local, ctx);
+	}
+	mutex_unlock(&local->chanctx_mtx);
+}
+
+static int iee80211_tdls_have_ht_peers(struct ieee80211_sub_if_data *sdata)
+{
+	struct sta_info *sta;
+	bool result = false;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
+		if (!sta->sta.tdls || sta->sdata != sdata || !sta->uploaded ||
+		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED) ||
+		    !test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH) ||
+		    !sta->sta.ht_cap.ht_supported)
+			continue;
+		result = true;
+		break;
+	}
+	rcu_read_unlock();
+
+	return result;
+}
+
+static void
+iee80211_tdls_recalc_ht_protection(struct ieee80211_sub_if_data *sdata,
+				   struct sta_info *sta)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	bool tdls_ht;
+	u16 protection = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED |
+			 IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT |
+			 IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT;
+	u16 opmode;
+
+	/* Nothing to do if the BSS connection uses HT */
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
+		return;
+
+	tdls_ht = (sta && sta->sta.ht_cap.ht_supported) ||
+		  iee80211_tdls_have_ht_peers(sdata);
+
+	opmode = sdata->vif.bss_conf.ht_operation_mode;
+
+	if (tdls_ht)
+		opmode |= protection;
+	else
+		opmode &= ~protection;
+
+	if (opmode == sdata->vif.bss_conf.ht_operation_mode)
+		return;
+
+	sdata->vif.bss_conf.ht_operation_mode = opmode;
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_HT);
+}
+
 int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			const u8 *peer, enum nl80211_tdls_operation oper)
 {
@@ -1171,6 +1326,10 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		return -ENOTSUPP;
 	}
 
+	/* protect possible bss_conf changes and avoid concurrency in
+	 * ieee80211_bss_info_change_notify()
+	 */
+	sdata_lock(sdata);
 	mutex_lock(&local->mtx);
 	tdls_dbg(sdata, "TDLS oper %d peer %pM\n", oper, peer);
 
@@ -1182,16 +1341,20 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			break;
 		}
 
-		rcu_read_lock();
+		iee80211_tdls_recalc_chanctx(sdata);
+
+		mutex_lock(&local->sta_mtx);
 		sta = sta_info_get(sdata, peer);
 		if (!sta) {
-			rcu_read_unlock();
+			mutex_unlock(&local->sta_mtx);
 			ret = -ENOLINK;
 			break;
 		}
 
+		iee80211_tdls_recalc_ht_protection(sdata, sta);
+
 		set_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
-		rcu_read_unlock();
+		mutex_unlock(&local->sta_mtx);
 
 		WARN_ON_ONCE(is_zero_ether_addr(sdata->u.mgd.tdls_peer) ||
 			     !ether_addr_equal(sdata->u.mgd.tdls_peer, peer));
@@ -1213,6 +1376,12 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		ieee80211_flush_queues(local, sdata, false);
 
 		ret = sta_info_destroy_addr(sdata, peer);
+
+		mutex_lock(&local->sta_mtx);
+		iee80211_tdls_recalc_ht_protection(sdata, NULL);
+		mutex_unlock(&local->sta_mtx);
+
+		iee80211_tdls_recalc_chanctx(sdata);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -1224,7 +1393,12 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		eth_zero_addr(sdata->u.mgd.tdls_peer);
 	}
 
+	if (ret == 0)
+		ieee80211_queue_work(&sdata->local->hw,
+				     &sdata->u.mgd.request_smps_work);
+
 	mutex_unlock(&local->mtx);
+	sdata_unlock(sdata);
 	return ret;
 }
 
@@ -1627,6 +1801,31 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 		return -EINVAL;
 	}
 
+	if (!elems.sec_chan_offs) {
+		chan_type = NL80211_CHAN_HT20;
+	} else {
+		switch (elems.sec_chan_offs->sec_chan_offs) {
+		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+			chan_type = NL80211_CHAN_HT40PLUS;
+			break;
+		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+			chan_type = NL80211_CHAN_HT40MINUS;
+			break;
+		default:
+			chan_type = NL80211_CHAN_HT20;
+			break;
+		}
+	}
+
+	cfg80211_chandef_create(&chandef, chan, chan_type);
+
+	/* we will be active on the TDLS link */
+	if (!cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &chandef,
+					   sdata->wdev.iftype)) {
+		tdls_dbg(sdata, "TDLS chan switch to forbidden channel\n");
+		return -EINVAL;
+	}
+
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, tf->sa);
 	if (!sta || !test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH)) {
@@ -1647,27 +1846,15 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (!sta->sta.ht_cap.ht_supported) {
-		chan_type = NL80211_CHAN_NO_HT;
-	} else if (!elems.sec_chan_offs) {
-		chan_type = NL80211_CHAN_HT20;
-	} else {
-		switch (elems.sec_chan_offs->sec_chan_offs) {
-		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-			chan_type = NL80211_CHAN_HT40PLUS;
-			break;
-		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-			chan_type = NL80211_CHAN_HT40MINUS;
-			break;
-		default:
-			chan_type = NL80211_CHAN_HT20;
-			break;
-		}
+	/* peer should have known better */
+	if (!sta->sta.ht_cap.ht_supported && elems.sec_chan_offs &&
+	    elems.sec_chan_offs->sec_chan_offs) {
+		tdls_dbg(sdata, "TDLS chan switch - wide chan unsupported\n");
+		ret = -ENOTSUPP;
+		goto out;
 	}
 
-	cfg80211_chandef_create(&chandef, chan, chan_type);
 	params.chandef = &chandef;
-
 	params.switch_time = le16_to_cpu(elems.ch_sw_timing->switch_time);
 	params.switch_timeout = le16_to_cpu(elems.ch_sw_timing->switch_timeout);
 
@@ -1691,11 +1878,14 @@ out:
 	return ret;
 }
 
-void ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
-					   struct sk_buff *skb)
+static void
+ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
+				      struct sk_buff *skb)
 {
 	struct ieee80211_tdls_data *tf = (void *)skb->data;
 	struct wiphy *wiphy = sdata->local->hw.wiphy;
+
+	ASSERT_RTNL();
 
 	/* make sure the driver supports it */
 	if (!(wiphy->features & NL80211_FEATURE_TDLS_CHANNEL_SWITCH))
@@ -1719,4 +1909,48 @@ void ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
 		WARN_ON_ONCE(1);
 		return;
 	}
+}
+
+void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata)
+{
+	struct sta_info *sta;
+	u16 reason = WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
+		if (!sta->sta.tdls || sta->sdata != sdata || !sta->uploaded ||
+		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+			continue;
+
+		ieee80211_tdls_oper_request(&sdata->vif, sta->sta.addr,
+					    NL80211_TDLS_TEARDOWN, reason,
+					    GFP_ATOMIC);
+	}
+	rcu_read_unlock();
+}
+
+void ieee80211_tdls_chsw_work(struct work_struct *wk)
+{
+	struct ieee80211_local *local =
+		container_of(wk, struct ieee80211_local, tdls_chsw_work);
+	struct ieee80211_sub_if_data *sdata;
+	struct sk_buff *skb;
+	struct ieee80211_tdls_data *tf;
+
+	rtnl_lock();
+	while ((skb = skb_dequeue(&local->skb_queue_tdls_chsw))) {
+		tf = (struct ieee80211_tdls_data *)skb->data;
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (!ieee80211_sdata_running(sdata) ||
+			    sdata->vif.type != NL80211_IFTYPE_STATION ||
+			    !ether_addr_equal(tf->da, sdata->vif.addr))
+				continue;
+
+			ieee80211_process_tdls_channel_switch(sdata, skb);
+			break;
+		}
+
+		kfree_skb(skb);
+	}
+	rtnl_unlock();
 }

@@ -45,7 +45,7 @@ static void __jump_label_transform(struct jump_entry *entry,
 	const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
 	const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
 
-	if (type == JUMP_LABEL_ENABLE) {
+	if (type == JUMP_LABEL_JMP) {
 		if (init) {
 			/*
 			 * Jump label is enabled for the first time.

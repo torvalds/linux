@@ -1,61 +1,55 @@
 #ifndef __NVKM_DISP_OUTP_H__
 #define __NVKM_DISP_OUTP_H__
-#include <core/object.h>
+#include <engine/disp.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 
 struct nvkm_output {
-	struct nvkm_object base;
-	struct list_head head;
-
-	struct dcb_output info;
+	const struct nvkm_output_func *func;
+	struct nvkm_disp *disp;
 	int index;
+	struct dcb_output info;
+
+	// whatever (if anything) is pointed at by the dcb device entry
+	struct nvkm_i2c_bus *i2c;
 	int or;
 
-	struct nvkm_i2c_port *port;
-	struct nvkm_i2c_port *edid;
-
+	struct list_head head;
 	struct nvkm_connector *conn;
 };
 
-#define nvkm_output_create(p,e,c,b,i,d)                                        \
-	nvkm_output_create_((p), (e), (c), (b), (i), sizeof(**d), (void **)d)
-#define nvkm_output_destroy(d) ({                                              \
-	struct nvkm_output *_outp = (d);                                       \
-	_nvkm_output_dtor(nv_object(_outp));                                   \
-})
-#define nvkm_output_init(d) ({                                                 \
-	struct nvkm_output *_outp = (d);                                       \
-	_nvkm_output_init(nv_object(_outp));                                   \
-})
-#define nvkm_output_fini(d,s) ({                                               \
-	struct nvkm_output *_outp = (d);                                       \
-	_nvkm_output_fini(nv_object(_outp), (s));                              \
-})
-
-int nvkm_output_create_(struct nvkm_object *, struct nvkm_object *,
-			struct nvkm_oclass *, struct dcb_output *,
-			int, int, void **);
-
-int  _nvkm_output_ctor(struct nvkm_object *, struct nvkm_object *,
-		       struct nvkm_oclass *, void *, u32,
-		       struct nvkm_object **);
-void _nvkm_output_dtor(struct nvkm_object *);
-int  _nvkm_output_init(struct nvkm_object *);
-int  _nvkm_output_fini(struct nvkm_object *, bool);
-
-struct nvkm_output_impl {
-	struct nvkm_oclass base;
+struct nvkm_output_func {
+	void *(*dtor)(struct nvkm_output *);
+	void (*init)(struct nvkm_output *);
+	void (*fini)(struct nvkm_output *);
 };
 
-#ifndef MSG
-#define MSG(l,f,a...) do {                                                     \
-	struct nvkm_output *_outp = (void *)outp;                              \
-	nv_##l(_outp, "%02x:%04x:%04x: "f, _outp->index,                       \
-	       _outp->info.hasht, _outp->info.hashm, ##a);                     \
+void nvkm_output_ctor(const struct nvkm_output_func *, struct nvkm_disp *,
+		      int index, struct dcb_output *, struct nvkm_output *);
+int nvkm_output_new_(const struct nvkm_output_func *, struct nvkm_disp *,
+		     int index, struct dcb_output *, struct nvkm_output **);
+void nvkm_output_del(struct nvkm_output **);
+void nvkm_output_init(struct nvkm_output *);
+void nvkm_output_fini(struct nvkm_output *);
+
+int nv50_dac_output_new(struct nvkm_disp *, int, struct dcb_output *,
+			struct nvkm_output **);
+int nv50_sor_output_new(struct nvkm_disp *, int, struct dcb_output *,
+			struct nvkm_output **);
+int nv50_pior_output_new(struct nvkm_disp *, int, struct dcb_output *,
+			 struct nvkm_output **);
+
+u32 g94_sor_dp_lane_map(struct nvkm_device *, u8 lane);
+
+void gm204_sor_magic(struct nvkm_output *outp);
+
+#define OUTP_MSG(o,l,f,a...) do {                                              \
+	struct nvkm_output *_outp = (o);                                       \
+	nvkm_##l(&_outp->disp->engine.subdev, "outp %02x:%04x:%04x: "f"\n",    \
+		 _outp->index, _outp->info.hasht, _outp->info.hashm, ##a);     \
 } while(0)
-#define DBG(f,a...) MSG(debug, f, ##a)
-#define ERR(f,a...) MSG(error, f, ##a)
-#endif
+#define OUTP_ERR(o,f,a...) OUTP_MSG((o), error, f, ##a)
+#define OUTP_DBG(o,f,a...) OUTP_MSG((o), debug, f, ##a)
+#define OUTP_TRACE(o,f,a...) OUTP_MSG((o), trace, f, ##a)
 #endif

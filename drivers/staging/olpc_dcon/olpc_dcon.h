@@ -98,7 +98,7 @@ struct dcon_platform_data {
 
 #include <linux/interrupt.h>
 
-extern irqreturn_t dcon_interrupt(int irq, void *id);
+irqreturn_t dcon_interrupt(int irq, void *id);
 
 #ifdef CONFIG_FB_OLPC_DCON_1
 extern struct dcon_platform_data dcon_pdata_xo_1;

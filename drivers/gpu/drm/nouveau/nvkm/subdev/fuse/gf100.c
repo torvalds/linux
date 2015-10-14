@@ -23,56 +23,31 @@
  */
 #include "priv.h"
 
-struct gf100_fuse_priv {
-	struct nvkm_fuse base;
-
-	spinlock_t fuse_enable_lock;
-};
-
 static u32
-gf100_fuse_rd32(struct nvkm_object *object, u64 addr)
+gf100_fuse_read(struct nvkm_fuse *fuse, u32 addr)
 {
-	struct gf100_fuse_priv *priv = (void *)object;
+	struct nvkm_device *device = fuse->subdev.device;
 	unsigned long flags;
 	u32 fuse_enable, unk, val;
 
 	/* racy if another part of nvkm start writing to these regs */
-	spin_lock_irqsave(&priv->fuse_enable_lock, flags);
-	fuse_enable = nv_mask(priv, 0x22400, 0x800, 0x800);
-	unk = nv_mask(priv, 0x21000, 0x1, 0x1);
-	val = nv_rd32(priv, 0x21100 + addr);
-	nv_wr32(priv, 0x21000, unk);
-	nv_wr32(priv, 0x22400, fuse_enable);
-	spin_unlock_irqrestore(&priv->fuse_enable_lock, flags);
+	spin_lock_irqsave(&fuse->lock, flags);
+	fuse_enable = nvkm_mask(device, 0x022400, 0x800, 0x800);
+	unk = nvkm_mask(device, 0x021000, 0x1, 0x1);
+	val = nvkm_rd32(device, 0x021100 + addr);
+	nvkm_wr32(device, 0x021000, unk);
+	nvkm_wr32(device, 0x022400, fuse_enable);
+	spin_unlock_irqrestore(&fuse->lock, flags);
 	return val;
 }
 
-
-static int
-gf100_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
-{
-	struct gf100_fuse_priv *priv;
-	int ret;
-
-	ret = nvkm_fuse_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	spin_lock_init(&priv->fuse_enable_lock);
-	return 0;
-}
-
-struct nvkm_oclass
-gf100_fuse_oclass = {
-	.handle = NV_SUBDEV(FUSE, 0xC0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_fuse_ctor,
-		.dtor = _nvkm_fuse_dtor,
-		.init = _nvkm_fuse_init,
-		.fini = _nvkm_fuse_fini,
-		.rd32 = gf100_fuse_rd32,
-	},
+static const struct nvkm_fuse_func
+gf100_fuse = {
+	.read = gf100_fuse_read,
 };
+
+int
+gf100_fuse_new(struct nvkm_device *device, int index, struct nvkm_fuse **pfuse)
+{
+	return nvkm_fuse_new_(&gf100_fuse, device, index, pfuse);
+}

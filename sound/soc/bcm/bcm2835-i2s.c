@@ -862,6 +862,8 @@ static const struct of_device_id bcm2835_i2s_of_match[] = {
 	{},
 };
 
+MODULE_DEVICE_TABLE(of, bcm2835_i2s_of_match);
+
 static struct platform_driver bcm2835_i2s_driver = {
 	.probe		= bcm2835_i2s_probe,
 	.driver		= {

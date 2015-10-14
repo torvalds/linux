@@ -1875,7 +1875,7 @@ static int cx231xx_close(struct file *filp)
 			v4l2_fh_exit(&fh->fh);
 			kfree(fh);
 			dev->users--;
-			wake_up_interruptible_nr(&dev->open, 1);
+			wake_up_interruptible(&dev->open);
 			return 0;
 		}
 
@@ -1908,7 +1908,7 @@ static int cx231xx_close(struct file *filp)
 	}
 	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
-	wake_up_interruptible_nr(&dev->open, 1);
+	wake_up_interruptible(&dev->open);
 	return 0;
 }
 

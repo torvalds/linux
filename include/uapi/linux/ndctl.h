@@ -87,7 +87,7 @@ struct nd_cmd_ars_status {
 		__u32 handle;
 		__u32 flags;
 		__u64 err_address;
-		__u64 mask;
+		__u64 length;
 	} __packed records[0];
 } __packed;
 
@@ -109,6 +109,11 @@ enum {
 	ND_CMD_VENDOR_EFFECT_LOG_SIZE = 7,
 	ND_CMD_VENDOR_EFFECT_LOG = 8,
 	ND_CMD_VENDOR = 9,
+};
+
+enum {
+	ND_ARS_VOLATILE = 1,
+	ND_ARS_PERSISTENT = 2,
 };
 
 static inline const char *nvdimm_bus_cmd_name(unsigned cmd)
@@ -193,5 +198,10 @@ enum nd_driver_flags {
 
 enum {
 	ND_MIN_NAMESPACE_SIZE = 0x00400000,
+};
+
+enum ars_masks {
+	ARS_STATUS_MASK = 0x0000FFFF,
+	ARS_EXT_STATUS_SHIFT = 16,
 };
 #endif /* __NDCTL_H__ */

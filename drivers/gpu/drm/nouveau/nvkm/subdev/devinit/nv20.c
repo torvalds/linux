@@ -30,48 +30,50 @@
 #include <subdev/bios/init.h>
 
 static void
-nv20_devinit_meminit(struct nvkm_devinit *devinit)
+nv20_devinit_meminit(struct nvkm_devinit *init)
 {
-	struct nv04_devinit_priv *priv = (void *)devinit;
-	struct nvkm_device *device = nv_device(priv);
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
 	uint32_t mask = (device->chipset >= 0x25 ? 0x300 : 0x900);
 	uint32_t amount, off;
 	struct io_mapping *fb;
 
 	/* Map the framebuffer aperture */
-	fb = fbmem_init(nv_device(priv));
+	fb = fbmem_init(device);
 	if (!fb) {
-		nv_error(priv, "failed to map fb\n");
+		nvkm_error(subdev, "failed to map fb\n");
 		return;
 	}
 
-	nv_wr32(priv, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
+	nvkm_wr32(device, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
 
 	/* Allow full addressing */
-	nv_mask(priv, NV04_PFB_CFG0, 0, mask);
+	nvkm_mask(device, NV04_PFB_CFG0, 0, mask);
 
-	amount = nv_rd32(priv, 0x10020c);
+	amount = nvkm_rd32(device, 0x10020c);
 	for (off = amount; off > 0x2000000; off -= 0x2000000)
 		fbmem_poke(fb, off - 4, off);
 
-	amount = nv_rd32(priv, 0x10020c);
+	amount = nvkm_rd32(device, 0x10020c);
 	if (amount != fbmem_peek(fb, amount - 4))
 		/* IC missing - disable the upper half memory space. */
-		nv_mask(priv, NV04_PFB_CFG0, mask, 0);
+		nvkm_mask(device, NV04_PFB_CFG0, mask, 0);
 
 	fbmem_fini(fb);
 }
 
-struct nvkm_oclass *
-nv20_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x20),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_devinit_ctor,
-		.dtor = nv04_devinit_dtor,
-		.init = nv04_devinit_init,
-		.fini = nv04_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+nv20_devinit = {
+	.dtor = nv04_devinit_dtor,
+	.preinit = nv04_devinit_preinit,
+	.post = nv04_devinit_post,
 	.meminit = nv20_devinit_meminit,
 	.pll_set = nv04_devinit_pll_set,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+nv20_devinit_new(struct nvkm_device *device, int index,
+		 struct nvkm_devinit **pinit)
+{
+	return nv04_devinit_new_(&nv20_devinit, device, index, pinit);
+}

@@ -27,24 +27,15 @@
 #include <linux/console.h>
 #include <video/vga.h>
 
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
-
 #include "i740_reg.h"
 
 static char *mode_option;
-
-#ifdef CONFIG_MTRR
 static int mtrr = 1;
-#endif
 
 struct i740fb_par {
 	unsigned char __iomem *regs;
 	bool has_sgram;
-#ifdef CONFIG_MTRR
-	int mtrr_reg;
-#endif
+	int wc_cookie;
 	bool ddc_registered;
 	struct i2c_adapter ddc_adapter;
 	struct i2c_algo_bit_data ddc_algo;
@@ -1040,7 +1031,7 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		goto err_request_regions;
 	}
 
-	info->screen_base = pci_ioremap_bar(dev, 0);
+	info->screen_base = pci_ioremap_wc_bar(dev, 0);
 	if (!info->screen_base) {
 		dev_err(info->device, "error remapping base\n");
 		ret = -ENOMEM;
@@ -1144,13 +1135,9 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	pci_set_drvdata(dev, info);
-#ifdef CONFIG_MTRR
-	if (mtrr) {
-		par->mtrr_reg = -1;
-		par->mtrr_reg = mtrr_add(info->fix.smem_start,
-				info->fix.smem_len, MTRR_TYPE_WRCOMB, 1);
-	}
-#endif
+	if (mtrr)
+		par->wc_cookie = arch_phys_wc_add(info->fix.smem_start,
+						  info->fix.smem_len);
 	return 0;
 
 err_reg_framebuffer:
@@ -1177,13 +1164,7 @@ static void i740fb_remove(struct pci_dev *dev)
 
 	if (info) {
 		struct i740fb_par *par = info->par;
-
-#ifdef CONFIG_MTRR
-		if (par->mtrr_reg >= 0) {
-			mtrr_del(par->mtrr_reg, 0, 0);
-			par->mtrr_reg = -1;
-		}
-#endif
+		arch_phys_wc_del(par->wc_cookie);
 		unregister_framebuffer(info);
 		fb_dealloc_cmap(&info->cmap);
 		if (par->ddc_registered)
@@ -1287,10 +1268,8 @@ static int  __init i740fb_setup(char *options)
 	while ((opt = strsep(&options, ",")) != NULL) {
 		if (!*opt)
 			continue;
-#ifdef CONFIG_MTRR
 		else if (!strncmp(opt, "mtrr:", 5))
 			mtrr = simple_strtoul(opt + 5, NULL, 0);
-#endif
 		else
 			mode_option = opt;
 	}
@@ -1327,7 +1306,5 @@ MODULE_DESCRIPTION("fbdev driver for Intel740");
 module_param(mode_option, charp, 0444);
 MODULE_PARM_DESC(mode_option, "Default video mode ('640x480-8@60', etc)");
 
-#ifdef CONFIG_MTRR
 module_param(mtrr, int, 0444);
 MODULE_PARM_DESC(mtrr, "Enable write-combining with MTRR (1=enable, 0=disable, default=1)");
-#endif

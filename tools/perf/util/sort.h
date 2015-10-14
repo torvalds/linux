@@ -114,6 +114,7 @@ struct hist_entry {
 		};
 	};
 	char			*srcline;
+	char			*srcfile;
 	struct symbol		*parent;
 	struct rb_root		sorted_chain;
 	struct branch_info	*branch_info;
@@ -172,6 +173,7 @@ enum sort_type {
 	SORT_PARENT,
 	SORT_CPU,
 	SORT_SRCLINE,
+	SORT_SRCFILE,
 	SORT_LOCAL_WEIGHT,
 	SORT_GLOBAL_WEIGHT,
 	SORT_TRANSACTION,
@@ -185,6 +187,7 @@ enum sort_type {
 	SORT_MISPREDICT,
 	SORT_ABORT,
 	SORT_IN_TX,
+	SORT_CYCLES,
 
 	/* memory mode specific sort keys */
 	__SORT_MEMORY_MODE,

@@ -82,4 +82,19 @@ int pxa_request_dma (char *name,
 
 void pxa_free_dma (int dma_ch);
 
+/*
+ * Cooperation with pxa_dma + dmaengine while there remains at least one pxa
+ * driver not converted to dmaengine.
+ */
+#if defined(CONFIG_PXA_DMA)
+extern int pxad_toggle_reserved_channel(int legacy_channel);
+#else
+static inline int pxad_toggle_reserved_channel(int legacy_channel)
+{
+	return 0;
+}
+#endif
+
+extern void __init pxa2xx_set_dmac_info(int nb_channels);
+
 #endif /* __PLAT_DMA_H */

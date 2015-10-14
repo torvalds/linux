@@ -1,0 +1,11 @@
+config AMD_MCE_INJ
+	tristate "Simple MCE injection interface for AMD processors"
+	depends on RAS && EDAC_DECODE_MCE && DEBUG_FS
+	default n
+	help
+	  This is a simple debugfs interface to inject MCEs and test different
+	  aspects of the MCE handling code.
+
+	  WARNING: Do not even assume this interface is staying stable!
+
+

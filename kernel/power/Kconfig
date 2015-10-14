@@ -18,6 +18,16 @@ config SUSPEND_FREEZER
 
 	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
 
+config SUSPEND_SKIP_SYNC
+	bool "Skip kernel's sys_sync() on suspend to RAM/standby"
+	depends on SUSPEND
+	depends on EXPERT
+	help
+	  Skip the kernel sys_sync() before freezing user processes.
+	  Some systems prefer not to pay this cost on every invocation
+	  of suspend, or they are content with invoking sync() from
+	  user-space before invoking suspend.  Say Y if that's your case.
+
 config HIBERNATE_CALLBACKS
 	bool
 

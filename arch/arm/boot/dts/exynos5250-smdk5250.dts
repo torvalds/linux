@@ -74,6 +74,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&buck2_reg>;
+};
+
 &dp {
 	samsung,color-space = <0>;
 	samsung,dynamic-range = <0>;
@@ -193,6 +197,7 @@
 				regulator-name = "P1.8V_LDO_OUT10";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 			};
 
 			ldo11_reg: LDO11 {

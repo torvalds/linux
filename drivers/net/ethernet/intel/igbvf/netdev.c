@@ -319,6 +319,7 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 			dma_unmap_single(&pdev->dev, buffer_info->dma,
 					 adapter->rx_ps_hdr_size,
 					 DMA_FROM_DEVICE);
+			buffer_info->dma = 0;
 			skb_put(skb, hlen);
 		}
 

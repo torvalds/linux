@@ -36,6 +36,7 @@
 #include "spectral.h"
 #include "thermal.h"
 #include "wow.h"
+#include "swap.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -91,6 +92,7 @@ struct ath10k_skb_cb {
 		u8 tid;
 		u16 freq;
 		bool is_offchan;
+		bool nohwcrypt;
 		struct ath10k_htt_txbuf *txbuf;
 		u32 txbuf_paddr;
 	} __packed htt;
@@ -151,6 +153,7 @@ struct ath10k_wmi {
 	const struct wmi_ops *ops;
 
 	u32 num_mem_chunks;
+	u32 rx_decap_mode;
 	struct ath10k_mem_chunk mem_chunks[WMI_MAX_MEM_REQS];
 };
 
@@ -327,8 +330,8 @@ struct ath10k_vif {
 			u32 uapsd;
 		} sta;
 		struct {
-			/* 127 stations; wmi limit */
-			u8 tim_bitmap[16];
+			/* 512 stations */
+			u8 tim_bitmap[64];
 			u8 tim_len;
 			u32 ssid_len;
 			u8 ssid[IEEE80211_MAX_SSID_LEN];
@@ -340,6 +343,7 @@ struct ath10k_vif {
 	} u;
 
 	bool use_cts_prot;
+	bool nohwcrypt;
 	int num_legacy_stations;
 	int txpower;
 	struct wmi_wmm_params_all_arg wmm_params;
@@ -380,9 +384,6 @@ struct ath10k_debug {
 	u32 pktlog_filter;
 	u32 reg_addr;
 	u32 nf_cal_period;
-
-	u8 htt_max_amsdu;
-	u8 htt_max_ampdu;
 
 	struct ath10k_fw_crash_data *fw_crash_data;
 };
@@ -452,15 +453,20 @@ enum ath10k_fw_features {
 	ATH10K_FW_FEATURE_WOWLAN_SUPPORT = 6,
 
 	/* Don't trust error code from otp.bin */
-	ATH10K_FW_FEATURE_IGNORE_OTP_RESULT,
+	ATH10K_FW_FEATURE_IGNORE_OTP_RESULT = 7,
 
 	/* Some firmware revisions pad 4th hw address to 4 byte boundary making
 	 * it 8 bytes long in Native Wifi Rx decap.
 	 */
-	ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING,
+	ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING = 8,
 
 	/* Firmware supports bypassing PLL setting on init. */
 	ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT = 9,
+
+	/* Raw mode support. If supported, FW supports receiving and trasmitting
+	 * frames in raw mode.
+	 */
+	ATH10K_FW_FEATURE_RAW_MODE_SUPPORT = 10,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
@@ -475,12 +481,28 @@ enum ath10k_dev_flags {
 	 * waiters should immediately cancel instead of waiting for a time out.
 	 */
 	ATH10K_FLAG_CRASH_FLUSH,
+
+	/* Use Raw mode instead of native WiFi Tx/Rx encap mode.
+	 * Raw mode supports both hardware and software crypto. Native WiFi only
+	 * supports hardware crypto.
+	 */
+	ATH10K_FLAG_RAW_MODE,
+
+	/* Disable HW crypto engine */
+	ATH10K_FLAG_HW_CRYPTO_DISABLED,
 };
 
 enum ath10k_cal_mode {
 	ATH10K_CAL_MODE_FILE,
 	ATH10K_CAL_MODE_OTP,
 	ATH10K_CAL_MODE_DT,
+};
+
+enum ath10k_crypt_mode {
+	/* Only use hardware crypto engine */
+	ATH10K_CRYPT_MODE_HW,
+	/* Only use software crypto engine */
+	ATH10K_CRYPT_MODE_SW,
 };
 
 static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
@@ -532,6 +554,7 @@ struct ath10k {
 	u8 mac_addr[ETH_ALEN];
 
 	enum ath10k_hw_rev hw_rev;
+	u16 dev_id;
 	u32 chip_id;
 	u32 target_version;
 	u8 fw_version_major;
@@ -545,6 +568,7 @@ struct ath10k {
 	u32 ht_cap_info;
 	u32 vht_cap_info;
 	u32 num_rf_chains;
+	u32 max_spatial_stream;
 	/* protected by conf_mutex */
 	bool ani_enabled;
 
@@ -560,6 +584,7 @@ struct ath10k {
 	struct completion target_suspend;
 
 	const struct ath10k_hw_regs *regs;
+	const struct ath10k_hw_values *hw_values;
 	struct ath10k_bmi bmi;
 	struct ath10k_wmi wmi;
 	struct ath10k_htc htc;
@@ -570,6 +595,7 @@ struct ath10k {
 		const char *name;
 		u32 patch_load_addr;
 		int uart_pin;
+		u32 otp_exe_param;
 
 		/* This is true if given HW chip has a quirky Cycle Counter
 		 * wraparound which resets to 0x7fffffff instead of 0. All
@@ -577,6 +603,14 @@ struct ath10k {
 		 * by 2 so they never wraparound themselves.
 		 */
 		bool has_shifted_cc_wraparound;
+
+		/* Some of chip expects fragment descriptor to be continuous
+		 * memory for any TX operation. Set continuous_frag_desc flag
+		 * for the hardware which have such requirement.
+		 */
+		bool continuous_frag_desc;
+
+		u32 channel_counters_freq_hz;
 
 		struct ath10k_hw_params_fw {
 			const char *dir;
@@ -602,6 +636,12 @@ struct ath10k {
 
 	const struct firmware *cal_file;
 
+	struct {
+		const void *firmware_codeswap_data;
+		size_t firmware_codeswap_len;
+		struct ath10k_swap_code_seg_info *firmware_swap_code_seg_info;
+	} swap;
+
 	char spec_board_id[100];
 	bool spec_board_loaded;
 
@@ -617,6 +657,7 @@ struct ath10k {
 		bool is_roc;
 		int vdev_id;
 		int roc_freq;
+		bool roc_notify;
 	} scan;
 
 	struct {
@@ -656,6 +697,8 @@ struct ath10k {
 	struct completion vdev_setup_done;
 
 	struct workqueue_struct *workqueue;
+	/* Auxiliary workqueue */
+	struct workqueue_struct *workqueue_aux;
 
 	/* prevents concurrent FW reconfiguration */
 	struct mutex conf_mutex;
@@ -675,6 +718,11 @@ struct ath10k {
 	int max_num_stations;
 	int max_num_vdevs;
 	int max_num_tdls_vdevs;
+	int num_active_peers;
+	int num_tids;
+
+	struct work_struct svc_rdy_work;
+	struct sk_buff *svc_rdy_skb;
 
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;
@@ -749,6 +797,9 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  enum ath10k_hw_rev hw_rev,
 				  const struct ath10k_hif_ops *hif_ops);
 void ath10k_core_destroy(struct ath10k *ar);
+void ath10k_core_get_fw_features_str(struct ath10k *ar,
+				     char *buf,
+				     size_t max_len);
 
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode);
 int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt);

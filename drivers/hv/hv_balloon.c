@@ -62,11 +62,13 @@
 enum {
 	DYNMEM_PROTOCOL_VERSION_1 = DYNMEM_MAKE_VERSION(0, 3),
 	DYNMEM_PROTOCOL_VERSION_2 = DYNMEM_MAKE_VERSION(1, 0),
+	DYNMEM_PROTOCOL_VERSION_3 = DYNMEM_MAKE_VERSION(2, 0),
 
 	DYNMEM_PROTOCOL_VERSION_WIN7 = DYNMEM_PROTOCOL_VERSION_1,
 	DYNMEM_PROTOCOL_VERSION_WIN8 = DYNMEM_PROTOCOL_VERSION_2,
+	DYNMEM_PROTOCOL_VERSION_WIN10 = DYNMEM_PROTOCOL_VERSION_3,
 
-	DYNMEM_PROTOCOL_VERSION_CURRENT = DYNMEM_PROTOCOL_VERSION_WIN8
+	DYNMEM_PROTOCOL_VERSION_CURRENT = DYNMEM_PROTOCOL_VERSION_WIN10
 };
 
 
@@ -1296,13 +1298,25 @@ static void version_resp(struct hv_dynmem_device *dm,
 	if (dm->next_version == 0)
 		goto version_error;
 
-	dm->next_version = 0;
 	memset(&version_req, 0, sizeof(struct dm_version_request));
 	version_req.hdr.type = DM_VERSION_REQUEST;
 	version_req.hdr.size = sizeof(struct dm_version_request);
 	version_req.hdr.trans_id = atomic_inc_return(&trans_id);
-	version_req.version.version = DYNMEM_PROTOCOL_VERSION_WIN7;
-	version_req.is_last_attempt = 1;
+	version_req.version.version = dm->next_version;
+
+	/*
+	 * Set the next version to try in case current version fails.
+	 * Win7 protocol ought to be the last one to try.
+	 */
+	switch (version_req.version.version) {
+	case DYNMEM_PROTOCOL_VERSION_WIN8:
+		dm->next_version = DYNMEM_PROTOCOL_VERSION_WIN7;
+		version_req.is_last_attempt = 0;
+		break;
+	default:
+		dm->next_version = 0;
+		version_req.is_last_attempt = 1;
+	}
 
 	ret = vmbus_sendpacket(dm->dev->channel, &version_req,
 				sizeof(struct dm_version_request),
@@ -1442,7 +1456,7 @@ static int balloon_probe(struct hv_device *dev,
 
 	dm_device.dev = dev;
 	dm_device.state = DM_INITIALIZING;
-	dm_device.next_version = DYNMEM_PROTOCOL_VERSION_WIN7;
+	dm_device.next_version = DYNMEM_PROTOCOL_VERSION_WIN8;
 	init_completion(&dm_device.host_event);
 	init_completion(&dm_device.config_event);
 	INIT_LIST_HEAD(&dm_device.ha_region_list);
@@ -1474,7 +1488,7 @@ static int balloon_probe(struct hv_device *dev,
 	version_req.hdr.type = DM_VERSION_REQUEST;
 	version_req.hdr.size = sizeof(struct dm_version_request);
 	version_req.hdr.trans_id = atomic_inc_return(&trans_id);
-	version_req.version.version = DYNMEM_PROTOCOL_VERSION_WIN8;
+	version_req.version.version = DYNMEM_PROTOCOL_VERSION_WIN10;
 	version_req.is_last_attempt = 0;
 
 	ret = vmbus_sendpacket(dev->channel, &version_req,

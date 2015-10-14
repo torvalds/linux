@@ -44,6 +44,20 @@ void amp_create_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 			struct hci_conn *hcon);
 void amp_accept_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 			struct hci_conn *hcon);
+
+#if IS_ENABLED(CONFIG_BT_HS)
+void amp_create_logical_link(struct l2cap_chan *chan);
+void amp_disconnect_logical_link(struct hci_chan *hchan);
+#else
+static inline void amp_create_logical_link(struct l2cap_chan *chan)
+{
+}
+
+static inline void amp_disconnect_logical_link(struct hci_chan *hchan)
+{
+}
+#endif
+
 void amp_write_remote_assoc(struct hci_dev *hdev, u8 handle);
 void amp_write_rem_assoc_continue(struct hci_dev *hdev, u8 handle);
 void amp_physical_cfm(struct hci_conn *bredr_hcon, struct hci_conn *hs_hcon);

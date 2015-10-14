@@ -1556,8 +1556,11 @@ lba_driver_probe(struct parisc_device *dev)
 	if (lba_dev->hba.lmmio_space.flags)
 		pci_add_resource_offset(&resources, &lba_dev->hba.lmmio_space,
 					lba_dev->hba.lmmio_space_offset);
-	if (lba_dev->hba.gmmio_space.flags)
-		pci_add_resource(&resources, &lba_dev->hba.gmmio_space);
+	if (lba_dev->hba.gmmio_space.flags) {
+		/* pci_add_resource(&resources, &lba_dev->hba.gmmio_space); */
+		pr_warn("LBA: Not registering GMMIO space %pR\n",
+			&lba_dev->hba.gmmio_space);
+	}
 
 	pci_add_resource(&resources, &lba_dev->hba.bus_num);
 

@@ -84,6 +84,8 @@
  * @IWL_FW_ERROR_DUMP_MEM: chunk of memory
  * @IWL_FW_ERROR_DUMP_ERROR_INFO: description of what triggered this dump.
  *	Structured as &struct iwl_fw_error_dump_trigger_desc.
+ * @IWL_FW_ERROR_DUMP_RB: the content of an RB structured as
+ *	&struct iwl_fw_error_dump_rb
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -97,6 +99,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_FH_REGS = 8,
 	IWL_FW_ERROR_DUMP_MEM = 9,
 	IWL_FW_ERROR_DUMP_ERROR_INFO = 10,
+	IWL_FW_ERROR_DUMP_RB = 11,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -219,6 +222,20 @@ enum iwl_fw_error_dump_mem_type {
 struct iwl_fw_error_dump_mem {
 	__le32 type;
 	__le32 offset;
+	u8 data[];
+};
+
+/**
+ * struct iwl_fw_error_dump_rb - content of an Receive Buffer
+ * @index: the index of the Receive Buffer in the Rx queue
+ * @rxq: the RB's Rx queue
+ * @reserved:
+ * @data: the content of the Receive Buffer
+ */
+struct iwl_fw_error_dump_rb {
+	__le32 index;
+	__le32 rxq;
+	__le32 reserved;
 	u8 data[];
 };
 

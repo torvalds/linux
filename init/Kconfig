@@ -538,15 +538,6 @@ config RCU_STALL_COMMON
 config CONTEXT_TRACKING
        bool
 
-config RCU_USER_QS
-	bool
-	help
-	  This option sets hooks on kernel / userspace boundaries and
-	  puts RCU in extended quiescent state when the CPU runs in
-	  userspace. It means that when a CPU runs in userspace, it is
-	  excluded from the global RCU state machine and thus doesn't
-	  try to keep the timer tick on for RCU.
-
 config CONTEXT_TRACKING_FORCE
 	bool "Force context tracking"
 	depends on CONTEXT_TRACKING
@@ -707,6 +698,7 @@ config RCU_BOOST_DELAY
 config RCU_NOCB_CPU
 	bool "Offload RCU callback processing from boot-selected CPUs"
 	depends on TREE_RCU || PREEMPT_RCU
+	depends on RCU_EXPERT || NO_HZ_FULL
 	default n
 	help
 	  Use this option to reduce OS jitter for aggressive HPC or
@@ -891,6 +883,16 @@ config ARCH_SUPPORTS_NUMA_BALANCING
 	bool
 
 #
+# For architectures that prefer to flush all TLBs after a number of pages
+# are unmapped instead of sending one IPI per page to flush. The architecture
+# must provide guarantees on what happens if a clean TLB cache entry is
+# written after the unmap. Details are in mm/rmap.c near the check for
+# should_defer_flush. The architecture should also consider if the full flush
+# and the refill costs are offset by the savings of sending fewer IPIs.
+config ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+	bool
+
+#
 # For architectures that know their GCC __int128 support is sound
 #
 config ARCH_SUPPORTS_INT128
@@ -925,7 +927,6 @@ config NUMA_BALANCING_DEFAULT_ENABLED
 menuconfig CGROUPS
 	bool "Control Group support"
 	select KERNFS
-	select PERCPU_RWSEM
 	help
 	  This option adds support for grouping sets of processes together, for
 	  use with process control subsystems such as Cpusets, CFS, memory
@@ -954,6 +955,22 @@ config CGROUP_FREEZER
 	help
 	  Provides a way to freeze and unfreeze all tasks in a
 	  cgroup.
+
+config CGROUP_PIDS
+	bool "PIDs cgroup subsystem"
+	help
+	  Provides enforcement of process number limits in the scope of a
+	  cgroup. Any attempt to fork more processes than is allowed in the
+	  cgroup will fail. PIDs are fundamentally a global resource because it
+	  is fairly trivial to reach PID exhaustion before you reach even a
+	  conservative kmemcg limit. As a result, it is possible to grind a
+	  system to halt without being limited by other cgroup policies. The
+	  PIDs cgroup subsystem is designed to stop this from happening.
+
+	  It should be noted that organisational operations (such as attaching
+	  to a cgroup hierarchy will *not* be blocked by the PIDs subsystem),
+	  since the PIDs limit only affects a process's ability to fork, not to
+	  attach to a cgroup.
 
 config CGROUP_DEVICE
 	bool "Device controller for cgroups"
@@ -1568,6 +1585,14 @@ config ADVISE_SYSCALLS
 	  applications use these syscalls, you can disable this option to save
 	  space.
 
+config USERFAULTFD
+	bool "Enable userfaultfd() system call"
+	select ANON_INODES
+	depends on MMU
+	help
+	  Enable the userfaultfd() system call that allows to intercept and
+	  handle page faults in userland.
+
 config PCI_QUIRKS
 	default y
 	bool "Enable PCI quirk workarounds" if EXPERT
@@ -1576,6 +1601,18 @@ config PCI_QUIRKS
 	  This enables workarounds for various PCI chipset
 	  bugs/quirks. Disable this only if your target machine is
 	  unaffected by PCI quirks.
+
+config MEMBARRIER
+	bool "Enable membarrier() system call" if EXPERT
+	default y
+	help
+	  Enable the membarrier() system call that allows issuing memory
+	  barriers across all running threads, which can be used to distribute
+	  the cost of user-space memory barriers asymmetrically by transforming
+	  pairs of memory barriers into pairs consisting of membarrier() and a
+	  compiler barrier.
+
+	  If unsure, say Y.
 
 config EMBEDDED
 	bool "Embedded system"
@@ -1740,17 +1777,23 @@ config MMAP_ALLOW_UNINITIALIZED
 
 	  See Documentation/nommu-mmap.txt for more information.
 
-config SYSTEM_TRUSTED_KEYRING
-	bool "Provide system-wide ring of trusted keys"
-	depends on KEYS
+config SYSTEM_DATA_VERIFICATION
+	def_bool n
+	select SYSTEM_TRUSTED_KEYRING
+	select KEYS
+	select CRYPTO
+	select ASYMMETRIC_KEY_TYPE
+	select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
+	select PUBLIC_KEY_ALGO_RSA
+	select ASN1
+	select OID_REGISTRY
+	select X509_CERTIFICATE_PARSER
+	select PKCS7_MESSAGE_PARSER
 	help
-	  Provide a system keyring to which trusted keys can be added.  Keys in
-	  the keyring are considered to be trusted.  Keys may be added at will
-	  by the kernel from compiled-in data and from hardware key stores, but
-	  userspace may only add extra keys if those keys can be verified by
-	  keys already in the keyring.
-
-	  Keys in this keyring are used by module signature checking.
+	  Provide PKCS#7 message verification using the contents of the system
+	  trusted keyring to provide public keys.  This then can be used for
+	  module verification, kexec image verification and firmware blob
+	  verification.
 
 config PROFILING
 	bool "Profiling support"
@@ -1860,19 +1903,15 @@ config MODULE_SRCVERSION_ALL
 config MODULE_SIG
 	bool "Module signature verification"
 	depends on MODULES
-	select SYSTEM_TRUSTED_KEYRING
-	select KEYS
-	select CRYPTO
-	select ASYMMETRIC_KEY_TYPE
-	select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
-	select PUBLIC_KEY_ALGO_RSA
-	select ASN1
-	select OID_REGISTRY
-	select X509_CERTIFICATE_PARSER
+	select SYSTEM_DATA_VERIFICATION
 	help
 	  Check modules for valid signatures upon load: the signature
 	  is simply appended to the module. For more information see
 	  Documentation/module-signing.txt.
+
+	  Note that this option adds the OpenSSL development packages as a
+	  kernel build dependency so that the signing tool can use its crypto
+	  library.
 
 	  !!!WARNING!!!  If you enable this option, you MUST make sure that the
 	  module DOES NOT get stripped after being signed.  This includes the

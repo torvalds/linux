@@ -123,7 +123,7 @@ EXPORT_SYMBOL(__cfs_fail_check_set);
 
 int __cfs_fail_timeout_set(__u32 id, __u32 value, int ms, int set)
 {
-	int ret = 0;
+	int ret;
 
 	ret = __cfs_fail_check_set(id, value, set);
 	if (ret) {

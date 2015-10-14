@@ -140,7 +140,7 @@ static int sn9c2028_long_command(struct gspca_dev *gspca_dev, u8 *command)
 		status = sn9c2028_read1(gspca_dev);
 	if (status < 0) {
 		pr_err("long command status read error %d\n", status);
-		return (status < 0) ? status : -EIO;
+		return status;
 	}
 
 	memset(reading, 0, 4);

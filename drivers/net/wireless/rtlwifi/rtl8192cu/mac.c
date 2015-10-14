@@ -69,8 +69,6 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 		chip_version = NORMAL_CHIP;
 		chip_version |= ((value32 & TYPE_ID) ? CHIP_92C : 0);
 		chip_version |= ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : 0);
-		/* RTL8723 with BT function. */
-		chip_version |= ((value32 & BT_FUNC) ? CHIP_8723 : 0);
 		if (IS_VENDOR_UMC(chip_version))
 			chip_version |= ((value32 & CHIP_VER_RTL_MASK) ?
 					 CHIP_VENDOR_UMC_B_CUT : 0);
@@ -78,10 +76,6 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 			value32 = rtl_read_dword(rtlpriv, REG_HPON_FSM);
 			chip_version |= ((CHIP_BONDING_IDENTIFIER(value32) ==
 				 CHIP_BONDING_92C_1T2R) ? CHIP_92C_1T2R : 0);
-		} else if (IS_8723_SERIES(chip_version)) {
-			value32 = rtl_read_dword(rtlpriv, REG_GPIO_OUTSTS);
-			chip_version |= ((value32 & RF_RL_ID) ?
-					  CHIP_8723_DRV_REV : 0);
 		}
 	}
 	rtlhal->version  = (enum version_8192c)chip_version;
@@ -113,12 +107,6 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 		break;
 	case VERSION_NORMAL_UMC_CHIP_88C_B_CUT:
 		versionid = "NORMAL_UMC_CHIP_88C_B_CUT";
-		break;
-	case VERSION_NORMA_UMC_CHIP_8723_1T1R_A_CUT:
-		versionid = "NORMAL_UMC_CHIP_8723_1T1R_A_CUT";
-		break;
-	case VERSION_NORMA_UMC_CHIP_8723_1T1R_B_CUT:
-		versionid = "NORMAL_UMC_CHIP_8723_1T1R_B_CUT";
 		break;
 	case VERSION_TEST_CHIP_92C:
 		versionid = "TEST_CHIP_92C";
@@ -405,59 +393,9 @@ void rtl92c_disable_interrupt(struct ieee80211_hw *hw)
 void rtl92c_set_qos(struct ieee80211_hw *hw, int aci)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	u32 u4b_ac_param;
 
 	rtl92c_dm_init_edca_turbo(hw);
-	u4b_ac_param = (u32) mac->ac[aci].aifs;
-	u4b_ac_param |=
-	    ((u32) le16_to_cpu(mac->ac[aci].cw_min) & 0xF) <<
-	    AC_PARAM_ECW_MIN_OFFSET;
-	u4b_ac_param |=
-	    ((u32) le16_to_cpu(mac->ac[aci].cw_max) & 0xF) <<
-	    AC_PARAM_ECW_MAX_OFFSET;
-	u4b_ac_param |= (u32) le16_to_cpu(mac->ac[aci].tx_op) <<
-			 AC_PARAM_TXOP_OFFSET;
-	RT_TRACE(rtlpriv, COMP_QOS, DBG_LOUD, "queue:%x, ac_param:%x\n",
-		 aci, u4b_ac_param);
-	switch (aci) {
-	case AC1_BK:
-		rtl_write_dword(rtlpriv, REG_EDCA_BK_PARAM, u4b_ac_param);
-		break;
-	case AC0_BE:
-		rtl_write_dword(rtlpriv, REG_EDCA_BE_PARAM, u4b_ac_param);
-		break;
-	case AC2_VI:
-		rtl_write_dword(rtlpriv, REG_EDCA_VI_PARAM, u4b_ac_param);
-		break;
-	case AC3_VO:
-		rtl_write_dword(rtlpriv, REG_EDCA_VO_PARAM, u4b_ac_param);
-		break;
-	default:
-		RT_ASSERT(false, "invalid aci: %d !\n", aci);
-		break;
-	}
-}
-
-/*-------------------------------------------------------------------------
- * HW MAC Address
- *-------------------------------------------------------------------------*/
-void rtl92c_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
-{
-	u32 i;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	for (i = 0 ; i < ETH_ALEN ; i++)
-		rtl_write_byte(rtlpriv, (REG_MACID + i), *(addr+i));
-
-	RT_TRACE(rtlpriv, COMP_CMD, DBG_DMESG,
-		 "MAC Address: %02X-%02X-%02X-%02X-%02X-%02X\n",
-		 rtl_read_byte(rtlpriv, REG_MACID),
-		 rtl_read_byte(rtlpriv, REG_MACID+1),
-		 rtl_read_byte(rtlpriv, REG_MACID+2),
-		 rtl_read_byte(rtlpriv, REG_MACID+3),
-		 rtl_read_byte(rtlpriv, REG_MACID+4),
-		 rtl_read_byte(rtlpriv, REG_MACID+5));
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_AC_PARAM, (u8 *)&aci);
 }
 
 void rtl92c_init_driver_info_size(struct ieee80211_hw *hw, u8 size)
@@ -656,47 +594,6 @@ void rtl92c_set_min_space(struct ieee80211_hw *hw, bool is2T)
 	rtl_write_byte(rtlpriv, REG_AMPDU_MIN_SPACE, value);
 }
 
-u16 rtl92c_get_mgt_filter(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	return rtl_read_word(rtlpriv, REG_RXFLTMAP0);
-}
-
-void rtl92c_set_mgt_filter(struct ieee80211_hw *hw, u16 filter)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtl_write_word(rtlpriv, REG_RXFLTMAP0, filter);
-}
-
-u16 rtl92c_get_ctrl_filter(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	return rtl_read_word(rtlpriv, REG_RXFLTMAP1);
-}
-
-void rtl92c_set_ctrl_filter(struct ieee80211_hw *hw, u16 filter)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtl_write_word(rtlpriv, REG_RXFLTMAP1, filter);
-}
-
-u16 rtl92c_get_data_filter(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	return rtl_read_word(rtlpriv,  REG_RXFLTMAP2);
-}
-
-void rtl92c_set_data_filter(struct ieee80211_hw *hw, u16 filter)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtl_write_word(rtlpriv, REG_RXFLTMAP2, filter);
-}
 /*==============================================================*/
 
 static u8 _rtl92c_query_rxpwrpercentage(char antpower)

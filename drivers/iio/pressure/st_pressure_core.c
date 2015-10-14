@@ -178,6 +178,7 @@ static const struct iio_chan_spec st_press_lps001wp_channels[] = {
 static const struct st_sensor_settings st_press_sensors_settings[] = {
 	{
 		.wai = ST_PRESS_LPS331AP_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS331AP_PRESS_DEV_NAME,
 		},
@@ -225,6 +226,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 	},
 	{
 		.wai = ST_PRESS_LPS001WP_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS001WP_PRESS_DEV_NAME,
 		},
@@ -260,6 +262,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 	},
 	{
 		.wai = ST_PRESS_LPS25H_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS25H_PRESS_DEV_NAME,
 		},

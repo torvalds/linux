@@ -9,7 +9,7 @@ regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
 const char	default_sort_order[] = "comm,dso,symbol";
-const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,dso_to,symbol_to";
+const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,symbol_to,cycles";
 const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked";
 const char	default_top_sort_order[] = "dso,symbol";
 const char	default_diff_sort_order[] = "dso,symbol";
@@ -319,6 +319,59 @@ struct sort_entry sort_srcline = {
 	.se_width_idx	= HISTC_SRCLINE,
 };
 
+/* --sort srcfile */
+
+static char no_srcfile[1];
+
+static char *get_srcfile(struct hist_entry *e)
+{
+	char *sf, *p;
+	struct map *map = e->ms.map;
+
+	sf = get_srcline(map->dso, map__rip_2objdump(map, e->ip),
+			 e->ms.sym, true);
+	if (!strcmp(sf, SRCLINE_UNKNOWN))
+		return no_srcfile;
+	p = strchr(sf, ':');
+	if (p && *sf) {
+		*p = 0;
+		return sf;
+	}
+	free(sf);
+	return no_srcfile;
+}
+
+static int64_t
+sort__srcfile_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	if (!left->srcfile) {
+		if (!left->ms.map)
+			left->srcfile = no_srcfile;
+		else
+			left->srcfile = get_srcfile(left);
+	}
+	if (!right->srcfile) {
+		if (!right->ms.map)
+			right->srcfile = no_srcfile;
+		else
+			right->srcfile = get_srcfile(right);
+	}
+	return strcmp(right->srcfile, left->srcfile);
+}
+
+static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcfile);
+}
+
+struct sort_entry sort_srcfile = {
+	.se_header	= "Source File",
+	.se_cmp		= sort__srcfile_cmp,
+	.se_snprintf	= hist_entry__srcfile_snprintf,
+	.se_width_idx	= HISTC_SRCFILE,
+};
+
 /* --sort parent */
 
 static int64_t
@@ -525,6 +578,29 @@ static int hist_entry__mispredict_snprintf(struct hist_entry *he, char *bf,
 
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, out);
 }
+
+static int64_t
+sort__cycles_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return left->branch_info->flags.cycles -
+		right->branch_info->flags.cycles;
+}
+
+static int hist_entry__cycles_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	if (he->branch_info->flags.cycles == 0)
+		return repsep_snprintf(bf, size, "%-*s", width, "-");
+	return repsep_snprintf(bf, size, "%-*hd", width,
+			       he->branch_info->flags.cycles);
+}
+
+struct sort_entry sort_cycles = {
+	.se_header	= "Basic Block Cycles",
+	.se_cmp		= sort__cycles_cmp,
+	.se_snprintf	= hist_entry__cycles_snprintf,
+	.se_width_idx	= HISTC_CYCLES,
+};
 
 /* --sort daddr_sym */
 static int64_t
@@ -1173,6 +1249,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_PARENT, "parent", sort_parent),
 	DIM(SORT_CPU, "cpu", sort_cpu),
 	DIM(SORT_SRCLINE, "srcline", sort_srcline),
+	DIM(SORT_SRCFILE, "srcfile", sort_srcfile),
 	DIM(SORT_LOCAL_WEIGHT, "local_weight", sort_local_weight),
 	DIM(SORT_GLOBAL_WEIGHT, "weight", sort_global_weight),
 	DIM(SORT_TRANSACTION, "transaction", sort_transaction),
@@ -1190,6 +1267,7 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 	DIM(SORT_MISPREDICT, "mispredict", sort_mispredict),
 	DIM(SORT_IN_TX, "in_tx", sort_in_tx),
 	DIM(SORT_ABORT, "abort", sort_abort),
+	DIM(SORT_CYCLES, "cycles", sort_cycles),
 };
 
 #undef DIM

@@ -140,7 +140,7 @@
 
 #define XGBE_TX_MAX_BUF_SIZE	(0x3fff & ~(64 - 1))
 
-/* Descriptors required for maximum contigous TSO/GSO packet */
+/* Descriptors required for maximum contiguous TSO/GSO packet */
 #define XGBE_TX_MAX_SPLIT	((GSO_MAX_SIZE / XGBE_TX_MAX_BUF_SIZE) + 1)
 
 /* Maximum possible descriptors needed for an SKB:

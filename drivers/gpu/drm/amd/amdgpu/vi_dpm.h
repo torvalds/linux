@@ -30,7 +30,7 @@ int cz_smu_start(struct amdgpu_device *adev);
 int cz_smu_fini(struct amdgpu_device *adev);
 
 extern const struct amd_ip_funcs tonga_dpm_ip_funcs;
-
+extern const struct amd_ip_funcs fiji_dpm_ip_funcs;
 extern const struct amd_ip_funcs iceland_dpm_ip_funcs;
 
 #endif

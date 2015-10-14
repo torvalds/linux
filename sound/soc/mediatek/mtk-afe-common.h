@@ -98,12 +98,4 @@ struct mtk_afe_memif {
 	const struct mtk_afe_irq_data *irqdata;
 };
 
-struct mtk_afe {
-	/* address for ioremap audio hardware register */
-	void __iomem *base_addr;
-	struct device *dev;
-	struct regmap *regmap;
-	struct mtk_afe_memif memif[MTK_AFE_MEMIF_NUM];
-	struct clk *clocks[MTK_CLK_NUM];
-};
 #endif

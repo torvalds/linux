@@ -129,6 +129,14 @@ config MMC_SDHCI_OF_ARASAN
 
 	  If unsure, say N.
 
+config MMC_SDHCI_OF_AT91
+	tristate "SDHCI OF support for the Atmel SDMMC controller"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Atmel SDMMC driver
+
 config MMC_SDHCI_OF_ESDHC
 	tristate "SDHCI OF support for the Freescale eSDHC controller"
 	depends on MMC_SDHCI_PLTFM

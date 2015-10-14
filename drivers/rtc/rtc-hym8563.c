@@ -599,7 +599,6 @@ MODULE_DEVICE_TABLE(of, hym8563_dt_idtable);
 static struct i2c_driver hym8563_driver = {
 	.driver		= {
 		.name	= "rtc-hym8563",
-		.owner	= THIS_MODULE,
 		.pm	= &hym8563_pm_ops,
 		.of_match_table	= hym8563_dt_idtable,
 	},

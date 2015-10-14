@@ -1,30 +1,28 @@
 #ifndef __NOUVEAU_VGA_H__
 #define __NOUVEAU_VGA_H__
-
-#include <core/os.h>
+#include <core/subdev.h>
 
 /* access to various legacy io ports */
-u8   nv_rdport(void *obj, int head, u16 port);
-void nv_wrport(void *obj, int head, u16 port, u8 value);
+u8   nvkm_rdport(struct nvkm_device *, int head, u16 port);
+void nvkm_wrport(struct nvkm_device *, int head, u16 port, u8 value);
 
 /* VGA Sequencer */
-u8   nv_rdvgas(void *obj, int head, u8 index);
-void nv_wrvgas(void *obj, int head, u8 index, u8 value);
+u8   nvkm_rdvgas(struct nvkm_device *, int head, u8 index);
+void nvkm_wrvgas(struct nvkm_device *, int head, u8 index, u8 value);
 
 /* VGA Graphics */
-u8   nv_rdvgag(void *obj, int head, u8 index);
-void nv_wrvgag(void *obj, int head, u8 index, u8 value);
+u8   nvkm_rdvgag(struct nvkm_device *, int head, u8 index);
+void nvkm_wrvgag(struct nvkm_device *, int head, u8 index, u8 value);
 
 /* VGA CRTC */
-u8   nv_rdvgac(void *obj, int head, u8 index);
-void nv_wrvgac(void *obj, int head, u8 index, u8 value);
+u8   nvkm_rdvgac(struct nvkm_device *, int head, u8 index);
+void nvkm_wrvgac(struct nvkm_device *, int head, u8 index, u8 value);
 
 /* VGA indexed port access dispatcher */
-u8   nv_rdvgai(void *obj, int head, u16 port, u8 index);
-void nv_wrvgai(void *obj, int head, u16 port, u8 index, u8 value);
+u8   nvkm_rdvgai(struct nvkm_device *, int head, u16 port, u8 index);
+void nvkm_wrvgai(struct nvkm_device *, int head, u16 port, u8 index, u8 value);
 
-bool nv_lockvgac(void *obj, bool lock);
-u8   nv_rdvgaowner(void *obj);
-void nv_wrvgaowner(void *obj, u8);
-
+bool nvkm_lockvgac(struct nvkm_device *, bool lock);
+u8   nvkm_rdvgaowner(struct nvkm_device *);
+void nvkm_wrvgaowner(struct nvkm_device *, u8);
 #endif

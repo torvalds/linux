@@ -134,7 +134,7 @@
 
 			clk_s_c0_pll0: clk-s-c0-pll0 {
 				#clock-cells = <1>;
-				compatible = "st,stih407-plls-c32-c0_0", "st,clkgen-plls-c32";
+				compatible = "st,plls-c32-cx_0", "st,clkgen-plls-c32";
 
 				clocks = <&clk_sysin>;
 
@@ -143,7 +143,7 @@
 
 			clk_s_c0_pll1: clk-s-c0-pll1 {
 				#clock-cells = <1>;
-				compatible = "st,stih407-plls-c32-c0_1", "st,clkgen-plls-c32";
+				compatible = "st,plls-c32-cx_1", "st,clkgen-plls-c32";
 
 				clocks = <&clk_sysin>;
 

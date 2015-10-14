@@ -62,6 +62,7 @@
 			OMAP3_CORE1_IOPAD(0x21ca, PIN_INPUT | MUX_MODE0)	/* mcspi1_simo.mcspi1_simo */
 			OMAP3_CORE1_IOPAD(0x21cc, PIN_INPUT | MUX_MODE0)	/* mcspi1_somi.mcspi1_somi */
 			OMAP3_CORE1_IOPAD(0x21ce, PIN_INPUT | MUX_MODE0)	/* mcspi1_cs0.mcspi1_cs0 */
+			OMAP3_CORE1_IOPAD(0x21d0, PIN_INPUT | MUX_MODE0)	/* mcspi1_cs1.mcspi1_cs1 */
 		>;
 	};
 
@@ -123,7 +124,7 @@
 		label = "lcd35";
 
 		reg = <1>;					/* CS1 */
-		spi-max-frequency = <10000000>;
+		spi-max-frequency = <500000>;
 		spi-cpol;
 		spi-cpha;
 

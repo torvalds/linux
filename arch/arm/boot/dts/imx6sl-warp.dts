@@ -61,7 +61,9 @@
 	usdhc3_pwrseq: usdhc3_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpio4 5 GPIO_ACTIVE_LOW>, 	/* WL_REG_ON */
+			      <&gpio4 7 GPIO_ACTIVE_LOW>, 	/* WL_HOSTWAKE */
 			      <&gpio3 25 GPIO_ACTIVE_LOW>, 	/* BT_REG_ON */
+			      <&gpio3 27 GPIO_ACTIVE_LOW>,	/* BT_HOSTWAKE */
 			      <&gpio4 4 GPIO_ACTIVE_LOW>, 	/* BT_WAKE */
 			      <&gpio4 6 GPIO_ACTIVE_LOW>; 	/* BT_RST_N */
 	};
@@ -73,16 +75,16 @@
 	status = "okay";
 };
 
-&uart2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart2>;
-	fsl,uart-has-rtscts;
-	status = "okay";
-};
-
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5>;
+	fsl,uart-has-rtscts;
 	status = "okay";
 };
 
@@ -130,19 +132,20 @@
 			>;
 		};
 
-		pinctrl_uart2: uart2grp {
-			fsl,pins = <
-				MX6SL_PAD_EPDC_D12__UART2_RX_DATA	0x41b0b1
-				MX6SL_PAD_EPDC_D13__UART2_TX_DATA	0x41b0b1
-				MX6SL_PAD_EPDC_D14__UART2_RTS_B		0x4130B1
-				MX6SL_PAD_EPDC_D15__UART2_CTS_B		0x4130B1
-			>;
-		};
 
 		pinctrl_uart3: uart3grp {
 			fsl,pins = <
 				MX6SL_PAD_AUD_RXC__UART3_RX_DATA	0x41b0b1
 				MX6SL_PAD_AUD_RXC__UART3_TX_DATA	0x41b0b1
+			>;
+		};
+
+		pinctrl_uart5: uart5grp {
+			fsl,pins = <
+				MX6SL_PAD_ECSPI1_SCLK__UART5_RX_DATA	0x41b0b1
+				MX6SL_PAD_ECSPI1_MOSI__UART5_TX_DATA	0x41b0b1
+				MX6SL_PAD_ECSPI1_MISO__UART5_RTS_B	0x4130b1
+				MX6SL_PAD_ECSPI1_SS0__UART5_CTS_B	0x4130b1
 			>;
 		};
 
@@ -158,6 +161,7 @@
 				MX6SL_PAD_SD2_DAT5__SD2_DATA5		0x417059
 				MX6SL_PAD_SD2_DAT6__SD2_DATA6		0x417059
 				MX6SL_PAD_SD2_DAT7__SD2_DATA7		0x417059
+				MX6SL_PAD_SD2_RST__SD2_RESET		0x417059
 			>;
 		};
 
@@ -173,6 +177,7 @@
 				MX6SL_PAD_SD2_DAT5__SD2_DATA5		0x4170b9
 				MX6SL_PAD_SD2_DAT6__SD2_DATA6		0x4170b9
 				MX6SL_PAD_SD2_DAT7__SD2_DATA7		0x4170b9
+				MX6SL_PAD_SD2_RST__SD2_RESET		0x4170b9
 			>;
 		};
 
@@ -188,6 +193,7 @@
 				MX6SL_PAD_SD2_DAT5__SD2_DATA5		0x4170f9
 				MX6SL_PAD_SD2_DAT6__SD2_DATA6		0x4170f9
 				MX6SL_PAD_SD2_DAT7__SD2_DATA7		0x4170f9
+				MX6SL_PAD_SD2_RST__SD2_RESET		0x4170f9
 			>;
 		};
 

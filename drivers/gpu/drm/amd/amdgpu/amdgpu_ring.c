@@ -131,6 +131,21 @@ int amdgpu_ring_lock(struct amdgpu_ring *ring, unsigned ndw)
 	return 0;
 }
 
+/** amdgpu_ring_insert_nop - insert NOP packets
+ *
+ * @ring: amdgpu_ring structure holding ring information
+ * @count: the number of NOP packets to insert
+ *
+ * This is the generic insert_nop function for rings except SDMA
+ */
+void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		amdgpu_ring_write(ring, ring->nop);
+}
+
 /**
  * amdgpu_ring_commit - tell the GPU to execute the new
  * commands on the ring buffer
@@ -143,10 +158,13 @@ int amdgpu_ring_lock(struct amdgpu_ring *ring, unsigned ndw)
  */
 void amdgpu_ring_commit(struct amdgpu_ring *ring)
 {
+	uint32_t count;
+
 	/* We pad to match fetch size */
-	while (ring->wptr & ring->align_mask) {
-		amdgpu_ring_write(ring, ring->nop);
-	}
+	count = ring->align_mask + 1 - (ring->wptr & ring->align_mask);
+	count %= ring->align_mask + 1;
+	ring->funcs->insert_nop(ring, count);
+
 	mb();
 	amdgpu_ring_set_wptr(ring);
 }
@@ -339,7 +357,9 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		ring->adev = adev;
 		ring->idx = adev->num_rings++;
 		adev->rings[ring->idx] = ring;
-		amdgpu_fence_driver_init_ring(ring);
+		r = amdgpu_fence_driver_init_ring(ring);
+		if (r)
+			return r;
 	}
 
 	r = amdgpu_wb_get(adev, &ring->rptr_offs);
@@ -367,7 +387,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 	ring->next_rptr_gpu_addr = adev->wb.gpu_addr + (ring->next_rptr_offs * 4);
 	ring->next_rptr_cpu_addr = &adev->wb.wb[ring->next_rptr_offs];
-
+	spin_lock_init(&ring->fence_lock);
 	r = amdgpu_fence_driver_start_ring(ring, irq_src, irq_type);
 	if (r) {
 		dev_err(adev->dev, "failed initializing fences (%d).\n", r);
@@ -387,7 +407,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	if (ring->ring_obj == NULL) {
 		r = amdgpu_bo_create(adev, ring->ring_size, PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0,
-				     NULL, &ring->ring_obj);
+				     NULL, NULL, &ring->ring_obj);
 		if (r) {
 			dev_err(adev->dev, "(%d) ring create failed\n", r);
 			return r;

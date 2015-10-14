@@ -45,13 +45,11 @@
 
 struct v2m_data {
 	spinlock_t msi_cnt_lock;
-	struct msi_controller mchip;
 	struct resource res;	/* GICv2m resource */
 	void __iomem *base;	/* GICv2m virt address */
 	u32 spi_start;		/* The SPI number that MSIs start */
 	u32 nr_spis;		/* The number of SPIs for MSIs */
 	unsigned long *bm;	/* MSI vector bitmap */
-	struct irq_domain *domain;
 };
 
 static void gicv2m_mask_msi_irq(struct irq_data *d)
@@ -97,8 +95,8 @@ static void gicv2m_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct v2m_data *v2m = irq_data_get_irq_chip_data(data);
 	phys_addr_t addr = v2m->res.start + V2M_MSI_SETSPI_NS;
 
-	msg->address_hi = (u32) (addr >> 32);
-	msg->address_lo = (u32) (addr);
+	msg->address_hi = upper_32_bits(addr);
+	msg->address_lo = lower_32_bits(addr);
 	msg->data = data->hwirq;
 }
 
@@ -213,11 +211,25 @@ static bool is_msi_spi_valid(u32 base, u32 num)
 	return true;
 }
 
+static struct irq_chip gicv2m_pmsi_irq_chip = {
+	.name			= "pMSI",
+};
+
+static struct msi_domain_ops gicv2m_pmsi_ops = {
+};
+
+static struct msi_domain_info gicv2m_pmsi_domain_info = {
+	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS),
+	.ops	= &gicv2m_pmsi_ops,
+	.chip	= &gicv2m_pmsi_irq_chip,
+};
+
 static int __init gicv2m_init_one(struct device_node *node,
 				  struct irq_domain *parent)
 {
 	int ret;
 	struct v2m_data *v2m;
+	struct irq_domain *inner_domain, *pci_domain, *plat_domain;
 
 	v2m = kzalloc(sizeof(struct v2m_data), GFP_KERNEL);
 	if (!v2m) {
@@ -261,31 +273,27 @@ static int __init gicv2m_init_one(struct device_node *node,
 		goto err_iounmap;
 	}
 
-	v2m->domain = irq_domain_add_tree(NULL, &gicv2m_domain_ops, v2m);
-	if (!v2m->domain) {
+	inner_domain = irq_domain_add_tree(node, &gicv2m_domain_ops, v2m);
+	if (!inner_domain) {
 		pr_err("Failed to create GICv2m domain\n");
 		ret = -ENOMEM;
 		goto err_free_bm;
 	}
 
-	v2m->domain->parent = parent;
-	v2m->mchip.of_node = node;
-	v2m->mchip.domain = pci_msi_create_irq_domain(node,
-						      &gicv2m_msi_domain_info,
-						      v2m->domain);
-	if (!v2m->mchip.domain) {
-		pr_err("Failed to create MSI domain\n");
+	inner_domain->bus_token = DOMAIN_BUS_NEXUS;
+	inner_domain->parent = parent;
+	pci_domain = pci_msi_create_irq_domain(node, &gicv2m_msi_domain_info,
+					       inner_domain);
+	plat_domain = platform_msi_create_irq_domain(node,
+						     &gicv2m_pmsi_domain_info,
+						     inner_domain);
+	if (!pci_domain || !plat_domain) {
+		pr_err("Failed to create MSI domains\n");
 		ret = -ENOMEM;
 		goto err_free_domains;
 	}
 
 	spin_lock_init(&v2m->msi_cnt_lock);
-
-	ret = of_pci_msi_chip_add(&v2m->mchip);
-	if (ret) {
-		pr_err("Failed to add msi_chip.\n");
-		goto err_free_domains;
-	}
 
 	pr_info("Node %s: range[%#lx:%#lx], SPI[%d:%d]\n", node->name,
 		(unsigned long)v2m->res.start, (unsigned long)v2m->res.end,
@@ -294,10 +302,12 @@ static int __init gicv2m_init_one(struct device_node *node,
 	return 0;
 
 err_free_domains:
-	if (v2m->mchip.domain)
-		irq_domain_remove(v2m->mchip.domain);
-	if (v2m->domain)
-		irq_domain_remove(v2m->domain);
+	if (plat_domain)
+		irq_domain_remove(plat_domain);
+	if (pci_domain)
+		irq_domain_remove(pci_domain);
+	if (inner_domain)
+		irq_domain_remove(inner_domain);
 err_free_bm:
 	kfree(v2m->bm);
 err_iounmap:

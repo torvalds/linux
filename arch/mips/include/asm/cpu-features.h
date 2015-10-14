@@ -20,6 +20,9 @@
 #ifndef cpu_has_tlb
 #define cpu_has_tlb		(cpu_data[0].options & MIPS_CPU_TLB)
 #endif
+#ifndef cpu_has_ftlb
+#define cpu_has_ftlb		(cpu_data[0].options & MIPS_CPU_FTLB)
+#endif
 #ifndef cpu_has_tlbinv
 #define cpu_has_tlbinv		(cpu_data[0].options & MIPS_CPU_TLBINV)
 #endif
@@ -409,6 +412,10 @@
 
 #ifndef cpu_has_cdmm
 # define cpu_has_cdmm		(cpu_data[0].options & MIPS_CPU_CDMM)
+#endif
+
+#ifndef cpu_has_small_pages
+# define cpu_has_small_pages	(cpu_data[0].options & MIPS_CPU_SP)
 #endif
 
 #endif /* __ASM_CPU_FEATURES_H */

@@ -667,6 +667,7 @@ setup_gop32(struct screen_info *si, efi_guid_t *proto,
 		bool conout_found = false;
 		void *dummy = NULL;
 		u32 h = handles[i];
+		u32 current_fb_base;
 
 		status = efi_call_early(handle_protocol, h,
 					proto, (void **)&gop32);
@@ -678,7 +679,7 @@ setup_gop32(struct screen_info *si, efi_guid_t *proto,
 		if (status == EFI_SUCCESS)
 			conout_found = true;
 
-		status = __gop_query32(gop32, &info, &size, &fb_base);
+		status = __gop_query32(gop32, &info, &size, &current_fb_base);
 		if (status == EFI_SUCCESS && (!first_gop || conout_found)) {
 			/*
 			 * Systems that use the UEFI Console Splitter may
@@ -692,6 +693,7 @@ setup_gop32(struct screen_info *si, efi_guid_t *proto,
 			pixel_format = info->pixel_format;
 			pixel_info = info->pixel_information;
 			pixels_per_scan_line = info->pixels_per_scan_line;
+			fb_base = current_fb_base;
 
 			/*
 			 * Once we've found a GOP supporting ConOut,
@@ -770,6 +772,7 @@ setup_gop64(struct screen_info *si, efi_guid_t *proto,
 		bool conout_found = false;
 		void *dummy = NULL;
 		u64 h = handles[i];
+		u32 current_fb_base;
 
 		status = efi_call_early(handle_protocol, h,
 					proto, (void **)&gop64);
@@ -781,7 +784,7 @@ setup_gop64(struct screen_info *si, efi_guid_t *proto,
 		if (status == EFI_SUCCESS)
 			conout_found = true;
 
-		status = __gop_query64(gop64, &info, &size, &fb_base);
+		status = __gop_query64(gop64, &info, &size, &current_fb_base);
 		if (status == EFI_SUCCESS && (!first_gop || conout_found)) {
 			/*
 			 * Systems that use the UEFI Console Splitter may
@@ -795,6 +798,7 @@ setup_gop64(struct screen_info *si, efi_guid_t *proto,
 			pixel_format = info->pixel_format;
 			pixel_info = info->pixel_information;
 			pixels_per_scan_line = info->pixels_per_scan_line;
+			fb_base = current_fb_base;
 
 			/*
 			 * Once we've found a GOP supporting ConOut,
@@ -1041,7 +1045,6 @@ void setup_graphics(struct boot_params *boot_params)
 struct boot_params *make_boot_params(struct efi_config *c)
 {
 	struct boot_params *boot_params;
-	struct sys_desc_table *sdt;
 	struct apm_bios_info *bi;
 	struct setup_header *hdr;
 	struct efi_info *efi;
@@ -1089,7 +1092,6 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	hdr = &boot_params->hdr;
 	efi = &boot_params->efi_info;
 	bi = &boot_params->apm_bios_info;
-	sdt = &boot_params->sys_desc_table;
 
 	/* Copy the second sector to boot_params */
 	memcpy(&hdr->jump, image->image_base + 512, 512);
@@ -1117,8 +1119,6 @@ struct boot_params *make_boot_params(struct efi_config *c)
 
 	/* Clear APM BIOS info */
 	memset(bi, 0, sizeof(*bi));
-
-	memset(sdt, 0, sizeof(*sdt));
 
 	status = efi_parse_options(cmdline_ptr);
 	if (status != EFI_SUCCESS)

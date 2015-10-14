@@ -93,6 +93,40 @@ static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
 	return 1;
 }
 
+#define DRM_OUTPUT_POLL_PERIOD (10*HZ)
+/**
+ * drm_kms_helper_poll_enable_locked - re-enable output polling.
+ * @dev: drm_device
+ *
+ * This function re-enables the output polling work without
+ * locking the mode_config mutex.
+ *
+ * This is like drm_kms_helper_poll_enable() however it is to be
+ * called from a context where the mode_config mutex is locked
+ * already.
+ */
+void drm_kms_helper_poll_enable_locked(struct drm_device *dev)
+{
+	bool poll = false;
+	struct drm_connector *connector;
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+
+	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll)
+		return;
+
+	drm_for_each_connector(connector, dev) {
+		if (connector->polled & (DRM_CONNECTOR_POLL_CONNECT |
+					 DRM_CONNECTOR_POLL_DISCONNECT))
+			poll = true;
+	}
+
+	if (poll)
+		schedule_delayed_work(&dev->mode_config.output_poll_work, DRM_OUTPUT_POLL_PERIOD);
+}
+EXPORT_SYMBOL(drm_kms_helper_poll_enable_locked);
+
+
 static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connector *connector,
 							      uint32_t maxX, uint32_t maxY, bool merge_type_bits)
 {
@@ -153,7 +187,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 
 	/* Re-enable polling in case the global poll config changed. */
 	if (drm_kms_helper_poll != dev->mode_config.poll_running)
-		drm_kms_helper_poll_enable(dev);
+		drm_kms_helper_poll_enable_locked(dev);
 
 	dev->mode_config.poll_running = drm_kms_helper_poll;
 
@@ -295,7 +329,6 @@ void drm_kms_helper_hotplug_event(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_hotplug_event);
 
-#define DRM_OUTPUT_POLL_PERIOD (10*HZ)
 static void output_poll_execute(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = to_delayed_work(work);
@@ -312,7 +345,7 @@ static void output_poll_execute(struct work_struct *work)
 		goto out;
 
 	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_for_each_connector(connector, dev) {
 
 		/* Ignore forced connectors. */
 		if (connector->force)
@@ -407,20 +440,9 @@ EXPORT_SYMBOL(drm_kms_helper_poll_disable);
  */
 void drm_kms_helper_poll_enable(struct drm_device *dev)
 {
-	bool poll = false;
-	struct drm_connector *connector;
-
-	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll)
-		return;
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->polled & (DRM_CONNECTOR_POLL_CONNECT |
-					 DRM_CONNECTOR_POLL_DISCONNECT))
-			poll = true;
-	}
-
-	if (poll)
-		schedule_delayed_work(&dev->mode_config.output_poll_work, DRM_OUTPUT_POLL_PERIOD);
+	mutex_lock(&dev->mode_config.mutex);
+	drm_kms_helper_poll_enable_locked(dev);
+	mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
@@ -495,7 +517,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 		return false;
 
 	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_for_each_connector(connector, dev) {
 
 		/* Only handle HPD capable connectors. */
 		if (!(connector->polled & DRM_CONNECTOR_POLL_HPD))

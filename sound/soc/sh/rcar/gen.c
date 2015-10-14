@@ -103,6 +103,22 @@ void rsnd_write(struct rsnd_priv *priv,
 	regmap_fields_write(gen->regs[reg], rsnd_mod_id(mod), data);
 }
 
+void rsnd_force_write(struct rsnd_priv *priv,
+		      struct rsnd_mod *mod,
+		      enum rsnd_reg reg, u32 data)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+
+	if (!rsnd_is_accessible_reg(priv, gen, reg))
+		return;
+
+	dev_dbg(dev, "w %s[%d] - %4d : %08x\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data);
+
+	regmap_fields_force_write(gen->regs[reg], rsnd_mod_id(mod), data);
+}
+
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 	       enum rsnd_reg reg, u32 mask, u32 data)
 {
@@ -200,12 +216,13 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		/* FIXME: it needs SSI_MODE2/3 in the future */
 		RSND_GEN_M_REG(SSI_BUSIF_MODE,	0x0,	0x80),
 		RSND_GEN_M_REG(SSI_BUSIF_ADINR,	0x4,	0x80),
-		RSND_GEN_M_REG(BUSIF_DALIGN,	0x8,	0x80),
+		RSND_GEN_M_REG(SSI_BUSIF_DALIGN,0x8,	0x80),
 		RSND_GEN_M_REG(SSI_CTRL,	0x10,	0x80),
-		RSND_GEN_M_REG(INT_ENABLE,	0x18,	0x80),
+		RSND_GEN_M_REG(SSI_INT_ENABLE,	0x18,	0x80),
 	};
 	struct rsnd_regmap_field_conf conf_scu[] = {
 		RSND_GEN_M_REG(SRC_BUSIF_MODE,	0x0,	0x20),
+		RSND_GEN_M_REG(SRC_BUSIF_DALIGN,0x8,	0x20),
 		RSND_GEN_M_REG(SRC_ROUTE_MODE0,	0xc,	0x20),
 		RSND_GEN_M_REG(SRC_CTRL,	0x10,	0x20),
 		RSND_GEN_M_REG(SRC_INT_ENABLE0,	0x18,	0x20),
@@ -223,6 +240,18 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		RSND_GEN_M_REG(SRC_SRCCR,	0x224,	0x40),
 		RSND_GEN_M_REG(SRC_BSDSR,	0x22c,	0x40),
 		RSND_GEN_M_REG(SRC_BSISR,	0x238,	0x40),
+		RSND_GEN_M_REG(CTU_CTUIR,	0x504,	0x100),
+		RSND_GEN_M_REG(CTU_ADINR,	0x508,	0x100),
+		RSND_GEN_M_REG(MIX_SWRSR,	0xd00,	0x40),
+		RSND_GEN_M_REG(MIX_MIXIR,	0xd04,	0x40),
+		RSND_GEN_M_REG(MIX_ADINR,	0xd08,	0x40),
+		RSND_GEN_M_REG(MIX_MIXMR,	0xd10,	0x40),
+		RSND_GEN_M_REG(MIX_MVPDR,	0xd14,	0x40),
+		RSND_GEN_M_REG(MIX_MDBAR,	0xd18,	0x40),
+		RSND_GEN_M_REG(MIX_MDBBR,	0xd1c,	0x40),
+		RSND_GEN_M_REG(MIX_MDBCR,	0xd20,	0x40),
+		RSND_GEN_M_REG(MIX_MDBDR,	0xd24,	0x40),
+		RSND_GEN_M_REG(MIX_MDBER,	0xd28,	0x40),
 		RSND_GEN_M_REG(DVC_SWRSR,	0xe00,	0x100),
 		RSND_GEN_M_REG(DVC_DVUIR,	0xe04,	0x100),
 		RSND_GEN_M_REG(DVC_ADINR,	0xe08,	0x100),

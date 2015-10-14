@@ -179,7 +179,7 @@ int ieee80211_ocb_join(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_ocb *ifocb = &sdata->u.ocb;
-	u32 changed = BSS_CHANGED_OCB;
+	u32 changed = BSS_CHANGED_OCB | BSS_CHANGED_BSSID;
 	int err;
 
 	if (ifocb->joined == true)

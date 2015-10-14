@@ -418,7 +418,7 @@ static int bcm_sf2_sw_fast_age_port(struct dsa_switch  *ds, int port)
 	core_writel(priv, port, CORE_FAST_AGE_PORT);
 
 	reg = core_readl(priv, CORE_FAST_AGE_CTRL);
-	reg |= EN_AGE_PORT | FAST_AGE_STR_DONE;
+	reg |= EN_AGE_PORT | EN_AGE_DYNAMIC | FAST_AGE_STR_DONE;
 	core_writel(priv, reg, CORE_FAST_AGE_CTRL);
 
 	do {
@@ -431,6 +431,8 @@ static int bcm_sf2_sw_fast_age_port(struct dsa_switch  *ds, int port)
 
 	if (!timeout)
 		return -ETIMEDOUT;
+
+	core_writel(priv, 0, CORE_FAST_AGE_CTRL);
 
 	return 0;
 }
@@ -507,7 +509,7 @@ static int bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,
 	u32 reg;
 
 	reg = core_readl(priv, CORE_G_PCTL_PORT(port));
-	cur_hw_state = reg >> G_MISTP_STATE_SHIFT;
+	cur_hw_state = reg & (G_MISTP_STATE_MASK << G_MISTP_STATE_SHIFT);
 
 	switch (state) {
 	case BR_STATE_DISABLED:
@@ -531,10 +533,12 @@ static int bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,
 	}
 
 	/* Fast-age ARL entries if we are moving a port from Learning or
-	 * Forwarding state to Disabled, Blocking or Listening state
+	 * Forwarding (cur_hw_state) state to Disabled, Blocking or Listening
+	 * state (hw_state)
 	 */
 	if (cur_hw_state != hw_state) {
-		if (cur_hw_state & 4 && !(hw_state & 4)) {
+		if (cur_hw_state >= G_MISTP_LEARN_STATE &&
+		    hw_state <= G_MISTP_LISTEN_STATE) {
 			ret = bcm_sf2_sw_fast_age_port(ds, port);
 			if (ret) {
 				pr_err("%s: fast-ageing failed\n", __func__);
@@ -901,15 +905,11 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 					 struct fixed_phy_status *status)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
-	u32 duplex, pause, speed;
+	u32 duplex, pause;
 	u32 reg;
 
 	duplex = core_readl(priv, CORE_DUPSTS);
 	pause = core_readl(priv, CORE_PAUSESTS);
-	speed = core_readl(priv, CORE_SPDSTS);
-
-	speed >>= (port * SPDSTS_SHIFT);
-	speed &= SPDSTS_MASK;
 
 	status->link = 0;
 
@@ -943,18 +943,6 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 	else
 		reg &= ~LINK_STS;
 	core_writel(priv, reg, CORE_STS_OVERRIDE_GMIIP_PORT(port));
-
-	switch (speed) {
-	case SPDSTS_10:
-		status->speed = SPEED_10;
-		break;
-	case SPDSTS_100:
-		status->speed = SPEED_100;
-		break;
-	case SPDSTS_1000:
-		status->speed = SPEED_1000;
-		break;
-	}
 
 	if ((pause & (1 << port)) &&
 	    (pause & (1 << (port + PAUSESTS_TX_PAUSE_SHIFT)))) {

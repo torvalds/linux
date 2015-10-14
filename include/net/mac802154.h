@@ -321,23 +321,6 @@ int ieee802154_register_hw(struct ieee802154_hw *hw);
 void ieee802154_unregister_hw(struct ieee802154_hw *hw);
 
 /**
- * ieee802154_rx - receive frame
- *
- * Use this function to hand received frames to mac802154. The receive
- * buffer in @skb must start with an IEEE 802.15.4 header. In case of a
- * paged @skb is used, the driver is recommended to put the ieee802154
- * header of the frame on the linear part of the @skb to avoid memory
- * allocation and/or memcpy by the stack.
- *
- * This function may not be called in IRQ context. Calls to this function
- * for a single hardware must be synchronized against each other.
- *
- * @hw: the hardware this frame came in on
- * @skb: the buffer to receive, owned by mac802154 after this call
- */
-void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb);
-
-/**
  * ieee802154_rx_irqsafe - receive frame
  *
  * Like ieee802154_rx() but can be called in IRQ context

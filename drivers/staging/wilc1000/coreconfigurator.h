@@ -8,7 +8,6 @@
  *  @version	1.0
  */
 
-
 #ifndef CORECONFIGURATOR_H
 #define CORECONFIGURATOR_H
 
@@ -42,7 +41,6 @@ extern u16 g_num_total_switches;
 #define AID_LEN                 2
 #define IE_HDR_LEN              2
 
-
 /* Operating Mode: SET */
 #define SET_CFG              0
 /* Operating Mode: GET */
@@ -59,14 +57,11 @@ extern u16 g_num_total_switches;
 #define MAC_CONNECTED                1
 #define MAC_DISCONNECTED             0
 
-
-
 /*****************************************************************************/
 /* Function Macros                                                           */
 /*****************************************************************************/
 #define MAKE_WORD16(lsb, msb) ((((u16)(msb) << 8) & 0xFF00) | (lsb))
 #define MAKE_WORD32(lsw, msw) ((((u32)(msw) << 16) & 0xFFFF0000) | (lsw))
-
 
 /*****************************************************************************/
 /* Type Definitions                                                                                                                       */
@@ -140,7 +135,6 @@ typedef struct {
 	u16 u16RespIEsLen;
 } tstrConnectRespInfo;
 
-
 typedef struct {
 	u8 au8bssid[6];
 	u8 *pu8ReqIEs;
@@ -149,8 +143,6 @@ typedef struct {
 	u16 u16RespIEsLen;
 	u16 u16ConnectStatus;
 } tstrConnectInfo;
-
-
 
 typedef struct {
 	u16 u16reason;
@@ -171,26 +163,27 @@ typedef struct wid_site_survey_reslts {
 } wid_site_survey_reslts_s;
 #endif
 
-extern s32 CoreConfiguratorInit(void);
-extern s32 CoreConfiguratorDeInit(void);
+s32 CoreConfiguratorInit(void);
+s32 CoreConfiguratorDeInit(void);
 
-extern s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-				 u32 u32WIDsCount, bool bRespRequired, u32 drvHandler);
-extern s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
-extern s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
+s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
+		  u32 u32WIDsCount, bool bRespRequired, u32 drvHandler);
+s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
+s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
 
-extern s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
-				      tstrConnectRespInfo **ppstrConnectRespInfo);
-extern s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
+s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
+		       tstrConnectRespInfo **ppstrConnectRespInfo);
+s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
 
 #ifndef CONNECT_DIRECT
-extern s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
-				      wid_site_survey_reslts_s **ppstrSurveyResults, u32 *pu32SurveyResultsCount);
-extern s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
+s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
+		       wid_site_survey_reslts_s **ppstrSurveyResults,
+		       u32 *pu32SurveyResultsCount);
+s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
 #endif
 
-extern s32 SendRawPacket(s8 *pspacket, s32 s32PacketLen);
-extern void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
+s32 SendRawPacket(s8 *pspacket, s32 s32PacketLen);
+void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
 void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
 void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
 

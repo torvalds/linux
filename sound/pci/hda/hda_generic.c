@@ -671,7 +671,8 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 		}
 		for (i = 0; i < path->depth; i++) {
 			if (path->path[i] == nid) {
-				if (dir == HDA_OUTPUT || path->idx[i] == idx)
+				if (dir == HDA_OUTPUT || idx == -1 ||
+				    path->idx[i] == idx)
 					return true;
 				break;
 			}
@@ -682,7 +683,7 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 
 /* check whether the NID is referred by any active paths */
 #define is_active_nid_for_any(codec, nid) \
-	is_active_nid(codec, nid, HDA_OUTPUT, 0)
+	is_active_nid(codec, nid, HDA_OUTPUT, -1)
 
 /* get the default amp value for the target state */
 static int get_amp_val_to_activate(struct hda_codec *codec, hda_nid_t nid,
@@ -883,8 +884,7 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 	struct hda_gen_spec *spec = codec->spec;
 	int i;
 
-	if (!enable)
-		path->active = false;
+	path->active = enable;
 
 	/* make sure the widget is powered up */
 	if (enable && (spec->power_down_unused || codec->power_save_node))
@@ -902,9 +902,6 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 		if (has_amp_out(codec, path, i))
 			activate_amp_out(codec, path, i, enable);
 	}
-
-	if (enable)
-		path->active = true;
 }
 EXPORT_SYMBOL_GPL(snd_hda_activate_path);
 

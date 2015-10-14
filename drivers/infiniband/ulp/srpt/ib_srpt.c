@@ -783,7 +783,7 @@ static int srpt_post_recv(struct srpt_device *sdev,
 
 	list.addr = ioctx->ioctx.dma;
 	list.length = srp_max_req_size;
-	list.lkey = sdev->mr->lkey;
+	list.lkey = sdev->pd->local_dma_lkey;
 
 	wr.next = NULL;
 	wr.sg_list = &list;
@@ -818,7 +818,7 @@ static int srpt_post_send(struct srpt_rdma_ch *ch,
 
 	list.addr = ioctx->ioctx.dma;
 	list.length = len;
-	list.lkey = sdev->mr->lkey;
+	list.lkey = sdev->pd->local_dma_lkey;
 
 	wr.next = NULL;
 	wr.wr_id = encode_wr_id(SRPT_SEND, ioctx->ioctx.index);
@@ -1206,7 +1206,7 @@ static int srpt_map_sg_to_ib_sge(struct srpt_rdma_ch *ch,
 
 		while (rsize > 0 && tsize > 0) {
 			sge->addr = dma_addr;
-			sge->lkey = ch->sport->sdev->mr->lkey;
+			sge->lkey = ch->sport->sdev->pd->local_dma_lkey;
 
 			if (rsize >= dma_len) {
 				sge->length =
@@ -3211,10 +3211,6 @@ static void srpt_add_one(struct ib_device *device)
 	if (IS_ERR(sdev->pd))
 		goto free_dev;
 
-	sdev->mr = ib_get_dma_mr(sdev->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(sdev->mr))
-		goto err_pd;
-
 	sdev->srq_size = min(srpt_srq_size, sdev->dev_attr.max_srq_wr);
 
 	srq_attr.event_handler = srpt_srq_event;
@@ -3226,7 +3222,7 @@ static void srpt_add_one(struct ib_device *device)
 
 	sdev->srq = ib_create_srq(sdev->pd, &srq_attr);
 	if (IS_ERR(sdev->srq))
-		goto err_mr;
+		goto err_pd;
 
 	pr_debug("%s: create SRQ #wr= %d max_allow=%d dev= %s\n",
 		 __func__, sdev->srq_size, sdev->dev_attr.max_srq_wr,
@@ -3250,7 +3246,7 @@ static void srpt_add_one(struct ib_device *device)
 	 * in the system as service_id; therefore, the target_id will change
 	 * if this HCA is gone bad and replaced by different HCA
 	 */
-	if (ib_cm_listen(sdev->cm_id, cpu_to_be64(srpt_service_guid), 0, NULL))
+	if (ib_cm_listen(sdev->cm_id, cpu_to_be64(srpt_service_guid), 0))
 		goto err_cm;
 
 	INIT_IB_EVENT_HANDLER(&sdev->event_handler, sdev->device,
@@ -3311,8 +3307,6 @@ err_cm:
 	ib_destroy_cm_id(sdev->cm_id);
 err_srq:
 	ib_destroy_srq(sdev->srq);
-err_mr:
-	ib_dereg_mr(sdev->mr);
 err_pd:
 	ib_dealloc_pd(sdev->pd);
 free_dev:
@@ -3326,12 +3320,11 @@ err:
 /**
  * srpt_remove_one() - InfiniBand device removal callback function.
  */
-static void srpt_remove_one(struct ib_device *device)
+static void srpt_remove_one(struct ib_device *device, void *client_data)
 {
-	struct srpt_device *sdev;
+	struct srpt_device *sdev = client_data;
 	int i;
 
-	sdev = ib_get_client_data(device, &srpt_client);
 	if (!sdev) {
 		pr_info("%s(%s): nothing to do.\n", __func__, device->name);
 		return;
@@ -3358,7 +3351,6 @@ static void srpt_remove_one(struct ib_device *device)
 	srpt_release_sdev(sdev);
 
 	ib_destroy_srq(sdev->srq);
-	ib_dereg_mr(sdev->mr);
 	ib_dealloc_pd(sdev->pd);
 
 	srpt_free_ioctx_ring((struct srpt_ioctx **)sdev->ioctx_ring, sdev,

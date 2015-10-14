@@ -609,8 +609,8 @@ config SENSORS_IT87
 	depends on !PPC
 	select HWMON_VID
 	help
-	  If you say yes here you get support for ITE IT8705F, IT8712F,
-	  IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E,
+	  If you say yes here you get support for ITE IT8705F, IT8712F, IT8716F,
+	  IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8732F, IT8758E,
 	  IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E,
 	  IT8603E, IT8620E, and IT8623E sensor chips, and the SiS950 clone.
 
@@ -1140,8 +1140,8 @@ config SENSORS_NCT6775
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
-	  NCT6791D, NCT6792D and compatible Super-I/O chips. This driver
-	  replaces the w83627ehf driver for NCT6775F and NCT6776F.
+	  NCT6791D, NCT6792D, NCT6793D, and compatible Super-I/O chips. This
+	  driver replaces the w83627ehf driver for NCT6775F and NCT6776F.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called nct6775.

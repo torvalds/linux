@@ -27,14 +27,17 @@
  * Without this offset, that can result in a page fault.  (We are
  * careful that, in this case, the value we read doesn't matter.)
  *
- * In vm86 mode, the hardware frame is much longer still, but we neither
- * access the extra members from NMI context, nor do we write such a
- * frame at sp0 at all.
+ * In vm86 mode, the hardware frame is much longer still, so add 16
+ * bytes to make room for the real-mode segments.
  *
  * x86_64 has a fixed-length stack frame.
  */
 #ifdef CONFIG_X86_32
-# define TOP_OF_KERNEL_STACK_PADDING 8
+# ifdef CONFIG_VM86
+#  define TOP_OF_KERNEL_STACK_PADDING 16
+# else
+#  define TOP_OF_KERNEL_STACK_PADDING 8
+# endif
 #else
 # define TOP_OF_KERNEL_STACK_PADDING 0
 #endif
@@ -140,26 +143,10 @@ struct thread_info {
 	 _TIF_SECCOMP | _TIF_SINGLESTEP | _TIF_SYSCALL_TRACEPOINT |	\
 	 _TIF_NOHZ)
 
-/* work to do in syscall_trace_leave() */
-#define _TIF_WORK_SYSCALL_EXIT	\
-	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SINGLESTEP |	\
-	 _TIF_SYSCALL_TRACEPOINT | _TIF_NOHZ)
-
-/* work to do on interrupt/exception return */
-#define _TIF_WORK_MASK							\
-	(0x0000FFFF &							\
-	 ~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|			\
-	   _TIF_SINGLESTEP|_TIF_SECCOMP|_TIF_SYSCALL_EMU))
-
 /* work to do on any return to user space */
 #define _TIF_ALLWORK_MASK						\
 	((0x0000FFFF & ~_TIF_SECCOMP) | _TIF_SYSCALL_TRACEPOINT |	\
 	_TIF_NOHZ)
-
-/* Only used for 64 bit */
-#define _TIF_DO_NOTIFY_MASK						\
-	(_TIF_SIGPENDING | _TIF_NOTIFY_RESUME |				\
-	 _TIF_USER_RETURN_NOTIFY | _TIF_UPROBE)
 
 /* flags to check in __switch_to() */
 #define _TIF_WORK_CTXSW							\

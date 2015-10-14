@@ -68,8 +68,17 @@ extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern void __netlink_clear_multicast_users(struct sock *sk, unsigned int group);
 extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
 extern int netlink_has_listeners(struct sock *sk, unsigned int group);
-extern struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
-					 u32 dst_portid, gfp_t gfp_mask);
+
+extern struct sk_buff *__netlink_alloc_skb(struct sock *ssk, unsigned int size,
+					   unsigned int ldiff, u32 dst_portid,
+					   gfp_t gfp_mask);
+static inline struct sk_buff *
+netlink_alloc_skb(struct sock *ssk, unsigned int size, u32 dst_portid,
+		  gfp_t gfp_mask)
+{
+	return __netlink_alloc_skb(ssk, size, 0, dst_portid, gfp_mask);
+}
+
 extern int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
 extern int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
 			     __u32 group, gfp_t allocation);

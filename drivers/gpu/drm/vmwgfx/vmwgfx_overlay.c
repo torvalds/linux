@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2014 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -31,8 +31,8 @@
 
 #include <drm/ttm/ttm_placement.h>
 
-#include "svga_overlay.h"
-#include "svga_escape.h"
+#include "device_include/svga_overlay.h"
+#include "device_include/svga_escape.h"
 
 #define VMW_MAX_NUM_STREAMS 1
 #define VMW_OVERLAY_CAP_MASK (SVGA_FIFO_CAP_VIDEO | SVGA_FIFO_CAP_ESCAPE)
@@ -100,7 +100,7 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 {
 	struct vmw_escape_video_flush *flush;
 	size_t fifo_size;
-	bool have_so = dev_priv->sou_priv ? true : false;
+	bool have_so = (dev_priv->active_display_unit == vmw_du_screen_object);
 	int i, num_items;
 	SVGAGuestPtr ptr;
 
@@ -231,10 +231,10 @@ static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
 	if (!pin)
 		return vmw_dmabuf_unpin(dev_priv, buf, inter);
 
-	if (!dev_priv->sou_priv)
-		return vmw_dmabuf_to_vram(dev_priv, buf, true, inter);
+	if (dev_priv->active_display_unit == vmw_du_legacy)
+		return vmw_dmabuf_pin_in_vram(dev_priv, buf, inter);
 
-	return vmw_dmabuf_to_vram_or_gmr(dev_priv, buf, true, inter);
+	return vmw_dmabuf_pin_in_vram_or_gmr(dev_priv, buf, inter);
 }
 
 /**
@@ -453,7 +453,7 @@ int vmw_overlay_pause_all(struct vmw_private *dev_priv)
 
 static bool vmw_overlay_available(const struct vmw_private *dev_priv)
 {
-	return (dev_priv->overlay_priv != NULL && 
+	return (dev_priv->overlay_priv != NULL &&
 		((dev_priv->fifo.capabilities & VMW_OVERLAY_CAP_MASK) ==
 		 VMW_OVERLAY_CAP_MASK));
 }
@@ -484,7 +484,7 @@ int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	ret = vmw_user_dmabuf_lookup(tfile, arg->handle, &buf);
+	ret = vmw_user_dmabuf_lookup(tfile, arg->handle, &buf, NULL);
 	if (ret)
 		goto out_unlock;
 

@@ -35,9 +35,7 @@ struct kyrofb_info {
 	/* Useful to hold depth here for Linux */
 	u8 PIXDEPTH;
 
-#ifdef CONFIG_MTRR
-	int mtrr_handle;
-#endif
+	int wc_cookie;
 };
 
 extern int kyro_dev_init(void);

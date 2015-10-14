@@ -246,11 +246,10 @@ RTY_SEND_CMD:
 				}
 			}
 #ifdef SUPPORT_SD_LOCK
-			if (ptr[1] & 0x7D)
+			if (ptr[1] & 0x7D) {
 #else
-			if (ptr[1] & 0x7F)
+			if (ptr[1] & 0x7F) {
 #endif
-			{
 				dev_dbg(rtsx_dev(chip), "ptr[1]: 0x%02x\n",
 					ptr[1]);
 				rtsx_trace(chip);
@@ -3520,12 +3519,11 @@ int reset_sd_card(struct rtsx_chip *chip)
 			if (chip->sd_io) {
 				rtsx_trace(chip);
 				return STATUS_FAIL;
-			} else {
-				retval = reset_mmc(chip);
-				if (retval != STATUS_SUCCESS) {
-					rtsx_trace(chip);
-					return STATUS_FAIL;
-				}
+			}
+			retval = reset_mmc(chip);
+			if (retval != STATUS_SUCCESS) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 		}
 	}
@@ -4149,11 +4147,10 @@ RTY_SEND_CMD:
 			}
 		}
 #ifdef SUPPORT_SD_LOCK
-		if (ptr[1] & 0x7D)
+		if (ptr[1] & 0x7D) {
 #else
-		if (ptr[1] & 0x7F)
+		if (ptr[1] & 0x7F) {
 #endif
-		{
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}

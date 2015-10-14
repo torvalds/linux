@@ -31,16 +31,19 @@
 #include "wmi-ops.h"
 
 unsigned int ath10k_debug_mask;
+static unsigned int ath10k_cryptmode_param;
 static bool uart_print;
 static bool skip_otp;
 
 module_param_named(debug_mask, ath10k_debug_mask, uint, 0644);
+module_param_named(cryptmode, ath10k_cryptmode_param, uint, 0644);
 module_param(uart_print, bool, 0644);
 module_param(skip_otp, bool, 0644);
 
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 MODULE_PARM_DESC(uart_print, "Uart target debugging");
 MODULE_PARM_DESC(skip_otp, "Skip otp failure for calibration in testmode");
+MODULE_PARM_DESC(cryptmode, "Crypto mode: 0-hardware, 1-software");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
@@ -49,6 +52,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.patch_load_addr = QCA988X_HW_2_0_PATCH_LOAD_ADDR,
 		.uart_pin = 7,
 		.has_shifted_cc_wraparound = true,
+		.otp_exe_param = 0,
+		.channel_counters_freq_hz = 88000,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
 			.fw = QCA988X_HW_2_0_FW_FILE,
@@ -63,6 +68,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.name = "qca6174 hw2.1",
 		.patch_load_addr = QCA6174_HW_2_1_PATCH_LOAD_ADDR,
 		.uart_pin = 6,
+		.otp_exe_param = 0,
+		.channel_counters_freq_hz = 88000,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
 			.fw = QCA6174_HW_2_1_FW_FILE,
@@ -77,6 +84,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.name = "qca6174 hw3.0",
 		.patch_load_addr = QCA6174_HW_3_0_PATCH_LOAD_ADDR,
 		.uart_pin = 6,
+		.otp_exe_param = 0,
+		.channel_counters_freq_hz = 88000,
 		.fw = {
 			.dir = QCA6174_HW_3_0_FW_DIR,
 			.fw = QCA6174_HW_3_0_FW_FILE,
@@ -91,6 +100,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.name = "qca6174 hw3.2",
 		.patch_load_addr = QCA6174_HW_3_0_PATCH_LOAD_ADDR,
 		.uart_pin = 6,
+		.otp_exe_param = 0,
+		.channel_counters_freq_hz = 88000,
 		.fw = {
 			/* uses same binaries as hw3.0 */
 			.dir = QCA6174_HW_3_0_FW_DIR,
@@ -101,7 +112,68 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
 	},
+	{
+		.id = QCA99X0_HW_2_0_DEV_VERSION,
+		.name = "qca99x0 hw2.0",
+		.patch_load_addr = QCA99X0_HW_2_0_PATCH_LOAD_ADDR,
+		.uart_pin = 7,
+		.otp_exe_param = 0x00000700,
+		.continuous_frag_desc = true,
+		.channel_counters_freq_hz = 150000,
+		.fw = {
+			.dir = QCA99X0_HW_2_0_FW_DIR,
+			.fw = QCA99X0_HW_2_0_FW_FILE,
+			.otp = QCA99X0_HW_2_0_OTP_FILE,
+			.board = QCA99X0_HW_2_0_BOARD_DATA_FILE,
+			.board_size = QCA99X0_BOARD_DATA_SZ,
+			.board_ext_size = QCA99X0_BOARD_EXT_DATA_SZ,
+		},
+	},
 };
+
+static const char *const ath10k_core_fw_feature_str[] = {
+	[ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX] = "wmi-mgmt-rx",
+	[ATH10K_FW_FEATURE_WMI_10X] = "wmi-10.x",
+	[ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX] = "has-wmi-mgmt-tx",
+	[ATH10K_FW_FEATURE_NO_P2P] = "no-p2p",
+	[ATH10K_FW_FEATURE_WMI_10_2] = "wmi-10.2",
+	[ATH10K_FW_FEATURE_MULTI_VIF_PS_SUPPORT] = "multi-vif-ps",
+	[ATH10K_FW_FEATURE_WOWLAN_SUPPORT] = "wowlan",
+	[ATH10K_FW_FEATURE_IGNORE_OTP_RESULT] = "ignore-otp",
+	[ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING] = "no-4addr-pad",
+	[ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT] = "skip-clock-init",
+};
+
+static unsigned int ath10k_core_get_fw_feature_str(char *buf,
+						   size_t buf_len,
+						   enum ath10k_fw_features feat)
+{
+	if (feat >= ARRAY_SIZE(ath10k_core_fw_feature_str) ||
+	    WARN_ON(!ath10k_core_fw_feature_str[feat])) {
+		return scnprintf(buf, buf_len, "bit%d", feat);
+	}
+
+	return scnprintf(buf, buf_len, "%s", ath10k_core_fw_feature_str[feat]);
+}
+
+void ath10k_core_get_fw_features_str(struct ath10k *ar,
+				     char *buf,
+				     size_t buf_len)
+{
+	unsigned int len = 0;
+	int i;
+
+	for (i = 0; i < ATH10K_FW_FEATURE_COUNT; i++) {
+		if (test_bit(i, ar->fw_features)) {
+			if (len > 0)
+				len += scnprintf(buf + len, buf_len - len, ",");
+
+			len += ath10k_core_get_fw_feature_str(buf + len,
+							      buf_len - len,
+							      i);
+		}
+	}
+}
 
 static void ath10k_send_suspend_complete(struct ath10k *ar)
 {
@@ -161,6 +233,17 @@ static int ath10k_init_configure_target(struct ath10k *ar)
 
 	if (ret) {
 		ath10k_err(ar, "setting FW data/desc swap flags failed\n");
+		return ret;
+	}
+
+	/* Some devices have a special sanity check that verifies the PCI
+	 * Device ID is written to this host interest var. It is known to be
+	 * required to boot QCA6164.
+	 */
+	ret = ath10k_bmi_write32(ar, hi_hci_uart_pwr_mgmt_params_ext,
+				 ar->dev_id);
+	if (ret) {
+		ath10k_err(ar, "failed to set pwr_mgmt_params: %d\n", ret);
 		return ret;
 	}
 
@@ -355,6 +438,7 @@ out:
 static int ath10k_download_and_run_otp(struct ath10k *ar)
 {
 	u32 result, address = ar->hw_params.patch_load_addr;
+	u32 bmi_otp_exe_param = ar->hw_params.otp_exe_param;
 	int ret;
 
 	ret = ath10k_download_board_data(ar, ar->board_data, ar->board_len);
@@ -380,7 +464,7 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 		return ret;
 	}
 
-	ret = ath10k_bmi_execute(ar, address, 0, &result);
+	ret = ath10k_bmi_execute(ar, address, bmi_otp_exe_param, &result);
 	if (ret) {
 		ath10k_err(ar, "could not execute otp (%d)\n", ret);
 		return ret;
@@ -412,6 +496,13 @@ static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		data = ar->firmware_data;
 		data_len = ar->firmware_len;
 		mode_name = "normal";
+		ret = ath10k_swap_code_seg_configure(ar,
+				ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW);
+		if (ret) {
+			ath10k_err(ar, "failed to configure fw code swap: %d\n",
+				   ret);
+			return ret;
+		}
 		break;
 	case ATH10K_FIRMWARE_MODE_UTF:
 		data = ar->testmode.utf->data;
@@ -451,6 +542,8 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	if (!IS_ERR(ar->cal_file))
 		release_firmware(ar->cal_file);
 
+	ath10k_swap_code_seg_release(ar);
+
 	ar->board = NULL;
 	ar->board_data = NULL;
 	ar->board_len = 0;
@@ -464,6 +557,7 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	ar->firmware_len = 0;
 
 	ar->cal_file = NULL;
+
 }
 
 static int ath10k_fetch_cal_file(struct ath10k *ar)
@@ -737,6 +831,13 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 			ath10k_dbg(ar, ATH10K_DBG_BOOT, "found fw ie htt op version %d\n",
 				   ar->htt.op_version);
 			break;
+		case ATH10K_FW_IE_FW_CODE_SWAP_IMAGE:
+			ath10k_dbg(ar, ATH10K_DBG_BOOT,
+				   "found fw code swap image ie (%zd B)\n",
+				   ie_len);
+			ar->swap.firmware_codeswap_data = data;
+			ar->swap.firmware_codeswap_len = ie_len;
+			break;
 		default:
 			ath10k_warn(ar, "Unknown FW IE: %u\n",
 				    le32_to_cpu(hdr->id));
@@ -991,6 +1092,46 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		return -EINVAL;
 	}
 
+	ar->wmi.rx_decap_mode = ATH10K_HW_TXRX_NATIVE_WIFI;
+	switch (ath10k_cryptmode_param) {
+	case ATH10K_CRYPT_MODE_HW:
+		clear_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags);
+		clear_bit(ATH10K_FLAG_HW_CRYPTO_DISABLED, &ar->dev_flags);
+		break;
+	case ATH10K_CRYPT_MODE_SW:
+		if (!test_bit(ATH10K_FW_FEATURE_RAW_MODE_SUPPORT,
+			      ar->fw_features)) {
+			ath10k_err(ar, "cryptmode > 0 requires raw mode support from firmware");
+			return -EINVAL;
+		}
+
+		set_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags);
+		set_bit(ATH10K_FLAG_HW_CRYPTO_DISABLED, &ar->dev_flags);
+		break;
+	default:
+		ath10k_info(ar, "invalid cryptmode: %d\n",
+			    ath10k_cryptmode_param);
+		return -EINVAL;
+	}
+
+	ar->htt.max_num_amsdu = ATH10K_HTT_MAX_NUM_AMSDU_DEFAULT;
+	ar->htt.max_num_ampdu = ATH10K_HTT_MAX_NUM_AMPDU_DEFAULT;
+
+	if (test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags)) {
+		ar->wmi.rx_decap_mode = ATH10K_HW_TXRX_RAW;
+
+		/* Workaround:
+		 *
+		 * Firmware A-MSDU aggregation breaks with RAW Tx encap mode
+		 * and causes enormous performance issues (malformed frames,
+		 * etc).
+		 *
+		 * Disabling A-MSDU makes RAW mode stable with heavy traffic
+		 * albeit a bit slower compared to regular operation.
+		 */
+		ar->htt.max_num_amsdu = 1;
+	}
+
 	/* Backwards compatibility for firmwares without
 	 * ATH10K_FW_IE_WMI_OP_VERSION.
 	 */
@@ -1014,6 +1155,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->htt.max_num_pending_tx = TARGET_NUM_MSDU_DESC;
 		ar->fw_stats_req_mask = WMI_STAT_PDEV | WMI_STAT_VDEV |
 			WMI_STAT_PEER;
+		ar->max_spatial_stream = WMI_MAX_SPATIAL_STREAM;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_1:
 	case ATH10K_FW_WMI_OP_VERSION_10_2:
@@ -1023,6 +1165,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->max_num_vdevs = TARGET_10X_NUM_VDEVS;
 		ar->htt.max_num_pending_tx = TARGET_10X_NUM_MSDU_DESC;
 		ar->fw_stats_req_mask = WMI_STAT_PEER;
+		ar->max_spatial_stream = WMI_MAX_SPATIAL_STREAM;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_TLV:
 		ar->max_num_peers = TARGET_TLV_NUM_PEERS;
@@ -1033,6 +1176,17 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->wow.max_num_patterns = TARGET_TLV_NUM_WOW_PATTERNS;
 		ar->fw_stats_req_mask = WMI_STAT_PDEV | WMI_STAT_VDEV |
 			WMI_STAT_PEER;
+		ar->max_spatial_stream = WMI_MAX_SPATIAL_STREAM;
+		break;
+	case ATH10K_FW_WMI_OP_VERSION_10_4:
+		ar->max_num_peers = TARGET_10_4_NUM_PEERS;
+		ar->max_num_stations = TARGET_10_4_NUM_STATIONS;
+		ar->num_active_peers = TARGET_10_4_ACTIVE_PEERS;
+		ar->max_num_vdevs = TARGET_10_4_NUM_VDEVS;
+		ar->num_tids = TARGET_10_4_TGT_NUM_TIDS;
+		ar->htt.max_num_pending_tx = TARGET_10_4_NUM_MSDU_DESC;
+		ar->fw_stats_req_mask = WMI_STAT_PEER;
+		ar->max_spatial_stream = WMI_10_4_MAX_SPATIAL_STREAM;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:
@@ -1056,6 +1210,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		case ATH10K_FW_WMI_OP_VERSION_TLV:
 			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_TLV;
 			break;
+		case ATH10K_FW_WMI_OP_VERSION_10_4:
 		case ATH10K_FW_WMI_OP_VERSION_UNSET:
 		case ATH10K_FW_WMI_OP_VERSION_MAX:
 			WARN_ON(1);
@@ -1272,13 +1427,13 @@ int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt)
 void ath10k_core_stop(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
+	ath10k_debug_stop(ar);
 
 	/* try to suspend target */
 	if (ar->state != ATH10K_STATE_RESTARTING &&
 	    ar->state != ATH10K_STATE_UTF)
 		ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR);
 
-	ath10k_debug_stop(ar);
 	ath10k_hif_stop(ar);
 	ath10k_htt_tx_free(&ar->htt);
 	ath10k_htt_rx_free(&ar->htt);
@@ -1326,6 +1481,13 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	ret = ath10k_core_init_firmware_features(ar);
 	if (ret) {
 		ath10k_err(ar, "fatal problem with firmware features: %d\n",
+			   ret);
+		goto err_free_firmware_files;
+	}
+
+	ret = ath10k_swap_code_seg_init(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to initialize code swap segment: %d\n",
 			   ret);
 		goto err_free_firmware_files;
 	}
@@ -1470,9 +1632,15 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	switch (hw_rev) {
 	case ATH10K_HW_QCA988X:
 		ar->regs = &qca988x_regs;
+		ar->hw_values = &qca988x_values;
 		break;
 	case ATH10K_HW_QCA6174:
 		ar->regs = &qca6174_regs;
+		ar->hw_values = &qca6174_values;
+		break;
+	case ATH10K_HW_QCA99X0:
+		ar->regs = &qca99x0_regs;
+		ar->hw_values = &qca99x0_values;
 		break;
 	default:
 		ath10k_err(ar, "unsupported core hardware revision %d\n",
@@ -1497,6 +1665,10 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	if (!ar->workqueue)
 		goto err_free_mac;
 
+	ar->workqueue_aux = create_singlethread_workqueue("ath10k_aux_wq");
+	if (!ar->workqueue_aux)
+		goto err_free_wq;
+
 	mutex_init(&ar->conf_mutex);
 	spin_lock_init(&ar->data_lock);
 
@@ -1517,10 +1689,12 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	ret = ath10k_debug_create(ar);
 	if (ret)
-		goto err_free_wq;
+		goto err_free_aux_wq;
 
 	return ar;
 
+err_free_aux_wq:
+	destroy_workqueue(ar->workqueue_aux);
 err_free_wq:
 	destroy_workqueue(ar->workqueue);
 
@@ -1535,6 +1709,9 @@ void ath10k_core_destroy(struct ath10k *ar)
 {
 	flush_workqueue(ar->workqueue);
 	destroy_workqueue(ar->workqueue);
+
+	flush_workqueue(ar->workqueue_aux);
+	destroy_workqueue(ar->workqueue_aux);
 
 	ath10k_debug_destroy(ar);
 	ath10k_mac_destroy(ar);

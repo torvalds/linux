@@ -53,6 +53,20 @@ nvbios_findstr(const u8 *data, int size, const char *str, int len)
 }
 
 int
+nvbios_memcmp(struct nvkm_bios *bios, u32 addr, const char *str, u32 len)
+{
+	unsigned char c1, c2;
+
+	while (len--) {
+		c1 = nvbios_rd08(bios, addr++);
+		c2 = *(str++);
+		if (c1 != c2)
+			return c1 - c2;
+	}
+	return 0;
+}
+
+int
 nvbios_extend(struct nvkm_bios *bios, u32 length)
 {
 	if (bios->size < length) {
@@ -69,62 +83,29 @@ nvbios_extend(struct nvkm_bios *bios, u32 length)
 	return 0;
 }
 
-static u8
-nvkm_bios_rd08(struct nvkm_object *object, u64 addr)
+static void *
+nvkm_bios_dtor(struct nvkm_subdev *subdev)
 {
-	struct nvkm_bios *bios = (void *)object;
-	return bios->data[addr];
+	struct nvkm_bios *bios = nvkm_bios(subdev);
+	kfree(bios->data);
+	return bios;
 }
 
-static u16
-nvkm_bios_rd16(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_bios *bios = (void *)object;
-	return get_unaligned_le16(&bios->data[addr]);
-}
+static const struct nvkm_subdev_func
+nvkm_bios = {
+	.dtor = nvkm_bios_dtor,
+};
 
-static u32
-nvkm_bios_rd32(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_bios *bios = (void *)object;
-	return get_unaligned_le32(&bios->data[addr]);
-}
-
-static void
-nvkm_bios_wr08(struct nvkm_object *object, u64 addr, u8 data)
-{
-	struct nvkm_bios *bios = (void *)object;
-	bios->data[addr] = data;
-}
-
-static void
-nvkm_bios_wr16(struct nvkm_object *object, u64 addr, u16 data)
-{
-	struct nvkm_bios *bios = (void *)object;
-	put_unaligned_le16(data, &bios->data[addr]);
-}
-
-static void
-nvkm_bios_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	struct nvkm_bios *bios = (void *)object;
-	put_unaligned_le32(data, &bios->data[addr]);
-}
-
-static int
-nvkm_bios_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+int
+nvkm_bios_new(struct nvkm_device *device, int index, struct nvkm_bios **pbios)
 {
 	struct nvkm_bios *bios;
 	struct bit_entry bit_i;
 	int ret;
 
-	ret = nvkm_subdev_create(parent, engine, oclass, 0,
-				 "VBIOS", "bios", &bios);
-	*pobject = nv_object(bios);
-	if (ret)
-		return ret;
+	if (!(bios = *pbios = kzalloc(sizeof(*bios), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(&nvkm_bios, device, index, 0, &bios->subdev);
 
 	ret = nvbios_shadow(bios);
 	if (ret)
@@ -134,73 +115,33 @@ nvkm_bios_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	bios->bmp_offset = nvbios_findstr(bios->data, bios->size,
 					  "\xff\x7f""NV\0", 5);
 	if (bios->bmp_offset) {
-		nv_info(bios, "BMP version %x.%x\n",
-			bmp_version(bios) >> 8,
-			bmp_version(bios) & 0xff);
+		nvkm_debug(&bios->subdev, "BMP version %x.%x\n",
+			   bmp_version(bios) >> 8,
+			   bmp_version(bios) & 0xff);
 	}
 
 	bios->bit_offset = nvbios_findstr(bios->data, bios->size,
 					  "\xff\xb8""BIT", 5);
 	if (bios->bit_offset)
-		nv_info(bios, "BIT signature found\n");
+		nvkm_debug(&bios->subdev, "BIT signature found\n");
 
 	/* determine the vbios version number */
 	if (!bit_entry(bios, 'i', &bit_i) && bit_i.length >= 4) {
-		bios->version.major = nv_ro08(bios, bit_i.offset + 3);
-		bios->version.chip  = nv_ro08(bios, bit_i.offset + 2);
-		bios->version.minor = nv_ro08(bios, bit_i.offset + 1);
-		bios->version.micro = nv_ro08(bios, bit_i.offset + 0);
-		bios->version.patch = nv_ro08(bios, bit_i.offset + 4);
+		bios->version.major = nvbios_rd08(bios, bit_i.offset + 3);
+		bios->version.chip  = nvbios_rd08(bios, bit_i.offset + 2);
+		bios->version.minor = nvbios_rd08(bios, bit_i.offset + 1);
+		bios->version.micro = nvbios_rd08(bios, bit_i.offset + 0);
+		bios->version.patch = nvbios_rd08(bios, bit_i.offset + 4);
 	} else
 	if (bmp_version(bios)) {
-		bios->version.major = nv_ro08(bios, bios->bmp_offset + 13);
-		bios->version.chip  = nv_ro08(bios, bios->bmp_offset + 12);
-		bios->version.minor = nv_ro08(bios, bios->bmp_offset + 11);
-		bios->version.micro = nv_ro08(bios, bios->bmp_offset + 10);
+		bios->version.major = nvbios_rd08(bios, bios->bmp_offset + 13);
+		bios->version.chip  = nvbios_rd08(bios, bios->bmp_offset + 12);
+		bios->version.minor = nvbios_rd08(bios, bios->bmp_offset + 11);
+		bios->version.micro = nvbios_rd08(bios, bios->bmp_offset + 10);
 	}
 
-	nv_info(bios, "version %02x.%02x.%02x.%02x.%02x\n",
-		bios->version.major, bios->version.chip,
-		bios->version.minor, bios->version.micro, bios->version.patch);
-
+	nvkm_info(&bios->subdev, "version %02x.%02x.%02x.%02x.%02x\n",
+		  bios->version.major, bios->version.chip,
+		  bios->version.minor, bios->version.micro, bios->version.patch);
 	return 0;
 }
-
-static void
-nvkm_bios_dtor(struct nvkm_object *object)
-{
-	struct nvkm_bios *bios = (void *)object;
-	kfree(bios->data);
-	nvkm_subdev_destroy(&bios->base);
-}
-
-static int
-nvkm_bios_init(struct nvkm_object *object)
-{
-	struct nvkm_bios *bios = (void *)object;
-	return nvkm_subdev_init(&bios->base);
-}
-
-static int
-nvkm_bios_fini(struct nvkm_object *object, bool suspend)
-{
-	struct nvkm_bios *bios = (void *)object;
-	return nvkm_subdev_fini(&bios->base, suspend);
-}
-
-struct nvkm_oclass
-nvkm_bios_oclass = {
-	.handle = NV_SUBDEV(VBIOS, 0x00),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nvkm_bios_ctor,
-		.dtor = nvkm_bios_dtor,
-		.init = nvkm_bios_init,
-		.fini = nvkm_bios_fini,
-		.rd08 = nvkm_bios_rd08,
-		.rd16 = nvkm_bios_rd16,
-		.rd32 = nvkm_bios_rd32,
-		.wr08 = nvkm_bios_wr08,
-		.wr16 = nvkm_bios_wr16,
-		.wr32 = nvkm_bios_wr32,
-	},
-};

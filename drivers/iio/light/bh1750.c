@@ -319,7 +319,6 @@ MODULE_DEVICE_TABLE(i2c, bh1750_id);
 static struct i2c_driver bh1750_driver = {
 	.driver = {
 		.name = "bh1750",
-		.owner = THIS_MODULE,
 		.pm = BH1750_PM_OPS,
 	},
 	.probe = bh1750_probe,

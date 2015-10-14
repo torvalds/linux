@@ -925,6 +925,20 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	const struct firmware *fw;
 	struct adapter *adap = netdev2adap(netdev);
 	unsigned int mbox = PCIE_FW_MASTER_M + 1;
+	u32 pcie_fw;
+	unsigned int master;
+	u8 master_vld = 0;
+
+	pcie_fw = t4_read_reg(adap, PCIE_FW_A);
+	master = PCIE_FW_MASTER_G(pcie_fw);
+	if (pcie_fw & PCIE_FW_MASTER_VLD_F)
+		master_vld = 1;
+	/* if csiostor is the master return */
+	if (master_vld && (master != adap->pf)) {
+		dev_warn(adap->pdev_dev,
+			 "cxgb4 driver needs to be loaded as MASTER to support FW flash\n");
+		return -EOPNOTSUPP;
+	}
 
 	ef->data[sizeof(ef->data) - 1] = '\0';
 	ret = request_firmware(&fw, ef->data, adap->pdev_dev);

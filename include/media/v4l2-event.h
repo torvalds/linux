@@ -68,10 +68,11 @@ struct v4l2_subdev;
 struct v4l2_subscribed_event;
 struct video_device;
 
-/** struct v4l2_kevent - Internal kernel event struct.
-  * @list:	List node for the v4l2_fh->available list.
-  * @sev:	Pointer to parent v4l2_subscribed_event.
-  * @event:	The event itself.
+/**
+ * struct v4l2_kevent - Internal kernel event struct.
+ * @list:	List node for the v4l2_fh->available list.
+ * @sev:	Pointer to parent v4l2_subscribed_event.
+ * @event:	The event itself.
   */
 struct v4l2_kevent {
 	struct list_head	list;
@@ -80,11 +81,12 @@ struct v4l2_kevent {
 };
 
 /** struct v4l2_subscribed_event_ops - Subscribed event operations.
-  * @add:	Optional callback, called when a new listener is added
-  * @del:	Optional callback, called when a listener stops listening
-  * @replace:	Optional callback that can replace event 'old' with event 'new'.
-  * @merge:	Optional callback that can merge event 'old' into event 'new'.
-  */
+ *
+ * @add:	Optional callback, called when a new listener is added
+ * @del:	Optional callback, called when a listener stops listening
+ * @replace:	Optional callback that can replace event 'old' with event 'new'.
+ * @merge:	Optional callback that can merge event 'old' into event 'new'.
+ */
 struct v4l2_subscribed_event_ops {
 	int  (*add)(struct v4l2_subscribed_event *sev, unsigned elems);
 	void (*del)(struct v4l2_subscribed_event *sev);
@@ -92,19 +94,20 @@ struct v4l2_subscribed_event_ops {
 	void (*merge)(const struct v4l2_event *old, struct v4l2_event *new);
 };
 
-/** struct v4l2_subscribed_event - Internal struct representing a subscribed event.
-  * @list:	List node for the v4l2_fh->subscribed list.
-  * @type:	Event type.
-  * @id:	Associated object ID (e.g. control ID). 0 if there isn't any.
-  * @flags:	Copy of v4l2_event_subscription->flags.
-  * @fh:	Filehandle that subscribed to this event.
-  * @node:	List node that hooks into the object's event list (if there is one).
-  * @ops:	v4l2_subscribed_event_ops
-  * @elems:	The number of elements in the events array.
-  * @first:	The index of the events containing the oldest available event.
-  * @in_use:	The number of queued events.
-  * @events:	An array of @elems events.
-  */
+/**
+ * struct v4l2_subscribed_event - Internal struct representing a subscribed event.
+ * @list:	List node for the v4l2_fh->subscribed list.
+ * @type:	Event type.
+ * @id:	Associated object ID (e.g. control ID). 0 if there isn't any.
+ * @flags:	Copy of v4l2_event_subscription->flags.
+ * @fh:	Filehandle that subscribed to this event.
+ * @node:	List node that hooks into the object's event list (if there is one).
+ * @ops:	v4l2_subscribed_event_ops
+ * @elems:	The number of elements in the events array.
+ * @first:	The index of the events containing the oldest available event.
+ * @in_use:	The number of queued events.
+ * @events:	An array of @elems events.
+ */
 struct v4l2_subscribed_event {
 	struct list_head	list;
 	u32			type;

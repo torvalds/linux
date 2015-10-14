@@ -154,7 +154,7 @@ bool amd_iommu_iotlb_sup __read_mostly = true;
 u32 amd_iommu_max_pasid __read_mostly = ~0;
 
 bool amd_iommu_v2_present __read_mostly;
-bool amd_iommu_pc_present __read_mostly;
+static bool amd_iommu_pc_present __read_mostly;
 
 bool amd_iommu_force_isolation __read_mostly;
 
@@ -1255,6 +1255,9 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 					  iommu->devid & 0xff);
 	if (!iommu->dev)
 		return -ENODEV;
+
+	/* Prevent binding other PCI device drivers to IOMMU devices */
+	iommu->dev->match_driver = false;
 
 	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_CAP_HDR_OFFSET,
 			      &iommu->cap);

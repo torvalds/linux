@@ -202,10 +202,20 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 #define NET_ADD_STATS_BH(net, field, adnd) SNMP_ADD_STATS_BH((net)->mib.net_statistics, field, adnd)
 #define NET_ADD_STATS_USER(net, field, adnd) SNMP_ADD_STATS_USER((net)->mib.net_statistics, field, adnd)
 
+u64 snmp_get_cpu_field(void __percpu *mib, int cpu, int offct);
 unsigned long snmp_fold_field(void __percpu *mib, int offt);
 #if BITS_PER_LONG==32
+u64 snmp_get_cpu_field64(void __percpu *mib, int cpu, int offct,
+			 size_t syncp_offset);
 u64 snmp_fold_field64(void __percpu *mib, int offt, size_t sync_off);
 #else
+static inline u64  snmp_get_cpu_field64(void __percpu *mib, int cpu, int offct,
+					size_t syncp_offset)
+{
+	return snmp_get_cpu_field(mib, cpu, offct);
+
+}
+
 static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_off)
 {
 	return snmp_fold_field(mib, offt);
@@ -370,22 +380,6 @@ static inline void iph_to_flow_copy_v4addrs(struct flow_keys *flow,
 	flow->control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 }
 
-static inline void inet_set_txhash(struct sock *sk)
-{
-	struct inet_sock *inet = inet_sk(sk);
-	struct flow_keys keys;
-
-	memset(&keys, 0, sizeof(keys));
-
-	keys.addrs.v4addrs.src = inet->inet_saddr;
-	keys.addrs.v4addrs.dst = inet->inet_daddr;
-	keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
-	keys.ports.src = inet->inet_sport;
-	keys.ports.dst = inet->inet_dport;
-
-	sk->sk_txhash = flow_hash_from_keys(&keys);
-}
-
 static inline __wsum inet_gro_compute_pseudo(struct sk_buff *skb, int proto)
 {
 	const struct iphdr *iph = skb_gro_network_header(skb);
@@ -473,6 +467,11 @@ static __inline__ void inet_reset_saddr(struct sock *sk)
 }
 
 #endif
+
+static inline unsigned int ipv4_addr_hash(__be32 ip)
+{
+	return (__force unsigned int) ip;
+}
 
 bool ip_call_ra_chain(struct sk_buff *skb);
 

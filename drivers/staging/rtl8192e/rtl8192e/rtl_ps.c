@@ -45,10 +45,10 @@ static void rtl8192_hw_sleep_down(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 	RT_TRACE(COMP_DBG, "%s()============>come to sleep down\n", __func__);
 
-	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS, false);
+	rtl92e_set_rf_state(dev, eRfSleep, RF_CHANGE_BY_PS);
 }
 
-void rtl8192_hw_sleep_wq(void *data)
+void rtl92e_hw_sleep_wq(void *data)
 {
 	struct rtllib_device *ieee = container_of_dwork_rsl(data,
 				     struct rtllib_device, hw_sleep_wq);
@@ -57,7 +57,7 @@ void rtl8192_hw_sleep_wq(void *data)
 	rtl8192_hw_sleep_down(dev);
 }
 
-void rtl8192_hw_wakeup(struct net_device *dev)
+void rtl92e_hw_wakeup(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
@@ -66,7 +66,7 @@ void rtl8192_hw_wakeup(struct net_device *dev)
 	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 		RT_TRACE(COMP_DBG,
-			 "rtl8192_hw_wakeup(): RF Change in progress!\n");
+			 "rtl92e_hw_wakeup(): RF Change in progress!\n");
 		queue_delayed_work_rsl(priv->rtllib->wq,
 				       &priv->rtllib->hw_wakeup_wq,
 				       msecs_to_jiffies(10));
@@ -74,21 +74,21 @@ void rtl8192_hw_wakeup(struct net_device *dev)
 	}
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 	RT_TRACE(COMP_PS, "%s()============>come to wake up\n", __func__);
-	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS, false);
+	rtl92e_set_rf_state(dev, eRfOn, RF_CHANGE_BY_PS);
 }
 
-void rtl8192_hw_wakeup_wq(void *data)
+void rtl92e_hw_wakeup_wq(void *data)
 {
 	struct rtllib_device *ieee = container_of_dwork_rsl(data,
 				     struct rtllib_device, hw_wakeup_wq);
 	struct net_device *dev = ieee->dev;
 
-	rtl8192_hw_wakeup(dev);
+	rtl92e_hw_wakeup(dev);
 }
 
 #define MIN_SLEEP_TIME 50
 #define MAX_SLEEP_TIME 10000
-void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
+void rtl92e_enter_sleep(struct net_device *dev, u64 time)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -133,14 +133,13 @@ static void InactivePsWorkItemCallback(struct net_device *dev)
 
 	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback(): Set RF to %s.\n",
 		 pPSC->eInactivePowerState == eRfOff ? "OFF" : "ON");
-	MgntActSet_RF_State(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS,
-			    false);
+	rtl92e_set_rf_state(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS);
 
 	pPSC->bSwRfProcessing = false;
 	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback() <---------\n");
 }
 
-void IPSEnter(struct net_device *dev)
+void rtl92e_ips_enter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -152,7 +151,7 @@ void IPSEnter(struct net_device *dev)
 		if (rtState == eRfOn && !pPSC->bSwRfProcessing &&
 			(priv->rtllib->state != RTLLIB_LINKED) &&
 			(priv->rtllib->iw_mode != IW_MODE_MASTER)) {
-			RT_TRACE(COMP_PS, "IPSEnter(): Turn off RF.\n");
+			RT_TRACE(COMP_PS, "rtl92e_ips_enter(): Turn off RF.\n");
 			pPSC->eInactivePowerState = eRfOff;
 			priv->isRFOff = true;
 			priv->bInPowerSaveMode = true;
@@ -161,7 +160,7 @@ void IPSEnter(struct net_device *dev)
 	}
 }
 
-void IPSLeave(struct net_device *dev)
+void rtl92e_ips_leave(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -172,7 +171,7 @@ void IPSLeave(struct net_device *dev)
 		rtState = priv->rtllib->eRFPowerState;
 		if (rtState != eRfOn  && !pPSC->bSwRfProcessing &&
 		    priv->rtllib->RfOffReason <= RF_CHANGE_BY_IPS) {
-			RT_TRACE(COMP_PS, "IPSLeave(): Turn on RF.\n");
+			RT_TRACE(COMP_PS, "rtl92e_ips_leave(): Turn on RF.\n");
 			pPSC->eInactivePowerState = eRfOn;
 			priv->bInPowerSaveMode = false;
 			InactivePsWorkItemCallback(dev);
@@ -180,7 +179,7 @@ void IPSLeave(struct net_device *dev)
 	}
 }
 
-void IPSLeave_wq(void *data)
+void rtl92e_ips_leave_wq(void *data)
 {
 	struct rtllib_device *ieee = container_of_work_rsl(data,
 				     struct rtllib_device, ips_leave_wq);
@@ -188,11 +187,11 @@ void IPSLeave_wq(void *data)
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
 	down(&priv->rtllib->ips_sem);
-	IPSLeave(dev);
+	rtl92e_ips_leave(dev);
 	up(&priv->rtllib->ips_sem);
 }
 
-void rtllib_ips_leave_wq(struct net_device *dev)
+void rtl92e_rtllib_ips_leave_wq(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	enum rt_rf_power_state rtState;
@@ -206,7 +205,7 @@ void rtllib_ips_leave_wq(struct net_device *dev)
 					    __func__);
 				return;
 			}
-			netdev_info(dev, "=========>%s(): IPSLeave\n",
+			netdev_info(dev, "=========>%s(): rtl92e_ips_leave\n",
 				    __func__);
 			queue_work_rsl(priv->rtllib->wq,
 				       &priv->rtllib->ips_leave_wq);
@@ -214,12 +213,12 @@ void rtllib_ips_leave_wq(struct net_device *dev)
 	}
 }
 
-void rtllib_ips_leave(struct net_device *dev)
+void rtl92e_rtllib_ips_leave(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
 	down(&priv->rtllib->ips_sem);
-	IPSLeave(dev);
+	rtl92e_ips_leave(dev);
 	up(&priv->rtllib->ips_sem);
 }
 
@@ -238,7 +237,7 @@ static bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,
 	    rtPsMode == RTLLIB_PS_DISABLED) {
 		unsigned long flags;
 
-		rtl8192_hw_wakeup(dev);
+		rtl92e_hw_wakeup(dev);
 		priv->rtllib->sta_sleep = LPS_IS_WAKE;
 
 		spin_lock_irqsave(&(priv->rtllib->mgmt_tx_lock), flags);
@@ -251,13 +250,13 @@ static bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,
 	return true;
 }
 
-void LeisurePSEnter(struct net_device *dev)
+void rtl92e_leisure_ps_enter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					&(priv->rtllib->PowerSaveControl);
 
-	RT_TRACE(COMP_PS, "LeisurePSEnter()...\n");
+	RT_TRACE(COMP_PS, "rtl92e_leisure_ps_enter()...\n");
 	RT_TRACE(COMP_PS,
 		 "pPSC->bLeisurePs = %d, ieee->ps = %d,pPSC->LpsIdleCount is %d,RT_CHECK_FOR_HANG_PERIOD is %d\n",
 		 pPSC->bLeisurePs, priv->rtllib->ps, pPSC->LpsIdleCount,
@@ -275,7 +274,7 @@ void LeisurePSEnter(struct net_device *dev)
 			if (priv->rtllib->ps == RTLLIB_PS_DISABLED) {
 
 				RT_TRACE(COMP_LPS,
-					 "LeisurePSEnter(): Enter 802.11 power save mode...\n");
+					 "rtl92e_leisure_ps_enter(): Enter 802.11 power save mode...\n");
 
 				if (!pPSC->bFwCtrlLPS) {
 					if (priv->rtllib->SetFwCmdHandler)
@@ -291,21 +290,21 @@ void LeisurePSEnter(struct net_device *dev)
 	}
 }
 
-void LeisurePSLeave(struct net_device *dev)
+void rtl92e_leisure_ps_leave(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					&(priv->rtllib->PowerSaveControl);
 
 
-	RT_TRACE(COMP_PS, "LeisurePSLeave()...\n");
+	RT_TRACE(COMP_PS, "rtl92e_leisure_ps_leave()...\n");
 	RT_TRACE(COMP_PS, "pPSC->bLeisurePs = %d, ieee->ps = %d\n",
 		pPSC->bLeisurePs, priv->rtllib->ps);
 
 	if (pPSC->bLeisurePs) {
 		if (priv->rtllib->ps != RTLLIB_PS_DISABLED) {
 			RT_TRACE(COMP_LPS,
-				 "LeisurePSLeave(): Busy Traffic , Leave 802.11 power save..\n");
+				 "rtl92e_leisure_ps_leave(): Busy Traffic , Leave 802.11 power save..\n");
 			MgntActSet_802_11_PowerSaveMode(dev,
 					 RTLLIB_PS_DISABLED);
 

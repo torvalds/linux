@@ -184,19 +184,18 @@ static unsigned int pxad_drcmr(unsigned int line)
 
 static int dbg_show_requester_chan(struct seq_file *s, void *p)
 {
-	int pos = 0;
 	struct pxad_phy *phy = s->private;
 	int i;
 	u32 drcmr;
 
-	pos += seq_printf(s, "DMA channel %d requester :\n", phy->idx);
+	seq_printf(s, "DMA channel %d requester :\n", phy->idx);
 	for (i = 0; i < 70; i++) {
 		drcmr = readl_relaxed(phy->base + pxad_drcmr(i));
 		if ((drcmr & DRCMR_CHLNUM) == phy->idx)
-			pos += seq_printf(s, "\tRequester %d (MAPVLD=%d)\n", i,
-					  !!(drcmr & DRCMR_MAPVLD));
+			seq_printf(s, "\tRequester %d (MAPVLD=%d)\n", i,
+				   !!(drcmr & DRCMR_MAPVLD));
 	}
-	return pos;
+	return 0;
 }
 
 static inline int dbg_burst_from_dcmd(u32 dcmd)
@@ -474,8 +473,10 @@ static void pxad_free_phy(struct pxad_chan *chan)
 		return;
 
 	/* clear the channel mapping in DRCMR */
-	reg = pxad_drcmr(chan->drcmr);
-	writel_relaxed(0, chan->phy->base + reg);
+	if (chan->drcmr <= DRCMR_CHLNUM) {
+		reg = pxad_drcmr(chan->drcmr);
+		writel_relaxed(0, chan->phy->base + reg);
+	}
 
 	spin_lock_irqsave(&pdev->phy_lock, flags);
 	for (i = 0; i < 32; i++)
@@ -517,8 +518,10 @@ static void phy_enable(struct pxad_phy *phy, bool misaligned)
 		"%s(); phy=%p(%d) misaligned=%d\n", __func__,
 		phy, phy->idx, misaligned);
 
-	reg = pxad_drcmr(phy->vchan->drcmr);
-	writel_relaxed(DRCMR_MAPVLD | phy->idx, phy->base + reg);
+	if (phy->vchan->drcmr <= DRCMR_CHLNUM) {
+		reg = pxad_drcmr(phy->vchan->drcmr);
+		writel_relaxed(DRCMR_MAPVLD | phy->idx, phy->base + reg);
+	}
 
 	dalgn = phy_readl_relaxed(phy, DALGN);
 	if (misaligned)
@@ -888,6 +891,7 @@ pxad_tx_prep(struct virt_dma_chan *vc, struct virt_dma_desc *vd,
 	struct dma_async_tx_descriptor *tx;
 	struct pxad_chan *chan = container_of(vc, struct pxad_chan, vc);
 
+	INIT_LIST_HEAD(&vd->node);
 	tx = vchan_tx_prep(vc, vd, tx_flags);
 	tx->tx_submit = pxad_tx_submit;
 	dev_dbg(&chan->vc.chan.dev->device,
@@ -906,21 +910,25 @@ static void pxad_get_config(struct pxad_chan *chan,
 	enum dma_slave_buswidth width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
 
 	*dcmd = 0;
-	if (chan->cfg.direction == DMA_DEV_TO_MEM) {
+	if (dir == DMA_DEV_TO_MEM) {
 		maxburst = chan->cfg.src_maxburst;
 		width = chan->cfg.src_addr_width;
 		dev_addr = chan->cfg.src_addr;
 		*dev_src = dev_addr;
-		*dcmd |= PXA_DCMD_INCTRGADDR | PXA_DCMD_FLOWSRC;
+		*dcmd |= PXA_DCMD_INCTRGADDR;
+		if (chan->drcmr <= DRCMR_CHLNUM)
+			*dcmd |= PXA_DCMD_FLOWSRC;
 	}
-	if (chan->cfg.direction == DMA_MEM_TO_DEV) {
+	if (dir == DMA_MEM_TO_DEV) {
 		maxburst = chan->cfg.dst_maxburst;
 		width = chan->cfg.dst_addr_width;
 		dev_addr = chan->cfg.dst_addr;
 		*dev_dst = dev_addr;
-		*dcmd |= PXA_DCMD_INCSRCADDR | PXA_DCMD_FLOWTRG;
+		*dcmd |= PXA_DCMD_INCSRCADDR;
+		if (chan->drcmr <= DRCMR_CHLNUM)
+			*dcmd |= PXA_DCMD_FLOWTRG;
 	}
-	if (chan->cfg.direction == DMA_MEM_TO_MEM)
+	if (dir == DMA_MEM_TO_MEM)
 		*dcmd |= PXA_DCMD_BURST32 | PXA_DCMD_INCTRGADDR |
 			PXA_DCMD_INCSRCADDR;
 
@@ -1177,6 +1185,16 @@ static unsigned int pxad_residue(struct pxad_chan *chan,
 		curr = phy_readl_relaxed(chan->phy, DSADR);
 	else
 		curr = phy_readl_relaxed(chan->phy, DTADR);
+
+	/*
+	 * curr has to be actually read before checking descriptor
+	 * completion, so that a curr inside a status updater
+	 * descriptor implies the following test returns true, and
+	 * preventing reordering of curr load and the test.
+	 */
+	rmb();
+	if (is_desc_completed(vd))
+		goto out;
 
 	for (i = 0; i < sw_desc->nb_desc - 1; i++) {
 		hw_desc = sw_desc->hw_desc[i];

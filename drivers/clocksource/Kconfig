@@ -111,6 +111,10 @@ config CLKSRC_LPC32XX
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 
+config CLKSRC_PISTACHIO
+	bool
+	select CLKSRC_OF
+
 config CLKSRC_STM32
 	bool "Clocksource for STM32 SoCs" if !ARCH_STM32
 	depends on OF && ARM && (ARCH_STM32 || COMPILE_TEST)
@@ -277,7 +281,7 @@ config CLKSRC_MIPS_GIC
 
 config CLKSRC_PXA
 	def_bool y if ARCH_PXA || ARCH_SA1100
-	select CLKSRC_OF if USE_OF
+	select CLKSRC_OF if OF
 	help
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
@@ -292,5 +296,13 @@ config CLKSRC_IMX_GPT
 	bool "Clocksource using i.MX GPT" if COMPILE_TEST
 	depends on ARM && CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+
+config CLKSRC_ST_LPC
+	bool
+	depends on ARCH_STI
+	select CLKSRC_OF if OF
+	help
+	  Enable this option to use the Low Power controller timer
+	  as clocksource.
 
 endmenu

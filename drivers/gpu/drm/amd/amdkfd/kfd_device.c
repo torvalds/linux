@@ -80,7 +80,12 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x1318, &kaveri_device_info },	/* Kaveri */
 	{ 0x131B, &kaveri_device_info },	/* Kaveri */
 	{ 0x131C, &kaveri_device_info },	/* Kaveri */
-	{ 0x131D, &kaveri_device_info }		/* Kaveri */
+	{ 0x131D, &kaveri_device_info },	/* Kaveri */
+	{ 0x9870, &carrizo_device_info },	/* Carrizo */
+	{ 0x9874, &carrizo_device_info },	/* Carrizo */
+	{ 0x9875, &carrizo_device_info },	/* Carrizo */
+	{ 0x9876, &carrizo_device_info },	/* Carrizo */
+	{ 0x9877, &carrizo_device_info }	/* Carrizo */
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,

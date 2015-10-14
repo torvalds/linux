@@ -68,16 +68,13 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 #endif
 }
 
-bool handle_irq(unsigned irq, struct pt_regs *regs)
+bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
 {
-	struct irq_desc *desc;
-
 	stack_overflow_check(regs);
 
-	desc = irq_to_desc(irq);
-	if (unlikely(!desc))
+	if (unlikely(IS_ERR_OR_NULL(desc)))
 		return false;
 
-	generic_handle_irq_desc(irq, desc);
+	generic_handle_irq_desc(desc);
 	return true;
 }

@@ -11,9 +11,9 @@
 #define GET_FIELD(d, f)     (((d) >> _LSB(f)) & RAW_MASK(f))
 #define TEST_FIELD(d, f, v) (GET_FIELD(d, f) == f ## _ ## v)
 #define SET_FIELD(d, f, v)  (((d) & ~GET_MASK(f)) | \
-                            (((f ## _ ## v) & RAW_MASK(f)) << _LSB(f)))
+			    (((f ## _ ## v) & RAW_MASK(f)) << _LSB(f)))
 #define SET_FIELDV(d, f, v) (((d) & ~GET_MASK(f)) | \
-                            (((v) & RAW_MASK(f)) << _LSB(f)))
+			    (((v) & RAW_MASK(f)) << _LSB(f)))
 
 /* Internal macros */
 #define _F_START(f)             (0 ? f)
@@ -26,24 +26,24 @@
 /* Global macros */
 #define FIELD_GET(x, reg, field) \
 ( \
-    _F_NORMALIZE((x), reg ## _ ## field) \
+	_F_NORMALIZE((x), reg ## _ ## field) \
 )
 
 #define FIELD_SET(x, reg, field, value) \
 ( \
-    (x & ~_F_MASK(reg ## _ ## field)) \
-    | _F_DENORMALIZE(reg ## _ ## field ## _ ## value, reg ## _ ## field) \
+	(x & ~_F_MASK(reg ## _ ## field)) \
+	| _F_DENORMALIZE(reg ## _ ## field ## _ ## value, reg ## _ ## field) \
 )
 
 #define FIELD_VALUE(x, reg, field, value) \
 ( \
-    (x & ~_F_MASK(reg ## _ ## field)) \
-    | _F_DENORMALIZE(value, reg ## _ ## field) \
+	(x & ~_F_MASK(reg ## _ ## field)) \
+	| _F_DENORMALIZE(value, reg ## _ ## field) \
 )
 
 #define FIELD_CLEAR(reg, field) \
 ( \
-    ~ _F_MASK(reg ## _ ## field) \
+	~ _F_MASK(reg ## _ ## field) \
 )
 
 /* Field Macros */
@@ -55,25 +55,25 @@
 #define FIELD_DENORMALIZE(field, value) (((value) << FIELD_START(field)) & FIELD_MASK(field))
 
 #define FIELD_INIT(reg, field, value)   FIELD_DENORMALIZE(reg ## _ ## field, \
-                                                          reg ## _ ## field ## _ ## value)
+							  reg ## _ ## field ## _ ## value)
 #define FIELD_INIT_VAL(reg, field, value) \
-                                        (FIELD_DENORMALIZE(reg ## _ ## field, value))
+	(FIELD_DENORMALIZE(reg ## _ ## field, value))
 #define FIELD_VAL_SET(x, r, f, v)       x = x & ~FIELD_MASK(r ## _ ## f) \
-                                              | FIELD_DENORMALIZE(r ## _ ## f, r ## _ ## f ## _ ## v)
+					| FIELD_DENORMALIZE(r ## _ ## f, r ## _ ## f ## _ ## v)
 
 #define RGB(r, g, b) \
 ( \
-    (unsigned long) (((r) << 16) | ((g) << 8) | (b)) \
+	(unsigned long) (((r) << 16) | ((g) << 8) | (b)) \
 )
 
 #define RGB16(r, g, b) \
 ( \
-    (unsigned short) ((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | (((b) & 0xF8) >> 3)) \
+	(unsigned short) ((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | (((b) & 0xF8) >> 3)) \
 )
 
 static inline unsigned int absDiff(unsigned int a, unsigned int b)
 {
-	if(a<b)
+	if (a < b)
 		return b-a;
 	else
 		return a-b;

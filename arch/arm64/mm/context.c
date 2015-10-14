@@ -53,8 +53,6 @@ static void flush_context(void)
 		__flush_icache_all();
 }
 
-#ifdef CONFIG_SMP
-
 static void set_mm_context(struct mm_struct *mm, unsigned int asid)
 {
 	unsigned long flags;
@@ -110,23 +108,12 @@ static void reset_context(void *info)
 	cpu_switch_mm(mm->pgd, mm);
 }
 
-#else
-
-static inline void set_mm_context(struct mm_struct *mm, unsigned int asid)
-{
-	mm->context.id = asid;
-	cpumask_copy(mm_cpumask(mm), cpumask_of(smp_processor_id()));
-}
-
-#endif
-
 void __new_context(struct mm_struct *mm)
 {
 	unsigned int asid;
 	unsigned int bits = asid_bits();
 
 	raw_spin_lock(&cpu_asid_lock);
-#ifdef CONFIG_SMP
 	/*
 	 * Check the ASID again, in case the change was broadcast from another
 	 * CPU before we acquired the lock.
@@ -136,7 +123,6 @@ void __new_context(struct mm_struct *mm)
 		raw_spin_unlock(&cpu_asid_lock);
 		return;
 	}
-#endif
 	/*
 	 * At this point, it is guaranteed that the current mm (with an old
 	 * ASID) isn't active on any other CPU since the ASIDs are changed
@@ -155,10 +141,8 @@ void __new_context(struct mm_struct *mm)
 			cpu_last_asid = ASID_FIRST_VERSION;
 		asid = cpu_last_asid + smp_processor_id();
 		flush_context();
-#ifdef CONFIG_SMP
 		smp_wmb();
 		smp_call_function(reset_context, NULL, 1);
-#endif
 		cpu_last_asid += NR_CPUS - 1;
 	}
 

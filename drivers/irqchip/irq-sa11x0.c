@@ -70,7 +70,6 @@ static int sa1100_normal_irqdomain_map(struct irq_domain *d,
 {
 	irq_set_chip_and_handler(irq, &sa1100_normal_chip,
 				 handle_level_irq);
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }

@@ -514,7 +514,7 @@ CARDvSafeResetTx(
 )
 {
 	unsigned int uu;
-	PSTxDesc    pCurrTD;
+	struct vnt_tx_desc *pCurrTD;
 
 	/* initialize TD index */
 	pDevice->apTailTD[0] = pDevice->apCurrTD[0] = &(pDevice->apTD0Rings[0]);
@@ -525,12 +525,12 @@ CARDvSafeResetTx(
 
 	for (uu = 0; uu < pDevice->sOpts.nTxDescs[0]; uu++) {
 		pCurrTD = &(pDevice->apTD0Rings[uu]);
-		pCurrTD->m_td0TD0.f1Owner = OWNED_BY_HOST;
+		pCurrTD->td0.owner = OWNED_BY_HOST;
 		/* init all Tx Packet pointer to NULL */
 	}
 	for (uu = 0; uu < pDevice->sOpts.nTxDescs[1]; uu++) {
 		pCurrTD = &(pDevice->apTD1Rings[uu]);
-		pCurrTD->m_td0TD0.f1Owner = OWNED_BY_HOST;
+		pCurrTD->td0.owner = OWNED_BY_HOST;
 		/* init all Tx Packet pointer to NULL */
 	}
 
@@ -573,17 +573,17 @@ CARDvSafeResetRx(
 	/* init state, all RD is chip's */
 	for (uu = 0; uu < pDevice->sOpts.nRxDescs0; uu++) {
 		pDesc = &(pDevice->aRD0Ring[uu]);
-		pDesc->m_rd0RD0.wResCount = (unsigned short)(pDevice->rx_buf_sz);
+		pDesc->m_rd0RD0.wResCount = cpu_to_le16(pDevice->rx_buf_sz);
 		pDesc->m_rd0RD0.f1Owner = OWNED_BY_NIC;
-		pDesc->m_rd1RD1.wReqCount = (unsigned short)(pDevice->rx_buf_sz);
+		pDesc->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
 	}
 
 	/* init state, all RD is chip's */
 	for (uu = 0; uu < pDevice->sOpts.nRxDescs1; uu++) {
 		pDesc = &(pDevice->aRD1Ring[uu]);
-		pDesc->m_rd0RD0.wResCount = (unsigned short)(pDevice->rx_buf_sz);
+		pDesc->m_rd0RD0.wResCount = cpu_to_le16(pDevice->rx_buf_sz);
 		pDesc->m_rd0RD0.f1Owner = OWNED_BY_NIC;
-		pDesc->m_rd1RD1.wReqCount = (unsigned short)(pDevice->rx_buf_sz);
+		pDesc->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
 	}
 
 	/* set perPkt mode */
@@ -847,7 +847,6 @@ void CARDvSetLoopbackMode(struct vnt_private *priv, unsigned short wLoopbackMode
 	case CARD_LB_PHY:
 		break;
 	default:
-		ASSERT(false);
 		break;
 	}
 	/* set MAC loopback */

@@ -62,6 +62,7 @@ extern void fast_coprocessor(void);
 
 extern void do_illegal_instruction (struct pt_regs*);
 extern void do_interrupt (struct pt_regs*);
+extern void do_nmi(struct pt_regs *);
 extern void do_unaligned_user (struct pt_regs*);
 extern void do_multihit (struct pt_regs*, unsigned long);
 extern void do_page_fault (struct pt_regs*, unsigned long);
@@ -146,6 +147,9 @@ COPROCESSOR(6),
 #if XTENSA_HAVE_COPROCESSOR(7)
 COPROCESSOR(7),
 #endif
+#if XTENSA_FAKE_NMI
+{ EXCCAUSE_MAPPED_NMI,			0,		do_nmi },
+#endif
 { EXCCAUSE_MAPPED_DEBUG,		0,		do_debug },
 { -1, -1, 0 }
 
@@ -199,6 +203,28 @@ void do_multihit(struct pt_regs *regs, unsigned long exccause)
 
 extern void do_IRQ(int, struct pt_regs *);
 
+#if XTENSA_FAKE_NMI
+
+irqreturn_t xtensa_pmu_irq_handler(int irq, void *dev_id);
+
+DEFINE_PER_CPU(unsigned long, nmi_count);
+
+void do_nmi(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+
+	if ((regs->ps & PS_INTLEVEL_MASK) < LOCKLEVEL)
+		trace_hardirqs_off();
+
+	old_regs = set_irq_regs(regs);
+	nmi_enter();
+	++*this_cpu_ptr(&nmi_count);
+	xtensa_pmu_irq_handler(0, NULL);
+	nmi_exit();
+	set_irq_regs(old_regs);
+}
+#endif
+
 void do_interrupt(struct pt_regs *regs)
 {
 	static const unsigned int_level_mask[] = {
@@ -211,8 +237,11 @@ void do_interrupt(struct pt_regs *regs)
 		XCHAL_INTLEVEL6_MASK,
 		XCHAL_INTLEVEL7_MASK,
 	};
-	struct pt_regs *old_regs = set_irq_regs(regs);
+	struct pt_regs *old_regs;
 
+	trace_hardirqs_off();
+
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
 	for (;;) {

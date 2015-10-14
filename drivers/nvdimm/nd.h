@@ -29,6 +29,13 @@ enum {
 	ND_MAX_LANES = 256,
 	SECTOR_SHIFT = 9,
 	INT_LBASIZE_ALIGNMENT = 64,
+#if IS_ENABLED(CONFIG_NVDIMM_PFN)
+	ND_PFN_ALIGN = PAGES_PER_SECTION * PAGE_SIZE,
+	ND_PFN_MASK = ND_PFN_ALIGN - 1,
+#else
+	ND_PFN_ALIGN = 0,
+	ND_PFN_MASK = 0,
+#endif
 };
 
 struct nvdimm_drvdata {
@@ -92,8 +99,11 @@ struct nd_region {
 	struct device dev;
 	struct ida ns_ida;
 	struct ida btt_ida;
+	struct ida pfn_ida;
+	unsigned long flags;
 	struct device *ns_seed;
 	struct device *btt_seed;
+	struct device *pfn_seed;
 	u16 ndr_mappings;
 	u64 ndr_size;
 	u64 ndr_start;
@@ -133,6 +143,22 @@ struct nd_btt {
 	int id;
 };
 
+enum nd_pfn_mode {
+	PFN_MODE_NONE,
+	PFN_MODE_RAM,
+	PFN_MODE_PMEM,
+};
+
+struct nd_pfn {
+	int id;
+	u8 *uuid;
+	struct device dev;
+	unsigned long npfns;
+	enum nd_pfn_mode mode;
+	struct nd_pfn_sb *pfn_sb;
+	struct nd_namespace_common *ndns;
+};
+
 enum nd_async_mode {
 	ND_SYNC,
 	ND_ASYNC,
@@ -159,14 +185,19 @@ int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
 int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 		void *buf, size_t len);
 struct nd_btt *to_nd_btt(struct device *dev);
-struct btt_sb;
-u64 nd_btt_sb_checksum(struct btt_sb *btt_sb);
+
+struct nd_gen_sb {
+	char reserved[SZ_4K - 8];
+	__le64 checksum;
+};
+
+u64 nd_sb_checksum(struct nd_gen_sb *sb);
 #if IS_ENABLED(CONFIG_BTT)
 int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata);
 bool is_nd_btt(struct device *dev);
 struct device *nd_btt_create(struct nd_region *nd_region);
 #else
-static inline nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata)
+static inline int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata)
 {
 	return -ENODEV;
 }
@@ -180,8 +211,36 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
 {
 	return NULL;
 }
-
 #endif
+
+struct nd_pfn *to_nd_pfn(struct device *dev);
+#if IS_ENABLED(CONFIG_NVDIMM_PFN)
+int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata);
+bool is_nd_pfn(struct device *dev);
+struct device *nd_pfn_create(struct nd_region *nd_region);
+int nd_pfn_validate(struct nd_pfn *nd_pfn);
+#else
+static inline int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
+{
+	return -ENODEV;
+}
+
+static inline bool is_nd_pfn(struct device *dev)
+{
+	return false;
+}
+
+static inline struct device *nd_pfn_create(struct nd_region *nd_region)
+{
+	return NULL;
+}
+
+static inline int nd_pfn_validate(struct nd_pfn *nd_pfn)
+{
+	return -ENODEV;
+}
+#endif
+
 struct nd_region *to_nd_region(struct device *dev);
 int nd_region_to_nstype(struct nd_region *nd_region);
 int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
@@ -217,4 +276,6 @@ static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 }
 void nd_iostat_end(struct bio *bio, unsigned long start);
 resource_size_t nd_namespace_blk_validate(struct nd_namespace_blk *nsblk);
+const u8 *nd_dev_to_uuid(struct device *dev);
+bool pmem_should_map_pages(struct device *dev);
 #endif /* __ND_H__ */

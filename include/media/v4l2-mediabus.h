@@ -65,7 +65,7 @@
 					 V4L2_MBUS_CSI2_CHANNEL_2 | V4L2_MBUS_CSI2_CHANNEL_3)
 
 /**
- * v4l2_mbus_type - media bus type
+ * enum v4l2_mbus_type - media bus type
  * @V4L2_MBUS_PARALLEL:	parallel interface with hsync and vsync
  * @V4L2_MBUS_BT656:	parallel interface with embedded synchronisation, can
  *			also be used for BT.1120
@@ -78,7 +78,7 @@ enum v4l2_mbus_type {
 };
 
 /**
- * v4l2_mbus_config - media bus configuration
+ * struct v4l2_mbus_config - media bus configuration
  * @type:	in: interface type
  * @flags:	in / out: configuration flags, depending on @type
  */
