@@ -228,7 +228,6 @@ enum cb_pcidas_boardid {
 
 struct cb_pcidas_board {
 	const char *name;
-	int ai_nchan;		/*  Inputs in single-ended mode */
 	int ai_speed;		/*  fastest conversion period in ns */
 	int ao_scan_speed;	/*  analog output scan speed for 1602 series */
 	int fifo_size;		/*  number of samples fifo can hold */
@@ -244,7 +243,6 @@ struct cb_pcidas_board {
 static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	[BOARD_PCIDAS1602_16] = {
 		.name		= "pci-das1602/16",
-		.ai_nchan	= 16,
 		.ai_speed	= 5000,
 		.ao_scan_speed	= 10000,
 		.fifo_size	= 512,
@@ -258,7 +256,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	},
 	[BOARD_PCIDAS1200] = {
 		.name		= "pci-das1200",
-		.ai_nchan	= 16,
 		.ai_speed	= 3200,
 		.fifo_size	= 1024,
 		.ranges		= &cb_pcidas_ranges,
@@ -267,7 +264,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	},
 	[BOARD_PCIDAS1602_12] = {
 		.name		= "pci-das1602/12",
-		.ai_nchan	= 16,
 		.ai_speed	= 3200,
 		.ao_scan_speed	= 4000,
 		.fifo_size	= 1024,
@@ -279,7 +275,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	},
 	[BOARD_PCIDAS1200_JR] = {
 		.name		= "pci-das1200/jr",
-		.ai_nchan	= 16,
 		.ai_speed	= 3200,
 		.fifo_size	= 1024,
 		.ranges		= &cb_pcidas_ranges,
@@ -287,7 +282,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	},
 	[BOARD_PCIDAS1602_16_JR] = {
 		.name		= "pci-das1602/16/jr",
-		.ai_nchan	= 16,
 		.ai_speed	= 5000,
 		.fifo_size	= 512,
 		.ranges		= &cb_pcidas_ranges,
@@ -298,7 +292,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	},
 	[BOARD_PCIDAS1000] = {
 		.name		= "pci-das1000",
-		.ai_nchan	= 16,
 		.ai_speed	= 4000,
 		.fifo_size	= 1024,
 		.ranges		= &cb_pcidas_ranges,
@@ -306,7 +299,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	},
 	[BOARD_PCIDAS1001] = {
 		.name		= "pci-das1001",
-		.ai_nchan	= 16,
 		.ai_speed	= 6800,
 		.fifo_size	= 1024,
 		.ranges		= &cb_pcidas_alt_ranges,
@@ -315,7 +307,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	},
 	[BOARD_PCIDAS1002] = {
 		.name		= "pci-das1002",
-		.ai_nchan	= 16,
 		.ai_speed	= 6800,
 		.fifo_size	= 1024,
 		.ranges		= &cb_pcidas_ranges,
@@ -1389,8 +1380,8 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
 	/* WARNING: Number of inputs in differential mode is ignored */
-	s->n_chan = board->ai_nchan;
-	s->len_chanlist = board->ai_nchan;
+	s->n_chan = 16;
+	s->len_chanlist = s->n_chan;
 	s->maxdata = board->is_16bit ? 0xffff : 0x0fff;
 	s->range_table = board->ranges;
 	s->insn_read = cb_pcidas_ai_rinsn;
