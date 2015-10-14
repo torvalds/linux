@@ -57,6 +57,31 @@ enum {
 	MLX5_HEALTH_SYNDR_HIGH_TEMP		= 0x10
 };
 
+enum {
+	MLX5_NIC_IFC_FULL		= 0,
+	MLX5_NIC_IFC_DISABLED		= 1,
+	MLX5_NIC_IFC_NO_DRAM_NIC	= 2
+};
+
+static u8 get_nic_interface(struct mlx5_core_dev *dev)
+{
+	return (ioread32be(&dev->iseg->cmdq_addr_l_sz) >> 8) & 3;
+}
+
+static int in_fatal(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+	struct health_buffer __iomem *h = health->health;
+
+	if (get_nic_interface(dev) == MLX5_NIC_IFC_DISABLED)
+		return 1;
+
+	if (ioread32be(&h->fw_ver) == 0xffffffff)
+		return 1;
+
+	return 0;
+}
+
 static void health_care(struct work_struct *work)
 {
 	struct mlx5_core_health *health;
@@ -136,11 +161,21 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	dev_err(&dev->pdev->dev, "ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
 }
 
+static unsigned long get_next_poll_jiffies(void)
+{
+	unsigned long next;
+
+	get_random_bytes(&next, sizeof(next));
+	next %= HZ;
+	next += jiffies + MLX5_HEALTH_POLL_INTERVAL;
+
+	return next;
+}
+
 static void poll_health(unsigned long data)
 {
 	struct mlx5_core_dev *dev = (struct mlx5_core_dev *)data;
 	struct mlx5_core_health *health = &dev->priv.health;
-	unsigned long next;
 	u32 count;
 
 	count = ioread32be(health->health_counter);
@@ -151,14 +186,16 @@ static void poll_health(unsigned long data)
 
 	health->prev = count;
 	if (health->miss_counter == MAX_MISSES) {
-		mlx5_core_err(dev, "device's health compromised\n");
+		dev_err(&dev->pdev->dev, "device's health compromised - reached miss count\n");
+		print_health_info(dev);
+	} else {
+		mod_timer(&health->timer, get_next_poll_jiffies());
+	}
+
+	if (in_fatal(dev) && !health->sick) {
+		health->sick = true;
 		print_health_info(dev);
 		queue_work(health->wq, &health->work);
-	} else {
-		get_random_bytes(&next, sizeof(next));
-		next %= HZ;
-		next += jiffies + MLX5_HEALTH_POLL_INTERVAL;
-		mod_timer(&health->timer, next);
 	}
 }
 

@@ -393,6 +393,7 @@ struct mlx5_core_health {
 	struct timer_list		timer;
 	u32				prev;
 	int				miss_counter;
+	bool				sick;
 	struct workqueue_struct	       *wq;
 	struct work_struct		work;
 };
