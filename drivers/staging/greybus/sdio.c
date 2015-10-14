@@ -208,7 +208,7 @@ static int gb_sdio_event_recv(u8 type, struct gb_operation *op)
 	u8 event;
 
 	if (type != GB_SDIO_TYPE_EVENT) {
-		dev_err(&connection->dev,
+		dev_err(&connection->bundle->dev,
 			"unsupported unsolicited event: %u\n", type);
 		return -EINVAL;
 	}
@@ -707,7 +707,7 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 	size_t max_buffer;
 	int ret = 0;
 
-	mmc = mmc_alloc_host(sizeof(*host), &connection->dev);
+	mmc = mmc_alloc_host(sizeof(*host), &connection->bundle->dev);
 	if (!mmc)
 		return -ENOMEM;
 
@@ -739,7 +739,7 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 	mutex_init(&host->lock);
 	spin_lock_init(&host->xfer);
 	host->mrq_workqueue = alloc_workqueue("mmc-%s", 0, 1,
-						dev_name(&connection->dev));
+					      dev_name(&connection->bundle->dev));
 	if (!host->mrq_workqueue) {
 		ret = -ENOMEM;
 		goto free_buffer;
