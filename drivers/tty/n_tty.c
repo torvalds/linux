@@ -1179,8 +1179,6 @@ static void n_tty_receive_break(struct tty_struct *tty)
 		put_tty_queue('\0', ldata);
 	}
 	put_tty_queue('\0', ldata);
-	if (waitqueue_active(&tty->read_wait))
-		wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 }
 
 /**
@@ -1237,8 +1235,6 @@ static void n_tty_receive_parity_error(struct tty_struct *tty, unsigned char c)
 			put_tty_queue('\0', ldata);
 	} else
 		put_tty_queue(c, ldata);
-	if (waitqueue_active(&tty->read_wait))
-		wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 }
 
 static void
