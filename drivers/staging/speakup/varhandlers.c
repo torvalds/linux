@@ -323,7 +323,7 @@ char *spk_strlwr(char *s)
 
 char *spk_s2uchar(char *start, char *dest)
 {
-	int val = 0;
+	int val;
 
 	val = simple_strtoul(skip_spaces(start), &start, 10);
 	if (*start == ',')
