@@ -208,6 +208,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->unit	   = "";
 	evsel->scale	   = 1.0;
 	evsel->evlist	   = NULL;
+	evsel->bpf_fd	   = -1;
 	INIT_LIST_HEAD(&evsel->node);
 	INIT_LIST_HEAD(&evsel->config_terms);
 	perf_evsel__object.init(evsel);
@@ -1356,6 +1357,22 @@ retry_open:
 					  err);
 				goto try_fallback;
 			}
+
+			if (evsel->bpf_fd >= 0) {
+				int evt_fd = FD(evsel, cpu, thread);
+				int bpf_fd = evsel->bpf_fd;
+
+				err = ioctl(evt_fd,
+					    PERF_EVENT_IOC_SET_BPF,
+					    bpf_fd);
+				if (err && errno != EEXIST) {
+					pr_err("failed to attach bpf fd %d: %s\n",
+					       bpf_fd, strerror(errno));
+					err = -EINVAL;
+					goto out_close;
+				}
+			}
+
 			set_rlimit = NO_CHANGE;
 
 			/*
