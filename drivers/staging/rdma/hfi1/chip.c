@@ -1295,7 +1295,7 @@ static inline u64 read_write_csr(const struct hfi1_devdata *dd, u32 csr,
 static u64 dev_access_u32_csr(const struct cntr_entry *entry,
 			    void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1305,7 +1305,7 @@ static u64 dev_access_u32_csr(const struct cntr_entry *entry,
 static u64 dev_access_u64_csr(const struct cntr_entry *entry, void *context,
 			    int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	u64 val = 0;
 	u64 csr = entry->csr;
@@ -1326,7 +1326,7 @@ static u64 dev_access_u64_csr(const struct cntr_entry *entry, void *context,
 static u64 dc_access_lcb_cntr(const struct cntr_entry *entry, void *context,
 			    int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 	u32 csr = entry->csr;
 	int ret = 0;
 
@@ -1350,7 +1350,7 @@ static u64 dc_access_lcb_cntr(const struct cntr_entry *entry, void *context,
 static u64 port_access_u32_csr(const struct cntr_entry *entry, void *context,
 			     int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1360,7 +1360,7 @@ static u64 port_access_u32_csr(const struct cntr_entry *entry, void *context,
 static u64 port_access_u64_csr(const struct cntr_entry *entry,
 			     void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 	u64 val;
 	u64 csr = entry->csr;
 
@@ -1400,7 +1400,7 @@ static inline u64 read_write_sw(struct hfi1_devdata *dd, u64 *cntr, int mode,
 static u64 access_sw_link_dn_cnt(const struct cntr_entry *entry, void *context,
 			       int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1410,7 +1410,7 @@ static u64 access_sw_link_dn_cnt(const struct cntr_entry *entry, void *context,
 static u64 access_sw_link_up_cnt(const struct cntr_entry *entry, void *context,
 			       int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1420,7 +1420,7 @@ static u64 access_sw_link_up_cnt(const struct cntr_entry *entry, void *context,
 static u64 access_sw_xmit_discards(const struct cntr_entry *entry,
 				    void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1431,7 +1431,7 @@ static u64 access_sw_xmit_discards(const struct cntr_entry *entry,
 static u64 access_xmit_constraint_errs(const struct cntr_entry *entry,
 				     void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1443,7 +1443,7 @@ static u64 access_xmit_constraint_errs(const struct cntr_entry *entry,
 static u64 access_rcv_constraint_errs(const struct cntr_entry *entry,
 				     void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1491,7 +1491,7 @@ static u64 read_write_cpu(struct hfi1_devdata *dd, u64 *z_val,
 static u64 access_sw_cpu_intr(const struct cntr_entry *entry,
 			      void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return read_write_cpu(dd, &dd->z_int_counter, dd->int_counter, vl,
 			      mode, data);
@@ -1500,7 +1500,7 @@ static u64 access_sw_cpu_intr(const struct cntr_entry *entry,
 static u64 access_sw_cpu_rcv_limit(const struct cntr_entry *entry,
 			      void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return read_write_cpu(dd, &dd->z_rcv_limit, dd->rcv_limit, vl,
 			      mode, data);
@@ -1509,7 +1509,7 @@ static u64 access_sw_cpu_rcv_limit(const struct cntr_entry *entry,
 static u64 access_sw_pio_wait(const struct cntr_entry *entry,
 			      void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return dd->verbs_dev.n_piowait;
 }
@@ -1517,7 +1517,7 @@ static u64 access_sw_pio_wait(const struct cntr_entry *entry,
 static u64 access_sw_vtx_wait(const struct cntr_entry *entry,
 			      void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return dd->verbs_dev.n_txwait;
 }
@@ -1525,7 +1525,7 @@ static u64 access_sw_vtx_wait(const struct cntr_entry *entry,
 static u64 access_sw_kmem_wait(const struct cntr_entry *entry,
 			       void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return dd->verbs_dev.n_kmem_wait;
 }

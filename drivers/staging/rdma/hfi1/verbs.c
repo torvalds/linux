@@ -1885,7 +1885,7 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 
 static void verbs_txreq_kmem_cache_ctor(void *obj)
 {
-	struct verbs_txreq *tx = (struct verbs_txreq *)obj;
+	struct verbs_txreq *tx = obj;
 
 	memset(tx, 0, sizeof(*tx));
 }
