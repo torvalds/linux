@@ -96,7 +96,7 @@ static u32 get_ff_hwaddr(struct xmit_frame *pxmitframe)
 	u32 addr = 0;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct _adapter *padapter = pxmitframe->padapter;
-	struct dvobj_priv *pdvobj = (struct dvobj_priv *)&padapter->dvobjpriv;
+	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 
 	if (pxmitframe->frame_tag == TXAGG_FRAMETAG)
 		addr = RTL8712_DMA_H2CCMD;
@@ -237,7 +237,7 @@ void r8712_do_queue_select(struct _adapter *padapter,
 			   struct pkt_attrib *pattrib)
 {
 	unsigned int qsel = 0;
-	struct dvobj_priv *pdvobj = (struct dvobj_priv *)&padapter->dvobjpriv;
+	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 
 	if (pdvobj->nr_endpoint == 6)
 		qsel = (unsigned int) pattrib->priority;
@@ -374,8 +374,8 @@ u8 r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
 			struct xmit_frame *pxmitframe)
 {
 	struct _adapter *padapter = pxmitframe->padapter;
-	struct dvobj_priv *pdvobj = (struct dvobj_priv *) &padapter->dvobjpriv;
-	struct tx_desc *ptxdesc = (struct tx_desc *)pxmitbuf->pbuf;
+	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
+	struct tx_desc *ptxdesc = pxmitbuf->pbuf;
 	struct cmd_hdr *pcmd_hdr = (struct cmd_hdr *)
 		(pxmitbuf->pbuf + TXDESC_SIZE);
 	u16 total_length = (u16) (ptxdesc->txdw0 & 0xffff);
@@ -420,9 +420,9 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct tx_desc *ptxdesc = (struct tx_desc *)pmem;
-	struct dvobj_priv *pdvobj = (struct dvobj_priv *)&padapter->dvobjpriv;
+	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 #ifdef CONFIG_R8712_TX_AGGR
-	struct cmd_priv *pcmdpriv = (struct cmd_priv *)&padapter->cmdpriv;
+	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 #endif
 	u8 blnSetTxDescOffset;
 	sint bmcst = IS_MCAST(pattrib->ra);
