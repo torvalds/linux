@@ -41,37 +41,6 @@
 #ifndef EDMA_H_
 #define EDMA_H_
 
-/* PaRAM slots are laid out like this */
-struct edmacc_param {
-	u32 opt;
-	u32 src;
-	u32 a_b_cnt;
-	u32 dst;
-	u32 src_dst_bidx;
-	u32 link_bcntrld;
-	u32 src_dst_cidx;
-	u32 ccnt;
-} __packed;
-
-/* fields in edmacc_param.opt */
-#define SAM		BIT(0)
-#define DAM		BIT(1)
-#define SYNCDIM		BIT(2)
-#define STATIC		BIT(3)
-#define EDMA_FWID	(0x07 << 8)
-#define TCCMODE		BIT(11)
-#define EDMA_TCC(t)	((t) << 12)
-#define TCINTEN		BIT(20)
-#define ITCINTEN	BIT(21)
-#define TCCHEN		BIT(22)
-#define ITCCHEN		BIT(23)
-
-/*ch_status paramater of callback function possible values*/
-#define EDMA_DMA_COMPLETE 1
-#define EDMA_DMA_CC_ERROR 2
-#define EDMA_DMA_TC1_ERROR 3
-#define EDMA_DMA_TC2_ERROR 4
-
 enum dma_event_q {
 	EVENTQ_0 = 0,
 	EVENTQ_1 = 1,
@@ -83,49 +52,6 @@ enum dma_event_q {
 #define EDMA_CTLR_CHAN(ctlr, chan)	(((ctlr) << 16) | (chan))
 #define EDMA_CTLR(i)			((i) >> 16)
 #define EDMA_CHAN_SLOT(i)		((i) & 0xffff)
-
-#define EDMA_CHANNEL_ANY		-1	/* for edma_alloc_channel() */
-#define EDMA_SLOT_ANY			-1	/* for edma_alloc_slot() */
-#define EDMA_CONT_PARAMS_ANY		 1001
-#define EDMA_CONT_PARAMS_FIXED_EXACT	 1002
-#define EDMA_CONT_PARAMS_FIXED_NOT_EXACT 1003
-
-#define EDMA_MAX_CC               2
-
-struct edma;
-
-struct edma *edma_get_data(struct device *edma_dev);
-
-/* alloc/free DMA channels and their dedicated parameter RAM slots */
-int edma_alloc_channel(struct edma *cc, int channel,
-	void (*callback)(unsigned channel, u16 ch_status, void *data),
-	void *data, enum dma_event_q);
-void edma_free_channel(struct edma *cc, unsigned channel);
-
-/* alloc/free parameter RAM slots */
-int edma_alloc_slot(struct edma *cc, int slot);
-void edma_free_slot(struct edma *cc, unsigned slot);
-
-/* calls that operate on part of a parameter RAM slot */
-dma_addr_t edma_get_position(struct edma *cc, unsigned slot, bool dst);
-void edma_link(struct edma *cc, unsigned from, unsigned to);
-
-/* calls that operate on an entire parameter RAM slot */
-void edma_write_slot(struct edma *cc, unsigned slot,
-		     const struct edmacc_param *params);
-void edma_read_slot(struct edma *cc, unsigned slot,
-		    struct edmacc_param *params);
-
-/* channel control operations */
-int edma_start(struct edma *cc, unsigned channel);
-void edma_stop(struct edma *cc, unsigned channel);
-void edma_clean_channel(struct edma *cc, unsigned channel);
-void edma_pause(struct edma *cc, unsigned channel);
-void edma_resume(struct edma *cc, unsigned channel);
-int edma_trigger_channel(struct edma *cc, unsigned channel);
-
-void edma_assign_channel_eventq(struct edma *cc, unsigned channel,
-				enum dma_event_q eventq_no);
 
 struct edma_rsv_info {
 
