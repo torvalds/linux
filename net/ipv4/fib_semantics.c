@@ -545,7 +545,7 @@ static void fib_rebalance(struct fib_info *fi)
 		if (nh->nh_flags & RTNH_F_DEAD)
 			continue;
 
-		in_dev = __in_dev_get_rcu(nh->nh_dev);
+		in_dev = __in_dev_get_rtnl(nh->nh_dev);
 
 		if (in_dev &&
 		    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
@@ -559,7 +559,7 @@ static void fib_rebalance(struct fib_info *fi)
 	change_nexthops(fi) {
 		int upper_bound;
 
-		in_dev = __in_dev_get_rcu(nexthop_nh->nh_dev);
+		in_dev = __in_dev_get_rtnl(nexthop_nh->nh_dev);
 
 		if (nexthop_nh->nh_flags & RTNH_F_DEAD) {
 			upper_bound = -1;
