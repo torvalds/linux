@@ -1,65 +1,64 @@
 /*
-    comedi/drivers/cb_pcidas.c
+ * cb_pcidas.c
+ * Developed by Ivan Martinez and Frank Mori Hess, with valuable help from
+ * David Schleef and the rest of the Comedi developers comunity.
+ *
+ * Copyright (C) 2001-2003 Ivan Martinez <imr@oersted.dtu.dk>
+ * Copyright (C) 2001,2002 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    Developed by Ivan Martinez and Frank Mori Hess, with valuable help from
-    David Schleef and the rest of the Comedi developers comunity.
-
-    Copyright (C) 2001-2003 Ivan Martinez <imr@oersted.dtu.dk>
-    Copyright (C) 2001,2002 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: cb_pcidas
-Description: MeasurementComputing PCI-DAS series
-  with the AMCC S5933 PCI controller
-Author: Ivan Martinez <imr@oersted.dtu.dk>,
-  Frank Mori Hess <fmhess@users.sourceforge.net>
-Updated: 2003-3-11
-Devices: [Measurement Computing] PCI-DAS1602/16 (cb_pcidas),
-  PCI-DAS1602/16jr, PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr,
-  PCI-DAS1000, PCI-DAS1001, PCI_DAS1002
+ * Driver: cb_pcidas
+ * Description: MeasurementComputing PCI-DAS series
+ *   with the AMCC S5933 PCI controller
+ * Devices: [Measurement Computing] PCI-DAS1602/16 (cb_pcidas),
+ *   PCI-DAS1602/16jr, PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr,
+ *   PCI-DAS1000, PCI-DAS1001, PCI_DAS1002
+ * Author: Ivan Martinez <imr@oersted.dtu.dk>,
+ *   Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Updated: 2003-3-11
+ *
+ * Status:
+ * There are many reports of the driver being used with most of the
+ * supported cards. Despite no detailed log is maintained, it can
+ * be said that the driver is quite tested and stable.
+ *
+ * The boards may be autocalibrated using the comedi_calibrate
+ * utility.
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ *
+ * For commands, the scanned channels must be consecutive
+ * (i.e. 4-5-6-7, 2-3-4,...), and must all have the same
+ * range and aref.
+ *
+ * AI Triggering:
+ * For start_src == TRIG_EXT, the A/D EXTERNAL TRIGGER IN (pin 45) is used.
+ * For 1602 series, the start_arg is interpreted as follows:
+ *	start_arg == 0                   => gated trigger (level high)
+ *	start_arg == CR_INVERT           => gated trigger (level low)
+ *	start_arg == CR_EDGE             => Rising edge
+ *	start_arg == CR_EDGE | CR_INVERT => Falling edge
+ * For the other boards the trigger will be done on rising edge
+ */
 
-Status:
-  There are many reports of the driver being used with most of the
-  supported cards. Despite no detailed log is maintained, it can
-  be said that the driver is quite tested and stable.
-
-  The boards may be autocalibrated using the comedi_calibrate
-  utility.
-
-Configuration options: not applicable, uses PCI auto config
-
-For commands, the scanned channels must be consecutive
-(i.e. 4-5-6-7, 2-3-4,...), and must all have the same
-range and aref.
-
-AI Triggering:
-   For start_src == TRIG_EXT, the A/D EXTERNAL TRIGGER IN (pin 45) is used.
-   For 1602 series, the start_arg is interpreted as follows:
-     start_arg == 0                   => gated trigger (level high)
-     start_arg == CR_INVERT           => gated trigger (level low)
-     start_arg == CR_EDGE             => Rising edge
-     start_arg == CR_EDGE | CR_INVERT => Falling edge
-   For the other boards the trigger will be done on rising edge
-*/
 /*
-
-TODO:
-
-analog triggering on 1602 series
-*/
+ * TODO:
+ * analog triggering on 1602 series
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
