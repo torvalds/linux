@@ -406,7 +406,8 @@ static irqreturn_t dma_irq_handler(int irq, void *data)
 					BIT(slot));
 			if (edma_cc[ctlr]->intr_data[channel].callback)
 				edma_cc[ctlr]->intr_data[channel].callback(
-					channel, EDMA_DMA_COMPLETE,
+					EDMA_CTLR_CHAN(ctlr, channel),
+					EDMA_DMA_COMPLETE,
 					edma_cc[ctlr]->intr_data[channel].data);
 		}
 	} while (sh_ipr);
@@ -460,7 +461,8 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 					if (edma_cc[ctlr]->intr_data[k].
 								callback) {
 						edma_cc[ctlr]->intr_data[k].
-						callback(k,
+						callback(
+						EDMA_CTLR_CHAN(ctlr, k),
 						EDMA_DMA_CC_ERROR,
 						edma_cc[ctlr]->intr_data
 						[k].data);
