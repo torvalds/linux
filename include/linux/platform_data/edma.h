@@ -72,31 +72,12 @@ struct edmacc_param {
 #define EDMA_DMA_TC1_ERROR 3
 #define EDMA_DMA_TC2_ERROR 4
 
-enum address_mode {
-	INCR = 0,
-	FIFO = 1
-};
-
-enum fifo_width {
-	W8BIT = 0,
-	W16BIT = 1,
-	W32BIT = 2,
-	W64BIT = 3,
-	W128BIT = 4,
-	W256BIT = 5
-};
-
 enum dma_event_q {
 	EVENTQ_0 = 0,
 	EVENTQ_1 = 1,
 	EVENTQ_2 = 2,
 	EVENTQ_3 = 3,
 	EVENTQ_DEFAULT = -1
-};
-
-enum sync_dimension {
-	ASYNC = 0,
-	ABSYNC = 1
 };
 
 #define EDMA_CTLR_CHAN(ctlr, chan)	(((ctlr) << 16) | (chan))
@@ -121,22 +102,9 @@ void edma_free_channel(unsigned channel);
 int edma_alloc_slot(unsigned ctlr, int slot);
 void edma_free_slot(unsigned slot);
 
-/* alloc/free a set of contiguous parameter RAM slots */
-int edma_alloc_cont_slots(unsigned ctlr, unsigned int id, int slot, int count);
-int edma_free_cont_slots(unsigned slot, int count);
-
 /* calls that operate on part of a parameter RAM slot */
-void edma_set_src(unsigned slot, dma_addr_t src_port,
-				enum address_mode mode, enum fifo_width);
-void edma_set_dest(unsigned slot, dma_addr_t dest_port,
-				 enum address_mode mode, enum fifo_width);
 dma_addr_t edma_get_position(unsigned slot, bool dst);
-void edma_set_src_index(unsigned slot, s16 src_bidx, s16 src_cidx);
-void edma_set_dest_index(unsigned slot, s16 dest_bidx, s16 dest_cidx);
-void edma_set_transfer_params(unsigned slot, u16 acnt, u16 bcnt, u16 ccnt,
-		u16 bcnt_rld, enum sync_dimension sync_mode);
 void edma_link(unsigned from, unsigned to);
-void edma_unlink(unsigned from);
 
 /* calls that operate on an entire parameter RAM slot */
 void edma_write_slot(unsigned slot, const struct edmacc_param *params);
@@ -146,7 +114,6 @@ void edma_read_slot(unsigned slot, struct edmacc_param *params);
 int edma_start(unsigned channel);
 void edma_stop(unsigned channel);
 void edma_clean_channel(unsigned channel);
-void edma_clear_event(unsigned channel);
 void edma_pause(unsigned channel);
 void edma_resume(unsigned channel);
 
