@@ -408,10 +408,10 @@ static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /* analog output insn for pcidas-1000 and 1200 series */
-static int cb_pcidas_ao_nofifo_winsn(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
+static int cb_pcidas_ao_nofifo_insn_write(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -436,9 +436,10 @@ static int cb_pcidas_ao_nofifo_winsn(struct comedi_device *dev,
 }
 
 /* analog output insn for pcidas-1602 series */
-static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas_ao_fifo_insn_write(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -1319,32 +1320,31 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	s->do_cmdtest = cb_pcidas_ai_cmdtest;
 	s->cancel = cb_pcidas_cancel;
 
-	/* analog output subdevice */
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
 	if (board->has_ao) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = 2;
-		s->maxdata = board->is_16bit ? 0xffff : 0x0fff;
-		s->range_table = &cb_pcidas_ao_ranges;
-		/* default to no fifo (*insn_write) */
-		s->insn_write = cb_pcidas_ao_nofifo_winsn;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
+		s->n_chan	= 2;
+		s->maxdata	= board->is_16bit ? 0xffff : 0x0fff;
+		s->range_table	= &cb_pcidas_ao_ranges;
+		s->insn_write	= (board->has_ao_fifo)
+					? cb_pcidas_ao_fifo_insn_write
+					: cb_pcidas_ao_nofifo_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
 			return ret;
 
-		if (board->has_ao_fifo) {
+		if (dev->irq && board->has_ao_fifo) {
 			dev->write_subdev = s;
-			s->subdev_flags |= SDF_CMD_WRITE;
-			/* use fifo (*insn_write) instead */
-			s->insn_write = cb_pcidas_ao_fifo_winsn;
-			s->do_cmdtest = cb_pcidas_ao_cmdtest;
-			s->do_cmd = cb_pcidas_ao_cmd;
-			s->cancel = cb_pcidas_ao_cancel;
+			s->subdev_flags	|= SDF_CMD_WRITE;
+			s->do_cmdtest	= cb_pcidas_ao_cmdtest;
+			s->do_cmd	= cb_pcidas_ao_cmd;
+			s->cancel	= cb_pcidas_ao_cancel;
 		}
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/* 8255 */
