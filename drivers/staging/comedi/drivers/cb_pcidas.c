@@ -332,9 +332,10 @@ static int cb_pcidas_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas_ai_insn_read(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -384,8 +385,10 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas_ai_insn_config(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	int id = data[0];
@@ -960,9 +963,8 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-/* cancel analog input command */
-static int cb_pcidas_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
+static int cb_pcidas_ai_cancel(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned long flags;
@@ -1303,22 +1305,24 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* analog input subdevice */
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
-	/* WARNING: Number of inputs in differential mode is ignored */
-	s->n_chan = 16;
-	s->len_chanlist = s->n_chan;
-	s->maxdata = board->is_16bit ? 0xffff : 0x0fff;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
+	s->n_chan	= 16;
+	s->maxdata	= board->is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= board->use_alt_range ? &cb_pcidas_alt_ranges
 					       : &cb_pcidas_ranges;
-	s->insn_read = cb_pcidas_ai_rinsn;
-	s->insn_config = ai_config_insn;
-	s->do_cmd = cb_pcidas_ai_cmd;
-	s->do_cmdtest = cb_pcidas_ai_cmdtest;
-	s->cancel = cb_pcidas_cancel;
+	s->insn_read	= cb_pcidas_ai_insn_read;
+	s->insn_config	= cb_pcidas_ai_insn_config;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= s->n_chan;
+		s->do_cmd	= cb_pcidas_ai_cmd;
+		s->do_cmdtest	= cb_pcidas_ai_cmdtest;
+		s->cancel	= cb_pcidas_ai_cancel;
+	}
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
