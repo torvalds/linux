@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
+#include <linux/of_dma.h>
 
 #include <linux/platform_data/edma.h>
 
@@ -987,9 +988,14 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 	INIT_LIST_HEAD(&dma->channels);
 }
 
+static struct of_dma_filter_info edma_filter_info = {
+	.filter_fn = edma_filter_fn,
+};
+
 static int edma_probe(struct platform_device *pdev)
 {
 	struct edma_cc *ecc;
+	struct device_node *parent_node = pdev->dev.parent->of_node;
 	int ret;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -1024,6 +1030,13 @@ static int edma_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ecc);
 
+	if (parent_node) {
+		dma_cap_set(DMA_SLAVE, edma_filter_info.dma_cap);
+		dma_cap_set(DMA_CYCLIC, edma_filter_info.dma_cap);
+		of_dma_controller_register(parent_node, of_dma_simple_xlate,
+					   &edma_filter_info);
+	}
+
 	dev_info(&pdev->dev, "TI EDMA DMA engine driver\n");
 
 	return 0;
@@ -1037,7 +1050,10 @@ static int edma_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct edma_cc *ecc = dev_get_drvdata(dev);
+	struct device_node *parent_node = pdev->dev.parent->of_node;
 
+	if (parent_node)
+		of_dma_controller_free(parent_node);
 	dma_async_device_unregister(&ecc->dma_slave);
 	edma_free_slot(ecc->dummy_slot);
 

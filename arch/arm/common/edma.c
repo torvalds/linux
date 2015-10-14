@@ -29,7 +29,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/of_dma.h>
 #include <linux/of_irq.h>
 #include <linux/pm_runtime.h>
 
@@ -1191,10 +1190,6 @@ static int edma_of_parse_dt(struct device *dev,
 	return ret;
 }
 
-static struct of_dma_filter_info edma_filter_info = {
-	.filter_fn = edma_filter_fn,
-};
-
 static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev,
 						      struct device_node *node)
 {
@@ -1208,11 +1203,6 @@ static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev,
 	ret = edma_of_parse_dt(dev, node, info);
 	if (ret)
 		return ERR_PTR(ret);
-
-	dma_cap_set(DMA_SLAVE, edma_filter_info.dma_cap);
-	dma_cap_set(DMA_CYCLIC, edma_filter_info.dma_cap);
-	of_dma_controller_register(dev->of_node, of_dma_simple_xlate,
-				   &edma_filter_info);
 
 	return info;
 }
