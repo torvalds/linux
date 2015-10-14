@@ -353,7 +353,7 @@ static int gb_gpio_request_recv(u8 type, struct gb_operation *op)
 	struct irq_desc *desc;
 
 	if (type != GB_GPIO_TYPE_IRQ_EVENT) {
-		dev_err(&connection->dev,
+		dev_err(&connection->bundle->dev,
 			"unsupported unsolicited request: %u\n", type);
 		return -EINVAL;
 	}
@@ -648,7 +648,7 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	gpio = &ggc->chip;
 
 	gpio->label = "greybus_gpio";
-	gpio->dev = &connection->dev;
+	gpio->dev = &connection->bundle->dev;
 	gpio->owner = THIS_MODULE;
 
 	gpio->request = gb_gpio_request;
@@ -666,15 +666,16 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 
 	ret = gpiochip_add(gpio);
 	if (ret) {
-		dev_err(&connection->dev, "failed to add gpio chip: %d\n",
-			ret);
+		dev_err(&connection->bundle->dev,
+			"failed to add gpio chip: %d\n", ret);
 		goto err_free_lines;
 	}
 
 	ret = gb_gpio_irqchip_add(gpio, irqc, 0,
 				   handle_level_irq, IRQ_TYPE_NONE);
 	if (ret) {
-		dev_err(&connection->dev, "failed to add irq chip: %d\n", ret);
+		dev_err(&connection->bundle->dev,
+			"failed to add irq chip: %d\n", ret);
 		goto irqchip_err;
 	}
 
