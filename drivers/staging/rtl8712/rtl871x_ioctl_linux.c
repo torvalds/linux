@@ -1981,7 +1981,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 			return -EINVAL;
 		}
 		netdev_info(dev, "r8712u: BSSID:%pM\n", bssid);
-		if (!memcmp(bssid, pnetwork->network.MacAddress, ETH_ALEN)) {
+		if (ether_addr_equal(bssid, pnetwork->network.MacAddress)) {
 			/* BSSID match, then check if supporting wpa/wpa2 */
 			pbuf = r8712_get_wpa_ie(&pnetwork->network.IEs[12],
 			       &wpa_ielen, pnetwork->network.IELength-12);
