@@ -235,6 +235,7 @@ static inline void clear_bits(int offset, int len, unsigned long *p)
 
 /* actual number of DMA channels and slots on this silicon */
 struct edma {
+	struct device	*dev;
 	/* how many dma resources of each type */
 	unsigned	num_channels;
 	unsigned	num_region;
@@ -246,6 +247,7 @@ struct edma {
 	const s8	*noevent;
 
 	struct edma_soc_info *info;
+	int		id;
 
 	/* The edma_inuse bit for each PaRAM slot is clear unless the
 	 * channel is in use ... by ARM or DSP, for QDMA, or whatever.
@@ -257,9 +259,6 @@ struct edma {
 	 * of SOC-specific initialization code.
 	 */
 	DECLARE_BITMAP(edma_unused, EDMA_MAX_DMACH);
-
-	unsigned	irq_res_start;
-	unsigned	irq_res_end;
 
 	struct dma_interrupt_data {
 		void (*callback)(unsigned channel, unsigned short ch_status,
@@ -349,17 +348,6 @@ setup_dma_interrupt(unsigned lch,
 	}
 }
 
-static int irq2ctlr(int irq)
-{
-	if (irq >= edma_cc[0]->irq_res_start && irq <= edma_cc[0]->irq_res_end)
-		return 0;
-	else if (irq >= edma_cc[1]->irq_res_start &&
-		irq <= edma_cc[1]->irq_res_end)
-		return 1;
-
-	return -1;
-}
-
 /******************************************************************************
  *
  * DMA interrupt handler
@@ -367,16 +355,17 @@ static int irq2ctlr(int irq)
  *****************************************************************************/
 static irqreturn_t dma_irq_handler(int irq, void *data)
 {
+	struct edma *cc = data;
 	int ctlr;
 	u32 sh_ier;
 	u32 sh_ipr;
 	u32 bank;
 
-	ctlr = irq2ctlr(irq);
+	ctlr = cc->id;
 	if (ctlr < 0)
 		return IRQ_NONE;
 
-	dev_dbg(data, "dma_irq_handler\n");
+	dev_dbg(cc->dev, "dma_irq_handler\n");
 
 	sh_ipr = edma_shadow0_read_array(ctlr, SH_IPR, 0);
 	if (!sh_ipr) {
@@ -394,7 +383,7 @@ static irqreturn_t dma_irq_handler(int irq, void *data)
 		u32 slot;
 		u32 channel;
 
-		dev_dbg(data, "IPR%d %08x\n", bank, sh_ipr);
+		dev_dbg(cc->dev, "IPR%d %08x\n", bank, sh_ipr);
 
 		slot = __ffs(sh_ipr);
 		sh_ipr &= ~(BIT(slot));
@@ -404,11 +393,11 @@ static irqreturn_t dma_irq_handler(int irq, void *data)
 			/* Clear the corresponding IPR bits */
 			edma_shadow0_write_array(ctlr, SH_ICR, bank,
 					BIT(slot));
-			if (edma_cc[ctlr]->intr_data[channel].callback)
-				edma_cc[ctlr]->intr_data[channel].callback(
+			if (cc->intr_data[channel].callback)
+				cc->intr_data[channel].callback(
 					EDMA_CTLR_CHAN(ctlr, channel),
 					EDMA_DMA_COMPLETE,
-					edma_cc[ctlr]->intr_data[channel].data);
+					cc->intr_data[channel].data);
 		}
 	} while (sh_ipr);
 
@@ -423,15 +412,16 @@ static irqreturn_t dma_irq_handler(int irq, void *data)
  *****************************************************************************/
 static irqreturn_t dma_ccerr_handler(int irq, void *data)
 {
+	struct edma *cc = data;
 	int i;
 	int ctlr;
 	unsigned int cnt = 0;
 
-	ctlr = irq2ctlr(irq);
+	ctlr = cc->id;
 	if (ctlr < 0)
 		return IRQ_NONE;
 
-	dev_dbg(data, "dma_ccerr_handler\n");
+	dev_dbg(cc->dev, "dma_ccerr_handler\n");
 
 	if ((edma_read_array(ctlr, EDMA_EMR, 0) == 0) &&
 	    (edma_read_array(ctlr, EDMA_EMR, 1) == 0) &&
@@ -446,8 +436,8 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 		else if (edma_read_array(ctlr, EDMA_EMR, 1))
 			j = 1;
 		if (j >= 0) {
-			dev_dbg(data, "EMR%d %08x\n", j,
-					edma_read_array(ctlr, EDMA_EMR, j));
+			dev_dbg(cc->dev, "EMR%d %08x\n", j,
+				edma_read_array(ctlr, EDMA_EMR, j));
 			for (i = 0; i < 32; i++) {
 				int k = (j << 5) + i;
 				if (edma_read_array(ctlr, EDMA_EMR, j) &
@@ -458,19 +448,16 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 					/* Clear any SER */
 					edma_shadow0_write_array(ctlr, SH_SECR,
 								j, BIT(i));
-					if (edma_cc[ctlr]->intr_data[k].
-								callback) {
-						edma_cc[ctlr]->intr_data[k].
-						callback(
-						EDMA_CTLR_CHAN(ctlr, k),
-						EDMA_DMA_CC_ERROR,
-						edma_cc[ctlr]->intr_data
-						[k].data);
+					if (cc->intr_data[k].callback) {
+						cc->intr_data[k].callback(
+							EDMA_CTLR_CHAN(ctlr, k),
+							EDMA_DMA_CC_ERROR,
+							cc->intr_data[k].data);
 					}
 				}
 			}
 		} else if (edma_read(ctlr, EDMA_QEMR)) {
-			dev_dbg(data, "QEMR %02x\n",
+			dev_dbg(cc->dev, "QEMR %02x\n",
 				edma_read(ctlr, EDMA_QEMR));
 			for (i = 0; i < 8; i++) {
 				if (edma_read(ctlr, EDMA_QEMR) & BIT(i)) {
@@ -483,7 +470,7 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 				}
 			}
 		} else if (edma_read(ctlr, EDMA_CCERR)) {
-			dev_dbg(data, "CCERR %08x\n",
+			dev_dbg(cc->dev, "CCERR %08x\n",
 				edma_read(ctlr, EDMA_CCERR));
 			/* FIXME:  CCERR.BIT(16) ignored!  much better
 			 * to just write CCERRCLR with CCERR value...
@@ -1239,27 +1226,36 @@ static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev,
 
 static int edma_probe(struct platform_device *pdev)
 {
-	struct edma_soc_info	**info = pdev->dev.platform_data;
-	struct edma_soc_info    *ninfo[EDMA_MAX_CC] = {NULL};
+	struct edma_soc_info	*info = pdev->dev.platform_data;
 	s8		(*queue_priority_mapping)[2];
-	int			i, j, off, ln, found = 0;
-	int			status = -1;
+	int			i, off, ln;
 	const s16		(*rsv_chans)[2];
 	const s16		(*rsv_slots)[2];
 	const s16		(*xbar_chans)[2];
-	int			irq[EDMA_MAX_CC] = {0, 0};
-	int			err_irq[EDMA_MAX_CC] = {0, 0};
-	struct resource		*r[EDMA_MAX_CC] = {NULL};
-	struct resource		res[EDMA_MAX_CC];
-	char			res_name[10];
+	int			irq;
+	char			*irq_name;
+	struct resource		*mem;
 	struct device_node	*node = pdev->dev.of_node;
 	struct device		*dev = &pdev->dev;
+	int			dev_id = pdev->id;
+	struct edma		*cc;
 	int			ret;
 	struct platform_device_info edma_dev_info = {
 		.name = "edma-dma-engine",
 		.dma_mask = DMA_BIT_MASK(32),
 		.parent = &pdev->dev,
 	};
+
+	/* When booting with DT the pdev->id is -1 */
+	if (dev_id < 0)
+		dev_id = arch_num_cc;
+
+	if (dev_id >= EDMA_MAX_CC) {
+		dev_err(dev,
+			"eDMA3 with device id 0 and 1 is supported (id: %d)\n",
+			dev_id);
+		return -EINVAL;
+	}
 
 	if (node) {
 		/* Check if this is a second instance registered */
@@ -1268,13 +1264,11 @@ static int edma_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 
-		ninfo[0] = edma_setup_info_from_dt(dev, node);
-		if (IS_ERR(ninfo[0])) {
+		info = edma_setup_info_from_dt(dev, node);
+		if (IS_ERR(info)) {
 			dev_err(dev, "failed to get DT data\n");
-			return PTR_ERR(ninfo[0]);
+			return PTR_ERR(info);
 		}
-
-		info = ninfo;
 	}
 
 	if (!info)
@@ -1287,154 +1281,132 @@ static int edma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	for (j = 0; j < EDMA_MAX_CC; j++) {
-		if (!info[j]) {
-			if (!found)
-				return -ENODEV;
-			break;
+	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "edma3_cc");
+	if (!mem) {
+		dev_dbg(dev, "mem resource not found, using index 0\n");
+		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!mem) {
+			dev_err(dev, "no mem resource?\n");
+			return -ENODEV;
 		}
-		if (node) {
-			ret = of_address_to_resource(node, j, &res[j]);
-			if (!ret)
-				r[j] = &res[j];
-		} else {
-			sprintf(res_name, "edma_cc%d", j);
-			r[j] = platform_get_resource_byname(pdev,
-						IORESOURCE_MEM,
-						res_name);
-		}
-		if (!r[j]) {
-			if (found)
-				break;
-			else
-				return -ENODEV;
-		} else {
-			found = 1;
-		}
-
-		edmacc_regs_base[j] = devm_ioremap_resource(&pdev->dev, r[j]);
-		if (IS_ERR(edmacc_regs_base[j]))
-			return PTR_ERR(edmacc_regs_base[j]);
-
-		edma_cc[j] = devm_kzalloc(&pdev->dev, sizeof(struct edma),
-					  GFP_KERNEL);
-		if (!edma_cc[j])
-			return -ENOMEM;
-
-		/* Get eDMA3 configuration from IP */
-		ret = edma_setup_from_hw(dev, info[j], edma_cc[j], j);
-		if (ret)
-			return ret;
-
-		edma_cc[j]->default_queue = info[j]->default_queue;
-
-		dev_dbg(&pdev->dev, "DMA REG BASE ADDR=%p\n",
-			edmacc_regs_base[j]);
-
-		for (i = 0; i < edma_cc[j]->num_slots; i++)
-			memcpy_toio(edmacc_regs_base[j] + PARM_OFFSET(i),
-					&dummy_paramset, PARM_SIZE);
-
-		/* Mark all channels as unused */
-		memset(edma_cc[j]->edma_unused, 0xff,
-			sizeof(edma_cc[j]->edma_unused));
-
-		if (info[j]->rsv) {
-
-			/* Clear the reserved channels in unused list */
-			rsv_chans = info[j]->rsv->rsv_chans;
-			if (rsv_chans) {
-				for (i = 0; rsv_chans[i][0] != -1; i++) {
-					off = rsv_chans[i][0];
-					ln = rsv_chans[i][1];
-					clear_bits(off, ln,
-						  edma_cc[j]->edma_unused);
-				}
-			}
-
-			/* Set the reserved slots in inuse list */
-			rsv_slots = info[j]->rsv->rsv_slots;
-			if (rsv_slots) {
-				for (i = 0; rsv_slots[i][0] != -1; i++) {
-					off = rsv_slots[i][0];
-					ln = rsv_slots[i][1];
-					set_bits(off, ln,
-						edma_cc[j]->edma_inuse);
-				}
-			}
-		}
-
-		/* Clear the xbar mapped channels in unused list */
-		xbar_chans = info[j]->xbar_chans;
-		if (xbar_chans) {
-			for (i = 0; xbar_chans[i][1] != -1; i++) {
-				off = xbar_chans[i][1];
-				clear_bits(off, 1,
-					   edma_cc[j]->edma_unused);
-			}
-		}
-
-		if (node) {
-			irq[j] = irq_of_parse_and_map(node, 0);
-			err_irq[j] = irq_of_parse_and_map(node, 2);
-		} else {
-			char irq_name[10];
-
-			sprintf(irq_name, "edma%d", j);
-			irq[j] = platform_get_irq_byname(pdev, irq_name);
-
-			sprintf(irq_name, "edma%d_err", j);
-			err_irq[j] = platform_get_irq_byname(pdev, irq_name);
-		}
-		edma_cc[j]->irq_res_start = irq[j];
-		edma_cc[j]->irq_res_end = err_irq[j];
-
-		status = devm_request_irq(dev, irq[j], dma_irq_handler, 0,
-					  "edma", dev);
-		if (status < 0) {
-			dev_dbg(&pdev->dev,
-				"devm_request_irq %d failed --> %d\n",
-				irq[j], status);
-			return status;
-		}
-
-		status = devm_request_irq(dev, err_irq[j], dma_ccerr_handler, 0,
-					  "edma_error", dev);
-		if (status < 0) {
-			dev_dbg(&pdev->dev,
-				"devm_request_irq %d failed --> %d\n",
-				err_irq[j], status);
-			return status;
-		}
-
-		for (i = 0; i < edma_cc[j]->num_channels; i++)
-			map_dmach_queue(j, i, info[j]->default_queue);
-
-		queue_priority_mapping = info[j]->queue_priority_mapping;
-
-		/* Event queue priority mapping */
-		for (i = 0; queue_priority_mapping[i][0] != -1; i++)
-			assign_priority_to_queue(j,
-						queue_priority_mapping[i][0],
-						queue_priority_mapping[i][1]);
-
-		/* Map the channel to param entry if channel mapping logic
-		 * exist
-		 */
-		if (edma_read(j, EDMA_CCCFG) & CHMAP_EXIST)
-			map_dmach_param(j);
-
-		for (i = 0; i < edma_cc[j]->num_region; i++) {
-			edma_write_array2(j, EDMA_DRAE, i, 0, 0x0);
-			edma_write_array2(j, EDMA_DRAE, i, 1, 0x0);
-			edma_write_array(j, EDMA_QRAE, i, 0x0);
-		}
-		edma_cc[j]->info = info[j];
-		arch_num_cc++;
-
-		edma_dev_info.id = j;
-		platform_device_register_full(&edma_dev_info);
 	}
+
+	edmacc_regs_base[dev_id] = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(edmacc_regs_base[dev_id]))
+		return PTR_ERR(edmacc_regs_base[dev_id]);
+
+	edma_cc[dev_id] = devm_kzalloc(dev, sizeof(struct edma), GFP_KERNEL);
+	if (!edma_cc[dev_id])
+		return -ENOMEM;
+
+	cc = edma_cc[dev_id];
+	cc->dev = dev;
+	cc->id = dev_id;
+	dev_set_drvdata(dev, cc);
+
+	/* Get eDMA3 configuration from IP */
+	ret = edma_setup_from_hw(dev, info, cc, dev_id);
+	if (ret)
+		return ret;
+
+	cc->default_queue = info->default_queue;
+
+	dev_dbg(dev, "DMA REG BASE ADDR=%p\n", edmacc_regs_base[dev_id]);
+
+	for (i = 0; i < cc->num_slots; i++)
+		memcpy_toio(edmacc_regs_base[dev_id] + PARM_OFFSET(i),
+			    &dummy_paramset, PARM_SIZE);
+
+	/* Mark all channels as unused */
+	memset(cc->edma_unused, 0xff, sizeof(cc->edma_unused));
+
+	if (info->rsv) {
+
+		/* Clear the reserved channels in unused list */
+		rsv_chans = info->rsv->rsv_chans;
+		if (rsv_chans) {
+			for (i = 0; rsv_chans[i][0] != -1; i++) {
+				off = rsv_chans[i][0];
+				ln = rsv_chans[i][1];
+				clear_bits(off, ln, cc->edma_unused);
+			}
+		}
+
+		/* Set the reserved slots in inuse list */
+		rsv_slots = info->rsv->rsv_slots;
+		if (rsv_slots) {
+			for (i = 0; rsv_slots[i][0] != -1; i++) {
+				off = rsv_slots[i][0];
+				ln = rsv_slots[i][1];
+				set_bits(off, ln, cc->edma_inuse);
+			}
+		}
+	}
+
+	/* Clear the xbar mapped channels in unused list */
+	xbar_chans = info->xbar_chans;
+	if (xbar_chans) {
+		for (i = 0; xbar_chans[i][1] != -1; i++) {
+			off = xbar_chans[i][1];
+			clear_bits(off, 1, cc->edma_unused);
+		}
+	}
+
+	irq = platform_get_irq_byname(pdev, "edma3_ccint");
+	if (irq < 0 && node)
+		irq = irq_of_parse_and_map(node, 0);
+
+	if (irq >= 0) {
+		irq_name = devm_kasprintf(dev, GFP_KERNEL, "%s_ccint",
+					  dev_name(dev));
+		ret = devm_request_irq(dev, irq, dma_irq_handler, 0, irq_name,
+				       cc);
+		if (ret) {
+			dev_err(dev, "CCINT (%d) failed --> %d\n", irq, ret);
+			return ret;
+		}
+	}
+
+	irq = platform_get_irq_byname(pdev, "edma3_ccerrint");
+	if (irq < 0 && node)
+		irq = irq_of_parse_and_map(node, 2);
+
+	if (irq >= 0) {
+		irq_name = devm_kasprintf(dev, GFP_KERNEL, "%s_ccerrint",
+					  dev_name(dev));
+		ret = devm_request_irq(dev, irq, dma_ccerr_handler, 0, irq_name,
+				       cc);
+		if (ret) {
+			dev_err(dev, "CCERRINT (%d) failed --> %d\n", irq, ret);
+			return ret;
+		}
+	}
+
+	for (i = 0; i < cc->num_channels; i++)
+		map_dmach_queue(dev_id, i, info->default_queue);
+
+	queue_priority_mapping = info->queue_priority_mapping;
+
+	/* Event queue priority mapping */
+	for (i = 0; queue_priority_mapping[i][0] != -1; i++)
+		assign_priority_to_queue(dev_id, queue_priority_mapping[i][0],
+					 queue_priority_mapping[i][1]);
+
+	/* Map the channel to param entry if channel mapping logic exist */
+	if (edma_read(dev_id, EDMA_CCCFG) & CHMAP_EXIST)
+		map_dmach_param(dev_id);
+
+	for (i = 0; i < cc->num_region; i++) {
+		edma_write_array2(dev_id, EDMA_DRAE, i, 0, 0x0);
+		edma_write_array2(dev_id, EDMA_DRAE, i, 1, 0x0);
+		edma_write_array(dev_id, EDMA_QRAE, i, 0x0);
+	}
+	cc->info = info;
+	arch_num_cc++;
+
+	edma_dev_info.id = dev_id;
+
+	platform_device_register_full(&edma_dev_info);
 
 	return 0;
 }
@@ -1442,38 +1414,30 @@ static int edma_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int edma_pm_resume(struct device *dev)
 {
-	int i, j;
+	struct edma *cc = dev_get_drvdata(dev);
+	int i;
+	s8 (*queue_priority_mapping)[2];
 
-	for (j = 0; j < arch_num_cc; j++) {
-		struct edma *cc = edma_cc[j];
+	queue_priority_mapping = cc->info->queue_priority_mapping;
 
-		s8 (*queue_priority_mapping)[2];
+	/* Event queue priority mapping */
+	for (i = 0; queue_priority_mapping[i][0] != -1; i++)
+		assign_priority_to_queue(cc->id, queue_priority_mapping[i][0],
+					 queue_priority_mapping[i][1]);
 
-		queue_priority_mapping = cc->info->queue_priority_mapping;
+	/* Map the channel to param entry if channel mapping logic */
+	if (edma_read(cc->id, EDMA_CCCFG) & CHMAP_EXIST)
+		map_dmach_param(cc->id);
 
-		/* Event queue priority mapping */
-		for (i = 0; queue_priority_mapping[i][0] != -1; i++)
-			assign_priority_to_queue(j,
-						 queue_priority_mapping[i][0],
-						 queue_priority_mapping[i][1]);
+	for (i = 0; i < cc->num_channels; i++) {
+		if (test_bit(i, cc->edma_inuse)) {
+			/* ensure access through shadow region 0 */
+			edma_or_array2(cc->id, EDMA_DRAE, 0, i >> 5,
+				       BIT(i & 0x1f));
 
-		/*
-		 * Map the channel to param entry if channel mapping logic
-		 * exist
-		 */
-		if (edma_read(j, EDMA_CCCFG) & CHMAP_EXIST)
-			map_dmach_param(j);
-
-		for (i = 0; i < cc->num_channels; i++) {
-			if (test_bit(i, cc->edma_inuse)) {
-				/* ensure access through shadow region 0 */
-				edma_or_array2(j, EDMA_DRAE, 0, i >> 5,
-					       BIT(i & 0x1f));
-
-				setup_dma_interrupt(i,
-						    cc->intr_data[i].callback,
-						    cc->intr_data[i].data);
-			}
+			setup_dma_interrupt(EDMA_CTLR_CHAN(cc->id, i),
+					    cc->intr_data[i].callback,
+					    cc->intr_data[i].data);
 		}
 	}
 
