@@ -763,6 +763,8 @@ static int vop_alpha_cfg(struct rk_lcdc_driver *dev_drv, int win_id)
 	u64 val;
 	int ppixel_alpha = 0, global_alpha = 0, i;
 	u32 src_alpha_ctl, dst_alpha_ctl;
+	int alpha_en = 1;
+	int layer_count = 0;
 
 	for (i = 0; i < win->area_num; i++) {
 		ppixel_alpha |= ((win->area[i].format == ARGB888) ||
@@ -772,6 +774,16 @@ static int vop_alpha_cfg(struct rk_lcdc_driver *dev_drv, int win_id)
 	}
 
 	global_alpha = (win->g_alpha_val == 0) ? 0 : 1;
+
+	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+		if (dev_drv->win[i]->state)
+			layer_count++;
+	}
+	/*
+	 * vop not support ppixel_alpha mode when only enable 1 layer.
+	 */
+	if (layer_count == 1)
+		ppixel_alpha = 0;
 	alpha_config.src_global_alpha_val = win->g_alpha_val;
 	win->alpha_mode = AB_SRC_OVER;
 
@@ -852,6 +864,8 @@ static int vop_alpha_cfg(struct rk_lcdc_driver *dev_drv, int win_id)
 		alpha_config.src_global_alpha_mode = AA_PER_PIX;
 	else if (global_alpha == 1)
 		alpha_config.src_global_alpha_mode = AA_GLOBAL;
+	else
+		alpha_en = 0;
 	alpha_config.src_alpha_mode = AA_STRAIGHT;
 	alpha_config.src_alpha_cal_m0 = AA_NO_SAT;
 
@@ -871,7 +885,7 @@ static int vop_alpha_cfg(struct rk_lcdc_driver *dev_drv, int win_id)
 	}
 	val = V_WIN0_DST_FACTOR_MODE(alpha_config.dst_factor_mode);
 	vop_msk_reg(vop_dev, dst_alpha_ctl, val);
-	val = V_WIN0_SRC_ALPHA_EN(1) |
+	val = V_WIN0_SRC_ALPHA_EN(alpha_en) |
 	    V_WIN0_SRC_COLOR_MODE(alpha_config.src_color_mode) |
 	    V_WIN0_SRC_ALPHA_MODE(alpha_config.src_alpha_mode) |
 	    V_WIN0_SRC_BLEND_MODE(alpha_config.src_global_alpha_mode) |
