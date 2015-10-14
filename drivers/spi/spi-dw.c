@@ -30,7 +30,6 @@
 
 /* Slave spi_dev related */
 struct chip_data {
-	u16 cr0;
 	u8 cs;			/* chip select pin */
 	u8 n_bytes;		/* current is a 1/2/4 byte op */
 	u8 tmode;		/* TR/TO/RO/EEPROM */
@@ -291,7 +290,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	u16 txlevel = 0;
 	u16 clk_div = 0;
 	u32 speed = 0;
-	u32 cr0 = 0;
+	u32 cr0;
 	int ret;
 
 	dws->dma_mapped = 0;
@@ -305,8 +304,6 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	dws->len = transfer->len;
 
 	spi_enable_chip(dws, 0);
-
-	cr0 = chip->cr0;
 
 	/* Handle per transfer options for bpw and speed */
 	speed = chip->speed_hz;
@@ -328,6 +325,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 		dws->n_bytes = 2;
 		dws->dma_width = 2;
 	}
+	/* Default SPI mode is SCPOL = 0, SCPH = 0 */
 	cr0 = (transfer->bits_per_word - 1)
 		| (chip->type << SPI_FRF_OFFSET)
 		| (spi->mode << SPI_MODE_OFFSET)
@@ -449,14 +447,6 @@ static int dw_spi_setup(struct spi_device *spi)
 	chip->bits_per_word = spi->bits_per_word;
 
 	chip->tmode = 0; /* Tx & Rx */
-	/* Default SPI mode is SCPOL = 0, SCPH = 0 */
-	chip->cr0 = (chip->bits_per_word - 1)
-			| (chip->type << SPI_FRF_OFFSET)
-			| (spi->mode  << SPI_MODE_OFFSET)
-			| (chip->tmode << SPI_TMOD_OFFSET);
-
-	if (spi->mode & SPI_LOOP)
-		chip->cr0 |= 1 << SPI_SRL_OFFSET;
 
 	if (gpio_is_valid(spi->cs_gpio)) {
 		ret = gpio_direction_output(spi->cs_gpio,
