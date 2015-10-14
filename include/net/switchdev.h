@@ -17,6 +17,7 @@
 
 #define SWITCHDEV_F_NO_RECURSE		BIT(0)
 #define SWITCHDEV_F_SKIP_EOPNOTSUPP	BIT(1)
+#define SWITCHDEV_F_DEFER		BIT(2)
 
 struct switchdev_trans_item {
 	struct list_head list;

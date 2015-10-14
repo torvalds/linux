@@ -250,74 +250,11 @@ done:
 	return err;
 }
 
-struct switchdev_attr_set_work {
-	struct work_struct work;
-	struct net_device *dev;
-	struct switchdev_attr attr;
-};
-
-static void switchdev_port_attr_set_work(struct work_struct *work)
-{
-	struct switchdev_attr_set_work *asw =
-		container_of(work, struct switchdev_attr_set_work, work);
-	int err;
-
-	rtnl_lock();
-	err = switchdev_port_attr_set(asw->dev, &asw->attr);
-	if (err && err != -EOPNOTSUPP)
-		netdev_err(asw->dev, "failed (err=%d) to set attribute (id=%d)\n",
-			   err, asw->attr.id);
-	rtnl_unlock();
-
-	dev_put(asw->dev);
-	kfree(work);
-}
-
-static int switchdev_port_attr_set_defer(struct net_device *dev,
-					 const struct switchdev_attr *attr)
-{
-	struct switchdev_attr_set_work *asw;
-
-	asw = kmalloc(sizeof(*asw), GFP_ATOMIC);
-	if (!asw)
-		return -ENOMEM;
-
-	INIT_WORK(&asw->work, switchdev_port_attr_set_work);
-
-	dev_hold(dev);
-	asw->dev = dev;
-	memcpy(&asw->attr, attr, sizeof(asw->attr));
-
-	schedule_work(&asw->work);
-
-	return 0;
-}
-
-/**
- *	switchdev_port_attr_set - Set port attribute
- *
- *	@dev: port device
- *	@attr: attribute to set
- *
- *	Use a 2-phase prepare-commit transaction model to ensure
- *	system is not left in a partially updated state due to
- *	failure from driver/device.
- */
-int switchdev_port_attr_set(struct net_device *dev,
-			    const struct switchdev_attr *attr)
+static int switchdev_port_attr_set_now(struct net_device *dev,
+				       const struct switchdev_attr *attr)
 {
 	struct switchdev_trans trans;
 	int err;
-
-	if (!rtnl_is_locked()) {
-		/* Running prepare-commit transaction across stacked
-		 * devices requires nothing moves, so if rtnl_lock is
-		 * not held, schedule a worker thread to hold rtnl_lock
-		 * while setting attr.
-		 */
-
-		return switchdev_port_attr_set_defer(dev, attr);
-	}
 
 	switchdev_trans_init(&trans);
 
@@ -354,6 +291,47 @@ int switchdev_port_attr_set(struct net_device *dev,
 	switchdev_trans_items_warn_destroy(dev, &trans);
 
 	return err;
+}
+
+static void switchdev_port_attr_set_deferred(struct net_device *dev,
+					     const void *data)
+{
+	const struct switchdev_attr *attr = data;
+	int err;
+
+	err = switchdev_port_attr_set_now(dev, attr);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(dev, "failed (err=%d) to set attribute (id=%d)\n",
+			   err, attr->id);
+}
+
+static int switchdev_port_attr_set_defer(struct net_device *dev,
+					 const struct switchdev_attr *attr)
+{
+	return switchdev_deferred_enqueue(dev, attr, sizeof(*attr),
+					  switchdev_port_attr_set_deferred);
+}
+
+/**
+ *	switchdev_port_attr_set - Set port attribute
+ *
+ *	@dev: port device
+ *	@attr: attribute to set
+ *
+ *	Use a 2-phase prepare-commit transaction model to ensure
+ *	system is not left in a partially updated state due to
+ *	failure from driver/device.
+ *
+ *	rtnl_lock must be held and must not be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is not set.
+ */
+int switchdev_port_attr_set(struct net_device *dev,
+			    const struct switchdev_attr *attr)
+{
+	if (attr->flags & SWITCHDEV_F_DEFER)
+		return switchdev_port_attr_set_defer(dev, attr);
+	ASSERT_RTNL();
+	return switchdev_port_attr_set_now(dev, attr);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 
