@@ -899,7 +899,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	struct net_device *wds = NULL;
 	struct sk_buff *skb2 = NULL;
 	struct net_device *wds = NULL;
-	int frame_authorized = 0;
 	int from_assoc_ap = 0;
 	void *sta = NULL;
 #endif
@@ -1106,10 +1105,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		switch (hostap_handle_sta_rx(ieee, dev, skb, rx_stats,
 					     wds != NULL)) {
 		case AP_RX_CONTINUE_NOT_AUTHORIZED:
-			frame_authorized = 0;
-			break;
 		case AP_RX_CONTINUE:
-			frame_authorized = 1;
 			break;
 		case AP_RX_DROP:
 			goto rx_dropped;
