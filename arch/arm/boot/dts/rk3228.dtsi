@@ -263,4 +263,37 @@
 				  "Mali_PP1_IRQ",
 				  "Mali_PP1_MMU_IRQ";
 	};
+
+	vop_mmu {
+		dbgname = "vop";
+		compatible = "rockchip,vop_mmu";
+		reg = <0x20053f00 0x100>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vop_mmu";
+	};
+
+	hevc_mmu {
+		dbgname = "hevc";
+		compatible = "rockchip,hevc_mmu";
+		reg = <0x20034440 0x40>,
+		      <0x20034480 0x40>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "hevc_mmu";
+	};
+
+	vpu_mmu {
+		dbgname = "vpu";
+		compatible = "rockchip,vpu_mmu";
+		reg = <0x20026800 0x100>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+	};
+
+	iep_mmu {
+		dbgname = "iep";
+		compatible = "rockchip,iep_mmu";
+		reg = <0x20078800 0x100>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "iep_mmu";
+	};
  };
