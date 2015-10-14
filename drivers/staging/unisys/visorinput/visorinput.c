@@ -255,7 +255,7 @@ register_client_keyboard(void *devdata,  /* opaque on purpose */
 
 {
 	int i, error;
-	struct input_dev *visorinput_dev = NULL;
+	struct input_dev *visorinput_dev;
 
 	visorinput_dev = input_allocate_device();
 	if (!visorinput_dev)
