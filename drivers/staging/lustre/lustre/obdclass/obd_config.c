@@ -88,7 +88,7 @@ static int class_match_param(char *buf, char *key, char **valp)
 
 static int parse_nid(char *buf, void *value, int quiet)
 {
-	lnet_nid_t *nid = (lnet_nid_t *)value;
+	lnet_nid_t *nid = value;
 
 	*nid = libcfs_str2nid(buf);
 	if (*nid != LNET_NID_ANY)
@@ -101,7 +101,7 @@ static int parse_nid(char *buf, void *value, int quiet)
 
 static int parse_net(char *buf, void *value)
 {
-	__u32 *net = (__u32 *)value;
+	__u32 *net = value;
 
 	*net = libcfs_str2net(buf);
 	CDEBUG(D_INFO, "Net %s\n", libcfs_net2str(*net));

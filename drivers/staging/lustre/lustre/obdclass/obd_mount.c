@@ -1100,7 +1100,7 @@ static int lustre_fill_super(struct super_block *sb, void *data, int silent)
 	obd_zombie_barrier();
 
 	/* Figure out the lmd from the mount options */
-	if (lmd_parse((char *)(lmd2->lmd2_data), lmd)) {
+	if (lmd_parse((lmd2->lmd2_data), lmd)) {
 		lustre_put_lsi(sb);
 		rc = -EINVAL;
 		goto out;

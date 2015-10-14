@@ -612,7 +612,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 {
 	struct lprocfs_counter		ret;
 	struct lprocfs_counter_header	*header;
-	struct obd_device		*obd	= (struct obd_device *)data;
+	struct obd_device		*obd	= data;
 	struct obd_import		*imp;
 	struct obd_import_conn		*conn;
 	int				j;
@@ -757,7 +757,7 @@ EXPORT_SYMBOL(lprocfs_rd_import);
 
 int lprocfs_rd_state(struct seq_file *m, void *data)
 {
-	struct obd_device *obd = (struct obd_device *)data;
+	struct obd_device *obd = data;
 	struct obd_import *imp;
 	int j, k;
 
@@ -797,7 +797,7 @@ EXPORT_SYMBOL(lprocfs_at_hist_helper);
 /* See also ptlrpc_lprocfs_rd_timeouts */
 int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 {
-	struct obd_device *obd = (struct obd_device *)data;
+	struct obd_device *obd = data;
 	struct obd_import *imp;
 	unsigned int cur, worst;
 	time64_t now, worstt;
