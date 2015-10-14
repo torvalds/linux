@@ -17,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/list.h>
+#include <linux/workqueue.h>
 #include <net/ip_fib.h>
 #include <net/switchdev.h>
 
@@ -90,6 +91,85 @@ static void switchdev_trans_items_warn_destroy(struct net_device *dev,
 	WARN(!list_empty(&trans->item_list), "%s: transaction item queue is not empty.\n",
 	     dev->name);
 	switchdev_trans_items_destroy(trans);
+}
+
+static LIST_HEAD(deferred);
+static DEFINE_SPINLOCK(deferred_lock);
+
+typedef void switchdev_deferred_func_t(struct net_device *dev,
+				       const void *data);
+
+struct switchdev_deferred_item {
+	struct list_head list;
+	struct net_device *dev;
+	switchdev_deferred_func_t *func;
+	unsigned long data[0];
+};
+
+static struct switchdev_deferred_item *switchdev_deferred_dequeue(void)
+{
+	struct switchdev_deferred_item *dfitem;
+
+	spin_lock_bh(&deferred_lock);
+	if (list_empty(&deferred)) {
+		dfitem = NULL;
+		goto unlock;
+	}
+	dfitem = list_first_entry(&deferred,
+				  struct switchdev_deferred_item, list);
+	list_del(&dfitem->list);
+unlock:
+	spin_unlock_bh(&deferred_lock);
+	return dfitem;
+}
+
+/**
+ *	switchdev_deferred_process - Process ops in deferred queue
+ *
+ *	Called to flush the ops currently queued in deferred ops queue.
+ *	rtnl_lock must be held.
+ */
+void switchdev_deferred_process(void)
+{
+	struct switchdev_deferred_item *dfitem;
+
+	ASSERT_RTNL();
+
+	while ((dfitem = switchdev_deferred_dequeue())) {
+		dfitem->func(dfitem->dev, dfitem->data);
+		dev_put(dfitem->dev);
+		kfree(dfitem);
+	}
+}
+EXPORT_SYMBOL_GPL(switchdev_deferred_process);
+
+static void switchdev_deferred_process_work(struct work_struct *work)
+{
+	rtnl_lock();
+	switchdev_deferred_process();
+	rtnl_unlock();
+}
+
+static DECLARE_WORK(deferred_process_work, switchdev_deferred_process_work);
+
+static int switchdev_deferred_enqueue(struct net_device *dev,
+				      const void *data, size_t data_len,
+				      switchdev_deferred_func_t *func)
+{
+	struct switchdev_deferred_item *dfitem;
+
+	dfitem = kmalloc(sizeof(*dfitem) + data_len, GFP_ATOMIC);
+	if (!dfitem)
+		return -ENOMEM;
+	dfitem->dev = dev;
+	dfitem->func = func;
+	memcpy(dfitem->data, data, data_len);
+	dev_hold(dev);
+	spin_lock_bh(&deferred_lock);
+	list_add_tail(&dfitem->list, &deferred);
+	spin_unlock_bh(&deferred_lock);
+	schedule_work(&deferred_process_work);
+	return 0;
 }
 
 /**

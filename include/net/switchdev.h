@@ -167,6 +167,7 @@ switchdev_notifier_info_to_dev(const struct switchdev_notifier_info *info)
 
 #ifdef CONFIG_NET_SWITCHDEV
 
+void switchdev_deferred_process(void);
 int switchdev_port_attr_get(struct net_device *dev,
 			    struct switchdev_attr *attr);
 int switchdev_port_attr_set(struct net_device *dev,
@@ -207,6 +208,10 @@ void switchdev_port_fwd_mark_set(struct net_device *dev,
 				 bool joining);
 
 #else
+
+static inline void switchdev_deferred_process(void)
+{
+}
 
 static inline int switchdev_port_attr_get(struct net_device *dev,
 					  struct switchdev_attr *attr)
