@@ -196,7 +196,7 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 
 	pwm = &pwmc->chip;
 
-	pwm->dev = &connection->dev;
+	pwm->dev = &connection->bundle->dev;
 	pwm->ops = &gb_pwm_ops;
 	pwm->base = -1;			/* Allocate base dynamically */
 	pwm->npwm = pwmc->pwm_max + 1;
@@ -204,7 +204,8 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 
 	ret = pwmchip_add(pwm);
 	if (ret) {
-		dev_err(&connection->dev, "failed to register PWM: %d\n", ret);
+		dev_err(&connection->bundle->dev,
+			"failed to register PWM: %d\n", ret);
 		goto out_err;
 	}
 
