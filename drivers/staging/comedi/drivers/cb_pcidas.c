@@ -493,7 +493,7 @@ static int wait_for_nvram_ready(unsigned long s5933_base_addr)
 }
 
 static int nvram_read(struct comedi_device *dev, unsigned int address,
-		      uint8_t *data)
+		      u8 *data)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned long iobase = devpriv->s5933_config;
@@ -521,7 +521,7 @@ static int eeprom_read_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	uint8_t nvram_data;
+	u8 nvram_data;
 	int retval;
 
 	retval = nvram_read(dev, CR_CHAN(insn->chanspec), &nvram_data);
@@ -553,7 +553,7 @@ static void write_calibration_bitstream(struct comedi_device *dev,
 }
 
 static void caldac_8800_write(struct comedi_device *dev,
-			      unsigned int chan, uint8_t val)
+			      unsigned int chan, u8 val)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	static const int bitstream_length = 11;
@@ -626,7 +626,7 @@ static int cb_pcidas_dac08_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int trimpot_7376_write(struct comedi_device *dev, uint8_t value)
+static int trimpot_7376_write(struct comedi_device *dev, u8 value)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	static const int bitstream_length = 7;
@@ -651,7 +651,7 @@ static int trimpot_7376_write(struct comedi_device *dev, uint8_t value)
  * ch 0 : adc gain
  * ch 1 : adc postgain offset */
 static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
-			      uint8_t value)
+			      u8 value)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	static const int bitstream_length = 10;
