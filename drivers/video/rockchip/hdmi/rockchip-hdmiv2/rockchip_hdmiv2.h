@@ -1,6 +1,7 @@
 #ifndef __RK32_HDMI_H__
 #define __RK32_HDMI_H__
 #include <linux/regmap.h>
+#include <linux/gpio.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -25,8 +26,7 @@ struct hdmi_dev_phy_para {
 
 struct hdmi_dev {
 	void __iomem		*regbase;
-	int			regbase_phy;
-	int			regsize_phy;
+	void __iomem		*phybase;
 	struct regmap		*grf_base;
 
 	struct clk		*pd;
@@ -66,5 +66,8 @@ struct hdmi_dev {
 
 	struct hdmi_dev_phy_para *phy_table;
 	int			phy_table_size;
+
+	int			hpd_gpio;
+	int			irq_hpd;
 };
 #endif /*__RK32_HDMI_H__*/

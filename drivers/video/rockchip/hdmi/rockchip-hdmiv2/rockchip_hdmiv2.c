@@ -4,6 +4,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
+#include <linux/of_gpio.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/mfd/syscon.h>
@@ -337,6 +338,7 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 static struct notifier_block rockchip_hdmiv2_fb_notifier = {
 	.notifier_call = rockchip_hdmiv2_fb_event_notify,
 };
+
 #ifdef HDMI_INT_USE_POLL
 static void rockchip_hdmiv2_irq_work_func(struct work_struct *work)
 {
@@ -349,13 +351,22 @@ static void rockchip_hdmiv2_irq_work_func(struct work_struct *work)
 }
 #endif
 
-static struct hdmi_ops rk_hdmi_ops;
+static irqreturn_t rockchip_hdmiv2_gpio_hpd_irq(int irq, void *priv)
+{
+	struct hdmi_dev *hdmi_dev = priv;
+	struct hdmi *hdmi = hdmi_dev->hdmi;
 
+	hdmi_submit_work(hdmi, HDMI_HPD_CHANGE, 20, 0);
+	return IRQ_HANDLED;
+}
+
+static struct hdmi_ops rk_hdmi_ops;
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rk_hdmi_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-hdmi",},
 	{.compatible = "rockchip,rk3368-hdmi",},
+	{.compatible = "rockchip,rk3228-hdmi",},
 	{}
 };
 
@@ -373,9 +384,23 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 		hdmi_dev->soctype = HDMI_SOC_RK3288;
 	} else if (!strcmp(match->compatible, "rockchip,rk3368-hdmi")) {
 		hdmi_dev->soctype = HDMI_SOC_RK3368;
+	} else if (!strcmp(match->compatible, "rockchip,rk3228-hdmi")) {
+		hdmi_dev->soctype = HDMI_SOC_RK3228;
 	} else {
 		pr_err("It is not a valid rockchip soc!");
 		return -ENOMEM;
+	}
+
+	if (hdmi_dev->soctype == HDMI_SOC_RK3228) {
+		val = of_get_named_gpio(np, "rockchip,hotplug", 0);
+		if (gpio_is_valid(val) &&
+		    !devm_gpio_request_one(hdmi_dev->dev, val,
+					   GPIOF_DIR_IN, "hotplug")) {
+			hdmi_dev->hpd_gpio = val;
+		} else {
+			pr_err("HDMI: invalid hotplug gpio\n");
+			return -ENXIO;
+		}
 	}
 
 	if (!of_property_read_u32(np, "rockchip,hdmi_video_source", &val))
@@ -415,6 +440,7 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 	} else {
 		pr_info("hdmi phy_table not exist\n");
 	}
+
 	#ifdef CONFIG_MFD_SYSCON
 	hdmi_dev->grf_base =
 		syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
@@ -448,8 +474,6 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto failed;
 	}
-	hdmi_dev->regbase_phy = res->start;
-	hdmi_dev->regsize_phy = resource_size(res);
 	hdmi_dev->regbase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hdmi_dev->regbase)) {
 		ret = PTR_ERR(hdmi_dev->regbase);
@@ -457,7 +481,22 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 			"cannot ioremap registers,err=%d\n", ret);
 		goto failed;
 	}
-
+	if (hdmi_dev->soctype == HDMI_SOC_RK3228) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (!res) {
+			dev_err(&pdev->dev,
+				"Unable to get phy register resource\n");
+			ret = -ENXIO;
+			goto failed;
+		}
+		hdmi_dev->phybase = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(hdmi_dev->phybase)) {
+			ret = PTR_ERR(hdmi_dev->phybase);
+			dev_err(&pdev->dev,
+				"cannot ioremap registers,err=%d\n", ret);
+			goto failed;
+		}
+	}
 	/*enable pd and pclk and hdcp_clk*/
 	if (rockchip_hdmiv2_clk_enable(hdmi_dev) < 0) {
 		ret = -ENXIO;
@@ -487,6 +526,17 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 				SUPPORT_YUV420 |
 				SUPPORT_YCBCR_INPUT |
 				SUPPORT_VESA_DMT;
+	} else if (hdmi_dev->soctype == HDMI_SOC_RK3228) {
+		rk_hdmi_property.feature |=
+				SUPPORT_4K |
+				SUPPORT_4K_4096 |
+				SUPPORT_YUV420 |
+				SUPPORT_YCBCR_INPUT |
+				SUPPORT_1080I |
+				SUPPORT_480I_576I;
+	} else {
+		ret = -ENXIO;
+		goto failed1;
 	}
 	hdmi_dev->hdmi =
 		rockchip_hdmi_register(&rk_hdmi_property, &rk_hdmi_ops);
@@ -529,14 +579,29 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 		goto failed1;
 	}
 
-	ret =
-	    devm_request_irq(hdmi_dev->dev, hdmi_dev->irq,
-			     rockchip_hdmiv2_dev_irq,
-			     IRQF_TRIGGER_HIGH,
-			     dev_name(hdmi_dev->dev), hdmi_dev);
+	ret = devm_request_irq(hdmi_dev->dev, hdmi_dev->irq,
+			       rockchip_hdmiv2_dev_irq,
+			       IRQF_TRIGGER_HIGH,
+			       dev_name(hdmi_dev->dev), hdmi_dev);
 	if (ret) {
-		dev_err(hdmi_dev->dev, "hdmi request_irq failed (%d).\n", ret);
+		dev_err(hdmi_dev->dev,
+			"hdmi request_irq failed (%d).\n",
+			ret);
 		goto failed1;
+	}
+
+	if (hdmi_dev->soctype == HDMI_SOC_RK3228) {
+		hdmi_dev->irq_hpd = gpio_to_irq(hdmi_dev->hpd_gpio);
+		ret = devm_request_irq(hdmi_dev->dev, hdmi_dev->irq,
+				       rockchip_hdmiv2_gpio_hpd_irq,
+				       IRQF_TRIGGER_RISING |
+				       IRQF_TRIGGER_FALLING,
+				       dev_name(hdmi_dev->dev), hdmi_dev);
+		if (ret) {
+			dev_err(hdmi_dev->dev,
+			        "hdmi request hpd irq failed (%d).\n", ret);
+			goto failed1;
+		}
 	}
 #else
 	hdmi_dev->workqueue =

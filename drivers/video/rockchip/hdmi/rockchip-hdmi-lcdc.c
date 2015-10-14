@@ -102,10 +102,6 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 		}
 	}
 	/* Pin polarity */
-	#ifdef CONFIG_HDMI_RK616
-	screen->pin_hsync = 0;
-	screen->pin_vsync = 0;
-	#else
 	if (FB_SYNC_HOR_HIGH_ACT & mode->sync)
 		screen->pin_hsync = 1;
 	else
@@ -114,14 +110,15 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 		screen->pin_vsync = 1;
 	else
 		screen->pin_vsync = 0;
-	#endif
+
 	screen->pin_den = 0;
 	screen->pin_dclk = 1;
 
 	/* Swap rule */
-	if (hdmi->soctype == HDMI_SOC_RK3368 &&
-	    screen->color_mode == COLOR_YCBCR &&
-	    screen->face == OUT_P888)
+	if (hdmi->soctype > HDMI_SOC_RK3288 &&
+	    screen->color_mode > COLOR_RGB &&
+	    (screen->face == OUT_P888 ||
+	     screen->face == OUT_P101010))
 		screen->swap_rb = 1;
 	else
 		screen->swap_rb = 0;
