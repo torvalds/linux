@@ -11,6 +11,7 @@
 #include "symbol.h"
 #include "cache.h"
 #include "header.h"
+#include "bpf-loader.h"
 #include "debug.h"
 #include <api/fs/tracing_path.h>
 #include "parse-events-bison.h"
@@ -527,6 +528,62 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 
 	closedir(events_dir);
 	return ret;
+}
+
+int parse_events_load_bpf_obj(struct parse_events_evlist *data,
+			      struct list_head *list,
+			      struct bpf_object *obj)
+{
+	int err;
+	char errbuf[BUFSIZ];
+
+	if (IS_ERR(obj) || !obj) {
+		snprintf(errbuf, sizeof(errbuf),
+			 "Internal error: load bpf obj with NULL");
+		err = -EINVAL;
+		goto errout;
+	}
+
+	/*
+	 * Temporary add a dummy event here so we can check whether
+	 * basic bpf loader works. Following patches will replace
+	 * dummy event by useful evsels.
+	 */
+	return parse_events_add_numeric(data, list, PERF_TYPE_SOFTWARE,
+					PERF_COUNT_SW_DUMMY, NULL);
+errout:
+	data->error->help = strdup("(add -v to see detail)");
+	data->error->str = strdup(errbuf);
+	return err;
+}
+
+int parse_events_load_bpf(struct parse_events_evlist *data,
+			  struct list_head *list,
+			  char *bpf_file_name)
+{
+	struct bpf_object *obj;
+
+	obj = bpf__prepare_load(bpf_file_name);
+	if (IS_ERR(obj) || !obj) {
+		char errbuf[BUFSIZ];
+		int err;
+
+		err = obj ? PTR_ERR(obj) : -EINVAL;
+
+		if (err == -ENOTSUP)
+			snprintf(errbuf, sizeof(errbuf),
+				 "BPF support is not compiled");
+		else
+			snprintf(errbuf, sizeof(errbuf),
+				 "BPF object file '%s' is invalid",
+				 bpf_file_name);
+
+		data->error->help = strdup("(add -v to see detail)");
+		data->error->str = strdup(errbuf);
+		return err;
+	}
+
+	return parse_events_load_bpf_obj(data, list, obj);
 }
 
 static int
