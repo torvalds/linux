@@ -30,8 +30,7 @@
 #define CV_CTLCFG_GEN_SB_ERR       0x2000
 #define CV_CTLCFG_GEN_DB_ERR       0x4000
 
-#define CV_CTLCFG_ECC_AUTO_EN     (CV_CTLCFG_ECC_EN | \
-				   CV_CTLCFG_ECC_CORR_EN)
+#define CV_CTLCFG_ECC_AUTO_EN     (CV_CTLCFG_ECC_EN)
 
 /* SDRAM Controller Address Width Register */
 #define CV_DRAMADDRW_OFST          0x2C
