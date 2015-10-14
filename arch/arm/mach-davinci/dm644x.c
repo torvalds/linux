@@ -542,12 +542,13 @@ static struct resource edma_resources[] = {
 	/* not using TC*_ERR */
 };
 
-static struct platform_device dm644x_edma_device = {
-	.name			= "edma",
-	.id			= 0,
-	.dev.platform_data	= &dm644x_edma_pdata,
-	.num_resources		= ARRAY_SIZE(edma_resources),
-	.resource		= edma_resources,
+static const struct platform_device_info dm644x_edma_device __initconst = {
+	.name		= "edma",
+	.id		= 0,
+	.res		= edma_resources,
+	.num_res	= ARRAY_SIZE(edma_resources),
+	.data		= &dm644x_edma_pdata,
+	.size_data	= sizeof(dm644x_edma_pdata),
 };
 
 /* DM6446 EVM uses ASP0; line-out is a pair of RCA jacks */
@@ -945,12 +946,17 @@ int __init dm644x_init_video(struct vpfe_config *vpfe_cfg,
 
 static int __init dm644x_init_devices(void)
 {
+	struct platform_device *edma_pdev;
 	int ret = 0;
 
 	if (!cpu_is_davinci_dm644x())
 		return 0;
 
-	platform_device_register(&dm644x_edma_device);
+	edma_pdev = platform_device_register_full(&dm644x_edma_device);
+	if (IS_ERR(edma_pdev)) {
+		pr_warn("%s: Failed to register eDMA\n", __func__);
+		return PTR_ERR(edma_pdev);
+	}
 
 	platform_device_register(&dm644x_mdio_device);
 	platform_device_register(&dm644x_emac_device);

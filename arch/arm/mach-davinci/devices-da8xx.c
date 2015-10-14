@@ -213,48 +213,50 @@ static struct resource da850_edma1_resources[] = {
 	},
 };
 
-static struct platform_device da8xx_edma0_device = {
+static const struct platform_device_info da8xx_edma0_device __initconst = {
 	.name		= "edma",
 	.id		= 0,
-	.dev = {
-		.platform_data = &da8xx_edma0_pdata,
-	},
-	.num_resources	= ARRAY_SIZE(da8xx_edma0_resources),
-	.resource	= da8xx_edma0_resources,
+	.res		= da8xx_edma0_resources,
+	.num_res	= ARRAY_SIZE(da8xx_edma0_resources),
+	.data		= &da8xx_edma0_pdata,
+	.size_data	= sizeof(da8xx_edma0_pdata),
 };
 
-static struct platform_device da850_edma1_device = {
+static const struct platform_device_info da850_edma1_device __initconst = {
 	.name		= "edma",
 	.id		= 1,
-	.dev = {
-		.platform_data = &da850_edma1_pdata,
-	},
-	.num_resources	= ARRAY_SIZE(da850_edma1_resources),
-	.resource	= da850_edma1_resources,
+	.res		= da850_edma1_resources,
+	.num_res	= ARRAY_SIZE(da850_edma1_resources),
+	.data		= &da850_edma1_pdata,
+	.size_data	= sizeof(da850_edma1_pdata),
 };
 
 int __init da830_register_edma(struct edma_rsv_info *rsv)
 {
+	struct platform_device *edma_pdev;
+
 	da8xx_edma0_pdata.rsv = rsv;
 
-	return platform_device_register(&da8xx_edma0_device);
+	edma_pdev = platform_device_register_full(&da8xx_edma0_device);
+	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
 }
 
 int __init da850_register_edma(struct edma_rsv_info *rsv[2])
 {
-	int ret;
+	struct platform_device *edma_pdev;
 
 	if (rsv) {
 		da8xx_edma0_pdata.rsv = rsv[0];
 		da850_edma1_pdata.rsv = rsv[1];
 	}
 
-	ret = platform_device_register(&da8xx_edma0_device);
-	if (ret) {
+	edma_pdev = platform_device_register_full(&da8xx_edma0_device);
+	if (IS_ERR(edma_pdev)) {
 		pr_warn("%s: Failed to register eDMA0\n", __func__);
-		return ret;
+		return PTR_ERR(edma_pdev);
 	}
-	return platform_device_register(&da850_edma1_device);
+	edma_pdev = platform_device_register_full(&da850_edma1_device);
+	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
 }
 
 static struct resource da8xx_i2c_resources0[] = {

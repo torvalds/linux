@@ -613,12 +613,13 @@ static struct resource edma_resources[] = {
 	/* not using (or muxing) TC*_ERR */
 };
 
-static struct platform_device dm355_edma_device = {
-	.name			= "edma",
-	.id			= 0,
-	.dev.platform_data	= &dm355_edma_pdata,
-	.num_resources		= ARRAY_SIZE(edma_resources),
-	.resource		= edma_resources,
+static const struct platform_device_info dm355_edma_device __initconst = {
+	.name		= "edma",
+	.id		= 0,
+	.res		= edma_resources,
+	.num_res	= ARRAY_SIZE(edma_resources),
+	.data		= &dm355_edma_pdata,
+	.size_data	= sizeof(dm355_edma_pdata),
 };
 
 static struct resource dm355_asp1_resources[] = {
@@ -1057,13 +1058,18 @@ int __init dm355_init_video(struct vpfe_config *vpfe_cfg,
 
 static int __init dm355_init_devices(void)
 {
+	struct platform_device *edma_pdev;
 	int ret = 0;
 
 	if (!cpu_is_davinci_dm355())
 		return 0;
 
 	davinci_cfg_reg(DM355_INT_EDMA_CC);
-	platform_device_register(&dm355_edma_device);
+	edma_pdev = platform_device_register_full(&dm355_edma_device);
+	if (IS_ERR(edma_pdev)) {
+		pr_warn("%s: Failed to register eDMA\n", __func__);
+		return PTR_ERR(edma_pdev);
+	}
 
 	ret = davinci_init_wdt();
 	if (ret)

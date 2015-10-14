@@ -589,12 +589,13 @@ static struct resource edma_resources[] = {
 	/* not using TC*_ERR */
 };
 
-static struct platform_device dm646x_edma_device = {
-	.name			= "edma",
-	.id			= 0,
-	.dev.platform_data	= &dm646x_edma_pdata,
-	.num_resources		= ARRAY_SIZE(edma_resources),
-	.resource		= edma_resources,
+static const struct platform_device_info dm646x_edma_device __initconst = {
+	.name		= "edma",
+	.id		= 0,
+	.res		= edma_resources,
+	.num_res	= ARRAY_SIZE(edma_resources),
+	.data		= &dm646x_edma_pdata,
+	.size_data	= sizeof(dm646x_edma_pdata),
 };
 
 static struct resource dm646x_mcasp0_resources[] = {
@@ -931,9 +932,12 @@ void dm646x_setup_vpif(struct vpif_display_config *display_config,
 
 int __init dm646x_init_edma(struct edma_rsv_info *rsv)
 {
+	struct platform_device *edma_pdev;
+
 	dm646x_edma_pdata.rsv = rsv;
 
-	return platform_device_register(&dm646x_edma_device);
+	edma_pdev = platform_device_register_full(&dm646x_edma_device);
+	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
 }
 
 void __init dm646x_init(void)
