@@ -24,10 +24,13 @@
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include <video/mipi_display.h>
 
 #include "dsi.h"
 #include "dsi.xml.h"
+#include "sfpb.xml.h"
 #include "dsi_cfg.h"
 
 static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
@@ -148,6 +151,8 @@ struct msm_dsi_host {
 	int tx_size;
 
 	u8 *rx_buf;
+
+	struct regmap *sfpb;
 
 	struct drm_display_mode *mode;
 
@@ -1568,6 +1573,16 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 
 	msm_host->device_node = device_node;
 
+	if (of_property_read_bool(np, "syscon-sfpb")) {
+		msm_host->sfpb = syscon_regmap_lookup_by_phandle(np,
+					"syscon-sfpb");
+		if (IS_ERR(msm_host->sfpb)) {
+			dev_err(dev, "%s: failed to get sfpb regmap\n",
+				__func__);
+			return PTR_ERR(msm_host->sfpb);
+		}
+	}
+
 	return 0;
 }
 
@@ -2031,6 +2046,20 @@ int msm_dsi_host_disable(struct mipi_dsi_host *host)
 	return 0;
 }
 
+static void msm_dsi_sfpb_config(struct msm_dsi_host *msm_host, bool enable)
+{
+	enum sfpb_ahb_arb_master_port_en en;
+
+	if (!msm_host->sfpb)
+		return;
+
+	en = enable ? SFPB_MASTER_PORT_ENABLE : SFPB_MASTER_PORT_DISABLE;
+
+	regmap_update_bits(msm_host->sfpb, REG_SFPB_GPREG,
+			SFPB_GPREG_MASTER_PORT_EN__MASK,
+			SFPB_GPREG_MASTER_PORT_EN(en));
+}
+
 int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
@@ -2042,6 +2071,8 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		DBG("dsi host already on");
 		goto unlock_ret;
 	}
+
+	msm_dsi_sfpb_config(msm_host, true);
 
 	ret = dsi_calc_clk_rate(msm_host);
 	if (ret) {
@@ -2129,6 +2160,8 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 	dsi_clk_ctrl(msm_host, 0);
 
 	dsi_host_regulator_disable(msm_host);
+
+	msm_dsi_sfpb_config(msm_host, false);
 
 	DBG("-");
 
