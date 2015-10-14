@@ -520,7 +520,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	ret = devm_request_irq(dev, dws->irq, dw_spi_irq, IRQF_SHARED,
 			dws->name, master);
 	if (ret < 0) {
-		dev_err(&master->dev, "can not get IRQ\n");
+		dev_err(dev, "can not get IRQ\n");
 		goto err_free_master;
 	}
 
