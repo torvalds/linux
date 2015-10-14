@@ -133,22 +133,21 @@
 #define PCIDAS_CALIB_EN		BIT(14)	/* calibration source enable */
 #define PCIDAS_CALIB_DATA	BIT(15)	/* serial data bit going to caldac */
 
-#define DAC_CSR			0x8	/* dac control and status register */
-#define   DACEN			0x02	/* dac enable */
-#define   DAC_MODE_UPDATE_BOTH	0x80	/* update both dacs */
-
-#define   DAC_RANGE(c, r)	(((r) & 0x3) << (8 + 2 * ((c) & 0x1)))
-#define   DAC_RANGE_MASK(c)	DAC_RANGE((c), 0x3)
-
-/* bits for 1602 series only */
-#define   DAC_EMPTY		0x1	/* fifo empty, read, write clear */
-#define   DAC_START		0x4	/* start/arm fifo operations */
-#define   DAC_PACER_MASK	0x18	/* bits that set pacer source */
-#define   DAC_PACER_INT		0x8	/* int. pacing */
-#define   DAC_PACER_EXT_FALL	0x10	/* ext. pacing, falling edge */
-#define   DAC_PACER_EXT_RISE	0x18	/* ext. pacing, rising edge */
-
-#define   DAC_CHAN_EN(c)	BIT(5 + ((c) & 0x1))
+#define PCIDAS_AO_REG		0x08	/* dac control and status register */
+#define PCIDAS_AO_EMPTY		BIT(0)	/* fifo empty, write clear (1602) */
+#define PCIDAS_AO_DACEN		BIT(1)	/* dac enable */
+#define PCIDAS_AO_START		BIT(2)	/* start/arm fifo (1602) */
+#define PCIDAS_AO_PACER(x)	(((x) & 0x3) << 3) /* (1602) */
+#define PCIDAS_AO_PACER_SW	PCIDAS_AO_PACER(0) /* software pacer */
+#define PCIDAS_AO_PACER_INT	PCIDAS_AO_PACER(1) /* int. pacer */
+#define PCIDAS_AO_PACER_EXTN	PCIDAS_AO_PACER(2) /* ext. falling edge */
+#define PCIDAS_AO_PACER_EXTP	PCIDAS_AO_PACER(3) /* ext. rising edge */
+#define PCIDAS_AO_PACER_MASK	PCIDAS_AO_PACER(3) /* pacer source bits */
+#define PCIDAS_AO_CHAN_EN(c)	BIT(5 + ((c) & 0x1))
+#define PCIDAS_AO_CHAN_MASK	(PCIDAS_AO_CHAN_EN(0) | PCIDAS_AO_CHAN_EN(1))
+#define PCIDAS_AO_UPDATE_BOTH	BIT(7)	/* update both dacs */
+#define PCIDAS_AO_RANGE(c, r)	(((r) & 0x3) << (8 + 2 * ((c) & 0x1)))
+#define PCIDAS_AO_RANGE_MASK(c)	PCIDAS_AO_RANGE((c), 0x3)
 
 /*
  * PCI BAR2 Register map (devpriv->pcibar2)
@@ -316,7 +315,7 @@ struct cb_pcidas_private {
 	/* bits to write to registers */
 	unsigned int ctrl;
 	unsigned int s5933_intcsr_bits;
-	unsigned int ao_control_bits;
+	unsigned int ao_ctrl;
 	/* fifo buffers */
 	unsigned short ai_buffer[AI_BUFFER_SIZE];
 	unsigned short ao_buffer[AO_BUFFER_SIZE];
@@ -432,10 +431,10 @@ static int cb_pcidas_ao_nofifo_winsn(struct comedi_device *dev,
 
 	/* set channel and range */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->ao_control_bits &= (~DAC_MODE_UPDATE_BOTH &
-				     ~DAC_RANGE_MASK(chan));
-	devpriv->ao_control_bits |= (DACEN | DAC_RANGE(chan, range));
-	outw(devpriv->ao_control_bits, devpriv->pcibar1 + DAC_CSR);
+	devpriv->ao_ctrl &= ~(PCIDAS_AO_UPDATE_BOTH |
+			      PCIDAS_AO_RANGE_MASK(chan));
+	devpriv->ao_ctrl |= PCIDAS_AO_DACEN | PCIDAS_AO_RANGE(chan, range);
+	outw(devpriv->ao_ctrl, devpriv->pcibar1 + PCIDAS_AO_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* remember value for readback */
@@ -462,11 +461,11 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
 
 	/* set channel and range */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->ao_control_bits &= (~DAC_CHAN_EN(0) & ~DAC_CHAN_EN(1) &
-				     ~DAC_RANGE_MASK(chan) & ~DAC_PACER_MASK);
-	devpriv->ao_control_bits |= (DACEN | DAC_RANGE(chan, range) |
-				     DAC_CHAN_EN(chan) | DAC_START);
-	outw(devpriv->ao_control_bits, devpriv->pcibar1 + DAC_CSR);
+	devpriv->ao_ctrl &= ~(PCIDAS_AO_CHAN_MASK | PCIDAS_AO_RANGE_MASK(chan) |
+			      PCIDAS_AO_PACER_MASK);
+	devpriv->ao_ctrl |= PCIDAS_AO_DACEN | PCIDAS_AO_RANGE(chan, range) |
+			    PCIDAS_AO_CHAN_EN(chan) | PCIDAS_AO_START;
+	outw(devpriv->ao_ctrl, devpriv->pcibar1 + PCIDAS_AO_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* remember value for readback */
@@ -1083,8 +1082,8 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 
 	/*  start dac */
-	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
-	outw(devpriv->ao_control_bits, devpriv->pcibar1 + DAC_CSR);
+	devpriv->ao_ctrl |= PCIDAS_AO_START | PCIDAS_AO_DACEN | PCIDAS_AO_EMPTY;
+	outw(devpriv->ao_ctrl, devpriv->pcibar1 + PCIDAS_AO_REG);
 
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
@@ -1109,13 +1108,13 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 		unsigned int range = CR_RANGE(cmd->chanlist[i]);
 
 		/*  enable channel */
-		devpriv->ao_control_bits |= DAC_CHAN_EN(chan);
+		devpriv->ao_ctrl |= PCIDAS_AO_CHAN_EN(chan);
 		/*  set range */
-		devpriv->ao_control_bits |= DAC_RANGE(chan, range);
+		devpriv->ao_ctrl |= PCIDAS_AO_RANGE(chan, range);
 	}
 
 	/*  disable analog out before settings pacer source and count values */
-	outw(devpriv->ao_control_bits, devpriv->pcibar1 + DAC_CSR);
+	outw(devpriv->ao_ctrl, devpriv->pcibar1 + PCIDAS_AO_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  clear fifo */
@@ -1131,10 +1130,10 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	spin_lock_irqsave(&dev->spinlock, flags);
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		devpriv->ao_control_bits |= DAC_PACER_INT;
+		devpriv->ao_ctrl |= PCIDAS_AO_PACER_INT;
 		break;
 	case TRIG_EXT:
-		devpriv->ao_control_bits |= DAC_PACER_EXT_RISE;
+		devpriv->ao_ctrl |= PCIDAS_AO_PACER_EXTP;
 		break;
 	default:
 		spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -1161,8 +1160,8 @@ static int cb_pcidas_ao_cancel(struct comedi_device *dev,
 	outw(devpriv->ctrl, devpriv->pcibar1 + PCIDAS_CTRL_REG);
 
 	/*  disable output */
-	devpriv->ao_control_bits &= ~DACEN & ~DAC_PACER_MASK;
-	outw(devpriv->ao_control_bits, devpriv->pcibar1 + DAC_CSR);
+	devpriv->ao_ctrl &= ~(PCIDAS_AO_DACEN | PCIDAS_AO_PACER_MASK);
+	outw(devpriv->ao_ctrl, devpriv->pcibar1 + PCIDAS_AO_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return 0;
@@ -1183,7 +1182,7 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 		outw(devpriv->ctrl | PCIDAS_CTRL_DAEMI,
 		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-		if (inw(devpriv->pcibar4 + DAC_CSR) & DAC_EMPTY) {
+		if (inw(devpriv->pcibar4 + PCIDAS_AO_REG) & PCIDAS_AO_EMPTY) {
 			if (cmd->stop_src == TRIG_COUNT &&
 			    async->scans_done >= cmd->stop_arg) {
 				async->events |= COMEDI_CB_EOA;
