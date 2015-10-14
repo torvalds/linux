@@ -154,7 +154,8 @@ typedef struct {
 	struct host_if_drv *drvHandler;
 	struct net_device *wilc_netdev;
 } tstrInterfaceInfo;
-typedef struct {
+
+struct wilc {
 	int mac_status;
 	int wilc1000_initialized;
 	#if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
@@ -188,8 +189,7 @@ typedef struct {
 #else
 	struct spi_device *wilc_spidev;
 #endif
-
-} linux_wlan_t;
+};
 
 typedef struct {
 	u8 u8IfIdx;
@@ -206,7 +206,7 @@ struct WILC_WFI_mon_priv {
 	struct net_device *real_ndev;
 };
 
-extern linux_wlan_t *g_linux_wlan;
+extern struct wilc *g_linux_wlan;
 extern struct net_device *WILC_WFI_devs[];
 void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset);
 void linux_wlan_mac_indicate(int flag);

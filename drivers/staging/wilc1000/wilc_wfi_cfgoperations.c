@@ -2523,7 +2523,7 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-void wilc1000_wlan_deinit(linux_wlan_t *nic);
+void wilc1000_wlan_deinit(struct wilc *nic);
 int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic);
 
 static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
