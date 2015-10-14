@@ -205,7 +205,7 @@ exuberant()
 	--regex-c='/PCI_OP_WRITE\((\w*).*[1-4]\)/pci_bus_write_config_\1/' \
 	--regex-c='/DEFINE_(MUTEX|SEMAPHORE|SPINLOCK)\((\w*)/\2/v/'	\
 	--regex-c='/DEFINE_(RAW_SPINLOCK|RWLOCK|SEQLOCK)\((\w*)/\2/v/'	\
-	--regex-c='/DECLARE_(RWSEM|COMPLETION)\((\w*)/\2/v/'		\
+	--regex-c='/DECLARE_(RWSEM|COMPLETION)\((\w+)/\2/v/'		\
 	--regex-c='/DECLARE_BITMAP\((\w*)/\1/v/'			\
 	--regex-c='/(^|\s)(|L|H)LIST_HEAD\((\w*)/\3/v/'			\
 	--regex-c='/(^|\s)RADIX_TREE\((\w*)/\2/v/'			\
