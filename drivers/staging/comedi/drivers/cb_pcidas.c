@@ -626,25 +626,23 @@ static int cb_pcidas_dac08_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int trimpot_7376_write(struct comedi_device *dev, u8 value)
+static void cb_pcidas_trimpot_7376_write(struct comedi_device *dev,
+					 unsigned int val)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	static const int bitstream_length = 7;
-	unsigned int bitstream = value & 0x7f;
-	unsigned int register_bits;
-	static const int ad7376_udelay = 1;
+	unsigned int calib_bits;
 
-	register_bits = cal_enable_bits(dev) | PCIDAS_CALIB_TRIM_SEL;
-	udelay(ad7376_udelay);
-	outw(register_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
+	/* select trimpot */
+	calib_bits = cal_enable_bits(dev) | PCIDAS_CALIB_TRIM_SEL;
+	udelay(1);
+	outw(calib_bits, devpriv->pcibar1 + PCIDAS_CALIB_REG);
 
-	write_calibration_bitstream(dev, register_bits, bitstream,
-				    bitstream_length);
+	/* write 7-bit value */
+	write_calibration_bitstream(dev, calib_bits, val, 7);
+	udelay(1);
 
-	udelay(ad7376_udelay);
+	/* latch value */
 	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
-
-	return 0;
 }
 
 static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
@@ -676,7 +674,7 @@ static void cb_pcidas_trimpot_write(struct comedi_device *dev,
 
 	switch (board->trimpot) {
 	case AD7376:
-		trimpot_7376_write(dev, val);
+		cb_pcidas_trimpot_7376_write(dev, val);
 		break;
 	case AD8402:
 		trimpot_8402_write(dev, chan, val);
