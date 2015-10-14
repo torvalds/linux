@@ -76,24 +76,26 @@
 /*
  * PCI BAR1 Register map (devpriv->pcibar1)
  */
-#define INT_ADCFIFO		0	/* INTERRUPT / ADC FIFO register */
-#define   INT_EOS		0x1	/* int end of scan */
-#define   INT_FHF		0x2	/* int fifo half full */
-#define   INT_FNE		0x3	/* int fifo not empty */
-#define   INT_MASK		0x3	/* mask of int select bits */
-#define   INTE			0x4	/* int enable */
-#define   DAHFIE		0x8	/* dac half full int enable */
-#define   EOAIE			0x10	/* end of acq. int enable */
-#define   DAHFI			0x20	/* dac half full status / clear */
-#define   EOAI			0x40	/* end of acq. int status / clear */
-#define   INT			0x80	/* int status / clear */
-#define   EOBI			0x200	/* end of burst int status */
-#define   ADHFI			0x400	/* half-full int status */
-#define   ADNEI			0x800	/* fifo not empty int status (latch) */
-#define   ADNE			0x1000	/* fifo not empty status (realtime) */
-#define   DAEMIE		0x1000	/* dac empty int enable */
-#define   LADFUL		0x2000	/* fifo overflow / clear */
-#define   DAEMI			0x4000	/* dac fifo empty int status / clear */
+#define PCIDAS_CTRL_REG		0x00	/* INTERRUPT / ADC FIFO register */
+#define PCIDAS_CTRL_INT(x)	(((x) & 0x3) << 0)
+#define PCIDAS_CTRL_INT_NONE	PCIDAS_CTRL_INT(0) /* no int selected */
+#define PCIDAS_CTRL_INT_EOS	PCIDAS_CTRL_INT(1) /* int on end of scan */
+#define PCIDAS_CTRL_INT_FHF	PCIDAS_CTRL_INT(2) /* int on fifo half full */
+#define PCIDAS_CTRL_INT_FNE	PCIDAS_CTRL_INT(3) /* int on fifo not empty */
+#define PCIDAS_CTRL_INT_MASK	PCIDAS_CTRL_INT(3) /* mask of int select bits */
+#define PCIDAS_CTRL_INTE	BIT(2)	/* int enable */
+#define PCIDAS_CTRL_DAHFIE	BIT(3)	/* dac half full int enable */
+#define PCIDAS_CTRL_EOAIE	BIT(4)	/* end of acq. int enable */
+#define PCIDAS_CTRL_DAHFI	BIT(5)	/* dac half full status / clear */
+#define PCIDAS_CTRL_EOAI	BIT(6)	/* end of acq. int status / clear */
+#define PCIDAS_CTRL_INT_CLR	BIT(7)	/* int status / clear */
+#define PCIDAS_CTRL_EOBI	BIT(9)	/* end of burst int status */
+#define PCIDAS_CTRL_ADHFI	BIT(10)	/* half-full int status */
+#define PCIDAS_CTRL_ADNEI	BIT(11)	/* fifo not empty int status (latch) */
+#define PCIDAS_CTRL_ADNE	BIT(12)	/* fifo not empty status (realtime) */
+#define PCIDAS_CTRL_DAEMIE	BIT(12)	/* dac empty int enable */
+#define PCIDAS_CTRL_LADFUL	BIT(13)	/* fifo overflow / clear */
+#define PCIDAS_CTRL_DAEMI	BIT(14)	/* dac fifo empty int status / clear */
 
 #define ADCMUX_CONT		2	/* ADC CHANNEL MUX AND CONTROL reg */
 #define   BEGIN_SCAN(x)		((x) & 0xf)
@@ -307,7 +309,7 @@ struct cb_pcidas_private {
 	unsigned long pcibar2;
 	unsigned long pcibar4;
 	/* bits to write to registers */
-	unsigned int adc_fifo_bits;
+	unsigned int ctrl;
 	unsigned int s5933_intcsr_bits;
 	unsigned int ao_control_bits;
 	/* fifo buffers */
@@ -884,24 +886,25 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 
 	/*  enable interrupts */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->adc_fifo_bits |= INTE;
-	devpriv->adc_fifo_bits &= ~INT_MASK;
+	devpriv->ctrl |= PCIDAS_CTRL_INTE;
+	devpriv->ctrl &= ~PCIDAS_CTRL_INT_MASK;
 	if (cmd->flags & CMDF_WAKE_EOS) {
 		if (cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1) {
 			/* interrupt end of burst */
-			devpriv->adc_fifo_bits |= INT_EOS;
+			devpriv->ctrl |= PCIDAS_CTRL_INT_EOS;
 		} else {
 			/* interrupt fifo not empty */
-			devpriv->adc_fifo_bits |= INT_FNE;
+			devpriv->ctrl |= PCIDAS_CTRL_INT_FNE;
 		}
 	} else {
 		/* interrupt fifo half full */
-		devpriv->adc_fifo_bits |= INT_FHF;
+		devpriv->ctrl |= PCIDAS_CTRL_INT_FHF;
 	}
 
 	/*  enable (and clear) interrupts */
-	outw(devpriv->adc_fifo_bits | EOAI | INT | LADFUL,
-	     devpriv->pcibar1 + INT_ADCFIFO);
+	outw(devpriv->ctrl |
+	     PCIDAS_CTRL_EOAI | PCIDAS_CTRL_INT_CLR | PCIDAS_CTRL_LADFUL,
+	     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  set start trigger and burst mode */
@@ -1025,8 +1028,8 @@ static int cb_pcidas_cancel(struct comedi_device *dev,
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	/*  disable interrupts */
-	devpriv->adc_fifo_bits &= ~INTE & ~EOAIE;
-	outw(devpriv->adc_fifo_bits, devpriv->pcibar1 + INT_ADCFIFO);
+	devpriv->ctrl &= ~(PCIDAS_CTRL_INTE | PCIDAS_CTRL_EOAIE);
+	outw(devpriv->ctrl, devpriv->pcibar1 + PCIDAS_CTRL_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  disable start trigger source and burst mode */
@@ -1069,11 +1072,11 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 
 	/*  enable dac half-full and empty interrupts */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
+	devpriv->ctrl |= PCIDAS_CTRL_DAEMIE | PCIDAS_CTRL_DAHFIE;
 
 	/*  enable and clear interrupts */
-	outw(devpriv->adc_fifo_bits | DAEMI | DAHFI,
-	     devpriv->pcibar1 + INT_ADCFIFO);
+	outw(devpriv->ctrl | PCIDAS_CTRL_DAEMI | PCIDAS_CTRL_DAHFI,
+	     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 
 	/*  start dac */
 	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
@@ -1150,8 +1153,8 @@ static int cb_pcidas_ao_cancel(struct comedi_device *dev,
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	/*  disable interrupts */
-	devpriv->adc_fifo_bits &= ~DAHFIE & ~DAEMIE;
-	outw(devpriv->adc_fifo_bits, devpriv->pcibar1 + INT_ADCFIFO);
+	devpriv->ctrl &= ~(PCIDAS_CTRL_DAHFIE | PCIDAS_CTRL_DAEMIE);
+	outw(devpriv->ctrl, devpriv->pcibar1 + PCIDAS_CTRL_REG);
 
 	/*  disable output */
 	devpriv->ao_control_bits &= ~DACEN & ~DAC_PACER_MASK;
@@ -1170,11 +1173,11 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned long flags;
 
-	if (status & DAEMI) {
+	if (status & PCIDAS_CTRL_DAEMI) {
 		/*  clear dac empty interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->adc_fifo_bits | DAEMI,
-		     devpriv->pcibar1 + INT_ADCFIFO);
+		outw(devpriv->ctrl | PCIDAS_CTRL_DAEMI,
+		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 		if (inw(devpriv->pcibar4 + DAC_CSR) & DAC_EMPTY) {
 			if (cmd->stop_src == TRIG_COUNT &&
@@ -1185,13 +1188,13 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 				async->events |= COMEDI_CB_ERROR;
 			}
 		}
-	} else if (status & DAHFI) {
+	} else if (status & PCIDAS_CTRL_DAHFI) {
 		cb_pcidas_ao_load_fifo(dev, s, board->fifo_size / 2);
 
 		/*  clear half-full interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->adc_fifo_bits | DAHFI,
-		     devpriv->pcibar1 + INT_ADCFIFO);
+		outw(devpriv->ctrl | PCIDAS_CTRL_DAHFI,
+		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
 
@@ -1229,14 +1232,14 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	outl(devpriv->s5933_intcsr_bits | INTCSR_INBOX_INTR_STATUS,
 	     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 
-	status = inw(devpriv->pcibar1 + INT_ADCFIFO);
+	status = inw(devpriv->pcibar1 + PCIDAS_CTRL_REG);
 
 	/*  check for analog output interrupt */
-	if (status & (DAHFI | DAEMI))
+	if (status & (PCIDAS_CTRL_DAHFI | PCIDAS_CTRL_DAEMI))
 		handle_ao_interrupt(dev, status);
 	/*  check for analog input interrupts */
 	/*  if fifo half-full */
-	if (status & ADHFI) {
+	if (status & PCIDAS_CTRL_ADHFI) {
 		/*  read data */
 		num_samples = comedi_nsamples_left(s, half_fifo);
 		insw(devpriv->pcibar2 + PCIDAS_AI_DATA_REG,
@@ -1249,17 +1252,17 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 
 		/*  clear half-full interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->adc_fifo_bits | INT,
-		     devpriv->pcibar1 + INT_ADCFIFO);
+		outw(devpriv->ctrl | PCIDAS_CTRL_INT_CLR,
+		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 		/*  else if fifo not empty */
-	} else if (status & (ADNEI | EOBI)) {
+	} else if (status & (PCIDAS_CTRL_ADNEI | PCIDAS_CTRL_EOBI)) {
 		for (i = 0; i < timeout; i++) {
 			unsigned short val;
 
 			/*  break if fifo is empty */
-			if ((ADNE & inw(devpriv->pcibar1 +
-					INT_ADCFIFO)) == 0)
+			if ((inw(devpriv->pcibar1 + PCIDAS_CTRL_REG) &
+			    PCIDAS_CTRL_ADNE) == 0)
 				break;
 			val = inw(devpriv->pcibar2 + PCIDAS_AI_DATA_REG);
 			comedi_buf_write_samples(s, &val, 1);
@@ -1272,25 +1275,25 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		}
 		/*  clear not-empty interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->adc_fifo_bits | INT,
-		     devpriv->pcibar1 + INT_ADCFIFO);
+		outw(devpriv->ctrl | PCIDAS_CTRL_INT_CLR,
+		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-	} else if (status & EOAI) {
+	} else if (status & PCIDAS_CTRL_EOAI) {
 		dev_err(dev->class_dev,
 			"bug! encountered end of acquisition interrupt?\n");
 		/*  clear EOA interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->adc_fifo_bits | EOAI,
-		     devpriv->pcibar1 + INT_ADCFIFO);
+		outw(devpriv->ctrl | PCIDAS_CTRL_EOAI,
+		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
 	/* check for fifo overflow */
-	if (status & LADFUL) {
+	if (status & PCIDAS_CTRL_LADFUL) {
 		dev_err(dev->class_dev, "fifo overflow\n");
 		/*  clear overflow interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->adc_fifo_bits | LADFUL,
-		     devpriv->pcibar1 + INT_ADCFIFO);
+		outw(devpriv->ctrl | PCIDAS_CTRL_LADFUL,
+		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 		async->events |= COMEDI_CB_ERROR;
 	}
