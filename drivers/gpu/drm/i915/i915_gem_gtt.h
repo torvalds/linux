@@ -156,13 +156,10 @@ struct i915_ggtt_view {
 			u64 offset;
 			unsigned int size;
 		} partial;
+		struct intel_rotation_info rotation_info;
 	} params;
 
 	struct sg_table *pages;
-
-	union {
-		struct intel_rotation_info rotation_info;
-	};
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;
