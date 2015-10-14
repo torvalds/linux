@@ -208,7 +208,6 @@ void dccp_req_err(struct sock *sk, u64 seq)
 
 	if (!between48(seq, dccp_rsk(req)->dreq_iss, dccp_rsk(req)->dreq_gss)) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
-		reqsk_put(req);
 	} else {
 		/*
 		 * Still in RESPOND, just remove it silently.
@@ -218,6 +217,7 @@ void dccp_req_err(struct sock *sk, u64 seq)
 		 */
 		inet_csk_reqsk_queue_drop(req->rsk_listener, req);
 	}
+	reqsk_put(req);
 }
 EXPORT_SYMBOL(dccp_req_err);
 
