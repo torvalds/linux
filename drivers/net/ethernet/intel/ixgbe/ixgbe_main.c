@@ -3723,14 +3723,20 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	hw->mac.ops.set_mac_anti_spoofing(hw, (adapter->num_vfs != 0),
 					  adapter->num_vfs);
 
-	/* Ensure LLDP is set for Ethertype Antispoofing if we will be
+	/* Ensure LLDP and FC is set for Ethertype Antispoofing if we will be
 	 * calling set_ethertype_anti_spoofing for each VF in loop below
 	 */
-	if (hw->mac.ops.set_ethertype_anti_spoofing)
+	if (hw->mac.ops.set_ethertype_anti_spoofing) {
 		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_LLDP),
-				(IXGBE_ETQF_FILTER_EN    | /* enable filter */
-				 IXGBE_ETQF_TX_ANTISPOOF | /* tx antispoof */
-				 IXGBE_ETH_P_LLDP));	   /* LLDP eth type */
+				(IXGBE_ETQF_FILTER_EN    |
+				 IXGBE_ETQF_TX_ANTISPOOF |
+				 IXGBE_ETH_P_LLDP));
+
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FC),
+				(IXGBE_ETQF_FILTER_EN |
+				 IXGBE_ETQF_TX_ANTISPOOF |
+				 ETH_P_PAUSE));
+	}
 
 	/* For VFs that have spoof checking turned off */
 	for (i = 0; i < adapter->num_vfs; i++) {

@@ -34,7 +34,7 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710/X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "1.3.13"
+#define DRV_VERSION "1.3.17"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2015 Intel Corporation.";
@@ -840,6 +840,15 @@ static int i40evf_set_mac(struct net_device *netdev, void *p)
 
 	if (ether_addr_equal(netdev->dev_addr, addr->sa_data))
 		return 0;
+
+	if (adapter->flags & I40EVF_FLAG_ADDR_SET_BY_PF)
+		return -EPERM;
+
+	f = i40evf_find_filter(adapter, hw->mac.addr);
+	if (f) {
+		f->remove = true;
+		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
+	}
 
 	f = i40evf_add_filter(adapter, addr->sa_data);
 	if (f) {
@@ -2244,10 +2253,13 @@ static void i40evf_init_task(struct work_struct *work)
 	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
 		dev_info(&pdev->dev, "Invalid MAC address %pM, using random\n",
 			 adapter->hw.mac.addr);
-		random_ether_addr(adapter->hw.mac.addr);
+		eth_hw_addr_random(netdev);
+		ether_addr_copy(adapter->hw.mac.addr, netdev->dev_addr);
+	} else {
+		adapter->flags |= I40EVF_FLAG_ADDR_SET_BY_PF;
+		ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
+		ether_addr_copy(netdev->perm_addr, adapter->hw.mac.addr);
 	}
-	ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
-	ether_addr_copy(netdev->perm_addr, adapter->hw.mac.addr);
 
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = &i40evf_watchdog_timer;

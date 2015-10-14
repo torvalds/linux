@@ -380,7 +380,7 @@ static void i40e_parse_cee_app_tlv(struct i40e_cee_feat_tlv *tlv,
 {
 	u16 length, typelength, offset = 0;
 	struct i40e_cee_app_prio *app;
-	u8 i, up;
+	u8 i, up, selector;
 
 	typelength = ntohs(tlv->hdr.typelen);
 	length = (u16)((typelength & I40E_LLDP_TLV_LEN_MASK) >>
@@ -393,13 +393,21 @@ static void i40e_parse_cee_app_tlv(struct i40e_cee_feat_tlv *tlv,
 	for (i = 0; i < dcbcfg->numapps; i++) {
 		app = (struct i40e_cee_app_prio *)(tlv->tlvinfo + offset);
 		for (up = 0; up < I40E_MAX_USER_PRIORITY; up++) {
-			if (app->prio_map & (1 << up))
+			if (app->prio_map & BIT(up))
 				break;
 		}
 		dcbcfg->app[i].priority = up;
-		/* Get Selector from lower 2 bits */
-		dcbcfg->app[i].selector = (app->upper_oui_sel &
-					   I40E_CEE_APP_SELECTOR_MASK);
+
+		/* Get Selector from lower 2 bits, and convert to IEEE */
+		selector = (app->upper_oui_sel & I40E_CEE_APP_SELECTOR_MASK);
+		if (selector == I40E_CEE_APP_SEL_ETHTYPE)
+			dcbcfg->app[i].selector = I40E_APP_SEL_ETHTYPE;
+		else if (selector == I40E_CEE_APP_SEL_TCPIP)
+			dcbcfg->app[i].selector = I40E_APP_SEL_TCPIP;
+		else
+			/* Keep selector as it is for unknown types */
+			dcbcfg->app[i].selector = selector;
+
 		dcbcfg->app[i].protocolid = ntohs(app->protocol);
 		/* Move to next app */
 		offset += sizeof(*app);

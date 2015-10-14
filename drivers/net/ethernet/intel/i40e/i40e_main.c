@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 21
+#define DRV_VERSION_BUILD 25
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -8336,7 +8336,8 @@ static int i40e_ndo_bridge_setlink(struct net_device *dev,
  **/
 static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				   struct net_device *dev,
-				   u32 filter_mask, int nlflags)
+				   u32 __always_unused filter_mask,
+				   int nlflags)
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_vsi *vsi = np->vsi;
@@ -9727,7 +9728,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		i40e_config_rss(pf);
 
 	/* fill in link information and enable LSE reporting */
-	i40e_aq_get_link_info(&pf->hw, true, NULL, NULL);
+	i40e_update_link_info(&pf->hw);
 	i40e_link_event(pf);
 
 	/* Initialize user-specific link properties */
@@ -10063,6 +10064,13 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = i40e_init_adminq(hw);
 	dev_info(&pdev->dev, "%s\n", i40e_fw_version_str(hw));
+
+	/* provide additional fw info, like api and ver */
+	dev_info(&pdev->dev, "fw_version:%d.%d.%05d\n",
+		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver, hw->aq.fw_build);
+	dev_info(&pdev->dev, "fw api version:%d.%d\n",
+		 hw->aq.api_maj_ver, hw->aq.api_min_ver);
+
 	if (err) {
 		dev_info(&pdev->dev,
 			 "The driver for the device stopped because the NVM image is newer than expected. You must install the most recent version of the network driver.\n");
@@ -10329,6 +10337,14 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 i40e_stat_str(&pf->hw, err),
 			 i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 	pf->hw.phy.link_info.requested_speeds = abilities.link_speed;
+
+	/* get the supported phy types from the fw */
+	err = i40e_aq_get_phy_capabilities(hw, false, true, &abilities, NULL);
+	if (err)
+		dev_dbg(&pf->pdev->dev, "get supported phy types ret =  %s last_status =  %s\n",
+			i40e_stat_str(&pf->hw, err),
+			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
+	pf->hw.phy.phy_types = le32_to_cpu(abilities.phy_type);
 
 	/* print a string summarizing features */
 	i40e_print_features(pf);

@@ -703,6 +703,7 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 	 */
 	vf->num_queue_pairs = 0;
 	vf->vf_states = 0;
+	clear_bit(I40E_VF_STAT_INIT, &vf->vf_states);
 }
 
 /**
@@ -841,11 +842,11 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 complete_reset:
 	/* reallocate VF resources to reset the VSI state */
 	i40e_free_vf_res(vf);
-	i40e_alloc_vf_res(vf);
-	i40e_enable_vf_mappings(vf);
-	set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
-	clear_bit(I40E_VF_STAT_DISABLED, &vf->vf_states);
-
+	if (!i40e_alloc_vf_res(vf)) {
+		i40e_enable_vf_mappings(vf);
+		set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
+		clear_bit(I40E_VF_STAT_DISABLED, &vf->vf_states);
+	}
 	/* tell the VF the reset is done */
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
 	i40e_flush(hw);
@@ -964,8 +965,6 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 		/* VF resources get allocated during reset */
 		i40e_reset_vf(&vfs[i], false);
 
-		/* enable VF vplan_qtable mappings */
-		i40e_enable_vf_mappings(&vfs[i]);
 	}
 	pf->num_alloc_vfs = num_alloc_vfs;
 
