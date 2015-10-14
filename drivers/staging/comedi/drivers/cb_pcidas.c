@@ -1415,14 +1415,14 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		s->readback[i] = s->maxdata / 2;
 	}
 
-	/*  dac08 caldac */
+	/* Calibration subdevice - dac08 caldac */
 	s = &dev->subdevices[6];
 	if (board->has_dac08) {
-		s->type = COMEDI_SUBD_CALIB;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		s->n_chan = 1;
-		s->maxdata = 0xff;
-		s->insn_write = cb_pcidas_dac08_insn_write;
+		s->type		= COMEDI_SUBD_CALIB;
+		s->subdev_flags	= SDF_WRITABLE | SDF_INTERNAL;
+		s->n_chan	= 1;
+		s->maxdata	= 0xff;
+		s->insn_write	= cb_pcidas_dac08_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
@@ -1433,7 +1433,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 			s->readback[i] = s->maxdata / 2;
 		}
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/*  make sure mailbox 4 is empty */
