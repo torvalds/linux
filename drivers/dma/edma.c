@@ -676,23 +676,23 @@ static int edma_start(struct edma_cc *ecc, unsigned channel)
 
 		/* EDMA channels without event association */
 		if (test_bit(channel, ecc->edma_unused)) {
-			pr_debug("EDMA: ESR%d %08x\n", j,
-				 edma_shadow0_read_array(ecc, SH_ESR, j));
+			dev_dbg(ecc->dev, "ESR%d %08x\n", j,
+				edma_shadow0_read_array(ecc, SH_ESR, j));
 			edma_shadow0_write_array(ecc, SH_ESR, j, mask);
 			return 0;
 		}
 
 		/* EDMA channel with event association */
-		pr_debug("EDMA: ER%d %08x\n", j,
-			 edma_shadow0_read_array(ecc, SH_ER, j));
+		dev_dbg(ecc->dev, "ER%d %08x\n", j,
+			edma_shadow0_read_array(ecc, SH_ER, j));
 		/* Clear any pending event or error */
 		edma_write_array(ecc, EDMA_ECR, j, mask);
 		edma_write_array(ecc, EDMA_EMCR, j, mask);
 		/* Clear any SER */
 		edma_shadow0_write_array(ecc, SH_SECR, j, mask);
 		edma_shadow0_write_array(ecc, SH_EESR, j, mask);
-		pr_debug("EDMA: EER%d %08x\n", j,
-			 edma_shadow0_read_array(ecc, SH_EER, j));
+		dev_dbg(ecc->dev, "EER%d %08x\n", j,
+			edma_shadow0_read_array(ecc, SH_EER, j));
 		return 0;
 	}
 
@@ -730,8 +730,8 @@ static void edma_stop(struct edma_cc *ecc, unsigned channel)
 		/* clear possibly pending completion interrupt */
 		edma_shadow0_write_array(ecc, SH_ICR, j, mask);
 
-		pr_debug("EDMA: EER%d %08x\n", j,
-			 edma_shadow0_read_array(ecc, SH_EER, j));
+		dev_dbg(ecc->dev, "EER%d %08x\n", j,
+			edma_shadow0_read_array(ecc, SH_EER, j));
 
 		/* REVISIT:  consider guarding against inappropriate event
 		 * chaining by overwriting with dummy_paramset.
@@ -800,8 +800,8 @@ static int edma_trigger_channel(struct edma_cc *ecc, unsigned channel)
 
 	edma_shadow0_write_array(ecc, SH_ESR, (channel >> 5), mask);
 
-	pr_debug("EDMA: ESR%d %08x\n", (channel >> 5),
-		 edma_shadow0_read_array(ecc, SH_ESR, (channel >> 5)));
+	dev_dbg(ecc->dev, "ESR%d %08x\n", (channel >> 5),
+		edma_shadow0_read_array(ecc, SH_ESR, (channel >> 5)));
 	return 0;
 }
 
@@ -831,8 +831,8 @@ static void edma_clean_channel(struct edma_cc *ecc, unsigned channel)
 		int j = (channel >> 5);
 		unsigned int mask = BIT(channel & 0x1f);
 
-		pr_debug("EDMA: EMR%d %08x\n", j,
-			 edma_read_array(ecc, EDMA_EMR, j));
+		dev_dbg(ecc->dev, "EMR%d %08x\n", j,
+			edma_read_array(ecc, EDMA_EMR, j));
 		edma_shadow0_write_array(ecc, SH_ECR, j, mask);
 		/* Clear the corresponding EMR bits */
 		edma_write_array(ecc, EDMA_EMCR, j, mask);
