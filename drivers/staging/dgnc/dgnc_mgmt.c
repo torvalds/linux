@@ -110,6 +110,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		spin_lock_irqsave(&dgnc_global_lock, flags);
 
+		memset(&ddi, 0, sizeof(ddi));
 		ddi.dinfo_nboards = dgnc_NumBoards;
 		sprintf(ddi.dinfo_version, "%s", DG_PART);
 
