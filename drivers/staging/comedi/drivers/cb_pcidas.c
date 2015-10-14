@@ -552,21 +552,22 @@ static void write_calibration_bitstream(struct comedi_device *dev,
 	}
 }
 
-static void caldac_8800_write(struct comedi_device *dev,
-			      unsigned int chan, u8 val)
+static void cb_pcidas_caldac_8800_write(struct comedi_device *dev,
+					unsigned int chan, unsigned int val)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	static const int bitstream_length = 11;
-	unsigned int bitstream = ((chan & 0x7) << 8) | val;
-	static const int caldac_8800_udelay = 1;
 
-	write_calibration_bitstream(dev, cal_enable_bits(dev), bitstream,
-				    bitstream_length);
+	/* write 11-bit value */
+	write_calibration_bitstream(dev, cal_enable_bits(dev),
+				    ((chan & 0x7) << 8) | val, 11);
+	udelay(1);
 
-	udelay(caldac_8800_udelay);
+	/* select caldac */
 	outw(cal_enable_bits(dev) | PCIDAS_CALIB_8800_SEL,
 	     devpriv->pcibar1 + PCIDAS_CALIB_REG);
-	udelay(caldac_8800_udelay);
+	udelay(1);
+
+	/* latch value */
 	outw(cal_enable_bits(dev), devpriv->pcibar1 + PCIDAS_CALIB_REG);
 }
 
@@ -581,7 +582,7 @@ static int cb_pcidas_caldac_insn_write(struct comedi_device *dev,
 		unsigned int val = data[insn->n - 1];
 
 		if (s->readback[chan] != val) {
-			caldac_8800_write(dev, chan, val);
+			cb_pcidas_caldac_8800_write(dev, chan, val);
 			s->readback[chan] = val;
 		}
 	}
@@ -1431,7 +1432,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < s->n_chan; i++) {
-		caldac_8800_write(dev, i, s->maxdata / 2);
+		cb_pcidas_caldac_8800_write(dev, i, s->maxdata / 2);
 		s->readback[i] = s->maxdata / 2;
 	}
 
