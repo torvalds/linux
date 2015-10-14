@@ -1626,6 +1626,16 @@ static void edma_error_handler(struct edma_chan *echan)
 	spin_unlock(&echan->vchan.lock);
 }
 
+static inline bool edma_error_pending(struct edma_cc *ecc)
+{
+	if (edma_read_array(ecc, EDMA_EMR, 0) ||
+	    edma_read_array(ecc, EDMA_EMR, 1) ||
+	    edma_read(ecc, EDMA_QEMR) || edma_read(ecc, EDMA_CCERR))
+		return true;
+
+	return false;
+}
+
 /* eDMA error interrupt handler */
 static irqreturn_t dma_ccerr_handler(int irq, void *data)
 {
@@ -1640,10 +1650,7 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 
 	dev_vdbg(ecc->dev, "dma_ccerr_handler\n");
 
-	if ((edma_read_array(ecc, EDMA_EMR, 0) == 0) &&
-	    (edma_read_array(ecc, EDMA_EMR, 1) == 0) &&
-	    (edma_read(ecc, EDMA_QEMR) == 0) &&
-	    (edma_read(ecc, EDMA_CCERR) == 0))
+	if (!edma_error_pending(ecc))
 		return IRQ_NONE;
 
 	while (1) {
@@ -1698,10 +1705,7 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 				}
 			}
 		}
-		if ((edma_read_array(ecc, EDMA_EMR, 0) == 0) &&
-		    (edma_read_array(ecc, EDMA_EMR, 1) == 0) &&
-		    (edma_read(ecc, EDMA_QEMR) == 0) &&
-		    (edma_read(ecc, EDMA_CCERR) == 0))
+		if (!edma_error_pending(ecc))
 			break;
 		cnt++;
 		if (cnt > 10)
