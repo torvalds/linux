@@ -508,7 +508,7 @@ static struct w1_gpio_platform_data w1_gpio_platform_data = {
 	.ext_pullup_enable_pin	= -EINVAL,
 };
 
-struct platform_device raumfeld_w1_gpio_device = {
+static struct platform_device raumfeld_w1_gpio_device = {
 	.name	= "w1-gpio",
 	.dev	= {
 		.platform_data = &w1_gpio_platform_data
@@ -634,7 +634,7 @@ static void __init raumfeld_lcd_init(void)
  * SPI devices
  */
 
-struct spi_gpio_platform_data raumfeld_spi_platform_data = {
+static struct spi_gpio_platform_data raumfeld_spi_platform_data = {
 	.sck		= GPIO_SPI_CLK,
 	.mosi		= GPIO_SPI_MOSI,
 	.miso		= GPIO_SPI_MISO,
@@ -853,7 +853,7 @@ static void __init raumfeld_power_init(void)
 static struct regulator_consumer_supply audio_va_consumer_supply =
 	REGULATOR_SUPPLY("va", "0-0048");
 
-struct regulator_init_data audio_va_initdata = {
+static struct regulator_init_data audio_va_initdata = {
 	.consumer_supplies = &audio_va_consumer_supply,
 	.num_consumer_supplies = 1,
 	.constraints = {
@@ -885,7 +885,7 @@ static struct regulator_consumer_supply audio_dummy_supplies[] = {
 	REGULATOR_SUPPLY("vlc", "0-0048"),
 };
 
-struct regulator_init_data audio_dummy_initdata = {
+static struct regulator_init_data audio_dummy_initdata = {
 	.consumer_supplies = audio_dummy_supplies,
 	.num_consumer_supplies = ARRAY_SIZE(audio_dummy_supplies),
 	.constraints = {
@@ -933,7 +933,7 @@ static struct regulator_init_data vcc_mmc_init_data = {
 	.num_consumer_supplies = 1,
 };
 
-struct max8660_subdev_data max8660_v6_subdev_data = {
+static struct max8660_subdev_data max8660_v6_subdev_data = {
 	.id		= MAX8660_V6,
 	.name		= "vmmc",
 	.platform_data	= &vcc_mmc_init_data,
