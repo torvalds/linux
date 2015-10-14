@@ -2349,14 +2349,14 @@ dasd_eckd_build_format(struct dasd_device *base,
 				 * when formatting CDL
 				 */
 				if ((intensity & 0x08) &&
-				    fdata->start_unit == 0) {
+				    address.cyl == 0 && address.head == 0) {
 					if (i < 3) {
 						ect->kl = 4;
 						ect->dl = sizes_trk0[i] - 4;
 					}
 				}
 				if ((intensity & 0x08) &&
-				    fdata->start_unit == 1) {
+				    address.cyl == 0 && address.head == 1) {
 					ect->kl = 44;
 					ect->dl = LABEL_SIZE - 44;
 				}
@@ -2392,14 +2392,13 @@ dasd_eckd_format_device(struct dasd_device *base,
 			int enable_pav)
 {
 	struct dasd_ccw_req *cqr, *n;
-	struct dasd_block *block;
 	struct dasd_eckd_private *private;
 	struct list_head format_queue;
 	struct dasd_device *device;
-	int old_stop, format_step;
-	int step, rc = 0, sleep_rc;
+	int old_start, old_stop, format_step;
+	int step, retry;
+	int rc = 0;
 
-	block = base->block;
 	private = (struct dasd_eckd_private *) base->private;
 
 	/* Sanity checks. */
@@ -2432,68 +2431,63 @@ dasd_eckd_format_device(struct dasd_device *base,
 
 	INIT_LIST_HEAD(&format_queue);
 
+	old_start = fdata->start_unit;
 	old_stop = fdata->stop_unit;
-	while (fdata->start_unit <= 1) {
-		fdata->stop_unit = fdata->start_unit;
-		cqr = dasd_eckd_build_format(base, fdata, enable_pav);
-		list_add(&cqr->blocklist, &format_queue);
 
-		fdata->stop_unit = old_stop;
-		fdata->start_unit++;
+	format_step = DASD_CQR_MAX_CCW / recs_per_track(&private->rdc_data, 0,
+							fdata->blksize);
+	do {
+		retry = 0;
+		while (fdata->start_unit <= old_stop) {
+			step = fdata->stop_unit - fdata->start_unit + 1;
+			if (step > format_step) {
+				fdata->stop_unit =
+					fdata->start_unit + format_step - 1;
+			}
 
-		if (fdata->start_unit > fdata->stop_unit)
-			goto sleep;
-	}
+			cqr = dasd_eckd_build_format(base, fdata, enable_pav);
+			if (IS_ERR(cqr)) {
+				rc = PTR_ERR(cqr);
+				if (rc == -ENOMEM) {
+					if (list_empty(&format_queue))
+						goto out;
+					/*
+					 * not enough memory available, start
+					 * requests retry after first requests
+					 * were finished
+					 */
+					retry = 1;
+					break;
+				}
+				goto out_err;
+			}
+			list_add_tail(&cqr->blocklist, &format_queue);
 
-retry:
-	format_step = 255 / recs_per_track(&private->rdc_data, 0,
-					   fdata->blksize);
-	while (fdata->start_unit <= old_stop) {
-		step = fdata->stop_unit - fdata->start_unit + 1;
-		if (step > format_step)
-			fdata->stop_unit = fdata->start_unit + format_step - 1;
-
-		cqr = dasd_eckd_build_format(base, fdata, enable_pav);
-		if (IS_ERR(cqr)) {
-			if (PTR_ERR(cqr) == -ENOMEM) {
-				/*
-				 * not enough memory available
-				 * go to out and start requests
-				 * retry after first requests were finished
-				 */
-				fdata->stop_unit = old_stop;
-				goto sleep;
-			} else
-				return PTR_ERR(cqr);
+			fdata->start_unit = fdata->stop_unit + 1;
+			fdata->stop_unit = old_stop;
 		}
-		list_add(&cqr->blocklist, &format_queue);
 
-		fdata->start_unit = fdata->stop_unit + 1;
-		fdata->stop_unit = old_stop;
-	}
+		rc = dasd_sleep_on_queue(&format_queue);
 
-sleep:
-	sleep_rc = dasd_sleep_on_queue(&format_queue);
+out_err:
+		list_for_each_entry_safe(cqr, n, &format_queue, blocklist) {
+			device = cqr->startdev;
+			private = (struct dasd_eckd_private *) device->private;
+			if (cqr->status == DASD_CQR_FAILED)
+				rc = -EIO;
+			list_del_init(&cqr->blocklist);
+			dasd_sfree_request(cqr, device);
+			private->count--;
+		}
 
-	list_for_each_entry_safe(cqr, n, &format_queue, blocklist) {
-		device = cqr->startdev;
-		private = (struct dasd_eckd_private *) device->private;
-		if (cqr->status == DASD_CQR_FAILED)
-			rc = -EIO;
-		list_del_init(&cqr->blocklist);
-		dasd_sfree_request(cqr, device);
-		private->count--;
-	}
+		if (rc)
+			goto out;
 
-	if (sleep_rc)
-		return sleep_rc;
+	} while (retry);
 
-	/*
-	 * in case of ENOMEM we need to retry after
-	 * first requests are finished
-	 */
-	if (fdata->start_unit <= fdata->stop_unit)
-		goto retry;
+out:
+	fdata->start_unit = old_start;
+	fdata->stop_unit = old_stop;
 
 	return rc;
 }
