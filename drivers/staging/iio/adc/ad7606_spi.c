@@ -85,6 +85,7 @@ static const struct dev_pm_ops ad7606_pm_ops = {
 	.suspend = ad7606_spi_suspend,
 	.resume  = ad7606_spi_resume,
 };
+
 #define AD7606_SPI_PM_OPS (&ad7606_pm_ops)
 
 #else
