@@ -159,6 +159,9 @@ struct vcpu_svm {
 	u32 apf_reason;
 
 	u64  tsc_ratio;
+
+	/* cached guest cpuid flags for faster access */
+	bool nrips_enabled	: 1;
 };
 
 static DEFINE_PER_CPU(u64, current_tsc_ratio);
@@ -2365,7 +2368,9 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->control.exit_info_2       = vmcb->control.exit_info_2;
 	nested_vmcb->control.exit_int_info     = vmcb->control.exit_int_info;
 	nested_vmcb->control.exit_int_info_err = vmcb->control.exit_int_info_err;
-	nested_vmcb->control.next_rip          = vmcb->control.next_rip;
+
+	if (svm->nrips_enabled)
+		nested_vmcb->control.next_rip  = vmcb->control.next_rip;
 
 	/*
 	 * If we emulate a VMRUN/#VMEXIT in the same host #vmexit cycle we have
@@ -4085,6 +4090,10 @@ static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 
 static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/* Update nrips enabled cache */
+	svm->nrips_enabled = !!guest_cpuid_has_nrips(&svm->vcpu);
 }
 
 static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
