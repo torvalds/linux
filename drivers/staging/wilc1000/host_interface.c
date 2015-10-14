@@ -936,22 +936,15 @@ ERRORHANDLER:
 		Handle_ScanDone(hif_drv, SCAN_EVENT_ABORTED);
 	}
 
-	if (pstrHostIFscanAttr->ch_freq_list != NULL) {
-		kfree(pstrHostIFscanAttr->ch_freq_list);
-		pstrHostIFscanAttr->ch_freq_list = NULL;
-	}
+	kfree(pstrHostIFscanAttr->ch_freq_list);
+	pstrHostIFscanAttr->ch_freq_list = NULL;
 
-	if (pstrHostIFscanAttr->ies != NULL) {
-		kfree(pstrHostIFscanAttr->ies);
-		pstrHostIFscanAttr->ies = NULL;
-	}
-	if (pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo != NULL)	{
-		kfree(pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo);
-		pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo = NULL;
-	}
+	kfree(pstrHostIFscanAttr->ies);
+	pstrHostIFscanAttr->ies = NULL;
+	kfree(pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo);
+	pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo = NULL;
 
-	if (pu8HdnNtwrksWidVal != NULL)
-		kfree(pu8HdnNtwrksWidVal);
+	kfree(pu8HdnNtwrksWidVal);
 
 	return s32Error;
 }
@@ -1269,10 +1262,8 @@ ERRORHANDLER:
 							       NULL,
 							       pstrHostIFconnectAttr->arg);
 			hif_drv->enuHostIFstate = HOST_IF_IDLE;
-			if (strConnectInfo.pu8ReqIEs != NULL) {
-				kfree(strConnectInfo.pu8ReqIEs);
-				strConnectInfo.pu8ReqIEs = NULL;
-			}
+			kfree(strConnectInfo.pu8ReqIEs);
+			strConnectInfo.pu8ReqIEs = NULL;
 
 		} else {
 			PRINT_ER("Connect callback function pointer is NULL\n");
@@ -1280,23 +1271,16 @@ ERRORHANDLER:
 	}
 
 	PRINT_D(HOSTINF_DBG, "Deallocating connection parameters\n");
-	if (pstrHostIFconnectAttr->bssid != NULL) {
-		kfree(pstrHostIFconnectAttr->bssid);
-		pstrHostIFconnectAttr->bssid = NULL;
-	}
+	kfree(pstrHostIFconnectAttr->bssid);
+	pstrHostIFconnectAttr->bssid = NULL;
 
-	if (pstrHostIFconnectAttr->ssid != NULL) {
-		kfree(pstrHostIFconnectAttr->ssid);
-		pstrHostIFconnectAttr->ssid = NULL;
-	}
+	kfree(pstrHostIFconnectAttr->ssid);
+	pstrHostIFconnectAttr->ssid = NULL;
 
-	if (pstrHostIFconnectAttr->ies != NULL) {
-		kfree(pstrHostIFconnectAttr->ies);
-		pstrHostIFconnectAttr->ies = NULL;
-	}
+	kfree(pstrHostIFconnectAttr->ies);
+	pstrHostIFconnectAttr->ies = NULL;
 
-	if (pu8CurrByte != NULL)
-		kfree(pu8CurrByte);
+	kfree(pu8CurrByte);
 	return s32Error;
 }
 
@@ -1387,10 +1371,8 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 								   NULL,
 								   hif_drv->strWILC_UsrConnReq.u32UserConnectPvoid);
 
-		if (strConnectInfo.pu8ReqIEs != NULL) {
-			kfree(strConnectInfo.pu8ReqIEs);
-			strConnectInfo.pu8ReqIEs = NULL;
-		}
+		kfree(strConnectInfo.pu8ReqIEs);
+		strConnectInfo.pu8ReqIEs = NULL;
 	} else {
 		PRINT_ER("Connect callback function pointer is NULL\n");
 	}
@@ -1503,10 +1485,8 @@ static s32 Handle_RcvdNtwrkInfo(struct host_if_drv *hif_drv,
 	}
 
 done:
-	if (pstrRcvdNetworkInfo->buffer != NULL) {
-		kfree(pstrRcvdNetworkInfo->buffer);
-		pstrRcvdNetworkInfo->buffer = NULL;
-	}
+	kfree(pstrRcvdNetworkInfo->buffer);
+	pstrRcvdNetworkInfo->buffer = NULL;
 
 	if (pstrNetworkInfo != NULL) {
 		DeallocateNetworkInfo(pstrNetworkInfo);
@@ -1666,15 +1646,11 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 				gbScanWhileConnected = false;
 			}
 
-			if (strConnectInfo.pu8RespIEs != NULL) {
-				kfree(strConnectInfo.pu8RespIEs);
-				strConnectInfo.pu8RespIEs = NULL;
-			}
+			kfree(strConnectInfo.pu8RespIEs);
+			strConnectInfo.pu8RespIEs = NULL;
 
-			if (strConnectInfo.pu8ReqIEs != NULL) {
-				kfree(strConnectInfo.pu8ReqIEs);
-				strConnectInfo.pu8ReqIEs = NULL;
-			}
+			kfree(strConnectInfo.pu8ReqIEs);
+			strConnectInfo.pu8ReqIEs = NULL;
 			hif_drv->strWILC_UsrConnReq.ssidLen = 0;
 			kfree(hif_drv->strWILC_UsrConnReq.pu8ssid);
 			kfree(hif_drv->strWILC_UsrConnReq.pu8bssid);
@@ -1743,10 +1719,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 
 	}
 
-	if (pstrRcvdGnrlAsyncInfo->buffer != NULL) {
-		kfree(pstrRcvdGnrlAsyncInfo->buffer);
-		pstrRcvdGnrlAsyncInfo->buffer = NULL;
-	}
+	kfree(pstrRcvdGnrlAsyncInfo->buffer);
+	pstrRcvdGnrlAsyncInfo->buffer = NULL;
 
 	return s32Error;
 }
@@ -2868,8 +2842,7 @@ static s32 Handle_AddBASession(struct host_if_drv *hif_drv,
 	s32Error = send_config_pkt(SET_CFG, &strWID, 1,
 				   get_id_from_handler(hif_drv));
 
-	if (strWID.val != NULL)
-		kfree(strWID.val);
+	kfree(strWID.val);
 
 	return s32Error;
 
@@ -2908,8 +2881,7 @@ static s32 Handle_DelAllRxBASessions(struct host_if_drv *hif_drv,
 		PRINT_D(HOSTINF_DBG, "Couldn't delete BA Session\n");
 
 
-	if (strWID.val != NULL)
-		kfree(strWID.val);
+	kfree(strWID.val);
 
 	up(&hWaitResponse);
 
@@ -4648,11 +4620,9 @@ s32 host_int_add_beacon(struct host_if_drv *hif_drv, u32 u32Interval,
 
 ERRORHANDLER:
 	if (s32Error) {
-		if (pstrSetBeaconParam->head != NULL)
-			kfree(pstrSetBeaconParam->head);
+		kfree(pstrSetBeaconParam->head);
 
-		if (pstrSetBeaconParam->tail != NULL)
-			kfree(pstrSetBeaconParam->tail);
+		kfree(pstrSetBeaconParam->tail);
 	}
 
 	return s32Error;
