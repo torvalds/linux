@@ -94,7 +94,7 @@ static int gb_uart_receive_data(struct gb_tty *gb_tty,
 	count = tty_insert_flip_string_fixed_flag(port, receive_data->data,
 						  tty_flags, recv_data_size);
 	if (count != recv_data_size) {
-		dev_err(&connection->dev,
+		dev_err(&connection->bundle->dev,
 			"UART: RX 0x%08x bytes only wrote 0x%08x\n",
 			recv_data_size, count);
 	}
@@ -121,7 +121,7 @@ static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 		gb_tty->ctrlin = serial_state->control;
 		break;
 	default:
-		dev_err(&connection->dev,
+		dev_err(&connection->bundle->dev,
 			"unsupported unsolicited request: %02x\n", type);
 		ret = -EINVAL;
 	}
@@ -175,7 +175,7 @@ static int send_break(struct gb_tty *gb_tty, u8 state)
 	struct gb_uart_set_break_request request;
 
 	if ((state != 0) && (state != 1)) {
-		dev_err(&gb_tty->connection->dev,
+		dev_err(&gb_tty->connection->bundle->dev,
 			"invalid break state of %d\n", state);
 		return -EINVAL;
 	}
@@ -626,7 +626,7 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
 		if (minor == -ENOSPC) {
-			dev_err(&connection->dev,
+			dev_err(&connection->bundle->dev,
 				"no more free minor numbers\n");
 			retval = -ENODEV;
 			goto error_minor;
@@ -654,7 +654,7 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	send_line_coding(gb_tty);
 
 	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
-					   &connection->dev);
+					   &connection->bundle->dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
 		goto error;
