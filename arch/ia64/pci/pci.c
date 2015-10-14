@@ -154,14 +154,14 @@ new_space (u64 phys_base, int sparse)
 static int add_io_space(struct device *dev, struct pci_root_info *info,
 			struct resource_entry *entry)
 {
-	struct iospace_resource *iospace;
+	struct resource_entry *iospace;
 	struct resource *resource, *res = entry->res;
 	char *name;
 	unsigned long base, min, max, base_port;
 	unsigned int sparse = 0, space_nr, len;
 
 	len = strlen(info->name) + 32;
-	iospace = kzalloc(sizeof(*iospace) + len, GFP_KERNEL);
+	iospace = resource_list_create_entry(NULL, len);
 	if (!iospace) {
 		dev_err(dev, "PCI: No memory for %s I/O port space\n",
 			info->name);
@@ -190,7 +190,7 @@ static int add_io_space(struct device *dev, struct pci_root_info *info,
 	if (space_nr == 0)
 		sparse = 1;
 
-	resource = &iospace->res;
+	resource = iospace->res;
 	resource->name  = name;
 	resource->flags = IORESOURCE_MEM;
 	resource->start = base + (sparse ? IO_SPACE_SPARSE_ENCODING(min) : min);
@@ -205,12 +205,12 @@ static int add_io_space(struct device *dev, struct pci_root_info *info,
 	entry->offset = base_port;
 	res->start = min + base_port;
 	res->end = max + base_port;
-	list_add_tail(&iospace->list, &info->io_resources);
+	resource_list_add_tail(iospace, &info->io_resources);
 
 	return 0;
 
 free_resource:
-	kfree(iospace);
+	resource_list_free_entry(iospace);
 	return -ENOSPC;
 }
 
@@ -369,12 +369,11 @@ static void add_resources(struct pci_root_info *info, struct device *dev)
 static void __release_pci_root_info(struct pci_root_info *info)
 {
 	struct resource *res;
-	struct iospace_resource *iospace, *tmp;
 	struct resource_entry *entry, *tentry;
 
-	list_for_each_entry_safe(iospace, tmp, &info->io_resources, list) {
-		release_resource(&iospace->res);
-		kfree(iospace);
+	resource_list_for_each_entry_safe(entry, tentry, &info->io_resources) {
+		release_resource(entry->res);
+		resource_list_destroy_entry(entry);
 	}
 
 	resource_list_for_each_entry_safe(entry, tentry, &info->resources) {
