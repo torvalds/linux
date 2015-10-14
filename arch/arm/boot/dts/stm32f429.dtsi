@@ -263,6 +263,19 @@
 				clocks = <&rcc 0 266>;
 				st,bank-name = "GPIOK";
 			};
+
+			usart1_pins_a: usart1@0 {
+				pins1 {
+					pinmux = <STM32F429_PA9_FUNC_USART1_TX>;
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+				pins2 {
+					pinmux = <STM32F429_PA10_FUNC_USART1_RX>;
+					bias-disable;
+				};
+			};
 		};
 
 		rcc: rcc@40023810 {
