@@ -262,7 +262,7 @@ static const struct ieee80211_regdomain world_regdom = {
 		REG_RULE(5745-10, 5825+10, 80, 6, 20,
 			NL80211_RRF_NO_IR),
 
-		/* IEEE 802.11ad (60gHz), channels 1..3 */
+		/* IEEE 802.11ad (60GHz), channels 1..3 */
 		REG_RULE(56160+2160*1-1080, 56160+2160*3+1080, 2160, 0, 0, 0),
 	}
 };
