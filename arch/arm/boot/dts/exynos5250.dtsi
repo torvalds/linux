@@ -130,6 +130,10 @@
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x100440A0 0x20>;
 		#power-domain-cells = <0>;
+		clocks = <&clock CLK_FIN_PLL>,
+			 <&clock CLK_MOUT_ACLK200_DISP1_SUB>,
+			 <&clock CLK_MOUT_ACLK300_DISP1_SUB>;
+		clock-names = "oscclk", "clk0", "clk1";
 	};
 
 	clock: clock-controller@10010000 {
