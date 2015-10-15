@@ -158,7 +158,7 @@ static void handle_midi_tx(struct fw_card *card, struct fw_request *request,
 
 		port = b[0] >> 4;
 		/* TODO: support virtual MIDI ports. */
-		if (port > tscm->spec->midi_capture_ports)
+		if (port >= tscm->spec->midi_capture_ports)
 			goto end;
 
 		/* Assume the message length. */
