@@ -3121,7 +3121,7 @@ err_undo_css:
 static int cgroup_events_show(struct seq_file *seq, void *v)
 {
 	seq_printf(seq, "populated %d\n",
-		   (bool)seq_css(seq)->cgroup->populated_cnt);
+		   cgroup_is_populated(seq_css(seq)->cgroup));
 	return 0;
 }
 
@@ -5558,7 +5558,7 @@ void cgroup_exit(struct task_struct *tsk)
 
 static void check_for_release(struct cgroup *cgrp)
 {
-	if (notify_on_release(cgrp) && !cgroup_has_tasks(cgrp) &&
+	if (notify_on_release(cgrp) && !cgroup_is_populated(cgrp) &&
 	    !css_has_online_children(&cgrp->self) && !cgroup_is_dead(cgrp))
 		schedule_work(&cgrp->release_agent_work);
 }
@@ -5806,7 +5806,7 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 
 static u64 releasable_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
-	return (!cgroup_has_tasks(css->cgroup) &&
+	return (!cgroup_is_populated(css->cgroup) &&
 		!css_has_online_children(&css->cgroup->self));
 }
 

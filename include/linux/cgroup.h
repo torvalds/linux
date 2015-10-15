@@ -456,9 +456,9 @@ static inline struct cgroup *task_cgroup(struct task_struct *task,
 }
 
 /* no synchronization, the result can only be used as a hint */
-static inline bool cgroup_has_tasks(struct cgroup *cgrp)
+static inline bool cgroup_is_populated(struct cgroup *cgrp)
 {
-	return !list_empty(&cgrp->cset_links);
+	return cgrp->populated_cnt;
 }
 
 /* returns ino associated with a cgroup */
