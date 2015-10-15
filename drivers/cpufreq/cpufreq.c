@@ -873,21 +873,6 @@ static struct kobj_type ktype_cpufreq = {
 	.release	= cpufreq_sysfs_release,
 };
 
-struct kobject *cpufreq_global_kobject;
-EXPORT_SYMBOL(cpufreq_global_kobject);
-
-int cpufreq_sysfs_create_file(const struct attribute *attr)
-{
-	return sysfs_create_file(cpufreq_global_kobject, attr);
-}
-EXPORT_SYMBOL(cpufreq_sysfs_create_file);
-
-void cpufreq_sysfs_remove_file(const struct attribute *attr)
-{
-	sysfs_remove_file(cpufreq_global_kobject, attr);
-}
-EXPORT_SYMBOL(cpufreq_sysfs_remove_file);
-
 static int add_cpu_dev_symlink(struct cpufreq_policy *policy, int cpu)
 {
 	struct device *cpu_dev;
@@ -2390,7 +2375,7 @@ static int create_boost_sysfs_file(void)
 	if (!cpufreq_driver->set_boost)
 		cpufreq_driver->set_boost = cpufreq_boost_set_sw;
 
-	ret = cpufreq_sysfs_create_file(&boost.attr);
+	ret = sysfs_create_file(cpufreq_global_kobject, &boost.attr);
 	if (ret)
 		pr_err("%s: cannot register global BOOST sysfs file\n",
 		       __func__);
@@ -2401,7 +2386,7 @@ static int create_boost_sysfs_file(void)
 static void remove_boost_sysfs_file(void)
 {
 	if (cpufreq_boost_supported())
-		cpufreq_sysfs_remove_file(&boost.attr);
+		sysfs_remove_file(cpufreq_global_kobject, &boost.attr);
 }
 
 int cpufreq_enable_boost_support(void)
@@ -2548,6 +2533,9 @@ EXPORT_SYMBOL_GPL(cpufreq_unregister_driver);
 static struct syscore_ops cpufreq_syscore_ops = {
 	.shutdown = cpufreq_suspend,
 };
+
+struct kobject *cpufreq_global_kobject;
+EXPORT_SYMBOL(cpufreq_global_kobject);
 
 static int __init cpufreq_core_init(void)
 {
