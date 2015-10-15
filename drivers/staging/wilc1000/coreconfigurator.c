@@ -114,7 +114,7 @@ enum info_element_id {
 /* response frame.                                                           */
 static inline u16 get_beacon_period(u8 *data)
 {
-	u16 bcn_per = 0;
+	u16 bcn_per;
 
 	bcn_per  = data[0];
 	bcn_per |= (data[1] << 8);
@@ -256,7 +256,7 @@ static inline u16 get_cap_info(u8 *data)
 /* response frame.                                                                       */
 static inline u16 get_assoc_resp_cap_info(u8 *data)
 {
-	u16 cap_info = 0;
+	u16 cap_info;
 
 	cap_info  = data[0];
 	cap_info |= (data[1] << 8);
@@ -268,7 +268,7 @@ static inline u16 get_assoc_resp_cap_info(u8 *data)
 /* association response frame and returns association status code            */
 static inline u16 get_asoc_status(u8 *data)
 {
-	u16 asoc_status = 0;
+	u16 asoc_status;
 
 	asoc_status = data[3];
 	asoc_status = (asoc_status << 8) | data[2];
@@ -280,7 +280,7 @@ static inline u16 get_asoc_status(u8 *data)
 /* response frame							                                     */
 static inline u16 get_asoc_id(u8 *data)
 {
-	u16 asoc_id = 0;
+	u16 asoc_id;
 
 	asoc_id  = data[4];
 	asoc_id |= (data[5] << 8);
@@ -290,7 +290,7 @@ static inline u16 get_asoc_id(u8 *data)
 
 u8 *get_tim_elm(u8 *pu8msa, u16 u16RxLen, u16 u16TagParamOffset)
 {
-	u16 u16index = 0;
+	u16 u16index;
 
 	/*************************************************************************/
 	/*                       Beacon Frame - Frame Body                       */
