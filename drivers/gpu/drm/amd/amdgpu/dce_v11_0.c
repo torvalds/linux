@@ -2385,6 +2385,44 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 	u32 pll_in_use;
 	int pll;
 
+	if ((adev->asic_type == CHIP_ELLESMERE) ||
+	    (adev->asic_type == CHIP_BAFFIN)) {
+		struct amdgpu_encoder *amdgpu_encoder =
+			to_amdgpu_encoder(amdgpu_crtc->encoder);
+		struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
+
+		if (ENCODER_MODE_IS_DP(amdgpu_atombios_encoder_get_encoder_mode(amdgpu_crtc->encoder)))
+			return ATOM_DP_DTO;
+		/* use the same PPLL for all monitors with the same clock */
+		pll = amdgpu_pll_get_shared_nondp_ppll(crtc);
+		if (pll != ATOM_PPLL_INVALID)
+			return pll;
+
+		switch (amdgpu_encoder->encoder_id) {
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+			if (dig->linkb)
+				return ATOM_COMBOPHY_PLL1;
+			else
+				return ATOM_COMBOPHY_PLL0;
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+			if (dig->linkb)
+				return ATOM_COMBOPHY_PLL3;
+			else
+				return ATOM_COMBOPHY_PLL2;
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+			if (dig->linkb)
+				return ATOM_COMBOPHY_PLL5;
+			else
+				return ATOM_COMBOPHY_PLL4;
+			break;
+		default:
+			DRM_ERROR("invalid encoder_id: 0x%x\n", amdgpu_encoder->encoder_id);
+			return ATOM_PPLL_INVALID;
+		}
+	}
+
 	if (ENCODER_MODE_IS_DP(amdgpu_atombios_encoder_get_encoder_mode(amdgpu_crtc->encoder))) {
 		if (adev->clock.dp_extclk)
 			/* skip PPLL programming if using ext clock */
