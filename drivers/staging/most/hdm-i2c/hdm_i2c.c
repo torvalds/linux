@@ -96,7 +96,7 @@ static int configure_channel(struct most_interface *most_iface,
 	if (channel_config->direction == MOST_CH_RX) {
 		if (dev->polling_mode)
 			schedule_delayed_work(&dev->rx.dwork,
-					      msecs_to_jiffies(MSEC_PER_SEC / 4));
+					msecs_to_jiffies(MSEC_PER_SEC / 4));
 	}
 	dev->is_open[ch_idx] = true;
 
@@ -222,7 +222,8 @@ static void do_rx_work(struct hdm_i2c *dev)
 
 	for (;;) {
 		/* Conditions to wait for: poisoned channel or free buffer
-		   available for reading  */
+		 * available for reading
+		 */
 		if (wait_event_interruptible(dev->rx.waitq,
 					     !dev->is_open[ch_idx] ||
 					     !list_empty(&dev->rx.list))) {
@@ -367,8 +368,8 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ret = request_irq(client->irq, most_irq_handler, 0,
 				  client->name, dev);
 		if (ret) {
-			pr_info("IRQ request failed: %d, "
-				"falling back to polling\n", ret);
+			pr_info("IRQ request failed: %d, falling back to polling\n",
+				ret);
 			dev->polling_mode = true;
 		}
 	}
