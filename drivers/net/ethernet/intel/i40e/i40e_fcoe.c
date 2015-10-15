@@ -284,7 +284,7 @@ void i40e_init_pf_fcoe(struct i40e_pf *pf)
 	pf->fcoe_hmc_filt_num = 0;
 
 	if (!pf->hw.func_caps.fcoe) {
-		dev_info(&pf->pdev->dev, "FCoE capability is disabled\n");
+		dev_dbg(&pf->pdev->dev, "FCoE capability is disabled\n");
 		return;
 	}
 

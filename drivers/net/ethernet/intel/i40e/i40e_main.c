@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 25
+#define DRV_VERSION_BUILD 28
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -4844,8 +4844,8 @@ out:
  */
 void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 {
-	char speed[SPEED_SIZE] = "Unknown";
-	char fc[FC_SIZE] = "RX/TX";
+	char *speed = "Unknown";
+	char *fc = "Unknown";
 
 	if (vsi->current_isup == isup)
 		return;
@@ -4866,19 +4866,19 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 
 	switch (vsi->back->hw.phy.link_info.link_speed) {
 	case I40E_LINK_SPEED_40GB:
-		strlcpy(speed, "40 Gbps", SPEED_SIZE);
+		speed = "40 G";
 		break;
 	case I40E_LINK_SPEED_20GB:
-		strncpy(speed, "20 Gbps", SPEED_SIZE);
+		speed = "20 G";
 		break;
 	case I40E_LINK_SPEED_10GB:
-		strlcpy(speed, "10 Gbps", SPEED_SIZE);
+		speed = "10 G";
 		break;
 	case I40E_LINK_SPEED_1GB:
-		strlcpy(speed, "1000 Mbps", SPEED_SIZE);
+		speed = "1000 M";
 		break;
 	case I40E_LINK_SPEED_100MB:
-		strncpy(speed, "100 Mbps", SPEED_SIZE);
+		speed = "100 M";
 		break;
 	default:
 		break;
@@ -4886,20 +4886,20 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 
 	switch (vsi->back->hw.fc.current_mode) {
 	case I40E_FC_FULL:
-		strlcpy(fc, "RX/TX", FC_SIZE);
+		fc = "RX/TX";
 		break;
 	case I40E_FC_TX_PAUSE:
-		strlcpy(fc, "TX", FC_SIZE);
+		fc = "TX";
 		break;
 	case I40E_FC_RX_PAUSE:
-		strlcpy(fc, "RX", FC_SIZE);
+		fc = "RX";
 		break;
 	default:
-		strlcpy(fc, "None", FC_SIZE);
+		fc = "None";
 		break;
 	}
 
-	netdev_info(vsi->netdev, "NIC Link is Up %s Full Duplex, Flow Control: %s\n",
+	netdev_info(vsi->netdev, "NIC Link is Up %sbps Full Duplex, Flow Control: %s\n",
 		    speed, fc);
 }
 
@@ -6353,12 +6353,6 @@ static int i40e_get_capabilities(struct i40e_pf *pf)
 		}
 	} while (err);
 
-	if (((pf->hw.aq.fw_maj_ver == 2) && (pf->hw.aq.fw_min_ver < 22)) ||
-	    (pf->hw.aq.fw_maj_ver < 2)) {
-		pf->hw.func_caps.num_msix_vectors++;
-		pf->hw.func_caps.num_msix_vectors_vf++;
-	}
-
 	if (pf->hw.debug_mask & I40E_DEBUG_USER)
 		dev_info(&pf->pdev->dev,
 			 "pf=%d, num_vfs=%d, msix_pf=%d, msix_vf=%d, fd_g=%d, fd_b=%d, pf_max_q=%d num_vsi=%d\n",
@@ -6593,9 +6587,9 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	/* make sure our flow control settings are restored */
 	ret = i40e_set_fc(&pf->hw, &set_fc_aq_fail, true);
 	if (ret)
-		dev_info(&pf->pdev->dev, "set fc fail, err %s aq_err %s\n",
-			 i40e_stat_str(&pf->hw, ret),
-			 i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
+		dev_dbg(&pf->pdev->dev, "setting flow control: ret = %s last_status = %s\n",
+			i40e_stat_str(&pf->hw, ret),
+			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 
 	/* Rebuild the VSIs and VEBs that existed before reset.
 	 * They are still in our local switch element arrays, so only
@@ -7955,12 +7949,12 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	    (pf->hw.func_caps.fd_filters_best_effort > 0)) {
 		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
 		pf->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
-		if (!(pf->flags & I40E_FLAG_MFP_ENABLED)) {
-			pf->flags |= I40E_FLAG_FD_SB_ENABLED;
-		} else {
+		if (pf->flags & I40E_FLAG_MFP_ENABLED &&
+		    pf->hw.num_partitions > 1)
 			dev_info(&pf->pdev->dev,
 				 "Flow Director Sideband mode Disabled in MFP mode\n");
-		}
+		else
+			pf->flags |= I40E_FLAG_FD_SB_ENABLED;
 		pf->fdir_pf_filter_count =
 				 pf->hw.func_caps.fd_filters_guaranteed;
 		pf->hw.fdir_shared_filter_count =
@@ -8330,6 +8324,7 @@ static int i40e_ndo_bridge_setlink(struct net_device *dev,
  * @seq: RTNL message seq #
  * @dev: the netdev being configured
  * @filter_mask: unused
+ * @nlflags: netlink flags passed in
  *
  * Return the mode in which the hardware bridge is operating in
  * i.e VEB or VEPA.
@@ -9846,8 +9841,14 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 	}
 
 	pf->queues_left = queues_left;
+	dev_dbg(&pf->pdev->dev,
+		"qs_avail=%d FD SB=%d lan_qs=%d lan_tc0=%d vf=%d*%d vmdq=%d*%d, remaining=%d\n",
+		pf->hw.func_caps.num_tx_qp,
+		!!(pf->flags & I40E_FLAG_FD_SB_ENABLED),
+		pf->num_lan_qps, pf->rss_size, pf->num_req_vfs, pf->num_vf_qps,
+		pf->num_vmdq_vsis, pf->num_vmdq_qps, queues_left);
 #ifdef I40E_FCOE
-	dev_info(&pf->pdev->dev, "fcoe queues = %d\n", pf->num_fcoe_qps);
+	dev_dbg(&pf->pdev->dev, "fcoe queues = %d\n", pf->num_fcoe_qps);
 #endif
 }
 
@@ -10307,35 +10308,63 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	i40e_fcoe_vsi_setup(pf);
 
 #endif
-	/* Get the negotiated link width and speed from PCI config space */
-	pcie_capability_read_word(pf->pdev, PCI_EXP_LNKSTA, &link_status);
+#define PCI_SPEED_SIZE 8
+#define PCI_WIDTH_SIZE 8
+	/* Devices on the IOSF bus do not have this information
+	 * and will report PCI Gen 1 x 1 by default so don't bother
+	 * checking them.
+	 */
+	if (!(pf->flags & I40E_FLAG_NO_PCI_LINK_CHECK)) {
+		char speed[PCI_SPEED_SIZE] = "Unknown";
+		char width[PCI_WIDTH_SIZE] = "Unknown";
 
-	i40e_set_pci_config_data(hw, link_status);
+		/* Get the negotiated link width and speed from PCI config
+		 * space
+		 */
+		pcie_capability_read_word(pf->pdev, PCI_EXP_LNKSTA,
+					  &link_status);
 
-	dev_info(&pdev->dev, "PCI-Express: %s %s\n",
-		(hw->bus.speed == i40e_bus_speed_8000 ? "Speed 8.0GT/s" :
-		 hw->bus.speed == i40e_bus_speed_5000 ? "Speed 5.0GT/s" :
-		 hw->bus.speed == i40e_bus_speed_2500 ? "Speed 2.5GT/s" :
-		 "Unknown"),
-		(hw->bus.width == i40e_bus_width_pcie_x8 ? "Width x8" :
-		 hw->bus.width == i40e_bus_width_pcie_x4 ? "Width x4" :
-		 hw->bus.width == i40e_bus_width_pcie_x2 ? "Width x2" :
-		 hw->bus.width == i40e_bus_width_pcie_x1 ? "Width x1" :
-		 "Unknown"));
+		i40e_set_pci_config_data(hw, link_status);
 
-	if (hw->bus.width < i40e_bus_width_pcie_x8 ||
-	    hw->bus.speed < i40e_bus_speed_8000) {
-		dev_warn(&pdev->dev, "PCI-Express bandwidth available for this device may be insufficient for optimal performance.\n");
-		dev_warn(&pdev->dev, "Please move the device to a different PCI-e link with more lanes and/or higher transfer rate.\n");
+		switch (hw->bus.speed) {
+		case i40e_bus_speed_8000:
+			strncpy(speed, "8.0", PCI_SPEED_SIZE); break;
+		case i40e_bus_speed_5000:
+			strncpy(speed, "5.0", PCI_SPEED_SIZE); break;
+		case i40e_bus_speed_2500:
+			strncpy(speed, "2.5", PCI_SPEED_SIZE); break;
+		default:
+			break;
+		}
+		switch (hw->bus.width) {
+		case i40e_bus_width_pcie_x8:
+			strncpy(width, "8", PCI_WIDTH_SIZE); break;
+		case i40e_bus_width_pcie_x4:
+			strncpy(width, "4", PCI_WIDTH_SIZE); break;
+		case i40e_bus_width_pcie_x2:
+			strncpy(width, "2", PCI_WIDTH_SIZE); break;
+		case i40e_bus_width_pcie_x1:
+			strncpy(width, "1", PCI_WIDTH_SIZE); break;
+		default:
+			break;
+		}
+
+		dev_info(&pdev->dev, "PCI-Express: Speed %sGT/s Width x%s\n",
+			 speed, width);
+
+		if (hw->bus.width < i40e_bus_width_pcie_x8 ||
+		    hw->bus.speed < i40e_bus_speed_8000) {
+			dev_warn(&pdev->dev, "PCI-Express bandwidth available for this device may be insufficient for optimal performance.\n");
+			dev_warn(&pdev->dev, "Please move the device to a different PCI-e link with more lanes and/or higher transfer rate.\n");
+		}
 	}
 
 	/* get the requested speeds from the fw */
 	err = i40e_aq_get_phy_capabilities(hw, false, false, &abilities, NULL);
 	if (err)
-		dev_info(&pf->pdev->dev,
-			 "get phy capabilities failed, err %s aq_err %s, advertised speed settings may not be correct\n",
-			 i40e_stat_str(&pf->hw, err),
-			 i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
+		dev_dbg(&pf->pdev->dev, "get requested speeds ret =  %s last_status =  %s\n",
+			i40e_stat_str(&pf->hw, err),
+			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 	pf->hw.phy.link_info.requested_speeds = abilities.link_speed;
 
 	/* get the supported phy types from the fw */

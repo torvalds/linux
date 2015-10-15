@@ -198,6 +198,7 @@ static s32 ixgbe_write_pe(struct ixgbe_hw *hw, u8 reg, u8 value)
  * ixgbe_reset_cs4227 - Reset CS4227 using port expander
  * @hw: pointer to hardware structure
  *
+ * This function assumes that the caller has acquired the proper semaphore.
  * Returns error code
  */
 static s32 ixgbe_reset_cs4227(struct ixgbe_hw *hw)
@@ -295,6 +296,14 @@ static void ixgbe_check_cs4227(struct ixgbe_hw *hw)
 		/* Reset is pending. Wait and check again. */
 		hw->mac.ops.release_swfw_sync(hw, swfw_mask);
 		msleep(IXGBE_CS4227_CHECK_DELAY);
+	}
+	/* If still pending, assume other instance failed. */
+	if (retry == IXGBE_CS4227_RETRIES) {
+		status = hw->mac.ops.acquire_swfw_sync(hw, swfw_mask);
+		if (status) {
+			hw_err(hw, "semaphore failed with %d\n", status);
+			return;
+		}
 	}
 
 	/* Reset the CS4227. */
@@ -1608,7 +1617,7 @@ static s32 ixgbe_handle_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 	if (status)
 		return status;
 
-	if (lsc)
+	if (lsc && phy->ops.setup_internal_link)
 		return phy->ops.setup_internal_link(hw);
 
 	return 0;

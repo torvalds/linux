@@ -90,9 +90,6 @@ static const struct i40e_stats i40e_gstrings_misc_stats[] = {
 	I40E_VSI_STAT("tx_linearize", tx_linearize),
 };
 
-static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
-				 struct ethtool_rxnfc *cmd);
-
 /* These PF_STATs might look like duplicates of some NETDEV_STATs,
  * but they are separate.  This device supports Virtualization, and
  * as such might have several netdevs supporting VMDq and FCoE going
@@ -231,6 +228,7 @@ static const char i40e_gstrings_test[][ETH_GSTRING_LEN] = {
 static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
 	"NPAR",
 	"LinkPolling",
+	"flow-director-atr",
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_priv_flags_strings)
@@ -254,7 +252,8 @@ static void i40e_partition_setting_complaint(struct i40e_pf *pf)
  **/
 static void i40e_get_settings_link_up(struct i40e_hw *hw,
 				      struct ethtool_cmd *ecmd,
-				      struct net_device *netdev)
+				      struct net_device *netdev,
+				      struct i40e_pf *pf)
 {
 	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
 	u32 link_speed = hw_link_info->link_speed;
@@ -298,16 +297,18 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		break;
 	case I40E_PHY_TYPE_10GBASE_T:
 	case I40E_PHY_TYPE_1000BASE_T:
-	case I40E_PHY_TYPE_100BASE_TX:
 		ecmd->supported = SUPPORTED_Autoneg |
 				  SUPPORTED_10000baseT_Full |
-				  SUPPORTED_1000baseT_Full |
-				  SUPPORTED_100baseT_Full;
+				  SUPPORTED_1000baseT_Full;
 		ecmd->advertising = ADVERTISED_Autoneg;
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
 			ecmd->advertising |= ADVERTISED_10000baseT_Full;
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		break;
+	case I40E_PHY_TYPE_100BASE_TX:
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_100baseT_Full;
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_100MB)
 			ecmd->advertising |= ADVERTISED_100baseT_Full;
 		break;
@@ -327,12 +328,15 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		break;
 	case I40E_PHY_TYPE_SGMII:
 		ecmd->supported = SUPPORTED_Autoneg |
-				  SUPPORTED_1000baseT_Full |
-				  SUPPORTED_100baseT_Full;
+				  SUPPORTED_1000baseT_Full;
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
-		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_100MB)
-			ecmd->advertising |= ADVERTISED_100baseT_Full;
+		if (pf->hw.mac.type == I40E_MAC_X722) {
+			ecmd->supported |= SUPPORTED_100baseT_Full;
+			if (hw_link_info->requested_speeds &
+			    I40E_LINK_SPEED_100MB)
+				ecmd->advertising |= ADVERTISED_100baseT_Full;
+		}
 		break;
 	/* Backplane is set based on supported phy types in get_settings
 	 * so don't set anything here but don't warn either
@@ -380,7 +384,8 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
  * Reports link settings that can be determined when link is down
  **/
 static void i40e_get_settings_link_down(struct i40e_hw *hw,
-					struct ethtool_cmd *ecmd)
+					struct ethtool_cmd *ecmd,
+					struct i40e_pf *pf)
 {
 	enum i40e_aq_capabilities_phy_type phy_types = hw->phy.phy_types;
 
@@ -391,11 +396,13 @@ static void i40e_get_settings_link_down(struct i40e_hw *hw,
 	ecmd->advertising = 0x0;
 	if (phy_types & I40E_CAP_PHY_TYPE_SGMII) {
 		ecmd->supported |= SUPPORTED_Autoneg |
-				   SUPPORTED_1000baseT_Full |
-				   SUPPORTED_100baseT_Full;
+				   SUPPORTED_1000baseT_Full;
 		ecmd->advertising |= ADVERTISED_Autoneg |
-				     ADVERTISED_1000baseT_Full |
-				     ADVERTISED_100baseT_Full;
+				     ADVERTISED_1000baseT_Full;
+		if (pf->hw.mac.type == I40E_MAC_X722) {
+			ecmd->supported |= SUPPORTED_100baseT_Full;
+			ecmd->advertising |= ADVERTISED_100baseT_Full;
+		}
 	}
 	if (phy_types & I40E_CAP_PHY_TYPE_XAUI ||
 	    phy_types & I40E_CAP_PHY_TYPE_XFI ||
@@ -424,7 +431,8 @@ static void i40e_get_settings_link_down(struct i40e_hw *hw,
 		ecmd->advertising |= ADVERTISED_Autoneg |
 				    ADVERTISED_40000baseCR4_Full;
 	}
-	if (phy_types & I40E_CAP_PHY_TYPE_100BASE_TX) {
+	if ((phy_types & I40E_CAP_PHY_TYPE_100BASE_TX) &&
+	    !(phy_types & I40E_CAP_PHY_TYPE_1000BASE_T)) {
 		ecmd->supported |= SUPPORTED_Autoneg |
 				   SUPPORTED_100baseT_Full;
 		ecmd->advertising |= ADVERTISED_Autoneg |
@@ -466,9 +474,9 @@ static int i40e_get_settings(struct net_device *netdev,
 	bool link_up = hw_link_info->link_info & I40E_AQ_LINK_UP;
 
 	if (link_up)
-		i40e_get_settings_link_up(hw, ecmd, netdev);
+		i40e_get_settings_link_up(hw, ecmd, netdev, pf);
 	else
-		i40e_get_settings_link_down(hw, ecmd);
+		i40e_get_settings_link_down(hw, ecmd, pf);
 
 	/* Now set the settings that don't rely on link being up/down */
 
@@ -2666,6 +2674,8 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 		I40E_PRIV_FLAGS_NPAR_FLAG : 0;
 	ret_flags |= pf->flags & I40E_FLAG_LINK_POLLING_ENABLED ?
 		I40E_PRIV_FLAGS_LINKPOLL_FLAG : 0;
+	ret_flags |= pf->flags & I40E_FLAG_FD_ATR_ENABLED ?
+		I40E_PRIV_FLAGS_FD_ATR : 0;
 
 	return ret_flags;
 }
@@ -2685,6 +2695,17 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 		pf->flags |= I40E_FLAG_LINK_POLLING_ENABLED;
 	else
 		pf->flags &= ~I40E_FLAG_LINK_POLLING_ENABLED;
+
+	/* allow the user to control the state of the Flow
+	 * Director ATR (Application Targeted Routing) feature
+	 * of the driver
+	 */
+	if (flags & I40E_PRIV_FLAGS_FD_ATR) {
+		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+	} else {
+		pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+		pf->auto_disable_flags |= I40E_FLAG_FD_ATR_ENABLED;
+	}
 
 	return 0;
 }

@@ -34,7 +34,7 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710/X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "1.3.17"
+#define DRV_VERSION "1.3.19"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2015 Intel Corporation.";
@@ -1123,6 +1123,8 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 		tx_ring->netdev = adapter->netdev;
 		tx_ring->dev = &adapter->pdev->dev;
 		tx_ring->count = adapter->tx_desc_count;
+		if (adapter->flags & I40E_FLAG_WB_ON_ITR_CAPABLE)
+			tx_ring->flags |= I40E_TXR_FLAGS_WB_ON_ITR;
 		adapter->tx_rings[i] = tx_ring;
 
 		rx_ring = &tx_ring[1];
@@ -1626,7 +1628,7 @@ static void i40evf_reset_task(struct work_struct *work)
 	/* extra wait to make sure minimum wait is met */
 	msleep(I40EVF_RESET_WAIT_MS);
 	if (i == I40EVF_RESET_WAIT_COUNT) {
-		struct i40evf_mac_filter *f, *ftmp;
+		struct i40evf_mac_filter *ftmp;
 		struct i40evf_vlan_filter *fv, *fvtmp;
 
 		/* reset never finished */
@@ -2275,6 +2277,9 @@ static void i40evf_init_task(struct work_struct *work)
 	if (err)
 		goto err_sw_init;
 	i40evf_map_rings_to_vectors(adapter);
+	if (adapter->vf_res->vf_offload_flags &
+		    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
+		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;
 	if (!RSS_AQ(adapter))
 		i40evf_configure_rss(adapter);
 	err = i40evf_request_misc_irq(adapter);
@@ -2310,7 +2315,7 @@ static void i40evf_init_task(struct work_struct *work)
 	}
 	return;
 restart:
-	schedule_delayed_work(&adapter->init_task, msecs_to_jiffies(30));
+	schedule_delayed_work(&adapter->init_task, msecs_to_jiffies(20));
 	return;
 
 err_register:
@@ -2327,7 +2332,7 @@ err:
 		adapter->flags |= I40EVF_FLAG_PF_COMMS_FAILED;
 		return; /* do not reschedule */
 	}
-	schedule_delayed_work(&adapter->init_task, HZ * 3);
+	schedule_delayed_work(&adapter->init_task, HZ / 2);
 }
 
 /**
