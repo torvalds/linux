@@ -41,7 +41,7 @@
 #include "socket.h"
 #include "bcast.h"
 #include "discover.h"
-#define pr_debug printk
+
 /* Node FSM states and events:
  */
 enum {
@@ -420,6 +420,10 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 	}
 
 	if (!tipc_node_is_up(n)) {
+		if (tipc_link_peer_is_down(l))
+			tipc_node_fsm_evt(n, PEER_LOST_CONTACT_EVT);
+		tipc_node_fsm_evt(n, SELF_LOST_CONTACT_EVT);
+		tipc_link_fsm_evt(l, LINK_RESET_EVT);
 		tipc_link_reset(l);
 		tipc_link_build_reset_msg(l, xmitq);
 		*maddr = &n->links[*bearer_id].maddr;
@@ -434,6 +438,7 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 	n->sync_point = tnl->rcv_nxt + (U16_MAX / 2 - 1);
 	tipc_link_tnl_prepare(l, tnl, FAILOVER_MSG, xmitq);
 	tipc_link_reset(l);
+	tipc_link_fsm_evt(l, LINK_RESET_EVT);
 	tipc_link_fsm_evt(l, LINK_FAILOVER_BEGIN_EVT);
 	tipc_node_fsm_evt(n, NODE_FAILOVER_BEGIN_EVT);
 	*maddr = &n->links[tnl->bearer_id].maddr;
@@ -581,6 +586,7 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 			goto exit;
 		}
 		tipc_link_reset(l);
+		tipc_link_fsm_evt(l, LINK_RESET_EVT);
 		if (n->state == NODE_FAILINGOVER)
 			tipc_link_fsm_evt(l, LINK_FAILOVER_BEGIN_EVT);
 		le->link = l;
@@ -862,9 +868,6 @@ static void node_lost_contact(struct tipc_node *n_ptr,
 		if (l)
 			tipc_link_fsm_evt(l, LINK_FAILOVER_END_EVT);
 	}
-
-	/* Prevent re-contact with node until cleanup is done */
-	tipc_node_fsm_evt(n_ptr, SELF_LOST_CONTACT_EVT);
 
 	/* Notify publications from this node */
 	n_ptr->action_flags |= TIPC_NOTIFY_NODE_DOWN;

@@ -217,6 +217,7 @@ void tipc_link_build_reset_msg(struct tipc_link *l, struct sk_buff_head *xmitq);
 int tipc_link_fsm_evt(struct tipc_link *l, int evt);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
 bool tipc_link_is_up(struct tipc_link *l);
+bool tipc_link_peer_is_down(struct tipc_link *l);
 bool tipc_link_is_reset(struct tipc_link *l);
 bool tipc_link_is_establishing(struct tipc_link *l);
 bool tipc_link_is_synching(struct tipc_link *l);

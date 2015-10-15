@@ -120,6 +120,11 @@ bool tipc_link_is_up(struct tipc_link *l)
 	return link_is_up(l);
 }
 
+bool tipc_link_peer_is_down(struct tipc_link *l)
+{
+	return l->state == LINK_PEER_RESET;
+}
+
 bool tipc_link_is_reset(struct tipc_link *l)
 {
 	return l->state & (LINK_RESET | LINK_FAILINGOVER | LINK_ESTABLISHING);
@@ -584,8 +589,6 @@ void tipc_link_purge_queues(struct tipc_link *l_ptr)
 
 void tipc_link_reset(struct tipc_link *l)
 {
-	tipc_link_fsm_evt(l, LINK_RESET_EVT);
-
 	/* Link is down, accept any session */
 	l->peer_session = WILDCARD_SESSION;
 
