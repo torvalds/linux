@@ -2341,7 +2341,8 @@ static int __setplane_internal(struct drm_plane *plane,
 	    crtc_y > INT_MAX - (int32_t) crtc_h) {
 		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
 			      crtc_w, crtc_h, crtc_x, crtc_y);
-		return -ERANGE;
+		ret = -ERANGE;
+		goto out;
 	}
 
 
