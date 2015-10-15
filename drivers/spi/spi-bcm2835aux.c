@@ -429,7 +429,7 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 		goto out_master_put;
 	}
 
-	bs->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	bs->irq = platform_get_irq(pdev, 0);
 	if (bs->irq <= 0) {
 		dev_err(&pdev->dev, "could not get IRQ: %d\n", bs->irq);
 		err = bs->irq ? bs->irq : -ENODEV;
@@ -451,6 +451,9 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
+	/* reset SPI-HW block */
+	bcm2835aux_spi_reset_hw(bs);
+
 	err = devm_request_irq(&pdev->dev, bs->irq,
 			       bcm2835aux_spi_interrupt,
 			       IRQF_SHARED,
@@ -459,9 +462,6 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
 		goto out_clk_disable;
 	}
-
-	/* reset SPI-HW block */
-	bcm2835aux_spi_reset_hw(bs);
 
 	err = devm_spi_register_master(&pdev->dev, master);
 	if (err) {
