@@ -127,7 +127,7 @@ int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t key_len,
 void skein_reset(struct skein_ctx *ctx)
 {
 	size_t x_len = 0;
-	u64 *x = NULL;
+	u64 *x;
 
 	/*
 	 * The following two lines rely of the fact that the real Skein
