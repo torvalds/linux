@@ -134,7 +134,7 @@ static int aim_close(struct inode *inode, struct file *filp)
 	}
 	mutex_unlock(&channel->io_mutex);
 
-	while (0 != kfifo_out((struct kfifo *)&channel->fifo, &mbo, 1))
+	while (kfifo_out((struct kfifo *)&channel->fifo, &mbo, 1))
 		most_put_mbo(mbo);
 	if (channel->keep_mbo)
 		most_put_mbo(channel->stacked_mbo);
@@ -232,7 +232,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 		channel->keep_mbo = false;
 		goto start_copy;
 	}
-	while ((0 == kfifo_out(&channel->fifo, &mbo, 1))
+	while ((!kfifo_out(&channel->fifo, &mbo, 1))
 	       && (channel->dev)) {
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
