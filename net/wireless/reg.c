@@ -273,6 +273,9 @@ MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 
 static void reg_free_request(struct regulatory_request *request)
 {
+	if (request == &core_request_world)
+		return;
+
 	if (request != get_last_request())
 		kfree(request);
 }
@@ -1905,13 +1908,17 @@ static void reg_set_request_processed(void)
  * The wireless subsystem can use this function to process
  * a regulatory request issued by the regulatory core.
  */
-static void reg_process_hint_core(struct regulatory_request *core_request)
+static enum reg_request_treatment
+reg_process_hint_core(struct regulatory_request *core_request)
 {
 	if (reg_query_database(core_request)) {
 		core_request->intersect = false;
 		core_request->processed = false;
 		reg_update_last_request(core_request);
+		return REG_REQ_OK;
 	}
+
+	return REG_REQ_IGNORE;
 }
 
 static enum reg_request_treatment
@@ -1957,16 +1964,15 @@ __reg_process_hint_user(struct regulatory_request *user_request)
  * The wireless subsystem can use this function to process
  * a regulatory request initiated by userspace.
  */
-static void reg_process_hint_user(struct regulatory_request *user_request)
+static enum reg_request_treatment
+reg_process_hint_user(struct regulatory_request *user_request)
 {
 	enum reg_request_treatment treatment;
 
 	treatment = __reg_process_hint_user(user_request);
 	if (treatment == REG_REQ_IGNORE ||
-	    treatment == REG_REQ_ALREADY_SET) {
-		reg_free_request(user_request);
-		return;
-	}
+	    treatment == REG_REQ_ALREADY_SET)
+		return REG_REQ_IGNORE;
 
 	user_request->intersect = treatment == REG_REQ_INTERSECT;
 	user_request->processed = false;
@@ -1975,9 +1981,10 @@ static void reg_process_hint_user(struct regulatory_request *user_request)
 		reg_update_last_request(user_request);
 		user_alpha2[0] = user_request->alpha2[0];
 		user_alpha2[1] = user_request->alpha2[1];
-	} else {
-		reg_free_request(user_request);
+		return REG_REQ_OK;
 	}
+
+	return REG_REQ_IGNORE;
 }
 
 static enum reg_request_treatment
@@ -2025,15 +2032,12 @@ reg_process_hint_driver(struct wiphy *wiphy,
 	case REG_REQ_OK:
 		break;
 	case REG_REQ_IGNORE:
-		reg_free_request(driver_request);
-		return REG_REQ_OK;
+		return REG_REQ_IGNORE;
 	case REG_REQ_INTERSECT:
 	case REG_REQ_ALREADY_SET:
 		regd = reg_copy_regd(get_cfg80211_regdom());
-		if (IS_ERR(regd)) {
-			reg_free_request(driver_request);
-			return REG_REQ_OK;
-		}
+		if (IS_ERR(regd))
+			return REG_REQ_IGNORE;
 
 		tmp = get_wiphy_regdom(wiphy);
 		rcu_assign_pointer(wiphy->regd, regd);
@@ -2056,12 +2060,12 @@ reg_process_hint_driver(struct wiphy *wiphy,
 		return REG_REQ_ALREADY_SET;
 	}
 
-	if (reg_query_database(driver_request))
+	if (reg_query_database(driver_request)) {
 		reg_update_last_request(driver_request);
-	else
-		reg_free_request(driver_request);
+		return REG_REQ_OK;
+	}
 
-	return REG_REQ_OK;
+	return REG_REQ_IGNORE;
 }
 
 static enum reg_request_treatment
@@ -2127,29 +2131,28 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 	case REG_REQ_OK:
 		break;
 	case REG_REQ_IGNORE:
-		return REG_REQ_OK;
+		return REG_REQ_IGNORE;
 	case REG_REQ_ALREADY_SET:
 		reg_free_request(country_ie_request);
 		return REG_REQ_ALREADY_SET;
 	case REG_REQ_INTERSECT:
-		reg_free_request(country_ie_request);
 		/*
 		 * This doesn't happen yet, not sure we
 		 * ever want to support it for this case.
 		 */
 		WARN_ONCE(1, "Unexpected intersection for country IEs");
-		return REG_REQ_OK;
+		return REG_REQ_IGNORE;
 	}
 
 	country_ie_request->intersect = false;
 	country_ie_request->processed = false;
 
-	if (reg_query_database(country_ie_request))
+	if (reg_query_database(country_ie_request)) {
 		reg_update_last_request(country_ie_request);
-	else
-		reg_free_request(country_ie_request);
+		return REG_REQ_OK;
+	}
 
-	return REG_REQ_OK;
+	return REG_REQ_IGNORE;
 }
 
 /* This processes *all* regulatory hints */
@@ -2163,11 +2166,11 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 
 	switch (reg_request->initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
-		reg_process_hint_core(reg_request);
-		return;
+		treatment = reg_process_hint_core(reg_request);
+		break;
 	case NL80211_REGDOM_SET_BY_USER:
-		reg_process_hint_user(reg_request);
-		return;
+		treatment = reg_process_hint_user(reg_request);
+		break;
 	case NL80211_REGDOM_SET_BY_DRIVER:
 		if (!wiphy)
 			goto out_free;
@@ -2182,6 +2185,9 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 		WARN(1, "invalid initiator %d\n", reg_request->initiator);
 		goto out_free;
 	}
+
+	if (treatment == REG_REQ_IGNORE)
+		goto out_free;
 
 	WARN(treatment != REG_REQ_OK && treatment != REG_REQ_ALREADY_SET,
 	     "unexpected treatment value %d\n", treatment);
