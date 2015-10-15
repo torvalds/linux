@@ -1371,19 +1371,8 @@ static int mlxsw_sx_flood_init(struct mlxsw_sx *mlxsw_sx)
 {
 	char sfgc_pl[MLXSW_REG_SFGC_LEN];
 	char sgcr_pl[MLXSW_REG_SGCR_LEN];
-	char *smid_pl;
 	char *sftr_pl;
 	int err;
-
-	/* Due to FW bug, we must configure SMID. */
-	smid_pl = kmalloc(MLXSW_REG_SMID_LEN, GFP_KERNEL);
-	if (!smid_pl)
-		return -ENOMEM;
-	mlxsw_reg_smid_pack(smid_pl, MLXSW_PORT_MID);
-	err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(smid), smid_pl);
-	kfree(smid_pl);
-	if (err)
-		return err;
 
 	/* Configure a flooding table, which includes only CPU port. */
 	sftr_pl = kmalloc(MLXSW_REG_SFTR_LEN, GFP_KERNEL);
