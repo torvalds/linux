@@ -892,7 +892,7 @@ bool CARDbSoftwareReset(struct vnt_private *pDevice)
 u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
 {
 	u64 qwTSFOffset = 0;
-	unsigned short wRxBcnTSFOffst = 0;
+	unsigned short wRxBcnTSFOffst;
 
 	wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate%MAX_RATE];
 
