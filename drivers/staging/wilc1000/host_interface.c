@@ -243,7 +243,7 @@ static struct timer_list periodic_rssi;
 
 u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
-static u8 gapu8RcvdAssocResp[MAX_ASSOC_RESP_FRAME_SIZE];
+static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 
 bool gbScanWhileConnected;
 
@@ -1543,10 +1543,10 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			memset(&strConnectInfo, 0, sizeof(tstrConnectInfo));
 
 			if (u8MacStatus == MAC_CONNECTED) {
-				memset(gapu8RcvdAssocResp, 0, MAX_ASSOC_RESP_FRAME_SIZE);
+				memset(rcv_assoc_resp, 0, MAX_ASSOC_RESP_FRAME_SIZE);
 
 				host_int_get_assoc_res_info(hif_drv,
-							    gapu8RcvdAssocResp,
+							    rcv_assoc_resp,
 							    MAX_ASSOC_RESP_FRAME_SIZE,
 							    &u32RcvdAssocRespInfoLen);
 
@@ -1555,7 +1555,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 				if (u32RcvdAssocRespInfoLen != 0) {
 
 					PRINT_D(HOSTINF_DBG, "Parsing association response\n");
-					s32Err = ParseAssocRespInfo(gapu8RcvdAssocResp, u32RcvdAssocRespInfoLen,
+					s32Err = ParseAssocRespInfo(rcv_assoc_resp, u32RcvdAssocRespInfoLen,
 								    &pstrConnectRespInfo);
 					if (s32Err) {
 						PRINT_ER("ParseAssocRespInfo() returned error %d\n", s32Err);
