@@ -2269,7 +2269,8 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		} else  {
 			err = ib_get_cached_gid(ib_dev,
 						be32_to_cpu(ah->av.ib.port_pd) >> 24,
-						ah->av.ib.gid_index, &sgid);
+						ah->av.ib.gid_index, &sgid,
+						NULL);
 			if (err)
 				return err;
 		}
@@ -2311,7 +2312,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 			ib_get_cached_gid(ib_dev,
 					  be32_to_cpu(ah->av.ib.port_pd) >> 24,
 					  ah->av.ib.gid_index,
-					  &sqp->ud_header.grh.source_gid);
+					  &sqp->ud_header.grh.source_gid, NULL);
 		}
 		memcpy(sqp->ud_header.grh.destination_gid.raw,
 		       ah->av.ib.dgid, 16);

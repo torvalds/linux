@@ -365,7 +365,7 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	read_lock_irqsave(&cm.device_lock, flags);
 	list_for_each_entry(cm_dev, &cm.device_list, list) {
 		if (!ib_find_cached_gid(cm_dev->ib_device, &path->sgid,
-					&p, NULL)) {
+					NULL, &p, NULL)) {
 			port = cm_dev->port[p-1];
 			break;
 		}
@@ -1643,7 +1643,8 @@ static int cm_req_handler(struct cm_work *work)
 	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
 	if (ret) {
 		ib_get_cached_gid(work->port->cm_dev->ib_device,
-				  work->port->port_num, 0, &work->path[0].sgid);
+				  work->port->port_num, 0, &work->path[0].sgid,
+				  NULL);
 		ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
 			       &work->path[0].sgid, sizeof work->path[0].sgid,
 			       NULL, 0);

@@ -73,7 +73,7 @@ int ocrdma_query_gid(struct ib_device *ibdev, u8 port,
 	if (index >= OCRDMA_MAX_SGID)
 		return -EINVAL;
 
-	ret = ib_get_cached_gid(ibdev, port, index, sgid);
+	ret = ib_get_cached_gid(ibdev, port, index, sgid, NULL);
 	if (ret == -EAGAIN) {
 		memcpy(sgid, &zgid, sizeof(*sgid));
 		return 0;

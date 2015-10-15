@@ -344,8 +344,8 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		ah_attr->ah_flags = IB_AH_GRH;
 		ah_attr->grh.dgid = grh->sgid;
 
-		ret = ib_find_cached_gid(device, &grh->dgid, &port_num,
-					 &gid_index);
+		ret = ib_find_cached_gid(device, &grh->dgid,
+					 NULL, &port_num, &gid_index);
 		if (ret)
 			return ret;
 
@@ -988,7 +988,8 @@ int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
 	if ((*qp_attr_mask & IB_QP_AV)  &&
 	    (rdma_cap_eth_ah(qp->device, qp_attr->ah_attr.port_num))) {
 		ret = ib_query_gid(qp->device, qp_attr->ah_attr.port_num,
-				   qp_attr->ah_attr.grh.sgid_index, &sgid);
+				   qp_attr->ah_attr.grh.sgid_index, &sgid,
+				   NULL);
 		if (ret)
 			goto out;
 		if (rdma_link_local_addr((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw)) {

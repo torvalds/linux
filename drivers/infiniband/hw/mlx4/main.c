@@ -335,7 +335,7 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	if (!rdma_cap_roce_gid_table(&ibdev->ib_dev, port_num))
 		return index;
 
-	ret = ib_get_cached_gid(&ibdev->ib_dev, port_num, index, &gid);
+	ret = ib_get_cached_gid(&ibdev->ib_dev, port_num, index, &gid, NULL);
 	if (ret)
 		return ret;
 
@@ -756,7 +756,7 @@ static int mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	if (!rdma_cap_roce_gid_table(ibdev, port))
 		return -ENODEV;
 
-	ret = ib_get_cached_gid(ibdev, port, index, gid);
+	ret = ib_get_cached_gid(ibdev, port, index, gid, NULL);
 	if (ret == -EAGAIN) {
 		memcpy(gid, &zgid, sizeof(*gid));
 		return 0;

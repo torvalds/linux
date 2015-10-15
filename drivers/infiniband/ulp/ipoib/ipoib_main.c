@@ -1860,7 +1860,7 @@ static struct net_device *ipoib_add_port(const char *format,
 	priv->dev->broadcast[8] = priv->pkey >> 8;
 	priv->dev->broadcast[9] = priv->pkey & 0xff;
 
-	result = ib_query_gid(hca, port, 0, &priv->local_gid);
+	result = ib_query_gid(hca, port, 0, &priv->local_gid, NULL);
 	if (result) {
 		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
 		       hca->name, port, result);

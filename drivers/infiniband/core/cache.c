@@ -649,21 +649,23 @@ static int gid_table_setup_one(struct ib_device *ib_dev)
 int ib_get_cached_gid(struct ib_device *device,
 		      u8                port_num,
 		      int               index,
-		      union ib_gid     *gid)
+		      union ib_gid     *gid,
+		      struct ib_gid_attr *gid_attr)
 {
 	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
 		return -EINVAL;
 
-	return __ib_cache_gid_get(device, port_num, index, gid, NULL);
+	return __ib_cache_gid_get(device, port_num, index, gid, gid_attr);
 }
 EXPORT_SYMBOL(ib_get_cached_gid);
 
 int ib_find_cached_gid(struct ib_device *device,
 		       const union ib_gid *gid,
+		       struct net_device *ndev,
 		       u8               *port_num,
 		       u16              *index)
 {
-	return ib_cache_gid_find(device, gid, NULL, port_num, index);
+	return ib_cache_gid_find(device, gid, ndev, port_num, index);
 }
 EXPORT_SYMBOL(ib_find_cached_gid);
 
@@ -845,7 +847,7 @@ static void ib_cache_update(struct ib_device *device,
 	if (!use_roce_gid_table) {
 		for (i = 0;  i < gid_cache->table_len; ++i) {
 			ret = ib_query_gid(device, port, i,
-					   gid_cache->table + i);
+					   gid_cache->table + i, NULL);
 			if (ret) {
 				printk(KERN_WARNING "ib_query_gid failed (%d) for %s (index %d)\n",
 				       ret, device->name, i);
