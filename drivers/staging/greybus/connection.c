@@ -527,6 +527,38 @@ void gb_connection_destroy(struct gb_connection *connection)
 	device_unregister(&connection->dev);
 }
 
+void gb_connection_latency_tag_enable(struct gb_connection *connection)
+{
+	struct greybus_host_device *hd = connection->hd;
+	int ret;
+
+	if (!hd->driver->latency_tag_enable)
+		return;
+
+	ret = hd->driver->latency_tag_enable(hd, connection->hd_cport_id);
+	if (ret) {
+		dev_err(&connection->dev,
+			"failed to enable latency tag: %d\n", ret);
+	}
+}
+EXPORT_SYMBOL_GPL(gb_connection_latency_tag_enable);
+
+void gb_connection_latency_tag_disable(struct gb_connection *connection)
+{
+	struct greybus_host_device *hd = connection->hd;
+	int ret;
+
+	if (!hd->driver->latency_tag_disable)
+		return;
+
+	ret = hd->driver->latency_tag_disable(hd, connection->hd_cport_id);
+	if (ret) {
+		dev_err(&connection->dev,
+			"failed to disable latency tag: %d\n", ret);
+	}
+}
+EXPORT_SYMBOL_GPL(gb_connection_latency_tag_disable);
+
 void gb_hd_connections_exit(struct greybus_host_device *hd)
 {
 	struct gb_connection *connection;
