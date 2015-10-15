@@ -34,7 +34,7 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
-struct footer_struct {
+struct footer_v1 {
 	u32 image_info_base;	/* Address of first word of ImageFooter  */
 	u32 image_start;	/* Start of area reserved by this footer */
 	u32 signature;		/* 'Magic' number proves it's a footer   */
@@ -42,7 +42,7 @@ struct footer_struct {
 	u32 checksum;		/* Just this structure                   */
 };
 
-struct image_info_struct {
+struct image_info_v1 {
 	u32 bootFlags;		/* Boot flags, compression etc.          */
 	u32 imageNumber;	/* Unique number, selects for boot etc.  */
 	u32 loadAddress;	/* Address program should be loaded to   */
@@ -67,10 +67,10 @@ static u32 word_sum(void *words, int num)
 }
 
 static int
-afs_read_footer(struct mtd_info *mtd, u_int *img_start, u_int *iis_start,
-		u_int off, u_int mask)
+afs_read_footer_v1(struct mtd_info *mtd, u_int *img_start, u_int *iis_start,
+		   u_int off, u_int mask)
 {
-	struct footer_struct fs;
+	struct footer_v1 fs;
 	u_int ptr = off + mtd->erasesize - sizeof(fs);
 	size_t sz;
 	int ret;
@@ -126,7 +126,7 @@ afs_read_footer(struct mtd_info *mtd, u_int *img_start, u_int *iis_start,
 }
 
 static int
-afs_read_iis(struct mtd_info *mtd, struct image_info_struct *iis, u_int ptr)
+afs_read_iis_v1(struct mtd_info *mtd, struct image_info_v1 *iis, u_int ptr)
 {
 	size_t sz;
 	int ret, i;
@@ -182,16 +182,16 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 	 * the strings.
 	 */
 	for (idx = off = sz = 0; off < mtd->size; off += mtd->erasesize) {
-		struct image_info_struct iis;
+		struct image_info_v1 iis;
 		u_int iis_ptr, img_ptr;
 
-		ret = afs_read_footer(mtd, &img_ptr, &iis_ptr, off, mask);
+		ret = afs_read_footer_v1(mtd, &img_ptr, &iis_ptr, off, mask);
 		if (ret < 0)
 			break;
 		if (ret == 0)
 			continue;
 
-		ret = afs_read_iis(mtd, &iis, iis_ptr);
+		ret = afs_read_iis_v1(mtd, &iis, iis_ptr);
 		if (ret < 0)
 			break;
 		if (ret == 0)
@@ -215,18 +215,18 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 	 * Identify the partitions
 	 */
 	for (idx = off = 0; off < mtd->size; off += mtd->erasesize) {
-		struct image_info_struct iis;
+		struct image_info_v1 iis;
 		u_int iis_ptr, img_ptr;
 
 		/* Read the footer. */
-		ret = afs_read_footer(mtd, &img_ptr, &iis_ptr, off, mask);
+		ret = afs_read_footer_v1(mtd, &img_ptr, &iis_ptr, off, mask);
 		if (ret < 0)
 			break;
 		if (ret == 0)
 			continue;
 
 		/* Read the image info block */
-		ret = afs_read_iis(mtd, &iis, iis_ptr);
+		ret = afs_read_iis_v1(mtd, &iis, iis_ptr);
 		if (ret < 0)
 			break;
 		if (ret == 0)
