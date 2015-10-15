@@ -23,6 +23,7 @@
 #include <asm/div64.h>
 
 #include "greybus.h"
+#include "connection.h"
 
 #define NSEC_PER_DAY 86400000000000ULL
 
@@ -938,6 +939,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	}
 
 	gb_loopback_insert_id(gb);
+	gb_connection_latency_tag_enable(connection);
 	gb_dev.count++;
 	mutex_unlock(&gb_dev.mutex);
 	return 0;
@@ -975,6 +977,7 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 	connection->private = NULL;
 	kfifo_free(&gb->kfifo_lat);
 	kfifo_free(&gb->kfifo_ts);
+	gb_connection_latency_tag_disable(connection);
 	gb_dev.count--;
 	if (!gb_dev.count) {
 		sysfs_remove_groups(kobj, loopback_dev_groups);
