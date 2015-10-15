@@ -3602,7 +3602,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	}
 
 	instance->max_sectors_per_req = instance->max_num_sge *
-						PAGE_SIZE / 512;
+						SGE_BUFFER_SIZE / 512;
 	if (tmp_sectors && (instance->max_sectors_per_req > tmp_sectors))
 		instance->max_sectors_per_req = tmp_sectors;
 
