@@ -185,7 +185,7 @@ struct tipc_link {
 	} backlog[5];
 	u16 snd_nxt;
 	u16 last_retransm;
-	u32 window;
+	u16 window;
 	u32 stale_count;
 
 	/* Reception */

@@ -1077,13 +1077,14 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 {
 	struct sk_buff_head *defq = &l->deferdq;
 	struct tipc_msg *hdr;
-	u16 seqno, rcv_nxt;
+	u16 seqno, rcv_nxt, win_lim;
 	int rc = 0;
 
 	do {
 		hdr = buf_msg(skb);
 		seqno = msg_seqno(hdr);
 		rcv_nxt = l->rcv_nxt;
+		win_lim = rcv_nxt + TIPC_MAX_LINK_WIN;
 
 		/* Verify and update link state */
 		if (unlikely(msg_user(hdr) == LINK_PROTOCOL))
@@ -1098,6 +1099,12 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		/* Don't send probe at next timeout expiration */
 		l->silent_intv_cnt = 0;
 
+		/* Drop if outside receive window */
+		if (unlikely(less(seqno, rcv_nxt) || more(seqno, win_lim))) {
+			l->stats.duplicates++;
+			goto drop;
+		}
+
 		/* Forward queues and wake up waiting users */
 		if (likely(tipc_link_release_pkts(l, msg_ack(hdr)))) {
 			tipc_link_advance_backlog(l, xmitq);
@@ -1105,29 +1112,20 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 				link_prepare_wakeup(l);
 		}
 
-		/* Defer reception if there is a gap in the sequence */
-		if (unlikely(less(rcv_nxt, seqno))) {
+		/* Defer delivery if sequence gap */
+		if (unlikely(seqno != rcv_nxt)) {
 			__tipc_skb_queue_sorted(defq, skb);
 			tipc_link_build_nack_msg(l, xmitq);
 			break;
 		}
 
-		/* Drop if packet already received */
-		if (unlikely(more(rcv_nxt, seqno))) {
-			l->stats.duplicates++;
-			goto drop;
-		}
-
-		/* Packet can be delivered */
+		/* Deliver packet */
 		l->rcv_nxt++;
 		l->stats.recv_info++;
-
 		if (!tipc_data_input(l, skb, l->inputq))
 			rc = tipc_link_input(l, skb, l->inputq);
-		if (rc)
+		if (unlikely(rc))
 			break;
-
-		/* Ack at regular intervals */
 		if (unlikely(++l->rcv_unacked >= TIPC_MIN_LINK_WIN))
 			tipc_link_build_ack_msg(l, xmitq);
 
