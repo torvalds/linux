@@ -4194,6 +4194,10 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 				"controller type\t: %s(%dMB)\n",
 				instance->is_imr ? "iMR" : "MR",
 				le16_to_cpu(ctrl_info->memory_size));
+		instance->disableOnlineCtrlReset =
+			ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
+		dev_info(&instance->pdev->dev, "Online Controller Reset(OCR)\t: %s\n",
+			instance->disableOnlineCtrlReset ? "Disabled" : "Enabled");
 	}
 
 	pci_free_consistent(instance->pdev, sizeof(struct megasas_ctrl_info),
@@ -4799,8 +4803,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	tmp_sectors = min_t(u32, max_sectors_1, max_sectors_2);
 
-	instance->disableOnlineCtrlReset =
-	ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
 	instance->mpio = ctrl_info->adapterOperations2.mpio;
 	instance->UnevenSpanSupport =
 		ctrl_info->adapterOperations2.supportUnevenSpans;
@@ -4860,8 +4862,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		le16_to_cpu(ctrl_info->pci.sub_device_id));
 	dev_info(&instance->pdev->dev, "unevenspan support	: %s\n",
 		instance->UnevenSpanSupport ? "yes" : "no");
-	dev_info(&instance->pdev->dev, "disable ocr		: %s\n",
-		instance->disableOnlineCtrlReset ? "yes" : "no");
 	dev_info(&instance->pdev->dev, "firmware crash dump	: %s\n",
 		instance->crash_dump_drv_support ? "yes" : "no");
 	dev_info(&instance->pdev->dev, "secure jbod		: %s\n",
@@ -6744,6 +6744,9 @@ megasas_aen_polling(struct work_struct *work)
 		case MR_EVT_FOREIGN_CFG_IMPORTED:
 		case MR_EVT_LD_STATE_CHANGE:
 			doscan = 1;
+			break;
+		case MR_EVT_CTRL_PROP_CHANGED:
+			megasas_get_ctrl_info(instance);
 			break;
 		default:
 			doscan = 0;
