@@ -219,7 +219,7 @@ struct join_bss_param {
 	u8 rsn_auth_policy[3];
 	u8 rsn_cap[2];
 	u32 tsf;
-	u8 u8NoaEnbaled;
+	u8 noa_enabled;
 	u8 u8OppEnable;
 	u8 u8CtWindow;
 	u8 u8Count;
@@ -1171,9 +1171,9 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	pu8CurrByte += sizeof(ptstrJoinBssParam->rsn_cap);
 
 	*(pu8CurrByte++) = REAL_JOIN_REQ;
+	*(pu8CurrByte++) = ptstrJoinBssParam->noa_enabled;
 
-	*(pu8CurrByte++) = ptstrJoinBssParam->u8NoaEnbaled;
-	if (ptstrJoinBssParam->u8NoaEnbaled) {
+	if (ptstrJoinBssParam->noa_enabled) {
 		PRINT_D(HOSTINF_DBG, "NOA present\n");
 
 		*(pu8CurrByte++) = (ptstrJoinBssParam->tsf) & 0xFF;
@@ -4944,7 +4944,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 				u16 u16P2P_count;
 
 				pNewJoinBssParam->tsf = ptstrNetworkInfo->u32Tsf;
-				pNewJoinBssParam->u8NoaEnbaled = 1;
+				pNewJoinBssParam->noa_enabled = 1;
 				pNewJoinBssParam->u8Index = pu8IEs[index + 9];
 
 				if (pu8IEs[index + 10] & BIT(7)) {
