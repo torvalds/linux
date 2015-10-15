@@ -15,6 +15,7 @@
 #include <linux/brcmphy.h>
 #include <linux/export.h>
 #include <linux/mdio.h>
+#include <linux/module.h>
 #include <linux/phy.h>
 
 #define MII_BCM_CHANNEL_WIDTH     0x2000
@@ -206,3 +207,7 @@ int bcm_phy_enable_eee(struct phy_device *phydev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bcm_phy_enable_eee);
+
+MODULE_DESCRIPTION("Broadcom PHY Library");
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Broadcom Corporation");
