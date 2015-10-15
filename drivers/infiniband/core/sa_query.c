@@ -1029,11 +1029,7 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	}
 	if (force_grh) {
 		memcpy(ah_attr->dmac, rec->dmac, ETH_ALEN);
-		ah_attr->vlan_id = rec->vlan_id;
-	} else {
-		ah_attr->vlan_id = 0xffff;
 	}
-
 	return 0;
 }
 EXPORT_SYMBOL(ib_init_ah_from_path);
