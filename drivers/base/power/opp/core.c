@@ -703,7 +703,7 @@ static int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 }
 
 /**
- * _opp_add_dynamic() - Allocate a dynamic OPP.
+ * _opp_add_v1() - Allocate a OPP based on v1 bindings.
  * @dev:	device for which we do this operation
  * @freq:	Frequency in Hz for this OPP
  * @u_volt:	Voltage in uVolts for this OPP
@@ -729,8 +729,8 @@ static int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
  * -ENOMEM	Memory allocation failure
  */
-static int _opp_add_dynamic(struct device *dev, unsigned long freq,
-			    long u_volt, bool dynamic)
+static int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt,
+		       bool dynamic)
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *new_opp;
@@ -934,7 +934,7 @@ unlock:
  */
 int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 {
-	return _opp_add_dynamic(dev, freq, u_volt, true);
+	return _opp_add_v1(dev, freq, u_volt, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_add);
 
@@ -1236,7 +1236,7 @@ static int _of_add_opp_table_v1(struct device *dev)
 		unsigned long freq = be32_to_cpup(val++) * 1000;
 		unsigned long volt = be32_to_cpup(val++);
 
-		if (_opp_add_dynamic(dev, freq, volt, false))
+		if (_opp_add_v1(dev, freq, volt, false))
 			dev_warn(dev, "%s: Failed to add OPP %ld\n",
 				 __func__, freq);
 		nr -= 2;
