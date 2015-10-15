@@ -235,8 +235,7 @@ bool g_obtainingIP;
 u8 P2P_LISTEN_STATE;
 static struct task_struct *hif_thread_handler;
 static WILC_MsgQueueHandle hif_msg_q;
-static struct semaphore hSemHostIFthrdEnd;
-
+static struct semaphore hif_sema_thread;
 struct semaphore hSemDeinitDrvHandle;
 static struct semaphore hWaitResponse;
 struct semaphore hSemHostIntDeinit;
@@ -3091,7 +3090,7 @@ static int hostIFthread(void *pvArg)
 	}
 
 	PRINT_D(HOSTINF_DBG, "Releasing thread exit semaphore\n");
-	up(&hSemHostIFthrdEnd);
+	up(&hif_sema_thread);
 	return 0;
 }
 
@@ -4214,7 +4213,7 @@ s32 host_int_init(struct host_if_drv **hif_drv_handler)
 
 	PRINT_D(HOSTINF_DBG, "Global handle pointer value=%p\n", hif_drv);
 	if (clients_count == 0)	{
-		sema_init(&hSemHostIFthrdEnd, 0);
+		sema_init(&hif_sema_thread, 0);
 		sema_init(&hSemDeinitDrvHandle, 0);
 		sema_init(&hSemHostIntDeinit, 1);
 	}
@@ -4347,7 +4346,7 @@ s32 host_int_deinit(struct host_if_drv *hif_drv)
 		if (s32Error != 0)
 			PRINT_ER("Error in sending deinit's message queue message function: Error(%d)\n", s32Error);
 
-		down(&hSemHostIFthrdEnd);
+		down(&hif_sema_thread);
 
 		wilc_mq_destroy(&hif_msg_q);
 	}
