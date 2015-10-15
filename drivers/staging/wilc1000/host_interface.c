@@ -250,7 +250,7 @@ static bool scan_while_connected;
 static s8 rssi;
 static s8 link_speed;
 static u8 ch_no;
-static u8 gs8SetIP[2][4];
+static u8 set_ip[2][4];
 static u8 gs8GetIP[2][4];
 static u32 gu32InactiveTime;
 static u8 gu8DelBcn;
@@ -411,7 +411,7 @@ s32 Handle_set_IPAddress(struct host_if_drv *hif_drv, u8 *pu8IPAddr, u8 idx)
 
 	PRINT_INFO(HOSTINF_DBG, "Indx = %d, Handling set  IP = %pI4\n", idx, pu8IPAddr);
 
-	memcpy(gs8SetIP[idx], pu8IPAddr, IP_ALEN);
+	memcpy(set_ip[idx], pu8IPAddr, IP_ALEN);
 
 	strWID.id = (u16)WID_IP_ADDRESS;
 	strWID.type = WID_STR;
@@ -454,8 +454,8 @@ s32 Handle_get_IPAddress(struct host_if_drv *hif_drv, u8 *pu8IPAddr, u8 idx)
 
 	kfree(strWID.val);
 
-	if (memcmp(gs8GetIP[idx], gs8SetIP[idx], IP_ALEN) != 0)
-		host_int_setup_ipaddress(hif_drv, gs8SetIP[idx], idx);
+	if (memcmp(gs8GetIP[idx], set_ip[idx], IP_ALEN) != 0)
+		host_int_setup_ipaddress(hif_drv, set_ip[idx], idx);
 
 	if (s32Error != 0) {
 		PRINT_ER("Failed to get IP address\n");
