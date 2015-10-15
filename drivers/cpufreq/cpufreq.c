@@ -1214,7 +1214,7 @@ static int cpufreq_online(unsigned int cpu)
 
 	if (new_policy) {
 		/* related_cpus should at least include policy->cpus. */
-		cpumask_or(policy->related_cpus, policy->related_cpus, policy->cpus);
+		cpumask_copy(policy->related_cpus, policy->cpus);
 		/* Remember CPUs present at the policy creation time. */
 		cpumask_and(policy->real_cpus, policy->cpus, cpu_present_mask);
 	}
