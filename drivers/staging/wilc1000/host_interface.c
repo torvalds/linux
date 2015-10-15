@@ -238,7 +238,7 @@ static WILC_MsgQueueHandle hif_msg_q;
 static struct semaphore hif_sema_thread;
 static struct semaphore hif_sema_driver;
 static struct semaphore hif_sema_wait_response;
-struct semaphore hif_sema_deinit;
+static struct semaphore hif_sema_deinit;
 struct timer_list g_hPeriodicRSSI;
 
 
