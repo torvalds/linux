@@ -83,6 +83,8 @@ struct gb_loopback {
 	u32 iteration_count;
 	u64 elapsed_nsecs;
 	u32 error;
+	u32 apbridge_latency_ts;
+	u32 gpbridge_latency_ts;
 };
 
 #define GB_LOOPBACK_FIFO_DEFAULT			8192
