@@ -208,8 +208,7 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 	}
 	return actual_len - retval;
 error:
-	if (mbo)
-		most_put_mbo(mbo);
+	most_put_mbo(mbo);
 	return err;
 }
 
