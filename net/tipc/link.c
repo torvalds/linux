@@ -125,6 +125,11 @@ bool tipc_link_is_reset(struct tipc_link *l)
 	return l->state & (LINK_RESET | LINK_FAILINGOVER | LINK_ESTABLISHING);
 }
 
+bool tipc_link_is_establishing(struct tipc_link *l)
+{
+	return l->state == LINK_ESTABLISHING;
+}
+
 bool tipc_link_is_synching(struct tipc_link *l)
 {
 	return l->state == LINK_SYNCHING;
@@ -321,14 +326,15 @@ int tipc_link_fsm_evt(struct tipc_link *l, int evt)
 		switch (evt) {
 		case LINK_ESTABLISH_EVT:
 			l->state = LINK_ESTABLISHED;
-			rc |= TIPC_LINK_UP_EVT;
 			break;
 		case LINK_FAILOVER_BEGIN_EVT:
 			l->state = LINK_FAILINGOVER;
 			break;
-		case LINK_PEER_RESET_EVT:
 		case LINK_RESET_EVT:
+			l->state = LINK_RESET;
+			break;
 		case LINK_FAILURE_EVT:
+		case LINK_PEER_RESET_EVT:
 		case LINK_SYNCH_BEGIN_EVT:
 		case LINK_FAILOVER_END_EVT:
 			break;
@@ -1091,9 +1097,9 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 			return tipc_link_proto_rcv(l, skb, xmitq);
 
 		if (unlikely(!link_is_up(l))) {
-			rc = tipc_link_fsm_evt(l, LINK_ESTABLISH_EVT);
-			if (!link_is_up(l))
-				goto drop;
+			if (l->state == LINK_ESTABLISHING)
+				rc = TIPC_LINK_UP_EVT;
+			goto drop;
 		}
 
 		/* Don't send probe at next timeout expiration */
@@ -1338,6 +1344,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 	u16 peers_tol = msg_link_tolerance(hdr);
 	u16 peers_prio = msg_linkprio(hdr);
 	u16 rcv_nxt = l->rcv_nxt;
+	int mtyp = msg_type(hdr);
 	char *if_name;
 	int rc = 0;
 
@@ -1347,7 +1354,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 	if (link_own_addr(l) > msg_prevnode(hdr))
 		l->net_plane = msg_net_plane(hdr);
 
-	switch (msg_type(hdr)) {
+	switch (mtyp) {
 	case RESET_MSG:
 
 		/* Ignore duplicate RESET with old session number */
@@ -1374,12 +1381,14 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		if (in_range(peers_prio, l->priority + 1, TIPC_MAX_LINK_PRI))
 			l->priority = peers_prio;
 
-		if (msg_type(hdr) == RESET_MSG) {
-			rc |= tipc_link_fsm_evt(l, LINK_PEER_RESET_EVT);
-		} else if (!link_is_up(l)) {
-			tipc_link_fsm_evt(l, LINK_PEER_RESET_EVT);
-			rc |= tipc_link_fsm_evt(l, LINK_ESTABLISH_EVT);
-		}
+		/* ACTIVATE_MSG serves as PEER_RESET if link is already down */
+		if ((mtyp == RESET_MSG) || !link_is_up(l))
+			rc = tipc_link_fsm_evt(l, LINK_PEER_RESET_EVT);
+
+		/* ACTIVATE_MSG takes up link if it was already locally reset */
+		if ((mtyp == ACTIVATE_MSG) && (l->state == LINK_ESTABLISHING))
+			rc = TIPC_LINK_UP_EVT;
+
 		l->peer_session = msg_session(hdr);
 		l->peer_bearer_id = msg_bearer_id(hdr);
 		if (l->mtu > msg_max_pkt(hdr))
@@ -1396,9 +1405,12 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		l->stats.recv_states++;
 		if (msg_probe(hdr))
 			l->stats.recv_probes++;
-		rc = tipc_link_fsm_evt(l, LINK_ESTABLISH_EVT);
-		if (!link_is_up(l))
+
+		if (!link_is_up(l)) {
+			if (l->state == LINK_ESTABLISHING)
+				rc = TIPC_LINK_UP_EVT;
 			break;
+		}
 
 		/* Send NACK if peer has sent pkts we haven't received yet */
 		if (more(peers_snd_nxt, rcv_nxt) && !tipc_link_is_synching(l))

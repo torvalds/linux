@@ -317,7 +317,11 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 	struct tipc_link *ol = node_active_link(n, 0);
 	struct tipc_link *nl = n->links[bearer_id].link;
 
-	if (!nl || !tipc_link_is_up(nl))
+	if (!nl)
+		return;
+
+	tipc_link_fsm_evt(nl, LINK_ESTABLISH_EVT);
+	if (!tipc_link_is_up(nl))
 		return;
 
 	n->working_links++;
@@ -437,17 +441,26 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 static void tipc_node_link_down(struct tipc_node *n, int bearer_id, bool delete)
 {
 	struct tipc_link_entry *le = &n->links[bearer_id];
+	struct tipc_link *l = le->link;
 	struct tipc_media_addr *maddr;
 	struct sk_buff_head xmitq;
+
+	if (!l)
+		return;
 
 	__skb_queue_head_init(&xmitq);
 
 	tipc_node_lock(n);
-	__tipc_node_link_down(n, &bearer_id, &xmitq, &maddr);
-	if (delete && le->link) {
-		kfree(le->link);
-		le->link = NULL;
-		n->link_cnt--;
+	if (!tipc_link_is_establishing(l)) {
+		__tipc_node_link_down(n, &bearer_id, &xmitq, &maddr);
+		if (delete) {
+			kfree(l);
+			le->link = NULL;
+			n->link_cnt--;
+		}
+	} else {
+		/* Defuse pending tipc_node_link_up() */
+		tipc_link_fsm_evt(l, LINK_RESET_EVT);
 	}
 	tipc_node_unlock(n);
 
@@ -579,7 +592,7 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 	memcpy(&le->maddr, maddr, sizeof(*maddr));
 exit:
 	tipc_node_unlock(n);
-	if (reset)
+	if (reset && !tipc_link_is_reset(l))
 		tipc_node_link_down(n, b->identity, false);
 	tipc_node_put(n);
 }
@@ -686,10 +699,10 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 			break;
 		case SELF_ESTABL_CONTACT_EVT:
 		case PEER_LOST_CONTACT_EVT:
-			break;
 		case NODE_SYNCH_END_EVT:
-		case NODE_SYNCH_BEGIN_EVT:
 		case NODE_FAILOVER_BEGIN_EVT:
+			break;
+		case NODE_SYNCH_BEGIN_EVT:
 		case NODE_FAILOVER_END_EVT:
 		default:
 			goto illegal_evt;
