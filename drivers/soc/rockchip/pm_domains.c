@@ -265,8 +265,8 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 		if (IS_ERR(clk)) {
 			error = PTR_ERR(clk);
 			dev_err(pmu->dev,
-				"%s: failed to get clk %pC (index %d): %d\n",
-				node->name, clk, i, error);
+				"%s: failed to get clk at index %d: %d\n",
+				node->name, i, error);
 			goto err_out;
 		}
 
