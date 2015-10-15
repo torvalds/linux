@@ -421,6 +421,15 @@ static inline void ipi_flush_tlb_range(void *arg)
 	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static inline void ipi_flush_pmd_tlb_range(void *arg)
+{
+	struct tlb_args *ta = arg;
+
+	local_flush_pmd_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+}
+#endif
+
 static inline void ipi_flush_tlb_kernel_range(void *arg)
 {
 	struct tlb_args *ta = (struct tlb_args *)arg;
@@ -460,6 +469,20 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 	on_each_cpu_mask(mm_cpumask(vma->vm_mm), ipi_flush_tlb_range, &ta, 1);
 }
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			 unsigned long end)
+{
+	struct tlb_args ta = {
+		.ta_vma = vma,
+		.ta_start = start,
+		.ta_end = end
+	};
+
+	on_each_cpu_mask(mm_cpumask(vma->vm_mm), ipi_flush_pmd_tlb_range, &ta, 1);
+}
+#endif
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
@@ -659,8 +682,8 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 	return pgtable;
 }
 
-void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
-			 unsigned long end)
+void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			       unsigned long end)
 {
 	unsigned int cpu;
 	unsigned long flags;
