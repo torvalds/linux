@@ -570,6 +570,7 @@ static struct cs_spec *cs_alloc_spec(struct hda_codec *codec, int vendor_nid)
 		return NULL;
 	codec->spec = spec;
 	spec->vendor_nid = vendor_nid;
+	codec->power_save_node = 1;
 	snd_hda_gen_spec_init(&spec->gen);
 
 	return spec;
