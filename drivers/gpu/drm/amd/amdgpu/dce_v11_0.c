@@ -3090,7 +3090,15 @@ static int dce_v11_0_hw_init(void *handle)
 	/* init dig PHYs, disp eng pll */
 	amdgpu_atombios_crtc_powergate_init(adev);
 	amdgpu_atombios_encoder_init_dig(adev);
-	amdgpu_atombios_crtc_set_disp_eng_pll(adev, adev->clock.default_dispclk);
+	if ((adev->asic_type == CHIP_ELLESMERE) ||
+	    (adev->asic_type == CHIP_BAFFIN)) {
+		amdgpu_atombios_crtc_set_dce_clock(adev, adev->clock.default_dispclk,
+						   DCE_CLOCK_TYPE_DISPCLK, ATOM_GCK_DFS);
+		amdgpu_atombios_crtc_set_dce_clock(adev, 0,
+						   DCE_CLOCK_TYPE_DPREFCLK, ATOM_GCK_DFS);
+	} else {
+		amdgpu_atombios_crtc_set_disp_eng_pll(adev, adev->clock.default_dispclk);
+	}
 
 	/* initialize hpd */
 	dce_v11_0_hpd_init(adev);
