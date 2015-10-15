@@ -1037,6 +1037,18 @@ megasas_display_intel_branding(struct megasas_instance *instance)
 			break;
 		}
 		break;
+	case PCI_DEVICE_ID_LSI_CUTLASS_52:
+	case PCI_DEVICE_ID_LSI_CUTLASS_53:
+		switch (instance->pdev->subsystem_device) {
+		case MEGARAID_INTEL_RMS3BC160_SSDID:
+			dev_info(&instance->pdev->dev, "scsi host %d: %s\n",
+				instance->host->host_no,
+				MEGARAID_INTEL_RMS3BC160_BRANDING);
+			break;
+		default:
+			break;
+		}
+		break;
 	default:
 		break;
 	}
