@@ -206,6 +206,7 @@ static u64 css_serial_nr_next = 1;
  */
 static unsigned long have_fork_callback __read_mostly;
 static unsigned long have_exit_callback __read_mostly;
+static unsigned long have_free_callback __read_mostly;
 
 /* Ditto for the can_fork callback. */
 static unsigned long have_canfork_callback __read_mostly;
@@ -5180,6 +5181,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 
 	have_fork_callback |= (bool)ss->fork << ss->id;
 	have_exit_callback |= (bool)ss->exit << ss->id;
+	have_free_callback |= (bool)ss->free << ss->id;
 	have_canfork_callback |= (bool)ss->can_fork << ss->id;
 
 	/* At system boot, before all subsystems have been
@@ -5637,6 +5639,11 @@ void cgroup_exit(struct task_struct *tsk)
 void cgroup_free(struct task_struct *task)
 {
 	struct css_set *cset = task_css_set(task);
+	struct cgroup_subsys *ss;
+	int ssid;
+
+	for_each_subsys_which(ss, ssid, &have_free_callback)
+		ss->free(task);
 
 	put_css_set(cset);
 }
