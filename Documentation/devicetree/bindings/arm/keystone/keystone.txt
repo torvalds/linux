@@ -17,11 +17,11 @@ SoC families:
 SoCs:
 
 - Keystone 2 Hawking/Kepler
-   compatible = ti,k2hk", "ti,keystone"
+   compatible = "ti,k2hk", "ti,keystone"
 - Keystone 2 Lamarr
-   compatible = ti,k2l", "ti,keystone"
+   compatible = "ti,k2l", "ti,keystone"
 - Keystone 2 Edison
-   compatible = ti,k2e", "ti,keystone"
+   compatible = "ti,k2e", "ti,keystone"
 
 Boards:
 -  Keystone 2 Hawking/Kepler EVM
