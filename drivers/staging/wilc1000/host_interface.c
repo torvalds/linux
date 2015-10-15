@@ -254,7 +254,6 @@ static u8 set_ip[2][4];
 static u8 get_ip[2][4];
 static u32 inactive_time;
 static u8 del_beacon;
-static u32 gu32WidConnRstHack;
 
 u8 *gu8FlushedJoinReq;
 u8 *gu8FlushedInfoElemAsoc;
@@ -1198,7 +1197,6 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 
 	pu8CurrByte = strWIDList[u32WidsCount].val;
 	u32WidsCount++;
-	gu32WidConnRstHack = 0;
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
 		memcpy(gu8FlushedJoinReq, pu8CurrByte, gu32FlushedJoinReqSize);
