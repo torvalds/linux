@@ -161,7 +161,7 @@ static inline void mlxsw_reg_sspr_pack(char *payload, u8 local_port)
  * -------------------------------------------
  * Configures the spanning tree state of a physical port.
  */
-#define MLXSW_REG_SPMS_ID 0x200d
+#define MLXSW_REG_SPMS_ID 0x200D
 #define MLXSW_REG_SPMS_LEN 0x404
 
 static const struct mlxsw_reg_info mlxsw_reg_spms = {
@@ -962,7 +962,7 @@ static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port)
  * Controls the association of a port with a switch partition and enables
  * configuring ports as stacking ports.
  */
-#define MLXSW_REG_PSPA_ID 0x500d
+#define MLXSW_REG_PSPA_ID 0x500D
 #define MLXSW_REG_PSPA_LEN 0x8
 
 static const struct mlxsw_reg_info mlxsw_reg_pspa = {
