@@ -288,9 +288,9 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 	err = mxl1x1sf_set_device_mode(state, adap_state->device_mode);
 
 	mxl_fail(err);
-	mxl111sf_enable_usb_output(state);
+	err = mxl111sf_enable_usb_output(state);
 	mxl_fail(err);
-	mxl1x1sf_top_master_ctrl(state, 1);
+	err = mxl1x1sf_top_master_ctrl(state, 1);
 	mxl_fail(err);
 
 	if ((MXL111SF_GPIO_MOD_DVBT != adap_state->gpio_mode) &&
