@@ -255,7 +255,7 @@ struct most_interface {
  * struct most_aim - identifies MOST device driver to mostcore
  * @name: Driver name
  * @probe_channel: function for core to notify driver about channel connection
- * @disconnect_channel: notification that a certain channel isn't available anymore
+ * @disconnect_channel: callback function to disconnect a certain channel
  * @rx_completion: completion handler for received packets
  * @tx_completion: completion handler for transmitted packets
  * @context: context pointer to be used by mostcore
