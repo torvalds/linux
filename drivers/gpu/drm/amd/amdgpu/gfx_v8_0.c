@@ -4186,7 +4186,18 @@ static int gfx_v8_0_soft_reset(void *handle)
 		gfx_v8_0_cp_gfx_enable(adev, false);
 
 		/* Disable MEC parsing/prefetching */
-		/* XXX todo */
+		gfx_v8_0_cp_compute_enable(adev, false);
+
+		if (grbm_soft_reset || srbm_soft_reset) {
+			tmp = RREG32(mmGMCON_DEBUG);
+			tmp = REG_SET_FIELD(tmp,
+					    GMCON_DEBUG, GFX_STALL, 1);
+			tmp = REG_SET_FIELD(tmp,
+					    GMCON_DEBUG, GFX_CLEAR, 1);
+			WREG32(mmGMCON_DEBUG, tmp);
+
+			udelay(50);
+		}
 
 		if (grbm_soft_reset) {
 			tmp = RREG32(mmGRBM_SOFT_RESET);
@@ -4215,6 +4226,16 @@ static int gfx_v8_0_soft_reset(void *handle)
 			WREG32(mmSRBM_SOFT_RESET, tmp);
 			tmp = RREG32(mmSRBM_SOFT_RESET);
 		}
+
+		if (grbm_soft_reset || srbm_soft_reset) {
+			tmp = RREG32(mmGMCON_DEBUG);
+			tmp = REG_SET_FIELD(tmp,
+					    GMCON_DEBUG, GFX_STALL, 0);
+			tmp = REG_SET_FIELD(tmp,
+					    GMCON_DEBUG, GFX_CLEAR, 0);
+			WREG32(mmGMCON_DEBUG, tmp);
+		}
+
 		/* Wait a little for things to settle down */
 		udelay(50);
 		gfx_v8_0_print_status((void *)adev);
