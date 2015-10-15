@@ -1488,7 +1488,7 @@ static int __subn_get_opa_sl_to_sc(struct opa_smp *smp, u32 am, u8 *data,
 				   u32 *resp_len)
 {
 	struct hfi1_ibport *ibp = to_iport(ibdev, port);
-	u8 *p = (u8 *)data;
+	u8 *p = data;
 	size_t size = ARRAY_SIZE(ibp->sl_to_sc); /* == 32 */
 	unsigned i;
 
@@ -1511,7 +1511,7 @@ static int __subn_set_opa_sl_to_sc(struct opa_smp *smp, u32 am, u8 *data,
 				   u32 *resp_len)
 {
 	struct hfi1_ibport *ibp = to_iport(ibdev, port);
-	u8 *p = (u8 *)data;
+	u8 *p = data;
 	int i;
 
 	if (am) {
@@ -1530,7 +1530,7 @@ static int __subn_get_opa_sc_to_sl(struct opa_smp *smp, u32 am, u8 *data,
 				   u32 *resp_len)
 {
 	struct hfi1_ibport *ibp = to_iport(ibdev, port);
-	u8 *p = (u8 *)data;
+	u8 *p = data;
 	size_t size = ARRAY_SIZE(ibp->sc_to_sl); /* == 32 */
 	unsigned i;
 
@@ -1553,7 +1553,7 @@ static int __subn_set_opa_sc_to_sl(struct opa_smp *smp, u32 am, u8 *data,
 				   u32 *resp_len)
 {
 	struct hfi1_ibport *ibp = to_iport(ibdev, port);
-	u8 *p = (u8 *)data;
+	u8 *p = data;
 	int i;
 
 	if (am) {
