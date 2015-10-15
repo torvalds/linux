@@ -2285,6 +2285,32 @@ int drm_plane_check_pixel_format(const struct drm_plane *plane, u32 format)
 	return -EINVAL;
 }
 
+static int check_src_coords(uint32_t src_x, uint32_t src_y,
+			    uint32_t src_w, uint32_t src_h,
+			    const struct drm_framebuffer *fb)
+{
+	unsigned int fb_width, fb_height;
+
+	fb_width = fb->width << 16;
+	fb_height = fb->height << 16;
+
+	/* Make sure source coordinates are inside the fb. */
+	if (src_w > fb_width ||
+	    src_x > fb_width - src_w ||
+	    src_h > fb_height ||
+	    src_y > fb_height - src_h) {
+		DRM_DEBUG_KMS("Invalid source coordinates "
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
+			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
+			      src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
+			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10);
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
 /*
  * setplane_internal - setplane handler for internal callers
  *
@@ -2304,7 +2330,6 @@ static int __setplane_internal(struct drm_plane *plane,
 			       uint32_t src_w, uint32_t src_h)
 {
 	int ret = 0;
-	unsigned int fb_width, fb_height;
 
 	/* No fb means shut it down */
 	if (!fb) {
@@ -2345,24 +2370,9 @@ static int __setplane_internal(struct drm_plane *plane,
 		goto out;
 	}
 
-
-	fb_width = fb->width << 16;
-	fb_height = fb->height << 16;
-
-	/* Make sure source coordinates are inside the fb. */
-	if (src_w > fb_width ||
-	    src_x > fb_width - src_w ||
-	    src_h > fb_height ||
-	    src_y > fb_height - src_h) {
-		DRM_DEBUG_KMS("Invalid source coordinates "
-			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
-			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
-			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
-			      src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
-			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10);
-		ret = -ENOSPC;
+	ret = check_src_coords(src_x, src_y, src_w, src_h, fb);
+	if (ret)
 		goto out;
-	}
 
 	plane->old_fb = plane->fb;
 	ret = plane->funcs->update_plane(plane, crtc, fb,
@@ -2556,17 +2566,8 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 	if (crtc->invert_dimensions)
 		swap(hdisplay, vdisplay);
 
-	if (hdisplay > fb->width ||
-	    vdisplay > fb->height ||
-	    x > fb->width - hdisplay ||
-	    y > fb->height - vdisplay) {
-		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
-			      fb->width, fb->height, hdisplay, vdisplay, x, y,
-			      crtc->invert_dimensions ? " (inverted)" : "");
-		return -ENOSPC;
-	}
-
-	return 0;
+	return check_src_coords(x << 16, y << 16,
+				hdisplay << 16, vdisplay << 16, fb);
 }
 EXPORT_SYMBOL(drm_crtc_check_viewport);
 
