@@ -590,3 +590,34 @@ error:
 	kfree_skb(head);
 	return NULL;
 }
+
+/* tipc_skb_queue_sorted(); sort pkt into list according to sequence number
+ * @list: list to be appended to
+ * @seqno: sequence number of buffer to add
+ * @skb: buffer to add
+ */
+void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
+			     struct sk_buff *skb)
+{
+	struct sk_buff *_skb, *tmp;
+
+	if (skb_queue_empty(list) || less(seqno, buf_seqno(skb_peek(list)))) {
+		__skb_queue_head(list, skb);
+		return;
+	}
+
+	if (more(seqno, buf_seqno(skb_peek_tail(list)))) {
+		__skb_queue_tail(list, skb);
+		return;
+	}
+
+	skb_queue_walk_safe(list, _skb, tmp) {
+		if (more(seqno, buf_seqno(_skb)))
+			continue;
+		if (seqno == buf_seqno(_skb))
+			break;
+		__skb_queue_before(list, _skb, skb);
+		return;
+	}
+	kfree_skb(skb);
+}

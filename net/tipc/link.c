@@ -1114,7 +1114,7 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 
 		/* Defer delivery if sequence gap */
 		if (unlikely(seqno != rcv_nxt)) {
-			__tipc_skb_queue_sorted(defq, skb);
+			__tipc_skb_queue_sorted(defq, seqno, skb);
 			tipc_link_build_nack_msg(l, xmitq);
 			break;
 		}
