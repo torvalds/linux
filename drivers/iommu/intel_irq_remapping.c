@@ -169,8 +169,26 @@ static int modify_irte(struct irq_2_iommu *irq_iommu,
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 	irte = &iommu->ir_table->base[index];
 
-	set_64bit(&irte->low, irte_modified->low);
-	set_64bit(&irte->high, irte_modified->high);
+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE)
+	if ((irte->pst == 1) || (irte_modified->pst == 1)) {
+		bool ret;
+
+		ret = cmpxchg_double(&irte->low, &irte->high,
+				     irte->low, irte->high,
+				     irte_modified->low, irte_modified->high);
+		/*
+		 * We use cmpxchg16 to atomically update the 128-bit IRTE,
+		 * and it cannot be updated by the hardware or other processors
+		 * behind us, so the return value of cmpxchg16 should be the
+		 * same as the old value.
+		 */
+		WARN_ON(!ret);
+	} else
+#endif
+	{
+		set_64bit(&irte->low, irte_modified->low);
+		set_64bit(&irte->high, irte_modified->high);
+	}
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
 	rc = qi_flush_iec(iommu, index, 0);
@@ -727,7 +745,16 @@ static inline void set_irq_posting_cap(void)
 	struct intel_iommu *iommu;
 
 	if (!disable_irq_post) {
-		intel_irq_remap_ops.capability |= 1 << IRQ_POSTING_CAP;
+		/*
+		 * If IRTE is in posted format, the 'pda' field goes across the
+		 * 64-bit boundary, we need use cmpxchg16b to atomically update
+		 * it. We only expose posted-interrupt when X86_FEATURE_CX16
+		 * is supported. Actually, hardware platforms supporting PI
+		 * should have X86_FEATURE_CX16 support, this has been confirmed
+		 * with Intel hardware guys.
+		 */
+		if ( cpu_has_cx16 )
+			intel_irq_remap_ops.capability |= 1 << IRQ_POSTING_CAP;
 
 		for_each_iommu(iommu, drhd)
 			if (!cap_pi_support(iommu->cap)) {
