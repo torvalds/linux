@@ -885,7 +885,7 @@ resend:
 
 	/* Retry the create infinitely when we get -EINPROGRESS from
 	 * server. This is required by the new quota design. */
-	if (it && it->it_op & IT_CREAT &&
+	if (it->it_op & IT_CREAT &&
 	    (int)lockrep->lock_policy_res2 == -EINPROGRESS) {
 		mdc_clear_replay_flag(req, rc);
 		ptlrpc_req_finished(req);
