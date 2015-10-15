@@ -167,7 +167,7 @@ static void dgnc_cleanup_module(void)
  */
 static int __init dgnc_init_module(void)
 {
-	int rc = 0;
+	int rc;
 
 	/*
 	 * Initialize global stuff
