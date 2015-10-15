@@ -467,7 +467,7 @@ static int aim_rx_data(struct mbo *mbo)
 
 	if (nd->is_mamac) {
 		/* dest */
-		memcpy(skb_put(skb, ETH_ALEN), dev->dev_addr, ETH_ALEN);
+		ether_addr_copy(skb_put(skb, ETH_ALEN), dev->dev_addr);
 
 		/* src */
 		memcpy(skb_put(skb, 4), &zero, 4);
@@ -554,7 +554,7 @@ void most_deliver_netinfo(struct most_interface *iface,
 		return;
 
 	if (mac_addr)
-		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
+		ether_addr_copy(dev->dev_addr, mac_addr);
 
 	if (nd->link_stat != link_stat) {
 		nd->link_stat = link_stat;
