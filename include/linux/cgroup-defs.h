@@ -211,6 +211,9 @@ struct css_set {
 	 */
 	struct list_head e_cset_node[CGROUP_SUBSYS_COUNT];
 
+	/* all css_task_iters currently walking this cset */
+	struct list_head task_iters;
+
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
 };

@@ -42,6 +42,10 @@ struct css_task_iter {
 	struct list_head		*task_pos;
 	struct list_head		*tasks_head;
 	struct list_head		*mg_tasks_head;
+
+	struct css_set			*cur_cset;
+	struct task_struct		*cur_task;
+	struct list_head		iters_node;	/* css_set->task_iters */
 };
 
 extern struct cgroup_root cgrp_dfl_root;
