@@ -74,7 +74,8 @@ struct iproc_clk {
 };
 
 struct iproc_pll {
-	void __iomem *pll_base;
+	void __iomem *status_base;
+	void __iomem *control_base;
 	void __iomem *pwr_base;
 	void __iomem *asiu_base;
 
@@ -127,7 +128,7 @@ static int pll_wait_for_lock(struct iproc_pll *pll)
 	const struct iproc_pll_ctrl *ctrl = pll->ctrl;
 
 	for (i = 0; i < LOCK_DELAY; i++) {
-		u32 val = readl(pll->pll_base + ctrl->status.offset);
+		u32 val = readl(pll->status_base + ctrl->status.offset);
 
 		if (val & (1 << ctrl->status.shift))
 			return 0;
@@ -145,7 +146,7 @@ static void iproc_pll_write(const struct iproc_pll *pll, void __iomem *base,
 	writel(val, base + offset);
 
 	if (unlikely(ctrl->flags & IPROC_CLK_NEEDS_READ_BACK &&
-		     base == pll->pll_base))
+		     (base == pll->status_base || base == pll->control_base)))
 		val = readl(base + offset);
 }
 
@@ -161,9 +162,9 @@ static void __pll_disable(struct iproc_pll *pll)
 	}
 
 	if (ctrl->flags & IPROC_CLK_EMBED_PWRCTRL) {
-		val = readl(pll->pll_base + ctrl->aon.offset);
+		val = readl(pll->control_base + ctrl->aon.offset);
 		val |= bit_mask(ctrl->aon.pwr_width) << ctrl->aon.pwr_shift;
-		iproc_pll_write(pll, pll->pll_base, ctrl->aon.offset, val);
+		iproc_pll_write(pll, pll->control_base, ctrl->aon.offset, val);
 	}
 
 	if (pll->pwr_base) {
@@ -184,9 +185,9 @@ static int __pll_enable(struct iproc_pll *pll)
 	u32 val;
 
 	if (ctrl->flags & IPROC_CLK_EMBED_PWRCTRL) {
-		val = readl(pll->pll_base + ctrl->aon.offset);
+		val = readl(pll->control_base + ctrl->aon.offset);
 		val &= ~(bit_mask(ctrl->aon.pwr_width) << ctrl->aon.pwr_shift);
-		iproc_pll_write(pll, pll->pll_base, ctrl->aon.offset, val);
+		iproc_pll_write(pll, pll->control_base, ctrl->aon.offset, val);
 	}
 
 	if (pll->pwr_base) {
@@ -213,9 +214,9 @@ static void __pll_put_in_reset(struct iproc_pll *pll)
 	const struct iproc_pll_ctrl *ctrl = pll->ctrl;
 	const struct iproc_pll_reset_ctrl *reset = &ctrl->reset;
 
-	val = readl(pll->pll_base + reset->offset);
+	val = readl(pll->control_base + reset->offset);
 	val &= ~(1 << reset->reset_shift | 1 << reset->p_reset_shift);
-	iproc_pll_write(pll, pll->pll_base, reset->offset, val);
+	iproc_pll_write(pll, pll->control_base, reset->offset, val);
 }
 
 static void __pll_bring_out_reset(struct iproc_pll *pll, unsigned int kp,
@@ -226,17 +227,17 @@ static void __pll_bring_out_reset(struct iproc_pll *pll, unsigned int kp,
 	const struct iproc_pll_reset_ctrl *reset = &ctrl->reset;
 	const struct iproc_pll_dig_filter_ctrl *dig_filter = &ctrl->dig_filter;
 
-	val = readl(pll->pll_base + dig_filter->offset);
+	val = readl(pll->control_base + dig_filter->offset);
 	val &= ~(bit_mask(dig_filter->ki_width) << dig_filter->ki_shift |
 		bit_mask(dig_filter->kp_width) << dig_filter->kp_shift |
 		bit_mask(dig_filter->ka_width) << dig_filter->ka_shift);
 	val |= ki << dig_filter->ki_shift | kp << dig_filter->kp_shift |
 	       ka << dig_filter->ka_shift;
-	iproc_pll_write(pll, pll->pll_base, dig_filter->offset, val);
+	iproc_pll_write(pll, pll->control_base, dig_filter->offset, val);
 
-	val = readl(pll->pll_base + reset->offset);
+	val = readl(pll->control_base + reset->offset);
 	val |= 1 << reset->reset_shift | 1 << reset->p_reset_shift;
-	iproc_pll_write(pll, pll->pll_base, reset->offset, val);
+	iproc_pll_write(pll, pll->control_base, reset->offset, val);
 }
 
 static int pll_set_rate(struct iproc_clk *clk, unsigned int rate_index,
@@ -291,9 +292,9 @@ static int pll_set_rate(struct iproc_clk *clk, unsigned int rate_index,
 	/* put PLL in reset */
 	__pll_put_in_reset(pll);
 
-	iproc_pll_write(pll, pll->pll_base, ctrl->vco_ctrl.u_offset, 0);
+	iproc_pll_write(pll, pll->control_base, ctrl->vco_ctrl.u_offset, 0);
 
-	val = readl(pll->pll_base + ctrl->vco_ctrl.l_offset);
+	val = readl(pll->control_base + ctrl->vco_ctrl.l_offset);
 
 	if (rate >= VCO_LOW && rate < VCO_MID)
 		val |= (1 << PLL_VCO_LOW_SHIFT);
@@ -303,29 +304,29 @@ static int pll_set_rate(struct iproc_clk *clk, unsigned int rate_index,
 	else
 		val |= (1 << PLL_VCO_HIGH_SHIFT);
 
-	iproc_pll_write(pll, pll->pll_base, ctrl->vco_ctrl.l_offset, val);
+	iproc_pll_write(pll, pll->control_base, ctrl->vco_ctrl.l_offset, val);
 
 	/* program integer part of NDIV */
-	val = readl(pll->pll_base + ctrl->ndiv_int.offset);
+	val = readl(pll->control_base + ctrl->ndiv_int.offset);
 	val &= ~(bit_mask(ctrl->ndiv_int.width) << ctrl->ndiv_int.shift);
 	val |= vco->ndiv_int << ctrl->ndiv_int.shift;
-	iproc_pll_write(pll, pll->pll_base, ctrl->ndiv_int.offset, val);
+	iproc_pll_write(pll, pll->control_base, ctrl->ndiv_int.offset, val);
 
 	/* program fractional part of NDIV */
 	if (ctrl->flags & IPROC_CLK_PLL_HAS_NDIV_FRAC) {
-		val = readl(pll->pll_base + ctrl->ndiv_frac.offset);
+		val = readl(pll->control_base + ctrl->ndiv_frac.offset);
 		val &= ~(bit_mask(ctrl->ndiv_frac.width) <<
 			 ctrl->ndiv_frac.shift);
 		val |= vco->ndiv_frac << ctrl->ndiv_frac.shift;
-		iproc_pll_write(pll, pll->pll_base, ctrl->ndiv_frac.offset,
+		iproc_pll_write(pll, pll->control_base, ctrl->ndiv_frac.offset,
 				val);
 	}
 
 	/* program PDIV */
-	val = readl(pll->pll_base + ctrl->pdiv.offset);
+	val = readl(pll->control_base + ctrl->pdiv.offset);
 	val &= ~(bit_mask(ctrl->pdiv.width) << ctrl->pdiv.shift);
 	val |= vco->pdiv << ctrl->pdiv.shift;
-	iproc_pll_write(pll, pll->pll_base, ctrl->pdiv.offset, val);
+	iproc_pll_write(pll, pll->control_base, ctrl->pdiv.offset, val);
 
 	__pll_bring_out_reset(pll, kp, ka, ki);
 
@@ -372,7 +373,7 @@ static unsigned long iproc_pll_recalc_rate(struct clk_hw *hw,
 		return 0;
 
 	/* PLL needs to be locked */
-	val = readl(pll->pll_base + ctrl->status.offset);
+	val = readl(pll->status_base + ctrl->status.offset);
 	if ((val & (1 << ctrl->status.shift)) == 0) {
 		clk->rate = 0;
 		return 0;
@@ -383,13 +384,13 @@ static unsigned long iproc_pll_recalc_rate(struct clk_hw *hw,
 	 *
 	 * ((ndiv_int + ndiv_frac / 2^20) * (parent clock rate / pdiv)
 	 */
-	val = readl(pll->pll_base + ctrl->ndiv_int.offset);
+	val = readl(pll->control_base + ctrl->ndiv_int.offset);
 	ndiv_int = (val >> ctrl->ndiv_int.shift) &
 		bit_mask(ctrl->ndiv_int.width);
 	ndiv = (u64)ndiv_int << ctrl->ndiv_int.shift;
 
 	if (ctrl->flags & IPROC_CLK_PLL_HAS_NDIV_FRAC) {
-		val = readl(pll->pll_base + ctrl->ndiv_frac.offset);
+		val = readl(pll->control_base + ctrl->ndiv_frac.offset);
 		ndiv_frac = (val >> ctrl->ndiv_frac.shift) &
 			bit_mask(ctrl->ndiv_frac.width);
 
@@ -398,7 +399,7 @@ static unsigned long iproc_pll_recalc_rate(struct clk_hw *hw,
 				ndiv_frac;
 	}
 
-	val = readl(pll->pll_base + ctrl->pdiv.offset);
+	val = readl(pll->control_base + ctrl->pdiv.offset);
 	pdiv = (val >> ctrl->pdiv.shift) & bit_mask(ctrl->pdiv.width);
 
 	clk->rate = (ndiv * parent_rate) >> ctrl->ndiv_int.shift;
@@ -463,14 +464,14 @@ static int iproc_clk_enable(struct clk_hw *hw)
 	u32 val;
 
 	/* channel enable is active low */
-	val = readl(pll->pll_base + ctrl->enable.offset);
+	val = readl(pll->control_base + ctrl->enable.offset);
 	val &= ~(1 << ctrl->enable.enable_shift);
-	iproc_pll_write(pll, pll->pll_base, ctrl->enable.offset, val);
+	iproc_pll_write(pll, pll->control_base, ctrl->enable.offset, val);
 
 	/* also make sure channel is not held */
-	val = readl(pll->pll_base + ctrl->enable.offset);
+	val = readl(pll->control_base + ctrl->enable.offset);
 	val &= ~(1 << ctrl->enable.hold_shift);
-	iproc_pll_write(pll, pll->pll_base, ctrl->enable.offset, val);
+	iproc_pll_write(pll, pll->control_base, ctrl->enable.offset, val);
 
 	return 0;
 }
@@ -485,9 +486,9 @@ static void iproc_clk_disable(struct clk_hw *hw)
 	if (ctrl->flags & IPROC_CLK_AON)
 		return;
 
-	val = readl(pll->pll_base + ctrl->enable.offset);
+	val = readl(pll->control_base + ctrl->enable.offset);
 	val |= 1 << ctrl->enable.enable_shift;
-	iproc_pll_write(pll, pll->pll_base, ctrl->enable.offset, val);
+	iproc_pll_write(pll, pll->control_base, ctrl->enable.offset, val);
 }
 
 static unsigned long iproc_clk_recalc_rate(struct clk_hw *hw,
@@ -502,7 +503,7 @@ static unsigned long iproc_clk_recalc_rate(struct clk_hw *hw,
 	if (parent_rate == 0)
 		return 0;
 
-	val = readl(pll->pll_base + ctrl->mdiv.offset);
+	val = readl(pll->control_base + ctrl->mdiv.offset);
 	mdiv = (val >> ctrl->mdiv.shift) & bit_mask(ctrl->mdiv.width);
 	if (mdiv == 0)
 		mdiv = 256;
@@ -549,14 +550,14 @@ static int iproc_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (div > 256)
 		return -EINVAL;
 
-	val = readl(pll->pll_base + ctrl->mdiv.offset);
+	val = readl(pll->control_base + ctrl->mdiv.offset);
 	if (div == 256) {
 		val &= ~(bit_mask(ctrl->mdiv.width) << ctrl->mdiv.shift);
 	} else {
 		val &= ~(bit_mask(ctrl->mdiv.width) << ctrl->mdiv.shift);
 		val |= div << ctrl->mdiv.shift;
 	}
-	iproc_pll_write(pll, pll->pll_base, ctrl->mdiv.offset, val);
+	iproc_pll_write(pll, pll->control_base, ctrl->mdiv.offset, val);
 	clk->rate = parent_rate / div;
 
 	return 0;
@@ -581,9 +582,10 @@ static void iproc_pll_sw_cfg(struct iproc_pll *pll)
 	if (ctrl->flags & IPROC_CLK_PLL_NEEDS_SW_CFG) {
 		u32 val;
 
-		val = readl(pll->pll_base + ctrl->sw_ctrl.offset);
+		val = readl(pll->control_base + ctrl->sw_ctrl.offset);
 		val |= BIT(ctrl->sw_ctrl.shift);
-		iproc_pll_write(pll, pll->pll_base, ctrl->sw_ctrl.offset, val);
+		iproc_pll_write(pll, pll->control_base, ctrl->sw_ctrl.offset,
+				val);
 	}
 }
 
@@ -618,8 +620,8 @@ void __init iproc_pll_clk_setup(struct device_node *node,
 	if (WARN_ON(!pll->clks))
 		goto err_clks;
 
-	pll->pll_base = of_iomap(node, 0);
-	if (WARN_ON(!pll->pll_base))
+	pll->control_base = of_iomap(node, 0);
+	if (WARN_ON(!pll->control_base))
 		goto err_pll_iomap;
 
 	/* Some SoCs do not require the pwr_base, thus failing is not fatal */
@@ -631,6 +633,16 @@ void __init iproc_pll_clk_setup(struct device_node *node,
 		if (WARN_ON(!pll->asiu_base))
 			goto err_asiu_iomap;
 	}
+
+	if (pll_ctrl->flags & IPROC_CLK_PLL_SPLIT_STAT_CTRL) {
+		/* Some SoCs have a split status/control.  If this does not
+		 * exist, assume they are unified.
+		 */
+		pll->status_base = of_iomap(node, 2);
+		if (!pll->status_base)
+			goto err_status_iomap;
+	} else
+		pll->status_base = pll->control_base;
 
 	/* initialize and register the PLL itself */
 	pll->ctrl = pll_ctrl;
@@ -702,6 +714,10 @@ err_clk_register:
 		clk_unregister(pll->clk_data.clks[i]);
 
 err_pll_register:
+	if (pll->status_base != pll->control_base)
+		iounmap(pll->status_base);
+
+err_status_iomap:
 	if (pll->asiu_base)
 		iounmap(pll->asiu_base);
 
@@ -709,7 +725,7 @@ err_asiu_iomap:
 	if (pll->pwr_base)
 		iounmap(pll->pwr_base);
 
-	iounmap(pll->pll_base);
+	iounmap(pll->control_base);
 
 err_pll_iomap:
 	kfree(pll->clks);

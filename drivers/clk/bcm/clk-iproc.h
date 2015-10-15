@@ -55,6 +55,12 @@
 #define IPROC_CLK_EMBED_PWRCTRL BIT(5)
 
 /*
+ * Some PLLs have separate registers for Status and Control.  Identify this to
+ * let the driver know if additional registers need to be used
+ */
+#define IPROC_CLK_PLL_SPLIT_STAT_CTRL BIT(6)
+
+/*
  * Parameters for VCO frequency configuration
  *
  * VCO frequency =
