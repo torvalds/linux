@@ -60,6 +60,8 @@ struct gb_loopback_device {
 	struct gb_loopback_stats latency;
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
+	struct gb_loopback_stats apbridge_unipro_latency;
+	struct gb_loopback_stats gpbridge_firmware_latency;
 };
 
 static struct gb_loopback_device gb_dev;
@@ -78,6 +80,8 @@ struct gb_loopback {
 	struct gb_loopback_stats latency;
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
+	struct gb_loopback_stats apbridge_unipro_latency;
+	struct gb_loopback_stats gpbridge_firmware_latency;
 
 	u32 lbid;
 	u32 iteration_count;
@@ -272,6 +276,12 @@ gb_loopback_stats_attrs(requests_per_second, con, true);
 /* Quantity of data sent and received on this cport */
 gb_loopback_stats_attrs(throughput, dev, false);
 gb_loopback_stats_attrs(throughput, con, true);
+/* Latency across the UniPro link from APBridge's perspective */
+gb_loopback_stats_attrs(apbridge_unipro_latency, dev, false);
+gb_loopback_stats_attrs(apbridge_unipro_latency, con, true);
+/* Firmware induced overhead in the GPBridge */
+gb_loopback_stats_attrs(gpbridge_firmware_latency, dev, false);
+gb_loopback_stats_attrs(gpbridge_firmware_latency, con, true);
 /* Number of errors encountered during loop */
 gb_loopback_ro_attr(error, dev, false);
 gb_loopback_ro_attr(error, con, true);
@@ -306,6 +316,12 @@ static struct attribute *loopback_dev_attrs[] = {
 	&dev_attr_throughput_min_dev.attr,
 	&dev_attr_throughput_max_dev.attr,
 	&dev_attr_throughput_avg_dev.attr,
+	&dev_attr_apbridge_unipro_latency_min_dev.attr,
+	&dev_attr_apbridge_unipro_latency_max_dev.attr,
+	&dev_attr_apbridge_unipro_latency_avg_dev.attr,
+	&dev_attr_gpbridge_firmware_latency_min_dev.attr,
+	&dev_attr_gpbridge_firmware_latency_max_dev.attr,
+	&dev_attr_gpbridge_firmware_latency_avg_dev.attr,
 	&dev_attr_type.attr,
 	&dev_attr_size.attr,
 	&dev_attr_ms_wait.attr,
@@ -327,6 +343,12 @@ static struct attribute *loopback_con_attrs[] = {
 	&dev_attr_throughput_min_con.attr,
 	&dev_attr_throughput_max_con.attr,
 	&dev_attr_throughput_avg_con.attr,
+	&dev_attr_apbridge_unipro_latency_min_con.attr,
+	&dev_attr_apbridge_unipro_latency_max_con.attr,
+	&dev_attr_apbridge_unipro_latency_avg_con.attr,
+	&dev_attr_gpbridge_firmware_latency_min_con.attr,
+	&dev_attr_gpbridge_firmware_latency_max_con.attr,
+	&dev_attr_gpbridge_firmware_latency_avg_con.attr,
 	&dev_attr_error_con.attr,
 	NULL,
 };
@@ -463,6 +485,8 @@ static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 		dev_err(&gb->connection->dev, "Loopback Data doesn't match\n");
 		retval = -EREMOTEIO;
 	}
+	gb->apbridge_latency_ts = (u32)__le32_to_cpu(response->reserved0);
+	gb->gpbridge_latency_ts = (u32)__le32_to_cpu(response->reserved1);
 
 gb_error:
 	kfree(request);
@@ -545,6 +569,10 @@ static void gb_loopback_reset_stats(struct gb_loopback_device *gb_dev)
 		       sizeof(struct gb_loopback_stats));
 		memcpy(&gb->requests_per_second, &reset,
 		       sizeof(struct gb_loopback_stats));
+		memcpy(&gb->apbridge_unipro_latency, &reset,
+		       sizeof(struct gb_loopback_stats));
+		memcpy(&gb->gpbridge_firmware_latency, &reset,
+		       sizeof(struct gb_loopback_stats));
 		mutex_unlock(&gb->mutex);
 	}
 
@@ -554,6 +582,10 @@ static void gb_loopback_reset_stats(struct gb_loopback_device *gb_dev)
 	memcpy(&gb_dev->latency, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb_dev->throughput, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb_dev->requests_per_second, &reset,
+	       sizeof(struct gb_loopback_stats));
+	memcpy(&gb_dev->apbridge_unipro_latency, &reset,
+	       sizeof(struct gb_loopback_stats));
+	memcpy(&gb_dev->gpbridge_firmware_latency, &reset,
 	       sizeof(struct gb_loopback_stats));
 }
 
@@ -677,6 +709,16 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	/* Log throughput and requests using latency as benchmark */
 	gb_loopback_throughput_update(gb, lat);
 	gb_loopback_requests_update(gb, lat);
+
+	/* Log the firmware supplied latency values */
+	gb_loopback_update_stats(&gb_dev.apbridge_unipro_latency,
+				 gb->apbridge_latency_ts);
+	gb_loopback_update_stats(&gb->apbridge_unipro_latency,
+				 gb->apbridge_latency_ts);
+	gb_loopback_update_stats(&gb_dev.gpbridge_firmware_latency,
+				 gb->gpbridge_latency_ts);
+	gb_loopback_update_stats(&gb->gpbridge_firmware_latency,
+				 gb->gpbridge_latency_ts);
 }
 
 static int gb_loopback_fn(void *data)
@@ -736,6 +778,8 @@ static int gb_loopback_fn(void *data)
 			goto sleep;
 		}
 		/* Else operations to perform */
+		gb->apbridge_latency_ts = 0;
+		gb->gpbridge_latency_ts = 0;
 		if (type == GB_LOOPBACK_TYPE_PING)
 			error = gb_loopback_ping(gb);
 		else if (type == GB_LOOPBACK_TYPE_TRANSFER)
