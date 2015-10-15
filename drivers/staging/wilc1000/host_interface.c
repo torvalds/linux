@@ -231,7 +231,6 @@ struct join_bss_param {
 
 static struct host_if_drv *wfidrv_list[NUM_CONCURRENT_IFC + 1];
 struct host_if_drv *terminated_handle;
-struct host_if_drv *gWFiDrvHandle;
 bool g_obtainingIP;
 u8 P2P_LISTEN_STATE;
 static struct task_struct *HostIFthreadHandler;
