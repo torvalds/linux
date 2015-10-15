@@ -237,7 +237,7 @@ static struct task_struct *hif_thread_handler;
 static WILC_MsgQueueHandle hif_msg_q;
 static struct semaphore hif_sema_thread;
 static struct semaphore hif_sema_driver;
-static struct semaphore hWaitResponse;
+static struct semaphore hif_sema_wait_response;
 struct semaphore hSemHostIntDeinit;
 struct timer_list g_hPeriodicRSSI;
 
@@ -520,7 +520,7 @@ static s32 Handle_GetMacAddress(struct host_if_drv *hif_drv,
 		PRINT_ER("Failed to get mac address\n");
 		s32Error = -EFAULT;
 	}
-	up(&hWaitResponse);
+	up(&hif_sema_wait_response);
 
 	return s32Error;
 }
@@ -811,7 +811,7 @@ ERRORHANDLER:
 static s32 Handle_wait_msg_q_empty(void)
 {
 	g_wilc_initialized = 0;
-	up(&hWaitResponse);
+	up(&hif_sema_wait_response);
 	return 0;
 }
 
@@ -2223,7 +2223,7 @@ s32 Handle_GetStatistics(struct host_if_drv *hif_drv, struct rf_info *pstrStatis
 	if (s32Error)
 		PRINT_ER("Failed to send scan paramters config packet\n");
 
-	up(&hWaitResponse);
+	up(&hif_sema_wait_response);
 	return 0;
 
 }
@@ -2478,7 +2478,7 @@ static void Handle_DelAllSta(struct host_if_drv *hif_drv,
 ERRORHANDLER:
 	kfree(strWID.val);
 
-	up(&hWaitResponse);
+	up(&hif_sema_wait_response);
 }
 
 static void Handle_DelStation(struct host_if_drv *hif_drv,
@@ -2876,7 +2876,7 @@ static s32 Handle_DelAllRxBASessions(struct host_if_drv *hif_drv,
 
 	kfree(strWID.val);
 
-	up(&hWaitResponse);
+	up(&hif_sema_wait_response);
 
 	return s32Error;
 
@@ -3473,7 +3473,7 @@ s32 host_int_get_MacAddress(struct host_if_drv *hif_drv, u8 *pu8MacAddress)
 		return -EFAULT;
 	}
 
-	down(&hWaitResponse);
+	down(&hif_sema_wait_response);
 	return s32Error;
 }
 
@@ -3758,7 +3758,7 @@ int host_int_wait_msg_queue_idle(void)
 		result = -EINVAL;
 	}
 
-	down(&hWaitResponse);
+	down(&hif_sema_wait_response);
 
 	return result;
 }
@@ -3965,7 +3965,7 @@ s32 host_int_get_statistics(struct host_if_drv *hif_drv, struct rf_info *pstrSta
 		return -EFAULT;
 	}
 
-	down(&hWaitResponse);
+	down(&hif_sema_wait_response);
 	return s32Error;
 }
 
@@ -4193,7 +4193,7 @@ s32 host_int_init(struct host_if_drv **hif_drv_handler)
 
 	gbScanWhileConnected = false;
 
-	sema_init(&hWaitResponse, 0);
+	sema_init(&hif_sema_wait_response, 0);
 
 	hif_drv  = kzalloc(sizeof(struct host_if_drv), GFP_KERNEL);
 	if (!hif_drv) {
@@ -4757,7 +4757,7 @@ s32 host_int_del_allstation(struct host_if_drv *hif_drv,
 	if (s32Error)
 		PRINT_ER("wilc_mq_send fail\n");
 
-	down(&hWaitResponse);
+	down(&hif_sema_wait_response);
 
 	return s32Error;
 
@@ -5053,7 +5053,7 @@ s32 host_int_delBASession(struct host_if_drv *hif_drv, char *pBSSID, char TID)
 	if (s32Error)
 		PRINT_ER("wilc_mq_send fail\n");
 
-	down(&hWaitResponse);
+	down(&hif_sema_wait_response);
 
 	return s32Error;
 }
@@ -5083,7 +5083,7 @@ s32 host_int_del_All_Rx_BASession(struct host_if_drv *hif_drv,
 	if (s32Error)
 		PRINT_ER("wilc_mq_send fail\n");
 
-	down(&hWaitResponse);
+	down(&hif_sema_wait_response);
 
 	return s32Error;
 }
