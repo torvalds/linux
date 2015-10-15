@@ -2235,14 +2235,12 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset)
 
 /**
  * cgroup_task_migrate - move a task from one cgroup to another.
- * @old_cgrp: the cgroup @tsk is being migrated from
  * @tsk: the task being migrated
  * @new_cset: the new css_set @tsk is being attached to
  *
  * Must be called with cgroup_mutex, threadgroup and css_set_rwsem locked.
  */
-static void cgroup_task_migrate(struct cgroup *old_cgrp,
-				struct task_struct *tsk,
+static void cgroup_task_migrate(struct task_struct *tsk,
 				struct css_set *new_cset)
 {
 	struct css_set *old_cset;
@@ -2311,8 +2309,7 @@ static int cgroup_taskset_migrate(struct cgroup_taskset *tset,
 	down_write(&css_set_rwsem);
 	list_for_each_entry(cset, &tset->src_csets, mg_node) {
 		list_for_each_entry_safe(task, tmp_task, &cset->mg_tasks, cg_list)
-			cgroup_task_migrate(cset->mg_src_cgrp, task,
-					    cset->mg_dst_cset);
+			cgroup_task_migrate(task, cset->mg_dst_cset);
 	}
 	up_write(&css_set_rwsem);
 
