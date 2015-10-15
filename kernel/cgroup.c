@@ -4998,16 +4998,15 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
 {
 	struct cgroup_subsys_state *css;
-	bool empty;
 	int ssid;
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	/* css_set_rwsem synchronizes access to ->cset_links */
-	down_read(&css_set_rwsem);
-	empty = list_empty(&cgrp->cset_links);
-	up_read(&css_set_rwsem);
-	if (!empty)
+	/*
+	 * Only migration can raise populated from zero and we're already
+	 * holding cgroup_mutex.
+	 */
+	if (cgroup_is_populated(cgrp))
 		return -EBUSY;
 
 	/*
