@@ -61,6 +61,10 @@ static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 /* vendor request to reset a cport state */
 #define REQUEST_RESET_CPORT	0x05
 
+/* vendor request to time the latency of messages on a given cport */
+#define REQUEST_LATENCY_TAG_EN	0x06
+#define REQUEST_LATENCY_TAG_DIS	0x07
+
 /*
  * @endpoint: bulk in endpoint for CPort data
  * @urb: array of urbs for the CPort in messages
@@ -413,11 +417,61 @@ static int cport_enable(struct greybus_host_device *hd, u16 cport_id)
 	return 0;
 }
 
+static int latency_tag_enable(struct greybus_host_device *hd, u16 cport_id)
+{
+	int retval;
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
+	struct usb_device *udev = es1->usb_dev;
+
+	if (!cport_id_valid(hd, cport_id)) {
+		dev_err(&udev->dev, "invalid destination cport 0x%02x\n",
+			cport_id);
+		return -EINVAL;
+	}
+
+	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				 REQUEST_LATENCY_TAG_EN,
+				 USB_DIR_OUT | USB_TYPE_VENDOR |
+				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
+				 0, ES1_TIMEOUT);
+
+	if (retval < 0)
+		dev_err(&udev->dev, "Cannot enable latency tag for cport %d\n",
+			cport_id);
+	return retval;
+}
+
+static int latency_tag_disable(struct greybus_host_device *hd, u16 cport_id)
+{
+	int retval;
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
+	struct usb_device *udev = es1->usb_dev;
+
+	if (!cport_id_valid(hd, cport_id)) {
+		dev_err(&udev->dev, "invalid destination cport 0x%02x\n",
+			cport_id);
+		return -EINVAL;
+	}
+
+	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				 REQUEST_LATENCY_TAG_DIS,
+				 USB_DIR_OUT | USB_TYPE_VENDOR |
+				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
+				 0, ES1_TIMEOUT);
+
+	if (retval < 0)
+		dev_err(&udev->dev, "Cannot disable latency tag for cport %d\n",
+			cport_id);
+	return retval;
+}
+
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
 	.message_send		= message_send,
 	.message_cancel		= message_cancel,
 	.cport_enable		= cport_enable,
+	.latency_tag_enable	= latency_tag_enable,
+	.latency_tag_disable	= latency_tag_disable,
 };
 
 /* Common function to report consistent warnings based on URB status */
