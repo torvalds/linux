@@ -705,6 +705,8 @@ static void put_css_set_locked(struct css_set *cset)
 	list_for_each_entry_safe(link, tmp_link, &cset->cgrp_links, cgrp_link) {
 		list_del(&link->cset_link);
 		list_del(&link->cgrp_link);
+		if (cgroup_parent(link->cgrp))
+			cgroup_put(link->cgrp);
 		kfree(link);
 	}
 
@@ -919,6 +921,9 @@ static void link_css_set(struct list_head *tmp_links, struct css_set *cset,
 	 * is sorted by order of hierarchy creation
 	 */
 	list_add_tail(&link->cgrp_link, &cset->cgrp_links);
+
+	if (cgroup_parent(cgrp))
+		cgroup_get(cgrp);
 }
 
 /**
@@ -4998,10 +5003,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	/*
-	 * css_set_rwsem synchronizes access to ->cset_links and prevents
-	 * @cgrp from being removed while put_css_set() is in progress.
-	 */
+	/* css_set_rwsem synchronizes access to ->cset_links */
 	down_read(&css_set_rwsem);
 	empty = list_empty(&cgrp->cset_links);
 	up_read(&css_set_rwsem);
