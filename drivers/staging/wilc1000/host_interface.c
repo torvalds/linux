@@ -253,7 +253,7 @@ static u8 ch_no;
 static u8 set_ip[2][4];
 static u8 get_ip[2][4];
 static u32 inactive_time;
-static u8 gu8DelBcn;
+static u8 del_beacon;
 static u32 gu32WidConnRstHack;
 
 u8 *gu8FlushedJoinReq;
@@ -2343,7 +2343,7 @@ static void Handle_DelBeacon(struct host_if_drv *hif_drv)
 	strWID.id = (u16)WID_DEL_BEACON;
 	strWID.type = WID_CHAR;
 	strWID.size = sizeof(char);
-	strWID.val = &gu8DelBcn;
+	strWID.val = &del_beacon;
 
 	if (strWID.val == NULL)
 		return;
