@@ -81,10 +81,8 @@ struct gpd_link {
 };
 
 struct gpd_timing_data {
-	s64 stop_latency_ns;
-	s64 start_latency_ns;
-	s64 save_state_latency_ns;
-	s64 restore_state_latency_ns;
+	s64 suspend_latency_ns;
+	s64 resume_latency_ns;
 	s64 effective_constraint_ns;
 	bool constraint_changed;
 	bool cached_stop_ok;
