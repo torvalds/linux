@@ -923,7 +923,8 @@ static int mlxsw_sx_port_stp_state_set(struct mlxsw_sx_port *mlxsw_sx_port,
 	spms_pl = kmalloc(MLXSW_REG_SPMS_LEN, GFP_KERNEL);
 	if (!spms_pl)
 		return -ENOMEM;
-	mlxsw_reg_spms_pack(spms_pl, mlxsw_sx_port->local_port, vid, state);
+	mlxsw_reg_spms_pack(spms_pl, mlxsw_sx_port->local_port);
+	mlxsw_reg_spms_vid_pack(spms_pl, vid, state);
 	err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(spms), spms_pl);
 	kfree(spms_pl);
 	return err;

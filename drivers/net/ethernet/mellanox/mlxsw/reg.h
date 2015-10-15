@@ -192,11 +192,15 @@ enum mlxsw_reg_spms_state {
  */
 MLXSW_ITEM_BIT_ARRAY(reg, spms, state, 0x04, 0x400, 2);
 
-static inline void mlxsw_reg_spms_pack(char *payload, u8 local_port, u16 vid,
-				       enum mlxsw_reg_spms_state state)
+static inline void mlxsw_reg_spms_pack(char *payload, u8 local_port)
 {
 	MLXSW_REG_ZERO(spms, payload);
 	mlxsw_reg_spms_local_port_set(payload, local_port);
+}
+
+static inline void mlxsw_reg_spms_vid_pack(char *payload, u16 vid,
+					   enum mlxsw_reg_spms_state state)
+{
 	mlxsw_reg_spms_state_set(payload, vid, state);
 }
 
