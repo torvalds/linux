@@ -19,6 +19,7 @@
 / {
 	aliases {
 		serial0 = &blsp1_uart2;
+		serial1 = &blsp1_uart1;
 	};
 
 	chosen {
@@ -31,6 +32,31 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp1_uart2_default>;
 			pinctrl-1 = <&blsp1_uart2_sleep>;
+		};
+
+		i2c@78b6000 {
+		/* On Low speed expansion */
+			status = "okay";
+		};
+
+		i2c@78b8000 {
+		/* On High speed expansion */
+			status = "okay";
+		};
+
+		i2c@78ba000 {
+		/* On Low speed expansion */
+			status = "okay";
+		};
+
+		spi@78b7000 {
+		/* On High speed expansion */
+			status = "okay";
+		};
+
+		spi@78b9000 {
+		/* On Low speed expansion */
+			status = "okay";
 		};
 
 		leds {
@@ -84,4 +110,8 @@
 			};
 		};
 	};
+};
+
+&sdhc_1 {
+	status = "okay";
 };
