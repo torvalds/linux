@@ -57,13 +57,11 @@ static const char mlxsw_sx_driver_version[] = "1.0";
 
 struct mlxsw_sx_port;
 
-#define MLXSW_SW_HW_ID_LEN 6
-
 struct mlxsw_sx {
 	struct mlxsw_sx_port **ports;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
-	u8 hw_id[MLXSW_SW_HW_ID_LEN];
+	u8 hw_id[ETH_ALEN];
 };
 
 struct mlxsw_sx_port_pcpu_stats {
