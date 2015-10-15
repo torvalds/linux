@@ -23,8 +23,8 @@ static void usb20otg_hw_init(void)
 	/* Turn off differential receiver in suspend mode */
 	uoc_write(UOC_HIWORD_UPDATE(0, 1, 2), 0x798);
 
-	/* Set disconnect detection trigger point to 600mv */
-	uoc_write(UOC_HIWORD_UPDATE(0, 0xf, 11), 0x79c);
+	/* Set disconnect detection trigger point to 625mv */
+	uoc_write(UOC_HIWORD_UPDATE(0x9, 0xf, 11), 0x79c);
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
@@ -220,8 +220,8 @@ static void usb20ehci_hw_init(void)
 {
 	/* Turn off differential receiver in suspend mode */
 	uoc_write(UOC_HIWORD_UPDATE(0, 1, 2), 0x7b8);
-	/* Set disconnect detection trigger point to 600mv */
-	uoc_write(UOC_HIWORD_UPDATE(1, 0xf, 11), 0x7bc);
+	/* Set disconnect detection trigger point to 625mv */
+	uoc_write(UOC_HIWORD_UPDATE(0x9, 0xf, 11), 0x7bc);
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
