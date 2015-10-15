@@ -1198,10 +1198,6 @@ void mr_update_span_set(struct MR_DRV_RAID_MAP_ALL *map,
 						span_row_width +=
 							MR_LdSpanPtrGet
 							(ld, count, map)->spanRowDataSize;
-						printk(KERN_INFO "megasas:"
-							"span %x rowDataSize %x\n",
-							count, MR_LdSpanPtrGet
-							(ld, count, map)->spanRowDataSize);
 					}
 				}
 
