@@ -897,7 +897,6 @@ int ssb_bus_pcmciabus_register(struct ssb_bus *bus,
 
 	return err;
 }
-EXPORT_SYMBOL(ssb_bus_pcmciabus_register);
 #endif /* CONFIG_SSB_PCMCIAHOST */
 
 #ifdef CONFIG_SSB_SDIOHOST
@@ -1464,6 +1463,12 @@ static int __init ssb_modinit(void)
 		/* don't fail SSB init because of this */
 		err = 0;
 	}
+	err = ssb_host_pcmcia_init();
+	if (err) {
+		ssb_err("PCMCIA host initialization failed\n");
+		/* don't fail SSB init because of this */
+		err = 0;
+	}
 	err = ssb_gige_init();
 	if (err) {
 		ssb_err("SSB Broadcom Gigabit Ethernet driver initialization failed\n");
@@ -1481,6 +1486,7 @@ fs_initcall(ssb_modinit);
 static void __exit ssb_modexit(void)
 {
 	ssb_gige_exit();
+	ssb_host_pcmcia_exit();
 	b43_pci_ssb_bridge_exit();
 	bus_unregister(&ssb_bustype);
 }
