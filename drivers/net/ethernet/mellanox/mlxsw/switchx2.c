@@ -1177,8 +1177,7 @@ static int mlxsw_sx_event_register(struct mlxsw_sx *mlxsw_sx,
 	if (err)
 		return err;
 
-	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD,
-			    MLXSW_REG_HTGT_TRAP_GROUP_EMAD, trap_id);
+	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD, trap_id);
 	err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
 	if (err)
 		goto err_event_trap_set;
@@ -1322,7 +1321,6 @@ static int mlxsw_sx_traps_init(struct mlxsw_sx *mlxsw_sx)
 			goto err_rx_listener_register;
 
 		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,
-				    MLXSW_REG_HTGT_TRAP_GROUP_RX,
 				    mlxsw_sx_rx_listener[i].trap_id);
 		err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
 		if (err)
@@ -1337,7 +1335,6 @@ err_rx_trap_set:
 err_rx_listener_register:
 	for (i--; i >= 0; i--) {
 		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD,
-				    MLXSW_REG_HTGT_TRAP_GROUP_RX,
 				    mlxsw_sx_rx_listener[i].trap_id);
 		mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
 
@@ -1355,7 +1352,6 @@ static void mlxsw_sx_traps_fini(struct mlxsw_sx *mlxsw_sx)
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sx_rx_listener); i++) {
 		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD,
-				    MLXSW_REG_HTGT_TRAP_GROUP_RX,
 				    mlxsw_sx_rx_listener[i].trap_id);
 		mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
 
