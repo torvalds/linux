@@ -1743,8 +1743,9 @@ static int megasas_slave_alloc(struct scsi_device *sdev)
 		pd_index =
 			(sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
 			sdev->id;
-		if (instance->pd_list[pd_index].driveState ==
-					MR_PD_STATE_SYSTEM) {
+		if ((instance->pd_list[pd_index].driveState ==
+			MR_PD_STATE_SYSTEM) ||
+			(instance->pd_list[pd_index].driveType != TYPE_DISK)) {
 			return 0;
 		}
 		return -ENXIO;
