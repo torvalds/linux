@@ -1350,14 +1350,13 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 			up_write(&lli->lli_trunc_sem);
 	}
 out:
-	if (op_data) {
-		if (op_data->op_ioepoch) {
-			rc1 = ll_setattr_done_writing(inode, op_data, mod);
-			if (!rc)
-				rc = rc1;
-		}
-		ll_finish_md_op_data(op_data);
+	if (op_data->op_ioepoch) {
+		rc1 = ll_setattr_done_writing(inode, op_data, mod);
+		if (!rc)
+			rc = rc1;
 	}
+	ll_finish_md_op_data(op_data);
+
 	if (!S_ISDIR(inode->i_mode)) {
 		mutex_lock(&inode->i_mutex);
 		if ((attr->ia_valid & ATTR_SIZE) && !hsm_import)
