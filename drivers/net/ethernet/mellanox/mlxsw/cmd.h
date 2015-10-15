@@ -570,7 +570,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile, set_max_vlan_groups, 0x0C, 6, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_max_regions, 0x0C, 7, 1);
 
-/* cmd_mbox_config_profile_set_fid_based
+/* cmd_mbox_config_profile_set_flood_mode
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
@@ -651,12 +651,8 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_vlan_groups, 0x28, 0, 12);
 MLXSW_ITEM32(cmd_mbox, config_profile, max_regions, 0x2C, 0, 16);
 
 /* cmd_mbox_config_profile_max_flood_tables
- * Maximum number of Flooding Tables. Flooding Tables are associated to
- * the different packet types for the different switch partitions.
- * Note that the table size depends on the fid_based mode.
- * In SwitchX silicon, tables are split equally between the switch
- * partitions. e.g. for 2 swids and 8 tables, the first 4 are associated
- * with swid-1 and the last 4 are associated with swid-2.
+ * Maximum number of single-entry flooding tables. Different flooding tables
+ * can be associated with different packet types.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_flood_tables, 0x30, 16, 4);
 
@@ -667,12 +663,14 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_flood_tables, 0x30, 16, 4);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_vid_flood_tables, 0x30, 8, 4);
 
-/* cmd_mbox_config_profile_fid_based
- * FID Based Flood Mode
- * 00 Do not use FID to offset the index into the Port Group Table/Multicast ID
- * 01 Use FID to offset the index to the Port Group Table (pgi)
- * 10 Use FID to offset the index to the Port Group Table (pgi) and
- * the Multicast ID
+/* cmd_mbox_config_profile_flood_mode
+ * Flooding mode to use.
+ * 0-2 - Backward compatible modes for SwitchX devices.
+ * 3 - Mixed mode, where:
+ * max_flood_tables indicates the number of single-entry tables.
+ * max_vid_flood_tables indicates the number of per-VID tables.
+ * max_fid_offset_flood_tables indicates the number of FID-offset tables.
+ * max_fid_flood_tables indicates the number of per-FID tables.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 2);
 
