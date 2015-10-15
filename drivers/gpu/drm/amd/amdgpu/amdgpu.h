@@ -2259,7 +2259,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_display_resume_mc_access(adev, s) (adev)->mode_info.funcs->resume_mc_access((adev), (s))
 #define amdgpu_emit_copy_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_copy_buffer((ib),  (s), (d), (b))
 #define amdgpu_emit_fill_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_fill_buffer((ib), (s), (d), (b))
-#define amdgpu_dpm_get_temperature(adev) (adev)->pm.funcs->get_temperature((adev))
 #define amdgpu_dpm_pre_set_power_state(adev) (adev)->pm.funcs->pre_set_power_state((adev))
 #define amdgpu_dpm_set_power_state(adev) (adev)->pm.funcs->set_power_state((adev))
 #define amdgpu_dpm_post_set_power_state(adev) (adev)->pm.funcs->post_set_power_state((adev))
@@ -2267,10 +2266,31 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_dpm_print_power_state(adev, ps) (adev)->pm.funcs->print_power_state((adev), (ps))
 #define amdgpu_dpm_vblank_too_short(adev) (adev)->pm.funcs->vblank_too_short((adev))
 #define amdgpu_dpm_enable_bapm(adev, e) (adev)->pm.funcs->enable_bapm((adev), (e))
-#define amdgpu_dpm_set_fan_control_mode(adev, m) (adev)->pm.funcs->set_fan_control_mode((adev), (m))
-#define amdgpu_dpm_get_fan_control_mode(adev) (adev)->pm.funcs->get_fan_control_mode((adev))
-#define amdgpu_dpm_set_fan_speed_percent(adev, s) (adev)->pm.funcs->set_fan_speed_percent((adev), (s))
-#define amdgpu_dpm_get_fan_speed_percent(adev, s) (adev)->pm.funcs->get_fan_speed_percent((adev), (s))
+
+#define amdgpu_dpm_get_temperature(adev) \
+		amdgpu_powerplay ? \
+		(adev)->powerplay.pp_funcs->get_temperature((adev)->powerplay.pp_handle) : \
+		(adev)->pm.funcs->get_temperature((adev))
+
+#define amdgpu_dpm_set_fan_control_mode(adev, m) \
+		amdgpu_powerplay ? \
+		(adev)->powerplay.pp_funcs->set_fan_control_mode((adev)->powerplay.pp_handle, (m)) : \
+		(adev)->pm.funcs->set_fan_control_mode((adev), (m))
+
+#define amdgpu_dpm_get_fan_control_mode(adev) \
+		amdgpu_powerplay ? \
+		(adev)->powerplay.pp_funcs->get_fan_control_mode((adev)->powerplay.pp_handle) : \
+		(adev)->pm.funcs->get_fan_control_mode((adev))
+
+#define amdgpu_dpm_set_fan_speed_percent(adev, s) \
+		amdgpu_powerplay ? \
+		(adev)->powerplay.pp_funcs->set_fan_speed_percent((adev)->powerplay.pp_handle, (s)) : \
+		(adev)->pm.funcs->set_fan_speed_percent((adev), (s))
+
+#define amdgpu_dpm_get_fan_speed_percent(adev, s) \
+		amdgpu_powerplay ? \
+		(adev)->powerplay.pp_funcs->get_fan_speed_percent((adev)->powerplay.pp_handle, (s)) : \
+		(adev)->pm.funcs->get_fan_speed_percent((adev), (s))
 
 #define amdgpu_dpm_get_sclk(adev, l) \
 		amdgpu_powerplay ? \
