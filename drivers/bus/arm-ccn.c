@@ -1184,7 +1184,7 @@ static int arm_ccn_pmu_cpu_notifier(struct notifier_block *nb,
 		if (!cpumask_test_and_clear_cpu(cpu, &dt->cpu))
 			break;
 		target = cpumask_any_but(cpu_online_mask, cpu);
-		if (target < 0)
+		if (target >= nr_cpu_ids)
 			break;
 		perf_pmu_migrate_context(&dt->pmu, cpu, target);
 		cpumask_set_cpu(target, &dt->cpu);
