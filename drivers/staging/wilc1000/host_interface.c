@@ -252,7 +252,7 @@ static s8 link_speed;
 static u8 ch_no;
 static u8 set_ip[2][4];
 static u8 get_ip[2][4];
-static u32 gu32InactiveTime;
+static u32 inactive_time;
 static u8 gu8DelBcn;
 static u32 gu32WidConnRstHack;
 
@@ -2257,7 +2257,7 @@ static s32 Handle_Get_InActiveTime(struct host_if_drv *hif_drv,
 
 	strWID.id = (u16)WID_GET_INACTIVE_TIME;
 	strWID.type = WID_INT;
-	strWID.val = (s8 *)&gu32InactiveTime;
+	strWID.val = (s8 *)&inactive_time;
 	strWID.size = sizeof(u32);
 
 
@@ -2269,8 +2269,7 @@ static s32 Handle_Get_InActiveTime(struct host_if_drv *hif_drv,
 		return -EFAULT;
 	}
 
-
-	PRINT_D(CFG80211_DBG, "Getting inactive time : %d\n", gu32InactiveTime);
+	PRINT_D(CFG80211_DBG, "Getting inactive time : %d\n", inactive_time);
 
 	up(&hif_drv->hSemInactiveTime);
 
@@ -3851,7 +3850,7 @@ s32 host_int_get_inactive_time(struct host_if_drv *hif_drv,
 
 	down(&hif_drv->hSemInactiveTime);
 
-	*pu32InactiveTime = gu32InactiveTime;
+	*pu32InactiveTime = inactive_time;
 
 	return s32Error;
 }
