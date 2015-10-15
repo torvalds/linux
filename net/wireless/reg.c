@@ -554,15 +554,14 @@ static int call_crda(const char *alpha2)
 	return kobject_uevent_env(&reg_pdev->dev.kobj, KOBJ_CHANGE, env);
 }
 
-static enum reg_request_treatment
-reg_call_crda(struct regulatory_request *request)
+static bool reg_call_crda(struct regulatory_request *request)
 {
 	if (call_crda(request->alpha2))
-		return REG_REQ_IGNORE;
+		return false;
 
 	queue_delayed_work(system_power_efficient_wq,
 			   &reg_timeout, msecs_to_jiffies(3142));
-	return REG_REQ_OK;
+	return true;
 }
 
 bool reg_is_valid_request(const char *alpha2)
@@ -1855,19 +1854,14 @@ static void reg_set_request_processed(void)
  *
  * The wireless subsystem can use this function to process
  * a regulatory request issued by the regulatory core.
- *
- * Returns one of the different reg request treatment values.
  */
-static enum reg_request_treatment
-reg_process_hint_core(struct regulatory_request *core_request)
+static void reg_process_hint_core(struct regulatory_request *core_request)
 {
-
-	core_request->intersect = false;
-	core_request->processed = false;
-
-	reg_update_last_request(core_request);
-
-	return reg_call_crda(core_request);
+	if (reg_call_crda(core_request)) {
+		core_request->intersect = false;
+		core_request->processed = false;
+		reg_update_last_request(core_request);
+	}
 }
 
 static enum reg_request_treatment
@@ -1912,11 +1906,8 @@ __reg_process_hint_user(struct regulatory_request *user_request)
  *
  * The wireless subsystem can use this function to process
  * a regulatory request initiated by userspace.
- *
- * Returns one of the different reg request treatment values.
  */
-static enum reg_request_treatment
-reg_process_hint_user(struct regulatory_request *user_request)
+static void reg_process_hint_user(struct regulatory_request *user_request)
 {
 	enum reg_request_treatment treatment;
 
@@ -1924,18 +1915,19 @@ reg_process_hint_user(struct regulatory_request *user_request)
 	if (treatment == REG_REQ_IGNORE ||
 	    treatment == REG_REQ_ALREADY_SET) {
 		reg_free_request(user_request);
-		return treatment;
+		return;
 	}
 
 	user_request->intersect = treatment == REG_REQ_INTERSECT;
 	user_request->processed = false;
 
-	reg_update_last_request(user_request);
-
-	user_alpha2[0] = user_request->alpha2[0];
-	user_alpha2[1] = user_request->alpha2[1];
-
-	return reg_call_crda(user_request);
+	if (reg_call_crda(user_request)) {
+		reg_update_last_request(user_request);
+		user_alpha2[0] = user_request->alpha2[0];
+		user_alpha2[1] = user_request->alpha2[1];
+	} else {
+		reg_free_request(user_request);
+	}
 }
 
 static enum reg_request_treatment
@@ -2003,8 +1995,6 @@ reg_process_hint_driver(struct wiphy *wiphy,
 	driver_request->intersect = treatment == REG_REQ_INTERSECT;
 	driver_request->processed = false;
 
-	reg_update_last_request(driver_request);
-
 	/*
 	 * Since CRDA will not be called in this case as we already
 	 * have applied the requested regulatory domain before we just
@@ -2012,11 +2002,17 @@ reg_process_hint_driver(struct wiphy *wiphy,
 	 */
 	if (treatment == REG_REQ_ALREADY_SET) {
 		nl80211_send_reg_change_event(driver_request);
+		reg_update_last_request(driver_request);
 		reg_set_request_processed();
 		return treatment;
 	}
 
-	return reg_call_crda(driver_request);
+	if (reg_call_crda(driver_request))
+		reg_update_last_request(driver_request);
+	else
+		reg_free_request(driver_request);
+
+	return REG_REQ_OK;
 }
 
 static enum reg_request_treatment
@@ -2099,9 +2095,12 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 	country_ie_request->intersect = false;
 	country_ie_request->processed = false;
 
-	reg_update_last_request(country_ie_request);
+	if (reg_call_crda(country_ie_request))
+		reg_update_last_request(country_ie_request);
+	else
+		reg_free_request(country_ie_request);
 
-	return reg_call_crda(country_ie_request);
+	return REG_REQ_OK;
 }
 
 /* This processes *all* regulatory hints */
