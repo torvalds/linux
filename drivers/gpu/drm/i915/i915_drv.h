@@ -915,6 +915,7 @@ struct i915_fbc {
 
 	bool false_color;
 
+	bool enabled;
 	bool active;
 
 	struct intel_fbc_work {

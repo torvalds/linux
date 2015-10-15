@@ -399,7 +399,6 @@ static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
 	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
 
 	intel_fbc_cancel_work(dev_priv);
-	dev_priv->fbc.crtc = crtc;
 
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL) {
@@ -429,7 +428,7 @@ static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
 	schedule_delayed_work(&work->work, msecs_to_jiffies(50));
 }
 
-static void intel_fbc_deactivate(struct drm_i915_private *dev_priv)
+static void __intel_fbc_deactivate(struct drm_i915_private *dev_priv)
 {
 	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
 
@@ -439,35 +438,13 @@ static void intel_fbc_deactivate(struct drm_i915_private *dev_priv)
 		dev_priv->fbc.deactivate(dev_priv);
 }
 
-static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
-{
-	intel_fbc_deactivate(dev_priv);
-	dev_priv->fbc.crtc = NULL;
-}
-
-/**
- * intel_fbc_disable - disable FBC
- * @dev_priv: i915 device instance
- *
- * This function disables FBC.
- */
-void intel_fbc_disable(struct drm_i915_private *dev_priv)
-{
-	if (!fbc_supported(dev_priv))
-		return;
-
-	mutex_lock(&dev_priv->fbc.lock);
-	__intel_fbc_disable(dev_priv);
-	mutex_unlock(&dev_priv->fbc.lock);
-}
-
 /*
- * intel_fbc_disable_crtc - disable FBC if it's associated with crtc
+ * intel_fbc_deactivate - deactivate FBC if it's associated with crtc
  * @crtc: the CRTC
  *
- * This function disables FBC if it's associated with the provided CRTC.
+ * This function deactivates FBC if it's associated with the provided CRTC.
  */
-void intel_fbc_disable_crtc(struct intel_crtc *crtc)
+void intel_fbc_deactivate(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
@@ -476,7 +453,7 @@ void intel_fbc_disable_crtc(struct intel_crtc *crtc)
 
 	mutex_lock(&dev_priv->fbc.lock);
 	if (dev_priv->fbc.crtc == crtc)
-		__intel_fbc_disable(dev_priv);
+		__intel_fbc_deactivate(dev_priv);
 	mutex_unlock(&dev_priv->fbc.lock);
 }
 
@@ -490,13 +467,18 @@ static void set_no_fbc_reason(struct drm_i915_private *dev_priv,
 	DRM_DEBUG_KMS("Disabling FBC: %s\n", reason);
 }
 
-static bool crtc_is_valid(struct intel_crtc *crtc)
+static bool crtc_can_fbc(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
 	if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A)
 		return false;
 
+	return true;
+}
+
+static bool crtc_is_valid(struct intel_crtc *crtc)
+{
 	if (!intel_crtc_active(&crtc->base))
 		return false;
 
@@ -790,11 +772,11 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 }
 
 /**
- * __intel_fbc_update - enable/disable FBC as needed, unlocked
+ * __intel_fbc_update - activate/deactivate FBC as needed, unlocked
  * @crtc: the CRTC that triggered the update
  *
- * This function completely reevaluates the status of FBC, then enables,
- * disables or maintains it on the same state.
+ * This function completely reevaluates the status of FBC, then activates,
+ * deactivates or maintains it on the same state.
  */
 static void __intel_fbc_update(struct intel_crtc *crtc)
 {
@@ -810,21 +792,8 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 		goto out_disable;
 	}
 
-	if (dev_priv->fbc.crtc != NULL && dev_priv->fbc.crtc != crtc)
+	if (!dev_priv->fbc.enabled || dev_priv->fbc.crtc != crtc)
 		return;
-
-	if (intel_vgpu_active(dev_priv->dev))
-		i915.enable_fbc = 0;
-
-	if (i915.enable_fbc < 0) {
-		set_no_fbc_reason(dev_priv, "disabled per chip default");
-		goto out_disable;
-	}
-
-	if (!i915.enable_fbc) {
-		set_no_fbc_reason(dev_priv, "disabled per module param");
-		goto out_disable;
-	}
 
 	if (!crtc_is_valid(crtc)) {
 		set_no_fbc_reason(dev_priv, "no output");
@@ -924,8 +893,8 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 		 * disabling paths we do need to wait for a vblank at
 		 * some point. And we wait before enabling FBC anyway.
 		 */
-		DRM_DEBUG_KMS("disabling active FBC for update\n");
-		__intel_fbc_disable(dev_priv);
+		DRM_DEBUG_KMS("deactivating FBC for update\n");
+		__intel_fbc_deactivate(dev_priv);
 	}
 
 	intel_fbc_schedule_activation(crtc);
@@ -935,17 +904,17 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 out_disable:
 	/* Multiple disables should be harmless */
 	if (intel_fbc_is_active(dev_priv)) {
-		DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
-		__intel_fbc_disable(dev_priv);
+		DRM_DEBUG_KMS("unsupported config, deactivating FBC\n");
+		__intel_fbc_deactivate(dev_priv);
 	}
 	__intel_fbc_cleanup_cfb(dev_priv);
 }
 
 /*
- * intel_fbc_update - enable/disable FBC as needed
+ * intel_fbc_update - activate/deactivate FBC as needed
  * @crtc: the CRTC that triggered the update
  *
- * This function reevaluates the overall state and enables or disables FBC.
+ * This function reevaluates the overall state and activates or deactivates FBC.
  */
 void intel_fbc_update(struct intel_crtc *crtc)
 {
@@ -973,7 +942,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 
 	mutex_lock(&dev_priv->fbc.lock);
 
-	if (dev_priv->fbc.active || dev_priv->fbc.fbc_work)
+	if (dev_priv->fbc.enabled)
 		fbc_bits = INTEL_FRONTBUFFER_PRIMARY(dev_priv->fbc.crtc->pipe);
 	else
 		fbc_bits = dev_priv->fbc.possible_framebuffer_bits;
@@ -981,7 +950,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 	dev_priv->fbc.busy_bits |= (fbc_bits & frontbuffer_bits);
 
 	if (dev_priv->fbc.busy_bits)
-		intel_fbc_deactivate(dev_priv);
+		__intel_fbc_deactivate(dev_priv);
 
 	mutex_unlock(&dev_priv->fbc.lock);
 }
@@ -999,11 +968,125 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 
 	dev_priv->fbc.busy_bits &= ~frontbuffer_bits;
 
-	if (!dev_priv->fbc.busy_bits && dev_priv->fbc.crtc) {
-		intel_fbc_deactivate(dev_priv);
+	if (!dev_priv->fbc.busy_bits && dev_priv->fbc.enabled) {
+		__intel_fbc_deactivate(dev_priv);
 		__intel_fbc_update(dev_priv->fbc.crtc);
 	}
 
+	mutex_unlock(&dev_priv->fbc.lock);
+}
+
+/**
+ * intel_fbc_enable: tries to enable FBC on the CRTC
+ * @crtc: the CRTC
+ *
+ * This function checks if it's possible to enable FBC on the following CRTC,
+ * then enables it. Notice that it doesn't activate FBC.
+ */
+void intel_fbc_enable(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+
+	if (!fbc_supported(dev_priv))
+		return;
+
+	mutex_lock(&dev_priv->fbc.lock);
+
+	if (dev_priv->fbc.enabled) {
+		WARN_ON(dev_priv->fbc.crtc == crtc);
+		goto out;
+	}
+
+	WARN_ON(dev_priv->fbc.active);
+	WARN_ON(dev_priv->fbc.crtc != NULL);
+
+	if (intel_vgpu_active(dev_priv->dev)) {
+		set_no_fbc_reason(dev_priv, "VGPU is active");
+		goto out;
+	}
+
+	if (i915.enable_fbc < 0) {
+		set_no_fbc_reason(dev_priv, "disabled per chip default");
+		goto out;
+	}
+
+	if (!i915.enable_fbc) {
+		set_no_fbc_reason(dev_priv, "disabled per module param");
+		goto out;
+	}
+
+	if (!crtc_can_fbc(crtc)) {
+		set_no_fbc_reason(dev_priv, "no enabled pipes can have FBC");
+		goto out;
+	}
+
+	DRM_DEBUG_KMS("Enabling FBC on pipe %c\n", pipe_name(crtc->pipe));
+	dev_priv->fbc.no_fbc_reason = "FBC enabled but not active yet\n";
+
+	dev_priv->fbc.enabled = true;
+	dev_priv->fbc.crtc = crtc;
+out:
+	mutex_unlock(&dev_priv->fbc.lock);
+}
+
+/**
+ * __intel_fbc_disable - disable FBC
+ * @dev_priv: i915 device instance
+ *
+ * This is the low level function that actually disables FBC. Callers should
+ * grab the FBC lock.
+ */
+static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
+{
+	struct intel_crtc *crtc = dev_priv->fbc.crtc;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
+	WARN_ON(!dev_priv->fbc.enabled);
+	WARN_ON(dev_priv->fbc.active);
+	assert_pipe_disabled(dev_priv, crtc->pipe);
+
+	DRM_DEBUG_KMS("Disabling FBC on pipe %c\n", pipe_name(crtc->pipe));
+
+	dev_priv->fbc.enabled = false;
+	dev_priv->fbc.crtc = NULL;
+}
+
+/**
+ * intel_fbc_disable_crtc - disable FBC if it's associated with crtc
+ * @crtc: the CRTC
+ *
+ * This function disables FBC if it's associated with the provided CRTC.
+ */
+void intel_fbc_disable_crtc(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+
+	if (!fbc_supported(dev_priv))
+		return;
+
+	mutex_lock(&dev_priv->fbc.lock);
+	if (dev_priv->fbc.crtc == crtc) {
+		WARN_ON(!dev_priv->fbc.enabled);
+		WARN_ON(dev_priv->fbc.active);
+		__intel_fbc_disable(dev_priv);
+	}
+	mutex_unlock(&dev_priv->fbc.lock);
+}
+
+/**
+ * intel_fbc_disable - globally disable FBC
+ * @dev_priv: i915 device instance
+ *
+ * This function disables FBC regardless of which CRTC is associated with it.
+ */
+void intel_fbc_disable(struct drm_i915_private *dev_priv)
+{
+	if (!fbc_supported(dev_priv))
+		return;
+
+	mutex_lock(&dev_priv->fbc.lock);
+	if (dev_priv->fbc.enabled)
+		__intel_fbc_disable(dev_priv);
 	mutex_unlock(&dev_priv->fbc.lock);
 }
 
@@ -1018,6 +1101,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	enum pipe pipe;
 
 	mutex_init(&dev_priv->fbc.lock);
+	dev_priv->fbc.enabled = false;
 	dev_priv->fbc.active = false;
 
 	if (!HAS_FBC(dev_priv)) {
