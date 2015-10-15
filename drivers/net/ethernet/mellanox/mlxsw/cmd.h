@@ -464,6 +464,8 @@ MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_sg_rq, 0x10, 0, 8);
  * passed in this command must be pinned.
  */
 
+#define MLXSW_CMD_MAP_FA_VPM_ENTRIES_MAX 32
+
 static inline int mlxsw_cmd_map_fa(struct mlxsw_core *mlxsw_core,
 				   char *in_mbox, u32 vpm_entries_count)
 {

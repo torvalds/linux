@@ -171,8 +171,8 @@ struct mlxsw_pci {
 	struct msix_entry msix_entry;
 	struct mlxsw_core *core;
 	struct {
-		u16 num_pages;
 		struct mlxsw_pci_mem_item *items;
+		unsigned int count;
 	} fw_area;
 	struct {
 		struct mlxsw_pci_mem_item out_mbox;
@@ -1272,6 +1272,7 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 				  u16 num_pages)
 {
 	struct mlxsw_pci_mem_item *mem_item;
+	int nent = 0;
 	int i;
 	int err;
 
@@ -1279,7 +1280,7 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 					   GFP_KERNEL);
 	if (!mlxsw_pci->fw_area.items)
 		return -ENOMEM;
-	mlxsw_pci->fw_area.num_pages = num_pages;
+	mlxsw_pci->fw_area.count = num_pages;
 
 	mlxsw_cmd_mbox_zero(mbox);
 	for (i = 0; i < num_pages; i++) {
@@ -1293,13 +1294,22 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			err = -ENOMEM;
 			goto err_alloc;
 		}
-		mlxsw_cmd_mbox_map_fa_pa_set(mbox, i, mem_item->mapaddr);
-		mlxsw_cmd_mbox_map_fa_log2size_set(mbox, i, 0); /* 1 page */
+		mlxsw_cmd_mbox_map_fa_pa_set(mbox, nent, mem_item->mapaddr);
+		mlxsw_cmd_mbox_map_fa_log2size_set(mbox, nent, 0); /* 1 page */
+		if (++nent == MLXSW_CMD_MAP_FA_VPM_ENTRIES_MAX) {
+			err = mlxsw_cmd_map_fa(mlxsw_pci->core, mbox, nent);
+			if (err)
+				goto err_cmd_map_fa;
+			nent = 0;
+			mlxsw_cmd_mbox_zero(mbox);
+		}
 	}
 
-	err = mlxsw_cmd_map_fa(mlxsw_pci->core, mbox, num_pages);
-	if (err)
-		goto err_cmd_map_fa;
+	if (nent) {
+		err = mlxsw_cmd_map_fa(mlxsw_pci->core, mbox, nent);
+		if (err)
+			goto err_cmd_map_fa;
+	}
 
 	return 0;
 
@@ -1322,7 +1332,7 @@ static void mlxsw_pci_fw_area_fini(struct mlxsw_pci *mlxsw_pci)
 
 	mlxsw_cmd_unmap_fa(mlxsw_pci->core);
 
-	for (i = 0; i < mlxsw_pci->fw_area.num_pages; i++) {
+	for (i = 0; i < mlxsw_pci->fw_area.count; i++) {
 		mem_item = &mlxsw_pci->fw_area.items[i];
 
 		pci_free_consistent(mlxsw_pci->pdev, mem_item->size,
