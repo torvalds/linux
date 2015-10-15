@@ -842,10 +842,6 @@ static void igb_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = IGB_STATS_LEN;
-	drvinfo->testinfo_len = IGB_TEST_LEN;
-	drvinfo->regdump_len = igb_get_regs_len(netdev);
-	drvinfo->eedump_len = igb_get_eeprom_len(netdev);
 }
 
 static void igb_get_ringparam(struct net_device *netdev,

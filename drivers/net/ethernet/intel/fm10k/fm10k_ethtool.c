@@ -515,10 +515,6 @@ static void fm10k_get_drvinfo(struct net_device *dev,
 		sizeof(info->version) - 1);
 	strncpy(info->bus_info, pci_name(interface->pdev),
 		sizeof(info->bus_info) - 1);
-
-	info->n_stats = fm10k_get_sset_count(dev, ETH_SS_STATS);
-
-	info->regdump_len = fm10k_get_regs_len(dev);
 }
 
 static void fm10k_get_pauseparam(struct net_device *dev,

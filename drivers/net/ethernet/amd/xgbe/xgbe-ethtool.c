@@ -375,7 +375,6 @@ static void xgbe_get_drvinfo(struct net_device *netdev,
 		 XGMAC_GET_BITS(hw_feat->version, MAC_VR, USERVER),
 		 XGMAC_GET_BITS(hw_feat->version, MAC_VR, DEVID),
 		 XGMAC_GET_BITS(hw_feat->version, MAC_VR, SNPSVER));
-	drvinfo->n_stats = XGBE_STATS_COUNT;
 }
 
 static u32 xgbe_get_msglevel(struct net_device *netdev)
