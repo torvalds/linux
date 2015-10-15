@@ -255,7 +255,7 @@ static u8 get_ip[2][4];
 static u32 inactive_time;
 static u8 del_beacon;
 
-u8 *gu8FlushedJoinReq;
+u8 *join_req;
 u8 *gu8FlushedInfoElemAsoc;
 u8 gu8Flushed11iMode;
 u8 gu8FlushedAuthType;
@@ -1100,7 +1100,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
 		gu32FlushedJoinReqSize = strWIDList[u32WidsCount].size;
-		gu8FlushedJoinReq = kmalloc(gu32FlushedJoinReqSize, GFP_KERNEL);
+		join_req = kmalloc(gu32FlushedJoinReqSize, GFP_KERNEL);
 	}
 	if (strWIDList[u32WidsCount].val == NULL) {
 		s32Error = -EFAULT;
@@ -1199,7 +1199,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	u32WidsCount++;
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
-		memcpy(gu8FlushedJoinReq, pu8CurrByte, gu32FlushedJoinReqSize);
+		memcpy(join_req, pu8CurrByte, gu32FlushedJoinReqSize);
 		gu8FlushedJoinReqDrvHandler = hif_drv;
 	}
 
@@ -1303,7 +1303,7 @@ static s32 Handle_FlushConnect(struct host_if_drv *hif_drv)
 	strWIDList[u32WidsCount].id = (u16)WID_JOIN_REQ_EXTENDED;
 	strWIDList[u32WidsCount].type = WID_STR;
 	strWIDList[u32WidsCount].size = gu32FlushedJoinReqSize;
-	strWIDList[u32WidsCount].val = (s8 *)gu8FlushedJoinReq;
+	strWIDList[u32WidsCount].val = (s8 *)join_req;
 	pu8CurrByte = strWIDList[u32WidsCount].val;
 
 	pu8CurrByte += FLUSHED_BYTE_POS;
@@ -1385,9 +1385,9 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 
 	eth_zero_addr(u8ConnectedSSID);
 
-	if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
-		kfree(gu8FlushedJoinReq);
-		gu8FlushedJoinReq = NULL;
+	if (join_req != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+		kfree(join_req);
+		join_req = NULL;
 	}
 	if (gu8FlushedInfoElemAsoc != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
 		kfree(gu8FlushedInfoElemAsoc);
@@ -1682,9 +1682,9 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			hif_drv->strWILC_UsrConnReq.ConnReqIEsLen = 0;
 			kfree(hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs);
 
-			if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
-				kfree(gu8FlushedJoinReq);
-				gu8FlushedJoinReq = NULL;
+			if (join_req != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+				kfree(join_req);
+				join_req = NULL;
 			}
 			if (gu8FlushedInfoElemAsoc != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
 				kfree(gu8FlushedInfoElemAsoc);
@@ -2072,9 +2072,9 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 		hif_drv->strWILC_UsrConnReq.ConnReqIEsLen = 0;
 		kfree(hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs);
 
-		if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
-			kfree(gu8FlushedJoinReq);
-			gu8FlushedJoinReq = NULL;
+		if (join_req != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+			kfree(join_req);
+			join_req = NULL;
 		}
 		if (gu8FlushedInfoElemAsoc != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
 			kfree(gu8FlushedInfoElemAsoc);
@@ -3600,7 +3600,7 @@ s32 host_int_flush_join_req(struct host_if_drv *hif_drv)
 	s32 s32Error = 0;
 	struct host_if_msg msg;
 
-	if (!gu8FlushedJoinReq)	{
+	if (!join_req) {
 		s32Error = -EFAULT;
 		return s32Error;
 	}
