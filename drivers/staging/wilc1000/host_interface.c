@@ -238,7 +238,7 @@ static WILC_MsgQueueHandle hif_msg_q;
 static struct semaphore hif_sema_thread;
 static struct semaphore hif_sema_driver;
 static struct semaphore hif_sema_wait_response;
-struct semaphore hSemHostIntDeinit;
+struct semaphore hif_sema_deinit;
 struct timer_list g_hPeriodicRSSI;
 
 
@@ -4213,7 +4213,7 @@ s32 host_int_init(struct host_if_drv **hif_drv_handler)
 	if (clients_count == 0)	{
 		sema_init(&hif_sema_thread, 0);
 		sema_init(&hif_sema_driver, 0);
-		sema_init(&hSemHostIntDeinit, 1);
+		sema_init(&hif_sema_deinit, 1);
 	}
 
 	sema_init(&hif_drv->hSemTestKeyBlock, 0);
@@ -4297,7 +4297,7 @@ s32 host_int_deinit(struct host_if_drv *hif_drv)
 		return 0;
 	}
 
-	down(&hSemHostIntDeinit);
+	down(&hif_sema_deinit);
 
 	terminated_handle = hif_drv;
 	PRINT_D(HOSTINF_DBG, "De-initializing host interface for client %d\n", clients_count);
@@ -4359,7 +4359,7 @@ s32 host_int_deinit(struct host_if_drv *hif_drv)
 
 	clients_count--;
 	terminated_handle = NULL;
-	up(&hSemHostIntDeinit);
+	up(&hif_sema_deinit);
 	return s32Error;
 }
 
@@ -4402,7 +4402,7 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	int id;
 	struct host_if_drv *hif_drv = NULL;
 
-	down(&hSemHostIntDeinit);
+	down(&hif_sema_deinit);
 
 	id = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
 	hif_drv = get_handler_from_id(id);
@@ -4411,13 +4411,13 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 
 	if (!hif_drv || hif_drv == terminated_handle) {
 		PRINT_D(HOSTINF_DBG, "Wifi driver handler is equal to NULL\n");
-		up(&hSemHostIntDeinit);
+		up(&hif_sema_deinit);
 		return;
 	}
 
 	if (!hif_drv->strWILC_UsrConnReq.pfUserConnectResult) {
 		PRINT_ER("Received mac status is not needed when there is no current Connect Reques\n");
-		up(&hSemHostIntDeinit);
+		up(&hif_sema_deinit);
 		return;
 	}
 
@@ -4435,7 +4435,7 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	if (s32Error)
 		PRINT_ER("Error in sending message queue asynchronous message info: Error(%d)\n", s32Error);
 
-	up(&hSemHostIntDeinit);
+	up(&hif_sema_deinit);
 }
 
 void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length)
