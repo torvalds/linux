@@ -244,7 +244,7 @@ exit:
  */
 static long vfd_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
-	struct sasem_context *context = NULL;
+	struct sasem_context *context;
 
 	context = (struct sasem_context *) file->private_data;
 
