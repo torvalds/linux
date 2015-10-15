@@ -3028,6 +3028,7 @@ static int dce_v11_0_hw_init(void *handle)
 	dce_v11_0_init_golden_registers(adev);
 
 	/* init dig PHYs, disp eng pll */
+	amdgpu_atombios_crtc_powergate_init(adev);
 	amdgpu_atombios_encoder_init_dig(adev);
 	amdgpu_atombios_crtc_set_disp_eng_pll(adev, adev->clock.default_dispclk);
 
@@ -3061,23 +3062,18 @@ static int dce_v11_0_suspend(void *handle)
 
 	amdgpu_atombios_scratch_regs_save(adev);
 
-	dce_v11_0_hpd_fini(adev);
-
-	return 0;
+	return dce_v11_0_hw_fini(handle);
 }
 
 static int dce_v11_0_resume(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int ret;
 
-	dce_v11_0_init_golden_registers(adev);
+	ret = dce_v11_0_hw_init(handle);
 
 	amdgpu_atombios_scratch_regs_restore(adev);
 
-	/* init dig PHYs, disp eng pll */
-	amdgpu_atombios_crtc_powergate_init(adev);
-	amdgpu_atombios_encoder_init_dig(adev);
-	amdgpu_atombios_crtc_set_disp_eng_pll(adev, adev->clock.default_dispclk);
 	/* turn on the BL */
 	if (adev->mode_info.bl_encoder) {
 		u8 bl_level = amdgpu_display_backlight_get_level(adev,
@@ -3086,10 +3082,7 @@ static int dce_v11_0_resume(void *handle)
 						    bl_level);
 	}
 
-	/* initialize hpd */
-	dce_v11_0_hpd_init(adev);
-
-	return 0;
+	return ret;
 }
 
 static bool dce_v11_0_is_idle(void *handle)
