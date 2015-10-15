@@ -260,7 +260,7 @@ u8 *info_element;
 static u8 mode_11i;
 u8 auth_type;
 u32 join_req_size;
-u32 gu32FlushedInfoElemAsocSize;
+u32 info_element_size;
 struct host_if_drv *gu8FlushedJoinReqDrvHandler;
 #define REAL_JOIN_REQ 0
 #define FLUSHED_JOIN_REQ 1
@@ -1061,11 +1061,10 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		u32WidsCount++;
 
 		if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
-
-			gu32FlushedInfoElemAsocSize = hif_drv->strWILC_UsrConnReq.ConnReqIEsLen;
-			info_element = kmalloc(gu32FlushedInfoElemAsocSize, GFP_KERNEL);
+			info_element_size = hif_drv->strWILC_UsrConnReq.ConnReqIEsLen;
+			info_element = kmalloc(info_element_size, GFP_KERNEL);
 			memcpy(info_element, hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs,
-			       gu32FlushedInfoElemAsocSize);
+			       info_element_size);
 		}
 	}
 	strWIDList[u32WidsCount].id = (u16)WID_11I_MODE;
@@ -1283,7 +1282,7 @@ static s32 Handle_FlushConnect(struct host_if_drv *hif_drv)
 	strWIDList[u32WidsCount].id = WID_INFO_ELEMENT_ASSOCIATE;
 	strWIDList[u32WidsCount].type = WID_BIN_DATA;
 	strWIDList[u32WidsCount].val = info_element;
-	strWIDList[u32WidsCount].size = gu32FlushedInfoElemAsocSize;
+	strWIDList[u32WidsCount].size = info_element_size;
 	u32WidsCount++;
 
 	strWIDList[u32WidsCount].id = (u16)WID_11I_MODE;
