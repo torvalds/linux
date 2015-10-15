@@ -938,7 +938,7 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
 			break;
 		}
 	}
-	if (unlikely(2 > found))
+	if (unlikely(found < 2))
 		return ERR_PTR(-EIO);
 	return c;
 }
@@ -1561,7 +1561,7 @@ int most_start_channel(struct most_interface *iface, int id,
 	else
 		num_buffer = arm_mbo_chain(c, c->cfg.direction,
 					   most_write_completion);
-	if (unlikely(0 == num_buffer)) {
+	if (unlikely(!num_buffer)) {
 		pr_info("failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto error;
