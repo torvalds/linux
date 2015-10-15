@@ -1088,6 +1088,8 @@ struct gb_sdio_command_request {
 #define GB_SDIO_CMD_BCR		0x03
 
 	__le32	cmd_arg;
+	__le16	data_blocks;
+	__le16	data_blksz;
 } __packed;
 
 struct gb_sdio_command_response {

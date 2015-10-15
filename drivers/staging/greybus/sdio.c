@@ -373,8 +373,9 @@ out:
 
 static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 {
-	struct gb_sdio_command_request request;
+	struct gb_sdio_command_request request = {0};
 	struct gb_sdio_command_response response;
+	struct mmc_data *data = host->mrq->data;
 	u8 cmd_flags;
 	u8 cmd_type;
 	int i;
@@ -427,6 +428,11 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 	request.cmd_flags = cmd_flags;
 	request.cmd_type = cmd_type;
 	request.cmd_arg = cpu_to_le32(cmd->arg);
+	/* some controllers need to know at command time data details */
+	if (data) {
+		request.data_blocks = cpu_to_le16(data->blocks);
+		request.data_blksz = cpu_to_le16(data->blksz);
+	}
 
 	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_COMMAND,
 				&request, sizeof(request), &response,
