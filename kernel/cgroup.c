@@ -5242,7 +5242,7 @@ int __init cgroup_init(void)
 {
 	struct cgroup_subsys *ss;
 	unsigned long key;
-	int ssid, err;
+	int ssid;
 
 	BUG_ON(percpu_init_rwsem(&cgroup_threadgroup_rwsem));
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_dfl_base_files));
@@ -5304,17 +5304,10 @@ int __init cgroup_init(void)
 			ss->bind(init_css_set.subsys[ssid]);
 	}
 
-	err = sysfs_create_mount_point(fs_kobj, "cgroup");
-	if (err)
-		return err;
+	WARN_ON(sysfs_create_mount_point(fs_kobj, "cgroup"));
+	WARN_ON(register_filesystem(&cgroup_fs_type));
+	WARN_ON(!proc_create("cgroups", 0, NULL, &proc_cgroupstats_operations));
 
-	err = register_filesystem(&cgroup_fs_type);
-	if (err < 0) {
-		sysfs_remove_mount_point(fs_kobj, "cgroup");
-		return err;
-	}
-
-	proc_create("cgroups", 0, NULL, &proc_cgroupstats_operations);
 	return 0;
 }
 
