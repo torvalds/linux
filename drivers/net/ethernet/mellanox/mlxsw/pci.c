@@ -1069,8 +1069,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 	num_eqs = mlxsw_cmd_mbox_query_aq_cap_max_num_eqs_get(mbox);
 	eq_log2sz = mlxsw_cmd_mbox_query_aq_cap_log_max_eq_sz_get(mbox);
 
-	if ((num_sdqs != MLXSW_PCI_SDQS_COUNT) ||
-	    (num_rdqs != MLXSW_PCI_RDQS_COUNT) ||
+	if (num_sdqs + num_rdqs > num_cqs ||
 	    num_cqs > MLXSW_PCI_CQS_MAX || num_eqs != MLXSW_PCI_EQS_COUNT) {
 		dev_err(&pdev->dev, "Unsupported number of queues\n");
 		return -EINVAL;

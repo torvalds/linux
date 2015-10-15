@@ -71,8 +71,6 @@
 #define MLXSW_PCI_DOORBELL(offset, type_offset, num)	\
 	((offset) + (type_offset) + (num) * 4)
 
-#define MLXSW_PCI_RDQS_COUNT	24
-#define MLXSW_PCI_SDQS_COUNT	24
 #define MLXSW_PCI_CQS_MAX	96
 #define MLXSW_PCI_EQS_COUNT	2
 #define MLXSW_PCI_EQ_ASYNC_NUM	0
