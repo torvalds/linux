@@ -245,7 +245,7 @@ u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
 static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 
-bool scan_while_connected;
+static bool scan_while_connected;
 
 static s8 gs8Rssi;
 static s8 gs8lnkspd;
