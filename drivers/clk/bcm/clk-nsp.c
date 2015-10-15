@@ -26,9 +26,11 @@
 #define AON_VAL(o, pw, ps, is) { .offset = o, .pwr_width = pw, \
 	.pwr_shift = ps, .iso_shift = is }
 
-#define RESET_VAL(o, rs, prs, kis, kiw, kps, kpw, kas, kaw) { .offset = o, \
-	.reset_shift = rs, .p_reset_shift = prs, .ki_shift = kis, \
-	.ki_width = kiw, .kp_shift = kps, .kp_width = kpw, .ka_shift = kas, \
+#define RESET_VAL(o, rs, prs) { .offset = o, .reset_shift = rs, \
+	.p_reset_shift = prs }
+
+#define DF_VAL(o, kis, kiw, kps, kpw, kas, kaw) { .offset = o, .ki_shift = kis,\
+	.ki_width = kiw, .kp_shift = kps, .kp_width = kpw, .ka_shift = kas,    \
 	.ka_width = kaw }
 
 #define ENABLE_VAL(o, es, hs, bs) { .offset = o, .enable_shift = es, \
@@ -43,7 +45,8 @@ CLK_OF_DECLARE(nsp_armpll, "brcm,nsp-armpll", nsp_armpll_init);
 static const struct iproc_pll_ctrl genpll = {
 	.flags = IPROC_CLK_PLL_HAS_NDIV_FRAC | IPROC_CLK_EMBED_PWRCTRL,
 	.aon = AON_VAL(0x0, 1, 12, 0),
-	.reset = RESET_VAL(0x0, 11, 10, 4, 3, 0, 4, 7, 3),
+	.reset = RESET_VAL(0x0, 11, 10),
+	.dig_filter = DF_VAL(0x0, 4, 3, 0, 4, 7, 3),
 	.ndiv_int = REG_VAL(0x14, 20, 10),
 	.ndiv_frac = REG_VAL(0x14, 0, 20),
 	.pdiv = REG_VAL(0x18, 24, 3),
@@ -99,7 +102,8 @@ CLK_OF_DECLARE(nsp_genpll_clk, "brcm,nsp-genpll", nsp_genpll_clk_init);
 static const struct iproc_pll_ctrl lcpll0 = {
 	.flags = IPROC_CLK_PLL_HAS_NDIV_FRAC | IPROC_CLK_EMBED_PWRCTRL,
 	.aon = AON_VAL(0x0, 1, 24, 0),
-	.reset = RESET_VAL(0x0, 23, 22, 16, 3, 12, 4, 19, 4),
+	.reset = RESET_VAL(0x0, 23, 22),
+	.dig_filter = DF_VAL(0x0, 16, 3, 12, 4, 19, 4),
 	.ndiv_int = REG_VAL(0x4, 20, 8),
 	.ndiv_frac = REG_VAL(0x4, 0, 20),
 	.pdiv = REG_VAL(0x4, 28, 3),

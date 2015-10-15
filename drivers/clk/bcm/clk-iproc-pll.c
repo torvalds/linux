@@ -224,13 +224,17 @@ static void __pll_bring_out_reset(struct iproc_pll *pll, unsigned int kp,
 	u32 val;
 	const struct iproc_pll_ctrl *ctrl = pll->ctrl;
 	const struct iproc_pll_reset_ctrl *reset = &ctrl->reset;
+	const struct iproc_pll_dig_filter_ctrl *dig_filter = &ctrl->dig_filter;
+
+	val = readl(pll->pll_base + dig_filter->offset);
+	val &= ~(bit_mask(dig_filter->ki_width) << dig_filter->ki_shift |
+		bit_mask(dig_filter->kp_width) << dig_filter->kp_shift |
+		bit_mask(dig_filter->ka_width) << dig_filter->ka_shift);
+	val |= ki << dig_filter->ki_shift | kp << dig_filter->kp_shift |
+	       ka << dig_filter->ka_shift;
+	iproc_pll_write(pll, pll->pll_base, dig_filter->offset, val);
 
 	val = readl(pll->pll_base + reset->offset);
-	val &= ~(bit_mask(reset->ki_width) << reset->ki_shift |
-		 bit_mask(reset->kp_width) << reset->kp_shift |
-		 bit_mask(reset->ka_width) << reset->ka_shift);
-	val |=  ki << reset->ki_shift | kp << reset->kp_shift |
-		ka << reset->ka_shift;
 	val |= 1 << reset->reset_shift | 1 << reset->p_reset_shift;
 	iproc_pll_write(pll, pll->pll_base, reset->offset, val);
 }

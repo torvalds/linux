@@ -94,12 +94,19 @@ struct iproc_pll_aon_pwr_ctrl {
 };
 
 /*
- * Control of the PLL reset, with Ki, Kp, and Ka parameters
+ * Control of the PLL reset
  */
 struct iproc_pll_reset_ctrl {
 	unsigned int offset;
 	unsigned int reset_shift;
 	unsigned int p_reset_shift;
+};
+
+/*
+ * Control of the Ki, Kp, and Ka parameters
+ */
+struct iproc_pll_dig_filter_ctrl {
+	unsigned int offset;
 	unsigned int ki_shift;
 	unsigned int ki_width;
 	unsigned int kp_shift;
@@ -129,6 +136,7 @@ struct iproc_pll_ctrl {
 	struct iproc_pll_aon_pwr_ctrl aon;
 	struct iproc_asiu_gate asiu;
 	struct iproc_pll_reset_ctrl reset;
+	struct iproc_pll_dig_filter_ctrl dig_filter;
 	struct iproc_pll_sw_ctrl sw_ctrl;
 	struct iproc_clk_reg_op ndiv_int;
 	struct iproc_clk_reg_op ndiv_frac;
