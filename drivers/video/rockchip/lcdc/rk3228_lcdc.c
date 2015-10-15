@@ -486,16 +486,19 @@ static void vop_win_csc_mode(struct vop_device *vop_dev,
  * 6. YUV(601/709)-> bypass   ---+       bypass        --> YUV_OUTPUT(601)
  *    RGB        --> R2Y(601) __/
  *
- * 7. YUV(601/709)-> Y2R(mpeg)---+       bypass        --> RGB_OUTPUT(709)
- *    RGB        --> bypass   __/
+ * 7. YUV(601)   --> Y2R(601/mpeg)-+     bypass        --> RGB_OUTPUT(709)
+ *    RGB        --> bypass   ____/
  *
- * 8. RGB        --> bypass   --->    709To2020->R2Y   --> YUV_OUTPUT(2020)
+ * 8. YUV(709)   --> Y2R(709/hd) --+     bypass        --> RGB_OUTPUT(709)
+ *    RGB        --> bypass   ____/
  *
- * 9. RGB        --> R2Y(709) --->       Y2R           --> YUV_OUTPUT(709)
+ * 9. RGB        --> bypass   --->    709To2020->R2Y   --> YUV_OUTPUT(2020)
  *
- * 10. RGB       --> R2Y(601) --->       Y2R           --> YUV_OUTPUT(601)
+ * 10. RGB        --> R2Y(709) --->       Y2R          --> YUV_OUTPUT(709)
  *
- * 11. RGB       --> bypass   --->       bypass        --> RGB_OUTPUT(709)
+ * 11. RGB       --> R2Y(601) --->       Y2R           --> YUV_OUTPUT(601)
+ *
+ * 12. RGB       --> bypass   --->       bypass        --> RGB_OUTPUT(709)
  */
 
 static void vop_post_csc_cfg(struct rk_lcdc_driver *dev_drv)
@@ -543,8 +546,17 @@ static void vop_post_csc_cfg(struct rk_lcdc_driver *dev_drv)
 		if (overlay_mode == VOP_YUV_DOMAIN &&
 		    !IS_YUV(win->area[0].fmt_cfg))
 			vop_win_csc_mode(vop_dev, win, r2y_mode);
-		else if (IS_YUV(win->area[0].fmt_cfg))
-			vop_win_csc_mode(vop_dev, win, VOP_Y2R_CSC_MPEG);
+		if (overlay_mode == VOP_RGB_DOMAIN &&
+		    IS_YUV(win->area[0].fmt_cfg)) {
+			if (win->colorspace == CSC_BT709)
+				vop_win_csc_mode(vop_dev, win, VOP_Y2R_CSC_HD);
+			else if (win->colorspace == CSC_BT601)
+				vop_win_csc_mode(vop_dev, win,
+						 VOP_Y2R_CSC_MPEG);
+			else
+				pr_err("Error Y2R path, colorspace=%d\n",
+				       win->colorspace);
+		}
 	}
 
 	val = V_YUV2YUV_POST_Y2R_EN(0) | V_YUV2YUV_POST_EN(0) |
