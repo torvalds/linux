@@ -1212,7 +1212,7 @@ unsigned int update_supported_rate23a(unsigned char *ptn, unsigned int ptn_sz)
 
 unsigned int update_MSC_rate23a(struct ieee80211_ht_cap *pHT_caps)
 {
-	unsigned int mask = 0;
+	unsigned int mask;
 
 	mask = pHT_caps->mcs.rx_mask[0] << 12 |
 		pHT_caps->mcs.rx_mask[1] << 20;
