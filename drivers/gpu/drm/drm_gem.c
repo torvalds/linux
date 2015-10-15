@@ -862,30 +862,46 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
-	struct drm_gem_object *obj;
+	struct drm_gem_object *obj = NULL;
 	struct drm_vma_offset_node *node;
 	int ret;
 
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	mutex_lock(&dev->struct_mutex);
+	drm_vma_offset_lock_lookup(dev->vma_offset_manager);
+	node = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
+						  vma->vm_pgoff,
+						  vma_pages(vma));
+	if (likely(node)) {
+		obj = container_of(node, struct drm_gem_object, vma_node);
+		/*
+		 * When the object is being freed, after it hits 0-refcnt it
+		 * proceeds to tear down the object. In the process it will
+		 * attempt to remove the VMA offset and so acquire this
+		 * mgr->vm_lock.  Therefore if we find an object with a 0-refcnt
+		 * that matches our range, we know it is in the process of being
+		 * destroyed and will be freed as soon as we release the lock -
+		 * so we have to check for the 0-refcnted object and treat it as
+		 * invalid.
+		 */
+		if (!kref_get_unless_zero(&obj->refcount))
+			obj = NULL;
+	}
+	drm_vma_offset_unlock_lookup(dev->vma_offset_manager);
 
-	node = drm_vma_offset_exact_lookup(dev->vma_offset_manager,
-					   vma->vm_pgoff,
-					   vma_pages(vma));
-	if (!node) {
-		mutex_unlock(&dev->struct_mutex);
+	if (!obj)
 		return -EINVAL;
-	} else if (!drm_vma_node_is_allowed(node, filp)) {
-		mutex_unlock(&dev->struct_mutex);
+
+	if (!drm_vma_node_is_allowed(node, filp)) {
+		drm_gem_object_unreference_unlocked(obj);
 		return -EACCES;
 	}
 
-	obj = container_of(node, struct drm_gem_object, vma_node);
-	ret = drm_gem_mmap_obj(obj, drm_vma_node_size(node) << PAGE_SHIFT, vma);
+	ret = drm_gem_mmap_obj(obj, drm_vma_node_size(node) << PAGE_SHIFT,
+			       vma);
 
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 
 	return ret;
 }
