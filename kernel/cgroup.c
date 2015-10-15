@@ -5379,14 +5379,34 @@ int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 			seq_printf(m, "%sname=%s", count ? "," : "",
 				   root->name);
 		seq_putc(m, ':');
+
 		cgrp = task_cgroup_from_root(tsk, root);
-		path = cgroup_path(cgrp, buf, PATH_MAX);
-		if (!path) {
-			retval = -ENAMETOOLONG;
-			goto out_unlock;
+
+		/*
+		 * On traditional hierarchies, all zombie tasks show up as
+		 * belonging to the root cgroup.  On the default hierarchy,
+		 * while a zombie doesn't show up in "cgroup.procs" and
+		 * thus can't be migrated, its /proc/PID/cgroup keeps
+		 * reporting the cgroup it belonged to before exiting.  If
+		 * the cgroup is removed before the zombie is reaped,
+		 * " (deleted)" is appended to the cgroup path.
+		 */
+		if (cgroup_on_dfl(cgrp) || !(tsk->flags & PF_EXITING)) {
+			path = cgroup_path(cgrp, buf, PATH_MAX);
+			if (!path) {
+				retval = -ENAMETOOLONG;
+				goto out_unlock;
+			}
+		} else {
+			path = "/";
 		}
+
 		seq_puts(m, path);
-		seq_putc(m, '\n');
+
+		if (cgroup_on_dfl(cgrp) && cgroup_is_dead(cgrp))
+			seq_puts(m, " (deleted)\n");
+		else
+			seq_putc(m, '\n');
 	}
 
 	retval = 0;
@@ -5593,7 +5613,6 @@ void cgroup_exit(struct task_struct *tsk)
 {
 	struct cgroup_subsys *ss;
 	struct css_set *cset;
-	bool put_cset = false;
 	int i;
 
 	/*
@@ -5606,22 +5625,20 @@ void cgroup_exit(struct task_struct *tsk)
 		spin_lock_bh(&css_set_lock);
 		css_set_move_task(tsk, cset, NULL, false);
 		spin_unlock_bh(&css_set_lock);
-		put_cset = true;
+	} else {
+		get_css_set(cset);
 	}
-
-	/* Reassign the task to the init_css_set. */
-	RCU_INIT_POINTER(tsk->cgroups, &init_css_set);
 
 	/* see cgroup_post_fork() for details */
-	for_each_subsys_which(ss, i, &have_exit_callback) {
-		struct cgroup_subsys_state *old_css = cset->subsys[i];
-		struct cgroup_subsys_state *css = task_css(tsk, i);
+	for_each_subsys_which(ss, i, &have_exit_callback)
+		ss->exit(tsk);
+}
 
-		ss->exit(css, old_css, tsk);
-	}
+void cgroup_free(struct task_struct *task)
+{
+	struct css_set *cset = task_css_set(task);
 
-	if (put_cset)
-		put_css_set(cset);
+	put_css_set(cset);
 }
 
 static void check_for_release(struct cgroup *cgrp)

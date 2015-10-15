@@ -266,11 +266,9 @@ static void pids_fork(struct task_struct *task, void *priv)
 	css_put(old_css);
 }
 
-static void pids_exit(struct cgroup_subsys_state *css,
-		      struct cgroup_subsys_state *old_css,
-		      struct task_struct *task)
+static void pids_exit(struct task_struct *task)
 {
-	struct pids_cgroup *pids = css_pids(old_css);
+	struct pids_cgroup *pids = css_pids(task_css(task, pids_cgrp_id));
 
 	pids_uncharge(pids, 1);
 }

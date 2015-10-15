@@ -374,6 +374,10 @@ supported and the interface files "release_agent" and
 
 - The "cgroup.clone_children" file is removed.
 
+- /proc/PID/cgroup keeps reporting the cgroup that a zombie belonged
+  to before exiting.  If the cgroup is removed before the zombie is
+  reaped, " (deleted)" is appeneded to the path.
+
 
 5-3. Controller File Conventions
 
