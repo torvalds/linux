@@ -28,6 +28,7 @@
 #include <asm/processor.h>
 #include <asm/irqflags.h>
 #include <asm/checksum.h>
+#include <asm/os_info.h>
 #include <asm/switch_to.h>
 #include "sclp.h"
 
@@ -151,6 +152,9 @@ static int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count)
 static int __init init_cpu_info(enum arch_id arch)
 {
 	struct save_area_ext *sa_ext;
+	struct _lowcore *lc;
+	void *ptr;
+	int i;
 
 	/* get info for boot cpu from lowcore, stored in the HSA */
 
@@ -162,8 +166,18 @@ static int __init init_cpu_info(enum arch_id arch)
 		TRACE("could not copy from HSA\n");
 		return -EIO;
 	}
-	if (MACHINE_HAS_VX)
-		save_vx_regs_safe(sa_ext->vx_regs);
+	if (!MACHINE_HAS_VX)
+		return 0;
+
+	save_vx_regs_safe(sa_ext->vx_regs);
+	/* Get address of the vector register save area for each CPU */
+	for (i = 0; i < dump_save_areas.count; i++) {
+		sa_ext = dump_save_areas.areas[i];
+		lc = (struct _lowcore *)(unsigned long) sa_ext->sa.pref_reg;
+		ptr = &lc->vector_save_area_addr;
+		copy_from_oldmem(&sa_ext->vx_sa_addr, ptr,
+				 sizeof(sa_ext->vx_sa_addr));
+	}
 	return 0;
 }
 
@@ -245,6 +259,8 @@ static int copy_lc(void __user *buf, void *sa, int sa_off, int len)
  */
 static int zcore_add_lc(char __user *buf, unsigned long start, size_t count)
 {
+	struct save_area_ext *sa_ext;
+	struct save_area *sa;
 	unsigned long end;
 	int i;
 
@@ -255,26 +271,48 @@ static int zcore_add_lc(char __user *buf, unsigned long start, size_t count)
 	for (i = 0; i < dump_save_areas.count; i++) {
 		unsigned long cp_start, cp_end; /* copy range */
 		unsigned long sa_start, sa_end; /* save area range */
-		unsigned long prefix;
 		unsigned long sa_off, len, buf_off;
-		struct save_area *save_area = &dump_save_areas.areas[i]->sa;
 
-		prefix = save_area->pref_reg;
-		sa_start = prefix + sys_info.sa_base;
-		sa_end = prefix + sys_info.sa_base + sys_info.sa_size;
+		sa_ext = dump_save_areas.areas[i];
+		sa = &sa_ext->sa;
 
-		if ((end < sa_start) || (start > sa_end))
+		/* Copy the 512 bytes lowcore save area 0x1200 - 0x1400 */
+		sa_start = sa->pref_reg + sys_info.sa_base;
+		sa_end = sa_start + sys_info.sa_size;
+
+		if (end >= sa_start && start < sa_end) {
+			cp_start = max(start, sa_start);
+			cp_end = min(end, sa_end);
+			buf_off = cp_start - start;
+			sa_off = cp_start - sa_start;
+			len = cp_end - cp_start;
+
+			TRACE("copy_lc: %lx-%lx\n", cp_start, cp_end);
+			if (copy_lc(buf + buf_off, sa, sa_off, len))
+				return -EFAULT;
+		}
+
+		if (!MACHINE_HAS_VX)
 			continue;
-		cp_start = max(start, sa_start);
-		cp_end = min(end, sa_end);
 
-		buf_off = cp_start - start;
-		sa_off = cp_start - sa_start;
-		len = cp_end - cp_start;
+		/* Copy the 512 bytes vector save area */
+		sa_start = sa_ext->vx_sa_addr & -1024UL;
+		sa_end = sa_start + 512;
 
-		TRACE("copy_lc for: %lx\n", start);
-		if (copy_lc(buf + buf_off, save_area, sa_off, len))
-			return -EFAULT;
+		if (end >= sa_start && start < sa_end) {
+			cp_start = max(start, sa_start);
+			cp_end = min(end, sa_end);
+
+			buf_off = cp_start - start;
+			sa_off = cp_start - sa_start;
+			len = cp_end - cp_start;
+
+			TRACE("copy vxrs: %lx-%lx\n", cp_start, cp_end);
+			if (copy_to_user(buf + buf_off,
+					 (void *) &sa_ext->vx_regs + sa_off,
+					 len))
+				return -EFAULT;
+		}
 	}
 	return 0;
 }
