@@ -822,11 +822,6 @@ static const char *amdgpu_fence_get_timeline_name(struct fence *f)
 	return (const char *)fence->ring->name;
 }
 
-static inline bool amdgpu_test_signaled(struct amdgpu_fence *fence)
-{
-	return test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->base.flags);
-}
-
 static bool amdgpu_test_signaled_any(struct fence **fences, uint32_t count)
 {
 	int idx;
@@ -852,12 +847,6 @@ static void amdgpu_fence_wait_cb(struct fence *fence, struct fence_cb *cb)
 	struct amdgpu_wait_cb *wait =
 		container_of(cb, struct amdgpu_wait_cb, base);
 	wake_up_process(wait->task);
-}
-
-static signed long amdgpu_fence_default_wait(struct fence *f, bool intr,
-					     signed long t)
-{
-	return amdgpu_fence_wait_any(&f, 1, intr, t);
 }
 
 /**
@@ -936,6 +925,6 @@ const struct fence_ops amdgpu_fence_ops = {
 	.get_timeline_name = amdgpu_fence_get_timeline_name,
 	.enable_signaling = amdgpu_fence_enable_signaling,
 	.signaled = amdgpu_fence_is_signaled,
-	.wait = amdgpu_fence_default_wait,
+	.wait = fence_default_wait,
 	.release = NULL,
 };
