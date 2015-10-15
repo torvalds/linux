@@ -33,12 +33,6 @@
 #include <linux/types.h>
 #include <linux/scatterlist.h>
 
-/* DSI defines */
-
-#define SHA1_DIGEST_LENGTH   20
-
-/*end of DSI defines */
-
 #define BYTES_PER_MPI_LIMB	(BITS_PER_LONG / 8)
 #define BITS_PER_MPI_LIMB	BITS_PER_LONG
 
