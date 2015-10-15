@@ -221,7 +221,7 @@ struct join_bss_param {
 	u32 tsf;
 	u8 noa_enabled;
 	u8 opp_enabled;
-	u8 u8CtWindow;
+	u8 ct_window;
 	u8 u8Count;
 	u8 u8Index;
 	u8 au8Duration[4];
@@ -1185,7 +1185,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		*(pu8CurrByte++) = ptstrJoinBssParam->opp_enabled;
 
 		if (ptstrJoinBssParam->opp_enabled)
-			*(pu8CurrByte++) = ptstrJoinBssParam->u8CtWindow;
+			*(pu8CurrByte++) = ptstrJoinBssParam->ct_window;
 
 		*(pu8CurrByte++) = ptstrJoinBssParam->u8Count;
 
@@ -4948,7 +4948,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 
 				if (pu8IEs[index + 10] & BIT(7)) {
 					pNewJoinBssParam->opp_enabled = 1;
-					pNewJoinBssParam->u8CtWindow = pu8IEs[index + 10];
+					pNewJoinBssParam->ct_window = pu8IEs[index + 10];
 				} else {
 					pNewJoinBssParam->opp_enabled = 0;
 				}
