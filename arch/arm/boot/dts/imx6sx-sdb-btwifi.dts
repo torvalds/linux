@@ -1,0 +1,79 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * NOTE: This DTS file is written for plugging in Murata Wi-Fi/BT EVK into SD3
+ * slot using Murata i.MX InterConnect Ver 1.0 Adapter AND SD Card Extender on
+ * SD2 slot. Bluetooth UART connects via SD3 EMMC/MMC Plus pinout.
+ * WL_REG_ON/BT_REG_ON/WL_HOST_WAKE connect via SD Card Extender.
+ */
+
+#include "imx6sx-sdb.dts"
+
+/ {
+	regulators {
+		wlreg_on: fixedregulator@100 {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-name = "wlreg_on";
+			gpio = <&gpio6 10 0>;
+			startup-delay-us = <100>;
+			enable-active-high;
+		};
+	};
+
+	bcmdhd_wlan_0: bcmdhd_wlan@0 {
+		compatible = "android,bcmdhd_wlan";
+		wlreg_on-supply = <&wlreg_on>;
+	};
+};
+
+&iomuxc {
+	imx6sx-sdb-murata-v1_sdext {
+		/* change MUXing on SD2 slot for control signals. */
+		pinctrl_usdhc2_1: usdhc2grp-1 {
+			fsl,pins = <
+				MX6SX_PAD_SD2_CMD__USDHC2_CMD		0x17059
+				MX6SX_PAD_SD2_CLK__USDHC2_CLK		0x10059
+				MX6SX_PAD_SD2_DATA0__USDHC2_DATA0	0x17059
+			>;
+		};
+
+		/* Murata change SD3 to 4-bit SDIO only; use upper 4-bits for UART. */
+		pinctrl_wifi: wifigrp {
+			fsl,pins = <
+				MX6SX_PAD_SD3_CMD__USDHC3_CMD		0x17069
+				MX6SX_PAD_SD3_CLK__USDHC3_CLK		0x10071
+				MX6SX_PAD_SD3_DATA0__USDHC3_DATA0	0x17069
+				MX6SX_PAD_SD3_DATA1__USDHC3_DATA1	0x17069
+				MX6SX_PAD_SD3_DATA2__USDHC3_DATA2	0x17069
+				MX6SX_PAD_SD3_DATA3__USDHC3_DATA3	0x17069
+				MX6SX_PAD_KEY_COL0__GPIO2_IO_10		0x17059 /* CD */
+				MX6SX_PAD_KEY_ROW0__GPIO2_IO_15		0x17059 /* WP */
+				/* Murata Module control signals */
+				MX6SX_PAD_SD2_DATA2__GPIO6_IO_10	0x13069 /* WL_REG_ON */
+			>;
+		};
+	};
+};
+
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2_1>;
+	bus-width = <1>;
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wifi>;
+	bus-width = <4>;
+	no-1-8-v;	/* force 3.3V VIO */
+	wifi-host;	/* pull in card detect mechanism for BCMDHD driver */
+	status = "okay";
+};

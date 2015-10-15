@@ -1,0 +1,75 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/* NOTE: This DTS file is written for plugging in Murata Wi-Fi/BT EVK into SD1
+ * slot using Murata i.MX InterConnect Ver 1.0 Adapter AND wiring in control
+ * signals with SD Card Extender on SD3 slot.
+ * Bluetooth UART connect via SD1 EMMC/MMC Plus pinout.
+ * WL_REG_ON/BT_REG_ON/WL_HOST_WAKE are connected from SD Card Extender on SD3
+ * slot.
+ */
+#include "imx6sl-evk.dts"
+
+/ {
+	regulators {
+		wlreg_on: fixedregulator@100 {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-name = "wlreg_on";
+			gpio = <&gpio5 16 0>;
+			startup-delay-us = <100>;
+			enable-active-high;
+		};
+	};
+
+	bcmdhd_wlan_0: bcmdhd_wlan@0 {
+		compatible = "android,bcmdhd_wlan";
+		wlreg_on-supply = <&wlreg_on>;
+	};
+};
+
+&iomuxc {
+	imx6sl-evk-murata-v1_sdext {
+		/* Only MUX SD1_DAT0..3 lines so UART4 can be MUXed on higher data lines. */
+		pinctrl_wifi: wifigrp {
+			fsl,pins = <
+				MX6SL_PAD_SD1_CMD__SD1_CMD		0x17059
+				MX6SL_PAD_SD1_CLK__SD1_CLK		0x10059
+				MX6SL_PAD_SD1_DAT0__SD1_DATA0		0x17059
+				MX6SL_PAD_SD1_DAT1__SD1_DATA1		0x17059
+				MX6SL_PAD_SD1_DAT2__SD1_DATA2		0x17059
+				MX6SL_PAD_SD1_DAT3__SD1_DATA3		0x17059
+				MX6SL_PAD_SD3_DAT2__GPIO5_IO16		0x13069 /* WL_REG_ON */
+			>;
+		};
+
+		pinctrl_usdhc3_1: usdhc3grp-1 {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x17059
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x10059
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x17059
+			>;
+		};
+	};
+};
+
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wifi>;
+	bus-width = <4>;
+	no-1-8-v;
+	wifi-host;
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3_1>;
+	bus-width = <1>;
+	no-1-8-v;
+};
