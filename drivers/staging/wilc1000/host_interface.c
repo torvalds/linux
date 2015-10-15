@@ -224,7 +224,7 @@ struct join_bss_param {
 	u8 ct_window;
 	u8 cnt;
 	u8 idx;
-	u8 au8Duration[4];
+	u8 duration[4];
 	u8 au8Interval[4];
 	u8 au8StartTime[4];
 };
@@ -1189,9 +1189,8 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 
 		*(pu8CurrByte++) = ptstrJoinBssParam->cnt;
 
-		memcpy(pu8CurrByte, ptstrJoinBssParam->au8Duration, sizeof(ptstrJoinBssParam->au8Duration));
-
-		pu8CurrByte += sizeof(ptstrJoinBssParam->au8Duration);
+		memcpy(pu8CurrByte, ptstrJoinBssParam->duration, sizeof(ptstrJoinBssParam->duration));
+		pu8CurrByte += sizeof(ptstrJoinBssParam->duration);
 
 		memcpy(pu8CurrByte, ptstrJoinBssParam->au8Interval, sizeof(ptstrJoinBssParam->au8Interval));
 
@@ -4960,7 +4959,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 				pNewJoinBssParam->cnt = pu8IEs[index + 11];
 				u16P2P_count = index + 12;
 
-				memcpy(pNewJoinBssParam->au8Duration, pu8IEs + u16P2P_count, 4);
+				memcpy(pNewJoinBssParam->duration, pu8IEs + u16P2P_count, 4);
 				u16P2P_count += 4;
 
 				memcpy(pNewJoinBssParam->au8Interval, pu8IEs + u16P2P_count, 4);
