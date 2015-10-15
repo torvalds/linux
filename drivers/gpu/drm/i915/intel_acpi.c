@@ -146,7 +146,7 @@ static bool intel_dsm_detect(void)
 
 	if (vga_count == 2 && has_dsm) {
 		acpi_get_name(intel_dsm_priv.dhandle, ACPI_FULL_PATHNAME, &buffer);
-		DRM_DEBUG_DRIVER("VGA switcheroo: detected DSM switching method %s handle\n",
+		DRM_DEBUG_DRIVER("vga_switcheroo: detected DSM switching method %s handle\n",
 				 acpi_method_name);
 		return true;
 	}

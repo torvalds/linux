@@ -1138,13 +1138,13 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder)
 
 	j = 0;
 	for (i = 0; i < 60; i++)
-		I915_WRITE(TV_H_LUMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_H_LUMA(i), tv_mode->filter_table[j++]);
 	for (i = 0; i < 60; i++)
-		I915_WRITE(TV_H_CHROMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_H_CHROMA(i), tv_mode->filter_table[j++]);
 	for (i = 0; i < 43; i++)
-		I915_WRITE(TV_V_LUMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_V_LUMA(i), tv_mode->filter_table[j++]);
 	for (i = 0; i < 43; i++)
-		I915_WRITE(TV_V_CHROMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_V_CHROMA(i), tv_mode->filter_table[j++]);
 	I915_WRITE(TV_DAC, I915_READ(TV_DAC) & TV_DAC_SAVE);
 	I915_WRITE(TV_CTL, tv_ctl);
 }

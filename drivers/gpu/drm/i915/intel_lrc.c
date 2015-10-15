@@ -221,6 +221,9 @@ enum {
 #define CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT  0x17
 
 static int intel_lr_context_pin(struct drm_i915_gem_request *rq);
+static void lrc_setup_hardware_status_page(struct intel_engine_cs *ring,
+		struct drm_i915_gem_object *default_ctx_obj);
+
 
 /**
  * intel_sanitize_enable_execlists() - sanitize i915.enable_execlists
@@ -277,10 +280,18 @@ u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj)
 	return lrca >> 12;
 }
 
+static bool disable_lite_restore_wa(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+
+	return ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) ||
+		(IS_BROXTON(dev) && INTEL_REVID(dev) == BXT_REVID_A0)) &&
+	       (ring->id == VCS || ring->id == VCS2);
+}
+
 uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 				     struct intel_engine_cs *ring)
 {
-	struct drm_device *dev = ring->dev;
 	struct drm_i915_gem_object *ctx_obj = ctx->engine[ring->id].state;
 	uint64_t desc;
 	uint64_t lrca = i915_gem_obj_ggtt_offset(ctx_obj) +
@@ -301,10 +312,8 @@ uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 	/* desc |= GEN8_CTX_FORCE_RESTORE; */
 
 	/* WaEnableForceRestoreInCtxtDescForVCS:skl */
-	if (IS_GEN9(dev) &&
-	    INTEL_REVID(dev) <= SKL_REVID_B0 &&
-	    (ring->id == BCS || ring->id == VCS ||
-	    ring->id == VECS || ring->id == VCS2))
+	/* WaEnableForceRestoreInCtxtDescForVCS:bxt */
+	if (disable_lite_restore_wa(ring))
 		desc |= GEN8_CTX_FORCE_RESTORE;
 
 	return desc;
@@ -340,7 +349,7 @@ static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
 	I915_WRITE_FW(RING_ELSP(ring), lower_32_bits(desc[0]));
 
 	/* ELSP is a wo register, use another nearby reg for posting */
-	POSTING_READ_FW(RING_EXECLIST_STATUS(ring));
+	POSTING_READ_FW(RING_EXECLIST_STATUS_LO(ring));
 	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
 	spin_unlock(&dev_priv->uncore.lock);
 }
@@ -495,7 +504,7 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 	u32 status_pointer;
 	u8 read_pointer;
 	u8 write_pointer;
-	u32 status;
+	u32 status = 0;
 	u32 status_id;
 	u32 submit_contexts = 0;
 
@@ -510,10 +519,8 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 
 	while (read_pointer < write_pointer) {
 		read_pointer++;
-		status = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
-				(read_pointer % 6) * 8);
-		status_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
-				(read_pointer % 6) * 8 + 4);
+		status = I915_READ(RING_CONTEXT_STATUS_BUF_LO(ring, read_pointer % 6));
+		status_id = I915_READ(RING_CONTEXT_STATUS_BUF_HI(ring, read_pointer % 6));
 
 		if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
 			continue;
@@ -533,8 +540,14 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 		}
 	}
 
-	if (submit_contexts != 0)
+	if (disable_lite_restore_wa(ring)) {
+		/* Prevent a ctx to preempt itself */
+		if ((status & GEN8_CTX_STATUS_ACTIVE_IDLE) &&
+		    (submit_contexts != 0))
+			execlists_context_unqueue(ring);
+	} else if (submit_contexts != 0) {
 		execlists_context_unqueue(ring);
+	}
 
 	spin_unlock(&ring->execlist_lock);
 
@@ -787,8 +800,7 @@ static int logical_ring_prepare(struct drm_i915_gem_request *req, int bytes)
 /**
  * intel_logical_ring_begin() - prepare the logical ringbuffer to accept some commands
  *
- * @request: The request to start some new work for
- * @ctx: Logical ring context whose ringbuffer is being prepared.
+ * @req: The request to start some new work for
  * @num_dwords: number of DWORDs that we plan to write to the ringbuffer.
  *
  * The ringbuffer might not be ready to accept the commands right away (maybe it needs to
@@ -1008,39 +1020,54 @@ int logical_ring_flush_all_caches(struct drm_i915_gem_request *req)
 	return 0;
 }
 
-static int intel_lr_context_pin(struct drm_i915_gem_request *rq)
+static int intel_lr_context_do_pin(struct intel_engine_cs *ring,
+		struct drm_i915_gem_object *ctx_obj,
+		struct intel_ringbuffer *ringbuf)
 {
-	struct drm_i915_private *dev_priv = rq->i915;
-	struct intel_engine_cs *ring = rq->ring;
-	struct drm_i915_gem_object *ctx_obj = rq->ctx->engine[ring->id].state;
-	struct intel_ringbuffer *ringbuf = rq->ringbuf;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
 	WARN_ON(!mutex_is_locked(&ring->dev->struct_mutex));
-	if (rq->ctx->engine[ring->id].pin_count++ == 0) {
-		ret = i915_gem_obj_ggtt_pin(ctx_obj, GEN8_LR_CONTEXT_ALIGN,
-				PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
-		if (ret)
-			goto reset_pin_count;
+	ret = i915_gem_obj_ggtt_pin(ctx_obj, GEN8_LR_CONTEXT_ALIGN,
+			PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+	if (ret)
+		return ret;
 
-		ret = intel_pin_and_map_ringbuffer_obj(ring->dev, ringbuf);
-		if (ret)
-			goto unpin_ctx_obj;
+	ret = intel_pin_and_map_ringbuffer_obj(ring->dev, ringbuf);
+	if (ret)
+		goto unpin_ctx_obj;
 
-		ctx_obj->dirty = true;
+	ctx_obj->dirty = true;
 
-		/* Invalidate GuC TLB. */
-		if (i915.enable_guc_submission)
-			I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
-	}
+	/* Invalidate GuC TLB. */
+	if (i915.enable_guc_submission)
+		I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
 
 	return ret;
 
 unpin_ctx_obj:
 	i915_gem_object_ggtt_unpin(ctx_obj);
+
+	return ret;
+}
+
+static int intel_lr_context_pin(struct drm_i915_gem_request *rq)
+{
+	int ret = 0;
+	struct intel_engine_cs *ring = rq->ring;
+	struct drm_i915_gem_object *ctx_obj = rq->ctx->engine[ring->id].state;
+	struct intel_ringbuffer *ringbuf = rq->ringbuf;
+
+	if (rq->ctx->engine[ring->id].pin_count++ == 0) {
+		ret = intel_lr_context_do_pin(ring, ctx_obj, ringbuf);
+		if (ret)
+			goto reset_pin_count;
+	}
+	return ret;
+
 reset_pin_count:
 	rq->ctx->engine[ring->id].pin_count = 0;
-
 	return ret;
 }
 
@@ -1225,9 +1252,10 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *ring,
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:bdw */
 	if (IS_BROADWELL(ring->dev)) {
-		index = gen8_emit_flush_coherentl3_wa(ring, batch, index);
-		if (index < 0)
-			return index;
+		int rc = gen8_emit_flush_coherentl3_wa(ring, batch, index);
+		if (rc < 0)
+			return rc;
+		index = rc;
 	}
 
 	/* WaClearSlmSpaceAtContextSwitch:bdw,chv */
@@ -1449,6 +1477,9 @@ static int gen8_init_common_ring(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	lrc_setup_hardware_status_page(ring,
+				ring->default_context->engine[ring->id].state);
 
 	I915_WRITE_IMR(ring, ~(ring->irq_enable_mask | ring->irq_keep_mask));
 	I915_WRITE(RING_HWSTAM(ring->mmio_base), 0xffffffff);
@@ -1889,7 +1920,21 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 	if (ret)
 		return ret;
 
-	ret = intel_lr_context_deferred_create(ring->default_context, ring);
+	ret = intel_lr_context_deferred_alloc(ring->default_context, ring);
+	if (ret)
+		return ret;
+
+	/* As this is the default context, always pin it */
+	ret = intel_lr_context_do_pin(
+			ring,
+			ring->default_context->engine[ring->id].state,
+			ring->default_context->engine[ring->id].ringbuf);
+	if (ret) {
+		DRM_ERROR(
+			"Failed to pin and map ringbuffer %s: %d\n",
+			ring->name, ret);
+		return ret;
+	}
 
 	return ret;
 }
@@ -2112,14 +2157,8 @@ int intel_logical_rings_init(struct drm_device *dev)
 			goto cleanup_vebox_ring;
 	}
 
-	ret = i915_gem_set_seqno(dev, ((u32)~0 - 0x1000));
-	if (ret)
-		goto cleanup_bsd2_ring;
-
 	return 0;
 
-cleanup_bsd2_ring:
-	intel_logical_ring_cleanup(&dev_priv->ring[VCS2]);
 cleanup_vebox_ring:
 	intel_logical_ring_cleanup(&dev_priv->ring[VECS]);
 cleanup_blt_ring:
@@ -2389,7 +2428,7 @@ static void lrc_setup_hardware_status_page(struct intel_engine_cs *ring,
 }
 
 /**
- * intel_lr_context_deferred_create() - create the LRC specific bits of a context
+ * intel_lr_context_deferred_alloc() - create the LRC specific bits of a context
  * @ctx: LR context to create.
  * @ring: engine to be used with the context.
  *
@@ -2401,12 +2440,11 @@ static void lrc_setup_hardware_status_page(struct intel_engine_cs *ring,
  *
  * Return: non-zero on error.
  */
-int intel_lr_context_deferred_create(struct intel_context *ctx,
+
+int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 				     struct intel_engine_cs *ring)
 {
-	const bool is_global_default_ctx = (ctx == ring->default_context);
 	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *ctx_obj;
 	uint32_t context_size;
 	struct intel_ringbuffer *ringbuf;
@@ -2426,82 +2464,49 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 		return -ENOMEM;
 	}
 
-	if (is_global_default_ctx) {
-		ret = i915_gem_obj_ggtt_pin(ctx_obj, GEN8_LR_CONTEXT_ALIGN,
-				PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
-		if (ret) {
-			DRM_DEBUG_DRIVER("Pin LRC backing obj failed: %d\n",
-					ret);
-			drm_gem_object_unreference(&ctx_obj->base);
-			return ret;
-		}
-
-		/* Invalidate GuC TLB. */
-		if (i915.enable_guc_submission)
-			I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
-	}
-
 	ringbuf = intel_engine_create_ringbuffer(ring, 4 * PAGE_SIZE);
 	if (IS_ERR(ringbuf)) {
 		ret = PTR_ERR(ringbuf);
-		goto error_unpin_ctx;
-	}
-
-	if (is_global_default_ctx) {
-		ret = intel_pin_and_map_ringbuffer_obj(dev, ringbuf);
-		if (ret) {
-			DRM_ERROR(
-				  "Failed to pin and map ringbuffer %s: %d\n",
-				  ring->name, ret);
-			goto error_ringbuf;
-		}
+		goto error_deref_obj;
 	}
 
 	ret = populate_lr_context(ctx, ctx_obj, ring, ringbuf);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Failed to populate LRC: %d\n", ret);
-		goto error;
+		goto error_ringbuf;
 	}
 
 	ctx->engine[ring->id].ringbuf = ringbuf;
 	ctx->engine[ring->id].state = ctx_obj;
 
-	if (ctx == ring->default_context)
-		lrc_setup_hardware_status_page(ring, ctx_obj);
-	else if (ring->id == RCS && !ctx->rcs_initialized) {
-		if (ring->init_context) {
-			struct drm_i915_gem_request *req;
+	if (ctx != ring->default_context && ring->init_context) {
+		struct drm_i915_gem_request *req;
 
-			ret = i915_gem_request_alloc(ring, ctx, &req);
-			if (ret)
-				return ret;
-
-			ret = ring->init_context(req);
-			if (ret) {
-				DRM_ERROR("ring init context: %d\n", ret);
-				i915_gem_request_cancel(req);
-				ctx->engine[ring->id].ringbuf = NULL;
-				ctx->engine[ring->id].state = NULL;
-				goto error;
-			}
-
-			i915_add_request_no_flush(req);
+		ret = i915_gem_request_alloc(ring,
+			ctx, &req);
+		if (ret) {
+			DRM_ERROR("ring create req: %d\n",
+				ret);
+			goto error_ringbuf;
 		}
 
-		ctx->rcs_initialized = true;
+		ret = ring->init_context(req);
+		if (ret) {
+			DRM_ERROR("ring init context: %d\n",
+				ret);
+			i915_gem_request_cancel(req);
+			goto error_ringbuf;
+		}
+		i915_add_request_no_flush(req);
 	}
-
 	return 0;
 
-error:
-	if (is_global_default_ctx)
-		intel_unpin_ringbuffer_obj(ringbuf);
 error_ringbuf:
 	intel_ringbuffer_free(ringbuf);
-error_unpin_ctx:
-	if (is_global_default_ctx)
-		i915_gem_object_ggtt_unpin(ctx_obj);
+error_deref_obj:
 	drm_gem_object_unreference(&ctx_obj->base);
+	ctx->engine[ring->id].ringbuf = NULL;
+	ctx->engine[ring->id].state = NULL;
 	return ret;
 }
 

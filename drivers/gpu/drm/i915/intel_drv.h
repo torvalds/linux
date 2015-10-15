@@ -338,6 +338,8 @@ struct intel_crtc_state {
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
 	unsigned long quirks;
 
+	bool update_pipe;
+
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
 	 * and get clipped at the edges. */
@@ -535,6 +537,8 @@ struct intel_crtc {
 	 * gen4+ this only adjusts up to a tile, offsets within a tile are
 	 * handled in the hw itself (with the TILEOFF register). */
 	unsigned long dspaddr_offset;
+	int adjusted_x;
+	int adjusted_y;
 
 	struct drm_i915_gem_object *cursor_bo;
 	uint32_t cursor_addr;
@@ -563,8 +567,12 @@ struct intel_crtc {
 
 	int scanline_offset;
 
-	unsigned start_vbl_count;
-	ktime_t start_vbl_time;
+	struct {
+		unsigned start_vbl_count;
+		ktime_t start_vbl_time;
+		int min_vbl, max_vbl;
+		int scanline_start;
+	} debug;
 
 	struct intel_crtc_atomic_commit atomic;
 
@@ -1079,7 +1087,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 
 unsigned int
 intel_tile_height(struct drm_device *dev, uint32_t pixel_format,
-		  uint64_t fb_format_modifier);
+		  uint64_t fb_format_modifier, unsigned int plane);
 
 static inline bool
 intel_rotation_90_or_270(unsigned int rotation)
@@ -1160,7 +1168,9 @@ int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
 int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state);
 
 unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
-				     struct drm_i915_gem_object *obj);
+				     struct drm_i915_gem_object *obj,
+				     unsigned int plane);
+
 u32 skl_plane_ctl_format(uint32_t pixel_format);
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
 u32 skl_plane_ctl_rotation(unsigned int rotation);
@@ -1210,6 +1220,8 @@ void intel_edp_drrs_disable(struct intel_dp *intel_dp);
 void intel_edp_drrs_invalidate(struct drm_device *dev,
 		unsigned frontbuffer_bits);
 void intel_edp_drrs_flush(struct drm_device *dev, unsigned frontbuffer_bits);
+bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
+					 struct intel_digital_port *port);
 void hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config);
 
 /* intel_dp_mst.c */

@@ -541,16 +541,13 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	struct intel_crtc *intel_crtc;
 	unsigned int max_size = 0;
 
-	if (!i915.fastboot)
-		return false;
-
 	/* Find the largest fb */
 	for_each_crtc(dev, crtc) {
 		struct drm_i915_gem_object *obj =
 			intel_fb_obj(crtc->primary->state->fb);
 		intel_crtc = to_intel_crtc(crtc);
 
-		if (!intel_crtc->active || !obj) {
+		if (!crtc->state->active || !obj) {
 			DRM_DEBUG_KMS("pipe %c not active or no fb, skipping\n",
 				      pipe_name(intel_crtc->pipe));
 			continue;
@@ -575,7 +572,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 		intel_crtc = to_intel_crtc(crtc);
 
-		if (!intel_crtc->active) {
+		if (!crtc->state->active) {
 			DRM_DEBUG_KMS("pipe %c not active, skipping\n",
 				      pipe_name(intel_crtc->pipe));
 			continue;
@@ -638,7 +635,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	for_each_crtc(dev, crtc) {
 		intel_crtc = to_intel_crtc(crtc);
 
-		if (!intel_crtc->active)
+		if (!crtc->state->active)
 			continue;
 
 		WARN(!crtc->primary->fb,

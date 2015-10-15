@@ -557,7 +557,7 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 		usleep_range(2000, 2500);
 	}
 
-	vlv_disable_dsi_pll(encoder);
+	intel_disable_dsi_pll(encoder);
 }
 
 static void intel_dsi_post_disable(struct intel_encoder *encoder)
@@ -737,6 +737,21 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	hbp = txbyteclkhs(hbp, bpp, lane_count, intel_dsi->burst_mode_ratio);
 
 	for_each_dsi_port(port, intel_dsi->ports) {
+		if (IS_BROXTON(dev)) {
+			/*
+			 * Program hdisplay and vdisplay on MIPI transcoder.
+			 * This is different from calculated hactive and
+			 * vactive, as they are calculated per channel basis,
+			 * whereas these values should be based on resolution.
+			 */
+			I915_WRITE(BXT_MIPI_TRANS_HACTIVE(port),
+					mode->hdisplay);
+			I915_WRITE(BXT_MIPI_TRANS_VACTIVE(port),
+					mode->vdisplay);
+			I915_WRITE(BXT_MIPI_TRANS_VTOTAL(port),
+					mode->vtotal);
+		}
+
 		I915_WRITE(MIPI_HACTIVE_AREA_COUNT(port), hactive);
 		I915_WRITE(MIPI_HFP_COUNT(port), hfp);
 
@@ -777,16 +792,39 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		/* escape clock divider, 20MHz, shared for A and C.
-		 * device ready must be off when doing this! txclkesc? */
-		tmp = I915_READ(MIPI_CTRL(PORT_A));
-		tmp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
-		I915_WRITE(MIPI_CTRL(PORT_A), tmp | ESCAPE_CLOCK_DIVIDER_1);
+		if (IS_VALLEYVIEW(dev)) {
+			/*
+			 * escape clock divider, 20MHz, shared for A and C.
+			 * device ready must be off when doing this! txclkesc?
+			 */
+			tmp = I915_READ(MIPI_CTRL(PORT_A));
+			tmp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
+			I915_WRITE(MIPI_CTRL(PORT_A), tmp |
+					ESCAPE_CLOCK_DIVIDER_1);
 
-		/* read request priority is per pipe */
-		tmp = I915_READ(MIPI_CTRL(port));
-		tmp &= ~READ_REQUEST_PRIORITY_MASK;
-		I915_WRITE(MIPI_CTRL(port), tmp | READ_REQUEST_PRIORITY_HIGH);
+			/* read request priority is per pipe */
+			tmp = I915_READ(MIPI_CTRL(port));
+			tmp &= ~READ_REQUEST_PRIORITY_MASK;
+			I915_WRITE(MIPI_CTRL(port), tmp |
+					READ_REQUEST_PRIORITY_HIGH);
+		} else if (IS_BROXTON(dev)) {
+			/*
+			 * FIXME:
+			 * BXT can connect any PIPE to any MIPI port.
+			 * Select the pipe based on the MIPI port read from
+			 * VBT for now. Pick PIPE A for MIPI port A and C
+			 * for port C.
+			 */
+			tmp = I915_READ(MIPI_CTRL(port));
+			tmp &= ~BXT_PIPE_SELECT_MASK;
+
+			if (port == PORT_A)
+				tmp |= BXT_PIPE_SELECT_A;
+			else if (port == PORT_C)
+				tmp |= BXT_PIPE_SELECT_C;
+
+			I915_WRITE(MIPI_CTRL(port), tmp);
+		}
 
 		/* XXX: why here, why like this? handling in irq handler?! */
 		I915_WRITE(MIPI_INTR_STAT(port), 0xffffffff);
@@ -863,6 +901,17 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 		I915_WRITE(MIPI_INIT_COUNT(port),
 				txclkesc(intel_dsi->escape_clk_div, 100));
 
+		if (IS_BROXTON(dev) && (!intel_dsi->dual_link)) {
+			/*
+			 * BXT spec says write MIPI_INIT_COUNT for
+			 * both the ports, even if only one is
+			 * getting used. So write the other port
+			 * if not in dual link mode.
+			 */
+			I915_WRITE(MIPI_INIT_COUNT(port ==
+						PORT_A ? PORT_C : PORT_A),
+					intel_dsi->init_count);
+		}
 
 		/* recovery disables */
 		I915_WRITE(MIPI_EOT_DISABLE(port), tmp);
@@ -914,8 +963,8 @@ static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 
 	intel_dsi_prepare(encoder);
+	intel_enable_dsi_pll(encoder);
 
-	vlv_enable_dsi_pll(encoder);
 }
 
 static enum drm_connector_status

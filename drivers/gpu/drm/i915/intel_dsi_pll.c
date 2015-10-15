@@ -246,7 +246,7 @@ static void vlv_configure_dsi_pll(struct intel_encoder *encoder)
 	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, dsi_mnp.dsi_pll_ctrl);
 }
 
-void vlv_enable_dsi_pll(struct intel_encoder *encoder)
+static void vlv_enable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	u32 tmp;
@@ -276,7 +276,7 @@ void vlv_enable_dsi_pll(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("DSI PLL locked\n");
 }
 
-void vlv_disable_dsi_pll(struct intel_encoder *encoder)
+static void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	u32 tmp;
@@ -291,6 +291,26 @@ void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, tmp);
 
 	mutex_unlock(&dev_priv->sb_lock);
+}
+
+static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	u32 val;
+
+	DRM_DEBUG_KMS("\n");
+
+	val = I915_READ(BXT_DSI_PLL_ENABLE);
+	val &= ~BXT_DSI_PLL_DO_ENABLE;
+	I915_WRITE(BXT_DSI_PLL_ENABLE, val);
+
+	/*
+	 * PLL lock should deassert within 200us.
+	 * Wait up to 1ms before timing out.
+	 */
+	if (wait_for((I915_READ(BXT_DSI_PLL_ENABLE)
+					& BXT_DSI_PLL_LOCKED) == 0, 1))
+		DRM_ERROR("Timeout waiting for PLL lock deassertion\n");
 }
 
 static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
@@ -362,4 +382,107 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	pclk = DIV_ROUND_CLOSEST(dsi_clock * intel_dsi->lane_count, pipe_bpp);
 
 	return pclk;
+}
+
+static bool bxt_configure_dsi_pll(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u8 dsi_ratio;
+	u32 dsi_clk;
+	u32 val;
+
+	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
+			intel_dsi->lane_count);
+
+	/*
+	 * From clock diagram, to get PLL ratio divider, divide double of DSI
+	 * link rate (i.e., 2*8x=16x frequency value) by ref clock. Make sure to
+	 * round 'up' the result
+	 */
+	dsi_ratio = DIV_ROUND_UP(dsi_clk * 2, BXT_REF_CLOCK_KHZ);
+	if (dsi_ratio < BXT_DSI_PLL_RATIO_MIN ||
+			dsi_ratio > BXT_DSI_PLL_RATIO_MAX) {
+		DRM_ERROR("Cant get a suitable ratio from DSI PLL ratios\n");
+		return false;
+	}
+
+	/*
+	 * Program DSI ratio and Select MIPIC and MIPIA PLL output as 8x
+	 * Spec says both have to be programmed, even if one is not getting
+	 * used. Configure MIPI_CLOCK_CTL dividers in modeset
+	 */
+	val = I915_READ(BXT_DSI_PLL_CTL);
+	val &= ~BXT_DSI_PLL_PVD_RATIO_MASK;
+	val &= ~BXT_DSI_FREQ_SEL_MASK;
+	val &= ~BXT_DSI_PLL_RATIO_MASK;
+	val |= (dsi_ratio | BXT_DSIA_16X_BY2 | BXT_DSIC_16X_BY2);
+
+	/* As per recommendation from hardware team,
+	 * Prog PVD ratio =1 if dsi ratio <= 50
+	 */
+	if (dsi_ratio <= 50) {
+		val &= ~BXT_DSI_PLL_PVD_RATIO_MASK;
+		val |= BXT_DSI_PLL_PVD_RATIO_1;
+	}
+
+	I915_WRITE(BXT_DSI_PLL_CTL, val);
+	POSTING_READ(BXT_DSI_PLL_CTL);
+
+	return true;
+}
+
+static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	u32 val;
+
+	DRM_DEBUG_KMS("\n");
+
+	val = I915_READ(BXT_DSI_PLL_ENABLE);
+
+	if (val & BXT_DSI_PLL_DO_ENABLE) {
+		WARN(1, "DSI PLL already enabled. Disabling it.\n");
+		val &= ~BXT_DSI_PLL_DO_ENABLE;
+		I915_WRITE(BXT_DSI_PLL_ENABLE, val);
+	}
+
+	/* Configure PLL vales */
+	if (!bxt_configure_dsi_pll(encoder)) {
+		DRM_ERROR("Configure DSI PLL failed, abort PLL enable\n");
+		return;
+	}
+
+	/* Enable DSI PLL */
+	val = I915_READ(BXT_DSI_PLL_ENABLE);
+	val |= BXT_DSI_PLL_DO_ENABLE;
+	I915_WRITE(BXT_DSI_PLL_ENABLE, val);
+
+	/* Timeout and fail if PLL not locked */
+	if (wait_for(I915_READ(BXT_DSI_PLL_ENABLE) & BXT_DSI_PLL_LOCKED, 1)) {
+		DRM_ERROR("Timed out waiting for DSI PLL to lock\n");
+		return;
+	}
+
+	DRM_DEBUG_KMS("DSI PLL locked\n");
+}
+
+void intel_enable_dsi_pll(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+
+	if (IS_VALLEYVIEW(dev))
+		vlv_enable_dsi_pll(encoder);
+	else if (IS_BROXTON(dev))
+		bxt_enable_dsi_pll(encoder);
+}
+
+void intel_disable_dsi_pll(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+
+	if (IS_VALLEYVIEW(dev))
+		vlv_disable_dsi_pll(encoder);
+	else if (IS_BROXTON(dev))
+		bxt_disable_dsi_pll(encoder);
 }

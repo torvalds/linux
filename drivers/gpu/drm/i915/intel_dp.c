@@ -4583,6 +4583,9 @@ static bool cpt_digital_port_connected(struct drm_i915_private *dev_priv,
 	case PORT_D:
 		bit = SDE_PORTD_HOTPLUG_CPT;
 		break;
+	case PORT_E:
+		bit = SDE_PORTE_HOTPLUG_SPT;
+		break;
 	default:
 		MISSING_CASE(port->port);
 		return false;
@@ -4638,11 +4641,14 @@ static bool vlv_digital_port_connected(struct drm_i915_private *dev_priv,
 }
 
 static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+				       struct intel_digital_port *intel_dig_port)
 {
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	enum port port;
 	u32 bit;
 
-	switch (port->port) {
+	intel_hpd_pin_to_port(intel_encoder->hpd_pin, &port);
+	switch (port) {
 	case PORT_A:
 		bit = BXT_DE_PORT_HP_DDIA;
 		break;
@@ -4653,7 +4659,7 @@ static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
 		bit = BXT_DE_PORT_HP_DDIC;
 		break;
 	default:
-		MISSING_CASE(port->port);
+		MISSING_CASE(port);
 		return false;
 	}
 
@@ -4667,7 +4673,7 @@ static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
  *
  * Return %true if @port is connected, %false otherwise.
  */
-static bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
+bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
 					 struct intel_digital_port *port)
 {
 	if (HAS_PCH_IBX(dev_priv))
@@ -5249,6 +5255,13 @@ bool intel_dp_is_edp(struct drm_device *dev, enum port port)
 		[PORT_D] = DVO_PORT_DPD,
 		[PORT_E] = DVO_PORT_DPE,
 	};
+
+	/*
+	 * eDP not supported on g4x. so bail out early just
+	 * for a bit extra safety in case the VBT is bonkers.
+	 */
+	if (INTEL_INFO(dev)->gen < 5)
+		return false;
 
 	if (port == PORT_A)
 		return true;

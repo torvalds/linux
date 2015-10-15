@@ -1527,7 +1527,7 @@ enum skl_disp_power_wells {
 #define GEN7_GFX_PEND_TLB0	0x4034
 #define GEN7_GFX_PEND_TLB1	0x4038
 /* L3, CVS, ZTLB, RCC, CASC LRA min, max values */
-#define GEN7_LRA_LIMITS_BASE	0x403C
+#define GEN7_LRA_LIMITS(i)	(0x403C + (i) * 4)
 #define GEN7_LRA_LIMITS_REG_NUM	13
 #define GEN7_MEDIA_MAX_REQ_COUNT	0x4070
 #define GEN7_GFX_MAX_REQ_COUNT		0x4074
@@ -2011,7 +2011,7 @@ enum skl_disp_power_wells {
 #define   FBC_CTL_CPU_FENCE	(1<<1)
 #define   FBC_CTL_PLANE(plane)	((plane)<<0)
 #define FBC_FENCE_OFF		0x03218 /* BSpec typo has 321Bh */
-#define FBC_TAG			0x03300
+#define FBC_TAG(i)		(0x03300 + (i) * 4)
 
 #define FBC_STATUS2		0x43214
 #define  FBC_COMPRESSION_MASK	0x7ff
@@ -2494,6 +2494,11 @@ enum skl_disp_power_wells {
 
 #define MCHBAR_MIRROR_BASE_SNB	0x140000
 
+#define CTG_STOLEN_RESERVED		(MCHBAR_MIRROR_BASE + 0x34)
+#define ELK_STOLEN_RESERVED		(MCHBAR_MIRROR_BASE + 0x48)
+#define G4X_STOLEN_RESERVED_ADDR1_MASK	(0xFFFF << 16)
+#define G4X_STOLEN_RESERVED_ADDR2_MASK	(0xFFF << 4)
+
 /* Memory controller frequency in MCHBAR for Haswell (possible SNB+) */
 #define DCLK (MCHBAR_MIRROR_BASE_SNB + 0x5e04)
 
@@ -2574,7 +2579,7 @@ enum skl_disp_power_wells {
 #define   TSFS_INTR_MASK	0x000000ff
 
 #define CRSTANDVID		0x11100
-#define PXVFREQ_BASE		0x11110 /* P[0-15]VIDFREQ (0x1114c) (Ironlake) */
+#define PXVFREQ(i)		(0x11110 + (i) * 4) /* P[0-15]VIDFREQ (0x1114c) (Ironlake) */
 #define   PXVFREQ_PX_MASK	0x7f000000
 #define   PXVFREQ_PX_SHIFT	24
 #define VIDFREQ_BASE		0x11110
@@ -2758,8 +2763,8 @@ enum skl_disp_power_wells {
 #define CSIEW0			0x11250
 #define CSIEW1			0x11254
 #define CSIEW2			0x11258
-#define PEW			0x1125c
-#define DEW			0x11270
+#define PEW(i)			(0x1125c + (i) * 4) /* 5 registers */
+#define DEW(i)			(0x11270 + (i) * 4) /* 3 registers */
 #define MCHAFE			0x112c0
 #define CSIEC			0x112e0
 #define DMIEC			0x112e4
@@ -2783,8 +2788,8 @@ enum skl_disp_power_wells {
 #define EG5			0x11624
 #define EG6			0x11628
 #define EG7			0x1162c
-#define PXW			0x11664
-#define PXWL			0x11680
+#define PXW(i)			(0x11664 + (i) * 4) /* 4 registers */
+#define PXWL(i)			(0x11680 + (i) * 4) /* 8 registers */
 #define LCFUSE02		0x116c0
 #define   LCFUSE_HIV_MASK	0x000000ff
 #define CSIPLL0			0x12c10
@@ -4077,14 +4082,10 @@ enum skl_disp_power_wells {
 # define TV_CC_DATA_1_MASK		0x0000007f
 # define TV_CC_DATA_1_SHIFT		0
 
-#define TV_H_LUMA_0		0x68100
-#define TV_H_LUMA_59		0x681ec
-#define TV_H_CHROMA_0		0x68200
-#define TV_H_CHROMA_59		0x682ec
-#define TV_V_LUMA_0		0x68300
-#define TV_V_LUMA_42		0x683a8
-#define TV_V_CHROMA_0		0x68400
-#define TV_V_CHROMA_42		0x684a8
+#define TV_H_LUMA(i)		(0x68100 + (i) * 4) /* 60 registers */
+#define TV_H_CHROMA(i)		(0x68200 + (i) * 4) /* 60 registers */
+#define TV_V_LUMA(i)		(0x68300 + (i) * 4) /* 43 registers */
+#define TV_V_CHROMA(i)		(0x68400 + (i) * 4) /* 43 registers */
 
 /* Display Port */
 #define DP_A				0x64000 /* eDP */
@@ -6808,7 +6809,7 @@ enum skl_disp_power_wells {
 						 GEN6_PM_RP_DOWN_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
 
-#define GEN7_GT_SCRATCH_BASE			0x4F100
+#define GEN7_GT_SCRATCH(i)			(0x4F100 + (i) * 4)
 #define GEN7_GT_SCRATCH_REG_NUM			8
 
 #define VLV_GTLC_SURVIVABILITY_REG              0x130098
@@ -6897,6 +6898,7 @@ enum skl_disp_power_wells {
 #define   GEN7_DOP_CLOCK_GATE_ENABLE		(1<<0)
 #define   GEN8_DOP_CLOCK_GATE_CFCLK_ENABLE	(1<<2)
 #define   GEN8_DOP_CLOCK_GATE_GUC_ENABLE	(1<<4)
+#define   GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE     (1<<6)
 
 #define GEN8_GARBCNTL                   0xB004
 #define   GEN9_GAPS_TSV_CREDIT_DISABLE  (1<<7)
@@ -6941,6 +6943,9 @@ enum skl_disp_power_wells {
 
 #define HSW_ROW_CHICKEN3		0xe49c
 #define  HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE    (1 << 6)
+
+#define HALF_SLICE_CHICKEN2		0xe180
+#define   GEN8_ST_PO_DISABLE		(1<<13)
 
 #define HALF_SLICE_CHICKEN3		0xe184
 #define   HSW_SAMPLE_C_PERFORMANCE	(1<<9)
@@ -7192,7 +7197,8 @@ enum skl_disp_power_wells {
 /* DDI Buffer Translations */
 #define DDI_BUF_TRANS_A				0x64E00
 #define DDI_BUF_TRANS_B				0x64E60
-#define DDI_BUF_TRANS(port) _PORT(port, DDI_BUF_TRANS_A, DDI_BUF_TRANS_B)
+#define DDI_BUF_TRANS_LO(port, i) (_PORT(port, DDI_BUF_TRANS_A, DDI_BUF_TRANS_B) + (i) * 8)
+#define DDI_BUF_TRANS_HI(port, i) (_PORT(port, DDI_BUF_TRANS_A, DDI_BUF_TRANS_B) + (i) * 8 + 4)
 
 /* Sideband Interface (SBI) is programmed indirectly, via
  * SBI_ADDR, which contains the register offset; and SBI_DATA,
@@ -7502,6 +7508,44 @@ enum skl_disp_power_wells {
 /* MIPI DSI registers */
 
 #define _MIPI_PORT(port, a, c)	_PORT3(port, a, 0, c)	/* ports A and C only */
+
+/* BXT MIPI mode configure */
+#define  _BXT_MIPIA_TRANS_HACTIVE			0x6B0F8
+#define  _BXT_MIPIC_TRANS_HACTIVE			0x6B8F8
+#define  BXT_MIPI_TRANS_HACTIVE(tc)	_MIPI_PORT(tc, \
+		_BXT_MIPIA_TRANS_HACTIVE, _BXT_MIPIC_TRANS_HACTIVE)
+
+#define  _BXT_MIPIA_TRANS_VACTIVE			0x6B0FC
+#define  _BXT_MIPIC_TRANS_VACTIVE			0x6B8FC
+#define  BXT_MIPI_TRANS_VACTIVE(tc)	_MIPI_PORT(tc, \
+		_BXT_MIPIA_TRANS_VACTIVE, _BXT_MIPIC_TRANS_VACTIVE)
+
+#define  _BXT_MIPIA_TRANS_VTOTAL			0x6B100
+#define  _BXT_MIPIC_TRANS_VTOTAL			0x6B900
+#define  BXT_MIPI_TRANS_VTOTAL(tc)	_MIPI_PORT(tc, \
+		_BXT_MIPIA_TRANS_VTOTAL, _BXT_MIPIC_TRANS_VTOTAL)
+
+#define BXT_DSI_PLL_CTL			0x161000
+#define  BXT_DSI_PLL_PVD_RATIO_SHIFT	16
+#define  BXT_DSI_PLL_PVD_RATIO_MASK	(3 << BXT_DSI_PLL_PVD_RATIO_SHIFT)
+#define  BXT_DSI_PLL_PVD_RATIO_1	(1 << BXT_DSI_PLL_PVD_RATIO_SHIFT)
+#define  BXT_DSIC_16X_BY2		(1 << 10)
+#define  BXT_DSIC_16X_BY3		(2 << 10)
+#define  BXT_DSIC_16X_BY4		(3 << 10)
+#define  BXT_DSIA_16X_BY2		(1 << 8)
+#define  BXT_DSIA_16X_BY3		(2 << 8)
+#define  BXT_DSIA_16X_BY4		(3 << 8)
+#define  BXT_DSI_FREQ_SEL_SHIFT		8
+#define  BXT_DSI_FREQ_SEL_MASK		(0xF << BXT_DSI_FREQ_SEL_SHIFT)
+
+#define BXT_DSI_PLL_RATIO_MAX		0x7D
+#define BXT_DSI_PLL_RATIO_MIN		0x22
+#define BXT_DSI_PLL_RATIO_MASK		0xFF
+#define BXT_REF_CLOCK_KHZ		19500
+
+#define BXT_DSI_PLL_ENABLE		0x46080
+#define  BXT_DSI_PLL_DO_ENABLE		(1 << 31)
+#define  BXT_DSI_PLL_LOCKED		(1 << 30)
 
 #define _MIPIA_PORT_CTRL			(VLV_DISPLAY_BASE + 0x61190)
 #define _MIPIC_PORT_CTRL			(VLV_DISPLAY_BASE + 0x61700)
@@ -7915,6 +7959,11 @@ enum skl_disp_power_wells {
 #define  READ_REQUEST_PRIORITY_LOW			(0 << 3)
 #define  READ_REQUEST_PRIORITY_HIGH			(3 << 3)
 #define  RGB_FLIP_TO_BGR				(1 << 2)
+
+#define  BXT_PIPE_SELECT_MASK				(7 << 7)
+#define  BXT_PIPE_SELECT_C				(2 << 7)
+#define  BXT_PIPE_SELECT_B				(1 << 7)
+#define  BXT_PIPE_SELECT_A				(0 << 7)
 
 #define _MIPIA_DATA_ADDRESS		(dev_priv->mipi_mmio_base + 0xb108)
 #define _MIPIC_DATA_ADDRESS		(dev_priv->mipi_mmio_base + 0xb908)

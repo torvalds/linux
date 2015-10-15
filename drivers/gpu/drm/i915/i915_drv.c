@@ -1120,7 +1120,7 @@ static void vlv_save_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 	s->gfx_pend_tlb1	= I915_READ(GEN7_GFX_PEND_TLB1);
 
 	for (i = 0; i < ARRAY_SIZE(s->lra_limits); i++)
-		s->lra_limits[i] = I915_READ(GEN7_LRA_LIMITS_BASE + i * 4);
+		s->lra_limits[i] = I915_READ(GEN7_LRA_LIMITS(i));
 
 	s->media_max_req_count	= I915_READ(GEN7_MEDIA_MAX_REQ_COUNT);
 	s->gfx_max_req_count	= I915_READ(GEN7_GFX_MAX_REQ_COUNT);
@@ -1164,7 +1164,7 @@ static void vlv_save_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 	s->pm_ier		= I915_READ(GEN6_PMIER);
 
 	for (i = 0; i < ARRAY_SIZE(s->gt_scratch); i++)
-		s->gt_scratch[i] = I915_READ(GEN7_GT_SCRATCH_BASE + i * 4);
+		s->gt_scratch[i] = I915_READ(GEN7_GT_SCRATCH(i));
 
 	/* GT SA CZ domain, 0x100000-0x138124 */
 	s->tilectl		= I915_READ(TILECTL);
@@ -1202,7 +1202,7 @@ static void vlv_restore_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN7_GFX_PEND_TLB1,	s->gfx_pend_tlb1);
 
 	for (i = 0; i < ARRAY_SIZE(s->lra_limits); i++)
-		I915_WRITE(GEN7_LRA_LIMITS_BASE + i * 4, s->lra_limits[i]);
+		I915_WRITE(GEN7_LRA_LIMITS(i), s->lra_limits[i]);
 
 	I915_WRITE(GEN7_MEDIA_MAX_REQ_COUNT, s->media_max_req_count);
 	I915_WRITE(GEN7_GFX_MAX_REQ_COUNT, s->gfx_max_req_count);
@@ -1246,7 +1246,7 @@ static void vlv_restore_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_PMIER,		s->pm_ier);
 
 	for (i = 0; i < ARRAY_SIZE(s->gt_scratch); i++)
-		I915_WRITE(GEN7_GT_SCRATCH_BASE + i * 4, s->gt_scratch[i]);
+		I915_WRITE(GEN7_GT_SCRATCH(i), s->gt_scratch[i]);
 
 	/* GT SA CZ domain, 0x100000-0x138124 */
 	I915_WRITE(TILECTL,			s->tilectl);

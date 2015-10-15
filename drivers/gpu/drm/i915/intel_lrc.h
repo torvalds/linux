@@ -28,12 +28,14 @@
 
 /* Execlists regs */
 #define RING_ELSP(ring)			((ring)->mmio_base+0x230)
-#define RING_EXECLIST_STATUS(ring)	((ring)->mmio_base+0x234)
+#define RING_EXECLIST_STATUS_LO(ring)	((ring)->mmio_base+0x234)
+#define RING_EXECLIST_STATUS_HI(ring)	((ring)->mmio_base+0x234 + 4)
 #define RING_CONTEXT_CONTROL(ring)	((ring)->mmio_base+0x244)
 #define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	(1 << 3)
 #define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	(1 << 0)
 #define   CTX_CTRL_RS_CTX_ENABLE                (1 << 1)
-#define RING_CONTEXT_STATUS_BUF(ring)	((ring)->mmio_base+0x370)
+#define RING_CONTEXT_STATUS_BUF_LO(ring, i)	((ring)->mmio_base+0x370 + (i) * 8)
+#define RING_CONTEXT_STATUS_BUF_HI(ring, i)	((ring)->mmio_base+0x370 + (i) * 8 + 4)
 #define RING_CONTEXT_STATUS_PTR(ring)	((ring)->mmio_base+0x3a0)
 
 /* Logical Rings */
@@ -75,8 +77,8 @@ static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
 
 void intel_lr_context_free(struct intel_context *ctx);
-int intel_lr_context_deferred_create(struct intel_context *ctx,
-				     struct intel_engine_cs *ring);
+int intel_lr_context_deferred_alloc(struct intel_context *ctx,
+				    struct intel_engine_cs *ring);
 void intel_lr_context_unpin(struct drm_i915_gem_request *req);
 void intel_lr_context_reset(struct drm_device *dev,
 			struct intel_context *ctx);

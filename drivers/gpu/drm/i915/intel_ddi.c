@@ -414,7 +414,6 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 				      bool supports_hdmi)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg;
 	u32 iboost_bit = 0;
 	int i, n_hdmi_entries, n_dp_entries, n_edp_entries, hdmi_default_entry,
 	    size;
@@ -505,11 +504,11 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		BUG();
 	}
 
-	for (i = 0, reg = DDI_BUF_TRANS(port); i < size; i++) {
-		I915_WRITE(reg, ddi_translations[i].trans1 | iboost_bit);
-		reg += 4;
-		I915_WRITE(reg, ddi_translations[i].trans2);
-		reg += 4;
+	for (i = 0; i < size; i++) {
+		I915_WRITE(DDI_BUF_TRANS_LO(port, i),
+			   ddi_translations[i].trans1 | iboost_bit);
+		I915_WRITE(DDI_BUF_TRANS_HI(port, i),
+			   ddi_translations[i].trans2);
 	}
 
 	if (!supports_hdmi)
@@ -521,10 +520,10 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		hdmi_level = hdmi_default_entry;
 
 	/* Entry 9 is for HDMI: */
-	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans1 | iboost_bit);
-	reg += 4;
-	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans2);
-	reg += 4;
+	I915_WRITE(DDI_BUF_TRANS_LO(port, i),
+		   ddi_translations_hdmi[hdmi_level].trans1 | iboost_bit);
+	I915_WRITE(DDI_BUF_TRANS_HI(port, i),
+		   ddi_translations_hdmi[hdmi_level].trans2);
 }
 
 /* Program DDI buffers translations for DP. By default, program ports A-D in DP
@@ -2882,7 +2881,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	 * here just read out lanes 0/1 and output a note if lanes 2/3 differ.
 	 */
 	hw_state->pcsdw12 = I915_READ(BXT_PORT_PCS_DW12_LN01(port));
-	if (I915_READ(BXT_PORT_PCS_DW12_LN23(port) != hw_state->pcsdw12))
+	if (I915_READ(BXT_PORT_PCS_DW12_LN23(port)) != hw_state->pcsdw12)
 		DRM_DEBUG_DRIVER("lane stagger config different for lane 01 (%08x) and 23 (%08x)\n",
 				 hw_state->pcsdw12,
 				 I915_READ(BXT_PORT_PCS_DW12_LN23(port)));

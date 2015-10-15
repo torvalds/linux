@@ -631,17 +631,6 @@ static void gen9_sseu_info_init(struct drm_device *dev)
 	u32 fuse2, s_enable, ss_disable, eu_disable;
 	u8 eu_mask = 0xff;
 
-	/*
-	 * BXT has a single slice. BXT also has at most 6 EU per subslice,
-	 * and therefore only the lowest 6 bits of the 8-bit EU disable
-	 * fields are valid.
-	*/
-	if (IS_BROXTON(dev)) {
-		s_max = 1;
-		eu_max = 6;
-		eu_mask = 0x3f;
-	}
-
 	info = (struct intel_device_info *)&dev_priv->info;
 	fuse2 = I915_READ(GEN8_FUSE2);
 	s_enable = (fuse2 & GEN8_F2_S_ENA_MASK) >>
@@ -1137,6 +1126,10 @@ int i915_driver_unload(struct drm_device *dev)
 		dev_priv->vbt.child_dev = NULL;
 		dev_priv->vbt.child_dev_num = 0;
 	}
+	kfree(dev_priv->vbt.sdvo_lvds_vbt_mode);
+	dev_priv->vbt.sdvo_lvds_vbt_mode = NULL;
+	kfree(dev_priv->vbt.lfp_lvds_vbt_mode);
+	dev_priv->vbt.lfp_lvds_vbt_mode = NULL;
 
 	vga_switcheroo_unregister_client(dev->pdev);
 	vga_client_register(dev->pdev, NULL, NULL, NULL);

@@ -1713,8 +1713,8 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 
 /**
  * i915_gem_fault - fault a page into the GTT
- * vma: VMA in question
- * vmf: fault info
+ * @vma: VMA in question
+ * @vmf: fault info
  *
  * The fault handler is set up by drm_gem_mmap() when a object is GTT mapped
  * from userspace.  The fault handler takes care of binding the object to
@@ -4609,14 +4609,8 @@ int i915_gem_init_rings(struct drm_device *dev)
 			goto cleanup_vebox_ring;
 	}
 
-	ret = i915_gem_set_seqno(dev, ((u32)~0 - 0x1000));
-	if (ret)
-		goto cleanup_bsd2_ring;
-
 	return 0;
 
-cleanup_bsd2_ring:
-	intel_cleanup_ring_buffer(&dev_priv->ring[VCS2]);
 cleanup_vebox_ring:
 	intel_cleanup_ring_buffer(&dev_priv->ring[VECS]);
 cleanup_blt_ring:
@@ -4687,20 +4681,31 @@ i915_gem_init_hw(struct drm_device *dev)
 	}
 
 	/* We can't enable contexts until all firmware is loaded */
-	ret = intel_guc_ucode_load(dev);
-	if (ret) {
-		/*
-		 * If we got an error and GuC submission is enabled, map
-		 * the error to -EIO so the GPU will be declared wedged.
-		 * OTOH, if we didn't intend to use the GuC anyway, just
-		 * discard the error and carry on.
-		 */
-		DRM_ERROR("Failed to initialize GuC, error %d%s\n", ret,
-			i915.enable_guc_submission ? "" : " (ignored)");
-		ret = i915.enable_guc_submission ? -EIO : 0;
-		if (ret)
-			goto out;
+	if (HAS_GUC_UCODE(dev)) {
+		ret = intel_guc_ucode_load(dev);
+		if (ret) {
+			/*
+			 * If we got an error and GuC submission is enabled, map
+			 * the error to -EIO so the GPU will be declared wedged.
+			 * OTOH, if we didn't intend to use the GuC anyway, just
+			 * discard the error and carry on.
+			 */
+			DRM_ERROR("Failed to initialize GuC, error %d%s\n", ret,
+				  i915.enable_guc_submission ? "" :
+				  " (ignored)");
+			ret = i915.enable_guc_submission ? -EIO : 0;
+			if (ret)
+				goto out;
+		}
 	}
+
+	/*
+	 * Increment the next seqno by 0x100 so we have a visible break
+	 * on re-initialisation
+	 */
+	ret = i915_gem_set_seqno(dev, dev_priv->next_seqno+0x100);
+	if (ret)
+		goto out;
 
 	/* Now it is safe to go back round and do everything else: */
 	for_each_ring(ring, dev_priv, i) {
@@ -4839,18 +4844,6 @@ init_ring_lists(struct intel_engine_cs *ring)
 	INIT_LIST_HEAD(&ring->request_list);
 }
 
-void i915_init_vm(struct drm_i915_private *dev_priv,
-		  struct i915_address_space *vm)
-{
-	if (!i915_is_ggtt(vm))
-		drm_mm_init(&vm->mm, vm->start, vm->total);
-	vm->dev = dev_priv->dev;
-	INIT_LIST_HEAD(&vm->active_list);
-	INIT_LIST_HEAD(&vm->inactive_list);
-	INIT_LIST_HEAD(&vm->global_link);
-	list_add_tail(&vm->global_link, &dev_priv->vm_list);
-}
-
 void
 i915_gem_load(struct drm_device *dev)
 {
@@ -4874,8 +4867,6 @@ i915_gem_load(struct drm_device *dev)
 				  NULL);
 
 	INIT_LIST_HEAD(&dev_priv->vm_list);
-	i915_init_vm(dev_priv, &dev_priv->gtt.base);
-
 	INIT_LIST_HEAD(&dev_priv->context_list);
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
@@ -4902,6 +4893,14 @@ i915_gem_load(struct drm_device *dev)
 	if (intel_vgpu_active(dev))
 		dev_priv->num_fence_regs =
 				I915_READ(vgtif_reg(avail_rs.fence_num));
+
+	/*
+	 * Set initial sequence number for requests.
+	 * Using this number allows the wraparound to happen early,
+	 * catching any obvious problems.
+	 */
+	dev_priv->next_seqno = ((u32)~0 - 0x1100);
+	dev_priv->last_seqno = ((u32)~0 - 0x1101);
 
 	/* Initialize fence registers to zero */
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
@@ -4972,9 +4971,9 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 
 /**
  * i915_gem_track_fb - update frontbuffer tracking
- * old: current GEM buffer for the frontbuffer slots
- * new: new GEM buffer for the frontbuffer slots
- * frontbuffer_bits: bitmask of frontbuffer slots
+ * @old: current GEM buffer for the frontbuffer slots
+ * @new: new GEM buffer for the frontbuffer slots
+ * @frontbuffer_bits: bitmask of frontbuffer slots
  *
  * This updates the frontbuffer tracking bits @frontbuffer_bits by clearing them
  * from @old and setting them in @new. Both @old and @new can be NULL.

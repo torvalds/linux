@@ -57,7 +57,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150911"
+#define DRIVER_DATE		"20150928"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -890,7 +890,6 @@ struct intel_context {
 	} legacy_hw_ctx;
 
 	/* Execlists */
-	bool rcs_initialized;
 	struct {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
@@ -949,6 +948,9 @@ struct i915_fbc {
 		FBC_CHIP_DEFAULT, /* disabled by default on this chip */
 		FBC_ROTATION, /* rotation is not supported */
 		FBC_IN_DBG_MASTER, /* kernel debugger is active */
+		FBC_BAD_STRIDE, /* stride is not supported */
+		FBC_PIXEL_RATE, /* pixel rate is too big */
+		FBC_PIXEL_FORMAT /* pixel format is invalid */
 	} no_fbc_reason;
 
 	bool (*fbc_enabled)(struct drm_i915_private *dev_priv);
@@ -2015,25 +2017,26 @@ struct drm_i915_gem_object_ops {
 
 /*
  * Frontbuffer tracking bits. Set in obj->frontbuffer_bits while a gem bo is
- * considered to be the frontbuffer for the given plane interface-vise. This
+ * considered to be the frontbuffer for the given plane interface-wise. This
  * doesn't mean that the hw necessarily already scans it out, but that any
  * rendering (by the cpu or gpu) will land in the frontbuffer eventually.
  *
  * We have one bit per pipe and per scanout plane type.
  */
-#define INTEL_FRONTBUFFER_BITS_PER_PIPE 4
+#define INTEL_MAX_SPRITE_BITS_PER_PIPE 5
+#define INTEL_FRONTBUFFER_BITS_PER_PIPE 8
 #define INTEL_FRONTBUFFER_BITS \
 	(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES)
 #define INTEL_FRONTBUFFER_PRIMARY(pipe) \
 	(1 << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
 #define INTEL_FRONTBUFFER_CURSOR(pipe) \
-	(1 << (1 +(INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
-#define INTEL_FRONTBUFFER_SPRITE(pipe) \
-	(1 << (2 +(INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+	(1 << (1 + (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+#define INTEL_FRONTBUFFER_SPRITE(pipe, plane) \
+	(1 << (2 + plane + (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
 #define INTEL_FRONTBUFFER_OVERLAY(pipe) \
-	(1 << (3 +(INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+	(1 << (2 + INTEL_MAX_SPRITE_BITS_PER_PIPE + (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
 #define INTEL_FRONTBUFFER_ALL_MASK(pipe) \
-	(0xf << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+	(0xff << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
 
 struct drm_i915_gem_object {
 	struct drm_gem_object base;
@@ -2491,6 +2494,11 @@ struct drm_i915_cmd_table {
 #define IS_SKL_ULX(dev)		(INTEL_DEVID(dev) == 0x190E || \
 				 INTEL_DEVID(dev) == 0x1915 || \
 				 INTEL_DEVID(dev) == 0x191E)
+#define IS_SKL_GT3(dev)		(IS_SKYLAKE(dev) && \
+				 (INTEL_DEVID(dev) & 0x00F0) == 0x0020)
+#define IS_SKL_GT4(dev)		(IS_SKYLAKE(dev) && \
+				 (INTEL_DEVID(dev) & 0x00F0) == 0x0030)
+
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
 
 #define SKL_REVID_A0		(0x0)
@@ -2502,7 +2510,7 @@ struct drm_i915_cmd_table {
 
 #define BXT_REVID_A0		(0x0)
 #define BXT_REVID_B0		(0x3)
-#define BXT_REVID_C0		(0x6)
+#define BXT_REVID_C0		(0x9)
 
 /*
  * The genX designation typically refers to the render engine, so render
@@ -2581,7 +2589,7 @@ struct drm_i915_cmd_table {
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
 #define HAS_RC6p(dev)		(INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
 
-#define HAS_CSR(dev)	(IS_SKYLAKE(dev))
+#define HAS_CSR(dev)	(IS_GEN9(dev))
 
 #define HAS_GUC_UCODE(dev)	(IS_GEN9(dev))
 #define HAS_GUC_SCHED(dev)	(IS_GEN9(dev))
@@ -2647,7 +2655,6 @@ struct i915_params {
 	int enable_cmd_parser;
 	/* leave bools at the end to not create holes */
 	bool enable_hangcheck;
-	bool fastboot;
 	bool prefault_disable;
 	bool load_detect_test;
 	bool reset;
@@ -2738,6 +2745,9 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv);
 void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv);
+void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
+				   uint32_t mask,
+				   uint32_t bits);
 void
 ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask);
 void
@@ -2805,8 +2815,6 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 struct drm_i915_gem_object *i915_gem_object_create_from_data(
 		struct drm_device *dev, const void *data, size_t size);
-void i915_init_vm(struct drm_i915_private *dev_priv,
-		  struct i915_address_space *vm);
 void i915_gem_free_object(struct drm_gem_object *obj);
 void i915_gem_vma_destroy(struct i915_vma *vma);
 
@@ -3173,6 +3181,10 @@ static inline void i915_gem_chipset_flush(struct drm_device *dev)
 int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
 				struct drm_mm_node *node, u64 size,
 				unsigned alignment);
+int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
+					 struct drm_mm_node *node, u64 size,
+					 unsigned alignment, u64 start,
+					 u64 end);
 void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 				 struct drm_mm_node *node);
 int i915_gem_init_stolen(struct drm_device *dev);

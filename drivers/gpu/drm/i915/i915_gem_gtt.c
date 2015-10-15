@@ -2121,6 +2121,16 @@ static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 		return gen8_ppgtt_init(ppgtt);
 }
 
+static void i915_address_space_init(struct i915_address_space *vm,
+				    struct drm_i915_private *dev_priv)
+{
+	drm_mm_init(&vm->mm, vm->start, vm->total);
+	vm->dev = dev_priv->dev;
+	INIT_LIST_HEAD(&vm->active_list);
+	INIT_LIST_HEAD(&vm->inactive_list);
+	list_add_tail(&vm->global_link, &dev_priv->vm_list);
+}
+
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2129,9 +2139,7 @@ int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 	ret = __hw_ppgtt_init(dev, ppgtt);
 	if (ret == 0) {
 		kref_init(&ppgtt->ref);
-		drm_mm_init(&ppgtt->base.mm, ppgtt->base.start,
-			    ppgtt->base.total);
-		i915_init_vm(dev_priv, &ppgtt->base);
+		i915_address_space_init(&ppgtt->base, dev_priv);
 	}
 
 	return ret;
@@ -2525,7 +2533,6 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 		 * the bound flag ourselves.
 		 */
 		vma->bound |= GLOBAL_BIND;
-
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt && flags & LOCAL_BIND) {
@@ -2618,11 +2625,13 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	BUG_ON(mappable_end > end);
 
-	/* Subtract the guard page ... */
-	drm_mm_init(&ggtt_vm->mm, start, end - start - PAGE_SIZE);
+	ggtt_vm->start = start;
 
-	dev_priv->gtt.base.start = start;
-	dev_priv->gtt.base.total = end - start;
+	/* Subtract the guard page before address space initialization to
+	 * shrink the range used by drm_mm */
+	ggtt_vm->total = end - start - PAGE_SIZE;
+	i915_address_space_init(ggtt_vm, dev_priv);
+	ggtt_vm->total += PAGE_SIZE;
 
 	if (intel_vgpu_active(dev)) {
 		ret = intel_vgt_balloon(dev);
@@ -2631,7 +2640,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 	}
 
 	if (!HAS_LLC(dev))
-		dev_priv->gtt.base.mm.color_adjust = i915_gtt_color_adjust;
+		ggtt_vm->mm.color_adjust = i915_gtt_color_adjust;
 
 	/* Mark any preallocated objects as occupied */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
@@ -2647,6 +2656,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 			return ret;
 		}
 		vma->bound |= GLOBAL_BIND;
+		list_add_tail(&vma->mm_list, &ggtt_vm->inactive_list);
 	}
 
 	/* Clear any non-preallocated blocks */
@@ -3234,15 +3244,18 @@ i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
 
 }
 
-static void
-rotate_pages(dma_addr_t *in, unsigned int width, unsigned int height,
-	     struct sg_table *st)
+static struct scatterlist *
+rotate_pages(dma_addr_t *in, unsigned int offset,
+	     unsigned int width, unsigned int height,
+	     struct sg_table *st, struct scatterlist *sg)
 {
 	unsigned int column, row;
 	unsigned int src_idx;
-	struct scatterlist *sg = st->sgl;
 
-	st->nents = 0;
+	if (!sg) {
+		st->nents = 0;
+		sg = st->sgl;
+	}
 
 	for (column = 0; column < width; column++) {
 		src_idx = width * (height - 1) + column;
@@ -3253,12 +3266,14 @@ rotate_pages(dma_addr_t *in, unsigned int width, unsigned int height,
 			 * The only thing we need are DMA addresses.
 			 */
 			sg_set_page(sg, NULL, PAGE_SIZE, 0);
-			sg_dma_address(sg) = in[src_idx];
+			sg_dma_address(sg) = in[offset + src_idx];
 			sg_dma_len(sg) = PAGE_SIZE;
 			sg = sg_next(sg);
 			src_idx -= width;
 		}
 	}
+
+	return sg;
 }
 
 static struct sg_table *
@@ -3267,10 +3282,13 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 {
 	struct intel_rotation_info *rot_info = &ggtt_view->rotation_info;
 	unsigned int size_pages = rot_info->size >> PAGE_SHIFT;
+	unsigned int size_pages_uv;
 	struct sg_page_iter sg_iter;
 	unsigned long i;
 	dma_addr_t *page_addr_list;
 	struct sg_table *st;
+	unsigned int uv_start_page;
+	struct scatterlist *sg;
 	int ret = -ENOMEM;
 
 	/* Allocate a temporary list of source pages for random access. */
@@ -3279,12 +3297,18 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 	if (!page_addr_list)
 		return ERR_PTR(ret);
 
+	/* Account for UV plane with NV12. */
+	if (rot_info->pixel_format == DRM_FORMAT_NV12)
+		size_pages_uv = rot_info->size_uv >> PAGE_SHIFT;
+	else
+		size_pages_uv = 0;
+
 	/* Allocate target SG list. */
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
 		goto err_st_alloc;
 
-	ret = sg_alloc_table(st, size_pages, GFP_KERNEL);
+	ret = sg_alloc_table(st, size_pages + size_pages_uv, GFP_KERNEL);
 	if (ret)
 		goto err_sg_alloc;
 
@@ -3296,15 +3320,32 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 	}
 
 	/* Rotate the pages. */
-	rotate_pages(page_addr_list,
+	sg = rotate_pages(page_addr_list, 0,
 		     rot_info->width_pages, rot_info->height_pages,
-		     st);
+		     st, NULL);
+
+	/* Append the UV plane if NV12. */
+	if (rot_info->pixel_format == DRM_FORMAT_NV12) {
+		uv_start_page = size_pages;
+
+		/* Check for tile-row un-alignment. */
+		if (offset_in_page(rot_info->uv_offset))
+			uv_start_page--;
+
+		rot_info->uv_start_page = uv_start_page;
+
+		rotate_pages(page_addr_list, uv_start_page,
+			     rot_info->width_pages_uv,
+			     rot_info->height_pages_uv,
+			     st, sg);
+	}
 
 	DRM_DEBUG_KMS(
-		      "Created rotated page mapping for object size %zu (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %u pages).\n",
+		      "Created rotated page mapping for object size %zu (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %u pages (%u plane 0)).\n",
 		      obj->base.size, rot_info->pitch, rot_info->height,
 		      rot_info->pixel_format, rot_info->width_pages,
-		      rot_info->height_pages, size_pages);
+		      rot_info->height_pages, size_pages + size_pages_uv,
+		      size_pages);
 
 	drm_free_large(page_addr_list);
 
@@ -3316,10 +3357,11 @@ err_st_alloc:
 	drm_free_large(page_addr_list);
 
 	DRM_DEBUG_KMS(
-		      "Failed to create rotated mapping for object size %zu! (%d) (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %u pages)\n",
+		      "Failed to create rotated mapping for object size %zu! (%d) (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %u pages (%u plane 0))\n",
 		      obj->base.size, ret, rot_info->pitch, rot_info->height,
 		      rot_info->pixel_format, rot_info->width_pages,
-		      rot_info->height_pages, size_pages);
+		      rot_info->height_pages, size_pages + size_pages_uv,
+		      size_pages);
 	return ERR_PTR(ret);
 }
 

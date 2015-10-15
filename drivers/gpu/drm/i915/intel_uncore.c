@@ -27,7 +27,7 @@
 
 #include <linux/pm_runtime.h>
 
-#define FORCEWAKE_ACK_TIMEOUT_MS 2
+#define FORCEWAKE_ACK_TIMEOUT_MS 50
 
 #define __raw_i915_read8(dev_priv__, reg__) readb((dev_priv__)->regs + (reg__))
 #define __raw_i915_write8(dev_priv__, reg__, val__) writeb(val__, (dev_priv__)->regs + (reg__))

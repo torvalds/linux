@@ -42,9 +42,9 @@
  * for is a boon.
  */
 
-int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
-				struct drm_mm_node *node, u64 size,
-				unsigned alignment)
+int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
+					 struct drm_mm_node *node, u64 size,
+					 unsigned alignment, u64 start, u64 end)
 {
 	int ret;
 
@@ -52,11 +52,21 @@ int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
 		return -ENODEV;
 
 	mutex_lock(&dev_priv->mm.stolen_lock);
-	ret = drm_mm_insert_node(&dev_priv->mm.stolen, node, size, alignment,
-				 DRM_MM_SEARCH_DEFAULT);
+	ret = drm_mm_insert_node_in_range(&dev_priv->mm.stolen, node, size,
+					  alignment, start, end,
+					  DRM_MM_SEARCH_DEFAULT);
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 
 	return ret;
+}
+
+int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
+				struct drm_mm_node *node, u64 size,
+				unsigned alignment)
+{
+	return i915_gem_stolen_insert_node_in_range(dev_priv, node, size,
+					alignment, 0,
+					dev_priv->gtt.stolen_usable_size);
 }
 
 void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
@@ -186,6 +196,29 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 	drm_mm_takedown(&dev_priv->mm.stolen);
 }
 
+static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
+				    unsigned long *base, unsigned long *size)
+{
+	uint32_t reg_val = I915_READ(IS_GM45(dev_priv) ?
+				     CTG_STOLEN_RESERVED :
+				     ELK_STOLEN_RESERVED);
+	unsigned long stolen_top = dev_priv->mm.stolen_base +
+		dev_priv->gtt.stolen_size;
+
+	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
+
+	WARN_ON((reg_val & G4X_STOLEN_RESERVED_ADDR1_MASK) < *base);
+
+	/* On these platforms, the register doesn't have a size field, so the
+	 * size is the distance between the base and the top of the stolen
+	 * memory. We also have the genuine case where base is zero and there's
+	 * nothing reserved. */
+	if (*base == 0)
+		*size = 0;
+	else
+		*size = stolen_top - *base;
+}
+
 static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				     unsigned long *base, unsigned long *size)
 {
@@ -281,7 +314,7 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 int i915_gem_init_stolen(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long reserved_total, reserved_base, reserved_size;
+	unsigned long reserved_total, reserved_base = 0, reserved_size;
 	unsigned long stolen_top;
 
 	mutex_init(&dev_priv->mm.stolen_lock);
@@ -305,7 +338,12 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	switch (INTEL_INFO(dev_priv)->gen) {
 	case 2:
 	case 3:
+		break;
 	case 4:
+		if (IS_G4X(dev))
+			g4x_get_stolen_reserved(dev_priv, &reserved_base,
+						&reserved_size);
+		break;
 	case 5:
 		/* Assume the gen6 maximum for the older platforms. */
 		reserved_size = 1024 * 1024;
@@ -352,9 +390,11 @@ int i915_gem_init_stolen(struct drm_device *dev)
 		      dev_priv->gtt.stolen_size >> 10,
 		      (dev_priv->gtt.stolen_size - reserved_total) >> 10);
 
+	dev_priv->gtt.stolen_usable_size = dev_priv->gtt.stolen_size -
+					   reserved_total;
+
 	/* Basic memrange allocator for stolen space */
-	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size -
-		    reserved_total);
+	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_usable_size);
 
 	return 0;
 }
@@ -544,7 +584,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	vma = i915_gem_obj_lookup_or_create_vma(obj, ggtt);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		goto err_out;
+		goto err;
 	}
 
 	/* To simplify the initialisation sequence between KMS and GTT,
@@ -558,23 +598,19 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		ret = drm_mm_reserve_node(&ggtt->mm, &vma->node);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			goto err_vma;
+			goto err;
 		}
+
+		vma->bound |= GLOBAL_BIND;
+		list_add_tail(&vma->mm_list, &ggtt->inactive_list);
 	}
 
-	vma->bound |= GLOBAL_BIND;
-
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	list_add_tail(&vma->mm_list, &ggtt->inactive_list);
 	i915_gem_object_pin_pages(obj);
 
 	return obj;
 
-err_vma:
-	i915_gem_vma_destroy(vma);
-err_out:
-	i915_gem_stolen_remove_node(dev_priv, stolen);
-	kfree(stolen);
+err:
 	drm_gem_object_unreference(&obj->base);
 	return NULL;
 }

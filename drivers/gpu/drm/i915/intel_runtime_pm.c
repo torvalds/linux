@@ -463,14 +463,14 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
 					SKL_DISP_PW_2);
 
-	WARN(!IS_SKYLAKE(dev), "Platform doesn't support DC5.\n");
-	WARN(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
-	WARN(pg2_enabled, "PG2 not disabled to enable DC5.\n");
+	WARN_ONCE(!IS_SKYLAKE(dev), "Platform doesn't support DC5.\n");
+	WARN_ONCE(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
+	WARN_ONCE(pg2_enabled, "PG2 not disabled to enable DC5.\n");
 
-	WARN((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
-				"DC5 already programmed to be enabled.\n");
-	WARN(dev_priv->pm.suspended,
-		"DC5 cannot be enabled, if platform is runtime-suspended.\n");
+	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
+		  "DC5 already programmed to be enabled.\n");
+	WARN_ONCE(dev_priv->pm.suspended,
+		  "DC5 cannot be enabled, if platform is runtime-suspended.\n");
 
 	assert_csr_loaded(dev_priv);
 }
@@ -486,8 +486,8 @@ static void assert_can_disable_dc5(struct drm_i915_private *dev_priv)
 	if (dev_priv->power_domains.initializing)
 		return;
 
-	WARN(!pg2_enabled, "PG2 not enabled to disable DC5.\n");
-	WARN(dev_priv->pm.suspended,
+	WARN_ONCE(!pg2_enabled, "PG2 not enabled to disable DC5.\n");
+	WARN_ONCE(dev_priv->pm.suspended,
 		"Disabling of DC5 while platform is runtime-suspended should never happen.\n");
 }
 
@@ -526,12 +526,12 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	WARN(!IS_SKYLAKE(dev), "Platform doesn't support DC6.\n");
-	WARN(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
-	WARN(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
-		"Backlight is not disabled.\n");
-	WARN((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
-		"DC6 already programmed to be enabled.\n");
+	WARN_ONCE(!IS_SKYLAKE(dev), "Platform doesn't support DC6.\n");
+	WARN_ONCE(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
+	WARN_ONCE(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
+		  "Backlight is not disabled.\n");
+	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
+		  "DC6 already programmed to be enabled.\n");
 
 	assert_csr_loaded(dev_priv);
 }
@@ -546,8 +546,8 @@ static void assert_can_disable_dc6(struct drm_i915_private *dev_priv)
 		return;
 
 	assert_csr_loaded(dev_priv);
-	WARN(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
-		"DC6 already programmed to be disabled.\n");
+	WARN_ONCE(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
+		  "DC6 already programmed to be disabled.\n");
 }
 
 static void skl_enable_dc6(struct drm_i915_private *dev_priv)
@@ -670,7 +670,7 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 				wait_for((state = intel_csr_load_status_get(dev_priv)) !=
 						FW_UNINITIALIZED, 1000);
 				if (state != FW_LOADED)
-					DRM_ERROR("CSR firmware not ready (%d)\n",
+					DRM_DEBUG("CSR firmware not ready (%d)\n",
 							state);
 				else
 					if (SKL_ENABLE_DC6(dev))

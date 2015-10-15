@@ -1329,22 +1329,23 @@ intel_hdmi_unset_edid(struct drm_connector *connector)
 }
 
 static bool
-intel_hdmi_set_edid(struct drm_connector *connector)
+intel_hdmi_set_edid(struct drm_connector *connector, bool force)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 	struct intel_encoder *intel_encoder =
 		&hdmi_to_dig_port(intel_hdmi)->base;
 	enum intel_display_power_domain power_domain;
-	struct edid *edid;
+	struct edid *edid = NULL;
 	bool connected = false;
 
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
-	edid = drm_get_edid(connector,
-			    intel_gmbus_get_adapter(dev_priv,
-						    intel_hdmi->ddc_bus));
+	if (force)
+		edid = drm_get_edid(connector,
+				    intel_gmbus_get_adapter(dev_priv,
+				    intel_hdmi->ddc_bus));
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -1372,13 +1373,26 @@ static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector, bool force)
 {
 	enum drm_connector_status status;
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	bool live_status = false;
+	unsigned int retry = 3;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
+	while (!live_status && --retry) {
+		live_status = intel_digital_port_connected(dev_priv,
+				hdmi_to_dig_port(intel_hdmi));
+		mdelay(10);
+	}
+
+	if (!live_status)
+		DRM_DEBUG_KMS("Live status not up!");
+
 	intel_hdmi_unset_edid(connector);
 
-	if (intel_hdmi_set_edid(connector)) {
+	if (intel_hdmi_set_edid(connector, live_status)) {
 		struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 
 		hdmi_to_dig_port(intel_hdmi)->base.type = INTEL_OUTPUT_HDMI;
@@ -1402,7 +1416,7 @@ intel_hdmi_force(struct drm_connector *connector)
 	if (connector->status != connector_status_connected)
 		return;
 
-	intel_hdmi_set_edid(connector);
+	intel_hdmi_set_edid(connector, true);
 	hdmi_to_dig_port(intel_hdmi)->base.type = INTEL_OUTPUT_HDMI;
 }
 

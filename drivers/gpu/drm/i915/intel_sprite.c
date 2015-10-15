@@ -95,7 +95,6 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 	max = vblank_start - 1;
 
 	local_irq_disable();
-	crtc->start_vbl_count = 0;
 
 	if (min <= 0 || max <= 0)
 		return;
@@ -103,7 +102,9 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 	if (WARN_ON(drm_crtc_vblank_get(&crtc->base)))
 		return;
 
-	trace_i915_pipe_update_start(crtc, min, max);
+	crtc->debug.min_vbl = min;
+	crtc->debug.max_vbl = max;
+	trace_i915_pipe_update_start(crtc);
 
 	for (;;) {
 		/*
@@ -134,11 +135,12 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 
 	drm_crtc_vblank_put(&crtc->base);
 
-	crtc->start_vbl_time = ktime_get();
-	crtc->start_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
+	crtc->debug.scanline_start = scanline;
+	crtc->debug.start_vbl_time = ktime_get();
+	crtc->debug.start_vbl_count =
+		dev->driver->get_vblank_counter(dev, pipe);
 
-	trace_i915_pipe_update_vblank_evaded(crtc, min, max,
-					     crtc->start_vbl_count);
+	trace_i915_pipe_update_vblank_evaded(crtc);
 }
 
 /**
@@ -154,17 +156,23 @@ void intel_pipe_update_end(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	enum pipe pipe = crtc->pipe;
+	int scanline_end = intel_get_crtc_scanline(crtc);
 	u32 end_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
 	ktime_t end_vbl_time = ktime_get();
 
-	trace_i915_pipe_update_end(crtc, end_vbl_count);
+	trace_i915_pipe_update_end(crtc, end_vbl_count, scanline_end);
 
 	local_irq_enable();
 
-	if (crtc->start_vbl_count && crtc->start_vbl_count != end_vbl_count)
-		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u) time %lld us\n",
-			  pipe_name(pipe), crtc->start_vbl_count, end_vbl_count,
-			  ktime_us_delta(end_vbl_time, crtc->start_vbl_time));
+	if (crtc->debug.start_vbl_count &&
+	    crtc->debug.start_vbl_count != end_vbl_count) {
+		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u) time %lld us, min %d, max %d, scanline start %d, end %d\n",
+			  pipe_name(pipe), crtc->debug.start_vbl_count,
+			  end_vbl_count,
+			  ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
+			  crtc->debug.min_vbl, crtc->debug.max_vbl,
+			  crtc->debug.scanline_start, scanline_end);
+	}
 }
 
 static void
@@ -227,12 +235,12 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	else if (key->flags & I915_SET_COLORKEY_SOURCE)
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_SOURCE;
 
-	surf_addr = intel_plane_obj_offset(intel_plane, obj);
+	surf_addr = intel_plane_obj_offset(intel_plane, obj, 0);
 
 	if (intel_rotation_90_or_270(rotation)) {
 		/* stride: Surface height in tiles */
 		tile_height = intel_tile_height(dev, fb->pixel_format,
-						fb->modifier[0]);
+						fb->modifier[0], 0);
 		stride = DIV_ROUND_UP(fb->height, tile_height);
 		plane_size = (src_w << 16) | src_h;
 		x_offset = stride * tile_height - y - (src_h + 1);
@@ -1123,7 +1131,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 
 	intel_plane->pipe = pipe;
 	intel_plane->plane = plane;
-	intel_plane->frontbuffer_bit = INTEL_FRONTBUFFER_SPRITE(pipe);
+	intel_plane->frontbuffer_bit = INTEL_FRONTBUFFER_SPRITE(pipe, plane);
 	intel_plane->check_plane = intel_check_sprite_plane;
 	intel_plane->commit_plane = intel_commit_sprite_plane;
 	possible_crtcs = (1 << pipe);
