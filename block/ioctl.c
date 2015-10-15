@@ -7,6 +7,7 @@
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/blktrace_api.h>
+#include <linux/pr.h>
 #include <asm/uaccess.h>
 
 static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user *arg)
@@ -295,6 +296,96 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
  */
 EXPORT_SYMBOL_GPL(__blkdev_driver_ioctl);
 
+static int blkdev_pr_register(struct block_device *bdev,
+		struct pr_registration __user *arg)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_registration reg;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_register)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&reg, arg, sizeof(reg)))
+		return -EFAULT;
+
+	if (reg.flags & ~PR_FL_IGNORE_KEY)
+		return -EOPNOTSUPP;
+	return ops->pr_register(bdev, reg.old_key, reg.new_key, reg.flags);
+}
+
+static int blkdev_pr_reserve(struct block_device *bdev,
+		struct pr_reservation __user *arg)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_reservation rsv;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_reserve)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&rsv, arg, sizeof(rsv)))
+		return -EFAULT;
+
+	if (rsv.flags & ~PR_FL_IGNORE_KEY)
+		return -EOPNOTSUPP;
+	return ops->pr_reserve(bdev, rsv.key, rsv.type, rsv.flags);
+}
+
+static int blkdev_pr_release(struct block_device *bdev,
+		struct pr_reservation __user *arg)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_reservation rsv;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_release)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&rsv, arg, sizeof(rsv)))
+		return -EFAULT;
+
+	if (rsv.flags)
+		return -EOPNOTSUPP;
+	return ops->pr_release(bdev, rsv.key, rsv.type);
+}
+
+static int blkdev_pr_preempt(struct block_device *bdev,
+		struct pr_preempt __user *arg, bool abort)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_preempt p;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_preempt)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&p, arg, sizeof(p)))
+		return -EFAULT;
+
+	if (p.flags)
+		return -EOPNOTSUPP;
+	return ops->pr_preempt(bdev, p.old_key, p.new_key, p.type, abort);
+}
+
+static int blkdev_pr_clear(struct block_device *bdev,
+		struct pr_clear __user *arg)
+{
+	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	struct pr_clear c;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!ops || !ops->pr_clear)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&c, arg, sizeof(c)))
+		return -EFAULT;
+
+	if (c.flags)
+		return -EOPNOTSUPP;
+	return ops->pr_clear(bdev, c.key);
+}
+
 /*
  * Is it an unrecognized ioctl? The correct returns are either
  * ENOTTY (final) or ENOIOCTLCMD ("I don't know this one, try a
@@ -477,6 +568,18 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKTRACESETUP:
 	case BLKTRACETEARDOWN:
 		return blk_trace_ioctl(bdev, cmd, argp);
+	case IOC_PR_REGISTER:
+		return blkdev_pr_register(bdev, argp);
+	case IOC_PR_RESERVE:
+		return blkdev_pr_reserve(bdev, argp);
+	case IOC_PR_RELEASE:
+		return blkdev_pr_release(bdev, argp);
+	case IOC_PR_PREEMPT:
+		return blkdev_pr_preempt(bdev, argp, false);
+	case IOC_PR_PREEMPT_ABORT:
+		return blkdev_pr_preempt(bdev, argp, true);
+	case IOC_PR_CLEAR:
+		return blkdev_pr_clear(bdev, argp);
 	default:
 		return __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 	}
