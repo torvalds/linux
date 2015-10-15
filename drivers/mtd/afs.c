@@ -34,6 +34,8 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
+#define AFSV1_FOOTER_MAGIC 0xA0FFFF9F
+
 struct footer_v1 {
 	u32 image_info_base;	/* Address of first word of ImageFooter  */
 	u32 image_start;	/* Start of area reserved by this footer */
@@ -90,7 +92,7 @@ afs_read_footer_v1(struct mtd_info *mtd, u_int *img_start, u_int *iis_start,
 	/*
 	 * Does it contain the magic number?
 	 */
-	if (fs.signature != 0xa0ffff9f)
+	if (fs.signature != AFSV1_FOOTER_MAGIC)
 		ret = 0;
 
 	/*
