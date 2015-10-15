@@ -134,7 +134,7 @@ static int alloc_dbr(u16 size)
 				return block_idx * DBR_BLOCK_SIZE;
 			}
 			block_idx += mask_size;
-			/* do shift left with 2 steps for case mask_size == 32 */
+			/* do shift left with 2 steps in case mask_size == 32 */
 			mask <<= mask_size - 1;
 		} while ((mask <<= 1) != 0);
 	}
@@ -639,7 +639,8 @@ static bool channel_start(struct dim_channel *ch, u32 buf_addr, u16 buf_size)
 	if (ch->packet_length || ch->bytes_per_frame)
 		dim2_start_isoc_sync(ch->addr, state->idx1, buf_addr, buf_size);
 	else
-		dim2_start_ctrl_async(ch->addr, state->idx1, buf_addr, buf_size);
+		dim2_start_ctrl_async(ch->addr, state->idx1, buf_addr,
+				      buf_size);
 	state->idx1 ^= 1;
 
 	return true;
@@ -855,11 +856,11 @@ void DIM_ServiceIrq(struct dim_channel *const *channels)
 	}
 
 	/*
-	 * Use while-loop and a flag to make sure the age is changed back at least once,
-	 * otherwise the interrupt may never come if CPU generates interrupt on changing age.
-	 *
-	 * This cycle runs not more than number of channels, because service_interrupts
-	 * routine doesn't start the channel again.
+	 * Use while-loop and a flag to make sure the age is changed back at
+	 * least once, otherwise the interrupt may never come if CPU generates
+	 * interrupt on changing age.
+	 * This cycle runs not more than number of channels, because
+	 * channel_service_interrupt() routine doesn't start the channel again.
 	 */
 	do {
 		struct dim_channel *const *ch = channels;
@@ -900,7 +901,8 @@ struct dim_ch_state_t *DIM_GetChannelState(struct dim_channel *ch,
 bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr, u16 buffer_size)
 {
 	if (!ch)
-		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED, "Bad channel");
+		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,
+				    "Bad channel");
 
 	return channel_start(ch, buffer_addr, buffer_size);
 }
@@ -908,7 +910,8 @@ bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr, u16 buffer_size)
 bool DIM_DetachBuffers(struct dim_channel *ch, u16 buffers_number)
 {
 	if (!ch)
-		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED, "Bad channel");
+		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,
+				    "Bad channel");
 
 	return channel_detach_buffers(ch, buffers_number);
 }

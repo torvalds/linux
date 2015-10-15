@@ -200,8 +200,7 @@ static int startup_dim(struct platform_device *pdev)
 	}
 
 	if (dev->clk_speed == -1) {
-		pr_info("Bad or missing clock speed parameter,"
-			" using default value: 3072fs\n");
+		pr_info("Bad or missing clock speed parameter, using default value: 3072fs\n");
 		dev->clk_speed = CLK_3072FS;
 	} else
 		pr_info("Selected clock speed: %s\n", clock_speed);
@@ -359,8 +358,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 		spin_lock_irqsave(&dim_lock, flags);
 		if (list_empty(head)) {
 			spin_unlock_irqrestore(&dim_lock, flags);
-			pr_crit("hard error: started_mbo list is empty "
-				"whereas DIM2 has sent buffers\n");
+			pr_crit("hard error: started_mbo list is empty whereas DIM2 has sent buffers\n");
 			break;
 		}
 
@@ -547,7 +545,8 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 			pr_warn("%s: fixed buffer size (%d -> %d)\n",
 				hdm_ch->name, buf_size, new_size);
 		spin_lock_irqsave(&dim_lock, flags);
-		hal_ret = DIM_InitControl(&hdm_ch->ch, is_tx, ch_addr, buf_size);
+		hal_ret = DIM_InitControl(&hdm_ch->ch, is_tx, ch_addr,
+					  buf_size);
 		break;
 	case MOST_CH_ASYNC:
 		new_size = DIM_NormCtrlAsyncBufferSize(buf_size);
@@ -565,8 +564,8 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 	case MOST_CH_ISOC_AVP:
 		new_size = DIM_NormIsocBufferSize(buf_size, sub_size);
 		if (new_size == 0) {
-			pr_err("%s: invalid sub-buffer size or "
-			       "too small buffer size\n", hdm_ch->name);
+			pr_err("%s: invalid sub-buffer size or too small buffer size\n",
+			       hdm_ch->name);
 			return -EINVAL;
 		}
 		ccfg->buffer_size = new_size;
@@ -579,8 +578,8 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 	case MOST_CH_SYNC:
 		new_size = DIM_NormSyncBufferSize(buf_size, sub_size);
 		if (new_size == 0) {
-			pr_err("%s: invalid sub-buffer size or "
-			       "too small buffer size\n", hdm_ch->name);
+			pr_err("%s: invalid sub-buffer size or too small buffer size\n",
+			       hdm_ch->name);
 			return -EINVAL;
 		}
 		ccfg->buffer_size = new_size;
@@ -777,7 +776,8 @@ static int dim2_probe(struct platform_device *pdev)
 
 	ret = request_irq(dev->irq_ahb0, dim2_ahb_isr, 0, "mlb_ahb0", dev);
 	if (ret) {
-		pr_err("failed to request IRQ: %d, err: %d\n", dev->irq_ahb0, ret);
+		pr_err("failed to request IRQ: %d, err: %d\n",
+		       dev->irq_ahb0, ret);
 		goto err_unmap_io;
 	}
 #endif
