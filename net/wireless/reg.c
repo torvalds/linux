@@ -2026,14 +2026,13 @@ reg_process_hint_driver(struct wiphy *wiphy,
 		break;
 	case REG_REQ_IGNORE:
 		reg_free_request(driver_request);
-		return treatment;
+		return REG_REQ_OK;
 	case REG_REQ_INTERSECT:
-		/* fall through */
 	case REG_REQ_ALREADY_SET:
 		regd = reg_copy_regd(get_cfg80211_regdom());
 		if (IS_ERR(regd)) {
 			reg_free_request(driver_request);
-			return REG_REQ_IGNORE;
+			return REG_REQ_OK;
 		}
 
 		tmp = get_wiphy_regdom(wiphy);
@@ -2054,7 +2053,7 @@ reg_process_hint_driver(struct wiphy *wiphy,
 		nl80211_send_reg_change_event(driver_request);
 		reg_update_last_request(driver_request);
 		reg_set_request_processed();
-		return treatment;
+		return REG_REQ_ALREADY_SET;
 	}
 
 	if (reg_query_database(driver_request))
@@ -2128,10 +2127,10 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 	case REG_REQ_OK:
 		break;
 	case REG_REQ_IGNORE:
-		/* fall through */
+		return REG_REQ_OK;
 	case REG_REQ_ALREADY_SET:
 		reg_free_request(country_ie_request);
-		return treatment;
+		return REG_REQ_ALREADY_SET;
 	case REG_REQ_INTERSECT:
 		reg_free_request(country_ie_request);
 		/*
@@ -2139,7 +2138,7 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 		 * ever want to support it for this case.
 		 */
 		WARN_ONCE(1, "Unexpected intersection for country IEs");
-		return REG_REQ_IGNORE;
+		return REG_REQ_OK;
 	}
 
 	country_ie_request->intersect = false;
@@ -2183,6 +2182,9 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 		WARN(1, "invalid initiator %d\n", reg_request->initiator);
 		goto out_free;
 	}
+
+	WARN(treatment != REG_REQ_OK && treatment != REG_REQ_ALREADY_SET,
+	     "unexpected treatment value %d\n", treatment);
 
 	/* This is required so that the orig_* parameters are saved.
 	 * NOTE: treatment must be set for any case that reaches here!
