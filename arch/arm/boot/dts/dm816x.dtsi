@@ -179,6 +179,8 @@
 			#address-cells = <2>;
 			#size-cells = <1>;
 			interrupts = <100>;
+			dmas = <&edma 52>;
+			dma-names = "rxtx";
 			gpmc,num-cs = <6>;
 			gpmc,num-waitpins = <2>;
 		};
