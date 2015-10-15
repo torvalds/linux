@@ -2884,11 +2884,8 @@ static int reg_set_rd_driver(const struct ieee80211_regdomain *rd,
 	}
 
 	request_wiphy = wiphy_idx_to_wiphy(driver_request->wiphy_idx);
-	if (!request_wiphy) {
-		queue_delayed_work(system_power_efficient_wq,
-				   &reg_timeout, 0);
+	if (!request_wiphy)
 		return -ENODEV;
-	}
 
 	if (!driver_request->intersect) {
 		if (request_wiphy->regd)
@@ -2945,11 +2942,8 @@ static int reg_set_rd_country_ie(const struct ieee80211_regdomain *rd,
 	}
 
 	request_wiphy = wiphy_idx_to_wiphy(country_ie_request->wiphy_idx);
-	if (!request_wiphy) {
-		queue_delayed_work(system_power_efficient_wq,
-				   &reg_timeout, 0);
+	if (!request_wiphy)
 		return -ENODEV;
-	}
 
 	if (country_ie_request->intersect)
 		return -EINVAL;
