@@ -90,8 +90,12 @@ static struct generic_pm_domain *dev_to_genpd(struct device *dev)
 	return pd_to_genpd(dev->pm_domain);
 }
 
-static int genpd_stop_dev(struct generic_pm_domain *genpd, struct device *dev)
+static int genpd_stop_dev(struct generic_pm_domain *genpd, struct device *dev,
+			bool timed)
 {
+	if (!timed)
+		return GENPD_DEV_CALLBACK(genpd, int, stop, dev);
+
 	return GENPD_DEV_TIMED_CALLBACK(genpd, int, stop, dev,
 					stop_latency_ns, "stop");
 }
@@ -434,7 +438,7 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = genpd_stop_dev(genpd, dev);
+	ret = genpd_stop_dev(genpd, dev, true);
 	if (ret) {
 		genpd_restore_dev(genpd, dev, true);
 		return ret;
@@ -779,7 +783,7 @@ static int pm_genpd_suspend_noirq(struct device *dev)
 	    || (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev)))
 		return 0;
 
-	genpd_stop_dev(genpd, dev);
+	genpd_stop_dev(genpd, dev, false);
 
 	/*
 	 * Since all of the "noirq" callbacks are executed sequentially, it is
@@ -820,7 +824,7 @@ static int pm_genpd_resume_noirq(struct device *dev)
 	pm_genpd_sync_poweron(genpd, true);
 	genpd->suspended_count--;
 
-	return genpd_start_dev(genpd, dev, true);
+	return genpd_start_dev(genpd, dev, false);
 }
 
 /**
@@ -928,7 +932,7 @@ static int pm_genpd_freeze_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : genpd_stop_dev(genpd, dev);
+	return genpd->suspend_power_off ? 0 : genpd_stop_dev(genpd, dev, false);
 }
 
 /**
@@ -948,7 +952,8 @@ static int pm_genpd_thaw_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : genpd_start_dev(genpd, dev, true);
+	return genpd->suspend_power_off ?
+		0 : genpd_start_dev(genpd, dev, false);
 }
 
 /**
@@ -1042,7 +1047,7 @@ static int pm_genpd_restore_noirq(struct device *dev)
 
 	pm_genpd_sync_poweron(genpd, true);
 
-	return genpd_start_dev(genpd, dev, true);
+	return genpd_start_dev(genpd, dev, false);
 }
 
 /**
