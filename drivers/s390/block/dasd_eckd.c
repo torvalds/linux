@@ -1032,6 +1032,21 @@ static unsigned char dasd_eckd_path_access(void *conf_data, int conf_len)
 		return 0;
 }
 
+static void dasd_eckd_clear_conf_data(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private;
+	int i;
+
+	private = (struct dasd_eckd_private *) device->private;
+	private->conf_data = NULL;
+	private->conf_len = 0;
+	for (i = 0; i < 8; i++) {
+		kfree(private->path_conf_data[i]);
+		private->path_conf_data[i] = NULL;
+	}
+}
+
+
 static int dasd_eckd_read_conf(struct dasd_device *device)
 {
 	void *conf_data;
@@ -1068,19 +1083,10 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			path_data->opm |= lpm;
 			continue;	/* no error */
 		}
-		pos = pathmask_to_pos(lpm);
-		kfree(private->path_conf_data[pos]);
-		if ((__u8 *)private->path_conf_data[pos] ==
-		    private->conf_data) {
-			private->conf_data = NULL;
-			private->conf_len = 0;
-			conf_data_saved = 0;
-		}
-		private->path_conf_data[pos] =
-			(struct dasd_conf_data *) conf_data;
 		/* save first valid configuration data */
 		if (!conf_data_saved) {
-			kfree(private->conf_data);
+			/* initially clear previously stored conf_data */
+			dasd_eckd_clear_conf_data(device);
 			private->conf_data = conf_data;
 			private->conf_len = conf_len;
 			if (dasd_eckd_identify_conf_parts(private)) {
@@ -1089,6 +1095,10 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 				kfree(conf_data);
 				continue;
 			}
+			pos = pathmask_to_pos(lpm);
+			/* store per path conf_data */
+			private->path_conf_data[pos] =
+				(struct dasd_conf_data *) conf_data;
 			/*
 			 * build device UID that other path data
 			 * can be compared to it
@@ -1146,7 +1156,10 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 				path_data->cablepm |= lpm;
 				continue;
 			}
-
+			pos = pathmask_to_pos(lpm);
+			/* store per path conf_data */
+			private->path_conf_data[pos] =
+				(struct dasd_conf_data *) conf_data;
 			path_private.conf_data = NULL;
 			path_private.conf_len = 0;
 		}
