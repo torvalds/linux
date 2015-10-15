@@ -260,7 +260,7 @@ u8 *info_element;
 static u8 mode_11i;
 u8 auth_type;
 u32 join_req_size;
-u32 info_element_size;
+static u32 info_element_size;
 struct host_if_drv *gu8FlushedJoinReqDrvHandler;
 #define REAL_JOIN_REQ 0
 #define FLUSHED_JOIN_REQ 1
