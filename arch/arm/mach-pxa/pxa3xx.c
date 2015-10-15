@@ -47,6 +47,13 @@ extern void __init pxa_dt_irq_init(int (*fn)(struct irq_data *, unsigned int));
 #define ISRAM_START	0x5c000000
 #define ISRAM_SIZE	SZ_256K
 
+/*
+ * NAND NFC: DFI bus arbitration subset
+ */
+#define NDCR			(*(volatile u32 __iomem*)(NAND_VIRT + 0))
+#define NDCR_ND_ARB_EN		(1 << 12)
+#define NDCR_ND_ARB_CNTL	(1 << 19)
+
 static void __iomem *sram;
 static unsigned long wakeup_src;
 
@@ -362,7 +369,12 @@ static struct map_desc pxa3xx_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(PXA3XX_SMEMC_BASE),
 		.length		= SMEMC_SIZE,
 		.type		= MT_DEVICE
-	}
+	}, {
+		.virtual	= (unsigned long)NAND_VIRT,
+		.pfn		= __phys_to_pfn(NAND_PHYS),
+		.length		= NAND_SIZE,
+		.type		= MT_DEVICE
+	},
 };
 
 void __init pxa3xx_map_io(void)
@@ -418,6 +430,13 @@ static int __init pxa3xx_init(void)
 		 * preserve them here in case they will be referenced later
 		 */
 		ASCR &= ~(ASCR_RDH | ASCR_D1S | ASCR_D2S | ASCR_D3S);
+
+		/*
+		 * Disable DFI bus arbitration, to prevent a system bus lock if
+		 * somebody disables the NAND clock (unused clock) while this
+		 * bit remains set.
+		 */
+		NDCR = (NDCR & ~NDCR_ND_ARB_EN) | NDCR_ND_ARB_CNTL;
 
 		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
 			return ret;

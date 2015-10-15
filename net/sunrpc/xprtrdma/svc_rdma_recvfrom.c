@@ -136,7 +136,8 @@ int rdma_read_chunk_lcl(struct svcxprt_rdma *xprt,
 	ctxt->direction = DMA_FROM_DEVICE;
 	ctxt->read_hdr = head;
 	pages_needed = min_t(int, pages_needed, xprt->sc_max_sge_rd);
-	read = min_t(int, pages_needed << PAGE_SHIFT, rs_length);
+	read = min_t(int, (pages_needed << PAGE_SHIFT) - *page_offset,
+		     rs_length);
 
 	for (pno = 0; pno < pages_needed; pno++) {
 		int len = min_t(int, rs_length, PAGE_SIZE - pg_off);
@@ -235,7 +236,8 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 	ctxt->direction = DMA_FROM_DEVICE;
 	ctxt->frmr = frmr;
 	pages_needed = min_t(int, pages_needed, xprt->sc_frmr_pg_list_len);
-	read = min_t(int, pages_needed << PAGE_SHIFT, rs_length);
+	read = min_t(int, (pages_needed << PAGE_SHIFT) - *page_offset,
+		     rs_length);
 
 	frmr->kva = page_address(rqstp->rq_arg.pages[pg_no]);
 	frmr->direction = DMA_FROM_DEVICE;
@@ -531,7 +533,7 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.page_base = head->arg.page_base;
 
 	/* rq_respages starts after the last arg page */
-	rqstp->rq_respages = &rqstp->rq_arg.pages[page_no];
+	rqstp->rq_respages = &rqstp->rq_pages[page_no];
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* Rebuild rq_arg head and tail. */

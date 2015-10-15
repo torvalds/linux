@@ -68,8 +68,8 @@ static inline unsigned long iova_pfn(struct iova_domain *iovad, dma_addr_t iova)
 	return iova >> iova_shift(iovad);
 }
 
-int iommu_iova_cache_init(void);
-void iommu_iova_cache_destroy(void);
+int iova_cache_get(void);
+void iova_cache_put(void);
 
 struct iova *alloc_iova_mem(void);
 void free_iova_mem(struct iova *iova);

@@ -1005,6 +1005,9 @@ static void vi_pcie_gen3_enable(struct amdgpu_device *adev)
 	u32 mask;
 	int ret;
 
+	if (pci_is_root_bus(adev->pdev->bus))
+		return;
+
 	if (amdgpu_pcie_gen2 == 0)
 		return;
 
@@ -1400,7 +1403,8 @@ static int vi_common_early_init(void *handle)
 	case CHIP_CARRIZO:
 		adev->has_uvd = true;
 		adev->cg_flags = 0;
-		adev->pg_flags = AMDGPU_PG_SUPPORT_UVD | AMDGPU_PG_SUPPORT_VCE;
+		/* Disable UVD pg */
+		adev->pg_flags = /* AMDGPU_PG_SUPPORT_UVD | */AMDGPU_PG_SUPPORT_VCE;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		if (amdgpu_smc_load_fw && smc_enabled)
 			adev->firmware.smu_load = true;

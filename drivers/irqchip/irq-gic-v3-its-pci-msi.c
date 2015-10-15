@@ -62,7 +62,7 @@ static int its_get_pci_alias(struct pci_dev *pdev, u16 alias, void *data)
 
 	dev_alias->dev_id = alias;
 	if (pdev != dev_alias->pdev)
-		dev_alias->count += its_pci_msi_vec_count(dev_alias->pdev);
+		dev_alias->count += its_pci_msi_vec_count(pdev);
 
 	return 0;
 }

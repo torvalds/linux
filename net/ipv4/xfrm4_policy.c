@@ -33,6 +33,8 @@ static struct dst_entry *__xfrm4_dst_lookup(struct net *net, struct flowi4 *fl4,
 	if (saddr)
 		fl4->saddr = saddr->a4;
 
+	fl4->flowi4_flags = FLOWI_FLAG_SKIP_NH_OIF;
+
 	rt = __ip_route_output_key(net, fl4);
 	if (!IS_ERR(rt))
 		return &rt->dst;

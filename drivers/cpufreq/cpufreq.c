@@ -238,13 +238,13 @@ int cpufreq_generic_init(struct cpufreq_policy *policy,
 }
 EXPORT_SYMBOL_GPL(cpufreq_generic_init);
 
-/* Only for cpufreq core internal use */
-static struct cpufreq_policy *cpufreq_cpu_get_raw(unsigned int cpu)
+struct cpufreq_policy *cpufreq_cpu_get_raw(unsigned int cpu)
 {
 	struct cpufreq_policy *policy = per_cpu(cpufreq_cpu_data, cpu);
 
 	return policy && cpumask_test_cpu(cpu, policy->cpus) ? policy : NULL;
 }
+EXPORT_SYMBOL_GPL(cpufreq_cpu_get_raw);
 
 unsigned int cpufreq_generic_get(unsigned int cpu)
 {
@@ -1436,8 +1436,10 @@ static void cpufreq_offline_finish(unsigned int cpu)
 	 * since this is a core component, and is essential for the
 	 * subsequent light-weight ->init() to succeed.
 	 */
-	if (cpufreq_driver->exit)
+	if (cpufreq_driver->exit) {
 		cpufreq_driver->exit(policy);
+		policy->freq_table = NULL;
+	}
 }
 
 /**

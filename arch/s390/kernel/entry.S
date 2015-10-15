@@ -733,6 +733,14 @@ ENTRY(psw_idle)
 	stg	%r3,__SF_EMPTY(%r15)
 	larl	%r1,.Lpsw_idle_lpsw+4
 	stg	%r1,__SF_EMPTY+8(%r15)
+#ifdef CONFIG_SMP
+	larl	%r1,smp_cpu_mtid
+	llgf	%r1,0(%r1)
+	ltgr	%r1,%r1
+	jz	.Lpsw_idle_stcctm
+	.insn	rsy,0xeb0000000017,%r1,5,__SF_EMPTY+16(%r15)
+.Lpsw_idle_stcctm:
+#endif
 	STCK	__CLOCK_IDLE_ENTER(%r2)
 	stpt	__TIMER_IDLE_ENTER(%r2)
 .Lpsw_idle_lpsw:
@@ -1159,7 +1167,27 @@ cleanup_critical:
 	jhe	1f
 	mvc	__CLOCK_IDLE_ENTER(8,%r2),__CLOCK_IDLE_EXIT(%r2)
 	mvc	__TIMER_IDLE_ENTER(8,%r2),__TIMER_IDLE_EXIT(%r2)
-1:	# account system time going idle
+1:	# calculate idle cycles
+#ifdef CONFIG_SMP
+	clg	%r9,BASED(.Lcleanup_idle_insn)
+	jl	3f
+	larl	%r1,smp_cpu_mtid
+	llgf	%r1,0(%r1)
+	ltgr	%r1,%r1
+	jz	3f
+	.insn	rsy,0xeb0000000017,%r1,5,__SF_EMPTY+80(%r15)
+	larl	%r3,mt_cycles
+	ag	%r3,__LC_PERCPU_OFFSET
+	la	%r4,__SF_EMPTY+16(%r15)
+2:	lg	%r0,0(%r3)
+	slg	%r0,0(%r4)
+	alg	%r0,64(%r4)
+	stg	%r0,0(%r3)
+	la	%r3,8(%r3)
+	la	%r4,8(%r4)
+	brct	%r1,2b
+#endif
+3:	# account system time going idle
 	lg	%r9,__LC_STEAL_TIMER
 	alg	%r9,__CLOCK_IDLE_ENTER(%r2)
 	slg	%r9,__LC_LAST_UPDATE_CLOCK
@@ -1191,6 +1219,7 @@ cleanup_critical:
 	clg	%r9,BASED(.Lcleanup_save_fpu_fpc_end)
 	jhe	1f
 	lg	%r2,__LC_CURRENT
+	aghi	%r2,__TASK_thread
 0:	# Store floating-point controls
 	stfpc	__THREAD_FPU_fpc(%r2)
 1:	# Load register save area and check if VX is active
@@ -1252,6 +1281,7 @@ cleanup_critical:
 	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx_ctl)
 	jhe	6f
 	lg	%r4,__LC_CURRENT
+	aghi	%r4,__TASK_thread
 	lfpc	__THREAD_FPU_fpc(%r4)
 	tm	__THREAD_FPU_flags+3(%r4),FPU_USE_VX	# VX-enabled task ?
 	lg	%r4,__THREAD_FPU_regs(%r4)	# %r4 <- reg save area

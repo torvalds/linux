@@ -43,7 +43,7 @@ static int amdgpu_ih_ring_alloc(struct amdgpu_device *adev)
 		r = amdgpu_bo_create(adev, adev->irq.ih.ring_size,
 				     PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0,
-				     NULL, &adev->irq.ih.ring_obj);
+				     NULL, NULL, &adev->irq.ih.ring_obj);
 		if (r) {
 			DRM_ERROR("amdgpu: failed to create ih ring buffer (%d).\n", r);
 			return r;
