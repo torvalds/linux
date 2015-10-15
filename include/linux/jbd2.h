@@ -1338,13 +1338,18 @@ static inline int tid_geq(tid_t x, tid_t y)
 extern int jbd2_journal_blocks_per_page(struct inode *inode);
 extern size_t journal_tag_bytes(journal_t *journal);
 
+static inline bool jbd2_journal_has_csum_v2or3_feature(journal_t *j)
+{
+	return JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2) ||
+	       JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V3);
+}
+
 static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
 {
-	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2) ||
-	    JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V3))
-		return 1;
+	WARN_ON_ONCE(jbd2_journal_has_csum_v2or3_feature(journal) &&
+		     journal->j_chksum_driver == NULL);
 
-	return 0;
+	return journal->j_chksum_driver != NULL;
 }
 
 /*

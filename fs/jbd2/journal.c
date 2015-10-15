@@ -124,7 +124,7 @@ EXPORT_SYMBOL(__jbd2_debug);
 /* Checksumming functions */
 static int jbd2_verify_csum_type(journal_t *j, journal_superblock_t *sb)
 {
-	if (!jbd2_journal_has_csum_v2or3(j))
+	if (!jbd2_journal_has_csum_v2or3_feature(j))
 		return 1;
 
 	return sb->s_checksum_type == JBD2_CRC32C_CHKSUM;
@@ -1531,7 +1531,7 @@ static int journal_get_superblock(journal_t *journal)
 		goto out;
 	}
 
-	if (jbd2_journal_has_csum_v2or3(journal) &&
+	if (jbd2_journal_has_csum_v2or3_feature(journal) &&
 	    JBD2_HAS_COMPAT_FEATURE(journal, JBD2_FEATURE_COMPAT_CHECKSUM)) {
 		/* Can't have checksum v1 and v2 on at the same time! */
 		printk(KERN_ERR "JBD2: Can't enable checksumming v1 and v2/3 "
@@ -1545,7 +1545,7 @@ static int journal_get_superblock(journal_t *journal)
 	}
 
 	/* Load the checksum driver */
-	if (jbd2_journal_has_csum_v2or3(journal)) {
+	if (jbd2_journal_has_csum_v2or3_feature(journal)) {
 		journal->j_chksum_driver = crypto_alloc_shash("crc32c", 0, 0);
 		if (IS_ERR(journal->j_chksum_driver)) {
 			printk(KERN_ERR "JBD2: Cannot load crc32c driver.\n");
