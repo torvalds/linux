@@ -306,8 +306,7 @@ static int drm_mode_object_get_reg(struct drm_device *dev,
  * reference counted modeset objects like framebuffers.
  *
  * Returns:
- * New unique (relative to other objects in @dev) integer identifier for the
- * object.
+ * Zero on success, error code on failure.
  */
 int drm_mode_object_get(struct drm_device *dev,
 			struct drm_mode_object *obj, uint32_t obj_type)
@@ -423,7 +422,7 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 out:
 	mutex_unlock(&dev->mode_config.fb_lock);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
 
