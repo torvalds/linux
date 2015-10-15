@@ -34,6 +34,14 @@
 
 #define EMU10K1_FX8010_PCM_COUNT		8
 
+/*
+ * Following definition is copied from linux/types.h to support compiling
+ * this header file in userspace since they are not generally available for
+ * uapi headers.
+ */
+#define __EMU10K1_DECLARE_BITMAP(name,bits) \
+	unsigned long name[(bits) / (sizeof(unsigned long) * 8)]
+
 /* instruction set */
 #define iMAC0	 0x00	/* R = A + (X * Y >> 31)   ; saturation */
 #define iMAC1	 0x01	/* R = A + (-X * Y >> 31)  ; saturation */
@@ -300,7 +308,7 @@ struct snd_emu10k1_fx8010_control_old_gpr {
 struct snd_emu10k1_fx8010_code {
 	char name[128];
 
-	DECLARE_BITMAP(gpr_valid, 0x200); /* bitmask of valid initializers */
+	__EMU10K1_DECLARE_BITMAP(gpr_valid, 0x200); /* bitmask of valid initializers */
 	__u32 __user *gpr_map;		/* initializers */
 
 	unsigned int gpr_add_control_count; /* count of GPR controls to add/replace */
@@ -313,11 +321,11 @@ struct snd_emu10k1_fx8010_code {
 	unsigned int gpr_list_control_total; /* total count of GPR controls */
 	struct snd_emu10k1_fx8010_control_gpr __user *gpr_list_controls; /* listed GPR controls */
 
-	DECLARE_BITMAP(tram_valid, 0x100); /* bitmask of valid initializers */
+	__EMU10K1_DECLARE_BITMAP(tram_valid, 0x100); /* bitmask of valid initializers */
 	__u32 __user *tram_data_map;	  /* data initializers */
 	__u32 __user *tram_addr_map;	  /* map initializers */
 
-	DECLARE_BITMAP(code_valid, 1024); /* bitmask of valid instructions */
+	__EMU10K1_DECLARE_BITMAP(code_valid, 1024); /* bitmask of valid instructions */
 	__u32 __user *code;		  /* one instruction - 64 bits */
 };
 
