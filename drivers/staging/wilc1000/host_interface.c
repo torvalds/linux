@@ -256,7 +256,7 @@ static u32 inactive_time;
 static u8 del_beacon;
 
 static u8 *join_req;
-u8 *gu8FlushedInfoElemAsoc;
+u8 *info_element;
 u8 gu8Flushed11iMode;
 u8 gu8FlushedAuthType;
 u32 gu32FlushedJoinReqSize;
@@ -1063,8 +1063,8 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
 
 			gu32FlushedInfoElemAsocSize = hif_drv->strWILC_UsrConnReq.ConnReqIEsLen;
-			gu8FlushedInfoElemAsoc =  kmalloc(gu32FlushedInfoElemAsocSize, GFP_KERNEL);
-			memcpy(gu8FlushedInfoElemAsoc, hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs,
+			info_element = kmalloc(gu32FlushedInfoElemAsocSize, GFP_KERNEL);
+			memcpy(info_element, hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs,
 			       gu32FlushedInfoElemAsocSize);
 		}
 	}
@@ -1282,7 +1282,7 @@ static s32 Handle_FlushConnect(struct host_if_drv *hif_drv)
 
 	strWIDList[u32WidsCount].id = WID_INFO_ELEMENT_ASSOCIATE;
 	strWIDList[u32WidsCount].type = WID_BIN_DATA;
-	strWIDList[u32WidsCount].val = gu8FlushedInfoElemAsoc;
+	strWIDList[u32WidsCount].val = info_element;
 	strWIDList[u32WidsCount].size = gu32FlushedInfoElemAsocSize;
 	u32WidsCount++;
 
@@ -1389,9 +1389,10 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 		kfree(join_req);
 		join_req = NULL;
 	}
-	if (gu8FlushedInfoElemAsoc != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
-		kfree(gu8FlushedInfoElemAsoc);
-		gu8FlushedInfoElemAsoc = NULL;
+
+	if (info_element != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+		kfree(info_element);
+		info_element = NULL;
 	}
 
 	return s32Error;
@@ -1686,9 +1687,10 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 				kfree(join_req);
 				join_req = NULL;
 			}
-			if (gu8FlushedInfoElemAsoc != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
-				kfree(gu8FlushedInfoElemAsoc);
-				gu8FlushedInfoElemAsoc = NULL;
+
+			if (info_element != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+				kfree(info_element);
+				info_element = NULL;
 			}
 
 			hif_drv->enuHostIFstate = HOST_IF_IDLE;
@@ -2076,9 +2078,10 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 			kfree(join_req);
 			join_req = NULL;
 		}
-		if (gu8FlushedInfoElemAsoc != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
-			kfree(gu8FlushedInfoElemAsoc);
-			gu8FlushedInfoElemAsoc = NULL;
+
+		if (info_element != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+			kfree(info_element);
+			info_element = NULL;
 		}
 
 	}
