@@ -628,8 +628,20 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
 	init_waitqueue_head(&ring->fence_drv.fence_queue);
 
 	if (amdgpu_enable_scheduler) {
+		long timeout = msecs_to_jiffies(amdgpu_lockup_timeout);
+		if (timeout == 0) {
+			/*
+			 * FIXME:
+			 * Delayed workqueue cannot use it directly,
+			 * so the scheduler will not use delayed workqueue if
+			 * MAX_SCHEDULE_TIMEOUT is set.
+			 * Currently keep it simple and silly.
+			 */
+			timeout = MAX_SCHEDULE_TIMEOUT;
+		}
 		r = amd_sched_init(&ring->sched, &amdgpu_sched_ops,
-				   amdgpu_sched_hw_submission, ring->name);
+				   amdgpu_sched_hw_submission,
+				   timeout, ring->name);
 		if (r) {
 			DRM_ERROR("Failed to create scheduler on ring %s.\n",
 				  ring->name);

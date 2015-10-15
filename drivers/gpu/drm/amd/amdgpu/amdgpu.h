@@ -79,6 +79,8 @@ extern int amdgpu_bapm;
 extern int amdgpu_deep_color;
 extern int amdgpu_vm_size;
 extern int amdgpu_vm_block_size;
+extern int amdgpu_vm_fault_stop;
+extern int amdgpu_vm_debug;
 extern int amdgpu_enable_scheduler;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
@@ -960,6 +962,11 @@ struct amdgpu_ring {
 #define AMDGPU_PTE_FRAG_64KB	(4 << 7)
 #define AMDGPU_LOG2_PAGES_PER_FRAG 4
 
+/* How to programm VM fault handling */
+#define AMDGPU_VM_FAULT_STOP_NEVER	0
+#define AMDGPU_VM_FAULT_STOP_FIRST	1
+#define AMDGPU_VM_FAULT_STOP_ALWAYS	2
+
 struct amdgpu_vm_pt {
 	struct amdgpu_bo		*bo;
 	uint64_t			addr;
@@ -1708,7 +1715,7 @@ struct amdgpu_vce {
 /*
  * SDMA
  */
-struct amdgpu_sdma {
+struct amdgpu_sdma_instance {
 	/* SDMA firmware */
 	const struct firmware	*fw;
 	uint32_t		fw_version;
@@ -1716,6 +1723,13 @@ struct amdgpu_sdma {
 
 	struct amdgpu_ring	ring;
 	bool			burst_nop;
+};
+
+struct amdgpu_sdma {
+	struct amdgpu_sdma_instance instance[AMDGPU_MAX_SDMA_INSTANCES];
+	struct amdgpu_irq_src	trap_irq;
+	struct amdgpu_irq_src	illegal_inst_irq;
+	int 			num_instances;
 };
 
 /*
@@ -2064,9 +2078,7 @@ struct amdgpu_device {
 	struct amdgpu_gfx		gfx;
 
 	/* sdma */
-	struct amdgpu_sdma		sdma[AMDGPU_MAX_SDMA_INSTANCES];
-	struct amdgpu_irq_src		sdma_trap_irq;
-	struct amdgpu_irq_src		sdma_illegal_inst_irq;
+	struct amdgpu_sdma		sdma;
 
 	/* uvd */
 	bool				has_uvd;
@@ -2203,17 +2215,18 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 	ring->ring_free_dw--;
 }
 
-static inline struct amdgpu_sdma * amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
+static inline struct amdgpu_sdma_instance *
+amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	int i;
 
-	for (i = 0; i < AMDGPU_MAX_SDMA_INSTANCES; i++)
-		if (&adev->sdma[i].ring == ring)
+	for (i = 0; i < adev->sdma.num_instances; i++)
+		if (&adev->sdma.instance[i].ring == ring)
 			break;
 
 	if (i < AMDGPU_MAX_SDMA_INSTANCES)
-		return &adev->sdma[i];
+		return &adev->sdma.instance[i];
 	else
 		return NULL;
 }

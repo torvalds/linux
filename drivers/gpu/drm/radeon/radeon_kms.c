@@ -602,7 +602,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
  *
  * @dev: drm dev pointer
  *
- * Switch vga switcheroo state after last close (all asics).
+ * Switch vga_switcheroo state after last close (all asics).
  */
 void radeon_driver_lastclose_kms(struct drm_device *dev)
 {

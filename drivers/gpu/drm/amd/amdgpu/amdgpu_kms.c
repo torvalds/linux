@@ -218,8 +218,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_DMA:
 			type = AMD_IP_BLOCK_TYPE_SDMA;
-			ring_mask = adev->sdma[0].ring.ready ? 1 : 0;
-			ring_mask |= ((adev->sdma[1].ring.ready ? 1 : 0) << 1);
+			for (i = 0; i < adev->sdma.num_instances; i++)
+				ring_mask |= ((adev->sdma.instance[i].ring.ready ? 1 : 0) << i);
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
 			ib_size_alignment = 1;
 			break;
@@ -341,10 +341,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			fw_info.feature = 0;
 			break;
 		case AMDGPU_INFO_FW_SDMA:
-			if (info->query_fw.index >= 2)
+			if (info->query_fw.index >= adev->sdma.num_instances)
 				return -EINVAL;
-			fw_info.ver = adev->sdma[info->query_fw.index].fw_version;
-			fw_info.feature = adev->sdma[info->query_fw.index].feature_version;
+			fw_info.ver = adev->sdma.instance[info->query_fw.index].fw_version;
+			fw_info.feature = adev->sdma.instance[info->query_fw.index].feature_version;
 			break;
 		default:
 			return -EINVAL;
@@ -489,7 +489,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
  *
  * @dev: drm dev pointer
  *
- * Switch vga switcheroo state after last close (all asics).
+ * Switch vga_switcheroo state after last close (all asics).
  */
 void amdgpu_driver_lastclose_kms(struct drm_device *dev)
 {

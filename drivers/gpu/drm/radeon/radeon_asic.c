@@ -31,7 +31,6 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
 #include <linux/vgaarb.h>
-#include <linux/vga_switcheroo.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_asic.h"
