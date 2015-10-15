@@ -1797,10 +1797,7 @@ void megaraid_sas_kill_hba(struct megasas_instance *instance)
 	msleep(1000);
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
+		(instance->ctrl_context)) {
 		writel(MFI_STOP_ADP, &instance->reg_set->doorbell);
 		/* Flush */
 		readl(&instance->reg_set->doorbell);
@@ -2567,10 +2564,7 @@ static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 	/*
 	 * First wait for all commands to complete
 	 */
-	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
+	if (instance->ctrl_context)
 		ret = megasas_reset_fusion(scmd->device->host, 1);
 	else
 		ret = megasas_generic_reset(scmd);
@@ -3431,22 +3425,14 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 				PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 				(instance->pdev->device ==
 				 PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
-				(instance->pdev->device ==
-				PCI_DEVICE_ID_LSI_FUSION) ||
-				(instance->pdev->device ==
-				PCI_DEVICE_ID_LSI_PLASMA) ||
-				(instance->pdev->device ==
-				PCI_DEVICE_ID_LSI_INVADER) ||
-				(instance->pdev->device ==
-				PCI_DEVICE_ID_LSI_FURY)) {
+				(instance->ctrl_context))
 				writel(
 				  MFI_INIT_CLEAR_HANDSHAKE|MFI_INIT_HOTPLUG,
 				  &instance->reg_set->doorbell);
-			} else {
+			else
 				writel(
 				    MFI_INIT_CLEAR_HANDSHAKE|MFI_INIT_HOTPLUG,
 					&instance->reg_set->inbound_doorbell);
-			}
 
 			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_WAIT_HANDSHAKE;
@@ -3457,17 +3443,10 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 			     PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 				(instance->pdev->device ==
 				 PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
-			    (instance->pdev->device ==
-			     PCI_DEVICE_ID_LSI_FUSION) ||
-			    (instance->pdev->device ==
-			     PCI_DEVICE_ID_LSI_PLASMA) ||
-			    (instance->pdev->device ==
-			     PCI_DEVICE_ID_LSI_INVADER) ||
-			    (instance->pdev->device ==
-			     PCI_DEVICE_ID_LSI_FURY)) {
+				(instance->ctrl_context))
 				writel(MFI_INIT_HOTPLUG,
 				       &instance->reg_set->doorbell);
-			} else
+			else
 				writel(MFI_INIT_HOTPLUG,
 					&instance->reg_set->inbound_doorbell);
 
@@ -3484,24 +3463,11 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 				PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 				(instance->pdev->device ==
 				PCI_DEVICE_ID_LSI_SAS0071SKINNY)  ||
-				(instance->pdev->device
-					== PCI_DEVICE_ID_LSI_FUSION) ||
-				(instance->pdev->device
-					== PCI_DEVICE_ID_LSI_PLASMA) ||
-				(instance->pdev->device
-					== PCI_DEVICE_ID_LSI_INVADER) ||
-				(instance->pdev->device
-					== PCI_DEVICE_ID_LSI_FURY)) {
+				(instance->ctrl_context)) {
 				writel(MFI_RESET_FLAGS,
 					&instance->reg_set->doorbell);
-				if ((instance->pdev->device ==
-					PCI_DEVICE_ID_LSI_FUSION) ||
-					(instance->pdev->device ==
-					PCI_DEVICE_ID_LSI_PLASMA) ||
-					(instance->pdev->device ==
-					PCI_DEVICE_ID_LSI_INVADER) ||
-					(instance->pdev->device ==
-					PCI_DEVICE_ID_LSI_FURY)) {
+
+				if (instance->ctrl_context) {
 					for (i = 0; i < (10 * 1000); i += 20) {
 						if (readl(
 							    &instance->
@@ -3722,11 +3688,7 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 		memset(cmd->frame, 0, total_sz);
 		cmd->frame->io.context = cpu_to_le32(cmd->index);
 		cmd->frame->io.pad_0 = 0;
-		if ((instance->pdev->device != PCI_DEVICE_ID_LSI_FUSION) &&
-		    (instance->pdev->device != PCI_DEVICE_ID_LSI_PLASMA) &&
-		    (instance->pdev->device != PCI_DEVICE_ID_LSI_INVADER) &&
-			(instance->pdev->device != PCI_DEVICE_ID_LSI_FURY) &&
-		    (reset_devices))
+		if (!instance->ctrl_context && reset_devices)
 			cmd->frame->hdr.cmd = MFI_CMD_INVALID;
 	}
 
@@ -4639,6 +4601,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	unsigned long bar_list;
 	int i, loop, fw_msix_count = 0;
 	struct IOV_111 *iovPtr;
+	struct fusion_context *fusion;
+
+	fusion = instance->ctrl_context;
 
 	/* Find first memory bar */
 	bar_list = pci_select_bars(instance->pdev, IORESOURCE_MEM);
@@ -4716,37 +4681,32 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		scratch_pad_2 = readl
 			(&instance->reg_set->outbound_scratch_pad_2);
 		/* Check max MSI-X vectors */
-		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-		    (instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA)) {
-			instance->msix_vectors = (scratch_pad_2
-				& MR_MAX_REPLY_QUEUES_OFFSET) + 1;
-			fw_msix_count = instance->msix_vectors;
-			if (msix_vectors)
-				instance->msix_vectors =
-					min(msix_vectors,
-					    instance->msix_vectors);
-		} else if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER)
-			|| (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
-			/* Invader/Fury supports more than 8 MSI-X */
-			instance->msix_vectors = ((scratch_pad_2
-				& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
-				>> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
-			fw_msix_count = instance->msix_vectors;
-			/* Save 1-15 reply post index address to local memory
-			 * Index 0 is already saved from reg offset
-			 * MPI2_REPLY_POST_HOST_INDEX_OFFSET
-			 */
-			for (loop = 1; loop < MR_MAX_MSIX_REG_ARRAY; loop++) {
-				instance->reply_post_host_index_addr[loop] =
-					(u32 __iomem *)
-					((u8 __iomem *)instance->reg_set +
-					MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET
-					+ (loop * 0x10));
+		if (fusion) {
+			if (fusion->adapter_type == THUNDERBOLT_SERIES) { /* Thunderbolt Series*/
+				instance->msix_vectors = (scratch_pad_2
+					& MR_MAX_REPLY_QUEUES_OFFSET) + 1;
+				fw_msix_count = instance->msix_vectors;
+			} else { /* Invader series supports more than 8 MSI-x vectors*/
+				instance->msix_vectors = ((scratch_pad_2
+					& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
+					>> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
+				fw_msix_count = instance->msix_vectors;
+				/* Save 1-15 reply post index address to local memory
+				 * Index 0 is already saved from reg offset
+				 * MPI2_REPLY_POST_HOST_INDEX_OFFSET
+				 */
+				for (loop = 1; loop < MR_MAX_MSIX_REG_ARRAY; loop++) {
+					instance->reply_post_host_index_addr[loop] =
+						(u32 __iomem *)
+						((u8 __iomem *)instance->reg_set +
+						MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET
+						+ (loop * 0x10));
+				}
 			}
 			if (msix_vectors)
 				instance->msix_vectors = min(msix_vectors,
 					instance->msix_vectors);
-		} else
+		} else /* MFI adapters */
 			instance->msix_vectors = 1;
 		/* Don't bother allocating more MSI-X vectors than cpus */
 		instance->msix_vectors = min(instance->msix_vectors,
@@ -5241,10 +5201,7 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	host->max_cmd_len = 16;
 
 	/* Fusion only supports host reset */
-	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
+	if (instance->ctrl_context) {
 		host->hostt->eh_device_reset_handler = NULL;
 		host->hostt->eh_bus_reset_handler = NULL;
 	}
@@ -5380,6 +5337,11 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		fusion = instance->ctrl_context;
 		memset(fusion, 0,
 			((1 << PAGE_SHIFT) << instance->ctrl_context_pages));
+		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
+			(instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA))
+			fusion->adapter_type = THUNDERBOLT_SERIES;
+		else
+			fusion->adapter_type = INVADER_SERIES;
 	}
 	break;
 	default: /* For all other supported controllers */
@@ -5482,10 +5444,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->disableOnlineCtrlReset = 1;
 	instance->UnevenSpanSupport = 0;
 
-	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
+	if (instance->ctrl_context) {
 		INIT_WORK(&instance->work_init, megasas_fusion_ocr_wq);
 		INIT_WORK(&instance->crash_init, megasas_fusion_crash_dump_wq);
 	} else
@@ -5565,10 +5524,7 @@ fail_io_attach:
 	instance->instancet->disable_intr(instance);
 	megasas_destroy_irqs(instance);
 
-	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
+	if (instance->ctrl_context)
 		megasas_release_fusion(instance);
 	else
 		megasas_release_mfi(instance);
@@ -5781,12 +5737,7 @@ megasas_resume(struct pci_dev *pdev)
 				  instance->msix_vectors))
 		goto fail_reenable_msix;
 
-	switch (instance->pdev->device) {
-	case PCI_DEVICE_ID_LSI_FUSION:
-	case PCI_DEVICE_ID_LSI_PLASMA:
-	case PCI_DEVICE_ID_LSI_INVADER:
-	case PCI_DEVICE_ID_LSI_FURY:
-	{
+	if (instance->ctrl_context) {
 		megasas_reset_reply_desc(instance);
 		if (megasas_ioc_init_fusion(instance)) {
 			megasas_free_cmds(instance);
@@ -5795,14 +5746,11 @@ megasas_resume(struct pci_dev *pdev)
 		}
 		if (!megasas_get_map_info(instance))
 			megasas_sync_map_info(instance);
-	}
-	break;
-	default:
+	} else {
 		*instance->producer = 0;
 		*instance->consumer = 0;
 		if (megasas_issue_init_mfi(instance))
 			goto fail_init_mfi;
-		break;
 	}
 
 	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
@@ -5924,11 +5872,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	if (instance->msix_vectors)
 		pci_disable_msix(instance->pdev);
 
-	switch (instance->pdev->device) {
-	case PCI_DEVICE_ID_LSI_FUSION:
-	case PCI_DEVICE_ID_LSI_PLASMA:
-	case PCI_DEVICE_ID_LSI_INVADER:
-	case PCI_DEVICE_ID_LSI_FURY:
+	if (instance->ctrl_context) {
 		megasas_release_fusion(instance);
 			pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
 				(sizeof(struct MR_PD_CFG_SEQ) *
@@ -5950,8 +5894,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 		}
 		free_pages((ulong)instance->ctrl_context,
 			instance->ctrl_context_pages);
-		break;
-	default:
+	} else {
 		megasas_release_mfi(instance);
 		pci_free_consistent(pdev, sizeof(u32),
 				    instance->producer,
@@ -5959,7 +5902,6 @@ static void megasas_detach_one(struct pci_dev *pdev)
 		pci_free_consistent(pdev, sizeof(u32),
 				    instance->consumer,
 				    instance->consumer_h);
-		break;
 	}
 
 	kfree(instance->ctrl_info);
