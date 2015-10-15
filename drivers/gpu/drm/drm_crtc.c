@@ -5183,7 +5183,14 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
+	if (crtc->state) {
+		const struct drm_plane_state *state = crtc->primary->state;
+
+		ret = check_src_coords(state->src_x, state->src_y,
+				       state->src_w, state->src_h, fb);
+	} else {
+		ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
+	}
 	if (ret)
 		goto out;
 
