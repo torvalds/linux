@@ -988,7 +988,8 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 		return ret;
 
 	if (!mdev_devnod || *mdev_devnod == 0) {
-		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev, mdev_ch);
+		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev,
+			 mdev_ch);
 		mdev_devnod = devnod_buf;
 	}
 
@@ -1063,7 +1064,8 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 }
 
 static struct most_aim_attribute most_aim_attr_remove_link =
-	__ATTR(remove_link, S_IRUGO | S_IWUSR, show_remove_link, store_remove_link);
+	__ATTR(remove_link, S_IRUGO | S_IWUSR, show_remove_link,
+	       store_remove_link);
 
 static struct attribute *most_aim_def_attrs[] = {
 	&most_aim_attr_add_link.attr,

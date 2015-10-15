@@ -349,7 +349,8 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 
 	if (nd->tx.linked || nd->rx.linked) {
 		struct net_device *dev =
-			alloc_netdev(0, "meth%d", NET_NAME_UNKNOWN, most_nd_setup);
+			alloc_netdev(0, "meth%d", NET_NAME_UNKNOWN,
+				     most_nd_setup);
 
 		if (!dev) {
 			pr_err("no memory for net_device\n");
