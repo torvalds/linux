@@ -255,7 +255,7 @@ static u8 get_ip[2][4];
 static u32 inactive_time;
 static u8 del_beacon;
 
-u8 *join_req;
+static u8 *join_req;
 u8 *gu8FlushedInfoElemAsoc;
 u8 gu8Flushed11iMode;
 u8 gu8FlushedAuthType;
