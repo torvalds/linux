@@ -19,6 +19,14 @@ core regulatory domain all wireless devices should adhere to.
 How to get regulatory domains to the kernel
 -------------------------------------------
 
+When the regulatory domain is first set up, the kernel will request a
+database file (regulatory.db) containing all the regulatory rules. It
+will then use that database when it needs to look up the rules for a
+given country.
+
+How to get regulatory domains to the kernel (old CRDA solution)
+---------------------------------------------------------------
+
 Userspace gets a regulatory domain in the kernel by having
 a userspace agent build it and send it via nl80211. Only
 expected regulatory domains will be respected by the kernel.

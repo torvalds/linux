@@ -54,6 +54,7 @@
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
 #include <linux/moduleparam.h>
+#include <linux/firmware.h>
 #include <net/cfg80211.h>
 #include "core.h"
 #include "reg.h"
@@ -100,7 +101,7 @@ static struct regulatory_request core_request_world = {
 static struct regulatory_request __rcu *last_request =
 	(void __force __rcu *)&core_request_world;
 
-/* To trigger userspace events */
+/* To trigger userspace events and load firmware */
 static struct platform_device *reg_pdev;
 
 /*
@@ -443,7 +444,6 @@ reg_copy_regd(const struct ieee80211_regdomain *src_regd)
 	return regd;
 }
 
-#ifdef CONFIG_CFG80211_INTERNAL_REGDB
 struct reg_regdb_apply_request {
 	struct list_head list;
 	const struct ieee80211_regdomain *regdom;
@@ -475,39 +475,42 @@ static void reg_regdb_apply(struct work_struct *work)
 
 static DECLARE_WORK(reg_regdb_work, reg_regdb_apply);
 
-static int reg_query_builtin(const char *alpha2)
+static int reg_schedule_apply(const struct ieee80211_regdomain *regdom)
 {
-	const struct ieee80211_regdomain *regdom = NULL;
 	struct reg_regdb_apply_request *request;
-	unsigned int i;
-
-	for (i = 0; i < reg_regdb_size; i++) {
-		if (alpha2_equal(alpha2, reg_regdb[i]->alpha2)) {
-			regdom = reg_regdb[i];
-			break;
-		}
-	}
-
-	if (!regdom)
-		return -ENODATA;
 
 	request = kzalloc(sizeof(struct reg_regdb_apply_request), GFP_KERNEL);
-	if (!request)
-		return -ENOMEM;
-
-	request->regdom = reg_copy_regd(regdom);
-	if (IS_ERR_OR_NULL(request->regdom)) {
-		kfree(request);
+	if (!request) {
+		kfree(regdom);
 		return -ENOMEM;
 	}
+
+	request->regdom = regdom;
 
 	mutex_lock(&reg_regdb_apply_mutex);
 	list_add_tail(&request->list, &reg_regdb_apply_list);
 	mutex_unlock(&reg_regdb_apply_mutex);
 
 	schedule_work(&reg_regdb_work);
-
 	return 0;
+}
+
+#ifdef CONFIG_CFG80211_INTERNAL_REGDB
+static int reg_query_builtin(const char *alpha2)
+{
+	const struct ieee80211_regdomain *regdom = NULL;
+	unsigned int i;
+
+	for (i = 0; i < reg_regdb_size; i++) {
+		if (alpha2_equal(alpha2, reg_regdb[i]->alpha2)) {
+			regdom = reg_copy_regd(reg_regdb[i]);
+			break;
+		}
+	}
+	if (!regdom)
+		return -ENODATA;
+
+	return reg_schedule_apply(regdom);
 }
 
 /* Feel free to add any other sanity checks here */
@@ -599,10 +602,254 @@ static inline int call_crda(const char *alpha2)
 }
 #endif /* CONFIG_CFG80211_CRDA_SUPPORT */
 
+/* code to directly load a firmware database through request_firmware */
+static const struct fwdb_header *regdb;
+
+struct fwdb_country {
+	u8 alpha2[2];
+	__be16 coll_ptr;
+	/* this struct cannot be extended */
+} __packed __aligned(4);
+
+struct fwdb_collection {
+	u8 len;
+	u8 n_rules;
+	u8 dfs_region;
+	/* no optional data yet */
+	/* aligned to 2, then followed by __be16 array of rule pointers */
+} __packed __aligned(4);
+
+enum fwdb_flags {
+	FWDB_FLAG_NO_OFDM	= BIT(0),
+	FWDB_FLAG_NO_OUTDOOR	= BIT(1),
+	FWDB_FLAG_DFS		= BIT(2),
+	FWDB_FLAG_NO_IR		= BIT(3),
+	FWDB_FLAG_AUTO_BW	= BIT(4),
+};
+
+struct fwdb_rule {
+	u8 len;
+	u8 flags;
+	__be16 max_eirp;
+	__be32 start, end, max_bw;
+	/* start of optional data */
+	__be16 cac_timeout;
+} __packed __aligned(4);
+
+#define FWDB_MAGIC 0x52474442
+#define FWDB_VERSION 20
+
+struct fwdb_header {
+	__be32 magic;
+	__be32 version;
+	struct fwdb_country country[];
+} __packed __aligned(4);
+
+static bool valid_rule(const u8 *data, unsigned int size, u16 rule_ptr)
+{
+	struct fwdb_rule *rule = (void *)(data + (rule_ptr << 2));
+
+	if ((u8 *)rule + sizeof(rule->len) > data + size)
+		return false;
+
+	/* mandatory fields */
+	if (rule->len < offsetofend(struct fwdb_rule, max_bw))
+		return false;
+
+	return true;
+}
+
+static bool valid_country(const u8 *data, unsigned int size,
+			  const struct fwdb_country *country)
+{
+	unsigned int ptr = be16_to_cpu(country->coll_ptr) << 2;
+	struct fwdb_collection *coll = (void *)(data + ptr);
+	__be16 *rules_ptr;
+	unsigned int i;
+
+	/* make sure we can read len/n_rules */
+	if ((u8 *)coll + offsetofend(typeof(*coll), n_rules) > data + size)
+		return false;
+
+	/* make sure base struct and all rules fit */
+	if ((u8 *)coll + ALIGN(coll->len, 2) +
+	    (coll->n_rules * 2) > data + size)
+		return false;
+
+	/* mandatory fields must exist */
+	if (coll->len < offsetofend(struct fwdb_collection, dfs_region))
+		return false;
+
+	rules_ptr = (void *)((u8 *)coll + ALIGN(coll->len, 2));
+
+	for (i = 0; i < coll->n_rules; i++) {
+		u16 rule_ptr = be16_to_cpu(rules_ptr[i]);
+
+		if (!valid_rule(data, size, rule_ptr))
+			return false;
+	}
+
+	return true;
+}
+
+static bool valid_regdb(const u8 *data, unsigned int size)
+{
+	const struct fwdb_header *hdr = (void *)data;
+	const struct fwdb_country *country;
+
+	if (size < sizeof(*hdr))
+		return false;
+
+	if (hdr->magic != cpu_to_be32(FWDB_MAGIC))
+		return false;
+
+	if (hdr->version != cpu_to_be32(FWDB_VERSION))
+		return false;
+
+	country = &hdr->country[0];
+	while ((u8 *)(country + 1) <= data + size) {
+		if (!country->coll_ptr)
+			break;
+		if (!valid_country(data, size, country))
+			return false;
+		country++;
+	}
+
+	return true;
+}
+
+static int regdb_query_country(const struct fwdb_header *db,
+			       const struct fwdb_country *country)
+{
+	unsigned int ptr = be16_to_cpu(country->coll_ptr) << 2;
+	struct fwdb_collection *coll = (void *)((u8 *)db + ptr);
+	struct ieee80211_regdomain *regdom;
+	unsigned int size_of_regd;
+	unsigned int i;
+
+	size_of_regd =
+		sizeof(struct ieee80211_regdomain) +
+		coll->n_rules * sizeof(struct ieee80211_reg_rule);
+
+	regdom = kzalloc(size_of_regd, GFP_KERNEL);
+	if (!regdom)
+		return -ENOMEM;
+
+	regdom->n_reg_rules = coll->n_rules;
+	regdom->alpha2[0] = country->alpha2[0];
+	regdom->alpha2[1] = country->alpha2[1];
+	regdom->dfs_region = coll->dfs_region;
+
+	for (i = 0; i < regdom->n_reg_rules; i++) {
+		__be16 *rules_ptr = (void *)((u8 *)coll + ALIGN(coll->len, 2));
+		unsigned int rule_ptr = be16_to_cpu(rules_ptr[i]) << 2;
+		struct fwdb_rule *rule = (void *)((u8 *)db + rule_ptr);
+		struct ieee80211_reg_rule *rrule = &regdom->reg_rules[i];
+
+		rrule->freq_range.start_freq_khz = be32_to_cpu(rule->start);
+		rrule->freq_range.end_freq_khz = be32_to_cpu(rule->end);
+		rrule->freq_range.max_bandwidth_khz = be32_to_cpu(rule->max_bw);
+
+		rrule->power_rule.max_antenna_gain = 0;
+		rrule->power_rule.max_eirp = be16_to_cpu(rule->max_eirp);
+
+		rrule->flags = 0;
+		if (rule->flags & FWDB_FLAG_NO_OFDM)
+			rrule->flags |= NL80211_RRF_NO_OFDM;
+		if (rule->flags & FWDB_FLAG_NO_OUTDOOR)
+			rrule->flags |= NL80211_RRF_NO_OUTDOOR;
+		if (rule->flags & FWDB_FLAG_DFS)
+			rrule->flags |= NL80211_RRF_DFS;
+		if (rule->flags & FWDB_FLAG_NO_IR)
+			rrule->flags |= NL80211_RRF_NO_IR;
+		if (rule->flags & FWDB_FLAG_AUTO_BW)
+			rrule->flags |= NL80211_RRF_AUTO_BW;
+
+		rrule->dfs_cac_ms = 0;
+
+		/* handle optional data */
+		if (rule->len >= offsetofend(struct fwdb_rule, cac_timeout))
+			rrule->dfs_cac_ms =
+				1000 * be16_to_cpu(rule->cac_timeout);
+	}
+
+	return reg_schedule_apply(regdom);
+}
+
+static int query_regdb(const char *alpha2)
+{
+	const struct fwdb_header *hdr = regdb;
+	const struct fwdb_country *country;
+
+	if (IS_ERR(regdb))
+		return PTR_ERR(regdb);
+
+	country = &hdr->country[0];
+	while (country->coll_ptr) {
+		if (alpha2_equal(alpha2, country->alpha2))
+			return regdb_query_country(regdb, country);
+		country++;
+	}
+
+	return -ENODATA;
+}
+
+static void regdb_fw_cb(const struct firmware *fw, void *context)
+{
+	void *db;
+
+	if (!fw) {
+		pr_info("failed to load regulatory.db\n");
+		regdb = ERR_PTR(-ENODATA);
+		goto restore;
+	}
+
+	if (!valid_regdb(fw->data, fw->size)) {
+		pr_info("loaded regulatory.db is malformed\n");
+		release_firmware(fw);
+		regdb = ERR_PTR(-EINVAL);
+		goto restore;
+	}
+
+	db = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	release_firmware(fw);
+
+	if (!db)
+		goto restore;
+	regdb = db;
+
+	if (query_regdb(context))
+		goto restore;
+	goto free;
+ restore:
+	rtnl_lock();
+	restore_regulatory_settings(true);
+	rtnl_unlock();
+ free:
+	kfree(context);
+}
+
+static int query_regdb_file(const char *alpha2)
+{
+	if (regdb)
+		return query_regdb(alpha2);
+
+	alpha2 = kmemdup(alpha2, 2, GFP_KERNEL);
+	if (!alpha2)
+		return -ENOMEM;
+
+	return request_firmware_nowait(THIS_MODULE, true, "regulatory.db",
+				       &reg_pdev->dev, GFP_KERNEL,
+				       (void *)alpha2, regdb_fw_cb);
+}
+
 static bool reg_query_database(struct regulatory_request *request)
 {
 	/* query internal regulatory database (if it exists) */
 	if (reg_query_builtin(request->alpha2) == 0)
+		return true;
+
+	if (query_regdb_file(request->alpha2) == 0)
 		return true;
 
 	if (call_crda(request->alpha2) == 0)
@@ -3360,4 +3607,7 @@ void regulatory_exit(void)
 		list_del(&reg_request->list);
 		kfree(reg_request);
 	}
+
+	if (!IS_ERR_OR_NULL(regdb))
+		kfree(regdb);
 }

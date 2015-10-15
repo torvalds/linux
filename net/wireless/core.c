@@ -1384,7 +1384,7 @@ out_fail_sysfs:
 out_fail_pernet:
 	return err;
 }
-subsys_initcall(cfg80211_init);
+fs_initcall(cfg80211_init);
 
 static void __exit cfg80211_exit(void)
 {

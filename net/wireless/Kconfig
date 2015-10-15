@@ -19,6 +19,7 @@ config WEXT_PRIV
 config CFG80211
 	tristate "cfg80211 - wireless configuration API"
 	depends on RFKILL || !RFKILL
+	select FW_LOADER
 	---help---
 	  cfg80211 is the Linux wireless LAN (802.11) configuration API.
 	  Enable this if you have a wireless device.
@@ -167,7 +168,8 @@ config CFG80211_CRDA_SUPPORT
 	depends on CFG80211
 	help
 	  You should enable this option unless you know for sure you have no
-	  need for it, for example when using internal regdb (above.)
+	  need for it, for example when using internal regdb (above) or the
+	  database loaded as a firmware file.
 
 	  If unsure, say Y.
 
