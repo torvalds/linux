@@ -581,7 +581,7 @@ EXPORT_SYMBOL(dispc_mgr_go_busy);
 
 void dispc_mgr_go(enum omap_channel channel)
 {
-	WARN_ON(dispc_mgr_is_enabled(channel) == false);
+	WARN_ON(!dispc_mgr_is_enabled(channel));
 	WARN_ON(dispc_mgr_go_busy(channel));
 
 	DSSDBG("GO %s\n", mgr_desc[channel].name);
@@ -3285,7 +3285,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
-		if (t.interlace == true)
+		if (t.interlace)
 			t.y_res /= 2;
 	}
 
@@ -3302,7 +3302,7 @@ static void dispc_mgr_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
 	dispc_write_reg(DISPC_DIVISORo(channel),
 			FLD_VAL(lck_div, 23, 16) | FLD_VAL(pck_div, 7, 0));
 
-	if (dss_has_feature(FEAT_CORE_CLK_DIV) == false &&
+	if (!dss_has_feature(FEAT_CORE_CLK_DIV) &&
 			channel == OMAP_DSS_CHANNEL_LCD)
 		dispc.core_clk_rate = dispc_fclk_rate() / lck_div;
 }

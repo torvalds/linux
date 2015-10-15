@@ -210,7 +210,7 @@ static int dss_mgr_check_lcd_config(struct omap_overlay_manager *mgr,
 		return -EINVAL;
 
 	/* fifohandcheck should be used only with stallmode */
-	if (stallmode == false && fifohandcheck == true)
+	if (!stallmode && fifohandcheck)
 		return -EINVAL;
 
 	/*

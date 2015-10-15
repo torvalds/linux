@@ -476,7 +476,7 @@ static void dispc_mgr_disable_lcd_out(enum omap_channel channel)
 	int r;
 	u32 irq;
 
-	if (dispc_mgr_is_enabled(channel) == false)
+	if (!dispc_mgr_is_enabled(channel))
 		return;
 
 	/*
@@ -524,7 +524,7 @@ static void dispc_mgr_enable_digit_out(void)
 	int r;
 	u32 irq_mask;
 
-	if (dispc_mgr_is_enabled(OMAP_DSS_CHANNEL_DIGIT) == true)
+	if (dispc_mgr_is_enabled(OMAP_DSS_CHANNEL_DIGIT))
 		return;
 
 	/*
@@ -562,7 +562,7 @@ static void dispc_mgr_disable_digit_out(void)
 	u32 irq_mask;
 	int num_irqs;
 
-	if (dispc_mgr_is_enabled(OMAP_DSS_CHANNEL_DIGIT) == false)
+	if (!dispc_mgr_is_enabled(OMAP_DSS_CHANNEL_DIGIT))
 		return;
 
 	/*
