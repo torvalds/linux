@@ -431,8 +431,7 @@ static int mlxsw_pci_wqe_frag_map(struct mlxsw_pci *mlxsw_pci, char *wqe,
 
 	mapaddr = pci_map_single(pdev, frag_data, frag_len, direction);
 	if (unlikely(pci_dma_mapping_error(pdev, mapaddr))) {
-		if (net_ratelimit())
-			dev_err(&pdev->dev, "failed to dma map tx frag\n");
+		dev_err_ratelimited(&pdev->dev, "failed to dma map tx frag\n");
 		return -EIO;
 	}
 	mlxsw_pci_wqe_address_set(wqe, index, mapaddr);
@@ -700,8 +699,8 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 put_new_skb:
 	memset(wqe, 0, q->elem_size);
 	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info);
-	if (err && net_ratelimit())
-		dev_dbg(&pdev->dev, "Failed to alloc skb for RDQ\n");
+	if (err)
+		dev_dbg_ratelimited(&pdev->dev, "Failed to alloc skb for RDQ\n");
 	/* Everything is set up, ring doorbell to pass elem to HW */
 	q->producer_counter++;
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);

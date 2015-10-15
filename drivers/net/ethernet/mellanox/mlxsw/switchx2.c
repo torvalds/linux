@@ -1210,9 +1210,8 @@ static void mlxsw_sx_rx_listener_func(struct sk_buff *skb, u8 local_port,
 	struct mlxsw_sx_port_pcpu_stats *pcpu_stats;
 
 	if (unlikely(!mlxsw_sx_port)) {
-		if (net_ratelimit())
-			dev_warn(mlxsw_sx->bus_info->dev, "Port %d: skb received for non-existent port\n",
-				 local_port);
+		dev_warn_ratelimited(mlxsw_sx->bus_info->dev, "Port %d: skb received for non-existent port\n",
+				     local_port);
 		return;
 	}
 
