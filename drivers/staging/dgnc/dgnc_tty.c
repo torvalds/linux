@@ -838,7 +838,7 @@ static void dgnc_set_custom_speed(struct channel_t *ch, uint newrate)
 
 void dgnc_check_queue_flow_control(struct channel_t *ch)
 {
-	int qleft = 0;
+	int qleft;
 
 	/* Store how much space we have left in the queue */
 	qleft = ch->ch_r_tail - ch->ch_r_head - 1;
