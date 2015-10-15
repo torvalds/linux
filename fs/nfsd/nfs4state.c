@@ -2256,16 +2256,20 @@ nfsd4_set_ex_flags(struct nfs4_client *new, struct nfsd4_exchange_id *clid)
 	clid->flags = new->cl_exchange_flags;
 }
 
+static bool client_has_openowners(struct nfs4_client *clp)
+{
+	struct nfs4_openowner *oo;
+
+	list_for_each_entry(oo, &clp->cl_openowners, oo_perclient) {
+		if (!list_empty(&oo->oo_owner.so_stateids))
+			return true;
+	}
+	return false;
+}
+
 static bool client_has_state(struct nfs4_client *clp)
 {
-	/*
-	 * Note clp->cl_openowners check isn't quite right: there's no
-	 * need to count owners without stateid's.
-	 *
-	 * Also note in 4.0 case should also be checking for openowners
-	 * kept around just for close handling.
-	 */
-	return !list_empty(&clp->cl_openowners)
+	return client_has_openowners(clp)
 #ifdef CONFIG_NFSD_PNFS
 		|| !list_empty(&clp->cl_lo_states)
 #endif
