@@ -257,6 +257,7 @@ struct hda_codec {
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
 #endif
+	unsigned int mixer_assigned;
 
 	/* filter the requested power state per nid */
 	unsigned int (*power_filter)(struct hda_codec *codec, hda_nid_t nid,
