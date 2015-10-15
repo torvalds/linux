@@ -478,7 +478,7 @@ static void reg_regdb_apply(struct work_struct *work)
 
 static DECLARE_WORK(reg_regdb_work, reg_regdb_apply);
 
-static int reg_regdb_query(const char *alpha2)
+static int reg_query_builtin(const char *alpha2)
 {
 	const struct ieee80211_regdomain *regdom = NULL;
 	struct reg_regdb_apply_request *request;
@@ -521,7 +521,7 @@ static void reg_regdb_size_check(void)
 }
 #else
 static inline void reg_regdb_size_check(void) {}
-static inline int reg_regdb_query(const char *alpha2)
+static inline int reg_query_builtin(const char *alpha2)
 {
 	return -ENODATA;
 }
@@ -605,7 +605,7 @@ static inline int call_crda(const char *alpha2)
 static bool reg_query_database(struct regulatory_request *request)
 {
 	/* query internal regulatory database (if it exists) */
-	if (reg_regdb_query(request->alpha2) == 0)
+	if (reg_query_builtin(request->alpha2) == 0)
 		return true;
 
 	if (call_crda(request->alpha2) == 0)
