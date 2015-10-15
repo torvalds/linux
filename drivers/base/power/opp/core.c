@@ -772,9 +772,10 @@ unlock:
 }
 
 /* TODO: Support multiple regulators */
-static int opp_get_microvolt(struct dev_pm_opp *opp, struct device *dev)
+static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev)
 {
 	u32 microvolt[3] = {0};
+	u32 val;
 	int count, ret;
 
 	count = of_property_count_u32_elems(opp->np, "opp-microvolt");
@@ -799,6 +800,9 @@ static int opp_get_microvolt(struct dev_pm_opp *opp, struct device *dev)
 	opp->u_volt = microvolt[0];
 	opp->u_volt_min = microvolt[1];
 	opp->u_volt_max = microvolt[2];
+
+	if (!of_property_read_u32(opp->np, "opp-microamp", &val))
+		opp->u_amp = val;
 
 	return 0;
 }
@@ -864,12 +868,9 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 	if (!of_property_read_u32(np, "clock-latency-ns", &val))
 		new_opp->clock_latency_ns = val;
 
-	ret = opp_get_microvolt(new_opp, dev);
+	ret = opp_parse_supplies(new_opp, dev);
 	if (ret)
 		goto free_opp;
-
-	if (!of_property_read_u32(new_opp->np, "opp-microamp", &val))
-		new_opp->u_amp = val;
 
 	ret = _opp_add(dev, new_opp, dev_opp);
 	if (ret)
