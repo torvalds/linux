@@ -120,8 +120,6 @@ END(stext)
 	.section .text, "ax",@progbits
 ENTRY(first_lines_of_secondary)
 
-	CPU_EARLY_SETUP
-
 	; setup per-cpu idle task as "current" on this CPU
 	ld	r0, [@secondary_idle_tsk]
 	SET_CURR_TASK_ON_CPU  r0, r1
