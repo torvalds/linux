@@ -1188,7 +1188,8 @@ static int arm_ccn_pmu_cpu_notifier(struct notifier_block *nb,
 			break;
 		perf_pmu_migrate_context(&dt->pmu, cpu, target);
 		cpumask_set_cpu(target, &dt->cpu);
-		WARN_ON(irq_set_affinity(ccn->irq, &dt->cpu) != 0);
+		if (ccn->irq)
+			WARN_ON(irq_set_affinity(ccn->irq, &dt->cpu) != 0);
 	default:
 		break;
 	}
