@@ -1145,7 +1145,7 @@ static void chan_reg_rule_print_dbg(const struct ieee80211_regdomain *regd,
 	if (!power_rule->max_antenna_gain)
 		snprintf(max_antenna_gain, sizeof(max_antenna_gain), "N/A");
 	else
-		snprintf(max_antenna_gain, sizeof(max_antenna_gain), "%d",
+		snprintf(max_antenna_gain, sizeof(max_antenna_gain), "%d mBi",
 			 power_rule->max_antenna_gain);
 
 	if (reg_rule->flags & NL80211_RRF_AUTO_BW)
@@ -1159,7 +1159,7 @@ static void chan_reg_rule_print_dbg(const struct ieee80211_regdomain *regd,
 	REG_DBG_PRINT("Updating information on frequency %d MHz with regulatory rule:\n",
 		      chan->center_freq);
 
-	REG_DBG_PRINT("%d KHz - %d KHz @ %s), (%s mBi, %d mBm)\n",
+	REG_DBG_PRINT("(%d KHz - %d KHz @ %s), (%s, %d mBm)\n",
 		      freq_range->start_freq_khz, freq_range->end_freq_khz,
 		      bw, max_antenna_gain,
 		      power_rule->max_eirp);
