@@ -2262,7 +2262,8 @@ static bool client_has_state(struct nfs4_client *clp)
 	 * Note clp->cl_openowners check isn't quite right: there's no
 	 * need to count owners without stateid's.
 	 *
-	 * Also note we should probably be using this in 4.0 case too.
+	 * Also note in 4.0 case should also be checking for openowners
+	 * kept around just for close handling.
 	 */
 	return !list_empty(&clp->cl_openowners)
 #ifdef CONFIG_NFSD_PNFS
@@ -3049,7 +3050,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	/* Cases below refer to rfc 3530 section 14.2.33: */
 	spin_lock(&nn->client_lock);
 	conf = find_confirmed_client_by_name(&clname, nn);
-	if (conf) {
+	if (conf && client_has_state(conf)) {
 		/* case 0: */
 		status = nfserr_clid_inuse;
 		if (clp_used_exchangeid(conf))
@@ -3136,6 +3137,11 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	} else { /* case 3: normal case; new or rebooted client */
 		old = find_confirmed_client_by_name(&unconf->cl_name, nn);
 		if (old) {
+			status = nfserr_clid_inuse;
+			if (client_has_state(old)
+					&& !same_creds(&unconf->cl_cred,
+							&old->cl_cred))
+				goto out;
 			status = mark_client_expired_locked(old);
 			if (status) {
 				old = NULL;
