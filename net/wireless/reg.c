@@ -135,10 +135,7 @@ static spinlock_t reg_indoor_lock;
 /* Used to track the userspace process controlling the indoor setting */
 static u32 reg_is_indoor_portid;
 
-/* Max number of consecutive attempts to communicate with CRDA  */
-#define REG_MAX_CRDA_TIMEOUTS 10
-
-static u32 reg_crda_timeouts;
+static void restore_regulatory_settings(bool reset_user);
 
 static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
 {
@@ -225,9 +222,6 @@ static DECLARE_DELAYED_WORK(reg_check_chans, reg_check_chans_work);
 
 static void reg_todo(struct work_struct *work);
 static DECLARE_WORK(reg_work, reg_todo);
-
-static void reg_timeout_work(struct work_struct *work);
-static DECLARE_DELAYED_WORK(reg_timeout, reg_timeout_work);
 
 /* We keep a static world regulatory domain in case of the absence of CRDA */
 static const struct ieee80211_regdomain world_regdom = {
@@ -533,6 +527,39 @@ static inline int reg_regdb_query(const char *alpha2)
 }
 #endif /* CONFIG_CFG80211_INTERNAL_REGDB */
 
+#ifdef CONFIG_CFG80211_CRDA_SUPPORT
+/* Max number of consecutive attempts to communicate with CRDA  */
+#define REG_MAX_CRDA_TIMEOUTS 10
+
+static u32 reg_crda_timeouts;
+
+static void crda_timeout_work(struct work_struct *work);
+static DECLARE_DELAYED_WORK(crda_timeout, crda_timeout_work);
+
+static void crda_timeout_work(struct work_struct *work)
+{
+	REG_DBG_PRINT("Timeout while waiting for CRDA to reply, restoring regulatory settings\n");
+	rtnl_lock();
+	reg_crda_timeouts++;
+	restore_regulatory_settings(true);
+	rtnl_unlock();
+}
+
+static void cancel_crda_timeout(void)
+{
+	cancel_delayed_work(&crda_timeout);
+}
+
+static void cancel_crda_timeout_sync(void)
+{
+	cancel_delayed_work_sync(&crda_timeout);
+}
+
+static void reset_crda_timeouts(void)
+{
+	reg_crda_timeouts = 0;
+}
+
 /*
  * This lets us keep regulatory code which is updated on a regulatory
  * basis in userspace.
@@ -562,9 +589,18 @@ static int call_crda(const char *alpha2)
 		return ret;
 
 	queue_delayed_work(system_power_efficient_wq,
-			   &reg_timeout, msecs_to_jiffies(3142));
+			   &crda_timeout, msecs_to_jiffies(3142));
 	return 0;
 }
+#else
+static inline void cancel_crda_timeout(void) {}
+static inline void cancel_crda_timeout_sync(void) {}
+static inline void reset_crda_timeouts(void) {}
+static inline int call_crda(const char *alpha2)
+{
+	return -ENODATA;
+}
+#endif /* CONFIG_CFG80211_CRDA_SUPPORT */
 
 static bool reg_query_database(struct regulatory_request *request)
 {
@@ -1856,7 +1892,7 @@ static void reg_set_request_processed(void)
 		need_more_processing = true;
 	spin_unlock(&reg_requests_lock);
 
-	cancel_delayed_work(&reg_timeout);
+	cancel_crda_timeout();
 
 	if (need_more_processing)
 		schedule_work(&reg_work);
@@ -2355,7 +2391,7 @@ int regulatory_hint_user(const char *alpha2,
 	request->user_reg_hint_type = user_reg_hint_type;
 
 	/* Allow calling CRDA again */
-	reg_crda_timeouts = 0;
+	reset_crda_timeouts();
 
 	queue_regulatory_request(request);
 
@@ -2427,7 +2463,7 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 	request->initiator = NL80211_REGDOM_SET_BY_DRIVER;
 
 	/* Allow calling CRDA again */
-	reg_crda_timeouts = 0;
+	reset_crda_timeouts();
 
 	queue_regulatory_request(request);
 
@@ -2483,7 +2519,7 @@ void regulatory_hint_country_ie(struct wiphy *wiphy, enum ieee80211_band band,
 	request->country_ie_env = env;
 
 	/* Allow calling CRDA again */
-	reg_crda_timeouts = 0;
+	reset_crda_timeouts();
 
 	queue_regulatory_request(request);
 	request = NULL;
@@ -2970,7 +3006,7 @@ int set_regdom(const struct ieee80211_regdomain *rd,
 	}
 
 	if (regd_src == REGD_SOURCE_CRDA)
-		reg_crda_timeouts = 0;
+		reset_crda_timeouts();
 
 	lr = get_last_request();
 
@@ -3127,15 +3163,6 @@ void wiphy_regulatory_deregister(struct wiphy *wiphy)
 	lr->country_ie_env = ENVIRON_ANY;
 }
 
-static void reg_timeout_work(struct work_struct *work)
-{
-	REG_DBG_PRINT("Timeout while waiting for CRDA to reply, restoring regulatory settings\n");
-	rtnl_lock();
-	reg_crda_timeouts++;
-	restore_regulatory_settings(true);
-	rtnl_unlock();
-}
-
 /*
  * See http://www.fcc.gov/document/5-ghz-unlicensed-spectrum-unii, for
  * UNII band definitions
@@ -3221,7 +3248,7 @@ void regulatory_exit(void)
 	struct reg_beacon *reg_beacon, *btmp;
 
 	cancel_work_sync(&reg_work);
-	cancel_delayed_work_sync(&reg_timeout);
+	cancel_crda_timeout_sync();
 	cancel_delayed_work_sync(&reg_check_chans);
 
 	/* Lock to suppress warnings */
