@@ -472,14 +472,14 @@ bool CARDbRadioPowerOn(struct vnt_private *pDevice)
 	bool bResult = true;
 
 	pr_debug("chester power on\n");
-	if (pDevice->bRadioControlOff == true) {
-		if (pDevice->bHWRadioOff == true)
+	if (pDevice->bRadioControlOff) {
+		if (pDevice->bHWRadioOff)
 			pr_debug("chester bHWRadioOff\n");
-		if (pDevice->bRadioControlOff == true)
+		if (pDevice->bRadioControlOff)
 			pr_debug("chester bRadioControlOff\n");
 		return false; }
 
-	if (pDevice->bRadioOff == false) {
+	if (!pDevice->bRadioOff) {
 		pr_debug("chester pbRadioOff\n");
 		return true; }
 
