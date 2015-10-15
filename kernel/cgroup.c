@@ -914,12 +914,11 @@ static void link_css_set(struct list_head *tmp_links, struct css_set *cset,
 	link->cset = cset;
 	link->cgrp = cgrp;
 
-	list_move(&link->cset_link, &cgrp->cset_links);
-
 	/*
-	 * Always add links to the tail of the list so that the list
-	 * is sorted by order of hierarchy creation
+	 * Always add links to the tail of the lists so that the lists are
+	 * in choronological order.
 	 */
+	list_move_tail(&link->cset_link, &cgrp->cset_links);
 	list_add_tail(&link->cgrp_link, &cset->cgrp_links);
 
 	if (cgroup_parent(cgrp))
@@ -1780,7 +1779,7 @@ static void cgroup_enable_task_cg_lists(void)
 
 			if (!css_set_populated(cset))
 				css_set_update_populated(cset, true);
-			list_add(&p->cg_list, &cset->tasks);
+			list_add_tail(&p->cg_list, &cset->tasks);
 			get_css_set(cset);
 		}
 		spin_unlock_irq(&p->sighand->siglock);
@@ -5480,7 +5479,7 @@ void cgroup_post_fork(struct task_struct *child,
 		cset = task_css_set(current);
 		if (list_empty(&child->cg_list)) {
 			rcu_assign_pointer(child->cgroups, cset);
-			list_add(&child->cg_list, &cset->tasks);
+			list_add_tail(&child->cg_list, &cset->tasks);
 			get_css_set(cset);
 		}
 		up_write(&css_set_rwsem);
