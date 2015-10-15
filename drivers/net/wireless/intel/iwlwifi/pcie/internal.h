@@ -363,8 +363,6 @@ struct iwl_trans_pcie {
 	bool wide_cmd_header;
 	u32 rx_page_order;
 
-	const char *const *command_names;
-
 	/*protect hw register */
 	spinlock_t reg_lock;
 	bool cmd_hold_nic_awake;
@@ -525,14 +523,6 @@ static inline bool iwl_queue_used(const struct iwl_queue *q, int i)
 static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
 {
 	return index & (q->n_window - 1);
-}
-
-static inline const char *get_cmd_string(struct iwl_trans_pcie *trans_pcie,
-					 u8 cmd)
-{
-	if (!trans_pcie->command_names || !trans_pcie->command_names[cmd])
-		return "UNKNOWN";
-	return trans_pcie->command_names[cmd];
 }
 
 static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)

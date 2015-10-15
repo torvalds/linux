@@ -61,8 +61,10 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
-#include "iwl-drv.h"
+#include <linux/bsearch.h>
+
 #include "iwl-trans.h"
+#include "iwl-drv.h"
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
@@ -145,3 +147,59 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_trans_send_cmd);
+
+/* Comparator for struct iwl_hcmd_names.
+ * Used in the binary search over a list of host commands.
+ *
+ * @key: command_id that we're looking for.
+ * @elt: struct iwl_hcmd_names candidate for match.
+ *
+ * @return 0 iff equal.
+ */
+static int iwl_hcmd_names_cmp(const void *key, const void *elt)
+{
+	const struct iwl_hcmd_names *name = elt;
+	u8 cmd1 = *(u8 *)key;
+	u8 cmd2 = name->cmd_id;
+
+	return (cmd1 - cmd2);
+}
+
+const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id)
+{
+	u8 grp, cmd;
+	struct iwl_hcmd_names *ret;
+	const struct iwl_hcmd_arr *arr;
+	size_t size = sizeof(struct iwl_hcmd_names);
+
+	grp = iwl_cmd_groupid(id);
+	cmd = iwl_cmd_opcode(id);
+
+	if (!trans->command_groups || grp >= trans->command_groups_size ||
+	    !trans->command_groups[grp].arr)
+		return "UNKNOWN";
+
+	arr = &trans->command_groups[grp];
+	ret = bsearch(&cmd, arr->arr, arr->size, size, iwl_hcmd_names_cmp);
+	if (!ret)
+		return "UNKNOWN";
+	return ret->cmd_name;
+}
+IWL_EXPORT_SYMBOL(iwl_get_cmd_string);
+
+int iwl_cmd_groups_verify_sorted(const struct iwl_trans_config *trans)
+{
+	int i, j;
+	const struct iwl_hcmd_arr *arr;
+
+	for (i = 0; i < trans->command_groups_size; i++) {
+		arr = &trans->command_groups[i];
+		if (!arr->arr)
+			continue;
+		for (j = 0; j < arr->size - 1; j++)
+			if (arr->arr[j].cmd_id > arr->arr[j + 1].cmd_id)
+				return -1;
+	}
+	return 0;
+}
+IWL_EXPORT_SYMBOL(iwl_cmd_groups_verify_sorted);

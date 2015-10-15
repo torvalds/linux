@@ -68,6 +68,7 @@
 #include <linux/ieee80211.h>
 #include <linux/mm.h> /* for page_address */
 #include <linux/lockdep.h>
+#include <linux/kernel.h>
 
 #include "iwl-debug.h"
 #include "iwl-config.h"
@@ -442,6 +443,22 @@ iwl_trans_get_rb_size_order(enum iwl_amsdu_size rb_size)
 	}
 }
 
+struct iwl_hcmd_names {
+	u8 cmd_id;
+	const char *const cmd_name;
+};
+
+#define HCMD_NAME(x)	\
+	{ .cmd_id = x, .cmd_name = #x }
+
+struct iwl_hcmd_arr {
+	const struct iwl_hcmd_names *arr;
+	int size;
+};
+
+#define HCMD_ARR(x)	\
+	{ .arr = x, .size = ARRAY_SIZE(x) }
+
 /**
  * struct iwl_trans_config - transport configuration
  *
@@ -461,8 +478,9 @@ iwl_trans_get_rb_size_order(enum iwl_amsdu_size rb_size)
  *	in DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @wide_cmd_header: firmware supports wide host command header
- * @command_names: array of command names, must be 256 entries
- *	(one for each command); for debugging only
+ * @command_groups: array of command groups, each member is an array of the
+ *	commands in the group; for debugging only
+ * @command_groups_size: number of command groups, to avoid illegal access
  * @sdio_adma_addr: the default address to set for the ADMA in SDIO mode until
  *	we get the ALIVE from the uCode
  */
@@ -479,8 +497,9 @@ struct iwl_trans_config {
 	bool bc_table_dword;
 	bool scd_set_active;
 	bool wide_cmd_header;
-	const char *const *command_names;
-
+	const struct iwl_hcmd_arr *command_groups;
+	int command_groups_size;
+ 
 	u32 sdio_adma_addr;
 };
 
@@ -720,6 +739,9 @@ struct iwl_trans {
 	bool pm_support;
 	bool ltr_enabled;
 
+	const struct iwl_hcmd_arr *command_groups;
+	int command_groups_size;
+
 	u8 num_rx_queues;
 
 	/* The following fields are internal only */
@@ -757,12 +779,16 @@ struct iwl_trans {
 	char trans_specific[0] __aligned(sizeof(void *));
 };
 
+const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id);
+int iwl_cmd_groups_verify_sorted(const struct iwl_trans_config *trans);
+
 static inline void iwl_trans_configure(struct iwl_trans *trans,
 				       const struct iwl_trans_config *trans_cfg)
 {
 	trans->op_mode = trans_cfg->op_mode;
 
 	trans->ops->configure(trans, trans_cfg);
+	WARN_ON(iwl_cmd_groups_verify_sorted(trans_cfg));
 }
 
 static inline int _iwl_trans_start_hw(struct iwl_trans *trans, bool low_power)

@@ -1413,7 +1413,8 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	 */
 	if (WARN(copy_size > TFD_MAX_PAYLOAD_SIZE,
 		 "Command %s (%#x) is too large (%d bytes)\n",
-		 get_cmd_string(trans_pcie, cmd->id), cmd->id, copy_size)) {
+		 iwl_get_cmd_string(trans, cmd->id),
+		 cmd->id, copy_size)) {
 		idx = -EINVAL;
 		goto free_dup_buf;
 	}
@@ -1503,7 +1504,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 
 	IWL_DEBUG_HC(trans,
 		     "Sending command %s (%.2x.%.2x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
-		     get_cmd_string(trans_pcie, out_cmd->hdr.cmd),
+		     iwl_get_cmd_string(trans, cmd->id),
 		     group_id, out_cmd->hdr.cmd,
 		     le16_to_cpu(out_cmd->hdr.sequence),
 		     cmd_size, q->write_ptr, idx, trans_pcie->cmd_queue);
@@ -1599,6 +1600,8 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
+	u8 group_id = iwl_cmd_groupid(pkt->hdr.group_id);
+	u32 cmd_id;
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
 	int cmd_index;
@@ -1624,6 +1627,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	cmd_index = get_cmd_index(&txq->q, index);
 	cmd = txq->entries[cmd_index].cmd;
 	meta = &txq->entries[cmd_index].meta;
+	cmd_id = iwl_cmd_id(cmd->hdr.cmd, group_id, 0);
 
 	iwl_pcie_tfd_unmap(trans, meta, &txq->tfds[index]);
 
@@ -1645,11 +1649,11 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 		if (!test_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status)) {
 			IWL_WARN(trans,
 				 "HCMD_ACTIVE already clear for command %s\n",
-				 get_cmd_string(trans_pcie, cmd->hdr.cmd));
+				 iwl_get_cmd_string(trans, cmd_id));
 		}
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
-			       get_cmd_string(trans_pcie, cmd->hdr.cmd));
+			       iwl_get_cmd_string(trans, cmd_id));
 		wake_up(&trans_pcie->wait_command_queue);
 	}
 
@@ -1663,7 +1667,6 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
 				    struct iwl_host_cmd *cmd)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 
 	/* An asynchronous command can not expect an SKB to be set. */
@@ -1674,7 +1677,7 @@ static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
 	if (ret < 0) {
 		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
-			get_cmd_string(trans_pcie, cmd->id), ret);
+			iwl_get_cmd_string(trans, cmd->id), ret);
 		return ret;
 	}
 	return 0;
@@ -1688,16 +1691,16 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	int ret;
 
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
-		       get_cmd_string(trans_pcie, cmd->id));
+		       iwl_get_cmd_string(trans, cmd->id));
 
 	if (WARN(test_and_set_bit(STATUS_SYNC_HCMD_ACTIVE,
 				  &trans->status),
 		 "Command %s: a command is already active!\n",
-		 get_cmd_string(trans_pcie, cmd->id)))
+		 iwl_get_cmd_string(trans, cmd->id)))
 		return -EIO;
 
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
-		       get_cmd_string(trans_pcie, cmd->id));
+		       iwl_get_cmd_string(trans, cmd->id));
 
 	cmd_idx = iwl_pcie_enqueue_hcmd(trans, cmd);
 	if (cmd_idx < 0) {
@@ -1705,7 +1708,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
-			get_cmd_string(trans_pcie, cmd->id), ret);
+			iwl_get_cmd_string(trans, cmd->id), ret);
 		return ret;
 	}
 
@@ -1718,7 +1721,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		struct iwl_queue *q = &txq->q;
 
 		IWL_ERR(trans, "Error sending %s: time out after %dms.\n",
-			get_cmd_string(trans_pcie, cmd->id),
+			iwl_get_cmd_string(trans, cmd->id),
 			jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
 		IWL_ERR(trans, "Current CMD queue read_ptr %d write_ptr %d\n",
@@ -1726,7 +1729,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
-			       get_cmd_string(trans_pcie, cmd->id));
+			       iwl_get_cmd_string(trans, cmd->id));
 		ret = -ETIMEDOUT;
 
 		iwl_force_nmi(trans);
@@ -1737,7 +1740,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 	if (test_bit(STATUS_FW_ERROR, &trans->status)) {
 		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
-			get_cmd_string(trans_pcie, cmd->id));
+			iwl_get_cmd_string(trans, cmd->id));
 		dump_stack();
 		ret = -EIO;
 		goto cancel;
@@ -1752,7 +1755,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 	if ((cmd->flags & CMD_WANT_SKB) && !cmd->resp_pkt) {
 		IWL_ERR(trans, "Error: Response NULL in '%s'\n",
-			get_cmd_string(trans_pcie, cmd->id));
+			iwl_get_cmd_string(trans, cmd->id));
 		ret = -EIO;
 		goto cancel;
 	}

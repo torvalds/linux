@@ -1440,9 +1440,11 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 		iwl_trans_get_rb_size_order(trans_pcie->rx_buf_size);
 
 	trans_pcie->wide_cmd_header = trans_cfg->wide_cmd_header;
-	trans_pcie->command_names = trans_cfg->command_names;
 	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
+
+	trans->command_groups = trans_cfg->command_groups;
+	trans->command_groups_size = trans_cfg->command_groups_size;
 
 	/* init ref_count to 1 (should be cleared when ucode is loaded) */
 	trans_pcie->ref_count = 1;
