@@ -320,6 +320,7 @@ struct mlx4_ib_qp {
 	struct list_head	qps_list;
 	struct list_head	cq_recv_list;
 	struct list_head	cq_send_list;
+	struct counter_index	*counter_index;
 };
 
 struct mlx4_ib_srq {
