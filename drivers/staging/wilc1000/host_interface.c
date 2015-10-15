@@ -261,7 +261,7 @@ static u8 mode_11i;
 u8 auth_type;
 u32 join_req_size;
 static u32 info_element_size;
-struct host_if_drv *gu8FlushedJoinReqDrvHandler;
+struct host_if_drv *join_req_drv;
 #define REAL_JOIN_REQ 0
 #define FLUSHED_JOIN_REQ 1
 #define FLUSHED_BYTE_POS 79
@@ -1199,7 +1199,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
 		memcpy(join_req, pu8CurrByte, join_req_size);
-		gu8FlushedJoinReqDrvHandler = hif_drv;
+		join_req_drv = hif_drv;
 	}
 
 	PRINT_D(GENERIC_DBG, "send HOST_IF_WAITING_CONN_RESP\n");
@@ -1311,7 +1311,7 @@ static s32 Handle_FlushConnect(struct host_if_drv *hif_drv)
 	u32WidsCount++;
 
 	s32Error = send_config_pkt(SET_CFG, strWIDList, u32WidsCount,
-				   get_id_from_handler(gu8FlushedJoinReqDrvHandler));
+				   get_id_from_handler(join_req_drv));
 	if (s32Error) {
 		PRINT_ER("failed to send config packet\n");
 		s32Error = -EINVAL;
@@ -1384,12 +1384,12 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 
 	eth_zero_addr(u8ConnectedSSID);
 
-	if (join_req != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+	if (join_req != NULL && join_req_drv == hif_drv) {
 		kfree(join_req);
 		join_req = NULL;
 	}
 
-	if (info_element != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+	if (info_element != NULL && join_req_drv == hif_drv) {
 		kfree(info_element);
 		info_element = NULL;
 	}
@@ -1682,12 +1682,12 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			hif_drv->strWILC_UsrConnReq.ConnReqIEsLen = 0;
 			kfree(hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs);
 
-			if (join_req != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+			if (join_req != NULL && join_req_drv == hif_drv) {
 				kfree(join_req);
 				join_req = NULL;
 			}
 
-			if (info_element != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+			if (info_element != NULL && join_req_drv == hif_drv) {
 				kfree(info_element);
 				info_element = NULL;
 			}
@@ -2073,12 +2073,12 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 		hif_drv->strWILC_UsrConnReq.ConnReqIEsLen = 0;
 		kfree(hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs);
 
-		if (join_req != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+		if (join_req != NULL && join_req_drv == hif_drv) {
 			kfree(join_req);
 			join_req = NULL;
 		}
 
-		if (info_element != NULL && gu8FlushedJoinReqDrvHandler == hif_drv) {
+		if (info_element != NULL && join_req_drv == hif_drv) {
 			kfree(info_element);
 			info_element = NULL;
 		}
