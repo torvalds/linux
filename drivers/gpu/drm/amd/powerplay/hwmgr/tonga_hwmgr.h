@@ -422,6 +422,10 @@ typedef struct tonga_hwmgr tonga_hwmgr;
 #define CONVERT_FROM_HOST_TO_SMC_US(X) ((X) = PP_HOST_TO_SMC_US(X))
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
+int tonga_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input);
+int tonga_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
+int tonga_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable);
+int tonga_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
 
 #endif
 
