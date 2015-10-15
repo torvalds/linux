@@ -257,7 +257,7 @@ static u8 del_beacon;
 
 static u8 *join_req;
 u8 *info_element;
-u8 mode_11i;
+static u8 mode_11i;
 u8 gu8FlushedAuthType;
 u32 gu32FlushedJoinReqSize;
 u32 gu32FlushedInfoElemAsocSize;
