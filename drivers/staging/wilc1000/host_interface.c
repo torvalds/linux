@@ -248,7 +248,7 @@ static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 static bool scan_while_connected;
 
 static s8 rssi;
-static s8 gs8lnkspd;
+static s8 link_speed;
 static u8 gu8Chnl;
 static u8 gs8SetIP[2][4];
 static u8 gs8GetIP[2][4];
@@ -2158,11 +2158,11 @@ static void Handle_GetLinkspeed(struct host_if_drv *hif_drv)
 	s32 s32Error = 0;
 	struct wid strWID;
 
-	gs8lnkspd = 0;
+	link_speed = 0;
 
 	strWID.id = (u16)WID_LINKSPEED;
 	strWID.type = WID_CHAR;
-	strWID.val = &gs8lnkspd;
+	strWID.val = &link_speed;
 	strWID.size = sizeof(char);
 
 	PRINT_D(HOSTINF_DBG, "Getting LINKSPEED value\n");
@@ -3937,9 +3937,7 @@ s32 host_int_get_link_speed(struct host_if_drv *hif_drv, s8 *ps8lnkspd)
 		return -EFAULT;
 	}
 
-
-	*ps8lnkspd = gs8lnkspd;
-
+	*ps8lnkspd = link_speed;
 
 	return s32Error;
 }
