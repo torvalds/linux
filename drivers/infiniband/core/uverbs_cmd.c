@@ -1843,7 +1843,7 @@ static int create_qp(struct ib_uverbs_file *file,
 		      sizeof(cmd->create_flags))
 		attr.create_flags = cmd->create_flags;
 
-	if (attr.create_flags) {
+	if (attr.create_flags & ~IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
 		ret = -EINVAL;
 		goto err_put;
 	}
