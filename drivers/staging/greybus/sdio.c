@@ -379,7 +379,7 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 	u8 cmd_flags;
 	u8 cmd_type;
 	int i;
-	int ret = 0;
+	int ret;
 
 	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_NONE:
@@ -488,7 +488,7 @@ static void gb_sdio_mrq_work(struct work_struct *work)
 		goto done;
 
 	if (mrq->data) {
-		ret = gb_sdio_transfer(host, host->mrq->data);
+		ret = gb_sdio_transfer(host, mrq->data);
 		if (ret < 0)
 			goto done;
 	}
