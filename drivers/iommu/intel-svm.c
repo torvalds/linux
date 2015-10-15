@@ -510,7 +510,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 				pr_err("%s: Page request for invalid PASID %d: %08llx %08llx\n",
 				       iommu->name, req->pasid, ((unsigned long long *)req)[0],
 				       ((unsigned long long *)req)[1]);
-				goto bad_req;
+				goto no_pasid;
 			}
 		}
 
@@ -552,7 +552,11 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 				(req->wr_req << 1) | (req->exe_req);
 			sdev->ops->fault_cb(sdev->dev, req->pasid, req->addr, req->private, rwxp, result);
 		}
-
+		/* We get here in the error case where the PASID lookup failed,
+		   and these can be NULL. Do not use them below this point! */
+		sdev = NULL;
+		svm = NULL;
+	no_pasid:
 		if (req->lpig) {
 			/* Page Group Response */
 			resp.low = QI_PGRP_PASID(req->pasid) |
@@ -562,7 +566,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 			resp.high = QI_PGRP_IDX(req->prg_index) |
 				QI_PGRP_PRIV(req->private) | QI_PGRP_RESP_CODE(result);
 
-			qi_submit_sync(&resp, svm->iommu);
+			qi_submit_sync(&resp, iommu);
 		} else if (req->srr) {
 			/* Page Stream Response */
 			resp.low = QI_PSTRM_IDX(req->prg_index) |
@@ -571,7 +575,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 			resp.high = QI_PSTRM_ADDR(address) | QI_PSTRM_DEVFN(req->devfn) |
 				QI_PSTRM_RESP_CODE(result);
 
-			qi_submit_sync(&resp, svm->iommu);
+			qi_submit_sync(&resp, iommu);
 		}
 
 		head = (head + sizeof(*req)) & PRQ_RING_MASK;
