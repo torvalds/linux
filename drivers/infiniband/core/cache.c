@@ -409,10 +409,10 @@ static int ib_cache_gid_find(struct ib_device *ib_dev,
 					mask, port, index);
 }
 
-int ib_cache_gid_find_by_port(struct ib_device *ib_dev,
-			      const union ib_gid *gid,
-			      u8 port, struct net_device *ndev,
-			      u16 *index)
+int ib_find_cached_gid_by_port(struct ib_device *ib_dev,
+			       const union ib_gid *gid,
+			       u8 port, struct net_device *ndev,
+			       u16 *index)
 {
 	int local_index;
 	struct ib_gid_table **ports_table = ib_dev->cache.gid_cache;
@@ -438,6 +438,7 @@ int ib_cache_gid_find_by_port(struct ib_device *ib_dev,
 
 	return -ENOENT;
 }
+EXPORT_SYMBOL(ib_find_cached_gid_by_port);
 
 static struct ib_gid_table *alloc_gid_table(int sz)
 {

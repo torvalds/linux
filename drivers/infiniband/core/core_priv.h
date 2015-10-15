@@ -65,11 +65,6 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 			      roce_netdev_callback cb,
 			      void *cookie);
 
-int ib_cache_gid_find_by_port(struct ib_device *ib_dev,
-			      const union ib_gid *gid,
-			      u8 port, struct net_device *ndev,
-			      u16 *index);
-
 enum ib_cache_gid_default_mode {
 	IB_CACHE_GID_DEFAULT_MODE_SET,
 	IB_CACHE_GID_DEFAULT_MODE_DELETE
