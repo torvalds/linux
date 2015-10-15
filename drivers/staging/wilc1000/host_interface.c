@@ -233,7 +233,7 @@ static struct host_if_drv *wfidrv_list[NUM_CONCURRENT_IFC + 1];
 struct host_if_drv *terminated_handle;
 bool g_obtainingIP;
 u8 P2P_LISTEN_STATE;
-static struct task_struct *HostIFthreadHandler;
+static struct task_struct *hif_thread_handler;
 static WILC_MsgQueueHandle gMsgQHostIF;
 static struct semaphore hSemHostIFthrdEnd;
 
@@ -4235,8 +4235,10 @@ s32 host_int_init(struct host_if_drv **hif_drv_handler)
 			PRINT_ER("Failed to creat MQ\n");
 			goto _fail_;
 		}
-		HostIFthreadHandler = kthread_run(hostIFthread, NULL, "WILC_kthread");
-		if (IS_ERR(HostIFthreadHandler)) {
+
+		hif_thread_handler = kthread_run(hostIFthread, NULL, "WILC_kthread");
+
+		if (IS_ERR(hif_thread_handler)) {
 			PRINT_ER("Failed to creat Thread\n");
 			result = -EFAULT;
 			goto _fail_mq_;
@@ -4280,7 +4282,7 @@ _fail_timer_2:
 	up(&hif_drv->gtOsCfgValuesSem);
 	del_timer_sync(&hif_drv->hConnectTimer);
 	del_timer_sync(&hif_drv->hScanTimer);
-	kthread_stop(HostIFthreadHandler);
+	kthread_stop(hif_thread_handler);
 _fail_mq_:
 	wilc_mq_destroy(&gMsgQHostIF);
 _fail_:
