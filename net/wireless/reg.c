@@ -501,9 +501,6 @@ static void reg_regdb_query(const char *alpha2)
 {
 	struct reg_regdb_search_request *request;
 
-	if (!alpha2)
-		return;
-
 	request = kzalloc(sizeof(struct reg_regdb_search_request), GFP_KERNEL);
 	if (!request)
 		return;
