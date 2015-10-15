@@ -245,7 +245,7 @@ u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
 static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 
-bool gbScanWhileConnected;
+bool scan_while_connected;
 
 static s8 gs8Rssi;
 static s8 gs8lnkspd;
@@ -912,9 +912,9 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 	u32WidsCount++;
 
 	if (hif_drv->enuHostIFstate == HOST_IF_CONNECTED)
-		gbScanWhileConnected = true;
+		scan_while_connected = true;
 	else if (hif_drv->enuHostIFstate == HOST_IF_IDLE)
-		gbScanWhileConnected = false;
+		scan_while_connected = false;
 
 	s32Error = send_config_pkt(SET_CFG, strWIDList, u32WidsCount,
 				   get_id_from_handler(hif_drv));
@@ -1337,8 +1337,7 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 
 	hif_drv->enuHostIFstate = HOST_IF_IDLE;
 
-	gbScanWhileConnected = false;
-
+	scan_while_connected = false;
 
 	memset(&strConnectInfo, 0, sizeof(tstrConnectInfo));
 
@@ -1634,7 +1633,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			} else {
 				PRINT_D(HOSTINF_DBG, "MAC status : %d and Connect Status : %d\n", u8MacStatus, strConnectInfo.u16ConnectStatus);
 				hif_drv->enuHostIFstate = HOST_IF_IDLE;
-				gbScanWhileConnected = false;
+				scan_while_connected = false;
 			}
 
 			kfree(strConnectInfo.pu8RespIEs);
@@ -1695,7 +1694,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			}
 
 			hif_drv->enuHostIFstate = HOST_IF_IDLE;
-			gbScanWhileConnected = false;
+			scan_while_connected = false;
 
 		} else if ((u8MacStatus == MAC_DISCONNECTED) &&
 			   (hif_drv->strWILC_UsrScanReq.pfUserScanResult != NULL)) {
@@ -2063,7 +2062,7 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 			PRINT_ER("strWILC_UsrConnReq.pfUserConnectResult = NULL\n");
 		}
 
-		gbScanWhileConnected = false;
+		scan_while_connected = false;
 
 		hif_drv->enuHostIFstate = HOST_IF_IDLE;
 
@@ -4189,7 +4188,7 @@ s32 host_int_init(struct host_if_drv **hif_drv_handler)
 
 	PRINT_D(HOSTINF_DBG, "Initializing host interface for client %d\n", clients_count + 1);
 
-	gbScanWhileConnected = false;
+	scan_while_connected = false;
 
 	sema_init(&hif_sema_wait_response, 0);
 
@@ -4325,7 +4324,7 @@ s32 host_int_deinit(struct host_if_drv *hif_drv)
 
 	hif_drv->enuHostIFstate = HOST_IF_IDLE;
 
-	gbScanWhileConnected = false;
+	scan_while_connected = false;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
