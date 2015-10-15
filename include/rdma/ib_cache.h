@@ -93,6 +93,14 @@ int ib_find_cached_gid_by_port(struct ib_device *device,
 			       u8               port_num,
 			       struct net_device *ndev,
 			       u16              *index);
+
+int ib_find_gid_by_filter(struct ib_device *device,
+			  const union ib_gid *gid,
+			  u8 port_num,
+			  bool (*filter)(const union ib_gid *gid,
+					 const struct ib_gid_attr *,
+					 void *),
+			  void *context, u16 *index);
 /**
  * ib_get_cached_pkey - Returns a cached PKey table entry
  * @device: The device to query.
