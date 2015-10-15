@@ -257,7 +257,7 @@ static u8 del_beacon;
 
 static u8 *join_req;
 u8 *info_element;
-u8 gu8Flushed11iMode;
+u8 mode_11i;
 u8 gu8FlushedAuthType;
 u32 gu32FlushedJoinReqSize;
 u32 gu32FlushedInfoElemAsocSize;
@@ -1075,7 +1075,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	u32WidsCount++;
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7))
-		gu8Flushed11iMode = hif_drv->strWILC_UsrConnReq.u8security;
+		mode_11i = hif_drv->strWILC_UsrConnReq.u8security;
 
 	PRINT_INFO(HOSTINF_DBG, "Encrypt Mode = %x\n", hif_drv->strWILC_UsrConnReq.u8security);
 
@@ -1289,7 +1289,7 @@ static s32 Handle_FlushConnect(struct host_if_drv *hif_drv)
 	strWIDList[u32WidsCount].id = (u16)WID_11I_MODE;
 	strWIDList[u32WidsCount].type = WID_CHAR;
 	strWIDList[u32WidsCount].size = sizeof(char);
-	strWIDList[u32WidsCount].val = (s8 *)(&(gu8Flushed11iMode));
+	strWIDList[u32WidsCount].val = (s8 *)(&(mode_11i));
 	u32WidsCount++;
 
 
