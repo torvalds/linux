@@ -236,7 +236,7 @@ u8 P2P_LISTEN_STATE;
 static struct task_struct *hif_thread_handler;
 static WILC_MsgQueueHandle hif_msg_q;
 static struct semaphore hif_sema_thread;
-struct semaphore hSemDeinitDrvHandle;
+struct semaphore hif_sema_driver;
 static struct semaphore hWaitResponse;
 struct semaphore hSemHostIntDeinit;
 struct timer_list g_hPeriodicRSSI;
@@ -364,8 +364,7 @@ static s32 Handle_SetWfiDrvHandler(struct host_if_drv *hif_drv,
 				   pstrHostIfSetDrvHandler->u32Address);
 
 	if (!hif_drv)
-		up(&hSemDeinitDrvHandle);
-
+		up(&hif_sema_driver);
 
 	if (s32Error) {
 		PRINT_ER("Failed to set driver handler\n");
@@ -392,8 +391,7 @@ static s32 Handle_SetOperationMode(struct host_if_drv *hif_drv,
 
 
 	if ((pstrHostIfSetOperationMode->u32Mode) == IDLE_MODE)
-		up(&hSemDeinitDrvHandle);
-
+		up(&hif_sema_driver);
 
 	if (s32Error) {
 		PRINT_ER("Failed to set driver handler\n");
@@ -4214,7 +4212,7 @@ s32 host_int_init(struct host_if_drv **hif_drv_handler)
 	PRINT_D(HOSTINF_DBG, "Global handle pointer value=%p\n", hif_drv);
 	if (clients_count == 0)	{
 		sema_init(&hif_sema_thread, 0);
-		sema_init(&hSemDeinitDrvHandle, 0);
+		sema_init(&hif_sema_driver, 0);
 		sema_init(&hSemHostIntDeinit, 1);
 	}
 
@@ -4320,7 +4318,7 @@ s32 host_int_deinit(struct host_if_drv *hif_drv)
 	del_timer_sync(&hif_drv->hRemainOnChannel);
 
 	host_int_set_wfi_drv_handler(NULL);
-	down(&hSemDeinitDrvHandle);
+	down(&hif_sema_driver);
 
 	if (hif_drv->strWILC_UsrScanReq.pfUserScanResult) {
 		hif_drv->strWILC_UsrScanReq.pfUserScanResult(SCAN_EVENT_ABORTED, NULL,
