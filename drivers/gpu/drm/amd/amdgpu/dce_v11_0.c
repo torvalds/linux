@@ -2778,7 +2778,17 @@ static void dce_v11_0_crtc_disable(struct drm_crtc *crtc)
 	case ATOM_PPLL2:
 		/* disable the ppll */
 		amdgpu_atombios_crtc_program_pll(crtc, amdgpu_crtc->crtc_id, amdgpu_crtc->pll_id,
-					  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
+						 0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
+		break;
+	case ATOM_COMBOPHY_PLL0:
+	case ATOM_COMBOPHY_PLL1:
+	case ATOM_COMBOPHY_PLL2:
+	case ATOM_COMBOPHY_PLL3:
+	case ATOM_COMBOPHY_PLL4:
+	case ATOM_COMBOPHY_PLL5:
+		/* disable the ppll */
+		amdgpu_atombios_crtc_program_pll(crtc, ATOM_CRTC_INVALID, amdgpu_crtc->pll_id,
+						 0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
 		break;
 	default:
 		break;
@@ -2796,11 +2806,28 @@ static int dce_v11_0_crtc_mode_set(struct drm_crtc *crtc,
 				  int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct amdgpu_device *adev = dev->dev_private;
 
 	if (!amdgpu_crtc->adjusted_clock)
 		return -EINVAL;
 
-	amdgpu_atombios_crtc_set_pll(crtc, adjusted_mode);
+	if ((adev->asic_type == CHIP_ELLESMERE) ||
+	    (adev->asic_type == CHIP_BAFFIN)) {
+		struct amdgpu_encoder *amdgpu_encoder =
+			to_amdgpu_encoder(amdgpu_crtc->encoder);
+		int encoder_mode =
+			amdgpu_atombios_encoder_get_encoder_mode(amdgpu_crtc->encoder);
+
+		/* SetPixelClock calculates the plls and ss values now */
+		amdgpu_atombios_crtc_program_pll(crtc, amdgpu_crtc->crtc_id,
+						 amdgpu_crtc->pll_id,
+						 encoder_mode, amdgpu_encoder->encoder_id,
+						 adjusted_mode->clock, 0, 0, 0, 0,
+						 amdgpu_crtc->bpc, amdgpu_crtc->ss_enabled, &amdgpu_crtc->ss);
+	} else {
+		amdgpu_atombios_crtc_set_pll(crtc, adjusted_mode);
+	}
 	amdgpu_atombios_crtc_set_dtd_timing(crtc, adjusted_mode);
 	dce_v11_0_crtc_do_set_base(crtc, old_fb, x, y, 0);
 	amdgpu_atombios_crtc_overscan_setup(crtc, mode, adjusted_mode);
