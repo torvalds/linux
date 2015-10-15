@@ -249,7 +249,7 @@ static bool scan_while_connected;
 
 static s8 rssi;
 static s8 link_speed;
-static u8 gu8Chnl;
+static u8 ch_no;
 static u8 gs8SetIP[2][4];
 static u8 gs8GetIP[2][4];
 static u32 gu32InactiveTime;
@@ -2107,7 +2107,7 @@ static s32 Handle_GetChnl(struct host_if_drv *hif_drv)
 
 	strWID.id = (u16)WID_CURRENT_CHANNEL;
 	strWID.type = WID_CHAR;
-	strWID.val = (s8 *)&gu8Chnl;
+	strWID.val = (s8 *)&ch_no;
 	strWID.size = sizeof(char);
 
 	PRINT_D(HOSTINF_DBG, "Getting channel value\n");
@@ -3818,7 +3818,7 @@ s32 host_int_get_host_chnl_num(struct host_if_drv *hif_drv, u8 *pu8ChNo)
 		PRINT_ER("wilc mq send fail\n");
 	down(&hif_drv->hSemGetCHNL);
 
-	*pu8ChNo = gu8Chnl;
+	*pu8ChNo = ch_no;
 
 	return s32Error;
 
