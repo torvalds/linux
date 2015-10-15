@@ -3780,6 +3780,9 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	blk_queue_max_discard_sectors(q, segment_size / SECTOR_SIZE);
 	q->limits.discard_zeroes_data = 1;
 
+	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
+		q->backing_dev_info.capabilities |= BDI_CAP_STABLE_WRITES;
+
 	disk->queue = q;
 
 	q->queuedata = rbd_dev;
