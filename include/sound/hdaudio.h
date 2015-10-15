@@ -117,6 +117,7 @@ int snd_hdac_device_init(struct hdac_device *dev, struct hdac_bus *bus,
 void snd_hdac_device_exit(struct hdac_device *dev);
 int snd_hdac_device_register(struct hdac_device *codec);
 void snd_hdac_device_unregister(struct hdac_device *codec);
+int snd_hdac_device_set_chip_name(struct hdac_device *codec, const char *name);
 
 int snd_hdac_refresh_widgets(struct hdac_device *codec);
 int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec);

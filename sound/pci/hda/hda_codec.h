@@ -257,6 +257,7 @@ struct hda_codec {
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
 #endif
+	unsigned int mixer_assigned;
 
 	/* filter the requested power state per nid */
 	unsigned int (*power_filter)(struct hda_codec *codec, hda_nid_t nid,
@@ -462,6 +463,8 @@ int snd_hda_lock_devices(struct hda_bus *bus);
 void snd_hda_unlock_devices(struct hda_bus *bus);
 void snd_hda_bus_reset(struct hda_bus *bus);
 void snd_hda_bus_reset_codecs(struct hda_bus *bus);
+
+int snd_hda_codec_set_name(struct hda_codec *codec, const char *name);
 
 /*
  * power management
