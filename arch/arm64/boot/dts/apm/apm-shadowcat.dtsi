@@ -424,6 +424,13 @@
 			clocks = <&sdioclk 0>, <&ahbclk 0>;
 		};
 
+		gfcgpio: gfcgpio@1f63c000 {
+			compatible = "apm,xgene-gpio";
+			reg = <0x0 0x1f63c000 0x0 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
 		sbgpio: sbgpio@17001000{
 			compatible = "apm,xgene-gpio-sb";
 			reg = <0x0 0x17001000 0x0 0x400>;
