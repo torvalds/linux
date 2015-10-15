@@ -546,7 +546,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 
 	if (enuConnDisconnEvent == CONN_DISCONN_EVENT_CONN_RESP) {
 		/*Initialization*/
-		u16 u16ConnectStatus = WLAN_STATUS_SUCCESS;
+		u16 u16ConnectStatus;
 
 		u16ConnectStatus = pstrConnectInfo->u16ConnectStatus;
 
