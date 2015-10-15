@@ -220,7 +220,7 @@ struct join_bss_param {
 	u8 rsn_cap[2];
 	u32 tsf;
 	u8 noa_enabled;
-	u8 u8OppEnable;
+	u8 opp_enabled;
 	u8 u8CtWindow;
 	u8 u8Count;
 	u8 u8Index;
@@ -1182,10 +1182,9 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		*(pu8CurrByte++) = ((ptstrJoinBssParam->tsf) >> 24) & 0xFF;
 
 		*(pu8CurrByte++) = ptstrJoinBssParam->u8Index;
+		*(pu8CurrByte++) = ptstrJoinBssParam->opp_enabled;
 
-		*(pu8CurrByte++) = ptstrJoinBssParam->u8OppEnable;
-
-		if (ptstrJoinBssParam->u8OppEnable)
+		if (ptstrJoinBssParam->opp_enabled)
 			*(pu8CurrByte++) = ptstrJoinBssParam->u8CtWindow;
 
 		*(pu8CurrByte++) = ptstrJoinBssParam->u8Count;
@@ -4948,10 +4947,11 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 				pNewJoinBssParam->u8Index = pu8IEs[index + 9];
 
 				if (pu8IEs[index + 10] & BIT(7)) {
-					pNewJoinBssParam->u8OppEnable = 1;
+					pNewJoinBssParam->opp_enabled = 1;
 					pNewJoinBssParam->u8CtWindow = pu8IEs[index + 10];
-				} else
-					pNewJoinBssParam->u8OppEnable = 0;
+				} else {
+					pNewJoinBssParam->opp_enabled = 0;
+				}
 
 				PRINT_D(GENERIC_DBG, "P2P Dump\n");
 				for (i = 0; i < pu8IEs[index + 7]; i++)
