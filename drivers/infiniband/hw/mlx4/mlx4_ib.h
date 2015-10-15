@@ -821,7 +821,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
 			 u32 qkey, struct ib_ah_attr *attr, u8 *s_mac,
-			 struct ib_mad *mad);
+			 u16 vlan_id, struct ib_mad *mad);
 
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
 

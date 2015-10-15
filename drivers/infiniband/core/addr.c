@@ -458,7 +458,7 @@ static void resolve_cb(int status, struct sockaddr *src_addr,
 }
 
 int rdma_addr_find_dmac_by_grh(const union ib_gid *sgid, const union ib_gid *dgid,
-			       u8 *dmac, u16 *vlan_id)
+			       u8 *dmac, u16 *vlan_id, int if_index)
 {
 	int ret = 0;
 	struct rdma_dev_addr dev_addr;
@@ -476,6 +476,7 @@ int rdma_addr_find_dmac_by_grh(const union ib_gid *sgid, const union ib_gid *dgi
 	rdma_gid2ip(&dgid_addr._sockaddr, dgid);
 
 	memset(&dev_addr, 0, sizeof(dev_addr));
+	dev_addr.bound_dev_if = if_index;
 
 	ctx.addr = &dev_addr;
 	init_completion(&ctx.comp);
