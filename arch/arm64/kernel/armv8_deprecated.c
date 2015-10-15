@@ -279,22 +279,24 @@ static void register_insn_emulation_sysctl(struct ctl_table *table)
  */
 #define __user_swpX_asm(data, addr, res, temp, B)		\
 	__asm__ __volatile__(					\
-	"	mov		%w2, %w1\n"			\
-	"0:	ldxr"B"		%w1, [%3]\n"			\
-	"1:	stxr"B"		%w0, %w2, [%3]\n"		\
+	"0:	ldxr"B"		%w2, [%3]\n"			\
+	"1:	stxr"B"		%w0, %w1, [%3]\n"		\
 	"	cbz		%w0, 2f\n"			\
 	"	mov		%w0, %w4\n"			\
+	"	b		3f\n"				\
 	"2:\n"							\
+	"	mov		%w1, %w2\n"			\
+	"3:\n"							\
 	"	.pushsection	 .fixup,\"ax\"\n"		\
 	"	.align		2\n"				\
-	"3:	mov		%w0, %w5\n"			\
-	"	b		2b\n"				\
+	"4:	mov		%w0, %w5\n"			\
+	"	b		3b\n"				\
 	"	.popsection"					\
 	"	.pushsection	 __ex_table,\"a\"\n"		\
 	"	.align		3\n"				\
-	"	.quad		0b, 3b\n"			\
-	"	.quad		1b, 3b\n"			\
-	"	.popsection"					\
+	"	.quad		0b, 4b\n"			\
+	"	.quad		1b, 4b\n"			\
+	"	.popsection\n"					\
 	: "=&r" (res), "+r" (data), "=&r" (temp)		\
 	: "r" (addr), "i" (-EAGAIN), "i" (-EFAULT)		\
 	: "memory")
