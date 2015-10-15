@@ -1725,8 +1725,42 @@ static struct megasas_instance *megasas_lookup_instance(u16 host_no)
 	return NULL;
 }
 
+/*
+* megasas_set_dma_alignment - Set DMA alignment for PI enabled VD
+*
+* @sdev: OS provided scsi device
+*
+* Returns void
+*/
+static void megasas_set_dma_alignment(struct scsi_device *sdev)
+{
+	u32 device_id, ld;
+	struct megasas_instance *instance;
+	struct fusion_context *fusion;
+	struct MR_LD_RAID *raid;
+	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
+
+	instance = megasas_lookup_instance(sdev->host->host_no);
+	fusion = instance->ctrl_context;
+
+	if (!fusion)
+		return;
+
+	if (sdev->channel >= MEGASAS_MAX_PD_CHANNELS) {
+		device_id = ((sdev->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL)
+					+ sdev->id;
+		local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
+		ld = MR_TargetIdToLdGet(device_id, local_map_ptr);
+		raid = MR_LdRaidGet(ld, local_map_ptr);
+
+		if (raid->capability.ldPiMode == MR_PROT_INFO_TYPE_CONTROLLER)
+			blk_queue_update_dma_alignment(sdev->request_queue, 0x7);
+	}
+}
+
 static int megasas_slave_configure(struct scsi_device *sdev)
 {
+	megasas_set_dma_alignment(sdev);
 	/*
 	 * The RAID firmware may require extended timeouts.
 	 */
