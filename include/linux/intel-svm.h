@@ -31,6 +31,17 @@ struct svm_dev_ops {
 #define SVM_REQ_EXEC	(1<<1)
 #define SVM_REQ_PRIV	(1<<0)
 
+
+/*
+ * The SVM_FLAG_PRIVATE_PASID flag requests a PASID which is *not* the "main"
+ * PASID for the current process. Even if a PASID already exists, a new one
+ * will be allocated. And the PASID allocated with SVM_FLAG_PRIVATE_PASID
+ * will not be given to subsequent callers. This facility allows a driver to
+ * disambiguate between multiple device contexts which access the same MM,
+ * if there is no other way to do so. It should be used sparingly, if at all.
+ */
+#define SVM_FLAG_PRIVATE_PASID	(1<<0)
+
 /**
  * intel_svm_bind_mm() - Bind the current process to a PASID
  * @dev:	Device to be granted acccess

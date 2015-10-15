@@ -489,6 +489,7 @@ struct intel_svm {
 	struct mmu_notifier notifier;
 	struct mm_struct *mm;
 	struct intel_iommu *iommu;
+	int flags;
 	int pasid;
 	struct list_head devs;
 };

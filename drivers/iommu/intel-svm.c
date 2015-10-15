@@ -285,11 +285,12 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		pasid_max = 1 << 20;
 
 	mutex_lock(&pasid_mutex);
-	if (pasid) {
+	if (pasid && !(flags & SVM_FLAG_PRIVATE_PASID)) {
 		int i;
 
 		idr_for_each_entry(&iommu->pasid_idr, svm, i) {
-			if (svm->mm != current->mm)
+			if (svm->mm != current->mm ||
+			    (svm->flags & SVM_FLAG_PRIVATE_PASID))
 				continue;
 
 			if (svm->pasid >= pasid_max) {
@@ -355,6 +356,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		svm->pasid = ret;
 		svm->notifier.ops = &intel_mmuops;
 		svm->mm = get_task_mm(current);
+		svm->flags = flags;
 		INIT_LIST_HEAD_RCU(&svm->devs);
 		ret = -ENOMEM;
 		if (!svm->mm || (ret = mmu_notifier_register(&svm->notifier, svm->mm))) {
