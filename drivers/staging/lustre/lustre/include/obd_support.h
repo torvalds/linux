@@ -517,12 +517,6 @@ do {									      \
 /* we memset() the slab object to 0 when allocation succeeds, so DO NOT
  * HAVE A CTOR THAT DOES ANYTHING.  its work will be cleared here.  we'd
  * love to assert on that, but slab.c keeps kmem_cache_s all to itself. */
-#define OBD_SLAB_FREE_RTN0(ptr, slab)					 \
-({									    \
-	kmem_cache_free((slab), (ptr));				    \
-	(ptr) = NULL;							 \
-	0;								    \
-})
 
 #define __OBD_SLAB_ALLOC_VERBOSE(ptr, slab, cptab, cpt, size, type)	      \
 do {									      \
