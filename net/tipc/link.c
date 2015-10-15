@@ -1047,44 +1047,55 @@ static bool tipc_link_release_pkts(struct tipc_link *l, u16 acked)
 	return released;
 }
 
+/* tipc_link_build_ack_msg: prepare link acknowledge message for transmission
+ */
+void tipc_link_build_ack_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
+{
+	l->rcv_unacked = 0;
+	l->stats.sent_acks++;
+	tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, 0, xmitq);
+}
+
+/* tipc_link_build_nack_msg: prepare link nack message for transmission
+ */
+static void tipc_link_build_nack_msg(struct tipc_link *l,
+				     struct sk_buff_head *xmitq)
+{
+	u32 def_cnt = ++l->stats.deferred_recv;
+
+	if ((skb_queue_len(&l->deferdq) == 1) || !(def_cnt % TIPC_NACK_INTV))
+		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, 0, xmitq);
+}
+
 /* tipc_link_rcv - process TIPC packets/messages arriving from off-node
- * @link: the link that should handle the message
+ * @l: the link that should handle the message
  * @skb: TIPC packet
  * @xmitq: queue to place packets to be sent after this call
  */
 int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		  struct sk_buff_head *xmitq)
 {
-	struct sk_buff_head *arrvq = &l->deferdq;
+	struct sk_buff_head *defq = &l->deferdq;
 	struct tipc_msg *hdr;
 	u16 seqno, rcv_nxt;
 	int rc = 0;
 
-	if (unlikely(!__tipc_skb_queue_sorted(arrvq, skb))) {
-		if (!(skb_queue_len(arrvq) % TIPC_NACK_INTV))
-			tipc_link_build_proto_msg(l, STATE_MSG, 0,
-						  0, 0, 0, xmitq);
-		return rc;
-	}
-
-	while ((skb = skb_peek(arrvq))) {
+	do {
 		hdr = buf_msg(skb);
+		seqno = msg_seqno(hdr);
+		rcv_nxt = l->rcv_nxt;
 
 		/* Verify and update link state */
-		if (unlikely(msg_user(hdr) == LINK_PROTOCOL)) {
-			__skb_dequeue(arrvq);
-			rc = tipc_link_proto_rcv(l, skb, xmitq);
-			continue;
-		}
+		if (unlikely(msg_user(hdr) == LINK_PROTOCOL))
+			return tipc_link_proto_rcv(l, skb, xmitq);
 
 		if (unlikely(!link_is_up(l))) {
 			rc = tipc_link_fsm_evt(l, LINK_ESTABLISH_EVT);
-			if (!link_is_up(l)) {
-				kfree_skb(__skb_dequeue(arrvq));
-				goto exit;
-			}
+			if (!link_is_up(l))
+				goto drop;
 		}
 
+		/* Don't send probe at next timeout expiration */
 		l->silent_intv_cnt = 0;
 
 		/* Forward queues and wake up waiting users */
@@ -1095,37 +1106,36 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		}
 
 		/* Defer reception if there is a gap in the sequence */
-		seqno = msg_seqno(hdr);
-		rcv_nxt = l->rcv_nxt;
 		if (unlikely(less(rcv_nxt, seqno))) {
-			l->stats.deferred_recv++;
-			goto exit;
+			__tipc_skb_queue_sorted(defq, skb);
+			tipc_link_build_nack_msg(l, xmitq);
+			break;
 		}
-
-		__skb_dequeue(arrvq);
 
 		/* Drop if packet already received */
 		if (unlikely(more(rcv_nxt, seqno))) {
 			l->stats.duplicates++;
-			kfree_skb(skb);
-			goto exit;
+			goto drop;
 		}
 
 		/* Packet can be delivered */
 		l->rcv_nxt++;
 		l->stats.recv_info++;
-		if (unlikely(!tipc_data_input(l, skb, l->inputq)))
+
+		if (!tipc_data_input(l, skb, l->inputq))
 			rc = tipc_link_input(l, skb, l->inputq);
+		if (rc)
+			break;
 
 		/* Ack at regular intervals */
-		if (unlikely(++l->rcv_unacked >= TIPC_MIN_LINK_WIN)) {
-			l->rcv_unacked = 0;
-			l->stats.sent_acks++;
-			tipc_link_build_proto_msg(l, STATE_MSG,
-						  0, 0, 0, 0, xmitq);
-		}
-	}
-exit:
+		if (unlikely(++l->rcv_unacked >= TIPC_MIN_LINK_WIN))
+			tipc_link_build_ack_msg(l, xmitq);
+
+	} while ((skb = __skb_dequeue(defq)));
+
+	return rc;
+drop:
+	kfree_skb(skb);
 	return rc;
 }
 
@@ -1249,7 +1259,7 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 }
 
 /* tipc_link_tnl_prepare(): prepare and return a list of tunnel packets
- * with contents of the link's tranmsit and backlog queues.
+ * with contents of the link's transmit and backlog queues.
  */
 void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 			   int mtyp, struct sk_buff_head *xmitq)
