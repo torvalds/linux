@@ -1251,7 +1251,7 @@ int lprocfs_wr_import(struct file *file, const char __user *buffer,
 		*ptr = 0;
 		do_reconn = 0;
 		ptr += strlen("::");
-		inst = simple_strtol(ptr, &endptr, 10);
+		inst = simple_strtoul(ptr, &endptr, 10);
 		if (*endptr) {
 			CERROR("config: wrong instance # %s\n", ptr);
 		} else if (inst != imp->imp_connect_data.ocd_instance) {
