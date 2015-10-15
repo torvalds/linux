@@ -198,7 +198,8 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel)
 	unsigned long flags;
 
 	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
-	list_for_each_entry_safe(anchor, tmp, &mdev->anchor_list[channel], list) {
+	list_for_each_entry_safe(anchor, tmp, &mdev->anchor_list[channel],
+				 list) {
 		struct urb *urb = anchor->urb;
 
 		spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
@@ -343,7 +344,8 @@ static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
  * This takes the INIC hardware specific padding bytes off a streaming
  * channel's buffer.
  */
-static int hdm_remove_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
+static int hdm_remove_padding(struct most_dev *mdev, int channel,
+			      struct mbo *mbo)
 {
 	unsigned int j, num_frames, frame_size;
 	struct most_channel_config *const conf = &mdev->conf[channel];
@@ -619,7 +621,8 @@ static void hdm_read_completion(struct urb *urb)
  *
  * Context: Could in _some_ cases be interrupt!
  */
-static int hdm_enqueue(struct most_interface *iface, int channel, struct mbo *mbo)
+static int hdm_enqueue(struct most_interface *iface, int channel,
+		       struct mbo *mbo)
 {
 	struct most_dev *mdev;
 	struct buf_anchor *anchor;
@@ -767,8 +770,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 		tmp_val = conf->buffer_size / frame_size;
 		conf->buffer_size = tmp_val * frame_size;
 		dev_notice(dev,
-			   "Channel %d - rounding buffer size to %d bytes, "
-			   "channel config says %d bytes\n",
+			   "Channel %d - rounding buffer size to %d bytes, channel config says %d bytes\n",
 			   channel,
 			   conf->buffer_size,
 			   temp_size);
@@ -891,7 +893,7 @@ static void wq_netinfo(struct work_struct *wq_obj)
 	for (i = 0; i < 6; i++)
 		prev_hw_addr[i] = mdev->hw_addr[i];
 
-	if (0 > hdm_update_netinfo(mdev))
+	if (hdm_update_netinfo(mdev) < 0)
 		return;
 	if ((prev_link_stat != mdev->link_stat) ||
 	    (prev_hw_addr[0] != mdev->hw_addr[0]) ||
