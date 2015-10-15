@@ -655,6 +655,7 @@
 			resets = <&apb0_rst 0>;
 			gpio-controller;
 			interrupt-controller;
+			#interrupt-cells = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#gpio-cells = <3>;
