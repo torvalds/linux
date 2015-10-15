@@ -157,6 +157,9 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:
 		  both:        use both BOOTP and RARP but not DHCP
 		               (old option kept for backwards compatibility)
 
+		if dhcp is used, the client identifier can be used by following
+		format "ip=dhcp,client-id-type,client-id-value"
+
                 Default: any
 
   <dns0-ip>	IP address of first nameserver.
