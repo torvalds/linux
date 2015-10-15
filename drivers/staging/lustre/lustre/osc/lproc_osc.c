@@ -61,9 +61,7 @@ static ssize_t active_store(struct kobject *kobj, struct attribute *attr,
 	unsigned long val;
 
 	rc = kstrtoul(buffer, 10, &val);
-	if (rc)
-		return rc;
-	if (val < 0 || val > 1)
+	if (rc < 0)
 		return -ERANGE;
 
 	/* opposite senses */
