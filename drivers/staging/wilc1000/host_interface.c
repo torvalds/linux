@@ -247,7 +247,7 @@ static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 
 static bool scan_while_connected;
 
-static s8 gs8Rssi;
+static s8 rssi;
 static s8 gs8lnkspd;
 static u8 gu8Chnl;
 static u8 gs8SetIP[2][4];
@@ -2135,7 +2135,7 @@ static void Handle_GetRssi(struct host_if_drv *hif_drv)
 
 	strWID.id = (u16)WID_RSSI;
 	strWID.type = WID_CHAR;
-	strWID.val = &gs8Rssi;
+	strWID.val = &rssi;
 	strWID.size = sizeof(char);
 
 	PRINT_D(HOSTINF_DBG, "Getting RSSI value\n");
@@ -3909,9 +3909,7 @@ s32 host_int_get_rssi(struct host_if_drv *hif_drv, s8 *ps8Rssi)
 		return -EFAULT;
 	}
 
-
-	*ps8Rssi = gs8Rssi;
-
+	*ps8Rssi = rssi;
 
 	return s32Error;
 }
