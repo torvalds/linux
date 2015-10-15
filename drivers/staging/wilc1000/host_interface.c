@@ -259,7 +259,7 @@ static u8 *join_req;
 u8 *info_element;
 static u8 mode_11i;
 u8 auth_type;
-u32 gu32FlushedJoinReqSize;
+u32 join_req_size;
 u32 gu32FlushedInfoElemAsocSize;
 struct host_if_drv *gu8FlushedJoinReqDrvHandler;
 #define REAL_JOIN_REQ 0
@@ -1099,8 +1099,8 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	strWIDList[u32WidsCount].val = kmalloc(strWIDList[u32WidsCount].size, GFP_KERNEL);
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
-		gu32FlushedJoinReqSize = strWIDList[u32WidsCount].size;
-		join_req = kmalloc(gu32FlushedJoinReqSize, GFP_KERNEL);
+		join_req_size = strWIDList[u32WidsCount].size;
+		join_req = kmalloc(join_req_size, GFP_KERNEL);
 	}
 	if (strWIDList[u32WidsCount].val == NULL) {
 		s32Error = -EFAULT;
@@ -1199,7 +1199,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	u32WidsCount++;
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
-		memcpy(join_req, pu8CurrByte, gu32FlushedJoinReqSize);
+		memcpy(join_req, pu8CurrByte, join_req_size);
 		gu8FlushedJoinReqDrvHandler = hif_drv;
 	}
 
@@ -1302,7 +1302,7 @@ static s32 Handle_FlushConnect(struct host_if_drv *hif_drv)
 
 	strWIDList[u32WidsCount].id = (u16)WID_JOIN_REQ_EXTENDED;
 	strWIDList[u32WidsCount].type = WID_STR;
-	strWIDList[u32WidsCount].size = gu32FlushedJoinReqSize;
+	strWIDList[u32WidsCount].size = join_req_size;
 	strWIDList[u32WidsCount].val = (s8 *)join_req;
 	pu8CurrByte = strWIDList[u32WidsCount].val;
 
