@@ -361,16 +361,20 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	unsigned long flags;
 	int ret;
 	u8 p;
+	struct net_device *ndev = ib_get_ndev_from_path(path);
 
 	read_lock_irqsave(&cm.device_lock, flags);
 	list_for_each_entry(cm_dev, &cm.device_list, list) {
 		if (!ib_find_cached_gid(cm_dev->ib_device, &path->sgid,
-					NULL, &p, NULL)) {
+					ndev, &p, NULL)) {
 			port = cm_dev->port[p-1];
 			break;
 		}
 	}
 	read_unlock_irqrestore(&cm.device_lock, flags);
+
+	if (ndev)
+		dev_put(ndev);
 
 	if (!port)
 		return -EINVAL;
@@ -384,7 +388,6 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	ib_init_ah_from_path(cm_dev->ib_device, port->port_num, path,
 			     &av->ah_attr);
 	av->timeout = path->packet_life_time + 1;
-	memcpy(av->smac, path->smac, sizeof(av->smac));
 
 	av->valid = 1;
 	return 0;
