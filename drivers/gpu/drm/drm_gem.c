@@ -763,7 +763,8 @@ EXPORT_SYMBOL(drm_gem_object_release);
 void
 drm_gem_object_free(struct kref *kref)
 {
-	struct drm_gem_object *obj = (struct drm_gem_object *) kref;
+	struct drm_gem_object *obj =
+		container_of(kref, struct drm_gem_object, refcount);
 	struct drm_device *dev = obj->dev;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
