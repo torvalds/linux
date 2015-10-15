@@ -239,7 +239,7 @@ static struct semaphore hif_sema_thread;
 static struct semaphore hif_sema_driver;
 static struct semaphore hif_sema_wait_response;
 static struct semaphore hif_sema_deinit;
-struct timer_list periodic_rssi;
+static struct timer_list periodic_rssi;
 
 u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
