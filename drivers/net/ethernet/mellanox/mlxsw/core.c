@@ -551,6 +551,7 @@ static void mlxsw_emad_fini(struct mlxsw_core *mlxsw_core)
 {
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 
+	mlxsw_core->emad.use_emad = false;
 	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_DISCARD,
 			    MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
 			    MLXSW_TRAP_ID_ETHEMAD);
