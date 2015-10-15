@@ -41,7 +41,7 @@
 #include "socket.h"
 #include "bcast.h"
 #include "discover.h"
-
+#define pr_debug printk
 /* Node FSM states and events:
  */
 enum {
@@ -421,6 +421,8 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 
 	if (!tipc_node_is_up(n)) {
 		tipc_link_reset(l);
+		tipc_link_build_reset_msg(l, xmitq);
+		*maddr = &n->links[*bearer_id].maddr;
 		node_lost_contact(n, &le->inputq);
 		return;
 	}
@@ -463,7 +465,6 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id, bool delete)
 		tipc_link_fsm_evt(l, LINK_RESET_EVT);
 	}
 	tipc_node_unlock(n);
-
 	tipc_bearer_xmit(n->net, bearer_id, &xmitq, maddr);
 	tipc_sk_rcv(n->net, &le->inputq);
 }

@@ -1062,6 +1062,18 @@ void tipc_link_build_ack_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
 	tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, 0, xmitq);
 }
 
+/* tipc_link_build_reset_msg: prepare link RESET or ACTIVATE message
+ */
+void tipc_link_build_reset_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
+{
+	int mtyp = RESET_MSG;
+
+	if (l->state == LINK_ESTABLISHING)
+		mtyp = ACTIVATE_MSG;
+
+	tipc_link_build_proto_msg(l, mtyp, 0, 0, 0, 0, xmitq);
+}
+
 /* tipc_link_build_nack_msg: prepare link nack message for transmission
  */
 static void tipc_link_build_nack_msg(struct tipc_link *l,

@@ -362,6 +362,7 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b_ptr)
 	b_ptr->media->disable_media(b_ptr);
 
 	tipc_node_delete_links(net, b_ptr->identity);
+	RCU_INIT_POINTER(b_ptr->media_ptr, NULL);
 	if (b_ptr->link_req)
 		tipc_disc_delete(b_ptr->link_req);
 
@@ -399,16 +400,13 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 
 /* tipc_disable_l2_media - detach TIPC bearer from an L2 interface
  *
- * Mark L2 bearer as inactive so that incoming buffers are thrown away,
- * then get worker thread to complete bearer cleanup.  (Can't do cleanup
- * here because cleanup code needs to sleep and caller holds spinlocks.)
+ * Mark L2 bearer as inactive so that incoming buffers are thrown away
  */
 void tipc_disable_l2_media(struct tipc_bearer *b)
 {
 	struct net_device *dev;
 
 	dev = (struct net_device *)rtnl_dereference(b->media_ptr);
-	RCU_INIT_POINTER(b->media_ptr, NULL);
 	RCU_INIT_POINTER(dev->tipc_ptr, NULL);
 	synchronize_net();
 	dev_put(dev);
@@ -554,7 +552,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	case NETDEV_CHANGE:
 		if (netif_carrier_ok(dev))
 			break;
-	case NETDEV_DOWN:
+	case NETDEV_GOING_DOWN:
 	case NETDEV_CHANGEMTU:
 		tipc_reset_bearer(net, b_ptr);
 		break;
