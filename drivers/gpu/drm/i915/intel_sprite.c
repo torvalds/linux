@@ -613,7 +613,7 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int pipe = intel_plane->pipe;
 
-	I915_WRITE(SPRCTL(pipe), I915_READ(SPRCTL(pipe)) & ~SPRITE_ENABLE);
+	I915_WRITE(SPRCTL(pipe), 0);
 	/* Can't leave the scaler enabled... */
 	if (intel_plane->can_scale)
 		I915_WRITE(SPRSCALE(pipe), 0);
