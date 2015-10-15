@@ -15,8 +15,10 @@
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/list.h>
+#include <linux/workqueue.h>
 #include <net/ip_fib.h>
 #include <net/switchdev.h>
 
@@ -92,6 +94,85 @@ static void switchdev_trans_items_warn_destroy(struct net_device *dev,
 	switchdev_trans_items_destroy(trans);
 }
 
+static LIST_HEAD(deferred);
+static DEFINE_SPINLOCK(deferred_lock);
+
+typedef void switchdev_deferred_func_t(struct net_device *dev,
+				       const void *data);
+
+struct switchdev_deferred_item {
+	struct list_head list;
+	struct net_device *dev;
+	switchdev_deferred_func_t *func;
+	unsigned long data[0];
+};
+
+static struct switchdev_deferred_item *switchdev_deferred_dequeue(void)
+{
+	struct switchdev_deferred_item *dfitem;
+
+	spin_lock_bh(&deferred_lock);
+	if (list_empty(&deferred)) {
+		dfitem = NULL;
+		goto unlock;
+	}
+	dfitem = list_first_entry(&deferred,
+				  struct switchdev_deferred_item, list);
+	list_del(&dfitem->list);
+unlock:
+	spin_unlock_bh(&deferred_lock);
+	return dfitem;
+}
+
+/**
+ *	switchdev_deferred_process - Process ops in deferred queue
+ *
+ *	Called to flush the ops currently queued in deferred ops queue.
+ *	rtnl_lock must be held.
+ */
+void switchdev_deferred_process(void)
+{
+	struct switchdev_deferred_item *dfitem;
+
+	ASSERT_RTNL();
+
+	while ((dfitem = switchdev_deferred_dequeue())) {
+		dfitem->func(dfitem->dev, dfitem->data);
+		dev_put(dfitem->dev);
+		kfree(dfitem);
+	}
+}
+EXPORT_SYMBOL_GPL(switchdev_deferred_process);
+
+static void switchdev_deferred_process_work(struct work_struct *work)
+{
+	rtnl_lock();
+	switchdev_deferred_process();
+	rtnl_unlock();
+}
+
+static DECLARE_WORK(deferred_process_work, switchdev_deferred_process_work);
+
+static int switchdev_deferred_enqueue(struct net_device *dev,
+				      const void *data, size_t data_len,
+				      switchdev_deferred_func_t *func)
+{
+	struct switchdev_deferred_item *dfitem;
+
+	dfitem = kmalloc(sizeof(*dfitem) + data_len, GFP_ATOMIC);
+	if (!dfitem)
+		return -ENOMEM;
+	dfitem->dev = dev;
+	dfitem->func = func;
+	memcpy(dfitem->data, data, data_len);
+	dev_hold(dev);
+	spin_lock_bh(&deferred_lock);
+	list_add_tail(&dfitem->list, &deferred);
+	spin_unlock_bh(&deferred_lock);
+	schedule_work(&deferred_process_work);
+	return 0;
+}
+
 /**
  *	switchdev_port_attr_get - Get port attribute
  *
@@ -135,7 +216,7 @@ int switchdev_port_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 EXPORT_SYMBOL_GPL(switchdev_port_attr_get);
 
 static int __switchdev_port_attr_set(struct net_device *dev,
-				     struct switchdev_attr *attr,
+				     const struct switchdev_attr *attr,
 				     struct switchdev_trans *trans)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
@@ -170,73 +251,11 @@ done:
 	return err;
 }
 
-struct switchdev_attr_set_work {
-	struct work_struct work;
-	struct net_device *dev;
-	struct switchdev_attr attr;
-};
-
-static void switchdev_port_attr_set_work(struct work_struct *work)
-{
-	struct switchdev_attr_set_work *asw =
-		container_of(work, struct switchdev_attr_set_work, work);
-	int err;
-
-	rtnl_lock();
-	err = switchdev_port_attr_set(asw->dev, &asw->attr);
-	if (err && err != -EOPNOTSUPP)
-		netdev_err(asw->dev, "failed (err=%d) to set attribute (id=%d)\n",
-			   err, asw->attr.id);
-	rtnl_unlock();
-
-	dev_put(asw->dev);
-	kfree(work);
-}
-
-static int switchdev_port_attr_set_defer(struct net_device *dev,
-					 struct switchdev_attr *attr)
-{
-	struct switchdev_attr_set_work *asw;
-
-	asw = kmalloc(sizeof(*asw), GFP_ATOMIC);
-	if (!asw)
-		return -ENOMEM;
-
-	INIT_WORK(&asw->work, switchdev_port_attr_set_work);
-
-	dev_hold(dev);
-	asw->dev = dev;
-	memcpy(&asw->attr, attr, sizeof(asw->attr));
-
-	schedule_work(&asw->work);
-
-	return 0;
-}
-
-/**
- *	switchdev_port_attr_set - Set port attribute
- *
- *	@dev: port device
- *	@attr: attribute to set
- *
- *	Use a 2-phase prepare-commit transaction model to ensure
- *	system is not left in a partially updated state due to
- *	failure from driver/device.
- */
-int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
+static int switchdev_port_attr_set_now(struct net_device *dev,
+				       const struct switchdev_attr *attr)
 {
 	struct switchdev_trans trans;
 	int err;
-
-	if (!rtnl_is_locked()) {
-		/* Running prepare-commit transaction across stacked
-		 * devices requires nothing moves, so if rtnl_lock is
-		 * not held, schedule a worker thread to hold rtnl_lock
-		 * while setting attr.
-		 */
-
-		return switchdev_port_attr_set_defer(dev, attr);
-	}
 
 	switchdev_trans_init(&trans);
 
@@ -274,6 +293,47 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 
 	return err;
 }
+
+static void switchdev_port_attr_set_deferred(struct net_device *dev,
+					     const void *data)
+{
+	const struct switchdev_attr *attr = data;
+	int err;
+
+	err = switchdev_port_attr_set_now(dev, attr);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(dev, "failed (err=%d) to set attribute (id=%d)\n",
+			   err, attr->id);
+}
+
+static int switchdev_port_attr_set_defer(struct net_device *dev,
+					 const struct switchdev_attr *attr)
+{
+	return switchdev_deferred_enqueue(dev, attr, sizeof(*attr),
+					  switchdev_port_attr_set_deferred);
+}
+
+/**
+ *	switchdev_port_attr_set - Set port attribute
+ *
+ *	@dev: port device
+ *	@attr: attribute to set
+ *
+ *	Use a 2-phase prepare-commit transaction model to ensure
+ *	system is not left in a partially updated state due to
+ *	failure from driver/device.
+ *
+ *	rtnl_lock must be held and must not be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is not set.
+ */
+int switchdev_port_attr_set(struct net_device *dev,
+			    const struct switchdev_attr *attr)
+{
+	if (attr->flags & SWITCHDEV_F_DEFER)
+		return switchdev_port_attr_set_defer(dev, attr);
+	ASSERT_RTNL();
+	return switchdev_port_attr_set_now(dev, attr);
+}
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 
 static int __switchdev_port_obj_add(struct net_device *dev,
@@ -302,21 +362,8 @@ static int __switchdev_port_obj_add(struct net_device *dev,
 	return err;
 }
 
-/**
- *	switchdev_port_obj_add - Add port object
- *
- *	@dev: port device
- *	@id: object ID
- *	@obj: object to add
- *
- *	Use a 2-phase prepare-commit transaction model to ensure
- *	system is not left in a partially updated state due to
- *	failure from driver/device.
- *
- *	rtnl_lock must be held.
- */
-int switchdev_port_obj_add(struct net_device *dev,
-			   const struct switchdev_obj *obj)
+static int switchdev_port_obj_add_now(struct net_device *dev,
+				      const struct switchdev_obj *obj)
 {
 	struct switchdev_trans trans;
 	int err;
@@ -358,17 +405,52 @@ int switchdev_port_obj_add(struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(switchdev_port_obj_add);
+
+static void switchdev_port_obj_add_deferred(struct net_device *dev,
+					    const void *data)
+{
+	const struct switchdev_obj *obj = data;
+	int err;
+
+	err = switchdev_port_obj_add_now(dev, obj);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
+			   err, obj->id);
+}
+
+static int switchdev_port_obj_add_defer(struct net_device *dev,
+					const struct switchdev_obj *obj)
+{
+	return switchdev_deferred_enqueue(dev, obj, sizeof(*obj),
+					  switchdev_port_obj_add_deferred);
+}
 
 /**
- *	switchdev_port_obj_del - Delete port object
+ *	switchdev_port_obj_add - Add port object
  *
  *	@dev: port device
  *	@id: object ID
- *	@obj: object to delete
+ *	@obj: object to add
+ *
+ *	Use a 2-phase prepare-commit transaction model to ensure
+ *	system is not left in a partially updated state due to
+ *	failure from driver/device.
+ *
+ *	rtnl_lock must be held and must not be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is not set.
  */
-int switchdev_port_obj_del(struct net_device *dev,
+int switchdev_port_obj_add(struct net_device *dev,
 			   const struct switchdev_obj *obj)
+{
+	if (obj->flags & SWITCHDEV_F_DEFER)
+		return switchdev_port_obj_add_defer(dev, obj);
+	ASSERT_RTNL();
+	return switchdev_port_obj_add_now(dev, obj);
+}
+EXPORT_SYMBOL_GPL(switchdev_port_obj_add);
+
+static int switchdev_port_obj_del_now(struct net_device *dev,
+				      const struct switchdev_obj *obj)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
 	struct net_device *lower_dev;
@@ -384,12 +466,50 @@ int switchdev_port_obj_del(struct net_device *dev,
 	 */
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = switchdev_port_obj_del(lower_dev, obj);
+		err = switchdev_port_obj_del_now(lower_dev, obj);
 		if (err)
 			break;
 	}
 
 	return err;
+}
+
+static void switchdev_port_obj_del_deferred(struct net_device *dev,
+					    const void *data)
+{
+	const struct switchdev_obj *obj = data;
+	int err;
+
+	err = switchdev_port_obj_del_now(dev, obj);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(dev, "failed (err=%d) to del object (id=%d)\n",
+			   err, obj->id);
+}
+
+static int switchdev_port_obj_del_defer(struct net_device *dev,
+					const struct switchdev_obj *obj)
+{
+	return switchdev_deferred_enqueue(dev, obj, sizeof(*obj),
+					  switchdev_port_obj_del_deferred);
+}
+
+/**
+ *	switchdev_port_obj_del - Delete port object
+ *
+ *	@dev: port device
+ *	@id: object ID
+ *	@obj: object to delete
+ *
+ *	rtnl_lock must be held and must not be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is not set.
+ */
+int switchdev_port_obj_del(struct net_device *dev,
+			   const struct switchdev_obj *obj)
+{
+	if (obj->flags & SWITCHDEV_F_DEFER)
+		return switchdev_port_obj_del_defer(dev, obj);
+	ASSERT_RTNL();
+	return switchdev_port_obj_del_now(dev, obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
 
@@ -400,6 +520,8 @@ EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
  *	@id: object ID
  *	@obj: object to dump
  *	@cb: function to call with a filled object
+ *
+ *	rtnl_lock must be held.
  */
 int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
 			    switchdev_obj_dump_cb_t *cb)
@@ -408,6 +530,8 @@ int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
 	struct net_device *lower_dev;
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
+
+	ASSERT_RTNL();
 
 	if (ops && ops->switchdev_port_obj_dump)
 		return ops->switchdev_port_obj_dump(dev, obj, cb);
@@ -832,10 +956,10 @@ int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 {
 	struct switchdev_obj_port_fdb fdb = {
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_FDB,
-		.addr = addr,
 		.vid = vid,
 	};
 
+	ether_addr_copy(fdb.addr, addr);
 	return switchdev_port_obj_add(dev, &fdb.obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_add);
@@ -857,10 +981,10 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 {
 	struct switchdev_obj_port_fdb fdb = {
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_FDB,
-		.addr = addr,
 		.vid = vid,
 	};
 
+	ether_addr_copy(fdb.addr, addr);
 	return switchdev_port_obj_del(dev, &fdb.obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_del);
@@ -977,6 +1101,8 @@ static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
 	struct net_device *dev = NULL;
 	int nhsel;
 
+	ASSERT_RTNL();
+
 	/* For this route, all nexthop devs must be on the same switch. */
 
 	for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
@@ -1022,7 +1148,6 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
 		.dst = dst,
 		.dst_len = dst_len,
-		.fi = fi,
 		.tos = tos,
 		.type = type,
 		.nlflags = nlflags,
@@ -1030,6 +1155,8 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	};
 	struct net_device *dev;
 	int err = 0;
+
+	memcpy(&ipv4_fib.fi, fi, sizeof(ipv4_fib.fi));
 
 	/* Don't offload route if using custom ip rules or if
 	 * IPv4 FIB offloading has been disabled completely.
@@ -1074,7 +1201,6 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
 		.dst = dst,
 		.dst_len = dst_len,
-		.fi = fi,
 		.tos = tos,
 		.type = type,
 		.nlflags = 0,
@@ -1082,6 +1208,8 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	};
 	struct net_device *dev;
 	int err = 0;
+
+	memcpy(&ipv4_fib.fi, fi, sizeof(ipv4_fib.fi));
 
 	if (!(fi->fib_flags & RTNH_F_OFFLOAD))
 		return 0;
@@ -1205,10 +1333,11 @@ void switchdev_port_fwd_mark_set(struct net_device *dev,
 	u32 mark = dev->ifindex;
 	u32 reset_mark = 0;
 
-	if (group_dev && joining) {
-		mark = switchdev_port_fwd_mark_get(dev, group_dev);
-	} else if (group_dev && !joining) {
-		if (dev->offload_fwd_mark == mark)
+	if (group_dev) {
+		ASSERT_RTNL();
+		if (joining)
+			mark = switchdev_port_fwd_mark_get(dev, group_dev);
+		else if (dev->offload_fwd_mark == mark)
 			/* Ohoh, this port was the mark reference port,
 			 * but it's leaving the group, so reset the
 			 * mark for the remaining ports in the group.
