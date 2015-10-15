@@ -2307,9 +2307,7 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 		goto err2;
 	}
 
-	route->path_rec->vlan_id = rdma_vlan_dev_vlan_id(ndev);
 	memcpy(route->path_rec->dmac, addr->dev_addr.dst_dev_addr, ETH_ALEN);
-	memcpy(route->path_rec->smac, ndev->dev_addr, ndev->addr_len);
 
 	rdma_ip2gid((struct sockaddr *)&id_priv->id.route.addr.src_addr,
 		    &route->path_rec->sgid);

@@ -1153,11 +1153,9 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 
 		ib_unpack(path_rec_table, ARRAY_SIZE(path_rec_table),
 			  mad->data, &rec);
-		rec.vlan_id = 0xffff;
 		rec.net = NULL;
 		rec.ifindex = 0;
 		memset(rec.dmac, 0, ETH_ALEN);
-		memset(rec.smac, 0, ETH_ALEN);
 		query->callback(status, &rec, query->context);
 	} else
 		query->callback(status, NULL, query->context);
