@@ -207,7 +207,7 @@ struct join_bss_param {
 	u16 cap_info;
 	u8 au8bssid[6];
 	char ssid[MAX_SSID_LEN];
-	u8 ssidLen;
+	u8 ssid_len;
 	u8 supp_rates[MAX_RATES_SUPPORTED + 1];
 	u8 ht_capable;
 	u8 wmm_cap;
@@ -4894,7 +4894,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 		pNewJoinBssParam->cap_info = ptstrNetworkInfo->u16CapInfo;
 		memcpy(pNewJoinBssParam->au8bssid, ptstrNetworkInfo->au8bssid, 6);
 		memcpy((u8 *)pNewJoinBssParam->ssid, ptstrNetworkInfo->au8ssid, ptstrNetworkInfo->u8SsidLen + 1);
-		pNewJoinBssParam->ssidLen = ptstrNetworkInfo->u8SsidLen;
+		pNewJoinBssParam->ssid_len = ptstrNetworkInfo->u8SsidLen;
 		memset(pNewJoinBssParam->rsn_pcip_policy, 0xFF, 3);
 		memset(pNewJoinBssParam->rsn_auth_policy, 0xFF, 3);
 
