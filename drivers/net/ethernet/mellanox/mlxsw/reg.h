@@ -205,7 +205,7 @@ static inline void mlxsw_reg_spms_pack(char *payload, u8 local_port, u16 vid,
  * The following register controls the association of flooding tables and MIDs
  * to packet types used for flooding.
  */
-#define MLXSW_REG_SFGC_ID  0x2011
+#define MLXSW_REG_SFGC_ID 0x2011
 #define MLXSW_REG_SFGC_LEN 0x10
 
 static const struct mlxsw_reg_info mlxsw_reg_sfgc = {
