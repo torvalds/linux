@@ -210,7 +210,7 @@ static int bringup_link(struct ipath_devdata *dd)
 
 static struct ipath_portdata *create_portdata0(struct ipath_devdata *dd)
 {
-	struct ipath_portdata *pd = NULL;
+	struct ipath_portdata *pd;
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (pd) {
