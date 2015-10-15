@@ -236,7 +236,7 @@ u8 P2P_LISTEN_STATE;
 static struct task_struct *hif_thread_handler;
 static WILC_MsgQueueHandle hif_msg_q;
 static struct semaphore hif_sema_thread;
-struct semaphore hif_sema_driver;
+static struct semaphore hif_sema_driver;
 static struct semaphore hWaitResponse;
 struct semaphore hSemHostIntDeinit;
 struct timer_list g_hPeriodicRSSI;
