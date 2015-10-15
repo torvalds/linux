@@ -752,11 +752,12 @@ union dig_transmitter_control {
 	DIG_TRANSMITTER_CONTROL_PARAMETERS_V3 v3;
 	DIG_TRANSMITTER_CONTROL_PARAMETERS_V4 v4;
 	DIG_TRANSMITTER_CONTROL_PARAMETERS_V1_5 v5;
+	DIG_TRANSMITTER_CONTROL_PARAMETERS_V1_6 v6;
 };
 
 void
 amdgpu_atombios_encoder_setup_dig_transmitter(struct drm_encoder *encoder, int action,
-				       uint8_t lane_num, uint8_t lane_set)
+					      uint8_t lane_num, uint8_t lane_set)
 {
 	struct drm_device *dev = encoder->dev;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -1107,6 +1108,54 @@ amdgpu_atombios_encoder_setup_dig_transmitter(struct drm_encoder *encoder, int a
 				args.v5.asConfig.ucHPDSel = hpd_id + 1;
 			args.v5.ucDigEncoderSel = 1 << dig_encoder;
 			args.v5.ucDPLaneSet = lane_set;
+			break;
+		case 6:
+			args.v6.ucAction = action;
+			if (is_dp)
+				args.v6.ulSymClock = cpu_to_le32(dp_clock / 10);
+			else
+				args.v6.ulSymClock = cpu_to_le32(amdgpu_encoder->pixel_clock / 10);
+
+			switch (amdgpu_encoder->encoder_id) {
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+				if (dig->linkb)
+					args.v6.ucPhyId = ATOM_PHY_ID_UNIPHYB;
+				else
+					args.v6.ucPhyId = ATOM_PHY_ID_UNIPHYA;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+				if (dig->linkb)
+					args.v6.ucPhyId = ATOM_PHY_ID_UNIPHYD;
+				else
+					args.v6.ucPhyId = ATOM_PHY_ID_UNIPHYC;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+				if (dig->linkb)
+					args.v6.ucPhyId = ATOM_PHY_ID_UNIPHYF;
+				else
+					args.v6.ucPhyId = ATOM_PHY_ID_UNIPHYE;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
+				args.v6.ucPhyId = ATOM_PHY_ID_UNIPHYG;
+				break;
+			}
+			if (is_dp)
+				args.v6.ucLaneNum = dp_lane_count;
+			else if (amdgpu_dig_monitor_is_duallink(encoder, amdgpu_encoder->pixel_clock))
+				args.v6.ucLaneNum = 8;
+			else
+				args.v6.ucLaneNum = 4;
+			args.v6.ucConnObjId = connector_object_id;
+			if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH)
+				args.v6.ucDPLaneSet = lane_set;
+			else
+				args.v6.ucDigMode = amdgpu_atombios_encoder_get_encoder_mode(encoder);
+
+			if (hpd_id == AMDGPU_HPD_NONE)
+				args.v6.ucHPDSel = 0;
+			else
+				args.v6.ucHPDSel = hpd_id + 1;
+			args.v6.ucDigEncoderSel = 1 << dig_encoder;
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
