@@ -340,17 +340,25 @@ static int aml_i2c_read(struct aml_i2c *i2c, unsigned char *buf,
 static int aml_i2c_write(struct aml_i2c *i2c, unsigned char *buf,
 							size_t len)
 {
-        int i;
-        int ret;
-        size_t wr_len;
+	int i;
+	int ret;
+	size_t wr_len;
 	int tagnum=0;
-	if(!buf || !len) return -EINVAL; 
+	if(!buf)	return -EINVAL; 
 	aml_i2c_clear_token_list(i2c);
 	if(! (i2c->msg_flags & I2C_M_NOSTART)){
 		i2c->token_tag[tagnum++]=TOKEN_START;
 		i2c->token_tag[tagnum++]=TOKEN_SLAVE_ADDR_WRITE;
+
+		if(!len)	{
+			i2c->token_tag[tagnum++]=TOKEN_STOP;
+			aml_i2c_set_token_list(i2c);
+			aml_i2c_start_token_xfer(i2c);
+			return	aml_i2c_wait_ack(i2c);
+		}
 	}
-	while(len){
+
+	while(len)	{
 		wr_len = min_t(size_t, len, AML_I2C_MAX_TOKENS-tagnum);
 		for(i=0; i<wr_len; i++)
 			i2c->token_tag[tagnum++]=TOKEN_DATA;
@@ -371,7 +379,7 @@ static int aml_i2c_write(struct aml_i2c *i2c, unsigned char *buf,
 			return ret;
 
 		aml_i2c_clear_token_list(i2c);
-    	}
+	}
 	return 0;
 }
 
@@ -592,16 +600,17 @@ static int aml_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
     ret = aml_i2c_int_xfer(i2c, &msgs[0], num);
   }
   else {
-	for (i = 0; !ret && i < num; i++) {
+	for (i = 0; i < num; i++) {
 		p = &msgs[i];
 		i2c->msg_flags = p->flags;
-		ret = i2c->ops->do_address(i2c, p->addr);
-		if (ret || !p->len)
-			continue;
+		i2c->ops->do_address(i2c, p->addr);
+
 		if (p->flags & I2C_M_RD)
 			ret = i2c->ops->read(i2c, p->buf, p->len);
 		else
 			ret = i2c->ops->write(i2c, p->buf, p->len);
+
+		if(ret)		break;
 	}
 
 	i2c->ops->stop(i2c);
