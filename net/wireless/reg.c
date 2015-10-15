@@ -1130,11 +1130,11 @@ const char *reg_initiator_name(enum nl80211_reg_initiator initiator)
 }
 EXPORT_SYMBOL(reg_initiator_name);
 
-#ifdef CONFIG_CFG80211_REG_DEBUG
 static void chan_reg_rule_print_dbg(const struct ieee80211_regdomain *regd,
 				    struct ieee80211_channel *chan,
 				    const struct ieee80211_reg_rule *reg_rule)
 {
+#ifdef CONFIG_CFG80211_REG_DEBUG
 	const struct ieee80211_power_rule *power_rule;
 	const struct ieee80211_freq_range *freq_range;
 	char max_antenna_gain[32], bw[32];
@@ -1163,15 +1163,8 @@ static void chan_reg_rule_print_dbg(const struct ieee80211_regdomain *regd,
 		      freq_range->start_freq_khz, freq_range->end_freq_khz,
 		      bw, max_antenna_gain,
 		      power_rule->max_eirp);
-}
-#else
-static void chan_reg_rule_print_dbg(const struct ieee80211_regdomain *regd,
-				    struct ieee80211_channel *chan,
-				    const struct ieee80211_reg_rule *reg_rule)
-{
-	return;
-}
 #endif
+}
 
 /*
  * Note that right now we assume the desired channel bandwidth
