@@ -5644,7 +5644,7 @@ static void btdm_1AntTdmaDurationAdjustForACL(struct rtw_adapter *padapter)
 		    (pBtdm8723->curPsTdma != 11)) {
 			btdm_1AntSetPSTDMA(padapter, true, 0, true, pBtdm8723->psTdmaDuAdjType);
 		} else {
-			s32 judge = 0;
+			s32 judge;
 
 			judge = btdm_1AntTdmaJudgement(padapter, pHalData->bt_coexist.halCoex8723.btRetryCnt);
 			if (judge == -1) {
@@ -9075,7 +9075,7 @@ static void btdm_BTCoexist8723AHandler(struct rtw_adapter *padapter)
 u32 BTDM_BtTxRxCounterH(struct rtw_adapter *padapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	u32	counters = 0;
+	u32	counters;
 
 	counters = pHalData->bt_coexist.halCoex8723.highPriorityTx+
 		pHalData->bt_coexist.halCoex8723.highPriorityRx;
@@ -9085,7 +9085,7 @@ u32 BTDM_BtTxRxCounterH(struct rtw_adapter *padapter)
 u32 BTDM_BtTxRxCounterL(struct rtw_adapter *padapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	u32	counters = 0;
+	u32	counters;
 
 	counters = pHalData->bt_coexist.halCoex8723.lowPriorityTx+
 		pHalData->bt_coexist.halCoex8723.lowPriorityRx;
@@ -9297,7 +9297,7 @@ static void BTDM_AdjustForBtOperation8723A(struct rtw_adapter *padapter)
 static void BTDM_FwC2hBtRssi8723A(struct rtw_adapter *padapter, u8 *tmpBuf)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	u8 percent = 0, u1tmp = 0;
+	u8 percent, u1tmp;
 
 	u1tmp = tmpBuf[0];
 	percent = u1tmp*2+10;
