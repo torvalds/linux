@@ -697,7 +697,7 @@ static inline
 struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
 					      struct ptlrpc_request_pool *pool)
 {
-	struct ptlrpc_request *request = NULL;
+	struct ptlrpc_request *request;
 
 	request = ptlrpc_request_cache_alloc(GFP_NOFS);
 
