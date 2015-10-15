@@ -497,6 +497,7 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			      struct mlxsw_pci_queue *q)
 {
 	struct mlxsw_pci_queue_elem_info *elem_info;
+	u8 sdq_count = mlxsw_pci_sdq_count(mlxsw_pci);
 	int i;
 	int err;
 
@@ -504,9 +505,9 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	q->consumer_counter = 0;
 
 	/* Set CQ of same number of this RDQ with base
-	 * above MLXSW_PCI_SDQS_MAX as the lower ones are assigned to SDQs.
+	 * above SDQ count as the lower ones are assigned to SDQs.
 	 */
-	mlxsw_cmd_mbox_sw2hw_dq_cq_set(mbox, q->num + MLXSW_PCI_SDQS_COUNT);
+	mlxsw_cmd_mbox_sw2hw_dq_cq_set(mbox, sdq_count + q->num);
 	mlxsw_cmd_mbox_sw2hw_dq_log2_dq_sz_set(mbox, 3); /* 8 pages */
 	for (i = 0; i < MLXSW_PCI_AQ_PAGES; i++) {
 		dma_addr_t mapaddr = __mlxsw_pci_queue_page_get(q, i);
