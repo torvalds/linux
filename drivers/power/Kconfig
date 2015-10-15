@@ -313,7 +313,7 @@ config CHARGER_MAX8903
 
 config CHARGER_TWL4030
 	tristate "OMAP TWL4030 BCI charger driver"
-	depends on TWL4030_CORE
+	depends on IIO && TWL4030_CORE
 	help
 	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
