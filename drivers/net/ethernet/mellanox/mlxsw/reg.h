@@ -1029,8 +1029,11 @@ MLXSW_ITEM32(reg, htgt, swid, 0x00, 24, 8);
  */
 MLXSW_ITEM32(reg, htgt, type, 0x00, 8, 4);
 
-#define MLXSW_REG_HTGT_TRAP_GROUP_EMAD	0x0
-#define MLXSW_REG_HTGT_TRAP_GROUP_RX	0x1
+enum mlxsw_reg_htgt_trap_group {
+	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
+	MLXSW_REG_HTGT_TRAP_GROUP_RX,
+	MLXSW_REG_HTGT_TRAP_GROUP_CTRL,
+};
 
 /* reg_htgt_trap_group
  * Trap group number. User defined number specifying which trap groups
@@ -1097,6 +1100,7 @@ MLXSW_ITEM32(reg, htgt, local_path_cpu_tclass, 0x10, 16, 6);
 
 #define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_EMAD	0x15
 #define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_RX	0x14
+#define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_CTRL	0x13
 
 /* reg_htgt_local_path_rdq
  * Receive descriptor queue (RDQ) to use for the trap group.
@@ -1104,21 +1108,29 @@ MLXSW_ITEM32(reg, htgt, local_path_cpu_tclass, 0x10, 16, 6);
  */
 MLXSW_ITEM32(reg, htgt, local_path_rdq, 0x10, 0, 6);
 
-static inline void mlxsw_reg_htgt_pack(char *payload, u8 trap_group)
+static inline void mlxsw_reg_htgt_pack(char *payload,
+				       enum mlxsw_reg_htgt_trap_group group)
 {
 	u8 swid, rdq;
 
 	MLXSW_REG_ZERO(htgt, payload);
-	if (MLXSW_REG_HTGT_TRAP_GROUP_EMAD == trap_group) {
+	switch (group) {
+	case MLXSW_REG_HTGT_TRAP_GROUP_EMAD:
 		swid = MLXSW_PORT_SWID_ALL_SWIDS;
 		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_EMAD;
-	} else {
+		break;
+	case MLXSW_REG_HTGT_TRAP_GROUP_RX:
 		swid = 0;
 		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_RX;
+		break;
+	case MLXSW_REG_HTGT_TRAP_GROUP_CTRL:
+		swid = 0;
+		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_CTRL;
+		break;
 	}
 	mlxsw_reg_htgt_swid_set(payload, swid);
 	mlxsw_reg_htgt_type_set(payload, MLXSW_REG_HTGT_PATH_TYPE_LOCAL);
-	mlxsw_reg_htgt_trap_group_set(payload, trap_group);
+	mlxsw_reg_htgt_trap_group_set(payload, group);
 	mlxsw_reg_htgt_pide_set(payload, MLXSW_REG_HTGT_POLICER_DISABLE);
 	mlxsw_reg_htgt_pid_set(payload, 0);
 	mlxsw_reg_htgt_mirror_action_set(payload, MLXSW_REG_HTGT_TRAP_TO_CPU);
@@ -1211,7 +1223,7 @@ MLXSW_ITEM32(reg, hpkt, ctrl, 0x04, 16, 2);
 
 static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id)
 {
-	u8 trap_group;
+	enum mlxsw_reg_htgt_trap_group trap_group;
 
 	MLXSW_REG_ZERO(hpkt, payload);
 	mlxsw_reg_hpkt_ack_set(payload, MLXSW_REG_HPKT_ACK_NOT_REQUIRED);
