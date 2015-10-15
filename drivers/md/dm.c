@@ -555,18 +555,16 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return dm_get_geometry(md, geo);
 }
 
-static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
-			unsigned int cmd, unsigned long arg)
+static int dm_get_live_table_for_ioctl(struct mapped_device *md,
+		struct dm_target **tgt, struct block_device **bdev,
+		fmode_t *mode, int *srcu_idx)
 {
-	struct mapped_device *md = bdev->bd_disk->private_data;
-	int srcu_idx;
 	struct dm_table *map;
-	struct dm_target *tgt;
-	int r = -ENOTTY;
+	int r;
 
 retry:
-	map = dm_get_live_table(md, &srcu_idx);
-
+	r = -ENOTTY;
+	map = dm_get_live_table(md, srcu_idx);
 	if (!map || !dm_table_get_size(map))
 		goto out;
 
@@ -574,8 +572,9 @@ retry:
 	if (dm_table_get_num_targets(map) != 1)
 		goto out;
 
-	tgt = dm_table_get_target(map, 0);
-	if (!tgt->type->ioctl)
+	*tgt = dm_table_get_target(map, 0);
+
+	if (!(*tgt)->type->prepare_ioctl)
 		goto out;
 
 	if (dm_suspended_md(md)) {
@@ -583,16 +582,46 @@ retry:
 		goto out;
 	}
 
-	r = tgt->type->ioctl(tgt, cmd, arg);
+	r = (*tgt)->type->prepare_ioctl(*tgt, bdev, mode);
+	if (r < 0)
+		goto out;
+
+	return r;
 
 out:
-	dm_put_live_table(md, srcu_idx);
-
+	dm_put_live_table(md, *srcu_idx);
 	if (r == -ENOTCONN) {
 		msleep(10);
 		goto retry;
 	}
+	return r;
+}
 
+static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
+			unsigned int cmd, unsigned long arg)
+{
+	struct mapped_device *md = bdev->bd_disk->private_data;
+	struct dm_target *tgt;
+	int srcu_idx, r;
+
+	r = dm_get_live_table_for_ioctl(md, &tgt, &bdev, &mode, &srcu_idx);
+	if (r < 0)
+		return r;
+
+	if (r > 0) {
+		/*
+		 * Target determined this ioctl is being issued against
+		 * a logical partition of the parent bdev; so extra
+		 * validation is needed.
+		 */
+		r = scsi_verify_blk_ioctl(NULL, cmd);
+		if (r)
+			goto out;
+	}
+
+	r =  __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+out:
+	dm_put_live_table(md, srcu_idx);
 	return r;
 }
 

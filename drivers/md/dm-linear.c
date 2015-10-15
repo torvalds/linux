@@ -116,21 +116,21 @@ static void linear_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int linear_ioctl(struct dm_target *ti, unsigned int cmd,
-			unsigned long arg)
+static int linear_prepare_ioctl(struct dm_target *ti,
+		struct block_device **bdev, fmode_t *mode)
 {
 	struct linear_c *lc = (struct linear_c *) ti->private;
 	struct dm_dev *dev = lc->dev;
-	int r = 0;
+
+	*bdev = dev->bdev;
 
 	/*
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
 	if (lc->start ||
 	    ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT)
-		r = scsi_verify_blk_ioctl(NULL, cmd);
-
-	return r ? : __blkdev_driver_ioctl(dev->bdev, dev->mode, cmd, arg);
+		return 1;
+	return 0;
 }
 
 static int linear_iterate_devices(struct dm_target *ti,
@@ -149,7 +149,7 @@ static struct target_type linear_target = {
 	.dtr    = linear_dtr,
 	.map    = linear_map,
 	.status = linear_status,
-	.ioctl  = linear_ioctl,
+	.prepare_ioctl = linear_prepare_ioctl,
 	.iterate_devices = linear_iterate_devices,
 };
 
