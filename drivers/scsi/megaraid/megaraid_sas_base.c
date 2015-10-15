@@ -4198,6 +4198,10 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 			ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
 		dev_info(&instance->pdev->dev, "Online Controller Reset(OCR)\t: %s\n",
 			instance->disableOnlineCtrlReset ? "Disabled" : "Enabled");
+		instance->secure_jbod_support =
+			ctrl_info->adapterOperations3.supportSecurityonJBOD;
+		dev_info(&instance->pdev->dev, "Secure JBOD support\t: %s\n",
+			instance->secure_jbod_support ? "Yes" : "No");
 	}
 
 	pci_free_consistent(instance->pdev, sizeof(struct megasas_ctrl_info),
@@ -4851,8 +4855,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->crash_dump_buf = NULL;
 	}
 
-	instance->secure_jbod_support =
-		ctrl_info->adapterOperations3.supportSecurityonJBOD;
 
 	dev_info(&instance->pdev->dev,
 		"pci id\t\t: (0x%04x)/(0x%04x)/(0x%04x)/(0x%04x)\n",
@@ -4864,8 +4866,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->UnevenSpanSupport ? "yes" : "no");
 	dev_info(&instance->pdev->dev, "firmware crash dump	: %s\n",
 		instance->crash_dump_drv_support ? "yes" : "no");
-	dev_info(&instance->pdev->dev, "secure jbod		: %s\n",
-		instance->secure_jbod_support ? "yes" : "no");
 	dev_info(&instance->pdev->dev, "jbod sync map		: %s\n",
 		instance->use_seqnum_jbod_fp ? "yes" : "no");
 
