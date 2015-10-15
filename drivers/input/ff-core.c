@@ -318,6 +318,11 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 		return -EINVAL;
 	}
 
+	if (max_effects > FF_MAX_EFFECTS) {
+		dev_err(&dev->dev, "cannot allocate more than FF_MAX_EFFECTS effects\n");
+		return -EINVAL;
+	}
+
 	ff_dev_size = sizeof(struct ff_device) +
 				max_effects * sizeof(struct file *);
 	if (ff_dev_size < max_effects) /* overflow */

@@ -414,6 +414,14 @@ struct ff_effect {
 #define FF_GAIN		0x60
 #define FF_AUTOCENTER	0x61
 
+/*
+ * ff->playback(effect_id = FF_GAIN) is the first effect_id to
+ * cause a collision with another ff method, in this case ff->set_gain().
+ * Therefore the greatest safe value for effect_id is FF_GAIN - 1,
+ * and thus the total number of effects should never exceed FF_GAIN.
+ */
+#define FF_MAX_EFFECTS	FF_GAIN
+
 #define FF_MAX		0x7f
 #define FF_CNT		(FF_MAX+1)
 
