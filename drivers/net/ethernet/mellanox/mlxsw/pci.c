@@ -830,7 +830,8 @@ static void mlxsw_pci_eq_tasklet(unsigned long data)
 {
 	struct mlxsw_pci_queue *q = (struct mlxsw_pci_queue *) data;
 	struct mlxsw_pci *mlxsw_pci = q->pci;
-	unsigned long active_cqns[BITS_TO_LONGS(MLXSW_PCI_CQS_COUNT)];
+	u8 cq_count = mlxsw_pci_cq_count(mlxsw_pci);
+	unsigned long active_cqns[BITS_TO_LONGS(MLXSW_PCI_CQS_MAX)];
 	char *eqe;
 	u8 cqn;
 	bool cq_handle = false;
@@ -866,7 +867,7 @@ static void mlxsw_pci_eq_tasklet(unsigned long data)
 
 	if (!cq_handle)
 		return;
-	for_each_set_bit(cqn, active_cqns, MLXSW_PCI_CQS_COUNT) {
+	for_each_set_bit(cqn, active_cqns, cq_count) {
 		q = mlxsw_pci_cq_get(mlxsw_pci, cqn);
 		mlxsw_pci_queue_tasklet_schedule(q);
 	}
@@ -1069,8 +1070,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 
 	if ((num_sdqs != MLXSW_PCI_SDQS_COUNT) ||
 	    (num_rdqs != MLXSW_PCI_RDQS_COUNT) ||
-	    (num_cqs != MLXSW_PCI_CQS_COUNT) ||
-	    (num_eqs != MLXSW_PCI_EQS_COUNT)) {
+	    num_cqs > MLXSW_PCI_CQS_MAX || num_eqs != MLXSW_PCI_EQS_COUNT) {
 		dev_err(&pdev->dev, "Unsupported number of queues\n");
 		return -EINVAL;
 	}
