@@ -528,8 +528,15 @@ struct mlx4_ib_iov_port {
 };
 
 struct counter_index {
+	struct  list_head       list;
 	u32		index;
 	u8		allocated;
+};
+
+struct mlx4_ib_counters {
+	struct list_head        counters_list;
+	struct mutex            mutex; /* mutex for accessing counters list */
+	u32			default_counter;
 };
 
 struct mlx4_ib_dev {
@@ -550,7 +557,7 @@ struct mlx4_ib_dev {
 	struct mutex		cap_mask_mutex;
 	bool			ib_active;
 	struct mlx4_ib_iboe	iboe;
-	struct counter_index    counters[MLX4_MAX_PORTS];
+	struct mlx4_ib_counters counters_table[MLX4_MAX_PORTS];
 	int		       *eq_table;
 	struct kobject	       *iov_parent;
 	struct kobject	       *ports_parent;
