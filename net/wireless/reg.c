@@ -1353,7 +1353,8 @@ static bool reg_dev_ignore_cell_hint(struct wiphy *wiphy)
 	return !(wiphy->features & NL80211_FEATURE_CELL_BASE_REG_HINTS);
 }
 #else
-static int reg_ignore_cell_hint(struct regulatory_request *pending_request)
+static enum reg_request_treatment
+reg_ignore_cell_hint(struct regulatory_request *pending_request)
 {
 	return REG_REQ_IGNORE;
 }
