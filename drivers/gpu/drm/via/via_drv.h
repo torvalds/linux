@@ -102,6 +102,10 @@ typedef struct drm_via_private {
 	uint32_t dma_diff;
 } drm_via_private_t;
 
+struct via_file_private {
+	struct list_head obj_list;
+};
+
 enum via_family {
   VIA_OTHER = 0,     /* Baseline */
   VIA_PRO_GROUP_A,   /* Another video engine and DMA commands */
