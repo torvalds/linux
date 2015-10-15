@@ -876,43 +876,15 @@ static struct kobj_type ktype_cpufreq = {
 struct kobject *cpufreq_global_kobject;
 EXPORT_SYMBOL(cpufreq_global_kobject);
 
-static int cpufreq_global_kobject_usage;
-
-int cpufreq_get_global_kobject(void)
-{
-	if (!cpufreq_global_kobject_usage++)
-		return kobject_add(cpufreq_global_kobject,
-				&cpu_subsys.dev_root->kobj, "%s", "cpufreq");
-
-	return 0;
-}
-EXPORT_SYMBOL(cpufreq_get_global_kobject);
-
-void cpufreq_put_global_kobject(void)
-{
-	if (!--cpufreq_global_kobject_usage)
-		kobject_del(cpufreq_global_kobject);
-}
-EXPORT_SYMBOL(cpufreq_put_global_kobject);
-
 int cpufreq_sysfs_create_file(const struct attribute *attr)
 {
-	int ret = cpufreq_get_global_kobject();
-
-	if (!ret) {
-		ret = sysfs_create_file(cpufreq_global_kobject, attr);
-		if (ret)
-			cpufreq_put_global_kobject();
-	}
-
-	return ret;
+	return sysfs_create_file(cpufreq_global_kobject, attr);
 }
 EXPORT_SYMBOL(cpufreq_sysfs_create_file);
 
 void cpufreq_sysfs_remove_file(const struct attribute *attr)
 {
 	sysfs_remove_file(cpufreq_global_kobject, attr);
-	cpufreq_put_global_kobject();
 }
 EXPORT_SYMBOL(cpufreq_sysfs_remove_file);
 
@@ -2582,7 +2554,7 @@ static int __init cpufreq_core_init(void)
 	if (cpufreq_disabled())
 		return -ENODEV;
 
-	cpufreq_global_kobject = kobject_create();
+	cpufreq_global_kobject = kobject_create_and_add("cpufreq", &cpu_subsys.dev_root->kobj);
 	BUG_ON(!cpufreq_global_kobject);
 
 	register_syscore_ops(&cpufreq_syscore_ops);

@@ -348,29 +348,21 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy,
 	set_sampling_rate(dbs_data, max(dbs_data->min_sampling_rate,
 					latency * LATENCY_MULTIPLIER));
 
-	if (!have_governor_per_policy()) {
-		if (WARN_ON(cpufreq_get_global_kobject())) {
-			ret = -EINVAL;
-			goto cdata_exit;
-		}
+	if (!have_governor_per_policy())
 		cdata->gdbs_data = dbs_data;
-	}
 
 	ret = sysfs_create_group(get_governor_parent_kobj(policy),
 				 get_sysfs_attr(dbs_data));
 	if (ret)
-		goto put_kobj;
+		goto reset_gdbs_data;
 
 	policy->governor_data = dbs_data;
 
 	return 0;
 
-put_kobj:
-	if (!have_governor_per_policy()) {
+reset_gdbs_data:
+	if (!have_governor_per_policy())
 		cdata->gdbs_data = NULL;
-		cpufreq_put_global_kobject();
-	}
-cdata_exit:
 	cdata->exit(dbs_data, !policy->governor->initialized);
 free_common_dbs_info:
 	free_common_dbs_info(policy, cdata);
@@ -394,10 +386,8 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy,
 		sysfs_remove_group(get_governor_parent_kobj(policy),
 				   get_sysfs_attr(dbs_data));
 
-		if (!have_governor_per_policy()) {
+		if (!have_governor_per_policy())
 			cdata->gdbs_data = NULL;
-			cpufreq_put_global_kobject();
-		}
 
 		cdata->exit(dbs_data, policy->governor->initialized == 1);
 		kfree(dbs_data);
