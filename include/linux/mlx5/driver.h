@@ -393,6 +393,7 @@ struct mlx5_core_health {
 	struct timer_list		timer;
 	u32				prev;
 	int				miss_counter;
+	bool				sick;
 	struct workqueue_struct	       *wq;
 	struct work_struct		work;
 };
@@ -486,8 +487,26 @@ struct mlx5_priv {
 	spinlock_t              ctx_lock;
 };
 
+enum mlx5_device_state {
+	MLX5_DEVICE_STATE_UP,
+	MLX5_DEVICE_STATE_INTERNAL_ERROR,
+};
+
+enum mlx5_interface_state {
+	MLX5_INTERFACE_STATE_DOWN,
+	MLX5_INTERFACE_STATE_UP,
+};
+
+enum mlx5_pci_status {
+	MLX5_PCI_STATUS_DISABLED,
+	MLX5_PCI_STATUS_ENABLED,
+};
+
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
+	/* sync pci state */
+	struct mutex		pci_status_mutex;
+	enum mlx5_pci_status	pci_status;
 	u8			rev_id;
 	char			board_id[MLX5_BOARD_ID_LEN];
 	struct mlx5_cmd		cmd;
@@ -496,6 +515,10 @@ struct mlx5_core_dev {
 	u32 hca_caps_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
+	enum mlx5_device_state	state;
+	/* sync interface state */
+	struct mutex		intf_state_mutex;
+	enum mlx5_interface_state interface_state;
 	void			(*event) (struct mlx5_core_dev *dev,
 					  enum mlx5_dev_event event,
 					  unsigned long param);
@@ -802,6 +825,11 @@ int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
 void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
 int mlx5_query_odp_caps(struct mlx5_core_dev *dev,
 			struct mlx5_odp_caps *odp_caps);
+
+static inline int fw_initializing(struct mlx5_core_dev *dev)
+{
+	return ioread32be(&dev->iseg->initializing) >> 31;
+}
 
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {
