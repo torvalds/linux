@@ -10,9 +10,11 @@
 
 import os
 import re
+import signal
 import sys
-from subprocess import Popen, PIPE, STDOUT
+from multiprocessing import Pool, cpu_count
 from optparse import OptionParser
+from subprocess import Popen, PIPE, STDOUT
 
 
 # regex expressions
@@ -26,7 +28,7 @@ SOURCE_FEATURE = r"(?:\W|\b)+[D]{,1}CONFIG_(" + FEATURE + r")"
 
 # regex objects
 REGEX_FILE_KCONFIG = re.compile(r".*Kconfig[\.\w+\-]*$")
-REGEX_FEATURE = re.compile(r'(?!\B"[^"]*)' + FEATURE + r'(?![^"]*"\B)')
+REGEX_FEATURE = re.compile(r'(?!\B)' + FEATURE + r'(?!\B)')
 REGEX_SOURCE_FEATURE = re.compile(SOURCE_FEATURE)
 REGEX_KCONFIG_DEF = re.compile(DEF)
 REGEX_KCONFIG_EXPR = re.compile(EXPR)
@@ -34,6 +36,7 @@ REGEX_KCONFIG_STMT = re.compile(STMT)
 REGEX_KCONFIG_HELP = re.compile(r"^\s+(help|---help---)\s*$")
 REGEX_FILTER_FEATURES = re.compile(r"[A-Za-z0-9]$")
 REGEX_NUMERIC = re.compile(r"0[xX][0-9a-fA-F]+|[0-9]+")
+REGEX_QUOTES = re.compile("(\"(.*?)\")")
 
 
 def parse_options():
@@ -209,14 +212,36 @@ def get_head():
     return stdout.strip('\n')
 
 
+def partition(lst, size):
+    """Partition list @lst into eveni-sized lists of size @size."""
+    return [lst[i::size] for i in xrange(size)]
+
+
+def init_worker():
+    """Set signal handler to ignore SIGINT."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
 def check_symbols(ignore):
     """Find undefined Kconfig symbols and return a dict with the symbol as key
     and a list of referencing files as value.  Files matching %ignore are not
     checked for undefined symbols."""
+    pool = Pool(cpu_count(), init_worker)
+    try:
+        return check_symbols_helper(pool, ignore)
+    except KeyboardInterrupt:
+        pool.terminate()
+        pool.join()
+        sys.exit(1)
+
+
+def check_symbols_helper(pool, ignore):
+    """Helper method for check_symbols().  Used to catch keyboard interrupts in
+    check_symbols() in order to properly terminate running worker processes."""
     source_files = []
     kconfig_files = []
-    defined_features = set()
-    referenced_features = dict()  # {feature: [files]}
+    defined_features = []
+    referenced_features = dict()  # {file: [features]}
 
     # use 'git ls-files' to get the worklist
     stdout = execute("git ls-files")
@@ -231,21 +256,33 @@ def check_symbols(ignore):
         if REGEX_FILE_KCONFIG.match(gitfile):
             kconfig_files.append(gitfile)
         else:
-            # all non-Kconfig files are checked for consistency
+            if ignore and not re.match(ignore, gitfile):
+                continue
+            # add source files that do not match the ignore pattern
             source_files.append(gitfile)
 
-    for sfile in source_files:
-        if ignore and re.match(ignore, sfile):
-            # do not check files matching %ignore
-            continue
-        parse_source_file(sfile, referenced_features)
+    # parse source files
+    arglist = partition(source_files, cpu_count())
+    for res in pool.map(parse_source_files, arglist):
+        referenced_features.update(res)
 
-    for kfile in kconfig_files:
-        if ignore and re.match(ignore, kfile):
-            # do not collect references for files matching %ignore
-            parse_kconfig_file(kfile, defined_features, dict())
-        else:
-            parse_kconfig_file(kfile, defined_features, referenced_features)
+
+    # parse kconfig files
+    arglist = []
+    for part in partition(kconfig_files, cpu_count()):
+        arglist.append((part, ignore))
+    for res in pool.map(parse_kconfig_files, arglist):
+        defined_features.extend(res[0])
+        referenced_features.update(res[1])
+    defined_features = set(defined_features)
+
+    # inverse mapping of referenced_features to dict(feature: [files])
+    inv_map = dict()
+    for _file, features in referenced_features.iteritems():
+        for feature in features:
+            inv_map[feature] = inv_map.get(feature, set())
+            inv_map[feature].add(_file)
+    referenced_features = inv_map
 
     undefined = {}  # {feature: [files]}
     for feature in sorted(referenced_features):
@@ -262,9 +299,23 @@ def check_symbols(ignore):
     return undefined
 
 
-def parse_source_file(sfile, referenced_features):
-    """Parse @sfile for referenced Kconfig features."""
+def parse_source_files(source_files):
+    """Parse each source file in @source_files and return dictionary with source
+    files as keys and lists of references Kconfig symbols as values."""
+    referenced_features = dict()
+    for sfile in source_files:
+        referenced_features[sfile] = parse_source_file(sfile)
+    return referenced_features
+
+
+def parse_source_file(sfile):
+    """Parse @sfile and return a list of referenced Kconfig features."""
     lines = []
+    references = []
+
+    if not os.path.exists(sfile):
+        return references
+
     with open(sfile, "r") as stream:
         lines = stream.readlines()
 
@@ -275,9 +326,9 @@ def parse_source_file(sfile, referenced_features):
         for feature in features:
             if not REGEX_FILTER_FEATURES.search(feature):
                 continue
-            sfiles = referenced_features.get(feature, set())
-            sfiles.add(sfile)
-            referenced_features[feature] = sfiles
+            references.append(feature)
+
+    return references
 
 
 def get_features_in_line(line):
@@ -285,10 +336,34 @@ def get_features_in_line(line):
     return REGEX_FEATURE.findall(line)
 
 
-def parse_kconfig_file(kfile, defined_features, referenced_features):
+def parse_kconfig_files(args):
+    """Parse kconfig files and return tuple of defined and references Kconfig
+    symbols.  Note, @args is a tuple of a list of files and the @ignore
+    pattern."""
+    kconfig_files = args[0]
+    ignore = args[1]
+    defined_features = []
+    referenced_features = dict()
+
+    for kfile in kconfig_files:
+        defined, references = parse_kconfig_file(kfile)
+        defined_features.extend(defined)
+        if ignore and re.match(ignore, kfile):
+            # do not collect references for files that match the ignore pattern
+            continue
+        referenced_features[kfile] = references
+    return (defined_features, referenced_features)
+
+
+def parse_kconfig_file(kfile):
     """Parse @kfile and update feature definitions and references."""
     lines = []
+    defined = []
+    references = []
     skip = False
+
+    if not os.path.exists(kfile):
+        return defined, references
 
     with open(kfile, "r") as stream:
         lines = stream.readlines()
@@ -300,7 +375,7 @@ def parse_kconfig_file(kfile, defined_features, referenced_features):
 
         if REGEX_KCONFIG_DEF.match(line):
             feature_def = REGEX_KCONFIG_DEF.findall(line)
-            defined_features.add(feature_def[0])
+            defined.append(feature_def[0])
             skip = False
         elif REGEX_KCONFIG_HELP.match(line):
             skip = True
@@ -308,6 +383,7 @@ def parse_kconfig_file(kfile, defined_features, referenced_features):
             # ignore content of help messages
             pass
         elif REGEX_KCONFIG_STMT.match(line):
+            line = REGEX_QUOTES.sub("", line)
             features = get_features_in_line(line)
             # multi-line statements
             while line.endswith("\\"):
@@ -319,9 +395,9 @@ def parse_kconfig_file(kfile, defined_features, referenced_features):
                 if REGEX_NUMERIC.match(feature):
                     # ignore numeric values
                     continue
-                paths = referenced_features.get(feature, set())
-                paths.add(kfile)
-                referenced_features[feature] = paths
+                references.append(feature)
+
+    return defined, references
 
 
 if __name__ == "__main__":
