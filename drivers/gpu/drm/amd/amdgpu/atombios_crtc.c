@@ -467,7 +467,7 @@ union set_pixel_clock {
  * required disp clk.
  */
 void amdgpu_atombios_crtc_set_disp_eng_pll(struct amdgpu_device *adev,
-				    u32 dispclk)
+					   u32 dispclk)
 {
 	u8 frev, crev;
 	int index;
@@ -508,6 +508,49 @@ void amdgpu_atombios_crtc_set_disp_eng_pll(struct amdgpu_device *adev,
 		return;
 	}
 	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+}
+
+union set_dce_clock {
+	SET_DCE_CLOCK_PS_ALLOCATION_V1_1 v1_1;
+	SET_DCE_CLOCK_PS_ALLOCATION_V2_1 v2_1;
+};
+
+u32 amdgpu_atombios_crtc_set_dce_clock(struct amdgpu_device *adev,
+				       u32 freq, u8 clk_type, u8 clk_src)
+{
+	u8 frev, crev;
+	int index;
+	union set_dce_clock args;
+	u32 ret_freq = 0;
+
+	memset(&args, 0, sizeof(args));
+
+	index = GetIndexIntoMasterTable(COMMAND, SetDCEClock);
+	if (!amdgpu_atom_parse_cmd_header(adev->mode_info.atom_context, index, &frev,
+				   &crev))
+		return 0;
+
+	switch (frev) {
+	case 2:
+		switch (crev) {
+		case 1:
+			args.v2_1.asParam.ulDCEClkFreq = cpu_to_le32(freq); /* 10kHz units */
+			args.v2_1.asParam.ucDCEClkType = clk_type;
+			args.v2_1.asParam.ucDCEClkSrc = clk_src;
+			amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+			ret_freq = le32_to_cpu(args.v2_1.asParam.ulDCEClkFreq) * 10;
+			break;
+		default:
+			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			return 0;
+		}
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+		return 0;
+	}
+
+	return ret_freq;
 }
 
 static bool is_pixel_clock_source_from_pll(u32 encoder_mode, int pll_id)
