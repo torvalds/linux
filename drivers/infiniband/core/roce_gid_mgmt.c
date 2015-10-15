@@ -250,25 +250,44 @@ static void enum_netdev_ipv4_ips(struct ib_device *ib_dev,
 				 u8 port, struct net_device *ndev)
 {
 	struct in_device *in_dev;
+	struct sin_list {
+		struct list_head	list;
+		struct sockaddr_in	ip;
+	};
+	struct sin_list *sin_iter;
+	struct sin_list *sin_temp;
 
+	LIST_HEAD(sin_list);
 	if (ndev->reg_state >= NETREG_UNREGISTERING)
 		return;
 
-	in_dev = in_dev_get(ndev);
-	if (!in_dev)
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(ndev);
+	if (!in_dev) {
+		rcu_read_unlock();
 		return;
+	}
 
 	for_ifa(in_dev) {
-		struct sockaddr_in ip;
+		struct sin_list *entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 
-		ip.sin_family = AF_INET;
-		ip.sin_addr.s_addr = ifa->ifa_address;
-		update_gid_ip(GID_ADD, ib_dev, port, ndev,
-			      (struct sockaddr *)&ip);
+		if (!entry) {
+			pr_warn("roce_gid_mgmt: couldn't allocate entry for IPv4 update\n");
+			continue;
+		}
+		entry->ip.sin_family = AF_INET;
+		entry->ip.sin_addr.s_addr = ifa->ifa_address;
+		list_add_tail(&entry->list, &sin_list);
 	}
 	endfor_ifa(in_dev);
+	rcu_read_unlock();
 
-	in_dev_put(in_dev);
+	list_for_each_entry_safe(sin_iter, sin_temp, &sin_list, list) {
+		update_gid_ip(GID_ADD, ib_dev, port, ndev,
+			      (struct sockaddr *)&sin_iter->ip);
+		list_del(&sin_iter->list);
+		kfree(sin_iter);
+	}
 }
 
 static void enum_netdev_ipv6_ips(struct ib_device *ib_dev,
