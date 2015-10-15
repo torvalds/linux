@@ -353,16 +353,6 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 				(export)->exp_md_stats, coffset);	    \
 	}
 
-#define OBD_CHECK_MD_OP(obd, op, err)			   \
-do {							    \
-	if (!OBT(obd) || !MDP((obd), op)) {		     \
-		if (err)					\
-			CERROR("md_" #op ": dev %s/%d no operation\n", \
-			       obd->obd_name, obd->obd_minor);  \
-		return err;				    \
-	}						       \
-} while (0)
-
 #define EXP_CHECK_MD_OP(exp, op)				\
 do {							    \
 	if ((exp) == NULL) {				    \
