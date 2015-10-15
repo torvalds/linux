@@ -403,7 +403,7 @@ void add_RATid23a(struct rtw_adapter *padapter, struct sta_info *psta, u8 rssi_l
 	init_rate = get_highest_rate_idx23a(tx_ra_bitmap&0x0fffffff)&0x3f;
 
 	if (psta->aid < NUM_STA) {
-		u8 arg = 0;
+		u8 arg;
 
 		arg = psta->mac_id&0x1f;
 
@@ -487,7 +487,7 @@ static void update_bmc_sta(struct rtw_adapter *padapter)
 		rtl8723a_SetHalODMVar(padapter, HAL_ODM_STA_INFO, psta, true);
 
 		{
-			u8 arg = 0;
+			u8 arg;
 
 			arg = psta->mac_id&0x1f;
 
