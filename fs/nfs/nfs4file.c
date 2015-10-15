@@ -298,6 +298,17 @@ static long nfs42_ioctl_clone_range(struct file *dst_file, void __user *argp)
 
 	return nfs42_ioctl_clone(dst_file, args.src_fd, args.src_off, args.dst_off, args.count);
 }
+#else
+static long nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
+		u64 src_off, u64 dst_off, u64 count)
+{
+	return -ENOTTY;
+}
+
+static long nfs42_ioctl_clone_range(struct file *dst_file, void __user *argp)
+{
+	return -ENOTTY;
+}
 #endif /* CONFIG_NFS_V4_2 */
 
 long nfs4_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -305,12 +316,10 @@ long nfs4_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
-#ifdef CONFIG_NFS_V4_2
 	case NFS_IOC_CLONE:
 		return nfs42_ioctl_clone(file, arg, 0, 0, 0);
 	case NFS_IOC_CLONE_RANGE:
 		return nfs42_ioctl_clone_range(file, argp);
-#endif
 	}
 
 	return -ENOTTY;
