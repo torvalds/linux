@@ -910,9 +910,6 @@ static int cpufreq_add_dev_symlink(struct cpufreq_policy *policy)
 
 	/* Some related CPUs might not be present (physically hotplugged) */
 	for_each_cpu(j, policy->real_cpus) {
-		if (j == policy->kobj_cpu)
-			continue;
-
 		ret = add_cpu_dev_symlink(policy, j);
 		if (ret)
 			break;
@@ -926,12 +923,8 @@ static void cpufreq_remove_dev_symlink(struct cpufreq_policy *policy)
 	unsigned int j;
 
 	/* Some related CPUs might not be present (physically hotplugged) */
-	for_each_cpu(j, policy->real_cpus) {
-		if (j == policy->kobj_cpu)
-			continue;
-
+	for_each_cpu(j, policy->real_cpus)
 		remove_cpu_dev_symlink(policy, j);
-	}
 }
 
 static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
@@ -1047,8 +1040,8 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 	if (!zalloc_cpumask_var(&policy->real_cpus, GFP_KERNEL))
 		goto err_free_rcpumask;
 
-	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq, &dev->kobj,
-				   "cpufreq");
+	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq,
+				   cpufreq_global_kobject, "policy%u", cpu);
 	if (ret) {
 		pr_err("%s: failed to init policy->kobj: %d\n", __func__, ret);
 		goto err_free_real_cpus;
@@ -1062,10 +1055,6 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 	INIT_WORK(&policy->update, handle_update);
 
 	policy->cpu = cpu;
-
-	/* Set this once on allocation */
-	policy->kobj_cpu = cpu;
-
 	return policy;
 
 err_free_real_cpus:
@@ -1417,22 +1406,7 @@ static void cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 		return;
 	}
 
-	if (cpu != policy->kobj_cpu) {
-		remove_cpu_dev_symlink(policy, cpu);
-	} else {
-		/*
-		 * The CPU owning the policy object is going away.  Move it to
-		 * another suitable CPU.
-		 */
-		unsigned int new_cpu = cpumask_first(policy->real_cpus);
-		struct device *new_dev = get_cpu_device(new_cpu);
-
-		dev_dbg(dev, "%s: Moving policy object to CPU%u\n", __func__, new_cpu);
-
-		sysfs_remove_link(&new_dev->kobj, "cpufreq");
-		policy->kobj_cpu = new_cpu;
-		WARN_ON(kobject_move(&policy->kobj, &new_dev->kobj));
-	}
+	remove_cpu_dev_symlink(policy, cpu);
 }
 
 static void handle_update(struct work_struct *work)
