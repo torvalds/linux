@@ -49,6 +49,12 @@
 #define IPROC_CLK_PLL_NEEDS_SW_CFG BIT(4)
 
 /*
+ * Some PLLs use a different way to control clock power, via the PWRDWN bit in
+ * the PLL control register
+ */
+#define IPROC_CLK_EMBED_PWRCTRL BIT(5)
+
+/*
  * Parameters for VCO frequency configuration
  *
  * VCO frequency =

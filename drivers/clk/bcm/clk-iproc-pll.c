@@ -148,14 +148,25 @@ static void __pll_disable(struct iproc_pll *pll)
 		writel(val, pll->asiu_base + ctrl->asiu.offset);
 	}
 
-	/* latch input value so core power can be shut down */
-	val = readl(pll->pwr_base + ctrl->aon.offset);
-	val |= (1 << ctrl->aon.iso_shift);
-	writel(val, pll->pwr_base + ctrl->aon.offset);
+	if (ctrl->flags & IPROC_CLK_EMBED_PWRCTRL) {
+		val = readl(pll->pll_base + ctrl->aon.offset);
+		val |= bit_mask(ctrl->aon.pwr_width) << ctrl->aon.pwr_shift;
+		writel(val, pll->pll_base + ctrl->aon.offset);
 
-	/* power down the core */
-	val &= ~(bit_mask(ctrl->aon.pwr_width) << ctrl->aon.pwr_shift);
-	writel(val, pll->pwr_base + ctrl->aon.offset);
+		if (unlikely(ctrl->flags & IPROC_CLK_NEEDS_READ_BACK))
+			readl(pll->pll_base + ctrl->aon.offset);
+	}
+
+	if (pll->pwr_base) {
+		/* latch input value so core power can be shut down */
+		val = readl(pll->pwr_base + ctrl->aon.offset);
+		val |= 1 << ctrl->aon.iso_shift;
+		writel(val, pll->pwr_base + ctrl->aon.offset);
+
+		/* power down the core */
+		val &= ~(bit_mask(ctrl->aon.pwr_width) << ctrl->aon.pwr_shift);
+		writel(val, pll->pwr_base + ctrl->aon.offset);
+	}
 }
 
 static int __pll_enable(struct iproc_pll *pll)
@@ -163,11 +174,22 @@ static int __pll_enable(struct iproc_pll *pll)
 	const struct iproc_pll_ctrl *ctrl = pll->ctrl;
 	u32 val;
 
-	/* power up the PLL and make sure it's not latched */
-	val = readl(pll->pwr_base + ctrl->aon.offset);
-	val |= bit_mask(ctrl->aon.pwr_width) << ctrl->aon.pwr_shift;
-	val &= ~(1 << ctrl->aon.iso_shift);
-	writel(val, pll->pwr_base + ctrl->aon.offset);
+	if (ctrl->flags & IPROC_CLK_EMBED_PWRCTRL) {
+		val = readl(pll->pll_base + ctrl->aon.offset);
+		val &= ~(bit_mask(ctrl->aon.pwr_width) << ctrl->aon.pwr_shift);
+		writel(val, pll->pll_base + ctrl->aon.offset);
+
+		if (unlikely(ctrl->flags & IPROC_CLK_NEEDS_READ_BACK))
+			readl(pll->pll_base + ctrl->aon.offset);
+	}
+
+	if (pll->pwr_base) {
+		/* power up the PLL and make sure it's not latched */
+		val = readl(pll->pwr_base + ctrl->aon.offset);
+		val |= bit_mask(ctrl->aon.pwr_width) << ctrl->aon.pwr_shift;
+		val &= ~(1 << ctrl->aon.iso_shift);
+		writel(val, pll->pwr_base + ctrl->aon.offset);
+	}
 
 	/* certain PLLs also need to be ungated from the ASIU top level */
 	if (ctrl->flags & IPROC_CLK_PLL_ASIU) {
@@ -610,9 +632,8 @@ void __init iproc_pll_clk_setup(struct device_node *node,
 	if (WARN_ON(!pll->pll_base))
 		goto err_pll_iomap;
 
+	/* Some SoCs do not require the pwr_base, thus failing is not fatal */
 	pll->pwr_base = of_iomap(node, 1);
-	if (WARN_ON(!pll->pwr_base))
-		goto err_pwr_iomap;
 
 	/* some PLLs require gating control at the top ASIU level */
 	if (pll_ctrl->flags & IPROC_CLK_PLL_ASIU) {
@@ -695,9 +716,9 @@ err_pll_register:
 		iounmap(pll->asiu_base);
 
 err_asiu_iomap:
-	iounmap(pll->pwr_base);
+	if (pll->pwr_base)
+		iounmap(pll->pwr_base);
 
-err_pwr_iomap:
 	iounmap(pll->pll_base);
 
 err_pll_iomap:
