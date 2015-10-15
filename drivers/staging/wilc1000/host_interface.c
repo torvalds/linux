@@ -261,7 +261,7 @@ static u8 mode_11i;
 u8 auth_type;
 u32 join_req_size;
 static u32 info_element_size;
-struct host_if_drv *join_req_drv;
+static struct host_if_drv *join_req_drv;
 #define REAL_JOIN_REQ 0
 #define FLUSHED_JOIN_REQ 1
 #define FLUSHED_BYTE_POS 79
