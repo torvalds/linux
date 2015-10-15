@@ -563,6 +563,7 @@ union dig_encoder_control {
 	DIG_ENCODER_CONTROL_PARAMETERS_V2 v2;
 	DIG_ENCODER_CONTROL_PARAMETERS_V3 v3;
 	DIG_ENCODER_CONTROL_PARAMETERS_V4 v4;
+	DIG_ENCODER_CONTROL_PARAMETERS_V5 v5;
 };
 
 void
@@ -689,6 +690,47 @@ amdgpu_atombios_encoder_setup_dig_encoder(struct drm_encoder *encoder,
 				args.v4.ucHPD_ID = 0;
 			else
 				args.v4.ucHPD_ID = hpd_id + 1;
+			break;
+		case 5:
+			switch (action) {
+			case ATOM_ENCODER_CMD_SETUP_PANEL_MODE:
+				args.v5.asDPPanelModeParam.ucAction = action;
+				args.v5.asDPPanelModeParam.ucPanelMode = panel_mode;
+				args.v5.asDPPanelModeParam.ucDigId = dig->dig_encoder;
+				break;
+			case ATOM_ENCODER_CMD_STREAM_SETUP:
+				args.v5.asStreamParam.ucAction = action;
+				args.v5.asStreamParam.ucDigId = dig->dig_encoder;
+				args.v5.asStreamParam.ucDigMode =
+					amdgpu_atombios_encoder_get_encoder_mode(encoder);
+				if (ENCODER_MODE_IS_DP(args.v5.asStreamParam.ucDigMode))
+					args.v5.asStreamParam.ucLaneNum = dp_lane_count;
+				else if (amdgpu_dig_monitor_is_duallink(encoder,
+									amdgpu_encoder->pixel_clock))
+					args.v5.asStreamParam.ucLaneNum = 8;
+				else
+					args.v5.asStreamParam.ucLaneNum = 4;
+				args.v5.asStreamParam.ulPixelClock =
+					cpu_to_le32(amdgpu_encoder->pixel_clock / 10);
+				args.v5.asStreamParam.ucBitPerColor =
+					amdgpu_atombios_encoder_get_bpc(encoder);
+				args.v5.asStreamParam.ucLinkRateIn270Mhz = dp_clock / 27000;
+				break;
+			case ATOM_ENCODER_CMD_DP_LINK_TRAINING_START:
+			case ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN1:
+			case ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN2:
+			case ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN3:
+			case ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN4:
+			case ATOM_ENCODER_CMD_DP_LINK_TRAINING_COMPLETE:
+			case ATOM_ENCODER_CMD_DP_VIDEO_OFF:
+			case ATOM_ENCODER_CMD_DP_VIDEO_ON:
+				args.v5.asCmdParam.ucAction = action;
+				args.v5.asCmdParam.ucDigId = dig->dig_encoder;
+				break;
+			default:
+				DRM_ERROR("Unsupported action 0x%x\n", action);
+				break;
+			}
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
