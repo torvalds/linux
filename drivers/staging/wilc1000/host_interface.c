@@ -251,7 +251,7 @@ static s8 rssi;
 static s8 link_speed;
 static u8 ch_no;
 static u8 set_ip[2][4];
-static u8 gs8GetIP[2][4];
+static u8 get_ip[2][4];
 static u32 gu32InactiveTime;
 static u8 gu8DelBcn;
 static u32 gu32WidConnRstHack;
@@ -450,11 +450,11 @@ s32 Handle_get_IPAddress(struct host_if_drv *hif_drv, u8 *pu8IPAddr, u8 idx)
 
 	PRINT_INFO(HOSTINF_DBG, "%pI4\n", strWID.val);
 
-	memcpy(gs8GetIP[idx], strWID.val, IP_ALEN);
+	memcpy(get_ip[idx], strWID.val, IP_ALEN);
 
 	kfree(strWID.val);
 
-	if (memcmp(gs8GetIP[idx], set_ip[idx], IP_ALEN) != 0)
+	if (memcmp(get_ip[idx], set_ip[idx], IP_ALEN) != 0)
 		host_int_setup_ipaddress(hif_drv, set_ip[idx], idx);
 
 	if (s32Error != 0) {
@@ -463,7 +463,7 @@ s32 Handle_get_IPAddress(struct host_if_drv *hif_drv, u8 *pu8IPAddr, u8 idx)
 	}
 
 	PRINT_INFO(HOSTINF_DBG, "IP address retrieved:: u8IfIdx = %d\n", idx);
-	PRINT_INFO(HOSTINF_DBG, "%pI4\n", gs8GetIP[idx]);
+	PRINT_INFO(HOSTINF_DBG, "%pI4\n", get_ip[idx]);
 	PRINT_INFO(HOSTINF_DBG, "\n");
 
 	return s32Error;
