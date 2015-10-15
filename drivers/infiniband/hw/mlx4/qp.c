@@ -758,9 +758,6 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	} else {
 		qp->sq_no_prefetch = 0;
 
-		if (init_attr->create_flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK)
-			qp->flags |= MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK;
-
 		if (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO)
 			qp->flags |= MLX4_IB_QP_LSO;
 
@@ -833,6 +830,9 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			goto err_proxy;
 	}
+
+	if (init_attr->create_flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK)
+		qp->flags |= MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK;
 
 	err = mlx4_qp_alloc(dev->dev, qpn, &qp->mqp, gfp);
 	if (err)
@@ -1098,6 +1098,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 {
 	struct mlx4_ib_qp *qp = NULL;
 	int err;
+	int sup_u_create_flags = MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK;
 	u16 xrcdn = 0;
 	gfp_t gfp;
 
@@ -1121,8 +1122,10 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	}
 
 	if (init_attr->create_flags &&
-	    (udata ||
-	     ((init_attr->create_flags & ~(MLX4_IB_SRIOV_SQP | MLX4_IB_QP_CREATE_USE_GFP_NOIO)) &&
+	    ((udata && init_attr->create_flags & ~(sup_u_create_flags)) ||
+	     ((init_attr->create_flags & ~(MLX4_IB_SRIOV_SQP |
+					   MLX4_IB_QP_CREATE_USE_GFP_NOIO |
+					   MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK)) &&
 	      init_attr->qp_type != IB_QPT_UD) ||
 	     ((init_attr->create_flags & MLX4_IB_SRIOV_SQP) &&
 	      init_attr->qp_type > IB_QPT_GSI)))
