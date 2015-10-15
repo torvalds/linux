@@ -1190,8 +1190,6 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
-	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
-
 	/* we should have failed registration if scan_cmd was NULL */
 	if (WARN_ON(!mvm->scan_cmd))
 		return -ENOMEM;
@@ -1232,21 +1230,20 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return ret;
 
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
-	if (!ret) {
-		IWL_DEBUG_SCAN(mvm, "Scan request was sent successfully\n");
-		mvm->scan_status |= IWL_MVM_SCAN_REGULAR;
-	} else {
+	if (ret) {
 		/* If the scan failed, it usually means that the FW was unable
 		 * to allocate the time events. Warn on it, but maybe we
 		 * should try to send the command again with different params.
 		 */
 		IWL_ERR(mvm, "Scan failed! ret %d\n", ret);
+		return ret;
 	}
 
-	if (ret)
-		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+	IWL_DEBUG_SCAN(mvm, "Scan request was sent successfully\n");
+	mvm->scan_status |= IWL_MVM_SCAN_REGULAR;
+	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
 
-	return ret;
+	return 0;
 }
 
 int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
