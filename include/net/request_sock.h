@@ -186,25 +186,6 @@ static inline bool reqsk_queue_empty(const struct request_sock_queue *queue)
 	return queue->rskq_accept_head == NULL;
 }
 
-static inline void reqsk_queue_add(struct request_sock_queue *queue,
-				   struct request_sock *req,
-				   struct sock *parent,
-				   struct sock *child)
-{
-	spin_lock(&queue->rskq_lock);
-	req->sk = child;
-	sk_acceptq_added(parent);
-
-	if (queue->rskq_accept_head == NULL)
-		queue->rskq_accept_head = req;
-	else
-		queue->rskq_accept_tail->dl_next = req;
-
-	queue->rskq_accept_tail = req;
-	req->dl_next = NULL;
-	spin_unlock(&queue->rskq_lock);
-}
-
 static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue *queue,
 						      struct sock *parent)
 {
