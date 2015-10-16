@@ -843,18 +843,11 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 
 	down_write(&policy->rwsem);
 
-	/* Updating inactive policies is invalid, so avoid doing that. */
-	if (unlikely(policy_is_inactive(policy))) {
-		ret = -EBUSY;
-		goto unlock_policy_rwsem;
-	}
-
 	if (fattr->store)
 		ret = fattr->store(policy, buf, count);
 	else
 		ret = -EIO;
 
-unlock_policy_rwsem:
 	up_write(&policy->rwsem);
 unlock:
 	put_online_cpus();
