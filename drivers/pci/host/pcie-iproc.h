@@ -15,6 +15,19 @@
 #define _PCIE_IPROC_H
 
 /**
+ * iProc PCIe outbound mapping
+ * @set_oarr_size: indicates the OARR size bit needs to be set
+ * @axi_offset: offset from the AXI address to the internal address used by
+ * the iProc PCIe core
+ * @window_size: outbound window size
+ */
+struct iproc_pcie_ob {
+	bool set_oarr_size;
+	resource_size_t axi_offset;
+	resource_size_t window_size;
+};
+
+/**
  * iProc PCIe device
  * @dev: pointer to device data structure
  * @base: PCIe host controller I/O register base
@@ -23,6 +36,8 @@
  * @phy: optional PHY device that controls the Serdes
  * @irqs: interrupt IDs
  * @map_irq: function callback to map interrupts
+ * @need_ob_cfg: indidates SW needs to configure the outbound mapping window
+ * @ob: outbound mapping parameters
  */
 struct iproc_pcie {
 	struct device *dev;
@@ -33,6 +48,8 @@ struct iproc_pcie {
 	struct pci_bus *root_bus;
 	struct phy *phy;
 	int (*map_irq)(const struct pci_dev *, u8, u8);
+	bool need_ob_cfg;
+	struct iproc_pcie_ob ob;
 };
 
 int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res);
