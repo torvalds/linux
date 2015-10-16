@@ -171,6 +171,15 @@ irqfd_deactivate(struct kvm_kernel_irqfd *irqfd)
 	queue_work(irqfd_cleanup_wq, &irqfd->shutdown);
 }
 
+int __attribute__((weak)) kvm_arch_set_irq(
+				struct kvm_kernel_irq_routing_entry *irq,
+				struct kvm *kvm, int irq_source_id,
+				int level,
+				bool line_status)
+{
+	return -EWOULDBLOCK;
+}
+
 /*
  * Called with wqh->lock held and interrupts disabled
  */
@@ -195,7 +204,9 @@ irqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 		if (irq.type == KVM_IRQ_ROUTING_MSI)
 			kvm_set_msi(&irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
 					false);
-		else
+		else if (kvm_arch_set_irq(&irq, kvm,
+					  KVM_USERSPACE_IRQ_SOURCE_ID, 1,
+					  false) == -EWOULDBLOCK)
 			schedule_work(&irqfd->inject);
 		srcu_read_unlock(&kvm->irq_srcu, idx);
 	}
