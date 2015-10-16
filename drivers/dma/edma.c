@@ -1324,6 +1324,7 @@ static struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
 	struct edma_desc *edesc;
 	struct device *dev = chan->device->dev;
 	struct edma_chan *echan = to_edma_chan(chan);
+	unsigned int width;
 
 	if (unlikely(!echan || !len))
 		return NULL;
@@ -1336,8 +1337,12 @@ static struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
 
 	edesc->pset_nr = 1;
 
+	width = 1 << __ffs((src | dest | len));
+	if (width > DMA_SLAVE_BUSWIDTH_64_BYTES)
+		width = DMA_SLAVE_BUSWIDTH_64_BYTES;
+
 	ret = edma_config_pset(chan, &edesc->pset[0], src, dest, 1,
-			       DMA_SLAVE_BUSWIDTH_4_BYTES, len, DMA_MEM_TO_MEM);
+			       width, len, DMA_MEM_TO_MEM);
 	if (ret < 0)
 		return NULL;
 
@@ -1902,12 +1907,6 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 	dma->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
 	dma->dev = dev;
-
-	/*
-	 * code using dma memcpy must make sure alignment of
-	 * length is at dma->copy_align boundary.
-	 */
-	dma->copy_align = DMAENGINE_ALIGN_4_BYTES;
 
 	INIT_LIST_HEAD(&dma->channels);
 }
