@@ -21,6 +21,8 @@
 #include <linux/pm.h>
 #include <linux/mfd/palmas.h>
 #include <linux/completion.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/machine.h>
 #include <linux/iio/driver.h>
@@ -460,6 +462,34 @@ static const struct iio_chan_spec palmas_gpadc_iio_channel[] = {
 	PALMAS_ADC_CHAN_IIO(IN15, IIO_VOLTAGE, IIO_CHAN_INFO_PROCESSED),
 };
 
+static int palmas_gpadc_get_adc_dt_data(struct platform_device *pdev,
+	struct palmas_gpadc_platform_data **gpadc_pdata)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct palmas_gpadc_platform_data *gp_data;
+	int ret;
+	u32 pval;
+
+	gp_data = devm_kzalloc(&pdev->dev, sizeof(*gp_data), GFP_KERNEL);
+	if (!gp_data)
+		return -ENOMEM;
+
+	ret = of_property_read_u32(np, "ti,channel0-current-microamp", &pval);
+	if (!ret)
+		gp_data->ch0_current = pval;
+
+	ret = of_property_read_u32(np, "ti,channel3-current-microamp", &pval);
+	if (!ret)
+		gp_data->ch3_current = pval;
+
+	gp_data->extended_delay = of_property_read_bool(np,
+					"ti,enable-extended-delay");
+
+	*gpadc_pdata = gp_data;
+
+	return 0;
+}
+
 static int palmas_gpadc_probe(struct platform_device *pdev)
 {
 	struct palmas_gpadc *adc;
@@ -469,12 +499,17 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	int ret, i;
 
 	pdata = dev_get_platdata(pdev->dev.parent);
-	if (!pdata || !pdata->gpadc_pdata) {
-		dev_err(&pdev->dev, "No platform data\n");
-		return -ENODEV;
-	}
 
-	gpadc_pdata = pdata->gpadc_pdata;
+	if (pdata && pdata->gpadc_pdata)
+		gpadc_pdata = pdata->gpadc_pdata;
+
+	if (!gpadc_pdata && pdev->dev.of_node) {
+		ret = palmas_gpadc_get_adc_dt_data(pdev, &gpadc_pdata);
+		if (ret < 0)
+			return ret;
+	}
+	if (!gpadc_pdata)
+		return -EINVAL;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
 	if (!indio_dev) {
@@ -790,12 +825,19 @@ static const struct dev_pm_ops palmas_pm_ops = {
 				palmas_gpadc_resume)
 };
 
+static const struct of_device_id of_palmas_gpadc_match_tbl[] = {
+	{ .compatible = "ti,palmas-gpadc", },
+	{ /* end */ }
+};
+MODULE_DEVICE_TABLE(of, of_palmas_gpadc_match_tbl);
+
 static struct platform_driver palmas_gpadc_driver = {
 	.probe = palmas_gpadc_probe,
 	.remove = palmas_gpadc_remove,
 	.driver = {
 		.name = MOD_NAME,
 		.pm = &palmas_pm_ops,
+		.of_match_table = of_palmas_gpadc_match_tbl,
 	},
 };
 
