@@ -150,19 +150,26 @@ static s32 fm10k_init_hw_pf(struct fm10k_hw *hw)
 				FM10K_TPH_RXCTRL_HDR_WROEN);
 	}
 
-	/* set max hold interval to align with 1.024 usec in all modes */
+	/* set max hold interval to align with 1.024 usec in all modes and
+	 * store ITR scale
+	 */
 	switch (hw->bus.speed) {
 	case fm10k_bus_speed_2500:
 		dma_ctrl = FM10K_DMA_CTRL_MAX_HOLD_1US_GEN1;
+		hw->mac.itr_scale = FM10K_TDLEN_ITR_SCALE_GEN1;
 		break;
 	case fm10k_bus_speed_5000:
 		dma_ctrl = FM10K_DMA_CTRL_MAX_HOLD_1US_GEN2;
+		hw->mac.itr_scale = FM10K_TDLEN_ITR_SCALE_GEN2;
 		break;
 	case fm10k_bus_speed_8000:
 		dma_ctrl = FM10K_DMA_CTRL_MAX_HOLD_1US_GEN3;
+		hw->mac.itr_scale = FM10K_TDLEN_ITR_SCALE_GEN3;
 		break;
 	default:
 		dma_ctrl = 0;
+		/* just in case, assume Gen3 ITR scale */
+		hw->mac.itr_scale = FM10K_TDLEN_ITR_SCALE_GEN3;
 		break;
 	}
 
@@ -903,6 +910,13 @@ static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 	fm10k_write_reg(hw, FM10K_TDBAL(vf_q_idx), tdbal);
 	fm10k_write_reg(hw, FM10K_TDBAH(vf_q_idx), tdbah);
 
+	/* Provide the VF the ITR scale, using software-defined fields in TDLEN
+	 * to pass the information during VF initialization. See definition of
+	 * FM10K_TDLEN_ITR_SCALE_SHIFT for more details.
+	 */
+	fm10k_write_reg(hw, FM10K_TDLEN(vf_q_idx), hw->mac.itr_scale <<
+						   FM10K_TDLEN_ITR_SCALE_SHIFT);
+
 err_out:
 	/* configure Queue control register */
 	txqctl = ((u32)vf_vid << FM10K_TXQCTL_VID_SHIFT) &
@@ -1035,6 +1049,12 @@ static s32 fm10k_iov_reset_resources_pf(struct fm10k_hw *hw,
 	for (i = queues_per_pool; i--;) {
 		fm10k_write_reg(hw, FM10K_TDBAL(vf_q_idx + i), tdbal);
 		fm10k_write_reg(hw, FM10K_TDBAH(vf_q_idx + i), tdbah);
+		/* See definition of FM10K_TDLEN_ITR_SCALE_SHIFT for an
+		 * explanation of how TDLEN is used.
+		 */
+		fm10k_write_reg(hw, FM10K_TDLEN(vf_q_idx + i),
+				hw->mac.itr_scale <<
+				FM10K_TDLEN_ITR_SCALE_SHIFT);
 		fm10k_write_reg(hw, FM10K_TQMAP(qmap_idx + i), vf_q_idx + i);
 		fm10k_write_reg(hw, FM10K_RQMAP(qmap_idx + i), vf_q_idx + i);
 	}
