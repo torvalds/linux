@@ -111,7 +111,7 @@ static const struct fm10k_stats fm10k_gstrings_pf_stats[] = {
 
 static const struct fm10k_stats fm10k_gstrings_mbx_stats[] = {
 	FM10K_MBX_STAT("mbx_tx_busy", tx_busy),
-	FM10K_MBX_STAT("mbx_tx_oversized", tx_dropped),
+	FM10K_MBX_STAT("mbx_tx_dropped", tx_dropped),
 	FM10K_MBX_STAT("mbx_tx_messages", tx_messages),
 	FM10K_MBX_STAT("mbx_tx_dwords", tx_dwords),
 	FM10K_MBX_STAT("mbx_tx_mbmem_pulled", tx_mbmem_pulled),
