@@ -1883,8 +1883,10 @@ void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 	    snd_pcm_update_hw_ptr0(substream, 1) < 0)
 		goto _end;
 
+#ifdef CONFIG_SND_PCM_TIMER
 	if (substream->timer_running)
 		snd_timer_interrupt(substream->timer, 1);
+#endif
  _end:
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	if (runtime->transfer_ack_end)
