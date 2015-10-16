@@ -128,4 +128,5 @@ struct cpg_mssr_info {
 					struct clk **clks, void __iomem *base);
 };
 
+extern const struct cpg_mssr_info r8a7795_cpg_mssr_info;
 #endif
