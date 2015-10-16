@@ -183,6 +183,12 @@ static u32 esdhc_writeb_fixup(struct sdhci_host *host,
 	int shift = (spec_reg & 0x3) * 8;
 
 	/*
+	 * eSDHC doesn't have a standard power control register, so we do
+	 * nothing here to avoid incorrect operation.
+	 */
+	if (spec_reg == SDHCI_POWER_CONTROL)
+		return old_value;
+	/*
 	 * "DMA select" location is offset 0x28 in SD specification, but on
 	 * P5020 or P3041, it's located at 0x29.
 	 */
