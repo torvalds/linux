@@ -673,8 +673,9 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 
 #define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
 
-#define	kc_vaddr_to_offset(v) ((v) & ~VA_START)
-#define	kc_offset_to_vaddr(o) ((o) | VA_START)
+#define kc_vaddr_to_offset(v)	((v) & ~VA_START)
+#define kc_offset_to_vaddr(o)	((o) | VA_START)
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_PGTABLE_H */
