@@ -3989,14 +3989,12 @@ static const struct attribute_group *rbd_attr_groups[] = {
 	NULL
 };
 
-static void rbd_sysfs_dev_release(struct device *dev)
-{
-}
+static void rbd_dev_release(struct device *dev);
 
 static struct device_type rbd_device_type = {
 	.name		= "rbd",
 	.groups		= rbd_attr_groups,
-	.release	= rbd_sysfs_dev_release,
+	.release	= rbd_dev_release,
 };
 
 static struct rbd_spec *rbd_spec_get(struct rbd_spec *spec)
@@ -4077,7 +4075,6 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 	rbd_dev->dev.bus = &rbd_bus_type;
 	rbd_dev->dev.type = &rbd_device_type;
 	rbd_dev->dev.parent = &rbd_root_dev;
-	rbd_dev->dev.release = rbd_dev_release;
 	device_initialize(&rbd_dev->dev);
 
 	rbd_dev->rbd_client = rbdc;
