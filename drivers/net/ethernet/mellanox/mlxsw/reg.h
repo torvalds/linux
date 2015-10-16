@@ -1132,6 +1132,71 @@ static inline void mlxsw_reg_sfmr_pack(char *payload,
 	mlxsw_reg_sfmr_vv_set(payload, false);
 }
 
+/* SPVMLR - Switch Port VLAN MAC Learning Register
+ * -----------------------------------------------
+ * Controls the switch MAC learning policy per {Port, VID}.
+ */
+#define MLXSW_REG_SPVMLR_ID 0x2020
+#define MLXSW_REG_SPVMLR_BASE_LEN 0x04 /* base length, without records */
+#define MLXSW_REG_SPVMLR_REC_LEN 0x04 /* record length */
+#define MLXSW_REG_SPVMLR_REC_MAX_COUNT 256
+#define MLXSW_REG_SPVMLR_LEN (MLXSW_REG_SPVMLR_BASE_LEN + \
+			      MLXSW_REG_SPVMLR_REC_LEN * \
+			      MLXSW_REG_SPVMLR_REC_MAX_COUNT)
+
+static const struct mlxsw_reg_info mlxsw_reg_spvmlr = {
+	.id = MLXSW_REG_SPVMLR_ID,
+	.len = MLXSW_REG_SPVMLR_LEN,
+};
+
+/* reg_spvmlr_local_port
+ * Local ingress port.
+ * Access: Index
+ *
+ * Note: CPU port is not supported.
+ */
+MLXSW_ITEM32(reg, spvmlr, local_port, 0x00, 16, 8);
+
+/* reg_spvmlr_num_rec
+ * Number of records to update.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, spvmlr, num_rec, 0x00, 0, 8);
+
+/* reg_spvmlr_rec_learn_enable
+ * 0 - Disable learning for {Port, VID}.
+ * 1 - Enable learning for {Port, VID}.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, spvmlr, rec_learn_enable, MLXSW_REG_SPVMLR_BASE_LEN,
+		     31, 1, MLXSW_REG_SPVMLR_REC_LEN, 0x00, false);
+
+/* reg_spvmlr_rec_vid
+ * VLAN ID to be added/removed from port or for querying.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvmlr, rec_vid, MLXSW_REG_SPVMLR_BASE_LEN, 0, 12,
+		     MLXSW_REG_SPVMLR_REC_LEN, 0x00, false);
+
+static inline void mlxsw_reg_spvmlr_pack(char *payload, u8 local_port,
+					 u16 vid_begin, u16 vid_end,
+					 bool learn_enable)
+{
+	int num_rec = vid_end - vid_begin + 1;
+	int i;
+
+	WARN_ON(num_rec < 1 || num_rec > MLXSW_REG_SPVMLR_REC_MAX_COUNT);
+
+	MLXSW_REG_ZERO(spvmlr, payload);
+	mlxsw_reg_spvmlr_local_port_set(payload, local_port);
+	mlxsw_reg_spvmlr_num_rec_set(payload, num_rec);
+
+	for (i = 0; i < num_rec; i++) {
+		mlxsw_reg_spvmlr_rec_learn_enable_set(payload, i, learn_enable);
+		mlxsw_reg_spvmlr_rec_vid_set(payload, i, vid_begin + i);
+	}
+}
+
 /* PMLP - Ports Module to Local Port Register
  * ------------------------------------------
  * Configures the assignment of modules to local ports.
@@ -2318,6 +2383,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SVPE";
 	case MLXSW_REG_SFMR_ID:
 		return "SFMR";
+	case MLXSW_REG_SPVMLR_ID:
+		return "SPVMLR";
 	case MLXSW_REG_PMLP_ID:
 		return "PMLP";
 	case MLXSW_REG_PMTU_ID:
