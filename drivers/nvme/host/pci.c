@@ -130,6 +130,23 @@ struct nvme_queue {
 };
 
 /*
+ * The nvme_iod describes the data in an I/O, including the list of PRP
+ * entries.  You can't see it in this data structure because C doesn't let
+ * me express that.  Use nvme_alloc_iod to ensure there's enough space
+ * allocated to store the PRP list.
+ */
+struct nvme_iod {
+	unsigned long private;	/* For the use of the submitter of the I/O */
+	int npages;		/* In the PRP list. 0 means small pool in use */
+	int offset;		/* Of PRP list */
+	int nents;		/* Used in scatterlist */
+	int length;		/* Of data, in bytes */
+	dma_addr_t first_dma;
+	struct scatterlist meta_sg[1]; /* metadata requires single contiguous buffer */
+	struct scatterlist sg[0];
+};
+
+/*
  * Check we didin't inadvertently grow the command struct
  */
 static inline void _nvme_check_size(void)
