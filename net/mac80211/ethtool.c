@@ -77,19 +77,19 @@ static void ieee80211_get_stats(struct net_device *dev,
 
 	memset(data, 0, sizeof(u64) * STA_STATS_LEN);
 
-#define ADD_STA_STATS(sta)				\
-	do {						\
-		data[i++] += sta->rx_packets;		\
-		data[i++] += sta->rx_bytes;		\
-		data[i++] += sta->num_duplicates;	\
-		data[i++] += sta->rx_fragments;		\
-		data[i++] += sta->rx_dropped;		\
-							\
-		data[i++] += sinfo.tx_packets;		\
-		data[i++] += sinfo.tx_bytes;		\
-		data[i++] += sta->tx_filtered_count;	\
-		data[i++] += sta->tx_retry_failed;	\
-		data[i++] += sta->tx_retry_count;	\
+#define ADD_STA_STATS(sta)					\
+	do {							\
+		data[i++] += sta->rx_stats.packets;		\
+		data[i++] += sta->rx_stats.bytes;		\
+		data[i++] += sta->rx_stats.num_duplicates;	\
+		data[i++] += sta->rx_stats.fragments;		\
+		data[i++] += sta->rx_stats.dropped;		\
+								\
+		data[i++] += sinfo.tx_packets;			\
+		data[i++] += sinfo.tx_bytes;			\
+		data[i++] += sta->status_stats.filtered;	\
+		data[i++] += sta->status_stats.retry_failed;	\
+		data[i++] += sta->status_stats.retry_count;	\
 	} while (0)
 
 	/* For Managed stations, find the single station based on BSSID

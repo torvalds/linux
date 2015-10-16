@@ -331,7 +331,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
 	sta->local = local;
 	sta->sdata = sdata;
-	sta->last_rx = jiffies;
+	sta->rx_stats.last_rx = jiffies;
 
 	sta->sta_state = IEEE80211_STA_NONE;
 
@@ -339,9 +339,9 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->reserved_tid = IEEE80211_TID_UNRESERVED;
 
 	sta->last_connected = ktime_get_seconds();
-	ewma_signal_init(&sta->avg_signal);
-	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
-		ewma_signal_init(&sta->chain_signal_avg[i]);
+	ewma_signal_init(&sta->rx_stats.avg_signal);
+	for (i = 0; i < ARRAY_SIZE(sta->rx_stats.chain_signal_avg); i++)
+		ewma_signal_init(&sta->rx_stats.chain_signal_avg[i]);
 
 	if (local->ops->wake_tx_queue) {
 		void *txq_data;
@@ -1066,7 +1066,7 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 		if (sdata != sta->sdata)
 			continue;
 
-		if (time_after(jiffies, sta->last_rx + exp_time)) {
+		if (time_after(jiffies, sta->rx_stats.last_rx + exp_time)) {
 			sta_dbg(sta->sdata, "expiring inactive STA %pM\n",
 				sta->sta.addr);
 
@@ -1810,13 +1810,13 @@ static void sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
 {
 	rinfo->flags = 0;
 
-	if (sta->last_rx_rate_flag & RX_FLAG_HT) {
+	if (sta->rx_stats.last_rate_flag & RX_FLAG_HT) {
 		rinfo->flags |= RATE_INFO_FLAGS_MCS;
-		rinfo->mcs = sta->last_rx_rate_idx;
-	} else if (sta->last_rx_rate_flag & RX_FLAG_VHT) {
+		rinfo->mcs = sta->rx_stats.last_rate_idx;
+	} else if (sta->rx_stats.last_rate_flag & RX_FLAG_VHT) {
 		rinfo->flags |= RATE_INFO_FLAGS_VHT_MCS;
-		rinfo->nss = sta->last_rx_rate_vht_nss;
-		rinfo->mcs = sta->last_rx_rate_idx;
+		rinfo->nss = sta->rx_stats.last_rate_vht_nss;
+		rinfo->mcs = sta->rx_stats.last_rate_idx;
 	} else {
 		struct ieee80211_supported_band *sband;
 		int shift = ieee80211_vif_get_shift(&sta->sdata->vif);
@@ -1824,22 +1824,22 @@ static void sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
 
 		sband = sta->local->hw.wiphy->bands[
 				ieee80211_get_sdata_band(sta->sdata)];
-		brate = sband->bitrates[sta->last_rx_rate_idx].bitrate;
+		brate = sband->bitrates[sta->rx_stats.last_rate_idx].bitrate;
 		rinfo->legacy = DIV_ROUND_UP(brate, 1 << shift);
 	}
 
-	if (sta->last_rx_rate_flag & RX_FLAG_SHORT_GI)
+	if (sta->rx_stats.last_rate_flag & RX_FLAG_SHORT_GI)
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
 
-	if (sta->last_rx_rate_flag & RX_FLAG_5MHZ)
+	if (sta->rx_stats.last_rate_flag & RX_FLAG_5MHZ)
 		rinfo->bw = RATE_INFO_BW_5;
-	else if (sta->last_rx_rate_flag & RX_FLAG_10MHZ)
+	else if (sta->rx_stats.last_rate_flag & RX_FLAG_10MHZ)
 		rinfo->bw = RATE_INFO_BW_10;
-	else if (sta->last_rx_rate_flag & RX_FLAG_40MHZ)
+	else if (sta->rx_stats.last_rate_flag & RX_FLAG_40MHZ)
 		rinfo->bw = RATE_INFO_BW_40;
-	else if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_80MHZ)
+	else if (sta->rx_stats.last_rate_vht_flag & RX_VHT_FLAG_80MHZ)
 		rinfo->bw = RATE_INFO_BW_80;
-	else if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_160MHZ)
+	else if (sta->rx_stats.last_rate_vht_flag & RX_VHT_FLAG_160MHZ)
 		rinfo->bw = RATE_INFO_BW_160;
 	else
 		rinfo->bw = RATE_INFO_BW_20;
@@ -1879,45 +1879,46 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	}
 
 	sinfo->connected_time = ktime_get_seconds() - sta->last_connected;
-	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
+	sinfo->inactive_time =
+		jiffies_to_msecs(jiffies - sta->rx_stats.last_rx);
 
 	if (!(sinfo->filled & (BIT(NL80211_STA_INFO_TX_BYTES64) |
 			       BIT(NL80211_STA_INFO_TX_BYTES)))) {
 		sinfo->tx_bytes = 0;
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			sinfo->tx_bytes += sta->tx_bytes[ac];
+			sinfo->tx_bytes += sta->tx_stats.bytes[ac];
 		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES64);
 	}
 
 	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_PACKETS))) {
 		sinfo->tx_packets = 0;
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			sinfo->tx_packets += sta->tx_packets[ac];
+			sinfo->tx_packets += sta->tx_stats.packets[ac];
 		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
 	}
 
 	if (!(sinfo->filled & (BIT(NL80211_STA_INFO_RX_BYTES64) |
 			       BIT(NL80211_STA_INFO_RX_BYTES)))) {
-		sinfo->rx_bytes = sta->rx_bytes;
+		sinfo->rx_bytes = sta->rx_stats.bytes;
 		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
 	}
 
 	if (!(sinfo->filled & BIT(NL80211_STA_INFO_RX_PACKETS))) {
-		sinfo->rx_packets = sta->rx_packets;
+		sinfo->rx_packets = sta->rx_stats.packets;
 		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
 	}
 
 	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_RETRIES))) {
-		sinfo->tx_retries = sta->tx_retry_count;
+		sinfo->tx_retries = sta->status_stats.retry_count;
 		sinfo->filled |= BIT(NL80211_STA_INFO_TX_RETRIES);
 	}
 
 	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_FAILED))) {
-		sinfo->tx_failed = sta->tx_retry_failed;
+		sinfo->tx_failed = sta->status_stats.retry_failed;
 		sinfo->filled |= BIT(NL80211_STA_INFO_TX_FAILED);
 	}
 
-	sinfo->rx_dropped_misc = sta->rx_dropped;
+	sinfo->rx_dropped_misc = sta->rx_stats.dropped;
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    !(sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)) {
@@ -1929,33 +1930,35 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	if (ieee80211_hw_check(&sta->local->hw, SIGNAL_DBM) ||
 	    ieee80211_hw_check(&sta->local->hw, SIGNAL_UNSPEC)) {
 		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL))) {
-			sinfo->signal = (s8)sta->last_signal;
+			sinfo->signal = (s8)sta->rx_stats.last_signal;
 			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 		}
 
 		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))) {
 			sinfo->signal_avg =
-				(s8) -ewma_signal_read(&sta->avg_signal);
+				-ewma_signal_read(&sta->rx_stats.avg_signal);
 			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL_AVG);
 		}
 	}
 
-	if (sta->chains &&
+	if (sta->rx_stats.chains &&
 	    !(sinfo->filled & (BIT(NL80211_STA_INFO_CHAIN_SIGNAL) |
 			       BIT(NL80211_STA_INFO_CHAIN_SIGNAL_AVG)))) {
 		sinfo->filled |= BIT(NL80211_STA_INFO_CHAIN_SIGNAL) |
 				 BIT(NL80211_STA_INFO_CHAIN_SIGNAL_AVG);
 
-		sinfo->chains = sta->chains;
+		sinfo->chains = sta->rx_stats.chains;
 		for (i = 0; i < ARRAY_SIZE(sinfo->chain_signal); i++) {
-			sinfo->chain_signal[i] = sta->chain_signal_last[i];
+			sinfo->chain_signal[i] =
+				sta->rx_stats.chain_signal_last[i];
 			sinfo->chain_signal_avg[i] =
-				(s8) -ewma_signal_read(&sta->chain_signal_avg[i]);
+				-ewma_signal_read(&sta->rx_stats.chain_signal_avg[i]);
 		}
 	}
 
 	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_BITRATE))) {
-		sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
+		sta_set_rate_info_tx(sta, &sta->tx_stats.last_rate,
+				     &sinfo->txrate);
 		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
 	}
 
@@ -1970,12 +1973,12 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 		if (!(tidstats->filled & BIT(NL80211_TID_STATS_RX_MSDU))) {
 			tidstats->filled |= BIT(NL80211_TID_STATS_RX_MSDU);
-			tidstats->rx_msdu = sta->rx_msdu[i];
+			tidstats->rx_msdu = sta->rx_stats.msdu[i];
 		}
 
 		if (!(tidstats->filled & BIT(NL80211_TID_STATS_TX_MSDU))) {
 			tidstats->filled |= BIT(NL80211_TID_STATS_TX_MSDU);
-			tidstats->tx_msdu = sta->tx_msdu[i];
+			tidstats->tx_msdu = sta->tx_stats.msdu[i];
 		}
 
 		if (!(tidstats->filled &
@@ -1983,7 +1986,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			tidstats->filled |=
 				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES);
-			tidstats->tx_msdu_retries = sta->tx_msdu_retries[i];
+			tidstats->tx_msdu_retries =
+				sta->status_stats.msdu_retries[i];
 		}
 
 		if (!(tidstats->filled &
@@ -1991,7 +1995,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			tidstats->filled |=
 				BIT(NL80211_TID_STATS_TX_MSDU_FAILED);
-			tidstats->tx_msdu_failed = sta->tx_msdu_failed[i];
+			tidstats->tx_msdu_failed =
+				sta->status_stats.msdu_failed[i];
 		}
 	}
 

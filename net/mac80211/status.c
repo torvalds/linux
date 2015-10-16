@@ -67,7 +67,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		       IEEE80211_TX_INTFL_RETRANSMISSION;
 	info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS;
 
-	sta->tx_filtered_count++;
+	sta->status_stats.filtered++;
 
 	/*
 	 * Clear more-data bit on filtered frames, it might be set
@@ -182,7 +182,7 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
 	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
-		sta->last_rx = jiffies;
+		sta->rx_stats.last_rx = jiffies;
 
 	if (ieee80211_is_data_qos(mgmt->frame_control)) {
 		struct ieee80211_hdr *hdr = (void *) skb->data;
@@ -556,8 +556,9 @@ static void ieee80211_lost_packet(struct sta_info *sta,
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
 
-	sta->lost_packets++;
-	if (!sta->sta.tdls && sta->lost_packets < STA_LOST_PKT_THRESHOLD)
+	sta->status_stats.lost_packets++;
+	if (!sta->sta.tdls &&
+	    sta->status_stats.lost_packets < STA_LOST_PKT_THRESHOLD)
 		return;
 
 	/*
@@ -567,14 +568,15 @@ static void ieee80211_lost_packet(struct sta_info *sta,
 	 * mechanism.
 	 */
 	if (sta->sta.tdls &&
-	    (sta->lost_packets < STA_LOST_TDLS_PKT_THRESHOLD ||
+	    (sta->status_stats.lost_packets < STA_LOST_TDLS_PKT_THRESHOLD ||
 	     time_before(jiffies,
-			 sta->last_tdls_pkt_time + STA_LOST_TDLS_PKT_TIME)))
+			 sta->status_stats.last_tdls_pkt_time +
+			 STA_LOST_TDLS_PKT_TIME)))
 		return;
 
 	cfg80211_cqm_pktloss_notify(sta->sdata->dev, sta->sta.addr,
-				    sta->lost_packets, GFP_ATOMIC);
-	sta->lost_packets = 0;
+				    sta->status_stats.lost_packets, GFP_ATOMIC);
+	sta->status_stats.lost_packets = 0;
 }
 
 static int ieee80211_tx_get_rates(struct ieee80211_hw *hw,
@@ -635,18 +637,18 @@ void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
 		sta = container_of(pubsta, struct sta_info, sta);
 
 		if (!acked)
-			sta->tx_retry_failed++;
-		sta->tx_retry_count += retry_count;
+			sta->status_stats.retry_failed++;
+		sta->status_stats.retry_count += retry_count;
 
 		if (acked) {
-			sta->last_rx = jiffies;
+			sta->rx_stats.last_rx = jiffies;
 
-			if (sta->lost_packets)
-				sta->lost_packets = 0;
+			if (sta->status_stats.lost_packets)
+				sta->status_stats.lost_packets = 0;
 
 			/* Track when last TDLS packet was ACKed */
 			if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
-				sta->last_tdls_pkt_time = jiffies;
+				sta->status_stats.last_tdls_pkt_time = jiffies;
 		} else {
 			ieee80211_lost_packet(sta, info);
 		}
@@ -783,7 +785,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL) &&
 		    (ieee80211_is_data(hdr->frame_control)) &&
 		    (rates_idx != -1))
-			sta->last_tx_rate = info->status.rates[rates_idx];
+			sta->tx_stats.last_rate =
+				info->status.rates[rates_idx];
 
 		if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
 		    (ieee80211_is_data_qos(fc))) {
@@ -829,13 +832,15 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			return;
 		} else {
 			if (!acked)
-				sta->tx_retry_failed++;
-			sta->tx_retry_count += retry_count;
+				sta->status_stats.retry_failed++;
+			sta->status_stats.retry_count += retry_count;
 
 			if (ieee80211_is_data_present(fc)) {
 				if (!acked)
-					sta->tx_msdu_failed[tid]++;
-				sta->tx_msdu_retries[tid] += retry_count;
+					sta->status_stats.msdu_failed[tid]++;
+
+				sta->status_stats.msdu_retries[tid] +=
+					retry_count;
 			}
 		}
 
@@ -853,12 +858,13 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 		if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			if (info->flags & IEEE80211_TX_STAT_ACK) {
-				if (sta->lost_packets)
-					sta->lost_packets = 0;
+				if (sta->status_stats.lost_packets)
+					sta->status_stats.lost_packets = 0;
 
 				/* Track when last TDLS packet was ACKed */
 				if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
-					sta->last_tdls_pkt_time = jiffies;
+					sta->status_stats.last_tdls_pkt_time =
+						jiffies;
 			} else {
 				ieee80211_lost_packet(sta, info);
 			}
