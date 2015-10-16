@@ -275,7 +275,6 @@ struct pp_hwmgr_func {
 
 	int (*get_pp_table_entry)(struct pp_hwmgr *hwmgr,
 			    unsigned long, struct pp_power_state *);
-
 	int (*get_num_of_pp_table_entries)(struct pp_hwmgr *hwmgr);
 	int (*powerdown_uvd)(struct pp_hwmgr *hwmgr);
 	int (*powergate_vce)(struct pp_hwmgr *hwmgr, bool bgate);
@@ -287,6 +286,8 @@ struct pp_hwmgr_func {
 	void (*print_current_perforce_level)(struct pp_hwmgr *hwmgr,
 							struct seq_file *m);
 	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
+	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
+	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -543,6 +544,7 @@ struct pp_hwmgr {
 	struct phm_runtime_table_header enable_dynamic_state_management;
 	struct phm_runtime_table_header set_power_state;
 	struct phm_runtime_table_header enable_clock_power_gatings;
+	struct phm_runtime_table_header display_configuration_changed;
 	const struct pp_hwmgr_func *hwmgr_func;
 	const struct pp_table_func *pptable_func;
 	struct pp_power_state    *ps;
