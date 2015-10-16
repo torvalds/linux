@@ -303,7 +303,7 @@ ENTRY(entry_INT80_compat)
 	TRACE_IRQS_OFF
 
 	movq	%rsp, %rdi
-	call	do_int80_syscall_32
+	call	do_syscall_32_irqs_off
 .Lsyscall_32_done:
 
 	/* Go back to user mode. */

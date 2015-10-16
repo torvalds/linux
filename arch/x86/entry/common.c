@@ -351,7 +351,14 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
  * in workloads that use it, and it's usually called from
  * do_fast_syscall_32, so forcibly inline it to improve performance.
  */
-static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
+#ifdef CONFIG_X86_32
+/* 32-bit kernels use a trap gate for INT80, and the asm code calls here. */
+__visible
+#else
+/* 64-bit kernels use do_syscall_32_irqs_off() instead. */
+static
+#endif
+__always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
 {
 	struct thread_info *ti = pt_regs_to_thread_info(regs);
 	unsigned int nr = (unsigned int)regs->orig_ax;
@@ -386,12 +393,14 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
 	syscall_return_slowpath(regs);
 }
 
-/* Handles int $0x80 */
-__visible void do_int80_syscall_32(struct pt_regs *regs)
+#ifdef CONFIG_X86_64
+/* Handles INT80 on 64-bit kernels */
+__visible void do_syscall_32_irqs_off(struct pt_regs *regs)
 {
 	local_irq_enable();
 	do_syscall_32_irqs_on(regs);
 }
+#endif
 
 /* Returns 0 to return using IRET or 1 to return using SYSEXIT/SYSRETL. */
 __visible long do_fast_syscall_32(struct pt_regs *regs)

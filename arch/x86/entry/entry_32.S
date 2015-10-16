@@ -345,13 +345,13 @@ ENTRY(entry_INT80_32)
 	SAVE_ALL pt_regs_ax=$-ENOSYS	/* save rest */
 
 	/*
-	 * User mode is traced as though IRQs are on, and the interrupt gate
-	 * turned them off.
+	 * User mode is traced as though IRQs are on.  Unlike the 64-bit
+	 * case, INT80 is a trap gate on 32-bit kernels, so interrupts
+	 * are already on (unless user code is messing around with iopl).
 	 */
-	TRACE_IRQS_OFF
 
 	movl	%esp, %eax
-	call	do_int80_syscall_32
+	call	do_syscall_32_irqs_on
 .Lsyscall_32_done:
 
 restore_all:
