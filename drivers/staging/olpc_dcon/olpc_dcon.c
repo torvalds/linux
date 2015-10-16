@@ -616,7 +616,7 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	dcon_device = platform_device_alloc("dcon", -1);
 
-	if (dcon_device == NULL) {
+	if (!dcon_device) {
 		pr_err("Unable to create the DCON device\n");
 		rc = -ENOMEM;
 		goto eirq;
@@ -679,7 +679,7 @@ static int dcon_remove(struct i2c_client *client)
 
 	backlight_device_unregister(dcon->bl_dev);
 
-	if (dcon_device != NULL)
+	if (dcon_device)
 		platform_device_unregister(dcon_device);
 	cancel_work_sync(&dcon->switch_source);
 
