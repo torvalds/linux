@@ -6386,7 +6386,8 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			goto unlock;
 		}
 
-		if (params->auto_connect == HCI_AUTO_CONN_DISABLED) {
+		if (params->auto_connect == HCI_AUTO_CONN_DISABLED ||
+		    params->auto_connect == HCI_AUTO_CONN_EXPLICIT) {
 			err = cmd->cmd_complete(cmd,
 						MGMT_STATUS_INVALID_PARAMS);
 			mgmt_pending_remove(cmd);
@@ -6422,6 +6423,10 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			if (p->auto_connect == HCI_AUTO_CONN_DISABLED)
 				continue;
 			device_removed(sk, hdev, &p->addr, p->addr_type);
+			if (p->explicit_connect) {
+				p->auto_connect = HCI_AUTO_CONN_EXPLICIT;
+				continue;
+			}
 			list_del(&p->action);
 			list_del(&p->list);
 			kfree(p);
