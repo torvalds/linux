@@ -6117,7 +6117,10 @@ static int hci_conn_params_set(struct hci_request *req, bdaddr_t *addr,
 		__hci_update_background_scan(req);
 		break;
 	case HCI_AUTO_CONN_REPORT:
-		list_add(&params->action, &hdev->pend_le_reports);
+		if (params->explicit_connect)
+			list_add(&params->action, &hdev->pend_le_conns);
+		else
+			list_add(&params->action, &hdev->pend_le_reports);
 		__hci_update_background_scan(req);
 		break;
 	case HCI_AUTO_CONN_DIRECT:

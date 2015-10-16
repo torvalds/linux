@@ -1000,8 +1000,8 @@ static int hci_explicit_conn_params_set(struct hci_request *req,
 	/* If we created new params, or existing params were marked as disabled,
 	 * mark them to be used just once to connect.
 	 */
-	if (params->auto_connect == HCI_AUTO_CONN_DISABLED) {
-		params->auto_connect = HCI_AUTO_CONN_EXPLICIT;
+	if (params->auto_connect == HCI_AUTO_CONN_DISABLED ||
+	    params->auto_connect == HCI_AUTO_CONN_REPORT) {
 		list_del_init(&params->action);
 		list_add(&params->action, &hdev->pend_le_conns);
 	}
