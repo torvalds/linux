@@ -118,11 +118,23 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 			}
 		}
 	}
-	if (!accel_dev) {
-		pr_err("QAT: Could not find a device on node %d\n", node);
-		accel_dev = adf_devmgr_get_first();
+	if (!accel_dev)
+		pr_info("QAT: Could not find a device on node %d\n", node);
+
+	/* Get any started device */
+	list_for_each(itr, adf_devmgr_get_head()) {
+		struct adf_accel_dev *tmp_dev;
+
+		tmp_dev = list_entry(itr, struct adf_accel_dev, list);
+
+		if (adf_dev_started(tmp_dev) &&
+		    !list_empty(&tmp_dev->crypto_list)) {
+			accel_dev = tmp_dev;
+			break;
+		}
 	}
-	if (!accel_dev || !adf_dev_started(accel_dev))
+
+	if (!accel_dev)
 		return NULL;
 
 	best = ~0;
