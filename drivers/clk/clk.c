@@ -272,7 +272,7 @@ late_initcall_sync(clk_disable_unused);
 
 /***    helper functions   ***/
 
-const char *__clk_get_name(struct clk *clk)
+const char *__clk_get_name(const struct clk *clk)
 {
 	return !clk ? NULL : clk->core->name;
 }
