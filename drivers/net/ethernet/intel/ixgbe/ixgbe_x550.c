@@ -1727,6 +1727,12 @@ static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_copper)
 		return IXGBE_ERR_CONFIG;
 
+	if (hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE) {
+		speed = IXGBE_LINK_SPEED_10GB_FULL |
+			IXGBE_LINK_SPEED_1GB_FULL;
+		return ixgbe_setup_kr_speed_x550em(hw, speed);
+	}
+
 	/* If link is not up, then there is no setup necessary so return  */
 	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
 	if (status)
@@ -1931,7 +1937,6 @@ static s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 {
 	struct ixgbe_phy_info *phy = &hw->phy;
-	ixgbe_link_speed speed;
 	s32 ret_val;
 
 	hw->mac.ops.set_lan_id(hw);
@@ -1944,10 +1949,6 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 		 * to determine internal PHY mode.
 		 */
 		phy->nw_mng_if_sel = IXGBE_READ_REG(hw, IXGBE_NW_MNG_IF_SEL);
-		if (phy->nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE) {
-			speed = IXGBE_LINK_SPEED_10GB_FULL |
-				IXGBE_LINK_SPEED_1GB_FULL;
-		}
 	}
 
 	/* Identify the PHY or SFP module */
@@ -1979,14 +1980,8 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 		/* If internal link mode is XFI, then setup iXFI internal link,
 		 * else setup KR now.
 		 */
-		if (!(phy->nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE)) {
-			phy->ops.setup_internal_link =
-					ixgbe_setup_internal_phy_t_x550em;
-		} else {
-			speed = IXGBE_LINK_SPEED_10GB_FULL |
-				IXGBE_LINK_SPEED_1GB_FULL;
-			ret_val = ixgbe_setup_kr_speed_x550em(hw, speed);
-		}
+		phy->ops.setup_internal_link =
+					      ixgbe_setup_internal_phy_t_x550em;
 
 		/* setup SW LPLU only for first revision */
 		if (!(IXGBE_FUSES0_REV1 & IXGBE_READ_REG(hw,
