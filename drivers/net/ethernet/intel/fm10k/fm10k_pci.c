@@ -159,6 +159,9 @@ static void fm10k_reinit(struct fm10k_intfc *interface)
 
 	fm10k_mbx_free_irq(interface);
 
+	/* free interrupts */
+	fm10k_clear_queueing_scheme(interface);
+
 	/* delay any future reset requests */
 	interface->last_reset = jiffies + (10 * HZ);
 
@@ -172,6 +175,12 @@ static void fm10k_reinit(struct fm10k_intfc *interface)
 	err = hw->mac.ops.init_hw(hw);
 	if (err) {
 		dev_err(&interface->pdev->dev, "init_hw failed: %d\n", err);
+		goto reinit_err;
+	}
+
+	err = fm10k_init_queueing_scheme(interface);
+	if (err) {
+		dev_err(&interface->pdev->dev, "init_queueing_scheme failed: %d\n", err);
 		goto reinit_err;
 	}
 
@@ -2198,6 +2207,9 @@ static pci_ers_result_t fm10k_io_error_detected(struct pci_dev *pdev,
 	if (netif_running(netdev))
 		fm10k_close(netdev);
 
+	/* free interrupts */
+	fm10k_clear_queueing_scheme(interface);
+
 	fm10k_mbx_free_irq(interface);
 
 	pci_disable_device(pdev);
@@ -2269,6 +2281,12 @@ static void fm10k_io_resume(struct pci_dev *pdev)
 
 	/* reset statistics starting values */
 	hw->mac.ops.rebind_hw_stats(hw, &interface->stats);
+
+	err = fm10k_init_queueing_scheme(interface);
+	if (err) {
+		dev_err(&interface->pdev->dev, "init_queueing_scheme failed: %d\n", err);
+		return;
+	}
 
 	/* reassociate interrupts */
 	fm10k_mbx_request_irq(interface);
