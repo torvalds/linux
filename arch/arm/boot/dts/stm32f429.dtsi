@@ -175,6 +175,37 @@
 			clocks = <&clk_hse>;
 		};
 
+		dma1: dma-controller@40026000 {
+			compatible = "st,stm32-dma";
+			reg = <0x40026000 0x400>;
+			interrupts = <11>,
+				     <12>,
+				     <13>,
+				     <14>,
+				     <15>,
+				     <16>,
+				     <17>,
+				     <47>;
+			clocks = <&rcc 0 21>;
+			#dma-cells = <4>;
+		};
+
+		dma2: dma-controller@40026400 {
+			compatible = "st,stm32-dma";
+			reg = <0x40026400 0x400>;
+			interrupts = <56>,
+				     <57>,
+				     <58>,
+				     <59>,
+				     <60>,
+				     <68>,
+				     <69>,
+				     <70>;
+			clocks = <&rcc 0 22>;
+			#dma-cells = <4>;
+			st,mem2mem;
+		};
+
 		rng: rng@50060800 {
 			compatible = "st,stm32-rng";
 			reg = <0x50060800 0x400>;
