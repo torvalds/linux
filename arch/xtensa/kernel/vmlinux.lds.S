@@ -298,31 +298,6 @@ SECTIONS
 
   _end = .;
 
-  /* only used by the boot loader  */
-
-  . = ALIGN(0x10);
-  .bootstrap : { *(.bootstrap.literal .bootstrap.text .bootstrap.data) }
-
-  .ResetVector.text RESET_VECTOR_VADDR :
-  {
-    *(.ResetVector.text)
-  }
-
-
-  /*
-   * This is a remapped copy of the Secondary Reset Vector Code.
-   * It keeps gdb in sync with the PC after switching
-   * to the temporary mapping used while setting up
-   * the V2 MMU mappings for Linux.
-   *
-   * Only debug information about this section is put in the kernel image.
-   */
-  .SecondaryResetVector.remapped_text 0x46000000 (INFO):
-  {
-	*(.SecondaryResetVector.remapped_text)
-  }
-
-
   .xt.lit : { *(.xt.lit) }
   .xt.prop : { *(.xt.prop) }
 
