@@ -187,6 +187,10 @@ struct amd_powerplay_funcs {
 				   void *input, void *output);
 	void (*print_current_performance_level)(void *handle,
 						      struct seq_file *m);
+	int (*set_fan_control_mode)(void *handle, uint32_t mode);
+	int (*get_fan_control_mode)(void *handle);
+	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
+	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
 };
 
 struct amd_powerplay {

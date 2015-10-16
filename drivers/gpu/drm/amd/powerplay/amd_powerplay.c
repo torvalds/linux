@@ -428,9 +428,88 @@ pp_debugfs_print_current_performance_level(void *handle,
 	hwmgr->hwmgr_func->print_current_perforce_level(hwmgr, m);
 }
 
+static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
+{
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	  hwmgr->hwmgr_func->set_fan_control_mode == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_fan_control_mode(hwmgr, mode);
+}
+
+static int pp_dpm_get_fan_control_mode(void *handle)
+{
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	  hwmgr->hwmgr_func->get_fan_control_mode == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_fan_control_mode(hwmgr);
+}
+
+static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
+{
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	  hwmgr->hwmgr_func->set_fan_speed_percent == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_fan_speed_percent(hwmgr, percent);
+}
+
+static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
+{
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	  hwmgr->hwmgr_func->get_fan_speed_percent == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_fan_speed_percent(hwmgr, speed);
+}
+
+static int pp_dpm_get_temperature(void *handle)
+{
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+	  hwmgr->hwmgr_func->get_temperature == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_temperature(hwmgr);
+}
 
 const struct amd_powerplay_funcs pp_dpm_funcs = {
-	.get_temperature = NULL,
+	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
 	.force_performance_level = pp_dpm_force_performance_level,
@@ -442,6 +521,10 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.powergate_uvd = pp_dpm_powergate_uvd,
 	.dispatch_tasks = pp_dpm_dispatch_tasks,
 	.print_current_performance_level = pp_debugfs_print_current_performance_level,
+	.set_fan_control_mode = pp_dpm_set_fan_control_mode,
+	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
+	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
+	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
 };
 
 static int amd_pp_instance_init(struct amd_pp_init *pp_init,
