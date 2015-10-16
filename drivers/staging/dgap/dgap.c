@@ -2059,7 +2059,7 @@ out:
 		/*
 		 * If board is doing interrupts, ACK the interrupt.
 		 */
-		if (bd && bd->intr_running)
+		if (bd->intr_running)
 			readb(bd->re_map_port + 2);
 
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
