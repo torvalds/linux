@@ -230,7 +230,7 @@ static int check_per_pkg(struct perf_evsel *counter,
 	if (!(vals->run && vals->ena))
 		return 0;
 
-	s = cpu_map__get_socket(cpus, cpu);
+	s = cpu_map__get_socket(cpus, cpu, NULL);
 	if (s < 0)
 		return -1;
 

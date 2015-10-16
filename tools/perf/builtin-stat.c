@@ -944,6 +944,16 @@ static int stat__set_big_num(const struct option *opt __maybe_unused,
 	return 0;
 }
 
+static int perf_stat__get_socket(struct cpu_map *map, int cpu)
+{
+	return cpu_map__get_socket(map, cpu, NULL);
+}
+
+static int perf_stat__get_core(struct cpu_map *map, int cpu)
+{
+	return cpu_map__get_core(map, cpu, NULL);
+}
+
 static int perf_stat_init_aggr_mode(void)
 {
 	switch (stat_config.aggr_mode) {
@@ -952,14 +962,14 @@ static int perf_stat_init_aggr_mode(void)
 			perror("cannot build socket map");
 			return -1;
 		}
-		aggr_get_id = cpu_map__get_socket;
+		aggr_get_id = perf_stat__get_socket;
 		break;
 	case AGGR_CORE:
 		if (cpu_map__build_core_map(evsel_list->cpus, &aggr_map)) {
 			perror("cannot build core map");
 			return -1;
 		}
-		aggr_get_id = cpu_map__get_core;
+		aggr_get_id = perf_stat__get_core;
 		break;
 	case AGGR_NONE:
 	case AGGR_GLOBAL:
