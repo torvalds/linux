@@ -81,6 +81,8 @@ tmp2	.req	r5
  *	@r2: base address of second SDRAM Controller or 0 if not present
  *	@r3: pm information
  */
+/* at91_pm_suspend_in_sram must be 8-byte aligned per the requirements of fncpy() */
+	.align 3
 ENTRY(at91_pm_suspend_in_sram)
 	/* Save registers on stack */
 	stmfd	sp!, {r4 - r12, lr}
