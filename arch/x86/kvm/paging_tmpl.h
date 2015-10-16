@@ -743,15 +743,14 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	is_self_change_mapping = FNAME(is_self_change_mapping)(vcpu,
 	      &walker, user_fault, &vcpu->arch.write_fault_to_shadow_pgtable);
 
-	if (walker.level >= PT_DIRECTORY_LEVEL)
-		force_pt_level = mapping_level_dirty_bitmap(vcpu, walker.gfn)
-		   || is_self_change_mapping;
-	else
+	if (walker.level >= PT_DIRECTORY_LEVEL && !is_self_change_mapping) {
+		force_pt_level = mapping_level_dirty_bitmap(vcpu, walker.gfn);
+		if (!force_pt_level) {
+			level = min(walker.level, mapping_level(vcpu, walker.gfn));
+			walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
+		}
+	} else
 		force_pt_level = true;
-	if (!force_pt_level) {
-		level = min(walker.level, mapping_level(vcpu, walker.gfn));
-		walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
-	}
 
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
