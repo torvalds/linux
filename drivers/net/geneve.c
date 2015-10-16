@@ -870,14 +870,14 @@ static int geneve_newlink(struct net *net, struct net_device *dev,
 	__be16 dst_port = htons(GENEVE_UDP_PORT);
 	__u8 ttl = 0, tos = 0;
 	bool metadata = false;
-	__be32 rem_addr;
-	__u32 vni;
+	__be32 rem_addr = 0;
+	__u32 vni = 0;
 
-	if (!data[IFLA_GENEVE_ID] || !data[IFLA_GENEVE_REMOTE])
-		return -EINVAL;
+	if (data[IFLA_GENEVE_ID])
+		vni = nla_get_u32(data[IFLA_GENEVE_ID]);
 
-	vni = nla_get_u32(data[IFLA_GENEVE_ID]);
-	rem_addr = nla_get_in_addr(data[IFLA_GENEVE_REMOTE]);
+	if (data[IFLA_GENEVE_REMOTE])
+		rem_addr = nla_get_in_addr(data[IFLA_GENEVE_REMOTE]);
 
 	if (data[IFLA_GENEVE_TTL])
 		ttl = nla_get_u8(data[IFLA_GENEVE_TTL]);
