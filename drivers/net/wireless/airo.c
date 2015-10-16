@@ -3037,6 +3037,11 @@ static void airo_process_scan_results (struct airo_info *ai) {
 	}
 
 out:
+	/* write APList back (we cleared it in airo_set_scan) */
+	disable_MAC(ai, 2);
+	writeAPListRid(ai, &ai->APList, 0);
+	enable_MAC(ai, 0);
+
 	ai->scan_timeout = 0;
 	clear_bit(JOB_SCAN_RESULTS, &ai->jobs);
 	up(&ai->sem);
@@ -3608,17 +3613,18 @@ static void disable_MAC( struct airo_info *ai, int lock ) {
         Cmd cmd;
 	Resp rsp;
 
-	if (lock && down_interruptible(&ai->sem))
+	if (lock == 1 && down_interruptible(&ai->sem))
 		return;
 
 	if (test_bit(FLAG_ENABLED, &ai->flags)) {
-		netif_carrier_off(ai->dev);
+		if (lock != 2) /* lock == 2 means don't disable carrier */
+			netif_carrier_off(ai->dev);
 		memset(&cmd, 0, sizeof(cmd));
 		cmd.cmd = MAC_DISABLE; // disable in case already enabled
 		issuecommand(ai, &cmd, &rsp);
 		clear_bit(FLAG_ENABLED, &ai->flags);
 	}
-	if (lock)
+	if (lock == 1)
 		up(&ai->sem);
 }
 
@@ -7216,6 +7222,7 @@ static int airo_set_scan(struct net_device *dev,
 	Cmd cmd;
 	Resp rsp;
 	int wake = 0;
+	APListRid APList_rid_empty;
 
 	/* Note : you may have realised that, as this is a SET operation,
 	 * this is privileged and therefore a normal user can't
@@ -7232,6 +7239,13 @@ static int airo_set_scan(struct net_device *dev,
 	 * trigger another one. */
 	if (ai->scan_timeout > 0)
 		goto out;
+
+	/* Clear APList as it affects scan results */
+	memset(&APList_rid_empty, 0, sizeof(APList_rid_empty));
+	APList_rid_empty.len = cpu_to_le16(sizeof(APList_rid_empty));
+	disable_MAC(ai, 2);
+	writeAPListRid(ai, &APList_rid_empty, 0);
+	enable_MAC(ai, 0);
 
 	/* Initiate a scan command */
 	ai->scan_timeout = RUN_AT(3*HZ);
