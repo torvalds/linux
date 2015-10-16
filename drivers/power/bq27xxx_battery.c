@@ -762,15 +762,6 @@ static void bq27xxx_battery_update(struct bq27xxx_device_info *di)
 	di->last_update = jiffies;
 }
 
-static irqreturn_t bq27xxx_battery_irq_handler_thread(int irq, void *data)
-{
-	struct bq27xxx_device_info *di = data;
-
-	bq27xxx_battery_update(di);
-
-	return IRQ_HANDLED;
-}
-
 static void bq27xxx_battery_poll(struct work_struct *work)
 {
 	struct bq27xxx_device_info *di =
@@ -1060,6 +1051,15 @@ static void bq27xxx_powersupply_unregister(struct bq27xxx_device_info *di)
  */
 static DEFINE_IDR(battery_id);
 static DEFINE_MUTEX(battery_mutex);
+
+static irqreturn_t bq27xxx_battery_irq_handler_thread(int irq, void *data)
+{
+	struct bq27xxx_device_info *di = data;
+
+	bq27xxx_battery_update(di);
+
+	return IRQ_HANDLED;
+}
 
 static int bq27xxx_battery_i2c_read(struct bq27xxx_device_info *di, u8 reg,
 				    bool single)
