@@ -61,6 +61,9 @@ static inline unsigned long xtensa_get_kio_paddr(void)
   #define LOAD_MEMORY_ADDRESS		0xD0003000
 #endif
 
+#define RESET_VECTOR1_VADDR		(VIRTUAL_MEMORY_ADDRESS + \
+					 XCHAL_RESET_VECTOR1_PADDR)
+
 #else /* !defined(CONFIG_MMU) */
   /* MMU Not being used - Virtual == Physical */
 
@@ -73,6 +76,8 @@ static inline unsigned long xtensa_get_kio_paddr(void)
   /* Loaded just above possibly live vectors */
   #define LOAD_MEMORY_ADDRESS		(PLATFORM_DEFAULT_MEM_START + 0x3000)
 
+#define RESET_VECTOR1_VADDR		(XCHAL_RESET_VECTOR1_VADDR)
+
 #endif /* CONFIG_MMU */
 
 #define XC_VADDR(offset)		(VIRTUAL_MEMORY_ADDRESS  + offset)
@@ -83,10 +88,6 @@ static inline unsigned long xtensa_get_kio_paddr(void)
 #define RESET_VECTOR_VECOFS		(XCHAL_RESET_VECTOR_VADDR - \
 						VECBASE_RESET_VADDR)
 #define RESET_VECTOR_VADDR		XC_VADDR(RESET_VECTOR_VECOFS)
-
-#define RESET_VECTOR1_VECOFS		(XCHAL_RESET_VECTOR1_VADDR - \
-						VECBASE_RESET_VADDR)
-#define RESET_VECTOR1_VADDR		XC_VADDR(RESET_VECTOR1_VECOFS)
 
 #if defined(XCHAL_HAVE_VECBASE) && XCHAL_HAVE_VECBASE
 
