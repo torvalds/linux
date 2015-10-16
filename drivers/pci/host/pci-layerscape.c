@@ -11,7 +11,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_pci.h>
@@ -62,27 +61,12 @@ static int ls_pcie_link_up(struct pcie_port *pp)
 	return 1;
 }
 
-static int ls_pcie_establish_link(struct pcie_port *pp)
-{
-	unsigned int retries;
-
-	for (retries = 0; retries < 200; retries++) {
-		if (dw_pcie_link_up(pp))
-			return 0;
-		usleep_range(100, 1000);
-	}
-
-	dev_err(pp->dev, "phy link never came up\n");
-	return -EINVAL;
-}
-
 static void ls_pcie_host_init(struct pcie_port *pp)
 {
 	struct ls_pcie *pcie = to_ls_pcie(pp);
 	u32 val;
 
 	dw_pcie_setup_rc(pp);
-	ls_pcie_establish_link(pp);
 
 	/*
 	 * LS1021A Workaround for internal TKT228622
