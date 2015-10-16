@@ -41,6 +41,7 @@
 
 static u32 SPEED = MIN_SPEED;
 
+struct spi_device *wilc_spi_dev;
 void linux_spi_deinit(void *vp);
 
 static int __init wilc_bus_probe(struct spi_device *spi)
