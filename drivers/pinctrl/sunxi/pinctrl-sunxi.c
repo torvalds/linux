@@ -716,6 +716,7 @@ static int sunxi_pinctrl_irq_of_xlate(struct irq_domain *d,
 				      unsigned long *out_hwirq,
 				      unsigned int *out_type)
 {
+	struct sunxi_pinctrl *pctl = d->host_data;
 	struct sunxi_desc_function *desc;
 	int pin, base;
 
@@ -723,10 +724,9 @@ static int sunxi_pinctrl_irq_of_xlate(struct irq_domain *d,
 		return -EINVAL;
 
 	base = PINS_PER_BANK * intspec[0];
-	pin = base + intspec[1];
+	pin = pctl->desc->pin_base + base + intspec[1];
 
-	desc = sunxi_pinctrl_desc_find_function_by_pin(d->host_data,
-						       pin, "irq");
+	desc = sunxi_pinctrl_desc_find_function_by_pin(pctl, pin, "irq");
 	if (!desc)
 		return -EINVAL;
 
