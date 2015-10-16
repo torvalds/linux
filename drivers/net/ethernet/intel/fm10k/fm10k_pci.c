@@ -1771,8 +1771,8 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 	interface->rx_ring_count = FM10K_DEFAULT_RXD;
 
 	/* set default interrupt moderation */
-	interface->tx_itr = FM10K_ITR_10K;
-	interface->rx_itr = FM10K_ITR_ADAPTIVE | FM10K_ITR_20K;
+	interface->tx_itr = FM10K_TX_ITR_DEFAULT;
+	interface->rx_itr = FM10K_ITR_ADAPTIVE | FM10K_RX_ITR_DEFAULT;
 
 	/* initialize vxlan_port list */
 	INIT_LIST_HEAD(&interface->vxlan_port);

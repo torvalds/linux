@@ -729,10 +729,10 @@ static int fm10k_set_coalesce(struct net_device *dev,
 
 	/* set initial values for adaptive ITR */
 	if (ec->use_adaptive_tx_coalesce)
-		tx_itr = FM10K_ITR_ADAPTIVE | FM10K_ITR_10K;
+		tx_itr = FM10K_ITR_ADAPTIVE | FM10K_TX_ITR_DEFAULT;
 
 	if (ec->use_adaptive_rx_coalesce)
-		rx_itr = FM10K_ITR_ADAPTIVE | FM10K_ITR_20K;
+		rx_itr = FM10K_ITR_ADAPTIVE | FM10K_RX_ITR_DEFAULT;
 
 	/* update interface */
 	interface->tx_itr = tx_itr;
