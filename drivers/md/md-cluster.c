@@ -847,20 +847,21 @@ static int metadata_update_finish(struct mddev *mddev)
 	struct cluster_msg cmsg;
 	struct md_rdev *rdev;
 	int ret = 0;
+	int raid_slot = -1;
 
 	memset(&cmsg, 0, sizeof(cmsg));
 	cmsg.type = cpu_to_le32(METADATA_UPDATED);
-	cmsg.raid_slot = -1;
 	/* Pick up a good active device number to send.
 	 */
 	rdev_for_each(rdev, mddev)
 		if (rdev->raid_disk > -1 && !test_bit(Faulty, &rdev->flags)) {
-			cmsg.raid_slot = cpu_to_le32(rdev->desc_nr);
+			raid_slot = rdev->desc_nr;
 			break;
 		}
-	if (cmsg.raid_slot >= 0)
+	if (raid_slot >= 0) {
+		cmsg.raid_slot = cpu_to_le32(raid_slot);
 		ret = __sendmsg(cinfo, &cmsg);
-	else
+	} else
 		pr_warn("md-cluster: No good device id found to send\n");
 	unlock_comm(cinfo);
 	return ret;
