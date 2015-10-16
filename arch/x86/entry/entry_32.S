@@ -315,14 +315,14 @@ sysenter_past_esp:
 	TRACE_IRQS_ON			/* User mode traces as IRQs on. */
 	movl	PT_EIP(%esp), %edx	/* pt_regs->ip */
 	movl	PT_OLDESP(%esp), %ecx	/* pt_regs->sp */
+1:	mov	PT_FS(%esp), %fs
+	PTGS_TO_GS
 	popl	%ebx			/* pt_regs->bx */
 	addl	$2*4, %esp		/* skip pt_regs->cx and pt_regs->dx */
 	popl	%esi			/* pt_regs->si */
 	popl	%edi			/* pt_regs->di */
 	popl	%ebp			/* pt_regs->bp */
 	popl	%eax			/* pt_regs->ax */
-1:	mov	PT_FS(%esp), %fs
-	PTGS_TO_GS
 
 	/*
 	 * Return back to the vDSO, which will pop ecx and edx.
