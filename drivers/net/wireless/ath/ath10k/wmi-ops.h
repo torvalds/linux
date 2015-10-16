@@ -179,6 +179,9 @@ struct wmi_ops {
 	struct sk_buff *(*gen_adaptive_qcs)(struct ath10k *ar, bool enable);
 	struct sk_buff *(*gen_pdev_get_tpc_config)(struct ath10k *ar,
 						   u32 param);
+	void (*fw_stats_fill)(struct ath10k *ar,
+			      struct ath10k_fw_stats *fw_stats,
+			      char *buf);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1289,4 +1292,14 @@ ath10k_wmi_pdev_get_tpc_config(struct ath10k *ar, u32 param)
 				   ar->wmi.cmd->pdev_get_tpc_config_cmdid);
 }
 
+static inline int
+ath10k_wmi_fw_stats_fill(struct ath10k *ar, struct ath10k_fw_stats *fw_stats,
+			 char *buf)
+{
+	if (!ar->wmi.ops->fw_stats_fill)
+		return -EOPNOTSUPP;
+
+	ar->wmi.ops->fw_stats_fill(ar, fw_stats, buf);
+	return 0;
+}
 #endif

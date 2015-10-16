@@ -6098,6 +6098,7 @@ struct ath10k;
 struct ath10k_vif;
 struct ath10k_fw_stats_pdev;
 struct ath10k_fw_stats_peer;
+struct ath10k_fw_stats;
 
 int ath10k_wmi_attach(struct ath10k *ar);
 void ath10k_wmi_detach(struct ath10k *ar);
@@ -6179,4 +6180,13 @@ void ath10k_wmi_event_service_ready(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_op_pull_phyerr_ev(struct ath10k *ar, const void *phyerr_buf,
 				 int left_len, struct wmi_phyerr_ev_arg *arg);
+void ath10k_wmi_main_op_fw_stats_fill(struct ath10k *ar,
+				      struct ath10k_fw_stats *fw_stats,
+				      char *buf);
+void ath10k_wmi_10x_op_fw_stats_fill(struct ath10k *ar,
+				     struct ath10k_fw_stats *fw_stats,
+				     char *buf);
+size_t ath10k_wmi_fw_stats_num_peers(struct list_head *head);
+size_t ath10k_wmi_fw_stats_num_vdevs(struct list_head *head);
+
 #endif /* _WMI_H_ */
