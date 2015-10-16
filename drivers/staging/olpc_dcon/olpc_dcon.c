@@ -60,7 +60,7 @@ static s32 dcon_read(struct dcon_priv *dcon, u8 reg)
 
 static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 {
-	uint16_t ver;
+	u16 ver;
 	int rc = 0;
 
 	ver = dcon_read(dcon, DCON_REG_ID);
