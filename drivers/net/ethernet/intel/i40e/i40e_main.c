@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 28
+#define DRV_VERSION_BUILD 34
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -2901,11 +2901,9 @@ static int i40e_vsi_configure(struct i40e_vsi *vsi)
 static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
-	struct i40e_q_vector *q_vector;
 	struct i40e_hw *hw = &pf->hw;
 	u16 vector;
 	int i, q;
-	u32 val;
 	u32 qp;
 
 	/* The interrupt indexing is offset by 1 in the PFINT_ITRn
@@ -2915,7 +2913,8 @@ static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 	qp = vsi->base_queue;
 	vector = vsi->base_vector;
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
-		q_vector = vsi->q_vectors[i];
+		struct i40e_q_vector *q_vector = vsi->q_vectors[i];
+
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 		q_vector->rx.latency_range = I40E_LOW_LATENCY;
 		wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1),
@@ -2924,10 +2923,14 @@ static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 		q_vector->tx.latency_range = I40E_LOW_LATENCY;
 		wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1),
 		     q_vector->tx.itr);
+		wr32(hw, I40E_PFINT_RATEN(vector - 1),
+		     INTRL_USEC_TO_REG(vsi->int_rate_limit));
 
 		/* Linked list for the queuepairs assigned to this vector */
 		wr32(hw, I40E_PFINT_LNKLSTN(vector - 1), qp);
 		for (q = 0; q < q_vector->num_ringpairs; q++) {
+			u32 val;
+
 			val = I40E_QINT_RQCTL_CAUSE_ENA_MASK |
 			      (I40E_RX_ITR << I40E_QINT_RQCTL_ITR_INDX_SHIFT)  |
 			      (vector      << I40E_QINT_RQCTL_MSIX_INDX_SHIFT) |
@@ -3574,14 +3577,12 @@ static void i40e_netpoll(struct net_device *netdev)
 	if (test_bit(__I40E_DOWN, &vsi->state))
 		return;
 
-	pf->flags |= I40E_FLAG_IN_NETPOLL;
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
 		for (i = 0; i < vsi->num_q_vectors; i++)
 			i40e_msix_clean_rings(0, vsi->q_vectors[i]);
 	} else {
 		i40e_intr(pf->pdev->irq, netdev);
 	}
-	pf->flags &= ~I40E_FLAG_IN_NETPOLL;
 }
 #endif
 
@@ -6220,8 +6221,9 @@ static void i40e_config_bridge_mode(struct i40e_veb *veb)
 {
 	struct i40e_pf *pf = veb->pf;
 
-	dev_info(&pf->pdev->dev, "enabling bridge mode: %s\n",
-		 veb->bridge_mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
+	if (pf->hw.debug_mask & I40E_DEBUG_LAN)
+		dev_info(&pf->pdev->dev, "enabling bridge mode: %s\n",
+			 veb->bridge_mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
 	if (veb->bridge_mode & BRIDGE_MODE_VEPA)
 		i40e_disable_pf_switch_lb(pf);
 	else
@@ -7041,6 +7043,7 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	vsi->idx = vsi_idx;
 	vsi->rx_itr_setting = pf->rx_itr_default;
 	vsi->tx_itr_setting = pf->tx_itr_default;
+	vsi->int_rate_limit = 0;
 	vsi->rss_table_size = (vsi->type == I40E_VSI_MAIN) ?
 				pf->rss_table_size : 64;
 	vsi->netdev_registered = false;
@@ -9925,6 +9928,10 @@ static void i40e_print_features(struct i40e_pf *pf)
 	if (pf->flags & I40E_FLAG_FCOE_ENABLED)
 		buf += sprintf(buf, "FCOE ");
 #endif
+	if (pf->flags & I40E_FLAG_VEB_MODE_ENABLED)
+		buf += sprintf(buf, "VEB ");
+	else
+		buf += sprintf(buf, "VEPA ");
 
 	BUG_ON(buf > (string + INFO_STRING_LEN));
 	dev_info(&pf->pdev->dev, "%s\n", string);
@@ -10064,13 +10071,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pf->hw.fc.requested_mode = I40E_FC_NONE;
 
 	err = i40e_init_adminq(hw);
-	dev_info(&pdev->dev, "%s\n", i40e_fw_version_str(hw));
 
-	/* provide additional fw info, like api and ver */
-	dev_info(&pdev->dev, "fw_version:%d.%d.%05d\n",
-		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver, hw->aq.fw_build);
-	dev_info(&pdev->dev, "fw api version:%d.%d\n",
-		 hw->aq.api_maj_ver, hw->aq.api_min_ver);
+	/* provide nvm, fw, api versions */
+	dev_info(&pdev->dev, "fw %d.%d.%05d api %d.%d nvm %s\n",
+		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver, hw->aq.fw_build,
+		 hw->aq.api_maj_ver, hw->aq.api_min_ver,
+		 i40e_nvm_version_str(hw));
 
 	if (err) {
 		dev_info(&pdev->dev,

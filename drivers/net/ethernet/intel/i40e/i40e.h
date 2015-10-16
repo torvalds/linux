@@ -93,7 +93,7 @@
 #endif /* I40E_FCOE */
 #define I40E_MAX_AQ_BUF_SIZE          4096
 #define I40E_AQ_LEN                   256
-#define I40E_AQ_WORK_LIMIT            32
+#define I40E_AQ_WORK_LIMIT            66 /* max number of VFs + a little */
 #define I40E_MAX_USER_PRIORITY        8
 #define I40E_DEFAULT_MSG_ENABLE       4
 #define I40E_QUEUE_WAIT_RETRY_LIMIT   10
@@ -103,6 +103,7 @@
 #define I40E_PRIV_FLAGS_NPAR_FLAG	BIT(0)
 #define I40E_PRIV_FLAGS_LINKPOLL_FLAG	BIT(1)
 #define I40E_PRIV_FLAGS_FD_ATR		BIT(2)
+#define I40E_PRIV_FLAGS_VEB_STATS	BIT(3)
 
 #define I40E_NVM_VERSION_LO_SHIFT  0
 #define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
@@ -307,7 +308,6 @@ struct i40e_pf {
 #ifdef I40E_FCOE
 #define I40E_FLAG_FCOE_ENABLED			BIT_ULL(11)
 #endif /* I40E_FCOE */
-#define I40E_FLAG_IN_NETPOLL			BIT_ULL(12)
 #define I40E_FLAG_16BYTE_RX_DESC_ENABLED	BIT_ULL(13)
 #define I40E_FLAG_CLEAN_ADMINQ			BIT_ULL(14)
 #define I40E_FLAG_FILTER_SYNC			BIT_ULL(15)
@@ -498,6 +498,7 @@ struct i40e_vsi {
 	 */
 	u16 rx_itr_setting;
 	u16 tx_itr_setting;
+	u16 int_rate_limit;  /* value in usecs */
 
 	u16 rss_table_size;
 	u16 rss_size;
@@ -583,10 +584,10 @@ struct i40e_device {
 };
 
 /**
- * i40e_fw_version_str - format the FW and NVM version strings
+ * i40e_nvm_version_str - format the NVM version strings
  * @hw: ptr to the hardware info
  **/
-static inline char *i40e_fw_version_str(struct i40e_hw *hw)
+static inline char *i40e_nvm_version_str(struct i40e_hw *hw)
 {
 	static char buf[32];
 

@@ -593,9 +593,9 @@ static void fm10k_receive_skb(struct fm10k_q_vector *q_vector,
 	napi_gro_receive(&q_vector->napi, skb);
 }
 
-static bool fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
-			       struct fm10k_ring *rx_ring,
-			       int budget)
+static int fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
+			      struct fm10k_ring *rx_ring,
+			      int budget)
 {
 	struct sk_buff *skb = rx_ring->skb;
 	unsigned int total_bytes = 0, total_packets = 0;
@@ -662,7 +662,7 @@ static bool fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 	q_vector->rx.total_packets += total_packets;
 	q_vector->rx.total_bytes += total_bytes;
 
-	return total_packets < budget;
+	return total_packets;
 }
 
 #define VXLAN_HLEN (sizeof(struct udphdr) + 8)
@@ -1422,7 +1422,7 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 	struct fm10k_q_vector *q_vector =
 			       container_of(napi, struct fm10k_q_vector, napi);
 	struct fm10k_ring *ring;
-	int per_ring_budget;
+	int per_ring_budget, work_done = 0;
 	bool clean_complete = true;
 
 	fm10k_for_each_ring(ring, q_vector->tx)
@@ -1436,16 +1436,19 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 	else
 		per_ring_budget = budget;
 
-	fm10k_for_each_ring(ring, q_vector->rx)
-		clean_complete &= fm10k_clean_rx_irq(q_vector, ring,
-						     per_ring_budget);
+	fm10k_for_each_ring(ring, q_vector->rx) {
+		int work = fm10k_clean_rx_irq(q_vector, ring, per_ring_budget);
+
+		work_done += work;
+		clean_complete &= !!(work < per_ring_budget);
+	}
 
 	/* If all work not completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
 
 	/* all work done, exit the polling mode */
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 
 	/* re-enable the q_vector */
 	fm10k_qv_enable(q_vector);

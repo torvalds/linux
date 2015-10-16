@@ -1008,7 +1008,7 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 		container_of(napi, struct ixgbevf_q_vector, napi);
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	struct ixgbevf_ring *ring;
-	int per_ring_budget;
+	int per_ring_budget, work_done = 0;
 	bool clean_complete = true;
 
 	ixgbevf_for_each_ring(ring, q_vector->tx)
@@ -1027,10 +1027,12 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	else
 		per_ring_budget = budget;
 
-	ixgbevf_for_each_ring(ring, q_vector->rx)
-		clean_complete &= (ixgbevf_clean_rx_irq(q_vector, ring,
-							per_ring_budget)
-				   < per_ring_budget);
+	ixgbevf_for_each_ring(ring, q_vector->rx) {
+		int cleaned = ixgbevf_clean_rx_irq(q_vector, ring,
+						   per_ring_budget);
+		work_done += cleaned;
+		clean_complete &= (cleaned < per_ring_budget);
+	}
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	ixgbevf_qv_unlock_napi(q_vector);
@@ -1040,7 +1042,7 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 	/* all work done, exit the polling mode */
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 	if (adapter->rx_itr_setting & 1)
 		ixgbevf_set_itr(q_vector);
 	if (!test_bit(__IXGBEVF_DOWN, &adapter->state) &&

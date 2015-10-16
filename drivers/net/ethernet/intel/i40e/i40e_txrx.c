@@ -1268,16 +1268,11 @@ static void i40e_receive_skb(struct i40e_ring *rx_ring,
 			     struct sk_buff *skb, u16 vlan_tag)
 {
 	struct i40e_q_vector *q_vector = rx_ring->q_vector;
-	struct i40e_vsi *vsi = rx_ring->vsi;
-	u64 flags = vsi->back->flags;
 
 	if (vlan_tag & VLAN_VID_MASK)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 
-	if (flags & I40E_FLAG_IN_NETPOLL)
-		netif_rx(skb);
-	else
-		napi_gro_receive(&q_vector->napi, skb);
+	napi_gro_receive(&q_vector->napi, skb);
 }
 
 /**
@@ -1830,7 +1825,7 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	bool clean_complete = true;
 	bool arm_wb = false;
 	int budget_per_ring;
-	int cleaned;
+	int work_done = 0;
 
 	if (test_bit(__I40E_DOWN, &vsi->state)) {
 		napi_complete(napi);
@@ -1846,22 +1841,31 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 		ring->arm_wb = false;
 	}
 
+	/* Handle case where we are called by netpoll with a budget of 0 */
+	if (budget <= 0)
+		goto tx_only;
+
 	/* We attempt to distribute budget to each Rx queue fairly, but don't
 	 * allow the budget to go below 1 because that would exit polling early.
 	 */
 	budget_per_ring = max(budget/q_vector->num_ringpairs, 1);
 
 	i40e_for_each_ring(ring, q_vector->rx) {
+		int cleaned;
+
 		if (ring_is_ps_enabled(ring))
 			cleaned = i40e_clean_rx_irq_ps(ring, budget_per_ring);
 		else
 			cleaned = i40e_clean_rx_irq_1buf(ring, budget_per_ring);
+
+		work_done += cleaned;
 		/* if we didn't clean as many as budgeted, we must be done */
 		clean_complete &= (budget_per_ring != cleaned);
 	}
 
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
+tx_only:
 		if (arm_wb)
 			i40e_force_wb(vsi, q_vector);
 		return budget;
@@ -1871,7 +1875,7 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 		q_vector->arm_wb_state = false;
 
 	/* Work is done so exit the polling mode and re-enable the interrupt */
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
 		i40e_update_enable_itr(vsi, q_vector);
 	} else { /* Legacy mode */

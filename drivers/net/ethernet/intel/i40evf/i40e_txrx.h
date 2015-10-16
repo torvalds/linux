@@ -35,6 +35,7 @@
 #define I40E_ITR_20K               0x0019
 #define I40E_ITR_8K                0x003E
 #define I40E_ITR_4K                0x007A
+#define I40E_MAX_INTRL             0x3B    /* reg uses 4 usec resolution */
 #define I40E_ITR_RX_DEF            I40E_ITR_8K
 #define I40E_ITR_TX_DEF            I40E_ITR_4K
 #define I40E_ITR_DYNAMIC           0x8000  /* use top bit as a flag */
@@ -44,6 +45,15 @@
 #define ITR_TO_REG(setting) ((setting & ~I40E_ITR_DYNAMIC) >> 1)
 #define ITR_IS_DYNAMIC(setting) (!!(setting & I40E_ITR_DYNAMIC))
 #define ITR_REG_TO_USEC(itr_reg) (itr_reg << 1)
+/* 0x40 is the enable bit for interrupt rate limiting, and must be set if
+ * the value of the rate limit is non-zero
+ */
+#define INTRL_ENA                  BIT(6)
+#define INTRL_REG_TO_USEC(intrl) ((intrl & ~INTRL_ENA) << 2)
+#define INTRL_USEC_TO_REG(set) ((set) ? ((set) >> 2) | INTRL_ENA : 0)
+#define I40E_INTRL_8K              125     /* 8000 ints/sec */
+#define I40E_INTRL_62K             16      /* 62500 ints/sec */
+#define I40E_INTRL_83K             12      /* 83333 ints/sec */
 
 #define I40E_QUEUE_END_OF_LIST 0x7FF
 

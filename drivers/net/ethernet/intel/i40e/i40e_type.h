@@ -475,6 +475,8 @@ struct i40e_dcbx_config {
 	u8  dcbx_mode;
 #define I40E_DCBX_MODE_CEE	0x1
 #define I40E_DCBX_MODE_IEEE	0x2
+	u8  app_mode;
+#define I40E_DCBX_APPS_NON_WILLING	0x1
 	u32 numapps;
 	u32 tlv_status; /* CEE mode TLV status */
 	struct i40e_dcb_ets_config etscfg;

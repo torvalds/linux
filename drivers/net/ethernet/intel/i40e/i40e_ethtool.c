@@ -229,6 +229,7 @@ static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
 	"NPAR",
 	"LinkPolling",
 	"flow-director-atr",
+	"veb-stats",
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_priv_flags_strings)
@@ -305,6 +306,12 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 			ecmd->advertising |= ADVERTISED_10000baseT_Full;
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		break;
+	case I40E_PHY_TYPE_1000BASE_T_OPTICAL:
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_1000baseT_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_1000baseT_Full;
 		break;
 	case I40E_PHY_TYPE_100BASE_TX:
 		ecmd->supported = SUPPORTED_Autoneg |
@@ -993,9 +1000,7 @@ static int i40e_get_eeprom(struct net_device *netdev,
 
 		cmd = (struct i40e_nvm_access *)eeprom;
 		ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
-		if (ret_val &&
-		    ((hw->aq.asq_last_status != I40E_AQ_RC_EACCES) ||
-		     (hw->debug_mask & I40E_DEBUG_NVM)))
+		if (ret_val && (hw->debug_mask & I40E_DEBUG_NVM))
 			dev_info(&pf->pdev->dev,
 				 "NVMUpdate read failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
 				 ret_val, hw->aq.asq_last_status, errno,
@@ -1099,10 +1104,7 @@ static int i40e_set_eeprom(struct net_device *netdev,
 
 	cmd = (struct i40e_nvm_access *)eeprom;
 	ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
-	if (ret_val &&
-	    ((hw->aq.asq_last_status != I40E_AQ_RC_EPERM &&
-	      hw->aq.asq_last_status != I40E_AQ_RC_EBUSY) ||
-	     (hw->debug_mask & I40E_DEBUG_NVM)))
+	if (ret_val && (hw->debug_mask & I40E_DEBUG_NVM))
 		dev_info(&pf->pdev->dev,
 			 "NVMUpdate write failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
 			 ret_val, hw->aq.asq_last_status, errno,
@@ -1122,7 +1124,7 @@ static void i40e_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->driver, i40e_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, i40e_driver_version_str,
 		sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, i40e_fw_version_str(&pf->hw),
+	strlcpy(drvinfo->fw_version, i40e_nvm_version_str(&pf->hw),
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(pf->pdev),
 		sizeof(drvinfo->bus_info));
@@ -1849,6 +1851,14 @@ static int i40e_get_coalesce(struct net_device *netdev,
 
 	ec->rx_coalesce_usecs = vsi->rx_itr_setting & ~I40E_ITR_DYNAMIC;
 	ec->tx_coalesce_usecs = vsi->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+	/* we use the _usecs_high to store/set the interrupt rate limit
+	 * that the hardware supports, that almost but not quite
+	 * fits the original intent of the ethtool variable,
+	 * the rx_coalesce_usecs_high limits total interrupts
+	 * per second from both tx/rx sources.
+	 */
+	ec->rx_coalesce_usecs_high = vsi->int_rate_limit;
+	ec->tx_coalesce_usecs_high = vsi->int_rate_limit;
 
 	return 0;
 }
@@ -1867,6 +1877,17 @@ static int i40e_set_coalesce(struct net_device *netdev,
 	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
 		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
 
+	/* tx_coalesce_usecs_high is ignored, use rx-usecs-high instead */
+	if (ec->tx_coalesce_usecs_high != vsi->int_rate_limit) {
+		netif_info(pf, drv, netdev, "tx-usecs-high is not used, please program rx-usecs-high\n");
+		return -EINVAL;
+	}
+
+	if (ec->rx_coalesce_usecs_high >= INTRL_REG_TO_USEC(I40E_MAX_INTRL)) {
+		netif_info(pf, drv, netdev, "Invalid value, rx-usecs-high range is 0-235\n");
+		return -EINVAL;
+	}
+
 	vector = vsi->base_vector;
 	if ((ec->rx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
 	    (ec->rx_coalesce_usecs <= (I40E_MAX_ITR << 1))) {
@@ -1879,6 +1900,8 @@ static int i40e_set_coalesce(struct net_device *netdev,
 		netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
+
+	vsi->int_rate_limit = ec->rx_coalesce_usecs_high;
 
 	if ((ec->tx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
 	    (ec->tx_coalesce_usecs <= (I40E_MAX_ITR << 1))) {
@@ -1904,11 +1927,14 @@ static int i40e_set_coalesce(struct net_device *netdev,
 		vsi->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
+		u16 intrl = INTRL_USEC_TO_REG(vsi->int_rate_limit);
+
 		q_vector = vsi->q_vectors[i];
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 		wr32(hw, I40E_PFINT_ITRN(0, vector - 1), q_vector->rx.itr);
 		q_vector->tx.itr = ITR_TO_REG(vsi->tx_itr_setting);
 		wr32(hw, I40E_PFINT_ITRN(1, vector - 1), q_vector->tx.itr);
+		wr32(hw, I40E_PFINT_RATEN(vector - 1), intrl);
 		i40e_flush(hw);
 	}
 
@@ -2675,6 +2701,8 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 		I40E_PRIV_FLAGS_LINKPOLL_FLAG : 0;
 	ret_flags |= pf->flags & I40E_FLAG_FD_ATR_ENABLED ?
 		I40E_PRIV_FLAGS_FD_ATR : 0;
+	ret_flags |= pf->flags & I40E_FLAG_VEB_STATS_ENABLED ?
+		I40E_PRIV_FLAGS_VEB_STATS : 0;
 
 	return ret_flags;
 }
@@ -2705,6 +2733,11 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 		pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 		pf->auto_disable_flags |= I40E_FLAG_FD_ATR_ENABLED;
 	}
+
+	if (flags & I40E_PRIV_FLAGS_VEB_STATS)
+		pf->flags |= I40E_FLAG_VEB_STATS_ENABLED;
+	else
+		pf->flags &= ~I40E_FLAG_VEB_STATS_ENABLED;
 
 	return 0;
 }
