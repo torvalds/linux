@@ -189,14 +189,23 @@ int pem_task_store_dal_configuration(struct pp_eventmgr *eventmgr, const struct 
 
 int pem_task_notify_hw_mgr_display_configuration_change(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
-	/* TODO */
-	return 0;
+	if (pem_is_hw_access_blocked(eventmgr))
+		return 0;
+
+	return phm_display_configuration_changed(eventmgr->hwmgr);
 }
 
 int pem_task_notify_hw_mgr_pre_display_configuration_change(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
-	/* TODO */
 	return 0;
+}
+
+int pem_task_notify_smc_display_config_after_power_state_adjustment(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
+{
+	if (pem_is_hw_access_blocked(eventmgr))
+		return 0;
+
+	return phm_notify_smc_display_config_after_ps_adjustment(eventmgr->hwmgr);
 }
 
 int pem_task_block_adjust_power_state(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)

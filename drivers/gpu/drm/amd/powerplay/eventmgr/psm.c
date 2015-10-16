@@ -97,7 +97,7 @@ int psm_adjust_power_state_dynamic(struct pp_eventmgr *eventmgr, bool skip)
 	pcurrent = hwmgr->current_ps;
 	requested = hwmgr->request_ps;
 
-	if (pcurrent != NULL || requested != NULL) {
+	if ((pcurrent != NULL || requested != NULL) && (pcurrent != requested)) {
 		phm_apply_state_adjust_rules(hwmgr, requested, pcurrent);
 		phm_set_power_state(hwmgr, &pcurrent->hardware, &requested->hardware);
 		hwmgr->current_ps = requested;

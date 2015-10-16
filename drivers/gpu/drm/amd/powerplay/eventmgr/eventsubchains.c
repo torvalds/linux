@@ -152,7 +152,7 @@ const pem_event_action set_boot_state_tasks[] = {
 const pem_event_action adjust_power_state_tasks[] = {
 	pem_task_notify_hw_mgr_display_configuration_change,
 	pem_task_adjust_power_state,
-	/*pem_task_notify_smc_display_config_after_power_state_adjustment,*/
+	pem_task_notify_smc_display_config_after_power_state_adjustment,
 	pem_task_update_allowed_performance_levels,
 	/* to do pem_task_Enable_disable_bapm, */
 	NULL
