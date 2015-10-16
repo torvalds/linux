@@ -1968,19 +1968,13 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	/*
 	 * If the owning (remote) cpu is still in the middle of schedule() with
 	 * this task as prev, wait until its done referencing the task.
-	 */
-	while (p->on_cpu)
-		cpu_relax();
-	/*
-	 * Combined with the control dependency above, we have an effective
-	 * smp_load_acquire() without the need for full barriers.
 	 *
 	 * Pairs with the smp_store_release() in finish_lock_switch().
 	 *
 	 * This ensures that tasks getting woken will be fully ordered against
 	 * their previous state and preserve Program Order.
 	 */
-	smp_rmb();
+	smp_cond_acquire(!p->on_cpu);
 
 	p->sched_contributes_to_load = !!task_contributes_to_load(p);
 	p->state = TASK_WAKING;
