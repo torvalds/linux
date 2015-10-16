@@ -125,15 +125,14 @@ static const struct of_device_id ls_pcie_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ls_pcie_of_match);
 
-static int ls_add_pcie_port(struct ls_pcie *pcie)
+static int __init ls_add_pcie_port(struct pcie_port *pp,
+				   struct platform_device *pdev)
 {
-	struct pcie_port *pp;
 	int ret;
+	struct ls_pcie *pcie = to_ls_pcie(pp);
 
-	pp = &pcie->pp;
-	pp->dev = pcie->dev;
+	pp->dev = &pdev->dev;
 	pp->dbi_base = pcie->dbi;
-	pp->root_bus_nr = -1;
 	pp->ops = pcie->drvdata->ops;
 
 	ret = dw_pcie_host_init(pp);
@@ -160,8 +159,6 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	if (!pcie)
 		return -ENOMEM;
 
-	pcie->dev = &pdev->dev;
-
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	pcie->dbi = devm_ioremap_resource(&pdev->dev, dbi_base);
 	if (IS_ERR(pcie->dbi)) {
@@ -174,7 +171,7 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	if (!ls_pcie_is_bridge(pcie))
 		return -ENODEV;
 
-	ret = ls_add_pcie_port(pcie);
+	ret = ls_add_pcie_port(&pcie->pp, pdev);
 	if (ret < 0)
 		return ret;
 
