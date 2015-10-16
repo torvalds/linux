@@ -31,6 +31,7 @@ enum aggr_mode {
 	AGGR_SOCKET,
 	AGGR_CORE,
 	AGGR_THREAD,
+	AGGR_UNSET,
 };
 
 struct perf_stat_config {

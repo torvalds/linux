@@ -479,6 +479,7 @@ static void aggr_printout(struct perf_evsel *evsel, int id, int nr)
 			csv_sep);
 		break;
 	case AGGR_GLOBAL:
+	case AGGR_UNSET:
 	default:
 		break;
 	}
@@ -799,6 +800,8 @@ static void print_interval(char *prefix, struct timespec *ts)
 		case AGGR_GLOBAL:
 		default:
 			fprintf(output, "#           time             counts %*s events\n", unit_width, "unit");
+		case AGGR_UNSET:
+			break;
 		}
 	}
 
@@ -880,6 +883,7 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 		evlist__for_each(evsel_list, counter)
 			print_counter(counter, prefix);
 		break;
+	case AGGR_UNSET:
 	default:
 		break;
 	}
@@ -960,6 +964,7 @@ static int perf_stat_init_aggr_mode(void)
 	case AGGR_NONE:
 	case AGGR_GLOBAL:
 	case AGGR_THREAD:
+	case AGGR_UNSET:
 	default:
 		break;
 	}
