@@ -391,22 +391,6 @@ static inline void clear_bits(int offset, int len, unsigned long *p)
 		clear_bit(offset + (len - 1), p);
 }
 
-static void edma_map_dmach_to_queue(struct edma_chan *echan,
-				    enum dma_event_q queue_no)
-{
-	struct edma_cc *ecc = echan->ecc;
-	int channel = EDMA_CHAN_SLOT(echan->ch_num);
-	int bit = (channel & 0x7) * 4;
-
-	/* default to low priority queue */
-	if (queue_no == EVENTQ_DEFAULT)
-		queue_no = ecc->default_queue;
-
-	queue_no &= 7;
-	edma_modify_array(ecc, EDMA_DMAQNUM, (channel >> 3), ~(0x7 << bit),
-			  queue_no << bit);
-}
-
 static void edma_assign_priority_to_queue(struct edma_cc *ecc, int queue_no,
 					  int priority)
 {
@@ -723,6 +707,25 @@ static void edma_clean_channel(struct edma_chan *echan)
 	edma_write(ecc, EDMA_CCERRCLR, BIT(16) | BIT(1) | BIT(0));
 }
 
+/* Move channel to a specific event queue */
+static void edma_assign_channel_eventq(struct edma_chan *echan,
+				       enum dma_event_q eventq_no)
+{
+	struct edma_cc *ecc = echan->ecc;
+	int channel = EDMA_CHAN_SLOT(echan->ch_num);
+	int bit = (channel & 0x7) * 4;
+
+	/* default to low priority queue */
+	if (eventq_no == EVENTQ_DEFAULT)
+		eventq_no = ecc->default_queue;
+	if (eventq_no >= ecc->num_tc)
+		return;
+
+	eventq_no &= 7;
+	edma_modify_array(ecc, EDMA_DMAQNUM, (channel >> 3), ~(0x7 << bit),
+			  eventq_no << bit);
+}
+
 static int edma_alloc_channel(struct edma_chan *echan,
 			      enum dma_event_q eventq_no)
 {
@@ -751,7 +754,7 @@ static int edma_alloc_channel(struct edma_chan *echan,
 
 	edma_setup_interrupt(echan, true);
 
-	edma_map_dmach_to_queue(echan, eventq_no);
+	edma_assign_channel_eventq(echan, eventq_no);
 
 	return 0;
 }
@@ -762,21 +765,6 @@ static void edma_free_channel(struct edma_chan *echan)
 	edma_stop(echan);
 	/* REVISIT should probably take out of shadow region 0 */
 	edma_setup_interrupt(echan, false);
-}
-
-/* Move channel to a specific event queue */
-static void edma_assign_channel_eventq(struct edma_chan *echan,
-				       enum dma_event_q eventq_no)
-{
-	struct edma_cc *ecc = echan->ecc;
-
-	/* default to low priority queue */
-	if (eventq_no == EVENTQ_DEFAULT)
-		eventq_no = ecc->default_queue;
-	if (eventq_no >= ecc->num_tc)
-		return;
-
-	edma_map_dmach_to_queue(echan, eventq_no);
 }
 
 static inline struct edma_cc *to_edma_cc(struct dma_device *d)
@@ -2154,8 +2142,8 @@ static int edma_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ecc->num_channels; i++) {
 		/* Assign all channels to the default queue */
-		edma_map_dmach_to_queue(&ecc->slave_chans[i],
-					info->default_queue);
+		edma_assign_channel_eventq(&ecc->slave_chans[i],
+					   info->default_queue);
 		/* Set entry slot to the dummy slot */
 		edma_set_chmap(&ecc->slave_chans[i], ecc->dummy_slot);
 	}
