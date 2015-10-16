@@ -222,7 +222,7 @@ static void do_rx(struct work_struct *work)
 	struct mux_dev *mux_dev =
 		container_of(work, struct mux_dev, work_rx.work);
 	struct mux_rx *r;
-	struct rx_cxt *rx = (struct rx_cxt *)&mux_dev->rx;
+	struct rx_cxt *rx = &mux_dev->rx;
 	unsigned long flags;
 	int ret = 0;
 
