@@ -1722,13 +1722,6 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 					     pci_resource_len(pdev, 4));
 	hw->sw_addr = interface->sw_addr;
 
-	/* Only the PF can support VXLAN and NVGRE offloads */
-	if (hw->mac.type != fm10k_mac_pf) {
-		netdev->hw_enc_features = 0;
-		netdev->features &= ~NETIF_F_GSO_UDP_TUNNEL;
-		netdev->hw_features &= ~NETIF_F_GSO_UDP_TUNNEL;
-	}
-
 	/* initialize DCBNL interface */
 	fm10k_dcbnl_set_ops(netdev);
 
@@ -1894,7 +1887,7 @@ static int fm10k_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 
-	netdev = fm10k_alloc_netdev();
+	netdev = fm10k_alloc_netdev(fm10k_info_tbl[ent->driver_data]);
 	if (!netdev) {
 		err = -ENOMEM;
 		goto err_alloc_netdev;

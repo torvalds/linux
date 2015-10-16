@@ -1388,8 +1388,9 @@ static const struct net_device_ops fm10k_netdev_ops = {
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 
-struct net_device *fm10k_alloc_netdev(void)
+struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info)
 {
+	netdev_features_t hw_features;
 	struct fm10k_intfc *interface;
 	struct net_device *dev;
 
@@ -1412,26 +1413,30 @@ struct net_device *fm10k_alloc_netdev(void)
 			 NETIF_F_TSO |
 			 NETIF_F_TSO6 |
 			 NETIF_F_TSO_ECN |
-			 NETIF_F_GSO_UDP_TUNNEL |
 			 NETIF_F_RXHASH |
 			 NETIF_F_RXCSUM;
 
+	/* Only the PF can support VXLAN and NVGRE tunnel offloads */
+	if (info->mac == fm10k_mac_pf) {
+		dev->hw_enc_features = NETIF_F_IP_CSUM |
+				       NETIF_F_TSO |
+				       NETIF_F_TSO6 |
+				       NETIF_F_TSO_ECN |
+				       NETIF_F_GSO_UDP_TUNNEL |
+				       NETIF_F_IPV6_CSUM |
+				       NETIF_F_SG;
+
+		dev->features |= NETIF_F_GSO_UDP_TUNNEL;
+	}
+
 	/* all features defined to this point should be changeable */
-	dev->hw_features |= dev->features;
+	hw_features = dev->features;
 
 	/* allow user to enable L2 forwarding acceleration */
-	dev->hw_features |= NETIF_F_HW_L2FW_DOFFLOAD;
+	hw_features |= NETIF_F_HW_L2FW_DOFFLOAD;
 
 	/* configure VLAN features */
 	dev->vlan_features |= dev->features;
-
-	/* configure tunnel offloads */
-	dev->hw_enc_features |= NETIF_F_IP_CSUM |
-				NETIF_F_TSO |
-				NETIF_F_TSO6 |
-				NETIF_F_TSO_ECN |
-				NETIF_F_GSO_UDP_TUNNEL |
-				NETIF_F_IPV6_CSUM;
 
 	/* we want to leave these both on as we cannot disable VLAN tag
 	 * insertion or stripping on the hardware since it is contained
@@ -1442,6 +1447,8 @@ struct net_device *fm10k_alloc_netdev(void)
 			 NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
+
+	dev->hw_features |= hw_features;
 
 	return dev;
 }

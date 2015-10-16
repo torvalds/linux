@@ -484,7 +484,7 @@ void fm10k_netpoll(struct net_device *netdev);
 #endif
 
 /* Netdev */
-struct net_device *fm10k_alloc_netdev(void);
+struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info);
 int fm10k_setup_rx_resources(struct fm10k_ring *);
 int fm10k_setup_tx_resources(struct fm10k_ring *);
 void fm10k_free_rx_resources(struct fm10k_ring *);
