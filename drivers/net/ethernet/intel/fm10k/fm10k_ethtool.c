@@ -114,9 +114,11 @@ static const struct fm10k_stats fm10k_gstrings_mbx_stats[] = {
 	FM10K_MBX_STAT("mbx_tx_oversized", tx_dropped),
 	FM10K_MBX_STAT("mbx_tx_messages", tx_messages),
 	FM10K_MBX_STAT("mbx_tx_dwords", tx_dwords),
+	FM10K_MBX_STAT("mbx_tx_mbmem_pulled", tx_mbmem_pulled),
 	FM10K_MBX_STAT("mbx_rx_messages", rx_messages),
 	FM10K_MBX_STAT("mbx_rx_dwords", rx_dwords),
 	FM10K_MBX_STAT("mbx_rx_parse_err", rx_parse_err),
+	FM10K_MBX_STAT("mbx_rx_mbmem_pushed", rx_mbmem_pushed),
 };
 
 #define FM10K_GLOBAL_STATS_LEN ARRAY_SIZE(fm10k_gstrings_global_stats)
