@@ -258,8 +258,8 @@ static int cmp_ids(const void *a, const void *b)
 	return *(int *)a - *(int *)b;
 }
 
-static int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
-			      int (*f)(struct cpu_map *map, int cpu))
+int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
+		       int (*f)(struct cpu_map *map, int cpu))
 {
 	struct cpu_map *c;
 	int nr = cpus->nr;
