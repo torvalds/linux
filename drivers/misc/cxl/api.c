@@ -105,6 +105,7 @@ EXPORT_SYMBOL_GPL(cxl_allocate_afu_irqs);
 
 void cxl_free_afu_irqs(struct cxl_context *ctx)
 {
+	afu_irq_name_free(ctx);
 	cxl_release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
 }
 EXPORT_SYMBOL_GPL(cxl_free_afu_irqs);
