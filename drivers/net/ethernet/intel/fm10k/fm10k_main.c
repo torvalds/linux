@@ -1366,7 +1366,7 @@ static void fm10k_update_itr(struct fm10k_ring_container *ring_container)
 	unsigned int avg_wire_size, packets;
 
 	/* Only update ITR if we are using adaptive setting */
-	if (!(ring_container->itr & FM10K_ITR_ADAPTIVE))
+	if (!ITR_IS_ADAPTIVE(ring_container->itr))
 		goto clear_counts;
 
 	packets = ring_container->total_packets;
