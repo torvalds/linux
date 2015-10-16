@@ -868,7 +868,8 @@ int ipu_pre_set_fb_buffer(int id, bool resolve,
 				BM_PRE_STORE_ENGINE_STATUS_STORE_BLOCK_Y) >>
 				BP_PRE_STORE_ENGINE_STATUS_STORE_BLOCK_Y;
 		} while (store_block_y >=
-			 (y_res / (resolve ? 4 : 1) - 2) || store_block_y == 0);
+			 (resolve ? DIV_ROUND_UP(y_res, 4) - 1 : y_res - 2) ||
+			  store_block_y == 0);
 	}
 
 	if (update)
