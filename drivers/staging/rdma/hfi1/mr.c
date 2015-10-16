@@ -284,20 +284,20 @@ struct ib_mr *hfi1_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	m = 0;
 	n = 0;
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-			void *vaddr;
+		void *vaddr;
 
-			vaddr = page_address(sg_page(sg));
-			if (!vaddr) {
-				ret = ERR_PTR(-EINVAL);
-				goto bail;
-			}
-			mr->mr.map[m]->segs[n].vaddr = vaddr;
-			mr->mr.map[m]->segs[n].length = umem->page_size;
-			n++;
-			if (n == HFI1_SEGSZ) {
-				m++;
-				n = 0;
-			}
+		vaddr = page_address(sg_page(sg));
+		if (!vaddr) {
+			ret = ERR_PTR(-EINVAL);
+			goto bail;
+		}
+		mr->mr.map[m]->segs[n].vaddr = vaddr;
+		mr->mr.map[m]->segs[n].length = umem->page_size;
+		n++;
+		if (n == HFI1_SEGSZ) {
+			m++;
+			n = 0;
+		}
 	}
 	ret = &mr->ibmr;
 
