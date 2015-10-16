@@ -17,6 +17,8 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/device.h>
+#include <linux/vmalloc.h>
+
 #include "hns_dsaf_main.h"
 #include "hns_dsaf_rcb.h"
 #include "hns_dsaf_ppe.h"
