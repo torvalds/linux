@@ -3545,6 +3545,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 				       auth_type);
 	} else {
 		u8 addr_type;
+		struct hci_conn_params *p;
 
 		/* Convert from L2CAP channel address type to HCI address type
 		 */
@@ -3562,7 +3563,10 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		 * If connection parameters already exist, then they
 		 * will be kept and this function does nothing.
 		 */
-		hci_conn_params_add(hdev, &cp->addr.bdaddr, addr_type);
+		p = hci_conn_params_add(hdev, &cp->addr.bdaddr, addr_type);
+
+		if (p->auto_connect == HCI_AUTO_CONN_EXPLICIT)
+			p->auto_connect = HCI_AUTO_CONN_DISABLED;
 
 		conn = hci_connect_le_scan(hdev, &cp->addr.bdaddr,
 					   addr_type, sec_level,
