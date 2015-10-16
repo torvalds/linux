@@ -288,12 +288,19 @@
 				clocks = <&osc>;
 				reg-shift = <2>;
 				status = "disabled";
+				pinctrl-0 = <&uart0_pmux>;
+				pinctrl-names = "default";
 			};
 		};
 
 		system_pinctrl: pin-controller@fe2200 {
 			compatible = "marvell,berlin4ct-system-pinctrl";
 			reg = <0xfe2200 0xc>;
+
+			uart0_pmux: uart0-pmux {
+				groups = "SM_URT0_TXD", "SM_URT0_RXD";
+				function = "uart0";
+			};
 		};
 	};
 };
