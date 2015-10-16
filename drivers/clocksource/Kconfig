@@ -117,6 +117,7 @@ config CLKSRC_PISTACHIO
 
 config CLKSRC_TI_32K
 	bool "Texas Instruments 32.768 Hz Clocksource" if COMPILE_TEST
+	depends on GENERIC_SCHED_CLOCK
 	select CLKSRC_OF if OF
 	help
 	  This option enables support for Texas Instruments 32.768 Hz clocksource
