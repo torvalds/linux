@@ -95,7 +95,7 @@ static int exynos_read(struct hwrng *rng, void *buf,
 	*data = exynos_rng_readl(exynos_rng, EXYNOS_PRNG_OUT1_OFFSET);
 
 	pm_runtime_mark_last_busy(exynos_rng->dev);
-	pm_runtime_autosuspend(exynos_rng->dev);
+	pm_runtime_put_sync_autosuspend(exynos_rng->dev);
 
 	return 4;
 }
