@@ -2932,7 +2932,7 @@ struct clk *of_clk_src_onecell_get(struct of_phandle_args *clkspec, void *data)
 	unsigned int idx = clkspec->args[0];
 
 	if (idx >= clk_data->clk_num) {
-		pr_err("%s: invalid clock index %d\n", __func__, idx);
+		pr_err("%s: invalid clock index %u\n", __func__, idx);
 		return ERR_PTR(-EINVAL);
 	}
 
