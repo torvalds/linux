@@ -645,6 +645,17 @@ static const struct of_device_id cpg_mssr_match[] = {
 		.data = &r8a7790_cpg_mssr_info,
 	},
 #endif
+#ifdef CONFIG_CLK_R8A7791
+	{
+		.compatible = "renesas,r8a7791-cpg-mssr",
+		.data = &r8a7791_cpg_mssr_info,
+	},
+	/* R-Car M2-N is (almost) identical to R-Car M2-W w.r.t. clocks. */
+	{
+		.compatible = "renesas,r8a7793-cpg-mssr",
+		.data = &r8a7791_cpg_mssr_info,
+	},
+#endif
 #ifdef CONFIG_CLK_R8A7795
 	{
 		.compatible = "renesas,r8a7795-cpg-mssr",
