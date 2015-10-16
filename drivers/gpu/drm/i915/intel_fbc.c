@@ -51,6 +51,11 @@ static inline bool fbc_on_pipe_a_only(struct drm_i915_private *dev_priv)
 	return IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8;
 }
 
+static inline bool fbc_on_plane_a_only(struct drm_i915_private *dev_priv)
+{
+	return INTEL_INFO(dev_priv)->gen < 4;
+}
+
 /*
  * In some platforms where the CRTC's x:0/y:0 coordinates doesn't match the
  * frontbuffer's x:0/y:0 coordinates we lie to the hardware about the plane's
@@ -514,6 +519,9 @@ static bool crtc_can_fbc(struct intel_crtc *crtc)
 	if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A)
 		return false;
 
+	if (fbc_on_plane_a_only(dev_priv) && crtc->plane != PLANE_A)
+		return false;
+
 	return true;
 }
 
@@ -799,12 +807,6 @@ static void __intel_fbc_update(struct intel_crtc *crtc)
 
 	if (!intel_fbc_hw_tracking_covers_screen(crtc)) {
 		set_no_fbc_reason(dev_priv, "mode too large for compression");
-		goto out_disable;
-	}
-
-	if ((INTEL_INFO(dev_priv)->gen < 4 || HAS_DDI(dev_priv)) &&
-	    crtc->plane != PLANE_A) {
-		set_no_fbc_reason(dev_priv, "FBC unsupported on plane");
 		goto out_disable;
 	}
 
