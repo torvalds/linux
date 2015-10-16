@@ -22,6 +22,7 @@ struct gb_bundle {
 	u8			*state;
 
 	struct list_head	links;	/* interface->bundles */
+	void			*private;
 };
 #define to_gb_bundle(d) container_of(d, struct gb_bundle, dev)
 
