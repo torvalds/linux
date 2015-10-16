@@ -674,6 +674,18 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_vid_flood_tables, 0x30, 8, 4);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 2);
 
+/* cmd_mbox_config_profile_max_fid_offset_flood_tables
+ * Maximum number of FID-offset flooding tables.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile,
+	     max_fid_offset_flood_tables, 0x34, 24, 4);
+
+/* cmd_mbox_config_profile_fid_offset_flood_table_size
+ * The size (number of entries) of each FID-offset flood table.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile,
+	     fid_offset_flood_table_size, 0x34, 0, 16);
+
 /* cmd_mbox_config_profile_max_fid_flood_tables
  * Maximum number of per-FID flooding tables.
  *

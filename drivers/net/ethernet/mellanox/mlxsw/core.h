@@ -153,6 +153,8 @@ struct mlxsw_config_profile {
 	u8	max_flood_tables;
 	u8	max_vid_flood_tables;
 	u8	flood_mode;
+	u8	max_fid_offset_flood_tables;
+	u16	fid_offset_flood_table_size;
 	u8	max_fid_flood_tables;
 	u16	fid_flood_table_size;
 	u16	max_ib_mc;

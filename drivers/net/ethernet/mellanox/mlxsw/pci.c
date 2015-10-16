@@ -1214,6 +1214,10 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			mbox, profile->max_flood_tables);
 		mlxsw_cmd_mbox_config_profile_max_vid_flood_tables_set(
 			mbox, profile->max_vid_flood_tables);
+		mlxsw_cmd_mbox_config_profile_max_fid_offset_flood_tables_set(
+			mbox, profile->max_fid_offset_flood_tables);
+		mlxsw_cmd_mbox_config_profile_fid_offset_flood_table_size_set(
+			mbox, profile->fid_offset_flood_table_size);
 		mlxsw_cmd_mbox_config_profile_max_fid_flood_tables_set(
 			mbox, profile->max_fid_flood_tables);
 		mlxsw_cmd_mbox_config_profile_fid_flood_table_size_set(
