@@ -144,11 +144,11 @@ static int setup_routing_entry(struct kvm_irq_routing_table *rt,
 
 	/*
 	 * Do not allow GSI to be mapped to the same irqchip more than once.
-	 * Allow only one to one mapping between GSI and MSI.
+	 * Allow only one to one mapping between GSI and non-irqchip routing.
 	 */
 	hlist_for_each_entry(ei, &rt->map[ue->gsi], link)
-		if (ei->type == KVM_IRQ_ROUTING_MSI ||
-		    ue->type == KVM_IRQ_ROUTING_MSI ||
+		if (ei->type != KVM_IRQ_ROUTING_IRQCHIP ||
+		    ue->type != KVM_IRQ_ROUTING_IRQCHIP ||
 		    ue->u.irqchip.irqchip == ei->irqchip.irqchip)
 			return r;
 
