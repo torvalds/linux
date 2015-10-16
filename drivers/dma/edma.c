@@ -1107,18 +1107,15 @@ static int edma_dma_resume(struct dma_chan *chan)
  */
 static int edma_config_pset(struct dma_chan *chan, struct edma_pset *epset,
 			    dma_addr_t src_addr, dma_addr_t dst_addr, u32 burst,
-			    enum dma_slave_buswidth dev_width,
-			    unsigned int dma_length,
+			    unsigned int acnt, unsigned int dma_length,
 			    enum dma_transfer_direction direction)
 {
 	struct edma_chan *echan = to_edma_chan(chan);
 	struct device *dev = chan->device->dev;
 	struct edmacc_param *param = &epset->param;
-	int acnt, bcnt, ccnt, cidx;
+	int bcnt, ccnt, cidx;
 	int src_bidx, dst_bidx, src_cidx, dst_cidx;
 	int absync;
-
-	acnt = dev_width;
 
 	/* src/dst_maxburst == 0 is the same case as src/dst_maxburst == 1 */
 	if (!burst)
@@ -1320,41 +1317,98 @@ static struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
 	struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	size_t len, unsigned long tx_flags)
 {
-	int ret;
+	int ret, nslots;
 	struct edma_desc *edesc;
 	struct device *dev = chan->device->dev;
 	struct edma_chan *echan = to_edma_chan(chan);
-	unsigned int width;
+	unsigned int width, pset_len;
 
 	if (unlikely(!echan || !len))
 		return NULL;
 
-	edesc = kzalloc(sizeof(*edesc) + sizeof(edesc->pset[0]), GFP_ATOMIC);
+	if (len < SZ_64K) {
+		/*
+		 * Transfer size less than 64K can be handled with one paRAM
+		 * slot and with one burst.
+		 * ACNT = length
+		 */
+		width = len;
+		pset_len = len;
+		nslots = 1;
+	} else {
+		/*
+		 * Transfer size bigger than 64K will be handled with maximum of
+		 * two paRAM slots.
+		 * slot1: (full_length / 32767) times 32767 bytes bursts.
+		 *	  ACNT = 32767, length1: (full_length / 32767) * 32767
+		 * slot2: the remaining amount of data after slot1.
+		 *	  ACNT = full_length - length1, length2 = ACNT
+		 *
+		 * When the full_length is multibple of 32767 one slot can be
+		 * used to complete the transfer.
+		 */
+		width = SZ_32K - 1;
+		pset_len = rounddown(len, width);
+		/* One slot is enough for lengths multiple of (SZ_32K -1) */
+		if (unlikely(pset_len == len))
+			nslots = 1;
+		else
+			nslots = 2;
+	}
+
+	edesc = kzalloc(sizeof(*edesc) + nslots * sizeof(edesc->pset[0]),
+			GFP_ATOMIC);
 	if (!edesc) {
 		dev_dbg(dev, "Failed to allocate a descriptor\n");
 		return NULL;
 	}
 
-	edesc->pset_nr = 1;
-
-	width = 1 << __ffs((src | dest | len));
-	if (width > DMA_SLAVE_BUSWIDTH_64_BYTES)
-		width = DMA_SLAVE_BUSWIDTH_64_BYTES;
+	edesc->pset_nr = nslots;
+	edesc->residue = edesc->residue_stat = len;
+	edesc->direction = DMA_MEM_TO_MEM;
+	edesc->echan = echan;
 
 	ret = edma_config_pset(chan, &edesc->pset[0], src, dest, 1,
-			       width, len, DMA_MEM_TO_MEM);
-	if (ret < 0)
+			       width, pset_len, DMA_MEM_TO_MEM);
+	if (ret < 0) {
+		kfree(edesc);
 		return NULL;
+	}
 
 	edesc->absync = ret;
 
-	/*
-	 * Enable intermediate transfer chaining to re-trigger channel
-	 * on completion of every TR, and enable transfer-completion
-	 * interrupt on completion of the whole transfer.
-	 */
 	edesc->pset[0].param.opt |= ITCCHEN;
-	edesc->pset[0].param.opt |= TCINTEN;
+	if (nslots == 1) {
+		/* Enable transfer complete interrupt */
+		edesc->pset[0].param.opt |= TCINTEN;
+	} else {
+		/* Enable transfer complete chaining for the first slot */
+		edesc->pset[0].param.opt |= TCCHEN;
+
+		if (echan->slot[1] < 0) {
+			echan->slot[1] = edma_alloc_slot(echan->ecc,
+							 EDMA_SLOT_ANY);
+			if (echan->slot[1] < 0) {
+				kfree(edesc);
+				dev_err(dev, "%s: Failed to allocate slot\n",
+					__func__);
+				return NULL;
+			}
+		}
+		dest += pset_len;
+		src += pset_len;
+		pset_len = width = len % (SZ_32K - 1);
+
+		ret = edma_config_pset(chan, &edesc->pset[1], src, dest, 1,
+				       width, pset_len, DMA_MEM_TO_MEM);
+		if (ret < 0) {
+			kfree(edesc);
+			return NULL;
+		}
+
+		edesc->pset[1].param.opt |= ITCCHEN;
+		edesc->pset[1].param.opt |= TCINTEN;
+	}
 
 	return vchan_tx_prep(&echan->vchan, &edesc->vdesc, tx_flags);
 }
