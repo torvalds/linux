@@ -639,7 +639,7 @@ static int ad7192_probe(struct spi_device *spi)
 		voltage_uv = regulator_get_voltage(st->reg);
 	}
 
-	if (pdata && pdata->vref_mv)
+	if (pdata->vref_mv)
 		st->int_vref_mv = pdata->vref_mv;
 	else if (voltage_uv)
 		st->int_vref_mv = voltage_uv / 1000;
