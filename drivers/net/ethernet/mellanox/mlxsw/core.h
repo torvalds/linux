@@ -54,6 +54,7 @@
 	MODULE_ALIAS(MLXSW_MODULE_ALIAS_PREFIX kind)
 
 #define MLXSW_DEVICE_KIND_SWITCHX2 "switchx2"
+#define MLXSW_DEVICE_KIND_SPECTRUM "spectrum"
 
 struct mlxsw_core;
 struct mlxsw_driver;
