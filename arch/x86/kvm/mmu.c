@@ -818,20 +818,25 @@ static void unaccount_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 	kvm->arch.indirect_shadow_pages--;
 }
 
-static int has_wrprotected_page(struct kvm_vcpu *vcpu,
-				gfn_t gfn,
-				int level)
+static int __has_wrprotected_page(gfn_t gfn, int level,
+				  struct kvm_memory_slot *slot)
 {
-	struct kvm_memory_slot *slot;
 	struct kvm_lpage_info *linfo;
 
-	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
 	if (slot) {
 		linfo = lpage_info_slot(gfn, slot, level);
 		return linfo->write_count;
 	}
 
 	return 1;
+}
+
+static int has_wrprotected_page(struct kvm_vcpu *vcpu, gfn_t gfn, int level)
+{
+	struct kvm_memory_slot *slot;
+
+	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
+	return __has_wrprotected_page(gfn, level, slot);
 }
 
 static int host_mapping_level(struct kvm *kvm, gfn_t gfn)
@@ -896,7 +901,7 @@ static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn,
 	max_level = min(kvm_x86_ops->get_lpage_level(), host_level);
 
 	for (level = PT_DIRECTORY_LEVEL; level <= max_level; ++level)
-		if (has_wrprotected_page(vcpu, large_gfn, level))
+		if (__has_wrprotected_page(large_gfn, level, slot))
 			break;
 
 	return level - 1;
