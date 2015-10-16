@@ -517,6 +517,148 @@ static inline void mlxsw_reg_spms_vid_pack(char *payload, u16 vid,
 	mlxsw_reg_spms_state_set(payload, vid, state);
 }
 
+/* SPVID - Switch Port VID
+ * -----------------------
+ * The switch port VID configures the default VID for a port.
+ */
+#define MLXSW_REG_SPVID_ID 0x200E
+#define MLXSW_REG_SPVID_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_spvid = {
+	.id = MLXSW_REG_SPVID_ID,
+	.len = MLXSW_REG_SPVID_LEN,
+};
+
+/* reg_spvid_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spvid, local_port, 0x00, 16, 8);
+
+/* reg_spvid_sub_port
+ * Virtual port within the physical port.
+ * Should be set to 0 when virtual ports are not enabled on the port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spvid, sub_port, 0x00, 8, 8);
+
+/* reg_spvid_pvid
+ * Port default VID
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvid, pvid, 0x04, 0, 12);
+
+static inline void mlxsw_reg_spvid_pack(char *payload, u8 local_port, u16 pvid)
+{
+	MLXSW_REG_ZERO(spvid, payload);
+	mlxsw_reg_spvid_local_port_set(payload, local_port);
+	mlxsw_reg_spvid_pvid_set(payload, pvid);
+}
+
+/* SPVM - Switch Port VLAN Membership
+ * ----------------------------------
+ * The Switch Port VLAN Membership register configures the VLAN membership
+ * of a port in a VLAN denoted by VID. VLAN membership is managed per
+ * virtual port. The register can be used to add and remove VID(s) from a port.
+ */
+#define MLXSW_REG_SPVM_ID 0x200F
+#define MLXSW_REG_SPVM_BASE_LEN 0x04 /* base length, without records */
+#define MLXSW_REG_SPVM_REC_LEN 0x04 /* record length */
+#define MLXSW_REG_SPVM_REC_MAX_COUNT 256
+#define MLXSW_REG_SPVM_LEN (MLXSW_REG_SPVM_BASE_LEN +	\
+		    MLXSW_REG_SPVM_REC_LEN * MLXSW_REG_SPVM_REC_MAX_COUNT)
+
+static const struct mlxsw_reg_info mlxsw_reg_spvm = {
+	.id = MLXSW_REG_SPVM_ID,
+	.len = MLXSW_REG_SPVM_LEN,
+};
+
+/* reg_spvm_pt
+ * Priority tagged. If this bit is set, packets forwarded to the port with
+ * untagged VLAN membership (u bit is set) will be tagged with priority tag
+ * (VID=0)
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvm, pt, 0x00, 31, 1);
+
+/* reg_spvm_pte
+ * Priority Tagged Update Enable. On Write operations, if this bit is cleared,
+ * the pt bit will NOT be updated. To update the pt bit, pte must be set.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, spvm, pte, 0x00, 30, 1);
+
+/* reg_spvm_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spvm, local_port, 0x00, 16, 8);
+
+/* reg_spvm_sub_port
+ * Virtual port within the physical port.
+ * Should be set to 0 when virtual ports are not enabled on the port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spvm, sub_port, 0x00, 8, 8);
+
+/* reg_spvm_num_rec
+ * Number of records to update. Each record contains: i, e, u, vid.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, spvm, num_rec, 0x00, 0, 8);
+
+/* reg_spvm_rec_i
+ * Ingress membership in VLAN ID.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvm, rec_i,
+		     MLXSW_REG_SPVM_BASE_LEN, 14, 1,
+		     MLXSW_REG_SPVM_REC_LEN, 0, false);
+
+/* reg_spvm_rec_e
+ * Egress membership in VLAN ID.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvm, rec_e,
+		     MLXSW_REG_SPVM_BASE_LEN, 13, 1,
+		     MLXSW_REG_SPVM_REC_LEN, 0, false);
+
+/* reg_spvm_rec_u
+ * Untagged - port is an untagged member - egress transmission uses untagged
+ * frames on VID<n>
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvm, rec_u,
+		     MLXSW_REG_SPVM_BASE_LEN, 12, 1,
+		     MLXSW_REG_SPVM_REC_LEN, 0, false);
+
+/* reg_spvm_rec_vid
+ * Egress membership in VLAN ID.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvm, rec_vid,
+		     MLXSW_REG_SPVM_BASE_LEN, 0, 12,
+		     MLXSW_REG_SPVM_REC_LEN, 0, false);
+
+static inline void mlxsw_reg_spvm_pack(char *payload, u8 local_port,
+				       u16 vid_begin, u16 vid_end,
+				       bool is_member, bool untagged)
+{
+	int size = vid_end - vid_begin + 1;
+	int i;
+
+	MLXSW_REG_ZERO(spvm, payload);
+	mlxsw_reg_spvm_local_port_set(payload, local_port);
+	mlxsw_reg_spvm_num_rec_set(payload, size);
+
+	for (i = 0; i < size; i++) {
+		mlxsw_reg_spvm_rec_i_set(payload, i, is_member);
+		mlxsw_reg_spvm_rec_e_set(payload, i, is_member);
+		mlxsw_reg_spvm_rec_u_set(payload, i, untagged);
+		mlxsw_reg_spvm_rec_vid_set(payload, i, vid_begin + i);
+	}
+}
+
 /* SFGC - Switch Flooding Group Configuration
  * ------------------------------------------
  * The following register controls the association of flooding tables and MIDs
@@ -1570,6 +1712,10 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SFN";
 	case MLXSW_REG_SPMS_ID:
 		return "SPMS";
+	case MLXSW_REG_SPVID_ID:
+		return "SPVID";
+	case MLXSW_REG_SPVM_ID:
+		return "SPVM";
 	case MLXSW_REG_SFGC_ID:
 		return "SFGC";
 	case MLXSW_REG_SFTR_ID:
