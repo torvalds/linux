@@ -2730,9 +2730,10 @@ S:	Supported
 F:	drivers/net/ethernet/cisco/enic/
 
 CISCO VIC LOW LATENCY NIC DRIVER
-M:	Upinder Malhi <umalhi@cisco.com>
+M:	Christian Benvenuti <benve@cisco.com>
+M:	Dave Goodell <dgoodell@cisco.com>
 S:	Supported
-F:	drivers/infiniband/hw/usnic
+F:	drivers/infiniband/hw/usnic/
 
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
