@@ -106,6 +106,7 @@ DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
 MACHINE_END
 
 static const char *const omap36xx_boards_compat[] __initconst = {
+	"ti,omap3630",
 	"ti,omap36xx",
 	NULL,
 };
