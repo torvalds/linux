@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Hauke Mehrtens <hauke@hauke-m.de>
- * Copyright (C) 2015 Broadcom Corporatcommon ion
+ * Copyright (C) 2015 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
