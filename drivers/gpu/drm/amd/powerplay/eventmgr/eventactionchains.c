@@ -33,6 +33,7 @@ static const pem_event_action *initialize_event[] = {
 	enable_clock_power_gatings_tasks,
 	get_2d_performance_state_tasks,
 	set_performance_state_tasks,
+	initialize_thermal_controller_tasks,
 	conditionally_force_3d_performance_state_tasks,
 	process_vbios_eventinfo_tasks,
 	broadcast_power_policy_tasks,

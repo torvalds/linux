@@ -22,6 +22,8 @@
  */
 #include "eventmgr.h"
 #include "eventinit.h"
+#include "ppinterrupt.h"
+#include "hardwaremanager.h"
 
 void pem_init_feature_info(struct pp_eventmgr *eventmgr)
 {
@@ -145,12 +147,25 @@ void pem_init_feature_info(struct pp_eventmgr *eventmgr)
 	eventmgr->features[PP_Feature_ViPG].enabled = false;
 }
 
+static int thermal_interrupt_callback(void *private_data,
+				      unsigned src_id, const uint32_t *iv_entry)
+{
+	/* TO DO hanle PEM_Event_ThermalNotification (struct pp_eventmgr *)private_data*/
+	printk("current thermal is out of range \n");
+	return 0;
+}
+
 int pem_register_interrupts(struct pp_eventmgr *eventmgr)
 {
 	int result = 0;
+	struct pp_interrupt_registration_info info;
+
+	info.call_back = thermal_interrupt_callback;
+	info.context = eventmgr;
+
+	result = phm_register_thermal_interrupt(eventmgr->hwmgr, &info);
 
 	/* TODO:
-	 * 1. Register thermal events interrupt
 	 * 2. Register CTF event interrupt
 	 * 3. Register for vbios events interrupt
 	 * 4. Register External Throttle Interrupt

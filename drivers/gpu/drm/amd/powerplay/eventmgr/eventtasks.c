@@ -32,6 +32,9 @@
 #include "amd_powerplay.h"
 #include "psm.h"
 
+#define TEMP_RANGE_MIN (90 * 1000)
+#define TEMP_RANGE_MAX (120 * 1000)
+
 int pem_task_update_allowed_performance_levels(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
 
@@ -103,8 +106,6 @@ int pem_task_unregister_interrupts(struct pp_eventmgr *eventmgr, struct pem_even
 {
 	return pem_unregister_interrupts(eventmgr);
 }
-
-
 
 int pem_task_get_boot_state_id(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
@@ -415,3 +416,16 @@ restart_search:
 	return -1;
 }
 
+int pem_task_initialize_thermal_controller(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
+{
+	struct PP_TemperatureRange range;
+	range.max = TEMP_RANGE_MAX;
+	range.min = TEMP_RANGE_MIN;
+
+	return phm_start_thermal_controller(eventmgr->hwmgr, &range);
+}
+
+int pem_task_uninitialize_thermal_controller(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
+{
+	return phm_stop_thermal_controller(eventmgr->hwmgr);
+}

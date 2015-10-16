@@ -81,5 +81,8 @@ int pem_task_conditionally_force_3d_performance_state(struct pp_eventmgr *eventm
 int pem_task_get_2D_performance_state_id(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data);
 int pem_task_create_user_performance_state(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data);
 int pem_task_update_allowed_performance_levels(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data);
+/*thermal */
+int pem_task_initialize_thermal_controller(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data);
+int pem_task_uninitialize_thermal_controller(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data);
 
 #endif /* _EVENT_TASKS_H_ */

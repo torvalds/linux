@@ -94,5 +94,6 @@ extern const pem_event_action enable_stutter_mode_tasks[];
 extern const pem_event_action enable_disable_bapm_tasks[];
 extern const pem_event_action reset_boot_state_tasks[];
 extern const pem_event_action create_new_user_performance_state_tasks[];
-
+extern const pem_event_action initialize_thermal_controller_tasks[];
+extern const pem_event_action uninitialize_thermal_controller_tasks[];
 #endif /* _EVENT_SUB_CHAINS_H_ */

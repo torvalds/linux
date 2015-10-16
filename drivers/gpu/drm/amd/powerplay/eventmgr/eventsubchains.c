@@ -393,3 +393,13 @@ const pem_event_action create_new_user_performance_state_tasks[] = {
 	pem_task_create_user_performance_state,
 	NULL
 };
+
+const pem_event_action initialize_thermal_controller_tasks[] = {
+	pem_task_initialize_thermal_controller,
+	NULL
+};
+
+const pem_event_action uninitialize_thermal_controller_tasks[] = {
+	pem_task_uninitialize_thermal_controller,
+	NULL
+};
