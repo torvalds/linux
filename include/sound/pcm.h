@@ -1111,10 +1111,16 @@ static inline void snd_pcm_set_runtime_buffer(struct snd_pcm_substream *substrea
  *  Timer interface
  */
 
+#ifdef CONFIG_SND_PCM_TIMER
 void snd_pcm_timer_resolution_change(struct snd_pcm_substream *substream);
 void snd_pcm_timer_init(struct snd_pcm_substream *substream);
 void snd_pcm_timer_done(struct snd_pcm_substream *substream);
-
+#else
+static inline void
+snd_pcm_timer_resolution_change(struct snd_pcm_substream *substream) {}
+static inline void snd_pcm_timer_init(struct snd_pcm_substream *substream) {}
+static inline void snd_pcm_timer_done(struct snd_pcm_substream *substream) {}
+#endif
 /**
  * snd_pcm_gettime - Fill the timespec depending on the timestamp mode
  * @runtime: PCM runtime instance

@@ -2664,6 +2664,15 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	USB_DEVICE(0x1235, 0x000a),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "Novation", */
+		/* .product_name = "Nocturn", */
+		.ifnum = 0,
+		.type = QUIRK_MIDI_RAW_BYTES
+	}
+},
+{
 	USB_DEVICE(0x1235, 0x000e),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "Novation", */
