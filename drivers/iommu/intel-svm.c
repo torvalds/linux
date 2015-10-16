@@ -147,20 +147,27 @@ int intel_svm_finish_prq(struct intel_iommu *iommu)
 }
 
 static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_dev *sdev,
-				       unsigned long address, int pages, int ih)
+				       unsigned long address, int pages, int ih, int gl)
 {
 	struct qi_desc desc;
 	int mask = ilog2(__roundup_pow_of_two(pages));
 
 	if (pages == -1 || !cap_pgsel_inv(svm->iommu->cap) ||
 	    mask > cap_max_amask_val(svm->iommu->cap)) {
-		desc.low = QI_EIOTLB_PASID(svm->pasid) | QI_EIOTLB_DID(sdev->did) |
-			QI_EIOTLB_GRAN(QI_GRAN_NONG_PASID) | QI_EIOTLB_TYPE;
+		/* For global kernel pages we have to flush them in *all* PASIDs
+		 * because that's the only option the hardware gives us. Despite
+		 * the fact that they are actually only accessible through one. */
+		if (gl)
+			desc.low = QI_EIOTLB_PASID(svm->pasid) | QI_EIOTLB_DID(sdev->did) |
+				QI_EIOTLB_GRAN(QI_GRAN_ALL_ALL) | QI_EIOTLB_TYPE;
+		else
+			desc.low = QI_EIOTLB_PASID(svm->pasid) | QI_EIOTLB_DID(sdev->did) |
+				QI_EIOTLB_GRAN(QI_GRAN_NONG_PASID) | QI_EIOTLB_TYPE;
 		desc.high = 0;
 	} else {
 		desc.low = QI_EIOTLB_PASID(svm->pasid) | QI_EIOTLB_DID(sdev->did) |
 			QI_EIOTLB_GRAN(QI_GRAN_PSI_PASID) | QI_EIOTLB_TYPE;
-		desc.high = QI_EIOTLB_ADDR(address) | QI_EIOTLB_GL(1) |
+		desc.high = QI_EIOTLB_ADDR(address) | QI_EIOTLB_GL(gl) |
 			QI_EIOTLB_IH(ih) | QI_EIOTLB_AM(mask);
 	}
 
@@ -191,7 +198,7 @@ static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_d
 }
 
 static void intel_flush_svm_range(struct intel_svm *svm, unsigned long address,
-				  int pages, int ih)
+				  int pages, int ih, int gl)
 {
 	struct intel_svm_dev *sdev;
 
@@ -202,7 +209,7 @@ static void intel_flush_svm_range(struct intel_svm *svm, unsigned long address,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdev, &svm->devs, list)
-		intel_flush_svm_range_dev(svm, sdev, address, pages, ih);
+		intel_flush_svm_range_dev(svm, sdev, address, pages, ih, gl);
 	rcu_read_unlock();
 }
 
@@ -211,7 +218,7 @@ static void intel_change_pte(struct mmu_notifier *mn, struct mm_struct *mm,
 {
 	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
 
-	intel_flush_svm_range(svm, address, 1, 1);
+	intel_flush_svm_range(svm, address, 1, 1, 0);
 }
 
 static void intel_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
@@ -219,7 +226,7 @@ static void intel_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
 {
 	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
 
-	intel_flush_svm_range(svm, address, 1, 1);
+	intel_flush_svm_range(svm, address, 1, 1, 0);
 }
 
 /* Pages have been freed at this point */
@@ -230,7 +237,7 @@ static void intel_invalidate_range(struct mmu_notifier *mn,
 	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
 
 	intel_flush_svm_range(svm, start,
-			      (end - start + PAGE_SIZE - 1) >> VTD_PAGE_SHIFT , 0);
+			      (end - start + PAGE_SIZE - 1) >> VTD_PAGE_SHIFT, 0, 0);
 }
 
 
@@ -423,7 +430,7 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 				 * large and has to be physically contiguous. So it's
 				 * hard to be as defensive as we might like. */
 				intel_flush_pasid_dev(svm, sdev);
-				intel_flush_svm_range_dev(svm, sdev, 0, -1, 0);
+				intel_flush_svm_range_dev(svm, sdev, 0, -1, 0, !svm->mm);
 				kfree_rcu(sdev, rcu);
 
 				if (list_empty(&svm->devs)) {
