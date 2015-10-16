@@ -1315,16 +1315,15 @@ static void hns_nic_reset_subtask(struct hns_nic_priv *priv)
 		return;
 
 	hns_nic_dump(priv);
-	netdev_err(priv->netdev, "Reset %s port\n",
-		   (type == HNAE_PORT_DEBUG ? "debug" : "business"));
+	netdev_info(priv->netdev, "Reset %s port\n",
+		    (type == HNAE_PORT_DEBUG ? "debug" : "business"));
 
 	rtnl_lock();
-	if (type == HNAE_PORT_DEBUG) {
+	/* put off any impending NetWatchDogTimeout */
+	priv->netdev->trans_start = jiffies;
+
+	if (type == HNAE_PORT_DEBUG)
 		hns_nic_net_reinit(priv->netdev);
-	} else {
-		hns_nic_net_down(priv->netdev);
-		hns_nic_net_reset(priv->netdev);
-	}
 	rtnl_unlock();
 }
 
