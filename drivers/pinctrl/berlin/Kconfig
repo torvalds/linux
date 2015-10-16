@@ -17,4 +17,9 @@ config PINCTRL_BERLIN_BG2Q
 	bool
 	select PINCTRL_BERLIN
 
+config PINCTRL_BERLIN_BG4CT
+	bool "Marvell berlin4ct pin controller driver"
+	depends on OF
+	select PINCTRL_BERLIN
+
 endif
