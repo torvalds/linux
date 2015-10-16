@@ -225,6 +225,16 @@
 			};
 		};
 
+		soc_pinctrl: pin-controller@ea8000 {
+			compatible = "marvell,berlin4ct-soc-pinctrl";
+			reg = <0xea8000 0x14>;
+		};
+
+		avio_pinctrl: pin-controller@ea8400 {
+			compatible = "marvell,berlin4ct-avio-pinctrl";
+			reg = <0xea8400 0x8>;
+		};
+
 		apb@fc0000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -279,6 +289,11 @@
 				reg-shift = <2>;
 				status = "disabled";
 			};
+		};
+
+		system_pinctrl: pin-controller@fe2200 {
+			compatible = "marvell,berlin4ct-system-pinctrl";
+			reg = <0xfe2200 0xc>;
 		};
 	};
 };
