@@ -870,9 +870,15 @@ static bool mapping_level_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t large_gfn)
 	return !gfn_to_memslot_dirty_bitmap(vcpu, large_gfn, true);
 }
 
-static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
+static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn,
+			 bool *force_pt_level)
 {
 	int host_level, level, max_level;
+
+	if (likely(!*force_pt_level))
+		*force_pt_level = mapping_level_dirty_bitmap(vcpu, large_gfn);
+	if (unlikely(*force_pt_level))
+		return PT_PAGE_TABLE_LEVEL;
 
 	host_level = host_mapping_level(vcpu->kvm, large_gfn);
 
@@ -2962,14 +2968,13 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, u32 error_code,
 {
 	int r;
 	int level;
-	bool force_pt_level;
+	bool force_pt_level = false;
 	pfn_t pfn;
 	unsigned long mmu_seq;
 	bool map_writable, write = error_code & PFERR_WRITE_MASK;
 
-	force_pt_level = mapping_level_dirty_bitmap(vcpu, gfn);
+	level = mapping_level(vcpu, gfn, &force_pt_level);
 	if (likely(!force_pt_level)) {
-		level = mapping_level(vcpu, gfn);
 		/*
 		 * This path builds a PAE pagetable - so we can map
 		 * 2mb pages at maximum. Therefore check if the level
@@ -2979,8 +2984,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, u32 error_code,
 			level = PT_DIRECTORY_LEVEL;
 
 		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
-	} else
-		level = PT_PAGE_TABLE_LEVEL;
+	}
 
 	if (fast_page_fault(vcpu, v, level, error_code))
 		return 0;
@@ -3495,20 +3499,15 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	if (r)
 		return r;
 
-	if (mapping_level_dirty_bitmap(vcpu, gfn) ||
-	    !check_hugepage_cache_consistency(vcpu, gfn, PT_DIRECTORY_LEVEL))
-		force_pt_level = true;
-	else
-		force_pt_level = false;
-
+	force_pt_level = !check_hugepage_cache_consistency(vcpu, gfn,
+							   PT_DIRECTORY_LEVEL);
+	level = mapping_level(vcpu, gfn, &force_pt_level);
 	if (likely(!force_pt_level)) {
-		level = mapping_level(vcpu, gfn);
 		if (level > PT_DIRECTORY_LEVEL &&
 		    !check_hugepage_cache_consistency(vcpu, gfn, level))
 			level = PT_DIRECTORY_LEVEL;
 		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
-	} else
-		level = PT_PAGE_TABLE_LEVEL;
+	}
 
 	if (fast_page_fault(vcpu, gpa, level, error_code))
 		return 0;
