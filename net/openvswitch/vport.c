@@ -444,6 +444,15 @@ int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 
 	OVS_CB(skb)->input_vport = vport;
 	OVS_CB(skb)->mru = 0;
+	if (unlikely(dev_net(skb->dev) != ovs_dp_get_net(vport->dp))) {
+		u32 mark;
+
+		mark = skb->mark;
+		skb_scrub_packet(skb, true);
+		skb->mark = mark;
+		tun_info = NULL;
+	}
+
 	/* Extract flow from 'skb' into 'key'. */
 	error = ovs_flow_key_extract(tun_info, skb, &key);
 	if (unlikely(error)) {
