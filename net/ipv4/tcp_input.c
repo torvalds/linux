@@ -6236,7 +6236,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	}
 	if (fastopen_sk) {
 		af_ops->send_synack(fastopen_sk, dst, &fl, req,
-				    skb_get_queue_mapping(skb), &foc, false);
+				    &foc, false);
 		/* Add the child socket directly into the accept queue */
 		inet_csk_reqsk_queue_add(sk, req, fastopen_sk);
 		sk->sk_data_ready(sk);
@@ -6247,7 +6247,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		if (!want_cookie)
 			inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 		af_ops->send_synack(sk, dst, &fl, req,
-				    skb_get_queue_mapping(skb), &foc, !want_cookie);
+				    &foc, !want_cookie);
 		if (want_cookie)
 			goto drop_and_free;
 	}
