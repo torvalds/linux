@@ -1921,31 +1921,23 @@ static int edma_xbar_event_map(struct device *dev, struct edma_soc_info *pdata,
 	return 0;
 }
 
-static int edma_of_parse_dt(struct device *dev, struct edma_soc_info *pdata)
-{
-	int ret = 0;
-	struct property *prop;
-	size_t sz;
-
-	prop = of_find_property(dev->of_node, "ti,edma-xbar-event-map", &sz);
-	if (prop)
-		ret = edma_xbar_event_map(dev, pdata, sz);
-
-	return ret;
-}
-
 static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev)
 {
 	struct edma_soc_info *info;
+	struct property *prop;
+	size_t sz;
 	int ret;
 
 	info = devm_kzalloc(dev, sizeof(struct edma_soc_info), GFP_KERNEL);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
-	ret = edma_of_parse_dt(dev, info);
-	if (ret)
-		return ERR_PTR(ret);
+	prop = of_find_property(dev->of_node, "ti,edma-xbar-event-map", &sz);
+	if (prop) {
+		ret = edma_xbar_event_map(dev, info, sz);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	return info;
 }
