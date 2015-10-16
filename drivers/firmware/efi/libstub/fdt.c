@@ -253,7 +253,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 			sys_table->boottime->free_pool(memory_map);
 			new_fdt_size += EFI_PAGE_SIZE;
 		} else {
-			pr_efi_err(sys_table, "Unable to constuct new device tree.\n");
+			pr_efi_err(sys_table, "Unable to construct new device tree.\n");
 			goto fail_free_mmap;
 		}
 	}
