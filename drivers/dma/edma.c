@@ -1926,12 +1926,6 @@ static int edma_of_parse_dt(struct device *dev, struct edma_soc_info *pdata)
 	int ret = 0;
 	struct property *prop;
 	size_t sz;
-	struct edma_rsv_info *rsv_info;
-
-	rsv_info = devm_kzalloc(dev, sizeof(struct edma_rsv_info), GFP_KERNEL);
-	if (!rsv_info)
-		return -ENOMEM;
-	pdata->rsv = rsv_info;
 
 	prop = of_find_property(dev->of_node, "ti,edma-xbar-event-map", &sz);
 	if (prop)
