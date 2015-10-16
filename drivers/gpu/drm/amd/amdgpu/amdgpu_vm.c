@@ -90,11 +90,9 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 	struct amdgpu_bo_list_entry *list;
 	unsigned i, idx;
 
-	mutex_lock(&vm->mutex);
 	list = drm_malloc_ab(vm->max_pde_used + 2,
 			     sizeof(struct amdgpu_bo_list_entry));
 	if (!list) {
-		mutex_unlock(&vm->mutex);
 		return NULL;
 	}
 
@@ -119,7 +117,6 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 		list[idx].tv.shared = true;
 		list_add(&list[idx++].tv.head, head);
 	}
-	mutex_unlock(&vm->mutex);
 
 	return list;
 }
@@ -970,9 +967,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&bo_va->invalids);
 	INIT_LIST_HEAD(&bo_va->vm_status);
 
-	mutex_lock(&vm->mutex);
 	list_add_tail(&bo_va->bo_list, &bo->va);
-	mutex_unlock(&vm->mutex);
 
 	return bo_va;
 }
@@ -1025,8 +1020,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&vm->mutex);
-
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
 
@@ -1040,14 +1033,14 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 			tmp->it.start, tmp->it.last + 1);
 		amdgpu_bo_unreserve(bo_va->bo);
 		r = -EINVAL;
-		goto error_unlock;
+		goto error;
 	}
 
 	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping) {
 		amdgpu_bo_unreserve(bo_va->bo);
 		r = -ENOMEM;
-		goto error_unlock;
+		goto error;
 	}
 
 	INIT_LIST_HEAD(&mapping->list);
@@ -1079,9 +1072,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		if (vm->page_tables[pt_idx].bo)
 			continue;
 
-		/* drop mutex to allocate and clear page table */
-		mutex_unlock(&vm->mutex);
-
 		ww_mutex_lock(&resv->lock, NULL);
 		r = amdgpu_bo_create(adev, AMDGPU_VM_PTE_COUNT * 8,
 				     AMDGPU_GPU_PAGE_SIZE, true,
@@ -1098,32 +1088,19 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 			goto error_free;
 		}
 
-		/* aquire mutex again */
-		mutex_lock(&vm->mutex);
-		if (vm->page_tables[pt_idx].bo) {
-			/* someone else allocated the pt in the meantime */
-			mutex_unlock(&vm->mutex);
-			amdgpu_bo_unref(&pt);
-			mutex_lock(&vm->mutex);
-			continue;
-		}
-
 		vm->page_tables[pt_idx].addr = 0;
 		vm->page_tables[pt_idx].bo = pt;
 	}
 
-	mutex_unlock(&vm->mutex);
 	return 0;
 
 error_free:
-	mutex_lock(&vm->mutex);
 	list_del(&mapping->list);
 	interval_tree_remove(&mapping->it, &vm->va);
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
 	kfree(mapping);
 
-error_unlock:
-	mutex_unlock(&vm->mutex);
+error:
 	return r;
 }
 
@@ -1168,7 +1145,6 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		}
 	}
 
-	mutex_lock(&vm->mutex);
 	list_del(&mapping->list);
 	interval_tree_remove(&mapping->it, &vm->va);
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
@@ -1177,7 +1153,6 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		list_add(&mapping->list, &vm->freed);
 	else
 		kfree(mapping);
-	mutex_unlock(&vm->mutex);
 	amdgpu_bo_unreserve(bo_va->bo);
 
 	return 0;
@@ -1201,8 +1176,6 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 
 	list_del(&bo_va->bo_list);
 
-	mutex_lock(&vm->mutex);
-
 	spin_lock(&vm->status_lock);
 	list_del(&bo_va->vm_status);
 	spin_unlock(&vm->status_lock);
@@ -1221,8 +1194,6 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 
 	fence_put(bo_va->last_pt_update);
 	kfree(bo_va);
-
-	mutex_unlock(&vm->mutex);
 }
 
 /**

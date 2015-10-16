@@ -608,7 +608,6 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 		}
 	}
 
-	mutex_lock(&vm->mutex);
 	r = amdgpu_bo_vm_update_pte(parser, vm);
 	if (r) {
 		goto out;
@@ -619,7 +618,6 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 				       parser->filp);
 
 out:
-	mutex_unlock(&vm->mutex);
 	return r;
 }
 
@@ -827,6 +825,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
 	union drm_amdgpu_cs *cs = data;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
+	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_cs_parser *parser;
 	bool reserved_buffers = false;
 	int i, r;
@@ -844,7 +844,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		r = amdgpu_cs_handle_lockup(adev, r);
 		return r;
 	}
-
+	mutex_lock(&vm->mutex);
 	r = amdgpu_cs_parser_relocs(parser);
 	if (r == -ENOMEM)
 		DRM_ERROR("Not enough memory for command submission!\n");
@@ -911,12 +911,14 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 		mutex_unlock(&job->job_lock);
 		amdgpu_cs_parser_fini_late(parser);
+		mutex_unlock(&vm->mutex);
 		return 0;
 	}
 
 	cs->out.handle = parser->ibs[parser->num_ibs - 1].sequence;
 out:
 	amdgpu_cs_parser_fini(parser, r, reserved_buffers);
+	mutex_unlock(&vm->mutex);
 	r = amdgpu_cs_handle_lockup(adev, r);
 	return r;
 }
