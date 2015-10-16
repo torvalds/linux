@@ -114,9 +114,12 @@ static void ci_handle_id_switch(struct ci_hdrc *ci)
 			ci_role(ci)->name, ci->roles[role]->name);
 
 		ci_role_stop(ci);
-		/* wait vbus lower than OTGSC_BSV */
-		hw_wait_reg(ci, OP_OTGSC, OTGSC_BSV, 0,
-				CI_VBUS_STABLE_TIMEOUT_MS);
+
+		if (role == CI_ROLE_GADGET)
+			/* wait vbus lower than OTGSC_BSV */
+			hw_wait_reg(ci, OP_OTGSC, OTGSC_BSV, 0,
+					CI_VBUS_STABLE_TIMEOUT_MS);
+
 		ci_role_start(ci, role);
 	}
 }
