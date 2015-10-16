@@ -168,9 +168,9 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	struct edt_ft5x06_ts_data *tsdata = dev_id;
 	struct device *dev = &tsdata->client->dev;
 	u8 cmd;
-	u8 rdbuf[29];
+	u8 rdbuf[31];
 	int i, type, x, y, id;
-	int offset, tplen, datalen;
+	int offset, tplen, datalen, crclen;
 	int error;
 
 	switch (tsdata->version) {
@@ -178,14 +178,14 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		cmd = 0xf9; /* tell the controller to send touch data */
 		offset = 5; /* where the actual touch data starts */
 		tplen = 4;  /* data comes in so called frames */
-		datalen = 26; /* how much bytes to listen for */
+		crclen = 1; /* length of the crc data */
 		break;
 
 	case M09:
 		cmd = 0x02;
 		offset = 1;
 		tplen = 6;
-		datalen = 29;
+		crclen = 0;
 		break;
 
 	default:
@@ -193,6 +193,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	}
 
 	memset(rdbuf, 0, sizeof(rdbuf));
+	datalen = tplen * MAX_SUPPORT_POINTS + offset + crclen;
 
 	error = edt_ft5x06_ts_readwrite(tsdata->client,
 					sizeof(cmd), &cmd,
