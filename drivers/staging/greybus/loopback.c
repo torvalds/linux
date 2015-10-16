@@ -107,11 +107,11 @@ static ssize_t field##_##pfx##_show(struct device *dev,			\
 			    struct device_attribute *attr,		\
 			    char *buf)					\
 {									\
-	struct gb_connection *connection;				\
+	struct gb_bundle *bundle;					\
 	struct gb_loopback *gb;						\
 	if (conn) {							\
-		connection = to_gb_connection(dev);			\
-		gb = connection->private;				\
+		bundle = to_gb_bundle(dev);				\
+		gb = bundle->private;					\
 		return sprintf(buf, "%u\n", gb->field);			\
 	} else {							\
 		return sprintf(buf, "%u\n", gb_dev.field);		\
@@ -124,11 +124,11 @@ static ssize_t name##_##field##_##pfx##_show(struct device *dev,	\
 			    struct device_attribute *attr,		\
 			    char *buf)					\
 {									\
-	struct gb_connection *connection;				\
+	struct gb_bundle *bundle;					\
 	struct gb_loopback *gb;						\
 	if (conn) {							\
-		connection = to_gb_connection(dev);			\
-		gb = connection->private;				\
+		bundle = to_gb_bundle(dev);				\
+		gb = bundle->private;					\
 		return sprintf(buf, "%"#type"\n", gb->name.field);	\
 	} else {							\
 		return sprintf(buf, "%"#type"\n", gb_dev.name.field);	\
@@ -142,13 +142,13 @@ static ssize_t name##_avg_##pfx##_show(struct device *dev,		\
 			    char *buf)					\
 {									\
 	struct gb_loopback_stats *stats;				\
-	struct gb_connection *connection;				\
+	struct gb_bundle *bundle;					\
 	struct gb_loopback *gb;						\
 	u64 avg;							\
 	u32 count, rem;							\
 	if (conn) {							\
-		connection = to_gb_connection(dev);			\
-		gb = connection->private;				\
+		bundle = to_gb_bundle(dev);				\
+		gb = bundle->private;					\
 		stats = &gb->name;					\
 	} else {							\
 		stats = &gb_dev.name;					\
@@ -170,8 +170,8 @@ static ssize_t field##_show(struct device *dev,				\
 			    struct device_attribute *attr,		\
 			    char *buf)					\
 {									\
-	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb = connection->private;			\
+	struct gb_bundle *bundle = to_gb_bundle(dev);			\
+	struct gb_loopback *gb = bundle->private;			\
 	return sprintf(buf, "%"#type"\n", gb->field);			\
 }									\
 static ssize_t field##_store(struct device *dev,			\
@@ -180,13 +180,13 @@ static ssize_t field##_store(struct device *dev,			\
 			    size_t len)					\
 {									\
 	int ret;							\
-	struct gb_connection *connection = to_gb_connection(dev);	\
+	struct gb_bundle *bundle = to_gb_bundle(dev);			\
 	mutex_lock(&gb_dev.mutex);					\
 	ret = sscanf(buf, "%"#type, &gb->field);			\
 	if (ret != 1)							\
 		len = -EINVAL;						\
 	else								\
-		gb_loopback_check_attr(connection);			\
+		gb_loopback_check_attr(&gb_dev, bundle);		\
 	mutex_unlock(&gb_dev.mutex);					\
 	return len;							\
 }									\
@@ -214,13 +214,13 @@ static ssize_t field##_store(struct device *dev,			\
 			    size_t len)					\
 {									\
 	int ret;							\
-	struct gb_connection *connection = to_gb_connection(dev);	\
+	struct gb_bundle *bundle = to_gb_bundle(dev);			\
 	mutex_lock(&gb_dev.mutex);					\
 	ret = sscanf(buf, "%"#type, &gb_dev.field);			\
 	if (ret != 1)							\
 		len = -EINVAL;						\
 	else								\
-		gb_loopback_check_attr(&gb_dev, connection);		\
+		gb_loopback_check_attr(&gb_dev, bundle);		\
 	mutex_unlock(&gb_dev.mutex);					\
 	return len;							\
 }									\
@@ -228,7 +228,7 @@ static DEVICE_ATTR_RW(field)
 
 static void gb_loopback_reset_stats(struct gb_loopback_device *gb_dev);
 static void gb_loopback_check_attr(struct gb_loopback_device *gb_dev,
-				   struct gb_connection *connection)
+				   struct gb_bundle *bundle)
 {
 	struct gb_loopback *gb;
 
@@ -244,7 +244,7 @@ static void gb_loopback_check_attr(struct gb_loopback_device *gb_dev,
 		gb->iteration_count = 0;
 		gb->error = 0;
 		if (kfifo_depth < gb_dev->iteration_max) {
-			dev_warn(&connection->dev,
+			dev_warn(&bundle->dev,
 				 "cannot log bytes %u kfifo_depth %u\n",
 				 gb_dev->iteration_max, kfifo_depth);
 		}
@@ -414,14 +414,14 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 
 	ret = gb_operation_request_send_sync(operation);
 	if (ret) {
-		dev_err(&gb->connection->dev,
+		dev_err(&gb->connection->bundle->dev,
 			"synchronous operation failed: %d\n", ret);
 	} else {
 		if (response_size == operation->response->payload_size) {
 			memcpy(response, operation->response->payload,
 			       response_size);
 		} else {
-			dev_err(&gb->connection->dev,
+			dev_err(&gb->connection->bundle->dev,
 				"response size %zu expected %d\n",
 				operation->response->payload_size,
 				response_size);
@@ -482,7 +482,8 @@ static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 		goto gb_error;
 
 	if (memcmp(request->data, response->data, len)) {
-		dev_err(&gb->connection->dev, "Loopback Data doesn't match\n");
+		dev_err(&gb->connection->bundle->dev,
+			"Loopback Data doesn't match\n");
 		retval = -EREMOTEIO;
 	}
 	gb->apbridge_latency_ts = (u32)__le32_to_cpu(response->reserved0);
@@ -506,21 +507,20 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 	struct gb_connection *connection = operation->connection;
 	struct gb_loopback_transfer_request *request;
 	struct gb_loopback_transfer_response *response;
+	struct device *dev = &connection->bundle->dev;
 	size_t len;
 
 	/* By convention, the AP initiates the version operation */
 	switch (type) {
 	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
-		dev_err(&connection->dev,
-			"module-initiated version operation\n");
+		dev_err(dev, "module-initiated version operation\n");
 		return -EINVAL;
 	case GB_LOOPBACK_TYPE_PING:
 	case GB_LOOPBACK_TYPE_SINK:
 		return 0;
 	case GB_LOOPBACK_TYPE_TRANSFER:
 		if (operation->request->payload_size < sizeof(*request)) {
-			dev_err(&connection->dev,
-				"transfer request too small (%zu < %zu)\n",
+			dev_err(dev, "transfer request too small (%zu < %zu)\n",
 				operation->request->payload_size,
 				sizeof(*request));
 			return -EINVAL;	/* -EMSGSIZE */
@@ -528,8 +528,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 		request = operation->request->payload;
 		len = le32_to_cpu(request->len);
 		if (len > gb_dev.size_max) {
-			dev_err(&connection->dev,
-				"transfer request too large (%zu > %zu)\n",
+			dev_err(dev, "transfer request too large (%zu > %zu)\n",
 				len, gb_dev.size_max);
 			return -EINVAL;
 		}
@@ -537,8 +536,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 		if (len) {
 			if (!gb_operation_response_alloc(operation, len,
 							 GFP_KERNEL)) {
-				dev_err(&connection->dev,
-					"error allocating response\n");
+				dev_err(dev, "error allocating response\n");
 				return -ENOMEM;
 			}
 			response = operation->response->payload;
@@ -547,8 +545,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 		}
 		return 0;
 	default:
-		dev_err(&connection->dev,
-			"unsupported request: %hhu\n", type);
+		dev_err(dev, "unsupported request: %hhu\n", type);
 		return -EINVAL;
 	}
 }
@@ -755,8 +752,8 @@ static int gb_loopback_fn(void *data)
 			/* All threads achieved at least low_count iterations */
 			if (gb_dev.iteration_count < low_count) {
 				gb_dev.iteration_count = low_count;
-				sysfs_notify(&gb->connection->dev.kobj, NULL,
-					     "iteration_count");
+				sysfs_notify(&gb->connection->bundle->dev.kobj,
+					     NULL, "iteration_count");
 			}
 			/* Optionally terminate */
 			if (gb_dev.iteration_count == gb_dev.iteration_max) {
@@ -954,12 +951,12 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 
 	/* Create per-connection sysfs and debugfs data-points */
 	snprintf(name, sizeof(name), "raw_latency_%s",
-		 dev_name(&connection->dev));
+		 dev_name(&connection->bundle->dev));
 	gb->file = debugfs_create_file(name, S_IFREG | S_IRUGO, gb_dev.root, gb,
 				       &gb_loopback_debugfs_latency_ops);
 	gb->connection = connection;
-	connection->private = gb;
-	retval = sysfs_create_groups(&connection->dev.kobj,
+	connection->bundle->private = gb;
+	retval = sysfs_create_groups(&connection->bundle->dev.kobj,
 				     loopback_con_groups);
 	if (retval)
 		goto out_sysfs_dev;
@@ -995,14 +992,14 @@ out_kfifo1:
 out_kfifo0:
 	kfifo_free(&gb->kfifo_lat);
 out_sysfs_conn:
-	sysfs_remove_groups(&connection->dev.kobj, loopback_con_groups);
+	sysfs_remove_groups(&connection->bundle->dev.kobj, loopback_con_groups);
 out_sysfs_dev:
 	if (!gb_dev.count) {
 		sysfs_remove_groups(kobj, loopback_dev_groups);
 		debugfs_remove(gb_dev.file);
 	}
 	debugfs_remove(gb->file);
-	connection->private = NULL;
+	connection->bundle->private = NULL;
 out_sysfs:
 	mutex_unlock(&gb_dev.mutex);
 	kfree(gb);
@@ -1012,7 +1009,7 @@ out_sysfs:
 
 static void gb_loopback_connection_exit(struct gb_connection *connection)
 {
-	struct gb_loopback *gb = connection->private;
+	struct gb_loopback *gb = connection->bundle->private;
 	struct kobject *kobj = &connection->hd->endo->dev.kobj;
 
 	if (!IS_ERR_OR_NULL(gb->task))
@@ -1020,7 +1017,7 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 
 	mutex_lock(&gb_dev.mutex);
 
-	connection->private = NULL;
+	connection->bundle->private = NULL;
 	kfifo_free(&gb->kfifo_lat);
 	kfifo_free(&gb->kfifo_ts);
 	gb_connection_latency_tag_disable(connection);
@@ -1029,7 +1026,8 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 		sysfs_remove_groups(kobj, loopback_dev_groups);
 		debugfs_remove(gb_dev.file);
 	}
-	sysfs_remove_groups(&connection->dev.kobj, loopback_con_groups);
+	sysfs_remove_groups(&connection->bundle->dev.kobj,
+			    loopback_con_groups);
 	debugfs_remove(gb->file);
 	list_del(&gb->entry);
 	mutex_unlock(&gb_dev.mutex);
