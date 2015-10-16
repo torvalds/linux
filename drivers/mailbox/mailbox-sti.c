@@ -64,7 +64,7 @@ struct sti_mbox_device {
 };
 
 /**
- * STi Mailbox platform specfic configuration
+ * STi Mailbox platform specific configuration
  *
  * @num_inst:	Maximum number of instances in one HW Mailbox
  * @num_chan:	Maximum number of channel per instance

@@ -22,7 +22,7 @@
 #define MBOX_MAX_SIG_LEN	8
 #define MBOX_MAX_MSG_LEN	128
 #define MBOX_BYTES_PER_LINE	16
-#define MBOX_HEXDUMP_LINE_LEN 	((MBOX_BYTES_PER_LINE * 4) + 2)
+#define MBOX_HEXDUMP_LINE_LEN	((MBOX_BYTES_PER_LINE * 4) + 2)
 #define MBOX_HEXDUMP_MAX_LEN	(MBOX_HEXDUMP_LINE_LEN *		\
 				 (MBOX_MAX_MSG_LEN / MBOX_BYTES_PER_LINE))
 
@@ -30,7 +30,7 @@ static struct dentry *root_debugfs_dir;
 
 struct mbox_test_device {
 	struct device		*dev;
-	void __iomem		*mmio;
+	void			*mmio;
 	struct mbox_chan	*tx_channel;
 	struct mbox_chan	*rx_channel;
 	char			*rx_buffer;
@@ -53,7 +53,7 @@ static ssize_t mbox_test_signal_write(struct file *filp,
 
 	if (count > MBOX_MAX_SIG_LEN) {
 		dev_err(tdev->dev,
-			"Signal length %d greater than max allowed %d\n",
+			"Signal length %zd greater than max allowed %d\n",
 			count, MBOX_MAX_SIG_LEN);
 		return -EINVAL;
 	}
@@ -92,7 +92,7 @@ static ssize_t mbox_test_message_write(struct file *filp,
 
 	if (count > MBOX_MAX_MSG_LEN) {
 		dev_err(tdev->dev,
-			"Message length %d greater than max allowed %d\n",
+			"Message length %zd greater than max allowed %d\n",
 			count, MBOX_MAX_MSG_LEN);
 		return -EINVAL;
 	}
@@ -303,7 +303,7 @@ static int mbox_test_probe(struct platform_device *pdev)
 	tdev->tx_channel = mbox_test_request_channel(pdev, "tx");
 	tdev->rx_channel = mbox_test_request_channel(pdev, "rx");
 
-	if (!tdev->tx_channel && !tdev->tx_channel)
+	if (!tdev->tx_channel && !tdev->rx_channel)
 		return -EPROBE_DEFER;
 
 	tdev->dev = &pdev->dev;
