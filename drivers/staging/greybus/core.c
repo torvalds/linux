@@ -47,7 +47,6 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	struct gb_module *module = NULL;
 	struct gb_interface *intf = NULL;
 	struct gb_bundle *bundle = NULL;
-	struct gb_connection *connection = NULL;
 
 	if (is_gb_endo(dev)) {
 		/*
@@ -64,19 +63,9 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	} else if (is_gb_bundle(dev)) {
 		bundle = to_gb_bundle(dev);
 		intf = bundle->intf;
-	} else if (is_gb_connection(dev)) {
-		connection = to_gb_connection(dev);
-		bundle = connection->bundle;
-		intf = bundle->intf;
 	} else {
 		dev_WARN(dev, "uevent for unknown greybus device \"type\"!\n");
 		return -EINVAL;
-	}
-
-	if (connection) {
-		// FIXME
-		// add a uevent that can "load" a connection type
-		return 0;
 	}
 
 	if (bundle) {

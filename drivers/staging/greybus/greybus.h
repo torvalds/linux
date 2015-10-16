@@ -189,11 +189,6 @@ static inline int is_gb_bundle(const struct device *dev)
 	return dev->type == &greybus_bundle_type;
 }
 
-static inline int is_gb_connection(const struct device *dev)
-{
-	return dev->type == &greybus_connection_type;
-}
-
 static inline bool cport_id_valid(struct greybus_host_device *hd, u16 cport_id)
 {
 	return cport_id != CPORT_ID_BAD && cport_id < hd->num_cports;
