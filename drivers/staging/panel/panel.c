@@ -1794,7 +1794,7 @@ static void phys_scan_contacts(void)
 		 * So we'll scan them.
 		 */
 		for (bit = 0; bit < 8; bit++) {
-			bitval = 1 << bit;
+			bitval = BIT(bit);
 
 			if (!(scan_mask_o & bitval))	/* skip unused bits */
 				continue;
@@ -2060,12 +2060,12 @@ static int input_name2mask(const char *name, pmask_t *mask, pmask_t *value,
 			return 0;	/* input name not found */
 		neg = (in & 1);	/* odd (lower) names are negated */
 		in >>= 1;
-		im |= (1 << in);
+		im |= BIT(in);
 
 		name++;
 		if (isdigit(*name)) {
 			out = *name - '0';
-			om |= (1 << out);
+			om |= BIT(out);
 		} else if (*name == '-') {
 			out = 8;
 		} else {
