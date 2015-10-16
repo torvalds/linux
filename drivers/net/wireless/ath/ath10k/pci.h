@@ -219,6 +219,12 @@ struct ath10k_pci {
 	 * powersave register state changes.
 	 */
 	bool ps_awake;
+
+	/* pci power save, disable for QCA988X and QCA99X0.
+	 * Writing 'false' to this variable avoids frequent locking
+	 * on MMIO read/write.
+	 */
+	bool pci_ps;
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)

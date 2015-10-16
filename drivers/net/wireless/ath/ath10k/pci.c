@@ -479,11 +479,52 @@ static int ath10k_pci_wake_wait(struct ath10k *ar)
 	return -ETIMEDOUT;
 }
 
+static int ath10k_pci_force_wake(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&ar_pci->ps_lock, flags);
+
+	if (!ar_pci->ps_awake) {
+		iowrite32(PCIE_SOC_WAKE_V_MASK,
+			  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
+			  PCIE_SOC_WAKE_ADDRESS);
+
+		ret = ath10k_pci_wake_wait(ar);
+		if (ret == 0)
+			ar_pci->ps_awake = true;
+	}
+
+	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
+
+	return ret;
+}
+
+static void ath10k_pci_force_sleep(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ar_pci->ps_lock, flags);
+
+	iowrite32(PCIE_SOC_WAKE_RESET,
+		  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
+		  PCIE_SOC_WAKE_ADDRESS);
+	ar_pci->ps_awake = false;
+
+	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
+}
+
 static int ath10k_pci_wake(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	unsigned long flags;
 	int ret = 0;
+
+	if (ar_pci->pci_ps == 0)
+		return ret;
 
 	spin_lock_irqsave(&ar_pci->ps_lock, flags);
 
@@ -515,6 +556,9 @@ static void ath10k_pci_sleep(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	unsigned long flags;
+
+	if (ar_pci->pci_ps == 0)
+		return;
 
 	spin_lock_irqsave(&ar_pci->ps_lock, flags);
 
@@ -557,6 +601,11 @@ static void ath10k_pci_sleep_sync(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	unsigned long flags;
+
+	if (ar_pci->pci_ps == 0) {
+		ath10k_pci_force_sleep(ar);
+		return;
+	}
 
 	del_timer_sync(&ar_pci->ps_timer);
 
@@ -2417,6 +2466,15 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct pci_dev *pdev = ar_pci->pdev;
 	u32 val;
+	int ret = 0;
+
+	if (ar_pci->pci_ps == 0) {
+		ret = ath10k_pci_force_wake(ar);
+		if (ret) {
+			ath10k_err(ar, "failed to wake up target: %d\n", ret);
+			return ret;
+		}
+	}
 
 	/* Suspend/Resume resets the PCI configuration space, so we have to
 	 * re-disable the RETRY_TIMEOUT register (0x41) to keep PCI Tx retries
@@ -2427,7 +2485,7 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
 
-	return 0;
+	return ret;
 }
 #endif
 
@@ -2520,6 +2578,16 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 {
 	struct ath10k *ar = arg;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int ret;
+
+	if (ar_pci->pci_ps == 0) {
+		ret = ath10k_pci_force_wake(ar);
+		if (ret) {
+			ath10k_warn(ar, "failed to wake device up on irq: %d\n",
+				    ret);
+			return IRQ_NONE;
+		}
+	}
 
 	if (ar_pci->num_msi_intrs == 0) {
 		if (!ath10k_pci_irq_pending(ar))
@@ -2919,17 +2987,21 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	struct ath10k_pci *ar_pci;
 	enum ath10k_hw_rev hw_rev;
 	u32 chip_id;
+	bool pci_ps;
 
 	switch (pci_dev->device) {
 	case QCA988X_2_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA988X;
+		pci_ps = false;
 		break;
 	case QCA6164_2_1_DEVICE_ID:
 	case QCA6174_2_1_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA6174;
+		pci_ps = true;
 		break;
 	case QCA99X0_2_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA99X0;
+		pci_ps = false;
 		break;
 	default:
 		WARN_ON(1);
@@ -2952,6 +3024,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar_pci->dev = &pdev->dev;
 	ar_pci->ar = ar;
 	ar->dev_id = pci_dev->device;
+	ar_pci->pci_ps = pci_ps;
 
 	ar->id.vendor = pdev->vendor;
 	ar->id.device = pdev->device;
@@ -2981,6 +3054,14 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	ath10k_pci_ce_deinit(ar);
 	ath10k_pci_irq_disable(ar);
+
+	if (ar_pci->pci_ps == 0) {
+		ret = ath10k_pci_force_wake(ar);
+		if (ret) {
+			ath10k_warn(ar, "failed to wake up device : %d\n", ret);
+			goto err_free_pipes;
+		}
+	}
 
 	ret = ath10k_pci_init_irq(ar);
 	if (ret) {
