@@ -418,8 +418,6 @@ MODULE_PARM_DESC(single_major, "Use a single major number for all rbd devices (d
 
 static int rbd_img_request_submit(struct rbd_img_request *img_request);
 
-static void rbd_dev_device_release(struct device *dev);
-
 static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
 static ssize_t rbd_remove(struct bus_type *bus, const char *buf,
@@ -4041,6 +4039,25 @@ static void rbd_spec_free(struct kref *kref)
 	kfree(spec);
 }
 
+static void rbd_dev_release(struct device *dev)
+{
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
+	bool need_put = !!rbd_dev->opts;
+
+	rbd_put_client(rbd_dev->rbd_client);
+	rbd_spec_put(rbd_dev->spec);
+	kfree(rbd_dev->opts);
+	kfree(rbd_dev);
+
+	/*
+	 * This is racy, but way better than putting module outside of
+	 * the release callback.  The race window is pretty small, so
+	 * doing something similar to dm (dm-builtin.c) is overkill.
+	 */
+	if (need_put)
+		module_put(THIS_MODULE);
+}
+
 static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 					 struct rbd_spec *spec,
 					 struct rbd_options *opts)
@@ -4057,6 +4074,12 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 	INIT_LIST_HEAD(&rbd_dev->node);
 	init_rwsem(&rbd_dev->header_rwsem);
 
+	rbd_dev->dev.bus = &rbd_bus_type;
+	rbd_dev->dev.type = &rbd_device_type;
+	rbd_dev->dev.parent = &rbd_root_dev;
+	rbd_dev->dev.release = rbd_dev_release;
+	device_initialize(&rbd_dev->dev);
+
 	rbd_dev->rbd_client = rbdc;
 	rbd_dev->spec = spec;
 	rbd_dev->opts = opts;
@@ -4068,15 +4091,21 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 	rbd_dev->layout.fl_object_size = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
 	rbd_dev->layout.fl_pg_pool = cpu_to_le32((u32) spec->pool_id);
 
+	/*
+	 * If this is a mapping rbd_dev (as opposed to a parent one),
+	 * pin our module.  We have a ref from do_rbd_add(), so use
+	 * __module_get().
+	 */
+	if (rbd_dev->opts)
+		__module_get(THIS_MODULE);
+
 	return rbd_dev;
 }
 
 static void rbd_dev_destroy(struct rbd_device *rbd_dev)
 {
-	rbd_put_client(rbd_dev->rbd_client);
-	rbd_spec_put(rbd_dev->spec);
-	kfree(rbd_dev->opts);
-	kfree(rbd_dev);
+	if (rbd_dev)
+		put_device(&rbd_dev->dev);
 }
 
 /*
@@ -4702,27 +4731,6 @@ static int rbd_dev_header_info(struct rbd_device *rbd_dev)
 	return rbd_dev_v2_header_info(rbd_dev);
 }
 
-static int rbd_bus_add_dev(struct rbd_device *rbd_dev)
-{
-	struct device *dev;
-	int ret;
-
-	dev = &rbd_dev->dev;
-	dev->bus = &rbd_bus_type;
-	dev->type = &rbd_device_type;
-	dev->parent = &rbd_root_dev;
-	dev->release = rbd_dev_device_release;
-	dev_set_name(dev, "%d", rbd_dev->dev_id);
-	ret = device_register(dev);
-
-	return ret;
-}
-
-static void rbd_bus_del_dev(struct rbd_device *rbd_dev)
-{
-	device_unregister(&rbd_dev->dev);
-}
-
 /*
  * Get a unique rbd identifier for the given new rbd_dev, and add
  * the rbd_dev to the global list.
@@ -5225,7 +5233,8 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
 	set_disk_ro(rbd_dev->disk, rbd_dev->mapping.read_only);
 
-	ret = rbd_bus_add_dev(rbd_dev);
+	dev_set_name(&rbd_dev->dev, "%d", rbd_dev->dev_id);
+	ret = device_add(&rbd_dev->dev);
 	if (ret)
 		goto err_out_mapping;
 
@@ -5405,7 +5414,7 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	/* parse add command */
 	rc = rbd_add_parse_args(buf, &ceph_opts, &rbd_opts, &spec);
 	if (rc < 0)
-		goto err_out_module;
+		goto out;
 
 	rbdc = rbd_get_client(ceph_opts);
 	if (IS_ERR(rbdc)) {
@@ -5460,10 +5469,13 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 		 */
 		rbd_dev_header_unwatch_sync(rbd_dev);
 		rbd_dev_image_release(rbd_dev);
-		goto err_out_module;
+		goto out;
 	}
 
-	return count;
+	rc = count;
+out:
+	module_put(THIS_MODULE);
+	return rc;
 
 err_out_rbd_dev:
 	rbd_dev_destroy(rbd_dev);
@@ -5472,12 +5484,7 @@ err_out_client:
 err_out_args:
 	rbd_spec_put(spec);
 	kfree(rbd_opts);
-err_out_module:
-	module_put(THIS_MODULE);
-
-	dout("Error adding device %s\n", buf);
-
-	return (ssize_t)rc;
+	goto out;
 }
 
 static ssize_t rbd_add(struct bus_type *bus,
@@ -5497,12 +5504,11 @@ static ssize_t rbd_add_single_major(struct bus_type *bus,
 	return do_rbd_add(bus, buf, count);
 }
 
-static void rbd_dev_device_release(struct device *dev)
+static void rbd_dev_device_release(struct rbd_device *rbd_dev)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
-
 	rbd_free_disk(rbd_dev);
 	clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
+	device_del(&rbd_dev->dev);
 	rbd_dev_mapping_clear(rbd_dev);
 	if (!single_major)
 		unregister_blkdev(rbd_dev->major, rbd_dev->name);
@@ -5592,9 +5598,8 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 	 * rbd_bus_del_dev() will race with rbd_watch_cb(), resulting
 	 * in a potential use after free of rbd_dev->disk or rbd_dev.
 	 */
-	rbd_bus_del_dev(rbd_dev);
+	rbd_dev_device_release(rbd_dev);
 	rbd_dev_image_release(rbd_dev);
-	module_put(THIS_MODULE);
 
 	return count;
 }
