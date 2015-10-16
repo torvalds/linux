@@ -1458,8 +1458,8 @@ static int intel_th_msc_probe(struct intel_th_device *thdev)
 		return -ENODEV;
 
 	base = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (!base)
+		return -ENOMEM;
 
 	msc = devm_kzalloc(dev, sizeof(*msc), GFP_KERNEL);
 	if (!msc)

@@ -635,8 +635,8 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 		return -ENODEV;
 
 	base = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (!base)
+		return -ENOMEM;
 
 	gth = devm_kzalloc(dev, sizeof(*gth), GFP_KERNEL);
 	if (!gth)

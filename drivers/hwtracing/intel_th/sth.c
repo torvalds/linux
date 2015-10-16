@@ -194,16 +194,16 @@ static int intel_th_sth_probe(struct intel_th_device *thdev)
 		return -ENODEV;
 
 	base = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (!base)
+		return -ENOMEM;
 
 	res = intel_th_device_get_resource(thdev, IORESOURCE_MEM, 1);
 	if (!res)
 		return -ENODEV;
 
 	channels = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(channels))
-		return PTR_ERR(channels);
+	if (!channels)
+		return -ENOMEM;
 
 	sth = devm_kzalloc(dev, sizeof(*sth), GFP_KERNEL);
 	if (!sth)
