@@ -373,7 +373,6 @@ DECLARE_EWMA(signal, 1024, 8)
  * @rx_dropped: number of dropped MPDUs from this STA
  * @last_signal: signal of last received frame from this STA
  * @avg_signal: moving average of signal of received frames from this STA
- * @last_ack_signal: signal of last received Ack frame from this STA
  * @last_seq_ctrl: last received seq/frag number from this STA (per TID
  *	plus one for non-QoS frames)
  * @tx_filtered_count: number of frames the hardware filtered for this STA
@@ -467,7 +466,6 @@ struct sta_info {
 	unsigned long rx_dropped;
 	int last_signal;
 	struct ewma_signal avg_signal;
-	int last_ack_signal;
 
 	u8 chains;
 	s8 chain_signal_last[IEEE80211_MAX_CHAINS];

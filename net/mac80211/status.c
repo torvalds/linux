@@ -863,9 +863,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 				ieee80211_lost_packet(sta, info);
 			}
 		}
-
-		if (acked)
-			sta->last_ack_signal = info->status.ack_signal;
 	}
 
 	rcu_read_unlock();
