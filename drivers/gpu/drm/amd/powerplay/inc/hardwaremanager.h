@@ -328,4 +328,6 @@ extern int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 			     const struct pp_power_state *current_ps);
 
 extern int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level);
+extern int phm_display_configuration_changed(struct pp_hwmgr *hwmgr);
+extern int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
 #endif /* _HARDWARE_MANAGER_H_ */

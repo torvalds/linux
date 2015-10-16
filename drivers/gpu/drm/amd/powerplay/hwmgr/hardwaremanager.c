@@ -167,3 +167,30 @@ int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 	}
 	return 0;
 }
+
+int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
+{
+	if (hwmgr == NULL)
+		return -EINVAL;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				 PHM_PlatformCaps_TablelessHardwareInterface)) {
+		if (NULL != hwmgr->hwmgr_func->display_config_changed)
+			hwmgr->hwmgr_func->display_config_changed(hwmgr);
+	} else
+		return phm_dispatch_table(hwmgr, &hwmgr->display_configuration_changed, NULL, NULL);
+    return 0;
+}
+
+int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
+{
+	if (hwmgr == NULL)
+		return -EINVAL;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				 PHM_PlatformCaps_TablelessHardwareInterface))
+		if (NULL != hwmgr->hwmgr_func->display_config_changed)
+			hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment(hwmgr);
+
+    return 0;
+}
