@@ -31,6 +31,24 @@
 		regulator-max-microvolt = <3000000>;
 	};
 
+	mmc3_pwrseq: sdhci0_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&clk32kgaudio>;
+		clock-names = "ext_clock";
+	};
+
+	vmmcsdio_fixed: fixedregulator-mmcsdio {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcsdio_fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio5 12 GPIO_ACTIVE_HIGH>;	/* gpio140 WLAN_EN */
+		enable-active-high;
+		startup-delay-us = <70000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_pins>;
+	};
+
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2_phy {
 		compatible = "usb-nop-xceiv";
@@ -197,12 +215,20 @@
 		>;
 	};
 
-	mcspi4_pins: pinmux_mcspi4_pins {
+	mmc3_pins: pinmux_mmc3_pins {
 		pinctrl-single,pins = <
-			0x164 (PIN_INPUT | MUX_MODE1)		/*  mcspi4_clk */
-			0x168 (PIN_INPUT | MUX_MODE1)		/*  mcspi4_simo */
-			0x16a (PIN_INPUT | MUX_MODE1)		/*  mcspi4_somi */
-			0x16c (PIN_INPUT | MUX_MODE1)		/*  mcspi4_cs0 */
+			OMAP5_IOPAD(0x01a4, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_clk */
+			OMAP5_IOPAD(0x01a6, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_cmd */
+			OMAP5_IOPAD(0x01a8, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data0 */
+			OMAP5_IOPAD(0x01aa, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data1 */
+			OMAP5_IOPAD(0x01ac, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data2 */
+			OMAP5_IOPAD(0x01ae, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data3 */
+		>;
+	};
+
+	wlan_pins: pinmux_wlan_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x1bc, PIN_OUTPUT | MUX_MODE6) /* mcspi1_clk.gpio5_140 */
 		>;
 	};
 
@@ -276,6 +302,12 @@
 			0x1A (PIN_OUTPUT | MUX_MODE0) /* fref_clk1_out, USB hub clk */
 		>;
 	};
+
+	wlcore_irq_pin: pinmux_wlcore_irq_pin {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x040, WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE6)	/* llia_wakereqin.gpio1_wk14 */
+		>;
+	};
 };
 
 &mmc1 {
@@ -290,8 +322,25 @@
 };
 
 &mmc3 {
+	vmmc-supply = <&vmmcsdio_fixed>;
+	mmc-pwrseq = <&mmc3_pwrseq>;
 	bus-width = <4>;
-	ti,non-removable;
+	non-removable;
+	cap-power-off-card;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc3_pins &wlcore_irq_pin>;
+	interrupts-extended = <&gic GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
+			       &omap5_pmx_core 0x168>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1271";
+		reg = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;	/* gpio 14 */
+		ref-clock-frequency = <26000000>;
+	};
 };
 
 &mmc4 {
@@ -589,11 +638,6 @@
 &mcspi3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcspi3_pins>;
-};
-
-&mcspi4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mcspi4_pins>;
 };
 
 &uart1 {
