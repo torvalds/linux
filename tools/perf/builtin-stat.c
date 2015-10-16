@@ -434,7 +434,7 @@ static void print_noise_pct(double total, double avg)
 
 static void print_noise(struct perf_evsel *evsel, double avg)
 {
-	struct perf_stat *ps;
+	struct perf_stat_evsel *ps;
 
 	if (run_count == 1)
 		return;
@@ -671,7 +671,7 @@ static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
 static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 {
 	FILE *output = stat_config.output;
-	struct perf_stat *ps = counter->priv;
+	struct perf_stat_evsel *ps = counter->priv;
 	double avg = avg_stats(&ps->res_stats[0]);
 	int scaled = counter->counts->scaled;
 	double uval;
