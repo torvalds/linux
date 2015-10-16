@@ -28,6 +28,7 @@
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/overflow-arith.h>
 #include <linux/string.h>
 #include <linux/socket.h>
 #include <linux/net.h>
@@ -584,7 +585,10 @@ int ip6_fragment(struct sock *sk, struct sk_buff *skb,
 		if (np->frag_size)
 			mtu = np->frag_size;
 	}
-	mtu -= hlen + sizeof(struct frag_hdr);
+
+	if (overflow_usub(mtu, hlen + sizeof(struct frag_hdr), &mtu) ||
+	    mtu <= 7)
+		goto fail_toobig;
 
 	frag_id = ipv6_select_ident(net, &ipv6_hdr(skb)->daddr,
 				    &ipv6_hdr(skb)->saddr);
