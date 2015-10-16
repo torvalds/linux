@@ -71,6 +71,9 @@ struct edma_soc_info {
 	/* Resource reservation for other cores */
 	struct edma_rsv_info	*rsv;
 
+	/* List of channels allocated for memcpy, terminated with -1 */
+	s16			*memcpy_channels;
+
 	s8	(*queue_priority_mapping)[2];
 	const s16	(*xbar_chans)[2];
 };
