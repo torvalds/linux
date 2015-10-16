@@ -883,6 +883,91 @@ static inline void mlxsw_reg_spmlr_pack(char *payload, u8 local_port,
 	mlxsw_reg_spmlr_learn_mode_set(payload, mode);
 }
 
+/* SFMR - Switch FID Management Register
+ * -------------------------------------
+ * Creates and configures FIDs.
+ */
+#define MLXSW_REG_SFMR_ID 0x201F
+#define MLXSW_REG_SFMR_LEN 0x18
+
+static const struct mlxsw_reg_info mlxsw_reg_sfmr = {
+	.id = MLXSW_REG_SFMR_ID,
+	.len = MLXSW_REG_SFMR_LEN,
+};
+
+enum mlxsw_reg_sfmr_op {
+	MLXSW_REG_SFMR_OP_CREATE_FID,
+	MLXSW_REG_SFMR_OP_DESTROY_FID,
+};
+
+/* reg_sfmr_op
+ * Operation.
+ * 0 - Create or edit FID.
+ * 1 - Destroy FID.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, sfmr, op, 0x00, 24, 4);
+
+/* reg_sfmr_fid
+ * Filtering ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sfmr, fid, 0x00, 0, 16);
+
+/* reg_sfmr_fid_offset
+ * FID offset.
+ * Used to point into the flooding table selected by SFGC register if
+ * the table is of type FID-Offset. Otherwise, this field is reserved.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfmr, fid_offset, 0x08, 0, 16);
+
+/* reg_sfmr_vtfp
+ * Valid Tunnel Flood Pointer.
+ * If not set, then nve_tunnel_flood_ptr is reserved and considered NULL.
+ * Access: RW
+ *
+ * Note: Reserved for 802.1Q FIDs.
+ */
+MLXSW_ITEM32(reg, sfmr, vtfp, 0x0C, 31, 1);
+
+/* reg_sfmr_nve_tunnel_flood_ptr
+ * Underlay Flooding and BC Pointer.
+ * Used as a pointer to the first entry of the group based link lists of
+ * flooding or BC entries (for NVE tunnels).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfmr, nve_tunnel_flood_ptr, 0x0C, 0, 24);
+
+/* reg_sfmr_vv
+ * VNI Valid.
+ * If not set, then vni is reserved.
+ * Access: RW
+ *
+ * Note: Reserved for 802.1Q FIDs.
+ */
+MLXSW_ITEM32(reg, sfmr, vv, 0x10, 31, 1);
+
+/* reg_sfmr_vni
+ * Virtual Network Identifier.
+ * Access: RW
+ *
+ * Note: A given VNI can only be assigned to one FID.
+ */
+MLXSW_ITEM32(reg, sfmr, vni, 0x10, 0, 24);
+
+static inline void mlxsw_reg_sfmr_pack(char *payload,
+				       enum mlxsw_reg_sfmr_op op, u16 fid,
+				       u16 fid_offset)
+{
+	MLXSW_REG_ZERO(sfmr, payload);
+	mlxsw_reg_sfmr_op_set(payload, op);
+	mlxsw_reg_sfmr_fid_set(payload, fid);
+	mlxsw_reg_sfmr_fid_offset_set(payload, fid_offset);
+	mlxsw_reg_sfmr_vtfp_set(payload, false);
+	mlxsw_reg_sfmr_vv_set(payload, false);
+}
+
 /* PMLP - Ports Module to Local Port Register
  * ------------------------------------------
  * Configures the assignment of modules to local ports.
@@ -2061,6 +2146,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SFTR";
 	case MLXSW_REG_SPMLR_ID:
 		return "SPMLR";
+	case MLXSW_REG_SFMR_ID:
+		return "SFMR";
 	case MLXSW_REG_PMLP_ID:
 		return "PMLP";
 	case MLXSW_REG_PMTU_ID:
