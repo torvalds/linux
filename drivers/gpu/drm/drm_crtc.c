@@ -676,7 +676,6 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 
 	crtc->dev = dev;
 	crtc->funcs = funcs;
-	crtc->invert_dimensions = false;
 
 	drm_modeset_lock_init(&crtc->mutex);
 	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
@@ -2563,7 +2562,9 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 
 	drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
 
-	if (crtc->invert_dimensions)
+	if (crtc->state &&
+	    crtc->primary->state->rotation & (BIT(DRM_ROTATE_90) |
+					      BIT(DRM_ROTATE_270)))
 		swap(hdisplay, vdisplay);
 
 	return check_src_coords(x << 16, y << 16,
