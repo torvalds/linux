@@ -934,7 +934,7 @@ driver_stub = {
 	.debugfs_cleanup = nouveau_debugfs_takedown,
 #endif
 
-	.get_vblank_counter = drm_vblank_count,
+	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = nouveau_display_vblank_enable,
 	.disable_vblank = nouveau_display_vblank_disable,
 	.get_scanout_position = nouveau_display_scanoutpos,

@@ -75,7 +75,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 1;
 		break;
 	case I915_PARAM_NUM_FENCES_AVAIL:
-		value = dev_priv->num_fence_regs - dev_priv->fence_reg_start;
+		value = dev_priv->num_fence_regs;
 		break;
 	case I915_PARAM_HAS_OVERLAY:
 		value = dev_priv->overlay ? 1 : 0;
@@ -178,35 +178,6 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	if (copy_to_user(param->value, &value, sizeof(int))) {
 		DRM_ERROR("copy_to_user failed\n");
 		return -EFAULT;
-	}
-
-	return 0;
-}
-
-static int i915_setparam(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	drm_i915_setparam_t *param = data;
-
-	switch (param->param) {
-	case I915_SETPARAM_USE_MI_BATCHBUFFER_START:
-	case I915_SETPARAM_TEX_LRU_LOG_GRANULARITY:
-	case I915_SETPARAM_ALLOW_BATCHBUFFER:
-		/* Reject all old ums/dri params. */
-		return -ENODEV;
-
-	case I915_SETPARAM_NUM_USED_FENCES:
-		if (param->value > dev_priv->num_fence_regs ||
-		    param->value < 0)
-			return -EINVAL;
-		/* Userspace can use first N regs */
-		dev_priv->fence_reg_start = param->value;
-		break;
-	default:
-		DRM_DEBUG_DRIVER("unknown parameter %d\n",
-					param->param);
-		return -EINVAL;
 	}
 
 	return 0;
@@ -1246,7 +1217,7 @@ const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_IRQ_EMIT, drm_noop, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_IRQ_WAIT, drm_noop, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_GETPARAM, i915_getparam, DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(I915_SETPARAM, i915_setparam, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_SETPARAM, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_ALLOC, drm_noop, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_FREE, drm_noop, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_INIT_HEAP, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),

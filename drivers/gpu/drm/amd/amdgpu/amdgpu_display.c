@@ -721,7 +721,7 @@ bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * an optional accurate timestamp of when query happened.
  *
  * \param dev Device to query.
- * \param crtc Crtc to query.
+ * \param pipe Crtc to query.
  * \param flags Flags from caller (DRM_CALLED_FROM_VBLIRQ or 0).
  * \param *vpos Location where vertical scanout position should be stored.
  * \param *hpos Location where horizontal scanout position should go.
@@ -744,8 +744,9 @@ bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * unknown small number of scanlines wrt. real scanout position.
  *
  */
-int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int flags,
-			       int *vpos, int *hpos, ktime_t *stime, ktime_t *etime,
+int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			       unsigned int flags, int *vpos, int *hpos,
+			       ktime_t *stime, ktime_t *etime,
 			       const struct drm_display_mode *mode)
 {
 	u32 vbl = 0, position = 0;
@@ -760,7 +761,7 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 	if (stime)
 		*stime = ktime_get();
 
-	if (amdgpu_display_page_flip_get_scanoutpos(adev, crtc, &vbl, &position) == 0)
+	if (amdgpu_display_page_flip_get_scanoutpos(adev, pipe, &vbl, &position) == 0)
 		ret |= DRM_SCANOUTPOS_VALID;
 
 	/* Get optional system timestamp after query. */

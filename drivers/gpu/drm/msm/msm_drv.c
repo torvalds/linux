@@ -531,24 +531,24 @@ static void msm_irq_uninstall(struct drm_device *dev)
 	kms->funcs->irq_uninstall(kms);
 }
 
-static int msm_enable_vblank(struct drm_device *dev, int crtc_id)
+static int msm_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	if (!kms)
 		return -ENXIO;
-	DBG("dev=%p, crtc=%d", dev, crtc_id);
-	return vblank_ctrl_queue_work(priv, crtc_id, true);
+	DBG("dev=%p, crtc=%u", dev, pipe);
+	return vblank_ctrl_queue_work(priv, pipe, true);
 }
 
-static void msm_disable_vblank(struct drm_device *dev, int crtc_id)
+static void msm_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	if (!kms)
 		return;
-	DBG("dev=%p, crtc=%d", dev, crtc_id);
-	vblank_ctrl_queue_work(priv, crtc_id, false);
+	DBG("dev=%p, crtc=%u", dev, pipe);
+	vblank_ctrl_queue_work(priv, pipe, false);
 }
 
 /*
@@ -978,7 +978,7 @@ static struct drm_driver msm_driver = {
 	.irq_preinstall     = msm_irq_preinstall,
 	.irq_postinstall    = msm_irq_postinstall,
 	.irq_uninstall      = msm_irq_uninstall,
-	.get_vblank_counter = drm_vblank_count,
+	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank      = msm_enable_vblank,
 	.disable_vblank     = msm_disable_vblank,
 	.gem_free_object    = msm_gem_free_object,

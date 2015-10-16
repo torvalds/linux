@@ -839,7 +839,7 @@ static struct drm_driver omap_drm_driver = {
 	.preclose = dev_preclose,
 	.postclose = dev_postclose,
 	.set_busid = drm_platform_set_busid,
-	.get_vblank_counter = drm_vblank_count,
+	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = omap_irq_enable_vblank,
 	.disable_vblank = omap_irq_disable_vblank,
 #ifdef CONFIG_DEBUG_FS

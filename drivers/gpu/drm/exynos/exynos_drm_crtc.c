@@ -167,7 +167,7 @@ err_crtc:
 	return ERR_PTR(ret);
 }
 
-int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
+int exynos_drm_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct exynos_drm_private *private = dev->dev_private;
 	struct exynos_drm_crtc *exynos_crtc =
@@ -179,7 +179,7 @@ int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
+void exynos_drm_crtc_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct exynos_drm_private *private = dev->dev_private;
 	struct exynos_drm_crtc *exynos_crtc =

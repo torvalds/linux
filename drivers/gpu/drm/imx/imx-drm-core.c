@@ -145,10 +145,10 @@ void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc)
 }
 EXPORT_SYMBOL_GPL(imx_drm_handle_vblank);
 
-static int imx_drm_enable_vblank(struct drm_device *drm, int crtc)
+static int imx_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
-	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[crtc];
+	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[pipe];
 	int ret;
 
 	if (!imx_drm_crtc)
@@ -163,10 +163,10 @@ static int imx_drm_enable_vblank(struct drm_device *drm, int crtc)
 	return ret;
 }
 
-static void imx_drm_disable_vblank(struct drm_device *drm, int crtc)
+static void imx_drm_disable_vblank(struct drm_device *drm, unsigned int pipe)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
-	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[crtc];
+	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[pipe];
 
 	if (!imx_drm_crtc)
 		return;
@@ -487,7 +487,7 @@ static struct drm_driver imx_drm_driver = {
 	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= imx_drm_enable_vblank,
 	.disable_vblank		= imx_drm_disable_vblank,
 	.ioctls			= imx_drm_ioctls,

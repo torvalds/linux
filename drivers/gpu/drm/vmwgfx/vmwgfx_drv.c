@@ -1062,14 +1062,6 @@ static struct vmw_master *vmw_master_check(struct drm_device *dev,
 	mutex_unlock(&dev->master_mutex);
 
 	/*
-	 * Taking the drm_global_mutex after the TTM lock might deadlock
-	 */
-	if (!(flags & DRM_UNLOCKED)) {
-		DRM_ERROR("Refusing locked ioctl access.\n");
-		return ERR_PTR(-EDEADLK);
-	}
-
-	/*
 	 * Take the TTM lock. Possibly sleep waiting for the authenticating
 	 * master to become master again, or for a SIGTERM if the
 	 * authenticating master exits.

@@ -232,10 +232,11 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 
 	/*
 	 * Only reinitialize corresponding vblank timestamp if high-precision query
-	 * available and didn't fail. Otherwise reinitialize delayed at next vblank
-	 * interrupt and assign 0 for now, to mark the vblanktimestamp as invalid.
+	 * available and didn't fail, or we were called from the vblank interrupt.
+	 * Otherwise reinitialize delayed at next vblank interrupt and assign 0
+	 * for now, to mark the vblanktimestamp as invalid.
 	 */
-	if (!rc)
+	if (!rc && (flags & DRM_CALLED_FROM_VBLIRQ) == 0)
 		t_vblank = (struct timeval) {0, 0};
 
 	store_vblank(dev, pipe, diff, &t_vblank, cur_vblank);
@@ -876,7 +877,7 @@ drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
  * Returns:
  * The software vblank counter.
  */
-u32 drm_vblank_count(struct drm_device *dev, int pipe)
+u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
@@ -1797,3 +1798,20 @@ bool drm_crtc_handle_vblank(struct drm_crtc *crtc)
 	return drm_handle_vblank(crtc->dev, drm_crtc_index(crtc));
 }
 EXPORT_SYMBOL(drm_crtc_handle_vblank);
+
+/**
+ * drm_vblank_no_hw_counter - "No hw counter" implementation of .get_vblank_counter()
+ * @dev: DRM device
+ * @pipe: CRTC for which to read the counter
+ *
+ * Drivers can plug this into the .get_vblank_counter() function if
+ * there is no useable hardware frame counter available.
+ *
+ * Returns:
+ * 0
+ */
+u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe)
+{
+	return 0;
+}
+EXPORT_SYMBOL(drm_vblank_no_hw_counter);

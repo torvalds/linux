@@ -149,17 +149,17 @@ static int armada_drm_unload(struct drm_device *dev)
 }
 
 /* These are called under the vbl_lock. */
-static int armada_drm_enable_vblank(struct drm_device *dev, int crtc)
+static int armada_drm_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct armada_private *priv = dev->dev_private;
-	armada_drm_crtc_enable_irq(priv->dcrtc[crtc], VSYNC_IRQ_ENA);
+	armada_drm_crtc_enable_irq(priv->dcrtc[pipe], VSYNC_IRQ_ENA);
 	return 0;
 }
 
-static void armada_drm_disable_vblank(struct drm_device *dev, int crtc)
+static void armada_drm_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct armada_private *priv = dev->dev_private;
-	armada_drm_crtc_disable_irq(priv->dcrtc[crtc], VSYNC_IRQ_ENA);
+	armada_drm_crtc_disable_irq(priv->dcrtc[pipe], VSYNC_IRQ_ENA);
 }
 
 static struct drm_ioctl_desc armada_ioctls[] = {
@@ -195,7 +195,7 @@ static struct drm_driver armada_drm_driver = {
 	.lastclose		= armada_drm_lastclose,
 	.unload			= armada_drm_unload,
 	.set_busid		= drm_platform_set_busid,
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= armada_drm_enable_vblank,
 	.disable_vblank		= armada_drm_disable_vblank,
 #ifdef CONFIG_DEBUG_FS

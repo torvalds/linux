@@ -600,36 +600,36 @@ void amdgpu_driver_preclose_kms(struct drm_device *dev,
  * amdgpu_get_vblank_counter_kms - get frame count
  *
  * @dev: drm dev pointer
- * @crtc: crtc to get the frame count from
+ * @pipe: crtc to get the frame count from
  *
  * Gets the frame count on the requested crtc (all asics).
  * Returns frame count on success, -EINVAL on failure.
  */
-u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, int crtc)
+u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 {
 	struct amdgpu_device *adev = dev->dev_private;
 
-	if (crtc < 0 || crtc >= adev->mode_info.num_crtc) {
-		DRM_ERROR("Invalid crtc %d\n", crtc);
+	if (pipe >= adev->mode_info.num_crtc) {
+		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
-	return amdgpu_display_vblank_get_counter(adev, crtc);
+	return amdgpu_display_vblank_get_counter(adev, pipe);
 }
 
 /**
  * amdgpu_enable_vblank_kms - enable vblank interrupt
  *
  * @dev: drm dev pointer
- * @crtc: crtc to enable vblank interrupt for
+ * @pipe: crtc to enable vblank interrupt for
  *
  * Enable the interrupt on the requested crtc (all asics).
  * Returns 0 on success, -EINVAL on failure.
  */
-int amdgpu_enable_vblank_kms(struct drm_device *dev, int crtc)
+int amdgpu_enable_vblank_kms(struct drm_device *dev, unsigned int pipe)
 {
 	struct amdgpu_device *adev = dev->dev_private;
-	int idx = amdgpu_crtc_idx_to_irq_type(adev, crtc);
+	int idx = amdgpu_crtc_idx_to_irq_type(adev, pipe);
 
 	return amdgpu_irq_get(adev, &adev->crtc_irq, idx);
 }
@@ -638,14 +638,14 @@ int amdgpu_enable_vblank_kms(struct drm_device *dev, int crtc)
  * amdgpu_disable_vblank_kms - disable vblank interrupt
  *
  * @dev: drm dev pointer
- * @crtc: crtc to disable vblank interrupt for
+ * @pipe: crtc to disable vblank interrupt for
  *
  * Disable the interrupt on the requested crtc (all asics).
  */
-void amdgpu_disable_vblank_kms(struct drm_device *dev, int crtc)
+void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe)
 {
 	struct amdgpu_device *adev = dev->dev_private;
-	int idx = amdgpu_crtc_idx_to_irq_type(adev, crtc);
+	int idx = amdgpu_crtc_idx_to_irq_type(adev, pipe);
 
 	amdgpu_irq_put(adev, &adev->crtc_irq, idx);
 }
@@ -663,26 +663,26 @@ void amdgpu_disable_vblank_kms(struct drm_device *dev, int crtc)
  * scanout position.  (all asics).
  * Returns postive status flags on success, negative error on failure.
  */
-int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
+int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 				    int *max_error,
 				    struct timeval *vblank_time,
 				    unsigned flags)
 {
-	struct drm_crtc *drmcrtc;
+	struct drm_crtc *crtc;
 	struct amdgpu_device *adev = dev->dev_private;
 
-	if (crtc < 0 || crtc >= dev->num_crtcs) {
-		DRM_ERROR("Invalid crtc %d\n", crtc);
+	if (pipe >= dev->num_crtcs) {
+		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
 	/* Get associated drm_crtc: */
-	drmcrtc = &adev->mode_info.crtcs[crtc]->base;
+	crtc = &adev->mode_info.crtcs[pipe]->base;
 
 	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
+	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
 						     vblank_time, flags,
-						     &drmcrtc->hwmode);
+						     &crtc->hwmode);
 }
 
 const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {

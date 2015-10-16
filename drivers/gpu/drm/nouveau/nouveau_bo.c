@@ -574,7 +574,7 @@ static struct ttm_tt *
 nouveau_ttm_tt_create(struct ttm_bo_device *bdev, unsigned long size,
 		      uint32_t page_flags, struct page *dummy_read)
 {
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 
 	if (drm->agp.bridge) {
@@ -1366,7 +1366,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		/* System memory */
 		return 0;
 	case TTM_PL_TT:
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 		if (drm->agp.bridge) {
 			mem->bus.offset = mem->start << PAGE_SHIFT;
 			mem->bus.base = drm->agp.base;
@@ -1496,7 +1496,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	    ttm->caching_state == tt_uncached)
 		return ttm_dma_populate(ttm_dma, dev->dev);
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
 		return ttm_agp_tt_populate(ttm);
 	}
@@ -1563,7 +1563,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 	}
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
 		ttm_agp_tt_unpopulate(ttm);
 		return;
