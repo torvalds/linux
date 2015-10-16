@@ -173,8 +173,8 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	retval = gb_connection_bind_protocol(connection);
 	if (retval) {
-		dev_err(&connection->dev, "failed to bind protocol: %d\n",
-			retval);
+		dev_err(&bundle->dev, "%d: failed to bind protocol: %d\n",
+			cport_id, retval);
 		gb_connection_destroy(connection);
 		return NULL;
 	}
@@ -199,8 +199,8 @@ static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 
 	ret = hd->driver->cport_enable(hd, connection->hd_cport_id);
 	if (ret) {
-		dev_err(&connection->dev,
-				"failed to enable host cport: %d\n", ret);
+		dev_err(&connection->bundle->dev,
+			"failed to enable host cport: %d\n", ret);
 		return ret;
 	}
 
@@ -277,8 +277,8 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 			connection->intf_cport_id,
 			intf->boot_over_unipro);
 	if (ret) {
-		dev_err(&connection->dev,
-				"failed to create svc connection: %d\n", ret);
+		dev_err(&connection->bundle->dev,
+			"failed to create svc connection: %d\n", ret);
 		return ret;
 	}
 
@@ -313,8 +313,8 @@ static int gb_connection_control_connected(struct gb_connection *connection)
 
 	ret = gb_control_connected_operation(control, cport_id);
 	if (ret) {
-		dev_err(&connection->dev,
-				"failed to connect cport: %d\n", ret);
+		dev_err(&connection->bundle->dev,
+			"failed to connect cport: %d\n", ret);
 		return ret;
 	}
 
@@ -337,8 +337,8 @@ gb_connection_control_disconnected(struct gb_connection *connection)
 
 	ret = gb_control_disconnected_operation(control, cport_id);
 	if (ret) {
-		dev_warn(&connection->dev,
-				"failed to disconnect cport: %d\n", ret);
+		dev_warn(&connection->bundle->dev,
+			 "failed to disconnect cport: %d\n", ret);
 	}
 }
 
@@ -356,8 +356,8 @@ static int gb_connection_protocol_get_version(struct gb_connection *connection)
 
 	ret = gb_protocol_get_version(connection);
 	if (ret) {
-		dev_err(&connection->dev,
-				"failed to get protocol version: %d\n", ret);
+		dev_err(&connection->bundle->dev,
+			"failed to get protocol version: %d\n", ret);
 		return ret;
 	}
 
@@ -470,7 +470,7 @@ void gb_connection_latency_tag_enable(struct gb_connection *connection)
 
 	ret = hd->driver->latency_tag_enable(hd, connection->hd_cport_id);
 	if (ret) {
-		dev_err(&connection->dev,
+		dev_err(&connection->bundle->dev,
 			"failed to enable latency tag: %d\n", ret);
 	}
 }
@@ -486,7 +486,7 @@ void gb_connection_latency_tag_disable(struct gb_connection *connection)
 
 	ret = hd->driver->latency_tag_disable(hd, connection->hd_cport_id);
 	if (ret) {
-		dev_err(&connection->dev,
+		dev_err(&connection->bundle->dev,
 			"failed to disable latency tag: %d\n", ret);
 	}
 }
@@ -513,7 +513,7 @@ int gb_connection_bind_protocol(struct gb_connection *connection)
 				   connection->major,
 				   connection->minor);
 	if (!protocol) {
-		dev_warn(&connection->dev,
+		dev_warn(&connection->bundle->dev,
 				"protocol 0x%02hhx version %hhu.%hhu not found\n",
 				connection->protocol_id,
 				connection->major, connection->minor);
