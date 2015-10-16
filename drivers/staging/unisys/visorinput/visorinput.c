@@ -630,7 +630,7 @@ out_locked:
 
 static int
 visorinput_pause(struct visor_device *dev,
-	       visorbus_state_complete_func complete_func)
+		 visorbus_state_complete_func complete_func)
 {
 	int rc;
 	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
@@ -656,7 +656,7 @@ out:
 
 static int
 visorinput_resume(struct visor_device *dev,
-		visorbus_state_complete_func complete_func)
+		  visorbus_state_complete_func complete_func)
 {
 	int rc;
 	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
