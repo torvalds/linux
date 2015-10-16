@@ -57,6 +57,7 @@ static const char mlxsw_pci_driver_name[] = "mlxsw_pci";
 
 static const struct pci_device_id mlxsw_pci_id_table[] = {
 	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SWITCHX2), 0},
+	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SPECTRUM), 0},
 	{0, }
 };
 
@@ -67,6 +68,8 @@ static const char *mlxsw_pci_device_kind_get(const struct pci_device_id *id)
 	switch (id->device) {
 	case PCI_DEVICE_ID_MELLANOX_SWITCHX2:
 		return MLXSW_DEVICE_KIND_SWITCHX2;
+	case PCI_DEVICE_ID_MELLANOX_SPECTRUM:
+		return MLXSW_DEVICE_KIND_SPECTRUM;
 	default:
 		BUG();
 	}
@@ -1214,6 +1217,14 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			mbox, profile->max_flood_tables);
 		mlxsw_cmd_mbox_config_profile_max_vid_flood_tables_set(
 			mbox, profile->max_vid_flood_tables);
+		mlxsw_cmd_mbox_config_profile_max_fid_offset_flood_tables_set(
+			mbox, profile->max_fid_offset_flood_tables);
+		mlxsw_cmd_mbox_config_profile_fid_offset_flood_table_size_set(
+			mbox, profile->fid_offset_flood_table_size);
+		mlxsw_cmd_mbox_config_profile_max_fid_flood_tables_set(
+			mbox, profile->max_fid_flood_tables);
+		mlxsw_cmd_mbox_config_profile_fid_flood_table_size_set(
+			mbox, profile->fid_flood_table_size);
 	}
 	if (profile->used_flood_mode) {
 		mlxsw_cmd_mbox_config_profile_set_flood_mode_set(

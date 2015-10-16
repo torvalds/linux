@@ -1377,7 +1377,8 @@ static int mlxsw_sx_flood_init(struct mlxsw_sx *mlxsw_sx)
 	sftr_pl = kmalloc(MLXSW_REG_SFTR_LEN, GFP_KERNEL);
 	if (!sftr_pl)
 		return -ENOMEM;
-	mlxsw_reg_sftr_pack(sftr_pl, 0, 0, MLXSW_REG_SFGC_TABLE_TYPE_SINGLE, 0);
+	mlxsw_reg_sftr_pack(sftr_pl, 0, 0, MLXSW_REG_SFGC_TABLE_TYPE_SINGLE, 0,
+			    MLXSW_PORT_CPU_PORT, true);
 	err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(sftr), sftr_pl);
 	kfree(sftr_pl);
 	if (err)
