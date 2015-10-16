@@ -508,7 +508,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 	case PIO_BUFS_SOP:
 		memaddr = ((dd->physaddr + TXE_PIO_SEND) +
 				/* chip pio base */
-			   (uctxt->sc->hw_context * (1 << 16))) +
+			   (uctxt->sc->hw_context * BIT(16))) +
 				/* 64K PIO space / ctxt */
 			(type == PIO_BUFS_SOP ?
 				(TXE_PIO_SIZE / 2) : 0); /* sop? */
