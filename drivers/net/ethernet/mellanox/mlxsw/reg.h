@@ -157,6 +157,41 @@ static inline void mlxsw_reg_sspr_pack(char *payload, u8 local_port)
 	mlxsw_reg_sspr_system_port_set(payload, local_port);
 }
 
+/* SFDAT - Switch Filtering Database Aging Time
+ * --------------------------------------------
+ * Controls the Switch aging time. Aging time is able to be set per Switch
+ * Partition.
+ */
+#define MLXSW_REG_SFDAT_ID 0x2009
+#define MLXSW_REG_SFDAT_LEN 0x8
+
+static const struct mlxsw_reg_info mlxsw_reg_sfdat = {
+	.id = MLXSW_REG_SFDAT_ID,
+	.len = MLXSW_REG_SFDAT_LEN,
+};
+
+/* reg_sfdat_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sfdat, swid, 0x00, 24, 8);
+
+/* reg_sfdat_age_time
+ * Aging time in seconds
+ * Min - 10 seconds
+ * Max - 1,000,000 seconds
+ * Default is 300 seconds.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdat, age_time, 0x04, 0, 20);
+
+static inline void mlxsw_reg_sfdat_pack(char *payload, u32 age_time)
+{
+	MLXSW_REG_ZERO(sfdat, payload);
+	mlxsw_reg_sfdat_swid_set(payload, 0);
+	mlxsw_reg_sfdat_age_time_set(payload, age_time);
+}
+
 /* SFD - Switch Filtering Database
  * -------------------------------
  * The following register defines the access to the filtering database.
@@ -2259,6 +2294,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SPAD";
 	case MLXSW_REG_SSPR_ID:
 		return "SSPR";
+	case MLXSW_REG_SFDAT_ID:
+		return "SFDAT";
 	case MLXSW_REG_SFD_ID:
 		return "SFD";
 	case MLXSW_REG_SFN_ID:
