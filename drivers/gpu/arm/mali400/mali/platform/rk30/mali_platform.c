@@ -78,14 +78,20 @@ static int mali_clock_init(struct device *dev)
 	drv_data->pd = devm_clk_get(dev, "pd_gpu");
 	if (IS_ERR(drv_data->pd)) {
 		ret = PTR_ERR(drv_data->pd);
-		dev_err(dev, "get pd_clk failed, %d\n", ret);
-		return ret;
+		/* rk3228 gpu has no power domain,save NULL for compatible*/
+		if (ret != -ENOENT) {
+			dev_err(dev, "get pd_clk failed, %d\n", ret);
+			return ret;
+		}
+		drv_data->pd = NULL;
 	}
 
-	ret = clk_prepare_enable(drv_data->pd);
-	if (ret) {
-		dev_err(dev, "prepare pd_clk failed, %d\n", ret);
-		return ret;
+	if (drv_data->pd) {
+		ret = clk_prepare_enable(drv_data->pd);
+		if (ret) {
+			dev_err(dev, "prepare pd_clk failed, %d\n", ret);
+			return ret;
+		}
 	}
 
 	drv_data->clk = clk_get_dvfs_node("clk_gpu");
@@ -111,7 +117,8 @@ static void mali_clock_term(struct device *dev)
 	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
 
 	dvfs_clk_disable_unprepare(drv_data->clk);
-	clk_disable_unprepare(drv_data->pd);
+	if (drv_data->pd)
+		clk_disable_unprepare(drv_data->pd);
 	drv_data->power_state = false;
 }
 
@@ -308,13 +315,15 @@ _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 	if (bpower_off == 0) {
 		if (!drv_data->power_state) {
 			dvfs_clk_prepare_enable(drv_data->clk);
-			clk_prepare_enable(drv_data->pd);
+			if (drv_data->pd)
+				clk_prepare_enable(drv_data->pd);
 			drv_data->power_state = true;
 		}
 	} else if (bpower_off == 1) {
 		if (drv_data->power_state) {
 			dvfs_clk_disable_unprepare(drv_data->clk);
-			clk_disable_unprepare(drv_data->pd);
+			if (drv_data->pd)
+				clk_disable_unprepare(drv_data->pd);
 			drv_data->power_state = false;
 		}
 	}

@@ -196,6 +196,8 @@ int mali_platform_device_init(struct platform_device *pdev)
 		num_pp_cores = 1;
 	else if (cpu_is_rk3188())
 		num_pp_cores = 4;
+	else if (cpu_is_rk3228())
+		num_pp_cores = 2;
 
 	mali_platform_device_add_config(pdev);
 
