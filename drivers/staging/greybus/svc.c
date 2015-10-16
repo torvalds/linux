@@ -7,6 +7,7 @@
  * Released under the GPLv2 only.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/workqueue.h>
 
 #include "greybus.h"
@@ -120,17 +121,15 @@ int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 				&request, sizeof(request),
 				&response, sizeof(response));
 	if (ret) {
-		dev_err(&svc->connection->dev,
-			"failed to get DME attribute (%hhu %hx %hu) %d\n",
-			intf_id, attr, selector, ret);
+		pr_err("failed to get DME attribute (%hhu %hx %hu) %d\n",
+		       intf_id, attr, selector, ret);
 		return ret;
 	}
 
 	result = le16_to_cpu(response.result_code);
 	if (result) {
-		dev_err(&svc->connection->dev,
-			"Unipro error %hu while getting DME attribute (%hhu %hx %hu)\n",
-			result, intf_id, attr, selector);
+		pr_err("Unipro error %hu while getting DME attribute (%hhu %hx %hu)\n",
+		       result, intf_id, attr, selector);
 		return -EINVAL;
 	}
 
@@ -158,17 +157,15 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 				&request, sizeof(request),
 				&response, sizeof(response));
 	if (ret) {
-		dev_err(&svc->connection->dev,
-			"failed to set DME attribute (%hhu %hx %hu %u) %d\n",
-			intf_id, attr, selector, value, ret);
+		pr_err("failed to set DME attribute (%hhu %hx %hu %u) %d\n",
+		       intf_id, attr, selector, value, ret);
 		return ret;
 	}
 
 	result = le16_to_cpu(response.result_code);
 	if (result) {
-		dev_err(&svc->connection->dev,
-			"Unipro error %hu while setting DME attribute (%hhu %hx %hu %u)\n",
-			result, intf_id, attr, selector, value);
+		pr_err("Unipro error %hu while setting DME attribute (%hhu %hx %hu %u)\n",
+		       result, intf_id, attr, selector, value);
 		return -EINVAL;
 	}
 
@@ -270,11 +267,9 @@ void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 
 	ret = gb_operation_sync(connection, GB_SVC_TYPE_CONN_DESTROY,
 				&request, sizeof(request), NULL, 0);
-	if (ret) {
-		dev_err(&connection->dev,
-			"failed to destroy connection (%hhx:%hx %hhx:%hx) %d\n",
-			intf1_id, cport1_id, intf2_id, cport2_id, ret);
-	}
+	if (ret)
+		pr_err("failed to destroy connection (%hhx:%hx %hhx:%hx) %d\n",
+		       intf1_id, cport1_id, intf2_id, cport2_id, ret);
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
 
@@ -304,11 +299,9 @@ static void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id)
 
 	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_ROUTE_DESTROY,
 				&request, sizeof(request), NULL, 0);
-	if (ret) {
-		dev_err(&svc->connection->dev,
-			"failed to destroy route (%hhx %hhx) %d\n",
+	if (ret)
+		pr_err("failed to destroy route (%hhx %hhx) %d\n",
 			intf1_id, intf2_id, ret);
-	}
 }
 
 static int gb_svc_version_request(struct gb_operation *op)
@@ -316,14 +309,13 @@ static int gb_svc_version_request(struct gb_operation *op)
 	struct gb_connection *connection = op->connection;
 	struct gb_protocol_version_request *request;
 	struct gb_protocol_version_response *response;
-	struct device *dev = &connection->dev;
 
 	request = op->request->payload;
 
 	if (request->major > GB_SVC_VERSION_MAJOR) {
-		dev_err(&connection->dev,
-			"unsupported major version (%hhu > %hhu)\n",
-			request->major, GB_SVC_VERSION_MAJOR);
+		pr_err("%d: unsupported major version (%hhu > %hhu)\n",
+		       connection->intf_cport_id, request->major,
+		       GB_SVC_VERSION_MAJOR);
 		return -ENOTSUPP;
 	}
 
@@ -331,8 +323,8 @@ static int gb_svc_version_request(struct gb_operation *op)
 	connection->module_minor = request->minor;
 
 	if (!gb_operation_response_alloc(op, sizeof(*response), GFP_KERNEL)) {
-		dev_err(dev, "%s: error allocating response\n",
-				__func__);
+		pr_err("%d: error allocating response\n",
+		       connection->intf_cport_id);
 		return -ENOMEM;
 	}
 
@@ -348,7 +340,6 @@ static int gb_svc_hello(struct gb_operation *op)
 	struct gb_connection *connection = op->connection;
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_svc_hello_request *hello_request;
-	struct device *dev = &connection->dev;
 	struct gb_interface *intf;
 	u16 endo_id;
 	u8 interface_id;
@@ -359,9 +350,9 @@ static int gb_svc_hello(struct gb_operation *op)
 	 * request, use that to create an endo.
 	 */
 	if (op->request->payload_size < sizeof(*hello_request)) {
-		dev_err(dev, "%s: Illegal size of hello request (%zu < %zu)\n",
-			__func__, op->request->payload_size,
-			sizeof(*hello_request));
+		pr_err("%d: Illegal size of hello request (%zu < %zu)\n",
+		       connection->intf_cport_id, op->request->payload_size,
+		       sizeof(*hello_request));
 		return -EINVAL;
 	}
 
@@ -418,7 +409,6 @@ static void svc_process_hotplug(struct work_struct *work)
 	struct gb_connection *connection = svc_hotplug->connection;
 	struct gb_svc *svc = connection->private;
 	struct greybus_host_device *hd = connection->hd;
-	struct device *dev = &connection->dev;
 	struct gb_interface *intf;
 	u8 intf_id, device_id;
 	int ret;
@@ -444,15 +434,15 @@ static void svc_process_hotplug(struct work_struct *work)
 		 * Remove the interface and add it again, and let user know
 		 * about this with a print message.
 		 */
-		dev_info(dev, "Removed interface (%hhu) to add it again\n",
-			 intf_id);
+		pr_info("%d: Removed interface (%hhu) to add it again\n",
+			connection->intf_cport_id, intf_id);
 		svc_intf_remove(connection, intf);
 	}
 
 	intf = gb_interface_create(hd, intf_id);
 	if (!intf) {
-		dev_err(dev, "%s: Failed to create interface with id %hhu\n",
-			__func__, intf_id);
+		pr_err("%d: Failed to create interface with id %hhu\n",
+		       connection->intf_cport_id, intf_id);
 		goto free_svc_hotplug;
 	}
 
@@ -477,15 +467,15 @@ static void svc_process_hotplug(struct work_struct *work)
 				   GB_DEVICE_ID_MODULES_START, 0, GFP_KERNEL);
 	if (device_id < 0) {
 		ret = device_id;
-		dev_err(dev, "%s: Failed to allocate device id for interface with id %hhu (%d)\n",
-			__func__, intf_id, ret);
+		pr_err("%d: Failed to allocate device id for interface with id %hhu (%d)\n",
+		       connection->intf_cport_id, intf_id, ret);
 		goto destroy_interface;
 	}
 
 	ret = gb_svc_intf_device_id(svc, intf_id, device_id);
 	if (ret) {
-		dev_err(dev, "%s: Device id operation failed, interface %hhu device_id %hhu (%d)\n",
-			__func__, intf_id, device_id, ret);
+		pr_err("%d: Device id operation failed, interface %hhu device_id %hhu (%d)\n",
+		       connection->intf_cport_id, intf_id, device_id, ret);
 		goto ida_put;
 	}
 
@@ -495,15 +485,15 @@ static void svc_process_hotplug(struct work_struct *work)
 	ret = gb_svc_route_create(svc, hd->endo->ap_intf_id, GB_DEVICE_ID_AP,
 				  intf_id, device_id);
 	if (ret) {
-		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
-			__func__, intf_id, device_id, ret);
+		pr_err("%d: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
+		       connection->intf_cport_id, intf_id, device_id, ret);
 		goto svc_id_free;
 	}
 
 	ret = gb_interface_init(intf, device_id);
 	if (ret) {
-		dev_err(dev, "%s: Failed to initialize interface, interface %hhu device_id %hhu (%d)\n",
-			__func__, intf_id, device_id, ret);
+		pr_err("%d: Failed to initialize interface, interface %hhu device_id %hhu (%d)\n",
+		       connection->intf_cport_id, intf_id, device_id, ret);
 		goto destroy_route;
 	}
 
@@ -539,10 +529,9 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	struct svc_hotplug *svc_hotplug;
 
 	if (request->payload_size < sizeof(svc_hotplug->data)) {
-		dev_err(&op->connection->dev,
-			"%s: short hotplug request received (%zu < %zu)\n",
-			__func__, request->payload_size,
-			sizeof(svc_hotplug->data));
+		pr_err("%d: short hotplug request received (%zu < %zu)\n",
+		       op->connection->intf_cport_id, request->payload_size,
+		       sizeof(svc_hotplug->data));
 		return -EINVAL;
 	}
 
@@ -564,13 +553,13 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 	struct gb_message *request = op->request;
 	struct gb_svc_intf_hot_unplug_request *hot_unplug = request->payload;
 	struct greybus_host_device *hd = op->connection->hd;
-	struct device *dev = &op->connection->dev;
 	struct gb_interface *intf;
 	u8 intf_id;
 
 	if (request->payload_size < sizeof(*hot_unplug)) {
-		dev_err(dev, "short hot unplug request received (%zu < %zu)\n",
-			request->payload_size, sizeof(*hot_unplug));
+		pr_err("connection %d: short hot unplug request received (%zu < %zu)\n",
+		       op->connection->intf_cport_id, request->payload_size,
+		       sizeof(*hot_unplug));
 		return -EINVAL;
 	}
 
@@ -578,8 +567,8 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 
 	intf = gb_interface_find(hd, intf_id);
 	if (!intf) {
-		dev_err(dev, "%s: Couldn't find interface for id %hhu\n",
-			__func__, intf_id);
+		pr_err("connection %d: Couldn't find interface for id %hhu\n",
+		       op->connection->intf_cport_id, intf_id);
 		return -EINVAL;
 	}
 
@@ -595,9 +584,9 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 	u8 intf_id;
 
 	if (request->payload_size < sizeof(*reset)) {
-		dev_err(&op->connection->dev,
-			"short reset request received (%zu < %zu)\n",
-			request->payload_size, sizeof(*reset));
+		pr_err("connection %d: short reset request received (%zu < %zu)\n",
+		       op->connection->intf_cport_id, request->payload_size,
+		       sizeof(*reset));
 		return -EINVAL;
 	}
 	reset = request->payload;
@@ -641,9 +630,8 @@ static int gb_svc_request_recv(u8 type, struct gb_operation *op)
 	}
 
 	if (ret) {
-		dev_warn(&connection->dev,
-			 "unexpected SVC request 0x%02x received (state %u)\n",
-			 type, svc->state);
+		pr_warn("connection %d: unexpected SVC request 0x%02x received (state %u)\n",
+			connection->intf_cport_id, type, svc->state);
 		return ret;
 	}
 
@@ -665,8 +653,8 @@ static int gb_svc_request_recv(u8 type, struct gb_operation *op)
 	case GB_SVC_TYPE_INTF_RESET:
 		return gb_svc_intf_reset_recv(op);
 	default:
-		dev_err(&op->connection->dev,
-			"unsupported request: %hhu\n", type);
+		pr_err("connection %d: unsupported request: %hhu\n",
+		       connection->intf_cport_id, type);
 		return -EINVAL;
 	}
 }
