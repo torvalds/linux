@@ -43,7 +43,7 @@ config IOMMU_IO_PGTABLE_LPAE_SELFTEST
 endmenu
 
 config IOMMU_IOVA
-	bool
+	tristate
 
 config OF_IOMMU
        def_bool y

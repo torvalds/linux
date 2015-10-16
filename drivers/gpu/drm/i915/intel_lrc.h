@@ -25,6 +25,8 @@
 #define _INTEL_LRC_H_
 
 #define GEN8_LR_CONTEXT_ALIGN 4096
+#define GEN8_CSB_ENTRIES 6
+#define GEN8_CSB_PTR_MASK 0x07
 
 /* Execlists regs */
 #define RING_ELSP(ring)			((ring)->mmio_base+0x230)

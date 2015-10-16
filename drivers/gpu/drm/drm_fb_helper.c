@@ -442,7 +442,11 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 		struct drm_crtc *crtc = mode_set->crtc;
 		int ret;
 
-		if (crtc->funcs->cursor_set) {
+		if (crtc->funcs->cursor_set2) {
+			ret = crtc->funcs->cursor_set2(crtc, NULL, 0, 0, 0, 0, 0);
+			if (ret)
+				return ret;
+		} else if (crtc->funcs->cursor_set) {
 			ret = crtc->funcs->cursor_set(crtc, NULL, 0, 0, 0);
 			if (ret)
 				return ret;

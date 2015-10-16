@@ -256,6 +256,7 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
  */
 #define ioremap_nocache(offset, size)					\
 	__ioremap_mode((offset), (size), _CACHE_UNCACHED)
+#define ioremap_uc ioremap_nocache
 
 /*
  * ioremap_cachable -	map bus memory into CPU space

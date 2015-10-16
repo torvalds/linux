@@ -2926,7 +2926,7 @@ static int dce_v11_0_early_init(void *handle)
 
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
-		adev->mode_info.num_crtc = 4;
+		adev->mode_info.num_crtc = 3;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 9;
 		break;
