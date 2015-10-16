@@ -487,9 +487,12 @@ int opal_machine_check(struct pt_regs *regs)
 	 *    PRD component would have already got notified about this
 	 *    error through other channels.
 	 *
-	 * In any case, let us just fall through. We anyway heading
-	 * down to panic path.
+	 * If hardware marked this as an unrecoverable MCE, we are
+	 * going to panic anyway. Even if it didn't, it's not safe to
+	 * continue at this point, so we should explicitly panic.
 	 */
+
+	panic("PowerNV Unrecovered Machine Check");
 	return 0;
 }
 

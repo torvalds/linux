@@ -298,7 +298,7 @@ acpi_tb_select_address(char *register_name, u32 address32, u64 address64)
  *
  * FUNCTION:    acpi_tb_parse_fadt
  *
- * PARAMETERS:  table_index         - Index for the FADT
+ * PARAMETERS:  None
  *
  * RETURN:      None
  *
@@ -307,7 +307,7 @@ acpi_tb_select_address(char *register_name, u32 address32, u64 address64)
  *
  ******************************************************************************/
 
-void acpi_tb_parse_fadt(u32 table_index)
+void acpi_tb_parse_fadt(void)
 {
 	u32 length;
 	struct acpi_table_header *table;
@@ -319,11 +319,11 @@ void acpi_tb_parse_fadt(u32 table_index)
 	 * Get a local copy of the FADT and convert it to a common format
 	 * Map entire FADT, assumed to be smaller than one page.
 	 */
-	length = acpi_gbl_root_table_list.tables[table_index].length;
+	length = acpi_gbl_root_table_list.tables[acpi_gbl_fadt_index].length;
 
 	table =
-	    acpi_os_map_memory(acpi_gbl_root_table_list.tables[table_index].
-			       address, length);
+	    acpi_os_map_memory(acpi_gbl_root_table_list.
+			       tables[acpi_gbl_fadt_index].address, length);
 	if (!table) {
 		return;
 	}

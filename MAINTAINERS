@@ -3591,6 +3591,13 @@ F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
 F:	include/uapi/drm/i915*
 
+DRM DRIVERS FOR ATMEL HLCDC
+M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/atmel-hlcdc/
+F:	Documentation/devicetree/bindings/drm/atmel/
+
 DRM DRIVERS FOR EXYNOS
 M:	Inki Dae <inki.dae@samsung.com>
 M:	Joonyoung Shim <jy0922.shim@samsung.com>
@@ -3618,6 +3625,14 @@ L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/imx/
 F:	Documentation/devicetree/bindings/drm/imx/
+
+DRM DRIVERS FOR GMA500 (Poulsbo, Moorestown and derivative chipsets)
+M:	Patrik Jakobsson <patrik.r.jakobsson@gmail.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://github.com/patjak/drm-gma500
+S:	Maintained
+F:	drivers/gpu/drm/gma500
+F:	include/drm/gma500*
 
 DRM DRIVERS FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>

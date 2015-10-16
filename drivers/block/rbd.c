@@ -1863,9 +1863,11 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 		rbd_osd_read_callback(obj_request);
 		break;
 	case CEPH_OSD_OP_SETALLOCHINT:
-		rbd_assert(osd_req->r_ops[1].op == CEPH_OSD_OP_WRITE);
+		rbd_assert(osd_req->r_ops[1].op == CEPH_OSD_OP_WRITE ||
+			   osd_req->r_ops[1].op == CEPH_OSD_OP_WRITEFULL);
 		/* fall through */
 	case CEPH_OSD_OP_WRITE:
+	case CEPH_OSD_OP_WRITEFULL:
 		rbd_osd_write_callback(obj_request);
 		break;
 	case CEPH_OSD_OP_STAT:
@@ -2401,7 +2403,10 @@ static void rbd_img_obj_request_fill(struct rbd_obj_request *obj_request,
 				opcode = CEPH_OSD_OP_ZERO;
 		}
 	} else if (op_type == OBJ_OP_WRITE) {
-		opcode = CEPH_OSD_OP_WRITE;
+		if (!offset && length == object_size)
+			opcode = CEPH_OSD_OP_WRITEFULL;
+		else
+			opcode = CEPH_OSD_OP_WRITE;
 		osd_req_op_alloc_hint_init(osd_request, num_ops,
 					object_size, object_size);
 		num_ops++;
@@ -3760,6 +3765,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	/* set io sizes to object size */
 	segment_size = rbd_obj_bytes(&rbd_dev->header);
 	blk_queue_max_hw_sectors(q, segment_size / SECTOR_SIZE);
+	q->limits.max_sectors = queue_max_hw_sectors(q);
 	blk_queue_max_segments(q, segment_size / SECTOR_SIZE);
 	blk_queue_max_segment_size(q, segment_size);
 	blk_queue_io_min(q, segment_size);

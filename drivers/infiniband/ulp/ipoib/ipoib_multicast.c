@@ -106,7 +106,7 @@ static void __ipoib_mcast_schedule_join_thread(struct ipoib_dev_priv *priv,
 		queue_delayed_work(priv->wq, &priv->mcast_task, 0);
 }
 
-static void ipoib_mcast_free(struct ipoib_mcast *mcast)
+void ipoib_mcast_free(struct ipoib_mcast *mcast)
 {
 	struct net_device *dev = mcast->dev;
 	int tx_dropped = 0;

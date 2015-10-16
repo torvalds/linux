@@ -797,3 +797,12 @@ __SYSCALL(__NR_memfd_create, sys_memfd_create)
 __SYSCALL(__NR_bpf, sys_bpf)
 #define __NR_execveat 387
 __SYSCALL(__NR_execveat, compat_sys_execveat)
+#define __NR_userfaultfd 388
+__SYSCALL(__NR_userfaultfd, sys_userfaultfd)
+#define __NR_membarrier 389
+__SYSCALL(__NR_membarrier, sys_membarrier)
+
+/*
+ * Please add new compat syscalls above this comment and update
+ * __NR_compat_syscalls in asm/unistd.h.
+ */
