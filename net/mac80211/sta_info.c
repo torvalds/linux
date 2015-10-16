@@ -1871,8 +1871,12 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			 BIT(NL80211_STA_INFO_STA_FLAGS) |
 			 BIT(NL80211_STA_INFO_BSS_PARAM) |
 			 BIT(NL80211_STA_INFO_CONNECTED_TIME) |
-			 BIT(NL80211_STA_INFO_RX_DROP_MISC) |
-			 BIT(NL80211_STA_INFO_BEACON_LOSS);
+			 BIT(NL80211_STA_INFO_RX_DROP_MISC);
+
+	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+		sinfo->beacon_loss_count = sdata->u.mgd.beacon_loss_count;
+		sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_LOSS);
+	}
 
 	sinfo->connected_time = ktime_get_seconds() - sta->last_connected;
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
@@ -1914,7 +1918,6 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	}
 
 	sinfo->rx_dropped_misc = sta->rx_dropped;
-	sinfo->beacon_loss_count = sta->beacon_loss_count;
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    !(sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)) {

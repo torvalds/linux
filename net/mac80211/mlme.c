@@ -2420,15 +2420,9 @@ static void ieee80211_beacon_connection_loss_work(struct work_struct *work)
 		container_of(work, struct ieee80211_sub_if_data,
 			     u.mgd.beacon_connection_loss_work);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct sta_info *sta;
 
-	if (ifmgd->associated) {
-		rcu_read_lock();
-		sta = sta_info_get(sdata, ifmgd->bssid);
-		if (sta)
-			sta->beacon_loss_count++;
-		rcu_read_unlock();
-	}
+	if (ifmgd->associated)
+		ifmgd->beacon_loss_count++;
 
 	if (ifmgd->connection_loss) {
 		sdata_info(sdata, "Connection to AP %pM lost\n",

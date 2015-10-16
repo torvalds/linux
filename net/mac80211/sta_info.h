@@ -508,7 +508,6 @@ struct sta_info {
 	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;
 
 	unsigned int lost_packets;
-	unsigned int beacon_loss_count;
 
 	enum ieee80211_smps_mode known_smps_mode;
 	const struct ieee80211_cipher_scheme *cipher_scheme;

@@ -503,6 +503,9 @@ struct ieee80211_if_managed {
 	 */
 	unsigned int count_beacon_signal;
 
+	/* Number of times beacon loss was invoked. */
+	unsigned int beacon_loss_count;
+
 	/*
 	 * Last Beacon frame signal strength average (ave_beacon_signal / 16)
 	 * that triggered a cqm event. 0 indicates that no event has been
