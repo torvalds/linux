@@ -1092,6 +1092,15 @@ static void vgic_retire_lr(int lr_nr, int irq, struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_lr vlr = vgic_get_lr(vcpu, lr_nr);
 
+	/*
+	 * We must transfer the pending state back to the distributor before
+	 * retiring the LR, otherwise we may loose edge-triggered interrupts.
+	 */
+	if (vlr.state & LR_STATE_PENDING) {
+		vgic_dist_irq_set_pending(vcpu, irq);
+		vlr.hwirq = 0;
+	}
+
 	vlr.state = 0;
 	vgic_set_lr(vcpu, lr_nr, vlr);
 	clear_bit(lr_nr, vgic_cpu->lr_used);
@@ -1241,7 +1250,7 @@ static void __kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	unsigned long *pa_percpu, *pa_shared;
-	int i, vcpu_id, lr, ret;
+	int i, vcpu_id;
 	int overflow = 0;
 	int nr_shared = vgic_nr_shared_irqs(dist);
 
@@ -1295,31 +1304,6 @@ epilog:
 		 * adjust that if needed while exiting.
 		 */
 		clear_bit(vcpu_id, dist->irq_pending_on_cpu);
-	}
-
-	for (lr = 0; lr < vgic->nr_lr; lr++) {
-		struct vgic_lr vlr;
-
-		if (!test_bit(lr, vgic_cpu->lr_used))
-			continue;
-
-		vlr = vgic_get_lr(vcpu, lr);
-
-		/*
-		 * If we have a mapping, and the virtual interrupt is
-		 * presented to the guest (as pending or active), then we must
-		 * set the state to active in the physical world. See
-		 * Documentation/virtual/kvm/arm/vgic-mapped-irqs.txt.
-		 */
-		if (vlr.state & LR_HW) {
-			struct irq_phys_map *map;
-			map = vgic_irq_map_search(vcpu, vlr.irq);
-
-			ret = irq_set_irqchip_state(map->irq,
-						    IRQCHIP_STATE_ACTIVE,
-						    true);
-			WARN_ON(ret);
-		}
 	}
 }
 
@@ -1430,13 +1414,8 @@ static int vgic_sync_hwirq(struct kvm_vcpu *vcpu, struct vgic_lr vlr)
 
 	WARN_ON(ret);
 
-	if (map->active) {
-		ret = irq_set_irqchip_state(map->irq,
-					    IRQCHIP_STATE_ACTIVE,
-					    false);
-		WARN_ON(ret);
+	if (map->active)
 		return 0;
-	}
 
 	return 1;
 }
