@@ -808,7 +808,7 @@ bool CARDbIsOFDMinBasicRate(struct vnt_private *pDevice)
 	int ii;
 
 	for (ii = RATE_54M; ii >= RATE_6M; ii--) {
-		if ((pDevice->basic_rates) & ((u32)(1 << ii)))
+		if ((pDevice->basic_rates) & ((u32)BIT(ii)))
 			return true;
 	}
 	return false;
