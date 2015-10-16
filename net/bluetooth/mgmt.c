@@ -6124,7 +6124,11 @@ static int hci_conn_params_set(struct hci_request *req, bdaddr_t *addr,
 	case HCI_AUTO_CONN_ALWAYS:
 		if (!is_connected(hdev, addr, addr_type)) {
 			list_add(&params->action, &hdev->pend_le_conns);
-			__hci_update_background_scan(req);
+			/* If we are in scan phase of connecting, we were
+			 * already added to pend_le_conns and scanning.
+			 */
+			if (params->auto_connect != HCI_AUTO_CONN_EXPLICIT)
+				__hci_update_background_scan(req);
 		}
 		break;
 	}
