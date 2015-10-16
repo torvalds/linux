@@ -58,4 +58,8 @@ struct berlin_pinctrl_function {
 int berlin_pinctrl_probe(struct platform_device *pdev,
 			 const struct berlin_pinctrl_desc *desc);
 
+int berlin_pinctrl_probe_regmap(struct platform_device *pdev,
+				const struct berlin_pinctrl_desc *desc,
+				struct regmap *regmap);
+
 #endif /* __PINCTRL_BERLIN_H */
