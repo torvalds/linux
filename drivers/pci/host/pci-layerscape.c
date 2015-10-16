@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2014 Freescale Semiconductor.
  *
-  * Author: Minghuan Lian <Minghuan.Lian@freescale.com>
+ * Author: Minghuan Lian <Minghuan.Lian@freescale.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,20 +31,26 @@
 #define LTSSM_STATE_MASK	0x3f
 #define LTSSM_PCIE_L0		0x11 /* L0 state */
 
-/* Symbol Timer Register and Filter Mask Register 1 */
-#define PCIE_STRFMR1 0x71c
+/* PEX Internal Configuration Registers */
+#define PCIE_STRFMR1		0x71c /* Symbol Timer & Filter Mask Register1 */
+#define PCIE_DBI_RO_WR_EN	0x8bc /* DBI Read-Only Write Enable Register */
+
+/* PEX LUT registers */
+#define PCIE_LUT_DBG		0x7FC /* PEX LUT Debug Register */
 
 struct ls_pcie_drvdata {
+	u32 lut_offset;
+	u32 ltssm_shift;
 	struct pcie_host_ops *ops;
 };
 
 struct ls_pcie {
 	void __iomem *dbi;
+	void __iomem *lut;
 	struct regmap *scfg;
 	struct pcie_port pp;
 	const struct ls_pcie_drvdata *drvdata;
 	int index;
-	int msi_irq;
 };
 
 #define to_ls_pcie(x)	container_of(x, struct ls_pcie, pp)
@@ -57,6 +63,18 @@ static bool ls_pcie_is_bridge(struct ls_pcie *pcie)
 	header_type &= 0x7f;
 
 	return header_type == PCI_HEADER_TYPE_BRIDGE;
+}
+
+/* Clear multi-function bit */
+static void ls_pcie_clear_multifunction(struct ls_pcie *pcie)
+{
+	iowrite8(PCI_HEADER_TYPE_BRIDGE, pcie->dbi + PCI_HEADER_TYPE);
+}
+
+/* Fix class value */
+static void ls_pcie_fix_class(struct ls_pcie *pcie)
+{
+	iowrite16(PCI_CLASS_BRIDGE_PCI, pcie->dbi + PCI_CLASS_DEVICE);
 }
 
 static int ls1021_pcie_link_up(struct pcie_port *pp)
@@ -107,17 +125,61 @@ static void ls1021_pcie_host_init(struct pcie_port *pp)
 	iowrite32(val, pcie->dbi + PCIE_STRFMR1);
 }
 
+static int ls_pcie_link_up(struct pcie_port *pp)
+{
+	struct ls_pcie *pcie = to_ls_pcie(pp);
+	u32 state;
+
+	state = (ioread32(pcie->lut + PCIE_LUT_DBG) >>
+		 pcie->drvdata->ltssm_shift) &
+		 LTSSM_STATE_MASK;
+
+	if (state < LTSSM_PCIE_L0)
+		return 0;
+
+	return 1;
+}
+
+static void ls_pcie_host_init(struct pcie_port *pp)
+{
+	struct ls_pcie *pcie = to_ls_pcie(pp);
+
+	iowrite32(1, pcie->dbi + PCIE_DBI_RO_WR_EN);
+	ls_pcie_fix_class(pcie);
+	ls_pcie_clear_multifunction(pcie);
+	iowrite32(0, pcie->dbi + PCIE_DBI_RO_WR_EN);
+}
+
 static struct pcie_host_ops ls1021_pcie_host_ops = {
 	.link_up = ls1021_pcie_link_up,
 	.host_init = ls1021_pcie_host_init,
+};
+
+static struct pcie_host_ops ls_pcie_host_ops = {
+	.link_up = ls_pcie_link_up,
+	.host_init = ls_pcie_host_init,
 };
 
 static struct ls_pcie_drvdata ls1021_drvdata = {
 	.ops = &ls1021_pcie_host_ops,
 };
 
+static struct ls_pcie_drvdata ls1043_drvdata = {
+	.lut_offset = 0x10000,
+	.ltssm_shift = 24,
+	.ops = &ls_pcie_host_ops,
+};
+
+static struct ls_pcie_drvdata ls2080_drvdata = {
+	.lut_offset = 0x80000,
+	.ltssm_shift = 0,
+	.ops = &ls_pcie_host_ops,
+};
+
 static const struct of_device_id ls_pcie_of_match[] = {
 	{ .compatible = "fsl,ls1021a-pcie", .data = &ls1021_drvdata },
+	{ .compatible = "fsl,ls1043a-pcie", .data = &ls1043_drvdata },
+	{ .compatible = "fsl,ls2080a-pcie", .data = &ls2080_drvdata },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ls_pcie_of_match);
@@ -164,6 +226,7 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	}
 
 	pcie->drvdata = match->data;
+	pcie->lut = pcie->dbi + pcie->drvdata->lut_offset;
 
 	if (!ls_pcie_is_bridge(pcie))
 		return -ENODEV;
