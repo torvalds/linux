@@ -2962,7 +2962,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, u32 error_code,
 {
 	int r;
 	int level;
-	int force_pt_level;
+	bool force_pt_level;
 	pfn_t pfn;
 	unsigned long mmu_seq;
 	bool map_writable, write = error_code & PFERR_WRITE_MASK;
@@ -3476,7 +3476,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	pfn_t pfn;
 	int r;
 	int level;
-	int force_pt_level;
+	bool force_pt_level;
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	unsigned long mmu_seq;
 	int write = error_code & PFERR_WRITE_MASK;
@@ -3497,9 +3497,9 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 
 	if (mapping_level_dirty_bitmap(vcpu, gfn) ||
 	    !check_hugepage_cache_consistency(vcpu, gfn, PT_DIRECTORY_LEVEL))
-		force_pt_level = 1;
+		force_pt_level = true;
 	else
-		force_pt_level = 0;
+		force_pt_level = false;
 
 	if (likely(!force_pt_level)) {
 		level = mapping_level(vcpu, gfn);
