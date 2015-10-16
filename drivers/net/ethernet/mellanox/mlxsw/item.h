@@ -176,7 +176,7 @@ static inline void __mlxsw_item_memcpy_from(char *buf, char *dst,
 	memcpy(dst, &buf[item->offset], item->size.bytes);
 }
 
-static inline void __mlxsw_item_memcpy_to(char *buf, char *src,
+static inline void __mlxsw_item_memcpy_to(char *buf, const char *src,
 					  struct mlxsw_item *item)
 {
 	memcpy(&buf[item->offset], src, item->size.bytes);
@@ -374,7 +374,7 @@ mlxsw_##_type##_##_cname##_##_iname##_memcpy_from(char *buf, char *dst)		\
 	__mlxsw_item_memcpy_from(buf, dst, &__ITEM_NAME(_type, _cname, _iname));\
 }										\
 static inline void								\
-mlxsw_##_type##_##_cname##_##_iname##_memcpy_to(char *buf, char *src)		\
+mlxsw_##_type##_##_cname##_##_iname##_memcpy_to(char *buf, const char *src)	\
 {										\
 	__mlxsw_item_memcpy_to(buf, src, &__ITEM_NAME(_type, _cname, _iname));	\
 }
