@@ -1930,12 +1930,6 @@ static void nvme_dev_scan(struct work_struct *work)
  */
 static int nvme_dev_add(struct nvme_dev *dev)
 {
-	int res;
-
-	res = nvme_init_identify(&dev->ctrl);
-	if (res)
-		return res;
-
 	if (!dev->tagset.tags) {
 		dev->tagset.ops = &nvme_mq_ops;
 		dev->tagset.nr_hw_queues = dev->online_queues - 1;
@@ -2430,6 +2424,10 @@ static void nvme_probe_work(struct work_struct *work)
 	result = nvme_alloc_admin_tags(dev);
 	if (result)
 		goto disable;
+
+	result = nvme_init_identify(&dev->ctrl);
+	if (result)
+		goto free_tags;
 
 	result = nvme_setup_io_queues(dev);
 	if (result)
