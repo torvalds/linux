@@ -360,11 +360,7 @@ retry:
 			goto fail;
 		}
 
-		ret = drm_atomic_plane_set_property(plane, plane_state,
-				dev->mode_config.rotation_property,
-				BIT(DRM_ROTATE_0));
-		if (ret != 0)
-			goto fail;
+		plane_state->rotation = BIT(DRM_ROTATE_0);
 
 		/* disable non-primary: */
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
