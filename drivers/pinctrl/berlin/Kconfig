@@ -1,4 +1,4 @@
-if ARCH_BERLIN
+if (ARCH_BERLIN || COMPILE_TEST)
 
 config PINCTRL_BERLIN
 	bool
