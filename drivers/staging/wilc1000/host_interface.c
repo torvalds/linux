@@ -1750,15 +1750,14 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			strWIDList[2].val = (s8 *)(&(pstrHostIFkeyAttr->attr.wep.index));
 			strWIDList[2].size = sizeof(char);
 
-			pu8keybuf = kmalloc(pstrHostIFkeyAttr->attr.wep.key_len, GFP_KERNEL);
+			pu8keybuf = kmemdup(pstrHostIFkeyAttr->attr.wep.key,
+					    pstrHostIFkeyAttr->attr.wep.key_len,
+					    GFP_KERNEL);
 
 			if (pu8keybuf == NULL) {
 				PRINT_ER("No buffer to send Key\n");
 				return -1;
 			}
-
-			memcpy(pu8keybuf, pstrHostIFkeyAttr->attr.wep.key,
-				    pstrHostIFkeyAttr->attr.wep.key_len);
 
 			kfree(pstrHostIFkeyAttr->attr.wep.key);
 
@@ -4579,21 +4578,20 @@ s32 host_int_add_beacon(struct host_if_drv *hif_drv, u32 u32Interval,
 	pstrSetBeaconParam->interval = u32Interval;
 	pstrSetBeaconParam->dtim_period = u32DTIMPeriod;
 	pstrSetBeaconParam->head_len = u32HeadLen;
-	pstrSetBeaconParam->head = kmalloc(u32HeadLen, GFP_KERNEL);
+	pstrSetBeaconParam->head = kmemdup(pu8Head, u32HeadLen, GFP_KERNEL);
 	if (pstrSetBeaconParam->head == NULL) {
 		s32Error = -ENOMEM;
 		goto ERRORHANDLER;
 	}
-	memcpy(pstrSetBeaconParam->head, pu8Head, u32HeadLen);
 	pstrSetBeaconParam->tail_len = u32TailLen;
 
 	if (u32TailLen > 0) {
-		pstrSetBeaconParam->tail = kmalloc(u32TailLen, GFP_KERNEL);
+		pstrSetBeaconParam->tail = kmemdup(pu8Tail, u32TailLen,
+						   GFP_KERNEL);
 		if (pstrSetBeaconParam->tail == NULL) {
 			s32Error = -ENOMEM;
 			goto ERRORHANDLER;
 		}
-		memcpy(pstrSetBeaconParam->tail, pu8Tail, u32TailLen);
 	} else {
 		pstrSetBeaconParam->tail = NULL;
 	}
