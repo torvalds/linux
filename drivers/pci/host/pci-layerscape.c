@@ -47,6 +47,16 @@ struct ls_pcie {
 
 #define to_ls_pcie(x)	container_of(x, struct ls_pcie, pp)
 
+static bool ls_pcie_is_bridge(struct ls_pcie *pcie)
+{
+	u32 header_type;
+
+	header_type = ioread8(pcie->dbi + PCI_HEADER_TYPE);
+	header_type &= 0x7f;
+
+	return header_type == PCI_HEADER_TYPE_BRIDGE;
+}
+
 static int ls_pcie_link_up(struct pcie_port *pp)
 {
 	u32 state;
@@ -134,6 +144,9 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 	pcie->index = index[1];
+
+	if (!ls_pcie_is_bridge(pcie))
+		return -ENODEV;
 
 	ret = ls_add_pcie_port(pcie);
 	if (ret < 0)
