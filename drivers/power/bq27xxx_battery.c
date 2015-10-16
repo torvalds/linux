@@ -1292,6 +1292,7 @@ static int bq27xxx_battery_platform_probe(struct platform_device *pdev)
 
 	di->dev = &pdev->dev;
 	di->chip = pdata->chip;
+	di->regs = bq27xxx_regs[di->chip];
 
 	name = pdata->name ?: dev_name(&pdev->dev);
 	di->bus.read = &bq27xxx_battery_platform_read;
