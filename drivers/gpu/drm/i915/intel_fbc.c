@@ -720,7 +720,8 @@ static int intel_fbc_setup_cfb(struct intel_crtc *crtc)
 	size = intel_fbc_calculate_cfb_size(crtc);
 	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 
-	if (size <= dev_priv->fbc.uncompressed_size)
+	if (drm_mm_node_allocated(&dev_priv->fbc.compressed_fb) &&
+	    size <= dev_priv->fbc.compressed_fb.size * dev_priv->fbc.threshold)
 		return 0;
 
 	/* Release any current block */
