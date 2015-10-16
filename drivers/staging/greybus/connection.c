@@ -67,62 +67,17 @@ void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 }
 EXPORT_SYMBOL_GPL(greybus_data_rcvd);
 
-static ssize_t state_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static DEFINE_MUTEX(connection_mutex);
+
+static void gb_connection_kref_release(struct kref *kref)
 {
-	struct gb_connection *connection = to_gb_connection(dev);
-	enum gb_connection_state state;
+	struct gb_connection *connection;
 
-	spin_lock_irq(&connection->lock);
-	state = connection->state;
-	spin_unlock_irq(&connection->lock);
-
-	return sprintf(buf, "%d\n", state);
-}
-static DEVICE_ATTR_RO(state);
-
-static ssize_t
-protocol_id_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct gb_connection *connection = to_gb_connection(dev);
-
-	if (connection->protocol)
-		return sprintf(buf, "%d\n", connection->protocol->id);
-	else
-		return -EINVAL;
-}
-static DEVICE_ATTR_RO(protocol_id);
-
-static ssize_t
-ap_cport_id_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct gb_connection *connection = to_gb_connection(dev);
-	return sprintf(buf, "%hu\n", connection->hd_cport_id);
-}
-static DEVICE_ATTR_RO(ap_cport_id);
-
-static struct attribute *connection_attrs[] = {
-	&dev_attr_state.attr,
-	&dev_attr_protocol_id.attr,
-	&dev_attr_ap_cport_id.attr,
-	NULL,
-};
-
-ATTRIBUTE_GROUPS(connection);
-
-static void gb_connection_release(struct device *dev)
-{
-	struct gb_connection *connection = to_gb_connection(dev);
-
+	connection = container_of(kref, struct gb_connection, kref);
 	destroy_workqueue(connection->wq);
 	kfree(connection);
+	mutex_unlock(&connection_mutex);
 }
-
-struct device_type greybus_connection_type = {
-	.name =		"greybus_connection",
-	.release =	gb_connection_release,
-};
-
 
 int svc_update_connection(struct gb_interface *intf,
 			  struct gb_connection *connection)
@@ -133,13 +88,7 @@ int svc_update_connection(struct gb_interface *intf,
 	if (!bundle)
 		return -EINVAL;
 
-	device_del(&connection->dev);
 	connection->bundle = bundle;
-	connection->dev.parent = &bundle->dev;
-	dev_set_name(&connection->dev, "%s:%d", dev_name(&bundle->dev),
-		     GB_SVC_CPORT_ID);
-
-	WARN_ON(device_add(&connection->dev));
 
 	spin_lock_irq(&gb_connections_lock);
 	list_add(&connection->bundle_links, &bundle->connections);
@@ -210,24 +159,7 @@ gb_connection_create_range(struct greybus_host_device *hd,
 	if (!connection->wq)
 		goto err_free_connection;
 
-	connection->dev.parent = parent;
-	connection->dev.bus = &greybus_bus_type;
-	connection->dev.type = &greybus_connection_type;
-	connection->dev.groups = connection_groups;
-	device_initialize(&connection->dev);
-	dev_set_name(&connection->dev, "%s:%d",
-		     dev_name(parent), cport_id);
-
-	retval = device_add(&connection->dev);
-	if (retval) {
-		connection->hd_cport_id = CPORT_ID_BAD;
-		put_device(&connection->dev);
-
-		dev_err(parent, "failed to register connection to cport %04hx: %d\n",
-				cport_id, retval);
-
-		goto err_remove_ida;
-	}
+	kref_init(&connection->kref);
 
 	spin_lock_irq(&gb_connections_lock);
 	list_add(&connection->hd_links, &hd->connections);
@@ -524,7 +456,8 @@ void gb_connection_destroy(struct gb_connection *connection)
 	ida_simple_remove(id_map, connection->hd_cport_id);
 	connection->hd_cport_id = CPORT_ID_BAD;
 
-	device_unregister(&connection->dev);
+	kref_put_mutex(&connection->kref, gb_connection_kref_release,
+		       &connection_mutex);
 }
 
 void gb_connection_latency_tag_enable(struct gb_connection *connection)

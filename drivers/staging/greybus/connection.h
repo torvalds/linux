@@ -24,7 +24,7 @@ enum gb_connection_state {
 struct gb_connection {
 	struct greybus_host_device	*hd;
 	struct gb_bundle		*bundle;
-	struct device			dev;
+	struct kref			kref;
 	u16				hd_cport_id;
 	u16				intf_cport_id;
 
@@ -48,7 +48,6 @@ struct gb_connection {
 
 	void				*private;
 };
-#define to_gb_connection(d) container_of(d, struct gb_connection, dev)
 
 int svc_update_connection(struct gb_interface *intf,
 			  struct gb_connection *connection);
