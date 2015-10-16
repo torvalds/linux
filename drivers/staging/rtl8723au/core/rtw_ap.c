@@ -919,8 +919,8 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 			break;
 		}
 
-		if ((p == NULL) || (ie_len == 0))
-				break;
+		if (!p || !ie_len)
+			break;
 	}
 
 	/* wmm */
