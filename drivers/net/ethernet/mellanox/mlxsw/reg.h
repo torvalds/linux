@@ -976,6 +976,42 @@ static inline void mlxsw_reg_svfa_pack(char *payload, u8 local_port,
 	mlxsw_reg_svfa_vid_set(payload, vid);
 }
 
+/* SVPE - Switch Virtual-Port Enabling Register
+ * --------------------------------------------
+ * Enables port virtualization.
+ */
+#define MLXSW_REG_SVPE_ID 0x201E
+#define MLXSW_REG_SVPE_LEN 0x4
+
+static const struct mlxsw_reg_info mlxsw_reg_svpe = {
+	.id = MLXSW_REG_SVPE_ID,
+	.len = MLXSW_REG_SVPE_LEN,
+};
+
+/* reg_svpe_local_port
+ * Local port number
+ * Access: Index
+ *
+ * Note: CPU port is not supported (uses VLAN mode only).
+ */
+MLXSW_ITEM32(reg, svpe, local_port, 0x00, 16, 8);
+
+/* reg_svpe_vp_en
+ * Virtual port enable.
+ * 0 - Disable, VLAN mode (VID to FID).
+ * 1 - Enable, Virtual port mode ({Port, VID} to FID).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, svpe, vp_en, 0x00, 8, 1);
+
+static inline void mlxsw_reg_svpe_pack(char *payload, u8 local_port,
+				       bool enable)
+{
+	MLXSW_REG_ZERO(svpe, payload);
+	mlxsw_reg_svpe_local_port_set(payload, local_port);
+	mlxsw_reg_svpe_vp_en_set(payload, enable);
+}
+
 /* SFMR - Switch FID Management Register
  * -------------------------------------
  * Creates and configures FIDs.
@@ -2241,6 +2277,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SPMLR";
 	case MLXSW_REG_SVFA_ID:
 		return "SVFA";
+	case MLXSW_REG_SVPE_ID:
+		return "SVPE";
 	case MLXSW_REG_SFMR_ID:
 		return "SFMR";
 	case MLXSW_REG_PMLP_ID:
