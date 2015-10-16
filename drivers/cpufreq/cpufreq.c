@@ -1022,7 +1022,6 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 	struct cpufreq_policy *policy;
-	int ret;
 
 	if (WARN_ON(!dev))
 		return NULL;
@@ -1040,13 +1039,7 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 	if (!zalloc_cpumask_var(&policy->real_cpus, GFP_KERNEL))
 		goto err_free_rcpumask;
 
-	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq,
-				   cpufreq_global_kobject, "policy%u", cpu);
-	if (ret) {
-		pr_err("%s: failed to init policy->kobj: %d\n", __func__, ret);
-		goto err_free_real_cpus;
-	}
-
+	kobject_init(&policy->kobj, &ktype_cpufreq);
 	INIT_LIST_HEAD(&policy->policy_list);
 	init_rwsem(&policy->rwsem);
 	spin_lock_init(&policy->transition_lock);
@@ -1057,8 +1050,6 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 	policy->cpu = cpu;
 	return policy;
 
-err_free_real_cpus:
-	free_cpumask_var(policy->real_cpus);
 err_free_rcpumask:
 	free_cpumask_var(policy->related_cpus);
 err_free_cpumask:
@@ -1163,6 +1154,16 @@ static int cpufreq_online(unsigned int cpu)
 		cpumask_copy(policy->related_cpus, policy->cpus);
 		/* Remember CPUs present at the policy creation time. */
 		cpumask_and(policy->real_cpus, policy->cpus, cpu_present_mask);
+
+		/* Name and add the kobject */
+		ret = kobject_add(&policy->kobj, cpufreq_global_kobject,
+				  "policy%u",
+				  cpumask_first(policy->related_cpus));
+		if (ret) {
+			pr_err("%s: failed to add policy->kobj: %d\n", __func__,
+			       ret);
+			goto out_exit_policy;
+		}
 	}
 
 	/*
