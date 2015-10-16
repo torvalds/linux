@@ -81,13 +81,13 @@ enum msg_type {
 };
 
 struct cluster_msg {
-	int type;
-	int slot;
+	__le32 type;
+	__le32 slot;
 	/* TODO: Unionize this for smaller footprint */
-	sector_t low;
-	sector_t high;
+	__le64 low;
+	__le64 high;
 	char uuid[16];
-	int raid_slot;
+	__le32 raid_slot;
 };
 
 static void sync_ast(void *arg)
@@ -215,7 +215,7 @@ static struct suspend_info *read_resync_info(struct mddev *mddev, struct dlm_loc
 	dlm_lock_sync(lockres, DLM_LOCK_CR);
 	memcpy(&ri, lockres->lksb.sb_lvbptr, sizeof(struct resync_info));
 	hi = le64_to_cpu(ri.hi);
-	if (ri.hi > 0) {
+	if (hi > 0) {
 		s = kzalloc(sizeof(struct suspend_info), GFP_KERNEL);
 		if (!s)
 			goto out;
@@ -465,13 +465,14 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 	if (WARN(mddev->cluster_info->slot_number - 1 == le32_to_cpu(msg->slot),
 		"node %d received it's own msg\n", le32_to_cpu(msg->slot)))
 		return;
-	switch (msg->type) {
+	switch (le32_to_cpu(msg->type)) {
 	case METADATA_UPDATED:
 		process_metadata_update(mddev, msg);
 		break;
 	case RESYNCING:
-		process_suspend_info(mddev, msg->slot,
-				msg->low, msg->high);
+		process_suspend_info(mddev, le32_to_cpu(msg->slot),
+				     le64_to_cpu(msg->low),
+				     le64_to_cpu(msg->high));
 		break;
 	case NEWDISK:
 		process_add_new_disk(mddev, msg);
@@ -483,7 +484,7 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		process_readd_disk(mddev, msg);
 		break;
 	case BITMAP_NEEDS_SYNC:
-		__recover_slot(mddev, msg->slot);
+		__recover_slot(mddev, le32_to_cpu(msg->slot));
 		break;
 	default:
 		pr_warn("%s:%d Received unknown message from %d\n",
