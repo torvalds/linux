@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -334,8 +334,8 @@ static s32 fm10k_update_xc_addr_pf(struct fm10k_hw *hw, u16 glort,
 						 ((u32)mac[3] << 16) |
 						 ((u32)mac[4] << 8) |
 						 ((u32)mac[5]));
-	mac_update.mac_upper = cpu_to_le16(((u32)mac[0] << 8) |
-						 ((u32)mac[1]));
+	mac_update.mac_upper = cpu_to_le16(((u16)mac[0] << 8) |
+					   ((u16)mac[1]));
 	mac_update.vlan = cpu_to_le16(vid);
 	mac_update.glort = cpu_to_le16(glort);
 	mac_update.action = add ? 0 : 1;
