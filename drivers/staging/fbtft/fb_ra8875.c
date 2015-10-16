@@ -204,7 +204,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 {
 	va_list args;
 	int i, ret;
-	u8 *buf = (u8 *)par->buf;
+	u8 *buf = par->buf;
 
 	/* slow down spi-speed for writing registers */
 	par->fbtftops.write = write_spi;
