@@ -883,6 +883,99 @@ static inline void mlxsw_reg_spmlr_pack(char *payload, u8 local_port,
 	mlxsw_reg_spmlr_learn_mode_set(payload, mode);
 }
 
+/* SVFA - Switch VID to FID Allocation Register
+ * --------------------------------------------
+ * Controls the VID to FID mapping and {Port, VID} to FID mapping for
+ * virtualized ports.
+ */
+#define MLXSW_REG_SVFA_ID 0x201C
+#define MLXSW_REG_SVFA_LEN 0x10
+
+static const struct mlxsw_reg_info mlxsw_reg_svfa = {
+	.id = MLXSW_REG_SVFA_ID,
+	.len = MLXSW_REG_SVFA_LEN,
+};
+
+/* reg_svfa_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, svfa, swid, 0x00, 24, 8);
+
+/* reg_svfa_local_port
+ * Local port number.
+ * Access: Index
+ *
+ * Note: Reserved for 802.1Q FIDs.
+ */
+MLXSW_ITEM32(reg, svfa, local_port, 0x00, 16, 8);
+
+enum mlxsw_reg_svfa_mt {
+	MLXSW_REG_SVFA_MT_VID_TO_FID,
+	MLXSW_REG_SVFA_MT_PORT_VID_TO_FID,
+};
+
+/* reg_svfa_mapping_table
+ * Mapping table:
+ * 0 - VID to FID
+ * 1 - {Port, VID} to FID
+ * Access: Index
+ *
+ * Note: Reserved for SwitchX-2.
+ */
+MLXSW_ITEM32(reg, svfa, mapping_table, 0x00, 8, 3);
+
+/* reg_svfa_v
+ * Valid.
+ * Valid if set.
+ * Access: RW
+ *
+ * Note: Reserved for SwitchX-2.
+ */
+MLXSW_ITEM32(reg, svfa, v, 0x00, 0, 1);
+
+/* reg_svfa_fid
+ * Filtering ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, svfa, fid, 0x04, 16, 16);
+
+/* reg_svfa_vid
+ * VLAN ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, svfa, vid, 0x04, 0, 12);
+
+/* reg_svfa_counter_set_type
+ * Counter set type for flow counters.
+ * Access: RW
+ *
+ * Note: Reserved for SwitchX-2.
+ */
+MLXSW_ITEM32(reg, svfa, counter_set_type, 0x08, 24, 8);
+
+/* reg_svfa_counter_index
+ * Counter index for flow counters.
+ * Access: RW
+ *
+ * Note: Reserved for SwitchX-2.
+ */
+MLXSW_ITEM32(reg, svfa, counter_index, 0x08, 0, 24);
+
+static inline void mlxsw_reg_svfa_pack(char *payload, u8 local_port,
+				       enum mlxsw_reg_svfa_mt mt, bool valid,
+				       u16 fid, u16 vid)
+{
+	MLXSW_REG_ZERO(svfa, payload);
+	local_port = mt == MLXSW_REG_SVFA_MT_VID_TO_FID ? 0 : local_port;
+	mlxsw_reg_svfa_swid_set(payload, 0);
+	mlxsw_reg_svfa_local_port_set(payload, local_port);
+	mlxsw_reg_svfa_mapping_table_set(payload, mt);
+	mlxsw_reg_svfa_v_set(payload, valid);
+	mlxsw_reg_svfa_fid_set(payload, fid);
+	mlxsw_reg_svfa_vid_set(payload, vid);
+}
+
 /* SFMR - Switch FID Management Register
  * -------------------------------------
  * Creates and configures FIDs.
@@ -2146,6 +2239,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SFTR";
 	case MLXSW_REG_SPMLR_ID:
 		return "SPMLR";
+	case MLXSW_REG_SVFA_ID:
+		return "SVFA";
 	case MLXSW_REG_SFMR_ID:
 		return "SFMR";
 	case MLXSW_REG_PMLP_ID:
