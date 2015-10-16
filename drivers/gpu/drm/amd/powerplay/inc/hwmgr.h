@@ -35,6 +35,7 @@ struct pp_hwmgr;
 struct pp_hw_power_state;
 struct pp_power_state;
 struct PP_VCEState;
+struct phm_fan_speed_info;
 
 enum PP_Result {
 	PP_Result_TableImmediateExit = 0x13,
@@ -291,6 +292,21 @@ struct pp_hwmgr_func {
 	int (*disable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*update_clock_gatings)(struct pp_hwmgr *hwmgr,
 						const uint32_t *msg_id);
+	int (*set_max_fan_rpm_output)(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm);
+	int (*set_max_fan_pwm_output)(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm);
+	int (*get_temperature)(struct pp_hwmgr *hwmgr);
+	int (*stop_thermal_controller)(struct pp_hwmgr *hwmgr);
+	int (*get_fan_speed_info)(struct pp_hwmgr *hwmgr, struct phm_fan_speed_info *fan_speed_info);
+	int (*set_fan_control_mode)(struct pp_hwmgr *hwmgr, uint32_t mode);
+	int (*get_fan_control_mode)(struct pp_hwmgr *hwmgr);
+	int (*set_fan_speed_percent)(struct pp_hwmgr *hwmgr, uint32_t percent);
+	int (*get_fan_speed_percent)(struct pp_hwmgr *hwmgr, uint32_t *speed);
+	int (*set_fan_speed_rpm)(struct pp_hwmgr *hwmgr, uint32_t percent);
+	int (*get_fan_speed_rpm)(struct pp_hwmgr *hwmgr, uint32_t *speed);
+	int (*reset_fan_speed_to_default)(struct pp_hwmgr *hwmgr);
+	int (*uninitialize_thermal_controller)(struct pp_hwmgr *hwmgr);
+	int (*register_internal_thermal_interrupt)(struct pp_hwmgr *hwmgr,
+					const void *thermal_interrupt_info);
 };
 
 struct pp_table_func {
@@ -548,12 +564,17 @@ struct pp_hwmgr {
 	struct phm_runtime_table_header set_power_state;
 	struct phm_runtime_table_header enable_clock_power_gatings;
 	struct phm_runtime_table_header display_configuration_changed;
+	struct phm_runtime_table_header start_thermal_controller;
+	struct phm_runtime_table_header set_temperature_range;
 	const struct pp_hwmgr_func *hwmgr_func;
 	const struct pp_table_func *pptable_func;
 	struct pp_power_state    *ps;
         enum pp_power_source  power_source;
 	uint32_t num_ps;
 	struct pp_thermal_controller_info thermal_controller;
+	bool fan_ctrl_is_in_default_mode;
+	uint32_t fan_ctrl_default_mode;
+	uint32_t tmin;
 	struct phm_microcode_version_info microcode_version_info;
 	uint32_t ps_size;
 	struct pp_power_state    *current_ps;
@@ -599,6 +620,7 @@ extern void phm_wait_for_indirect_register_unequal(
 
 bool phm_cf_want_uvd_power_gating(struct pp_hwmgr *hwmgr);
 bool phm_cf_want_vce_power_gating(struct pp_hwmgr *hwmgr);
+bool phm_cf_want_microcode_fan_ctrl(struct pp_hwmgr *hwmgr);
 
 #define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 
