@@ -168,6 +168,13 @@ int tonga_add_voltage(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+int tonga_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
+{
+	PPSMC_Msg msg = has_display? (PPSMC_Msg)PPSMC_HasDisplay : (PPSMC_Msg)PPSMC_NoDisplay;
+
+	return (smum_send_msg_to_smc(hwmgr->smumgr, msg) == 0) ?  0 : -1;
+}
+
 uint8_t tonga_get_voltage_id(pp_atomctrl_voltage_table *voltage_table,
 		uint32_t voltage)
 {
@@ -4392,6 +4399,10 @@ int tonga_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 		"Failed to populate initialize MC Reg table!", result = tmp_result);
 
+	tmp_result = tonga_notify_smc_display_change(hwmgr, false);
+	PP_ASSERT_WITH_CODE((0 == tmp_result),
+		"Failed to notify no display!", result = tmp_result);
+
 	/* enable SCLK control */
 	tmp_result = tonga_enable_sclk_control(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
@@ -5679,6 +5690,84 @@ static int tonga_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input
 	return result;
 }
 
+
+int tonga_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
+{
+	uint32_t num_active_displays = 0;
+	struct cgs_display_info info = {0};
+	info.mode_info = NULL;
+
+	cgs_get_active_displays_info(hwmgr->device, &info);
+
+	num_active_displays = info.display_count;
+
+	if (num_active_displays > 1)  /* to do && (pHwMgr->pPECI->displayConfiguration.bMultiMonitorInSync != TRUE)) */
+		tonga_notify_smc_display_change(hwmgr, false);
+	else
+		tonga_notify_smc_display_change(hwmgr, true);
+
+	return 0;
+}
+
+/**
+* Programs the display gap
+*
+* @param    hwmgr  the address of the powerplay hardware manager.
+* @return   always OK
+*/
+int tonga_program_display_gap(struct pp_hwmgr *hwmgr)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	uint32_t num_active_displays = 0;
+	uint32_t display_gap = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL);
+	uint32_t display_gap2;
+	uint32_t pre_vbi_time_in_us;
+	uint32_t frame_time_in_us;
+	uint32_t ref_clock;
+	uint32_t refresh_rate = 0;
+	struct cgs_display_info info = {0};
+	struct cgs_mode_info mode_info;
+
+	info.mode_info = &mode_info;
+
+	cgs_get_active_displays_info(hwmgr->device, &info);
+	num_active_displays = info.display_count;
+
+	display_gap = PHM_SET_FIELD(display_gap, CG_DISPLAY_GAP_CNTL, DISP_GAP, (num_active_displays > 0)? DISPLAY_GAP_VBLANK_OR_WM : DISPLAY_GAP_IGNORE);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL, display_gap);
+
+	ref_clock = mode_info.ref_clock;
+	refresh_rate = mode_info.refresh_rate;
+
+	if(0 == refresh_rate)
+		refresh_rate = 60;
+
+	frame_time_in_us = 1000000 / refresh_rate;
+
+	pre_vbi_time_in_us = frame_time_in_us - 200 - mode_info.vblank_time_us;
+	display_gap2 = pre_vbi_time_in_us * (ref_clock / 100);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL2, display_gap2);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start + offsetof(SMU72_SoftRegisters, PreVBlankGap), 0x64);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start + offsetof(SMU72_SoftRegisters, VBlankTimeout), (frame_time_in_us - pre_vbi_time_in_us));
+
+	if (num_active_displays == 1)
+		tonga_notify_smc_display_change(hwmgr, true);
+
+	return 0;
+}
+
+int tonga_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
+{
+
+	tonga_program_display_gap(hwmgr);
+
+	/* to do PhwTonga_CacUpdateDisplayConfiguration(pHwMgr); */
+	return 0;
+}
+
 static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.backend_init = &tonga_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
@@ -5694,6 +5783,8 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.get_pp_table_entry = tonga_get_pp_table_entry,
 	.get_num_of_pp_table_entries = tonga_get_number_of_powerplay_table_entries,
 	.print_current_perforce_level = tonga_print_current_perforce_level,
+	.notify_smc_display_config_after_ps_adjustment = tonga_notify_smc_display_config_after_ps_adjustment,
+	.display_config_changed = tonga_display_configuration_changed_task,
 };
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
