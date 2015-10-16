@@ -162,7 +162,7 @@ Added transmitter support for Software Defined Radio (SDR) Interface.
       </revision>
 
       <revision>
-	<revnumber>3.21</revnumber>
+	<revnumber>4.1</revnumber>
 	<date>2015-02-13</date>
 	<authorinitials>mcc</authorinitials>
 	<revremark>Fix documentation for media controller device nodes and add support for DVB device nodes.
@@ -566,7 +566,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.19</subtitle>
+ <subtitle>Revision 4.4</subtitle>
 
   <chapter id="common">
     &sub-common;
