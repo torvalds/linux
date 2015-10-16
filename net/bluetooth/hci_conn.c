@@ -91,12 +91,27 @@ static void hci_connect_le_scan_cleanup(struct hci_conn *conn)
 	 * autoconnect action, remove them completely. If they are, just unmark
 	 * them as waiting for connection, by clearing explicit_connect field.
 	 */
-	if (params->auto_connect == HCI_AUTO_CONN_EXPLICIT) {
+	params->explicit_connect = false;
+
+	list_del_init(&params->action);
+
+	switch (params->auto_connect) {
+	case HCI_AUTO_CONN_EXPLICIT:
 		hci_conn_params_del(conn->hdev, bdaddr, bdaddr_type);
-	} else {
-		params->explicit_connect = false;
-		hci_update_background_scan(conn->hdev);
+		/* return instead of break to avoid duplicate scan update */
+		return;
+	case HCI_AUTO_CONN_DIRECT:
+	case HCI_AUTO_CONN_ALWAYS:
+		list_add(&params->action, &conn->hdev->pend_le_conns);
+		break;
+	case HCI_AUTO_CONN_REPORT:
+		list_add(&params->action, &conn->hdev->pend_le_reports);
+		break;
+	default:
+		break;
 	}
+
+	hci_update_background_scan(conn->hdev);
 }
 
 static void hci_conn_cleanup(struct hci_conn *conn)
