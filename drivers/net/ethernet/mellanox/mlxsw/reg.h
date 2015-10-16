@@ -99,57 +99,6 @@ static const struct mlxsw_reg_info mlxsw_reg_spad = {
  */
 MLXSW_ITEM_BUF(reg, spad, base_mac, 0x02, 6);
 
-/* SMID - Switch Multicast ID
- * --------------------------
- * In multi-chip configuration, each device should maintain mapping between
- * Multicast ID (MID) into a list of local ports. This mapping is used in all
- * the devices other than the ingress device, and is implemented as part of the
- * FDB. The MID record maps from a MID, which is a unique identi- fier of the
- * multicast group within the stacking domain, into a list of local ports into
- * which the packet is replicated.
- */
-#define MLXSW_REG_SMID_ID 0x2007
-#define MLXSW_REG_SMID_LEN 0x420
-
-static const struct mlxsw_reg_info mlxsw_reg_smid = {
-	.id = MLXSW_REG_SMID_ID,
-	.len = MLXSW_REG_SMID_LEN,
-};
-
-/* reg_smid_swid
- * Switch partition ID.
- * Access: Index
- */
-MLXSW_ITEM32(reg, smid, swid, 0x00, 24, 8);
-
-/* reg_smid_mid
- * Multicast identifier - global identifier that represents the multicast group
- * across all devices
- * Access: Index
- */
-MLXSW_ITEM32(reg, smid, mid, 0x00, 0, 16);
-
-/* reg_smid_port
- * Local port memebership (1 bit per port).
- * Access: RW
- */
-MLXSW_ITEM_BIT_ARRAY(reg, smid, port, 0x20, 0x20, 1);
-
-/* reg_smid_port_mask
- * Local port mask (1 bit per port).
- * Access: W
- */
-MLXSW_ITEM_BIT_ARRAY(reg, smid, port_mask, 0x220, 0x20, 1);
-
-static inline void mlxsw_reg_smid_pack(char *payload, u16 mid)
-{
-	MLXSW_REG_ZERO(smid, payload);
-	mlxsw_reg_smid_swid_set(payload, 0);
-	mlxsw_reg_smid_mid_set(payload, mid);
-	mlxsw_reg_smid_port_set(payload, MLXSW_PORT_CPU_PORT, 1);
-	mlxsw_reg_smid_port_mask_set(payload, MLXSW_PORT_CPU_PORT, 1);
-}
-
 /* SSPR - Switch System Port Record Register
  * -----------------------------------------
  * Configures the system port to local port mapping.
@@ -212,7 +161,7 @@ static inline void mlxsw_reg_sspr_pack(char *payload, u8 local_port)
  * -------------------------------------------
  * Configures the spanning tree state of a physical port.
  */
-#define MLXSW_REG_SPMS_ID 0x200d
+#define MLXSW_REG_SPMS_ID 0x200D
 #define MLXSW_REG_SPMS_LEN 0x404
 
 static const struct mlxsw_reg_info mlxsw_reg_spms = {
@@ -243,11 +192,15 @@ enum mlxsw_reg_spms_state {
  */
 MLXSW_ITEM_BIT_ARRAY(reg, spms, state, 0x04, 0x400, 2);
 
-static inline void mlxsw_reg_spms_pack(char *payload, u8 local_port, u16 vid,
-				       enum mlxsw_reg_spms_state state)
+static inline void mlxsw_reg_spms_pack(char *payload, u8 local_port)
 {
 	MLXSW_REG_ZERO(spms, payload);
 	mlxsw_reg_spms_local_port_set(payload, local_port);
+}
+
+static inline void mlxsw_reg_spms_vid_pack(char *payload, u16 vid,
+					   enum mlxsw_reg_spms_state state)
+{
 	mlxsw_reg_spms_state_set(payload, vid, state);
 }
 
@@ -256,7 +209,7 @@ static inline void mlxsw_reg_spms_pack(char *payload, u8 local_port, u16 vid,
  * The following register controls the association of flooding tables and MIDs
  * to packet types used for flooding.
  */
-#define MLXSW_REG_SFGC_ID  0x2011
+#define MLXSW_REG_SFGC_ID 0x2011
 #define MLXSW_REG_SFGC_LEN 0x10
 
 static const struct mlxsw_reg_info mlxsw_reg_sfgc = {
@@ -265,13 +218,15 @@ static const struct mlxsw_reg_info mlxsw_reg_sfgc = {
 };
 
 enum mlxsw_reg_sfgc_type {
-	MLXSW_REG_SFGC_TYPE_BROADCAST = 0,
-	MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST = 1,
-	MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV4 = 2,
-	MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV6 = 3,
-	MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_NON_IP = 5,
-	MLXSW_REG_SFGC_TYPE_IPV4_LINK_LOCAL = 6,
-	MLXSW_REG_SFGC_TYPE_IPV6_ALL_HOST = 7,
+	MLXSW_REG_SFGC_TYPE_BROADCAST,
+	MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST,
+	MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV4,
+	MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV6,
+	MLXSW_REG_SFGC_TYPE_RESERVED,
+	MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_NON_IP,
+	MLXSW_REG_SFGC_TYPE_IPV4_LINK_LOCAL,
+	MLXSW_REG_SFGC_TYPE_IPV6_ALL_HOST,
+	MLXSW_REG_SFGC_TYPE_MAX,
 };
 
 /* reg_sfgc_type
@@ -1013,7 +968,7 @@ static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port)
  * Controls the association of a port with a switch partition and enables
  * configuring ports as stacking ports.
  */
-#define MLXSW_REG_PSPA_ID 0x500d
+#define MLXSW_REG_PSPA_ID 0x500D
 #define MLXSW_REG_PSPA_LEN 0x8
 
 static const struct mlxsw_reg_info mlxsw_reg_pspa = {
@@ -1074,8 +1029,11 @@ MLXSW_ITEM32(reg, htgt, swid, 0x00, 24, 8);
  */
 MLXSW_ITEM32(reg, htgt, type, 0x00, 8, 4);
 
-#define MLXSW_REG_HTGT_TRAP_GROUP_EMAD	0x0
-#define MLXSW_REG_HTGT_TRAP_GROUP_RX	0x1
+enum mlxsw_reg_htgt_trap_group {
+	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
+	MLXSW_REG_HTGT_TRAP_GROUP_RX,
+	MLXSW_REG_HTGT_TRAP_GROUP_CTRL,
+};
 
 /* reg_htgt_trap_group
  * Trap group number. User defined number specifying which trap groups
@@ -1142,6 +1100,7 @@ MLXSW_ITEM32(reg, htgt, local_path_cpu_tclass, 0x10, 16, 6);
 
 #define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_EMAD	0x15
 #define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_RX	0x14
+#define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_CTRL	0x13
 
 /* reg_htgt_local_path_rdq
  * Receive descriptor queue (RDQ) to use for the trap group.
@@ -1149,21 +1108,29 @@ MLXSW_ITEM32(reg, htgt, local_path_cpu_tclass, 0x10, 16, 6);
  */
 MLXSW_ITEM32(reg, htgt, local_path_rdq, 0x10, 0, 6);
 
-static inline void mlxsw_reg_htgt_pack(char *payload, u8 trap_group)
+static inline void mlxsw_reg_htgt_pack(char *payload,
+				       enum mlxsw_reg_htgt_trap_group group)
 {
 	u8 swid, rdq;
 
 	MLXSW_REG_ZERO(htgt, payload);
-	if (MLXSW_REG_HTGT_TRAP_GROUP_EMAD == trap_group) {
+	switch (group) {
+	case MLXSW_REG_HTGT_TRAP_GROUP_EMAD:
 		swid = MLXSW_PORT_SWID_ALL_SWIDS;
 		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_EMAD;
-	} else {
+		break;
+	case MLXSW_REG_HTGT_TRAP_GROUP_RX:
 		swid = 0;
 		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_RX;
+		break;
+	case MLXSW_REG_HTGT_TRAP_GROUP_CTRL:
+		swid = 0;
+		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_CTRL;
+		break;
 	}
 	mlxsw_reg_htgt_swid_set(payload, swid);
 	mlxsw_reg_htgt_type_set(payload, MLXSW_REG_HTGT_PATH_TYPE_LOCAL);
-	mlxsw_reg_htgt_trap_group_set(payload, trap_group);
+	mlxsw_reg_htgt_trap_group_set(payload, group);
 	mlxsw_reg_htgt_pide_set(payload, MLXSW_REG_HTGT_POLICER_DISABLE);
 	mlxsw_reg_htgt_pid_set(payload, 0);
 	mlxsw_reg_htgt_mirror_action_set(payload, MLXSW_REG_HTGT_TRAP_TO_CPU);
@@ -1254,12 +1221,22 @@ enum {
  */
 MLXSW_ITEM32(reg, hpkt, ctrl, 0x04, 16, 2);
 
-static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action,
-				       u8 trap_group, u16 trap_id)
+static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id)
 {
+	enum mlxsw_reg_htgt_trap_group trap_group;
+
 	MLXSW_REG_ZERO(hpkt, payload);
 	mlxsw_reg_hpkt_ack_set(payload, MLXSW_REG_HPKT_ACK_NOT_REQUIRED);
 	mlxsw_reg_hpkt_action_set(payload, action);
+	switch (trap_id) {
+	case MLXSW_TRAP_ID_ETHEMAD:
+	case MLXSW_TRAP_ID_PUDE:
+		trap_group = MLXSW_REG_HTGT_TRAP_GROUP_EMAD;
+		break;
+	default:
+		trap_group = MLXSW_REG_HTGT_TRAP_GROUP_RX;
+		break;
+	}
 	mlxsw_reg_hpkt_trap_group_set(payload, trap_group);
 	mlxsw_reg_hpkt_trap_id_set(payload, trap_id);
 	mlxsw_reg_hpkt_ctrl_set(payload, MLXSW_REG_HPKT_CTRL_PACKET_DEFAULT);
@@ -1272,8 +1249,6 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SGCR";
 	case MLXSW_REG_SPAD_ID:
 		return "SPAD";
-	case MLXSW_REG_SMID_ID:
-		return "SMID";
 	case MLXSW_REG_SSPR_ID:
 		return "SSPR";
 	case MLXSW_REG_SPMS_ID:
