@@ -19,6 +19,11 @@ config FPGA_MGR_SOCFPGA
 	help
 	  FPGA manager driver support for Altera SOCFPGA.
 
+config FPGA_MGR_ZYNQ_FPGA
+	tristate "Xilinx Zynq FPGA"
+	help
+	  FPGA manager driver support for Xilinx Zynq FPGAs.
+
 endif # FPGA
 
 endmenu
