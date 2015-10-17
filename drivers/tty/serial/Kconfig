@@ -1539,6 +1539,7 @@ config SERIAL_FSL_LPUART
 	tristate "Freescale lpuart serial port support"
 	depends on HAS_DMA
 	select SERIAL_CORE
+	select SERIAL_EARLYCON
 	help
 	  Support for the on-chip lpuart on some Freescale SOCs.
 
