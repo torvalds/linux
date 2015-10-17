@@ -292,25 +292,20 @@ static inline enum mc_cmd_status mc_read_response(struct mc_command __iomem *
 }
 
 /**
- * Sends an command to the MC device using the given MC I/O object
+ * Waits for the completion of an MC command doing preemptible polling.
+ * uslepp_range() is called between polling iterations.
  *
  * @mc_io: MC I/O object to be used
- * @cmd: command to be sent
- *
- * Returns '0' on Success; Error code otherwise.
- *
- * NOTE: This function cannot be invoked from from atomic contexts.
+ * @cmd: command buffer to receive MC response
+ * @mc_status: MC command completion status
  */
-int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
+static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
+				       struct mc_command *cmd,
+				       enum mc_cmd_status *mc_status)
 {
 	enum mc_cmd_status status;
 	unsigned long jiffies_until_timeout =
 		jiffies + msecs_to_jiffies(MC_CMD_COMPLETION_TIMEOUT_MS);
-
-	/*
-	 * Send command to the MC hardware:
-	 */
-	mc_write_command(mc_io->portal_virt_addr, cmd);
 
 	/*
 	 * Wait for response from the MC hardware:
@@ -338,6 +333,37 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 			return -ETIMEDOUT;
 		}
 	}
+
+	*mc_status = status;
+	return 0;
+}
+
+/**
+ * Sends a command to the MC device using the given MC I/O object
+ *
+ * @mc_io: MC I/O object to be used
+ * @cmd: command to be sent
+ *
+ * Returns '0' on Success; Error code otherwise.
+ *
+ * NOTE: This function cannot be invoked from from atomic contexts.
+ */
+int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
+{
+	int error;
+	enum mc_cmd_status status;
+
+	/*
+	 * Send command to the MC hardware:
+	 */
+	mc_write_command(mc_io->portal_virt_addr, cmd);
+
+	/*
+	 * Wait for response from the MC hardware:
+	 */
+	error = mc_polling_wait_preemptible(mc_io, cmd, &status);
+	if (error < 0)
+		return error;
 
 	if (status != MC_CMD_STATUS_OK) {
 		pr_debug("MC command failed: portal: %#llx, obj handle: %#x, command: %#x, status: %s (%#x)\n",
