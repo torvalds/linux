@@ -1520,7 +1520,6 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 {
 	struct ldlm_lock *lock = *lockp;
 	struct ldlm_resource *res = lock->l_resource;
-	ldlm_error_t rc = ELDLM_OK;
 
 	lock->l_last_activity = ktime_get_real_seconds();
 
@@ -1558,7 +1557,7 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 
 out:
 	unlock_res_and_lock(lock);
-	return rc;
+	return ELDLM_OK;
 }
 
 /**
