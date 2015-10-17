@@ -31,19 +31,6 @@
 			use-iram;
 		};
 
-		/* Here, choose exactly one from: ohci, usbd */
-		ohci@31020000 {
-			transceiver = <&isp1301>;
-			status = "okay";
-		};
-
-/*
-		usbd@31020000 {
-			transceiver = <&isp1301>;
-			status = "okay";
-		};
-*/
-
 		clcd@31040000 {
 			status = "okay";
 		};
@@ -123,15 +110,6 @@
 				clock-frequency = <100000>;
 			};
 
-			i2cusb: i2c@31020300 {
-				clock-frequency = <100000>;
-
-				isp1301: usb-transceiver@2c {
-					compatible = "nxp,isp1301";
-					reg = <0x2c>;
-				};
-			};
-
 			ssp0: ssp@20084000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -198,5 +176,20 @@
 			gpios = <&gpio 5 14 0>; /* GPO_P3 14, GPIO 93, active high */
 			linux,default-trigger = "heartbeat";
 		};
+	};
+};
+
+/* Here, choose exactly one from: ohci, usbd */
+&ohci /* &usbd */ {
+	transceiver = <&isp1301>;
+	status = "okay";
+};
+
+&i2cusb {
+	clock-frequency = <100000>;
+
+	isp1301: usb-transceiver@2c {
+		compatible = "nxp,isp1301";
+		reg = <0x2c>;
 	};
 };
