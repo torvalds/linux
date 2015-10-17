@@ -303,7 +303,6 @@ static int ohci_hcd_nxp_remove(struct platform_device *pdev)
 	clk_disable_unprepare(usb_otg_clk);
 	clk_disable_unprepare(usb_dev_clk);
 	clk_disable_unprepare(usb_pll_clk);
-	i2c_unregister_device(isp1301_i2c_client);
 	isp1301_i2c_client = NULL;
 
 	return 0;
