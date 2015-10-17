@@ -3055,7 +3055,7 @@ void ext4_ext_init(struct super_block *sb)
 	 * possible initialization would be here
 	 */
 
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)) {
+	if (ext4_has_feature_extents(sb)) {
 #if defined(AGGRESSIVE_TEST) || defined(CHECK_BINSEARCH) || defined(EXTENTS_STATS)
 		printk(KERN_INFO "EXT4-fs: file extents enabled"
 #ifdef AGGRESSIVE_TEST
@@ -3082,7 +3082,7 @@ void ext4_ext_init(struct super_block *sb)
  */
 void ext4_ext_release(struct super_block *sb)
 {
-	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS))
+	if (!ext4_has_feature_extents(sb))
 		return;
 
 #ifdef EXTENTS_STATS

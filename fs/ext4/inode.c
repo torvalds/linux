@@ -2642,8 +2642,7 @@ static int ext4_nonda_switch(struct super_block *sb)
 /* We always reserve for an inode update; the superblock could be there too */
 static int ext4_da_write_credits(struct inode *inode, loff_t pos, unsigned len)
 {
-	if (likely(EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-				EXT4_FEATURE_RO_COMPAT_LARGE_FILE)))
+	if (likely(ext4_has_feature_large_file(inode->i_sb)))
 		return 1;
 
 	if (pos + len <= 0x7fffffffULL)
@@ -4049,8 +4048,7 @@ static blkcnt_t ext4_inode_blocks(struct ext4_inode *raw_inode,
 	struct inode *inode = &(ei->vfs_inode);
 	struct super_block *sb = inode->i_sb;
 
-	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				EXT4_FEATURE_RO_COMPAT_HUGE_FILE)) {
+	if (ext4_has_feature_huge_file(sb)) {
 		/* we are using combined 48 bit field */
 		i_blocks = ((u64)le16_to_cpu(raw_inode->i_blocks_high)) << 32 |
 					le32_to_cpu(raw_inode->i_blocks_lo);
@@ -4173,7 +4171,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	ei->i_flags = le32_to_cpu(raw_inode->i_flags);
 	inode->i_blocks = ext4_inode_blocks(raw_inode, ei);
 	ei->i_file_acl = le32_to_cpu(raw_inode->i_file_acl_lo);
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_64BIT))
+	if (ext4_has_feature_64bit(sb))
 		ei->i_file_acl |=
 			((__u64)le16_to_cpu(raw_inode->i_file_acl_high)) << 32;
 	inode->i_size = ext4_isize(raw_inode);
@@ -4337,7 +4335,7 @@ static int ext4_inode_blocks_set(handle_t *handle,
 		ext4_clear_inode_flag(inode, EXT4_INODE_HUGE_FILE);
 		return 0;
 	}
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_HUGE_FILE))
+	if (!ext4_has_feature_huge_file(sb))
 		return -EFBIG;
 
 	if (i_blocks <= 0xffffffffffffULL) {
@@ -4498,8 +4496,7 @@ static int ext4_do_update_inode(handle_t *handle,
 		need_datasync = 1;
 	}
 	if (ei->i_disksize > 0x7fffffffULL) {
-		if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				EXT4_FEATURE_RO_COMPAT_LARGE_FILE) ||
+		if (!ext4_has_feature_large_file(sb) ||
 				EXT4_SB(sb)->s_es->s_rev_level ==
 		    cpu_to_le32(EXT4_GOOD_OLD_REV))
 			set_large_file = 1;
@@ -4548,8 +4545,7 @@ static int ext4_do_update_inode(handle_t *handle,
 		if (err)
 			goto out_brelse;
 		ext4_update_dynamic_rev(sb);
-		EXT4_SET_RO_COMPAT_FEATURE(sb,
-					   EXT4_FEATURE_RO_COMPAT_LARGE_FILE);
+		ext4_set_feature_large_file(sb);
 		ext4_handle_sync(handle);
 		err = ext4_handle_dirty_super(handle, sb);
 	}

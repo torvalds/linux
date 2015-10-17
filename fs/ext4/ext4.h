@@ -1528,6 +1528,7 @@ static inline int ext4_encrypted_inode(struct inode *inode)
  * Feature set definitions
  */
 
+/* Use the ext4_{has,set,clear}_feature_* helpers; these will be removed */
 #define EXT4_HAS_COMPAT_FEATURE(sb,mask)			\
 	((EXT4_SB(sb)->s_es->s_feature_compat & cpu_to_le32(mask)) != 0)
 #define EXT4_HAS_RO_COMPAT_FEATURE(sb,mask)			\
@@ -1590,6 +1591,94 @@ static inline int ext4_encrypted_inode(struct inode *inode)
 #define EXT4_FEATURE_INCOMPAT_INLINE_DATA	0x8000 /* data in inode */
 #define EXT4_FEATURE_INCOMPAT_ENCRYPT		0x10000
 
+#define EXT4_FEATURE_COMPAT_FUNCS(name, flagname) \
+static inline bool ext4_has_feature_##name(struct super_block *sb) \
+{ \
+	return ((EXT4_SB(sb)->s_es->s_feature_compat & \
+		cpu_to_le32(EXT4_FEATURE_COMPAT_##flagname)) != 0); \
+} \
+static inline void ext4_set_feature_##name(struct super_block *sb) \
+{ \
+	EXT4_SB(sb)->s_es->s_feature_compat |= \
+		cpu_to_le32(EXT4_FEATURE_COMPAT_##flagname); \
+} \
+static inline void ext4_clear_feature_##name(struct super_block *sb) \
+{ \
+	EXT4_SB(sb)->s_es->s_feature_compat &= \
+		~cpu_to_le32(EXT4_FEATURE_COMPAT_##flagname); \
+}
+
+#define EXT4_FEATURE_RO_COMPAT_FUNCS(name, flagname) \
+static inline bool ext4_has_feature_##name(struct super_block *sb) \
+{ \
+	return ((EXT4_SB(sb)->s_es->s_feature_ro_compat & \
+		cpu_to_le32(EXT4_FEATURE_RO_COMPAT_##flagname)) != 0); \
+} \
+static inline void ext4_set_feature_##name(struct super_block *sb) \
+{ \
+	EXT4_SB(sb)->s_es->s_feature_ro_compat |= \
+		cpu_to_le32(EXT4_FEATURE_RO_COMPAT_##flagname); \
+} \
+static inline void ext4_clear_feature_##name(struct super_block *sb) \
+{ \
+	EXT4_SB(sb)->s_es->s_feature_ro_compat &= \
+		~cpu_to_le32(EXT4_FEATURE_RO_COMPAT_##flagname); \
+}
+
+#define EXT4_FEATURE_INCOMPAT_FUNCS(name, flagname) \
+static inline bool ext4_has_feature_##name(struct super_block *sb) \
+{ \
+	return ((EXT4_SB(sb)->s_es->s_feature_incompat & \
+		cpu_to_le32(EXT4_FEATURE_INCOMPAT_##flagname)) != 0); \
+} \
+static inline void ext4_set_feature_##name(struct super_block *sb) \
+{ \
+	EXT4_SB(sb)->s_es->s_feature_incompat |= \
+		cpu_to_le32(EXT4_FEATURE_INCOMPAT_##flagname); \
+} \
+static inline void ext4_clear_feature_##name(struct super_block *sb) \
+{ \
+	EXT4_SB(sb)->s_es->s_feature_incompat &= \
+		~cpu_to_le32(EXT4_FEATURE_INCOMPAT_##flagname); \
+}
+
+EXT4_FEATURE_COMPAT_FUNCS(dir_prealloc,		DIR_PREALLOC)
+EXT4_FEATURE_COMPAT_FUNCS(imagic_inodes,	IMAGIC_INODES)
+EXT4_FEATURE_COMPAT_FUNCS(journal,		HAS_JOURNAL)
+EXT4_FEATURE_COMPAT_FUNCS(xattr,		EXT_ATTR)
+EXT4_FEATURE_COMPAT_FUNCS(resize_inode,		RESIZE_INODE)
+EXT4_FEATURE_COMPAT_FUNCS(dir_index,		DIR_INDEX)
+EXT4_FEATURE_COMPAT_FUNCS(sparse_super2,	SPARSE_SUPER2)
+
+EXT4_FEATURE_RO_COMPAT_FUNCS(sparse_super,	SPARSE_SUPER)
+EXT4_FEATURE_RO_COMPAT_FUNCS(large_file,	LARGE_FILE)
+EXT4_FEATURE_RO_COMPAT_FUNCS(btree_dir,		BTREE_DIR)
+EXT4_FEATURE_RO_COMPAT_FUNCS(huge_file,		HUGE_FILE)
+EXT4_FEATURE_RO_COMPAT_FUNCS(gdt_csum,		GDT_CSUM)
+EXT4_FEATURE_RO_COMPAT_FUNCS(dir_nlink,		DIR_NLINK)
+EXT4_FEATURE_RO_COMPAT_FUNCS(extra_isize,	EXTRA_ISIZE)
+EXT4_FEATURE_RO_COMPAT_FUNCS(quota,		QUOTA)
+EXT4_FEATURE_RO_COMPAT_FUNCS(bigalloc,		BIGALLOC)
+EXT4_FEATURE_RO_COMPAT_FUNCS(metadata_csum,	METADATA_CSUM)
+EXT4_FEATURE_RO_COMPAT_FUNCS(readonly,		READONLY)
+EXT4_FEATURE_RO_COMPAT_FUNCS(project,		PROJECT)
+
+EXT4_FEATURE_INCOMPAT_FUNCS(compression,	COMPRESSION)
+EXT4_FEATURE_INCOMPAT_FUNCS(filetype,		FILETYPE)
+EXT4_FEATURE_INCOMPAT_FUNCS(journal_needs_recovery,	RECOVER)
+EXT4_FEATURE_INCOMPAT_FUNCS(journal_dev,	JOURNAL_DEV)
+EXT4_FEATURE_INCOMPAT_FUNCS(meta_bg,		META_BG)
+EXT4_FEATURE_INCOMPAT_FUNCS(extents,		EXTENTS)
+EXT4_FEATURE_INCOMPAT_FUNCS(64bit,		64BIT)
+EXT4_FEATURE_INCOMPAT_FUNCS(mmp,		MMP)
+EXT4_FEATURE_INCOMPAT_FUNCS(flex_bg,		FLEX_BG)
+EXT4_FEATURE_INCOMPAT_FUNCS(ea_inode,		EA_INODE)
+EXT4_FEATURE_INCOMPAT_FUNCS(dirdata,		DIRDATA)
+EXT4_FEATURE_INCOMPAT_FUNCS(csum_seed,		CSUM_SEED)
+EXT4_FEATURE_INCOMPAT_FUNCS(largedir,		LARGEDIR)
+EXT4_FEATURE_INCOMPAT_FUNCS(inline_data,	INLINE_DATA)
+EXT4_FEATURE_INCOMPAT_FUNCS(encrypt,		ENCRYPT)
+
 #define EXT2_FEATURE_COMPAT_SUPP	EXT4_FEATURE_COMPAT_EXT_ATTR
 #define EXT2_FEATURE_INCOMPAT_SUPP	(EXT4_FEATURE_INCOMPAT_FILETYPE| \
 					 EXT4_FEATURE_INCOMPAT_META_BG)
@@ -1605,7 +1694,7 @@ static inline int ext4_encrypted_inode(struct inode *inode)
 					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
 					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR)
 
-#define EXT4_FEATURE_COMPAT_SUPP	EXT2_FEATURE_COMPAT_EXT_ATTR
+#define EXT4_FEATURE_COMPAT_SUPP	EXT4_FEATURE_COMPAT_EXT_ATTR
 #define EXT4_FEATURE_INCOMPAT_SUPP	(EXT4_FEATURE_INCOMPAT_FILETYPE| \
 					 EXT4_FEATURE_INCOMPAT_RECOVER| \
 					 EXT4_FEATURE_INCOMPAT_META_BG| \
@@ -1626,6 +1715,40 @@ static inline int ext4_encrypted_inode(struct inode *inode)
 					 EXT4_FEATURE_RO_COMPAT_BIGALLOC |\
 					 EXT4_FEATURE_RO_COMPAT_METADATA_CSUM|\
 					 EXT4_FEATURE_RO_COMPAT_QUOTA)
+
+#define EXTN_FEATURE_FUNCS(ver) \
+static inline bool ext4_has_unknown_ext##ver##_compat_features(struct super_block *sb) \
+{ \
+	return ((EXT4_SB(sb)->s_es->s_feature_compat & \
+		cpu_to_le32(~EXT##ver##_FEATURE_COMPAT_SUPP)) != 0); \
+} \
+static inline bool ext4_has_unknown_ext##ver##_ro_compat_features(struct super_block *sb) \
+{ \
+	return ((EXT4_SB(sb)->s_es->s_feature_ro_compat & \
+		cpu_to_le32(~EXT##ver##_FEATURE_RO_COMPAT_SUPP)) != 0); \
+} \
+static inline bool ext4_has_unknown_ext##ver##_incompat_features(struct super_block *sb) \
+{ \
+	return ((EXT4_SB(sb)->s_es->s_feature_incompat & \
+		cpu_to_le32(~EXT##ver##_FEATURE_INCOMPAT_SUPP)) != 0); \
+}
+
+EXTN_FEATURE_FUNCS(2)
+EXTN_FEATURE_FUNCS(3)
+EXTN_FEATURE_FUNCS(4)
+
+static inline bool ext4_has_compat_features(struct super_block *sb)
+{
+	return (EXT4_SB(sb)->s_es->s_feature_compat != 0);
+}
+static inline bool ext4_has_ro_compat_features(struct super_block *sb)
+{
+	return (EXT4_SB(sb)->s_es->s_feature_ro_compat != 0);
+}
+static inline bool ext4_has_incompat_features(struct super_block *sb)
+{
+	return (EXT4_SB(sb)->s_es->s_feature_incompat != 0);
+}
 
 /*
  * Default values for user and/or group using reserved blocks
@@ -1777,8 +1900,7 @@ static inline __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
  * (c) Daniel Phillips, 2001
  */
 
-#define is_dx(dir) (EXT4_HAS_COMPAT_FEATURE(dir->i_sb, \
-				      EXT4_FEATURE_COMPAT_DIR_INDEX) && \
+#define is_dx(dir) (ext4_has_feature_dir_index((dir)->i_sb) && \
 		    ext4_test_inode_flag((dir), EXT4_INODE_INDEX))
 #define EXT4_DIR_LINK_MAX(dir) (!is_dx(dir) && (dir)->i_nlink >= EXT4_LINK_MAX)
 #define EXT4_DIR_LINK_EMPTY(dir) ((dir)->i_nlink == 2 || (dir)->i_nlink == 1)
@@ -2079,7 +2201,7 @@ int ext4_init_crypto(void);
 void ext4_exit_crypto(void);
 static inline int ext4_sb_has_crypto(struct super_block *sb)
 {
-	return EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_ENCRYPT);
+	return ext4_has_feature_encrypt(sb);
 }
 #else
 static inline int ext4_init_crypto(void) { return 0; }
@@ -2200,8 +2322,7 @@ int ext4_insert_dentry(struct inode *dir,
 		       struct ext4_filename *fname);
 static inline void ext4_update_dx_flag(struct inode *inode)
 {
-	if (!EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
-				     EXT4_FEATURE_COMPAT_DIR_INDEX))
+	if (!ext4_has_feature_dir_index(inode->i_sb))
 		ext4_clear_inode_flag(inode, EXT4_INODE_INDEX);
 }
 static unsigned char ext4_filetype_table[] = {
@@ -2210,8 +2331,7 @@ static unsigned char ext4_filetype_table[] = {
 
 static inline  unsigned char get_dtype(struct super_block *sb, int filetype)
 {
-	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FILETYPE) ||
-	    (filetype >= EXT4_FT_MAX))
+	if (!ext4_has_feature_filetype(sb) || filetype >= EXT4_FT_MAX)
 		return DT_UNKNOWN;
 
 	return ext4_filetype_table[filetype];
@@ -2543,15 +2663,13 @@ extern int ext4_register_li_request(struct super_block *sb,
 
 static inline int ext4_has_group_desc_csum(struct super_block *sb)
 {
-	return EXT4_HAS_RO_COMPAT_FEATURE(sb,
-					  EXT4_FEATURE_RO_COMPAT_GDT_CSUM) ||
-	       (EXT4_SB(sb)->s_chksum_driver != NULL);
+	return ext4_has_feature_gdt_csum(sb) ||
+	       EXT4_SB(sb)->s_chksum_driver != NULL;
 }
 
 static inline int ext4_has_metadata_csum(struct super_block *sb)
 {
-	WARN_ON_ONCE(EXT4_HAS_RO_COMPAT_FEATURE(sb,
-			EXT4_FEATURE_RO_COMPAT_METADATA_CSUM) &&
+	WARN_ON_ONCE(ext4_has_feature_metadata_csum(sb) &&
 		     !EXT4_SB(sb)->s_chksum_driver);
 
 	return (EXT4_SB(sb)->s_chksum_driver != NULL);
@@ -2898,7 +3016,7 @@ static unsigned char ext4_type_by_mode[S_IFMT >> S_SHIFT] = {
 static inline void ext4_set_de_type(struct super_block *sb,
 				struct ext4_dir_entry_2 *de,
 				umode_t mode) {
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FILETYPE))
+	if (ext4_has_feature_filetype(sb))
 		de->file_type = ext4_type_by_mode[(mode & S_IFMT)>>S_SHIFT];
 }
 

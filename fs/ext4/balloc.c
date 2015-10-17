@@ -213,7 +213,7 @@ static int ext4_init_block_bitmap(struct super_block *sb,
 
 	start = ext4_group_first_block_no(sb, block_group);
 
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG))
+	if (ext4_has_feature_flex_bg(sb))
 		flex_bg = 1;
 
 	/* Set bits for block and inode bitmaps, and inode table */
@@ -322,7 +322,7 @@ static ext4_fsblk_t ext4_valid_block_bitmap(struct super_block *sb,
 	ext4_fsblk_t blk;
 	ext4_fsblk_t group_first_block;
 
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG)) {
+	if (ext4_has_feature_flex_bg(sb)) {
 		/* with FLEX_BG, the inode/block bitmaps and itable
 		 * blocks may not be in the group at all
 		 * so the bitmap validation will be skipped for those groups
@@ -740,14 +740,13 @@ int ext4_bg_has_super(struct super_block *sb, ext4_group_t group)
 
 	if (group == 0)
 		return 1;
-	if (EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_SPARSE_SUPER2)) {
+	if (ext4_has_feature_sparse_super2(sb)) {
 		if (group == le32_to_cpu(es->s_backup_bgs[0]) ||
 		    group == le32_to_cpu(es->s_backup_bgs[1]))
 			return 1;
 		return 0;
 	}
-	if ((group <= 1) || !EXT4_HAS_RO_COMPAT_FEATURE(sb,
-					EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER))
+	if ((group <= 1) || !ext4_has_feature_sparse_super(sb))
 		return 1;
 	if (!(group & 1))
 		return 0;
@@ -776,7 +775,7 @@ static unsigned long ext4_bg_num_gdb_nometa(struct super_block *sb,
 	if (!ext4_bg_has_super(sb, group))
 		return 0;
 
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb,EXT4_FEATURE_INCOMPAT_META_BG))
+	if (ext4_has_feature_meta_bg(sb))
 		return le32_to_cpu(EXT4_SB(sb)->s_es->s_first_meta_bg);
 	else
 		return EXT4_SB(sb)->s_gdb_count;
@@ -797,8 +796,7 @@ unsigned long ext4_bg_num_gdb(struct super_block *sb, ext4_group_t group)
 			le32_to_cpu(EXT4_SB(sb)->s_es->s_first_meta_bg);
 	unsigned long metagroup = group / EXT4_DESC_PER_BLOCK(sb);
 
-	if (!EXT4_HAS_INCOMPAT_FEATURE(sb,EXT4_FEATURE_INCOMPAT_META_BG) ||
-			metagroup < first_meta_bg)
+	if (!ext4_has_feature_meta_bg(sb) || metagroup < first_meta_bg)
 		return ext4_bg_num_gdb_nometa(sb, group);
 
 	return ext4_bg_num_gdb_meta(sb,group);
@@ -818,7 +816,7 @@ static unsigned ext4_num_base_meta_clusters(struct super_block *sb,
 	/* Check for superblock and gdt backups in this group */
 	num = ext4_bg_has_super(sb, block_group);
 
-	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_META_BG) ||
+	if (!ext4_has_feature_meta_bg(sb) ||
 	    block_group < le32_to_cpu(sbi->s_es->s_first_meta_bg) *
 			  sbi->s_desc_per_block) {
 		if (num) {

@@ -2118,7 +2118,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 			goto out;
 
 		if (blocks == 1 && !dx_fallback &&
-		    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_DIR_INDEX)) {
+		    ext4_has_feature_dir_index(sb)) {
 			retval = make_indexed_dir(handle, &fname, dentry,
 						  inode, bh);
 			bh = NULL; /* make_indexed_dir releases bh */
@@ -2388,8 +2388,7 @@ static void ext4_inc_count(handle_t *handle, struct inode *inode)
 		/* limit is 16-bit i_links_count */
 		if (inode->i_nlink >= EXT4_LINK_MAX || inode->i_nlink == 2) {
 			set_nlink(inode, 1);
-			EXT4_SET_RO_COMPAT_FEATURE(inode->i_sb,
-					      EXT4_FEATURE_RO_COMPAT_DIR_NLINK);
+			ext4_set_feature_dir_nlink(inode->i_sb);
 		}
 	}
 }
@@ -3352,8 +3351,7 @@ static int ext4_setent(handle_t *handle, struct ext4_renament *ent,
 	if (retval)
 		return retval;
 	ent->de->inode = cpu_to_le32(ino);
-	if (EXT4_HAS_INCOMPAT_FEATURE(ent->dir->i_sb,
-				      EXT4_FEATURE_INCOMPAT_FILETYPE))
+	if (ext4_has_feature_filetype(ent->dir->i_sb))
 		ent->de->file_type = file_type;
 	ent->dir->i_version++;
 	ent->dir->i_ctime = ent->dir->i_mtime =

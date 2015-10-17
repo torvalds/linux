@@ -40,8 +40,7 @@ static int is_dx_dir(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 
-	if (EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
-		     EXT4_FEATURE_COMPAT_DIR_INDEX) &&
+	if (ext4_has_feature_dir_index(inode->i_sb) &&
 	    ((ext4_test_inode_flag(inode, EXT4_INODE_INDEX)) ||
 	     ((inode->i_size >> sb->s_blocksize_bits) == 1) ||
 	     ext4_has_inline_data(inode)))

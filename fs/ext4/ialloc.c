@@ -1045,7 +1045,7 @@ got:
 
 	ei->i_extra_isize = EXT4_SB(sb)->s_want_extra_isize;
 	ei->i_inline_off = 0;
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_INLINE_DATA))
+	if (ext4_has_feature_inline_data(sb))
 		ext4_set_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
 	ret = inode;
 	err = dquot_alloc_inode(inode);
@@ -1060,7 +1060,7 @@ got:
 	if (err)
 		goto fail_free_drop;
 
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)) {
+	if (ext4_has_feature_extents(sb)) {
 		/* set extent flag only for directory, file and normal symlink*/
 		if (S_ISDIR(mode) || S_ISREG(mode) || S_ISLNK(mode)) {
 			ext4_set_inode_flag(inode, EXT4_INODE_EXTENTS);

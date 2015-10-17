@@ -525,12 +525,12 @@ errout:
 static void ext4_xattr_update_super_block(handle_t *handle,
 					  struct super_block *sb)
 {
-	if (EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_EXT_ATTR))
+	if (ext4_has_feature_xattr(sb))
 		return;
 
 	BUFFER_TRACE(EXT4_SB(sb)->s_sbh, "get_write_access");
 	if (ext4_journal_get_write_access(handle, EXT4_SB(sb)->s_sbh) == 0) {
-		EXT4_SET_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_EXT_ATTR);
+		ext4_set_feature_xattr(sb);
 		ext4_handle_dirty_super(handle, sb);
 	}
 }
