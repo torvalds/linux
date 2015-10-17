@@ -271,7 +271,8 @@ static s32 dump_mgntframe_and_wait_ack(struct adapter *padapter,
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return -1;
 
-	_enter_critical_mutex(&pxmitpriv->ack_tx_mutex, NULL);
+	if (mutex_lock_interruptible(&pxmitpriv->ack_tx_mutex))
+		return _FAIL;
 	pxmitpriv->ack_tx = true;
 
 	pmgntframe->ack_report = 1;
@@ -282,7 +283,7 @@ static s32 dump_mgntframe_and_wait_ack(struct adapter *padapter,
 	pxmitpriv->ack_tx = false;
 	mutex_unlock(&pxmitpriv->ack_tx_mutex);
 
-	 return ret;
+	return ret;
 }
 
 static int update_hidden_ssid(u8 *ies, u32 ies_len, u8 hidden_ssid_mode)

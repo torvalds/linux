@@ -67,15 +67,6 @@ static inline struct list_head *get_list_head(struct __queue *queue)
 	return &(queue->queue);
 }
 
-static inline int _enter_critical_mutex(struct mutex *pmutex,
-					unsigned long *pirqL)
-{
-	int ret;
-
-	ret = mutex_lock_interruptible(pmutex);
-	return ret;
-}
-
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 {
 	return  netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 0)) &&
