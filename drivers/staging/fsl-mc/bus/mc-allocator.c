@@ -511,9 +511,11 @@ static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
 		goto out;
 
-	error = fsl_mc_resource_pool_remove_device(mc_dev);
-	if (error < 0)
-		goto out;
+	if (mc_dev->resource) {
+		error = fsl_mc_resource_pool_remove_device(mc_dev);
+		if (error < 0)
+			goto out;
+	}
 
 	dev_dbg(&mc_dev->dev,
 		"Allocatable MC object device unbound from fsl_mc_allocator driver");
