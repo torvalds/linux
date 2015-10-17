@@ -194,6 +194,12 @@ struct tcp_sock {
 	u32	window_clamp;	/* Maximal window to advertise		*/
 	u32	rcv_ssthresh;	/* Current window clamp			*/
 
+	/* Information of the most recently (s)acked skb */
+	struct tcp_rack {
+		struct skb_mstamp mstamp; /* (Re)sent time of the skb */
+		u8 advanced; /* mstamp advanced since last lost marking */
+		u8 reord;    /* reordering detected */
+	} rack;
 	u16	advmss;		/* Advertised MSS			*/
 	u8	unused;
 	u8	nonagle     : 4,/* Disable Nagle algorithm?             */

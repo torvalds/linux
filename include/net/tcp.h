@@ -1750,6 +1750,11 @@ int tcpv4_offload_init(void);
 void tcp_v4_init(void);
 void tcp_init(void);
 
+/* tcp_recovery.c */
+
+extern void tcp_rack_advance(struct tcp_sock *tp,
+			     const struct skb_mstamp *xmit_time, u8 sacked);
+
 /*
  * Save and compile IPv4 options, return a pointer to it
  */
