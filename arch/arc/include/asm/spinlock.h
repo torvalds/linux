@@ -296,6 +296,12 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	 */
 	smp_mb();
 
+	/*
+	 * EX is not really required here, a simple STore of 0 suffices.
+	 * However this causes tasklist livelocks in SystemC based SMP virtual
+	 * platforms where the systemc core scheduler uses EX as a cue for
+	 * moving to next core. Do a git log of this file for details
+	 */
 	__asm__ __volatile__(
 	"	ex  %0, [%1]		\n"
 	: "+r" (val)
