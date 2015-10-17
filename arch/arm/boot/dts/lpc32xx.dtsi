@@ -271,9 +271,29 @@
 				#gpio-cells = <3>; /* bank, pin, flags */
 			};
 
+			timer4: timer@4002C000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x4002C000 0x1000>;
+				interrupts = <0x3 0>;
+				status = "disabled";
+			};
+
+			timer5: timer@40030000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40030000 0x1000>;
+				interrupts = <0x4 0>;
+				status = "disabled";
+			};
+
 			watchdog: watchdog@4003C000 {
 				compatible = "nxp,pnx4008-wdt";
 				reg = <0x4003C000 0x1000>;
+			};
+
+			timer0: timer@40044000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40044000 0x1000>;
+				interrupts = <0x10 0>;
 			};
 
 			/*
@@ -297,10 +317,23 @@
 				status = "disabled";
 			};
 
+			timer1: timer@4004C000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x4004C000 0x1000>;
+				interrupts = <0x11 0>;
+			};
+
 			key: key@40050000 {
 				compatible = "nxp,lpc3220-key";
 				reg = <0x40050000 0x1000>;
 				interrupts = <54 0>;
+				status = "disabled";
+			};
+
+			timer2: timer@40058000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40058000 0x1000>;
+				interrupts = <0x12 0>;
 				status = "disabled";
 			};
 
@@ -313,6 +346,13 @@
 			pwm2: pwm@4005C004 {
 				compatible = "nxp,lpc3220-pwm";
 				reg = <0x4005C004 0x4>;
+				status = "disabled";
+			};
+
+			timer3: timer@40060000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40060000 0x1000>;
+				interrupts = <0x13 0>;
 				status = "disabled";
 			};
 		};
