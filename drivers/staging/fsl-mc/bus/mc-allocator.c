@@ -111,7 +111,7 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 		goto out;
 
 	resource = mc_dev->resource;
-	if (WARN_ON(resource->data != mc_dev))
+	if (WARN_ON(!resource || resource->data != mc_dev))
 		goto out;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
