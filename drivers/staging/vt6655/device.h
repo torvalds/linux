@@ -98,10 +98,8 @@
 #define PK_TYPE_11GB    2
 #define PK_TYPE_11GA    3
 
-typedef enum {
-	OWNED_BY_HOST = 0,
-	OWNED_BY_NIC = 1
-} DEVICE_OWNER_TYPE, *PDEVICE_OWNER_TYPE;
+#define OWNED_BY_HOST	0
+#define	OWNED_BY_NIC	1
 
 typedef struct __device_opt {
 	int         nRxDescs0;		/* Number of RX descriptors0 */
