@@ -1689,7 +1689,7 @@ static void release_tty(struct tty_struct *tty, int idx)
 	tty->port->itty = NULL;
 	if (tty->link)
 		tty->link->port->itty = NULL;
-	cancel_work_sync(&tty->port->buf.work);
+	tty_buffer_cancel_work(tty->port);
 
 	tty_kref_put(tty->link);
 	tty_kref_put(tty);

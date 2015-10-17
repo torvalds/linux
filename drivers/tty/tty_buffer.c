@@ -587,3 +587,13 @@ void tty_buffer_set_lock_subclass(struct tty_port *port)
 {
 	lockdep_set_subclass(&port->buf.lock, TTY_LOCK_SLAVE);
 }
+
+bool tty_buffer_restart_work(struct tty_port *port)
+{
+	return queue_work(system_unbound_wq, &port->buf.work);
+}
+
+bool tty_buffer_cancel_work(struct tty_port *port)
+{
+	return cancel_work_sync(&port->buf.work);
+}
