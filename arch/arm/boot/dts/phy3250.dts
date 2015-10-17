@@ -12,7 +12,7 @@
  */
 
 /dts-v1/;
-/include/ "lpc32xx.dtsi"
+#include "lpc32xx.dtsi"
 
 / {
 	model = "PHYTEC phyCORE-LPC3250 board based on NXP LPC3250";
