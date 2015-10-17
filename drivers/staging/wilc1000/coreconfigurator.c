@@ -307,8 +307,7 @@ u8 *get_tim_elm(u8 *pu8msa, u16 u16RxLen, u16 u16TagParamOffset)
 	while (u16index < (u16RxLen - FCS_LEN)) {
 		if (pu8msa[u16index] == ITIM)
 			return &pu8msa[u16index];
-		else
-			u16index += (IE_HDR_LEN + pu8msa[u16index + 1]);
+		u16index += (IE_HDR_LEN + pu8msa[u16index + 1]);
 	}
 
 	return NULL;
@@ -324,9 +323,8 @@ u8 get_current_channel_802_11n(u8 *pu8msa, u16 u16RxLen)
 	while (index < (u16RxLen - FCS_LEN)) {
 		if (pu8msa[index] == IDSPARMS)
 			return pu8msa[index + 2];
-		else
-			/* Increment index by length information and header */
-			index += pu8msa[index + 1] + IE_HDR_LEN;
+		/* Increment index by length information and header */
+		index += pu8msa[index + 1] + IE_HDR_LEN;
 	}
 
 	/* Return current channel information from the MIB, if beacon/probe  */
