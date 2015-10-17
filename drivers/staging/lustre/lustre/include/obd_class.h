@@ -244,23 +244,6 @@ static inline void class_export_lock_put(struct obd_export *exp,
 	class_export_put(exp);
 }
 
-#define class_export_cb_get(exp)					\
-({								      \
-	atomic_inc(&(exp)->exp_cb_count);			   \
-	CDEBUG(D_INFO, "callback GETting export %p : new cb_count %d\n",\
-	       (exp), atomic_read(&(exp)->exp_cb_count));	   \
-	class_export_get(exp);					  \
-})
-
-#define class_export_cb_put(exp)					\
-({								      \
-	LASSERT_ATOMIC_POS(&exp->exp_cb_count);			 \
-	atomic_dec(&(exp)->exp_cb_count);			   \
-	CDEBUG(D_INFO, "callback PUTting export %p : new cb_count %d\n",\
-	       (exp), atomic_read(&(exp)->exp_cb_count));	   \
-	class_export_put(exp);					  \
-})
-
 static inline enum obd_option exp_flags_from_obd(struct obd_device *obd)
 {
 	return ((obd->obd_fail ? OBD_OPT_FAILOVER : 0) |
