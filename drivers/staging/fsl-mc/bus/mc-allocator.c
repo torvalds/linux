@@ -373,27 +373,14 @@ EXPORT_SYMBOL_GPL(fsl_mc_portal_free);
 int fsl_mc_portal_reset(struct fsl_mc_io *mc_io)
 {
 	int error;
-	u16 token;
 	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
 
 	if (WARN_ON(!dpmcp_dev))
 		return -EINVAL;
 
-	error = dpmcp_open(mc_io, 0, dpmcp_dev->obj_desc.id, &token);
-	if (error < 0) {
-		dev_err(&dpmcp_dev->dev, "dpmcp_open() failed: %d\n", error);
-		return error;
-	}
-
-	error = dpmcp_reset(mc_io, 0, token);
+	error = dpmcp_reset(mc_io, 0, dpmcp_dev->mc_handle);
 	if (error < 0) {
 		dev_err(&dpmcp_dev->dev, "dpmcp_reset() failed: %d\n", error);
-		return error;
-	}
-
-	error = dpmcp_close(mc_io, 0, token);
-	if (error < 0) {
-		dev_err(&dpmcp_dev->dev, "dpmcp_close() failed: %d\n", error);
 		return error;
 	}
 

@@ -75,6 +75,7 @@ int __must_check fsl_create_mc_io(struct device *dev,
 				  struct fsl_mc_device *dpmcp_dev,
 				  u32 flags, struct fsl_mc_io **new_mc_io)
 {
+	int error;
 	struct fsl_mc_io *mc_io;
 	void __iomem *mc_portal_virt_addr;
 	struct resource *res;
@@ -87,8 +88,6 @@ int __must_check fsl_create_mc_io(struct device *dev,
 	mc_io->flags = flags;
 	mc_io->portal_phys_addr = mc_portal_phys_addr;
 	mc_io->portal_size = mc_portal_size;
-	mc_io->dpmcp_dev = dpmcp_dev;
-	dpmcp_dev->mc_io = mc_io;
 	res = devm_request_mem_region(dev,
 				      mc_portal_phys_addr,
 				      mc_portal_size,
@@ -111,8 +110,18 @@ int __must_check fsl_create_mc_io(struct device *dev,
 	}
 
 	mc_io->portal_virt_addr = mc_portal_virt_addr;
+	if (dpmcp_dev) {
+		error = fsl_mc_io_set_dpmcp(mc_io, dpmcp_dev);
+		if (error < 0)
+			goto error_destroy_mc_io;
+	}
+
 	*new_mc_io = mc_io;
 	return 0;
+
+error_destroy_mc_io:
+	fsl_destroy_mc_io(mc_io);
+	return error;
 }
 EXPORT_SYMBOL_GPL(fsl_create_mc_io);
 
@@ -123,20 +132,71 @@ EXPORT_SYMBOL_GPL(fsl_create_mc_io);
  */
 void fsl_destroy_mc_io(struct fsl_mc_io *mc_io)
 {
+	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
+
+	if (dpmcp_dev)
+		fsl_mc_io_unset_dpmcp(mc_io);
+
 	devm_iounmap(mc_io->dev, mc_io->portal_virt_addr);
 	devm_release_mem_region(mc_io->dev,
 				mc_io->portal_phys_addr,
 				mc_io->portal_size);
 
 	mc_io->portal_virt_addr = NULL;
-	if (mc_io->dpmcp_dev) {
-		WARN_ON(mc_io->dpmcp_dev->mc_io != mc_io);
-		mc_io->dpmcp_dev->mc_io = NULL;
-	}
-
 	devm_kfree(mc_io->dev, mc_io);
 }
 EXPORT_SYMBOL_GPL(fsl_destroy_mc_io);
+
+int fsl_mc_io_set_dpmcp(struct fsl_mc_io *mc_io,
+			struct fsl_mc_device *dpmcp_dev)
+{
+	int error;
+
+	if (WARN_ON(!dpmcp_dev))
+		return -EINVAL;
+
+	if (WARN_ON(mc_io->dpmcp_dev))
+		return -EINVAL;
+
+	if (WARN_ON(dpmcp_dev->mc_io))
+		return -EINVAL;
+
+	error = dpmcp_open(mc_io,
+			   0,
+			   dpmcp_dev->obj_desc.id,
+			   &dpmcp_dev->mc_handle);
+	if (error < 0)
+		return error;
+
+	mc_io->dpmcp_dev = dpmcp_dev;
+	dpmcp_dev->mc_io = mc_io;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fsl_mc_io_set_dpmcp);
+
+void fsl_mc_io_unset_dpmcp(struct fsl_mc_io *mc_io)
+{
+	int error;
+	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
+
+	if (WARN_ON(!dpmcp_dev))
+		return;
+
+	if (WARN_ON(dpmcp_dev->mc_io != mc_io))
+		return;
+
+	error = dpmcp_close(mc_io,
+			    0,
+			    dpmcp_dev->mc_handle);
+	if (error < 0) {
+		dev_err(&dpmcp_dev->dev, "dpmcp_close() failed: %d\n",
+			error);
+	}
+
+	mc_io->dpmcp_dev = NULL;
+	dpmcp_dev->mc_io = NULL;
+}
+EXPORT_SYMBOL_GPL(fsl_mc_io_unset_dpmcp);
 
 static int mc_status_to_error(enum mc_cmd_status status)
 {

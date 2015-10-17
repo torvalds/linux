@@ -69,6 +69,11 @@ int __must_check fsl_create_mc_io(struct device *dev,
 
 void fsl_destroy_mc_io(struct fsl_mc_io *mc_io);
 
+int fsl_mc_io_set_dpmcp(struct fsl_mc_io *mc_io,
+			struct fsl_mc_device *dpmcp_dev);
+
+void fsl_mc_io_unset_dpmcp(struct fsl_mc_io *mc_io);
+
 int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd);
 
 #endif /* _FSL_MC_SYS_H */
