@@ -40,6 +40,11 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 
+/**
+ * Bit masks for a MC I/O object (struct fsl_mc_io) flags
+ */
+#define FSL_MC_IO_ATOMIC_CONTEXT_PORTAL	0x0001
+
 struct fsl_mc_resource;
 struct mc_command;
 

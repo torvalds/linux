@@ -339,19 +339,62 @@ static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * Waits for the completion of an MC command doing atomic polling.
+ * udelay() is called between polling iterations.
+ *
+ * @mc_io: MC I/O object to be used
+ * @cmd: command buffer to receive MC response
+ * @mc_status: MC command completion status
+ */
+static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
+				  struct mc_command *cmd,
+				  enum mc_cmd_status *mc_status)
+{
+	enum mc_cmd_status status;
+	unsigned long timeout_usecs = MC_CMD_COMPLETION_TIMEOUT_MS * 1000;
+
+	BUILD_BUG_ON((MC_CMD_COMPLETION_TIMEOUT_MS * 1000) %
+		     MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS != 0);
+
+	for (;;) {
+		status = mc_read_response(mc_io->portal_virt_addr, cmd);
+		if (status != MC_CMD_STATUS_READY)
+			break;
+
+		udelay(MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS);
+		timeout_usecs -= MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS;
+		if (timeout_usecs == 0) {
+			pr_debug("MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
+				 mc_io->portal_phys_addr,
+				 (unsigned int)
+					MC_CMD_HDR_READ_TOKEN(cmd->header),
+				 (unsigned int)
+					MC_CMD_HDR_READ_CMDID(cmd->header));
+
+			return -ETIMEDOUT;
+		}
+	}
+
+	*mc_status = status;
+	return 0;
+}
+
+/**
  * Sends a command to the MC device using the given MC I/O object
  *
  * @mc_io: MC I/O object to be used
  * @cmd: command to be sent
  *
  * Returns '0' on Success; Error code otherwise.
- *
- * NOTE: This function cannot be invoked from from atomic contexts.
  */
 int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 {
 	int error;
 	enum mc_cmd_status status;
+
+	if (WARN_ON(in_irq() &&
+		    !(mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)))
+		return -EINVAL;
 
 	/*
 	 * Send command to the MC hardware:
@@ -361,7 +404,11 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 	/*
 	 * Wait for response from the MC hardware:
 	 */
-	error = mc_polling_wait_preemptible(mc_io, cmd, &status);
+	if (!(mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL))
+		error = mc_polling_wait_preemptible(mc_io, cmd, &status);
+	else
+		error = mc_polling_wait_atomic(mc_io, cmd, &status);
+
 	if (error < 0)
 		return error;
 
