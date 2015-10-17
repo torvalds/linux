@@ -34,10 +34,12 @@
 
 #include "../include/mc-sys.h"
 #include "../include/mc-cmd.h"
+#include "../include/mc.h"
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
+#include "dpmcp.h"
 
 /**
  * Timeout in jiffies to wait for the completion of an MC command
@@ -60,8 +62,8 @@
  * @dev: device to be associated with the MC I/O object
  * @mc_portal_phys_addr: physical address of the MC portal to use
  * @mc_portal_size: size in bytes of the MC portal
- * @resource: Pointer to MC bus object allocator resource associated
- * with this MC I/O object or NULL if none.
+ * @dpmcp-dev: Pointer to the DPMCP object associated with this MC I/O
+ * object or NULL if none.
  * @flags: flags for the new MC I/O object
  * @new_mc_io: Area to return pointer to newly created MC I/O object
  *
@@ -70,7 +72,7 @@
 int __must_check fsl_create_mc_io(struct device *dev,
 				  phys_addr_t mc_portal_phys_addr,
 				  u32 mc_portal_size,
-				  struct fsl_mc_resource *resource,
+				  struct fsl_mc_device *dpmcp_dev,
 				  u32 flags, struct fsl_mc_io **new_mc_io)
 {
 	struct fsl_mc_io *mc_io;
@@ -85,7 +87,8 @@ int __must_check fsl_create_mc_io(struct device *dev,
 	mc_io->flags = flags;
 	mc_io->portal_phys_addr = mc_portal_phys_addr;
 	mc_io->portal_size = mc_portal_size;
-	mc_io->resource = resource;
+	mc_io->dpmcp_dev = dpmcp_dev;
+	dpmcp_dev->mc_io = mc_io;
 	res = devm_request_mem_region(dev,
 				      mc_portal_phys_addr,
 				      mc_portal_size,
@@ -126,6 +129,11 @@ void fsl_destroy_mc_io(struct fsl_mc_io *mc_io)
 				mc_io->portal_size);
 
 	mc_io->portal_virt_addr = NULL;
+	if (mc_io->dpmcp_dev) {
+		WARN_ON(mc_io->dpmcp_dev->mc_io != mc_io);
+		mc_io->dpmcp_dev->mc_io = NULL;
+	}
+
 	devm_kfree(mc_io->dev, mc_io);
 }
 EXPORT_SYMBOL_GPL(fsl_destroy_mc_io);

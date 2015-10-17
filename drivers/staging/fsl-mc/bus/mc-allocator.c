@@ -320,7 +320,7 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 
 	error = fsl_create_mc_io(&mc_bus_dev->dev,
 				 mc_portal_phys_addr,
-				 mc_portal_size, resource,
+				 mc_portal_size, dpmcp_dev,
 				 mc_io_flags, &mc_io);
 	if (error < 0)
 		goto error_cleanup_resource;
@@ -342,12 +342,22 @@ EXPORT_SYMBOL_GPL(fsl_mc_portal_allocate);
  */
 void fsl_mc_portal_free(struct fsl_mc_io *mc_io)
 {
+	struct fsl_mc_device *dpmcp_dev;
 	struct fsl_mc_resource *resource;
 
-	resource = mc_io->resource;
-	if (WARN_ON(resource->type != FSL_MC_POOL_DPMCP))
+	/*
+	 * Every mc_io obtained by calling fsl_mc_portal_allocate() is supposed
+	 * to have a DPMCP object associated with.
+	 */
+	dpmcp_dev = mc_io->dpmcp_dev;
+	if (WARN_ON(!dpmcp_dev))
 		return;
-	if (WARN_ON(!resource->data))
+
+	resource = dpmcp_dev->resource;
+	if (WARN_ON(!resource || resource->type != FSL_MC_POOL_DPMCP))
+		return;
+
+	if (WARN_ON(resource->data != dpmcp_dev))
 		return;
 
 	fsl_destroy_mc_io(mc_io);
@@ -364,30 +374,26 @@ int fsl_mc_portal_reset(struct fsl_mc_io *mc_io)
 {
 	int error;
 	u16 token;
-	struct fsl_mc_resource *resource = mc_io->resource;
-	struct fsl_mc_device *mc_dev = resource->data;
+	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
 
-	if (WARN_ON(resource->type != FSL_MC_POOL_DPMCP))
+	if (WARN_ON(!dpmcp_dev))
 		return -EINVAL;
 
-	if (WARN_ON(!mc_dev))
-		return -EINVAL;
-
-	error = dpmcp_open(mc_io, 0, mc_dev->obj_desc.id, &token);
+	error = dpmcp_open(mc_io, 0, dpmcp_dev->obj_desc.id, &token);
 	if (error < 0) {
-		dev_err(&mc_dev->dev, "dpmcp_open() failed: %d\n", error);
+		dev_err(&dpmcp_dev->dev, "dpmcp_open() failed: %d\n", error);
 		return error;
 	}
 
 	error = dpmcp_reset(mc_io, 0, token);
 	if (error < 0) {
-		dev_err(&mc_dev->dev, "dpmcp_reset() failed: %d\n", error);
+		dev_err(&dpmcp_dev->dev, "dpmcp_reset() failed: %d\n", error);
 		return error;
 	}
 
 	error = dpmcp_close(mc_io, 0, token);
 	if (error < 0) {
-		dev_err(&mc_dev->dev, "dpmcp_close() failed: %d\n", error);
+		dev_err(&dpmcp_dev->dev, "dpmcp_close() failed: %d\n", error);
 		return error;
 	}
 
