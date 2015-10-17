@@ -543,7 +543,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		/* Accounting for major/minor faults? */
 		rcu_read_lock();
 		list_for_each_entry_rcu(sdev, &svm->devs, list) {
-			if (sdev->sid == PCI_DEVID(req->bus, req->devfn));
+			if (sdev->sid == PCI_DEVID(req->bus, req->devfn))
 				break;
 		}
 		/* Other devices can go away, but the drivers are not permitted
