@@ -693,17 +693,20 @@ int create_pipe_files(struct file **res, int flags)
 
 	d_instantiate(path.dentry, inode);
 
-	err = -ENFILE;
 	f = alloc_file(&path, FMODE_WRITE, &pipefifo_fops);
-	if (IS_ERR(f))
+	if (IS_ERR(f)) {
+		err = PTR_ERR(f);
 		goto err_dentry;
+	}
 
 	f->f_flags = O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT));
 	f->private_data = inode->i_pipe;
 
 	res[0] = alloc_file(&path, FMODE_READ, &pipefifo_fops);
-	if (IS_ERR(res[0]))
+	if (IS_ERR(res[0])) {
+		err = PTR_ERR(res[0]);
 		goto err_file;
+	}
 
 	path_get(&path);
 	res[0]->private_data = inode->i_pipe;
