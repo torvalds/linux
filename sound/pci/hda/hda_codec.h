@@ -69,6 +69,7 @@ struct hda_bus {
 	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
+	unsigned int mixer_assigned;	/* codec addr for mixer name */
 };
 
 /* from hdac_bus to hda_bus */
@@ -257,7 +258,6 @@ struct hda_codec {
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
 #endif
-	unsigned int mixer_assigned;
 
 	/* filter the requested power state per nid */
 	unsigned int (*power_filter)(struct hda_codec *codec, hda_nid_t nid,
@@ -298,10 +298,6 @@ struct hda_codec {
 /*
  * constructors
  */
-int snd_hda_bus_new(struct snd_card *card,
-		    const struct hdac_bus_ops *ops,
-		    const struct hdac_io_ops *io_ops,
-		    struct hda_bus **busp);
 int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 		      unsigned int codec_addr, struct hda_codec **codecp);
 int snd_hda_codec_configure(struct hda_codec *codec);
