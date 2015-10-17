@@ -284,7 +284,7 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 	struct fsl_mc_bus *mc_bus;
 	phys_addr_t mc_portal_phys_addr;
 	size_t mc_portal_size;
-	struct fsl_mc_device *mc_adev;
+	struct fsl_mc_device *dpmcp_dev;
 	int error = -EINVAL;
 	struct fsl_mc_resource *resource = NULL;
 	struct fsl_mc_io *mc_io = NULL;
@@ -304,16 +304,16 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 	if (error < 0)
 		return error;
 
-	mc_adev = resource->data;
-	if (WARN_ON(!mc_adev))
+	dpmcp_dev = resource->data;
+	if (WARN_ON(!dpmcp_dev))
 		goto error_cleanup_resource;
 
-	if (WARN_ON(mc_adev->obj_desc.region_count == 0))
+	if (WARN_ON(dpmcp_dev->obj_desc.region_count == 0))
 		goto error_cleanup_resource;
 
-	mc_portal_phys_addr = mc_adev->regions[0].start;
-	mc_portal_size = mc_adev->regions[0].end -
-			 mc_adev->regions[0].start + 1;
+	mc_portal_phys_addr = dpmcp_dev->regions[0].start;
+	mc_portal_size = dpmcp_dev->regions[0].end -
+			 dpmcp_dev->regions[0].start + 1;
 
 	if (WARN_ON(mc_portal_size != mc_bus_dev->mc_io->portal_size))
 		goto error_cleanup_resource;
