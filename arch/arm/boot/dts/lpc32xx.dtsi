@@ -49,7 +49,7 @@
 			status = "disabled";
 		};
 
-		dma@31000000 {
+		dma: dma@31000000 {
 			compatible = "arm,pl080", "arm,primecell";
 			reg = <0x31000000 0x1000>;
 			interrupts = <0x1c 0>;
@@ -58,21 +58,21 @@
 		/*
 		 * Enable either ohci or usbd (gadget)!
 		 */
-		ohci@31020000 {
+		ohci: ohci@31020000 {
 			compatible = "nxp,ohci-nxp", "usb-ohci";
 			reg = <0x31020000 0x300>;
 			interrupts = <0x3b 0>;
 			status = "disabled";
 		};
 
-		usbd@31020000 {
+		usbd: usbd@31020000 {
 			compatible = "nxp,lpc3220-udc";
 			reg = <0x31020000 0x300>;
 			interrupts = <0x3d 0>, <0x3e 0>, <0x3c 0>, <0x3a 0>;
 			status = "disabled";
 		};
 
-		clcd@31040000 {
+		clcd: clcd@31040000 {
 			compatible = "arm,pl110", "arm,primecell";
 			reg = <0x31040000 0x1000>;
 			interrupts = <0x0e 0>;
@@ -118,7 +118,7 @@
 				reg = <0x20094000 0x1000>;
 			};
 
-			sd@20098000 {
+			sd: sd@20098000 {
 				compatible = "arm,pl18x", "arm,primecell";
 				reg = <0x20098000 0x1000>;
 				interrupts = <0x0f 0>, <0x0d 0>;
@@ -243,7 +243,7 @@
 				status = "disabled";
 			};
 
-			rtc@40024000 {
+			rtc: rtc@40024000 {
 				compatible = "nxp,lpc3220-rtc";
 				reg = <0x40024000 0x1000>;
 				interrupts = <0x34 0>;
@@ -256,7 +256,7 @@
 				#gpio-cells = <3>; /* bank, pin, flags */
 			};
 
-			watchdog@4003C000 {
+			watchdog: watchdog@4003C000 {
 				compatible = "nxp,pnx4008-wdt";
 				reg = <0x4003C000 0x1000>;
 			};
@@ -268,21 +268,21 @@
 			 * them
 			 */
 
-			adc@40048000 {
+			adc: adc@40048000 {
 				compatible = "nxp,lpc3220-adc";
 				reg = <0x40048000 0x1000>;
 				interrupts = <0x27 0>;
 				status = "disabled";
 			};
 
-			tsc@40048000 {
+			tsc: tsc@40048000 {
 				compatible = "nxp,lpc3220-tsc";
 				reg = <0x40048000 0x1000>;
 				interrupts = <0x27 0>;
 				status = "disabled";
 			};
 
-			key@40050000 {
+			key: key@40050000 {
 				compatible = "nxp,lpc3220-key";
 				reg = <0x40050000 0x1000>;
 				interrupts = <54 0>;
