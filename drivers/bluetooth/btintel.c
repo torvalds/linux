@@ -97,9 +97,6 @@ int btintel_set_diag(struct hci_dev *hdev, bool enable)
 	u8 param[3];
 	int err;
 
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -ENETDOWN;
-
 	if (enable) {
 		param[0] = 0x03;
 		param[1] = 0x03;
@@ -113,6 +110,8 @@ int btintel_set_diag(struct hci_dev *hdev, bool enable)
 	skb = __hci_cmd_sync(hdev, 0xfc43, 3, param, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		err = PTR_ERR(skb);
+		if (err == -ENODATA)
+			return 0;
 		BT_ERR("%s: Changing Intel diagnostic mode failed (%d)",
 		       hdev->name, err);
 		return err;
