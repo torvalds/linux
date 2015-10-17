@@ -162,6 +162,16 @@ static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
 	if (strtobool(buf, &enable))
 		return -EINVAL;
 
+	/* When the diagnostic flags are not persistent and the transport
+	 * is not active, then there is no need for the vendor callback.
+	 *
+	 * Instead just store the desired value. If needed the setting
+	 * will be programmed when the controller gets powered on.
+	 */
+	if (test_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks) &&
+	    !test_bit(HCI_RUNNING, &hdev->flags))
+		goto done;
+
 	hci_req_lock(hdev);
 	err = hdev->set_diag(hdev, enable);
 	hci_req_unlock(hdev);
@@ -169,6 +179,7 @@ static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
 	if (err < 0)
 		return err;
 
+done:
 	if (enable)
 		hci_dev_set_flag(hdev, HCI_VENDOR_DIAG);
 	else
@@ -1493,6 +1504,14 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL))
 			ret = __hci_init(hdev);
 	}
+
+	/* If the HCI Reset command is clearing all diagnostic settings,
+	 * then they need to be reprogrammed after the init procedure
+	 * completed.
+	 */
+	if (test_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks) &&
+	    hci_dev_test_flag(hdev, HCI_VENDOR_DIAG) && hdev->set_diag)
+		ret = hdev->set_diag(hdev, true);
 
 	clear_bit(HCI_INIT, &hdev->flags);
 

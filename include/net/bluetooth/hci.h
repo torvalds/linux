@@ -170,6 +170,15 @@ enum {
 	 * during the hdev->setup vendor callback.
 	 */
 	HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
+
+	/* When this quirk is set, the enabling of diagnostic mode is
+	 * not persistent over HCI Reset. Every time the controller
+	 * is brought up it needs to be reprogrammed.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_NON_PERSISTENT_DIAG,
 };
 
 /* HCI device flags */
