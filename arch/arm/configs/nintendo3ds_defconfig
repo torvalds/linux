@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 4.3.0-rc1 Kernel Configuration
+# Linux/arm 4.3.0-rc5 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -465,7 +465,8 @@ CONFIG_IOMMU_HELPER=y
 # Boot options
 #
 CONFIG_USE_OF=y
-# CONFIG_ATAGS is not set
+CONFIG_ATAGS=y
+CONFIG_DEPRECATED_PARAM_STRUCT=y
 CONFIG_ZBOOT_ROM_TEXT=0
 CONFIG_ZBOOT_ROM_BSS=0
 # CONFIG_ARM_APPENDED_DTB is not set
