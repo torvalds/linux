@@ -85,7 +85,7 @@
 
 /* BUILD OBJ mode */
 
-#define	AVAIL_TD(p, q)	((p)->sOpts.tx_descs[(q)] - ((p)->iTDUsed[(q)]))
+#define	AVAIL_TD(p, q)	((p)->opts.tx_descs[(q)] - ((p)->iTDUsed[(q)]))
 
 /* 0:11A 1:11B 2:11G */
 #define BB_TYPE_11A    0
@@ -159,7 +159,7 @@ struct vnt_private {
 	struct vnt_rx_desc *aRD1Ring;
 	struct vnt_rx_desc *pCurrRD[TYPE_MAXRD];
 
-	struct vnt_options sOpts;
+	struct vnt_options opts;
 
 	u32                         flags;
 
