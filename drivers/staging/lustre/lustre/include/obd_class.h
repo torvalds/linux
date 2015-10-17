@@ -223,14 +223,15 @@ static inline void class_export_rpc_dec(struct obd_export *exp)
 	       (exp), atomic_read(&(exp)->exp_rpc_count));
 }
 
-#define class_export_lock_get(exp, lock)				\
-({								      \
-	atomic_inc(&(exp)->exp_locks_count);			\
-	__class_export_add_lock_ref(exp, lock);			 \
-	CDEBUG(D_INFO, "lock GETting export %p : new locks_count %d\n", \
-	       (exp), atomic_read(&(exp)->exp_locks_count));	\
-	class_export_get(exp);					  \
-})
+static inline struct obd_export *class_export_lock_get(struct obd_export *exp,
+						       struct ldlm_lock *lock)
+{
+	atomic_inc(&(exp)->exp_locks_count);
+	__class_export_add_lock_ref(exp, lock);
+	CDEBUG(D_INFO, "lock GETting export %p : new locks_count %d\n",
+	       (exp), atomic_read(&(exp)->exp_locks_count));
+	return class_export_get(exp);
+}
 
 #define class_export_lock_put(exp, lock)				\
 ({								      \
