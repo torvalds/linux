@@ -551,7 +551,7 @@ static void device_init_rd0_ring(struct vnt_private *priv)
 	for (i = 0; i < priv->sOpts.rx_descs0;
 	     i ++, curr += sizeof(struct vnt_rx_desc)) {
 		desc = &priv->aRD0Ring[i];
-		desc->rd_info = alloc_rd_info();
+		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_ATOMIC);
 
 		if (!device_alloc_rx_buf(priv, desc))
 			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
@@ -575,7 +575,7 @@ static void device_init_rd1_ring(struct vnt_private *priv)
 	for (i = 0; i < priv->sOpts.rx_descs1;
 	     i ++, curr += sizeof(struct vnt_rx_desc)) {
 		desc = &priv->aRD1Ring[i];
-		desc->rd_info = alloc_rd_info();
+		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_ATOMIC);
 
 		if (!device_alloc_rx_buf(priv, desc))
 			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
