@@ -74,6 +74,7 @@ struct intel_secure_send_result {
 int btintel_check_bdaddr(struct hci_dev *hdev);
 int btintel_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int btintel_set_diag(struct hci_dev *hdev, bool enable);
+int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable);
 void btintel_hw_error(struct hci_dev *hdev, u8 code);
 
 void btintel_version_info(struct hci_dev *hdev, struct intel_version *ver);
@@ -97,6 +98,11 @@ static inline int btintel_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdadd
 }
 
 static inline int btintel_set_diag(struct hci_dev *hdev, bool enable)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable)
 {
 	return -EOPNOTSUPP;
 }
