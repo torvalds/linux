@@ -95,6 +95,7 @@ int sysctl_tcp_stdurg __read_mostly;
 int sysctl_tcp_rfc1337 __read_mostly;
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 int sysctl_tcp_frto __read_mostly = 2;
+int sysctl_tcp_min_rtt_wlen __read_mostly = 300;
 
 int sysctl_tcp_thin_dupack __read_mostly;
 
@@ -2915,8 +2916,69 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 	tcp_xmit_retransmit_queue(sk);
 }
 
+/* Kathleen Nichols' algorithm for tracking the minimum value of
+ * a data stream over some fixed time interval. (E.g., the minimum
+ * RTT over the past five minutes.) It uses constant space and constant
+ * time per update yet almost always delivers the same minimum as an
+ * implementation that has to keep all the data in the window.
+ *
+ * The algorithm keeps track of the best, 2nd best & 3rd best min
+ * values, maintaining an invariant that the measurement time of the
+ * n'th best >= n-1'th best. It also makes sure that the three values
+ * are widely separated in the time window since that bounds the worse
+ * case error when that data is monotonically increasing over the window.
+ *
+ * Upon getting a new min, we can forget everything earlier because it
+ * has no value - the new min is <= everything else in the window by
+ * definition and it's the most recent. So we restart fresh on every new min
+ * and overwrites 2nd & 3rd choices. The same property holds for 2nd & 3rd
+ * best.
+ */
+static void tcp_update_rtt_min(struct sock *sk, u32 rtt_us)
+{
+	const u32 now = tcp_time_stamp, wlen = sysctl_tcp_min_rtt_wlen * HZ;
+	struct rtt_meas *m = tcp_sk(sk)->rtt_min;
+	struct rtt_meas rttm = { .rtt = (rtt_us ? : 1), .ts = now };
+	u32 elapsed;
+
+	/* Check if the new measurement updates the 1st, 2nd, or 3rd choices */
+	if (unlikely(rttm.rtt <= m[0].rtt))
+		m[0] = m[1] = m[2] = rttm;
+	else if (rttm.rtt <= m[1].rtt)
+		m[1] = m[2] = rttm;
+	else if (rttm.rtt <= m[2].rtt)
+		m[2] = rttm;
+
+	elapsed = now - m[0].ts;
+	if (unlikely(elapsed > wlen)) {
+		/* Passed entire window without a new min so make 2nd choice
+		 * the new min & 3rd choice the new 2nd. So forth and so on.
+		 */
+		m[0] = m[1];
+		m[1] = m[2];
+		m[2] = rttm;
+		if (now - m[0].ts > wlen) {
+			m[0] = m[1];
+			m[1] = rttm;
+			if (now - m[0].ts > wlen)
+				m[0] = rttm;
+		}
+	} else if (m[1].ts == m[0].ts && elapsed > wlen / 4) {
+		/* Passed a quarter of the window without a new min so
+		 * take 2nd choice from the 2nd quarter of the window.
+		 */
+		m[2] = m[1] = rttm;
+	} else if (m[2].ts == m[1].ts && elapsed > wlen / 2) {
+		/* Passed half the window without a new min so take the 3rd
+		 * choice from the last half of the window.
+		 */
+		m[2] = rttm;
+	}
+}
+
 static inline bool tcp_ack_update_rtt(struct sock *sk, const int flag,
-				      long seq_rtt_us, long sack_rtt_us)
+				      long seq_rtt_us, long sack_rtt_us,
+				      long ca_rtt_us)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
@@ -2936,11 +2998,16 @@ static inline bool tcp_ack_update_rtt(struct sock *sk, const int flag,
 	 */
 	if (seq_rtt_us < 0 && tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr &&
 	    flag & FLAG_ACKED)
-		seq_rtt_us = jiffies_to_usecs(tcp_time_stamp - tp->rx_opt.rcv_tsecr);
-
+		seq_rtt_us = ca_rtt_us = jiffies_to_usecs(tcp_time_stamp -
+							  tp->rx_opt.rcv_tsecr);
 	if (seq_rtt_us < 0)
 		return false;
 
+	/* ca_rtt_us >= 0 is counting on the invariant that ca_rtt_us is
+	 * always taken together with ACK, SACK, or TS-opts. Any negative
+	 * values will be skipped with the seq_rtt_us < 0 check above.
+	 */
+	tcp_update_rtt_min(sk, ca_rtt_us);
 	tcp_rtt_estimator(sk, seq_rtt_us);
 	tcp_set_rto(sk);
 
@@ -2961,7 +3028,7 @@ void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req)
 		rtt_us = skb_mstamp_us_delta(&now, &tcp_rsk(req)->snt_synack);
 	}
 
-	tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, rtt_us, -1L);
+	tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, rtt_us, -1L, rtt_us);
 }
 
 
@@ -3175,7 +3242,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 		ca_rtt_us = skb_mstamp_us_delta(&now, &sack->last_sackt);
 	}
 
-	rtt_update = tcp_ack_update_rtt(sk, flag, seq_rtt_us, sack_rtt_us);
+	rtt_update = tcp_ack_update_rtt(sk, flag, seq_rtt_us, sack_rtt_us,
+					ca_rtt_us);
 
 	if (flag & FLAG_ACKED) {
 		tcp_rearm_rto(sk);

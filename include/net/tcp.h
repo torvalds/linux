@@ -279,6 +279,7 @@ extern int sysctl_tcp_limit_output_bytes;
 extern int sysctl_tcp_challenge_ack_limit;
 extern unsigned int sysctl_tcp_notsent_lowat;
 extern int sysctl_tcp_min_tso_segs;
+extern int sysctl_tcp_min_rtt_wlen;
 extern int sysctl_tcp_autocorking;
 extern int sysctl_tcp_invalid_ratelimit;
 extern int sysctl_tcp_pacing_ss_ratio;
@@ -669,6 +670,12 @@ static inline u32 tcp_rto_min_us(struct sock *sk)
 static inline bool tcp_ca_dst_locked(const struct dst_entry *dst)
 {
 	return dst_metric_locked(dst, RTAX_CC_ALGO);
+}
+
+/* Minimum RTT in usec. ~0 means not available. */
+static inline u32 tcp_min_rtt(const struct tcp_sock *tp)
+{
+	return tp->rtt_min[0].rtt;
 }
 
 /* Compute the actual receive window we are currently advertising.

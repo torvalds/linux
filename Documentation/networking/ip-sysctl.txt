@@ -384,6 +384,14 @@ tcp_mem - vector of 3 INTEGERs: min, pressure, max
 	Defaults are calculated at boot time from amount of available
 	memory.
 
+tcp_min_rtt_wlen - INTEGER
+	The window length of the windowed min filter to track the minimum RTT.
+	A shorter window lets a flow more quickly pick up new (higher)
+	minimum RTT when it is moved to a longer path (e.g., due to traffic
+	engineering). A longer window makes the filter more resistant to RTT
+	inflations such as transient congestion. The unit is seconds.
+	Default: 300
+
 tcp_moderate_rcvbuf - BOOLEAN
 	If set, TCP performs receive buffer auto-tuning, attempting to
 	automatically size the buffer (no greater than tcp_rmem[2]) to
