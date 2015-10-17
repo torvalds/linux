@@ -463,6 +463,15 @@ static inline u32 skb_mstamp_us_delta(const struct skb_mstamp *t1,
 	return delta_us;
 }
 
+static inline bool skb_mstamp_after(const struct skb_mstamp *t1,
+				    const struct skb_mstamp *t0)
+{
+	s32 diff = t1->stamp_jiffies - t0->stamp_jiffies;
+
+	if (!diff)
+		diff = t1->stamp_us - t0->stamp_us;
+	return diff > 0;
+}
 
 /** 
  *	struct sk_buff - socket buffer
