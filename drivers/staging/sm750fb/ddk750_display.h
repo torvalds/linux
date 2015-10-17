@@ -17,7 +17,7 @@
 	0: both off
 */
 #define PRI_TP_OFFSET 4
-#define PRI_TP_MASK (1 << PRI_TP_OFFSET)
+#define PRI_TP_MASK BIT(PRI_TP_OFFSET)
 #define PRI_TP_USAGE (PRI_TP_MASK << 16)
 #define PRI_TP_ON ((0x1 << PRI_TP_OFFSET)|PRI_TP_USAGE)
 #define PRI_TP_OFF ((0x0 << PRI_TP_OFFSET)|PRI_TP_USAGE)
@@ -27,18 +27,18 @@
 	80000[27:24]
 */
 #define PNL_SEQ_OFFSET 6
-#define PNL_SEQ_MASK (1 << PNL_SEQ_OFFSET)
+#define PNL_SEQ_MASK BIT(PNL_SEQ_OFFSET)
 #define PNL_SEQ_USAGE (PNL_SEQ_MASK << 16)
-#define PNL_SEQ_ON ((1 << PNL_SEQ_OFFSET)|PNL_SEQ_USAGE)
+#define PNL_SEQ_ON (BIT(PNL_SEQ_OFFSET)|PNL_SEQ_USAGE)
 #define PNL_SEQ_OFF ((0 << PNL_SEQ_OFFSET)|PNL_SEQ_USAGE)
 
 /* dual digital output
 	80000[19]
 */
 #define DUAL_TFT_OFFSET 8
-#define DUAL_TFT_MASK (1 << DUAL_TFT_OFFSET)
+#define DUAL_TFT_MASK BIT(DUAL_TFT_OFFSET)
 #define DUAL_TFT_USAGE (DUAL_TFT_MASK << 16)
-#define DUAL_TFT_ON ((1 << DUAL_TFT_OFFSET)|DUAL_TFT_USAGE)
+#define DUAL_TFT_ON (BIT(DUAL_TFT_OFFSET)|DUAL_TFT_USAGE)
 #define DUAL_TFT_OFF ((0 << DUAL_TFT_OFFSET)|DUAL_TFT_USAGE)
 
 /* secondary timing & plane enable bit
@@ -46,7 +46,7 @@
 	0: both off
 */
 #define SEC_TP_OFFSET 5
-#define SEC_TP_MASK (1 << SEC_TP_OFFSET)
+#define SEC_TP_MASK BIT(SEC_TP_OFFSET)
 #define SEC_TP_USAGE (SEC_TP_MASK << 16)
 #define SEC_TP_ON  ((0x1 << SEC_TP_OFFSET)|SEC_TP_USAGE)
 #define SEC_TP_OFF ((0x0 << SEC_TP_OFFSET)|SEC_TP_USAGE)
@@ -65,7 +65,7 @@
 	4[20]
 */
 #define DAC_OFFSET 7
-#define DAC_MASK (1 << DAC_OFFSET)
+#define DAC_MASK BIT(DAC_OFFSET)
 #define DAC_USAGE (DAC_MASK << 16)
 #define DAC_ON ((0x0 << DAC_OFFSET)|DAC_USAGE)
 #define DAC_OFF ((0x1 << DAC_OFFSET)|DAC_USAGE)
