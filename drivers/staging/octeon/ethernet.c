@@ -481,7 +481,7 @@ void cvm_oct_common_uninit(struct net_device *dev)
 }
 
 int cvm_oct_common_open(struct net_device *dev,
-			void (*link_poll)(struct net_device *), bool poll_now)
+			void (*link_poll)(struct net_device *))
 {
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	struct octeon_ethernet *priv = netdev_priv(dev);
@@ -512,8 +512,7 @@ int cvm_oct_common_open(struct net_device *dev,
 		if (!link_info.s.link_up)
 			netif_carrier_off(dev);
 		priv->poll = link_poll;
-		if (poll_now)
-			link_poll(dev);
+		link_poll(dev);
 	}
 
 	return 0;
