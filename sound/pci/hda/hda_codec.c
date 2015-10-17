@@ -851,7 +851,6 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 	INIT_DELAYED_WORK(&codec->jackpoll_work, hda_jackpoll_work);
 	codec->depop_delay = -1;
 	codec->fixup_id = HDA_FIXUP_ID_NOT_SET;
-	codec->mixer_assigned = -1;
 
 #ifdef CONFIG_PM
 	codec->power_jiffies = jiffies;

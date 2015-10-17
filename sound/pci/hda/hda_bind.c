@@ -62,11 +62,11 @@ int snd_hda_codec_set_name(struct hda_codec *codec, const char *name)
 
 	/* update the mixer name */
 	if (!*codec->card->mixername ||
-	    codec->mixer_assigned >= codec->core.addr) {
+	    codec->bus->mixer_assigned >= codec->core.addr) {
 		snprintf(codec->card->mixername,
 			 sizeof(codec->card->mixername), "%s %s",
 			 codec->core.vendor_name, codec->core.chip_name);
-		codec->mixer_assigned = codec->core.addr;
+		codec->bus->mixer_assigned = codec->core.addr;
 	}
 
 	return 0;
