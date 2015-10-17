@@ -62,7 +62,6 @@ int cvm_oct_sgmii_open(struct net_device *dev);
 
 int cvm_oct_spi_init(struct net_device *dev);
 void cvm_oct_spi_uninit(struct net_device *dev);
-int cvm_oct_xaui_open(struct net_device *dev);
 
 int cvm_oct_common_init(struct net_device *dev);
 void cvm_oct_common_uninit(struct net_device *dev);

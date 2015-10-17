@@ -539,6 +539,11 @@ void cvm_oct_link_poll(struct net_device *dev)
 	cvm_oct_note_carrier(priv, link_info);
 }
 
+static int cvm_oct_xaui_open(struct net_device *dev)
+{
+	return cvm_oct_common_open(dev, cvm_oct_link_poll);
+}
+
 static const struct net_device_ops cvm_oct_npi_netdev_ops = {
 	.ndo_init		= cvm_oct_common_init,
 	.ndo_uninit		= cvm_oct_common_uninit,
