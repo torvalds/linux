@@ -496,6 +496,13 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
+		.procname	= "tcp_recovery",
+		.data		= &sysctl_tcp_recovery,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "tcp_reordering",
 		.data		= &sysctl_tcp_reordering,
 		.maxlen		= sizeof(int),
