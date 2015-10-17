@@ -633,7 +633,7 @@ static void device_init_td0_ring(struct vnt_private *priv)
 	for (i = 0; i < priv->sOpts.tx_descs[0];
 	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		desc = &priv->apTD0Rings[i];
-		desc->td_info = alloc_td_info();
+		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_ATOMIC);
 
 		desc->td_info->buf = priv->tx0_bufs + i * PKT_BUF_SZ;
 		desc->td_info->buf_dma = priv->tx_bufs_dma0 + i * PKT_BUF_SZ;
@@ -658,7 +658,7 @@ static void device_init_td1_ring(struct vnt_private *priv)
 	for (i = 0; i < priv->sOpts.tx_descs[1];
 	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		desc = &priv->apTD1Rings[i];
-		desc->td_info = alloc_td_info();
+		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_ATOMIC);
 
 		desc->td_info->buf = priv->tx1_bufs + i * PKT_BUF_SZ;
 		desc->td_info->buf_dma = priv->tx_bufs_dma1 + i * PKT_BUF_SZ;

@@ -306,8 +306,4 @@ struct vnt_private {
 	struct ieee80211_low_level_stats low_stats;
 };
 
-static inline struct vnt_td_info *alloc_td_info(void)
-{
-	return kzalloc(sizeof(struct vnt_td_info), GFP_ATOMIC);
-}
 #endif
