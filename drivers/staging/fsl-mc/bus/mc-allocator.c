@@ -474,30 +474,27 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 	enum fsl_mc_pool_type pool_type;
 	struct fsl_mc_device *mc_bus_dev;
 	struct fsl_mc_bus *mc_bus;
-	int error = -EINVAL;
+	int error;
 
 	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
-		goto error;
+		return -EINVAL;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
 	if (WARN_ON(mc_bus_dev->dev.bus != &fsl_mc_bus_type))
-		goto error;
+		return -EINVAL;
 
 	mc_bus = to_fsl_mc_bus(mc_bus_dev);
 	error = object_type_to_pool_type(mc_dev->obj_desc.type, &pool_type);
 	if (error < 0)
-		goto error;
+		return error;
 
 	error = fsl_mc_resource_pool_add_device(mc_bus, pool_type, mc_dev);
 	if (error < 0)
-		goto error;
+		return error;
 
 	dev_dbg(&mc_dev->dev,
 		"Allocatable MC object device bound to fsl_mc_allocator driver");
 	return 0;
-error:
-
-	return error;
 }
 
 /**
@@ -506,22 +503,20 @@ error:
  */
 static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 {
-	int error = -EINVAL;
+	int error;
 
 	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
-		goto out;
+		return -EINVAL;
 
 	if (mc_dev->resource) {
 		error = fsl_mc_resource_pool_remove_device(mc_dev);
 		if (error < 0)
-			goto out;
+			return error;
 	}
 
 	dev_dbg(&mc_dev->dev,
 		"Allocatable MC object device unbound from fsl_mc_allocator driver");
-	error = 0;
-out:
-	return error;
+	return 0;
 }
 
 static const struct fsl_mc_device_match_id match_id_table[] = {
