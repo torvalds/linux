@@ -466,12 +466,8 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		/* this prevent excessive time wait when we
 		 * need to wait for a syncro scan to end..
 		 */
-		if(ieee->state < IEEE80211_LINKED)
-			;
-		else
-		if (ieee->sync_scan_hurryup)
+		if (ieee->state >= IEEE80211_LINKED && ieee->sync_scan_hurryup)
 			goto out;
-
 
 		msleep_interruptible_rsl(IEEE80211_SOFTMAC_SCAN_TIME);
 
