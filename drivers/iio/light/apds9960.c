@@ -472,7 +472,7 @@ static int apds9960_read_raw(struct iio_dev *indio_dev,
 			     int *val, int *val2, long mask)
 {
 	struct apds9960_data *data = iio_priv(indio_dev);
-	u16 buf;
+	__le16 buf;
 	int ret = -EINVAL;
 
 	if (data->gesture_mode_running)
@@ -613,7 +613,7 @@ static int apds9960_read_event(struct iio_dev *indio_dev,
 			       int *val, int *val2)
 {
 	u8 reg;
-	u16 buf;
+	__le16 buf;
 	int ret = 0;
 	struct apds9960_data *data = iio_priv(indio_dev);
 
@@ -649,7 +649,7 @@ static int apds9960_write_event(struct iio_dev *indio_dev,
 				int val, int val2)
 {
 	u8 reg;
-	u16 buf;
+	__le16 buf;
 	int ret = 0;
 	struct apds9960_data *data = iio_priv(indio_dev);
 

@@ -1,0 +1,20 @@
+#
+# Potentiometer drivers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Digital potentiometers"
+
+config MCP4531
+	tristate "Microchip MCP45xx/MCP46xx Digital Potentiometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Microchip
+	  MCP4531, MCP4532, MCP4551, MCP4552,
+	  MCP4631, MCP4632, MCP4651, MCP4652
+	  digital potentiomenter chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcp4531.
+
+endmenu

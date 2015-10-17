@@ -50,7 +50,6 @@
 #define STK8312_ALL_CHANNEL_SIZE	3
 
 #define STK8312_DRIVER_NAME		"stk8312"
-#define STK8312_GPIO			"stk8312_gpio"
 #define STK8312_IRQ_NAME		"stk8312_event"
 
 /*
@@ -504,30 +503,6 @@ static const struct iio_buffer_setup_ops stk8312_buffer_setup_ops = {
 	.postdisable = stk8312_buffer_postdisable,
 };
 
-static int stk8312_gpio_probe(struct i2c_client *client)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, STK8312_GPIO, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "acpi gpio get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_to_irq(gpio);
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-
-	return ret;
-}
-
 static int stk8312_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -569,10 +544,7 @@ static int stk8312_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	if (client->irq < 0)
-		client->irq = stk8312_gpio_probe(client);
-
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						stk8312_data_rdy_trig_poll,
 						NULL,

@@ -23,6 +23,7 @@ obj-y += imu/
 obj-y += light/
 obj-y += magnetometer/
 obj-y += orientation/
+obj-y += potentiometer/
 obj-y += pressure/
 obj-y += proximity/
 obj-y += temperature/

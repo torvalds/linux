@@ -26,7 +26,6 @@
 
 #define MMA9553_DRV_NAME			"mma9553"
 #define MMA9553_IRQ_NAME			"mma9553_event"
-#define MMA9553_GPIO_NAME			"mma9553_int"
 
 /* Pedometer configuration registers (R/W) */
 #define MMA9553_REG_CONF_SLEEPMIN		0x00
@@ -1073,31 +1072,6 @@ static irqreturn_t mma9553_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-static int mma9553_gpio_probe(struct i2c_client *client)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* data ready GPIO interrupt pin */
-	gpio = devm_gpiod_get_index(dev, MMA9553_GPIO_NAME, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "ACPI GPIO get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_to_irq(gpio);
-
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-
-	return ret;
-}
-
 static const char *mma9553_match_acpi_device(struct device *dev)
 {
 	const struct acpi_device_id *id;
@@ -1145,9 +1119,6 @@ static int mma9553_probe(struct i2c_client *client,
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mma9553_info;
-
-	if (client->irq < 0)
-		client->irq = mma9553_gpio_probe(client);
 
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,

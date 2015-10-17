@@ -47,7 +47,6 @@
 #define STK3310_DRIVER_NAME			"stk3310"
 #define STK3310_REGMAP_NAME			"stk3310_regmap"
 #define STK3310_EVENT				"stk3310_event"
-#define STK3310_GPIO				"stk3310_gpio"
 
 #define STK3310_SCALE_AVAILABLE			"6.4 1.6 0.4 0.1"
 
@@ -477,30 +476,6 @@ static int stk3310_init(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static int stk3310_gpio_probe(struct i2c_client *client)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, STK3310_GPIO, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "acpi gpio get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_to_irq(gpio);
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-
-	return ret;
-}
-
 static bool stk3310_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -624,15 +599,7 @@ static int stk3310_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	if (client->irq < 0) {
-		client->irq = stk3310_gpio_probe(client);
-		if (client->irq < 0) {
-			ret = client->irq;
-			goto err_standby;
-		}
-	}
-
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						stk3310_irq_handler,
 						stk3310_irq_event_handler,
