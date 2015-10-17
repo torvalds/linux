@@ -203,7 +203,7 @@ static int ext4_init_block_bitmap(struct super_block *sb,
 					   count);
 		}
 		set_bit(EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT, &grp->bb_state);
-		return -EIO;
+		return -EFSBADCRC;
 	}
 	memset(bh->b_data, 0, sb->s_blocksize);
 

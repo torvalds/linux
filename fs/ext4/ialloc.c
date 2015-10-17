@@ -1116,6 +1116,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 	/* Error cases - e2fsck has already cleaned up for us */
 	if (ino > max_ino) {
 		ext4_warning(sb, "bad orphan ino %lu!  e2fsck was run?", ino);
+		err = -EFSCORRUPTED;
 		goto error;
 	}
 

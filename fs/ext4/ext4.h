@@ -3064,4 +3064,7 @@ extern void ext4_resize_end(struct super_block *sb);
 
 #endif	/* __KERNEL__ */
 
+#define EFSBADCRC	EBADMSG		/* Bad CRC detected */
+#define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
+
 #endif	/* _EXT4_H */

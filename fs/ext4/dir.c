@@ -621,14 +621,14 @@ int ext4_check_all_de(struct inode *dir, struct buffer_head *bh, void *buf,
 	while ((char *) de < top) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 					 buf, buf_size, offset))
-			return -EIO;
+			return -EFSCORRUPTED;
 		nlen = EXT4_DIR_REC_LEN(de->name_len);
 		rlen = ext4_rec_len_from_disk(de->rec_len, buf_size);
 		de = (struct ext4_dir_entry_2 *)((char *)de + rlen);
 		offset += rlen;
 	}
 	if ((char *) de > top)
-		return -EIO;
+		return -EFSCORRUPTED;
 
 	return 0;
 }

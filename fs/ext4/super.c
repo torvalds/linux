@@ -490,6 +490,12 @@ const char *ext4_decode_error(struct super_block *sb, int errno,
 	char *errstr = NULL;
 
 	switch (errno) {
+	case -EFSCORRUPTED:
+		errstr = "Corrupt filesystem";
+		break;
+	case -EFSBADCRC:
+		errstr = "Filesystem failed CRC";
+		break;
 	case -EIO:
 		errstr = "IO failure";
 		break;
@@ -3192,6 +3198,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		ext4_msg(sb, KERN_ERR, "VFS: Found ext4 filesystem with "
 			 "invalid superblock checksum.  Run e2fsck?");
 		silent = 1;
+		ret = -EFSBADCRC;
 		goto cantfind_ext4;
 	}
 
@@ -3612,6 +3619,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	if (!ext4_check_descriptors(sb, &first_not_zeroed)) {
 		ext4_msg(sb, KERN_ERR, "group descriptors corrupted!");
+		ret = -EFSCORRUPTED;
 		goto failed_mount2;
 	}
 
@@ -4664,7 +4672,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	       "ext4_remount: Checksum for group %u failed (%u!=%u)",
 		g, le16_to_cpu(ext4_group_desc_csum(sbi, g, gdp)),
 					       le16_to_cpu(gdp->bg_checksum));
-					err = -EINVAL;
+					err = -EFSBADCRC;
 					goto restore_opts;
 				}
 			}

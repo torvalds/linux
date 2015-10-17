@@ -1558,6 +1558,7 @@ static int journal_get_superblock(journal_t *journal)
 	/* Check superblock checksum */
 	if (!jbd2_superblock_csum_verify(journal, sb)) {
 		printk(KERN_ERR "JBD2: journal checksum error\n");
+		err = -EFSBADCRC;
 		goto out;
 	}
 
@@ -1649,7 +1650,7 @@ int jbd2_journal_load(journal_t *journal)
 		printk(KERN_ERR "JBD2: journal transaction %u on %s "
 		       "is corrupt.\n", journal->j_failed_commit,
 		       journal->j_devname);
-		return -EIO;
+		return -EFSCORRUPTED;
 	}
 
 	/* OK, we've finished with the dynamic journal bits:

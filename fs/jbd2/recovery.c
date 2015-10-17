@@ -140,7 +140,7 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 
 	if (offset >= journal->j_maxlen) {
 		printk(KERN_ERR "JBD2: corrupted journal superblock\n");
-		return -EIO;
+		return -EFSCORRUPTED;
 	}
 
 	err = jbd2_journal_bmap(journal, offset, &blocknr);
@@ -527,7 +527,7 @@ static int do_one_pass(journal_t *journal,
 				printk(KERN_ERR "JBD2: Invalid checksum "
 				       "recovering block %lu in log\n",
 				       next_log_block);
-				err = -EIO;
+				err = -EFSBADCRC;
 				brelse(bh);
 				goto failed;
 			}
@@ -602,7 +602,7 @@ static int do_one_pass(journal_t *journal,
 						journal, tag, obh->b_data,
 						be32_to_cpu(tmp->h_sequence))) {
 						brelse(obh);
-						success = -EIO;
+						success = -EFSBADCRC;
 						printk(KERN_ERR "JBD2: Invalid "
 						       "checksum recovering "
 						       "block %llu in log\n",
@@ -851,7 +851,7 @@ static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 	rcount = be32_to_cpu(header->r_count);
 
 	if (!jbd2_revoke_block_csum_verify(journal, header))
-		return -EINVAL;
+		return -EFSBADCRC;
 
 	if (jbd2_journal_has_csum_v2or3(journal))
 		csum_size = sizeof(struct jbd2_journal_revoke_tail);
