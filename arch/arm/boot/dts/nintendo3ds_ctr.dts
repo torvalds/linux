@@ -9,7 +9,7 @@
 	chosen {
 		/* No FB: bootargs = "earlyprintk keep_bootcon fbcon=rotate:1 init=/init"; */
 
-		bootargs = "fbcon=rotate:1 init=/init";
+		bootargs = "keep_bootcon fbcon=rotate:1 init=/init";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
