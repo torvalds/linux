@@ -594,7 +594,7 @@ static int spinand_erase_block(struct spi_device *spi_nand, u16 block_id)
 		if (retval < 0) {
 			dev_err(&spi_nand->dev,
 					"error %d reading status register\n",
-					(int) retval);
+					(int)retval);
 			return retval;
 		}
 
