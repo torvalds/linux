@@ -8,7 +8,6 @@
  *  @version	1.0
  */
 
-
 #include "coreconfigurator.h"
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
@@ -543,7 +542,6 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 	}
 
 	*ppstrConnectRespInfo = pstrConnectRespInfo;
-
 
 	return s32Error;
 }
