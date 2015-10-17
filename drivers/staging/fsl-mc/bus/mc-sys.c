@@ -88,6 +88,11 @@ int __must_check fsl_create_mc_io(struct device *dev,
 	mc_io->flags = flags;
 	mc_io->portal_phys_addr = mc_portal_phys_addr;
 	mc_io->portal_size = mc_portal_size;
+	if (flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)
+		spin_lock_init(&mc_io->spinlock);
+	else
+		mutex_init(&mc_io->mutex);
+
 	res = devm_request_mem_region(dev,
 				      mc_portal_phys_addr,
 				      mc_portal_size,
@@ -391,10 +396,16 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 {
 	int error;
 	enum mc_cmd_status status;
+	unsigned long irq_flags = 0;
 
 	if (WARN_ON(in_irq() &&
 		    !(mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)))
 		return -EINVAL;
+
+	if (mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)
+		spin_lock_irqsave(&mc_io->spinlock, irq_flags);
+	else
+		mutex_lock(&mc_io->mutex);
 
 	/*
 	 * Send command to the MC hardware:
@@ -410,7 +421,7 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 		error = mc_polling_wait_atomic(mc_io, cmd, &status);
 
 	if (error < 0)
-		return error;
+		goto common_exit;
 
 	if (status != MC_CMD_STATUS_OK) {
 		pr_debug("MC command failed: portal: %#llx, obj handle: %#x, command: %#x, status: %s (%#x)\n",
@@ -420,9 +431,17 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 			 mc_status_to_string(status),
 			 (unsigned int)status);
 
-		return mc_status_to_error(status);
+		error = mc_status_to_error(status);
+		goto common_exit;
 	}
 
-	return 0;
+	error = 0;
+common_exit:
+	if (mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)
+		spin_unlock_irqrestore(&mc_io->spinlock, irq_flags);
+	else
+		mutex_unlock(&mc_io->mutex);
+
+	return error;
 }
 EXPORT_SYMBOL(mc_send_command);
