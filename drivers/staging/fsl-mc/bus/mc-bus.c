@@ -749,6 +749,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	obj_desc.id = container_id;
 	obj_desc.ver_major = DPRC_VER_MAJOR;
 	obj_desc.ver_minor = DPRC_VER_MINOR;
+	obj_desc.irq_count = 1;
 	obj_desc.region_count = 0;
 
 	error = fsl_mc_device_add(&obj_desc, mc_io, &pdev->dev, &mc_bus_dev);
