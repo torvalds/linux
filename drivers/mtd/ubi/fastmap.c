@@ -450,7 +450,7 @@ static void unmap_peb(struct ubi_attach_info *ai, int pnum)
  * < 0 indicates an internal error.
  */
 static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
-		     int *pebs, int pool_size, unsigned long long *max_sqnum,
+		     __be32 *pebs, int pool_size, unsigned long long *max_sqnum,
 		     struct list_head *free)
 {
 	struct ubi_vid_hdr *vh;
