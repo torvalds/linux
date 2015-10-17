@@ -814,7 +814,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 		res = -ENOENT;
 		goto err_exit1;
 	}
-	clk_enable(host->clk);
+	clk_prepare_enable(host->clk);
 
 	/* Set NAND IO addresses and command/ready functions */
 	chip->IO_ADDR_R = SLC_DATA(host->io_base);
@@ -919,7 +919,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 err_exit3:
 	dma_release_channel(host->dma_chan);
 err_exit2:
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 err_exit1:
 	lpc32xx_wp_enable(host);
 
@@ -943,7 +943,7 @@ static int lpc32xx_nand_remove(struct platform_device *pdev)
 	tmp &= ~SLCCFG_CE_LOW;
 	writel(tmp, SLC_CTRL(host->io_base));
 
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 	lpc32xx_wp_enable(host);
 
 	return 0;
@@ -955,7 +955,7 @@ static int lpc32xx_nand_resume(struct platform_device *pdev)
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
 
 	/* Re-enable NAND clock */
-	clk_enable(host->clk);
+	clk_prepare_enable(host->clk);
 
 	/* Fresh init of NAND controller */
 	lpc32xx_nand_setup(host);
@@ -980,7 +980,7 @@ static int lpc32xx_nand_suspend(struct platform_device *pdev, pm_message_t pm)
 	lpc32xx_wp_enable(host);
 
 	/* Disable clock */
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 
 	return 0;
 }
