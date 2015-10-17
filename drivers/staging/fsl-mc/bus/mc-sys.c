@@ -42,9 +42,9 @@
 #include "dpmcp.h"
 
 /**
- * Timeout in jiffies to wait for the completion of an MC command
+ * Timeout in milliseconds to wait for the completion of an MC command
  */
-#define MC_CMD_COMPLETION_TIMEOUT_JIFFIES   (HZ / 2)	/* 500 ms */
+#define MC_CMD_COMPLETION_TIMEOUT_MS	500
 
 /*
  * usleep_range() min and max values used to throttle down polling
@@ -305,7 +305,7 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 {
 	enum mc_cmd_status status;
 	unsigned long jiffies_until_timeout =
-	    jiffies + MC_CMD_COMPLETION_TIMEOUT_JIFFIES;
+		jiffies + msecs_to_jiffies(MC_CMD_COMPLETION_TIMEOUT_MS);
 
 	/*
 	 * Send command to the MC hardware:
