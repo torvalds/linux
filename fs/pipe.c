@@ -366,18 +366,17 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		int offset = buf->offset + buf->len;
 
 		if (ops->can_merge && offset + chars <= PAGE_SIZE) {
-			int error = ops->confirm(pipe, buf);
-			if (error)
+			ret = ops->confirm(pipe, buf);
+			if (ret)
 				goto out;
 
 			ret = copy_page_from_iter(buf->page, offset, chars, from);
 			if (unlikely(ret < chars)) {
-				error = -EFAULT;
+				ret = -EFAULT;
 				goto out;
 			}
 			do_wakeup = 1;
-			buf->len += chars;
-			ret = chars;
+			buf->len += ret;
 			if (!iov_iter_count(from))
 				goto out;
 		}
