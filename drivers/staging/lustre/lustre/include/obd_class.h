@@ -233,15 +233,16 @@ static inline struct obd_export *class_export_lock_get(struct obd_export *exp,
 	return class_export_get(exp);
 }
 
-#define class_export_lock_put(exp, lock)				\
-({								      \
-	LASSERT_ATOMIC_POS(&exp->exp_locks_count);		      \
-	atomic_dec(&(exp)->exp_locks_count);			\
-	__class_export_del_lock_ref(exp, lock);			 \
-	CDEBUG(D_INFO, "lock PUTting export %p : new locks_count %d\n", \
-	       (exp), atomic_read(&(exp)->exp_locks_count));	\
-	class_export_put(exp);					  \
-})
+static inline void class_export_lock_put(struct obd_export *exp,
+					 struct ldlm_lock *lock)
+{
+	LASSERT_ATOMIC_POS(&exp->exp_locks_count);
+	atomic_dec(&(exp)->exp_locks_count);
+	__class_export_del_lock_ref(exp, lock);
+	CDEBUG(D_INFO, "lock PUTting export %p : new locks_count %d\n",
+	       (exp), atomic_read(&(exp)->exp_locks_count));
+	class_export_put(exp);
+}
 
 #define class_export_cb_get(exp)					\
 ({								      \
