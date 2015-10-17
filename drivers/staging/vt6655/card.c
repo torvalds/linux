@@ -523,12 +523,12 @@ CARDvSafeResetTx(
 	for (uu = 0; uu < TYPE_MAXTD; uu++)
 		pDevice->iTDUsed[uu] = 0;
 
-	for (uu = 0; uu < pDevice->sOpts.nTxDescs[0]; uu++) {
+	for (uu = 0; uu < pDevice->sOpts.tx_descs[0]; uu++) {
 		pCurrTD = &(pDevice->apTD0Rings[uu]);
 		pCurrTD->td0.owner = OWNED_BY_HOST;
 		/* init all Tx Packet pointer to NULL */
 	}
-	for (uu = 0; uu < pDevice->sOpts.nTxDescs[1]; uu++) {
+	for (uu = 0; uu < pDevice->sOpts.tx_descs[1]; uu++) {
 		pCurrTD = &(pDevice->apTD1Rings[uu]);
 		pCurrTD->td0.owner = OWNED_BY_HOST;
 		/* init all Tx Packet pointer to NULL */
@@ -571,7 +571,7 @@ CARDvSafeResetRx(
 	pDevice->pCurrRD[1] = &(pDevice->aRD1Ring[0]);
 
 	/* init state, all RD is chip's */
-	for (uu = 0; uu < pDevice->sOpts.nRxDescs0; uu++) {
+	for (uu = 0; uu < pDevice->sOpts.rx_descs0; uu++) {
 		pDesc = &(pDevice->aRD0Ring[uu]);
 		pDesc->rd0.res_count = cpu_to_le16(pDevice->rx_buf_sz);
 		pDesc->rd0.owner = OWNED_BY_NIC;
@@ -579,7 +579,7 @@ CARDvSafeResetRx(
 	}
 
 	/* init state, all RD is chip's */
-	for (uu = 0; uu < pDevice->sOpts.nRxDescs1; uu++) {
+	for (uu = 0; uu < pDevice->sOpts.rx_descs1; uu++) {
 		pDesc = &(pDevice->aRD1Ring[uu]);
 		pDesc->rd0.res_count = cpu_to_le16(pDevice->rx_buf_sz);
 		pDesc->rd0.owner = OWNED_BY_NIC;

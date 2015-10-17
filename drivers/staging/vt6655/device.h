@@ -85,7 +85,7 @@
 
 /* BUILD OBJ mode */
 
-#define	AVAIL_TD(p, q)	((p)->sOpts.nTxDescs[(q)] - ((p)->iTDUsed[(q)]))
+#define	AVAIL_TD(p, q)	((p)->sOpts.tx_descs[(q)] - ((p)->iTDUsed[(q)]))
 
 /* 0:11A 1:11B 2:11G */
 #define BB_TYPE_11A    0
@@ -101,16 +101,16 @@
 #define OWNED_BY_HOST	0
 #define	OWNED_BY_NIC	1
 
-typedef struct __device_opt {
-	int         nRxDescs0;		/* Number of RX descriptors0 */
-	int         nRxDescs1;		/* Number of RX descriptors1 */
-	int         nTxDescs[2];	/* Number of TX descriptors 0, 1 */
-	int         int_works;		/* interrupt limits */
-	int         short_retry;
-	int         long_retry;
-	int         bbp_type;
-	u32         flags;
-} OPTIONS, *POPTIONS;
+struct vnt_options {
+	int rx_descs0;		/* Number of RX descriptors0 */
+	int rx_descs1;		/* Number of RX descriptors1 */
+	int tx_descs[2];	/* Number of TX descriptors 0, 1 */
+	int int_works;		/* interrupt limits */
+	int short_retry;
+	int long_retry;
+	int bbp_type;
+	u32 flags;
+};
 
 struct vnt_private {
 	struct pci_dev *pcid;
@@ -159,7 +159,7 @@ struct vnt_private {
 	struct vnt_rx_desc *aRD1Ring;
 	struct vnt_rx_desc *pCurrRD[TYPE_MAXRD];
 
-	OPTIONS                     sOpts;
+	struct vnt_options sOpts;
 
 	u32                         flags;
 
