@@ -189,6 +189,25 @@ extern void (*class_export_dump_hook)(struct obd_export *);
 
 #endif
 
+/* genops.c */
+struct obd_export *class_export_get(struct obd_export *exp);
+void class_export_put(struct obd_export *exp);
+struct obd_export *class_new_export(struct obd_device *obddev,
+				struct obd_uuid *cluuid);
+void class_unlink_export(struct obd_export *exp);
+
+struct obd_import *class_import_get(struct obd_import *);
+void class_import_put(struct obd_import *);
+struct obd_import *class_new_import(struct obd_device *obd);
+void class_destroy_import(struct obd_import *exp);
+
+void class_put_type(struct obd_type *type);
+int class_connect(struct lustre_handle *conn, struct obd_device *obd,
+		struct obd_uuid *cluuid);
+int class_disconnect(struct obd_export *exp);
+void class_fail_export(struct obd_export *exp);
+int class_manual_cleanup(struct obd_device *obd);
+
 static inline void class_export_rpc_inc(struct obd_export *exp)
 {
 	atomic_inc(&(exp)->exp_rpc_count);
@@ -240,24 +259,6 @@ static inline void class_export_rpc_dec(struct obd_export *exp)
 	class_export_put(exp);					  \
 })
 
-/* genops.c */
-struct obd_export *class_export_get(struct obd_export *exp);
-void class_export_put(struct obd_export *exp);
-struct obd_export *class_new_export(struct obd_device *obddev,
-				    struct obd_uuid *cluuid);
-void class_unlink_export(struct obd_export *exp);
-
-struct obd_import *class_import_get(struct obd_import *);
-void class_import_put(struct obd_import *);
-struct obd_import *class_new_import(struct obd_device *obd);
-void class_destroy_import(struct obd_import *exp);
-
-void class_put_type(struct obd_type *type);
-int class_connect(struct lustre_handle *conn, struct obd_device *obd,
-		  struct obd_uuid *cluuid);
-int class_disconnect(struct obd_export *exp);
-void class_fail_export(struct obd_export *exp);
-int class_manual_cleanup(struct obd_device *obd);
 static inline enum obd_option exp_flags_from_obd(struct obd_device *obd)
 {
 	return ((obd->obd_fail ? OBD_OPT_FAILOVER : 0) |
