@@ -96,6 +96,14 @@ static int amdgpu_pp_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret = 0;
 
+	switch (adev->asic_type) {
+		case CHIP_TONGA:
+			amdgpu_powerplay = 1;
+			break;
+		default:
+			break;
+	}
+
 	ret = amdgpu_powerplay_init(adev);
 	if (ret)
 		return ret;
