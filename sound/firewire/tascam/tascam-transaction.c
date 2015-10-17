@@ -158,7 +158,7 @@ static void handle_midi_tx(struct fw_card *card, struct fw_request *request,
 
 		port = b[0] >> 4;
 		/* TODO: support virtual MIDI ports. */
-		if (port > tscm->spec->midi_capture_ports)
+		if (port >= tscm->spec->midi_capture_ports)
 			goto end;
 
 		/* Assume the message length. */
@@ -249,7 +249,7 @@ int snd_tscm_transaction_reregister(struct snd_tscm *tscm)
 
 	/* Turn on messaging. */
 	reg = cpu_to_be32(0x00000001);
-	return snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
+	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				  TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_TX_ON,
 				  &reg, sizeof(reg), 0);
 	if (err < 0)
