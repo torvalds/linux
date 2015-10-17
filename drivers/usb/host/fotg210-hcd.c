@@ -1401,15 +1401,13 @@ static int check_reset_complete(struct fotg210_hcd *fotg210, int index,
 		return port_status;
 
 	/* if reset finished and it's still not enabled -- handoff */
-	if (!(port_status & PORT_PE)) {
+	if (!(port_status & PORT_PE))
 		/* with integrated TT, there's nobody to hand it to! */
-		fotg210_dbg(fotg210,
-				"Failed to enable port %d on root hub TT\n",
+		fotg210_dbg(fotg210, "Failed to enable port %d on root hub TT\n",
 				index + 1);
-		return port_status;
-	}
-	fotg210_dbg(fotg210, "port %d reset complete, port enabled\n",
-			index + 1);
+	else
+		fotg210_dbg(fotg210, "port %d reset complete, port enabled\n",
+				index + 1);
 
 	return port_status;
 }
