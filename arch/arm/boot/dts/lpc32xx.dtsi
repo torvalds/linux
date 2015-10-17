@@ -32,7 +32,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
-		ranges = <0x20000000 0x20000000 0x30000000>;
+		ranges = <0x20000000 0x20000000 0x30000000>,
+			 <0xe0000000 0xe0000000 0x04000000>;
 
 		/*
 		 * Enable either SLC or MLC
@@ -84,6 +85,19 @@
 			compatible = "nxp,lpc-eth";
 			reg = <0x31060000 0x1000>;
 			interrupts = <0x1d 0>;
+		};
+
+		emc: memory-controller@31080000 {
+			compatible = "arm,pl175", "arm,primecell";
+			reg = <0x31080000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			ranges = <0 0xe0000000 0x01000000>,
+				 <1 0xe1000000 0x01000000>,
+				 <2 0xe2000000 0x01000000>,
+				 <3 0xe3000000 0x01000000>;
+			status = "disabled";
 		};
 
 		apb {
