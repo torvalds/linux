@@ -1,9 +1,10 @@
 //#include <mach/nintendo3ds.h>
 
 #define VRAM_BASE             (0x18000000)
+#define FB_BASE_PA            (VRAM_BASE)
 #define FB_TOP_SIZE           (400*240*3)
 #define FB_BOT_SIZE           (320*240*3)
-#define FB_TOP_LEFT1          (VRAM_BASE)
+#define FB_TOP_LEFT1          (FB_BASE_PA)
 #define FB_TOP_LEFT2          (FB_TOP_LEFT1  + FB_TOP_SIZE)
 #define FB_TOP_RIGHT1         (FB_TOP_LEFT2  + FB_TOP_SIZE)
 #define FB_TOP_RIGHT2         (FB_TOP_RIGHT1 + FB_TOP_SIZE)

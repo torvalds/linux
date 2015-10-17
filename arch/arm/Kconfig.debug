@@ -1247,7 +1247,7 @@ choice
 		  options; the platform specific options are deprecated
 		  and will be soon removed.
 
-	config DEBUG_LL_NINTENDO3DS
+	config DEBUG_LL_NINTENDO3DS_ARM9
 		bool "Kernel low-level debugging via 3DS ARM9"
 		depends on DEBUG_LL
 		depends on ARCH_NINTENDO3DS
