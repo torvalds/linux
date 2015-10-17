@@ -744,7 +744,7 @@ out:
 	return NET_RX_DROP;
 }
 
-static int dn_output(struct sock *sk, struct sk_buff *skb)
+static int dn_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct dn_route *rt = (struct dn_route *)dst;
@@ -830,7 +830,7 @@ drop:
  * Used to catch bugs. This should never normally get
  * called.
  */
-static int dn_rt_bug_sk(struct sock *sk, struct sk_buff *skb)
+static int dn_rt_bug_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 
@@ -1467,7 +1467,7 @@ make_route:
 
 	rt->n = neigh;
 	rt->dst.lastuse = jiffies;
-	rt->dst.output = dn_rt_bug_sk;
+	rt->dst.output = dn_rt_bug_out;
 	switch (res.type) {
 	case RTN_UNICAST:
 		rt->dst.input = dn_forward;

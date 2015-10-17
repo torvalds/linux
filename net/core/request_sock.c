@@ -45,7 +45,6 @@ void reqsk_queue_alloc(struct request_sock_queue *queue)
 	queue->fastopenq.rskq_rst_head = NULL;
 	queue->fastopenq.rskq_rst_tail = NULL;
 	queue->fastopenq.qlen = 0;
-	queue->fastopenq.max_qlen = 0;
 
 	queue->rskq_accept_head = NULL;
 }

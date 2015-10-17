@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
+#include <linux/phy.h>
 #include <linux/types.h>
 
 #define HNAE_DRIVER_VERSION "1.3.0"
@@ -429,6 +430,7 @@ struct hnae_ae_ops {
 	void (*set_coalesce_usecs)(struct hnae_handle *handle, u32 timeout);
 	int (*set_coalesce_frames)(struct hnae_handle *handle,
 				   u32 coalesce_frames);
+	void (*set_promisc_mode)(struct hnae_handle *handle, u32 en);
 	int (*get_mac_addr)(struct hnae_handle *handle, void **p);
 	int (*set_mac_addr)(struct hnae_handle *handle, void *p);
 	int (*set_mc_addr)(struct hnae_handle *handle, void *addr);

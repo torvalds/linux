@@ -184,7 +184,7 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 	}
 
 	skb = bt_skb_alloc(HCI_COMMAND_HDR_SIZE + len, GFP_ATOMIC);
-	if (skb == NULL) {
+	if (!skb) {
 		BT_ERR("No free skb");
 		return -ENOMEM;
 	}
@@ -436,13 +436,6 @@ static int btmrvl_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("type=%d, len=%d", skb->pkt_type, skb->len);
 
-	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
-		BT_ERR("Failed testing HCI_RUNING, flags=%lx", hdev->flags);
-		print_hex_dump_bytes("data: ", DUMP_PREFIX_OFFSET,
-							skb->data, skb->len);
-		return -EBUSY;
-	}
-
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
@@ -477,9 +470,6 @@ static int btmrvl_close(struct hci_dev *hdev)
 {
 	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
-
 	skb_queue_purge(&priv->adapter->tx_queue);
 
 	return 0;
@@ -487,8 +477,6 @@ static int btmrvl_close(struct hci_dev *hdev)
 
 static int btmrvl_open(struct hci_dev *hdev)
 {
-	set_bit(HCI_RUNNING, &hdev->flags);
-
 	return 0;
 }
 

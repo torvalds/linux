@@ -346,12 +346,15 @@ static int dsa_slave_port_fdb_add(struct net_device *dev,
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
-	int ret = -EOPNOTSUPP;
+	int ret;
+
+	if (!ds->drv->port_fdb_prepare || !ds->drv->port_fdb_add)
+		return -EOPNOTSUPP;
 
 	if (switchdev_trans_ph_prepare(trans))
-		ret = ds->drv->port_fdb_add ? 0 : -EOPNOTSUPP;
+		ret = ds->drv->port_fdb_prepare(ds, p->port, fdb, trans);
 	else
-		ret = ds->drv->port_fdb_add(ds, p->port, fdb->addr, fdb->vid);
+		ret = ds->drv->port_fdb_add(ds, p->port, fdb, trans);
 
 	return ret;
 }
@@ -364,7 +367,7 @@ static int dsa_slave_port_fdb_del(struct net_device *dev,
 	int ret = -EOPNOTSUPP;
 
 	if (ds->drv->port_fdb_del)
-		ret = ds->drv->port_fdb_del(ds, p->port, fdb->addr, fdb->vid);
+		ret = ds->drv->port_fdb_del(ds, p->port, fdb);
 
 	return ret;
 }
@@ -390,7 +393,7 @@ static int dsa_slave_port_fdb_dump(struct net_device *dev,
 		if (ret < 0)
 			break;
 
-		fdb->addr = addr;
+		ether_addr_copy(fdb->addr, addr);
 		fdb->vid = vid;
 		fdb->ndm_state = is_static ? NUD_NOARP : NUD_REACHABLE;
 
@@ -450,7 +453,7 @@ static int dsa_slave_stp_update(struct net_device *dev, u8 state)
 }
 
 static int dsa_slave_port_attr_set(struct net_device *dev,
-				   struct switchdev_attr *attr,
+				   const struct switchdev_attr *attr,
 				   struct switchdev_trans *trans)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -1026,8 +1029,10 @@ static int dsa_slave_phy_connect(struct dsa_slave_priv *p,
 	struct dsa_switch *ds = p->parent;
 
 	p->phy = ds->slave_mii_bus->phy_map[addr];
-	if (!p->phy)
+	if (!p->phy) {
+		netdev_err(slave_dev, "no phy at %d\n", addr);
 		return -ENODEV;
+	}
 
 	/* Use already configured phy mode */
 	if (p->phy_interface == PHY_INTERFACE_MODE_NA)
@@ -1061,7 +1066,7 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 		 */
 		ret = of_phy_register_fixed_link(port_dn);
 		if (ret) {
-			netdev_err(slave_dev, "failed to register fixed PHY\n");
+			netdev_err(slave_dev, "failed to register fixed PHY: %d\n", ret);
 			return ret;
 		}
 		phy_is_fixed = true;
@@ -1072,17 +1077,20 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 		phy_flags = ds->drv->get_phy_flags(ds, p->port);
 
 	if (phy_dn) {
-		ret = of_mdio_parse_addr(&slave_dev->dev, phy_dn);
+		int phy_id = of_mdio_parse_addr(&slave_dev->dev, phy_dn);
+
 		/* If this PHY address is part of phys_mii_mask, which means
 		 * that we need to divert reads and writes to/from it, then we
 		 * want to bind this device using the slave MII bus created by
 		 * DSA to make that happen.
 		 */
-		if (!phy_is_fixed && ret >= 0 &&
-		    (ds->phys_mii_mask & (1 << ret))) {
-			ret = dsa_slave_phy_connect(p, slave_dev, ret);
-			if (ret)
+		if (!phy_is_fixed && phy_id >= 0 &&
+		    (ds->phys_mii_mask & (1 << phy_id))) {
+			ret = dsa_slave_phy_connect(p, slave_dev, phy_id);
+			if (ret) {
+				netdev_err(slave_dev, "failed to connect to phy%d: %d\n", phy_id, ret);
 				return ret;
+			}
 		} else {
 			p->phy = of_phy_connect(slave_dev, phy_dn,
 						dsa_slave_adjust_link,
@@ -1099,8 +1107,10 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	 */
 	if (!p->phy) {
 		ret = dsa_slave_phy_connect(p, slave_dev, p->port);
-		if (ret)
+		if (ret) {
+			netdev_err(slave_dev, "failed to connect to port %d: %d\n", p->port, ret);
 			return ret;
+		}
 	} else {
 		netdev_info(slave_dev, "attached PHY at address %d [%s]\n",
 			    p->phy->addr, p->phy->drv->name);
@@ -1212,6 +1222,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	ret = dsa_slave_phy_setup(p, slave_dev);
 	if (ret) {
+		netdev_err(master, "error %d setting up slave phy\n", ret);
 		free_netdev(slave_dev);
 		return ret;
 	}
@@ -1265,7 +1276,7 @@ int dsa_slave_netdevice_event(struct notifier_block *unused,
 			goto out;
 
 		err = dsa_slave_master_changed(dev);
-		if (err)
+		if (err && err != -EOPNOTSUPP)
 			netdev_warn(dev, "failed to reflect master change\n");
 
 		break;

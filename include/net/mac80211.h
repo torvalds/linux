@@ -5,6 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1360,6 +1361,8 @@ enum ieee80211_vif_flags {
  * @debugfs_dir: debugfs dentry, can be used by drivers to create own per
  *	interface debug files. Note that it will be NULL for the virtual
  *	monitor interface (if that is requested.)
+ * @probe_req_reg: probe requests should be reported to mac80211 for this
+ *	interface.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
  * @txq: the multicast data TX queue (if driver uses the TXQ abstraction)
@@ -1383,6 +1386,8 @@ struct ieee80211_vif {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *debugfs_dir;
 #endif
+
+	unsigned int probe_req_reg;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
@@ -1494,10 +1499,8 @@ enum ieee80211_key_flags {
  * 	- Temporal Authenticator Rx MIC Key (64 bits)
  * @icv_len: The ICV length for this key type
  * @iv_len: The IV length for this key type
- * @drv_priv: pointer for driver use
  */
 struct ieee80211_key_conf {
-	void *drv_priv;
 	atomic64_t tx_pn;
 	u32 cipher;
 	u8 icv_len;
@@ -1894,6 +1897,12 @@ struct ieee80211_txq {
  * @IEEE80211_HW_TDLS_WIDER_BW: The device/driver supports wider bandwidth
  *	than then BSS bandwidth for a TDLS link on the base channel.
  *
+ * @IEEE80211_HW_SUPPORTS_AMSDU_IN_AMPDU: The driver supports receiving A-MSDUs
+ *	within A-MPDU.
+ *
+ * @IEEE80211_HW_BEACON_TX_STATUS: The device/driver provides TX status
+ *	for sent beacons.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -1927,6 +1936,8 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_CLONED_SKBS,
 	IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS,
 	IEEE80211_HW_TDLS_WIDER_BW,
+	IEEE80211_HW_SUPPORTS_AMSDU_IN_AMPDU,
+	IEEE80211_HW_BEACON_TX_STATUS,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -2827,6 +2838,13 @@ enum ieee80211_reconfig_type {
  *	See the section "Frame filtering" for more information.
  *	This callback must be implemented and can sleep.
  *
+ * @config_iface_filter: Configure the interface's RX filter.
+ *	This callback is optional and is used to configure which frames
+ *	should be passed to mac80211. The filter_flags is the combination
+ *	of FIF_* flags. The changed_flags is a bit mask that indicates
+ *	which flags are changed.
+ *	This callback can sleep.
+ *
  * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
  * 	must be set or cleared for a given STA. Must be atomic.
  *
@@ -3016,6 +3034,9 @@ enum ieee80211_reconfig_type {
  *	buffer size of 8. Correct ways to retransmit #1 would be:
  *	 - TX:       1 or 18 or 81
  *	Even "189" would be wrong since 1 could be lost again.
+ *	The @amsdu parameter is valid when the action is set to
+ *	%IEEE80211_AMPDU_TX_OPERATIONAL and indicates the peer's ability
+ *	to receive A-MSDU within A-MPDU.
  *
  *	Returns a negative error code on failure.
  *	The callback can sleep.
@@ -3266,6 +3287,10 @@ struct ieee80211_ops {
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
 				 u64 multicast);
+	void (*config_iface_filter)(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    unsigned int filter_flags,
+				    unsigned int changed_flags);
 	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		       bool set);
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -3349,7 +3374,7 @@ struct ieee80211_ops {
 			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			    u8 buf_size);
+			    u8 buf_size, bool amsdu);
 	int (*get_survey)(struct ieee80211_hw *hw, int idx,
 		struct survey_info *survey);
 	void (*rfkill_poll)(struct ieee80211_hw *hw);

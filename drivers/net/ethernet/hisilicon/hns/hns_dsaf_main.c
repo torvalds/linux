@@ -217,6 +217,25 @@ hns_dsaf_ppe_qid_cfg(struct dsaf_device *dsaf_dev, u32 qid_cfg)
 	}
 }
 
+static void hns_dsaf_mix_def_qid_cfg(struct dsaf_device *dsaf_dev)
+{
+	u16 max_q_per_vf, max_vfn;
+	u32 q_id, q_num_per_port;
+	u32 i;
+
+	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode,
+			       HNS_DSAF_COMM_SERVICE_NW_IDX,
+			       &max_vfn, &max_q_per_vf);
+	q_num_per_port = max_vfn * max_q_per_vf;
+
+	for (i = 0, q_id = 0; i < DSAF_SERVICE_NW_NUM; i++) {
+		dsaf_set_dev_field(dsaf_dev,
+				   DSAF_MIX_DEF_QID_0_REG + 0x0004 * i,
+				   0xff, 0, q_id);
+		q_id += q_num_per_port;
+	}
+}
+
 /**
  * hns_dsaf_sw_port_type_cfg - cfg sw type
  * @dsaf_id: dsa fabric id
@@ -592,6 +611,11 @@ static void hns_dsaf_tbl_tcam_data_ucast_pul(
 	dsaf_write_dev(dsaf_dev, DSAF_TBL_PUL_0_REG, o_tbl_pul);
 }
 
+void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
+{
+	dsaf_set_dev_bit(dsaf_dev, DSAF_CFG_0_REG, DSAF_CFG_MIX_MODE_S, !!en);
+}
+
 /**
  * hns_dsaf_tbl_stat_en - tbl
  * @dsaf_id: dsa fabric id
@@ -919,6 +943,9 @@ static void hns_dsaf_comm_init(struct dsaf_device *dsaf_dev)
 
 	/* set 22 queue per tx ppe engine, only used in switch mode */
 	hns_dsaf_ppe_qid_cfg(dsaf_dev, DSAF_DEFAUTL_QUEUE_NUM_PER_PPE);
+
+	/* set promisc def queue id */
+	hns_dsaf_mix_def_qid_cfg(dsaf_dev);
 
 	/* in non switch mode, set all port to access mode */
 	hns_dsaf_sw_port_type_cfg(dsaf_dev, DSAF_SW_PORT_TYPE_NON_VLAN);

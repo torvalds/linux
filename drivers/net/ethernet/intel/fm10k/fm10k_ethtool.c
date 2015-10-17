@@ -206,13 +206,13 @@ static void fm10k_get_stat_strings(struct net_device *dev, u8 *data)
 	}
 
 	for (i = 0; i < interface->hw.mac.max_queues; i++) {
-		sprintf(p, "tx_queue_%u_packets", i);
+		snprintf(p, ETH_GSTRING_LEN, "tx_queue_%u_packets", i);
 		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_queue_%u_bytes", i);
+		snprintf(p, ETH_GSTRING_LEN, "tx_queue_%u_bytes", i);
 		p += ETH_GSTRING_LEN;
-		sprintf(p, "rx_queue_%u_packets", i);
+		snprintf(p, ETH_GSTRING_LEN, "rx_queue_%u_packets", i);
 		p += ETH_GSTRING_LEN;
-		sprintf(p, "rx_queue_%u_bytes", i);
+		snprintf(p, ETH_GSTRING_LEN, "rx_queue_%u_bytes", i);
 		p += ETH_GSTRING_LEN;
 	}
 }
@@ -515,10 +515,6 @@ static void fm10k_get_drvinfo(struct net_device *dev,
 		sizeof(info->version) - 1);
 	strncpy(info->bus_info, pci_name(interface->pdev),
 		sizeof(info->bus_info) - 1);
-
-	info->n_stats = fm10k_get_sset_count(dev, ETH_SS_STATS);
-
-	info->regdump_len = fm10k_get_regs_len(dev);
 }
 
 static void fm10k_get_pauseparam(struct net_device *dev,

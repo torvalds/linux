@@ -425,7 +425,6 @@ static void tipc_udp_disable(struct tipc_bearer *b)
 	}
 	if (ub->ubsock)
 		sock_set_flag(ub->ubsock->sk, SOCK_DEAD);
-	RCU_INIT_POINTER(b->media_ptr, NULL);
 	RCU_INIT_POINTER(ub->bearer, NULL);
 
 	/* sock_release need to be done outside of rtnl lock */

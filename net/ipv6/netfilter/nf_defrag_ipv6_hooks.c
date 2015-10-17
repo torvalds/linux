@@ -63,7 +63,8 @@ static unsigned int ipv6_defrag(void *priv,
 		return NF_ACCEPT;
 #endif
 
-	reasm = nf_ct_frag6_gather(skb, nf_ct6_defrag_user(state->hook, skb));
+	reasm = nf_ct_frag6_gather(state->net, skb,
+				   nf_ct6_defrag_user(state->hook, skb));
 	/* queued */
 	if (reasm == NULL)
 		return NF_STOLEN;

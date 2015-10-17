@@ -14,8 +14,11 @@
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
 #include <linux/list.h>
+#include <net/ip_fib.h>
 
 #define SWITCHDEV_F_NO_RECURSE		BIT(0)
+#define SWITCHDEV_F_SKIP_EOPNOTSUPP	BIT(1)
+#define SWITCHDEV_F_DEFER		BIT(2)
 
 struct switchdev_trans_item {
 	struct list_head list;
@@ -43,6 +46,7 @@ enum switchdev_attr_id {
 	SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
 	SWITCHDEV_ATTR_ID_PORT_STP_STATE,
 	SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS,
+	SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
 };
 
 struct switchdev_attr {
@@ -52,10 +56,9 @@ struct switchdev_attr {
 		struct netdev_phys_item_id ppid;	/* PORT_PARENT_ID */
 		u8 stp_state;				/* PORT_STP_STATE */
 		unsigned long brport_flags;		/* PORT_BRIDGE_FLAGS */
+		u32 ageing_time;			/* BRIDGE_AGEING_TIME */
 	} u;
 };
-
-struct fib_info;
 
 enum switchdev_obj_id {
 	SWITCHDEV_OBJ_ID_UNDEFINED,
@@ -66,6 +69,7 @@ enum switchdev_obj_id {
 
 struct switchdev_obj {
 	enum switchdev_obj_id id;
+	u32 flags;
 };
 
 /* SWITCHDEV_OBJ_ID_PORT_VLAN */
@@ -84,7 +88,7 @@ struct switchdev_obj_ipv4_fib {
 	struct switchdev_obj obj;
 	u32 dst;
 	int dst_len;
-	struct fib_info *fi;
+	struct fib_info fi;
 	u8 tos;
 	u8 type;
 	u32 nlflags;
@@ -97,7 +101,7 @@ struct switchdev_obj_ipv4_fib {
 /* SWITCHDEV_OBJ_ID_PORT_FDB */
 struct switchdev_obj_port_fdb {
 	struct switchdev_obj obj;
-	const unsigned char *addr;
+	unsigned char addr[ETH_ALEN];
 	u16 vid;
 	u16 ndm_state;
 };
@@ -129,7 +133,7 @@ struct switchdev_ops {
 	int	(*switchdev_port_attr_get)(struct net_device *dev,
 					   struct switchdev_attr *attr);
 	int	(*switchdev_port_attr_set)(struct net_device *dev,
-					   struct switchdev_attr *attr,
+					   const struct switchdev_attr *attr,
 					   struct switchdev_trans *trans);
 	int	(*switchdev_port_obj_add)(struct net_device *dev,
 					  const struct switchdev_obj *obj,
@@ -164,10 +168,11 @@ switchdev_notifier_info_to_dev(const struct switchdev_notifier_info *info)
 
 #ifdef CONFIG_NET_SWITCHDEV
 
+void switchdev_deferred_process(void);
 int switchdev_port_attr_get(struct net_device *dev,
 			    struct switchdev_attr *attr);
 int switchdev_port_attr_set(struct net_device *dev,
-			    struct switchdev_attr *attr);
+			    const struct switchdev_attr *attr);
 int switchdev_port_obj_add(struct net_device *dev,
 			   const struct switchdev_obj *obj);
 int switchdev_port_obj_del(struct net_device *dev,
@@ -205,6 +210,10 @@ void switchdev_port_fwd_mark_set(struct net_device *dev,
 
 #else
 
+static inline void switchdev_deferred_process(void)
+{
+}
+
 static inline int switchdev_port_attr_get(struct net_device *dev,
 					  struct switchdev_attr *attr)
 {
@@ -212,7 +221,7 @@ static inline int switchdev_port_attr_get(struct net_device *dev,
 }
 
 static inline int switchdev_port_attr_set(struct net_device *dev,
-					  struct switchdev_attr *attr)
+					  const struct switchdev_attr *attr)
 {
 	return -EOPNOTSUPP;
 }

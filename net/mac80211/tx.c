@@ -2767,7 +2767,8 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 
 	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
 		*ieee80211_get_qos_ctl(hdr) = tid;
-		hdr->seq_ctrl = ieee80211_tx_next_seq(sta, tid);
+		if (!sta->sta.txq[0])
+			hdr->seq_ctrl = ieee80211_tx_next_seq(sta, tid);
 	} else {
 		info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
 		hdr->seq_ctrl = cpu_to_le16(sdata->sequence_number);
@@ -3512,12 +3513,31 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 {
 	struct ieee80211_mutable_offsets offs = {};
 	struct sk_buff *bcn = __ieee80211_beacon_get(hw, vif, &offs, false);
+	struct sk_buff *copy;
+	struct ieee80211_supported_band *sband;
+	int shift;
+
+	if (!bcn)
+		return bcn;
 
 	if (tim_offset)
 		*tim_offset = offs.tim_offset;
 
 	if (tim_length)
 		*tim_length = offs.tim_length;
+
+	if (ieee80211_hw_check(hw, BEACON_TX_STATUS) ||
+	    !hw_to_local(hw)->monitors)
+		return bcn;
+
+	/* send a copy to monitor interfaces */
+	copy = skb_copy(bcn, GFP_ATOMIC);
+	if (!copy)
+		return bcn;
+
+	shift = ieee80211_vif_get_shift(vif);
+	sband = hw->wiphy->bands[ieee80211_get_sdata_band(vif_to_sdata(vif))];
+	ieee80211_tx_monitor(hw_to_local(hw), copy, sband, 1, shift, false);
 
 	return bcn;
 }

@@ -87,7 +87,7 @@ static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
 	int pkt_len, err;
 
 	pkt_len = skb->len - skb_inner_network_offset(skb);
-	err = ip6_local_out_sk(sk, skb);
+	err = ip6_local_out(dev_net(skb_dst(skb)->dev), sk, skb);
 
 	if (net_xmit_eval(err) == 0) {
 		struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);

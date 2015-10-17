@@ -58,8 +58,8 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask,
 void i40e_idle_aq(struct i40e_hw *hw);
 bool i40e_check_asq_alive(struct i40e_hw *hw);
 i40e_status i40e_aq_queue_shutdown(struct i40e_hw *hw, bool unloading);
-char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err);
-char *i40e_stat_str(struct i40e_hw *hw, i40e_status stat_err);
+const char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err);
+const char *i40e_stat_str(struct i40e_hw *hw, i40e_status stat_err);
 
 i40e_status i40e_aq_get_rss_lut(struct i40e_hw *hw, u16 seid,
 				bool pf_lut, u8 *lut, u16 lut_size);
@@ -258,7 +258,8 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw);
 i40e_status i40e_pf_reset(struct i40e_hw *hw);
 void i40e_clear_hw(struct i40e_hw *hw);
 void i40e_clear_pxe_mode(struct i40e_hw *hw);
-bool i40e_get_link_status(struct i40e_hw *hw);
+i40e_status i40e_get_link_status(struct i40e_hw *hw, bool *link_up);
+i40e_status i40e_update_link_info(struct i40e_hw *hw);
 i40e_status i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr);
 i40e_status i40e_read_bw_from_alt_ram(struct i40e_hw *hw,
 				      u32 *max_bw, u32 *min_bw, bool *min_valid,

@@ -419,6 +419,8 @@ struct ieee80211_sta_tx_tspec {
 	bool downgraded;
 };
 
+DECLARE_EWMA(beacon_signal, 16, 4)
+
 struct ieee80211_if_managed {
 	struct timer_list timer;
 	struct timer_list conn_mon_timer;
@@ -490,16 +492,7 @@ struct ieee80211_if_managed {
 
 	s16 p2p_noa_index;
 
-	/* Signal strength from the last Beacon frame in the current BSS. */
-	int last_beacon_signal;
-
-	/*
-	 * Weighted average of the signal strength from Beacon frames in the
-	 * current BSS. This is in units of 1/16 of the signal unit to maintain
-	 * accuracy and to speed up calculations, i.e., the value need to be
-	 * divided by 16 to get the actual value.
-	 */
-	int ave_beacon_signal;
+	struct ewma_beacon_signal ave_beacon_signal;
 
 	/*
 	 * Number of Beacon frames used in ave_beacon_signal. This can be used
@@ -535,6 +528,7 @@ struct ieee80211_if_managed {
 	struct sk_buff *teardown_skb; /* A copy to send through the AP */
 	spinlock_t teardown_lock; /* To lock changing teardown_skb */
 	bool tdls_chan_switch_prohibited;
+	bool tdls_wider_bw_prohibited;
 
 	/* WMM-AC TSPEC support */
 	struct ieee80211_sta_tx_tspec tx_tspec[IEEE80211_NUM_ACS];
@@ -1641,6 +1635,9 @@ void ieee80211_purge_tx_queue(struct ieee80211_hw *hw,
 struct sk_buff *
 ieee80211_build_data_template(struct ieee80211_sub_if_data *sdata,
 			      struct sk_buff *skb, u32 info_flags);
+void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
+			  struct ieee80211_supported_band *sband,
+			  int retry_count, int shift, bool send_to_cooked);
 
 void ieee80211_check_fast_xmit(struct sta_info *sta);
 void ieee80211_check_fast_xmit_all(struct ieee80211_local *local);
@@ -1853,7 +1850,7 @@ void ieee80211_dynamic_ps_disable_work(struct work_struct *work);
 void ieee80211_dynamic_ps_timer(unsigned long data);
 void ieee80211_send_nullfunc(struct ieee80211_local *local,
 			     struct ieee80211_sub_if_data *sdata,
-			     int powersave);
+			     bool powersave);
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr);
 void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,

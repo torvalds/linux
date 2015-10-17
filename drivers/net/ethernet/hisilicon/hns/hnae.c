@@ -448,12 +448,12 @@ static ssize_t handles_show(struct device *dev,
 		s += sprintf(buf + s, "handle %d (eport_id=%u from %s):\n",
 			    i++, h->eport_id, h->dev->name);
 		for (j = 0; j < h->q_num; j++) {
-			s += sprintf(buf + s, "\tqueue[%d] on 0x%llx\n",
-				     j, (u64)h->qs[i]->io_base);
-#define HANDEL_TX_MSG "\t\ttx_ring on 0x%llx:%u,%u,%u,%u,%u,%llu,%llu\n"
+			s += sprintf(buf + s, "\tqueue[%d] on %p\n",
+				     j, h->qs[i]->io_base);
+#define HANDEL_TX_MSG "\t\ttx_ring on %p:%u,%u,%u,%u,%u,%llu,%llu\n"
 			s += sprintf(buf + s,
 				     HANDEL_TX_MSG,
-				     (u64)h->qs[i]->tx_ring.io_base,
+				     h->qs[i]->tx_ring.io_base,
 				     h->qs[i]->tx_ring.buf_size,
 				     h->qs[i]->tx_ring.desc_num,
 				     h->qs[i]->tx_ring.max_desc_num_per_pkt,
@@ -462,8 +462,8 @@ static ssize_t handles_show(struct device *dev,
 				 h->qs[i]->tx_ring.stats.sw_err_cnt,
 				 h->qs[i]->tx_ring.stats.io_err_cnt);
 			s += sprintf(buf + s,
-				"\t\trx_ring on 0x%llx:%u,%u,%llu,%llu,%llu\n",
-				(u64)h->qs[i]->rx_ring.io_base,
+				"\t\trx_ring on %p:%u,%u,%llu,%llu,%llu\n",
+				h->qs[i]->rx_ring.io_base,
 				h->qs[i]->rx_ring.buf_size,
 				h->qs[i]->rx_ring.desc_num,
 				h->qs[i]->rx_ring.stats.sw_err_cnt,

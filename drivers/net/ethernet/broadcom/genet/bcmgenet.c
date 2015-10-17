@@ -793,7 +793,6 @@ static void bcmgenet_get_drvinfo(struct net_device *dev,
 {
 	strlcpy(info->driver, "bcmgenet", sizeof(info->driver));
 	strlcpy(info->version, "v2.0", sizeof(info->version));
-	info->n_stats = BCMGENET_STATS_LEN;
 }
 
 static int bcmgenet_get_sset_count(struct net_device *dev, int string_set)

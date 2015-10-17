@@ -392,6 +392,11 @@ static int hns_ae_set_autoneg(struct hnae_handle *handle, u8 enable)
 	return hns_mac_set_autoneg(hns_get_mac_cb(handle), enable);
 }
 
+static void hns_ae_set_promisc_mode(struct hnae_handle *handle, u32 en)
+{
+	hns_dsaf_set_promisc_mode(hns_ae_get_dsaf_dev(handle->dev), en);
+}
+
 static int hns_ae_get_autoneg(struct hnae_handle *handle)
 {
 	u32     auto_neg;
@@ -748,6 +753,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_rx_max_coalesced_frames = hns_ae_get_rx_max_coalesced_frames,
 	.set_coalesce_usecs = hns_ae_set_coalesce_usecs,
 	.set_coalesce_frames = hns_ae_set_coalesce_frames,
+	.set_promisc_mode = hns_ae_set_promisc_mode,
 	.set_mac_addr = hns_ae_set_mac_address,
 	.set_mc_addr = hns_ae_set_multicast_one,
 	.set_mtu = hns_ae_set_mtu,

@@ -5546,7 +5546,7 @@ F:	drivers/net/wireless/iwlegacy/
 INTEL WIRELESS WIFI LINK (iwlwifi)
 M:	Johannes Berg <johannes.berg@intel.com>
 M:	Emmanuel Grumbach <emmanuel.grumbach@intel.com>
-M:	Intel Linux Wireless <ilw@linux.intel.com>
+M:	Intel Linux Wireless <linuxwifi@intel.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://intellinuxwireless.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi.git
@@ -6978,6 +6978,7 @@ M:	Alan Ott <alan@signal11.us>
 L:	linux-wpan@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ieee802154/mrf24j40.c
+F:	Documentation/devicetree/bindings/net/ieee802154/mrf24j40.txt
 
 MSI LAPTOP SUPPORT
 M:	"Lee, Chun-Yi" <jlee@suse.com>

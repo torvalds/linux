@@ -51,9 +51,9 @@ static const struct mac_stats_string g_xgmac_stats_string[] = {
 	{"xgmac_rx_bad_pkt_from_dsaf", MAC_STATS_FIELD_OFF(rx_bad_from_sw)},
 	{"xgmac_tx_bad_pkt_64tomax", MAC_STATS_FIELD_OFF(tx_bad_pkts)},
 
-	{"xgmac_rx_not_well_pkt", MAC_STATS_FIELD_OFF(rx_fragment_err)},
-	{"xgmac_rx_good_well_pkt", MAC_STATS_FIELD_OFF(rx_undersize)},
-	{"xgmac_rx_total_pkt", MAC_STATS_FIELD_OFF(rx_under_min)},
+	{"xgmac_rx_bad_pkts_minto64", MAC_STATS_FIELD_OFF(rx_fragment_err)},
+	{"xgmac_rx_good_pkts_minto64", MAC_STATS_FIELD_OFF(rx_undersize)},
+	{"xgmac_rx_total_pkts_minto64", MAC_STATS_FIELD_OFF(rx_under_min)},
 	{"xgmac_rx_pkt_64", MAC_STATS_FIELD_OFF(rx_64bytes)},
 	{"xgmac_rx_pkt_65to127", MAC_STATS_FIELD_OFF(rx_65to127)},
 	{"xgmac_rx_pkt_128to255", MAC_STATS_FIELD_OFF(rx_128to255)},

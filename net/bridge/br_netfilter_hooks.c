@@ -688,15 +688,10 @@ static int br_nf_push_frag_xmit(struct net *net, struct sock *sk, struct sk_buff
 	nf_bridge_info_free(skb);
 	return br_dev_queue_push_xmit(net, sk, skb);
 }
-static int br_nf_push_frag_xmit_sk(struct sock *sk, struct sk_buff *skb)
-{
-	struct net *net = dev_net(skb_dst(skb)->dev);
-	return br_nf_push_frag_xmit(net, sk, skb);
-}
 
 static int
 br_nf_ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
-		  int (*output)(struct sock *, struct sk_buff *))
+		  int (*output)(struct net *, struct sock *, struct sk_buff *))
 {
 	unsigned int mtu = ip_skb_dst_mtu(skb);
 	struct iphdr *iph = ip_hdr(skb);
@@ -709,7 +704,7 @@ br_nf_ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		return -EMSGSIZE;
 	}
 
-	return ip_do_fragment(sk, skb, output);
+	return ip_do_fragment(net, sk, skb, output);
 }
 
 static unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
@@ -757,7 +752,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
 		skb_copy_from_linear_data_offset(skb, -data->size, data->mac,
 						 data->size);
 
-		return br_nf_ip_fragment(net, sk, skb, br_nf_push_frag_xmit_sk);
+		return br_nf_ip_fragment(net, sk, skb, br_nf_push_frag_xmit);
 	}
 	if (IS_ENABLED(CONFIG_NF_DEFRAG_IPV6) &&
 	    skb->protocol == htons(ETH_P_IPV6)) {
@@ -779,7 +774,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
 						 data->size);
 
 		if (v6ops)
-			return v6ops->fragment(sk, skb, br_nf_push_frag_xmit_sk);
+			return v6ops->fragment(net, sk, skb, br_nf_push_frag_xmit);
 
 		kfree_skb(skb);
 		return -EMSGSIZE;

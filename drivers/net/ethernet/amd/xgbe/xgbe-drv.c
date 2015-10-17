@@ -360,6 +360,9 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 			}
 		}
 
+		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RBU))
+			pdata->ext_stats.rx_buffer_unavailable++;
+
 		/* Restart the device on a Fatal Bus Error */
 		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, FBE))
 			schedule_work(&pdata->restart_work);
@@ -384,7 +387,8 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 				/* Read Tx Timestamp to clear interrupt */
 				pdata->tx_tstamp =
 					hw_if->get_tx_tstamp(pdata);
-				schedule_work(&pdata->tx_tstamp_work);
+				queue_work(pdata->dev_workqueue,
+					   &pdata->tx_tstamp_work);
 			}
 		}
 	}
@@ -450,7 +454,7 @@ static void xgbe_service_timer(unsigned long data)
 {
 	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
 
-	schedule_work(&pdata->service_work);
+	queue_work(pdata->dev_workqueue, &pdata->service_work);
 
 	mod_timer(&pdata->service_timer, jiffies + HZ);
 }
@@ -891,7 +895,7 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	netif_tx_start_all_queues(netdev);
 
 	xgbe_start_timers(pdata);
-	schedule_work(&pdata->service_work);
+	queue_work(pdata->dev_workqueue, &pdata->service_work);
 
 	DBGPR("<--xgbe_start\n");
 

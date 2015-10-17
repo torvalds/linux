@@ -17,12 +17,24 @@
  * @l3mdev_fib_table: Get FIB table id to use for lookups
  *
  * @l3mdev_get_rtable: Get cached IPv4 rtable (dst_entry) for device
+ *
+ * @l3mdev_get_saddr: Get source address for a flow
+ *
+ * @l3mdev_get_rt6_dst: Get cached IPv6 rt6_info (dst_entry) for device
  */
 
 struct l3mdev_ops {
 	u32		(*l3mdev_fib_table)(const struct net_device *dev);
+
+	/* IPv4 ops */
 	struct rtable *	(*l3mdev_get_rtable)(const struct net_device *dev,
 					     const struct flowi4 *fl4);
+	void		(*l3mdev_get_saddr)(struct net_device *dev,
+					    struct flowi4 *fl4);
+
+	/* IPv6 ops */
+	struct dst_entry * (*l3mdev_get_rt6_dst)(const struct net_device *dev,
+						 const struct flowi6 *fl6);
 };
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
@@ -100,6 +112,50 @@ static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
 	return rc;
 }
 
+static inline void l3mdev_get_saddr(struct net *net, int ifindex,
+				    struct flowi4 *fl4)
+{
+	struct net_device *dev;
+
+	if (ifindex) {
+
+		rcu_read_lock();
+
+		dev = dev_get_by_index_rcu(net, ifindex);
+		if (dev && netif_is_l3_master(dev) &&
+		    dev->l3mdev_ops->l3mdev_get_saddr) {
+			dev->l3mdev_ops->l3mdev_get_saddr(dev, fl4);
+		}
+
+		rcu_read_unlock();
+	}
+}
+
+static inline struct dst_entry *l3mdev_get_rt6_dst(const struct net_device *dev,
+						   const struct flowi6 *fl6)
+{
+	if (netif_is_l3_master(dev) && dev->l3mdev_ops->l3mdev_get_rt6_dst)
+		return dev->l3mdev_ops->l3mdev_get_rt6_dst(dev, fl6);
+
+	return NULL;
+}
+
+static inline
+struct dst_entry *l3mdev_rt6_dst_by_oif(struct net *net,
+					const struct flowi6 *fl6)
+{
+	struct dst_entry *dst = NULL;
+	struct net_device *dev;
+
+	dev = dev_get_by_index(net, fl6->flowi6_oif);
+	if (dev) {
+		dst = l3mdev_get_rt6_dst(dev, fl6);
+		dev_put(dev);
+	}
+
+	return dst;
+}
+
 #else
 
 static inline int l3mdev_master_ifindex_rcu(struct net_device *dev)
@@ -144,6 +200,23 @@ static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
 	return false;
 }
 
+static inline void l3mdev_get_saddr(struct net *net, int ifindex,
+				    struct flowi4 *fl4)
+{
+}
+
+static inline
+struct dst_entry *l3mdev_get_rt6_dst(const struct net_device *dev,
+				     const struct flowi6 *fl6)
+{
+	return NULL;
+}
+static inline
+struct dst_entry *l3mdev_rt6_dst_by_oif(struct net *net,
+					const struct flowi6 *fl6)
+{
+	return NULL;
+}
 #endif
 
 #endif /* _NET_L3MDEV_H_ */

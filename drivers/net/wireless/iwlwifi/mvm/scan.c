@@ -750,8 +750,6 @@ static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm,
 	 */
 	return ((capa->flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT) &&
 		mvm->last_ebs_successful &&
-		(n_iterations > 1 ||
-		 fw_has_api(capa, IWL_UCODE_TLV_API_SINGLE_SCAN_EBS)) &&
 		vif->type != NL80211_IFTYPE_P2P_DEVICE);
 }
 

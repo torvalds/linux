@@ -2249,6 +2249,14 @@ static bool neigh_master_filtered(struct net_device *dev, int master_idx)
 	return false;
 }
 
+static bool neigh_ifindex_filtered(struct net_device *dev, int filter_idx)
+{
+	if (filter_idx && dev->ifindex != filter_idx)
+		return true;
+
+	return false;
+}
+
 static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 			    struct netlink_callback *cb)
 {
@@ -2259,16 +2267,19 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 	int rc, h, s_h = cb->args[1];
 	int idx, s_idx = idx = cb->args[2];
 	struct neigh_hash_table *nht;
-	int filter_master_idx = 0;
+	int filter_master_idx = 0, filter_idx = 0;
 	unsigned int flags = NLM_F_MULTI;
 	int err;
 
 	err = nlmsg_parse(nlh, sizeof(struct ndmsg), tb, NDA_MAX, NULL);
 	if (!err) {
+		if (tb[NDA_IFINDEX])
+			filter_idx = nla_get_u32(tb[NDA_IFINDEX]);
+
 		if (tb[NDA_MASTER])
 			filter_master_idx = nla_get_u32(tb[NDA_MASTER]);
 
-		if (filter_master_idx)
+		if (filter_idx || filter_master_idx)
 			flags |= NLM_F_DUMP_FILTERED;
 	}
 
@@ -2282,6 +2293,8 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		     n != NULL;
 		     n = rcu_dereference_bh(n->next)) {
 			if (!net_eq(dev_net(n->dev), net))
+				continue;
+			if (neigh_ifindex_filtered(n->dev, filter_idx))
 				continue;
 			if (neigh_master_filtered(n->dev, filter_master_idx))
 				continue;

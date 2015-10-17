@@ -547,11 +547,13 @@ i40e_status i40e_update_nvm_checksum(struct i40e_hw *hw)
 {
 	i40e_status ret_code = 0;
 	u16 checksum;
+	__le16 le_sum;
 
 	ret_code = i40e_calc_nvm_checksum(hw, &checksum);
+	le_sum = cpu_to_le16(checksum);
 	if (!ret_code)
 		ret_code = i40e_write_nvm_aq(hw, 0x00, I40E_SR_SW_CHECKSUM_WORD,
-					     1, &checksum, true);
+					     1, &le_sum, true);
 
 	return ret_code;
 }
@@ -630,7 +632,7 @@ static inline u8 i40e_nvmupd_get_transaction(u32 val)
 	return (u8)((val & I40E_NVM_TRANS_MASK) >> I40E_NVM_TRANS_SHIFT);
 }
 
-static char *i40e_nvm_update_state_str[] = {
+static const char * const i40e_nvm_update_state_str[] = {
 	"I40E_NVMUPD_INVALID",
 	"I40E_NVMUPD_READ_CON",
 	"I40E_NVMUPD_READ_SNT",

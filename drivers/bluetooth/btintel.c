@@ -23,6 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/firmware.h>
+#include <linux/regmap.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -214,6 +215,201 @@ int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(btintel_load_ddc_config);
+
+/* ------- REGMAP IBT SUPPORT ------- */
+
+#define IBT_REG_MODE_8BIT  0x00
+#define IBT_REG_MODE_16BIT 0x01
+#define IBT_REG_MODE_32BIT 0x02
+
+struct regmap_ibt_context {
+	struct hci_dev *hdev;
+	__u16 op_write;
+	__u16 op_read;
+};
+
+struct ibt_cp_reg_access {
+	__le32  addr;
+	__u8    mode;
+	__u8    len;
+	__u8    data[0];
+} __packed;
+
+struct ibt_rp_reg_access {
+	__u8    status;
+	__le32  addr;
+	__u8    data[0];
+} __packed;
+
+static int regmap_ibt_read(void *context, const void *addr, size_t reg_size,
+			   void *val, size_t val_size)
+{
+	struct regmap_ibt_context *ctx = context;
+	struct ibt_cp_reg_access cp;
+	struct ibt_rp_reg_access *rp;
+	struct sk_buff *skb;
+	int err = 0;
+
+	if (reg_size != sizeof(__le32))
+		return -EINVAL;
+
+	switch (val_size) {
+	case 1:
+		cp.mode = IBT_REG_MODE_8BIT;
+		break;
+	case 2:
+		cp.mode = IBT_REG_MODE_16BIT;
+		break;
+	case 4:
+		cp.mode = IBT_REG_MODE_32BIT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* regmap provides a little-endian formatted addr */
+	cp.addr = *(__le32 *)addr;
+	cp.len = val_size;
+
+	bt_dev_dbg(ctx->hdev, "Register (0x%x) read", le32_to_cpu(cp.addr));
+
+	skb = hci_cmd_sync(ctx->hdev, ctx->op_read, sizeof(cp), &cp,
+			   HCI_CMD_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		bt_dev_err(ctx->hdev, "regmap: Register (0x%x) read error (%d)",
+			   le32_to_cpu(cp.addr), err);
+		return err;
+	}
+
+	if (skb->len != sizeof(*rp) + val_size) {
+		bt_dev_err(ctx->hdev, "regmap: Register (0x%x) read error, bad len",
+			   le32_to_cpu(cp.addr));
+		err = -EINVAL;
+		goto done;
+	}
+
+	rp = (struct ibt_rp_reg_access *)skb->data;
+
+	if (rp->addr != cp.addr) {
+		bt_dev_err(ctx->hdev, "regmap: Register (0x%x) read error, bad addr",
+			   le32_to_cpu(rp->addr));
+		err = -EINVAL;
+		goto done;
+	}
+
+	memcpy(val, rp->data, val_size);
+
+done:
+	kfree_skb(skb);
+	return err;
+}
+
+static int regmap_ibt_gather_write(void *context,
+				   const void *addr, size_t reg_size,
+				   const void *val, size_t val_size)
+{
+	struct regmap_ibt_context *ctx = context;
+	struct ibt_cp_reg_access *cp;
+	struct sk_buff *skb;
+	int plen = sizeof(*cp) + val_size;
+	u8 mode;
+	int err = 0;
+
+	if (reg_size != sizeof(__le32))
+		return -EINVAL;
+
+	switch (val_size) {
+	case 1:
+		mode = IBT_REG_MODE_8BIT;
+		break;
+	case 2:
+		mode = IBT_REG_MODE_16BIT;
+		break;
+	case 4:
+		mode = IBT_REG_MODE_32BIT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	cp = kmalloc(plen, GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
+
+	/* regmap provides a little-endian formatted addr/value */
+	cp->addr = *(__le32 *)addr;
+	cp->mode = mode;
+	cp->len = val_size;
+	memcpy(&cp->data, val, val_size);
+
+	bt_dev_dbg(ctx->hdev, "Register (0x%x) write", le32_to_cpu(cp->addr));
+
+	skb = hci_cmd_sync(ctx->hdev, ctx->op_write, plen, cp, HCI_CMD_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		bt_dev_err(ctx->hdev, "regmap: Register (0x%x) write error (%d)",
+			   le32_to_cpu(cp->addr), err);
+		goto done;
+	}
+	kfree_skb(skb);
+
+done:
+	kfree(cp);
+	return err;
+}
+
+static int regmap_ibt_write(void *context, const void *data, size_t count)
+{
+	/* data contains register+value, since we only support 32bit addr,
+	 * minimum data size is 4 bytes.
+	 */
+	if (WARN_ONCE(count < 4, "Invalid register access"))
+		return -EINVAL;
+
+	return regmap_ibt_gather_write(context, data, 4, data + 4, count - 4);
+}
+
+static void regmap_ibt_free_context(void *context)
+{
+	kfree(context);
+}
+
+static struct regmap_bus regmap_ibt = {
+	.read = regmap_ibt_read,
+	.write = regmap_ibt_write,
+	.gather_write = regmap_ibt_gather_write,
+	.free_context = regmap_ibt_free_context,
+	.reg_format_endian_default = REGMAP_ENDIAN_LITTLE,
+	.val_format_endian_default = REGMAP_ENDIAN_LITTLE,
+};
+
+/* Config is the same for all register regions */
+static const struct regmap_config regmap_ibt_cfg = {
+	.name      = "btintel_regmap",
+	.reg_bits  = 32,
+	.val_bits  = 32,
+};
+
+struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
+				   u16 opcode_write)
+{
+	struct regmap_ibt_context *ctx;
+
+	bt_dev_info(hdev, "regmap: Init R%x-W%x region", opcode_read,
+		    opcode_write);
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return ERR_PTR(-ENOMEM);
+
+	ctx->op_read = opcode_read;
+	ctx->op_write = opcode_write;
+	ctx->hdev = hdev;
+
+	return regmap_init(&hdev->dev, &regmap_ibt, ctx, &regmap_ibt_cfg);
+}
+EXPORT_SYMBOL_GPL(btintel_regmap_init);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth support for Intel devices ver " VERSION);

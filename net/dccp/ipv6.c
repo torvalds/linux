@@ -319,7 +319,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1)
 		goto drop;
 
-	req = inet_reqsk_alloc(&dccp6_request_sock_ops, sk);
+	req = inet_reqsk_alloc(&dccp6_request_sock_ops, sk, true);
 	if (req == NULL)
 		goto drop;
 
@@ -656,16 +656,11 @@ static int dccp_v6_rcv(struct sk_buff *skb)
 	else
 		DCCP_SKB_CB(skb)->dccpd_ack_seq = dccp_hdr_ack_seq(skb);
 
-	/* Step 2:
-	 *	Look up flow ID in table and get corresponding socket */
+lookup:
 	sk = __inet6_lookup_skb(&dccp_hashinfo, skb,
 			        dh->dccph_sport, dh->dccph_dport,
 				inet6_iif(skb));
-	/*
-	 * Step 2:
-	 *	If no socket ...
-	 */
-	if (sk == NULL) {
+	if (!sk) {
 		dccp_pr_debug("failed to look up flow ID in table and "
 			      "get corresponding socket\n");
 		goto no_dccp_socket;
@@ -688,8 +683,12 @@ static int dccp_v6_rcv(struct sk_buff *skb)
 		struct sock *nsk = NULL;
 
 		sk = req->rsk_listener;
-		if (sk->sk_state == DCCP_LISTEN)
+		if (likely(sk->sk_state == DCCP_LISTEN)) {
 			nsk = dccp_check_req(sk, skb, req);
+		} else {
+			inet_csk_reqsk_queue_drop_and_put(sk, req);
+			goto lookup;
+		}
 		if (!nsk) {
 			reqsk_put(req);
 			goto discard_it;

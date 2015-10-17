@@ -1071,7 +1071,7 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 				 NETIF_F_HIGHDMA | NETIF_F_LRO)
 
 #define BOND_ENC_FEATURES	(NETIF_F_ALL_CSUM | NETIF_F_SG | NETIF_F_RXCSUM |\
-				 NETIF_F_TSO)
+				 NETIF_F_ALL_TSO)
 
 static void bond_compute_features(struct bonding *bond)
 {

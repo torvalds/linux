@@ -981,7 +981,7 @@ static int sta_apply_auth_flags(struct ieee80211_local *local,
 		 * well. Some drivers require rate control initialized
 		 * before drv_sta_state() is called.
 		 */
-		if (test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+		if (!test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 			rate_control_rate_init(sta);
 
 		ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
@@ -1120,8 +1120,11 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	    local->hw.queues >= IEEE80211_NUM_ACS)
 		sta->sta.wme = set & BIT(NL80211_STA_FLAG_WME);
 
-	/* auth flags will be set later for TDLS stations */
-	if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+	/* auth flags will be set later for TDLS,
+	 * and for unassociated stations that move to assocaited */
+	if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
+	    !((mask & BIT(NL80211_STA_FLAG_ASSOCIATED)) &&
+	      (set & BIT(NL80211_STA_FLAG_ASSOCIATED)))) {
 		ret = sta_apply_auth_flags(local, sta, mask, set);
 		if (ret)
 			return ret;
@@ -1156,6 +1159,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		set_sta_flag(sta, WLAN_STA_TDLS_CHAN_SWITCH);
 
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
+	    !sdata->u.mgd.tdls_wider_bw_prohibited &&
 	    ieee80211_hw_check(&local->hw, TDLS_WIDER_BW) &&
 	    params->ext_capab_len >= 8 &&
 	    params->ext_capab[7] & WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED)
@@ -1212,7 +1216,8 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		sta_apply_mesh_params(local, sta, params);
 
 	/* set the STA state after all sta info from usermode has been set */
-	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) ||
+	    set & BIT(NL80211_STA_FLAG_ASSOCIATED)) {
 		ret = sta_apply_auth_flags(local, sta, mask, set);
 		if (ret)
 			return ret;
@@ -1254,12 +1259,14 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	 * defaults -- if userspace wants something else we'll
 	 * change it accordingly in sta_apply_parameters()
 	 */
-	if (!(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))) {
+	if (!(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
+	    !(params->sta_flags_set & (BIT(NL80211_STA_FLAG_AUTHENTICATED) |
+					BIT(NL80211_STA_FLAG_ASSOCIATED)))) {
 		sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
 		sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
-	} else {
-		sta->sta.tdls = true;
 	}
+	if (params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))
+		sta->sta.tdls = true;
 
 	err = sta_apply_parameters(local, sta, params);
 	if (err) {
@@ -1268,10 +1275,12 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	/*
-	 * for TDLS, rate control should be initialized only when
-	 * rates are known and station is marked authorized
+	 * for TDLS and for unassociated station, rate control should be
+	 * initialized only when rates are known and station is marked
+	 * authorized/associated
 	 */
-	if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+	if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
+	    test_sta_flag(sta, WLAN_STA_ASSOC))
 		rate_control_rate_init(sta);
 
 	layer2_update = sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
@@ -1346,7 +1355,10 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
-		statype = CFG80211_STA_AP_CLIENT;
+		if (test_sta_flag(sta, WLAN_STA_ASSOC))
+			statype = CFG80211_STA_AP_CLIENT;
+		else
+			statype = CFG80211_STA_AP_CLIENT_UNASSOC;
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -3522,18 +3534,32 @@ static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
 					  u16 frame_type, bool reg)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
 	switch (frame_type) {
 	case IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_REQ:
-		if (reg)
+		if (reg) {
 			local->probe_req_reg++;
-		else
-			local->probe_req_reg--;
+			sdata->vif.probe_req_reg++;
+		} else {
+			if (local->probe_req_reg)
+				local->probe_req_reg--;
+
+			if (sdata->vif.probe_req_reg)
+				sdata->vif.probe_req_reg--;
+		}
 
 		if (!local->open_count)
 			break;
 
-		ieee80211_queue_work(&local->hw, &local->reconfig_filter);
+		if (sdata->vif.probe_req_reg == 1)
+			drv_config_iface_filter(local, sdata, FIF_PROBE_REQ,
+						FIF_PROBE_REQ);
+		else if (sdata->vif.probe_req_reg == 0)
+			drv_config_iface_filter(local, sdata, 0,
+						FIF_PROBE_REQ);
+
+		ieee80211_configure_filter(local);
 		break;
 	default:
 		break;

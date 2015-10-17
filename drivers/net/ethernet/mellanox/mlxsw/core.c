@@ -506,7 +506,6 @@ static int mlxsw_emad_traps_set(struct mlxsw_core *mlxsw_core)
 		return err;
 
 	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,
-			    MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
 			    MLXSW_TRAP_ID_ETHEMAD);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
 }
@@ -551,8 +550,8 @@ static void mlxsw_emad_fini(struct mlxsw_core *mlxsw_core)
 {
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 
+	mlxsw_core->emad.use_emad = false;
 	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_DISCARD,
-			    MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
 			    MLXSW_TRAP_ID_ETHEMAD);
 	mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
 

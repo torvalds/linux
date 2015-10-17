@@ -272,10 +272,11 @@ brcmf_proto_bcdc_hdrpush(struct brcmf_pub *drvr, int ifidx, u8 offset,
 }
 
 static int
-brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
-			 struct sk_buff *pktbuf)
+brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws,
+			 struct sk_buff *pktbuf, struct brcmf_if **ifp)
 {
 	struct brcmf_proto_bcdc_header *h;
+	struct brcmf_if *tmp_if;
 
 	brcmf_dbg(BCDC, "Enter\n");
 
@@ -289,30 +290,21 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 	trace_brcmf_bcdchdr(pktbuf->data);
 	h = (struct brcmf_proto_bcdc_header *)(pktbuf->data);
 
-	*ifidx = BCDC_GET_IF_IDX(h);
-	if (*ifidx >= BRCMF_MAX_IFS) {
-		brcmf_err("rx data ifnum out of range (%d)\n", *ifidx);
+	tmp_if = brcmf_get_ifp(drvr, BCDC_GET_IF_IDX(h));
+	if (!tmp_if) {
+		brcmf_dbg(INFO, "no matching ifp found\n");
 		return -EBADE;
 	}
-	/* The ifidx is the idx to map to matching netdev/ifp. When receiving
-	 * events this is easy because it contains the bssidx which maps
-	 * 1-on-1 to the netdev/ifp. But for data frames the ifidx is rcvd.
-	 * bssidx 1 is used for p2p0 and no data can be received or
-	 * transmitted on it. Therefor bssidx is ifidx + 1 if ifidx > 0
-	 */
-	if (*ifidx)
-		(*ifidx)++;
-
 	if (((h->flags & BCDC_FLAG_VER_MASK) >> BCDC_FLAG_VER_SHIFT) !=
 	    BCDC_PROTO_VER) {
 		brcmf_err("%s: non-BCDC packet received, flags 0x%x\n",
-			  brcmf_ifname(drvr, *ifidx), h->flags);
+			  brcmf_ifname(drvr, tmp_if->ifidx), h->flags);
 		return -EBADE;
 	}
 
 	if (h->flags & BCDC_FLAG_SUM_GOOD) {
 		brcmf_dbg(BCDC, "%s: BDC rcv, good checksum, flags 0x%x\n",
-			  brcmf_ifname(drvr, *ifidx), h->flags);
+			  brcmf_ifname(drvr, tmp_if->ifidx), h->flags);
 		pktbuf->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
@@ -320,12 +312,14 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 
 	skb_pull(pktbuf, BCDC_HEADER_LEN);
 	if (do_fws)
-		brcmf_fws_hdrpull(drvr, *ifidx, h->data_offset << 2, pktbuf);
+		brcmf_fws_hdrpull(tmp_if, h->data_offset << 2, pktbuf);
 	else
 		skb_pull(pktbuf, h->data_offset << 2);
 
 	if (pktbuf->len == 0)
 		return -ENODATA;
+
+	*ifp = tmp_if;
 	return 0;
 }
 

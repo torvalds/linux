@@ -229,7 +229,7 @@ struct net_bridge_port
 	struct netpoll			*np;
 #endif
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
-	struct net_bridge_vlan_group	*vlgrp;
+	struct net_bridge_vlan_group	__rcu *vlgrp;
 #endif
 };
 
@@ -337,7 +337,7 @@ struct net_bridge
 	struct kobject			*ifobj;
 	u32				auto_cnt;
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
-	struct net_bridge_vlan_group	*vlgrp;
+	struct net_bridge_vlan_group	__rcu *vlgrp;
 	u8				vlan_enabled;
 	__be16				vlan_proto;
 	u16				default_pvid;
@@ -400,7 +400,7 @@ static inline bool br_vlan_is_brentry(const struct net_bridge_vlan *v)
 	return v->flags & BRIDGE_VLAN_INFO_BRENTRY;
 }
 
-/* check if we should use the vlan entry is usable */
+/* check if we should use the vlan entry, returns false if it's only context */
 static inline bool br_vlan_should_use(const struct net_bridge_vlan *v)
 {
 	if (br_vlan_is_master(v)) {
@@ -690,6 +690,7 @@ int __br_vlan_set_proto(struct net_bridge *br, __be16 proto);
 int br_vlan_set_proto(struct net_bridge *br, unsigned long val);
 int br_vlan_init(struct net_bridge *br);
 int br_vlan_set_default_pvid(struct net_bridge *br, unsigned long val);
+int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid);
 int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags);
 int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
 void nbp_vlan_flush(struct net_bridge_port *port);
@@ -699,13 +700,25 @@ int nbp_get_num_vlan_infos(struct net_bridge_port *p, u32 filter_mask);
 static inline struct net_bridge_vlan_group *br_vlan_group(
 					const struct net_bridge *br)
 {
-	return br->vlgrp;
+	return rtnl_dereference(br->vlgrp);
 }
 
 static inline struct net_bridge_vlan_group *nbp_vlan_group(
 					const struct net_bridge_port *p)
 {
-	return p->vlgrp;
+	return rtnl_dereference(p->vlgrp);
+}
+
+static inline struct net_bridge_vlan_group *br_vlan_group_rcu(
+					const struct net_bridge *br)
+{
+	return rcu_dereference(br->vlgrp);
+}
+
+static inline struct net_bridge_vlan_group *nbp_vlan_group_rcu(
+					const struct net_bridge_port *p)
+{
+	return rcu_dereference(p->vlgrp);
 }
 
 /* Since bridge now depends on 8021Q module, but the time bridge sees the
@@ -852,6 +865,19 @@ static inline struct net_bridge_vlan_group *nbp_vlan_group(
 {
 	return NULL;
 }
+
+static inline struct net_bridge_vlan_group *br_vlan_group_rcu(
+					const struct net_bridge *br)
+{
+	return NULL;
+}
+
+static inline struct net_bridge_vlan_group *nbp_vlan_group_rcu(
+					const struct net_bridge_port *p)
+{
+	return NULL;
+}
+
 #endif
 
 struct nf_br_ops {
@@ -881,6 +907,7 @@ void __br_set_forward_delay(struct net_bridge *br, unsigned long t);
 int br_set_forward_delay(struct net_bridge *br, unsigned long x);
 int br_set_hello_time(struct net_bridge *br, unsigned long x);
 int br_set_max_age(struct net_bridge *br, unsigned long x);
+int br_set_ageing_time(struct net_bridge *br, u32 ageing_time);
 
 
 /* br_stp_if.c */

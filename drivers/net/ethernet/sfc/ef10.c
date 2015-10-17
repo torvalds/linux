@@ -1604,6 +1604,22 @@ efx_ef10_mcdi_read_response(struct efx_nic *efx, efx_dword_t *outbuf,
 	memcpy(outbuf, pdu + offset, outlen);
 }
 
+static void efx_ef10_mcdi_reboot_detected(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	/* All our allocations have been reset */
+	efx_ef10_reset_mc_allocations(efx);
+
+	/* The datapath firmware might have been changed */
+	nic_data->must_check_datapath_caps = true;
+
+	/* MAC statistics have been cleared on the NIC; clear the local
+	 * statistic that we update with efx_update_diff_stat().
+	 */
+	nic_data->stats[EF10_STAT_port_rx_bad_bytes] = 0;
+}
+
 static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
@@ -1623,17 +1639,7 @@ static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 		return 0;
 
 	nic_data->warm_boot_count = rc;
-
-	/* All our allocations have been reset */
-	efx_ef10_reset_mc_allocations(efx);
-
-	/* The datapath firmware might have been changed */
-	nic_data->must_check_datapath_caps = true;
-
-	/* MAC statistics have been cleared on the NIC; clear the local
-	 * statistic that we update with efx_update_diff_stat().
-	 */
-	nic_data->stats[EF10_STAT_port_rx_bad_bytes] = 0;
+	efx_ef10_mcdi_reboot_detected(efx);
 
 	return -EIO;
 }
@@ -4670,6 +4676,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.mcdi_poll_response = efx_ef10_mcdi_poll_response,
 	.mcdi_read_response = efx_ef10_mcdi_read_response,
 	.mcdi_poll_reboot = efx_ef10_mcdi_poll_reboot,
+	.mcdi_reboot_detected = efx_ef10_mcdi_reboot_detected,
 	.irq_enable_master = efx_port_dummy_op_void,
 	.irq_test_generate = efx_ef10_irq_test_generate,
 	.irq_disable_non_ev = efx_port_dummy_op_void,
@@ -4774,6 +4781,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.mcdi_poll_response = efx_ef10_mcdi_poll_response,
 	.mcdi_read_response = efx_ef10_mcdi_read_response,
 	.mcdi_poll_reboot = efx_ef10_mcdi_poll_reboot,
+	.mcdi_reboot_detected = efx_ef10_mcdi_reboot_detected,
 	.irq_enable_master = efx_port_dummy_op_void,
 	.irq_test_generate = efx_ef10_irq_test_generate,
 	.irq_disable_non_ev = efx_port_dummy_op_void,

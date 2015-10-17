@@ -51,6 +51,7 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_QSFP_B:
 		case I40E_DEV_ID_QSFP_C:
 		case I40E_DEV_ID_10G_BASE_T:
+		case I40E_DEV_ID_10G_BASE_T4:
 		case I40E_DEV_ID_20G_KR2:
 		case I40E_DEV_ID_20G_KR2_A:
 			hw->mac.type = I40E_MAC_XL710;
@@ -86,7 +87,7 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
  * @hw: pointer to the HW structure
  * @aq_err: the AQ error code to convert
  **/
-char *i40evf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
+const char *i40evf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
 {
 	switch (aq_err) {
 	case I40E_AQ_RC_OK:
@@ -146,7 +147,7 @@ char *i40evf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
  * @hw: pointer to the HW structure
  * @stat_err: the status error code to convert
  **/
-char *i40evf_stat_str(struct i40e_hw *hw, i40e_status stat_err)
+const char *i40evf_stat_str(struct i40e_hw *hw, i40e_status stat_err)
 {
 	switch (stat_err) {
 	case 0:
@@ -991,10 +992,10 @@ void i40e_vf_parse_hw_config(struct i40e_hw *hw,
 			     I40E_VIRTCHNL_VF_OFFLOAD_FCOE) ? 1 : 0;
 	for (i = 0; i < msg->num_vsis; i++) {
 		if (vsi_res->vsi_type == I40E_VSI_SRIOV) {
-			memcpy(hw->mac.perm_addr, vsi_res->default_mac_addr,
-			       ETH_ALEN);
-			memcpy(hw->mac.addr, vsi_res->default_mac_addr,
-			       ETH_ALEN);
+			ether_addr_copy(hw->mac.perm_addr,
+					vsi_res->default_mac_addr);
+			ether_addr_copy(hw->mac.addr,
+					vsi_res->default_mac_addr);
 		}
 		vsi_res++;
 	}

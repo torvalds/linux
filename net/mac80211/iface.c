@@ -1204,7 +1204,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 	if (!ieee80211_sdata_running(sdata))
 		return;
 
-	if (local->scanning)
+	if (test_bit(SCAN_SW_SCANNING, &local->scanning))
 		return;
 
 	if (!ieee80211_can_run_worker(local))

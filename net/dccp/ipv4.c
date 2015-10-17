@@ -208,7 +208,6 @@ void dccp_req_err(struct sock *sk, u64 seq)
 
 	if (!between48(seq, dccp_rsk(req)->dreq_iss, dccp_rsk(req)->dreq_gss)) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
-		reqsk_put(req);
 	} else {
 		/*
 		 * Still in RESPOND, just remove it silently.
@@ -218,6 +217,7 @@ void dccp_req_err(struct sock *sk, u64 seq)
 		 */
 		inet_csk_reqsk_queue_drop(req->rsk_listener, req);
 	}
+	reqsk_put(req);
 }
 EXPORT_SYMBOL(dccp_req_err);
 
@@ -595,7 +595,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1)
 		goto drop;
 
-	req = inet_reqsk_alloc(&dccp_request_sock_ops, sk);
+	req = inet_reqsk_alloc(&dccp_request_sock_ops, sk, true);
 	if (req == NULL)
 		goto drop;
 
@@ -799,15 +799,10 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 				  DCCP_SKB_CB(skb)->dccpd_ack_seq);
 	}
 
-	/* Step 2:
-	 *	Look up flow ID in table and get corresponding socket */
+lookup:
 	sk = __inet_lookup_skb(&dccp_hashinfo, skb,
 			       dh->dccph_sport, dh->dccph_dport);
-	/*
-	 * Step 2:
-	 *	If no socket ...
-	 */
-	if (sk == NULL) {
+	if (!sk) {
 		dccp_pr_debug("failed to look up flow ID in table and "
 			      "get corresponding socket\n");
 		goto no_dccp_socket;
@@ -830,8 +825,12 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 		struct sock *nsk = NULL;
 
 		sk = req->rsk_listener;
-		if (sk->sk_state == DCCP_LISTEN)
+		if (likely(sk->sk_state == DCCP_LISTEN)) {
 			nsk = dccp_check_req(sk, skb, req);
+		} else {
+			inet_csk_reqsk_queue_drop_and_put(sk, req);
+			goto lookup;
+		}
 		if (!nsk) {
 			reqsk_put(req);
 			goto discard_it;

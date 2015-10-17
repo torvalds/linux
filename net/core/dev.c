@@ -2974,6 +2974,7 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 			new_index = skb_tx_hash(dev, skb);
 
 		if (queue_index != new_index && sk &&
+		    sk_fullsock(sk) &&
 		    rcu_access_pointer(sk->sk_dst_cache))
 			sk_tx_queue_set(sk, new_index);
 
@@ -5345,6 +5346,12 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	changeupper_info.master = master;
 	changeupper_info.linking = true;
 
+	ret = call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER, dev,
+					    &changeupper_info.info);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		return ret;
+
 	ret = __netdev_adjacent_dev_link_neighbour(dev, upper_dev, private,
 						   master);
 	if (ret)
@@ -5486,6 +5493,9 @@ void netdev_upper_dev_unlink(struct net_device *dev,
 	changeupper_info.upper_dev = upper_dev;
 	changeupper_info.master = netdev_master_upper_dev_get(dev) == upper_dev;
 	changeupper_info.linking = false;
+
+	call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER, dev,
+				      &changeupper_info.info);
 
 	__netdev_adjacent_dev_unlink_neighbour(dev, upper_dev);
 

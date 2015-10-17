@@ -56,10 +56,10 @@
  *	@sk: sock associated with &sk_buff
  *	@skb: buffer to filter
  *
- * Run the filter code and then cut skb->data to correct size returned by
- * SK_RUN_FILTER. If pkt_len is 0 we toss packet. If skb->len is smaller
+ * Run the eBPF program and then cut skb->data to correct size returned by
+ * the program. If pkt_len is 0 we toss packet. If skb->len is smaller
  * than pkt_len we keep whole skb->data. This is the socket level
- * wrapper to SK_RUN_FILTER. It returns 0 if the packet should
+ * wrapper to BPF_PROG_RUN. It returns 0 if the packet should
  * be accepted or -EPERM if the packet should be tossed.
  *
  */
@@ -83,7 +83,7 @@ int sk_filter(struct sock *sk, struct sk_buff *skb)
 	rcu_read_lock();
 	filter = rcu_dereference(sk->sk_filter);
 	if (filter) {
-		unsigned int pkt_len = SK_RUN_FILTER(filter, skb);
+		unsigned int pkt_len = bpf_prog_run_save_cb(filter->prog, skb);
 
 		err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
 	}
@@ -147,12 +147,6 @@ static u64 __skb_get_nlattr_nest(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 static u64 __get_raw_cpu_id(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 {
 	return raw_smp_processor_id();
-}
-
-/* note that this only generates 32-bit random numbers */
-static u64 __get_random_u32(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
-{
-	return prandom_u32();
 }
 
 static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
@@ -313,7 +307,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 			*insn = BPF_EMIT_CALL(__get_raw_cpu_id);
 			break;
 		case SKF_AD_OFF + SKF_AD_RANDOM:
-			*insn = BPF_EMIT_CALL(__get_random_u32);
+			*insn = BPF_EMIT_CALL(bpf_user_rnd_u32);
+			bpf_user_rnd_init_once();
 			break;
 		}
 		break;
@@ -1084,16 +1079,18 @@ EXPORT_SYMBOL_GPL(bpf_prog_create);
  *	@pfp: the unattached filter that is created
  *	@fprog: the filter program
  *	@trans: post-classic verifier transformation handler
+ *	@save_orig: save classic BPF program
  *
  * This function effectively does the same as bpf_prog_create(), only
  * that it builds up its insns buffer from user space provided buffer.
  * It also allows for passing a bpf_aux_classic_check_t handler.
  */
 int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
-			      bpf_aux_classic_check_t trans)
+			      bpf_aux_classic_check_t trans, bool save_orig)
 {
 	unsigned int fsize = bpf_classic_proglen(fprog);
 	struct bpf_prog *fp;
+	int err;
 
 	/* Make sure new filter is there and in the right amounts. */
 	if (fprog->filter == NULL)
@@ -1109,11 +1106,15 @@ int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
 	}
 
 	fp->len = fprog->len;
-	/* Since unattached filters are not copied back to user
-	 * space through sk_get_filter(), we do not need to hold
-	 * a copy here, and can spare us the work.
-	 */
 	fp->orig_prog = NULL;
+
+	if (save_orig) {
+		err = bpf_prog_store_orig_filter(fp, fprog);
+		if (err) {
+			__bpf_prog_free(fp);
+			return -ENOMEM;
+		}
+	}
 
 	/* bpf_prepare_filter() already takes care of freeing
 	 * memory in case something goes wrong.
@@ -1456,6 +1457,7 @@ int skb_do_redirect(struct sk_buff *skb)
 		return dev_forward_skb(dev, skb);
 
 	skb->dev = dev;
+	skb_sender_cpu_clear(skb);
 	return dev_queue_xmit(skb);
 }
 
@@ -1638,7 +1640,8 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_ktime_get_ns:
 		return &bpf_ktime_get_ns_proto;
 	case BPF_FUNC_trace_printk:
-		return bpf_get_trace_printk_proto();
+		if (capable(CAP_SYS_ADMIN))
+			return bpf_get_trace_printk_proto();
 	default:
 		return NULL;
 	}
@@ -1734,7 +1737,8 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 
 static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 				      int src_reg, int ctx_off,
-				      struct bpf_insn *insn_buf)
+				      struct bpf_insn *insn_buf,
+				      struct bpf_prog *prog)
 {
 	struct bpf_insn *insn = insn_buf;
 
@@ -1825,6 +1829,7 @@ static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 		offsetof(struct __sk_buff, cb[4]):
 		BUILD_BUG_ON(FIELD_SIZEOF(struct qdisc_skb_cb, data) < 20);
 
+		prog->cb_access = 1;
 		ctx_off -= offsetof(struct __sk_buff, cb[0]);
 		ctx_off += offsetof(struct sk_buff, cb);
 		ctx_off += offsetof(struct qdisc_skb_cb, data);
