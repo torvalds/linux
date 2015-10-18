@@ -166,8 +166,7 @@ int mv_cesa_dma_add_data_transfer(struct mv_cesa_tdma_chain *chain,
 	return 0;
 }
 
-int mv_cesa_dma_add_dummy_launch(struct mv_cesa_tdma_chain *chain,
-				 u32 flags)
+int mv_cesa_dma_add_dummy_launch(struct mv_cesa_tdma_chain *chain, gfp_t flags)
 {
 	struct mv_cesa_tdma_desc *tdma;
 
@@ -178,7 +177,7 @@ int mv_cesa_dma_add_dummy_launch(struct mv_cesa_tdma_chain *chain,
 	return 0;
 }
 
-int mv_cesa_dma_add_dummy_end(struct mv_cesa_tdma_chain *chain, u32 flags)
+int mv_cesa_dma_add_dummy_end(struct mv_cesa_tdma_chain *chain, gfp_t flags)
 {
 	struct mv_cesa_tdma_desc *tdma;
 

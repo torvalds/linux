@@ -771,10 +771,8 @@ int mv_cesa_dma_add_data_transfer(struct mv_cesa_tdma_chain *chain,
 				  dma_addr_t dst, dma_addr_t src, u32 size,
 				  u32 flags, gfp_t gfp_flags);
 
-int mv_cesa_dma_add_dummy_launch(struct mv_cesa_tdma_chain *chain,
-				 u32 flags);
-
-int mv_cesa_dma_add_dummy_end(struct mv_cesa_tdma_chain *chain, u32 flags);
+int mv_cesa_dma_add_dummy_launch(struct mv_cesa_tdma_chain *chain, gfp_t flags);
+int mv_cesa_dma_add_dummy_end(struct mv_cesa_tdma_chain *chain, gfp_t flags);
 
 int mv_cesa_dma_add_op_transfers(struct mv_cesa_tdma_chain *chain,
 				 struct mv_cesa_dma_iter *dma_iter,
