@@ -182,9 +182,9 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %dHz rate\n",
 				soc_dai->rate);
 
-		ret = snd_pcm_hw_constraint_minmax(substream->runtime,
+		ret = snd_pcm_hw_constraint_single(substream->runtime,
 						SNDRV_PCM_HW_PARAM_RATE,
-						soc_dai->rate, soc_dai->rate);
+						soc_dai->rate);
 		if (ret < 0) {
 			dev_err(soc_dai->dev,
 				"ASoC: Unable to apply rate constraint: %d\n",
@@ -198,9 +198,8 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %d channel(s)\n",
 				soc_dai->channels);
 
-		ret = snd_pcm_hw_constraint_minmax(substream->runtime,
+		ret = snd_pcm_hw_constraint_single(substream->runtime,
 						SNDRV_PCM_HW_PARAM_CHANNELS,
-						soc_dai->channels,
 						soc_dai->channels);
 		if (ret < 0) {
 			dev_err(soc_dai->dev,
@@ -215,9 +214,8 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %d sample bits\n",
 				soc_dai->sample_bits);
 
-		ret = snd_pcm_hw_constraint_minmax(substream->runtime,
+		ret = snd_pcm_hw_constraint_single(substream->runtime,
 						SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-						soc_dai->sample_bits,
 						soc_dai->sample_bits);
 		if (ret < 0) {
 			dev_err(soc_dai->dev,
