@@ -1554,24 +1554,20 @@ static int ahash_final(struct ahash_request *req)
 static int ahash_export(struct ahash_request *req, void *out)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct caam_hash_state *state = ahash_request_ctx(req);
 
-	memcpy(out, ctx, sizeof(struct caam_hash_ctx));
-	memcpy(out + sizeof(struct caam_hash_ctx), state,
-	       sizeof(struct caam_hash_state));
+	memcpy(out, state, sizeof(struct caam_hash_state));
+
 	return 0;
 }
 
 static int ahash_import(struct ahash_request *req, const void *in)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct caam_hash_state *state = ahash_request_ctx(req);
 
-	memcpy(ctx, in, sizeof(struct caam_hash_ctx));
-	memcpy(state, in + sizeof(struct caam_hash_ctx),
-	       sizeof(struct caam_hash_state));
+	memcpy(state, in, sizeof(struct caam_hash_state));
+
 	return 0;
 }
 
