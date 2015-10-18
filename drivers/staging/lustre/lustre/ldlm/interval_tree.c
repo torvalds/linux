@@ -294,7 +294,8 @@ struct interval_node *interval_insert(struct interval_node *node,
 	/* link node into the tree */
 	node->in_parent = parent;
 	node->in_color = INTERVAL_RED;
-	node->in_left = node->in_right = NULL;
+	node->in_left = NULL;
+	node->in_right = NULL;
 	*p = node;
 
 	interval_insert_color(node, root);
