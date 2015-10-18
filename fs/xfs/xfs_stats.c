@@ -161,6 +161,7 @@ static const struct file_operations xqmstat_proc_fops = {
 };
 #endif /* CONFIG_XFS_QUOTA */
 
+#ifdef CONFIG_PROC_FS
 int
 xfs_init_procfs(void)
 {
@@ -191,3 +192,4 @@ xfs_cleanup_procfs(void)
 {
 	remove_proc_subtree("fs/xfs", NULL);
 }
+#endif /* CONFIG_PROC_FS */
