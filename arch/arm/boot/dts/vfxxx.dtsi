@@ -461,6 +461,8 @@
 				clock-names = "adc";
 				#io-channel-cells = <1>;
 				status = "disabled";
+				fsl,adck-max-frequency = <30000000>, <40000000>,
+							<20000000>;
 			};
 
 			esdhc0: esdhc@400b1000 {
@@ -472,8 +474,6 @@
 					<&clks VF610_CLK_ESDHC0>;
 				clock-names = "ipg", "ahb", "per";
 				status = "disabled";
-				fsl,adck-max-frequency = <30000000>, <40000000>,
-							<20000000>;
 			};
 
 			esdhc1: esdhc@400b2000 {
