@@ -347,7 +347,7 @@ static int init_usb(struct lte_udev *udev)
 		tx->avail_count++;
 	}
 
-	for (i = 0; i < MAX_RX_SUBMIT_COUNT*2; i++) {
+	for (i = 0; i < MAX_RX_SUBMIT_COUNT * 2; i++) {
 		r = alloc_rx_struct();
 		if (!r) {
 			ret = -ENOMEM;
@@ -745,7 +745,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	} else {
 	    send_len = len - ETH_HLEN;
 	    send_len += SDU_PARAM_LEN;
-	    memcpy(sdu->data, data+ETH_HLEN, len-ETH_HLEN);
+	    memcpy(sdu->data, data + ETH_HLEN, len - ETH_HLEN);
 	}
 
 	sdu->len = gdm_cpu_to_dev16(&udev->gdm_ed, send_len);

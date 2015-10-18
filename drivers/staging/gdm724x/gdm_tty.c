@@ -193,7 +193,7 @@ static int gdm_tty_write(struct tty_struct *tty, const unsigned char *buf,
 		sending_len = remain > MUX_TX_MAX_SIZE ? MUX_TX_MAX_SIZE :
 							 remain;
 		gdm_tty_send(gdm,
-			     (void *)(buf+sent_len),
+			     (void *)(buf + sent_len),
 			     sending_len,
 			     gdm->index,
 			     gdm_tty_send_complete,

@@ -388,8 +388,8 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	mux_header->payload_size = __cpu_to_le32((u32)len);
 	mux_header->packet_type = __cpu_to_le16(packet_type[tty_index]);
 
-	memcpy(t->buf+MUX_HEADER_SIZE, data, len);
-	memset(t->buf+MUX_HEADER_SIZE+len, 0, total_len - MUX_HEADER_SIZE -
+	memcpy(t->buf + MUX_HEADER_SIZE, data, len);
+	memset(t->buf + MUX_HEADER_SIZE + len, 0, total_len - MUX_HEADER_SIZE -
 	       len);
 
 	t->len = total_len;

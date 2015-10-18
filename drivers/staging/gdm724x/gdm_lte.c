@@ -729,7 +729,7 @@ static void gdm_lte_multi_sdu_pkt(struct phy_dev *phy_dev, char *buf, int len)
 			pr_err("rx sdu invalid nic_type :%x\n", nic_type);
 		}
 
-		data += ((hci_len+3) & 0xfffc) + HCI_HEADER_SIZE;
+		data += ((hci_len + 3) & 0xfffc) + HCI_HEADER_SIZE;
 	}
 }
 
@@ -850,7 +850,7 @@ static void form_mac_address(u8 *dev_addr, u8 *nic_src, u8 *nic_dest,
 	/* The last byte of the mac address
 	 * should be less than or equal to 0xFC
 	 */
-	dev_addr[ETH_ALEN-1] += index;
+	dev_addr[ETH_ALEN - 1] += index;
 
 	/* Create random nic src and copy the first
 	 * 3 bytes to be the same as dev_addr
