@@ -323,7 +323,7 @@ int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len)
 	}
 
 	BT_INFO("%s: %s (%3.3u.%3.3u.%3.3u) build %4.4u", hdev->name,
-		hw_name ? : "BCM", (subver & 0x7000) >> 13,
+		hw_name ? : "BCM", (subver & 0xe000) >> 13,
 		(subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
 	return 0;
@@ -353,7 +353,7 @@ int btbcm_finalize(struct hci_dev *hdev)
 	kfree_skb(skb);
 
 	BT_INFO("%s: BCM (%3.3u.%3.3u.%3.3u) build %4.4u", hdev->name,
-		(subver & 0x7000) >> 13, (subver & 0x1f00) >> 8,
+		(subver & 0xe000) >> 13, (subver & 0x1f00) >> 8,
 		(subver & 0x00ff), rev & 0x0fff);
 
 	btbcm_check_bdaddr(hdev);
@@ -461,7 +461,7 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 	}
 
 	BT_INFO("%s: %s (%3.3u.%3.3u.%3.3u) build %4.4u", hdev->name,
-		hw_name ? : "BCM", (subver & 0x7000) >> 13,
+		hw_name ? : "BCM", (subver & 0xe000) >> 13,
 		(subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
 	err = request_firmware(&fw, fw_name, &hdev->dev);
@@ -490,7 +490,7 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 	kfree_skb(skb);
 
 	BT_INFO("%s: %s (%3.3u.%3.3u.%3.3u) build %4.4u", hdev->name,
-		hw_name ? : "BCM", (subver & 0x7000) >> 13,
+		hw_name ? : "BCM", (subver & 0xe000) >> 13,
 		(subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
 	/* Read Local Name */
