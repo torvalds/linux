@@ -529,6 +529,36 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 	struct mv_cesa_op_ctx *op;
 	int ret;
 
+	/*
+	 * If the transfer is smaller than our maximum length, and we have
+	 * some data outstanding, we can ask the engine to finish the hash.
+	 */
+	if (creq->len <= CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX && frag_len) {
+		op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl, frag_len,
+					  flags);
+		if (IS_ERR(op))
+			return op;
+
+		mv_cesa_set_mac_op_total_len(op, creq->len);
+		mv_cesa_update_op_cfg(op, mv_cesa_mac_op_is_first_frag(op) ?
+						CESA_SA_DESC_CFG_NOT_FRAG :
+						CESA_SA_DESC_CFG_LAST_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
+
+		return op;
+	}
+
+	/*
+	 * The request is longer than the engine can handle, or we have
+	 * no data outstanding. Manually generate the padding, adding it
+	 * as a "mid" fragment.
+	 */
+	ret = mv_cesa_ahash_dma_alloc_padding(ahashdreq, flags);
+	if (ret)
+		return ERR_PTR(ret);
+
+	trailerlen = mv_cesa_ahash_pad_req(creq, ahashdreq->padding);
+
 	if (frag_len) {
 		op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl, frag_len,
 					  flags);
@@ -537,23 +567,6 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 	} else {
 		op = NULL;
 	}
-
-	if (op && creq->len <= CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX) {
-		u32 frag = CESA_SA_DESC_CFG_NOT_FRAG;
-
-		if (!mv_cesa_mac_op_is_first_frag(op))
-			frag = CESA_SA_DESC_CFG_LAST_FRAG;
-
-		mv_cesa_update_op_cfg(op, frag, CESA_SA_DESC_CFG_FRAG_MSK);
-
-		return op;
-	}
-
-	ret = mv_cesa_ahash_dma_alloc_padding(ahashdreq, flags);
-	if (ret)
-		return ERR_PTR(ret);
-
-	trailerlen = mv_cesa_ahash_pad_req(creq, ahashdreq->padding);
 
 	if (op) {
 		len = min(CESA_SA_SRAM_PAYLOAD_SIZE - dma_iter->base.op_len,
