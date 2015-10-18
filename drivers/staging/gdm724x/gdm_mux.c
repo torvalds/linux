@@ -67,7 +67,7 @@ static struct mux_tx *alloc_mux_tx(int len)
 {
 	struct mux_tx *t = NULL;
 
-	t = kzalloc(sizeof(struct mux_tx), GFP_ATOMIC);
+	t = kzalloc(sizeof(*t), GFP_ATOMIC);
 	if (!t)
 		return NULL;
 
@@ -96,7 +96,7 @@ static struct mux_rx *alloc_mux_rx(void)
 {
 	struct mux_rx *r = NULL;
 
-	r = kzalloc(sizeof(struct mux_rx), GFP_KERNEL);
+	r = kzalloc(sizeof(*r), GFP_KERNEL);
 	if (!r)
 		return NULL;
 
@@ -526,11 +526,11 @@ static int gdm_mux_probe(struct usb_interface *intf,
 	if (bInterfaceNumber != 2)
 		return -ENODEV;
 
-	mux_dev = kzalloc(sizeof(struct mux_dev), GFP_KERNEL);
+	mux_dev = kzalloc(sizeof(*mux_dev), GFP_KERNEL);
 	if (!mux_dev)
 		return -ENOMEM;
 
-	tty_dev = kzalloc(sizeof(struct tty_dev), GFP_KERNEL);
+	tty_dev = kzalloc(sizeof(*tty_dev), GFP_KERNEL);
 	if (!tty_dev) {
 		ret = -ENOMEM;
 		goto err_free_mux;

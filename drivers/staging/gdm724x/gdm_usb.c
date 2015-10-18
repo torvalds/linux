@@ -92,7 +92,7 @@ static struct usb_tx *alloc_tx_struct(int len)
 	struct usb_tx *t = NULL;
 	int ret = 0;
 
-	t = kzalloc(sizeof(struct usb_tx), GFP_ATOMIC);
+	t = kzalloc(sizeof(*t), GFP_ATOMIC);
 	if (!t) {
 		ret = -ENOMEM;
 		goto out;
@@ -125,7 +125,7 @@ static struct usb_tx_sdu *alloc_tx_sdu_struct(void)
 {
 	struct usb_tx_sdu *t_sdu;
 
-	t_sdu = kzalloc(sizeof(struct usb_tx_sdu), GFP_KERNEL);
+	t_sdu = kzalloc(sizeof(*t_sdu), GFP_KERNEL);
 	if (!t_sdu)
 		return NULL;
 
@@ -183,7 +183,7 @@ static struct usb_rx *alloc_rx_struct(void)
 	struct usb_rx *r = NULL;
 	int ret = 0;
 
-	r = kmalloc(sizeof(struct usb_rx), GFP_KERNEL);
+	r = kmalloc(sizeof(*r), GFP_KERNEL);
 	if (!r) {
 		ret = -ENOMEM;
 		goto out;
@@ -830,11 +830,11 @@ static int gdm_usb_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	phy_dev = kzalloc(sizeof(struct phy_dev), GFP_KERNEL);
+	phy_dev = kzalloc(sizeof(*phy_dev), GFP_KERNEL);
 	if (!phy_dev)
 		return -ENOMEM;
 
-	udev = kzalloc(sizeof(struct lte_udev), GFP_KERNEL);
+	udev = kzalloc(sizeof(*udev), GFP_KERNEL);
 	if (!udev) {
 		ret = -ENOMEM;
 		goto err_udev;

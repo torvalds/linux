@@ -226,7 +226,7 @@ int register_lte_tty_device(struct tty_dev *tty_dev, struct device *device)
 
 	for (i = 0; i < TTY_MAX_COUNT; i++) {
 
-		gdm = kmalloc(sizeof(struct gdm), GFP_KERNEL);
+		gdm = kmalloc(sizeof(*gdm), GFP_KERNEL);
 		if (!gdm)
 			return -ENOMEM;
 
