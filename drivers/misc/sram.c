@@ -29,7 +29,7 @@
 #define SRAM_GRANULARITY	32
 
 struct sram_partition {
-	void *base;
+	void __iomem *base;
 
 	struct gen_pool *pool;
 	struct bin_attribute battr;
@@ -65,7 +65,7 @@ static ssize_t sram_read(struct file *filp, struct kobject *kobj,
 	part = container_of(attr, struct sram_partition, battr);
 
 	mutex_lock(&part->lock);
-	memcpy(buf, part->base + pos, count);
+	memcpy_fromio(buf, part->base + pos, count);
 	mutex_unlock(&part->lock);
 
 	return count;
@@ -80,7 +80,7 @@ static ssize_t sram_write(struct file *filp, struct kobject *kobj,
 	part = container_of(attr, struct sram_partition, battr);
 
 	mutex_lock(&part->lock);
-	memcpy(part->base + pos, buf, count);
+	memcpy_toio(part->base + pos, buf, count);
 	mutex_unlock(&part->lock);
 
 	return count;
