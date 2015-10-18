@@ -148,7 +148,7 @@ static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream,
 	}
 
 	pcm_channels = formation.pcm;
-	midi_ports = DIV_ROUND_UP(formation.midi, 8);
+	midi_ports = formation.midi * 8;
 
 	/* The stream should have one pcm channels at least */
 	if (pcm_channels == 0) {
