@@ -322,7 +322,7 @@ struct sptlrpc_rule_set {
 };
 
 int sptlrpc_parse_flavor(const char *str, struct sptlrpc_flavor *flvr);
-int sptlrpc_flavor_has_bulk(struct sptlrpc_flavor *flvr);
+bool sptlrpc_flavor_has_bulk(struct sptlrpc_flavor *flvr);
 
 static inline void sptlrpc_rule_set_init(struct sptlrpc_rule_set *set)
 {

@@ -2261,14 +2261,14 @@ EXPORT_SYMBOL(sec2target_str);
 /*
  * return true if the bulk data is protected
  */
-int sptlrpc_flavor_has_bulk(struct sptlrpc_flavor *flvr)
+bool sptlrpc_flavor_has_bulk(struct sptlrpc_flavor *flvr)
 {
 	switch (SPTLRPC_FLVR_BULK_SVC(flvr->sf_rpc)) {
 	case SPTLRPC_BULK_SVC_INTG:
 	case SPTLRPC_BULK_SVC_PRIV:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 EXPORT_SYMBOL(sptlrpc_flavor_has_bulk);
