@@ -41,6 +41,7 @@ static const struct spi_device_id ad193x_spi_id[] = {
 	{ "ad1934", AD1934 },
 	{ "ad1938", AD193X },
 	{ "ad1939", AD193X },
+	{ "adau1328", AD193X },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad193x_spi_id);
