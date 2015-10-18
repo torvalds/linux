@@ -629,6 +629,9 @@ end:
 int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 {
 	u8 plugs[AVC_PLUG_INFO_BUF_BYTES];
+	struct snd_oxfw_stream_formation formation;
+	u8 *format;
+	unsigned int i;
 	int err;
 
 	/* the number of plugs for isoc in/out, ext in/out  */
@@ -648,12 +651,42 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 		err = fill_stream_formats(oxfw, AVC_GENERAL_PLUG_DIR_OUT, 0);
 		if (err < 0)
 			goto end;
+
+		for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+			format = oxfw->tx_stream_formats[i];
+			if (format == NULL)
+				continue;
+			err = snd_oxfw_stream_parse_format(format, &formation);
+			if (err < 0)
+				continue;
+
+			/* Add one MIDI port. */
+			if (formation.midi > 0)
+				oxfw->midi_input_ports = 1;
+		}
+
 		oxfw->has_output = true;
 	}
 
 	/* use iPCR[0] if exists */
-	if (plugs[0] > 0)
+	if (plugs[0] > 0) {
 		err = fill_stream_formats(oxfw, AVC_GENERAL_PLUG_DIR_IN, 0);
+		if (err < 0)
+			goto end;
+
+		for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+			format = oxfw->rx_stream_formats[i];
+			if (format == NULL)
+				continue;
+			err = snd_oxfw_stream_parse_format(format, &formation);
+			if (err < 0)
+				continue;
+
+			/* Add one MIDI port. */
+			if (formation.midi > 0)
+				oxfw->midi_output_ports = 1;
+		}
+	}
 end:
 	return err;
 }
