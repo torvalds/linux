@@ -527,6 +527,15 @@ int btbcm_setup_apple(struct hci_dev *hdev)
 		kfree_skb(skb);
 	}
 
+	/* Read USB Product Info */
+	skb = btbcm_read_usb_product(hdev);
+	if (!IS_ERR(skb)) {
+		BT_INFO("%s: BCM: product %4.4x:%4.4x", hdev->name,
+			get_unaligned_le16(skb->data + 1),
+			get_unaligned_le16(skb->data + 3));
+		kfree_skb(skb);
+	}
+
 	/* Read Local Name */
 	skb = btbcm_read_local_name(hdev);
 	if (!IS_ERR(skb)) {
