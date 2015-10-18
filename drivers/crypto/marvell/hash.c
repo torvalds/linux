@@ -602,6 +602,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 	struct mv_cesa_tdma_chain chain;
 	struct mv_cesa_ahash_dma_iter iter;
 	struct mv_cesa_op_ctx *op = NULL;
+	unsigned int frag_len;
 	int ret;
 
 	dreq->chain.first = NULL;
@@ -631,25 +632,34 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		/*
 		 * Add all the new data, inserting an operation block and
 		 * launch command between each full SRAM block-worth of
-		 * data.
+		 * data. We intentionally do not add the final op block.
 		 */
-		do {
+		while (true) {
 			ret = mv_cesa_dma_add_op_transfers(&chain, &iter.base,
 							   &iter.src, flags);
 			if (ret)
 				goto err_free_tdma;
 
+			frag_len = iter.base.op_len;
+
+			if (!mv_cesa_ahash_req_iter_next_op(&iter))
+				break;
+
 			op = mv_cesa_dma_add_frag(&chain, &creq->op_tmpl,
-						  iter.base.op_len, flags);
+						  frag_len, flags);
 			if (IS_ERR(op)) {
 				ret = PTR_ERR(op);
 				goto err_free_tdma;
 			}
-		} while (mv_cesa_ahash_req_iter_next_op(&iter));
-	} else if (iter.base.op_len) {
+		}
+	} else {
 		/* Account for the data that was in the cache. */
-		op = mv_cesa_dma_add_frag(&chain, &creq->op_tmpl,
-					  iter.base.op_len, flags);
+		frag_len = iter.base.op_len;
+	}
+
+	if (frag_len) {
+		op = mv_cesa_dma_add_frag(&chain, &creq->op_tmpl, frag_len,
+					  flags);
 		if (IS_ERR(op)) {
 			ret = PTR_ERR(op);
 			goto err_free_tdma;
