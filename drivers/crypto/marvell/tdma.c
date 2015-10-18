@@ -69,7 +69,7 @@ void mv_cesa_dma_cleanup(struct mv_cesa_tdma_req *dreq)
 
 		tdma = tdma->next;
 		dma_pool_free(cesa_dev->dma->tdma_desc_pool, old_tdma,
-			      le32_to_cpu(old_tdma->cur_dma));
+			      old_tdma->cur_dma);
 	}
 
 	dreq->chain.first = NULL;
@@ -105,9 +105,9 @@ mv_cesa_dma_add_desc(struct mv_cesa_tdma_chain *chain, gfp_t flags)
 		return ERR_PTR(-ENOMEM);
 
 	memset(new_tdma, 0, sizeof(*new_tdma));
-	new_tdma->cur_dma = cpu_to_le32(dma_handle);
+	new_tdma->cur_dma = dma_handle;
 	if (chain->last) {
-		chain->last->next_dma = new_tdma->cur_dma;
+		chain->last->next_dma = cpu_to_le32(dma_handle);
 		chain->last->next = new_tdma;
 	} else {
 		chain->first = new_tdma;

@@ -297,7 +297,9 @@ struct mv_cesa_tdma_desc {
 	u32 src;
 	u32 dst;
 	u32 next_dma;
-	u32 cur_dma;
+
+	/* Software state */
+	dma_addr_t cur_dma;
 	struct mv_cesa_tdma_desc *next;
 	union {
 		struct mv_cesa_op_ctx *op;
