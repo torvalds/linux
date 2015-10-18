@@ -27,10 +27,10 @@ mv_cesa_ahash_req_iter_init(struct mv_cesa_ahash_dma_iter *iter,
 			    struct ahash_request *req)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
-	unsigned int len = req->nbytes;
+	unsigned int len = req->nbytes + creq->cache_ptr;
 
 	if (!creq->last_req)
-		len = (len + creq->cache_ptr) & ~CESA_HASH_BLOCK_SIZE_MSK;
+		len &= ~CESA_HASH_BLOCK_SIZE_MSK;
 
 	mv_cesa_req_dma_iter_init(&iter->base, len);
 	mv_cesa_sg_dma_iter_init(&iter->src, req->src, DMA_TO_DEVICE);
@@ -646,10 +646,10 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 				goto err_free_tdma;
 			}
 		} while (mv_cesa_ahash_req_iter_next_op(&iter));
-	} else if (creq->cache_ptr) {
+	} else if (iter.base.op_len) {
 		/* Account for the data that was in the cache. */
 		op = mv_cesa_dma_add_frag(&chain, &creq->op_tmpl,
-					  creq->cache_ptr, flags);
+					  iter.base.op_len, flags);
 		if (IS_ERR(op)) {
 			ret = PTR_ERR(op);
 			goto err_free_tdma;
