@@ -206,7 +206,7 @@ static int nouveau_dsm_get_client_id(struct pci_dev *pdev)
 	return VGA_SWITCHEROO_DIS;
 }
 
-static struct vga_switcheroo_handler nouveau_dsm_handler = {
+static const struct vga_switcheroo_handler nouveau_dsm_handler = {
 	.switchto = nouveau_dsm_switchto,
 	.power_state = nouveau_dsm_power_state,
 	.get_client_id = nouveau_dsm_get_client_id,

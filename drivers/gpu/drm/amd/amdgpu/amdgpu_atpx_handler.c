@@ -501,7 +501,7 @@ static int amdgpu_atpx_get_client_id(struct pci_dev *pdev)
 		return VGA_SWITCHEROO_DIS;
 }
 
-static struct vga_switcheroo_handler amdgpu_atpx_handler = {
+static const struct vga_switcheroo_handler amdgpu_atpx_handler = {
 	.switchto = amdgpu_atpx_switchto,
 	.power_state = amdgpu_atpx_power_state,
 	.init = amdgpu_atpx_init,
