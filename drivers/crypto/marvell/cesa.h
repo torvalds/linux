@@ -686,6 +686,12 @@ static inline u32 mv_cesa_get_int_mask(struct mv_cesa_engine *engine)
 	return engine->int_mask;
 }
 
+static inline bool mv_cesa_mac_op_is_first_frag(const struct mv_cesa_op_ctx *op)
+{
+	return (mv_cesa_get_op_cfg(op) & CESA_SA_DESC_CFG_FRAG_MSK) ==
+		CESA_SA_DESC_CFG_FIRST_FRAG;
+}
+
 int mv_cesa_queue_req(struct crypto_async_request *req);
 
 /* TDMA functions */

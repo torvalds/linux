@@ -524,8 +524,7 @@ mv_cesa_ahash_dma_add_data(struct mv_cesa_tdma_chain *chain,
 
 	mv_cesa_set_mac_op_frag_len(op, dma_iter->base.op_len);
 
-	if ((mv_cesa_get_op_cfg(&creq->op_tmpl) & CESA_SA_DESC_CFG_FRAG_MSK) ==
-	    CESA_SA_DESC_CFG_FIRST_FRAG)
+	if (mv_cesa_mac_op_is_first_frag(&creq->op_tmpl))
 		mv_cesa_update_op_cfg(&creq->op_tmpl,
 				      CESA_SA_DESC_CFG_MID_FRAG,
 				      CESA_SA_DESC_CFG_FRAG_MSK);
@@ -561,8 +560,7 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 	if (op && creq->len <= CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX) {
 		u32 frag = CESA_SA_DESC_CFG_NOT_FRAG;
 
-		if ((mv_cesa_get_op_cfg(op) & CESA_SA_DESC_CFG_FRAG_MSK) !=
-		    CESA_SA_DESC_CFG_FIRST_FRAG)
+		if (!mv_cesa_mac_op_is_first_frag(op))
 			frag = CESA_SA_DESC_CFG_LAST_FRAG;
 
 		mv_cesa_update_op_cfg(op, frag, CESA_SA_DESC_CFG_FRAG_MSK);
@@ -600,8 +598,7 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 	if (padoff >= trailerlen)
 		return op;
 
-	if ((mv_cesa_get_op_cfg(&creq->op_tmpl) & CESA_SA_DESC_CFG_FRAG_MSK) !=
-	    CESA_SA_DESC_CFG_FIRST_FRAG)
+	if (!mv_cesa_mac_op_is_first_frag(&creq->op_tmpl))
 		mv_cesa_update_op_cfg(&creq->op_tmpl,
 				      CESA_SA_DESC_CFG_MID_FRAG,
 				      CESA_SA_DESC_CFG_FRAG_MSK);
