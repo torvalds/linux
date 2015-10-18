@@ -134,6 +134,15 @@ struct caam_hash_state {
 	int current_buf;
 };
 
+struct caam_export_state {
+	u8 buf[CAAM_MAX_HASH_BLOCK_SIZE];
+	u8 caam_ctx[MAX_CTX_LEN];
+	int buflen;
+	int (*update)(struct ahash_request *req);
+	int (*final)(struct ahash_request *req);
+	int (*finup)(struct ahash_request *req);
+};
+
 /* Common job descriptor seq in/out ptr routines */
 
 /* Map state->caam_ctx, and append seq_out_ptr command that points to it */
@@ -1553,20 +1562,41 @@ static int ahash_final(struct ahash_request *req)
 
 static int ahash_export(struct ahash_request *req, void *out)
 {
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_state *state = ahash_request_ctx(req);
+	struct caam_export_state *export = out;
+	int len;
+	u8 *buf;
 
-	memcpy(out, state, sizeof(struct caam_hash_state));
+	if (state->current_buf) {
+		buf = state->buf_1;
+		len = state->buflen_1;
+	} else {
+		buf = state->buf_0;
+		len = state->buflen_1;
+	}
+
+	memcpy(export->buf, buf, len);
+	memcpy(export->caam_ctx, state->caam_ctx, sizeof(export->caam_ctx));
+	export->buflen = len;
+	export->update = state->update;
+	export->final = state->final;
+	export->finup = state->finup;
 
 	return 0;
 }
 
 static int ahash_import(struct ahash_request *req, const void *in)
 {
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_state *state = ahash_request_ctx(req);
+	const struct caam_export_state *export = in;
 
-	memcpy(state, in, sizeof(struct caam_hash_state));
+	memset(state, 0, sizeof(*state));
+	memcpy(state->buf_0, export->buf, export->buflen);
+	memcpy(state->caam_ctx, export->caam_ctx, sizeof(state->caam_ctx));
+	state->buflen_0 = export->buflen;
+	state->update = export->update;
+	state->final = export->final;
+	state->finup = export->finup;
 
 	return 0;
 }
@@ -1601,6 +1631,7 @@ static struct caam_hash_template driver_hash[] = {
 			.setkey = ahash_setkey,
 			.halg = {
 				.digestsize = SHA1_DIGEST_SIZE,
+				.statesize = sizeof(struct caam_export_state),
 				},
 			},
 		.alg_type = OP_ALG_ALGSEL_SHA1,
@@ -1622,6 +1653,7 @@ static struct caam_hash_template driver_hash[] = {
 			.setkey = ahash_setkey,
 			.halg = {
 				.digestsize = SHA224_DIGEST_SIZE,
+				.statesize = sizeof(struct caam_export_state),
 				},
 			},
 		.alg_type = OP_ALG_ALGSEL_SHA224,
@@ -1643,6 +1675,7 @@ static struct caam_hash_template driver_hash[] = {
 			.setkey = ahash_setkey,
 			.halg = {
 				.digestsize = SHA256_DIGEST_SIZE,
+				.statesize = sizeof(struct caam_export_state),
 				},
 			},
 		.alg_type = OP_ALG_ALGSEL_SHA256,
@@ -1664,6 +1697,7 @@ static struct caam_hash_template driver_hash[] = {
 			.setkey = ahash_setkey,
 			.halg = {
 				.digestsize = SHA384_DIGEST_SIZE,
+				.statesize = sizeof(struct caam_export_state),
 				},
 			},
 		.alg_type = OP_ALG_ALGSEL_SHA384,
@@ -1685,6 +1719,7 @@ static struct caam_hash_template driver_hash[] = {
 			.setkey = ahash_setkey,
 			.halg = {
 				.digestsize = SHA512_DIGEST_SIZE,
+				.statesize = sizeof(struct caam_export_state),
 				},
 			},
 		.alg_type = OP_ALG_ALGSEL_SHA512,
@@ -1706,6 +1741,7 @@ static struct caam_hash_template driver_hash[] = {
 			.setkey = ahash_setkey,
 			.halg = {
 				.digestsize = MD5_DIGEST_SIZE,
+				.statesize = sizeof(struct caam_export_state),
 				},
 			},
 		.alg_type = OP_ALG_ALGSEL_MD5,
