@@ -179,7 +179,6 @@ static int mv_cesa_ahash_pad_len(struct mv_cesa_ahash_req *creq)
 
 static int mv_cesa_ahash_pad_req(struct mv_cesa_ahash_req *creq, u8 *buf)
 {
-	__be64 bits = cpu_to_be64(creq->len << 3);
 	unsigned int index, padlen;
 
 	buf[0] = 0x80;
@@ -187,7 +186,14 @@ static int mv_cesa_ahash_pad_req(struct mv_cesa_ahash_req *creq, u8 *buf)
 	index = creq->len & CESA_HASH_BLOCK_SIZE_MSK;
 	padlen = mv_cesa_ahash_pad_len(creq);
 	memset(buf + 1, 0, padlen - 1);
-	memcpy(buf + padlen, &bits, sizeof(bits));
+
+	if (creq->algo_le) {
+		__le64 bits = cpu_to_le64(creq->len << 3);
+		memcpy(buf + padlen, &bits, sizeof(bits));
+	} else {
+		__be64 bits = cpu_to_be64(creq->len << 3);
+		memcpy(buf + padlen, &bits, sizeof(bits));
+	}
 
 	return padlen + 8;
 }
