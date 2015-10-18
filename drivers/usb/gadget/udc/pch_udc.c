@@ -330,7 +330,7 @@ struct pch_vbus_gpio_data {
  * @prot_stall:		protcol stall requested
  * @irq_registered:	irq registered with system
  * @mem_region:		device memory mapped
- * @registered:		driver regsitered with system
+ * @registered:		driver registered with system
  * @suspended:		driver in suspended state
  * @connected:		gadget driver associated
  * @vbus_session:	required vbus_session state
