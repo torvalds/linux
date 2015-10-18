@@ -559,38 +559,30 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 
 	trailerlen = mv_cesa_ahash_pad_req(creq, ahashdreq->padding);
 
-	if (frag_len) {
-		op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl, frag_len,
-					  flags);
-		if (IS_ERR(op))
-			return op;
-	} else {
-		op = NULL;
-	}
-
-	if (op) {
-		len = min(CESA_SA_SRAM_PAYLOAD_SIZE - dma_iter->base.op_len,
-			  trailerlen);
-		if (len) {
-			ret = mv_cesa_dma_add_data_transfer(chain,
+	len = min(CESA_SA_SRAM_PAYLOAD_SIZE - frag_len, trailerlen);
+	if (len) {
+		ret = mv_cesa_dma_add_data_transfer(chain,
 						CESA_SA_DATA_SRAM_OFFSET +
-						dma_iter->base.op_len,
+						frag_len,
 						ahashdreq->padding_dma,
 						len, CESA_TDMA_DST_IN_SRAM,
 						flags);
-			if (ret)
-				return ERR_PTR(ret);
+		if (ret)
+			return ERR_PTR(ret);
 
-			mv_cesa_update_op_cfg(op, CESA_SA_DESC_CFG_MID_FRAG,
-					      CESA_SA_DESC_CFG_FRAG_MSK);
-			mv_cesa_set_mac_op_frag_len(op,
-					dma_iter->base.op_len + len);
-			padoff += len;
-		}
+		op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl, frag_len + len,
+					  flags);
+		if (IS_ERR(op))
+			return op;
+
+		mv_cesa_update_op_cfg(op, CESA_SA_DESC_CFG_MID_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
+
+		if (len == trailerlen)
+			return op;
+
+		padoff += len;
 	}
-
-	if (padoff >= trailerlen)
-		return op;
 
 	if (!mv_cesa_mac_op_is_first_frag(&creq->op_tmpl))
 		mv_cesa_update_op_cfg(&creq->op_tmpl,
