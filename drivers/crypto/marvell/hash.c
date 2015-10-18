@@ -805,7 +805,7 @@ static int mv_cesa_ahash_export(struct ahash_request *req, void *hash,
 	unsigned int digsize = crypto_ahash_digestsize(ahash);
 	unsigned int blocksize;
 
-	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(ahash));
+	blocksize = crypto_ahash_blocksize(ahash);
 
 	*len = creq->len;
 	memcpy(hash, creq->state, digsize);
@@ -830,7 +830,7 @@ static int mv_cesa_ahash_import(struct ahash_request *req, const void *hash,
 	if (ret)
 		return ret;
 
-	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(ahash));
+	blocksize = crypto_ahash_blocksize(ahash);
 	if (len >= blocksize)
 		mv_cesa_update_op_cfg(&creq->op_tmpl,
 				      CESA_SA_DESC_CFG_MID_FRAG,
