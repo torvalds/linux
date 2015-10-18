@@ -48,7 +48,6 @@ static const struct usb_device_id id_table[] = {
 	{}
 };
 
-
 MODULE_DEVICE_TABLE(usb, id_table);
 
 static int packet_type_to_index(u16 packetType)
@@ -149,7 +148,6 @@ static void put_rx_struct(struct rx_cxt *rx, struct mux_rx *r)
 	list_add_tail(&r->free_list, &rx->rx_free_list);
 	spin_unlock_irqrestore(&rx->free_list_lock, flags);
 }
-
 
 static int up_to_host(struct mux_rx *r)
 {
@@ -474,7 +472,6 @@ static void release_usb(struct mux_dev *mux_dev)
 	spin_unlock_irqrestore(&rx->to_host_lock, flags);
 }
 
-
 static int init_usb(struct mux_dev *mux_dev)
 {
 	struct mux_rx *r;
@@ -611,7 +608,6 @@ static int gdm_mux_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	}
 
 	mux_dev->usb_state = PM_SUSPEND;
-
 
 	spin_lock_irqsave(&rx->submit_list_lock, flags);
 	list_for_each_entry_safe(r, r_next, &rx->rx_submit_list,
