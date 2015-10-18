@@ -347,18 +347,21 @@ static int mv_cesa_ahash_process(struct crypto_async_request *req, u32 status)
 				   ahashreq->nbytes - creq->cache_ptr);
 
 	if (creq->last_req) {
-		for (i = 0; i < digsize / 4; i++) {
-			/*
-			 * Hardware provides MD5 digest in a different
-			 * endianness than SHA-1 and SHA-256 ones.
-			 */
-			if (digsize == MD5_DIGEST_SIZE)
-				creq->state[i] = cpu_to_le32(creq->state[i]);
-			else
-				creq->state[i] = cpu_to_be32(creq->state[i]);
-		}
+		/*
+		 * Hardware's MD5 digest is in little endian format, but
+		 * SHA in big endian format
+		 */
+		if (digsize == MD5_DIGEST_SIZE) {
+			__le32 *result = (void *)ahashreq->result;
 
-		memcpy(ahashreq->result, creq->state, digsize);
+			for (i = 0; i < digsize / 4; i++)
+				result[i] = cpu_to_le32(creq->state[i]);
+		} else {
+			__be32 *result = (void *)ahashreq->result;
+
+			for (i = 0; i < digsize / 4; i++)
+				result[i] = cpu_to_be32(creq->state[i]);
+		}
 	}
 
 	return ret;

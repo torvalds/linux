@@ -612,7 +612,7 @@ struct mv_cesa_ahash_req {
 	u64 len;
 	int src_nents;
 	bool last_req;
-	__be32 state[8];
+	u32 state[8];
 };
 
 /* CESA functions */
