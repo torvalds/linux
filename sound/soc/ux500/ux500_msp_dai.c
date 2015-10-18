@@ -522,9 +522,9 @@ static int ux500_msp_dai_hw_params(struct snd_pcm_substream *substream,
 		slots_active = hweight32(mask);
 		dev_dbg(dai->dev, "TDM-slots active: %d", slots_active);
 
-		snd_pcm_hw_constraint_minmax(runtime,
+		snd_pcm_hw_constraint_single(runtime,
 				SNDRV_PCM_HW_PARAM_CHANNELS,
-				slots_active, slots_active);
+				slots_active);
 		break;
 
 	default:
