@@ -32,7 +32,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 

@@ -33,7 +33,6 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"
