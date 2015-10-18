@@ -1477,7 +1477,7 @@ xfs_fs_fill_super(
 	/* Allocate stats memory before we do operations that might use it */
 	mp->m_stats.xs_stats = alloc_percpu(struct xfsstats);
 	if (!mp->m_stats.xs_stats) {
-		error = PTR_ERR(mp->m_stats.xs_stats);
+		error = -ENOMEM;
 		goto out_destroy_counters;
 	}
 
