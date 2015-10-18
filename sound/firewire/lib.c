@@ -74,7 +74,11 @@ static void async_midi_port_callback(struct fw_card *card, int rcode,
 	struct snd_fw_async_midi_port *port = callback_data;
 	struct snd_rawmidi_substream *substream = ACCESS_ONCE(port->substream);
 
-	if (rcode == RCODE_COMPLETE && substream != NULL)
+	/* This port is closed. */
+	if (substream == NULL)
+		return;
+
+	if (rcode == RCODE_COMPLETE)
 		snd_rawmidi_transmit_ack(substream, port->consume_bytes);
 	else if (!rcode_is_permanent_error(rcode))
 		/* To start next transaction immediately for recovery. */
