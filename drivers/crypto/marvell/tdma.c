@@ -126,6 +126,7 @@ struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
 	struct mv_cesa_tdma_desc *tdma;
 	struct mv_cesa_op_ctx *op;
 	dma_addr_t dma_handle;
+	unsigned int size;
 
 	tdma = mv_cesa_dma_add_desc(chain, flags);
 	if (IS_ERR(tdma))
@@ -137,9 +138,11 @@ struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
 
 	*op = *op_templ;
 
+	size = skip_ctx ? sizeof(op->desc) : sizeof(*op);
+
 	tdma = chain->last;
 	tdma->op = op;
-	tdma->byte_cnt = (skip_ctx ? sizeof(op->desc) : sizeof(*op)) | BIT(31);
+	tdma->byte_cnt = cpu_to_le32(size | BIT(31));
 	tdma->src = cpu_to_le32(dma_handle);
 	tdma->flags = CESA_TDMA_DST_IN_SRAM | CESA_TDMA_OP;
 
@@ -156,7 +159,7 @@ int mv_cesa_dma_add_data_transfer(struct mv_cesa_tdma_chain *chain,
 	if (IS_ERR(tdma))
 		return PTR_ERR(tdma);
 
-	tdma->byte_cnt = size | BIT(31);
+	tdma->byte_cnt = cpu_to_le32(size | BIT(31));
 	tdma->src = src;
 	tdma->dst = dst;
 
@@ -185,7 +188,7 @@ int mv_cesa_dma_add_dummy_end(struct mv_cesa_tdma_chain *chain, gfp_t flags)
 	if (IS_ERR(tdma))
 		return PTR_ERR(tdma);
 
-	tdma->byte_cnt = BIT(31);
+	tdma->byte_cnt = cpu_to_le32(BIT(31));
 
 	return 0;
 }

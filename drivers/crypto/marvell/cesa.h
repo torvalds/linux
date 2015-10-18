@@ -174,19 +174,19 @@
 
 #define CESA_SA_DESC_MAC_DATA(offset)					\
 	cpu_to_le32(CESA_SA_DATA_SRAM_OFFSET + (offset))
-#define CESA_SA_DESC_MAC_DATA_MSK		GENMASK(15, 0)
+#define CESA_SA_DESC_MAC_DATA_MSK		cpu_to_le32(GENMASK(15, 0))
 
 #define CESA_SA_DESC_MAC_TOTAL_LEN(total_len)	cpu_to_le32((total_len) << 16)
-#define CESA_SA_DESC_MAC_TOTAL_LEN_MSK		GENMASK(31, 16)
+#define CESA_SA_DESC_MAC_TOTAL_LEN_MSK		cpu_to_le32(GENMASK(31, 16))
 
 #define CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX	0xffff
 
 #define CESA_SA_DESC_MAC_DIGEST(offset)					\
 	cpu_to_le32(CESA_SA_MAC_DIG_SRAM_OFFSET + (offset))
-#define CESA_SA_DESC_MAC_DIGEST_MSK		GENMASK(15, 0)
+#define CESA_SA_DESC_MAC_DIGEST_MSK		cpu_to_le32(GENMASK(15, 0))
 
 #define CESA_SA_DESC_MAC_FRAG_LEN(frag_len)	cpu_to_le32((frag_len) << 16)
-#define CESA_SA_DESC_MAC_FRAG_LEN_MSK		GENMASK(31, 16)
+#define CESA_SA_DESC_MAC_FRAG_LEN_MSK		cpu_to_le32(GENMASK(31, 16))
 
 #define CESA_SA_DESC_MAC_IV(offset)					\
 	cpu_to_le32((CESA_SA_MAC_IIV_SRAM_OFFSET + (offset)) |		\
@@ -219,14 +219,14 @@
  * to be executed.
  */
 struct mv_cesa_sec_accel_desc {
-	u32 config;
-	u32 enc_p;
-	u32 enc_len;
-	u32 enc_key_p;
-	u32 enc_iv;
-	u32 mac_src_p;
-	u32 mac_digest;
-	u32 mac_iv;
+	__le32 config;
+	__le32 enc_p;
+	__le32 enc_len;
+	__le32 enc_key_p;
+	__le32 enc_iv;
+	__le32 mac_src_p;
+	__le32 mac_digest;
+	__le32 mac_iv;
 };
 
 /**
@@ -293,10 +293,10 @@ struct mv_cesa_op_ctx {
  * operation.
  */
 struct mv_cesa_tdma_desc {
-	u32 byte_cnt;
-	u32 src;
-	u32 dst;
-	u32 next_dma;
+	__le32 byte_cnt;
+	__le32 src;
+	__le32 dst;
+	__le32 next_dma;
 
 	/* Software state */
 	dma_addr_t cur_dma;
