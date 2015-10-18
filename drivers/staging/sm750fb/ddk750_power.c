@@ -108,7 +108,7 @@ void setCurrentGate(unsigned int gate)
  */
 void enable2DEngine(unsigned int enable)
 {
-	uint32_t gate;
+	u32 gate;
 
 	gate = PEEK32(CURRENT_GATE);
 	if (enable) {
@@ -124,7 +124,7 @@ void enable2DEngine(unsigned int enable)
 
 void enableDMA(unsigned int enable)
 {
-	uint32_t gate;
+	u32 gate;
 
 	/* Enable DMA Gate */
 	gate = PEEK32(CURRENT_GATE);
@@ -141,7 +141,7 @@ void enableDMA(unsigned int enable)
  */
 void enableGPIO(unsigned int enable)
 {
-	uint32_t gate;
+	u32 gate;
 
 	/* Enable GPIO Gate */
 	gate = PEEK32(CURRENT_GATE);
@@ -158,7 +158,7 @@ void enableGPIO(unsigned int enable)
  */
 void enableI2C(unsigned int enable)
 {
-	uint32_t gate;
+	u32 gate;
 
 	/* Enable I2C Gate */
 	gate = PEEK32(CURRENT_GATE);
