@@ -627,7 +627,7 @@ static inline void mv_cesa_update_op_cfg(struct mv_cesa_op_ctx *op,
 	op->desc.config |= cpu_to_le32(cfg);
 }
 
-static inline u32 mv_cesa_get_op_cfg(struct mv_cesa_op_ctx *op)
+static inline u32 mv_cesa_get_op_cfg(const struct mv_cesa_op_ctx *op)
 {
 	return le32_to_cpu(op->desc.config);
 }
