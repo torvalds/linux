@@ -63,7 +63,7 @@ static void do_rx(struct work_struct *work);
 
 static int gdm_usb_recv(void *priv_dev,
 			int (*cb)(void *cb_data,
-				void *data, int len, int context),
+				  void *data, int len, int context),
 			void *cb_data,
 			int context);
 
@@ -80,7 +80,7 @@ static int request_mac_address(struct lte_udev *udev)
 	hci->data[0] = MAC_ADDRESS;
 
 	ret = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 2), buf, 5,
-		     &actual, 1000);
+			   &actual, 1000);
 
 	udev->request_mac_addr = 1;
 
@@ -376,7 +376,7 @@ static int set_mac_address(u8 *data, void *arg)
 		memcpy(mac_address, tlv->data, tlv->len);
 
 		if (register_lte_device(phy_dev,
-				&udev->intf->dev, mac_address) < 0)
+					&udev->intf->dev, mac_address) < 0)
 			pr_err("register lte device failed\n");
 
 		udev->request_mac_addr = 0;
@@ -406,7 +406,7 @@ static void do_rx(struct work_struct *work)
 			break;
 		}
 		r = list_entry(rx->to_host_list.next,
-			struct usb_rx, to_host_list);
+			       struct usb_rx, to_host_list);
 		list_del(&r->to_host_list);
 		spin_unlock_irqrestore(&rx->to_host_lock, flags);
 
@@ -481,7 +481,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 	} else {
 		if (urb->status && udev->usb_state == PM_NORMAL)
 			dev_err(&urb->dev->dev, "%s: urb status error %d\n",
-			       __func__, urb->status);
+				__func__, urb->status);
 
 		put_rx_struct(rx, r);
 	}
@@ -491,7 +491,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 
 static int gdm_usb_recv(void *priv_dev,
 			int (*cb)(void *cb_data,
-				void *data, int len, int context),
+				  void *data, int len, int context),
 			void *cb_data,
 			int context)
 {
@@ -711,8 +711,8 @@ static void do_tx(struct work_struct *work)
 
 #define SDU_PARAM_LEN 12
 static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
-				unsigned int dftEpsId, unsigned int epsId,
-				void (*cb)(void *data), void *cb_data,
+			    unsigned int dftEpsId, unsigned int epsId,
+			    void (*cb)(void *data), void *cb_data,
 			    int dev_idx, int nic_type)
 {
 	struct lte_udev *udev = priv_dev;
@@ -769,7 +769,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 }
 
 static int gdm_usb_hci_send(void *priv_dev, void *data, int len,
-			void (*cb)(void *data), void *cb_data)
+			    void (*cb)(void *data), void *cb_data)
 {
 	struct lte_udev *udev = priv_dev;
 	struct tx_cxt *tx = &udev->tx;
@@ -810,7 +810,7 @@ static struct gdm_endian *gdm_usb_get_endian(void *priv_dev)
 }
 
 static int gdm_usb_probe(struct usb_interface *intf,
-	const struct usb_device_id *id)
+			 const struct usb_device_id *id)
 {
 	int ret = 0;
 	struct phy_dev *phy_dev = NULL;

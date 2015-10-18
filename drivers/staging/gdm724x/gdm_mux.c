@@ -271,7 +271,7 @@ static void gdm_mux_rcv_complete(struct urb *urb)
 	if (urb->status) {
 		if (mux_dev->usb_state == PM_NORMAL)
 			dev_err(&urb->dev->dev, "%s: urb status error %d\n",
-			       __func__, urb->status);
+				__func__, urb->status);
 		put_rx_struct(rx, r);
 	} else {
 		r->len = r->urb->actual_length;
