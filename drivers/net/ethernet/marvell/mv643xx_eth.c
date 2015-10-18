@@ -759,11 +759,23 @@ txq_put_data_tso(struct net_device *dev, struct tx_queue *txq,
 
 	desc->l4i_chk = 0;
 	desc->byte_cnt = length;
-	desc->buf_ptr = dma_map_single(dev->dev.parent, data,
-				       length, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(dev->dev.parent, desc->buf_ptr))) {
-		WARN(1, "dma_map_single failed!\n");
-		return -ENOMEM;
+
+	if (length <= 8 && (uintptr_t)data & 0x7) {
+		/* Copy unaligned small data fragment to TSO header data area */
+		memcpy(txq->tso_hdrs + txq->tx_curr_desc * TSO_HEADER_SIZE,
+		       data, length);
+		desc->buf_ptr = txq->tso_hdrs_dma
+			+ txq->tx_curr_desc * TSO_HEADER_SIZE;
+	} else {
+		/* Alignment is okay, map buffer and hand off to hardware */
+		txq->tx_desc_mapping[tx_index] = DESC_DMA_MAP_SINGLE;
+		desc->buf_ptr = dma_map_single(dev->dev.parent, data,
+			length, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(dev->dev.parent,
+					       desc->buf_ptr))) {
+			WARN(1, "dma_map_single failed!\n");
+			return -ENOMEM;
+		}
 	}
 
 	cmd_sts = BUFFER_OWNED_BY_DMA;
