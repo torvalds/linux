@@ -1267,7 +1267,7 @@ static int _nbu2ss_start_transfer(
 		/* EPn */
 		if (ep->direct == USB_DIR_OUT) {
 			/* OUT */
-			if (bflag == FALSE)
+			if (!bflag)
 				nret = _nbu2ss_epn_out_transfer(udc, ep, req);
 		} else {
 			/* IN */
@@ -1509,7 +1509,7 @@ static inline int _nbu2ss_req_feature(struct nbu2ss_udc *udc, bool bset)
 		if (0x0000 == (wIndex & 0xFF70)) {
 			if (selector == USB_ENDPOINT_HALT) {
 				ep_adrs = wIndex & 0xFF;
-				if (bset == FALSE) {
+				if (!bset) {
 					_nbu2ss_endpoint_toggle_reset(
 						udc, ep_adrs);
 				}
@@ -1756,7 +1756,7 @@ static inline int _nbu2ss_decode_request(struct nbu2ss_udc *udc)
 		}
 	}
 
-	if (bcall_back == FALSE) {
+	if (!bcall_back) {
 		if (udc->ep0state == EP0_IN_STATUS_PHASE) {
 			if (nret >= 0) {
 				/*--------------------------------------*/
@@ -2044,7 +2044,7 @@ static inline void _nbu2ss_epn_in_dma_int(
 
 	preq = &req->req;
 
-	if (req->dma_flag == FALSE)
+	if (!req->dma_flag)
 		return;
 
 	preq->actual += req->div_len;
@@ -2756,7 +2756,7 @@ static int nbu2ss_ep_queue(
 	bflag = list_empty(&ep->queue);
 	list_add_tail(&req->queue, &ep->queue);
 
-	if ((bflag != FALSE) && (ep->stalled == FALSE)) {
+	if (bflag && !ep->stalled) {
 
 		result = _nbu2ss_start_transfer(udc, ep, req, FALSE);
 		if (result < 0) {
