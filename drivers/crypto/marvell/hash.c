@@ -472,6 +472,29 @@ static int mv_cesa_ahash_cache_req(struct ahash_request *req, bool *cached)
 }
 
 static struct mv_cesa_op_ctx *
+mv_cesa_dma_add_frag(struct mv_cesa_tdma_chain *chain,
+		     struct mv_cesa_op_ctx *tmpl, unsigned int frag_len,
+		     gfp_t flags)
+{
+	struct mv_cesa_op_ctx *op;
+	int ret;
+
+	op = mv_cesa_dma_add_op(chain, tmpl, false, flags);
+	if (IS_ERR(op))
+		return op;
+
+	/* Set the operation block fragment length. */
+	mv_cesa_set_mac_op_frag_len(op, frag_len);
+
+	/* Append dummy desc to launch operation */
+	ret = mv_cesa_dma_add_dummy_launch(chain, flags);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return op;
+}
+
+static struct mv_cesa_op_ctx *
 mv_cesa_ahash_dma_add_cache(struct mv_cesa_tdma_chain *chain,
 			    struct mv_cesa_ahash_dma_iter *dma_iter,
 			    struct mv_cesa_ahash_req *creq,
@@ -493,18 +516,9 @@ mv_cesa_ahash_dma_add_cache(struct mv_cesa_tdma_chain *chain,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (!dma_iter->base.op_len) {
-		op = mv_cesa_dma_add_op(chain, &creq->op_tmpl, false, flags);
-		if (IS_ERR(op))
-			return op;
-
-		mv_cesa_set_mac_op_frag_len(op, creq->cache_ptr);
-
-		/* Add dummy desc to launch crypto operation */
-		ret = mv_cesa_dma_add_dummy_launch(chain, flags);
-		if (ret)
-			return ERR_PTR(ret);
-	}
+	if (!dma_iter->base.op_len)
+		op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl,
+					  creq->cache_ptr, flags);
 
 	return op;
 }
@@ -518,27 +532,21 @@ mv_cesa_ahash_dma_add_data(struct mv_cesa_tdma_chain *chain,
 	struct mv_cesa_op_ctx *op;
 	int ret;
 
-	op = mv_cesa_dma_add_op(chain, &creq->op_tmpl, false, flags);
-	if (IS_ERR(op))
-		return op;
-
-	mv_cesa_set_mac_op_frag_len(op, dma_iter->base.op_len);
-
-	if (mv_cesa_mac_op_is_first_frag(&creq->op_tmpl))
-		mv_cesa_update_op_cfg(&creq->op_tmpl,
-				      CESA_SA_DESC_CFG_MID_FRAG,
-				      CESA_SA_DESC_CFG_FRAG_MSK);
-
 	/* Add input transfers */
 	ret = mv_cesa_dma_add_op_transfers(chain, &dma_iter->base,
 					   &dma_iter->src, flags);
 	if (ret)
 		return ERR_PTR(ret);
 
-	/* Add dummy desc to launch crypto operation */
-	ret = mv_cesa_dma_add_dummy_launch(chain, flags);
-	if (ret)
-		return ERR_PTR(ret);
+	op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl, dma_iter->base.op_len,
+				  flags);
+	if (IS_ERR(op))
+		return op;
+
+	if (mv_cesa_mac_op_is_first_frag(&creq->op_tmpl))
+		mv_cesa_update_op_cfg(&creq->op_tmpl,
+				      CESA_SA_DESC_CFG_MID_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
 
 	return op;
 }
@@ -603,12 +611,6 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 				      CESA_SA_DESC_CFG_MID_FRAG,
 				      CESA_SA_DESC_CFG_FRAG_MSK);
 
-	op = mv_cesa_dma_add_op(chain, &creq->op_tmpl, false, flags);
-	if (IS_ERR(op))
-		return op;
-
-	mv_cesa_set_mac_op_frag_len(op, trailerlen - padoff);
-
 	ret = mv_cesa_dma_add_data_transfer(chain,
 					    CESA_SA_DATA_SRAM_OFFSET,
 					    ahashdreq->padding_dma +
@@ -619,12 +621,8 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 	if (ret)
 		return ERR_PTR(ret);
 
-	/* Add dummy desc to launch crypto operation */
-	ret = mv_cesa_dma_add_dummy_launch(chain, flags);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return op;
+	return mv_cesa_dma_add_frag(chain, &creq->op_tmpl, trailerlen - padoff,
+				    flags);
 }
 
 static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
