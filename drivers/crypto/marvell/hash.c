@@ -602,7 +602,6 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		      GFP_KERNEL : GFP_ATOMIC;
 	struct mv_cesa_ahash_dma_req *ahashdreq = &creq->req.dma;
 	struct mv_cesa_tdma_req *dreq = &ahashdreq->base;
-	struct mv_cesa_tdma_chain chain;
 	struct mv_cesa_ahash_dma_iter iter;
 	struct mv_cesa_op_ctx *op = NULL;
 	unsigned int frag_len;
@@ -620,14 +619,14 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		}
 	}
 
-	mv_cesa_tdma_desc_iter_init(&chain);
+	mv_cesa_tdma_desc_iter_init(&dreq->chain);
 	mv_cesa_ahash_req_iter_init(&iter, req);
 
 	/*
 	 * Add the cache (left-over data from a previous block) first.
 	 * This will never overflow the SRAM size.
 	 */
-	ret = mv_cesa_ahash_dma_add_cache(&chain, &iter, creq, flags);
+	ret = mv_cesa_ahash_dma_add_cache(&dreq->chain, &iter, creq, flags);
 	if (ret)
 		goto err_free_tdma;
 
@@ -638,7 +637,8 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		 * data. We intentionally do not add the final op block.
 		 */
 		while (true) {
-			ret = mv_cesa_dma_add_op_transfers(&chain, &iter.base,
+			ret = mv_cesa_dma_add_op_transfers(&dreq->chain,
+							   &iter.base,
 							   &iter.src, flags);
 			if (ret)
 				goto err_free_tdma;
@@ -648,7 +648,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 			if (!mv_cesa_ahash_req_iter_next_op(&iter))
 				break;
 
-			op = mv_cesa_dma_add_frag(&chain, &creq->op_tmpl,
+			op = mv_cesa_dma_add_frag(&dreq->chain, &creq->op_tmpl,
 						  frag_len, flags);
 			if (IS_ERR(op)) {
 				ret = PTR_ERR(op);
@@ -666,11 +666,11 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 	 * operation, which depends whether this is the final request.
 	 */
 	if (creq->last_req)
-		op = mv_cesa_ahash_dma_last_req(&chain, &iter, creq, frag_len,
-						flags);
+		op = mv_cesa_ahash_dma_last_req(&dreq->chain, &iter, creq,
+						frag_len, flags);
 	else if (frag_len)
-		op = mv_cesa_dma_add_frag(&chain, &creq->op_tmpl, frag_len,
-					  flags);
+		op = mv_cesa_dma_add_frag(&dreq->chain, &creq->op_tmpl,
+					  frag_len, flags);
 
 	if (IS_ERR(op)) {
 		ret = PTR_ERR(op);
@@ -679,7 +679,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 
 	if (op) {
 		/* Add dummy desc to wait for crypto operation end */
-		ret = mv_cesa_dma_add_dummy_end(&chain, flags);
+		ret = mv_cesa_dma_add_dummy_end(&dreq->chain, flags);
 		if (ret)
 			goto err_free_tdma;
 	}
@@ -689,8 +689,6 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 				  iter.base.len;
 	else
 		creq->cache_ptr = 0;
-
-	dreq->chain = chain;
 
 	return 0;
 
