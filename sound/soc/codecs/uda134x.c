@@ -150,14 +150,12 @@ static int uda134x_startup(struct snd_pcm_substream *substream,
 			 master_runtime->sample_bits,
 			 master_runtime->rate);
 
-		snd_pcm_hw_constraint_minmax(substream->runtime,
+		snd_pcm_hw_constraint_single(substream->runtime,
 					     SNDRV_PCM_HW_PARAM_RATE,
-					     master_runtime->rate,
 					     master_runtime->rate);
 
-		snd_pcm_hw_constraint_minmax(substream->runtime,
+		snd_pcm_hw_constraint_single(substream->runtime,
 					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-					     master_runtime->sample_bits,
 					     master_runtime->sample_bits);
 
 		uda134x->slave_substream = substream;
