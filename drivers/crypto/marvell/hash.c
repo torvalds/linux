@@ -491,6 +491,11 @@ mv_cesa_dma_add_frag(struct mv_cesa_tdma_chain *chain,
 	if (ret)
 		return ERR_PTR(ret);
 
+	if (mv_cesa_mac_op_is_first_frag(tmpl))
+		mv_cesa_update_op_cfg(tmpl,
+				      CESA_SA_DESC_CFG_MID_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
+
 	return op;
 }
 
@@ -529,7 +534,6 @@ mv_cesa_ahash_dma_add_data(struct mv_cesa_tdma_chain *chain,
 			   struct mv_cesa_ahash_req *creq,
 			   gfp_t flags)
 {
-	struct mv_cesa_op_ctx *op;
 	int ret;
 
 	/* Add input transfers */
@@ -538,17 +542,8 @@ mv_cesa_ahash_dma_add_data(struct mv_cesa_tdma_chain *chain,
 	if (ret)
 		return ERR_PTR(ret);
 
-	op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl, dma_iter->base.op_len,
-				  flags);
-	if (IS_ERR(op))
-		return op;
-
-	if (mv_cesa_mac_op_is_first_frag(&creq->op_tmpl))
-		mv_cesa_update_op_cfg(&creq->op_tmpl,
-				      CESA_SA_DESC_CFG_MID_FRAG,
-				      CESA_SA_DESC_CFG_FRAG_MSK);
-
-	return op;
+	return mv_cesa_dma_add_frag(chain, &creq->op_tmpl, dma_iter->base.op_len,
+				    flags);
 }
 
 static struct mv_cesa_op_ctx *
