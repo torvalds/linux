@@ -41,18 +41,18 @@ void mv_cesa_dma_step(struct mv_cesa_tdma_req *dreq)
 {
 	struct mv_cesa_engine *engine = dreq->base.engine;
 
-	writel(0, engine->regs + CESA_SA_CFG);
+	writel_relaxed(0, engine->regs + CESA_SA_CFG);
 
 	mv_cesa_set_int_mask(engine, CESA_SA_INT_ACC0_IDMA_DONE);
-	writel(CESA_TDMA_DST_BURST_128B | CESA_TDMA_SRC_BURST_128B |
-	       CESA_TDMA_NO_BYTE_SWAP | CESA_TDMA_EN,
-	       engine->regs + CESA_TDMA_CONTROL);
+	writel_relaxed(CESA_TDMA_DST_BURST_128B | CESA_TDMA_SRC_BURST_128B |
+		       CESA_TDMA_NO_BYTE_SWAP | CESA_TDMA_EN,
+		       engine->regs + CESA_TDMA_CONTROL);
 
-	writel(CESA_SA_CFG_ACT_CH0_IDMA | CESA_SA_CFG_MULTI_PKT |
-	       CESA_SA_CFG_CH0_W_IDMA | CESA_SA_CFG_PARA_DIS,
-	       engine->regs + CESA_SA_CFG);
-	writel(dreq->chain.first->cur_dma,
-	       engine->regs + CESA_TDMA_NEXT_ADDR);
+	writel_relaxed(CESA_SA_CFG_ACT_CH0_IDMA | CESA_SA_CFG_MULTI_PKT |
+		       CESA_SA_CFG_CH0_W_IDMA | CESA_SA_CFG_PARA_DIS,
+		       engine->regs + CESA_SA_CFG);
+	writel_relaxed(dreq->chain.first->cur_dma,
+		       engine->regs + CESA_TDMA_NEXT_ADDR);
 	writel(CESA_SA_CMD_EN_CESA_SA_ACCL0, engine->regs + CESA_SA_CMD);
 }
 

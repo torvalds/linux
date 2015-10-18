@@ -677,7 +677,7 @@ static inline void mv_cesa_set_int_mask(struct mv_cesa_engine *engine,
 	if (int_mask == engine->int_mask)
 		return;
 
-	writel(int_mask, engine->regs + CESA_SA_INT_MSK);
+	writel_relaxed(int_mask, engine->regs + CESA_SA_INT_MSK);
 	engine->int_mask = int_mask;
 }
 

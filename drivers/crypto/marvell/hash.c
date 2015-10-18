@@ -281,7 +281,7 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 	creq->cache_ptr = new_cache_ptr;
 
 	mv_cesa_set_int_mask(engine, CESA_SA_INT_ACCEL0_DONE);
-	writel(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
+	writel_relaxed(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
 	writel(CESA_SA_CMD_EN_CESA_SA_ACCL0, engine->regs + CESA_SA_CMD);
 }
 
@@ -344,7 +344,7 @@ static int mv_cesa_ahash_process(struct crypto_async_request *req, u32 status)
 
 	digsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(ahashreq));
 	for (i = 0; i < digsize / 4; i++)
-		creq->state[i] = readl(engine->regs + CESA_IVDIG(i));
+		creq->state[i] = readl_relaxed(engine->regs + CESA_IVDIG(i));
 
 	if (creq->cache_ptr)
 		sg_pcopy_to_buffer(ahashreq->src, creq->src_nents,
@@ -390,8 +390,7 @@ static void mv_cesa_ahash_prepare(struct crypto_async_request *req,
 
 	digsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(ahashreq));
 	for (i = 0; i < digsize / 4; i++)
-		writel(creq->state[i],
-		       engine->regs + CESA_IVDIG(i));
+		writel_relaxed(creq->state[i], engine->regs + CESA_IVDIG(i));
 }
 
 static void mv_cesa_ahash_req_cleanup(struct crypto_async_request *req)

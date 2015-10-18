@@ -105,7 +105,7 @@ static void mv_cesa_ablkcipher_std_step(struct ablkcipher_request *req)
 	}
 
 	mv_cesa_set_int_mask(engine, CESA_SA_INT_ACCEL0_DONE);
-	writel(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
+	writel_relaxed(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
 	writel(CESA_SA_CMD_EN_CESA_SA_ACCL0, engine->regs + CESA_SA_CMD);
 }
 
