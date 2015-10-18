@@ -312,7 +312,7 @@ struct lov_user_ost_data_v1 {     /* per-stripe data structure */
 	struct ost_id l_ost_oi;	  /* OST object ID */
 	__u32 l_ost_gen;	  /* generation of this OST index */
 	__u32 l_ost_idx;	  /* OST index in LOV */
-} __attribute__((packed));
+} __packed;
 
 #define lov_user_md lov_user_md_v1
 struct lov_user_md_v1 {	   /* LOV EA user data (host-endian) */
@@ -344,7 +344,7 @@ struct lov_user_md_v3 {	   /* LOV EA user data (host-endian) */
 	};
 	char  lmm_pool_name[LOV_MAXPOOLNAME]; /* pool name */
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
-} __attribute__((packed));
+} __packed;
 
 static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
 {
@@ -364,12 +364,12 @@ static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
 struct lov_user_mds_data_v1 {
 	lstat_t lmd_st;		 /* MDS stat struct */
 	struct lov_user_md_v1 lmd_lmm;  /* LOV EA V1 user data */
-} __attribute__((packed));
+} __packed;
 
 struct lov_user_mds_data_v3 {
 	lstat_t lmd_st;		 /* MDS stat struct */
 	struct lov_user_md_v3 lmd_lmm;  /* LOV EA V3 user data */
-} __attribute__((packed));
+} __packed;
 #endif
 
 /* keep this to be the same size as lov_user_ost_data_v1 */
@@ -766,7 +766,7 @@ struct changelog_rec {
 	};
 	lustre_fid	    cr_pfid;	/**< parent fid */
 	char		  cr_name[0];     /**< last element */
-} __attribute__((packed));
+} __packed;
 
 /* changelog_ext_rec is 2*sizeof(lu_fid) bigger than changelog_rec, to save
  * space, only rename uses changelog_ext_rec, while others use changelog_rec to
@@ -788,7 +788,7 @@ struct changelog_ext_rec {
 	lustre_fid		cr_sfid;	/**< source fid, or zero */
 	lustre_fid		cr_spfid;       /**< source parent fid, or zero */
 	char			cr_name[0];     /**< last element */
-} __attribute__((packed));
+} __packed;
 
 #define CHANGELOG_REC_EXTENDED(rec) \
 	(((rec)->cr_flags & CLF_VERMASK) == CLF_EXT_VERSION)
@@ -894,7 +894,7 @@ static inline char *hsm_progress_state2name(enum hsm_progress_states s)
 struct hsm_extent {
 	__u64 offset;
 	__u64 length;
-} __attribute__((packed));
+} __packed;
 
 /**
  * Current HSM states of a Lustre file.
@@ -978,7 +978,7 @@ struct hsm_request {
 struct hsm_user_item {
        lustre_fid	hui_fid;
        struct hsm_extent hui_extent;
-} __attribute__((packed));
+} __packed;
 
 struct hsm_user_request {
 	struct hsm_request	hur_request;
@@ -986,7 +986,7 @@ struct hsm_user_request {
 	/* extra data blob at end of struct (after all
 	 * hur_user_items), only use helpers to access it
 	 */
-} __attribute__((packed));
+} __packed;
 
 /** Return pointer to data field in a hsm user request */
 static inline void *hur_data(struct hsm_user_request *hur)
@@ -1052,7 +1052,7 @@ struct hsm_action_item {
 	__u64      hai_cookie;  /* action cookie from coordinator */
 	__u64      hai_gid;     /* grouplock id */
 	char       hai_data[0]; /* variable length */
-} __attribute__((packed));
+} __packed;
 
 /*
  * helper function which print in hexa the first bytes of
@@ -1096,7 +1096,7 @@ struct hsm_action_list {
 	char  hal_fsname[0];   /* null-terminated */
 	/* struct hsm_action_item[hal_count] follows, aligned on 8-byte
 	   boundaries. See hai_zero */
-} __attribute__((packed));
+} __packed;
 
 #ifndef HAVE_CFS_SIZE_ROUND
 static inline int cfs_size_round (int val)
