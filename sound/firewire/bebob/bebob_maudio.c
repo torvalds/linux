@@ -628,7 +628,7 @@ static const char *const special_meter_labels[] = {
 static int
 special_meter_get(struct snd_bebob *bebob, u32 *target, unsigned int size)
 {
-	u16 *buf;
+	__be16 *buf;
 	unsigned int i, c, channels;
 	int err;
 
