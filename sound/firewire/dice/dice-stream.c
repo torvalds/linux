@@ -44,16 +44,16 @@ int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
 static void release_resources(struct snd_dice *dice,
 			      struct fw_iso_resources *resources)
 {
-	unsigned int channel;
+	__be32 channel;
 
 	/* Reset channel number */
 	channel = cpu_to_be32((u32)-1);
 	if (resources == &dice->tx_resources)
 		snd_dice_transaction_write_tx(dice, TX_ISOCHRONOUS,
-					      &channel, 4);
+					      &channel, sizeof(channel));
 	else
 		snd_dice_transaction_write_rx(dice, RX_ISOCHRONOUS,
-					      &channel, 4);
+					      &channel, sizeof(channel));
 
 	fw_iso_resources_free(resources);
 }
@@ -62,7 +62,7 @@ static int keep_resources(struct snd_dice *dice,
 			  struct fw_iso_resources *resources,
 			  unsigned int max_payload_bytes)
 {
-	unsigned int channel;
+	__be32 channel;
 	int err;
 
 	err = fw_iso_resources_allocate(resources, max_payload_bytes,
@@ -74,10 +74,10 @@ static int keep_resources(struct snd_dice *dice,
 	channel = cpu_to_be32(resources->channel);
 	if (resources == &dice->tx_resources)
 		err = snd_dice_transaction_write_tx(dice, TX_ISOCHRONOUS,
-						    &channel, 4);
+						    &channel, sizeof(channel));
 	else
 		err = snd_dice_transaction_write_rx(dice, RX_ISOCHRONOUS,
-						    &channel, 4);
+						    &channel, sizeof(channel));
 	if (err < 0)
 		release_resources(dice, resources);
 end:
