@@ -289,6 +289,11 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
 	       sizeof(struct iwl_pcie_txq_scratch_buf) * idx;
 }
 
+struct iwl_tso_hdr_page {
+	struct page *page;
+	u8 *pos;
+};
+
 /**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
@@ -325,6 +330,8 @@ struct iwl_trans_pcie {
 
 	struct net_device napi_dev;
 	struct napi_struct napi;
+
+	struct __percpu iwl_tso_hdr_page *tso_hdr_page;
 
 	/* INT ICT Table */
 	__le32 *ict_tbl;

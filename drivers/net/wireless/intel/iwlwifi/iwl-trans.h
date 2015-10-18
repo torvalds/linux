@@ -381,6 +381,11 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
 
 #define MAX_NO_RECLAIM_CMDS	6
 
+/*
+ * The first entry in driver_data array in ieee80211_tx_info
+ * that can be used by the transport.
+ */
+#define IWL_TRANS_FIRST_DRIVER_DATA 2
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
 /*
@@ -553,7 +558,10 @@ struct iwl_trans_txq_scd_cfg {
  *	return -ERFKILL straight away.
  *	May sleep only if CMD_ASYNC is not set
  * @tx: send an skb. The transport relies on the op_mode to zero the
- *	the ieee80211_tx_info->driver_data.
+ *	the ieee80211_tx_info->driver_data. If the MPDU is an A-MSDU, all
+ *	the CSUM will be taken care of (TCP CSUM and IP header in case of
+ *	IPv4). If the MPDU is a single MSDU, the op_mode must compute the IP
+ *	header if it is IPv4.
  *	Must be atomic
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  *	Must be atomic

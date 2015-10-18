@@ -1465,6 +1465,7 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int i;
 
 	synchronize_irq(trans_pcie->pci_dev->irq);
 
@@ -1484,6 +1485,15 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 
 	iwl_pcie_free_fw_monitor(trans);
 
+	for_each_possible_cpu(i) {
+		struct iwl_tso_hdr_page *p =
+			per_cpu_ptr(trans_pcie->tso_hdr_page, i);
+
+		if (p->page)
+			__free_page(p->page);
+	}
+
+	free_percpu(trans_pcie->tso_hdr_page);
 	iwl_trans_free(trans);
 }
 
@@ -2542,6 +2552,11 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	spin_lock_init(&trans_pcie->ref_lock);
 	mutex_init(&trans_pcie->mutex);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
+	trans_pcie->tso_hdr_page = alloc_percpu(struct iwl_tso_hdr_page);
+	if (!trans_pcie->tso_hdr_page) {
+		ret = -ENOMEM;
+		goto out_no_pci;
+	}
 
 	ret = pci_enable_device(pdev);
 	if (ret)
@@ -2690,6 +2705,7 @@ out_pci_release_regions:
 out_pci_disable_device:
 	pci_disable_device(pdev);
 out_no_pci:
+	free_percpu(trans_pcie->tso_hdr_page);
 	iwl_trans_free(trans);
 	return ERR_PTR(ret);
 }
