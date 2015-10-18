@@ -122,7 +122,7 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	if (group > ND_MAX_GROUP)
 		return -EINVAL;
 
-	if (!netlink_has_listeners(sock, group+1))
+	if (!netlink_has_listeners(sock, group + 1))
 		return -ESRCH;
 
 	skb = alloc_skb(NLMSG_SPACE(len), GFP_ATOMIC);

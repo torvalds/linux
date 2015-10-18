@@ -88,7 +88,7 @@ static int gdm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	mutex_lock(&gdm_table_lock);
 	gdm = gdm_table[i][j];
-	if (gdm == NULL) {
+	if (!gdm) {
 		mutex_unlock(&gdm_table_lock);
 		return -ENODEV;
 	}

@@ -775,7 +775,7 @@ static int gdm_lte_receive_pkt(struct phy_dev *phy_dev, char *buf, int len)
 				   hci->cmd_evt);
 
 	dev = phy_dev->dev[0];
-	if (dev == NULL)
+	if (!dev)
 		return 0;
 
 	switch (cmd_evt) {
@@ -938,7 +938,7 @@ void unregister_lte_device(struct phy_dev *phy_dev)
 
 	for (index = 0; index < MAX_NIC_TYPE; index++) {
 		net = phy_dev->dev[index];
-		if (net == NULL)
+		if (!net)
 			continue;
 
 		unregister_netdev(net);

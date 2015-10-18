@@ -492,7 +492,7 @@ static int init_usb(struct mux_dev *mux_dev)
 
 	for (i = 0; i < MAX_ISSUE_NUM * 2; i++) {
 		r = alloc_mux_rx();
-		if (r == NULL) {
+		if (!r) {
 			ret = -ENOMEM;
 			break;
 		}
@@ -662,7 +662,7 @@ static int __init gdm_usb_mux_init(void)
 {
 
 	mux_rx_wq = create_workqueue("mux_rx_wq");
-	if (mux_rx_wq == NULL) {
+	if (!mux_rx_wq) {
 		pr_err("work queue create fail\n");
 		return -1;
 	}

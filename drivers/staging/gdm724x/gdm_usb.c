@@ -338,7 +338,7 @@ static int init_usb(struct lte_udev *udev)
 
 	for (i = 0; i < MAX_NUM_SDU_BUF; i++) {
 		t_sdu = alloc_tx_sdu_struct();
-		if (t_sdu == NULL) {
+		if (!t_sdu) {
 			ret = -ENOMEM;
 			goto fail;
 		}
@@ -349,7 +349,7 @@ static int init_usb(struct lte_udev *udev)
 
 	for (i = 0; i < MAX_RX_SUBMIT_COUNT*2; i++) {
 		r = alloc_rx_struct();
-		if (r == NULL) {
+		if (!r) {
 			ret = -ENOMEM;
 			goto fail;
 		}
@@ -576,7 +576,7 @@ static int send_tx_packet(struct usb_device *usbdev, struct usb_tx *t, u32 len)
 {
 	int ret = 0;
 
-	if (!(len%512))
+	if (!(len % 512))
 		len++;
 
 	usb_fill_bulk_urb(t->urb,
@@ -682,7 +682,7 @@ static void do_tx(struct work_struct *work)
 		}
 
 		t = alloc_tx_struct(TX_BUF_SIZE);
-		if (t == NULL) {
+		if (!t) {
 			spin_unlock_irqrestore(&tx->lock, flags);
 			return;
 		}
@@ -732,7 +732,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	t_sdu = get_tx_sdu_struct(tx, &no_spc);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
-	if (t_sdu == NULL) {
+	if (!t_sdu) {
 		pr_err("sdu send - free list empty\n");
 		return TX_NO_SPC;
 	}
@@ -782,7 +782,7 @@ static int gdm_usb_hci_send(void *priv_dev, void *data, int len,
 	}
 
 	t = alloc_tx_struct(len);
-	if (t == NULL) {
+	if (!t) {
 		pr_err("hci_send - out of memory\n");
 		return -ENOMEM;
 	}
@@ -1006,11 +1006,11 @@ static int __init gdm_usb_lte_init(void)
 	}
 
 	usb_tx_wq = create_workqueue("usb_tx_wq");
-	if (usb_tx_wq == NULL)
+	if (!usb_tx_wq)
 		return -1;
 
 	usb_rx_wq = create_workqueue("usb_rx_wq");
-	if (usb_rx_wq == NULL)
+	if (!usb_rx_wq)
 		return -1;
 
 	return usb_register(&gdm_usb_lte_driver);
