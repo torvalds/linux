@@ -499,51 +499,23 @@ mv_cesa_dma_add_frag(struct mv_cesa_tdma_chain *chain,
 	return op;
 }
 
-static struct mv_cesa_op_ctx *
+static int
 mv_cesa_ahash_dma_add_cache(struct mv_cesa_tdma_chain *chain,
 			    struct mv_cesa_ahash_dma_iter *dma_iter,
 			    struct mv_cesa_ahash_req *creq,
 			    gfp_t flags)
 {
 	struct mv_cesa_ahash_dma_req *ahashdreq = &creq->req.dma;
-	struct mv_cesa_op_ctx *op = NULL;
-	int ret;
 
 	if (!creq->cache_ptr)
-		return NULL;
+		return 0;
 
-	ret = mv_cesa_dma_add_data_transfer(chain,
-					    CESA_SA_DATA_SRAM_OFFSET,
-					    ahashdreq->cache_dma,
-					    creq->cache_ptr,
-					    CESA_TDMA_DST_IN_SRAM,
-					    flags);
-	if (ret)
-		return ERR_PTR(ret);
-
-	if (!dma_iter->base.op_len)
-		op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl,
-					  creq->cache_ptr, flags);
-
-	return op;
-}
-
-static struct mv_cesa_op_ctx *
-mv_cesa_ahash_dma_add_data(struct mv_cesa_tdma_chain *chain,
-			   struct mv_cesa_ahash_dma_iter *dma_iter,
-			   struct mv_cesa_ahash_req *creq,
-			   gfp_t flags)
-{
-	int ret;
-
-	/* Add input transfers */
-	ret = mv_cesa_dma_add_op_transfers(chain, &dma_iter->base,
-					   &dma_iter->src, flags);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return mv_cesa_dma_add_frag(chain, &creq->op_tmpl, dma_iter->base.op_len,
-				    flags);
+	return mv_cesa_dma_add_data_transfer(chain,
+					     CESA_SA_DATA_SRAM_OFFSET,
+					     ahashdreq->cache_dma,
+					     creq->cache_ptr,
+					     CESA_TDMA_DST_IN_SRAM,
+					     flags);
 }
 
 static struct mv_cesa_op_ctx *
@@ -647,19 +619,34 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 	mv_cesa_tdma_desc_iter_init(&chain);
 	mv_cesa_ahash_req_iter_init(&iter, req);
 
-	op = mv_cesa_ahash_dma_add_cache(&chain, &iter,
-					 creq, flags);
-	if (IS_ERR(op)) {
-		ret = PTR_ERR(op);
+	/*
+	 * Add the cache (left-over data from a previous block) first.
+	 * This will never overflow the SRAM size.
+	 */
+	ret = mv_cesa_ahash_dma_add_cache(&chain, &iter, creq, flags);
+	if (ret)
 		goto err_free_tdma;
+
+	if (creq->cache_ptr && !iter.base.op_len) {
+		op = mv_cesa_dma_add_frag(&chain, &creq->op_tmpl,
+					  creq->cache_ptr, flags);
+		if (IS_ERR(op)) {
+			ret = PTR_ERR(op);
+			goto err_free_tdma;
+		}
 	}
 
 	do {
 		if (!iter.base.op_len)
 			break;
 
-		op = mv_cesa_ahash_dma_add_data(&chain, &iter,
-						creq, flags);
+		ret = mv_cesa_dma_add_op_transfers(&chain, &iter.base,
+						   &iter.src, flags);
+		if (ret)
+			goto err_free_tdma;
+
+		op = mv_cesa_dma_add_frag(&chain, &creq->op_tmpl,
+					  iter.base.op_len, flags);
 		if (IS_ERR(op)) {
 			ret = PTR_ERR(op);
 			goto err_free_tdma;
