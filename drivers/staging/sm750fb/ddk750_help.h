@@ -4,8 +4,8 @@
 #ifndef USE_INTERNAL_REGISTER_ACCESS
 
 #include <linux/ioport.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include "sm750_help.h"
 
 /* software control endianness */
