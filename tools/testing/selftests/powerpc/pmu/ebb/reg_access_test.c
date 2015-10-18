@@ -18,6 +18,8 @@ int reg_access(void)
 {
 	uint64_t val, expected;
 
+	SKIP_IF(!ebb_is_supported());
+
 	expected = 0x8000000100000000ull;
 	mtspr(SPRN_BESCR, expected);
 	val = mfspr(SPRN_BESCR);
