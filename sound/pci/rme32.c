@@ -831,9 +831,9 @@ static struct snd_pcm_hw_constraint_list hw_constraints_period_bytes = {
 static void snd_rme32_set_buffer_constraint(struct rme32 *rme32, struct snd_pcm_runtime *runtime)
 {
 	if (! rme32->fullduplex_mode) {
-		snd_pcm_hw_constraint_minmax(runtime,
+		snd_pcm_hw_constraint_single(runtime,
 					     SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
-					     RME32_BUFFER_SIZE, RME32_BUFFER_SIZE);
+					     RME32_BUFFER_SIZE);
 		snd_pcm_hw_constraint_list(runtime, 0,
 					   SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 					   &hw_constraints_period_bytes);
