@@ -1034,6 +1034,22 @@ int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime,
 			snd_pcm_hw_rule_func_t func, void *private,
 			int dep, ...);
 
+/**
+ * snd_pcm_hw_constraint_single() - Constrain parameter to a single value
+ * @runtime: PCM runtime instance
+ * @var: The hw_params variable to constrain
+ * @val: The value to constrain to
+ *
+ * Return: Positive if the value is changed, zero if it's not changed, or a
+ * negative error code.
+ */
+static inline int snd_pcm_hw_constraint_single(
+	struct snd_pcm_runtime *runtime, snd_pcm_hw_param_t var,
+	unsigned int val)
+{
+	return snd_pcm_hw_constraint_minmax(runtime, var, val, val);
+}
+
 int snd_pcm_format_signed(snd_pcm_format_t format);
 int snd_pcm_format_unsigned(snd_pcm_format_t format);
 int snd_pcm_format_linear(snd_pcm_format_t format);
