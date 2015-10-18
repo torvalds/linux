@@ -22,7 +22,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -2762,37 +2761,14 @@ err:
 	return ret;
 }
 
-static int atmel_serial_remove(struct platform_device *pdev)
-{
-	struct uart_port *port = platform_get_drvdata(pdev);
-	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	int ret = 0;
-
-	tasklet_kill(&atmel_port->tasklet);
-
-	device_init_wakeup(&pdev->dev, 0);
-
-	ret = uart_remove_one_port(&atmel_uart, port);
-
-	kfree(atmel_port->rx_ring.buf);
-
-	/* "port" is allocated statically, so we shouldn't free it */
-
-	clear_bit(port->line, atmel_ports_in_use);
-
-	clk_put(atmel_port->clk);
-
-	return ret;
-}
-
 static struct platform_driver atmel_serial_driver = {
 	.probe		= atmel_serial_probe,
-	.remove		= atmel_serial_remove,
 	.suspend	= atmel_serial_suspend,
 	.resume		= atmel_serial_resume,
 	.driver		= {
-		.name	= "atmel_usart",
-		.of_match_table	= of_match_ptr(atmel_serial_dt_ids),
+		.name			= "atmel_usart",
+		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),
+		.suppress_bind_attrs    = true,
 	},
 };
 
@@ -2810,17 +2786,4 @@ static int __init atmel_serial_init(void)
 
 	return ret;
 }
-
-static void __exit atmel_serial_exit(void)
-{
-	platform_driver_unregister(&atmel_serial_driver);
-	uart_unregister_driver(&atmel_uart);
-}
-
-module_init(atmel_serial_init);
-module_exit(atmel_serial_exit);
-
-MODULE_AUTHOR("Rick Bronson");
-MODULE_DESCRIPTION("Atmel AT91 / AT32 serial port driver");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:atmel_usart");
+device_initcall(atmel_serial_init);
