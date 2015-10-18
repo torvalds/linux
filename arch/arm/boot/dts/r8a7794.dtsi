@@ -1097,6 +1097,7 @@
 		interrupts = <0 198 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 199 IRQ_TYPE_LEVEL_HIGH>;
 		#iommu-cells = <1>;
+		status = "disabled";
 	};
 
 	ipmmu_mp: mmu@ec680000 {
@@ -1113,6 +1114,7 @@
 		interrupts = <0 222 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 221 IRQ_TYPE_LEVEL_HIGH>;
 		#iommu-cells = <1>;
+		status = "disabled";
 	};
 
 	ipmmu_gp: mmu@e62a0000 {
