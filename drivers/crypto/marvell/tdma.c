@@ -140,7 +140,7 @@ struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
 	tdma = chain->last;
 	tdma->op = op;
 	tdma->byte_cnt = (skip_ctx ? sizeof(op->desc) : sizeof(*op)) | BIT(31);
-	tdma->src = dma_handle;
+	tdma->src = cpu_to_le32(dma_handle);
 	tdma->flags = CESA_TDMA_DST_IN_SRAM | CESA_TDMA_OP;
 
 	return op;
