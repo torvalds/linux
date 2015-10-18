@@ -1,6 +1,6 @@
 #ifdef CONFIG_DEBUG_LL_NINTENDO3DS_ARM9
 
-#define EARLY_SHARED_BUF_PA (0x27FFFFFF)
+#define EARLY_SHARED_BUF_PA (0x20000000)
 
 .macro	addruart,rp,rv,tmp
 	mov	\rp, #EARLY_SHARED_BUF_PA
