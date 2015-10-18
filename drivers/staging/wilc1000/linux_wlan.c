@@ -1776,10 +1776,10 @@ late_initcall(init_wilc_driver);
 static void __exit exit_wilc_driver(void)
 {
 #ifndef WILC_SDIO
-	PRINT_D(INIT_DBG, "SPI unregsiter...\n");
+	PRINT_D(INIT_DBG, "SPI unregister...\n");
 	spi_unregister_driver(&wilc_bus);
 #else
-	PRINT_D(INIT_DBG, "SDIO unregsiter...\n");
+	PRINT_D(INIT_DBG, "SDIO unregister...\n");
 	sdio_unregister_driver(&wilc_bus);
 #endif
 }
