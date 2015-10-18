@@ -6784,7 +6784,7 @@ typedef struct _ATOM_MC_INIT_PARAM_TABLE_V2_1
   ULONG                         ulMCUcodeRomStartAddr;
   ULONG                         ulMCUcodeLength;
   USHORT                        usMcRegInitTableOffset;     // offset of ATOM_REG_INIT_SETTING array for MC core register settings.
-  USHORT                        usReserved;                 // offset of ATOM_INIT_REG_BLOCK for MC SEQ/PHY regsiter setting
+  USHORT                        usReserved;                 // offset of ATOM_INIT_REG_BLOCK for MC SEQ/PHY register setting
 }ATOM_MC_INIT_PARAM_TABLE_V2_1;
 
 
