@@ -1,0 +1,41 @@
+#
+# Medusa DS9 configuration
+#
+
+mainmenu_option next_comment
+comment 'Medusa DS9'
+
+bool 'Medusa DS9 security system support' CONFIG_MEDUSA
+
+if [ "$CONFIG_MEDUSA" = "y" ]; then
+	comment 'L1, L2 (i.e. core) options'
+	int	'Number of virtual spaces (VS)'	CONFIG_MEDUSA_VS 32
+#      bool            'Enable file hiding (Read HELP!)'       CONFIG_MEDUSA_FILE_HIDING
+	bool	'Support for POSIX file capabilities (Read HELP!)'      CONFIG_MEDUSA_FILE_CAPABILITIES
+	bool	'Medusa on NFS'			CONFIG_MEDUSA_ON_NFS
+#	bool	'Enable direct task switch'	CONFIG_MEDUSA_TASKSWITCH
+#	bool	'Medusa debugging'		CONFIG_MEDUSA_DEBUG
+	if [ "$CONFIG_X86" = "y" ]; then
+		bool 'Enable syscall trace'	CONFIG_MEDUSA_SYSCALL
+		bool 'Enable code execution forcing' CONFIG_MEDUSA_FORCE
+	fi
+	#dep_tristate 'Enable userspace memory access' CONFIG_MEDUSA_MEMKOBJECT
+	bool 'Enable userspace memory access' CONFIG_MEDUSA_MEMKOBJECT
+	comment 'L3 options'
+	bool	'Quiet Medusa' CONFIG_MEDUSA_QUIET
+#	mainmenu_option next_comment
+	comment 'L4 authorization servers'
+	dep_tristate 'Userspace auth. server (/dev/medusa)' CONFIG_MEDUSA_CONSTABLE $CONFIG_MEDUSA
+	if [ "$CONFIG_MEDUSA_CONSTABLE" = "y" ]; then
+		bool 'Start Constable at boot time (Read HELP!)' CONFIG_MEDUSA_INIT_WRAPPER
+	fi
+	if [ "$CONFIG_MEDUSA_CONSTABLE" != "n" ]; then
+	choice 'Action on exit of the authorization server' \
+		"Ignore         CONFIG_MEDUSA_NONE \
+		Reboot          CONFIG_MEDUSA_REBOOT \
+		Halt            CONFIG_MEDUSA_HALT" Ignore
+	fi
+#	endmenu
+fi
+endmenu
+

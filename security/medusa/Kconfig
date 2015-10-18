@@ -1,0 +1,8 @@
+config SECURITY_MEDUSA
+	bool "MEDUSA Support"
+	depends on SECURITY
+	select NETWORK_SECMARK
+	default n
+	help
+	  This selects MEDUSA LSM.
+

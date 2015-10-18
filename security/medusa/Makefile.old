@@ -1,0 +1,24 @@
+#
+# Makefile for the Linux kernel part of Medusa DS9 Security System
+#
+# Milan Pikula
+
+O_TARGET := medusa.o
+
+# note that the order is IMPORTANT here:
+# first, there is l3 initialized (might be via __initcall, althrough
+#   I've did it via init/main.c at the moment - don't know whether
+#   __initcall is politically correct for this)
+# second, we want all l2 modules to register into l3.
+# third, AFTER all l2 modules have registered, l4 must register.
+
+mod-subdirs = l2 l4-constable
+
+subdir-y += l3
+subdir-y += l2
+subdir-m += l2
+subdir-$(CONFIG_MEDUSA_CONSTABLE) += l4-constable
+
+obj-y   := $(join $(subdir-y), $(patsubst %,/%.o,$(notdir $(subdir-y))))
+
+include $(TOPDIR)/Rules.make
