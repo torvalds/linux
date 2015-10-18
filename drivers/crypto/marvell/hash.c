@@ -522,15 +522,21 @@ static struct mv_cesa_op_ctx *
 mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 			   struct mv_cesa_ahash_dma_iter *dma_iter,
 			   struct mv_cesa_ahash_req *creq,
-			   struct mv_cesa_op_ctx *op,
-			   gfp_t flags)
+			   unsigned int frag_len, gfp_t flags)
 {
 	struct mv_cesa_ahash_dma_req *ahashdreq = &creq->req.dma;
 	unsigned int len, trailerlen, padoff = 0;
+	struct mv_cesa_op_ctx *op;
 	int ret;
 
-	if (!creq->last_req)
-		return op;
+	if (frag_len) {
+		op = mv_cesa_dma_add_frag(chain, &creq->op_tmpl, frag_len,
+					  flags);
+		if (IS_ERR(op))
+			return op;
+	} else {
+		op = NULL;
+	}
 
 	if (op && creq->len <= CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX) {
 		u32 frag = CESA_SA_DESC_CFG_NOT_FRAG;
@@ -657,16 +663,18 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		frag_len = iter.base.op_len;
 	}
 
-	if (frag_len) {
+	/*
+	 * At this point, frag_len indicates whether we have any data
+	 * outstanding which needs an operation.  Queue up the final
+	 * operation, which depends whether this is the final request.
+	 */
+	if (creq->last_req)
+		op = mv_cesa_ahash_dma_last_req(&chain, &iter, creq, frag_len,
+						flags);
+	else if (frag_len)
 		op = mv_cesa_dma_add_frag(&chain, &creq->op_tmpl, frag_len,
 					  flags);
-		if (IS_ERR(op)) {
-			ret = PTR_ERR(op);
-			goto err_free_tdma;
-		}
-	}
 
-	op = mv_cesa_ahash_dma_last_req(&chain, &iter, creq, op, flags);
 	if (IS_ERR(op)) {
 		ret = PTR_ERR(op);
 		goto err_free_tdma;
