@@ -1552,8 +1552,8 @@ static int write_partial_message_data(struct ceph_connection *con)
 		bool need_crc;
 		int ret;
 
-		page = ceph_msg_data_next(&msg->cursor, &page_offset, &length,
-							&last_piece);
+		page = ceph_msg_data_next(cursor, &page_offset, &length,
+					  &last_piece);
 		ret = ceph_tcp_sendpage(con->sock, page, page_offset,
 					length, !last_piece);
 		if (ret <= 0) {
@@ -1564,7 +1564,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 		}
 		if (do_datacrc && cursor->need_crc)
 			crc = ceph_crc32c_page(crc, page, page_offset, length);
-		need_crc = ceph_msg_data_advance(&msg->cursor, (size_t)ret);
+		need_crc = ceph_msg_data_advance(cursor, (size_t)ret);
 	}
 
 	dout("%s %p msg %p done\n", __func__, con, msg);
@@ -2246,8 +2246,7 @@ static int read_partial_msg_data(struct ceph_connection *con)
 	if (do_datacrc)
 		crc = con->in_data_crc;
 	while (cursor->resid) {
-		page = ceph_msg_data_next(&msg->cursor, &page_offset, &length,
-							NULL);
+		page = ceph_msg_data_next(cursor, &page_offset, &length, NULL);
 		ret = ceph_tcp_recvpage(con->sock, page, page_offset, length);
 		if (ret <= 0) {
 			if (do_datacrc)
@@ -2258,7 +2257,7 @@ static int read_partial_msg_data(struct ceph_connection *con)
 
 		if (do_datacrc)
 			crc = ceph_crc32c_page(crc, page, page_offset, ret);
-		(void) ceph_msg_data_advance(&msg->cursor, (size_t)ret);
+		(void) ceph_msg_data_advance(cursor, (size_t)ret);
 	}
 	if (do_datacrc)
 		con->in_data_crc = crc;
