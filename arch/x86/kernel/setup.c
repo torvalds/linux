@@ -486,11 +486,11 @@ static void __init memblock_x86_reserve_range_setup_data(void)
  * On 64bit, old kexec-tools need to under 896MiB.
  */
 #ifdef CONFIG_X86_32
-# define CRASH_KERNEL_ADDR_LOW_MAX	(512 << 20)
-# define CRASH_KERNEL_ADDR_HIGH_MAX	(512 << 20)
+# define CRASH_ADDR_LOW_MAX	(512 << 20)
+# define CRASH_ADDR_HIGH_MAX	(512 << 20)
 #else
-# define CRASH_KERNEL_ADDR_LOW_MAX	(896UL<<20)
-# define CRASH_KERNEL_ADDR_HIGH_MAX	MAXMEM
+# define CRASH_ADDR_LOW_MAX	(896UL << 20)
+# define CRASH_ADDR_HIGH_MAX	MAXMEM
 #endif
 
 static int __init reserve_crashkernel_low(void)
@@ -503,10 +503,10 @@ static int __init reserve_crashkernel_low(void)
 	bool auto_set = false;
 	int ret;
 
-	total_low_mem = memblock_mem_size(1UL<<(32-PAGE_SHIFT));
+	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
+
 	/* crashkernel=Y,low */
-	ret = parse_crashkernel_low(boot_command_line, total_low_mem,
-						&low_size, &base);
+	ret = parse_crashkernel_low(boot_command_line, total_low_mem, &low_size, &base);
 	if (ret != 0) {
 		/*
 		 * two parts from lib/swiotlb.c:
@@ -517,7 +517,7 @@ static int __init reserve_crashkernel_low(void)
 		 * make sure we allocate enough extra low memory so that we
 		 * don't run out of DMA buffers for 32-bit devices.
 		 */
-		low_size = max(swiotlb_size_or_default() + (8UL<<20), 256UL<<20);
+		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
 		auto_set = true;
 	} else {
 		/* passed with crashkernel=0,low ? */
@@ -525,9 +525,7 @@ static int __init reserve_crashkernel_low(void)
 			return 0;
 	}
 
-	low_base = memblock_find_in_range(low_size, (1ULL<<32),
-					low_size, alignment);
-
+	low_base = memblock_find_in_range(low_size, 1ULL << 32, low_size, alignment);
 	if (!low_base) {
 		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
 		       (unsigned long)(low_size >> 20));
@@ -535,10 +533,12 @@ static int __init reserve_crashkernel_low(void)
 	}
 
 	memblock_reserve(low_base, low_size);
+
 	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System low RAM: %ldMB)\n",
-			(unsigned long)(low_size >> 20),
-			(unsigned long)(low_base >> 20),
-			(unsigned long)(total_low_mem >> 20));
+		(unsigned long)(low_size >> 20),
+		(unsigned long)(low_base >> 20),
+		(unsigned long)(total_low_mem >> 20));
+
 	crashk_low_res.start = low_base;
 	crashk_low_res.end   = low_base + low_size - 1;
 	insert_resource(&iomem_resource, &crashk_low_res);
@@ -557,12 +557,11 @@ static void __init reserve_crashkernel(void)
 	total_mem = memblock_phys_mem_size();
 
 	/* crashkernel=XM */
-	ret = parse_crashkernel(boot_command_line, total_mem,
-			&crash_size, &crash_base);
+	ret = parse_crashkernel(boot_command_line, total_mem, &crash_size, &crash_base);
 	if (ret != 0 || crash_size <= 0) {
 		/* crashkernel=X,high */
 		ret = parse_crashkernel_high(boot_command_line, total_mem,
-				&crash_size, &crash_base);
+					     &crash_size, &crash_base);
 		if (ret != 0 || crash_size <= 0)
 			return;
 		high = true;
@@ -574,10 +573,9 @@ static void __init reserve_crashkernel(void)
 		 *  kexec want bzImage is below CRASH_KERNEL_ADDR_MAX
 		 */
 		crash_base = memblock_find_in_range(alignment,
-					high ? CRASH_KERNEL_ADDR_HIGH_MAX :
-					       CRASH_KERNEL_ADDR_LOW_MAX,
-					crash_size, alignment);
-
+						    high ? CRASH_ADDR_HIGH_MAX
+							 : CRASH_ADDR_LOW_MAX,
+						    crash_size, alignment);
 		if (!crash_base) {
 			pr_info("crashkernel reservation failed - No suitable area found.\n");
 			return;
@@ -587,7 +585,8 @@ static void __init reserve_crashkernel(void)
 		unsigned long long start;
 
 		start = memblock_find_in_range(crash_base,
-				 crash_base + crash_size, crash_size, 1<<20);
+					       crash_base + crash_size,
+					       crash_size, 1 << 20);
 		if (start != crash_base) {
 			pr_info("crashkernel reservation failed - memory is in use.\n");
 			return;
