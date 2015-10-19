@@ -253,7 +253,7 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_install_initialization_handler)
-#endif				/*  ACPI_FUTURE_USAGE  */
+#endif
 
 /*****************************************************************************
  *

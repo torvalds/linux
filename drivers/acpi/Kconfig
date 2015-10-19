@@ -57,6 +57,15 @@ config ACPI_SYSTEM_POWER_STATES_SUPPORT
 config ACPI_CCA_REQUIRED
 	bool
 
+config ACPI_DEBUGGER
+	bool "In-kernel debugger (EXPERIMENTAL)"
+	select ACPI_DEBUG
+	help
+	  Enable in-kernel debugging facilities: statistics, internal
+	  object dump, single step control method execution.
+	  This is still under development, currently enabling this only
+	  results in the compilation of the ACPICA debugger files.
+
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION

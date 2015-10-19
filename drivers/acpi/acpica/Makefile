@@ -177,8 +177,24 @@ acpi-y +=		\
 	utxferror.o	\
 	utxfmutex.o
 
-acpi-$(ACPI_FUTURE_USAGE) +=	\
+acpi-$(CONFIG_ACPI_DEBUGGER) +=	\
+	dbcmds.o		\
+	dbconvert.o		\
+	dbdisply.o		\
+	dbexec.o		\
+	dbhistry.o		\
+	dbinput.o		\
+	dbmethod.o		\
+	dbnames.o		\
+	dbobject.o		\
+	dbstats.o		\
+	dbutils.o		\
+	dbxface.o		\
 	rsdump.o		\
+
+acpi-$(ACPI_FUTURE_USAGE) +=	\
+	dbfileio.o		\
+	dbtest.o		\
 	utcache.o		\
 	utfileio.o		\
 	utprint.o		\
