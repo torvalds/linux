@@ -1409,6 +1409,32 @@ static void copy_to_urb(struct snd_usb_substream *subs, struct urb *urb,
 		subs->hwptr_done -= runtime->buffer_size * stride;
 }
 
+static unsigned int copy_to_urb_quirk(struct snd_usb_substream *subs,
+				      struct urb *urb, int stride,
+				      unsigned int bytes)
+{
+	__le32 packet_length;
+	int i;
+
+	/* Put __le32 length descriptor at start of each packet. */
+	for (i = 0; i < urb->number_of_packets; i++) {
+		unsigned int length = urb->iso_frame_desc[i].length;
+		unsigned int offset = urb->iso_frame_desc[i].offset;
+
+		packet_length = cpu_to_le32(length);
+		offset += i * sizeof(packet_length);
+		urb->iso_frame_desc[i].offset = offset;
+		urb->iso_frame_desc[i].length += sizeof(packet_length);
+		memcpy(urb->transfer_buffer + offset,
+		       &packet_length, sizeof(packet_length));
+		copy_to_urb(subs, urb, offset + sizeof(packet_length),
+			    stride, length);
+	}
+	/* Adjust transfer size accordingly. */
+	bytes += urb->number_of_packets * sizeof(packet_length);
+	return bytes;
+}
+
 static void prepare_playback_urb(struct snd_usb_substream *subs,
 				 struct urb *urb)
 {
@@ -1488,7 +1514,11 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 			subs->hwptr_done -= runtime->buffer_size * stride;
 	} else {
 		/* usual PCM */
-		copy_to_urb(subs, urb, 0, stride, bytes);
+		if (!subs->tx_length_quirk)
+			copy_to_urb(subs, urb, 0, stride, bytes);
+		else
+			bytes = copy_to_urb_quirk(subs, urb, stride, bytes);
+			/* bytes is now amount of outgoing data */
 	}
 
 	/* update delay with exact number of samples queued */

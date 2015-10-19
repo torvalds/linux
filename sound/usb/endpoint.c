@@ -188,9 +188,17 @@ static void prepare_silent_urb(struct snd_usb_endpoint *ep,
 {
 	struct urb *urb = ctx->urb;
 	unsigned int offs = 0;
+	unsigned int extra = 0;
+	__le32 packet_length;
 	int i;
 
+	/* For tx_length_quirk, put packet length at start of packet */
+	if (ep->chip->tx_length_quirk)
+		extra = sizeof(packet_length);
+
 	for (i = 0; i < ctx->packets; ++i) {
+		unsigned int offset;
+		unsigned int length;
 		int counts;
 
 		if (ctx->packet_size[i])
@@ -198,15 +206,22 @@ static void prepare_silent_urb(struct snd_usb_endpoint *ep,
 		else
 			counts = snd_usb_endpoint_next_packet_size(ep);
 
-		urb->iso_frame_desc[i].offset = offs * ep->stride;
-		urb->iso_frame_desc[i].length = counts * ep->stride;
+		length = counts * ep->stride; /* number of silent bytes */
+		offset = offs * ep->stride + extra * i;
+		urb->iso_frame_desc[i].offset = offset;
+		urb->iso_frame_desc[i].length = length + extra;
+		if (extra) {
+			packet_length = cpu_to_le32(length);
+			memcpy(urb->transfer_buffer + offset,
+			       &packet_length, sizeof(packet_length));
+		}
+		memset(urb->transfer_buffer + offset + extra,
+		       ep->silence_value, length);
 		offs += counts;
 	}
 
 	urb->number_of_packets = ctx->packets;
-	urb->transfer_buffer_length = offs * ep->stride;
-	memset(urb->transfer_buffer, ep->silence_value,
-	       offs * ep->stride);
+	urb->transfer_buffer_length = offs * ep->stride + ctx->packets * extra;
 }
 
 /*
