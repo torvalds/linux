@@ -58,7 +58,7 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u8 *code_virtual_address,
 		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
-		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_NORMAL;
+		tcb_desc->bCmdOrInit = packettype;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
 		tcb_desc->pkt_size = frag_length;
 
