@@ -83,7 +83,6 @@
 #include "amcc_s5933.h"
 #include "comedi_8254.h"
 
-#define IORANGE_9118	64	/* I hope */
 #define PCI9118_CHANLEN	255	/*
 				 * len of chanlist, some source say 256,
 				 * but reality looks like 255 :-(
@@ -140,8 +139,6 @@
 #define START_AI_EXT	0x01	/* start measure on external trigger */
 #define STOP_AI_EXT	0x02	/* stop measure on external trigger */
 #define STOP_AI_INT	0x08	/* stop measure on internal trigger */
-
-#define PCI9118_HALF_FIFO_SZ	(1024 / 2)
 
 static const struct comedi_lrange pci9118_ai_range = {
 	8, {
