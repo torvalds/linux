@@ -26,8 +26,8 @@
 static const char	*length_str	= "1MB";
 static const char	*routine	= "all";
 static int		iterations	= 1;
-static bool		use_cycle;
-static int		cycle_fd;
+static bool		use_cycles;
+static int		cycles_fd;
 
 static const struct option options[] = {
 	OPT_STRING('l', "length", &length_str, "1MB",
@@ -37,8 +37,8 @@ static const struct option options[] = {
 		    "Specify routine to copy, \"all\" runs all available routines"),
 	OPT_INTEGER('i', "iterations", &iterations,
 		    "repeat memcpy() invocation this number of times"),
-	OPT_BOOLEAN('c', "cycle", &use_cycle,
-		    "Use cycles event instead of gettimeofday() for measuring"),
+	OPT_BOOLEAN('c', "cycles", &use_cycles,
+		    "Use a cycles event instead of gettimeofday() to measure performance"),
 	OPT_END()
 };
 
@@ -78,22 +78,22 @@ static struct perf_event_attr cycle_attr = {
 	.config		= PERF_COUNT_HW_CPU_CYCLES
 };
 
-static void init_cycle(void)
+static void init_cycles(void)
 {
-	cycle_fd = sys_perf_event_open(&cycle_attr, getpid(), -1, -1, perf_event_open_cloexec_flag());
+	cycles_fd = sys_perf_event_open(&cycle_attr, getpid(), -1, -1, perf_event_open_cloexec_flag());
 
-	if (cycle_fd < 0 && errno == ENOSYS)
+	if (cycles_fd < 0 && errno == ENOSYS)
 		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 	else
-		BUG_ON(cycle_fd < 0);
+		BUG_ON(cycles_fd < 0);
 }
 
-static u64 get_cycle(void)
+static u64 get_cycles(void)
 {
 	int ret;
 	u64 clk;
 
-	ret = read(cycle_fd, &clk, sizeof(u64));
+	ret = read(cycles_fd, &clk, sizeof(u64));
 	BUG_ON(ret != sizeof(u64));
 
 	return clk;
@@ -117,7 +117,7 @@ static double timeval2double(struct timeval *ts)
 
 struct bench_mem_info {
 	const struct routine *routines;
-	u64 (*do_cycle)(const struct routine *r, size_t len);
+	u64 (*do_cycles)(const struct routine *r, size_t len);
 	double (*do_gettimeofday)(const struct routine *r, size_t len);
 	const char *const *usage;
 };
@@ -126,31 +126,31 @@ static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t l
 {
 	const struct routine *r = &info->routines[r_idx];
 	double result_bps = 0.0;
-	u64 result_cycle = 0;
+	u64 result_cycles = 0;
 
 	printf("Routine %s (%s)\n", r->name, r->desc);
 
 	if (bench_format == BENCH_FORMAT_DEFAULT)
 		printf("# Copying %s Bytes ...\n\n", length_str);
 
-	if (use_cycle) {
-		result_cycle = info->do_cycle(r, len);
+	if (use_cycles) {
+		result_cycles = info->do_cycles(r, len);
 	} else {
 		result_bps = info->do_gettimeofday(r, len);
 	}
 
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
-		if (use_cycle) {
-			printf(" %14lf Cycle/Byte\n", (double)result_cycle/totallen);
+		if (use_cycles) {
+			printf(" %14lf cycles/Byte\n", (double)result_cycles/totallen);
 		} else {
 			print_bps(result_bps);
 		}
 		break;
 
 	case BENCH_FORMAT_SIMPLE:
-		if (use_cycle) {
-			printf("%lf\n", (double)result_cycle/totallen);
+		if (use_cycles) {
+			printf("%lf\n", (double)result_cycles/totallen);
 		} else {
 			printf("%lf\n", result_bps);
 		}
@@ -170,8 +170,8 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 
 	argc = parse_options(argc, argv, options, info->usage, 0);
 
-	if (use_cycle)
-		init_cycle();
+	if (use_cycles)
+		init_cycles();
 
 	len = (size_t)perf_atoll((char *)length_str);
 	totallen = (double)len * iterations;
@@ -220,7 +220,7 @@ static void memcpy_alloc_mem(void **dst, void **src, size_t length)
 	memset(*src, 0, length);
 }
 
-static u64 do_memcpy_cycle(const struct routine *r, size_t len)
+static u64 do_memcpy_cycles(const struct routine *r, size_t len)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	void *src = NULL, *dst = NULL;
@@ -235,10 +235,10 @@ static u64 do_memcpy_cycle(const struct routine *r, size_t len)
 	 */
 	fn(dst, src, len);
 
-	cycle_start = get_cycle();
+	cycle_start = get_cycles();
 	for (i = 0; i < iterations; ++i)
 		fn(dst, src, len);
-	cycle_end = get_cycle();
+	cycle_end = get_cycles();
 
 	free(src);
 	free(dst);
@@ -277,7 +277,7 @@ int bench_mem_memcpy(int argc, const char **argv, const char *prefix __maybe_unu
 {
 	struct bench_mem_info info = {
 		.routines		= memcpy_routines,
-		.do_cycle		= do_memcpy_cycle,
+		.do_cycles		= do_memcpy_cycles,
 		.do_gettimeofday	= do_memcpy_gettimeofday,
 		.usage			= bench_mem_memcpy_usage,
 	};
@@ -292,7 +292,7 @@ static void memset_alloc_mem(void **dst, size_t length)
 		die("memory allocation failed - maybe length is too large?\n");
 }
 
-static u64 do_memset_cycle(const struct routine *r, size_t len)
+static u64 do_memset_cycles(const struct routine *r, size_t len)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	memset_t fn = r->fn.memset;
@@ -307,10 +307,10 @@ static u64 do_memset_cycle(const struct routine *r, size_t len)
 	 */
 	fn(dst, -1, len);
 
-	cycle_start = get_cycle();
+	cycle_start = get_cycles();
 	for (i = 0; i < iterations; ++i)
 		fn(dst, i, len);
-	cycle_end = get_cycle();
+	cycle_end = get_cycles();
 
 	free(dst);
 	return cycle_end - cycle_start;
@@ -365,7 +365,7 @@ int bench_mem_memset(int argc, const char **argv, const char *prefix __maybe_unu
 {
 	struct bench_mem_info info = {
 		.routines		= memset_routines,
-		.do_cycle		= do_memset_cycle,
+		.do_cycles		= do_memset_cycles,
 		.do_gettimeofday	= do_memset_gettimeofday,
 		.usage			= bench_mem_memset_usage,
 	};

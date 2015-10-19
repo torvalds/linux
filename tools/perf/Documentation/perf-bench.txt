@@ -154,7 +154,7 @@ On x86-64, x86-64-unrolled, x86-64-movsq and x86-64-movsb are supported.
 Repeat memcpy invocation this number of times.
 
 -c::
---cycle::
+--cycles::
 Use perf's cpu-cycles event instead of gettimeofday syscall.
 
 *memset*::
@@ -178,7 +178,7 @@ On x86-64, x86-64-unrolled, x86-64-stosq and x86-64-stosb are supported.
 Repeat memset invocation this number of times.
 
 -c::
---cycle::
+--cycles::
 Use perf's cpu-cycles event instead of gettimeofday syscall.
 
 SUITES FOR 'numa'
