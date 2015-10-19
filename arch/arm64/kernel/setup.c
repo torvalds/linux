@@ -65,23 +65,6 @@
 #include <asm/efi.h>
 #include <asm/xen/hypervisor.h>
 
-unsigned long elf_hwcap __read_mostly;
-EXPORT_SYMBOL_GPL(elf_hwcap);
-
-#ifdef CONFIG_COMPAT
-#define COMPAT_ELF_HWCAP_DEFAULT	\
-				(COMPAT_HWCAP_HALF|COMPAT_HWCAP_THUMB|\
-				 COMPAT_HWCAP_FAST_MULT|COMPAT_HWCAP_EDSP|\
-				 COMPAT_HWCAP_TLS|COMPAT_HWCAP_VFP|\
-				 COMPAT_HWCAP_VFPv3|COMPAT_HWCAP_VFPv4|\
-				 COMPAT_HWCAP_NEON|COMPAT_HWCAP_IDIV|\
-				 COMPAT_HWCAP_LPAE)
-unsigned int compat_elf_hwcap __read_mostly = COMPAT_ELF_HWCAP_DEFAULT;
-unsigned int compat_elf_hwcap2 __read_mostly;
-#endif
-
-DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
-
 phys_addr_t __fdt_pointer __initdata;
 
 /*
@@ -194,96 +177,6 @@ static void __init smp_build_mpidr_hash(void)
 	if (mpidr_hash_size() > 4 * num_possible_cpus())
 		pr_warn("Large number of MPIDR hash buckets detected\n");
 	__flush_dcache_area(&mpidr_hash, sizeof(struct mpidr_hash));
-}
-
-void __init setup_cpu_features(void)
-{
-	u64 features;
-	s64 block;
-	u32 cwg;
-	int cls;
-
-	/*
-	 * Check for sane CTR_EL0.CWG value.
-	 */
-	cwg = cache_type_cwg();
-	cls = cache_line_size();
-	if (!cwg)
-		pr_warn("No Cache Writeback Granule information, assuming cache line size %d\n",
-			cls);
-	if (L1_CACHE_BYTES < cls)
-		pr_warn("L1_CACHE_BYTES smaller than the Cache Writeback Granule (%d < %d)\n",
-			L1_CACHE_BYTES, cls);
-
-	/*
-	 * ID_AA64ISAR0_EL1 contains 4-bit wide signed feature blocks.
-	 * The blocks we test below represent incremental functionality
-	 * for non-negative values. Negative values are reserved.
-	 */
-	features = read_cpuid(ID_AA64ISAR0_EL1);
-	block = cpuid_feature_extract_field(features, 4);
-	if (block > 0) {
-		switch (block) {
-		default:
-		case 2:
-			elf_hwcap |= HWCAP_PMULL;
-		case 1:
-			elf_hwcap |= HWCAP_AES;
-		case 0:
-			break;
-		}
-	}
-
-	if (cpuid_feature_extract_field(features, 8) > 0)
-		elf_hwcap |= HWCAP_SHA1;
-
-	if (cpuid_feature_extract_field(features, 12) > 0)
-		elf_hwcap |= HWCAP_SHA2;
-
-	if (cpuid_feature_extract_field(features, 16) > 0)
-		elf_hwcap |= HWCAP_CRC32;
-
-	block = cpuid_feature_extract_field(features, 20);
-	if (block > 0) {
-		switch (block) {
-		default:
-		case 2:
-			elf_hwcap |= HWCAP_ATOMICS;
-		case 1:
-			/* RESERVED */
-		case 0:
-			break;
-		}
-	}
-
-#ifdef CONFIG_COMPAT
-	/*
-	 * ID_ISAR5_EL1 carries similar information as above, but pertaining to
-	 * the AArch32 32-bit execution state.
-	 */
-	features = read_cpuid(ID_ISAR5_EL1);
-	block = cpuid_feature_extract_field(features, 4);
-	if (block > 0) {
-		switch (block) {
-		default:
-		case 2:
-			compat_elf_hwcap2 |= COMPAT_HWCAP2_PMULL;
-		case 1:
-			compat_elf_hwcap2 |= COMPAT_HWCAP2_AES;
-		case 0:
-			break;
-		}
-	}
-
-	if (cpuid_feature_extract_field(features, 8) > 0)
-		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA1;
-
-	if (cpuid_feature_extract_field(features, 12) > 0)
-		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA2;
-
-	if (cpuid_feature_extract_field(features, 16) > 0)
-		compat_elf_hwcap2 |= COMPAT_HWCAP2_CRC32;
-#endif
 }
 
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
