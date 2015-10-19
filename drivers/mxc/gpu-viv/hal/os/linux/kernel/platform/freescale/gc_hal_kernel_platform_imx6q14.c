@@ -103,6 +103,10 @@ extern int unregister_thermal_notifier(struct notifier_block *nb);
 #define UNREG_THERMAL_NOTIFIER(a) unregister_thermal_notifier(a);
 #endif
 
+#ifndef gcdDEFAULT_CONTIGUOUS_SIZE
+#define gcdDEFAULT_CONTIGUOUS_SIZE (4 << 20)
+#endif
+
 static int initgpu3DMinClock = 1;
 module_param(initgpu3DMinClock, int, 0644);
 
@@ -435,7 +439,16 @@ gckPLATFORM_AdjustParam(
         Args->registerMemSizeVG = res->end - res->start + 1;
     }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+    res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "contiguous_mem");
+    if (res)
+    {
+        if( Args->contiguousBase == 0 )
+           Args->contiguousBase = res->start;
+        if( Args->contiguousSize == 0 )
+           Args->contiguousSize = res->end - res->start + 1;
+    }
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
        Args->contiguousBase = 0;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
        prop = of_get_property(dn, "contiguousbase", NULL);
@@ -450,7 +463,11 @@ gckPLATFORM_AdjustParam(
      }
 #endif
     if (Args->contiguousSize == 0)
+    {
        gckOS_Print("Warning: No contiguous memory is reserverd for gpu.!\n ");
+       gckOS_Print("Warning: Will use default value(%d) for the reserved memory!\n ",gcdDEFAULT_CONTIGUOUS_SIZE);
+       Args->contiguousSize = gcdDEFAULT_CONTIGUOUS_SIZE;
+    }
 
     Args->gpu3DMinClock = initgpu3DMinClock;
 
