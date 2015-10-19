@@ -24,7 +24,7 @@
 #define K 1024
 
 static const char	*length_str	= "1MB";
-static const char	*routine	= "all";
+static const char	*routine_str	= "all";
 static int		iterations	= 1;
 static bool		use_cycles;
 static int		cycles_fd;
@@ -33,8 +33,8 @@ static const struct option options[] = {
 	OPT_STRING('l', "length", &length_str, "1MB",
 		    "Specify length of memory to copy. "
 		    "Available units: B, KB, MB, GB and TB (upper and lower)"),
-	OPT_STRING('r', "routine", &routine, "all",
-		    "Specify routine to copy, \"all\" runs all available routines"),
+	OPT_STRING('r', "routine", &routine_str, "all",
+		    "Specify the routine to run, \"all\" runs all available routines"),
 	OPT_INTEGER('i', "iterations", &iterations,
 		    "repeat memcpy() invocation this number of times"),
 	OPT_BOOLEAN('c', "cycles", &use_cycles,
@@ -181,18 +181,18 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 		return 1;
 	}
 
-	if (!strncmp(routine, "all", 3)) {
+	if (!strncmp(routine_str, "all", 3)) {
 		for (i = 0; info->routines[i].name; i++)
 			__bench_mem_routine(info, i, len, totallen);
 		return 0;
 	}
 
 	for (i = 0; info->routines[i].name; i++) {
-		if (!strcmp(info->routines[i].name, routine))
+		if (!strcmp(info->routines[i].name, routine_str))
 			break;
 	}
 	if (!info->routines[i].name) {
-		printf("Unknown routine:%s\n", routine);
+		printf("Unknown routine: %s\n", routine_str);
 		printf("Available routines...\n");
 		for (i = 0; info->routines[i].name; i++) {
 			printf("\t%s ... %s\n",
