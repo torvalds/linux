@@ -438,12 +438,9 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 	update_mixed_endian_el0_support(info);
 }
 
-static void update_cpu_ftr_reg(u32 sys_reg, u64 new)
+static void update_cpu_ftr_reg(struct arm64_ftr_reg *reg, u64 new)
 {
 	struct arm64_ftr_bits *ftrp;
-	struct arm64_ftr_reg *reg = get_arm64_ftr_reg(sys_reg);
-
-	BUG_ON(!reg);
 
 	for (ftrp = reg->ftr_bits; ftrp->width; ftrp++) {
 		s64 ftr_cur = arm64_ftr_value(ftrp, reg->sys_val);
@@ -458,36 +455,137 @@ static void update_cpu_ftr_reg(u32 sys_reg, u64 new)
 
 }
 
-/* Update CPU feature register from non-boot CPU */
-void update_cpu_features(struct cpuinfo_arm64 *info)
+static int check_update_ftr_reg(u32 sys_id, int cpu, u64 val, u64 boot)
 {
-	update_cpu_ftr_reg(SYS_CTR_EL0, info->reg_ctr);
-	update_cpu_ftr_reg(SYS_DCZID_EL0, info->reg_dczid);
-	update_cpu_ftr_reg(SYS_CNTFRQ_EL0, info->reg_cntfrq);
-	update_cpu_ftr_reg(SYS_ID_AA64DFR0_EL1, info->reg_id_aa64dfr0);
-	update_cpu_ftr_reg(SYS_ID_AA64DFR1_EL1, info->reg_id_aa64dfr1);
-	update_cpu_ftr_reg(SYS_ID_AA64ISAR0_EL1, info->reg_id_aa64isar0);
-	update_cpu_ftr_reg(SYS_ID_AA64ISAR1_EL1, info->reg_id_aa64isar1);
-	update_cpu_ftr_reg(SYS_ID_AA64MMFR0_EL1, info->reg_id_aa64mmfr0);
-	update_cpu_ftr_reg(SYS_ID_AA64MMFR1_EL1, info->reg_id_aa64mmfr1);
-	update_cpu_ftr_reg(SYS_ID_AA64PFR0_EL1, info->reg_id_aa64pfr0);
-	update_cpu_ftr_reg(SYS_ID_AA64PFR1_EL1, info->reg_id_aa64pfr1);
-	update_cpu_ftr_reg(SYS_ID_DFR0_EL1, info->reg_id_dfr0);
-	update_cpu_ftr_reg(SYS_ID_ISAR0_EL1, info->reg_id_isar0);
-	update_cpu_ftr_reg(SYS_ID_ISAR1_EL1, info->reg_id_isar1);
-	update_cpu_ftr_reg(SYS_ID_ISAR2_EL1, info->reg_id_isar2);
-	update_cpu_ftr_reg(SYS_ID_ISAR3_EL1, info->reg_id_isar3);
-	update_cpu_ftr_reg(SYS_ID_ISAR4_EL1, info->reg_id_isar4);
-	update_cpu_ftr_reg(SYS_ID_ISAR5_EL1, info->reg_id_isar5);
-	update_cpu_ftr_reg(SYS_ID_MMFR0_EL1, info->reg_id_mmfr0);
-	update_cpu_ftr_reg(SYS_ID_MMFR1_EL1, info->reg_id_mmfr1);
-	update_cpu_ftr_reg(SYS_ID_MMFR2_EL1, info->reg_id_mmfr2);
-	update_cpu_ftr_reg(SYS_ID_MMFR3_EL1, info->reg_id_mmfr3);
-	update_cpu_ftr_reg(SYS_ID_PFR0_EL1, info->reg_id_pfr0);
-	update_cpu_ftr_reg(SYS_ID_PFR1_EL1, info->reg_id_pfr1);
-	update_cpu_ftr_reg(SYS_MVFR0_EL1, info->reg_mvfr0);
-	update_cpu_ftr_reg(SYS_MVFR1_EL1, info->reg_mvfr1);
-	update_cpu_ftr_reg(SYS_MVFR2_EL1, info->reg_mvfr2);
+	struct arm64_ftr_reg *regp = get_arm64_ftr_reg(sys_id);
+
+	BUG_ON(!regp);
+	update_cpu_ftr_reg(regp, val);
+	if ((boot & regp->strict_mask) == (val & regp->strict_mask))
+		return 0;
+	pr_warn("SANITY CHECK: Unexpected variation in %s. Boot CPU: %#016llx, CPU%d: %#016llx\n",
+			regp->name, boot, cpu, val);
+	return 1;
+}
+
+/*
+ * Update system wide CPU feature registers with the values from a
+ * non-boot CPU. Also performs SANITY checks to make sure that there
+ * aren't any insane variations from that of the boot CPU.
+ */
+void update_cpu_features(int cpu,
+			 struct cpuinfo_arm64 *info,
+			 struct cpuinfo_arm64 *boot)
+{
+	int taint = 0;
+
+	/*
+	 * The kernel can handle differing I-cache policies, but otherwise
+	 * caches should look identical. Userspace JITs will make use of
+	 * *minLine.
+	 */
+	taint |= check_update_ftr_reg(SYS_CTR_EL0, cpu,
+				      info->reg_ctr, boot->reg_ctr);
+
+	/*
+	 * Userspace may perform DC ZVA instructions. Mismatched block sizes
+	 * could result in too much or too little memory being zeroed if a
+	 * process is preempted and migrated between CPUs.
+	 */
+	taint |= check_update_ftr_reg(SYS_DCZID_EL0, cpu,
+				      info->reg_dczid, boot->reg_dczid);
+
+	/* If different, timekeeping will be broken (especially with KVM) */
+	taint |= check_update_ftr_reg(SYS_CNTFRQ_EL0, cpu,
+				      info->reg_cntfrq, boot->reg_cntfrq);
+
+	/*
+	 * The kernel uses self-hosted debug features and expects CPUs to
+	 * support identical debug features. We presently need CTX_CMPs, WRPs,
+	 * and BRPs to be identical.
+	 * ID_AA64DFR1 is currently RES0.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64DFR0_EL1, cpu,
+				      info->reg_id_aa64dfr0, boot->reg_id_aa64dfr0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64DFR1_EL1, cpu,
+				      info->reg_id_aa64dfr1, boot->reg_id_aa64dfr1);
+	/*
+	 * Even in big.LITTLE, processors should be identical instruction-set
+	 * wise.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR0_EL1, cpu,
+				      info->reg_id_aa64isar0, boot->reg_id_aa64isar0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64ISAR1_EL1, cpu,
+				      info->reg_id_aa64isar1, boot->reg_id_aa64isar1);
+
+	/*
+	 * Differing PARange support is fine as long as all peripherals and
+	 * memory are mapped within the minimum PARange of all CPUs.
+	 * Linux should not care about secure memory.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR0_EL1, cpu,
+				      info->reg_id_aa64mmfr0, boot->reg_id_aa64mmfr0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR1_EL1, cpu,
+				      info->reg_id_aa64mmfr1, boot->reg_id_aa64mmfr1);
+
+	/*
+	 * EL3 is not our concern.
+	 * ID_AA64PFR1 is currently RES0.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_AA64PFR0_EL1, cpu,
+				      info->reg_id_aa64pfr0, boot->reg_id_aa64pfr0);
+	taint |= check_update_ftr_reg(SYS_ID_AA64PFR1_EL1, cpu,
+				      info->reg_id_aa64pfr1, boot->reg_id_aa64pfr1);
+
+	/*
+	 * If we have AArch32, we care about 32-bit features for compat. These
+	 * registers should be RES0 otherwise.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_DFR0_EL1, cpu,
+					info->reg_id_dfr0, boot->reg_id_dfr0);
+	taint |= check_update_ftr_reg(SYS_ID_ISAR0_EL1, cpu,
+					info->reg_id_isar0, boot->reg_id_isar0);
+	taint |= check_update_ftr_reg(SYS_ID_ISAR1_EL1, cpu,
+					info->reg_id_isar1, boot->reg_id_isar1);
+	taint |= check_update_ftr_reg(SYS_ID_ISAR2_EL1, cpu,
+					info->reg_id_isar2, boot->reg_id_isar2);
+	taint |= check_update_ftr_reg(SYS_ID_ISAR3_EL1, cpu,
+					info->reg_id_isar3, boot->reg_id_isar3);
+	taint |= check_update_ftr_reg(SYS_ID_ISAR4_EL1, cpu,
+					info->reg_id_isar4, boot->reg_id_isar4);
+	taint |= check_update_ftr_reg(SYS_ID_ISAR5_EL1, cpu,
+					info->reg_id_isar5, boot->reg_id_isar5);
+
+	/*
+	 * Regardless of the value of the AuxReg field, the AIFSR, ADFSR, and
+	 * ACTLR formats could differ across CPUs and therefore would have to
+	 * be trapped for virtualization anyway.
+	 */
+	taint |= check_update_ftr_reg(SYS_ID_MMFR0_EL1, cpu,
+					info->reg_id_mmfr0, boot->reg_id_mmfr0);
+	taint |= check_update_ftr_reg(SYS_ID_MMFR1_EL1, cpu,
+					info->reg_id_mmfr1, boot->reg_id_mmfr1);
+	taint |= check_update_ftr_reg(SYS_ID_MMFR2_EL1, cpu,
+					info->reg_id_mmfr2, boot->reg_id_mmfr2);
+	taint |= check_update_ftr_reg(SYS_ID_MMFR3_EL1, cpu,
+					info->reg_id_mmfr3, boot->reg_id_mmfr3);
+	taint |= check_update_ftr_reg(SYS_ID_PFR0_EL1, cpu,
+					info->reg_id_pfr0, boot->reg_id_pfr0);
+	taint |= check_update_ftr_reg(SYS_ID_PFR1_EL1, cpu,
+					info->reg_id_pfr1, boot->reg_id_pfr1);
+	taint |= check_update_ftr_reg(SYS_MVFR0_EL1, cpu,
+					info->reg_mvfr0, boot->reg_mvfr0);
+	taint |= check_update_ftr_reg(SYS_MVFR1_EL1, cpu,
+					info->reg_mvfr1, boot->reg_mvfr1);
+	taint |= check_update_ftr_reg(SYS_MVFR2_EL1, cpu,
+					info->reg_mvfr2, boot->reg_mvfr2);
+
+	/*
+	 * Mismatched CPU features are a recipe for disaster. Don't even
+	 * pretend to support them.
+	 */
+	WARN_TAINT_ONCE(taint, TAINT_CPU_OUT_OF_SPEC,
+			"Unsupported CPU feature variation.\n");
 
 	update_mixed_endian_el0_support(info);
 }
