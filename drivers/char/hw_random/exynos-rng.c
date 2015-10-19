@@ -81,14 +81,17 @@ static int exynos_read(struct hwrng *rng, void *buf,
 	struct exynos_rng *exynos_rng = container_of(rng,
 						struct exynos_rng, rng);
 	u32 *data = buf;
+	int retry = 100;
 
 	pm_runtime_get_sync(exynos_rng->dev);
 
 	exynos_rng_writel(exynos_rng, PRNG_START, 0);
 
 	while (!(exynos_rng_readl(exynos_rng,
-			EXYNOS_PRNG_STATUS_OFFSET) & PRNG_DONE))
+			EXYNOS_PRNG_STATUS_OFFSET) & PRNG_DONE) && --retry)
 		cpu_relax();
+	if (!retry)
+		return -ETIMEDOUT;
 
 	exynos_rng_writel(exynos_rng, PRNG_DONE, EXYNOS_PRNG_STATUS_OFFSET);
 
