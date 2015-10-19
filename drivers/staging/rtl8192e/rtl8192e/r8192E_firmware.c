@@ -271,9 +271,7 @@ bool rtl92e_init_fw(struct net_device *dev)
 					pfirmware->blobs[i].size =
 						fw_entry->size + 128;
 				}
-
-				if (rst_opt == OPT_SYSTEM_RESET)
-					release_firmware(fw_entry);
+				release_firmware(fw_entry);
 			}
 		}
 
