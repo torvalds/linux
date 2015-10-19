@@ -270,7 +270,7 @@ struct function memcpy_functions[] = {
 # undef MEMCPY_FN
 #endif
 
-	{ NULL, }
+	{ .name = NULL, }
 };
 
 static const char * const bench_mem_memcpy_usage[] = {
@@ -363,7 +363,7 @@ static const struct function memset_functions[] = {
 # undef MEMSET_FN
 #endif
 
-	{ NULL, }
+	{ .name = NULL, }
 };
 
 int bench_mem_memset(int argc, const char **argv, const char *prefix __maybe_unused)
