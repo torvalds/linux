@@ -689,6 +689,16 @@ config GPIO_SX150X
 
 endmenu
 
+menu "ISA GPIO drivers"
+
+config GPIO_104_IDIO_16
+	tristate "ACCES 104-IDIO-16 GPIO support"
+	depends on X86
+	help
+	  Enables GPIO support for the ACCES 104-IDIO-16 family.
+
+endmenu
+
 menu "MFD GPIO expanders"
 
 config GPIO_ADP5520
