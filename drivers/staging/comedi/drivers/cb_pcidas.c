@@ -1503,5 +1503,5 @@ static struct pci_driver cb_pcidas_pci_driver = {
 module_comedi_pci_driver(cb_pcidas_driver, cb_pcidas_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for MeasurementComputing PCI-DAS series");
 MODULE_LICENSE("GPL");
