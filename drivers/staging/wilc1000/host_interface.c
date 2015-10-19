@@ -254,6 +254,7 @@ static u8 set_ip[2][4];
 static u8 get_ip[2][4];
 static u32 inactive_time;
 static u8 del_beacon;
+static u32 clients_count;
 
 static u8 *join_req;
 u8 *info_element;
@@ -4137,8 +4138,6 @@ void host_int_send_network_info_to_host
 	(u8 *macStartAddress, u16 u16RxFrameLen, s8 s8Rssi)
 {
 }
-
-static u32 clients_count;
 
 s32 host_int_init(struct host_if_drv **hif_drv_handler)
 {
