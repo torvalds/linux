@@ -678,7 +678,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	}
 
 	cvm_oct_poll_queue = create_singlethread_workqueue("octeon-ethernet");
-	if (cvm_oct_poll_queue == NULL) {
+	if (!cvm_oct_poll_queue) {
 		pr_err("octeon-ethernet: Cannot create workqueue");
 		return -ENOMEM;
 	}
