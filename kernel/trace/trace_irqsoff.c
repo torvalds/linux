@@ -626,7 +626,6 @@ static int __irqsoff_tracer_init(struct trace_array *tr)
 	irqsoff_trace = tr;
 	/* make sure that the tracer is visible */
 	smp_wmb();
-	tracing_reset_online_cpus(&tr->trace_buffer);
 
 	ftrace_init_array_ops(tr, irqsoff_tracer_call);
 
