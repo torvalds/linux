@@ -954,4 +954,12 @@
 		power-domains = <&pd_lcd0>;
 		#iommu-cells = <0>;
 	};
+
+	prng: rng@10830400 {
+		compatible = "samsung,exynos4-rng";
+		reg = <0x10830400 0x200>;
+		clocks = <&clock CLK_SSS>;
+		clock-names = "secss";
+		status = "disabled";
+	};
 };
