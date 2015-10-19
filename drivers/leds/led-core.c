@@ -83,6 +83,7 @@ static void set_brightness_delayed(struct work_struct *ws)
 {
 	struct led_classdev *led_cdev =
 		container_of(ws, struct led_classdev, set_brightness_work);
+	int ret = 0;
 
 	if (led_cdev->flags & LED_BLINK_DISABLE) {
 		led_cdev->delayed_set_value = LED_OFF;
@@ -90,7 +91,16 @@ static void set_brightness_delayed(struct work_struct *ws)
 		led_cdev->flags &= ~LED_BLINK_DISABLE;
 	}
 
-	led_set_brightness_async(led_cdev, led_cdev->delayed_set_value);
+	if (led_cdev->brightness_set)
+		led_cdev->brightness_set(led_cdev, led_cdev->delayed_set_value);
+	else if (led_cdev->brightness_set_blocking)
+		ret = led_cdev->brightness_set_blocking(led_cdev,
+						led_cdev->delayed_set_value);
+	else
+		ret = -ENOTSUPP;
+	if (ret < 0)
+		dev_err(led_cdev->dev,
+			"Setting an LED's brightness failed (%d)\n", ret);
 }
 
 static void led_set_software_blink(struct led_classdev *led_cdev,
