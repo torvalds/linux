@@ -93,7 +93,7 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 		 * (currently unsupported) TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
-			.possible_crtcs = BIT(1),
+			.possible_crtcs = BIT(1) | BIT(0),
 			.encoder_type = DRM_MODE_ENCODER_NONE,
 			.port = 0,
 		},
@@ -105,15 +105,6 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 	},
 	.num_lvds = 1,
 };
-
-static const struct platform_device_id rcar_du_id_table[] = {
-	{ "rcar-du-r8a7779", (kernel_ulong_t)&rcar_du_r8a7779_info },
-	{ "rcar-du-r8a7790", (kernel_ulong_t)&rcar_du_r8a7790_info },
-	{ "rcar-du-r8a7791", (kernel_ulong_t)&rcar_du_r8a7791_info },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(platform, rcar_du_id_table);
 
 static const struct of_device_id rcar_du_of_table[] = {
 	{ .compatible = "renesas,du-r8a7779", .data = &rcar_du_r8a7779_info },
@@ -167,8 +158,7 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	init_waitqueue_head(&rcdu->commit.wait);
 
 	rcdu->dev = &pdev->dev;
-	rcdu->info = np ? of_match_device(rcar_du_of_table, rcdu->dev)->data
-		   : (void *)platform_get_device_id(pdev)->driver_data;
+	rcdu->info = of_match_device(rcar_du_of_table, rcdu->dev)->data;
 	rcdu->ddev = dev;
 	dev->dev_private = rcdu;
 
@@ -340,7 +330,6 @@ static struct platform_driver rcar_du_platform_driver = {
 		.pm	= &rcar_du_pm_ops,
 		.of_match_table = rcar_du_of_table,
 	},
-	.id_table	= rcar_du_id_table,
 };
 
 module_platform_driver(rcar_du_platform_driver);
