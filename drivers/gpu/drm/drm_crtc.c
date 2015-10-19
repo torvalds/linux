@@ -306,8 +306,7 @@ static int drm_mode_object_get_reg(struct drm_device *dev,
  * reference counted modeset objects like framebuffers.
  *
  * Returns:
- * New unique (relative to other objects in @dev) integer identifier for the
- * object.
+ * Zero on success, error code on failure.
  */
 int drm_mode_object_get(struct drm_device *dev,
 			struct drm_mode_object *obj, uint32_t obj_type)
@@ -423,7 +422,7 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 out:
 	mutex_unlock(&dev->mode_config.fb_lock);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
 
@@ -677,7 +676,6 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 
 	crtc->dev = dev;
 	crtc->funcs = funcs;
-	crtc->invert_dimensions = false;
 
 	drm_modeset_lock_init(&crtc->mutex);
 	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
@@ -2286,6 +2284,32 @@ int drm_plane_check_pixel_format(const struct drm_plane *plane, u32 format)
 	return -EINVAL;
 }
 
+static int check_src_coords(uint32_t src_x, uint32_t src_y,
+			    uint32_t src_w, uint32_t src_h,
+			    const struct drm_framebuffer *fb)
+{
+	unsigned int fb_width, fb_height;
+
+	fb_width = fb->width << 16;
+	fb_height = fb->height << 16;
+
+	/* Make sure source coordinates are inside the fb. */
+	if (src_w > fb_width ||
+	    src_x > fb_width - src_w ||
+	    src_h > fb_height ||
+	    src_y > fb_height - src_h) {
+		DRM_DEBUG_KMS("Invalid source coordinates "
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
+			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
+			      src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
+			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10);
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
 /*
  * setplane_internal - setplane handler for internal callers
  *
@@ -2305,7 +2329,6 @@ static int __setplane_internal(struct drm_plane *plane,
 			       uint32_t src_w, uint32_t src_h)
 {
 	int ret = 0;
-	unsigned int fb_width, fb_height;
 
 	/* No fb means shut it down */
 	if (!fb) {
@@ -2342,27 +2365,13 @@ static int __setplane_internal(struct drm_plane *plane,
 	    crtc_y > INT_MAX - (int32_t) crtc_h) {
 		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
 			      crtc_w, crtc_h, crtc_x, crtc_y);
-		return -ERANGE;
-	}
-
-
-	fb_width = fb->width << 16;
-	fb_height = fb->height << 16;
-
-	/* Make sure source coordinates are inside the fb. */
-	if (src_w > fb_width ||
-	    src_x > fb_width - src_w ||
-	    src_h > fb_height ||
-	    src_y > fb_height - src_h) {
-		DRM_DEBUG_KMS("Invalid source coordinates "
-			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
-			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
-			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
-			      src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
-			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10);
-		ret = -ENOSPC;
+		ret = -ERANGE;
 		goto out;
 	}
+
+	ret = check_src_coords(src_x, src_y, src_w, src_h, fb);
+	if (ret)
+		goto out;
 
 	plane->old_fb = plane->fb;
 	ret = plane->funcs->update_plane(plane, crtc, fb,
@@ -2553,20 +2562,13 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 
 	drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
 
-	if (crtc->invert_dimensions)
+	if (crtc->state &&
+	    crtc->primary->state->rotation & (BIT(DRM_ROTATE_90) |
+					      BIT(DRM_ROTATE_270)))
 		swap(hdisplay, vdisplay);
 
-	if (hdisplay > fb->width ||
-	    vdisplay > fb->height ||
-	    x > fb->width - hdisplay ||
-	    y > fb->height - vdisplay) {
-		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
-			      fb->width, fb->height, hdisplay, vdisplay, x, y,
-			      crtc->invert_dimensions ? " (inverted)" : "");
-		return -ENOSPC;
-	}
-
-	return 0;
+	return check_src_coords(x << 16, y << 16,
+				hdisplay << 16, vdisplay << 16, fb);
 }
 EXPORT_SYMBOL(drm_crtc_check_viewport);
 
@@ -5181,7 +5183,14 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
+	if (crtc->state) {
+		const struct drm_plane_state *state = crtc->primary->state;
+
+		ret = check_src_coords(state->src_x, state->src_y,
+				       state->src_w, state->src_h, fb);
+	} else {
+		ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
+	}
 	if (ret)
 		goto out;
 

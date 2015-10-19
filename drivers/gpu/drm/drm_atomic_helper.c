@@ -1790,8 +1790,13 @@ int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 	primary_state->crtc_w = set->mode->hdisplay;
 	primary_state->src_x = set->x << 16;
 	primary_state->src_y = set->y << 16;
-	primary_state->src_h = set->mode->vdisplay << 16;
-	primary_state->src_w = set->mode->hdisplay << 16;
+	if (primary_state->rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))) {
+		primary_state->src_h = set->mode->hdisplay << 16;
+		primary_state->src_w = set->mode->vdisplay << 16;
+	} else {
+		primary_state->src_h = set->mode->vdisplay << 16;
+		primary_state->src_w = set->mode->hdisplay << 16;
+	}
 
 commit:
 	ret = update_output_state(state, set);

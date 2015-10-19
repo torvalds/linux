@@ -163,12 +163,9 @@ static void armada_drm_disable_vblank(struct drm_device *dev, unsigned int pipe)
 }
 
 static struct drm_ioctl_desc armada_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(ARMADA_GEM_CREATE, armada_gem_create_ioctl,
-		DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(ARMADA_GEM_MMAP, armada_gem_mmap_ioctl,
-		DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(ARMADA_GEM_PWRITE, armada_gem_pwrite_ioctl,
-		DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(ARMADA_GEM_CREATE, armada_gem_create_ioctl,0),
+	DRM_IOCTL_DEF_DRV(ARMADA_GEM_MMAP, armada_gem_mmap_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(ARMADA_GEM_PWRITE, armada_gem_pwrite_ioctl, 0),
 };
 
 static void armada_drm_lastclose(struct drm_device *dev)

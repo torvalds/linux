@@ -691,13 +691,16 @@ long drm_ioctl(struct file *filp,
 	char stack_kdata[128];
 	char *kdata = NULL;
 	unsigned int usize, asize, drv_size;
+	bool is_driver_ioctl;
 
 	dev = file_priv->minor->dev;
 
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	if (nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END) {
+	is_driver_ioctl = nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END;
+
+	if (is_driver_ioctl) {
 		/* driver ioctl */
 		if (nr - DRM_COMMAND_BASE >= dev->driver->num_ioctls)
 			goto err_i1;
@@ -756,7 +759,10 @@ long drm_ioctl(struct file *filp,
 		memset(kdata, 0, usize);
 	}
 
-	if (ioctl->flags & DRM_UNLOCKED)
+	/* Enforce sane locking for kms driver ioctls. Core ioctls are
+	 * too messy still. */
+	if ((drm_core_check_feature(dev, DRIVER_MODESET) && is_driver_ioctl) ||
+	    (ioctl->flags & DRM_UNLOCKED))
 		retcode = func(dev, kdata, file_priv);
 	else {
 		mutex_lock(&drm_global_mutex);

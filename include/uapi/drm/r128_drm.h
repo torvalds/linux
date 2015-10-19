@@ -33,6 +33,8 @@
 #ifndef __R128_DRM_H__
 #define __R128_DRM_H__
 
+#include <drm/drm.h>
+
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the X server file (r128_sarea.h)
  */

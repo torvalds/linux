@@ -337,7 +337,7 @@ enum {
 	 AZX_DCAPS_4K_BDLE_BOUNDARY | AZX_DCAPS_SNOOP_OFF)
 
 /*
- * VGA-switcher support
+ * vga_switcheroo support
  */
 #ifdef SUPPORT_VGA_SWITCHEROO
 #define use_vga_switcheroo(chip)	((chip)->use_vga_switcheroo)
@@ -1076,12 +1076,12 @@ static void azx_vs_set_state(struct pci_dev *pci,
 			}
 		}
 	} else {
-		dev_info(chip->card->dev, "%s via VGA-switcheroo\n",
+		dev_info(chip->card->dev, "%s via vga_switcheroo\n",
 			 disabled ? "Disabling" : "Enabling");
 		if (disabled) {
 			pm_runtime_put_sync_suspend(card->dev);
 			azx_suspend(card->dev);
-			/* when we get suspended by vga switcheroo we end up in D3cold,
+			/* when we get suspended by vga_switcheroo we end up in D3cold,
 			 * however we have no ACPI handle, so pci/acpi can't put us there,
 			 * put ourselves there */
 			pci->current_state = PCI_D3cold;
@@ -1121,7 +1121,7 @@ static void init_vga_switcheroo(struct azx *chip)
 	struct pci_dev *p = get_bound_vga(chip->pci);
 	if (p) {
 		dev_info(chip->card->dev,
-			 "Handle VGA-switcheroo audio client\n");
+			 "Handle vga_switcheroo audio client\n");
 		hda->use_vga_switcheroo = 1;
 		pci_dev_put(p);
 	}
@@ -1232,7 +1232,7 @@ static int azx_dev_free(struct snd_device *device)
 
 #ifdef SUPPORT_VGA_SWITCHEROO
 /*
- * Check of disabled HDMI controller by vga-switcheroo
+ * Check of disabled HDMI controller by vga_switcheroo
  */
 static struct pci_dev *get_bound_vga(struct pci_dev *pci)
 {
@@ -1917,7 +1917,7 @@ static int azx_probe(struct pci_dev *pci,
 
 	err = register_vga_switcheroo(chip);
 	if (err < 0) {
-		dev_err(card->dev, "Error registering VGA-switcheroo client\n");
+		dev_err(card->dev, "Error registering vga_switcheroo client\n");
 		goto out_free;
 	}
 
