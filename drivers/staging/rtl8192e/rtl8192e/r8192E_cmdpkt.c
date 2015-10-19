@@ -17,8 +17,7 @@
 #include "r8192E_hw.h"
 #include "r8192E_cmdpkt.h"
 
-bool rtl92e_send_cmd_pkt(struct net_device *dev, u8 *code_virtual_address,
-			 u32 packettype, u32 buffer_len)
+bool rtl92e_send_cmd_pkt(struct net_device *dev, u8 *data, u32 type, u32 len)
 {
 
 	bool				rt_status = true;
@@ -33,17 +32,17 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u8 *code_virtual_address,
 
 	struct tx_fwinfo_8190pci *pTxFwInfo = NULL;
 
-	RT_TRACE(COMP_CMDPKT, "%s(),buffer_len is %d\n", __func__, buffer_len);
+	RT_TRACE(COMP_CMDPKT, "%s(),buffer_len is %d\n", __func__, len);
 	rtl92e_init_fw_param(dev);
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
 
 	do {
-		if ((buffer_len - frag_offset) > frag_threshold) {
+		if ((len - frag_offset) > frag_threshold) {
 			frag_length = frag_threshold;
 			bLastIniPkt = 0;
 
 		} else {
-			frag_length = (u16)(buffer_len - frag_offset);
+			frag_length = (u16)(len - frag_offset);
 			bLastIniPkt = 1;
 		}
 
@@ -58,7 +57,7 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u8 *code_virtual_address,
 		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
-		tcb_desc->bCmdOrInit = packettype;
+		tcb_desc->bCmdOrInit = type;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
 		tcb_desc->pkt_size = frag_length;
 
@@ -68,14 +67,14 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u8 *code_virtual_address,
 		memset(pTxFwInfo, 0x12, 8);
 
 		seg_ptr = skb_put(skb, frag_length);
-		memcpy(seg_ptr, code_virtual_address, (u32)frag_length);
+		memcpy(seg_ptr, data, (u32)frag_length);
 
 		priv->rtllib->softmac_hard_start_xmit(skb, dev);
 
-		code_virtual_address += frag_length;
+		data += frag_length;
 		frag_offset += frag_length;
 
-	} while (frag_offset < buffer_len);
+	} while (frag_offset < len);
 
 	rtl92e_writeb(dev, TPPoll, TPPoll_CQ);
 Failed:
