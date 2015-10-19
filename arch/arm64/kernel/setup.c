@@ -203,8 +203,7 @@ static void __init setup_processor(void)
 	u32 cwg;
 	int cls;
 
-	printk("CPU: AArch64 Processor [%08x] revision %d\n",
-	       read_cpuid_id(), read_cpuid_id() & 15);
+	pr_info("Boot CPU: AArch64 Processor [%08x]\n", read_cpuid_id());
 
 	sprintf(init_utsname()->machine, ELF_PLATFORM);
 	elf_hwcap = 0;
