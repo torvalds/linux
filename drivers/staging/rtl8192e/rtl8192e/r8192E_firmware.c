@@ -40,7 +40,7 @@ static bool _rtl92e_fw_boot_cpu(struct net_device *dev)
 		netdev_err(dev, "Firmware download failed.\n");
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
 	}
-	RT_TRACE(COMP_FIRMWARE, "Download Firmware: Put code ok!\n");
+	netdev_dbg(dev, "Download Firmware: Put code ok!\n");
 
 	CPU_status = rtl92e_readl(dev, CPU_GEN);
 	rtl92e_writeb(dev, CPU_GEN,
@@ -52,7 +52,7 @@ static bool _rtl92e_fw_boot_cpu(struct net_device *dev)
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
 	}
 
-	RT_TRACE(COMP_FIRMWARE, "Download Firmware: Boot ready!\n");
+	netdev_dbg(dev, "Download Firmware: Boot ready!\n");
 
 	return true;
 
@@ -79,7 +79,7 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 		if (rt_status)
 			pfirmware->status = FW_STATUS_3_TURNON_CPU;
 		else
-			RT_TRACE(COMP_FIRMWARE, "_rtl92e_fw_boot_cpu fail!\n");
+			netdev_dbg(dev, "_rtl92e_fw_boot_cpu fail!\n");
 
 		break;
 
@@ -97,7 +97,7 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 		break;
 	default:
 		rt_status = false;
-		RT_TRACE(COMP_FIRMWARE, "Unknown firmware status");
+		netdev_dbg(dev, "Unknown firmware status");
 		break;
 	}
 
@@ -153,7 +153,7 @@ bool rtl92e_init_fw(struct net_device *dev)
 
 	struct rt_firmware *pfirmware = priv->pFirmware;
 
-	RT_TRACE(COMP_FIRMWARE, " PlatformInitFirmware()==>\n");
+	netdev_dbg(dev, " PlatformInitFirmware()==>\n");
 
 	if (pfirmware->status == FW_STATUS_0_INIT) {
 		rst_opt = OPT_SYSTEM_RESET;
@@ -200,7 +200,7 @@ bool rtl92e_init_fw(struct net_device *dev)
 			goto download_firmware_fail;
 	}
 
-	RT_TRACE(COMP_FIRMWARE, "Firmware Download Success\n");
+	netdev_dbg(dev, "Firmware Download Success\n");
 	return rt_status;
 
 download_firmware_fail:
