@@ -169,11 +169,6 @@ static const struct comedi_lrange pci9118hg_ai_range = {
 	}
 };
 
-#define PCI9118_BIPOLAR_RANGES	4	/*
-					 * used for test on mixture
-					 * of BIP/UNI ranges
-					 */
-
 enum pci9118_boardid {
 	BOARD_PCI9118DG,
 	BOARD_PCI9118HG,
@@ -296,46 +291,44 @@ static void pci9118_ai_reset_fifo(struct comedi_device *dev)
 	outl(0, dev->iobase + PCI9118_FIFO_RESET_REG);
 }
 
-static int check_channel_list(struct comedi_device *dev,
-			      struct comedi_subdevice *s, int n_chan,
-			      unsigned int *chanlist, int frontadd, int backadd)
+static int pci9118_ai_check_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
 {
 	struct pci9118_private *devpriv = dev->private;
-	unsigned int i, differencial = 0, bipolar = 0;
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
 
-	if ((frontadd + n_chan + backadd) > s->len_chanlist) {
-		dev_err(dev->class_dev,
-			"range/channel list is too long for actual configuration!\n");
+	/* single channel scans are always ok */
+	if (cmd->chanlist_len == 1)
 		return 0;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (aref != aref0) {
+			dev_err(dev->class_dev,
+				"Differential and single ended inputs can't be mixed!\n");
+			return -EINVAL;
+		}
+		if (comedi_range_is_bipolar(s, range) !=
+		    comedi_range_is_bipolar(s, range0)) {
+			dev_err(dev->class_dev,
+				"Bipolar and unipolar ranges can't be mixed!\n");
+			return -EINVAL;
+		}
+		if (!devpriv->usemux && aref == AREF_DIFF &&
+		    (chan >= (s->n_chan / 2))) {
+			dev_err(dev->class_dev,
+				"AREF_DIFF is only available for the first 8 channels!\n");
+			return -EINVAL;
+		}
 	}
 
-	if (CR_AREF(chanlist[0]) == AREF_DIFF)
-		differencial = 1;	/* all input must be diff */
-	if (CR_RANGE(chanlist[0]) < PCI9118_BIPOLAR_RANGES)
-		bipolar = 1;	/* all input must be bipolar */
-	if (n_chan > 1)
-		for (i = 1; i < n_chan; i++) {	/* check S.E/diff */
-			if ((CR_AREF(chanlist[i]) == AREF_DIFF) !=
-			    (differencial)) {
-				dev_err(dev->class_dev,
-					"Differential and single ended inputs can't be mixed!\n");
-				return 0;
-			}
-			if ((CR_RANGE(chanlist[i]) < PCI9118_BIPOLAR_RANGES) !=
-			    (bipolar)) {
-				dev_err(dev->class_dev,
-					"Bipolar and unipolar ranges can't be mixed!\n");
-				return 0;
-			}
-			if (!devpriv->usemux && differencial &&
-			    (CR_CHAN(chanlist[i]) >= (s->n_chan / 2))) {
-				dev_err(dev->class_dev,
-					"AREF_DIFF is only available for the first 8 channels!\n");
-				return 0;
-			}
-		}
-
-	return 1;
+	return 0;
 }
 
 static void pci9118_set_chanlist(struct comedi_device *dev,
@@ -940,6 +933,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_8254 *pacer = dev->pacer;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int addchans = 0;
+	unsigned int scanlen;
 
 	devpriv->ai12_startstop = 0;
 	devpriv->ai_flags = cmd->flags;
@@ -1025,19 +1019,20 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 	}
 	/* well, we now know what must be all added */
-	devpriv->ai_n_realscanlen =	/*
-					 * what we must take from card in real
-					 * to have cmd->scan_end_arg on output?
-					 */
-	    (devpriv->ai_add_front + cmd->chanlist_len +
-	     devpriv->ai_add_back) * (cmd->scan_end_arg /
-				      cmd->chanlist_len);
+	scanlen = devpriv->ai_add_front + cmd->chanlist_len +
+		  devpriv->ai_add_back;
+	/*
+	 * what we must take from card in real to have cmd->scan_end_arg
+	 * on output?
+	 */
+	devpriv->ai_n_realscanlen = scanlen *
+				    (cmd->scan_end_arg / cmd->chanlist_len);
 
-	/* check and setup channel list */
-	if (!check_channel_list(dev, s, cmd->chanlist_len,
-				cmd->chanlist, devpriv->ai_add_front,
-				devpriv->ai_add_back))
+	if (scanlen > s->len_chanlist) {
+		dev_err(dev->class_dev,
+			"range/channel list is too long for actual configuration!\n");
 		return -EINVAL;
+	}
 
 	/*
 	 * Configure analog input and load the chanlist.
@@ -1307,10 +1302,13 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
+	/* Step 5: check channel list if it exists */
+
 	if (cmd->chanlist)
-		if (!check_channel_list(dev, s, cmd->chanlist_len,
-					cmd->chanlist, 0, 0))
-			return 5;	/* incorrect channels list */
+		err |= pci9118_ai_check_chanlist(dev, s, cmd);
+
+	if (err)
+		return 5;
 
 	return 0;
 }
