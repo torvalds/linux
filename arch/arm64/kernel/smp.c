@@ -156,6 +156,13 @@ asmlinkage void secondary_start_kernel(void)
 	preempt_disable();
 	trace_hardirqs_off();
 
+	/*
+	 * If the system has established the capabilities, make sure
+	 * this CPU ticks all of those. If it doesn't, the CPU will
+	 * fail to come online.
+	 */
+	verify_local_cpu_capabilities();
+
 	if (cpu_ops[cpu]->cpu_postboot)
 		cpu_ops[cpu]->cpu_postboot();
 

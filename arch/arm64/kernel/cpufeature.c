@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <asm/cpu.h>
 #include <asm/cpufeature.h>
+#include <asm/cpu_ops.h>
 #include <asm/processor.h>
 #include <asm/sysreg.h>
 
@@ -645,19 +646,101 @@ void update_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 }
 
 /*
- * Run through the enabled capabilities and enable() it on the CPUs
+ * Run through the enabled capabilities and enable() it on all active
+ * CPUs
  */
 void enable_cpu_capabilities(const struct arm64_cpu_capabilities *caps)
 {
 	int i;
 
+	for (i = 0; caps[i].desc; i++)
+		if (caps[i].enable && cpus_have_cap(caps[i].capability))
+			on_each_cpu(caps[i].enable, NULL, true);
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * Flag to indicate if we have computed the system wide
+ * capabilities based on the boot time active CPUs. This
+ * will be used to determine if a new booting CPU should
+ * go through the verification process to make sure that it
+ * supports the system capabilities, without using a hotplug
+ * notifier.
+ */
+static bool sys_caps_initialised;
+
+static inline void set_sys_caps_initialised(void)
+{
+	sys_caps_initialised = true;
+}
+
+/*
+ * Park the CPU which doesn't have the capability as advertised
+ * by the system.
+ */
+static void fail_incapable_cpu(char *cap_type,
+				 const struct arm64_cpu_capabilities *cap)
+{
+	int cpu = smp_processor_id();
+
+	pr_crit("CPU%d: missing %s : %s\n", cpu, cap_type, cap->desc);
+	/* Mark this CPU absent */
+	set_cpu_present(cpu, 0);
+
+	/* Check if we can park ourselves */
+	if (cpu_ops[cpu] && cpu_ops[cpu]->cpu_die)
+		cpu_ops[cpu]->cpu_die(cpu);
+	asm(
+	"1:	wfe\n"
+	"	wfi\n"
+	"	b	1b");
+}
+
+/*
+ * Run through the enabled system capabilities and enable() it on this CPU.
+ * The capabilities were decided based on the available CPUs at the boot time.
+ * Any new CPU should match the system wide status of the capability. If the
+ * new CPU doesn't have a capability which the system now has enabled, we
+ * cannot do anything to fix it up and could cause unexpected failures. So
+ * we park the CPU.
+ */
+void verify_local_cpu_capabilities(void)
+{
+	int i;
+	const struct arm64_cpu_capabilities *caps;
+
+	/*
+	 * If we haven't computed the system capabilities, there is nothing
+	 * to verify.
+	 */
+	if (!sys_caps_initialised)
+		return;
+
+	caps = arm64_features;
 	for (i = 0; caps[i].desc; i++) {
-		if (cpus_have_cap(caps[i].capability) && caps[i].enable)
-			caps[i].enable();
+		if (!cpus_have_cap(caps[i].capability))
+			continue;
+		/*
+		 * If the new CPU misses an advertised feature, we cannot proceed
+		 * further, park the cpu.
+		 */
+		if (!caps[i].matches(&caps[i]))
+			fail_incapable_cpu("arm64_features", &caps[i]);
+		if (caps[i].enable)
+			caps[i].enable(NULL);
 	}
 }
 
-void check_local_cpu_features(void)
+#else	/* !CONFIG_HOTPLUG_CPU */
+
+static inline void set_sys_caps_initialised(void)
+{
+}
+
+#endif	/* CONFIG_HOTPLUG_CPU */
+
+static void setup_feature_capabilities(void)
 {
 	update_cpu_capabilities(arm64_features, "detected feature:");
 	enable_cpu_capabilities(arm64_features);
@@ -669,6 +752,12 @@ void __init setup_cpu_features(void)
 	s64 block;
 	u32 cwg;
 	int cls;
+
+	/* Set the CPU feature capabilies */
+	setup_feature_capabilities();
+
+	/* Advertise that we have computed the system capabilities */
+	set_sys_caps_initialised();
 
 	/*
 	 * Check for sane CTR_EL0.CWG value.

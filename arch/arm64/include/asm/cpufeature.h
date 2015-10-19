@@ -70,7 +70,7 @@ struct arm64_cpu_capabilities {
 	const char *desc;
 	u16 capability;
 	bool (*matches)(const struct arm64_cpu_capabilities *);
-	void (*enable)(void);
+	void (*enable)(void *);		/* Called on all active CPUs */
 	union {
 		struct {	/* To be used for erratum handling only */
 			u32 midr_model;
@@ -140,7 +140,14 @@ void __init setup_cpu_features(void);
 void update_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			    const char *info);
 void check_local_cpu_errata(void);
-void check_local_cpu_features(void);
+
+#ifdef CONFIG_HOTPLUG_CPU
+void verify_local_cpu_capabilities(void);
+#else
+static inline void verify_local_cpu_capabilities(void)
+{
+}
+#endif
 
 u64 read_system_reg(u32 id);
 
