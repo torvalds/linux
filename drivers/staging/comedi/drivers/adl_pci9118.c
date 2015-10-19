@@ -83,11 +83,6 @@
 #include "amcc_s5933.h"
 #include "comedi_8254.h"
 
-#define PCI9118_CHANLEN	255	/*
-				 * len of chanlist, some source say 256,
-				 * but reality looks like 255 :-(
-				 */
-
 /*
  * PCI BAR2 Register map (dev->iobase)
  */
@@ -1595,7 +1590,7 @@ static int pci9118_common_attach(struct comedi_device *dev,
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags	|= SDF_CMD_READ;
-		s->len_chanlist	= PCI9118_CHANLEN;
+		s->len_chanlist	= 255;
 		s->do_cmdtest	= pci9118_ai_cmdtest;
 		s->do_cmd	= pci9118_ai_cmd;
 		s->cancel	= pci9118_ai_cancel;
