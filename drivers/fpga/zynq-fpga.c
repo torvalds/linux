@@ -487,7 +487,7 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 				&zynq_fpga_ops, priv);
 	if (err) {
 		dev_err(dev, "unable to register FPGA manager");
-		clk_disable_unprepare(priv->clk);
+		clk_unprepare(priv->clk);
 		return err;
 	}
 
@@ -502,7 +502,7 @@ static int zynq_fpga_remove(struct platform_device *pdev)
 
 	priv = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(priv->clk);
+	clk_unprepare(priv->clk);
 
 	return 0;
 }
