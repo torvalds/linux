@@ -123,7 +123,6 @@ acpi-y +=		\
 	rsaddr.o	\
 	rscalc.o	\
 	rscreate.o	\
-	rsdump.o	\
 	rsdumpinfo.o	\
 	rsinfo.o	\
 	rsio.o		\
@@ -179,6 +178,7 @@ acpi-y +=		\
 	utxfmutex.o
 
 acpi-$(ACPI_FUTURE_USAGE) +=	\
+	rsdump.o		\
 	utcache.o		\
 	utfileio.o		\
 	utprint.o		\
