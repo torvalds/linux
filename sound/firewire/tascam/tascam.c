@@ -40,7 +40,7 @@ static int identify_model(struct snd_tscm *tscm)
 {
 	struct fw_device *fw_dev = fw_parent_device(tscm->unit);
 	const u32 *config_rom = fw_dev->config_rom;
-	char model[8];
+	char model[9];
 	unsigned int i;
 	u8 c;
 
