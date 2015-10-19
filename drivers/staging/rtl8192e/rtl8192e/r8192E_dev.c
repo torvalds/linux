@@ -719,19 +719,19 @@ start:
 		rtl92e_writeb(dev, ANAPAR, 0x37);
 		mdelay(500);
 	}
-	priv->pFirmware->firmware_status = FW_STATUS_0_INIT;
+	priv->pFirmware->status = FW_STATUS_0_INIT;
 
 	if (priv->RegRfOff)
 		priv->rtllib->eRFPowerState = eRfOff;
 
 	ulRegRead = rtl92e_readl(dev, CPU_GEN);
-	if (priv->pFirmware->firmware_status == FW_STATUS_0_INIT)
+	if (priv->pFirmware->status == FW_STATUS_0_INIT)
 		ulRegRead |= CPU_GEN_SYSTEM_RESET;
-	else if (priv->pFirmware->firmware_status == FW_STATUS_5_READY)
+	else if (priv->pFirmware->status == FW_STATUS_5_READY)
 		ulRegRead |= CPU_GEN_FIRMWARE_RESET;
 	else
 		netdev_err(dev, "%s(): undefined firmware state: %d.\n",
-			   __func__, priv->pFirmware->firmware_status);
+			   __func__, priv->pFirmware->status);
 
 	rtl92e_writel(dev, CPU_GEN, ulRegRead);
 

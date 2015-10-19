@@ -52,7 +52,7 @@ struct rt_fw_blob {
 
 #define FW_BLOBS 3
 struct rt_firmware {
-	enum firmware_status firmware_status;
+	enum firmware_status status;
 	struct rt_fw_blob blobs[FW_BLOBS];
 };
 

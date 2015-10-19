@@ -168,27 +168,27 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 
 	switch (load_fw_status) {
 	case FW_INIT_STEP0_BOOT:
-		pfirmware->firmware_status = FW_STATUS_1_MOVE_BOOT_CODE;
+		pfirmware->status = FW_STATUS_1_MOVE_BOOT_CODE;
 		break;
 
 	case FW_INIT_STEP1_MAIN:
-		pfirmware->firmware_status = FW_STATUS_2_MOVE_MAIN_CODE;
+		pfirmware->status = FW_STATUS_2_MOVE_MAIN_CODE;
 
 		rt_status = _rtl92e_fw_boot_cpu(dev);
 		if (rt_status)
-			pfirmware->firmware_status = FW_STATUS_3_TURNON_CPU;
+			pfirmware->status = FW_STATUS_3_TURNON_CPU;
 		else
 			RT_TRACE(COMP_FIRMWARE, "_rtl92e_fw_boot_cpu fail!\n");
 
 		break;
 
 	case FW_INIT_STEP2_DATA:
-		pfirmware->firmware_status = FW_STATUS_4_MOVE_DATA_CODE;
+		pfirmware->status = FW_STATUS_4_MOVE_DATA_CODE;
 		mdelay(1);
 
 		rt_status = _rtl92e_is_fw_ready(dev);
 		if (rt_status)
-			pfirmware->firmware_status = FW_STATUS_5_READY;
+			pfirmware->status = FW_STATUS_5_READY;
 		else
 			RT_TRACE(COMP_FIRMWARE,
 				 "_rtl92e_is_fw_ready fail(%d)!\n",
@@ -219,11 +219,11 @@ bool rtl92e_init_fw(struct net_device *dev)
 
 	RT_TRACE(COMP_FIRMWARE, " PlatformInitFirmware()==>\n");
 
-	if (pfirmware->firmware_status == FW_STATUS_0_INIT) {
+	if (pfirmware->status == FW_STATUS_0_INIT) {
 		rst_opt = OPT_SYSTEM_RESET;
 		starting_state = FW_INIT_STEP0_BOOT;
 
-	} else if (pfirmware->firmware_status == FW_STATUS_5_READY) {
+	} else if (pfirmware->status == FW_STATUS_5_READY) {
 		rst_opt = OPT_FIRMWARE_RESET;
 		starting_state = FW_INIT_STEP2_DATA;
 	} else {
