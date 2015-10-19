@@ -240,6 +240,16 @@ static void aml_i2c_xfer_prepare(struct aml_i2c *i2c, unsigned int speed)
 
 static void aml_i2c_start_token_xfer(struct aml_i2c *i2c)
 {
+	struct aml_i2c_reg_ctrl* ctrl =
+		(struct aml_i2c_reg_ctrl*)&(i2c->master_regs->i2c_ctrl);
+
+	if(ctrl->manual_en || ctrl->ack_ignore)	{
+		dev_err(&i2c->adap.dev, "Controller Error! manual_en = %d, ack_ignore = %d\n",
+								ctrl->manual_en, ctrl->ack_ignore);
+		// Controller Error Fix.
+		ctrl->manual_en = 0;	ctrl->ack_ignore = 0;
+	}
+
 	//((struct aml_i2c_reg_ctrl*)&(i2c->master_regs->i2c_ctrl))->start = 0;	/*clear*/
 	//((struct aml_i2c_reg_ctrl*)&(i2c->master_regs->i2c_ctrl))->start = 1;	/*set*/
 	i2c->master_regs->i2c_ctrl &= ~1;	/*clear*/
