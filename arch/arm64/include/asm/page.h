@@ -24,6 +24,9 @@
 #ifdef CONFIG_ARM64_64K_PAGES
 #define PAGE_SHIFT		16
 #define CONT_SHIFT		5
+#elif defined(CONFIG_ARM64_16K_PAGES)
+#define PAGE_SHIFT		14
+#define CONT_SHIFT		7
 #else
 #define PAGE_SHIFT		12
 #define CONT_SHIFT		4
