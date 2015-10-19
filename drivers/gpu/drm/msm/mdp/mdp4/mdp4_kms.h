@@ -217,6 +217,15 @@ struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
 		struct device_node *panel_node, struct drm_encoder *encoder);
 
+#ifdef CONFIG_DRM_MSM_DSI
+struct drm_encoder *mdp4_dsi_encoder_init(struct drm_device *dev);
+#else
+static inline struct drm_encoder *mdp4_dsi_encoder_init(struct drm_device *dev)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
+
 #ifdef CONFIG_COMMON_CLK
 struct clk *mpd4_lvds_pll_init(struct drm_device *dev);
 #else
