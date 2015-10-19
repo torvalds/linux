@@ -55,7 +55,12 @@ static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
 	wake_up_bit(&hdev->flags, HCI_INQUIRY);
 
 	hci_dev_lock(hdev);
-	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+	/* Set discovery state to stopped if we're not doing LE active
+	 * scanning.
+	 */
+	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN) ||
+	    hdev->le_scan_type != LE_SCAN_ACTIVE)
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 	hci_dev_unlock(hdev);
 
 	hci_conn_check_pending(hdev);
@@ -4648,8 +4653,8 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 	/* If we're not connectable only connect devices that we have in
 	 * our pend_le_conns list.
 	 */
-	params = hci_explicit_connect_lookup(hdev, addr, addr_type);
-
+	params = hci_pend_le_action_lookup(&hdev->pend_le_conns, addr,
+					   addr_type);
 	if (!params)
 		return NULL;
 
