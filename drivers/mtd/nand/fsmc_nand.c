@@ -1023,12 +1023,17 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand->cmd_ctrl = fsmc_cmd_ctrl;
 	nand->chip_delay = 30;
 
+	/*
+	 * Setup default ECC mode. nand_dt_init() called from nand_scan_ident()
+	 * can overwrite this value if the DT provides a different value.
+	 */
 	nand->ecc.mode = NAND_ECC_HW;
 	nand->ecc.hwctl = fsmc_enable_hwecc;
 	nand->ecc.size = 512;
 	nand->options = pdata->options;
 	nand->select_chip = fsmc_select_chip;
 	nand->badblockbits = 7;
+	nand->flash_node = np;
 
 	if (pdata->width == FSMC_NAND_BW16)
 		nand->options |= NAND_BUSWIDTH_16;
@@ -1070,11 +1075,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		nand->ecc.correct = fsmc_bch8_correct_data;
 		nand->ecc.bytes = 13;
 		nand->ecc.strength = 8;
-	} else {
-		nand->ecc.calculate = fsmc_read_hwecc_ecc1;
-		nand->ecc.correct = nand_correct_data;
-		nand->ecc.bytes = 3;
-		nand->ecc.strength = 1;
 	}
 
 	/*
@@ -1115,21 +1115,46 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 			goto err_probe;
 		}
 	} else {
-		switch (host->mtd.oobsize) {
-		case 16:
-			nand->ecc.layout = &fsmc_ecc1_16_layout;
+		switch (nand->ecc.mode) {
+		case NAND_ECC_HW:
+			dev_info(&pdev->dev, "Using 1-bit HW ECC scheme\n");
+			nand->ecc.calculate = fsmc_read_hwecc_ecc1;
+			nand->ecc.correct = nand_correct_data;
+			nand->ecc.bytes = 3;
+			nand->ecc.strength = 1;
 			break;
-		case 64:
-			nand->ecc.layout = &fsmc_ecc1_64_layout;
+
+		case NAND_ECC_SOFT_BCH:
+			dev_info(&pdev->dev, "Using 4-bit SW BCH ECC scheme\n");
 			break;
-		case 128:
-			nand->ecc.layout = &fsmc_ecc1_128_layout;
-			break;
+
 		default:
-			dev_warn(&pdev->dev, "No oob scheme defined for oobsize %d\n",
-				 mtd->oobsize);
-			ret = -EINVAL;
+			dev_err(&pdev->dev, "Unsupported ECC mode!\n");
 			goto err_probe;
+		}
+
+		/*
+		 * Don't set layout for BCH4 SW ECC. This will be
+		 * generated later in nand_bch_init() later.
+		 */
+		if (nand->ecc.mode != NAND_ECC_SOFT_BCH) {
+			switch (host->mtd.oobsize) {
+			case 16:
+				nand->ecc.layout = &fsmc_ecc1_16_layout;
+				break;
+			case 64:
+				nand->ecc.layout = &fsmc_ecc1_64_layout;
+				break;
+			case 128:
+				nand->ecc.layout = &fsmc_ecc1_128_layout;
+				break;
+			default:
+				dev_warn(&pdev->dev,
+					 "No oob scheme defined for oobsize %d\n",
+					 mtd->oobsize);
+				ret = -EINVAL;
+				goto err_probe;
+			}
 		}
 	}
 
