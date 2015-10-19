@@ -324,8 +324,8 @@ uint oid_rt_get_channel_hdl(struct oid_par_priv *poid_par_priv)
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return RNDIS_STATUS_NOT_ACCEPTED;
-	if ((check_fwstate(pmlmepriv, _FW_LINKED) == true) ||
-	    (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true))
+	if (check_fwstate(pmlmepriv, _FW_LINKED) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE))
 		pnic_Config = &pmlmepriv->cur_network.network.Configuration;
 	else
 		pnic_Config = &padapter->registrypriv.dev_network.
@@ -465,7 +465,7 @@ uint oid_rt_pro_rf_read_registry_hdl(struct oid_par_priv *poid_par_priv)
 	if (poid_par_priv->type_of_oid != SET_OID) /* QUERY_OID */
 		return RNDIS_STATUS_NOT_ACCEPTED;
 	if (poid_par_priv->information_buf_len == (sizeof(unsigned long)*3)) {
-		if (Adapter->mppriv.act_in_progress == true)
+		if (Adapter->mppriv.act_in_progress)
 			status = RNDIS_STATUS_NOT_ACCEPTED;
 		else {
 			/* init workparam */
@@ -515,11 +515,11 @@ uint oid_rt_get_connect_state_hdl(struct oid_par_priv *poid_par_priv)
 	 * nStatus==2	AdHocMode
 	 * nStatus==3	NotAssociated
 	 */
-	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true)
+	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
 		ulInfo = CHECKINGSTATUS;
-	else if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
+	else if (check_fwstate(pmlmepriv, _FW_LINKED))
 		ulInfo = ASSOCIATED;
-	else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true)
+	else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE))
 		ulInfo = ADHOCMODE;
 	else
 		ulInfo = NOTASSOCIATED;

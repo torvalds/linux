@@ -85,7 +85,7 @@ static void query_fw_rx_phy_status(struct _adapter *padapter)
 	u32 val32 = 0;
 	int pollingcnts = 50;
 
-	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED) == true) {
+	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 		r8712_write32(padapter, IOCMD_CTRL_REG, 0xf4000001);
 		msleep(100);
 		/* Wait FW complete IO Cmd */
@@ -324,8 +324,7 @@ int r8712_cmd_thread(void *context)
 	while (1) {
 		if ((_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL)
 			break;
-		if ((padapter->bDriverStopped == true) ||
-		    (padapter->bSurpriseRemoved == true))
+		if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
 			break;
 		if (r8712_register_cmd_alive(padapter) != _SUCCESS)
 			continue;
@@ -375,8 +374,8 @@ _next:
 			pcmdbuf += 2; /* 8 bytes alignment */
 			memcpy((u8 *)pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
 			while (check_cmd_fifo(padapter, wr_sz) == _FAIL) {
-				if ((padapter->bDriverStopped == true) ||
-				    (padapter->bSurpriseRemoved == true))
+				if (padapter->bDriverStopped ||
+				    padapter->bSurpriseRemoved)
 					break;
 				msleep(100);
 				continue;

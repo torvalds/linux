@@ -102,8 +102,7 @@ void r8712_read_mem(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 
 	void (*_read_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
 			  u8 *pmem);
-	if ((adapter->bDriverStopped == true) ||
-	    (adapter->bSurpriseRemoved == true))
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 		return;
 	_read_mem = pintfhdl->io_ops._read_mem;
 	_read_mem(pintfhdl, addr, cnt, pmem);
@@ -127,8 +126,7 @@ void r8712_read_port(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 
 	u32 (*_read_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
 			  u8 *pmem);
-	if ((adapter->bDriverStopped == true) ||
-	    (adapter->bSurpriseRemoved == true))
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 		return;
 	_read_port = pintfhdl->io_ops._read_port;
 	_read_port(pintfhdl, addr, cnt, pmem);

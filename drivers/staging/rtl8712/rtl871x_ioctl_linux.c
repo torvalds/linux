@@ -178,17 +178,17 @@ static inline char *translate_scan(struct _adapter *padapter,
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
 	if (r8712_is_cckratesonly_included(pnetwork->network.rates)) {
-		if (ht_cap == true)
+		if (ht_cap)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bn");
 		else
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11b");
 	} else if (r8712_is_cckrates_included(pnetwork->network.rates)) {
-		if (ht_cap == true)
+		if (ht_cap)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bgn");
 		else
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bg");
 	} else {
-		if (ht_cap == true)
+		if (ht_cap)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11gn");
 		else
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11g");
@@ -310,7 +310,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 
 		if (r8712_get_wps_ie(pnetwork->network.IEs,
 		    pnetwork->network.IELength,
-		    wps_ie, &wps_ielen) == true) {
+		    wps_ie, &wps_ielen)) {
 			if (wps_ielen > 2) {
 				iwe.cmd = IWEVGENIE;
 				iwe.u.data.length = (u16)wps_ielen;
@@ -443,7 +443,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
 		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE |
-		    WIFI_MP_STATE) == true) { /* sta mode */
+		    WIFI_MP_STATE)) { /* sta mode */
 			psta = r8712_get_stainfo(pstapriv,
 						 get_bssid(pmlmepriv));
 			if (psta) {
@@ -617,22 +617,22 @@ static int r8711_wx_get_name(struct net_device *dev,
 		if (p && ht_ielen > 0)
 			ht_cap = true;
 		prates = pcur_bss->rates;
-		if (r8712_is_cckratesonly_included(prates) == true) {
-			if (ht_cap == true)
+		if (r8712_is_cckratesonly_included(prates)) {
+			if (ht_cap)
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11bn");
 			else
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11b");
-		} else if ((r8712_is_cckrates_included(prates)) == true) {
-			if (ht_cap == true)
+		} else if (r8712_is_cckrates_included(prates)) {
+			if (ht_cap)
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11bgn");
 			else
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11bg");
 		} else {
-			if (ht_cap == true)
+			if (ht_cap)
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11gn");
 			else
@@ -697,7 +697,7 @@ static int r8711_wx_get_freq(struct net_device *dev,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		wrqu->freq.m = ieee80211_wlan_frequencies[
 			       pcur_bss->Configuration.DSConfig-1] * 100000;
 		wrqu->freq.e = 1;
@@ -746,12 +746,12 @@ static int r8711_wx_get_mode(struct net_device *dev, struct iw_request_info *a,
 	struct _adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true)
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		wrqu->mode = IW_MODE_INFRA;
 	else if (check_fwstate(pmlmepriv,
-		 WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE) == true)
+		 WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE))
 		wrqu->mode = IW_MODE_ADHOC;
-	else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
+	else if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		wrqu->mode = IW_MODE_MASTER;
 	else
 		wrqu->mode = IW_MODE_AUTO;
@@ -940,7 +940,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 		struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 		struct wlan_network *pcur_network = &pmlmepriv->cur_network;
 		/*static u8 xxxx; */
-		if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
+		if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 			sprintf(ext, "%s rssi %d",
 				pcur_network->network.Ssid.Ssid,
 				/*(xxxx=xxxx+10) */
@@ -1044,9 +1044,9 @@ static int r8711_wx_set_wap(struct net_device *dev,
 	struct wlan_network *pnetwork = NULL;
 	enum NDIS_802_11_AUTHENTICATION_MODE	authmode;
 
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true)
+	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
 		return -EBUSY;
-	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true)
+	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
 		return ret;
 	if (temp->sa_family != ARPHRD_ETHER)
 		return -EINVAL;
@@ -1055,7 +1055,7 @@ static int r8711_wx_set_wap(struct net_device *dev,
 	phead = &queue->queue;
 	pmlmepriv->pscanned = phead->next;
 	while (1) {
-		if (end_of_queue_search(phead, pmlmepriv->pscanned) == true)
+		if (end_of_queue_search(phead, pmlmepriv->pscanned))
 			break;
 		pnetwork = LIST_CONTAINOR(pmlmepriv->pscanned,
 			   struct wlan_network, list);
@@ -1137,17 +1137,17 @@ static int r8711_wx_set_scan(struct net_device *dev,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	u8 status = true;
 
-	if (padapter->bDriverStopped == true) {
+	if (padapter->bDriverStopped) {
 		netdev_info(dev, "In %s: bDriverStopped=%d\n",
 			    __func__, padapter->bDriverStopped);
 		return -1;
 	}
-	if (padapter->bup == false)
+	if (!padapter->bup)
 		return -ENETDOWN;
-	if (padapter->hw_init_completed == false)
+	if (!padapter->hw_init_completed)
 		return -1;
 	if ((check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING)) ||
-	    (pmlmepriv->sitesurveyctrl.traffic_busy == true))
+	    (pmlmepriv->sitesurveyctrl.traffic_busy))
 		return 0;
 	if (wrqu->data.length == sizeof(struct iw_scan_req)) {
 		struct iw_scan_req *req = (struct iw_scan_req *)extra;
@@ -1164,7 +1164,7 @@ static int r8711_wx_set_scan(struct net_device *dev,
 			spin_lock_irqsave(&pmlmepriv->lock, irqL);
 			if ((check_fwstate(pmlmepriv, _FW_UNDER_SURVEY |
 			     _FW_UNDER_LINKING)) ||
-			    (pmlmepriv->sitesurveyctrl.traffic_busy == true)) {
+			    (pmlmepriv->sitesurveyctrl.traffic_busy)) {
 				if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
 					status = false;
 			} else
@@ -1173,7 +1173,7 @@ static int r8711_wx_set_scan(struct net_device *dev,
 		}
 	} else
 		status = r8712_set_802_11_bssid_list_scan(padapter);
-	if (status == false)
+	if (!status)
 		return -1;
 	return 0;
 }
@@ -1204,7 +1204,7 @@ static int r8711_wx_get_scan(struct net_device *dev,
 	phead = &queue->queue;
 	plist = phead->next;
 	while (1) {
-		if (end_of_queue_search(phead, plist) == true)
+		if (end_of_queue_search(phead, plist))
 			break;
 		if ((stop - ev) < SCAN_ITEM_SIZE) {
 			ret = -E2BIG;
@@ -1427,7 +1427,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 			wrqu->bitrate.value = rate*500000;
 			i++;
 		}
-		if (ht_cap == true) {
+		if (ht_cap) {
 			if (mcs_rate & 0x8000 /* MCS15 */
 				&&
 				rf_type == RTL8712_RF_2T2R)
@@ -1599,7 +1599,7 @@ static int r8711_wx_get_enc(struct net_device *dev,
 	struct iw_point *erq = &(wrqu->encoding);
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == false) {
+	if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
 		if (!check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
 			erq->length = 0;
 			erq->flags |= IW_ENCODE_DISABLED;
@@ -1973,7 +1973,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 	phead = &queue->queue;
 	plist = phead->next;
 	while (1) {
-		if (end_of_queue_search(phead, plist) == true)
+		if (end_of_queue_search(phead, plist))
 			break;
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
 		if (!mac_pton(data, bssid)) {

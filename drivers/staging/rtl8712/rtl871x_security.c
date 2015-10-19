@@ -675,7 +675,7 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 				idx = iv[3];
 				prwskey = &psecuritypriv->XGrpKey[
 					 ((idx >> 6) & 0x3) - 1].skey[0];
-				if (psecuritypriv->binstallGrpkey == false)
+				if (!psecuritypriv->binstallGrpkey)
 					return _FAIL;
 			} else
 				prwskey = &stainfo->x_UncstKey.skey[0];
@@ -1374,7 +1374,7 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 				idx = iv[3];
 				prwskey = &psecuritypriv->XGrpKey[
 					  ((idx >> 6) & 0x3) - 1].skey[0];
-				if (psecuritypriv->binstallGrpkey == false)
+				if (!psecuritypriv->binstallGrpkey)
 					return _FAIL;
 
 			} else

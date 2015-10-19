@@ -181,7 +181,7 @@ static int mp_start_test(struct _adapter *padapter)
 	} else
 		bssid.Length = length;
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)
+	if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
 		goto end_of_mp_start_test;
 	/*init mp_start_test status*/
 	pmppriv->prev_fw_state = get_fwstate(pmlmepriv);
@@ -223,7 +223,7 @@ static int mp_stop_test(struct _adapter *padapter)
 	unsigned long irqL;
 
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false)
+	if (!check_fwstate(pmlmepriv, WIFI_MP_STATE))
 		goto end_of_mp_stop_test;
 	/* 3 1. disconnect psudo AdHoc */
 	r8712_os_indicate_disconnect(padapter);
@@ -247,9 +247,9 @@ int mp_start_joinbss(struct _adapter *padapter, struct ndis_802_11_ssid *pssid)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	unsigned char res = _SUCCESS;
 
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false)
+	if (!check_fwstate(pmlmepriv, WIFI_MP_STATE))
 		return _FAIL;
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == false)
+	if (!check_fwstate(pmlmepriv, _FW_LINKED))
 		return _FAIL;
 	_clr_fwstate_(pmlmepriv, _FW_LINKED);
 	res = r8712_setassocsta_cmd(padapter, pmppriv->network_macaddr);
@@ -684,7 +684,7 @@ uint oid_rt_get_thermal_meter_hdl(struct oid_par_priv *poid_par_priv)
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return RNDIS_STATUS_NOT_ACCEPTED;
 
-	if (Adapter->mppriv.act_in_progress == true)
+	if (Adapter->mppriv.act_in_progress)
 		return RNDIS_STATUS_NOT_ACCEPTED;
 
 	if (poid_par_priv->information_buf_len < sizeof(u8))
@@ -728,7 +728,7 @@ uint oid_rt_pro_read_efuse_hdl(struct oid_par_priv *poid_par_priv)
 	if ((addr > 511) || (cnts < 1) || (cnts > 512) || (addr + cnts) >
 	     EFUSE_MAX_SIZE)
 		return RNDIS_STATUS_NOT_ACCEPTED;
-	if (r8712_efuse_access(Adapter, true, addr, cnts, data) == false)
+	if (!r8712_efuse_access(Adapter, true, addr, cnts, data))
 		status = RNDIS_STATUS_FAILURE;
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
 	return status;
@@ -756,7 +756,7 @@ uint oid_rt_pro_write_efuse_hdl(struct oid_par_priv *poid_par_priv)
 	if ((addr > 511) || (cnts < 1) || (cnts > 512) ||
 	    (addr + cnts) > r8712_efuse_get_max_size(Adapter))
 		return RNDIS_STATUS_NOT_ACCEPTED;
-	if (r8712_efuse_access(Adapter, false, addr, cnts, data) == false)
+	if (!r8712_efuse_access(Adapter, false, addr, cnts, data))
 		status = RNDIS_STATUS_FAILURE;
 	return status;
 }
@@ -824,7 +824,7 @@ uint oid_rt_pro_efuse_map_hdl(struct oid_par_priv *poid_par_priv)
 			status = RNDIS_STATUS_FAILURE;
 	} else {
 		/* SET_OID */
-		if (r8712_efuse_reg_init(Adapter) == true) {
+		if (r8712_efuse_reg_init(Adapter)) {
 			if (r8712_efuse_map_write(Adapter, 0,
 			    EFUSE_MAP_MAX_SIZE, data))
 				*poid_par_priv->bytes_rw = EFUSE_MAP_MAX_SIZE;

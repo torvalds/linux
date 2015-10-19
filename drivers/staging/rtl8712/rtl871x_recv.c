@@ -147,7 +147,7 @@ void r8712_free_recvframe_queue(struct  __queue *pframequeue,
 	spin_lock(&pframequeue->lock);
 	phead = &pframequeue->queue;
 	plist = phead->next;
-	while (end_of_queue_search(phead, plist) == false) {
+	while (!end_of_queue_search(phead, plist)) {
 		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		plist = plist->next;
 		r8712_free_recvframe(precvframe, pfree_recv_queue);
@@ -178,7 +178,7 @@ sint r8712_recvframe_chkmic(struct _adapter *adapter,
 				idx = iv[3];
 				mickey = &psecuritypriv->XGrprxmickey[(((idx >>
 					 6) & 0x3)) - 1].skey[0];
-				if (psecuritypriv->binstallGrpkey == false)
+				if (!psecuritypriv->binstallGrpkey)
 					return _FAIL;
 			} else
 				mickey = &stainfo->tkiprxmickey.skey[0];
@@ -197,16 +197,15 @@ sint r8712_recvframe_chkmic(struct _adapter *adapter,
 				if (miccode[i] != *(pframemic + i))
 					bmic_err = true;
 			}
-			if (bmic_err == true) {
-				if (prxattrib->bdecrypted == true)
+			if (bmic_err) {
+				if (prxattrib->bdecrypted)
 					r8712_handle_tkip_mic_err(adapter,
 						(u8)IS_MCAST(prxattrib->ra));
 				res = _FAIL;
 			} else {
 				/* mic checked ok */
-				if ((psecuritypriv->bcheck_grpkey ==
-				     false) && (IS_MCAST(prxattrib->ra) ==
-				     true))
+				if (!psecuritypriv->bcheck_grpkey &&
+				    IS_MCAST(prxattrib->ra))
 					psecuritypriv->bcheck_grpkey = true;
 			}
 			recvframe_pull_tail(precvframe, 8);
@@ -224,7 +223,7 @@ union recv_frame *r8712_decryptor(struct _adapter *padapter,
 	union recv_frame *return_packet = precv_frame;
 
 	if ((prxattrib->encrypt > 0) && ((prxattrib->bdecrypted == 0) ||
-	   (psecuritypriv->sw_decrypt == true))) {
+	    psecuritypriv->sw_decrypt)) {
 		psecuritypriv->hw_decrypted = false;
 		switch (prxattrib->encrypt) {
 		case _WEP40_:
@@ -324,8 +323,8 @@ static sint sta2sta_data_frame(struct _adapter *adapter,
 	u8 *sta_addr = NULL;
 	sint bmcast = IS_MCAST(pattrib->dst);
 
-	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) ||
-	    (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
 		/* filter packets that SA is myself or multicast or broadcast */
 		if (!memcmp(myhwaddr, pattrib->src, ETH_ALEN))
 			return _FAIL;
@@ -336,13 +335,13 @@ static sint sta2sta_data_frame(struct _adapter *adapter,
 		    (memcmp(pattrib->bssid, mybssid, ETH_ALEN)))
 			return _FAIL;
 		sta_addr = pattrib->src;
-	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
+	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		/* For Station mode, sa and bssid should always be BSSID,
 		 * and DA is my mac-address */
 		if (memcmp(pattrib->bssid, pattrib->src, ETH_ALEN))
 			return _FAIL;
 	       sta_addr = pattrib->bssid;
-	 } else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+	 } else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		if (bmcast) {
 			/* For AP mode, if DA == MCAST, then BSSID should
 			 * be also MCAST */
@@ -355,7 +354,7 @@ static sint sta2sta_data_frame(struct _adapter *adapter,
 				return _FAIL;
 			sta_addr = pattrib->src;
 		}
-	  } else if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
+	  } else if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 		memcpy(pattrib->dst, GetAddr1Ptr(ptr), ETH_ALEN);
 		memcpy(pattrib->src, GetAddr2Ptr(ptr), ETH_ALEN);
 		memcpy(pattrib->bssid, GetAddr3Ptr(ptr), ETH_ALEN);
@@ -369,7 +368,7 @@ static sint sta2sta_data_frame(struct _adapter *adapter,
 	else
 		*psta = r8712_get_stainfo(pstapriv, sta_addr); /* get ap_info */
 	if (*psta == NULL) {
-		if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)
+		if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
 			adapter->mppriv.rx_pktloss++;
 		return _FAIL;
 	}
@@ -388,8 +387,8 @@ static sint ap2sta_data_frame(struct _adapter *adapter,
 	u8 *myhwaddr = myid(&adapter->eeprompriv);
 	sint bmcast = IS_MCAST(pattrib->dst);
 
-	if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true)
-	     && (check_fwstate(pmlmepriv, _FW_LINKED) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) &&
+	    check_fwstate(pmlmepriv, _FW_LINKED)) {
 		/* if NULL-frame, drop packet */
 		if ((GetFrameSubType(ptr)) == WIFI_DATA_NULL)
 			return _FAIL;
@@ -419,8 +418,8 @@ static sint ap2sta_data_frame(struct _adapter *adapter,
 		       *psta = r8712_get_stainfo(pstapriv, pattrib->bssid);
 		if (*psta == NULL)
 			return _FAIL;
-	} else if ((check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) &&
-		   (check_fwstate(pmlmepriv, _FW_LINKED) == true)) {
+	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE) &&
+		   check_fwstate(pmlmepriv, _FW_LINKED)) {
 		memcpy(pattrib->dst, GetAddr1Ptr(ptr), ETH_ALEN);
 		memcpy(pattrib->src, GetAddr2Ptr(ptr), ETH_ALEN);
 		memcpy(pattrib->bssid, GetAddr3Ptr(ptr), ETH_ALEN);
@@ -444,7 +443,7 @@ static sint sta2ap_data_frame(struct _adapter *adapter,
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	unsigned char *mybssid  = get_bssid(pmlmepriv);
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		/* For AP mode, if DA is non-MCAST, then it must be BSSID,
 		 * and bssid == BSSID
 		 * For AP mode, RA=BSSID, TX=STA(SRC_ADDR), A3=DST_ADDR */
@@ -630,7 +629,7 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	rmv_len = pattrib->hdrlen + pattrib->iv_len +
 		  (bsnaphdr ? SNAP_SIZE : 0);
 	len = precvframe->u.hdr.len - rmv_len;
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 		ptr += rmv_len;
 		*ptr = 0x87;
 		*(ptr+1) = 0x12;

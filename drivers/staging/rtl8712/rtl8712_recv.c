@@ -217,7 +217,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 	curfragnum++;
 	plist = &defrag_q->queue;
 	plist = plist->next;
-	while (end_of_queue_search(phead, plist) == false) {
+	while (!end_of_queue_search(phead, plist)) {
 		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		pnfhdr = &pnextrframe->u.hdr;
 		/*check the fragment sequence  (2nd ~n fragment frame) */
@@ -489,7 +489,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 
 	phead = &ppending_recvframe_queue->queue;
 	plist = phead->next;
-	while (end_of_queue_search(phead, plist) == false) {
+	while (!end_of_queue_search(phead, plist)) {
 		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		pnextattrib = &pnextrframe->u.hdr.attrib;
 		if (SN_LESS(pnextattrib->seq_num, pattrib->seq_num))
@@ -519,7 +519,7 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 	phead = &ppending_recvframe_queue->queue;
 	plist = phead->next;
 	/* Handling some condition for forced indicate case.*/
-	if (bforced == true) {
+	if (bforced) {
 		if (list_empty(phead))
 			return true;
 
@@ -541,8 +541,8 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 				  (preorder_ctrl->indicate_seq + 1) % 4096;
 			/*indicate this recv_frame*/
 			if (!pattrib->amsdu) {
-				if ((padapter->bDriverStopped == false) &&
-				    (padapter->bSurpriseRemoved == false)) {
+				if (!padapter->bDriverStopped &&
+				    !padapter->bSurpriseRemoved) {
 					/* indicate this recv_frame */
 					r8712_recv_indicatepkt(padapter,
 							       prframe);
@@ -576,8 +576,8 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 		/* s1. */
 		r8712_wlanhdr_to_ethhdr(prframe);
 		if (pattrib->qos != 1) {
-			if ((padapter->bDriverStopped == false) &&
-			   (padapter->bSurpriseRemoved == false)) {
+			if (!padapter->bDriverStopped &&
+			    !padapter->bSurpriseRemoved) {
 				r8712_recv_indicatepkt(padapter, prframe);
 				return _SUCCESS;
 			} else
@@ -643,16 +643,15 @@ static int r8712_process_recv_indicatepkts(struct _adapter *padapter,
 	if (phtpriv->ht_option == 1) { /*B/G/N Mode*/
 		if (recv_indicatepkt_reorder(padapter, prframe) != _SUCCESS) {
 			/* including perform A-MPDU Rx Ordering Buffer Control*/
-			if ((padapter->bDriverStopped == false) &&
-			    (padapter->bSurpriseRemoved == false))
+			if (!padapter->bDriverStopped &&
+			    !padapter->bSurpriseRemoved)
 				return _FAIL;
 		}
 	} else { /*B/G mode*/
 		retval = r8712_wlanhdr_to_ethhdr(prframe);
 		if (retval != _SUCCESS)
 			return retval;
-		if ((padapter->bDriverStopped == false) &&
-		    (padapter->bSurpriseRemoved == false)) {
+		if (!padapter->bDriverStopped && !padapter->bSurpriseRemoved) {
 			/* indicate this recv_frame */
 			r8712_recv_indicatepkt(padapter, prframe);
 		} else
@@ -962,12 +961,12 @@ int recv_func(struct _adapter *padapter, void *pcontext)
 	prframe = (union recv_frame *)pcontext;
 	orig_prframe = prframe;
 	pattrib = &prframe->u.hdr.attrib;
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 		if (pattrib->crc_err == 1)
 			padapter->mppriv.rx_crcerrpktcount++;
 		else
 			padapter->mppriv.rx_pktcount++;
-		if (check_fwstate(pmlmepriv, WIFI_MP_LPBK_STATE) == false) {
+		if (!check_fwstate(pmlmepriv, WIFI_MP_LPBK_STATE)) {
 			/* free this recv_frame */
 			r8712_free_recvframe(orig_prframe, pfree_recv_queue);
 			goto _exit_recv_func;

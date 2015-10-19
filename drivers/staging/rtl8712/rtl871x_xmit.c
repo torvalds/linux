@@ -217,8 +217,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 	memcpy(pattrib->dst, &etherhdr.h_dest, ETH_ALEN);
 	memcpy(pattrib->src, &etherhdr.h_source, ETH_ALEN);
 	pattrib->pctrl = 0;
-	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) ||
-	    (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
 		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
 		memcpy(pattrib->ta, pattrib->src, ETH_ALEN);
 	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
@@ -227,7 +227,7 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
 		memcpy(pattrib->ta, get_bssid(pmlmepriv), ETH_ALEN);
-	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
+	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 		/*firstly, filter packet not belongs to mp*/
 		if (pattrib->ether_type != 0x8712)
 			return _FAIL;
@@ -267,7 +267,7 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		psta = r8712_get_bcmc_stainfo(padapter);
 		pattrib->mac_id = 4;
 	} else {
-		if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
+		if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 			psta = r8712_get_stainfo(pstapriv,
 						 get_bssid(pmlmepriv));
 			pattrib->mac_id = 5;
@@ -300,10 +300,10 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		pattrib->subtype = WIFI_DATA_TYPE;
 		pattrib->priority = 0;
 	}
-	if (psta->ieee8021x_blocked == true) {
+	if (psta->ieee8021x_blocked) {
 		pattrib->encrypt = 0;
 		if ((pattrib->ether_type != 0x888e) &&
-		    (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false))
+		    !check_fwstate(pmlmepriv, WIFI_MP_STATE))
 			return _FAIL;
 	} else
 		GET_ENCRY_ALGO(psecuritypriv, psta, pattrib->encrypt, bmcast);
@@ -330,14 +330,14 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 	}
 
 	if (pattrib->encrypt &&
-	    ((padapter->securitypriv.sw_encrypt == true) ||
-	     (psecuritypriv->hw_decrypted == false)))
+	    (padapter->securitypriv.sw_encrypt ||
+	    !psecuritypriv->hw_decrypted))
 		pattrib->bswenc = true;
 	else
 		pattrib->bswenc = false;
 	/* if in MP_STATE, update pkt_attrib from mp_txcmd, and overwrite
 	 * some settings above.*/
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)
+	if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
 		pattrib->priority = (txdesc.txdw1 >> QSEL_SHT) & 0x1f;
 	return _SUCCESS;
 }
@@ -483,28 +483,28 @@ static sint make_wlanhdr(struct _adapter *padapter, u8 *hdr,
 	memset(hdr, 0, WLANHDR_OFFSET);
 	SetFrameSubType(fctrl, pattrib->subtype);
 	if (pattrib->subtype & WIFI_DATA_TYPE) {
-		if (check_fwstate(pmlmepriv,  WIFI_STATION_STATE) == true) {
+		if (check_fwstate(pmlmepriv,  WIFI_STATION_STATE)) {
 			/* to_ds = 1, fr_ds = 0; */
 			SetToDs(fctrl);
 			memcpy(pwlanhdr->addr1, get_bssid(pmlmepriv),
 				ETH_ALEN);
 			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
 			memcpy(pwlanhdr->addr3, pattrib->dst, ETH_ALEN);
-		} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+		} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 			/* to_ds = 0, fr_ds = 1; */
 			SetFrDs(fctrl);
 			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
 			memcpy(pwlanhdr->addr2, get_bssid(pmlmepriv),
 				ETH_ALEN);
 			memcpy(pwlanhdr->addr3, pattrib->src, ETH_ALEN);
-		} else if ((check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true)
-			   || (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)
-			   == true)) {
+		} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) ||
+			   check_fwstate(pmlmepriv,
+					 WIFI_ADHOC_MASTER_STATE)) {
 			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
 			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
 			memcpy(pwlanhdr->addr3, get_bssid(pmlmepriv),
 				ETH_ALEN);
-		} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
+		} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
 			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
 			memcpy(pwlanhdr->addr3, get_bssid(pmlmepriv),
@@ -609,7 +609,7 @@ sint r8712_xmitframe_coalesce(struct _adapter *padapter, _pkt *pkt,
 		return _FAIL;
 	_r8712_open_pktfile(pkt, &pktfile);
 	_r8712_pktfile_read(&pktfile, NULL, (uint) pattrib->pkt_hdrlen);
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 		/* truncate TXDESC_SIZE bytes txcmd if at mp mode for 871x */
 		if (pattrib->ether_type == 0x8712) {
 			/* take care -  update_txdesc overwrite this */
@@ -680,7 +680,7 @@ sint r8712_xmitframe_coalesce(struct _adapter *padapter, _pkt *pkt,
 			pframe += pattrib->icv_len;
 		}
 		frg_inx++;
-		if (bmcst || (r8712_endofpktfile(&pktfile) == true)) {
+		if (bmcst || r8712_endofpktfile(&pktfile)) {
 			pattrib->nr_frags = frg_inx;
 			pattrib->last_txcmdsz = pattrib->hdrlen +
 						pattrib->iv_len +
@@ -855,7 +855,7 @@ void r8712_free_xmitframe_queue(struct xmit_priv *pxmitpriv,
 	spin_lock_irqsave(&(pframequeue->lock), irqL);
 	phead = &pframequeue->queue;
 	plist = phead->next;
-	while (end_of_queue_search(phead, plist) == false) {
+	while (!end_of_queue_search(phead, plist)) {
 		pxmitframe = LIST_CONTAINOR(plist, struct xmit_frame, list);
 		plist = plist->next;
 		r8712_free_xmitframe(pxmitpriv, pxmitframe);
@@ -923,7 +923,7 @@ sint r8712_xmit_classifier(struct _adapter *padapter,
 		if (bmcst)
 			psta = r8712_get_bcmc_stainfo(padapter);
 		else {
-			if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)
+			if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
 				psta = r8712_get_stainfo(pstapriv,
 				       get_bssid(pmlmepriv));
 			else

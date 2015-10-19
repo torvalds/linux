@@ -302,7 +302,7 @@ void rtl871x_intf_stop(struct _adapter *padapter)
 
 void r871x_dev_unload(struct _adapter *padapter)
 {
-	if (padapter->bup == true) {
+	if (padapter->bup) {
 		/*s1.*/
 		padapter->bDriverStopped = true;
 
@@ -611,7 +611,7 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 		release_firmware(padapter->fw);
 		/* never exit with a firmware callback pending */
 		wait_for_completion(&padapter->rtl8712_fw_ready);
-		if (drvpriv.drv_registered == true)
+		if (drvpriv.drv_registered)
 			padapter->bSurpriseRemoved = true;
 		unregister_netdev(pnetdev); /* will call netdev_close() */
 		flush_scheduled_work();

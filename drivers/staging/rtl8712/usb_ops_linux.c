@@ -266,7 +266,7 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
 	    adapter->pwrctrlpriv.pnp_bstop_trx)
 		return _FAIL;
-	if (!precvbuf->reuse == false || !precvbuf->pskb) {
+	if (precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
 		if (precvbuf->pskb != NULL)
 			precvbuf->reuse = true;
@@ -330,13 +330,13 @@ void r8712_xmit_bh(void *priv)
 	struct _adapter *padapter = (struct _adapter *)priv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	if ((padapter->bDriverStopped == true) ||
-	    (padapter->bSurpriseRemoved == true)) {
+	if (padapter->bDriverStopped ||
+	    padapter->bSurpriseRemoved) {
 		netdev_err(padapter->pnetdev, "xmit_bh => bDriverStopped or bSurpriseRemoved\n");
 		return;
 	}
 	ret = r8712_xmitframe_complete(padapter, pxmitpriv, NULL);
-	if (ret == false)
+	if (!ret)
 		return;
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 }
@@ -410,7 +410,7 @@ u32 r8712_usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	    (padapter->pwrctrlpriv.pnp_bstop_trx))
 		return _FAIL;
 	for (i = 0; i < 8; i++) {
-		if (pxmitframe->bpending[i] == false) {
+		if (!pxmitframe->bpending[i]) {
 			spin_lock_irqsave(&pxmitpriv->lock, irqL);
 			pxmitpriv->txirp_cnt++;
 			pxmitframe->bpending[i]  = true;
