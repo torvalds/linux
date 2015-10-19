@@ -150,7 +150,7 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 		strcat(filename, instance_str);
 	}
 
-	strcat(filename, ACPI_TABLE_FILE_SUFFIX);
+	strcat(filename, FILE_SUFFIX_BINARY_TABLE);
 
 	if (gbl_verbose_mode) {
 		acpi_log_error
