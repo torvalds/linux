@@ -401,9 +401,9 @@ static void pci9118_ai_mode4_switch(struct comedi_device *dev,
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 }
 
-static unsigned int valid_samples_in_act_dma_buf(struct comedi_device *dev,
-						 struct comedi_subdevice *s,
-						 unsigned int n_raw_samples)
+static unsigned int pci9118_ai_samples_ready(struct comedi_device *dev,
+					     struct comedi_subdevice *s,
+					     unsigned int n_raw_samples)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -642,7 +642,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	bool more_dma;
 
 	/* determine whether more DMA buffers to do after this one */
-	n_valid = valid_samples_in_act_dma_buf(dev, s, n_all);
+	n_valid = pci9118_ai_samples_ready(dev, s, n_all);
 	more_dma = n_valid < comedi_nsamples_left(s, n_valid + 1);
 
 	/* switch DMA buffers and restart DMA if double buffering */
