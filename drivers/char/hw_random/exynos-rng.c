@@ -188,10 +188,19 @@ static const struct dev_pm_ops exynos_rng_pm_ops = {
 			   exynos_rng_runtime_resume, NULL)
 };
 
+static const struct of_device_id exynos_rng_dt_match[] = {
+	{
+		.compatible = "samsung,exynos4-rng",
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, exynos_rng_dt_match);
+
 static struct platform_driver exynos_rng_driver = {
 	.driver		= {
 		.name	= "exynos-rng",
 		.pm	= &exynos_rng_pm_ops,
+		.of_match_table = exynos_rng_dt_match,
 	},
 	.probe		= exynos_rng_probe,
 };
