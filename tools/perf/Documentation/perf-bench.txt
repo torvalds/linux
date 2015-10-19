@@ -139,8 +139,8 @@ Suite for evaluating performance of simple memory copy in various ways.
 Options of *memcpy*
 ^^^^^^^^^^^^^^^^^^^
 -l::
---length::
-Specify length of memory to copy (default: 1MB).
+--size::
+Specify size of memory to copy (default: 1MB).
 Available units are B, KB, MB, GB and TB (case insensitive).
 
 -r::
@@ -163,8 +163,8 @@ Suite for evaluating performance of simple memory set in various ways.
 Options of *memset*
 ^^^^^^^^^^^^^^^^^^^
 -l::
---length::
-Specify length of memory to set (default: 1MB).
+--size::
+Specify size of memory to set (default: 1MB).
 Available units are B, KB, MB, GB and TB (case insensitive).
 
 -r::

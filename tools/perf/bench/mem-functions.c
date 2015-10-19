@@ -23,15 +23,15 @@
 
 #define K 1024
 
-static const char	*length_str	= "1MB";
+static const char	*size_str	= "1MB";
 static const char	*routine_str	= "all";
 static int		iterations	= 1;
 static bool		use_cycles;
 static int		cycles_fd;
 
 static const struct option options[] = {
-	OPT_STRING('l', "length", &length_str, "1MB",
-		    "Specify length of memory to copy. "
+	OPT_STRING('l', "size", &size_str, "1MB",
+		    "Specify the size of the memory buffers. "
 		    "Available units: B, KB, MB, GB and TB (upper and lower)"),
 	OPT_STRING('r', "routine", &routine_str, "all",
 		    "Specify the routine to run, \"all\" runs all available routines"),
@@ -117,12 +117,12 @@ static double timeval2double(struct timeval *ts)
 
 struct bench_mem_info {
 	const struct routine *routines;
-	u64 (*do_cycles)(const struct routine *r, size_t len);
-	double (*do_gettimeofday)(const struct routine *r, size_t len);
+	u64 (*do_cycles)(const struct routine *r, size_t size);
+	double (*do_gettimeofday)(const struct routine *r, size_t size);
 	const char *const *usage;
 };
 
-static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t len, double totallen)
+static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t size, double size_total)
 {
 	const struct routine *r = &info->routines[r_idx];
 	double result_bps = 0.0;
@@ -131,18 +131,18 @@ static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t l
 	printf("Routine %s (%s)\n", r->name, r->desc);
 
 	if (bench_format == BENCH_FORMAT_DEFAULT)
-		printf("# Copying %s Bytes ...\n\n", length_str);
+		printf("# Copying %s Bytes ...\n\n", size_str);
 
 	if (use_cycles) {
-		result_cycles = info->do_cycles(r, len);
+		result_cycles = info->do_cycles(r, size);
 	} else {
-		result_bps = info->do_gettimeofday(r, len);
+		result_bps = info->do_gettimeofday(r, size);
 	}
 
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
 		if (use_cycles) {
-			printf(" %14lf cycles/Byte\n", (double)result_cycles/totallen);
+			printf(" %14lf cycles/Byte\n", (double)result_cycles/size_total);
 		} else {
 			print_bps(result_bps);
 		}
@@ -150,7 +150,7 @@ static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t l
 
 	case BENCH_FORMAT_SIMPLE:
 		if (use_cycles) {
-			printf("%lf\n", (double)result_cycles/totallen);
+			printf("%lf\n", (double)result_cycles/size_total);
 		} else {
 			printf("%lf\n", result_bps);
 		}
@@ -165,25 +165,25 @@ static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t l
 static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *info)
 {
 	int i;
-	size_t len;
-	double totallen;
+	size_t size;
+	double size_total;
 
 	argc = parse_options(argc, argv, options, info->usage, 0);
 
 	if (use_cycles)
 		init_cycles();
 
-	len = (size_t)perf_atoll((char *)length_str);
-	totallen = (double)len * iterations;
+	size = (size_t)perf_atoll((char *)size_str);
+	size_total = (double)size * iterations;
 
-	if ((s64)len <= 0) {
-		fprintf(stderr, "Invalid length:%s\n", length_str);
+	if ((s64)size <= 0) {
+		fprintf(stderr, "Invalid size:%s\n", size_str);
 		return 1;
 	}
 
 	if (!strncmp(routine_str, "all", 3)) {
 		for (i = 0; info->routines[i].name; i++)
-			__bench_mem_routine(info, i, len, totallen);
+			__bench_mem_routine(info, i, size, size_total);
 		return 0;
 	}
 
@@ -201,43 +201,43 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 		return 1;
 	}
 
-	__bench_mem_routine(info, i, len, totallen);
+	__bench_mem_routine(info, i, size, size_total);
 
 	return 0;
 }
 
-static void memcpy_alloc_mem(void **dst, void **src, size_t length)
+static void memcpy_alloc_mem(void **dst, void **src, size_t size)
 {
-	*dst = zalloc(length);
+	*dst = zalloc(size);
 	if (!*dst)
-		die("memory allocation failed - maybe length is too large?\n");
+		die("memory allocation failed - maybe size is too large?\n");
 
-	*src = zalloc(length);
+	*src = zalloc(size);
 	if (!*src)
-		die("memory allocation failed - maybe length is too large?\n");
+		die("memory allocation failed - maybe size is too large?\n");
 
 	/* Make sure to always prefault zero pages even if MMAP_THRESH is crossed: */
-	memset(*src, 0, length);
+	memset(*src, 0, size);
 }
 
-static u64 do_memcpy_cycles(const struct routine *r, size_t len)
+static u64 do_memcpy_cycles(const struct routine *r, size_t size)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	void *src = NULL, *dst = NULL;
 	memcpy_t fn = r->fn.memcpy;
 	int i;
 
-	memcpy_alloc_mem(&dst, &src, len);
+	memcpy_alloc_mem(&dst, &src, size);
 
 	/*
 	 * We prefault the freshly allocated memory range here,
 	 * to not measure page fault overhead:
 	 */
-	fn(dst, src, len);
+	fn(dst, src, size);
 
 	cycle_start = get_cycles();
 	for (i = 0; i < iterations; ++i)
-		fn(dst, src, len);
+		fn(dst, src, size);
 	cycle_end = get_cycles();
 
 	free(src);
@@ -245,24 +245,24 @@ static u64 do_memcpy_cycles(const struct routine *r, size_t len)
 	return cycle_end - cycle_start;
 }
 
-static double do_memcpy_gettimeofday(const struct routine *r, size_t len)
+static double do_memcpy_gettimeofday(const struct routine *r, size_t size)
 {
 	struct timeval tv_start, tv_end, tv_diff;
 	memcpy_t fn = r->fn.memcpy;
 	void *src = NULL, *dst = NULL;
 	int i;
 
-	memcpy_alloc_mem(&dst, &src, len);
+	memcpy_alloc_mem(&dst, &src, size);
 
 	/*
 	 * We prefault the freshly allocated memory range here,
 	 * to not measure page fault overhead:
 	 */
-	fn(dst, src, len);
+	fn(dst, src, size);
 
 	BUG_ON(gettimeofday(&tv_start, NULL));
 	for (i = 0; i < iterations; ++i)
-		fn(dst, src, len);
+		fn(dst, src, size);
 	BUG_ON(gettimeofday(&tv_end, NULL));
 
 	timersub(&tv_end, &tv_start, &tv_diff);
@@ -270,7 +270,7 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t len)
 	free(src);
 	free(dst);
 
-	return (double)(((double)len * iterations) / timeval2double(&tv_diff));
+	return (double)(((double)size * iterations) / timeval2double(&tv_diff));
 }
 
 int bench_mem_memcpy(int argc, const char **argv, const char *prefix __maybe_unused)
@@ -285,61 +285,61 @@ int bench_mem_memcpy(int argc, const char **argv, const char *prefix __maybe_unu
 	return bench_mem_common(argc, argv, &info);
 }
 
-static void memset_alloc_mem(void **dst, size_t length)
+static void memset_alloc_mem(void **dst, size_t size)
 {
-	*dst = zalloc(length);
+	*dst = zalloc(size);
 	if (!*dst)
-		die("memory allocation failed - maybe length is too large?\n");
+		die("memory allocation failed - maybe size is too large?\n");
 }
 
-static u64 do_memset_cycles(const struct routine *r, size_t len)
+static u64 do_memset_cycles(const struct routine *r, size_t size)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	memset_t fn = r->fn.memset;
 	void *dst = NULL;
 	int i;
 
-	memset_alloc_mem(&dst, len);
+	memset_alloc_mem(&dst, size);
 
 	/*
 	 * We prefault the freshly allocated memory range here,
 	 * to not measure page fault overhead:
 	 */
-	fn(dst, -1, len);
+	fn(dst, -1, size);
 
 	cycle_start = get_cycles();
 	for (i = 0; i < iterations; ++i)
-		fn(dst, i, len);
+		fn(dst, i, size);
 	cycle_end = get_cycles();
 
 	free(dst);
 	return cycle_end - cycle_start;
 }
 
-static double do_memset_gettimeofday(const struct routine *r, size_t len)
+static double do_memset_gettimeofday(const struct routine *r, size_t size)
 {
 	struct timeval tv_start, tv_end, tv_diff;
 	memset_t fn = r->fn.memset;
 	void *dst = NULL;
 	int i;
 
-	memset_alloc_mem(&dst, len);
+	memset_alloc_mem(&dst, size);
 
 	/*
 	 * We prefault the freshly allocated memory range here,
 	 * to not measure page fault overhead:
 	 */
-	fn(dst, -1, len);
+	fn(dst, -1, size);
 
 	BUG_ON(gettimeofday(&tv_start, NULL));
 	for (i = 0; i < iterations; ++i)
-		fn(dst, i, len);
+		fn(dst, i, size);
 	BUG_ON(gettimeofday(&tv_end, NULL));
 
 	timersub(&tv_end, &tv_start, &tv_diff);
 
 	free(dst);
-	return (double)(((double)len * iterations) / timeval2double(&tv_diff));
+	return (double)(((double)size * iterations) / timeval2double(&tv_diff));
 }
 
 static const char * const bench_mem_memset_usage[] = {
