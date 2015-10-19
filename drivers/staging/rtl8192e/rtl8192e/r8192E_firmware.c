@@ -167,6 +167,36 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 	return rt_status;
 }
 
+static bool _rtl92e_fw_prepare(struct net_device *dev, struct rt_fw_blob *blob,
+			       const char *name, u8 padding)
+{
+	const struct firmware *fw;
+	int rc, i;
+	bool ret = true;
+
+	rc = request_firmware(&fw, name, &dev->dev);
+	if (rc < 0)
+		return false;
+
+	if (round_up(fw->size, 4) > MAX_FW_SIZE - padding) {
+		netdev_err(dev, "Firmware image %s too big for the device.\n",
+			   name);
+		ret = false;
+		goto out;
+	}
+
+	if (padding)
+		memset(blob->data, 0, padding);
+	if (fw->size % 4)
+		memset(blob->data + padding + fw->size, 0, 4);
+	memcpy(blob->data + padding, fw->data, fw->size);
+
+	blob->size = round_up(fw->size, 4) + padding;
+out:
+	release_firmware(fw);
+	return ret;
+}
+
 bool rtl92e_init_fw(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -202,39 +232,16 @@ bool rtl92e_init_fw(struct net_device *dev)
 					RTL8192E_MAIN_IMG_FW,
 					RTL8192E_DATA_IMG_FW
 				};
-				const struct firmware *fw_entry;
-				int rc;
+				int pad = 0;
 
-				rc = request_firmware(&fw_entry,
-						      fw_name[i],
-						      &priv->pdev->dev);
-				if (rc < 0) {
-					RT_TRACE(COMP_FIRMWARE,
-						 "request firmware fail!\n");
+				if (i == FW_INIT_STEP1_MAIN)
+					pad = 128;
+
+				if (!_rtl92e_fw_prepare(dev,
+							&pfirmware->blobs[i],
+							fw_name[i],
+							pad))
 					goto download_firmware_fail;
-				}
-				if (fw_entry->size > MAX_FW_SIZE) {
-					RT_TRACE(COMP_FIRMWARE,
-						 "img file size exceed the container struct buffer fail!\n");
-					release_firmware(fw_entry);
-					goto download_firmware_fail;
-				}
-
-				if (i != FW_INIT_STEP1_MAIN) {
-					memcpy(pfirmware->blobs[i].data,
-					       fw_entry->data, fw_entry->size);
-					pfirmware->blobs[i].size =
-						fw_entry->size;
-
-				} else {
-					memset(pfirmware->blobs[i].data,
-					       0, 128);
-					memcpy(&pfirmware->blobs[i].data[128],
-					       fw_entry->data, fw_entry->size);
-					pfirmware->blobs[i].size =
-						fw_entry->size + 128;
-				}
-				release_firmware(fw_entry);
 			}
 		}
 
