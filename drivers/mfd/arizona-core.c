@@ -628,7 +628,7 @@ err:
 static int arizona_runtime_suspend(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
-	unsigned int jd_active = 0;
+	int jd_active = 0;
 	int ret;
 
 	dev_dbg(arizona->dev, "Entering AoD mode\n");
