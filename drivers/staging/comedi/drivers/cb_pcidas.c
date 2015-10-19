@@ -1085,7 +1085,6 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	return 0;
 }
 
-/* cancel analog output command */
 static int cb_pcidas_ao_cancel(struct comedi_device *dev,
 			       struct comedi_subdevice *s)
 {
