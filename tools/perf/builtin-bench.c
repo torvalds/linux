@@ -110,7 +110,7 @@ int bench_format = BENCH_FORMAT_DEFAULT;
 unsigned int bench_repeat = 10; /* default number of times to repeat the run */
 
 static const struct option bench_options[] = {
-	OPT_STRING('f', "format", &bench_format_str, "default", "Specify format style"),
+	OPT_STRING('f', "format", &bench_format_str, "default|simple", "Specify the output formatting style"),
 	OPT_UINTEGER('r', "repeat",  &bench_repeat,   "Specify amount of times to repeat the run"),
 	OPT_END()
 };
