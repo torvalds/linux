@@ -24,7 +24,7 @@
 #define K 1024
 
 static const char	*length_str	= "1MB";
-static const char	*routine	= "default";
+static const char	*routine	= "all";
 static int		iterations	= 1;
 static bool		use_cycle;
 static int		cycle_fd;
@@ -35,7 +35,7 @@ static const struct option options[] = {
 	OPT_STRING('l', "length", &length_str, "1MB",
 		    "Specify length of memory to copy. "
 		    "Available units: B, KB, MB, GB and TB (upper and lower)"),
-	OPT_STRING('r', "routine", &routine, "default",
+	OPT_STRING('r', "routine", &routine, "all",
 		    "Specify routine to copy, \"all\" runs all available routines"),
 	OPT_INTEGER('i', "iterations", &iterations,
 		    "repeat memcpy() invocation this number of times"),
