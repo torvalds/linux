@@ -801,10 +801,11 @@ static int pci9118_ai_setup_dma(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct pci9118_dmabuf *dmabuf0 = &devpriv->dmabuf[0];
 	struct pci9118_dmabuf *dmabuf1 = &devpriv->dmabuf[1];
-	unsigned int dmalen0, dmalen1, i;
+	unsigned int dmalen0 = dmabuf0->size;
+	unsigned int dmalen1 = dmabuf1->size;
+	unsigned int scan_bytes = devpriv->ai_n_realscanlen *
+				  comedi_bytes_per_sample(s);
 
-	dmalen0 = dmabuf0->size;
-	dmalen1 = dmabuf1->size;
 	/* isn't output buff smaller that our DMA buff? */
 	if (dmalen0 > s->async->prealloc_bufsz) {
 		/* align to 32bit down */
@@ -817,15 +818,15 @@ static int pci9118_ai_setup_dma(struct comedi_device *dev,
 
 	/* we want wake up every scan? */
 	if (devpriv->ai_flags & CMDF_WAKE_EOS) {
-		if (dmalen0 < (devpriv->ai_n_realscanlen << 1)) {
+		if (dmalen0 < scan_bytes) {
 			/* uff, too short DMA buffer, disable EOS support! */
 			devpriv->ai_flags &= (~CMDF_WAKE_EOS);
 			dev_info(dev->class_dev,
 				 "WAR: DMA0 buf too short, can't support CMDF_WAKE_EOS (%d<%d)\n",
-				  dmalen0, devpriv->ai_n_realscanlen << 1);
+				  dmalen0, scan_bytes);
 		} else {
 			/* short first DMA buffer to one scan */
-			dmalen0 = devpriv->ai_n_realscanlen << 1;
+			dmalen0 = scan_bytes;
 			if (dmalen0 < 4) {
 				dev_info(dev->class_dev,
 					 "ERR: DMA0 buf len bug? (%d<4)\n",
@@ -835,15 +836,15 @@ static int pci9118_ai_setup_dma(struct comedi_device *dev,
 		}
 	}
 	if (devpriv->ai_flags & CMDF_WAKE_EOS) {
-		if (dmalen1 < (devpriv->ai_n_realscanlen << 1)) {
+		if (dmalen1 < scan_bytes) {
 			/* uff, too short DMA buffer, disable EOS support! */
 			devpriv->ai_flags &= (~CMDF_WAKE_EOS);
 			dev_info(dev->class_dev,
 				 "WAR: DMA1 buf too short, can't support CMDF_WAKE_EOS (%d<%d)\n",
-				 dmalen1, devpriv->ai_n_realscanlen << 1);
+				 dmalen1, scan_bytes);
 		} else {
 			/* short second DMA buffer to one scan */
-			dmalen1 = devpriv->ai_n_realscanlen << 1;
+			dmalen1 = scan_bytes;
 			if (dmalen1 < 4) {
 				dev_info(dev->class_dev,
 					 "ERR: DMA1 buf len bug? (%d<4)\n",
@@ -855,45 +856,39 @@ static int pci9118_ai_setup_dma(struct comedi_device *dev,
 
 	/* transfer without CMDF_WAKE_EOS */
 	if (!(devpriv->ai_flags & CMDF_WAKE_EOS)) {
+		unsigned int tmp;
+
 		/* if it's possible then align DMA buffers to length of scan */
-		i = dmalen0;
-		dmalen0 =
-		    (dmalen0 / (devpriv->ai_n_realscanlen << 1)) *
-		    (devpriv->ai_n_realscanlen << 1);
+		tmp = dmalen0;
+		dmalen0 = (dmalen0 / scan_bytes) * scan_bytes;
 		dmalen0 &= ~3L;
 		if (!dmalen0)
-			dmalen0 = i;	/* uff. very long scan? */
-		i = dmalen1;
-		dmalen1 =
-		    (dmalen1 / (devpriv->ai_n_realscanlen << 1)) *
-		    (devpriv->ai_n_realscanlen << 1);
+			dmalen0 = tmp;	/* uff. very long scan? */
+		tmp = dmalen1;
+		dmalen1 = (dmalen1 / scan_bytes) * scan_bytes;
 		dmalen1 &= ~3L;
 		if (!dmalen1)
-			dmalen1 = i;	/* uff. very long scan? */
+			dmalen1 = tmp;	/* uff. very long scan? */
 		/*
 		 * if measure isn't neverending then test, if it fits whole
 		 * into one or two DMA buffers
 		 */
 		if (!devpriv->ai_neverending) {
+			unsigned long long scanlen;
+
+			scanlen = (unsigned long long)scan_bytes *
+				  cmd->stop_arg;
+
 			/* fits whole measure into one DMA buffer? */
-			if (dmalen0 >
-			    ((devpriv->ai_n_realscanlen << 1) *
-			     cmd->stop_arg)) {
-				dmalen0 =
-				    (devpriv->ai_n_realscanlen << 1) *
-				    cmd->stop_arg;
+			if (dmalen0 > scanlen) {
+				dmalen0 = scanlen;
 				dmalen0 &= ~3L;
-			} else {	/*
-					 * fits whole measure into
-					 * two DMA buffer?
-					 */
-				if (dmalen1 >
-				    ((devpriv->ai_n_realscanlen << 1) *
-				     cmd->stop_arg - dmalen0))
-					dmalen1 =
-					    (devpriv->ai_n_realscanlen << 1) *
-					    cmd->stop_arg - dmalen0;
-				dmalen1 &= ~3L;
+			} else {
+				/* fits whole measure into two DMA buffer? */
+				if (dmalen1 > (scanlen - dmalen0)) {
+					dmalen1 = scanlen - dmalen0;
+					dmalen1 &= ~3L;
+				}
 			}
 		}
 	}
