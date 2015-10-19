@@ -37,10 +37,10 @@
  */
 unsigned long				hpet_address;
 u8					hpet_blockid; /* OS timer block num */
-u8					hpet_msi_disable;
+bool					hpet_msi_disable;
 
 #ifdef CONFIG_PCI_MSI
-static unsigned long			hpet_num_timers;
+static unsigned int			hpet_num_timers;
 #endif
 static void __iomem			*hpet_virt_address;
 
@@ -86,9 +86,9 @@ static inline void hpet_clear_mapping(void)
 /*
  * HPET command line enable / disable
  */
-int boot_hpet_disable;
-int hpet_force_user;
-static int hpet_verbose;
+bool boot_hpet_disable;
+bool hpet_force_user;
+static bool hpet_verbose;
 
 static int __init hpet_setup(char *str)
 {
@@ -98,11 +98,11 @@ static int __init hpet_setup(char *str)
 		if (next)
 			*next++ = 0;
 		if (!strncmp("disable", str, 7))
-			boot_hpet_disable = 1;
+			boot_hpet_disable = true;
 		if (!strncmp("force", str, 5))
-			hpet_force_user = 1;
+			hpet_force_user = true;
 		if (!strncmp("verbose", str, 7))
-			hpet_verbose = 1;
+			hpet_verbose = true;
 		str = next;
 	}
 	return 1;
@@ -111,7 +111,7 @@ __setup("hpet=", hpet_setup);
 
 static int __init disable_hpet(char *str)
 {
-	boot_hpet_disable = 1;
+	boot_hpet_disable = true;
 	return 1;
 }
 __setup("nohpet", disable_hpet);
@@ -124,7 +124,7 @@ static inline int is_hpet_capable(void)
 /*
  * HPET timer interrupt enable / disable
  */
-static int hpet_legacy_int_enabled;
+static bool hpet_legacy_int_enabled;
 
 /**
  * is_hpet_enabled - check whether the hpet timer interrupt is enabled
@@ -230,7 +230,7 @@ static struct clock_event_device hpet_clockevent;
 
 static void hpet_stop_counter(void)
 {
-	unsigned long cfg = hpet_readl(HPET_CFG);
+	u32 cfg = hpet_readl(HPET_CFG);
 	cfg &= ~HPET_CFG_ENABLE;
 	hpet_writel(cfg, HPET_CFG);
 }
@@ -272,7 +272,7 @@ static void hpet_enable_legacy_int(void)
 
 	cfg |= HPET_CFG_LEGACY;
 	hpet_writel(cfg, HPET_CFG);
-	hpet_legacy_int_enabled = 1;
+	hpet_legacy_int_enabled = true;
 }
 
 static void hpet_legacy_clockevent_register(void)
@@ -983,7 +983,7 @@ void hpet_disable(void)
 			cfg = *hpet_boot_cfg;
 		else if (hpet_legacy_int_enabled) {
 			cfg &= ~HPET_CFG_LEGACY;
-			hpet_legacy_int_enabled = 0;
+			hpet_legacy_int_enabled = false;
 		}
 		cfg &= ~HPET_CFG_ENABLE;
 		hpet_writel(cfg, HPET_CFG);
@@ -1121,8 +1121,7 @@ EXPORT_SYMBOL_GPL(hpet_rtc_timer_init);
 
 static void hpet_disable_rtc_channel(void)
 {
-	unsigned long cfg;
-	cfg = hpet_readl(HPET_T1_CFG);
+	u32 cfg = hpet_readl(HPET_T1_CFG);
 	cfg &= ~HPET_TN_ENABLE;
 	hpet_writel(cfg, HPET_T1_CFG);
 }

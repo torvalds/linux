@@ -524,7 +524,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_E6XX_CU,
  */
 static void force_disable_hpet_msi(struct pci_dev *unused)
 {
-	hpet_msi_disable = 1;
+	hpet_msi_disable = true;
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
