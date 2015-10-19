@@ -303,11 +303,6 @@ static int check_channel_list(struct comedi_device *dev,
 	struct pci9118_private *devpriv = dev->private;
 	unsigned int i, differencial = 0, bipolar = 0;
 
-	/* correct channel and range number check itself comedi/range.c */
-	if (n_chan < 1) {
-		dev_err(dev->class_dev, "range/channel list is empty!\n");
-		return 0;
-	}
 	if ((frontadd + n_chan + backadd) > s->len_chanlist) {
 		dev_err(dev->class_dev,
 			"range/channel list is too long for actual configuration!\n");
