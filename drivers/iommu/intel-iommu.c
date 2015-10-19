@@ -5042,12 +5042,12 @@ struct intel_iommu *intel_svm_device_to_iommu(struct device *dev)
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if ((!iommu)) {
-		dev_dbg(dev, "No IOMMU for device; cannot enable SVM\n");
+		dev_err(dev, "No IOMMU for device; cannot enable SVM\n");
 		return NULL;
 	}
 
 	if (!iommu->pasid_table) {
-		dev_dbg(dev, "PASID not enabled on IOMMU; cannot enable SVM\n");
+		dev_err(dev, "PASID not enabled on IOMMU; cannot enable SVM\n");
 		return NULL;
 	}
 
