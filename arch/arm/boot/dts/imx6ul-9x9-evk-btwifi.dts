@@ -6,5 +6,5 @@
  * published by the Free Software Foundation.
  */
 
-#include "imx6ul-14x14-evk.dts"
+#include "imx6ul-9x9-evk.dts"
 #include "imx6ul-evk-btwifi.dtsi"

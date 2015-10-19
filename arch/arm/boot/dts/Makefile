@@ -349,6 +349,7 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ul-14x14-evk-csi.dtb \
 	imx6ul-14x14-lpddr2-arm2.dtb \
 	imx6ul-9x9-evk.dtb \
+	imx6ul-9x9-evk-btwifi.dtb \
 	imx6ul-9x9-evk-csi.dtb \
 	imx6ul-9x9-evk-ldo.dtb
 dtb-$(CONFIG_SOC_IMX7D) += \
