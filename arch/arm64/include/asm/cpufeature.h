@@ -76,10 +76,16 @@ static inline void cpus_set_cap(unsigned int num)
 		__set_bit(num, cpu_hwcaps);
 }
 
-static inline int __attribute_const__ cpuid_feature_extract_field(u64 features,
-								  int field)
+static inline int __attribute_const__
+cpuid_feature_extract_field_width(u64 features, int field, int width)
 {
-	return (s64)(features << (64 - 4 - field)) >> (64 - 4);
+	return (s64)(features << (64 - width - field)) >> (64 - width);
+}
+
+static inline int __attribute_const__
+cpuid_feature_extract_field(u64 features, int field)
+{
+	return cpuid_feature_extract_field_width(features, field, 4);
 }
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
