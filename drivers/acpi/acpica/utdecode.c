@@ -407,8 +407,6 @@ static char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
 	"ACPI_MTX_Events",
 	"ACPI_MTX_Caches",
 	"ACPI_MTX_Memory",
-	"ACPI_MTX_CommandComplete",
-	"ACPI_MTX_CommandReady"
 };
 
 char *acpi_ut_get_mutex_name(u32 mutex_id)

@@ -83,10 +83,8 @@ union acpi_parse_object;
 #define ACPI_MTX_EVENTS                 3	/* Data for ACPI events */
 #define ACPI_MTX_CACHES                 4	/* Internal caches, general purposes */
 #define ACPI_MTX_MEMORY                 5	/* Debug memory tracking lists */
-#define ACPI_MTX_DEBUG_CMD_COMPLETE     6	/* AML debugger */
-#define ACPI_MTX_DEBUG_CMD_READY        7	/* AML debugger */
 
-#define ACPI_MAX_MUTEX                  7
+#define ACPI_MAX_MUTEX                  5
 #define ACPI_NUM_MUTEX                  ACPI_MAX_MUTEX+1
 
 /* Lock structure for reader/writer interfaces */

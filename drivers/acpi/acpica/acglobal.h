@@ -358,6 +358,9 @@ ACPI_GLOBAL(u16, acpi_gbl_node_type_count_misc);
 ACPI_GLOBAL(u32, acpi_gbl_num_nodes);
 ACPI_GLOBAL(u32, acpi_gbl_num_objects);
 
+ACPI_GLOBAL(acpi_mutex, acpi_gbl_db_command_ready);
+ACPI_GLOBAL(acpi_mutex, acpi_gbl_db_command_complete);
+
 #endif				/* ACPI_DEBUGGER */
 
 /*****************************************************************************
