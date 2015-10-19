@@ -457,7 +457,7 @@ static unsigned int pci9118_ai_samples_ready(struct comedi_device *dev,
 	return n_samples;
 }
 
-static void move_block_from_dma(struct comedi_device *dev,
+static void pci9118_ai_dma_xfer(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				unsigned short *dma_buffer,
 				unsigned int n_raw_samples)
@@ -654,7 +654,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	}
 
 	if (n_all)
-		move_block_from_dma(dev, s, dmabuf->virt, n_all);
+		pci9118_ai_dma_xfer(dev, s, dmabuf->virt, n_all);
 
 	if (!devpriv->ai_neverending) {
 		if (s->async->scans_done >= cmd->stop_arg)
