@@ -24,6 +24,7 @@
 			regulator-name = "wlreg_on";
 			gpio = <&gpio6 10 0>;
 			startup-delay-us = <100>;
+			regulator-always-on;
 			enable-active-high;
 		};
 	};
@@ -36,6 +37,21 @@
 
 &iomuxc {
 	imx6sx-sdb-murata-v1_sdext {
+		pinctrl_bt: btgrp {
+			fsl,pins = <
+				MX6SX_PAD_SD2_DATA3__GPIO6_IO_11	0x13069 /* BT_REG_ON */
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX6SX_PAD_SD3_DATA4__UART3_RX		0x1b0b1
+				MX6SX_PAD_SD3_DATA5__UART3_TX		0x1b0b1
+				MX6SX_PAD_SD3_DATA7__UART3_CTS_B	0x1b0b1
+				MX6SX_PAD_SD3_DATA6__UART3_RTS_B	0x1b0b1
+			>;
+		};
+
 		/* change MUXing on SD2 slot for control signals. */
 		pinctrl_usdhc2_1: usdhc2grp-1 {
 			fsl,pins = <
@@ -61,6 +77,14 @@
 			>;
 		};
 	};
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3
+		     &pinctrl_bt>;
+	fsl,uart-has-rtscts;
+	status = "okay";
 };
 
 &usdhc2 {

@@ -40,6 +40,10 @@
 	};
 };
 
+&ecspi1 {
+	status = "disabled";
+};
+
 &iomuxc {
 	imx6qdl-sabresd-murata-v2 {
 		/* add MUXing entry for SD2 4-bit interface and configure control pins */
@@ -55,6 +59,16 @@
 			>;
 		};
 	};
+};
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5_1>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+	/* for DTE mode, add below change */
+	/* fsl,dte-mode; */
+	/* pinctrl-0 = <&pinctrl_uart5dte_1>; */
 };
 
 &usdhc2 {
