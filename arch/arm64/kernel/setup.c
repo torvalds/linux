@@ -196,19 +196,12 @@ static void __init smp_build_mpidr_hash(void)
 	__flush_dcache_area(&mpidr_hash, sizeof(struct mpidr_hash));
 }
 
-static void __init setup_processor(void)
+void __init setup_cpu_features(void)
 {
 	u64 features;
 	s64 block;
 	u32 cwg;
 	int cls;
-
-	pr_info("Boot CPU: AArch64 Processor [%08x]\n", read_cpuid_id());
-
-	sprintf(init_utsname()->machine, ELF_PLATFORM);
-	elf_hwcap = 0;
-
-	cpuinfo_store_boot_cpu();
 
 	/*
 	 * Check for sane CTR_EL0.CWG value.
@@ -291,6 +284,13 @@ static void __init setup_processor(void)
 	if (cpuid_feature_extract_field(features, 16) > 0)
 		compat_elf_hwcap2 |= COMPAT_HWCAP2_CRC32;
 #endif
+}
+
+static void __init setup_processor(void)
+{
+	pr_info("Boot CPU: AArch64 Processor [%08x]\n", read_cpuid_id());
+	sprintf(init_utsname()->machine, ELF_PLATFORM);
+	cpuinfo_store_boot_cpu();
 }
 
 static void __init setup_machine_fdt(phys_addr_t dt_phys)

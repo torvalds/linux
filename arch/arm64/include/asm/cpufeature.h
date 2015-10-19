@@ -81,6 +81,7 @@ static inline int __attribute_const__ cpuid_feature_extract_field(u64 features,
 	return (s64)(features << (64 - 4 - field)) >> (64 - 4);
 }
 
+void __init setup_cpu_features(void);
 
 void check_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			    const char *info);
