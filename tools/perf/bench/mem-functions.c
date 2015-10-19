@@ -32,13 +32,17 @@ static int		cycles_fd;
 static const struct option options[] = {
 	OPT_STRING('l', "size", &size_str, "1MB",
 		    "Specify the size of the memory buffers. "
-		    "Available units: B, KB, MB, GB and TB (upper and lower)"),
+		    "Available units: B, KB, MB, GB and TB (case insensitive)"),
+
 	OPT_STRING('r', "routine", &routine_str, "all",
-		    "Specify the routine to run, \"all\" runs all available routines"),
+		    "Specify the routine to run, \"all\" runs all available routines, \"help\" lists them"),
+
 	OPT_INTEGER('i', "iterations", &iterations,
-		    "repeat memcpy() invocation this number of times"),
+		    "Repeat the function this number of times"),
+
 	OPT_BOOLEAN('c', "cycles", &use_cycles,
 		    "Use a cycles event instead of gettimeofday() to measure performance"),
+
 	OPT_END()
 };
 
@@ -106,13 +110,13 @@ static double timeval2double(struct timeval *ts)
 
 #define print_bps(x) do {						\
 		if (x < K)						\
-			printf(" %14lf B/Sec\n", x);			\
+			printf(" %14lf bytes/sec\n", x);		\
 		else if (x < K * K)					\
-			printf(" %14lfd KB/Sec\n", x / K);		\
+			printf(" %14lfd KB/sec\n", x / K);		\
 		else if (x < K * K * K)					\
-			printf(" %14lf MB/Sec\n", x / K / K);		\
+			printf(" %14lf MB/sec\n", x / K / K);		\
 		else							\
-			printf(" %14lf GB/Sec\n", x / K / K / K);	\
+			printf(" %14lf GB/sec\n", x / K / K / K);	\
 	} while (0)
 
 struct bench_mem_info {
@@ -128,10 +132,10 @@ static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t s
 	double result_bps = 0.0;
 	u64 result_cycles = 0;
 
-	printf("Routine %s (%s)\n", r->name, r->desc);
+	printf("# Routine '%s' (%s)\n", r->name, r->desc);
 
 	if (bench_format == BENCH_FORMAT_DEFAULT)
-		printf("# Copying %s Bytes ...\n\n", size_str);
+		printf("# Copying %s bytes ...\n\n", size_str);
 
 	if (use_cycles) {
 		result_cycles = info->do_cycles(r, size);
@@ -142,7 +146,7 @@ static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t s
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
 		if (use_cycles) {
-			printf(" %14lf cycles/Byte\n", (double)result_cycles/size_total);
+			printf(" %14lf cycles/byte\n", (double)result_cycles/size_total);
 		} else {
 			print_bps(result_bps);
 		}
@@ -192,8 +196,9 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 			break;
 	}
 	if (!info->routines[i].name) {
-		printf("Unknown routine: %s\n", routine_str);
-		printf("Available routines...\n");
+		if (strcmp(routine_str, "help") && strcmp(routine_str, "h"))
+			printf("Unknown routine: %s\n", routine_str);
+		printf("Available routines:\n");
 		for (i = 0; info->routines[i].name; i++) {
 			printf("\t%s ... %s\n",
 			       info->routines[i].name, info->routines[i].desc);
