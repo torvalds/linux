@@ -629,7 +629,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	{},
 };
 
-void check_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
+void update_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			    const char *info)
 {
 	int i;
@@ -642,8 +642,15 @@ void check_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			pr_info("%s %s\n", info, caps[i].desc);
 		cpus_set_cap(caps[i].capability);
 	}
+}
 
-	/* second pass allows enable() to consider interacting capabilities */
+/*
+ * Run through the enabled capabilities and enable() it on the CPUs
+ */
+void enable_cpu_capabilities(const struct arm64_cpu_capabilities *caps)
+{
+	int i;
+
 	for (i = 0; caps[i].desc; i++) {
 		if (cpus_have_cap(caps[i].capability) && caps[i].enable)
 			caps[i].enable();
@@ -652,7 +659,8 @@ void check_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 
 void check_local_cpu_features(void)
 {
-	check_cpu_capabilities(arm64_features, "detected feature:");
+	update_cpu_capabilities(arm64_features, "detected feature:");
+	enable_cpu_capabilities(arm64_features);
 }
 
 void __init setup_cpu_features(void)

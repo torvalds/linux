@@ -137,7 +137,7 @@ static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
 
 void __init setup_cpu_features(void);
 
-void check_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
+void update_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			    const char *info);
 void check_local_cpu_errata(void);
 void check_local_cpu_features(void);
