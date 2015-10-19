@@ -12,8 +12,6 @@ Required properties:
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: should contain the SPDIF interrupt.
-- #address-cells: should be 1.
-- #size-cells: should be 0.
 - dmas: DMA specifiers for tx dma. See the DMA client binding,
   Documentation/devicetree/bindings/dma/dma.txt
 - dma-names: should be "tx"
@@ -33,8 +31,6 @@ spdif: spdif@0x1011e000 {
 	compatible = "rockchip,rk3188-spdif", "rockchip,rk3066-spdif";
 	reg = <0x1011e000 0x2000>;
 	interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
-	#address-cells = <1>;
-	#size-cells = <0>;
 	dmas = <&dmac1_s 8>;
 	dma-names = "tx";
 	clock-names = "hclk", "mclk";
