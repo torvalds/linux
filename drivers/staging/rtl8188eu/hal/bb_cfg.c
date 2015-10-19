@@ -705,7 +705,7 @@ bool rtl88eu_phy_bb_config(struct adapter *adapt)
 
 	/*  Enable BB and RF */
 	regval = usb_read16(adapt, REG_SYS_FUNC_EN);
-	usb_write16(adapt, REG_SYS_FUNC_EN, (u16)(regval|BIT13|BIT0|BIT1));
+	usb_write16(adapt, REG_SYS_FUNC_EN, (u16)(regval | BIT(13) | BIT(0) | BIT(1)));
 
 	usb_write8(adapt, REG_RF_CTRL, RF_EN|RF_RSTB|RF_SDMRSTB);
 
