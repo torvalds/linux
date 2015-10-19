@@ -29,6 +29,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/cputype.h>
+#include <asm/kernel-pgtable.h>
 #include <asm/memory.h>
 #include <asm/thread_info.h>
 #include <asm/pgtable-hwdef.h>
@@ -46,30 +47,8 @@
 #error TEXT_OFFSET must be less than 2MB
 #endif
 
-#ifdef CONFIG_ARM64_64K_PAGES
-#define BLOCK_SHIFT	PAGE_SHIFT
-#define BLOCK_SIZE	PAGE_SIZE
-#define TABLE_SHIFT	PMD_SHIFT
-#else
-#define BLOCK_SHIFT	SECTION_SHIFT
-#define BLOCK_SIZE	SECTION_SIZE
-#define TABLE_SHIFT	PUD_SHIFT
-#endif
-
 #define KERNEL_START	_text
 #define KERNEL_END	_end
-
-/*
- * Initial memory map attributes.
- */
-#define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF | PTE_SHARED
-#define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S
-
-#ifdef CONFIG_ARM64_64K_PAGES
-#define MM_MMUFLAGS	PTE_ATTRINDX(MT_NORMAL) | PTE_FLAGS
-#else
-#define MM_MMUFLAGS	PMD_ATTRINDX(MT_NORMAL) | PMD_FLAGS
-#endif
 
 /*
  * Kernel startup entry point.
@@ -293,7 +272,7 @@ ENDPROC(preserve_boot_args)
 	.macro	create_pgd_entry, tbl, virt, tmp1, tmp2
 	create_table_entry \tbl, \virt, PGDIR_SHIFT, PTRS_PER_PGD, \tmp1, \tmp2
 #if SWAPPER_PGTABLE_LEVELS == 3
-	create_table_entry \tbl, \virt, TABLE_SHIFT, PTRS_PER_PTE, \tmp1, \tmp2
+	create_table_entry \tbl, \virt, SWAPPER_TABLE_SHIFT, PTRS_PER_PTE, \tmp1, \tmp2
 #endif
 	.endm
 
@@ -305,15 +284,15 @@ ENDPROC(preserve_boot_args)
  * Corrupts:	phys, start, end, pstate
  */
 	.macro	create_block_map, tbl, flags, phys, start, end
-	lsr	\phys, \phys, #BLOCK_SHIFT
-	lsr	\start, \start, #BLOCK_SHIFT
+	lsr	\phys, \phys, #SWAPPER_BLOCK_SHIFT
+	lsr	\start, \start, #SWAPPER_BLOCK_SHIFT
 	and	\start, \start, #PTRS_PER_PTE - 1	// table index
-	orr	\phys, \flags, \phys, lsl #BLOCK_SHIFT	// table entry
-	lsr	\end, \end, #BLOCK_SHIFT
+	orr	\phys, \flags, \phys, lsl #SWAPPER_BLOCK_SHIFT	// table entry
+	lsr	\end, \end, #SWAPPER_BLOCK_SHIFT
 	and	\end, \end, #PTRS_PER_PTE - 1		// table end index
 9999:	str	\phys, [\tbl, \start, lsl #3]		// store the entry
 	add	\start, \start, #1			// next entry
-	add	\phys, \phys, #BLOCK_SIZE		// next block
+	add	\phys, \phys, #SWAPPER_BLOCK_SIZE		// next block
 	cmp	\start, \end
 	b.ls	9999b
 	.endm
@@ -350,7 +329,7 @@ __create_page_tables:
 	cmp	x0, x6
 	b.lo	1b
 
-	ldr	x7, =MM_MMUFLAGS
+	ldr	x7, =SWAPPER_MM_MMUFLAGS
 
 	/*
 	 * Create the identity mapping.
