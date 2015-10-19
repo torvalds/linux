@@ -3191,8 +3191,6 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 {
 	/*
 	 * ZOOM R16/24 in audio interface mode.
-	 * Mixer descriptors are garbage, further quirks will be needed
-	 * to make any of it functional, thus disabled for now.
 	 * Playback requires an extra four byte LE length indicator
 	 * at the start of each isochronous packet. This quirk is
 	 * enabled in create_standard_audio_quirk().
@@ -3202,11 +3200,6 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 		.ifnum = QUIRK_ANY_INTERFACE,
 		.type = QUIRK_COMPOSITE,
 		.data = (const struct snd_usb_audio_quirk[]) {
-			{
-				/* Mixer */
-				.ifnum = 0,
-				.type = QUIRK_IGNORE_INTERFACE,
-			},
 			{
 				/* Playback  */
 				.ifnum = 1,
