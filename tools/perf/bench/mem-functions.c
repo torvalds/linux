@@ -28,8 +28,6 @@ static const char	*routine	= "all";
 static int		iterations	= 1;
 static bool		use_cycle;
 static int		cycle_fd;
-static bool		only_prefault;
-static bool		no_prefault;
 
 static const struct option options[] = {
 	OPT_STRING('l', "length", &length_str, "1MB",
@@ -41,10 +39,6 @@ static const struct option options[] = {
 		    "repeat memcpy() invocation this number of times"),
 	OPT_BOOLEAN('c', "cycle", &use_cycle,
 		    "Use cycles event instead of gettimeofday() for measuring"),
-	OPT_BOOLEAN('o', "only-prefault", &only_prefault,
-		    "Show only the result with page faults before memcpy()"),
-	OPT_BOOLEAN('n', "no-prefault", &no_prefault,
-		    "Show only the result without page faults before memcpy()"),
 	OPT_END()
 };
 
@@ -110,103 +104,60 @@ static double timeval2double(struct timeval *ts)
 	return (double)ts->tv_sec + (double)ts->tv_usec / (double)1000000;
 }
 
-#define print_bps(x) do {					\
-		if (x < K)					\
-			printf(" %14lf B/Sec", x);		\
-		else if (x < K * K)				\
-			printf(" %14lfd KB/Sec", x / K);	\
-		else if (x < K * K * K)				\
-			printf(" %14lf MB/Sec", x / K / K);	\
-		else						\
-			printf(" %14lf GB/Sec", x / K / K / K); \
+#define print_bps(x) do {						\
+		if (x < K)						\
+			printf(" %14lf B/Sec\n", x);			\
+		else if (x < K * K)					\
+			printf(" %14lfd KB/Sec\n", x / K);		\
+		else if (x < K * K * K)					\
+			printf(" %14lf MB/Sec\n", x / K / K);		\
+		else							\
+			printf(" %14lf GB/Sec\n", x / K / K / K);	\
 	} while (0)
 
 struct bench_mem_info {
 	const struct routine *routines;
-	u64 (*do_cycle)(const struct routine *r, size_t len, bool prefault);
-	double (*do_gettimeofday)(const struct routine *r, size_t len, bool prefault);
+	u64 (*do_cycle)(const struct routine *r, size_t len);
+	double (*do_gettimeofday)(const struct routine *r, size_t len);
 	const char *const *usage;
 };
 
 static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t len, double totallen)
 {
 	const struct routine *r = &info->routines[r_idx];
-	double result_bps[2];
-	u64 result_cycle[2];
-	int prefault = no_prefault ? 0 : 1;
-
-	result_cycle[0] = result_cycle[1] = 0ULL;
-	result_bps[0] = result_bps[1] = 0.0;
+	double result_bps = 0.0;
+	u64 result_cycle = 0;
 
 	printf("Routine %s (%s)\n", r->name, r->desc);
 
 	if (bench_format == BENCH_FORMAT_DEFAULT)
 		printf("# Copying %s Bytes ...\n\n", length_str);
 
-	if (!only_prefault && prefault) {
-		/* Show both results: */
-		if (use_cycle) {
-			result_cycle[0] = info->do_cycle(r, len, false);
-			result_cycle[1] = info->do_cycle(r, len, true);
-		} else {
-			result_bps[0]   = info->do_gettimeofday(r, len, false);
-			result_bps[1]   = info->do_gettimeofday(r, len, true);
-		}
+	if (use_cycle) {
+		result_cycle = info->do_cycle(r, len);
 	} else {
-		if (use_cycle)
-			result_cycle[prefault] = info->do_cycle(r, len, only_prefault);
-		else
-			result_bps[prefault] = info->do_gettimeofday(r, len, only_prefault);
+		result_bps = info->do_gettimeofday(r, len);
 	}
 
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
-		if (!only_prefault && prefault) {
-			if (use_cycle) {
-				printf(" %14lf Cycle/Byte\n",
-					(double)result_cycle[0]
-					/ totallen);
-				printf(" %14lf Cycle/Byte (with prefault)\n",
-					(double)result_cycle[1]
-					/ totallen);
-			} else {
-				print_bps(result_bps[0]);
-				printf("\n");
-				print_bps(result_bps[1]);
-				printf(" (with prefault)\n");
-			}
+		if (use_cycle) {
+			printf(" %14lf Cycle/Byte\n", (double)result_cycle/totallen);
 		} else {
-			if (use_cycle) {
-				printf(" %14lf Cycle/Byte",
-					(double)result_cycle[prefault]
-					/ totallen);
-			} else
-				print_bps(result_bps[prefault]);
+			print_bps(result_bps);
+		}
+		break;
 
-			printf("%s\n", only_prefault ? " (with prefault)" : "");
-		}
-		break;
 	case BENCH_FORMAT_SIMPLE:
-		if (!only_prefault && prefault) {
-			if (use_cycle) {
-				printf("%lf %lf\n",
-					(double)result_cycle[0] / totallen,
-					(double)result_cycle[1] / totallen);
-			} else {
-				printf("%lf %lf\n",
-					result_bps[0], result_bps[1]);
-			}
+		if (use_cycle) {
+			printf("%lf\n", (double)result_cycle/totallen);
 		} else {
-			if (use_cycle) {
-				printf("%lf\n", (double)result_cycle[prefault]
-					/ totallen);
-			} else
-				printf("%lf\n", result_bps[prefault]);
+			printf("%lf\n", result_bps);
 		}
 		break;
+
 	default:
-		/* Reaching this means there's some disaster: */
-		die("unknown format: %d\n", bench_format);
+		BUG_ON(1);
 		break;
 	}
 }
@@ -219,11 +170,6 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 
 	argc = parse_options(argc, argv, options, info->usage, 0);
 
-	if (no_prefault && only_prefault) {
-		fprintf(stderr, "Invalid options: -o and -n are mutually exclusive\n");
-		return 1;
-	}
-
 	if (use_cycle)
 		init_cycle();
 
@@ -234,10 +180,6 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 		fprintf(stderr, "Invalid length:%s\n", length_str);
 		return 1;
 	}
-
-	/* Same as without specifying either of prefault and no-prefault: */
-	if (only_prefault && no_prefault)
-		only_prefault = no_prefault = false;
 
 	if (!strncmp(routine, "all", 3)) {
 		for (i = 0; info->routines[i].name; i++)
@@ -278,7 +220,7 @@ static void memcpy_alloc_mem(void **dst, void **src, size_t length)
 	memset(*src, 0, length);
 }
 
-static u64 do_memcpy_cycle(const struct routine *r, size_t len, bool prefault)
+static u64 do_memcpy_cycle(const struct routine *r, size_t len)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	void *src = NULL, *dst = NULL;
@@ -287,8 +229,11 @@ static u64 do_memcpy_cycle(const struct routine *r, size_t len, bool prefault)
 
 	memcpy_alloc_mem(&dst, &src, len);
 
-	if (prefault)
-		fn(dst, src, len);
+	/*
+	 * We prefault the freshly allocated memory range here,
+	 * to not measure page fault overhead:
+	 */
+	fn(dst, src, len);
 
 	cycle_start = get_cycle();
 	for (i = 0; i < iterations; ++i)
@@ -300,7 +245,7 @@ static u64 do_memcpy_cycle(const struct routine *r, size_t len, bool prefault)
 	return cycle_end - cycle_start;
 }
 
-static double do_memcpy_gettimeofday(const struct routine *r, size_t len, bool prefault)
+static double do_memcpy_gettimeofday(const struct routine *r, size_t len)
 {
 	struct timeval tv_start, tv_end, tv_diff;
 	memcpy_t fn = r->fn.memcpy;
@@ -309,8 +254,11 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t len, bool p
 
 	memcpy_alloc_mem(&dst, &src, len);
 
-	if (prefault)
-		fn(dst, src, len);
+	/*
+	 * We prefault the freshly allocated memory range here,
+	 * to not measure page fault overhead:
+	 */
+	fn(dst, src, len);
 
 	BUG_ON(gettimeofday(&tv_start, NULL));
 	for (i = 0; i < iterations; ++i)
@@ -321,6 +269,7 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t len, bool p
 
 	free(src);
 	free(dst);
+
 	return (double)(((double)len * iterations) / timeval2double(&tv_diff));
 }
 
@@ -343,7 +292,7 @@ static void memset_alloc_mem(void **dst, size_t length)
 		die("memory allocation failed - maybe length is too large?\n");
 }
 
-static u64 do_memset_cycle(const struct routine *r, size_t len, bool prefault)
+static u64 do_memset_cycle(const struct routine *r, size_t len)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	memset_t fn = r->fn.memset;
@@ -352,8 +301,11 @@ static u64 do_memset_cycle(const struct routine *r, size_t len, bool prefault)
 
 	memset_alloc_mem(&dst, len);
 
-	if (prefault)
-		fn(dst, -1, len);
+	/*
+	 * We prefault the freshly allocated memory range here,
+	 * to not measure page fault overhead:
+	 */
+	fn(dst, -1, len);
 
 	cycle_start = get_cycle();
 	for (i = 0; i < iterations; ++i)
@@ -364,8 +316,7 @@ static u64 do_memset_cycle(const struct routine *r, size_t len, bool prefault)
 	return cycle_end - cycle_start;
 }
 
-static double do_memset_gettimeofday(const struct routine *r, size_t len,
-				     bool prefault)
+static double do_memset_gettimeofday(const struct routine *r, size_t len)
 {
 	struct timeval tv_start, tv_end, tv_diff;
 	memset_t fn = r->fn.memset;
@@ -374,8 +325,11 @@ static double do_memset_gettimeofday(const struct routine *r, size_t len,
 
 	memset_alloc_mem(&dst, len);
 
-	if (prefault)
-		fn(dst, -1, len);
+	/*
+	 * We prefault the freshly allocated memory range here,
+	 * to not measure page fault overhead:
+	 */
+	fn(dst, -1, len);
 
 	BUG_ON(gettimeofday(&tv_start, NULL));
 	for (i = 0; i < iterations; ++i)

@@ -157,14 +157,6 @@ Repeat memcpy invocation this number of times.
 --cycle::
 Use perf's cpu-cycles event instead of gettimeofday syscall.
 
--o::
---only-prefault::
-Show only the result with page faults before memcpy.
-
--n::
---no-prefault::
-Show only the result without page faults before memcpy.
-
 *memset*::
 Suite for evaluating performance of simple memory set in various ways.
 
@@ -188,14 +180,6 @@ Repeat memset invocation this number of times.
 -c::
 --cycle::
 Use perf's cpu-cycles event instead of gettimeofday syscall.
-
--o::
---only-prefault::
-Show only the result with page faults before memset.
-
--n::
---no-prefault::
-Show only the result without page faults before memset.
 
 SUITES FOR 'numa'
 ~~~~~~~~~~~~~~~~~
