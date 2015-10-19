@@ -90,9 +90,6 @@ static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 	for_each_ring(ring, dev_priv, i)
 		I915_WRITE(RING_MODE_GEN7(ring), irqs);
 
-	/* tell DE to send nothing to GuC */
-	I915_WRITE(DE_GUCRMR, ~0);
-
 	/* route all GT interrupts to the host */
 	I915_WRITE(GUC_BCS_RCS_IER, 0);
 	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
@@ -109,13 +106,6 @@ static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
 	irqs |= _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
 	for_each_ring(ring, dev_priv, i)
 		I915_WRITE(RING_MODE_GEN7(ring), irqs);
-
-	/* tell DE to send (all) flip_done to GuC */
-	irqs = DERRMR_PIPEA_PRI_FLIP_DONE | DERRMR_PIPEA_SPR_FLIP_DONE |
-	       DERRMR_PIPEB_PRI_FLIP_DONE | DERRMR_PIPEB_SPR_FLIP_DONE |
-	       DERRMR_PIPEC_PRI_FLIP_DONE | DERRMR_PIPEC_SPR_FLIP_DONE;
-	/* Unmasked bits will cause GuC response message to be sent */
-	I915_WRITE(DE_GUCRMR, ~irqs);
 
 	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
 	irqs = GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
@@ -209,9 +199,10 @@ static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
 				      u32 *status)
 {
 	u32 val = I915_READ(GUC_STATUS);
+	u32 uk_val = val & GS_UKERNEL_MASK;
 	*status = val;
-	return ((val & GS_UKERNEL_MASK) == GS_UKERNEL_READY ||
-		(val & GS_UKERNEL_MASK) == GS_UKERNEL_LAPIC_DONE);
+	return (uk_val == GS_UKERNEL_READY ||
+		((val & GS_MIA_CORE_STATE) && uk_val == GS_UKERNEL_LAPIC_DONE));
 }
 
 /*
@@ -257,7 +248,7 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	/* Copy RSA signature from the fw image to HW for verification */
 	sg_pcopy_to_buffer(sg->sgl, sg->nents, rsa, UOS_RSA_SIG_SIZE, offset);
 	for (i = 0; i < UOS_RSA_SIG_SIZE / sizeof(u32); i++)
-		I915_WRITE(UOS_RSA_SCRATCH_0 + i * sizeof(u32), rsa[i]);
+		I915_WRITE(UOS_RSA_SCRATCH(i), rsa[i]);
 
 	/* Set the source address for the new blob */
 	offset = i915_gem_obj_ggtt_offset(fw_obj);
@@ -392,7 +383,6 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
 	direct_interrupts_to_host(dev_priv);
-	i915_guc_submission_disable(dev);
 
 	if (guc_fw->guc_fw_fetch_status == GUC_FIRMWARE_NONE)
 		return 0;
@@ -442,6 +432,9 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
 	if (i915.enable_guc_submission) {
+		/* The execbuf_client will be recreated. Release it first. */
+		i915_guc_submission_disable(dev);
+
 		err = i915_guc_submission_enable(dev);
 		if (err)
 			goto fail;

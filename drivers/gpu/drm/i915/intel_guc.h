@@ -110,6 +110,8 @@ extern void intel_guc_ucode_init(struct drm_device *dev);
 extern int intel_guc_ucode_load(struct drm_device *dev);
 extern void intel_guc_ucode_fini(struct drm_device *dev);
 extern const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status);
+extern int intel_guc_suspend(struct drm_device *dev);
+extern int intel_guc_resume(struct drm_device *dev);
 
 /* i915_guc_submission.c */
 int i915_guc_submission_init(struct drm_device *dev);

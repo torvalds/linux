@@ -2889,8 +2889,8 @@ static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv)
 
 	/* XXX: spec defines this as 2 distinct registers. It's unclear if a 64b
 	 * write would work. */
-	I915_WRITE(GEN8_PRIVATE_PAT, pat);
-	I915_WRITE(GEN8_PRIVATE_PAT + 4, pat >> 32);
+	I915_WRITE(GEN8_PRIVATE_PAT_LO, pat);
+	I915_WRITE(GEN8_PRIVATE_PAT_HI, pat >> 32);
 }
 
 static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
@@ -2924,8 +2924,8 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 	      GEN8_PPAT(6, CHV_PPAT_SNOOP) |
 	      GEN8_PPAT(7, CHV_PPAT_SNOOP);
 
-	I915_WRITE(GEN8_PRIVATE_PAT, pat);
-	I915_WRITE(GEN8_PRIVATE_PAT + 4, pat >> 32);
+	I915_WRITE(GEN8_PRIVATE_PAT_LO, pat);
+	I915_WRITE(GEN8_PRIVATE_PAT_HI, pat >> 32);
 }
 
 static int gen8_gmch_probe(struct drm_device *dev,

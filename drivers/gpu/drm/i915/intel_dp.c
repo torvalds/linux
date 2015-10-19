@@ -1587,7 +1587,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 
 	intel_dp_set_link_params(intel_dp, crtc->config);
 
@@ -2604,7 +2604,6 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
-	intel_dp_complete_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
 
 	if (crtc->config->has_audio) {
@@ -3417,11 +3416,6 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
 	}
 
-	/* LRC Bypass */
-	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW30);
-	val |= DPIO_LRC_BYPASS;
-	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW30, val);
-
 	mutex_unlock(&dev_priv->sb_lock);
 
 	return 0;
@@ -3696,8 +3690,8 @@ static void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 }
 
 /* Enable corresponding port and start training pattern 1 */
-void
-intel_dp_start_link_train(struct intel_dp *intel_dp)
+static void
+intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 {
 	struct drm_encoder *encoder = &dp_to_dig_port(intel_dp)->base.base;
 	struct drm_device *dev = encoder->dev;
@@ -3810,8 +3804,8 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	intel_dp->DP = DP;
 }
 
-void
-intel_dp_complete_link_train(struct intel_dp *intel_dp)
+static void
+intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
@@ -3864,7 +3858,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		if (!drm_dp_clock_recovery_ok(link_status,
 					      intel_dp->lane_count)) {
 			intel_dp->train_set_valid = false;
-			intel_dp_start_link_train(intel_dp);
+			intel_dp_link_training_clock_recovery(intel_dp);
 			intel_dp_set_link_train(intel_dp, &DP,
 						training_pattern |
 						DP_LINK_SCRAMBLING_DISABLE);
@@ -3881,7 +3875,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		/* Try 5 times, then try clock recovery if that fails */
 		if (tries > 5) {
 			intel_dp->train_set_valid = false;
-			intel_dp_start_link_train(intel_dp);
+			intel_dp_link_training_clock_recovery(intel_dp);
 			intel_dp_set_link_train(intel_dp, &DP,
 						training_pattern |
 						DP_LINK_SCRAMBLING_DISABLE);
@@ -3912,6 +3906,13 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp)
 {
 	intel_dp_set_link_train(intel_dp, &intel_dp->DP,
 				DP_TRAINING_PATTERN_DISABLE);
+}
+
+void
+intel_dp_start_link_train(struct intel_dp *intel_dp)
+{
+	intel_dp_link_training_clock_recovery(intel_dp);
+	intel_dp_link_training_channel_equalization(intel_dp);
 }
 
 static void
@@ -4382,7 +4383,6 @@ go_again:
 			    !drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
 				DRM_DEBUG_KMS("channel EQ not ok, retraining\n");
 				intel_dp_start_link_train(intel_dp);
-				intel_dp_complete_link_train(intel_dp);
 				intel_dp_stop_link_train(intel_dp);
 			}
 
@@ -4473,7 +4473,6 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 		DRM_DEBUG_KMS("%s: channel EQ not ok, retraining\n",
 			      intel_encoder->base.name);
 		intel_dp_start_link_train(intel_dp);
-		intel_dp_complete_link_train(intel_dp);
 		intel_dp_stop_link_train(intel_dp);
 	}
 }
@@ -6000,7 +5999,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
-	intel_connector->panel.backlight_power = intel_edp_backlight_power;
+	intel_connector->panel.backlight.power = intel_edp_backlight_power;
 	intel_panel_setup_backlight(connector, pipe);
 
 	return true;
@@ -6169,10 +6168,8 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		return;
 
 	intel_connector = intel_connector_alloc();
-	if (!intel_connector) {
-		kfree(intel_dig_port);
-		return;
-	}
+	if (!intel_connector)
+		goto err_connector_alloc;
 
 	intel_encoder = &intel_dig_port->base;
 	encoder = &intel_encoder->base;
@@ -6220,11 +6217,18 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
 	dev_priv->hotplug.irq_port[port] = intel_dig_port;
 
-	if (!intel_dp_init_connector(intel_dig_port, intel_connector)) {
-		drm_encoder_cleanup(encoder);
-		kfree(intel_dig_port);
-		kfree(intel_connector);
-	}
+	if (!intel_dp_init_connector(intel_dig_port, intel_connector))
+		goto err_init_connector;
+
+	return;
+
+err_init_connector:
+	drm_encoder_cleanup(encoder);
+	kfree(intel_connector);
+err_connector_alloc:
+	kfree(intel_dig_port);
+
+	return;
 }
 
 void intel_dp_mst_suspend(struct drm_device *dev)

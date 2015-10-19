@@ -40,7 +40,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct drm_atomic_state *state;
 	int bpp, i;
 	int lane_count, slots;
-	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct drm_connector *drm_connector;
 	struct intel_connector *connector, *found = NULL;
 	struct drm_connector_state *connector_state;
@@ -78,7 +78,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 		return false;
 	}
 
-	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp);
+	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock, bpp);
 
 	pipe_config->pbn = mst_pbn;
 	slots = drm_dp_find_vcpi_slots(&intel_dp->mst_mgr, mst_pbn);
@@ -188,7 +188,6 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 
 
 		intel_dp_start_link_train(intel_dp);
-		intel_dp_complete_link_train(intel_dp);
 		intel_dp_stop_link_train(intel_dp);
 	}
 

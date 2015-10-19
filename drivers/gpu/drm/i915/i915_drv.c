@@ -443,6 +443,34 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
+static enum intel_pch intel_virt_detect_pch(struct drm_device *dev)
+{
+	enum intel_pch ret = PCH_NOP;
+
+	/*
+	 * In a virtualized passthrough environment we can be in a
+	 * setup where the ISA bridge is not able to be passed through.
+	 * In this case, a south bridge can be emulated and we have to
+	 * make an educated guess as to which PCH is really there.
+	 */
+
+	if (IS_GEN5(dev)) {
+		ret = PCH_IBX;
+		DRM_DEBUG_KMS("Assuming Ibex Peak PCH\n");
+	} else if (IS_GEN6(dev) || IS_IVYBRIDGE(dev)) {
+		ret = PCH_CPT;
+		DRM_DEBUG_KMS("Assuming CouarPoint PCH\n");
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+		ret = PCH_LPT;
+		DRM_DEBUG_KMS("Assuming LynxPoint PCH\n");
+	} else if (IS_SKYLAKE(dev)) {
+		ret = PCH_SPT;
+		DRM_DEBUG_KMS("Assuming SunrisePoint PCH\n");
+	}
+
+	return ret;
+}
+
 void intel_detect_pch(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -503,6 +531,8 @@ void intel_detect_pch(struct drm_device *dev)
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
 				WARN_ON(!IS_SKYLAKE(dev));
+			} else if (id == INTEL_PCH_P2X_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = intel_virt_detect_pch(dev);
 			} else
 				continue;
 
@@ -607,6 +637,8 @@ static int i915_drm_suspend(struct drm_device *dev)
 			"GEM idle failed, resume might fail\n");
 		return error;
 	}
+
+	intel_guc_suspend(dev);
 
 	intel_suspend_gt_powersave(dev);
 
@@ -736,6 +768,8 @@ static int i915_drm_resume(struct drm_device *dev)
 			atomic_or(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
 	}
 	mutex_unlock(&dev->struct_mutex);
+
+	intel_guc_resume(dev);
 
 	intel_modeset_init_hw(dev);
 
@@ -1020,12 +1054,6 @@ static int i915_pm_resume(struct device *dev)
 static int skl_suspend_complete(struct drm_i915_private *dev_priv)
 {
 	/* Enabling DC6 is not a hard requirement to enter runtime D3 */
-
-	/*
-	 * This is to ensure that CSR isn't identified as loaded before
-	 * CSR-loading program is called during runtime-resume.
-	 */
-	intel_csr_load_status_set(dev_priv, FW_UNINITIALIZED);
 
 	skl_uninit_cdclk(dev_priv);
 
@@ -1476,6 +1504,8 @@ static int intel_runtime_suspend(struct device *device)
 	i915_gem_release_all_mmaps(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
+	intel_guc_suspend(dev);
+
 	intel_suspend_gt_powersave(dev);
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
@@ -1534,6 +1564,8 @@ static int intel_runtime_resume(struct device *device)
 
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
+
+	intel_guc_resume(dev);
 
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev);

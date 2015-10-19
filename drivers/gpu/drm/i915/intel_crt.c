@@ -158,7 +158,7 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	u32 adpa;
 
 	if (INTEL_INFO(dev)->gen >= 5)
@@ -890,7 +890,7 @@ void intel_crt_init(struct drm_device *dev)
 		u32 fdi_config = FDI_RX_POLARITY_REVERSED_LPT |
 				 FDI_RX_LINK_REVERSAL_OVERRIDE;
 
-		dev_priv->fdi_rx_config = I915_READ(_FDI_RXA_CTL) & fdi_config;
+		dev_priv->fdi_rx_config = I915_READ(FDI_RX_CTL(PIPE_A)) & fdi_config;
 	}
 
 	intel_crt_reset(connector);

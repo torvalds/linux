@@ -448,6 +448,9 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG32(GEN7_3DPRIM_INSTANCE_COUNT),
 	REG32(GEN7_3DPRIM_START_INSTANCE),
 	REG32(GEN7_3DPRIM_BASE_VERTEX),
+	REG32(GEN7_GPGPU_DISPATCHDIMX),
+	REG32(GEN7_GPGPU_DISPATCHDIMY),
+	REG32(GEN7_GPGPU_DISPATCHDIMZ),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(0)),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(1)),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(2)),
@@ -1214,6 +1217,7 @@ int i915_cmd_parser_get_version(void)
 	 *    MI_PREDICATE_SRC1 registers.
 	 * 3. Allow access to the GPGPU_THREADS_DISPATCHED register.
 	 * 4. L3 atomic chicken bits of HSW_SCRATCH1 and HSW_ROW_CHICKEN3.
+	 * 5. GPGPU dispatch compute indirect registers.
 	 */
-	return 4;
+	return 5;
 }

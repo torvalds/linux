@@ -94,6 +94,7 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->base);
 
 	crtc_state->update_pipe = false;
+	crtc_state->disable_lp_wm = false;
 
 	return &crtc_state->base;
 }

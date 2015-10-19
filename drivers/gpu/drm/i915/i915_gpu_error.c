@@ -792,20 +792,15 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	int i;
 
 	if (IS_GEN3(dev) || IS_GEN2(dev)) {
-		for (i = 0; i < 8; i++)
-			error->fence[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
-		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-			for (i = 0; i < 8; i++)
-				error->fence[i+8] = I915_READ(FENCE_REG_945_8 +
-							      (i * 4));
-	} else if (IS_GEN5(dev) || IS_GEN4(dev))
-		for (i = 0; i < 16; i++)
-			error->fence[i] = I915_READ64(FENCE_REG_965_0 +
-						      (i * 8));
-	else if (INTEL_INFO(dev)->gen >= 6)
 		for (i = 0; i < dev_priv->num_fence_regs; i++)
-			error->fence[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 +
-						      (i * 8));
+			error->fence[i] = I915_READ(FENCE_REG(i));
+	} else if (IS_GEN5(dev) || IS_GEN4(dev)) {
+		for (i = 0; i < dev_priv->num_fence_regs; i++)
+			error->fence[i] = I915_READ64(FENCE_REG_965_LO(i));
+	} else if (INTEL_INFO(dev)->gen >= 6) {
+		for (i = 0; i < dev_priv->num_fence_regs; i++)
+			error->fence[i] = I915_READ64(FENCE_REG_GEN6_LO(i));
+	}
 }
 
 
@@ -891,7 +886,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->faddr = I915_READ(DMA_FADD_I8XX);
 		ering->ipeir = I915_READ(IPEIR);
 		ering->ipehr = I915_READ(IPEHR);
-		ering->instdone = I915_READ(INSTDONE);
+		ering->instdone = I915_READ(GEN2_INSTDONE);
 	}
 
 	ering->waiting = waitqueue_active(&ring->irq_queue);
@@ -1393,12 +1388,12 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone)
 	memset(instdone, 0, sizeof(*instdone) * I915_NUM_INSTDONE_REG);
 
 	if (IS_GEN2(dev) || IS_GEN3(dev))
-		instdone[0] = I915_READ(INSTDONE);
+		instdone[0] = I915_READ(GEN2_INSTDONE);
 	else if (IS_GEN4(dev) || IS_GEN5(dev) || IS_GEN6(dev)) {
-		instdone[0] = I915_READ(INSTDONE_I965);
-		instdone[1] = I915_READ(INSTDONE1);
+		instdone[0] = I915_READ(RING_INSTDONE(RENDER_RING_BASE));
+		instdone[1] = I915_READ(GEN4_INSTDONE1);
 	} else if (INTEL_INFO(dev)->gen >= 7) {
-		instdone[0] = I915_READ(GEN7_INSTDONE_1);
+		instdone[0] = I915_READ(RING_INSTDONE(RENDER_RING_BASE));
 		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
 		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);
 		instdone[3] = I915_READ(GEN7_ROW_INSTDONE);

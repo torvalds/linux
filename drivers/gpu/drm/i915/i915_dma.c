@@ -673,6 +673,82 @@ static void gen9_sseu_info_init(struct drm_device *dev)
 	info->has_eu_pg = (info->eu_per_subslice > 2);
 }
 
+static void broadwell_sseu_info_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_device_info *info;
+	const int s_max = 3, ss_max = 3, eu_max = 8;
+	int s, ss;
+	u32 fuse2, eu_disable[s_max], s_enable, ss_disable;
+
+	fuse2 = I915_READ(GEN8_FUSE2);
+	s_enable = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
+	ss_disable = (fuse2 & GEN8_F2_SS_DIS_MASK) >> GEN8_F2_SS_DIS_SHIFT;
+
+	eu_disable[0] = I915_READ(GEN8_EU_DISABLE0) & GEN8_EU_DIS0_S0_MASK;
+	eu_disable[1] = (I915_READ(GEN8_EU_DISABLE0) >> GEN8_EU_DIS0_S1_SHIFT) |
+			((I915_READ(GEN8_EU_DISABLE1) & GEN8_EU_DIS1_S1_MASK) <<
+			 (32 - GEN8_EU_DIS0_S1_SHIFT));
+	eu_disable[2] = (I915_READ(GEN8_EU_DISABLE1) >> GEN8_EU_DIS1_S2_SHIFT) |
+			((I915_READ(GEN8_EU_DISABLE2) & GEN8_EU_DIS2_S2_MASK) <<
+			 (32 - GEN8_EU_DIS1_S2_SHIFT));
+
+
+	info = (struct intel_device_info *)&dev_priv->info;
+	info->slice_total = hweight32(s_enable);
+
+	/*
+	 * The subslice disable field is global, i.e. it applies
+	 * to each of the enabled slices.
+	 */
+	info->subslice_per_slice = ss_max - hweight32(ss_disable);
+	info->subslice_total = info->slice_total * info->subslice_per_slice;
+
+	/*
+	 * Iterate through enabled slices and subslices to
+	 * count the total enabled EU.
+	 */
+	for (s = 0; s < s_max; s++) {
+		if (!(s_enable & (0x1 << s)))
+			/* skip disabled slice */
+			continue;
+
+		for (ss = 0; ss < ss_max; ss++) {
+			u32 n_disabled;
+
+			if (ss_disable & (0x1 << ss))
+				/* skip disabled subslice */
+				continue;
+
+			n_disabled = hweight8(eu_disable[s] >> (ss * eu_max));
+
+			/*
+			 * Record which subslices have 7 EUs.
+			 */
+			if (eu_max - n_disabled == 7)
+				info->subslice_7eu[s] |= 1 << ss;
+
+			info->eu_total += eu_max - n_disabled;
+		}
+	}
+
+	/*
+	 * BDW is expected to always have a uniform distribution of EU across
+	 * subslices with the exception that any one EU in any one subslice may
+	 * be fused off for die recovery.
+	 */
+	info->eu_per_subslice = info->subslice_total ?
+		DIV_ROUND_UP(info->eu_total, info->subslice_total) : 0;
+
+	/*
+	 * BDW supports slice power gating on devices with more than
+	 * one slice.
+	 */
+	info->has_slice_pg = (info->slice_total > 1);
+	info->has_subslice_pg = 0;
+	info->has_eu_pg = 0;
+}
+
 /*
  * Determine various intel_device_info fields at runtime.
  *
@@ -743,6 +819,8 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 	/* Initialize slice/subslice/EU info */
 	if (IS_CHERRYVIEW(dev))
 		cherryview_sseu_info_init(dev);
+	else if (IS_BROADWELL(dev))
+		broadwell_sseu_info_init(dev);
 	else if (INTEL_INFO(dev)->gen >= 9)
 		gen9_sseu_info_init(dev);
 
@@ -818,6 +896,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	mutex_init(&dev_priv->sb_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 	mutex_init(&dev_priv->csr_lock);
+	mutex_init(&dev_priv->av_mutex);
 
 	intel_pm_setup(dev);
 
@@ -1045,12 +1124,9 @@ out_freecsr:
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
-	if (dev_priv->requests)
-		kmem_cache_destroy(dev_priv->requests);
-	if (dev_priv->vmas)
-		kmem_cache_destroy(dev_priv->vmas);
-	if (dev_priv->objects)
-		kmem_cache_destroy(dev_priv->objects);
+	kmem_cache_destroy(dev_priv->requests);
+	kmem_cache_destroy(dev_priv->vmas);
+	kmem_cache_destroy(dev_priv->objects);
 	kfree(dev_priv);
 	return ret;
 }
@@ -1141,13 +1217,9 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->regs != NULL)
 		pci_iounmap(dev->pdev, dev_priv->regs);
 
-	if (dev_priv->requests)
-		kmem_cache_destroy(dev_priv->requests);
-	if (dev_priv->vmas)
-		kmem_cache_destroy(dev_priv->vmas);
-	if (dev_priv->objects)
-		kmem_cache_destroy(dev_priv->objects);
-
+	kmem_cache_destroy(dev_priv->requests);
+	kmem_cache_destroy(dev_priv->vmas);
+	kmem_cache_destroy(dev_priv->objects);
 	pci_dev_put(dev_priv->bridge_dev);
 	kfree(dev_priv);
 

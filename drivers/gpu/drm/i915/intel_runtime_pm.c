@@ -657,9 +657,15 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 		}
 	} else {
 		if (enable_requested) {
-			I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
-			POSTING_READ(HSW_PWR_WELL_DRIVER);
-			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
+			if (IS_SKYLAKE(dev) &&
+				(power_well->data == SKL_DISP_PW_1) &&
+				(intel_csr_load_status_get(dev_priv) == FW_LOADED))
+				DRM_DEBUG_KMS("Not Disabling PW1, dmc will handle\n");
+			else {
+				I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
+				POSTING_READ(HSW_PWR_WELL_DRIVER);
+				DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
+			}
 
 			if ((GEN9_ENABLE_DC5(dev) || SKL_ENABLE_DC6(dev)) &&
 				power_well->data == SKL_DISP_PW_2) {
@@ -988,7 +994,28 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_D);
 	u32 phy_control = dev_priv->chv_phy_control;
 	u32 phy_status = 0;
+	u32 phy_status_mask = 0xffffffff;
 	u32 tmp;
+
+	/*
+	 * The BIOS can leave the PHY is some weird state
+	 * where it doesn't fully power down some parts.
+	 * Disable the asserts until the PHY has been fully
+	 * reset (ie. the power well has been disabled at
+	 * least once).
+	 */
+	if (!dev_priv->chv_phy_assert[DPIO_PHY0])
+		phy_status_mask &= ~(PHY_STATUS_CMN_LDO(DPIO_PHY0, DPIO_CH0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH0, 0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH0, 1) |
+				     PHY_STATUS_CMN_LDO(DPIO_PHY0, DPIO_CH1) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH1, 0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH1, 1));
+
+	if (!dev_priv->chv_phy_assert[DPIO_PHY1])
+		phy_status_mask &= ~(PHY_STATUS_CMN_LDO(DPIO_PHY1, DPIO_CH0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 1));
 
 	if (cmn_bc->ops->is_enabled(dev_priv, cmn_bc)) {
 		phy_status |= PHY_POWERGOOD(DPIO_PHY0);
@@ -1050,11 +1077,13 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 1);
 	}
 
+	phy_status &= phy_status_mask;
+
 	/*
 	 * The PHY may be busy with some initial calibration and whatnot,
 	 * so the power state can take a while to actually change.
 	 */
-	if (wait_for((tmp = I915_READ(DISPLAY_PHY_STATUS)) == phy_status, 10))
+	if (wait_for((tmp = I915_READ(DISPLAY_PHY_STATUS) & phy_status_mask) == phy_status, 10))
 		WARN(phy_status != tmp,
 		     "Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
 		     tmp, phy_status, dev_priv->chv_phy_control);
@@ -1147,6 +1176,9 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	DRM_DEBUG_KMS("Disabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
 		      phy, dev_priv->chv_phy_control);
 
+	/* PHY is fully reset now, so we can enable the PHY state asserts */
+	dev_priv->chv_phy_assert[phy] = true;
+
 	assert_chv_phy_status(dev_priv);
 }
 
@@ -1155,6 +1187,16 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 {
 	enum pipe pipe = phy == DPIO_PHY0 ? PIPE_A : PIPE_C;
 	u32 reg, val, expected, actual;
+
+	/*
+	 * The BIOS can leave the PHY is some weird state
+	 * where it doesn't fully power down some parts.
+	 * Disable the asserts until the PHY has been fully
+	 * reset (ie. the power well has been disabled at
+	 * least once).
+	 */
+	if (!dev_priv->chv_phy_assert[phy])
+		return;
 
 	if (ch == DPIO_CH0)
 		reg = _CHV_CMN_DW0_CH0;
@@ -1823,7 +1865,6 @@ static void intel_runtime_pm_disable(struct drm_i915_private *dev_priv)
 
 	/* Make sure we're not suspended first. */
 	pm_runtime_get_sync(device);
-	pm_runtime_disable(device);
 }
 
 /**
@@ -1912,6 +1953,10 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 			PHY_CH_POWER_DOWN_OVRD(mask, DPIO_PHY0, DPIO_CH1);
 
 		dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(DPIO_PHY0);
+
+		dev_priv->chv_phy_assert[DPIO_PHY0] = false;
+	} else {
+		dev_priv->chv_phy_assert[DPIO_PHY0] = true;
 	}
 
 	if (cmn_d->ops->is_enabled(dev_priv, cmn_d)) {
@@ -1930,6 +1975,10 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 			PHY_CH_POWER_DOWN_OVRD(mask, DPIO_PHY1, DPIO_CH0);
 
 		dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(DPIO_PHY1);
+
+		dev_priv->chv_phy_assert[DPIO_PHY1] = false;
+	} else {
+		dev_priv->chv_phy_assert[DPIO_PHY1] = true;
 	}
 
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
@@ -2114,8 +2163,6 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 
 	if (!HAS_RUNTIME_PM(dev))
 		return;
-
-	pm_runtime_set_active(device);
 
 	/*
 	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a

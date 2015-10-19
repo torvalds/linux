@@ -179,12 +179,22 @@ struct intel_panel {
 		bool active_low_pwm;
 
 		/* PWM chip */
+		bool util_pin_active_low;	/* bxt+ */
+		u8 controller;		/* bxt+ only */
 		struct pwm_device *pwm;
 
 		struct backlight_device *device;
-	} backlight;
 
-	void (*backlight_power)(struct intel_connector *, bool enable);
+		/* Connector and platform specific backlight functions */
+		int (*setup)(struct intel_connector *connector, enum pipe pipe);
+		uint32_t (*get)(struct intel_connector *connector);
+		void (*set)(struct intel_connector *connector, uint32_t level);
+		void (*disable)(struct intel_connector *connector);
+		void (*enable)(struct intel_connector *connector);
+		uint32_t (*hz_to_pwm)(struct intel_connector *connector,
+				      uint32_t hz);
+		void (*power)(struct intel_connector *, bool enable);
+	} backlight;
 };
 
 struct intel_connector {
@@ -458,6 +468,9 @@ struct intel_crtc_state {
 
 	/* w/a for waiting 2 vblanks during crtc enable */
 	enum pipe hsw_workaround_pipe;
+
+	/* IVB sprite scaling w/a (WaCxSRDisabledForSpriteScaling:ivb) */
+	bool disable_lp_wm;
 };
 
 struct vlv_wm_state {
@@ -683,7 +696,7 @@ struct intel_hdmi {
 				const void *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
 			       bool enable,
-			       struct drm_display_mode *adjusted_mode);
+			       const struct drm_display_mode *adjusted_mode);
 	bool (*infoframe_enabled)(struct drm_encoder *encoder);
 };
 
@@ -1191,7 +1204,6 @@ bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
 			      const struct intel_crtc_state *pipe_config);
 void intel_dp_start_link_train(struct intel_dp *intel_dp);
-void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp);
 void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
 void intel_dp_encoder_destroy(struct drm_encoder *encoder);
@@ -1300,6 +1312,7 @@ int intel_connector_update_modes(struct drm_connector *connector,
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 void intel_attach_force_audio_property(struct drm_connector *connector);
 void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
+void intel_attach_aspect_ratio_property(struct drm_connector *connector);
 
 
 /* intel_overlay.c */
@@ -1332,7 +1345,6 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 void intel_panel_enable_backlight(struct intel_connector *connector);
 void intel_panel_disable_backlight(struct intel_connector *connector);
 void intel_panel_destroy_backlight(struct drm_connector *connector);
-void intel_panel_init_backlight_funcs(struct drm_device *dev);
 enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 extern struct drm_display_mode *intel_find_panel_downclock(
 				struct drm_device *dev,
@@ -1387,12 +1399,6 @@ void intel_init_clock_gating(struct drm_device *dev);
 void intel_suspend_hw(struct drm_device *dev);
 int ilk_wm_max_level(const struct drm_device *dev);
 void intel_update_watermarks(struct drm_crtc *crtc);
-void intel_update_sprite_watermarks(struct drm_plane *plane,
-				    struct drm_crtc *crtc,
-				    uint32_t sprite_width,
-				    uint32_t sprite_height,
-				    int pixel_size,
-				    bool enabled, bool scaled);
 void intel_init_pm(struct drm_device *dev);
 void intel_pm_setup(struct drm_device *dev);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);

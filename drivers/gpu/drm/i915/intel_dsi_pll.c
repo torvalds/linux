@@ -384,6 +384,90 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	return pclk;
 }
 
+u32 bxt_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
+{
+	u32 pclk;
+	u32 dsi_clk;
+	u32 dsi_ratio;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+
+	/* Divide by zero */
+	if (!pipe_bpp) {
+		DRM_ERROR("Invalid BPP(0)\n");
+		return 0;
+	}
+
+	dsi_ratio = I915_READ(BXT_DSI_PLL_CTL) &
+				BXT_DSI_PLL_RATIO_MASK;
+
+	/* Invalid DSI ratio ? */
+	if (dsi_ratio < BXT_DSI_PLL_RATIO_MIN ||
+			dsi_ratio > BXT_DSI_PLL_RATIO_MAX) {
+		DRM_ERROR("Invalid DSI pll ratio(%u) programmed\n", dsi_ratio);
+		return 0;
+	}
+
+	dsi_clk = (dsi_ratio * BXT_REF_CLOCK_KHZ) / 2;
+
+	/* pixel_format and pipe_bpp should agree */
+	assert_bpp_mismatch(intel_dsi->pixel_format, pipe_bpp);
+
+	pclk = DIV_ROUND_CLOSEST(dsi_clk * intel_dsi->lane_count, pipe_bpp);
+
+	DRM_DEBUG_DRIVER("Calculated pclk=%u\n", pclk);
+	return pclk;
+}
+
+static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+{
+	u32 temp;
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
+	temp = I915_READ(MIPI_CTRL(port));
+	temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
+	I915_WRITE(MIPI_CTRL(port), temp |
+			intel_dsi->escape_clk_div <<
+			ESCAPE_CLOCK_DIVIDER_SHIFT);
+}
+
+/* Program BXT Mipi clocks and dividers */
+static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port)
+{
+	u32 tmp;
+	u32 divider;
+	u32 dsi_rate;
+	u32 pll_ratio;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Clear old configurations */
+	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
+	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_ESCLK_VAR_DIV_MASK(port));
+	tmp &= ~(BXT_MIPI_DPHY_DIVIDER_MASK(port));
+
+	/* Get the current DSI rate(actual) */
+	pll_ratio = I915_READ(BXT_DSI_PLL_CTL) &
+				BXT_DSI_PLL_RATIO_MASK;
+	dsi_rate = (BXT_REF_CLOCK_KHZ * pll_ratio) / 2;
+
+	/* Max possible output of clock is 39.5 MHz, program value -1 */
+	divider = (dsi_rate / BXT_MAX_VAR_OUTPUT_KHZ) - 1;
+	tmp |= BXT_MIPI_ESCLK_VAR_DIV(port, divider);
+
+	/*
+	 * Tx escape clock must be as close to 20MHz possible, but should
+	 * not exceed it. Hence select divide by 2
+	 */
+	tmp |= BXT_MIPI_TX_ESCLK_8XDIV_BY2(port);
+
+	tmp |= BXT_MIPI_RX_ESCLK_8X_BY3(port);
+
+	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
+}
+
 static bool bxt_configure_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -435,6 +519,8 @@ static bool bxt_configure_dsi_pll(struct intel_encoder *encoder)
 static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
 	u32 val;
 
 	DRM_DEBUG_KMS("\n");
@@ -452,6 +538,10 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
 		DRM_ERROR("Configure DSI PLL failed, abort PLL enable\n");
 		return;
 	}
+
+	/* Program TX, RX, Dphy clocks */
+	for_each_dsi_port(port, intel_dsi->ports)
+		bxt_dsi_program_clocks(encoder->base.dev, port);
 
 	/* Enable DSI PLL */
 	val = I915_READ(BXT_DSI_PLL_ENABLE);
@@ -485,4 +575,30 @@ void intel_disable_dsi_pll(struct intel_encoder *encoder)
 		vlv_disable_dsi_pll(encoder);
 	else if (IS_BROXTON(dev))
 		bxt_disable_dsi_pll(encoder);
+}
+
+static void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+{
+	u32 tmp;
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Clear old configurations */
+	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
+	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_ESCLK_VAR_DIV_MASK(port));
+	tmp &= ~(BXT_MIPI_DPHY_DIVIDER_MASK(port));
+	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
+	I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
+}
+
+void intel_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+{
+	struct drm_device *dev = encoder->base.dev;
+
+	if (IS_BROXTON(dev))
+		bxt_dsi_reset_clocks(encoder, port);
+	else if (IS_VALLEYVIEW(dev))
+		vlv_dsi_reset_clocks(encoder, port);
 }

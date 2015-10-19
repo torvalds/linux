@@ -3208,7 +3208,7 @@ static void i915_gem_object_finish_gtt(struct drm_i915_gem_object *obj)
 					    old_write_domain);
 }
 
-int i915_vma_unbind(struct i915_vma *vma)
+static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
@@ -3227,9 +3227,11 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	BUG_ON(obj->pages == NULL);
 
-	ret = i915_gem_object_wait_rendering(obj, false);
-	if (ret)
-		return ret;
+	if (wait) {
+		ret = i915_gem_object_wait_rendering(obj, false);
+		if (ret)
+			return ret;
+	}
 
 	if (i915_is_ggtt(vma->vm) &&
 	    vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
@@ -3272,6 +3274,16 @@ int i915_vma_unbind(struct i915_vma *vma)
 	i915_gem_object_unpin_pages(obj);
 
 	return 0;
+}
+
+int i915_vma_unbind(struct i915_vma *vma)
+{
+	return __i915_vma_unbind(vma, true);
+}
+
+int __i915_vma_unbind_no_wait(struct i915_vma *vma)
+{
+	return __i915_vma_unbind(vma, false);
 }
 
 int i915_gpu_idle(struct drm_device *dev)
@@ -3354,11 +3366,9 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 fence_alignment, unfenced_alignment;
+	u32 search_flag, alloc_flag;
+	u64 start, end;
 	u64 size, fence_size;
-	u64 start =
-		flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
-	u64 end =
-		flags & PIN_MAPPABLE ? dev_priv->gtt.mappable_end : vm->total;
 	struct i915_vma *vma;
 	int ret;
 
@@ -3398,6 +3408,13 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 		size = flags & PIN_MAPPABLE ? fence_size : obj->base.size;
 	}
 
+	start = flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
+	end = vm->total;
+	if (flags & PIN_MAPPABLE)
+		end = min_t(u64, end, dev_priv->gtt.mappable_end);
+	if (flags & PIN_ZONE_4G)
+		end = min_t(u64, end, (1ULL << 32));
+
 	if (alignment == 0)
 		alignment = flags & PIN_MAPPABLE ? fence_alignment :
 						unfenced_alignment;
@@ -3433,13 +3450,21 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		goto err_unpin;
 
+	if (flags & PIN_HIGH) {
+		search_flag = DRM_MM_SEARCH_BELOW;
+		alloc_flag = DRM_MM_CREATE_TOP;
+	} else {
+		search_flag = DRM_MM_SEARCH_DEFAULT;
+		alloc_flag = DRM_MM_CREATE_DEFAULT;
+	}
+
 search_free:
 	ret = drm_mm_insert_node_in_range_generic(&vm->mm, &vma->node,
 						  size, alignment,
 						  obj->cache_level,
 						  start, end,
-						  DRM_MM_SEARCH_DEFAULT,
-						  DRM_MM_CREATE_DEFAULT);
+						  search_flag,
+						  alloc_flag);
 	if (ret) {
 		ret = i915_gem_evict_something(dev, vm, size, alignment,
 					       obj->cache_level,
@@ -4533,22 +4558,6 @@ void i915_gem_init_swizzling(struct drm_device *dev)
 		BUG();
 }
 
-static bool
-intel_enable_blt(struct drm_device *dev)
-{
-	if (!HAS_BLT(dev))
-		return false;
-
-	/* The blitter was dysfunctional on early prototypes */
-	if (IS_GEN6(dev) && dev->pdev->revision < 8) {
-		DRM_INFO("BLT not supported on this pre-production hardware;"
-			 " graphics performance will be degraded.\n");
-		return false;
-	}
-
-	return true;
-}
-
 static void init_unused_ring(struct drm_device *dev, u32 base)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4591,7 +4600,7 @@ int i915_gem_init_rings(struct drm_device *dev)
 			goto cleanup_render_ring;
 	}
 
-	if (intel_enable_blt(dev)) {
+	if (HAS_BLT(dev)) {
 		ret = intel_init_blt_ring_buffer(dev);
 		if (ret)
 			goto cleanup_bsd_ring;

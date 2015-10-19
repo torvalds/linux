@@ -107,6 +107,26 @@ TRACE_EVENT(i915_gem_object_create,
 	    TP_printk("obj=%p, size=%u", __entry->obj, __entry->size)
 );
 
+TRACE_EVENT(i915_gem_shrink,
+	    TP_PROTO(struct drm_i915_private *i915, unsigned long target, unsigned flags),
+	    TP_ARGS(i915, target, flags),
+
+	    TP_STRUCT__entry(
+			     __field(int, dev)
+			     __field(unsigned long, target)
+			     __field(unsigned, flags)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = i915->dev->primary->index;
+			   __entry->target = target;
+			   __entry->flags = flags;
+			   ),
+
+	    TP_printk("dev=%d, target=%lu, flags=%x",
+		      __entry->dev, __entry->target, __entry->flags)
+);
+
 TRACE_EVENT(i915_vma_bind,
 	    TP_PROTO(struct i915_vma *vma, unsigned flags),
 	    TP_ARGS(vma, flags),

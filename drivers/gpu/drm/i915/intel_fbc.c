@@ -41,6 +41,11 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
+static inline bool fbc_supported(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->fbc.enable_fbc != NULL;
+}
+
 /*
  * In some platforms where the CRTC's x:0/y:0 coordinates doesn't match the
  * frontbuffer's x:0/y:0 coordinates we lie to the hardware about the plane's
@@ -439,7 +444,7 @@ static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
  */
 void intel_fbc_disable(struct drm_i915_private *dev_priv)
 {
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -457,7 +462,7 @@ void intel_fbc_disable_crtc(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -685,7 +690,7 @@ static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 {
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -693,16 +698,61 @@ void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->fbc.lock);
 }
 
-static int intel_fbc_setup_cfb(struct drm_i915_private *dev_priv, int size,
-			       int fb_cpp)
+/*
+ * For SKL+, the plane source size used by the hardware is based on the value we
+ * write to the PLANE_SIZE register. For BDW-, the hardware looks at the value
+ * we wrote to PIPESRC.
+ */
+static void intel_fbc_get_plane_source_size(struct intel_crtc *crtc,
+					    int *width, int *height)
 {
+	struct intel_plane_state *plane_state =
+			to_intel_plane_state(crtc->base.primary->state);
+	int w, h;
+
+	if (intel_rotation_90_or_270(plane_state->base.rotation)) {
+		w = drm_rect_height(&plane_state->src) >> 16;
+		h = drm_rect_width(&plane_state->src) >> 16;
+	} else {
+		w = drm_rect_width(&plane_state->src) >> 16;
+		h = drm_rect_height(&plane_state->src) >> 16;
+	}
+
+	if (width)
+		*width = w;
+	if (height)
+		*height = h;
+}
+
+static int intel_fbc_calculate_cfb_size(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_framebuffer *fb = crtc->base.primary->fb;
+	int lines;
+
+	intel_fbc_get_plane_source_size(crtc, NULL, &lines);
+	if (INTEL_INFO(dev_priv)->gen >= 7)
+		lines = min(lines, 2048);
+
+	return lines * fb->pitches[0];
+}
+
+static int intel_fbc_setup_cfb(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_framebuffer *fb = crtc->base.primary->fb;
+	int size, cpp;
+
+	size = intel_fbc_calculate_cfb_size(crtc);
+	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+
 	if (size <= dev_priv->fbc.uncompressed_size)
 		return 0;
 
 	/* Release any current block */
 	__intel_fbc_cleanup_cfb(dev_priv);
 
-	return intel_fbc_alloc_cfb(dev_priv, size, fb_cpp);
+	return intel_fbc_alloc_cfb(dev_priv, size, cpp);
 }
 
 static bool stride_is_valid(struct drm_i915_private *dev_priv,
@@ -749,6 +799,35 @@ static bool pixel_format_is_valid(struct drm_framebuffer *fb)
 	}
 }
 
+/*
+ * For some reason, the hardware tracking starts looking at whatever we
+ * programmed as the display plane base address register. It does not look at
+ * the X and Y offset registers. That's why we look at the crtc->adjusted{x,y}
+ * variables instead of just looking at the pipe/plane size.
+ */
+static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	unsigned int effective_w, effective_h, max_w, max_h;
+
+	if (INTEL_INFO(dev_priv)->gen >= 8 || IS_HASWELL(dev_priv)) {
+		max_w = 4096;
+		max_h = 4096;
+	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
+		max_w = 4096;
+		max_h = 2048;
+	} else {
+		max_w = 2048;
+		max_h = 1536;
+	}
+
+	intel_fbc_get_plane_source_size(crtc, &effective_w, &effective_h);
+	effective_w += crtc->adjusted_x;
+	effective_h += crtc->adjusted_y;
+
+	return effective_w <= max_w && effective_h <= max_h;
+}
+
 /**
  * __intel_fbc_update - enable/disable FBC as needed, unlocked
  * @dev_priv: i915 device instance
@@ -775,7 +854,6 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	struct drm_framebuffer *fb;
 	struct drm_i915_gem_object *obj;
 	const struct drm_display_mode *adjusted_mode;
-	unsigned int max_width, max_height;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
 
@@ -824,21 +902,11 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 
-	if (INTEL_INFO(dev_priv)->gen >= 8 || IS_HASWELL(dev_priv)) {
-		max_width = 4096;
-		max_height = 4096;
-	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
-		max_width = 4096;
-		max_height = 2048;
-	} else {
-		max_width = 2048;
-		max_height = 1536;
-	}
-	if (intel_crtc->config->pipe_src_w > max_width ||
-	    intel_crtc->config->pipe_src_h > max_height) {
+	if (!intel_fbc_hw_tracking_covers_screen(intel_crtc)) {
 		set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE);
 		goto out_disable;
 	}
+
 	if ((INTEL_INFO(dev_priv)->gen < 4 || HAS_DDI(dev_priv)) &&
 	    intel_crtc->plane != PLANE_A) {
 		set_no_fbc_reason(dev_priv, FBC_BAD_PLANE);
@@ -883,8 +951,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 
-	if (intel_fbc_setup_cfb(dev_priv, obj->base.size,
-				drm_format_plane_cpp(fb->pixel_format, 0))) {
+	if (intel_fbc_setup_cfb(intel_crtc)) {
 		set_no_fbc_reason(dev_priv, FBC_STOLEN_TOO_SMALL);
 		goto out_disable;
 	}
@@ -948,7 +1015,7 @@ out_disable:
  */
 void intel_fbc_update(struct drm_i915_private *dev_priv)
 {
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -962,7 +1029,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 {
 	unsigned int fbc_bits;
 
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	if (origin == ORIGIN_GTT)
@@ -989,7 +1056,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		     unsigned int frontbuffer_bits, enum fb_op_origin origin)
 {
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	if (origin == ORIGIN_GTT)

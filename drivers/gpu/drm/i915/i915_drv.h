@@ -57,7 +57,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150928"
+#define DRIVER_DATE		"20151010"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -131,17 +131,17 @@ enum transcoder {
 #define transcoder_name(t) ((t) + 'A')
 
 /*
- * This is the maximum (across all platforms) number of planes (primary +
- * sprites) that can be active at the same time on one pipe.
- *
- * This value doesn't count the cursor plane.
+ * I915_MAX_PLANES in the enum below is the maximum (across all platforms)
+ * number of planes per CRTC.  Not all platforms really have this many planes,
+ * which means some arrays of size I915_MAX_PLANES may have unused entries
+ * between the topmost sprite plane and the cursor plane.
  */
-#define I915_MAX_PLANES	4
-
 enum plane {
 	PLANE_A = 0,
 	PLANE_B,
 	PLANE_C,
+	PLANE_CURSOR,
+	I915_MAX_PLANES,
 };
 #define plane_name(p) ((p) + 'A')
 
@@ -628,10 +628,6 @@ struct drm_i915_display_funcs {
 			  struct dpll *match_clock,
 			  struct dpll *best_clock);
 	void (*update_wm)(struct drm_crtc *crtc);
-	void (*update_sprite_wm)(struct drm_plane *plane,
-				 struct drm_crtc *crtc,
-				 uint32_t sprite_width, uint32_t sprite_height,
-				 int pixel_size, bool enable, bool scaled);
 	int (*modeset_calc_cdclk)(struct drm_atomic_state *state);
 	void (*modeset_commit_cdclk)(struct drm_atomic_state *state);
 	/* Returns the active state of the crtc, and if the crtc is active,
@@ -646,7 +642,7 @@ struct drm_i915_display_funcs {
 	void (*crtc_disable)(struct drm_crtc *crtc);
 	void (*audio_codec_enable)(struct drm_connector *connector,
 				   struct intel_encoder *encoder,
-				   struct drm_display_mode *mode);
+				   const struct drm_display_mode *adjusted_mode);
 	void (*audio_codec_disable)(struct intel_encoder *encoder);
 	void (*fdi_link_train)(struct drm_crtc *crtc);
 	void (*init_clock_gating)(struct drm_device *dev);
@@ -664,15 +660,6 @@ struct drm_i915_display_funcs {
 	/* render clock increase/decrease */
 	/* display clock increase/decrease */
 	/* pll clock increase/decrease */
-
-	int (*setup_backlight)(struct intel_connector *connector, enum pipe pipe);
-	uint32_t (*get_backlight)(struct intel_connector *connector);
-	void (*set_backlight)(struct intel_connector *connector,
-			      uint32_t level);
-	void (*disable_backlight)(struct intel_connector *connector);
-	void (*enable_backlight)(struct intel_connector *connector);
-	uint32_t (*backlight_hz_to_pwm)(struct intel_connector *connector,
-					uint32_t hz);
 };
 
 enum forcewake_domain_id {
@@ -1146,7 +1133,6 @@ struct intel_gen6_power_mgmt {
 	u8 efficient_freq;	/* AKA RPe. Pre-determined balanced frequency */
 	u8 rp1_freq;		/* "less than" RP0 power/freqency */
 	u8 rp0_freq;		/* Non-overclocked max frequency. */
-	u32 cz_freq;
 
 	u8 up_threshold; /* Current %busy required to uplock */
 	u8 down_threshold; /* Current %busy required to downclock */
@@ -1588,8 +1574,7 @@ static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
 struct skl_ddb_allocation {
 	struct skl_ddb_entry pipe[I915_MAX_PIPES];
 	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES]; /* packed/uv */
-	struct skl_ddb_entry y_plane[I915_MAX_PIPES][I915_MAX_PLANES]; /* y-plane */
-	struct skl_ddb_entry cursor[I915_MAX_PIPES];
+	struct skl_ddb_entry y_plane[I915_MAX_PIPES][I915_MAX_PLANES];
 };
 
 struct skl_wm_values {
@@ -1597,18 +1582,13 @@ struct skl_wm_values {
 	struct skl_ddb_allocation ddb;
 	uint32_t wm_linetime[I915_MAX_PIPES];
 	uint32_t plane[I915_MAX_PIPES][I915_MAX_PLANES][8];
-	uint32_t cursor[I915_MAX_PIPES][8];
 	uint32_t plane_trans[I915_MAX_PIPES][I915_MAX_PLANES];
-	uint32_t cursor_trans[I915_MAX_PIPES];
 };
 
 struct skl_wm_level {
 	bool plane_en[I915_MAX_PLANES];
-	bool cursor_en;
 	uint16_t plane_res_b[I915_MAX_PLANES];
 	uint8_t plane_res_l[I915_MAX_PLANES];
-	uint16_t cursor_res_b;
-	uint8_t cursor_res_l;
 };
 
 /*
@@ -1809,6 +1789,7 @@ struct drm_i915_private {
 	unsigned int cdclk_freq, max_cdclk_freq;
 	unsigned int max_dotclk_freq;
 	unsigned int hpll_freq;
+	unsigned int czclk_freq;
 
 	/**
 	 * wq - Driver workqueue for GEM.
@@ -1897,6 +1878,11 @@ struct drm_i915_private {
 	/* hda/i915 audio component */
 	struct i915_audio_component *audio_component;
 	bool audio_component_registered;
+	/**
+	 * av_mutex - mutex for audio/video sync
+	 *
+	 */
+	struct mutex av_mutex;
 
 	uint32_t hw_context_size;
 	struct list_head context_list;
@@ -1958,6 +1944,9 @@ struct drm_i915_private {
 	} gt;
 
 	bool edp_low_vswing;
+
+	/* perform PHY state sanity checks? */
+	bool chv_phy_assert[2];
 
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
@@ -2607,6 +2596,7 @@ struct drm_i915_cmd_table {
 #define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE		0x9c00
 #define INTEL_PCH_SPT_DEVICE_ID_TYPE		0xA100
 #define INTEL_PCH_SPT_LP_DEVICE_ID_TYPE		0x9D00
+#define INTEL_PCH_P2X_DEVICE_ID_TYPE		0x7100
 
 #define INTEL_PCH_TYPE(dev) (__I915__(dev)->pch_type)
 #define HAS_PCH_SPT(dev) (INTEL_PCH_TYPE(dev) == PCH_SPT)
@@ -2824,6 +2814,8 @@ void i915_gem_vma_destroy(struct i915_vma *vma);
 #define PIN_OFFSET_BIAS	(1<<3)
 #define PIN_USER	(1<<4)
 #define PIN_UPDATE	(1<<5)
+#define PIN_ZONE_4G	(1<<6)
+#define PIN_HIGH	(1<<7)
 #define PIN_OFFSET_MASK (~4095)
 int __must_check
 i915_gem_object_pin(struct drm_i915_gem_object *obj,
@@ -2839,6 +2831,11 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
+/*
+ * BEWARE: Do not use the function below unless you can _absolutely_
+ * _guarantee_ VMA in question is _not in use_ anywhere.
+ */
+int __must_check __i915_vma_unbind_no_wait(struct i915_vma *vma);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
@@ -3167,7 +3164,6 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  unsigned long end,
 					  unsigned flags);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
-int i915_gem_evict_everything(struct drm_device *dev);
 
 /* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_device *dev)
@@ -3198,11 +3194,12 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 /* i915_gem_shrinker.c */
 unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
-			      long target,
+			      unsigned long target,
 			      unsigned flags);
 #define I915_SHRINK_PURGEABLE 0x1
 #define I915_SHRINK_UNBOUND 0x2
 #define I915_SHRINK_BOUND 0x4
+#define I915_SHRINK_ACTIVE 0x8
 unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
 void i915_gem_shrinker_init(struct drm_i915_private *dev_priv);
 

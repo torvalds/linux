@@ -37,10 +37,11 @@
 #define   GS_UKERNEL_READY		  (0xF0 << GS_UKERNEL_SHIFT)
 #define   GS_MIA_SHIFT			16
 #define   GS_MIA_MASK			  (0x07 << GS_MIA_SHIFT)
+#define   GS_MIA_CORE_STATE		  (1 << GS_MIA_SHIFT)
 
 #define SOFT_SCRATCH(n)			(0xc180 + ((n) * 4))
 
-#define UOS_RSA_SCRATCH_0		0xc200
+#define UOS_RSA_SCRATCH(i)		(0xc200 + (i) * 4)
 #define DMA_ADDR_0_LOW			0xc300
 #define DMA_ADDR_0_HIGH			0xc304
 #define DMA_ADDR_1_LOW			0xc308

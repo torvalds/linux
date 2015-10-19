@@ -155,12 +155,21 @@ static int host2guc_sample_forcewake(struct intel_guc *guc,
 				     struct i915_guc_client *client)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_device *dev = dev_priv->dev;
 	u32 data[2];
 
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
-	data[1] = (intel_enable_rc6(dev_priv->dev)) ? 1 : 0;
+	/* WaRsDisableCoarsePowerGating:skl,bxt */
+	if (!intel_enable_rc6(dev_priv->dev) ||
+	    (IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
+	    (IS_SKL_GT3(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)) ||
+	    (IS_SKL_GT4(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)))
+		data[1] = 0;
+	else
+		/* bit 0 and 1 are for Render and Media domain separately */
+		data[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
 
-	return host2guc_action(guc, data, 2);
+	return host2guc_action(guc, data, ARRAY_SIZE(data));
 }
 
 /*
@@ -913,4 +922,54 @@ void i915_guc_submission_fini(struct drm_device *dev)
 		ida_destroy(&guc->ctx_ids);
 	gem_release_guc_obj(guc->ctx_pool_obj);
 	guc->ctx_pool_obj = NULL;
+}
+
+/**
+ * intel_guc_suspend() - notify GuC entering suspend state
+ * @dev:	drm device
+ */
+int intel_guc_suspend(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_guc *guc = &dev_priv->guc;
+	struct intel_context *ctx;
+	u32 data[3];
+
+	if (!i915.enable_guc_submission)
+		return 0;
+
+	ctx = dev_priv->ring[RCS].default_context;
+
+	data[0] = HOST2GUC_ACTION_ENTER_S_STATE;
+	/* any value greater than GUC_POWER_D0 */
+	data[1] = GUC_POWER_D1;
+	/* first page is shared data with GuC */
+	data[2] = i915_gem_obj_ggtt_offset(ctx->engine[RCS].state);
+
+	return host2guc_action(guc, data, ARRAY_SIZE(data));
+}
+
+
+/**
+ * intel_guc_resume() - notify GuC resuming from suspend state
+ * @dev:	drm device
+ */
+int intel_guc_resume(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_guc *guc = &dev_priv->guc;
+	struct intel_context *ctx;
+	u32 data[3];
+
+	if (!i915.enable_guc_submission)
+		return 0;
+
+	ctx = dev_priv->ring[RCS].default_context;
+
+	data[0] = HOST2GUC_ACTION_EXIT_S_STATE;
+	data[1] = GUC_POWER_D0;
+	/* first page is shared data with GuC */
+	data[2] = i915_gem_obj_ggtt_offset(ctx->engine[RCS].state);
+
+	return host2guc_action(guc, data, ARRAY_SIZE(data));
 }

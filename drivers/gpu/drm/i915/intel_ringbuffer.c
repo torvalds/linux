@@ -717,7 +717,7 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_workarounds *w = &dev_priv->workarounds;
 
-	if (WARN_ON_ONCE(w->count == 0))
+	if (w->count == 0)
 		return 0;
 
 	ring->gpu_caches_dirty = true;
@@ -800,42 +800,29 @@ static int wa_add(struct drm_i915_private *dev_priv,
 
 #define WA_WRITE(addr, val) WA_REG(addr, 0xffffffff, val)
 
-static int bdw_init_workarounds(struct intel_engine_cs *ring)
+static int gen8_init_workarounds(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
 
-	/* WaDisableAsyncFlipPerfMode:bdw */
+	/* WaDisableAsyncFlipPerfMode:bdw,chv */
 	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
 
-	/* WaDisablePartialInstShootdown:bdw */
-	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
+	/* WaDisablePartialInstShootdown:bdw,chv */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
-			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE |
-			  STALL_DOP_GATING_DISABLE);
-
-	/* WaDisableDopClockGating:bdw */
-	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
-			  DOP_CLOCK_GATING_DISABLE);
-
-	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
-			  GEN8_SAMPLER_POWER_BYPASS_DIS);
+			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
 	/* Use Force Non-Coherent whenever executing a 3D context. This is a
 	 * workaround for for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
+	/* WaForceEnableNonCoherent:bdw,chv */
+	/* WaHdcDisableFetchWhenMasked:bdw,chv */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
-			  /* WaForceEnableNonCoherent:bdw */
-			  HDC_FORCE_NON_COHERENT |
-			  /* WaForceContextSaveRestoreNonCoherent:bdw */
-			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
-			  /* WaHdcDisableFetchWhenMasked:bdw */
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED |
-			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
-			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
+			  HDC_FORCE_NON_COHERENT);
 
 	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
 	 * "The Hierarchical Z RAW Stall Optimization allows non-overlapping
@@ -843,13 +830,12 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 *  stalling waiting for the earlier ones to write to Hierarchical Z
 	 *  buffer."
 	 *
-	 * This optimization is off by default for Broadwell; turn it on.
+	 * This optimization is off by default for BDW and CHV; turn it on.
 	 */
 	WA_CLR_BIT_MASKED(CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
 
-	/* Wa4x4STCOptimizationDisable:bdw */
-	WA_SET_BIT_MASKED(CACHE_MODE_1,
-			  GEN8_4x4_STC_OPTIMIZATION_DISABLE);
+	/* Wa4x4STCOptimizationDisable:bdw,chv */
+	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
 
 	/*
 	 * BSpec recommends 8x4 when MSAA is used,
@@ -866,55 +852,50 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	return 0;
 }
 
-static int chv_init_workarounds(struct intel_engine_cs *ring)
+static int bdw_init_workarounds(struct intel_engine_cs *ring)
 {
+	int ret;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
+	ret = gen8_init_workarounds(ring);
+	if (ret)
+		return ret;
 
-	/* WaDisableAsyncFlipPerfMode:chv */
-	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
+	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
 
-	/* WaDisablePartialInstShootdown:chv */
-	/* WaDisableThreadStallDopClockGating:chv */
-	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
-			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE |
-			  STALL_DOP_GATING_DISABLE);
+	/* WaDisableDopClockGating:bdw */
+	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
+			  DOP_CLOCK_GATING_DISABLE);
 
-	/* Use Force Non-Coherent whenever executing a 3D context. This is a
-	 * workaround for a possible hang in the unlikely event a TLB
-	 * invalidation occurs during a PSD flush.
-	 */
-	/* WaForceEnableNonCoherent:chv */
-	/* WaHdcDisableFetchWhenMasked:chv */
+	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
+			  GEN8_SAMPLER_POWER_BYPASS_DIS);
+
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
-			  HDC_FORCE_NON_COHERENT |
-			  HDC_DONOT_FETCH_MEM_WHEN_MASKED);
+			  /* WaForceContextSaveRestoreNonCoherent:bdw */
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
+			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
+			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
 
-	/* According to the CACHE_MODE_0 default value documentation, some
-	 * CHV platforms disable this optimization by default.  Turn it on.
-	 */
-	WA_CLR_BIT_MASKED(CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
+	return 0;
+}
 
-	/* Wa4x4STCOptimizationDisable:chv */
-	WA_SET_BIT_MASKED(CACHE_MODE_1,
-			  GEN8_4x4_STC_OPTIMIZATION_DISABLE);
+static int chv_init_workarounds(struct intel_engine_cs *ring)
+{
+	int ret;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	ret = gen8_init_workarounds(ring);
+	if (ret)
+		return ret;
+
+	/* WaDisableThreadStallDopClockGating:chv */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
 
 	/* Improve HiZ throughput on CHV. */
 	WA_SET_BIT_MASKED(HIZ_CHICKEN, CHV_HZ_8X8_MODE_IN_1X);
-
-	/*
-	 * BSpec recommends 8x4 when MSAA is used,
-	 * however in practice 16x4 seems fastest.
-	 *
-	 * Note that PS/WM thread counts depend on the WIZ hashing
-	 * disable bit, which we don't touch here, but it's good
-	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
-	 */
-	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
-			    GEN6_WIZ_HASHING_MASK,
-			    GEN6_WIZ_HASHING_16x4);
 
 	return 0;
 }
@@ -961,10 +942,9 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	}
 
 	/* Wa4x4STCOptimizationDisable:skl,bxt */
-	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
-
 	/* WaDisablePartialResolveInVc:skl,bxt */
-	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE);
+	WA_SET_BIT_MASKED(CACHE_MODE_1, (GEN8_4x4_STC_OPTIMIZATION_DISABLE |
+					 GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE));
 
 	/* WaCcsTlbPrefetchDisable:skl,bxt */
 	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
@@ -1041,10 +1021,13 @@ static int skl_tune_iz_hashing(struct intel_engine_cs *ring)
 
 static int skl_init_workarounds(struct intel_engine_cs *ring)
 {
+	int ret;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	gen9_init_workarounds(ring);
+	ret = gen9_init_workarounds(ring);
+	if (ret)
+		return ret;
 
 	/* WaDisablePowerCompilerClockGating:skl */
 	if (INTEL_REVID(dev) == SKL_REVID_B0)
@@ -1081,10 +1064,13 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 
 static int bxt_init_workarounds(struct intel_engine_cs *ring)
 {
+	int ret;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	gen9_init_workarounds(ring);
+	ret = gen9_init_workarounds(ring);
+	if (ret)
+		return ret;
 
 	/* WaDisableThreadStallDopClockGating:bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
@@ -2637,6 +2623,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 			GEN8_RING_SEMAPHORE_INIT;
 		}
 	} else if (INTEL_INFO(dev)->gen >= 6) {
+		ring->init_context = intel_rcs_ctx_init;
 		ring->add_request = gen6_add_request;
 		ring->flush = gen7_render_ring_flush;
 		if (INTEL_INFO(dev)->gen == 6)

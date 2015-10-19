@@ -581,6 +581,7 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 /**
  * i915_enable_asle_pipestat - enable ASLE pipestat for OpRegion
+ * @dev: drm device
  */
 static void i915_enable_asle_pipestat(struct drm_device *dev)
 {
@@ -997,12 +998,16 @@ static bool vlv_c0_above(struct drm_i915_private *dev_priv,
 			 int threshold)
 {
 	u64 time, c0;
+	unsigned int mul = 100;
 
 	if (old->cz_clock == 0)
 		return false;
 
+	if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
+		mul <<= 8;
+
 	time = now->cz_clock - old->cz_clock;
-	time *= threshold * dev_priv->mem_freq;
+	time *= threshold * dev_priv->czclk_freq;
 
 	/* Workload can be split between render + media, e.g. SwapBuffers
 	 * being blitted in X after being rendered in mesa. To account for
@@ -1010,7 +1015,7 @@ static bool vlv_c0_above(struct drm_i915_private *dev_priv,
 	 */
 	c0 = now->render_c0 - old->render_c0;
 	c0 += now->media_c0 - old->media_c0;
-	c0 *= 100 * VLV_CZ_CLOCK_TO_MILLI_SEC * 4 / 1000;
+	c0 *= mul * VLV_CZ_CLOCK_TO_MILLI_SEC;
 
 	return c0 >= time;
 }
@@ -2388,6 +2393,7 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 
 /**
  * i915_reset_and_wakeup - do process context error handling work
+ * @dev: drm device
  *
  * Fire an error uevent so userspace can see that a hang or error
  * was detected.
@@ -2565,7 +2571,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
  * i915_handle_error - handle a gpu error
  * @dev: drm device
  *
- * Do some basic checking of regsiter state at error time and
+ * Do some basic checking of register state at error time and
  * dump it to the syslog.  Also call i915_capture_error_state() to make
  * sure we get a record and make it available in debugfs.  Fire a uevent
  * so userspace knows something bad happened (should trigger collection
@@ -2777,6 +2783,26 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 	u32 cmd, ipehr, head;
 	u64 offset = 0;
 	int i, backwards;
+
+	/*
+	 * This function does not support execlist mode - any attempt to
+	 * proceed further into this function will result in a kernel panic
+	 * when dereferencing ring->buffer, which is not set up in execlist
+	 * mode.
+	 *
+	 * The correct way of doing it would be to derive the currently
+	 * executing ring buffer from the current context, which is derived
+	 * from the currently running request. Unfortunately, to get the
+	 * current request we would have to grab the struct_mutex before doing
+	 * anything else, which would be ill-advised since some other thread
+	 * might have grabbed it already and managed to hang itself, causing
+	 * the hang checker to deadlock.
+	 *
+	 * Therefore, this function does not support execlist mode in its
+	 * current form. Just return NULL and move on.
+	 */
+	if (ring->buffer == NULL)
+		return NULL;
 
 	ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
 	if (!ipehr_is_semaphore_wait(ring->dev, ipehr))

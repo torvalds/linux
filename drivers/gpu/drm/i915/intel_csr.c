@@ -265,6 +265,15 @@ void intel_csr_load_program(struct drm_device *dev)
 		return;
 	}
 
+	/*
+	 * FIXME: Firmware gets lost on S3/S4, but not when entering system
+	 * standby or suspend-to-idle (which is just like forced runtime pm).
+	 * Unfortunately the ACPI subsystem doesn't yet give us a way to
+	 * differentiate this, hence figure it out with this hack.
+	 */
+	if (I915_READ(CSR_PROGRAM(0)))
+		return;
+
 	mutex_lock(&dev_priv->csr_lock);
 	fw_size = dev_priv->csr.dmc_fw_size;
 	for (i = 0; i < fw_size; i++)

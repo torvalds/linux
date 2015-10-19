@@ -59,18 +59,18 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 				 struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int fence_reg;
+	int fence_reg_lo, fence_reg_hi;
 	int fence_pitch_shift;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		fence_reg = FENCE_REG_SANDYBRIDGE_0;
-		fence_pitch_shift = SANDYBRIDGE_FENCE_PITCH_SHIFT;
+		fence_reg_lo = FENCE_REG_GEN6_LO(reg);
+		fence_reg_hi = FENCE_REG_GEN6_HI(reg);
+		fence_pitch_shift = GEN6_FENCE_PITCH_SHIFT;
 	} else {
-		fence_reg = FENCE_REG_965_0;
+		fence_reg_lo = FENCE_REG_965_LO(reg);
+		fence_reg_hi = FENCE_REG_965_HI(reg);
 		fence_pitch_shift = I965_FENCE_PITCH_SHIFT;
 	}
-
-	fence_reg += reg * 8;
 
 	/* To w/a incoherency with non-atomic 64-bit register updates,
 	 * we split the 64-bit update into two 32-bit writes. In order
@@ -81,8 +81,8 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 	 * For extra levels of paranoia, we make sure each step lands
 	 * before applying the next step.
 	 */
-	I915_WRITE(fence_reg, 0);
-	POSTING_READ(fence_reg);
+	I915_WRITE(fence_reg_lo, 0);
+	POSTING_READ(fence_reg_lo);
 
 	if (obj) {
 		u32 size = i915_gem_obj_ggtt_size(obj);
@@ -103,14 +103,14 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 			val |= 1 << I965_FENCE_TILING_Y_SHIFT;
 		val |= I965_FENCE_REG_VALID;
 
-		I915_WRITE(fence_reg + 4, val >> 32);
-		POSTING_READ(fence_reg + 4);
+		I915_WRITE(fence_reg_hi, val >> 32);
+		POSTING_READ(fence_reg_hi);
 
-		I915_WRITE(fence_reg + 0, val);
-		POSTING_READ(fence_reg);
+		I915_WRITE(fence_reg_lo, val);
+		POSTING_READ(fence_reg_lo);
 	} else {
-		I915_WRITE(fence_reg + 4, 0);
-		POSTING_READ(fence_reg + 4);
+		I915_WRITE(fence_reg_hi, 0);
+		POSTING_READ(fence_reg_hi);
 	}
 }
 
@@ -149,13 +149,8 @@ static void i915_write_fence_reg(struct drm_device *dev, int reg,
 	} else
 		val = 0;
 
-	if (reg < 8)
-		reg = FENCE_REG_830_0 + reg * 4;
-	else
-		reg = FENCE_REG_945_8 + (reg - 8) * 4;
-
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	I915_WRITE(FENCE_REG(reg), val);
+	POSTING_READ(FENCE_REG(reg));
 }
 
 static void i830_write_fence_reg(struct drm_device *dev, int reg,
@@ -186,8 +181,8 @@ static void i830_write_fence_reg(struct drm_device *dev, int reg,
 	} else
 		val = 0;
 
-	I915_WRITE(FENCE_REG_830_0 + reg * 4, val);
-	POSTING_READ(FENCE_REG_830_0 + reg * 4);
+	I915_WRITE(FENCE_REG(reg), val);
+	POSTING_READ(FENCE_REG(reg));
 }
 
 inline static bool i915_gem_object_needs_mb(struct drm_i915_gem_object *obj)

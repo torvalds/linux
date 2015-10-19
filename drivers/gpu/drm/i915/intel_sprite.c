@@ -53,13 +53,15 @@ format_is_yuv(uint32_t format)
 	}
 }
 
-static int usecs_to_scanlines(const struct drm_display_mode *mode, int usecs)
+static int usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
+			      int usecs)
 {
 	/* paranoia */
-	if (!mode->crtc_htotal)
+	if (!adjusted_mode->crtc_htotal)
 		return 1;
 
-	return DIV_ROUND_UP(usecs * mode->crtc_clock, 1000 * mode->crtc_htotal);
+	return DIV_ROUND_UP(usecs * adjusted_mode->crtc_clock,
+			    1000 * adjusted_mode->crtc_htotal);
 }
 
 /**
@@ -79,19 +81,19 @@ static int usecs_to_scanlines(const struct drm_display_mode *mode, int usecs)
 void intel_pipe_update_start(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	const struct drm_display_mode *mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	enum pipe pipe = crtc->pipe;
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline, min, max, vblank_start;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
 	DEFINE_WAIT(wait);
 
-	vblank_start = mode->crtc_vblank_start;
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+	vblank_start = adjusted_mode->crtc_vblank_start;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vblank_start = DIV_ROUND_UP(vblank_start, 2);
 
 	/* FIXME needs to be calibrated sensibly */
-	min = vblank_start - usecs_to_scanlines(mode, 100);
+	min = vblank_start - usecs_to_scanlines(adjusted_mode, 100);
 	max = vblank_start - 1;
 
 	local_irq_disable();
@@ -190,7 +192,6 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
 	u32 plane_ctl, stride_div, stride;
-	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key =
 		&to_intel_plane_state(drm_plane->state)->ckey;
 	unsigned long surf_addr;
@@ -208,10 +209,6 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 
 	rotation = drm_plane->state->rotation;
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
-
-	intel_update_sprite_watermarks(drm_plane, crtc, src_w, src_h,
-				       pixel_size, true,
-				       src_w != crtc_w || src_h != crtc_h);
 
 	stride_div = intel_fb_stride_alignment(dev, fb->modifier[0],
 					       fb->pixel_format);
@@ -294,8 +291,6 @@ skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 
 	I915_WRITE(PLANE_SURF(pipe, plane), 0);
 	POSTING_READ(PLANE_SURF(pipe, plane));
-
-	intel_update_sprite_watermarks(dplane, crtc, 0, 0, 0, false, false);
 }
 
 static void
@@ -538,10 +533,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
-	intel_update_sprite_watermarks(plane, crtc, src_w, src_h, pixel_size,
-				       true,
-				       src_w != crtc_w || src_h != crtc_h);
-
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
@@ -674,10 +665,6 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (IS_GEN6(dev))
 		dvscntr |= DVS_TRICKLE_FEED_DISABLE; /* must disable */
-
-	intel_update_sprite_watermarks(plane, crtc, src_w, src_h,
-				       pixel_size, true,
-				       src_w != crtc_w || src_h != crtc_h);
 
 	/* Sizes are 0 based */
 	src_w--;

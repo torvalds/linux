@@ -341,8 +341,12 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	if (!HAS_DDI(dev))
 		return 0;
 
-	port = intel_ddi_get_encoder_port(intel_encoder);
-	if (port == PORT_E) {
+	if (intel_encoder->type == INTEL_OUTPUT_DSI)
+		port = 0;
+	else
+		port = intel_ddi_get_encoder_port(intel_encoder);
+
+	if (port == PORT_E)  {
 		port = 0;
 	} else {
 		parm |= 1 << port;
@@ -363,6 +367,7 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 		type = DISPLAY_TYPE_EXTERNAL_FLAT_PANEL;
 		break;
 	case INTEL_OUTPUT_EDP:
+	case INTEL_OUTPUT_DSI:
 		type = DISPLAY_TYPE_INTERNAL_FLAT_PANEL;
 		break;
 	default:
