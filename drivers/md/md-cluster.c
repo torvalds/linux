@@ -54,7 +54,6 @@ struct md_cluster_info {
 	dlm_lockspace_t *lockspace;
 	int slot_number;
 	struct completion completion;
-	struct mutex sb_mutex;
 	struct dlm_lock_resource *bitmap_lockres;
 	struct dlm_lock_resource *resync_lockres;
 	struct list_head suspend_list;
@@ -709,7 +708,6 @@ static int join(struct mddev *mddev, int nodes)
 	init_completion(&cinfo->completion);
 	set_bit(MD_CLUSTER_BEGIN_JOIN_CLUSTER, &cinfo->state);
 
-	mutex_init(&cinfo->sb_mutex);
 	mddev->cluster_info = cinfo;
 
 	memset(str, 0, 64);
