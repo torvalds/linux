@@ -43,5 +43,14 @@ void __sysreg_restore_state(struct kvm_cpu_context *ctxt);
 void __sysreg32_save_state(struct kvm_vcpu *vcpu);
 void __sysreg32_restore_state(struct kvm_vcpu *vcpu);
 
+void __debug_save_state(struct kvm_vcpu *vcpu,
+			struct kvm_guest_debug_arch *dbg,
+			struct kvm_cpu_context *ctxt);
+void __debug_restore_state(struct kvm_vcpu *vcpu,
+			   struct kvm_guest_debug_arch *dbg,
+			   struct kvm_cpu_context *ctxt);
+void __debug_cond_save_host_state(struct kvm_vcpu *vcpu);
+void __debug_cond_restore_host_state(struct kvm_vcpu *vcpu);
+
 #endif /* __ARM64_KVM_HYP_H__ */
 
