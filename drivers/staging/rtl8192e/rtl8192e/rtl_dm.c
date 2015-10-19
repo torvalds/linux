@@ -655,7 +655,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 		tx_cmd.Op		= TXCMD_SET_TX_PWR_TRACKING;
 		tx_cmd.Length	= 4;
 		tx_cmd.Value		= Value;
-		rtl92e_send_cmd_pkt(dev, (u8 *)&tx_cmd, DESC_PACKET_TYPE_NORMAL,
+		rtl92e_send_cmd_pkt(dev, DESC_PACKET_TYPE_NORMAL, (u8 *)&tx_cmd,
 				    sizeof(struct dcmd_txcmd));
 		mdelay(1);
 		for (i = 0; i <= 30; i++) {

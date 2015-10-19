@@ -15,5 +15,5 @@
 #ifndef R819XUSB_CMDPKT_H
 #define R819XUSB_CMDPKT_H
 
-bool rtl92e_send_cmd_pkt(struct net_device *dev, u8 *data, u32 type, u32 len);
+bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, u8 *data, u32 len);
 #endif
