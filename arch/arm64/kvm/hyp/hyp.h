@@ -38,5 +38,8 @@ void __vgic_v3_restore_state(struct kvm_vcpu *vcpu);
 void __timer_save_state(struct kvm_vcpu *vcpu);
 void __timer_restore_state(struct kvm_vcpu *vcpu);
 
+void __sysreg_save_state(struct kvm_cpu_context *ctxt);
+void __sysreg_restore_state(struct kvm_cpu_context *ctxt);
+
 #endif /* __ARM64_KVM_HYP_H__ */
 
