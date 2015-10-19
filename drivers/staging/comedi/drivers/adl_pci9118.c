@@ -386,8 +386,8 @@ static void pci9118_set_chanlist(struct comedi_device *dev,
 	/* udelay(100); important delay, or first sample will be crippled */
 }
 
-static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev,
-					      unsigned int next_buf)
+static void pci9118_ai_mode4_switch(struct comedi_device *dev,
+				    unsigned int next_buf)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[next_buf];
@@ -649,10 +649,8 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	if (more_dma && devpriv->dma_doublebuf) {
 		devpriv->dma_actbuf = 1 - devpriv->dma_actbuf;
 		pci9118_amcc_setup_dma(dev, devpriv->dma_actbuf);
-		if (devpriv->ai_do == 4) {
-			interrupt_pci9118_ai_mode4_switch(dev,
-							  devpriv->dma_actbuf);
-		}
+		if (devpriv->ai_do == 4)
+			pci9118_ai_mode4_switch(dev, devpriv->dma_actbuf);
 	}
 
 	if (n_all)
@@ -670,7 +668,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	if (more_dma && !devpriv->dma_doublebuf) {
 		pci9118_amcc_setup_dma(dev, 0);
 		if (devpriv->ai_do == 4)
-			interrupt_pci9118_ai_mode4_switch(dev, 0);
+			pci9118_ai_mode4_switch(dev, 0);
 	}
 }
 
