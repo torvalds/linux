@@ -43,8 +43,11 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 			bLastIniPkt = 1;
 		}
 
-		skb  = dev_alloc_skb(frag_length +
-				     priv->rtllib->tx_headroom + 4);
+		if (type == DESC_PACKET_TYPE_NORMAL)
+			skb = dev_alloc_skb(frag_length +
+					    priv->rtllib->tx_headroom + 4);
+		else
+			skb = dev_alloc_skb(frag_length + 4);
 
 		if (skb == NULL) {
 			rt_status = false;
@@ -56,17 +59,30 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = type;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
-		tcb_desc->pkt_size = frag_length;
 
-		seg_ptr = skb_put(skb, priv->rtllib->tx_headroom);
-		pTxFwInfo = (struct tx_fwinfo_8190pci *)seg_ptr;
-		memset(pTxFwInfo, 0, sizeof(struct tx_fwinfo_8190pci));
-		memset(pTxFwInfo, 0x12, 8);
+		if (type == DESC_PACKET_TYPE_NORMAL) {
+			tcb_desc->pkt_size = frag_length;
+
+			seg_ptr = skb_put(skb, priv->rtllib->tx_headroom);
+			pTxFwInfo = (struct tx_fwinfo_8190pci *)seg_ptr;
+			memset(pTxFwInfo, 0, sizeof(struct tx_fwinfo_8190pci));
+			memset(pTxFwInfo, 0x12, 8);
+		} else {
+			tcb_desc->txbuf_size = (u16)frag_length;
+		}
 
 		seg_ptr = skb_put(skb, frag_length);
 		memcpy(seg_ptr, data, (u32)frag_length);
 
-		priv->rtllib->softmac_hard_start_xmit(skb, dev);
+		if (type == DESC_PACKET_TYPE_INIT &&
+		    (!priv->rtllib->check_nic_enough_desc(dev, TXCMD_QUEUE) ||
+		     (!skb_queue_empty(&priv->rtllib->skb_waitQ[TXCMD_QUEUE])) ||
+		     (priv->rtllib->queue_stop))) {
+			skb_queue_tail(&priv->rtllib->skb_waitQ[TXCMD_QUEUE],
+				       skb);
+		} else {
+			priv->rtllib->softmac_hard_start_xmit(skb, dev);
+		}
 
 		data += frag_length;
 		frag_offset += frag_length;
