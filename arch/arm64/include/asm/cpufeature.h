@@ -35,6 +35,37 @@
 
 #include <linux/kernel.h>
 
+/* CPU feature register tracking */
+enum ftr_type {
+	FTR_EXACT,	/* Use a predefined safe value */
+	FTR_LOWER_SAFE,	/* Smaller value is safe */
+	FTR_HIGHER_SAFE,/* Bigger value is safe */
+};
+
+#define FTR_STRICT	true	/* SANITY check strict matching required */
+#define FTR_NONSTRICT	false	/* SANITY check ignored */
+
+struct arm64_ftr_bits {
+	bool		strict;	  /* CPU Sanity check: strict matching required ? */
+	enum ftr_type	type;
+	u8		shift;
+	u8		width;
+	s64		safe_val; /* safe value for discrete features */
+};
+
+/*
+ * @arm64_ftr_reg - Feature register
+ * @strict_mask		Bits which should match across all CPUs for sanity.
+ * @sys_val		Safe value across the CPUs (system view)
+ */
+struct arm64_ftr_reg {
+	u32			sys_id;
+	const char		*name;
+	u64			strict_mask;
+	u64			sys_val;
+	struct arm64_ftr_bits	*ftr_bits;
+};
+
 struct arm64_cpu_capabilities {
 	const char *desc;
 	u16 capability;
@@ -86,6 +117,16 @@ static inline int __attribute_const__
 cpuid_feature_extract_field(u64 features, int field)
 {
 	return cpuid_feature_extract_field_width(features, field, 4);
+}
+
+static inline u64 arm64_ftr_mask(struct arm64_ftr_bits *ftrp)
+{
+	return (u64)GENMASK(ftrp->shift + ftrp->width - 1, ftrp->shift);
+}
+
+static inline s64 arm64_ftr_value(struct arm64_ftr_bits *ftrp, u64 val)
+{
+	return cpuid_feature_extract_field_width(val, ftrp->shift, ftrp->width);
 }
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
