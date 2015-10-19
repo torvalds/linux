@@ -19,6 +19,18 @@
 #include "r8192E_firmware.h"
 #include <linux/firmware.h>
 
+static bool _rtl92e_wait_for_fw(struct net_device *dev, u32 mask, u32 timeout)
+{
+	unsigned long deadline = jiffies + msecs_to_jiffies(timeout);
+
+	while (time_before(jiffies, deadline)) {
+		if (rtl92e_readl(dev, CPU_GEN) & mask)
+			return true;
+		mdelay(2);
+	}
+	return false;
+}
+
 static bool _rtl92e_fw_download_code(struct net_device *dev,
 				     u8 *code_virtual_address, u32 buffer_len)
 {
@@ -85,78 +97,30 @@ static bool _rtl92e_fw_download_code(struct net_device *dev,
 
 static bool _rtl92e_fw_boot_cpu(struct net_device *dev)
 {
-	bool		rt_status = true;
 	u32		CPU_status = 0;
-	unsigned long   timeout;
 
-	timeout = jiffies + msecs_to_jiffies(200);
-	while (time_before(jiffies, timeout)) {
-		CPU_status = rtl92e_readl(dev, CPU_GEN);
-		if (CPU_status & CPU_GEN_PUT_CODE_OK)
-			break;
-		mdelay(2);
-	}
-
-	if (!(CPU_status&CPU_GEN_PUT_CODE_OK)) {
+	if (!_rtl92e_wait_for_fw(dev, CPU_GEN_PUT_CODE_OK, 200)) {
 		netdev_err(dev, "Firmware download failed.\n");
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
-	} else {
-		RT_TRACE(COMP_FIRMWARE, "Download Firmware: Put code ok!\n");
 	}
+	RT_TRACE(COMP_FIRMWARE, "Download Firmware: Put code ok!\n");
 
 	CPU_status = rtl92e_readl(dev, CPU_GEN);
 	rtl92e_writeb(dev, CPU_GEN,
 		      (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
 	mdelay(1);
 
-	timeout = jiffies + msecs_to_jiffies(200);
-	while (time_before(jiffies, timeout)) {
-		CPU_status = rtl92e_readl(dev, CPU_GEN);
-		if (CPU_status&CPU_GEN_BOOT_RDY)
-			break;
-		mdelay(2);
-	}
-
-	if (!(CPU_status&CPU_GEN_BOOT_RDY)) {
+	if (!_rtl92e_wait_for_fw(dev, CPU_GEN_BOOT_RDY, 200)) {
 		netdev_err(dev, "Firmware boot failed.\n");
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
 	}
 
 	RT_TRACE(COMP_FIRMWARE, "Download Firmware: Boot ready!\n");
 
-	return rt_status;
+	return true;
 
 CPUCheckMainCodeOKAndTurnOnCPU_Fail:
-	rt_status = false;
-	return rt_status;
-}
-
-static bool _rtl92e_is_fw_ready(struct net_device *dev)
-{
-
-	bool	rt_status = true;
-	u32	CPU_status = 0;
-	unsigned long timeout;
-
-	timeout = jiffies + msecs_to_jiffies(20);
-	while (time_before(jiffies, timeout)) {
-		CPU_status = rtl92e_readl(dev, CPU_GEN);
-		if (CPU_status&CPU_GEN_FIRM_RDY)
-			break;
-		mdelay(2);
-	}
-
-	if (!(CPU_status&CPU_GEN_FIRM_RDY))
-		goto CPUCheckFirmwareReady_Fail;
-	else
-		RT_TRACE(COMP_FIRMWARE, "Download Firmware: Firmware ready!\n");
-
-	return rt_status;
-
-CPUCheckFirmwareReady_Fail:
-	rt_status = false;
-	return rt_status;
-
+	return false;
 }
 
 static bool _rtl92e_fw_check_ready(struct net_device *dev,
@@ -186,14 +150,13 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 		pfirmware->status = FW_STATUS_4_MOVE_DATA_CODE;
 		mdelay(1);
 
-		rt_status = _rtl92e_is_fw_ready(dev);
+		rt_status = _rtl92e_wait_for_fw(dev, CPU_GEN_FIRM_RDY, 20);
 		if (rt_status)
 			pfirmware->status = FW_STATUS_5_READY;
 		else
 			RT_TRACE(COMP_FIRMWARE,
 				 "_rtl92e_is_fw_ready fail(%d)!\n",
 				 rt_status);
-
 		break;
 	default:
 		rt_status = false;
