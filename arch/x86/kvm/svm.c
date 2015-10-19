@@ -1089,7 +1089,7 @@ static u64 svm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 	return target_tsc - tsc;
 }
 
-static void init_vmcb(struct vcpu_svm *svm, bool init_event)
+static void init_vmcb(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	struct vmcb_save_area *save = &svm->vmcb->save;
@@ -1160,8 +1160,7 @@ static void init_vmcb(struct vcpu_svm *svm, bool init_event)
 	init_sys_seg(&save->ldtr, SEG_TYPE_LDT);
 	init_sys_seg(&save->tr, SEG_TYPE_BUSY_TSS16);
 
-	if (!init_event)
-		svm_set_efer(&svm->vcpu, 0);
+	svm_set_efer(&svm->vcpu, 0);
 	save->dr6 = 0xffff0ff0;
 	kvm_set_rflags(&svm->vcpu, 2);
 	save->rip = 0x0000fff0;
@@ -1215,7 +1214,7 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		if (kvm_vcpu_is_reset_bsp(&svm->vcpu))
 			svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
 	}
-	init_vmcb(svm, init_event);
+	init_vmcb(svm);
 
 	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy);
 	kvm_register_write(vcpu, VCPU_REGS_RDX, eax);
@@ -1271,7 +1270,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	clear_page(svm->vmcb);
 	svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
 	svm->asid_generation = 0;
-	init_vmcb(svm, false);
+	init_vmcb(svm);
 
 	svm_init_osvw(&svm->vcpu);
 
@@ -1893,7 +1892,7 @@ static int shutdown_interception(struct vcpu_svm *svm)
 	 * so reinitialize it.
 	 */
 	clear_page(svm->vmcb);
-	init_vmcb(svm, false);
+	init_vmcb(svm);
 
 	kvm_run->exit_reason = KVM_EXIT_SHUTDOWN;
 	return 0;

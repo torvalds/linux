@@ -4932,8 +4932,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	vmx_set_cr0(vcpu, cr0); /* enter rmode */
 	vmx->vcpu.arch.cr0 = cr0;
 	vmx_set_cr4(vcpu, 0);
-	if (!init_event)
-		vmx_set_efer(vcpu, 0);
+	vmx_set_efer(vcpu, 0);
 	vmx_fpu_activate(vcpu);
 	update_exception_bitmap(vcpu);
 
