@@ -6255,7 +6255,8 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 		return;
 
 	if (to_intel_plane_state(crtc->primary->state)->visible) {
-		intel_crtc_wait_for_pending_flips(crtc);
+		WARN_ON(intel_crtc->unpin_work);
+
 		intel_pre_disable_primary(crtc);
 	}
 
