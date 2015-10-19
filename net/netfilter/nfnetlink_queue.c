@@ -28,12 +28,12 @@
 #include <linux/netfilter_bridge.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_queue.h>
+#include <linux/netfilter/nf_conntrack_common.h>
 #include <linux/list.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/netfilter/nf_queue.h>
 #include <net/netns/generic.h>
-#include <net/netfilter/nfnetlink_queue.h>
 
 #include <linux/atomic.h>
 
@@ -313,6 +313,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	struct net_device *outdev;
 	struct nf_conn *ct = NULL;
 	enum ip_conntrack_info uninitialized_var(ctinfo);
+	struct nfnl_ct_hook *nfnl_ct;
 	bool csum_verify;
 	char *secdata = NULL;
 	u32 seclen = 0;
@@ -364,8 +365,14 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		break;
 	}
 
-	if (queue->flags & NFQA_CFG_F_CONNTRACK)
-		ct = nfqnl_ct_get(entskb, &size, &ctinfo);
+	if (queue->flags & NFQA_CFG_F_CONNTRACK) {
+		nfnl_ct = rcu_dereference(nfnl_ct_hook);
+		if (nfnl_ct != NULL) {
+			ct = nfnl_ct->get_ct(entskb, &ctinfo);
+			if (ct != NULL)
+				size += nfnl_ct->build_size(ct);
+		}
+	}
 
 	if (queue->flags & NFQA_CFG_F_UID_GID) {
 		size +=  (nla_total_size(sizeof(u_int32_t))	/* uid */
@@ -493,9 +500,10 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	if (entskb->tstamp.tv64) {
 		struct nfqnl_msg_packet_timestamp ts;
-		struct timeval tv = ktime_to_timeval(entskb->tstamp);
-		ts.sec = cpu_to_be64(tv.tv_sec);
-		ts.usec = cpu_to_be64(tv.tv_usec);
+		struct timespec64 kts = ktime_to_timespec64(skb->tstamp);
+
+		ts.sec = cpu_to_be64(kts.tv_sec);
+		ts.usec = cpu_to_be64(kts.tv_nsec / NSEC_PER_USEC);
 
 		if (nla_put(skb, NFQA_TIMESTAMP, sizeof(ts), &ts))
 			goto nla_put_failure;
@@ -508,7 +516,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (seclen && nla_put(skb, NFQA_SECCTX, seclen, secdata))
 		goto nla_put_failure;
 
-	if (ct && nfqnl_ct_put(skb, ct, ctinfo) < 0)
+	if (ct && nfnl_ct->build(skb, ct, ctinfo, NFQA_CT, NFQA_CT_INFO) < 0)
 		goto nla_put_failure;
 
 	if (cap_len > data_len &&
@@ -598,12 +606,9 @@ static struct nf_queue_entry *
 nf_queue_entry_dup(struct nf_queue_entry *e)
 {
 	struct nf_queue_entry *entry = kmemdup(e, e->size, GFP_ATOMIC);
-	if (entry) {
-		if (nf_queue_entry_get_refs(entry))
-			return entry;
-		kfree(entry);
-	}
-	return NULL;
+	if (entry)
+		nf_queue_entry_get_refs(entry);
+	return entry;
 }
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
@@ -698,7 +703,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	nf_bridge_adjust_skb_data(skb);
 	segs = skb_gso_segment(skb, 0);
 	/* Does not use PTR_ERR to limit the number of error codes that can be
-	 * returned by nf_queue.  For instance, callers rely on -ECANCELED to
+	 * returned by nf_queue.  For instance, callers rely on -ESRCH to
 	 * mean 'ignore this hook'.
 	 */
 	if (IS_ERR_OR_NULL(segs))
@@ -1001,6 +1006,28 @@ nfqnl_recv_verdict_batch(struct sock *ctnl, struct sk_buff *skb,
 	return 0;
 }
 
+static struct nf_conn *nfqnl_ct_parse(struct nfnl_ct_hook *nfnl_ct,
+				      const struct nlmsghdr *nlh,
+				      const struct nlattr * const nfqa[],
+				      struct nf_queue_entry *entry,
+				      enum ip_conntrack_info *ctinfo)
+{
+	struct nf_conn *ct;
+
+	ct = nfnl_ct->get_ct(entry->skb, ctinfo);
+	if (ct == NULL)
+		return NULL;
+
+	if (nfnl_ct->parse(nfqa[NFQA_CT], ct) < 0)
+		return NULL;
+
+	if (nfqa[NFQA_EXP])
+		nfnl_ct->attach_expect(nfqa[NFQA_EXP], ct,
+				      NETLINK_CB(entry->skb).portid,
+				      nlmsg_report(nlh));
+	return ct;
+}
+
 static int
 nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 		   const struct nlmsghdr *nlh,
@@ -1014,6 +1041,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	unsigned int verdict;
 	struct nf_queue_entry *entry;
 	enum ip_conntrack_info uninitialized_var(ctinfo);
+	struct nfnl_ct_hook *nfnl_ct;
 	struct nf_conn *ct = NULL;
 
 	struct net *net = sock_net(ctnl);
@@ -1037,12 +1065,10 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 		return -ENOENT;
 
 	if (nfqa[NFQA_CT]) {
-		ct = nfqnl_ct_parse(entry->skb, nfqa[NFQA_CT], &ctinfo);
-		if (ct && nfqa[NFQA_EXP]) {
-			nfqnl_attach_expect(ct, nfqa[NFQA_EXP],
-					    NETLINK_CB(skb).portid,
-					    nlmsg_report(nlh));
-		}
+		/* rcu lock already held from nfnl->call_rcu. */
+		nfnl_ct = rcu_dereference(nfnl_ct_hook);
+		if (nfnl_ct != NULL)
+			ct = nfqnl_ct_parse(nfnl_ct, nlh, nfqa, entry, &ctinfo);
 	}
 
 	if (nfqa[NFQA_PAYLOAD]) {
@@ -1053,8 +1079,8 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 				 payload_len, entry, diff) < 0)
 			verdict = NF_DROP;
 
-		if (ct)
-			nfqnl_ct_seq_adjust(entry->skb, ct, ctinfo, diff);
+		if (ct && diff)
+			nfnl_ct->seq_adjust(entry->skb, ct, ctinfo, diff);
 	}
 
 	if (nfqa[NFQA_MARK])

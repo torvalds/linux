@@ -57,7 +57,6 @@ static unsigned int smack_ipv4_output(void *priv,
 static struct nf_hook_ops smack_nf_ops[] = {
 	{
 		.hook =		smack_ipv4_output,
-		.owner =	THIS_MODULE,
 		.pf =		NFPROTO_IPV4,
 		.hooknum =	NF_INET_LOCAL_OUT,
 		.priority =	NF_IP_PRI_SELINUX_FIRST,
@@ -65,7 +64,6 @@ static struct nf_hook_ops smack_nf_ops[] = {
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	{
 		.hook =		smack_ipv6_output,
-		.owner =	THIS_MODULE,
 		.pf =		NFPROTO_IPV6,
 		.hooknum =	NF_INET_LOCAL_OUT,
 		.priority =	NF_IP6_PRI_SELINUX_FIRST,

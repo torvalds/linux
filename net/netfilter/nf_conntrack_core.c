@@ -940,10 +940,13 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;
-	if (timeout_ext)
-		timeouts = NF_CT_TIMEOUT_EXT_DATA(timeout_ext);
-	else
+	if (timeout_ext) {
+		timeouts = nf_ct_timeout_data(timeout_ext);
+		if (unlikely(!timeouts))
+			timeouts = l4proto->get_timeouts(net);
+	} else {
 		timeouts = l4proto->get_timeouts(net);
+	}
 
 	if (!l4proto->new(ct, skb, dataoff, timeouts)) {
 		nf_conntrack_free(ct);
@@ -952,7 +955,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 
 	if (timeout_ext)
-		nf_ct_timeout_ext_add(ct, timeout_ext->timeout, GFP_ATOMIC);
+		nf_ct_timeout_ext_add(ct, rcu_dereference(timeout_ext->timeout),
+				      GFP_ATOMIC);
 
 	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
 	nf_ct_tstamp_ext_add(ct, GFP_ATOMIC);

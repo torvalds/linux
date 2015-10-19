@@ -111,7 +111,6 @@ static inline __be16 pppoe_proto(const struct sk_buff *skb)
 /* largest possible L2 header, see br_nf_dev_queue_xmit() */
 #define NF_BRIDGE_MAX_MAC_HEADER_LENGTH (PPPOE_SES_HLEN + ETH_HLEN)
 
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4) || IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 struct brnf_frag_data {
 	char mac[NF_BRIDGE_MAX_MAC_HEADER_LENGTH];
 	u8 encap_size;
@@ -121,7 +120,6 @@ struct brnf_frag_data {
 };
 
 static DEFINE_PER_CPU(struct brnf_frag_data, brnf_frag_data_storage);
-#endif
 
 static void nf_bridge_info_free(struct sk_buff *skb)
 {
@@ -666,7 +664,6 @@ static unsigned int br_nf_forward_arp(void *priv,
 	return NF_STOLEN;
 }
 
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4) || IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 static int br_nf_push_frag_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct brnf_frag_data *data;
@@ -691,9 +688,7 @@ static int br_nf_push_frag_xmit(struct net *net, struct sock *sk, struct sk_buff
 	nf_bridge_info_free(skb);
 	return br_dev_queue_push_xmit(net, sk, skb);
 }
-#endif
 
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
 static int
 br_nf_ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		  int (*output)(struct net *, struct sock *, struct sk_buff *))
@@ -711,7 +706,6 @@ br_nf_ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 
 	return ip_do_fragment(net, sk, skb, output);
 }
-#endif
 
 static unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 {
@@ -734,11 +728,11 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
 
 	nf_bridge = nf_bridge_info_get(skb);
 
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
 	/* This is wrong! We should preserve the original fragment
 	 * boundaries by preserving frag_list rather than refragmenting.
 	 */
-	if (skb->protocol == htons(ETH_P_IP)) {
+	if (IS_ENABLED(CONFIG_NF_DEFRAG_IPV4) &&
+	    skb->protocol == htons(ETH_P_IP)) {
 		struct brnf_frag_data *data;
 
 		if (br_validate_ipv4(net, skb))
@@ -760,9 +754,8 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
 
 		return br_nf_ip_fragment(net, sk, skb, br_nf_push_frag_xmit);
 	}
-#endif
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
-	if (skb->protocol == htons(ETH_P_IPV6)) {
+	if (IS_ENABLED(CONFIG_NF_DEFRAG_IPV6) &&
+	    skb->protocol == htons(ETH_P_IPV6)) {
 		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 		struct brnf_frag_data *data;
 
@@ -786,7 +779,6 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
 		kfree_skb(skb);
 		return -EMSGSIZE;
 	}
-#endif
 	nf_bridge_info_free(skb);
 	return br_dev_queue_push_xmit(net, sk, skb);
  drop:
@@ -904,49 +896,42 @@ EXPORT_SYMBOL_GPL(br_netfilter_enable);
 static struct nf_hook_ops br_nf_ops[] __read_mostly = {
 	{
 		.hook = br_nf_pre_routing,
-		.owner = THIS_MODULE,
 		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_PRE_ROUTING,
 		.priority = NF_BR_PRI_BRNF,
 	},
 	{
 		.hook = br_nf_local_in,
-		.owner = THIS_MODULE,
 		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_LOCAL_IN,
 		.priority = NF_BR_PRI_BRNF,
 	},
 	{
 		.hook = br_nf_forward_ip,
-		.owner = THIS_MODULE,
 		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_FORWARD,
 		.priority = NF_BR_PRI_BRNF - 1,
 	},
 	{
 		.hook = br_nf_forward_arp,
-		.owner = THIS_MODULE,
 		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_FORWARD,
 		.priority = NF_BR_PRI_BRNF,
 	},
 	{
 		.hook = br_nf_post_routing,
-		.owner = THIS_MODULE,
 		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_POST_ROUTING,
 		.priority = NF_BR_PRI_LAST,
 	},
 	{
 		.hook = ip_sabotage_in,
-		.owner = THIS_MODULE,
 		.pf = NFPROTO_IPV4,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.priority = NF_IP_PRI_FIRST,
 	},
 	{
 		.hook = ip_sabotage_in,
-		.owner = THIS_MODULE,
 		.pf = NFPROTO_IPV6,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.priority = NF_IP6_PRI_FIRST,

@@ -354,7 +354,7 @@ config NF_CT_NETLINK_HELPER
 	select NETFILTER_NETLINK
 	depends on NF_CT_NETLINK
 	depends on NETFILTER_NETLINK_QUEUE
-	depends on NETFILTER_NETLINK_QUEUE_CT
+	depends on NETFILTER_NETLINK_GLUE_CT
 	depends on NETFILTER_ADVANCED
 	help
 	  This option enables the user-space connection tracking helpers
@@ -362,13 +362,14 @@ config NF_CT_NETLINK_HELPER
 
 	  If unsure, say `N'.
 
-config NETFILTER_NETLINK_QUEUE_CT
-        bool "NFQUEUE integration with Connection Tracking"
-        default n
-        depends on NETFILTER_NETLINK_QUEUE
+config NETFILTER_NETLINK_GLUE_CT
+	bool "NFQUEUE and NFLOG integration with Connection Tracking"
+	default n
+	depends on (NETFILTER_NETLINK_QUEUE || NETFILTER_NETLINK_LOG) && NF_CT_NETLINK
 	help
-	  If this option is enabled, NFQUEUE can include Connection Tracking
-	  information together with the packet is the enqueued via NFNETLINK.
+	  If this option is enabled, NFQUEUE and NFLOG can include
+	  Connection Tracking information together with the packet is
+	  the enqueued via NFNETLINK.
 
 config NF_NAT
 	tristate
