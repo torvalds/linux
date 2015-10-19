@@ -79,6 +79,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 
 	if (!skb->ignore_df && skb->len > mtu) {
 		skb->dev = dst->dev;
+		skb->protocol = htons(ETH_P_IPV6);
 
 		if (xfrm6_local_dontfrag(skb))
 			xfrm6_local_rxpmtu(skb, mtu);

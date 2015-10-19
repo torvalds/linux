@@ -30,6 +30,8 @@ static int xfrm4_tunnel_check_size(struct sk_buff *skb)
 
 	mtu = dst_mtu(skb_dst(skb));
 	if (skb->len > mtu) {
+		skb->protocol = htons(ETH_P_IP);
+
 		if (skb->sk)
 			xfrm_local_error(skb, mtu);
 		else
