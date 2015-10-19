@@ -183,13 +183,38 @@ static void retire_inbound_urb(struct snd_usb_endpoint *ep,
 		ep->retire_data_urb(ep->data_subs, urb);
 }
 
+static void prepare_silent_urb(struct snd_usb_endpoint *ep,
+			       struct snd_urb_ctx *ctx)
+{
+	struct urb *urb = ctx->urb;
+	unsigned int offs = 0;
+	int i;
+
+	for (i = 0; i < ctx->packets; ++i) {
+		int counts;
+
+		if (ctx->packet_size[i])
+			counts = ctx->packet_size[i];
+		else
+			counts = snd_usb_endpoint_next_packet_size(ep);
+
+		urb->iso_frame_desc[i].offset = offs * ep->stride;
+		urb->iso_frame_desc[i].length = counts * ep->stride;
+		offs += counts;
+	}
+
+	urb->number_of_packets = ctx->packets;
+	urb->transfer_buffer_length = offs * ep->stride;
+	memset(urb->transfer_buffer, ep->silence_value,
+	       offs * ep->stride);
+}
+
 /*
  * Prepare a PLAYBACK urb for submission to the bus.
  */
 static void prepare_outbound_urb(struct snd_usb_endpoint *ep,
 				 struct snd_urb_ctx *ctx)
 {
-	int i;
 	struct urb *urb = ctx->urb;
 	unsigned char *cp = urb->transfer_buffer;
 
@@ -201,24 +226,7 @@ static void prepare_outbound_urb(struct snd_usb_endpoint *ep,
 			ep->prepare_data_urb(ep->data_subs, urb);
 		} else {
 			/* no data provider, so send silence */
-			unsigned int offs = 0;
-			for (i = 0; i < ctx->packets; ++i) {
-				int counts;
-
-				if (ctx->packet_size[i])
-					counts = ctx->packet_size[i];
-				else
-					counts = snd_usb_endpoint_next_packet_size(ep);
-
-				urb->iso_frame_desc[i].offset = offs * ep->stride;
-				urb->iso_frame_desc[i].length = counts * ep->stride;
-				offs += counts;
-			}
-
-			urb->number_of_packets = ctx->packets;
-			urb->transfer_buffer_length = offs * ep->stride;
-			memset(urb->transfer_buffer, ep->silence_value,
-			       offs * ep->stride);
+			prepare_silent_urb(ep, ctx);
 		}
 		break;
 
