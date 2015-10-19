@@ -617,6 +617,8 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 	unsigned int max_packs_per_period, urbs_per_period, urb_packs;
 	unsigned int max_urbs, i;
 	int frame_bits = snd_pcm_format_physical_width(pcm_format) * channels;
+	int tx_length_quirk = (ep->chip->tx_length_quirk &&
+			       usb_pipeout(ep->pipe));
 
 	if (pcm_format == SNDRV_PCM_FORMAT_DSD_U16_LE && fmt->dsd_dop) {
 		/*
@@ -650,11 +652,17 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 	 */
 	maxsize = (((ep->freqmax << ep->datainterval) + 0xffff) >> 16) *
 			 (frame_bits >> 3);
+	if (tx_length_quirk)
+		maxsize += sizeof(__le32); /* Space for length descriptor */
 	/* but wMaxPacketSize might reduce this */
 	if (ep->maxpacksize && ep->maxpacksize < maxsize) {
 		/* whatever fits into a max. size packet */
-		maxsize = ep->maxpacksize;
-		ep->freqmax = (maxsize / (frame_bits >> 3))
+		unsigned int data_maxsize = maxsize = ep->maxpacksize;
+
+		if (tx_length_quirk)
+			/* Need to remove the length descriptor to calc freq */
+			data_maxsize -= sizeof(__le32);
+		ep->freqmax = (data_maxsize / (frame_bits >> 3))
 				<< (16 - ep->datainterval);
 	}
 
