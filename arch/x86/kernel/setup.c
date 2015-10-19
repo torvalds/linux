@@ -499,17 +499,15 @@ static void __init memblock_x86_reserve_range_setup_data(void)
 static int __init reserve_crashkernel_low(void)
 {
 #ifdef CONFIG_X86_64
-	unsigned long long low_base = 0, low_size = 0;
+	unsigned long long base, low_base = 0, low_size = 0;
 	unsigned long total_low_mem;
-	unsigned long long base;
-	bool auto_set = false;
 	int ret;
 
 	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
 
 	/* crashkernel=Y,low */
 	ret = parse_crashkernel_low(boot_command_line, total_low_mem, &low_size, &base);
-	if (ret != 0) {
+	if (ret) {
 		/*
 		 * two parts from lib/swiotlb.c:
 		 * -swiotlb size: user-specified with swiotlb= or default.
@@ -520,7 +518,6 @@ static int __init reserve_crashkernel_low(void)
 		 * don't run out of DMA buffers for 32-bit devices.
 		 */
 		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
-		auto_set = true;
 	} else {
 		/* passed with crashkernel=0,low ? */
 		if (!low_size)
@@ -550,8 +547,7 @@ static int __init reserve_crashkernel_low(void)
 
 static void __init reserve_crashkernel(void)
 {
-	unsigned long long total_mem;
-	unsigned long long crash_size, crash_base;
+	unsigned long long crash_size, crash_base, total_mem;
 	bool high = false;
 	int ret;
 
@@ -600,11 +596,10 @@ static void __init reserve_crashkernel(void)
 		return;
 	}
 
-	printk(KERN_INFO "Reserving %ldMB of memory at %ldMB "
-			"for crashkernel (System RAM: %ldMB)\n",
-			(unsigned long)(crash_size >> 20),
-			(unsigned long)(crash_base >> 20),
-			(unsigned long)(total_mem >> 20));
+	pr_info("Reserving %ldMB of memory at %ldMB for crashkernel (System RAM: %ldMB)\n",
+		(unsigned long)(crash_size >> 20),
+		(unsigned long)(crash_base >> 20),
+		(unsigned long)(total_mem >> 20));
 
 	crashk_res.start = crash_base;
 	crashk_res.end   = crash_base + crash_size - 1;
