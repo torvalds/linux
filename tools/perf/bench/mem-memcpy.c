@@ -211,9 +211,7 @@ static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t l
 	}
 }
 
-static int bench_mem_common(int argc, const char **argv,
-		     const char *prefix __maybe_unused,
-		     struct bench_mem_info *info)
+static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *info)
 {
 	int i;
 	size_t len;
@@ -326,8 +324,7 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t len, bool p
 	return (double)(((double)len * iterations) / timeval2double(&tv_diff));
 }
 
-int bench_mem_memcpy(int argc, const char **argv,
-		     const char *prefix __maybe_unused)
+int bench_mem_memcpy(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct bench_mem_info info = {
 		.routines		= memcpy_routines,
@@ -336,7 +333,7 @@ int bench_mem_memcpy(int argc, const char **argv,
 		.usage			= bench_mem_memcpy_usage,
 	};
 
-	return bench_mem_common(argc, argv, prefix, &info);
+	return bench_mem_common(argc, argv, &info);
 }
 
 static void memset_alloc_mem(void **dst, size_t length)
@@ -419,5 +416,5 @@ int bench_mem_memset(int argc, const char **argv, const char *prefix __maybe_unu
 		.usage			= bench_mem_memset_usage,
 	};
 
-	return bench_mem_common(argc, argv, prefix, &info);
+	return bench_mem_common(argc, argv, &info);
 }
