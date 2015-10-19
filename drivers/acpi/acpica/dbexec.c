@@ -370,7 +370,17 @@ acpi_db_execute(char *name, char **args, acpi_object_type * types, u32 flags)
 #ifdef ACPI_DEBUG_OUTPUT
 	u32 previous_allocations;
 	u32 allocations;
+#endif
 
+	/*
+	 * Allow one execution to be performed by debugger or single step
+	 * execution will be dead locked by the interpreter mutexes.
+	 */
+	if (acpi_gbl_method_executing) {
+		acpi_os_printf("Only one debugger execution is allowed.\n");
+		return;
+	}
+#ifdef ACPI_DEBUG_OUTPUT
 	/* Memory allocation tracking */
 
 	previous_allocations = acpi_db_get_outstanding_allocations();
