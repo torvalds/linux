@@ -1111,22 +1111,19 @@ static int cb_pcidas_ao_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static void cb_pcidas_ao_interrupt(struct comedi_device *dev,
-				   unsigned int status)
+static unsigned int cb_pcidas_ao_interrupt(struct comedi_device *dev,
+					   unsigned int status)
 {
 	const struct cb_pcidas_board *board = dev->board_ptr;
 	struct cb_pcidas_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned long flags;
+	unsigned int irq_clr = 0;
 
 	if (status & PCIDAS_CTRL_DAEMI) {
-		/*  clear dac empty interrupt latch */
-		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->ctrl | PCIDAS_CTRL_DAEMI,
-		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
-		spin_unlock_irqrestore(&dev->spinlock, flags);
+		irq_clr |= PCIDAS_CTRL_DAEMI;
+
 		if (inw(devpriv->pcibar4 + PCIDAS_AO_REG) & PCIDAS_AO_EMPTY) {
 			if (cmd->stop_src == TRIG_COUNT &&
 			    async->scans_done >= cmd->stop_arg) {
@@ -1137,33 +1134,32 @@ static void cb_pcidas_ao_interrupt(struct comedi_device *dev,
 			}
 		}
 	} else if (status & PCIDAS_CTRL_DAHFI) {
-		cb_pcidas_ao_load_fifo(dev, s, board->fifo_size / 2);
+		irq_clr |= PCIDAS_CTRL_DAHFI;
 
-		/*  clear half-full interrupt latch */
-		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->ctrl | PCIDAS_CTRL_DAHFI,
-		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
-		spin_unlock_irqrestore(&dev->spinlock, flags);
+		cb_pcidas_ao_load_fifo(dev, s, board->fifo_size / 2);
 	}
 
 	comedi_handle_events(dev, s);
+
+	return irq_clr;
 }
 
-static void cb_pcidas_ai_interrupt(struct comedi_device *dev,
-				   unsigned int status)
+static unsigned int cb_pcidas_ai_interrupt(struct comedi_device *dev,
+					   unsigned int status)
 {
 	const struct cb_pcidas_board *board = dev->board_ptr;
 	struct cb_pcidas_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned long flags;
+	unsigned int irq_clr = 0;
 
-	/*  if fifo half-full */
 	if (status & PCIDAS_CTRL_ADHFI) {
 		unsigned int num_samples;
 
-		/*  read data */
+		irq_clr |= PCIDAS_CTRL_INT_CLR;
+
+		/* FIFO is half-full - read data */
 		num_samples = comedi_nsamples_left(s, board->fifo_size / 2);
 		insw(devpriv->pcibar2 + PCIDAS_AI_DATA_REG,
 		     devpriv->ai_buffer, num_samples);
@@ -1172,16 +1168,12 @@ static void cb_pcidas_ai_interrupt(struct comedi_device *dev,
 		if (cmd->stop_src == TRIG_COUNT &&
 		    async->scans_done >= cmd->stop_arg)
 			async->events |= COMEDI_CB_EOA;
-
-		/*  clear half-full interrupt latch */
-		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->ctrl | PCIDAS_CTRL_INT_CLR,
-		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
-		spin_unlock_irqrestore(&dev->spinlock, flags);
-		/*  else if fifo not empty */
 	} else if (status & (PCIDAS_CTRL_ADNEI | PCIDAS_CTRL_EOBI)) {
 		unsigned int i;
 
+		irq_clr |= PCIDAS_CTRL_INT_CLR;
+
+		/* FIFO is not empty - read data until empty or timeoout */
 		for (i = 0; i < 10000; i++) {
 			unsigned short val;
 
@@ -1198,38 +1190,31 @@ static void cb_pcidas_ai_interrupt(struct comedi_device *dev,
 				break;
 			}
 		}
-		/*  clear not-empty interrupt latch */
-		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->ctrl | PCIDAS_CTRL_INT_CLR,
-		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
-		spin_unlock_irqrestore(&dev->spinlock, flags);
 	} else if (status & PCIDAS_CTRL_EOAI) {
+		irq_clr |= PCIDAS_CTRL_EOAI;
+
 		dev_err(dev->class_dev,
 			"bug! encountered end of acquisition interrupt?\n");
-		/*  clear EOA interrupt latch */
-		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->ctrl | PCIDAS_CTRL_EOAI,
-		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
-		spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
+
 	/* check for fifo overflow */
 	if (status & PCIDAS_CTRL_LADFUL) {
+		irq_clr |= PCIDAS_CTRL_LADFUL;
+
 		dev_err(dev->class_dev, "fifo overflow\n");
-		/*  clear overflow interrupt latch */
-		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->ctrl | PCIDAS_CTRL_LADFUL,
-		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
-		spin_unlock_irqrestore(&dev->spinlock, flags);
 		async->events |= COMEDI_CB_ERROR;
 	}
 
 	comedi_handle_events(dev, s);
+
+	return irq_clr;
 }
 
 static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned int irq_clr = 0;
 	unsigned int amcc_status;
 	unsigned int status;
 
@@ -1251,11 +1236,20 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 
 	/* handle analog output interrupts */
 	if (status & PCIDAS_CTRL_AO_INT)
-		cb_pcidas_ao_interrupt(dev, status);
+		irq_clr |= cb_pcidas_ao_interrupt(dev, status);
 
 	/* handle analog input interrupts */
 	if (status & PCIDAS_CTRL_AI_INT)
-		cb_pcidas_ai_interrupt(dev, status);
+		irq_clr |= cb_pcidas_ai_interrupt(dev, status);
+
+	if (irq_clr) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&dev->spinlock, flags);
+		outw(devpriv->ctrl | irq_clr,
+		     devpriv->pcibar1 + PCIDAS_CTRL_REG);
+		spin_unlock_irqrestore(&dev->spinlock, flags);
+	}
 
 	return IRQ_HANDLED;
 }
