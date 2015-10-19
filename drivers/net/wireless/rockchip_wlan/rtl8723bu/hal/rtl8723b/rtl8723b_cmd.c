@@ -42,10 +42,8 @@ static u8 _is_fw_read_cmd_down(_adapter* padapter, u8 msgbox_num)
 		if(0 == valid ){
 			read_down = _TRUE;
 		}
-#ifdef CONFIG_WOWLAN
 		else
-			rtw_msleep_os(1);  		
-#endif
+			rtw_msleep_os(1);
 	}while( (!read_down) && (retry_cnts--));
 
 	return read_down;
@@ -171,7 +169,7 @@ static void ConstructBeacon(_adapter *padapter, u8 *pframe, u32 *pLength)
 	*(fctrl) = 0;
 
 	_rtw_memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+	_rtw_memcpy(pwlanhdr->addr2, adapter_mac_addr(padapter), ETH_ALEN);
 	_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(cur_network), ETH_ALEN);
 
 	SetSeqNum(pwlanhdr, 0/*pmlmeext->mgnt_seq*/);
@@ -279,7 +277,7 @@ static void ConstructPSPoll(_adapter *padapter, u8 *pframe, u32 *pLength)
 	_rtw_memcpy(pwlanhdr->addr1, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
 
 	// TA.
-	_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+	_rtw_memcpy(pwlanhdr->addr2, adapter_mac_addr(padapter), ETH_ALEN);
 
 	*pLength = 16;
 }
@@ -319,19 +317,19 @@ static void ConstructNullFunctionData(
 		case Ndis802_11Infrastructure:
 			SetToDs(fctrl);
 			_rtw_memcpy(pwlanhdr->addr1, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
-			_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+			_rtw_memcpy(pwlanhdr->addr2, adapter_mac_addr(padapter), ETH_ALEN);
 			_rtw_memcpy(pwlanhdr->addr3, StaAddr, ETH_ALEN);
 			break;
 		case Ndis802_11APMode:
 			SetFrDs(fctrl);
 			_rtw_memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
 			_rtw_memcpy(pwlanhdr->addr2, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
-			_rtw_memcpy(pwlanhdr->addr3, myid(&(padapter->eeprompriv)), ETH_ALEN);
+			_rtw_memcpy(pwlanhdr->addr3, adapter_mac_addr(padapter), ETH_ALEN);
 			break;
 		case Ndis802_11IBSS:
 		default:
 			_rtw_memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
-			_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+			_rtw_memcpy(pwlanhdr->addr2, adapter_mac_addr(padapter), ETH_ALEN);
 			_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
 			break;
 	}
@@ -397,7 +395,7 @@ static void ConstructARPResponse(
 	//SetFrameSubType(fctrl, 0);
 	SetToDs(fctrl);
 	_rtw_memcpy(pwlanhdr->addr1, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+	_rtw_memcpy(pwlanhdr->addr2, adapter_mac_addr(padapter), ETH_ALEN);
 	_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
 
 	SetSeqNum(pwlanhdr, 0);
@@ -479,7 +477,7 @@ static void ConstructARPResponse(
 	SET_ARP_PKT_HW_ADDR_LEN(pARPRspPkt, 6);
 	SET_ARP_PKT_PROTOCOL_ADDR_LEN(pARPRspPkt, 4);
 	SET_ARP_PKT_OPERATION(pARPRspPkt, 0x0200); // ARP response
-	SET_ARP_PKT_SENDER_MAC_ADDR(pARPRspPkt, myid(&(padapter->eeprompriv)));
+	SET_ARP_PKT_SENDER_MAC_ADDR(pARPRspPkt, adapter_mac_addr(padapter));
 	SET_ARP_PKT_SENDER_IP_ADDR(pARPRspPkt, pIPAddress);
 #ifdef CONFIG_ARP_KEEP_ALIVE
 	if (rtw_gw_addr_query(padapter)==0) {
@@ -702,7 +700,7 @@ static void ConstructGTKResponse(
 	//SetFrameSubType(fctrl, 0);
 	SetToDs(fctrl);
 	_rtw_memcpy(pwlanhdr->addr1, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+	_rtw_memcpy(pwlanhdr->addr2, adapter_mac_addr(padapter), ETH_ALEN);
 	_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
 
 	SetSeqNum(pwlanhdr, 0);
@@ -801,7 +799,7 @@ static void ConstructProbeReq(_adapter *padapter, u8 *pframe, u32 *pLength,
 	u8	bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	pwlanhdr = (struct rtw_ieee80211_hdr *)pframe;
-	mac = myid(&(padapter->eeprompriv));
+	mac = adapter_mac_addr(padapter);
 
 	fctrl = &(pwlanhdr->frame_ctl);
 	*(fctrl) = 0;
@@ -866,7 +864,7 @@ static void ConstructProbeRsp(_adapter *padapter, u8 *pframe, u32 *pLength, u8 *
 
 	pwlanhdr = (struct rtw_ieee80211_hdr *)pframe;
 
-	mac = myid(&(padapter->eeprompriv));
+	mac = adapter_mac_addr(padapter);
 	bssid = cur_network->MacAddress;
 
 	fctrl = &(pwlanhdr->frame_ctl);
@@ -926,7 +924,7 @@ static void ConstructProbeRsp(_adapter *padapter, u8 *pframe, u32 *pLength, u8 *
 	/* retrieve SSID IE from cur_network->Ssid */
 	{
 		u8 *ssid_ie;
-		sint ssid_ielen;
+		sint ssid_ielen = 0;
 		sint ssid_ielen_diff;
 		u8 buf[MAX_IE_SZ];
 		u8 *ies = pframe + sizeof(struct rtw_ieee80211_hdr_3addr);
@@ -1282,12 +1280,6 @@ void rtl8723b_set_FwPwrMode_cmd(PADAPTER padapter, u8 psmode)
 
 _func_enter_;
 
-#ifdef CONFIG_PLATFORM_INTEL_BYT
-        if(psmode == PS_MODE_DTIM)
-                psmode = PS_MODE_MAX;
-#endif //CONFIG_PLATFORM_INTEL_BYT
-
-
 	if(pwrpriv->dtim > 0)
 		DBG_871X("%s(): FW LPS mode = %d, SmartPS=%d, dtim=%d\n", __func__, psmode, pwrpriv->smart_ps, pwrpriv->dtim);
 	else
@@ -1499,13 +1491,58 @@ void rtl8723b_set_FwPwrModeInIPS_cmd(PADAPTER padapter, u8 cmd_param)
 
 	DBG_871X("%s()\n", __func__);
 
-	cmd_param = cmd_param;
-
 	FillH2CCmd8723B(padapter, H2C_8723B_FWLPS_IN_IPS_, 1, &cmd_param);
 
 }
 
 #ifdef CONFIG_WOWLAN
+static void rtl8723b_set_FwWoWlanCtrl_Cmd(PADAPTER padapter, u8 bFuncEn)
+{
+	struct security_priv *psecpriv = &padapter->securitypriv;
+	struct pwrctrl_priv *ppwrpriv = adapter_to_pwrctl(padapter);
+	u8 u1H2CWoWlanCtrlParm[H2C_WOWLAN_LEN]={0};
+	u8 discont_wake = 1, gpionum = 0, gpio_dur = 0, hw_unicast = 0, gpio_pulse_cnt=100;
+	u8 sdio_wakeup_enable = 1;
+	u8 gpio_high_active = 0; //0: low active, 1: high active
+	u8 magic_pkt = 0;
+	
+#ifdef CONFIG_GPIO_WAKEUP
+	gpionum = WAKEUP_GPIO_IDX;
+	sdio_wakeup_enable = 0;
+#endif
+
+#ifdef CONFIG_PNO_SUPPORT
+	if (!ppwrpriv->wowlan_pno_enable) {
+		magic_pkt = 1;
+	}
+#endif
+
+	if (psecpriv->dot11PrivacyAlgrthm == _WEP40_ || psecpriv->dot11PrivacyAlgrthm == _WEP104_)
+		hw_unicast = 1;
+
+	DBG_871X("%s(): bFuncEn=%d\n", __func__, bFuncEn);
+
+	SET_H2CCMD_WOWLAN_FUNC_ENABLE(u1H2CWoWlanCtrlParm, bFuncEn);
+	SET_H2CCMD_WOWLAN_PATTERN_MATCH_ENABLE(u1H2CWoWlanCtrlParm, 0);
+	SET_H2CCMD_WOWLAN_MAGIC_PKT_ENABLE(u1H2CWoWlanCtrlParm, magic_pkt);
+	SET_H2CCMD_WOWLAN_UNICAST_PKT_ENABLE(u1H2CWoWlanCtrlParm, hw_unicast);
+	SET_H2CCMD_WOWLAN_ALL_PKT_DROP(u1H2CWoWlanCtrlParm, 0);
+	SET_H2CCMD_WOWLAN_GPIO_ACTIVE(u1H2CWoWlanCtrlParm, gpio_high_active);
+#ifndef CONFIG_GTK_OL
+	SET_H2CCMD_WOWLAN_REKEY_WAKE_UP(u1H2CWoWlanCtrlParm, 1); 
+#endif //!CONFIG_GTK_OL
+	SET_H2CCMD_WOWLAN_DISCONNECT_WAKE_UP(u1H2CWoWlanCtrlParm, discont_wake); 
+	SET_H2CCMD_WOWLAN_GPIONUM(u1H2CWoWlanCtrlParm, gpionum);
+	SET_H2CCMD_WOWLAN_DATAPIN_WAKE_UP(u1H2CWoWlanCtrlParm, sdio_wakeup_enable);
+	SET_H2CCMD_WOWLAN_GPIO_DURATION(u1H2CWoWlanCtrlParm, gpio_dur);
+	//SET_H2CCMD_WOWLAN_GPIO_PULSE_EN(u1H2CWoWlanCtrlParm, 1);
+	SET_H2CCMD_WOWLAN_GPIO_PULSE_COUNT(u1H2CWoWlanCtrlParm, 0x09);
+	
+	RT_PRINT_DATA(_module_hal_init_c_, _drv_always_, "u1H2CWoWlanCtrlParm:", u1H2CWoWlanCtrlParm, H2C_WOWLAN_LEN);
+
+	FillH2CCmd8723B(padapter, H2C_8723B_WOWLAN, H2C_WOWLAN_LEN, u1H2CWoWlanCtrlParm);
+}
+
 static void rtl8723b_set_FwRemoteWakeCtrl_Cmd(PADAPTER padapter, u8 benable)
 {
 	u8 u1H2CRemoteWakeCtrlParm[H2C_REMOTE_WAKE_CTRL_LEN]={0};
@@ -1636,7 +1673,7 @@ _func_enter_;
 		rtw_msleep_os(2);
 		}
 
-		rtw_hal_set_wowlan_ctrl_cmd(padapter, enable);
+		rtl8723b_set_FwWoWlanCtrl_Cmd(padapter, enable);
 		rtw_msleep_os(2);
 
 		rtl8723b_set_FwRemoteWakeCtrl_Cmd(padapter, enable);
@@ -1652,7 +1689,7 @@ _func_enter_;
 #endif
 		rtl8723b_set_FwRemoteWakeCtrl_Cmd(padapter, enable);
 		rtw_msleep_os(2);
-		rtw_hal_set_wowlan_ctrl_cmd(padapter, enable);
+		rtl8723b_set_FwWoWlanCtrl_Cmd(padapter, enable);
 	}
 	
 _func_exit_;
@@ -2450,10 +2487,10 @@ _func_enter_;
 			if (pwrpriv->wowlan_ap_mode)
 				rtl8723b_set_AP_FwRsvdPagePkt(padapter, 0);
 			else
-				rtl8723b_set_FwRsvdPagePkt(padapter, 0);
+				rtw_hal_set_fw_rsvd_page(padapter, 0);
 #else
 			// download rsvd page.
-			rtl8723b_set_FwRsvdPagePkt(padapter, 0);
+			rtw_hal_set_fw_rsvd_page(padapter, 0);
 #endif
 			DLBcnCount++;
 			do
@@ -2589,7 +2626,7 @@ static void ConstructBtNullFunctionData(
 
 	if (NULL == StaAddr)
 	{
-		_rtw_memcpy(bssid, myid(&padapter->eeprompriv), ETH_ALEN);
+		_rtw_memcpy(bssid, adapter_mac_addr(padapter), ETH_ALEN);
 		StaAddr = bssid;
 	}
 
@@ -2600,8 +2637,8 @@ static void ConstructBtNullFunctionData(
 
 	SetFrDs(fctrl);
 	_rtw_memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr2, myid(&padapter->eeprompriv), ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr3, myid(&padapter->eeprompriv), ETH_ALEN);
+	_rtw_memcpy(pwlanhdr->addr2, adapter_mac_addr(padapter), ETH_ALEN);
+	_rtw_memcpy(pwlanhdr->addr3, adapter_mac_addr(padapter), ETH_ALEN);
 
 	SetDuration(pwlanhdr, 0);
 	SetSeqNum(pwlanhdr, 0);

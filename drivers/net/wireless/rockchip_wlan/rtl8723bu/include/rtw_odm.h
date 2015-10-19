@@ -36,8 +36,7 @@ void rtw_odm_ability_set(_adapter *adapter, u32 ability);
 
 bool rtw_odm_adaptivity_needed(_adapter *adapter);
 void rtw_odm_adaptivity_parm_msg(void *sel,_adapter *adapter);
-void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 TH_L2H_ini, s8 TH_EDCCA_HL_diff,
-	s8 IGI_Base, bool ForceEDCCA, u8 AdapEn_RSSI, u8 IGI_LowerBound);
+void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 TH_L2H_ini, s8 TH_EDCCA_HL_diff);
 void rtw_odm_get_perpkt_rssi(void *sel, _adapter *adapter);
 void rtw_odm_acquirespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type);
 void rtw_odm_releasespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type);

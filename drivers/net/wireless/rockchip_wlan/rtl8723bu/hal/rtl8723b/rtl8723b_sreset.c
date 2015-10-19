@@ -56,7 +56,7 @@ void rtl8723b_sreset_xmit_status_check(_adapter *padapter)
 			else{
 				diff_time = rtw_get_passing_time_ms(psrtpriv->last_tx_complete_time);
 				if (diff_time > 4000) {
-					u32 ability;
+					u32 ability = 0;
 
 					//padapter->Wifi_Error_Status = WIFI_TX_HANG;
 					rtw_hal_get_hwreg(padapter, HW_VAR_DM_FLAG, (u8*)&ability);

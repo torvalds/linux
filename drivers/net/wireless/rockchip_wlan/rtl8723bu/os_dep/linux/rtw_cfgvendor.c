@@ -20,6 +20,10 @@
 
 #include <drv_types.h>
 
+#ifdef CONFIG_IOCTL_CFG80211
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) || defined(RTW_VENDOR_EXT_SUPPORT)
+
 /*
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
@@ -37,10 +41,6 @@
 */
 
 #include <net/rtnetlink.h>
-
-#ifdef CONFIG_IOCTL_CFG80211
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) || defined(RTW_VENDOR_EXT_SUPPORT)
 
 #ifdef DBG_MEM_ALLOC
 extern bool match_mstat_sniff_rules(const enum mstat_f flags, const size_t size);
@@ -229,7 +229,8 @@ int rtw_dev_get_feature_set(struct net_device *dev)
 
 	feature_set |= WIFI_FEATURE_INFRA;
 
-	if(IS_92D(*hal_ver) || IS_8812_SERIES(*hal_ver) || IS_8821_SERIES(*hal_ver))
+	if (IS_8814A_SERIES(*hal_ver) || IS_8812_SERIES(*hal_ver) ||
+			IS_8821_SERIES(*hal_ver))
 		feature_set |= WIFI_FEATURE_INFRA_5G;
 
 	feature_set |= WIFI_FEATURE_P2P;

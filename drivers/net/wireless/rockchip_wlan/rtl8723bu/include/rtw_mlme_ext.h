@@ -56,39 +56,11 @@
 
 #define DYNAMIC_FUNC_DISABLE		(0x0)
 
-// ====== ODM_ABILITY_E ========
-// BB ODM section BIT 0-15
-#define DYNAMIC_BB_DIG				BIT0 //ODM_BB_DIG
-#define DYNAMIC_BB_RA_MASK			BIT1 //ODM_BB_RA_MASK
-#define DYNAMIC_BB_DYNAMIC_TXPWR	BIT2 //ODM_BB_DYNAMIC_TXPWR
-#define DYNAMIC_BB_BB_FA_CNT		BIT3 //ODM_BB_FA_CNT
-#define DYNAMIC_BB_RSSI_MONITOR		BIT4 //ODM_BB_RSSI_MONITOR
-#define DYNAMIC_BB_CCK_PD			BIT5 //ODM_BB_CCK_PD
-#define DYNAMIC_BB_ANT_DIV			BIT6 //ODM_BB_ANT_DIV
-#define DYNAMIC_BB_PWR_SAVE			BIT7 //ODM_BB_PWR_SAVE
-#define DYNAMIC_BB_PWR_TRAIN		BIT8 //ODM_BB_PWR_TRAIN
-#define DYNAMIC_BB_RATE_ADAPTIVE	BIT9 //ODM_BB_RATE_ADAPTIVE
-#define DYNAMIC_BB_PATH_DIV			BIT10//ODM_BB_PATH_DIV
-#define DYNAMIC_BB_PSD				BIT11//ODM_BB_PSD
-#define DYNAMIC_BB_RXHP				BIT12//ODM_BB_RXHP
-#define DYNAMIC_BB_ADAPTIVITY		BIT13//ODM_BB_ADAPTIVITY
-#define DYNAMIC_BB_DYNAMIC_ATC		BIT14//ODM_BB_DYNAMIC_ATC
-
-// MAC DM section BIT 16-23
-#define DYNAMIC_MAC_EDCA_TURBO		BIT16//ODM_MAC_EDCA_TURBO
-#define DYNAMIC_MAC_EARLY_MODE		BIT17//ODM_MAC_EARLY_MODE
-
-// RF ODM section BIT 24-31
-#define DYNAMIC_RF_TX_PWR_TRACK		BIT24//ODM_RF_TX_PWR_TRACK
-#define DYNAMIC_RF_RX_GAIN_TRACK	BIT25//ODM_RF_RX_GAIN_TRACK
-#define DYNAMIC_RF_CALIBRATION		BIT26//ODM_RF_CALIBRATION
-
-#define DYNAMIC_ALL_FUNC_ENABLE		0xFFFFFFF
-
 #define _HW_STATE_NOLINK_		0x00
 #define _HW_STATE_ADHOC_		0x01
 #define _HW_STATE_STATION_ 	0x02
 #define _HW_STATE_AP_			0x03
+#define _HW_STATE_MONITOR_ 0x04
 
 
 #define		_1M_RATE_	0
@@ -378,30 +350,15 @@ struct	ss_res
 #define	WIFI_FW_LINKING_STATE		(WIFI_FW_AUTH_NULL | WIFI_FW_AUTH_STATE | WIFI_FW_AUTH_SUCCESS |WIFI_FW_ASSOC_STATE)
 
 #ifdef CONFIG_TDLS
-// 1: Write RCR DATA BIT
-// 2: Issue peer traffic indication
-// 3: Go back to the channel linked with AP, terminating channel switch procedure
-// 4: Init channel sensing, receive all data and mgnt frame
-// 5: Channel sensing and report candidate channel
-// 6: First time set channel to off channel
-// 7: Go back tp the channel linked with AP when set base channel as target channel
-// 8: Set channel back to base channel
-// 9: Set channel back to off channel
-// 10: Restore RCR DATA BIT
-// 11: Free TDLS sta
 enum TDLS_option
 {
 	TDLS_ESTABLISHED	= 	1,
-	TDLS_SD_PTI		=	2,
-	TDLS_CS_OFF		= 	3,
-	TDLS_INIT_CH_SEN	= 	4,
-	TDLS_DONE_CH_SEN	=	5,
-	TDLS_OFF_CH		=	6,
-	TDLS_BASE_CH 		=	7,
-	TDLS_P_OFF_CH		=	8,
-	TDLS_P_BASE_CH	= 	9,
-	TDLS_RS_RCR		=	10,
-	TDLS_TEAR_STA		=	11,
+	TDLS_ISSUE_PTI				=	2,
+	TDLS_CH_SW_RESP			=	3,
+	TDLS_CH_SW				=	4,
+	TDLS_CH_SW_BACK			=	5,
+	TDLS_RS_RCR				=	6,
+	TDLS_TEAR_STA				=	7,
 	maxTDLS,
 };
 
@@ -618,6 +575,8 @@ struct mlme_ext_priv
 	
 };
 
+#define mlmeext_msr(mlmeext) ((mlmeext)->mlmext_info.state & 0x03)
+
 void init_mlme_default_rate_set(_adapter* padapter);
 int init_mlme_ext_priv(_adapter* padapter);
 int init_hw_mlme_ext(_adapter *padapter);
@@ -726,7 +685,6 @@ void update_beacon_info(_adapter *padapter, u8 *pframe, uint len, struct sta_inf
 #ifdef CONFIG_DFS
 void process_csa_ie(_adapter *padapter, u8 *pframe, uint len);
 #endif //CONFIG_DFS
-void update_IOT_info(_adapter *padapter);
 void update_capinfo(PADAPTER Adapter, u16 updateCap);
 void update_wireless_mode(_adapter * padapter);
 void update_tx_basic_rate(_adapter *padapter, u8 modulation);
@@ -811,12 +769,20 @@ int issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid, int try_c
 int issue_deauth(_adapter *padapter, unsigned char *da, unsigned short reason);
 int issue_deauth_ex(_adapter *padapter, u8 *da, unsigned short reason, int try_cnt, int wait_ms);
 void issue_action_spct_ch_switch(_adapter *padapter, u8 *ra, u8 new_ch, u8 ch_offset);
-void issue_action_BA(_adapter *padapter, unsigned char *raddr, unsigned char action, unsigned short status);
+void issue_addba_req(_adapter *adapter, unsigned char *ra, u8 tid);
+void issue_addba_rsp(_adapter *adapter, unsigned char *ra, u8 tid, u16 status, u8 size);
+void issue_del_ba(_adapter *adapter, unsigned char *ra, u8 tid, u16 reason, u8 initiator);
+int issue_del_ba_ex(_adapter *adapter, unsigned char *ra, u8 tid, u16 reason, u8 initiator, int try_cnt, int wait_ms);
+
 #ifdef CONFIG_IEEE80211W
 void issue_action_SA_Query(_adapter *padapter, unsigned char *raddr, unsigned char action, unsigned short tid);
 #endif //CONFIG_IEEE80211W
 int issue_action_SM_PS(_adapter *padapter ,  unsigned char *raddr , u8 NewMimoPsMode);
 int issue_action_SM_PS_wait_ack(_adapter *padapter, unsigned char *raddr, u8 NewMimoPsMode, int try_cnt, int wait_ms);
+
+unsigned int send_delba_sta_tid(_adapter *adapter, u8 initiator, struct sta_info *sta, u8 tid, u8 force);
+unsigned int send_delba_sta_tid_wait_ack(_adapter *adapter, u8 initiator, struct sta_info *sta, u8 tid, u8 force);
+
 unsigned int send_delba(_adapter *padapter, u8 initiator, u8 *addr);
 unsigned int send_beacon(_adapter *padapter);
 
@@ -841,6 +807,22 @@ unsigned int OnAction(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int on_action_spct(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction_qos(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction_dls(_adapter *padapter, union recv_frame *precv_frame);
+
+#define RX_AMPDU_ACCEPT_INVALID 0xFF
+#define RX_AMPDU_SIZE_INVALID 0xFF
+
+enum rx_ampdu_reason {
+	RX_AMPDU_DRV_FIXED = 1,
+	RX_AMPDU_BTCOEX = 2, /* not used, because BTCOEX has its own variable management */
+};
+u8 rtw_rx_ampdu_size(_adapter *adapter);
+bool rtw_rx_ampdu_is_accept(_adapter *adapter);
+bool rtw_rx_ampdu_set_size(_adapter *adapter, u8 size, u8 reason);
+bool rtw_rx_ampdu_set_accept(_adapter *adapter, u8 accept, u8 reason);
+u8 rx_ampdu_apply_sta_tid(_adapter *adapter, struct sta_info *sta, u8 tid, u8 accept, u8 size);
+u8 rx_ampdu_apply_sta(_adapter *adapter, struct sta_info *sta, u8 accept, u8 size);
+u16 rtw_rx_ampdu_apply(_adapter *adapter);
+
 unsigned int OnAction_back(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int on_action_public(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction_ht(_adapter *padapter, union recv_frame *precv_frame);
@@ -902,21 +884,6 @@ extern u8 traffic_status_watchdog(_adapter *padapter, u8 from_timer);
  sint check_buddy_mlmeinfo_state(_adapter *padapter, u32 state);
 void concurrent_chk_joinbss_done(_adapter *padapter, int join_res);
 #endif //CONFIG_CONCURRENT_MODE
-
-#ifdef CONFIG_DUALMAC_CONCURRENT
-void	dc_SelectChannel(_adapter *padapter, unsigned char channel);
-void	dc_SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_offset);
-void	dc_set_channel_bwmode_disconnect(_adapter *padapter);
-u8	dc_handle_join_request(_adapter *padapter, u8 *ch, u8 *bw, u8 *offset);
-void	dc_handle_join_done(_adapter *padapter, u8 join_res);
-sint	dc_check_fwstate(_adapter *padapter, sint fw_state);
-u8	dc_handle_site_survey(_adapter *padapter);
-void	dc_report_survey_event(_adapter *padapter, union recv_frame *precv_frame);
-void	dc_set_channel_bwmode_survey_done(_adapter *padapter);
-void	dc_set_ap_channel_bandwidth(_adapter *padapter, u8 channel, u8 channel_offset, u8 bwmode);
-void	dc_resume_xmit(_adapter *padapter);
-u8	dc_check_xmit(_adapter *padapter);
-#endif
 
 int rtw_chk_start_clnt_join(_adapter *padapter, u8 *ch, u8 *bw, u8 *offset);
 int rtw_get_ch_setting_union(_adapter *adapter, u8 *ch, u8 *bw, u8 *offset);
@@ -1134,7 +1101,7 @@ static struct fwevent wlanevents[] =
 
 };
 
-#endif//_RTL8192C_CMD_C_
+#endif//_RTW_MLME_EXT_C_
 
 #endif
 

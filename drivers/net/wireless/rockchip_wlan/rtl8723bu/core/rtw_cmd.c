@@ -20,7 +20,6 @@
 #define _RTW_CMD_C_
 
 #include <drv_types.h>
-
 /*
 Caller and the rtw_cmd_thread can protect cmd_q by spin_lock.
 No irqsave is necessary.
@@ -651,8 +650,8 @@ post_process:
 		_enter_critical_mutex(&(pcmd->padapter->cmdpriv.sctx_mutex), NULL);
 		if (pcmd->sctx) {
 			if (0)
-			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" pcmd->sctx\n",
-				FUNC_ADPT_ARG(pcmd->padapter));
+				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" pcmd->sctx\n",
+					FUNC_ADPT_ARG(pcmd->padapter));
 			if (pcmd->res == H2C_SUCCESS)
 				rtw_sctx_done(&pcmd->sctx);
 			else
@@ -912,8 +911,8 @@ _func_enter_;
 				_rtw_memcpy(&psurveyPara->ssid[i], &ssid[i], sizeof(NDIS_802_11_SSID));
 				psurveyPara->ssid_num++;
 				if (0)
-				DBG_871X(FUNC_ADPT_FMT" ssid:(%s, %d)\n", FUNC_ADPT_ARG(padapter),
-					psurveyPara->ssid[i].Ssid, psurveyPara->ssid[i].SsidLength);
+					DBG_871X(FUNC_ADPT_FMT" ssid:(%s, %d)\n", FUNC_ADPT_ARG(padapter),
+						psurveyPara->ssid[i].Ssid, psurveyPara->ssid[i].SsidLength);
 			}
 		}
 	}
@@ -926,8 +925,8 @@ _func_enter_;
 				_rtw_memcpy(&psurveyPara->ch[i], &ch[i], sizeof(struct rtw_ieee80211_channel));
 				psurveyPara->ch_num++;
 				if (0)
-				DBG_871X(FUNC_ADPT_FMT" ch:%u\n", FUNC_ADPT_ARG(padapter),
-					psurveyPara->ch[i].hw_value);
+					DBG_871X(FUNC_ADPT_FMT" ch:%u\n", FUNC_ADPT_ARG(padapter),
+						psurveyPara->ch[i].hw_value);
 			}
 		}
 	}
@@ -942,11 +941,16 @@ _func_enter_;
 
 #ifdef CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 		if((padapter->pbuddy_adapter->mlmeextpriv.mlmext_info.state&0x03) == WIFI_FW_AP_STATE)
-			_set_timer(&pmlmepriv->scan_to_timer, SURVEY_TO * 
-						( padapter->mlmeextpriv.max_chan_nums + ( padapter->mlmeextpriv.max_chan_nums / RTW_SCAN_NUM_OF_CH ) * RTW_STAY_AP_CH_MILLISECOND ) + 1000 );
+		{
+			if(IsSupported5G(padapter->registrypriv.wireless_mode) 
+				&& IsSupported24G(padapter->registrypriv.wireless_mode)) //dual band
+				mlme_set_scan_to_timer(pmlmepriv, CONC_SCANNING_TIMEOUT_DUAL_BAND);
+			else //single band
+				mlme_set_scan_to_timer(pmlmepriv, CONC_SCANNING_TIMEOUT_SINGLE_BAND);
+		}		
 		else
 #endif //CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
-			_set_timer(&pmlmepriv->scan_to_timer, SCANNING_TIMEOUT);
+			mlme_set_scan_to_timer(pmlmepriv, SCANNING_TIMEOUT);
 
 		rtw_led_control(padapter, LED_CTL_SITE_SURVEY);
 	} else {
@@ -1437,6 +1441,7 @@ _func_enter_;
 			case Ndis802_11APMode:
 			case Ndis802_11AutoUnknown:
 			case Ndis802_11InfrastructureMax:
+			case Ndis802_11Monitor:
 				break;
 
 		}
@@ -1667,7 +1672,7 @@ _func_exit_;
 	return res;
 }
 
-u8 rtw_setstakey_cmd(_adapter *padapter, struct sta_info *sta, u8 unicast_key, bool enqueue)
+u8 rtw_setstakey_cmd(_adapter *padapter, struct sta_info *sta, u8 key_type, bool enqueue)
 {
 	struct cmd_obj*			ph2c;
 	struct set_stakey_parm	*psetstakey_para;
@@ -1689,27 +1694,23 @@ _func_enter_;
 	_rtw_memcpy(psetstakey_para->addr, sta->hwaddr,ETH_ALEN);
 		
 	if(check_fwstate(pmlmepriv, WIFI_STATION_STATE)){
-#ifdef CONFIG_TDLS		
-		if(sta->tdls_sta_state&TDLS_LINKED_STATE)
-			psetstakey_para->algorithm=(u8)sta->dot118021XPrivacy;
-		else
-#endif //CONFIG_TDLS
 			psetstakey_para->algorithm =(unsigned char) psecuritypriv->dot11PrivacyAlgrthm;
 	}else{
 		GET_ENCRY_ALGO(psecuritypriv, sta, psetstakey_para->algorithm, _FALSE);
 	}
 
-	if (unicast_key == _TRUE) {
-#ifdef CONFIG_TDLS
-		if((sta->tdls_sta_state&TDLS_LINKED_STATE)==TDLS_LINKED_STATE)
-			_rtw_memcpy(&psetstakey_para->key, sta->tpk.tk, 16);
-		else
-#endif //CONFIG_TDLS
-			_rtw_memcpy(&psetstakey_para->key, &sta->dot118021x_UncstKey, 16);
-	}
-	else {
+	if (key_type == GROUP_KEY) {
 		_rtw_memcpy(&psetstakey_para->key, &psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey, 16);
+	}
+	else if (key_type == UNICAST_KEY) {
+		_rtw_memcpy(&psetstakey_para->key, &sta->dot118021x_UncstKey, 16);
+	}
+#ifdef CONFIG_TDLS
+	else if(key_type == TDLS_KEY){
+			_rtw_memcpy(&psetstakey_para->key, sta->tpk.tk, 16);
+		psetstakey_para->algorithm=(u8)sta->dot118021XPrivacy;
        }
+#endif /* CONFIG_TDLS */
 
 	//jeff: set this becasue at least sw key is ready
 	padapter->securitypriv.busetkipkey=_TRUE;
@@ -2318,7 +2319,8 @@ _func_enter_;
 	}
 
 	_rtw_spinlock(&(padapter->tdlsinfo.cmd_lock));
-	_rtw_memcpy(TDLSoption->addr, addr, 6);	
+	if (addr != NULL)
+		_rtw_memcpy(TDLSoption->addr, addr, 6);
 	TDLSoption->option = option;
 	_rtw_spinunlock(&(padapter->tdlsinfo.cmd_lock));
 	init_h2fwcmd_w_parm_no_rsp(pcmdobj, TDLSoption, GEN_CMD_CODE(_TDLS));
@@ -2458,8 +2460,8 @@ u8 traffic_status_watchdog(_adapter *padapter, u8 from_timer)
 		
 #ifdef CONFIG_TDLS
 #ifdef CONFIG_TDLS_AUTOSETUP
-		if( ( ptdlsinfo->watchdog_count % TDLS_WATCHDOG_PERIOD ) == 0 )	//10 * 2sec, periodically sending
-		{
+		/* TDLS_WATCHDOG_PERIOD * 2sec, periodically send */
+		if ((ptdlsinfo->watchdog_count % TDLS_WATCHDOG_PERIOD ) == 0) {
 			_rtw_memcpy(txmgmt.peer, baddr, ETH_ALEN);
 			issue_tdls_dis_req( padapter, &txmgmt );
 		}
@@ -2477,7 +2479,10 @@ u8 traffic_status_watchdog(_adapter *padapter, u8 from_timer)
 #endif //CONFIG_LPS_SLOW_TRANSITION
 			)
 		{
-			//DBG_871X("(-)Tx = %d, Rx = %d \n",pmlmepriv->LinkDetectInfo.NumTxOkInPeriod,pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod);
+#ifdef DBG_RX_COUNTER_DUMP
+			if( padapter->dump_rx_cnt_mode & DUMP_DRV_TRX_COUNTER_DATA)
+				DBG_871X("(-)Tx = %d, Rx = %d \n",pmlmepriv->LinkDetectInfo.NumTxOkInPeriod,pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod);
+#endif	
 			bEnterPS= _FALSE;
 #ifdef CONFIG_LPS_SLOW_TRANSITION
 			if(bBusyTraffic == _TRUE)
@@ -2499,7 +2504,10 @@ u8 traffic_status_watchdog(_adapter *padapter, u8 from_timer)
 		}
 		else
 		{
-			//DBG_871X("(+)Tx = %d, Rx = %d \n",pmlmepriv->LinkDetectInfo.NumTxOkInPeriod,pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod);
+#ifdef DBG_RX_COUNTER_DUMP		
+			if( padapter->dump_rx_cnt_mode & DUMP_DRV_TRX_COUNTER_DATA)
+				DBG_871X("(+)Tx = %d, Rx = %d \n",pmlmepriv->LinkDetectInfo.NumTxOkInPeriod,pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod);
+#endif			
 #ifdef CONFIG_LPS_SLOW_TRANSITION
 			if(pmlmepriv->LinkDetectInfo.TrafficTransitionCount>=2)
 				pmlmepriv->LinkDetectInfo.TrafficTransitionCount -=2;
@@ -2627,8 +2635,11 @@ void dynamic_chk_wk_hdl(_adapter *padapter)
 
 	//if(check_fwstate(pmlmepriv, _FW_UNDER_LINKING|_FW_UNDER_SURVEY)==_FALSE)
 	{
-		linked_status_chk(padapter, 0);	
+		linked_status_chk(padapter, 0);
 		traffic_status_watchdog(padapter, 0);
+		#ifdef DBG_RX_COUNTER_DUMP
+		rtw_dump_rx_counters(padapter);
+		#endif
 		dm_DynamicUsbTxAgg(padapter, 0);
 	}
 
@@ -3282,35 +3293,39 @@ void btinfo_evt_dump(void *sel, void *buf)
 	DBG_871X_SEL_NL(sel, "cid:0x%02x, len:%u\n", info->cid, info->len);
 
 	if (info->len > 2)
-	DBG_871X_SEL_NL(sel, "byte2:%s%s%s%s%s%s%s%s\n"
-		, info->bConnection?"bConnection ":""
-		, info->bSCOeSCO?"bSCOeSCO ":""
-		, info->bInQPage?"bInQPage ":""
-		, info->bACLBusy?"bACLBusy ":""
-		, info->bSCOBusy?"bSCOBusy ":""
-		, info->bHID?"bHID ":""
-		, info->bA2DP?"bA2DP ":""
-		, info->bFTP?"bFTP":""
-	);
+		DBG_871X_SEL_NL(sel, "byte2:%s%s%s%s%s%s%s%s\n"
+			, info->bConnection?"bConnection ":""
+			, info->bSCOeSCO?"bSCOeSCO ":""
+			, info->bInQPage?"bInQPage ":""
+			, info->bACLBusy?"bACLBusy ":""
+			, info->bSCOBusy?"bSCOBusy ":""
+			, info->bHID?"bHID ":""
+			, info->bA2DP?"bA2DP ":""
+			, info->bFTP?"bFTP":""
+		);
 
 	if (info->len > 3)
-	DBG_871X_SEL_NL(sel, "retry_cnt:%u\n", info->retry_cnt);
+		DBG_871X_SEL_NL(sel, "retry_cnt:%u\n", info->retry_cnt);
 
 	if (info->len > 4)
-	DBG_871X_SEL_NL(sel, "rssi:%u\n", info->rssi);
+		DBG_871X_SEL_NL(sel, "rssi:%u\n", info->rssi);
 
 	if (info->len > 5)
-	DBG_871X_SEL_NL(sel, "byte5:%s%s\n"
-		, info->eSCO_SCO?"eSCO_SCO ":""
-		, info->Master_Slave?"Master_Slave ":""
-	);
+		DBG_871X_SEL_NL(sel, "byte5:%s%s\n"
+			, info->eSCO_SCO?"eSCO_SCO ":""
+			, info->Master_Slave?"Master_Slave ":""
+		);
 }
 
 static void rtw_btinfo_hdl(_adapter *adapter, u8 *buf, u16 buf_len)
 {
 	#define BTINFO_WIFI_FETCH 0x23
 	#define BTINFO_BT_AUTO_RPT 0x27
+#ifdef CONFIG_BT_COEXIST_SOCKET_TRX
+	struct btinfo_8761ATV *info = (struct btinfo_8761ATV *)buf;
+#else //!CONFIG_BT_COEXIST_SOCKET_TRX
 	struct btinfo *info = (struct btinfo *)buf;
+#endif //CONFIG_BT_COEXIST_SOCKET_TRX
 	u8 cmd_idx;
 	u8 len;
 
@@ -3325,14 +3340,23 @@ static void rtw_btinfo_hdl(_adapter *adapter, u8 *buf, u16 buf_len)
 
 //#define DBG_PROC_SET_BTINFO_EVT
 #ifdef DBG_PROC_SET_BTINFO_EVT
+#ifdef CONFIG_BT_COEXIST_SOCKET_TRX
+	DBG_871X("%s: btinfo[0]=%x,btinfo[1]=%x,btinfo[2]=%x,btinfo[3]=%x btinfo[4]=%x,btinfo[5]=%x,btinfo[6]=%x,btinfo[7]=%x\n"
+				, __func__, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+#else//!CONFIG_BT_COEXIST_SOCKET_TRX
 	btinfo_evt_dump(RTW_DBGDUMP, info);
-#endif
+#endif //CONFIG_BT_COEXIST_SOCKET_TRX
+#endif // DBG_PROC_SET_BTINFO_EVT
 
 	/* transform BT-FW btinfo to WiFI-FW C2H format and notify */
 	if (cmd_idx == BTINFO_WIFI_FETCH)
 		buf[1] = 0;
 	else if (cmd_idx == BTINFO_BT_AUTO_RPT)
 		buf[1] = 2;
+#ifdef CONFIG_BT_COEXIST_SOCKET_TRX
+	else if(0x01 == cmd_idx || 0x02 == cmd_idx)
+		buf[1] = buf[0];
+#endif //CONFIG_BT_COEXIST_SOCKET_TRX
 	rtw_btcoex_BtInfoNotify(adapter ,len+1, &buf[1]);
 }
 
@@ -3379,7 +3403,7 @@ u8 rtw_btinfo_cmd(_adapter *adapter, u8 *buf, u16 len)
 exit:
 	return res;
 }
-#endif
+#endif //CONFIG_BT_COEXIST
 
 //#ifdef CONFIG_C2H_PACKET_EN
 u8 rtw_c2h_packet_wk_cmd(PADAPTER padapter, u8 *pbuf, u16 length)
@@ -3536,6 +3560,9 @@ static void c2h_wk_callback(_workitem *work)
 				rtw_mfree(c2h_evt, 16);
 				continue;
 			}
+		} else {
+			rtw_warn_on(1);
+			continue;
 		}
 
 		/* Special pointer to trigger c2h_evt_clear only */
@@ -3676,10 +3703,10 @@ _func_enter_;
 	{
 		//TODO: cancel timer and do timeout handler directly...
 		//need to make timeout handlerOS independent
-		_set_timer(&pmlmepriv->scan_to_timer, 1);
+		mlme_set_scan_to_timer(pmlmepriv, 1);
 	}
 	else if (pcmd->res != H2C_SUCCESS) {
-		_set_timer(&pmlmepriv->scan_to_timer, 1);
+		mlme_set_scan_to_timer(pmlmepriv, 1);
 		RT_TRACE(_module_rtl871x_cmd_c_,_drv_err_,("\n ********Error: MgntActrtw_set_802_11_bssid_LIST_SCAN Fail ************\n\n."));
 	} 
 

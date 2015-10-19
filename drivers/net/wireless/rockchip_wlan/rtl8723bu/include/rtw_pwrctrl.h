@@ -282,6 +282,8 @@ struct pwrctrl_priv
 
 	uint 	ips_enter_cnts;
 	uint 	ips_leave_cnts;
+	uint 	lps_enter_cnts;
+	uint 	lps_leave_cnts;
 
 	u8	ips_mode; 
 	u8	ips_org_mode; 
@@ -320,12 +322,12 @@ struct pwrctrl_priv
 	u8		wowlan_ap_mode;
 	u8		wowlan_mode;
 	u8		wowlan_p2p_mode;
+	u8		wowlan_pno_enable;
 #ifdef CONFIG_WOWLAN
 	u8		wowlan_pattern;
 	u8		wowlan_magic;
 	u8		wowlan_unicast;
 	u8		wowlan_pattern_idx;
-	u8		wowlan_pno_enable;
 	u8		wowlan_from_cmd;
 #ifdef CONFIG_PNO_SUPPORT
 	u8		pno_in_resume;

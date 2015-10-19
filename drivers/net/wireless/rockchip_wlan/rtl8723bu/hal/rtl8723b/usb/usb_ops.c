@@ -229,11 +229,11 @@ _func_exit_;
 #endif
 
 
-static s32 pre_recv_entry(union recv_frame *precvframe, struct phy_stat *pphy_status)
+static s32 pre_recv_entry(union recv_frame *precvframe, u8 *pphy_status)
 {
 	s32 ret=_SUCCESS;
 #ifdef CONFIG_CONCURRENT_MODE
-	u8 *primary_myid, *secondary_myid, *paddr1;
+	u8 *secondary_myid, *paddr1;
 	union recv_frame	*precvframe_if2 = NULL;
 	_adapter *primary_padapter = precvframe->u.hdr.adapter;
 	_adapter *secondary_padapter = primary_padapter->pbuddy_adapter;
@@ -248,8 +248,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct phy_stat *pphy_st
 
 	if(IS_MCAST(paddr1) == _FALSE)//unicast packets
 	{
-		//primary_myid = myid(&primary_padapter->eeprompriv);
-		secondary_myid = myid(&secondary_padapter->eeprompriv);
+		secondary_myid = adapter_mac_addr(secondary_padapter);
 
 		if(_rtw_memcmp(paddr1, secondary_myid, ETH_ALEN))
 		{
@@ -313,7 +312,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct phy_stat *pphy_st
 			recvframe_pull_tail(precvframe_if2, IEEE80211_FCS_LEN);
 
 		if (pattrib->physt)
-			rtl8723b_query_rx_phy_status(precvframe_if2, pphy_status);
+			rx_query_phy_status(precvframe_if2, pphy_status);
 
 		if(rtw_recv_entry(precvframe_if2) != _SUCCESS)
 		{
@@ -323,7 +322,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct phy_stat *pphy_st
 	}
 
 	//if (precvframe->u.hdr.attrib.physt)
-	//	rtl8723b_query_rx_phy_status(precvframe, pphy_status);
+	//	rx_query_phy_status(precvframe, pphy_status);
 
 	//ret = rtw_recv_entry(precvframe);
 #endif
@@ -337,7 +336,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, u8 *pphy_status)
 {	
 	s32 ret=_SUCCESS;
 #ifdef CONFIG_CONCURRENT_MODE	
-	u8 *primary_myid, *secondary_myid, *paddr1;
+	u8 *secondary_myid, *paddr1;
 	union recv_frame	*precvframe_if2 = NULL;
 	_adapter *primary_padapter = precvframe->u.hdr.adapter;
 	_adapter *secondary_padapter = primary_padapter->pbuddy_adapter;
@@ -352,8 +351,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, u8 *pphy_status)
 
 	if(IS_MCAST(paddr1) == _FALSE)//unicast packets
 	{
-		//primary_myid = myid(&primary_padapter->eeprompriv);
-		secondary_myid = myid(&secondary_padapter->eeprompriv);
+		secondary_myid = adapter_mac_addr(secondary_padapter);
 
 		if(_rtw_memcmp(paddr1, secondary_myid, ETH_ALEN))
 		{			
@@ -466,7 +464,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, u8 *pphy_status)
 					//recvframe_pull(precvframe_if2, drvinfo_sz + RXDESC_SIZE);
 
 					if (pattrib->physt && pphy_status)
-						rtl8812_query_rx_phy_status(precvframe_if2, pphy_status);
+						rx_query_phy_status(precvframe_if2, pphy_status);
 	
 					ret = rtw_recv_entry(precvframe_if2);				
 				}	
@@ -482,7 +480,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, u8 *pphy_status)
 		
 	}
 	//if (precvframe->u.hdr.attrib.physt)
-	//	rtl8812_query_rx_phy_status(precvframe, pphy_status);
+	//	rx_query_phy_status(precvframe, pphy_status);
 
 	//ret = rtw_recv_entry(precvframe);
 
@@ -578,7 +576,7 @@ int recvbuf2recvframe(PADAPTER padapter, void *ptr)
 
 #ifdef CONFIG_CONCURRENT_MODE
 			if (rtw_buddy_adapter_up(padapter)) {
-				if (pre_recv_entry(precvframe, (struct phy_stat*)pphy_status) != _SUCCESS) {
+				if (pre_recv_entry(precvframe, pphy_status) != _SUCCESS) {
 					// Return fail except data frame
 					//DBG_8192C("%s: RX Error! (concurrent)pre_recv_entry FAIL!\n", __FUNCTION__);
 				}
@@ -586,7 +584,7 @@ int recvbuf2recvframe(PADAPTER padapter, void *ptr)
 #endif // CONFIG_CONCURRENT_MODE
 
 			if (pphy_status)
-				rtl8723b_query_rx_phy_status(precvframe, (struct phy_stat*)pphy_status);
+				rx_query_phy_status(precvframe, pphy_status);
 
 			if (rtw_recv_entry(precvframe) != _SUCCESS) {
 				// Return fail except data frame
@@ -628,14 +626,19 @@ void rtl8723bu_xmit_tasklet(void *priv)
 	_adapter *padapter = (_adapter*)priv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	if(check_fwstate(&padapter->mlmepriv, _FW_UNDER_SURVEY) == _TRUE)
-		return;
-
 	while(1)
 	{
 		if (RTW_CANNOT_TX(padapter))
 		{
 			DBG_8192C("xmit_tasklet => bDriverStopped or bSurpriseRemoved or bWritePortCancel\n");
+			break;
+		}
+
+		if(check_fwstate(&padapter->mlmepriv, _FW_UNDER_SURVEY) == _TRUE
+			#ifdef CONFIG_CONCURRENT_MODE
+			|| check_buddy_fwstate(padapter, _FW_UNDER_SURVEY) == _TRUE
+			#endif
+		) {
 			break;
 		}
 

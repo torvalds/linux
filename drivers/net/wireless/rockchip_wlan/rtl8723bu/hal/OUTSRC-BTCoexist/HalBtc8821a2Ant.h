@@ -1,6 +1,9 @@
 //===========================================
 // The following is for 8821A 2Ant BT Co-exist definition
 //===========================================
+#define	BT_AUTO_REPORT_ONLY_8821A_2ANT				1
+
+
 #define	BT_INFO_8821A_2ANT_B_FTP						BIT7
 #define	BT_INFO_8821A_2ANT_B_A2DP					BIT6
 #define	BT_INFO_8821A_2ANT_B_HID						BIT5
@@ -12,6 +15,10 @@
 
 #define		BTC_RSSI_COEX_THRESH_TOL_8821A_2ANT		2
 
+
+#define	BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES				42  //WiFi RSSI Threshold for 2-Ant TDMA/1-Ant PS-TDMA translation
+#define	BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES				46 //BT RSSI Threshold for 2-Ant TDMA/1-Ant PS-TDMA translation
+
 typedef enum _BT_INFO_SRC_8821A_2ANT{
 	BT_INFO_SRC_8821A_2ANT_WIFI_FW			= 0x0,
 	BT_INFO_SRC_8821A_2ANT_BT_RSP				= 0x1,
@@ -20,9 +27,12 @@ typedef enum _BT_INFO_SRC_8821A_2ANT{
 }BT_INFO_SRC_8821A_2ANT,*PBT_INFO_SRC_8821A_2ANT;
 
 typedef enum _BT_8821A_2ANT_BT_STATUS{
-	BT_8821A_2ANT_BT_STATUS_IDLE				= 0x0,
-	BT_8821A_2ANT_BT_STATUS_CONNECTED_IDLE	= 0x1,
-	BT_8821A_2ANT_BT_STATUS_NON_IDLE			= 0x2,
+	BT_8821A_2ANT_BT_STATUS_NON_CONNECTED_IDLE	= 0x0,
+	BT_8821A_2ANT_BT_STATUS_CONNECTED_IDLE		= 0x1,
+	BT_8821A_2ANT_BT_STATUS_INQ_PAGE				= 0x2,
+	BT_8821A_2ANT_BT_STATUS_ACL_BUSY				= 0x3,
+	BT_8821A_2ANT_BT_STATUS_SCO_BUSY				= 0x4,
+	BT_8821A_2ANT_BT_STATUS_ACL_SCO_BUSY			= 0x5,
 	BT_8821A_2ANT_BT_STATUS_MAX
 }BT_8821A_2ANT_BT_STATUS,*PBT_8821A_2ANT_BT_STATUS;
 
@@ -43,8 +53,8 @@ typedef enum _BT_8821A_2ANT_COEX_ALGO{
 
 typedef struct _COEX_DM_8821A_2ANT{
 	// fw mechanism
-	BOOLEAN		bPreDecBtPwr;
-	BOOLEAN		bCurDecBtPwr;
+	u1Byte		preBtDecPwrLvl;
+	u1Byte		curBtDecPwrLvl;
 	u1Byte		preFwDacSwingLvl;
 	u1Byte		curFwDacSwingLvl;
 	BOOLEAN		bCurIgnoreWlanAct;
@@ -54,6 +64,7 @@ typedef struct _COEX_DM_8821A_2ANT{
 	u1Byte		psTdmaPara[5];
 	u1Byte		psTdmaDuAdjType;
 	BOOLEAN		bResetTdmaAdjust;
+	BOOLEAN		bAutoTdmaAdjust;
 	BOOLEAN		bPrePsTdmaOn;
 	BOOLEAN		bCurPsTdmaOn;
 	BOOLEAN		bPreBtAutoReport;
@@ -88,9 +99,17 @@ typedef struct _COEX_DM_8821A_2ANT{
 	u1Byte		curAlgorithm;
 	u1Byte		btStatus;
 	u1Byte		wifiChnlInfo[3];
+
+	BOOLEAN		bNeedRecover0x948;
+	u4Byte		backup0x948;
+
+	u1Byte		preLps;
+	u1Byte		curLps;
+	u1Byte		preRpwm;
+	u1Byte		curRpwm;
 } COEX_DM_8821A_2ANT, *PCOEX_DM_8821A_2ANT;
 
-typedef struct _COEX_STA_8821A_2ANT{
+typedef struct _COEX_STA_8821A_2ANT{	
 	BOOLEAN					bBtLinkExist;
 	BOOLEAN					bScoExist;
 	BOOLEAN					bA2dpExist;
@@ -104,14 +123,31 @@ typedef struct _COEX_STA_8821A_2ANT{
 	u4Byte					lowPriorityTx;
 	u4Byte					lowPriorityRx;
 	u1Byte					btRssi;
+	BOOLEAN					bBtTxRxMask;
 	u1Byte					preBtRssiState;
 	u1Byte					preWifiRssiState[4];
 	BOOLEAN					bC2hBtInfoReqSent;
 	u1Byte					btInfoC2h[BT_INFO_SRC_8821A_2ANT_MAX][10];
 	u4Byte					btInfoC2hCnt[BT_INFO_SRC_8821A_2ANT_MAX];
+	BOOLEAN 				bBtWhckTest;
 	BOOLEAN					bC2hBtInquiryPage;
 	u1Byte					btRetryCnt;
 	u1Byte					btInfoExt;
+
+	u4Byte					nCRCOK_CCK;
+	u4Byte					nCRCOK_11g;
+	u4Byte					nCRCOK_11n;
+	u4Byte					nCRCOK_11nAgg;
+	
+	u4Byte					nCRCErr_CCK;
+	u4Byte					nCRCErr_11g;
+	u4Byte					nCRCErr_11n;
+	u4Byte					nCRCErr_11nAgg;
+
+	u1Byte					nCoexTableType;
+	BOOLEAN					bForceLpsOn;
+
+	u1Byte					disVerInfoCnt;
 }COEX_STA_8821A_2ANT, *PCOEX_STA_8821A_2ANT;
 
 //===========================================
@@ -119,6 +155,10 @@ typedef struct _COEX_STA_8821A_2ANT{
 //===========================================
 VOID
 EXhalbtc8821a2ant_PowerOnSetting(
+	IN	PBTC_COEXIST		pBtCoexist
+	);
+VOID
+EXhalbtc8821a2ant_PreLoadFirmware(
 	IN	PBTC_COEXIST		pBtCoexist
 	);
 VOID

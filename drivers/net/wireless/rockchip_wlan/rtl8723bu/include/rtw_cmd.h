@@ -250,6 +250,13 @@ enum LPS_CTRL_TYPE
 	LPS_CTRL_ENTER = 9,
 };
 
+enum STAKEY_TYPE
+{
+	GROUP_KEY		=0,
+	UNICAST_KEY		=1,
+	TDLS_KEY		=2,
+};
+
 enum RFINTFS {
 	SWSI,
 	HWSI,
@@ -1007,7 +1014,7 @@ u8 rtw_startbss_cmd(_adapter  *padapter, int flags);
 extern u8 rtw_setphy_cmd(_adapter  *padapter, u8 modem, u8 ch);
 
 struct sta_info;
-extern u8 rtw_setstakey_cmd(_adapter  *padapter, struct sta_info *sta, u8 unicast_key, bool enqueue);
+extern u8 rtw_setstakey_cmd(_adapter  *padapter, struct sta_info *sta, u8 key_type, bool enqueue);
 extern u8 rtw_clearstakey_cmd(_adapter *padapter, struct sta_info *sta, u8 enqueue);
 
 extern u8 rtw_joinbss_cmd(_adapter  *padapter, struct wlan_network* pnetwork);

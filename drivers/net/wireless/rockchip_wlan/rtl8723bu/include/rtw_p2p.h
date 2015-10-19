@@ -51,6 +51,7 @@ u8 process_p2p_group_negotation_req( struct wifidirect_info *pwdinfo, u8 *pframe
 u8 process_p2p_group_negotation_resp( struct wifidirect_info *pwdinfo, u8 *pframe, uint len );
 u8 process_p2p_group_negotation_confirm( struct wifidirect_info *pwdinfo, u8 *pframe, uint len );
 u8 process_p2p_presence_req(struct wifidirect_info *pwdinfo, u8 *pframe, uint len);
+int process_p2p_cross_connect_ie(PADAPTER padapter, u8 *IEs, u32 IELength);
 
 void p2p_protocol_wk_hdl(_adapter *padapter, int intCmdType);
 

@@ -12,7 +12,11 @@
 #define	BT_INFO_8192E_2ANT_B_SCO_ESCO				BIT1
 #define	BT_INFO_8192E_2ANT_B_CONNECTION				BIT0
 
+#define	BT_INFO_8192E_2ANT_A2DP_BASIC_RATE(_BT_INFO_EXT_)	\
+		(((_BT_INFO_EXT_&BIT0))? TRUE:FALSE)
+
 #define		BTC_RSSI_COEX_THRESH_TOL_8192E_2ANT		2
+#define 	NOISY_AP_NUM_THRESH						5
 
 typedef enum _BT_INFO_SRC_8192E_2ANT{
 	BT_INFO_SRC_8192E_2ANT_WIFI_FW			= 0x0,
@@ -61,10 +65,15 @@ typedef struct _COEX_DM_8192E_2ANT{
 	u1Byte		psTdmaDuAdjType;
 	BOOLEAN		bResetTdmaAdjust;
 	BOOLEAN		bAutoTdmaAdjust;
+	BOOLEAN		bAutoTdmaAdjustLowRssi;
 	BOOLEAN		bPrePsTdmaOn;
 	BOOLEAN		bCurPsTdmaOn;
 	BOOLEAN		bPreBtAutoReport;
 	BOOLEAN		bCurBtAutoReport;
+	u1Byte		preLps;
+	u1Byte		curLps;
+	u1Byte		preRpwm;
+	u1Byte		curRpwm;
 
 	// sw mechanism
 	BOOLEAN		bPreRfRxLpfShrink;
@@ -137,6 +146,22 @@ typedef struct _COEX_STA_8192E_2ANT{
 	BOOLEAN					bC2hBtInquiryPage;
 	u1Byte					btRetryCnt;
 	u1Byte					btInfoExt;
+	u1Byte					nScanAPNum;
+
+	u4Byte					nCRCOK_CCK;
+	u4Byte					nCRCOK_11g;
+	u4Byte					nCRCOK_11n;
+	u4Byte					nCRCOK_11nAgg;
+	
+	u4Byte					nCRCErr_CCK;
+	u4Byte					nCRCErr_11g;
+	u4Byte					nCRCErr_11n;
+	u4Byte					nCRCErr_11nAgg;
+
+	u1Byte					nCoexTableType;
+	BOOLEAN					bForceLpsOn;
+
+	u1Byte					disVerInfoCnt;
 }COEX_STA_8192E_2ANT, *PCOEX_STA_8192E_2ANT;
 
 //===========================================

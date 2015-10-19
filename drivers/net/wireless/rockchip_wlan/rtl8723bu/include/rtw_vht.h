@@ -117,7 +117,7 @@ struct vht_priv
 u8	rtw_get_vht_highest_rate(u8 *pvht_mcs_map);
 void	rtw_get_vht_nss(u8 *pvht_mcs_map);
 u16	rtw_vht_mcs_to_data_rate(u8 bw, u8 short_GI, u8 vht_mcs_rate);
-u32	rtw_vht_rate_to_bitmap(u8 *pVHTRate);
+u64	rtw_vht_rate_to_bitmap(u8 *pVHTRate);
 void	rtw_vht_use_default_setting(_adapter *padapter);
 u32	rtw_build_vht_operation_ie(_adapter *padapter, u8 *pbuf, u8 channel);
 u32	rtw_build_vht_op_mode_notify_ie(_adapter *padapter, u8 *pbuf, u8 bw);

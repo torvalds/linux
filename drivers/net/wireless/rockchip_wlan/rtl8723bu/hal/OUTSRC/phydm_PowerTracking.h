@@ -118,21 +118,59 @@ typedef struct ODM_RF_Calibration_Structure
 	IQK_MATRIX_REGS_SETTING IQKMatrixRegSetting[IQK_Matrix_Settings_NUM];
 	u1Byte	Delta_LCK;
 	s1Byte  BBSwingDiff2G, BBSwingDiff5G; // Unit: dB
-    u1Byte  DeltaSwingTableIdx_2GCCKA_P[DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_2GCCKA_N[DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_2GCCKB_P[DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_2GCCKB_N[DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_2GA_P[DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_2GA_N[DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_2GB_P[DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_2GB_N[DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_5GA_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_5GA_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_5GB_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_5GB_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_2GA_P_8188E[DELTA_SWINGIDX_SIZE];
-    u1Byte  DeltaSwingTableIdx_2GA_N_8188E[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GCCKA_P[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GCCKA_N[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GCCKB_P[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GCCKB_N[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GCCKC_P[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GCCKC_N[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GCCKD_P[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GCCKD_N[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GA_P[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GA_N[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GB_P[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GB_N[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GC_P[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GC_N[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GD_P[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GD_N[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_5GA_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_5GA_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_5GB_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_5GB_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_5GC_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_5GC_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_5GD_P[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_5GD_N[BAND_NUM][DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GA_P_8188E[DELTA_SWINGIDX_SIZE];
+	u1Byte  DeltaSwingTableIdx_2GA_N_8188E[DELTA_SWINGIDX_SIZE];
     
+	u1Byte			BbSwingIdxOfdm[MAX_RF_PATH];
+	u1Byte			BbSwingIdxOfdmCurrent;
+#if (DM_ODM_SUPPORT_TYPE &  (ODM_WIN|ODM_CE))	
+	u1Byte			BbSwingIdxOfdmBase[MAX_RF_PATH];
+#else
+	u1Byte			BbSwingIdxOfdmBase;
+#endif
+	BOOLEAN			BbSwingFlagOfdm;
+	u1Byte			BbSwingIdxCck;
+	u1Byte			BbSwingIdxCckCurrent;
+	u1Byte			BbSwingIdxCckBase;
+	u1Byte			DefaultOfdmIndex;
+	u1Byte			DefaultCckIndex;	
+	BOOLEAN			BbSwingFlagCck;
+	
+	s1Byte			Absolute_OFDMSwingIdx[MAX_RF_PATH];   
+	s1Byte			Remnant_OFDMSwingIdx[MAX_RF_PATH];   
+	s1Byte			Remnant_CCKSwingIdx;
+	s1Byte			Modify_TxAGC_Value;       /*Remnat compensate value at TxAGC */
+	BOOLEAN			Modify_TxAGC_Flag_PathA;
+	BOOLEAN			Modify_TxAGC_Flag_PathB;
+	BOOLEAN			Modify_TxAGC_Flag_PathC;
+	BOOLEAN			Modify_TxAGC_Flag_PathD;
+	BOOLEAN			Modify_TxAGC_Flag_PathA_CCK;
+	
+	s1Byte			KfreeOffset[MAX_RF_PATH];
     
 	//--------------------------------------------------------------------//	
 	
@@ -175,7 +213,9 @@ typedef struct ODM_RF_Calibration_Structure
 	u1Byte 	bDPPathBOK;
 
 	u4Byte	TxLOK[2];
-
+	u4Byte  DpkTxAGC;
+	s4Byte  DpkGain;
+	u4Byte  DpkThermal[4];
 }ODM_RF_CAL_T,*PODM_RF_CAL_T;
 
 

@@ -20,19 +20,10 @@
 #ifndef __USB_HAL_H__
 #define __USB_HAL_H__
 
-void rtw_set_hal_ops(_adapter *padapter);
+int usb_init_recv_priv(_adapter *padapter, u16 ini_in_buf_sz);
+void usb_free_recv_priv (_adapter *padapter, u16 ini_in_buf_sz);
 
-#ifdef CONFIG_RTL8192C
-void rtl8192cu_set_hal_ops(_adapter * padapter);
-#endif
-
-#ifdef CONFIG_RTL8192D
-void rtl8192du_set_hal_ops(_adapter * padapter);
-#endif
-
-#ifdef CONFIG_RTL8723A
-void rtl8723au_set_hal_ops(_adapter * padapter);
-#endif
+u8 rtw_set_hal_ops(_adapter *padapter);
 
 #ifdef CONFIG_RTL8188E
 void rtl8188eu_set_hal_ops(_adapter * padapter);
@@ -50,6 +41,10 @@ void rtl8192eu_set_hal_ops(_adapter * padapter);
 #ifdef CONFIG_RTL8723B
 void rtl8723bu_set_hal_ops(_adapter * padapter);
 #endif
+
+#ifdef CONFIG_RTL8814A
+void rtl8814au_set_hal_ops(_adapter * padapter);
+#endif /* CONFIG_RTL8814A */
 
 #ifdef CONFIG_INTEL_PROXIM	
 extern _adapter  *rtw_usb_get_sw_pointer(void);

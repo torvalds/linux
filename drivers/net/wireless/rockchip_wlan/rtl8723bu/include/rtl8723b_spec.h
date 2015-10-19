@@ -164,7 +164,10 @@
 //	0x0100h ~ 0x01FFh	MACTOP General Configuration
 //
 //-----------------------------------------------------
-
+#undef IS_E_CUT
+#define IS_E_CUT(version)		FALSE
+#undef IS_F_CUT
+#define IS_F_CUT(version)		((GET_CVID_CUT_VERSION(version) == E_CUT_VERSION) ? TRUE : FALSE)
 
 //-----------------------------------------------------
 //

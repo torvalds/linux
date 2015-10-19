@@ -21,7 +21,7 @@
 #ifndef	__PHYDMDIG_H__
 #define    __PHYDMDIG_H__
 
-#define DIG_VERSION	"1.1"
+#define DIG_VERSION	"1.4"	/*2015.01.13*/
 
 typedef struct _Dynamic_Initial_Gain_Threshold_
 {

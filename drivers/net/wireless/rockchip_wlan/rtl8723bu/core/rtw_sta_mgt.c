@@ -412,6 +412,7 @@ _func_enter_;
 			preorder_ctrl->wend_b= 0xffff;       
 			//preorder_ctrl->wsize_b = (NR_RECVBUFF-2);
 			preorder_ctrl->wsize_b = 64;//64;
+			preorder_ctrl->ampdu_size = RX_AMPDU_SIZE_INVALID;
 
 			_rtw_init_queue(&preorder_ctrl->pending_recvframe_queue);
 
@@ -540,6 +541,7 @@ _func_enter_;
 	_cancel_timer_ex(&psta->addba_retry_timer);
 
 #ifdef CONFIG_TDLS
+	psta->tdls_sta_state = TDLS_STATE_NONE;
 	rtw_free_tdls_timer(psta);
 #endif //CONFIG_TDLS
 

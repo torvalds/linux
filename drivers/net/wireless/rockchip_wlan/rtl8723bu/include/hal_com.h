@@ -214,11 +214,32 @@ typedef enum _FIRMWARE_SOURCE {
 #define PageNum_512(_Len)		(u32)(((_Len)>>9) + ((_Len)&0x1FF ? 1:0))
 #define PageNum(_Len, _Size)		(u32)(((_Len)/(_Size)) + ((_Len)&((_Size) - 1) ? 1:0))
 
+struct dbg_rx_counter
+{
+	u32	rx_pkt_ok;
+	u32	rx_pkt_crc_error;
+	u32	rx_pkt_drop;	
+	u32	rx_ofdm_fa;
+	u32	rx_cck_fa;
+	u32	rx_ht_fa;
+};
+void rtw_dump_mac_rx_counters(_adapter* padapter,struct dbg_rx_counter *rx_counter);
+void rtw_dump_phy_rx_counters(_adapter* padapter,struct dbg_rx_counter *rx_counter);
+void rtw_reset_mac_rx_counters(_adapter* padapter);
+void rtw_reset_phy_rx_counters(_adapter* padapter);
 
-u8 rtw_hal_data_init(_adapter *padapter);
-void rtw_hal_data_deinit(_adapter *padapter);
+#ifdef DBG_RX_COUNTER_DUMP
+#define DUMP_DRV_RX_COUNTER	BIT0
+#define DUMP_MAC_RX_COUNTER	BIT1
+#define DUMP_PHY_RX_COUNTER	BIT2
+#define DUMP_DRV_TRX_COUNTER_DATA	BIT3
+
+void rtw_dump_phy_rxcnts_preprocess(_adapter* padapter,u8 rx_cnt_mode);
+void rtw_dump_rx_counters(_adapter* padapter);
+#endif
 
 void dump_chip_info(HAL_VERSION	ChipVersion);
+void rtw_hal_config_rftype(PADAPTER  padapter);
 
 u8	//return the final channel plan decision
 hal_com_config_channel_plan(
@@ -342,9 +363,10 @@ void rtw_dump_raw_rssi_info(_adapter *padapter);
 u32 Hal_readPGDataFromConfigFile(PADAPTER padapter, struct file *fp);
 void Hal_ReadMACAddrFromFile(PADAPTER padapter, struct file *fp);
 void Hal_GetPhyEfuseMACAddr(PADAPTER padapter, u8* mac_addr);
-int check_phy_efuse_tx_power_info_valid(PADAPTER padapter);
 int check_phy_efuse_macaddr_info_valid(PADAPTER padapter);
 #endif //CONFIG_EFUSE_CONFIG_FILE
+
+int check_phy_efuse_tx_power_info_valid(PADAPTER padapter);
 
 #ifdef CONFIG_RF_GAIN_OFFSET
 void rtw_bb_rf_gain_offset(_adapter *padapter);
@@ -372,15 +394,17 @@ struct noise_info
 	u8		chan;
 };
 #endif
+void rtw_get_noise(_adapter* padapter);
+
+void rtw_hal_set_fw_rsvd_page(_adapter* adapter, bool finished);
+void rtw_hal_set_AP_fw_rsvd_page(_adapter *padapter , bool finished);
 
 #ifdef CONFIG_GPIO_API
 u8 rtw_hal_get_gpio(_adapter* adapter, u8 gpio_num);
-int rtw_hal_set_gpio_output_value(_adapter* adapter, u8 gpio_num, BOOLEAN isHigh);
-int rtw_hal_config_gpio(_adapter* adapter, u8 gpio_num, BOOLEAN isOutput);
-#endif
-
-#ifdef CONFIG_GPIO_WAKEUP
-void rtw_clear_hostwakeupgpio(PADAPTER padapter);
+int rtw_hal_set_gpio_output_value(_adapter* adapter, u8 gpio_num, bool isHigh);
+int rtw_hal_config_gpio(_adapter* adapter, u8 gpio_num, bool isOutput);
+int rtw_hal_register_gpio_interrupt(_adapter* adapter, int gpio_num, void(*callback)(u8 level));
+int rtw_hal_disable_gpio_interrupt(_adapter* adapter, int gpio_num);
 #endif
 
 #ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
@@ -388,6 +412,13 @@ extern char *rtw_phy_file_path;
 extern char file_path[PATH_LENGTH_MAX];
 #define GetLineFromBuffer(buffer)   strsep(&buffer, "\n")
 #endif
+
+#ifdef CONFIG_FW_C2H_DEBUG
+void Debug_FwC2H(PADAPTER padapter, u8 *pdata, u8 len);
+#endif
+/*CONFIG_FW_C2H_DEBUG*/
+
+void update_IOT_info(_adapter *padapter);
 
 #endif //__HAL_COMMON_H__
 

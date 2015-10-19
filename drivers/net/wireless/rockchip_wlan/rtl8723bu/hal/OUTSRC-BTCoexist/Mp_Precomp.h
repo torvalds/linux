@@ -39,6 +39,36 @@
 #undef bEnable
 #endif
 
+#define WPP_SOFTWARE_TRACE 0
+
+typedef enum _BTC_MSG_COMP_TYPE{
+	COMP_COEX		= 0,
+	COMP_MAX
+}BTC_MSG_COMP_TYPE;
+extern u4Byte GLBtcDbgType[];
+
+#define DBG_OFF			0
+#define DBG_SEC			1
+#define DBG_SERIOUS		2
+#define DBG_WARNING		3
+#define DBG_LOUD		4
+#define DBG_TRACE		5
+
+#if DBG
+#ifdef RT_TRACE
+#undef RT_TRACE
+#define RT_TRACE(dbgtype, dbgflag, printstr)\
+do {\
+	if (GLBtcDbgType[dbgtype] & BIT(dbgflag))\
+	{\
+		DbgPrint printstr;\
+	}\
+} while (0)
+#endif
+#else
+//#define RT_TRACE(dbgtype, dbgflag, printstr)
+#endif
+
 #include "HalBtcOutSrc.h"
 #include "HalBtc8188c2Ant.h"
 #include "HalBtc8192d2Ant.h"

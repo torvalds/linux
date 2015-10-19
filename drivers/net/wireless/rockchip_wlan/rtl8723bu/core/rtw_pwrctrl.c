@@ -532,9 +532,7 @@ _func_enter_;
 	{
 		if ( (pwrpriv->rpwm == pslv)
 #ifdef CONFIG_LPS_LCLK
-#ifndef CONFIG_RTL8723A
 			|| ((pwrpriv->rpwm >= PS_STATE_S2)&&(pslv >= PS_STATE_S2))
-#endif
 #endif
 			)
 		{
@@ -610,14 +608,11 @@ _func_enter_;
 		do {
 			rtw_msleep_os(1);
 			poll_cnt++;
+			cpwm_now = 0;
 			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
 			if ((cpwm_orig ^ cpwm_now) & 0x80)
 			{
-#ifdef CONFIG_RTL8723A
-				pwrpriv->cpwm = PS_STATE(cpwm_now);
-#else // !CONFIG_RTL8723A
 				pwrpriv->cpwm = PS_STATE_S4;
-#endif // !CONFIG_RTL8723A
 				pwrpriv->cpwm_tog = cpwm_now & PS_TOGGLE;
 #ifdef DBG_CHECK_FW_PS_STATE
 				DBG_871X("%s: polling cpwm OK! poll_cnt=%d, cpwm_orig=%02x, cpwm_now=%02x , 0x100=0x%x\n"
@@ -722,15 +717,14 @@ u8 PS_RDY_CHECK(_adapter * padapter)
 	return _TRUE;
 }
 
-#if defined(CONFIG_FWLPS_IN_IPS) && defined(CONFIG_PNO_SUPPORT)
+#if defined(CONFIG_FWLPS_IN_IPS)
 void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable)
 {
-	struct hal_ops *pHalFunc = &padapter->HalFunc;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	int cnt=0;
 	u32 start_time;
 	u8 val8 = 0;
-	u8 cpwm_orig, cpwm_now;
+	u8 cpwm_orig = 0, cpwm_now = 0;
 	u8 parm[H2C_INACTIVE_PS_LEN]={0};
 
 	if (padapter->netif_up == _FALSE) {
@@ -738,23 +732,25 @@ void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable)
 		return;
 	}
 
-	if (pHalFunc->fill_h2c_cmd == NULL) {
-		DBG_871X("%s: Please hook fill_h2c_cmd first!\n", __func__);
-		return;
-	}
-
 	//u8 cmd_param; //BIT0:enable, BIT1:NoConnect32k
 	if (enable) {
-
 #ifdef CONFIG_BT_COEXIST
 		rtw_btcoex_IpsNotify(padapter, pwrpriv->ips_mode_req);
 #endif
 		//Enter IPS
 		DBG_871X("%s: issue H2C to FW when entering IPS\n", __func__);
+
+#ifdef CONFIG_PNO_SUPPORT
 		parm[0] = 0x03;
-		parm[1] = 0x01;
-		parm[2] = 0x01;
-		pHalFunc->fill_h2c_cmd(padapter, //H2C_FWLPS_IN_IPS_,
+		parm[1] = pwrpriv->pnlo_info->fast_scan_iterations;
+		parm[2] = pwrpriv->pnlo_info->slow_scan_period;
+#else
+		parm[0] = 0x03;
+		parm[1] = 0x0;
+		parm[2] = 0x0;
+#endif//CONFIG_PNO_SUPPORT
+
+		rtw_hal_fill_h2c_cmd(padapter, //H2C_FWLPS_IN_IPS_,
 					H2C_INACTIVE_PS_,
 					H2C_INACTIVE_PS_LEN, parm);
 		//poll 0x1cc to make sure H2C command already finished by FW; MAC_0x1cc=0 means H2C done by FW.
@@ -777,33 +773,18 @@ void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable)
 			DBG_871X("%s: write rpwm=%02x\n", __FUNCTION__, val8);
 			adapter_to_pwrctl(padapter)->tog = (val8 + 0x80) & 0x80;
 			cnt = val8 = 0;
-			do {
-				val8 = rtw_read8(padapter, REG_CR);
-				cnt++;
-				DBG_871X("%s  polling 0x100=0x%x, cnt=%d \n",
-						__func__, val8, cnt);
-				DBG_871X("%s 0x08:%02x, 0x03:%02x\n",
-						__func__,
-						rtw_read8(padapter, 0x08),
-						rtw_read8(padapter, 0x03));
-				rtw_mdelay_os(10);
-			} while(cnt<20 && (val8!=0xEA));
-#ifdef DBG_CHECK_FW_PS_STATE
-			if(val8 != 0xEA) {
-				DBG_871X("MAC_1B8=0x%08x\n",
-						rtw_read32(padapter, 0x1b8));
-				DBG_871X("MAC_1C0=%08x, MAC_1C4=%08x, MAC_1C8=%08x, MAC_1CC=%08x\n",
-						rtw_read32(padapter, 0x1c0),
-						rtw_read32(padapter, 0x1c4),
-						rtw_read32(padapter, 0x1c8),
-						rtw_read32(padapter, 0x1cc));
-#endif //DBG_CHECK_FW_PS_STATE
-			} else {
-				DBG_871X("MAC_1C0=%08x, MAC_1C4=%08x, MAC_1C8=%08x, MAC_1CC=%08x\n",
-						rtw_read32(padapter, 0x1c0),
-						rtw_read32(padapter, 0x1c4),
-						rtw_read32(padapter, 0x1c8),
-						rtw_read32(padapter, 0x1cc));
+			if (parm[1] == 0 || parm[2] == 0) {
+				do {
+					val8 = rtw_read8(padapter, REG_CR);
+					cnt++;
+					DBG_871X("%s  polling 0x100=0x%x, cnt=%d \n",
+							__func__, val8, cnt);
+					DBG_871X("%s 0x08:%02x, 0x03:%02x\n",
+							__func__,
+							rtw_read8(padapter, 0x08),
+							rtw_read8(padapter, 0x03));
+					rtw_mdelay_os(10);
+				} while(cnt<20 && (val8!=0xEA));
 			}
 		}
 	} else {
@@ -831,10 +812,6 @@ void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable)
 
 			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
 			if ((cpwm_orig ^ cpwm_now) & 0x80) {
-#ifdef DBG_CHECK_FW_PS_STATE				
-				DBG_871X("%s: polling cpwm ok when leaving IPS in FWLPS state, cpwm_orig=%02x, cpwm_now=%02x, 0x100=0x%x \n"
-				, __FUNCTION__, cpwm_orig, cpwm_now, rtw_read8(padapter, REG_CR));
-#endif //DBG_CHECK_FW_PS_STATE
 				break;
 			}
 
@@ -848,7 +825,7 @@ void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable)
 		parm[0] = 0x0;
 		parm[1] = 0x0;
 		parm[2] = 0x0;
-		pHalFunc->fill_h2c_cmd(padapter, H2C_INACTIVE_PS_,
+		rtw_hal_fill_h2c_cmd(padapter, H2C_INACTIVE_PS_,
 					H2C_INACTIVE_PS_LEN, parm);
 #ifdef CONFIG_BT_COEXIST
 		rtw_btcoex_IpsNotify(padapter, IPS_NONE);
@@ -924,6 +901,10 @@ _func_enter_;
 			DBG_871X(FUNC_ADPT_FMT" Leave 802.11 power save - %s\n",
 				FUNC_ADPT_ARG(padapter), msg);
 
+			if (pwrpriv->lps_leave_cnts < UINT_MAX)
+				pwrpriv->lps_leave_cnts++;
+			else
+				pwrpriv->lps_leave_cnts = 0;
 #ifdef CONFIG_TDLS
 			_enter_critical_bh(&pstapriv->sta_hash_lock, &irqL);
 
@@ -999,6 +980,10 @@ _func_enter_;
 			DBG_871X(FUNC_ADPT_FMT" Enter 802.11 power save - %s\n",
 				FUNC_ADPT_ARG(padapter), msg);
 
+			if (pwrpriv->lps_enter_cnts < UINT_MAX)
+				pwrpriv->lps_enter_cnts++;
+			else
+				pwrpriv->lps_enter_cnts = 0;
 #ifdef CONFIG_TDLS
 			_enter_critical_bh(&pstapriv->sta_hash_lock, &irqL);
 
@@ -1052,19 +1037,6 @@ _func_enter_;
 				if (val8 & BIT(4))
 					pslv = PS_STATE_S2;
 
-#ifdef CONFIG_RTL8723A
-				val8 = rtw_btcoex_RpwmVal(padapter);
-				switch (val8)
-				{
-					case 0x4:
-						pslv = PS_STATE_S3;
-						break;
-
-					case 0xC:
-						pslv = PS_STATE_S4;
-						break;
-				}
-#endif // CONFIG_RTL8723A
 			}
 #endif // CONFIG_BT_COEXIST
 
@@ -1291,11 +1263,7 @@ _func_enter_;
 			rtw_hal_get_hwreg(Adapter, HW_VAR_CPWM, &cpwm_now);
 			if ((cpwm_orig ^ cpwm_now) & 0x80)
 			{
-#ifdef CONFIG_RTL8723A
-				pwrpriv->cpwm = PS_STATE(cpwm_now);
-#else // !CONFIG_RTL8723A
 				pwrpriv->cpwm = PS_STATE_S4;
-#endif // !CONFIG_RTL8723A
 				pwrpriv->cpwm_tog = cpwm_now & PS_TOGGLE;
 #ifdef DBG_CHECK_FW_PS_STATE
 				DBG_871X("%s: polling cpwm OK! cpwm_orig=%02x, cpwm_now=%02x, 0x100=0x%x \n"
@@ -1680,24 +1648,6 @@ _func_enter_;
 	pwrctrl = adapter_to_pwrctl(padapter);
 	pslv = PS_STATE_S2;
 
-#if defined(CONFIG_RTL8723A) && defined(CONFIG_BT_COEXIST)
-	if (rtw_btcoex_IsBtControlLps(padapter) == _TRUE)
-	{
-		u8 btcoex_rpwm;
-		btcoex_rpwm = rtw_btcoex_RpwmVal(padapter);
-		switch (btcoex_rpwm)
-		{
-			case 0x4:
-				pslv = PS_STATE_S3;
-				break;
-
-			case 0xC:
-				pslv = PS_STATE_S4;
-				break;
-		}
-	}
-#endif // CONFIG_RTL8723A & CONFIG_BT_COEXIST
-
 	_enter_pwrlock(&pwrctrl->lock);
 
 	register_task_alive(pwrctrl, task);
@@ -1762,19 +1712,6 @@ _func_enter_;
 		if (val8 & BIT(4))
 			pslv = PS_STATE_S2;
 
-#ifdef CONFIG_RTL8723A
-		val8 = rtw_btcoex_RpwmVal(padapter);
-		switch (val8)
-		{
-			case 0x4:
-				pslv = PS_STATE_S3;
-				break;
-
-			case 0xC:
-				pslv = PS_STATE_S4;
-				break;
-		}
-#endif // CONFIG_RTL8723A
 	}
 #endif // CONFIG_BT_COEXIST
 
@@ -1825,24 +1762,6 @@ _func_enter_;
 	res = _SUCCESS;
 	pwrctrl = adapter_to_pwrctl(padapter);
 	pslv = PS_STATE_S2;
-
-#if defined(CONFIG_RTL8723A) && defined(CONFIG_BT_COEXIST)
-	if (rtw_btcoex_IsBtControlLps(padapter) == _TRUE)
-	{
-		u8 btcoex_rpwm;
-		btcoex_rpwm = rtw_btcoex_RpwmVal(padapter);
-		switch (btcoex_rpwm)
-		{
-			case 0x4:
-				pslv = PS_STATE_S3;
-				break;
-
-			case 0xC:
-				pslv = PS_STATE_S4;
-				break;
-		}
-	}
-#endif // CONFIG_RTL8723A & CONFIG_BT_COEXIST
 
 	_enter_pwrlock(&pwrctrl->lock);
 
@@ -1902,24 +1821,6 @@ _func_enter_;
 	res = _SUCCESS;
 	pwrctrl = adapter_to_pwrctl(padapter);
 	pslv = PS_STATE_S2;
-
-#if defined(CONFIG_RTL8723A) && defined(CONFIG_BT_COEXIST)
-	if (rtw_btcoex_IsBtControlLps(padapter) == _TRUE)
-	{
-		u8 btcoex_rpwm;
-		btcoex_rpwm = rtw_btcoex_RpwmVal(padapter);
-		switch (btcoex_rpwm)
-		{
-			case 0x4:
-				pslv = PS_STATE_S3;
-				break;
-
-			case 0xC:
-				pslv = PS_STATE_S4;
-				break;
-		}
-	}
-#endif // CONFIG_RTL8723A & CONFIG_BT_COEXIST
 
 	_enter_pwrlock(&pwrctrl->lock);
 
@@ -2044,19 +1945,6 @@ _func_enter_;
 		if (val8 & BIT(4))
 			pslv = PS_STATE_S2;
 
-#ifdef CONFIG_RTL8723A
-		val8 = rtw_btcoex_RpwmVal(padapter);
-		switch (val8)
-		{
-			case 0x4:
-				pslv = PS_STATE_S3;
-				break;
-
-			case 0xC:
-				pslv = PS_STATE_S4;
-				break;
-		}
-#endif // CONFIG_RTL8723A
 	}
 #endif // CONFIG_BT_COEXIST
 
@@ -2124,19 +2012,6 @@ _func_enter_;
 		if (val8 & BIT(4))
 			pslv = PS_STATE_S2;
 
-#ifdef CONFIG_RTL8723A
-		val8 = rtw_btcoex_RpwmVal(padapter);
-		switch (val8)
-		{
-			case 0x4:
-				pslv = PS_STATE_S3;
-				break;
-
-			case 0xC:
-				pslv = PS_STATE_S4;
-				break;
-		}
-#endif // CONFIG_RTL8723A
 	}
 #endif // CONFIG_BT_COEXIST
 
@@ -2245,6 +2120,8 @@ _func_enter_;
 	pwrctrlpriv->rf_pwrstate = rf_on;
 	pwrctrlpriv->ips_enter_cnts=0;
 	pwrctrlpriv->ips_leave_cnts=0;
+	pwrctrlpriv->lps_enter_cnts=0;
+	pwrctrlpriv->lps_leave_cnts=0;
 	pwrctrlpriv->bips_processing = _FALSE;
 
 	pwrctrlpriv->ips_mode = padapter->registrypriv.ips_mode;

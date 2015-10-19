@@ -413,19 +413,25 @@ ODM_Write_DIG(
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_TRACE, ("ODM_REG(IGI_A,pDM_Odm)=0x%x, ODM_BIT(IGI,pDM_Odm)=0x%x \n",
 		ODM_REG(IGI_A,pDM_Odm),ODM_BIT(IGI,pDM_Odm)));
 
+	//1 Check initial gain by upper bound		
+	if(!pDM_DigTable->bPSDInProgress)
+	{
+		if(CurrentIGI > pDM_DigTable->rx_gain_range_max)
+		{
+			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_TRACE, ("CurrentIGI(0x%02x) is larger than upper bound !!\n",CurrentIGI));
+			CurrentIGI = pDM_DigTable->rx_gain_range_max;
+		}
+		if(pDM_Odm->SupportAbility & ODM_BB_ADAPTIVITY && pDM_Odm->adaptivity_flag == TRUE)
+		{
+			if(CurrentIGI > pDM_Odm->Adaptivity_IGI_upper)
+				CurrentIGI = pDM_Odm->Adaptivity_IGI_upper;
+	
+			ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_write_DIG(): Adaptivity case: Force upper bound to 0x%x !!!!!!\n", CurrentIGI));
+		}
+	}
+
 	if(pDM_DigTable->CurIGValue != CurrentIGI)
 	{
-		//1 Check initial gain by upper bound		
-		if(!pDM_DigTable->bPSDInProgress)
-		{
-			if(CurrentIGI > pDM_DigTable->rx_gain_range_max)
-			{
-				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_TRACE, ("CurrentIGI(0x%02x) is larger than upper bound !!\n",CurrentIGI));
-				CurrentIGI = pDM_DigTable->rx_gain_range_max;
-			}
-
-		}
-
 		//1 Set IGI value
 		if(pDM_Odm->SupportPlatform & (ODM_WIN|ODM_CE))
 		{ 
@@ -643,7 +649,7 @@ odm_DIGInit(
 {
 	PDM_ODM_T					pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	pDIG_T						pDM_DigTable = &pDM_Odm->DM_DigTable;
-#if (DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
+#if (DM_ODM_SUPPORT_TYPE & (ODM_AP))
 	PFALSE_ALARM_STATISTICS 	FalseAlmCnt = (PFALSE_ALARM_STATISTICS)PhyDM_Get_Structure( pDM_Odm, PHYDM_FALSEALMCNT);
 #endif
 
@@ -670,7 +676,7 @@ odm_DIGInit(
 	//To Initialize pDM_Odm->bDMInitialGainEnable == FALSE to avoid DIG error
 	pDM_Odm->bDMInitialGainEnable = TRUE;
 
-#if (DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
+#if (DM_ODM_SUPPORT_TYPE & (ODM_AP))
 	pDM_DigTable->DIG_Dynamic_MIN_0 = 0x25;
 	pDM_DigTable->DIG_Dynamic_MIN_1 = 0x25;
 
@@ -738,7 +744,6 @@ odm_DIG(
 	u1Byte						CurrentIGI = pDM_DigTable->CurIGValue;
 	u1Byte						offset;
 	u4Byte						dm_FA_thres[3];
-	u1Byte						Adap_IGI_Upper = 0;
 	u4Byte						TxTp = 0, RxTp = 0;
 	BOOLEAN						bDFSBand = FALSE;
 	BOOLEAN						bPerformance = TRUE, bFirstTpTarget = FALSE, bFirstCoverage = FALSE;
@@ -752,9 +757,6 @@ odm_DIG(
 		return;
 
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG()===========================>\n\n"));
-
-	if(pDM_Odm->adaptivity_flag == TRUE)
-		Adap_IGI_Upper = pDM_Odm->Adaptivity_IGI_upper;
 	
 
 	//1 Update status
@@ -947,7 +949,12 @@ odm_DIG(
 			((*pDM_Odm->pChannel >= 100) &&	(*pDM_Odm->pChannel <= 140)))
 		{
 			bDFSBand = TRUE;
-			dm_dig_min = DM_DIG_MIN_AP_DFS;
+			if (*pDM_Odm->pBandWidth == ODM_BW20M){
+				dm_dig_min = DM_DIG_MIN_AP_DFS+2;
+			}
+			else{
+				dm_dig_min = DM_DIG_MIN_AP_DFS;
+			}
 			ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): ====== In DFS band ======\n"));
 		}
 		
@@ -1100,8 +1107,8 @@ odm_DIG(
 		{
 			pDM_DigTable->rx_gain_range_min = DIG_Dynamic_MIN;
 
-			if(FirstDisConnect)
-			pDM_DigTable->ForbiddenIGI = DIG_Dynamic_MIN;
+			if (FirstDisConnect)
+				pDM_DigTable->ForbiddenIGI = DIG_Dynamic_MIN;
 		}
 		else
 			pDM_DigTable->rx_gain_range_min = odm_ForbiddenIGICheck(pDM_Odm, DIG_Dynamic_MIN, CurrentIGI);
@@ -1224,23 +1231,7 @@ odm_DIG(
 	if(CurrentIGI > pDM_DigTable->rx_gain_range_max)
 		CurrentIGI = pDM_DigTable->rx_gain_range_max;
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): CurIGValue=0x%x, TotalFA = %d\n\n", CurrentIGI, pFalseAlmCnt->Cnt_all));
-
-	//1 Force upper bound and lower bound for adaptivity
-	if(pDM_Odm->SupportAbility & ODM_BB_ADAPTIVITY && pDM_Odm->adaptivity_flag == TRUE)
-	{
-		if(CurrentIGI > Adap_IGI_Upper)
-			CurrentIGI = Adap_IGI_Upper;
-		
-		if(pDM_Odm->IGI_LowerBound != 0)
-		{
-			if(CurrentIGI < pDM_Odm->IGI_LowerBound)
-				CurrentIGI = pDM_Odm->IGI_LowerBound;
-		}
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): Adaptivity case: Force upper bound to 0x%x !!!!!!\n", Adap_IGI_Upper));
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): Adaptivity case: Force lower bound to 0x%x !!!!!!\n\n", pDM_Odm->IGI_LowerBound));
-	}
-	
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): CurIGValue=0x%x, TotalFA = %d\n\n", CurrentIGI, pFalseAlmCnt->Cnt_all));	
 
 	//1 High power RSSI threshold
 #if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
@@ -1347,14 +1338,6 @@ odm_DIGbyRSSI_LPS(
 	PDM_ODM_T					pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	PFALSE_ALARM_STATISTICS		pFalseAlmCnt = (PFALSE_ALARM_STATISTICS)PhyDM_Get_Structure( pDM_Odm, PHYDM_FALSEALMCNT);
 
-#if (DM_ODM_SUPPORT_TYPE & ODM_CE)
-#if 0		//and 2.3.5 coding rule
-	struct mlme_priv	*pmlmepriv = &(pAdapter->mlmepriv);
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);	
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-#endif
-#endif
-
 	u1Byte	RSSI_Lower=DM_DIG_MIN_NIC;   //0x1E or 0x1C
 	u1Byte	CurrentIGI=pDM_Odm->RSSI_Min;
 
@@ -1389,7 +1372,6 @@ odm_DIGbyRSSI_LPS(
 	 else if(CurrentIGI < RSSI_Lower)
 		CurrentIGI =RSSI_Lower;
 
-	
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIGbyRSSI_LPS(): pFalseAlmCnt->Cnt_all = %d\n",pFalseAlmCnt->Cnt_all));
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIGbyRSSI_LPS(): pDM_Odm->RSSI_Min = %d\n",pDM_Odm->RSSI_Min));
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIGbyRSSI_LPS(): CurrentIGI = 0x%x\n",CurrentIGI));
@@ -1419,16 +1401,6 @@ odm_FalseAlarmCounterStatistics(
 		return;
 #endif
 #endif
-
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	if((pDM_Odm->SupportICType == ODM_RTL8192D) &&
-		(*(pDM_Odm->pMacPhyMode)==ODM_DMSP)&&    ////modify by Guo.Mingzhi 2011-12-29
-		(!(*(pDM_Odm->pbMasterOfDMSP))))
-	{
-		odm_FalseAlarmCounterStatistics_ForSlaveOfDMSP(pDM_Odm);
-		return;
-	}
-#endif		
 
 	if(!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
 		return;
@@ -1617,7 +1589,7 @@ odm_FalseAlarmCounterStatistics(
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Ofdm_fail=%d\n",	FalseAlmCnt->Cnt_Ofdm_fail));
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Cck_fail=%d\n",	FalseAlmCnt->Cnt_Cck_fail));
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Ofdm_fail=%d\n",	FalseAlmCnt->Cnt_Ofdm_fail));
-	ODM_RT_TRACE(pDM_Odm,ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Total False Alarm=%d\n",	FalseAlmCnt->Cnt_all));
+	ODM_RT_TRACE(pDM_Odm,ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Total False Alarm=%d\n\n",	FalseAlmCnt->Cnt_all));
 }
 
 //3============================================================
@@ -1932,8 +1904,8 @@ ODM_MPT_DIG(
 
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_LOUD, ("===> ODM_MPT_DIG, pBandType = %d\n", *pDM_Odm->pBandType));
 	
-#if (ODM_FIX_2G_DIG || (DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL)))
-	if (*pDM_Odm->pBandType == ODM_BAND_5G || (pDM_Odm->SupportICType & ODM_RTL8814A)) // for 5G or 8814
+#if (ODM_FIX_2G_DIG || (DM_ODM_SUPPORT_TYPE & ODM_AP))
+	if (*pDM_Odm->pBandType == ODM_BAND_5G || (pDM_Odm->SupportICType & (ODM_RTL8814A|ODM_RTL8822B))) // for 5G or 8814
 #else
 	if (1) // for both 2G/5G
 #endif
@@ -1992,7 +1964,7 @@ ODM_MPT_DIG(
 	{
 		if(pDM_Odm->MPDIG_2G == FALSE)
 		{
-			if((pDM_Odm->SupportPlatform & ODM_WIN) && !(pDM_Odm->SupportICType & ODM_RTL8814A))
+			if((pDM_Odm->SupportPlatform & ODM_WIN) && !(pDM_Odm->SupportICType & (ODM_RTL8814A|ODM_RTL8822B)))
 			{
 				ODM_RT_TRACE(pDM_Odm,ODM_COMP_DIG, ODM_DBG_LOUD, ("===> Fix IGI\n"));
 				ODM_Write1Byte( pDM_Odm, ODM_REG(IGI_A,pDM_Odm), IGI_A);

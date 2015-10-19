@@ -129,7 +129,7 @@ void Hal_mpt_SwitchRfSetting(PADAPTER pAdapter)
 s32 Hal_SetPowerTracking(PADAPTER padapter, u8 enable)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 
 
 	if (!netif_running(padapter->pnetdev)) {
@@ -141,11 +141,10 @@ s32 Hal_SetPowerTracking(PADAPTER padapter, u8 enable)
 		RT_TRACE(_module_mp_, _drv_warning_, ("SetPowerTracking! Fail: not in MP mode!\n"));
 		return _FAIL;
 	}
-
-	if (enable)
-		pdmpriv->TxPowerTrackControl = _TRUE;
+	if (enable) 
+		pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = _TRUE;	
 	else
-		pdmpriv->TxPowerTrackControl = _FALSE;
+		pDM_Odm->RFCalibrateInfo.TxPowerTrackControl= _FALSE;
 
 	return _SUCCESS;
 }
@@ -153,18 +152,18 @@ s32 Hal_SetPowerTracking(PADAPTER padapter, u8 enable)
 void Hal_GetPowerTracking(PADAPTER padapter, u8 *enable)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 
 
-	*enable = pdmpriv->TxPowerTrackControl;
+	*enable = pDM_Odm->RFCalibrateInfo.TxPowerTrackControl;
 }
+
 
 static void Hal_disable_dm(PADAPTER padapter)
 {
 	u8 v8;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-
+	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 
 	//3 1. disable firmware dynamic mechanism
 	// disable Power Training, Rate Adaptive
@@ -173,14 +172,11 @@ static void Hal_disable_dm(PADAPTER padapter)
 	rtw_write8(padapter, REG_BCN_CTRL, v8);
 
 	//3 2. disable driver dynamic mechanism
-	// disable Dynamic Initial Gain
-	// disable High Power
-	// disable Power Tracking
 	Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, _FALSE);
 
 	// enable APK, LCK and IQK but disable power tracking
-	pdmpriv->TxPowerTrackControl = _FALSE;
-	Switch_DM_Func(padapter, DYNAMIC_RF_TX_PWR_TRACK , _TRUE);
+	pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = _FALSE;
+	Switch_DM_Func(padapter, ODM_RF_CALIBRATION , _TRUE);
 }
 
 void Hal_MPT_CCKTxPowerAdjust(PADAPTER Adapter, BOOLEAN bInCH14)
@@ -273,7 +269,9 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven)
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	PMPT_CONTEXT	pMptCtx = &pAdapter->mppriv.MptCtx;
 
-
+#if 1
+	return;
+#else
 	if (!IS_92C_SERIAL(pHalData->VersionID))
 		return;
 #if 0
@@ -371,6 +369,7 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven)
 
 	PlatformAtomicExchange(&Adapter->IntrCCKRefCount, FALSE);
 #endif
+#endif
 }
 /*---------------------------hal\rtl8192c\MPT_HelperFunc.c---------------------------*/
 
@@ -391,6 +390,7 @@ void Hal_SetChannel(PADAPTER pAdapter)
 	u8 		eRFPath;
 
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
+	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 	struct mp_priv	*pmp = &pAdapter->mppriv;
 	u8		channel = pmp->channel;
 	u8		bandwidth = pmp->bandwidth;
@@ -400,22 +400,19 @@ void Hal_SetChannel(PADAPTER pAdapter)
 	// set RF channel register
 	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
 	{
-      if(IS_HARDWARE_TYPE_8192D(pAdapter))
-			_write_rfreg(pAdapter, (RF_PATH)eRFPath, rRfChannel, 0xFF, channel);
-		else
-		_write_rfreg(pAdapter, eRFPath, rRfChannel, 0x3FF, channel);
+      		_write_rfreg(pAdapter, eRFPath, rRfChannel, 0x3FF, channel);
 	}
 	Hal_mpt_SwitchRfSetting(pAdapter);
 
 	SelectChannel(pAdapter, channel);
 
-	if (pHalData->CurrentChannel == 14 && !pHalData->dmpriv.bCCKinCH14) {
-		pHalData->dmpriv.bCCKinCH14 = _TRUE;
-		Hal_MPT_CCKTxPowerAdjust(pAdapter, pHalData->dmpriv.bCCKinCH14);
+	if (pHalData->CurrentChannel == 14 && !pDM_Odm->RFCalibrateInfo.bCCKinCH14) {
+		pDM_Odm->RFCalibrateInfo.bCCKinCH14 = _TRUE;
+		Hal_MPT_CCKTxPowerAdjust(pAdapter, pDM_Odm->RFCalibrateInfo.bCCKinCH14);
 	}
-	else if (pHalData->CurrentChannel != 14 && pHalData->dmpriv.bCCKinCH14) {
-		pHalData->dmpriv.bCCKinCH14 = _FALSE;
-		Hal_MPT_CCKTxPowerAdjust(pAdapter, pHalData->dmpriv.bCCKinCH14);
+	else if (pHalData->CurrentChannel != 14 && pDM_Odm->RFCalibrateInfo.bCCKinCH14) {
+		pDM_Odm->RFCalibrateInfo.bCCKinCH14 = _FALSE;
+		Hal_MPT_CCKTxPowerAdjust(pAdapter, pDM_Odm->RFCalibrateInfo.bCCKinCH14);
 	}
 
 #endif
@@ -669,8 +666,7 @@ void Hal_SetDataRate(PADAPTER pAdapter)
 	
 	DataRate=MptToMgntRate(pAdapter->mppriv.rateidx);
 	
-		if(!IS_HARDWARE_TYPE_8723A(pAdapter))
-	        Hal_mpt_SwitchRfSetting(pAdapter);
+		Hal_mpt_SwitchRfSetting(pAdapter);
 		if (IS_CCK_RATE(DataRate))
 		{
 			if (pMptCtx->MptRfPath == ODM_RF_PATH_A) // S1
@@ -900,7 +896,6 @@ void Hal_SetSingleToneTx(PADAPTER pAdapter, u8 bStart)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	PMPT_CONTEXT		pMptCtx = &(pAdapter->mppriv.MptCtx);
-	BOOLEAN		is92C = IS_92C_SERIAL(pHalData->VersionID);
 	static u4Byte       reg58 = 0x0;
 	static u4Byte       regRF0x0 = 0x0;
     static u4Byte       reg0xCB0 = 0x0;
@@ -1169,13 +1164,6 @@ void Hal_SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart)
 
 		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
 		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
-#ifdef CONFIG_RTL8192C
-		// Patch for CCK 11M waveform
-		if (cckrate == MPT_RATE_1M)
-			write_bbreg(pAdapter, 0xA71, BIT(6), bDisable);
-		else
-			write_bbreg(pAdapter, 0xA71, BIT(6), bEnable);
-#endif
 
 	}
 	else {

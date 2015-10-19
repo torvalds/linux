@@ -61,7 +61,6 @@
 		#define CONFIG_HOSTAPD_MLME
 	#endif
 	//#define CONFIG_FIND_BEST_CHANNEL
-	//#define CONFIG_NO_WIRELESS_HANDLERS
 	#define CONFIG_TX_MCAST2UNI	// Support IP multicast->unicast
 
 	//#define CONFIG_AUTO_AP_MODE
@@ -73,9 +72,8 @@
 	//The CONFIG_WFD is for supporting the Wi-Fi display
 	#define CONFIG_WFD
 
-	#ifndef CONFIG_WIFI_TEST
-		#define CONFIG_P2P_REMOVE_GROUP_INFO
-	#endif
+	#define CONFIG_P2P_REMOVE_GROUP_INFO
+
 	//#define CONFIG_DBG_P2P
 	#define CONFIG_P2P_PS
 	//#define CONFIG_P2P_IPS
@@ -85,13 +83,14 @@
 #endif
 
 // Added by Kurt 20110511
-//#define CONFIG_TDLS
 #ifdef CONFIG_TDLS
+	#define CONFIG_TDLS_DRIVER_SETUP
 //	#ifndef CONFIG_WFD
 //		#define CONFIG_WFD
 //	#endif
 //	#define CONFIG_TDLS_AUTOSETUP
-//	#define CONFIG_TDLS_AUTOCHECKALIVE
+	#define CONFIG_TDLS_AUTOCHECKALIVE
+	#define CONFIG_TDLS_CH_SW		/* Enable "CONFIG_TDLS_CH_SW" by default, however limit it to only work in wifi logo test mode but not in normal mode currently */
 #endif
 
 //#define CONFIG_CONCURRENT_MODE	// Set from Makefile
@@ -138,19 +137,11 @@
 
 #define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
 
-//#define CONFIG_IOL
-#ifdef CONFIG_IOL
-	#define CONFIG_IOL_READ_EFUSE_MAP
-	//#define DBG_IOL_READ_EFUSE_MAP
-	#define CONFIG_IOL_LLT
-#endif
-
-
 /*
  * Interface Related Config
  */
 #define CONFIG_USB_TX_AGGREGATION
-//#define CONFIG_USB_RX_AGGREGATION
+#define CONFIG_USB_RX_AGGREGATION
 
 #define USB_INTERFERENCE_ISSUE // this should be checked in all usb interface
 
@@ -189,8 +180,6 @@
  */
 #define CONFIG_SKB_COPY	//for amsdu
 
-#define CONFIG_PREALLOC_RECV_SKB
-
 //#define CONFIG_EASY_REPLACEMENT
 
 //#define CONFIG_ADAPTOR_INFO_CACHING_FILE // now just applied on 8192cu only, should make it general...
@@ -213,9 +202,6 @@
 
 #define CONFIG_LONG_DELAY_ISSUE
 #define CONFIG_ATTEMPT_TO_FIX_AP_BEACON_ERROR
-
-// Android L(5.0) support
-#define CONFIG_RADIO_WORK
 
 
 /*
@@ -275,7 +261,6 @@
 	#ifndef WAKEUP_GPIO_IDX
 		#define WAKEUP_GPIO_IDX	14	// WIFI Chip Side
 	#endif // !WAKEUP_GPIO_IDX
-	#define CONFIG_GPIO_WAKEUP_LOW_ACTIVE	// mark this for HIGH active
 #endif // CONFIG_GPIO_WAKEUP
 
 #ifdef CONFIG_AP_MODE
@@ -290,10 +275,11 @@
 #endif // CONFIG_AP_MODE
 
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
-	#undef CONFIG_PREALLOC_RECV_SKB
+
 #else
+	#define CONFIG_PREALLOC_RECV_SKB
 	#ifdef CONFIG_PREALLOC_RECV_SKB
-//		#define CONFIG_FIX_NR_BULKIN_BUFFER	// only use USB prealloc_recv_buffer, no use alloc_skb()
+		//#define CONFIG_FIX_NR_BULKIN_BUFFER /* only use PREALLOC_RECV_SKB buffer, don't alloc skb at runtime */
 	#endif
 #endif
 
@@ -311,21 +297,7 @@
  */
 
 #define TESTCHIP_SUPPORT				0
-
-#define RTL8192CE_SUPPORT				0
-#define RTL8192CU_SUPPORT				0
-#define RTL8192C_SUPPORT				(RTL8192CE_SUPPORT|RTL8192CU_SUPPORT)
-
-#define RTL8192DE_SUPPORT				0
-#define RTL8192DU_SUPPORT				0
-#define RTL8192D_SUPPORT				(RTL8192DE_SUPPORT|RTL8192DU_SUPPORT)
-
-#define RTL8723AS_SUPPORT				0
-#define RTL8723AU_SUPPORT				0
-#define RTL8723AE_SUPPORT				0
-#define RTL8723A_SUPPORT				(RTL8723AU_SUPPORT|RTL8723AS_SUPPORT|RTL8723AE_SUPPORT)
-#define RTL8723_FPGA_VERIFICATION		0
-
+ 
 #define RTL8188E_SUPPORT				0
 #define RTL8812A_SUPPORT				0
 #define RTL8821A_SUPPORT				0

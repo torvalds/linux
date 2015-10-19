@@ -107,6 +107,8 @@ typedef struct _COEX_DM_8723B_2ANT{
 	u1Byte		curLps;
 	u1Byte		preRpwm;
 	u1Byte		curRpwm;
+
+	BOOLEAN		bIsSwitchTo1dot5Ant;
 } COEX_DM_8723B_2ANT, *PCOEX_DM_8723B_2ANT;
 
 typedef struct _COEX_STA_8723B_2ANT{	
@@ -131,8 +133,11 @@ typedef struct _COEX_STA_8723B_2ANT{
 	u4Byte					btInfoC2hCnt[BT_INFO_SRC_8723B_2ANT_MAX];
 	BOOLEAN 				bBtWhckTest;
 	BOOLEAN					bC2hBtInquiryPage;
+	BOOLEAN					bC2hBtRemoteNameReq;
 	u1Byte					btRetryCnt;
 	u1Byte					btInfoExt;
+	u4Byte					popEventCnt;
+    	u1Byte					nScanAPNum;
 
 	u4Byte					nCRCOK_CCK;
 	u4Byte					nCRCOK_11g;
@@ -148,6 +153,9 @@ typedef struct _COEX_STA_8723B_2ANT{
 	BOOLEAN					bForceLpsOn;
 
 	u1Byte					disVerInfoCnt;
+
+	u1Byte					nA2DPBitPool;
+	u1Byte					nCutVersion;
 }COEX_STA_8723B_2ANT, *PCOEX_STA_8723B_2ANT;
 
 //===========================================

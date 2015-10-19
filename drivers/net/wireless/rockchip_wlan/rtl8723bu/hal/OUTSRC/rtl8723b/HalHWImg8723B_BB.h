@@ -18,6 +18,7 @@
 * 
 ******************************************************************************/
 
+/*Image2HeaderVersion: 2.9*/
 #if (RTL8723B_SUPPORT == 1)
 #ifndef __INC_MP_BB_HW_IMG_8723B_H
 #define __INC_MP_BB_HW_IMG_8723B_H
@@ -28,7 +29,7 @@
 ******************************************************************************/
 
 void
-ODM_ReadAndConfig_MP_8723B_AGC_TAB( // TC: Test Chip, MP: MP Chip
+ODM_ReadAndConfig_MP_8723B_AGC_TAB(/* TC: Test Chip, MP: MP Chip*/
 	IN   PDM_ODM_T  pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8723B_AGC_TAB(void);
@@ -38,7 +39,7 @@ u4Byte ODM_GetVersion_MP_8723B_AGC_TAB(void);
 ******************************************************************************/
 
 void
-ODM_ReadAndConfig_MP_8723B_PHY_REG( // TC: Test Chip, MP: MP Chip
+ODM_ReadAndConfig_MP_8723B_PHY_REG(/* TC: Test Chip, MP: MP Chip*/
 	IN   PDM_ODM_T  pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8723B_PHY_REG(void);
@@ -48,11 +49,11 @@ u4Byte ODM_GetVersion_MP_8723B_PHY_REG(void);
 ******************************************************************************/
 
 void
-ODM_ReadAndConfig_MP_8723B_PHY_REG_PG( // TC: Test Chip, MP: MP Chip
+ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(/* TC: Test Chip, MP: MP Chip*/
 	IN   PDM_ODM_T  pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8723B_PHY_REG_PG(void);
 
 #endif
-#endif // end of HWIMG_SUPPORT
+#endif /* end of HWIMG_SUPPORT*/
 

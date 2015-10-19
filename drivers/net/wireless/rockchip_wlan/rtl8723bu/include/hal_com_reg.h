@@ -43,6 +43,7 @@
 #define REG_SYS_FUNC_EN				0x0002
 #define REG_APS_FSMCO					0x0004
 #define REG_SYS_CLKR					0x0008
+#define REG_SYS_CLK_CTRL				REG_SYS_CLKR
 #define REG_9346CR						0x000A
 #define REG_SYS_EEPROM_CTRL			0x000A
 #define REG_EE_VPD						0x000C
@@ -1211,6 +1212,7 @@ Current IOREG MAP
 #define RFINI_RDY				BIT(5)
 #define WINTINI_RDY				BIT(6)
 #define RAM_DL_SEL				BIT(7)
+#define CPU_DL_READY			BIT(15) /* add flag  by gw for fw download ready 20130826 */
 #define ROM_DLEN				BIT(19)
 #define CPRST					BIT(23)
 
@@ -1762,6 +1764,7 @@ Current IOREG MAP
 
 
 // GPIO BIT
+#define	HAL_8812A_HW_GPIO_WPS_BIT	BIT2
 #define	HAL_8192C_HW_GPIO_WPS_BIT	BIT2
 #define	HAL_8192EU_HW_GPIO_WPS_BIT	BIT7
 #define	HAL_8188E_HW_GPIO_WPS_BIT	BIT7

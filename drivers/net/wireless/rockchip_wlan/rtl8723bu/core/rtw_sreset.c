@@ -162,7 +162,7 @@ void sreset_restore_security_station(_adapter *padapter)
 		else
 		{
 			//pairwise key
-			rtw_setstakey_cmd(padapter, psta, _TRUE,_FALSE);
+			rtw_setstakey_cmd(padapter, psta, UNICAST_KEY,_FALSE);
 			//group key
 			rtw_set_key(padapter,&padapter->securitypriv,padapter->securitypriv.dot118021XGrpKeyid, 0,_FALSE);
 		}

@@ -31,6 +31,7 @@ unsigned char ARTHEROS_OUI2[] = {0x00, 0x13, 0x74};
 unsigned char BROADCOM_OUI1[] = {0x00, 0x10, 0x18};
 unsigned char BROADCOM_OUI2[] = {0x00, 0x0a, 0xf7};
 unsigned char BROADCOM_OUI3[] = {0x00, 0x05, 0xb5};
+unsigned char BROADCOM_OUI4[] = {0x00, 0x90, 0x4c};
 
 unsigned char CISCO_OUI[] = {0x00, 0x40, 0x96};
 unsigned char MARVELL_OUI[] = {0x00, 0x50, 0x43};
@@ -80,7 +81,7 @@ int cckrates_included(unsigned char *rate, int ratelen)
 	{
 		if  (  (((rate[i]) & 0x7f) == 2)	|| (((rate[i]) & 0x7f) == 4) ||
 			   (((rate[i]) & 0x7f) == 11)  || (((rate[i]) & 0x7f) == 22) )
-		return _TRUE;	
+			return _TRUE;
 	}
 
 	return _FALSE;
@@ -95,7 +96,7 @@ int cckratesonly_included(unsigned char *rate, int ratelen)
 	{
 		if  ( (((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
 			   (((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22) )
-		return _FALSE;	
+			return _FALSE;
 	}
 	
 	return _TRUE;
@@ -139,13 +140,17 @@ u8 networktype_to_raid(_adapter *adapter,struct sta_info *psta)
 u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 {
 	struct mlme_ext_priv	*pmlmeext = &adapter->mlmeextpriv;
-	u8 raid, cur_rf_type, rf_type= RF_1T1R;
+	u8 raid = RATEID_IDX_BGN_40M_1SS, cur_rf_type, rf_type, custom_rf_type;
 
+	cur_rf_type = rf_type = RF_1T1R;
+	custom_rf_type = adapter->registrypriv.rf_config;
 	rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&cur_rf_type));
 
 	if(cur_rf_type == RF_1T1R) {
 		rf_type = RF_1T1R;
 	}
+	else if(cur_rf_type == RF_3T3R)
+		rf_type = RF_3T3R;
 	else if(IsSupportedVHT(psta->wireless_mode)) {
 		if(psta->ra_mask & 0xffc00000)
 			rf_type = RF_2T2R;
@@ -154,6 +159,7 @@ u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 		if(psta->ra_mask & 0xfff00000)
 			rf_type = RF_2T2R;
 	}
+
 
 	switch(psta->wireless_mode)
 	{
@@ -171,54 +177,82 @@ u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 		case WIRELESS_11_5N:
 		case WIRELESS_11A_5N:
 		case WIRELESS_11G_24N:
-			if (rf_type == RF_2T2R)
-				raid = RATEID_IDX_GN_N2SS;
-			else
+			if (rf_type == RF_1T1R || custom_rf_type == RF_1T2R)
 				raid = RATEID_IDX_GN_N1SS;
+			else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
+				raid = RATEID_IDX_GN_N2SS;
+			else if (rf_type == RF_3T3R)
+				raid = RATEID_IDX_BGN_3SS;
+			else
+				DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
 			break;
 		case WIRELESS_11B_24N:
 		case WIRELESS_11BG_24N:
 			if (psta->bw_mode == CHANNEL_WIDTH_20) {
-				if (rf_type == RF_2T2R)
-					raid = RATEID_IDX_BGN_20M_2SS_BN;
-				else
+				if (rf_type == RF_1T1R || custom_rf_type == RF_1T2R)
 					raid = RATEID_IDX_BGN_20M_1SS_BN;
-			} else {
-				if (rf_type == RF_2T2R)
-					raid = RATEID_IDX_BGN_40M_2SS;
+				else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
+					raid = RATEID_IDX_BGN_20M_2SS_BN;
+				else if(rf_type == RF_3T3R)
+					raid = RATEID_IDX_BGN_3SS;
 				else
+				DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
+			} else {
+				if (rf_type == RF_1T1R || custom_rf_type == RF_1T2R)
 					raid = RATEID_IDX_BGN_40M_1SS;
+				else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
+					raid = RATEID_IDX_BGN_40M_2SS;
+				else if(rf_type == RF_3T3R)
+					raid = RATEID_IDX_BGN_3SS;
+				else
+				DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
 			}
 			break;
 #ifdef CONFIG_80211AC_VHT
 		case WIRELESS_11_5AC:
-			if (rf_type == RF_1T1R)
+			if (rf_type == RF_1T1R || custom_rf_type == RF_1T2R)
 				raid = RATEID_IDX_VHT_1SS;
-			else
+			else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
 				raid = RATEID_IDX_VHT_2SS;
+			else if (rf_type == RF_3T3R)
+				raid = RATEID_IDX_VHT_3SS;
+			else
+				DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
 			break;
 		case WIRELESS_11_24AC:
 			if (psta->bw_mode >= CHANNEL_WIDTH_80)
 			{
-				if (rf_type == RF_1T1R)
+				if (rf_type == RF_1T1R || custom_rf_type == RF_1T2R)
 					raid = RATEID_IDX_VHT_1SS;
-				else
+				else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
 					raid = RATEID_IDX_VHT_2SS;
+				else if (rf_type == RF_3T3R)
+					raid = RATEID_IDX_VHT_3SS;
+				else
+					DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
 			}
 			else
 			{
-				if (rf_type == RF_1T1R)
-					raid = 11;
+				if (rf_type == RF_1T1R || custom_rf_type == RF_1T2R)
+					raid = RATEID_IDX_MIX1;
+				else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
+					raid = RATEID_IDX_MIX2;
+				else if (rf_type == RF_3T3R)
+					raid = RATEID_IDX_VHT_3SS;
 				else
-					raid = 12;
+					DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
 			}
 			break;
 #endif
 		default:
-			raid = RATEID_IDX_BGN_40M_2SS;
+			DBG_871X("unexpected wireless mode!(psta->wireless_mode=%x)\n", psta->wireless_mode);
 			break;	
 
 	}
+	
+	/*DBG_871X("psta->wireless_mode=%x,  cur_rf_type=%d , rf_type=%d , raid=%d \n"
+	, psta->wireless_mode, cur_rf_type, rf_type, raid);*/
+	
 	return raid;
 	
 }
@@ -662,12 +696,6 @@ void SelectChannel(_adapter *padapter, unsigned char channel)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;	
 
-#ifdef CONFIG_DUALMAC_CONCURRENT
-	//saved channel info
-	rtw_set_oper_ch(padapter, channel);
-	dc_SelectChannel(padapter, channel);
-#else //CONFIG_DUALMAC_CONCURRENT
-
 	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 	
 	//saved channel info
@@ -677,19 +705,11 @@ void SelectChannel(_adapter *padapter, unsigned char channel)
 	
 	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 		
-#endif // CONFIG_DUALMAC_CONCURRENT
 }
 
 void SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_offset)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-
-#ifdef CONFIG_DUALMAC_CONCURRENT
-	//saved bw info
-	rtw_set_oper_bw(padapter, bwmode);
-	rtw_set_oper_choffset(padapter, channel_offset);
-	dc_SetBWMode(padapter, bwmode, channel_offset);
-#else //CONFIG_DUALMAC_CONCURRENT
 
 	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->setbw_mutex), NULL);
 
@@ -700,8 +720,6 @@ void SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_
 	rtw_hal_set_bwmode(padapter, (CHANNEL_WIDTH)bwmode, channel_offset);
 
 	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->setbw_mutex), NULL);
-
-#endif // CONFIG_DUALMAC_CONCURRENT
 }
 
 void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char channel_offset, unsigned short bwmode)
@@ -725,19 +743,10 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 		else
 			chnl_offset80 = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 	}
-
-	//set Channel
-#ifdef CONFIG_DUALMAC_CONCURRENT
-	//saved channel/bw info
-	rtw_set_oper_ch(padapter, channel);
-	rtw_set_oper_bw(padapter, bwmode);
-	rtw_set_oper_choffset(padapter, channel_offset);
-	SelectChannel(padapter, channel);
-	SetBWMode(padapter, bwmode, channel_offset);
-#else //CONFIG_DUALMAC_CONCURRENT
-	
 	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 
+
+	//set Channel
 	//saved channel/bw info
 	rtw_set_oper_ch(padapter, channel);
 	rtw_set_oper_bw(padapter, bwmode);
@@ -746,8 +755,6 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 	rtw_hal_set_chnl_bw(padapter, center_ch, bwmode, channel_offset, chnl_offset80); // set center channel
 
 	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
-
-#endif // CONFIG_DUALMAC_CONCURRENT
 }
 
 int get_bsstype(unsigned short capability)
@@ -1659,7 +1666,7 @@ void HT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 {
 #ifdef CONFIG_80211N_HT
 	unsigned int	i;
-	u8	rf_type;
+	u8	rf_type = RF_1T1R;
 	u8	max_AMPDU_len, min_MPDU_spacing;
 	u8	cur_ldpc_cap=0, cur_stbc_cap=0, cur_beamform_cap=0;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -1730,9 +1737,8 @@ void HT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 		case RF_1T2R:
 			set_mcs_rate_by_mask(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_RATE_1R);							
 			break;
-		case RF_2T2R:		
-		default:
-#ifdef CONFIG_DISABLE_MCS13TO15
+		case RF_2T2R:
+			#ifdef CONFIG_DISABLE_MCS13TO15
 			if(pmlmeext->cur_bwmode == CHANNEL_WIDTH_40 && pregistrypriv->wifi_spec != 1 )				
 				set_mcs_rate_by_mask(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_RATE_2R_13TO15_OFF);				
 			else
@@ -1740,6 +1746,12 @@ void HT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 #else //CONFIG_DISABLE_MCS13TO15
 			set_mcs_rate_by_mask(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_RATE_2R);
 #endif //CONFIG_DISABLE_MCS13TO15
+			break;
+		case RF_3T3R:
+			set_mcs_rate_by_mask(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_RATE_3R);
+			break;
+		default:
+			DBG_871X("[warning] rf_type %d is not expected\n", rf_type);
 	}
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
@@ -2007,23 +2019,6 @@ void	update_ldpc_stbc_cap(struct sta_info *psta)
 #endif //CONFIG_80211N_HT
 }
 
-#ifdef CONFIG_TDLS
-int check_ap_tdls_prohibited(u8 *pframe, u8 pkt_len)
-{
-	u8 tdls_prohibited_bit = 0x40; //bit(38); TDLS_prohibited
-
-	if(pkt_len < 5)
-	{
-		return _FALSE;
-	}
-
-	pframe += 4;
-	if( (*pframe) & tdls_prohibited_bit )
-		return _TRUE;
-
-	return _FALSE;
-}
-#endif //CONFIG_TDLS
 
 /*
  * rtw_get_bcn_keys: get beacon keys from recv frame
@@ -2495,6 +2490,8 @@ void update_beacon_info(_adapter *padapter, u8 *pframe, uint pkt_len, struct sta
 			case _EXT_CAP_IE_:
 				if( check_ap_tdls_prohibited(pIE->data, pIE->Length) == _TRUE )
 					ptdlsinfo->ap_prohibited = _TRUE;
+				if (check_ap_tdls_ch_switching_prohibited(pIE->data, pIE->Length) == _TRUE)
+					ptdlsinfo->ch_switch_prohibited = _TRUE;
 				break;
 #endif //CONFIG_TDLS
 			default:
@@ -2608,7 +2605,7 @@ unsigned int should_forbid_n_rate(_adapter * padapter)
 				case _RSN_IE_2_:
 					if  ((_rtw_memcmp((pIE->data + 8), RSN_CIPHER_SUITE_CCMP, 4))  ||
 					       (_rtw_memcmp((pIE->data + 12), RSN_CIPHER_SUITE_CCMP, 4)))
-					return _FALSE;
+						return _FALSE;
 
 				default:
 					break;
@@ -2898,9 +2895,10 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 					DBG_871X("link to Artheros AP\n");
 					return HT_IOT_PEER_ATHEROS;
 				}
-				else if ((_rtw_memcmp(pIE->data, BROADCOM_OUI1, 3))
-							|| (_rtw_memcmp(pIE->data, BROADCOM_OUI2, 3))
-							|| (_rtw_memcmp(pIE->data, BROADCOM_OUI2, 3)))
+				else if (	(_rtw_memcmp(pIE->data, BROADCOM_OUI1, 3))
+						|| (_rtw_memcmp(pIE->data, BROADCOM_OUI2, 3))
+						|| (_rtw_memcmp(pIE->data, BROADCOM_OUI3, 3))
+						|| (_rtw_memcmp(pIE->data, BROADCOM_OUI4, 3)))
 				{
 					DBG_871X("link to Broadcom AP\n");
 					return HT_IOT_PEER_BROADCOM;
@@ -2975,38 +2973,6 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 	
 	DBG_871X("link to new AP\n");
 	return HT_IOT_PEER_UNKNOWN;
-}
-
-void update_IOT_info(_adapter *padapter)
-{
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	
-	switch (pmlmeinfo->assoc_AP_vendor)
-	{
-		case HT_IOT_PEER_MARVELL:
-			pmlmeinfo->turboMode_cts2self = 1;
-			pmlmeinfo->turboMode_rtsen = 0;
-			break;
-		
-		case HT_IOT_PEER_RALINK:
-			pmlmeinfo->turboMode_cts2self = 0;
-			pmlmeinfo->turboMode_rtsen = 1;
-			//disable high power			
-			Switch_DM_Func(padapter, (~DYNAMIC_BB_DYNAMIC_TXPWR), _FALSE);
-			break;
-		case HT_IOT_PEER_REALTEK:
-			//rtw_write16(padapter, 0x4cc, 0xffff);
-			//rtw_write16(padapter, 0x546, 0x01c0);
-			//disable high power			
-			Switch_DM_Func(padapter, (~DYNAMIC_BB_DYNAMIC_TXPWR), _FALSE);
-			break;
-		default:
-			pmlmeinfo->turboMode_cts2self = 0;
-			pmlmeinfo->turboMode_rtsen = 1;
-			break;	
-	}
-	
 }
 
 void update_capinfo(PADAPTER Adapter, u16 updateCap)
@@ -3123,6 +3089,7 @@ void update_wireless_mode(_adapter *padapter)
 	}
 
 	pmlmeext->cur_wireless_mode = network_type & padapter->registrypriv.wireless_mode;
+	/* DBG_871X("network_type=%02x, padapter->registrypriv.wireless_mode=%02x\n", network_type, padapter->registrypriv.wireless_mode); */
 /*
 	if((pmlmeext->cur_wireless_mode==WIRELESS_11G) ||
 		(pmlmeext->cur_wireless_mode==WIRELESS_11BG))//WIRELESS_MODE_G)
@@ -3134,9 +3101,9 @@ void update_wireless_mode(_adapter *padapter)
 	SIFS_Timer = 0x0a0a0808; //0x0808 -> for CCK, 0x0a0a -> for OFDM
                              //change this value if having IOT issues.
 		
-	padapter->HalFunc.SetHwRegHandler( padapter, HW_VAR_RESP_SIFS,  (u8 *)&SIFS_Timer);
+	rtw_hal_set_hwreg( padapter, HW_VAR_RESP_SIFS,  (u8 *)&SIFS_Timer);
 
-	padapter->HalFunc.SetHwRegHandler( padapter, HW_VAR_WIRELESS_MODE,  (u8 *)&(pmlmeext->cur_wireless_mode));
+	rtw_hal_set_hwreg( padapter, HW_VAR_WIRELESS_MODE,  (u8 *)&(pmlmeext->cur_wireless_mode));
 
 #ifdef CONFIG_P2P
 	//	Added by Thomas 20130822
@@ -3232,31 +3199,41 @@ void process_addba_req(_adapter *padapter, u8 *paddba_req, u8 *addr)
 	struct ADDBA_request	*preq = (struct ADDBA_request*)paddba_req;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	u8 size;
 
 	psta = rtw_get_stainfo(pstapriv, addr);
+	if (!psta)
+		goto exit;
 
-	if(psta)
-	{
-		start_seq = le16_to_cpu(preq->BA_starting_seqctrl) >> 4;
-			
-		param = le16_to_cpu(preq->BA_para_set);
-		tid = (param>>2)&0x0f;
-		
-		preorder_ctrl = &psta->recvreorder_ctrl[tid];
+	start_seq = le16_to_cpu(preq->BA_starting_seqctrl) >> 4;
 
-		#ifdef CONFIG_UPDATE_INDICATE_SEQ_WHILE_PROCESS_ADDBA_REQ
-		preorder_ctrl->indicate_seq = start_seq;
-		#ifdef DBG_RX_SEQ
-		DBG_871X("DBG_RX_SEQ %s:%d IndicateSeq: %d, start_seq: %d\n", __FUNCTION__, __LINE__,
-			preorder_ctrl->indicate_seq, start_seq);
-		#endif
-		#else
-		preorder_ctrl->indicate_seq = 0xffff;
-		#endif
-		
-		preorder_ctrl->enable =(pmlmeinfo->bAcceptAddbaReq == _TRUE)? _TRUE :_FALSE;
+	param = le16_to_cpu(preq->BA_para_set);
+	tid = (param>>2)&0x0f;
+
+	preorder_ctrl = &psta->recvreorder_ctrl[tid];
+
+	#ifdef CONFIG_UPDATE_INDICATE_SEQ_WHILE_PROCESS_ADDBA_REQ
+	preorder_ctrl->indicate_seq = start_seq;
+	#ifdef DBG_RX_SEQ
+	DBG_871X("DBG_RX_SEQ %s:%d IndicateSeq: %d, start_seq: %d\n", __func__, __LINE__,
+		preorder_ctrl->indicate_seq, start_seq);
+	#endif
+	#else
+	preorder_ctrl->indicate_seq = 0xffff;
+	#endif
+
+	preorder_ctrl->enable = rtw_rx_ampdu_is_accept(padapter);
+	size = rtw_rx_ampdu_size(padapter);
+
+	if (preorder_ctrl->enable == _TRUE) {
+		preorder_ctrl->ampdu_size = size;
+		issue_addba_rsp(padapter, addr, tid, 0, size);
+	} else {
+		issue_addba_rsp(padapter, addr, tid, 37, size); /* reject ADDBA Req */
 	}
 
+exit:
+	return;
 }
 
 void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
@@ -3511,7 +3488,7 @@ void rtw_alloc_macid(_adapter *padapter, struct sta_info *psta)
 	//static u8 last_id = 0; /* for testing */
 	u8 last_id = 0;
 
-	if (_rtw_memcmp(psta->hwaddr, myid(&padapter->eeprompriv), ETH_ALEN)) {
+	if (_rtw_memcmp(psta->hwaddr, adapter_mac_addr(padapter), ETH_ALEN)) {
 		psta->mac_id = macid_ctl->num;
 		return;
 	}
@@ -3585,7 +3562,7 @@ void rtw_release_macid(_adapter *padapter, struct sta_info *psta)
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 	struct macid_ctl_t *macid_ctl = dvobj_to_macidctl(dvobj);
 
-	if(_rtw_memcmp(psta->hwaddr, myid(&padapter->eeprompriv), ETH_ALEN))
+	if (_rtw_memcmp(psta->hwaddr, adapter_mac_addr(padapter), ETH_ALEN))
 		return;
 
 #ifdef CONFIG_SHARED_BMC_MACID
@@ -3679,7 +3656,7 @@ unsigned int setup_beacon_frame(_adapter *padapter, unsigned char *beacon_frame)
 	*(fctrl) = 0;
 	
 	_rtw_memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+	_rtw_memcpy(pwlanhdr->addr2, adapter_mac_addr(padapter), ETH_ALEN);
 	_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(cur_network), ETH_ALEN);
 	
 	SetFrameSubType(pframe, WIFI_BEACON);
@@ -3756,59 +3733,6 @@ unsigned int setup_beacon_frame(_adapter *padapter, unsigned char *beacon_frame)
 }
 #endif
 
-static _adapter *pbuddy_padapter = NULL;
-
-int rtw_handle_dualmac(_adapter *adapter, bool init)
-{
-	int status = _SUCCESS;
-	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
-
-	if(adapter->chip_type != RTL8192D)	
-		goto exit;
-		
-	if (init) {
-		#if 0
-		/* For SMSP on 92DU-VC, driver do not probe another Interface. */
-		if(dvobj->NumInterfaces == 2 && dvobj->InterfaceNumber != 0 &&
-			adapter->registrypriv.mac_phy_mode == 1) {
-			DBG_871X("%s(): Do not init another USB Interface because SMSP\n",__FUNCTION__);
-			status = _FAIL;
-			goto exit;
-		}
-		#endif
-		
-		if (pbuddy_padapter == NULL) {
-			pbuddy_padapter = adapter;
-			DBG_871X("%s(): pbuddy_padapter == NULL, Set pbuddy_padapter\n",__FUNCTION__);
-		} else {
-			adapter->pbuddy_adapter = pbuddy_padapter;
-			pbuddy_padapter->pbuddy_adapter = adapter;
-			// clear global value
-			pbuddy_padapter = NULL;
-			DBG_871X("%s(): pbuddy_padapter exist, Exchange Information\n",__FUNCTION__);
-		}
-#ifdef CONFIG_DUALMAC_CONCURRENT
-		if (dvobj->InterfaceNumber == 0) {
-			//set adapter_type/iface type
-			adapter->isprimary = _TRUE;
-			adapter->adapter_type = PRIMARY_ADAPTER;
-			adapter->iface_type = IFACE_PORT0;
-			DBG_871X("%s(): PRIMARY_ADAPTER\n",__FUNCTION__);
-		} else {
-			//set adapter_type/iface type
-			adapter->isprimary = _FALSE;
-			adapter->adapter_type = SECONDARY_ADAPTER;
-			adapter->iface_type = IFACE_PORT1;
-			DBG_871X("%s(): SECONDARY_ADAPTER\n",__FUNCTION__);
-		}
-#endif
-	}else {
-		pbuddy_padapter = NULL;
-	}
-exit:
-	return status;
-}
-
 _adapter *dvobj_get_port0_adapter(struct dvobj_priv *dvobj)
 {
 	_adapter *port0_iface = NULL;
@@ -3825,51 +3749,6 @@ _adapter *dvobj_get_port0_adapter(struct dvobj_priv *dvobj)
 
 	return port0_iface;
 }
-
-/*
- * Description:
- * rtw_check_invalid_mac_address: 
- * This is only used for checking mac address valid or not.
- *
- * Input:
- * adapter: mac_address pointer.
- *
- * Output:
- * _TRUE: The mac address is invalid.
- * _FALSE: The mac address is valid.
- *
- * Auther: Isaac.Li
- */
-u8 rtw_check_invalid_mac_address(u8 *mac_addr) {
-	u8 null_mac_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
-	u8 multi_mac_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	u8 res = _FALSE;
-
-	if (_rtw_memcmp(mac_addr, null_mac_addr, ETH_ALEN)) {
-		res = _TRUE;
-		goto func_exit;
-	}
-
-	if (_rtw_memcmp(mac_addr, multi_mac_addr, ETH_ALEN)) {
-		res = _TRUE;
-		goto func_exit;
-	}
-
-	if (mac_addr[0] & BIT0) {
-		res = _TRUE;
-		goto func_exit;
-	}
-
-	if (mac_addr[0] & BIT1) {
-		res = _TRUE;
-		goto func_exit;
-	}
-
-func_exit:
-	return res;
-}
-
-
 
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
 void rtw_get_current_ip_address(PADAPTER padapter, u8 *pcurrentip)

@@ -34,7 +34,7 @@ void ConfigureTxpowerTrack_8723B(
 	);
 
 void DoIQK_8723B(
-	PDM_ODM_T	pDM_Odm,
+	PVOID		pDM_VOID,
 	u1Byte 		DeltaThermalIndex,
 	u1Byte		ThermalValue,	
 	u1Byte 		Threshold

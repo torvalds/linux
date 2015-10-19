@@ -30,6 +30,10 @@
 //	Increase the scanning timeout because of increasing the SURVEY_TO value.
 
 #define 	SCANNING_TIMEOUT 	8000
+#ifdef CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+#define		CONC_SCANNING_TIMEOUT_SINGLE_BAND 10000
+#define		CONC_SCANNING_TIMEOUT_DUAL_BAND 15000
+#endif //CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 
 #ifdef PALTFORM_OS_WINCE
 #define	SCANQUEUE_LIFETIME 12000000 // unit:us
@@ -60,6 +64,7 @@
 #define	WIFI_AUTOCONF			0x00004000
 #define	WIFI_AUTOCONF_IND	0x00008000
 #endif
+#define WIFI_MONITOR_STATE 0x80000000
 
 /*
 // ========== P2P Section Start ===============
@@ -101,15 +106,11 @@ typedef enum _RT_SCAN_TYPE
 	SCAN_MIX,
 }RT_SCAN_TYPE, *PRT_SCAN_TYPE;
 
-enum  _BAND
-{
-	GHZ24_50 = 0,
-	GHZ_50,
-	GHZ_24,
-	GHZ_MAX,
-};
+#define WIFI_FREQUENCY_BAND_AUTO 0
+#define WIFI_FREQUENCY_BAND_5GHZ 1
+#define WIFI_FREQUENCY_BAND_2GHZ 2
 
-#define rtw_band_valid(band) ((band) >= GHZ24_50 && (band) < GHZ_MAX)
+#define rtw_band_valid(band) ((band) <= WIFI_FREQUENCY_BAND_2GHZ)
 
 enum DriverInterface {
 	DRIVER_WEXT =  1,
@@ -264,7 +265,7 @@ struct cfg80211_wifidirect_info{
 	struct ieee80211_channel	remain_on_ch_channel;
 	enum nl80211_channel_type	remain_on_ch_type;
 	ATOMIC_T ro_ch_cookie_gen;
-	u64						remain_on_ch_cookie;
+	u64 remain_on_ch_cookie;
 	bool is_ro_ch;
 	u32 last_ro_ch_time; /* this will be updated at the beginning and end of ro_ch */
 };
@@ -400,22 +401,46 @@ struct tdls_ss_record{	//signal strength record
 	u8		is_tdls_sta;	// _TRUE: direct link sta, _FALSE: else
 };
 
+struct tdls_temp_mgmt{
+	u8	initiator;	// 0: None, 1: we initiate, 2: peer initiate
+	u8	peer_addr[ETH_ALEN];
+};
+
+#ifdef CONFIG_TDLS_CH_SW
+struct tdls_ch_switch{
+	u32	ch_sw_state;
+	ATOMIC_T	chsw_on;
+	u8	addr[ETH_ALEN];
+	u8	off_ch_num;
+	u8	ch_offset;
+	u32	cur_time;
+	u8	delay_switch_back;
+	u8	dump_stack;
+};
+#endif
+
 struct tdls_info{
 	u8					ap_prohibited;
+	u8					ch_switch_prohibited;
 	u8					link_established;
 	u8					sta_cnt;
-	u8					sta_maximum;	// 1:tdls sta is equal (NUM_STA-1), reach max direct link number; 0: else;
+	u8					sta_maximum;	/* 1:tdls sta is equal (NUM_STA-1), reach max direct link number; 0: else; */
 	struct tdls_ss_record	ss_record;
+#ifdef CONFIG_TDLS_CH_SW	
+	struct tdls_ch_switch	chsw_info;
+#endif
+
 	u8					ch_sensing;
 	u8					cur_channel;
-	u8					candidate_ch;
 	u8					collect_pkt_num[MAX_CHANNEL_NUM];
 	_lock				cmd_lock;
 	_lock				hdl_lock;
 	u8					watchdog_count;
-	u8					dev_discovered;		//WFD_TDLS: for sigma test
+	u8					dev_discovered;		/* WFD_TDLS: for sigma test */
 	u8					tdls_enable;
-	u8					external_setup;	// _TRUE: setup is handled by wpa_supplicant
+
+	/* Let wpa_supplicant to setup*/
+	u8					driver_setup;
 #ifdef CONFIG_WFD
 	struct wifi_display_info		*wfd_info;
 #endif		
@@ -428,7 +453,6 @@ struct tdls_txmgmt {
 	u16 status_code;
 	u8 *buf;
 	size_t len;
-	u8 external_support;
 };
 
 /* used for mlme_priv.roam_flags */
@@ -677,6 +701,12 @@ struct mlme_priv {
 //	u8 	NumOfBcnInfoChkFail;
 //	u32	timeBcnInfoChkStart;
 };
+
+#define mlme_set_scan_to_timer(mlme, ms) \
+	do { \
+		/* DBG_871X("%s set_scan_to_timer(%p, %d)\n", __FUNCTION__, (mlme), (ms)); */ \
+		_set_timer(&(mlme)->scan_to_timer, (ms)); \
+	} while(0)
 
 #define rtw_mlme_set_auto_scan_int(adapter, ms) \
 	do { \

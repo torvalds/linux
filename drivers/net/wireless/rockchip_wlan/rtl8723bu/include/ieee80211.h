@@ -166,6 +166,10 @@ typedef enum _RATEID_IDX_ {
 	RATEID_IDX_B = 8,
 	RATEID_IDX_VHT_2SS = 9,
 	RATEID_IDX_VHT_1SS = 10,
+	RATEID_IDX_MIX1 = 11,
+	RATEID_IDX_MIX2 = 12,
+	RATEID_IDX_VHT_3SS = 13,
+	RATEID_IDX_BGN_3SS = 14,
 } RATEID_IDX, *PRATEID_IDX;
 
 typedef enum _RATR_TABLE_MODE{
@@ -207,13 +211,13 @@ enum NETWORK_TYPE
 	//Type for registry default wireless mode
 	WIRELESS_11AGN = (WIRELESS_11A|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N), // tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only
 	WIRELESS_11ABGN = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N),
-	WIRELESS_MODE_24G = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11AC),
+	WIRELESS_MODE_24G = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N),
 	WIRELESS_MODE_5G = (WIRELESS_11A|WIRELESS_11_5N|WIRELESS_11AC),
 	WIRELESS_MODE_MAX = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N|WIRELESS_11AC),
 };
 
-#define SUPPORTED_24G_NETTYPE_MSK (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N)
-#define SUPPORTED_5G_NETTYPE_MSK (WIRELESS_11A | WIRELESS_11_5N)
+#define SUPPORTED_24G_NETTYPE_MSK WIRELESS_MODE_24G
+#define SUPPORTED_5G_NETTYPE_MSK WIRELESS_MODE_5G 
 
 #define IsLegacyOnly(NetType)  ((NetType) == ((NetType) & (WIRELESS_11BG|WIRELESS_11A)))
 
@@ -1342,7 +1346,7 @@ typedef struct tx_pending_t{
 
 
 
-#define MAXTID	16
+#define TID_NUM	16
 
 #define IEEE_A            (1<<0)
 #define IEEE_B            (1<<1)
@@ -1714,7 +1718,8 @@ int rtw_check_network_type(unsigned char *rate, int ratelen, int channel);
 
 void rtw_get_bcn_info(struct wlan_network *pnetwork);
 
-void rtw_macaddr_cfg(u8 *mac_addr);
+u8 rtw_check_invalid_mac_address(u8 *mac_addr);
+void rtw_macaddr_cfg(u8 *out, const u8 *hw_mac_addr);
 
 u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI, unsigned char * MCS_rate);
 

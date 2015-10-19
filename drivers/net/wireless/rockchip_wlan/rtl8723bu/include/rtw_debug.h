@@ -338,9 +338,13 @@ void rf_reg_dump(void *sel, _adapter *adapter);
 
 bool rtw_fwdl_test_trigger_chksum_fail(void);
 bool rtw_fwdl_test_trigger_wintint_rdy_fail(void);
+bool rtw_del_rx_ampdu_test_trigger_no_tx_fail(void);
 
 u32 rtw_get_wait_hiq_empty_ms(void);
 void rtw_sink_rtp_seq_dbg( _adapter *adapter,_pkt *pkt);
+
+struct sta_info;
+void sta_rx_reorder_ctl_dump(void *sel, struct sta_info *sta);
 
 #ifdef CONFIG_PROC_DEBUG
 ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
@@ -363,16 +367,22 @@ int proc_get_rf_info(struct seq_file *m, void *v);
 int proc_get_survey_info(struct seq_file *m, void *v);
 int proc_get_ap_info(struct seq_file *m, void *v);
 int proc_get_adapter_state(struct seq_file *m, void *v);
+ssize_t proc_reset_trx_info(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 int proc_get_trx_info(struct seq_file *m, void *v);
 int proc_get_rate_ctl(struct seq_file *m, void *v);
 int proc_get_wifi_spec(struct seq_file *m, void *v);
 ssize_t proc_set_rate_ctl(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+#ifdef DBG_RX_COUNTER_DUMP
+int proc_get_rx_cnt_dump(struct seq_file *m, void *v);
+ssize_t proc_set_rx_cnt_dump(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);	
+#endif
 int proc_get_dis_pwt(struct seq_file *m, void *v);
 ssize_t proc_set_dis_pwt(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);	
 
 int proc_get_suspend_resume_info(struct seq_file *m, void *v);
 
 ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+ssize_t proc_set_del_rx_ampdu_test_case(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 ssize_t proc_set_wait_hiq_empty(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
 #ifdef CONFIG_AP_MODE
@@ -462,6 +472,17 @@ int proc_get_p2p_wowlan_info(struct seq_file *m, void *v);
 
 int proc_get_new_bcn_max(struct seq_file *m, void *v);
 ssize_t proc_set_new_bcn_max(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+
+#ifdef CONFIG_POWER_SAVING
+int proc_get_ps_info(struct seq_file *m, void *v);
+#endif //CONFIG_POWER_SAVING
+
+#ifdef CONFIG_TDLS
+int proc_get_tdls_info(struct seq_file *m, void *v);
+#endif
+
+int proc_get_monitor(struct seq_file *m, void *v);
+ssize_t proc_set_monitor(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
 #endif /* CONFIG_PROC_DEBUG */
 

@@ -124,8 +124,8 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 #define PAGE_SIZE_TX_8723B			128
 #define PAGE_SIZE_RX_8723B			8
 
-#define TX_DMA_SIZE_8723B			0x8000	// 32K(TX)
-#define RX_DMA_SIZE_8723B			0x4000	// 16K(RX)
+#define TX_DMA_SIZE_8723B			0x8000	/* 32K(TX) */
+#define RX_DMA_SIZE_8723B			0x4000	/* 16K(RX) */
 
 #ifdef CONFIG_FW_C2H_DEBUG 
 #define RX_DMA_RESERVED_SIZE_8723B	0x100	// 256B, reserved for c2h debug message
@@ -283,6 +283,7 @@ void Hal_EfuseParseXtal_8723B(PADAPTER pAdapter, u8 *hwinfo, u8 AutoLoadFail);
 void Hal_EfuseParseThermalMeter_8723B(PADAPTER padapter, u8 *hwinfo, u8 AutoLoadFail);
 VOID Hal_EfuseParsePackageType_8723B(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFail);
 VOID Hal_EfuseParseVoltage_8723B(PADAPTER pAdapter,u8* hwinfo,BOOLEAN 	AutoLoadFail); 
+VOID Hal_EfuseParseBoardType_8723B(PADAPTER Adapter,	u8*	PROMContent,BOOLEAN AutoloadFail);
 
 #ifdef CONFIG_C2H_PACKET_EN
 void rtl8723b_c2h_packet_handler(PADAPTER padapter, u8 *pbuf, u16 length);
@@ -317,12 +318,13 @@ void rtl8723bs_cancle_checkbthang_workqueue(_adapter * adapter);
 void rtl8723bs_hal_check_bt_hang(_adapter * adapter);
 #endif
 
+#ifdef CONFIG_GPIO_WAKEUP
+void HalSetOutPutGPIO(PADAPTER padapter, u8 index, u8 OutPutValue);
+#endif
+
 int FirmwareDownloadBT(IN PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
 
 void CCX_FwC2HTxRpt_8723b(PADAPTER padapter, u8 *pdata, u8 len);
-#ifdef CONFIG_FW_C2H_DEBUG
-void Debug_FwC2H_8723b(PADAPTER padapter, u8 *pdata, u8 len);
-#endif //CONFIG_FW_C2H_DEBUG
 s32 c2h_id_filter_ccx_8723b(u8 *buf);
 s32 c2h_handler_8723b(PADAPTER padapter, u8 *pC2hEvent);
 u8 MRateToHwRate8723B(u8  rate);

@@ -29,25 +29,29 @@ typedef enum _SPUR_CAL_METHOD {
 typedef enum _PWRTRACK_CONTROL_METHOD {
 	BBSWING,
 	TXAGC,
-	MIX_MODE
+	MIX_MODE,
+	TSSI_MODE
 } PWRTRACK_METHOD;
 
 typedef VOID 	(*FuncSetPwr)(PDM_ODM_T, PWRTRACK_METHOD, u1Byte, u1Byte);
-typedef VOID 	(*FuncIQK)(PDM_ODM_T, u1Byte, u1Byte, u1Byte);
+typedef VOID(*FuncIQK)(PVOID, u1Byte, u1Byte, u1Byte);
 typedef VOID 	(*FuncLCK)(PDM_ODM_T);
 typedef VOID  	(*FuncSwing)(PDM_ODM_T, pu1Byte*, pu1Byte*, pu1Byte*, pu1Byte*);
+typedef VOID	(*FuncSwing8814only)(PDM_ODM_T, pu1Byte*, pu1Byte*, pu1Byte*, pu1Byte*);
 
 typedef struct _TXPWRTRACK_CFG {
 	u1Byte 		SwingTableSize_CCK;	
 	u1Byte 		SwingTableSize_OFDM;
 	u1Byte 		Threshold_IQK;	
+	u1Byte		Threshold_DPK;
 	u1Byte 		AverageThermalNum;
 	u1Byte 		RfPathCount;
 	u4Byte 		ThermalRegAddr;	
 	FuncSetPwr 	ODM_TxPwrTrackSetPwr;
 	FuncIQK 	DoIQK;
 	FuncLCK		PHY_LCCalibrate;
-	FuncSwing	GetDeltaSwingTable;	
+	FuncSwing	GetDeltaSwingTable;
+	FuncSwing8814only	GetDeltaSwingTable8814only;
 } TXPWRTRACK_CFG, *PTXPWRTRACK_CFG;
 
 void ConfigureTxpowerTrack(
@@ -84,6 +88,8 @@ ODM_GetRightChnlPlaceforIQK(
     IN u1Byte chnl
 );
 
+void phydm_rf_init(IN		PDM_ODM_T		pDM_Odm);
+void phydm_rf_watchdog(IN		PDM_ODM_T		pDM_Odm);
 								
 #endif	// #ifndef __HAL_PHY_RF_H__
 

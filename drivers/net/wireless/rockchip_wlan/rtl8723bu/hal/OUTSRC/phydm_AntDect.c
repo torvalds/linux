@@ -25,7 +25,8 @@
 #include "Mp_Precomp.h"
 #include "phydm_precomp.h"
 
-#if( DM_ODM_SUPPORT_TYPE & (ODM_WIN |ODM_CE))
+//#if( DM_ODM_SUPPORT_TYPE & (ODM_WIN |ODM_CE))
+#if(defined(CONFIG_ANT_DETECTION))
 
 //IS_ANT_DETECT_SUPPORT_SINGLE_TONE(Adapter)	
 //IS_ANT_DETECT_SUPPORT_RSSI(Adapter)		
@@ -36,12 +37,13 @@
 
 VOID
 odm_PHY_SaveAFERegisters(
-	IN	PDM_ODM_T	pDM_Odm,
+	IN	PVOID		pDM_VOID,
 	IN	pu4Byte		AFEReg,
 	IN	pu4Byte		AFEBackup,
 	IN	u4Byte		RegisterNum
 	)
 {
+	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	u4Byte	i;
 	
 	//RT_DISP(FINIT, INIT_IQK, ("Save ADDA parameters.\n"));
@@ -52,12 +54,13 @@ odm_PHY_SaveAFERegisters(
 
 VOID
 odm_PHY_ReloadAFERegisters(
-	IN	PDM_ODM_T	pDM_Odm,
+	IN	PVOID		pDM_VOID,
 	IN	pu4Byte		AFEReg,
 	IN	pu4Byte		AFEBackup,
 	IN	u4Byte		RegiesterNum
 	)
 {
+	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	u4Byte	i;
 
 	//RT_DISP(FINIT, INIT_IQK, ("Reload ADDA power saving parameters !\n"));
@@ -76,9 +79,10 @@ odm_PHY_ReloadAFERegisters(
 //
 VOID
 ODM_SingleDualAntennaDefaultSetting(
-	IN		PDM_ODM_T		pDM_Odm
+	IN		PVOID		pDM_VOID
 	)
 {
+	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	pSWAT_T		pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
 	PADAPTER	pAdapter	 =  pDM_Odm->Adapter;
 
@@ -113,10 +117,11 @@ ODM_SingleDualAntennaDefaultSetting(
 //
 BOOLEAN
 ODM_SingleDualAntennaDetection(
-	IN		PDM_ODM_T		pDM_Odm,
+	IN		PVOID		pDM_VOID,
 	IN		u1Byte			mode
 	)
 {
+	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	PADAPTER	pAdapter	 =  pDM_Odm->Adapter;
 	pSWAT_T		pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
 	u4Byte		CurrentChannel,RfLoopReg;
@@ -492,30 +497,17 @@ ODM_SingleDualAntennaDetection(
 //1 [2. Scan AP RSSI Method] ==================================================
 
 
-void
-odm_SwAntDetectInit(
-	IN		PDM_ODM_T		pDM_Odm
-	)
-{
-	pSWAT_T		pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
-	
-	//pDM_SWAT_Table->SWAS_NoLink_BK_Reg92c = ODM_Read4Byte(pDM_Odm, rDPDT_control);
-	//pDM_SWAT_Table->PreAntenna = MAIN_ANT;
-	//pDM_SWAT_Table->CurAntenna = MAIN_ANT;
-	pDM_SWAT_Table->SWAS_NoLink_State = 0;
-	pDM_SWAT_Table->Pre_Aux_FailDetec = FALSE;
-	pDM_SWAT_Table->SWAS_NoLink_BK_Reg948 = 0xff;
-}
 
 
 BOOLEAN
 ODM_SwAntDivCheckBeforeLink(
-	IN		PDM_ODM_T		pDM_Odm
+	IN		PVOID		pDM_VOID
 	)
 {
 
 #if (RT_MEM_SIZE_LEVEL != RT_MEM_SIZE_MINIMUM)
 
+	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	PADAPTER		Adapter = pDM_Odm->Adapter;
 	HAL_DATA_TYPE*	pHalData = GET_HAL_DATA(Adapter);
 	PMGNT_INFO		pMgntInfo = &Adapter->MgntInfo;
@@ -971,10 +963,11 @@ return FALSE;
 
 u4Byte
 odm_GetPSDData(
-	IN PDM_ODM_T	pDM_Odm,
+	IN 	PVOID			pDM_VOID,
 	IN u2Byte			point,
 	IN u1Byte 		initial_gain)
 {
+	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	u4Byte			psd_report;
 	
 	ODM_SetBBReg(pDM_Odm, 0x808, 0x3FF, point);
@@ -983,7 +976,7 @@ odm_GetPSDData(
 	ODM_SetBBReg(pDM_Odm, 0x808, BIT22, 0);//Stop PSD calculation,  Reg808[22]=1->0
 	psd_report = ODM_GetBBReg(pDM_Odm,0x8B4, bMaskDWord) & 0x0000FFFF;//Read PSD report, Reg8B4[15:0]
 	
-	psd_report = (u4Byte) (ConvertTo_dB(psd_report));//+(u4Byte)(initial_gain);
+	psd_report = (u4Byte) (odm_ConvertTo_dB(psd_report));//+(u4Byte)(initial_gain);
 	return psd_report;
 }
 
@@ -991,9 +984,10 @@ odm_GetPSDData(
 
 VOID
 ODM_SingleDualAntennaDetection_PSD(
-	IN	 PDM_ODM_T 	pDM_Odm
+	IN	 PVOID 	pDM_VOID
 )
 {
+	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	PADAPTER	pAdapter	 =  pDM_Odm->Adapter;
 	pSWAT_T		pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
 	u4Byte	Channel_ori;
@@ -1200,7 +1194,22 @@ ODM_SingleDualAntennaDetection_PSD(
 
 }
 
-
-
-
 #endif
+void
+odm_SwAntDetectInit(
+	IN		PVOID		pDM_VOID
+	)
+{
+#if(defined(CONFIG_ANT_DETECTION))
+	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
+	pSWAT_T		pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
+
+	//pDM_SWAT_Table->SWAS_NoLink_BK_Reg92c = ODM_Read4Byte(pDM_Odm, rDPDT_control);
+	//pDM_SWAT_Table->PreAntenna = MAIN_ANT;
+	//pDM_SWAT_Table->CurAntenna = MAIN_ANT;
+	pDM_SWAT_Table->SWAS_NoLink_State = 0;
+	pDM_SWAT_Table->Pre_Aux_FailDetec = FALSE;
+	pDM_SWAT_Table->SWAS_NoLink_BK_Reg948 = 0xff;
+#endif
+}
+

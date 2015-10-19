@@ -34,26 +34,25 @@ odm_CCKRSSI_8723B(
 	)
 {
 	s1Byte	rx_pwr_all=0x00;
-	switch(LNA_idx)
-	{
+	switch (LNA_idx) {
 		//46  53 73 95 201301231630
 		// 46 53 77 99 201301241630
 		
 		case 6:	
-                        rx_pwr_all = -34 - (2 * VGA_idx);
+			rx_pwr_all = -40 - (2 * VGA_idx);
 			break;
 		case 4:	
-                        rx_pwr_all = -14 - (2 * VGA_idx);
+			rx_pwr_all = -20 - (2 * VGA_idx);
 			break;
 		case 1:	
-                        rx_pwr_all = 6 - (2 * VGA_idx);
+			rx_pwr_all = 0 - (2 * VGA_idx);
 			break;
 		case 0:	
-                        rx_pwr_all = 16 - (2 * VGA_idx);	
+			rx_pwr_all = 10 - (2 * VGA_idx);	
 			break;
 		default:
-                        //rx_pwr_all = -53+(2*(31-VGA_idx));
-                        //DbgPrint("wrong LNA index\n");
+			/*rx_pwr_all = -53+(2*(31-VGA_idx));*/
+			/*DbgPrint("wrong LNA index\n");*/
 			break;
 			
 	}

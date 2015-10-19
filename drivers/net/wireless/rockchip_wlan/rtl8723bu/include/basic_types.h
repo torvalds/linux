@@ -76,7 +76,7 @@
 
 
 #ifdef PLATFORM_LINUX
-
+	#include <linux/version.h>
 	#include <linux/types.h>
 	#define IN
 	#define OUT
@@ -95,6 +95,10 @@
 	#define USHORT u16
 	#define UINT u32
 	#define ULONG u32	
+
+	#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
+		typedef _Bool bool;
+	#endif
 
 	typedef void (*proc_t)(void*);
 
@@ -268,7 +272,7 @@
 	( \
 		LE_P2BYTE_TO_HOST_2BYTE(__pStart) \
 		& \
-		( ~BIT_OFFSET_LEN_MASK_16(__BitOffset, __BitLen) ) \
+		(u16)(~BIT_OFFSET_LEN_MASK_16(__BitOffset, __BitLen))\
 	)
 
 #define SET_BITS_TO_LE_2BYTE(__pStart, __BitOffset, __BitLen, __Value) \
@@ -299,7 +303,7 @@
 	( \
 		LE_P1BYTE_TO_HOST_1BYTE(__pStart) \
 		& \
-		( ~BIT_OFFSET_LEN_MASK_8(__BitOffset, __BitLen) ) \
+		(u8)(~BIT_OFFSET_LEN_MASK_8(__BitOffset, __BitLen))\
 	)
 
 #define SET_BITS_TO_LE_1BYTE(__pStart, __BitOffset, __BitLen, __Value) \
@@ -330,14 +334,14 @@
 	)
 
 #define SET_BITS_TO_LE_1BYTE_8BIT(__pStart, __BitOffset, __BitLen, __Value) \
-{ \
+do { \
 	*((u8 *)(__pStart)) = \
 		EF1Byte( \
 			LE_BITS_CLEARED_TO_1BYTE_8BIT(__pStart, __BitOffset, __BitLen) \
 			| \
 			((u8)__Value) \
 		); \
-}
+} while (0)
 
 // Get the N-bytes aligment offset from the current length
 #define N_BYTE_ALIGMENT(__Value, __Aligment) ((__Aligment == 1) ? (__Value) : (((__Value + __Aligment - 1) / __Aligment) * __Aligment))

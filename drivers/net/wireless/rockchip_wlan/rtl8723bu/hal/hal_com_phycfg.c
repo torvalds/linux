@@ -920,7 +920,7 @@ PHY_InitTxPowerByRate(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	u8	band = 0, rfPath = 0, TxNum = 0, rate = 0, i = 0, j = 0;
 
-	if ( IS_HARDWARE_TYPE_8188E( pAdapter ) || IS_HARDWARE_TYPE_8723A( pAdapter ) )
+	if ( IS_HARDWARE_TYPE_8188E( pAdapter ) )
 	{
 		for ( i = 0; i < MAX_PG_GROUP; ++i )
 			for ( j = 0; j < 16; ++j )
@@ -1509,13 +1509,13 @@ PHY_GetTxPowerTrackingOffset(
 	
 	if ((Rate == MGN_1M) ||(Rate == MGN_2M)||(Rate == MGN_5_5M)||(Rate == MGN_11M))
 	{ 
-		offset = pDM_Odm->Remnant_CCKSwingIdx;
-		//DBG_871X("+Remnant_CCKSwingIdx = 0x%x\n", RFPath, Rate, pDM_Odm->Remnant_CCKSwingIdx);
+		offset = pDM_Odm->RFCalibrateInfo.Remnant_CCKSwingIdx;
+		/*DBG_871X("+Remnant_CCKSwingIdx = 0x%x\n", RFPath, Rate, pRFCalibrateInfo->Remnant_CCKSwingIdx);*/
 	}
 	else
 	{
-		offset = pDM_Odm->Remnant_OFDMSwingIdx[RFPath]; 
-		//DBG_871X("+Remanant_OFDMSwingIdx[RFPath %u][Rate 0x%x] = 0x%x\n", RFPath, Rate, pDM_Odm->Remnant_OFDMSwingIdx[RFPath]);		
+		offset = pDM_Odm->RFCalibrateInfo.Remnant_OFDMSwingIdx[RFPath]; 
+		/*DBG_871X("+Remanant_OFDMSwingIdx[RFPath %u][Rate 0x%x] = 0x%x\n", RFPath, Rate, pRFCalibrateInfo->Remnant_OFDMSwingIdx[RFPath]);	*/	
 		
 	}
 
@@ -1721,17 +1721,17 @@ PHY_SetTxPowerLevelByPath(
 		PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, OFDM );
 		PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, HT_MCS0_MCS7 );
 
-		if ( IS_HARDWARE_TYPE_JAGUAR( Adapter ) || IS_HARDWARE_TYPE_8813A( Adapter ) )
-			PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, VHT_1SSMCS0_1SSMCS9 );
+		if (IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8814A(Adapter))
+			PHY_SetTxPowerIndexByRateSection(Adapter, path, channel, VHT_1SSMCS0_1SSMCS9);
 
-		if ( pHalData->NumTotalRFPath >= 2 )
+		if (pHalData->NumTotalRFPath >= 2)
 		{
 			PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, HT_MCS8_MCS15 );
 
-			if ( IS_HARDWARE_TYPE_JAGUAR( Adapter ) || IS_HARDWARE_TYPE_8813A( Adapter ) )
-				PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, VHT_2SSMCS0_2SSMCS9 );
+			if (IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8814A(Adapter))
+				PHY_SetTxPowerIndexByRateSection(Adapter, path, channel, VHT_2SSMCS0_2SSMCS9);
 
-			if ( IS_HARDWARE_TYPE_8813A( Adapter ) )
+			if (IS_HARDWARE_TYPE_8814A(Adapter))
 			{
 				PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, HT_MCS16_MCS23 );
 				PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, VHT_3SSMCS0_3SSMCS9 );
@@ -1967,6 +1967,8 @@ PHY_GetTxPowerLimit(
 
 	if ( Band == BAND_ON_2_4G ) {
 		s8 limits[10] = {0}; u8 i = 0;
+		if (bandwidth >= MAX_2_4G_BANDWITH_NUM)
+			bandwidth = MAX_2_4G_BANDWITH_NUM - 1;
 		for (i = 0; i < MAX_REGULATION_NUM; ++i)
 			limits[i] = pHalData->TxPwrLimit_2_4G[i][bandwidth][rateSection][channel][RfPath]; 
 
@@ -2145,7 +2147,7 @@ PHY_ConvertTxPowerLimitToPowerIndex(
 		}
 	}
 	
-	if ( IS_HARDWARE_TYPE_JAGUAR( Adapter ) || IS_HARDWARE_TYPE_8813A( Adapter ) )
+	if (IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8814A(Adapter))
 	{
 		for ( regulation = 0; regulation < MAX_REGULATION_NUM; ++regulation )
 		{
@@ -2299,6 +2301,9 @@ PHY_SetTxPowerLimit(
 		if ( channelIndex == -1 )
 			return;
 
+		if (bandwidth >= MAX_2_4G_BANDWITH_NUM)
+			bandwidth = MAX_2_4G_BANDWITH_NUM - 1;
+
 		prevPowerLimit = pHalData->TxPwrLimit_2_4G[regulation][bandwidth][rateSection][channelIndex][ODM_RF_PATH_A];
 
 		if ( powerLimit < prevPowerLimit )
@@ -2340,18 +2345,17 @@ PHY_GetTxPowerIndex(
 {
 	u8	txPower = 0x3E;
 
-	if (IS_HARDWARE_TYPE_8813A(pAdapter)) {
-//#if (RTL8814A_SUPPORT==1)
-//		txPower = PHY_GetTxPowerIndex_8813A( pAdapter, PowerIndex, RFPath, Rate );
-//#endif
-	}
-	else if (IS_HARDWARE_TYPE_JAGUAR(pAdapter)) {
-#if ((RTL8812A_SUPPORT==1) || (RTL8821A_SUPPORT == 1))
+	if (IS_HARDWARE_TYPE_8814A(pAdapter)) {
+#if (RTL8814A_SUPPORT == 1)
+		txPower = PHY_GetTxPowerIndex_8814A(pAdapter, RFPath, Rate, BandWidth, Channel);
+#endif
+	} else if (IS_HARDWARE_TYPE_JAGUAR(pAdapter)) {
+#if ((RTL8812A_SUPPORT == 1) || (RTL8821A_SUPPORT == 1))
 		txPower = PHY_GetTxPowerIndex_8812A(pAdapter, RFPath, Rate, BandWidth, Channel);
 #endif
 	}
 	else if (IS_HARDWARE_TYPE_8723B(pAdapter)) {
-#if (RTL8723B_SUPPORT==1)
+#if (RTL8723B_SUPPORT == 1)
 		txPower = PHY_GetTxPowerIndex_8723B(pAdapter, RFPath, Rate, BandWidth, Channel);
 #endif
 	}
@@ -2377,10 +2381,10 @@ PHY_SetTxPowerIndex(
 	IN	u8				Rate
 	)
 {
-	if (IS_HARDWARE_TYPE_8813A(pAdapter)) {
-//#if (RTL8814A_SUPPORT==1)
-//		PHY_SetTxPowerIndex_8813A( pAdapter, PowerIndex, RFPath, Rate );
-//#endif
+	if (IS_HARDWARE_TYPE_8814A(pAdapter)) {
+#if (RTL8814A_SUPPORT == 1)
+		PHY_SetTxPowerIndex_8814A(pAdapter, PowerIndex, RFPath, Rate);
+#endif
 	}
 	else if (IS_HARDWARE_TYPE_JAGUAR(pAdapter)) {
 #if ((RTL8812A_SUPPORT==1) || (RTL8821A_SUPPORT == 1))

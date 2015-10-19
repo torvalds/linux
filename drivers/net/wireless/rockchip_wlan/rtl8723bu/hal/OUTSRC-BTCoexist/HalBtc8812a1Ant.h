@@ -1,6 +1,8 @@
 //===========================================
-// The following is for 8812A_1ANT BT Co-exist definition
+// The following is for 8812A 1ANT BT Co-exist definition
 //===========================================
+#define	BT_AUTO_REPORT_ONLY_8812A_1ANT				1
+
 #define	BT_INFO_8812A_1ANT_B_FTP						BIT7
 #define	BT_INFO_8812A_1ANT_B_A2DP					BIT6
 #define	BT_INFO_8812A_1ANT_B_HID						BIT5
@@ -15,8 +17,7 @@
 
 #define	BTC_RSSI_COEX_THRESH_TOL_8812A_1ANT		2
 
-#define	BTC_8812A_1ANT_SWITCH_TO_WIFI				0
-#define	BTC_8812A_1ANT_SWITCH_TO_BT					1
+#define  BT_8812A_1ANT_WIFI_NOISY_THRESH								30   //max: 255
 
 typedef enum _BT_INFO_SRC_8812A_1ANT{
 	BT_INFO_SRC_8812A_1ANT_WIFI_FW			= 0x0,
@@ -61,6 +62,9 @@ typedef enum _BT_8812A_1ANT_COEX_ALGO{
 }BT_8812A_1ANT_COEX_ALGO,*PBT_8812A_1ANT_COEX_ALGO;
 
 typedef struct _COEX_DM_8812A_1ANT{
+	// hw setting
+	u1Byte		preAntPosType;
+	u1Byte		curAntPosType;
 	// fw mechanism
 	BOOLEAN		bCurIgnoreWlanAct;
 	BOOLEAN		bPreIgnoreWlanAct;
@@ -68,7 +72,7 @@ typedef struct _COEX_DM_8812A_1ANT{
 	u1Byte		curPsTdma;
 	u1Byte		psTdmaPara[5];
 	u1Byte		psTdmaDuAdjType;
-	BOOLEAN		bResetTdmaAdjust;
+	BOOLEAN		bAutoTdmaAdjust;
 	BOOLEAN		bPrePsTdmaOn;
 	BOOLEAN		bCurPsTdmaOn;
 	BOOLEAN		bPreBtAutoReport;
@@ -81,7 +85,6 @@ typedef struct _COEX_DM_8812A_1ANT{
 	// sw mechanism
 	BOOLEAN 	bPreLowPenaltyRa;
 	BOOLEAN		bCurLowPenaltyRa;
-	BOOLEAN		bPreDacSwingOn;
 	u4Byte		preVal0x6c0;
 	u4Byte		curVal0x6c0;
 	u4Byte		preVal0x6c4;
@@ -90,6 +93,12 @@ typedef struct _COEX_DM_8812A_1ANT{
 	u4Byte		curVal0x6c8;
 	u1Byte		preVal0x6cc;
 	u1Byte		curVal0x6cc;
+	BOOLEAN		bLimitedDig;
+
+	u4Byte		backupArfrCnt1;	// Auto Rate Fallback Retry cnt
+	u4Byte		backupArfrCnt2;	// Auto Rate Fallback Retry cnt
+	u2Byte		backupRetryLimit;
+	u1Byte		backupAmpduMaxTime;
 
 	// algorithm related
 	u1Byte		preAlgorithm;
@@ -99,6 +108,13 @@ typedef struct _COEX_DM_8812A_1ANT{
 
 	u4Byte		preRaMask;
 	u4Byte		curRaMask;
+	u1Byte		preArfrType;
+	u1Byte		curArfrType;
+	u1Byte		preRetryLimitType;
+	u1Byte		curRetryLimitType;
+	u1Byte		preAmpduTimeType;
+	u1Byte		curAmpduTimeType;
+	u4Byte		nArpCnt;
 
 	u1Byte		errorCondition;
 } COEX_DM_8812A_1ANT, *PCOEX_DM_8812A_1ANT;
@@ -112,11 +128,13 @@ typedef struct _COEX_STA_8812A_1ANT{
 
 	BOOLEAN					bUnderLps;
 	BOOLEAN					bUnderIps;
+	u4Byte					specialPktPeriodCnt;
 	u4Byte					highPriorityTx;
 	u4Byte					highPriorityRx;
 	u4Byte					lowPriorityTx;
 	u4Byte					lowPriorityRx;
-	u1Byte					btRssi;
+	s1Byte					btRssi;
+	BOOLEAN					bBtTxRxMask;
 	u1Byte					preBtRssiState;
 	u1Byte					preWifiRssiState[4];
 	BOOLEAN					bC2hBtInfoReqSent;
@@ -124,8 +142,28 @@ typedef struct _COEX_STA_8812A_1ANT{
 	u4Byte					btInfoC2hCnt[BT_INFO_SRC_8812A_1ANT_MAX];
 	u4Byte					btInfoQueryCnt;
 	BOOLEAN					bC2hBtInquiryPage;
+	BOOLEAN					bC2hBtPage;				//Add for win8.1 page out issue
+	BOOLEAN					bWiFiIsHighPriTask;		//Add for win8.1 page out issue
 	u1Byte					btRetryCnt;
 	u1Byte					btInfoExt;
+	u4Byte					popEventCnt;
+	u1Byte					nScanAPNum;
+
+	u4Byte					nCRCOK_CCK;
+	u4Byte					nCRCOK_11g;
+	u4Byte					nCRCOK_11n;
+	u4Byte					nCRCOK_11nAgg;
+	
+	u4Byte					nCRCErr_CCK;
+	u4Byte					nCRCErr_11g;
+	u4Byte					nCRCErr_11n;
+	u4Byte					nCRCErr_11nAgg;	
+
+	BOOLEAN					bCCKLock;
+	BOOLEAN					bPreCCKLock;
+	u1Byte					nCoexTableType;
+
+	BOOLEAN					bForceLpsOn;
 }COEX_STA_8812A_1ANT, *PCOEX_STA_8812A_1ANT;
 
 //===========================================
@@ -133,6 +171,10 @@ typedef struct _COEX_STA_8812A_1ANT{
 //===========================================
 VOID
 EXhalbtc8812a1ant_PowerOnSetting(
+	IN	PBTC_COEXIST		pBtCoexist
+	);
+VOID
+EXhalbtc8812a1ant_PreLoadFirmware(
 	IN	PBTC_COEXIST		pBtCoexist
 	);
 VOID
@@ -181,6 +223,11 @@ EXhalbtc8812a1ant_BtInfoNotify(
 	IN	u1Byte			length
 	);
 VOID
+EXhalbtc8812a1ant_RfStatusNotify(
+	IN	PBTC_COEXIST			pBtCoexist,
+	IN	u1Byte					type
+	);
+VOID
 EXhalbtc8812a1ant_HaltNotify(
 	IN	PBTC_COEXIST			pBtCoexist
 	);
@@ -190,17 +237,22 @@ EXhalbtc8812a1ant_PnpNotify(
 	IN	u1Byte				pnpState
 	);
 VOID
-EXhalbtc8812a1ant_Periodical(
+EXhalbtc8812a1ant_CoexDmReset(
 	IN	PBTC_COEXIST			pBtCoexist
 	);
 VOID
-EXhalbtc8812a1ant_DisplayCoexInfo(
-	IN	PBTC_COEXIST		pBtCoexist
+EXhalbtc8812a1ant_Periodical(
+	IN	PBTC_COEXIST			pBtCoexist
 	);
 VOID
 EXhalbtc8812a1ant_DbgControl(
 	IN	PBTC_COEXIST			pBtCoexist,
 	IN	u1Byte				opCode,
 	IN	u1Byte				opLen,
-	IN	pu1Byte 			pData
+	IN	pu1Byte				pData
 	);
+VOID
+EXhalbtc8812a1ant_DisplayCoexInfo(
+	IN	PBTC_COEXIST		pBtCoexist
+	);
+

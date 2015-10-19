@@ -125,6 +125,7 @@ typedef struct _COEX_STA_8812A_2ANT{
 	BOOLEAN					bA2dpExist;
 	BOOLEAN					bHidExist;
 	BOOLEAN					bPanExist;
+	BOOLEAN					bAclBusy;
 
 	BOOLEAN					bUnderLps;
 	BOOLEAN					bUnderIps;
@@ -138,6 +139,8 @@ typedef struct _COEX_STA_8812A_2ANT{
 	BOOLEAN					bC2hBtInfoReqSent;
 	u1Byte					btInfoC2h[BT_INFO_SRC_8812A_2ANT_MAX][10];
 	u4Byte					btInfoC2hCnt[BT_INFO_SRC_8812A_2ANT_MAX];
+	u4Byte					prebtInfoC2hCnt_BT_RSP;
+	u4Byte					prebtInfoC2hCnt_BT_SEND;
 	u4Byte					btInfoQueryCnt;
 	BOOLEAN					bC2hBtInquiryPage;
 	u1Byte					btRetryCnt;

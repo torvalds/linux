@@ -18,9 +18,9 @@
  *
  ******************************************************************************/
 
-//============================================================
-// include files
-//============================================================
+/*============================================================	*/
+/* include files												*/
+/*============================================================	*/
 #include "Mp_Precomp.h"
 #include "phydm_precomp.h"
 
@@ -350,7 +350,7 @@ unsigned int TxPwrTrk_OFDM_SwingTbl[TxPwrTrk_OFDM_SwingTbl_Len] = {
 
 VOID
 odm_TXPowerTrackingInit(
-	IN 	PVOID	 	pDM_VOID 
+	IN	PVOID	pDM_VOID 
 	)
 {
 	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
@@ -364,7 +364,7 @@ odm_TXPowerTrackingInit(
 
 u1Byte 
 getSwingIndex(
-	IN 	PVOID	 	pDM_VOID 
+	IN	PVOID	pDM_VOID 
 	)
 {
 	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
@@ -412,12 +412,13 @@ getSwingIndex(
 
 VOID
 odm_TXPowerTrackingThermalMeterInit(
-	IN 	PVOID	 	pDM_VOID 
+	IN	PVOID	pDM_VOID
 	)
 {
 	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	u1Byte defaultSwingIndex = getSwingIndex(pDM_Odm);
 	u1Byte 			p = 0;
+	PODM_RF_CAL_T	pRFCalibrateInfo = &(pDM_Odm->RFCalibrateInfo);
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
 	PADAPTER		Adapter = pDM_Odm->Adapter;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
@@ -425,80 +426,63 @@ odm_TXPowerTrackingThermalMeterInit(
 	if(pDM_Odm->mp_mode == FALSE)
 		pHalData->TxPowerTrackControl = TRUE;
 #elif (DM_ODM_SUPPORT_TYPE == ODM_CE)
-	PADAPTER			Adapter = pDM_Odm->Adapter;
-	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
+	PADAPTER		Adapter = pDM_Odm->Adapter;
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 
+	pRFCalibrateInfo->bTXPowerTracking = _TRUE;
+	pRFCalibrateInfo->TXPowercount = 0;
+	pRFCalibrateInfo->bTXPowerTrackingInit = _FALSE;
 
-	if (pDM_Odm->SupportICType >= ODM_RTL8188E) 
-	{
-		pDM_Odm->RFCalibrateInfo.bTXPowerTracking = _TRUE;
-		pDM_Odm->RFCalibrateInfo.TXPowercount = 0;
-		pDM_Odm->RFCalibrateInfo.bTXPowerTrackingInit = _FALSE;
-		
-		if(pDM_Odm->mp_mode == FALSE)
-			pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = _TRUE;
-		else
-			pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = _FALSE;
-
-		MSG_8192C("pDM_Odm TxPowerTrackControl = %d\n", pDM_Odm->RFCalibrateInfo.TxPowerTrackControl);
-	}
+	if(pDM_Odm->mp_mode == FALSE)
+		pRFCalibrateInfo->TxPowerTrackControl = _TRUE;
 	else
-	{
-		struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+		pRFCalibrateInfo->TxPowerTrackControl = _FALSE;	
 
-		pdmpriv->bTXPowerTracking = _TRUE;
-		pdmpriv->TXPowercount = 0;
-		pdmpriv->bTXPowerTrackingInit = _FALSE;
-		//#if	(MP_DRIVER != 1)		//for mp driver, turn off txpwrtracking as default
-
-		if(pDM_Odm->mp_mode == FALSE)
-			pdmpriv->TxPowerTrackControl = _TRUE;
-		else
-			pdmpriv->TxPowerTrackControl = _FALSE;
+	if(pDM_Odm->mp_mode == FALSE)
+		pRFCalibrateInfo->TxPowerTrackControl = _TRUE;
 
 
-		//MSG_8192C("pdmpriv->TxPowerTrackControl = %d\n", pdmpriv->TxPowerTrackControl);
-	}
+	MSG_8192C("pDM_Odm TxPowerTrackControl = %d\n", pRFCalibrateInfo->TxPowerTrackControl);
 	
 #elif (DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
 	#ifdef RTL8188E_SUPPORT
 	{
-		pDM_Odm->RFCalibrateInfo.bTXPowerTracking = _TRUE;
-		pDM_Odm->RFCalibrateInfo.TXPowercount = 0;
-		pDM_Odm->RFCalibrateInfo.bTXPowerTrackingInit = _FALSE;
-		pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = _TRUE;
+		pRFCalibrateInfo->bTXPowerTracking = _TRUE;
+		pRFCalibrateInfo->TXPowercount = 0;
+		pRFCalibrateInfo->bTXPowerTrackingInit = _FALSE;
+		pRFCalibrateInfo->TxPowerTrackControl = _TRUE;
 	}
 	#endif
 #endif
 
 	//pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = TRUE;
-	pDM_Odm->RFCalibrateInfo.ThermalValue = pHalData->EEPROMThermalMeter;
-	pDM_Odm->RFCalibrateInfo.ThermalValue_IQK = pHalData->EEPROMThermalMeter;
-	pDM_Odm->RFCalibrateInfo.ThermalValue_LCK = pHalData->EEPROMThermalMeter;	
+	pRFCalibrateInfo->ThermalValue = pHalData->EEPROMThermalMeter;
+	pRFCalibrateInfo->ThermalValue_IQK = pHalData->EEPROMThermalMeter;
+	pRFCalibrateInfo->ThermalValue_LCK = pHalData->EEPROMThermalMeter;	
 
 	// The index of "0 dB" in SwingTable.
 	if (pDM_Odm->SupportICType == ODM_RTL8188E || pDM_Odm->SupportICType == ODM_RTL8723B ||
 		pDM_Odm->SupportICType == ODM_RTL8192E) 
 	{
-		pDM_Odm->DefaultOfdmIndex = (defaultSwingIndex >= OFDM_TABLE_SIZE) ? 30 : defaultSwingIndex;
-		pDM_Odm->DefaultCckIndex = 20;	
+		pRFCalibrateInfo->DefaultOfdmIndex = (defaultSwingIndex >= OFDM_TABLE_SIZE) ? 30 : defaultSwingIndex;
+		pRFCalibrateInfo->DefaultCckIndex = 20;	
 	}
 	else
 	{
-		pDM_Odm->DefaultOfdmIndex = (defaultSwingIndex >= TXSCALE_TABLE_SIZE) ? 24 : defaultSwingIndex;
-		pDM_Odm->DefaultCckIndex = 24;	
+		pRFCalibrateInfo->DefaultOfdmIndex = (defaultSwingIndex >= TXSCALE_TABLE_SIZE) ? 24 : defaultSwingIndex;
+		pRFCalibrateInfo->DefaultCckIndex = 24;	
 	}
 
-	pDM_Odm->BbSwingIdxCckBase = pDM_Odm->DefaultCckIndex;
-	pDM_Odm->RFCalibrateInfo.CCK_index = pDM_Odm->DefaultCckIndex;
+	pRFCalibrateInfo->BbSwingIdxCckBase = pRFCalibrateInfo->DefaultCckIndex;
+	pRFCalibrateInfo->CCK_index = pRFCalibrateInfo->DefaultCckIndex;
 	
 	for (p = ODM_RF_PATH_A; p < MAX_RF_PATH; ++p)
 	{
-		pDM_Odm->BbSwingIdxOfdmBase[p] = pDM_Odm->DefaultOfdmIndex;		
-	   	pDM_Odm->RFCalibrateInfo.OFDM_index[p] = pDM_Odm->DefaultOfdmIndex;		
-		pDM_Odm->RFCalibrateInfo.DeltaPowerIndex[p] = 0;
-		pDM_Odm->RFCalibrateInfo.DeltaPowerIndexLast[p] = 0;
-		pDM_Odm->RFCalibrateInfo.PowerIndexOffset[p] = 0;
+		pRFCalibrateInfo->BbSwingIdxOfdmBase[p] = pRFCalibrateInfo->DefaultOfdmIndex;		
+		pRFCalibrateInfo->OFDM_index[p] = pRFCalibrateInfo->DefaultOfdmIndex;		
+		pRFCalibrateInfo->DeltaPowerIndex[p] = 0;
+		pRFCalibrateInfo->DeltaPowerIndexLast[p] = 0;
+		pRFCalibrateInfo->PowerIndexOffset[p] = 0;
 	}
 
 }
@@ -506,14 +490,12 @@ odm_TXPowerTrackingThermalMeterInit(
 
 VOID
 ODM_TXPowerTrackingCheck(
-	IN 	PVOID	 	pDM_VOID
+	IN	PVOID	pDM_VOID
 	)
 {
-	//
-	// 2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate
-	// at the same time. In the stage2/3, we need to prive universal interface and merge all
-	// HW dynamic mechanism.
-	//
+	/* 2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate
+	at the same time. In the stage2/3, we need to prive universal interface and merge all
+	HW dynamic mechanism. */
 	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	switch	(pDM_Odm->SupportPlatform)
 	{
@@ -538,7 +520,7 @@ ODM_TXPowerTrackingCheck(
 
 VOID
 odm_TXPowerTrackingCheckCE(
-	IN 	PVOID	 	pDM_VOID
+	IN	PVOID	pDM_VOID
 	)
 {
 	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
@@ -561,16 +543,14 @@ odm_TXPowerTrackingCheckCE(
 	}
 	#endif
 
-	#if(((RTL8188E_SUPPORT==1) ||  (RTL8812A_SUPPORT==1) ||  (RTL8821A_SUPPORT==1) ||  (RTL8192E_SUPPORT==1)  ||  (RTL8723B_SUPPORT==1)  ))
-	if(!(pDM_Odm->SupportAbility & ODM_RF_TX_PWR_TRACK))
-	{
+	#if (((RTL8188E_SUPPORT == 1) ||  (RTL8812A_SUPPORT == 1) ||  (RTL8821A_SUPPORT == 1) ||  (RTL8192E_SUPPORT == 1)  ||  (RTL8723B_SUPPORT == 1)  ||  (RTL8814A_SUPPORT == 1)))
+	if (!(pDM_Odm->SupportAbility & ODM_RF_TX_PWR_TRACK))
 		return;
-	}
 
 	if(!pDM_Odm->RFCalibrateInfo.TM_Trigger)		//at least delay 1 sec
 	{
 		//pHalData->TxPowerCheckCnt++;	//cosa add for debug
-		if(IS_HARDWARE_TYPE_8188E(Adapter) || IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8192E(Adapter)||IS_HARDWARE_TYPE_8723B(Adapter))
+		if (IS_HARDWARE_TYPE_8188E(Adapter) || IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8192E(Adapter) || IS_HARDWARE_TYPE_8723B(Adapter) || IS_HARDWARE_TYPE_8814A(Adapter))
 			ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_T_METER_NEW, (BIT17 | BIT16), 0x03);
 		else
 			ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_T_METER_OLD, bRFRegOffsetMask, 0x60);
@@ -592,7 +572,7 @@ odm_TXPowerTrackingCheckCE(
 
 VOID
 odm_TXPowerTrackingCheckMP(
-	IN 	PVOID	 	pDM_VOID
+	IN	PVOID	pDM_VOID
 	)
 {
 	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
@@ -620,7 +600,7 @@ odm_TXPowerTrackingCheckMP(
 
 VOID
 odm_TXPowerTrackingCheckAP(
-	IN 	PVOID	 	pDM_VOID
+	IN	PVOID	pDM_VOID
 	)
 {
 	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;

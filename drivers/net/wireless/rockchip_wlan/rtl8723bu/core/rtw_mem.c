@@ -52,6 +52,8 @@ static int __init rtw_mem_init(void)
 	struct sk_buff *pskb=NULL;
 
 	printk("%s\n", __func__);
+	pr_info("NR_PREALLOC_RECV_SKB: %d\n", NR_PREALLOC_RECV_SKB);
+	pr_info("MAX_RECVBUF_SZ: %d\n", MAX_RECVBUF_SZ);
 
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
 	for(i=0; i<NR_RECVBUFF; i++)

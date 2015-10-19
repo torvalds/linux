@@ -498,10 +498,6 @@ s32 PHY_MACConfig8723B(PADAPTER Adapter)
 #endif//CONFIG_EMBEDDED_FWIMG
 	}
 
-#ifdef CONFIG_GPIO_WAKEUP
-	rtw_clear_hostwakeupgpio(Adapter);
-#endif // CONFIG_GPIO_WAKEUP
-
 	return rtStatus;
 }
 
@@ -573,41 +569,41 @@ phy_ConfigBBWithMpHeaderFile(
 	IN	u1Byte 			ConfigType)
 {
 	int i;
-	u32*	Rtl8192CPHY_REGArray_Table_MP;
+	u32*	Rtl8723BPHY_REGArray_Table_MP;
 	u16	PHY_REGArrayMPLen;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 
 
 	PHY_REGArrayMPLen = Rtl8723B_PHY_REG_Array_MPLength;
-	Rtl8192CPHY_REGArray_Table_MP = (u32*)Rtl8723B_PHY_REG_Array_MP;
+	Rtl8723BPHY_REGArray_Table_MP = (u32*)Rtl8723B_PHY_REG_Array_MP;
 
 	if(ConfigType == BaseBand_Config_PHY_REG)
 	{
 		for(i=0;i<PHY_REGArrayMPLen;i=i+2)
 		{
-			if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfe) {
+			if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfe) {
 				#ifdef CONFIG_LONG_DELAY_ISSUE
 				rtw_msleep_os(50);
 				#else
 				rtw_mdelay_os(50);
 				#endif
 			}
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfd)
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfd)
 				rtw_mdelay_os(5);
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfc)
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfc)
 				rtw_mdelay_os(1);
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfb) {
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfb) {
 				#ifdef CONFIG_LONG_DELAY_ISSUE
 				rtw_msleep_os(50);
 				#else
 				rtw_mdelay_os(50);
 				#endif
 			}
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfa)
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfa)
 				rtw_mdelay_os(5);
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xf9)
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xf9)
 				rtw_mdelay_os(1);
-			PHY_SetBBReg(Adapter, Rtl8192CPHY_REGArray_Table_MP[i], bMaskDWord, Rtl8192CPHY_REGArray_Table_MP[i+1]);
+			PHY_SetBBReg(Adapter, Rtl8723BPHY_REGArray_Table_MP[i], bMaskDWord, Rtl8723BPHY_REGArray_Table_MP[i+1]);
 
 			// Add 1us delay between BB/RF register setting.
 			rtw_mdelay_os(1);
@@ -625,28 +621,6 @@ phy_ConfigBBWithMpHeaderFile(
 
 #endif	// #if (MP_DRIVER == 1)
 
-#if 0 //YJ,test,130321
-static VOID
-phy_BB8192C_Config_1T(
-	IN PADAPTER Adapter
-	)
-{
-	//for path - B
-	PHY_SetBBReg(Adapter, rFPGA0_TxInfo, 0x3, 0x2);
-	PHY_SetBBReg(Adapter, rFPGA1_TxInfo, 0x300033, 0x200022);
-
-	// 20100519 Joseph: Add for 1T2R config. Suggested by Kevin, Jenyu and Yunan.
-	PHY_SetBBReg(Adapter, rCCK0_AFESetting, bMaskByte3, 0x45);
-	PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, bMaskByte0, 0x23);
-	PHY_SetBBReg(Adapter, rOFDM0_AGCParameter1, 0x30, 0x1);	// B path first AGC
-
-	PHY_SetBBReg(Adapter, 0xe74, 0x0c000000, 0x2);
-	PHY_SetBBReg(Adapter, 0xe78, 0x0c000000, 0x2);
-	PHY_SetBBReg(Adapter, 0xe7c, 0x0c000000, 0x2);
-	PHY_SetBBReg(Adapter, 0xe80, 0x0c000000, 0x2);
-	PHY_SetBBReg(Adapter, 0xe88, 0x0c000000, 0x2);
-}
-#endif
 
 static	int
 phy_BB8723b_Config_ParaFile(
@@ -798,7 +772,7 @@ PHY_BBConfig8723B(
 	RegVal = rtw_read16(Adapter, REG_SYS_FUNC_EN);
 	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal|BIT13|BIT0|BIT1));
 
-	// switch ant to BT
+	/* switch ant to BT */
 #ifdef CONFIG_USB_HCI
 	rtw_write32(Adapter, 0x948, 0x0);	// USB use Antenna S0
 #else

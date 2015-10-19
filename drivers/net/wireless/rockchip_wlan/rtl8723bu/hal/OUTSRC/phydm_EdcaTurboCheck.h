@@ -21,7 +21,8 @@
 #ifndef	__PHYDMEDCATURBOCHECK_H__
 #define    __PHYDMEDCATURBOCHECK_H__
 
-#define EDCATURBO_VERSION	"1.0"
+/*#define EDCATURBO_VERSION	"2.1"*/
+#define EDCATURBO_VERSION	"2.2"	/*2015.01.13*/
 
 typedef struct _EDCA_TURBO_
 {
@@ -48,52 +49,9 @@ static u4Byte edca_setting_DL_GMode[HT_IOT_PEER_MAX] =
 // UNKNOWN		REALTEK_90	REALTEK_92SE	BROADCOM		RALINK		ATHEROS		CISCO		MERU,       MARVELL	92U_AP		SELF_AP
 { 0x4322, 		0xa44f, 		0x5e4322,		0xa42b, 			0x5e4322, 	0x4322, 		0xa42b,		0x5ea42b, 0xa44f,		0x5e4322,	0x5ea42b};
 
-
-//============================================================
-// EDCA Paramter for AP/ADSL   by Mingzhi 2011-11-22
-//============================================================
-#elif (DM_ODM_SUPPORT_TYPE &ODM_ADSL)
-enum qos_prio { BK, BE, VI, VO, VI_AG, VO_AG };
-
-static const struct ParaRecord rtl_ap_EDCA[] =
-{
-//ACM,AIFSN, ECWmin, ECWmax, TXOplimit
-     {0,     7,      4,      10,     0},            //BK
-     {0,     3,      4,      6,      0},             //BE
-     {0,     1,      3,      4,      188},         //VI
-     {0,     1,      2,      3,      102},         //VO
-     {0,     1,      3,      4,      94},          //VI_AG
-     {0,     1,      2,      3,      47},          //VO_AG
-};
-
-static const struct ParaRecord rtl_sta_EDCA[] =
-{
-//ACM,AIFSN, ECWmin, ECWmax, TXOplimit
-     {0,     7,      4,      10,     0},
-     {0,     3,      4,      10,     0},
-     {0,     2,      3,      4,      188},
-     {0,     2,      2,      3,      102},
-     {0,     2,      3,      4,      94},
-     {0,     2,      2,      3,      47},
-};
 #endif
 
 
-#if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
-#ifdef WIFI_WMM
-VOID
-ODM_IotEdcaSwitch(
-	IN		PVOID					pDM_VOID,
-	IN	unsigned char		enable
-	);
-#endif
-
-BOOLEAN
-ODM_ChooseIotMainSTA(
-	IN		PVOID					pDM_VOID,
-	IN	PSTA_INFO_T		pstat
-	);
-#endif
 
 VOID
 odm_EdcaTurboCheck(
@@ -135,16 +93,6 @@ odm_EdcaChooseTrafficIdx(
 #elif (DM_ODM_SUPPORT_TYPE==ODM_CE)
 VOID
 odm_EdcaTurboCheckCE(
-	IN 	PVOID	 	pDM_VOID
-	);
-#else
-VOID 
-odm_IotEngine(
-	IN 	PVOID	 	pDM_VOID
-	);
-
-VOID
-odm_EdcaParaInit(
 	IN 	PVOID	 	pDM_VOID
 	);
 #endif

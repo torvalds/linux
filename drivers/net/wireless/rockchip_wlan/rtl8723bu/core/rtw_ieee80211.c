@@ -88,7 +88,7 @@ uint	rtw_is_cckrates_included(u8 *rate)
 		{		
 			if  (  (((rate[i]) & 0x7f) == 2)	|| (((rate[i]) & 0x7f) == 4) ||		
 			(((rate[i]) & 0x7f) == 11)  || (((rate[i]) & 0x7f) == 22) )		
-			return _TRUE;	
+				return _TRUE;
 			i++;
 		}
 		
@@ -104,8 +104,7 @@ uint	rtw_is_cckratesonly_included(u8 *rate)
 	{
 			if  (  (((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
 				(((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22) )
-
-			return _FALSE;		
+				return _FALSE;
 
 			i++;
 	}
@@ -933,41 +932,45 @@ u8 *rtw_get_wps_ie_from_scan_queue(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps
 u8 *rtw_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
 {
 	uint cnt;
-	u8 *wpsie_ptr=NULL;
-	u8 eid, wps_oui[4]={0x0,0x50,0xf2,0x04};
+	u8 *wpsie_ptr = NULL;
+	u8 eid, wps_oui[4] = {0x00, 0x50, 0xf2, 0x04};
 
-	if(wps_ielen)
+	if (wps_ielen)
 		*wps_ielen = 0;
 
-	if(!in_ie || in_len<=0)
+	if (!in_ie) {
+		rtw_warn_on(1);
+		return wpsie_ptr;
+	}
+
+	if (in_len <= 0)
 		return wpsie_ptr;
 
 	cnt = 0;
 
-	while(cnt<in_len)
-	{
+	while (cnt + 1 + 4 < in_len) {
 		eid = in_ie[cnt];
 
-		if((eid==_WPA_IE_ID_)&&(_rtw_memcmp(&in_ie[cnt+2], wps_oui, 4)==_TRUE))
-		{
-			wpsie_ptr = &in_ie[cnt];
+		if (cnt + 1 + 4 >= MAX_IE_SZ) {
+			rtw_warn_on(1);
+			return NULL;
+		}
 
-			if(wps_ie)
-				_rtw_memcpy(wps_ie, &in_ie[cnt], in_ie[cnt+1]+2);
-			
-			if(wps_ielen)
-				*wps_ielen = in_ie[cnt+1]+2;
-			
-			cnt+=in_ie[cnt+1]+2;
+		if (eid == WLAN_EID_VENDOR_SPECIFIC && _rtw_memcmp(&in_ie[cnt + 2], wps_oui, 4) == _TRUE) {
+			wpsie_ptr = in_ie + cnt;
+
+			if (wps_ie)
+				_rtw_memcpy(wps_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
+
+			if (wps_ielen)
+				*wps_ielen = in_ie[cnt + 1] + 2;
 
 			break;
+		} else {
+			cnt += in_ie[cnt + 1] + 2;
 		}
-		else
-		{
-			cnt+=in_ie[cnt+1]+2; //goto next	
-		}		
 
-	}	
+	}
 
 	return wpsie_ptr;
 }
@@ -1382,60 +1385,119 @@ int rtw_get_mac_addr_intel(unsigned char *buf)
 }
 #endif //CONFIG_PLATFORM_INTEL_BYT
 
+/*
+ * Description:
+ * rtw_check_invalid_mac_address: 
+ * This is only used for checking mac address valid or not.
+ *
+ * Input:
+ * adapter: mac_address pointer.
+ *
+ * Output:
+ * _TRUE: The mac address is invalid.
+ * _FALSE: The mac address is valid.
+ *
+ * Auther: Isaac.Li
+ */
+u8 rtw_check_invalid_mac_address(u8 *mac_addr)
+{
+	u8 null_mac_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
+	u8 multi_mac_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 res = _FALSE;
+
+	if (_rtw_memcmp(mac_addr, null_mac_addr, ETH_ALEN)) {
+		res = _TRUE;
+		goto func_exit;
+	}
+
+	if (_rtw_memcmp(mac_addr, multi_mac_addr, ETH_ALEN)) {
+		res = _TRUE;
+		goto func_exit;
+	}
+
+	if (mac_addr[0] & BIT0) {
+		res = _TRUE;
+		goto func_exit;
+	}
+
+	if (mac_addr[0] & BIT1) {
+		res = _TRUE;
+		goto func_exit;
+	}
+
+func_exit:
+	return res;
+}
+
 extern char* rtw_initmac;
 #include <linux/rfkill-wlan.h>
-void rtw_macaddr_cfg(u8 *mac_addr)
+/**
+ * rtw_macaddr_cfg - Decide the mac address used
+ * @out: buf to store mac address decided
+ * @hw_mac_addr: mac address from efuse/epprom
+ */
+void rtw_macaddr_cfg(u8 *out, const u8 *hw_mac_addr)
 {
 	u8 mac[ETH_ALEN];
-	if(mac_addr == NULL)	return;
-	
-	if ( rtw_initmac )
-	{	//	Users specify the mac address
+
+	if (out == NULL) {
+		rtw_warn_on(1);
+		return;
+	}
+
+	/* Users specify the mac address */
+	if (rtw_initmac) {
 		int jj,kk;
 
-		for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 )
-		{
-			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk+ 1]);
-		}
-		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
-	}
-#ifdef CONFIG_PLATFORM_INTEL_BYT
-	else if (0 == rtw_get_mac_addr_intel(mac))
-	{
-		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
-	}
-#endif //CONFIG_PLATFORM_INTEL_BYT
-	else
-    {
-        printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", mac_addr[0], mac_addr[1],
-            mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+		for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
+			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk + 1]);
+
+		goto err_chk;
+         }
+        
+        else {
+
+        printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", out[0], out[1],
+            out[2], out[3], out[4], out[5]);
         if (!rockchip_wifi_mac_addr(mac)) {
             printk("=========> get mac address from flash=[%02x:%02x:%02x:%02x:%02x:%02x]\n", mac[0], mac[1],
                 mac[2], mac[3], mac[4], mac[5]);
-            _rtw_memcpy(mac_addr, mac, ETH_ALEN);
+            _rtw_memcpy(out, mac, ETH_ALEN);
+            goto err_chk;
         } else {
             //  Use the mac address stored in the Efuse
-            _rtw_memcpy(mac, mac_addr, ETH_ALEN);
+            _rtw_memcpy(mac, hw_mac_addr, ETH_ALEN);
+              goto err_chk;
         }
-    }
 
-	if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
-	     (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
-	    ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
-	     (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
-	{
+     }
+
+#ifdef CONFIG_PLATFORM_INTEL_BYT
+	if (rtw_get_mac_addr_intel(mac) == 0)
+		goto err_chk;
+#endif
+
+	
+
+err_chk:
+	//if (rtw_check_invalid_mac_address(mac) == _TRUE) 
+        if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
+             (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
+            ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
+             (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0))){
+		DBG_871X_LEVEL(_drv_err_, "invalid mac addr:"MAC_FMT", assign default one!!!\n", MAC_ARG(mac));
+
+		/* use default mac address */
 		mac[0] = 0x00;
 		mac[1] = 0xe0;
 		mac[2] = 0x4c;
 		mac[3] = 0x87;
 		mac[4] = 0x00;
 		mac[5] = 0x00;
-		// use default mac addresss
-		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
-		DBG_871X("MAC Address from efuse error, assign default one !!!\n");
-	}	
+	}
 
-	DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
+	_rtw_memcpy(out, mac, ETH_ALEN);
+	DBG_871X("%s mac addr:"MAC_FMT"\n", __func__, MAC_ARG(out));
 }
 
 #ifdef CONFIG_80211N_HT
@@ -1647,47 +1709,48 @@ u8 *rtw_get_p2p_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_
  */
 u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen)
 {
-	uint cnt = 0;
-	u8 *p2p_ie_ptr;
-	u8 eid, p2p_oui[4]={0x50,0x6F,0x9A,0x09};
+	uint cnt;
+	u8 *p2p_ie_ptr = NULL;
+	u8 eid, p2p_oui[4] = {0x50, 0x6F, 0x9A, 0x09};
 
-	if ( p2p_ielen != NULL )
+	if (p2p_ielen)
 		*p2p_ielen = 0;
 
-	while(cnt<in_len)
-	{
-		eid = in_ie[cnt];
-		if ((in_len < 0) || (cnt > MAX_IE_SZ)) {
-			rtw_dump_stack();
-			return NULL;
-		}		
-		if( ( eid == _VENDOR_SPECIFIC_IE_ ) && ( _rtw_memcmp( &in_ie[cnt+2], p2p_oui, 4) == _TRUE ) )
-		{
-			p2p_ie_ptr = in_ie + cnt;
-		
-			if ( p2p_ie != NULL )
-			{
-				_rtw_memcpy( p2p_ie, &in_ie[ cnt ], in_ie[ cnt + 1 ] + 2 );
-			}
+	if (!in_ie || in_len < 0) {
+		rtw_warn_on(1);
+		return p2p_ie_ptr;
+	}
 
-			if ( p2p_ielen != NULL )
-			{
-				*p2p_ielen = in_ie[ cnt + 1 ] + 2;
-			}
-			
-			return p2p_ie_ptr;
+	if (in_len <= 0)
+		return p2p_ie_ptr;
+
+	cnt = 0;
+
+	while (cnt + 1 + 4 < in_len) {
+		eid = in_ie[cnt];
+
+		if (cnt + 1 + 4 >= MAX_IE_SZ) {
+			rtw_warn_on(1);
+			return NULL;
+		}
+
+		if (eid == WLAN_EID_VENDOR_SPECIFIC && _rtw_memcmp(&in_ie[cnt + 2], p2p_oui, 4) == _TRUE) {
+			p2p_ie_ptr = in_ie + cnt;
+
+			if (p2p_ie)
+				_rtw_memcpy(p2p_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
+
+			if (p2p_ielen)
+				*p2p_ielen = in_ie[cnt + 1] + 2;
 
 			break;
+		} else {
+			cnt += in_ie[cnt + 1] + 2;
 		}
-		else
-		{
-			cnt += in_ie[ cnt + 1 ] +2; //goto next	
-		}		
-		
-	}	
 
-	return NULL;
+	}
 
+	return p2p_ie_ptr;
 }
 
 /**
@@ -1850,10 +1913,10 @@ void rtw_WLAN_BSSID_EX_remove_p2p_attr(WLAN_BSSID_EX *bss_ex, u8 attr_id)
 	if( (p2p_ie=rtw_get_p2p_ie(bss_ex->IEs+_FIXED_IE_LENGTH_, bss_ex->IELength-_FIXED_IE_LENGTH_, NULL, &p2p_ielen_ori)) ) 
 	{
 		if (0)
-		if(rtw_get_p2p_attr(p2p_ie, p2p_ielen_ori, attr_id, NULL, NULL)) {
-			DBG_871X("rtw_get_p2p_attr: GOT P2P_ATTR:%u!!!!!!!!\n", attr_id);
-			dump_ies(RTW_DBGDUMP, bss_ex->IEs+_FIXED_IE_LENGTH_, bss_ex->IELength-_FIXED_IE_LENGTH_);
-		}
+			if(rtw_get_p2p_attr(p2p_ie, p2p_ielen_ori, attr_id, NULL, NULL)) {
+				DBG_871X("rtw_get_p2p_attr: GOT P2P_ATTR:%u!!!!!!!!\n", attr_id);
+				dump_ies(RTW_DBGDUMP, bss_ex->IEs+_FIXED_IE_LENGTH_, bss_ex->IELength-_FIXED_IE_LENGTH_);
+			}
 
 		p2p_ielen=rtw_p2p_attr_remove(p2p_ie, p2p_ielen_ori, attr_id);
 		if(p2p_ielen != p2p_ielen_ori) {

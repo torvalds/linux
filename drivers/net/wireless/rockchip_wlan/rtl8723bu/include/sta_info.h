@@ -22,9 +22,12 @@
 
 
 #define IBSS_START_MAC_ID	2
-#define NUM_STA 32
+#define NUM_STA MACID_NUM_SW_LIMIT
 #define NUM_ACL 16
 
+#ifdef CONFIG_TDLS
+#define MAX_ALLOWED_TDLS_STA_NUM	4
+#endif
 
 //if mode ==0, then the sta is allowed once the addr is hit.
 //if mode ==1, then the sta is rejected once the addr is non-hit.
@@ -136,7 +139,7 @@ struct sta_info {
 
 	u8	raid;
 	u8 	init_rate;
-	u32	ra_mask;
+	u64	ra_mask;
 	u8	wireless_mode;	// NETWORK_TYPE
 	u8	bw_mode;
 
@@ -147,27 +150,24 @@ struct sta_info {
 
 #ifdef CONFIG_TDLS
 	u32	tdls_sta_state;
-	u8	dialog;
 	u8	SNonce[32];
 	u8	ANonce[32];
 	u32	TDLS_PeerKey_Lifetime;
 	u16	TPK_count;
 	_timer	TPK_timer;
 	struct TDLS_PeerKey	tpk;
-	u16	stat_code;
-	u8	off_ch;
+#ifdef CONFIG_TDLS_CH_SW	
 	u16	ch_switch_time;
 	u16	ch_switch_timeout;
-	u8	option;
-	_timer	option_timer;
-	_timer	base_ch_timer;
-	_timer	off_ch_timer;
+	//u8	option;
+	_timer	ch_sw_timer;
+	_timer	delay_timer;
+#endif	
 	_timer handshake_timer;
-	u8 timer_flag;
 	u8 alive_count;
 	_timer	pti_timer;
-	u8	TDLS_RSNIE[20];	//Save peer's RSNIE, use for sending TDLS_SETUP_RSP
-#endif //CONFIG_TDLS
+	u8	TDLS_RSNIE[20];	/* Save peer's RSNIE, used for sending TDLS_SETUP_RSP */
+#endif /* CONFIG_TDLS */
 
 	//for A-MPDU TX, ADDBA timeout check	
 	_timer addba_retry_timer;

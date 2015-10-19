@@ -26,6 +26,7 @@ odm_SetCrystalCap(
 	IN		u1Byte					CrystalCap
 )
 {
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
 	PDM_ODM_T					pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	PCFO_TRACKING				pCfoTrack = (PCFO_TRACKING)PhyDM_Get_Structure( pDM_Odm, PHYDM_CFOTRACK);
 	BOOLEAN 					bEEPROMCheck;
@@ -75,7 +76,7 @@ odm_SetCrystalCap(
 		ODM_SetBBReg(pDM_Odm, REG_AFE_XTAL_CTRL, 0x7E000000, CrystalCap);
 		ODM_SetBBReg(pDM_Odm, REG_AFE_PLL_CTRL, 0x7E, CrystalCap);	
 	}
-	else if(pDM_Odm->SupportICType & ODM_RTL8814A)
+	else if(pDM_Odm->SupportICType & (ODM_RTL8814A|ODM_RTL8822B))
 	{
 		// write 0x2C[26:21] = 0x2C[20:15] = CrystalCap
 		CrystalCap = CrystalCap & 0x3F;
@@ -88,6 +89,7 @@ odm_SetCrystalCap(
 	}
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CFO_TRACKING, ODM_DBG_LOUD, ("odm_SetCrystalCap(): CrystalCap = 0x%x\n", CrystalCap));
+#endif
 }
 
 u1Byte
@@ -237,6 +239,7 @@ ODM_CfoTracking(
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_CFO_TRACKING, ODM_DBG_LOUD, ("ODM_CfoTracking(): CFO_kHz_A = %dkHz, CFO_kHz_B = %dkHz, CFO_ave = %dkHz\n", 
 						CFO_kHz_A, CFO_kHz_B, CFO_ave));
 
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
 		//4 1.3 Avoid abnormal large CFO
 		CFO_ave_diff = (pCfoTrack->CFO_ave_pre >= CFO_ave)?(pCfoTrack->CFO_ave_pre - CFO_ave):(CFO_ave - pCfoTrack->CFO_ave_pre);
 		if(CFO_ave_diff > 20 && pCfoTrack->largeCFOHit == 0 && !pCfoTrack->bAdjust)
@@ -281,7 +284,7 @@ ODM_CfoTracking(
 			ODM_RT_TRACE(pDM_Odm, ODM_COMP_CFO_TRACKING, ODM_DBG_LOUD, ("ODM_CfoTracking(): Crystal cap offset = %d\n", Adjust_Xtal));
 		}
 #endif
-
+		
 		//4 1.7 Adjust Crystal Cap.
 		if(pCfoTrack->bAdjust)
 		{
@@ -297,6 +300,7 @@ ODM_CfoTracking(
 
 			odm_SetCrystalCap(pDM_Odm, (u1Byte)CrystalCap);
 		}
+#endif
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_CFO_TRACKING, ODM_DBG_LOUD, ("ODM_CfoTracking(): Crystal cap = 0x%x, Default Crystal cap = 0x%x\n", 
 			pCfoTrack->CrystalCap, pCfoTrack->DefXCap));
 

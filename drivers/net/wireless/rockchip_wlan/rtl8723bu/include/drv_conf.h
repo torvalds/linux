@@ -92,8 +92,12 @@
 	#define CONFIG_RTW_ADAPTIVITY_MODE 0
 #endif
 
-#ifndef CONFIG_RTW_NHM_EN
-	#define CONFIG_RTW_NHM_EN 0
+#ifndef CONFIG_RTW_ADAPTIVITY_DML
+	#define CONFIG_RTW_ADAPTIVITY_DML 0
+#endif
+
+#ifndef CONFIG_RTW_ADAPTIVITY_DC_BACKOFF
+	#define CONFIG_RTW_ADAPTIVITY_DC_BACKOFF 2
 #endif
 
 #ifndef CONFIG_RTW_AMPLIFIER_TYPE_2G
@@ -107,6 +111,7 @@
 #define MACID_NUM_SW_LIMIT 32
 #define CAM_ENTRY_NUM_SW_LIMIT 32
 
+/*#define CONFIG_WEXT_DONT_JOIN_BYSSID	*/
 //#include <rtl871x_byteorder.h>
 
 #endif // __DRV_CONF_H__

@@ -182,7 +182,6 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;		
 	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 
 	struct ht_priv		*phtpriv = &pmlmepriv->htpriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -922,7 +921,7 @@ s32 rtl8723bu_hostap_mgnt_xmit_entry(_adapter *padapter, _pkt *pkt)
 	ptxdesc->txdw3 |= cpu_to_le32((8 <<28)); //set bit3 to 1. Suugested by TimChen. 2009.12.29.
 	
 
-	rtl8192cu_cal_txdesc_chksum(ptxdesc);
+	rtl8723b_cal_txdesc_chksum(ptxdesc);
 	// ----- end of fill tx desc -----
 
 	//
@@ -940,7 +939,7 @@ s32 rtl8723bu_hostap_mgnt_xmit_entry(_adapter *padapter, _pkt *pkt)
 	pipe = usb_sndbulkpipe(pdvobj->pusbdev, pHalData->Queue2EPNum[(u8)MGT_QUEUE_INX]&0x0f);
 	
 	usb_fill_bulk_urb(urb, pdvobj->pusbdev, pipe,
-			  pxmit_skb->data, pxmit_skb->len, rtl8192cu_hostap_mgnt_xmit_cb, pxmit_skb);
+			  pxmit_skb->data, pxmit_skb->len, rtl8723bu_hostap_mgnt_xmit_cb, pxmit_skb);
 	
 	urb->transfer_flags |= URB_ZERO_PACKET;
 	usb_anchor_urb(urb, &phostapdpriv->anchored);

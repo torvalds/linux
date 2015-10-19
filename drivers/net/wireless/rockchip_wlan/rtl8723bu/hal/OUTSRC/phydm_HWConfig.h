@@ -51,119 +51,131 @@ typedef struct _Phy_Rx_AGC_Info
 	#endif
 } PHY_RX_AGC_INFO_T,*pPHY_RX_AGC_INFO_T;
 
-typedef struct _Phy_Status_Rpt_8192cd
-{
+typedef struct _Phy_Status_Rpt_8192cd {
 	PHY_RX_AGC_INFO_T path_agc[2];
-	u1Byte 	ch_corr[2];									
+	u1Byte	ch_corr[2];
 	u1Byte	cck_sig_qual_ofdm_pwdb_all;
 	u1Byte	cck_agc_rpt_ofdm_cfosho_a;
 	u1Byte	cck_rpt_b_ofdm_cfosho_b;
-	u1Byte 	rsvd_1;//ch_corr_msb;
-	u1Byte 	noise_power_db_msb;
-	s1Byte	path_cfotail[2];	
-	u1Byte	pcts_mask[2];	
-	s1Byte	stream_rxevm[2];	
+	u1Byte	rsvd_1;/*ch_corr_msb;*/
+	u1Byte	noise_power_db_msb;
+	s1Byte	path_cfotail[2];
+	u1Byte	pcts_mask[2];
+	s1Byte	stream_rxevm[2];
 	u1Byte	path_rxsnr[2];
-	u1Byte 	noise_power_db_lsb;
+	u1Byte	noise_power_db_lsb;
 	u1Byte	rsvd_2[3];
-	u1Byte 	stream_csi[2];
-	u1Byte 	stream_target_csi[2];
-	s1Byte 	sig_evm;
-	u1Byte 	rsvd_3;	
+	u1Byte	stream_csi[2];
+	u1Byte	stream_target_csi[2];
+	s1Byte	sig_evm;
+	u1Byte	rsvd_3;
 
-#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)	
-	u1Byte 	antsel_rx_keep_2:1;	//ex_intf_flg:1;
-	u1Byte 	sgi_en:1;
-	u1Byte 	rxsc:2;	
-	u1Byte 	idle_long:1;
-	u1Byte 	r_ant_train_en:1;
-	u1Byte 	ant_sel_b:1;
-	u1Byte 	ant_sel:1;	
-#else	// _BIG_ENDIAN_	
-	u1Byte 	ant_sel:1;	
-	u1Byte 	ant_sel_b:1;
-	u1Byte 	r_ant_train_en:1;
-	u1Byte 	idle_long:1;
-	u1Byte 	rxsc:2;
-	u1Byte 	sgi_en:1;
-	u1Byte 	antsel_rx_keep_2:1;	//ex_intf_flg:1;
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u1Byte	antsel_rx_keep_2: 1;	/*ex_intf_flg:1;*/
+	u1Byte	sgi_en: 1;
+	u1Byte	rxsc: 2;
+	u1Byte	idle_long: 1;
+	u1Byte	r_ant_train_en: 1;
+	u1Byte	ant_sel_b: 1;
+	u1Byte	ant_sel: 1;
+#else	/*_BIG_ENDIAN_	*/
+	u1Byte	ant_sel: 1;
+	u1Byte	ant_sel_b: 1;
+	u1Byte	r_ant_train_en: 1;
+	u1Byte	idle_long: 1;
+	u1Byte	rxsc: 2;
+	u1Byte	sgi_en: 1;
+	u1Byte	antsel_rx_keep_2: 1;/*ex_intf_flg:1;*/
 #endif
-} PHY_STATUS_RPT_8192CD_T,*PPHY_STATUS_RPT_8192CD_T;
+} PHY_STATUS_RPT_8192CD_T, *PPHY_STATUS_RPT_8192CD_T;
 
 
-typedef struct _Phy_Status_Rpt_8812
-{
-#if 0
-	PHY_RX_AGC_INFO_T path_agc[2];
-	u1Byte 	ch_num[2];									
-	u1Byte	cck_sig_qual_ofdm_pwdb_all;
-	u1Byte	cck_agc_rpt_ofdm_cfosho_a;
-	u1Byte	cck_bb_pwr_ofdm_cfosho_b;
-	u1Byte    cck_rx_path;	//CCK_RX_PATH [3:0] (with regA07[3:0] definition)	
-	u1Byte 	rsvd_1;	
-	u1Byte	path_cfotail[2];	
-	u1Byte	pcts_mask[2];	
-	s1Byte	stream_rxevm[2];	
-	u1Byte	path_rxsnr[2];
-	u1Byte	rsvd_2[2];	
-	u1Byte 	stream_snr[2];	
-	u1Byte 	stream_csi[2];
-	u1Byte	rsvd_3[2];
-	s1Byte 	sig_evm;
-	u1Byte 	rsvd_4;	
-#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)	
-	u1Byte 	antidx_anta:3;
-	u1Byte 	antidx_antb:3;
-	u1Byte 	rsvd_5:2;
-#else	// _BIG_ENDIAN_	
-	u1Byte 	rsvd_5:2;
-	u1Byte 	antidx_antb:3;
-	u1Byte 	antidx_anta:3;	
-#endif
+typedef struct _Phy_Status_Rpt_8812 {
+/*	DWORD 0*/
+	u1Byte			gain_trsw[2];							/*path-A and path-B {TRSW, gain[6:0] }*/
+	u1Byte			chl_num_LSB;							/*channel number[7:0]*/
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u1Byte			chl_num_MSB: 2;							/*channel number[9:8]*/
+	u1Byte			sub_chnl: 4;								/*sub-channel location[3:0]*/
+	u1Byte			r_RFMOD: 2;								/*RF mode[1:0]*/
+#else	/*_BIG_ENDIAN_	*/
+	u1Byte			r_RFMOD: 2;
+	u1Byte			sub_chnl: 4;
+	u1Byte			chl_num_MSB: 2;
 #endif
 
-	//2012.05.24 LukeLee: This structure should take big/little endian in consideration later.....
-	
-	//DWORD 0
-	u1Byte			gain_trsw[2];
-#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)	
-	u2Byte			chl_num:10;
-	u2Byte			sub_chnl:4;
-	u2Byte			r_RFMOD:2;
-#else	// _BIG_ENDIAN_	
-	u2Byte			r_RFMOD:2;
-	u2Byte			sub_chnl:4;
-	u2Byte			chl_num:10;
+/*	DWORD 1*/
+	u1Byte			pwdb_all;								/*CCK signal quality / OFDM pwdb all*/
+	s1Byte			cfosho[2];		/*DW1 byte 1 DW1 byte2	CCK AGC report and CCK_BB_Power / OFDM Path-A and Path-B short CFO*/
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	/*this should be checked again because the definition of 8812 and 8814 is different*/
+/*	u1Byte			r_cck_rx_enable_pathc:2;					cck rx enable pathc[1:0]*/
+/*	u1Byte			cck_rx_path:4;							cck rx path[3:0]*/
+	u1Byte			resvd_0: 6;
+	u1Byte			bt_RF_ch_MSB: 2;						/*8812A:2'b0			8814A: bt rf channel keep[7:6]*/
+#else	/*_BIG_ENDIAN_*/
+	u1Byte			bt_RF_ch_MSB: 2;
+	u1Byte			resvd_0: 6;
 #endif
 
-	//DWORD 1
-	u1Byte			pwdb_all;
-	u1Byte			cfosho[4];	// DW 1 byte 1 DW 2 byte 0
+/*	DWORD 2*/
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u1Byte			ant_div_sw_a: 1;							/*8812A: ant_div_sw_a    8814A: 1'b0*/
+	u1Byte			ant_div_sw_b: 1;							/*8812A: ant_div_sw_b    8814A: 1'b0*/
+	u1Byte			bt_RF_ch_LSB: 6;						/*8812A: 6'b0                   8814A: bt rf channel keep[5:0]*/
+#else	/*_BIG_ENDIAN_	*/
+	u1Byte			bt_RF_ch_LSB: 6;
+	u1Byte			ant_div_sw_b: 1;
+	u1Byte			ant_div_sw_a: 1;
+#endif
+	s1Byte			cfotail[2];		   /*DW2 byte 1 DW2 byte 2	path-A and path-B CFO tail*/
+	u1Byte			PCTS_MSK_RPT_0;						/*PCTS mask report[7:0]*/
+	u1Byte			PCTS_MSK_RPT_1;						/*PCTS mask report[15:8]*/
 
-	//DWORD 2
-	s1Byte			cfotail[4];	// DW 2 byte 1 DW 3 byte 0
+/*	DWORD 3*/
+	s1Byte			rxevm[2];	         /*DW3 byte 1 DW3 byte 2	stream 1 and stream 2 RX EVM*/
+	s1Byte			rxsnr[2];	         /*DW3 byte 3 DW4 byte 0	path-A and path-B RX SNR*/
 
-	//DWORD 3
-	s1Byte			rxevm[2];	// DW 3 byte 1 DW 3 byte 2
-	s1Byte			rxsnr[2];	// DW 3 byte 3 DW 4 byte 0
+/*	DWORD 4*/
+	u1Byte			PCTS_MSK_RPT_2;						/*PCTS mask report[23:16]*/
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u1Byte			PCTS_MSK_RPT_3: 6;						/*PCTS mask report[29:24]*/
+	u1Byte			pcts_rpt_valid: 1;							/*pcts_rpt_valid*/
+	u1Byte			resvd_1: 1;								/*1'b0*/
+#else	/*_BIG_ENDIAN_*/
+	u1Byte			resvd_1: 1;
+	u1Byte			pcts_rpt_valid: 1;
+	u1Byte			PCTS_MSK_RPT_3: 6;
+#endif
+	s1Byte			rxevm_cd[2];	   /*DW 4 byte 3 DW5 byte 0  8812A: 16'b0	8814A: stream 3 and stream 4 RX EVM*/
 
-	//DWORD 4
-	u1Byte			PCTS_MSK_RPT[2];	
-	u1Byte			pdsnr[2];	// DW 4 byte 3 DW 5 Byte 0
+/*	DWORD 5*/
+	u1Byte			csi_current[2];	   /*DW5 byte 1 DW5 byte 2	8812A: stream 1 and 2 CSI	8814A:  path-C and path-D RX SNR*/
+	u1Byte			gain_trsw_cd[2];	   /*DW5 byte 3 DW6 byte 0	path-C and path-D {TRSW, gain[6:0] }*/
 
-	//DWORD 5
-	u1Byte			csi_current[2];
-	u1Byte			rx_gain_c;
-
-	//DWORD 6
-	u1Byte			rx_gain_d;
-	s1Byte			sigevm;
-	u1Byte			resvd_0;
-	u1Byte			antidx_anta:3;
-	u1Byte			antidx_antb:3;
-	u1Byte			resvd_1:2;
-} PHY_STATUS_RPT_8812_T,*PPHY_STATUS_RPT_8812_T;
-
+/*	DWORD 6*/
+	s1Byte			sigevm;									/*signal field EVM*/
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u1Byte			antidx_antc: 3;							/*8812A: 3'b0		8814A: antidx_antc[2:0]*/
+	u1Byte			antidx_antd: 3;							/*8812A: 3'b0		8814A: antidx_antd[2:0]*/
+	u1Byte			dpdt_ctrl_keep: 1;						/*8812A: 1'b0		8814A: dpdt_ctrl_keep*/
+	u1Byte			GNT_BT_keep: 1;							/*8812A: 1'b0		8814A: GNT_BT_keep*/
+#else	/*_BIG_ENDIAN_*/
+	u1Byte			GNT_BT_keep: 1;
+	u1Byte			dpdt_ctrl_keep: 1;
+	u1Byte			antidx_antd: 3;
+	u1Byte			antidx_antc: 3;
+#endif
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u1Byte			antidx_anta: 3;							/*antidx_anta[2:0]*/
+	u1Byte			antidx_antb: 3;							/*antidx_antb[2:0]*/
+	u1Byte			resvd_2: 2;								/*1'b0*/
+#else	/*_BIG_ENDIAN_*/
+	u1Byte			resvd_2: 2;
+	u1Byte			antidx_antb: 3;
+	u1Byte			antidx_anta: 3;
+#endif
+} PHY_STATUS_RPT_8812_T, *PPHY_STATUS_RPT_8812_T;
 
 VOID
 odm_Init_RSSIForDM(
@@ -187,7 +199,6 @@ ODM_MacStatusQuery(
 	IN		BOOLEAN						bPacketToSelf,
 	IN		BOOLEAN						bPacketBeacon
 	);
-#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE|ODM_AP))
 
 HAL_STATUS
 ODM_ConfigRFWithTxPwrTrackHeaderFile(
@@ -231,7 +242,6 @@ odm_SignalScaleMapping(
 	IN	s4Byte CurrSig 
 	);
 
-#endif
 
 #endif
 

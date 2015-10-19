@@ -812,7 +812,7 @@ odm_PSD_Monitor(
 			{
 				if(H2C_PSD_DATA[i] !=H2C_PSD_DATA_last[i])
 				{
-					FW_FillH2CCmd(Adapter, H2C_92C_PSD_RESULT, 5, H2C_PSD_DATA);
+					FillH2CCmd92C(Adapter, H2C_92C_PSD_RESULT, 5, H2C_PSD_DATA);
 					ODM_RT_TRACE(pDM_Odm, ODM_COMP_PSD, DBG_LOUD,("Need to Update the AFH Map \n"));
 					break;
 				}
@@ -1305,7 +1305,7 @@ void odm_RXHP(
 	PMGNT_INFO	pMgntInfo = &(Adapter->MgntInfo);
 	pDIG_T		pDM_DigTable = &pDM_Odm->DM_DigTable;
 	pRXHP_T		pRX_HP_Table  = &pDM_Odm->DM_RXHP_Table;
-       PFALSE_ALARM_STATISTICS		FalseAlmCnt = (PFALSE_ALARM_STATISTICS)PhyDM_Get_Structure( pDM_Odm , PHYDM_FALSEALMCNT);
+	PFALSE_ALARM_STATISTICS		FalseAlmCnt = (PFALSE_ALARM_STATISTICS)PhyDM_Get_Structure(pDM_Odm, PHYDM_FALSEALMCNT);
 	
 	u1Byte              	i, j, sum;
 	u1Byte			Is40MHz;
