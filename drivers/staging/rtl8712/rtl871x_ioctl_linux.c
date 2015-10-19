@@ -118,12 +118,13 @@ static inline void handle_group_key(struct ieee_param *param,
 	    param->u.crypt.idx < 3) {
 		/* group key idx is 1 or 2 */
 		memcpy(padapter->securitypriv.XGrpKey[param->u.crypt.
-			idx-1].skey, param->u.crypt.key, (param->u.crypt.key_len
-			> 16 ? 16 : param->u.crypt.key_len));
+			idx - 1].skey, param->u.crypt.key,
+			(param->u.crypt.key_len > 16 ? 16 :
+			 param->u.crypt.key_len));
 		memcpy(padapter->securitypriv.XGrptxmickey[param->
-			u.crypt.idx-1].skey, &(param->u.crypt.key[16]), 8);
+			u.crypt.idx - 1].skey, &(param->u.crypt.key[16]), 8);
 		memcpy(padapter->securitypriv. XGrprxmickey[param->
-			u.crypt.idx-1].skey, &(param->u.crypt.key[24]), 8);
+			u.crypt.idx - 1].skey, &(param->u.crypt.key[24]), 8);
 		padapter->securitypriv.binstallGrpkey = true;
 		r8712_set_key(padapter, &padapter->securitypriv,
 			param->u.crypt.idx);
@@ -199,7 +200,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 	memcpy((u8 *)&cap, r8712_get_capability_from_ie(pnetwork->network.IEs),
 		2);
 	cap = le16_to_cpu(cap);
-	if (cap & (WLAN_CAPABILITY_IBSS|WLAN_CAPABILITY_BSS)) {
+	if (cap & (WLAN_CAPABILITY_IBSS | WLAN_CAPABILITY_BSS)) {
 		if (cap & WLAN_CAPABILITY_BSS)
 			iwe.u.mode = (u32)IW_MODE_MASTER;
 		else
@@ -575,10 +576,10 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 				eid = buf[cnt];
 
 				if ((eid == _VENDOR_SPECIFIC_IE_) &&
-				    (!memcmp(&buf[cnt+2], wps_oui, 4))) {
+				    (!memcmp(&buf[cnt + 2], wps_oui, 4))) {
 					netdev_info(padapter->pnetdev, "r8712u: SET WPS_IE\n");
 					padapter->securitypriv.wps_ie_len =
-					    ((buf[cnt+1] + 2) <
+					    ((buf[cnt + 1] + 2) <
 					    (MAX_WPA_IE_LEN << 2)) ?
 					    (buf[cnt + 1] + 2) :
 					    (MAX_WPA_IE_LEN << 2);
@@ -588,7 +589,7 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 					padapter->securitypriv.wps_phase =
 								 true;
 					netdev_info(padapter->pnetdev, "r8712u: SET WPS_IE, wps_phase==true\n");
-					cnt += buf[cnt+1]+2;
+					cnt += buf[cnt + 1] + 2;
 					break;
 				} else {
 					cnt += buf[cnt + 1] + 2;
@@ -613,7 +614,7 @@ static int r8711_wx_get_name(struct net_device *dev,
 	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
 	u8 *prates;
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE) ==
+	if (check_fwstate(pmlmepriv, _FW_LINKED | WIFI_ADHOC_MASTER_STATE) ==
 	    true) {
 		/* parsing HT_CAP_IE */
 		p = r8712_get_ie(&pcur_bss->IEs[12], _HT_CAPABILITY_IE_,
@@ -704,7 +705,7 @@ static int r8711_wx_get_freq(struct net_device *dev,
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		wrqu->freq.m = ieee80211_wlan_frequencies[
-			       pcur_bss->Configuration.DSConfig-1] * 100000;
+			       pcur_bss->Configuration.DSConfig - 1] * 100000;
 		wrqu->freq.e = 1;
 		wrqu->freq.i = pcur_bss->Configuration.DSConfig;
 	} else {
@@ -949,7 +950,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 			sprintf(ext, "%s rssi %d",
 				pcur_network->network.Ssid.Ssid,
 				/*(xxxx=xxxx+10) */
-				((padapter->recvpriv.fw_rssi)>>1)-95
+				((padapter->recvpriv.fw_rssi) >> 1) - 95
 				/*pcur_network->network.Rssi */
 				);
 		} else {
@@ -1012,7 +1013,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 		goto FREE_EXT;
 	}
 	if (copy_to_user(dwrq->pointer, ext,
-				min(dwrq->length, (__u16)(strlen(ext)+1))))
+				min(dwrq->length, (__u16)(strlen(ext) + 1))))
 		ret = -EFAULT;
 
 FREE_EXT:
@@ -1151,7 +1152,7 @@ static int r8711_wx_set_scan(struct net_device *dev,
 		return -ENETDOWN;
 	if (!padapter->hw_init_completed)
 		return -1;
-	if ((check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING)) ||
+	if ((check_fwstate(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING)) ||
 	    (pmlmepriv->sitesurveyctrl.traffic_busy))
 		return 0;
 	if (wrqu->data.length == sizeof(struct iw_scan_req)) {
@@ -1201,7 +1202,8 @@ static int r8711_wx_get_scan(struct net_device *dev,
 
 	if (padapter->bDriverStopped)
 		return -EINVAL;
-	while (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING)) {
+	while (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY |
+			     _FW_UNDER_LINKING)) {
 		msleep(30);
 		cnt++;
 		if (cnt > 100)
@@ -1311,7 +1313,7 @@ static int r8711_wx_get_essid(struct net_device *dev,
 	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
 	u32 len, ret = 0;
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE)) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED | WIFI_ADHOC_MASTER_STATE)) {
 		len = pcur_bss->Ssid.SsidLength;
 		wrqu->essid.length = len;
 		memcpy(extra, pcur_bss->Ssid.Ssid, len);
@@ -1412,7 +1414,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 	u16 mcs_rate = 0;
 
 	i = 0;
-	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE)) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED | WIFI_ADHOC_MASTER_STATE)) {
 		p = r8712_get_ie(&pcur_bss->IEs[12],
 				 _HT_CAPABILITY_IE_, &ht_ielen,
 		    pcur_bss->IELength - 12);
@@ -1432,7 +1434,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 			if (rate > max_rate)
 				max_rate = rate;
 			wrqu->bitrate.fixed = 0;	/* no auto select */
-			wrqu->bitrate.value = rate*500000;
+			wrqu->bitrate.value = rate * 500000;
 			i++;
 		}
 		if (ht_cap) {
@@ -1853,7 +1855,7 @@ static int r8711_wx_write32(struct net_device *dev,
 	u32 data32;
 
 	get_user(addr, (u32 __user *)wrqu->data.pointer);
-	data32 = ((u32)wrqu->data.length<<16) | (u32)wrqu->data.flags;
+	data32 = ((u32)wrqu->data.length << 16) | (u32)wrqu->data.flags;
 	r8712_write32(padapter, addr, data32);
 	return 0;
 }
@@ -1966,7 +1968,8 @@ static int r871x_get_ap_info(struct net_device *dev,
 
 	if (padapter->bDriverStopped || (pdata == NULL))
 		return -EINVAL;
-	while (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING)) {
+	while (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY |
+			     _FW_UNDER_LINKING)) {
 		msleep(30);
 		cnt++;
 		if (cnt > 100)
@@ -1997,13 +2000,13 @@ static int r871x_get_ap_info(struct net_device *dev,
 		if (ether_addr_equal(bssid, pnetwork->network.MacAddress)) {
 			/* BSSID match, then check if supporting wpa/wpa2 */
 			pbuf = r8712_get_wpa_ie(&pnetwork->network.IEs[12],
-			       &wpa_ielen, pnetwork->network.IELength-12);
+			       &wpa_ielen, pnetwork->network.IELength - 12);
 			if (pbuf && (wpa_ielen > 0)) {
 				pdata->flags = 1;
 				break;
 			}
 			pbuf = r8712_get_wpa2_ie(&pnetwork->network.IEs[12],
-			       &wpa_ielen, pnetwork->network.IELength-12);
+			       &wpa_ielen, pnetwork->network.IELength - 12);
 			if (pbuf && (wpa_ielen > 0)) {
 				pdata->flags = 2;
 				break;
@@ -2088,7 +2091,7 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 	switch (name) {
 	case IEEE_PARAM_WPA_ENABLED:
 		padapter->securitypriv.AuthAlgrthm = 2; /* 802.1x */
-		switch ((value)&0xff) {
+		switch ((value) & 0xff) {
 		case 1: /* WPA */
 			padapter->securitypriv.ndisauthtype =
 				Ndis802_11AuthModeWPAPSK; /* WPA_PSK */

@@ -295,7 +295,7 @@ uint oid_rt_pro_start_test_hdl(struct oid_par_priv *poid_par_priv)
 	r8712_write8(Adapter, MSR, 1); /* Link in ad hoc network, 0x1025004C */
 	r8712_write8(Adapter, RCR, 0); /* RCR : disable all pkt, 0x10250048 */
 	/* RCR disable Check BSSID, 0x1025004a */
-	r8712_write8(Adapter, RCR+2, 0x57);
+	r8712_write8(Adapter, RCR + 2, 0x57);
 	/* disable RX filter map , mgt frames will put in RX FIFO 0 */
 	r8712_write16(Adapter, RXFLTMAP0, 0x0);
 	val8 = r8712_read8(Adapter, EE_9346CR);
@@ -885,7 +885,7 @@ uint oid_rt_set_rx_packet_type_hdl(struct oid_par_priv
 		rcr_val32 |= (RCR_AB | RCR_AM | RCR_APM | RCR_AAP | RCR_ACRC32);
 		break;
 	case RX_PKT_PHY_MATCH:
-		rcr_val32 |= (RCR_APM|RCR_ACRC32);
+		rcr_val32 |= (RCR_APM | RCR_ACRC32);
 		break;
 	default:
 		rcr_val32 &= ~(RCR_AAP |

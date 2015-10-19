@@ -130,11 +130,11 @@ static void SwLedOn(struct _adapter *padapter, struct LED_871x *pLed)
 		break;
 	case LED_PIN_LED0:
 		/* SW control led0 on.*/
-		r8712_write8(padapter, LEDCFG, LedCfg&0xf0);
+		r8712_write8(padapter, LEDCFG, LedCfg & 0xf0);
 		break;
 	case LED_PIN_LED1:
 		/* SW control led1 on.*/
-		r8712_write8(padapter, LEDCFG, LedCfg&0x0f);
+		r8712_write8(padapter, LEDCFG, LedCfg & 0x0f);
 		break;
 	default:
 		break;
@@ -158,11 +158,11 @@ static void SwLedOff(struct _adapter *padapter, struct LED_871x *pLed)
 		break;
 	case LED_PIN_LED0:
 		LedCfg &= 0xf0; /* Set to software control.*/
-		r8712_write8(padapter, LEDCFG, (LedCfg|BIT(3)));
+		r8712_write8(padapter, LEDCFG, (LedCfg | BIT(3)));
 		break;
 	case LED_PIN_LED1:
 		LedCfg &= 0x0f; /* Set to software control.*/
-		r8712_write8(padapter, LEDCFG, (LedCfg|BIT(7)));
+		r8712_write8(padapter, LEDCFG, (LedCfg | BIT(7)));
 		break;
 	default:
 		break;

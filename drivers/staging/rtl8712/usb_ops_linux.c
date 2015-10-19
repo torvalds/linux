@@ -281,7 +281,7 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 			if (!precvbuf->pskb)
 				return _FAIL;
 			tmpaddr = (addr_t)precvbuf->pskb->data;
-			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
 			skb_reserve(precvbuf->pskb,
 				    (RECVBUFF_ALIGN_SZ - alignment));
 			precvbuf->phead = precvbuf->pskb->head;
@@ -451,7 +451,7 @@ u32 r8712_usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	}
 	/* translate DMA FIFO addr to pipehandle */
 	pipe = ffaddr2pipehdl(pdvobj, addr);
-	if (pxmitpriv->free_xmitbuf_cnt%NR_XMITBUFF == 0)
+	if (pxmitpriv->free_xmitbuf_cnt % NR_XMITBUFF == 0)
 		purb->transfer_flags  &=  (~URB_NO_INTERRUPT);
 	else
 		purb->transfer_flags  |=  URB_NO_INTERRUPT;

@@ -62,7 +62,7 @@ static void check_hw_pbc(struct _adapter *padapter)
 	tmp1byte = r8712_read8(padapter, GPIO_CTRL);
 	if (tmp1byte == 0xff)
 		return;
-	if (tmp1byte&HAL_8192S_HW_GPIO_WPS_BIT) {
+	if (tmp1byte & HAL_8192S_HW_GPIO_WPS_BIT) {
 		/* Here we only set bPbcPressed to true
 		 * After trigger PBC, the variable will be set to false
 		 */
@@ -345,7 +345,7 @@ _next:
 			pcmdpriv->cmd_issued_cnt++;
 			cmdsz = round_up(pcmd->cmdsz, 8);
 			wr_sz = TXDESC_SIZE + 8 + cmdsz;
-			pdesc->txdw0 |= cpu_to_le32((wr_sz-TXDESC_SIZE) &
+			pdesc->txdw0 |= cpu_to_le32((wr_sz - TXDESC_SIZE) &
 						     0x0000ffff);
 			if (pdvobj->ishighspeed) {
 				if ((wr_sz % 512) == 0)
@@ -443,20 +443,20 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	}
 	/* checking if event code is valid */
 	if (evt_code >= MAX_C2HEVT) {
-		pevt_priv->event_seq = ((evt_seq+1) & 0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	} else if ((evt_code == GEN_EVT_CODE(_Survey)) &&
 		   (evt_sz > sizeof(struct wlan_bssid_ex))) {
-		pevt_priv->event_seq = ((evt_seq+1)&0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	}
 	/* checking if event size match the event parm size */
 	if ((wlanevents[evt_code].parmsize) &&
 	    (wlanevents[evt_code].parmsize != evt_sz)) {
-		pevt_priv->event_seq = ((evt_seq+1)&0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	} else if ((evt_sz == 0) && (evt_code != GEN_EVT_CODE(_WPS_PBC))) {
-		pevt_priv->event_seq = ((evt_seq+1)&0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	}
 	pevt_priv->event_seq++;	/* update evt_seq */

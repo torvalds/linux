@@ -205,8 +205,8 @@ void r8712_generate_random_ibss(u8 *pibss)
 	pibss[1] = 0x11;
 	pibss[2] = 0x87;
 	pibss[3] = (u8)(curtime & 0xff);
-	pibss[4] = (u8)((curtime>>8) & 0xff);
-	pibss[5] = (u8)((curtime>>16) & 0xff);
+	pibss[4] = (u8)((curtime >> 8) & 0xff);
+	pibss[5] = (u8)((curtime >> 16) & 0xff);
 }
 
 uint r8712_get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
@@ -635,7 +635,7 @@ void r8712_free_assoc_resources(struct _adapter *adapter)
 	pwlan = r8712_find_network(&pmlmepriv->scanned_queue,
 				   tgt_network->network.MacAddress);
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_AP_STATE)) {
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_AP_STATE)) {
 		struct sta_info *psta;
 
 		psta = r8712_get_stainfo(&adapter->stapriv,
@@ -647,7 +647,7 @@ void r8712_free_assoc_resources(struct _adapter *adapter)
 	}
 
 	if (check_fwstate(pmlmepriv,
-	    WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE|WIFI_AP_STATE))
+	    WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE | WIFI_AP_STATE))
 		r8712_free_all_stainfo(adapter);
 	if (pwlan)
 		pwlan->fixed = false;
@@ -719,8 +719,8 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 		pnetwork = kmalloc(sizeof(struct wlan_network), GFP_ATOMIC);
 		if (!pnetwork)
 			return;
-		memcpy((u8 *)pnetwork+16, (u8 *)pbuf + 8,
-			sizeof(struct wlan_network) - 16);
+		memcpy((u8 *)pnetwork + 16, (u8 *)pbuf + 8,
+		       sizeof(struct wlan_network) - 16);
 	} else {
 		pnetwork = (struct wlan_network *)pbuf;
 	}
@@ -1414,7 +1414,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 	while (cnt < in_len) {
 		if (in_ie[cnt] == authmode) {
 			if ((authmode == _WPA_IE_ID_) &&
-			    (!memcmp(&in_ie[cnt+2], &wpa_oui[0], 4))) {
+			    (!memcmp(&in_ie[cnt + 2], &wpa_oui[0], 4))) {
 				memcpy(&sec_ie[0], &in_ie[cnt],
 					in_ie[cnt + 1] + 2);
 				match = true;
@@ -1432,7 +1432,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 				memcpy(&bkup_ie[0], &in_ie[cnt],
 					in_ie[cnt + 1] + 2);
 		}
-		cnt += in_ie[cnt+1] + 2; /*get next*/
+		cnt += in_ie[cnt + 1] + 2; /*get next*/
 	}
 	/*restruct WPA IE or WPA2 IE in sec_ie[] */
 	if (match) {
@@ -1492,7 +1492,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 					/*select the uncst_oui and remove
 					 * the other uncst_oui*/
 					cnt = sec_ie[12];
-					remove_cnt = (cnt-1) * 4;
+					remove_cnt = (cnt - 1) * 4;
 					sec_ie[12] = 0x01;
 					memcpy(&sec_ie[14], &uncst_oui[0], 4);
 					/*remove the other unicast suit*/
@@ -1553,7 +1553,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 					/*select the uncst_oui and remove the
 					 * other uncst_oui*/
 					cnt = sec_ie[8];
-					remove_cnt = (cnt-1)*4;
+					remove_cnt = (cnt - 1) * 4;
 					sec_ie[8] = 0x01;
 					memcpy(&sec_ie[10], &uncst_oui[0], 4);
 					/*remove the other unicast suit*/
@@ -1561,7 +1561,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 						&sec_ie[14 + remove_cnt],
 						(sec_ie[1] - 14 + 2 -
 						remove_cnt));
-					sec_ie[1] = sec_ie[1]-remove_cnt;
+					sec_ie[1] = sec_ie[1] - remove_cnt;
 				}
 				break;
 			}
@@ -1573,7 +1573,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 		ielength = 12;
 		/*copy RSN or SSN*/
 		if (match) {
-			memcpy(&out_ie[ielength], &sec_ie[0], sec_ie[1]+2);
+			memcpy(&out_ie[ielength], &sec_ie[0], sec_ie[1] + 2);
 			ielength += sec_ie[1] + 2;
 			if (authmode == _WPA2_IE_ID_) {
 				/*the Pre-Authentication bit should be zero*/
@@ -1587,8 +1587,8 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 		memcpy(out_ie, in_ie, 12);
 		ielength = 12;
 		if (psecuritypriv->wps_phase) {
-			memcpy(out_ie+ielength, psecuritypriv->wps_ie,
-				psecuritypriv->wps_ie_len);
+			memcpy(out_ie + ielength, psecuritypriv->wps_ie,
+			       psecuritypriv->wps_ie_len);
 			ielength += psecuritypriv->wps_ie_len;
 		}
 	}
@@ -1702,11 +1702,11 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
 
 	phtpriv->ht_option = 0;
-	p = r8712_get_ie(in_ie+12, _HT_CAPABILITY_IE_, &ielen, in_len-12);
+	p = r8712_get_ie(in_ie + 12, _HT_CAPABILITY_IE_, &ielen, in_len - 12);
 	if (p && (ielen > 0)) {
 		if (pqospriv->qos_option == 0) {
 			out_len = *pout_len;
-			r8712_set_ie(out_ie+out_len, _VENDOR_SPECIFIC_IE_,
+			r8712_set_ie(out_ie + out_len, _VENDOR_SPECIFIC_IE_,
 				     _WMM_IE_Length_, WMM_IE, pout_len);
 			pqospriv->qos_option = 1;
 		}
@@ -1720,7 +1720,7 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 				    IEEE80211_HT_CAP_DSSSCCK40;
 		ht_capie.ampdu_params_info = (IEEE80211_HT_CAP_AMPDU_FACTOR &
 				0x03) | (IEEE80211_HT_CAP_AMPDU_DENSITY & 0x00);
-		r8712_set_ie(out_ie+out_len, _HT_CAPABILITY_IE_,
+		r8712_set_ie(out_ie + out_len, _HT_CAPABILITY_IE_,
 			     sizeof(struct ieee80211_ht_cap),
 			     (unsigned char *)&ht_capie, pout_len);
 		phtpriv->ht_option = 1;
@@ -1754,11 +1754,11 @@ static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 				&len, ie_len -
 				sizeof(struct NDIS_802_11_FIXED_IEs));
 	if (p && len > 0) {
-		pht_capie = (struct ieee80211_ht_cap *)(p+2);
+		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
 		max_ampdu_sz = (pht_capie->ampdu_params_info &
 				IEEE80211_HT_CAP_AMPDU_FACTOR);
 		/* max_ampdu_sz (kbytes); */
-		max_ampdu_sz = 1 << (max_ampdu_sz+3);
+		max_ampdu_sz = 1 << (max_ampdu_sz + 3);
 		phtpriv->rx_ampdu_maxlen = max_ampdu_sz;
 	}
 	/* for A-MPDU Rx reordering buffer control for bmc_sta & sta_info
@@ -1786,7 +1786,7 @@ static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 	len = 0;
 	p = r8712_get_ie(pie + sizeof(struct NDIS_802_11_FIXED_IEs),
 		   _HT_ADD_INFO_IE_, &len,
-		   ie_len-sizeof(struct NDIS_802_11_FIXED_IEs));
+		   ie_len - sizeof(struct NDIS_802_11_FIXED_IEs));
 }
 
 void r8712_issue_addbareq_cmd(struct _adapter *padapter, int priority)

@@ -390,7 +390,7 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 			if (pframe[1] & 1) {   /* ToDS==1 */
 				r8712_secmicappend(&micdata,
 						   &pframe[16], 6); /*DA*/
-				if (pframe[1]&2)  /* From Ds==1 */
+				if (pframe[1] & 2)  /* From Ds==1 */
 					r8712_secmicappend(&micdata,
 							   &pframe[24], 6);
 				else
@@ -399,7 +399,7 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 			} else {	/* ToDS==0 */
 				r8712_secmicappend(&micdata,
 						   &pframe[4], 6); /* DA */
-				if (pframe[1]&2)  /* From Ds==1 */
+				if (pframe[1] & 2)  /* From Ds==1 */
 					r8712_secmicappend(&micdata,
 							   &pframe[16], 6);
 				else
@@ -414,8 +414,8 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
 				payload = (u8 *)RND4((addr_t)(payload));
-				payload = payload+pattrib->
-					  hdrlen+pattrib->iv_len;
+				payload = payload + pattrib->
+					  hdrlen + pattrib->iv_len;
 				if ((curfragnum + 1) == pattrib->nr_frags) {
 					length = pattrib->last_txcmdsz -
 						  pattrib->hdrlen -
@@ -424,10 +424,10 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 						  ? pattrib->icv_len : 0);
 					r8712_secmicappend(&micdata, payload,
 							   length);
-					payload = payload+length;
+					payload = payload + length;
 				} else{
 					length = pxmitpriv->frag_len -
-					    pattrib->hdrlen-pattrib->iv_len -
+					    pattrib->hdrlen - pattrib->iv_len -
 					    ((psecuritypriv->sw_encrypt) ?
 					    pattrib->icv_len : 0);
 					r8712_secmicappend(&micdata, payload,
@@ -441,7 +441,7 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 			 * last_txcmdsz */
 			memcpy(payload, &(mic[0]), 8);
 			pattrib->last_txcmdsz += 8;
-			payload = payload-pattrib->last_txcmdsz + 8;
+			payload = payload - pattrib->last_txcmdsz + 8;
 		}
 	}
 	return _SUCCESS;
@@ -879,19 +879,19 @@ static inline struct tx_servq *get_sta_pending(struct _adapter *padapter,
 	case 2:
 		ptxservq = &(psta->sta_xmitpriv.bk_q);
 		*ppstapending = &padapter->xmitpriv.bk_pending;
-		(phwxmits+3)->accnt++;
+		(phwxmits + 3)->accnt++;
 		break;
 	case 4:
 	case 5:
 		ptxservq = &(psta->sta_xmitpriv.vi_q);
 		*ppstapending = &padapter->xmitpriv.vi_pending;
-		(phwxmits+1)->accnt++;
+		(phwxmits + 1)->accnt++;
 		break;
 	case 6:
 	case 7:
 		ptxservq = &(psta->sta_xmitpriv.vo_q);
 		*ppstapending = &padapter->xmitpriv.vo_pending;
-		(phwxmits+0)->accnt++;
+		(phwxmits + 0)->accnt++;
 		break;
 	case 0:
 	case 3:

@@ -89,7 +89,7 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
 		       RECVBUFF_ALIGN_SZ);
 		if (pskb) {
 			tmpaddr = (addr_t)pskb->data;
-			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
 			skb_reserve(pskb, (RECVBUFF_ALIGN_SZ - alignment));
 			skb_queue_tail(&precvpriv->free_recv_skb_queue, pskb);
 		}
@@ -160,7 +160,7 @@ static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 {
 	u16 drvinfo_sz;
 
-	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0)&0x000f0000)>>16;
+	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16;
 	drvinfo_sz <<= 3;
 	/*TODO:
 	 * Offset 0 */
@@ -825,7 +825,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 			else if (pcck_buf->sq_rpt < 20)
 				sq = 100;
 			else
-				sq = ((64-sq) * 100) / 44;
+				sq = ((64 - sq) * 100) / 44;
 		}
 		prframe->u.hdr.attrib.signal_qual = sq;
 		prframe->u.hdr.attrib.rx_mimo_signal_qual[0] = sq;
@@ -1022,8 +1022,8 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
 	pbuf = pskb->data;
 	prxstat = (struct recv_stat *)pbuf;
-	pkt_cnt = (le32_to_cpu(prxstat->rxdw2)>>16)&0xff;
-	pkt_len =  le32_to_cpu(prxstat->rxdw0)&0x00003fff;
+	pkt_cnt = (le32_to_cpu(prxstat->rxdw2) >> 16) & 0xff;
+	pkt_len =  le32_to_cpu(prxstat->rxdw0) & 0x00003fff;
 	transfer_len = pskb->len;
 	/* Test throughput with Netgear 3700 (No security) with Chariot 3T3R
 	 * pairs. The packet count will be a big number so that the containing
@@ -1035,7 +1035,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 	}
 	do {
 		prxstat = (struct recv_stat *)pbuf;
-		pkt_len =  le32_to_cpu(prxstat->rxdw0)&0x00003fff;
+		pkt_len =  le32_to_cpu(prxstat->rxdw0) & 0x00003fff;
 		/* more fragment bit */
 		mf = (le32_to_cpu(prxstat->rxdw1) >> 27) & 0x1;
 		/* ragmentation number */

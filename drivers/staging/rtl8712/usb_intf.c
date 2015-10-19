@@ -339,7 +339,7 @@ static void disable_ht_for_spec_devid(const struct usb_device_id *pdid,
 		flags = specific_device_id_tbl[i].flags;
 
 		if ((pdid->idVendor == vid) && (pdid->idProduct == pid) &&
-		    (flags&SPEC_DEV_ID_DISABLE_HT)) {
+		    (flags & SPEC_DEV_ID_DISABLE_HT)) {
 			padapter->registrypriv.ht_enable = 0;
 			padapter->registrypriv.cbw40_enable = 0;
 			padapter->registrypriv.ampdu_enable = 0;
@@ -426,7 +426,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			/* The following operations prevent Efuse leakage by
 			 * turning on 2.5V.
 			 */
-			tmpU1b = r8712_read8(padapter, EFUSE_TEST+3);
+			tmpU1b = r8712_read8(padapter, EFUSE_TEST + 3);
 			r8712_write8(padapter, EFUSE_TEST + 3, tmpU1b | 0x80);
 			msleep(20);
 			r8712_write8(padapter, EFUSE_TEST + 3,

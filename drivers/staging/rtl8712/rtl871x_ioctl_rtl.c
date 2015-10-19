@@ -475,7 +475,8 @@ uint oid_rt_pro_rf_read_registry_hdl(struct oid_par_priv *poid_par_priv)
 
 	if (poid_par_priv->type_of_oid != SET_OID) /* QUERY_OID */
 		return RNDIS_STATUS_NOT_ACCEPTED;
-	if (poid_par_priv->information_buf_len == (sizeof(unsigned long)*3)) {
+	if (poid_par_priv->information_buf_len == (sizeof(unsigned long) *
+						   3)) {
 		if (Adapter->mppriv.act_in_progress) {
 			status = RNDIS_STATUS_NOT_ACCEPTED;
 		} else {

@@ -70,7 +70,7 @@ static sint _init_cmd_priv(struct cmd_priv *pcmdpriv)
 		return _FAIL;
 	pcmdpriv->cmd_buf = pcmdpriv->cmd_allocated_buf  +  CMDBUFF_ALIGN_SZ -
 			    ((addr_t)(pcmdpriv->cmd_allocated_buf) &
-			    (CMDBUFF_ALIGN_SZ-1));
+			    (CMDBUFF_ALIGN_SZ - 1));
 	pcmdpriv->rsp_allocated_buf = kmalloc(MAX_RSPSZ + 4, GFP_ATOMIC);
 	if (pcmdpriv->rsp_allocated_buf == NULL)
 		return _FAIL;
@@ -485,7 +485,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		return _FAIL;
 
 	/* for hidden ap to set fw_state here */
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) !=
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_ADHOC_STATE) !=
 	    true) {
 		switch (ndis_network_mode) {
 		case Ndis802_11IBSS:
@@ -508,12 +508,12 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	memcpy(psecnetwork, &pnetwork->network, sizeof(*psecnetwork));
 	psecuritypriv->authenticator_ie[0] = (unsigned char)
 					     psecnetwork->IELength;
-	if ((psecnetwork->IELength-12) < (256 - 1))
+	if ((psecnetwork->IELength - 12) < (256 - 1))
 		memcpy(&psecuritypriv->authenticator_ie[1],
-			&psecnetwork->IEs[12], psecnetwork->IELength-12);
+			&psecnetwork->IEs[12], psecnetwork->IELength - 12);
 	else
 		memcpy(&psecuritypriv->authenticator_ie[1],
-			&psecnetwork->IEs[12], (256-1));
+			&psecnetwork->IEs[12], (256 - 1));
 	psecnetwork->IELength = 0;
 	/* If the driver wants to use the bssid to create the connection.
 	 * If not,  we copy the connecting AP's MAC address to it so that
