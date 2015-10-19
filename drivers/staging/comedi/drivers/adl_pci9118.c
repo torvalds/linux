@@ -1205,9 +1205,6 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->start_src == TRIG_EXT && cmd->scan_begin_src == TRIG_EXT)
 		err |= -EINVAL;
 
-	if (cmd->start_src == TRIG_INT && cmd->scan_begin_src == TRIG_INT)
-		err |= -EINVAL;
-
 	if ((cmd->scan_begin_src & (TRIG_TIMER | TRIG_EXT)) &&
 	    (!(cmd->convert_src & (TRIG_TIMER | TRIG_NOW))))
 		err |= -EINVAL;
