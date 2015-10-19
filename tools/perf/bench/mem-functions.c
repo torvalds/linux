@@ -58,25 +58,6 @@ struct routine {
 	} fn;
 };
 
-struct routine memcpy_routines[] = {
-	{ .name		= "default",
-	  .desc		= "Default memcpy() provided by glibc",
-	  .fn.memcpy	= memcpy },
-
-#ifdef HAVE_ARCH_X86_64_SUPPORT
-# define MEMCPY_FN(_fn, _name, _desc) {.name = _name, .desc = _desc, .fn.memcpy = _fn},
-# include "mem-memcpy-x86-64-asm-def.h"
-# undef MEMCPY_FN
-#endif
-
-	{ NULL, }
-};
-
-static const char * const bench_mem_memcpy_usage[] = {
-	"perf bench mem memcpy <options>",
-	NULL
-};
-
 static struct perf_event_attr cycle_attr = {
 	.type		= PERF_TYPE_HARDWARE,
 	.config		= PERF_COUNT_HW_CPU_CYCLES
@@ -277,6 +258,25 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t size)
 
 	return (double)(((double)size * iterations) / timeval2double(&tv_diff));
 }
+
+struct routine memcpy_routines[] = {
+	{ .name		= "default",
+	  .desc		= "Default memcpy() provided by glibc",
+	  .fn.memcpy	= memcpy },
+
+#ifdef HAVE_ARCH_X86_64_SUPPORT
+# define MEMCPY_FN(_fn, _name, _desc) {.name = _name, .desc = _desc, .fn.memcpy = _fn},
+# include "mem-memcpy-x86-64-asm-def.h"
+# undef MEMCPY_FN
+#endif
+
+	{ NULL, }
+};
+
+static const char * const bench_mem_memcpy_usage[] = {
+	"perf bench mem memcpy <options>",
+	NULL
+};
 
 int bench_mem_memcpy(int argc, const char **argv, const char *prefix __maybe_unused)
 {
