@@ -2775,24 +2775,7 @@ bool rtl92e_disable_nic(struct net_device *dev)
 	return true;
 }
 
-static int __init _rtl92e_pci_module_init(void)
-{
-	pr_info("\nLinux kernel driver for RTL8192E WLAN cards\n");
-	pr_info("Copyright (c) 2007-2008, Realsil Wlan Driver\n");
-
-	if (0 != pci_register_driver(&rtl8192_pci_driver)) {
-		/*pci_unregister_driver (&rtl8192_pci_driver);*/
-		return -ENODEV;
-	}
-	return 0;
-}
-
-static void __exit _rtl92e_pci_module_exit(void)
-{
-	pci_unregister_driver(&rtl8192_pci_driver);
-
-	RT_TRACE(COMP_DOWN, "Exiting");
-}
+module_pci_driver(rtl8192_pci_driver);
 
 void rtl92e_check_rfctrl_gpio_timer(unsigned long data)
 {
@@ -2809,9 +2792,6 @@ void rtl92e_check_rfctrl_gpio_timer(unsigned long data)
 /***************************************************************************
 	------------------- module init / exit stubs ----------------
 ****************************************************************************/
-module_init(_rtl92e_pci_module_init);
-module_exit(_rtl92e_pci_module_exit);
-
 MODULE_DESCRIPTION("Linux driver for Realtek RTL819x WiFi cards");
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_VERSION(DRV_VERSION);
