@@ -112,6 +112,8 @@ static int tilcdc_unload(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
+	tilcdc_crtc_dpms(priv->crtc, DRM_MODE_DPMS_OFF);
+
 	tilcdc_remove_external_encoders(dev);
 
 	drm_fbdev_cma_fini(priv->fbdev);
