@@ -36,9 +36,7 @@ static bool _rtl92e_fw_download_code(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u16		    frag_length, frag_offset = 0;
-	int		    i;
 	struct sk_buff	    *skb;
-	unsigned char	    *seg_ptr;
 	struct cb_desc *tcb_desc;
 	u8                  bLastIniPkt;
 
@@ -59,20 +57,9 @@ static bool _rtl92e_fw_download_code(struct net_device *dev,
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
-
-		seg_ptr = skb->data;
-		for (i = 0; i < frag_length; i += 4) {
-			*seg_ptr++ = ((i+0) < frag_length) ?
-				     code_virtual_address[i+3] : 0;
-			*seg_ptr++ = ((i+1) < frag_length) ?
-				     code_virtual_address[i+2] : 0;
-			*seg_ptr++ = ((i+2) < frag_length) ?
-				     code_virtual_address[i+1] : 0;
-			*seg_ptr++ = ((i+3) < frag_length) ?
-				     code_virtual_address[i+0] : 0;
-		}
-		tcb_desc->txbuf_size = (u16)i;
-		skb_put(skb, i);
+		tcb_desc->txbuf_size = (u16)frag_length;
+		memcpy(skb->data, code_virtual_address, frag_length);
+		skb_put(skb, frag_length);
 
 		if (!priv->rtllib->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
 		    (!skb_queue_empty(&priv->rtllib->skb_waitQ[tcb_desc->queue_index])) ||
@@ -192,6 +179,12 @@ static bool _rtl92e_fw_prepare(struct net_device *dev, struct rt_fw_blob *blob,
 	memcpy(blob->data + padding, fw->data, fw->size);
 
 	blob->size = round_up(fw->size, 4) + padding;
+
+	/* Swap endian - firmware is packaged in invalid endiannes*/
+	for (i = padding; i < blob->size; i += 4) {
+		u32 *data = (u32 *)(blob->data + i);
+		*data = swab32p(data);
+	}
 out:
 	release_firmware(fw);
 	return ret;
