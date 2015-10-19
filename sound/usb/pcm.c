@@ -1385,6 +1385,26 @@ static inline void fill_playback_urb_dsd_dop(struct snd_usb_substream *subs,
 	}
 }
 
+static void copy_to_urb(struct snd_usb_substream *subs,
+		       struct urb *urb, int stride, unsigned int bytes)
+{
+	struct snd_pcm_runtime *runtime = subs->pcm_substream->runtime;
+
+	if (subs->hwptr_done + bytes > runtime->buffer_size * stride) {
+		/* err, the transferred area goes over buffer boundary. */
+		unsigned int bytes1 =
+			runtime->buffer_size * stride - subs->hwptr_done;
+		memcpy(urb->transfer_buffer,
+		       runtime->dma_area + subs->hwptr_done, bytes1);
+		memcpy(urb->transfer_buffer + bytes1,
+		       runtime->dma_area, bytes - bytes1);
+	} else {
+		memcpy(urb->transfer_buffer,
+		       runtime->dma_area + subs->hwptr_done, bytes);
+	}
+	subs->hwptr_done += bytes;
+}
+
 static void prepare_playback_urb(struct snd_usb_substream *subs,
 				 struct urb *urb)
 {
@@ -1462,20 +1482,7 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 		subs->hwptr_done += bytes;
 	} else {
 		/* usual PCM */
-		if (subs->hwptr_done + bytes > runtime->buffer_size * stride) {
-			/* err, the transferred area goes over buffer boundary. */
-			unsigned int bytes1 =
-				runtime->buffer_size * stride - subs->hwptr_done;
-			memcpy(urb->transfer_buffer,
-			       runtime->dma_area + subs->hwptr_done, bytes1);
-			memcpy(urb->transfer_buffer + bytes1,
-			       runtime->dma_area, bytes - bytes1);
-		} else {
-			memcpy(urb->transfer_buffer,
-			       runtime->dma_area + subs->hwptr_done, bytes);
-		}
-
-		subs->hwptr_done += bytes;
+		copy_to_urb(subs, urb, stride, bytes);
 	}
 
 	if (subs->hwptr_done >= runtime->buffer_size * stride)
