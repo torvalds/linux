@@ -93,7 +93,7 @@ static void sync_ast(void *arg)
 {
 	struct dlm_lock_resource *res;
 
-	res = (struct dlm_lock_resource *) arg;
+	res = arg;
 	complete(&res->completion);
 }
 
@@ -349,7 +349,7 @@ static const struct dlm_lockspace_ops md_ls_ops = {
  */
 static void ack_bast(void *arg, int mode)
 {
-	struct dlm_lock_resource *res = (struct dlm_lock_resource *)arg;
+	struct dlm_lock_resource *res = arg;
 	struct md_cluster_info *cinfo = res->mddev->cluster_info;
 
 	if (mode == DLM_LOCK_EX)
