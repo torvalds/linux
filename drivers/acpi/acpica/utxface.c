@@ -67,19 +67,6 @@ acpi_status __init acpi_terminate(void)
 
 	ACPI_FUNCTION_TRACE(acpi_terminate);
 
-	/* Just exit if subsystem is already shutdown */
-
-	if (acpi_gbl_shutdown) {
-		ACPI_ERROR((AE_INFO, "ACPI Subsystem is already terminated"));
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* Subsystem appears active, go ahead and shut it down */
-
-	acpi_gbl_shutdown = TRUE;
-	acpi_gbl_startup_flags = 0;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
-
 	/* Shutdown and free all resources */
 
 	acpi_ut_subsystem_shutdown();

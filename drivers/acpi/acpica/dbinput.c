@@ -1074,6 +1074,7 @@ acpi_db_command_dispatch(char *input_buffer,
 		 * re-creating the semaphores!
 		 */
 
+		acpi_gbl_db_terminate_loop = TRUE;
 		/*  acpi_initialize (NULL); */
 		break;
 
@@ -1151,7 +1152,7 @@ void ACPI_SYSTEM_XFACE acpi_db_execute_thread(void *context)
 	acpi_status status = AE_OK;
 	acpi_status Mstatus;
 
-	while (status != AE_CTRL_TERMINATE) {
+	while (status != AE_CTRL_TERMINATE && !acpi_gbl_db_terminate_loop) {
 		acpi_gbl_method_executing = FALSE;
 		acpi_gbl_step_to_next_call = FALSE;
 
