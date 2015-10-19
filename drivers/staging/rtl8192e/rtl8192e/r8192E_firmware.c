@@ -233,7 +233,7 @@ bool rtl92e_init_fw(struct net_device *dev)
 
 	for (i = starting_state; i <= FW_INIT_STEP2_DATA; i++) {
 		if (rst_opt == OPT_SYSTEM_RESET) {
-			if (pfirmware->firmware_buf_size[i] == 0) {
+			if (pfirmware->blobs[i].size == 0) {
 				const char *fw_name[3] = {
 					RTL8192E_BOOT_IMG_FW,
 					RTL8192E_MAIN_IMG_FW,
@@ -250,8 +250,7 @@ bool rtl92e_init_fw(struct net_device *dev)
 						 "request firmware fail!\n");
 					goto download_firmware_fail;
 				}
-				if (fw_entry->size >
-				    sizeof(pfirmware->firmware_buf[i])) {
+				if (fw_entry->size > MAX_FW_SIZE) {
 					RT_TRACE(COMP_FIRMWARE,
 						 "img file size exceed the container struct buffer fail!\n");
 					release_firmware(fw_entry);
@@ -259,17 +258,17 @@ bool rtl92e_init_fw(struct net_device *dev)
 				}
 
 				if (i != FW_INIT_STEP1_MAIN) {
-					memcpy(pfirmware->firmware_buf[i],
+					memcpy(pfirmware->blobs[i].data,
 					       fw_entry->data, fw_entry->size);
-					pfirmware->firmware_buf_size[i] =
+					pfirmware->blobs[i].size =
 						fw_entry->size;
 
 				} else {
-					memset(pfirmware->firmware_buf[i],
+					memset(pfirmware->blobs[i].data,
 					       0, 128);
-					memcpy(&pfirmware->firmware_buf[i][128],
+					memcpy(&pfirmware->blobs[i].data[128],
 					       fw_entry->data, fw_entry->size);
-					pfirmware->firmware_buf_size[i] =
+					pfirmware->blobs[i].size =
 						fw_entry->size + 128;
 				}
 
@@ -278,8 +277,8 @@ bool rtl92e_init_fw(struct net_device *dev)
 			}
 		}
 
-		mapped_file = pfirmware->firmware_buf[i];
-		file_length = pfirmware->firmware_buf_size[i];
+		mapped_file = pfirmware->blobs[i].data;
+		file_length = pfirmware->blobs[i].size;
 
 		rt_status = _rtl92e_fw_download_code(dev, mapped_file,
 						     file_length);

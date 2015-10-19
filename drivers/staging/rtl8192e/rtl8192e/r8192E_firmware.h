@@ -44,12 +44,16 @@ enum firmware_status {
 	FW_STATUS_5_READY = 5,
 };
 
+#define MAX_FW_SIZE 64000
+struct rt_fw_blob {
+	u16 size;
+	u8 data[MAX_FW_SIZE];
+};
+
+#define FW_BLOBS 3
 struct rt_firmware {
 	enum firmware_status firmware_status;
-#define RTL8190_MAX_FIRMWARE_CODE_SIZE	64000
-#define MAX_FW_INIT_STEP		3
-	u8 firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
-	u16		  firmware_buf_size[MAX_FW_INIT_STEP];
+	struct rt_fw_blob blobs[FW_BLOBS];
 };
 
 bool rtl92e_init_fw(struct net_device *dev);
