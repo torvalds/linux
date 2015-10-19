@@ -60,6 +60,7 @@ extern u8 g_wilc_initialized;
 #define BA_SESSION_DEFAULT_BUFFER_SIZE          16
 #define BA_SESSION_DEFAULT_TIMEOUT              1000
 #define BLOCK_ACK_REQ_SIZE                      0x14
+#define FALSE_FRMWR_CHANNEL			100
 
 struct cfg_param_attr {
 	struct cfg_param_val cfg_attr_info;
@@ -2623,7 +2624,6 @@ static int Handle_RegisterFrame(struct host_if_drv *hif_drv,
 	return result;
 }
 
-#define FALSE_FRMWR_CHANNEL 100
 static u32 Handle_ListenStateExpired(struct host_if_drv *hif_drv,
 				     struct remain_ch *pstrHostIfRemainOnChan)
 {
