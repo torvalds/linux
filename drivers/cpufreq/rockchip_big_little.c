@@ -246,10 +246,10 @@ static int rockchip_bl_cpufreq_scale_rate_for_dvfs(struct clk *clk,
 	cpu = cpumask_first_and(cluster_policy_mask[cur_cluster],
 		cpu_online_mask);
 	if (cpu >= nr_cpu_ids)
-		return 0;
+		return -EINVAL;
 	policy = cpufreq_cpu_get(cpu);
 	if (!policy)
-		return 0;
+		return -EINVAL;
 
 	freqs.new = rate / 1000;
 	freqs.old = clk_get_rate(clk) / 1000;
