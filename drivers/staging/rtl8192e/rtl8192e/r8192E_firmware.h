@@ -15,8 +15,6 @@
 #ifndef __INC_FIRMWARE_H
 #define __INC_FIRMWARE_H
 
-#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8)
-
 #define RTL8192E_BOOT_IMG_FW	"RTL8192E/boot.img"
 #define RTL8192E_MAIN_IMG_FW	"RTL8192E/main.img"
 #define RTL8192E_DATA_IMG_FW	"RTL8192E/data.img"
@@ -48,7 +46,6 @@ enum firmware_status {
 
 struct rt_firmware {
 	enum firmware_status firmware_status;
-	u16		  cmdpacket_frag_thresold;
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE	64000
 #define MAX_FW_INIT_STEP		3
 	u8 firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
@@ -56,6 +53,4 @@ struct rt_firmware {
 };
 
 bool rtl92e_init_fw(struct net_device *dev);
-void rtl92e_init_fw_param(struct net_device *dev);
-
 #endif

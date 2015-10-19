@@ -19,34 +19,20 @@
 #include "r8192E_firmware.h"
 #include <linux/firmware.h>
 
-void rtl92e_init_fw_param(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_firmware *pfirmware = priv->pFirmware;
-
-	pfirmware->cmdpacket_frag_thresold = GET_COMMAND_PACKET_FRAG_THRESHOLD(
-					     MAX_TRANSMIT_BUFFER_SIZE);
-}
-
 static bool _rtl92e_fw_download_code(struct net_device *dev,
 				     u8 *code_virtual_address, u32 buffer_len)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u16		    frag_threshold;
 	u16		    frag_length, frag_offset = 0;
 	int		    i;
-
-	struct rt_firmware *pfirmware = priv->pFirmware;
 	struct sk_buff	    *skb;
 	unsigned char	    *seg_ptr;
 	struct cb_desc *tcb_desc;
 	u8                  bLastIniPkt;
 
-	rtl92e_init_fw_param(dev);
-	frag_threshold = pfirmware->cmdpacket_frag_thresold;
 	do {
-		if ((buffer_len - frag_offset) > frag_threshold) {
-			frag_length = frag_threshold;
+		if ((buffer_len - frag_offset) > CMDPACKET_FRAG_SIZE) {
+			frag_length = CMDPACKET_FRAG_SIZE;
 			bLastIniPkt = 0;
 
 		} else {
