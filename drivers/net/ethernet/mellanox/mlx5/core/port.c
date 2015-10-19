@@ -311,7 +311,7 @@ static int mlx5_query_port_pvlc(struct mlx5_core_dev *dev, u32 *pvlc,
 	int err;
 
 	memset(in, 0, sizeof(in));
-	MLX5_SET(ptys_reg, in, local_port, local_port);
+	MLX5_SET(pvlc_reg, in, local_port, local_port);
 
 	err = mlx5_core_access_reg(dev, in, sizeof(in), pvlc,
 				   pvlc_size, MLX5_REG_PVLC, 0, 0);

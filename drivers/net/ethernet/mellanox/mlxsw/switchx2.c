@@ -1069,9 +1069,9 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 	return 0;
 
 err_register_netdev:
-err_port_admin_status_set:
 err_port_mac_learning_mode_set:
 err_port_stp_state_set:
+err_port_admin_status_set:
 err_port_mtu_set:
 err_port_speed_set:
 err_port_swid_set:
