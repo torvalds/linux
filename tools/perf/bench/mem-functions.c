@@ -24,7 +24,7 @@
 #define K 1024
 
 static const char	*size_str	= "1MB";
-static const char	*routine_str	= "all";
+static const char	*function_str	= "all";
 static int		nr_loops	= 1;
 static bool		use_cycles;
 static int		cycles_fd;
@@ -34,8 +34,8 @@ static const struct option options[] = {
 		    "Specify the size of the memory buffers. "
 		    "Available units: B, KB, MB, GB and TB (case insensitive)"),
 
-	OPT_STRING('r', "routine", &routine_str, "all",
-		    "Specify the routine to run, \"all\" runs all available routines, \"help\" lists them"),
+	OPT_STRING('f', "function", &function_str, "all",
+		    "Specify the function to run, \"all\" runs all available functions, \"help\" lists them"),
 
 	OPT_INTEGER('l', "nr_loops", &nr_loops,
 		    "Specify the number of loops to run. (default: 1)"),
@@ -49,7 +49,7 @@ static const struct option options[] = {
 typedef void *(*memcpy_t)(void *, const void *, size_t);
 typedef void *(*memset_t)(void *, int, size_t);
 
-struct routine {
+struct function {
 	const char *name;
 	const char *desc;
 	union {
@@ -101,19 +101,19 @@ static double timeval2double(struct timeval *ts)
 	} while (0)
 
 struct bench_mem_info {
-	const struct routine *routines;
-	u64 (*do_cycles)(const struct routine *r, size_t size);
-	double (*do_gettimeofday)(const struct routine *r, size_t size);
+	const struct function *functions;
+	u64 (*do_cycles)(const struct function *r, size_t size);
+	double (*do_gettimeofday)(const struct function *r, size_t size);
 	const char *const *usage;
 };
 
-static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t size, double size_total)
+static void __bench_mem_function(struct bench_mem_info *info, int r_idx, size_t size, double size_total)
 {
-	const struct routine *r = &info->routines[r_idx];
+	const struct function *r = &info->functions[r_idx];
 	double result_bps = 0.0;
 	u64 result_cycles = 0;
 
-	printf("# Routine '%s' (%s)\n", r->name, r->desc);
+	printf("# function '%s' (%s)\n", r->name, r->desc);
 
 	if (bench_format == BENCH_FORMAT_DEFAULT)
 		printf("# Copying %s bytes ...\n\n", size_str);
@@ -166,28 +166,28 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 		return 1;
 	}
 
-	if (!strncmp(routine_str, "all", 3)) {
-		for (i = 0; info->routines[i].name; i++)
-			__bench_mem_routine(info, i, size, size_total);
+	if (!strncmp(function_str, "all", 3)) {
+		for (i = 0; info->functions[i].name; i++)
+			__bench_mem_function(info, i, size, size_total);
 		return 0;
 	}
 
-	for (i = 0; info->routines[i].name; i++) {
-		if (!strcmp(info->routines[i].name, routine_str))
+	for (i = 0; info->functions[i].name; i++) {
+		if (!strcmp(info->functions[i].name, function_str))
 			break;
 	}
-	if (!info->routines[i].name) {
-		if (strcmp(routine_str, "help") && strcmp(routine_str, "h"))
-			printf("Unknown routine: %s\n", routine_str);
-		printf("Available routines:\n");
-		for (i = 0; info->routines[i].name; i++) {
+	if (!info->functions[i].name) {
+		if (strcmp(function_str, "help") && strcmp(function_str, "h"))
+			printf("Unknown function: %s\n", function_str);
+		printf("Available functions:\n");
+		for (i = 0; info->functions[i].name; i++) {
 			printf("\t%s ... %s\n",
-			       info->routines[i].name, info->routines[i].desc);
+			       info->functions[i].name, info->functions[i].desc);
 		}
 		return 1;
 	}
 
-	__bench_mem_routine(info, i, size, size_total);
+	__bench_mem_function(info, i, size, size_total);
 
 	return 0;
 }
@@ -206,7 +206,7 @@ static void memcpy_alloc_mem(void **dst, void **src, size_t size)
 	memset(*src, 0, size);
 }
 
-static u64 do_memcpy_cycles(const struct routine *r, size_t size)
+static u64 do_memcpy_cycles(const struct function *r, size_t size)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	void *src = NULL, *dst = NULL;
@@ -231,7 +231,7 @@ static u64 do_memcpy_cycles(const struct routine *r, size_t size)
 	return cycle_end - cycle_start;
 }
 
-static double do_memcpy_gettimeofday(const struct routine *r, size_t size)
+static double do_memcpy_gettimeofday(const struct function *r, size_t size)
 {
 	struct timeval tv_start, tv_end, tv_diff;
 	memcpy_t fn = r->fn.memcpy;
@@ -259,7 +259,7 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t size)
 	return (double)(((double)size * nr_loops) / timeval2double(&tv_diff));
 }
 
-struct routine memcpy_routines[] = {
+struct function memcpy_functions[] = {
 	{ .name		= "default",
 	  .desc		= "Default memcpy() provided by glibc",
 	  .fn.memcpy	= memcpy },
@@ -281,7 +281,7 @@ static const char * const bench_mem_memcpy_usage[] = {
 int bench_mem_memcpy(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct bench_mem_info info = {
-		.routines		= memcpy_routines,
+		.functions		= memcpy_functions,
 		.do_cycles		= do_memcpy_cycles,
 		.do_gettimeofday	= do_memcpy_gettimeofday,
 		.usage			= bench_mem_memcpy_usage,
@@ -297,7 +297,7 @@ static void memset_alloc_mem(void **dst, size_t size)
 		die("memory allocation failed - maybe size is too large?\n");
 }
 
-static u64 do_memset_cycles(const struct routine *r, size_t size)
+static u64 do_memset_cycles(const struct function *r, size_t size)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	memset_t fn = r->fn.memset;
@@ -321,7 +321,7 @@ static u64 do_memset_cycles(const struct routine *r, size_t size)
 	return cycle_end - cycle_start;
 }
 
-static double do_memset_gettimeofday(const struct routine *r, size_t size)
+static double do_memset_gettimeofday(const struct function *r, size_t size)
 {
 	struct timeval tv_start, tv_end, tv_diff;
 	memset_t fn = r->fn.memset;
@@ -352,7 +352,7 @@ static const char * const bench_mem_memset_usage[] = {
 	NULL
 };
 
-static const struct routine memset_routines[] = {
+static const struct function memset_functions[] = {
 	{ .name		= "default",
 	  .desc		= "Default memset() provided by glibc",
 	  .fn.memset	= memset },
@@ -369,7 +369,7 @@ static const struct routine memset_routines[] = {
 int bench_mem_memset(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct bench_mem_info info = {
-		.routines		= memset_routines,
+		.functions		= memset_functions,
 		.do_cycles		= do_memset_cycles,
 		.do_gettimeofday	= do_memset_gettimeofday,
 		.usage			= bench_mem_memset_usage,
