@@ -10,7 +10,7 @@
 
 &fec {
 	pinctrl-0 = <&pinctrl_enet &pinctrl_enet_irq>;
-	interrupts-extended = <&gpio1 6 0x04>, <&intc 0 119 0x04>;
+	interrupts-extended = <&gpio1 6 0x04>, <&gpc 0 119 0x04>;
 };
 
 &i2c3 {
