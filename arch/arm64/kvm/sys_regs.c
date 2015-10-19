@@ -693,13 +693,13 @@ static bool trap_dbgidr(struct kvm_vcpu *vcpu,
 	if (p->is_write) {
 		return ignore_write(vcpu, p);
 	} else {
-		u64 dfr = read_cpuid(ID_AA64DFR0_EL1);
-		u64 pfr = read_cpuid(ID_AA64PFR0_EL1);
-		u32 el3 = !!((pfr >> 12) & 0xf);
+		u64 dfr = read_system_reg(SYS_ID_AA64DFR0_EL1);
+		u64 pfr = read_system_reg(SYS_ID_AA64PFR0_EL1);
+		u32 el3 = !!cpuid_feature_extract_field(pfr, ID_AA64PFR0_EL3_SHIFT);
 
-		*vcpu_reg(vcpu, p->Rt) = ((((dfr >> 20) & 0xf) << 28) |
-					  (((dfr >> 12) & 0xf) << 24) |
-					  (((dfr >> 28) & 0xf) << 20) |
+		*vcpu_reg(vcpu, p->Rt) = ((((dfr >> ID_AA64DFR0_WRPS_SHIFT) & 0xf) << 28) |
+					  (((dfr >> ID_AA64DFR0_BRPS_SHIFT) & 0xf) << 24) |
+					  (((dfr >> ID_AA64DFR0_CTX_CMPS_SHIFT) & 0xf) << 20) |
 					  (6 << 16) | (el3 << 14) | (el3 << 12));
 		return true;
 	}
