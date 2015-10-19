@@ -707,6 +707,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 	els_req->cb_func = cb_func;
 	cb_arg->io_req = els_req;
 	els_req->cb_arg = cb_arg;
+	els_req->data_xfer_len = data_len;
 
 	mp_req = (struct bnx2fc_mp_req *)&(els_req->mp_req);
 	rc = bnx2fc_init_mp_req(els_req);

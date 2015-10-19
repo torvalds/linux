@@ -623,8 +623,12 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 	mp_req = (struct bnx2fc_mp_req *)&(io_req->mp_req);
 	memset(mp_req, 0, sizeof(struct bnx2fc_mp_req));
 
-	mp_req->req_len = sizeof(struct fcp_cmnd);
-	io_req->data_xfer_len = mp_req->req_len;
+	if (io_req->cmd_type != BNX2FC_ELS) {
+		mp_req->req_len = sizeof(struct fcp_cmnd);
+		io_req->data_xfer_len = mp_req->req_len;
+	} else
+		mp_req->req_len = io_req->data_xfer_len;
+
 	mp_req->req_buf = dma_alloc_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 					     &mp_req->req_buf_dma,
 					     GFP_ATOMIC);
