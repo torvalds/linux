@@ -97,6 +97,11 @@
 #define PCIDAS_CTRL_LADFUL	BIT(13)	/* fifo overflow / clear */
 #define PCIDAS_CTRL_DAEMI	BIT(14)	/* dac fifo empty int status / clear */
 
+#define PCIDAS_CTRL_AI_INT	(PCIDAS_CTRL_EOAI | PCIDAS_CTRL_EOBI |   \
+				 PCIDAS_CTRL_ADHFI | PCIDAS_CTRL_ADNEI | \
+				 PCIDAS_CTRL_LADFUL)
+#define PCIDAS_CTRL_AO_INT	(PCIDAS_CTRL_DAHFI | PCIDAS_CTRL_DAEMI)
+
 #define PCIDAS_AI_REG		0x02	/* ADC CHANNEL MUX AND CONTROL reg */
 #define PCIDAS_AI_FIRST(x)	((x) & 0xf)
 #define PCIDAS_AI_LAST(x)	(((x) & 0xf) << 4)
@@ -1144,47 +1149,22 @@ static void cb_pcidas_ao_interrupt(struct comedi_device *dev,
 	comedi_handle_events(dev, s);
 }
 
-static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
+static void cb_pcidas_ai_interrupt(struct comedi_device *dev,
+				   unsigned int status)
 {
-	struct comedi_device *dev = d;
 	const struct cb_pcidas_board *board = dev->board_ptr;
 	struct cb_pcidas_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async;
-	struct comedi_cmd *cmd;
-	int status, s5933_status;
-	int half_fifo = board->fifo_size / 2;
-	unsigned int num_samples, i;
-	static const int timeout = 10000;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned long flags;
 
-	if (!dev->attached)
-		return IRQ_NONE;
-
-	async = s->async;
-	cmd = &async->cmd;
-
-	s5933_status = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
-
-	if ((INTCSR_INTR_ASSERTED & s5933_status) == 0)
-		return IRQ_NONE;
-
-	/*  make sure mailbox 4 is empty */
-	inl_p(devpriv->amcc + AMCC_OP_REG_IMB4);
-	/*  clear interrupt on amcc s5933 */
-	outl(devpriv->amcc_intcsr | INTCSR_INBOX_INTR_STATUS,
-	     devpriv->amcc + AMCC_OP_REG_INTCSR);
-
-	status = inw(devpriv->pcibar1 + PCIDAS_CTRL_REG);
-
-	/*  check for analog output interrupt */
-	if (status & (PCIDAS_CTRL_DAHFI | PCIDAS_CTRL_DAEMI))
-		cb_pcidas_ao_interrupt(dev, status);
-	/*  check for analog input interrupts */
 	/*  if fifo half-full */
 	if (status & PCIDAS_CTRL_ADHFI) {
+		unsigned int num_samples;
+
 		/*  read data */
-		num_samples = comedi_nsamples_left(s, half_fifo);
+		num_samples = comedi_nsamples_left(s, board->fifo_size / 2);
 		insw(devpriv->pcibar2 + PCIDAS_AI_DATA_REG,
 		     devpriv->ai_buffer, num_samples);
 		comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
@@ -1200,7 +1180,9 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 		/*  else if fifo not empty */
 	} else if (status & (PCIDAS_CTRL_ADNEI | PCIDAS_CTRL_EOBI)) {
-		for (i = 0; i < timeout; i++) {
+		unsigned int i;
+
+		for (i = 0; i < 10000; i++) {
 			unsigned short val;
 
 			/*  break if fifo is empty */
@@ -1242,6 +1224,38 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	}
 
 	comedi_handle_events(dev, s);
+}
+
+static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
+{
+	struct comedi_device *dev = d;
+	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned int amcc_status;
+	unsigned int status;
+
+	if (!dev->attached)
+		return IRQ_NONE;
+
+	amcc_status = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
+
+	if ((INTCSR_INTR_ASSERTED & amcc_status) == 0)
+		return IRQ_NONE;
+
+	/*  make sure mailbox 4 is empty */
+	inl_p(devpriv->amcc + AMCC_OP_REG_IMB4);
+	/*  clear interrupt on amcc s5933 */
+	outl(devpriv->amcc_intcsr | INTCSR_INBOX_INTR_STATUS,
+	     devpriv->amcc + AMCC_OP_REG_INTCSR);
+
+	status = inw(devpriv->pcibar1 + PCIDAS_CTRL_REG);
+
+	/* handle analog output interrupts */
+	if (status & PCIDAS_CTRL_AO_INT)
+		cb_pcidas_ao_interrupt(dev, status);
+
+	/* handle analog input interrupts */
+	if (status & PCIDAS_CTRL_AI_INT)
+		cb_pcidas_ai_interrupt(dev, status);
 
 	return IRQ_HANDLED;
 }
