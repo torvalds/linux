@@ -224,7 +224,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 
 		prefetchw(&page->flags);
 		ret = add_to_page_cache_lru(page, inode->i_mapping, offset,
-					    GFP_KERNEL);
+					    GFP_NOFS);
 		if (ret == 0) {
 			unlock_page(page);
 		} else {

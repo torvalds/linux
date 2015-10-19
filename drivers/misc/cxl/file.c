@@ -120,9 +120,16 @@ int afu_release(struct inode *inode, struct file *file)
 		 __func__, ctx->pe);
 	cxl_context_detach(ctx);
 
-	mutex_lock(&ctx->mapping_lock);
-	ctx->mapping = NULL;
-	mutex_unlock(&ctx->mapping_lock);
+
+	/*
+	 * Delete the context's mapping pointer, unless it's created by the
+	 * kernel API, in which case leave it so it can be freed by reclaim_ctx()
+	 */
+	if (!ctx->kernelapi) {
+		mutex_lock(&ctx->mapping_lock);
+		ctx->mapping = NULL;
+		mutex_unlock(&ctx->mapping_lock);
+	}
 
 	put_device(&ctx->afu->dev);
 

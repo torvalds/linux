@@ -3591,6 +3591,13 @@ F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
 F:	include/uapi/drm/i915*
 
+DRM DRIVERS FOR ATMEL HLCDC
+M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/atmel-hlcdc/
+F:	Documentation/devicetree/bindings/drm/atmel/
+
 DRM DRIVERS FOR EXYNOS
 M:	Inki Dae <inki.dae@samsung.com>
 M:	Joonyoung Shim <jy0922.shim@samsung.com>
@@ -3618,6 +3625,14 @@ L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/imx/
 F:	Documentation/devicetree/bindings/drm/imx/
+
+DRM DRIVERS FOR GMA500 (Poulsbo, Moorestown and derivative chipsets)
+M:	Patrik Jakobsson <patrik.r.jakobsson@gmail.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://github.com/patjak/drm-gma500
+S:	Maintained
+F:	drivers/gpu/drm/gma500
+F:	include/drm/gma500*
 
 DRM DRIVERS FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>
@@ -9100,6 +9115,15 @@ L: netdev@vger.kernel.org
 S: Supported
 F: Documentation/devicetree/bindings/net/snps,dwc-qos-ethernet.txt
 F: drivers/net/ethernet/synopsys/dwc_eth_qos.c
+
+SYNOPSYS DESIGNWARE I2C DRIVER
+M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+M:	Jarkko Nikula <jarkko.nikula@linux.intel.com>
+M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/i2c/busses/i2c-designware-*
+F:	include/linux/platform_data/i2c-designware.h
 
 SYNOPSYS DESIGNWARE MMC/SD/SDIO DRIVER
 M:	Seungwon Jeon <tgih.jun@samsung.com>

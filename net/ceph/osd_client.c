@@ -285,6 +285,7 @@ static void osd_req_op_data_release(struct ceph_osd_request *osd_req,
 	switch (op->op) {
 	case CEPH_OSD_OP_READ:
 	case CEPH_OSD_OP_WRITE:
+	case CEPH_OSD_OP_WRITEFULL:
 		ceph_osd_data_release(&op->extent.osd_data);
 		break;
 	case CEPH_OSD_OP_CALL:
@@ -485,13 +486,14 @@ void osd_req_op_extent_init(struct ceph_osd_request *osd_req,
 	size_t payload_len = 0;
 
 	BUG_ON(opcode != CEPH_OSD_OP_READ && opcode != CEPH_OSD_OP_WRITE &&
-	       opcode != CEPH_OSD_OP_ZERO && opcode != CEPH_OSD_OP_TRUNCATE);
+	       opcode != CEPH_OSD_OP_WRITEFULL && opcode != CEPH_OSD_OP_ZERO &&
+	       opcode != CEPH_OSD_OP_TRUNCATE);
 
 	op->extent.offset = offset;
 	op->extent.length = length;
 	op->extent.truncate_size = truncate_size;
 	op->extent.truncate_seq = truncate_seq;
-	if (opcode == CEPH_OSD_OP_WRITE)
+	if (opcode == CEPH_OSD_OP_WRITE || opcode == CEPH_OSD_OP_WRITEFULL)
 		payload_len += length;
 
 	op->payload_len = payload_len;
@@ -670,9 +672,11 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 		break;
 	case CEPH_OSD_OP_READ:
 	case CEPH_OSD_OP_WRITE:
+	case CEPH_OSD_OP_WRITEFULL:
 	case CEPH_OSD_OP_ZERO:
 	case CEPH_OSD_OP_TRUNCATE:
-		if (src->op == CEPH_OSD_OP_WRITE)
+		if (src->op == CEPH_OSD_OP_WRITE ||
+		    src->op == CEPH_OSD_OP_WRITEFULL)
 			request_data_len = src->extent.length;
 		dst->extent.offset = cpu_to_le64(src->extent.offset);
 		dst->extent.length = cpu_to_le64(src->extent.length);
@@ -681,7 +685,8 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 		dst->extent.truncate_seq =
 			cpu_to_le32(src->extent.truncate_seq);
 		osd_data = &src->extent.osd_data;
-		if (src->op == CEPH_OSD_OP_WRITE)
+		if (src->op == CEPH_OSD_OP_WRITE ||
+		    src->op == CEPH_OSD_OP_WRITEFULL)
 			ceph_osdc_msg_data_add(req->r_request, osd_data);
 		else
 			ceph_osdc_msg_data_add(req->r_reply, osd_data);
