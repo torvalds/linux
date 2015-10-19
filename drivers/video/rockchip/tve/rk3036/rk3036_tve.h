@@ -78,6 +78,33 @@
 #define m_DAC_GAIN		(0x3f << 7)
 #define v_DAC_GAIN(x)		((x & 0x3f) << 7)
 
+#define VDAC_VDAC0             (0x00)
+       #define m_RST_ANA               (1 << 7)
+       #define m_RST_DIG               (1 << 6)
+
+       #define v_RST_ANA(x)            ((x & 1) << 7)
+       #define v_RST_DIG(x)            ((x & 1) << 6)
+#define VDAC_VDAC1             (0x280)
+       #define m_CUR_REG               (0xf << 4)
+       #define m_DR_PWR_DOWN           (1 << 1)
+       #define m_BG_PWR_DOWN           (1 << 0)
+
+       #define v_CUR_REG(x)            ((x & 0xf) << 4)
+       #define v_DR_PWR_DOWN(x)        ((x & 1) << 1)
+       #define v_BG_PWR_DOWN(x)        ((x & 1) << 0)
+#define VDAC_VDAC2             (0x284)
+       #define m_CUR_CTR               (0X3f)
+
+       #define v_CUR_CTR(x)            ((x & 0X3f))
+#define VDAC_VDAC3             (0x288)
+       #define m_CAB_EN                (1 << 5)
+       #define m_CAB_REF               (1 << 4)
+       #define m_CAB_FLAG              (1 << 0)
+
+       #define v_CAB_EN(x)             ((x & 1) << 5)
+       #define v_CAB_REF(x)            ((x & 1) << 4)
+       #define v_CAB_FLAG(x)           ((x & 1) << 0)
+
 enum {
 	TVOUT_CVBS_NTSC = 0,
 	TVOUT_CVBS_PAL,
@@ -90,7 +117,8 @@ enum {
 
 enum {
 	SOC_RK3036 = 0,
-	SOC_RK312X
+	SOC_RK312X,
+	SOC_RK3228
 };
 
 #define TVOUT_DEAULT TVOUT_CVBS_PAL
@@ -103,6 +131,8 @@ enum {
 struct rk3036_tve {
 	struct device			*dev;
 	void __iomem			*regbase;
+	void __iomem			*vdacbase;
+	struct clk			*dac_clk;
 	u32				reg_phy_base;
 	u32				len;
 	int				soctype;
@@ -118,3 +148,4 @@ struct rk3036_tve {
 };
 
 #endif
+
