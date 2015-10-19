@@ -70,8 +70,6 @@
 #  define RCU_NODE_NAME_INIT  { "rcu_node_0" }
 #  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0" }
 #  define RCU_EXP_NAME_INIT   { "rcu_node_exp_0" }
-#  define RCU_EXP_SCHED_NAME_INIT \
-			      { "rcu_node_exp_sched_0" }
 #elif NR_CPUS <= RCU_FANOUT_2
 #  define RCU_NUM_LVLS	      2
 #  define NUM_RCU_LVL_0	      1
@@ -81,8 +79,6 @@
 #  define RCU_NODE_NAME_INIT  { "rcu_node_0", "rcu_node_1" }
 #  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0", "rcu_node_fqs_1" }
 #  define RCU_EXP_NAME_INIT   { "rcu_node_exp_0", "rcu_node_exp_1" }
-#  define RCU_EXP_SCHED_NAME_INIT \
-			      { "rcu_node_exp_sched_0", "rcu_node_exp_sched_1" }
 #elif NR_CPUS <= RCU_FANOUT_3
 #  define RCU_NUM_LVLS	      3
 #  define NUM_RCU_LVL_0	      1
@@ -93,8 +89,6 @@
 #  define RCU_NODE_NAME_INIT  { "rcu_node_0", "rcu_node_1", "rcu_node_2" }
 #  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0", "rcu_node_fqs_1", "rcu_node_fqs_2" }
 #  define RCU_EXP_NAME_INIT   { "rcu_node_exp_0", "rcu_node_exp_1", "rcu_node_exp_2" }
-#  define RCU_EXP_SCHED_NAME_INIT \
-			      { "rcu_node_exp_sched_0", "rcu_node_exp_sched_1", "rcu_node_exp_sched_2" }
 #elif NR_CPUS <= RCU_FANOUT_4
 #  define RCU_NUM_LVLS	      4
 #  define NUM_RCU_LVL_0	      1
@@ -106,8 +100,6 @@
 #  define RCU_NODE_NAME_INIT  { "rcu_node_0", "rcu_node_1", "rcu_node_2", "rcu_node_3" }
 #  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0", "rcu_node_fqs_1", "rcu_node_fqs_2", "rcu_node_fqs_3" }
 #  define RCU_EXP_NAME_INIT   { "rcu_node_exp_0", "rcu_node_exp_1", "rcu_node_exp_2", "rcu_node_exp_3" }
-#  define RCU_EXP_SCHED_NAME_INIT \
-			      { "rcu_node_exp_sched_0", "rcu_node_exp_sched_1", "rcu_node_exp_sched_2", "rcu_node_exp_sched_3" }
 #else
 # error "CONFIG_RCU_FANOUT insufficient for NR_CPUS"
 #endif /* #if (NR_CPUS) <= RCU_FANOUT_1 */
@@ -171,16 +163,21 @@ struct rcu_node {
 				/*  an rcu_data structure, otherwise, each */
 				/*  bit corresponds to a child rcu_node */
 				/*  structure. */
-	unsigned long expmask;	/* Groups that have ->blkd_tasks */
-				/*  elements that need to drain to allow the */
-				/*  current expedited grace period to */
-				/*  complete (only for PREEMPT_RCU). */
 	unsigned long qsmaskinit;
-				/* Per-GP initial value for qsmask & expmask. */
+				/* Per-GP initial value for qsmask. */
 				/*  Initialized from ->qsmaskinitnext at the */
 				/*  beginning of each grace period. */
 	unsigned long qsmaskinitnext;
 				/* Online CPUs for next grace period. */
+	unsigned long expmask;	/* CPUs or groups that need to check in */
+				/*  to allow the current expedited GP */
+				/*  to complete. */
+	unsigned long expmaskinit;
+				/* Per-GP initial values for expmask. */
+				/*  Initialized from ->expmaskinitnext at the */
+				/*  beginning of each expedited GP. */
+	unsigned long expmaskinitnext;
+				/* Online CPUs for next expedited GP. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
 				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
@@ -281,6 +278,18 @@ struct rcu_node {
 	for ((rnp) = (rsp)->level[rcu_num_lvls - 1]; \
 	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
 
+/*
+ * Union to allow "aggregate OR" operation on the need for a quiescent
+ * state by the normal and expedited grace periods.
+ */
+union rcu_noqs {
+	struct {
+		u8 norm;
+		u8 exp;
+	} b; /* Bits. */
+	u16 s; /* Set of bits, aggregate OR here. */
+};
+
 /* Index values for nxttail array in struct rcu_data. */
 #define RCU_DONE_TAIL		0	/* Also RCU_WAIT head. */
 #define RCU_WAIT_TAIL		1	/* Also RCU_NEXT_READY head. */
@@ -297,8 +306,8 @@ struct rcu_data {
 					/*  is aware of having started. */
 	unsigned long	rcu_qs_ctr_snap;/* Snapshot of rcu_qs_ctr to check */
 					/*  for rcu_all_qs() invocations. */
-	bool		passed_quiesce;	/* User-mode/idle loop etc. */
-	bool		qs_pending;	/* Core waits for quiesc state. */
+	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
+	bool		core_needs_qs;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
 	bool		gpwrap;		/* Possible gpnum/completed wrap. */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
@@ -307,9 +316,6 @@ struct rcu_data {
 					/*  ticks this CPU has handled */
 					/*  during and after the last grace */
 					/* period it is aware of. */
-	struct cpu_stop_work exp_stop_work;
-					/* Expedited grace-period control */
-					/*  for CPU stopping. */
 
 	/* 2) batch handling */
 	/*
@@ -363,7 +369,7 @@ struct rcu_data {
 
 	/* 5) __rcu_pending() statistics. */
 	unsigned long n_rcu_pending;	/* rcu_pending() calls since boot. */
-	unsigned long n_rp_qs_pending;
+	unsigned long n_rp_core_needs_qs;
 	unsigned long n_rp_report_qs;
 	unsigned long n_rp_cb_ready;
 	unsigned long n_rp_cpu_needs_gp;
@@ -378,7 +384,6 @@ struct rcu_data {
 	struct rcu_head oom_head;
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 	struct mutex exp_funnel_mutex;
-	bool exp_done;			/* Expedited QS for this CPU? */
 
 	/* 7) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
@@ -411,13 +416,6 @@ struct rcu_data {
 	int cpu;
 	struct rcu_state *rsp;
 };
-
-/* Values for fqs_state field in struct rcu_state. */
-#define RCU_GP_IDLE		0	/* No grace period in progress. */
-#define RCU_GP_INIT		1	/* Grace period being initialized. */
-#define RCU_SAVE_DYNTICK	2	/* Need to scan dyntick state. */
-#define RCU_FORCE_QS		3	/* Need to force quiescent state. */
-#define RCU_SIGNAL_INIT		RCU_SAVE_DYNTICK
 
 /* Values for nocb_defer_wakeup field in struct rcu_data. */
 #define RCU_NOGP_WAKE_NOT	0
@@ -464,14 +462,13 @@ struct rcu_state {
 						/*  shut bogus gcc warning) */
 	u8 flavor_mask;				/* bit in flavor mask. */
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
-	void (*call)(struct rcu_head *head,	/* call_rcu() flavor. */
-		     void (*func)(struct rcu_head *head));
+	call_rcu_func_t call;			/* call_rcu() flavor. */
+	int ncpus;				/* # CPUs seen so far. */
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 
-	u8	fqs_state ____cacheline_internodealigned_in_smp;
-						/* Force QS state. */
-	u8	boost;				/* Subject to priority boost. */
+	u8	boost ____cacheline_internodealigned_in_smp;
+						/* Subject to priority boost. */
 	unsigned long gpnum;			/* Current gp number. */
 	unsigned long completed;		/* # of last completed gp. */
 	struct task_struct *gp_kthread;		/* Task for grace periods. */
@@ -508,6 +505,7 @@ struct rcu_state {
 	atomic_long_t expedited_normal;		/* # fallbacks to normal. */
 	atomic_t expedited_need_qs;		/* # CPUs left to check in. */
 	wait_queue_head_t expedited_wq;		/* Wait for check-ins. */
+	int ncpus_snap;				/* # CPUs seen last time. */
 
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
 						/*  force_quiescent_state(). */
@@ -538,8 +536,8 @@ struct rcu_state {
 #define RCU_GP_FLAG_INIT 0x1	/* Need grace-period initialization. */
 #define RCU_GP_FLAG_FQS  0x2	/* Need grace-period quiescent-state forcing. */
 
-/* Values for rcu_state structure's gp_flags field. */
-#define RCU_GP_WAIT_INIT 0	/* Initial state. */
+/* Values for rcu_state structure's gp_state field. */
+#define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
 #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
 #define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
 #define RCU_GP_WAIT_FQS  3	/* Wait for force-quiescent-state time. */
@@ -582,9 +580,10 @@ static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 static void rcu_print_detail_task_stall(struct rcu_state *rsp);
 static int rcu_print_task_stall(struct rcu_node *rnp);
+static int rcu_print_task_exp_stall(struct rcu_node *rnp);
 static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
 static void rcu_preempt_check_callbacks(void);
-void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
+void call_rcu(struct rcu_head *head, rcu_callback_t func);
 static void __init __rcu_init_preempt(void);
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);

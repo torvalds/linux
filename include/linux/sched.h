@@ -1342,10 +1342,12 @@ struct sched_dl_entity {
 
 union rcu_special {
 	struct {
-		bool blocked;
-		bool need_qs;
-	} b;
-	short s;
+		u8 blocked;
+		u8 need_qs;
+		u8 exp_need_qs;
+		u8 pad;	/* Otherwise the compiler can store garbage here. */
+	} b; /* Bits. */
+	u32 s; /* Set of bits. */
 };
 struct rcu_node;
 
