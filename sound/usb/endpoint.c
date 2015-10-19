@@ -183,13 +183,53 @@ static void retire_inbound_urb(struct snd_usb_endpoint *ep,
 		ep->retire_data_urb(ep->data_subs, urb);
 }
 
+static void prepare_silent_urb(struct snd_usb_endpoint *ep,
+			       struct snd_urb_ctx *ctx)
+{
+	struct urb *urb = ctx->urb;
+	unsigned int offs = 0;
+	unsigned int extra = 0;
+	__le32 packet_length;
+	int i;
+
+	/* For tx_length_quirk, put packet length at start of packet */
+	if (ep->chip->tx_length_quirk)
+		extra = sizeof(packet_length);
+
+	for (i = 0; i < ctx->packets; ++i) {
+		unsigned int offset;
+		unsigned int length;
+		int counts;
+
+		if (ctx->packet_size[i])
+			counts = ctx->packet_size[i];
+		else
+			counts = snd_usb_endpoint_next_packet_size(ep);
+
+		length = counts * ep->stride; /* number of silent bytes */
+		offset = offs * ep->stride + extra * i;
+		urb->iso_frame_desc[i].offset = offset;
+		urb->iso_frame_desc[i].length = length + extra;
+		if (extra) {
+			packet_length = cpu_to_le32(length);
+			memcpy(urb->transfer_buffer + offset,
+			       &packet_length, sizeof(packet_length));
+		}
+		memset(urb->transfer_buffer + offset + extra,
+		       ep->silence_value, length);
+		offs += counts;
+	}
+
+	urb->number_of_packets = ctx->packets;
+	urb->transfer_buffer_length = offs * ep->stride + ctx->packets * extra;
+}
+
 /*
  * Prepare a PLAYBACK urb for submission to the bus.
  */
 static void prepare_outbound_urb(struct snd_usb_endpoint *ep,
 				 struct snd_urb_ctx *ctx)
 {
-	int i;
 	struct urb *urb = ctx->urb;
 	unsigned char *cp = urb->transfer_buffer;
 
@@ -201,24 +241,7 @@ static void prepare_outbound_urb(struct snd_usb_endpoint *ep,
 			ep->prepare_data_urb(ep->data_subs, urb);
 		} else {
 			/* no data provider, so send silence */
-			unsigned int offs = 0;
-			for (i = 0; i < ctx->packets; ++i) {
-				int counts;
-
-				if (ctx->packet_size[i])
-					counts = ctx->packet_size[i];
-				else
-					counts = snd_usb_endpoint_next_packet_size(ep);
-
-				urb->iso_frame_desc[i].offset = offs * ep->stride;
-				urb->iso_frame_desc[i].length = counts * ep->stride;
-				offs += counts;
-			}
-
-			urb->number_of_packets = ctx->packets;
-			urb->transfer_buffer_length = offs * ep->stride;
-			memset(urb->transfer_buffer, ep->silence_value,
-			       offs * ep->stride);
+			prepare_silent_urb(ep, ctx);
 		}
 		break;
 
@@ -594,6 +617,8 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 	unsigned int max_packs_per_period, urbs_per_period, urb_packs;
 	unsigned int max_urbs, i;
 	int frame_bits = snd_pcm_format_physical_width(pcm_format) * channels;
+	int tx_length_quirk = (ep->chip->tx_length_quirk &&
+			       usb_pipeout(ep->pipe));
 
 	if (pcm_format == SNDRV_PCM_FORMAT_DSD_U16_LE && fmt->dsd_dop) {
 		/*
@@ -627,11 +652,17 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 	 */
 	maxsize = (((ep->freqmax << ep->datainterval) + 0xffff) >> 16) *
 			 (frame_bits >> 3);
+	if (tx_length_quirk)
+		maxsize += sizeof(__le32); /* Space for length descriptor */
 	/* but wMaxPacketSize might reduce this */
 	if (ep->maxpacksize && ep->maxpacksize < maxsize) {
 		/* whatever fits into a max. size packet */
-		maxsize = ep->maxpacksize;
-		ep->freqmax = (maxsize / (frame_bits >> 3))
+		unsigned int data_maxsize = maxsize = ep->maxpacksize;
+
+		if (tx_length_quirk)
+			/* Need to remove the length descriptor to calc freq */
+			data_maxsize -= sizeof(__le32);
+		ep->freqmax = (data_maxsize / (frame_bits >> 3))
 				<< (16 - ep->datainterval);
 	}
 
