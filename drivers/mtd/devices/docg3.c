@@ -1620,20 +1620,30 @@ static struct device_attribute doc_sys_attrs[DOC_MAX_NBFLOORS][4] = {
 static int doc_register_sysfs(struct platform_device *pdev,
 			      struct docg3_cascade *cascade)
 {
-	int ret = 0, floor, i = 0;
 	struct device *dev = &pdev->dev;
+	int floor;
+	int ret;
+	int i;
 
-	for (floor = 0; !ret && floor < DOC_MAX_NBFLOORS &&
-		     cascade->floors[floor]; floor++)
-		for (i = 0; !ret && i < 4; i++)
+	for (floor = 0;
+	     floor < DOC_MAX_NBFLOORS && cascade->floors[floor];
+	     floor++) {
+		for (i = 0; i < 4; i++) {
 			ret = device_create_file(dev, &doc_sys_attrs[floor][i]);
-	if (!ret)
-		return 0;
+			if (ret)
+				goto remove_files;
+		}
+	}
+
+	return 0;
+
+remove_files:
 	do {
 		while (--i >= 0)
 			device_remove_file(dev, &doc_sys_attrs[floor][i]);
 		i = 4;
 	} while (--floor >= 0);
+
 	return ret;
 }
 
