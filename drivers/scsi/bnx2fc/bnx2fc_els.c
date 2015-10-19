@@ -1,5 +1,5 @@
 /*
- * bnx2fc_els.c: QLogic NetXtreme II Linux FCoE offload driver.
+ * bnx2fc_els.c: QLogic Linux FCoE offload driver.
  * This file contains helper routines that handle ELS requests
  * and responses.
  *

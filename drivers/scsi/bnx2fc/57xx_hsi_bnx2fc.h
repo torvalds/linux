@@ -1,4 +1,4 @@
-/* 57xx_hsi_bnx2fc.h: QLogic NetXtreme II Linux FCoE offload driver.
+/* 57xx_hsi_bnx2fc.h: QLogic Linux FCoE offload driver.
  * Handles operations such as session offload/upload etc, and manages
  * session resources such as connection id and qp resources.
  *

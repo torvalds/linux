@@ -1,4 +1,4 @@
-/* bnx2fc_io.c: QLogic NetXtreme II Linux FCoE offload driver.
+/* bnx2fc_io.c: QLogic Linux FCoE offload driver.
  * IO manager and SCSI IO processing.
  *
  * Copyright (c) 2008-2013 Broadcom Corporation

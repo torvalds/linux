@@ -1,4 +1,4 @@
-/* bnx2fc.h: QLogic NetXtreme II Linux FCoE offload driver.
+/* bnx2fc.h: QLogic Linux FCoE offload driver.
  *
  * Copyright (c) 2008-2013 Broadcom Corporation
  * Copyright (c) 2014-2015 QLogic Corporation

@@ -1,4 +1,4 @@
-/* bnx2fc_hwi.c: QLogic NetXtreme II Linux FCoE offload driver.
+/* bnx2fc_hwi.c: QLogic Linux FCoE offload driver.
  * This file contains the code that low level functions that interact
  * with 57712 FCoE firmware.
  *

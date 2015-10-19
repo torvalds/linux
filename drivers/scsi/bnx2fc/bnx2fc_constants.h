@@ -1,4 +1,4 @@
-/* bnx2fc_constants.h: QLogic NetXtreme II Linux FCoE offload driver.
+/* bnx2fc_constants.h: QLogic Linux FCoE offload driver.
  * Handles operations such as session offload/upload etc, and manages
  * session resources such as connection id and qp resources.
  *
