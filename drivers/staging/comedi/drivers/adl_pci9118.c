@@ -614,8 +614,8 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 	}
 }
 
-static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
-					   struct comedi_subdevice *s)
+static void pci9118_ai_get_onesample(struct comedi_device *dev,
+				     struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -631,8 +631,8 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 	}
 }
 
-static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
-				     struct comedi_subdevice *s)
+static void pci9118_ai_get_dma(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -757,9 +757,9 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 	}
 
 	if (devpriv->usedma)
-		interrupt_pci9118_ai_dma(dev, s);
+		pci9118_ai_get_dma(dev, s);
 	else
-		interrupt_pci9118_ai_onesample(dev, s);
+		pci9118_ai_get_onesample(dev, s);
 
 interrupt_exit:
 	comedi_handle_events(dev, s);
