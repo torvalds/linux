@@ -417,7 +417,9 @@ static int cb_pcidas_ao_nofifo_insn_write(struct comedi_device *dev,
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	unsigned long flags;
+	int i;
 
 	/* set channel and range */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -427,11 +429,12 @@ static int cb_pcidas_ao_nofifo_insn_write(struct comedi_device *dev,
 	outw(devpriv->ao_ctrl, devpriv->pcibar1 + PCIDAS_AO_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	/* remember value for readback */
-	s->readback[chan] = data[0];
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		outw(val, devpriv->pcibar4 + PCIDAS_AO_DATA_REG(chan));
+	}
 
-	/* send data */
-	outw(data[0], devpriv->pcibar4 + PCIDAS_AO_DATA_REG(chan));
+	s->readback[chan] = val;
 
 	return insn->n;
 }
