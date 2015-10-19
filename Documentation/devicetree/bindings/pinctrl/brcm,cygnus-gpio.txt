@@ -3,8 +3,8 @@ Broadcom Cygnus GPIO/PINCONF Controller
 Required properties:
 
 - compatible:
-    Must be "brcm,cygnus-ccm-gpio", "brcm,cygnus-asiu-gpio", or
-    "brcm,cygnus-crmu-gpio"
+    Must be "brcm,cygnus-ccm-gpio", "brcm,cygnus-asiu-gpio",
+    "brcm,cygnus-crmu-gpio" or "brcm,iproc-gpio"
 
 - reg:
     Define the base and range of the I/O address space that contains the Cygnus
