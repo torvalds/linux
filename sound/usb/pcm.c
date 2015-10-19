@@ -1383,6 +1383,8 @@ static inline void fill_playback_urb_dsd_dop(struct snd_usb_substream *subs,
 			subs->hwptr_done++;
 		}
 	}
+	if (subs->hwptr_done >= runtime->buffer_size * stride)
+		subs->hwptr_done -= runtime->buffer_size * stride;
 }
 
 static void copy_to_urb(struct snd_usb_substream *subs,
@@ -1403,6 +1405,8 @@ static void copy_to_urb(struct snd_usb_substream *subs,
 		       runtime->dma_area + subs->hwptr_done, bytes);
 	}
 	subs->hwptr_done += bytes;
+	if (subs->hwptr_done >= runtime->buffer_size * stride)
+		subs->hwptr_done -= runtime->buffer_size * stride;
 }
 
 static void prepare_playback_urb(struct snd_usb_substream *subs,
@@ -1480,13 +1484,12 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 		}
 
 		subs->hwptr_done += bytes;
+		if (subs->hwptr_done >= runtime->buffer_size * stride)
+			subs->hwptr_done -= runtime->buffer_size * stride;
 	} else {
 		/* usual PCM */
 		copy_to_urb(subs, urb, stride, bytes);
 	}
-
-	if (subs->hwptr_done >= runtime->buffer_size * stride)
-		subs->hwptr_done -= runtime->buffer_size * stride;
 
 	/* update delay with exact number of samples queued */
 	runtime->delay = subs->last_delay;
