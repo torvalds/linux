@@ -2403,6 +2403,12 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 		guc_fw->guc_fw_major_wanted, guc_fw->guc_fw_minor_wanted);
 	seq_printf(m, "\tversion found: %d.%d\n",
 		guc_fw->guc_fw_major_found, guc_fw->guc_fw_minor_found);
+	seq_printf(m, "\theader: offset is %d; size = %d\n",
+		guc_fw->header_offset, guc_fw->header_size);
+	seq_printf(m, "\tuCode: offset is %d; size = %d\n",
+		guc_fw->ucode_offset, guc_fw->ucode_size);
+	seq_printf(m, "\tRSA: offset is %d; size = %d\n",
+		guc_fw->rsa_offset, guc_fw->rsa_size);
 
 	tmp = I915_READ(GUC_STATUS);
 

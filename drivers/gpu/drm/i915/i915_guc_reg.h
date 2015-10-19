@@ -42,6 +42,7 @@
 #define SOFT_SCRATCH(n)			(0xc180 + ((n) * 4))
 
 #define UOS_RSA_SCRATCH(i)		(0xc200 + (i) * 4)
+#define   UOS_RSA_SCRATCH_MAX_COUNT	  64
 #define DMA_ADDR_0_LOW			0xc300
 #define DMA_ADDR_0_HIGH			0xc304
 #define DMA_ADDR_1_LOW			0xc308

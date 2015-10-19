@@ -27,7 +27,7 @@
 #include "intel_guc.h"
 
 /**
- * DOC: GuC Client
+ * DOC: GuC-based command submission
  *
  * i915_guc_client:
  * We use the term client to avoid confusion with contexts. A i915_guc_client is
@@ -588,8 +588,7 @@ static void lr_context_update(struct drm_i915_gem_request *rq)
 /**
  * i915_guc_submit() - Submit commands through GuC
  * @client:	the guc client where commands will go through
- * @ctx:	LRC where commands come from
- * @ring:	HW engine that will excute the commands
+ * @rq:		request associated with the commands
  *
  * Return:	0 if succeed
  */
@@ -731,7 +730,8 @@ static void guc_client_free(struct drm_device *dev,
  * 		The kernel client to replace ExecList submission is created with
  * 		NORMAL priority. Priority of a client for scheduler can be HIGH,
  * 		while a preemption context can use CRITICAL.
- * @ctx		the context to own the client (we use the default render context)
+ * @ctx:	the context that owns the client (we use the default render
+ * 		context)
  *
  * Return:	An i915_guc_client object if success.
  */
