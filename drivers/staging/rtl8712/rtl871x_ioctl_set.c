@@ -207,9 +207,10 @@ void r8712_set_802_11_ssid(struct _adapter *padapter,
 						set_fwstate(pmlmepriv,
 							    WIFI_ADHOC_STATE);
 					}
-				} else
+				} else {
 					goto _Abort_Set_SSID; /* driver is in
 						  * WIFI_ADHOC_MASTER_STATE */
+				}
 			}
 		} else {
 			r8712_disassoc_cmd(padapter);

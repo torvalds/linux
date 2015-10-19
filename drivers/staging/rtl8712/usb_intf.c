@@ -395,9 +395,9 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	/* step 3.
 	 * initialize the dvobj_priv
 	 */
-	if (!padapter->dvobj_init)
-			goto error;
-	else {
+	if (!padapter->dvobj_init) {
+		goto error;
+	} else {
 		status = padapter->dvobj_init(padapter);
 		if (status != _SUCCESS)
 			goto error;
@@ -553,8 +553,9 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 				padapter->ledpriv.bRegUseLed = false;
 				break;
 			}
-		} else
+		} else {
 			AutoloadFail = false;
+		}
 		if (((mac[0] == 0xff) && (mac[1] == 0xff) &&
 		     (mac[2] == 0xff) && (mac[3] == 0xff) &&
 		     (mac[4] == 0xff) && (mac[5] == 0xff)) ||

@@ -144,8 +144,9 @@ static unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 			pipe = usb_sndbulkpipe(pusbd, 0x0d);
 			break;
 		}
-	} else
+	} else {
 	   pipe = 0;
+	}
 	return pipe;
 }
 
@@ -306,8 +307,9 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 		err = usb_submit_urb(purb, GFP_ATOMIC);
 		if ((err) && (err != (-EPERM)))
 			ret = _FAIL;
-	} else
+	} else {
 		ret = _FAIL;
+	}
 	return ret;
 }
 

@@ -405,10 +405,12 @@ _next:
 			if (list_empty(&pcmdpriv->cmd_queue.queue)) {
 				r8712_unregister_cmd_alive(padapter);
 				continue;
-			} else
+			} else {
 				goto _next;
-		} else
+			}
+		} else {
 			goto _next;
+		}
 		flush_signals_thread();
 	}
 	/* free all cmd_obj resources */

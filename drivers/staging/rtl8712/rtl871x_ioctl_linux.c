@@ -356,8 +356,9 @@ static int wpa_set_auth_algs(struct net_device *dev, u32 value)
 						 Ndis802_11AuthModeOpen;
 			padapter->securitypriv.AuthAlgrthm = 0;
 		}
-	} else
+	} else {
 		ret = -EINVAL;
+	}
 	return ret;
 }
 
@@ -381,8 +382,9 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 			/* for large key indices, set the default (0) */
 			param->u.crypt.idx = 0;
 		}
-	} else
+	} else {
 		return -EINVAL;
+	}
 	if (strcmp(param->u.crypt.alg, "WEP") == 0) {
 		netdev_info(dev, "r8712u: %s: crypt.alg = WEP\n", __func__);
 		padapter->securitypriv.ndisencryptstatus =
@@ -411,8 +413,9 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 				padapter->securitypriv.XGrpPrivacy =
 					 _WEP104_;
 			}
-		} else
+		} else {
 			return -EINVAL;
+		}
 		pwep->KeyIndex = wep_key_idx;
 		pwep->KeyIndex |= 0x80000000;
 		memcpy(pwep->KeyMaterial, param->u.crypt.key, pwep->KeyLength);
@@ -587,8 +590,9 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 					netdev_info(padapter->pnetdev, "r8712u: SET WPS_IE, wps_phase==true\n");
 					cnt += buf[cnt+1]+2;
 					break;
-				} else
+				} else {
 					cnt += buf[cnt + 1] + 2;
+				}
 			}
 		}
 	}
@@ -639,8 +643,9 @@ static int r8711_wx_get_name(struct net_device *dev,
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11g");
 		}
-	} else
+	} else {
 		snprintf(wrqu->name, IFNAMSIZ, "unassociated");
+	}
 	return 0;
 }
 
@@ -674,14 +679,14 @@ static int r8711_wx_set_freq(struct net_device *dev,
 		fwrq->m = c + 1;
 	}
 	/* Setting by channel number */
-	if ((fwrq->m > 14) || (fwrq->e > 0))
+	if ((fwrq->m > 14) || (fwrq->e > 0)) {
 		rc = -EOPNOTSUPP;
-	else {
+	} else {
 		int channel = fwrq->m;
 
-		if ((channel < 1) || (channel > 14))
+		if ((channel < 1) || (channel > 14)) {
 			rc = -EINVAL;
-		else {
+		} else {
 			/* Yes ! We can set it !!! */
 			padapter->registrypriv.channel = channel;
 		}
@@ -1069,9 +1074,9 @@ static int r8711_wx_set_wap(struct net_device *dev,
 	}
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	if (!ret) {
-		if (!r8712_set_802_11_authentication_mode(padapter, authmode))
+		if (!r8712_set_802_11_authentication_mode(padapter, authmode)) {
 			ret = -ENOMEM;
-		else {
+		} else {
 			if (!r8712_set_802_11_bssid(padapter, temp->sa_data))
 				ret = -1;
 		}
@@ -1167,12 +1172,14 @@ static int r8711_wx_set_scan(struct net_device *dev,
 			    (pmlmepriv->sitesurveyctrl.traffic_busy)) {
 				if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
 					status = false;
-			} else
+			} else {
 				status = r8712_sitesurvey_cmd(padapter, &ssid);
+			}
 			spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 		}
-	} else
+	} else {
 		status = r8712_set_802_11_bssid_list_scan(padapter);
+	}
 	if (!status)
 		return -1;
 	return 0;
@@ -1379,8 +1386,9 @@ set_rate:
 			datarates[i] = mpdatarate[i];
 			if (fixed == 0)
 				break;
-		} else
+		} else {
 			datarates[i] = 0xff;
+		}
 	}
 	if (r8712_setdatarate_cmd(padapter, datarates) != _SUCCESS)
 		ret = -ENOMEM;
@@ -1439,8 +1447,9 @@ static int r8711_wx_get_rate(struct net_device *dev,
 			max_rate *= 2; /* Mbps/2 */
 		}
 		wrqu->bitrate.value = max_rate * 500000;
-	} else
+	} else {
 		return -ENOLINK;
+	}
 	return 0;
 }
 
@@ -1461,9 +1470,9 @@ static int r8711_wx_set_frag(struct net_device *dev,
 {
 	struct _adapter *padapter = netdev_priv(dev);
 
-	if (wrqu->frag.disabled)
+	if (wrqu->frag.disabled) {
 		padapter->xmitpriv.frag_len = MAX_FRAG_THRESHOLD;
-	else {
+	} else {
 		if (wrqu->frag.value < MIN_FRAG_THRESHOLD ||
 		    wrqu->frag.value > MAX_FRAG_THRESHOLD)
 			return -EINVAL;
@@ -1898,9 +1907,9 @@ static int r871x_mp_ioctl_hdl(struct net_device *dev,
 		ret = -EINVAL;
 		goto _r871x_mp_ioctl_hdl_exit;
 	}
-	if (phandler->oid == 0 && phandler->handler)
+	if (phandler->oid == 0 && phandler->handler) {
 		status = phandler->handler(&oid_par);
-	else if (phandler->handler) {
+	} else if (phandler->handler) {
 		oid_par.adapter_context = padapter;
 		oid_par.oid = phandler->oid;
 		oid_par.information_buf = poidparam->data;
@@ -1967,8 +1976,9 @@ static int r871x_get_ap_info(struct net_device *dev,
 	if (pdata->length >= 32) {
 		if (copy_from_user(data, pdata->pointer, 32))
 			return -EINVAL;
-	} else
+	} else {
 		 return -EINVAL;
+	}
 	spin_lock_irqsave(&(pmlmepriv->scanned_queue.lock), irqL);
 	phead = &queue->queue;
 	plist = phead->next;

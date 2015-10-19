@@ -191,9 +191,9 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		imem_sz = fwhdr.img_IMEM_size;
 		do {
 			memset(ptx_desc, 0, TXDESC_SIZE);
-			if (imem_sz >  MAX_DUMP_FWSZ/*49152*/)
+			if (imem_sz >  MAX_DUMP_FWSZ/*49152*/) {
 				dump_imem_sz = MAX_DUMP_FWSZ;
-			else {
+			} else {
 				dump_imem_sz = imem_sz;
 				ptx_desc->txdw0 |= cpu_to_le32(BIT(28));
 			}
@@ -309,8 +309,9 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		}
 		if (i == 0)
 			goto exit_fail;
-	} else
+	} else {
 		goto exit_fail;
+	}
 	ret = _SUCCESS;
 
 exit_fail:
@@ -386,9 +387,9 @@ uint rtl871x_hal_init(struct _adapter *padapter)
 		return _FAIL;
 	if (padapter->halpriv.hal_bus_init(padapter) != _SUCCESS)
 		return _FAIL;
-	if (rtl8712_hal_init(padapter) == _SUCCESS)
+	if (rtl8712_hal_init(padapter) == _SUCCESS) {
 		padapter->hw_init_completed = true;
-	else {
+	} else {
 		padapter->hw_init_completed = false;
 		return _FAIL;
 	}

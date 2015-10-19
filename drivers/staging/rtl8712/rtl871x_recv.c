@@ -112,9 +112,9 @@ union recv_frame *r8712_alloc_recvframe(struct  __queue *pfree_recv_queue)
 	struct recv_priv *precvpriv;
 
 	spin_lock_irqsave(&pfree_recv_queue->lock, irqL);
-	if (list_empty(&pfree_recv_queue->queue))
+	if (list_empty(&pfree_recv_queue->queue)) {
 		precvframe = NULL;
-	else {
+	} else {
 		phead = &pfree_recv_queue->queue;
 		plist = phead->next;
 		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
@@ -180,8 +180,9 @@ sint r8712_recvframe_chkmic(struct _adapter *adapter,
 					 6) & 0x3)) - 1].skey[0];
 				if (!psecuritypriv->binstallGrpkey)
 					return _FAIL;
-			} else
+			} else {
 				mickey = &stainfo->tkiprxmickey.skey[0];
+			}
 			/*icv_len included the mic code*/
 			datalen = precvframe->u.hdr.len - prxattrib->hdrlen -
 				  prxattrib->iv_len - prxattrib->icv_len - 8;
@@ -239,8 +240,9 @@ union recv_frame *r8712_decryptor(struct _adapter *padapter,
 		default:
 				break;
 		}
-	} else if (prxattrib->bdecrypted == 1)
+	} else if (prxattrib->bdecrypted == 1) {
 		psecuritypriv->hw_decrypted = true;
+	}
 	return return_packet;
 }
 /*###set the security information in the recv_frame */
@@ -270,9 +272,9 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 		if ((psta != NULL) && (psta->ieee8021x_blocked)) {
 			/* blocked
 			 * only accept EAPOL frame */
-			if (ether_type == 0x888e)
+			if (ether_type == 0x888e) {
 				prtnframe = precv_frame;
-			else {
+			} else {
 				/*free this frame*/
 				r8712_free_recvframe(precv_frame,
 					 &adapter->recvpriv.free_recv_queue);
@@ -289,8 +291,9 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 				prtnframe = precv_frame;
 			}
 		}
-	} else
+	} else {
 		prtnframe = precv_frame;
+	}
 	return prtnframe;
 }
 
@@ -341,7 +344,7 @@ static sint sta2sta_data_frame(struct _adapter *adapter,
 		if (memcmp(pattrib->bssid, pattrib->src, ETH_ALEN))
 			return _FAIL;
 	       sta_addr = pattrib->bssid;
-	 } else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
+	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		if (bmcast) {
 			/* For AP mode, if DA == MCAST, then BSSID should
 			 * be also MCAST */
@@ -354,15 +357,16 @@ static sint sta2sta_data_frame(struct _adapter *adapter,
 				return _FAIL;
 			sta_addr = pattrib->src;
 		}
-	  } else if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
+	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
 		memcpy(pattrib->dst, GetAddr1Ptr(ptr), ETH_ALEN);
 		memcpy(pattrib->src, GetAddr2Ptr(ptr), ETH_ALEN);
 		memcpy(pattrib->bssid, GetAddr3Ptr(ptr), ETH_ALEN);
 		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
 		memcpy(pattrib->ta, pattrib->src, ETH_ALEN);
 		sta_addr = mybssid;
-	  } else
+	} else {
 		ret  = _FAIL;
+	}
 	if (bmcast)
 		*psta = r8712_get_bcmc_stainfo(adapter);
 	else
@@ -429,8 +433,9 @@ static sint ap2sta_data_frame(struct _adapter *adapter,
 		*psta = r8712_get_stainfo(pstapriv, pattrib->bssid);
 		if (*psta == NULL)
 			return _FAIL;
-	} else
+	} else {
 		return _FAIL;
+	}
 	return _SUCCESS;
 }
 

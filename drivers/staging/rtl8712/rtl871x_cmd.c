@@ -137,9 +137,9 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 	struct cmd_obj *obj;
 
 	spin_lock_irqsave(&(queue->lock), irqL);
-	if (list_empty(&(queue->queue)))
+	if (list_empty(&(queue->queue))) {
 		obj = NULL;
-	else {
+	} else {
 		obj = LIST_CONTAINOR(queue->queue.next,
 				     struct cmd_obj, list);
 		list_del_init(&obj->list);
@@ -538,8 +538,9 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		if (psecnetwork->IELength != tmp_len) {
 			psecnetwork->IELength = tmp_len;
 			pqospriv->qos_option = 1; /* WMM IE in beacon */
-		} else
+		} else {
 			pqospriv->qos_option = 0; /* no WMM IE in beacon */
+		}
 	}
 	if (pregistrypriv->ht_enable) {
 		/* For WEP mode, we will use the bg mode to do the connection

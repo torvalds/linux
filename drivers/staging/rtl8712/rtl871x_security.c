@@ -636,8 +636,9 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 					pframe = (u8 *)RND4((addr_t)(pframe));
 				}
 			}
-		} else
+		} else {
 			res = _FAIL;
+		}
 	}
 	return res;
 }
@@ -677,8 +678,9 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 					 ((idx >> 6) & 0x3) - 1].skey[0];
 				if (!psecuritypriv->binstallGrpkey)
 					return _FAIL;
-			} else
+			} else {
 				prwskey = &stainfo->x_UncstKey.skey[0];
+			}
 			GET_TKIP_PN(iv, txpn);
 			pnl = (u16)(txpn.val);
 			pnh = (u32)(txpn.val >> 16);
@@ -696,8 +698,9 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 			    crc[1] != payload[length - 3] ||
 			    crc[0] != payload[length - 4])
 				return _FAIL;
-		} else
+		} else {
 			return _FAIL;
+		}
 	}
 	return _SUCCESS;
 }
@@ -1069,8 +1072,9 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 			if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 				hdrlen += 2;
 			qc_exists = 1;
-	} else
+	} else {
 		qc_exists = 0;
+	}
 	pn_vector[0] = pframe[hdrlen];
 	pn_vector[1] = pframe[hdrlen+1];
 	pn_vector[2] = pframe[hdrlen+4];
@@ -1188,8 +1192,9 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 					pframe = (u8 *)RND4((addr_t)(pframe));
 				}
 			}
-		} else
+		} else {
 			res = _FAIL;
+		}
 	}
 	return res;
 }
@@ -1377,14 +1382,16 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 				if (!psecuritypriv->binstallGrpkey)
 					return _FAIL;
 
-			} else
+			} else {
 				prwskey = &stainfo->x_UncstKey.skey[0];
+			}
 			length = ((union recv_frame *)precvframe)->
 				 u.hdr.len-prxattrib->hdrlen-prxattrib->iv_len;
 			aes_decipher(prwskey, prxattrib->hdrlen, pframe,
 				     length);
-		} else
+		} else {
 			return _FAIL;
+		}
 	}
 	return _SUCCESS;
 }

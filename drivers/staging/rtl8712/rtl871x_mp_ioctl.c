@@ -56,8 +56,9 @@ uint oid_rt_wireless_mode_hdl(struct oid_par_priv *poid_par_priv)
 					 Adapter->registrypriv.wireless_mode;
 			*poid_par_priv->bytes_rw =
 					poid_par_priv->information_buf_len;
-		} else
+		} else {
 			status = RNDIS_STATUS_INVALID_LENGTH;
+		}
 	} else {
 		status = RNDIS_STATUS_NOT_ACCEPTED;
 	}
@@ -178,8 +179,9 @@ static int mp_start_test(struct _adapter *padapter)
 	if (length % 4) {
 		/*round up to multiple of 4 bytes.*/
 		bssid.Length = ((length >> 2) + 1) << 2;
-	} else
+	} else {
 		bssid.Length = length;
+	}
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
 		goto end_of_mp_start_test;
@@ -388,8 +390,9 @@ uint oid_rt_pro_query_tx_packet_sent_hdl(
 		*(u32 *)poid_par_priv->information_buf =
 					Adapter->mppriv.tx_pktcount;
 		*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	} else
+	} else {
 		status = RNDIS_STATUS_INVALID_LENGTH;
+	}
 	return status;
 }
 
@@ -408,8 +411,9 @@ uint oid_rt_pro_query_rx_packet_received_hdl(
 		*(u32 *)poid_par_priv->information_buf =
 					Adapter->mppriv.rx_pktcount;
 		*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	} else
+	} else {
 		status = RNDIS_STATUS_INVALID_LENGTH;
+	}
 	return status;
 }
 
@@ -428,8 +432,9 @@ uint oid_rt_pro_query_rx_packet_crc32_error_hdl(
 		*(u32 *)poid_par_priv->information_buf =
 					Adapter->mppriv.rx_crcerrpktcount;
 		*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
-	} else
+	} else {
 		status = RNDIS_STATUS_INVALID_LENGTH;
+	}
 	return status;
 }
 
@@ -457,8 +462,9 @@ uint oid_rt_pro_reset_rx_packet_received_hdl(struct oid_par_priv
 	if (poid_par_priv->information_buf_len == sizeof(u32)) {
 		Adapter->mppriv.rx_pktcount = 0;
 		Adapter->mppriv.rx_crcerrpktcount = 0;
-	} else
+	} else {
 		status = RNDIS_STATUS_INVALID_LENGTH;
+	}
 	return status;
 }
 

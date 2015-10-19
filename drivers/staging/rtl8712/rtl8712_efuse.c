@@ -163,8 +163,9 @@ static u8 efuse_is_empty(struct _adapter *padapter, u8 *empty)
 			*empty = true;
 		else
 			*empty = false;
-	} else
+	} else {
 		ret = false;
+	}
 	return ret;
 }
 
@@ -229,8 +230,9 @@ u16 r8712_efuse_get_current_size(struct _adapter *padapter)
 			word_cnts = calculate_word_cnts(hworden);
 			/* read next header */
 			efuse_addr = efuse_addr + (word_cnts * 2) + 1;
-		} else
+		} else {
 			bContinual = false;
+		}
 	}
 	return efuse_addr;
 }
@@ -263,8 +265,9 @@ u8 r8712_efuse_pg_packet_read(struct _adapter *padapter, u8 offset, u8 *data)
 					if (efuse_one_byte_read(padapter,
 					    efuse_addr+1+tmpidx, &efuse_data)) {
 						tmpdata[tmpidx] = efuse_data;
-					} else
+					} else {
 						ret = false;
+					}
 				}
 				pgpacket_copy_data(hworden, tmpdata, data);
 			}
@@ -335,17 +338,17 @@ static u8 fix_header(struct _adapter *padapter, u8 header, u16 header_addr)
 			efuse_one_byte_write(padapter, addr+1,
 					pkt.data[i*2 + 1]);
 			/* additional check */
-			if (!efuse_one_byte_read(padapter, addr, &value))
+			if (!efuse_one_byte_read(padapter, addr, &value)) {
 				ret = false;
-			else if (pkt.data[i*2] != value) {
+			} else if (pkt.data[i*2] != value) {
 				ret = false;
 				if (0xFF == value) /* write again */
 					efuse_one_byte_write(padapter, addr,
 							pkt.data[i * 2]);
 			}
-			if (!efuse_one_byte_read(padapter, addr+1, &value))
+			if (!efuse_one_byte_read(padapter, addr+1, &value)) {
 				ret = false;
-			else if (pkt.data[i*2 + 1] != value) {
+			} else if (pkt.data[i*2 + 1] != value) {
 				ret = false;
 				if (0xFF == value) /* write again */
 					efuse_one_byte_write(padapter, addr+1,
@@ -503,8 +506,9 @@ u8 r8712_efuse_map_write(struct _adapter *padapter, u16 addr, u16 cnts,
 	if (efuse_is_empty(padapter, &empty)) {
 		if (empty)
 			memset(pktdata, 0xFF, PGPKT_DATA_SIZE);
-	} else
+	} else {
 		return false;
+	}
 	offset = (addr >> 3) & 0xF;
 	if (!empty)
 		if (!r8712_efuse_pg_packet_read(padapter, offset, pktdata))

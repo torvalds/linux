@@ -117,9 +117,9 @@ struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 	spin_lock_irqsave(&(pfree_sta_queue->lock), flags);
-	if (list_empty(&pfree_sta_queue->queue))
+	if (list_empty(&pfree_sta_queue->queue)) {
 		psta = NULL;
-	else {
+	} else {
 		psta = LIST_CONTAINOR(pfree_sta_queue->queue.next,
 				      struct sta_info, list);
 		list_del_init(&(psta->list));

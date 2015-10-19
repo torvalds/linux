@@ -98,11 +98,11 @@ static u32 get_ff_hwaddr(struct xmit_frame *pxmitframe)
 	struct _adapter *padapter = pxmitframe->padapter;
 	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 
-	if (pxmitframe->frame_tag == TXAGG_FRAMETAG)
+	if (pxmitframe->frame_tag == TXAGG_FRAMETAG) {
 		addr = RTL8712_DMA_H2CCMD;
-	else if (pxmitframe->frame_tag == MGNT_FRAMETAG)
+	} else if (pxmitframe->frame_tag == MGNT_FRAMETAG) {
 		addr = RTL8712_DMA_MGTQ;
-	else if (pdvobj->nr_endpoint == 6) {
+	} else if (pdvobj->nr_endpoint == 6) {
 		switch (pattrib->priority) {
 		case 0:
 		case 3:
@@ -239,9 +239,9 @@ void r8712_do_queue_select(struct _adapter *padapter,
 	unsigned int qsel = 0;
 	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 
-	if (pdvobj->nr_endpoint == 6)
+	if (pdvobj->nr_endpoint == 6) {
 		qsel = (unsigned int) pattrib->priority;
-	else if (pdvobj->nr_endpoint == 4) {
+	} else if (pdvobj->nr_endpoint == 4) {
 		qsel = (unsigned int) pattrib->priority;
 		if (qsel == 0 || qsel == 3)
 			qsel = 3;

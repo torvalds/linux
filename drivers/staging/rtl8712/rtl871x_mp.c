@@ -237,8 +237,9 @@ static u8 set_bb_reg(struct _adapter *pAdapter,
 		org_value = r8712_bb_reg_read(pAdapter, offset);
 		bit_shift = bitshift(bitmask);
 		new_value = ((org_value & (~bitmask)) | (value << bit_shift));
-	} else
+	} else {
 		new_value = value;
+	}
 	return r8712_bb_reg_write(pAdapter, offset, new_value);
 }
 
@@ -262,8 +263,9 @@ static u8 set_rf_reg(struct _adapter *pAdapter, u8 path, u8 offset, u32 bitmask,
 		org_value = r8712_rf_reg_read(pAdapter, path, offset);
 		bit_shift = bitshift(bitmask);
 		new_value = ((org_value & (~bitmask)) | (value << bit_shift));
-	} else
+	} else {
 		new_value = value;
+	}
 	return r8712_rf_reg_write(pAdapter, path, offset, new_value);
 }
 

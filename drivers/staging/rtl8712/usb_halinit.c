@@ -285,8 +285,9 @@ u8 r8712_usb_hal_bus_init(struct _adapter *padapter)
 			/* Reset TxDMA */
 			r8712_write8(padapter, CR, val8|_TXDMA_EN);
 		}
-	} else
+	} else {
 		ret = _FAIL;
+	}
 	return ret;
 }
 

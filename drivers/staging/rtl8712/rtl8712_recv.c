@@ -180,8 +180,9 @@ static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 			pattrib->ip_chkrpt = 1; /* correct */
 		else
 			pattrib->ip_chkrpt = 0; /* incorrect */
-	} else
+	} else {
 		pattrib->tcpchk_valid = 0; /* invalid */
+	}
 	pattrib->mcs_rate = (u8)((le32_to_cpu(prxstat->rxdw3)) & 0x3f);
 	pattrib->htc = (u8)((le32_to_cpu(prxstat->rxdw3) >> 14) & 0x1);
 	/*Offset 16*/
@@ -414,8 +415,9 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 			if ((pattrib->tcpchk_valid == 1) &&
 			    (pattrib->tcp_chkrpt == 1)) {
 				sub_skb->ip_summed = CHECKSUM_UNNECESSARY;
-			} else
+			} else {
 				sub_skb->ip_summed = CHECKSUM_NONE;
+			}
 			netif_rx(sub_skb);
 		}
 	}
@@ -580,8 +582,9 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 			    !padapter->bSurpriseRemoved) {
 				r8712_recv_indicatepkt(padapter, prframe);
 				return _SUCCESS;
-			} else
+			} else {
 				return _FAIL;
+			}
 		}
 	}
 	spin_lock_irqsave(&ppending_recvframe_queue->lock, irql);
@@ -654,8 +657,9 @@ static int r8712_process_recv_indicatepkts(struct _adapter *padapter,
 		if (!padapter->bDriverStopped && !padapter->bSurpriseRemoved) {
 			/* indicate this recv_frame */
 			r8712_recv_indicatepkt(padapter, prframe);
-		} else
+		} else {
 			return _FAIL;
+		}
 	}
 	return retval;
 }
@@ -812,9 +816,9 @@ static void query_rx_phy_status(struct _adapter *padapter,
 		/*
 		 * (3) Get Signal Quality (EVM)
 		 */
-		if (pwdb_all > 40)
+		if (pwdb_all > 40) {
 			sq = 100;
-		else {
+		} else {
 			sq = pcck_buf->sq_rpt;
 			if (pcck_buf->sq_rpt > 64)
 				sq = 0;
