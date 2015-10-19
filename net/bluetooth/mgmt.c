@@ -2962,6 +2962,11 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	} else {
 		u8 addr_type;
 
+		if (cp->addr.type == BDADDR_LE_PUBLIC)
+			addr_type = ADDR_LE_DEV_PUBLIC;
+		else
+			addr_type = ADDR_LE_DEV_RANDOM;
+
 		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK,
 					       &cp->addr.bdaddr);
 		if (conn) {
@@ -2977,12 +2982,9 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 			 */
 			if (!cp->disconnect)
 				conn = NULL;
+		} else {
+			hci_conn_params_del(hdev, &cp->addr.bdaddr, addr_type);
 		}
-
-		if (cp->addr.type == BDADDR_LE_PUBLIC)
-			addr_type = ADDR_LE_DEV_PUBLIC;
-		else
-			addr_type = ADDR_LE_DEV_RANDOM;
 
 		hci_remove_irk(hdev, &cp->addr.bdaddr, addr_type);
 
