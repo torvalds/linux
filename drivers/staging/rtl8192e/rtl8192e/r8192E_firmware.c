@@ -17,6 +17,7 @@
 #include "r8192E_hw.h"
 #include "r8192E_hwimg.h"
 #include "r8192E_firmware.h"
+#include "r8192E_cmdpkt.h"
 #include <linux/firmware.h>
 
 static bool _rtl92e_wait_for_fw(struct net_device *dev, u32 mask, u32 timeout)
@@ -29,57 +30,6 @@ static bool _rtl92e_wait_for_fw(struct net_device *dev, u32 mask, u32 timeout)
 		mdelay(2);
 	}
 	return false;
-}
-
-static bool _rtl92e_fw_download_code(struct net_device *dev,
-				     u8 *code_virtual_address, u32 buffer_len)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u16		    frag_length, frag_offset = 0;
-	struct sk_buff	    *skb;
-	struct cb_desc *tcb_desc;
-	u8                  bLastIniPkt;
-
-	do {
-		if ((buffer_len - frag_offset) > CMDPACKET_FRAG_SIZE) {
-			frag_length = CMDPACKET_FRAG_SIZE;
-			bLastIniPkt = 0;
-
-		} else {
-			frag_length = buffer_len - frag_offset;
-			bLastIniPkt = 1;
-
-		}
-
-		skb  = dev_alloc_skb(frag_length + 4);
-		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
-		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-		tcb_desc->queue_index = TXCMD_QUEUE;
-		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
-		tcb_desc->bLastIniPkt = bLastIniPkt;
-		tcb_desc->txbuf_size = (u16)frag_length;
-		memcpy(skb->data, code_virtual_address, frag_length);
-		skb_put(skb, frag_length);
-
-		if (!priv->rtllib->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
-		    (!skb_queue_empty(&priv->rtllib->skb_waitQ[tcb_desc->queue_index])) ||
-		    (priv->rtllib->queue_stop)) {
-			RT_TRACE(COMP_FIRMWARE,
-				 "===================> tx full!\n");
-			skb_queue_tail(&priv->rtllib->skb_waitQ
-					[tcb_desc->queue_index], skb);
-		} else {
-		priv->rtllib->softmac_hard_start_xmit(skb, dev);
-		}
-
-		code_virtual_address += frag_length;
-		frag_offset += frag_length;
-
-	} while (frag_offset < buffer_len);
-
-	rtl92e_writeb(dev, TPPoll, TPPoll_CQ);
-
-	return true;
 }
 
 static bool _rtl92e_fw_boot_cpu(struct net_device *dev)
@@ -241,8 +191,8 @@ bool rtl92e_init_fw(struct net_device *dev)
 		mapped_file = pfirmware->blobs[i].data;
 		file_length = pfirmware->blobs[i].size;
 
-		rt_status = _rtl92e_fw_download_code(dev, mapped_file,
-						     file_length);
+		rt_status = rtl92e_send_cmd_pkt(dev, DESC_PACKET_TYPE_INIT,
+						mapped_file, file_length);
 		if (!rt_status)
 			goto download_firmware_fail;
 
