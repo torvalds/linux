@@ -436,59 +436,12 @@ void hnae_ae_unregister(struct hnae_ae_dev *hdev)
 }
 EXPORT_SYMBOL(hnae_ae_unregister);
 
-static ssize_t handles_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	ssize_t s = 0;
-	struct hnae_ae_dev *hdev = cls_to_ae_dev(dev);
-	struct hnae_handle *h;
-	int i = 0, j;
-
-	list_for_each_entry_rcu(h, &hdev->handle_list, node) {
-		s += sprintf(buf + s, "handle %d (eport_id=%u from %s):\n",
-			    i++, h->eport_id, h->dev->name);
-		for (j = 0; j < h->q_num; j++) {
-			s += sprintf(buf + s, "\tqueue[%d] on %p\n",
-				     j, h->qs[i]->io_base);
-#define HANDEL_TX_MSG "\t\ttx_ring on %p:%u,%u,%u,%u,%u,%llu,%llu\n"
-			s += sprintf(buf + s,
-				     HANDEL_TX_MSG,
-				     h->qs[i]->tx_ring.io_base,
-				     h->qs[i]->tx_ring.buf_size,
-				     h->qs[i]->tx_ring.desc_num,
-				     h->qs[i]->tx_ring.max_desc_num_per_pkt,
-				     h->qs[i]->tx_ring.max_raw_data_sz_per_desc,
-				     h->qs[i]->tx_ring.max_pkt_size,
-				 h->qs[i]->tx_ring.stats.sw_err_cnt,
-				 h->qs[i]->tx_ring.stats.io_err_cnt);
-			s += sprintf(buf + s,
-				"\t\trx_ring on %p:%u,%u,%llu,%llu,%llu\n",
-				h->qs[i]->rx_ring.io_base,
-				h->qs[i]->rx_ring.buf_size,
-				h->qs[i]->rx_ring.desc_num,
-				h->qs[i]->rx_ring.stats.sw_err_cnt,
-				h->qs[i]->rx_ring.stats.io_err_cnt,
-				h->qs[i]->rx_ring.stats.seg_pkt_cnt);
-		}
-	}
-
-	return s;
-}
-
-static DEVICE_ATTR_RO(handles);
-static struct attribute *hnae_class_attrs[] = {
-	&dev_attr_handles.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(hnae_class);
-
 static int __init hnae_init(void)
 {
 	hnae_class = class_create(THIS_MODULE, "hnae");
 	if (IS_ERR(hnae_class))
 		return PTR_ERR(hnae_class);
 
-	hnae_class->dev_groups = hnae_class_groups;
 	return 0;
 }
 
