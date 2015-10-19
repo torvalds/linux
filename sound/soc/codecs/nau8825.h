@@ -101,13 +101,31 @@
 #define NAU8825_ENABLE_SAR_SFT	1
 
 /* CLK_DIVIDER (0x3) */
-#define NAU8825_CLK_SRC_SFT	15
-#define NAU8825_CLK_SRC_MASK	(1 << NAU8825_CLK_SRC_SFT)
-#define NAU8825_CLK_SRC_VCO	(1 << NAU8825_CLK_SRC_SFT)
-#define NAU8825_CLK_SRC_MCLK	(0 << NAU8825_CLK_SRC_SFT)
+#define NAU8825_CLK_SRC_SFT			15
+#define NAU8825_CLK_SRC_MASK			(1 << NAU8825_CLK_SRC_SFT)
+#define NAU8825_CLK_SRC_VCO			(1 << NAU8825_CLK_SRC_SFT)
+#define NAU8825_CLK_SRC_MCLK			(0 << NAU8825_CLK_SRC_SFT)
+#define NAU8825_CLK_MCLK_SRC_MASK		(0xf << 0)
+
+/* FLL1 (0x04) */
+#define NAU8825_FLL_RATIO_MASK			(0x7f << 0)
+
+/* FLL3 (0x06) */
+#define NAU8825_FLL_INTEGER_MASK		(0x3ff << 0)
+
+/* FLL4 (0x07) */
+#define NAU8825_FLL_REF_DIV_MASK		(0x3 << 10)
+
+/* FLL5 (0x08) */
+#define NAU8825_FLL_FILTER_SW_MASK		(0x1 << 14)
 
 /* FLL6 (0x9) */
-#define NAU8825_DCO_EN	(1 << 15)
+#define NAU8825_DCO_EN_MASK			(0x1 << 15)
+#define NAU8825_DCO_EN				(0x1 << 15)
+#define NAU8825_DCO_DIS				(0x0 << 15)
+#define NAU8825_SDM_EN_MASK			(0x1 << 14)
+#define NAU8825_SDM_EN				(0x1 << 14)
+#define NAU8825_SDM_DIS				(0x0 << 14)
 
 /* HSD_CTRL (0xc) */
 #define NAU8825_HSD_AUTO_MODE	(1 << 6)
