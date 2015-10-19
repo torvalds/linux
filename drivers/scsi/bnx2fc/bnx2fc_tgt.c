@@ -560,12 +560,6 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 		    (hba->num_ofld_sess == 0)) {
 			wake_up_interruptible(&hba->shutdown_wait);
 		}
-		if (test_bit(BNX2FC_FLAG_EXPL_LOGO, &tgt->flags)) {
-			printk(KERN_ERR PFX "Relogin to the tgt\n");
-			mutex_lock(&lport->disc.disc_mutex);
-			lport->tt.rport_login(rdata);
-			mutex_unlock(&lport->disc.disc_mutex);
-		}
 		mutex_unlock(&hba->hba_mutex);
 
 		break;

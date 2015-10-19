@@ -689,8 +689,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 		rc = -EINVAL;
 		goto els_err;
 	}
-	if (!(test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) ||
-	     (test_bit(BNX2FC_FLAG_EXPL_LOGO, &tgt->flags))) {
+	if (!(test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags))) {
 		printk(KERN_ERR PFX "els 0x%x: tgt not ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
