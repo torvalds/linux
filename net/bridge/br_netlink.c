@@ -1214,29 +1214,10 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	return 0;
 }
 
-static size_t br_get_link_af_size(const struct net_device *dev)
-{
-	struct net_bridge_port *p;
-	struct net_bridge *br;
-	int num_vlans = 0;
-
-	if (br_port_exists(dev)) {
-		p = br_port_get_rtnl(dev);
-		num_vlans = br_get_num_vlan_infos(nbp_vlan_group(p),
-						  RTEXT_FILTER_BRVLAN);
-	} else if (dev->priv_flags & IFF_EBRIDGE) {
-		br = netdev_priv(dev);
-		num_vlans = br_get_num_vlan_infos(br_vlan_group(br),
-						  RTEXT_FILTER_BRVLAN);
-	}
-
-	/* Each VLAN is returned in bridge_vlan_info along with flags */
-	return num_vlans * nla_total_size(sizeof(struct bridge_vlan_info));
-}
 
 static struct rtnl_af_ops br_af_ops __read_mostly = {
 	.family			= AF_BRIDGE,
-	.get_link_af_size	= br_get_link_af_size,
+	.get_link_af_size	= br_get_link_af_size_filtered,
 };
 
 struct rtnl_link_ops br_link_ops __read_mostly = {
