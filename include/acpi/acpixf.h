@@ -939,4 +939,6 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 					       void **data,
 					       void (*callback)(void *)))
 
+void acpi_set_debugger_thread_id(acpi_thread_id thread_id);
+
 #endif				/* __ACXFACE_H__ */

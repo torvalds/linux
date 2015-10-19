@@ -109,6 +109,14 @@ struct acpi_rw_lock {
 
 #define ACPI_MUTEX_NOT_ACQUIRED         (acpi_thread_id) 0
 
+/* This Thread ID means an invalid thread ID */
+
+#ifdef ACPI_OS_INVALID_THREAD_ID
+#define ACPI_INVALID_THREAD_ID          ACPI_OS_INVALID_THREAD_ID
+#else
+#define ACPI_INVALID_THREAD_ID          ((acpi_thread_id) 0xFFFFFFFF)
+#endif
+
 /* Table for the global mutexes */
 
 struct acpi_mutex_info {

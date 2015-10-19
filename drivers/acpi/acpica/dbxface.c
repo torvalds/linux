@@ -164,6 +164,12 @@ acpi_db_single_step(struct acpi_walk_state * walk_state,
 
 	ACPI_FUNCTION_ENTRY();
 
+#ifndef ACPI_APPLICATION
+	if (acpi_gbl_db_thread_id != acpi_os_get_thread_id()) {
+		return (AE_OK);
+	}
+#endif
+
 	/* Check the abort flag */
 
 	if (acpi_gbl_abort_method) {
@@ -431,7 +437,7 @@ acpi_status acpi_initialize_debugger(void)
 		/* Create the debug execution thread to execute commands */
 
 		acpi_gbl_db_threads_terminated = FALSE;
-		status = acpi_os_execute(OSL_DEBUGGER_THREAD,
+		status = acpi_os_execute(OSL_DEBUGGER_MAIN_THREAD,
 					 acpi_db_execute_thread, NULL);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
@@ -439,6 +445,8 @@ acpi_status acpi_initialize_debugger(void)
 			acpi_gbl_db_threads_terminated = TRUE;
 			return_ACPI_STATUS(status);
 		}
+	} else {
+		acpi_gbl_db_thread_id = acpi_os_get_thread_id();
 	}
 
 	return_ACPI_STATUS(AE_OK);
@@ -485,3 +493,21 @@ void acpi_terminate_debugger(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_terminate_debugger)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_set_debugger_thread_id
+ *
+ * PARAMETERS:  thread_id       - Debugger thread ID
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Set debugger thread ID
+ *
+ ******************************************************************************/
+void acpi_set_debugger_thread_id(acpi_thread_id thread_id)
+{
+	acpi_gbl_db_thread_id = thread_id;
+}
+
+ACPI_EXPORT_SYMBOL(acpi_set_debugger_thread_id)

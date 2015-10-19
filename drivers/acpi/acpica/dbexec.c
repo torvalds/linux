@@ -725,7 +725,8 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 
 	for (i = 0; i < (num_threads); i++) {
 		status =
-		    acpi_os_execute(OSL_DEBUGGER_THREAD, acpi_db_method_thread,
+		    acpi_os_execute(OSL_DEBUGGER_EXEC_THREAD,
+				    acpi_db_method_thread,
 				    &acpi_gbl_db_method_info);
 		if (ACPI_FAILURE(status)) {
 			break;
