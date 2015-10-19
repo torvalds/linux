@@ -91,8 +91,10 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			}
 			rx->ax_skb = netdev_alloc_skb_ip_align(dev->net,
 							       rx->size);
-			if (!rx->ax_skb)
+			if (!rx->ax_skb) {
+				rx->size = 0;
 				return 0;
+			}
 		}
 
 		if (rx->size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
