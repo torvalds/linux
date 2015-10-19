@@ -26,7 +26,6 @@
 #include <asm/processor.h>
 #include <asm/sysreg.h>
 
-static bool mixed_endian_el0 = true;
 unsigned long elf_hwcap __read_mostly;
 EXPORT_SYMBOL_GPL(elf_hwcap);
 
@@ -43,22 +42,6 @@ unsigned int compat_elf_hwcap2 __read_mostly;
 #endif
 
 DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
-
-
-bool cpu_supports_mixed_endian_el0(void)
-{
-	return id_aa64mmfr0_mixed_endian_el0(read_cpuid(ID_AA64MMFR0_EL1));
-}
-
-bool system_supports_mixed_endian_el0(void)
-{
-	return mixed_endian_el0;
-}
-
-static void update_mixed_endian_el0_support(struct cpuinfo_arm64 *info)
-{
-	mixed_endian_el0 &= id_aa64mmfr0_mixed_endian_el0(info->reg_id_aa64mmfr0);
-}
 
 #define ARM64_FTR_BITS(STRICT, TYPE, SHIFT, WIDTH, SAFE_VAL) \
 	{						\
@@ -433,9 +416,6 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 	init_cpu_ftr_reg(SYS_MVFR0_EL1, info->reg_mvfr0);
 	init_cpu_ftr_reg(SYS_MVFR1_EL1, info->reg_mvfr1);
 	init_cpu_ftr_reg(SYS_MVFR2_EL1, info->reg_mvfr2);
-
-	/* This will be removed later, once we start using the infrastructure */
-	update_mixed_endian_el0_support(info);
 }
 
 static void update_cpu_ftr_reg(struct arm64_ftr_reg *reg, u64 new)
@@ -586,8 +566,6 @@ void update_cpu_features(int cpu,
 	 */
 	WARN_TAINT_ONCE(taint, TAINT_CPU_OUT_OF_SPEC,
 			"Unsupported CPU feature variation.\n");
-
-	update_mixed_endian_el0_support(info);
 }
 
 u64 read_system_reg(u32 id)
