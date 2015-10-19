@@ -82,7 +82,7 @@ Be multi thread instead of multi process
 Specify number of groups
 
 -l::
---loop=::
+--nr_loops=::
 Specify number of loops
 
 Example of *messaging*
@@ -149,8 +149,8 @@ Specify routine to copy (default: default).
 Available routines are depend on the architecture.
 On x86-64, x86-64-unrolled, x86-64-movsq and x86-64-movsb are supported.
 
--i::
---iterations::
+-l::
+--nr_loops::
 Repeat memcpy invocation this number of times.
 
 -c::
@@ -173,8 +173,8 @@ Specify routine to set (default: default).
 Available routines are depend on the architecture.
 On x86-64, x86-64-unrolled, x86-64-stosq and x86-64-stosb are supported.
 
--i::
---iterations::
+-l::
+--nr_loops::
 Repeat memset invocation this number of times.
 
 -c::

@@ -25,20 +25,20 @@
 
 static const char	*size_str	= "1MB";
 static const char	*routine_str	= "all";
-static int		iterations	= 1;
+static int		nr_loops	= 1;
 static bool		use_cycles;
 static int		cycles_fd;
 
 static const struct option options[] = {
-	OPT_STRING('l', "size", &size_str, "1MB",
+	OPT_STRING('s', "size", &size_str, "1MB",
 		    "Specify the size of the memory buffers. "
 		    "Available units: B, KB, MB, GB and TB (case insensitive)"),
 
 	OPT_STRING('r', "routine", &routine_str, "all",
 		    "Specify the routine to run, \"all\" runs all available routines, \"help\" lists them"),
 
-	OPT_INTEGER('i', "iterations", &iterations,
-		    "Repeat the function this number of times"),
+	OPT_INTEGER('l', "nr_loops", &nr_loops,
+		    "Specify the number of loops to run. (default: 1)"),
 
 	OPT_BOOLEAN('c', "cycles", &use_cycles,
 		    "Use a cycles event instead of gettimeofday() to measure performance"),
@@ -159,7 +159,7 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 		init_cycles();
 
 	size = (size_t)perf_atoll((char *)size_str);
-	size_total = (double)size * iterations;
+	size_total = (double)size * nr_loops;
 
 	if ((s64)size <= 0) {
 		fprintf(stderr, "Invalid size:%s\n", size_str);
@@ -222,7 +222,7 @@ static u64 do_memcpy_cycles(const struct routine *r, size_t size)
 	fn(dst, src, size);
 
 	cycle_start = get_cycles();
-	for (i = 0; i < iterations; ++i)
+	for (i = 0; i < nr_loops; ++i)
 		fn(dst, src, size);
 	cycle_end = get_cycles();
 
@@ -247,7 +247,7 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t size)
 	fn(dst, src, size);
 
 	BUG_ON(gettimeofday(&tv_start, NULL));
-	for (i = 0; i < iterations; ++i)
+	for (i = 0; i < nr_loops; ++i)
 		fn(dst, src, size);
 	BUG_ON(gettimeofday(&tv_end, NULL));
 
@@ -256,7 +256,7 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t size)
 	free(src);
 	free(dst);
 
-	return (double)(((double)size * iterations) / timeval2double(&tv_diff));
+	return (double)(((double)size * nr_loops) / timeval2double(&tv_diff));
 }
 
 struct routine memcpy_routines[] = {
@@ -313,7 +313,7 @@ static u64 do_memset_cycles(const struct routine *r, size_t size)
 	fn(dst, -1, size);
 
 	cycle_start = get_cycles();
-	for (i = 0; i < iterations; ++i)
+	for (i = 0; i < nr_loops; ++i)
 		fn(dst, i, size);
 	cycle_end = get_cycles();
 
@@ -337,14 +337,14 @@ static double do_memset_gettimeofday(const struct routine *r, size_t size)
 	fn(dst, -1, size);
 
 	BUG_ON(gettimeofday(&tv_start, NULL));
-	for (i = 0; i < iterations; ++i)
+	for (i = 0; i < nr_loops; ++i)
 		fn(dst, i, size);
 	BUG_ON(gettimeofday(&tv_end, NULL));
 
 	timersub(&tv_end, &tv_start, &tv_diff);
 
 	free(dst);
-	return (double)(((double)size * iterations) / timeval2double(&tv_diff));
+	return (double)(((double)size * nr_loops) / timeval2double(&tv_diff));
 }
 
 static const char * const bench_mem_memset_usage[] = {
