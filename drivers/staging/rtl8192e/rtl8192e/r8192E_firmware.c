@@ -38,7 +38,7 @@ static bool _rtl92e_fw_boot_cpu(struct net_device *dev)
 
 	if (!_rtl92e_wait_for_fw(dev, CPU_GEN_PUT_CODE_OK, 200)) {
 		netdev_err(dev, "Firmware download failed.\n");
-		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
+		return false;
 	}
 	netdev_dbg(dev, "Download Firmware: Put code ok!\n");
 
@@ -49,15 +49,12 @@ static bool _rtl92e_fw_boot_cpu(struct net_device *dev)
 
 	if (!_rtl92e_wait_for_fw(dev, CPU_GEN_BOOT_RDY, 200)) {
 		netdev_err(dev, "Firmware boot failed.\n");
-		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
+		return false;
 	}
 
 	netdev_dbg(dev, "Download Firmware: Boot ready!\n");
 
 	return true;
-
-CPUCheckMainCodeOKAndTurnOnCPU_Fail:
-	return false;
 }
 
 static bool _rtl92e_fw_check_ready(struct net_device *dev,
