@@ -10,8 +10,13 @@
 
 /**
  * @file mali_platform.c
- * Platform specific Mali driver functions for a default platform
+ * Platform specific Mali driver functions
+ *      for a default platform
  */
+
+/* #define ENABLE_DEBUG_LOG */
+#include "custom_log.h"
+
 #include <linux/workqueue.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -31,17 +36,39 @@
 #include "mali_platform.h"
 
 
+/**
+ * 是否使能 core_scaling 机制.
+ * .DP : core_scaling : 根据当前 mali_utilization_data,
+ *			配置 mali_gpu 中具体使用的 pp_core 的个数.
+ */
 static int mali_core_scaling_enable;
 
 u32 mali_group_error;
 
-struct device *mali_dev;
+/**
+ * anchor_of_device_of_mali_gpu.
+ */
+static struct device *mali_dev;
 
+/**
+ * 设置 current_dvfs_level.
+ *
+ * @param level
+ *	待设置为 current 的 dvfs_level 实例,
+ *	在 dvfs_level_list 中的 index,
+ *	即 index_of_new_current_level.
+ *
+ * @return
+ *	0, 成功.
+ *	其他 value, 失败.
+ */
 int mali_set_level(struct device *dev, int level)
 {
 	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
+	/* gpu_clk_freq_of_new_current_level. */
 	unsigned long freq;
 	int ret;
+	/* index_of_old_current_level. */
 	unsigned int current_level;
 
 	_mali_osk_mutex_wait(drv_data->clock_set_lock);
@@ -50,18 +77,23 @@ int mali_set_level(struct device *dev, int level)
 	freq = drv_data->fv_info[level].freq;
 
 	if (level == current_level) {
+		D("we are already in the target level, to exit.");
 		_mali_osk_mutex_signal(drv_data->clock_set_lock);
 		return 0;
 	}
 
+	/* .KP : 调用 dvfs_module 的接口, 将 cpu_clk 设置为 'freq'. */
 	ret = dvfs_clk_set_rate(drv_data->clk, freq);
 	if (ret) {
 		_mali_osk_mutex_signal(drv_data->clock_set_lock);
 		return ret;
 	}
 
-	dev_dbg(dev, "set freq %lu\n", freq);
-
+	D("have set gpu_clk to %lu of new_level %d, " "the old_level is %d.",
+	  freq,
+	  level,
+	  current_level);
+	/* update index_of_current_dvfs_level. */
 	drv_data->dvfs.current_level = level;
 
 	_mali_osk_mutex_signal(drv_data->clock_set_lock);
@@ -69,6 +101,9 @@ int mali_set_level(struct device *dev, int level)
 	return 0;
 }
 
+/**
+ * 初始化 gpu_dvfs_node 和 gpu_power_domain.
+ */
 static int mali_clock_init(struct device *dev)
 {
 	int ret;
@@ -122,6 +157,8 @@ static void mali_clock_term(struct device *dev)
 	drv_data->power_state = false;
 }
 
+/*---------------------------------------------------------------------------*/
+
 static ssize_t show_available_frequencies(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
@@ -148,7 +185,8 @@ static ssize_t show_clock(struct device *dev,
 			 dvfs_clk_get_rate(drv_data->clk));
 }
 
-static ssize_t set_clock(struct device *dev, struct device_attribute *attr,
+static ssize_t set_clock(struct device *dev,
+			 struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
 	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
@@ -238,6 +276,9 @@ static const struct attribute_group mali_attr_group = {
 	.attrs	= mali_sysfs_entries,
 };
 
+/**
+ * 创建 sysfs_nodes_of_platform_dependent_part.
+ */
 static int mali_create_sysfs(struct device *dev)
 {
 	int ret;
@@ -249,14 +290,21 @@ static int mali_create_sysfs(struct device *dev)
 	return ret;
 }
 
-void mali_remove_sysfs(struct device *dev)
+static void mali_remove_sysfs(struct device *dev)
 {
 	sysfs_remove_group(&dev->kobj, &mali_attr_group);
 }
 
+/*---------------------------------------------------------------------------*/
+
+/**
+ * 对 platform_device_of_mali_gpu,
+ * 完成仅和 platform_dependent_part 有关的初始化.
+ */
 _mali_osk_errcode_t mali_platform_init(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	/* mali_driver_private_data. */
 	struct mali_platform_drv_data *mali_drv_data;
 	int ret;
 
@@ -301,6 +349,8 @@ _mali_osk_errcode_t mali_platform_deinit(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
 
+	mali_remove_sysfs(dev);
+
 	mali_core_scaling_term();
 	mali_clock_term(dev);
 	_mali_osk_mutex_term(drv_data->clock_set_lock);
@@ -308,22 +358,41 @@ _mali_osk_errcode_t mali_platform_deinit(struct platform_device *pdev)
 	return 0;
 }
 
-_mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
+/*---------------------------------------------------------------------------*/
+
+/**
+ * 对  gpu_power_domain(mali_power_domain), "上电, 开 clk" / "下电, 关 clk".
+ * @param bpower_off
+ *      true, 下电.
+ *      false, 对 gpu_power_domain 上电.
+ */
+static _mali_osk_errcode_t mali_power_domain_control(bool bpower_off)
 {
 	struct mali_platform_drv_data *drv_data = dev_get_drvdata(mali_dev);
 
-	if (bpower_off == 0) {
+	/* 若要 上电, 则 ... */
+	if (!bpower_off) {
 		if (!drv_data->power_state) {
+			D("to ENABLE clk to gpu_dvfs_node.");
 			dvfs_clk_prepare_enable(drv_data->clk);
-			if (drv_data->pd)
+
+			if (drv_data->pd) {
+				D("to power UP gpu_power_domain.");
 				clk_prepare_enable(drv_data->pd);
+			}
+
 			drv_data->power_state = true;
 		}
-	} else if (bpower_off == 1) {
+	} else {
 		if (drv_data->power_state) {
+			D("to DISABLE clk to gpu_dvfs_node.");
 			dvfs_clk_disable_unprepare(drv_data->clk);
-			if (drv_data->pd)
+
+			if (drv_data->pd) {
+				D("to power DOWN gpu_power_domain.");
 				clk_disable_unprepare(drv_data->pd);
+			}
+
 			drv_data->power_state = false;
 		}
 	}
@@ -334,27 +403,46 @@ _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 _mali_osk_errcode_t mali_platform_power_mode_change(
 			enum mali_power_mode power_mode)
 {
+	bool bpower_off;/* 下电. */
+
 	switch (power_mode) {
 	case MALI_POWER_MODE_ON:
 		MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_ON\r\n"));
-		mali_power_domain_control(MALI_POWER_MODE_ON);
+		mali_dvfs_enable(mali_dev);
+		bpower_off = false;
 		break;
+
 	case MALI_POWER_MODE_LIGHT_SLEEP:
 		MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_LIGHT_SLEEP\r\n"));
-		mali_power_domain_control(MALI_POWER_MODE_LIGHT_SLEEP);
+		mali_dvfs_disable(mali_dev);
+		/* 预置将下电. */
+		bpower_off = true;
 		break;
+
 	case MALI_POWER_MODE_DEEP_SLEEP:
 		MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_DEEP_SLEEP\r\n"));
-		mali_power_domain_control(MALI_POWER_MODE_DEEP_SLEEP);
+		mali_dvfs_disable(mali_dev);
+		/* 预置将下电. */
+		bpower_off = true;
 		break;
+
 	default:
 		MALI_DEBUG_PRINT(2,
-				 (":power_mode(%d) not support \r\n",
-					power_mode));
+				 ("power_mode(%d) not support\n", power_mode));
+		return _MALI_OSK_ERR_INVALID_ARGS;
 	}
+
+	mali_power_domain_control(bpower_off);
 
 	return 0;
 }
+
+/*---------------------------------------------------------------------------*/
+
+/**
+ * 将注册到 common_part 中的, 对 mali_utilization_event 的 handler,
+ * 即 common_part 会直接将 mali_utilization_event 通知回调到本函数.
+ */
 void mali_gpu_utilization_handler(struct mali_gpu_utilization_data *data)
 {
 	if (data->utilization_pp > 256)

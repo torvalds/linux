@@ -20,10 +20,14 @@ struct mali_gpu_utilization_data;
 
 /**
  * Initialize core scaling policy.
+ * .DP : core_scaling_policy, core_scaling_facility.
  *
- * @note The core scaling policy will assume that all PP cores are on initially.
+ * @note
+ * The core scaling policy will assume
+ *      that all PP cores are on initially.
  *
- * @param num_pp_cores Total number of PP cores.
+ * @param num_pp_cores
+ *      Total number of PP cores.
  */
 void mali_core_scaling_init(int num_pp_cores);
 
@@ -33,9 +37,11 @@ void mali_core_scaling_init(int num_pp_cores);
 void mali_core_scaling_term(void);
 
 /**
- * Update core scaling policy with new utilization data.
+ * Update core scaling policy
+ *      with new utilization data.
  *
- * @param data Utilization data.
+ * @param data
+ *      Utilization data.
  */
 void mali_core_scaling_update(struct mali_gpu_utilization_data *data);
 

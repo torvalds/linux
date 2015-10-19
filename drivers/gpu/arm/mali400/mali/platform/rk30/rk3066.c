@@ -8,6 +8,22 @@
  * by a licensing agreement from ARM Limited.
  */
 
+
+/**
+ * @file rk3066.c
+ * 实现 rk30_platform 中的 platform_specific_strategy_callbacks,
+ * 实际上也是 platform_dependent_part 的顶层.
+ *
+ * mali_device_driver(mdd) 包含两部分 :
+ *	.DP : platform_dependent_part :
+ *		依赖 platform 部分,
+ *		源码在 <mdd_src_dir>/mali/platform/<platform_name> 目录下.
+ *	.DP : common_parts : ARM 实现的通用的部分.
+ */
+
+/* #define ENABLE_DEBUG_LOG */
+#include "custom_log.h"
+
 #include <linux/platform_device.h>
 #include <linux/version.h>
 #include <linux/pm.h>
@@ -165,6 +181,13 @@ static const struct device_type mali_gpu_device_device_type = {
 	.pm = &mali_gpu_device_type_pm_ops,
 };
 
+/**
+ * platform_specific_data_of_platform_device_of_mali_gpu.
+ *
+ * 类型 'struct mali_gpu_device_data' 由 common_part 定义,
+ * 实例也将被 common_part 引用,
+ * 比如通知 mali_utilization_event 等.
+ */
 static const struct mali_gpu_device_data mali_gpu_data = {
 	.shared_mem_size = 1024 * 1024 * 1024, /* 1GB */
 	.fb_start = 0x40000000,
@@ -183,6 +206,15 @@ static void mali_platform_device_add_config(struct platform_device *pdev)
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 }
 
+/*---------------------------------------------------------------------------*/
+
+/**
+ * 将被 common_part 回调的, 对 platform_device_of_mali_gpu 初始化的策略回调实现.
+ *
+ * .DP : platform_specific_strategy_callbacks_called_by_common_part,
+ *       platform_specific_strategy_callbacks :
+ *              被 common_part 调用的 平台相关的策略回调.
+ */
 int mali_platform_device_init(struct platform_device *pdev)
 {
 	int err = 0;
@@ -201,9 +233,13 @@ int mali_platform_device_init(struct platform_device *pdev)
 
 	mali_platform_device_add_config(pdev);
 
+	/* 将 platform_specific_data 添加到 platform_device_of_mali_gpu.
+	 * 这里的 platform_specific_data 的类型由 common_part 定义. */
 	err = platform_device_add_data(pdev, &mali_gpu_data,
 				       sizeof(mali_gpu_data));
 	if (err == 0) {
+		/* .KP : 初始化 platform_device_of_mali_gpu 中,
+		 * 仅和 platform_dependent_part 相关的部分. */
 		err = mali_platform_init(pdev);
 		if (err == 0) {
 #ifdef CONFIG_PM_RUNTIME
@@ -220,6 +256,9 @@ int mali_platform_device_init(struct platform_device *pdev)
 	return err;
 }
 
+/**
+ * 将被 common_part 回调的, 对 platform_device_of_mali_gpu 终止化的策略回调实现.
+ */
 void mali_platform_device_deinit(struct platform_device *pdev)
 {
 	MALI_DEBUG_PRINT(4, ("mali_platform_device_unregister() called\n"));
