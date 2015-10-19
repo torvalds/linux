@@ -80,10 +80,6 @@ acpi_status __init acpi_terminate(void)
 	acpi_gbl_startup_flags = 0;
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
-	/* Terminate the AML Debugger if present */
-
-	ACPI_DEBUGGER_EXEC(acpi_gbl_db_terminate_threads = TRUE);
-
 	/* Shutdown and free all resources */
 
 	acpi_ut_subsystem_shutdown();

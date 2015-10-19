@@ -694,7 +694,7 @@ acpi_db_command_dispatch(char *input_buffer,
 
 	/* If acpi_terminate has been called, terminate this thread */
 
-	if (acpi_gbl_db_terminate_threads) {
+	if (acpi_gbl_db_terminate_loop) {
 		return (AE_CTRL_TERMINATE);
 	}
 
@@ -1116,7 +1116,7 @@ acpi_db_command_dispatch(char *input_buffer,
 #ifdef ACPI_APPLICATION
 		acpi_db_close_debug_file();
 #endif
-		acpi_gbl_db_terminate_threads = TRUE;
+		acpi_gbl_db_terminate_loop = TRUE;
 		return (AE_CTRL_TERMINATE);
 
 	case CMD_NOT_FOUND:
@@ -1166,6 +1166,7 @@ void ACPI_SYSTEM_XFACE acpi_db_execute_thread(void *context)
 
 		acpi_os_release_mutex(acpi_gbl_db_command_complete);
 	}
+	acpi_gbl_db_threads_terminated = TRUE;
 }
 
 /*******************************************************************************
@@ -1212,7 +1213,7 @@ acpi_status acpi_db_user_commands(char prompt, union acpi_parse_object *op)
 
 	/* TBD: [Restructure] Need a separate command line buffer for step mode */
 
-	while (!acpi_gbl_db_terminate_threads) {
+	while (!acpi_gbl_db_terminate_loop) {
 
 		/* Force output to console until a command is entered */
 
@@ -1261,14 +1262,5 @@ acpi_status acpi_db_user_commands(char prompt, union acpi_parse_object *op)
 		}
 	}
 
-	/* Shut down the debugger */
-
-	acpi_terminate_debugger();
-
-	/*
-	 * Only this thread (the original thread) should actually terminate the
-	 * subsystem, because all the semaphores are deleted during termination
-	 */
-	status = acpi_terminate();
 	return (status);
 }

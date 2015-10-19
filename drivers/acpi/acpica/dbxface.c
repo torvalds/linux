@@ -401,6 +401,10 @@ acpi_status acpi_initialize_debugger(void)
 	acpi_gbl_db_scope_buf[1] = 0;
 	acpi_gbl_db_scope_node = acpi_gbl_root_node;
 
+	/* Initialize user commands loop */
+
+	acpi_gbl_db_terminate_loop = FALSE;
+
 	/*
 	 * If configured for multi-thread support, the debug executor runs in
 	 * a separate thread so that the front end can be in another address
@@ -426,11 +430,13 @@ acpi_status acpi_initialize_debugger(void)
 
 		/* Create the debug execution thread to execute commands */
 
+		acpi_gbl_db_threads_terminated = FALSE;
 		status = acpi_os_execute(OSL_DEBUGGER_THREAD,
 					 acpi_db_execute_thread, NULL);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Could not start debugger thread"));
+			acpi_gbl_db_threads_terminated = TRUE;
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -453,6 +459,20 @@ ACPI_EXPORT_SYMBOL(acpi_initialize_debugger)
  ******************************************************************************/
 void acpi_terminate_debugger(void)
 {
+
+	/* Terminate the AML Debugger */
+
+	acpi_gbl_db_terminate_loop = TRUE;
+
+	if (acpi_gbl_debugger_configuration & DEBUGGER_MULTI_THREADED) {
+		acpi_os_release_mutex(acpi_gbl_db_command_ready);
+
+		/* Wait the AML Debugger threads */
+
+		while (!acpi_gbl_db_threads_terminated) {
+			acpi_os_sleep(100);
+		}
+	}
 
 	if (acpi_gbl_db_buffer) {
 		acpi_os_free(acpi_gbl_db_buffer);

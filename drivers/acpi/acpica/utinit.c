@@ -241,8 +241,6 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_disable_mem_tracking = FALSE;
 #endif
 
-	ACPI_DEBUGGER_EXEC(acpi_gbl_db_terminate_threads = FALSE);
-
 	return_ACPI_STATUS(AE_OK);
 }
 

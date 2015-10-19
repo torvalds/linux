@@ -325,7 +325,6 @@ ACPI_GLOBAL(struct acpi_external_file *, acpi_gbl_external_file_list);
 
 #ifdef ACPI_DEBUGGER
 
-ACPI_INIT_GLOBAL(u8, acpi_gbl_db_terminate_threads, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_abort_method, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_method_executing, FALSE);
 
@@ -337,6 +336,8 @@ ACPI_GLOBAL(char *, acpi_gbl_db_filename);
 ACPI_GLOBAL(u32, acpi_gbl_db_debug_level);
 ACPI_GLOBAL(u32, acpi_gbl_db_console_debug_level);
 ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_db_scope_node);
+ACPI_GLOBAL(u8, acpi_gbl_db_terminate_loop);
+ACPI_GLOBAL(u8, acpi_gbl_db_threads_terminated);
 
 ACPI_GLOBAL(char *, acpi_gbl_db_args[ACPI_DEBUGGER_MAX_ARGS]);
 ACPI_GLOBAL(acpi_object_type, acpi_gbl_db_arg_types[ACPI_DEBUGGER_MAX_ARGS]);
