@@ -17,6 +17,7 @@
 #define __ASM_HW_BREAKPOINT_H
 
 #include <asm/cputype.h>
+#include <asm/cpufeature.h>
 
 #ifdef __KERNEL__
 
@@ -137,13 +138,17 @@ extern struct pmu perf_ops_bp;
 /* Determine number of BRP registers available. */
 static inline int get_num_brps(void)
 {
-	return ((read_cpuid(ID_AA64DFR0_EL1) >> 12) & 0xf) + 1;
+	return 1 +
+		cpuid_feature_extract_field(read_system_reg(SYS_ID_AA64DFR0_EL1),
+						ID_AA64DFR0_BRPS_SHIFT);
 }
 
 /* Determine number of WRP registers available. */
 static inline int get_num_wrps(void)
 {
-	return ((read_cpuid(ID_AA64DFR0_EL1) >> 20) & 0xf) + 1;
+	return 1 +
+		cpuid_feature_extract_field(read_system_reg(SYS_ID_AA64DFR0_EL1),
+						ID_AA64DFR0_WRPS_SHIFT);
 }
 
 #endif	/* __KERNEL__ */
