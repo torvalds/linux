@@ -195,8 +195,8 @@ retry:
 	kfree(res);
 }
 
-static void add_resync_info(struct mddev *mddev, struct dlm_lock_resource *lockres,
-		sector_t lo, sector_t hi)
+static void add_resync_info(struct dlm_lock_resource *lockres,
+			    sector_t lo, sector_t hi)
 {
 	struct resync_info *ri;
 
@@ -884,7 +884,7 @@ static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	struct cluster_msg cmsg = {0};
 
-	add_resync_info(mddev, cinfo->bitmap_lockres, lo, hi);
+	add_resync_info(cinfo->bitmap_lockres, lo, hi);
 	/* Re-acquire the lock to refresh LVB */
 	dlm_lock_sync(cinfo->bitmap_lockres, DLM_LOCK_PW);
 	cmsg.type = cpu_to_le32(RESYNCING);
