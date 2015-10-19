@@ -886,10 +886,11 @@ static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn,
 	int host_level, level, max_level;
 	struct kvm_memory_slot *slot;
 
-	slot = kvm_vcpu_gfn_to_memslot(vcpu, large_gfn);
+	if (unlikely(*force_pt_level))
+		return PT_PAGE_TABLE_LEVEL;
 
-	if (likely(!*force_pt_level))
-		*force_pt_level = !memslot_valid_for_gpte(slot, true);
+	slot = kvm_vcpu_gfn_to_memslot(vcpu, large_gfn);
+	*force_pt_level = !memslot_valid_for_gpte(slot, true);
 	if (unlikely(*force_pt_level))
 		return PT_PAGE_TABLE_LEVEL;
 

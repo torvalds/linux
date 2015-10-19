@@ -698,7 +698,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	int r;
 	pfn_t pfn;
 	int level = PT_PAGE_TABLE_LEVEL;
-	bool force_pt_level;
+	bool force_pt_level = false;
 	unsigned long mmu_seq;
 	bool map_writable, is_self_change_mapping;
 
