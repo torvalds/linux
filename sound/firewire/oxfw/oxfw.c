@@ -18,6 +18,7 @@
 #define VENDOR_GRIFFIN		0x001292
 #define VENDOR_BEHRINGER	0x001564
 #define VENDOR_LACIE		0x00d04b
+#define VENDOR_TASCAM		0x00022e
 
 #define MODEL_SATELLITE		0x00200f
 
@@ -154,6 +155,15 @@ static void detect_quirks(struct snd_oxfw *oxfw)
 	 */
 	if (vendor == VENDOR_LOUD && model == MODEL_SATELLITE)
 		oxfw->wrong_dbs = true;
+
+	/*
+	 * TASCAM FireOne has physical control and requires a pair of additional
+	 * MIDI ports.
+	 */
+	if (vendor == VENDOR_TASCAM) {
+		oxfw->midi_input_ports++;
+		oxfw->midi_output_ports++;
+	}
 }
 
 static int oxfw_probe(struct fw_unit *unit,
@@ -322,6 +332,13 @@ static const struct ieee1394_device_id oxfw_id_table[] = {
 		.vendor_id	= VENDOR_LOUD,
 		.specifier_id	= SPECIFIER_1394TA,
 		.version	= VERSION_AVC,
+	},
+	/* TASCAM, FireOne */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= VENDOR_TASCAM,
+		.model_id	= 0x800007,
 	},
 	{ }
 };

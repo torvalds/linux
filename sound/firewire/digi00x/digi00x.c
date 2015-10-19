@@ -34,8 +34,7 @@ static int name_card(struct snd_dg00x *dg00x)
 	strcpy(dg00x->card->mixername, model);
 	snprintf(dg00x->card->longname, sizeof(dg00x->card->longname),
 		 "Digidesign %s, GUID %08x%08x at %s, S%d", model,
-		 cpu_to_be32(fw_dev->config_rom[3]),
-		 cpu_to_be32(fw_dev->config_rom[4]),
+		 fw_dev->config_rom[3], fw_dev->config_rom[4],
 		 dev_name(&dg00x->unit->device), 100 << fw_dev->max_speed);
 
 	return 0;

@@ -73,8 +73,7 @@ static int identify_model(struct snd_tscm *tscm)
 	strcpy(tscm->card->mixername, model);
 	snprintf(tscm->card->longname, sizeof(tscm->card->longname),
 		 "TASCAM %s, GUID %08x%08x at %s, S%d", model,
-		 cpu_to_be32(fw_dev->config_rom[3]),
-		 cpu_to_be32(fw_dev->config_rom[4]),
+		 fw_dev->config_rom[3], fw_dev->config_rom[4],
 		 dev_name(&tscm->unit->device), 100 << fw_dev->max_speed);
 
 	return 0;
