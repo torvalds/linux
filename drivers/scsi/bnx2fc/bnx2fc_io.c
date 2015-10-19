@@ -1759,7 +1759,10 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
 	int fcp_rsp_len = 0;
 
 	io_req->fcp_status = FC_GOOD;
-	io_req->fcp_resid = fcp_rsp->fcp_resid;
+	io_req->fcp_resid = 0;
+	if (rsp_flags & (FCOE_FCP_RSP_FLAGS_FCP_RESID_OVER |
+	    FCOE_FCP_RSP_FLAGS_FCP_RESID_UNDER))
+		io_req->fcp_resid = fcp_rsp->fcp_resid;
 
 	io_req->scsi_comp_flags = rsp_flags;
 	CMD_SCSI_STATUS(sc_cmd) = io_req->cdb_status =
