@@ -237,10 +237,23 @@
 #define KASAN_ABI_VERSION 3
 #endif
 
+#if GCC_VERSION >= 40902
+/*
+ * Tell the compiler that address safety instrumentation (KASAN)
+ * should not be applied to that function.
+ * Conflicts with inlining: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67368
+ */
+#define __no_sanitize_address __attribute__((no_sanitize_address))
+#endif
+
 #endif	/* gcc version >= 40000 specific checks */
 
 #if !defined(__noclone)
 #define __noclone	/* not needed */
+#endif
+
+#if !defined(__no_sanitize_address)
+#define __no_sanitize_address
 #endif
 
 /*
