@@ -27,13 +27,23 @@
 #define CURSOR_WIN	2
 #define MIN_FB_WIDTH_FOR_16WORD_BURST	128
 
+static const char * const decon_clks_name[] = {
+	"pclk",
+	"aclk_decon",
+	"aclk_smmu_decon0x",
+	"aclk_xiu_decon0x",
+	"pclk_smmu_decon0x",
+	"sclk_decon_vclk",
+	"sclk_decon_eclk",
+};
+
 struct decon_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
 	void __iomem			*addr;
-	struct clk			*clks[6];
+	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
 	unsigned long			irq_flags;
 	int				pipe;
 	bool				suspended;
@@ -43,15 +53,6 @@ struct decon_context {
 	unsigned long			enabled;
 	bool				i80_if;
 	atomic_t			win_updated;
-};
-
-static const char * const decon_clks_name[] = {
-	"aclk_decon",
-	"aclk_smmu_decon0x",
-	"aclk_xiu_decon0x",
-	"pclk_smmu_decon0x",
-	"sclk_decon_vclk",
-	"sclk_decon_eclk",
 };
 
 static const uint32_t decon_formats[] = {
