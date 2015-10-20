@@ -353,6 +353,11 @@ static struct kmsg_dumper pstore_dumper = {
 	.dump = pstore_dump,
 };
 
+static void pstore_register_kmsg(void)
+{
+	kmsg_dump_register(&pstore_dumper);
+}
+
 #ifdef CONFIG_PSTORE_CONSOLE
 static void pstore_console_write(struct console *con, const char *s, unsigned c)
 {
@@ -442,7 +447,7 @@ int pstore_register(struct pstore_info *psi)
 	if (pstore_is_mounted())
 		pstore_get_records(0);
 
-	kmsg_dump_register(&pstore_dumper);
+	pstore_register_kmsg();
 
 	if ((psi->flags & PSTORE_FLAGS_FRAGILE) == 0) {
 		pstore_register_console();
