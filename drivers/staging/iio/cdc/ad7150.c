@@ -219,7 +219,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 	u64 event_code;
 
 	/* Something must always be turned on */
-	if (state == 0)
+	if (!state)
 		return -EINVAL;
 
 	event_code = IIO_UNMOD_EVENT_CODE(chan->type, chan->channel, type, dir);
