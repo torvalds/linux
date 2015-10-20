@@ -2822,6 +2822,8 @@ static struct samsung_gate_clock disp_gate_clks[] __initdata = {
 			ENABLE_PCLK_DISP, 2, 0, 0),
 	GATE(CLK_PCLK_DECON_TV, "pclk_decon_tv", "div_pclk_disp",
 			ENABLE_PCLK_DISP, 1, 0, 0),
+	GATE(CLK_PCLK_DECON, "pclk_decon", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 0, 0, 0),
 
 	/* ENABLE_SCLK_DISP */
 	GATE(CLK_PHYCLK_MIPIDPHY1_BITCLKDIV8, "phyclk_mipidphy1_bitclkdiv8",
