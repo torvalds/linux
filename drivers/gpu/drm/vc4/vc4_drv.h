@@ -155,7 +155,11 @@ struct vc4_hvs {
 	 * list.  Units are dwords.
 	 */
 	struct drm_mm dlist_mm;
+	/* Memory manager for the LBM memory used by HVS scaling. */
+	struct drm_mm lbm_mm;
 	spinlock_t mm_lock;
+
+	struct drm_mm_node mitchell_netravali_filter;
 };
 
 struct vc4_plane {

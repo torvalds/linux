@@ -536,6 +536,21 @@ enum hvs_pixel_format {
 #define SCALER_CTL0_ORDER_MASK			VC4_MASK(14, 13)
 #define SCALER_CTL0_ORDER_SHIFT			13
 
+#define SCALER_CTL0_SCL1_MASK			VC4_MASK(10, 8)
+#define SCALER_CTL0_SCL1_SHIFT			8
+
+#define SCALER_CTL0_SCL0_MASK			VC4_MASK(7, 5)
+#define SCALER_CTL0_SCL0_SHIFT			5
+
+#define SCALER_CTL0_SCL_H_PPF_V_PPF		0
+#define SCALER_CTL0_SCL_H_TPZ_V_PPF		1
+#define SCALER_CTL0_SCL_H_PPF_V_TPZ		2
+#define SCALER_CTL0_SCL_H_TPZ_V_TPZ		3
+#define SCALER_CTL0_SCL_H_PPF_V_NONE		4
+#define SCALER_CTL0_SCL_H_NONE_V_PPF		5
+#define SCALER_CTL0_SCL_H_NONE_V_TPZ		6
+#define SCALER_CTL0_SCL_H_TPZ_V_NONE		7
+
 /* Set to indicate no scaling. */
 #define SCALER_CTL0_UNITY			BIT(4)
 
@@ -551,6 +566,12 @@ enum hvs_pixel_format {
 #define SCALER_POS0_START_X_MASK		VC4_MASK(11, 0)
 #define SCALER_POS0_START_X_SHIFT		0
 
+#define SCALER_POS1_SCL_HEIGHT_MASK		VC4_MASK(27, 16)
+#define SCALER_POS1_SCL_HEIGHT_SHIFT		16
+
+#define SCALER_POS1_SCL_WIDTH_MASK		VC4_MASK(11, 0)
+#define SCALER_POS1_SCL_WIDTH_SHIFT		0
+
 #define SCALER_POS2_ALPHA_MODE_MASK		VC4_MASK(31, 30)
 #define SCALER_POS2_ALPHA_MODE_SHIFT		30
 #define SCALER_POS2_ALPHA_MODE_PIPELINE		0
@@ -563,6 +584,31 @@ enum hvs_pixel_format {
 
 #define SCALER_POS2_WIDTH_MASK			VC4_MASK(11, 0)
 #define SCALER_POS2_WIDTH_SHIFT			0
+
+#define SCALER_TPZ0_VERT_RECALC			BIT(31)
+#define SCALER_TPZ0_SCALE_MASK			VC4_MASK(28, 8)
+#define SCALER_TPZ0_SCALE_SHIFT			8
+#define SCALER_TPZ0_IPHASE_MASK			VC4_MASK(7, 0)
+#define SCALER_TPZ0_IPHASE_SHIFT		0
+#define SCALER_TPZ1_RECIP_MASK			VC4_MASK(15, 0)
+#define SCALER_TPZ1_RECIP_SHIFT			0
+
+/* Skips interpolating coefficients to 64 phases, so just 8 are used.
+ * Required for nearest neighbor.
+ */
+#define SCALER_PPF_NOINTERP			BIT(31)
+/* Replaes the highest valued coefficient with one that makes all 4
+ * sum to unity.
+ */
+#define SCALER_PPF_AGC				BIT(30)
+#define SCALER_PPF_SCALE_MASK			VC4_MASK(24, 8)
+#define SCALER_PPF_SCALE_SHIFT			8
+#define SCALER_PPF_IPHASE_MASK			VC4_MASK(6, 0)
+#define SCALER_PPF_IPHASE_SHIFT			0
+
+#define SCALER_PPF_KERNEL_OFFSET_MASK		VC4_MASK(13, 0)
+#define SCALER_PPF_KERNEL_OFFSET_SHIFT		0
+#define SCALER_PPF_KERNEL_UNCACHED		BIT(31)
 
 #define SCALER_SRC_PITCH_MASK			VC4_MASK(15, 0)
 #define SCALER_SRC_PITCH_SHIFT			0

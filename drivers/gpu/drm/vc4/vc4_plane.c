@@ -24,6 +24,12 @@
 #include "drm_fb_cma_helper.h"
 #include "drm_plane_helper.h"
 
+enum vc4_scaling_mode {
+	VC4_SCALING_NONE,
+	VC4_SCALING_TPZ,
+	VC4_SCALING_PPF,
+};
+
 struct vc4_plane_state {
 	struct drm_plane_state base;
 	/* System memory copy of the display list for this element, computed
@@ -47,13 +53,19 @@ struct vc4_plane_state {
 
 	/* Clipped coordinates of the plane on the display. */
 	int crtc_x, crtc_y, crtc_w, crtc_h;
-	/* Clipped size of the area scanned from in the FB. */
-	u32 src_w, src_h;
+	/* Clipped area being scanned from in the FB. */
+	u32 src_x, src_y, src_w, src_h;
+
+	enum vc4_scaling_mode x_scaling, y_scaling;
+	bool is_unity;
 
 	/* Offset to start scanning out from the start of the plane's
 	 * BO.
 	 */
 	u32 offset;
+
+	/* Our allocation in LBM for temporary storage during scaling. */
+	struct drm_mm_node lbm;
 };
 
 static inline struct vc4_plane_state *
@@ -90,6 +102,16 @@ static const struct hvs_format *vc4_get_hvs_format(u32 drm_format)
 	return NULL;
 }
 
+static enum vc4_scaling_mode vc4_get_scaling_mode(u32 src, u32 dst)
+{
+	if (dst > src)
+		return VC4_SCALING_PPF;
+	else if (dst < src)
+		return VC4_SCALING_TPZ;
+	else
+		return VC4_SCALING_NONE;
+}
+
 static bool plane_enabled(struct drm_plane_state *state)
 {
 	return state->fb && state->crtc;
@@ -105,6 +127,8 @@ static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane
 	vc4_state = kmemdup(plane->state, sizeof(*vc4_state), GFP_KERNEL);
 	if (!vc4_state)
 		return NULL;
+
+	memset(&vc4_state->lbm, 0, sizeof(vc4_state->lbm));
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &vc4_state->base);
 
@@ -125,7 +149,16 @@ static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane
 static void vc4_plane_destroy_state(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(plane->dev);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+
+	if (vc4_state->lbm.allocated) {
+		unsigned long irqflags;
+
+		spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
+		drm_mm_remove_node(&vc4_state->lbm);
+		spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
+	}
 
 	kfree(vc4_state->dlist);
 	__drm_atomic_helper_plane_destroy_state(plane, &vc4_state->base);
@@ -165,23 +198,60 @@ static void vc4_dlist_write(struct vc4_plane_state *vc4_state, u32 val)
 	vc4_state->dlist[vc4_state->dlist_count++] = val;
 }
 
-static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
+/* Returns the scl0/scl1 field based on whether the dimensions need to
+ * be up/down/non-scaled.
+ *
+ * This is a replication of a table from the spec.
+ */
+static u32 vc4_get_scl_field(struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+
+	switch (vc4_state->x_scaling << 2 | vc4_state->y_scaling) {
+	case VC4_SCALING_PPF << 2 | VC4_SCALING_PPF:
+		return SCALER_CTL0_SCL_H_PPF_V_PPF;
+	case VC4_SCALING_TPZ << 2 | VC4_SCALING_PPF:
+		return SCALER_CTL0_SCL_H_TPZ_V_PPF;
+	case VC4_SCALING_PPF << 2 | VC4_SCALING_TPZ:
+		return SCALER_CTL0_SCL_H_PPF_V_TPZ;
+	case VC4_SCALING_TPZ << 2 | VC4_SCALING_TPZ:
+		return SCALER_CTL0_SCL_H_TPZ_V_TPZ;
+	case VC4_SCALING_PPF << 2 | VC4_SCALING_NONE:
+		return SCALER_CTL0_SCL_H_PPF_V_NONE;
+	case VC4_SCALING_NONE << 2 | VC4_SCALING_PPF:
+		return SCALER_CTL0_SCL_H_NONE_V_PPF;
+	case VC4_SCALING_NONE << 2 | VC4_SCALING_TPZ:
+		return SCALER_CTL0_SCL_H_NONE_V_TPZ;
+	case VC4_SCALING_TPZ << 2 | VC4_SCALING_NONE:
+		return SCALER_CTL0_SCL_H_TPZ_V_NONE;
+	default:
+	case VC4_SCALING_NONE << 2 | VC4_SCALING_NONE:
+		/* The unity case is independently handled by
+		 * SCALER_CTL0_UNITY.
+		 */
+		return 0;
+	}
+}
+
+static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
+{
+	struct drm_plane *plane = state->plane;
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
+	u32 subpixel_src_mask = (1 << 16) - 1;
 
 	vc4_state->offset = fb->offsets[0];
 
-	if (state->crtc_w << 16 != state->src_w ||
-	    state->crtc_h << 16 != state->src_h) {
-		/* We don't support scaling yet, which involves
-		 * allocating the LBM memory for scaling temporary
-		 * storage, and putting filter kernels in the HVS
-		 * context.
-		 */
+	/* We don't support subpixel source positioning for scaling. */
+	if ((state->src_x & subpixel_src_mask) ||
+	    (state->src_y & subpixel_src_mask) ||
+	    (state->src_w & subpixel_src_mask) ||
+	    (state->src_h & subpixel_src_mask)) {
 		return -EINVAL;
 	}
 
+	vc4_state->src_x = state->src_x >> 16;
+	vc4_state->src_y = state->src_y >> 16;
 	vc4_state->src_w = state->src_w >> 16;
 	vc4_state->src_h = state->src_h >> 16;
 
@@ -190,6 +260,23 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	vc4_state->crtc_w = state->crtc_w;
 	vc4_state->crtc_h = state->crtc_h;
 
+	vc4_state->x_scaling = vc4_get_scaling_mode(vc4_state->src_w,
+						    vc4_state->crtc_w);
+	vc4_state->y_scaling = vc4_get_scaling_mode(vc4_state->src_h,
+						    vc4_state->crtc_h);
+	vc4_state->is_unity = (vc4_state->x_scaling == VC4_SCALING_NONE &&
+			       vc4_state->y_scaling == VC4_SCALING_NONE);
+
+	/* No configuring scaling on the cursor plane, since it gets
+	   non-vblank-synced updates, and scaling requires requires
+	   LBM changes which have to be vblank-synced.
+	 */
+	if (plane->type == DRM_PLANE_TYPE_CURSOR && !vc4_state->is_unity)
+		return -EINVAL;
+
+	/* Clamp the on-screen start x/y to 0.  The hardware doesn't
+	 * support negative y, and negative x wastes bandwidth.
+	 */
 	if (vc4_state->crtc_x < 0) {
 		vc4_state->offset += (drm_format_plane_cpp(fb->pixel_format,
 							   0) *
@@ -207,6 +294,87 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	return 0;
 }
 
+static void vc4_write_tpz(struct vc4_plane_state *vc4_state, u32 src, u32 dst)
+{
+	u32 scale, recip;
+
+	scale = (1 << 16) * src / dst;
+
+	/* The specs note that while the reciprocal would be defined
+	 * as (1<<32)/scale, ~0 is close enough.
+	 */
+	recip = ~0 / scale;
+
+	vc4_dlist_write(vc4_state,
+			VC4_SET_FIELD(scale, SCALER_TPZ0_SCALE) |
+			VC4_SET_FIELD(0, SCALER_TPZ0_IPHASE));
+	vc4_dlist_write(vc4_state,
+			VC4_SET_FIELD(recip, SCALER_TPZ1_RECIP));
+}
+
+static void vc4_write_ppf(struct vc4_plane_state *vc4_state, u32 src, u32 dst)
+{
+	u32 scale = (1 << 16) * src / dst;
+
+	vc4_dlist_write(vc4_state,
+			SCALER_PPF_AGC |
+			VC4_SET_FIELD(scale, SCALER_PPF_SCALE) |
+			VC4_SET_FIELD(0, SCALER_PPF_IPHASE));
+}
+
+static u32 vc4_lbm_size(struct drm_plane_state *state)
+{
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	/* This is the worst case number.  One of the two sizes will
+	 * be used depending on the scaling configuration.
+	 */
+	u32 pix_per_line = max(vc4_state->src_w, (u32)vc4_state->crtc_w);
+	u32 lbm;
+
+	if (vc4_state->is_unity)
+		return 0;
+	else if (vc4_state->y_scaling == VC4_SCALING_TPZ)
+		lbm = pix_per_line * 8;
+	else {
+		/* In special cases, this multiplier might be 12. */
+		lbm = pix_per_line * 16;
+	}
+
+	lbm = roundup(lbm, 32);
+
+	return lbm;
+}
+
+static void vc4_write_scaling_parameters(struct drm_plane_state *state)
+{
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+
+	/* Ch0 H-PPF Word 0: Scaling Parameters */
+	if (vc4_state->x_scaling == VC4_SCALING_PPF) {
+		vc4_write_ppf(vc4_state,
+			      vc4_state->src_w, vc4_state->crtc_w);
+	}
+
+	/* Ch0 V-PPF Words 0-1: Scaling Parameters, Context */
+	if (vc4_state->y_scaling == VC4_SCALING_PPF) {
+		vc4_write_ppf(vc4_state,
+			      vc4_state->src_h, vc4_state->crtc_h);
+		vc4_dlist_write(vc4_state, 0xc0c0c0c0);
+	}
+
+	/* Ch0 H-TPZ Words 0-1: Scaling Parameters, Recip */
+	if (vc4_state->x_scaling == VC4_SCALING_TPZ) {
+		vc4_write_tpz(vc4_state,
+			      vc4_state->src_w, vc4_state->crtc_w);
+	}
+
+	/* Ch0 V-TPZ Words 0-2: Scaling Parameters, Recip, Context */
+	if (vc4_state->y_scaling == VC4_SCALING_TPZ) {
+		vc4_write_tpz(vc4_state,
+			      vc4_state->src_h, vc4_state->crtc_h);
+		vc4_dlist_write(vc4_state, 0xc0c0c0c0);
+	}
+}
 
 /* Writes out a full display list for an active plane to the plane's
  * private dlist state.
@@ -214,22 +382,50 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 static int vc4_plane_mode_set(struct drm_plane *plane,
 			      struct drm_plane_state *state)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(plane->dev);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
 	u32 ctl0_offset = vc4_state->dlist_count;
 	const struct hvs_format *format = vc4_get_hvs_format(fb->pixel_format);
+	u32 scl;
+	u32 lbm_size;
+	unsigned long irqflags;
 	int ret;
 
 	ret = vc4_plane_setup_clipping_and_scaling(state);
 	if (ret)
 		return ret;
 
+	/* Allocate the LBM memory that the HVS will use for temporary
+	 * storage due to our scaling/format conversion.
+	 */
+	lbm_size = vc4_lbm_size(state);
+	if (lbm_size) {
+		if (!vc4_state->lbm.allocated) {
+			spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
+			ret = drm_mm_insert_node(&vc4->hvs->lbm_mm,
+						 &vc4_state->lbm,
+						 lbm_size, 32, 0);
+			spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
+		} else {
+			WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);
+		}
+	}
+
+	if (ret)
+		return ret;
+
+	scl = vc4_get_scl_field(state);
+
+	/* Control word */
 	vc4_dlist_write(vc4_state,
 			SCALER_CTL0_VALID |
 			(format->pixel_order << SCALER_CTL0_ORDER_SHIFT) |
 			(format->hvs << SCALER_CTL0_PIXEL_FORMAT_SHIFT) |
-			SCALER_CTL0_UNITY);
+			(vc4_state->is_unity ? SCALER_CTL0_UNITY : 0) |
+			VC4_SET_FIELD(scl, SCALER_CTL0_SCL0) |
+			VC4_SET_FIELD(scl, SCALER_CTL0_SCL1));
 
 	/* Position Word 0: Image Positions and Alpha Value */
 	vc4_state->pos0_offset = vc4_state->dlist_count;
@@ -238,9 +434,14 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 			VC4_SET_FIELD(vc4_state->crtc_x, SCALER_POS0_START_X) |
 			VC4_SET_FIELD(vc4_state->crtc_y, SCALER_POS0_START_Y));
 
-	/* Position Word 1: Scaled Image Dimensions.
-	 * Skipped due to SCALER_CTL0_UNITY scaling.
-	 */
+	/* Position Word 1: Scaled Image Dimensions. */
+	if (!vc4_state->is_unity) {
+		vc4_dlist_write(vc4_state,
+				VC4_SET_FIELD(vc4_state->crtc_w,
+					      SCALER_POS1_SCL_WIDTH) |
+				VC4_SET_FIELD(vc4_state->crtc_h,
+					      SCALER_POS1_SCL_HEIGHT));
+	}
 
 	/* Position Word 2: Source Image Size, Alpha Mode */
 	vc4_state->pos2_offset = vc4_state->dlist_count;
@@ -265,6 +466,32 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Pitch word 0: Pointer 0 Pitch */
 	vc4_dlist_write(vc4_state,
 			VC4_SET_FIELD(fb->pitches[0], SCALER_SRC_PITCH));
+
+	if (!vc4_state->is_unity) {
+		/* LBM Base Address. */
+		if (vc4_state->y_scaling != VC4_SCALING_NONE)
+			vc4_dlist_write(vc4_state, vc4_state->lbm.start);
+
+		vc4_write_scaling_parameters(state);
+
+		/* If any PPF setup was done, then all the kernel
+		 * pointers get uploaded.
+		 */
+		if (vc4_state->x_scaling == VC4_SCALING_PPF ||
+		    vc4_state->y_scaling == VC4_SCALING_PPF) {
+			u32 kernel = VC4_SET_FIELD(vc4->hvs->mitchell_netravali_filter.start,
+						   SCALER_PPF_KERNEL_OFFSET);
+
+			/* HPPF plane 0 */
+			vc4_dlist_write(vc4_state, kernel);
+			/* VPPF plane 0 */
+			vc4_dlist_write(vc4_state, kernel);
+			/* HPPF plane 1 */
+			vc4_dlist_write(vc4_state, kernel);
+			/* VPPF plane 1 */
+			vc4_dlist_write(vc4_state, kernel);
+		}
+	}
 
 	vc4_state->dlist[ctl0_offset] |=
 		VC4_SET_FIELD(vc4_state->dlist_count, SCALER_CTL0_SIZE);
