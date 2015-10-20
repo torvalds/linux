@@ -42,6 +42,13 @@ static enum {
 #define LBR_FAR_BIT		8 /* do not capture far branches */
 #define LBR_CALL_STACK_BIT	9 /* enable call stack */
 
+/*
+ * Following bit only exists in Linux; we mask it out before writing it to
+ * the actual MSR. But it helps the constraint perf code to understand
+ * that this is a separate configuration.
+ */
+#define LBR_NO_INFO_BIT	       63 /* don't read LBR_INFO. */
+
 #define LBR_KERNEL	(1 << LBR_KERNEL_BIT)
 #define LBR_USER	(1 << LBR_USER_BIT)
 #define LBR_JCC		(1 << LBR_JCC_BIT)
@@ -52,6 +59,7 @@ static enum {
 #define LBR_IND_JMP	(1 << LBR_IND_JMP_BIT)
 #define LBR_FAR		(1 << LBR_FAR_BIT)
 #define LBR_CALL_STACK	(1 << LBR_CALL_STACK_BIT)
+#define LBR_NO_INFO	(1ULL << LBR_NO_INFO_BIT)
 
 #define LBR_PLM (LBR_KERNEL | LBR_USER)
 
@@ -152,7 +160,7 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	 * did not change.
 	 */
 	if (cpuc->lbr_sel)
-		lbr_select = cpuc->lbr_sel->config;
+		lbr_select = cpuc->lbr_sel->config & x86_pmu.lbr_sel_mask;
 	if (!pmi)
 		wrmsrl(MSR_LBR_SELECT, lbr_select);
 
@@ -422,6 +430,7 @@ static void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
  */
 static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 {
+	bool need_info = !(cpuc->lbr_sel->config & LBR_NO_INFO);
 	unsigned long mask = x86_pmu.lbr_nr - 1;
 	int lbr_format = x86_pmu.intel_cap.lbr_format;
 	u64 tos = intel_pmu_lbr_tos();
@@ -442,7 +451,7 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 		rdmsrl(x86_pmu.lbr_from + lbr_idx, from);
 		rdmsrl(x86_pmu.lbr_to   + lbr_idx, to);
 
-		if (lbr_format == LBR_FORMAT_INFO) {
+		if (lbr_format == LBR_FORMAT_INFO && need_info) {
 			u64 info;
 
 			rdmsrl(MSR_LBR_INFO_0 + lbr_idx, info);
@@ -590,6 +599,7 @@ static int intel_pmu_setup_hw_lbr_filter(struct perf_event *event)
 		if (v != LBR_IGN)
 			mask |= v;
 	}
+
 	reg = &event->hw.branch_reg;
 	reg->idx = EXTRA_REG_LBR;
 
@@ -599,6 +609,11 @@ static int intel_pmu_setup_hw_lbr_filter(struct perf_event *event)
 	 * (~mask & LBR_SEL_MASK) | (mask & ~LBR_SEL_MASK)
 	 */
 	reg->config = mask ^ x86_pmu.lbr_sel_mask;
+
+	if ((br_type & PERF_SAMPLE_BRANCH_NO_CYCLES) &&
+	    (br_type & PERF_SAMPLE_BRANCH_NO_FLAGS) &&
+	    (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO))
+		reg->config |= LBR_NO_INFO;
 
 	return 0;
 }
