@@ -920,23 +920,28 @@ void wilc1000_wlan_deinit(struct wilc *nic)
 	}
 }
 
-int wlan_init_locks(struct wilc *p_nic)
+int wlan_init_locks(struct net_device *dev)
 {
+	perInterface_wlan_t *nic;
+	struct wilc *wl;
+
+	nic = netdev_priv(dev);
+	wl = nic->wilc;
 
 	PRINT_D(INIT_DBG, "Initializing Locks ...\n");
 
-	mutex_init(&g_linux_wlan->hif_cs);
-	mutex_init(&g_linux_wlan->rxq_cs);
+	mutex_init(&wl->hif_cs);
+	mutex_init(&wl->rxq_cs);
 
-	spin_lock_init(&g_linux_wlan->txq_spinlock);
-	sema_init(&g_linux_wlan->txq_add_to_head_cs, 1);
+	spin_lock_init(&wl->txq_spinlock);
+	sema_init(&wl->txq_add_to_head_cs, 1);
 
-	sema_init(&g_linux_wlan->txq_event, 0);
+	sema_init(&wl->txq_event, 0);
 
-	sema_init(&g_linux_wlan->cfg_event, 0);
-	sema_init(&g_linux_wlan->sync_event, 0);
+	sema_init(&wl->cfg_event, 0);
+	sema_init(&wl->sync_event, 0);
 
-	sema_init(&g_linux_wlan->txq_thread_started, 0);
+	sema_init(&wl->txq_thread_started, 0);
 
 	return 0;
 }
@@ -1033,7 +1038,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		wl->mac_status = WILC_MAC_STATUS_INIT;
 		wl->close = 0;
 
-		wlan_init_locks(wl);
+		wlan_init_locks(dev);
 
 		linux_to_wlan(&nwi, wl);
 
