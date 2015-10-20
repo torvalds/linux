@@ -1127,6 +1127,10 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		memcpy(pu8CurrByte, pstrHostIFconnectAttr->bssid, 6);
 	pu8CurrByte += 6;
 
+	if (pstrHostIFconnectAttr->bssid)
+		memcpy(pu8CurrByte, pstrHostIFconnectAttr->bssid, 6);
+	pu8CurrByte += 6;
+
 	*(pu8CurrByte++)  = (ptstrJoinBssParam->beacon_period) & 0xFF;
 	*(pu8CurrByte++)  = ((ptstrJoinBssParam->beacon_period) >> 8) & 0xFF;
 	PRINT_D(HOSTINF_DBG, "* Beacon Period %d*\n", (*(pu8CurrByte - 2) | ((*(pu8CurrByte - 1)) << 8)));
