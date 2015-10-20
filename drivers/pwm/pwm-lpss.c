@@ -52,6 +52,13 @@ const struct pwm_lpss_boardinfo pwm_lpss_bsw_info = {
 };
 EXPORT_SYMBOL_GPL(pwm_lpss_bsw_info);
 
+/* Broxton */
+const struct pwm_lpss_boardinfo pwm_lpss_bxt_info = {
+	.clk_rate = 19200000,
+	.npwm = 4,
+};
+EXPORT_SYMBOL_GPL(pwm_lpss_bxt_info);
+
 static inline struct pwm_lpss_chip *to_lpwm(struct pwm_chip *chip)
 {
 	return container_of(chip, struct pwm_lpss_chip, chip);
