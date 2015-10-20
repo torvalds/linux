@@ -3478,11 +3478,29 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+		if (source->driver->ops && source->driver->ops->startup) {
+			ret = source->driver->ops->startup(&substream, source);
+			if (ret < 0) {
+				dev_err(source->dev,
+					"ASoC: startup() failed: %d\n", ret);
+				goto out;
+			}
+			source->active++;
+		}
 		ret = soc_dai_hw_params(&substream, params, source);
 		if (ret < 0)
 			goto out;
 
 		substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+		if (sink->driver->ops && sink->driver->ops->startup) {
+			ret = sink->driver->ops->startup(&substream, sink);
+			if (ret < 0) {
+				dev_err(sink->dev,
+					"ASoC: startup() failed: %d\n", ret);
+				goto out;
+			}
+			sink->active++;
+		}
 		ret = soc_dai_hw_params(&substream, params, sink);
 		if (ret < 0)
 			goto out;
@@ -3502,6 +3520,18 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0 && ret != -ENOTSUPP)
 			dev_warn(sink->dev, "ASoC: Failed to mute: %d\n", ret);
 		ret = 0;
+
+		source->active--;
+		if (source->driver->ops && source->driver->ops->shutdown) {
+			substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+			source->driver->ops->shutdown(&substream, source);
+		}
+
+		sink->active--;
+		if (sink->driver->ops && sink->driver->ops->shutdown) {
+			substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+			sink->driver->ops->shutdown(&substream, sink);
+		}
 		break;
 
 	default:
