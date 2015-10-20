@@ -199,6 +199,14 @@ struct sh_pfc_soc_info {
 	PINMUX_DATA(fn##_MARK, FN_##ms, FN_##ipsr, FN_##fn)
 
 /*
+ * Describe a pinmux configuration for a single-function pin with GPIO
+ * capability.
+ *   - fn: Function name
+ */
+#define PINMUX_SINGLE(fn)						\
+	PINMUX_DATA(fn##_MARK, FN_##fn)
+
+/*
  * GP port style (32 ports banks)
  */
 
