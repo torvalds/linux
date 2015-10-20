@@ -24,7 +24,7 @@
  *  Licensed under the terms of the GNU General Public
  *  License version 2. See file COPYING for details.
  */
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) "microcode: " fmt
 
 #include <linux/earlycpio.h>
 #include <linux/firmware.h>
@@ -32,7 +32,6 @@
 #include <linux/vmalloc.h>
 #include <linux/initrd.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 
 #include <asm/microcode_amd.h>
@@ -41,10 +40,6 @@
 #include <asm/setup.h>
 #include <asm/cpu.h>
 #include <asm/msr.h>
-
-MODULE_DESCRIPTION("AMD Microcode Update Driver");
-MODULE_AUTHOR("Peter Oruba");
-MODULE_LICENSE("GPL v2");
 
 static struct equiv_cpu_entry *equiv_cpu_table;
 

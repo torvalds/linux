@@ -19,7 +19,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) "microcode: " fmt
 
 #include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
@@ -27,7 +27,6 @@
 #include <linux/capability.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/cpu.h>
 #include <linux/fs.h>
@@ -41,16 +40,18 @@
 #include <asm/processor.h>
 #include <asm/cmdline.h>
 
-MODULE_DESCRIPTION("Microcode Update Driver");
-MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
-MODULE_LICENSE("GPL");
-
-#define MICROCODE_VERSION	"2.00"
+#define MICROCODE_VERSION	"2.01"
 
 static struct microcode_ops	*microcode_ops;
 
-bool dis_ucode_ldr;
-module_param(dis_ucode_ldr, bool, 0);
+static bool dis_ucode_ldr;
+
+static int __init disable_loader(char *str)
+{
+	dis_ucode_ldr = true;
+	return 1;
+}
+__setup("dis_ucode_ldr", disable_loader);
 
 /*
  * Synchronization.
@@ -364,9 +365,6 @@ static void __exit microcode_dev_exit(void)
 {
 	misc_deregister(&microcode_dev);
 }
-
-MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
-MODULE_ALIAS("devname:cpu/microcode");
 #else
 #define microcode_dev_init()	0
 #define microcode_dev_exit()	do { } while (0)
@@ -616,20 +614,6 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 static struct notifier_block mc_cpu_notifier = {
 	.notifier_call	= mc_cpu_callback,
 };
-
-#ifdef MODULE
-/* Autoload on Intel and AMD systems */
-static const struct x86_cpu_id __initconst microcode_id[] = {
-#ifdef CONFIG_MICROCODE_INTEL
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, },
-#endif
-#ifdef CONFIG_MICROCODE_AMD
-	{ X86_VENDOR_AMD, X86_FAMILY_ANY, X86_MODEL_ANY, },
-#endif
-	{}
-};
-MODULE_DEVICE_TABLE(x86cpu, microcode_id);
-#endif
 
 static struct attribute *cpu_root_microcode_attrs[] = {
 	&dev_attr_reload.attr,

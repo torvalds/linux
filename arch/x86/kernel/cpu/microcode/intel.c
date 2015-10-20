@@ -21,7 +21,7 @@
  *
  *#define DEBUG
  */
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) "microcode: " fmt
 
 #include <linux/earlycpio.h>
 #include <linux/firmware.h>
@@ -29,7 +29,6 @@
 #include <linux/vmalloc.h>
 #include <linux/initrd.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/mm.h>
@@ -39,10 +38,6 @@
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
 #include <asm/msr.h>
-
-MODULE_DESCRIPTION("Microcode Update Driver");
-MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
-MODULE_LICENSE("GPL");
 
 static unsigned long mc_saved_in_initrd[MAX_UCODE_COUNT];
 static struct mc_saved_data {
