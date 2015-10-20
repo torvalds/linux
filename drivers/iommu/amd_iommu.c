@@ -2189,18 +2189,17 @@ static int attach_device(struct device *dev,
 static void __detach_device(struct iommu_dev_data *dev_data)
 {
 	struct protection_domain *domain;
-	unsigned long flags;
 
 	if (WARN_ON(!dev_data->domain))
 		return;
 
 	domain = dev_data->domain;
 
-	spin_lock_irqsave(&domain->lock, flags);
+	spin_lock(&domain->lock);
 
 	do_detach(dev_data);
 
-	spin_unlock_irqrestore(&domain->lock, flags);
+	spin_unlock(&domain->lock);
 }
 
 /*
