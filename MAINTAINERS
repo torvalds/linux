@@ -654,11 +654,6 @@ F:	drivers/gpu/drm/radeon/radeon_kfd.c
 F:	drivers/gpu/drm/radeon/radeon_kfd.h
 F:	include/uapi/linux/kfd_ioctl.h
 
-AMD MICROCODE UPDATE SUPPORT
-M:	Borislav Petkov <bp@alien8.de>
-S:	Maintained
-F:	arch/x86/kernel/cpu/microcode/amd*
-
 AMD XGBE DRIVER
 M:	Tom Lendacky <thomas.lendacky@amd.com>
 L:	netdev@vger.kernel.org
@@ -5429,12 +5424,6 @@ L:	platform-driver-x86@vger.kernel.org
 W:	https://01.org/linux-acpi
 S:	Supported
 F:	drivers/platform/x86/intel_menlow.c
-
-INTEL IA32 MICROCODE UPDATE SUPPORT
-M:	Borislav Petkov <bp@alien8.de>
-S:	Maintained
-F:	arch/x86/kernel/cpu/microcode/core*
-F:	arch/x86/kernel/cpu/microcode/intel*
 
 INTEL I/OAT DMA DRIVER
 M:	Dave Jiang <dave.jiang@intel.com>
@@ -11450,6 +11439,11 @@ M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	arch/x86/kernel/cpu/mcheck/*
+
+X86 MICROCODE UPDATE SUPPORT
+M:	Borislav Petkov <bp@alien8.de>
+S:	Maintained
+F:	arch/x86/kernel/cpu/microcode/*
 
 X86 VDSO
 M:	Andy Lutomirski <luto@amacapital.net>
