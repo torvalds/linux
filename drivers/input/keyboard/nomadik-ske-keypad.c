@@ -54,7 +54,7 @@
 /**
  * struct ske_keypad  - data structure used by keypad driver
  * @irq:	irq no
- * @reg_base:	ske regsiters base address
+ * @reg_base:	ske registers base address
  * @input:	pointer to input device object
  * @board:	keypad platform device
  * @keymap:	matrix scan code table for keycodes
