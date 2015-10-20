@@ -777,7 +777,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier);
  */
 static void __init __rcu_init_preempt(void)
 {
-	rcu_init_one(rcu_state_p, rcu_data_p);
+	rcu_init_one(rcu_state_p);
 }
 
 /*
