@@ -2769,6 +2769,8 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 	int ret = 0;
 	int old_min_uV, old_max_uV;
 	int current_uV;
+	int best_supply_uV = 0;
+	int supply_change_uV = 0;
 
 	/* If we're setting the same range as last time the change
 	 * should be a noop (some cpufreq implementations use the same
@@ -2812,9 +2814,57 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 	if (ret < 0)
 		goto out2;
 
+	if (rdev->supply && (rdev->desc->min_dropout_uV ||
+				!rdev->desc->ops->get_voltage)) {
+		int current_supply_uV;
+		int selector;
+
+		selector = regulator_map_voltage(rdev, min_uV, max_uV);
+		if (selector < 0) {
+			ret = selector;
+			goto out2;
+		}
+
+		best_supply_uV = _regulator_list_voltage(regulator, selector, 0);
+		if (best_supply_uV < 0) {
+			ret = best_supply_uV;
+			goto out2;
+		}
+
+		best_supply_uV += rdev->desc->min_dropout_uV;
+
+		current_supply_uV = _regulator_get_voltage(rdev->supply->rdev);
+		if (current_supply_uV < 0) {
+			ret = current_supply_uV;
+			goto out2;
+		}
+
+		supply_change_uV = best_supply_uV - current_supply_uV;
+	}
+
+	if (supply_change_uV > 0) {
+		ret = regulator_set_voltage_unlocked(rdev->supply,
+				best_supply_uV, INT_MAX);
+		if (ret) {
+			dev_err(&rdev->dev, "Failed to increase supply voltage: %d\n",
+					ret);
+			goto out2;
+		}
+	}
+
 	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
 	if (ret < 0)
 		goto out2;
+
+	if (supply_change_uV < 0) {
+		ret = regulator_set_voltage_unlocked(rdev->supply,
+				best_supply_uV, INT_MAX);
+		if (ret)
+			dev_warn(&rdev->dev, "Failed to decrease supply voltage: %d\n",
+					ret);
+		/* No need to fail here */
+		ret = 0;
+	}
 
 out:
 	return ret;
@@ -2847,11 +2897,11 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 {
 	int ret = 0;
 
-	mutex_lock(&regulator->rdev->mutex);
+	regulator_lock_supply(regulator->rdev);
 
 	ret = regulator_set_voltage_unlocked(regulator, min_uV, max_uV);
 
-	mutex_unlock(&regulator->rdev->mutex);
+	regulator_unlock_supply(regulator->rdev);
 
 	return ret;
 }
