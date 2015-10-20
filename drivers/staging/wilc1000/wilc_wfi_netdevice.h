@@ -163,7 +163,7 @@ struct wilc {
 	#endif
 	int close;
 	u8 vif_num;
-	struct wilc_vif strInterfaceInfo[NUM_CONCURRENT_IFC];
+	struct wilc_vif vif[NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
 
 	struct semaphore txq_add_to_head_cs;
