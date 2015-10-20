@@ -678,11 +678,33 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 	int dev_event = 0;
 	int type = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_TYPE_MASK) >>
 	    OCRDMA_AE_MCQE_EVENT_TYPE_SHIFT;
+	u16 qpid = cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPID_MASK;
+	u16 cqid = cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQID_MASK;
 
-	if (cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPVALID)
-		qp = dev->qp_tbl[cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPID_MASK];
-	if (cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQVALID)
-		cq = dev->cq_tbl[cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQID_MASK];
+	/*
+	 * Some FW version returns wrong qp or cq ids in CQEs.
+	 * Checking whether the IDs are valid
+	 */
+
+	if (cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPVALID) {
+		if (qpid < dev->attr.max_qp)
+			qp = dev->qp_tbl[qpid];
+		if (qp == NULL) {
+			pr_err("ocrdma%d:Async event - qpid %u is not valid\n",
+			       dev->id, qpid);
+			return;
+		}
+	}
+
+	if (cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQVALID) {
+		if (cqid < dev->attr.max_cq)
+			cq = dev->cq_tbl[cqid];
+		if (cq == NULL) {
+			pr_err("ocrdma%d:Async event - cqid %u is not valid\n",
+			       dev->id, cqid);
+			return;
+		}
+	}
 
 	memset(&ib_evt, 0, sizeof(ib_evt));
 
