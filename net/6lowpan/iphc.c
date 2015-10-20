@@ -532,9 +532,12 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	/* Check if we provide the nhc format for nexthdr and compression
 	 * functionality. If not nexthdr is handled inline and not compressed.
 	 */
-	ret = lowpan_nhc_check_compression(skb, hdr, &hc_ptr, &iphc0);
-	if (ret < 0)
-		return ret;
+	ret = lowpan_nhc_check_compression(skb, hdr, &hc_ptr);
+	if (ret == -ENOENT)
+		lowpan_push_hc_data(&hc_ptr, &hdr->nexthdr,
+				    sizeof(hdr->nexthdr));
+	else
+		iphc0 |= LOWPAN_IPHC_NH_C;
 
 	/* Hop limit
 	 * if 1:   compress, encoding is 01
