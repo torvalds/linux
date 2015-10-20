@@ -588,7 +588,7 @@ static int sunxi_nfc_hw_ecc_read_chunk(struct mtd_info *mtd,
 
 	sunxi_nfc_read_buf(mtd, data, ecc->size);
 
-	if (data_off + ecc->bytes != oob_off)
+	if (data_off + ecc->size != oob_off)
 		nand->cmdfunc(mtd, NAND_CMD_RNDOUT, oob_off, -1);
 
 	ret = sunxi_nfc_wait_cmd_fifo_empty(nfc);
@@ -679,7 +679,7 @@ static int sunxi_nfc_hw_ecc_write_chunk(struct mtd_info *mtd,
 	writel(sunxi_nfc_buf_to_user_data(oob),
 	       nfc->regs + NFC_REG_USER_DATA(0));
 
-	if (data_off + ecc->bytes != oob_off)
+	if (data_off + ecc->size != oob_off)
 		nand->cmdfunc(mtd, NAND_CMD_RNDIN, oob_off, -1);
 
 	ret = sunxi_nfc_wait_cmd_fifo_empty(nfc);
