@@ -67,7 +67,7 @@ static int adis16060_spi_read(struct iio_dev *indio_dev, u16 *val)
 	 * starts to place data MSB first on the DOUT line at
 	 * the 6th falling edge of SCLK
 	 */
-	if (ret == 0)
+	if (!ret)
 		*val = ((st->buf[0] & 0x3) << 12) |
 			(st->buf[1] << 4) |
 			((st->buf[2] >> 4) & 0xF);
