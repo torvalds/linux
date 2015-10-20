@@ -2028,29 +2028,17 @@ static void do_detach(struct iommu_dev_data *dev_data)
 static int __attach_device(struct iommu_dev_data *dev_data,
 			   struct protection_domain *domain)
 {
-	struct iommu_dev_data *head, *entry;
 	int ret;
 
 	/* lock domain */
 	spin_lock(&domain->lock);
 
-	head = dev_data;
-
-	if (head->alias_data != NULL)
-		head = head->alias_data;
-
-	/* Now we have the root of the alias group, if any */
-
 	ret = -EBUSY;
-	if (head->domain != NULL)
+	if (dev_data->domain != NULL)
 		goto out_unlock;
 
 	/* Attach alias group root */
-	do_attach(head, domain);
-
-	/* Attach other devices in the alias group */
-	list_for_each_entry(entry, &head->alias_list, alias_list)
-		do_attach(entry, domain);
+	do_attach(dev_data, domain);
 
 	ret = 0;
 
@@ -2200,7 +2188,6 @@ static int attach_device(struct device *dev,
  */
 static void __detach_device(struct iommu_dev_data *dev_data)
 {
-	struct iommu_dev_data *head, *entry;
 	struct protection_domain *domain;
 	unsigned long flags;
 
@@ -2211,14 +2198,7 @@ static void __detach_device(struct iommu_dev_data *dev_data)
 
 	spin_lock_irqsave(&domain->lock, flags);
 
-	head = dev_data;
-	if (head->alias_data != NULL)
-		head = head->alias_data;
-
-	list_for_each_entry(entry, &head->alias_list, alias_list)
-		do_detach(entry);
-
-	do_detach(head);
+	do_detach(dev_data);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
