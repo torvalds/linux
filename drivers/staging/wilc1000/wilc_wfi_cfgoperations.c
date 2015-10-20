@@ -2572,7 +2572,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		nic->iftype = STATION_MODE;
 
 		if (g_linux_wlan->initialized) {
-			host_int_del_All_Rx_BASession(priv->hWILCWFIDrv, g_linux_wlan->vif[0].aBSSID, TID);
+			host_int_del_All_Rx_BASession(priv->hWILCWFIDrv, g_linux_wlan->vif[0].bssid, TID);
 			/* ensure that the message Q is empty */
 			host_int_wait_msg_queue_idle();
 
@@ -2648,7 +2648,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		connecting = 0;
 		PRINT_D(HOSTAPD_DBG, "Interface type = NL80211_IFTYPE_P2P_CLIENT\n");
 
-		host_int_del_All_Rx_BASession(priv->hWILCWFIDrv, g_linux_wlan->vif[0].aBSSID, TID);
+		host_int_del_All_Rx_BASession(priv->hWILCWFIDrv, g_linux_wlan->vif[0].bssid, TID);
 
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
@@ -2760,7 +2760,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		/*sent before downloading new FW. This is because it blocks on*/
 		/*hWaitResponse semaphore, which allows previous config*/
 		/*packets to actually take action on old FW*/
-		host_int_del_All_Rx_BASession(priv->hWILCWFIDrv, g_linux_wlan->vif[0].aBSSID, TID);
+		host_int_del_All_Rx_BASession(priv->hWILCWFIDrv, g_linux_wlan->vif[0].bssid, TID);
 		bEnablePS = false;
 		PRINT_D(HOSTAPD_DBG, "Interface type = NL80211_IFTYPE_GO\n");
 		dev->ieee80211_ptr->iftype = type;
