@@ -1027,14 +1027,15 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 	wilc_wlan_inp_t nwi;
 	perInterface_wlan_t *nic = p_nic;
 	int ret = 0;
+	struct wilc *wl = nic->wilc;
 
-	if (!g_linux_wlan->initialized) {
-		g_linux_wlan->mac_status = WILC_MAC_STATUS_INIT;
-		g_linux_wlan->close = 0;
+	if (!wl->initialized) {
+		wl->mac_status = WILC_MAC_STATUS_INIT;
+		wl->close = 0;
 
-		wlan_init_locks(g_linux_wlan);
+		wlan_init_locks(wl);
 
-		linux_to_wlan(&nwi, g_linux_wlan);
+		linux_to_wlan(&nwi, wl);
 
 		ret = wilc_wlan_init(&nwi);
 		if (ret < 0) {
@@ -1044,7 +1045,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 
 #if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
-		if (init_irq(g_linux_wlan)) {
+		if (init_irq(wl)) {
 			PRINT_ER("couldn't initialize IRQ\n");
 			ret = -EIO;
 			goto _fail_locks_;
@@ -1073,7 +1074,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 
 		/*Download firmware*/
-		ret = linux_wlan_firmware_download(g_linux_wlan);
+		ret = linux_wlan_firmware_download(wl);
 		if (ret < 0) {
 			PRINT_ER("Failed to download firmware\n");
 			ret = -EIO;
@@ -1101,7 +1102,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 			PRINT_D(INIT_DBG, "***** Firmware Ver = %s  *******\n", Firmware_ver);
 		}
 		/* Initialize firmware with default configuration */
-		ret = linux_wlan_init_test_config(dev, g_linux_wlan);
+		ret = linux_wlan_init_test_config(dev, wl);
 
 		if (ret < 0) {
 			PRINT_ER("Failed to configure firmware\n");
@@ -1109,7 +1110,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 			goto _fail_fw_start_;
 		}
 
-		g_linux_wlan->initialized = true;
+		wl->initialized = true;
 		return 0; /*success*/
 
 _fail_fw_start_:
@@ -1121,14 +1122,14 @@ _fail_irq_enable_:
 _fail_irq_init_:
 #endif
 #if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
-		deinit_irq(g_linux_wlan);
+		deinit_irq(wl);
 
 #endif
-		wlan_deinitialize_threads(g_linux_wlan);
+		wlan_deinitialize_threads(wl);
 _fail_wilc_wlan_:
 		wilc_wlan_cleanup();
 _fail_locks_:
-		wlan_deinit_locks(g_linux_wlan);
+		wlan_deinit_locks(wl);
 		PRINT_ER("WLAN Iinitialization FAILED\n");
 	} else {
 		PRINT_D(INIT_DBG, "wilc1000 already initialized\n");
