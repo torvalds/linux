@@ -141,7 +141,7 @@ static int ll_xattr_cache_add(struct list_head *cache,
 err_value:
 	kfree(xattr->xe_name);
 err_name:
-	OBD_SLAB_FREE_PTR(xattr, xattr_kmem);
+	kmem_cache_free(xattr_kmem, xattr);
 
 	return -ENOMEM;
 }
@@ -165,7 +165,7 @@ static int ll_xattr_cache_del(struct list_head *cache,
 		list_del(&xattr->xe_list);
 		kfree(xattr->xe_name);
 		kfree(xattr->xe_value);
-		OBD_SLAB_FREE_PTR(xattr, xattr_kmem);
+		kmem_cache_free(xattr_kmem, xattr);
 
 		return 0;
 	}

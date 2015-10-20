@@ -124,7 +124,7 @@ static void lov_req_completion(const struct lu_env *env,
 	struct lov_req *lr;
 
 	lr = cl2lov_req(slice);
-	OBD_SLAB_FREE_PTR(lr, lov_req_kmem);
+	kmem_cache_free(lov_req_kmem, lr);
 }
 
 static const struct cl_req_operations lov_req_ops = {
@@ -156,7 +156,7 @@ static void lov_key_fini(const struct lu_context *ctx,
 	struct lov_thread_info *info = data;
 
 	LINVRNT(list_empty(&info->lti_closure.clc_list));
-	OBD_SLAB_FREE_PTR(info, lov_thread_kmem);
+	kmem_cache_free(lov_thread_kmem, info);
 }
 
 struct lu_context_key lov_key = {
@@ -181,7 +181,7 @@ static void lov_session_key_fini(const struct lu_context *ctx,
 {
 	struct lov_session *info = data;
 
-	OBD_SLAB_FREE_PTR(info, lov_session_kmem);
+	kmem_cache_free(lov_session_kmem, info);
 }
 
 struct lu_context_key lov_session_key = {

@@ -680,7 +680,7 @@ static struct lu_env *cl_env_new(__u32 ctx_tags, __u32 ses_tags, void *debug)
 				lu_env_fini(env);
 		}
 		if (rc != 0) {
-			OBD_SLAB_FREE_PTR(cle, cl_env_kmem);
+			kmem_cache_free(cl_env_kmem, cle);
 			env = ERR_PTR(rc);
 		} else {
 			CL_ENV_INC(create);
@@ -696,7 +696,7 @@ static void cl_env_fini(struct cl_env *cle)
 	CL_ENV_DEC(total);
 	lu_context_fini(&cle->ce_lu.le_ctx);
 	lu_context_fini(&cle->ce_ses);
-	OBD_SLAB_FREE_PTR(cle, cl_env_kmem);
+	kmem_cache_free(cl_env_kmem, cle);
 }
 
 static inline struct cl_env *cl_env_container(struct lu_env *env)

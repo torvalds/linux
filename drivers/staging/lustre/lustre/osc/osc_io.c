@@ -700,7 +700,7 @@ static void osc_req_completion(const struct lu_env *env,
 	struct osc_req *or;
 
 	or = cl2osc_req(slice);
-	OBD_SLAB_FREE_PTR(or, osc_req_kmem);
+	kmem_cache_free(osc_req_kmem, or);
 }
 
 /**

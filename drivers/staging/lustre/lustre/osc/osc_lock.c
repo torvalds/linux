@@ -251,7 +251,7 @@ static void osc_lock_fini(const struct lu_env *env,
 	LASSERT(atomic_read(&ols->ols_pageref) == 0 ||
 		atomic_read(&ols->ols_pageref) == _PAGEREF_MAGIC);
 
-	OBD_SLAB_FREE_PTR(ols, osc_lock_kmem);
+	kmem_cache_free(osc_lock_kmem, ols);
 }
 
 static void osc_lock_build_policy(const struct lu_env *env,

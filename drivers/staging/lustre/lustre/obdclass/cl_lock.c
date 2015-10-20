@@ -270,7 +270,7 @@ static void cl_lock_free(const struct lu_env *env, struct cl_lock *lock)
 	lu_ref_fini(&lock->cll_reference);
 	lu_ref_fini(&lock->cll_holders);
 	mutex_destroy(&lock->cll_guard);
-	OBD_SLAB_FREE_PTR(lock, cl_lock_kmem);
+	kmem_cache_free(cl_lock_kmem, lock);
 }
 
 /**

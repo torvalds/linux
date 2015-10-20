@@ -91,7 +91,7 @@ static void lovsub_object_free(const struct lu_env *env, struct lu_object *obj)
 
 	lu_object_fini(obj);
 	lu_object_header_fini(&los->lso_header.coh_lu);
-	OBD_SLAB_FREE_PTR(los, lovsub_object_kmem);
+	kmem_cache_free(lovsub_object_kmem, los);
 }
 
 static int lovsub_object_print(const struct lu_env *env, void *cookie,

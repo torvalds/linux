@@ -85,7 +85,7 @@ static void obd_device_free(struct obd_device *obd)
 		LBUG();
 	}
 	lu_ref_fini(&obd->obd_reference);
-	OBD_SLAB_FREE_PTR(obd, obd_device_cachep);
+	kmem_cache_free(obd_device_cachep, obd);
 }
 
 static struct obd_type *class_search_type(const char *name)

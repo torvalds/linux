@@ -808,7 +808,7 @@ static void lov_object_free(const struct lu_env *env, struct lu_object *obj)
 
 	LOV_2DISPATCH_VOID(lov, llo_fini, env, lov, &lov->u);
 	lu_object_fini(obj);
-	OBD_SLAB_FREE_PTR(lov, lov_object_kmem);
+	kmem_cache_free(lov_object_kmem, lov);
 }
 
 static int lov_object_print(const struct lu_env *env, void *cookie,

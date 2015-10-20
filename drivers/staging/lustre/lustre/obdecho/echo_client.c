@@ -337,7 +337,7 @@ static void echo_lock_fini(const struct lu_env *env,
 	struct echo_lock *ecl = cl2echo_lock(slice);
 
 	LASSERT(list_empty(&ecl->el_chain));
-	OBD_SLAB_FREE_PTR(ecl, echo_lock_kmem);
+	kmem_cache_free(echo_lock_kmem, ecl);
 }
 
 static void echo_lock_delete(const struct lu_env *env,
@@ -530,7 +530,7 @@ static void echo_object_free(const struct lu_env *env, struct lu_object *obj)
 
 	if (eco->eo_lsm)
 		echo_free_memmd(eco->eo_dev, &eco->eo_lsm);
-	OBD_SLAB_FREE_PTR(eco, echo_object_kmem);
+	kmem_cache_free(echo_object_kmem, eco);
 }
 
 static int echo_object_print(const struct lu_env *env, void *cookie,
@@ -641,7 +641,7 @@ static void echo_thread_key_fini(const struct lu_context *ctx,
 {
 	struct echo_thread_info *info = data;
 
-	OBD_SLAB_FREE_PTR(info, echo_thread_kmem);
+	kmem_cache_free(echo_thread_kmem, info);
 }
 
 static void echo_thread_key_exit(const struct lu_context *ctx,
@@ -672,7 +672,7 @@ static void echo_session_key_fini(const struct lu_context *ctx,
 {
 	struct echo_session_info *session = data;
 
-	OBD_SLAB_FREE_PTR(session, echo_session_kmem);
+	kmem_cache_free(echo_session_kmem, session);
 }
 
 static void echo_session_key_exit(const struct lu_context *ctx,

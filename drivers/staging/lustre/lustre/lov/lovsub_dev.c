@@ -56,7 +56,7 @@ static void lovsub_req_completion(const struct lu_env *env,
 	struct lovsub_req *lsr;
 
 	lsr = cl2lovsub_req(slice);
-	OBD_SLAB_FREE_PTR(lsr, lovsub_req_kmem);
+	kmem_cache_free(lovsub_req_kmem, lsr);
 }
 
 /**

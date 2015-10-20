@@ -365,7 +365,7 @@ static struct osc_extent *osc_extent_alloc(struct osc_object *obj)
 
 static void osc_extent_free(struct osc_extent *ext)
 {
-	OBD_SLAB_FREE_PTR(ext, osc_extent_kmem);
+	kmem_cache_free(osc_extent_kmem, ext);
 }
 
 static struct osc_extent *osc_extent_get(struct osc_extent *ext)

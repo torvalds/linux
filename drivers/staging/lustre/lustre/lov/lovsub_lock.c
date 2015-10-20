@@ -59,7 +59,7 @@ static void lovsub_lock_fini(const struct lu_env *env,
 
 	lsl = cl2lovsub_lock(slice);
 	LASSERT(list_empty(&lsl->lss_parents));
-	OBD_SLAB_FREE_PTR(lsl, lovsub_lock_kmem);
+	kmem_cache_free(lovsub_lock_kmem, lsl);
 }
 
 static void lovsub_parent_lock(const struct lu_env *env, struct lov_lock *lov)

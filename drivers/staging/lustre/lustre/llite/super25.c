@@ -66,7 +66,7 @@ static void ll_inode_destroy_callback(struct rcu_head *head)
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ll_inode_info *ptr = ll_i2info(inode);
 
-	OBD_SLAB_FREE_PTR(ptr, ll_inode_cachep);
+	kmem_cache_free(ll_inode_cachep, ptr);
 }
 
 static void ll_destroy_inode(struct inode *inode)

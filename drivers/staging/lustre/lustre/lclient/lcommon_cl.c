@@ -127,7 +127,7 @@ void ccc_key_fini(const struct lu_context *ctx,
 {
 	struct ccc_thread_info *info = data;
 
-	OBD_SLAB_FREE_PTR(info, ccc_thread_kmem);
+	kmem_cache_free(ccc_thread_kmem, info);
 }
 
 void *ccc_session_key_init(const struct lu_context *ctx,
@@ -146,7 +146,7 @@ void ccc_session_key_fini(const struct lu_context *ctx,
 {
 	struct ccc_session *session = data;
 
-	OBD_SLAB_FREE_PTR(session, ccc_session_kmem);
+	kmem_cache_free(ccc_session_kmem, session);
 }
 
 struct lu_context_key ccc_key = {
@@ -383,7 +383,7 @@ void ccc_object_free(const struct lu_env *env, struct lu_object *obj)
 
 	lu_object_fini(obj);
 	lu_object_header_fini(obj->lo_header);
-	OBD_SLAB_FREE_PTR(vob, ccc_object_kmem);
+	kmem_cache_free(ccc_object_kmem, vob);
 }
 
 int ccc_lock_init(const struct lu_env *env,
@@ -511,7 +511,7 @@ void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice)
 {
 	struct ccc_lock *clk = cl2ccc_lock(slice);
 
-	OBD_SLAB_FREE_PTR(clk, ccc_lock_kmem);
+	kmem_cache_free(ccc_lock_kmem, clk);
 }
 
 int ccc_lock_enqueue(const struct lu_env *env,
@@ -804,7 +804,7 @@ void ccc_req_completion(const struct lu_env *env,
 		cl_stats_tally(slice->crs_dev, slice->crs_req->crq_type, ioret);
 
 	vrq = cl2ccc_req(slice);
-	OBD_SLAB_FREE_PTR(vrq, ccc_req_kmem);
+	kmem_cache_free(ccc_req_kmem, vrq);
 }
 
 /**

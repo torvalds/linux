@@ -74,7 +74,7 @@ static struct ll_file_data *ll_file_data_get(void)
 static void ll_file_data_put(struct ll_file_data *fd)
 {
 	if (fd != NULL)
-		OBD_SLAB_FREE_PTR(fd, ll_file_data_slab);
+		kmem_cache_free(ll_file_data_slab, fd);
 }
 
 void ll_pack_inode2opdata(struct inode *inode, struct md_op_data *op_data,

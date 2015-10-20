@@ -122,7 +122,7 @@ static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 	LASSERT(atomic_read(&osc->oo_nr_writes) == 0);
 
 	lu_object_fini(obj);
-	OBD_SLAB_FREE_PTR(osc, osc_object_kmem);
+	kmem_cache_free(osc_object_kmem, osc);
 }
 
 int osc_lvb_print(const struct lu_env *env, void *cookie,

@@ -133,7 +133,7 @@ static void osc_key_fini(const struct lu_context *ctx,
 {
 	struct osc_thread_info *info = data;
 
-	OBD_SLAB_FREE_PTR(info, osc_thread_kmem);
+	kmem_cache_free(osc_thread_kmem, info);
 }
 
 struct lu_context_key osc_key = {
@@ -158,7 +158,7 @@ static void osc_session_fini(const struct lu_context *ctx,
 {
 	struct osc_session *info = data;
 
-	OBD_SLAB_FREE_PTR(info, osc_session_kmem);
+	kmem_cache_free(osc_session_kmem, info);
 }
 
 struct lu_context_key osc_session_key = {

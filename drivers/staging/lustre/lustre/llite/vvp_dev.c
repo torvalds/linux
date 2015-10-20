@@ -90,7 +90,7 @@ static void vvp_key_fini(const struct lu_context *ctx,
 {
 	struct vvp_thread_info *info = data;
 
-	OBD_SLAB_FREE_PTR(info, vvp_thread_kmem);
+	kmem_cache_free(vvp_thread_kmem, info);
 }
 
 static void *vvp_session_key_init(const struct lu_context *ctx,
@@ -109,7 +109,7 @@ static void vvp_session_key_fini(const struct lu_context *ctx,
 {
 	struct vvp_session *session = data;
 
-	OBD_SLAB_FREE_PTR(session, vvp_session_kmem);
+	kmem_cache_free(vvp_session_kmem, session);
 }
 
 struct lu_context_key vvp_key = {

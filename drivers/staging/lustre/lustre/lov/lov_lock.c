@@ -173,7 +173,7 @@ static struct cl_lock *lov_sublock_alloc(const struct lu_env *env,
 		if (!IS_ERR(sublock))
 			*out = link;
 		else
-			OBD_SLAB_FREE_PTR(link, lov_lock_link_kmem);
+			kmem_cache_free(lov_lock_link_kmem, link);
 	} else
 		sublock = ERR_PTR(-ENOMEM);
 	return sublock;
@@ -444,7 +444,7 @@ static void lov_lock_fini(const struct lu_env *env,
 			LASSERT(lck->lls_sub[i].sub_lock == NULL);
 		kvfree(lck->lls_sub);
 	}
-	OBD_SLAB_FREE_PTR(lck, lov_lock_kmem);
+	kmem_cache_free(lov_lock_kmem, lck);
 }
 
 static int lov_lock_enqueue_wait(const struct lu_env *env,
@@ -518,7 +518,7 @@ static int lov_sublock_fill(const struct lu_env *env, struct cl_lock *parent,
 		    lck->lls_sub[idx].sub_lock == NULL) {
 			lov_sublock_adopt(env, lck, sublock, idx, link);
 		} else {
-			OBD_SLAB_FREE_PTR(link, lov_lock_link_kmem);
+			kmem_cache_free(lov_lock_link_kmem, link);
 			/* other thread allocated sub-lock, or enqueue is no
 			 * longer going on */
 			cl_lock_mutex_put(env, parent);
@@ -1027,7 +1027,7 @@ void lov_lock_unlink(const struct lu_env *env,
 	lck->lls_nr_filled--;
 	lu_ref_del(&parent->cll_reference, "lov-child", sub->lss_cl.cls_lock);
 	cl_lock_put(env, parent);
-	OBD_SLAB_FREE_PTR(link, lov_lock_link_kmem);
+	kmem_cache_free(lov_lock_link_kmem, link);
 }
 
 struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
@@ -1153,7 +1153,7 @@ static void lov_empty_lock_fini(const struct lu_env *env,
 {
 	struct lov_lock *lck = cl2lov_lock(slice);
 
-	OBD_SLAB_FREE_PTR(lck, lov_lock_kmem);
+	kmem_cache_free(lov_lock_kmem, lck);
 }
 
 static int lov_empty_lock_print(const struct lu_env *env, void *cookie,
