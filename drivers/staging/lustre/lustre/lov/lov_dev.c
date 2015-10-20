@@ -142,7 +142,7 @@ static void *lov_key_init(const struct lu_context *ctx,
 {
 	struct lov_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, lov_thread_kmem, GFP_NOFS);
+	info = kmem_cache_alloc(lov_thread_kmem, GFP_NOFS | __GFP_ZERO);
 	if (info != NULL)
 		INIT_LIST_HEAD(&info->lti_closure.clc_list);
 	else
@@ -170,7 +170,7 @@ static void *lov_session_key_init(const struct lu_context *ctx,
 {
 	struct lov_session *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, lov_session_kmem, GFP_NOFS);
+	info = kmem_cache_alloc(lov_session_kmem, GFP_NOFS | __GFP_ZERO);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -261,7 +261,7 @@ static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct lov_req *lr;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lr, lov_req_kmem, GFP_NOFS);
+	lr = kmem_cache_alloc(lov_req_kmem, GFP_NOFS | __GFP_ZERO);
 	if (lr != NULL) {
 		cl_req_slice_add(req, &lr->lr_cl, dev, &lov_req_ops);
 		result = 0;

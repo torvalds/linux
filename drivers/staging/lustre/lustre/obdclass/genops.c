@@ -68,7 +68,7 @@ static struct obd_device *obd_device_alloc(void)
 {
 	struct obd_device *obd;
 
-	OBD_SLAB_ALLOC_PTR_GFP(obd, obd_device_cachep, GFP_NOFS);
+	obd = kmem_cache_alloc(obd_device_cachep, GFP_NOFS | __GFP_ZERO);
 	if (obd != NULL)
 		obd->obd_magic = OBD_DEVICE_MAGIC;
 	return obd;

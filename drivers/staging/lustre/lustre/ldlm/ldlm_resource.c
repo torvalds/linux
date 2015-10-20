@@ -1031,7 +1031,7 @@ static struct ldlm_resource *ldlm_resource_new(void)
 	struct ldlm_resource *res;
 	int idx;
 
-	OBD_SLAB_ALLOC_PTR_GFP(res, ldlm_resource_slab, GFP_NOFS);
+	res = kmem_cache_alloc(ldlm_resource_slab, GFP_NOFS | __GFP_ZERO);
 	if (res == NULL)
 		return NULL;
 

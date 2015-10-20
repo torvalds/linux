@@ -396,7 +396,7 @@ static int echo_lock_init(const struct lu_env *env,
 {
 	struct echo_lock *el;
 
-	OBD_SLAB_ALLOC_PTR_GFP(el, echo_lock_kmem, GFP_NOFS);
+	el = kmem_cache_alloc(echo_lock_kmem, GFP_NOFS | __GFP_ZERO);
 	if (el != NULL) {
 		cl_lock_slice_add(lock, &el->el_cl, obj, &echo_lock_ops);
 		el->el_object = cl2echo_obj(obj);
@@ -567,7 +567,7 @@ static struct lu_object *echo_object_alloc(const struct lu_env *env,
 
 	/* we're the top dev. */
 	LASSERT(hdr == NULL);
-	OBD_SLAB_ALLOC_PTR_GFP(eco, echo_object_kmem, GFP_NOFS);
+	eco = kmem_cache_alloc(echo_object_kmem, GFP_NOFS | __GFP_ZERO);
 	if (eco != NULL) {
 		struct cl_object_header *hdr = &eco->eo_hdr;
 
@@ -630,7 +630,7 @@ static void *echo_thread_key_init(const struct lu_context *ctx,
 {
 	struct echo_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, echo_thread_kmem, GFP_NOFS);
+	info = kmem_cache_alloc(echo_thread_kmem, GFP_NOFS | __GFP_ZERO);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -661,7 +661,7 @@ static void *echo_session_key_init(const struct lu_context *ctx,
 {
 	struct echo_session_info *session;
 
-	OBD_SLAB_ALLOC_PTR_GFP(session, echo_session_kmem, GFP_NOFS);
+	session = kmem_cache_alloc(echo_session_kmem, GFP_NOFS | __GFP_ZERO);
 	if (session == NULL)
 		session = ERR_PTR(-ENOMEM);
 	return session;

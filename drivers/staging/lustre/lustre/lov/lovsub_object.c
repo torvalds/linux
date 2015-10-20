@@ -143,7 +143,7 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 	struct lovsub_object *los;
 	struct lu_object     *obj;
 
-	OBD_SLAB_ALLOC_PTR_GFP(los, lovsub_object_kmem, GFP_NOFS);
+	los = kmem_cache_alloc(lovsub_object_kmem, GFP_NOFS | __GFP_ZERO);
 	if (los != NULL) {
 		struct cl_object_header *hdr;
 

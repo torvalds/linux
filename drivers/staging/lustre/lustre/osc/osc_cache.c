@@ -346,7 +346,7 @@ static struct osc_extent *osc_extent_alloc(struct osc_object *obj)
 {
 	struct osc_extent *ext;
 
-	OBD_SLAB_ALLOC_PTR_GFP(ext, osc_extent_kmem, GFP_IOFS);
+	ext = kmem_cache_alloc(osc_extent_kmem, GFP_IOFS | __GFP_ZERO);
 	if (ext == NULL)
 		return NULL;
 

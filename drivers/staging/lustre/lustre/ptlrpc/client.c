@@ -423,7 +423,7 @@ struct ptlrpc_request *ptlrpc_request_cache_alloc(gfp_t flags)
 {
 	struct ptlrpc_request *req;
 
-	OBD_SLAB_ALLOC_PTR_GFP(req, request_cache, flags);
+	req = kmem_cache_alloc(request_cache, flags | __GFP_ZERO);
 	return req;
 }
 

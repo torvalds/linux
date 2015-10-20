@@ -61,7 +61,7 @@ static inline struct ll_remote_perm *alloc_ll_remote_perm(void)
 {
 	struct ll_remote_perm *lrp;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lrp, ll_remote_perm_cachep, GFP_KERNEL);
+	lrp = kmem_cache_alloc(ll_remote_perm_cachep, GFP_KERNEL | __GFP_ZERO);
 	if (lrp)
 		INIT_HLIST_NODE(&lrp->lrp_list);
 	return lrp;
