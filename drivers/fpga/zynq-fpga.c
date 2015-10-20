@@ -287,9 +287,9 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr,
 	struct zynq_fpga_priv *priv;
 	int err;
 	char *kbuf;
-	size_t i, in_count;
+	size_t in_count;
 	dma_addr_t dma_addr;
-	u32 transfer_length = 0;
+	u32 transfer_length;
 	u32 intr_status;
 
 	in_count = count;
@@ -300,26 +300,6 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr,
 		return -ENOMEM;
 
 	memcpy(kbuf, buf, count);
-
-	/* look for the sync word */
-	for (i = 0; i < count - 4; i++) {
-		if (memcmp(kbuf + i, "\xAA\x99\x55\x66", 4) == 0) {
-			dev_dbg(priv->dev, "Found swapped sync word\n");
-			break;
-		}
-	}
-
-	/* remove the header, align the data on word boundary */
-	if (i != count - 4) {
-		count -= i;
-		memmove(kbuf, kbuf + i, count);
-	}
-
-	/* fixup endianness of the data */
-	for (i = 0; i < count; i += 4) {
-		u32 *p = (u32 *)&kbuf[i];
-		*p = swab32(*p);
-	}
 
 	/* enable clock */
 	err = clk_enable(priv->clk);
