@@ -62,22 +62,23 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 {
 	struct snd_tscm *tscm = substream->rmidi->private_data;
 	unsigned int port = substream->number;
-	unsigned int len;
-	unsigned int i;
+	int i, len, consume;
+	u8 *label, *msg;
 	u8 status;
-	int consume;
 
-	buf[0] = buf[1] = buf[2] = buf[3] = 0x00;
+	/* The first byte is used for label, the rest for MIDI bytes. */
+	label = buf;
+	msg = buf + 1;
 
-	len = snd_rawmidi_transmit_peek(substream, buf + 1, 3);
-	if (len == 0)
+	consume = snd_rawmidi_transmit_peek(substream, msg, 3);
+	if (consume == 0)
 		return 0;
 
 	/* On exclusive message. */
 	if (tscm->on_sysex[port]) {
 		/* Seek the end of exclusives. */
-		for (i = 1; i < 4 || i < len; ++i) {
-			if (buf[i] == 0xf7) {
+		for (i = 0; i < consume; ++i) {
+			if (msg[i] == 0xf7) {
 				tscm->on_sysex[port] = false;
 				break;
 			}
@@ -85,54 +86,62 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 
 		/* At the end of exclusive message, use label 0x07. */
 		if (!tscm->on_sysex[port]) {
-			len = i;
-			buf[0] = (port << 4) | 0x07;
+			consume = i + 1;
+			*label = (port << 4) | 0x07;
 		/* During exclusive message, use label 0x04. */
-		} else if (len == 3) {
-			buf[0] = (port << 4) | 0x04;
+		} else if (consume == 3) {
+			*label = (port << 4) | 0x04;
 		/* We need to fill whole 3 bytes. Go to next change. */
 		} else {
-			len = 0;
+			return 0;
 		}
+
+		len = consume;
 	} else {
 		/* The beginning of exclusives. */
-		if (buf[1] == 0xf0) {
+		if (msg[0] == 0xf0) {
 			/* Transfer it in next chance in another condition. */
 			tscm->on_sysex[port] = true;
 			return 0;
 		} else {
 			/* On running-status. */
-			if ((buf[1] & 0x80) != 0x80)
+			if ((msg[0] & 0x80) != 0x80)
 				status = tscm->running_status[port];
 			else
-				status = buf[1];
+				status = msg[0];
 
 			/* Calculate consume bytes. */
-			consume = calculate_message_bytes(status);
-			if (consume <= 0)
+			len = calculate_message_bytes(status);
+			if (len <= 0)
 				return 0;
 
 			/* On running-status. */
-			if ((buf[1] & 0x80) != 0x80) {
-				buf[3] = buf[2];
-				buf[2] = buf[1];
-				buf[1] = tscm->running_status[port];
-				consume--;
-			} else {
-				tscm->running_status[port] = buf[1];
-			}
+			if ((msg[0] & 0x80) != 0x80) {
+				/* Enough MIDI bytes were not retrieved. */
+				if (consume < len - 1)
+					return 0;
+				consume = len - 1;
 
-			/* Confirm length. */
-			if (len < consume)
-				return 0;
-			if (len > consume)
-				len = consume;
+				msg[2] = msg[1];
+				msg[1] = msg[0];
+				msg[0] = tscm->running_status[port];
+			} else {
+				/* Enough MIDI bytes were not retrieved. */
+				if (consume < len)
+					return 0;
+				consume = len;
+
+				tscm->running_status[port] = msg[0];
+			}
 		}
 
-		buf[0] = (port << 4) | (buf[1] >> 4);
+		*label = (port << 4) | (msg[0] >> 4);
 	}
 
-	return len;
+	if (len > 0 && len < 3)
+		memset(msg + len, 0, 3 - len);
+
+	return consume;
 }
 
 static void handle_midi_tx(struct fw_card *card, struct fw_request *request,
