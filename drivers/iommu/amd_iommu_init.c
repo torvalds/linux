@@ -408,20 +408,6 @@ static inline int ivhd_entry_length(u8 *ivhd)
 }
 
 /*
- * This function reads the last device id the IOMMU has to handle from the PCI
- * capability header for this IOMMU
- */
-static int __init find_last_devid_on_pci(int bus, int dev, int fn, int cap_ptr)
-{
-	u32 cap;
-
-	cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
-	update_last_devid(PCI_DEVID(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
-
-	return 0;
-}
-
-/*
  * After reading the highest device id from the IOMMU PCI capability header
  * this function looks if there is a higher device id defined in the ACPI table
  */
@@ -432,11 +418,6 @@ static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 
 	p += sizeof(*h);
 	end += h->length;
-
-	find_last_devid_on_pci(PCI_BUS_NUM(h->devid),
-			PCI_SLOT(h->devid),
-			PCI_FUNC(h->devid),
-			h->cap_ptr);
 
 	while (p < end) {
 		dev = (struct ivhd_entry *)p;
