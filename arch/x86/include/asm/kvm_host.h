@@ -988,6 +988,10 @@ u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu);
 extern bool kvm_has_tsc_control;
 /* maximum supported tsc_khz for guests */
 extern u32  kvm_max_guest_tsc_khz;
+/* number of bits of the fractional part of the TSC scaling ratio */
+extern u8   kvm_tsc_scaling_ratio_frac_bits;
+/* maximum allowed value of TSC scaling ratio */
+extern u64  kvm_max_tsc_scaling_ratio;
 
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */

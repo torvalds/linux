@@ -908,6 +908,9 @@ static __init int svm_hardware_setup(void)
 		max = min(0x7fffffffULL, __scale_tsc(tsc_khz, TSC_RATIO_MAX));
 
 		kvm_max_guest_tsc_khz = max;
+
+		kvm_max_tsc_scaling_ratio = TSC_RATIO_MAX;
+		kvm_tsc_scaling_ratio_frac_bits = 32;
 	}
 
 	if (nested) {
