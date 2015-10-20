@@ -11,6 +11,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
@@ -30,7 +31,7 @@ static struct dentry *root_debugfs_dir;
 
 struct mbox_test_device {
 	struct device		*dev;
-	void			*mmio;
+	void __iomem		*mmio;
 	struct mbox_chan	*tx_channel;
 	struct mbox_chan	*rx_channel;
 	char			*rx_buffer;
@@ -222,8 +223,8 @@ static void mbox_test_receive_message(struct mbox_client *client, void *message)
 	if (tdev->mmio) {
 		print_hex_dump(KERN_INFO, "Client: Received [MMIO]: ",
 			       DUMP_PREFIX_ADDRESS, MBOX_BYTES_PER_LINE, 1,
-			       tdev->mmio, MBOX_MAX_MSG_LEN, true);
-		memcpy(tdev->rx_buffer, tdev->mmio, MBOX_MAX_MSG_LEN);
+			       __io_virt(tdev->mmio), MBOX_MAX_MSG_LEN, true);
+		memcpy_fromio(tdev->rx_buffer, tdev->mmio, MBOX_MAX_MSG_LEN);
 
 	} else if (message) {
 		print_hex_dump(KERN_INFO, "Client: Received [API]: ",
@@ -240,9 +241,9 @@ static void mbox_test_prepare_message(struct mbox_client *client, void *message)
 
 	if (tdev->mmio) {
 		if (tdev->signal)
-			memcpy(tdev->mmio, tdev->message, MBOX_MAX_MSG_LEN);
+			memcpy_toio(tdev->mmio, tdev->message, MBOX_MAX_MSG_LEN);
 		else
-			memcpy(tdev->mmio, message, MBOX_MAX_MSG_LEN);
+			memcpy_toio(tdev->mmio, message, MBOX_MAX_MSG_LEN);
 	}
 }
 
