@@ -21,6 +21,10 @@
  #define MAX_SPEED (6 * 1000000) /* Max 50M */
 #endif
 
+struct wilc_sdio {
+	struct sdio_func *func;
+	struct wilc *wilc;
+};
 
 struct sdio_func *local_sdio_func;
 extern int wilc_netdev_init(void);
@@ -112,14 +116,22 @@ int linux_sdio_cmd53(sdio_cmd53_t *cmd)
 
 static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
+	struct wilc_sdio *wl_sdio;
+
 	PRINT_D(INIT_DBG, "probe function\n");
+	wl_sdio = kzalloc(sizeof(struct wilc_sdio), GFP_KERNEL);
+	if (!wl_sdio)
+		return -ENOMEM;
 
 	PRINT_D(INIT_DBG, "Initializing netdev\n");
 	local_sdio_func = func;
 	if (wilc_netdev_init()) {
 		PRINT_ER("Couldn't initialize netdev\n");
+		kfree(wl_sdio);
 		return -1;
 	}
+	wl_sdio->func = func;
+	sdio_set_drvdata(func, wl_sdio);
 
 	printk("Driver Initializing success\n");
 	return 0;
@@ -127,7 +139,11 @@ static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id 
 
 static void linux_sdio_remove(struct sdio_func *func)
 {
+	struct wilc_sdio *wl_sdio;
+
+	wl_sdio = sdio_get_drvdata(func);
 	wl_wlan_cleanup();
+	kfree(wl_sdio);
 }
 
 struct sdio_driver wilc_bus = {
