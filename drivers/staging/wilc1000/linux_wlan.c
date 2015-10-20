@@ -884,9 +884,7 @@ _fail_:
 /**************************/
 void wilc1000_wlan_deinit(struct wilc *nic)
 {
-
-	if (g_linux_wlan->wilc1000_initialized)	{
-
+	if (g_linux_wlan->initialized)	{
 		printk("Deinitializing wilc1000  ...\n");
 
 		if (nic == NULL) {
@@ -935,7 +933,7 @@ void wilc1000_wlan_deinit(struct wilc *nic)
 		wlan_deinit_locks(g_linux_wlan);
 
 		/* announce that wilc1000 is not initialized */
-		g_linux_wlan->wilc1000_initialized = 0;
+		g_linux_wlan->initialized = false;
 
 		PRINT_D(INIT_DBG, "wilc1000 deinitialization Done\n");
 
@@ -1143,10 +1141,9 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 	perInterface_wlan_t *nic = p_nic;
 	int ret = 0;
 
-	if (!g_linux_wlan->wilc1000_initialized) {
+	if (!g_linux_wlan->initialized) {
 		g_linux_wlan->mac_status = WILC_MAC_STATUS_INIT;
 		g_linux_wlan->close = 0;
-		g_linux_wlan->wilc1000_initialized = 0;
 
 		wlan_init_locks(g_linux_wlan);
 
@@ -1233,7 +1230,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 			goto _fail_fw_start_;
 		}
 
-		g_linux_wlan->wilc1000_initialized = 1;
+		g_linux_wlan->initialized = true;
 		return 0; /*success*/
 
 _fail_fw_start_:
@@ -1567,7 +1564,7 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	/* struct iwreq *wrq = (struct iwreq *) req;	// tony moved to case SIOCSIWPRIV */
 	nic = netdev_priv(ndev);
 
-	if (!g_linux_wlan->wilc1000_initialized)
+	if (!g_linux_wlan->initialized)
 		return 0;
 
 	switch (cmd) {

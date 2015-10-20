@@ -157,7 +157,7 @@ struct wilc_vif {
 
 struct wilc {
 	int mac_status;
-	int wilc1000_initialized;
+	bool initialized;
 	#if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
 	unsigned short dev_irq_num;
 	#endif
