@@ -4778,18 +4778,17 @@ static int patch_ca0132(struct hda_codec *codec)
 /*
  * patch entries
  */
-static struct hda_codec_preset snd_hda_preset_ca0132[] = {
-	{ .id = 0x11020011, .name = "CA0132",     .patch = patch_ca0132 },
+static struct hda_device_id snd_hda_id_ca0132[] = {
+	HDA_CODEC_ENTRY(0x11020011, "CA0132", patch_ca0132),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:11020011");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_ca0132);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Creative Sound Core3D codec");
 
 static struct hda_codec_driver ca0132_driver = {
-	.preset = snd_hda_preset_ca0132,
+	.id = snd_hda_id_ca0132,
 };
 
 module_hda_codec_driver(ca0132_driver);

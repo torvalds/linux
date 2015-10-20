@@ -21,21 +21,12 @@ struct hdac_stream;
 struct hdac_device;
 struct hdac_driver;
 struct hdac_widget_tree;
+struct hda_device_id;
 
 /*
  * exported bus type
  */
 extern struct bus_type snd_hda_bus_type;
-
-/*
- * HDA device table
- */
-struct hda_device_id {
-	__u32 vendor_id;
-	__u32 rev_id;
-	const char *name;
-	unsigned long driver_data;
-};
 
 /*
  * generic arrays
@@ -118,6 +109,7 @@ void snd_hdac_device_exit(struct hdac_device *dev);
 int snd_hdac_device_register(struct hdac_device *codec);
 void snd_hdac_device_unregister(struct hdac_device *codec);
 int snd_hdac_device_set_chip_name(struct hdac_device *codec, const char *name);
+int snd_hdac_codec_modalias(struct hdac_device *hdac, char *buf, size_t size);
 
 int snd_hdac_refresh_widgets(struct hdac_device *codec);
 int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec);
