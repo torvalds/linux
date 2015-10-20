@@ -35,7 +35,7 @@ static inline struct osc_quota_info *osc_oqi_alloc(u32 id)
 {
 	struct osc_quota_info *oqi;
 
-	OBD_SLAB_ALLOC_PTR(oqi, osc_quota_kmem);
+	oqi = kmem_cache_alloc(osc_quota_kmem, GFP_NOFS | __GFP_ZERO);
 	if (oqi != NULL)
 		oqi->oqi_id = id;
 
