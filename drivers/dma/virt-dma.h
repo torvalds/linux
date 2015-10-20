@@ -151,4 +151,17 @@ static inline void vchan_free_chan_resources(struct virt_dma_chan *vc)
 	vchan_dma_desc_free_list(vc, &head);
 }
 
+/**
+ * vchan_synchronize() - synchronize callback execution to the current context
+ * @vc: virtual channel to synchronize
+ *
+ * Makes sure that all scheduled or active callbacks have finished running. For
+ * proper operation the caller has to ensure that no new callbacks are scheduled
+ * after the invocation of this function started.
+ */
+static inline void vchan_synchronize(struct virt_dma_chan *vc)
+{
+	tasklet_kill(&vc->task);
+}
+
 #endif
