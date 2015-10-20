@@ -694,12 +694,12 @@ static int i2c_device_probe(struct device *dev)
 		goto err_clear_wakeup_irq;
 
 	status = dev_pm_domain_attach(&client->dev, true);
-	if (status != -EPROBE_DEFER) {
-		status = driver->probe(client, i2c_match_id(driver->id_table,
-					client));
-		if (status)
-			goto err_detach_pm_domain;
-	}
+	if (status == -EPROBE_DEFER)
+		goto err_clear_wakeup_irq;
+
+	status = driver->probe(client, i2c_match_id(driver->id_table, client));
+	if (status)
+		goto err_detach_pm_domain;
 
 	return 0;
 

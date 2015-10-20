@@ -159,8 +159,10 @@ static int ep_bd_list_alloc(struct bdc_ep *ep)
 		bd_table->start_bd = dma_pool_alloc(bdc->bd_table_pool,
 							GFP_ATOMIC,
 							&dma);
-		if (!bd_table->start_bd)
+		if (!bd_table->start_bd) {
+			kfree(bd_table);
 			goto fail;
+		}
 
 		bd_table->dma = dma;
 

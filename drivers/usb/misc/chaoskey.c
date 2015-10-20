@@ -472,7 +472,7 @@ static int chaoskey_rng_read(struct hwrng *rng, void *data,
 	if (this_time > max)
 		this_time = max;
 
-	memcpy(data, dev->buf, this_time);
+	memcpy(data, dev->buf + dev->used, this_time);
 
 	dev->used += this_time;
 

@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -51,12 +52,31 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 }
 
 #ifdef CONFIG_ACPI
+/*
+ * The HCNT/LCNT information coming from ACPI should be the most accurate
+ * for given platform. However, some systems get it wrong. On such systems
+ * we get better results by calculating those based on the input clock.
+ */
+static const struct dmi_system_id dw_i2c_no_acpi_params[] = {
+	{
+		.ident = "Dell Inspiron 7348",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7348"),
+		},
+	},
+	{ }
+};
+
 static void dw_i2c_acpi_params(struct platform_device *pdev, char method[],
 			       u16 *hcnt, u16 *lcnt, u32 *sda_hold)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
 	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
 	union acpi_object *obj;
+
+	if (dmi_check_system(dw_i2c_no_acpi_params))
+		return;
 
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, method, NULL, &buf)))
 		return;
@@ -253,12 +273,6 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
 
-	r = i2c_add_numbered_adapter(adap);
-	if (r) {
-		dev_err(&pdev->dev, "failure adding adapter\n");
-		return r;
-	}
-
 	if (dev->pm_runtime_disabled) {
 		pm_runtime_forbid(&pdev->dev);
 	} else {
@@ -266,6 +280,13 @@ static int dw_i2c_probe(struct platform_device *pdev)
 		pm_runtime_use_autosuspend(&pdev->dev);
 		pm_runtime_set_active(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
+	}
+
+	r = i2c_add_numbered_adapter(adap);
+	if (r) {
+		dev_err(&pdev->dev, "failure adding adapter\n");
+		pm_runtime_disable(&pdev->dev);
+		return r;
 	}
 
 	return 0;
