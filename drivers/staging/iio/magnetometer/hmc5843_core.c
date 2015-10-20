@@ -334,7 +334,7 @@ static int hmc5843_get_scale_index(struct hmc5843_data *data, int val, int val2)
 {
 	int i;
 
-	if (val != 0)
+	if (val)
 		return -EINVAL;
 
 	for (i = 0; i < data->variant->n_regval_to_nanoscale; i++)
