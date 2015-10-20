@@ -64,7 +64,7 @@ extern enum ucode_state load_microcode_amd(int cpu, u8 family, const u8 *data, s
 #define PATCH_MAX_SIZE PAGE_SIZE
 extern u8 amd_ucode_patch[PATCH_MAX_SIZE];
 
-#ifdef CONFIG_MICROCODE_AMD_EARLY
+#ifdef CONFIG_MICROCODE_AMD
 extern void __init load_ucode_amd_bsp(unsigned int family);
 extern void load_ucode_amd_ap(void);
 extern int __init save_microcode_in_initrd_amd(void);

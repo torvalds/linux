@@ -1126,6 +1126,7 @@ config MICROCODE
 	bool "CPU microcode loading support"
 	default y
 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
+	depends on BLK_DEV_INITRD
 	select FW_LOADER
 	---help---
 
@@ -1166,24 +1167,6 @@ config MICROCODE_AMD
 config MICROCODE_OLD_INTERFACE
 	def_bool y
 	depends on MICROCODE
-
-config MICROCODE_INTEL_EARLY
-	bool
-
-config MICROCODE_AMD_EARLY
-	bool
-
-config MICROCODE_EARLY
-	bool "Early load microcode"
-	depends on MICROCODE && BLK_DEV_INITRD
-	select MICROCODE_INTEL_EARLY if MICROCODE_INTEL
-	select MICROCODE_AMD_EARLY if MICROCODE_AMD
-	default y
-	help
-	  This option provides functionality to read additional microcode data
-	  at the beginning of initrd image. The data tells kernel to load
-	  microcode to CPU's as early as possible. No functional change if no
-	  microcode data is glued to the initrd, therefore it's safe to say Y.
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"

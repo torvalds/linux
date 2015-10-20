@@ -81,7 +81,6 @@ static inline struct microcode_ops * __init init_amd_microcode(void)
 static inline void __exit exit_amd_microcode(void) {}
 #endif
 
-#ifdef CONFIG_MICROCODE_EARLY
 #define MAX_UCODE_COUNT 128
 
 #define QCHAR(a, b, c, d) ((a) + ((b) << 8) + ((c) << 16) + ((d) << 24))
@@ -156,22 +155,18 @@ static inline unsigned int x86_model(unsigned int sig)
 	return model;
 }
 
+#ifdef CONFIG_MICROCODE
 extern void __init load_ucode_bsp(void);
 extern void load_ucode_ap(void);
 extern int __init save_microcode_in_initrd(void);
 void reload_early_microcode(void);
 extern bool get_builtin_firmware(struct cpio_data *cd, const char *name);
 #else
-static inline void __init load_ucode_bsp(void) {}
-static inline void load_ucode_ap(void) {}
-static inline int __init save_microcode_in_initrd(void)
-{
-	return 0;
-}
-static inline void reload_early_microcode(void) {}
-static inline bool get_builtin_firmware(struct cpio_data *cd, const char *name)
-{
-	return false;
-}
+static inline void __init load_ucode_bsp(void)			{ }
+static inline void load_ucode_ap(void)				{ }
+static inline int __init save_microcode_in_initrd(void)		{ return 0; }
+static inline void reload_early_microcode(void)			{ }
+static inline bool
+get_builtin_firmware(struct cpio_data *cd, const char *name)	{ return false; }
 #endif
 #endif /* _ASM_X86_MICROCODE_H */
