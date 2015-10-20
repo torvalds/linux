@@ -82,9 +82,7 @@ static struct hlist_head *alloc_rmtperm_hash(void)
 	struct hlist_head *hash;
 	int i;
 
-	OBD_SLAB_ALLOC_GFP(hash, ll_rmtperm_hash_cachep,
-			   REMOTE_PERM_HASHSIZE * sizeof(*hash),
-			   GFP_IOFS);
+	hash = kmem_cache_alloc(ll_rmtperm_hash_cachep, GFP_IOFS | __GFP_ZERO);
 	if (!hash)
 		return NULL;
 
