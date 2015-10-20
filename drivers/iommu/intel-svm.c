@@ -147,13 +147,11 @@ int intel_svm_finish_prq(struct intel_iommu *iommu)
 }
 
 static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_dev *sdev,
-				       unsigned long address, int pages, int ih, int gl)
+				       unsigned long address, unsigned long pages, int ih, int gl)
 {
 	struct qi_desc desc;
-	int mask = ilog2(__roundup_pow_of_two(pages));
 
-	if (pages == -1 || !cap_pgsel_inv(svm->iommu->cap) ||
-	    mask > cap_max_amask_val(svm->iommu->cap)) {
+	if (pages == -1) {
 		/* For global kernel pages we have to flush them in *all* PASIDs
 		 * because that's the only option the hardware gives us. Despite
 		 * the fact that they are actually only accessible through one. */
@@ -165,31 +163,28 @@ static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_d
 				QI_EIOTLB_GRAN(QI_GRAN_NONG_PASID) | QI_EIOTLB_TYPE;
 		desc.high = 0;
 	} else {
+		int mask = ilog2(__roundup_pow_of_two(pages));
+
 		desc.low = QI_EIOTLB_PASID(svm->pasid) | QI_EIOTLB_DID(sdev->did) |
 			QI_EIOTLB_GRAN(QI_GRAN_PSI_PASID) | QI_EIOTLB_TYPE;
 		desc.high = QI_EIOTLB_ADDR(address) | QI_EIOTLB_GL(gl) |
 			QI_EIOTLB_IH(ih) | QI_EIOTLB_AM(mask);
 	}
-
 	qi_submit_sync(&desc, svm->iommu);
 
 	if (sdev->dev_iotlb) {
 		desc.low = QI_DEV_EIOTLB_PASID(svm->pasid) | QI_DEV_EIOTLB_SID(sdev->sid) |
 			QI_DEV_EIOTLB_QDEP(sdev->qdep) | QI_DEIOTLB_TYPE;
-		if (mask) {
-			unsigned long adr, delta;
+		if (pages == -1) {
+			desc.high = QI_DEV_EIOTLB_ADDR(-1ULL >> 1) | QI_DEV_EIOTLB_SIZE;
+		} else if (pages > 1) {
+			/* The least significant zero bit indicates the size. So,
+			 * for example, an "address" value of 0x12345f000 will
+			 * flush from 0x123440000 to 0x12347ffff (256KiB). */
+			unsigned long last = address + ((unsigned long)(pages - 1) << VTD_PAGE_SHIFT);
+			unsigned long mask = __rounddown_pow_of_two(address ^ last);;
 
-			/* Least significant zero bits in the address indicate the
-			 * range of the request. So mask them out according to the
-			 * size. */
-			adr = address & ((1<<(VTD_PAGE_SHIFT + mask)) - 1);
-
-			/* Now ensure that we round down further if the original
-			 * request was not aligned w.r.t. its size */
-			delta = address - adr;
-			if (delta + (pages << VTD_PAGE_SHIFT) >= (1 << (VTD_PAGE_SHIFT + mask)))
-				adr &= ~(1 << (VTD_PAGE_SHIFT + mask));
-			desc.high = QI_DEV_EIOTLB_ADDR(adr) | QI_DEV_EIOTLB_SIZE;
+			desc.high = QI_DEV_EIOTLB_ADDR((address & ~mask) | (mask - 1)) | QI_DEV_EIOTLB_SIZE;
 		} else {
 			desc.high = QI_DEV_EIOTLB_ADDR(address);
 		}
@@ -198,7 +193,7 @@ static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_d
 }
 
 static void intel_flush_svm_range(struct intel_svm *svm, unsigned long address,
-				  int pages, int ih, int gl)
+				  unsigned long pages, int ih, int gl)
 {
 	struct intel_svm_dev *sdev;
 
