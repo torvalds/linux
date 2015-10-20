@@ -2,6 +2,7 @@ config ARCH_ROCKCHIP
 	bool "Rockchip SoCs" if ARCH_MULTI_V7
 	select PIE
 	select PINCTRL
+	select PINCTRL_RK3368
 	select PINCTRL_ROCKCHIP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_GIC
