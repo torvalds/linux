@@ -1253,7 +1253,43 @@ static u32 adjust_tsc_khz(u32 khz, s32 ppm)
 	return v;
 }
 
-static void kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
+static int set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale)
+{
+	u64 ratio;
+
+	/* Guest TSC same frequency as host TSC? */
+	if (!scale) {
+		vcpu->arch.tsc_scaling_ratio = kvm_default_tsc_scaling_ratio;
+		return 0;
+	}
+
+	/* TSC scaling supported? */
+	if (!kvm_has_tsc_control) {
+		if (user_tsc_khz > tsc_khz) {
+			vcpu->arch.tsc_catchup = 1;
+			vcpu->arch.tsc_always_catchup = 1;
+			return 0;
+		} else {
+			WARN(1, "user requested TSC rate below hardware speed\n");
+			return -1;
+		}
+	}
+
+	/* TSC scaling required  - calculate ratio */
+	ratio = mul_u64_u32_div(1ULL << kvm_tsc_scaling_ratio_frac_bits,
+				user_tsc_khz, tsc_khz);
+
+	if (ratio == 0 || ratio >= kvm_max_tsc_scaling_ratio) {
+		WARN_ONCE(1, "Invalid TSC scaling ratio - virtual-tsc-khz=%u\n",
+			  user_tsc_khz);
+		return -1;
+	}
+
+	vcpu->arch.tsc_scaling_ratio = ratio;
+	return 0;
+}
+
+static int kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
 {
 	u32 thresh_lo, thresh_hi;
 	int use_scaling = 0;
@@ -1262,7 +1298,7 @@ static void kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
 	if (this_tsc_khz == 0) {
 		/* set tsc_scaling_ratio to a safe value */
 		vcpu->arch.tsc_scaling_ratio = kvm_default_tsc_scaling_ratio;
-		return;
+		return -1;
 	}
 
 	/* Compute a scale to convert nanoseconds in TSC cycles */
@@ -1283,7 +1319,7 @@ static void kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
 		pr_debug("kvm: requested TSC rate %u falls outside tolerance [%u,%u]\n", this_tsc_khz, thresh_lo, thresh_hi);
 		use_scaling = 1;
 	}
-	kvm_x86_ops->set_tsc_khz(vcpu, this_tsc_khz, use_scaling);
+	return set_tsc_khz(vcpu, this_tsc_khz, use_scaling);
 }
 
 static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
@@ -3353,9 +3389,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (user_tsc_khz == 0)
 			user_tsc_khz = tsc_khz;
 
-		kvm_set_tsc_khz(vcpu, user_tsc_khz);
+		if (!kvm_set_tsc_khz(vcpu, user_tsc_khz))
+			r = 0;
 
-		r = 0;
 		goto out;
 	}
 	case KVM_GET_TSC_KHZ: {

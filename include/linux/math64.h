@@ -214,4 +214,33 @@ static inline u64 mul_u64_u64_shr(u64 a, u64 b, unsigned int shift)
 
 #endif
 
+#ifndef mul_u64_u32_div
+static inline u64 mul_u64_u32_div(u64 a, u32 mul, u32 divisor)
+{
+	union {
+		u64 ll;
+		struct {
+#ifdef __BIG_ENDIAN
+			u32 high, low;
+#else
+			u32 low, high;
+#endif
+		} l;
+	} u, rl, rh;
+
+	u.ll = a;
+	rl.ll = (u64)u.l.low * mul;
+	rh.ll = (u64)u.l.high * mul + rl.l.high;
+
+	/* Bits 32-63 of the result will be in rh.l.low. */
+	rl.l.high = do_div(rh.ll, divisor);
+
+	/* Bits 0-31 of the result will be in rl.l.low.	*/
+	do_div(rl.ll, divisor);
+
+	rl.l.high = rh.l.low;
+	return rl.ll;
+}
+#endif /* mul_u64_u32_div */
+
 #endif /* _LINUX_MATH64_H */

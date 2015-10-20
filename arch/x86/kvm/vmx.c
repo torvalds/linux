@@ -2382,22 +2382,6 @@ static u64 vmx_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
 	return host_tsc + tsc_offset;
 }
 
-/*
- * Engage any workarounds for mis-matched TSC rates.  Currently limited to
- * software catchup for faster rates on slower CPUs.
- */
-static void vmx_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale)
-{
-	if (!scale)
-		return;
-
-	if (user_tsc_khz > tsc_khz) {
-		vcpu->arch.tsc_catchup = 1;
-		vcpu->arch.tsc_always_catchup = 1;
-	} else
-		WARN(1, "user requested TSC rate below hardware speed\n");
-}
-
 static u64 vmx_read_tsc_offset(struct kvm_vcpu *vcpu)
 {
 	return vmcs_read64(TSC_OFFSET);
@@ -10826,7 +10810,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 
 	.has_wbinvd_exit = cpu_has_vmx_wbinvd_exit,
 
-	.set_tsc_khz = vmx_set_tsc_khz,
 	.read_tsc_offset = vmx_read_tsc_offset,
 	.write_tsc_offset = vmx_write_tsc_offset,
 	.adjust_tsc_offset = vmx_adjust_tsc_offset,
