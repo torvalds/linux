@@ -62,10 +62,8 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 {
 	struct snd_tscm *tscm = substream->rmidi->private_data;
 	unsigned int port = substream->number;
-	unsigned int len;
-	unsigned int i;
+	int i, len, consume;
 	u8 status;
-	int consume;
 
 	len = snd_rawmidi_transmit_peek(substream, buf + 1, 3);
 	if (len == 0)
