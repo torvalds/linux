@@ -88,6 +88,22 @@ static const struct hvs_format {
 		.drm = DRM_FORMAT_ARGB8888, .hvs = HVS_PIXEL_FORMAT_RGBA8888,
 		.pixel_order = HVS_PIXEL_ORDER_ABGR, .has_alpha = true,
 	},
+	{
+		.drm = DRM_FORMAT_RGB565, .hvs = HVS_PIXEL_FORMAT_RGB565,
+		.pixel_order = HVS_PIXEL_ORDER_XRGB, .has_alpha = false,
+	},
+	{
+		.drm = DRM_FORMAT_BGR565, .hvs = HVS_PIXEL_FORMAT_RGB565,
+		.pixel_order = HVS_PIXEL_ORDER_XBGR, .has_alpha = false,
+	},
+	{
+		.drm = DRM_FORMAT_ARGB1555, .hvs = HVS_PIXEL_FORMAT_RGBA5551,
+		.pixel_order = HVS_PIXEL_ORDER_ABGR, .has_alpha = true,
+	},
+	{
+		.drm = DRM_FORMAT_XRGB1555, .hvs = HVS_PIXEL_FORMAT_RGBA5551,
+		.pixel_order = HVS_PIXEL_ORDER_ABGR, .has_alpha = false,
+	},
 };
 
 static const struct hvs_format *vc4_get_hvs_format(u32 drm_format)
