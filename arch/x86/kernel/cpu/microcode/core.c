@@ -487,9 +487,9 @@ static struct attribute_group cpu_root_microcode_group = {
 	.attrs = cpu_root_microcode_attrs,
 };
 
-static int __init microcode_init(void)
+int __init microcode_init(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
+	struct cpuinfo_x86 *c = &boot_cpu_data;
 	int error;
 
 	if (paravirt_enabled() || dis_ucode_ldr)
@@ -560,35 +560,3 @@ static int __init microcode_init(void)
 	return error;
 
 }
-module_init(microcode_init);
-
-static void __exit microcode_exit(void)
-{
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	microcode_dev_exit();
-
-	unregister_hotcpu_notifier(&mc_cpu_notifier);
-	unregister_syscore_ops(&mc_syscore_ops);
-
-	sysfs_remove_group(&cpu_subsys.dev_root->kobj,
-			   &cpu_root_microcode_group);
-
-	get_online_cpus();
-	mutex_lock(&microcode_mutex);
-
-	subsys_interface_unregister(&mc_cpu_interface);
-
-	mutex_unlock(&microcode_mutex);
-	put_online_cpus();
-
-	platform_device_unregister(microcode_pdev);
-
-	microcode_ops = NULL;
-
-	if (c->x86_vendor == X86_VENDOR_AMD)
-		exit_amd_microcode();
-
-	pr_info("Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
-}
-module_exit(microcode_exit);

@@ -55,6 +55,12 @@ struct ucode_cpu_info {
 };
 extern struct ucode_cpu_info ucode_cpu_info[];
 
+#ifdef CONFIG_MICROCODE
+int __init microcode_init(void);
+#else
+static inline int __init microcode_init(void)	{ return 0; };
+#endif
+
 #ifdef CONFIG_MICROCODE_INTEL
 extern struct microcode_ops * __init init_intel_microcode(void);
 #else

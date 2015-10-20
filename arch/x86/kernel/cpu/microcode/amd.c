@@ -523,7 +523,7 @@ static struct microcode_ops microcode_amd_ops = {
 
 struct microcode_ops * __init init_amd_microcode(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
+	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10) {
 		pr_warning("AMD CPU family 0x%x not supported\n", c->x86);

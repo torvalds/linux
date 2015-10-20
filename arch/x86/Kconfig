@@ -1123,7 +1123,8 @@ config X86_REBOOTFIXUPS
 	  Say N otherwise.
 
 config MICROCODE
-	tristate "CPU microcode loading support"
+	bool "CPU microcode loading support"
+	default y
 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
 	select FW_LOADER
 	---help---
@@ -1174,7 +1175,7 @@ config MICROCODE_AMD_EARLY
 
 config MICROCODE_EARLY
 	bool "Early load microcode"
-	depends on MICROCODE=y && BLK_DEV_INITRD
+	depends on MICROCODE && BLK_DEV_INITRD
 	select MICROCODE_INTEL_EARLY if MICROCODE_INTEL
 	select MICROCODE_AMD_EARLY if MICROCODE_AMD
 	default y
