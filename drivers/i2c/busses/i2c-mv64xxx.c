@@ -669,8 +669,6 @@ mv64xxx_i2c_can_offload(struct mv64xxx_i2c_data *drv_data)
 	struct i2c_msg *msgs = drv_data->msgs;
 	int num = drv_data->num_msgs;
 
-	return false;
-
 	if (!drv_data->offload_enabled)
 		return false;
 
