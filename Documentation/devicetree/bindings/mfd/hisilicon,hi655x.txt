@@ -1,0 +1,80 @@
+Hisilicon hi655x Power Management Integrated Circuit (PMIC)
+
+hi655x consists of a large and varied group of sub-devices:
+
+Device			 Supply Names	 Description
+------			 ------------	 -----------
+hi655x-powerkey		:		: Powerkey
+hi655x-regulator-pmic	:		: Regulators
+hi655x-usbvbus		:		: USB plug detection
+hi655x-pmu-rtc		:		: RTC
+hi655x-coul		:		: Coulomb
+
+Required properties:
+- compatible : Should be "hisilicon,hi655x-pmic-driver"
+- reg: Base address of PMIC on hi6220 soc
+- #interrupt-cells: Should be 2, is the local IRQ number for hi655x.
+- interrupt-controller: hi655x has internal IRQs (has own IRQ domain).
+- pmu_irq_gpio: should be &gpio_pmu_irq_n, is the IRQ gpio of hi655x.
+
+Example:
+	pmic: pmic@F8000000 {
+                compatible = "hisilicon,hi655x-pmic-driver";
+                reg = <0x0 0xF8000000 0x0 0x1000>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                pmu_irq_gpio = <&gpio_pmu_irq_n>;
+                status = "ok";
+
+                ponkey:ponkey@b1{
+                        compatible = "hisilicon,hi655x-powerkey";
+                        interrupt-parent = <&pmic>;
+                        interrupts = <6 0>, <5 0>, <4 0>;
+                        interrupt-names = "down", "up", "hold 1s";
+                };
+
+                coul: coul@1 {
+                        compatible = "hisilicon,hi655x-coul";
+                        interrupt-parent = <&pmic>;
+                        interrupts = <24 0>, <25 0>, <26 0>, <27 0>;
+                        interrupt-names = "cl_int_i", "cl_out_i", "cl_in_i", "vbat_int_i";
+                        battery_product_index = <0>;
+                        status = "ok";
+                };
+
+                rtc: rtc@1 {
+                        compatible = "hisilicon,hi655x-pmu-rtc";
+                        interrupt-parent = <&pmic>;
+                        interrupts = <20 0>;
+                        interrupt-names = "hi655x_pmu_rtc";
+                        board_id = <1>;
+                };
+
+                usbvbus:usbvbus@b2{
+                        compatible = "hisilicon,hi655x-usbvbus";
+                        interrupt-parent = <&pmic>;
+                        interrupts = <9 0>, <8 0>;
+                        interrupt-names = "connect", "disconnect";
+                };
+
+		ldo2: regulator@a21 {
+                        compatible = "hisilicon,hi655x-regulator-pmic";
+                        regulator-name = "ldo2";
+                        regulator-min-microvolt = <2500000>;
+                        regulator-max-microvolt = <3200000>;
+                        hisilicon,valid-modes-mask = <0x02>;
+                        hisilicon,valid-ops-mask = <0x01d>;
+                        hisilicon,initial-mode = <0x02>;
+                        hisilicon,regulator-type = <0x01>;
+
+                        hisilicon,off-on-delay = <120>;
+                        hisilicon,ctrl-regs = <0x029 0x02a 0x02b>;
+                        hisilicon,ctrl-data = <0x1 0x1>;
+                        hisilicon,vset-regs = <0x072>;
+                        hisilicon,vset-data = <0 0x3>;
+                        hisilicon,regulator-n-vol = <8>;
+                        hisilicon,vset-table = <2500000>,<2600000>,<2700000>,<2800000>,<2900000>,<3000000>,<3100000>,<3200000>;
+                        hisilicon,num_consumer_supplies = <1>;
+                        hisilicon,consumer-supplies = "sensor_analog";
+                };
+	};
