@@ -259,10 +259,14 @@ irqreturn_t isr_bh_routine(int irq, void *userdata)
 }
 
 #if (defined WILC_SPI) || (defined WILC_SDIO_IRQ_GPIO)
-static int init_irq(struct wilc *p_nic)
+static int init_irq(struct net_device *dev)
 {
 	int ret = 0;
-	struct wilc *nic = p_nic;
+	perInterface_wlan_t *nic;
+	struct wilc *wl;
+
+	nic = netdev_priv(dev);
+	wl = nic->wilc;
 
 	/*initialize GPIO and register IRQ num*/
 	/*GPIO request*/
@@ -275,23 +279,23 @@ static int init_irq(struct wilc *p_nic)
  * ex) nic->dev_irq_num = gpio_to_irq(GPIO_NUM);
  */
 #else
-		nic->dev_irq_num = gpio_to_irq(GPIO_NUM);
+		wl->dev_irq_num = gpio_to_irq(GPIO_NUM);
 #endif
 	} else {
 		ret = -1;
 		PRINT_ER("could not obtain gpio for WILC_INTR\n");
 	}
 
-	if ((ret != -1) && (request_threaded_irq(nic->dev_irq_num, isr_uh_routine, isr_bh_routine,
+	if ((ret != -1) && (request_threaded_irq(wl->dev_irq_num, isr_uh_routine, isr_bh_routine,
 						  IRQF_TRIGGER_LOW | IRQF_ONESHOT,               /*Without IRQF_ONESHOT the uh will remain kicked in and dont gave a chance to bh*/
-						  "WILC_IRQ", nic)) < 0) {
+						  "WILC_IRQ", wl)) < 0) {
 
 		PRINT_ER("Failed to request IRQ for GPIO: %d\n", GPIO_NUM);
 		ret = -1;
 	} else {
 
 		PRINT_D(INIT_DBG, "IRQ request succeeded IRQ-NUM= %d on GPIO: %d\n",
-			nic->dev_irq_num, GPIO_NUM);
+			wl->dev_irq_num, GPIO_NUM);
 	}
 
 	return ret;
@@ -1055,7 +1059,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 
 #if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
-		if (init_irq(wl)) {
+		if (init_irq(dev)) {
 			PRINT_ER("couldn't initialize IRQ\n");
 			ret = -EIO;
 			goto _fail_locks_;
