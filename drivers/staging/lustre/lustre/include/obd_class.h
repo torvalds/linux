@@ -1726,16 +1726,6 @@ void obd_cleanup_caches(void);
 /* support routines */
 extern struct kmem_cache *obdo_cachep;
 
-#define OBDO_ALLOC(ptr)						       \
-do {									  \
-	OBD_SLAB_ALLOC_PTR_GFP((ptr), obdo_cachep, GFP_NOFS);             \
-} while (0)
-
-#define OBDO_FREE(ptr)							\
-do {									  \
-	OBD_SLAB_FREE_PTR((ptr), obdo_cachep);				\
-} while (0)
-
 static inline void obdo2fid(struct obdo *oa, struct lu_fid *fid)
 {
 	/* something here */
