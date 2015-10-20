@@ -49,7 +49,6 @@ extern bool g_obtainingIP;
 extern u16 Set_machw_change_vir_if(bool bValue);
 extern void resolve_disconnect_aberration(void *drvHandler);
 extern u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
-void wilc1000_wlan_deinit(struct wilc *nic);
 extern struct timer_list hDuringIpTimer;
 
 static int linux_wlan_device_power(int on_off)
@@ -860,15 +859,21 @@ _fail_:
 }
 
 /**************************/
-void wilc1000_wlan_deinit(struct wilc *nic)
+void wilc1000_wlan_deinit(struct net_device *dev)
 {
-	if (g_linux_wlan->initialized)	{
-		printk("Deinitializing wilc1000  ...\n");
+	perInterface_wlan_t *nic;
+	struct wilc *wl;
 
-		if (nic == NULL) {
-			PRINT_ER("nic is NULL\n");
-			return;
-		}
+	nic = netdev_priv(dev);
+	wl = nic->wilc;
+
+	if (!wl) {
+		netdev_err(dev, "wl is NULL\n");
+		return;
+	}
+
+	if (wl->initialized)	{
+		netdev_info(dev, "Deinitializing wilc1000...\n");
 
 #if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
 		/* johnny : remove */
@@ -879,18 +884,18 @@ void wilc1000_wlan_deinit(struct wilc *nic)
 
 		PRINT_D(INIT_DBG, "Disabling IRQ\n");
 #ifdef WILC_SDIO
-		mutex_lock(&g_linux_wlan->hif_cs);
+		mutex_lock(&wl->hif_cs);
 		disable_sdio_interrupt();
-		mutex_unlock(&g_linux_wlan->hif_cs);
+		mutex_unlock(&wl->hif_cs);
 #endif
-		if (&g_linux_wlan->txq_event != NULL)
-			up(&g_linux_wlan->txq_event);
+		if (&wl->txq_event != NULL)
+			up(&wl->txq_event);
 
 		PRINT_D(INIT_DBG, "Deinitializing Threads\n");
-		wlan_deinitialize_threads(nic);
+		wlan_deinitialize_threads(wl);
 
 		PRINT_D(INIT_DBG, "Deinitializing IRQ\n");
-		deinit_irq(g_linux_wlan);
+		deinit_irq(wl);
 
 		wilc_wlan_stop();
 
@@ -900,18 +905,18 @@ void wilc1000_wlan_deinit(struct wilc *nic)
   #if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
 		PRINT_D(INIT_DBG, "Disabling IRQ 2\n");
 
-		mutex_lock(&g_linux_wlan->hif_cs);
+		mutex_lock(&wl->hif_cs);
 		disable_sdio_interrupt();
-		mutex_unlock(&g_linux_wlan->hif_cs);
+		mutex_unlock(&wl->hif_cs);
   #endif
 #endif
 
 		/*De-Initialize locks*/
 		PRINT_D(INIT_DBG, "Deinitializing Locks\n");
-		wlan_deinit_locks(g_linux_wlan);
+		wlan_deinit_locks(wl);
 
 		/* announce that wilc1000 is not initialized */
-		g_linux_wlan->initialized = false;
+		wl->initialized = false;
 
 		PRINT_D(INIT_DBG, "wilc1000 deinitialization Done\n");
 
@@ -1232,7 +1237,7 @@ int mac_open(struct net_device *ndev)
 
 _err_:
 	wilc_deinit_host_int(ndev);
-	wilc1000_wlan_deinit(wl);
+	wilc1000_wlan_deinit(ndev);
 	return ret;
 }
 
@@ -1431,7 +1436,7 @@ int mac_close(struct net_device *ndev)
 	if (wl->open_ifcs == 0) {
 		PRINT_D(GENERIC_DBG, "Deinitializing wilc1000\n");
 		wl->close = 1;
-		wilc1000_wlan_deinit(wl);
+		wilc1000_wlan_deinit(ndev);
 		WILC_WFI_deinit_mon_interface();
 	}
 

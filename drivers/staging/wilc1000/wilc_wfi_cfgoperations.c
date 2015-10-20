@@ -2523,7 +2523,6 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-void wilc1000_wlan_deinit(struct wilc *nic);
 int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic);
 
 static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
@@ -2582,7 +2581,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			/*Eliminate host interface blocking state*/
 			up(&wl->cfg_event);
 
-			wilc1000_wlan_deinit(wl);
+			wilc1000_wlan_deinit(dev);
 			wilc1000_wlan_init(dev, nic);
 			g_wilc_initialized = 1;
 			nic->iftype = interface_type;
@@ -2666,7 +2665,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			/* ensure that the message Q is empty */
 			host_int_wait_msg_queue_idle();
 
-			wilc1000_wlan_deinit(wl);
+			wilc1000_wlan_deinit(dev);
 			wilc1000_wlan_init(dev, nic);
 			g_wilc_initialized = 1;
 
@@ -2780,7 +2779,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		/* ensure that the message Q is empty */
 		host_int_wait_msg_queue_idle();
-		wilc1000_wlan_deinit(wl);
+		wilc1000_wlan_deinit(dev);
 		wilc1000_wlan_init(dev, nic);
 		g_wilc_initialized = 1;
 
