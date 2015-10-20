@@ -1148,6 +1148,7 @@ static struct sk_buff *intel_dequeue(struct hci_uart *hu)
 static const struct hci_uart_proto intel_proto = {
 	.id		= HCI_UART_INTEL,
 	.name		= "Intel",
+	.manufacturer	= 2,
 	.init_speed	= 115200,
 	.oper_speed	= 3000000,
 	.open		= intel_open,

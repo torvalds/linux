@@ -799,6 +799,7 @@ static int bcm_remove(struct platform_device *pdev)
 static const struct hci_uart_proto bcm_proto = {
 	.id		= HCI_UART_BCM,
 	.name		= "BCM",
+	.manufacturer	= 15,
 	.init_speed	= 115200,
 	.oper_speed	= 4000000,
 	.open		= bcm_open,

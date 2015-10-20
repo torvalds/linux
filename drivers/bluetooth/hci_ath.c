@@ -243,6 +243,7 @@ static struct sk_buff *ath_dequeue(struct hci_uart *hu)
 static const struct hci_uart_proto athp = {
 	.id		= HCI_UART_ATH3K,
 	.name		= "ATH3K",
+	.manufacturer	= 69,
 	.open		= ath_open,
 	.close		= ath_close,
 	.flush		= ath_flush,

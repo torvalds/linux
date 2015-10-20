@@ -947,6 +947,7 @@ static int qca_setup(struct hci_uart *hu)
 static struct hci_uart_proto qca_proto = {
 	.id		= HCI_UART_QCA,
 	.name		= "QCA",
+	.manufacturer	= 29,
 	.init_speed	= 115200,
 	.oper_speed	= 3000000,
 	.open		= qca_open,
