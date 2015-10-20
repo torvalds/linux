@@ -855,9 +855,9 @@ void ocrdma_rem_port_stats(struct ocrdma_dev *dev)
 {
 	if (!dev->dir)
 		return;
+	debugfs_remove(dev->dir);
 	mutex_destroy(&dev->stats_lock);
 	ocrdma_release_stats_mem(dev);
-	debugfs_remove(dev->dir);
 }
 
 void ocrdma_init_debugfs(void)
