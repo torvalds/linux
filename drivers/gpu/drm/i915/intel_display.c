@@ -5760,6 +5760,37 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 		DRM_ERROR("DBuf power enable timeout\n");
 }
 
+int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
+{
+	uint32_t lcpll1 = I915_READ(LCPLL1_CTL);
+	uint32_t cdctl = I915_READ(CDCLK_CTL);
+	int freq = dev_priv->skl_boot_cdclk;
+
+	/* Is PLL enabled and locked ? */
+	if (!((lcpll1 & LCPLL_PLL_ENABLE) && (lcpll1 & LCPLL_PLL_LOCK)))
+		goto sanitize;
+
+	/* DPLL okay; verify the cdclock
+	 *
+	 * Noticed in some instances that the freq selection is correct but
+	 * decimal part is programmed wrong from BIOS where pre-os does not
+	 * enable display. Verify the same as well.
+	 */
+	if (cdctl == ((cdctl & CDCLK_FREQ_SEL_MASK) | skl_cdclk_decimal(freq)))
+		/* All well; nothing to sanitize */
+		return false;
+sanitize:
+	/*
+	 * As of now initialize with max cdclk till
+	 * we get dynamic cdclk support
+	 * */
+	dev_priv->skl_boot_cdclk = dev_priv->max_cdclk_freq;
+	skl_init_cdclk(dev_priv);
+
+	/* we did have to sanitize */
+	return true;
+}
+
 /* Adjust CDclk dividers to allow high res or save power if possible */
 static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 {
