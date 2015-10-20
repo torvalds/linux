@@ -2204,7 +2204,8 @@ static void __detach_device(struct iommu_dev_data *dev_data)
 	struct protection_domain *domain;
 	unsigned long flags;
 
-	BUG_ON(!dev_data->domain);
+	if (WARN_ON(!dev_data->domain))
+		return;
 
 	domain = dev_data->domain;
 
