@@ -89,7 +89,7 @@ int test__syscall_openat_tp_fields(void)
 
 				err = perf_evsel__parse_sample(evsel, event, &sample);
 				if (err) {
-					pr_err("Can't parse sample, err = %d\n", err);
+					pr_debug("Can't parse sample, err = %d\n", err);
 					goto out_delete_evlist;
 				}
 

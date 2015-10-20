@@ -22,7 +22,7 @@ int test__openat_syscall_event(void)
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
 	if (IS_ERR(evsel)) {
 		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
-		pr_err("%s\n", errbuf);
+		pr_debug("%s\n", errbuf);
 		goto out_thread_map_delete;
 	}
 

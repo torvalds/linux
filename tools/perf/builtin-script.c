@@ -686,7 +686,10 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 
 	set_print_ip_opts(&evsel->attr);
 
-	return perf_evsel__check_attr(evsel, scr->session);
+	if (evsel->attr.sample_type)
+		err = perf_evsel__check_attr(evsel, scr->session);
+
+	return err;
 }
 
 static int process_comm_event(struct perf_tool *tool,
