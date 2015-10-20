@@ -110,19 +110,10 @@ int linux_sdio_cmd53(sdio_cmd53_t *cmd)
 	return 1;
 }
 
-volatile int probe; /* COMPLEMENT_BOOT */
 static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
 	PRINT_D(INIT_DBG, "probe function\n");
 
-#ifdef COMPLEMENT_BOOT
-	if (local_sdio_func != NULL) {
-		local_sdio_func = func;
-		probe = 1;
-		PRINT_D(INIT_DBG, "local_sdio_func isn't NULL\n");
-		return 0;
-	}
-#endif
 	PRINT_D(INIT_DBG, "Initializing netdev\n");
 	local_sdio_func = func;
 	if (wilc_netdev_init()) {

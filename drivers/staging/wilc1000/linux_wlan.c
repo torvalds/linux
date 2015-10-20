@@ -545,10 +545,6 @@ _fail_:
 
 }
 
-#ifdef COMPLEMENT_BOOT
-int repeat_power_cycle(perInterface_wlan_t *nic);
-#endif
-
 static int linux_wlan_start_firmware(perInterface_wlan_t *nic)
 {
 
@@ -565,18 +561,6 @@ static int linux_wlan_start_firmware(perInterface_wlan_t *nic)
 	PRINT_D(INIT_DBG, "Waiting for Firmware to get ready ...\n");
 	ret = linux_wlan_lock_timeout(&g_linux_wlan->sync_event, 5000);
 	if (ret) {
-#ifdef COMPLEMENT_BOOT
-		static int timeout = 5;
-
-		if (timeout--) {
-			PRINT_D(INIT_DBG, "repeat power cycle[%d]", timeout);
-			ret = repeat_power_cycle(nic);
-		} else {
-			timeout = 5;
-			ret = -1;
-			goto _fail_;
-		}
-#endif
 		PRINT_D(INIT_DBG, "Firmware start timed out");
 		goto _fail_;
 	}
@@ -1038,97 +1022,6 @@ static void wlan_deinitialize_threads(struct wilc *nic)
 	}
 }
 
-#ifdef COMPLEMENT_BOOT
-
-extern volatile int probe;
-extern u8 core_11b_ready(void);
-
-#define READY_CHECK_THRESHOLD		30
-extern void wilc_wlan_global_reset(void);
-u8 wilc1000_prepare_11b_core(wilc_wlan_inp_t *nwi, struct wilc *nic)
-{
-	u8 trials = 0;
-
-	while ((core_11b_ready() && (READY_CHECK_THRESHOLD > (trials++)))) {
-		PRINT_D(INIT_DBG, "11b core not ready yet: %u\n", trials);
-		wilc_wlan_cleanup();
-		wilc_wlan_global_reset();
-		sdio_unregister_driver(&wilc_bus);
-
-		linux_wlan_device_detection(0);
-
-		mdelay(100);
-
-		linux_wlan_device_detection(1);
-
-		sdio_register_driver(&wilc_bus);
-
-		while (!probe)
-			msleep(100);
-		probe = 0;
-		g_linux_wlan->wilc_sdio_func = local_sdio_func;
-		linux_to_wlan(nwi, nic);
-		wilc_wlan_init(nwi);
-	}
-
-	if (READY_CHECK_THRESHOLD <= trials)
-		return 1;
-	else
-		return 0;
-
-}
-
-int repeat_power_cycle(perInterface_wlan_t *nic)
-{
-	int ret = 0;
-	wilc_wlan_inp_t nwi;
-
-	sdio_unregister_driver(&wilc_bus);
-
-	linux_wlan_device_detection(0);
-	linux_wlan_device_power(0);
-	msleep(100);
-	linux_wlan_device_power(1);
-	msleep(80);
-	linux_wlan_device_detection(1);
-	msleep(20);
-
-	sdio_register_driver(&wilc_bus);
-
-	/* msleep(1000); */
-	while (!probe)
-		msleep(100);
-	probe = 0;
-	g_linux_wlan->wilc_sdio_func = local_sdio_func;
-	linux_to_wlan(&nwi, g_linux_wlan);
-	ret = wilc_wlan_init(&nwi);
-
-	g_linux_wlan->mac_status = WILC_MAC_STATUS_INIT;
-	#if (defined WILC_SDIO) && (!defined WILC_SDIO_IRQ_GPIO)
-	enable_sdio_interrupt();
-	#endif
-
-	if (linux_wlan_get_firmware(nic)) {
-		PRINT_ER("Can't get firmware\n");
-		ret = -1;
-		goto __fail__;
-	}
-
-	/*Download firmware*/
-	ret = linux_wlan_firmware_download(g_linux_wlan);
-	if (ret < 0) {
-		PRINT_ER("Failed to download firmware\n");
-		goto __fail__;
-	}
-	/* Start firmware*/
-	ret = linux_wlan_start_firmware(nic);
-	if (ret < 0)
-		PRINT_ER("Failed to start firmware\n");
-__fail__:
-	return ret;
-}
-#endif
-
 int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 {
 	wilc_wlan_inp_t nwi;
@@ -1150,28 +1043,20 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 			goto _fail_locks_;
 		}
 
+#if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
+		if (init_irq(g_linux_wlan)) {
+			PRINT_ER("couldn't initialize IRQ\n");
+			ret = -EIO;
+			goto _fail_locks_;
+		}
+#endif
+
 		ret = wlan_initialize_threads(nic);
 		if (ret < 0) {
 			PRINT_ER("Initializing Threads FAILED\n");
 			ret = -EIO;
 			goto _fail_wilc_wlan_;
 		}
-
-#if (defined WILC_SDIO) && (defined COMPLEMENT_BOOT)
-		if (wilc1000_prepare_11b_core(&nwi, g_linux_wlan)) {
-			PRINT_ER("11b Core is not ready\n");
-			ret = -EIO;
-			goto _fail_threads_;
-		}
-#endif
-
-#if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
-		if (init_irq(g_linux_wlan)) {
-			PRINT_ER("couldn't initialize IRQ\n");
-			ret = -EIO;
-			goto _fail_threads_;
-		}
-#endif
 
 #if (defined WILC_SDIO) && (!defined WILC_SDIO_IRQ_GPIO)
 		if (enable_sdio_interrupt()) {
@@ -1239,7 +1124,6 @@ _fail_irq_init_:
 		deinit_irq(g_linux_wlan);
 
 #endif
-_fail_threads_:
 		wlan_deinitialize_threads(g_linux_wlan);
 _fail_wilc_wlan_:
 		wilc_wlan_cleanup();

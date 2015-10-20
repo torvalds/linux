@@ -1919,24 +1919,6 @@ _fail_:
 	return chipid;
 }
 
-#ifdef COMPLEMENT_BOOT
-u8 core_11b_ready(void)
-{
-	u32 reg_val;
-
-	acquire_bus(ACQUIRE_ONLY);
-	g_wlan.hif_func.hif_write_reg(0x16082c, 1);
-	g_wlan.hif_func.hif_write_reg(0x161600, 0x90);
-	g_wlan.hif_func.hif_read_reg(0x161600, &reg_val);
-	release_bus(RELEASE_ONLY);
-
-	if (reg_val == 0x90)
-		return 0;
-	else
-		return 1;
-}
-#endif
-
 int wilc_wlan_init(wilc_wlan_inp_t *inp)
 {
 
