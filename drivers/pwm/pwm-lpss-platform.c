@@ -49,6 +49,7 @@ static int pwm_lpss_remove_platform(struct platform_device *pdev)
 static const struct acpi_device_id pwm_lpss_acpi_match[] = {
 	{ "80860F09", (unsigned long)&pwm_lpss_byt_info },
 	{ "80862288", (unsigned long)&pwm_lpss_bsw_info },
+	{ "80865AC8", (unsigned long)&pwm_lpss_bxt_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pwm_lpss_acpi_match);
