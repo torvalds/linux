@@ -493,6 +493,7 @@ struct intel_mmio_flip {
 	struct drm_i915_private *i915;
 	struct drm_i915_gem_request *req;
 	struct intel_crtc *crtc;
+	unsigned int rotation;
 };
 
 struct skl_pipe_wm {

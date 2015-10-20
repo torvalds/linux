@@ -11113,13 +11113,14 @@ static bool use_mmio_flip(struct intel_engine_cs *ring,
 }
 
 static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
+			     unsigned int rotation,
 			     struct intel_unpin_work *work)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *fb = intel_crtc->base.primary->fb;
 	const enum pipe pipe = intel_crtc->pipe;
-	u32 ctl, stride;
+	u32 ctl, stride, tile_height;
 
 	ctl = I915_READ(PLANE_CTL(pipe, 0));
 	ctl &= ~PLANE_CTL_TILED_MASK;
@@ -11143,9 +11144,16 @@ static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
 	 * The stride is either expressed as a multiple of 64 bytes chunks for
 	 * linear buffers or in number of tiles for tiled buffers.
 	 */
-	stride = fb->pitches[0] /
-		 intel_fb_stride_alignment(dev, fb->modifier[0],
-					   fb->pixel_format);
+	if (intel_rotation_90_or_270(rotation)) {
+		/* stride = Surface height in tiles */
+		tile_height = intel_tile_height(dev, fb->pixel_format,
+						fb->modifier[0], 0);
+		stride = DIV_ROUND_UP(fb->height, tile_height);
+	} else {
+		stride = fb->pitches[0] /
+				intel_fb_stride_alignment(dev, fb->modifier[0],
+							  fb->pixel_format);
+	}
 
 	/*
 	 * Both PLANE_CTL and PLANE_STRIDE are not updated on vblank but on
@@ -11203,7 +11211,7 @@ static void intel_do_mmio_flip(struct intel_mmio_flip *mmio_flip)
 	intel_pipe_update_start(crtc);
 
 	if (INTEL_INFO(mmio_flip->i915)->gen >= 9)
-		skl_do_mmio_flip(crtc, work);
+		skl_do_mmio_flip(crtc, mmio_flip->rotation, work);
 	else
 		/* use_mmio_flip() retricts MMIO flips to ilk+ */
 		ilk_do_mmio_flip(crtc, work);
@@ -11230,10 +11238,7 @@ static void intel_mmio_flip_work_func(struct work_struct *work)
 
 static int intel_queue_mmio_flip(struct drm_device *dev,
 				 struct drm_crtc *crtc,
-				 struct drm_framebuffer *fb,
-				 struct drm_i915_gem_object *obj,
-				 struct intel_engine_cs *ring,
-				 uint32_t flags)
+				 struct drm_i915_gem_object *obj)
 {
 	struct intel_mmio_flip *mmio_flip;
 
@@ -11244,6 +11249,7 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 	mmio_flip->i915 = to_i915(dev);
 	mmio_flip->req = i915_gem_request_reference(obj->last_write_req);
 	mmio_flip->crtc = to_intel_crtc(crtc);
+	mmio_flip->rotation = crtc->primary->state->rotation;
 
 	INIT_WORK(&mmio_flip->work, intel_mmio_flip_work_func);
 	schedule_work(&mmio_flip->work);
@@ -11460,8 +11466,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->gtt_offset += intel_crtc->dspaddr_offset;
 
 	if (mmio_flip) {
-		ret = intel_queue_mmio_flip(dev, crtc, fb, obj, ring,
-					    page_flip_flags);
+		ret = intel_queue_mmio_flip(dev, crtc, obj);
 		if (ret)
 			goto cleanup_unpin;
 
