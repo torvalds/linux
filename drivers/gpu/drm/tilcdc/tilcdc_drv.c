@@ -381,6 +381,7 @@ static int tilcdc_irq_postinstall(struct drm_device *dev)
 	else
 		tilcdc_set(dev, LCDC_INT_ENABLE_SET_REG,
 			   LCDC_V2_UNDERFLOW_INT_ENA |
+			   LCDC_V2_END_OF_FRAME0_INT_ENA |
 			   LCDC_FRAME_DONE);
 
 	return 0;
@@ -398,41 +399,19 @@ static void tilcdc_irq_uninstall(struct drm_device *dev)
 	} else {
 		tilcdc_clear(dev, LCDC_INT_ENABLE_SET_REG,
 			LCDC_V2_UNDERFLOW_INT_ENA | LCDC_V2_PL_INT_ENA |
-			LCDC_V2_END_OF_FRAME0_INT_ENA | LCDC_V2_END_OF_FRAME1_INT_ENA |
+			LCDC_V2_END_OF_FRAME0_INT_ENA |
 			LCDC_FRAME_DONE);
 	}
-
-}
-
-static void enable_vblank(struct drm_device *dev, bool enable)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	u32 reg, mask;
-
-	if (priv->rev == 1) {
-		reg = LCDC_DMA_CTRL_REG;
-		mask = LCDC_V1_END_OF_FRAME_INT_ENA;
-	} else {
-		reg = LCDC_INT_ENABLE_SET_REG;
-		mask = LCDC_V2_END_OF_FRAME0_INT_ENA |
-			LCDC_V2_END_OF_FRAME1_INT_ENA;
-	}
-
-	if (enable)
-		tilcdc_set(dev, reg, mask);
-	else
-		tilcdc_clear(dev, reg, mask);
 }
 
 static int tilcdc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	enable_vblank(dev, true);
 	return 0;
 }
 
 static void tilcdc_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	enable_vblank(dev, false);
+	return;
 }
 
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_PM_SLEEP)
