@@ -1067,14 +1067,14 @@ static int cma_save_req_info(const struct ib_cm_event *ib_event,
 		       sizeof(req->local_gid));
 		req->has_gid	= true;
 		req->service_id	= req_param->primary_path->service_id;
-		req->pkey	= req_param->bth_pkey;
+		req->pkey	= be16_to_cpu(req_param->primary_path->pkey);
 		break;
 	case IB_CM_SIDR_REQ_RECEIVED:
 		req->device	= sidr_param->listen_id->device;
 		req->port	= sidr_param->port;
 		req->has_gid	= false;
 		req->service_id	= sidr_param->service_id;
-		req->pkey	= sidr_param->bth_pkey;
+		req->pkey	= sidr_param->pkey;
 		break;
 	default:
 		return -EINVAL;
