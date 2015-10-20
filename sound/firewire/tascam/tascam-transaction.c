@@ -67,8 +67,6 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 	u8 status;
 	int consume;
 
-	buf[0] = buf[1] = buf[2] = buf[3] = 0x00;
-
 	len = snd_rawmidi_transmit_peek(substream, buf + 1, 3);
 	if (len == 0)
 		return 0;
