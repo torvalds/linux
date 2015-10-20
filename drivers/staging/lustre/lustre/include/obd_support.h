@@ -529,8 +529,6 @@ do {									      \
 
 #define OBD_SLAB_ALLOC_GFP(ptr, slab, size, flags)			      \
 	__OBD_SLAB_ALLOC_VERBOSE(ptr, slab, NULL, 0, size, flags)
-#define OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, size, flags)	      \
-	__OBD_SLAB_ALLOC_VERBOSE(ptr, slab, cptab, cpt, size, flags)
 
 #define OBD_SLAB_FREE(ptr, slab, size)					\
 do {									  \
@@ -541,20 +539,11 @@ do {									  \
 #define OBD_SLAB_ALLOC(ptr, slab, size)					      \
 	OBD_SLAB_ALLOC_GFP(ptr, slab, size, GFP_NOFS)
 
-#define OBD_SLAB_CPT_ALLOC(ptr, slab, cptab, cpt, size)			      \
-	OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, size, GFP_NOFS)
-
 #define OBD_SLAB_ALLOC_PTR(ptr, slab)					      \
 	OBD_SLAB_ALLOC(ptr, slab, sizeof(*(ptr)))
 
-#define OBD_SLAB_CPT_ALLOC_PTR(ptr, slab, cptab, cpt)			      \
-	OBD_SLAB_CPT_ALLOC(ptr, slab, cptab, cpt, sizeof(*(ptr)))
-
 #define OBD_SLAB_ALLOC_PTR_GFP(ptr, slab, flags)			      \
 	OBD_SLAB_ALLOC_GFP(ptr, slab, sizeof(*(ptr)), flags)
-
-#define OBD_SLAB_CPT_ALLOC_PTR_GFP(ptr, slab, cptab, cpt, flags)		      \
-	OBD_SLAB_CPT_ALLOC_GFP(ptr, slab, cptab, cpt, sizeof(*(ptr)), flags)
 
 #define OBD_SLAB_FREE_PTR(ptr, slab)					      \
 	OBD_SLAB_FREE((ptr), (slab), sizeof(*(ptr)))
