@@ -2587,7 +2587,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			/*Setting interface 1 drv handler and mac address in newly downloaded FW*/
 			host_int_set_wfi_drv_handler(g_linux_wlan->vif[0].drvHandler);
 			host_int_set_MacAddress(g_linux_wlan->vif[0].drvHandler,
-						g_linux_wlan->vif[0].aSrcAddress);
+						g_linux_wlan->vif[0].src_addr);
 			host_int_set_operation_mode(priv->hWILCWFIDrv, STATION_MODE);
 
 			/*Add saved WEP keys, if any*/
@@ -2668,7 +2668,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 			host_int_set_wfi_drv_handler(g_linux_wlan->vif[0].drvHandler);
 			host_int_set_MacAddress(g_linux_wlan->vif[0].drvHandler,
-						g_linux_wlan->vif[0].aSrcAddress);
+						g_linux_wlan->vif[0].src_addr);
 			host_int_set_operation_mode(priv->hWILCWFIDrv, STATION_MODE);
 
 			/*Add saved WEP keys, if any*/
@@ -2783,7 +2783,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		/*Setting interface 1 drv handler and mac address in newly downloaded FW*/
 		host_int_set_wfi_drv_handler(g_linux_wlan->vif[0].drvHandler);
 		host_int_set_MacAddress(g_linux_wlan->vif[0].drvHandler,
-					g_linux_wlan->vif[0].aSrcAddress);
+					g_linux_wlan->vif[0].src_addr);
 		host_int_set_operation_mode(priv->hWILCWFIDrv, AP_MODE);
 
 		/*Add saved WEP keys, if any*/
@@ -2888,7 +2888,7 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (s32Error != 0)
 		PRINT_ER("Error in setting channel\n");
 
-	linux_wlan_set_bssid(dev, g_linux_wlan->vif[0].aSrcAddress);
+	linux_wlan_set_bssid(dev, g_linux_wlan->vif[0].src_addr);
 
 	s32Error = host_int_add_beacon(priv->hWILCWFIDrv,
 					settings->beacon_interval,
