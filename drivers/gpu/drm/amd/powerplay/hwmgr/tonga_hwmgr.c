@@ -40,6 +40,7 @@
 #include "smumgr.h"
 #include "tonga_smumgr.h"
 #include "tonga_clockpowergating.h"
+#include "tonga_thermal.h"
 
 #include "smu/smu_7_1_2_d.h"
 #include "smu/smu_7_1_2_sh_mask.h"
@@ -49,6 +50,9 @@
 
 #include "bif/bif_5_0_d.h"
 #include "bif/bif_5_0_sh_mask.h"
+
+#include "cgs_linux.h"
+#include "eventmgr.h"
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -5721,6 +5725,22 @@ static int tonga_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input
 	return result;
 }
 
+/**
+*  Set maximum target operating fan output PWM
+*
+* @param    pHwMgr:  the address of the powerplay hardware manager.
+* @param    usMaxFanPwm:  max operating fan PWM in percents
+* @return   The response that came from the SMC.
+*/
+static int tonga_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm)
+{
+	hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanPWM = us_max_fan_pwm;
+
+	if (phm_is_hw_access_blocked(hwmgr))
+		return 0;
+
+    return (0 == smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetFanPwmMax, us_max_fan_pwm) ? 0 : -EINVAL);
+}
 
 int tonga_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
@@ -5799,6 +5819,122 @@ int tonga_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+/**
+*  Set maximum target operating fan output RPM
+*
+* @param    pHwMgr:  the address of the powerplay hardware manager.
+* @param    usMaxFanRpm:  max operating fan RPM value.
+* @return   The response that came from the SMC.
+*/
+static int tonga_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm)
+{
+	hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM = us_max_fan_pwm;
+
+	if (phm_is_hw_access_blocked(hwmgr))
+		return 0;
+
+	return (0 == smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetFanRpmMax, us_max_fan_pwm) ? 0 : -EINVAL);
+}
+
+uint32_t tonga_get_xclk(struct pp_hwmgr *hwmgr)
+{
+	uint32_t reference_clock;
+	uint32_t tc;
+	uint32_t divide;
+
+	ATOM_FIRMWARE_INFO *fw_info;
+	uint16_t size;
+	uint8_t frev, crev;
+	int index = GetIndexIntoMasterTable(DATA, FirmwareInfo);
+
+	tc = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_CLKPIN_CNTL_2, MUX_TCLK_TO_XCLK);
+
+	if (tc)
+		return TCLK;
+
+	fw_info = (ATOM_FIRMWARE_INFO *)cgs_atom_get_data_table(hwmgr->device, index,
+						  &size, &frev, &crev);
+
+	if (!fw_info)
+		return 0;
+
+	reference_clock = le16_to_cpu(fw_info->usMinPixelClockPLL_Output);
+
+	divide = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_CLKPIN_CNTL, XTALIN_DIVIDE);
+
+	if (0 != divide)
+		return reference_clock / 4;
+
+	return reference_clock;
+}
+
+int tonga_dpm_set_interrupt_state(void *private_data,
+					 unsigned src_id, unsigned type,
+					 int enabled)
+{
+	uint32_t cg_thermal_int;
+	struct pp_hwmgr *hwmgr = ((struct pp_eventmgr *)private_data)->hwmgr;
+
+	if (hwmgr == NULL)
+		return -EINVAL;
+
+	switch (type) {
+	case AMD_THERMAL_IRQ_LOW_TO_HIGH:
+		if (enabled) {
+			cg_thermal_int = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_THERMAL_INT);
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_THERMAL_INT, cg_thermal_int);
+		} else {
+			cg_thermal_int = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_THERMAL_INT);
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_THERMAL_INT, cg_thermal_int);
+		}
+		break;
+
+	case AMD_THERMAL_IRQ_HIGH_TO_LOW:
+		if (enabled) {
+			cg_thermal_int = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_THERMAL_INT);
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_THERMAL_INT, cg_thermal_int);
+		} else {
+			cg_thermal_int = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_THERMAL_INT);
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_THERMAL_INT, cg_thermal_int);
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+int tonga_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
+					const void *thermal_interrupt_info)
+{
+	int result;
+	const struct pp_interrupt_registration_info *info =
+			(const struct pp_interrupt_registration_info *)thermal_interrupt_info;
+
+	if (info == NULL)
+		return -EINVAL;
+
+	result = cgs_add_irq_source(hwmgr->device, 230, AMD_THERMAL_IRQ_LAST,
+				tonga_dpm_set_interrupt_state,
+				info->call_back, info->context);
+
+	if (result)
+		return -EINVAL;
+
+	result = cgs_add_irq_source(hwmgr->device, 231, AMD_THERMAL_IRQ_LAST,
+				tonga_dpm_set_interrupt_state,
+				info->call_back, info->context);
+
+	if (result)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.backend_init = &tonga_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
@@ -5820,6 +5956,18 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.disable_clock_power_gating = tonga_phm_disable_clock_power_gating,
 	.notify_smc_display_config_after_ps_adjustment = tonga_notify_smc_display_config_after_ps_adjustment,
 	.display_config_changed = tonga_display_configuration_changed_task,
+	.set_max_fan_pwm_output = tonga_set_max_fan_pwm_output,
+	.set_max_fan_rpm_output = tonga_set_max_fan_rpm_output,
+	.get_temperature = tonga_thermal_get_temperature,
+	.stop_thermal_controller = tonga_thermal_stop_thermal_controller,
+	.get_fan_speed_info = tonga_fan_ctrl_get_fan_speed_info,
+	.get_fan_speed_percent = tonga_fan_ctrl_get_fan_speed_percent,
+	.set_fan_speed_percent = tonga_fan_ctrl_set_fan_speed_percent,
+	.reset_fan_speed_to_default = tonga_fan_ctrl_reset_fan_speed_to_default,
+	.get_fan_speed_rpm = tonga_fan_ctrl_get_fan_speed_rpm,
+	.set_fan_speed_rpm = tonga_fan_ctrl_set_fan_speed_rpm,
+	.uninitialize_thermal_controller = tonga_thermal_ctrl_uninitialize_thermal_controller,
+	.register_internal_thermal_interrupt = tonga_register_internal_thermal_interrupt,
 };
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
@@ -5834,7 +5982,7 @@ int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
 	hwmgr->backend = data;
 	hwmgr->hwmgr_func = &tonga_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
-
+	pp_tonga_thermal_initialize(hwmgr);
 	return 0;
 }
 

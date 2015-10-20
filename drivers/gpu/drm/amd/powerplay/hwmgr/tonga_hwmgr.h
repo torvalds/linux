@@ -426,6 +426,7 @@ int tonga_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input);
 int tonga_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int tonga_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable);
 int tonga_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
+uint32_t tonga_get_xclk(struct pp_hwmgr *hwmgr);
 
 #endif
 
