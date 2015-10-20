@@ -2061,6 +2061,12 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
+
+		/* Setup TSC multiplier */
+		if (cpu_has_vmx_tsc_scaling())
+			vmcs_write64(TSC_MULTIPLIER,
+				     vcpu->arch.tsc_scaling_ratio);
+
 		vmx->loaded_vmcs->cpu = cpu;
 	}
 
