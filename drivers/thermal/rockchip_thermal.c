@@ -114,9 +114,6 @@ struct rockchip_thermal_data {
 
 	struct clk *clk;
 	struct clk *pclk;
-	struct regmap *cru;
-	struct regmap *grf;
-	struct regmap *pmu;
 
 	int cpu_temp_adjust;
 	int gpu_temp_adjust;
@@ -914,24 +911,6 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	thermal->cru = syscon_regmap_lookup_by_phandle(np, "rockchip,cru");
-	if (IS_ERR(thermal->cru)) {
-		dev_err(&pdev->dev, "couldn't find cru regmap\n");
-		return PTR_ERR(thermal->cru);
-	}
-
-	thermal->pmu = syscon_regmap_lookup_by_phandle(np, "rockchip,pmu");
-	if (IS_ERR(thermal->pmu)) {
-		dev_err(&pdev->dev, "couldn't find pmu regmap\n");
-		return PTR_ERR(thermal->pmu);
-	}
-
-	thermal->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-	if (IS_ERR(thermal->grf)) {
-		dev_err(&pdev->dev, "couldn't find grf regmap\n");
-		return PTR_ERR(thermal->grf);
-	}
-
 	thermal->clk = devm_clk_get(&pdev->dev, "tsadc");
 	if (IS_ERR(thermal->clk)) {
 		error = PTR_ERR(thermal->clk);
@@ -959,8 +938,9 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to enable pclk: %d\n", error);
 		goto err_disable_clk;
 	}
-	
+
 	rockchip_thermal_reset_controller(thermal->reset);
+
 	error = rockchip_configure_from_dt(&pdev->dev, np, thermal);
 	if (error) {
 		dev_err(&pdev->dev, "failed to parse device tree data: %d\n",
@@ -971,6 +951,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	if (thermal->chip->mode == TSADC_AUTO_MODE)
 	{
 		thermal->chip->initialize(thermal->regs, thermal->tshut_polarity);
+
 		error = rockchip_thermal_register_sensor(pdev, thermal,
 							 &thermal->sensors[0],
 							 thermal->chip->cpu_id);
