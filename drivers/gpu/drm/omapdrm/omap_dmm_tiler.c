@@ -1030,4 +1030,3 @@ struct platform_driver omap_dmm_driver = {
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Andy Gross <andy.gross@ti.com>");
 MODULE_DESCRIPTION("OMAP DMM/Tiler Driver");
-MODULE_ALIAS("platform:" DMM_DRIVER_NAME);
