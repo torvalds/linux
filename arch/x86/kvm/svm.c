@@ -212,7 +212,6 @@ static int nested_svm_intercept(struct vcpu_svm *svm);
 static int nested_svm_vmexit(struct vcpu_svm *svm);
 static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 				      bool has_error_code, u32 error_code);
-static u64 __scale_tsc(u64 ratio, u64 tsc);
 
 enum {
 	VMCB_INTERCEPTS, /* Intercept vectors, TSC offset,
@@ -892,21 +891,7 @@ static __init int svm_hardware_setup(void)
 		kvm_enable_efer_bits(EFER_FFXSR);
 
 	if (boot_cpu_has(X86_FEATURE_TSCRATEMSR)) {
-		u64 max;
-
 		kvm_has_tsc_control = true;
-
-		/*
-		 * Make sure the user can only configure tsc_khz values that
-		 * fit into a signed integer.
-		 * A min value is not calculated needed because it will always
-		 * be 1 on all machines and a value of 0 is used to disable
-		 * tsc-scaling for the vcpu.
-		 */
-		max = min(0x7fffffffULL, __scale_tsc(tsc_khz, TSC_RATIO_MAX));
-
-		kvm_max_guest_tsc_khz = max;
-
 		kvm_max_tsc_scaling_ratio = TSC_RATIO_MAX;
 		kvm_tsc_scaling_ratio_frac_bits = 32;
 	}
@@ -970,31 +955,6 @@ static void init_sys_seg(struct vmcb_seg *seg, uint32_t type)
 	seg->attrib = SVM_SELECTOR_P_MASK | type;
 	seg->limit = 0xffff;
 	seg->base = 0;
-}
-
-static u64 __scale_tsc(u64 ratio, u64 tsc)
-{
-	u64 mult, frac, _tsc;
-
-	mult  = ratio >> 32;
-	frac  = ratio & ((1ULL << 32) - 1);
-
-	_tsc  = tsc;
-	_tsc *= mult;
-	_tsc += (tsc >> 32) * frac;
-	_tsc += ((tsc & ((1ULL << 32) - 1)) * frac) >> 32;
-
-	return _tsc;
-}
-
-static u64 svm_scale_tsc(struct kvm_vcpu *vcpu, u64 tsc)
-{
-	u64 _tsc = tsc;
-
-	if (vcpu->arch.tsc_scaling_ratio != TSC_RATIO_DEFAULT)
-		_tsc = __scale_tsc(vcpu->arch.tsc_scaling_ratio, tsc);
-
-	return _tsc;
 }
 
 static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale)
@@ -1065,7 +1025,7 @@ static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool ho
 	if (host) {
 		if (vcpu->arch.tsc_scaling_ratio != TSC_RATIO_DEFAULT)
 			WARN_ON(adjustment < 0);
-		adjustment = svm_scale_tsc(vcpu, (u64)adjustment);
+		adjustment = kvm_scale_tsc(vcpu, (u64)adjustment);
 	}
 
 	svm->vmcb->control.tsc_offset += adjustment;
@@ -1083,7 +1043,7 @@ static u64 svm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 {
 	u64 tsc;
 
-	tsc = svm_scale_tsc(vcpu, rdtsc());
+	tsc = kvm_scale_tsc(vcpu, rdtsc());
 
 	return target_tsc - tsc;
 }
@@ -3075,7 +3035,7 @@ static u64 svm_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
 {
 	struct vmcb *vmcb = get_host_vmcb(to_svm(vcpu));
 	return vmcb->control.tsc_offset +
-		svm_scale_tsc(vcpu, host_tsc);
+		kvm_scale_tsc(vcpu, host_tsc);
 }
 
 static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
@@ -3085,7 +3045,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	switch (msr_info->index) {
 	case MSR_IA32_TSC: {
 		msr_info->data = svm->vmcb->control.tsc_offset +
-			svm_scale_tsc(vcpu, rdtsc());
+			kvm_scale_tsc(vcpu, rdtsc());
 
 		break;
 	}
