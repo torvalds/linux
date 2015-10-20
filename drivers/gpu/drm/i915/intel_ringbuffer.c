@@ -922,17 +922,15 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 			  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
 
-	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) == SKL_REVID_A0 ||
-	    INTEL_REVID(dev) == SKL_REVID_B0)) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1)) {
-		/* WaDisableDgMirrorFixInHalfSliceChicken5:skl,bxt */
+	/* WaDisableDgMirrorFixInHalfSliceChicken5:skl,bxt */
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A1))
 		WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 				  GEN9_DG_MIRROR_FIX_ENABLE);
-	}
 
-	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1)) {
-		/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl,bxt */
+	/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl,bxt */
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		WA_SET_BIT_MASKED(GEN7_COMMON_SLICE_CHICKEN1,
 				  GEN9_RHWO_OPTIMIZATION_DISABLE);
 		/*
@@ -942,12 +940,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 		 */
 	}
 
-	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) >= SKL_REVID_C0) ||
-	    IS_BROXTON(dev)) {
-		/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt */
+	/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt */
+	if (IS_SKL_REVID(dev, SKL_REVID_C0, REVID_FOREVER) || IS_BROXTON(dev))
 		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
 				  GEN9_ENABLE_YV12_BUGFIX);
-	}
 
 	/* Wa4x4STCOptimizationDisable:skl,bxt */
 	/* WaDisablePartialResolveInVc:skl,bxt */
@@ -959,24 +955,22 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 			  GEN9_CCS_TLB_PREFETCH_ENABLE);
 
 	/* WaDisableMaskBasedCammingInRCC:skl,bxt */
-	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) == SKL_REVID_C0) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1))
+	if (IS_SKL_REVID(dev, SKL_REVID_C0, SKL_REVID_C0) ||
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A1))
 		WA_SET_BIT_MASKED(SLICE_ECO_CHICKEN0,
 				  PIXEL_MASK_CAMMING_DISABLE);
 
 	/* WaForceContextSaveRestoreNonCoherent:skl,bxt */
 	tmp = HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT;
-	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) == SKL_REVID_F0) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) >= BXT_REVID_B0))
+	if (IS_SKL_REVID(dev, SKL_REVID_F0, SKL_REVID_F0) ||
+	    IS_BXT_REVID(dev, BXT_REVID_B0, REVID_FOREVER))
 		tmp |= HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE;
 	WA_SET_BIT_MASKED(HDC_CHICKEN0, tmp);
 
 	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt */
-	if (IS_SKYLAKE(dev) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_B0)) {
+	if (IS_SKYLAKE(dev) || IS_BXT_REVID(dev, 0, BXT_REVID_B0))
 		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 				  GEN8_SAMPLER_POWER_BYPASS_DIS);
-	}
 
 	/* WaDisableSTUnitPowerOptimization:skl,bxt */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
@@ -1036,7 +1030,7 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 	if (ret)
 		return ret;
 
-	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0)) {
 		/* WaDisableHDCInvalidation:skl */
 		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
 			   BDW_DISABLE_HDC_INVALIDATION);
@@ -1049,23 +1043,23 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 	/* GEN8_L3SQCREG4 has a dependency with WA batch so any new changes
 	 * involving this register should also be added to WA batch as required.
 	 */
-	if (INTEL_REVID(dev) <= SKL_REVID_E0)
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_E0))
 		/* WaDisableLSQCROPERFforOCL:skl */
 		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
 			   GEN8_LQSC_RO_PERF_DIS);
 
 	/* WaEnableGapsTsvCreditFix:skl */
-	if (IS_SKYLAKE(dev) && (INTEL_REVID(dev) >= SKL_REVID_C0)) {
+	if (IS_SKL_REVID(dev, SKL_REVID_C0, REVID_FOREVER)) {
 		I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
 					   GEN9_GAPS_TSV_CREDIT_DISABLE));
 	}
 
 	/* WaDisablePowerCompilerClockGating:skl */
-	if (INTEL_REVID(dev) == SKL_REVID_B0)
+	if (IS_SKL_REVID(dev, SKL_REVID_B0, SKL_REVID_B0))
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
-	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0)) {
 		/*
 		 *Use Force Non-Coherent whenever executing a 3D context. This
 		 * is a workaround for a possible hang in the unlikely event
@@ -1076,19 +1070,17 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 				  HDC_FORCE_NON_COHERENT);
 	}
 
-	if (INTEL_REVID(dev) == SKL_REVID_C0 ||
-	    INTEL_REVID(dev) == SKL_REVID_D0)
-		/* WaBarrierPerformanceFixDisable:skl */
+	/* WaBarrierPerformanceFixDisable:skl */
+	if (IS_SKL_REVID(dev, SKL_REVID_C0, SKL_REVID_D0))
 		WA_SET_BIT_MASKED(HDC_CHICKEN0,
 				  HDC_FENCE_DEST_SLM_DISABLE |
 				  HDC_BARRIER_PERFORMANCE_DISABLE);
 
 	/* WaDisableSbeCacheDispatchPortSharing:skl */
-	if (INTEL_REVID(dev) <= SKL_REVID_F0) {
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_F0))
 		WA_SET_BIT_MASKED(
 			GEN7_HALF_SLICE_CHICKEN1,
 			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
-	}
 
 	return skl_tune_iz_hashing(ring);
 }
@@ -1105,11 +1097,11 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 
 	/* WaStoreMultiplePTEenable:bxt */
 	/* This is a requirement according to Hardware specification */
-	if (INTEL_REVID(dev) == BXT_REVID_A0)
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A0))
 		I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
 
 	/* WaSetClckGatingDisableMedia:bxt */
-	if (INTEL_REVID(dev) == BXT_REVID_A0) {
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A0)) {
 		I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
 					    ~GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE));
 	}
@@ -1119,7 +1111,7 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 			  STALL_DOP_GATING_DISABLE);
 
 	/* WaDisableSbeCacheDispatchPortSharing:bxt */
-	if (INTEL_REVID(dev) <= BXT_REVID_B0) {
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_B0)) {
 		WA_SET_BIT_MASKED(
 			GEN7_HALF_SLICE_CHICKEN1,
 			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);

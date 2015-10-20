@@ -284,8 +284,8 @@ static bool disable_lite_restore_wa(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 
-	return ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) ||
-		(IS_BROXTON(dev) && INTEL_REVID(dev) == BXT_REVID_A0)) &&
+	return (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
+		IS_BXT_REVID(dev, 0, BXT_REVID_A0)) &&
 	       (ring->id == VCS || ring->id == VCS2);
 }
 
@@ -1147,7 +1147,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *ring,
 	 * this batch updates GEN8_L3SQCREG4 with default value we need to
 	 * set this bit here to retain the WA during flush.
 	 */
-	if (IS_SKYLAKE(ring->dev) && INTEL_REVID(ring->dev) <= SKL_REVID_E0)
+	if (IS_SKL_REVID(ring->dev, 0, SKL_REVID_E0))
 		l3sqc4_flush |= GEN8_LQSC_RO_PERF_DIS;
 
 	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8 |
@@ -1312,8 +1312,8 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *ring,
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
 	/* WaDisableCtxRestoreArbitration:skl,bxt */
-	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) <= SKL_REVID_D0)) ||
-	    (IS_BROXTON(dev) && (INTEL_REVID(dev) == BXT_REVID_A0)))
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A0))
 		wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:skl,bxt */
@@ -1338,8 +1338,8 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *ring,
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
 	/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl,bxt */
-	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) <= SKL_REVID_B0)) ||
-	    (IS_BROXTON(dev) && (INTEL_REVID(dev) == BXT_REVID_A0))) {
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A0)) {
 		wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
 		wa_ctx_emit(batch, index, GEN9_SLICE_COMMON_ECO_CHICKEN0);
 		wa_ctx_emit(batch, index,
@@ -1348,8 +1348,8 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *ring,
 	}
 
 	/* WaDisableCtxRestoreArbitration:skl,bxt */
-	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) <= SKL_REVID_D0)) ||
-	    (IS_BROXTON(dev) && (INTEL_REVID(dev) == BXT_REVID_A0)))
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A0))
 		wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 
 	wa_ctx_emit(batch, index, MI_BATCH_BUFFER_END);
@@ -1946,7 +1946,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 		ring->init_hw = gen8_init_render_ring;
 	ring->init_context = gen8_init_rcs_context;
 	ring->cleanup = intel_fini_pipe_control;
-	if (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1) {
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		ring->get_seqno = bxt_a_get_seqno;
 		ring->set_seqno = bxt_a_set_seqno;
 	} else {
@@ -1998,7 +1998,7 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
 
 	ring->init_hw = gen8_init_common_ring;
-	if (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1) {
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		ring->get_seqno = bxt_a_get_seqno;
 		ring->set_seqno = bxt_a_set_seqno;
 	} else {
@@ -2053,7 +2053,7 @@ static int logical_blt_ring_init(struct drm_device *dev)
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 
 	ring->init_hw = gen8_init_common_ring;
-	if (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1) {
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		ring->get_seqno = bxt_a_get_seqno;
 		ring->set_seqno = bxt_a_set_seqno;
 	} else {
@@ -2083,7 +2083,7 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
 
 	ring->init_hw = gen8_init_common_ring;
-	if (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1) {
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		ring->get_seqno = bxt_a_get_seqno;
 		ring->set_seqno = bxt_a_set_seqno;
 	} else {

@@ -4386,7 +4386,7 @@ static void gen6_set_rps(struct drm_device *dev, u8 val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* WaGsvDisableTurbo: Workaround to disable turbo on BXT A* */
-	if (IS_BROXTON(dev) && (INTEL_REVID(dev) <= BXT_REVID_A1))
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1))
 		return;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
@@ -4710,7 +4710,7 @@ static void gen9_enable_rps(struct drm_device *dev)
 	gen6_init_rps_frequencies(dev);
 
 	/* WaGsvDisableTurbo: Workaround to disable turbo on BXT A* */
-	if (IS_BROXTON(dev) && (INTEL_REVID(dev) <= BXT_REVID_A1)) {
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 		return;
 	}
@@ -4755,7 +4755,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 
 	/* WaRsDoubleRc6WrlWithCoarsePowerGating: Doubling WRL only when CPG is enabled */
 	if (IS_SKYLAKE(dev) && !((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) &&
-				 (INTEL_REVID(dev) <= SKL_REVID_E0)))
+				 IS_SKL_REVID(dev, 0, SKL_REVID_E0)))
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 108 << 16);
 	else
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16);
@@ -4779,8 +4779,8 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
 			"on" : "off");
 	/* WaRsUseTimeoutMode */
-	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_D0) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A0)) {
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A0)) {
 		I915_WRITE(GEN6_RC6_THRESHOLD, 625); /* 800us */
 		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
 			   GEN7_RC_CTL_TO_MODE |
@@ -4796,8 +4796,9 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
 	 * WaRsDisableCoarsePowerGating:skl,bxt - Render/Media PG need to be disabled with RC6.
 	 */
-	if ((IS_BROXTON(dev) && (INTEL_REVID(dev) <= BXT_REVID_A1)) ||
-	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) && (INTEL_REVID(dev) <= SKL_REVID_E0)))
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1) ||
+	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) &&
+	     IS_SKL_REVID(dev, 0, SKL_REVID_E0)))
 		I915_WRITE(GEN9_PG_ENABLE, 0);
 	else
 		I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?

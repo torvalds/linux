@@ -322,8 +322,8 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_SHIM_CONTROL, GUC_SHIM_CONTROL_VALUE);
 
 	/* WaDisableMinuteIaClockGating:skl,bxt */
-	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) == BXT_REVID_A0)) {
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A0)) {
 		I915_WRITE(GUC_SHIM_CONTROL, (I915_READ(GUC_SHIM_CONTROL) &
 					      ~GUC_ENABLE_MIA_CLOCK_GATING));
 	}

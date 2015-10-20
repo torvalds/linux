@@ -1192,7 +1192,7 @@ intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 static bool intel_dp_source_supports_hbr2(struct drm_device *dev)
 {
 	/* WaDisableHBR2:skl */
-	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_B0))
 		return false;
 
 	if ((IS_HASWELL(dev) && !IS_HSW_ULX(dev)) || IS_BROADWELL(dev) ||
@@ -6087,7 +6087,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		break;
 	case PORT_B:
 		intel_encoder->hpd_pin = HPD_PORT_B;
-		if (IS_BROXTON(dev_priv) && (INTEL_REVID(dev) <= BXT_REVID_A1))
+		if (IS_BXT_REVID(dev, 0, BXT_REVID_A1))
 			intel_encoder->hpd_pin = HPD_PORT_A;
 		break;
 	case PORT_C:
