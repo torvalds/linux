@@ -7,6 +7,8 @@
 
 /dts-v1/;
 
+#include "hikey-gpio.dtsi"
+#include "hikey-pinctrl.dtsi"
 #include "hi6220.dtsi"
 
 / {
