@@ -1620,9 +1620,8 @@ void wl_wlan_cleanup(void)
 	linux_wlan_device_power(0);
 }
 
-int wilc_netdev_init(void)
+int wilc_netdev_init(struct wilc **wilc)
 {
-
 	int i;
 	perInterface_wlan_t *nic;
 	struct net_device *ndev;
@@ -1633,6 +1632,8 @@ int wilc_netdev_init(void)
 	g_linux_wlan = kzalloc(sizeof(*g_linux_wlan), GFP_KERNEL);
 	if (!g_linux_wlan)
 		return -ENOMEM;
+
+	*wilc = g_linux_wlan;
 
 	register_inetaddr_notifier(&g_dev_notifier);
 

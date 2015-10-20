@@ -27,7 +27,6 @@ struct wilc_sdio {
 };
 
 struct sdio_func *local_sdio_func;
-extern int wilc_netdev_init(void);
 extern void wilc_handle_isr(void);
 
 static unsigned int sdio_default_speed;
@@ -117,6 +116,7 @@ int linux_sdio_cmd53(sdio_cmd53_t *cmd)
 static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
 	struct wilc_sdio *wl_sdio;
+	struct wilc *wilc;
 
 	PRINT_D(INIT_DBG, "probe function\n");
 	wl_sdio = kzalloc(sizeof(struct wilc_sdio), GFP_KERNEL);
@@ -125,12 +125,13 @@ static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id 
 
 	PRINT_D(INIT_DBG, "Initializing netdev\n");
 	local_sdio_func = func;
-	if (wilc_netdev_init()) {
+	if (wilc_netdev_init(&wilc)) {
 		PRINT_ER("Couldn't initialize netdev\n");
 		kfree(wl_sdio);
 		return -1;
 	}
 	wl_sdio->func = func;
+	wl_sdio->wilc = wilc;
 	sdio_set_drvdata(func, wl_sdio);
 
 	printk("Driver Initializing success\n");
