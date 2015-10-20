@@ -304,8 +304,8 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 
 		gpio = gpio_name_to_desc(gc->names[i]);
 		if (gpio)
-			dev_warn(gc->parent, "Detected name collision for "
-				 "GPIO name '%s'\n",
+			dev_warn(&gc->gpiodev->dev,
+				 "Detected name collision for GPIO name '%s'\n",
 				 gc->names[i]);
 	}
 
@@ -528,7 +528,7 @@ void gpiochip_remove(struct gpio_chip *chip)
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	if (requested)
-		dev_crit(chip->parent,
+		dev_crit(&chip->gpiodev->dev,
 			 "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
 
 	/* FIXME: need to be moved to gpio_device and held there */
