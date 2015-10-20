@@ -418,14 +418,8 @@ static struct snd_soc_codec_driver soc_codec_dev_ad193x = {
 	.num_dapm_routes = ARRAY_SIZE(audio_paths),
 };
 
-static bool adau193x_reg_volatile(struct device *dev, unsigned int reg)
-{
-	return false;
-}
-
 const struct regmap_config ad193x_regmap_config = {
 	.max_register = AD193X_NUM_REGS - 1,
-	.volatile_reg = adau193x_reg_volatile,
 };
 EXPORT_SYMBOL_GPL(ad193x_regmap_config);
 
