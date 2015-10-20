@@ -180,7 +180,7 @@ static int imx7d_cpufreq_probe(struct platform_device *pdev)
 	pll_arm = devm_clk_get(cpu_dev, "pll_arm");
 	pll_sys_main = devm_clk_get(cpu_dev, "pll_sys_main");
 
-	if (IS_ERR(arm_clk) | IS_ERR(arm_src) | IS_ERR(pll_arm) |
+	if (IS_ERR(arm_clk) || IS_ERR(arm_src) || IS_ERR(pll_arm) ||
 	    IS_ERR(pll_sys_main)) {
 		dev_err(cpu_dev, "failed to get clocks\n");
 		ret = -ENOENT;
