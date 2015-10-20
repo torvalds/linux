@@ -389,9 +389,9 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 	return 0;
 }
 
-#ifdef DEBUG
 static void show_saved_mc(void)
 {
+#ifdef DEBUG
 	int i, j;
 	unsigned int sig, pf, rev, total_size, data_size, date;
 	struct ucode_cpu_info uci;
@@ -449,12 +449,8 @@ static void show_saved_mc(void)
 		}
 
 	}
-}
-#else
-static inline void show_saved_mc(void)
-{
-}
 #endif
+}
 
 #ifdef CONFIG_HOTPLUG_CPU
 static DEFINE_MUTEX(x86_cpu_microcode_mutex);
