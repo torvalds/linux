@@ -2397,12 +2397,11 @@ void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	struct wilc_priv *priv;
 	perInterface_wlan_t *nic;
-
+	struct wilc *wl;
 
 	priv = wiphy_priv(wiphy);
 	nic = netdev_priv(priv->wdev->netdev);
-
-
+	wl = nic->wilc;
 
 	if (!frame_type)
 		return;
@@ -2430,7 +2429,7 @@ void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	}
 	/*If mac is closed, then return*/
-	if (!g_linux_wlan->initialized) {
+	if (!wl->initialized) {
 		PRINT_D(GENERIC_DBG, "Return since mac is closed\n");
 		return;
 	}
