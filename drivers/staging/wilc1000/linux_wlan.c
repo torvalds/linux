@@ -1383,6 +1383,7 @@ int mac_close(struct net_device *ndev)
 	struct wilc_priv *priv;
 	perInterface_wlan_t *nic;
 	struct host_if_drv *pstrWFIDrv;
+	struct wilc *wl;
 
 	nic = netdev_priv(ndev);
 
@@ -1392,6 +1393,7 @@ int mac_close(struct net_device *ndev)
 	}
 
 	priv = wiphy_priv(nic->wilc_netdev->ieee80211_ptr->wiphy);
+	wl = nic->wilc;
 
 	if (priv == NULL) {
 		PRINT_ER("priv = NULL\n");
@@ -1402,8 +1404,8 @@ int mac_close(struct net_device *ndev)
 
 	PRINT_D(GENERIC_DBG, "Mac close\n");
 
-	if (g_linux_wlan == NULL) {
-		PRINT_ER("g_linux_wlan = NULL\n");
+	if (!wl) {
+		PRINT_ER("wl = NULL\n");
 		return 0;
 	}
 
@@ -1412,8 +1414,8 @@ int mac_close(struct net_device *ndev)
 		return 0;
 	}
 
-	if ((g_linux_wlan->open_ifcs) > 0) {
-		g_linux_wlan->open_ifcs--;
+	if ((wl->open_ifcs) > 0) {
+		wl->open_ifcs--;
 	} else {
 		PRINT_ER("ERROR: MAC close called while number of opened interfaces is zero\n");
 		return 0;
@@ -1426,10 +1428,10 @@ int mac_close(struct net_device *ndev)
 		wilc_deinit_host_int(nic->wilc_netdev);
 	}
 
-	if (g_linux_wlan->open_ifcs == 0) {
+	if (wl->open_ifcs == 0) {
 		PRINT_D(GENERIC_DBG, "Deinitializing wilc1000\n");
-		g_linux_wlan->close = 1;
-		wilc1000_wlan_deinit(g_linux_wlan);
+		wl->close = 1;
+		wilc1000_wlan_deinit(wl);
 		WILC_WFI_deinit_mon_interface();
 	}
 
