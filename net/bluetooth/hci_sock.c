@@ -335,6 +335,12 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 		opcode = cpu_to_le16(HCI_MON_DEL_INDEX);
 		break;
 
+	case HCI_DEV_SETUP:
+		if (hdev->manufacturer == 0xffff)
+			return NULL;
+
+		/* fall through */
+
 	case HCI_DEV_UP:
 		skb = bt_skb_alloc(HCI_MON_INDEX_INFO_SIZE, GFP_ATOMIC);
 		if (!skb)
@@ -403,15 +409,17 @@ static void send_monitor_replay(struct sock *sk)
 		if (sock_queue_rcv_skb(sk, skb))
 			kfree_skb(skb);
 
-		if (!test_bit(HCI_UP, &hdev->flags))
-			continue;
+		if (test_bit(HCI_UP, &hdev->flags))
+			skb = create_monitor_event(hdev, HCI_DEV_UP);
+		else if (hci_dev_test_flag(hdev, HCI_SETUP))
+			skb = create_monitor_event(hdev, HCI_DEV_SETUP);
+		else
+			skb = NULL;
 
-		skb = create_monitor_event(hdev, HCI_DEV_UP);
-		if (!skb)
-			continue;
-
-		if (sock_queue_rcv_skb(sk, skb))
-			kfree_skb(skb);
+		if (skb) {
+			if (sock_queue_rcv_skb(sk, skb))
+				kfree_skb(skb);
+		}
 	}
 
 	read_unlock(&hci_dev_list_lock);
