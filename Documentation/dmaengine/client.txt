@@ -128,7 +128,7 @@ The slave DMA usage consists of following steps:
 	transaction.
 
 	For cyclic DMA, a callback function may wish to terminate the
-	DMA via dmaengine_terminate_all().
+	DMA via dmaengine_terminate_async().
 
 	Therefore, it is important that DMA engine drivers drop any
 	locks before calling the callback function which may cause a
@@ -166,11 +166,28 @@ The slave DMA usage consists of following steps:
 
 Further APIs:
 
-1. int dmaengine_terminate_all(struct dma_chan *chan)
+1. int dmaengine_terminate_sync(struct dma_chan *chan)
+   int dmaengine_terminate_async(struct dma_chan *chan)
+   int dmaengine_terminate_all(struct dma_chan *chan) /* DEPRECATED */
 
    This causes all activity for the DMA channel to be stopped, and may
    discard data in the DMA FIFO which hasn't been fully transferred.
    No callback functions will be called for any incomplete transfers.
+
+   Two variants of this function are available.
+
+   dmaengine_terminate_async() might not wait until the DMA has been fully
+   stopped or until any running complete callbacks have finished. But it is
+   possible to call dmaengine_terminate_async() from atomic context or from
+   within a complete callback. dmaengine_synchronize() must be called before it
+   is safe to free the memory accessed by the DMA transfer or free resources
+   accessed from within the complete callback.
+
+   dmaengine_terminate_sync() will wait for the transfer and any running
+   complete callbacks to finish before it returns. But the function must not be
+   called from atomic context or from within a complete callback.
+
+   dmaengine_terminate_all() is deprecated and should not be used in new code.
 
 2. int dmaengine_pause(struct dma_chan *chan)
 
@@ -197,3 +214,20 @@ Further APIs:
 	a running DMA channel.  It is recommended that DMA engine users
 	pause or stop (via dmaengine_terminate_all()) the channel before
 	using this API.
+
+5. void dmaengine_synchronize(struct dma_chan *chan)
+
+  Synchronize the termination of the DMA channel to the current context.
+
+  This function should be used after dmaengine_terminate_async() to synchronize
+  the termination of the DMA channel to the current context. The function will
+  wait for the transfer and any running complete callbacks to finish before it
+  returns.
+
+  If dmaengine_terminate_async() is used to stop the DMA channel this function
+  must be called before it is safe to free memory accessed by previously
+  submitted descriptors or to free any resources accessed within the complete
+  callback of previously submitted descriptors.
+
+  The behavior of this function is undefined if dma_async_issue_pending() has
+  been called between dmaengine_terminate_async() and this function.
