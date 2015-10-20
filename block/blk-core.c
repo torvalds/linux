@@ -1594,6 +1594,30 @@ out:
 	return ret;
 }
 
+unsigned int blk_plug_queued_count(struct request_queue *q)
+{
+	struct blk_plug *plug;
+	struct request *rq;
+	struct list_head *plug_list;
+	unsigned int ret = 0;
+
+	plug = current->plug;
+	if (!plug)
+		goto out;
+
+	if (q->mq_ops)
+		plug_list = &plug->mq_list;
+	else
+		plug_list = &plug->list;
+
+	list_for_each_entry(rq, plug_list, queuelist) {
+		if (rq->q == q)
+			ret++;
+	}
+out:
+	return ret;
+}
+
 void init_request_from_bio(struct request *req, struct bio *bio)
 {
 	req->cmd_type = REQ_TYPE_FS;
@@ -1641,9 +1665,11 @@ static void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 * Check if we can merge with the plugged list before grabbing
 	 * any locks.
 	 */
-	if (!blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &request_count, NULL))
-		return;
+	if (!blk_queue_nomerges(q)) {
+		if (blk_attempt_plug_merge(q, bio, &request_count, NULL))
+			return;
+	} else
+		request_count = blk_plug_queued_count(q);
 
 	spin_lock_irq(q->queue_lock);
 
