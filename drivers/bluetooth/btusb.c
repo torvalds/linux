@@ -2931,8 +2931,10 @@ static int btusb_probe(struct usb_interface *intf,
 		set_bit(HCI_QUIRK_BROKEN_LOCAL_COMMANDS, &hdev->quirks);
 	}
 
-	if (id->driver_info & BTUSB_INTEL_BOOT)
+	if (id->driver_info & BTUSB_INTEL_BOOT) {
+		hdev->manufacturer = 2;
 		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
+	}
 
 	if (id->driver_info & BTUSB_ATH3012) {
 		hdev->set_bdaddr = btusb_set_bdaddr_ath3012;
