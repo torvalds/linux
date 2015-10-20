@@ -441,6 +441,10 @@ static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 	while (p < end) {
 		dev = (struct ivhd_entry *)p;
 		switch (dev->type) {
+		case IVHD_DEV_ALL:
+			/* Use maximum BDF value for DEV_ALL */
+			update_last_devid(0xffff);
+			break;
 		case IVHD_DEV_SELECT:
 		case IVHD_DEV_RANGE_END:
 		case IVHD_DEV_ALIAS:
