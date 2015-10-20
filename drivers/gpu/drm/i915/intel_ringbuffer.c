@@ -924,14 +924,14 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 
 	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) == SKL_REVID_A0 ||
 	    INTEL_REVID(dev) == SKL_REVID_B0)) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0)) {
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1)) {
 		/* WaDisableDgMirrorFixInHalfSliceChicken5:skl,bxt */
 		WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 				  GEN9_DG_MIRROR_FIX_ENABLE);
 	}
 
 	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0)) {
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1)) {
 		/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl,bxt */
 		WA_SET_BIT_MASKED(GEN7_COMMON_SLICE_CHICKEN1,
 				  GEN9_RHWO_OPTIMIZATION_DISABLE);
@@ -960,7 +960,7 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 
 	/* WaDisableMaskBasedCammingInRCC:skl,bxt */
 	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) == SKL_REVID_C0) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0))
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1))
 		WA_SET_BIT_MASKED(SLICE_ECO_CHICKEN0,
 				  PIXEL_MASK_CAMMING_DISABLE);
 

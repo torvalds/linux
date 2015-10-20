@@ -1946,7 +1946,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 		ring->init_hw = gen8_init_render_ring;
 	ring->init_context = gen8_init_rcs_context;
 	ring->cleanup = intel_fini_pipe_control;
-	if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0) {
+	if (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1) {
 		ring->get_seqno = bxt_a_get_seqno;
 		ring->set_seqno = bxt_a_set_seqno;
 	} else {
@@ -1998,7 +1998,7 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
 
 	ring->init_hw = gen8_init_common_ring;
-	if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0) {
+	if (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1) {
 		ring->get_seqno = bxt_a_get_seqno;
 		ring->set_seqno = bxt_a_set_seqno;
 	} else {
@@ -2053,7 +2053,7 @@ static int logical_blt_ring_init(struct drm_device *dev)
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 
 	ring->init_hw = gen8_init_common_ring;
-	if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0) {
+	if (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1) {
 		ring->get_seqno = bxt_a_get_seqno;
 		ring->set_seqno = bxt_a_set_seqno;
 	} else {
@@ -2083,7 +2083,7 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
 
 	ring->init_hw = gen8_init_common_ring;
-	if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0) {
+	if (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A1) {
 		ring->get_seqno = bxt_a_get_seqno;
 		ring->set_seqno = bxt_a_set_seqno;
 	} else {

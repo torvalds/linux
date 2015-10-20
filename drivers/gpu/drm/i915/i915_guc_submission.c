@@ -161,7 +161,7 @@ static int host2guc_sample_forcewake(struct intel_guc *guc,
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
 	/* WaRsDisableCoarsePowerGating:skl,bxt */
 	if (!intel_enable_rc6(dev_priv->dev) ||
-	    (IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
+	    (IS_BROXTON(dev) && (INTEL_REVID(dev) <= BXT_REVID_A1)) ||
 	    (IS_SKL_GT3(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)) ||
 	    (IS_SKL_GT4(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)))
 		data[1] = 0;

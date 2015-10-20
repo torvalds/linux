@@ -2502,6 +2502,7 @@ struct drm_i915_cmd_table {
 #define SKL_REVID_F0		0x5
 
 #define BXT_REVID_A0		0x0
+#define BXT_REVID_A1		0x1
 #define BXT_REVID_B0		0x3
 #define BXT_REVID_C0		0x9
 

@@ -4386,7 +4386,7 @@ static void gen6_set_rps(struct drm_device *dev, u8 val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* WaGsvDisableTurbo: Workaround to disable turbo on BXT A* */
-	if (IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0))
+	if (IS_BROXTON(dev) && (INTEL_REVID(dev) <= BXT_REVID_A1))
 		return;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
@@ -4710,7 +4710,7 @@ static void gen9_enable_rps(struct drm_device *dev)
 	gen6_init_rps_frequencies(dev);
 
 	/* WaGsvDisableTurbo: Workaround to disable turbo on BXT A* */
-	if (IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) {
+	if (IS_BROXTON(dev) && (INTEL_REVID(dev) <= BXT_REVID_A1)) {
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 		return;
 	}
@@ -4796,7 +4796,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
 	 * WaRsDisableCoarsePowerGating:skl,bxt - Render/Media PG need to be disabled with RC6.
 	 */
-	if ((IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
+	if ((IS_BROXTON(dev) && (INTEL_REVID(dev) <= BXT_REVID_A1)) ||
 	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) && (INTEL_REVID(dev) <= SKL_REVID_E0)))
 		I915_WRITE(GEN9_PG_ENABLE, 0);
 	else
