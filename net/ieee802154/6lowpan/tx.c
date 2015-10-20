@@ -238,7 +238,7 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 	/* if the destination address is the broadcast address, use the
 	 * corresponding short address
 	 */
-	if (lowpan_is_addr_broadcast((const u8 *)daddr)) {
+	if (!memcmp(daddr, ldev->broadcast, EUI64_ADDR_LEN)) {
 		da.mode = IEEE802154_ADDR_SHORT;
 		da.short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 		cb->ackreq = false;

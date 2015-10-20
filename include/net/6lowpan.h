@@ -74,16 +74,6 @@
 					 LOWPAN_IPHC_MAX_HEADER_LEN +	\
 					 LOWPAN_NHC_MAX_HDR_LEN)
 
-#define lowpan_is_addr_broadcast(a)	\
-	((((a)[0]) == 0xFF) &&	\
-	 (((a)[1]) == 0xFF) &&	\
-	 (((a)[2]) == 0xFF) &&	\
-	 (((a)[3]) == 0xFF) &&	\
-	 (((a)[4]) == 0xFF) &&	\
-	 (((a)[5]) == 0xFF) &&	\
-	 (((a)[6]) == 0xFF) &&	\
-	 (((a)[7]) == 0xFF))
-
 #define LOWPAN_DISPATCH_IPV6		0x41 /* 01000001 = 65 */
 #define LOWPAN_DISPATCH_IPHC		0x60 /* 011xxxxx = ... */
 #define LOWPAN_DISPATCH_IPHC_MASK	0xe0
