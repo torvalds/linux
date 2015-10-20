@@ -547,6 +547,7 @@ static struct class gpio_class = {
 int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 {
 	struct gpio_chip	*chip;
+	struct gpio_device	*gdev;
 	struct gpiod_data	*data;
 	unsigned long		flags;
 	int			status;
@@ -566,6 +567,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	}
 
 	chip = desc->chip;
+	gdev = chip->gpiodev;
 
 	mutex_lock(&sysfs_lock);
 
@@ -605,7 +607,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	if (chip->names && chip->names[offset])
 		ioname = chip->names[offset];
 
-	dev = device_create_with_groups(&gpio_class, chip->parent,
+	dev = device_create_with_groups(&gpio_class, &gdev->dev,
 					MKDEV(0, 0), data, gpio_groups,
 					ioname ? ioname : "gpio%u",
 					desc_to_gpio(desc));
@@ -771,7 +773,7 @@ static int __init gpiolib_sysfs_init(void)
 {
 	int		status;
 	unsigned long	flags;
-	struct gpio_chip *chip;
+	struct gpio_device *gdev;
 
 	status = class_register(&gpio_class);
 	if (status < 0)
@@ -784,8 +786,8 @@ static int __init gpiolib_sysfs_init(void)
 	 * registered, and so arch_initcall() can always gpio_export().
 	 */
 	spin_lock_irqsave(&gpio_lock, flags);
-	list_for_each_entry(chip, &gpio_chips, list) {
-		if (chip->cdev)
+	list_for_each_entry(gdev, &gpio_devices, list) {
+		if (gdev->chip->cdev)
 			continue;
 
 		/*
@@ -798,7 +800,7 @@ static int __init gpiolib_sysfs_init(void)
 		 * gpio_lock prevents us from doing this.
 		 */
 		spin_unlock_irqrestore(&gpio_lock, flags);
-		status = gpiochip_sysfs_register(chip);
+		status = gpiochip_sysfs_register(gdev->chip);
 		spin_lock_irqsave(&gpio_lock, flags);
 	}
 	spin_unlock_irqrestore(&gpio_lock, flags);

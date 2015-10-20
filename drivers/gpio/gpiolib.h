@@ -12,12 +12,37 @@
 #ifndef GPIOLIB_H
 #define GPIOLIB_H
 
+#include <linux/gpio/driver.h>
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/module.h>
+#include <linux/cdev.h>
 
 enum of_gpio_flags;
 enum gpiod_flags;
 struct acpi_device;
+
+/**
+ * struct gpio_device - internal state container for GPIO devices
+ * @id: numerical ID number for the GPIO chip
+ * @dev: the GPIO device struct
+ * @owner: helps prevent removal of modules exporting active GPIOs
+ * @chip: pointer to the corresponding gpiochip, holding static
+ * data for this device
+ * @list: links gpio_device:s together for traversal
+ *
+ * This state container holds most of the runtime variable data
+ * for a GPIO device and can hold references and live on after the
+ * GPIO chip has been removed, if it is still being used from
+ * userspace.
+ */
+struct gpio_device {
+	int			id;
+	struct device		dev;
+	struct module		*owner;
+	struct gpio_chip	*chip;
+	struct list_head        list;
+};
 
 /**
  * struct acpi_gpio_info - ACPI GPIO specific information
@@ -90,7 +115,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip, u16 hwnum);
 
 extern struct spinlock gpio_lock;
-extern struct list_head gpio_chips;
+extern struct list_head gpio_devices;
 
 struct gpio_desc {
 	struct gpio_chip	*chip;
