@@ -151,7 +151,7 @@ typedef struct {
 struct wilc_vif {
 	u8 src_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
-	struct host_if_drv *drvHandler;
+	struct host_if_drv *hif_drv;
 	struct net_device *wilc_netdev;
 };
 

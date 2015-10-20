@@ -1314,7 +1314,7 @@ int mac_open(struct net_device *ndev)
 	for (i = 0; i < g_linux_wlan->vif_num; i++) {
 		if (ndev == g_linux_wlan->vif[i].wilc_netdev) {
 			memcpy(g_linux_wlan->vif[i].src_addr, mac_add, ETH_ALEN);
-			g_linux_wlan->vif[i].drvHandler = priv->hWILCWFIDrv;
+			g_linux_wlan->vif[i].hif_drv = priv->hWILCWFIDrv;
 			break;
 		}
 	}

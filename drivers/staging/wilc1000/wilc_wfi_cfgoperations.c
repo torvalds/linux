@@ -2585,16 +2585,16 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			nic->iftype = interface_type;
 
 			/*Setting interface 1 drv handler and mac address in newly downloaded FW*/
-			host_int_set_wfi_drv_handler(g_linux_wlan->vif[0].drvHandler);
-			host_int_set_MacAddress(g_linux_wlan->vif[0].drvHandler,
+			host_int_set_wfi_drv_handler(g_linux_wlan->vif[0].hif_drv);
+			host_int_set_MacAddress(g_linux_wlan->vif[0].hif_drv,
 						g_linux_wlan->vif[0].src_addr);
 			host_int_set_operation_mode(priv->hWILCWFIDrv, STATION_MODE);
 
 			/*Add saved WEP keys, if any*/
 			if (g_wep_keys_saved) {
-				host_int_set_WEPDefaultKeyID(g_linux_wlan->vif[0].drvHandler,
+				host_int_set_WEPDefaultKeyID(g_linux_wlan->vif[0].hif_drv,
 							     g_key_wep_params.key_idx);
-				host_int_add_wep_key_bss_sta(g_linux_wlan->vif[0].drvHandler,
+				host_int_add_wep_key_bss_sta(g_linux_wlan->vif[0].hif_drv,
 							     g_key_wep_params.key,
 							     g_key_wep_params.key_len,
 							     g_key_wep_params.key_idx);
@@ -2666,16 +2666,16 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			wilc1000_wlan_init(dev, nic);
 			g_wilc_initialized = 1;
 
-			host_int_set_wfi_drv_handler(g_linux_wlan->vif[0].drvHandler);
-			host_int_set_MacAddress(g_linux_wlan->vif[0].drvHandler,
+			host_int_set_wfi_drv_handler(g_linux_wlan->vif[0].hif_drv);
+			host_int_set_MacAddress(g_linux_wlan->vif[0].hif_drv,
 						g_linux_wlan->vif[0].src_addr);
 			host_int_set_operation_mode(priv->hWILCWFIDrv, STATION_MODE);
 
 			/*Add saved WEP keys, if any*/
 			if (g_wep_keys_saved) {
-				host_int_set_WEPDefaultKeyID(g_linux_wlan->vif[0].drvHandler,
+				host_int_set_WEPDefaultKeyID(g_linux_wlan->vif[0].hif_drv,
 							     g_key_wep_params.key_idx);
-				host_int_add_wep_key_bss_sta(g_linux_wlan->vif[0].drvHandler,
+				host_int_add_wep_key_bss_sta(g_linux_wlan->vif[0].hif_drv,
 							     g_key_wep_params.key,
 							     g_key_wep_params.key_len,
 							     g_key_wep_params.key_idx);
@@ -2781,16 +2781,16 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 
 		/*Setting interface 1 drv handler and mac address in newly downloaded FW*/
-		host_int_set_wfi_drv_handler(g_linux_wlan->vif[0].drvHandler);
-		host_int_set_MacAddress(g_linux_wlan->vif[0].drvHandler,
+		host_int_set_wfi_drv_handler(g_linux_wlan->vif[0].hif_drv);
+		host_int_set_MacAddress(g_linux_wlan->vif[0].hif_drv,
 					g_linux_wlan->vif[0].src_addr);
 		host_int_set_operation_mode(priv->hWILCWFIDrv, AP_MODE);
 
 		/*Add saved WEP keys, if any*/
 		if (g_wep_keys_saved) {
-			host_int_set_WEPDefaultKeyID(g_linux_wlan->vif[0].drvHandler,
+			host_int_set_WEPDefaultKeyID(g_linux_wlan->vif[0].hif_drv,
 						     g_key_wep_params.key_idx);
-			host_int_add_wep_key_bss_sta(g_linux_wlan->vif[0].drvHandler,
+			host_int_add_wep_key_bss_sta(g_linux_wlan->vif[0].hif_drv,
 						     g_key_wep_params.key,
 						     g_key_wep_params.key_len,
 						     g_key_wep_params.key_idx);
