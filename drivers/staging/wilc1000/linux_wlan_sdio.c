@@ -136,10 +136,7 @@ static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id 
 
 static void linux_sdio_remove(struct sdio_func *func)
 {
-	/**
-	 *      TODO
-	 **/
-
+	wl_wlan_cleanup();
 }
 
 struct sdio_driver wilc_bus = {

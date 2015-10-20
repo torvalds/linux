@@ -213,5 +213,5 @@ void linux_wlan_mac_indicate(int flag);
 void linux_wlan_rx_complete(void);
 void linux_wlan_dbg(u8 *buff);
 int linux_wlan_lock_timeout(void *vp, u32 timeout);
-
+void wl_wlan_cleanup(void);
 #endif
