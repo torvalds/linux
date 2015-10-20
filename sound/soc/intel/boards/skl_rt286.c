@@ -240,18 +240,11 @@ static int skylake_audio_probe(struct platform_device *pdev)
 {
 	skylake_rt286.dev = &pdev->dev;
 
-	return snd_soc_register_card(&skylake_rt286);
-}
-
-static int skylake_audio_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&skylake_rt286);
-	return 0;
+	return devm_snd_soc_register_card(&pdev->dev, &skylake_rt286);
 }
 
 static struct platform_driver skylake_audio = {
 	.probe = skylake_audio_probe,
-	.remove = skylake_audio_remove,
 	.driver = {
 		.name = "skl_alc286s_i2s",
 	},
