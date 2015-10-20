@@ -23,8 +23,6 @@ include $(src)/Makefile
 PHONY += __dtbs_install_prep
 __dtbs_install_prep:
 ifeq ("$(dtbinst-root)", "$(obj)")
-	$(Q)if [ -d $(INSTALL_DTBS_PATH).old ]; then rm -rf $(INSTALL_DTBS_PATH).old; fi
-	$(Q)if [ -d $(INSTALL_DTBS_PATH) ]; then mv $(INSTALL_DTBS_PATH) $(INSTALL_DTBS_PATH).old; fi
 	$(Q)mkdir -p $(INSTALL_DTBS_PATH)
 endif
 
