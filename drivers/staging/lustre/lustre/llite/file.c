@@ -1260,7 +1260,7 @@ static int ll_lov_recreate(struct inode *inode, struct ost_id *oi, u32 ost_idx)
 	int rc = 0;
 	struct lov_stripe_md *lsm = NULL, *lsm2;
 
-	OBDO_ALLOC(oa);
+	oa = kmem_cache_alloc(obdo_cachep, GFP_NOFS | __GFP_ZERO);
 	if (oa == NULL)
 		return -ENOMEM;
 

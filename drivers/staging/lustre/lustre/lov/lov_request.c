@@ -202,7 +202,7 @@ static int common_attr_done(struct lov_request_set *set)
 	if (!atomic_read(&set->set_success))
 		return -EIO;
 
-	OBDO_ALLOC(tmp_oa);
+	tmp_oa = kmem_cache_alloc(obdo_cachep, GFP_NOFS | __GFP_ZERO);
 	if (tmp_oa == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -309,7 +309,8 @@ int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 		req->rq_stripe = i;
 		req->rq_idx = loi->loi_ost_idx;
 
-		OBDO_ALLOC(req->rq_oi.oi_oa);
+		req->rq_oi.oi_oa = kmem_cache_alloc(obdo_cachep,
+						    GFP_NOFS | __GFP_ZERO);
 		if (req->rq_oi.oi_oa == NULL) {
 			kfree(req);
 			rc = -ENOMEM;
@@ -391,7 +392,8 @@ int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
 		req->rq_stripe = i;
 		req->rq_idx = loi->loi_ost_idx;
 
-		OBDO_ALLOC(req->rq_oi.oi_oa);
+		req->rq_oi.oi_oa = kmem_cache_alloc(obdo_cachep,
+						    GFP_NOFS | __GFP_ZERO);
 		if (req->rq_oi.oi_oa == NULL) {
 			kfree(req);
 			rc = -ENOMEM;
@@ -506,7 +508,8 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 		req->rq_stripe = i;
 		req->rq_idx = loi->loi_ost_idx;
 
-		OBDO_ALLOC(req->rq_oi.oi_oa);
+		req->rq_oi.oi_oa = kmem_cache_alloc(obdo_cachep,
+						    GFP_NOFS | __GFP_ZERO);
 		if (req->rq_oi.oi_oa == NULL) {
 			kfree(req);
 			rc = -ENOMEM;
