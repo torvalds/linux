@@ -856,7 +856,6 @@ struct kvm_x86_ops {
 	u64 (*read_tsc_offset)(struct kvm_vcpu *vcpu);
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
-	u64 (*compute_tsc_offset)(struct kvm_vcpu *vcpu, u64 target_tsc);
 	u64 (*read_l1_tsc)(struct kvm_vcpu *vcpu, u64 host_tsc);
 
 	void (*get_exit_info)(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2);

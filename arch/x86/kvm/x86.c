@@ -1392,6 +1392,15 @@ u64 kvm_scale_tsc(struct kvm_vcpu *vcpu, u64 tsc)
 }
 EXPORT_SYMBOL_GPL(kvm_scale_tsc);
 
+static u64 kvm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
+{
+	u64 tsc;
+
+	tsc = kvm_scale_tsc(vcpu, rdtsc());
+
+	return target_tsc - tsc;
+}
+
 void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 {
 	struct kvm *kvm = vcpu->kvm;
@@ -1403,7 +1412,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	u64 data = msr->data;
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
-	offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
+	offset = kvm_compute_tsc_offset(vcpu, data);
 	ns = get_kernel_ns();
 	elapsed = ns - kvm->arch.last_tsc_nsec;
 
@@ -1460,7 +1469,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		} else {
 			u64 delta = nsec_to_cycles(vcpu, elapsed);
 			data += delta;
-			offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
+			offset = kvm_compute_tsc_offset(vcpu, data);
 			pr_debug("kvm: adjusted tsc offset by %llu\n", delta);
 		}
 		matched = true;
@@ -2687,7 +2696,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		if (tsc_delta < 0)
 			mark_tsc_unstable("KVM discovered backwards TSC");
 		if (check_tsc_unstable()) {
-			u64 offset = kvm_x86_ops->compute_tsc_offset(vcpu,
+			u64 offset = kvm_compute_tsc_offset(vcpu,
 						vcpu->arch.last_guest_tsc);
 			kvm_x86_ops->write_tsc_offset(vcpu, offset);
 			vcpu->arch.tsc_catchup = 1;

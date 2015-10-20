@@ -1004,15 +1004,6 @@ static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool ho
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
-static u64 svm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
-{
-	u64 tsc;
-
-	tsc = kvm_scale_tsc(vcpu, rdtsc());
-
-	return target_tsc - tsc;
-}
-
 static void init_vmcb(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
@@ -4370,7 +4361,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.read_tsc_offset = svm_read_tsc_offset,
 	.write_tsc_offset = svm_write_tsc_offset,
 	.adjust_tsc_offset = svm_adjust_tsc_offset,
-	.compute_tsc_offset = svm_compute_tsc_offset,
 	.read_l1_tsc = svm_read_l1_tsc,
 
 	.set_tdp_cr3 = set_tdp_cr3,

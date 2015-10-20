@@ -2426,11 +2426,6 @@ static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool ho
 					   offset + adjustment);
 }
 
-static u64 vmx_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
-{
-	return target_tsc - rdtsc();
-}
-
 static bool guest_cpuid_has_vmx(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best = kvm_find_cpuid_entry(vcpu, 1, 0);
@@ -10813,7 +10808,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.read_tsc_offset = vmx_read_tsc_offset,
 	.write_tsc_offset = vmx_write_tsc_offset,
 	.adjust_tsc_offset = vmx_adjust_tsc_offset,
-	.compute_tsc_offset = vmx_compute_tsc_offset,
 	.read_l1_tsc = vmx_read_l1_tsc,
 
 	.set_tdp_cr3 = vmx_set_cr3,
