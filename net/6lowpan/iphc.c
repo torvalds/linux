@@ -58,6 +58,94 @@
 
 #include "nhc.h"
 
+/* Values of fields within the IPHC encoding first byte
+ * (C stands for compressed and I for inline)
+ */
+#define LOWPAN_IPHC_TF		0x18
+
+#define LOWPAN_IPHC_FL_C	0x10
+#define LOWPAN_IPHC_TC_C	0x08
+#define LOWPAN_IPHC_NH_C	0x04
+#define LOWPAN_IPHC_TTL_1	0x01
+#define LOWPAN_IPHC_TTL_64	0x02
+#define LOWPAN_IPHC_TTL_255	0x03
+#define LOWPAN_IPHC_TTL_I	0x00
+
+/* Values of fields within the IPHC encoding second byte */
+#define LOWPAN_IPHC_CID		0x80
+
+#define LOWPAN_IPHC_ADDR_00	0x00
+#define LOWPAN_IPHC_ADDR_01	0x01
+#define LOWPAN_IPHC_ADDR_02	0x02
+#define LOWPAN_IPHC_ADDR_03	0x03
+
+#define LOWPAN_IPHC_SAC		0x40
+#define LOWPAN_IPHC_SAM		0x30
+
+#define LOWPAN_IPHC_SAM_BIT	4
+
+#define LOWPAN_IPHC_M		0x08
+#define LOWPAN_IPHC_DAC		0x04
+#define LOWPAN_IPHC_DAM_00	0x00
+#define LOWPAN_IPHC_DAM_01	0x01
+#define LOWPAN_IPHC_DAM_10	0x02
+#define LOWPAN_IPHC_DAM_11	0x03
+
+#define LOWPAN_IPHC_DAM_BIT	0
+
+/* ipv6 address based on mac
+ * second bit-flip (Universe/Local) is done according RFC2464
+ */
+#define is_addr_mac_addr_based(a, m) \
+	((((a)->s6_addr[8])  == (((m)[0]) ^ 0x02)) &&	\
+	 (((a)->s6_addr[9])  == (m)[1]) &&		\
+	 (((a)->s6_addr[10]) == (m)[2]) &&		\
+	 (((a)->s6_addr[11]) == (m)[3]) &&		\
+	 (((a)->s6_addr[12]) == (m)[4]) &&		\
+	 (((a)->s6_addr[13]) == (m)[5]) &&		\
+	 (((a)->s6_addr[14]) == (m)[6]) &&		\
+	 (((a)->s6_addr[15]) == (m)[7]))
+
+/* check whether we can compress the IID to 16 bits,
+ * it's possible for unicast addresses with first 49 bits are zero only.
+ */
+#define lowpan_is_iid_16_bit_compressable(a)	\
+	((((a)->s6_addr16[4]) == 0) &&		\
+	 (((a)->s6_addr[10]) == 0) &&		\
+	 (((a)->s6_addr[11]) == 0xff) &&	\
+	 (((a)->s6_addr[12]) == 0xfe) &&	\
+	 (((a)->s6_addr[13]) == 0))
+
+/* check whether the 112-bit gid of the multicast address is mappable to: */
+
+/* 48 bits, FFXX::00XX:XXXX:XXXX */
+#define lowpan_is_mcast_addr_compressable48(a)	\
+	((((a)->s6_addr16[1]) == 0) &&		\
+	 (((a)->s6_addr16[2]) == 0) &&		\
+	 (((a)->s6_addr16[3]) == 0) &&		\
+	 (((a)->s6_addr16[4]) == 0) &&		\
+	 (((a)->s6_addr[10]) == 0))
+
+/* 32 bits, FFXX::00XX:XXXX */
+#define lowpan_is_mcast_addr_compressable32(a)	\
+	((((a)->s6_addr16[1]) == 0) &&		\
+	 (((a)->s6_addr16[2]) == 0) &&		\
+	 (((a)->s6_addr16[3]) == 0) &&		\
+	 (((a)->s6_addr16[4]) == 0) &&		\
+	 (((a)->s6_addr16[5]) == 0) &&		\
+	 (((a)->s6_addr[12]) == 0))
+
+/* 8 bits, FF02::00XX */
+#define lowpan_is_mcast_addr_compressable8(a)	\
+	((((a)->s6_addr[1])  == 2) &&		\
+	 (((a)->s6_addr16[1]) == 0) &&		\
+	 (((a)->s6_addr16[2]) == 0) &&		\
+	 (((a)->s6_addr16[3]) == 0) &&		\
+	 (((a)->s6_addr16[4]) == 0) &&		\
+	 (((a)->s6_addr16[5]) == 0) &&		\
+	 (((a)->s6_addr16[6]) == 0) &&		\
+	 (((a)->s6_addr[14]) == 0))
+
 static inline void iphc_uncompress_eui64_lladdr(struct in6_addr *ipaddr,
 						const void *lladdr)
 {

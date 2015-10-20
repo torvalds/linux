@@ -14,6 +14,9 @@
 
 #include "6lowpan_i.h"
 
+#define LOWPAN_FRAG1_HEAD_SIZE	0x4
+#define LOWPAN_FRAGN_HEAD_SIZE	0x5
+
 /* don't save pan id, it's intra pan */
 struct lowpan_addr {
 	u8 mode;
