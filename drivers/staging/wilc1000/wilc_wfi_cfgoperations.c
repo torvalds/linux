@@ -1360,11 +1360,15 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		   const u8 *mac_addr)
 {
 	struct wilc_priv *priv;
+	struct wilc *wl;
+	perInterface_wlan_t *nic;
 
 	priv = wiphy_priv(wiphy);
+	nic = netdev_priv(netdev);
+	wl = nic->wilc;
 
 	/*delete saved keys, if any*/
-	if (netdev == g_linux_wlan->vif[0].ndev) {
+	if (netdev == wl->vif[0].ndev) {
 		g_ptk_keys_saved = false;
 		g_gtk_keys_saved = false;
 		g_wep_keys_saved = false;
