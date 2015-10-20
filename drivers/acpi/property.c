@@ -71,7 +71,14 @@ static bool acpi_nondev_subnode_ok(acpi_handle scope,
 	if (acpi_extract_properties(buf.pointer, &dn->data))
 		dn->handle = handle;
 
-	if (acpi_enumerate_nondev_subnodes(scope, buf.pointer, &dn->data))
+	/*
+	 * The scope for the subnode object lookup is the one of the namespace
+	 * node (device) containing the object that has returned the package.
+	 * That is, it's the scope of that object's parent.
+	 */
+	status = acpi_get_parent(handle, &scope);
+	if (ACPI_SUCCESS(status)
+	    && acpi_enumerate_nondev_subnodes(scope, buf.pointer, &dn->data))
 		dn->handle = handle;
 
 	if (dn->handle) {
