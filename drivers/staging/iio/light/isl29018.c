@@ -370,7 +370,7 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_INT_TIME:
 		if (chan->type == IIO_LIGHT) {
-			if (val != 0) {
+			if (val) {
 				mutex_unlock(&chip->lock);
 				return -EINVAL;
 			}
@@ -716,7 +716,7 @@ static int isl29018_probe(struct i2c_client *client,
 	int dev_id = 0;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
-	if (indio_dev == NULL) {
+	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation fails\n");
 		return -ENOMEM;
 	}

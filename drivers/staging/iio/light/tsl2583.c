@@ -263,7 +263,7 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 	if ((ch0 >= chip->als_saturation) || (ch1 >= chip->als_saturation))
 		goto return_max;
 
-	if (ch0 == 0) {
+	if (!ch0) {
 		/* have no data, so return LAST VALUE */
 		ret = chip->als_cur_info.lux = 0;
 		goto out_unlock;
@@ -415,7 +415,7 @@ static int taos_chip_on(struct iio_dev *indio_dev)
 
 	/* determine als integration register */
 	als_count = (chip->taos_settings.als_time * 100 + 135) / 270;
-	if (als_count == 0)
+	if (!als_count)
 		als_count = 1; /* ensure at least one cycle */
 
 	/* convert back to time (encompasses overrides) */
@@ -499,7 +499,7 @@ static ssize_t taos_power_state_store(struct device *dev,
 	if (kstrtoint(buf, 0, &value))
 		return -EINVAL;
 
-	if (value == 0)
+	if (!value)
 		taos_chip_off(indio_dev);
 	else
 		taos_chip_on(indio_dev);

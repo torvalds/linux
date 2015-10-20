@@ -403,7 +403,7 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 		goto return_max;
 	}
 
-	if (ch0 == 0) {
+	if (!ch0) {
 		/* have no data, so return LAST VALUE */
 		ret = chip->als_cur_info.lux;
 		goto out_unlock;
@@ -678,7 +678,7 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 
 	/* determine als integration register */
 	als_count = (chip->tsl2x7x_settings.als_time * 100 + 135) / 270;
-	if (als_count == 0)
+	if (!als_count)
 		als_count = 1; /* ensure at least one cycle */
 
 	/* convert back to time (encompasses overrides) */
@@ -825,7 +825,7 @@ void tsl2x7x_prox_calculate(int *data, int length,
 	int sample_sum;
 	int tmp;
 
-	if (length == 0)
+	if (!length)
 		length = 1;
 
 	sample_sum = 0;
