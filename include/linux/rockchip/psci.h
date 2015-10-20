@@ -63,4 +63,13 @@ u32 psci_fiq_debugger_switch_cpu(u32 cpu);
 void psci_fiq_debugger_uart_irq_tf_init(u32 irq_id, void *callback);
 void psci_fiq_debugger_enable_debug(bool val);
 
+#if defined(CONFIG_ARM_PSCI) || defined(CONFIG_ARM64)
+u32 psci_set_memory_secure(bool val);
+#else
+static inline u32 psci_set_memory_secure(bool val)
+{
+	return 0;
+}
+#endif
+
 #endif /* __ROCKCHIP_PSCI_H */

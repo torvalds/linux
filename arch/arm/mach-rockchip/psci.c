@@ -187,6 +187,11 @@ u32 rockchip_psci_smc_get_tf_ver(void)
 	return reg_rd_fn(PSCI_SIP_RKTF_VER, 0, 0, 0, NULL);
 }
 
+u32 psci_set_memory_secure(bool val)
+{
+	return reg_wr_fn(PSCI_SIP_SMEM_CONFIG, val, 0, 0);
+}
+
 /*************************** fiq debug *****************************/
 #ifdef CONFIG_ARM64
 static u64 ft_fiq_mem_phy;
