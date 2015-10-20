@@ -360,6 +360,7 @@ static int tee_session_release(struct inode *inode, struct file *filp)
 const struct file_operations tee_session_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = tee_session_ioctl,
+	.compat_ioctl = tee_session_ioctl,
 	.release = tee_session_release,
 };
 

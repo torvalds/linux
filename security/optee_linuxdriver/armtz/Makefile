@@ -7,6 +7,8 @@ CFG_TEE_DRV_DEBUGFS?=0
 CFG_TEE_CORE_LOG_LEVEL?=2
 CFG_TEE_TA_LOG_LEVEL?=2
 
+M ?= security/optee_linuxdriver
+
 ccflags-y+=-Werror
 ccflags-y+=-I$(M)/include/arm_common
 ccflags-y+=-I$(M)/include/linux
@@ -17,7 +19,7 @@ ccflags-y+=-DCFG_TEE_DRV_DEBUGFS=${CFG_TEE_DRV_DEBUGFS}
 ccflags-y+=-DCFG_TEE_CORE_LOG_LEVEL=${CFG_TEE_CORE_LOG_LEVEL}
 ccflags-y+=-DCFG_TEE_TA_LOG_LEVEL=${CFG_TEE_TA_LOG_LEVEL}
 
-obj-m += optee_armtz.o
+obj-y += optee_armtz.o
 
 optee_armtz-objs:=   \
 		tee_tz_drv.o \

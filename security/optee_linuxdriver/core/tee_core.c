@@ -39,7 +39,7 @@
 
 #define _TEE_CORE_FW_VER "1:0.1"
 
-static char *_tee_supp_app_name = "tee-supplicant";
+static char *_tee_supp_app_name = "tee_supplicant";
 
 /* Store the class misc reference */
 static struct class *misc_class;
@@ -397,13 +397,14 @@ static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-const struct file_operations tee_fops = {
+static const struct file_operations tee_file_fops = {
 	.owner = THIS_MODULE,
 	.read = tee_supp_read,
 	.write = tee_supp_write,
 	.open = tee_ctx_open,
 	.release = tee_ctx_release,
-	.unlocked_ioctl = tee_ioctl
+	.unlocked_ioctl = tee_ioctl,
+	.compat_ioctl = tee_ioctl
 };
 
 static void tee_plt_device_release(struct device *dev)
@@ -441,7 +442,7 @@ struct tee *tee_core_alloc(struct device *dev, char *name, int id,
 	tee->miscdev.parent = dev;
 	tee->miscdev.minor = MISC_DYNAMIC_MINOR;
 	tee->miscdev.name = tee->name;
-	tee->miscdev.fops = &tee_fops;
+	tee->miscdev.fops = &tee_file_fops;
 
 	mutex_init(&tee->lock);
 	atomic_set(&tee->refcount, 0);

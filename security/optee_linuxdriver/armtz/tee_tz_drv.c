@@ -23,6 +23,7 @@
 #include <linux/tee_core.h>
 #include <linux/tee_ioc.h>
 
+#include <asm/smp_plat.h>
 #include <tee_shm.h>
 #include <tee_supp_com.h>
 #include <tee_mutex_wait.h>
@@ -35,6 +36,8 @@
 #include "tee_tz_op.h"
 #include "tee_tz_priv.h"
 #include "handle.h"
+
+#define SWITCH_CPU0_DEBUG
 
 #define _TEE_TZ_NAME "armtz"
 #define DEV (ptee->tee->dev)
@@ -64,6 +67,40 @@ static struct handle_db shm_handle_db = HANDLE_DB_INITIALIZER;
 /*******************************************************************
  * Calling TEE
  *******************************************************************/
+#ifdef CONFIG_SMP
+static void switch_cpumask_to_cpu0(cpumask_t *saved_cpu_mask)
+{
+	long ret;
+	cpumask_t local_cpu_mask = CPU_MASK_NONE;
+	pr_info("switch_cpumask_to_cpu cpu0\n");
+	cpu_set(0, local_cpu_mask);
+	cpumask_copy(saved_cpu_mask, tsk_cpus_allowed(current));
+	ret = sched_setaffinity(0, &local_cpu_mask);
+	if (ret)
+		pr_err("sched_setaffinity #1 -> 0x%lX", ret);
+}
+
+static void restore_cpumask(cpumask_t *saved_cpu_mask)
+{
+	long ret;
+	pr_info("restore_cpumask cpu0\n");
+	ret = sched_setaffinity(0, saved_cpu_mask);
+	if (ret)
+		pr_err("sched_setaffinity #2 -> 0x%lX", ret);
+}
+#else
+static inline void switch_cpumask_to_cpu0(void) {};
+static inline void restore_cpumask(void) {};
+#endif
+static int tee_smc_call_switchcpu0(struct smc_param *param)
+{
+	cpumask_t saved_cpu_mask;
+
+	switch_cpumask_to_cpu0(&saved_cpu_mask);
+	tee_smc_call(param);
+	restore_cpumask(&saved_cpu_mask);
+	return 0;
+}
 
 static void e_lock_teez(struct tee_tz *ptee)
 {
@@ -407,7 +444,11 @@ static void call_tee(struct tee_tz *ptee,
 	while (true) {
 		param.a0 = funcid;
 
+#ifdef SWITCH_CPU0_DEBUG
+		tee_smc_call_switchcpu0(&param);
+#else
 		tee_smc_call(&param);
+#endif
 		ret = param.a0;
 
 		if (ret == TEESMC_RETURN_EBUSY) {
@@ -988,7 +1029,11 @@ static int register_outercache_mutex(struct tee_tz *ptee, bool reg)
 	memset(&param, 0, sizeof(param));
 	param.a0 = TEESMC32_ST_FASTCALL_L2CC_MUTEX;
 	param.a1 = TEESMC_ST_L2CC_MUTEX_GET_ADDR;
+#ifdef SWITCH_CPU0_DEBUG
+	tee_smc_call_switchcpu0(&param);
+#else
 	tee_smc_call(&param);
+#endif
 
 	if (param.a0 != TEESMC_RETURN_OK) {
 		dev_warn(DEV, "no TZ l2cc mutex service supported\n");
@@ -1013,7 +1058,11 @@ static int register_outercache_mutex(struct tee_tz *ptee, bool reg)
 	memset(&param, 0, sizeof(param));
 	param.a0 = TEESMC32_ST_FASTCALL_L2CC_MUTEX;
 	param.a1 = TEESMC_ST_L2CC_MUTEX_ENABLE;
+#ifdef SWITCH_CPU0_DEBUG
+	tee_smc_call_switchcpu0(&param);
+#else
 	tee_smc_call(&param);
+#endif
 
 	if (param.a0 != TEESMC_RETURN_OK) {
 
@@ -1027,7 +1076,11 @@ out:
 		memset(&param, 0, sizeof(param));
 		param.a0 = TEESMC32_ST_FASTCALL_L2CC_MUTEX;
 		param.a1 = TEESMC_ST_L2CC_MUTEX_DISABLE;
+#ifdef SWITCH_CPU0_DEBUG
+		tee_smc_call_switchcpu0(&param);
+#else
 		tee_smc_call(&param);
+#endif
 		outer_tz_mutex(NULL);
 		if (vaddr)
 			iounmap(vaddr);
@@ -1053,7 +1106,11 @@ static int configure_shm(struct tee_tz *ptee)
 
 	mutex_lock(&ptee->mutex);
 	param.a0 = TEESMC32_ST_FASTCALL_GET_SHM_CONFIG;
+#ifdef SWITCH_CPU0_DEBUG
+	tee_smc_call_switchcpu0(&param);
+#else
 	tee_smc_call(&param);
+#endif
 	mutex_unlock(&ptee->mutex);
 
 	if (param.a0 != TEESMC_RETURN_OK) {
@@ -1160,7 +1217,7 @@ static int tz_stop(struct tee *tee)
 
 /******************************************************************************/
 
-const struct tee_ops tee_fops = {
+static const struct tee_ops tee_fops = {
 	.type = "tz",
 	.owner = THIS_MODULE,
 	.start = tz_start,

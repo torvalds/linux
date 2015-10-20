@@ -30,3 +30,4 @@ subdir-$(CONFIG_INTEGRITY)		+= integrity
 obj-$(CONFIG_INTEGRITY)			+= integrity/built-in.o
 
 obj-y					+= tlk_driver/
+obj-y					+= optee_linuxdriver/

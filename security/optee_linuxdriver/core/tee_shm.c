@@ -372,7 +372,7 @@ static int export_buf(struct tee *tee, struct tee_shm *shm, int *export)
 	dmabuf = dma_buf_export(&exp_info);
 #else
 	dmabuf = dma_buf_export(shm, &_tee_shm_dma_buf_ops, shm->size_alloc,
-				O_RDWR, 0);
+				O_RDWR);
 #endif
 	if (IS_ERR_OR_NULL(dmabuf)) {
 		dev_err(_DEV(tee), "%s: dmabuf: couldn't export buffer (%ld)\n",
