@@ -1417,6 +1417,10 @@ static struct tegra_clk_init_table tegra132_init_table[] __initdata = {
 	{TEGRA124_CLK_CLK_MAX, TEGRA124_CLK_CLK_MAX, 0, 0},
 };
 
+static struct tegra_audio_clk_info tegra124_audio_plls[] = {
+	{ "pll_a", &pll_a_params, tegra_clk_pll_a, "pll_p_out1" },
+};
+
 /**
  * tegra124_clock_apply_init_table - initialize clocks on Tegra124 SoCs
  *
@@ -1555,7 +1559,9 @@ static void __init tegra124_132_clock_init_pre(struct device_node *np)
 	tegra_fixed_clk_init(tegra124_clks);
 	tegra124_pll_init(clk_base, pmc_base);
 	tegra124_periph_clk_init(clk_base, pmc_base);
-	tegra_audio_clk_init(clk_base, pmc_base, tegra124_clks, &pll_a_params);
+	tegra_audio_clk_init(clk_base, pmc_base, tegra124_clks,
+			     tegra124_audio_plls,
+			     ARRAY_SIZE(tegra124_audio_plls));
 	tegra_pmc_clk_init(pmc_base, tegra124_clks);
 
 	/* For Tegra124 & Tegra132, PLLD is the only source for DSIA & DSIB */
