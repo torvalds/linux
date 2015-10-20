@@ -74,7 +74,7 @@ static inline void free_ll_remote_perm(struct ll_remote_perm *lrp)
 
 	if (!hlist_unhashed(&lrp->lrp_list))
 		hlist_del(&lrp->lrp_list);
-	OBD_SLAB_FREE(lrp, ll_remote_perm_cachep, sizeof(*lrp));
+	kmem_cache_free(ll_remote_perm_cachep, lrp);
 }
 
 static struct hlist_head *alloc_rmtperm_hash(void)
@@ -104,8 +104,7 @@ void free_rmtperm_hash(struct hlist_head *hash)
 	for (i = 0; i < REMOTE_PERM_HASHSIZE; i++)
 		hlist_for_each_entry_safe(lrp, next, hash + i, lrp_list)
 			free_ll_remote_perm(lrp);
-	OBD_SLAB_FREE(hash, ll_rmtperm_hash_cachep,
-		      REMOTE_PERM_HASHSIZE * sizeof(*hash));
+	kmem_cache_free(ll_rmtperm_hash_cachep, hash);
 }
 
 static inline int remote_perm_hashfunc(uid_t uid)

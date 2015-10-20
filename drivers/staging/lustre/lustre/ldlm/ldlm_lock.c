@@ -392,7 +392,7 @@ static void lock_handle_addref(void *lock)
 static void lock_handle_free(void *lock, int size)
 {
 	LASSERT(size == sizeof(struct ldlm_lock));
-	OBD_SLAB_FREE(lock, ldlm_lock_slab, size);
+	kmem_cache_free(ldlm_lock_slab, lock);
 }
 
 static struct portals_handle_ops lock_handle_ops = {

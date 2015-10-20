@@ -126,7 +126,7 @@ void ldlm_interval_free(struct ldlm_interval *node)
 	if (node) {
 		LASSERT(list_empty(&node->li_group));
 		LASSERT(!interval_is_intree(&node->li_node));
-		OBD_SLAB_FREE(node, ldlm_interval_slab, sizeof(*node));
+		kmem_cache_free(ldlm_interval_slab, node);
 	}
 }
 

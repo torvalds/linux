@@ -110,7 +110,7 @@ struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
 
 err:
 	while (--i >= 0)
-		OBD_SLAB_FREE(lsm->lsm_oinfo[i], lov_oinfo_slab, sizeof(*loi));
+		kmem_cache_free(lov_oinfo_slab, lsm->lsm_oinfo[i]);
 	kvfree(lsm);
 	return NULL;
 }
@@ -121,8 +121,7 @@ void lsm_free_plain(struct lov_stripe_md *lsm)
 	int i;
 
 	for (i = 0; i < stripe_count; i++)
-		OBD_SLAB_FREE(lsm->lsm_oinfo[i], lov_oinfo_slab,
-			      sizeof(struct lov_oinfo));
+		kmem_cache_free(lov_oinfo_slab, lsm->lsm_oinfo[i]);
 	kvfree(lsm);
 }
 
