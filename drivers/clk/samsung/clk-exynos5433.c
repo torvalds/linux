@@ -2614,8 +2614,10 @@ static struct samsung_fixed_rate_clock disp_fixed_clks[] __initdata = {
 	FRATE(0, "phyclk_mipidphy0_rxclkesc0_phy", NULL, CLK_IS_ROOT,
 			100000000),
 	/* PHY clocks from HDMI_PHY */
-	FRATE(0, "phyclk_hdmiphy_tmds_clko_phy", NULL, CLK_IS_ROOT, 300000000),
-	FRATE(0, "phyclk_hdmiphy_pixel_clko_phy", NULL, CLK_IS_ROOT, 166000000),
+	FRATE(CLK_PHYCLK_HDMIPHY_TMDS_CLKO_PHY, "phyclk_hdmiphy_tmds_clko_phy",
+			NULL, CLK_IS_ROOT, 300000000),
+	FRATE(CLK_PHYCLK_HDMIPHY_PIXEL_CLKO_PHY, "phyclk_hdmiphy_pixel_clko_phy",
+			NULL, CLK_IS_ROOT, 166000000),
 };
 
 static struct samsung_mux_clock disp_mux_clks[] __initdata = {
