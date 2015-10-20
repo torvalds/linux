@@ -516,11 +516,6 @@ struct amd_iommu {
 	/* pci domain of this IOMMU */
 	u16 pci_seg;
 
-	/* first device this IOMMU handles. read from PCI */
-	u16 first_device;
-	/* last device this IOMMU handles. read from PCI */
-	u16 last_device;
-
 	/* start of exclusion range of that IOMMU */
 	u64 exclusion_start;
 	/* length of exclusion range of that IOMMU */
