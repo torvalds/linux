@@ -369,7 +369,7 @@ struct net_device *GetIfHandler(u8 *pMacHeader)
 	for (i = 0; i < g_linux_wlan->vif_num; i++)
 		if (!memcmp(Bssid1, g_linux_wlan->vif[i].bssid, ETH_ALEN) ||
 		    !memcmp(Bssid, g_linux_wlan->vif[i].bssid, ETH_ALEN))
-			return g_linux_wlan->vif[i].wilc_netdev;
+			return g_linux_wlan->vif[i].ndev;
 
 	PRINT_INFO(INIT_DBG, "Invalide handle\n");
 	for (i = 0; i < 25; i++)
@@ -379,7 +379,7 @@ struct net_device *GetIfHandler(u8 *pMacHeader)
 	for (i = 0; i < g_linux_wlan->vif_num; i++)
 		if (!memcmp(Bssid1, g_linux_wlan->vif[i].bssid, ETH_ALEN) ||
 		    !memcmp(Bssid, g_linux_wlan->vif[i].bssid, ETH_ALEN))
-			return g_linux_wlan->vif[i].wilc_netdev;
+			return g_linux_wlan->vif[i].ndev;
 
 	PRINT_INFO(INIT_DBG, "\n");
 	return NULL;
@@ -391,7 +391,7 @@ int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID)
 	int ret = -1;
 
 	for (i = 0; i < g_linux_wlan->vif_num; i++)
-		if (g_linux_wlan->vif[i].wilc_netdev == wilc_netdev) {
+		if (g_linux_wlan->vif[i].ndev == wilc_netdev) {
 			memcpy(g_linux_wlan->vif[i].bssid, pBSSID, 6);
 			ret = 0;
 			break;
@@ -457,10 +457,10 @@ static int linux_wlan_txq_task(void *vp)
 			if (txq_count < FLOW_CONTROL_LOWER_THRESHOLD /* && netif_queue_stopped(pd->wilc_netdev)*/) {
 				PRINT_D(TX_DBG, "Waking up queue\n");
 				/* netif_wake_queue(pd->wilc_netdev); */
-				if (netif_queue_stopped(g_linux_wlan->vif[0].wilc_netdev))
-					netif_wake_queue(g_linux_wlan->vif[0].wilc_netdev);
-				if (netif_queue_stopped(g_linux_wlan->vif[1].wilc_netdev))
-					netif_wake_queue(g_linux_wlan->vif[1].wilc_netdev);
+				if (netif_queue_stopped(g_linux_wlan->vif[0].ndev))
+					netif_wake_queue(g_linux_wlan->vif[0].ndev);
+				if (netif_queue_stopped(g_linux_wlan->vif[1].ndev))
+					netif_wake_queue(g_linux_wlan->vif[1].ndev);
 			}
 
 			if (ret == WILC_TX_ERR_NO_BUF) { /* failed to allocate buffers in chip. */
@@ -1312,7 +1312,7 @@ int mac_open(struct net_device *ndev)
 
 	/* loop through the NUM of supported devices and set the MAC address */
 	for (i = 0; i < g_linux_wlan->vif_num; i++) {
-		if (ndev == g_linux_wlan->vif[i].wilc_netdev) {
+		if (ndev == g_linux_wlan->vif[i].ndev) {
 			memcpy(g_linux_wlan->vif[i].src_addr, mac_add, ETH_ALEN);
 			g_linux_wlan->vif[i].hif_drv = priv->hWILCWFIDrv;
 			break;
@@ -1478,8 +1478,8 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 					       linux_wlan_tx_complete);
 
 	if (QueueCount > FLOW_CONTROL_UPPER_THRESHOLD) {
-		netif_stop_queue(g_linux_wlan->vif[0].wilc_netdev);
-		netif_stop_queue(g_linux_wlan->vif[1].wilc_netdev);
+		netif_stop_queue(g_linux_wlan->vif[0].ndev);
+		netif_stop_queue(g_linux_wlan->vif[1].ndev);
 	}
 
 	return 0;
@@ -1683,17 +1683,17 @@ void WILC_WFI_mgmt_rx(u8 *buff, u32 size)
 	/*Pass the frame on the monitor interface, if any.*/
 	/*Otherwise, pass it on p2p0 netdev, if registered on it*/
 	for (i = 0; i < g_linux_wlan->vif_num; i++) {
-		nic = netdev_priv(g_linux_wlan->vif[i].wilc_netdev);
+		nic = netdev_priv(g_linux_wlan->vif[i].ndev);
 		if (nic->monitor_flag) {
 			WILC_WFI_monitor_rx(buff, size);
 			return;
 		}
 	}
 
-	nic = netdev_priv(g_linux_wlan->vif[1].wilc_netdev); /* p2p0 */
+	nic = netdev_priv(g_linux_wlan->vif[1].ndev); /* p2p0 */
 	if ((buff[0] == nic->g_struct_frame_reg[0].frame_type && nic->g_struct_frame_reg[0].reg) ||
 	    (buff[0] == nic->g_struct_frame_reg[1].frame_type && nic->g_struct_frame_reg[1].reg))
-		WILC_WFI_p2p_rx(g_linux_wlan->vif[1].wilc_netdev, buff, size);
+		WILC_WFI_p2p_rx(g_linux_wlan->vif[1].ndev, buff, size);
 }
 
 int wilc_netdev_init(void)
@@ -1737,7 +1737,7 @@ int wilc_netdev_init(void)
 
 		nic->u8IfIdx = g_linux_wlan->vif_num;
 		nic->wilc_netdev = ndev;
-		g_linux_wlan->vif[g_linux_wlan->vif_num].wilc_netdev = ndev;
+		g_linux_wlan->vif[g_linux_wlan->vif_num].ndev = ndev;
 		g_linux_wlan->vif_num++;
 		ndev->netdev_ops = &wilc_netdev_ops;
 
@@ -1832,12 +1832,12 @@ static void __exit exit_wilc_driver(void)
 	perInterface_wlan_t *nic[NUM_CONCURRENT_IFC] = {NULL,};
 	#define CLOSE_TIMEOUT (12 * 1000)
 
-	if ((g_linux_wlan != NULL) && (((g_linux_wlan->vif[0].wilc_netdev) != NULL)
-				       || ((g_linux_wlan->vif[1].wilc_netdev) != NULL))) {
+	if ((g_linux_wlan != NULL) && (((g_linux_wlan->vif[0].ndev) != NULL)
+				       || ((g_linux_wlan->vif[1].ndev) != NULL))) {
 		unregister_inetaddr_notifier(&g_dev_notifier);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
-			nic[i] = netdev_priv(g_linux_wlan->vif[i].wilc_netdev);
+			nic[i] = netdev_priv(g_linux_wlan->vif[i].ndev);
 	}
 
 	if ((g_linux_wlan != NULL) && g_linux_wlan->wilc_firmware != NULL) {
@@ -1845,8 +1845,8 @@ static void __exit exit_wilc_driver(void)
 		g_linux_wlan->wilc_firmware = NULL;
 	}
 
-	if ((g_linux_wlan != NULL) && (((g_linux_wlan->vif[0].wilc_netdev) != NULL)
-				       || ((g_linux_wlan->vif[1].wilc_netdev) != NULL))) {
+	if ((g_linux_wlan != NULL) && (((g_linux_wlan->vif[0].ndev) != NULL)
+				       || ((g_linux_wlan->vif[1].ndev) != NULL))) {
 		PRINT_D(INIT_DBG, "Waiting for mac_close ....\n");
 
 		if (linux_wlan_lock_timeout(&close_exit_sync, CLOSE_TIMEOUT) < 0)
@@ -1856,18 +1856,18 @@ static void __exit exit_wilc_driver(void)
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
 			/* close all opened interfaces */
-			if (g_linux_wlan->vif[i].wilc_netdev != NULL) {
+			if (g_linux_wlan->vif[i].ndev != NULL) {
 				if (nic[i]->mac_opened)
-					mac_close(g_linux_wlan->vif[i].wilc_netdev);
+					mac_close(g_linux_wlan->vif[i].ndev);
 			}
 		}
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
-			PRINT_D(INIT_DBG, "Unregistering netdev %p\n", g_linux_wlan->vif[i].wilc_netdev);
-			unregister_netdev(g_linux_wlan->vif[i].wilc_netdev);
+			PRINT_D(INIT_DBG, "Unregistering netdev %p\n", g_linux_wlan->vif[i].ndev);
+			unregister_netdev(g_linux_wlan->vif[i].ndev);
 			PRINT_D(INIT_DBG, "Freeing Wiphy...\n");
-			wilc_free_wiphy(g_linux_wlan->vif[i].wilc_netdev);
+			wilc_free_wiphy(g_linux_wlan->vif[i].ndev);
 			PRINT_D(INIT_DBG, "Freeing netdev...\n");
-			free_netdev(g_linux_wlan->vif[i].wilc_netdev);
+			free_netdev(g_linux_wlan->vif[i].ndev);
 		}
 	}
 

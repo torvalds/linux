@@ -624,12 +624,12 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 			u8WLANChannel = INVALID_CHANNEL;
 		/*Incase "P2P CLIENT Connected" send deauthentication reason by 3 to force the WPA_SUPPLICANT to directly change
 		 *      virtual interface to station*/
-		if ((pstrWFIDrv->IFC_UP) && (dev == g_linux_wlan->vif[1].wilc_netdev)) {
+		if ((pstrWFIDrv->IFC_UP) && (dev == g_linux_wlan->vif[1].ndev)) {
 			pstrDisconnectNotifInfo->u16reason = 3;
 		}
 		/*Incase "P2P CLIENT during connection(not connected)" send deauthentication reason by 1 to force the WPA_SUPPLICANT
 		 *      to scan again and retry the connection*/
-		else if ((!pstrWFIDrv->IFC_UP) && (dev == g_linux_wlan->vif[1].wilc_netdev)) {
+		else if ((!pstrWFIDrv->IFC_UP) && (dev == g_linux_wlan->vif[1].ndev)) {
 			pstrDisconnectNotifInfo->u16reason = 1;
 		}
 		cfg80211_disconnected(dev, pstrDisconnectNotifInfo->u16reason, pstrDisconnectNotifInfo->ie,
@@ -1255,7 +1255,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 				}
 
 				/*save keys only on interface 0 (wifi interface)*/
-				if (!g_gtk_keys_saved && netdev == g_linux_wlan->vif[0].wilc_netdev) {
+				if (!g_gtk_keys_saved && netdev == g_linux_wlan->vif[0].ndev) {
 					g_add_gtk_key_params.key_idx = key_index;
 					g_add_gtk_key_params.pairwise = pairwise;
 					if (!mac_addr) {
@@ -1291,7 +1291,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 				}
 
 				/*save keys only on interface 0 (wifi interface)*/
-				if (!g_ptk_keys_saved && netdev == g_linux_wlan->vif[0].wilc_netdev) {
+				if (!g_ptk_keys_saved && netdev == g_linux_wlan->vif[0].ndev) {
 					g_add_ptk_key_params.key_idx = key_index;
 					g_add_ptk_key_params.pairwise = pairwise;
 					if (!mac_addr) {
@@ -1356,7 +1356,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 	priv = wiphy_priv(wiphy);
 
 	/*delete saved keys, if any*/
-	if (netdev == g_linux_wlan->vif[0].wilc_netdev) {
+	if (netdev == g_linux_wlan->vif[0].ndev) {
 		g_ptk_keys_saved = false;
 		g_gtk_keys_saved = false;
 		g_wep_keys_saved = false;
@@ -2612,15 +2612,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 				PRINT_D(CFG80211_DBG, "gtk %x %x %x\n", g_key_gtk_params.key[0],
 					g_key_gtk_params.key[1],
 					g_key_gtk_params.key[2]);
-				add_key(g_linux_wlan->vif[0].wilc_netdev->ieee80211_ptr->wiphy,
-					g_linux_wlan->vif[0].wilc_netdev,
+				add_key(g_linux_wlan->vif[0].ndev->ieee80211_ptr->wiphy,
+					g_linux_wlan->vif[0].ndev,
 					g_add_ptk_key_params.key_idx,
 					g_add_ptk_key_params.pairwise,
 					g_add_ptk_key_params.mac_addr,
 					(struct key_params *)(&g_key_ptk_params));
 
-				add_key(g_linux_wlan->vif[0].wilc_netdev->ieee80211_ptr->wiphy,
-					g_linux_wlan->vif[0].wilc_netdev,
+				add_key(g_linux_wlan->vif[0].ndev->ieee80211_ptr->wiphy,
+					g_linux_wlan->vif[0].ndev,
 					g_add_gtk_key_params.key_idx,
 					g_add_gtk_key_params.pairwise,
 					g_add_gtk_key_params.mac_addr,
@@ -2693,15 +2693,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 				PRINT_D(CFG80211_DBG, "gtk %x %x %x\n", g_key_gtk_params.key[0],
 					g_key_gtk_params.key[1],
 					g_key_gtk_params.key[2]);
-				add_key(g_linux_wlan->vif[0].wilc_netdev->ieee80211_ptr->wiphy,
-					g_linux_wlan->vif[0].wilc_netdev,
+				add_key(g_linux_wlan->vif[0].ndev->ieee80211_ptr->wiphy,
+					g_linux_wlan->vif[0].ndev,
 					g_add_ptk_key_params.key_idx,
 					g_add_ptk_key_params.pairwise,
 					g_add_ptk_key_params.mac_addr,
 					(struct key_params *)(&g_key_ptk_params));
 
-				add_key(g_linux_wlan->vif[0].wilc_netdev->ieee80211_ptr->wiphy,
-					g_linux_wlan->vif[0].wilc_netdev,
+				add_key(g_linux_wlan->vif[0].ndev->ieee80211_ptr->wiphy,
+					g_linux_wlan->vif[0].ndev,
 					g_add_gtk_key_params.key_idx,
 					g_add_gtk_key_params.pairwise,
 					g_add_gtk_key_params.mac_addr,
@@ -2810,15 +2810,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 				g_key_gtk_params.key[1],
 				g_key_gtk_params.key[2],
 				g_key_gtk_params.cipher);
-			add_key(g_linux_wlan->vif[0].wilc_netdev->ieee80211_ptr->wiphy,
-				g_linux_wlan->vif[0].wilc_netdev,
+			add_key(g_linux_wlan->vif[0].ndev->ieee80211_ptr->wiphy,
+				g_linux_wlan->vif[0].ndev,
 				g_add_ptk_key_params.key_idx,
 				g_add_ptk_key_params.pairwise,
 				g_add_ptk_key_params.mac_addr,
 				(struct key_params *)(&g_key_ptk_params));
 
-			add_key(g_linux_wlan->vif[0].wilc_netdev->ieee80211_ptr->wiphy,
-				g_linux_wlan->vif[0].wilc_netdev,
+			add_key(g_linux_wlan->vif[0].ndev->ieee80211_ptr->wiphy,
+				g_linux_wlan->vif[0].ndev,
 				g_add_gtk_key_params.key_idx,
 				g_add_gtk_key_params.pairwise,
 				g_add_gtk_key_params.mac_addr,
