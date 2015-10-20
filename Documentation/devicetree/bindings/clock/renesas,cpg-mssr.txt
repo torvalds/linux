@@ -61,7 +61,7 @@ Examples
 		reg = <0 0xe6e88000 0 64>;
 		interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 310>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		dmas = <&dmac1 0x13>, <&dmac1 0x12>;
 		dma-names = "tx", "rx";
 		power-domains = <&cpg>;
