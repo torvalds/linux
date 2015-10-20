@@ -278,7 +278,6 @@ struct ocrdma_dev {
 	u32 hba_port_num;
 
 	struct list_head entry;
-	struct rcu_head rcu;
 	int id;
 	u64 *stag_arr;
 	u8 sl; /* service level */
