@@ -2933,15 +2933,10 @@ expand_cqe:
 	}
 stop_cqe:
 	cq->getp = cur_getp;
-	if (cq->deferred_arm) {
-		ocrdma_ring_cq_db(dev, cq->id, true, cq->deferred_sol,
-				  polled_hw_cqes);
+	if (cq->deferred_arm || polled_hw_cqes) {
+		ocrdma_ring_cq_db(dev, cq->id, cq->deferred_arm,
+				  cq->deferred_sol, polled_hw_cqes);
 		cq->deferred_arm = false;
-		cq->deferred_sol = false;
-	} else {
-		/* We need to pop the CQE. No need to arm */
-		ocrdma_ring_cq_db(dev, cq->id, false, cq->deferred_sol,
-				  polled_hw_cqes);
 		cq->deferred_sol = false;
 	}
 
