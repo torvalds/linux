@@ -337,6 +337,7 @@ int amdgpu_sa_bo_new(struct amdgpu_device *adev,
 {
 	struct fence *fences[AMDGPU_MAX_RINGS];
 	unsigned tries[AMDGPU_MAX_RINGS];
+	unsigned count;
 	int i, r;
 	signed long t;
 
@@ -371,13 +372,18 @@ int amdgpu_sa_bo_new(struct amdgpu_device *adev,
 			/* see if we can skip over some allocations */
 		} while (amdgpu_sa_bo_next_hole(sa_manager, fences, tries));
 
-		spin_unlock(&sa_manager->wq.lock);
-		t = amdgpu_fence_wait_any(fences, AMDGPU_MAX_RINGS,
-					  false, MAX_SCHEDULE_TIMEOUT);
-		r = (t > 0) ? 0 : t;
-		spin_lock(&sa_manager->wq.lock);
-		/* if we have nothing to wait for block */
-		if (r == -ENOENT) {
+		for (i = 0, count = 0; i < AMDGPU_MAX_RINGS; ++i)
+			if (fences[i])
+				fences[count++] = fences[i];
+
+		if (count) {
+			spin_unlock(&sa_manager->wq.lock);
+			t = fence_wait_any_timeout(fences, count, false,
+						   MAX_SCHEDULE_TIMEOUT);
+			r = (t > 0) ? 0 : t;
+			spin_lock(&sa_manager->wq.lock);
+		} else {
+			/* if we have nothing to wait for block */
 			r = wait_event_interruptible_locked(
 				sa_manager->wq,
 				amdgpu_sa_event(sa_manager, size, align)
