@@ -540,8 +540,6 @@ EXPORT_SYMBOL_GPL(dw_spi_add_host);
 
 void dw_spi_remove_host(struct dw_spi *dws)
 {
-	if (!dws)
-		return;
 	dw_spi_debugfs_remove(dws);
 
 	if (dws->dma_ops && dws->dma_ops->dma_exit)
