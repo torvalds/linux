@@ -65,14 +65,14 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 	int i, len, consume;
 	u8 status;
 
-	len = snd_rawmidi_transmit_peek(substream, buf + 1, 3);
-	if (len == 0)
+	consume = snd_rawmidi_transmit_peek(substream, buf + 1, 3);
+	if (consume == 0)
 		return 0;
 
 	/* On exclusive message. */
 	if (tscm->on_sysex[port]) {
 		/* Seek the end of exclusives. */
-		for (i = 1; i < 4 || i < len; ++i) {
+		for (i = 1; i < 4 || i < consume; ++i) {
 			if (buf[i] == 0xf7) {
 				tscm->on_sysex[port] = false;
 				break;
@@ -81,14 +81,14 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 
 		/* At the end of exclusive message, use label 0x07. */
 		if (!tscm->on_sysex[port]) {
-			len = i;
+			consume = i;
 			buf[0] = (port << 4) | 0x07;
 		/* During exclusive message, use label 0x04. */
-		} else if (len == 3) {
+		} else if (consume == 3) {
 			buf[0] = (port << 4) | 0x04;
 		/* We need to fill whole 3 bytes. Go to next change. */
 		} else {
-			len = 0;
+			consume = 0;
 		}
 	} else {
 		/* The beginning of exclusives. */
@@ -104,8 +104,8 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 				status = buf[1];
 
 			/* Calculate consume bytes. */
-			consume = calculate_message_bytes(status);
-			if (consume <= 0)
+			len = calculate_message_bytes(status);
+			if (len <= 0)
 				return 0;
 
 			/* On running-status. */
@@ -119,16 +119,16 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 			}
 
 			/* Confirm length. */
-			if (len < consume)
+			if (consume < len)
 				return 0;
-			if (len > consume)
-				len = consume;
+			if (consume > len)
+				consume = len;
 		}
 
 		buf[0] = (port << 4) | (buf[1] >> 4);
 	}
 
-	return len;
+	return consume;
 }
 
 static void handle_midi_tx(struct fw_card *card, struct fw_request *request,
