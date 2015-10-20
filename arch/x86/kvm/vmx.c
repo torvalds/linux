@@ -8009,6 +8009,9 @@ static void dump_vmcs(void)
 	       vmcs_read32(IDT_VECTORING_INFO_FIELD),
 	       vmcs_read32(IDT_VECTORING_ERROR_CODE));
 	pr_err("TSC Offset = 0x%016lx\n", vmcs_readl(TSC_OFFSET));
+	if (secondary_exec_control & SECONDARY_EXEC_TSC_SCALING)
+		pr_err("TSC Multiplier = 0x%016lx\n",
+		       vmcs_readl(TSC_MULTIPLIER));
 	if (cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW)
 		pr_err("TPR Threshold = 0x%02x\n", vmcs_read32(TPR_THRESHOLD));
 	if (pin_based_exec_ctrl & PIN_BASED_POSTED_INTR)
