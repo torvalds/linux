@@ -21,6 +21,7 @@
 #define PSCI_SIP_UARTDBG_CFG		(0x82000005)
 #define PSCI_SIP_UARTDBG_CFG64		(0xc2000005)
 #define PSCI_SIP_EL3FIQ_CFG		(0x82000006)
+#define PSCI_SIP_SMEM_CONFIG		(0x82000007)
 
 /*
  * pcsi smc funciton err code
