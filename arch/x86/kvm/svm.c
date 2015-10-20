@@ -158,8 +158,6 @@ struct vcpu_svm {
 	unsigned long int3_rip;
 	u32 apf_reason;
 
-	u64  tsc_ratio;
-
 	/* cached guest cpuid flags for faster access */
 	bool nrips_enabled	: 1;
 };
@@ -991,24 +989,22 @@ static u64 __scale_tsc(u64 ratio, u64 tsc)
 
 static u64 svm_scale_tsc(struct kvm_vcpu *vcpu, u64 tsc)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 _tsc = tsc;
 
-	if (svm->tsc_ratio != TSC_RATIO_DEFAULT)
-		_tsc = __scale_tsc(svm->tsc_ratio, tsc);
+	if (vcpu->arch.tsc_scaling_ratio != TSC_RATIO_DEFAULT)
+		_tsc = __scale_tsc(vcpu->arch.tsc_scaling_ratio, tsc);
 
 	return _tsc;
 }
 
 static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 ratio;
 	u64 khz;
 
 	/* Guest TSC same frequency as host TSC? */
 	if (!scale) {
-		svm->tsc_ratio = TSC_RATIO_DEFAULT;
+		vcpu->arch.tsc_scaling_ratio = TSC_RATIO_DEFAULT;
 		return;
 	}
 
@@ -1033,7 +1029,7 @@ static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale)
 				user_tsc_khz);
 		return;
 	}
-	svm->tsc_ratio             = ratio;
+	vcpu->arch.tsc_scaling_ratio = ratio;
 }
 
 static u64 svm_read_tsc_offset(struct kvm_vcpu *vcpu)
@@ -1067,7 +1063,7 @@ static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool ho
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (host) {
-		if (svm->tsc_ratio != TSC_RATIO_DEFAULT)
+		if (vcpu->arch.tsc_scaling_ratio != TSC_RATIO_DEFAULT)
 			WARN_ON(adjustment < 0);
 		adjustment = svm_scale_tsc(vcpu, (u64)adjustment);
 	}
@@ -1238,8 +1234,6 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 		goto out;
 	}
 
-	svm->tsc_ratio = TSC_RATIO_DEFAULT;
-
 	err = kvm_vcpu_init(&svm->vcpu, kvm, id);
 	if (err)
 		goto free_svm;
@@ -1325,10 +1319,12 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 
-	if (static_cpu_has(X86_FEATURE_TSCRATEMSR) &&
-	    svm->tsc_ratio != __this_cpu_read(current_tsc_ratio)) {
-		__this_cpu_write(current_tsc_ratio, svm->tsc_ratio);
-		wrmsrl(MSR_AMD64_TSC_RATIO, svm->tsc_ratio);
+	if (static_cpu_has(X86_FEATURE_TSCRATEMSR)) {
+		u64 tsc_ratio = vcpu->arch.tsc_scaling_ratio;
+		if (tsc_ratio != __this_cpu_read(current_tsc_ratio)) {
+			__this_cpu_write(current_tsc_ratio, tsc_ratio);
+			wrmsrl(MSR_AMD64_TSC_RATIO, tsc_ratio);
+		}
 	}
 }
 

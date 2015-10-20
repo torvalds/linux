@@ -505,6 +505,7 @@ struct kvm_vcpu_arch {
 	u32 virtual_tsc_mult;
 	u32 virtual_tsc_khz;
 	s64 ia32_tsc_adjust_msr;
+	u64 tsc_scaling_ratio;
 
 	atomic_t nmi_queued;  /* unprocessed asynchronous NMIs */
 	unsigned nmi_pending; /* NMI queued after currently running handler */
