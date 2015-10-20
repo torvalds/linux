@@ -531,59 +531,12 @@ static const struct component_master_ops imx_drm_ops = {
 
 static int imx_drm_platform_probe(struct platform_device *pdev)
 {
-	struct device_node *ep, *port, *remote;
-	struct component_match *match = NULL;
-	int ret;
-	int i;
+	int ret = drm_of_component_probe(&pdev->dev, compare_of, &imx_drm_ops);
 
-	/*
-	 * Bind the IPU display interface ports first, so that
-	 * imx_drm_encoder_parse_of called from encoder .bind callbacks
-	 * works as expected.
-	 */
-	for (i = 0; ; i++) {
-		port = of_parse_phandle(pdev->dev.of_node, "ports", i);
-		if (!port)
-			break;
+	if (!ret)
+		ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 
-		component_match_add(&pdev->dev, &match, compare_of, port);
-	}
-
-	if (i == 0) {
-		dev_err(&pdev->dev, "missing 'ports' property\n");
-		return -ENODEV;
-	}
-
-	/* Then bind all encoders */
-	for (i = 0; ; i++) {
-		port = of_parse_phandle(pdev->dev.of_node, "ports", i);
-		if (!port)
-			break;
-
-		for_each_child_of_node(port, ep) {
-			remote = of_graph_get_remote_port_parent(ep);
-			if (!remote || !of_device_is_available(remote)) {
-				of_node_put(remote);
-				continue;
-			} else if (!of_device_is_available(remote->parent)) {
-				dev_warn(&pdev->dev, "parent device of %s is not available\n",
-					 remote->full_name);
-				of_node_put(remote);
-				continue;
-			}
-
-			component_match_add(&pdev->dev, &match, compare_of,
-					    remote);
-			of_node_put(remote);
-		}
-		of_node_put(port);
-	}
-
-	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-	if (ret)
-		return ret;
-
-	return component_master_add_with_match(&pdev->dev, &imx_drm_ops, match);
+	return ret;
 }
 
 static int imx_drm_platform_remove(struct platform_device *pdev)
