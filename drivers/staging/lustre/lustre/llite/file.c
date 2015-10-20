@@ -1295,7 +1295,7 @@ static int ll_lov_recreate(struct inode *inode, struct ost_id *oi, u32 ost_idx)
 	goto out;
 out:
 	ccc_inode_lsm_put(inode, lsm);
-	OBDO_FREE(oa);
+	kmem_cache_free(obdo_cachep, oa);
 	return rc;
 }
 

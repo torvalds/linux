@@ -252,7 +252,7 @@ int ll_som_update(struct inode *inode, struct md_op_data *op_data)
 			NULL, 0, NULL, 0, &request, NULL);
 	ptlrpc_req_finished(request);
 
-	OBDO_FREE(oa);
+	kmem_cache_free(obdo_cachep, oa);
 	return rc;
 }
 

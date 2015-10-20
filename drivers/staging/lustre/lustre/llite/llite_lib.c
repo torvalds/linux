@@ -1789,7 +1789,7 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 				       OBD_MD_FLGROUP;
 		obdo_set_parent_fid(oinfo.oi_oa, &ll_i2info(inode)->lli_fid);
 		rc = obd_setattr_rqset(sbi->ll_dt_exp, &oinfo, NULL);
-		OBDO_FREE(oinfo.oi_oa);
+		kmem_cache_free(obdo_cachep, oinfo.oi_oa);
 		ccc_inode_lsm_put(inode, lsm);
 
 		if (rc && rc != -EPERM && rc != -EACCES)

@@ -933,7 +933,7 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 		       POSTID(&lsm->lsm_oi), rc);
 out_free_memmd:
 	obd_free_memmd(ll_i2dtexp(dir), &lsm);
-	OBDO_FREE(oa);
+	kmem_cache_free(obdo_cachep, oa);
 out:
 	return rc;
 }

@@ -878,7 +878,7 @@ static int osc_shrink_grant_interpret(const struct lu_env *env,
 	LASSERT(body);
 	osc_update_grant(cli, body);
 out:
-	OBDO_FREE(oa);
+	kmem_cache_free(obdo_cachep, oa);
 	return rc;
 }
 
@@ -1789,7 +1789,7 @@ static int brw_interpret(const struct lu_env *env,
 		}
 		cl_object_put(env, obj);
 	}
-	OBDO_FREE(aa->aa_oa);
+	kmem_cache_free(obdo_cachep, aa->aa_oa);
 
 	cl_req_completion(env, aa->aa_clerq, rc < 0 ? rc :
 			  req->rq_bulk->bd_nob_transferred);
@@ -2005,7 +2005,7 @@ out:
 		LASSERT(req == NULL);
 
 		if (oa)
-			OBDO_FREE(oa);
+			kmem_cache_free(obdo_cachep, oa);
 		kfree(pga);
 		/* this should happen rarely and is pretty bad, it makes the
 		 * pending list not follow the dirty order */

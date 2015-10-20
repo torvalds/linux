@@ -67,7 +67,7 @@ void lov_finish_set(struct lov_request_set *set)
 		list_del_init(&req->rq_link);
 
 		if (req->rq_oi.oi_oa)
-			OBDO_FREE(req->rq_oi.oi_oa);
+			kmem_cache_free(obdo_cachep, req->rq_oi.oi_oa);
 		kfree(req->rq_oi.oi_osfs);
 		kfree(req);
 	}
@@ -236,7 +236,7 @@ static int common_attr_done(struct lov_request_set *set)
 	memcpy(set->set_oi->oi_oa, tmp_oa, sizeof(*set->set_oi->oi_oa));
 out:
 	if (tmp_oa)
-		OBDO_FREE(tmp_oa);
+		kmem_cache_free(obdo_cachep, tmp_oa);
 	return rc;
 
 }
