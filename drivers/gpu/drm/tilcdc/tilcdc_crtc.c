@@ -656,11 +656,12 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
-	uint32_t stat = tilcdc_read_irqstatus(dev);
+	uint32_t stat;
 
-	if (stat & LCDC_PL_LOAD_DONE) {
-		tilcdc_clear_irqstatus(dev, stat);
-	} else {
+	stat = tilcdc_read_irqstatus(dev);
+	tilcdc_clear_irqstatus(dev, stat);
+
+	if ((stat & LCDC_END_OF_FRAME0) || (stat & LCDC_END_OF_FRAME1)) {
 		struct drm_pending_vblank_event *event;
 		unsigned long flags;
 		uint32_t dirty = tilcdc_crtc->dirty & stat;
