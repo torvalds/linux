@@ -114,3 +114,10 @@ err_class:
 err:
 	return;
 }
+
+void pstore_unregister_pmsg(void)
+{
+	device_destroy(pmsg_class, MKDEV(pmsg_major, 0));
+	class_destroy(pmsg_class);
+	unregister_chrdev(pmsg_major, PMSG_NAME);
+}
