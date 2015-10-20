@@ -162,7 +162,7 @@ struct wilc {
 	unsigned short dev_irq_num;
 	#endif
 	int close;
-	u8 u8NoIfcs;
+	u8 vif_num;
 	struct wilc_vif strInterfaceInfo[NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
 
