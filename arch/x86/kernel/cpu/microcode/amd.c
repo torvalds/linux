@@ -11,10 +11,6 @@
  *  Based on work by:
  *  Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
  *
- *  Maintainers:
- *  Andreas Herrmann <herrmann.der.user@googlemail.com>
- *  Borislav Petkov <bp@alien8.de>
- *
  *  early loader:
  *  Copyright (C) 2013 Advanced Micro Devices, Inc.
  *
