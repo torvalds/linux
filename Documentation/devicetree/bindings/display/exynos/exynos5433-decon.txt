@@ -16,7 +16,7 @@ Required properties:
 - clocks: must include clock specifiers corresponding to entries in the
 	  clock-names property.
 - clock-names: list of clock names sorted in the same order as the clocks
-	       property. Must contain "aclk_decon", "aclk_smmu_decon0x",
+	       property. Must contain "pclk", "aclk_decon", "aclk_smmu_decon0x",
 	       "aclk_xiu_decon0x", "pclk_smmu_decon0x", clk_decon_vclk",
 	       "sclk_decon_eclk"
 - ports: contains a port which is connected to mic node. address-cells and
