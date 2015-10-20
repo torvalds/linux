@@ -1707,7 +1707,7 @@ static void kvm_gen_update_masterclock(struct kvm *kvm)
 
 static int kvm_guest_time_update(struct kvm_vcpu *v)
 {
-	unsigned long flags, this_tsc_khz;
+	unsigned long flags, this_tsc_khz, tgt_tsc_khz;
 	struct kvm_vcpu_arch *vcpu = &v->arch;
 	struct kvm_arch *ka = &v->kvm->arch;
 	s64 kernel_ns;
@@ -1770,7 +1770,9 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		return 0;
 
 	if (unlikely(vcpu->hw_tsc_khz != this_tsc_khz)) {
-		kvm_get_time_scale(NSEC_PER_SEC / 1000, this_tsc_khz,
+		tgt_tsc_khz = kvm_has_tsc_control ?
+			vcpu->virtual_tsc_khz : this_tsc_khz;
+		kvm_get_time_scale(NSEC_PER_SEC / 1000, tgt_tsc_khz,
 				   &vcpu->hv_clock.tsc_shift,
 				   &vcpu->hv_clock.tsc_to_system_mul);
 		vcpu->hw_tsc_khz = this_tsc_khz;
