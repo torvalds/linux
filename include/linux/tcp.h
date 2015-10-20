@@ -392,8 +392,9 @@ static inline bool tcp_passive_fastopen(const struct sock *sk)
 static inline void fastopen_queue_tune(struct sock *sk, int backlog)
 {
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
+	int somaxconn = READ_ONCE(sock_net(sk)->core.sysctl_somaxconn);
 
-	queue->fastopenq.max_qlen = backlog;
+	queue->fastopenq.max_qlen = min_t(unsigned int, backlog, somaxconn);
 }
 
 static inline void tcp_saved_syn_free(struct tcp_sock *tp)
