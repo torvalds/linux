@@ -199,7 +199,7 @@ typedef struct {
 	struct_frame_reg g_struct_frame_reg[num_reg_frame];
 	struct net_device *wilc_netdev;
 	struct net_device_stats netstats;
-
+	struct wilc *wilc;
 } perInterface_wlan_t;
 
 struct WILC_WFI_mon_priv {

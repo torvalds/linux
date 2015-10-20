@@ -1662,6 +1662,7 @@ int wilc_netdev_init(struct wilc **wilc)
 
 		nic->u8IfIdx = g_linux_wlan->vif_num;
 		nic->wilc_netdev = ndev;
+		nic->wilc = *wilc;
 		g_linux_wlan->vif[g_linux_wlan->vif_num].ndev = ndev;
 		g_linux_wlan->vif_num++;
 		ndev->netdev_ops = &wilc_netdev_ops;
