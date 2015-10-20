@@ -514,40 +514,6 @@ do {									      \
 	POISON_PTR(ptr);						      \
 } while (0)
 
-/* we memset() the slab object to 0 when allocation succeeds, so DO NOT
- * HAVE A CTOR THAT DOES ANYTHING.  its work will be cleared here.  we'd
- * love to assert on that, but slab.c keeps kmem_cache_s all to itself. */
-
-#define __OBD_SLAB_ALLOC_VERBOSE(ptr, slab, cptab, cpt, size, type)	      \
-do {									      \
-	LASSERT(ergo((type) != GFP_ATOMIC, !in_interrupt()));	      \
-	(ptr) = (cptab) == NULL ?					      \
-		kmem_cache_alloc(slab, type | __GFP_ZERO) :		\
-		kmem_cache_alloc_node(slab, type | __GFP_ZERO,		\
-				      cfs_cpt_spread_node(cptab, cpt));	\
-} while (0)
-
-#define OBD_SLAB_ALLOC_GFP(ptr, slab, size, flags)			      \
-	__OBD_SLAB_ALLOC_VERBOSE(ptr, slab, NULL, 0, size, flags)
-
-#define OBD_SLAB_FREE(ptr, slab, size)					\
-do {									  \
-	kmem_cache_free(slab, ptr);					\
-	POISON_PTR(ptr);						      \
-} while (0)
-
-#define OBD_SLAB_ALLOC(ptr, slab, size)					      \
-	OBD_SLAB_ALLOC_GFP(ptr, slab, size, GFP_NOFS)
-
-#define OBD_SLAB_ALLOC_PTR(ptr, slab)					      \
-	OBD_SLAB_ALLOC(ptr, slab, sizeof(*(ptr)))
-
-#define OBD_SLAB_ALLOC_PTR_GFP(ptr, slab, flags)			      \
-	OBD_SLAB_ALLOC_GFP(ptr, slab, sizeof(*(ptr)), flags)
-
-#define OBD_SLAB_FREE_PTR(ptr, slab)					      \
-	OBD_SLAB_FREE((ptr), (slab), sizeof(*(ptr)))
-
 #define KEY_IS(str) \
 	(keylen >= (sizeof(str)-1) && memcmp(key, str, (sizeof(str)-1)) == 0)
 
