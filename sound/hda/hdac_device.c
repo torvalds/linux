@@ -186,6 +186,21 @@ int snd_hdac_device_set_chip_name(struct hdac_device *codec, const char *name)
 EXPORT_SYMBOL_GPL(snd_hdac_device_set_chip_name);
 
 /**
+ * snd_hdac_codec_modalias - give the module alias name
+ * @codec: HDAC device
+ * @buf: string buffer to store
+ * @size: string buffer size
+ *
+ * Returns the size of string, like snprintf(), or a negative error code.
+ */
+int snd_hdac_codec_modalias(struct hdac_device *codec, char *buf, size_t size)
+{
+	return snprintf(buf, size, "hdaudio:v%08Xr%08Xa%02X\n",
+			codec->vendor_id, codec->revision_id, codec->type);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_modalias);
+
+/**
  * snd_hdac_make_cmd - compose a 32bit command word to be sent to the
  *	HD-audio controller
  * @codec: the codec object

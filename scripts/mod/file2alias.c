@@ -1250,6 +1250,23 @@ static int do_ulpi_entry(const char *filename, void *symval,
 }
 ADD_TO_DEVTABLE("ulpi", ulpi_device_id, do_ulpi_entry);
 
+/* Looks like: hdaudio:vNrNaN */
+static int do_hda_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, hda_device_id, vendor_id);
+	DEF_FIELD(symval, hda_device_id, rev_id);
+	DEF_FIELD(symval, hda_device_id, api_version);
+
+	strcpy(alias, "hdaudio:");
+	ADD(alias, "v", vendor_id != 0, vendor_id);
+	ADD(alias, "r", rev_id != 0, rev_id);
+	ADD(alias, "a", api_version != 0, api_version);
+
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("hdaudio", hda_device_id, do_hda_entry);
+
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 {
