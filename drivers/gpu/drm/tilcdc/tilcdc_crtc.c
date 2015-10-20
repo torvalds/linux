@@ -112,17 +112,24 @@ static void update_scanout(struct drm_crtc *crtc)
 	}
 }
 
-static void start(struct drm_crtc *crtc)
+static void reset(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
-	if (priv->rev == 2) {
-		tilcdc_set(dev, LCDC_CLK_RESET_REG, LCDC_CLK_MAIN_RESET);
-		msleep(1);
-		tilcdc_clear(dev, LCDC_CLK_RESET_REG, LCDC_CLK_MAIN_RESET);
-		msleep(1);
-	}
+	if (priv->rev != 2)
+		return;
+
+	tilcdc_set(dev, LCDC_CLK_RESET_REG, LCDC_CLK_MAIN_RESET);
+	usleep_range(250, 1000);
+	tilcdc_clear(dev, LCDC_CLK_RESET_REG, LCDC_CLK_MAIN_RESET);
+}
+
+static void start(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+
+	reset(crtc);
 
 	tilcdc_set(dev, LCDC_DMA_CTRL_REG, LCDC_DUAL_FRAME_BUFFER_ENABLE);
 	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_PALETTE_LOAD_MODE(DATA_ONLY));
