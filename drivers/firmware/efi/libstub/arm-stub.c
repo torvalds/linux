@@ -13,6 +13,7 @@
  */
 
 #include <linux/efi.h>
+#include <linux/sort.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -305,6 +306,44 @@ fail:
  */
 #define EFI_RT_VIRTUAL_BASE	0x40000000
 
+static int cmp_mem_desc(const void *l, const void *r)
+{
+	const efi_memory_desc_t *left = l, *right = r;
+
+	return (left->phys_addr > right->phys_addr) ? 1 : -1;
+}
+
+/*
+ * Returns whether region @left ends exactly where region @right starts,
+ * or false if either argument is NULL.
+ */
+static bool regions_are_adjacent(efi_memory_desc_t *left,
+				 efi_memory_desc_t *right)
+{
+	u64 left_end;
+
+	if (left == NULL || right == NULL)
+		return false;
+
+	left_end = left->phys_addr + left->num_pages * EFI_PAGE_SIZE;
+
+	return left_end == right->phys_addr;
+}
+
+/*
+ * Returns whether region @left and region @right have compatible memory type
+ * mapping attributes, and are both EFI_MEMORY_RUNTIME regions.
+ */
+static bool regions_have_compatible_memory_type_attrs(efi_memory_desc_t *left,
+						      efi_memory_desc_t *right)
+{
+	static const u64 mem_type_mask = EFI_MEMORY_WB | EFI_MEMORY_WT |
+					 EFI_MEMORY_WC | EFI_MEMORY_UC |
+					 EFI_MEMORY_RUNTIME;
+
+	return ((left->attribute ^ right->attribute) & mem_type_mask) == 0;
+}
+
 /*
  * efi_get_virtmap() - create a virtual mapping for the EFI memory map
  *
@@ -317,33 +356,52 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		     int *count)
 {
 	u64 efi_virt_base = EFI_RT_VIRTUAL_BASE;
-	efi_memory_desc_t *out = runtime_map;
+	efi_memory_desc_t *in, *prev = NULL, *out = runtime_map;
 	int l;
 
-	for (l = 0; l < map_size; l += desc_size) {
-		efi_memory_desc_t *in = (void *)memory_map + l;
+	/*
+	 * To work around potential issues with the Properties Table feature
+	 * introduced in UEFI 2.5, which may split PE/COFF executable images
+	 * in memory into several RuntimeServicesCode and RuntimeServicesData
+	 * regions, we need to preserve the relative offsets between adjacent
+	 * EFI_MEMORY_RUNTIME regions with the same memory type attributes.
+	 * The easiest way to find adjacent regions is to sort the memory map
+	 * before traversing it.
+	 */
+	sort(memory_map, map_size / desc_size, desc_size, cmp_mem_desc, NULL);
+
+	for (l = 0; l < map_size; l += desc_size, prev = in) {
 		u64 paddr, size;
 
+		in = (void *)memory_map + l;
 		if (!(in->attribute & EFI_MEMORY_RUNTIME))
 			continue;
+
+		paddr = in->phys_addr;
+		size = in->num_pages * EFI_PAGE_SIZE;
 
 		/*
 		 * Make the mapping compatible with 64k pages: this allows
 		 * a 4k page size kernel to kexec a 64k page size kernel and
 		 * vice versa.
 		 */
-		paddr = round_down(in->phys_addr, SZ_64K);
-		size = round_up(in->num_pages * EFI_PAGE_SIZE +
-				in->phys_addr - paddr, SZ_64K);
+		if (!regions_are_adjacent(prev, in) ||
+		    !regions_have_compatible_memory_type_attrs(prev, in)) {
 
-		/*
-		 * Avoid wasting memory on PTEs by choosing a virtual base that
-		 * is compatible with section mappings if this region has the
-		 * appropriate size and physical alignment. (Sections are 2 MB
-		 * on 4k granule kernels)
-		 */
-		if (IS_ALIGNED(in->phys_addr, SZ_2M) && size >= SZ_2M)
-			efi_virt_base = round_up(efi_virt_base, SZ_2M);
+			paddr = round_down(in->phys_addr, SZ_64K);
+			size += in->phys_addr - paddr;
+
+			/*
+			 * Avoid wasting memory on PTEs by choosing a virtual
+			 * base that is compatible with section mappings if this
+			 * region has the appropriate size and physical
+			 * alignment. (Sections are 2 MB on 4k granule kernels)
+			 */
+			if (IS_ALIGNED(in->phys_addr, SZ_2M) && size >= SZ_2M)
+				efi_virt_base = round_up(efi_virt_base, SZ_2M);
+			else
+				efi_virt_base = round_up(efi_virt_base, SZ_64K);
+		}
 
 		in->virt_addr = efi_virt_base + in->phys_addr - paddr;
 		efi_virt_base += size;

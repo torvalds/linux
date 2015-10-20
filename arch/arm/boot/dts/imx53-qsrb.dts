@@ -36,7 +36,7 @@
 		pinctrl-0 = <&pinctrl_pmic>;
 		reg = <0x08>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <23 0x8>;
+		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
 		regulators {
 			sw1_reg: sw1a {
 				regulator-name = "SW1";

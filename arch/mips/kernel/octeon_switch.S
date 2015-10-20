@@ -18,7 +18,7 @@
 	.set pop
 /*
  * task_struct *resume(task_struct *prev, task_struct *next,
- *		       struct thread_info *next_ti, int usedfpu)
+ *		       struct thread_info *next_ti)
  */
 	.align	7
 	LEAF(resume)
@@ -27,30 +27,6 @@
 	LONG_S	t1, THREAD_STATUS(a0)
 	cpu_save_nonscratch a0
 	LONG_S	ra, THREAD_REG31(a0)
-
-	/*
-	 * check if we need to save FPU registers
-	 */
-	.set push
-	.set noreorder
-	beqz	a3, 1f
-	 PTR_L	t3, TASK_THREAD_INFO(a0)
-	.set pop
-
-	/*
-	 * clear saved user stack CU1 bit
-	 */
-	LONG_L	t0, ST_OFF(t3)
-	li	t1, ~ST0_CU1
-	and	t0, t0, t1
-	LONG_S	t0, ST_OFF(t3)
-
-	.set push
-	.set arch=mips64r2
-	fpu_save_double a0 t0 t1		# c0_status passed in t0
-						# clobbers t1
-	.set pop
-1:
 
 #if CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
 	/* Check if we need to store CVMSEG state */
