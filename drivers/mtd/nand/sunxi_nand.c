@@ -586,7 +586,7 @@ static int sunxi_nfc_hw_ecc_read_chunk(struct mtd_info *mtd,
 	if (*cur_off != data_off)
 		nand->cmdfunc(mtd, NAND_CMD_RNDOUT, data_off, -1);
 
-	sunxi_nfc_read_buf(mtd, data, ecc->size);
+	sunxi_nfc_read_buf(mtd, NULL, ecc->size);
 
 	if (data_off + ecc->size != oob_off)
 		nand->cmdfunc(mtd, NAND_CMD_RNDOUT, oob_off, -1);
