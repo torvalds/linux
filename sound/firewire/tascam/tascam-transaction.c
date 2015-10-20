@@ -93,8 +93,10 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 			*label = (port << 4) | 0x04;
 		/* We need to fill whole 3 bytes. Go to next change. */
 		} else {
-			consume = 0;
+			return 0;
 		}
+
+		len = consume;
 	} else {
 		/* The beginning of exclusives. */
 		if (msg[0] == 0xf0) {
@@ -115,23 +117,29 @@ static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
 
 			/* On running-status. */
 			if ((msg[0] & 0x80) != 0x80) {
+				/* Enough MIDI bytes were not retrieved. */
+				if (consume < len - 1)
+					return 0;
+				consume = len - 1;
+
 				msg[2] = msg[1];
 				msg[1] = msg[0];
 				msg[0] = tscm->running_status[port];
-				consume--;
 			} else {
+				/* Enough MIDI bytes were not retrieved. */
+				if (consume < len)
+					return 0;
+				consume = len;
+
 				tscm->running_status[port] = msg[0];
 			}
-
-			/* Confirm length. */
-			if (consume < len)
-				return 0;
-			if (consume > len)
-				consume = len;
 		}
 
 		*label = (port << 4) | (msg[0] >> 4);
 	}
+
+	if (len > 0 && len < 3)
+		memset(msg + len, 0, 3 - len);
 
 	return consume;
 }
