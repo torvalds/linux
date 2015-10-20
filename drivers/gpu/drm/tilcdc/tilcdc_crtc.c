@@ -658,12 +658,7 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	uint32_t stat = tilcdc_read_irqstatus(dev);
 
-	if ((stat & LCDC_SYNC_LOST) && (stat & LCDC_FIFO_UNDERFLOW)) {
-		stop(crtc);
-		dev_err(dev->dev, "error: %08x\n", stat);
-		tilcdc_clear_irqstatus(dev, stat);
-		start(crtc);
-	} else if (stat & LCDC_PL_LOAD_DONE) {
+	if (stat & LCDC_PL_LOAD_DONE) {
 		tilcdc_clear_irqstatus(dev, stat);
 	} else {
 		struct drm_pending_vblank_event *event;
