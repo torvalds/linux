@@ -182,7 +182,7 @@ struct wilc {
 
 	unsigned char eth_src_address[NUM_CONCURRENT_IFC][6];
 
-	const struct firmware *wilc_firmware;
+	const struct firmware *firmware;
 
 #ifdef WILC_SDIO
 	struct sdio_func *wilc_sdio_func;

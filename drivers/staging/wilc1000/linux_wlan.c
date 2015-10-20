@@ -537,7 +537,7 @@ int linux_wlan_get_firmware(perInterface_wlan_t *p_nic)
 		goto _fail_;
 	}
 #endif
-	g_linux_wlan->wilc_firmware = wilc_firmware;
+	g_linux_wlan->firmware = wilc_firmware;
 
 _fail_:
 
@@ -594,7 +594,7 @@ static int linux_wlan_firmware_download(struct wilc *p_nic)
 
 	int ret = 0;
 
-	if (g_linux_wlan->wilc_firmware == NULL) {
+	if (!g_linux_wlan->firmware) {
 		PRINT_ER("Firmware buffer is NULL\n");
 		ret = -ENOBUFS;
 		goto _FAIL_;
@@ -603,16 +603,15 @@ static int linux_wlan_firmware_download(struct wilc *p_nic)
 	 *      do the firmware download
 	 **/
 	PRINT_D(INIT_DBG, "Downloading Firmware ...\n");
-	ret = wilc_wlan_firmware_download(g_linux_wlan->wilc_firmware->data,
-					  g_linux_wlan->wilc_firmware->size);
+	ret = wilc_wlan_firmware_download(g_linux_wlan->firmware->data,
+					  g_linux_wlan->firmware->size);
 	if (ret < 0)
 		goto _FAIL_;
 
 	/* Freeing FW buffer */
 	PRINT_D(INIT_DBG, "Freeing FW buffer ...\n");
 	PRINT_D(INIT_DBG, "Releasing firmware\n");
-	release_firmware(g_linux_wlan->wilc_firmware);
-	g_linux_wlan->wilc_firmware = NULL;
+	release_firmware(g_linux_wlan->firmware);
 
 	PRINT_D(INIT_DBG, "Download Succeeded\n");
 
@@ -1709,8 +1708,8 @@ void wl_wlan_cleanup(void)
 			nic[i] = netdev_priv(g_linux_wlan->vif[i].ndev);
 	}
 
-	if (g_linux_wlan && g_linux_wlan->wilc_firmware)
-		release_firmware(g_linux_wlan->wilc_firmware);
+	if (g_linux_wlan && g_linux_wlan->firmware)
+		release_firmware(g_linux_wlan->firmware);
 
 	if (g_linux_wlan &&
 	   (g_linux_wlan->vif[0].ndev || g_linux_wlan->vif[1].ndev)) {
