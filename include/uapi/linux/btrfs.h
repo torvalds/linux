@@ -206,7 +206,13 @@ struct btrfs_ioctl_feature_flags {
  */
 struct btrfs_balance_args {
 	__u64 profiles;
-	__u64 usage;
+	union {
+		__le64 usage;
+		struct {
+			__le32 usage_min;
+			__le32 usage_max;
+		};
+	};
 	__u64 devid;
 	__u64 pstart;
 	__u64 pend;

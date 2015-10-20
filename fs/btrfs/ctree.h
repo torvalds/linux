@@ -823,8 +823,18 @@ struct btrfs_disk_balance_args {
 	 */
 	__le64 profiles;
 
-	/* usage filter */
-	__le64 usage;
+	/*
+	 * usage filter
+	 * BTRFS_BALANCE_ARGS_USAGE with a single value means '0..N'
+	 * BTRFS_BALANCE_ARGS_USAGE_RANGE - range syntax, min..max
+	 */
+	union {
+		__le64 usage;
+		struct {
+			__le32 usage_min;
+			__le32 usage_max;
+		};
+	};
 
 	/* devid filter */
 	__le64 devid;
