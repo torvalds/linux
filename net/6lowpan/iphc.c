@@ -708,6 +708,37 @@ static u8 lowpan_iphc_tf_compress(u8 **hc_ptr, const struct ipv6hdr *hdr)
 	return val;
 }
 
+static u8 lowpan_iphc_mcast_addr_compress(u8 **hc_ptr,
+					  const struct in6_addr *ipaddr)
+{
+	u8 val;
+
+	if (lowpan_is_mcast_addr_compressable8(ipaddr)) {
+		pr_debug("compressed to 1 octet\n");
+		/* use last byte */
+		lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr[15], 1);
+		val = LOWPAN_IPHC_DAM_11;
+	} else if (lowpan_is_mcast_addr_compressable32(ipaddr)) {
+		pr_debug("compressed to 4 octets\n");
+		/* second byte + the last three */
+		lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr[1], 1);
+		lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr[13], 3);
+		val = LOWPAN_IPHC_DAM_10;
+	} else if (lowpan_is_mcast_addr_compressable48(ipaddr)) {
+		pr_debug("compressed to 6 octets\n");
+		/* second byte + the last five */
+		lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr[1], 1);
+		lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr[11], 5);
+		val = LOWPAN_IPHC_DAM_01;
+	} else {
+		pr_debug("using full address\n");
+		lowpan_push_hc_data(hc_ptr, ipaddr->s6_addr, 16);
+		val = LOWPAN_IPHC_DAM_00;
+	}
+
+	return val;
+}
+
 int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 			   const void *daddr, const void *saddr)
 {
@@ -804,33 +835,7 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	if (addr_type & IPV6_ADDR_MULTICAST) {
 		pr_debug("destination address is multicast: ");
 		iphc1 |= LOWPAN_IPHC_M;
-		if (lowpan_is_mcast_addr_compressable8(&hdr->daddr)) {
-			pr_debug("compressed to 1 octet\n");
-			iphc1 |= LOWPAN_IPHC_DAM_11;
-			/* use last byte */
-			lowpan_push_hc_data(&hc_ptr,
-					    &hdr->daddr.s6_addr[15], 1);
-		} else if (lowpan_is_mcast_addr_compressable32(&hdr->daddr)) {
-			pr_debug("compressed to 4 octets\n");
-			iphc1 |= LOWPAN_IPHC_DAM_10;
-			/* second byte + the last three */
-			lowpan_push_hc_data(&hc_ptr,
-					    &hdr->daddr.s6_addr[1], 1);
-			lowpan_push_hc_data(&hc_ptr,
-					    &hdr->daddr.s6_addr[13], 3);
-		} else if (lowpan_is_mcast_addr_compressable48(&hdr->daddr)) {
-			pr_debug("compressed to 6 octets\n");
-			iphc1 |= LOWPAN_IPHC_DAM_01;
-			/* second byte + the last five */
-			lowpan_push_hc_data(&hc_ptr,
-					    &hdr->daddr.s6_addr[1], 1);
-			lowpan_push_hc_data(&hc_ptr,
-					    &hdr->daddr.s6_addr[11], 5);
-		} else {
-			pr_debug("using full address\n");
-			iphc1 |= LOWPAN_IPHC_DAM_00;
-			lowpan_push_hc_data(&hc_ptr, hdr->daddr.s6_addr, 16);
-		}
+		iphc1 |= lowpan_iphc_mcast_addr_compress(&hc_ptr, &hdr->daddr);
 	} else {
 		if (addr_type & IPV6_ADDR_LINKLOCAL) {
 			/* TODO: context lookup */
