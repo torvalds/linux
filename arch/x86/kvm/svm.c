@@ -2984,8 +2984,7 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 static u64 svm_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
 {
 	struct vmcb *vmcb = get_host_vmcb(to_svm(vcpu));
-	return vmcb->control.tsc_offset +
-		kvm_scale_tsc(vcpu, host_tsc);
+	return vmcb->control.tsc_offset + host_tsc;
 }
 
 static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)

@@ -1401,6 +1401,12 @@ static u64 kvm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 	return target_tsc - tsc;
 }
 
+u64 kvm_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
+{
+	return kvm_x86_ops->read_l1_tsc(vcpu, kvm_scale_tsc(vcpu, host_tsc));
+}
+EXPORT_SYMBOL_GPL(kvm_read_l1_tsc);
+
 void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 {
 	struct kvm *kvm = vcpu->kvm;
@@ -1738,7 +1744,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		kernel_ns = get_kernel_ns();
 	}
 
-	tsc_timestamp = kvm_x86_ops->read_l1_tsc(v, host_tsc);
+	tsc_timestamp = kvm_read_l1_tsc(v, host_tsc);
 
 	/*
 	 * We may have to catch up the TSC to match elapsed wall clock
@@ -6545,8 +6551,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (hw_breakpoint_active())
 		hw_breakpoint_restore();
 
-	vcpu->arch.last_guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu,
-							   rdtsc());
+	vcpu->arch.last_guest_tsc = kvm_read_l1_tsc(vcpu, rdtsc());
 
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
