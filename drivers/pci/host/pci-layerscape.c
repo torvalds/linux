@@ -39,9 +39,6 @@ struct ls_pcie_drvdata {
 };
 
 struct ls_pcie {
-	struct list_head node;
-	struct device *dev;
-	struct pci_bus *bus;
 	void __iomem *dbi;
 	struct regmap *scfg;
 	struct pcie_port pp;
