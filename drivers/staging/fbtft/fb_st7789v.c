@@ -15,6 +15,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -69,63 +70,67 @@ enum st7789v_command {
 #define MADCTL_MY BIT(7) /* bitmask for page address order */
 
 /**
- * default_init_sequence - default initialization sequence for ST7789V
+ * init_display() - initialize the display controller
  *
- * Most of the commands in this init sequence set their parameters to the
+ * @par: FBTFT parameter object
+ *
+ * Most of the commands in this init function set their parameters to the
  * same default values which are already in place after the display has been
  * powered up. (The main exception to this rule is the pixel format which
  * would default to 18 instead of 16 bit per pixel.)
  * Nonetheless, this sequence can be used as a template for concrete
  * displays which usually need some adjustments.
+ *
+ * Return: 0 on success, < 0 if error occurred.
  */
-static int default_init_sequence[] = {
+static int init_display(struct fbtft_par *par)
+{
 	/* turn off sleep mode */
-	-1, MIPI_DCS_EXIT_SLEEP_MODE,
-	-2, 120,
+	write_reg(par, MIPI_DCS_EXIT_SLEEP_MODE);
+	mdelay(120);
 
 	/* set pixel format to RGB-565 */
-	-1, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT,
+	write_reg(par, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT);
 
-	-1, PORCTRL, 0x08, 0x08, 0x00, 0x22, 0x22,
+	write_reg(par, PORCTRL, 0x08, 0x08, 0x00, 0x22, 0x22);
 
 	/*
 	 * VGH = 13.26V
 	 * VGL = -10.43V
 	 */
-	-1, GCTRL, 0x35,
+	write_reg(par, GCTRL, 0x35);
 
 	/*
 	 * VDV and VRH register values come from command write
 	 * (instead of NVM)
 	 */
-	-1, VDVVRHEN, 0x01, 0xFF,
+	write_reg(par, VDVVRHEN, 0x01, 0xFF);
 
 	/*
 	 * VAP =  4.1V + (VCOM + VCOM offset + 0.5 * VDV)
 	 * VAN = -4.1V + (VCOM + VCOM offset + 0.5 * VDV)
 	 */
-	-1, VRHS, 0x0B,
+	write_reg(par, VRHS, 0x0B);
 
 	/* VDV = 0V */
-	-1, VDVS, 0x20,
+	write_reg(par, VDVS, 0x20);
 
 	/* VCOM = 0.9V */
-	-1, VCOMS, 0x20,
+	write_reg(par, VCOMS, 0x20);
 
 	/* VCOM offset = 0V */
-	-1, VCMOFSET, 0x20,
+	write_reg(par, VCMOFSET, 0x20);
 
 	/*
 	 * AVDD = 6.8V
 	 * AVCL = -4.8V
 	 * VDS = 2.3V
 	 */
-	-1, PWCTRL1, 0xA4, 0xA1,
+	write_reg(par, PWCTRL1, 0xA4, 0xA1);
 
-	-1, MIPI_DCS_SET_DISPLAY_ON,
-
-	-3,
-};
+	write_reg(par, MIPI_DCS_SET_DISPLAY_ON);
+	return 0;
+}
 
 /**
  * set_var() - apply LCD properties like rotation and BGR mode
@@ -237,11 +242,11 @@ static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = 240,
 	.height = 320,
-	.init_sequence = default_init_sequence,
 	.gamma_num = 2,
 	.gamma_len = 14,
 	.gamma = DEFAULT_GAMMA,
 	.fbtftops = {
+		.init_display = init_display,
 		.set_var = set_var,
 		.set_gamma = set_gamma,
 		.blank = blank,
