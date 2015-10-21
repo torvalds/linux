@@ -1015,11 +1015,15 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 	if (!p)
 		return 0;
 
-	for (i = 0; i < pi->rss_size; i++)
-		pi->rss[i] = p[i];
-	if (pi->adapter->flags & FULL_INIT_DONE)
+	/* Interface must be brought up atleast once */
+	if (pi->adapter->flags & FULL_INIT_DONE) {
+		for (i = 0; i < pi->rss_size; i++)
+			pi->rss[i] = p[i];
+
 		return cxgb4_write_rss(pi, pi->rss);
-	return 0;
+	}
+
+	return -EPERM;
 }
 
 static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
