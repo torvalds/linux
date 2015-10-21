@@ -1218,13 +1218,10 @@ static int context_struct_to_string(struct context *context, char **scontext, u3
 	/*
 	 * Copy the user name, role name and type name into the context.
 	 */
-	sprintf(scontextp, "%s:%s:%s",
+	scontextp += sprintf(scontextp, "%s:%s:%s",
 		sym_name(&policydb, SYM_USERS, context->user - 1),
 		sym_name(&policydb, SYM_ROLES, context->role - 1),
 		sym_name(&policydb, SYM_TYPES, context->type - 1));
-	scontextp += strlen(sym_name(&policydb, SYM_USERS, context->user - 1)) +
-		     1 + strlen(sym_name(&policydb, SYM_ROLES, context->role - 1)) +
-		     1 + strlen(sym_name(&policydb, SYM_TYPES, context->type - 1));
 
 	mls_sid_to_context(context, &scontextp);
 
