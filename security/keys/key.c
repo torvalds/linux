@@ -278,7 +278,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 
 	key->index_key.desc_len = desclen;
 	key->index_key.description = kmemdup(desc, desclen + 1, GFP_KERNEL);
-	if (!key->description)
+	if (!key->index_key.description)
 		goto no_memory_3;
 
 	atomic_set(&key->usage, 1);
