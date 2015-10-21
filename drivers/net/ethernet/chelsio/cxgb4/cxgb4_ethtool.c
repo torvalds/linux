@@ -629,10 +629,7 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		cap = speed_to_caps(speed);
 
-		if (!(lc->supported & cap) ||
-		    (speed == 1000) ||
-		    (speed == 10000) ||
-		    (speed == 40000))
+		if (!(lc->supported & cap))
 			return -EINVAL;
 		lc->requested_speed = cap;
 		lc->advertising = 0;
