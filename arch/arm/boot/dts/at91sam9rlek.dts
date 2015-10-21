@@ -225,14 +225,14 @@
 			label = "right_click";
 			gpios = <&pioB 0 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		left_click {
 			label = "left_click";
 			gpios = <&pioB 1 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

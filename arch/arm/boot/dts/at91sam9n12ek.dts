@@ -219,7 +219,7 @@
 			label = "Enter";
 			gpios = <&pioB 3 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

@@ -94,14 +94,14 @@
 			label = "PB_RST";
 			gpios = <&pioB 30 GPIO_ACTIVE_HIGH>;
 			linux,code = <0x100>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		user {
 			label = "PB_USER";
 			gpios = <&pioB 31 GPIO_ACTIVE_HIGH>;
 			linux,code = <0x101>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

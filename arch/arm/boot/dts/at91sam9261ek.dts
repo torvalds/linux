@@ -149,7 +149,7 @@
 					ti,debounce-tol = /bits/ 16 <65535>;
 					ti,debounce-max = /bits/ 16 <1>;
 
-					linux,wakeup;
+					wakeup-source;
 				};
 			};
 
@@ -193,28 +193,28 @@
 			label = "button_0";
 			gpios = <&pioA 27 GPIO_ACTIVE_LOW>;
 			linux,code = <256>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		button_1 {
 			label = "button_1";
 			gpios = <&pioA 26 GPIO_ACTIVE_LOW>;
 			linux,code = <257>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		button_2 {
 			label = "button_2";
 			gpios = <&pioA 25 GPIO_ACTIVE_LOW>;
 			linux,code = <258>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		button_3 {
 			label = "button_3";
 			gpios = <&pioA 24 GPIO_ACTIVE_LOW>;
 			linux,code = <259>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };

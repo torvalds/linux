@@ -304,7 +304,7 @@
 			label = "pb_user1";
 			gpios = <&pioE 13 GPIO_ACTIVE_HIGH>;
 			linux,code = <0x100>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
