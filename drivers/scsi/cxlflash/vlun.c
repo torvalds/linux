@@ -400,6 +400,24 @@ static int init_vlun(struct llun_info *lli)
  * @lba:	Logical block address to start write same.
  * @nblks:	Number of logical blocks to write same.
  *
+ * The SCSI WRITE_SAME16 can take quite a while to complete. Should an EEH occur
+ * while in scsi_execute(), the EEH handler will attempt to recover. As part of
+ * the recovery, the handler drains all currently running ioctls, waiting until
+ * they have completed before proceeding with a reset. As this routine is used
+ * on the ioctl path, this can create a condition where the EEH handler becomes
+ * stuck, infinitely waiting for this ioctl thread. To avoid this behavior,
+ * temporarily unmark this thread as an ioctl thread by releasing the ioctl read
+ * semaphore. This will allow the EEH handler to proceed with a recovery while
+ * this thread is still running. Once the scsi_execute() returns, reacquire the
+ * ioctl read semaphore and check the adapter state in case it changed while
+ * inside of scsi_execute(). The state check will wait if the adapter is still
+ * being recovered or return a failure if the recovery failed. In the event that
+ * the adapter reset failed, simply return the failure as the ioctl would be
+ * unable to continue.
+ *
+ * Note that the above puts a requirement on this routine to only be called on
+ * an ioctl thread.
+ *
  * Return: 0 on success, -errno on failure
  */
 static int write_same16(struct scsi_device *sdev,
@@ -433,9 +451,20 @@ static int write_same16(struct scsi_device *sdev,
 		put_unaligned_be32(ws_limit < left ? ws_limit : left,
 				   &scsi_cmd[10]);
 
+		/* Drop the ioctl read semahpore across lengthy call */
+		up_read(&cfg->ioctl_rwsem);
 		result = scsi_execute(sdev, scsi_cmd, DMA_TO_DEVICE, cmd_buf,
 				      CMD_BUFSIZE, sense_buf, to, CMD_RETRIES,
 				      0, NULL);
+		down_read(&cfg->ioctl_rwsem);
+		rc = check_state(cfg);
+		if (rc) {
+			dev_err(dev, "%s: Failed state! result=0x08%X\n",
+				__func__, result);
+			rc = -ENODEV;
+			goto out;
+		}
+
 		if (result) {
 			dev_err_ratelimited(dev, "%s: command failed for "
 					    "offset %lld result=0x%x\n",
