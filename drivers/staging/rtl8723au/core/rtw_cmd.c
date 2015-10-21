@@ -236,7 +236,8 @@ int rtw_enqueue_cmd23a(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 	res = queue_work(pcmdpriv->wq, &cmd_obj->work);
 
 	if (!res) {
-		printk(KERN_ERR "%s: Call to queue_work() failed\n", __func__);
+		netdev_err(pcmdpriv->padapter->pnetdev,
+			   "%s: Call to queue_work() failed\n", __func__);
 		res = _FAIL;
 	} else
 		res = _SUCCESS;
