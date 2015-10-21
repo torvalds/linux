@@ -855,8 +855,6 @@ static int rt298_set_dai_sysclk(struct snd_soc_dai *dai,
 		snd_soc_update_bits(codec,
 			RT298_I2S_CTRL2, 0x0100, 0x0100);
 		snd_soc_update_bits(codec,
-			RT298_PLL_CTRL, 0x4, 0x4);
-		snd_soc_update_bits(codec,
 			RT298_PLL_CTRL1, 0x20, 0x0);
 	}
 
