@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -132,11 +133,11 @@ static void adafruit18_green_tab_set_addr_win(struct fbtft_par *par,
 
 static int cberry28_init_sequence[] = {
 	/* turn off sleep mode */
-	-1, 0x11,
+	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 120,
 
 	/* set pixel format to RGB-565 */
-	-1, 0x3A, 0x05,
+	-1, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT,
 
 	-1, 0xB2, 0x0C, 0x0C, 0x00, 0x33, 0x33,
 
@@ -174,7 +175,7 @@ static int cberry28_init_sequence[] = {
 	 */
 	-1, 0xD0, 0xA4, 0x61,
 
-	-1, 0x29,
+	-1, MIPI_DCS_SET_DISPLAY_ON,
 
 	-3,
 };

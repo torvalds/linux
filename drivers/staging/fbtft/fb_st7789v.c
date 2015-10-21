@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -30,14 +31,6 @@
 /**
  * enum st7789v_command - ST7789V display controller commands
  *
- * @SLPOUT: sleep out
- * @DISPOFF: display off
- * @DISPON: display on
- * @CASET: column address set
- * @RASET: row address set
- * @RAMRW: memory write
- * @MADCTL: memory data access control
- * @COLMOD: interface pixel format
  * @PORCTRL: porch setting
  * @GCTRL: gate control
  * @VCOMS: VCOM setting
@@ -54,16 +47,10 @@
  *
  * Note that the ST7789V display controller offers quite a few more commands
  * which have been omitted from this list as they are not used at the moment.
+ * Furthermore, commands that are compliant with the MIPI DCS have been left
+ * out as well to avoid duplicate entries.
  */
 enum st7789v_command {
-	SLPOUT = 0x11,
-	DISPOFF = 0x28,
-	DISPON = 0x29,
-	CASET = 0x2A,
-	RASET = 0x2B,
-	RAMRW = 0x2C,
-	MADCTL = 0x36,
-	COLMOD = 0x3A,
 	PORCTRL = 0xB2,
 	GCTRL = 0xB7,
 	VCOMS = 0xBB,
@@ -93,11 +80,11 @@ enum st7789v_command {
  */
 static int default_init_sequence[] = {
 	/* turn off sleep mode */
-	-1, SLPOUT,
+	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 120,
 
 	/* set pixel format to RGB-565 */
-	-1, COLMOD, 0x05,
+	-1, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT,
 
 	-1, PORCTRL, 0x08, 0x08, 0x00, 0x22, 0x22,
 
@@ -135,7 +122,7 @@ static int default_init_sequence[] = {
 	 */
 	-1, PWCTRL1, 0xA4, 0xA1,
 
-	-1, DISPON,
+	-1, MIPI_DCS_SET_DISPLAY_ON,
 
 	-3,
 };
@@ -151,9 +138,11 @@ static int default_init_sequence[] = {
  */
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	write_reg(par, CASET, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
-	write_reg(par, RASET, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
-	write_reg(par, RAMRW);
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
+		  xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
+		  ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
 /**
@@ -184,7 +173,7 @@ static int set_var(struct fbtft_par *par)
 	default:
 		return -EINVAL;
 	}
-	write_reg(par, MADCTL, madctl_par);
+	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, madctl_par);
 	return 0;
 }
 
@@ -256,9 +245,9 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 static int blank(struct fbtft_par *par, bool on)
 {
 	if (on)
-		write_reg(par, DISPOFF);
+		write_reg(par, MIPI_DCS_SET_DISPLAY_OFF);
 	else
-		write_reg(par, DISPON);
+		write_reg(par, MIPI_DCS_SET_DISPLAY_ON);
 	return 0;
 }
 
