@@ -34,6 +34,7 @@ gb-light-y := light.o
 gb-raw-y := raw.o
 gb-es1-y := es1.o
 gb-es2-y := es2.o
+gb-db3-y := db3-platform.o
 
 obj-m += greybus.o
 obj-m += gb-phy.o
@@ -44,6 +45,7 @@ obj-m += gb-light.o
 obj-m += gb-raw.o
 obj-m += gb-es1.o
 obj-m += gb-es2.o
+obj-m += gb-db3.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
