@@ -525,7 +525,7 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 	else
 		aSifsTime = 16;
 
-		for (i = 0; i < 4; i++) {
+	for (i = 0; i < 4; i++) {
 		ACI = (pmlmeinfo->WMM_param.ac_param[i].ACI_AIFSN >> 5) & 0x03;
 		ACM = (pmlmeinfo->WMM_param.ac_param[i].ACI_AIFSN >> 4) & 0x01;
 
