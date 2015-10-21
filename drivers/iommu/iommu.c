@@ -731,12 +731,16 @@ static int get_pci_alias_or_group(struct pci_dev *pdev, u16 alias, void *opaque)
  * Use standard PCI bus topology, isolation features, and DMA alias quirks
  * to find or create an IOMMU group for a device.
  */
-static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
+struct iommu_group *pci_device_group(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct group_for_pci_data data;
 	struct pci_bus *bus;
 	struct iommu_group *group = NULL;
 	u64 devfns[4] = { 0 };
+
+	if (WARN_ON(!dev_is_pci(dev)))
+		return ERR_PTR(-EINVAL);
 
 	/*
 	 * Find the upstream DMA alias for the device.  A device must not
@@ -827,7 +831,7 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 	if (ops && ops->device_group)
 		group = ops->device_group(dev);
 	else if (dev_is_pci(dev))
-		group = iommu_group_get_for_pci_dev(to_pci_dev(dev));
+		group = pci_device_group(dev);
 
 	if (IS_ERR(group))
 		return group;

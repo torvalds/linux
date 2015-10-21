@@ -317,6 +317,9 @@ static inline size_t iommu_map_sg(struct iommu_domain *domain,
 	return domain->ops->map_sg(domain, iova, sg, nents, prot);
 }
 
+/* PCI device grouping function */
+extern struct iommu_group *pci_device_group(struct device *dev);
+
 #else /* CONFIG_IOMMU_API */
 
 struct iommu_ops {};
