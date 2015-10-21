@@ -5286,9 +5286,15 @@ void perf_output_sample(struct perf_output_handle *handle,
 
 	if (sample_type & PERF_SAMPLE_RAW) {
 		if (data->raw) {
-			perf_output_put(handle, data->raw->size);
-			__output_copy(handle, data->raw->data,
-					   data->raw->size);
+			u32 raw_size = data->raw->size;
+			u32 real_size = round_up(raw_size + sizeof(u32),
+						 sizeof(u64)) - sizeof(u32);
+			u64 zero = 0;
+
+			perf_output_put(handle, real_size);
+			__output_copy(handle, data->raw->data, raw_size);
+			if (real_size - raw_size)
+				__output_copy(handle, &zero, real_size - raw_size);
 		} else {
 			struct {
 				u32	size;
@@ -5420,8 +5426,7 @@ void perf_prepare_sample(struct perf_event_header *header,
 		else
 			size += sizeof(u32);
 
-		WARN_ON_ONCE(size & (sizeof(u64)-1));
-		header->size += size;
+		header->size += round_up(size, sizeof(u64));
 	}
 
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK) {
