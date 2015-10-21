@@ -111,13 +111,15 @@ int btintel_set_diag(struct hci_dev *hdev, bool enable)
 	if (IS_ERR(skb)) {
 		err = PTR_ERR(skb);
 		if (err == -ENODATA)
-			return 0;
+			goto done;
 		BT_ERR("%s: Changing Intel diagnostic mode failed (%d)",
 		       hdev->name, err);
 		return err;
 	}
 	kfree_skb(skb);
 
+done:
+	btintel_set_event_mask(hdev, enable);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(btintel_set_diag);
@@ -282,6 +284,64 @@ int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(btintel_load_ddc_config);
+
+int btintel_set_event_mask(struct hci_dev *hdev, bool debug)
+{
+	u8 mask[8] = { 0x87, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	struct sk_buff *skb;
+	int err;
+
+	if (debug)
+		mask[1] |= 0x62;
+
+	skb = __hci_cmd_sync(hdev, 0xfc52, 8, mask, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		BT_ERR("%s: Setting Intel event mask failed (%d)",
+		       hdev->name, err);
+		return err;
+	}
+	kfree_skb(skb);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btintel_set_event_mask);
+
+int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug)
+{
+	struct sk_buff *skb;
+	u8 param[2];
+	int err;
+
+	param[0] = 0x01;
+	param[1] = 0x00;
+
+	skb = __hci_cmd_sync(hdev, 0xfc11, 2, param, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		BT_ERR("%s: Entering Intel manufacturer mode failed (%d)",
+		       hdev->name, err);
+		return PTR_ERR(skb);
+	}
+	kfree_skb(skb);
+
+	err = btintel_set_event_mask(hdev, debug);
+
+	param[0] = 0x00;
+	param[1] = 0x00;
+
+	skb = __hci_cmd_sync(hdev, 0xfc11, 2, param, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		BT_ERR("%s: Leaving Intel manufacturer mode failed (%d)",
+		       hdev->name, err);
+		return PTR_ERR(skb);
+	}
+	kfree_skb(skb);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(btintel_set_event_mask_mfg);
 
 /* ------- REGMAP IBT SUPPORT ------- */
 
