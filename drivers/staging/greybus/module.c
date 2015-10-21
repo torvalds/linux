@@ -151,7 +151,6 @@ struct gb_module *gb_module_create(struct device *parent, u8 module_id)
 		pr_err("failed to add module device for id 0x%02hhx\n",
 			module_id);
 		put_device(&module->dev);
-		kfree(module);
 		return NULL;
 	}
 
