@@ -233,8 +233,10 @@ int __init mx31_clocks_init_dt(void)
 		if (!of_device_is_compatible(np, "fsl,imx-osc26m"))
 			continue;
 
-		if (!of_property_read_u32(np, "clock-frequency", &fref))
+		if (!of_property_read_u32(np, "clock-frequency", &fref)) {
+			of_node_put(np);
 			break;
+		}
 	}
 
 	_mx31_clocks_init(fref);
