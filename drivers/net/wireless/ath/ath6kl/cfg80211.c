@@ -3796,6 +3796,9 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 		ath6kl_band_2ghz.ht_cap.ht_supported = false;
 		ath6kl_band_5ghz.ht_cap.cap = 0;
 		ath6kl_band_5ghz.ht_cap.ht_supported = false;
+
+		if (ht)
+			ath6kl_err("Firmware lacks RSN-CAP-OVERRIDE, so HT (802.11n) is disabled.");
 	}
 
 	if (test_bit(ATH6KL_FW_CAPABILITY_64BIT_RATES,
