@@ -863,7 +863,7 @@ u8 DIM_ServiceChannel(struct dim_channel *ch)
 }
 
 struct dim_ch_state_t *DIM_GetChannelState(struct dim_channel *ch,
-		struct dim_ch_state_t *state_ptr)
+					   struct dim_ch_state_t *state_ptr)
 {
 	if (!ch || !state_ptr)
 		return NULL;

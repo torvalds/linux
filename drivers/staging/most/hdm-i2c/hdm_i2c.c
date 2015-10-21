@@ -92,10 +92,9 @@ static int configure_channel(struct most_interface *most_iface,
 		return -EPERM;
 	}
 
-	if (channel_config->direction == MOST_CH_RX) {
-		if (dev->polling_mode)
-			schedule_delayed_work(&dev->rx.dwork,
-					msecs_to_jiffies(MSEC_PER_SEC / 4));
+	if ((channel_config->direction == MOST_CH_RX) && (dev->polling_mode)) {
+		schedule_delayed_work(&dev->rx.dwork,
+				      msecs_to_jiffies(MSEC_PER_SEC / 4));
 	}
 	dev->is_open[ch_idx] = true;
 

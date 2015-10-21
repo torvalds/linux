@@ -100,7 +100,7 @@ static int aim_open(struct inode *inode, struct file *filp)
 	}
 
 	ret = most_start_channel(channel->iface, channel->channel_id,
-				&cdev_aim);
+				 &cdev_aim);
 	if (ret)
 		atomic_dec(&channel->access_ref);
 	return ret;

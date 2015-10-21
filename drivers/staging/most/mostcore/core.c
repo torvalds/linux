@@ -247,8 +247,8 @@ static void most_channel_release(struct kobject *kobj)
 }
 
 static ssize_t show_available_directions(struct most_c_obj *c,
-		struct most_c_attr *attr,
-		char *buf)
+					 struct most_c_attr *attr,
+					 char *buf)
 {
 	unsigned int i = c->channel_id;
 

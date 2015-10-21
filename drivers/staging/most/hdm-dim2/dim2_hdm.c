@@ -398,7 +398,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 }
 
 static struct dim_channel **get_active_channels(struct dim2_hdm *dev,
-		struct dim_channel **buffer)
+						struct dim_channel **buffer)
 {
 	int idx = 0;
 	int ch_idx;
