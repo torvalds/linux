@@ -1476,6 +1476,11 @@ int security_context_to_sid(const char *scontext, u32 scontext_len, u32 *sid,
 					    sid, SECSID_NULL, gfp, 0);
 }
 
+int security_context_str_to_sid(const char *scontext, u32 *sid, gfp_t gfp)
+{
+	return security_context_to_sid(scontext, strlen(scontext), sid, gfp);
+}
+
 /**
  * security_context_to_sid_default - Obtain a SID for a given security context,
  * falling back to specified default if needed.
