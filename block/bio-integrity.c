@@ -32,6 +32,11 @@
 static struct kmem_cache *bip_slab;
 static struct workqueue_struct *kintegrityd_wq;
 
+void blk_flush_integrity(void)
+{
+	flush_workqueue(kintegrityd_wq);
+}
+
 /**
  * bio_integrity_alloc - Allocate integrity payload and attach it to bio
  * @bio:	bio to attach integrity metadata to

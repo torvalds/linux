@@ -87,6 +87,14 @@ static inline void blk_queue_enter_live(struct request_queue *q)
 	percpu_ref_get(&q->q_usage_counter);
 }
 
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+void blk_flush_integrity(void);
+#else
+static inline void blk_flush_integrity(void)
+{
+}
+#endif
+
 void blk_rq_timed_out_timer(unsigned long data);
 unsigned long blk_rq_timeout(unsigned long timeout);
 void blk_add_timer(struct request *req);
