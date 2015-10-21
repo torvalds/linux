@@ -712,7 +712,6 @@ static void destroy_context(struct cxlflash_cfg *cfg,
 	kfree(ctxi->rht_needs_ws);
 	kfree(ctxi->rht_lun);
 	kfree(ctxi);
-	atomic_dec_if_positive(&cfg->num_user_contexts);
 }
 
 /**
@@ -769,7 +768,6 @@ static struct ctx_info *create_context(struct cxlflash_cfg *cfg,
 	INIT_LIST_HEAD(&ctxi->luns);
 	INIT_LIST_HEAD(&ctxi->list); /* initialize for list_empty() */
 
-	atomic_inc(&cfg->num_user_contexts);
 	mutex_lock(&ctxi->mutex);
 out:
 	return ctxi;
@@ -1164,10 +1162,7 @@ out:
 	return rc;
 }
 
-/*
- * Local fops for adapter file descriptor
- */
-static const struct file_operations cxlflash_cxl_fops = {
+const struct file_operations cxlflash_cxl_fops = {
 	.owner = THIS_MODULE,
 	.mmap = cxlflash_cxl_mmap,
 	.release = cxlflash_cxl_release,
@@ -1285,10 +1280,6 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	struct cxl_context *ctx;
 
 	int fd = -1;
-
-	/* On first attach set fileops */
-	if (atomic_read(&cfg->num_user_contexts) == 0)
-		cfg->cxl_fops = cxlflash_cxl_fops;
 
 	if (attach->num_interrupts > 4) {
 		dev_dbg(dev, "%s: Cannot support this many interrupts %llu\n",

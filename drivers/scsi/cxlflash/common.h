@@ -21,6 +21,7 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 
+extern const struct file_operations cxlflash_cxl_fops;
 
 #define MAX_CONTEXT  CXLFLASH_MAX_CONTEXT       /* num contexts per afu */
 
@@ -114,8 +115,6 @@ struct cxlflash_cfg {
 	struct ctx_info *ctx_tbl[MAX_CONTEXT];
 	struct list_head ctx_err_recovery; /* contexts w/ recovery pending */
 	struct file_operations cxl_fops;
-
-	atomic_t num_user_contexts;
 
 	/* Parameters that are LUN table related */
 	int last_lun_index[CXLFLASH_NUM_FC_PORTS];

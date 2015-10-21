@@ -2386,6 +2386,7 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	cfg->init_state = INIT_STATE_NONE;
 	cfg->dev = pdev;
+	cfg->cxl_fops = cxlflash_cxl_fops;
 
 	/*
 	 * The promoted LUNs move to the top of the LUN table. The rest stay
