@@ -88,8 +88,8 @@ static int aim_open(struct inode *inode, struct file *filp)
 	filp->private_data = channel;
 
 	if (((channel->cfg->direction == MOST_CH_RX) &&
-	     ((filp->f_flags & O_ACCMODE) != O_RDONLY))
-	    || ((channel->cfg->direction == MOST_CH_TX) &&
+	     ((filp->f_flags & O_ACCMODE) != O_RDONLY)) ||
+	     ((channel->cfg->direction == MOST_CH_TX) &&
 		((filp->f_flags & O_ACCMODE) != O_WRONLY))) {
 		pr_info("WARN: Access flags mismatch\n");
 		return -EACCES;
@@ -233,8 +233,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 		channel->keep_mbo = false;
 		goto start_copy;
 	}
-	while ((!kfifo_out(&channel->fifo, &mbo, 1))
-	       && (channel->dev)) {
+	while ((!kfifo_out(&channel->fifo, &mbo, 1)) && (channel->dev)) {
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		if (wait_event_interruptible(channel->wq,

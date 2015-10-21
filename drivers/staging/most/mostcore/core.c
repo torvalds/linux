@@ -1184,8 +1184,8 @@ static int hdm_enqueue_thread(void *data)
 
 	while (likely(!kthread_should_stop())) {
 		wait_event_interruptible(c->hdm_fifo_wq,
-					 (mbo = get_hdm_mbo(c))
-					 || kthread_should_stop());
+					 (mbo = get_hdm_mbo(c)) ||
+					 kthread_should_stop());
 
 		if (unlikely(!mbo))
 			continue;
