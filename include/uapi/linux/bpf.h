@@ -287,6 +287,17 @@ enum bpf_func_id {
 	 * Return: realm if != 0
 	 */
 	BPF_FUNC_get_route_realm,
+
+	/**
+	 * bpf_perf_event_output(ctx, map, index, data, size) - output perf raw sample
+	 * @ctx: struct pt_regs*
+	 * @map: pointer to perf_event_array map
+	 * @index: index of event in the map
+	 * @data: data on stack to be output as raw data
+	 * @size: size of data
+	 * Return: 0 on success
+	 */
+	BPF_FUNC_perf_event_output,
 	__BPF_FUNC_MAX_ID,
 };
 
