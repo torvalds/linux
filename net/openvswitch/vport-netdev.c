@@ -190,37 +190,6 @@ void ovs_netdev_tunnel_destroy(struct vport *vport)
 }
 EXPORT_SYMBOL_GPL(ovs_netdev_tunnel_destroy);
 
-static unsigned int packet_length(const struct sk_buff *skb)
-{
-	unsigned int length = skb->len - ETH_HLEN;
-
-	if (skb->protocol == htons(ETH_P_8021Q))
-		length -= VLAN_HLEN;
-
-	return length;
-}
-
-void ovs_netdev_send(struct vport *vport, struct sk_buff *skb)
-{
-	int mtu = vport->dev->mtu;
-
-	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
-		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
-				     vport->dev->name,
-				     packet_length(skb), mtu);
-		vport->dev->stats.tx_errors++;
-		goto drop;
-	}
-
-	skb->dev = vport->dev;
-	dev_queue_xmit(skb);
-	return;
-
-drop:
-	kfree_skb(skb);
-}
-EXPORT_SYMBOL_GPL(ovs_netdev_send);
-
 /* Returns null if this device is not attached to a datapath. */
 struct vport *ovs_netdev_get_vport(struct net_device *dev)
 {
@@ -235,7 +204,7 @@ static struct vport_ops ovs_netdev_vport_ops = {
 	.type		= OVS_VPORT_TYPE_NETDEV,
 	.create		= netdev_create,
 	.destroy	= netdev_destroy,
-	.send		= ovs_netdev_send,
+	.send		= dev_queue_xmit,
 };
 
 int __init ovs_netdev_init(void)

@@ -170,7 +170,7 @@ static struct vport_ops ovs_vxlan_netdev_vport_ops = {
 	.create			= vxlan_create,
 	.destroy		= ovs_netdev_tunnel_destroy,
 	.get_options		= vxlan_get_options,
-	.send			= ovs_netdev_send,
+	.send			= dev_queue_xmit,
 	.get_egress_tun_info	= vxlan_get_egress_tun_info,
 };
 

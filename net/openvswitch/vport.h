@@ -153,7 +153,7 @@ struct vport_ops {
 	int (*set_options)(struct vport *, struct nlattr *);
 	int (*get_options)(const struct vport *, struct sk_buff *);
 
-	void (*send)(struct vport *, struct sk_buff *);
+	netdev_tx_t (*send) (struct sk_buff *skb);
 	int (*get_egress_tun_info)(struct vport *, struct sk_buff *,
 				   struct dp_upcall_info *upcall);
 
@@ -234,9 +234,6 @@ static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
 	return rt;
 }
 
-static inline void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
-{
-	vport->ops->send(vport, skb);
-}
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
 
 #endif /* vport.h */
