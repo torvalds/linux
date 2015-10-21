@@ -2584,7 +2584,6 @@ static int i40e_set_channels(struct net_device *dev,
 		return -EINVAL;
 }
 
-#define I40E_HLUT_ARRAY_SIZE ((I40E_PFQF_HLUT_MAX_INDEX + 1) * 4)
 /**
  * i40e_get_rxfh_key_size - get the RSS hash key size
  * @netdev: network interface device structure

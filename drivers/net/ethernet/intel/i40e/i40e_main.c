@@ -55,6 +55,8 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit);
 static int i40e_setup_misc_vector(struct i40e_pf *pf);
 static void i40e_determine_queue_usage(struct i40e_pf *pf);
 static int i40e_setup_pf_filter_control(struct i40e_pf *pf);
+static void i40e_fill_rss_lut(struct i40e_pf *pf, u8 *lut,
+			      u16 rss_table_size, u16 rss_size);
 static void i40e_fdir_sb_setup(struct i40e_pf *pf);
 static int i40e_veb_get_bw_info(struct i40e_veb *veb);
 
@@ -7797,7 +7799,8 @@ static int i40e_setup_misc_vector(struct i40e_pf *pf)
  * @vsi: vsi structure
  * @seed: RSS hash seed
  **/
-static int i40e_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed)
+static int i40e_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
+			      u8 *lut, u16 lut_size)
 {
 	struct i40e_aqc_get_set_rss_key_data rss_key;
 	struct i40e_pf *pf = vsi->back;
@@ -7850,47 +7853,77 @@ static int i40e_vsi_config_rss(struct i40e_vsi *vsi)
 {
 	u8 seed[I40E_HKEY_ARRAY_SIZE];
 	struct i40e_pf *pf = vsi->back;
+	u8 *lut;
+	int ret;
 
+	if (!(pf->flags & I40E_FLAG_RSS_AQ_CAPABLE))
+		return 0;
+
+	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
+	if (!lut)
+		return -ENOMEM;
+
+	i40e_fill_rss_lut(pf, lut, vsi->rss_table_size, vsi->rss_size);
 	netdev_rss_key_fill((void *)seed, I40E_HKEY_ARRAY_SIZE);
 	vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
+	ret = i40e_config_rss_aq(vsi, seed, lut, vsi->rss_table_size);
+	kfree(lut);
 
-	if (pf->flags & I40E_FLAG_RSS_AQ_CAPABLE)
-		return i40e_config_rss_aq(vsi, seed);
+	return ret;
+}
+
+/**
+ * i40e_config_rss_reg - Prepare for RSS if used
+ * @vsi: Pointer to vsi structure
+ * @seed: RSS hash seed
+ * @lut: Lookup table
+ * @lut_size: Lookup table size
+ *
+ * Returns 0 on success, negative on failure
+ **/
+static int i40e_config_rss_reg(struct i40e_vsi *vsi, const u8 *seed,
+			       const u8 *lut, u16 lut_size)
+{
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	u8 i;
+
+	/* Fill out hash function seed */
+	if (seed) {
+		u32 *seed_dw = (u32 *)seed;
+
+		for (i = 0; i <= I40E_PFQF_HKEY_MAX_INDEX; i++)
+			wr32(hw, I40E_PFQF_HKEY(i), seed_dw[i]);
+	}
+
+	if (lut) {
+		u32 *lut_dw = (u32 *)lut;
+
+		if (lut_size != I40E_HLUT_ARRAY_SIZE)
+			return -EINVAL;
+
+		for (i = 0; i <= I40E_PFQF_HLUT_MAX_INDEX; i++)
+			wr32(hw, I40E_PFQF_HLUT(i), lut_dw[i]);
+	}
+	i40e_flush(hw);
 
 	return 0;
 }
 
 /**
- * i40e_config_rss_reg - Prepare for RSS if used
- * @pf: board private structure
- * @seed: RSS hash seed
- **/
-static int i40e_config_rss_reg(struct i40e_pf *pf, const u8 *seed)
+ * i40e_fill_rss_lut - Fill the RSS lookup table with default values
+ * @pf: Pointer to board private structure
+ * @lut: Lookup table
+ * @rss_table_size: Lookup table size
+ * @rss_size: Range of queue number for hashing
+ */
+static void i40e_fill_rss_lut(struct i40e_pf *pf, u8 *lut,
+			      u16 rss_table_size, u16 rss_size)
 {
-	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
-	struct i40e_hw *hw = &pf->hw;
-	u32 *seed_dw = (u32 *)seed;
-	u32 current_queue = 0;
-	u32 lut = 0;
-	int i, j;
+	u16 i;
 
-	/* Fill out hash function seed */
-	for (i = 0; i <= I40E_PFQF_HKEY_MAX_INDEX; i++)
-		wr32(hw, I40E_PFQF_HKEY(i), seed_dw[i]);
-
-	for (i = 0; i <= I40E_PFQF_HLUT_MAX_INDEX; i++) {
-		lut = 0;
-		for (j = 0; j < 4; j++) {
-			if (current_queue == vsi->rss_size)
-				current_queue = 0;
-			lut |= ((current_queue) << (8 * j));
-			current_queue++;
-		}
-		wr32(&pf->hw, I40E_PFQF_HLUT(i), lut);
-	}
-	i40e_flush(hw);
-
-	return 0;
+	for (i = 0; i < rss_table_size; i++)
+		lut[i] = i % rss_size;
 }
 
 /**
@@ -7901,9 +7934,11 @@ static int i40e_config_rss(struct i40e_pf *pf)
 {
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	u8 seed[I40E_HKEY_ARRAY_SIZE];
+	u8 *lut;
 	struct i40e_hw *hw = &pf->hw;
 	u32 reg_val;
 	u64 hena;
+	int ret;
 
 	netdev_rss_key_fill((void *)seed, I40E_HKEY_ARRAY_SIZE);
 
@@ -7924,10 +7959,20 @@ static int i40e_config_rss(struct i40e_pf *pf)
 			(reg_val & ~I40E_PFQF_CTL_0_HASHLUTSIZE_512);
 	wr32(hw, I40E_PFQF_CTL_0, reg_val);
 
+	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
+	if (!lut)
+		return -ENOMEM;
+
+	i40e_fill_rss_lut(pf, lut, vsi->rss_table_size, vsi->rss_size);
+
 	if (pf->flags & I40E_FLAG_RSS_AQ_CAPABLE)
-		return i40e_config_rss_aq(pf->vsi[pf->lan_vsi], seed);
+		ret = i40e_config_rss_aq(vsi, seed, lut, vsi->rss_table_size);
 	else
-		return i40e_config_rss_reg(pf, seed);
+		ret = i40e_config_rss_reg(vsi, seed, lut, vsi->rss_table_size);
+
+	kfree(lut);
+
+	return ret;
 }
 
 /**
