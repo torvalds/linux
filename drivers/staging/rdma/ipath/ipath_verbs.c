@@ -2025,8 +2025,8 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev = &idev->ibdev;
 
 	if (dd->ipath_sdma_descq_cnt) {
-		tx = kmalloc(dd->ipath_sdma_descq_cnt * sizeof *tx,
-			     GFP_KERNEL);
+		tx = kmalloc_array(dd->ipath_sdma_descq_cnt, sizeof *tx,
+				   GFP_KERNEL);
 		if (tx == NULL) {
 			ret = -ENOMEM;
 			goto err_tx;
