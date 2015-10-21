@@ -37,7 +37,7 @@
 #define MAX_BUFFERS_PACKET      32
 #define MAX_BUFFERS_STREAMING   32
 #define MAX_BUF_SIZE_PACKET     2048
-#define MAX_BUF_SIZE_STREAMING  (8*1024)
+#define MAX_BUF_SIZE_STREAMING  (8 * 1024)
 
 /* command line parameter to select clock speed */
 static char *clock_speed;

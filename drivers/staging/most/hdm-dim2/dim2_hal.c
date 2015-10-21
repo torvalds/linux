@@ -58,7 +58,7 @@
 #define MLB_CAT 0x80
 #define AHB_CAT 0x88
 
-#define DBR_SIZE  (16*1024) /* specified by IP */
+#define DBR_SIZE  (16 * 1024) /* specified by IP */
 #define DBR_BLOCK_SIZE  (DBR_SIZE / 32 / DBR_MAP_SIZE)
 
 /* -------------------------------------------------------------------------- */
