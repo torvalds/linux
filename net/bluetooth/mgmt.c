@@ -3098,8 +3098,8 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	} else {
 		u8 addr_type = le_addr_type(cp->addr.type);
 
-		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK,
-					       &cp->addr.bdaddr);
+		conn = hci_conn_hash_lookup_le(hdev, &cp->addr.bdaddr,
+					       addr_type);
 		if (conn) {
 			/* Defer clearing up the connection parameters
 			 * until closing to give a chance of keeping
@@ -3198,7 +3198,8 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK,
 					       &cp->addr.bdaddr);
 	else
-		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->addr.bdaddr);
+		conn = hci_conn_hash_lookup_le(hdev, &cp->addr.bdaddr,
+					       le_addr_type(cp->addr.type));
 
 	if (!conn || conn->state == BT_OPEN || conn->state == BT_CLOSED) {
 		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_DISCONNECT,
@@ -3695,7 +3696,8 @@ static int user_pairing_resp(struct sock *sk, struct hci_dev *hdev,
 	if (addr->type == BDADDR_BREDR)
 		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &addr->bdaddr);
 	else
-		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &addr->bdaddr);
+		conn = hci_conn_hash_lookup_le(hdev, &addr->bdaddr,
+					       le_addr_type(addr->type));
 
 	if (!conn) {
 		err = mgmt_cmd_complete(sk, hdev->id, mgmt_op,

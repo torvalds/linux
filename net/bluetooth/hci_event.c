@@ -1915,7 +1915,8 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, u8 status)
 
 	hci_dev_lock(hdev);
 
-	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->peer_addr);
+	conn = hci_conn_hash_lookup_le(hdev, &cp->peer_addr,
+				       cp->peer_addr_type);
 	if (!conn)
 		goto unlock;
 

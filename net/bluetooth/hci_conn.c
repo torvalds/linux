@@ -869,7 +869,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	 * attempt, we simply update pending_sec_level and auth_type fields
 	 * and return the object found.
 	 */
-	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
+	conn = hci_conn_hash_lookup_le(hdev, dst, dst_type);
 	conn_unfinished = NULL;
 	if (conn) {
 		if (conn->state == BT_CONNECT &&
@@ -1019,11 +1019,8 @@ static bool is_connected(struct hci_dev *hdev, bdaddr_t *addr, u8 type)
 {
 	struct hci_conn *conn;
 
-	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, addr);
+	conn = hci_conn_hash_lookup_le(hdev, addr, type);
 	if (!conn)
-		return false;
-
-	if (conn->dst_type != type)
 		return false;
 
 	if (conn->state != BT_CONNECTED)
@@ -1098,7 +1095,7 @@ struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
 	 * attempt, we simply update pending_sec_level and auth_type fields
 	 * and return the object found.
 	 */
-	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
+	conn = hci_conn_hash_lookup_le(hdev, dst, dst_type);
 	if (conn) {
 		if (conn->pending_sec_level < sec_level)
 			conn->pending_sec_level = sec_level;
