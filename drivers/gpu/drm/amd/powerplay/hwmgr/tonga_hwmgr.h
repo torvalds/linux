@@ -223,17 +223,17 @@ struct tonga_hwmgr {
 	uint32_t                           vddc_vddci_delta;
 	uint32_t                           vddc_vddgfx_delta;
 
-	pp_interrupt_registration_info    internal_high_thermal_interrupt_info;
-	pp_interrupt_registration_info    internal_low_thermal_interrupt_info;
-	pp_interrupt_registration_info    smc_to_host_interrupt_info;
+	struct pp_interrupt_registration_info    internal_high_thermal_interrupt_info;
+	struct pp_interrupt_registration_info    internal_low_thermal_interrupt_info;
+	struct pp_interrupt_registration_info    smc_to_host_interrupt_info;
 	uint32_t                          active_auto_throttle_sources;
 
-	pp_interrupt_registration_info    external_throttle_interrupt;
-	pp_interrupt_callback             external_throttle_callback;
+	struct pp_interrupt_registration_info    external_throttle_interrupt;
+	irq_handler_func_t             external_throttle_callback;
 	void                             *external_throttle_context;
 
-	pp_interrupt_registration_info    ctf_interrupt_info;
-	pp_interrupt_callback             ctf_callback;
+	struct pp_interrupt_registration_info    ctf_interrupt_info;
+	irq_handler_func_t             ctf_callback;
 	void                             *ctf_context;
 
 	phw_tonga_clock_registers      	  clock_registers;
