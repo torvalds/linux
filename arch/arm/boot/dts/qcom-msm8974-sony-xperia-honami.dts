@@ -23,6 +23,29 @@
 &soc {
 	serial@f991e000 {
 		status = "ok";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&blsp1_uart2_pin_a>;
+	};
+
+	pinctrl@fd510000 {
+		blsp1_uart2_pin_a: blsp1-uart2-pin-active {
+			rx {
+				pins = "gpio5";
+				function = "blsp_uart2";
+
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			tx {
+				pins = "gpio4";
+				function = "blsp_uart2";
+
+				drive-strength = <4>;
+				bias-disable;
+			};
+		};
 	};
 };
 
