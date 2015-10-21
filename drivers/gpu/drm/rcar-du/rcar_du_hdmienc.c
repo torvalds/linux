@@ -131,12 +131,19 @@ int rcar_du_hdmienc_init(struct rcar_du_device *rcdu,
 
 	/* Locate the slave I2C device and driver. */
 	i2c_slave = of_find_i2c_device_by_node(np);
-	if (!i2c_slave || !i2c_get_clientdata(i2c_slave))
+	if (!i2c_slave || !i2c_get_clientdata(i2c_slave)) {
+		dev_dbg(rcdu->dev,
+			"can't get I2C slave for %s, deferring probe\n",
+			of_node_full_name(np));
 		return -EPROBE_DEFER;
+	}
 
 	hdmienc->dev = &i2c_slave->dev;
 
 	if (hdmienc->dev->driver == NULL) {
+		dev_dbg(rcdu->dev,
+			"I2C slave %s not probed yet, deferring probe\n",
+			dev_name(hdmienc->dev));
 		ret = -EPROBE_DEFER;
 		goto error;
 	}
