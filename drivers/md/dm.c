@@ -1763,8 +1763,6 @@ static void dm_make_request(struct request_queue *q, struct bio *bio)
 
 	map = dm_get_live_table(md, &srcu_idx);
 
-	blk_queue_split(q, &bio, q->bio_split);
-
 	generic_start_io_acct(rw, bio_sectors(bio), &dm_disk(md)->part0);
 
 	/* if we're suspended, we have to queue this io for later */
@@ -2792,6 +2790,12 @@ int dm_setup_md_queue(struct mapped_device *md)
 	case DM_TYPE_BIO_BASED:
 		dm_init_old_md_queue(md);
 		blk_queue_make_request(md->queue, dm_make_request);
+		/*
+		 * DM handles splitting bios as needed.  Free the bio_split bioset
+		 * since it won't be used (saves 1 process per bio-based DM device).
+		 */
+		bioset_free(md->queue->bio_split);
+		md->queue->bio_split = NULL;
 		break;
 	}
 
