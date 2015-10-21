@@ -4872,6 +4872,7 @@ static const struct iommu_ops intel_iommu_ops = {
 	.iova_to_phys	= intel_iommu_iova_to_phys,
 	.add_device	= intel_iommu_add_device,
 	.remove_device	= intel_iommu_remove_device,
+	.device_group   = pci_device_group,
 	.pgsize_bitmap	= INTEL_IOMMU_PGSIZES,
 };
 
