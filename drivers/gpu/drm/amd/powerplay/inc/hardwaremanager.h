@@ -29,6 +29,18 @@ struct pp_hwmgr;
 struct pp_hw_power_state;
 struct pp_power_state;
 enum amd_dpm_forced_level;
+struct PP_TemperatureRange;
+
+struct phm_fan_speed_info {
+	uint32_t min_percent;
+	uint32_t max_percent;
+	uint32_t min_rpm;
+	uint32_t max_rpm;
+	bool supports_percent_read;
+	bool supports_percent_write;
+	bool supports_rpm_read;
+	bool supports_rpm_write;
+};
 
 /* Automatic Power State Throttling */
 enum PHM_AutoThrottleSource
@@ -330,4 +342,8 @@ extern int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 extern int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level);
 extern int phm_display_configuration_changed(struct pp_hwmgr *hwmgr);
 extern int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
+extern int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info);
+extern int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *temperature_range);
+extern int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr);
 #endif /* _HARDWARE_MANAGER_H_ */
+

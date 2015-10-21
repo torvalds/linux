@@ -194,3 +194,32 @@ int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 
     return 0;
 }
+
+int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr)
+{
+	if (hwmgr == NULL || hwmgr->hwmgr_func->stop_thermal_controller == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->stop_thermal_controller(hwmgr);
+}
+
+int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
+{
+	if (hwmgr == NULL || hwmgr->hwmgr_func->register_internal_thermal_interrupt == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->register_internal_thermal_interrupt(hwmgr, info);
+}
+
+/**
+* Initializes the thermal controller subsystem.
+*
+* @param    pHwMgr  the address of the powerplay hardware manager.
+* @param    pTemperatureRange the address of the structure holding the temperature range.
+* @exception PP_Result_Failed if any of the paramters is NULL, otherwise the return value from the dispatcher.
+*/
+int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *temperature_range)
+{
+
+	return phm_dispatch_table(hwmgr, &(hwmgr->start_thermal_controller), temperature_range, NULL);
+}
