@@ -68,6 +68,7 @@ static void hci_le_create_connection_cancel(struct hci_conn *conn)
 static void hci_connect_le_scan_cleanup(struct hci_conn *conn)
 {
 	struct hci_conn_params *params;
+	struct hci_dev *hdev = conn->hdev;
 	struct smp_irk *irk;
 	bdaddr_t *bdaddr;
 	u8 bdaddr_type;
@@ -76,13 +77,13 @@ static void hci_connect_le_scan_cleanup(struct hci_conn *conn)
 	bdaddr_type = conn->dst_type;
 
 	/* Check if we need to convert to identity address */
-	irk = hci_get_irk(conn->hdev, bdaddr, bdaddr_type);
+	irk = hci_get_irk(hdev, bdaddr, bdaddr_type);
 	if (irk) {
 		bdaddr = &irk->bdaddr;
 		bdaddr_type = irk->addr_type;
 	}
 
-	params = hci_explicit_connect_lookup(conn->hdev, bdaddr, bdaddr_type);
+	params = hci_explicit_connect_lookup(hdev, bdaddr, bdaddr_type);
 	if (!params)
 		return;
 
@@ -97,21 +98,21 @@ static void hci_connect_le_scan_cleanup(struct hci_conn *conn)
 
 	switch (params->auto_connect) {
 	case HCI_AUTO_CONN_EXPLICIT:
-		hci_conn_params_del(conn->hdev, bdaddr, bdaddr_type);
+		hci_conn_params_del(hdev, bdaddr, bdaddr_type);
 		/* return instead of break to avoid duplicate scan update */
 		return;
 	case HCI_AUTO_CONN_DIRECT:
 	case HCI_AUTO_CONN_ALWAYS:
-		list_add(&params->action, &conn->hdev->pend_le_conns);
+		list_add(&params->action, &hdev->pend_le_conns);
 		break;
 	case HCI_AUTO_CONN_REPORT:
-		list_add(&params->action, &conn->hdev->pend_le_reports);
+		list_add(&params->action, &hdev->pend_le_reports);
 		break;
 	default:
 		break;
 	}
 
-	hci_update_background_scan(conn->hdev);
+	hci_update_background_scan(hdev);
 }
 
 static void hci_conn_cleanup(struct hci_conn *conn)
