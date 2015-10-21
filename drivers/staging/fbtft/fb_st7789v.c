@@ -128,24 +128,6 @@ static int default_init_sequence[] = {
 };
 
 /**
- * set_addr_win() - configure display area to use
- *
- * @par: FBTFT parameter object
- * @xs: first active pixel of x-axis
- * @ys: first active pixel of y-axis
- * @xe: last active pixel of x-axis
- * @ye: last active pixel of y-axis
- */
-static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
-{
-	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
-		  xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
-	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
-		  ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
-	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
-}
-
-/**
  * set_var() - apply LCD properties like rotation and BGR mode
  *
  * @par: FBTFT parameter object
@@ -260,7 +242,6 @@ static struct fbtft_display display = {
 	.gamma_len = 14,
 	.gamma = DEFAULT_GAMMA,
 	.fbtftops = {
-		.set_addr_win = set_addr_win,
 		.set_var = set_var,
 		.set_gamma = set_gamma,
 		.blank = blank,
