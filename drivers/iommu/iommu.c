@@ -845,8 +845,6 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 
 	if (ops && ops->device_group)
 		group = ops->device_group(dev);
-	else if (dev_is_pci(dev))
-		group = pci_device_group(dev);
 
 	if (IS_ERR(group))
 		return group;
