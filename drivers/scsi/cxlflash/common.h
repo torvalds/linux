@@ -79,7 +79,7 @@ enum cxlflash_init_state {
 
 enum cxlflash_state {
 	STATE_NORMAL,	/* Normal running state, everything good */
-	STATE_LIMBO,	/* Limbo running state, trying to reset/recover */
+	STATE_RESET,	/* Reset state, trying to reset/recover */
 	STATE_FAILTERM	/* Failed/terminating state, error out users/threads */
 };
 
@@ -125,7 +125,7 @@ struct cxlflash_cfg {
 
 	wait_queue_head_t tmf_waitq;
 	bool tmf_active;
-	wait_queue_head_t limbo_waitq;
+	wait_queue_head_t reset_waitq;
 	enum cxlflash_state state;
 };
 
