@@ -2609,18 +2609,12 @@ int security_get_bools(int *len, char ***names, int **values)
 		goto err;
 
 	for (i = 0; i < *len; i++) {
-		size_t name_len;
-
 		(*values)[i] = policydb.bool_val_to_struct[i]->state;
-		name_len = strlen(sym_name(&policydb, SYM_BOOLS, i)) + 1;
 
 		rc = -ENOMEM;
-		(*names)[i] = kmalloc(sizeof(char) * name_len, GFP_ATOMIC);
+		(*names)[i] = kstrdup(sym_name(&policydb, SYM_BOOLS, i), GFP_ATOMIC);
 		if (!(*names)[i])
 			goto err;
-
-		strncpy((*names)[i], sym_name(&policydb, SYM_BOOLS, i), name_len);
-		(*names)[i][name_len - 1] = 0;
 	}
 	rc = 0;
 out:
