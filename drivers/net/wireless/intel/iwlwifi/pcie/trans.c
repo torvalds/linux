@@ -2382,10 +2382,11 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 	if (!iwl_trans_grab_nic_access(trans, false, &flags))
 		return 0;
 
-	__iwl_write_prph(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
+	iwl_write_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
 	for (i = 0; i < buf_size_in_dwords; i++)
-		buffer[i] = __iwl_read_prph(trans, MON_DMARB_RD_DATA_ADDR);
-	__iwl_write_prph(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
+		buffer[i] = iwl_read_prph_no_grab(trans,
+				MON_DMARB_RD_DATA_ADDR);
+	iwl_write_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
 
 	iwl_trans_release_nic_access(trans, &flags);
 
@@ -2773,10 +2774,10 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 			u32 hw_step;
 
-			hw_step = __iwl_read_prph(trans, WFPM_CTRL_REG);
+			hw_step = iwl_read_prph_no_grab(trans, WFPM_CTRL_REG);
 			hw_step |= ENABLE_WFPM;
-			__iwl_write_prph(trans, WFPM_CTRL_REG, hw_step);
-			hw_step = __iwl_read_prph(trans, AUX_MISC_REG);
+			iwl_write_prph_no_grab(trans, WFPM_CTRL_REG, hw_step);
+			hw_step = iwl_read_prph_no_grab(trans, AUX_MISC_REG);
 			hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
 			if (hw_step == 0x3)
 				trans->hw_rev = (trans->hw_rev & 0xFFFFFFF3) |
