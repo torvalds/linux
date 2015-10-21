@@ -1145,7 +1145,7 @@ int pci_cfg_space_size(struct pci_dev *dev)
 
 #define LEGACY_IO_RESOURCE	(IORESOURCE_IO | IORESOURCE_PCI_FIXED)
 
-void pci_msi_setup_pci_dev(struct pci_dev *dev)
+static void pci_msi_setup_pci_dev(struct pci_dev *dev)
 {
 	/*
 	 * Disable the MSI hardware to avoid screaming interrupts
@@ -1211,8 +1211,6 @@ int pci_setup_device(struct pci_dev *dev)
 
 	/* "Unknown power state" */
 	dev->current_state = PCI_UNKNOWN;
-
-	pci_msi_setup_pci_dev(dev);
 
 	/* Early fixups, before probing the BARs */
 	pci_fixup_device(pci_fixup_early, dev);
@@ -1605,6 +1603,9 @@ static void pci_init_capabilities(struct pci_dev *dev)
 
 	/* MSI/MSI-X list */
 	pci_msi_init_pci_dev(dev);
+
+	/* Setup MSI caps & disable MSI/MSI-X interrupts */
+	pci_msi_setup_pci_dev(dev);
 
 	/* Buffers for saving PCIe and PCI-X capabilities */
 	pci_allocate_cap_save_buffers(dev);
