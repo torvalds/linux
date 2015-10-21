@@ -728,6 +728,21 @@ static int get_pci_alias_or_group(struct pci_dev *pdev, u16 alias, void *opaque)
 }
 
 /*
+ * Generic device_group call-back function. It just allocates one
+ * iommu-group per device.
+ */
+struct iommu_group *generic_device_group(struct device *dev)
+{
+	struct iommu_group *group;
+
+	group = iommu_group_alloc();
+	if (IS_ERR(group))
+		return NULL;
+
+	return group;
+}
+
+/*
  * Use standard PCI bus topology, isolation features, and DMA alias quirks
  * to find or create an IOMMU group for a device.
  */
