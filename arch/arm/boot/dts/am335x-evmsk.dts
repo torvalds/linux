@@ -123,7 +123,7 @@
 			label = "button2";
 			linux,code = <0x102>;
 			gpios = <&gpio0 30 GPIO_ACTIVE_HIGH>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		switch@4 {
