@@ -99,6 +99,9 @@ struct dispc_features {
 
 	/* PIXEL_INC is not added to the last pixel of a line */
 	bool last_pixel_inc_missing:1;
+
+	/* POL_FREQ has ALIGN bit */
+	bool supports_sync_align:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -3163,6 +3166,10 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		FLD_VAL(hs, 13, 13) |
 		FLD_VAL(vs, 12, 12);
 
+	/* always set ALIGN bit when available */
+	if (dispc.feat->supports_sync_align)
+		l |= (1 << 18);
+
 	dispc_write_reg(DISPC_POL_FREQ(channel), l);
 
 	if (dispc.syscon_pol) {
@@ -3854,6 +3861,7 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.num_fifos		=	5,
 	.gfx_fifo_workaround	=	true,
 	.set_max_preload	=	true,
+	.supports_sync_align	=	true,
 };
 
 static const struct dispc_features omap54xx_dispc_feats = {
@@ -3875,6 +3883,7 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.gfx_fifo_workaround	=	true,
 	.mstandby_workaround	=	true,
 	.set_max_preload	=	true,
+	.supports_sync_align	=	true,
 };
 
 static int dispc_init_features(struct platform_device *pdev)
