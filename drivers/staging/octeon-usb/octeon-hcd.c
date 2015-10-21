@@ -3216,9 +3216,9 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		 * Allocate a structure to use for our private list of
 		 * isochronous packets.
 		 */
-		iso_packet = kmalloc(urb->number_of_packets *
-				     sizeof(struct cvmx_usb_iso_packet),
-				     GFP_ATOMIC);
+		iso_packet = kmalloc_array(urb->number_of_packets,
+					   sizeof(struct cvmx_usb_iso_packet),
+					   GFP_ATOMIC);
 		if (iso_packet) {
 			int i;
 			/* Fill the list with the data from the URB */
