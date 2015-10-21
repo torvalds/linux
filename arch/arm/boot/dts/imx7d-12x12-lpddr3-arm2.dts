@@ -60,6 +60,22 @@
 			enable-active-high;
 		};
 
+		reg_can1_3v3: can1-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "can1-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio1 10 GPIO_ACTIVE_LOW>;
+		};
+
+		reg_can2_3v3: can2-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "can2-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		};
+
 		reg_coedc_5v: coedc_5v {
 			compatible = "regulator-fixed";
 			regulator-name = "CODEC_5V";
@@ -195,6 +211,20 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
+	status = "disabled";
+};
+
+&flexcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	xceiver-supply = <&reg_can1_3v3>;
+	status = "disabled";
+};
+
+&flexcan2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan2>;
+	xceiver-supply = <&reg_can2_3v3>;
 	status = "disabled";
 };
 
@@ -487,6 +517,22 @@
 				MX7D_PAD_EPDC_BDR0__EPDC_BDR0     0x2
 				MX7D_PAD_EPDC_BDR1__EPDC_BDR1     0x2
 				MX7D_PAD_ECSPI1_MISO__GPIO4_IO18  0x80000000  /* pwr int */
+			>;
+		};
+
+		pinctrl_flexcan1: flexcan1grp {
+			fsl,pins = <
+				MX7D_PAD_SAI1_RX_DATA__FLEXCAN1_RX	0x59
+				MX7D_PAD_SAI1_TX_BCLK__FLEXCAN1_TX	0x59
+				MX7D_PAD_GPIO1_IO10__GPIO1_IO10		0x59 /* STBY */
+			>;
+		};
+
+		pinctrl_flexcan2: flexcan2grp {
+			fsl,pins = <
+				MX7D_PAD_SAI1_TX_SYNC__FLEXCAN2_RX	0x59
+				MX7D_PAD_SAI1_TX_DATA__FLEXCAN2_TX	0x59
+				MX7D_PAD_GPIO1_IO11__GPIO1_IO11		0x59  /* STBY */
 			>;
 		};
 
