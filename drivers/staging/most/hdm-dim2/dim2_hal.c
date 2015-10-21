@@ -663,7 +663,8 @@ u8 DIM_Startup(void *dim_base_address, u32 mlb_clock)
 		return DIM_INIT_ERR_MLB_CLOCK;
 
 	g.dim2 = dim_base_address;
-	g.dbr_map[0] = g.dbr_map[1] = 0;
+	g.dbr_map[0] = 0;
+	g.dbr_map[1] = 0;
 
 	dim2_initialize(mlb_clock >= 3, mlb_clock);
 
