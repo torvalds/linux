@@ -177,11 +177,11 @@ bool bio_integrity_enabled(struct bio *bio)
 	if (bi == NULL)
 		return false;
 
-	if (bio_data_dir(bio) == READ && bi->verify_fn != NULL &&
+	if (bio_data_dir(bio) == READ && bi->profile->verify_fn != NULL &&
 	    (bi->flags & BLK_INTEGRITY_VERIFY))
 		return true;
 
-	if (bio_data_dir(bio) == WRITE && bi->generate_fn != NULL &&
+	if (bio_data_dir(bio) == WRITE && bi->profile->generate_fn != NULL &&
 	    (bi->flags & BLK_INTEGRITY_GENERATE))
 		return true;
 
@@ -340,7 +340,7 @@ int bio_integrity_prep(struct bio *bio)
 
 	/* Auto-generate integrity metadata if this is a write */
 	if (bio_data_dir(bio) == WRITE)
-		bio_integrity_process(bio, bi->generate_fn);
+		bio_integrity_process(bio, bi->profile->generate_fn);
 
 	return 0;
 }
@@ -361,7 +361,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 	struct bio *bio = bip->bip_bio;
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 
-	bio->bi_error = bio_integrity_process(bio, bi->verify_fn);
+	bio->bi_error = bio_integrity_process(bio, bi->profile->verify_fn);
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;

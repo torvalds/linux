@@ -1462,16 +1462,18 @@ struct blk_integrity_iter {
 
 typedef int (integrity_processing_fn) (struct blk_integrity_iter *);
 
+struct blk_integrity_profile {
+	integrity_processing_fn		*generate_fn;
+	integrity_processing_fn		*verify_fn;
+	const char			*name;
+};
+
 struct blk_integrity {
-	integrity_processing_fn	*generate_fn;
-	integrity_processing_fn	*verify_fn;
-
-	unsigned short		flags;
-	unsigned short		tuple_size;
-	unsigned short		interval;
-	unsigned short		tag_size;
-
-	const char		*name;
+	struct blk_integrity_profile	*profile;
+	unsigned short			flags;
+	unsigned short			tuple_size;
+	unsigned short			interval;
+	unsigned short			tag_size;
 };
 
 extern bool blk_integrity_is_initialized(struct gendisk *);

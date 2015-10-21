@@ -176,10 +176,10 @@ int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
 		return -1;
 	}
 
-	if (strcmp(b1->name, b2->name)) {
+	if (b1->profile != b2->profile) {
 		printk(KERN_ERR "%s: %s/%s type %s != %s\n", __func__,
 		       gd1->disk_name, gd2->disk_name,
-		       b1->name, b2->name);
+		       b1->profile->name, b2->profile->name);
 		return -1;
 	}
 
@@ -275,8 +275,8 @@ static ssize_t integrity_attr_store(struct kobject *kobj,
 
 static ssize_t integrity_format_show(struct blk_integrity *bi, char *page)
 {
-	if (bi != NULL && bi->name != NULL)
-		return sprintf(page, "%s\n", bi->name);
+	if (bi != NULL && bi->profile->name != NULL)
+		return sprintf(page, "%s\n", bi->profile->name);
 	else
 		return sprintf(page, "none\n");
 }
@@ -401,7 +401,8 @@ bool blk_integrity_is_initialized(struct gendisk *disk)
 {
 	struct blk_integrity *bi = blk_get_integrity(disk);
 
-	return (bi && bi->name && strcmp(bi->name, bi_unsupported_name) != 0);
+	return (bi && bi->profile->name && strcmp(bi->profile->name,
+						  bi_unsupported_name) != 0);
 }
 EXPORT_SYMBOL(blk_integrity_is_initialized);
 
@@ -446,14 +447,12 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 
 	/* Use the provided profile as template */
 	if (template != NULL) {
-		bi->name = template->name;
-		bi->generate_fn = template->generate_fn;
-		bi->verify_fn = template->verify_fn;
+		bi->profile = template->profile;
 		bi->tuple_size = template->tuple_size;
 		bi->tag_size = template->tag_size;
 		bi->flags |= template->flags;
 	} else
-		bi->name = bi_unsupported_name;
+		bi->profile->name = bi_unsupported_name;
 
 	disk->queue->backing_dev_info.capabilities |= BDI_CAP_STABLE_WRITES;
 

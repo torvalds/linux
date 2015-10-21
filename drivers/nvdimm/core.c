@@ -399,19 +399,22 @@ static int nd_pi_nop_generate_verify(struct blk_integrity_iter *iter)
 
 int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)
 {
-	struct blk_integrity integrity = {
+	struct blk_integrity bi;
+	static struct blk_integrity_profile profile = {
 		.name = "ND-PI-NOP",
 		.generate_fn = nd_pi_nop_generate_verify,
 		.verify_fn = nd_pi_nop_generate_verify,
-		.tuple_size = meta_size,
-		.tag_size = meta_size,
 	};
 	int ret;
 
 	if (meta_size == 0)
 		return 0;
 
-	ret = blk_integrity_register(disk, &integrity);
+	bi.profile = &profile;
+	bi.tuple_size = meta_size;
+	bi.tag_size = meta_size;
+
+	ret = blk_integrity_register(disk, &bi);
 	if (ret)
 		return ret;
 

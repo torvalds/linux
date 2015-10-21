@@ -558,7 +558,7 @@ static int nvme_noop_generate(struct blk_integrity_iter *iter)
 	return 0;
 }
 
-struct blk_integrity nvme_meta_noop = {
+struct blk_integrity_profile nvme_meta_noop = {
 	.name			= "NVME_META_NOOP",
 	.generate_fn		= nvme_noop_generate,
 	.verify_fn		= nvme_noop_verify,
@@ -570,14 +570,14 @@ static void nvme_init_integrity(struct nvme_ns *ns)
 
 	switch (ns->pi_type) {
 	case NVME_NS_DPS_PI_TYPE3:
-		integrity = t10_pi_type3_crc;
+		integrity.profile = &t10_pi_type3_crc;
 		break;
 	case NVME_NS_DPS_PI_TYPE1:
 	case NVME_NS_DPS_PI_TYPE2:
-		integrity = t10_pi_type1_crc;
+		integrity.profile = &t10_pi_type1_crc;
 		break;
 	default:
-		integrity = nvme_meta_noop;
+		integrity.profile = &nvme_meta_noop;
 		break;
 	}
 	integrity.tuple_size = ns->ms;
