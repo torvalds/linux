@@ -3163,7 +3163,7 @@ static int selinux_inode_setsecurity(struct inode *inode, const char *name,
 	if (!value || !size)
 		return -EACCES;
 
-	rc = security_context_to_sid((void *)value, size, &newsid, GFP_KERNEL);
+	rc = security_context_to_sid(value, size, &newsid, GFP_KERNEL);
 	if (rc)
 		return rc;
 
