@@ -428,7 +428,7 @@ static int aim_rx_data(struct mbo *mbo)
 	const u32 zero = 0;
 	struct net_dev_context *nd;
 	char *buf = mbo->virt_address;
-	uint32_t len = mbo->processed_length;
+	u32 len = mbo->processed_length;
 	struct sk_buff *skb;
 	struct net_device *dev;
 

@@ -49,7 +49,7 @@ struct most_c_obj {
 	struct completion cleanup;
 	atomic_t mbo_ref;
 	atomic_t mbo_nq_level;
-	uint16_t channel_id;
+	u16 channel_id;
 	bool is_poisoned;
 	struct mutex start_mutex;
 	int is_starving;

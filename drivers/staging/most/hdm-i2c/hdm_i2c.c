@@ -196,7 +196,7 @@ static void do_rx_work(struct hdm_i2c *dev)
 	struct mbo *mbo;
 	unsigned char msg[MAX_BUF_SIZE_CONTROL];
 	int ret, ch_idx = CH_RX;
-	uint16_t pml, data_size;
+	u16 pml, data_size;
 
 	/* Read PML (2 bytes) */
 	ret = i2c_master_recv(dev->client, msg, 2);
