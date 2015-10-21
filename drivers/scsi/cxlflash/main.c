@@ -1721,15 +1721,14 @@ static int init_afu(struct cxlflash_cfg *cfg)
 	if (rc) {
 		dev_err(dev, "%s: call to init_mc failed, rc=%d!\n",
 			__func__, rc);
-		goto err1;
+		goto out;
 	}
 
 	/* Map the entire MMIO space of the AFU */
 	afu->afu_map = cxl_psa_map(cfg->mcctx);
 	if (!afu->afu_map) {
-		rc = -ENOMEM;
-		term_mc(cfg, UNDO_START);
 		dev_err(dev, "%s: call to cxl_psa_map failed!\n", __func__);
+		rc = -ENOMEM;
 		goto err1;
 	}
 
@@ -1743,19 +1742,17 @@ static int init_afu(struct cxlflash_cfg *cfg)
 		       "interface version 0x%llx\n", afu->version,
 		       afu->interface_version);
 		rc = -EINVAL;
-		goto err1;
-	} else
-		pr_debug("%s: afu version %s, interface version 0x%llX\n",
-			 __func__, afu->version, afu->interface_version);
+		goto err2;
+	}
+
+	pr_debug("%s: afu version %s, interface version 0x%llX\n", __func__,
+		 afu->version, afu->interface_version);
 
 	rc = start_afu(cfg);
 	if (rc) {
 		dev_err(dev, "%s: call to start_afu failed, rc=%d!\n",
 			__func__, rc);
-		term_mc(cfg, UNDO_START);
-		cxl_psa_unmap((void __iomem *)afu->afu_map);
-		afu->afu_map = NULL;
-		goto err1;
+		goto err2;
 	}
 
 	afu_err_intr_init(cfg->afu);
@@ -1763,9 +1760,16 @@ static int init_afu(struct cxlflash_cfg *cfg)
 
 	/* Restore the LUN mappings */
 	cxlflash_restore_luntable(cfg);
-err1:
+out:
 	pr_debug("%s: returning rc=%d\n", __func__, rc);
 	return rc;
+
+err2:
+	cxl_psa_unmap((void __iomem *)afu->afu_map);
+	afu->afu_map = NULL;
+err1:
+	term_mc(cfg, UNDO_START);
+	goto out;
 }
 
 /**
