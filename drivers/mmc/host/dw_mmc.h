@@ -172,7 +172,7 @@
 /* Version ID register define */
 #define SDMMC_GET_VERID(x)		((x) & 0xFFFF)
 /* Card read threshold */
-#define SDMMC_SET_RD_THLD(v, x)		(((v) & 0x1FFF) << 16 | (x))
+#define SDMMC_SET_RD_THLD(v, x)		(((v) & 0xFFF) << 16 | (x))
 #define SDMMC_UHS_18V			BIT(0)
 /* All ctrl reset bits */
 #define SDMMC_CTRL_ALL_RESET_FLAGS \
