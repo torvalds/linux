@@ -612,6 +612,8 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct port_info *p = netdev_priv(dev);
 	struct link_config *lc = &p->link_cfg;
 	u32 speed = ethtool_cmd_speed(cmd);
+	struct link_config old_lc;
+	int ret;
 
 	if (cmd->duplex != DUPLEX_FULL)     /* only full-duplex supported */
 		return -EINVAL;
@@ -626,6 +628,7 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return -EINVAL;
 	}
 
+	old_lc = *lc;
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		cap = speed_to_caps(speed);
 
@@ -642,10 +645,14 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 	lc->autoneg = cmd->autoneg;
 
-	if (netif_running(dev))
-		return t4_link_l1cfg(p->adapter, p->adapter->pf, p->tx_chan,
-				     lc);
-	return 0;
+	/* If the firmware rejects the Link Configuration request, back out
+	 * the changes and report the error.
+	 */
+	ret = t4_link_l1cfg(p->adapter, p->adapter->mbox, p->tx_chan, lc);
+	if (ret)
+		*lc = old_lc;
+
+	return ret;
 }
 
 static void get_pauseparam(struct net_device *dev,
