@@ -2377,7 +2377,7 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	cfg->host = host;
 	rc = alloc_mem(cfg);
 	if (rc) {
-		dev_err(&pdev->dev, "%s: call to scsi_host_alloc failed!\n",
+		dev_err(&pdev->dev, "%s: call to alloc_mem failed!\n",
 			__func__);
 		rc = -ENOMEM;
 		scsi_host_put(cfg->host);
