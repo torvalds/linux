@@ -172,7 +172,7 @@
 		ti,x-plate-ohms = /bits/ 16 <180>;
 		ti,pressure-max = /bits/ 16 <255>;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 

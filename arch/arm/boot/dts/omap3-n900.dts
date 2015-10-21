@@ -67,28 +67,28 @@
 			gpios = <&gpio4 14 GPIO_ACTIVE_LOW>; /* 110 */
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <0x09>; /* SW_CAMERA_LENS_COVER */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		camera_focus {
 			label = "Camera Focus";
 			gpios = <&gpio3 4 GPIO_ACTIVE_LOW>; /* 68 */
 			linux,code = <0x210>; /* KEY_CAMERA_FOCUS */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		camera_capture {
 			label = "Camera Capture";
 			gpios = <&gpio3 5 GPIO_ACTIVE_LOW>; /* 69 */
 			linux,code = <0xd4>; /* KEY_CAMERA */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		lock_button {
 			label = "Lock Button";
 			gpios = <&gpio4 17 GPIO_ACTIVE_LOW>; /* 113 */
 			linux,code = <0x98>; /* KEY_SCREENLOCK */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		keypad_slide {
@@ -96,7 +96,7 @@
 			gpios = <&gpio3 7 GPIO_ACTIVE_LOW>; /* 71 */
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <0x0a>; /* SW_KEYPAD_SLIDE */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		proximity_sensor {

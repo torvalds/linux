@@ -23,28 +23,28 @@
 			label = "sysboot2";
 			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;	/* gpio2 */
 			linux,code = <BTN_0>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		sysboot5 {
 			label = "sysboot5";
 			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;	/* gpio7 */
 			linux,code = <BTN_1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		gpio1 {
 			label = "gpio1";
 			gpios = <&gpio6 21 GPIO_ACTIVE_LOW>;	/* gpio181 */
 			linux,code = <BTN_2>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		gpio2 {
 			label = "gpio2";
 			gpios = <&gpio6 18 GPIO_ACTIVE_LOW>;	/* gpio178 */
 			linux,code = <BTN_3>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
