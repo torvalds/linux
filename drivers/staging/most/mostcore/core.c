@@ -69,6 +69,7 @@ struct most_c_obj {
 	struct mutex stop_task_mutex;
 	wait_queue_head_t hdm_fifo_wq;
 };
+
 #define to_c_obj(d) container_of(d, struct most_c_obj, kobj)
 
 struct most_inst_obj {
@@ -80,6 +81,7 @@ struct most_inst_obj {
 	struct kobject kobj;
 	struct list_head list;
 };
+
 #define to_inst_obj(d) container_of(d, struct most_inst_obj, kobj)
 
 /**
@@ -115,6 +117,7 @@ struct most_c_attr {
 			 const char *buf,
 			 size_t count);
 };
+
 #define to_channel_attr(a) container_of(a, struct most_c_attr, attr)
 
 #define MOST_CHNL_ATTR(_name, _mode, _show, _store) \
@@ -596,6 +599,7 @@ struct most_inst_attribute {
 			 const char *buf,
 			 size_t count);
 };
+
 #define to_instance_attr(a) \
 	container_of(a, struct most_inst_attribute, attr)
 
@@ -777,6 +781,7 @@ struct most_aim_obj {
 	char add_link[STRING_SIZE];
 	char remove_link[STRING_SIZE];
 };
+
 #define to_aim_obj(d) container_of(d, struct most_aim_obj, kobj)
 
 static struct list_head aim_list;
@@ -797,6 +802,7 @@ struct most_aim_attribute {
 			 const char *buf,
 			 size_t count);
 };
+
 #define to_aim_attr(a) container_of(a, struct most_aim_attribute, attr)
 
 /**

@@ -47,6 +47,7 @@ struct aim_channel {
 	atomic_t access_ref;
 	struct list_head list;
 };
+
 #define to_channel(d) container_of(d, struct aim_channel, cdev)
 static struct list_head channel_list;
 static spinlock_t ch_list_lock;

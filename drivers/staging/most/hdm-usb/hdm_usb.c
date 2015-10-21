@@ -77,6 +77,7 @@ struct buf_anchor {
 	struct list_head list;
 	struct completion urb_compl;
 };
+
 #define to_buf_anchor(w) container_of(w, struct buf_anchor, clear_work_obj)
 
 /**
@@ -88,6 +89,7 @@ struct most_dci_obj {
 	struct kobject kobj;
 	struct usb_device *usb_device;
 };
+
 #define to_dci_obj(p) container_of(p, struct most_dci_obj, kobj)
 
 /**
@@ -131,6 +133,7 @@ struct most_dev {
 	struct timer_list link_stat_timer;
 	struct work_struct poll_work_obj;
 };
+
 #define to_mdev(d) container_of(d, struct most_dev, iface)
 #define to_mdev_from_work(w) container_of(w, struct most_dev, poll_work_obj)
 
@@ -984,6 +987,7 @@ struct most_dci_attribute {
 			 const char *buf,
 			 size_t count);
 };
+
 #define to_dci_attr(a) container_of(a, struct most_dci_attribute, attr)
 
 /**
