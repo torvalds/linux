@@ -3055,6 +3055,7 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct hci_cp_disconnect dc;
 	struct mgmt_pending_cmd *cmd;
 	struct hci_conn *conn;
+	u8 addr_type;
 	int err;
 
 	memset(&rp, 0, sizeof(rp));
@@ -3095,33 +3096,23 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 			conn = NULL;
 
 		err = hci_remove_link_key(hdev, &cp->addr.bdaddr);
-	} else {
-		u8 addr_type = le_addr_type(cp->addr.type);
-
-		conn = hci_conn_hash_lookup_le(hdev, &cp->addr.bdaddr,
-					       addr_type);
-		if (conn) {
-			/* Defer clearing up the connection parameters
-			 * until closing to give a chance of keeping
-			 * them if a repairing happens.
-			 */
-			set_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags);
-
-			/* If disconnection is not requested, then
-			 * clear the connection variable so that the
-			 * link is not terminated.
-			 */
-			if (!cp->disconnect)
-				conn = NULL;
-		} else {
-			hci_conn_params_del(hdev, &cp->addr.bdaddr, addr_type);
+		if (err < 0) {
+			err = mgmt_cmd_complete(sk, hdev->id,
+						MGMT_OP_UNPAIR_DEVICE,
+						MGMT_STATUS_NOT_PAIRED, &rp,
+						sizeof(rp));
+			goto unlock;
 		}
 
-		hci_remove_irk(hdev, &cp->addr.bdaddr, addr_type);
-
-		err = hci_remove_ltk(hdev, &cp->addr.bdaddr, addr_type);
+		goto done;
 	}
 
+	/* LE address type */
+	addr_type = le_addr_type(cp->addr.type);
+
+	hci_remove_irk(hdev, &cp->addr.bdaddr, addr_type);
+
+	err = hci_remove_ltk(hdev, &cp->addr.bdaddr, addr_type);
 	if (err < 0) {
 		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_UNPAIR_DEVICE,
 					MGMT_STATUS_NOT_PAIRED, &rp,
@@ -3129,6 +3120,24 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
+	conn = hci_conn_hash_lookup_le(hdev, &cp->addr.bdaddr, addr_type);
+	if (!conn) {
+		hci_conn_params_del(hdev, &cp->addr.bdaddr, addr_type);
+		goto done;
+	}
+
+	/* Defer clearing up the connection parameters until closing to
+	 * give a chance of keeping them if a repairing happens.
+	 */
+	set_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags);
+
+	/* If disconnection is not requested, then clear the connection
+	 * variable so that the link is not terminated.
+	 */
+	if (!cp->disconnect)
+		conn = NULL;
+
+done:
 	/* If the connection variable is set, then termination of the
 	 * link is requested.
 	 */
