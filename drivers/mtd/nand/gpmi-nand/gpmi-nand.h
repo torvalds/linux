@@ -288,6 +288,7 @@ extern int gpmi_init(struct gpmi_nand_data *);
 extern int gpmi_extra_init(struct gpmi_nand_data *);
 extern void gpmi_clear_bch(struct gpmi_nand_data *);
 extern void gpmi_dump_info(struct gpmi_nand_data *);
+extern int bch_save_geometry(struct gpmi_nand_data *);
 extern int bch_set_geometry(struct gpmi_nand_data *);
 extern int gpmi_is_ready(struct gpmi_nand_data *, unsigned chip);
 extern int gpmi_send_command(struct gpmi_nand_data *);

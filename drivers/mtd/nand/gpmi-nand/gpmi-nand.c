@@ -2163,6 +2163,11 @@ static int gpmi_init_last(struct gpmi_nand_data *this)
 	if (ret)
 		return ret;
 
+	/* Save the geometry to debugfs*/
+	ret = bch_save_geometry(this);
+	if (ret)
+		return ret;
+
 	/* Init the nand_ecc_ctrl{} */
 	ecc->read_page	= gpmi_ecc_read_page;
 	ecc->write_page	= gpmi_ecc_write_page;
