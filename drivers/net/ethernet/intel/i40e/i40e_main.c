@@ -5738,7 +5738,7 @@ static void i40e_handle_lan_overflow_event(struct i40e_pf *pf,
  **/
 static void i40e_service_event_complete(struct i40e_pf *pf)
 {
-	BUG_ON(!test_bit(__I40E_SERVICE_SCHED, &pf->state));
+	WARN_ON(!test_bit(__I40E_SERVICE_SCHED, &pf->state));
 
 	/* flush memory to make sure state is correct before next watchog */
 	smp_mb__before_atomic();
