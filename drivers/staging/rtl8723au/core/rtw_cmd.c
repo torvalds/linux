@@ -1343,6 +1343,7 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)pcmd->parmbuf;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
+	struct rtw_queue *scanned_queue = &pmlmepriv->scanned_queue;
 
 	if (pcmd->res != H2C_SUCCESS) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
@@ -1372,19 +1373,19 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 		spin_unlock_bh(&pmlmepriv->lock);
 	} else {
 		pwlan = rtw_alloc_network(pmlmepriv, GFP_KERNEL);
-		spin_lock_bh(&pmlmepriv->scanned_queue.lock);
+		spin_lock_bh(&scanned_queue->lock);
 		if (!pwlan) {
-			pwlan = rtw_get_oldest_wlan_network23a(&pmlmepriv->scanned_queue);
+			pwlan = rtw_get_oldest_wlan_network23a(scanned_queue);
 			if (!pwlan) {
 				RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 					 "Error:  can't get pwlan in rtw23a_joinbss_event_cb\n");
-				spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+				spin_unlock_bh(&scanned_queue->lock);
 				goto createbss_cmd_fail;
 			}
 			pwlan->last_scanned = jiffies;
 		} else {
 			list_add_tail(&pwlan->list,
-				      &pmlmepriv->scanned_queue.queue);
+				      &scanned_queue->queue);
 		}
 
 		pnetwork->Length = get_wlan_bssid_ex_sz(pnetwork);
@@ -1403,9 +1404,9 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 
 		clr_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 
-		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 		/*  we will set _FW_LINKED when there is one more sat to
 		    join us (rtw_stassoc_event_callback23a) */
+		spin_unlock_bh(&scanned_queue->lock);
 	}
 
 createbss_cmd_fail:
