@@ -3231,6 +3231,15 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 					wait, buf, len, no_cck);
 }
 
+static int ath6kl_get_antenna(struct wiphy *wiphy,
+			      u32 *tx_ant, u32 *rx_ant)
+{
+	struct ath6kl *ar = wiphy_priv(wiphy);
+	*tx_ant = ar->hw.tx_ant;
+	*rx_ant = ar->hw.rx_ant;
+	return 0;
+}
+
 static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
 				       u16 frame_type, bool reg)
@@ -3447,6 +3456,7 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.cancel_remain_on_channel = ath6kl_cancel_remain_on_channel,
 	.mgmt_tx = ath6kl_mgmt_tx,
 	.mgmt_frame_register = ath6kl_mgmt_frame_register,
+	.get_antenna = ath6kl_get_antenna,
 	.sched_scan_start = ath6kl_cfg80211_sscan_start,
 	.sched_scan_stop = ath6kl_cfg80211_sscan_stop,
 	.set_bitrate_mask = ath6kl_cfg80211_set_bitrate,
@@ -3794,10 +3804,17 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 		ath6kl_band_5ghz.ht_cap.mcs.rx_mask[0] = 0xff;
 		ath6kl_band_2ghz.ht_cap.mcs.rx_mask[1] = 0xff;
 		ath6kl_band_5ghz.ht_cap.mcs.rx_mask[1] = 0xff;
+		ar->hw.tx_ant = 2;
+		ar->hw.rx_ant = 2;
 	} else {
 		ath6kl_band_2ghz.ht_cap.mcs.rx_mask[0] = 0xff;
 		ath6kl_band_5ghz.ht_cap.mcs.rx_mask[0] = 0xff;
+		ar->hw.tx_ant = 1;
+		ar->hw.rx_ant = 1;
 	}
+
+	wiphy->available_antennas_tx = ar->hw.tx_ant;
+	wiphy->available_antennas_rx = ar->hw.rx_ant;
 
 	if (band_2gig)
 		wiphy->bands[IEEE80211_BAND_2GHZ] = &ath6kl_band_2ghz;
