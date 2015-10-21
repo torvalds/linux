@@ -34,14 +34,6 @@ struct omap_crtc {
 	const char *name;
 	enum omap_channel channel;
 
-	/*
-	 * Temporary: eventually this will go away, but it is needed
-	 * for now to keep the output's happy.  (They only need
-	 * mgr->id.)  Eventually this will be replaced w/ something
-	 * more common-panel-framework-y
-	 */
-	struct omap_overlay_manager *mgr;
-
 	struct omap_video_timings timings;
 
 	struct omap_drm_irq vblank_irq;
@@ -104,16 +96,19 @@ int omap_crtc_wait_pending(struct drm_crtc *crtc)
 
 /* ovl-mgr-id -> crtc */
 static struct omap_crtc *omap_crtcs[8];
+static struct omap_dss_device *omap_crtc_output[8];
 
 /* we can probably ignore these until we support command-mode panels: */
 static int omap_crtc_dss_connect(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dst)
 {
-	if (mgr->output)
+	if (omap_crtc_output[mgr->id])
 		return -EINVAL;
 
 	if ((dispc_mgr_get_supported_outputs(mgr->id) & dst->id) == 0)
 		return -EINVAL;
+
+	omap_crtc_output[mgr->id] = dst;
 
 	dst->manager = mgr;
 	mgr->output = dst;
@@ -124,6 +119,8 @@ static int omap_crtc_dss_connect(struct omap_overlay_manager *mgr,
 static void omap_crtc_dss_disconnect(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dst)
 {
+	omap_crtc_output[mgr->id] = NULL;
+
 	mgr->output->manager = NULL;
 	mgr->output = NULL;
 }
@@ -142,7 +139,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	u32 framedone_irq, vsync_irq;
 	int ret;
 
-	if (omap_crtc->mgr->output->output_type == OMAP_DISPLAY_TYPE_HDMI) {
+	if (omap_crtc_output[channel]->output_type == OMAP_DISPLAY_TYPE_HDMI) {
 		dispc_mgr_enable(channel, enable);
 		return;
 	}
@@ -550,9 +547,6 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 			dispc_mgr_get_sync_lost_irq(channel);
 	omap_crtc->error_irq.irq = omap_crtc_error_irq;
 	omap_irq_register(dev, &omap_crtc->error_irq);
-
-	/* temporary: */
-	omap_crtc->mgr = omap_dss_get_overlay_manager(channel);
 
 	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
 					&omap_crtc_funcs, NULL);
