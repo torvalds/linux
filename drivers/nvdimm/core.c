@@ -405,7 +405,6 @@ int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)
 		.generate_fn = nd_pi_nop_generate_verify,
 		.verify_fn = nd_pi_nop_generate_verify,
 	};
-	int ret;
 
 	if (meta_size == 0)
 		return 0;
@@ -414,10 +413,7 @@ int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)
 	bi.tuple_size = meta_size;
 	bi.tag_size = meta_size;
 
-	ret = blk_integrity_register(disk, &bi);
-	if (ret)
-		return ret;
-
+	blk_integrity_register(disk, &bi);
 	blk_queue_max_integrity_segments(disk->queue, 1);
 
 	return 0;

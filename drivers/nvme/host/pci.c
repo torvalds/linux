@@ -538,7 +538,7 @@ static void nvme_dif_remap(struct request *req,
 	virt = bip_get_seed(bip);
 	phys = nvme_block_nr(ns, blk_rq_pos(req));
 	nlb = (blk_rq_bytes(req) >> ns->lba_shift);
-	ts = ns->disk->integrity->tuple_size;
+	ts = ns->disk->integrity.tuple_size;
 
 	for (i = 0; i < nlb; i++, virt++, phys++) {
 		pi = (struct t10_pi_tuple *)p;
@@ -2044,8 +2044,7 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 	ns->pi_type = pi_type;
 	blk_queue_logical_block_size(ns->queue, bs);
 
-	if (ns->ms && !blk_get_integrity(disk) && (disk->flags & GENHD_FL_UP) &&
-								!ns->ext)
+	if (ns->ms && !ns->ext)
 		nvme_init_integrity(ns);
 
 	if (ns->ms && !(ns->ms == 8 && ns->pi_type) && !blk_get_integrity(disk))
