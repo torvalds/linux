@@ -586,7 +586,7 @@ static void __iomem *bgpio_map(struct platform_device *pdev,
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (!r)
-		return IOMEM_ERR_PTR(-EINVAL);
+		return NULL;
 
 	sz = resource_size(r);
 	if (sz != sane_sz)
