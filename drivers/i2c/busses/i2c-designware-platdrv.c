@@ -287,8 +287,8 @@ static void dw_i2c_plat_complete(struct device *dev)
 		pm_request_resume(dev);
 }
 #else
-#define dw_i2c_prepare	NULL
-#define dw_i2c_complete	NULL
+#define dw_i2c_plat_prepare	NULL
+#define dw_i2c_plat_complete	NULL
 #endif
 
 #ifdef CONFIG_PM
