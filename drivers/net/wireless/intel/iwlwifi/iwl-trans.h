@@ -478,6 +478,7 @@ struct iwl_hcmd_arr {
  *	in DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @wide_cmd_header: firmware supports wide host command header
+ * @sw_csum_tx: transport should compute the TCP checksum
  * @command_groups: array of command groups, each member is an array of the
  *	commands in the group; for debugging only
  * @command_groups_size: number of command groups, to avoid illegal access
@@ -497,6 +498,7 @@ struct iwl_trans_config {
 	bool bc_table_dword;
 	bool scd_set_active;
 	bool wide_cmd_header;
+	bool sw_csum_tx;
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
  

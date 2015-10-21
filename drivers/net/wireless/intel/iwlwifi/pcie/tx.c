@@ -1823,6 +1823,19 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
 
+	if (unlikely(trans_pcie->sw_csum_tx &&
+		     skb->ip_summed == CHECKSUM_PARTIAL)) {
+		int offs = skb_checksum_start_offset(skb);
+		int csum_offs = offs + skb->csum_offset;
+		__wsum csum;
+
+		if (skb_ensure_writable(skb, csum_offs + sizeof(__sum16)))
+			return -1;
+
+		csum = skb_checksum(skb, offs, skb->len - offs, 0);
+		*(__sum16 *)(skb->data + csum_offs) = csum_fold(csum);
+	}
+
 	if (skb_is_nonlinear(skb) &&
 	    skb_shinfo(skb)->nr_frags > IWL_PCIE_MAX_FRAGS &&
 	    __skb_linearize(skb))
