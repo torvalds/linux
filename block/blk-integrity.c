@@ -155,10 +155,10 @@ int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
 	if (!b1 || !b2)
 		return -1;
 
-	if (b1->interval != b2->interval) {
+	if (b1->interval_exp != b2->interval_exp) {
 		pr_err("%s: %s/%s protection interval %u != %u\n",
 		       __func__, gd1->disk_name, gd2->disk_name,
-		       b1->interval, b2->interval);
+		       1 << b1->interval_exp, 1 << b2->interval_exp);
 		return -1;
 	}
 
@@ -440,7 +440,7 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 		kobject_uevent(&disk->integrity_kobj, KOBJ_ADD);
 
 		bi->flags |= BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE;
-		bi->interval = queue_logical_block_size(disk->queue);
+		bi->interval_exp = ilog2(queue_logical_block_size(disk->queue));
 		disk->integrity = bi;
 	} else
 		bi = disk->integrity;

@@ -1470,10 +1470,10 @@ struct blk_integrity_profile {
 
 struct blk_integrity {
 	struct blk_integrity_profile	*profile;
-	unsigned short			flags;
-	unsigned short			tuple_size;
-	unsigned short			interval;
-	unsigned short			tag_size;
+	unsigned char			flags;
+	unsigned char			tuple_size;
+	unsigned char			interval_exp;
+	unsigned char			tag_size;
 };
 
 extern bool blk_integrity_is_initialized(struct gendisk *);

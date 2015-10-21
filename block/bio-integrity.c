@@ -202,7 +202,7 @@ EXPORT_SYMBOL(bio_integrity_enabled);
 static inline unsigned int bio_integrity_intervals(struct blk_integrity *bi,
 						   unsigned int sectors)
 {
-	return sectors >> (ilog2(bi->interval) - 9);
+	return sectors >> (bi->interval_exp - 9);
 }
 
 static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
@@ -229,7 +229,7 @@ static int bio_integrity_process(struct bio *bio,
 		bip->bip_vec->bv_offset;
 
 	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
-	iter.interval = bi->interval;
+	iter.interval = 1 << bi->interval_exp;
 	iter.seed = bip_get_seed(bip);
 	iter.prot_buf = prot_buf;
 
