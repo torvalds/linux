@@ -2311,4 +2311,4 @@ struct i40e_aqc_debug_modify_internals {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_debug_modify_internals);
 
-#endif
+#endif /* _I40E_ADMINQ_CMD_H_ */
