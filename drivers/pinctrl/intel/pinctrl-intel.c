@@ -160,8 +160,7 @@ static bool intel_pad_owned_by_host(struct intel_pinctrl *pctrl, unsigned pin)
 	return !(readl(padown) & PADOWN_MASK(padno));
 }
 
-static bool intel_pad_reserved_for_acpi(struct intel_pinctrl *pctrl,
-					unsigned pin)
+static bool intel_pad_acpi_mode(struct intel_pinctrl *pctrl, unsigned pin)
 {
 	const struct intel_community *community;
 	unsigned padno, gpp, offset;
@@ -217,7 +216,6 @@ static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
 static bool intel_pad_usable(struct intel_pinctrl *pctrl, unsigned pin)
 {
 	return intel_pad_owned_by_host(pctrl, pin) &&
-		!intel_pad_reserved_for_acpi(pctrl, pin) &&
 		!intel_pad_locked(pctrl, pin);
 }
 
@@ -270,7 +268,7 @@ static void intel_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, "0x%08x 0x%08x", cfg0, cfg1);
 
 	locked = intel_pad_locked(pctrl, pin);
-	acpi = intel_pad_reserved_for_acpi(pctrl, pin);
+	acpi = intel_pad_acpi_mode(pctrl, pin);
 
 	if (locked || acpi) {
 		seq_puts(s, " [");
@@ -736,6 +734,16 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned type)
 	reg = intel_get_padcfg(pctrl, pin, PADCFG0);
 	if (!reg)
 		return -EINVAL;
+
+	/*
+	 * If the pin is in ACPI mode it is still usable as a GPIO but it
+	 * cannot be used as IRQ because GPI_IS status bit will not be
+	 * updated by the host controller hardware.
+	 */
+	if (intel_pad_acpi_mode(pctrl, pin)) {
+		dev_warn(pctrl->dev, "pin %u cannot be used as IRQ\n", pin);
+		return -EPERM;
+	}
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
