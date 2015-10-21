@@ -384,6 +384,17 @@ static struct kobj_type integrity_ktype = {
 	.sysfs_ops	= &integrity_ops,
 };
 
+static int blk_integrity_nop_fn(struct blk_integrity_iter *iter)
+{
+	return 0;
+}
+
+static struct blk_integrity_profile nop_profile = {
+	.name = "nop",
+	.generate_fn = blk_integrity_nop_fn,
+	.verify_fn = blk_integrity_nop_fn,
+};
+
 /**
  * blk_integrity_register - Register a gendisk as being integrity-capable
  * @disk:	struct gendisk pointer to make integrity-aware
@@ -402,7 +413,7 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 	bi->flags = BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE |
 		template->flags;
 	bi->interval_exp = ilog2(queue_logical_block_size(disk->queue));
-	bi->profile = template->profile;
+	bi->profile = template->profile ? template->profile : &nop_profile;
 	bi->tuple_size = template->tuple_size;
 	bi->tag_size = template->tag_size;
 

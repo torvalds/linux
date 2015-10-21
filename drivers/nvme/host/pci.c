@@ -548,22 +548,6 @@ static void nvme_dif_remap(struct request *req,
 	kunmap_atomic(pmap);
 }
 
-static int nvme_noop_verify(struct blk_integrity_iter *iter)
-{
-	return 0;
-}
-
-static int nvme_noop_generate(struct blk_integrity_iter *iter)
-{
-	return 0;
-}
-
-struct blk_integrity_profile nvme_meta_noop = {
-	.name			= "NVME_META_NOOP",
-	.generate_fn		= nvme_noop_generate,
-	.verify_fn		= nvme_noop_verify,
-};
-
 static void nvme_init_integrity(struct nvme_ns *ns)
 {
 	struct blk_integrity integrity;
@@ -577,7 +561,7 @@ static void nvme_init_integrity(struct nvme_ns *ns)
 		integrity.profile = &t10_pi_type1_crc;
 		break;
 	default:
-		integrity.profile = &nvme_meta_noop;
+		integrity.profile = NULL;
 		break;
 	}
 	integrity.tuple_size = ns->ms;

@@ -392,24 +392,14 @@ void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus)
 EXPORT_SYMBOL_GPL(nvdimm_bus_unregister);
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
-static int nd_pi_nop_generate_verify(struct blk_integrity_iter *iter)
-{
-	return 0;
-}
-
 int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)
 {
 	struct blk_integrity bi;
-	static struct blk_integrity_profile profile = {
-		.name = "ND-PI-NOP",
-		.generate_fn = nd_pi_nop_generate_verify,
-		.verify_fn = nd_pi_nop_generate_verify,
-	};
 
 	if (meta_size == 0)
 		return 0;
 
-	bi.profile = &profile;
+	bi.profile = NULL;
 	bi.tuple_size = meta_size;
 	bi.tag_size = meta_size;
 
