@@ -1291,8 +1291,7 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 }
 
 static __always_inline void
-		gen8_cs_irq_handler(struct intel_engine_cs *ring, u32 iir,
-				    int test_shift)
+gen8_cs_irq_handler(struct intel_engine_cs *ring, u32 iir, int test_shift)
 {
 	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift))
 		notify_ring(ring);
