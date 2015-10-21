@@ -371,6 +371,17 @@
 
 &spmi_bus {
 	pm8941@0 {
+		charger@1000 {
+			qcom,fast-charge-safe-current = <1500000>;
+			qcom,fast-charge-current-limit = <1500000>;
+			qcom,dc-current-limit = <1800000>;
+			qcom,fast-charge-safe-voltage = <4400000>;
+			qcom,fast-charge-high-threshold-voltage = <4350000>;
+			qcom,fast-charge-low-threshold-voltage = <3400000>;
+			qcom,auto-recharge-threshold-voltage = <4200000>;
+			qcom,minimum-input-voltage = <4300000>;
+		};
+
 		gpios@c000 {
 			boost_bypass_n_pin: boost-bypass {
 				pins = "gpio21";
