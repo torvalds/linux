@@ -214,7 +214,7 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 				while (v2 != 0xDEAD && v2 != 0xCDEF &&
 				       v2 != 0xCDCD && i < array_len - 2)
 					READ_NEXT_PAIR(v1, v2, i);
-					i -= 2;
+				i -= 2;
 			} else {
 				READ_NEXT_PAIR(v1, v2, i);
 				while (v2 != 0xDEAD && v2 != 0xCDEF &&
