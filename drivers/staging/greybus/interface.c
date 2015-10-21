@@ -167,7 +167,6 @@ struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 
 free_intf:
 	put_device(&intf->dev);
-	kfree(intf);
 put_module:
 	put_device(&module->dev);
 	return NULL;
