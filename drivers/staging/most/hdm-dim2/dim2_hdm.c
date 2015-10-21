@@ -202,9 +202,9 @@ static int startup_dim(struct platform_device *pdev)
 	if (dev->clk_speed == -1) {
 		pr_info("Bad or missing clock speed parameter, using default value: 3072fs\n");
 		dev->clk_speed = CLK_3072FS;
-	} else
+	} else {
 		pr_info("Selected clock speed: %s\n", clock_speed);
-
+	}
 	if (pdata && pdata->init) {
 		int ret = pdata->init(pdata, dev->io_base, dev->clk_speed);
 

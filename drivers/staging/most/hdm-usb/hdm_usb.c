@@ -246,10 +246,11 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
 		if (cfg->packets_per_xact == 0) {
 			pr_warn("Misconfig: Packets per XACT zero\n");
 			frame_size = 0;
-		} else if (cfg->packets_per_xact == 0xFF)
+		} else if (cfg->packets_per_xact == 0xFF) {
 			frame_size = (USB_MTU / sub_size) * sub_size;
-		else
+		} else {
 			frame_size = cfg->packets_per_xact * sub_size;
+		}
 		break;
 	default:
 		pr_warn("Query frame size of non-streaming channel\n");

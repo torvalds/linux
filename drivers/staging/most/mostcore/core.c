@@ -396,11 +396,11 @@ static ssize_t store_set_direction(struct most_c_obj *c,
 				   const char *buf,
 				   size_t count)
 {
-	if (!strcmp(buf, "dir_rx\n"))
+	if (!strcmp(buf, "dir_rx\n")) {
 		c->cfg.direction = MOST_CH_RX;
-	else if (!strcmp(buf, "dir_tx\n"))
+	} else if (!strcmp(buf, "dir_tx\n")) {
 		c->cfg.direction = MOST_CH_TX;
-	else {
+	} else {
 		pr_info("WARN: invalid attribute settings\n");
 		return -EINVAL;
 	}
@@ -427,15 +427,15 @@ static ssize_t store_set_datatype(struct most_c_obj *c,
 				  const char *buf,
 				  size_t count)
 {
-	if (!strcmp(buf, "control\n"))
+	if (!strcmp(buf, "control\n")) {
 		c->cfg.data_type = MOST_CH_CONTROL;
-	else if (!strcmp(buf, "async\n"))
+	} else if (!strcmp(buf, "async\n")) {
 		c->cfg.data_type = MOST_CH_ASYNC;
-	else if (!strcmp(buf, "sync\n"))
+	} else if (!strcmp(buf, "sync\n")) {
 		c->cfg.data_type = MOST_CH_SYNC;
-	else if (!strcmp(buf, "isoc_avp\n"))
+	} else if (!strcmp(buf, "isoc_avp\n")) {
 		c->cfg.data_type = MOST_CH_ISOC_AVP;
-	else {
+	} else {
 		pr_info("WARN: invalid attribute settings\n");
 		return -EINVAL;
 	}

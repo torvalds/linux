@@ -268,8 +268,9 @@ static void pending_rx_work(struct work_struct *work)
 			schedule_delayed_work(&dev->rx.dwork,
 					      msecs_to_jiffies(MSEC_PER_SEC
 							       / scan_rate));
-	} else
+	} else {
 		enable_irq(dev->client->irq);
+	}
 }
 
 /*
