@@ -29,7 +29,6 @@
 
 #include "mostcore.h"
 
-
 #define V4L2_AIM_MAX_INPUT  1
 
 static struct most_aim aim_info;
@@ -60,10 +59,8 @@ struct aim_fh {
 	u32 offs;
 };
 
-
 static struct list_head video_devices = LIST_HEAD_INIT(video_devices);
 static struct spinlock list_lock;
-
 
 static inline bool data_ready(struct most_video_dev *mdev)
 {
@@ -74,7 +71,6 @@ static inline struct mbo *get_top_mbo(struct most_video_dev *mdev)
 {
 	return list_first_entry(&mdev->pending_mbos, struct mbo, list);
 }
-
 
 static int aim_vdev_open(struct file *filp)
 {
@@ -275,7 +271,6 @@ static int aim_set_format(struct most_video_dev *mdev, unsigned int cmd,
 
 	return 0;
 }
-
 
 static int vidioc_querycap(struct file *file, void  *priv,
 			   struct v4l2_capability *cap)
@@ -495,7 +490,6 @@ static void aim_unregister_videodev(struct most_video_dev *mdev)
 
 	video_unregister_device(mdev->vdev);
 }
-
 
 static void aim_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 {

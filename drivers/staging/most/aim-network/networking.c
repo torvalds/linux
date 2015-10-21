@@ -24,7 +24,6 @@
 #include "mostcore.h"
 #include "networking.h"
 
-
 #define MEP_HDR_LEN 8
 #define MDP_HDR_LEN 16
 #define MAMAC_DATA_LEN (1024 - MDP_HDR_LEN)
@@ -46,8 +45,6 @@
 
 #define HB(value)		((u8)((u16)(value) >> 8))
 #define LB(value)		((u8)(value))
-
-
 
 #define EXTRACT_BIT_SET(bitset_name, value) \
 	(((value) >> bitset_name##_SHIFT) & bitset_name##_MASK)
@@ -80,7 +77,6 @@ struct net_dev_context {
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
 static struct spinlock list_lock;
 static struct most_aim aim;
-
 
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
 {

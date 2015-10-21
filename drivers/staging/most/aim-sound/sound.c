@@ -470,7 +470,6 @@ static struct snd_pcm_ops pcm_ops = {
 	.mmap       = snd_pcm_lib_mmap_vmalloc,
 };
 
-
 static int split_arg_list(char *buf, char **card_name, char **pcm_format)
 {
 	*card_name = strsep(&buf, ".");

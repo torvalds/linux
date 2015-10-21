@@ -331,7 +331,6 @@ static ssize_t show_channel_starving(struct most_c_obj *c,
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->is_starving);
 }
 
-
 #define create_show_channel_attribute(val) \
 	static MOST_CHNL_ATTR(val, S_IRUGO, show_##val, NULL)
 
@@ -492,7 +491,6 @@ create_channel_attribute(set_direction);
 create_channel_attribute(set_datatype);
 create_channel_attribute(set_subbuffer_size);
 create_channel_attribute(set_packets_per_xact);
-
 
 /**
  * most_channel_def_attrs - array of default attributes of channel object
@@ -720,7 +718,6 @@ static struct kobj_type most_inst_ktype = {
 
 static struct kset *most_inst_kset;
 
-
 /**
  * create_most_inst_obj - creates an instance object
  * @name: name of the object to be created
@@ -783,7 +780,6 @@ struct most_aim_obj {
 #define to_aim_obj(d) container_of(d, struct most_aim_obj, kobj)
 
 static struct list_head aim_list;
-
 
 /**
  * struct most_aim_attribute - to access the attributes of AIM object
@@ -1120,7 +1116,6 @@ static void destroy_most_aim_obj(struct most_aim_obj *p)
 	kobject_put(&p->kobj);
 }
 
-
 /*		     ___       ___
  *		     ___C O R E___
  */
@@ -1448,7 +1443,6 @@ struct mbo *most_get_mbo(struct most_interface *iface, int id,
 	return mbo;
 }
 EXPORT_SYMBOL_GPL(most_get_mbo);
-
 
 /**
  * most_put_mbo - return buffer to pool

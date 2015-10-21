@@ -985,7 +985,6 @@ struct most_dci_attribute {
 };
 #define to_dci_attr(a) container_of(a, struct most_dci_attribute, attr)
 
-
 /**
  * dci_attr_show - show function for dci object
  * @kobj: pointer to kobject

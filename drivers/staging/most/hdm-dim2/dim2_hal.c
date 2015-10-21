@@ -19,7 +19,6 @@
 #include "dim2_reg.h"
 #include <linux/stddef.h>
 
-
 /*
  * The number of frames per sub-buffer for synchronous channels.
  * Allowed values: 1, 2, 4, 8, 16, 32, 64.
@@ -51,7 +50,6 @@
  */
 #define DBR_MAP_SIZE 2
 
-
 /* -------------------------------------------------------------------------- */
 /* not configurable area */
 
@@ -62,7 +60,6 @@
 
 #define DBR_SIZE  (16*1024) /* specified by IP */
 #define DBR_BLOCK_SIZE  (DBR_SIZE / 32 / DBR_MAP_SIZE)
-
 
 /* -------------------------------------------------------------------------- */
 /* generic helper functions and macros */
@@ -81,7 +78,6 @@ static inline bool dim_on_error(u8 error_id, const char *error_message)
 	return false;
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* types and local variables */
 
@@ -93,7 +89,6 @@ struct lld_global_vars_t {
 };
 
 static struct lld_global_vars_t g = { false };
-
 
 /* -------------------------------------------------------------------------- */
 
@@ -327,7 +322,6 @@ static void dim2_start_isoc_sync(u8 ch_addr, u8 idx, u32 buf_addr,
 	dim2_write_ctr_mask(ADT + ch_addr, mask, adt);
 }
 
-
 static void dim2_clear_ctram(void)
 {
 	u32 ctr_addr;
@@ -530,7 +524,6 @@ static bool dim2_is_mlb_locked(void)
 	       (DIMCB_IoRead(&g.dim2->MLBC0) & mask0) != 0;
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* channel help routines */
 
@@ -558,7 +551,6 @@ static inline bool service_channel(u8 ch_addr, u8 idx)
 
 	return true;
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* channel init routines */
@@ -670,7 +662,6 @@ static bool channel_detach_buffers(struct dim_channel *ch, u16 buffers_number)
 	ch->done_sw_buffers_number -= buffers_number;
 	return true;
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* API */

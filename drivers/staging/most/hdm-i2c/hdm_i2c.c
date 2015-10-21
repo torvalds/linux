@@ -35,7 +35,6 @@ enum { CH_RX, CH_TX, NUM_CHANNELS };
 #define list_first_mbo(ptr) \
 	list_first_entry(ptr, struct mbo, list)
 
-
 /* IRQ / Polling option */
 static bool polling_req;
 module_param(polling_req, bool, S_IRUGO);
