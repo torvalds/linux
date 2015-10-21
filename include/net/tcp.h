@@ -279,6 +279,7 @@ extern int sysctl_tcp_limit_output_bytes;
 extern int sysctl_tcp_challenge_ack_limit;
 extern unsigned int sysctl_tcp_notsent_lowat;
 extern int sysctl_tcp_min_tso_segs;
+extern int sysctl_tcp_min_rtt_wlen;
 extern int sysctl_tcp_autocorking;
 extern int sysctl_tcp_invalid_ratelimit;
 extern int sysctl_tcp_pacing_ss_ratio;
@@ -566,6 +567,7 @@ void tcp_resume_early_retransmit(struct sock *sk);
 void tcp_rearm_rto(struct sock *sk);
 void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req);
 void tcp_reset(struct sock *sk);
+void tcp_skb_mark_lost_uncond_verify(struct tcp_sock *tp, struct sk_buff *skb);
 
 /* tcp_timer.c */
 void tcp_init_xmit_timers(struct sock *);
@@ -669,6 +671,12 @@ static inline u32 tcp_rto_min_us(struct sock *sk)
 static inline bool tcp_ca_dst_locked(const struct dst_entry *dst)
 {
 	return dst_metric_locked(dst, RTAX_CC_ALGO);
+}
+
+/* Minimum RTT in usec. ~0 means not available. */
+static inline u32 tcp_min_rtt(const struct tcp_sock *tp)
+{
+	return tp->rtt_min[0].rtt;
 }
 
 /* Compute the actual receive window we are currently advertising.
@@ -1742,6 +1750,19 @@ int tcpv4_offload_init(void);
 
 void tcp_v4_init(void);
 void tcp_init(void);
+
+/* tcp_recovery.c */
+
+/* Flags to enable various loss recovery features. See below */
+extern int sysctl_tcp_recovery;
+
+/* Use TCP RACK to detect (some) tail and retransmit losses */
+#define TCP_RACK_LOST_RETRANS  0x1
+
+extern int tcp_rack_mark_lost(struct sock *sk);
+
+extern void tcp_rack_advance(struct tcp_sock *tp,
+			     const struct skb_mstamp *xmit_time, u8 sacked);
 
 /*
  * Save and compile IPv4 options, return a pointer to it

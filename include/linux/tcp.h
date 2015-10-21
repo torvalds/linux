@@ -194,6 +194,12 @@ struct tcp_sock {
 	u32	window_clamp;	/* Maximal window to advertise		*/
 	u32	rcv_ssthresh;	/* Current window clamp			*/
 
+	/* Information of the most recently (s)acked skb */
+	struct tcp_rack {
+		struct skb_mstamp mstamp; /* (Re)sent time of the skb */
+		u8 advanced; /* mstamp advanced since last lost marking */
+		u8 reord;    /* reordering detected */
+	} rack;
 	u16	advmss;		/* Advertised MSS			*/
 	u8	unused;
 	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
@@ -217,6 +223,9 @@ struct tcp_sock {
 	u32	mdev_max_us;	/* maximal mdev for the last rtt period	*/
 	u32	rttvar_us;	/* smoothed mdev_max			*/
 	u32	rtt_seq;	/* sequence number to update rttvar	*/
+	struct rtt_meas {
+		u32 rtt, ts;	/* RTT in usec and sampling time in jiffies. */
+	} rtt_min[3];
 
 	u32	packets_out;	/* Packets which are "in flight"	*/
 	u32	retrans_out;	/* Retransmitted packets out		*/
@@ -279,8 +288,6 @@ struct tcp_sock {
 
 	int     lost_cnt_hint;
 	u32     retransmit_high;	/* L-bits may be on up to this seqno */
-
-	u32	lost_retrans_low;	/* Sent seq after any rxmit (lowest) */
 
 	u32	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	u32	high_seq;	/* snd_nxt at onset of congestion	*/
