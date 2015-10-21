@@ -239,28 +239,6 @@ static void aim_set_format_struct(struct v4l2_format *f)
 static int aim_set_format(struct most_video_dev *mdev, unsigned int cmd,
 			  struct v4l2_format *format)
 {
-#if 0
-	u32 const pixfmt = format->fmt.pix.pixelformat;
-	const char *fmt;
-
-	if (pixfmt != V4L2_PIX_FMT_MPEG) {
-		if (cmd == VIDIOC_TRY_FMT)
-			fmt = KERN_ERR "try %c%c%c%c failed\n";
-		else
-			fmt = KERN_ERR "set %c%c%c%c failed\n";
-	} else {
-		if (cmd == VIDIOC_TRY_FMT)
-			fmt = KERN_ERR "try %c%c%c%c\n";
-		else
-			fmt = KERN_ERR "set %c%c%c%c\n";
-	}
-	printk(fmt,
-	       (pixfmt) & 255,
-	       (pixfmt >> 8) & 255,
-	       (pixfmt >> 16) & 255,
-	       (pixfmt >> 24) & 255);
-#endif
-
 	if (format->fmt.pix.pixelformat != V4L2_PIX_FMT_MPEG)
 		return -EINVAL;
 

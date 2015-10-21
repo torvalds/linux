@@ -493,22 +493,6 @@ static void dim2_initialize(bool enable_6pin, u8 mlb_clock)
 	DIMCB_IoWrite(&g.dim2->ACTL,
 		      ACTL_DMA_MODE_VAL_DMA_MODE_1 << ACTL_DMA_MODE_BIT |
 		      true << ACTL_SCE_BIT);
-
-#if 0
-	DIMCB_IoWrite(&g.dim2->MIEN,
-		      bit_mask(MIEN_CTX_BREAK_BIT) |
-		      bit_mask(MIEN_CTX_PE_BIT) |
-		      bit_mask(MIEN_CTX_DONE_BIT) |
-		      bit_mask(MIEN_CRX_BREAK_BIT) |
-		      bit_mask(MIEN_CRX_PE_BIT) |
-		      bit_mask(MIEN_CRX_DONE_BIT) |
-		      bit_mask(MIEN_ATX_BREAK_BIT) |
-		      bit_mask(MIEN_ATX_PE_BIT) |
-		      bit_mask(MIEN_ATX_DONE_BIT) |
-		      bit_mask(MIEN_ARX_BREAK_BIT) |
-		      bit_mask(MIEN_ARX_PE_BIT) |
-		      bit_mask(MIEN_ARX_DONE_BIT));
-#endif
 }
 
 static bool dim2_is_mlb_locked(void)
