@@ -10111,10 +10111,12 @@ static int i40e_setup_pf_filter_control(struct i40e_pf *pf)
 }
 
 #define INFO_STRING_LEN 255
+#define REMAIN(__x) (INFO_STRING_LEN - (__x))
 static void i40e_print_features(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	char *buf, *string;
+	int i = 0;
 
 	string = kzalloc(INFO_STRING_LEN, GFP_KERNEL);
 	if (!string) {
@@ -10124,42 +10126,42 @@ static void i40e_print_features(struct i40e_pf *pf)
 
 	buf = string;
 
-	buf += sprintf(string, "Features: PF-id[%d] ", hw->pf_id);
+	i += snprintf(&buf[i], REMAIN(i), "Features: PF-id[%d] ", hw->pf_id);
 #ifdef CONFIG_PCI_IOV
-	buf += sprintf(buf, "VFs: %d ", pf->num_req_vfs);
+	i += snprintf(&buf[i], REMAIN(i), "VFs: %d ", pf->num_req_vfs);
 #endif
-	buf += sprintf(buf, "VSIs: %d QP: %d RX: %s ",
-		       pf->hw.func_caps.num_vsis,
-		       pf->vsi[pf->lan_vsi]->num_queue_pairs,
-		       pf->flags & I40E_FLAG_RX_PS_ENABLED ? "PS" : "1BUF");
+	i += snprintf(&buf[i], REMAIN(i), "VSIs: %d QP: %d RX: %s ",
+		      pf->hw.func_caps.num_vsis,
+		      pf->vsi[pf->lan_vsi]->num_queue_pairs,
+		      pf->flags & I40E_FLAG_RX_PS_ENABLED ? "PS" : "1BUF");
 
 	if (pf->flags & I40E_FLAG_RSS_ENABLED)
-		buf += sprintf(buf, "RSS ");
+		i += snprintf(&buf[i], REMAIN(i), "RSS ");
 	if (pf->flags & I40E_FLAG_FD_ATR_ENABLED)
-		buf += sprintf(buf, "FD_ATR ");
+		i += snprintf(&buf[i], REMAIN(i), "FD_ATR ");
 	if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
-		buf += sprintf(buf, "FD_SB ");
-		buf += sprintf(buf, "NTUPLE ");
+		i += snprintf(&buf[i], REMAIN(i), "FD_SB ");
+		i += snprintf(&buf[i], REMAIN(i), "NTUPLE ");
 	}
 	if (pf->flags & I40E_FLAG_DCB_CAPABLE)
-		buf += sprintf(buf, "DCB ");
+		i += snprintf(&buf[i], REMAIN(i), "DCB ");
 #if IS_ENABLED(CONFIG_VXLAN)
-	buf += sprintf(buf, "VxLAN ");
+	i += snprintf(&buf[i], REMAIN(i), "VxLAN ");
 #endif
 	if (pf->flags & I40E_FLAG_PTP)
-		buf += sprintf(buf, "PTP ");
+		i += snprintf(&buf[i], REMAIN(i), "PTP ");
 #ifdef I40E_FCOE
 	if (pf->flags & I40E_FLAG_FCOE_ENABLED)
-		buf += sprintf(buf, "FCOE ");
+		i += snprintf(&buf[i], REMAIN(i), "FCOE ");
 #endif
 	if (pf->flags & I40E_FLAG_VEB_MODE_ENABLED)
-		buf += sprintf(buf, "VEB ");
+		i += snprintf(&buf[i], REMAIN(i), "VEPA ");
 	else
 		buf += sprintf(buf, "VEPA ");
 
-	BUG_ON(buf > (string + INFO_STRING_LEN));
 	dev_info(&pf->pdev->dev, "%s\n", string);
 	kfree(string);
+	WARN_ON(i > INFO_STRING_LEN);
 }
 
 /**
