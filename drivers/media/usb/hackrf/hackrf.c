@@ -1530,7 +1530,7 @@ err_v4l2_ctrl_handler_free_rx:
 err_kfree:
 	kfree(dev);
 err:
-	dev_dbg(dev->dev, "failed=%d\n", ret);
+	dev_dbg(&intf->dev, "failed=%d\n", ret);
 	return ret;
 }
 
