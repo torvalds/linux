@@ -1549,6 +1549,22 @@ static int max_pids(struct trace_pid_list *pid_list)
 	return (PAGE_SIZE << pid_list->order) / sizeof(pid_t);
 }
 
+static void ignore_task_cpu(void *data)
+{
+	struct trace_array *tr = data;
+	struct trace_pid_list *pid_list;
+
+	/*
+	 * This function is called by on_each_cpu() while the
+	 * event_mutex is held.
+	 */
+	pid_list = rcu_dereference_protected(tr->filtered_pids,
+					     mutex_is_locked(&event_mutex));
+
+	this_cpu_write(tr->trace_buffer.data->ignore_pid,
+		       check_ignore_pid(pid_list, current));
+}
+
 static ssize_t
 ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
@@ -1711,6 +1727,12 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 						 tr, INT_MAX);
 		register_trace_prio_sched_wakeup(event_filter_pid_sched_wakeup_probe_post,
 						 tr, 0);
+
+		/*
+		 * Ignoring of pids is done at task switch. But we have to
+		 * check for those tasks that are currently running.
+		 */
+		on_each_cpu(ignore_task_cpu, tr, 1);
 	}
 
 	mutex_unlock(&event_mutex);
