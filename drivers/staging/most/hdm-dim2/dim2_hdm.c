@@ -429,7 +429,7 @@ static void dim2_tasklet_fn(unsigned long data)
 			continue;
 
 		spin_lock_irqsave(&dim_lock, flags);
-		DIM_ServiceChannel(&(dev->hch[ch_idx].ch));
+		DIM_ServiceChannel(&dev->hch[ch_idx].ch);
 		spin_unlock_irqrestore(&dim_lock, flags);
 
 		service_done_flag(dev, ch_idx);
