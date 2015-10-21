@@ -162,10 +162,7 @@ struct ctx_info *get_context(struct cxlflash_cfg *cfg, u64 rctxid,
 
 	if (likely(ctxid < MAX_CONTEXT)) {
 		while (true) {
-			rc = mutex_lock_interruptible(&cfg->ctx_tbl_list_mutex);
-			if (rc)
-				goto out;
-
+			mutex_lock(&cfg->ctx_tbl_list_mutex);
 			ctxi = cfg->ctx_tbl[ctxid];
 			if (ctxi)
 				if ((file && (ctxi->file != file)) ||
