@@ -147,7 +147,7 @@
 			gpios = <&pcf8575 14 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
 			label = "SW1";
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

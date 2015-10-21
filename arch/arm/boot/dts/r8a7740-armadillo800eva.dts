@@ -85,7 +85,7 @@
 			gpios = <&pfc 99 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "SW3";
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		back-key {
