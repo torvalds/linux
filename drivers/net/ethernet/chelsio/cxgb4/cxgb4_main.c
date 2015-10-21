@@ -4485,6 +4485,10 @@ static int enable_msix(struct adapter *adap)
 	}
 	for (i = 0; i < allocated; ++i)
 		adap->msix_info[i].vec = entries[i].vector;
+	dev_info(adap->pdev_dev, "%d MSI-X vectors allocated, "
+		 "nic %d iscsi %d rdma cpl %d rdma ciq %d\n",
+		 allocated, s->max_ethqsets, s->ofldqsets, s->rdmaqs,
+		 s->rdmaciqs);
 
 	kfree(entries);
 	return 0;
