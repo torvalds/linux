@@ -3905,6 +3905,18 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		goto err_core_stop;
 	}
 
+	if (test_bit(ATH10K_FW_FEATURE_SUPPORTS_ADAPTIVE_CCA,
+		     ar->fw_features)) {
+		ret = ath10k_wmi_pdev_enable_adaptive_cca(ar, 1,
+							  WMI_CCA_DETECT_LEVEL_AUTO,
+							  WMI_CCA_DETECT_MARGIN_AUTO);
+		if (ret) {
+			ath10k_warn(ar, "failed to enable adaptive cca: %d\n",
+				    ret);
+			goto err_core_stop;
+		}
+	}
+
 	ret = ath10k_wmi_pdev_set_param(ar,
 					ar->wmi.pdev_param->ani_enable, 1);
 	if (ret) {

@@ -151,6 +151,7 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING] = "no-4addr-pad",
 	[ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT] = "skip-clock-init",
 	[ATH10K_FW_FEATURE_RAW_MODE_SUPPORT] = "raw-mode",
+	[ATH10K_FW_FEATURE_SUPPORTS_ADAPTIVE_CCA] = "adaptive-cca",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,

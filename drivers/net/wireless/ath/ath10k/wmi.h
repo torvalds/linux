@@ -772,6 +772,7 @@ struct wmi_cmd_map {
 	u32 mu_cal_start_cmdid;
 	u32 set_cca_params_cmdid;
 	u32 pdev_bss_chan_info_request_cmdid;
+	u32 pdev_enable_adaptive_cca_cmdid;
 };
 
 /*
@@ -1381,6 +1382,9 @@ enum wmi_10_2_cmd_id {
 	WMI_10_2_VDEV_ATF_REQUEST_CMDID,
 	WMI_10_2_PEER_ATF_REQUEST_CMDID,
 	WMI_10_2_PDEV_GET_TEMPERATURE_CMDID,
+	WMI_10_2_MU_CAL_START_CMDID,
+	WMI_10_2_SET_LTEU_CONFIG_CMDID,
+	WMI_10_2_SET_CCA_PARAMS,
 	WMI_10_2_PDEV_UTF_CMDID = WMI_10_2_END_CMDID - 1,
 };
 
@@ -6093,6 +6097,15 @@ enum wmi_txbf_conf {
 	WMI_TXBF_CONF_BEFORE_ASSOC,
 	WMI_TXBF_CONF_AFTER_ASSOC,
 };
+
+#define	WMI_CCA_DETECT_LEVEL_AUTO	0
+#define	WMI_CCA_DETECT_MARGIN_AUTO	0
+
+struct wmi_pdev_set_adaptive_cca_params {
+	__le32 enable;
+	__le32 cca_detect_level;
+	__le32 cca_detect_margin;
+} __packed;
 
 struct ath10k;
 struct ath10k_vif;

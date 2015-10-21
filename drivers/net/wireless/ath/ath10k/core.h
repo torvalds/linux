@@ -497,6 +497,9 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_RAW_MODE_SUPPORT = 10,
 
+	/* Firmware Supports Adaptive CCA*/
+	ATH10K_FW_FEATURE_SUPPORTS_ADAPTIVE_CCA = 11,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
