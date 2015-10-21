@@ -249,8 +249,8 @@ struct integrity_sysfs_entry {
 static ssize_t integrity_attr_show(struct kobject *kobj, struct attribute *attr,
 				   char *page)
 {
-	struct blk_integrity *bi =
-		container_of(kobj, struct blk_integrity, kobj);
+	struct gendisk *disk = container_of(kobj, struct gendisk, integrity_kobj);
+	struct blk_integrity *bi = blk_get_integrity(disk);
 	struct integrity_sysfs_entry *entry =
 		container_of(attr, struct integrity_sysfs_entry, attr);
 
@@ -261,8 +261,8 @@ static ssize_t integrity_attr_store(struct kobject *kobj,
 				    struct attribute *attr, const char *page,
 				    size_t count)
 {
-	struct blk_integrity *bi =
-		container_of(kobj, struct blk_integrity, kobj);
+	struct gendisk *disk = container_of(kobj, struct gendisk, integrity_kobj);
+	struct blk_integrity *bi = blk_get_integrity(disk);
 	struct integrity_sysfs_entry *entry =
 		container_of(attr, struct integrity_sysfs_entry, attr);
 	ssize_t ret = 0;
@@ -385,8 +385,8 @@ subsys_initcall(blk_dev_integrity_init);
 
 static void blk_integrity_release(struct kobject *kobj)
 {
-	struct blk_integrity *bi =
-		container_of(kobj, struct blk_integrity, kobj);
+	struct gendisk *disk = container_of(kobj, struct gendisk, integrity_kobj);
+	struct blk_integrity *bi = blk_get_integrity(disk);
 
 	kmem_cache_free(integrity_cachep, bi);
 }
@@ -429,14 +429,14 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 		if (!bi)
 			return -1;
 
-		if (kobject_init_and_add(&bi->kobj, &integrity_ktype,
+		if (kobject_init_and_add(&disk->integrity_kobj, &integrity_ktype,
 					 &disk_to_dev(disk)->kobj,
 					 "%s", "integrity")) {
 			kmem_cache_free(integrity_cachep, bi);
 			return -1;
 		}
 
-		kobject_uevent(&bi->kobj, KOBJ_ADD);
+		kobject_uevent(&disk->integrity_kobj, KOBJ_ADD);
 
 		bi->flags |= BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE;
 		bi->interval = queue_logical_block_size(disk->queue);
@@ -479,9 +479,9 @@ void blk_integrity_unregister(struct gendisk *disk)
 
 	bi = disk->integrity;
 
-	kobject_uevent(&bi->kobj, KOBJ_REMOVE);
-	kobject_del(&bi->kobj);
-	kobject_put(&bi->kobj);
+	kobject_uevent(&disk->integrity_kobj, KOBJ_REMOVE);
+	kobject_del(&disk->integrity_kobj);
+	kobject_put(&disk->integrity_kobj);
 	disk->integrity = NULL;
 }
 EXPORT_SYMBOL(blk_integrity_unregister);
