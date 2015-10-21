@@ -16,6 +16,7 @@
 #define _CXLFLASH_COMMON_H
 
 #include <linux/list.h>
+#include <linux/rwsem.h>
 #include <linux/types.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -110,6 +111,7 @@ struct cxlflash_cfg {
 	atomic_t recovery_threads;
 	struct mutex ctx_recovery_mutex;
 	struct mutex ctx_tbl_list_mutex;
+	struct rw_semaphore ioctl_rwsem;
 	struct ctx_info *ctx_tbl[MAX_CONTEXT];
 	struct list_head ctx_err_recovery; /* contexts w/ recovery pending */
 	struct file_operations cxl_fops;
