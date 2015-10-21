@@ -621,7 +621,7 @@ int rtw_disassoc_cmd23a(struct rtw_adapter *padapter, u32 deauth_timeout_ms,
 	} else {
 		/* no need to enqueue, do the cmd hdl directly and
 		   free cmd parameter */
-		if (H2C_SUCCESS != disconnect_hdl23a(padapter, (u8 *)param))
+		if (disconnect_hdl23a(padapter, (u8 *)param) != H2C_SUCCESS)
 			res = _FAIL;
 		kfree(param);
 	}
