@@ -24,9 +24,9 @@ Pins on the device (for linking into audio routes) for RT5639/RT5640:
   * DMIC2
   * MICBIAS1
   * IN1P
-  * IN1R
+  * IN1N
   * IN2P
-  * IN2R
+  * IN2N
   * HPOL
   * HPOR
   * LOUTL
