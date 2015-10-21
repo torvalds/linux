@@ -61,6 +61,8 @@ config MIPS
 	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select HAVE_IRQ_TIME_ACCOUNTING
+	select GENERIC_TIME_VSYSCALL
+	select ARCH_CLOCKSOURCE_DATA
 
 menu "Machine selection"
 
@@ -1039,6 +1041,9 @@ config CSRC_R4K
 
 config CSRC_SB1250
 	bool
+
+config MIPS_CLOCK_VSYSCALL
+	def_bool CSRC_R4K || CLKSRC_MIPS_GIC
 
 config GPIO_TXX9
 	select ARCH_REQUIRE_GPIOLIB
