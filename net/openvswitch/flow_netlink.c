@@ -548,11 +548,11 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 			      struct sw_flow_match *match, bool is_mask,
 			      bool log)
 {
+	bool ttl = false, ipv4 = false, ipv6 = false;
+	__be16 tun_flags = 0;
+	int opts_type = 0;
 	struct nlattr *a;
 	int rem;
-	bool ttl = false;
-	__be16 tun_flags = 0, ipv4 = false, ipv6 = false;
-	int opts_type = 0;
 
 	nla_for_each_nested(a, attr, rem) {
 		int type = nla_type(a);
