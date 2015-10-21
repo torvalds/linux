@@ -55,6 +55,8 @@ void gb_endo_exit(void);
 struct gb_endo *gb_endo_create(struct greybus_host_device *hd,
 				u16 endo_id, u8 ap_intf_id);
 void gb_endo_remove(struct gb_endo *endo);
+int greybus_endo_setup(struct greybus_host_device *hd, u16 endo_id,
+		       u8 ap_intf_id);
 
 u8 endo_get_module_id(struct gb_endo *endo, u8 interface_id);
 

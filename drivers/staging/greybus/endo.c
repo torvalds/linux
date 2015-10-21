@@ -524,6 +524,20 @@ void gb_endo_remove(struct gb_endo *endo)
 	device_unregister(&endo->dev);
 }
 
+int greybus_endo_setup(struct greybus_host_device *hd, u16 endo_id,
+		       u8 ap_intf_id)
+{
+	struct gb_endo *endo;
+
+	endo = gb_endo_create(hd, endo_id, ap_intf_id);
+	if (IS_ERR(endo))
+		return PTR_ERR(endo);
+	hd->endo = endo;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(greybus_endo_setup);
+
 int __init gb_endo_init(void)
 {
 	ida_init(&greybus_endo_id_map);
