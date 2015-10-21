@@ -108,9 +108,12 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 	spin_lock_init(&htt->tx_lock);
 	idr_init(&htt->pending_tx);
 
-	htt->tx_pool = dma_pool_create("ath10k htt tx pool", htt->ar->dev,
-				       sizeof(struct ath10k_htt_txbuf), 4, 0);
-	if (!htt->tx_pool) {
+	size = htt->max_num_pending_tx * sizeof(struct ath10k_htt_txbuf);
+	htt->txbuf.vaddr = dma_alloc_coherent(ar->dev, size,
+						  &htt->txbuf.paddr,
+						  GFP_DMA);
+	if (!htt->txbuf.vaddr) {
+		ath10k_err(ar, "failed to alloc tx buffer\n");
 		ret = -ENOMEM;
 		goto free_idr_pending_tx;
 	}
@@ -125,14 +128,17 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 	if (!htt->frag_desc.vaddr) {
 		ath10k_warn(ar, "failed to alloc fragment desc memory\n");
 		ret = -ENOMEM;
-		goto free_tx_pool;
+		goto free_txbuf;
 	}
 
 skip_frag_desc_alloc:
 	return 0;
 
-free_tx_pool:
-	dma_pool_destroy(htt->tx_pool);
+free_txbuf:
+	size = htt->max_num_pending_tx *
+			  sizeof(struct ath10k_htt_txbuf);
+	dma_free_coherent(htt->ar->dev, size, htt->txbuf.vaddr,
+			  htt->txbuf.paddr);
 free_idr_pending_tx:
 	idr_destroy(&htt->pending_tx);
 	return ret;
@@ -160,7 +166,13 @@ void ath10k_htt_tx_free(struct ath10k_htt *htt)
 
 	idr_for_each(&htt->pending_tx, ath10k_htt_tx_clean_up_pending, htt->ar);
 	idr_destroy(&htt->pending_tx);
-	dma_pool_destroy(htt->tx_pool);
+
+	if (htt->txbuf.vaddr) {
+		size = htt->max_num_pending_tx *
+				  sizeof(struct ath10k_htt_txbuf);
+		dma_free_coherent(htt->ar->dev, size, htt->txbuf.vaddr,
+				  htt->txbuf.paddr);
+	}
 
 	if (htt->frag_desc.vaddr) {
 		size = htt->max_num_pending_tx *
@@ -174,6 +186,12 @@ void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 {
 	dev_kfree_skb_any(skb);
 }
+
+void ath10k_htt_hif_tx_complete(struct ath10k *ar, struct sk_buff *skb)
+{
+	dev_kfree_skb_any(skb);
+}
+EXPORT_SYMBOL(ath10k_htt_hif_tx_complete);
 
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 {
@@ -454,9 +472,9 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
 	spin_unlock_bh(&htt->tx_lock);
-	if (res < 0) {
+	if (res < 0)
 		goto err_tx_dec;
-	}
+
 	msdu_id = res;
 
 	txdesc = ath10k_htc_alloc_skb(ar, len);
@@ -521,7 +539,6 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	int res;
 	u8 flags0 = 0;
 	u16 msdu_id, flags1 = 0;
-	dma_addr_t paddr = 0;
 	u32 frags_paddr = 0;
 	struct htt_msdu_ext_desc *ext_desc = NULL;
 	bool limit_mgmt_desc = false;
@@ -542,21 +559,17 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
 	spin_unlock_bh(&htt->tx_lock);
-	if (res < 0) {
+	if (res < 0)
 		goto err_tx_dec;
-	}
+
 	msdu_id = res;
 
 	prefetch_len = min(htt->prefetch_len, msdu->len);
 	prefetch_len = roundup(prefetch_len, 4);
 
-	skb_cb->htt.txbuf = dma_pool_alloc(htt->tx_pool, GFP_ATOMIC,
-					   &paddr);
-	if (!skb_cb->htt.txbuf) {
-		res = -ENOMEM;
-		goto err_free_msdu_id;
-	}
-	skb_cb->htt.txbuf_paddr = paddr;
+	skb_cb->htt.txbuf = &htt->txbuf.vaddr[msdu_id];
+	skb_cb->htt.txbuf_paddr = htt->txbuf.paddr +
+		(sizeof(struct ath10k_htt_txbuf) * msdu_id);
 
 	if ((ieee80211_is_action(hdr->frame_control) ||
 	     ieee80211_is_deauth(hdr->frame_control) ||
@@ -574,7 +587,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	res = dma_mapping_error(dev, skb_cb->paddr);
 	if (res) {
 		res = -EIO;
-		goto err_free_txbuf;
+		goto err_free_msdu_id;
 	}
 
 	switch (skb_cb->txmode) {
@@ -706,10 +719,6 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 
 err_unmap_msdu:
 	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
-err_free_txbuf:
-	dma_pool_free(htt->tx_pool,
-		      skb_cb->htt.txbuf,
-		      skb_cb->htt.txbuf_paddr);
 err_free_msdu_id:
 	spin_lock_bh(&htt->tx_lock);
 	ath10k_htt_tx_free_msdu_id(htt, msdu_id);
