@@ -532,7 +532,7 @@ static void drain_fifo(struct pxa3xx_nand_info *info, void *data, int len)
 		 * the polling on the last read.
 		 */
 		while (len > 8) {
-			readsl(info->mmio_base + NDDB, data, 8);
+			ioread32_rep(info->mmio_base + NDDB, data, 8);
 
 			ret = readl_relaxed_poll_timeout(info->mmio_base + NDSR, val,
 							 val & NDSR_RDDREQ, 1000, 5000);
@@ -547,7 +547,7 @@ static void drain_fifo(struct pxa3xx_nand_info *info, void *data, int len)
 		}
 	}
 
-	readsl(info->mmio_base + NDDB, data, len);
+	ioread32_rep(info->mmio_base + NDDB, data, len);
 }
 
 static void handle_data_pio(struct pxa3xx_nand_info *info)
