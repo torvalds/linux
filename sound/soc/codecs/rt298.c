@@ -1214,7 +1214,7 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 	mdelay(10);
 
 	if (!rt298->pdata.gpio2_en)
-		regmap_write(rt298->regmap, RT298_SET_DMIC2_DEFAULT, 0x4000);
+		regmap_write(rt298->regmap, RT298_SET_DMIC2_DEFAULT, 0x40);
 	else
 		regmap_write(rt298->regmap, RT298_SET_DMIC2_DEFAULT, 0);
 
