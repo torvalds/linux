@@ -1363,8 +1363,10 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
 tx_only:
-		if (arm_wb)
+		if (arm_wb) {
+			q_vector->tx.ring[0].tx_stats.tx_force_wb++;
 			i40evf_force_wb(vsi, q_vector);
+		}
 		return budget;
 	}
 

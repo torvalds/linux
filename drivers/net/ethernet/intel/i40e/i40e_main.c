@@ -881,6 +881,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	u64 bytes, packets;
 	unsigned int start;
 	u64 tx_linearize;
+	u64 tx_force_wb;
 	u64 rx_p, rx_b;
 	u64 tx_p, tx_b;
 	u16 q;
@@ -899,7 +900,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	 */
 	rx_b = rx_p = 0;
 	tx_b = tx_p = 0;
-	tx_restart = tx_busy = tx_linearize = 0;
+	tx_restart = tx_busy = tx_linearize = tx_force_wb = 0;
 	rx_page = 0;
 	rx_buf = 0;
 	rcu_read_lock();
@@ -917,6 +918,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 		tx_restart += p->tx_stats.restart_queue;
 		tx_busy += p->tx_stats.tx_busy;
 		tx_linearize += p->tx_stats.tx_linearize;
+		tx_force_wb += p->tx_stats.tx_force_wb;
 
 		/* Rx queue is part of the same block as Tx queue */
 		p = &p[1];
@@ -934,6 +936,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	vsi->tx_restart = tx_restart;
 	vsi->tx_busy = tx_busy;
 	vsi->tx_linearize = tx_linearize;
+	vsi->tx_force_wb = tx_force_wb;
 	vsi->rx_page_failed = rx_page;
 	vsi->rx_buf_failed = rx_buf;
 
