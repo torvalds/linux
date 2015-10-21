@@ -113,6 +113,7 @@ static void gb_endo_release(struct device *dev)
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
+	ida_simple_remove(&greybus_endo_id_map, endo->dev_id);
 	kfree(endo);
 }
 
@@ -462,7 +463,6 @@ static int gb_endo_register(struct greybus_host_device *hd,
 		dev_err(hd->parent, "failed to add endo device of id 0x%04x\n",
 			endo->id);
 		put_device(&endo->dev);
-		ida_simple_remove(&greybus_endo_id_map, endo->dev_id);
 	}
 
 	return retval;
@@ -518,7 +518,6 @@ void gb_endo_remove(struct gb_endo *endo)
 	/* remove all modules for this endo */
 	gb_module_remove_all(endo);
 
-	ida_simple_remove(&greybus_endo_id_map, endo->dev_id);
 	device_unregister(&endo->dev);
 }
 
