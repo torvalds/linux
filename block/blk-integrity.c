@@ -289,6 +289,14 @@ static ssize_t integrity_tag_size_show(struct blk_integrity *bi, char *page)
 		return sprintf(page, "0\n");
 }
 
+static ssize_t integrity_interval_show(struct blk_integrity *bi, char *page)
+{
+	if (bi != NULL)
+		return sprintf(page, "%u\n", 1 << bi->interval_exp);
+	else
+		return sprintf(page, "0\n");
+}
+
 static ssize_t integrity_verify_store(struct blk_integrity *bi,
 				      const char *page, size_t count)
 {
@@ -343,6 +351,11 @@ static struct integrity_sysfs_entry integrity_tag_size_entry = {
 	.show = integrity_tag_size_show,
 };
 
+static struct integrity_sysfs_entry integrity_interval_entry = {
+	.attr = { .name = "protection_interval_bytes", .mode = S_IRUGO },
+	.show = integrity_interval_show,
+};
+
 static struct integrity_sysfs_entry integrity_verify_entry = {
 	.attr = { .name = "read_verify", .mode = S_IRUGO | S_IWUSR },
 	.show = integrity_verify_show,
@@ -363,6 +376,7 @@ static struct integrity_sysfs_entry integrity_device_entry = {
 static struct attribute *integrity_attrs[] = {
 	&integrity_format_entry.attr,
 	&integrity_tag_size_entry.attr,
+	&integrity_interval_entry.attr,
 	&integrity_verify_entry.attr,
 	&integrity_generate_entry.attr,
 	&integrity_device_entry.attr,
