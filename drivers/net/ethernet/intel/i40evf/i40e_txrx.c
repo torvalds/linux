@@ -318,6 +318,8 @@ static void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector
  * i40e_set_new_dynamic_itr - Find new ITR level
  * @rc: structure containing ring performance data
  *
+ * Returns true if ITR changed, false if not
+ *
  * Stores a new ITR value based on packets and byte counts during
  * the last interrupt.  The advantage of per interrupt computation
  * is faster updates and more accurate ITR for the current traffic
@@ -326,21 +328,32 @@ static void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector
  * testing data as well as attempting to minimize response time
  * while increasing bulk throughput.
  **/
-static void i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
+static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 {
 	enum i40e_latency_range new_latency_range = rc->latency_range;
+	struct i40e_q_vector *qv = rc->ring->q_vector;
 	u32 new_itr = rc->itr;
 	int bytes_per_int;
+	int usecs;
 
 	if (rc->total_packets == 0 || !rc->itr)
-		return;
+		return false;
 
 	/* simple throttlerate management
-	 *   0-10MB/s   lowest (100000 ints/s)
+	 *   0-10MB/s   lowest (50000 ints/s)
 	 *  10-20MB/s   low    (20000 ints/s)
-	 *  20-1249MB/s bulk   (8000 ints/s)
+	 *  20-1249MB/s bulk   (18000 ints/s)
+	 *  > 40000 Rx packets per second (8000 ints/s)
+	 *
+	 * The math works out because the divisor is in 10^(-6) which
+	 * turns the bytes/us input value into MB/s values, but
+	 * make sure to use usecs, as the register values written
+	 * are in 2 usec increments in the ITR registers, and make sure
+	 * to use the smoothed values that the countdown timer gives us.
 	 */
-	bytes_per_int = rc->total_bytes / rc->itr;
+	usecs = (rc->itr << 1) * ITR_COUNTDOWN_START;
+	bytes_per_int = rc->total_bytes / usecs;
+
 	switch (new_latency_range) {
 	case I40E_LOWEST_LATENCY:
 		if (bytes_per_int > 10)
@@ -353,35 +366,52 @@ static void i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 			new_latency_range = I40E_LOWEST_LATENCY;
 		break;
 	case I40E_BULK_LATENCY:
-		if (bytes_per_int <= 20)
-			new_latency_range = I40E_LOW_LATENCY;
-		break;
+	case I40E_ULTRA_LATENCY:
 	default:
 		if (bytes_per_int <= 20)
 			new_latency_range = I40E_LOW_LATENCY;
 		break;
 	}
+
+	/* this is to adjust RX more aggressively when streaming small
+	 * packets.  The value of 40000 was picked as it is just beyond
+	 * what the hardware can receive per second if in low latency
+	 * mode.
+	 */
+#define RX_ULTRA_PACKET_RATE 40000
+
+	if ((((rc->total_packets * 1000000) / usecs) > RX_ULTRA_PACKET_RATE) &&
+	    (&qv->rx == rc))
+		new_latency_range = I40E_ULTRA_LATENCY;
+
 	rc->latency_range = new_latency_range;
 
 	switch (new_latency_range) {
 	case I40E_LOWEST_LATENCY:
-		new_itr = I40E_ITR_100K;
+		new_itr = I40E_ITR_50K;
 		break;
 	case I40E_LOW_LATENCY:
 		new_itr = I40E_ITR_20K;
 		break;
 	case I40E_BULK_LATENCY:
+		new_itr = I40E_ITR_18K;
+		break;
+	case I40E_ULTRA_LATENCY:
 		new_itr = I40E_ITR_8K;
 		break;
 	default:
 		break;
 	}
 
-	if (new_itr != rc->itr)
-		rc->itr = new_itr;
-
 	rc->total_bytes = 0;
 	rc->total_packets = 0;
+
+	if (new_itr != rc->itr) {
+		rc->itr = new_itr;
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -1187,6 +1217,21 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 	return total_rx_packets;
 }
 
+static u32 i40e_buildreg_itr(const int type, const u16 itr)
+{
+	u32 val;
+
+	val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+	      I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
+	      (type << I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT) |
+	      (itr << I40E_VFINT_DYN_CTLN1_INTERVAL_SHIFT);
+
+	return val;
+}
+
+/* a small macro to shorten up some long lines */
+#define INTREG I40E_VFINT_DYN_CTLN1
+
 /**
  * i40e_update_enable_itr - Update itr and re-enable MSIX interrupt
  * @vsi: the VSI we care about
@@ -1197,55 +1242,67 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 					  struct i40e_q_vector *q_vector)
 {
 	struct i40e_hw *hw = &vsi->back->hw;
-	u16 old_itr;
+	bool rx = false, tx = false;
+	u32 rxval, txval;
 	int vector;
-	u32 val;
 
 	vector = (q_vector->v_idx + vsi->base_vector);
+
+	/* avoid dynamic calculation if in countdown mode OR if
+	 * all dynamic is disabled
+	 */
+	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
+
+	if (q_vector->itr_countdown > 0 ||
+	    (!ITR_IS_DYNAMIC(vsi->rx_itr_setting) &&
+	     !ITR_IS_DYNAMIC(vsi->tx_itr_setting))) {
+		goto enable_int;
+	}
+
 	if (ITR_IS_DYNAMIC(vsi->rx_itr_setting)) {
-		old_itr = q_vector->rx.itr;
-		i40e_set_new_dynamic_itr(&q_vector->rx);
-		if (old_itr != q_vector->rx.itr) {
-			val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-			I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
-			(I40E_RX_ITR <<
-				I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT) |
-			(q_vector->rx.itr <<
-				I40E_VFINT_DYN_CTLN1_INTERVAL_SHIFT);
-		} else {
-			val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-			I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
-			(I40E_ITR_NONE <<
-				I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT);
-		}
-		if (!test_bit(__I40E_DOWN, &vsi->state))
-			wr32(hw, I40E_VFINT_DYN_CTLN1(vector - 1), val);
-	} else {
-		i40evf_irq_enable_queues(vsi->back, 1
-			<< q_vector->v_idx);
+		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
+		rxval = i40e_buildreg_itr(I40E_RX_ITR, q_vector->rx.itr);
 	}
 	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting)) {
-		old_itr = q_vector->tx.itr;
-		i40e_set_new_dynamic_itr(&q_vector->tx);
-		if (old_itr != q_vector->tx.itr) {
-			val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-				I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
-				(I40E_TX_ITR <<
-				   I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT) |
-				(q_vector->tx.itr <<
-				   I40E_VFINT_DYN_CTLN1_INTERVAL_SHIFT);
-
-		} else {
-			val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-				I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
-				(I40E_ITR_NONE <<
-				   I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT);
-		}
-		if (!test_bit(__I40E_DOWN, &vsi->state))
-			wr32(hw, I40E_VFINT_DYN_CTLN1(vector - 1), val);
-	} else {
-		i40evf_irq_enable_queues(vsi->back, BIT(q_vector->v_idx));
+		tx = i40e_set_new_dynamic_itr(&q_vector->tx);
+		txval = i40e_buildreg_itr(I40E_TX_ITR, q_vector->tx.itr);
 	}
+	if (rx || tx) {
+		/* get the higher of the two ITR adjustments and
+		 * use the same value for both ITR registers
+		 * when in adaptive mode (Rx and/or Tx)
+		 */
+		u16 itr = max(q_vector->tx.itr, q_vector->rx.itr);
+
+		q_vector->tx.itr = q_vector->rx.itr = itr;
+		txval = i40e_buildreg_itr(I40E_TX_ITR, itr);
+		tx = true;
+		rxval = i40e_buildreg_itr(I40E_RX_ITR, itr);
+		rx = true;
+	}
+
+	/* only need to enable the interrupt once, but need
+	 * to possibly update both ITR values
+	 */
+	if (rx) {
+		/* set the INTENA_MSK_MASK so that this first write
+		 * won't actually enable the interrupt, instead just
+		 * updating the ITR (it's bit 31 PF and VF)
+		 */
+		rxval |= BIT(31);
+		/* don't check _DOWN because interrupt isn't being enabled */
+		wr32(hw, INTREG(vector - 1), rxval);
+	}
+
+enable_int:
+	if (!test_bit(__I40E_DOWN, &vsi->state))
+		wr32(hw, INTREG(vector - 1), txval);
+
+	if (q_vector->itr_countdown)
+		q_vector->itr_countdown--;
+	else
+		q_vector->itr_countdown = ITR_COUNTDOWN_START;
+
 }
 
 /**

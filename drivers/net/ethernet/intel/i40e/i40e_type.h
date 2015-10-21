@@ -544,6 +544,9 @@ struct i40e_hw {
 	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
 	struct i40e_dcbx_config desired_dcbx_config; /* CEE Desired Cfg */
 
+#define I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE BIT_ULL(0)
+	u64 flags;
+
 	/* debug mask */
 	u32 debug_mask;
 	char err_str[16];
@@ -1065,8 +1068,8 @@ enum i40e_filter_program_desc_fd_status {
 };
 
 #define I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT	23
-#define I40E_TXD_FLTR_QW0_DEST_VSI_MASK \
-				       BIT_ULL(I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT)
+#define I40E_TXD_FLTR_QW0_DEST_VSI_MASK	(0x1FFUL << \
+					 I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT)
 
 #define I40E_TXD_FLTR_QW1_CMD_SHIFT	4
 #define I40E_TXD_FLTR_QW1_CMD_MASK	(0xFFFFULL << \

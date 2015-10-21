@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 34
+#define DRV_VERSION_BUILD 38
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1355,6 +1355,9 @@ static int i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
  * @is_netdev: make sure its a netdev filter, else doesn't matter
  *
  * Returns ptr to the filter object or NULL when no memory available.
+ *
+ * NOTE: This function is expected to be called with mac_filter_list_lock
+ * being held.
  **/
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 					u8 *macaddr, s16 vlan,
@@ -1413,6 +1416,9 @@ add_filter_out:
  * @vlan: the vlan
  * @is_vf: make sure it's a VF filter, else doesn't matter
  * @is_netdev: make sure it's a netdev filter, else doesn't matter
+ *
+ * NOTE: This function is expected to be called with mac_filter_list_lock
+ * being held.
  **/
 void i40e_del_filter(struct i40e_vsi *vsi,
 		     u8 *macaddr, s16 vlan,
@@ -1519,8 +1525,10 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
 		i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
 	} else {
+		spin_lock_bh(&vsi->mac_filter_list_lock);
 		i40e_del_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY,
 				false, false);
+		spin_unlock_bh(&vsi->mac_filter_list_lock);
 	}
 
 	if (ether_addr_equal(addr->sa_data, hw->mac.addr)) {
@@ -1531,10 +1539,12 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		element.flags = cpu_to_le16(I40E_AQC_MACVLAN_ADD_PERFECT_MATCH);
 		i40e_aq_add_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
 	} else {
+		spin_lock_bh(&vsi->mac_filter_list_lock);
 		f = i40e_add_filter(vsi, addr->sa_data, I40E_VLAN_ANY,
 				    false, false);
 		if (f)
 			f->is_laa = true;
+		spin_unlock_bh(&vsi->mac_filter_list_lock);
 	}
 
 	i40e_sync_vsi_filters(vsi, false);
@@ -1707,6 +1717,8 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 	struct netdev_hw_addr *mca;
 	struct netdev_hw_addr *ha;
 
+	spin_lock_bh(&vsi->mac_filter_list_lock);
+
 	/* add addr if not already in the filter list */
 	netdev_for_each_uc_addr(uca, netdev) {
 		if (!i40e_find_mac(vsi, uca->addr, false, true)) {
@@ -1754,11 +1766,85 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 bottom_of_search_loop:
 		continue;
 	}
+	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	/* check for other flag changes */
 	if (vsi->current_netdev_flags != vsi->netdev->flags) {
 		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
 		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
+	}
+}
+
+/**
+ * i40e_mac_filter_entry_clone - Clones a MAC filter entry
+ * @src: source MAC filter entry to be clones
+ *
+ * Returns the pointer to newly cloned MAC filter entry or NULL
+ * in case of error
+ **/
+static struct i40e_mac_filter *i40e_mac_filter_entry_clone(
+					struct i40e_mac_filter *src)
+{
+	struct i40e_mac_filter *f;
+
+	f = kzalloc(sizeof(*f), GFP_ATOMIC);
+	if (!f)
+		return NULL;
+	*f = *src;
+
+	INIT_LIST_HEAD(&f->list);
+
+	return f;
+}
+
+/**
+ * i40e_undo_del_filter_entries - Undo the changes made to MAC filter entries
+ * @vsi: pointer to vsi struct
+ * @from: Pointer to list which contains MAC filter entries - changes to
+ *        those entries needs to be undone.
+ *
+ * MAC filter entries from list were slated to be removed from device.
+ **/
+static void i40e_undo_del_filter_entries(struct i40e_vsi *vsi,
+					 struct list_head *from)
+{
+	struct i40e_mac_filter *f, *ftmp;
+
+	list_for_each_entry_safe(f, ftmp, from, list) {
+		f->changed = true;
+		/* Move the element back into MAC filter list*/
+		list_move_tail(&f->list, &vsi->mac_filter_list);
+	}
+}
+
+/**
+ * i40e_undo_add_filter_entries - Undo the changes made to MAC filter entries
+ * @vsi: pointer to vsi struct
+ *
+ * MAC filter entries from list were slated to be added from device.
+ **/
+static void i40e_undo_add_filter_entries(struct i40e_vsi *vsi)
+{
+	struct i40e_mac_filter *f, *ftmp;
+
+	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
+		if (!f->changed && f->counter)
+			f->changed = true;
+	}
+}
+
+/**
+ * i40e_cleanup_add_list - Deletes the element from add list and release
+ *			memory
+ * @add_list: Pointer to list which contains MAC filter entries
+ **/
+static void i40e_cleanup_add_list(struct list_head *add_list)
+{
+	struct i40e_mac_filter *f, *ftmp;
+
+	list_for_each_entry_safe(f, ftmp, add_list, list) {
+		list_del(&f->list);
+		kfree(f);
 	}
 }
 
@@ -1773,11 +1859,13 @@ bottom_of_search_loop:
  **/
 int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 {
-	struct i40e_mac_filter *f, *ftmp;
+	struct list_head tmp_del_list, tmp_add_list;
+	struct i40e_mac_filter *f, *ftmp, *fclone;
 	bool promisc_forced_on = false;
 	bool add_happened = false;
 	int filter_list_len = 0;
 	u32 changed_flags = 0;
+	bool err_cond = false;
 	i40e_status ret = 0;
 	struct i40e_pf *pf;
 	int num_add = 0;
@@ -1798,17 +1886,13 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 		vsi->current_netdev_flags = vsi->netdev->flags;
 	}
 
+	INIT_LIST_HEAD(&tmp_del_list);
+	INIT_LIST_HEAD(&tmp_add_list);
+
 	if (vsi->flags & I40E_VSI_FLAG_FILTER_CHANGED) {
 		vsi->flags &= ~I40E_VSI_FLAG_FILTER_CHANGED;
 
-		filter_list_len = pf->hw.aq.asq_buf_size /
-			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
-		del_list = kcalloc(filter_list_len,
-			    sizeof(struct i40e_aqc_remove_macvlan_element_data),
-			    GFP_KERNEL);
-		if (!del_list)
-			return -ENOMEM;
-
+		spin_lock_bh(&vsi->mac_filter_list_lock);
 		list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
 			if (!f->changed)
 				continue;
@@ -1816,6 +1900,58 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 			if (f->counter != 0)
 				continue;
 			f->changed = false;
+
+			/* Move the element into temporary del_list */
+			list_move_tail(&f->list, &tmp_del_list);
+		}
+
+		list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
+			if (!f->changed)
+				continue;
+
+			if (f->counter == 0)
+				continue;
+			f->changed = false;
+
+			/* Clone MAC filter entry and add into temporary list */
+			fclone = i40e_mac_filter_entry_clone(f);
+			if (!fclone) {
+				err_cond = true;
+				break;
+			}
+			list_add_tail(&fclone->list, &tmp_add_list);
+		}
+
+		/* if failed to clone MAC filter entry - undo */
+		if (err_cond) {
+			i40e_undo_del_filter_entries(vsi, &tmp_del_list);
+			i40e_undo_add_filter_entries(vsi);
+		}
+		spin_unlock_bh(&vsi->mac_filter_list_lock);
+
+		if (err_cond)
+			i40e_cleanup_add_list(&tmp_add_list);
+	}
+
+	/* Now process 'del_list' outside the lock */
+	if (!list_empty(&tmp_del_list)) {
+		filter_list_len = pf->hw.aq.asq_buf_size /
+			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
+		del_list = kcalloc(filter_list_len,
+			    sizeof(struct i40e_aqc_remove_macvlan_element_data),
+			    GFP_KERNEL);
+		if (!del_list) {
+			i40e_cleanup_add_list(&tmp_add_list);
+
+			/* Undo VSI's MAC filter entry element updates */
+			spin_lock_bh(&vsi->mac_filter_list_lock);
+			i40e_undo_del_filter_entries(vsi, &tmp_del_list);
+			i40e_undo_add_filter_entries(vsi);
+			spin_unlock_bh(&vsi->mac_filter_list_lock);
+			return -ENOMEM;
+		}
+
+		list_for_each_entry_safe(f, ftmp, &tmp_del_list, list) {
 			cmd_flags = 0;
 
 			/* add to delete list */
@@ -1828,10 +1964,6 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 			del_list[num_del].flags = cmd_flags;
 			num_del++;
 
-			/* unlink from filter list */
-			list_del(&f->list);
-			kfree(f);
-
 			/* flush a full buffer */
 			if (num_del == filter_list_len) {
 				ret = i40e_aq_remove_macvlan(&pf->hw,
@@ -1842,12 +1974,18 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 				memset(del_list, 0, sizeof(*del_list));
 
 				if (ret && aq_err != I40E_AQ_RC_ENOENT)
-					dev_info(&pf->pdev->dev,
-						 "ignoring delete macvlan error, err %s, aq_err %s while flushing a full buffer\n",
-						 i40e_stat_str(&pf->hw, ret),
-						 i40e_aq_str(&pf->hw, aq_err));
+					dev_err(&pf->pdev->dev,
+						"ignoring delete macvlan error, err %s, aq_err %s while flushing a full buffer\n",
+						i40e_stat_str(&pf->hw, ret),
+						i40e_aq_str(&pf->hw, aq_err));
 			}
+			/* Release memory for MAC filter entries which were
+			 * synced up with HW.
+			 */
+			list_del(&f->list);
+			kfree(f);
 		}
+
 		if (num_del) {
 			ret = i40e_aq_remove_macvlan(&pf->hw, vsi->seid,
 						     del_list, num_del, NULL);
@@ -1863,6 +2001,9 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 
 		kfree(del_list);
 		del_list = NULL;
+	}
+
+	if (!list_empty(&tmp_add_list)) {
 
 		/* do all the adds now */
 		filter_list_len = pf->hw.aq.asq_buf_size /
@@ -1870,16 +2011,19 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 		add_list = kcalloc(filter_list_len,
 			       sizeof(struct i40e_aqc_add_macvlan_element_data),
 			       GFP_KERNEL);
-		if (!add_list)
+		if (!add_list) {
+			/* Purge element from temporary lists */
+			i40e_cleanup_add_list(&tmp_add_list);
+
+			/* Undo add filter entries from VSI MAC filter list */
+			spin_lock_bh(&vsi->mac_filter_list_lock);
+			i40e_undo_add_filter_entries(vsi);
+			spin_unlock_bh(&vsi->mac_filter_list_lock);
 			return -ENOMEM;
+		}
 
-		list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
-			if (!f->changed)
-				continue;
+		list_for_each_entry_safe(f, ftmp, &tmp_add_list, list) {
 
-			if (f->counter == 0)
-				continue;
-			f->changed = false;
 			add_happened = true;
 			cmd_flags = 0;
 
@@ -1906,7 +2050,13 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 					break;
 				memset(add_list, 0, sizeof(*add_list));
 			}
+			/* Entries from tmp_add_list were cloned from MAC
+			 * filter list, hence clean those cloned entries
+			 */
+			list_del(&f->list);
+			kfree(f);
 		}
+
 		if (num_add) {
 			ret = i40e_aq_add_macvlan(&pf->hw, vsi->seid,
 						  add_list, num_add, NULL);
@@ -2158,6 +2308,9 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 	is_vf = (vsi->type == I40E_VSI_SRIOV);
 	is_netdev = !!(vsi->netdev);
 
+	/* Locked once because all functions invoked below iterates list*/
+	spin_lock_bh(&vsi->mac_filter_list_lock);
+
 	if (is_netdev) {
 		add_f = i40e_add_filter(vsi, vsi->netdev->dev_addr, vid,
 					is_vf, is_netdev);
@@ -2165,6 +2318,7 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 			dev_info(&vsi->back->pdev->dev,
 				 "Could not add vlan filter %d for %pM\n",
 				 vid, vsi->netdev->dev_addr);
+			spin_unlock_bh(&vsi->mac_filter_list_lock);
 			return -ENOMEM;
 		}
 	}
@@ -2175,6 +2329,7 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 			dev_info(&vsi->back->pdev->dev,
 				 "Could not add vlan filter %d for %pM\n",
 				 vid, f->macaddr);
+			spin_unlock_bh(&vsi->mac_filter_list_lock);
 			return -ENOMEM;
 		}
 	}
@@ -2196,6 +2351,7 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 				dev_info(&vsi->back->pdev->dev,
 					 "Could not add filter 0 for %pM\n",
 					 vsi->netdev->dev_addr);
+				spin_unlock_bh(&vsi->mac_filter_list_lock);
 				return -ENOMEM;
 			}
 		}
@@ -2204,21 +2360,27 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 	/* Do not assume that I40E_VLAN_ANY should be reset to VLAN 0 */
 	if (vid > 0 && !vsi->info.pvid) {
 		list_for_each_entry(f, &vsi->mac_filter_list, list) {
-			if (i40e_find_filter(vsi, f->macaddr, I40E_VLAN_ANY,
-					     is_vf, is_netdev)) {
-				i40e_del_filter(vsi, f->macaddr, I40E_VLAN_ANY,
-						is_vf, is_netdev);
-				add_f = i40e_add_filter(vsi, f->macaddr,
-							0, is_vf, is_netdev);
-				if (!add_f) {
-					dev_info(&vsi->back->pdev->dev,
-						 "Could not add filter 0 for %pM\n",
-						 f->macaddr);
-					return -ENOMEM;
-				}
+			if (!i40e_find_filter(vsi, f->macaddr, I40E_VLAN_ANY,
+					      is_vf, is_netdev))
+				continue;
+			i40e_del_filter(vsi, f->macaddr, I40E_VLAN_ANY,
+					is_vf, is_netdev);
+			add_f = i40e_add_filter(vsi, f->macaddr,
+						0, is_vf, is_netdev);
+			if (!add_f) {
+				dev_info(&vsi->back->pdev->dev,
+					 "Could not add filter 0 for %pM\n",
+					f->macaddr);
+				spin_unlock_bh(&vsi->mac_filter_list_lock);
+				return -ENOMEM;
 			}
 		}
 	}
+
+	/* Make sure to release before sync_vsi_filter because that
+	 * function will lock/unlock as necessary
+	 */
+	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
 	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
@@ -2243,6 +2405,9 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 
 	is_vf = (vsi->type == I40E_VSI_SRIOV);
 	is_netdev = !!(netdev);
+
+	/* Locked once because all functions invoked below iterates list */
+	spin_lock_bh(&vsi->mac_filter_list_lock);
 
 	if (is_netdev)
 		i40e_del_filter(vsi, netdev->dev_addr, vid, is_vf, is_netdev);
@@ -2274,6 +2439,7 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 			dev_info(&vsi->back->pdev->dev,
 				 "Could not add filter %d for %pM\n",
 				 I40E_VLAN_ANY, netdev->dev_addr);
+			spin_unlock_bh(&vsi->mac_filter_list_lock);
 			return -ENOMEM;
 		}
 	}
@@ -2282,15 +2448,21 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 		list_for_each_entry(f, &vsi->mac_filter_list, list) {
 			i40e_del_filter(vsi, f->macaddr, 0, is_vf, is_netdev);
 			add_f = i40e_add_filter(vsi, f->macaddr, I40E_VLAN_ANY,
-					    is_vf, is_netdev);
+						is_vf, is_netdev);
 			if (!add_f) {
 				dev_info(&vsi->back->pdev->dev,
 					 "Could not add filter %d for %pM\n",
 					 I40E_VLAN_ANY, f->macaddr);
+				spin_unlock_bh(&vsi->mac_filter_list_lock);
 				return -ENOMEM;
 			}
 		}
 	}
+
+	/* Make sure to release before sync_vsi_filter because that
+	 * function with lock/unlock as necessary
+	 */
+	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
 	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
@@ -2915,6 +3087,7 @@ static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
 		struct i40e_q_vector *q_vector = vsi->q_vectors[i];
 
+		q_vector->itr_countdown = ITR_COUNTDOWN_START;
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 		q_vector->rx.latency_range = I40E_LOW_LATENCY;
 		wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1),
@@ -3010,6 +3183,7 @@ static void i40e_configure_msi_and_legacy(struct i40e_vsi *vsi)
 	u32 val;
 
 	/* set the ITR configuration */
+	q_vector->itr_countdown = ITR_COUNTDOWN_START;
 	q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 	q_vector->rx.latency_range = I40E_LOW_LATENCY;
 	wr32(hw, I40E_PFINT_ITR0(I40E_RX_ITR), q_vector->rx.itr);
@@ -3095,7 +3269,7 @@ static irqreturn_t i40e_msix_clean_rings(int irq, void *data)
 	if (!q_vector->tx.ring && !q_vector->rx.ring)
 		return IRQ_HANDLED;
 
-	napi_schedule(&q_vector->napi);
+	napi_schedule_irqoff(&q_vector->napi);
 
 	return IRQ_HANDLED;
 }
@@ -3264,6 +3438,8 @@ static irqreturn_t i40e_intr(int irq, void *data)
 
 	/* only q0 is used in MSI/Legacy mode, and none are used in MSIX */
 	if (icr0 & I40E_PFINT_ICR0_QUEUE_0_MASK) {
+		struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+		struct i40e_q_vector *q_vector = vsi->q_vectors[0];
 
 		/* temporarily disable queue cause for NAPI processing */
 		u32 qval = rd32(hw, I40E_QINT_RQCTL(0));
@@ -3276,7 +3452,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		wr32(hw, I40E_QINT_TQCTL(0), qval);
 
 		if (!test_bit(__I40E_DOWN, &pf->state))
-			napi_schedule(&pf->vsi[pf->lan_vsi]->q_vectors[0]->napi);
+			napi_schedule_irqoff(&q_vector->napi);
 	}
 
 	if (icr0 & I40E_PFINT_ICR0_ADMINQ_MASK) {
@@ -7062,6 +7238,8 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	/* Setup default MSIX irq handler for VSI */
 	i40e_vsi_setup_irqhandler(vsi, i40e_msix_clean_rings);
 
+	/* Initialize VSI lock */
+	spin_lock_init(&vsi->mac_filter_list_lock);
 	pf->vsi[vsi_idx] = vsi;
 	ret = vsi_idx;
 	goto unlock_pf;
@@ -8364,7 +8542,7 @@ static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 /**
  * i40e_features_check - Validate encapsulated packet conforms to limits
  * @skb: skb buff
- * @netdev: This physical port's netdev
+ * @dev: This physical port's netdev
  * @features: Offload features that the stack believes apply
  **/
 static netdev_features_t i40e_features_check(struct sk_buff *skb,
@@ -8479,17 +8657,26 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 		 * default a MAC-VLAN filter that accepts any tagged packet
 		 * which must be replaced by a normal filter.
 		 */
-		if (!i40e_rm_default_mac_filter(vsi, mac_addr))
+		if (!i40e_rm_default_mac_filter(vsi, mac_addr)) {
+			spin_lock_bh(&vsi->mac_filter_list_lock);
 			i40e_add_filter(vsi, mac_addr,
 					I40E_VLAN_ANY, false, true);
+			spin_unlock_bh(&vsi->mac_filter_list_lock);
+		}
 	} else {
 		/* relate the VSI_VMDQ name to the VSI_MAIN name */
 		snprintf(netdev->name, IFNAMSIZ, "%sv%%d",
 			 pf->vsi[pf->lan_vsi]->netdev->name);
 		random_ether_addr(mac_addr);
+
+		spin_lock_bh(&vsi->mac_filter_list_lock);
 		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, false);
+		spin_unlock_bh(&vsi->mac_filter_list_lock);
 	}
+
+	spin_lock_bh(&vsi->mac_filter_list_lock);
 	i40e_add_filter(vsi, brdcast, I40E_VLAN_ANY, false, false);
+	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	ether_addr_copy(netdev->dev_addr, mac_addr);
 	ether_addr_copy(netdev->perm_addr, mac_addr);
@@ -8563,10 +8750,13 @@ int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi)
 static int i40e_add_vsi(struct i40e_vsi *vsi)
 {
 	int ret = -ENODEV;
-	struct i40e_mac_filter *f, *ftmp;
+	u8 laa_macaddr[ETH_ALEN];
+	bool found_laa_mac_filter = false;
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vsi_context ctxt;
+	struct i40e_mac_filter *f, *ftmp;
+
 	u8 enabled_tc = 0x1; /* TC0 enabled */
 	int f_count = 0;
 
@@ -8738,32 +8928,41 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		vsi->id = ctxt.vsi_number;
 	}
 
+	spin_lock_bh(&vsi->mac_filter_list_lock);
 	/* If macvlan filters already exist, force them to get loaded */
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
 		f->changed = true;
 		f_count++;
 
+		/* Expected to have only one MAC filter entry for LAA in list */
 		if (f->is_laa && vsi->type == I40E_VSI_MAIN) {
-			struct i40e_aqc_remove_macvlan_element_data element;
-
-			memset(&element, 0, sizeof(element));
-			ether_addr_copy(element.mac_addr, f->macaddr);
-			element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
-			ret = i40e_aq_remove_macvlan(hw, vsi->seid,
-						     &element, 1, NULL);
-			if (ret) {
-				/* some older FW has a different default */
-				element.flags |=
-					       I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
-				i40e_aq_remove_macvlan(hw, vsi->seid,
-						       &element, 1, NULL);
-			}
-
-			i40e_aq_mac_address_write(hw,
-						  I40E_AQC_WRITE_TYPE_LAA_WOL,
-						  f->macaddr, NULL);
+			ether_addr_copy(laa_macaddr, f->macaddr);
+			found_laa_mac_filter = true;
 		}
 	}
+	spin_unlock_bh(&vsi->mac_filter_list_lock);
+
+	if (found_laa_mac_filter) {
+		struct i40e_aqc_remove_macvlan_element_data element;
+
+		memset(&element, 0, sizeof(element));
+		ether_addr_copy(element.mac_addr, laa_macaddr);
+		element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
+		ret = i40e_aq_remove_macvlan(hw, vsi->seid,
+					     &element, 1, NULL);
+		if (ret) {
+			/* some older FW has a different default */
+			element.flags |=
+				       I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
+			i40e_aq_remove_macvlan(hw, vsi->seid,
+					       &element, 1, NULL);
+		}
+
+		i40e_aq_mac_address_write(hw,
+					  I40E_AQC_WRITE_TYPE_LAA_WOL,
+					  laa_macaddr, NULL);
+	}
+
 	if (f_count) {
 		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
 		pf->flags |= I40E_FLAG_FILTER_SYNC;
@@ -8826,9 +9025,12 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 		i40e_vsi_disable_irq(vsi);
 	}
 
+	spin_lock_bh(&vsi->mac_filter_list_lock);
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list)
 		i40e_del_filter(vsi, f->macaddr, f->vlan,
 				f->is_vf, f->is_netdev);
+	spin_unlock_bh(&vsi->mac_filter_list_lock);
+
 	i40e_sync_vsi_filters(vsi, false);
 
 	i40e_vsi_delete(vsi);
@@ -9959,7 +10161,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	static u16 pfs_found;
 	u16 wol_nvm_bits;
 	u16 link_status;
-	int err = 0;
+	int err;
 	u32 len;
 	u32 i;
 
@@ -10430,12 +10632,17 @@ err_dma:
 static void i40e_remove(struct pci_dev *pdev)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
+	struct i40e_hw *hw = &pf->hw;
 	i40e_status ret_code;
 	int i;
 
 	i40e_dbg_pf_exit(pf);
 
 	i40e_ptp_stop(pf);
+
+	/* Disable RSS in hw */
+	wr32(hw, I40E_PFQF_HENA(0), 0);
+	wr32(hw, I40E_PFQF_HENA(1), 0);
 
 	/* no more scheduling of any task */
 	set_bit(__I40E_DOWN, &pf->state);

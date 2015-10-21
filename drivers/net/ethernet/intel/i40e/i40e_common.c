@@ -958,6 +958,9 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 	else
 		hw->pf_id = (u8)(func_rid & 0x7);
 
+	if (hw->mac.type == I40E_MAC_X722)
+		hw->flags |= I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE;
+
 	status = i40e_init_nvm(hw);
 	return status;
 }
@@ -2275,13 +2278,15 @@ i40e_status i40e_update_link_info(struct i40e_hw *hw)
 	if (status)
 		return status;
 
-	status = i40e_aq_get_phy_capabilities(hw, false, false, &abilities,
-					      NULL);
-	if (status)
-		return status;
+	if (hw->phy.link_info.link_info & I40E_AQ_MEDIA_AVAILABLE) {
+		status = i40e_aq_get_phy_capabilities(hw, false, false,
+						      &abilities, NULL);
+		if (status)
+			return status;
 
-	memcpy(hw->phy.link_info.module_type, &abilities.module_type,
-	       sizeof(hw->phy.link_info.module_type));
+		memcpy(hw->phy.link_info.module_type, &abilities.module_type,
+		       sizeof(hw->phy.link_info.module_type));
+	}
 
 	return status;
 }

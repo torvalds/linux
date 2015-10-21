@@ -32,12 +32,14 @@
 #define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
 #define I40E_MIN_ITR               0x0001  /* reg uses 2 usec resolution */
 #define I40E_ITR_100K              0x0005
+#define I40E_ITR_50K               0x000A
 #define I40E_ITR_20K               0x0019
+#define I40E_ITR_18K               0x001B
 #define I40E_ITR_8K                0x003E
 #define I40E_ITR_4K                0x007A
 #define I40E_MAX_INTRL             0x3B    /* reg uses 4 usec resolution */
-#define I40E_ITR_RX_DEF            I40E_ITR_8K
-#define I40E_ITR_TX_DEF            I40E_ITR_4K
+#define I40E_ITR_RX_DEF            I40E_ITR_20K
+#define I40E_ITR_TX_DEF            I40E_ITR_20K
 #define I40E_ITR_DYNAMIC           0x8000  /* use top bit as a flag */
 #define I40E_MIN_INT_RATE          250     /* ~= 1000000 / (I40E_MAX_ITR * 2) */
 #define I40E_MAX_INT_RATE          500000  /* == 1000000 / (I40E_MIN_ITR * 2) */
@@ -296,6 +298,7 @@ enum i40e_latency_range {
 	I40E_LOWEST_LATENCY = 0,
 	I40E_LOW_LATENCY = 1,
 	I40E_BULK_LATENCY = 2,
+	I40E_ULTRA_LATENCY = 3,
 };
 
 struct i40e_ring_container {

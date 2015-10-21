@@ -468,6 +468,8 @@ struct i40e_vsi {
 #define I40E_VSI_FLAG_VEB_OWNER		BIT(1)
 	unsigned long flags;
 
+	/* Per VSI lock to protect elements/list (MAC filter) */
+	spinlock_t mac_filter_list_lock;
 	struct list_head mac_filter_list;
 
 	/* VSI stats */
@@ -575,6 +577,8 @@ struct i40e_q_vector {
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[I40E_INT_NAME_STR_LEN];
 	bool arm_wb_state;
+#define ITR_COUNTDOWN_START 100
+	u8 itr_countdown;	/* when 0 should adjust ITR */
 } ____cacheline_internodealigned_in_smp;
 
 /* lan device */

@@ -34,7 +34,7 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710/X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "1.3.21"
+#define DRV_VERSION "1.3.25"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2015 Intel Corporation.";
@@ -334,7 +334,7 @@ static irqreturn_t i40evf_msix_clean_rings(int irq, void *data)
 	if (!q_vector->tx.ring && !q_vector->rx.ring)
 		return IRQ_HANDLED;
 
-	napi_schedule(&q_vector->napi);
+	napi_schedule_irqoff(&q_vector->napi);
 
 	return IRQ_HANDLED;
 }
@@ -357,6 +357,7 @@ i40evf_map_vector_to_rxq(struct i40evf_adapter *adapter, int v_idx, int r_idx)
 	q_vector->rx.ring = rx_ring;
 	q_vector->rx.count++;
 	q_vector->rx.latency_range = I40E_LOW_LATENCY;
+	q_vector->itr_countdown = ITR_COUNTDOWN_START;
 }
 
 /**
@@ -377,6 +378,7 @@ i40evf_map_vector_to_txq(struct i40evf_adapter *adapter, int v_idx, int t_idx)
 	q_vector->tx.ring = tx_ring;
 	q_vector->tx.count++;
 	q_vector->tx.latency_range = I40E_LOW_LATENCY;
+	q_vector->itr_countdown = ITR_COUNTDOWN_START;
 	q_vector->num_ringpairs++;
 	q_vector->ring_mask |= BIT(t_idx);
 }
@@ -2357,9 +2359,12 @@ err_alloc:
 err:
 	/* Things went into the weeds, so try again later */
 	if (++adapter->aq_wait_count > I40EVF_AQ_MAX_ERR) {
-		dev_err(&pdev->dev, "Failed to communicate with PF; giving up\n");
+		dev_err(&pdev->dev, "Failed to communicate with PF; waiting before retry\n");
 		adapter->flags |= I40EVF_FLAG_PF_COMMS_FAILED;
-		return; /* do not reschedule */
+		i40evf_shutdown_adminq(hw);
+		adapter->state = __I40EVF_STARTUP;
+		schedule_delayed_work(&adapter->init_task, HZ * 5);
+		return;
 	}
 	schedule_delayed_work(&adapter->init_task, HZ);
 }
