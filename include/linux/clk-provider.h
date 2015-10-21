@@ -554,13 +554,6 @@ struct clk_multiplier {
 
 extern const struct clk_ops clk_multiplier_ops;
 
-struct clk *clk_register_multiplier(struct device *dev, const char *name,
-				    const char *parent_name,
-				    unsigned long flags,
-				    void __iomem *reg, u8 shift, u8 width,
-				    u8 clk_mult_flags, spinlock_t *lock);
-void clk_unregister_multiplier(struct clk *clk);
-
 /***
  * struct clk_composite - aggregate clock of mux, divider and gate clocks
  *
