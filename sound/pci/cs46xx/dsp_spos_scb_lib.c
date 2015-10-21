@@ -67,7 +67,7 @@ static void remove_symbol (struct snd_cs46xx * chip, struct dsp_symbol_entry * s
 
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 static void cs46xx_dsp_proc_scb_info_read (struct snd_info_entry *entry,
 					   struct snd_info_buffer *buffer)
 {
@@ -228,7 +228,7 @@ void cs46xx_dsp_remove_scb (struct snd_cs46xx *chip, struct dsp_scb_descriptor *
 }
 
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 void cs46xx_dsp_proc_free_scb_desc (struct dsp_scb_descriptor * scb)
 {
 	if (scb->proc_info) {
@@ -285,7 +285,7 @@ out:
 		scb->proc_info = entry;
 	}
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 
 static struct dsp_scb_descriptor * 
 _dsp_create_generic_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u32 dest,

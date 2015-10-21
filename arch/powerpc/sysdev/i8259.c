@@ -162,7 +162,8 @@ static struct resource pic_edgectrl_iores = {
 	.flags = IORESOURCE_BUSY,
 };
 
-static int i8259_host_match(struct irq_domain *h, struct device_node *node)
+static int i8259_host_match(struct irq_domain *h, struct device_node *node,
+			    enum irq_domain_bus_token bus_token)
 {
 	return h->of_node == NULL || h->of_node == node;
 }
@@ -204,7 +205,7 @@ static int i8259_host_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops i8259_host_ops = {
+static const struct irq_domain_ops i8259_host_ops = {
 	.match = i8259_host_match,
 	.map = i8259_host_map,
 	.xlate = i8259_host_xlate,

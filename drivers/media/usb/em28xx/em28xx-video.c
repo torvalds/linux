@@ -839,7 +839,6 @@ static int get_ressource(enum v4l2_buf_type f_type)
 		return EM28XX_RESOURCE_VBI;
 	default:
 		BUG();
-		return 0;
 	}
 }
 

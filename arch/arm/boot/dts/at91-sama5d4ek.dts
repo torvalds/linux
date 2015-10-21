@@ -50,7 +50,8 @@
 	compatible = "atmel,sama5d4ek", "atmel,sama5d4", "atmel,sama5";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 ignore_loglevel earlyprintk";
+		bootargs = "ignore_loglevel earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -99,6 +100,15 @@
 			};
 
 			adc0: adc@fc034000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <
+					/* external trigger conflicts with USBA_VBUS */
+					&pinctrl_adc0_ad0
+					&pinctrl_adc0_ad1
+					&pinctrl_adc0_ad2
+					&pinctrl_adc0_ad3
+					&pinctrl_adc0_ad4
+					>;
 				/* The vref depends on JP22 of EK. If connect 1-2 then use 3.3V. connect 2-3 use 3.0V */
 				atmel,adc-vref = <3300>;
 				/*atmel,adc-ts-wires = <4>;*/	/* Set up ADC touch screen */
@@ -108,8 +118,8 @@
 			mmc0: mmc@f8000000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3 &pinctrl_mmc0_cd>;
-				slot@1 {
-					reg = <1>;
+				slot@0 {
+					reg = <0>;
 					bus-width = <4>;
 					cd-gpios = <&pioE 5 0>;
 				};

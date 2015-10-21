@@ -28,17 +28,31 @@ struct nvme_bar {
 	__u32			cc;	/* Controller Configuration */
 	__u32			rsvd1;	/* Reserved */
 	__u32			csts;	/* Controller Status */
-	__u32			rsvd2;	/* Reserved */
+	__u32			nssr;	/* Subsystem Reset */
 	__u32			aqa;	/* Admin Queue Attributes */
 	__u64			asq;	/* Admin SQ Base Address */
 	__u64			acq;	/* Admin CQ Base Address */
+	__u32			cmbloc; /* Controller Memory Buffer Location */
+	__u32			cmbsz;  /* Controller Memory Buffer Size */
 };
 
 #define NVME_CAP_MQES(cap)	((cap) & 0xffff)
 #define NVME_CAP_TIMEOUT(cap)	(((cap) >> 24) & 0xff)
 #define NVME_CAP_STRIDE(cap)	(((cap) >> 32) & 0xf)
+#define NVME_CAP_NSSRC(cap)	(((cap) >> 36) & 0x1)
 #define NVME_CAP_MPSMIN(cap)	(((cap) >> 48) & 0xf)
 #define NVME_CAP_MPSMAX(cap)	(((cap) >> 52) & 0xf)
+
+#define NVME_CMB_BIR(cmbloc)	((cmbloc) & 0x7)
+#define NVME_CMB_OFST(cmbloc)	(((cmbloc) >> 12) & 0xfffff)
+#define NVME_CMB_SZ(cmbsz)	(((cmbsz) >> 12) & 0xfffff)
+#define NVME_CMB_SZU(cmbsz)	(((cmbsz) >> 8) & 0xf)
+
+#define NVME_CMB_WDS(cmbsz)	((cmbsz) & 0x10)
+#define NVME_CMB_RDS(cmbsz)	((cmbsz) & 0x8)
+#define NVME_CMB_LISTS(cmbsz)	((cmbsz) & 0x4)
+#define NVME_CMB_CQS(cmbsz)	((cmbsz) & 0x2)
+#define NVME_CMB_SQS(cmbsz)	((cmbsz) & 0x1)
 
 enum {
 	NVME_CC_ENABLE		= 1 << 0,
@@ -55,6 +69,7 @@ enum {
 	NVME_CC_IOCQES		= 4 << 20,
 	NVME_CSTS_RDY		= 1 << 0,
 	NVME_CSTS_CFS		= 1 << 1,
+	NVME_CSTS_NSSRO		= 1 << 4,
 	NVME_CSTS_SHST_NORMAL	= 0 << 2,
 	NVME_CSTS_SHST_OCCUR	= 1 << 2,
 	NVME_CSTS_SHST_CMPLT	= 2 << 2,
@@ -74,7 +89,7 @@ struct nvme_dev {
 	struct blk_mq_tag_set tagset;
 	struct blk_mq_tag_set admin_tagset;
 	u32 __iomem *dbs;
-	struct pci_dev *pci_dev;
+	struct device *dev;
 	struct dma_pool *prp_page_pool;
 	struct dma_pool *prp_small_pool;
 	int instance;
@@ -92,13 +107,19 @@ struct nvme_dev {
 	work_func_t reset_workfn;
 	struct work_struct reset_work;
 	struct work_struct probe_work;
+	struct work_struct scan_work;
 	char name[12];
 	char serial[20];
 	char model[40];
 	char firmware_rev[8];
+	bool subsystem;
 	u32 max_hw_sectors;
 	u32 stripe_size;
 	u32 page_size;
+	void __iomem *cmb;
+	dma_addr_t cmb_dma_addr;
+	u64 cmb_size;
+	u32 cmbsz;
 	u16 oncs;
 	u16 abort_limit;
 	u8 event_limit;
@@ -146,25 +167,15 @@ static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
 	return (sector >> (ns->lba_shift - 9));
 }
 
-/**
- * nvme_free_iod - frees an nvme_iod
- * @dev: The device that the I/O was submitted to
- * @iod: The memory to free
- */
-void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod);
-
-int nvme_setup_prps(struct nvme_dev *, struct nvme_iod *, int, gfp_t);
-struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
-				unsigned long addr, unsigned length);
-void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
-			struct nvme_iod *iod);
-int nvme_submit_io_cmd(struct nvme_dev *, struct nvme_ns *,
-						struct nvme_command *, u32 *);
-int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns);
-int nvme_submit_admin_cmd(struct nvme_dev *, struct nvme_command *,
-							u32 *result);
-int nvme_identify(struct nvme_dev *, unsigned nsid, unsigned cns,
-							dma_addr_t dma_addr);
+int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
+		void *buf, unsigned bufflen);
+int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
+		void *buffer, void __user *ubuffer, unsigned bufflen,
+		u32 *result, unsigned timeout);
+int nvme_identify_ctrl(struct nvme_dev *dev, struct nvme_id_ctrl **id);
+int nvme_identify_ns(struct nvme_dev *dev, unsigned nsid,
+		struct nvme_id_ns **id);
+int nvme_get_log_page(struct nvme_dev *dev, struct nvme_smart_log **log);
 int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
 			dma_addr_t dma_addr, u32 *result);
 int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,

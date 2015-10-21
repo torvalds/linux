@@ -43,7 +43,8 @@ struct isl6405 {
 	u8			i2c_addr;
 };
 
-static int isl6405_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int isl6405_set_voltage(struct dvb_frontend *fe,
+			       enum fe_sec_voltage voltage)
 {
 	struct isl6405 *isl6405 = (struct isl6405 *) fe->sec_priv;
 	struct i2c_msg msg = {	.addr = isl6405->i2c_addr, .flags = 0,

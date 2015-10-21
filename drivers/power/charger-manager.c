@@ -619,7 +619,7 @@ static int cm_get_battery_temperature(struct charger_manager *cm,
 
 #ifdef CONFIG_THERMAL
 	if (cm->tzd_batt) {
-		ret = thermal_zone_get_temp(cm->tzd_batt, (unsigned long *)temp);
+		ret = thermal_zone_get_temp(cm->tzd_batt, temp);
 		if (!ret)
 			/* Calibrate temperature unit */
 			*temp /= 100;
@@ -1768,7 +1768,8 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&cm->fullbatt_vchk_work, fullbatt_vchk);
 
-	cm->charger_psy = power_supply_register(NULL, &cm->charger_psy_desc,
+	cm->charger_psy = power_supply_register(&pdev->dev,
+						&cm->charger_psy_desc,
 						&psy_cfg);
 	if (IS_ERR(cm->charger_psy)) {
 		dev_err(&pdev->dev, "Cannot register charger-manager with name \"%s\"\n",

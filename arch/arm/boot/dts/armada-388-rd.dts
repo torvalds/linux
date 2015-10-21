@@ -74,7 +74,7 @@
 				spi-flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "st,m25p128";
+					compatible = "st,m25p128", "jedec,spi-nor";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <108000000>;
 				};

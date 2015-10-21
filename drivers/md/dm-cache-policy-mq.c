@@ -693,9 +693,10 @@ static void requeue(struct mq_policy *mq, struct entry *e)
  * - set the hit count to a hard coded value other than 1, eg, is it better
  *   if it goes in at level 2?
  */
-static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
+static int demote_cblock(struct mq_policy *mq,
+			 struct policy_locker *locker, dm_oblock_t *oblock)
 {
-	struct entry *demoted = pop(mq, &mq->cache_clean);
+	struct entry *demoted = peek(&mq->cache_clean);
 
 	if (!demoted)
 		/*
@@ -707,6 +708,13 @@ static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
 		 */
 		return -ENOSPC;
 
+	if (locker->fn(locker, demoted->oblock))
+		/*
+		 * We couldn't lock the demoted block.
+		 */
+		return -EBUSY;
+
+	del(mq, demoted);
 	*oblock = demoted->oblock;
 	free_entry(&mq->cache_pool, demoted);
 
@@ -795,6 +803,7 @@ static int cache_entry_found(struct mq_policy *mq,
  * finding which cache block to use.
  */
 static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
+			      struct policy_locker *locker,
 			      struct policy_result *result)
 {
 	int r;
@@ -803,11 +812,12 @@ static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
 	/* Ensure there's a free cblock in the cache */
 	if (epool_empty(&mq->cache_pool)) {
 		result->op = POLICY_REPLACE;
-		r = demote_cblock(mq, &result->old_oblock);
+		r = demote_cblock(mq, locker, &result->old_oblock);
 		if (r) {
 			result->op = POLICY_MISS;
 			return 0;
 		}
+
 	} else
 		result->op = POLICY_NEW;
 
@@ -829,7 +839,8 @@ static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
 
 static int pre_cache_entry_found(struct mq_policy *mq, struct entry *e,
 				 bool can_migrate, bool discarded_oblock,
-				 int data_dir, struct policy_result *result)
+				 int data_dir, struct policy_locker *locker,
+				 struct policy_result *result)
 {
 	int r = 0;
 
@@ -842,7 +853,7 @@ static int pre_cache_entry_found(struct mq_policy *mq, struct entry *e,
 
 	else {
 		requeue(mq, e);
-		r = pre_cache_to_cache(mq, e, result);
+		r = pre_cache_to_cache(mq, e, locker, result);
 	}
 
 	return r;
@@ -872,6 +883,7 @@ static void insert_in_pre_cache(struct mq_policy *mq,
 }
 
 static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
+			    struct policy_locker *locker,
 			    struct policy_result *result)
 {
 	int r;
@@ -879,7 +891,7 @@ static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 
 	if (epool_empty(&mq->cache_pool)) {
 		result->op = POLICY_REPLACE;
-		r = demote_cblock(mq, &result->old_oblock);
+		r = demote_cblock(mq, locker, &result->old_oblock);
 		if (unlikely(r)) {
 			result->op = POLICY_MISS;
 			insert_in_pre_cache(mq, oblock);
@@ -907,11 +919,12 @@ static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 
 static int no_entry_found(struct mq_policy *mq, dm_oblock_t oblock,
 			  bool can_migrate, bool discarded_oblock,
-			  int data_dir, struct policy_result *result)
+			  int data_dir, struct policy_locker *locker,
+			  struct policy_result *result)
 {
 	if (adjusted_promote_threshold(mq, discarded_oblock, data_dir) <= 1) {
 		if (can_migrate)
-			insert_in_cache(mq, oblock, result);
+			insert_in_cache(mq, oblock, locker, result);
 		else
 			return -EWOULDBLOCK;
 	} else {
@@ -928,7 +941,8 @@ static int no_entry_found(struct mq_policy *mq, dm_oblock_t oblock,
  */
 static int map(struct mq_policy *mq, dm_oblock_t oblock,
 	       bool can_migrate, bool discarded_oblock,
-	       int data_dir, struct policy_result *result)
+	       int data_dir, struct policy_locker *locker,
+	       struct policy_result *result)
 {
 	int r = 0;
 	struct entry *e = hash_lookup(mq, oblock);
@@ -942,11 +956,11 @@ static int map(struct mq_policy *mq, dm_oblock_t oblock,
 
 	else if (e)
 		r = pre_cache_entry_found(mq, e, can_migrate, discarded_oblock,
-					  data_dir, result);
+					  data_dir, locker, result);
 
 	else
 		r = no_entry_found(mq, oblock, can_migrate, discarded_oblock,
-				   data_dir, result);
+				   data_dir, locker, result);
 
 	if (r == -EWOULDBLOCK)
 		result->op = POLICY_MISS;
@@ -1012,7 +1026,8 @@ static void copy_tick(struct mq_policy *mq)
 
 static int mq_map(struct dm_cache_policy *p, dm_oblock_t oblock,
 		  bool can_block, bool can_migrate, bool discarded_oblock,
-		  struct bio *bio, struct policy_result *result)
+		  struct bio *bio, struct policy_locker *locker,
+		  struct policy_result *result)
 {
 	int r;
 	struct mq_policy *mq = to_mq_policy(p);
@@ -1028,7 +1043,7 @@ static int mq_map(struct dm_cache_policy *p, dm_oblock_t oblock,
 
 	iot_examine_bio(&mq->tracker, bio);
 	r = map(mq, oblock, can_migrate, discarded_oblock,
-		bio_data_dir(bio), result);
+		bio_data_dir(bio), locker, result);
 
 	mutex_unlock(&mq->lock);
 
@@ -1221,7 +1236,7 @@ static int __mq_writeback_work(struct mq_policy *mq, dm_oblock_t *oblock,
 }
 
 static int mq_writeback_work(struct dm_cache_policy *p, dm_oblock_t *oblock,
-			     dm_cblock_t *cblock)
+			     dm_cblock_t *cblock, bool critical_only)
 {
 	int r;
 	struct mq_policy *mq = to_mq_policy(p);
@@ -1268,7 +1283,7 @@ static dm_cblock_t mq_residency(struct dm_cache_policy *p)
 	return r;
 }
 
-static void mq_tick(struct dm_cache_policy *p)
+static void mq_tick(struct dm_cache_policy *p, bool can_block)
 {
 	struct mq_policy *mq = to_mq_policy(p);
 	unsigned long flags;
@@ -1276,6 +1291,12 @@ static void mq_tick(struct dm_cache_policy *p)
 	spin_lock_irqsave(&mq->tick_lock, flags);
 	mq->tick_protected++;
 	spin_unlock_irqrestore(&mq->tick_lock, flags);
+
+	if (can_block) {
+		mutex_lock(&mq->lock);
+		copy_tick(mq);
+		mutex_unlock(&mq->lock);
+	}
 }
 
 static int mq_set_config_value(struct dm_cache_policy *p,
@@ -1308,22 +1329,24 @@ static int mq_set_config_value(struct dm_cache_policy *p,
 	return 0;
 }
 
-static int mq_emit_config_values(struct dm_cache_policy *p, char *result, unsigned maxlen)
+static int mq_emit_config_values(struct dm_cache_policy *p, char *result,
+				 unsigned maxlen, ssize_t *sz_ptr)
 {
-	ssize_t sz = 0;
+	ssize_t sz = *sz_ptr;
 	struct mq_policy *mq = to_mq_policy(p);
 
 	DMEMIT("10 random_threshold %u "
 	       "sequential_threshold %u "
 	       "discard_promote_adjustment %u "
 	       "read_promote_adjustment %u "
-	       "write_promote_adjustment %u",
+	       "write_promote_adjustment %u ",
 	       mq->tracker.thresholds[PATTERN_RANDOM],
 	       mq->tracker.thresholds[PATTERN_SEQUENTIAL],
 	       mq->discard_promote_adjustment,
 	       mq->read_promote_adjustment,
 	       mq->write_promote_adjustment);
 
+	*sz_ptr = sz;
 	return 0;
 }
 
@@ -1408,19 +1431,10 @@ bad_pre_cache_init:
 
 static struct dm_cache_policy_type mq_policy_type = {
 	.name = "mq",
-	.version = {1, 3, 0},
+	.version = {1, 4, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = mq_create
-};
-
-static struct dm_cache_policy_type default_policy_type = {
-	.name = "default",
-	.version = {1, 3, 0},
-	.hint_size = 4,
-	.owner = THIS_MODULE,
-	.create = mq_create,
-	.real = &mq_policy_type
 };
 
 static int __init mq_init(void)
@@ -1432,36 +1446,21 @@ static int __init mq_init(void)
 					   __alignof__(struct entry),
 					   0, NULL);
 	if (!mq_entry_cache)
-		goto bad;
+		return -ENOMEM;
 
 	r = dm_cache_policy_register(&mq_policy_type);
 	if (r) {
 		DMERR("register failed %d", r);
-		goto bad_register_mq;
+		kmem_cache_destroy(mq_entry_cache);
+		return -ENOMEM;
 	}
 
-	r = dm_cache_policy_register(&default_policy_type);
-	if (!r) {
-		DMINFO("version %u.%u.%u loaded",
-		       mq_policy_type.version[0],
-		       mq_policy_type.version[1],
-		       mq_policy_type.version[2]);
-		return 0;
-	}
-
-	DMERR("register failed (as default) %d", r);
-
-	dm_cache_policy_unregister(&mq_policy_type);
-bad_register_mq:
-	kmem_cache_destroy(mq_entry_cache);
-bad:
-	return -ENOMEM;
+	return 0;
 }
 
 static void __exit mq_exit(void)
 {
 	dm_cache_policy_unregister(&mq_policy_type);
-	dm_cache_policy_unregister(&default_policy_type);
 
 	kmem_cache_destroy(mq_entry_cache);
 }
@@ -1472,5 +1471,3 @@ module_exit(mq_exit);
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("mq cache policy");
-
-MODULE_ALIAS("dm-cache-default");

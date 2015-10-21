@@ -694,6 +694,7 @@ int trinity_dpm_force_performance_level(struct radeon_device *rdev,
 void trinity_dpm_enable_bapm(struct radeon_device *rdev, bool enable);
 u32 trinity_dpm_get_current_sclk(struct radeon_device *rdev);
 u32 trinity_dpm_get_current_mclk(struct radeon_device *rdev);
+int tn_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk);
 
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);
@@ -745,6 +746,7 @@ void si_dma_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
 u32 si_get_xclk(struct radeon_device *rdev);
 uint64_t si_get_gpu_clock_counter(struct radeon_device *rdev);
 int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
+int si_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk);
 int si_get_temp(struct radeon_device *rdev);
 int si_get_allowed_info_register(struct radeon_device *rdev,
 				 u32 reg, u32 *val);
@@ -970,10 +972,14 @@ uint32_t vce_v1_0_get_wptr(struct radeon_device *rdev,
 			   struct radeon_ring *ring);
 void vce_v1_0_set_wptr(struct radeon_device *rdev,
 		       struct radeon_ring *ring);
+int vce_v1_0_load_fw(struct radeon_device *rdev, uint32_t *data);
+unsigned vce_v1_0_bo_size(struct radeon_device *rdev);
+int vce_v1_0_resume(struct radeon_device *rdev);
 int vce_v1_0_init(struct radeon_device *rdev);
 int vce_v1_0_start(struct radeon_device *rdev);
 
 /* vce v2.0 */
+unsigned vce_v2_0_bo_size(struct radeon_device *rdev);
 int vce_v2_0_resume(struct radeon_device *rdev);
 
 #endif

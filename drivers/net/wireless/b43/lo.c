@@ -929,8 +929,8 @@ void b43_lo_g_adjust_to(struct b43_wldev *dev,
 	b43_lo_write(dev, &cal->ctl);
 }
 
-/* Periodic LO maintanance work */
-void b43_lo_g_maintanance_work(struct b43_wldev *dev)
+/* Periodic LO maintenance work */
+void b43_lo_g_maintenance_work(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;

@@ -107,7 +107,7 @@ mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, const u8 *ra)
 
 	ra_list->total_pkt_count = 0;
 
-	dev_dbg(adapter->dev, "info: allocated ra_list %p\n", ra_list);
+	mwifiex_dbg(adapter, INFO, "info: allocated ra_list %p\n", ra_list);
 
 	return ra_list;
 }
@@ -150,7 +150,8 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
 		ra_list = mwifiex_wmm_allocate_ralist_node(adapter, ra);
-		dev_dbg(adapter->dev, "info: created ra_list %p\n", ra_list);
+		mwifiex_dbg(adapter, INFO,
+			    "info: created ra_list %p\n", ra_list);
 
 		if (!ra_list)
 			break;
@@ -159,9 +160,10 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 		ra_list->tdls_link = false;
 		ra_list->ba_status = BA_SETUP_NONE;
 		ra_list->amsdu_in_ampdu = false;
+		ra_list->tx_paused = false;
 		if (!mwifiex_queuing_ra_based(priv)) {
-			if (mwifiex_get_tdls_link_status(priv, ra) ==
-			    TDLS_SETUP_COMPLETE) {
+			if (mwifiex_is_tdls_link_setup
+				(mwifiex_get_tdls_link_status(priv, ra))) {
 				ra_list->tdls_link = true;
 				ra_list->is_11n_enabled =
 					mwifiex_tdls_peer_11n_enabled(priv, ra);
@@ -178,8 +180,8 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		}
 
-		dev_dbg(adapter->dev, "data: ralist %p: is_11n_enabled=%d\n",
-			ra_list, ra_list->is_11n_enabled);
+		mwifiex_dbg(adapter, DATA, "data: ralist %p: is_11n_enabled=%d\n",
+			    ra_list, ra_list->is_11n_enabled);
 
 		if (ra_list->is_11n_enabled) {
 			ra_list->ba_pkt_count = 0;
@@ -241,11 +243,12 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 		return;
 	}
 
-	dev_dbg(priv->adapter->dev, "info: WMM Parameter IE: version=%d, "
-		"qos_info Parameter Set Count=%d, Reserved=%#x\n",
-		wmm_ie->vend_hdr.version, wmm_ie->qos_info_bitmap &
-		IEEE80211_WMM_IE_AP_QOSINFO_PARAM_SET_CNT_MASK,
-		wmm_ie->reserved);
+	mwifiex_dbg(priv->adapter, INFO,
+		    "info: WMM Parameter IE: version=%d,\t"
+		    "qos_info Parameter Set Count=%d, Reserved=%#x\n",
+		    wmm_ie->vend_hdr.version, wmm_ie->qos_info_bitmap &
+		    IEEE80211_WMM_IE_AP_QOSINFO_PARAM_SET_CNT_MASK,
+		    wmm_ie->reserved);
 
 	for (num_ac = 0; num_ac < ARRAY_SIZE(wmm_ie->ac_params); num_ac++) {
 		u8 ecw = wmm_ie->ac_params[num_ac].ecw_bitmap;
@@ -257,10 +260,10 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 		priv->wmm.queue_priority[ac_idx] = ac_idx;
 		tmp[ac_idx] = avg_back_off;
 
-		dev_dbg(priv->adapter->dev,
-			"info: WMM: CWmax=%d CWmin=%d Avg Back-off=%d\n",
-			(1 << ((ecw & MWIFIEX_ECW_MAX) >> 4)) - 1,
-			cw_min, avg_back_off);
+		mwifiex_dbg(priv->adapter, INFO,
+			    "info: WMM: CWmax=%d CWmin=%d Avg Back-off=%d\n",
+			    (1 << ((ecw & MWIFIEX_ECW_MAX) >> 4)) - 1,
+			    cw_min, avg_back_off);
 		mwifiex_wmm_ac_debug_print(&wmm_ie->ac_params[num_ac]);
 	}
 
@@ -333,8 +336,8 @@ mwifiex_wmm_setup_ac_downgrade(struct mwifiex_private *priv)
 {
 	int ac_val;
 
-	dev_dbg(priv->adapter->dev, "info: WMM: AC Priorities:"
-			"BK(0), BE(1), VI(2), VO(3)\n");
+	mwifiex_dbg(priv->adapter, INFO, "info: WMM: AC Priorities:\t"
+		    "BK(0), BE(1), VI(2), VO(3)\n");
 
 	if (!priv->wmm_enabled) {
 		/* WMM is not enabled, default priorities */
@@ -346,9 +349,10 @@ mwifiex_wmm_setup_ac_downgrade(struct mwifiex_private *priv)
 			priv->wmm.ac_down_graded_vals[ac_val]
 				= mwifiex_wmm_eval_downgrade_ac(priv,
 						(enum mwifiex_wmm_ac_e) ac_val);
-			dev_dbg(priv->adapter->dev,
-				"info: WMM: AC PRIO %d maps to %d\n",
-				ac_val, priv->wmm.ac_down_graded_vals[ac_val]);
+			mwifiex_dbg(priv->adapter, INFO,
+				    "info: WMM: AC PRIO %d maps to %d\n",
+				    ac_val,
+				    priv->wmm.ac_down_graded_vals[ac_val]);
 		}
 	}
 }
@@ -428,12 +432,26 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 							priv->tos_to_tid_inv[i];
 		}
 
+		priv->aggr_prio_tbl[6].amsdu
+					= priv->aggr_prio_tbl[6].ampdu_ap
+					= priv->aggr_prio_tbl[6].ampdu_user
+					= BA_STREAM_NOT_ALLOWED;
+
+		priv->aggr_prio_tbl[7].amsdu = priv->aggr_prio_tbl[7].ampdu_ap
+					= priv->aggr_prio_tbl[7].ampdu_user
+					= BA_STREAM_NOT_ALLOWED;
+
 		mwifiex_set_ba_params(priv);
 		mwifiex_reset_11n_rx_seq_num(priv);
 
 		atomic_set(&priv->wmm.tx_pkts_queued, 0);
 		atomic_set(&priv->wmm.highest_queued_prio, HIGH_PRIO_TID);
 	}
+}
+
+int mwifiex_bypass_txlist_empty(struct mwifiex_adapter *adapter)
+{
+	return atomic_read(&adapter->bypass_tx_pending) ? false : true;
 }
 
 /*
@@ -447,6 +465,8 @@ mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 
 	for (i = 0; i < adapter->priv_num; ++i) {
 		priv = adapter->priv[i];
+		if (priv && !priv->port_open)
+			continue;
 		if (priv && atomic_read(&priv->wmm.tx_pkts_queued))
 			return false;
 	}
@@ -512,8 +532,8 @@ static void mwifiex_wmm_delete_all_ralist(struct mwifiex_private *priv)
 	int i;
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
-		dev_dbg(priv->adapter->dev,
-			"info: ra_list: freeing buf for tid %d\n", i);
+		mwifiex_dbg(priv->adapter, INFO,
+			    "info: ra_list: freeing buf for tid %d\n", i);
 		list_for_each_entry_safe(ra_list, tmp_node,
 					 &priv->wmm.tid_tbl_ptr[i].ra_list,
 					 list) {
@@ -568,6 +588,10 @@ mwifiex_clean_txrx(struct mwifiex_private *priv)
 	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp)
 		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
 
+	skb_queue_walk_safe(&priv->bypass_txq, skb, tmp)
+		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+	atomic_set(&priv->adapter->bypass_tx_pending, 0);
+
 	idr_for_each(&priv->ack_status_frames, mwifiex_free_ack_frame, NULL);
 	idr_destroy(&priv->ack_status_frames);
 }
@@ -589,6 +613,88 @@ mwifiex_wmm_get_ralist_node(struct mwifiex_private *priv, u8 tid,
 	}
 
 	return NULL;
+}
+
+void mwifiex_update_ralist_tx_pause(struct mwifiex_private *priv, u8 *mac,
+				    u8 tx_pause)
+{
+	struct mwifiex_ra_list_tbl *ra_list;
+	u32 pkt_cnt = 0, tx_pkts_queued;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+
+	for (i = 0; i < MAX_NUM_TID; ++i) {
+		ra_list = mwifiex_wmm_get_ralist_node(priv, i, mac);
+		if (ra_list && ra_list->tx_paused != tx_pause) {
+			pkt_cnt += ra_list->total_pkt_count;
+			ra_list->tx_paused = tx_pause;
+			if (tx_pause)
+				priv->wmm.pkts_paused[i] +=
+					ra_list->total_pkt_count;
+			else
+				priv->wmm.pkts_paused[i] -=
+					ra_list->total_pkt_count;
+		}
+	}
+
+	if (pkt_cnt) {
+		tx_pkts_queued = atomic_read(&priv->wmm.tx_pkts_queued);
+		if (tx_pause)
+			tx_pkts_queued -= pkt_cnt;
+		else
+			tx_pkts_queued += pkt_cnt;
+
+		atomic_set(&priv->wmm.tx_pkts_queued, tx_pkts_queued);
+		atomic_set(&priv->wmm.highest_queued_prio, HIGH_PRIO_TID);
+	}
+	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+}
+
+/* This function update non-tdls peer ralist tx_pause while
+ * tdls channel swithing
+ */
+void mwifiex_update_ralist_tx_pause_in_tdls_cs(struct mwifiex_private *priv,
+					       u8 *mac, u8 tx_pause)
+{
+	struct mwifiex_ra_list_tbl *ra_list;
+	u32 pkt_cnt = 0, tx_pkts_queued;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+
+	for (i = 0; i < MAX_NUM_TID; ++i) {
+		list_for_each_entry(ra_list, &priv->wmm.tid_tbl_ptr[i].ra_list,
+				    list) {
+			if (!memcmp(ra_list->ra, mac, ETH_ALEN))
+				continue;
+
+			if (ra_list && ra_list->tx_paused != tx_pause) {
+				pkt_cnt += ra_list->total_pkt_count;
+				ra_list->tx_paused = tx_pause;
+				if (tx_pause)
+					priv->wmm.pkts_paused[i] +=
+						ra_list->total_pkt_count;
+				else
+					priv->wmm.pkts_paused[i] -=
+						ra_list->total_pkt_count;
+			}
+		}
+	}
+
+	if (pkt_cnt) {
+		tx_pkts_queued = atomic_read(&priv->wmm.tx_pkts_queued);
+		if (tx_pause)
+			tx_pkts_queued -= pkt_cnt;
+		else
+			tx_pkts_queued += pkt_cnt;
+
+		atomic_set(&priv->wmm.tx_pkts_queued, tx_pkts_queued);
+		atomic_set(&priv->wmm.highest_queued_prio, HIGH_PRIO_TID);
+	}
+	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 }
 
 /*
@@ -658,6 +764,18 @@ mwifiex_is_ralist_valid(struct mwifiex_private *priv,
 }
 
 /*
+ * This function adds a packet to bypass TX queue.
+ * This is special TX queue for packets which can be sent even when port_open
+ * is false.
+ */
+void
+mwifiex_wmm_add_buf_bypass_txqueue(struct mwifiex_private *priv,
+				   struct sk_buff *skb)
+{
+	skb_queue_tail(&priv->bypass_txq, skb);
+}
+
+/*
  * This function adds a packet to WMM queue.
  *
  * In disconnected state the packet is immediately dropped and the
@@ -685,14 +803,15 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA &&
 	    ISSUPP_TDLS_ENABLED(adapter->fw_cap_info)) {
 		if (ntohs(eth_hdr->h_proto) == ETH_P_TDLS)
-			dev_dbg(adapter->dev,
-				"TDLS setup packet for %pM. Don't block\n", ra);
+			mwifiex_dbg(adapter, DATA,
+				    "TDLS setup packet for %pM.\t"
+				    "Don't block\n", ra);
 		else if (memcmp(priv->cfg_bssid, ra, ETH_ALEN))
 			tdls_status = mwifiex_get_tdls_link_status(priv, ra);
 	}
 
 	if (!priv->media_connected && !mwifiex_is_skb_mgmt_frame(skb)) {
-		dev_dbg(adapter->dev, "data: drop packet in disconnect\n");
+		mwifiex_dbg(adapter, DATA, "data: drop packet in disconnect\n");
 		mwifiex_write_data_complete(adapter, skb, 0, -1);
 		return;
 	}
@@ -710,6 +829,9 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	    !mwifiex_is_skb_mgmt_frame(skb)) {
 		switch (tdls_status) {
 		case TDLS_SETUP_COMPLETE:
+		case TDLS_CHAN_SWITCHING:
+		case TDLS_IN_BASE_CHAN:
+		case TDLS_IN_OFF_CHAN:
 			ra_list = mwifiex_wmm_get_queue_raptr(priv, tid_down,
 							      ra);
 			tx_info->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;
@@ -752,7 +874,10 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 		atomic_set(&priv->wmm.highest_queued_prio,
 			   priv->tos_to_tid_inv[tid_down]);
 
-	atomic_inc(&priv->wmm.tx_pkts_queued);
+	if (ra_list->tx_paused)
+		priv->wmm.pkts_paused[tid_down]++;
+	else
+		atomic_inc(&priv->wmm.tx_pkts_queued);
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 }
@@ -773,6 +898,7 @@ int mwifiex_ret_wmm_get_status(struct mwifiex_private *priv,
 {
 	u8 *curr = (u8 *) &resp->params.get_wmm_status;
 	uint16_t resp_len = le16_to_cpu(resp->size), tlv_len;
+	int mask = IEEE80211_WMM_IE_AP_QOSINFO_PARAM_SET_CNT_MASK;
 	bool valid = true;
 
 	struct mwifiex_ie_types_data *tlv_hdr;
@@ -780,8 +906,9 @@ int mwifiex_ret_wmm_get_status(struct mwifiex_private *priv,
 	struct ieee_types_wmm_parameter *wmm_param_ie = NULL;
 	struct mwifiex_wmm_ac_status *ac_status;
 
-	dev_dbg(priv->adapter->dev, "info: WMM: WMM_GET_STATUS cmdresp received: %d\n",
-		resp_len);
+	mwifiex_dbg(priv->adapter, INFO,
+		    "info: WMM: WMM_GET_STATUS cmdresp received: %d\n",
+		    resp_len);
 
 	while ((resp_len >= sizeof(tlv_hdr->header)) && valid) {
 		tlv_hdr = (struct mwifiex_ie_types_data *) curr;
@@ -795,12 +922,12 @@ int mwifiex_ret_wmm_get_status(struct mwifiex_private *priv,
 			tlv_wmm_qstatus =
 				(struct mwifiex_ie_types_wmm_queue_status *)
 				tlv_hdr;
-			dev_dbg(priv->adapter->dev,
-				"info: CMD_RESP: WMM_GET_STATUS:"
-				" QSTATUS TLV: %d, %d, %d\n",
-				tlv_wmm_qstatus->queue_index,
-				tlv_wmm_qstatus->flow_required,
-				tlv_wmm_qstatus->disabled);
+			mwifiex_dbg(priv->adapter, CMD,
+				    "info: CMD_RESP: WMM_GET_STATUS:\t"
+				    "QSTATUS TLV: %d, %d, %d\n",
+				    tlv_wmm_qstatus->queue_index,
+				    tlv_wmm_qstatus->flow_required,
+				    tlv_wmm_qstatus->disabled);
 
 			ac_status = &priv->wmm.ac_status[tlv_wmm_qstatus->
 							 queue_index];
@@ -823,11 +950,10 @@ int mwifiex_ret_wmm_get_status(struct mwifiex_private *priv,
 			wmm_param_ie->vend_hdr.element_id =
 						WLAN_EID_VENDOR_SPECIFIC;
 
-			dev_dbg(priv->adapter->dev,
-				"info: CMD_RESP: WMM_GET_STATUS:"
-				" WMM Parameter Set Count: %d\n",
-				wmm_param_ie->qos_info_bitmap &
-				IEEE80211_WMM_IE_AP_QOSINFO_PARAM_SET_CNT_MASK);
+			mwifiex_dbg(priv->adapter, CMD,
+				    "info: CMD_RESP: WMM_GET_STATUS:\t"
+				    "WMM Parameter Set Count: %d\n",
+				    wmm_param_ie->qos_info_bitmap & mask);
 
 			memcpy((u8 *) &priv->curr_bss_params.bss_descriptor.
 			       wmm_ie, wmm_param_ie,
@@ -875,9 +1001,9 @@ mwifiex_wmm_process_association_req(struct mwifiex_private *priv,
 	if (!wmm_ie)
 		return 0;
 
-	dev_dbg(priv->adapter->dev,
-		"info: WMM: process assoc req: bss->wmm_ie=%#x\n",
-		wmm_ie->vend_hdr.element_id);
+	mwifiex_dbg(priv->adapter, INFO,
+		    "info: WMM: process assoc req: bss->wmm_ie=%#x\n",
+		    wmm_ie->vend_hdr.element_id);
 
 	if ((priv->wmm_required ||
 	     (ht_cap && (priv->adapter->config_bands & BAND_GN ||
@@ -927,8 +1053,8 @@ mwifiex_wmm_compute_drv_pkt_delay(struct mwifiex_private *priv,
 	 */
 	ret_val = (u8) (min(queue_delay, priv->wmm.drv_pkt_delay_max) >> 1);
 
-	dev_dbg(priv->adapter->dev, "data: WMM: Pkt Delay: %d ms,"
-				" %d ms sent to FW\n", queue_delay, ret_val);
+	mwifiex_dbg(priv->adapter, DATA, "data: WMM: Pkt Delay: %d ms,\t"
+		    "%d ms sent to FW\n", queue_delay, ret_val);
 
 	return ret_val;
 }
@@ -956,7 +1082,8 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 
 			priv_tmp = adapter->bss_prio_tbl[j].bss_prio_cur->priv;
 
-			if (atomic_read(&priv_tmp->wmm.tx_pkts_queued) == 0)
+			if (!priv_tmp->port_open ||
+			    (atomic_read(&priv_tmp->wmm.tx_pkts_queued) == 0))
 				continue;
 
 			/* iterate over the WMM queues of the BSS */
@@ -973,7 +1100,8 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 				list_for_each_entry(ptr, &tid_ptr->ra_list,
 						    list) {
 
-					if (!skb_queue_empty(&ptr->skb_head))
+					if (!ptr->tx_paused &&
+					    !skb_queue_empty(&ptr->skb_head))
 						/* holds both locks */
 						goto found;
 				}
@@ -1082,14 +1210,15 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	if (skb_queue_empty(&ptr->skb_head)) {
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
-		dev_dbg(adapter->dev, "data: nothing to send\n");
+		mwifiex_dbg(adapter, DATA, "data: nothing to send\n");
 		return;
 	}
 
 	skb = skb_dequeue(&ptr->skb_head);
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
-	dev_dbg(adapter->dev, "data: dequeuing the packet %p %p\n", ptr, skb);
+	mwifiex_dbg(adapter, DATA,
+		    "data: dequeuing the packet %p %p\n", ptr, skb);
 
 	ptr->total_pkt_count--;
 
@@ -1205,7 +1334,7 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 
 	switch (ret) {
 	case -EBUSY:
-		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");
+		mwifiex_dbg(adapter, ERROR, "data: -EBUSY is returned\n");
 		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
 
 		if (!mwifiex_is_ralist_valid(priv, ptr, ptr_index)) {
@@ -1224,7 +1353,7 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	case -1:
 		if (adapter->iface_type != MWIFIEX_PCIE)
 			adapter->data_sent = false;
-		dev_err(adapter->dev, "host_to_card failed: %#x\n", ret);
+		mwifiex_dbg(adapter, ERROR, "host_to_card failed: %#x\n", ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
@@ -1263,7 +1392,7 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 
 	tid = mwifiex_get_tid(ptr);
 
-	dev_dbg(adapter->dev, "data: tid=%d\n", tid);
+	mwifiex_dbg(adapter, DATA, "data: tid=%d\n", tid);
 
 	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
 	if (!mwifiex_is_ralist_valid(priv, ptr, ptr_index)) {
@@ -1322,6 +1451,38 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 			   mwifiex_send_single_packet() */
 	}
 	return 0;
+}
+
+void mwifiex_process_bypass_tx(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_tx_param tx_param;
+	struct sk_buff *skb;
+	struct mwifiex_txinfo *tx_info;
+	struct mwifiex_private *priv;
+	int i;
+
+	if (adapter->data_sent || adapter->tx_lock_flag)
+		return;
+
+	for (i = 0; i < adapter->priv_num; ++i) {
+		priv = adapter->priv[i];
+
+		if (skb_queue_empty(&priv->bypass_txq))
+			continue;
+
+		skb = skb_dequeue(&priv->bypass_txq);
+		tx_info = MWIFIEX_SKB_TXCB(skb);
+
+		/* no aggregation for bypass packets */
+		tx_param.next_pkt_len = 0;
+
+		if (mwifiex_process_tx(priv, skb, &tx_param) == -EBUSY) {
+			skb_queue_head(&priv->bypass_txq, skb);
+			tx_info->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
+		} else {
+			atomic_dec(&adapter->bypass_tx_pending);
+		}
+	}
 }
 
 /*

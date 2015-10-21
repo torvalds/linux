@@ -72,10 +72,8 @@ nvkm_client_suspend(void *priv)
 static void
 nvkm_client_driver_fini(void *priv)
 {
-	struct nvkm_object *client = priv;
-	nvkm_client_fini(nv_client(client), false);
-	atomic_set(&client->refcount, 1);
-	nvkm_object_ref(NULL, &client);
+	struct nvkm_client *client = priv;
+	nvkm_client_del(&client);
 }
 
 static int
@@ -113,7 +111,7 @@ nvkm_client_driver_init(const char *name, u64 device, const char *cfg,
 	struct nvkm_client *client;
 	int ret;
 
-	ret = nvkm_client_create(name, device, cfg, dbg, &client);
+	ret = nvkm_client_new(name, device, cfg, dbg, &client);
 	*ppriv = client;
 	if (ret)
 		return ret;

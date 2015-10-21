@@ -515,6 +515,10 @@ intvec_\vecname:
 	.ifc \c_routine, handle_perf_interrupt
 	mfspr   r2, AUX_PERF_COUNT_STS
 	.endif
+	.ifc \c_routine, do_nmi
+	mfspr   r2, SPR_SYSTEM_SAVE_K_2   /* nmi type */
+	.else
+	.endif
 	.endif
 	.endif
 	.endif
@@ -1243,6 +1247,7 @@ handle_syscall:
 	 jal    do_syscall_trace_enter
 	}
 	FEEDBACK_REENTER(handle_syscall)
+	bltz    r0, .Lsyscall_sigreturn_skip
 
 	/*
 	 * We always reload our registers from the stack at this
@@ -1571,3 +1576,5 @@ intrpt_start:
 
 	/* Synthetic interrupt delivered only by the simulator */
 	int_hand     INT_BREAKPOINT, BREAKPOINT, do_breakpoint
+	/* Synthetic interrupt delivered by hv */
+	int_hand     INT_NMI_DWNCL, NMI_DWNCL, do_nmi, handle_nmi

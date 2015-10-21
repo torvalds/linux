@@ -8,6 +8,7 @@
 #include "../builtin.h"
 #include "../util/util.h"
 #include "../util/parse-options.h"
+#include "../util/cloexec.h"
 
 #include "bench.h"
 
@@ -23,6 +24,7 @@
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
@@ -51,6 +53,9 @@ struct thread_data {
 	unsigned int		loops_done;
 	u64			val;
 	u64			runtime_ns;
+	u64			system_time_ns;
+	u64			user_time_ns;
+	double			speed_gbs;
 	pthread_mutex_t		*process_lock;
 };
 
@@ -1042,6 +1047,7 @@ static void *worker_thread(void *__tdata)
 	u64 bytes_done;
 	long work_done;
 	u32 l;
+	struct rusage rusage;
 
 	bind_to_cpumask(td->bind_cpumask);
 	bind_to_memnode(td->bind_node);
@@ -1194,6 +1200,13 @@ static void *worker_thread(void *__tdata)
 	timersub(&stop, &start0, &diff);
 	td->runtime_ns = diff.tv_sec * 1000000000ULL;
 	td->runtime_ns += diff.tv_usec * 1000ULL;
+	td->speed_gbs = bytes_done / (td->runtime_ns / 1e9) / 1e9;
+
+	getrusage(RUSAGE_THREAD, &rusage);
+	td->system_time_ns = rusage.ru_stime.tv_sec * 1000000000ULL;
+	td->system_time_ns += rusage.ru_stime.tv_usec * 1000ULL;
+	td->user_time_ns = rusage.ru_utime.tv_sec * 1000000000ULL;
+	td->user_time_ns += rusage.ru_utime.tv_usec * 1000ULL;
 
 	free_data(thread_data, g->p.bytes_thread);
 
@@ -1420,7 +1433,7 @@ static int __bench_numa(const char *name)
 	double runtime_sec_min;
 	int wait_stat;
 	double bytes;
-	int i, t;
+	int i, t, p;
 
 	if (init())
 		return -1;
@@ -1555,6 +1568,24 @@ static int __bench_numa(const char *name)
 
 	print_res(name, bytes / runtime_sec_max / 1e9,
 		"GB/sec,", "total-speed",	"GB/sec total speed");
+
+	if (g->p.show_details >= 2) {
+		char tname[32];
+		struct thread_data *td;
+		for (p = 0; p < g->p.nr_proc; p++) {
+			for (t = 0; t < g->p.nr_threads; t++) {
+				memset(tname, 0, 32);
+				td = g->threads + p*g->p.nr_threads + t;
+				snprintf(tname, 32, "process%d:thread%d", p, t);
+				print_res(tname, td->speed_gbs,
+					"GB/sec",	"thread-speed", "GB/sec/thread speed");
+				print_res(tname, td->system_time_ns / 1e9,
+					"secs",	"thread-system-time", "system CPU time/thread");
+				print_res(tname, td->user_time_ns / 1e9,
+					"secs",	"thread-user-time", "user CPU time/thread");
+			}
+		}
+	}
 
 	free(pids);
 

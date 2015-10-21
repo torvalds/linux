@@ -52,7 +52,7 @@ union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS] __cacheline
 char cfs_tracefile[TRACEFILE_NAME_SIZE];
 long long cfs_tracefile_size = CFS_TRACEFILE_SIZE;
 static struct tracefiled_ctl trace_tctl;
-struct mutex cfs_trace_thread_mutex;
+static DEFINE_MUTEX(cfs_trace_thread_mutex);
 static int thread_running;
 
 static atomic_t cfs_tage_allocated = ATOMIC_INIT(0);
@@ -935,18 +935,6 @@ int cfs_trace_set_debug_mb(int mb)
 	cfs_tracefile_write_unlock();
 
 	return 0;
-}
-
-int cfs_trace_set_debug_mb_usrstr(void __user *usr_str, int usr_str_nob)
-{
-	char     str[32];
-	int      rc;
-
-	rc = cfs_trace_copyin_string(str, sizeof(str), usr_str, usr_str_nob);
-	if (rc < 0)
-		return rc;
-
-	return cfs_trace_set_debug_mb(simple_strtoul(str, NULL, 0));
 }
 
 int cfs_trace_get_debug_mb(void)

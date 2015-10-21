@@ -335,18 +335,29 @@ unsigned int
 uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		   struct ktermios *old, unsigned int min, unsigned int max)
 {
-	unsigned int try, baud, altbaud = 38400;
+	unsigned int try;
+	unsigned int baud;
+	unsigned int altbaud;
 	int hung_up = 0;
 	upf_t flags = port->flags & UPF_SPD_MASK;
 
-	if (flags == UPF_SPD_HI)
+	switch (flags) {
+	case UPF_SPD_HI:
 		altbaud = 57600;
-	else if (flags == UPF_SPD_VHI)
+		break;
+	case UPF_SPD_VHI:
 		altbaud = 115200;
-	else if (flags == UPF_SPD_SHI)
+		break;
+	case UPF_SPD_SHI:
 		altbaud = 230400;
-	else if (flags == UPF_SPD_WARP)
+		break;
+	case UPF_SPD_WARP:
 		altbaud = 460800;
+		break;
+	default:
+		altbaud = 38400;
+		break;
+	}
 
 	for (try = 0; try < 2; try++) {
 		baud = tty_termios_baud_rate(termios);
@@ -894,12 +905,10 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 			 * need to rate-limit; it's CAP_SYS_ADMIN only.
 			 */
 			if (uport->flags & UPF_SPD_MASK) {
-				char buf[64];
-
 				dev_notice(uport->dev,
 				       "%s sets custom speed on %s. This is deprecated.\n",
 				      current->comm,
-				      tty_name(port->tty, buf));
+				      tty_name(port->tty));
 			}
 			uart_change_speed(tty, state, NULL);
 		}
@@ -1368,7 +1377,6 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	struct uart_state *state = tty->driver_data;
 	struct tty_port *port;
 	struct uart_port *uport;
-	unsigned long flags;
 
 	if (!state) {
 		struct uart_driver *drv = tty->driver->driver_state;
@@ -1394,10 +1402,9 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	 * disable the receive line status interrupts.
 	 */
 	if (port->flags & ASYNC_INITIALIZED) {
-		unsigned long flags;
-		spin_lock_irqsave(&uport->lock, flags);
+		spin_lock_irq(&uport->lock);
 		uport->ops->stop_rx(uport);
-		spin_unlock_irqrestore(&uport->lock, flags);
+		spin_unlock_irq(&uport->lock);
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
 		 * has completely drained; this is especially
@@ -1409,18 +1416,18 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	mutex_lock(&port->mutex);
 	uart_shutdown(tty, state);
 	tty_port_tty_set(port, NULL);
-	tty->closing = 0;
-	spin_lock_irqsave(&port->lock, flags);
+
+	spin_lock_irq(&port->lock);
 
 	if (port->blocked_open) {
-		spin_unlock_irqrestore(&port->lock, flags);
+		spin_unlock_irq(&port->lock);
 		if (port->close_delay)
 			msleep_interruptible(jiffies_to_msecs(port->close_delay));
-		spin_lock_irqsave(&port->lock, flags);
+		spin_lock_irq(&port->lock);
 	} else if (!uart_console(uport)) {
-		spin_unlock_irqrestore(&port->lock, flags);
+		spin_unlock_irq(&port->lock);
 		uart_change_pm(state, UART_PM_STATE_OFF);
-		spin_lock_irqsave(&port->lock, flags);
+		spin_lock_irq(&port->lock);
 	}
 
 	/*
@@ -1428,13 +1435,14 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	 */
 	clear_bit(ASYNCB_NORMAL_ACTIVE, &port->flags);
 	clear_bit(ASYNCB_CLOSING, &port->flags);
-	spin_unlock_irqrestore(&port->lock, flags);
+	spin_unlock_irq(&port->lock);
 	wake_up_interruptible(&port->open_wait);
 	wake_up_interruptible(&port->close_wait);
 
 	mutex_unlock(&port->mutex);
 
 	tty_ldisc_flush(tty);
+	tty->closing = 0;
 }
 
 static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
@@ -1520,11 +1528,6 @@ static void uart_hangup(struct tty_struct *tty)
 		wake_up_interruptible(&port->delta_msr_wait);
 	}
 	mutex_unlock(&port->mutex);
-}
-
-static int uart_port_activate(struct tty_port *port, struct tty_struct *tty)
-{
-	return 0;
 }
 
 static void uart_port_shutdown(struct tty_port *port)
@@ -1816,8 +1819,8 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
  *	@options: ptr for <options> field; NULL if not present (out)
  *
  *	Decodes earlycon kernel command line parameters of the form
- *	   earlycon=<name>,io|mmio|mmio32,<addr>,<options>
- *	   console=<name>,io|mmio|mmio32,<addr>,<options>
+ *	   earlycon=<name>,io|mmio|mmio32|mmio32be,<addr>,<options>
+ *	   console=<name>,io|mmio|mmio32|mmio32be,<addr>,<options>
  *
  *	The optional form
  *	   earlycon=<name>,0x<addr>,<options>
@@ -1835,6 +1838,9 @@ int uart_parse_earlycon(char *p, unsigned char *iotype, unsigned long *addr,
 	} else if (strncmp(p, "mmio32,", 7) == 0) {
 		*iotype = UPIO_MEM32;
 		p += 7;
+	} else if (strncmp(p, "mmio32be,", 9) == 0) {
+		*iotype = UPIO_MEM32BE;
+		p += 9;
 	} else if (strncmp(p, "io,", 3) == 0) {
 		*iotype = UPIO_PORT;
 		p += 3;
@@ -2366,8 +2372,6 @@ static const struct tty_operations uart_ops = {
 };
 
 static const struct tty_port_operations uart_port_ops = {
-	.activate	= uart_port_activate,
-	.shutdown	= uart_port_shutdown,
 	.carrier_raised = uart_carrier_raised,
 	.dtr_rts	= uart_dtr_rts,
 };

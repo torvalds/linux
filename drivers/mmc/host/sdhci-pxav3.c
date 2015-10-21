@@ -135,6 +135,7 @@ static int armada_38x_quirks(struct platform_device *pdev,
 	struct sdhci_pxa *pxa = pltfm_host->priv;
 	struct resource *res;
 
+	host->quirks &= ~SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN;
 	host->quirks |= SDHCI_QUIRK_MISSING_CAPS;
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "conf-sdio3");
@@ -290,6 +291,9 @@ static void pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 		    uhs == MMC_TIMING_UHS_DDR50) {
 			reg_val &= ~SDIO3_CONF_CLK_INV;
 			reg_val |= SDIO3_CONF_SD_FB_CLK;
+		} else if (uhs == MMC_TIMING_MMC_HS) {
+			reg_val &= ~SDIO3_CONF_CLK_INV;
+			reg_val &= ~SDIO3_CONF_SD_FB_CLK;
 		} else {
 			reg_val |= SDIO3_CONF_CLK_INV;
 			reg_val &= ~SDIO3_CONF_SD_FB_CLK;
@@ -398,7 +402,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "marvell,armada-380-sdhci")) {
 		ret = armada_38x_quirks(pdev, host);
 		if (ret < 0)
-			goto err_clk_get;
+			goto err_mbus_win;
 		ret = mv_conf_mbus_windows(pdev, mv_mbus_dram_info());
 		if (ret < 0)
 			goto err_mbus_win;
@@ -411,6 +415,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 			goto err_of_parse;
 		sdhci_get_of_property(pdev);
 		pdata = pxav3_get_mmc_pdata(dev);
+		pdev->dev.platform_data = pdata;
 	} else if (pdata) {
 		/* on-chip device */
 		if (pdata->flags & PXA_FLAG_CARD_PERMANENT)
@@ -457,12 +462,8 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	if (host->mmc->pm_caps & MMC_PM_KEEP_POWER) {
+	if (host->mmc->pm_caps & MMC_PM_WAKE_SDIO_IRQ)
 		device_init_wakeup(&pdev->dev, 1);
-		host->mmc->pm_flags |= MMC_PM_WAKE_SDIO_IRQ;
-	} else {
-		device_init_wakeup(&pdev->dev, 0);
-	}
 
 	pm_runtime_put_autosuspend(&pdev->dev);
 
@@ -578,9 +579,7 @@ static const struct dev_pm_ops sdhci_pxav3_pmops = {
 static struct platform_driver sdhci_pxav3_driver = {
 	.driver		= {
 		.name	= "sdhci-pxav3",
-#ifdef CONFIG_OF
-		.of_match_table = sdhci_pxav3_of_match,
-#endif
+		.of_match_table = of_match_ptr(sdhci_pxav3_of_match),
 		.pm	= SDHCI_PXAV3_PMOPS,
 	},
 	.probe		= sdhci_pxav3_probe,

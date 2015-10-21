@@ -653,7 +653,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 		goto err_free_dma;
 	}
 
-	ret = clk_enable(priv->clk);
+	ret = clk_prepare_enable(priv->clk);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable clock\n");
 		goto err_misc_deregister;
@@ -685,7 +685,7 @@ err_misc_deregister:
 	misc_deregister(&priv->misc_dev);
 
 err_disable_clk:
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	return ret;
 }

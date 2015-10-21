@@ -22,16 +22,19 @@
  * Authors: Ben Skeggs
  */
 #include "gf100.h"
+#include "ram.h"
 
-struct nvkm_oclass *
-gm107_fb_oclass = &(struct nvkm_fb_impl) {
-	.base.handle = NV_SUBDEV(FB, 0x07),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_fb_ctor,
-		.dtor = gf100_fb_dtor,
-		.init = gf100_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.memtype = gf100_fb_memtype_valid,
-	.ram = &gm107_ram_oclass,
-}.base;
+static const struct nvkm_fb_func
+gm107_fb = {
+	.dtor = gf100_fb_dtor,
+	.init = gf100_fb_init,
+	.intr = gf100_fb_intr,
+	.ram_new = gm107_ram_new,
+	.memtype_valid = gf100_fb_memtype_valid,
+};
+
+int
+gm107_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return gf100_fb_new_(&gm107_fb, device, index, pfb);
+}

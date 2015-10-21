@@ -381,9 +381,12 @@ int __init register_nfs_fs(void)
 	ret = nfs_register_sysctl();
 	if (ret < 0)
 		goto error_2;
-	register_shrinker(&acl_shrinker);
+	ret = register_shrinker(&acl_shrinker);
+	if (ret < 0)
+		goto error_3;
 	return 0;
-
+error_3:
+	nfs_unregister_sysctl();
 error_2:
 	unregister_nfs4_fs();
 error_1:
@@ -2847,7 +2850,7 @@ static int param_set_portnr(const char *val, const struct kernel_param *kp)
 	*((unsigned int *)kp->arg) = num;
 	return 0;
 }
-static struct kernel_param_ops param_ops_portnr = {
+static const struct kernel_param_ops param_ops_portnr = {
 	.set = param_set_portnr,
 	.get = param_get_uint,
 };

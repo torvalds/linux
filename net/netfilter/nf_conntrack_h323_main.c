@@ -779,8 +779,8 @@ static int callforward_do_filter(struct net *net,
 				   flowi6_to_flowi(&fl1), false)) {
 			if (!afinfo->route(net, (struct dst_entry **)&rt2,
 					   flowi6_to_flowi(&fl2), false)) {
-				if (ipv6_addr_equal(rt6_nexthop(rt1),
-						    rt6_nexthop(rt2)) &&
+				if (ipv6_addr_equal(rt6_nexthop(rt1, &fl1.daddr),
+						    rt6_nexthop(rt2, &fl2.daddr)) &&
 				    rt1->dst.dev == rt2->dst.dev)
 					ret = 1;
 				dst_release(&rt2->dst);

@@ -187,10 +187,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht, unsigned int old_hash)
 	head = rht_dereference_bucket(new_tbl->buckets[new_hash],
 				      new_tbl, new_hash);
 
-	if (rht_is_a_nulls(head))
-		INIT_RHT_NULLS_HEAD(entry->next, ht, new_hash);
-	else
-		RCU_INIT_POINTER(entry->next, head);
+	RCU_INIT_POINTER(entry->next, head);
 
 	rcu_assign_pointer(new_tbl->buckets[new_hash], entry);
 	spin_unlock(new_bucket_lock);
@@ -585,7 +582,6 @@ void *rhashtable_walk_next(struct rhashtable_iter *iter)
 	struct bucket_table *tbl = iter->walker->tbl;
 	struct rhashtable *ht = iter->ht;
 	struct rhash_head *p = iter->p;
-	void *obj = NULL;
 
 	if (p) {
 		p = rht_dereference_bucket_rcu(p->next, tbl, iter->slot);
@@ -605,12 +601,13 @@ next:
 		if (!rht_is_a_nulls(p)) {
 			iter->skip++;
 			iter->p = p;
-			obj = rht_obj(ht, p);
-			goto out;
+			return rht_obj(ht, p);
 		}
 
 		iter->skip = 0;
 	}
+
+	iter->p = NULL;
 
 	/* Ensure we see any new tables. */
 	smp_rmb();
@@ -622,11 +619,7 @@ next:
 		return ERR_PTR(-EAGAIN);
 	}
 
-	iter->p = NULL;
-
-out:
-
-	return obj;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(rhashtable_walk_next);
 

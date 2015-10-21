@@ -405,6 +405,16 @@ config PPC_DOORBELL
 
 endmenu
 
+config VDSO32
+	def_bool y
+	depends on PPC32 || CPU_BIG_ENDIAN
+	help
+	  This symbol controls whether we build the 32-bit VDSO. We obviously
+	  want to do that if we're building a 32-bit kernel. If we're building
+	  a 64-bit kernel then we only want a 32-bit VDSO if we're building for
+	  big endian. That is because the only little endian configuration we
+	  support is ppc64le which is 64-bit only.
+
 choice
 	prompt "Endianness selection"
 	default CPU_BIG_ENDIAN
@@ -421,6 +431,7 @@ config CPU_BIG_ENDIAN
 
 config CPU_LITTLE_ENDIAN
 	bool "Build little endian kernel"
+	depends on PPC_BOOK3S_64
 	select PPC64_BOOT_WRAPPER
 	help
 	  Build a little endian kernel.

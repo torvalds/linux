@@ -70,7 +70,7 @@ static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 
 static DEFINE_MUTEX(devices_mutex);
-DECLARE_BITMAP(devices_used, SNDRV_CARDS);
+static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 static struct usb_driver bcd2000_driver;
 
 #ifdef CONFIG_SND_DEBUG

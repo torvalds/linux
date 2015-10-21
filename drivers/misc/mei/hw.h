@@ -31,20 +31,39 @@
 #define MEI_IAMTHIF_STALL_TIMER    12  /* HPS */
 #define MEI_IAMTHIF_READ_TIMER     10  /* HPS */
 
-#define MEI_PGI_TIMEOUT            1  /* PG Isolation time response 1 sec */
-#define MEI_HBM_TIMEOUT            1   /* 1 second */
+#define MEI_PGI_TIMEOUT             1  /* PG Isolation time response 1 sec */
+#define MEI_D0I3_TIMEOUT            5  /* D0i3 set/unset max response time */
+#define MEI_HBM_TIMEOUT             1  /* 1 second */
 
 /*
  * MEI Version
  */
-#define HBM_MINOR_VERSION                   1
-#define HBM_MAJOR_VERSION                   1
+#define HBM_MINOR_VERSION                   0
+#define HBM_MAJOR_VERSION                   2
 
 /*
  * MEI version with PGI support
  */
 #define HBM_MINOR_VERSION_PGI               1
 #define HBM_MAJOR_VERSION_PGI               1
+
+/*
+ * MEI version with Dynamic clients support
+ */
+#define HBM_MINOR_VERSION_DC               0
+#define HBM_MAJOR_VERSION_DC               2
+
+/*
+ * MEI version with disconnect on connection timeout support
+ */
+#define HBM_MINOR_VERSION_DOT              0
+#define HBM_MAJOR_VERSION_DOT              2
+
+/*
+ * MEI version with notifcation support
+ */
+#define HBM_MINOR_VERSION_EV               0
+#define HBM_MAJOR_VERSION_EV               2
 
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
@@ -80,6 +99,13 @@
 #define MEI_PG_ISOLATION_ENTRY_RES_CMD      0x8a
 #define MEI_PG_ISOLATION_EXIT_REQ_CMD       0x0b
 #define MEI_PG_ISOLATION_EXIT_RES_CMD       0x8b
+
+#define MEI_HBM_ADD_CLIENT_REQ_CMD          0x0f
+#define MEI_HBM_ADD_CLIENT_RES_CMD          0x8f
+
+#define MEI_HBM_NOTIFY_REQ_CMD              0x10
+#define MEI_HBM_NOTIFY_RES_CMD              0x90
+#define MEI_HBM_NOTIFICATION_CMD            0x11
 
 /*
  * MEI Stop Reason
@@ -136,6 +162,7 @@ enum mei_cl_connect_status {
 	MEI_CL_CONN_ALREADY_STARTED  = MEI_HBMS_ALREADY_EXISTS,
 	MEI_CL_CONN_OUT_OF_RESOURCES = MEI_HBMS_REJECTED,
 	MEI_CL_CONN_MESSAGE_SMALL    = MEI_HBMS_INVALID_PARAMETER,
+	MEI_CL_CONN_NOT_ALLOWED      = MEI_HBMS_NOT_ALLOWED,
 };
 
 /*
@@ -213,9 +240,17 @@ struct hbm_me_stop_request {
 	u8 reserved[2];
 } __packed;
 
+/**
+ * struct hbm_host_enum_request -  enumeration request from host to fw
+ *
+ * @hbm_cmd: bus message command header
+ * @allow_add: allow dynamic clients add HBM version >= 2.0
+ * @reserved: reserved
+ */
 struct hbm_host_enum_request {
 	u8 hbm_cmd;
-	u8 reserved[3];
+	u8 allow_add;
+	u8 reserved[2];
 } __packed;
 
 struct hbm_host_enum_response {
@@ -245,6 +280,38 @@ struct hbm_props_response {
 	u8 status;
 	u8 reserved[1];
 	struct mei_client_properties client_properties;
+} __packed;
+
+/**
+ * struct hbm_add_client_request - request to add a client
+ *     might be sent by fw after enumeration has already completed
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr: address of the client in ME
+ * @reserved: reserved
+ * @client_properties: client properties
+ */
+struct hbm_add_client_request {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 reserved[2];
+	struct mei_client_properties client_properties;
+} __packed;
+
+/**
+ * struct hbm_add_client_response - response to add a client
+ *     sent by the host to report client addition status to fw
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr: address of the client in ME
+ * @status: if HBMS_SUCCESS then the client can now accept connections.
+ * @reserved: reserved
+ */
+struct hbm_add_client_response {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 status;
+	u8 reserved[1];
 } __packed;
 
 /**
@@ -298,5 +365,62 @@ struct hbm_flow_control {
 	u8 reserved[MEI_FC_MESSAGE_RESERVED_LENGTH];
 } __packed;
 
+#define MEI_HBM_NOTIFICATION_START 1
+#define MEI_HBM_NOTIFICATION_STOP  0
+/**
+ * struct hbm_notification_request - start/stop notification request
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr: address of the client in ME
+ * @host_addr: address of the client in the driver
+ * @start:  start = 1 or stop = 0 asynchronous notifications
+ */
+struct hbm_notification_request {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 host_addr;
+	u8 start;
+} __packed;
+
+/**
+ * struct hbm_notification_response - start/stop notification response
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr: address of the client in ME
+ * @host_addr: - address of the client in the driver
+ * @status: (mei_hbm_status) response status for the request
+ *  - MEI_HBMS_SUCCESS: successful stop/start
+ *  - MEI_HBMS_CLIENT_NOT_FOUND: if the connection could not be found.
+ *  - MEI_HBMS_ALREADY_STARTED: for start requests for a previously
+ *                         started notification.
+ *  - MEI_HBMS_NOT_STARTED: for stop request for a connected client for whom
+ *                         asynchronous notifications are currently disabled.
+ *
+ * @start:  start = 1 or stop = 0 asynchronous notifications
+ * @reserved: reserved
+ */
+struct hbm_notification_response {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 host_addr;
+	u8 status;
+	u8 start;
+	u8 reserved[3];
+} __packed;
+
+/**
+ * struct hbm_notification - notification event
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr:  address of the client in ME
+ * @host_addr:  address of the client in the driver
+ * @reserved: reserved for alignment
+ */
+struct hbm_notification {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 host_addr;
+	u8 reserved[1];
+} __packed;
 
 #endif

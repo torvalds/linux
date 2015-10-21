@@ -34,17 +34,17 @@ nvbios_cstepTe(struct nvkm_bios *bios,
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version == 2)
-			cstep = nv_ro16(bios, bit_P.offset + 0x34);
+			cstep = nvbios_rd16(bios, bit_P.offset + 0x34);
 
 		if (cstep) {
-			*ver = nv_ro08(bios, cstep + 0);
+			*ver = nvbios_rd08(bios, cstep + 0);
 			switch (*ver) {
 			case 0x10:
-				*hdr = nv_ro08(bios, cstep + 1);
-				*cnt = nv_ro08(bios, cstep + 3);
-				*len = nv_ro08(bios, cstep + 2);
-				*xnr = nv_ro08(bios, cstep + 5);
-				*xsz = nv_ro08(bios, cstep + 4);
+				*hdr = nvbios_rd08(bios, cstep + 1);
+				*cnt = nvbios_rd08(bios, cstep + 3);
+				*len = nvbios_rd08(bios, cstep + 2);
+				*xnr = nvbios_rd08(bios, cstep + 5);
+				*xsz = nvbios_rd08(bios, cstep + 4);
 				return cstep;
 			default:
 				break;
@@ -75,8 +75,8 @@ nvbios_cstepEp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	u16 data = nvbios_cstepEe(bios, idx, ver, hdr);
 	memset(info, 0x00, sizeof(*info));
 	if (data) {
-		info->pstate = (nv_ro16(bios, data + 0x00) & 0x01e0) >> 5;
-		info->index   = nv_ro08(bios, data + 0x03);
+		info->pstate = (nvbios_rd16(bios, data + 0x00) & 0x01e0) >> 5;
+		info->index   = nvbios_rd08(bios, data + 0x03);
 	}
 	return data;
 }
@@ -113,10 +113,10 @@ nvbios_cstepXp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	u16 data = nvbios_cstepXe(bios, idx, ver, hdr);
 	memset(info, 0x00, sizeof(*info));
 	if (data) {
-		info->freq    = nv_ro16(bios, data + 0x00) * 1000;
-		info->unkn[0] = nv_ro08(bios, data + 0x02);
-		info->unkn[1] = nv_ro08(bios, data + 0x03);
-		info->voltage = nv_ro08(bios, data + 0x04);
+		info->freq    = nvbios_rd16(bios, data + 0x00) * 1000;
+		info->unkn[0] = nvbios_rd08(bios, data + 0x02);
+		info->unkn[1] = nvbios_rd08(bios, data + 0x03);
+		info->voltage = nvbios_rd08(bios, data + 0x04);
 	}
 	return data;
 }

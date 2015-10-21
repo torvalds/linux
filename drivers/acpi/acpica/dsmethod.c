@@ -46,11 +46,9 @@
 #include "acdispat.h"
 #include "acinterp.h"
 #include "acnamesp.h"
-#ifdef	ACPI_DISASSEMBLER
-#include "acdisasm.h"
-#endif
 #include "acparser.h"
 #include "amlcode.h"
+#include "acdebug.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsmethod")
@@ -103,7 +101,7 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 
 	/* Create/Init a root op for the method parse tree */
 
-	op = acpi_ps_alloc_op(AML_METHOD_OP);
+	op = acpi_ps_alloc_op(AML_METHOD_OP, obj_desc->method.aml_start);
 	if (!op) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -116,6 +114,7 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	walk_state =
 	    acpi_ds_create_walk_state(node->owner_id, NULL, NULL, NULL);
 	if (!walk_state) {
+		acpi_ps_free_op(op);
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
@@ -125,6 +124,7 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 				  obj_desc->method.aml_length, NULL, 0);
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
+		acpi_ps_free_op(op);
 		return_ACPI_STATUS(status);
 	}
 
@@ -133,9 +133,6 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	/* Parse the method, scan for creation of named objects */
 
 	status = acpi_ps_parse_aml(walk_state);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
 
 	acpi_ps_delete_parse_tree(op);
 	return_ACPI_STATUS(status);
@@ -206,7 +203,7 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
  * RETURN:      Status
  *
  * DESCRIPTION: Called on method error. Invoke the global exception handler if
- *              present, dump the method data if the disassembler is configured
+ *              present, dump the method data if the debugger is configured
  *
  *              Note: Allows the exception handler to change the status code
  *
@@ -215,6 +212,8 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
 acpi_status
 acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
 {
+	u32 aml_offset;
+
 	ACPI_FUNCTION_ENTRY();
 
 	/* Ignore AE_OK and control exception codes */
@@ -235,26 +234,30 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
 		 * Handler can map the exception code to anything it wants, including
 		 * AE_OK, in which case the executing method will not be aborted.
 		 */
+		aml_offset = (u32)ACPI_PTR_DIFF(walk_state->aml,
+						walk_state->parser_state.
+						aml_start);
+
 		status = acpi_gbl_exception_handler(status,
 						    walk_state->method_node ?
 						    walk_state->method_node->
 						    name.integer : 0,
 						    walk_state->opcode,
-						    walk_state->aml_offset,
-						    NULL);
+						    aml_offset, NULL);
 		acpi_ex_enter_interpreter();
 	}
 
 	acpi_ds_clear_implicit_return(walk_state);
 
-#ifdef ACPI_DISASSEMBLER
 	if (ACPI_FAILURE(status)) {
+		acpi_ds_dump_method_stack(status, walk_state, walk_state->op);
 
-		/* Display method locals/args if disassembler is present */
+		/* Display method locals/args if debugger is present */
 
-		acpi_dm_dump_method_info(status, walk_state, walk_state->op);
-	}
+#ifdef ACPI_DEBUGGER
+		acpi_db_dump_method_info(status, walk_state);
 #endif
+	}
 
 	return (status);
 }
@@ -328,6 +331,8 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 	if (!method_node) {
 		return_ACPI_STATUS(AE_NULL_ENTRY);
 	}
+
+	acpi_ex_start_trace_method(method_node, obj_desc, walk_state);
 
 	/* Prevent wraparound of thread count */
 
@@ -575,9 +580,7 @@ cleanup:
 	/* On error, we must terminate the method properly */
 
 	acpi_ds_terminate_control_method(obj_desc, next_walk_state);
-	if (next_walk_state) {
-		acpi_ds_delete_walk_state(next_walk_state);
-	}
+	acpi_ds_delete_walk_state(next_walk_state);
 
 	return_ACPI_STATUS(status);
 }
@@ -826,6 +829,9 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 			acpi_ut_release_owner_id(&method_desc->method.owner_id);
 		}
 	}
+
+	acpi_ex_stop_trace_method((struct acpi_namespace_node *)method_desc->
+				  method.node, method_desc, walk_state);
 
 	return_VOID;
 }

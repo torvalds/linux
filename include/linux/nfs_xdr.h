@@ -316,6 +316,49 @@ struct nfs4_layoutreturn {
 	int rpc_status;
 };
 
+#define PNFS_LAYOUTSTATS_MAXSIZE 256
+
+struct nfs42_layoutstat_args;
+struct nfs42_layoutstat_devinfo;
+typedef	void (*layoutstats_encode_t)(struct xdr_stream *,
+		struct nfs42_layoutstat_args *,
+		struct nfs42_layoutstat_devinfo *);
+
+/* Per file per deviceid layoutstats */
+struct nfs42_layoutstat_devinfo {
+	struct nfs4_deviceid dev_id;
+	__u64 offset;
+	__u64 length;
+	__u64 read_count;
+	__u64 read_bytes;
+	__u64 write_count;
+	__u64 write_bytes;
+	__u32 layout_type;
+	layoutstats_encode_t layoutstats_encode;
+	void *layout_private;
+};
+
+struct nfs42_layoutstat_args {
+	struct nfs4_sequence_args seq_args;
+	struct nfs_fh *fh;
+	struct inode *inode;
+	nfs4_stateid stateid;
+	int num_dev;
+	struct nfs42_layoutstat_devinfo *devinfo;
+};
+
+struct nfs42_layoutstat_res {
+	struct nfs4_sequence_res seq_res;
+	int num_dev;
+	int rpc_status;
+};
+
+struct nfs42_layoutstat_data {
+	struct inode *inode;
+	struct nfs42_layoutstat_args args;
+	struct nfs42_layoutstat_res res;
+};
+
 struct stateowner_id {
 	__u64	create_time;
 	__u32	uniquifier;
@@ -336,7 +379,7 @@ struct nfs_openargs {
 	struct stateowner_id	id;
 	union {
 		struct {
-			struct iattr *  attrs;    /* UNCHECKED, GUARDED */
+			struct iattr *  attrs;    /* UNCHECKED, GUARDED, EXCLUSIVE4_1 */
 			nfs4_verifier   verifier; /* EXCLUSIVE */
 		};
 		nfs4_stateid	delegation;		/* CLAIM_DELEGATE_CUR */
@@ -346,7 +389,7 @@ struct nfs_openargs {
 	const struct nfs_server *server;	 /* Needed for ID mapping */
 	const u32 *		bitmask;
 	const u32 *		open_bitmap;
-	__u32			claim;
+	enum open_claim_type4	claim;
 	enum createmode4	createmode;
 	const struct nfs4_label *label;
 };
@@ -363,8 +406,8 @@ struct nfs_openres {
 	const struct nfs_server *server;
 	fmode_t			delegation_type;
 	nfs4_stateid		delegation;
+	unsigned long		pagemod_limit;
 	__u32			do_recall;
-	__u64			maxsize;
 	__u32			attrset[NFS4_BITMAP_SIZE];
 	struct nfs4_string	*owner;
 	struct nfs4_string	*group_owner;
@@ -984,17 +1027,14 @@ struct nfs4_readlink_res {
 	struct nfs4_sequence_res	seq_res;
 };
 
-#define NFS4_SETCLIENTID_NAMELEN	(127)
 struct nfs4_setclientid {
 	const nfs4_verifier *		sc_verifier;
-	unsigned int			sc_name_len;
-	char				sc_name[NFS4_SETCLIENTID_NAMELEN + 1];
 	u32				sc_prog;
 	unsigned int			sc_netid_len;
 	char				sc_netid[RPCBIND_MAXNETIDLEN + 1];
 	unsigned int			sc_uaddr_len;
 	char				sc_uaddr[RPCBIND_MAXUADDRLEN + 1];
-	u32				sc_cb_ident;
+	struct nfs_client		*sc_clnt;
 	struct rpc_cred			*sc_cred;
 };
 
@@ -1017,11 +1057,13 @@ struct nfs4_statfs_res {
 struct nfs4_server_caps_arg {
 	struct nfs4_sequence_args	seq_args;
 	struct nfs_fh		       *fhandle;
+	const u32 *			bitmask;
 };
 
 struct nfs4_server_caps_res {
 	struct nfs4_sequence_res	seq_res;
 	u32				attr_bitmask[3];
+	u32				exclcreat_bitmask[3];
 	u32				acl_bitmask;
 	u32				has_links;
 	u32				has_symlinks;
@@ -1142,12 +1184,9 @@ struct nfs41_state_protection {
 	struct nfs4_op_map allow;
 };
 
-#define NFS4_EXCHANGE_ID_LEN	(48)
 struct nfs41_exchange_id_args {
 	struct nfs_client		*client;
 	nfs4_verifier			*verifier;
-	unsigned int 			id_len;
-	char 				id[NFS4_EXCHANGE_ID_LEN];
 	u32				flags;
 	struct nfs41_state_protection	state_protect;
 };

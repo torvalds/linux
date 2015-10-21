@@ -272,8 +272,8 @@ struct probe_arg {
 
 struct trace_probe {
 	unsigned int			flags;	/* For TP_FLAG_* */
-	struct ftrace_event_class	class;
-	struct ftrace_event_call	call;
+	struct trace_event_class	class;
+	struct trace_event_call		call;
 	struct list_head 		files;
 	ssize_t				size;	/* trace entry size */
 	unsigned int			nr_args;
@@ -281,7 +281,7 @@ struct trace_probe {
 };
 
 struct event_file_link {
-	struct ftrace_event_file	*file;
+	struct trace_event_file		*file;
 	struct list_head		list;
 };
 
@@ -314,7 +314,7 @@ static inline int is_good_name(const char *name)
 }
 
 static inline struct event_file_link *
-find_event_file_link(struct trace_probe *tp, struct ftrace_event_file *file)
+find_event_file_link(struct trace_probe *tp, struct trace_event_file *file)
 {
 	struct event_file_link *link;
 

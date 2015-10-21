@@ -26,6 +26,7 @@
 
 struct xgene_enet_pdata;
 struct xgene_enet_stats;
+struct xgene_enet_desc_ring;
 
 /* clears and then set bits */
 static inline void xgene_set_bits(u32 *dst, u32 val, u32 start, u32 len)
@@ -101,8 +102,8 @@ enum xgene_enet_rm {
 
 #define BLOCK_ETH_CSR_OFFSET		0x2000
 #define BLOCK_ETH_RING_IF_OFFSET	0x9000
+#define BLOCK_ETH_CLKRST_CSR_OFFSET	0xc000
 #define BLOCK_ETH_DIAG_CSR_OFFSET	0xD000
-
 #define BLOCK_ETH_MAC_OFFSET		0x0000
 #define BLOCK_ETH_MAC_CSR_OFFSET	0x2800
 
@@ -192,12 +193,16 @@ enum xgene_enet_rm {
 #define USERINFO_LEN			32
 #define FPQNUM_POS			32
 #define FPQNUM_LEN			12
+#define NV_POS				50
+#define NV_LEN				1
+#define LL_POS				51
+#define LL_LEN				1
 #define LERR_POS			60
 #define LERR_LEN			3
 #define STASH_POS			52
 #define STASH_LEN			2
 #define BUFDATALEN_POS			48
-#define BUFDATALEN_LEN			12
+#define BUFDATALEN_LEN			15
 #define DATAADDR_POS			0
 #define DATAADDR_LEN			42
 #define COHERENT_POS			63
@@ -214,9 +219,19 @@ enum xgene_enet_rm {
 #define IPHDR_LEN			6
 #define EC_POS				22	/* Enable checksum */
 #define EC_LEN				1
+#define ET_POS				23	/* Enable TSO */
 #define IS_POS				24	/* IP protocol select */
 #define IS_LEN				1
 #define TYPE_ETH_WORK_MESSAGE_POS	44
+#define LL_BYTES_MSB_POS		56
+#define LL_BYTES_MSB_LEN		8
+#define LL_BYTES_LSB_POS		48
+#define LL_BYTES_LSB_LEN		12
+#define LL_LEN_POS			48
+#define LL_LEN_LEN			8
+#define DATALEN_MASK			GENMASK(11, 0)
+
+#define LAST_BUFFER			(0x7800ULL << BUFDATALEN_POS)
 
 struct xgene_enet_raw_desc {
 	__le64 m0;
@@ -261,6 +276,7 @@ enum xgene_enet_ring_type {
 
 enum xgene_ring_owner {
 	RING_OWNER_ETH0,
+	RING_OWNER_ETH1,
 	RING_OWNER_CPU = 15,
 	RING_OWNER_INVALID
 };
@@ -314,9 +330,6 @@ static inline u16 xgene_enet_get_numslots(u16 id, u32 size)
 		      size / WORK_DESC_SIZE;
 }
 
-struct xgene_enet_desc_ring *xgene_enet_setup_ring(
-		struct xgene_enet_desc_ring *ring);
-void xgene_enet_clear_ring(struct xgene_enet_desc_ring *ring);
 void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status);
@@ -327,5 +340,6 @@ bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
 
 extern struct xgene_mac_ops xgene_gmac_ops;
 extern struct xgene_port_ops xgene_gport_ops;
+extern struct xgene_ring_ops xgene_ring1_ops;
 
 #endif /* __XGENE_ENET_HW_H__ */

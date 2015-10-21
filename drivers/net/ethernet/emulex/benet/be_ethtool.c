@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -123,7 +123,6 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(dma_map_errors)},
 	/* Number of packets dropped due to random early drop function */
 	{DRVSTAT_INFO(eth_red_drops)},
-	{DRVSTAT_INFO(be_on_die_temperature)},
 	{DRVSTAT_INFO(rx_roce_bytes_lsd)},
 	{DRVSTAT_INFO(rx_roce_bytes_msd)},
 	{DRVSTAT_INFO(rx_roce_frames)},
@@ -139,6 +138,7 @@ static const struct be_ethtool_stat et_stats[] = {
 static const struct be_ethtool_stat et_rx_stats[] = {
 	{DRVSTAT_RX_INFO(rx_bytes)},/* If moving this member see above note */
 	{DRVSTAT_RX_INFO(rx_pkts)}, /* If moving this member see above note */
+	{DRVSTAT_RX_INFO(rx_vxlan_offload_pkts)},
 	{DRVSTAT_RX_INFO(rx_compl)},
 	{DRVSTAT_RX_INFO(rx_compl_err)},
 	{DRVSTAT_RX_INFO(rx_mcast_pkts)},
@@ -191,6 +191,7 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	{DRVSTAT_TX_INFO(tx_internal_parity_err)},
 	{DRVSTAT_TX_INFO(tx_bytes)},
 	{DRVSTAT_TX_INFO(tx_pkts)},
+	{DRVSTAT_TX_INFO(tx_vxlan_offload_pkts)},
 	/* Number of skbs queued for trasmission by the driver */
 	{DRVSTAT_TX_INFO(tx_reqs)},
 	/* Number of times the TX queue was stopped due to lack
@@ -367,6 +368,14 @@ static int be_set_coalesce(struct net_device *netdev,
 		aic->et_eqd = max(aic->et_eqd, aic->min_eqd);
 		aic++;
 	}
+
+	/* For Skyhawk, the EQD setting happens via EQ_DB when AIC is enabled.
+	 * When AIC is disabled, persistently force set EQD value via the
+	 * FW cmd, so that we don't have to calculate the delay multiplier
+	 * encode value each time EQ_DB is rung
+	 */
+	if (!et->use_adaptive_rx_coalesce && skyhawk_chip(adapter))
+		be_eqd_update(adapter, true);
 
 	return 0;
 }
@@ -840,10 +849,21 @@ err:
 static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
 			    u64 *status)
 {
-	be_cmd_set_loopback(adapter, adapter->hba_port_num, loopback_type, 1);
+	int ret;
+
+	ret = be_cmd_set_loopback(adapter, adapter->hba_port_num,
+				  loopback_type, 1);
+	if (ret)
+		return ret;
+
 	*status = be_cmd_loopback_test(adapter, adapter->hba_port_num,
 				       loopback_type, 1500, 2, 0xabc);
-	be_cmd_set_loopback(adapter, adapter->hba_port_num, BE_NO_LOOPBACK, 1);
+
+	ret = be_cmd_set_loopback(adapter, adapter->hba_port_num,
+				  BE_NO_LOOPBACK, 1);
+	if (ret)
+		return ret;
+
 	return *status;
 }
 

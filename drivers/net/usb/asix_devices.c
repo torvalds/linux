@@ -959,6 +959,10 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x08dd, 0x90ff),
 	.driver_info =  (unsigned long) &ax8817x_info,
 }, {
+	// Billionton Systems, GUSB2AM-1G-B
+	USB_DEVICE(0x08dd, 0x0114),
+	.driver_info =  (unsigned long) &ax88178_info,
+}, {
 	// ATEN UC210T
 	USB_DEVICE (0x0557, 0x2009),
 	.driver_info =  (unsigned long) &ax8817x_info,

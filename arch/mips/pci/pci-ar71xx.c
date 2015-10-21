@@ -226,13 +226,13 @@ static struct pci_ops ar71xx_pci_ops = {
 	.write	= ar71xx_pci_write_config,
 };
 
-static void ar71xx_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ar71xx_pci_irq_handler(struct irq_desc *desc)
 {
 	struct ar71xx_pci_controller *apc;
 	void __iomem *base = ath79_reset_base;
 	u32 pending;
 
-	apc = irq_get_handler_data(irq);
+	apc = irq_desc_get_handler_data(desc);
 
 	pending = __raw_readl(base + AR71XX_RESET_REG_PCI_INT_STATUS) &
 		  __raw_readl(base + AR71XX_RESET_REG_PCI_INT_ENABLE);
@@ -312,29 +312,19 @@ static void ar71xx_pci_irq_init(struct ar71xx_pci_controller *apc)
 		irq_set_chip_data(i, apc);
 	}
 
-	irq_set_handler_data(apc->irq, apc);
-	irq_set_chained_handler(apc->irq, ar71xx_pci_irq_handler);
+	irq_set_chained_handler_and_data(apc->irq, ar71xx_pci_irq_handler,
+					 apc);
 }
 
 static void ar71xx_pci_reset(void)
 {
-	void __iomem *ddr_base = ath79_ddr_base;
-
 	ath79_device_reset_set(AR71XX_RESET_PCI_BUS | AR71XX_RESET_PCI_CORE);
 	mdelay(100);
 
 	ath79_device_reset_clear(AR71XX_RESET_PCI_BUS | AR71XX_RESET_PCI_CORE);
 	mdelay(100);
 
-	__raw_writel(AR71XX_PCI_WIN0_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN0);
-	__raw_writel(AR71XX_PCI_WIN1_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN1);
-	__raw_writel(AR71XX_PCI_WIN2_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN2);
-	__raw_writel(AR71XX_PCI_WIN3_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN3);
-	__raw_writel(AR71XX_PCI_WIN4_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN4);
-	__raw_writel(AR71XX_PCI_WIN5_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN5);
-	__raw_writel(AR71XX_PCI_WIN6_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN6);
-	__raw_writel(AR71XX_PCI_WIN7_OFFS, ddr_base + AR71XX_DDR_REG_PCI_WIN7);
-
+	ath79_ddr_set_pci_windows();
 	mdelay(100);
 }
 

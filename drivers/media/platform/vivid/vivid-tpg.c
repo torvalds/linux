@@ -220,6 +220,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_ARGB32:
 	case V4L2_PIX_FMT_ABGR32:
 	case V4L2_PIX_FMT_GREY:
+	case V4L2_PIX_FMT_Y16:
+	case V4L2_PIX_FMT_Y16_BE:
 		tpg->is_yuv = false;
 		break;
 	case V4L2_PIX_FMT_YUV444:
@@ -292,6 +294,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	}
 
 	switch (fourcc) {
+	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_RGB332:
 		tpg->twopixelsize[0] = 2;
 		break;
@@ -313,6 +316,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_YUV555:
 	case V4L2_PIX_FMT_YUV565:
+	case V4L2_PIX_FMT_Y16:
+	case V4L2_PIX_FMT_Y16_BE:
 		tpg->twopixelsize[0] = 2 * 2;
 		break;
 	case V4L2_PIX_FMT_RGB24:
@@ -328,9 +333,6 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_ABGR32:
 	case V4L2_PIX_FMT_YUV32:
 		tpg->twopixelsize[0] = 2 * 4;
-		break;
-	case V4L2_PIX_FMT_GREY:
-		tpg->twopixelsize[0] = 2;
 		break;
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
@@ -479,44 +481,71 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 		{ COEFF(-0.116, 224), COEFF(-0.384, 224), COEFF(0.5, 224)    },
 		{ COEFF(0.5, 224),    COEFF(-0.445, 224), COEFF(-0.055, 224) },
 	};
+	static const int smpte240m_full[3][3] = {
+		{ COEFF(0.212, 255),  COEFF(0.701, 255),  COEFF(0.087, 255)  },
+		{ COEFF(-0.116, 255), COEFF(-0.384, 255), COEFF(0.5, 255)    },
+		{ COEFF(0.5, 255),    COEFF(-0.445, 255), COEFF(-0.055, 255) },
+	};
 	static const int bt2020[3][3] = {
 		{ COEFF(0.2627, 219),  COEFF(0.6780, 219),  COEFF(0.0593, 219)  },
 		{ COEFF(-0.1396, 224), COEFF(-0.3604, 224), COEFF(0.5, 224)     },
 		{ COEFF(0.5, 224),     COEFF(-0.4598, 224), COEFF(-0.0402, 224) },
 	};
+	static const int bt2020_full[3][3] = {
+		{ COEFF(0.2627, 255),  COEFF(0.6780, 255),  COEFF(0.0593, 255)  },
+		{ COEFF(-0.1396, 255), COEFF(-0.3604, 255), COEFF(0.5, 255)     },
+		{ COEFF(0.5, 255),     COEFF(-0.4698, 255), COEFF(-0.0402, 255) },
+	};
+	static const int bt2020c[4] = {
+		COEFF(1.0 / 1.9404, 224), COEFF(1.0 / 1.5816, 224),
+		COEFF(1.0 / 1.7184, 224), COEFF(1.0 / 0.9936, 224),
+	};
+	static const int bt2020c_full[4] = {
+		COEFF(1.0 / 1.9404, 255), COEFF(1.0 / 1.5816, 255),
+		COEFF(1.0 / 1.7184, 255), COEFF(1.0 / 0.9936, 255),
+	};
+
 	bool full = tpg->real_quantization == V4L2_QUANTIZATION_FULL_RANGE;
 	unsigned y_offset = full ? 0 : 16;
 	int lin_y, yc;
 
 	switch (tpg->real_ycbcr_enc) {
 	case V4L2_YCBCR_ENC_601:
-	case V4L2_YCBCR_ENC_XV601:
 	case V4L2_YCBCR_ENC_SYCC:
 		rgb2ycbcr(full ? bt601_full : bt601, r, g, b, y_offset, y, cb, cr);
 		break;
+	case V4L2_YCBCR_ENC_XV601:
+		/* Ignore quantization range, there is only one possible
+		 * Y'CbCr encoding. */
+		rgb2ycbcr(bt601, r, g, b, 16, y, cb, cr);
+		break;
+	case V4L2_YCBCR_ENC_XV709:
+		/* Ignore quantization range, there is only one possible
+		 * Y'CbCr encoding. */
+		rgb2ycbcr(rec709, r, g, b, 16, y, cb, cr);
+		break;
 	case V4L2_YCBCR_ENC_BT2020:
-		rgb2ycbcr(bt2020, r, g, b, 16, y, cb, cr);
+		rgb2ycbcr(full ? bt2020_full : bt2020, r, g, b, y_offset, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_BT2020_CONST_LUM:
 		lin_y = (COEFF(0.2627, 255) * rec709_to_linear(r) +
 			 COEFF(0.6780, 255) * rec709_to_linear(g) +
 			 COEFF(0.0593, 255) * rec709_to_linear(b)) >> 16;
 		yc = linear_to_rec709(lin_y);
-		*y = (yc * 219) / 255 + (16 << 4);
+		*y = full ? yc : (yc * 219) / 255 + (16 << 4);
 		if (b <= yc)
-			*cb = (((b - yc) * COEFF(1.0 / 1.9404, 224)) >> 16) + (128 << 4);
+			*cb = (((b - yc) * (full ? bt2020c_full[0] : bt2020c[0])) >> 16) + (128 << 4);
 		else
-			*cb = (((b - yc) * COEFF(1.0 / 1.5816, 224)) >> 16) + (128 << 4);
+			*cb = (((b - yc) * (full ? bt2020c_full[1] : bt2020c[1])) >> 16) + (128 << 4);
 		if (r <= yc)
-			*cr = (((r - yc) * COEFF(1.0 / 1.7184, 224)) >> 16) + (128 << 4);
+			*cr = (((r - yc) * (full ? bt2020c_full[2] : bt2020c[2])) >> 16) + (128 << 4);
 		else
-			*cr = (((r - yc) * COEFF(1.0 / 0.9936, 224)) >> 16) + (128 << 4);
+			*cr = (((r - yc) * (full ? bt2020c_full[3] : bt2020c[3])) >> 16) + (128 << 4);
 		break;
 	case V4L2_YCBCR_ENC_SMPTE240M:
-		rgb2ycbcr(smpte240m, r, g, b, 16, y, cb, cr);
+		rgb2ycbcr(full ? smpte240m_full : smpte240m, r, g, b, y_offset, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_709:
-	case V4L2_YCBCR_ENC_XV709:
 	default:
 		rgb2ycbcr(full ? rec709_full : rec709, r, g, b, y_offset, y, cb, cr);
 		break;
@@ -567,42 +596,71 @@ static void ycbcr_to_color(struct tpg_data *tpg, int y, int cb, int cr,
 		{ COEFF(1, 219), COEFF(-0.2253, 224), COEFF(-0.4767, 224) },
 		{ COEFF(1, 219), COEFF(1.8270, 224),  COEFF(0, 224)       },
 	};
+	static const int smpte240m_full[3][3] = {
+		{ COEFF(1, 255), COEFF(0, 255),       COEFF(1.5756, 255)  },
+		{ COEFF(1, 255), COEFF(-0.2253, 255), COEFF(-0.4767, 255) },
+		{ COEFF(1, 255), COEFF(1.8270, 255),  COEFF(0, 255)       },
+	};
 	static const int bt2020[3][3] = {
 		{ COEFF(1, 219), COEFF(0, 224),       COEFF(1.4746, 224)  },
 		{ COEFF(1, 219), COEFF(-0.1646, 224), COEFF(-0.5714, 224) },
 		{ COEFF(1, 219), COEFF(1.8814, 224),  COEFF(0, 224)       },
 	};
+	static const int bt2020_full[3][3] = {
+		{ COEFF(1, 255), COEFF(0, 255),       COEFF(1.4746, 255)  },
+		{ COEFF(1, 255), COEFF(-0.1646, 255), COEFF(-0.5714, 255) },
+		{ COEFF(1, 255), COEFF(1.8814, 255),  COEFF(0, 255)       },
+	};
+	static const int bt2020c[4] = {
+		COEFF(1.9404, 224), COEFF(1.5816, 224),
+		COEFF(1.7184, 224), COEFF(0.9936, 224),
+	};
+	static const int bt2020c_full[4] = {
+		COEFF(1.9404, 255), COEFF(1.5816, 255),
+		COEFF(1.7184, 255), COEFF(0.9936, 255),
+	};
+
 	bool full = tpg->real_quantization == V4L2_QUANTIZATION_FULL_RANGE;
 	unsigned y_offset = full ? 0 : 16;
+	int y_fac = full ? COEFF(1.0, 255) : COEFF(1.0, 219);
 	int lin_r, lin_g, lin_b, lin_y;
 
 	switch (tpg->real_ycbcr_enc) {
 	case V4L2_YCBCR_ENC_601:
-	case V4L2_YCBCR_ENC_XV601:
 	case V4L2_YCBCR_ENC_SYCC:
 		ycbcr2rgb(full ? bt601_full : bt601, y, cb, cr, y_offset, r, g, b);
 		break;
+	case V4L2_YCBCR_ENC_XV601:
+		/* Ignore quantization range, there is only one possible
+		 * Y'CbCr encoding. */
+		ycbcr2rgb(bt601, y, cb, cr, 16, r, g, b);
+		break;
+	case V4L2_YCBCR_ENC_XV709:
+		/* Ignore quantization range, there is only one possible
+		 * Y'CbCr encoding. */
+		ycbcr2rgb(rec709, y, cb, cr, 16, r, g, b);
+		break;
 	case V4L2_YCBCR_ENC_BT2020:
-		ycbcr2rgb(bt2020, y, cb, cr, 16, r, g, b);
+		ycbcr2rgb(full ? bt2020_full : bt2020, y, cb, cr, y_offset, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_BT2020_CONST_LUM:
-		y -= 16 << 4;
+		y -= full ? 0 : 16 << 4;
 		cb -= 128 << 4;
 		cr -= 128 << 4;
 
 		if (cb <= 0)
-			*b = COEFF(1.0, 219) * y + COEFF(1.9404, 224) * cb;
+			*b = y_fac * y + (full ? bt2020c_full[0] : bt2020c[0]) * cb;
 		else
-			*b = COEFF(1.0, 219) * y + COEFF(1.5816, 224) * cb;
+			*b = y_fac * y + (full ? bt2020c_full[1] : bt2020c[1]) * cb;
 		*b = *b >> 12;
 		if (cr <= 0)
-			*r = COEFF(1.0, 219) * y + COEFF(1.7184, 224) * cr;
+			*r = y_fac * y + (full ? bt2020c_full[2] : bt2020c[2]) * cr;
 		else
-			*r = COEFF(1.0, 219) * y + COEFF(0.9936, 224) * cr;
+			*r = y_fac * y + (full ? bt2020c_full[3] : bt2020c[3]) * cr;
 		*r = *r >> 12;
 		lin_r = rec709_to_linear(*r);
 		lin_b = rec709_to_linear(*b);
-		lin_y = rec709_to_linear((y * 255) / 219);
+		lin_y = rec709_to_linear((y * 255) / (full ? 255 : 219));
 
 		lin_g = COEFF(1.0 / 0.6780, 255) * lin_y -
 			COEFF(0.2627 / 0.6780, 255) * lin_r -
@@ -610,10 +668,9 @@ static void ycbcr_to_color(struct tpg_data *tpg, int y, int cb, int cr,
 		*g = linear_to_rec709(lin_g >> 12);
 		break;
 	case V4L2_YCBCR_ENC_SMPTE240M:
-		ycbcr2rgb(smpte240m, y, cb, cr, 16, r, g, b);
+		ycbcr2rgb(full ? smpte240m_full : smpte240m, y, cb, cr, y_offset, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_709:
-	case V4L2_YCBCR_ENC_XV709:
 	default:
 		ycbcr2rgb(full ? rec709_full : rec709, y, cb, cr, y_offset, r, g, b);
 		break;
@@ -649,15 +706,17 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	}
 
 	if (tpg->pattern == TPG_PAT_CSC_COLORBAR && col <= TPG_COLOR_CSC_BLACK) {
-		r = tpg_csc_colors[tpg->colorspace][col].r;
-		g = tpg_csc_colors[tpg->colorspace][col].g;
-		b = tpg_csc_colors[tpg->colorspace][col].b;
+		r = tpg_csc_colors[tpg->colorspace][tpg->real_xfer_func][col].r;
+		g = tpg_csc_colors[tpg->colorspace][tpg->real_xfer_func][col].g;
+		b = tpg_csc_colors[tpg->colorspace][tpg->real_xfer_func][col].b;
 	} else {
 		r <<= 4;
 		g <<= 4;
 		b <<= 4;
 	}
-	if (tpg->qual == TPG_QUAL_GRAY || tpg->fourcc == V4L2_PIX_FMT_GREY) {
+	if (tpg->qual == TPG_QUAL_GRAY || tpg->fourcc == V4L2_PIX_FMT_GREY ||
+	    tpg->fourcc == V4L2_PIX_FMT_Y16 ||
+	    tpg->fourcc == V4L2_PIX_FMT_Y16_BE) {
 		/* Rec. 709 Luma function */
 		/* (0.2126, 0.7152, 0.0722) * (255 * 256) */
 		r = g = b = (13879 * r + 46688 * g + 4713 * b) >> 16;
@@ -839,6 +898,21 @@ static void gen_twopix(struct tpg_data *tpg,
 	switch (tpg->fourcc) {
 	case V4L2_PIX_FMT_GREY:
 		buf[0][offset] = r_y;
+		break;
+	case V4L2_PIX_FMT_Y16:
+		/*
+		 * Ideally both bytes should be set to r_y, but then you won't
+		 * be able to detect endian problems. So keep it 0 except for
+		 * the corner case where r_y is 0xff so white really will be
+		 * white (0xffff).
+		 */
+		buf[0][offset] = r_y == 0xff ? r_y : 0;
+		buf[0][offset+1] = r_y;
+		break;
+	case V4L2_PIX_FMT_Y16_BE:
+		/* See comment for V4L2_PIX_FMT_Y16 above */
+		buf[0][offset] = r_y;
+		buf[0][offset+1] = r_y == 0xff ? r_y : 0;
 		break;
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV420:
@@ -1395,42 +1469,10 @@ static void tpg_precalculate_line(struct tpg_data *tpg)
 /* need this to do rgb24 rendering */
 typedef struct { u16 __; u8 _; } __packed x24;
 
-void tpg_gen_text(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
-		  int y, int x, char *text)
-{
-	int line;
-	unsigned step = V4L2_FIELD_HAS_T_OR_B(tpg->field) ? 2 : 1;
-	unsigned div = step;
-	unsigned first = 0;
-	unsigned len = strlen(text);
-	unsigned p;
-
-	if (font8x16 == NULL || basep == NULL)
-		return;
-
-	/* Checks if it is possible to show string */
-	if (y + 16 >= tpg->compose.height || x + 8 >= tpg->compose.width)
-		return;
-
-	if (len > (tpg->compose.width - x) / 8)
-		len = (tpg->compose.width - x) / 8;
-	if (tpg->vflip)
-		y = tpg->compose.height - y - 16;
-	if (tpg->hflip)
-		x = tpg->compose.width - x - 8;
-	y += tpg->compose.top;
-	x += tpg->compose.left;
-	if (tpg->field == V4L2_FIELD_BOTTOM)
-		first = 1;
-	else if (tpg->field == V4L2_FIELD_SEQ_TB || tpg->field == V4L2_FIELD_SEQ_BT)
-		div = 2;
-
-	for (p = 0; p < tpg->planes; p++) {
-		unsigned vdiv = tpg->vdownsampling[p];
-		unsigned hdiv = tpg->hdownsampling[p];
-
-		/* Print text */
 #define PRINTSTR(PIXTYPE) do {	\
+	unsigned vdiv = tpg->vdownsampling[p]; \
+	unsigned hdiv = tpg->hdownsampling[p]; \
+	int line;	\
 	PIXTYPE fg;	\
 	PIXTYPE bg;	\
 	memcpy(&fg, tpg->textfg[p], sizeof(PIXTYPE));	\
@@ -1481,15 +1523,82 @@ void tpg_gen_text(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 	}	\
 } while (0)
 
+static noinline void tpg_print_str_2(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+			unsigned p, unsigned first, unsigned div, unsigned step,
+			int y, int x, char *text, unsigned len)
+{
+	PRINTSTR(u8);
+}
+
+static noinline void tpg_print_str_4(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+			unsigned p, unsigned first, unsigned div, unsigned step,
+			int y, int x, char *text, unsigned len)
+{
+	PRINTSTR(u16);
+}
+
+static noinline void tpg_print_str_6(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+			unsigned p, unsigned first, unsigned div, unsigned step,
+			int y, int x, char *text, unsigned len)
+{
+	PRINTSTR(x24);
+}
+
+static noinline void tpg_print_str_8(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+			unsigned p, unsigned first, unsigned div, unsigned step,
+			int y, int x, char *text, unsigned len)
+{
+	PRINTSTR(u32);
+}
+
+void tpg_gen_text(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+		  int y, int x, char *text)
+{
+	unsigned step = V4L2_FIELD_HAS_T_OR_B(tpg->field) ? 2 : 1;
+	unsigned div = step;
+	unsigned first = 0;
+	unsigned len = strlen(text);
+	unsigned p;
+
+	if (font8x16 == NULL || basep == NULL)
+		return;
+
+	/* Checks if it is possible to show string */
+	if (y + 16 >= tpg->compose.height || x + 8 >= tpg->compose.width)
+		return;
+
+	if (len > (tpg->compose.width - x) / 8)
+		len = (tpg->compose.width - x) / 8;
+	if (tpg->vflip)
+		y = tpg->compose.height - y - 16;
+	if (tpg->hflip)
+		x = tpg->compose.width - x - 8;
+	y += tpg->compose.top;
+	x += tpg->compose.left;
+	if (tpg->field == V4L2_FIELD_BOTTOM)
+		first = 1;
+	else if (tpg->field == V4L2_FIELD_SEQ_TB || tpg->field == V4L2_FIELD_SEQ_BT)
+		div = 2;
+
+	for (p = 0; p < tpg->planes; p++) {
+		/* Print text */
 		switch (tpg->twopixelsize[p]) {
 		case 2:
-			PRINTSTR(u8); break;
+			tpg_print_str_2(tpg, basep, p, first, div, step, y, x,
+					text, len);
+			break;
 		case 4:
-			PRINTSTR(u16); break;
+			tpg_print_str_4(tpg, basep, p, first, div, step, y, x,
+					text, len);
+			break;
 		case 6:
-			PRINTSTR(x24); break;
+			tpg_print_str_6(tpg, basep, p, first, div, step, y, x,
+					text, len);
+			break;
 		case 8:
-			PRINTSTR(u32); break;
+			tpg_print_str_8(tpg, basep, p, first, div, step, y, x,
+					text, len);
+			break;
 		}
 	}
 }
@@ -1583,50 +1692,23 @@ static void tpg_recalc(struct tpg_data *tpg)
 	if (tpg->recalc_colors) {
 		tpg->recalc_colors = false;
 		tpg->recalc_lines = true;
+		tpg->real_xfer_func = tpg->xfer_func;
 		tpg->real_ycbcr_enc = tpg->ycbcr_enc;
 		tpg->real_quantization = tpg->quantization;
-		if (tpg->ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT) {
-			switch (tpg->colorspace) {
-			case V4L2_COLORSPACE_REC709:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_709;
-				break;
-			case V4L2_COLORSPACE_SRGB:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_SYCC;
-				break;
-			case V4L2_COLORSPACE_BT2020:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_BT2020;
-				break;
-			case V4L2_COLORSPACE_SMPTE240M:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_SMPTE240M;
-				break;
-			case V4L2_COLORSPACE_SMPTE170M:
-			case V4L2_COLORSPACE_470_SYSTEM_M:
-			case V4L2_COLORSPACE_470_SYSTEM_BG:
-			case V4L2_COLORSPACE_ADOBERGB:
-			default:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_601;
-				break;
-			}
-		}
-		if (tpg->quantization == V4L2_QUANTIZATION_DEFAULT) {
-			tpg->real_quantization = V4L2_QUANTIZATION_FULL_RANGE;
-			if (tpg->is_yuv) {
-				switch (tpg->real_ycbcr_enc) {
-				case V4L2_YCBCR_ENC_SYCC:
-				case V4L2_YCBCR_ENC_XV601:
-				case V4L2_YCBCR_ENC_XV709:
-					break;
-				default:
-					tpg->real_quantization =
-						V4L2_QUANTIZATION_LIM_RANGE;
-					break;
-				}
-			} else if (tpg->colorspace == V4L2_COLORSPACE_BT2020) {
-				/* R'G'B' BT.2020 is limited range */
-				tpg->real_quantization =
-					V4L2_QUANTIZATION_LIM_RANGE;
-			}
-		}
+
+		if (tpg->xfer_func == V4L2_XFER_FUNC_DEFAULT)
+			tpg->real_xfer_func =
+				V4L2_MAP_XFER_FUNC_DEFAULT(tpg->colorspace);
+
+		if (tpg->ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT)
+			tpg->real_ycbcr_enc =
+				V4L2_MAP_YCBCR_ENC_DEFAULT(tpg->colorspace);
+
+		if (tpg->quantization == V4L2_QUANTIZATION_DEFAULT)
+			tpg->real_quantization =
+				V4L2_MAP_QUANTIZATION_DEFAULT(!tpg->is_yuv,
+					tpg->colorspace, tpg->real_ycbcr_enc);
+
 		tpg_precalculate_colors(tpg);
 	}
 	if (tpg->recalc_square_border) {
@@ -1668,6 +1750,23 @@ static int tpg_pattern_avg(const struct tpg_data *tpg,
 	if (pat2 == (pat1 + 1) % pat_lines)
 		return pat1;
 	return -1;
+}
+
+void tpg_log_status(struct tpg_data *tpg)
+{
+	pr_info("tpg source WxH: %ux%u (%s)\n",
+			tpg->src_width, tpg->src_height,
+			tpg->is_yuv ? "YCbCr" : "RGB");
+	pr_info("tpg field: %u\n", tpg->field);
+	pr_info("tpg crop: %ux%u@%dx%d\n", tpg->crop.width, tpg->crop.height,
+			tpg->crop.left, tpg->crop.top);
+	pr_info("tpg compose: %ux%u@%dx%d\n", tpg->compose.width, tpg->compose.height,
+			tpg->compose.left, tpg->compose.top);
+	pr_info("tpg colorspace: %d\n", tpg->colorspace);
+	pr_info("tpg transfer function: %d/%d\n", tpg->xfer_func, tpg->real_xfer_func);
+	pr_info("tpg Y'CbCr encoding: %d/%d\n", tpg->ycbcr_enc, tpg->real_ycbcr_enc);
+	pr_info("tpg quantization: %d/%d\n", tpg->quantization, tpg->real_quantization);
+	pr_info("tpg RGB range: %d/%d\n", tpg->rgb_range, tpg->real_rgb_range);
 }
 
 /*

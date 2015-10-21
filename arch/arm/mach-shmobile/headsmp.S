@@ -16,13 +16,6 @@
 #include <asm/assembler.h>
 #include <asm/memory.h>
 
-#ifdef CONFIG_SMP
-ENTRY(shmobile_invalidate_start)
-	bl	v7_invalidate_l1
-	b	secondary_startup
-ENDPROC(shmobile_invalidate_start)
-#endif
-
 /*
  * Reset vector for secondary CPUs.
  * This will be mapped at address 0 by SBAR register.

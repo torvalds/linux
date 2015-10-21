@@ -165,9 +165,7 @@ struct wr_log_entry {
 
 struct c4iw_rdev {
 	struct c4iw_resource resource;
-	unsigned long qpshift;
 	u32 qpmask;
-	unsigned long cqshift;
 	u32 cqmask;
 	struct c4iw_dev_ucontext uctx;
 	struct gen_pool *pbl_pool;
@@ -972,7 +970,9 @@ void c4iw_free_fastreg_pbl(struct ib_fast_reg_page_list *page_list);
 struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(
 					struct ib_device *device,
 					int page_list_len);
-struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth);
+struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
+			    enum ib_mr_type mr_type,
+			    u32 max_num_sg);
 int c4iw_dealloc_mw(struct ib_mw *mw);
 struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
@@ -992,10 +992,10 @@ int c4iw_reregister_phys_mem(struct ib_mr *mr,
 				     int acc, u64 *iova_start);
 int c4iw_dereg_mr(struct ib_mr *ib_mr);
 int c4iw_destroy_cq(struct ib_cq *ib_cq);
-struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
-					int vector,
-					struct ib_ucontext *ib_context,
-					struct ib_udata *udata);
+struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
+			     const struct ib_cq_init_attr *attr,
+			     struct ib_ucontext *ib_context,
+			     struct ib_udata *udata);
 int c4iw_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata);
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 int c4iw_destroy_qp(struct ib_qp *ib_qp);
@@ -1032,6 +1032,9 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
 
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
+void __iomem *c4iw_bar2_addrs(struct c4iw_rdev *rdev, unsigned int qid,
+			      enum cxgb4_bar2_qtype qtype,
+			      unsigned int *pbar2_qid, u64 *pbar2_pa);
 extern void c4iw_log_wr_stats(struct t4_wq *wq, struct t4_cqe *cqe);
 extern int c4iw_wr_log;
 extern int db_fc_threshold;

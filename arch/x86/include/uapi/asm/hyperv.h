@@ -27,6 +27,8 @@
 #define HV_X64_MSR_VP_RUNTIME_AVAILABLE		(1 << 0)
 /* Partition Reference Counter (HV_X64_MSR_TIME_REF_COUNT) available*/
 #define HV_X64_MSR_TIME_REF_COUNT_AVAILABLE	(1 << 1)
+/* Partition reference TSC MSR is available */
+#define HV_X64_MSR_REFERENCE_TSC_AVAILABLE              (1 << 9)
 
 /* A partition's reference time stamp counter (TSC) page */
 #define HV_X64_MSR_REFERENCE_TSC		0x40000021
@@ -108,6 +110,8 @@
 #define HV_X64_HYPERCALL_PARAMS_XMM_AVAILABLE		(1 << 4)
 /* Support for a virtual guest idle state is available */
 #define HV_X64_GUEST_IDLE_STATE_AVAILABLE		(1 << 5)
+/* Guest crash data handler available */
+#define HV_X64_GUEST_CRASH_MSR_AVAILABLE		(1 << 10)
 
 /*
  * Implementation recommendations. Indicates which behaviors the hypervisor
@@ -198,6 +202,17 @@
 #define HV_X64_MSR_STIMER2_COUNT		0x400000B5
 #define HV_X64_MSR_STIMER3_CONFIG		0x400000B6
 #define HV_X64_MSR_STIMER3_COUNT		0x400000B7
+
+/* Hyper-V guest crash notification MSR's */
+#define HV_X64_MSR_CRASH_P0			0x40000100
+#define HV_X64_MSR_CRASH_P1			0x40000101
+#define HV_X64_MSR_CRASH_P2			0x40000102
+#define HV_X64_MSR_CRASH_P3			0x40000103
+#define HV_X64_MSR_CRASH_P4			0x40000104
+#define HV_X64_MSR_CRASH_CTL			0x40000105
+#define HV_X64_MSR_CRASH_CTL_NOTIFY		(1ULL << 63)
+#define HV_X64_MSR_CRASH_PARAMS		\
+		(1 + (HV_X64_MSR_CRASH_P4 - HV_X64_MSR_CRASH_P0))
 
 #define HV_X64_MSR_HYPERCALL_ENABLE		0x00000001
 #define HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT	12

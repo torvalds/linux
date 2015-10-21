@@ -18,6 +18,7 @@
 #include <linux/netpoll.h>
 #include <linux/u64_stats_sync.h>
 #include <net/route.h>
+#include <net/ip6_fib.h>
 #include <linux/if_vlan.h>
 
 #define BR_HASH_BITS 8
@@ -33,8 +34,8 @@
 
 /* Control of forwarding link local multicast */
 #define BR_GROUPFWD_DEFAULT	0
-/* Don't allow forwarding control protocols like STP and LLDP */
-#define BR_GROUPFWD_RESTRICTED	0x4007u
+/* Don't allow forwarding of control protocols like STP, MAC PAUSE and LACP */
+#define BR_GROUPFWD_RESTRICTED	0x0007u
 /* The Nearest Customer Bridge Group Address, 01-80-C2-00-00-[00,0B,0C,0D,0F] */
 #define BR_GROUPFWD_8021AD	0xB801u
 
@@ -94,15 +95,15 @@ struct net_bridge_fdb_entry
 	struct hlist_node		hlist;
 	struct net_bridge_port		*dst;
 
-	struct rcu_head			rcu;
 	unsigned long			updated;
 	unsigned long			used;
 	mac_addr			addr;
+	__u16				vlan_id;
 	unsigned char			is_local:1,
 					is_static:1,
 					added_by_user:1,
 					added_by_external_learn:1;
-	__u16				vlan_id;
+	struct rcu_head			rcu;
 };
 
 struct net_bridge_port_group {
@@ -214,7 +215,10 @@ struct net_bridge
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	struct rtable 			fake_rtable;
+	union {
+		struct rtable		fake_rtable;
+		struct rt6_info		fake_rt6_info;
+	};
 	bool				nf_call_iptables;
 	bool				nf_call_ip6tables;
 	bool				nf_call_arptables;
@@ -304,7 +308,6 @@ struct br_input_skb_cb {
 	int mrouters_only;
 #endif
 
-	u16 frag_max_size;
 	bool proxyarp_replied;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
@@ -384,7 +387,7 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr);
 void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr);
 void br_fdb_cleanup(unsigned long arg);
 void br_fdb_delete_by_port(struct net_bridge *br,
-			   const struct net_bridge_port *p, int do_all);
+			   const struct net_bridge_port *p, u16 vid, int do_all);
 struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 					  const unsigned char *addr, __u16 vid);
 int br_fdb_test_addr(struct net_device *dev, unsigned char *addr);
@@ -463,6 +466,7 @@ void br_multicast_disable_port(struct net_bridge_port *port);
 void br_multicast_init(struct net_bridge *br);
 void br_multicast_open(struct net_bridge *br);
 void br_multicast_stop(struct net_bridge *br);
+void br_multicast_dev_del(struct net_bridge *br);
 void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
 			  struct sk_buff *skb);
 void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
@@ -485,7 +489,9 @@ br_multicast_new_port_group(struct net_bridge_port *port, struct br_ip *group,
 void br_mdb_init(void);
 void br_mdb_uninit(void);
 void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
-		   struct br_ip *group, int type);
+		   struct br_ip *group, int type, u8 state);
+void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
+		   int type);
 
 #define mlock_dereference(X, br) \
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
@@ -562,6 +568,10 @@ static inline void br_multicast_stop(struct net_bridge *br)
 {
 }
 
+static inline void br_multicast_dev_del(struct net_bridge *br)
+{
+}
+
 static inline void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
 					struct sk_buff *skb)
 {
@@ -604,7 +614,9 @@ int br_vlan_delete(struct net_bridge *br, u16 vid);
 void br_vlan_flush(struct net_bridge *br);
 bool br_vlan_find(struct net_bridge *br, u16 vid);
 void br_recalculate_fwd_mask(struct net_bridge *br);
+int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
 int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
+int __br_vlan_set_proto(struct net_bridge *br, __be16 proto);
 int br_vlan_set_proto(struct net_bridge *br, unsigned long val);
 int br_vlan_init(struct net_bridge *br);
 int br_vlan_set_default_pvid(struct net_bridge *br, unsigned long val);
@@ -760,6 +772,12 @@ static inline u16 br_get_pvid(const struct net_port_vlans *v)
 static inline int br_vlan_enabled(struct net_bridge *br)
 {
 	return 0;
+}
+
+static inline int __br_vlan_filter_toggle(struct net_bridge *br,
+					  unsigned long val)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 

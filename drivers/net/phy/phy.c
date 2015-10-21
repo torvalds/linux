@@ -58,6 +58,31 @@ static const char *phy_speed_to_str(int speed)
 	}
 }
 
+#define PHY_STATE_STR(_state)			\
+	case PHY_##_state:			\
+		return __stringify(_state);	\
+
+static const char *phy_state_to_str(enum phy_state st)
+{
+	switch (st) {
+	PHY_STATE_STR(DOWN)
+	PHY_STATE_STR(STARTING)
+	PHY_STATE_STR(READY)
+	PHY_STATE_STR(PENDING)
+	PHY_STATE_STR(UP)
+	PHY_STATE_STR(AN)
+	PHY_STATE_STR(RUNNING)
+	PHY_STATE_STR(NOLINK)
+	PHY_STATE_STR(FORCING)
+	PHY_STATE_STR(CHANGELINK)
+	PHY_STATE_STR(HALTED)
+	PHY_STATE_STR(RESUMING)
+	}
+
+	return NULL;
+}
+
+
 /**
  * phy_print_status - Convenience function to print out the current phy status
  * @phydev: the phy_device struct
@@ -328,6 +353,8 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	phydev->duplex = cmd->duplex;
 
+	phydev->mdix = cmd->eth_tp_mdix_ctrl;
+
 	/* Restart the PHY */
 	phy_start_aneg(phydev);
 
@@ -352,6 +379,7 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 	cmd->transceiver = phy_is_internal(phydev) ?
 		XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->autoneg = phydev->autoneg;
+	cmd->eth_tp_mdix_ctrl = phydev->mdix;
 
 	return 0;
 }
@@ -784,9 +812,13 @@ void phy_state_machine(struct work_struct *work)
 	struct phy_device *phydev =
 			container_of(dwork, struct phy_device, state_queue);
 	bool needs_aneg = false, do_suspend = false;
+	enum phy_state old_state;
 	int err = 0;
+	int old_link;
 
 	mutex_lock(&phydev->lock);
+
+	old_state = phydev->state;
 
 	if (phydev->drv->link_change_notify)
 		phydev->drv->link_change_notify(phydev);
@@ -868,11 +900,18 @@ void phy_state_machine(struct work_struct *work)
 		phydev->adjust_link(phydev->attached_dev);
 		break;
 	case PHY_RUNNING:
-		/* Only register a CHANGE if we are
-		 * polling or ignoring interrupts
+		/* Only register a CHANGE if we are polling or ignoring
+		 * interrupts and link changed since latest checking.
 		 */
-		if (!phy_interrupt_is_valid(phydev))
-			phydev->state = PHY_CHANGELINK;
+		if (!phy_interrupt_is_valid(phydev)) {
+			old_link = phydev->link;
+			err = phy_read_status(phydev);
+			if (err)
+				break;
+
+			if (old_link != phydev->link)
+				phydev->state = PHY_CHANGELINK;
+		}
 		break;
 	case PHY_CHANGELINK:
 		err = phy_read_status(phydev);
@@ -952,6 +991,9 @@ void phy_state_machine(struct work_struct *work)
 	if (err < 0)
 		phy_error(phydev);
 
+	dev_dbg(&phydev->dev, "PHY state change %s -> %s\n",
+		phy_state_to_str(old_state), phy_state_to_str(phydev->state));
+
 	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue,
 			   PHY_STATE_TIME * HZ);
 }
@@ -998,11 +1040,15 @@ int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 	struct phy_driver *phydrv = phydev->drv;
 	int value = -1;
 
-	if (phydrv->read_mmd_indirect == NULL) {
-		mmd_phy_indirect(phydev->bus, prtad, devad, addr);
+	if (!phydrv->read_mmd_indirect) {
+		struct mii_bus *bus = phydev->bus;
+
+		mutex_lock(&bus->mdio_lock);
+		mmd_phy_indirect(bus, prtad, devad, addr);
 
 		/* Read the content of the MMD's selected register */
-		value = phydev->bus->read(phydev->bus, addr, MII_MMD_DATA);
+		value = bus->read(bus, addr, MII_MMD_DATA);
+		mutex_unlock(&bus->mdio_lock);
 	} else {
 		value = phydrv->read_mmd_indirect(phydev, prtad, devad, addr);
 	}
@@ -1031,11 +1077,15 @@ void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 {
 	struct phy_driver *phydrv = phydev->drv;
 
-	if (phydrv->write_mmd_indirect == NULL) {
-		mmd_phy_indirect(phydev->bus, prtad, devad, addr);
+	if (!phydrv->write_mmd_indirect) {
+		struct mii_bus *bus = phydev->bus;
+
+		mutex_lock(&bus->mdio_lock);
+		mmd_phy_indirect(bus, prtad, devad, addr);
 
 		/* Write the data into MMD's selected register */
-		phydev->bus->write(phydev->bus, addr, MII_MMD_DATA, data);
+		bus->write(bus, addr, MII_MMD_DATA, data);
+		mutex_unlock(&bus->mdio_lock);
 	} else {
 		phydrv->write_mmd_indirect(phydev, prtad, devad, addr, data);
 	}
@@ -1062,8 +1112,7 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 	if ((phydev->duplex == DUPLEX_FULL) &&
 	    ((phydev->interface == PHY_INTERFACE_MODE_MII) ||
 	    (phydev->interface == PHY_INTERFACE_MODE_GMII) ||
-	    (phydev->interface >= PHY_INTERFACE_MODE_RGMII &&
-	     phydev->interface <= PHY_INTERFACE_MODE_RGMII_TXID) ||
+	     phy_interface_is_rgmii(phydev) ||
 	     phy_is_internal(phydev))) {
 		int eee_lp, eee_cap, eee_adv;
 		u32 lp, cap, adv;

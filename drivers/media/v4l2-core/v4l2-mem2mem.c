@@ -357,9 +357,16 @@ int v4l2_m2m_reqbufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		     struct v4l2_requestbuffers *reqbufs)
 {
 	struct vb2_queue *vq;
+	int ret;
 
 	vq = v4l2_m2m_get_vq(m2m_ctx, reqbufs->type);
-	return vb2_reqbufs(vq, reqbufs);
+	ret = vb2_reqbufs(vq, reqbufs);
+	/* If count == 0, then the owner has released all buffers and he
+	   is no longer owner of the queue. Otherwise we have an owner. */
+	if (ret == 0)
+		vq->owner = reqbufs->count ? file->private_data : NULL;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_reqbufs);
 
@@ -425,6 +432,25 @@ int v4l2_m2m_dqbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	return vb2_dqbuf(vq, buf, file->f_flags & O_NONBLOCK);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_dqbuf);
+
+/**
+ * v4l2_m2m_prepare_buf() - prepare a source or destination buffer, depending on
+ * the type
+ */
+int v4l2_m2m_prepare_buf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
+			 struct v4l2_buffer *buf)
+{
+	struct vb2_queue *vq;
+	int ret;
+
+	vq = v4l2_m2m_get_vq(m2m_ctx, buf->type);
+	ret = vb2_prepare_buf(vq, buf);
+	if (!ret)
+		v4l2_m2m_try_schedule(m2m_ctx);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_prepare_buf);
 
 /**
  * v4l2_m2m_create_bufs() - create a source or destination buffer, depending
@@ -564,8 +590,16 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 
 	if (list_empty(&src_q->done_list))
 		poll_wait(file, &src_q->done_wq, wait);
-	if (list_empty(&dst_q->done_list))
+	if (list_empty(&dst_q->done_list)) {
+		/*
+		 * If the last buffer was dequeued from the capture queue,
+		 * return immediately. DQBUF will return -EPIPE.
+		 */
+		if (dst_q->last_buffer_dequeued)
+			return rc | POLLIN | POLLRDNORM;
+
 		poll_wait(file, &dst_q->done_wq, wait);
+	}
 
 	if (m2m_ctx->m2m_dev->m2m_ops->lock)
 		m2m_ctx->m2m_dev->m2m_ops->lock(m2m_ctx->priv);
@@ -803,6 +837,15 @@ int v4l2_m2m_ioctl_dqbuf(struct file *file, void *priv,
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_dqbuf);
 
+int v4l2_m2m_ioctl_prepare_buf(struct file *file, void *priv,
+			       struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_prepare_buf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_prepare_buf);
+
 int v4l2_m2m_ioctl_expbuf(struct file *file, void *priv,
 				struct v4l2_exportbuffer *eb)
 {
@@ -838,18 +881,8 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamoff);
 int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct v4l2_fh *fh = file->private_data;
-	struct v4l2_m2m_ctx *m2m_ctx = fh->m2m_ctx;
-	int ret;
 
-	if (m2m_ctx->q_lock && mutex_lock_interruptible(m2m_ctx->q_lock))
-		return -ERESTARTSYS;
-
-	ret = v4l2_m2m_mmap(file, m2m_ctx, vma);
-
-	if (m2m_ctx->q_lock)
-		mutex_unlock(m2m_ctx->q_lock);
-
-	return ret;
+	return v4l2_m2m_mmap(file, fh->m2m_ctx, vma);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_fop_mmap);
 

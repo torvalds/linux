@@ -2,7 +2,7 @@
  * mac80211 configuration hooks for cfg80211
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
- * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright 2013-2015  Intel Mobile Communications GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -137,6 +137,9 @@ static int ieee80211_set_noack_map(struct wiphy *wiphy,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	sdata->noack_map = noack_map;
+
+	ieee80211_check_fast_xmit_iface(sdata);
+
 	return 0;
 }
 
@@ -309,6 +312,7 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 	u32 iv32;
 	u16 iv16;
 	int err = -ENOENT;
+	struct ieee80211_key_seq kseq = {};
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -339,10 +343,12 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 		iv32 = key->u.tkip.tx.iv32;
 		iv16 = key->u.tkip.tx.iv16;
 
-		if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
-			drv_get_tkip_seq(sdata->local,
-					 key->conf.hw_key_idx,
-					 &iv32, &iv16);
+		if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
+		    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
+			drv_get_key_seq(sdata->local, key, &kseq);
+			iv32 = kseq.tkip.iv32;
+			iv16 = kseq.tkip.iv16;
+		}
 
 		seq[0] = iv16 & 0xff;
 		seq[1] = (iv16 >> 8) & 0xff;
@@ -355,51 +361,43 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
-		pn64 = atomic64_read(&key->u.ccmp.tx_pn);
-		seq[0] = pn64;
-		seq[1] = pn64 >> 8;
-		seq[2] = pn64 >> 16;
-		seq[3] = pn64 >> 24;
-		seq[4] = pn64 >> 32;
-		seq[5] = pn64 >> 40;
-		params.seq = seq;
-		params.seq_len = 6;
-		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		pn64 = atomic64_read(&key->u.aes_cmac.tx_pn);
-		seq[0] = pn64;
-		seq[1] = pn64 >> 8;
-		seq[2] = pn64 >> 16;
-		seq[3] = pn64 >> 24;
-		seq[4] = pn64 >> 32;
-		seq[5] = pn64 >> 40;
-		params.seq = seq;
-		params.seq_len = 6;
-		break;
+		BUILD_BUG_ON(offsetof(typeof(kseq), ccmp) !=
+			     offsetof(typeof(kseq), aes_cmac));
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		pn64 = atomic64_read(&key->u.aes_gmac.tx_pn);
-		seq[0] = pn64;
-		seq[1] = pn64 >> 8;
-		seq[2] = pn64 >> 16;
-		seq[3] = pn64 >> 24;
-		seq[4] = pn64 >> 32;
-		seq[5] = pn64 >> 40;
+		BUILD_BUG_ON(offsetof(typeof(kseq), ccmp) !=
+			     offsetof(typeof(kseq), aes_gmac));
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		BUILD_BUG_ON(offsetof(typeof(kseq), ccmp) !=
+			     offsetof(typeof(kseq), gcmp));
+
+		if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
+		    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
+			drv_get_key_seq(sdata->local, key, &kseq);
+			memcpy(seq, kseq.ccmp.pn, 6);
+		} else {
+			pn64 = atomic64_read(&key->conf.tx_pn);
+			seq[0] = pn64;
+			seq[1] = pn64 >> 8;
+			seq[2] = pn64 >> 16;
+			seq[3] = pn64 >> 24;
+			seq[4] = pn64 >> 32;
+			seq[5] = pn64 >> 40;
+		}
 		params.seq = seq;
 		params.seq_len = 6;
 		break;
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		pn64 = atomic64_read(&key->u.gcmp.tx_pn);
-		seq[0] = pn64;
-		seq[1] = pn64 >> 8;
-		seq[2] = pn64 >> 16;
-		seq[3] = pn64 >> 24;
-		seq[4] = pn64 >> 32;
-		seq[5] = pn64 >> 40;
-		params.seq = seq;
-		params.seq_len = 6;
+	default:
+		if (!(key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+			break;
+		if (WARN_ON(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV))
+			break;
+		drv_get_key_seq(sdata->local, key, &kseq);
+		params.seq = kseq.hw.seq;
+		params.seq_len = kseq.hw.seq_len;
 		break;
 	}
 
@@ -1021,6 +1019,65 @@ static int sta_apply_auth_flags(struct ieee80211_local *local,
 	return 0;
 }
 
+static void sta_apply_mesh_params(struct ieee80211_local *local,
+				  struct sta_info *sta,
+				  struct station_parameters *params)
+{
+#ifdef CONFIG_MAC80211_MESH
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	u32 changed = 0;
+
+	if (params->sta_modify_mask & STATION_PARAM_APPLY_PLINK_STATE) {
+		switch (params->plink_state) {
+		case NL80211_PLINK_ESTAB:
+			if (sta->mesh->plink_state != NL80211_PLINK_ESTAB)
+				changed = mesh_plink_inc_estab_count(sdata);
+			sta->mesh->plink_state = params->plink_state;
+
+			ieee80211_mps_sta_status_update(sta);
+			changed |= ieee80211_mps_set_sta_local_pm(sta,
+				      sdata->u.mesh.mshcfg.power_mode);
+			break;
+		case NL80211_PLINK_LISTEN:
+		case NL80211_PLINK_BLOCKED:
+		case NL80211_PLINK_OPN_SNT:
+		case NL80211_PLINK_OPN_RCVD:
+		case NL80211_PLINK_CNF_RCVD:
+		case NL80211_PLINK_HOLDING:
+			if (sta->mesh->plink_state == NL80211_PLINK_ESTAB)
+				changed = mesh_plink_dec_estab_count(sdata);
+			sta->mesh->plink_state = params->plink_state;
+
+			ieee80211_mps_sta_status_update(sta);
+			changed |= ieee80211_mps_set_sta_local_pm(sta,
+					NL80211_MESH_POWER_UNKNOWN);
+			break;
+		default:
+			/*  nothing  */
+			break;
+		}
+	}
+
+	switch (params->plink_action) {
+	case NL80211_PLINK_ACTION_NO_ACTION:
+		/* nothing */
+		break;
+	case NL80211_PLINK_ACTION_OPEN:
+		changed |= mesh_plink_open(sta);
+		break;
+	case NL80211_PLINK_ACTION_BLOCK:
+		changed |= mesh_plink_block(sta);
+		break;
+	}
+
+	if (params->local_pm)
+		changed |= ieee80211_mps_set_sta_local_pm(sta,
+							  params->local_pm);
+
+	ieee80211_mbss_info_change_notify(sdata, changed);
+#endif
+}
+
 static int sta_apply_parameters(struct ieee80211_local *local,
 				struct sta_info *sta,
 				struct station_parameters *params)
@@ -1078,7 +1135,6 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	}
 
 	if (mask & BIT(NL80211_STA_FLAG_MFP)) {
-		sta->sta.mfp = !!(set & BIT(NL80211_STA_FLAG_MFP));
 		if (set & BIT(NL80211_STA_FLAG_MFP))
 			set_sta_flag(sta, WLAN_STA_MFP);
 		else
@@ -1098,6 +1154,12 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	    params->ext_capab_len >= 4 &&
 	    params->ext_capab[3] & WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH)
 		set_sta_flag(sta, WLAN_STA_TDLS_CHAN_SWITCH);
+
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
+	    ieee80211_hw_check(&local->hw, TDLS_WIDER_BW) &&
+	    params->ext_capab_len >= 8 &&
+	    params->ext_capab[7] & WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED)
+		set_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW);
 
 	if (params->sta_modify_mask & STATION_PARAM_APPLY_UAPSD) {
 		sta->sta.uapsd_queues = params->uapsd_queues;
@@ -1146,62 +1208,8 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 					      band, false);
 	}
 
-	if (ieee80211_vif_is_mesh(&sdata->vif)) {
-#ifdef CONFIG_MAC80211_MESH
-		u32 changed = 0;
-
-		if (params->sta_modify_mask & STATION_PARAM_APPLY_PLINK_STATE) {
-			switch (params->plink_state) {
-			case NL80211_PLINK_ESTAB:
-				if (sta->plink_state != NL80211_PLINK_ESTAB)
-					changed = mesh_plink_inc_estab_count(
-							sdata);
-				sta->plink_state = params->plink_state;
-
-				ieee80211_mps_sta_status_update(sta);
-				changed |= ieee80211_mps_set_sta_local_pm(sta,
-					      sdata->u.mesh.mshcfg.power_mode);
-				break;
-			case NL80211_PLINK_LISTEN:
-			case NL80211_PLINK_BLOCKED:
-			case NL80211_PLINK_OPN_SNT:
-			case NL80211_PLINK_OPN_RCVD:
-			case NL80211_PLINK_CNF_RCVD:
-			case NL80211_PLINK_HOLDING:
-				if (sta->plink_state == NL80211_PLINK_ESTAB)
-					changed = mesh_plink_dec_estab_count(
-							sdata);
-				sta->plink_state = params->plink_state;
-
-				ieee80211_mps_sta_status_update(sta);
-				changed |= ieee80211_mps_set_sta_local_pm(sta,
-						NL80211_MESH_POWER_UNKNOWN);
-				break;
-			default:
-				/*  nothing  */
-				break;
-			}
-		}
-
-		switch (params->plink_action) {
-		case NL80211_PLINK_ACTION_NO_ACTION:
-			/* nothing */
-			break;
-		case NL80211_PLINK_ACTION_OPEN:
-			changed |= mesh_plink_open(sta);
-			break;
-		case NL80211_PLINK_ACTION_BLOCK:
-			changed |= mesh_plink_block(sta);
-			break;
-		}
-
-		if (params->local_pm)
-			changed |=
-			      ieee80211_mps_set_sta_local_pm(sta,
-							     params->local_pm);
-		ieee80211_mbss_info_change_notify(sdata, changed);
-#endif
-	}
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		sta_apply_mesh_params(local, sta, params);
 
 	/* set the STA state after all sta info from usermode has been set */
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
@@ -1372,6 +1380,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		}
 
 		sta->sdata = vlansdata;
+		ieee80211_check_fast_xmit(sta);
 
 		if (sta->sta_state == IEEE80211_STA_AUTHORIZED &&
 		    prev_4addr != new_4addr) {
@@ -1764,7 +1773,7 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		/* our RSSI threshold implementation is supported only for
 		 * devices that report signal in dBm.
 		 */
-		if (!(sdata->local->hw.flags & IEEE80211_HW_SIGNAL_DBM))
+		if (!ieee80211_hw_check(&sdata->local->hw, SIGNAL_DBM))
 			return -ENOTSUPP;
 		conf->rssi_threshold = nconf->rssi_threshold;
 	}
@@ -2099,10 +2108,14 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	int err;
 
 	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
+		ieee80211_check_fast_xmit_all(local);
+
 		err = drv_set_frag_threshold(local, wiphy->frag_threshold);
 
-		if (err)
+		if (err) {
+			ieee80211_check_fast_xmit_all(local);
 			return err;
+		}
 	}
 
 	if ((changed & WIPHY_PARAM_COVERAGE_CLASS) ||
@@ -2355,6 +2368,8 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 	const u8 *ap;
 	enum ieee80211_smps_mode old_req;
 	int err;
+	struct sta_info *sta;
+	bool tdls_peer_found = false;
 
 	lockdep_assert_held(&sdata->wdev.mtx);
 
@@ -2379,11 +2394,22 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 
 	ap = sdata->u.mgd.associated->bssid;
 
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
+		if (!sta->sta.tdls || sta->sdata != sdata || !sta->uploaded ||
+		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+			continue;
+
+		tdls_peer_found = true;
+		break;
+	}
+	rcu_read_unlock();
+
 	if (smps_mode == IEEE80211_SMPS_AUTOMATIC) {
-		if (sdata->u.mgd.powersave)
-			smps_mode = IEEE80211_SMPS_DYNAMIC;
-		else
+		if (tdls_peer_found || !sdata->u.mgd.powersave)
 			smps_mode = IEEE80211_SMPS_OFF;
+		else
+			smps_mode = IEEE80211_SMPS_DYNAMIC;
 	}
 
 	/* send SM PS frame to AP */
@@ -2391,6 +2417,8 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 					 ap, ap);
 	if (err)
 		sdata->u.mgd.req_smps = old_req;
+	else if (smps_mode != IEEE80211_SMPS_OFF && tdls_peer_found)
+		ieee80211_teardown_tdls_peers(sdata);
 
 	return err;
 }
@@ -2404,7 +2432,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
+	if (!ieee80211_hw_check(&local->hw, SUPPORTS_PS))
 		return -EOPNOTSUPP;
 
 	if (enabled == sdata->u.mgd.powersave &&
@@ -2419,7 +2447,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	__ieee80211_request_smps_mgd(sdata, sdata->u.mgd.req_smps);
 	sdata_unlock(sdata);
 
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
+	if (ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 
 	ieee80211_recalc_ps(local, -1);
@@ -2440,8 +2468,13 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	    rssi_hyst == bss_conf->cqm_rssi_hyst)
 		return 0;
 
+	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER &&
+	    !(sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI))
+		return -EOPNOTSUPP;
+
 	bss_conf->cqm_rssi_thold = rssi_thold;
 	bss_conf->cqm_rssi_hyst = rssi_hyst;
+	sdata->u.mgd.last_cqm_event_signal = 0;
 
 	/* tell the driver upon association, unless already associated */
 	if (sdata->u.mgd.associated &&
@@ -2463,7 +2496,7 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	if (!ieee80211_sdata_running(sdata))
 		return -ENETDOWN;
 
-	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL) {
+	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL)) {
 		ret = drv_set_bitrate_mask(local, sdata, mask);
 		if (ret)
 			return ret;
@@ -2476,16 +2509,28 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 		sdata->rc_rateidx_mask[i] = mask->control[i].legacy;
 		memcpy(sdata->rc_rateidx_mcs_mask[i], mask->control[i].ht_mcs,
 		       sizeof(mask->control[i].ht_mcs));
+		memcpy(sdata->rc_rateidx_vht_mcs_mask[i],
+		       mask->control[i].vht_mcs,
+		       sizeof(mask->control[i].vht_mcs));
 
 		sdata->rc_has_mcs_mask[i] = false;
+		sdata->rc_has_vht_mcs_mask[i] = false;
 		if (!sband)
 			continue;
 
-		for (j = 0; j < IEEE80211_HT_MCS_MASK_LEN; j++)
+		for (j = 0; j < IEEE80211_HT_MCS_MASK_LEN; j++) {
 			if (~sdata->rc_rateidx_mcs_mask[i][j]) {
 				sdata->rc_has_mcs_mask[i] = true;
 				break;
 			}
+		}
+
+		for (j = 0; j < NL80211_VHT_NSS_MAX; j++) {
+			if (~sdata->rc_rateidx_vht_mcs_mask[i][j]) {
+				sdata->rc_has_vht_mcs_mask[i] = true;
+				break;
+			}
+		}
 	}
 
 	return 0;
@@ -2512,6 +2557,19 @@ static bool ieee80211_coalesce_started_roc(struct ieee80211_local *local,
 	/* add to dependents so we send the expired event properly */
 	list_add_tail(&new_roc->list, &cur_roc->dependents);
 	return true;
+}
+
+static u64 ieee80211_mgmt_tx_cookie(struct ieee80211_local *local)
+{
+	lockdep_assert_held(&local->mtx);
+
+	local->roc_cookie_counter++;
+
+	/* wow, you wrapped 64 bits ... more likely a bug */
+	if (WARN_ON(local->roc_cookie_counter == 0))
+		local->roc_cookie_counter++;
+
+	return local->roc_cookie_counter;
 }
 
 static int ieee80211_start_roc_work(struct ieee80211_local *local,
@@ -2551,7 +2609,6 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	roc->req_duration = duration;
 	roc->frame = txskb;
 	roc->type = type;
-	roc->mgmt_tx_cookie = (unsigned long)txskb;
 	roc->sdata = sdata;
 	INIT_DELAYED_WORK(&roc->work, ieee80211_sw_roc_work);
 	INIT_LIST_HEAD(&roc->dependents);
@@ -2561,17 +2618,10 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	 * or the SKB (for mgmt TX)
 	 */
 	if (!txskb) {
-		/* local->mtx protects this */
-		local->roc_cookie_counter++;
-		roc->cookie = local->roc_cookie_counter;
-		/* wow, you wrapped 64 bits ... more likely a bug */
-		if (WARN_ON(roc->cookie == 0)) {
-			roc->cookie = 1;
-			local->roc_cookie_counter++;
-		}
+		roc->cookie = ieee80211_mgmt_tx_cookie(local);
 		*cookie = roc->cookie;
 	} else {
-		*cookie = (unsigned long)txskb;
+		roc->mgmt_tx_cookie = *cookie;
 	}
 
 	/* if there's one pending or we're scanning, queue this one */
@@ -3244,13 +3294,43 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	return err;
 }
 
+static struct sk_buff *ieee80211_make_ack_skb(struct ieee80211_local *local,
+					      struct sk_buff *skb, u64 *cookie,
+					      gfp_t gfp)
+{
+	unsigned long spin_flags;
+	struct sk_buff *ack_skb;
+	int id;
+
+	ack_skb = skb_copy(skb, gfp);
+	if (!ack_skb)
+		return ERR_PTR(-ENOMEM);
+
+	spin_lock_irqsave(&local->ack_status_lock, spin_flags);
+	id = idr_alloc(&local->ack_status_frames, ack_skb,
+		       1, 0x10000, GFP_ATOMIC);
+	spin_unlock_irqrestore(&local->ack_status_lock, spin_flags);
+
+	if (id < 0) {
+		kfree_skb(ack_skb);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	IEEE80211_SKB_CB(skb)->ack_frame_id = id;
+
+	*cookie = ieee80211_mgmt_tx_cookie(local);
+	IEEE80211_SKB_CB(ack_skb)->ack.cookie = *cookie;
+
+	return ack_skb;
+}
+
 static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     struct cfg80211_mgmt_tx_params *params,
 			     u64 *cookie)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *ack_skb;
 	struct sta_info *sta;
 	const struct ieee80211_mgmt *mgmt = (void *)params->buf;
 	bool need_offchan = false;
@@ -3299,8 +3379,14 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
-		if (!sdata->u.mgd.associated)
+		sdata_lock(sdata);
+		if (!sdata->u.mgd.associated ||
+		    (params->offchan && params->wait &&
+		     local->ops->remain_on_channel &&
+		     memcmp(sdata->u.mgd.associated->bssid,
+			    mgmt->bssid, ETH_ALEN)))
 			need_offchan = true;
+		sdata_unlock(sdata);
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		need_offchan = true;
@@ -3356,6 +3442,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	/* Update CSA counters */
 	if (sdata->vif.csa_active &&
 	    (sdata->vif.type == NL80211_IFTYPE_AP ||
+	     sdata->vif.type == NL80211_IFTYPE_MESH_POINT ||
 	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&
 	    params->n_csa_offsets) {
 		int i;
@@ -3382,8 +3469,23 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	skb->dev = sdata->dev;
 
+	if (!params->dont_wait_for_ack) {
+		/* make a copy to preserve the frame contents
+		 * in case of encryption.
+		 */
+		ack_skb = ieee80211_make_ack_skb(local, skb, cookie,
+						 GFP_KERNEL);
+		if (IS_ERR(ack_skb)) {
+			ret = PTR_ERR(ack_skb);
+			kfree_skb(skb);
+			goto out_unlock;
+		}
+	} else {
+		/* for cookie below */
+		ack_skb = skb;
+	}
+
 	if (!need_offchan) {
-		*cookie = (unsigned long) skb;
 		ieee80211_tx_skb(sdata, skb);
 		ret = 0;
 		goto out_unlock;
@@ -3391,7 +3493,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_TX_OFFCHAN |
 					IEEE80211_TX_INTFL_OFFCHAN_TX_OK;
-	if (local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
+	if (ieee80211_hw_check(&local->hw, QUEUE_CONTROL))
 		IEEE80211_SKB_CB(skb)->hw_queue =
 			local->hw.offchannel_tx_hw_queue;
 
@@ -3476,7 +3578,7 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_qos_hdr *nullfunc;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *ack_skb;
 	int size = sizeof(*nullfunc);
 	__le16 fc;
 	bool qos;
@@ -3484,20 +3586,24 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	struct sta_info *sta;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	enum ieee80211_band band;
+	int ret;
+
+	/* the lock is needed to assign the cookie later */
+	mutex_lock(&local->mtx);
 
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (WARN_ON(!chanctx_conf)) {
-		rcu_read_unlock();
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 	band = chanctx_conf->def.chan->band;
 	sta = sta_info_get_bss(sdata, peer);
 	if (sta) {
 		qos = sta->sta.wme;
 	} else {
-		rcu_read_unlock();
-		return -ENOLINK;
+		ret = -ENOLINK;
+		goto unlock;
 	}
 
 	if (qos) {
@@ -3513,8 +3619,8 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + size);
 	if (!skb) {
-		rcu_read_unlock();
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto unlock;
 	}
 
 	skb->dev = dev;
@@ -3540,13 +3646,23 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	if (qos)
 		nullfunc->qos_ctrl = cpu_to_le16(7);
 
+	ack_skb = ieee80211_make_ack_skb(local, skb, cookie, GFP_ATOMIC);
+	if (IS_ERR(ack_skb)) {
+		kfree_skb(skb);
+		ret = PTR_ERR(ack_skb);
+		goto unlock;
+	}
+
 	local_bh_disable();
 	ieee80211_xmit(sdata, sta, skb);
 	local_bh_enable();
-	rcu_read_unlock();
 
-	*cookie = (unsigned long) skb;
-	return 0;
+	ret = 0;
+unlock:
+	rcu_read_unlock();
+	mutex_unlock(&local->mtx);
+
+	return ret;
 }
 
 static int ieee80211_cfg_get_channel(struct wiphy *wiphy,

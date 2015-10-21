@@ -202,12 +202,10 @@ void __init sb1250_setup(void)
 
 	switch (war_pass) {
 	case K_SYS_REVISION_BCM1250_PASS1:
-#ifndef CONFIG_SB1_PASS_1_WORKAROUNDS
 		printk("@@@@ This is a BCM1250 A0-A2 (Pass 1) board, "
 			    "and the kernel doesn't have the proper "
 			    "workarounds compiled in. @@@@\n");
 		bad_config = 1;
-#endif
 		break;
 	case K_SYS_REVISION_BCM1250_PASS2:
 		/* Pass 2 - easiest as default for now - so many numbers */

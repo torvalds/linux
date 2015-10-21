@@ -73,7 +73,7 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 	}
 
 	if (create) {
-		OBD_ALLOC(imp_conn, sizeof(*imp_conn));
+		imp_conn = kzalloc(sizeof(*imp_conn), GFP_NOFS);
 		if (!imp_conn) {
 			rc = -ENOMEM;
 			goto out_put;
@@ -119,8 +119,7 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 	spin_unlock(&imp->imp_lock);
 	return 0;
 out_free:
-	if (imp_conn)
-		OBD_FREE(imp_conn, sizeof(*imp_conn));
+	kfree(imp_conn);
 out_put:
 	ptlrpc_connection_put(ptlrpc_conn);
 	return rc;
@@ -179,7 +178,7 @@ int client_import_del_conn(struct obd_import *imp, struct obd_uuid *uuid)
 
 		list_del(&imp_conn->oic_item);
 		ptlrpc_connection_put(imp_conn->oic_conn);
-		OBD_FREE(imp_conn, sizeof(*imp_conn));
+		kfree(imp_conn);
 		CDEBUG(D_HA, "imp %p@%s: remove connection %s\n",
 		       imp, imp->imp_obd->obd_name, uuid->uuid);
 		rc = 0;
@@ -657,7 +656,8 @@ int target_pack_pool_reply(struct ptlrpc_request *req)
 }
 EXPORT_SYMBOL(target_pack_pool_reply);
 
-int target_send_reply_msg(struct ptlrpc_request *req, int rc, int fail_id)
+static int
+target_send_reply_msg(struct ptlrpc_request *req, int rc, int fail_id)
 {
 	if (OBD_FAIL_CHECK_ORSET(fail_id & ~OBD_FAIL_ONCE, OBD_FAIL_ONCE)) {
 		DEBUG_REQ(D_ERROR, req, "dropping reply");
@@ -668,10 +668,9 @@ int target_send_reply_msg(struct ptlrpc_request *req, int rc, int fail_id)
 		DEBUG_REQ(D_NET, req, "processing error (%d)", rc);
 		req->rq_status = rc;
 		return ptlrpc_send_error(req, 1);
-	} else {
-		DEBUG_REQ(D_NET, req, "sending reply");
 	}
 
+	DEBUG_REQ(D_NET, req, "sending reply");
 	return ptlrpc_send_reply(req, PTLRPC_REPLY_MAYBE_DIFFICULT);
 }
 

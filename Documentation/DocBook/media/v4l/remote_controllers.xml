@@ -284,7 +284,7 @@ different IR's. Due to that, V4L2 API now specifies a standard for mapping Media
 </tgroup>
 </table>
 
-<para>It should be noticed that, sometimes, there some fundamental missing keys at some cheaper IR's. Due to that, it is recommended to:</para>
+<para>It should be noted that, sometimes, there some fundamental missing keys at some cheaper IR's. Due to that, it is recommended to:</para>
 
 <table pgwide="1" frame="none" id="rc_keymap_notes">
 <title>Notes</title>

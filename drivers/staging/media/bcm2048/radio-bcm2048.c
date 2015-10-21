@@ -217,7 +217,7 @@
 #define BCM2048_FREQ_ERROR_FLOOR	-20
 #define BCM2048_FREQ_ERROR_ROOF		20
 
-/* -60 dB is reported as full signal strenght */
+/* -60 dB is reported as full signal strength */
 #define BCM2048_RSSI_LEVEL_BASE		-60
 #define BCM2048_RSSI_LEVEL_ROOF		-100
 #define BCM2048_RSSI_LEVEL_ROOF_NEG	100
@@ -341,14 +341,6 @@ static struct region_info region_configs[] = {
 		.top_frequency		= 90000,
 		.deemphasis		= 50,
 		.region			= 3,
-	},
-	/* Japan wide band */
-	{
-		.channel_spacing	= 10,
-		.bottom_frequency	= 76000,
-		.top_frequency		= 108000,
-		.deemphasis		= 50,
-		.region			= 4,
 	},
 };
 
@@ -741,6 +733,18 @@ static int bcm2048_set_region(struct bcm2048_device *bdev, u8 region)
 
 	mutex_lock(&bdev->mutex);
 	bdev->region_info = region_configs[region];
+
+	if (region_configs[region].bottom_frequency < 87500)
+		bdev->cache_fm_ctrl |= BCM2048_BAND_SELECT;
+	else
+		bdev->cache_fm_ctrl &= ~BCM2048_BAND_SELECT;
+
+	err = bcm2048_send_command(bdev, BCM2048_I2C_FM_CTRL,
+					bdev->cache_fm_ctrl);
+	if (err) {
+		mutex_unlock(&bdev->mutex);
+		goto done;
+	}
 	mutex_unlock(&bdev->mutex);
 
 	if (bdev->frequency < region_configs[region].bottom_frequency ||
@@ -2468,7 +2472,7 @@ static int bcm2048_vidioc_g_tuner(struct file *file, void *priv,
 		} else {
 			/*
 			 * RSSI level -60 dB is defined to report full
-			 * signal strenght
+			 * signal strength
 			 */
 			rssi = bcm2048_get_fm_rssi(bdev);
 			if (rssi >= BCM2048_RSSI_LEVEL_BASE) {
@@ -2593,7 +2597,7 @@ static int bcm2048_i2c_driver_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct bcm2048_device *bdev;
-	int err, skip_release = 0;
+	int err;
 
 	bdev = kzalloc(sizeof(*bdev), GFP_KERNEL);
 	if (!bdev) {
@@ -2646,7 +2650,6 @@ free_sysfs:
 	bcm2048_sysfs_unregister_properties(bdev, ARRAY_SIZE(attrs));
 free_registration:
 	video_unregister_device(&bdev->videodev);
-	skip_release = 1;
 free_irq:
 	if (client->irq)
 		free_irq(client->irq, bdev);

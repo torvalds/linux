@@ -656,7 +656,7 @@ qla2x00_sp_compl(void *data, void *ptr, int res)
 		    "SP reference-count to ZERO -- sp=%p cmd=%p.\n",
 		    sp, GET_CMD_SP(sp));
 		if (ql2xextended_error_logging & ql_dbg_io)
-			BUG();
+			WARN_ON(atomic_read(&sp->ref_count) == 0);
 		return;
 	}
 	if (!atomic_dec_and_test(&sp->ref_count))
@@ -958,8 +958,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	}
 
 	ql_dbg(ql_dbg_taskm, vha, 0x8002,
-	    "Aborting from RISC nexus=%ld:%d:%llu sp=%p cmd=%p\n",
-	    vha->host_no, id, lun, sp, cmd);
+	    "Aborting from RISC nexus=%ld:%d:%llu sp=%p cmd=%p handle=%x\n",
+	    vha->host_no, id, lun, sp, cmd, sp->handle);
 
 	/* Get a reference to the sp and drop the lock.*/
 	sp_get(sp);
@@ -967,14 +967,9 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	rval = ha->isp_ops->abort_command(sp);
 	if (rval) {
-		if (rval == QLA_FUNCTION_PARAMETER_ERROR) {
-			/*
-			 * Decrement the ref_count since we can't find the
-			 * command
-			 */
-			atomic_dec(&sp->ref_count);
+		if (rval == QLA_FUNCTION_PARAMETER_ERROR)
 			ret = SUCCESS;
-		} else
+		else
 			ret = FAILED;
 
 		ql_dbg(ql_dbg_taskm, vha, 0x8003,
@@ -986,12 +981,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	/*
-	 * Clear the slot in the oustanding_cmds array if we can't find the
-	 * command to reclaim the resources.
-	 */
-	if (rval == QLA_FUNCTION_PARAMETER_ERROR)
-		vha->req->outstanding_cmds[sp->handle] = NULL;
 	sp->done(ha, sp, 0);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -2219,6 +2208,13 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2261:
+		ha->device_type |= DT_ISP2261;
+		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->device_type |= DT_FWI2;
+		ha->device_type |= DT_IIDMA;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
+		break;
 	}
 
 	if (IS_QLA82XX(ha))
@@ -2296,7 +2292,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISPF001 ||
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8044 ||
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2071 ||
-	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2271) {
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2271 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2261) {
 		bars = pci_select_bars(pdev, IORESOURCE_MEM);
 		mem_only = 1;
 		ql_dbg_pci(ql_dbg_init, pdev, 0x0007,
@@ -2504,6 +2501,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_24XX;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
+		ha->tgt.atio_q_length = ATIO_ENTRY_CNT_24XX;
 		ha->max_loop_id = SNS_LAST_LOOP_ID_2300;
 		ha->init_cb_size = sizeof(struct mid_init_cb_81xx);
 		ha->gid_list_info_size = 8;
@@ -2973,7 +2971,6 @@ qla2x00_shutdown(struct pci_dev *pdev)
 static void
 qla2x00_delete_all_vps(struct qla_hw_data *ha, scsi_qla_host_t *base_vha)
 {
-	struct Scsi_Host *scsi_host;
 	scsi_qla_host_t *vha;
 	unsigned long flags;
 
@@ -2984,7 +2981,7 @@ qla2x00_delete_all_vps(struct qla_hw_data *ha, scsi_qla_host_t *base_vha)
 		BUG_ON(base_vha->list.next == &ha->vp_list);
 		/* This assumes first entry in ha->vp_list is always base vha */
 		vha = list_first_entry(&base_vha->list, scsi_qla_host_t, list);
-		scsi_host = scsi_host_get(vha->host);
+		scsi_host_get(vha->host);
 
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
 		mutex_unlock(&ha->vport_lock);
@@ -3229,11 +3226,15 @@ qla2x00_schedule_rport_del(struct scsi_qla_host *vha, fc_port_t *fcport,
 		spin_lock_irqsave(vha->host->host_lock, flags);
 		fcport->drport = rport;
 		spin_unlock_irqrestore(vha->host->host_lock, flags);
+		qlt_do_generation_tick(vha, &base_vha->total_fcport_update_gen);
 		set_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags);
 		qla2xxx_wake_dpc(base_vha);
 	} else {
-		fc_remote_port_delete(rport);
-		qlt_fc_port_deleted(vha, fcport);
+		int now;
+		if (rport)
+			fc_remote_port_delete(rport);
+		qlt_do_generation_tick(vha, &now);
+		qlt_fc_port_deleted(vha, fcport, now);
 	}
 }
 
@@ -3270,9 +3271,10 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *vha, fc_port_t *fcport,
 	if (!do_login)
 		return;
 
+	set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+
 	if (fcport->login_retry == 0) {
 		fcport->login_retry = vha->hw->login_retry_count;
-		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 
 		ql_dbg(ql_dbg_disc, vha, 0x2067,
 		    "Port login retry %8phN, id = 0x%04x retry cnt=%d.\n",
@@ -3763,8 +3765,11 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	INIT_LIST_HEAD(&vha->vp_fcports);
 	INIT_LIST_HEAD(&vha->work_list);
 	INIT_LIST_HEAD(&vha->list);
+	INIT_LIST_HEAD(&vha->qla_cmd_list);
+	INIT_LIST_HEAD(&vha->qla_sess_op_cmd_list);
 
 	spin_lock_init(&vha->work_lock);
+	spin_lock_init(&vha->cmd_list_lock);
 
 	sprintf(vha->host_str, "%s_%ld", QLA2XXX_DRIVER_NAME, vha->host_no);
 	ql_dbg(ql_dbg_init, vha, 0x0041,
@@ -4418,7 +4423,10 @@ retry_lock2:
 void
 qla83xx_idc_unlock(scsi_qla_host_t *base_vha, uint16_t requester_id)
 {
-	uint16_t options = (requester_id << 15) | BIT_7, retry;
+#if 0
+	uint16_t options = (requester_id << 15) | BIT_7;
+#endif
+	uint16_t retry;
 	uint32_t data;
 	struct qla_hw_data *ha = base_vha->hw;
 
@@ -4454,6 +4462,7 @@ retry_unlock:
 
 	return;
 
+#if 0
 	/* XXX: IDC-unlock implementation using access-control mbx */
 	retry = 0;
 retry_unlock2:
@@ -4469,6 +4478,7 @@ retry_unlock2:
 	}
 
 	return;
+#endif
 }
 
 int
@@ -4788,7 +4798,6 @@ qla2x00_disable_board_on_pci_error(struct work_struct *work)
 static int
 qla2x00_do_dpc(void *data)
 {
-	int		rval;
 	scsi_qla_host_t *base_vha;
 	struct qla_hw_data *ha;
 
@@ -5020,7 +5029,7 @@ loop_resync_check:
 			if (!(test_and_set_bit(LOOP_RESYNC_ACTIVE,
 			    &base_vha->dpc_flags))) {
 
-				rval = qla2x00_loop_resync(base_vha);
+				qla2x00_loop_resync(base_vha);
 
 				clear_bit(LOOP_RESYNC_ACTIVE,
 						&base_vha->dpc_flags);
@@ -5704,6 +5713,7 @@ static struct pci_device_id qla2xxx_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP8044) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2071) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2271) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2261) },
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(pci, qla2xxx_pci_tbl);

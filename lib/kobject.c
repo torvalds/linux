@@ -257,23 +257,20 @@ static int kobject_add_internal(struct kobject *kobj)
 int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 				  va_list vargs)
 {
-	const char *old_name = kobj->name;
 	char *s;
 
 	if (kobj->name && !fmt)
 		return 0;
 
-	kobj->name = kvasprintf(GFP_KERNEL, fmt, vargs);
-	if (!kobj->name) {
-		kobj->name = old_name;
+	s = kvasprintf(GFP_KERNEL, fmt, vargs);
+	if (!s)
 		return -ENOMEM;
-	}
 
 	/* ewww... some of these buggers have '/' in the name ... */
-	while ((s = strchr(kobj->name, '/')))
-		s[0] = '!';
+	strreplace(s, '/', '!');
+	kfree(kobj->name);
+	kobj->name = s;
 
-	kfree(old_name);
 	return 0;
 }
 
@@ -340,8 +337,9 @@ error:
 }
 EXPORT_SYMBOL(kobject_init);
 
-static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
-			    const char *fmt, va_list vargs)
+static __printf(3, 0) int kobject_add_varg(struct kobject *kobj,
+					   struct kobject *parent,
+					   const char *fmt, va_list vargs)
 {
 	int retval;
 
@@ -548,6 +546,7 @@ out:
 	kfree(devpath);
 	return error;
 }
+EXPORT_SYMBOL_GPL(kobject_move);
 
 /**
  * kobject_del - unlink kobject from hierarchy.

@@ -198,7 +198,7 @@ static int ipip_rcv(struct sk_buff *skb)
 			goto drop;
 		if (iptunnel_pull_header(skb, 0, tpi.proto))
 			goto drop;
-		return ip_tunnel_rcv(tunnel, skb, &tpi, log_ecn_error);
+		return ip_tunnel_rcv(tunnel, skb, &tpi, NULL, log_ecn_error);
 	}
 
 	return -1;
@@ -251,7 +251,8 @@ ipip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EINVAL;
 	}
 
-	p.i_key = p.o_key = p.i_flags = p.o_flags = 0;
+	p.i_key = p.o_key = 0;
+	p.i_flags = p.o_flags = 0;
 	if (p.iph.ttl)
 		p.iph.frag_off |= htons(IP_DF);
 

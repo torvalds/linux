@@ -63,13 +63,32 @@ EXPORT_SYMBOL_GPL(locks_end_grace);
  * lock reclaims.
  */
 int
-locks_in_grace(struct net *net)
+__state_in_grace(struct net *net, bool open)
 {
 	struct list_head *grace_list = net_generic(net, grace_net_id);
+	struct lock_manager *lm;
 
-	return !list_empty(grace_list);
+	if (!open)
+		return !list_empty(grace_list);
+
+	list_for_each_entry(lm, grace_list, list) {
+		if (lm->block_opens)
+			return true;
+	}
+	return false;
+}
+
+int locks_in_grace(struct net *net)
+{
+	return __state_in_grace(net, 0);
 }
 EXPORT_SYMBOL_GPL(locks_in_grace);
+
+int opens_in_grace(struct net *net)
+{
+	return __state_in_grace(net, 1);
+}
+EXPORT_SYMBOL_GPL(opens_in_grace);
 
 static int __net_init
 grace_init_net(struct net *net)

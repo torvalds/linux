@@ -1396,7 +1396,7 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 		/* value16 |= (APDM_HOST | FSM_HSUS |/PFM_ALDN); */
 		/*  2010/08/31 According to Filen description, we need to
 		    use HW to shut down 8051 automatically. */
-		/*  Becasue suspend operatione need the asistance of 8051
+		/*  Because suspend operation need the asistance of 8051
 		    to wait for 3ms. */
 		value16 = APDM_HOST | AFSM_HSUS | PFM_ALDN;
 	} else {
@@ -1485,7 +1485,7 @@ void Hal_EfuseParseIDCode(struct rtw_adapter *padapter, u8 *hwinfo)
 	u16 EEPROMId;
 
 	/*  Checl 0x8129 again for making sure autoload status!! */
-	EEPROMId = le16_to_cpu(*((u16 *) hwinfo));
+	EEPROMId = le16_to_cpu(*((__le16 *) hwinfo));
 	if (EEPROMId != RTL_EEPROM_ID) {
 		DBG_8723A("EEPROM ID(%#x) is invalid!!\n", EEPROMId);
 		pEEPROM->bautoload_fail_flag = true;
@@ -1838,7 +1838,7 @@ Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter,
 
 static void rtl8723a_cal_txdesc_chksum(struct tx_desc *ptxdesc)
 {
-	u16 *usPtr = (u16 *) ptxdesc;
+	__le16 *usPtr = (__le16 *)ptxdesc;
 	u32 count = 16;		/*  (32 bytes / 2 bytes per XOR) => 16 times */
 	u32 index;
 	u16 checksum = 0;
@@ -1847,7 +1847,7 @@ static void rtl8723a_cal_txdesc_chksum(struct tx_desc *ptxdesc)
 	ptxdesc->txdw7 &= cpu_to_le32(0xffff0000);
 
 	for (index = 0; index < count; index++)
-		checksum ^= le16_to_cpu(*(usPtr + index));
+		checksum ^= le16_to_cpu(usPtr[index]);
 
 	ptxdesc->txdw7 |= cpu_to_le32(checksum & 0x0000ffff);
 }

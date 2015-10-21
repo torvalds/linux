@@ -42,14 +42,14 @@
  * status of that page is hard.  See end_buffer_async_read() for the details.
  * There is no point in duplicating all that complexity.
  */
-static void mpage_end_io(struct bio *bio, int err)
+static void mpage_end_io(struct bio *bio)
 {
 	struct bio_vec *bv;
 	int i;
 
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
-		page_endio(page, bio_data_dir(bio), err);
+		page_endio(page, bio_data_dir(bio), bio->bi_error);
 	}
 
 	bio_put(bio);
@@ -139,7 +139,8 @@ map_buffer_to_page(struct page *page, struct buffer_head *bh, int page_block)
 static struct bio *
 do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
 		sector_t *last_block_in_bio, struct buffer_head *map_bh,
-		unsigned long *first_logical_block, get_block_t get_block)
+		unsigned long *first_logical_block, get_block_t get_block,
+		gfp_t gfp)
 {
 	struct inode *inode = page->mapping->host;
 	const unsigned blkbits = inode->i_blkbits;
@@ -277,8 +278,7 @@ alloc_new:
 				goto out;
 		}
 		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
-			  	min_t(int, nr_pages, bio_get_nr_vecs(bdev)),
-				GFP_KERNEL);
+				min_t(int, nr_pages, BIO_MAX_PAGES), gfp);
 		if (bio == NULL)
 			goto confused;
 	}
@@ -361,6 +361,7 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 	sector_t last_block_in_bio = 0;
 	struct buffer_head map_bh;
 	unsigned long first_logical_block = 0;
+	gfp_t gfp = GFP_KERNEL & mapping_gfp_mask(mapping);
 
 	map_bh.b_state = 0;
 	map_bh.b_size = 0;
@@ -370,12 +371,13 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 		prefetchw(&page->flags);
 		list_del(&page->lru);
 		if (!add_to_page_cache_lru(page, mapping,
-					page->index, GFP_KERNEL)) {
+					page->index,
+					gfp)) {
 			bio = do_mpage_readpage(bio, page,
 					nr_pages - page_idx,
 					&last_block_in_bio, &map_bh,
 					&first_logical_block,
-					get_block);
+					get_block, gfp);
 		}
 		page_cache_release(page);
 	}
@@ -395,11 +397,12 @@ int mpage_readpage(struct page *page, get_block_t get_block)
 	sector_t last_block_in_bio = 0;
 	struct buffer_head map_bh;
 	unsigned long first_logical_block = 0;
+	gfp_t gfp = GFP_KERNEL & mapping_gfp_mask(page->mapping);
 
 	map_bh.b_state = 0;
 	map_bh.b_size = 0;
 	bio = do_mpage_readpage(bio, page, 1, &last_block_in_bio,
-			&map_bh, &first_logical_block, get_block);
+			&map_bh, &first_logical_block, get_block, gfp);
 	if (bio)
 		mpage_bio_submit(READ, bio);
 	return 0;
@@ -602,9 +605,11 @@ alloc_new:
 			}
 		}
 		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
-				bio_get_nr_vecs(bdev), GFP_NOFS|__GFP_HIGH);
+				BIO_MAX_PAGES, GFP_NOFS|__GFP_HIGH);
 		if (bio == NULL)
 			goto confused;
+
+		wbc_init_bio(wbc, bio);
 	}
 
 	/*
@@ -612,6 +617,7 @@ alloc_new:
 	 * the confused fail path above (OOM) will be very confused when
 	 * it finds all bh marked clean (i.e. it will not write anything)
 	 */
+	wbc_account_io(wbc, page, PAGE_SIZE);
 	length = first_unmapped << blkbits;
 	if (bio_add_page(bio, page, length, 0) < length) {
 		bio = mpage_bio_submit(WRITE, bio);

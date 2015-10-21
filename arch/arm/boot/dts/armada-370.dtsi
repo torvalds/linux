@@ -139,11 +139,15 @@
 			 * board level if a different configuration is used.
 			 */
 			spi0: spi@10600 {
+				compatible = "marvell,armada-370-spi",
+						"marvell,orion-spi";
 				pinctrl-0 = <&spi0_pins1>;
 				pinctrl-names = "default";
 			};
 
 			spi1: spi@10680 {
+				compatible = "marvell,armada-370-spi",
+						"marvell,orion-spi";
 				pinctrl-0 = <&spi1_pins>;
 				pinctrl-names = "default";
 			};
@@ -306,6 +310,14 @@
 					dmacap,xor;
 					dmacap,memset;
 				};
+			};
+
+			ethernet@70000 {
+				compatible = "marvell,armada-370-neta";
+			};
+
+			ethernet@74000 {
+				compatible = "marvell,armada-370-neta";
 			};
 		};
 	};

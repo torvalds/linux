@@ -52,9 +52,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 		goto out;
 
-	if (btrfs_test_opt(root, SSD))
-		goto out;
-
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -118,8 +115,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		ret = -EAGAIN;
 	}
 out:
-	if (path)
-		btrfs_free_path(path);
+	btrfs_free_path(path);
 	if (ret == -EAGAIN) {
 		if (root->defrag_max.objectid > root->defrag_progress.objectid)
 			goto done;

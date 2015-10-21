@@ -542,6 +542,21 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
 }
 EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
+static int shmem_getattr(struct vfsmount *mnt, struct dentry *dentry,
+			 struct kstat *stat)
+{
+	struct inode *inode = dentry->d_inode;
+	struct shmem_inode_info *info = SHMEM_I(inode);
+
+	spin_lock(&info->lock);
+	shmem_recalc_inode(inode);
+	spin_unlock(&info->lock);
+
+	generic_fillattr(inode, stat);
+
+	return 0;
+}
+
 static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -569,7 +584,7 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 			i_size_write(inode, newsize);
 			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 		}
-		if (newsize < oldsize) {
+		if (newsize <= oldsize) {
 			loff_t holebegin = round_up(newsize, PAGE_SIZE);
 			unmap_mapping_range(inode->i_mapping, holebegin, 0, 1);
 			shmem_truncate_range(inode, newsize, (loff_t)-1);
@@ -2451,6 +2466,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 			return -ENOMEM;
 		}
 		inode->i_op = &shmem_short_symlink_operations;
+		inode->i_link = info->symlink;
 	} else {
 		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
 		if (error) {
@@ -2474,30 +2490,23 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	return 0;
 }
 
-static void *shmem_follow_short_symlink(struct dentry *dentry, struct nameidata *nd)
-{
-	nd_set_link(nd, SHMEM_I(d_inode(dentry))->symlink);
-	return NULL;
-}
-
-static void *shmem_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *shmem_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct page *page = NULL;
 	int error = shmem_getpage(d_inode(dentry), 0, &page, SGP_READ, NULL);
-	nd_set_link(nd, error ? ERR_PTR(error) : kmap(page));
-	if (page)
-		unlock_page(page);
-	return page;
+	if (error)
+		return ERR_PTR(error);
+	unlock_page(page);
+	*cookie = page;
+	return kmap(page);
 }
 
-static void shmem_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
+static void shmem_put_link(struct inode *unused, void *cookie)
 {
-	if (!IS_ERR(nd_get_link(nd))) {
-		struct page *page = cookie;
-		kunmap(page);
-		mark_page_accessed(page);
-		page_cache_release(page);
-	}
+	struct page *page = cookie;
+	kunmap(page);
+	mark_page_accessed(page);
+	page_cache_release(page);
 }
 
 #ifdef CONFIG_TMPFS_XATTR
@@ -2642,7 +2651,7 @@ static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 static const struct inode_operations shmem_short_symlink_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= shmem_follow_short_symlink,
+	.follow_link	= simple_follow_link,
 #ifdef CONFIG_TMPFS_XATTR
 	.setxattr	= shmem_setxattr,
 	.getxattr	= shmem_getxattr,
@@ -3128,6 +3137,7 @@ static const struct file_operations shmem_file_operations = {
 };
 
 static const struct inode_operations shmem_inode_operations = {
+	.getattr	= shmem_getattr,
 	.setattr	= shmem_setattr,
 #ifdef CONFIG_TMPFS_XATTR
 	.setxattr	= shmem_setxattr,
@@ -3369,8 +3379,8 @@ put_path:
  * shmem_kernel_file_setup - get an unlinked file living in tmpfs which must be
  * 	kernel internal.  There will be NO LSM permission checks against the
  * 	underlying inode.  So users of this interface must do LSM checks at a
- * 	higher layer.  The one user is the big_key implementation.  LSM checks
- * 	are provided at the key level rather than the inode level.
+ *	higher layer.  The users are the big_key and shm implementations.  LSM
+ *	checks are provided at the key or shm level rather than the inode.
  * @name: name for dentry (to be seen in /proc/<pid>/maps
  * @size: size to be set for the file
  * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
@@ -3401,7 +3411,13 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 	struct file *file;
 	loff_t size = vma->vm_end - vma->vm_start;
 
-	file = shmem_file_setup("dev/zero", size, vma->vm_flags);
+	/*
+	 * Cloning a new file under mmap_sem leads to a lock ordering conflict
+	 * between XFS directory reading and selinux: since this file is only
+	 * accessible to the user through its mapping, use S_PRIVATE flag to
+	 * bypass file security, in the same way as shmem_kernel_file_setup().
+	 */
+	file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 

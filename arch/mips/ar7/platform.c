@@ -39,7 +39,6 @@
 
 #include <asm/addrspace.h>
 #include <asm/mach-ar7/ar7.h>
-#include <asm/mach-ar7/gpio.h>
 #include <asm/mach-ar7/prom.h>
 
 /*****************************************************************************
@@ -679,7 +678,8 @@ static int __init ar7_register_devices(void)
 	}
 
 	if (ar7_has_high_cpmac()) {
-		res = fixed_phy_add(PHY_POLL, cpmac_high.id, &fixed_phy_status);
+		res = fixed_phy_add(PHY_POLL, cpmac_high.id,
+				    &fixed_phy_status, -1);
 		if (!res) {
 			cpmac_get_mac(1, cpmac_high_data.dev_addr);
 
@@ -692,7 +692,7 @@ static int __init ar7_register_devices(void)
 	} else
 		cpmac_low_data.phy_mask = 0xffffffff;
 
-	res = fixed_phy_add(PHY_POLL, cpmac_low.id, &fixed_phy_status);
+	res = fixed_phy_add(PHY_POLL, cpmac_low.id, &fixed_phy_status, -1);
 	if (!res) {
 		cpmac_get_mac(0, cpmac_low_data.dev_addr);
 		res = platform_device_register(&cpmac_low);

@@ -646,7 +646,7 @@ static int aic31xx_add_controls(struct snd_soc_codec *codec)
 
 static int aic31xx_add_widgets(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
@@ -1027,17 +1027,17 @@ static int aic31xx_set_bias_level(struct snd_soc_codec *codec,
 				  enum snd_soc_bias_level level)
 {
 	dev_dbg(codec->dev, "## %s: %d -> %d\n", __func__,
-		codec->dapm.bias_level, level);
+		snd_soc_codec_get_bias_level(codec), level);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_STANDBY)
 			aic31xx_clk_on(codec);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		switch (codec->dapm.bias_level) {
+		switch (snd_soc_codec_get_bias_level(codec)) {
 		case SND_SOC_BIAS_OFF:
 			aic31xx_power_on(codec);
 			break;
@@ -1049,11 +1049,10 @@ static int aic31xx_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_STANDBY)
 			aic31xx_power_off(codec);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1122,7 +1121,7 @@ static struct snd_soc_codec_driver soc_codec_driver_aic31xx = {
 	.num_dapm_routes	= ARRAY_SIZE(aic31xx_audio_map),
 };
 
-static struct snd_soc_dai_ops aic31xx_dai_ops = {
+static const struct snd_soc_dai_ops aic31xx_dai_ops = {
 	.hw_params	= aic31xx_hw_params,
 	.set_sysclk	= aic31xx_set_dai_sysclk,
 	.set_fmt	= aic31xx_set_dai_fmt,
@@ -1284,7 +1283,6 @@ MODULE_DEVICE_TABLE(i2c, aic31xx_i2c_id);
 static struct i2c_driver aic31xx_i2c_driver = {
 	.driver = {
 		.name	= "tlv320aic31xx-codec",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(tlv320aic31xx_of_match),
 	},
 	.probe		= aic31xx_i2c_probe,

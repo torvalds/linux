@@ -38,11 +38,10 @@ static const DECLARE_TLV_DB_SCALE(earpiece_tlv, -600, 600, 0);
 static const DECLARE_TLV_DB_SCALE(outmix_tlv, -2100, 300, 0);
 static const DECLARE_TLV_DB_SCALE(spkmixout_tlv, -1800, 600, 1);
 static const DECLARE_TLV_DB_SCALE(outpga_tlv, -5700, 100, 0);
-static const unsigned int spkboost_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(spkboost_tlv,
 	0, 6, TLV_DB_SCALE_ITEM(0, 150, 0),
-	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0),
-};
+	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0)
+);
 static const DECLARE_TLV_DB_SCALE(line_tlv, -600, 600, 0);
 
 static const char *speaker_ref_text[] = {
@@ -1116,7 +1115,7 @@ static const struct snd_soc_dapm_route lineout2_se_routes[] = {
 
 int wm_hubs_add_analogue_controls(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	/* Latch volume update bits & default ZC on */
 	snd_soc_update_bits(codec, WM8993_LEFT_LINE_INPUT_1_2_VOLUME,
@@ -1160,7 +1159,7 @@ int wm_hubs_add_analogue_routes(struct snd_soc_codec *codec,
 				int lineout1_diff, int lineout2_diff)
 {
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	hubs->codec = codec;
 

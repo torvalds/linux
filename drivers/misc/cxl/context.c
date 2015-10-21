@@ -113,11 +113,11 @@ static int cxl_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	if (ctx->afu->current_mode == CXL_MODE_DEDICATED) {
 		area = ctx->afu->psn_phys;
-		if (offset > ctx->afu->adapter->ps_size)
+		if (offset >= ctx->afu->adapter->ps_size)
 			return VM_FAULT_SIGBUS;
 	} else {
 		area = ctx->psn_phys;
-		if (offset > ctx->psn_size)
+		if (offset >= ctx->psn_size)
 			return VM_FAULT_SIGBUS;
 	}
 
@@ -126,6 +126,18 @@ static int cxl_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (ctx->status != STARTED) {
 		mutex_unlock(&ctx->status_mutex);
 		pr_devel("%s: Context not started, failing problem state access\n", __func__);
+		if (ctx->mmio_err_ff) {
+			if (!ctx->ff_page) {
+				ctx->ff_page = alloc_page(GFP_USER);
+				if (!ctx->ff_page)
+					return VM_FAULT_OOM;
+				memset(page_address(ctx->ff_page), 0xff, PAGE_SIZE);
+			}
+			get_page(ctx->ff_page);
+			vmf->page = ctx->ff_page;
+			vma->vm_page_prot = pgprot_cached(vma->vm_page_prot);
+			return 0;
+		}
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -145,8 +157,16 @@ static const struct vm_operations_struct cxl_mmap_vmops = {
  */
 int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
 {
+	u64 start = vma->vm_pgoff << PAGE_SHIFT;
 	u64 len = vma->vm_end - vma->vm_start;
-	len = min(len, ctx->psn_size);
+
+	if (ctx->afu->current_mode == CXL_MODE_DEDICATED) {
+		if (start + len > ctx->afu->adapter->ps_size)
+			return -EINVAL;
+	} else {
+		if (start + len > ctx->psn_size)
+			return -EINVAL;
+	}
 
 	if (ctx->afu->current_mode != CXL_MODE_DEDICATED) {
 		/* make sure there is a valid per process space for this AFU */
@@ -174,7 +194,7 @@ int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
  * return until all outstanding interrupts for this context have completed. The
  * hardware should no longer access *ctx after this has returned.
  */
-static void __detach_context(struct cxl_context *ctx)
+int __detach_context(struct cxl_context *ctx)
 {
 	enum cxl_context_status status;
 
@@ -183,12 +203,17 @@ static void __detach_context(struct cxl_context *ctx)
 	ctx->status = CLOSED;
 	mutex_unlock(&ctx->status_mutex);
 	if (status != STARTED)
-		return;
+		return -EBUSY;
 
-	WARN_ON(cxl_detach_process(ctx));
-	afu_release_irqs(ctx);
+	/* Only warn if we detached while the link was OK.
+	 * If detach fails when hw is down, we don't care.
+	 */
+	WARN_ON(cxl_detach_process(ctx) &&
+		cxl_adapter_link_ok(ctx->afu->adapter));
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
-	wake_up_all(&ctx->wq);
+	put_pid(ctx->pid);
+	cxl_ctx_put();
+	return 0;
 }
 
 /*
@@ -199,7 +224,14 @@ static void __detach_context(struct cxl_context *ctx)
  */
 void cxl_context_detach(struct cxl_context *ctx)
 {
-	__detach_context(ctx);
+	int rc;
+
+	rc = __detach_context(ctx);
+	if (rc)
+		return;
+
+	afu_release_irqs(ctx, ctx);
+	wake_up_all(&ctx->wq);
 }
 
 /*
@@ -216,7 +248,7 @@ void cxl_context_detach_all(struct cxl_afu *afu)
 		 * Anything done in here needs to be setup before the IDR is
 		 * created and torn down after the IDR removed
 		 */
-		__detach_context(ctx);
+		cxl_context_detach(ctx);
 
 		/*
 		 * We are force detaching - remove any active PSA mappings so
@@ -232,16 +264,27 @@ void cxl_context_detach_all(struct cxl_afu *afu)
 	mutex_unlock(&afu->contexts_lock);
 }
 
+static void reclaim_ctx(struct rcu_head *rcu)
+{
+	struct cxl_context *ctx = container_of(rcu, struct cxl_context, rcu);
+
+	free_page((u64)ctx->sstp);
+	if (ctx->ff_page)
+		__free_page(ctx->ff_page);
+	ctx->sstp = NULL;
+	if (ctx->kernelapi)
+		kfree(ctx->mapping);
+
+	if (ctx->irq_bitmap)
+		kfree(ctx->irq_bitmap);
+
+	kfree(ctx);
+}
+
 void cxl_context_free(struct cxl_context *ctx)
 {
 	mutex_lock(&ctx->afu->contexts_lock);
 	idr_remove(&ctx->afu->contexts_idr, ctx->pe);
 	mutex_unlock(&ctx->afu->contexts_lock);
-	synchronize_rcu();
-
-	free_page((u64)ctx->sstp);
-	ctx->sstp = NULL;
-
-	put_pid(ctx->pid);
-	kfree(ctx);
+	call_rcu(&ctx->rcu, reclaim_ctx);
 }

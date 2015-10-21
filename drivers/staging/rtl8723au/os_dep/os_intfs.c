@@ -172,7 +172,7 @@ MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
 
 static int netdev_close(struct net_device *pnetdev);
 
-static int loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
+static void loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
 {
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
@@ -233,7 +233,6 @@ static int loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
 	snprintf(registry_par->if2name, 16, "%s", if2name);
 	registry_par->notch_filter = (u8)rtw_notch_filter;
 	registry_par->regulatory_tid = (u8)rtw_regulatory_id;
-	return _SUCCESS;
 }
 
 static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
@@ -372,7 +371,6 @@ struct net_device *rtw_init_netdev23a(struct rtw_adapter *old_padapter)
 
 	pnetdev->watchdog_timeo = HZ*3; /* 3 second timeout */
 
-	/* step 2. */
 	loadparam(padapter, pnetdev);
 	return pnetdev;
 }

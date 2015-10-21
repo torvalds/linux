@@ -125,7 +125,7 @@ static int vgem_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 }
 
-static struct vm_operations_struct vgem_gem_vm_ops = {
+static const struct vm_operations_struct vgem_gem_vm_ops = {
 	.fault = vgem_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
@@ -327,6 +327,8 @@ static int __init vgem_init(void)
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	drm_dev_set_unique(vgem_device, "vgem");
 
 	ret  = drm_dev_register(vgem_device, 0);
 

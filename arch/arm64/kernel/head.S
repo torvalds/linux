@@ -62,13 +62,8 @@
 /*
  * Initial memory map attributes.
  */
-#ifndef CONFIG_SMP
-#define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF
-#define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF
-#else
 #define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF | PTE_SHARED
 #define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S
-#endif
 
 #ifdef CONFIG_ARM64_64K_PAGES
 #define MM_MMUFLAGS	PTE_ATTRINDX(MT_NORMAL) | PTE_FLAGS
@@ -237,8 +232,6 @@ ENTRY(stext)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	adrp	x24, __PHYS_OFFSET
 	bl	set_cpu_boot_mode_flag
-
-	bl	__vet_fdt
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
 	/*
 	 * The following calls CPU setup code, see arch/arm64/mm/proc.S for
@@ -269,24 +262,6 @@ preserve_boot_args:
 	b	__inval_cache_range		// tail call
 ENDPROC(preserve_boot_args)
 
-/*
- * Determine validity of the x21 FDT pointer.
- * The dtb must be 8-byte aligned and live in the first 512M of memory.
- */
-__vet_fdt:
-	tst	x21, #0x7
-	b.ne	1f
-	cmp	x21, x24
-	b.lt	1f
-	mov	x0, #(1 << 29)
-	add	x0, x0, x24
-	cmp	x21, x0
-	b.ge	1f
-	ret
-1:
-	mov	x21, #0
-	ret
-ENDPROC(__vet_fdt)
 /*
  * Macro to create a table entry to the next page.
  *
@@ -348,8 +323,7 @@ ENDPROC(__vet_fdt)
  * required to get the kernel running. The following sections are required:
  *   - identity mapping to enable the MMU (low address, TTBR0)
  *   - first few MB of the kernel linear mapping to jump to once the MMU has
- *     been enabled, including the FDT blob (TTBR1)
- *   - pgd entry for fixed mappings (TTBR1)
+ *     been enabled
  */
 __create_page_tables:
 	adrp	x25, idmap_pg_dir
@@ -382,7 +356,7 @@ __create_page_tables:
 	 * Create the identity mapping.
 	 */
 	mov	x0, x25				// idmap_pg_dir
-	adrp	x3, KERNEL_START		// __pa(KERNEL_START)
+	adrp	x3, __idmap_text_start		// __pa(__idmap_text_start)
 
 #ifndef CONFIG_ARM64_VA_BITS_48
 #define EXTRA_SHIFT	(PGDIR_SHIFT + PAGE_SHIFT - 3)
@@ -405,11 +379,11 @@ __create_page_tables:
 
 	/*
 	 * Calculate the maximum allowed value for TCR_EL1.T0SZ so that the
-	 * entire kernel image can be ID mapped. As T0SZ == (64 - #bits used),
+	 * entire ID map region can be mapped. As T0SZ == (64 - #bits used),
 	 * this number conveniently equals the number of leading zeroes in
-	 * the physical address of KERNEL_END.
+	 * the physical address of __idmap_text_end.
 	 */
-	adrp	x5, KERNEL_END
+	adrp	x5, __idmap_text_end
 	clz	x5, x5
 	cmp	x5, TCR_T0SZ(VA_BITS)	// default T0SZ small enough?
 	b.ge	1f			// .. then skip additional level
@@ -424,8 +398,8 @@ __create_page_tables:
 #endif
 
 	create_pgd_entry x0, x3, x5, x6
-	mov	x5, x3				// __pa(KERNEL_START)
-	adr_l	x6, KERNEL_END			// __pa(KERNEL_END)
+	mov	x5, x3				// __pa(__idmap_text_start)
+	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
 	create_block_map x0, x7, x3, x5, x6
 
 	/*
@@ -438,22 +412,6 @@ __create_page_tables:
 	mov	x3, x24				// phys offset
 	create_block_map x0, x7, x3, x5, x6
 
-	/*
-	 * Map the FDT blob (maximum 2MB; must be within 512MB of
-	 * PHYS_OFFSET).
-	 */
-	mov	x3, x21				// FDT phys address
-	and	x3, x3, #~((1 << 21) - 1)	// 2MB aligned
-	mov	x6, #PAGE_OFFSET
-	sub	x5, x3, x24			// subtract PHYS_OFFSET
-	tst	x5, #~((1 << 29) - 1)		// within 512MB?
-	csel	x21, xzr, x21, ne		// zero the FDT pointer
-	b.ne	1f
-	add	x5, x5, x6			// __va(FDT blob)
-	add	x6, x5, #1 << 21		// 2MB for the FDT blob
-	sub	x6, x6, #1			// inclusive range
-	create_block_map x0, x7, x3, x5, x6
-1:
 	/*
 	 * Since the page tables have been populated with non-cacheable
 	 * accesses (MMU disabled), invalidate the idmap and swapper page
@@ -565,6 +523,11 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
 #endif
 
+	/* EL2 debug */
+	mrs	x0, pmcr_el0			// Disable debug access traps
+	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
+	msr	mdcr_el2, x0			// all PMU counters from EL1
+
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
 
@@ -611,7 +574,6 @@ ENTRY(__boot_cpu_mode)
 	.long	BOOT_CPU_MODE_EL1
 	.popsection
 
-#ifdef CONFIG_SMP
 	/*
 	 * This provides a "holding pen" for platforms to hold all secondary
 	 * cores are held until we're ready for them to initialise.
@@ -659,7 +621,6 @@ ENTRY(__secondary_switched)
 	mov	x29, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
-#endif	/* CONFIG_SMP */
 
 /*
  * Enable the MMU.
@@ -669,6 +630,7 @@ ENDPROC(__secondary_switched)
  *
  * other registers depend on the function called upon completion
  */
+	.section	".idmap.text", "ax"
 __enable_mmu:
 	ldr	x5, =vectors
 	msr	vbar_el1, x5
@@ -676,6 +638,14 @@ __enable_mmu:
 	msr	ttbr1_el1, x26			// load TTBR1
 	isb
 	msr	sctlr_el1, x0
+	isb
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
 	isb
 	br	x27
 ENDPROC(__enable_mmu)

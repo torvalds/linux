@@ -57,6 +57,7 @@ static int patch_cmi9880(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
+	codec->patch_ops = cmi_auto_patch_ops;
 	cfg = &spec->gen.autocfg;
 	snd_hda_gen_spec_init(&spec->gen);
 
@@ -67,7 +68,6 @@ static int patch_cmi9880(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	codec->patch_ops = cmi_auto_patch_ops;
 	return 0;
 
  error:
@@ -86,6 +86,7 @@ static int patch_cmi8888(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
+	codec->patch_ops = cmi_auto_patch_ops;
 	cfg = &spec->gen.autocfg;
 	snd_hda_gen_spec_init(&spec->gen);
 
@@ -112,7 +113,6 @@ static int patch_cmi8888(struct hda_codec *codec)
 		}
 	}
 
-	codec->patch_ops = cmi_auto_patch_ops;
 	return 0;
 
  error:

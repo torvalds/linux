@@ -110,6 +110,9 @@
 #define IP_MAX_MEMBERSHIPS	20
 #define IP_MAX_MSF		10
 
+/* IGMP reports for link-local multicast groups are enabled by default */
+int sysctl_igmp_llm_reports __read_mostly = 1;
+
 #ifdef CONFIG_IP_MULTICAST
 /* Parameter names and values are taken from igmp-v2-06 draft */
 
@@ -437,6 +440,8 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 
 	if (pmc->multiaddr == IGMP_ALL_HOSTS)
 		return skb;
+	if (ipv4_is_local_multicast(pmc->multiaddr) && !sysctl_igmp_llm_reports)
+		return skb;
 
 	isquery = type == IGMPV3_MODE_IS_INCLUDE ||
 		  type == IGMPV3_MODE_IS_EXCLUDE;
@@ -544,6 +549,9 @@ static int igmpv3_send_report(struct in_device *in_dev, struct ip_mc_list *pmc)
 		rcu_read_lock();
 		for_each_pmc_rcu(in_dev, pmc) {
 			if (pmc->multiaddr == IGMP_ALL_HOSTS)
+				continue;
+			if (ipv4_is_local_multicast(pmc->multiaddr) &&
+			     !sysctl_igmp_llm_reports)
 				continue;
 			spin_lock_bh(&pmc->lock);
 			if (pmc->sfcount[MCAST_EXCLUDE])
@@ -678,7 +686,11 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 
 	if (type == IGMPV3_HOST_MEMBERSHIP_REPORT)
 		return igmpv3_send_report(in_dev, pmc);
-	else if (type == IGMP_HOST_LEAVE_MESSAGE)
+
+	if (ipv4_is_local_multicast(group) && !sysctl_igmp_llm_reports)
+		return 0;
+
+	if (type == IGMP_HOST_LEAVE_MESSAGE)
 		dst = IGMP_ALL_ROUTER;
 	else
 		dst = group;
@@ -851,6 +863,8 @@ static bool igmp_heard_report(struct in_device *in_dev, __be32 group)
 
 	if (group == IGMP_ALL_HOSTS)
 		return false;
+	if (ipv4_is_local_multicast(group) && !sysctl_igmp_llm_reports)
+		return false;
 
 	rcu_read_lock();
 	for_each_pmc_rcu(in_dev, im) {
@@ -956,6 +970,9 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		if (group && group != im->multiaddr)
 			continue;
 		if (im->multiaddr == IGMP_ALL_HOSTS)
+			continue;
+		if (ipv4_is_local_multicast(im->multiaddr) &&
+		    !sysctl_igmp_llm_reports)
 			continue;
 		spin_lock_bh(&im->lock);
 		if (im->tm_running)
@@ -1181,6 +1198,8 @@ static void igmp_group_dropped(struct ip_mc_list *im)
 #ifdef CONFIG_IP_MULTICAST
 	if (im->multiaddr == IGMP_ALL_HOSTS)
 		return;
+	if (ipv4_is_local_multicast(im->multiaddr) && !sysctl_igmp_llm_reports)
+		return;
 
 	reporter = im->reporter;
 	igmp_stop_timer(im);
@@ -1212,6 +1231,8 @@ static void igmp_group_added(struct ip_mc_list *im)
 
 #ifdef CONFIG_IP_MULTICAST
 	if (im->multiaddr == IGMP_ALL_HOSTS)
+		return;
+	if (ipv4_is_local_multicast(im->multiaddr) && !sysctl_igmp_llm_reports)
 		return;
 
 	if (in_dev->dead)
@@ -1339,6 +1360,171 @@ out:
 }
 EXPORT_SYMBOL(ip_mc_inc_group);
 
+static int ip_mc_check_iphdr(struct sk_buff *skb)
+{
+	const struct iphdr *iph;
+	unsigned int len;
+	unsigned int offset = skb_network_offset(skb) + sizeof(*iph);
+
+	if (!pskb_may_pull(skb, offset))
+		return -EINVAL;
+
+	iph = ip_hdr(skb);
+
+	if (iph->version != 4 || ip_hdrlen(skb) < sizeof(*iph))
+		return -EINVAL;
+
+	offset += ip_hdrlen(skb) - sizeof(*iph);
+
+	if (!pskb_may_pull(skb, offset))
+		return -EINVAL;
+
+	iph = ip_hdr(skb);
+
+	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
+		return -EINVAL;
+
+	len = skb_network_offset(skb) + ntohs(iph->tot_len);
+	if (skb->len < len || len < offset)
+		return -EINVAL;
+
+	skb_set_transport_header(skb, offset);
+
+	return 0;
+}
+
+static int ip_mc_check_igmp_reportv3(struct sk_buff *skb)
+{
+	unsigned int len = skb_transport_offset(skb);
+
+	len += sizeof(struct igmpv3_report);
+
+	return pskb_may_pull(skb, len) ? 0 : -EINVAL;
+}
+
+static int ip_mc_check_igmp_query(struct sk_buff *skb)
+{
+	unsigned int len = skb_transport_offset(skb);
+
+	len += sizeof(struct igmphdr);
+	if (skb->len < len)
+		return -EINVAL;
+
+	/* IGMPv{1,2}? */
+	if (skb->len != len) {
+		/* or IGMPv3? */
+		len += sizeof(struct igmpv3_query) - sizeof(struct igmphdr);
+		if (skb->len < len || !pskb_may_pull(skb, len))
+			return -EINVAL;
+	}
+
+	/* RFC2236+RFC3376 (IGMPv2+IGMPv3) require the multicast link layer
+	 * all-systems destination addresses (224.0.0.1) for general queries
+	 */
+	if (!igmp_hdr(skb)->group &&
+	    ip_hdr(skb)->daddr != htonl(INADDR_ALLHOSTS_GROUP))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int ip_mc_check_igmp_msg(struct sk_buff *skb)
+{
+	switch (igmp_hdr(skb)->type) {
+	case IGMP_HOST_LEAVE_MESSAGE:
+	case IGMP_HOST_MEMBERSHIP_REPORT:
+	case IGMPV2_HOST_MEMBERSHIP_REPORT:
+		/* fall through */
+		return 0;
+	case IGMPV3_HOST_MEMBERSHIP_REPORT:
+		return ip_mc_check_igmp_reportv3(skb);
+	case IGMP_HOST_MEMBERSHIP_QUERY:
+		return ip_mc_check_igmp_query(skb);
+	default:
+		return -ENOMSG;
+	}
+}
+
+static inline __sum16 ip_mc_validate_checksum(struct sk_buff *skb)
+{
+	return skb_checksum_simple_validate(skb);
+}
+
+static int __ip_mc_check_igmp(struct sk_buff *skb, struct sk_buff **skb_trimmed)
+
+{
+	struct sk_buff *skb_chk;
+	unsigned int transport_len;
+	unsigned int len = skb_transport_offset(skb) + sizeof(struct igmphdr);
+	int ret = -EINVAL;
+
+	transport_len = ntohs(ip_hdr(skb)->tot_len) - ip_hdrlen(skb);
+
+	skb_chk = skb_checksum_trimmed(skb, transport_len,
+				       ip_mc_validate_checksum);
+	if (!skb_chk)
+		goto err;
+
+	if (!pskb_may_pull(skb_chk, len))
+		goto err;
+
+	ret = ip_mc_check_igmp_msg(skb_chk);
+	if (ret)
+		goto err;
+
+	if (skb_trimmed)
+		*skb_trimmed = skb_chk;
+	/* free now unneeded clone */
+	else if (skb_chk != skb)
+		kfree_skb(skb_chk);
+
+	ret = 0;
+
+err:
+	if (ret && skb_chk && skb_chk != skb)
+		kfree_skb(skb_chk);
+
+	return ret;
+}
+
+/**
+ * ip_mc_check_igmp - checks whether this is a sane IGMP packet
+ * @skb: the skb to validate
+ * @skb_trimmed: to store an skb pointer trimmed to IPv4 packet tail (optional)
+ *
+ * Checks whether an IPv4 packet is a valid IGMP packet. If so sets
+ * skb transport header accordingly and returns zero.
+ *
+ * -EINVAL: A broken packet was detected, i.e. it violates some internet
+ *  standard
+ * -ENOMSG: IP header validation succeeded but it is not an IGMP packet.
+ * -ENOMEM: A memory allocation failure happened.
+ *
+ * Optionally, an skb pointer might be provided via skb_trimmed (or set it
+ * to NULL): After parsing an IGMP packet successfully it will point to
+ * an skb which has its tail aligned to the IP packet end. This might
+ * either be the originally provided skb or a trimmed, cloned version if
+ * the skb frame had data beyond the IP packet. A cloned skb allows us
+ * to leave the original skb and its full frame unchanged (which might be
+ * desirable for layer 2 frame jugglers).
+ *
+ * Caller needs to set the skb network header and free any returned skb if it
+ * differs from the provided skb.
+ */
+int ip_mc_check_igmp(struct sk_buff *skb, struct sk_buff **skb_trimmed)
+{
+	int ret = ip_mc_check_iphdr(skb);
+
+	if (ret < 0)
+		return ret;
+
+	if (ip_hdr(skb)->protocol != IPPROTO_IGMP)
+		return -ENOMSG;
+
+	return __ip_mc_check_igmp(skb, skb_trimmed);
+}
+EXPORT_SYMBOL(ip_mc_check_igmp);
+
 /*
  *	Resend IGMP JOIN report; used by netdev notifier.
  */
@@ -1352,6 +1538,9 @@ static void ip_mc_rejoin_groups(struct in_device *in_dev)
 
 	for_each_pmc_rtnl(in_dev, im) {
 		if (im->multiaddr == IGMP_ALL_HOSTS)
+			continue;
+		if (ipv4_is_local_multicast(im->multiaddr) &&
+		    !sysctl_igmp_llm_reports)
 			continue;
 
 		/* a failover is happening and switches

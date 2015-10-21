@@ -219,6 +219,24 @@ int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 }
 EXPORT_SYMBOL(mlx5_core_modify_cq);
 
+int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
+				   struct mlx5_core_cq *cq,
+				   u16 cq_period,
+				   u16 cq_max_count)
+{
+	struct mlx5_modify_cq_mbox_in in;
+
+	memset(&in, 0, sizeof(in));
+
+	in.cqn              = cpu_to_be32(cq->cqn);
+	in.ctx.cq_period    = cpu_to_be16(cq_period);
+	in.ctx.cq_max_count = cpu_to_be16(cq_max_count);
+	in.field_select     = cpu_to_be32(MLX5_CQ_MODIFY_PERIOD |
+					  MLX5_CQ_MODIFY_COUNT);
+
+	return mlx5_core_modify_cq(dev, cq, &in, sizeof(in));
+}
+
 int mlx5_init_cq_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cq_table *table = &dev->priv.cq_table;

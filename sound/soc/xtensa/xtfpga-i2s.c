@@ -75,7 +75,7 @@ struct xtfpga_i2s {
 	 * stream in the pcm_close callback it synchronizes with the interrupt
 	 * handler by means of synchronize_rcu call.
 	 */
-	struct snd_pcm_substream *tx_substream;
+	struct snd_pcm_substream __rcu *tx_substream;
 	unsigned (*tx_fn)(struct xtfpga_i2s *i2s,
 			  struct snd_pcm_runtime *runtime,
 			  unsigned tx_ptr);
@@ -474,11 +474,6 @@ static int xtfpga_pcm_new(struct snd_soc_pcm_runtime *rtd)
 						     card->dev, size, size);
 }
 
-static void xtfpga_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static const struct snd_pcm_ops xtfpga_pcm_ops = {
 	.open		= xtfpga_pcm_open,
 	.close		= xtfpga_pcm_close,
@@ -490,7 +485,6 @@ static const struct snd_pcm_ops xtfpga_pcm_ops = {
 
 static const struct snd_soc_platform_driver xtfpga_soc_platform = {
 	.pcm_new	= xtfpga_pcm_new,
-	.pcm_free	= xtfpga_pcm_free,
 	.ops		= &xtfpga_pcm_ops,
 };
 

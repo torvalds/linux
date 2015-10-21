@@ -139,10 +139,7 @@ static int ip1001_config_init(struct phy_device *phydev)
 	if (c < 0)
 		return c;
 
-	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
+	if (phy_interface_is_rgmii(phydev)) {
 
 		c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
 		if (c < 0)

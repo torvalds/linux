@@ -62,6 +62,7 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
 			if (IS_ERR(pd->clk[i]))
 				break;
+			pd->pclk[i] = clk_get_parent(pd->clk[i]);
 			if (clk_set_parent(pd->clk[i], pd->oscclk))
 				pr_err("%s: error setting oscclk as parent to clock %d\n",
 						pd->name, i);
@@ -90,6 +91,9 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
 			if (IS_ERR(pd->clk[i]))
 				break;
+
+			if (IS_ERR(pd->clk[i]))
+				continue; /* Skip on first power up */
 			if (clk_set_parent(pd->clk[i], pd->pclk[i]))
 				pr_err("%s: error setting parent to clock%d\n",
 						pd->name, i);
@@ -117,27 +121,36 @@ static int exynos_pd_power_off(struct generic_pm_domain *domain)
 
 static __init int exynos4_pm_init_power_domain(void)
 {
-	struct platform_device *pdev;
 	struct device_node *np;
 
 	for_each_compatible_node(np, NULL, "samsung,exynos4210-pd") {
 		struct exynos_pm_domain *pd;
 		int on, i;
-		struct device *dev;
-
-		pdev = of_find_device_by_node(np);
-		dev = &pdev->dev;
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd) {
 			pr_err("%s: failed to allocate memory for domain\n",
 					__func__);
+			of_node_put(np);
+			return -ENOMEM;
+		}
+		pd->pd.name = kstrdup_const(strrchr(np->full_name, '/') + 1,
+					    GFP_KERNEL);
+		if (!pd->pd.name) {
+			kfree(pd);
+			of_node_put(np);
 			return -ENOMEM;
 		}
 
-		pd->pd.name = kstrdup(dev_name(dev), GFP_KERNEL);
 		pd->name = pd->pd.name;
 		pd->base = of_iomap(np, 0);
+		if (!pd->base) {
+			pr_warn("%s: failed to map memory\n", __func__);
+			kfree_const(pd->pd.name);
+			kfree(pd);
+			continue;
+		}
+
 		pd->pd.power_off = exynos_pd_power_off;
 		pd->pd.power_on = exynos_pd_power_on;
 
@@ -145,12 +158,12 @@ static __init int exynos4_pm_init_power_domain(void)
 			char clk_name[8];
 
 			snprintf(clk_name, sizeof(clk_name), "asb%d", i);
-			pd->asb_clk[i] = clk_get(dev, clk_name);
+			pd->asb_clk[i] = of_clk_get_by_name(np, clk_name);
 			if (IS_ERR(pd->asb_clk[i]))
 				break;
 		}
 
-		pd->oscclk = clk_get(dev, "oscclk");
+		pd->oscclk = of_clk_get_by_name(np, "oscclk");
 		if (IS_ERR(pd->oscclk))
 			goto no_clk;
 
@@ -158,16 +171,14 @@ static __init int exynos4_pm_init_power_domain(void)
 			char clk_name[8];
 
 			snprintf(clk_name, sizeof(clk_name), "clk%d", i);
-			pd->clk[i] = clk_get(dev, clk_name);
+			pd->clk[i] = of_clk_get_by_name(np, clk_name);
 			if (IS_ERR(pd->clk[i]))
 				break;
-			snprintf(clk_name, sizeof(clk_name), "pclk%d", i);
-			pd->pclk[i] = clk_get(dev, clk_name);
-			if (IS_ERR(pd->pclk[i])) {
-				clk_put(pd->clk[i]);
-				pd->clk[i] = ERR_PTR(-EINVAL);
-				break;
-			}
+			/*
+			 * Skip setting parent on first power up.
+			 * The parent at this time may not be useful at all.
+			 */
+			pd->pclk[i] = ERR_PTR(-EINVAL);
 		}
 
 		if (IS_ERR(pd->clk[0]))
@@ -189,15 +200,15 @@ no_clk:
 		args.args_count = 0;
 		child_domain = of_genpd_get_from_provider(&args);
 		if (IS_ERR(child_domain))
-			continue;
+			goto next_pd;
 
 		if (of_parse_phandle_with_args(np, "power-domains",
 					 "#power-domain-cells", 0, &args) != 0)
-			continue;
+			goto next_pd;
 
 		parent_domain = of_genpd_get_from_provider(&args);
 		if (IS_ERR(parent_domain))
-			continue;
+			goto next_pd;
 
 		if (pm_genpd_add_subdomain(parent_domain, child_domain))
 			pr_warn("%s failed to add subdomain: %s\n",
@@ -205,9 +216,10 @@ no_clk:
 		else
 			pr_info("%s has as child subdomain: %s.\n",
 				parent_domain->name, child_domain->name);
+next_pd:
 		of_node_put(np);
 	}
 
 	return 0;
 }
-arch_initcall(exynos4_pm_init_power_domain);
+core_initcall(exynos4_pm_init_power_domain);

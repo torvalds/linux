@@ -50,18 +50,6 @@
 	.endm
 
 /*
- * Save/disable and restore interrupts.
- */
-	.macro	save_and_disable_irqs, olddaif
-	mrs	\olddaif, daif
-	disable_irq
-	.endm
-
-	.macro	restore_irqs, olddaif
-	msr	daif, \olddaif
-	.endm
-
-/*
  * Enable and disable debug exceptions.
  */
 	.macro	disable_dbg
@@ -103,9 +91,7 @@
  * SMP data memory barrier
  */
 	.macro	smp_dmb, opt
-#ifdef CONFIG_SMP
 	dmb	\opt
-#endif
 	.endm
 
 #define USER(l, x...)				\

@@ -128,15 +128,16 @@ static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 {
 	struct msi_desc *entry;
 	struct fsl_msi *msi_data;
+	irq_hw_number_t hwirq;
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		if (entry->irq == NO_IRQ)
 			continue;
+		hwirq = virq_to_hw(entry->irq);
 		msi_data = irq_get_chip_data(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
-		msi_bitmap_free_hwirqs(&msi_data->bitmap,
-				       virq_to_hw(entry->irq), 1);
 		irq_dispose_mapping(entry->irq);
+		msi_bitmap_free_hwirqs(&msi_data->bitmap, hwirq, 1);
 	}
 
 	return;
@@ -219,7 +220,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		}
 	}
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		/*
 		 * Loop over all the MSI devices until we find one that has an
 		 * available interrupt.
@@ -405,6 +406,7 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	const struct fsl_msi_feature *features;
 	int len;
 	u32 offset;
+	struct pci_controller *phb;
 
 	match = of_match_device(fsl_of_msi_ids, &dev->dev);
 	if (!match)
@@ -541,14 +543,20 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 
 	list_add_tail(&msi->list, &msi_head);
 
-	/* The multiple setting ppc_md.setup_msi_irqs will not harm things */
-	if (!ppc_md.setup_msi_irqs) {
-		ppc_md.setup_msi_irqs = fsl_setup_msi_irqs;
-		ppc_md.teardown_msi_irqs = fsl_teardown_msi_irqs;
-	} else if (ppc_md.setup_msi_irqs != fsl_setup_msi_irqs) {
-		dev_err(&dev->dev, "Different MSI driver already installed!\n");
-		err = -ENODEV;
-		goto error_out;
+	/*
+	 * Apply the MSI ops to all the controllers.
+	 * It doesn't hurt to reassign the same ops,
+	 * but bail out if we find another MSI driver.
+	 */
+	list_for_each_entry(phb, &hose_list, list_node) {
+		if (!phb->controller_ops.setup_msi_irqs) {
+			phb->controller_ops.setup_msi_irqs = fsl_setup_msi_irqs;
+			phb->controller_ops.teardown_msi_irqs = fsl_teardown_msi_irqs;
+		} else if (phb->controller_ops.setup_msi_irqs != fsl_setup_msi_irqs) {
+			dev_err(&dev->dev, "Different MSI driver already installed!\n");
+			err = -ENODEV;
+			goto error_out;
+		}
 	}
 	return 0;
 error_out:

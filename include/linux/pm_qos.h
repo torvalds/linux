@@ -161,6 +161,8 @@ void dev_pm_qos_hide_flags(struct device *dev);
 int dev_pm_qos_update_flags(struct device *dev, s32 mask, bool set);
 s32 dev_pm_qos_get_user_latency_tolerance(struct device *dev);
 int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val);
+int dev_pm_qos_expose_latency_tolerance(struct device *dev);
+void dev_pm_qos_hide_latency_tolerance(struct device *dev);
 
 static inline s32 dev_pm_qos_requested_resume_latency(struct device *dev)
 {
@@ -229,6 +231,9 @@ static inline s32 dev_pm_qos_get_user_latency_tolerance(struct device *dev)
 			{ return PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT; }
 static inline int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val)
 			{ return 0; }
+static inline int dev_pm_qos_expose_latency_tolerance(struct device *dev)
+			{ return 0; }
+static inline void dev_pm_qos_hide_latency_tolerance(struct device *dev) {}
 
 static inline s32 dev_pm_qos_requested_resume_latency(struct device *dev) { return 0; }
 static inline s32 dev_pm_qos_requested_flags(struct device *dev) { return 0; }

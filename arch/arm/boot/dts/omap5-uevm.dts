@@ -174,8 +174,8 @@
 
 	i2c5_pins: pinmux_i2c5_pins {
 		pinctrl-single,pins = <
-			0x184 (PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
-			0x186 (PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
+			0x186 (PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
+			0x188 (PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
 		>;
 	};
 
@@ -510,6 +510,13 @@
 				};
 			};
 		};
+
+		palmas_power_button: palmas_power_button {
+			compatible = "ti,palmas-pwrbutton";
+			interrupt-parent = <&palmas>;
+			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+			wakeup-source;
+		};
 	};
 
 	twl6040: twl@4b {
@@ -597,18 +604,20 @@
 };
 
 &uart1 {
-        pinctrl-names = "default";
-        pinctrl-0 = <&uart1_pins>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
 };
 
 &uart3 {
-        pinctrl-names = "default";
-        pinctrl-0 = <&uart3_pins>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
+	interrupts-extended = <&wakeupgen GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
+			      <&omap5_pmx_core 0x19c>;
 };
 
 &uart5 {
-        pinctrl-names = "default";
-        pinctrl-0 = <&uart5_pins>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart5_pins>;
 };
 
 &cpu0 {

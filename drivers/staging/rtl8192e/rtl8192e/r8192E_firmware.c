@@ -23,7 +23,7 @@
 #include "r8192E_firmware.h"
 #include <linux/firmware.h>
 
-void firmware_init_param(struct net_device *dev)
+void rtl92e_init_fw_param(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_firmware *pfirmware = priv->pFirmware;
@@ -46,7 +46,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	struct cb_desc *tcb_desc;
 	u8                  bLastIniPkt;
 
-	firmware_init_param(dev);
+	rtl92e_init_fw_param(dev);
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
 	do {
 		if ((buffer_len - frag_offset) > frag_threshold) {
@@ -96,7 +96,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 
 	} while (frag_offset < buffer_len);
 
-	write_nic_byte(dev, TPPoll, TPPoll_CQ);
+	rtl92e_writeb(dev, TPPoll, TPPoll_CQ);
 
 	return true;
 }
@@ -109,41 +109,42 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 
 	timeout = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, timeout)) {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		CPU_status = rtl92e_readl(dev, CPU_GEN);
 		if (CPU_status & CPU_GEN_PUT_CODE_OK)
 			break;
 		mdelay(2);
 	}
 
 	if (!(CPU_status&CPU_GEN_PUT_CODE_OK)) {
-		RT_TRACE(COMP_ERR, "Download Firmware: Put code fail!\n");
+		netdev_err(dev, "Firmware download failed.\n");
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
 	} else {
 		RT_TRACE(COMP_FIRMWARE, "Download Firmware: Put code ok!\n");
 	}
 
-	CPU_status = read_nic_dword(dev, CPU_GEN);
-	write_nic_byte(dev, CPU_GEN,
-		       (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
+	CPU_status = rtl92e_readl(dev, CPU_GEN);
+	rtl92e_writeb(dev, CPU_GEN,
+		      (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
 	mdelay(1);
 
 	timeout = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, timeout)) {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		CPU_status = rtl92e_readl(dev, CPU_GEN);
 		if (CPU_status&CPU_GEN_BOOT_RDY)
 			break;
 		mdelay(2);
 	}
 
-	if (!(CPU_status&CPU_GEN_BOOT_RDY))
+	if (!(CPU_status&CPU_GEN_BOOT_RDY)) {
+		netdev_err(dev, "Firmware boot failed.\n");
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
-	else
-		RT_TRACE(COMP_FIRMWARE, "Download Firmware: Boot ready!\n");
+	}
+
+	RT_TRACE(COMP_FIRMWARE, "Download Firmware: Boot ready!\n");
 
 	return rt_status;
 
 CPUCheckMainCodeOKAndTurnOnCPU_Fail:
-	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = false;
 	return rt_status;
 }
@@ -157,7 +158,7 @@ static bool CPUcheck_firmware_ready(struct net_device *dev)
 
 	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		CPU_status = rtl92e_readl(dev, CPU_GEN);
 		if (CPU_status&CPU_GEN_FIRM_RDY)
 			break;
 		mdelay(2);
@@ -171,7 +172,6 @@ static bool CPUcheck_firmware_ready(struct net_device *dev)
 	return rt_status;
 
 CPUCheckFirmwareReady_Fail:
-	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = false;
 	return rt_status;
 
@@ -223,14 +223,14 @@ static bool firmware_check_ready(struct net_device *dev,
 	return rt_status;
 }
 
-bool init_firmware(struct net_device *dev)
+bool rtl92e_init_fw(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool			rt_status = true;
 
 	u32	file_length = 0;
 	u8	*mapped_file = NULL;
-	u8	init_step = 0;
+	u8	i = 0;
 	enum opt_rst_type rst_opt = OPT_SYSTEM_RESET;
 	enum firmware_init_step starting_state = FW_INIT_STEP0_BOOT;
 
@@ -250,10 +250,9 @@ bool init_firmware(struct net_device *dev)
 			 "PlatformInitFirmware: undefined firmware state\n");
 	}
 
-	for (init_step = starting_state; init_step <= FW_INIT_STEP2_DATA;
-	     init_step++) {
+	for (i = starting_state; i <= FW_INIT_STEP2_DATA; i++) {
 		if (rst_opt == OPT_SYSTEM_RESET) {
-			if (pfirmware->firmware_buf_size[init_step] == 0) {
+			if (pfirmware->firmware_buf_size[i] == 0) {
 				const char *fw_name[3] = {
 					RTL8192E_BOOT_IMG_FW,
 					RTL8192E_MAIN_IMG_FW,
@@ -263,7 +262,7 @@ bool init_firmware(struct net_device *dev)
 				int rc;
 
 				rc = request_firmware(&fw_entry,
-						      fw_name[init_step],
+						      fw_name[i],
 						      &priv->pdev->dev);
 				if (rc < 0) {
 					RT_TRACE(COMP_FIRMWARE,
@@ -271,24 +270,24 @@ bool init_firmware(struct net_device *dev)
 					goto download_firmware_fail;
 				}
 				if (fw_entry->size >
-				    sizeof(pfirmware->firmware_buf[init_step])) {
+				    sizeof(pfirmware->firmware_buf[i])) {
 					RT_TRACE(COMP_FIRMWARE,
 						 "img file size exceed the container struct buffer fail!\n");
 					goto download_firmware_fail;
 				}
 
-				if (init_step != FW_INIT_STEP1_MAIN) {
-					memcpy(pfirmware->firmware_buf[init_step],
+				if (i != FW_INIT_STEP1_MAIN) {
+					memcpy(pfirmware->firmware_buf[i],
 					       fw_entry->data, fw_entry->size);
-					pfirmware->firmware_buf_size[init_step] =
+					pfirmware->firmware_buf_size[i] =
 						fw_entry->size;
 
 				} else {
-					memset(pfirmware->firmware_buf[init_step],
+					memset(pfirmware->firmware_buf[i],
 					       0, 128);
-					memcpy(&pfirmware->firmware_buf[init_step][128],
+					memcpy(&pfirmware->firmware_buf[i][128],
 					       fw_entry->data, fw_entry->size);
-					pfirmware->firmware_buf_size[init_step] =
+					pfirmware->firmware_buf_size[i] =
 						fw_entry->size + 128;
 				}
 
@@ -297,14 +296,14 @@ bool init_firmware(struct net_device *dev)
 			}
 		}
 
-		mapped_file = pfirmware->firmware_buf[init_step];
-		file_length = pfirmware->firmware_buf_size[init_step];
+		mapped_file = pfirmware->firmware_buf[i];
+		file_length = pfirmware->firmware_buf_size[i];
 
 		rt_status = fw_download_code(dev, mapped_file, file_length);
 		if (!rt_status)
 			goto download_firmware_fail;
 
-		if (!firmware_check_ready(dev, init_step))
+		if (!firmware_check_ready(dev, i))
 			goto download_firmware_fail;
 	}
 
@@ -312,7 +311,7 @@ bool init_firmware(struct net_device *dev)
 	return rt_status;
 
 download_firmware_fail:
-	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
+	netdev_err(dev, "%s: Failed to initialize firmware.\n", __func__);
 	rt_status = false;
 	return rt_status;
 

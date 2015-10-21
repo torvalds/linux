@@ -80,7 +80,7 @@ void b43_lo_g_adjust_to(struct b43_wldev *dev,
 
 void b43_gphy_dc_lt_init(struct b43_wldev *dev, bool update_all);
 
-void b43_lo_g_maintanance_work(struct b43_wldev *dev);
+void b43_lo_g_maintenance_work(struct b43_wldev *dev);
 void b43_lo_g_cleanup(struct b43_wldev *dev);
 void b43_lo_g_init(struct b43_wldev *dev);
 

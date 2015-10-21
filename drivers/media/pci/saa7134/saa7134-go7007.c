@@ -11,6 +11,9 @@
  * GNU General Public License for more details.
  */
 
+#include "saa7134.h"
+#include "saa7134-reg.h"
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -27,8 +30,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 
-#include "saa7134.h"
-#include "saa7134-reg.h"
 #include "go7007-priv.h"
 
 /*#define GO7007_HPI_DEBUG*/
@@ -288,9 +289,9 @@ static int saa7134_go7007_stream_start(struct go7007 *go)
 
 	/* Set up transfer block size */
 	saa_writeb(SAA7134_TS_PARALLEL_SERIAL, 128 - 1);
-	saa_writeb(SAA7134_TS_DMA0, (PAGE_SIZE >> 7) - 1);
-	saa_writeb(SAA7134_TS_DMA1, 0);
-	saa_writeb(SAA7134_TS_DMA2, 0);
+	saa_writeb(SAA7134_TS_DMA0, ((PAGE_SIZE >> 7) - 1) & 0xff);
+	saa_writeb(SAA7134_TS_DMA1, (PAGE_SIZE >> 15) & 0xff);
+	saa_writeb(SAA7134_TS_DMA2, (PAGE_SIZE >> 31) & 0x3f);
 
 	/* Enable video streaming mode */
 	saa_writeb(SAA7134_GPIO_GPSTATUS2, GPIO_COMMAND_VIDEO);

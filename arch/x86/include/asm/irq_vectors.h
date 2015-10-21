@@ -47,31 +47,12 @@
 #define IRQ_MOVE_CLEANUP_VECTOR		FIRST_EXTERNAL_VECTOR
 
 #define IA32_SYSCALL_VECTOR		0x80
-#ifdef CONFIG_X86_32
-# define SYSCALL_VECTOR			0x80
-#endif
 
 /*
  * Vectors 0x30-0x3f are used for ISA interrupts.
  *   round up to the next 16-vector boundary
  */
-#define IRQ0_VECTOR			((FIRST_EXTERNAL_VECTOR + 16) & ~15)
-
-#define IRQ1_VECTOR			(IRQ0_VECTOR +  1)
-#define IRQ2_VECTOR			(IRQ0_VECTOR +  2)
-#define IRQ3_VECTOR			(IRQ0_VECTOR +  3)
-#define IRQ4_VECTOR			(IRQ0_VECTOR +  4)
-#define IRQ5_VECTOR			(IRQ0_VECTOR +  5)
-#define IRQ6_VECTOR			(IRQ0_VECTOR +  6)
-#define IRQ7_VECTOR			(IRQ0_VECTOR +  7)
-#define IRQ8_VECTOR			(IRQ0_VECTOR +  8)
-#define IRQ9_VECTOR			(IRQ0_VECTOR +  9)
-#define IRQ10_VECTOR			(IRQ0_VECTOR + 10)
-#define IRQ11_VECTOR			(IRQ0_VECTOR + 11)
-#define IRQ12_VECTOR			(IRQ0_VECTOR + 12)
-#define IRQ13_VECTOR			(IRQ0_VECTOR + 13)
-#define IRQ14_VECTOR			(IRQ0_VECTOR + 14)
-#define IRQ15_VECTOR			(IRQ0_VECTOR + 15)
+#define ISA_IRQ_VECTOR(irq)		(((FIRST_EXTERNAL_VECTOR + 16) & ~15) + irq)
 
 /*
  * Special IRQ vectors used by the SMP architecture, 0xf0-0xff
@@ -102,20 +83,22 @@
  */
 #define X86_PLATFORM_IPI_VECTOR		0xf7
 
-/* Vector for KVM to deliver posted interrupt IPI */
-#ifdef CONFIG_HAVE_KVM
-#define POSTED_INTR_VECTOR		0xf2
-#endif
-
+#define POSTED_INTR_WAKEUP_VECTOR	0xf1
 /*
  * IRQ work vector:
  */
 #define IRQ_WORK_VECTOR			0xf6
 
 #define UV_BAU_MESSAGE			0xf5
+#define DEFERRED_ERROR_VECTOR		0xf4
 
 /* Vector on which hypervisor callbacks will be delivered */
 #define HYPERVISOR_CALLBACK_VECTOR	0xf3
+
+/* Vector for KVM to deliver posted interrupt IPI */
+#ifdef CONFIG_HAVE_KVM
+#define POSTED_INTR_VECTOR		0xf2
+#endif
 
 /*
  * Local APIC timer IRQ vector is on a different priority level,
@@ -134,16 +117,6 @@
 
 #define FPU_IRQ				  13
 
-#define	FIRST_VM86_IRQ			   3
-#define LAST_VM86_IRQ			  15
-
-#ifndef __ASSEMBLY__
-static inline int invalid_vm86_irq(int irq)
-{
-	return irq < FIRST_VM86_IRQ || irq > LAST_VM86_IRQ;
-}
-#endif
-
 /*
  * Size the maximum number of interrupts.
  *
@@ -155,18 +128,22 @@ static inline int invalid_vm86_irq(int irq)
  * static arrays.
  */
 
-#define NR_IRQS_LEGACY			  16
+#define NR_IRQS_LEGACY			16
 
-#define IO_APIC_VECTOR_LIMIT		( 32 * MAX_IO_APICS )
+#define CPU_VECTOR_LIMIT		(64 * NR_CPUS)
+#define IO_APIC_VECTOR_LIMIT		(32 * MAX_IO_APICS)
 
-#ifdef CONFIG_X86_IO_APIC
-# define CPU_VECTOR_LIMIT		(64 * NR_CPUS)
-# define NR_IRQS					\
+#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_PCI_MSI)
+#define NR_IRQS						\
 	(CPU_VECTOR_LIMIT > IO_APIC_VECTOR_LIMIT ?	\
 		(NR_VECTORS + CPU_VECTOR_LIMIT)  :	\
 		(NR_VECTORS + IO_APIC_VECTOR_LIMIT))
-#else /* !CONFIG_X86_IO_APIC: */
-# define NR_IRQS			NR_IRQS_LEGACY
+#elif defined(CONFIG_X86_IO_APIC)
+#define	NR_IRQS				(NR_VECTORS + IO_APIC_VECTOR_LIMIT)
+#elif defined(CONFIG_PCI_MSI)
+#define NR_IRQS				(NR_VECTORS + CPU_VECTOR_LIMIT)
+#else
+#define NR_IRQS				NR_IRQS_LEGACY
 #endif
 
 #endif /* _ASM_X86_IRQ_VECTORS_H */

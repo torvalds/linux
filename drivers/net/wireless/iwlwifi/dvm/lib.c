@@ -659,9 +659,8 @@ static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 	return need_update;
 }
 
-int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
-				  struct iwl_rx_cmd_buffer *rxb,
-				  struct iwl_device_cmd *cmd)
+static void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
+					 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *coex = (void *)pkt->data;
@@ -669,7 +668,7 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 
 	if (priv->bt_enable_flag == IWLAGN_BT_FLAG_COEX_MODE_DISABLED) {
 		/* bt coex disabled */
-		return 0;
+		return;
 	}
 
 	IWL_DEBUG_COEX(priv, "BT Coex notification:\n");
@@ -714,7 +713,6 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 	/* FIXME: based on notification, adjust the prio_boost */
 
 	priv->bt_ci_compliance = coex->bt_ci_compliance;
-	return 0;
 }
 
 void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv)
@@ -1022,7 +1020,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 			u8 *pn = seq.ccmp.pn;
 
 			ieee80211_get_key_rx_seq(key, i, &seq);
-			aes_sc->pn = cpu_to_le64(
+			aes_sc[i].pn = cpu_to_le64(
 					(u64)pn[5] |
 					((u64)pn[4] << 8) |
 					((u64)pn[3] << 16) |

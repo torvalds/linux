@@ -331,7 +331,7 @@ static void kvm_guest_apic_eoi_write(u32 reg, u32 val)
 	apic_write(APIC_EOI, APIC_EOI_ACK);
 }
 
-void kvm_guest_cpu_init(void)
+static void kvm_guest_cpu_init(void)
 {
 	if (!kvm_para_available())
 		return;
@@ -584,6 +584,39 @@ static void kvm_kick_cpu(int cpu)
 	kvm_hypercall2(KVM_HC_KICK_CPU, flags, apicid);
 }
 
+
+#ifdef CONFIG_QUEUED_SPINLOCKS
+
+#include <asm/qspinlock.h>
+
+static void kvm_wait(u8 *ptr, u8 val)
+{
+	unsigned long flags;
+
+	if (in_nmi())
+		return;
+
+	local_irq_save(flags);
+
+	if (READ_ONCE(*ptr) != val)
+		goto out;
+
+	/*
+	 * halt until it's our turn and kicked. Note that we do safe halt
+	 * for irq enabled case to avoid hang when lock info is overwritten
+	 * in irq spinlock slowpath and no spurious interrupt occur to save us.
+	 */
+	if (arch_irqs_disabled_flags(flags))
+		halt();
+	else
+		safe_halt();
+
+out:
+	local_irq_restore(flags);
+}
+
+#else /* !CONFIG_QUEUED_SPINLOCKS */
+
 enum kvm_contention_stat {
 	TAKEN_SLOW,
 	TAKEN_SLOW_PICKUP,
@@ -655,7 +688,7 @@ static inline void spin_time_accum_blocked(u64 start)
 static struct dentry *d_spin_debug;
 static struct dentry *d_kvm_debug;
 
-struct dentry *kvm_init_debugfs(void)
+static struct dentry *kvm_init_debugfs(void)
 {
 	d_kvm_debug = debugfs_create_dir("kvm-guest", NULL);
 	if (!d_kvm_debug)
@@ -817,6 +850,8 @@ static void kvm_unlock_kick(struct arch_spinlock *lock, __ticket_t ticket)
 	}
 }
 
+#endif /* !CONFIG_QUEUED_SPINLOCKS */
+
 /*
  * Setup pv_lock_ops to exploit KVM_FEATURE_PV_UNHALT if present.
  */
@@ -828,8 +863,16 @@ void __init kvm_spinlock_init(void)
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
 		return;
 
+#ifdef CONFIG_QUEUED_SPINLOCKS
+	__pv_init_lock_hash();
+	pv_lock_ops.queued_spin_lock_slowpath = __pv_queued_spin_lock_slowpath;
+	pv_lock_ops.queued_spin_unlock = PV_CALLEE_SAVE(__pv_queued_spin_unlock);
+	pv_lock_ops.wait = kvm_wait;
+	pv_lock_ops.kick = kvm_kick_cpu;
+#else /* !CONFIG_QUEUED_SPINLOCKS */
 	pv_lock_ops.lock_spinning = PV_CALLEE_SAVE(kvm_lock_spinning);
 	pv_lock_ops.unlock_kick = kvm_unlock_kick;
+#endif
 }
 
 static __init int kvm_spinlock_init_jump(void)

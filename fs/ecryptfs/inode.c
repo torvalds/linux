@@ -170,7 +170,6 @@ out_unlock:
  * @directory_inode: inode of the new file's dentry's parent in ecryptfs
  * @ecryptfs_dentry: New file's dentry in ecryptfs
  * @mode: The mode of the new file
- * @nd: nameidata of ecryptfs' parent's dentry & vfsmount
  *
  * Creates the underlying file and the eCryptfs inode which will link to
  * it. It will also update the eCryptfs directory inode to mimic the
@@ -384,7 +383,7 @@ static int ecryptfs_lookup_interpose(struct dentry *dentry,
  * ecryptfs_lookup
  * @ecryptfs_dir_inode: The eCryptfs directory inode
  * @ecryptfs_dentry: The eCryptfs dentry that we are looking up
- * @ecryptfs_nd: nameidata; may be NULL
+ * @flags: lookup flags
  *
  * Find a file on disk. If the file does not exist, then we'll add it to the
  * dentry cache and continue on to read it from the disk.
@@ -675,18 +674,16 @@ out:
 	return rc ? ERR_PTR(rc) : buf;
 }
 
-static void *ecryptfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *ecryptfs_follow_link(struct dentry *dentry, void **cookie)
 {
 	size_t len;
 	char *buf = ecryptfs_readlink_lower(dentry, &len);
 	if (IS_ERR(buf))
-		goto out;
+		return buf;
 	fsstack_copy_attr_atime(d_inode(dentry),
 				d_inode(ecryptfs_dentry_to_lower(dentry)));
 	buf[len] = '\0';
-out:
-	nd_set_link(nd, buf);
-	return NULL;
+	return *cookie = buf;
 }
 
 /**

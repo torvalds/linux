@@ -244,7 +244,6 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 		napi_gro_receive(&priv->napi, skb);
 		rx++;
 
-		ndev->last_rx = jiffies;
 		priv->stats.rx_packets++;
 		priv->stats.rx_bytes += len;
 		if (desc0 & RX_DESC0_MULTICAST)
@@ -553,6 +552,7 @@ static const struct of_device_id moxart_mac_match[] = {
 	{ .compatible = "moxa,moxart-mac" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, moxart_mac_match);
 
 static struct platform_driver moxart_mac_driver = {
 	.probe	= moxart_mac_probe,

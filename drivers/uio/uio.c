@@ -879,7 +879,8 @@ void uio_unregister_device(struct uio_info *info)
 
 	uio_dev_del_attributes(idev);
 
-	free_irq(idev->info->irq, idev);
+	if (info->irq && info->irq != UIO_IRQ_CUSTOM)
+		free_irq(info->irq, idev);
 
 	device_destroy(&uio_class, MKDEV(uio_major, idev->minor));
 
@@ -895,6 +896,7 @@ static int __init uio_init(void)
 static void __exit uio_exit(void)
 {
 	release_uio_class();
+	idr_destroy(&uio_idr);
 }
 
 module_init(uio_init)

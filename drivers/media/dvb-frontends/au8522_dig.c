@@ -552,7 +552,7 @@ static struct {
 };
 
 static int au8522_enable_modulation(struct dvb_frontend *fe,
-				    fe_modulation_t m)
+				    enum fe_modulation m)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	int i;
@@ -644,7 +644,7 @@ static int au8522_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int au8522_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	u8 reg;
@@ -922,7 +922,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable verbose debug messages");
 
 module_param(zv_mode, int, 0644);
-MODULE_PARM_DESC(zv_mode, "Turn on/off ZeeVee modulator compatability mode (default:on).\n"
+MODULE_PARM_DESC(zv_mode, "Turn on/off ZeeVee modulator compatibility mode (default:on).\n"
 	"\t\ton - modified AU8522 QAM256 initialization.\n"
 	"\t\tProvides faster lock when using ZeeVee modulator based sources");
 

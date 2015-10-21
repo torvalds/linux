@@ -32,6 +32,7 @@
 #define APBC_PWM1	0x10
 #define APBC_PWM2	0x14
 #define APBC_PWM3	0x18
+#define APBC_TIMER	0x34
 #define APBC_SSP0	0x81c
 #define APBC_SSP1	0x820
 #define APBC_SSP2	0x84c
@@ -58,6 +59,7 @@ static struct mmp_param_fixed_rate_clk fixed_rate_clks[] = {
 	{PXA168_CLK_CLK32, "clk32", NULL, CLK_IS_ROOT, 32768},
 	{PXA168_CLK_VCTCXO, "vctcxo", NULL, CLK_IS_ROOT, 26000000},
 	{PXA168_CLK_PLL1, "pll1", NULL, CLK_IS_ROOT, 624000000},
+	{PXA168_CLK_USB_PLL, "usb_pll", NULL, CLK_IS_ROOT, 480000000},
 };
 
 static struct mmp_param_fixed_factor_clk fixed_factor_clks[] = {
@@ -70,6 +72,7 @@ static struct mmp_param_fixed_factor_clk fixed_factor_clks[] = {
 	{PXA168_CLK_PLL1_24, "pll1_24", "pll1_12", 1, 2, 0},
 	{PXA168_CLK_PLL1_48, "pll1_48", "pll1_24", 1, 2, 0},
 	{PXA168_CLK_PLL1_96, "pll1_96", "pll1_48", 1, 2, 0},
+	{PXA168_CLK_PLL1_192, "pll1_192", "pll1_96", 1, 2, 0},
 	{PXA168_CLK_PLL1_13, "pll1_13", "pll1", 1, 13, 0},
 	{PXA168_CLK_PLL1_13_1_5, "pll1_13_1_5", "pll1_13", 2, 3, 0},
 	{PXA168_CLK_PLL1_2_1_5, "pll1_2_1_5", "pll1_2", 2, 3, 0},
@@ -119,6 +122,9 @@ static DEFINE_SPINLOCK(ssp3_lock);
 static DEFINE_SPINLOCK(ssp4_lock);
 static const char *ssp_parent_names[] = {"pll1_96", "pll1_48", "pll1_24", "pll1_12"};
 
+static DEFINE_SPINLOCK(timer_lock);
+static const char *timer_parent_names[] = {"pll1_48", "clk32", "pll1_96", "pll1_192"};
+
 static DEFINE_SPINLOCK(reset_lock);
 
 static struct mmp_param_mux_clk apbc_mux_clks[] = {
@@ -130,6 +136,7 @@ static struct mmp_param_mux_clk apbc_mux_clks[] = {
 	{0, "ssp2_mux", ssp_parent_names, ARRAY_SIZE(ssp_parent_names), CLK_SET_RATE_PARENT, APBC_SSP2, 4, 3, 0, &ssp2_lock},
 	{0, "ssp3_mux", ssp_parent_names, ARRAY_SIZE(ssp_parent_names), CLK_SET_RATE_PARENT, APBC_SSP3, 4, 3, 0, &ssp3_lock},
 	{0, "ssp4_mux", ssp_parent_names, ARRAY_SIZE(ssp_parent_names), CLK_SET_RATE_PARENT, APBC_SSP4, 4, 3, 0, &ssp4_lock},
+	{0, "timer_mux", timer_parent_names, ARRAY_SIZE(timer_parent_names), CLK_SET_RATE_PARENT, APBC_TIMER, 4, 3, 0, &timer_lock},
 };
 
 static struct mmp_param_gate_clk apbc_gate_clks[] = {
@@ -151,6 +158,7 @@ static struct mmp_param_gate_clk apbc_gate_clks[] = {
 	{PXA168_CLK_SSP2, "ssp2_clk", "ssp2_mux", CLK_SET_RATE_PARENT, APBC_SSP2, 0x3, 0x3, 0x0, 0, &ssp2_lock},
 	{PXA168_CLK_SSP3, "ssp3_clk", "ssp3_mux", CLK_SET_RATE_PARENT, APBC_SSP3, 0x3, 0x3, 0x0, 0, &ssp3_lock},
 	{PXA168_CLK_SSP4, "ssp4_clk", "ssp4_mux", CLK_SET_RATE_PARENT, APBC_SSP4, 0x3, 0x3, 0x0, 0, &ssp4_lock},
+	{PXA168_CLK_TIMER, "timer_clk", "timer_mux", CLK_SET_RATE_PARENT, APBC_TIMER, 0x3, 0x3, 0x0, 0, &timer_lock},
 };
 
 static void pxa168_apb_periph_clk_init(struct pxa168_clk_unit *pxa_unit)

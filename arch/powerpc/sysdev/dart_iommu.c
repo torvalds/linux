@@ -286,6 +286,12 @@ static int __init dart_init(struct device_node *dart_node)
 	return 0;
 }
 
+static struct iommu_table_ops iommu_dart_ops = {
+	.set = dart_build,
+	.clear = dart_free,
+	.flush = dart_flush,
+};
+
 static void iommu_table_dart_setup(void)
 {
 	iommu_table_dart.it_busno = 0;
@@ -298,6 +304,7 @@ static void iommu_table_dart_setup(void)
 	iommu_table_dart.it_base = (unsigned long)dart_vbase;
 	iommu_table_dart.it_index = 0;
 	iommu_table_dart.it_blocksize = 1;
+	iommu_table_dart.it_ops = &iommu_dart_ops;
 	iommu_init_table(&iommu_table_dart, -1);
 
 	/* Reserve the last page of the DART to avoid possible prefetch
@@ -306,20 +313,11 @@ static void iommu_table_dart_setup(void)
 	set_bit(iommu_table_dart.it_size - 1, iommu_table_dart.it_map);
 }
 
-static void dma_dev_setup_dart(struct device *dev)
-{
-	/* We only have one iommu table on the mac for now, which makes
-	 * things simple. Setup all PCI devices to point to this table
-	 */
-	if (get_dma_ops(dev) == &dma_direct_ops)
-		set_dma_offset(dev, DART_U4_BYPASS_BASE);
-	else
-		set_iommu_table_base(dev, &iommu_table_dart);
-}
-
 static void pci_dma_dev_setup_dart(struct pci_dev *dev)
 {
-	dma_dev_setup_dart(&dev->dev);
+	if (dart_is_u4)
+		set_dma_offset(&dev->dev, DART_U4_BYPASS_BASE);
+	set_iommu_table_base(&dev->dev, &iommu_table_dart);
 }
 
 static void pci_dma_bus_setup_dart(struct pci_bus *bus)
@@ -363,7 +361,6 @@ static int dart_dma_set_mask(struct device *dev, u64 dma_mask)
 		dev_info(dev, "Using 32-bit DMA via iommu\n");
 		set_dma_ops(dev, &dma_iommu_ops);
 	}
-	dma_dev_setup_dart(dev);
 
 	*dev->dma_mask = dma_mask;
 	return 0;
@@ -385,11 +382,6 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
 	/* Initialize the DART HW */
 	if (dart_init(dn) != 0)
 		goto bail;
-
-	/* Setup low level TCE operations for the core IOMMU code */
-	ppc_md.tce_build = dart_build;
-	ppc_md.tce_free  = dart_free;
-	ppc_md.tce_flush = dart_flush;
 
 	/* Setup bypass if supported */
 	if (dart_is_u4)

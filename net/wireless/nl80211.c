@@ -639,8 +639,8 @@ static int nl80211_msg_put_channel(struct sk_buff *msg,
 		if ((chan->flags & IEEE80211_CHAN_INDOOR_ONLY) &&
 		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_INDOOR_ONLY))
 			goto nla_put_failure;
-		if ((chan->flags & IEEE80211_CHAN_GO_CONCURRENT) &&
-		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_GO_CONCURRENT))
+		if ((chan->flags & IEEE80211_CHAN_IR_CONCURRENT) &&
+		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_IR_CONCURRENT))
 			goto nla_put_failure;
 		if ((chan->flags & IEEE80211_CHAN_NO_20MHZ) &&
 		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_20MHZ))
@@ -2003,7 +2003,8 @@ static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
 	switch (iftype) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		if (!cfg80211_reg_can_beacon(&rdev->wiphy, &chandef, iftype)) {
+		if (!cfg80211_reg_can_beacon_relax(&rdev->wiphy, &chandef,
+						   iftype)) {
 			result = -EINVAL;
 			break;
 		}
@@ -2320,6 +2321,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			rdev->wiphy.frag_threshold = old_frag_threshold;
 			rdev->wiphy.rts_threshold = old_rts_threshold;
 			rdev->wiphy.coverage_class = old_coverage_class;
+			return result;
 		}
 	}
 	return 0;
@@ -3403,8 +3405,8 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	} else if (!nl80211_get_ap_channel(rdev, &params))
 		return -EINVAL;
 
-	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &params.chandef,
-				     wdev->iftype))
+	if (!cfg80211_reg_can_beacon_relax(&rdev->wiphy, &params.chandef,
+					   wdev->iftype))
 		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_ACL_POLICY]) {
@@ -4061,7 +4063,8 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 			return -EINVAL;
 		break;
 	case CFG80211_STA_MESH_PEER_USER:
-		if (params->plink_action != NL80211_PLINK_ACTION_NO_ACTION)
+		if (params->plink_action != NL80211_PLINK_ACTION_NO_ACTION &&
+		    params->plink_action != NL80211_PLINK_ACTION_BLOCK)
 			return -EINVAL;
 		break;
 	}
@@ -6491,8 +6494,8 @@ skip_beacons:
 	if (err)
 		return err;
 
-	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &params.chandef,
-				     wdev->iftype))
+	if (!cfg80211_reg_can_beacon_relax(&rdev->wiphy, &params.chandef,
+					   wdev->iftype))
 		return -EINVAL;
 
 	err = cfg80211_chandef_dfs_required(wdev->wiphy,
@@ -7388,7 +7391,8 @@ static int nl80211_set_mcast_rate(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT)
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_OCB)
 		return -EOPNOTSUPP;
 
 	if (!rdev->ops->set_mcast_rate)
@@ -10169,7 +10173,8 @@ static int nl80211_tdls_channel_switch(struct sk_buff *skb,
 		return -EINVAL;
 
 	/* we will be active on the TDLS link */
-	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &chandef, wdev->iftype))
+	if (!cfg80211_reg_can_beacon_relax(&rdev->wiphy, &chandef,
+					   wdev->iftype))
 		return -EINVAL;
 
 	/* don't allow switching to DFS channels */

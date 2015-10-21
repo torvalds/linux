@@ -201,8 +201,9 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
 
-	if (spi_imx->dma_is_inited && (transfer->len > spi_imx->rx_wml)
-	    && (transfer->len > spi_imx->tx_wml))
+	if (spi_imx->dma_is_inited
+	    && transfer->len > spi_imx->rx_wml * sizeof(u32)
+	    && transfer->len > spi_imx->tx_wml * sizeof(u32))
 		return true;
 	return false;
 }
@@ -674,7 +675,7 @@ static struct spi_imx_devtype_data imx51_ecspi_devtype_data = {
 	.devtype = IMX51_ECSPI,
 };
 
-static struct platform_device_id spi_imx_devtype[] = {
+static const struct platform_device_id spi_imx_devtype[] = {
 	{
 		.name = "imx1-cspi",
 		.driver_data = (kernel_ulong_t) &imx1_cspi_devtype_data,

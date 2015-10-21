@@ -72,22 +72,6 @@ static const struct drm_connector_funcs armada_drm_conn_funcs = {
 	.set_property	= armada_drm_connector_set_property,
 };
 
-void armada_drm_encoder_prepare(struct drm_encoder *encoder)
-{
-	encoder_helper_funcs(encoder)->dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-void armada_drm_encoder_commit(struct drm_encoder *encoder)
-{
-	encoder_helper_funcs(encoder)->dpms(encoder, DRM_MODE_DPMS_ON);
-}
-
-bool armada_drm_encoder_mode_fixup(struct drm_encoder *encoder,
-	const struct drm_display_mode *mode, struct drm_display_mode *adjusted)
-{
-	return true;
-}
-
 /* Shouldn't this be a generic helper function? */
 int armada_drm_slave_encoder_mode_valid(struct drm_connector *conn,
 	struct drm_display_mode *mode)

@@ -19,6 +19,7 @@
 		rtc0 = &mcp_rtc;
 		rtc1 = &tps659038_rtc;
 		rtc2 = &rtc;
+		display0 = &hdmi0;
 	};
 
 	memory {
@@ -97,11 +98,49 @@
 		pinctrl-0 = <&extcon_usb1_pins>;
 	};
 
-	extcon_usb2: extcon_usb2 {
-		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&gpio7 24 GPIO_ACTIVE_HIGH>;
+	hdmi0: connector {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
+	};
+
+	tpd12s015: encoder {
+		compatible = "ti,tpd12s015";
+
 		pinctrl-names = "default";
-		pinctrl-0 = <&extcon_usb2_pins>;
+		pinctrl-0 = <&tpd12s015_pins>;
+
+		gpios = <&gpio7 10 GPIO_ACTIVE_HIGH>,	/* gpio7_10, CT CP HPD */
+			<&gpio6 28 GPIO_ACTIVE_HIGH>,	/* gpio6_28, LS OE */
+			<&gpio7 12 GPIO_ACTIVE_HIGH>;	/* gpio7_12/sp1_cs2, HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
 	};
 };
 
@@ -119,6 +158,13 @@
 		pinctrl-single,pins = <
 			0x400 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_sda.sda */
 			0x404 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_scl.scl */
+		>;
+	};
+
+	hdmi_pins: pinmux_hdmi_pins {
+		pinctrl-single,pins = <
+			0x408 (PIN_INPUT | MUX_MODE1)	/* i2c2_sda.hdmi1_ddc_scl */
+			0x40c (PIN_INPUT | MUX_MODE1)	/* i2c2_scl.hdmi1_ddc_sda */
 		>;
 	};
 
@@ -273,9 +319,11 @@
 		>;
 	};
 
-	extcon_usb2_pins: extcon_usb2_pins {
+	tpd12s015_pins: pinmux_tpd12s015_pins {
 		pinctrl-single,pins = <
-			0x3e8 (PIN_INPUT_PULLUP | MUX_MODE14) /* uart1_ctsn.gpio7_24 */
+			0x3b0 (PIN_OUTPUT | MUX_MODE14)		/* gpio7_10 CT_CP_HPD */
+			0x3b8 (PIN_INPUT_PULLDOWN | MUX_MODE14)	/* gpio7_12 HPD */
+			0x370 (PIN_OUTPUT | MUX_MODE14)		/* gpio6_28 LS_OE */
 		>;
 	};
 };
@@ -371,8 +419,17 @@
 				};
 
 				ldo3_reg: ldo3 {
-					/* VDDA_1V8_PHY */
+					/* VDDA_1V8_PHYA */
 					regulator-name = "ldo3";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldo4_reg: ldo4 {
+					/* VDDA_1V8_PHYB */
+					regulator-name = "ldo4";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
@@ -434,6 +491,14 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+
+		extcon_usb2: tps659038_usb {
+			compatible = "ti,palmas-usb-vid";
+			ti,enable-vbus-detection;
+			ti,enable-id-detection;
+			id-gpios = <&gpio7 24 GPIO_ACTIVE_HIGH>;
+		};
+
 	};
 
 	tmp102: tmp102@48 {
@@ -456,7 +521,8 @@
 	mcp_rtc: rtc@6f {
 		compatible = "microchip,mcp7941x";
 		reg = <0x6f>;
-		interrupts = <GIC_SPI 2 IRQ_TYPE_EDGE_RISING>;  /* IRQ_SYS_1N */
+		interrupts-extended = <&crossbar_mpu GIC_SPI 2 IRQ_TYPE_EDGE_RISING>,
+				      <&dra7_pmx_core 0x424>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&mcp79410_pins_default>;
@@ -518,8 +584,6 @@
 	pinctrl-0 = <&mmc1_pins_default>;
 
 	vmmc-supply = <&ldo1_reg>;
-	vmmc_aux-supply = <&vdd_3v3>;
-	pbias-supply = <&pbias_mmc_reg>;
 	bus-width = <4>;
 	cd-gpios = <&gpio6 27 0>; /* gpio 219 */
 };
@@ -544,6 +608,10 @@
 	phy-supply = <&ldousb_reg>;
 };
 
+&usb2_phy2 {
+	phy-supply = <&ldousb_reg>;
+};
+
 &usb1 {
 	dr_mode = "host";
 	pinctrl-names = "default";
@@ -559,6 +627,14 @@
 };
 
 &usb2 {
+	/*
+	 * Stand alone usage is peripheral only.
+	 * However, with some resistor modifications
+	 * this port can be used via expansion connectors
+	 * as "host" or "dual-role". If so, provide
+	 * the necessary dr_mode override in the expansion
+	 * board's DT.
+	 */
 	dr_mode = "peripheral";
 };
 
@@ -607,4 +683,28 @@
 			};
 		};
        };
+};
+
+&dss {
+	status = "ok";
+
+	vdda_video-supply = <&ldoln_reg>;
+};
+
+&hdmi {
+	status = "ok";
+	vdda-supply = <&ldo4_reg>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_pins>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
+};
+
+&pcie1 {
+	gpios = <&gpio2 8 GPIO_ACTIVE_LOW>;
 };

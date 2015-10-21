@@ -446,7 +446,7 @@ void via_nubus_irq_shutdown(int irq)
  * via6522.c :-), disable/pending masks added.
  */
 
-void via1_irq(unsigned int irq, struct irq_desc *desc)
+void via1_irq(struct irq_desc *desc)
 {
 	int irq_num;
 	unsigned char irq_bit, events;
@@ -467,7 +467,7 @@ void via1_irq(unsigned int irq, struct irq_desc *desc)
 	} while (events >= irq_bit);
 }
 
-static void via2_irq(unsigned int irq, struct irq_desc *desc)
+static void via2_irq(struct irq_desc *desc)
 {
 	int irq_num;
 	unsigned char irq_bit, events;
@@ -493,7 +493,7 @@ static void via2_irq(unsigned int irq, struct irq_desc *desc)
  * VIA2 dispatcher as a fast interrupt handler.
  */
 
-void via_nubus_irq(unsigned int irq, struct irq_desc *desc)
+static void via_nubus_irq(struct irq_desc *desc)
 {
 	int slot_irq;
 	unsigned char slot_bit, events;

@@ -32,8 +32,22 @@ static char *mv88e6352_probe(struct device *host_dev, int sw_addr)
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
 	if (ret >= 0) {
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6172)
+			return "Marvell 88E6172";
 		if ((ret & 0xfff0) == PORT_SWITCH_ID_6176)
 			return "Marvell 88E6176";
+		if (ret == PORT_SWITCH_ID_6320_A1)
+			return "Marvell 88E6320 (A1)";
+		if (ret == PORT_SWITCH_ID_6320_A2)
+			return "Marvell 88e6320 (A2)";
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6320)
+			return "Marvell 88E6320";
+		if (ret == PORT_SWITCH_ID_6321_A1)
+			return "Marvell 88E6321 (A1)";
+		if (ret == PORT_SWITCH_ID_6321_A2)
+			return "Marvell 88e6321 (A2)";
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6321)
+			return "Marvell 88E6321";
 		if (ret == PORT_SWITCH_ID_6352_A0)
 			return "Marvell 88E6352 (A0)";
 		if (ret == PORT_SWITCH_ID_6352_A1)
@@ -47,252 +61,41 @@ static char *mv88e6352_probe(struct device *host_dev, int sw_addr)
 
 static int mv88e6352_setup_global(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u32 upstream_port = dsa_upstream_port(ds);
 	int ret;
-	int i;
+	u32 reg;
+
+	ret = mv88e6xxx_setup_global(ds);
+	if (ret)
+		return ret;
 
 	/* Discard packets with excessive collisions,
 	 * mask all interrupt sources, enable PPU (bit 14, undocumented).
 	 */
-	REG_WRITE(REG_GLOBAL, 0x04, 0x6000);
-
-	/* Set the default address aging time to 5 minutes, and
-	 * enable address learn messages to be sent to all message
-	 * ports.
-	 */
-	REG_WRITE(REG_GLOBAL, 0x0a, 0x0148);
-
-	/* Configure the priority mapping registers. */
-	ret = mv88e6xxx_config_prio(ds);
-	if (ret < 0)
-		return ret;
+	REG_WRITE(REG_GLOBAL, GLOBAL_CONTROL,
+		  GLOBAL_CONTROL_PPU_ENABLE | GLOBAL_CONTROL_DISCARD_EXCESS);
 
 	/* Configure the upstream port, and configure the upstream
 	 * port as the port to which ingress and egress monitor frames
 	 * are to be sent.
 	 */
-	REG_WRITE(REG_GLOBAL, 0x1a, (dsa_upstream_port(ds) * 0x1110));
+	reg = upstream_port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
+		upstream_port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
+		upstream_port << GLOBAL_MONITOR_CONTROL_ARP_SHIFT;
+	REG_WRITE(REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
 
 	/* Disable remote management for now, and set the switch's
 	 * DSA device number.
 	 */
 	REG_WRITE(REG_GLOBAL, 0x1c, ds->index & 0x1f);
 
-	/* Send all frames with destination addresses matching
-	 * 01:80:c2:00:00:2x to the CPU port.
-	 */
-	REG_WRITE(REG_GLOBAL2, 0x02, 0xffff);
-
-	/* Send all frames with destination addresses matching
-	 * 01:80:c2:00:00:0x to the CPU port.
-	 */
-	REG_WRITE(REG_GLOBAL2, 0x03, 0xffff);
-
-	/* Disable the loopback filter, disable flow control
-	 * messages, disable flood broadcast override, disable
-	 * removing of provider tags, disable ATU age violation
-	 * interrupts, disable tag flow control, force flow
-	 * control priority to the highest, and send all special
-	 * multicast frames to the CPU at the highest priority.
-	 */
-	REG_WRITE(REG_GLOBAL2, 0x05, 0x00ff);
-
-	/* Program the DSA routing table. */
-	for (i = 0; i < 32; i++) {
-		int nexthop = 0x1f;
-
-		if (i != ds->index && i < ds->dst->pd->nr_chips)
-			nexthop = ds->pd->rtable[i] & 0x1f;
-
-		REG_WRITE(REG_GLOBAL2, 0x06, 0x8000 | (i << 8) | nexthop);
-	}
-
-	/* Clear all trunk masks. */
-	for (i = 0; i < 8; i++)
-		REG_WRITE(REG_GLOBAL2, 0x07, 0x8000 | (i << 12) | 0x7f);
-
-	/* Clear all trunk mappings. */
-	for (i = 0; i < 16; i++)
-		REG_WRITE(REG_GLOBAL2, 0x08, 0x8000 | (i << 11));
-
-	/* Disable ingress rate limiting by resetting all ingress
-	 * rate limit registers to their initial state.
-	 */
-	for (i = 0; i < ps->num_ports; i++)
-		REG_WRITE(REG_GLOBAL2, 0x09, 0x9000 | (i << 8));
-
-	/* Initialise cross-chip port VLAN table to reset defaults. */
-	REG_WRITE(REG_GLOBAL2, 0x0b, 0x9000);
-
-	/* Clear the priority override table. */
-	for (i = 0; i < 16; i++)
-		REG_WRITE(REG_GLOBAL2, 0x0f, 0x8000 | (i << 8));
-
-	/* @@@ initialise AVB (22/23) watchdog (27) sdet (29) registers */
-
 	return 0;
 }
-
-static int mv88e6352_setup_port(struct dsa_switch *ds, int p)
-{
-	int addr = REG_PORT(p);
-	u16 val;
-
-	/* MAC Forcing register: don't force link, speed, duplex
-	 * or flow control state to any particular values on physical
-	 * ports, but force the CPU port and all DSA ports to 1000 Mb/s
-	 * full duplex.
-	 */
-	if (dsa_is_cpu_port(ds, p) || ds->dsa_port_mask & (1 << p))
-		REG_WRITE(addr, 0x01, 0x003e);
-	else
-		REG_WRITE(addr, 0x01, 0x0003);
-
-	/* Do not limit the period of time that this port can be
-	 * paused for by the remote end or the period of time that
-	 * this port can pause the remote end.
-	 */
-	REG_WRITE(addr, 0x02, 0x0000);
-
-	/* Port Control: disable Drop-on-Unlock, disable Drop-on-Lock,
-	 * disable Header mode, enable IGMP/MLD snooping, disable VLAN
-	 * tunneling, determine priority by looking at 802.1p and IP
-	 * priority fields (IP prio has precedence), and set STP state
-	 * to Forwarding.
-	 *
-	 * If this is the CPU link, use DSA or EDSA tagging depending
-	 * on which tagging mode was configured.
-	 *
-	 * If this is a link to another switch, use DSA tagging mode.
-	 *
-	 * If this is the upstream port for this switch, enable
-	 * forwarding of unknown unicasts and multicasts.
-	 */
-	val = 0x0433;
-	if (dsa_is_cpu_port(ds, p)) {
-		if (ds->dst->tag_protocol == DSA_TAG_PROTO_EDSA)
-			val |= 0x3300;
-		else
-			val |= 0x0100;
-	}
-	if (ds->dsa_port_mask & (1 << p))
-		val |= 0x0100;
-	if (p == dsa_upstream_port(ds))
-		val |= 0x000c;
-	REG_WRITE(addr, 0x04, val);
-
-	/* Port Control 2: don't force a good FCS, set the maximum
-	 * frame size to 10240 bytes, don't let the switch add or
-	 * strip 802.1q tags, don't discard tagged or untagged frames
-	 * on this port, do a destination address lookup on all
-	 * received packets as usual, disable ARP mirroring and don't
-	 * send a copy of all transmitted/received frames on this port
-	 * to the CPU.
-	 */
-	REG_WRITE(addr, 0x08, 0x2080);
-
-	/* Egress rate control: disable egress rate control. */
-	REG_WRITE(addr, 0x09, 0x0001);
-
-	/* Egress rate control 2: disable egress rate control. */
-	REG_WRITE(addr, 0x0a, 0x0000);
-
-	/* Port Association Vector: when learning source addresses
-	 * of packets, add the address to the address database using
-	 * a port bitmap that has only the bit for this port set and
-	 * the other bits clear.
-	 */
-	REG_WRITE(addr, 0x0b, 1 << p);
-
-	/* Port ATU control: disable limiting the number of address
-	 * database entries that this port is allowed to use.
-	 */
-	REG_WRITE(addr, 0x0c, 0x0000);
-
-	/* Priority Override: disable DA, SA and VTU priority override. */
-	REG_WRITE(addr, 0x0d, 0x0000);
-
-	/* Port Ethertype: use the Ethertype DSA Ethertype value. */
-	REG_WRITE(addr, 0x0f, ETH_P_EDSA);
-
-	/* Tag Remap: use an identity 802.1p prio -> switch prio
-	 * mapping.
-	 */
-	REG_WRITE(addr, 0x18, 0x3210);
-
-	/* Tag Remap 2: use an identity 802.1p prio -> switch prio
-	 * mapping.
-	 */
-	REG_WRITE(addr, 0x19, 0x7654);
-
-	return mv88e6xxx_setup_port_common(ds, p);
-}
-
-#ifdef CONFIG_NET_DSA_HWMON
-
-static int mv88e6352_get_temp(struct dsa_switch *ds, int *temp)
-{
-	int ret;
-
-	*temp = 0;
-
-	ret = mv88e6xxx_phy_page_read(ds, 0, 6, 27);
-	if (ret < 0)
-		return ret;
-
-	*temp = (ret & 0xff) - 25;
-
-	return 0;
-}
-
-static int mv88e6352_get_temp_limit(struct dsa_switch *ds, int *temp)
-{
-	int ret;
-
-	*temp = 0;
-
-	ret = mv88e6xxx_phy_page_read(ds, 0, 6, 26);
-	if (ret < 0)
-		return ret;
-
-	*temp = (((ret >> 8) & 0x1f) * 5) - 25;
-
-	return 0;
-}
-
-static int mv88e6352_set_temp_limit(struct dsa_switch *ds, int temp)
-{
-	int ret;
-
-	ret = mv88e6xxx_phy_page_read(ds, 0, 6, 26);
-	if (ret < 0)
-		return ret;
-	temp = clamp_val(DIV_ROUND_CLOSEST(temp, 5) + 5, 0, 0x1f);
-	return mv88e6xxx_phy_page_write(ds, 0, 6, 26,
-					(ret & 0xe0ff) | (temp << 8));
-}
-
-static int mv88e6352_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
-{
-	int ret;
-
-	*alarm = false;
-
-	ret = mv88e6xxx_phy_page_read(ds, 0, 6, 26);
-	if (ret < 0)
-		return ret;
-
-	*alarm = !!(ret & 0x40);
-
-	return 0;
-}
-#endif /* CONFIG_NET_DSA_HWMON */
 
 static int mv88e6352_setup(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
-	int i;
 
 	ret = mv88e6xxx_setup_common(ds);
 	if (ret < 0)
@@ -306,19 +109,11 @@ static int mv88e6352_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	/* @@@ initialise vtu and atu */
-
 	ret = mv88e6352_setup_global(ds);
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < ps->num_ports; i++) {
-		ret = mv88e6352_setup_port(ds, i);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
+	return mv88e6xxx_setup_ports(ds);
 }
 
 static int mv88e6352_read_eeprom_word(struct dsa_switch *ds, int addr)
@@ -328,8 +123,9 @@ static int mv88e6352_read_eeprom_word(struct dsa_switch *ds, int addr)
 
 	mutex_lock(&ps->eeprom_mutex);
 
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, 0x14,
-				  0xc000 | (addr & 0xff));
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, GLOBAL2_EEPROM_OP,
+				  GLOBAL2_EEPROM_OP_READ |
+				  (addr & GLOBAL2_EEPROM_OP_ADDR_MASK));
 	if (ret < 0)
 		goto error;
 
@@ -337,7 +133,7 @@ static int mv88e6352_read_eeprom_word(struct dsa_switch *ds, int addr)
 	if (ret < 0)
 		goto error;
 
-	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, 0x15);
+	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, GLOBAL2_EEPROM_DATA);
 error:
 	mutex_unlock(&ps->eeprom_mutex);
 	return ret;
@@ -410,11 +206,11 @@ static int mv88e6352_eeprom_is_readonly(struct dsa_switch *ds)
 {
 	int ret;
 
-	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, 0x14);
+	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, GLOBAL2_EEPROM_OP);
 	if (ret < 0)
 		return ret;
 
-	if (!(ret & 0x0400))
+	if (!(ret & GLOBAL2_EEPROM_OP_WRITE_EN))
 		return -EROFS;
 
 	return 0;
@@ -428,12 +224,13 @@ static int mv88e6352_write_eeprom_word(struct dsa_switch *ds, int addr,
 
 	mutex_lock(&ps->eeprom_mutex);
 
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, 0x15, data);
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, GLOBAL2_EEPROM_DATA, data);
 	if (ret < 0)
 		goto error;
 
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, 0x14,
-				  0xb000 | (addr & 0xff));
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, GLOBAL2_EEPROM_OP,
+				  GLOBAL2_EEPROM_OP_WRITE |
+				  (addr & GLOBAL2_EEPROM_OP_ADDR_MASK));
 	if (ret < 0)
 		goto error;
 
@@ -531,13 +328,14 @@ struct dsa_switch_driver mv88e6352_switch_driver = {
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
 	.get_sset_count		= mv88e6xxx_get_sset_count,
+	.adjust_link		= mv88e6xxx_adjust_link,
 	.set_eee		= mv88e6xxx_set_eee,
 	.get_eee		= mv88e6xxx_get_eee,
 #ifdef CONFIG_NET_DSA_HWMON
-	.get_temp		= mv88e6352_get_temp,
-	.get_temp_limit		= mv88e6352_get_temp_limit,
-	.set_temp_limit		= mv88e6352_set_temp_limit,
-	.get_temp_alarm		= mv88e6352_get_temp_alarm,
+	.get_temp		= mv88e6xxx_get_temp,
+	.get_temp_limit		= mv88e6xxx_get_temp_limit,
+	.set_temp_limit		= mv88e6xxx_set_temp_limit,
+	.get_temp_alarm		= mv88e6xxx_get_temp_alarm,
 #endif
 	.get_eeprom		= mv88e6352_get_eeprom,
 	.set_eeprom		= mv88e6352_set_eeprom,
@@ -546,9 +344,18 @@ struct dsa_switch_driver mv88e6352_switch_driver = {
 	.port_join_bridge	= mv88e6xxx_join_bridge,
 	.port_leave_bridge	= mv88e6xxx_leave_bridge,
 	.port_stp_update	= mv88e6xxx_port_stp_update,
-	.fdb_add		= mv88e6xxx_port_fdb_add,
-	.fdb_del		= mv88e6xxx_port_fdb_del,
-	.fdb_getnext		= mv88e6xxx_port_fdb_getnext,
+	.port_pvid_get		= mv88e6xxx_port_pvid_get,
+	.port_pvid_set		= mv88e6xxx_port_pvid_set,
+	.port_vlan_add		= mv88e6xxx_port_vlan_add,
+	.port_vlan_del		= mv88e6xxx_port_vlan_del,
+	.vlan_getnext		= mv88e6xxx_vlan_getnext,
+	.port_fdb_add		= mv88e6xxx_port_fdb_add,
+	.port_fdb_del		= mv88e6xxx_port_fdb_del,
+	.port_fdb_getnext	= mv88e6xxx_port_fdb_getnext,
 };
 
+MODULE_ALIAS("platform:mv88e6172");
+MODULE_ALIAS("platform:mv88e6176");
+MODULE_ALIAS("platform:mv88e6320");
+MODULE_ALIAS("platform:mv88e6321");
 MODULE_ALIAS("platform:mv88e6352");

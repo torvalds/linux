@@ -70,7 +70,8 @@ static int expand_corename(struct core_name *cn, int size)
 	return 0;
 }
 
-static int cn_vprintf(struct core_name *cn, const char *fmt, va_list arg)
+static __printf(2, 0) int cn_vprintf(struct core_name *cn, const char *fmt,
+				     va_list arg)
 {
 	int free, need;
 	va_list arg_copy;
@@ -93,7 +94,7 @@ again:
 	return -ENOMEM;
 }
 
-static int cn_printf(struct core_name *cn, const char *fmt, ...)
+static __printf(2, 3) int cn_printf(struct core_name *cn, const char *fmt, ...)
 {
 	va_list arg;
 	int ret;
@@ -105,7 +106,8 @@ static int cn_printf(struct core_name *cn, const char *fmt, ...)
 	return ret;
 }
 
-static int cn_esc_printf(struct core_name *cn, const char *fmt, ...)
+static __printf(2, 3)
+int cn_esc_printf(struct core_name *cn, const char *fmt, ...)
 {
 	int cur = cn->used;
 	va_list arg;
@@ -138,7 +140,7 @@ static int cn_print_exe_file(struct core_name *cn)
 		goto put_exe_file;
 	}
 
-	path = d_path(&exe_file->f_path, pathbuf, PATH_MAX);
+	path = file_path(exe_file, pathbuf, PATH_MAX);
 	if (IS_ERR(path)) {
 		ret = PTR_ERR(path);
 		goto free_buf;
@@ -209,11 +211,15 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 				break;
 			/* uid */
 			case 'u':
-				err = cn_printf(cn, "%d", cred->uid);
+				err = cn_printf(cn, "%u",
+						from_kuid(&init_user_ns,
+							  cred->uid));
 				break;
 			/* gid */
 			case 'g':
-				err = cn_printf(cn, "%d", cred->gid);
+				err = cn_printf(cn, "%u",
+						from_kgid(&init_user_ns,
+							  cred->gid));
 				break;
 			case 'd':
 				err = cn_printf(cn, "%d",
@@ -221,7 +227,8 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 				break;
 			/* signal that caused the coredump */
 			case 's':
-				err = cn_printf(cn, "%ld", cprm->siginfo->si_signo);
+				err = cn_printf(cn, "%d",
+						cprm->siginfo->si_signo);
 				break;
 			/* UNIX time of coredump */
 			case 't': {
@@ -506,10 +513,10 @@ void do_coredump(const siginfo_t *siginfo)
 	const struct cred *old_cred;
 	struct cred *cred;
 	int retval = 0;
-	int flag = 0;
 	int ispipe;
 	struct files_struct *displaced;
-	bool need_nonrelative = false;
+	/* require nonrelative corefile path and be extra careful */
+	bool need_suid_safe = false;
 	bool core_dumped = false;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
@@ -543,9 +550,8 @@ void do_coredump(const siginfo_t *siginfo)
 	 */
 	if (__get_dumpable(cprm.mm_flags) == SUID_DUMP_ROOT) {
 		/* Setuid core dump mode */
-		flag = O_EXCL;		/* Stop rewrite attacks */
 		cred->fsuid = GLOBAL_ROOT_UID;	/* Dump root private */
-		need_nonrelative = true;
+		need_suid_safe = true;
 	}
 
 	retval = coredump_wait(siginfo->si_signo, &core_state);
@@ -626,7 +632,7 @@ void do_coredump(const siginfo_t *siginfo)
 		if (cprm.limit < binfmt->min_coredump)
 			goto fail_unlock;
 
-		if (need_nonrelative && cn.corename[0] != '/') {
+		if (need_suid_safe && cn.corename[0] != '/') {
 			printk(KERN_WARNING "Pid %d(%s) can only dump core "\
 				"to fully qualified path!\n",
 				task_tgid_vnr(current), current->comm);
@@ -634,8 +640,35 @@ void do_coredump(const siginfo_t *siginfo)
 			goto fail_unlock;
 		}
 
+		/*
+		 * Unlink the file if it exists unless this is a SUID
+		 * binary - in that case, we're running around with root
+		 * privs and don't want to unlink another user's coredump.
+		 */
+		if (!need_suid_safe) {
+			mm_segment_t old_fs;
+
+			old_fs = get_fs();
+			set_fs(KERNEL_DS);
+			/*
+			 * If it doesn't exist, that's fine. If there's some
+			 * other problem, we'll catch it at the filp_open().
+			 */
+			(void) sys_unlink((const char __user *)cn.corename);
+			set_fs(old_fs);
+		}
+
+		/*
+		 * There is a race between unlinking and creating the
+		 * file, but if that causes an EEXIST here, that's
+		 * fine - another process raced with us while creating
+		 * the corefile, and the other process won. To userspace,
+		 * what matters is that at least one of the two processes
+		 * writes its coredump successfully, not which one.
+		 */
 		cprm.file = filp_open(cn.corename,
-				 O_CREAT | 2 | O_NOFOLLOW | O_LARGEFILE | flag,
+				 O_CREAT | 2 | O_NOFOLLOW |
+				 O_LARGEFILE | O_EXCL,
 				 0600);
 		if (IS_ERR(cprm.file))
 			goto fail_unlock;
@@ -652,10 +685,14 @@ void do_coredump(const siginfo_t *siginfo)
 		if (!S_ISREG(inode->i_mode))
 			goto close_fail;
 		/*
-		 * Dont allow local users get cute and trick others to coredump
-		 * into their pre-created files.
+		 * Don't dump core if the filesystem changed owner or mode
+		 * of the file during file creation. This is an issue when
+		 * a process dumps core while its cwd is e.g. on a vfat
+		 * filesystem.
 		 */
 		if (!uid_eq(inode->i_uid, current_fsuid()))
+			goto close_fail;
+		if ((inode->i_mode & 0677) != 0600)
 			goto close_fail;
 		if (!(cprm.file->f_mode & FMODE_CAN_WRITE))
 			goto close_fail;

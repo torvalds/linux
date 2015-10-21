@@ -82,8 +82,12 @@ static int test__checkevent_symbolic_name_config(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->attr.type);
 	TEST_ASSERT_VAL("wrong config",
 			PERF_COUNT_HW_CPU_CYCLES == evsel->attr.config);
+	/*
+	 * The period value gets configured within perf_evlist__config,
+	 * while this test executes only parse events method.
+	 */
 	TEST_ASSERT_VAL("wrong period",
-			100000 == evsel->attr.sample_period);
+			0 == evsel->attr.sample_period);
 	TEST_ASSERT_VAL("wrong config1",
 			0 == evsel->attr.config1);
 	TEST_ASSERT_VAL("wrong config2",
@@ -406,7 +410,11 @@ static int test__checkevent_pmu(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong config",    10 == evsel->attr.config);
 	TEST_ASSERT_VAL("wrong config1",    1 == evsel->attr.config1);
 	TEST_ASSERT_VAL("wrong config2",    3 == evsel->attr.config2);
-	TEST_ASSERT_VAL("wrong period",  1000 == evsel->attr.sample_period);
+	/*
+	 * The period value gets configured within perf_evlist__config,
+	 * while this test executes only parse events method.
+	 */
+	TEST_ASSERT_VAL("wrong period",     0 == evsel->attr.sample_period);
 
 	return 0;
 }
@@ -427,7 +435,7 @@ static int test__checkevent_list(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong exclude_hv", !evsel->attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", !evsel->attr.precise_ip);
 
-	/* syscalls:sys_enter_open:k */
+	/* syscalls:sys_enter_openat:k */
 	evsel = perf_evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_TRACEPOINT == evsel->attr.type);
 	TEST_ASSERT_VAL("wrong sample_type",
@@ -467,6 +475,39 @@ static int test__checkevent_pmu_name(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong config",  2 == evsel->attr.config);
 	TEST_ASSERT_VAL("wrong name",
 			!strcmp(perf_evsel__name(evsel), "cpu/config=2/u"));
+
+	return 0;
+}
+
+static int test__checkevent_pmu_partial_time_callgraph(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	/* cpu/config=1,call-graph=fp,time,period=100000/ */
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config",  1 == evsel->attr.config);
+	/*
+	 * The period, time and callgraph value gets configured
+	 * within perf_evlist__config,
+	 * while this test executes only parse events method.
+	 */
+	TEST_ASSERT_VAL("wrong period",     0 == evsel->attr.sample_period);
+	TEST_ASSERT_VAL("wrong callgraph",  !(PERF_SAMPLE_CALLCHAIN & evsel->attr.sample_type));
+	TEST_ASSERT_VAL("wrong time",  !(PERF_SAMPLE_TIME & evsel->attr.sample_type));
+
+	/* cpu/config=2,call-graph=no,time=0,period=2000/ */
+	evsel = perf_evsel__next(evsel);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config",  2 == evsel->attr.config);
+	/*
+	 * The period, time and callgraph value gets configured
+	 * within perf_evlist__config,
+	 * while this test executes only parse events method.
+	 */
+	TEST_ASSERT_VAL("wrong period",     0 == evsel->attr.sample_period);
+	TEST_ASSERT_VAL("wrong callgraph",  !(PERF_SAMPLE_CALLCHAIN & evsel->attr.sample_type));
+	TEST_ASSERT_VAL("wrong time",  !(PERF_SAMPLE_TIME & evsel->attr.sample_type));
 
 	return 0;
 }
@@ -665,7 +706,7 @@ static int test__group3(struct perf_evlist *evlist __maybe_unused)
 	TEST_ASSERT_VAL("wrong number of entries", 5 == evlist->nr_entries);
 	TEST_ASSERT_VAL("wrong number of groups", 2 == evlist->nr_groups);
 
-	/* group1 syscalls:sys_enter_open:H */
+	/* group1 syscalls:sys_enter_openat:H */
 	evsel = leader = perf_evlist__first(evlist);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_TRACEPOINT == evsel->attr.type);
 	TEST_ASSERT_VAL("wrong sample_type",
@@ -1293,7 +1334,7 @@ struct evlist_test {
 
 static struct evlist_test test__events[] = {
 	{
-		.name  = "syscalls:sys_enter_open",
+		.name  = "syscalls:sys_enter_openat",
 		.check = test__checkevent_tracepoint,
 		.id    = 0,
 	},
@@ -1353,7 +1394,7 @@ static struct evlist_test test__events[] = {
 		.id    = 11,
 	},
 	{
-		.name  = "syscalls:sys_enter_open:k",
+		.name  = "syscalls:sys_enter_openat:k",
 		.check = test__checkevent_tracepoint_modifier,
 		.id    = 12,
 	},
@@ -1408,7 +1449,7 @@ static struct evlist_test test__events[] = {
 		.id    = 22,
 	},
 	{
-		.name  = "r1,syscalls:sys_enter_open:k,1:1:hp",
+		.name  = "r1,syscalls:sys_enter_openat:k,1:1:hp",
 		.check = test__checkevent_list,
 		.id    = 23,
 	},
@@ -1443,7 +1484,7 @@ static struct evlist_test test__events[] = {
 		.id    = 29,
 	},
 	{
-		.name  = "group1{syscalls:sys_enter_open:H,cycles:kppp},group2{cycles,1:3}:G,instructions:u",
+		.name  = "group1{syscalls:sys_enter_openat:H,cycles:kppp},group2{cycles,1:3}:G,instructions:u",
 		.check = test__group3,
 		.id    = 30,
 	},
@@ -1547,6 +1588,11 @@ static struct evlist_test test__events_pmu[] = {
 		.check = test__checkevent_pmu_name,
 		.id    = 1,
 	},
+	{
+		.name  = "cpu/config=1,call-graph=fp,time,period=100000/,cpu/config=2,call-graph=no,time=0,period=2000/",
+		.check = test__checkevent_pmu_partial_time_callgraph,
+		.id    = 2,
+	},
 };
 
 struct terms_test {
@@ -1571,7 +1617,7 @@ static int test_event(struct evlist_test *e)
 	if (evlist == NULL)
 		return -ENOMEM;
 
-	ret = parse_events(evlist, e->name);
+	ret = parse_events(evlist, e->name, NULL);
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d\n",
 			 e->name, ret);

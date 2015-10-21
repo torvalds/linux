@@ -125,7 +125,7 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = &dev->subdevices[i];
-			if (s->runflags & COMEDI_SRF_FREE_SPRIV)
+			if (comedi_can_auto_free_spriv(s))
 				kfree(s->private);
 			comedi_free_subdevice_minor(s);
 			if (s->async) {
@@ -820,7 +820,7 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			 "driver '%s' does not support attach using comedi_config\n",
 			 driv->driver_name);
 		module_put(driv->module);
-		ret = -ENOSYS;
+		ret = -EIO;
 		goto out;
 	}
 	dev->driver = driv;

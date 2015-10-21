@@ -500,7 +500,6 @@ static int hix5hd2_rx(struct net_device *dev, int limit)
 		napi_gro_receive(&priv->napi, skb);
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += skb->len;
-		dev->last_rx = jiffies;
 next:
 		pos = dma_ring_incr(pos, RX_DESC_NUM);
 	}

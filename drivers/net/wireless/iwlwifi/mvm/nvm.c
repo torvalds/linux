@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -139,12 +139,6 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 		return ret;
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(mvm, "Bad return from NVM_ACCES_COMMAND (0x%08X)\n",
-			pkt->hdr.flags);
-		ret = -EIO;
-		goto exit;
-	}
 
 	/* Extract NVM response */
 	nvm_resp = (void *)pkt->data;
@@ -316,8 +310,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	phy_sku = (const __le16 *)sections[NVM_SECTION_TYPE_PHY_SKU].data;
 
 	lar_enabled = !iwlwifi_mod_params.lar_disable &&
-		      (mvm->fw->ucode_capa.capa[0] &
-		       IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+		      fw_has_capa(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 
 	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
@@ -583,9 +577,9 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 		kfree(nvm_buffer);
 	}
 
-	/* load external NVM if configured */
+	/* Only if PNVM selected in the mod param - load external NVM  */
 	if (mvm->nvm_file_name) {
-		/* read External NVM file - take the default */
+		/* read External NVM file from the mod param */
 		ret = iwl_mvm_read_external_nvm(mvm);
 		if (ret) {
 			/* choose the nvm_file name according to the
@@ -652,12 +646,6 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		return ERR_PTR(ret);
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(mvm, "Bad return from MCC_UPDATE_COMMAND (0x%08X)\n",
-			pkt->hdr.flags);
-		ret = -EIO;
-		goto exit;
-	}
 
 	/* Extract MCC response */
 	mcc_resp = (void *)pkt->data;
@@ -792,8 +780,8 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	char mcc[3];
 
 	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
-		tlv_lar = mvm->fw->ucode_capa.capa[0] &
-			IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+		tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
+				      IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 		nvm_lar = mvm->nvm_data->lar_enabled;
 		if (tlv_lar != nvm_lar)
 			IWL_INFO(mvm,
@@ -839,9 +827,8 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	return retval;
 }
 
-int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
-			       struct iwl_rx_cmd_buffer *rxb,
-			       struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
+				struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mcc_chub_notif *notif = (void *)pkt->data;
@@ -852,7 +839,7 @@ int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
-		return 0;
+		return;
 
 	mcc[0] = notif->mcc >> 8;
 	mcc[1] = notif->mcc & 0xff;
@@ -864,10 +851,8 @@ int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 		      mcc, src);
 	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc, src, NULL);
 	if (IS_ERR_OR_NULL(regd))
-		return 0;
+		return;
 
 	regulatory_set_wiphy_regd(mvm->hw->wiphy, regd);
 	kfree(regd);
-
-	return 0;
 }

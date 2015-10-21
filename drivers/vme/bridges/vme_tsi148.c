@@ -1833,24 +1833,29 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	/* Add to list */
 	list_add_tail(&entry->list, &list->entries);
 
+	entry->dma_handle = dma_map_single(tsi148_bridge->parent,
+		&entry->descriptor,
+		sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
+	if (dma_mapping_error(tsi148_bridge->parent, entry->dma_handle)) {
+		dev_err(tsi148_bridge->parent, "DMA mapping error\n");
+		retval = -EINVAL;
+		goto err_dma;
+	}
+
 	/* Fill out previous descriptors "Next Address" */
 	if (entry->list.prev != &list->entries) {
-		prev = list_entry(entry->list.prev, struct tsi148_dma_entry,
-			list);
-		/* We need the bus address for the pointer */
-		entry->dma_handle = dma_map_single(tsi148_bridge->parent,
-			&entry->descriptor,
-			sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
-
 		reg_split((unsigned long long)entry->dma_handle, &address_high,
 			&address_low);
-		entry->descriptor.dnlau = cpu_to_be32(address_high);
-		entry->descriptor.dnlal = cpu_to_be32(address_low);
+		prev = list_entry(entry->list.prev, struct tsi148_dma_entry,
+				  list);
+		prev->descriptor.dnlau = cpu_to_be32(address_high);
+		prev->descriptor.dnlal = cpu_to_be32(address_low);
 
 	}
 
 	return 0;
 
+err_dma:
 err_dest:
 err_source:
 err_align:
@@ -1887,7 +1892,7 @@ static int tsi148_dma_busy(struct vme_bridge *tsi148_bridge, int channel)
 static int tsi148_dma_list_exec(struct vme_dma_list *list)
 {
 	struct vme_dma_resource *ctrlr;
-	int channel, retval = 0;
+	int channel, retval;
 	struct tsi148_dma_entry *entry;
 	u32 bus_addr_high, bus_addr_low;
 	u32 val, dctlreg = 0;
@@ -1921,10 +1926,6 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 	entry = list_first_entry(&list->entries, struct tsi148_dma_entry,
 		list);
 
-	entry->dma_handle = dma_map_single(tsi148_bridge->parent,
-		&entry->descriptor,
-		sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
-
 	mutex_unlock(&ctrlr->mtx);
 
 	reg_split(entry->dma_handle, &bus_addr_high, &bus_addr_low);
@@ -1941,8 +1942,18 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 	iowrite32be(dctlreg | TSI148_LCSR_DCTL_DGO, bridge->base +
 		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DCTL);
 
-	wait_event_interruptible(bridge->dma_queue[channel],
+	retval = wait_event_interruptible(bridge->dma_queue[channel],
 		tsi148_dma_busy(ctrlr->parent, channel));
+
+	if (retval) {
+		iowrite32be(dctlreg | TSI148_LCSR_DCTL_ABT, bridge->base +
+			TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DCTL);
+		/* Wait for the operation to abort */
+		wait_event(bridge->dma_queue[channel],
+			   tsi148_dma_busy(ctrlr->parent, channel));
+		retval = -EINTR;
+		goto exit;
+	}
 
 	/*
 	 * Read status register, this register is valid until we kick off a
@@ -1956,6 +1967,7 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 		retval = -EIO;
 	}
 
+exit:
 	/* Remove list from running list */
 	mutex_lock(&ctrlr->mtx);
 	list_del(&list->list);

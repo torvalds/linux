@@ -34,8 +34,7 @@ static struct platform_device *p_device;
 
 static char *name;
 module_param(name, charp, 0);
-MODULE_PARM_DESC(name, "Devicename (required). " \
-"name=list => list all supported devices.");
+MODULE_PARM_DESC(name, "Devicename (required). name=list => list all supported devices.");
 
 static unsigned rotate;
 module_param(rotate, uint, 0);
@@ -61,8 +60,7 @@ MODULE_PARM_DESC(mode, "SPI mode (override device default)");
 static char *gpios;
 module_param(gpios, charp, 0);
 MODULE_PARM_DESC(gpios,
-"List of gpios. Comma separated with the form: reset:23,dc:24 " \
-"(when overriding the default, all gpios must be specified)");
+"List of gpios. Comma separated with the form: reset:23,dc:24 (when overriding the default, all gpios must be specified)");
 
 static unsigned fps;
 module_param(fps, uint, 0);
@@ -88,8 +86,7 @@ MODULE_PARM_DESC(startbyte, "Sets the Start byte used by some SPI displays.");
 
 static bool custom;
 module_param(custom, bool, 0);
-MODULE_PARM_DESC(custom, "Add a custom display device. " \
-"Use speed= argument to make it a SPI device, else platform_device");
+MODULE_PARM_DESC(custom, "Add a custom display device. Use speed= argument to make it a SPI device, else platform_device");
 
 static unsigned width;
 module_param(width, uint, 0);
@@ -232,7 +229,7 @@ static struct fbtft_device_display displays[] = {
 				.display = {
 					.buswidth = 8,
 					.backlight = 1,
-					.fbtftops.set_addr_win = \
+					.fbtftops.set_addr_win =
 					    adafruit18_green_tab_set_addr_win,
 				},
 				.bgr = true,
@@ -400,6 +397,37 @@ static struct fbtft_device_display displays[] = {
 			}
 		}
 	}, {
+		.name = "ew24ha0",
+		.spi = &(struct spi_board_info) {
+			.modalias = "fb_uc1611",
+			.max_speed_hz = 32000000,
+			.mode = SPI_MODE_3,
+			.platform_data = &(struct fbtft_platform_data) {
+				.display = {
+					.buswidth = 8,
+				},
+				.gpios = (const struct fbtft_gpio []) {
+					{ "dc", 24 },
+					{},
+				},
+			}
+		}
+	}, {
+		.name = "ew24ha0_9bit",
+		.spi = &(struct spi_board_info) {
+			.modalias = "fb_uc1611",
+			.max_speed_hz = 32000000,
+			.mode = SPI_MODE_3,
+			.platform_data = &(struct fbtft_platform_data) {
+				.display = {
+					.buswidth = 9,
+				},
+				.gpios = (const struct fbtft_gpio []) {
+					{},
+				},
+			}
+		}
+	}, {
 		.name = "flexfb",
 		.spi = &(struct spi_board_info) {
 			.modalias = "flexfb",
@@ -558,8 +586,8 @@ static struct fbtft_device_display displays[] = {
 				.gpios = (const struct fbtft_gpio []) {
 					/* Wiring for LCD adapter kit */
 					{ "reset", 7 },
-					{ "dc", 0 }, 	/* rev 2: 2 */
-					{ "wr", 1 }, 	/* rev 2: 3 */
+					{ "dc", 0 },	/* rev 2: 2 */
+					{ "wr", 1 },	/* rev 2: 3 */
 					{ "cs", 8 },
 					{ "db00", 17 },
 					{ "db01", 18 },
@@ -776,13 +804,13 @@ static struct fbtft_device_display displays[] = {
 					{ "dc", 25 },
 					{},
 				},
-				.gamma =	"0 2 2 2 2 2 2 2 " \
-						"2 2 2 2 2 2 2 2 " \
-						"2 2 2 2 2 2 2 2 " \
-						"2 2 2 2 2 2 2 3 " \
-						"3 3 3 3 3 3 3 3 " \
-						"3 3 3 3 3 3 3 3 " \
-						"3 3 3 4 4 4 4 4 " \
+				.gamma =	"0 2 2 2 2 2 2 2 "
+						"2 2 2 2 2 2 2 2 "
+						"2 2 2 2 2 2 2 2 "
+						"2 2 2 2 2 2 2 3 "
+						"3 3 3 3 3 3 3 3 "
+						"3 3 3 3 3 3 3 3 "
+						"3 3 3 4 4 4 4 4 "
 						"4 4 4 4 4 4 4"
 			}
 		}
@@ -896,7 +924,7 @@ static struct fbtft_device_display displays[] = {
 					.buswidth = 16,
 					.txbuflen = -2, /* disable buffer */
 					.backlight = 1,
-					.fbtftops.write = \
+					.fbtftops.write =
 						fbtft_write_gpio16_wr_latched,
 				},
 				.bgr = true,
@@ -1063,7 +1091,8 @@ static struct fbtft_device_display displays[] = {
 				.display = {
 					.buswidth = 8,
 					.backlight = 1,
-					.init_sequence = waveshare32b_init_sequence,
+					.init_sequence =
+						waveshare32b_init_sequence,
 				},
 				.bgr = true,
 				.gpios = (const struct fbtft_gpio []) {
@@ -1291,7 +1320,7 @@ static int __init fbtft_device_init(void)
 	}
 
 	if (init_num > FBTFT_MAX_INIT_SEQUENCE) {
-		pr_err(DRVNAME \
+		pr_err(DRVNAME
 			":  init parameter: exceeded max array size: %d\n",
 			FBTFT_MAX_INIT_SEQUENCE);
 		return -EINVAL;
@@ -1300,7 +1329,7 @@ static int __init fbtft_device_init(void)
 	/* parse module parameter: gpios */
 	while ((p_gpio = strsep(&gpios, ","))) {
 		if (strchr(p_gpio, ':') == NULL) {
-			pr_err(DRVNAME \
+			pr_err(DRVNAME
 				":  error: missing ':' in gpios parameter: %s\n",
 				p_gpio);
 			return -EINVAL;
@@ -1308,14 +1337,14 @@ static int __init fbtft_device_init(void)
 		p_num = p_gpio;
 		p_name = strsep(&p_num, ":");
 		if (p_name == NULL || p_num == NULL) {
-			pr_err(DRVNAME \
+			pr_err(DRVNAME
 				":  something bad happened parsing gpios parameter: %s\n",
 				p_gpio);
 			return -EINVAL;
 		}
 		ret = kstrtol(p_num, 10, &val);
 		if (ret) {
-			pr_err(DRVNAME \
+			pr_err(DRVNAME
 				":  could not parse number in gpios parameter: %s:%s\n",
 				p_name, p_num);
 			return -EINVAL;
@@ -1323,7 +1352,7 @@ static int __init fbtft_device_init(void)
 		strcpy(fbtft_device_param_gpios[i].name, p_name);
 		fbtft_device_param_gpios[i++].gpio = (int) val;
 		if (i == MAX_GPIOS) {
-			pr_err(DRVNAME \
+			pr_err(DRVNAME
 				":  gpios parameter: exceeded max array size: %d\n",
 				MAX_GPIOS);
 			return -EINVAL;
@@ -1419,23 +1448,21 @@ static int __init fbtft_device_init(void)
 			if (displays[i].spi) {
 				ret = fbtft_device_spi_device_register(spi);
 				if (ret) {
-					pr_err(DRVNAME \
+					pr_err(DRVNAME
 						": failed to register SPI device\n");
 					return ret;
 				}
-				found = true;
-				break;
 			} else {
 				ret = platform_device_register(p_device);
 				if (ret < 0) {
-					pr_err(DRVNAME \
+					pr_err(DRVNAME
 						":    platform_device_register() returned %d\n",
 						ret);
 					return ret;
 				}
-				found = true;
-				break;
 			}
+			found = true;
+			break;
 		}
 	}
 

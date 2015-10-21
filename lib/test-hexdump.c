@@ -25,19 +25,19 @@ static const char * const test_data_1_le[] __initconst = {
 	"4c", "d1", "19", "99", "43", "b1", "af", "0c",
 };
 
-static const char *test_data_2_le[] __initdata = {
+static const char * const test_data_2_le[] __initconst = {
 	"32be", "7bdb", "180a", "b293",
 	"ba70", "24c4", "837d", "9b34",
 	"9ca6", "ad31", "0f9c", "e9ac",
 	"d14c", "9919", "b143", "0caf",
 };
 
-static const char *test_data_4_le[] __initdata = {
+static const char * const test_data_4_le[] __initconst = {
 	"7bdb32be", "b293180a", "24c4ba70", "9b34837d",
 	"ad319ca6", "e9ac0f9c", "9919d14c", "0cafb143",
 };
 
-static const char *test_data_8_le[] __initdata = {
+static const char * const test_data_8_le[] __initconst = {
 	"b293180a7bdb32be", "9b34837d24c4ba70",
 	"e9ac0f9cad319ca6", "0cafb1439919d14c",
 };

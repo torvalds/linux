@@ -73,6 +73,9 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	/* It is slot 8 on Rockchip SoCs */
 	host->sdio_id0 = 8;
 
+	/* It needs this quirk on all Rockchip SoCs */
+	host->pdata->quirks |= DW_MCI_QUIRK_BROKEN_DTO;
+
 	return 0;
 }
 
@@ -153,5 +156,5 @@ module_platform_driver(dw_mci_rockchip_pltfm_driver);
 
 MODULE_AUTHOR("Addy Ke <addy.ke@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip Specific DW-MSHC Driver Extension");
-MODULE_ALIAS("platform:dwmmc-rockchip");
+MODULE_ALIAS("platform:dwmmc_rockchip");
 MODULE_LICENSE("GPL v2");

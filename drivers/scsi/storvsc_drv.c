@@ -56,15 +56,18 @@
  * V1 RC > 2008/1/31:  2.0
  * Win7: 4.2
  * Win8: 5.1
+ * Win8.1: 6.0
+ * Win10: 6.2
  */
 
+#define VMSTOR_PROTO_VERSION(MAJOR_, MINOR_)	((((MAJOR_) & 0xff) << 8) | \
+						(((MINOR_) & 0xff)))
 
-#define VMSTOR_WIN7_MAJOR 4
-#define VMSTOR_WIN7_MINOR 2
-
-#define VMSTOR_WIN8_MAJOR 5
-#define VMSTOR_WIN8_MINOR 1
-
+#define VMSTOR_PROTO_VERSION_WIN6	VMSTOR_PROTO_VERSION(2, 0)
+#define VMSTOR_PROTO_VERSION_WIN7	VMSTOR_PROTO_VERSION(4, 2)
+#define VMSTOR_PROTO_VERSION_WIN8	VMSTOR_PROTO_VERSION(5, 1)
+#define VMSTOR_PROTO_VERSION_WIN8_1	VMSTOR_PROTO_VERSION(6, 0)
+#define VMSTOR_PROTO_VERSION_WIN10	VMSTOR_PROTO_VERSION(6, 2)
 
 /*  Packet structure describing virtual storage requests. */
 enum vstor_packet_operation {
@@ -148,21 +151,18 @@ struct hv_fc_wwn_packet {
 
 /*
  * Sense buffer size changed in win8; have a run-time
- * variable to track the size we should use.
+ * variable to track the size we should use.  This value will
+ * likely change during protocol negotiation but it is valid
+ * to start by assuming pre-Win8.
  */
-static int sense_buffer_size;
+static int sense_buffer_size = PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE;
 
 /*
- * The size of the vmscsi_request has changed in win8. The
- * additional size is because of new elements added to the
- * structure. These elements are valid only when we are talking
- * to a win8 host.
- * Track the correction to size we need to apply.
- */
-
-static int vmscsi_size_delta;
-static int vmstor_current_major;
-static int vmstor_current_minor;
+ * The storage protocol version is determined during the
+ * initial exchange with the host.  It will indicate which
+ * storage functionality is available in the host.
+*/
+static int vmstor_proto_version;
 
 struct vmscsi_win8_extension {
 	/*
@@ -204,6 +204,56 @@ struct vmscsi_request {
 	struct vmscsi_win8_extension win8_extension;
 
 } __attribute((packed));
+
+
+/*
+ * The size of the vmscsi_request has changed in win8. The
+ * additional size is because of new elements added to the
+ * structure. These elements are valid only when we are talking
+ * to a win8 host.
+ * Track the correction to size we need to apply. This value
+ * will likely change during protocol negotiation but it is
+ * valid to start by assuming pre-Win8.
+ */
+static int vmscsi_size_delta = sizeof(struct vmscsi_win8_extension);
+
+/*
+ * The list of storage protocols in order of preference.
+ */
+struct vmstor_protocol {
+	int protocol_version;
+	int sense_buffer_size;
+	int vmscsi_size_delta;
+};
+
+
+static const struct vmstor_protocol vmstor_protocols[] = {
+	{
+		VMSTOR_PROTO_VERSION_WIN10,
+		POST_WIN7_STORVSC_SENSE_BUFFER_SIZE,
+		0
+	},
+	{
+		VMSTOR_PROTO_VERSION_WIN8_1,
+		POST_WIN7_STORVSC_SENSE_BUFFER_SIZE,
+		0
+	},
+	{
+		VMSTOR_PROTO_VERSION_WIN8,
+		POST_WIN7_STORVSC_SENSE_BUFFER_SIZE,
+		0
+	},
+	{
+		VMSTOR_PROTO_VERSION_WIN7,
+		PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE,
+		sizeof(struct vmscsi_win8_extension),
+	},
+	{
+		VMSTOR_PROTO_VERSION_WIN6,
+		PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE,
+		sizeof(struct vmscsi_win8_extension),
+	}
+};
 
 
 /*
@@ -426,7 +476,6 @@ static void storvsc_host_scan(struct work_struct *work)
 	struct storvsc_scan_work *wrk;
 	struct Scsi_Host *host;
 	struct scsi_device *sdev;
-	unsigned long flags;
 
 	wrk = container_of(work, struct storvsc_scan_work, work);
 	host = wrk->host;
@@ -443,14 +492,8 @@ static void storvsc_host_scan(struct work_struct *work)
 	 * may have been removed this way.
 	 */
 	mutex_lock(&host->scan_mutex);
-	spin_lock_irqsave(host->host_lock, flags);
-	list_for_each_entry(sdev, &host->__devices, siblings) {
-		spin_unlock_irqrestore(host->host_lock, flags);
+	shost_for_each_device(sdev, host)
 		scsi_test_unit_ready(sdev, 1, 1, NULL);
-		spin_lock_irqsave(host->host_lock, flags);
-		continue;
-	}
-	spin_unlock_irqrestore(host->host_lock, flags);
 	mutex_unlock(&host->scan_mutex);
 	/*
 	 * Now scan the host to discover LUNs that may have been added.
@@ -481,18 +524,6 @@ done:
 	kfree(wrk);
 }
 
-/*
- * Major/minor macros.  Minor version is in LSB, meaning that earlier flat
- * version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1).
- */
-
-static inline u16 storvsc_get_version(u8 major, u8 minor)
-{
-	u16 version;
-
-	version = ((major << 8) | minor);
-	return version;
-}
 
 /*
  * We can get incoming messages from the host that are not in response to
@@ -885,7 +916,7 @@ static int storvsc_channel_init(struct hv_device *device)
 	struct storvsc_device *stor_device;
 	struct storvsc_cmd_request *request;
 	struct vstor_packet *vstor_packet;
-	int ret, t;
+	int ret, t, i;
 	int max_chns;
 	bool process_sub_channels = false;
 
@@ -921,41 +952,65 @@ static int storvsc_channel_init(struct hv_device *device)
 	}
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
+	    vstor_packet->status != 0) {
+		ret = -EINVAL;
 		goto cleanup;
+	}
 
 
-	/* reuse the packet for version range supported */
-	memset(vstor_packet, 0, sizeof(struct vstor_packet));
-	vstor_packet->operation = VSTOR_OPERATION_QUERY_PROTOCOL_VERSION;
-	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
+	for (i = 0; i < ARRAY_SIZE(vmstor_protocols); i++) {
+		/* reuse the packet for version range supported */
+		memset(vstor_packet, 0, sizeof(struct vstor_packet));
+		vstor_packet->operation =
+			VSTOR_OPERATION_QUERY_PROTOCOL_VERSION;
+		vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	vstor_packet->version.major_minor =
-		storvsc_get_version(vmstor_current_major, vmstor_current_minor);
+		vstor_packet->version.major_minor =
+			vmstor_protocols[i].protocol_version;
 
-	/*
-	 * The revision number is only used in Windows; set it to 0.
-	 */
-	vstor_packet->version.revision = 0;
+		/*
+		 * The revision number is only used in Windows; set it to 0.
+		 */
+		vstor_packet->version.revision = 0;
 
-	ret = vmbus_sendpacket(device->channel, vstor_packet,
+		ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       (sizeof(struct vstor_packet) -
 				vmscsi_size_delta),
 			       (unsigned long)request,
 			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-	if (ret != 0)
-		goto cleanup;
+		if (ret != 0)
+			goto cleanup;
 
-	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
-	if (t == 0) {
-		ret = -ETIMEDOUT;
-		goto cleanup;
+		t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+		if (t == 0) {
+			ret = -ETIMEDOUT;
+			goto cleanup;
+		}
+
+		if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO) {
+			ret = -EINVAL;
+			goto cleanup;
+		}
+
+		if (vstor_packet->status == 0) {
+			vmstor_proto_version =
+				vmstor_protocols[i].protocol_version;
+
+			sense_buffer_size =
+				vmstor_protocols[i].sense_buffer_size;
+
+			vmscsi_size_delta =
+				vmstor_protocols[i].vmscsi_size_delta;
+
+			break;
+		}
 	}
 
-	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
+	if (vstor_packet->status != 0) {
+		ret = -EINVAL;
 		goto cleanup;
+	}
 
 
 	memset(vstor_packet, 0, sizeof(struct vstor_packet));
@@ -979,8 +1034,10 @@ static int storvsc_channel_init(struct hv_device *device)
 	}
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
+	    vstor_packet->status != 0) {
+		ret = -EINVAL;
 		goto cleanup;
+	}
 
 	/*
 	 * Check to see if multi-channel support is there.
@@ -988,8 +1045,7 @@ static int storvsc_channel_init(struct hv_device *device)
 	 * support multi-channel.
 	 */
 	max_chns = vstor_packet->storage_channel_properties.max_channel_cnt;
-	if ((vmbus_proto_version != VERSION_WIN7) &&
-	   (vmbus_proto_version != VERSION_WS2008))  {
+	if (vmstor_proto_version >= VMSTOR_PROTO_VERSION_WIN8) {
 		if (vstor_packet->storage_channel_properties.flags &
 		    STORAGE_CHANNEL_SUPPORTS_MULTI_CHANNEL)
 			process_sub_channels = true;
@@ -1018,8 +1074,10 @@ static int storvsc_channel_init(struct hv_device *device)
 	}
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
+	    vstor_packet->status != 0) {
+		ret = -EINVAL;
 		goto cleanup;
+	}
 
 	if (process_sub_channels)
 		handle_multichannel_storage(device, max_chns);
@@ -1428,15 +1486,19 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 
 	/*
 	 * If the host is WIN8 or WIN8 R2, claim conformance to SPC-3
-	 * if the device is a MSFT virtual device.
+	 * if the device is a MSFT virtual device.  If the host is
+	 * WIN10 or newer, allow write_same.
 	 */
 	if (!strncmp(sdevice->vendor, "Msft", 4)) {
-		switch (vmbus_proto_version) {
-		case VERSION_WIN8:
-		case VERSION_WIN8_1:
+		switch (vmstor_proto_version) {
+		case VMSTOR_PROTO_VERSION_WIN8:
+		case VMSTOR_PROTO_VERSION_WIN8_1:
 			sdevice->scsi_level = SCSI_SPC_3;
 			break;
 		}
+
+		if (vmstor_proto_version >= VMSTOR_PROTO_VERSION_WIN10)
+			sdevice->no_write_same = 0;
 	}
 
 	return 0;
@@ -1563,7 +1625,7 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	u32 payload_sz;
 	u32 length;
 
-	if (vmstor_current_major <= VMSTOR_WIN8_MAJOR) {
+	if (vmstor_proto_version <= VMSTOR_PROTO_VERSION_WIN8) {
 		/*
 		 * On legacy hosts filter unimplemented commands.
 		 * Future hosts are expected to correctly handle
@@ -1598,10 +1660,18 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 		vm_srb->data_in = READ_TYPE;
 		vm_srb->win8_extension.srb_flags |= SRB_FLAGS_DATA_IN;
 		break;
-	default:
+	case DMA_NONE:
 		vm_srb->data_in = UNKNOWN_TYPE;
 		vm_srb->win8_extension.srb_flags |= SRB_FLAGS_NO_DATA_TRANSFER;
 		break;
+	default:
+		/*
+		 * This is DMA_BIDIRECTIONAL or something else we are never
+		 * supposed to see here.
+		 */
+		WARN(1, "Unexpected data direction: %d\n",
+		     scmnd->sc_data_direction);
+		return -EINVAL;
 	}
 
 
@@ -1758,22 +1828,11 @@ static int storvsc_probe(struct hv_device *device,
 	 * set state to properly communicate with the host.
 	 */
 
-	switch (vmbus_proto_version) {
-	case VERSION_WS2008:
-	case VERSION_WIN7:
-		sense_buffer_size = PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE;
-		vmscsi_size_delta = sizeof(struct vmscsi_win8_extension);
-		vmstor_current_major = VMSTOR_WIN7_MAJOR;
-		vmstor_current_minor = VMSTOR_WIN7_MINOR;
+	if (vmbus_proto_version < VERSION_WIN8) {
 		max_luns_per_target = STORVSC_IDE_MAX_LUNS_PER_TARGET;
 		max_targets = STORVSC_IDE_MAX_TARGETS;
 		max_channels = STORVSC_IDE_MAX_CHANNELS;
-		break;
-	default:
-		sense_buffer_size = POST_WIN7_STORVSC_SENSE_BUFFER_SIZE;
-		vmscsi_size_delta = 0;
-		vmstor_current_major = VMSTOR_WIN8_MAJOR;
-		vmstor_current_minor = VMSTOR_WIN8_MINOR;
+	} else {
 		max_luns_per_target = STORVSC_MAX_LUNS_PER_TARGET;
 		max_targets = STORVSC_MAX_TARGETS;
 		max_channels = STORVSC_MAX_CHANNELS;
@@ -1783,7 +1842,6 @@ static int storvsc_probe(struct hv_device *device,
 		 * VCPUs in the guest.
 		 */
 		max_sub_channels = (num_cpus / storvsc_vcpus_per_sub_channel);
-		break;
 	}
 
 	scsi_driver.can_queue = (max_outstanding_req_per_channel *

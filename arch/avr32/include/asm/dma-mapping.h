@@ -209,17 +209,18 @@ dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
  * the same here.
  */
 static inline int
-dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+dma_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	   enum dma_data_direction direction)
 {
 	int i;
+	struct scatterlist *sg;
 
-	for (i = 0; i < nents; i++) {
+	for_each_sg(sglist, sg, nents, i) {
 		char *virt;
 
-		sg[i].dma_address = page_to_bus(sg_page(&sg[i])) + sg[i].offset;
-		virt = sg_virt(&sg[i]);
-		dma_cache_sync(dev, virt, sg[i].length, direction);
+		sg->dma_address = page_to_bus(sg_page(sg)) + sg->offset;
+		virt = sg_virt(sg);
+		dma_cache_sync(dev, virt, sg->length, direction);
 	}
 
 	return nents;
@@ -321,14 +322,14 @@ dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 }
 
 static inline void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
+dma_sync_sg_for_device(struct device *dev, struct scatterlist *sglist,
 		       int nents, enum dma_data_direction direction)
 {
 	int i;
+	struct scatterlist *sg;
 
-	for (i = 0; i < nents; i++) {
-		dma_cache_sync(dev, sg_virt(&sg[i]), sg[i].length, direction);
-	}
+	for_each_sg(sglist, sg, nents, i)
+		dma_cache_sync(dev, sg_virt(sg), sg->length, direction);
 }
 
 /* Now for the API extensions over the pci_ one */

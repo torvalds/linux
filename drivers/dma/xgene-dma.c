@@ -21,6 +21,7 @@
  * NOTE: PM support is currently not available.
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -58,7 +59,6 @@
 #define XGENE_DMA_RING_MEM_RAM_SHUTDOWN		0xD070
 #define XGENE_DMA_RING_BLK_MEM_RDY		0xD074
 #define XGENE_DMA_RING_BLK_MEM_RDY_VAL		0xFFFFFFFF
-#define XGENE_DMA_RING_DESC_CNT(v)		(((v) & 0x0001FFFE) >> 1)
 #define XGENE_DMA_RING_ID_GET(owner, num)	(((owner) << 6) | (num))
 #define XGENE_DMA_RING_DST_ID(v)		((1 << 10) | (v))
 #define XGENE_DMA_RING_CMD_OFFSET		0x2C
@@ -111,6 +111,7 @@
 #define XGENE_DMA_MEM_RAM_SHUTDOWN		0xD070
 #define XGENE_DMA_BLK_MEM_RDY			0xD074
 #define XGENE_DMA_BLK_MEM_RDY_VAL		0xFFFFFFFF
+#define XGENE_DMA_RING_CMD_SM_OFFSET		0x8000
 
 /* X-Gene SoC EFUSE csr register and bit defination */
 #define XGENE_SOC_JTAG1_SHADOW			0x18
@@ -124,32 +125,8 @@
 #define XGENE_DMA_DESC_ELERR_POS		46
 #define XGENE_DMA_DESC_RTYPE_POS		56
 #define XGENE_DMA_DESC_LERR_POS			60
-#define XGENE_DMA_DESC_FLYBY_POS		4
 #define XGENE_DMA_DESC_BUFLEN_POS		48
 #define XGENE_DMA_DESC_HOENQ_NUM_POS		48
-
-#define XGENE_DMA_DESC_NV_SET(m)		\
-	(((u64 *)(m))[0] |= XGENE_DMA_DESC_NV_BIT)
-#define XGENE_DMA_DESC_IN_SET(m)		\
-	(((u64 *)(m))[0] |= XGENE_DMA_DESC_IN_BIT)
-#define XGENE_DMA_DESC_RTYPE_SET(m, v)		\
-	(((u64 *)(m))[0] |= ((u64)(v) << XGENE_DMA_DESC_RTYPE_POS))
-#define XGENE_DMA_DESC_BUFADDR_SET(m, v)	\
-	(((u64 *)(m))[0] |= (v))
-#define XGENE_DMA_DESC_BUFLEN_SET(m, v)		\
-	(((u64 *)(m))[0] |= ((u64)(v) << XGENE_DMA_DESC_BUFLEN_POS))
-#define XGENE_DMA_DESC_C_SET(m)			\
-	(((u64 *)(m))[1] |= XGENE_DMA_DESC_C_BIT)
-#define XGENE_DMA_DESC_FLYBY_SET(m, v)		\
-	(((u64 *)(m))[2] |= ((v) << XGENE_DMA_DESC_FLYBY_POS))
-#define XGENE_DMA_DESC_MULTI_SET(m, v, i)	\
-	(((u64 *)(m))[2] |= ((u64)(v) << (((i) + 1) * 8)))
-#define XGENE_DMA_DESC_DR_SET(m)		\
-	(((u64 *)(m))[2] |= XGENE_DMA_DESC_DR_BIT)
-#define XGENE_DMA_DESC_DST_ADDR_SET(m, v)	\
-	(((u64 *)(m))[3] |= (v))
-#define XGENE_DMA_DESC_H0ENQ_NUM_SET(m, v)	\
-	(((u64 *)(m))[3] |= ((u64)(v) << XGENE_DMA_DESC_HOENQ_NUM_POS))
 #define XGENE_DMA_DESC_ELERR_RD(m)		\
 	(((m) >> XGENE_DMA_DESC_ELERR_POS) & 0x3)
 #define XGENE_DMA_DESC_LERR_RD(m)		\
@@ -158,14 +135,7 @@
 	(((elerr) << 4) | (lerr))
 
 /* X-Gene DMA descriptor empty s/w signature */
-#define XGENE_DMA_DESC_EMPTY_INDEX		0
 #define XGENE_DMA_DESC_EMPTY_SIGNATURE		~0ULL
-#define XGENE_DMA_DESC_SET_EMPTY(m)		\
-	(((u64 *)(m))[XGENE_DMA_DESC_EMPTY_INDEX] =	\
-	 XGENE_DMA_DESC_EMPTY_SIGNATURE)
-#define XGENE_DMA_DESC_IS_EMPTY(m)		\
-	(((u64 *)(m))[XGENE_DMA_DESC_EMPTY_INDEX] ==	\
-	 XGENE_DMA_DESC_EMPTY_SIGNATURE)
 
 /* X-Gene DMA configurable parameters defines */
 #define XGENE_DMA_RING_NUM		512
@@ -181,10 +151,9 @@
 #define XGENE_DMA_PQ_CHANNEL		1
 #define XGENE_DMA_MAX_BYTE_CNT		0x4000	/* 16 KB */
 #define XGENE_DMA_MAX_64B_DESC_BYTE_CNT	0x14000	/* 80 KB */
-#define XGENE_DMA_XOR_ALIGNMENT		6	/* 64 Bytes */
 #define XGENE_DMA_MAX_XOR_SRC		5
 #define XGENE_DMA_16K_BUFFER_LEN_CODE	0x0
-#define XGENE_DMA_INVALID_LEN_CODE	0x7800
+#define XGENE_DMA_INVALID_LEN_CODE	0x7800000000000000ULL
 
 /* X-Gene DMA descriptor error codes */
 #define ERR_DESC_AXI			0x01
@@ -214,10 +183,10 @@
 #define ERR_DESC_SRC_INT		0xB
 
 /* X-Gene DMA flyby operation code */
-#define FLYBY_2SRC_XOR			0x8
-#define FLYBY_3SRC_XOR			0x9
-#define FLYBY_4SRC_XOR			0xA
-#define FLYBY_5SRC_XOR			0xB
+#define FLYBY_2SRC_XOR			0x80
+#define FLYBY_3SRC_XOR			0x90
+#define FLYBY_4SRC_XOR			0xA0
+#define FLYBY_5SRC_XOR			0xB0
 
 /* X-Gene DMA SW descriptor flags */
 #define XGENE_DMA_FLAG_64B_DESC		BIT(0)
@@ -238,10 +207,10 @@
 	dev_err(chan->dev, "%s: " fmt, chan->name, ##arg)
 
 struct xgene_dma_desc_hw {
-	u64 m0;
-	u64 m1;
-	u64 m2;
-	u64 m3;
+	__le64 m0;
+	__le64 m1;
+	__le64 m2;
+	__le64 m3;
 };
 
 enum xgene_dma_ring_cfgsize {
@@ -388,18 +357,11 @@ static bool is_pq_enabled(struct xgene_dma *pdma)
 	return !(val & XGENE_DMA_PQ_DISABLE_MASK);
 }
 
-static void xgene_dma_cpu_to_le64(u64 *desc, int count)
-{
-	int i;
-
-	for (i = 0; i < count; i++)
-		desc[i] = cpu_to_le64(desc[i]);
-}
-
-static u16 xgene_dma_encode_len(u32 len)
+static u64 xgene_dma_encode_len(size_t len)
 {
 	return (len < XGENE_DMA_MAX_BYTE_CNT) ?
-		len : XGENE_DMA_16K_BUFFER_LEN_CODE;
+		((u64)len << XGENE_DMA_DESC_BUFLEN_POS) :
+		XGENE_DMA_16K_BUFFER_LEN_CODE;
 }
 
 static u8 xgene_dma_encode_xor_flyby(u32 src_cnt)
@@ -416,42 +378,50 @@ static u8 xgene_dma_encode_xor_flyby(u32 src_cnt)
 	return flyby_type[src_cnt];
 }
 
-static u32 xgene_dma_ring_desc_cnt(struct xgene_dma_ring *ring)
-{
-	u32 __iomem *cmd_base = ring->cmd_base;
-	u32 ring_state = ioread32(&cmd_base[1]);
-
-	return XGENE_DMA_RING_DESC_CNT(ring_state);
-}
-
-static void xgene_dma_set_src_buffer(void *ext8, size_t *len,
+static void xgene_dma_set_src_buffer(__le64 *ext8, size_t *len,
 				     dma_addr_t *paddr)
 {
 	size_t nbytes = (*len < XGENE_DMA_MAX_BYTE_CNT) ?
 			*len : XGENE_DMA_MAX_BYTE_CNT;
 
-	XGENE_DMA_DESC_BUFADDR_SET(ext8, *paddr);
-	XGENE_DMA_DESC_BUFLEN_SET(ext8, xgene_dma_encode_len(nbytes));
+	*ext8 |= cpu_to_le64(*paddr);
+	*ext8 |= cpu_to_le64(xgene_dma_encode_len(nbytes));
 	*len -= nbytes;
 	*paddr += nbytes;
 }
 
-static void xgene_dma_invalidate_buffer(void *ext8)
+static void xgene_dma_invalidate_buffer(__le64 *ext8)
 {
-	XGENE_DMA_DESC_BUFLEN_SET(ext8, XGENE_DMA_INVALID_LEN_CODE);
+	*ext8 |= cpu_to_le64(XGENE_DMA_INVALID_LEN_CODE);
 }
 
-static void *xgene_dma_lookup_ext8(u64 *desc, int idx)
+static __le64 *xgene_dma_lookup_ext8(struct xgene_dma_desc_hw *desc, int idx)
 {
-	return (idx % 2) ? (desc + idx - 1) : (desc + idx + 1);
+	switch (idx) {
+	case 0:
+		return &desc->m1;
+	case 1:
+		return &desc->m0;
+	case 2:
+		return &desc->m3;
+	case 3:
+		return &desc->m2;
+	default:
+		pr_err("Invalid dma descriptor index\n");
+	}
+
+	return NULL;
 }
 
-static void xgene_dma_init_desc(void *desc, u16 dst_ring_num)
+static void xgene_dma_init_desc(struct xgene_dma_desc_hw *desc,
+				u16 dst_ring_num)
 {
-	XGENE_DMA_DESC_C_SET(desc); /* Coherent IO */
-	XGENE_DMA_DESC_IN_SET(desc);
-	XGENE_DMA_DESC_H0ENQ_NUM_SET(desc, dst_ring_num);
-	XGENE_DMA_DESC_RTYPE_SET(desc, XGENE_DMA_RING_OWNER_DMA);
+	desc->m0 |= cpu_to_le64(XGENE_DMA_DESC_IN_BIT);
+	desc->m0 |= cpu_to_le64((u64)XGENE_DMA_RING_OWNER_DMA <<
+				XGENE_DMA_DESC_RTYPE_POS);
+	desc->m1 |= cpu_to_le64(XGENE_DMA_DESC_C_BIT);
+	desc->m3 |= cpu_to_le64((u64)dst_ring_num <<
+				XGENE_DMA_DESC_HOENQ_NUM_POS);
 }
 
 static void xgene_dma_prep_cpy_desc(struct xgene_dma_chan *chan,
@@ -459,7 +429,7 @@ static void xgene_dma_prep_cpy_desc(struct xgene_dma_chan *chan,
 				    dma_addr_t dst, dma_addr_t src,
 				    size_t len)
 {
-	void *desc1, *desc2;
+	struct xgene_dma_desc_hw *desc1, *desc2;
 	int i;
 
 	/* Get 1st descriptor */
@@ -467,23 +437,21 @@ static void xgene_dma_prep_cpy_desc(struct xgene_dma_chan *chan,
 	xgene_dma_init_desc(desc1, chan->tx_ring.dst_ring_num);
 
 	/* Set destination address */
-	XGENE_DMA_DESC_DR_SET(desc1);
-	XGENE_DMA_DESC_DST_ADDR_SET(desc1, dst);
+	desc1->m2 |= cpu_to_le64(XGENE_DMA_DESC_DR_BIT);
+	desc1->m3 |= cpu_to_le64(dst);
 
 	/* Set 1st source address */
-	xgene_dma_set_src_buffer(desc1 + 8, &len, &src);
+	xgene_dma_set_src_buffer(&desc1->m1, &len, &src);
 
-	if (len <= 0) {
-		desc2 = NULL;
-		goto skip_additional_src;
-	}
+	if (!len)
+		return;
 
 	/*
 	 * We need to split this source buffer,
 	 * and need to use 2nd descriptor
 	 */
 	desc2 = &desc_sw->desc2;
-	XGENE_DMA_DESC_NV_SET(desc1);
+	desc1->m0 |= cpu_to_le64(XGENE_DMA_DESC_NV_BIT);
 
 	/* Set 2nd to 5th source address */
 	for (i = 0; i < 4 && len; i++)
@@ -496,12 +464,6 @@ static void xgene_dma_prep_cpy_desc(struct xgene_dma_chan *chan,
 
 	/* Updated flag that we have prepared 64B descriptor */
 	desc_sw->flags |= XGENE_DMA_FLAG_64B_DESC;
-
-skip_additional_src:
-	/* Hardware stores descriptor in little endian format */
-	xgene_dma_cpu_to_le64(desc1, 4);
-	if (desc2)
-		xgene_dma_cpu_to_le64(desc2, 4);
 }
 
 static void xgene_dma_prep_xor_desc(struct xgene_dma_chan *chan,
@@ -510,7 +472,7 @@ static void xgene_dma_prep_xor_desc(struct xgene_dma_chan *chan,
 				    u32 src_cnt, size_t *nbytes,
 				    const u8 *scf)
 {
-	void *desc1, *desc2;
+	struct xgene_dma_desc_hw *desc1, *desc2;
 	size_t len = *nbytes;
 	int i;
 
@@ -521,27 +483,23 @@ static void xgene_dma_prep_xor_desc(struct xgene_dma_chan *chan,
 	xgene_dma_init_desc(desc1, chan->tx_ring.dst_ring_num);
 
 	/* Set destination address */
-	XGENE_DMA_DESC_DR_SET(desc1);
-	XGENE_DMA_DESC_DST_ADDR_SET(desc1, *dst);
+	desc1->m2 |= cpu_to_le64(XGENE_DMA_DESC_DR_BIT);
+	desc1->m3 |= cpu_to_le64(*dst);
 
 	/* We have multiple source addresses, so need to set NV bit*/
-	XGENE_DMA_DESC_NV_SET(desc1);
+	desc1->m0 |= cpu_to_le64(XGENE_DMA_DESC_NV_BIT);
 
 	/* Set flyby opcode */
-	XGENE_DMA_DESC_FLYBY_SET(desc1, xgene_dma_encode_xor_flyby(src_cnt));
+	desc1->m2 |= cpu_to_le64(xgene_dma_encode_xor_flyby(src_cnt));
 
 	/* Set 1st to 5th source addresses */
 	for (i = 0; i < src_cnt; i++) {
 		len = *nbytes;
-		xgene_dma_set_src_buffer((i == 0) ? (desc1 + 8) :
+		xgene_dma_set_src_buffer((i == 0) ? &desc1->m1 :
 					 xgene_dma_lookup_ext8(desc2, i - 1),
 					 &len, &src[i]);
-		XGENE_DMA_DESC_MULTI_SET(desc1, scf[i], i);
+		desc1->m2 |= cpu_to_le64((scf[i] << ((i + 1) * 8)));
 	}
-
-	/* Hardware stores descriptor in little endian format */
-	xgene_dma_cpu_to_le64(desc1, 4);
-	xgene_dma_cpu_to_le64(desc2, 4);
 
 	/* Update meta data */
 	*nbytes = len;
@@ -692,14 +650,11 @@ static void xgene_dma_clean_running_descriptor(struct xgene_dma_chan *chan,
 	dma_pool_free(chan->desc_pool, desc, desc->tx.phys);
 }
 
-static int xgene_chan_xfer_request(struct xgene_dma_ring *ring,
-				   struct xgene_dma_desc_sw *desc_sw)
+static void xgene_chan_xfer_request(struct xgene_dma_chan *chan,
+				    struct xgene_dma_desc_sw *desc_sw)
 {
+	struct xgene_dma_ring *ring = &chan->tx_ring;
 	struct xgene_dma_desc_hw *desc_hw;
-
-	/* Check if can push more descriptor to hw for execution */
-	if (xgene_dma_ring_desc_cnt(ring) > (ring->slots - 2))
-		return -EBUSY;
 
 	/* Get hw descriptor from DMA tx ring */
 	desc_hw = &ring->desc_hw[ring->head];
@@ -727,23 +682,24 @@ static int xgene_chan_xfer_request(struct xgene_dma_ring *ring,
 		memcpy(desc_hw, &desc_sw->desc2, sizeof(*desc_hw));
 	}
 
+	/* Increment the pending transaction count */
+	chan->pending += ((desc_sw->flags &
+			  XGENE_DMA_FLAG_64B_DESC) ? 2 : 1);
+
 	/* Notify the hw that we have descriptor ready for execution */
 	iowrite32((desc_sw->flags & XGENE_DMA_FLAG_64B_DESC) ?
 		  2 : 1, ring->cmd);
-
-	return 0;
 }
 
 /**
  * xgene_chan_xfer_ld_pending - push any pending transactions to hw
  * @chan : X-Gene DMA channel
  *
- * LOCKING: must hold chan->desc_lock
+ * LOCKING: must hold chan->lock
  */
 static void xgene_chan_xfer_ld_pending(struct xgene_dma_chan *chan)
 {
 	struct xgene_dma_desc_sw *desc_sw, *_desc_sw;
-	int ret;
 
 	/*
 	 * If the list of pending descriptors is empty, then we
@@ -768,18 +724,13 @@ static void xgene_chan_xfer_ld_pending(struct xgene_dma_chan *chan)
 		if (chan->pending >= chan->max_outstanding)
 			return;
 
-		ret = xgene_chan_xfer_request(&chan->tx_ring, desc_sw);
-		if (ret)
-			return;
+		xgene_chan_xfer_request(chan, desc_sw);
 
 		/*
 		 * Delete this element from ld pending queue and append it to
 		 * ld running queue
 		 */
 		list_move_tail(&desc_sw->node, &chan->ld_running);
-
-		/* Increment the pending transaction count */
-		chan->pending++;
 	}
 }
 
@@ -797,18 +748,24 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 	struct xgene_dma_ring *ring = &chan->rx_ring;
 	struct xgene_dma_desc_sw *desc_sw, *_desc_sw;
 	struct xgene_dma_desc_hw *desc_hw;
+	struct list_head ld_completed;
 	u8 status;
+
+	INIT_LIST_HEAD(&ld_completed);
+
+	spin_lock_bh(&chan->lock);
 
 	/* Clean already completed and acked descriptors */
 	xgene_dma_clean_completed_descriptor(chan);
 
-	/* Run the callback for each descriptor, in order */
+	/* Move all completed descriptors to ld completed queue, in order */
 	list_for_each_entry_safe(desc_sw, _desc_sw, &chan->ld_running, node) {
 		/* Get subsequent hw descriptor from DMA rx ring */
 		desc_hw = &ring->desc_hw[ring->head];
 
 		/* Check if this descriptor has been completed */
-		if (unlikely(XGENE_DMA_DESC_IS_EMPTY(desc_hw)))
+		if (unlikely(le64_to_cpu(desc_hw->m0) ==
+			     XGENE_DMA_DESC_EMPTY_SIGNATURE))
 			break;
 
 		if (++ring->head == ring->slots)
@@ -842,17 +799,20 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 		iowrite32(-1, ring->cmd);
 
 		/* Mark this hw descriptor as processed */
-		XGENE_DMA_DESC_SET_EMPTY(desc_hw);
-
-		xgene_dma_run_tx_complete_actions(chan, desc_sw);
-
-		xgene_dma_clean_running_descriptor(chan, desc_sw);
+		desc_hw->m0 = cpu_to_le64(XGENE_DMA_DESC_EMPTY_SIGNATURE);
 
 		/*
 		 * Decrement the pending transaction count
 		 * as we have processed one
 		 */
-		chan->pending--;
+		chan->pending -= ((desc_sw->flags &
+				  XGENE_DMA_FLAG_64B_DESC) ? 2 : 1);
+
+		/*
+		 * Delete this node from ld running queue and append it to
+		 * ld completed queue for further processing
+		 */
+		list_move_tail(&desc_sw->node, &ld_completed);
 	}
 
 	/*
@@ -861,6 +821,14 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 	 * ahead and free the descriptors below.
 	 */
 	xgene_chan_xfer_ld_pending(chan);
+
+	spin_unlock_bh(&chan->lock);
+
+	/* Run the callback for each descriptor, in order */
+	list_for_each_entry_safe(desc_sw, _desc_sw, &ld_completed, node) {
+		xgene_dma_run_tx_complete_actions(chan, desc_sw);
+		xgene_dma_clean_running_descriptor(chan, desc_sw);
+	}
 }
 
 static int xgene_dma_alloc_chan_resources(struct dma_chan *dchan)
@@ -889,19 +857,10 @@ static int xgene_dma_alloc_chan_resources(struct dma_chan *dchan)
  * @chan: X-Gene DMA channel
  * @list: the list to free
  *
- * LOCKING: must hold chan->desc_lock
+ * LOCKING: must hold chan->lock
  */
 static void xgene_dma_free_desc_list(struct xgene_dma_chan *chan,
 				     struct list_head *list)
-{
-	struct xgene_dma_desc_sw *desc, *_desc;
-
-	list_for_each_entry_safe(desc, _desc, list, node)
-		xgene_dma_clean_descriptor(chan, desc);
-}
-
-static void xgene_dma_free_tx_desc_list(struct xgene_dma_chan *chan,
-					struct list_head *list)
 {
 	struct xgene_dma_desc_sw *desc, *_desc;
 
@@ -918,10 +877,10 @@ static void xgene_dma_free_chan_resources(struct dma_chan *dchan)
 	if (!chan->desc_pool)
 		return;
 
-	spin_lock_bh(&chan->lock);
-
 	/* Process all running descriptor */
 	xgene_dma_cleanup_descriptors(chan);
+
+	spin_lock_bh(&chan->lock);
 
 	/* Clean all link descriptor queues */
 	xgene_dma_free_desc_list(chan, &chan->ld_pending);
@@ -985,7 +944,7 @@ fail:
 	if (!first)
 		return NULL;
 
-	xgene_dma_free_tx_desc_list(chan, &first->tx_list);
+	xgene_dma_free_desc_list(chan, &first->tx_list);
 	return NULL;
 }
 
@@ -1093,7 +1052,7 @@ fail:
 	if (!first)
 		return NULL;
 
-	xgene_dma_free_tx_desc_list(chan, &first->tx_list);
+	xgene_dma_free_desc_list(chan, &first->tx_list);
 	return NULL;
 }
 
@@ -1141,7 +1100,7 @@ fail:
 	if (!first)
 		return NULL;
 
-	xgene_dma_free_tx_desc_list(chan, &first->tx_list);
+	xgene_dma_free_desc_list(chan, &first->tx_list);
 	return NULL;
 }
 
@@ -1218,7 +1177,7 @@ fail:
 	if (!first)
 		return NULL;
 
-	xgene_dma_free_tx_desc_list(chan, &first->tx_list);
+	xgene_dma_free_desc_list(chan, &first->tx_list);
 	return NULL;
 }
 
@@ -1242,15 +1201,11 @@ static void xgene_dma_tasklet_cb(unsigned long data)
 {
 	struct xgene_dma_chan *chan = (struct xgene_dma_chan *)data;
 
-	spin_lock_bh(&chan->lock);
-
 	/* Run all cleanup for descriptors which have been completed */
 	xgene_dma_cleanup_descriptors(chan);
 
 	/* Re-enable DMA channel IRQ */
 	enable_irq(chan->rx_irq);
-
-	spin_unlock_bh(&chan->lock);
 }
 
 static irqreturn_t xgene_dma_chan_ring_isr(int irq, void *id)
@@ -1316,7 +1271,6 @@ static void xgene_dma_setup_ring(struct xgene_dma_ring *ring)
 {
 	void *ring_cfg = ring->state;
 	u64 addr = ring->desc_paddr;
-	void *desc;
 	u32 i, val;
 
 	ring->slots = ring->size / XGENE_DMA_RING_WQ_DESC_SIZE;
@@ -1358,8 +1312,10 @@ static void xgene_dma_setup_ring(struct xgene_dma_ring *ring)
 
 	/* Set empty signature to DMA Rx ring descriptors */
 	for (i = 0; i < ring->slots; i++) {
+		struct xgene_dma_desc_hw *desc;
+
 		desc = &ring->desc_hw[i];
-		XGENE_DMA_DESC_SET_EMPTY(desc);
+		desc->m0 = cpu_to_le64(XGENE_DMA_DESC_EMPTY_SIGNATURE);
 	}
 
 	/* Enable DMA Rx ring interrupt */
@@ -1450,15 +1406,18 @@ static int xgene_dma_create_ring_one(struct xgene_dma_chan *chan,
 				     struct xgene_dma_ring *ring,
 				     enum xgene_dma_ring_cfgsize cfgsize)
 {
+	int ret;
+
 	/* Setup DMA ring descriptor variables */
 	ring->pdma = chan->pdma;
 	ring->cfgsize = cfgsize;
 	ring->num = chan->pdma->ring_num++;
 	ring->id = XGENE_DMA_RING_ID_GET(ring->owner, ring->buf_num);
 
-	ring->size = xgene_dma_get_ring_size(chan, cfgsize);
-	if (ring->size <= 0)
-		return ring->size;
+	ret = xgene_dma_get_ring_size(chan, cfgsize);
+	if (ret <= 0)
+		return ret;
+	ring->size = ret;
 
 	/* Allocate memory for DMA ring descriptor */
 	ring->desc_vaddr = dma_zalloc_coherent(chan->dev, ring->size,
@@ -1511,7 +1470,7 @@ static int xgene_dma_create_chan_rings(struct xgene_dma_chan *chan)
 		 tx_ring->id, tx_ring->num, tx_ring->desc_vaddr);
 
 	/* Set the max outstanding request possible to this channel */
-	chan->max_outstanding = rx_ring->slots;
+	chan->max_outstanding = tx_ring->slots;
 
 	return ret;
 }
@@ -1781,13 +1740,13 @@ static void xgene_dma_set_caps(struct xgene_dma_chan *chan,
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		dma_dev->device_prep_dma_xor = xgene_dma_prep_xor;
 		dma_dev->max_xor = XGENE_DMA_MAX_XOR_SRC;
-		dma_dev->xor_align = XGENE_DMA_XOR_ALIGNMENT;
+		dma_dev->xor_align = DMAENGINE_ALIGN_64_BYTES;
 	}
 
 	if (dma_has_cap(DMA_PQ, dma_dev->cap_mask)) {
 		dma_dev->device_prep_dma_pq = xgene_dma_prep_pq;
 		dma_dev->max_pq = XGENE_DMA_MAX_XOR_SRC;
-		dma_dev->pq_align = XGENE_DMA_XOR_ALIGNMENT;
+		dma_dev->pq_align = DMAENGINE_ALIGN_64_BYTES;
 	}
 }
 
@@ -1928,6 +1887,8 @@ static int xgene_dma_get_resources(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
+	pdma->csr_ring_cmd += XGENE_DMA_RING_CMD_SM_OFFSET;
+
 	/* Get efuse csr region */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	if (!res) {
@@ -1982,16 +1943,18 @@ static int xgene_dma_probe(struct platform_device *pdev)
 		return ret;
 
 	pdma->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pdma->clk)) {
+	if (IS_ERR(pdma->clk) && !ACPI_COMPANION(&pdev->dev)) {
 		dev_err(&pdev->dev, "Failed to get clk\n");
 		return PTR_ERR(pdma->clk);
 	}
 
 	/* Enable clk before accessing registers */
-	ret = clk_prepare_enable(pdma->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to enable clk %d\n", ret);
-		return ret;
+	if (!IS_ERR(pdma->clk)) {
+		ret = clk_prepare_enable(pdma->clk);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to enable clk %d\n", ret);
+			return ret;
+		}
 	}
 
 	/* Remove DMA RAM out of shutdown */
@@ -2036,7 +1999,8 @@ err_request_irq:
 
 err_dma_mask:
 err_clk_enable:
-	clk_disable_unprepare(pdma->clk);
+	if (!IS_ERR(pdma->clk))
+		clk_disable_unprepare(pdma->clk);
 
 	return ret;
 }
@@ -2060,10 +2024,19 @@ static int xgene_dma_remove(struct platform_device *pdev)
 		xgene_dma_delete_chan_rings(chan);
 	}
 
-	clk_disable_unprepare(pdma->clk);
+	if (!IS_ERR(pdma->clk))
+		clk_disable_unprepare(pdma->clk);
 
 	return 0;
 }
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_dma_acpi_match_ptr[] = {
+	{"APMC0D43", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, xgene_dma_acpi_match_ptr);
+#endif
 
 static const struct of_device_id xgene_dma_of_match_ptr[] = {
 	{.compatible = "apm,xgene-storm-dma",},
@@ -2077,6 +2050,7 @@ static struct platform_driver xgene_dma_driver = {
 	.driver = {
 		.name = "X-Gene-DMA",
 		.of_match_table = xgene_dma_of_match_ptr,
+		.acpi_match_table = ACPI_PTR(xgene_dma_acpi_match_ptr),
 	},
 };
 

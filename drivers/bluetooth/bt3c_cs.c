@@ -202,9 +202,8 @@ static void bt3c_write_wakeup(struct bt3c_info *info)
 		/* Send frame */
 		len = bt3c_write(iobase, 256, skb->data, skb->len);
 
-		if (len != skb->len) {
+		if (len != skb->len)
 			BT_ERR("Very strange");
-		}
 
 		kfree_skb(skb);
 
@@ -428,7 +427,7 @@ static int bt3c_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	case HCI_SCODATA_PKT:
 		hdev->stat.sco_tx++;
 		break;
-	};
+	}
 
 	/* Prepend skb with frame type */
 	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);

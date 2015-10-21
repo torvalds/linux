@@ -517,10 +517,6 @@ struct uvc_streaming {
 	} clock;
 };
 
-enum uvc_device_state {
-	UVC_DEV_DISCONNECTED = 1,
-};
-
 struct uvc_device {
 	struct usb_device *udev;
 	struct usb_interface *intf;
@@ -529,7 +525,6 @@ struct uvc_device {
 	int intfnum;
 	char name[32];
 
-	enum uvc_device_state state;
 	struct mutex lock;		/* Protects users */
 	unsigned int users;
 	atomic_t nmappings;
@@ -635,6 +630,8 @@ extern int uvc_create_buffers(struct uvc_video_queue *queue,
 		struct v4l2_create_buffers *v4l2_cb);
 extern int uvc_queue_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf);
+extern int uvc_export_buffer(struct uvc_video_queue *queue,
+		struct v4l2_exportbuffer *exp);
 extern int uvc_dequeue_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf, int nonblocking);
 extern int uvc_queue_streamon(struct uvc_video_queue *queue,

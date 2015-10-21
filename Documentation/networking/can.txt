@@ -268,6 +268,9 @@ solution for a couple of reasons:
     struct can_frame {
             canid_t can_id;  /* 32 bit CAN_ID + EFF/RTR/ERR flags */
             __u8    can_dlc; /* frame payload length in byte (0 .. 8) */
+            __u8    __pad;   /* padding */
+            __u8    __res0;  /* reserved / padding */
+            __u8    __res1;  /* reserved / padding */
             __u8    data[8] __attribute__((aligned(8)));
     };
 
@@ -507,7 +510,7 @@ solution for a couple of reasons:
 
   4.1.2 RAW socket option CAN_RAW_ERR_FILTER
 
-  As described in chapter 3.4 the CAN interface driver can generate so
+  As described in chapter 3.3 the CAN interface driver can generate so
   called Error Message Frames that can optionally be passed to the user
   application in the same way as other CAN frames. The possible
   errors are divided into different error classes that may be filtered
@@ -1149,7 +1152,7 @@ solution for a couple of reasons:
     $ ip link set canX type can restart
 
   Note that a restart will also create a CAN error message frame (see
-  also chapter 3.4).
+  also chapter 3.3).
 
   6.6 CAN FD (flexible data rate) driver support
 

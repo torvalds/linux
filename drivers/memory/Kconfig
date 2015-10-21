@@ -7,6 +7,14 @@ menuconfig MEMORY
 
 if MEMORY
 
+config ARM_PL172_MPMC
+	tristate "ARM PL172 MPMC driver"
+	depends on ARM_AMBA && OF
+	help
+	  This selects the ARM PrimeCell PL172 MultiPort Memory Controller.
+	  If you have an embedded system with an AMBA bus and a PL172
+	  controller, say Y or M here.
+
 config ATMEL_SDRAMC
 	bool "Atmel (Multi-port DDR-)SDRAM Controller"
 	default y
@@ -48,6 +56,14 @@ config OMAP_GPMC
 	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
 	  interfacing to a variety of asynchronous as well as synchronous
 	  memory drives like NOR, NAND, OneNAND, SRAM.
+
+config OMAP_GPMC_DEBUG
+	bool
+	depends on OMAP_GPMC
+	help
+	  Enables verbose debugging mostly to decode the bootloader provided
+	  timings. Enable this during development to configure devices
+	  connected to the GPMC bus.
 
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"

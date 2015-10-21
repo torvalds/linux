@@ -30,7 +30,6 @@ extern const char *perf_config_dirname(const char *, const char *);
 
 /* pager.c */
 extern void setup_pager(void);
-extern const char *pager_program;
 extern int pager_in_use(void);
 extern int pager_use_color;
 

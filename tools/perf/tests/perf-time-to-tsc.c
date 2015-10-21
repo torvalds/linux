@@ -68,7 +68,7 @@ int test__perf_time_to_tsc(void)
 
 	perf_evlist__set_maps(evlist, cpus, threads);
 
-	CHECK__(parse_events(evlist, "cycles:u"));
+	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
 	perf_evlist__config(evlist, &opts);
 

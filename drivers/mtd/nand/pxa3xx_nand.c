@@ -22,13 +22,14 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_mtd.h>
 
-#if defined(CONFIG_ARCH_PXA) || defined(CONFIG_ARCH_MMP)
+#if defined(CONFIG_ARM) && (defined(CONFIG_ARCH_PXA) || defined(CONFIG_ARCH_MMP))
 #define ARCH_HAS_DMA
 #endif
 
@@ -44,10 +45,13 @@
 
 /*
  * Define a buffer size for the initial command that detects the flash device:
- * STATUS, READID and PARAM. The largest of these is the PARAM command,
- * needing 256 bytes.
+ * STATUS, READID and PARAM.
+ * ONFI param page is 256 bytes, and there are three redundant copies
+ * to be read. JEDEC param page is 512 bytes, and there are also three
+ * redundant copies to be read.
+ * Hence this buffer should be at least 512 x 3. Let's pick 2048.
  */
-#define INIT_BUFFER_SIZE	256
+#define INIT_BUFFER_SIZE	2048
 
 /* registers and bit definitions */
 #define NDCR		(0x00) /* Control register */
@@ -125,6 +129,13 @@
 #define EXT_CMD_TYPE_LAST_RW	1 /* Last naked read/write */
 #define EXT_CMD_TYPE_MONO	0 /* Monolithic read/write */
 
+/*
+ * This should be large enough to read 'ONFI' and 'JEDEC'.
+ * Let's use 7 bytes, which is the maximum ID count supported
+ * by the controller (see NDCR_RD_ID_CNT_MASK).
+ */
+#define READ_ID_BYTES		7
+
 /* macros for registers read/write */
 #define nand_writel(info, off, val)	\
 	writel_relaxed((val), (info)->mmio_base + (off))
@@ -172,8 +183,6 @@ struct pxa3xx_nand_host {
 	/* calculated from pxa3xx_nand_flash data */
 	unsigned int		col_addr_cycles;
 	unsigned int		row_addr_cycles;
-	size_t			read_id_bytes;
-
 };
 
 struct pxa3xx_nand_info {
@@ -438,8 +447,8 @@ static void pxa3xx_nand_start(struct pxa3xx_nand_info *info)
 	ndcr |= NDCR_ND_RUN;
 
 	/* clear status bits and run */
-	nand_writel(info, NDCR, 0);
 	nand_writel(info, NDSR, NDSR_MASK);
+	nand_writel(info, NDCR, 0);
 	nand_writel(info, NDCR, ndcr);
 }
 
@@ -483,7 +492,8 @@ static void disable_int(struct pxa3xx_nand_info *info, uint32_t int_mask)
 static void drain_fifo(struct pxa3xx_nand_info *info, void *data, int len)
 {
 	if (info->ecc_bch) {
-		int timeout;
+		u32 val;
+		int ret;
 
 		/*
 		 * According to the datasheet, when reading from NDDB
@@ -494,18 +504,14 @@ static void drain_fifo(struct pxa3xx_nand_info *info, void *data, int len)
 		 * the polling on the last read.
 		 */
 		while (len > 8) {
-			__raw_readsl(info->mmio_base + NDDB, data, 8);
+			readsl(info->mmio_base + NDDB, data, 8);
 
-			for (timeout = 0;
-			     !(nand_readl(info, NDSR) & NDSR_RDDREQ);
-			     timeout++) {
-				if (timeout >= 5) {
-					dev_err(&info->pdev->dev,
-						"Timeout on RDDREQ while draining the FIFO\n");
-					return;
-				}
-
-				mdelay(1);
+			ret = readl_relaxed_poll_timeout(info->mmio_base + NDSR, val,
+							 val & NDSR_RDDREQ, 1000, 5000);
+			if (ret) {
+				dev_err(&info->pdev->dev,
+					"Timeout on RDDREQ while draining the FIFO\n");
+				return;
 			}
 
 			data += 32;
@@ -513,7 +519,7 @@ static void drain_fifo(struct pxa3xx_nand_info *info, void *data, int len)
 		}
 	}
 
-	__raw_readsl(info->mmio_base + NDDB, data, len);
+	readsl(info->mmio_base + NDDB, data, len);
 }
 
 static void handle_data_pio(struct pxa3xx_nand_info *info)
@@ -522,14 +528,14 @@ static void handle_data_pio(struct pxa3xx_nand_info *info)
 
 	switch (info->state) {
 	case STATE_PIO_WRITING:
-		__raw_writesl(info->mmio_base + NDDB,
-			      info->data_buff + info->data_buff_pos,
-			      DIV_ROUND_UP(do_bytes, 4));
+		writesl(info->mmio_base + NDDB,
+			info->data_buff + info->data_buff_pos,
+			DIV_ROUND_UP(do_bytes, 4));
 
 		if (info->oob_size > 0)
-			__raw_writesl(info->mmio_base + NDDB,
-				      info->oob_buff + info->oob_buff_pos,
-				      DIV_ROUND_UP(info->oob_size, 4));
+			writesl(info->mmio_base + NDDB,
+				info->oob_buff + info->oob_buff_pos,
+				DIV_ROUND_UP(info->oob_size, 4));
 		break;
 	case STATE_PIO_READING:
 		drain_fifo(info,
@@ -677,8 +683,14 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 		is_ready = 1;
 	}
 
+	/*
+	 * Clear all status bit before issuing the next command, which
+	 * can and will alter the status bits and will deserve a new
+	 * interrupt on its own. This lets the controller exit the IRQ
+	 */
+	nand_writel(info, NDSR, status);
+
 	if (status & NDSR_WRCMDREQ) {
-		nand_writel(info, NDSR, NDSR_WRCMDREQ);
 		status &= ~NDSR_WRCMDREQ;
 		info->state = STATE_CMD_HANDLE;
 
@@ -699,8 +711,6 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 			nand_writel(info, NDCB0, info->ndcb3);
 	}
 
-	/* clear NDSR to let the controller exit the IRQ */
-	nand_writel(info, NDSR, status);
 	if (is_completed)
 		complete(&info->cmd_complete);
 	if (is_ready)
@@ -901,18 +911,18 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 		break;
 
 	case NAND_CMD_PARAM:
-		info->buf_count = 256;
+		info->buf_count = INIT_BUFFER_SIZE;
 		info->ndcb0 |= NDCB0_CMD_TYPE(0)
 				| NDCB0_ADDR_CYC(1)
 				| NDCB0_LEN_OVRD
 				| command;
 		info->ndcb1 = (column & 0xFF);
-		info->ndcb3 = 256;
-		info->data_size = 256;
+		info->ndcb3 = INIT_BUFFER_SIZE;
+		info->data_size = INIT_BUFFER_SIZE;
 		break;
 
 	case NAND_CMD_READID:
-		info->buf_count = host->read_id_bytes;
+		info->buf_count = READ_ID_BYTES;
 		info->ndcb0 |= NDCB0_CMD_TYPE(3)
 				| NDCB0_ADDR_CYC(1)
 				| command;
@@ -1249,9 +1259,6 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 		return -EINVAL;
 	}
 
-	/* calculate flash information */
-	host->read_id_bytes = (f->page_size == 2048) ? 4 : 2;
-
 	/* calculate addressing information */
 	host->col_addr_cycles = (f->page_size == 2048) ? 2 : 1;
 
@@ -1267,7 +1274,7 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 	ndcr |= (f->flash_width == 16) ? NDCR_DWIDTH_M : 0;
 	ndcr |= (f->dfc_width == 16) ? NDCR_DWIDTH_C : 0;
 
-	ndcr |= NDCR_RD_ID_CNT(host->read_id_bytes);
+	ndcr |= NDCR_RD_ID_CNT(READ_ID_BYTES);
 	ndcr |= NDCR_SPARE_EN; /* enable spare by default */
 
 	info->reg_ndcr = ndcr;
@@ -1278,23 +1285,10 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 
 static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
 {
-	/*
-	 * We set 0 by hard coding here, for we don't support keep_config
-	 * when there is more than one chip attached to the controller
-	 */
-	struct pxa3xx_nand_host *host = info->host[0];
 	uint32_t ndcr = nand_readl(info, NDCR);
 
-	if (ndcr & NDCR_PAGE_SZ) {
-		/* Controller's FIFO size */
-		info->chunk_size = 2048;
-		host->read_id_bytes = 4;
-	} else {
-		info->chunk_size = 512;
-		host->read_id_bytes = 2;
-	}
-
 	/* Set an initial chunk size */
+	info->chunk_size = ndcr & NDCR_PAGE_SZ ? 2048 : 512;
 	info->reg_ndcr = ndcr & ~NDCR_INT_MASK;
 	info->ndtr0cs0 = nand_readl(info, NDTR0CS0);
 	info->ndtr1cs0 = nand_readl(info, NDTR1CS0);
@@ -1475,6 +1469,9 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 	if (pdata->keep_config && !pxa3xx_nand_detect_config(info))
 		goto KEEP_CONFIG;
 
+	/* Set a default chunk size */
+	info->chunk_size = 512;
+
 	ret = pxa3xx_nand_sensing(info);
 	if (ret) {
 		dev_info(&info->pdev->dev, "There is no chip on cs %d!\n",
@@ -1630,8 +1627,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	info->pdev = pdev;
 	info->variant = pxa3xx_nand_get_variant(pdev);
 	for (cs = 0; cs < pdata->num_cs; cs++) {
-		mtd = (struct mtd_info *)((unsigned int)&info[1] +
-		      (sizeof(*mtd) + sizeof(*host)) * cs);
+		mtd = (void *)&info[1] + (sizeof(*mtd) + sizeof(*host)) * cs;
 		chip = (struct nand_chip *)(&mtd[1]);
 		host = (struct pxa3xx_nand_host *)chip;
 		info->host[cs] = host;

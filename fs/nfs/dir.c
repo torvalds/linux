@@ -583,26 +583,19 @@ out_nopages:
 }
 
 static
-void nfs_readdir_free_pagearray(struct page **pages, unsigned int npages)
+void nfs_readdir_free_pages(struct page **pages, unsigned int npages)
 {
 	unsigned int i;
 	for (i = 0; i < npages; i++)
 		put_page(pages[i]);
 }
 
-static
-void nfs_readdir_free_large_page(void *ptr, struct page **pages,
-		unsigned int npages)
-{
-	nfs_readdir_free_pagearray(pages, npages);
-}
-
 /*
  * nfs_readdir_large_page will allocate pages that must be freed with a call
- * to nfs_readdir_free_large_page
+ * to nfs_readdir_free_pagearray
  */
 static
-int nfs_readdir_large_page(struct page **pages, unsigned int npages)
+int nfs_readdir_alloc_pages(struct page **pages, unsigned int npages)
 {
 	unsigned int i;
 
@@ -615,7 +608,7 @@ int nfs_readdir_large_page(struct page **pages, unsigned int npages)
 	return 0;
 
 out_freepages:
-	nfs_readdir_free_pagearray(pages, i);
+	nfs_readdir_free_pages(pages, i);
 	return -ENOMEM;
 }
 
@@ -623,7 +616,6 @@ static
 int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, struct inode *inode)
 {
 	struct page *pages[NFS_MAX_READDIR_PAGES];
-	void *pages_ptr = NULL;
 	struct nfs_entry entry;
 	struct file	*file = desc->file;
 	struct nfs_cache_array *array;
@@ -653,7 +645,7 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	memset(array, 0, sizeof(struct nfs_cache_array));
 	array->eof_index = -1;
 
-	status = nfs_readdir_large_page(pages, array_size);
+	status = nfs_readdir_alloc_pages(pages, array_size);
 	if (status < 0)
 		goto out_release_array;
 	do {
@@ -671,7 +663,7 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 		}
 	} while (array->eof_index < 0);
 
-	nfs_readdir_free_large_page(pages_ptr, pages, array_size);
+	nfs_readdir_free_pages(pages, array_size);
 out_release_array:
 	nfs_readdir_release_array(page);
 out_label_free:
@@ -1470,9 +1462,6 @@ static int nfs_finish_open(struct nfs_open_context *ctx,
 {
 	int err;
 
-	if ((open_flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
-		*opened |= FILE_CREATED;
-
 	err = finish_open(file, dentry, do_open, opened);
 	if (err)
 		goto out;
@@ -1771,7 +1760,7 @@ EXPORT_SYMBOL_GPL(nfs_mkdir);
 
 static void nfs_dentry_handle_enoent(struct dentry *dentry)
 {
-	if (d_really_is_positive(dentry) && !d_unhashed(dentry))
+	if (simple_positive(dentry))
 		d_delete(dentry);
 }
 

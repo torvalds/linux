@@ -19,6 +19,28 @@ static const struct inode_operations proc_sys_inode_operations;
 static const struct file_operations proc_sys_dir_file_operations;
 static const struct inode_operations proc_sys_dir_operations;
 
+/* Support for permanently empty directories */
+
+struct ctl_table sysctl_mount_point[] = {
+	{ }
+};
+
+static bool is_empty_dir(struct ctl_table_header *head)
+{
+	return head->ctl_table[0].child == sysctl_mount_point;
+}
+
+static void set_empty_dir(struct ctl_dir *dir)
+{
+	dir->header.ctl_table[0].child = sysctl_mount_point;
+}
+
+static void clear_empty_dir(struct ctl_dir *dir)
+
+{
+	dir->header.ctl_table[0].child = NULL;
+}
+
 void proc_sys_poll_notify(struct ctl_table_poll *poll)
 {
 	if (!poll)
@@ -187,6 +209,17 @@ static int insert_header(struct ctl_dir *dir, struct ctl_table_header *header)
 	struct ctl_table *entry;
 	int err;
 
+	/* Is this a permanently empty directory? */
+	if (is_empty_dir(&dir->header))
+		return -EROFS;
+
+	/* Am I creating a permanently empty directory? */
+	if (header->ctl_table == sysctl_mount_point) {
+		if (!RB_EMPTY_ROOT(&dir->root))
+			return -EINVAL;
+		set_empty_dir(dir);
+	}
+
 	dir->header.nreg++;
 	header->parent = dir;
 	err = insert_links(header);
@@ -202,6 +235,8 @@ fail:
 	erase_header(header);
 	put_links(header);
 fail_links:
+	if (header->ctl_table == sysctl_mount_point)
+		clear_empty_dir(dir);
 	header->parent = NULL;
 	drop_sysctl_table(&dir->header);
 	return err;
@@ -419,6 +454,8 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 		inode->i_mode |= S_IFDIR;
 		inode->i_op = &proc_sys_dir_operations;
 		inode->i_fop = &proc_sys_dir_file_operations;
+		if (is_empty_dir(head))
+			make_empty_dir_inode(inode);
 	}
 out:
 	return inode;

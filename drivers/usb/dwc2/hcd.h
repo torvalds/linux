@@ -451,13 +451,8 @@ static inline u8 dwc2_hcd_is_pipe_out(struct dwc2_hcd_pipe_info *pipe)
 	return !dwc2_hcd_is_pipe_in(pipe);
 }
 
-extern int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
-			 const struct dwc2_core_params *params);
+extern int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq);
 extern void dwc2_hcd_remove(struct dwc2_hsotg *hsotg);
-extern void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
-				const struct dwc2_core_params *params);
-extern void dwc2_set_all_params(struct dwc2_core_params *params, int value);
-extern int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
 
 /* Transaction Execution Functions */
 extern enum dwc2_transaction_type dwc2_hcd_select_transactions(
@@ -468,6 +463,9 @@ extern void dwc2_hcd_queue_transactions(struct dwc2_hsotg *hsotg,
 /* Schedule Queue Functions */
 /* Implemented in hcd_queue.c */
 extern void dwc2_hcd_init_usecs(struct dwc2_hsotg *hsotg);
+extern struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
+					  struct dwc2_hcd_urb *urb,
+					  gfp_t mem_flags);
 extern void dwc2_hcd_qh_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh);
 extern int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh);
 extern void dwc2_hcd_qh_unlink(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh);
@@ -476,7 +474,7 @@ extern void dwc2_hcd_qh_deactivate(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 
 extern void dwc2_hcd_qtd_init(struct dwc2_qtd *qtd, struct dwc2_hcd_urb *urb);
 extern int dwc2_hcd_qtd_add(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
-			    struct dwc2_qh **qh, gfp_t mem_flags);
+			    struct dwc2_qh *qh);
 
 /* Unlinks and frees a QTD */
 static inline void dwc2_hcd_qtd_unlink_and_free(struct dwc2_hsotg *hsotg,

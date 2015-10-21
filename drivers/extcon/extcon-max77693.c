@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/max77693.h>
+#include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77693-private.h>
 #include <linux/extcon.h>
 #include <linux/regmap.h>
@@ -42,7 +43,7 @@ static struct max77693_reg_data default_init_data[] = {
 	{
 		/* STATUS2 - [3]ChgDetRun */
 		.addr = MAX77693_MUIC_REG_STATUS2,
-		.data = STATUS2_CHGDETRUN_MASK,
+		.data = MAX77693_STATUS2_CHGDETRUN_MASK,
 	}, {
 		/* INTMASK1 - Unmask [3]ADC1KM,[0]ADCM */
 		.addr = MAX77693_MUIC_REG_INTMASK1,
@@ -200,44 +201,17 @@ enum max77693_muic_acc_type {
 /*
  * MAX77693 MUIC device support below list of accessories(external connector)
  */
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_USB_HOST,
-	EXTCON_CABLE_TA,
-	EXTCON_CABLE_FAST_CHARGER,
-	EXTCON_CABLE_SLOW_CHARGER,
-	EXTCON_CABLE_CHARGE_DOWNSTREAM,
-	EXTCON_CABLE_MHL,
-	EXTCON_CABLE_MHL_TA,
-	EXTCON_CABLE_JIG_USB_ON,
-	EXTCON_CABLE_JIG_USB_OFF,
-	EXTCON_CABLE_JIG_UART_OFF,
-	EXTCON_CABLE_JIG_UART_ON,
-	EXTCON_CABLE_DOCK_SMART,
-	EXTCON_CABLE_DOCK_DESK,
-	EXTCON_CABLE_DOCK_AUDIO,
-
-	_EXTCON_CABLE_NUM,
-};
-
-static const char *max77693_extcon_cable[] = {
-	[EXTCON_CABLE_USB]			= "USB",
-	[EXTCON_CABLE_USB_HOST]			= "USB-Host",
-	[EXTCON_CABLE_TA]			= "TA",
-	[EXTCON_CABLE_FAST_CHARGER]		= "Fast-charger",
-	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
-	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
-	[EXTCON_CABLE_MHL]			= "MHL",
-	[EXTCON_CABLE_MHL_TA]			= "MHL-TA",
-	[EXTCON_CABLE_JIG_USB_ON]		= "JIG-USB-ON",
-	[EXTCON_CABLE_JIG_USB_OFF]		= "JIG-USB-OFF",
-	[EXTCON_CABLE_JIG_UART_OFF]		= "JIG-UART-OFF",
-	[EXTCON_CABLE_JIG_UART_ON]		= "JIG-UART-ON",
-	[EXTCON_CABLE_DOCK_SMART]		= "Dock-Smart",
-	[EXTCON_CABLE_DOCK_DESK]		= "Dock-Desk",
-	[EXTCON_CABLE_DOCK_AUDIO]		= "Dock-Audio",
-
-	NULL,
+static const unsigned int max77693_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_TA,
+	EXTCON_FAST_CHARGER,
+	EXTCON_SLOW_CHARGER,
+	EXTCON_CHARGE_DOWNSTREAM,
+	EXTCON_MHL,
+	EXTCON_JIG,
+	EXTCON_DOCK,
+	EXTCON_NONE,
 };
 
 /*
@@ -262,7 +236,7 @@ static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 		 */
 		ret = regmap_write(info->max77693->regmap_muic,
 				  MAX77693_MUIC_REG_CTRL3,
-				  time << CONTROL3_ADCDBSET_SHIFT);
+				  time << MAX77693_CONTROL3_ADCDBSET_SHIFT);
 		if (ret) {
 			dev_err(info->dev, "failed to set ADC debounce time\n");
 			return ret;
@@ -295,7 +269,7 @@ static int max77693_muic_set_path(struct max77693_muic_info *info,
 	if (attached)
 		ctrl1 = val;
 	else
-		ctrl1 = CONTROL1_SW_OPEN;
+		ctrl1 = MAX77693_CONTROL1_SW_OPEN;
 
 	ret = regmap_update_bits(info->max77693->regmap_muic,
 			MAX77693_MUIC_REG_CTRL1, COMP_SW_MASK, ctrl1);
@@ -305,13 +279,14 @@ static int max77693_muic_set_path(struct max77693_muic_info *info,
 	}
 
 	if (attached)
-		ctrl2 |= CONTROL2_CPEN_MASK;	/* LowPwr=0, CPEn=1 */
+		ctrl2 |= MAX77693_CONTROL2_CPEN_MASK;	/* LowPwr=0, CPEn=1 */
 	else
-		ctrl2 |= CONTROL2_LOWPWR_MASK;	/* LowPwr=1, CPEn=0 */
+		ctrl2 |= MAX77693_CONTROL2_LOWPWR_MASK;	/* LowPwr=1, CPEn=0 */
 
 	ret = regmap_update_bits(info->max77693->regmap_muic,
 			MAX77693_MUIC_REG_CTRL2,
-			CONTROL2_LOWPWR_MASK | CONTROL2_CPEN_MASK, ctrl2);
+			MAX77693_CONTROL2_LOWPWR_MASK | MAX77693_CONTROL2_CPEN_MASK,
+			ctrl2);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
 		return ret;
@@ -353,8 +328,8 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 		 * Read ADC value to check cable type and decide cable state
 		 * according to cable type
 		 */
-		adc = info->status[0] & STATUS1_ADC_MASK;
-		adc >>= STATUS1_ADC_SHIFT;
+		adc = info->status[0] & MAX77693_STATUS1_ADC_MASK;
+		adc >>= MAX77693_STATUS1_ADC_SHIFT;
 
 		/*
 		 * Check current cable state/cable type and store cable type
@@ -377,8 +352,8 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 		 * Read ADC value to check cable type and decide cable state
 		 * according to cable type
 		 */
-		adc = info->status[0] & STATUS1_ADC_MASK;
-		adc >>= STATUS1_ADC_SHIFT;
+		adc = info->status[0] & MAX77693_STATUS1_ADC_MASK;
+		adc >>= MAX77693_STATUS1_ADC_SHIFT;
 
 		/*
 		 * Check current cable state/cable type and store cable type
@@ -393,13 +368,13 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 		} else {
 			*attached = true;
 
-			adclow = info->status[0] & STATUS1_ADCLOW_MASK;
-			adclow >>= STATUS1_ADCLOW_SHIFT;
-			adc1k = info->status[0] & STATUS1_ADC1K_MASK;
-			adc1k >>= STATUS1_ADC1K_SHIFT;
+			adclow = info->status[0] & MAX77693_STATUS1_ADCLOW_MASK;
+			adclow >>= MAX77693_STATUS1_ADCLOW_SHIFT;
+			adc1k = info->status[0] & MAX77693_STATUS1_ADC1K_MASK;
+			adc1k >>= MAX77693_STATUS1_ADC1K_SHIFT;
 
-			vbvolt = info->status[1] & STATUS2_VBVOLT_MASK;
-			vbvolt >>= STATUS2_VBVOLT_SHIFT;
+			vbvolt = info->status[1] & MAX77693_STATUS2_VBVOLT_MASK;
+			vbvolt >>= MAX77693_STATUS2_VBVOLT_SHIFT;
 
 			/**
 			 * [0x1|VBVolt|ADCLow|ADC1K]
@@ -424,8 +399,8 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 		 * Read charger type to check cable type and decide cable state
 		 * according to type of charger cable.
 		 */
-		chg_type = info->status[1] & STATUS2_CHGTYP_MASK;
-		chg_type >>= STATUS2_CHGTYP_SHIFT;
+		chg_type = info->status[1] & MAX77693_STATUS2_CHGTYP_MASK;
+		chg_type >>= MAX77693_STATUS2_CHGTYP_SHIFT;
 
 		if (chg_type == MAX77693_CHARGER_TYPE_NONE) {
 			*attached = false;
@@ -449,10 +424,10 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 		 * Read ADC value to check cable type and decide cable state
 		 * according to cable type
 		 */
-		adc = info->status[0] & STATUS1_ADC_MASK;
-		adc >>= STATUS1_ADC_SHIFT;
-		chg_type = info->status[1] & STATUS2_CHGTYP_MASK;
-		chg_type >>= STATUS2_CHGTYP_SHIFT;
+		adc = info->status[0] & MAX77693_STATUS1_ADC_MASK;
+		adc >>= MAX77693_STATUS1_ADC_SHIFT;
+		chg_type = info->status[1] & MAX77693_STATUS2_CHGTYP_MASK;
+		chg_type >>= MAX77693_STATUS2_CHGTYP_SHIFT;
 
 		if (adc == MAX77693_MUIC_ADC_OPEN
 				&& chg_type == MAX77693_CHARGER_TYPE_NONE)
@@ -464,8 +439,8 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 		 * Read vbvolt field, if vbvolt is 1,
 		 * this cable is used for charging.
 		 */
-		vbvolt = info->status[1] & STATUS2_VBVOLT_MASK;
-		vbvolt >>= STATUS2_VBVOLT_SHIFT;
+		vbvolt = info->status[1] & MAX77693_STATUS2_VBVOLT_MASK;
+		vbvolt >>= MAX77693_STATUS2_VBVOLT_SHIFT;
 
 		cable_type = vbvolt;
 		break;
@@ -484,7 +459,7 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 	int ret = 0;
 	int vbvolt;
 	bool cable_attached;
-	char dock_name[CABLE_NAME_MAX];
+	unsigned int dock_id;
 
 	dev_info(info->dev,
 		"external connector is %s (adc:0x%02x)\n",
@@ -507,15 +482,15 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 		}
 
 		/*
-		 * Notify Dock-Smart/MHL state.
-		 * - Dock-Smart device include three type of cable which
+		 * Notify Dock/MHL state.
+		 * - Dock device include three type of cable which
 		 * are HDMI, USB for mouse/keyboard and micro-usb port
-		 * for USB/TA cable. Dock-Smart device need always exteranl
-		 * power supply(USB/TA cable through micro-usb cable). Dock-
-		 * Smart device support screen output of target to separate
+		 * for USB/TA cable. Dock device need always exteranl
+		 * power supply(USB/TA cable through micro-usb cable). Dock
+		 * device support screen output of target to separate
 		 * monitor and mouse/keyboard for desktop mode.
 		 *
-		 * Features of 'USB/TA cable with Dock-Smart device'
+		 * Features of 'USB/TA cable with Dock device'
 		 * - Support MHL
 		 * - Support external output feature of audio
 		 * - Support charging through micro-usb port without data
@@ -529,16 +504,16 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state(info->edev, "Dock-Smart", attached);
-		extcon_set_cable_state(info->edev, "MHL", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_DOCK, attached);
+		extcon_set_cable_state_(info->edev, EXTCON_MHL, attached);
 		goto out;
 	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:	/* Dock-Desk */
-		strcpy(dock_name, "Dock-Desk");
+		dock_id = EXTCON_DOCK;
 		break;
 	case MAX77693_MUIC_ADC_AV_CABLE_NOLOAD:		/* Dock-Audio */
-		strcpy(dock_name, "Dock-Audio");
+		dock_id = EXTCON_DOCK;
 		if (!attached)
-			extcon_set_cable_state(info->edev, "USB", false);
+			extcon_set_cable_state_(info->edev, EXTCON_USB, false);
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s dock device\n",
@@ -547,10 +522,11 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 	}
 
 	/* Dock-Car/Desk/Audio, PATH:AUDIO */
-	ret = max77693_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
+	ret = max77693_muic_set_path(info, MAX77693_CONTROL1_SW_AUDIO,
+					attached);
 	if (ret < 0)
 		return ret;
-	extcon_set_cable_state(info->edev, dock_name, attached);
+	extcon_set_cable_state_(info->edev, dock_id, attached);
 
 out:
 	return 0;
@@ -612,23 +588,24 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info)
 	case MAX77693_MUIC_GND_USB_HOST:
 	case MAX77693_MUIC_GND_USB_HOST_VB:
 		/* USB_HOST, PATH: AP_USB */
-		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
+		ret = max77693_muic_set_path(info, MAX77693_CONTROL1_SW_USB,
+						attached);
 		if (ret < 0)
 			return ret;
-		extcon_set_cable_state(info->edev, "USB-Host", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_USB_HOST, attached);
 		break;
 	case MAX77693_MUIC_GND_AV_CABLE_LOAD:
 		/* Audio Video Cable with load, PATH:AUDIO */
-		ret = max77693_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
+		ret = max77693_muic_set_path(info, MAX77693_CONTROL1_SW_AUDIO,
+						attached);
 		if (ret < 0)
 			return ret;
-		extcon_set_cable_state(info->edev,
-				"Audio-video-load", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
 		break;
 	case MAX77693_MUIC_GND_MHL:
 	case MAX77693_MUIC_GND_MHL_VB:
 		/* MHL or MHL with USB/TA cable */
-		extcon_set_cable_state(info->edev, "MHL", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_MHL, attached);
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s cable of gnd type\n",
@@ -642,9 +619,8 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info)
 static int max77693_muic_jig_handler(struct max77693_muic_info *info,
 		int cable_type, bool attached)
 {
-	char cable_name[32];
 	int ret = 0;
-	u8 path = CONTROL1_SW_OPEN;
+	u8 path = MAX77693_CONTROL1_SW_OPEN;
 
 	dev_info(info->dev,
 		"external connector is %s (adc:0x%02x)\n",
@@ -652,24 +628,14 @@ static int max77693_muic_jig_handler(struct max77693_muic_info *info,
 
 	switch (cable_type) {
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_OFF:	/* ADC_JIG_USB_OFF */
-		/* PATH:AP_USB */
-		strcpy(cable_name, "JIG-USB-OFF");
-		path = CONTROL1_SW_USB;
-		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_ON:	/* ADC_JIG_USB_ON */
 		/* PATH:AP_USB */
-		strcpy(cable_name, "JIG-USB-ON");
-		path = CONTROL1_SW_USB;
+		path = MAX77693_CONTROL1_SW_USB;
 		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_OFF:	/* ADC_JIG_UART_OFF */
-		/* PATH:AP_UART */
-		strcpy(cable_name, "JIG-UART-OFF");
-		path = CONTROL1_SW_UART;
-		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:	/* ADC_JIG_UART_ON */
 		/* PATH:AP_UART */
-		strcpy(cable_name, "JIG-UART-ON");
-		path = CONTROL1_SW_UART;
+		path = MAX77693_CONTROL1_SW_UART;
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s jig cable\n",
@@ -681,7 +647,7 @@ static int max77693_muic_jig_handler(struct max77693_muic_info *info,
 	if (ret < 0)
 		return ret;
 
-	extcon_set_cable_state(info->edev, cable_name, attached);
+	extcon_set_cable_state_(info->edev, EXTCON_JIG, attached);
 
 	return 0;
 }
@@ -823,22 +789,22 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 		case MAX77693_MUIC_GND_MHL:
 		case MAX77693_MUIC_GND_MHL_VB:
 			/*
-			 * MHL cable with MHL-TA(USB/TA) cable
+			 * MHL cable with USB/TA cable
 			 * - MHL cable include two port(HDMI line and separate
 			 * micro-usb port. When the target connect MHL cable,
-			 * extcon driver check whether MHL-TA(USB/TA) cable is
-			 * connected. If MHL-TA cable is connected, extcon
+			 * extcon driver check whether USB/TA cable is
+			 * connected. If USB/TA cable is connected, extcon
 			 * driver notify state to notifiee for charging battery.
 			 *
-			 * Features of 'MHL-TA(USB/TA) with MHL cable'
+			 * Features of 'USB/TA with MHL cable'
 			 * - Support MHL
 			 * - Support charging through micro-usb port without
 			 *   data connection
 			 */
-			extcon_set_cable_state(info->edev, "MHL-TA", attached);
+			extcon_set_cable_state_(info->edev, EXTCON_TA, attached);
 			if (!cable_attached)
-				extcon_set_cable_state(info->edev,
-						      "MHL", cable_attached);
+				extcon_set_cable_state_(info->edev, EXTCON_MHL,
+							cable_attached);
 			break;
 		}
 
@@ -861,11 +827,12 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			 * - Support charging through micro-usb port without
 			 *   data connection.
 			 */
-			extcon_set_cable_state(info->edev, "USB", attached);
+			extcon_set_cable_state_(info->edev, EXTCON_USB,
+						attached);
 
 			if (!cable_attached)
-				extcon_set_cable_state(info->edev, "Dock-Audio",
-						      cable_attached);
+				extcon_set_cable_state_(info->edev, EXTCON_DOCK,
+							cable_attached);
 			break;
 		case MAX77693_MUIC_ADC_RESERVED_ACC_3:		/* Dock-Smart */
 			/*
@@ -893,10 +860,10 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			if (ret < 0)
 				return ret;
 
-			extcon_set_cable_state(info->edev, "Dock-Smart",
-					      attached);
-			extcon_set_cable_state(info->edev, "MHL", attached);
-
+			extcon_set_cable_state_(info->edev, EXTCON_DOCK,
+						attached);
+			extcon_set_cable_state_(info->edev, EXTCON_MHL,
+						attached);
 			break;
 		}
 
@@ -929,23 +896,26 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			if (ret < 0)
 				return ret;
 
-			extcon_set_cable_state(info->edev, "USB", attached);
+			extcon_set_cable_state_(info->edev, EXTCON_USB,
+						attached);
 			break;
 		case MAX77693_CHARGER_TYPE_DEDICATED_CHG:
 			/* Only TA cable */
-			extcon_set_cable_state(info->edev, "TA", attached);
+			extcon_set_cable_state_(info->edev, EXTCON_TA, attached);
 			break;
 		}
 		break;
 	case MAX77693_CHARGER_TYPE_DOWNSTREAM_PORT:
-		extcon_set_cable_state(info->edev,
-				"Charge-downstream", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHARGE_DOWNSTREAM,
+					attached);
 		break;
 	case MAX77693_CHARGER_TYPE_APPLE_500MA:
-		extcon_set_cable_state(info->edev, "Slow-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_SLOW_CHARGER,
+					attached);
 		break;
 	case MAX77693_CHARGER_TYPE_APPLE_1A_2A:
-		extcon_set_cable_state(info->edev, "Fast-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_FAST_CHARGER,
+					attached);
 		break;
 	case MAX77693_CHARGER_TYPE_DEAD_BATTERY:
 		break;
@@ -1112,7 +1082,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "allocate register map\n");
 	} else {
 		info->max77693->regmap_muic = devm_regmap_init_i2c(
-						info->max77693->muic,
+						info->max77693->i2c_muic,
 						&max77693_muic_regmap_config);
 		if (IS_ERR(info->max77693->regmap_muic)) {
 			ret = PTR_ERR(info->max77693->regmap_muic);
@@ -1182,7 +1152,6 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		return -ENOMEM;
 	}
-	info->edev->name = DEV_NAME;
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {
@@ -1200,28 +1169,9 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < num_init_data; i++) {
-		enum max77693_irq_source irq_src
-				= MAX77693_IRQ_GROUP_NR;
-
 		regmap_write(info->max77693->regmap_muic,
 				init_data[i].addr,
 				init_data[i].data);
-
-		switch (init_data[i].addr) {
-		case MAX77693_MUIC_REG_INTMASK1:
-			irq_src = MUIC_INT1;
-			break;
-		case MAX77693_MUIC_REG_INTMASK2:
-			irq_src = MUIC_INT2;
-			break;
-		case MAX77693_MUIC_REG_INTMASK3:
-			irq_src = MUIC_INT3;
-			break;
-		}
-
-		if (irq_src < MAX77693_IRQ_GROUP_NR)
-			info->max77693->irq_masks_cur[irq_src]
-				= init_data[i].data;
 	}
 
 	if (pdata && pdata->muic_data) {
@@ -1235,12 +1185,12 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		if (muic_pdata->path_uart)
 			info->path_uart = muic_pdata->path_uart;
 		else
-			info->path_uart = CONTROL1_SW_UART;
+			info->path_uart = MAX77693_CONTROL1_SW_UART;
 
 		if (muic_pdata->path_usb)
 			info->path_usb = muic_pdata->path_usb;
 		else
-			info->path_usb = CONTROL1_SW_USB;
+			info->path_usb = MAX77693_CONTROL1_SW_USB;
 
 		/*
 		 * Default delay time for detecting cable state
@@ -1252,8 +1202,8 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		else
 			delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
 	} else {
-		info->path_usb = CONTROL1_SW_USB;
-		info->path_uart = CONTROL1_SW_UART;
+		info->path_usb = MAX77693_CONTROL1_SW_USB;
+		info->path_uart = MAX77693_CONTROL1_SW_UART;
 		delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
 	}
 

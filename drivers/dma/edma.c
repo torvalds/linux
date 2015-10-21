@@ -300,8 +300,7 @@ static int edma_dma_pause(struct dma_chan *chan)
 {
 	struct edma_chan *echan = to_edma_chan(chan);
 
-	/* Pause/Resume only allowed with cyclic mode */
-	if (!echan->edesc || !echan->edesc->cyclic)
+	if (!echan->edesc)
 		return -EINVAL;
 
 	edma_pause(echan->ch_num);
@@ -311,10 +310,6 @@ static int edma_dma_pause(struct dma_chan *chan)
 static int edma_dma_resume(struct dma_chan *chan)
 {
 	struct edma_chan *echan = to_edma_chan(chan);
-
-	/* Pause/Resume only allowed with cyclic mode */
-	if (!echan->edesc->cyclic)
-		return -EINVAL;
 
 	edma_resume(echan->ch_num);
 	return 0;
@@ -1005,7 +1000,7 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 	 * code using dma memcpy must make sure alignment of
 	 * length is at dma->copy_align boundary.
 	 */
-	dma->copy_align = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dma->copy_align = DMAENGINE_ALIGN_4_BYTES;
 
 	INIT_LIST_HEAD(&dma->channels);
 }

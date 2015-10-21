@@ -42,6 +42,11 @@
 #define MIN_FRAGMENT_SIZE (50 * 1024)
 #define MAX_FRAGMENT_SIZE (1024 * 1024)
 #define SST_GET_BYTES_PER_SAMPLE(pcm_wd_sz)  (((pcm_wd_sz + 15) >> 4) << 1)
+#ifdef CONFIG_PM
+#define GET_USAGE_COUNT(dev) (atomic_read(&dev->power.usage_count))
+#else
+#define GET_USAGE_COUNT(dev) 1
+#endif
 
 int free_stream_context(struct intel_sst_drv *ctx, unsigned int str_id)
 {
@@ -141,17 +146,12 @@ static int sst_power_control(struct device *dev, bool state)
 	int ret = 0;
 	int usage_count = 0;
 
-#ifdef CONFIG_PM
-	usage_count = atomic_read(&dev->power.usage_count);
-#else
-	usage_count = 1;
-#endif
-
 	if (state == true) {
 		ret = pm_runtime_get_sync(dev);
-
+		usage_count = GET_USAGE_COUNT(dev);
 		dev_dbg(ctx->dev, "Enable: pm usage count: %d\n", usage_count);
 		if (ret < 0) {
+			pm_runtime_put_sync(dev);
 			dev_err(ctx->dev, "Runtime get failed with err: %d\n", ret);
 			return ret;
 		}
@@ -164,6 +164,7 @@ static int sst_power_control(struct device *dev, bool state)
 			}
 		}
 	} else {
+		usage_count = GET_USAGE_COUNT(dev);
 		dev_dbg(ctx->dev, "Disable: pm usage count: %d\n", usage_count);
 		return sst_pm_runtime_put(ctx);
 	}
@@ -204,8 +205,10 @@ static int sst_cdev_open(struct device *dev,
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
 
 	retval = pm_runtime_get_sync(ctx->dev);
-	if (retval < 0)
+	if (retval < 0) {
+		pm_runtime_put_sync(ctx->dev);
 		return retval;
+	}
 
 	str_id = sst_get_stream(ctx, str_params);
 	if (str_id > 0) {
@@ -533,7 +536,7 @@ static inline int sst_calc_tstamp(struct intel_sst_drv *ctx,
 
 	info->buffer_ptr = pointer_samples / substream->runtime->channels;
 
-	info->pcm_delay = delay_frames / substream->runtime->channels;
+	info->pcm_delay = delay_frames;
 	dev_dbg(ctx->dev, "buffer ptr %llu pcm_delay rep: %llu\n",
 			info->buffer_ptr, info->pcm_delay);
 	return 0;
@@ -672,8 +675,10 @@ static int sst_send_byte_stream(struct device *dev,
 	if (NULL == bytes)
 		return -EINVAL;
 	ret_val = pm_runtime_get_sync(ctx->dev);
-	if (ret_val < 0)
+	if (ret_val < 0) {
+		pm_runtime_put_sync(ctx->dev);
 		return ret_val;
+	}
 
 	ret_val = sst_send_byte_stream_mrfld(ctx, bytes);
 	sst_pm_runtime_put(ctx);

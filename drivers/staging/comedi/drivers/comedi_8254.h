@@ -20,6 +20,12 @@
 #ifndef _COMEDI_8254_H
 #define _COMEDI_8254_H
 
+#include <linux/types.h>
+
+struct comedi_device;
+struct comedi_insn;
+struct comedi_subdevice;
+
 /*
  * Common oscillator base values in nanoseconds
  */

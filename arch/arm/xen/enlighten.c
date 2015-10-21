@@ -24,6 +24,7 @@
 #include <linux/cpuidle.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu.h>
+#include <linux/console.h>
 
 #include <linux/mm.h>
 
@@ -44,44 +45,39 @@ static struct vcpu_info __percpu *xen_vcpu_info;
 unsigned long xen_released_pages;
 struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 
-/* TODO: to be removed */
-__read_mostly int xen_have_vector_callback;
-EXPORT_SYMBOL_GPL(xen_have_vector_callback);
+static __read_mostly unsigned int xen_events_irq;
 
-int xen_platform_pci_unplug = XEN_UNPLUG_ALL;
-EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
+static __initdata struct device_node *xen_node;
 
-static __read_mostly int xen_events_irq = -1;
-
-int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       xen_pfn_t *mfn, int nr,
+			       xen_pfn_t *gfn, int nr,
 			       int *err_ptr, pgprot_t prot,
 			       unsigned domid,
 			       struct page **pages)
 {
-	return xen_xlate_remap_gfn_array(vma, addr, mfn, nr, err_ptr,
+	return xen_xlate_remap_gfn_array(vma, addr, gfn, nr, err_ptr,
 					 prot, domid, pages);
 }
-EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_array);
+EXPORT_SYMBOL_GPL(xen_remap_domain_gfn_array);
 
 /* Not used by XENFEAT_auto_translated guests. */
-int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_remap_domain_gfn_range(struct vm_area_struct *vma,
                               unsigned long addr,
-                              xen_pfn_t mfn, int nr,
+                              xen_pfn_t gfn, int nr,
                               pgprot_t prot, unsigned domid,
                               struct page **pages)
 {
 	return -ENOSYS;
 }
-EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
+EXPORT_SYMBOL_GPL(xen_remap_domain_gfn_range);
 
-int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 			       int nr, struct page **pages)
 {
 	return xen_xlate_unmap_gfn_range(vma, nr, pages);
 }
-EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);
+EXPORT_SYMBOL_GPL(xen_unmap_domain_gfn_range);
 
 static void xen_percpu_init(void)
 {
@@ -150,40 +146,28 @@ static irqreturn_t xen_arm_callback(int irq, void *arg)
  * documentation of the Xen Device Tree format.
  */
 #define GRANT_TABLE_PHYSADDR 0
-static int __init xen_guest_init(void)
+void __init xen_early_init(void)
 {
-	struct xen_add_to_physmap xatp;
-	static struct shared_info *shared_info_page = 0;
-	struct device_node *node;
 	int len;
 	const char *s = NULL;
 	const char *version = NULL;
 	const char *xen_prefix = "xen,xen-";
-	struct resource res;
-	phys_addr_t grant_frames;
 
-	node = of_find_compatible_node(NULL, NULL, "xen,xen");
-	if (!node) {
+	xen_node = of_find_compatible_node(NULL, NULL, "xen,xen");
+	if (!xen_node) {
 		pr_debug("No Xen support\n");
-		return 0;
+		return;
 	}
-	s = of_get_property(node, "compatible", &len);
+	s = of_get_property(xen_node, "compatible", &len);
 	if (strlen(xen_prefix) + 3  < len &&
 			!strncmp(xen_prefix, s, strlen(xen_prefix)))
 		version = s + strlen(xen_prefix);
 	if (version == NULL) {
 		pr_debug("Xen version not found\n");
-		return 0;
+		return;
 	}
-	if (of_address_to_resource(node, GRANT_TABLE_PHYSADDR, &res))
-		return 0;
-	grant_frames = res.start;
-	xen_events_irq = irq_of_parse_and_map(node, 0);
-	pr_info("Xen %s support found, events_irq=%d gnttab_frame=%pa\n",
-			version, xen_events_irq, &grant_frames);
 
-	if (xen_events_irq < 0)
-		return -ENODEV;
+	pr_info("Xen %s support found\n", version);
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 
@@ -194,9 +178,34 @@ static int __init xen_guest_init(void)
 	else
 		xen_start_info->flags &= ~(SIF_INITDOMAIN|SIF_PRIVILEGED);
 
-	if (!shared_info_page)
-		shared_info_page = (struct shared_info *)
-			get_zeroed_page(GFP_KERNEL);
+	if (!console_set_on_cmdline && !xen_initial_domain())
+		add_preferred_console("hvc", 0, NULL);
+}
+
+static int __init xen_guest_init(void)
+{
+	struct xen_add_to_physmap xatp;
+	struct shared_info *shared_info_page = NULL;
+	struct resource res;
+	phys_addr_t grant_frames;
+
+	if (!xen_domain())
+		return 0;
+
+	if (of_address_to_resource(xen_node, GRANT_TABLE_PHYSADDR, &res)) {
+		pr_err("Xen grant table base address not found\n");
+		return -ENODEV;
+	}
+	grant_frames = res.start;
+
+	xen_events_irq = irq_of_parse_and_map(xen_node, 0);
+	if (!xen_events_irq) {
+		pr_err("Xen event channel interrupt not found\n");
+		return -ENODEV;
+	}
+
+	shared_info_page = (struct shared_info *)get_zeroed_page(GFP_KERNEL);
+
 	if (!shared_info_page) {
 		pr_err("not enough memory\n");
 		return -ENOMEM;

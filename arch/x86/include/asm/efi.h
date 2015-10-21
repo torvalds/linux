@@ -1,7 +1,7 @@
 #ifndef _ASM_X86_EFI_H
 #define _ASM_X86_EFI_H
 
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <asm/pgtable.h>
 
 /*
@@ -85,6 +85,18 @@ extern u64 asmlinkage efi_call(void *fp, ...);
 
 extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
 					u32 type, u64 attribute);
+
+#ifdef CONFIG_KASAN
+/*
+ * CONFIG_KASAN may redefine memset to __memset.  __memset function is present
+ * only in kernel binary.  Since the EFI stub linked into a separate binary it
+ * doesn't have __memset().  So we should use standard memset from
+ * arch/x86/boot/compressed/string.c.  The same applies to memcpy and memmove.
+ */
+#undef memcpy
+#undef memset
+#undef memmove
+#endif
 
 #endif /* CONFIG_X86_32 */
 

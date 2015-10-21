@@ -25,6 +25,7 @@
 #include <linux/time.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
+#include <linux/dax.h>
 #include <linux/quotaops.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>
@@ -1403,6 +1404,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 			inode->i_mapping->a_ops = &ext2_aops;
 	} else if (S_ISLNK(inode->i_mode)) {
 		if (ext2_inode_is_fast_symlink(inode)) {
+			inode->i_link = (char *)ei->i_data;
 			inode->i_op = &ext2_fast_symlink_inode_operations;
 			nd_terminate_link(ei->i_data, inode->i_size,
 				sizeof(ei->i_data) - 1);
@@ -1551,8 +1553,11 @@ int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (error)
 		return error;
 
-	if (is_quota_modification(inode, iattr))
-		dquot_initialize(inode);
+	if (is_quota_modification(inode, iattr)) {
+		error = dquot_initialize(inode);
+		if (error)
+			return error;
+	}
 	if ((iattr->ia_valid & ATTR_UID && !uid_eq(iattr->ia_uid, inode->i_uid)) ||
 	    (iattr->ia_valid & ATTR_GID && !gid_eq(iattr->ia_gid, inode->i_gid))) {
 		error = dquot_transfer(inode, iattr);

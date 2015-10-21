@@ -253,7 +253,6 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	    (rdev->pm.requested_power_state_index == rdev->pm.current_power_state_index))
 		return;
 
-	mutex_lock(&rdev->ddev->struct_mutex);
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
 
@@ -268,7 +267,6 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 			/* needs a GPU reset dont reset here */
 			mutex_unlock(&rdev->ring_lock);
 			up_write(&rdev->pm.mclk_lock);
-			mutex_unlock(&rdev->ddev->struct_mutex);
 			return;
 		}
 	}
@@ -304,7 +302,6 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 
 	mutex_unlock(&rdev->ring_lock);
 	up_write(&rdev->pm.mclk_lock);
-	mutex_unlock(&rdev->ddev->struct_mutex);
 }
 
 static void radeon_pm_print_states(struct radeon_device *rdev)
@@ -1062,7 +1059,6 @@ force:
 		radeon_dpm_print_power_state(rdev, rdev->pm.dpm.requested_ps);
 	}
 
-	mutex_lock(&rdev->ddev->struct_mutex);
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
 
@@ -1113,7 +1109,6 @@ force:
 done:
 	mutex_unlock(&rdev->ring_lock);
 	up_write(&rdev->pm.mclk_lock);
-	mutex_unlock(&rdev->ddev->struct_mutex);
 }
 
 void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable)
@@ -1331,14 +1326,6 @@ static int radeon_pm_init_old(struct radeon_device *rdev)
 	INIT_DELAYED_WORK(&rdev->pm.dynpm_idle_work, radeon_dynpm_idle_work_handler);
 
 	if (rdev->pm.num_power_states > 1) {
-		/* where's the best place to put these? */
-		ret = device_create_file(rdev->dev, &dev_attr_power_profile);
-		if (ret)
-			DRM_ERROR("failed to create device file for power profile\n");
-		ret = device_create_file(rdev->dev, &dev_attr_power_method);
-		if (ret)
-			DRM_ERROR("failed to create device file for power method\n");
-
 		if (radeon_debugfs_pm_init(rdev)) {
 			DRM_ERROR("Failed to register debugfs file for PM!\n");
 		}
@@ -1395,20 +1382,6 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 	if (ret)
 		goto dpm_failed;
 	rdev->pm.dpm_enabled = true;
-
-	ret = device_create_file(rdev->dev, &dev_attr_power_dpm_state);
-	if (ret)
-		DRM_ERROR("failed to create device file for dpm state\n");
-	ret = device_create_file(rdev->dev, &dev_attr_power_dpm_force_performance_level);
-	if (ret)
-		DRM_ERROR("failed to create device file for dpm state\n");
-	/* XXX: these are noops for dpm but are here for backwards compat */
-	ret = device_create_file(rdev->dev, &dev_attr_power_profile);
-	if (ret)
-		DRM_ERROR("failed to create device file for power profile\n");
-	ret = device_create_file(rdev->dev, &dev_attr_power_method);
-	if (ret)
-		DRM_ERROR("failed to create device file for power method\n");
 
 	if (radeon_debugfs_pm_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for dpm!\n");
@@ -1550,9 +1523,44 @@ int radeon_pm_late_init(struct radeon_device *rdev)
 	int ret = 0;
 
 	if (rdev->pm.pm_method == PM_METHOD_DPM) {
-		mutex_lock(&rdev->pm.mutex);
-		ret = radeon_dpm_late_enable(rdev);
-		mutex_unlock(&rdev->pm.mutex);
+		if (rdev->pm.dpm_enabled) {
+			ret = device_create_file(rdev->dev, &dev_attr_power_dpm_state);
+			if (ret)
+				DRM_ERROR("failed to create device file for dpm state\n");
+			ret = device_create_file(rdev->dev, &dev_attr_power_dpm_force_performance_level);
+			if (ret)
+				DRM_ERROR("failed to create device file for dpm state\n");
+			/* XXX: these are noops for dpm but are here for backwards compat */
+			ret = device_create_file(rdev->dev, &dev_attr_power_profile);
+			if (ret)
+				DRM_ERROR("failed to create device file for power profile\n");
+			ret = device_create_file(rdev->dev, &dev_attr_power_method);
+			if (ret)
+				DRM_ERROR("failed to create device file for power method\n");
+
+			mutex_lock(&rdev->pm.mutex);
+			ret = radeon_dpm_late_enable(rdev);
+			mutex_unlock(&rdev->pm.mutex);
+			if (ret) {
+				rdev->pm.dpm_enabled = false;
+				DRM_ERROR("radeon_pm_late_init failed, disabling dpm\n");
+			} else {
+				/* set the dpm state for PX since there won't be
+				 * a modeset to call this.
+				 */
+				radeon_pm_compute_clocks(rdev);
+			}
+		}
+	} else {
+		if (rdev->pm.num_power_states > 1) {
+			/* where's the best place to put these? */
+			ret = device_create_file(rdev->dev, &dev_attr_power_profile);
+			if (ret)
+				DRM_ERROR("failed to create device file for power profile\n");
+			ret = device_create_file(rdev->dev, &dev_attr_power_method);
+			if (ret)
+				DRM_ERROR("failed to create device file for power method\n");
+		}
 	}
 	return ret;
 }

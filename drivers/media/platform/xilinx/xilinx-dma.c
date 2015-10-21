@@ -653,7 +653,7 @@ static const struct v4l2_file_operations xvip_dma_fops = {
 int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 		  enum v4l2_buf_type type, unsigned int port)
 {
-	char name[14];
+	char name[16];
 	int ret;
 
 	dma->xdev = xdev;
@@ -699,8 +699,10 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 
 	/* ... and the buffers queue... */
 	dma->alloc_ctx = vb2_dma_contig_init_ctx(dma->xdev->dev);
-	if (IS_ERR(dma->alloc_ctx))
+	if (IS_ERR(dma->alloc_ctx)) {
+		ret = PTR_ERR(dma->alloc_ctx);
 		goto error;
+	}
 
 	/* Don't enable VB2_READ and VB2_WRITE, as using the read() and write()
 	 * V4L2 APIs would be inefficient. Testing on the command line with a
@@ -725,7 +727,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	}
 
 	/* ... and the DMA channel. */
-	sprintf(name, "port%u", port);
+	snprintf(name, sizeof(name), "port%u", port);
 	dma->dma = dma_request_slave_channel(dma->xdev->dev, name);
 	if (dma->dma == NULL) {
 		dev_err(dma->xdev->dev, "no VDMA channel found\n");

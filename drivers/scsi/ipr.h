@@ -39,8 +39,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.6.1"
-#define IPR_DRIVER_DATE "(March 12, 2015)"
+#define IPR_DRIVER_VERSION "2.6.2"
+#define IPR_DRIVER_DATE "(June 11, 2015)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -272,7 +272,7 @@
 #define IPR_RUNTIME_RESET				0x40000000
 
 #define IPR_IPL_INIT_MIN_STAGE_TIME			5
-#define IPR_IPL_INIT_DEFAULT_STAGE_TIME                 15
+#define IPR_IPL_INIT_DEFAULT_STAGE_TIME                 30
 #define IPR_IPL_INIT_STAGE_UNKNOWN			0x0
 #define IPR_IPL_INIT_STAGE_TRANSOP			0xB0000000
 #define IPR_IPL_INIT_STAGE_MASK				0xff000000
@@ -1005,13 +1005,13 @@ struct ipr_hostrcb_type_24_error {
 struct ipr_hostrcb_type_07_error {
 	u8 failure_reason[64];
 	struct ipr_vpd vpd;
-	u32 data[222];
+	__be32 data[222];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_17_error {
 	u8 failure_reason[64];
 	struct ipr_ext_vpd vpd;
-	u32 data[476];
+	__be32 data[476];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_config_element {
@@ -1289,18 +1289,17 @@ struct ipr_resource_entry {
 	(((res)->bus << 24) | ((res)->target << 8) | (res)->lun)
 
 	u8 ata_class;
-
-	u8 flags;
-	__be16 res_flags;
-
 	u8 type;
+
+	u16 flags;
+	u16 res_flags;
 
 	u8 qmodel;
 	struct ipr_std_inq_data std_inq_data;
 
 	__be32 res_handle;
 	__be64 dev_id;
-	__be64 lun_wwn;
+	u64 lun_wwn;
 	struct scsi_lun dev_lun;
 	u8 res_path[8];
 
@@ -1486,6 +1485,7 @@ struct ipr_ioa_cfg {
 
 #define IPR_NUM_TRACE_INDEX_BITS	8
 #define IPR_NUM_TRACE_ENTRIES		(1 << IPR_NUM_TRACE_INDEX_BITS)
+#define IPR_TRACE_INDEX_MASK		(IPR_NUM_TRACE_ENTRIES - 1)
 #define IPR_TRACE_SIZE	(sizeof(struct ipr_trace_entry) * IPR_NUM_TRACE_ENTRIES)
 	char trace_start[8];
 #define IPR_TRACE_START_LABEL			"trace"

@@ -2,7 +2,7 @@ Altera SOCFPGA SDRAM Error Detection & Correction [EDAC]
 The EDAC accesses a range of registers in the SDRAM controller.
 
 Required properties:
-- compatible : should contain "altr,sdram-edac";
+- compatible : should contain "altr,sdram-edac" or "altr,sdram-edac-a10"
 - altr,sdr-syscon : phandle of the sdr module
 - interrupts : Should contain the SDRAM ECC IRQ in the
 	appropriate format for the IRQ controller.

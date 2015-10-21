@@ -395,6 +395,21 @@ done:
 	exception_exit(prev_state);
 }
 
+void do_nmi(struct pt_regs *regs, int fault_num, unsigned long reason)
+{
+	switch (reason) {
+	case TILE_NMI_DUMP_STACK:
+		do_nmi_dump_stack(regs);
+		break;
+	default:
+		panic("Unexpected do_nmi type %ld", reason);
+		return;
+	}
+}
+
+/* Deprecated function currently only used here. */
+extern void _dump_stack(int dummy, ulong pc, ulong lr, ulong sp, ulong r52);
+
 void kernel_double_fault(int dummy, ulong pc, ulong lr, ulong sp, ulong r52)
 {
 	_dump_stack(dummy, pc, lr, sp, r52);

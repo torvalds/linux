@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -408,22 +408,11 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 
 int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 {
-	struct iwl_bt_coex_cmd *bt_cmd;
-	struct iwl_host_cmd cmd = {
-		.id = BT_CONFIG,
-		.len = { sizeof(*bt_cmd), },
-		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
-	};
-	int ret;
+	struct iwl_bt_coex_cmd bt_cmd = {};
 	u32 mode;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_send_bt_init_conf_old(mvm);
-
-	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_KERNEL);
-	if (!bt_cmd)
-		return -ENOMEM;
-	cmd.data[0] = bt_cmd;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -440,36 +429,33 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 			mode = 0;
 		}
 
-		bt_cmd->mode = cpu_to_le32(mode);
+		bt_cmd.mode = cpu_to_le32(mode);
 		goto send_cmd;
 	}
 
 	mode = iwlwifi_mod_params.bt_coex_active ? BT_COEX_NW : BT_COEX_DISABLE;
-	bt_cmd->mode = cpu_to_le32(mode);
+	bt_cmd.mode = cpu_to_le32(mode);
 
 	if (IWL_MVM_BT_COEX_SYNC2SCO)
-		bt_cmd->enabled_modules |=
+		bt_cmd.enabled_modules |=
 			cpu_to_le32(BT_COEX_SYNC2SCO_ENABLED);
 
 	if (iwl_mvm_bt_is_plcr_supported(mvm))
-		bt_cmd->enabled_modules |= cpu_to_le32(BT_COEX_CORUN_ENABLED);
+		bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_CORUN_ENABLED);
 
 	if (IWL_MVM_BT_COEX_MPLUT) {
-		bt_cmd->enabled_modules |= cpu_to_le32(BT_COEX_MPLUT_ENABLED);
-		bt_cmd->enabled_modules |=
+		bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_MPLUT_ENABLED);
+		bt_cmd.enabled_modules |=
 			cpu_to_le32(BT_COEX_MPLUT_BOOST_ENABLED);
 	}
 
-	bt_cmd->enabled_modules |= cpu_to_le32(BT_COEX_HIGH_BAND_RET);
+	bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_HIGH_BAND_RET);
 
 send_cmd:
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
 	memset(&mvm->last_bt_ci_cmd, 0, sizeof(mvm->last_bt_ci_cmd));
 
-	ret = iwl_mvm_send_cmd(mvm, &cmd);
-
-	kfree(bt_cmd);
-	return ret;
+	return iwl_mvm_send_cmd_pdu(mvm, BT_CONFIG, 0, sizeof(bt_cmd), &bt_cmd);
 }
 
 static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
@@ -739,15 +725,17 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 	}
 }
 
-int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
-			     struct iwl_rx_cmd_buffer *rxb,
-			     struct iwl_device_cmd *dev_cmd)
+void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
-		return iwl_mvm_rx_bt_coex_notif_old(mvm, rxb, dev_cmd);
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
+		iwl_mvm_rx_bt_coex_notif_old(mvm, rxb);
+		return;
+	}
 
 	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
 	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
@@ -762,60 +750,16 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
 
 	iwl_mvm_bt_coex_notif_handle(mvm);
-
-	/*
-	 * This is an async handler for a notification, returning anything other
-	 * than 0 doesn't make sense even if HCMD failed.
-	 */
-	return 0;
-}
-
-static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
-				   struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_bt_iterator_data *data = _data;
-	struct iwl_mvm *mvm = data->mvm;
-
-	struct ieee80211_sta *sta;
-	struct iwl_mvm_sta *mvmsta;
-
-	struct ieee80211_chanctx_conf *chanctx_conf;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(vif->chanctx_conf);
-	/* If channel context is invalid or not on 2.4GHz - don't count it */
-	if (!chanctx_conf ||
-	    chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ) {
-		rcu_read_unlock();
-		return;
-	}
-	rcu_read_unlock();
-
-	if (vif->type != NL80211_IFTYPE_STATION ||
-	    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT)
-		return;
-
-	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
-					lockdep_is_held(&mvm->mutex));
-
-	/* This can happen if the station has been removed right now */
-	if (IS_ERR_OR_NULL(sta))
-		return;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 }
 
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   enum ieee80211_rssi_event_data rssi_event)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_bt_iterator_data data = {
-		.mvm = mvm,
-	};
 	int ret;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
 		iwl_mvm_bt_rssi_event_old(mvm, vif, rssi_event);
 		return;
 	}
@@ -853,10 +797,6 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (ret)
 		IWL_ERR(mvm, "couldn't send BT_CONFIG HCMD upon RSSI event\n");
-
-	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_bt_rssi_iterator, &data);
 }
 
 #define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000)
@@ -870,7 +810,7 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_mvm_coex_agg_time_limit_old(mvm, sta);
 
 	if (IWL_COEX_IS_TTC_ON(mvm->last_bt_notif.ttc_rrc_status, phy_ctxt->id))
@@ -897,7 +837,7 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_mvm_bt_coex_is_mimo_allowed_old(mvm, sta);
 
 	if (IWL_COEX_IS_TTC_ON(mvm->last_bt_notif.ttc_rrc_status, phy_ctxt->id))
@@ -927,7 +867,7 @@ bool iwl_mvm_bt_coex_is_ant_avail(struct iwl_mvm *mvm, u8 ant)
 	if (ant & mvm->cfg->non_shared_ant)
 		return true;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_mvm_bt_coex_is_shared_ant_avail_old(mvm);
 
 	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
@@ -940,10 +880,10 @@ bool iwl_mvm_bt_coex_is_shared_ant_avail(struct iwl_mvm *mvm)
 	if (mvm->cfg->bt_shared_single_ant)
 		return true;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_mvm_bt_coex_is_shared_ant_avail_old(mvm);
 
-	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF;
+	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) < BT_HIGH_TRAFFIC;
 }
 
 bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
@@ -951,7 +891,7 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 {
 	u32 bt_activity = le32_to_cpu(mvm->last_bt_notif.bt_activity_grading);
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_mvm_bt_coex_is_tpc_allowed_old(mvm, band);
 
 	if (band != IEEE80211_BAND_2GHZ)
@@ -994,7 +934,8 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
 {
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
 		iwl_mvm_bt_coex_vif_change_old(mvm);
 		return;
 	}
@@ -1002,9 +943,8 @@ void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
 	iwl_mvm_bt_coex_notif_handle(mvm);
 }
 
-int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
-				  struct iwl_rx_cmd_buffer *rxb,
-				  struct iwl_device_cmd *dev_cmd)
+void iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
+				   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u32 ant_isolation = le32_to_cpup((void *)pkt->data);
@@ -1012,20 +952,23 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 	u8 __maybe_unused lower_bound, upper_bound;
 	u8 lut;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
-		return iwl_mvm_rx_ant_coupling_notif_old(mvm, rxb, dev_cmd);
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
+		iwl_mvm_rx_ant_coupling_notif_old(mvm, rxb);
+		return;
+	}
 
 	if (!iwl_mvm_bt_is_plcr_supported(mvm))
-		return 0;
+		return;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Ignore updates if we are in force mode */
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
-		return 0;
+		return;
 
 	if (ant_isolation ==  mvm->last_ant_isol)
-		return 0;
+		return;
 
 	for (lut = 0; lut < ARRAY_SIZE(antenna_coupling_ranges) - 1; lut++)
 		if (ant_isolation < antenna_coupling_ranges[lut + 1].range)
@@ -1044,7 +987,7 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 	mvm->last_ant_isol = ant_isolation;
 
 	if (mvm->last_corun_lut == lut)
-		return 0;
+		return;
 
 	mvm->last_corun_lut = lut;
 
@@ -1055,6 +998,8 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 	memcpy(&cmd.corun_lut40, antenna_coupling_ranges[lut].lut20,
 	       sizeof(cmd.corun_lut40));
 
-	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_UPDATE_CORUN_LUT, 0,
-				    sizeof(cmd), &cmd);
+	if (iwl_mvm_send_cmd_pdu(mvm, BT_COEX_UPDATE_CORUN_LUT, 0,
+				 sizeof(cmd), &cmd))
+		IWL_ERR(mvm,
+			"failed to send BT_COEX_UPDATE_CORUN_LUT command\n");
 }

@@ -2,15 +2,16 @@
 #	EDAC Kconfig
 #	Copyright (c) 2008 Doug Thompson www.softwarebitmaker.com
 #	Licensed and distributed under the GPL
-#
+
+config EDAC_ATOMIC_SCRUB
+	bool
 
 config EDAC_SUPPORT
 	bool
 
 menuconfig EDAC
 	bool "EDAC (Error Detection And Correction) reporting"
-	depends on HAS_IOMEM
-	depends on X86 || PPC || TILE || ARM || EDAC_SUPPORT
+	depends on HAS_IOMEM && EDAC_SUPPORT
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
@@ -59,16 +60,6 @@ config EDAC_DECODE_MCE
 	  You should definitely say Y here in case you want to decode MCEs
 	  which occur really early upon boot, before the module infrastructure
 	  has been initialized.
-
-config EDAC_MCE_INJ
-	tristate "Simple MCE injection interface"
-	depends on EDAC_DECODE_MCE && DEBUG_FS
-	default n
-	help
-	  This is a simple debugfs interface to inject MCEs and test different
-	  aspects of the MCE handling code.
-
-	  WARNING: Do not even assume this interface is staying stable!
 
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
@@ -262,10 +253,10 @@ config EDAC_SBRIDGE
 
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"
-	depends on EDAC_MM_EDAC && FSL_SOC && (PPC_83xx || PPC_85xx)
+	depends on EDAC_MM_EDAC && FSL_SOC
 	help
 	  Support for error detection and correction on the Freescale
-	  MPC8349, MPC8560, MPC8540, MPC8548
+	  MPC8349, MPC8560, MPC8540, MPC8548, T4240
 
 config EDAC_MV64X60
 	tristate "Marvell MV64x60"
@@ -377,8 +368,8 @@ config EDAC_OCTEON_PCI
 	  Cavium Octeon family of SOCs.
 
 config EDAC_ALTERA_MC
-	tristate "Altera SDRAM Memory Controller EDAC"
-	depends on EDAC_MM_EDAC && ARCH_SOCFPGA
+	bool "Altera SDRAM Memory Controller EDAC"
+	depends on EDAC_MM_EDAC=y && ARCH_SOCFPGA
 	help
 	  Support for error detection and correction on the
 	  Altera SDRAM memory controller. Note that the
@@ -391,5 +382,12 @@ config EDAC_SYNOPSYS
 	help
 	  Support for error detection and correction on the Synopsys DDR
 	  memory controller.
+
+config EDAC_XGENE
+	tristate "APM X-Gene SoC"
+	depends on EDAC_MM_EDAC && (ARM64 || COMPILE_TEST)
+	help
+	  Support for error detection and correction on the
+	  APM X-Gene family of SOCs.
 
 endif # EDAC

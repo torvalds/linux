@@ -122,6 +122,16 @@ static void bcm_kona_gpio_unlock_gpio(struct bcm_kona_gpio *kona_gpio,
 	spin_unlock_irqrestore(&kona_gpio->lock, flags);
 }
 
+static int bcm_kona_gpio_get_dir(struct gpio_chip *chip, unsigned gpio)
+{
+	struct bcm_kona_gpio *kona_gpio = to_kona_gpio(chip);
+	void __iomem *reg_base = kona_gpio->reg_base;
+	u32 val;
+
+	val = readl(reg_base + GPIO_CONTROL(gpio)) & GPIO_GPCTR0_IOTR_MASK;
+	return val ? GPIOF_DIR_IN : GPIOF_DIR_OUT;
+}
+
 static void bcm_kona_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
 {
 	struct bcm_kona_gpio *kona_gpio;
@@ -135,12 +145,8 @@ static void bcm_kona_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
 	reg_base = kona_gpio->reg_base;
 	spin_lock_irqsave(&kona_gpio->lock, flags);
 
-	/* determine the GPIO pin direction */
-	val = readl(reg_base + GPIO_CONTROL(gpio));
-	val &= GPIO_GPCTR0_IOTR_MASK;
-
 	/* this function only applies to output pin */
-	if (GPIO_GPCTR0_IOTR_CMD_INPUT == val)
+	if (bcm_kona_gpio_get_dir(chip, gpio) == GPIOF_DIR_IN)
 		goto out;
 
 	reg_offset = value ? GPIO_OUT_SET(bank_id) : GPIO_OUT_CLEAR(bank_id);
@@ -166,13 +172,12 @@ static int bcm_kona_gpio_get(struct gpio_chip *chip, unsigned gpio)
 	reg_base = kona_gpio->reg_base;
 	spin_lock_irqsave(&kona_gpio->lock, flags);
 
-	/* determine the GPIO pin direction */
-	val = readl(reg_base + GPIO_CONTROL(gpio));
-	val &= GPIO_GPCTR0_IOTR_MASK;
+	if (bcm_kona_gpio_get_dir(chip, gpio) == GPIOF_DIR_IN)
+		reg_offset = GPIO_IN_STATUS(bank_id);
+	else
+		reg_offset = GPIO_OUT_STATUS(bank_id);
 
 	/* read the GPIO bank status */
-	reg_offset = (GPIO_GPCTR0_IOTR_CMD_INPUT == val) ?
-	    GPIO_IN_STATUS(bank_id) : GPIO_OUT_STATUS(bank_id);
 	val = readl(reg_base + reg_offset);
 
 	spin_unlock_irqrestore(&kona_gpio->lock, flags);
@@ -310,6 +315,7 @@ static struct gpio_chip template_chip = {
 	.owner = THIS_MODULE,
 	.request = bcm_kona_gpio_request,
 	.free = bcm_kona_gpio_free,
+	.get_direction = bcm_kona_gpio_get_dir,
 	.direction_input = bcm_kona_gpio_direction_input,
 	.get = bcm_kona_gpio_get,
 	.direction_output = bcm_kona_gpio_direction_output,
@@ -427,12 +433,12 @@ static int bcm_kona_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static void bcm_kona_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void bcm_kona_gpio_irq_handler(struct irq_desc *desc)
 {
 	void __iomem *reg_base;
 	int bit, bank_id;
 	unsigned long sta;
-	struct bcm_kona_gpio_bank *bank = irq_get_handler_data(irq);
+	struct bcm_kona_gpio_bank *bank = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
 	chained_irq_enter(chip, desc);
@@ -519,11 +525,7 @@ static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 		return ret;
 	irq_set_lockdep_class(irq, &gpio_lock_class);
 	irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip, handle_simple_irq);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
 
 	return 0;
 }
@@ -534,7 +536,7 @@ static void bcm_kona_gpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 	irq_set_chip_data(irq, NULL);
 }
 
-static struct irq_domain_ops bcm_kona_irq_ops = {
+static const struct irq_domain_ops bcm_kona_irq_ops = {
 	.map = bcm_kona_gpio_irq_map,
 	.unmap = bcm_kona_gpio_irq_unmap,
 	.xlate = irq_domain_xlate_twocell,
@@ -638,21 +640,11 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 		dev_err(dev, "Couldn't add GPIO chip -- %d\n", ret);
 		goto err_irq_domain;
 	}
-	for (i = 0; i < chip->ngpio; i++) {
-		int irq = bcm_kona_gpio_to_irq(chip, i);
-		irq_set_lockdep_class(irq, &gpio_lock_class);
-		irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip,
-					 handle_simple_irq);
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID);
-#else
-		irq_set_noprobe(irq);
-#endif
-	}
 	for (i = 0; i < kona_gpio->num_bank; i++) {
 		bank = &kona_gpio->banks[i];
-		irq_set_chained_handler(bank->irq, bcm_kona_gpio_irq_handler);
-		irq_set_handler_data(bank->irq, bank);
+		irq_set_chained_handler_and_data(bank->irq,
+						 bcm_kona_gpio_irq_handler,
+						 bank);
 	}
 
 	spin_lock_init(&kona_gpio->lock);

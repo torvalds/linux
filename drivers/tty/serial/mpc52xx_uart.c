@@ -239,8 +239,9 @@ static int mpc52xx_psc_tx_rdy(struct uart_port *port)
 
 static int mpc52xx_psc_tx_empty(struct uart_port *port)
 {
-	return in_be16(&PSC(port)->mpc52xx_psc_status)
-	    & MPC52xx_PSC_SR_TXEMP;
+	u16 sts = in_be16(&PSC(port)->mpc52xx_psc_status);
+
+	return (sts & MPC52xx_PSC_SR_TXEMP) ? TIOCSER_TEMT : 0;
 }
 
 static void mpc52xx_psc_start_tx(struct uart_port *port)
@@ -405,7 +406,7 @@ static struct psc_ops mpc5200b_psc_ops = {
 	.get_mr1 = mpc52xx_psc_get_mr1,
 };
 
-#endif /* CONFIG_MPC52xx */
+#endif /* CONFIG_PPC_MPC52xx */
 
 #ifdef CONFIG_PPC_MPC512x
 #define FIFO_512x(port) ((struct mpc512x_psc_fifo __iomem *)(PSC(port)+1))

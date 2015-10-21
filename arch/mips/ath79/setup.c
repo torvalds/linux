@@ -17,12 +17,16 @@
 #include <linux/bootmem.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/of_platform.h>
+#include <linux/of_fdt.h>
 
 #include <asm/bootinfo.h>
 #include <asm/idle.h>
 #include <asm/time.h>		/* for mips_hpt_frequency */
 #include <asm/reboot.h>		/* for _machine_{restart,halt} */
 #include <asm/mips_machine.h>
+#include <asm/prom.h>
+#include <asm/fw/fw.h>
 
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
@@ -186,6 +190,7 @@ int get_c0_perfcount_int(void)
 {
 	return ATH79_MISC_IRQ(5);
 }
+EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
 
 unsigned int get_c0_compare_int(void)
 {
@@ -194,17 +199,28 @@ unsigned int get_c0_compare_int(void)
 
 void __init plat_mem_setup(void)
 {
+	unsigned long fdt_start;
+
 	set_io_port_base(KSEG1);
+
+	/* Get the position of the FDT passed by the bootloader */
+	fdt_start = fw_getenvl("fdt_start");
+	if (fdt_start)
+		__dt_setup_arch((void *)KSEG0ADDR(fdt_start));
+#ifdef CONFIG_BUILTIN_DTB
+	else
+		__dt_setup_arch(__dtb_start);
+#endif
 
 	ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
 					   AR71XX_RESET_SIZE);
 	ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
 					 AR71XX_PLL_SIZE);
-	ath79_ddr_base = ioremap_nocache(AR71XX_DDR_CTRL_BASE,
-					 AR71XX_DDR_CTRL_SIZE);
+	ath79_ddr_ctrl_init();
 
 	ath79_detect_sys_type();
-	detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
+	if (mips_machtype != ATH79_MACH_GENERIC_OF)
+		detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
 
 	_machine_restart = ath79_restart;
 	_machine_halt = ath79_halt;
@@ -236,6 +252,10 @@ void __init plat_time_init(void)
 
 static int __init ath79_setup(void)
 {
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	if  (mips_machtype == ATH79_MACH_GENERIC_OF)
+		return 0;
+
 	ath79_gpio_init();
 	ath79_register_uart();
 	ath79_register_wdt();
@@ -246,6 +266,11 @@ static int __init ath79_setup(void)
 }
 
 arch_initcall(ath79_setup);
+
+void __init device_tree_init(void)
+{
+	unflatten_and_copy_device_tree();
+}
 
 static void __init ath79_generic_init(void)
 {

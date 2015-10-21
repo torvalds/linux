@@ -246,7 +246,18 @@ static inline void bcma_core_pci_power_save(struct bcma_bus *bus, bool up)
 }
 #endif
 
+#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 extern int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev);
 extern int bcma_core_pci_plat_dev_init(struct pci_dev *dev);
+#else
+static inline int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev)
+{
+	return -ENOTSUPP;
+}
+static inline int bcma_core_pci_plat_dev_init(struct pci_dev *dev)
+{
+	return -ENOTSUPP;
+}
+#endif
 
 #endif /* LINUX_BCMA_DRIVER_PCI_H_ */

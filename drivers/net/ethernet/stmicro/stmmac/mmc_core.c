@@ -73,7 +73,7 @@
 #define MMC_RX_OCTETCOUNT_G		0x00000188
 #define MMC_RX_BROADCASTFRAME_G		0x0000018c
 #define MMC_RX_MULTICASTFRAME_G		0x00000190
-#define MMC_RX_CRC_ERRROR		0x00000194
+#define MMC_RX_CRC_ERROR		0x00000194
 #define MMC_RX_ALIGN_ERROR		0x00000198
 #define MMC_RX_RUN_ERROR		0x0000019C
 #define MMC_RX_JABBER_ERROR		0x000001A0
@@ -196,7 +196,7 @@ void dwmac_mmc_read(void __iomem *ioaddr, struct stmmac_counters *mmc)
 	mmc->mmc_rx_octetcount_g += readl(ioaddr + MMC_RX_OCTETCOUNT_G);
 	mmc->mmc_rx_broadcastframe_g += readl(ioaddr + MMC_RX_BROADCASTFRAME_G);
 	mmc->mmc_rx_multicastframe_g += readl(ioaddr + MMC_RX_MULTICASTFRAME_G);
-	mmc->mmc_rx_crc_error += readl(ioaddr + MMC_RX_CRC_ERRROR);
+	mmc->mmc_rx_crc_error += readl(ioaddr + MMC_RX_CRC_ERROR);
 	mmc->mmc_rx_align_error += readl(ioaddr + MMC_RX_ALIGN_ERROR);
 	mmc->mmc_rx_run_error += readl(ioaddr + MMC_RX_RUN_ERROR);
 	mmc->mmc_rx_jabber_error += readl(ioaddr + MMC_RX_JABBER_ERROR);

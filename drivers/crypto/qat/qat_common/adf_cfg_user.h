@@ -54,14 +54,6 @@ struct adf_user_cfg_key_val {
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	char val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
 	union {
-		char *user_val_ptr;
-		uint64_t padding1;
-	};
-	union {
-		struct adf_user_cfg_key_val *prev;
-		uint64_t padding2;
-	};
-	union {
 		struct adf_user_cfg_key_val *next;
 		uint64_t padding3;
 	};
@@ -73,10 +65,6 @@ struct adf_user_cfg_section {
 	union {
 		struct adf_user_cfg_key_val *params;
 		uint64_t padding1;
-	};
-	union {
-		struct adf_user_cfg_section *prev;
-		uint64_t padding2;
 	};
 	union {
 		struct adf_user_cfg_section *next;

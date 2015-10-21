@@ -122,7 +122,13 @@ struct tpg_data {
 	u32				fourcc;
 	bool				is_yuv;
 	u32				colorspace;
+	u32				xfer_func;
 	u32				ycbcr_enc;
+	/*
+	 * Stores the actual transfer function, i.e. will never be
+	 * V4L2_XFER_FUNC_DEFAULT.
+	 */
+	u32				real_xfer_func;
 	/*
 	 * Stores the actual Y'CbCr encoding, i.e. will never be
 	 * V4L2_YCBCR_ENC_DEFAULT.
@@ -192,6 +198,7 @@ int tpg_alloc(struct tpg_data *tpg, unsigned max_w);
 void tpg_free(struct tpg_data *tpg);
 void tpg_reset_source(struct tpg_data *tpg, unsigned width, unsigned height,
 		       u32 field);
+void tpg_log_status(struct tpg_data *tpg);
 
 void tpg_set_font(const u8 *f);
 void tpg_gen_text(const struct tpg_data *tpg,
@@ -326,6 +333,19 @@ static inline void tpg_s_ycbcr_enc(struct tpg_data *tpg, u32 ycbcr_enc)
 static inline u32 tpg_g_ycbcr_enc(const struct tpg_data *tpg)
 {
 	return tpg->ycbcr_enc;
+}
+
+static inline void tpg_s_xfer_func(struct tpg_data *tpg, u32 xfer_func)
+{
+	if (tpg->xfer_func == xfer_func)
+		return;
+	tpg->xfer_func = xfer_func;
+	tpg->recalc_colors = true;
+}
+
+static inline u32 tpg_g_xfer_func(const struct tpg_data *tpg)
+{
+	return tpg->xfer_func;
 }
 
 static inline void tpg_s_quantization(struct tpg_data *tpg, u32 quantization)

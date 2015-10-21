@@ -24,6 +24,26 @@ rdev_del_virtual_intf_deprecated(struct cfg802154_registered_device *rdev,
 }
 
 static inline int
+rdev_suspend(struct cfg802154_registered_device *rdev)
+{
+	int ret;
+	trace_802154_rdev_suspend(&rdev->wpan_phy);
+	ret = rdev->ops->suspend(&rdev->wpan_phy);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
+static inline int
+rdev_resume(struct cfg802154_registered_device *rdev)
+{
+	int ret;
+	trace_802154_rdev_resume(&rdev->wpan_phy);
+	ret = rdev->ops->resume(&rdev->wpan_phy);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
+static inline int
 rdev_add_virtual_intf(struct cfg802154_registered_device *rdev, char *name,
 		      unsigned char name_assign_type,
 		      enum nl802154_iftype type, __le64 extended_addr)
@@ -70,6 +90,29 @@ rdev_set_cca_mode(struct cfg802154_registered_device *rdev,
 
 	trace_802154_rdev_set_cca_mode(&rdev->wpan_phy, cca);
 	ret = rdev->ops->set_cca_mode(&rdev->wpan_phy, cca);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
+static inline int
+rdev_set_cca_ed_level(struct cfg802154_registered_device *rdev, s32 ed_level)
+{
+	int ret;
+
+	trace_802154_rdev_set_cca_ed_level(&rdev->wpan_phy, ed_level);
+	ret = rdev->ops->set_cca_ed_level(&rdev->wpan_phy, ed_level);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
+static inline int
+rdev_set_tx_power(struct cfg802154_registered_device *rdev,
+		  s32 power)
+{
+	int ret;
+
+	trace_802154_rdev_set_tx_power(&rdev->wpan_phy, power);
+	ret = rdev->ops->set_tx_power(&rdev->wpan_phy, power);
 	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
 	return ret;
 }
@@ -148,6 +191,19 @@ rdev_set_lbt_mode(struct cfg802154_registered_device *rdev,
 
 	trace_802154_rdev_set_lbt_mode(&rdev->wpan_phy, wpan_dev, mode);
 	ret = rdev->ops->set_lbt_mode(&rdev->wpan_phy, wpan_dev, mode);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
+static inline int
+rdev_set_ackreq_default(struct cfg802154_registered_device *rdev,
+			struct wpan_dev *wpan_dev, bool ackreq)
+{
+	int ret;
+
+	trace_802154_rdev_set_ackreq_default(&rdev->wpan_phy, wpan_dev,
+					     ackreq);
+	ret = rdev->ops->set_ackreq_default(&rdev->wpan_phy, wpan_dev, ackreq);
 	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
 	return ret;
 }

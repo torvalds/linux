@@ -1,9 +1,9 @@
 /*
- * Hardware monitoring driver for LTC2974, LTC2977, LTC2978, LTC3880,
- * LTC3883, and LTM4676
+ * Hardware monitoring driver for LTC2978 and compatible chips.
  *
  * Copyright (c) 2011 Ericsson AB.
- * Copyright (c) 2013, 2014 Guenter Roeck
+ * Copyright (c) 2013, 2014, 2015 Guenter Roeck
+ * Copyright (c) 2015 Linear Technology
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -25,48 +27,70 @@
 #include <linux/regulator/driver.h>
 #include "pmbus.h"
 
-enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3883, ltm4676 };
+enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc2980, ltc3880, ltc3882,
+	ltc3883, ltc3886, ltc3887, ltm2987, ltm4675, ltm4676 };
 
 /* Common for all chips */
 #define LTC2978_MFR_VOUT_PEAK		0xdd
 #define LTC2978_MFR_VIN_PEAK		0xde
 #define LTC2978_MFR_TEMPERATURE_PEAK	0xdf
-#define LTC2978_MFR_SPECIAL_ID		0xe7
+#define LTC2978_MFR_SPECIAL_ID		0xe7	/* Undocumented on LTC3882 */
+#define LTC2978_MFR_COMMON		0xef
 
-/* LTC2974, LCT2977, and LTC2978 */
+/* LTC2974, LTC2975, LCT2977, LTC2980, LTC2978, and LTM2987 */
 #define LTC2978_MFR_VOUT_MIN		0xfb
 #define LTC2978_MFR_VIN_MIN		0xfc
 #define LTC2978_MFR_TEMPERATURE_MIN	0xfd
 
-/* LTC2974 only */
+/* LTC2974, LTC2975 */
 #define LTC2974_MFR_IOUT_PEAK		0xd7
 #define LTC2974_MFR_IOUT_MIN		0xd8
 
-/* LTC3880, LTC3883, and LTM4676 */
+/* LTC3880, LTC3882, LTC3883, LTC3887, LTM4675, and LTM4676 */
 #define LTC3880_MFR_IOUT_PEAK		0xd7
 #define LTC3880_MFR_CLEAR_PEAKS		0xe3
 #define LTC3880_MFR_TEMPERATURE2_PEAK	0xf4
 
-/* LTC3883 only */
+/* LTC3883 and LTC3886 only */
 #define LTC3883_MFR_IIN_PEAK		0xe1
 
-#define LTC2974_ID_REV1			0x0212
-#define LTC2974_ID_REV2			0x0213
+/* LTC2975 only */
+#define LTC2975_MFR_IIN_PEAK		0xc4
+#define LTC2975_MFR_IIN_MIN		0xc5
+#define LTC2975_MFR_PIN_PEAK		0xc6
+#define LTC2975_MFR_PIN_MIN		0xc7
+
+#define LTC2978_ID_MASK			0xfff0
+
+#define LTC2974_ID			0x0210
+#define LTC2975_ID			0x0220
 #define LTC2977_ID			0x0130
-#define LTC2978_ID_REV1			0x0121
-#define LTC2978_ID_REV2			0x0122
-#define LTC2978A_ID			0x0124
-#define LTC3880_ID			0x4000
-#define LTC3880_ID_MASK			0xff00
+#define LTC2978_ID_REV1			0x0110	/* Early revision */
+#define LTC2978_ID_REV2			0x0120
+#define LTC2980_ID_A			0x8030	/* A/B for two die IDs */
+#define LTC2980_ID_B			0x8040
+#define LTC3880_ID			0x4020
+#define LTC3882_ID			0x4200
+#define LTC3882_ID_D1			0x4240	/* Dash 1 */
 #define LTC3883_ID			0x4300
-#define LTC3883_ID_MASK			0xff00
-#define LTM4676_ID			0x4480	/* datasheet claims 0x440X */
-#define LTM4676_ID_MASK			0xfff0
+#define LTC3886_ID			0x4600
+#define LTC3887_ID			0x4700
+#define LTM2987_ID_A			0x8010	/* A/B for two die IDs */
+#define LTM2987_ID_B			0x8020
+#define LTM4675_ID			0x47a0
+#define LTM4676_ID_REV1			0x4400
+#define LTM4676_ID_REV2			0x4480
+#define LTM4676A_ID			0x47e0
 
 #define LTC2974_NUM_PAGES		4
 #define LTC2978_NUM_PAGES		8
 #define LTC3880_NUM_PAGES		2
 #define LTC3883_NUM_PAGES		1
+
+#define LTC_POLL_TIMEOUT		100	/* in milli-seconds */
+
+#define LTC_NOT_BUSY			BIT(5)
+#define LTC_NOT_PENDING			BIT(4)
 
 /*
  * LTC2978 clears peak data whenever the CLEAR_FAULTS command is executed, which
@@ -82,12 +106,90 @@ struct ltc2978_data {
 	u16 temp_min[LTC2974_NUM_PAGES], temp_max[LTC2974_NUM_PAGES];
 	u16 vout_min[LTC2978_NUM_PAGES], vout_max[LTC2978_NUM_PAGES];
 	u16 iout_min[LTC2974_NUM_PAGES], iout_max[LTC2974_NUM_PAGES];
-	u16 iin_max;
+	u16 iin_min, iin_max;
+	u16 pin_min, pin_max;
 	u16 temp2_max;
 	struct pmbus_driver_info info;
+	u32 features;
 };
-
 #define to_ltc2978_data(x)  container_of(x, struct ltc2978_data, info)
+
+#define FEAT_CLEAR_PEAKS	BIT(0)
+#define FEAT_NEEDS_POLLING	BIT(1)
+
+#define has_clear_peaks(d)	((d)->features & FEAT_CLEAR_PEAKS)
+#define needs_polling(d)	((d)->features & FEAT_NEEDS_POLLING)
+
+static int ltc_wait_ready(struct i2c_client *client)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(LTC_POLL_TIMEOUT);
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct ltc2978_data *data = to_ltc2978_data(info);
+	int status;
+	u8 mask;
+
+	if (!needs_polling(data))
+		return 0;
+
+	/*
+	 * LTC3883 does not support LTC_NOT_PENDING, even though
+	 * the datasheet claims that it does.
+	 */
+	mask = LTC_NOT_BUSY;
+	if (data->id != ltc3883)
+		mask |= LTC_NOT_PENDING;
+
+	do {
+		status = pmbus_read_byte_data(client, 0, LTC2978_MFR_COMMON);
+		if (status == -EBADMSG || status == -ENXIO) {
+			/* PEC error or NACK: chip may be busy, try again */
+			usleep_range(50, 100);
+			continue;
+		}
+		if (status < 0)
+			return status;
+
+		if ((status & mask) == mask)
+			return 0;
+
+		usleep_range(50, 100);
+	} while (time_before(jiffies, timeout));
+
+	return -ETIMEDOUT;
+}
+
+static int ltc_read_word_data(struct i2c_client *client, int page, int reg)
+{
+	int ret;
+
+	ret = ltc_wait_ready(client);
+	if (ret < 0)
+		return ret;
+
+	return pmbus_read_word_data(client, page, reg);
+}
+
+static int ltc_read_byte_data(struct i2c_client *client, int page, int reg)
+{
+	int ret;
+
+	ret = ltc_wait_ready(client);
+	if (ret < 0)
+		return ret;
+
+	return pmbus_read_byte_data(client, page, reg);
+}
+
+static int ltc_write_byte(struct i2c_client *client, int page, u8 byte)
+{
+	int ret;
+
+	ret = ltc_wait_ready(client);
+	if (ret < 0)
+		return ret;
+
+	return pmbus_write_byte(client, page, byte);
+}
 
 static inline int lin11_to_val(int data)
 {
@@ -102,6 +204,34 @@ static inline int lin11_to_val(int data)
 	return (e < 0 ? m >> -e : m << e);
 }
 
+static int ltc_get_max(struct ltc2978_data *data, struct i2c_client *client,
+		       int page, int reg, u16 *pmax)
+{
+	int ret;
+
+	ret = ltc_read_word_data(client, page, reg);
+	if (ret >= 0) {
+		if (lin11_to_val(ret) > lin11_to_val(*pmax))
+			*pmax = ret;
+		ret = *pmax;
+	}
+	return ret;
+}
+
+static int ltc_get_min(struct ltc2978_data *data, struct i2c_client *client,
+		       int page, int reg, u16 *pmin)
+{
+	int ret;
+
+	ret = ltc_read_word_data(client, page, reg);
+	if (ret >= 0) {
+		if (lin11_to_val(ret) < lin11_to_val(*pmin))
+			*pmin = ret;
+		ret = *pmin;
+	}
+	return ret;
+}
+
 static int ltc2978_read_word_data_common(struct i2c_client *client, int page,
 					 int reg)
 {
@@ -111,15 +241,11 @@ static int ltc2978_read_word_data_common(struct i2c_client *client, int page,
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_VIN_MAX:
-		ret = pmbus_read_word_data(client, page, LTC2978_MFR_VIN_PEAK);
-		if (ret >= 0) {
-			if (lin11_to_val(ret) > lin11_to_val(data->vin_max))
-				data->vin_max = ret;
-			ret = data->vin_max;
-		}
+		ret = ltc_get_max(data, client, page, LTC2978_MFR_VIN_PEAK,
+				  &data->vin_max);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MAX:
-		ret = pmbus_read_word_data(client, page, LTC2978_MFR_VOUT_PEAK);
+		ret = ltc_read_word_data(client, page, LTC2978_MFR_VOUT_PEAK);
 		if (ret >= 0) {
 			/*
 			 * VOUT is 16 bit unsigned with fixed exponent,
@@ -131,14 +257,9 @@ static int ltc2978_read_word_data_common(struct i2c_client *client, int page,
 		}
 		break;
 	case PMBUS_VIRT_READ_TEMP_MAX:
-		ret = pmbus_read_word_data(client, page,
-					   LTC2978_MFR_TEMPERATURE_PEAK);
-		if (ret >= 0) {
-			if (lin11_to_val(ret)
-			    > lin11_to_val(data->temp_max[page]))
-				data->temp_max[page] = ret;
-			ret = data->temp_max[page];
-		}
+		ret = ltc_get_max(data, client, page,
+				  LTC2978_MFR_TEMPERATURE_PEAK,
+				  &data->temp_max[page]);
 		break;
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:
 	case PMBUS_VIRT_RESET_VIN_HISTORY:
@@ -146,6 +267,9 @@ static int ltc2978_read_word_data_common(struct i2c_client *client, int page,
 		ret = 0;
 		break;
 	default:
+		ret = ltc_wait_ready(client);
+		if (ret < 0)
+			return ret;
 		ret = -ENODATA;
 		break;
 	}
@@ -160,15 +284,11 @@ static int ltc2978_read_word_data(struct i2c_client *client, int page, int reg)
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_VIN_MIN:
-		ret = pmbus_read_word_data(client, page, LTC2978_MFR_VIN_MIN);
-		if (ret >= 0) {
-			if (lin11_to_val(ret) < lin11_to_val(data->vin_min))
-				data->vin_min = ret;
-			ret = data->vin_min;
-		}
+		ret = ltc_get_min(data, client, page, LTC2978_MFR_VIN_MIN,
+				  &data->vin_min);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MIN:
-		ret = pmbus_read_word_data(client, page, LTC2978_MFR_VOUT_MIN);
+		ret = ltc_read_word_data(client, page, LTC2978_MFR_VOUT_MIN);
 		if (ret >= 0) {
 			/*
 			 * VOUT_MIN is known to not be supported on some lots
@@ -184,14 +304,9 @@ static int ltc2978_read_word_data(struct i2c_client *client, int page, int reg)
 		}
 		break;
 	case PMBUS_VIRT_READ_TEMP_MIN:
-		ret = pmbus_read_word_data(client, page,
-					   LTC2978_MFR_TEMPERATURE_MIN);
-		if (ret >= 0) {
-			if (lin11_to_val(ret)
-			    < lin11_to_val(data->temp_min[page]))
-				data->temp_min[page] = ret;
-			ret = data->temp_min[page];
-		}
+		ret = ltc_get_min(data, client, page,
+				  LTC2978_MFR_TEMPERATURE_MIN,
+				  &data->temp_min[page]);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MAX:
 	case PMBUS_VIRT_RESET_IOUT_HISTORY:
@@ -214,24 +329,48 @@ static int ltc2974_read_word_data(struct i2c_client *client, int page, int reg)
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_IOUT_MAX:
-		ret = pmbus_read_word_data(client, page, LTC2974_MFR_IOUT_PEAK);
-		if (ret >= 0) {
-			if (lin11_to_val(ret)
-			    > lin11_to_val(data->iout_max[page]))
-				data->iout_max[page] = ret;
-			ret = data->iout_max[page];
-		}
+		ret = ltc_get_max(data, client, page, LTC2974_MFR_IOUT_PEAK,
+				  &data->iout_max[page]);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MIN:
-		ret = pmbus_read_word_data(client, page, LTC2974_MFR_IOUT_MIN);
-		if (ret >= 0) {
-			if (lin11_to_val(ret)
-			    < lin11_to_val(data->iout_min[page]))
-				data->iout_min[page] = ret;
-			ret = data->iout_min[page];
-		}
+		ret = ltc_get_min(data, client, page, LTC2974_MFR_IOUT_MIN,
+				  &data->iout_min[page]);
 		break;
 	case PMBUS_VIRT_RESET_IOUT_HISTORY:
+		ret = 0;
+		break;
+	default:
+		ret = ltc2978_read_word_data(client, page, reg);
+		break;
+	}
+	return ret;
+}
+
+static int ltc2975_read_word_data(struct i2c_client *client, int page, int reg)
+{
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct ltc2978_data *data = to_ltc2978_data(info);
+	int ret;
+
+	switch (reg) {
+	case PMBUS_VIRT_READ_IIN_MAX:
+		ret = ltc_get_max(data, client, page, LTC2975_MFR_IIN_PEAK,
+				  &data->iin_max);
+		break;
+	case PMBUS_VIRT_READ_IIN_MIN:
+		ret = ltc_get_min(data, client, page, LTC2975_MFR_IIN_MIN,
+				  &data->iin_min);
+		break;
+	case PMBUS_VIRT_READ_PIN_MAX:
+		ret = ltc_get_max(data, client, page, LTC2975_MFR_PIN_PEAK,
+				  &data->pin_max);
+		break;
+	case PMBUS_VIRT_READ_PIN_MIN:
+		ret = ltc_get_min(data, client, page, LTC2975_MFR_PIN_MIN,
+				  &data->pin_min);
+		break;
+	case PMBUS_VIRT_RESET_IIN_HISTORY:
+	case PMBUS_VIRT_RESET_PIN_HISTORY:
 		ret = 0;
 		break;
 	default:
@@ -249,22 +388,13 @@ static int ltc3880_read_word_data(struct i2c_client *client, int page, int reg)
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_IOUT_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3880_MFR_IOUT_PEAK);
-		if (ret >= 0) {
-			if (lin11_to_val(ret)
-			    > lin11_to_val(data->iout_max[page]))
-				data->iout_max[page] = ret;
-			ret = data->iout_max[page];
-		}
+		ret = ltc_get_max(data, client, page, LTC3880_MFR_IOUT_PEAK,
+				  &data->iout_max[page]);
 		break;
 	case PMBUS_VIRT_READ_TEMP2_MAX:
-		ret = pmbus_read_word_data(client, page,
-					   LTC3880_MFR_TEMPERATURE2_PEAK);
-		if (ret >= 0) {
-			if (lin11_to_val(ret) > lin11_to_val(data->temp2_max))
-				data->temp2_max = ret;
-			ret = data->temp2_max;
-		}
+		ret = ltc_get_max(data, client, page,
+				  LTC3880_MFR_TEMPERATURE2_PEAK,
+				  &data->temp2_max);
 		break;
 	case PMBUS_VIRT_READ_VIN_MIN:
 	case PMBUS_VIRT_READ_VOUT_MIN:
@@ -290,13 +420,8 @@ static int ltc3883_read_word_data(struct i2c_client *client, int page, int reg)
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_IIN_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3883_MFR_IIN_PEAK);
-		if (ret >= 0) {
-			if (lin11_to_val(ret)
-			    > lin11_to_val(data->iin_max))
-				data->iin_max = ret;
-			ret = data->iin_max;
-		}
+		ret = ltc_get_max(data, client, page, LTC3883_MFR_IIN_PEAK,
+				  &data->iin_max);
 		break;
 	case PMBUS_VIRT_RESET_IIN_HISTORY:
 		ret = 0;
@@ -308,15 +433,15 @@ static int ltc3883_read_word_data(struct i2c_client *client, int page, int reg)
 	return ret;
 }
 
-static int ltc2978_clear_peaks(struct i2c_client *client, int page,
-			       enum chips id)
+static int ltc2978_clear_peaks(struct ltc2978_data *data,
+			       struct i2c_client *client, int page)
 {
 	int ret;
 
-	if (id == ltc3880 || id == ltc3883)
-		ret = pmbus_write_byte(client, 0, LTC3880_MFR_CLEAR_PEAKS);
+	if (has_clear_peaks(data))
+		ret = ltc_write_byte(client, 0, LTC3880_MFR_CLEAR_PEAKS);
 	else
-		ret = pmbus_write_byte(client, page, PMBUS_CLEAR_FAULTS);
+		ret = ltc_write_byte(client, page, PMBUS_CLEAR_FAULTS);
 
 	return ret;
 }
@@ -331,33 +456,42 @@ static int ltc2978_write_word_data(struct i2c_client *client, int page,
 	switch (reg) {
 	case PMBUS_VIRT_RESET_IIN_HISTORY:
 		data->iin_max = 0x7c00;
-		ret = ltc2978_clear_peaks(client, page, data->id);
+		data->iin_min = 0x7bff;
+		ret = ltc2978_clear_peaks(data, client, 0);
+		break;
+	case PMBUS_VIRT_RESET_PIN_HISTORY:
+		data->pin_max = 0x7c00;
+		data->pin_min = 0x7bff;
+		ret = ltc2978_clear_peaks(data, client, 0);
 		break;
 	case PMBUS_VIRT_RESET_IOUT_HISTORY:
 		data->iout_max[page] = 0x7c00;
 		data->iout_min[page] = 0xfbff;
-		ret = ltc2978_clear_peaks(client, page, data->id);
+		ret = ltc2978_clear_peaks(data, client, page);
 		break;
 	case PMBUS_VIRT_RESET_TEMP2_HISTORY:
 		data->temp2_max = 0x7c00;
-		ret = ltc2978_clear_peaks(client, page, data->id);
+		ret = ltc2978_clear_peaks(data, client, page);
 		break;
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:
 		data->vout_min[page] = 0xffff;
 		data->vout_max[page] = 0;
-		ret = ltc2978_clear_peaks(client, page, data->id);
+		ret = ltc2978_clear_peaks(data, client, page);
 		break;
 	case PMBUS_VIRT_RESET_VIN_HISTORY:
 		data->vin_min = 0x7bff;
 		data->vin_max = 0x7c00;
-		ret = ltc2978_clear_peaks(client, page, data->id);
+		ret = ltc2978_clear_peaks(data, client, page);
 		break;
 	case PMBUS_VIRT_RESET_TEMP_HISTORY:
 		data->temp_min[page] = 0x7bff;
 		data->temp_max[page] = 0x7c00;
-		ret = ltc2978_clear_peaks(client, page, data->id);
+		ret = ltc2978_clear_peaks(data, client, page);
 		break;
 	default:
+		ret = ltc_wait_ready(client);
+		if (ret < 0)
+			return ret;
 		ret = -ENODATA;
 		break;
 	}
@@ -366,10 +500,17 @@ static int ltc2978_write_word_data(struct i2c_client *client, int page,
 
 static const struct i2c_device_id ltc2978_id[] = {
 	{"ltc2974", ltc2974},
+	{"ltc2975", ltc2975},
 	{"ltc2977", ltc2977},
 	{"ltc2978", ltc2978},
+	{"ltc2980", ltc2980},
 	{"ltc3880", ltc3880},
+	{"ltc3882", ltc3882},
 	{"ltc3883", ltc3883},
+	{"ltc3886", ltc3886},
+	{"ltc3887", ltc3887},
+	{"ltm2987", ltm2987},
+	{"ltm4675", ltm4675},
 	{"ltm4676", ltm4676},
 	{}
 };
@@ -388,10 +529,74 @@ static const struct regulator_desc ltc2978_reg_desc[] = {
 };
 #endif /* CONFIG_SENSORS_LTC2978_REGULATOR */
 
+static int ltc2978_get_id(struct i2c_client *client)
+{
+	int chip_id;
+
+	chip_id = i2c_smbus_read_word_data(client, LTC2978_MFR_SPECIAL_ID);
+	if (chip_id < 0) {
+		const struct i2c_device_id *id;
+		u8 buf[I2C_SMBUS_BLOCK_MAX];
+		int ret;
+
+		if (!i2c_check_functionality(client->adapter,
+					     I2C_FUNC_SMBUS_READ_BLOCK_DATA))
+			return -ENODEV;
+
+		ret = i2c_smbus_read_block_data(client, PMBUS_MFR_ID, buf);
+		if (ret < 0)
+			return ret;
+		if (ret < 3 || strncmp(buf, "LTC", 3))
+			return -ENODEV;
+
+		ret = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, buf);
+		if (ret < 0)
+			return ret;
+		for (id = &ltc2978_id[0]; strlen(id->name); id++) {
+			if (!strncasecmp(id->name, buf, strlen(id->name)))
+				return (int)id->driver_data;
+		}
+		return -ENODEV;
+	}
+
+	chip_id &= LTC2978_ID_MASK;
+
+	if (chip_id == LTC2974_ID)
+		return ltc2974;
+	else if (chip_id == LTC2975_ID)
+		return ltc2975;
+	else if (chip_id == LTC2977_ID)
+		return ltc2977;
+	else if (chip_id == LTC2978_ID_REV1 || chip_id == LTC2978_ID_REV2)
+		return ltc2978;
+	else if (chip_id == LTC2980_ID_A || chip_id == LTC2980_ID_B)
+		return ltc2980;
+	else if (chip_id == LTC3880_ID)
+		return ltc3880;
+	else if (chip_id == LTC3882_ID || chip_id == LTC3882_ID_D1)
+		return ltc3882;
+	else if (chip_id == LTC3883_ID)
+		return ltc3883;
+	else if (chip_id == LTC3886_ID)
+		return ltc3886;
+	else if (chip_id == LTC3887_ID)
+		return ltc3887;
+	else if (chip_id == LTM2987_ID_A || chip_id == LTM2987_ID_B)
+		return ltm2987;
+	else if (chip_id == LTM4675_ID)
+		return ltm4675;
+	else if (chip_id == LTM4676_ID_REV1 || chip_id == LTM4676_ID_REV2 ||
+		 chip_id == LTM4676A_ID)
+		return ltm4676;
+
+	dev_err(&client->dev, "Unsupported chip ID 0x%x\n", chip_id);
+	return -ENODEV;
+}
+
 static int ltc2978_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	int chip_id, i;
+	int i, chip_id;
 	struct ltc2978_data *data;
 	struct pmbus_driver_info *info;
 
@@ -404,27 +609,11 @@ static int ltc2978_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
-	chip_id = i2c_smbus_read_word_data(client, LTC2978_MFR_SPECIAL_ID);
+	chip_id = ltc2978_get_id(client);
 	if (chip_id < 0)
 		return chip_id;
 
-	if (chip_id == LTC2974_ID_REV1 || chip_id == LTC2974_ID_REV2) {
-		data->id = ltc2974;
-	} else if (chip_id == LTC2977_ID) {
-		data->id = ltc2977;
-	} else if (chip_id == LTC2978_ID_REV1 || chip_id == LTC2978_ID_REV2 ||
-		   chip_id == LTC2978A_ID) {
-		data->id = ltc2978;
-	} else if ((chip_id & LTC3880_ID_MASK) == LTC3880_ID) {
-		data->id = ltc3880;
-	} else if ((chip_id & LTC3883_ID_MASK) == LTC3883_ID) {
-		data->id = ltc3883;
-	} else if ((chip_id & LTM4676_ID_MASK) == LTM4676_ID) {
-		data->id = ltm4676;
-	} else {
-		dev_err(&client->dev, "Unsupported chip ID 0x%x\n", chip_id);
-		return -ENODEV;
-	}
+	data->id = chip_id;
 	if (data->id != id->driver_data)
 		dev_warn(&client->dev,
 			 "Device mismatch: Configured %s, detected %s\n",
@@ -433,6 +622,9 @@ static int ltc2978_probe(struct i2c_client *client,
 
 	info = &data->info;
 	info->write_word_data = ltc2978_write_word_data;
+	info->write_byte = ltc_write_byte;
+	info->read_word_data = ltc_read_word_data;
+	info->read_byte_data = ltc_read_byte_data;
 
 	data->vin_min = 0x7bff;
 	data->vin_max = 0x7c00;
@@ -461,8 +653,23 @@ static int ltc2978_probe(struct i2c_client *client,
 			  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT;
 		}
 		break;
+	case ltc2975:
+		info->read_word_data = ltc2975_read_word_data;
+		info->pages = LTC2974_NUM_PAGES;
+		info->func[0] = PMBUS_HAVE_IIN | PMBUS_HAVE_PIN
+		  | PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT
+		  | PMBUS_HAVE_TEMP2;
+		for (i = 0; i < info->pages; i++) {
+			info->func[i] |= PMBUS_HAVE_VOUT
+			  | PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_POUT
+			  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP
+			  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT;
+		}
+		break;
 	case ltc2977:
 	case ltc2978:
+	case ltc2980:
+	case ltm2987:
 		info->read_word_data = ltc2978_read_word_data;
 		info->pages = LTC2978_NUM_PAGES;
 		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT
@@ -474,7 +681,10 @@ static int ltc2978_probe(struct i2c_client *client,
 		}
 		break;
 	case ltc3880:
+	case ltc3887:
+	case ltm4675:
 	case ltm4676:
+		data->features |= FEAT_CLEAR_PEAKS | FEAT_NEEDS_POLLING;
 		info->read_word_data = ltc3880_read_word_data;
 		info->pages = LTC3880_NUM_PAGES;
 		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_IIN
@@ -488,7 +698,23 @@ static int ltc2978_probe(struct i2c_client *client,
 		  | PMBUS_HAVE_POUT
 		  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
 		break;
+	case ltc3882:
+		data->features |= FEAT_CLEAR_PEAKS | FEAT_NEEDS_POLLING;
+		info->read_word_data = ltc3880_read_word_data;
+		info->pages = LTC3880_NUM_PAGES;
+		info->func[0] = PMBUS_HAVE_VIN
+		  | PMBUS_HAVE_STATUS_INPUT
+		  | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+		  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
+		  | PMBUS_HAVE_POUT | PMBUS_HAVE_TEMP
+		  | PMBUS_HAVE_TEMP2 | PMBUS_HAVE_STATUS_TEMP;
+		info->func[1] = PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+		  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
+		  | PMBUS_HAVE_POUT
+		  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+		break;
 	case ltc3883:
+		data->features |= FEAT_CLEAR_PEAKS | FEAT_NEEDS_POLLING;
 		info->read_word_data = ltc3883_read_word_data;
 		info->pages = LTC3883_NUM_PAGES;
 		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_IIN
@@ -497,6 +723,21 @@ static int ltc2978_probe(struct i2c_client *client,
 		  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
 		  | PMBUS_HAVE_PIN | PMBUS_HAVE_POUT | PMBUS_HAVE_TEMP
 		  | PMBUS_HAVE_TEMP2 | PMBUS_HAVE_STATUS_TEMP;
+		break;
+	case ltc3886:
+		data->features |= FEAT_CLEAR_PEAKS | FEAT_NEEDS_POLLING;
+		info->read_word_data = ltc3883_read_word_data;
+		info->pages = LTC3880_NUM_PAGES;
+		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_IIN
+		  | PMBUS_HAVE_STATUS_INPUT
+		  | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+		  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
+		  | PMBUS_HAVE_PIN | PMBUS_HAVE_POUT | PMBUS_HAVE_TEMP
+		  | PMBUS_HAVE_TEMP2 | PMBUS_HAVE_STATUS_TEMP;
+		info->func[1] = PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+		  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
+		  | PMBUS_HAVE_POUT
+		  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
 		break;
 	default:
 		return -ENODEV;
@@ -517,10 +758,17 @@ static int ltc2978_probe(struct i2c_client *client,
 #ifdef CONFIG_OF
 static const struct of_device_id ltc2978_of_match[] = {
 	{ .compatible = "lltc,ltc2974" },
+	{ .compatible = "lltc,ltc2975" },
 	{ .compatible = "lltc,ltc2977" },
 	{ .compatible = "lltc,ltc2978" },
+	{ .compatible = "lltc,ltc2980" },
 	{ .compatible = "lltc,ltc3880" },
+	{ .compatible = "lltc,ltc3882" },
 	{ .compatible = "lltc,ltc3883" },
+	{ .compatible = "lltc,ltc3886" },
+	{ .compatible = "lltc,ltc3887" },
+	{ .compatible = "lltc,ltm2987" },
+	{ .compatible = "lltc,ltm4675" },
 	{ .compatible = "lltc,ltm4676" },
 	{ }
 };
@@ -540,5 +788,5 @@ static struct i2c_driver ltc2978_driver = {
 module_i2c_driver(ltc2978_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
-MODULE_DESCRIPTION("PMBus driver for LTC2974, LTC2978, LTC3880, LTC3883, and LTM4676");
+MODULE_DESCRIPTION("PMBus driver for LTC2978 and comppatible chips");
 MODULE_LICENSE("GPL");

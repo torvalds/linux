@@ -160,7 +160,6 @@ btcx_align(struct v4l2_rect *win, struct v4l2_clip *clips, unsigned int n, int m
 void
 btcx_sort_clips(struct v4l2_clip *clips, unsigned int nclips)
 {
-	struct v4l2_clip swap;
 	int i,j,n;
 
 	if (nclips < 2)
@@ -168,9 +167,7 @@ btcx_sort_clips(struct v4l2_clip *clips, unsigned int nclips)
 	for (i = nclips-2; i >= 0; i--) {
 		for (n = 0, j = 0; j <= i; j++) {
 			if (clips[j].c.left > clips[j+1].c.left) {
-				swap = clips[j];
-				clips[j] = clips[j+1];
-				clips[j+1] = swap;
+				swap(clips[j], clips[j + 1]);
 				n++;
 			}
 		}

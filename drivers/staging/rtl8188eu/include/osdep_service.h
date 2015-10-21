@@ -123,7 +123,7 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 #define BIT35	0x0800000000
 #define BIT36	0x1000000000
 
-extern int RTW_STATUS_CODE(int error_code);
+int RTW_STATUS_CODE(int error_code);
 
 #define rtw_update_mem_stat(flag, sz) do {} while (0)
 u8 *_rtw_malloc(u32 sz);
@@ -156,8 +156,6 @@ void rtw_free_netdev(struct net_device *netdev);
 #define FUNC_NDEV_ARG(ndev) __func__, ndev->name
 #define FUNC_ADPT_FMT "%s(%s)"
 #define FUNC_ADPT_ARG(adapter) __func__, adapter->pnetdev->name
-
-#define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)), (sig), 1)
 
 u64 rtw_modular64(u64 x, u64 y);
 

@@ -301,7 +301,7 @@ static void imx_tve_encoder_prepare(struct drm_encoder *encoder)
 
 	switch (tve->mode) {
 	case TVE_MODE_VGA:
-		imx_drm_set_bus_format_pins(encoder, MEDIA_BUS_FMT_YUV8_1X24,
+		imx_drm_set_bus_format_pins(encoder, MEDIA_BUS_FMT_GBR888_1X24,
 					    tve->hsync_pin, tve->vsync_pin);
 		break;
 	case TVE_MODE_TVOUT:

@@ -152,7 +152,7 @@ overall shared memory region, not the entry. The data in/out buffers
 are accessible via tht req.iov[] array. iov_cnt contains the number of
 entries in iov[] needed to describe either the Data-In or Data-Out
 buffers. For bidirectional commands, iov_cnt specifies how many iovec
-entries cover the Data-Out area, and iov_bidi_count specifies how many
+entries cover the Data-Out area, and iov_bidi_cnt specifies how many
 iovec entries immediately after that in iov[] cover the Data-In
 area. Just like other fields, iov.iov_base is an offset from the start
 of the region.

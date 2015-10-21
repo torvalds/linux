@@ -94,7 +94,7 @@ static void reset(struct fbtft_par *par)
 	if (par->gpio.reset == -1)
 		return;
 
-	fbtft_dev_dbg(DEBUG_RESET, par, par->info->device, "%s()\n", __func__);
+	dev_dbg(par->info->device, "%s()\n", __func__);
 
 	gpio_set_value(par->gpio.reset, 0);
 	udelay(20);
@@ -107,7 +107,7 @@ static int verify_gpios(struct fbtft_par *par)
 {
 	int i;
 
-	fbtft_dev_dbg(DEBUG_VERIFY_GPIOS, par, par->info->device,
+	dev_dbg(par->info->device,
 		"%s()\n", __func__);
 
 	if (par->EPIN < 0) {
@@ -145,7 +145,7 @@ static int verify_gpios(struct fbtft_par *par)
 static unsigned long
 request_gpios_match(struct fbtft_par *par, const struct fbtft_gpio *gpio)
 {
-	fbtft_dev_dbg(DEBUG_REQUEST_GPIOS_MATCH, par, par->info->device,
+	dev_dbg(par->info->device,
 		"%s('%s')\n", __func__, gpio->name);
 
 	if (strcasecmp(gpio->name, "wr") == 0) {

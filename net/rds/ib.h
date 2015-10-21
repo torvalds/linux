@@ -100,7 +100,6 @@ struct rds_ib_connection {
 	/* alphabet soup, IBTA style */
 	struct rdma_cm_id	*i_cm_id;
 	struct ib_pd		*i_pd;
-	struct ib_mr		*i_mr;
 	struct ib_cq		*i_send_cq;
 	struct ib_cq		*i_recv_cq;
 
@@ -173,7 +172,6 @@ struct rds_ib_device {
 	struct list_head	conn_list;
 	struct ib_device	*dev;
 	struct ib_pd		*pd;
-	struct ib_mr		*mr;
 	struct rds_ib_mr_pool	*mr_pool;
 	unsigned int		fmr_max_remaps;
 	unsigned int		max_fmrs;
@@ -235,28 +233,34 @@ extern struct workqueue_struct *rds_ib_wq;
  * doesn't define it.
  */
 static inline void rds_ib_dma_sync_sg_for_cpu(struct ib_device *dev,
-		struct scatterlist *sg, unsigned int sg_dma_len, int direction)
+					      struct scatterlist *sglist,
+					      unsigned int sg_dma_len,
+					      int direction)
 {
+	struct scatterlist *sg;
 	unsigned int i;
 
-	for (i = 0; i < sg_dma_len; ++i) {
+	for_each_sg(sglist, sg, sg_dma_len, i) {
 		ib_dma_sync_single_for_cpu(dev,
-				ib_sg_dma_address(dev, &sg[i]),
-				ib_sg_dma_len(dev, &sg[i]),
+				ib_sg_dma_address(dev, sg),
+				ib_sg_dma_len(dev, sg),
 				direction);
 	}
 }
 #define ib_dma_sync_sg_for_cpu	rds_ib_dma_sync_sg_for_cpu
 
 static inline void rds_ib_dma_sync_sg_for_device(struct ib_device *dev,
-		struct scatterlist *sg, unsigned int sg_dma_len, int direction)
+						 struct scatterlist *sglist,
+						 unsigned int sg_dma_len,
+						 int direction)
 {
+	struct scatterlist *sg;
 	unsigned int i;
 
-	for (i = 0; i < sg_dma_len; ++i) {
+	for_each_sg(sglist, sg, sg_dma_len, i) {
 		ib_dma_sync_single_for_device(dev,
-				ib_sg_dma_address(dev, &sg[i]),
-				ib_sg_dma_len(dev, &sg[i]),
+				ib_sg_dma_address(dev, sg),
+				ib_sg_dma_len(dev, sg),
 				direction);
 	}
 }
@@ -307,6 +311,8 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 void rds_ib_sync_mr(void *trans_private, int dir);
 void rds_ib_free_mr(void *trans_private, int invalidate);
 void rds_ib_flush_mrs(void);
+int rds_ib_fmr_init(void);
+void rds_ib_fmr_exit(void);
 
 /* ib_recv.c */
 int rds_ib_recv_init(void);
@@ -314,7 +320,7 @@ void rds_ib_recv_exit(void);
 int rds_ib_recv(struct rds_connection *conn);
 int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic);
 void rds_ib_recv_free_caches(struct rds_ib_connection *ic);
-void rds_ib_recv_refill(struct rds_connection *conn, int prefill);
+void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp);
 void rds_ib_inc_free(struct rds_incoming *inc);
 int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to);
 void rds_ib_recv_cq_comp_handler(struct ib_cq *cq, void *context);
@@ -339,7 +345,6 @@ u32 rds_ib_ring_completed(struct rds_ib_work_ring *ring, u32 wr_id, u32 oldest);
 extern wait_queue_head_t rds_ib_ring_empty_wait;
 
 /* ib_send.c */
-char *rds_ib_wc_status_str(enum ib_wc_status status);
 void rds_ib_xmit_complete(struct rds_connection *conn);
 int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		unsigned int hdr_off, unsigned int sg, unsigned int off);

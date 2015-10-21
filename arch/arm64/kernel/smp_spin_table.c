@@ -49,8 +49,14 @@ static void write_pen_release(u64 val)
 }
 
 
-static int smp_spin_table_cpu_init(struct device_node *dn, unsigned int cpu)
+static int smp_spin_table_cpu_init(unsigned int cpu)
 {
+	struct device_node *dn;
+
+	dn = of_get_cpu_node(cpu, NULL);
+	if (!dn)
+		return -ENODEV;
+
 	/*
 	 * Determine the address from which the CPU is polling.
 	 */

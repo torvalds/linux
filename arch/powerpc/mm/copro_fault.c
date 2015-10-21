@@ -26,7 +26,7 @@
 #include <asm/reg.h>
 #include <asm/copro.h>
 #include <asm/spu.h>
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 /*
  * This ought to be kept in sync with the powerpc specific do_page_fault
@@ -100,7 +100,7 @@ EXPORT_SYMBOL_GPL(copro_handle_mm_fault);
 
 int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 {
-	u64 vsid;
+	u64 vsid, vsidkey;
 	int psize, ssize;
 
 	switch (REGION_ID(ea)) {
@@ -109,6 +109,7 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 		psize = get_slice_psize(mm, ea);
 		ssize = user_segment_size(ea);
 		vsid = get_vsid(mm->context.id, ea, ssize);
+		vsidkey = SLB_VSID_USER;
 		break;
 	case VMALLOC_REGION_ID:
 		pr_devel("%s: 0x%llx -- VMALLOC_REGION_ID\n", __func__, ea);
@@ -118,19 +119,21 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 			psize = mmu_io_psize;
 		ssize = mmu_kernel_ssize;
 		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);
+		vsidkey = SLB_VSID_KERNEL;
 		break;
 	case KERNEL_REGION_ID:
 		pr_devel("%s: 0x%llx -- KERNEL_REGION_ID\n", __func__, ea);
 		psize = mmu_linear_psize;
 		ssize = mmu_kernel_ssize;
 		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);
+		vsidkey = SLB_VSID_KERNEL;
 		break;
 	default:
 		pr_debug("%s: invalid region access at %016llx\n", __func__, ea);
 		return 1;
 	}
 
-	vsid = (vsid << slb_vsid_shift(ssize)) | SLB_VSID_USER;
+	vsid = (vsid << slb_vsid_shift(ssize)) | vsidkey;
 
 	vsid |= mmu_psize_defs[psize].sllp |
 		((ssize == MMU_SEGSIZE_1T) ? SLB_VSID_B_1T : 0);

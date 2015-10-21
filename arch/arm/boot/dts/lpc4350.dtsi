@@ -1,0 +1,39 @@
+/*
+ * NXP LPC4350 and LPC4330 SoC
+ *
+ * Copyright 2015 Ariel D'Alessandro <ariel.dalessandro@gmail.com>
+ *
+ * This code is released using a dual license strategy: BSD/GPL
+ * You can choose the licence that better fits your requirements.
+ *
+ * Released under the terms of 3-clause BSD License
+ * Released under the terms of GNU General Public License Version 2.0
+ *
+ */
+
+/ {
+	compatible = "nxp,lpc4350", "nxp,lpc4330";
+
+	cpus {
+		cpu@0 {
+			compatible = "arm,cortex-m4";
+		};
+	};
+
+	soc {
+		sram0: sram@10000000 {
+			compatible = "mmio-sram";
+			reg = <0x10000000 0x20000>; /* 96 + 32 KiB local SRAM */
+		};
+
+		sram1: sram@10080000 {
+			compatible = "mmio-sram";
+			reg = <0x10080000 0x12000>; /* 64 + 8 KiB local SRAM */
+		};
+
+		sram2: sram@20000000 {
+			compatible = "mmio-sram";
+			reg = <0x20000000 0x10000>; /* 4 x 16 KiB AHB SRAM */
+		};
+	};
+};

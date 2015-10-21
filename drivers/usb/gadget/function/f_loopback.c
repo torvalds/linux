@@ -28,11 +28,6 @@
  * This takes messages of various sizes written OUT to a device, and loops
  * them back so they can be read IN from it.  It has been used by certain
  * test applications.  It supports limited testing of data queueing logic.
- *
- *
- * This is currently packaged as a configuration driver, which can't be
- * combined with other functions to make composite devices.  However, it
- * can be combined with other independent configurations.
  */
 struct f_loopback {
 	struct usb_function	function;

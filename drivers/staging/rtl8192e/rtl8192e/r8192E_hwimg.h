@@ -23,12 +23,6 @@
 
 #include <linux/types.h>
 
-#define BootArrayLengthPciE 344
-extern u8 Rtl8192PciEFwBootArray[BootArrayLengthPciE];
-#define MainArrayLengthPciE 43012
-extern u8 Rtl8192PciEFwMainArray[MainArrayLengthPciE];
-#define DataArrayLengthPciE 848
-extern u8 Rtl8192PciEFwDataArray[DataArrayLengthPciE];
 #define PHY_REGArrayLengthPciE 1
 extern u32 Rtl8192PciEPHY_REGArray[PHY_REGArrayLengthPciE];
 #define PHY_REG_1T2RArrayLengthPciE 296

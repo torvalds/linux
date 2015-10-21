@@ -90,6 +90,7 @@ static const char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
 	"tx_skb_headlen_zero",
 	"tx_skb_frag_zero",
 	"tx_skb_len_mismatch",
+	"tx_skb_map_failed",
 	"hw_stats_updates",
 	"netif_rx_dropped",
 
@@ -102,6 +103,7 @@ static const char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
 	"tx_unmap_q_alloc_failed",
 	"rx_unmap_q_alloc_failed",
 	"rxbuf_alloc_failed",
+	"rxbuf_map_failed",
 
 	"mac_stats_clr_cnt",
 	"mac_frame_64",
@@ -445,13 +447,13 @@ bnad_set_ringparam(struct net_device *netdev,
 
 	if (ringparam->rx_pending < BNAD_MIN_Q_DEPTH ||
 	    ringparam->rx_pending > BNAD_MAX_RXQ_DEPTH ||
-	    !BNA_POWER_OF_2(ringparam->rx_pending)) {
+	    !is_power_of_2(ringparam->rx_pending)) {
 		mutex_unlock(&bnad->conf_mutex);
 		return -EINVAL;
 	}
 	if (ringparam->tx_pending < BNAD_MIN_Q_DEPTH ||
 	    ringparam->tx_pending > BNAD_MAX_TXQ_DEPTH ||
-	    !BNA_POWER_OF_2(ringparam->tx_pending)) {
+	    !is_power_of_2(ringparam->tx_pending)) {
 		mutex_unlock(&bnad->conf_mutex);
 		return -EINVAL;
 	}
@@ -533,7 +535,7 @@ bnad_set_pauseparam(struct net_device *netdev,
 		pause_config.rx_pause = pauseparam->rx_pause;
 		pause_config.tx_pause = pauseparam->tx_pause;
 		spin_lock_irqsave(&bnad->bna_lock, flags);
-		bna_enet_pause_config(&bnad->bna.enet, &pause_config, NULL);
+		bna_enet_pause_config(&bnad->bna.enet, &pause_config);
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 	}
 	mutex_unlock(&bnad->conf_mutex);
@@ -807,6 +809,7 @@ bnad_per_q_stats_fill(struct bnad *bnad, u64 *buf, int bi)
 							rx_packets_with_error;
 					buf[bi++] = rcb->rxq->
 							rxbuf_alloc_failed;
+					buf[bi++] = rcb->rxq->rxbuf_map_failed;
 					buf[bi++] = rcb->producer_index;
 					buf[bi++] = rcb->consumer_index;
 				}
@@ -821,6 +824,7 @@ bnad_per_q_stats_fill(struct bnad *bnad, u64 *buf, int bi)
 							rx_packets_with_error;
 					buf[bi++] = rcb->rxq->
 							rxbuf_alloc_failed;
+					buf[bi++] = rcb->rxq->rxbuf_map_failed;
 					buf[bi++] = rcb->producer_index;
 					buf[bi++] = rcb->consumer_index;
 				}
@@ -1080,7 +1084,7 @@ bnad_flash_device(struct net_device *netdev, struct ethtool_flash *eflash)
 
 	ret = request_firmware(&fw, eflash->data, &bnad->pcidev->dev);
 	if (ret) {
-		pr_err("BNA: Can't locate firmware %s\n", eflash->data);
+		netdev_err(netdev, "can't load firmware %s\n", eflash->data);
 		goto out;
 	}
 
@@ -1093,7 +1097,7 @@ bnad_flash_device(struct net_device *netdev, struct ethtool_flash *eflash)
 				bnad->id, (u8 *)fw->data, fw->size, 0,
 				bnad_cb_completion, &fcomp);
 	if (ret != BFA_STATUS_OK) {
-		pr_warn("BNA: Flash update failed with err: %d\n", ret);
+		netdev_warn(netdev, "flash update failed with err=%d\n", ret);
 		ret = -EIO;
 		spin_unlock_irq(&bnad->bna_lock);
 		goto out;
@@ -1103,8 +1107,9 @@ bnad_flash_device(struct net_device *netdev, struct ethtool_flash *eflash)
 	wait_for_completion(&fcomp.comp);
 	if (fcomp.comp_status != BFA_STATUS_OK) {
 		ret = -EIO;
-		pr_warn("BNA: Firmware image update to flash failed with: %d\n",
-			fcomp.comp_status);
+		netdev_warn(netdev,
+			    "firmware image update failed with err=%d\n",
+			    fcomp.comp_status);
 	}
 out:
 	release_firmware(fw);

@@ -141,7 +141,7 @@ struct hv_port_info {
 		struct {
 			u32 target_sint;
 			u32 target_vp;
-			u16 base_flag_bumber;
+			u16 base_flag_number;
 			u16 flag_count;
 			u32 rsvdz;
 		} event_port_info;
@@ -517,6 +517,7 @@ struct hv_context {
 	u64 guestid;
 
 	void *hypercall_page;
+	void *tsc_page;
 
 	bool synic_initialized;
 
@@ -551,9 +552,22 @@ struct hv_context {
 	 * Support PV clockevent device.
 	 */
 	struct clock_event_device *clk_evt[NR_CPUS];
+	/*
+	 * To manage allocations in a NUMA node.
+	 * Array indexed by numa node ID.
+	 */
+	struct cpumask *hv_numa_map;
 };
 
 extern struct hv_context hv_context;
+
+struct ms_hyperv_tsc_page {
+	volatile u32 tsc_sequence;
+	u32 reserved1;
+	volatile u64 tsc_scale;
+	volatile s64 tsc_offset;
+	u64 reserved2[509];
+};
 
 struct hv_ring_buffer_debug_info {
 	u32 current_interrupt_mask;
@@ -647,6 +661,7 @@ struct vmbus_connection {
 
 	atomic_t next_gpadl_handle;
 
+	struct completion  unload_event;
 	/*
 	 * Represents channel interrupts. Each bit position represents a
 	 * channel.  When a channel sends an interrupt via VMBUS, it finds its
@@ -730,9 +745,39 @@ int vmbus_set_event(struct vmbus_channel *channel);
 
 void vmbus_on_event(unsigned long data);
 
+int hv_kvp_init(struct hv_util_service *);
+void hv_kvp_deinit(void);
+void hv_kvp_onchannelcallback(void *);
+
+int hv_vss_init(struct hv_util_service *);
+void hv_vss_deinit(void);
+void hv_vss_onchannelcallback(void *);
+
 int hv_fcopy_init(struct hv_util_service *);
 void hv_fcopy_deinit(void);
 void hv_fcopy_onchannelcallback(void *);
+void vmbus_initiate_unload(void);
 
+static inline void hv_poll_channel(struct vmbus_channel *channel,
+				   void (*cb)(void *))
+{
+	if (!channel)
+		return;
+
+	if (channel->target_cpu != smp_processor_id())
+		smp_call_function_single(channel->target_cpu,
+					 cb, channel, true);
+	else
+		cb(channel);
+}
+
+enum hvutil_device_state {
+	HVUTIL_DEVICE_INIT = 0,  /* driver is loaded, waiting for userspace */
+	HVUTIL_READY,            /* userspace is registered */
+	HVUTIL_HOSTMSG_RECEIVED, /* message from the host was received */
+	HVUTIL_USERSPACE_REQ,    /* request to userspace was sent */
+	HVUTIL_USERSPACE_RECV,   /* reply from userspace was received */
+	HVUTIL_DEVICE_DYING,     /* driver unload is in progress */
+};
 
 #endif /* _HYPERV_VMBUS_H */

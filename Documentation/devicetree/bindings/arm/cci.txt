@@ -31,8 +31,9 @@ specific to ARM.
 	- compatible
 		Usage: required
 		Value type: <string>
-		Definition: must be set to
+		Definition: must contain one of the following:
 			    "arm,cci-400"
+			    "arm,cci-500"
 
 	- reg
 		Usage: required
@@ -99,6 +100,7 @@ specific to ARM.
 				 "arm,cci-400-pmu,r1"
 				 "arm,cci-400-pmu"  - DEPRECATED, permitted only where OS has
 						      secure acces to CCI registers
+				 "arm,cci-500-pmu,r0"
 		- reg:
 			Usage: required
 			Value type: Integer cells. A register entry, expressed

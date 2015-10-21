@@ -11,8 +11,7 @@
 */
 
 #include <dt-bindings/clock/exynos5420.h>
-#include <linux/clk.h>
-#include <linux/clkdev.h>
+#include <linux/slab.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -504,7 +503,7 @@ static struct samsung_fixed_factor_clock
 	FFACTOR(0, "ff_dout_spll2", "mout_sclk_spll", 1, 2, 0),
 };
 
-struct samsung_mux_clock exynos5800_mux_clks[] __initdata = {
+static struct samsung_mux_clock exynos5800_mux_clks[] __initdata = {
 	MUX(0, "mout_aclk400_isp", mout_group3_5800_p, SRC_TOP0, 0, 3),
 	MUX(0, "mout_aclk400_mscl", mout_group3_5800_p, SRC_TOP0, 4, 3),
 	MUX(0, "mout_aclk400_wcore", mout_group2_5800_p, SRC_TOP0, 16, 3),
@@ -553,7 +552,7 @@ struct samsung_mux_clock exynos5800_mux_clks[] __initdata = {
 	MUX(0, "mout_fimd1", mout_group2_p, SRC_DISP10, 4, 3),
 };
 
-struct samsung_div_clock exynos5800_div_clks[] __initdata = {
+static struct samsung_div_clock exynos5800_div_clks[] __initdata = {
 	DIV(0, "dout_aclk400_wcore", "mout_aclk400_wcore", DIV_TOP0, 16, 3),
 
 	DIV(0, "dout_aclk550_cam", "mout_aclk550_cam",
@@ -569,14 +568,14 @@ struct samsung_div_clock exynos5800_div_clks[] __initdata = {
 	DIV(0, "dout_sclk_sw", "sclk_spll", DIV_TOP9, 24, 6),
 };
 
-struct samsung_gate_clock exynos5800_gate_clks[] __initdata = {
+static struct samsung_gate_clock exynos5800_gate_clks[] __initdata = {
 	GATE(CLK_ACLK550_CAM, "aclk550_cam", "mout_user_aclk550_cam",
 				GATE_BUS_TOP, 24, 0, 0),
 	GATE(CLK_ACLK432_SCALER, "aclk432_scaler", "mout_user_aclk432_scaler",
 				GATE_BUS_TOP, 27, 0, 0),
 };
 
-struct samsung_mux_clock exynos5420_mux_clks[] __initdata = {
+static struct samsung_mux_clock exynos5420_mux_clks[] __initdata = {
 	MUX(0, "sclk_bpll", mout_bpll_p, TOP_SPARE2, 0, 1),
 	MUX(0, "mout_aclk400_wcore_bpll", mout_aclk400_wcore_bpll_p,
 				TOP_SPARE2, 4, 1),
@@ -606,7 +605,7 @@ struct samsung_mux_clock exynos5420_mux_clks[] __initdata = {
 	MUX(0, "mout_fimd1", mout_group3_p, SRC_DISP10, 4, 1),
 };
 
-struct samsung_div_clock exynos5420_div_clks[] __initdata = {
+static struct samsung_div_clock exynos5420_div_clks[] __initdata = {
 	DIV(0, "dout_aclk400_wcore", "mout_aclk400_wcore_bpll",
 			DIV_TOP0, 16, 3),
 };

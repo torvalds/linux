@@ -185,7 +185,7 @@ nouveau_display_vblank_init(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		ret = nvif_notify_init(&disp->disp, NULL,
+		ret = nvif_notify_init(&disp->disp,
 				       nouveau_display_vblank_handler, false,
 				       NV04_DISP_NTFY_VBLANK,
 				       &(struct nvif_notify_head_req_v0) {
@@ -358,6 +358,7 @@ int
 nouveau_display_init(struct drm_device *dev)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
 	int ret;
 
@@ -374,6 +375,8 @@ nouveau_display_init(struct drm_device *dev)
 		nvif_notify_get(&conn->hpd);
 	}
 
+	/* enable flip completion events */
+	nvif_notify_get(&drm->flip);
 	return ret;
 }
 
@@ -381,12 +384,16 @@ void
 nouveau_display_fini(struct drm_device *dev)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
 	int head;
 
 	/* Make sure that drm and hw vblank irqs get properly disabled. */
 	for (head = 0; head < dev->mode_config.num_crtc; head++)
 		drm_vblank_off(dev, head);
+
+	/* disable flip completion events */
+	nvif_notify_put(&drm->flip);
 
 	/* disable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -438,6 +445,7 @@ int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvkm_device *device = nvxx_device(&drm->device);
 	struct nouveau_display *disp;
 	int ret;
 
@@ -450,7 +458,7 @@ nouveau_display_create(struct drm_device *dev)
 	drm_mode_create_dvi_i_properties(dev);
 
 	dev->mode_config.funcs = &nouveau_mode_config_funcs;
-	dev->mode_config.fb_base = nv_device_resource_start(nvxx_device(&drm->device), 1);
+	dev->mode_config.fb_base = device->func->resource_addr(device, 1);
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
@@ -461,9 +469,13 @@ nouveau_display_create(struct drm_device *dev)
 	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		dev->mode_config.max_width = 4096;
 		dev->mode_config.max_height = 4096;
-	} else {
+	} else
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI) {
 		dev->mode_config.max_width = 8192;
 		dev->mode_config.max_height = 8192;
+	} else {
+		dev->mode_config.max_width = 16384;
+		dev->mode_config.max_height = 16384;
 	}
 
 	dev->mode_config.preferred_depth = 24;
@@ -494,7 +506,7 @@ nouveau_display_create(struct drm_device *dev)
 		int i;
 
 		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
-			ret = nvif_object_init(nvif_object(&drm->device), NULL,
+			ret = nvif_object_init(&drm->device.object,
 					       NVDRM_DISPLAY, oclass[i],
 					       NULL, 0, &disp->disp);
 		}
@@ -711,7 +723,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	chan = drm->channel;
 	if (!chan)
 		return -ENODEV;
-	cli = (void *)nvif_client(&chan->device->base);
+	cli = (void *)chan->user.client;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
@@ -847,10 +859,10 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 }
 
 int
-nouveau_flip_complete(void *data)
+nouveau_flip_complete(struct nvif_notify *notify)
 {
-	struct nouveau_channel *chan = data;
-	struct nouveau_drm *drm = chan->drm;
+	struct nouveau_drm *drm = container_of(notify, typeof(*drm), flip);
+	struct nouveau_channel *chan = drm->channel;
 	struct nouveau_page_flip_state state;
 
 	if (!nouveau_finish_page_flip(chan, &state)) {
@@ -861,7 +873,7 @@ nouveau_flip_complete(void *data)
 		}
 	}
 
-	return 0;
+	return NVIF_NOTIFY_KEEP;
 }
 
 int

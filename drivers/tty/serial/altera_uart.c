@@ -493,7 +493,7 @@ console_initcall(altera_uart_console_init);
 
 #define	ALTERA_UART_CONSOLE	NULL
 
-#endif /* CONFIG_ALTERA_UART_CONSOLE */
+#endif /* CONFIG_SERIAL_ALTERA_UART_CONSOLE */
 
 /*
  *	Define the altera_uart UART driver structure.

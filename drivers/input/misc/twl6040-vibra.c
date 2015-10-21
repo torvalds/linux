@@ -308,7 +308,8 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 	mutex_init(&info->mutex);
 
 	error = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
-					  twl6040_vib_irq_handler, 0,
+					  twl6040_vib_irq_handler,
+					  IRQF_ONESHOT,
 					  "twl6040_irq_vib", info);
 	if (error) {
 		dev_err(info->dev, "VIB IRQ request failed: %d\n", error);

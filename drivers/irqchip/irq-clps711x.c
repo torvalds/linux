@@ -11,6 +11,7 @@
 
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -18,8 +19,6 @@
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
-
-#include "irqchip.h"
 
 #define CLPS711X_INTSR1	(0x0240)
 #define CLPS711X_INTMR1	(0x0280)
@@ -133,14 +132,14 @@ static int __init clps711x_intc_irq_map(struct irq_domain *h, unsigned int virq,
 					irq_hw_number_t hw)
 {
 	irq_flow_handler_t handler = handle_level_irq;
-	unsigned int flags = IRQF_VALID | IRQF_PROBE;
+	unsigned int flags = 0;
 
 	if (!clps711x_irqs[hw].flags)
 		return 0;
 
 	if (clps711x_irqs[hw].flags & CLPS711X_FLAG_FIQ) {
 		handler = handle_bad_irq;
-		flags |= IRQF_NOAUTOEN;
+		flags |= IRQ_NOAUTOEN;
 	} else if (clps711x_irqs[hw].eoi) {
 		handler = handle_fasteoi_irq;
 	}
@@ -150,7 +149,7 @@ static int __init clps711x_intc_irq_map(struct irq_domain *h, unsigned int virq,
 		writel_relaxed(0, clps711x_intc->base + clps711x_irqs[hw].eoi);
 
 	irq_set_chip_and_handler(virq, &clps711x_intc_chip, handler);
-	set_irq_flags(virq, flags);
+	irq_modify_status(virq, IRQ_NOPROBE, flags);
 
 	return 0;
 }

@@ -18,6 +18,7 @@
 
 #include <mach/pm.h>
 
+static bool disable_cpu_idle_poll;
 
 static cycle_t read_cycle_count(struct clocksource *cs)
 {
@@ -80,45 +81,45 @@ static int comparator_next_event(unsigned long delta,
 	return 0;
 }
 
-static void comparator_mode(enum clock_event_mode mode,
-		struct clock_event_device *evdev)
+static int comparator_shutdown(struct clock_event_device *evdev)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-		pr_debug("%s: start\n", evdev->name);
-		/* FALLTHROUGH */
-	case CLOCK_EVT_MODE_RESUME:
+	pr_debug("%s: %s\n", __func__, evdev->name);
+	sysreg_write(COMPARE, 0);
+
+	if (disable_cpu_idle_poll) {
+		disable_cpu_idle_poll = false;
 		/*
-		 * If we're using the COUNT and COMPARE registers we
-		 * need to force idle poll.
+		 * Only disable idle poll if we have forced that
+		 * in a previous call.
 		 */
-		cpu_idle_poll_ctrl(true);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		sysreg_write(COMPARE, 0);
-		pr_debug("%s: stop\n", evdev->name);
-		if (evdev->mode == CLOCK_EVT_MODE_ONESHOT ||
-		    evdev->mode == CLOCK_EVT_MODE_RESUME) {
-			/*
-			 * Only disable idle poll if we have forced that
-			 * in a previous call.
-			 */
-			cpu_idle_poll_ctrl(false);
-		}
-		break;
-	default:
-		BUG();
+		cpu_idle_poll_ctrl(false);
 	}
+	return 0;
+}
+
+static int comparator_set_oneshot(struct clock_event_device *evdev)
+{
+	pr_debug("%s: %s\n", __func__, evdev->name);
+
+	disable_cpu_idle_poll = true;
+	/*
+	 * If we're using the COUNT and COMPARE registers we
+	 * need to force idle poll.
+	 */
+	cpu_idle_poll_ctrl(true);
+
+	return 0;
 }
 
 static struct clock_event_device comparator = {
-	.name		= "avr32_comparator",
-	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 16,
-	.rating		= 50,
-	.set_next_event	= comparator_next_event,
-	.set_mode	= comparator_mode,
+	.name			= "avr32_comparator",
+	.features		= CLOCK_EVT_FEAT_ONESHOT,
+	.shift			= 16,
+	.rating			= 50,
+	.set_next_event		= comparator_next_event,
+	.set_state_shutdown	= comparator_shutdown,
+	.set_state_oneshot	= comparator_set_oneshot,
+	.tick_resume		= comparator_set_oneshot,
 };
 
 void read_persistent_clock(struct timespec *ts)

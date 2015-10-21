@@ -35,6 +35,9 @@
 #include <linux/in.h>
 #include <linux/module.h>
 #include <net/tcp.h>
+#include <net/net_namespace.h>
+#include <net/netns/generic.h>
+#include <net/tcp.h>
 
 #include "rds.h"
 #include "tcp.h"
@@ -189,9 +192,9 @@ out:
 	spin_unlock_irqrestore(&rds_tcp_tc_list_lock, flags);
 }
 
-static int rds_tcp_laddr_check(__be32 addr)
+static int rds_tcp_laddr_check(struct net *net, __be32 addr)
 {
-	if (inet_addr_type(&init_net, addr) == RTN_LOCAL)
+	if (inet_addr_type(net, addr) == RTN_LOCAL)
 		return 0;
 	return -EADDRNOTAVAIL;
 }
@@ -250,16 +253,7 @@ static void rds_tcp_destroy_conns(void)
 	}
 }
 
-static void rds_tcp_exit(void)
-{
-	rds_info_deregister_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
-	rds_tcp_listen_stop();
-	rds_tcp_destroy_conns();
-	rds_trans_unregister(&rds_tcp_transport);
-	rds_tcp_recv_exit();
-	kmem_cache_destroy(rds_tcp_conn_slab);
-}
-module_exit(rds_tcp_exit);
+static void rds_tcp_exit(void);
 
 struct rds_transport rds_tcp_transport = {
 	.laddr_check		= rds_tcp_laddr_check,
@@ -281,6 +275,136 @@ struct rds_transport rds_tcp_transport = {
 	.t_prefer_loopback	= 1,
 };
 
+static int rds_tcp_netid;
+
+/* per-network namespace private data for this module */
+struct rds_tcp_net {
+	struct socket *rds_tcp_listen_sock;
+	struct work_struct rds_tcp_accept_w;
+};
+
+static void rds_tcp_accept_worker(struct work_struct *work)
+{
+	struct rds_tcp_net *rtn = container_of(work,
+					       struct rds_tcp_net,
+					       rds_tcp_accept_w);
+
+	while (rds_tcp_accept_one(rtn->rds_tcp_listen_sock) == 0)
+		cond_resched();
+}
+
+void rds_tcp_accept_work(struct sock *sk)
+{
+	struct net *net = sock_net(sk);
+	struct rds_tcp_net *rtn = net_generic(net, rds_tcp_netid);
+
+	queue_work(rds_wq, &rtn->rds_tcp_accept_w);
+}
+
+static __net_init int rds_tcp_init_net(struct net *net)
+{
+	struct rds_tcp_net *rtn = net_generic(net, rds_tcp_netid);
+
+	rtn->rds_tcp_listen_sock = rds_tcp_listen_init(net);
+	if (!rtn->rds_tcp_listen_sock) {
+		pr_warn("could not set up listen sock\n");
+		return -EAFNOSUPPORT;
+	}
+	INIT_WORK(&rtn->rds_tcp_accept_w, rds_tcp_accept_worker);
+	return 0;
+}
+
+static void __net_exit rds_tcp_exit_net(struct net *net)
+{
+	struct rds_tcp_net *rtn = net_generic(net, rds_tcp_netid);
+
+	/* If rds_tcp_exit_net() is called as a result of netns deletion,
+	 * the rds_tcp_kill_sock() device notifier would already have cleaned
+	 * up the listen socket, thus there is no work to do in this function.
+	 *
+	 * If rds_tcp_exit_net() is called as a result of module unload,
+	 * i.e., due to rds_tcp_exit() -> unregister_pernet_subsys(), then
+	 * we do need to clean up the listen socket here.
+	 */
+	if (rtn->rds_tcp_listen_sock) {
+		rds_tcp_listen_stop(rtn->rds_tcp_listen_sock);
+		rtn->rds_tcp_listen_sock = NULL;
+		flush_work(&rtn->rds_tcp_accept_w);
+	}
+}
+
+static struct pernet_operations rds_tcp_net_ops = {
+	.init = rds_tcp_init_net,
+	.exit = rds_tcp_exit_net,
+	.id = &rds_tcp_netid,
+	.size = sizeof(struct rds_tcp_net),
+};
+
+static void rds_tcp_kill_sock(struct net *net)
+{
+	struct rds_tcp_connection *tc, *_tc;
+	struct sock *sk;
+	LIST_HEAD(tmp_list);
+	struct rds_tcp_net *rtn = net_generic(net, rds_tcp_netid);
+
+	rds_tcp_listen_stop(rtn->rds_tcp_listen_sock);
+	rtn->rds_tcp_listen_sock = NULL;
+	flush_work(&rtn->rds_tcp_accept_w);
+	spin_lock_irq(&rds_tcp_conn_lock);
+	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
+		struct net *c_net = read_pnet(&tc->conn->c_net);
+
+		if (net != c_net || !tc->t_sock)
+			continue;
+		list_move_tail(&tc->t_tcp_node, &tmp_list);
+	}
+	spin_unlock_irq(&rds_tcp_conn_lock);
+	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node) {
+		sk = tc->t_sock->sk;
+		sk->sk_prot->disconnect(sk, 0);
+		tcp_done(sk);
+		if (tc->conn->c_passive)
+			rds_conn_destroy(tc->conn->c_passive);
+		rds_conn_destroy(tc->conn);
+	}
+}
+
+static int rds_tcp_dev_event(struct notifier_block *this,
+			     unsigned long event, void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+
+	/* rds-tcp registers as a pernet subys, so the ->exit will only
+	 * get invoked after network acitivity has quiesced. We need to
+	 * clean up all sockets  to quiesce network activity, and use
+	 * the unregistration of the per-net loopback device as a trigger
+	 * to start that cleanup.
+	 */
+	if (event == NETDEV_UNREGISTER_FINAL &&
+	    dev->ifindex == LOOPBACK_IFINDEX)
+		rds_tcp_kill_sock(dev_net(dev));
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block rds_tcp_dev_notifier = {
+	.notifier_call        = rds_tcp_dev_event,
+	.priority = -10, /* must be called after other network notifiers */
+};
+
+static void rds_tcp_exit(void)
+{
+	rds_info_deregister_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
+	unregister_pernet_subsys(&rds_tcp_net_ops);
+	if (unregister_netdevice_notifier(&rds_tcp_dev_notifier))
+		pr_warn("could not unregister rds_tcp_dev_notifier\n");
+	rds_tcp_destroy_conns();
+	rds_trans_unregister(&rds_tcp_transport);
+	rds_tcp_recv_exit();
+	kmem_cache_destroy(rds_tcp_conn_slab);
+}
+module_exit(rds_tcp_exit);
+
 static int rds_tcp_init(void)
 {
 	int ret;
@@ -293,6 +417,16 @@ static int rds_tcp_init(void)
 		goto out;
 	}
 
+	ret = register_netdevice_notifier(&rds_tcp_dev_notifier);
+	if (ret) {
+		pr_warn("could not register rds_tcp_dev_notifier\n");
+		goto out;
+	}
+
+	ret = register_pernet_subsys(&rds_tcp_net_ops);
+	if (ret)
+		goto out_slab;
+
 	ret = rds_tcp_recv_init();
 	if (ret)
 		goto out_slab;
@@ -301,19 +435,14 @@ static int rds_tcp_init(void)
 	if (ret)
 		goto out_recv;
 
-	ret = rds_tcp_listen_init();
-	if (ret)
-		goto out_register;
-
 	rds_info_register_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
 
 	goto out;
 
-out_register:
-	rds_trans_unregister(&rds_tcp_transport);
 out_recv:
 	rds_tcp_recv_exit();
 out_slab:
+	unregister_pernet_subsys(&rds_tcp_net_ops);
 	kmem_cache_destroy(rds_tcp_conn_slab);
 out:
 	return ret;

@@ -134,7 +134,7 @@ void rtw_buf_free(u8 **buf, u32 *buf_len)
 
 void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len)
 {
-	u32 ori_len = 0, dup_len = 0;
+	u32 dup_len = 0;
 	u8 *ori = NULL;
 	u8 *dup = NULL;
 
@@ -153,7 +153,6 @@ void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len)
 
 keep_ori:
 	ori = *buf;
-	ori_len = *buf_len;
 
 	/* replace buf with dup */
 	*buf_len = 0;

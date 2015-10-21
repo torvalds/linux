@@ -45,7 +45,7 @@ static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 static void rcar_du_plane_setup_fb(struct rcar_du_plane *plane)
 {
 	struct rcar_du_plane_state *state =
-		to_rcar_du_plane_state(plane->plane.state);
+		to_rcar_plane_state(plane->plane.state);
 	struct drm_framebuffer *fb = plane->plane.state->fb;
 	struct rcar_du_group *rgrp = plane->group;
 	unsigned int src_x = state->state.src_x >> 16;
@@ -109,7 +109,7 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 				     unsigned int index)
 {
 	struct rcar_du_plane_state *state =
-		to_rcar_du_plane_state(plane->plane.state);
+		to_rcar_plane_state(plane->plane.state);
 	struct rcar_du_group *rgrp = plane->group;
 	u32 colorkey;
 	u32 pnmr;
@@ -172,7 +172,7 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 				  unsigned int index)
 {
 	struct rcar_du_plane_state *state =
-		to_rcar_du_plane_state(plane->plane.state);
+		to_rcar_plane_state(plane->plane.state);
 	struct rcar_du_group *rgrp = plane->group;
 	u32 ddcr2 = PnDDCR2_CODE;
 	u32 ddcr4;
@@ -222,7 +222,7 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 void rcar_du_plane_setup(struct rcar_du_plane *plane)
 {
 	struct rcar_du_plane_state *state =
-		to_rcar_du_plane_state(plane->plane.state);
+		to_rcar_plane_state(plane->plane.state);
 
 	__rcar_du_plane_setup(plane, state->hwindex);
 	if (state->format->planes == 2)
@@ -234,7 +234,7 @@ void rcar_du_plane_setup(struct rcar_du_plane *plane)
 static int rcar_du_plane_atomic_check(struct drm_plane *plane,
 				      struct drm_plane_state *state)
 {
-	struct rcar_du_plane_state *rstate = to_rcar_du_plane_state(state);
+	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
 	struct rcar_du_device *rcdu = rplane->group->dev;
 
@@ -302,13 +302,15 @@ rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 	struct rcar_du_plane_state *state;
 	struct rcar_du_plane_state *copy;
 
-	state = to_rcar_du_plane_state(plane->state);
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	state = to_rcar_plane_state(plane->state);
 	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
 	if (copy == NULL)
 		return NULL;
 
-	if (copy->state.fb)
-		drm_framebuffer_reference(copy->state.fb);
+	__drm_atomic_helper_plane_duplicate_state(plane, &copy->state);
 
 	return &copy->state;
 }
@@ -316,10 +318,8 @@ rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 static void rcar_du_plane_atomic_destroy_state(struct drm_plane *plane,
 					       struct drm_plane_state *state)
 {
-	if (state->fb)
-		drm_framebuffer_unreference(state->fb);
-
-	kfree(to_rcar_du_plane_state(state));
+	__drm_atomic_helper_plane_destroy_state(plane, state);
+	kfree(to_rcar_plane_state(state));
 }
 
 static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
@@ -327,15 +327,14 @@ static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
 					     struct drm_property *property,
 					     uint64_t val)
 {
-	struct rcar_du_plane_state *rstate = to_rcar_du_plane_state(state);
-	struct rcar_du_plane *rplane = to_rcar_plane(plane);
-	struct rcar_du_group *rgrp = rplane->group;
+	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
+	struct rcar_du_device *rcdu = to_rcar_plane(plane)->group->dev;
 
-	if (property == rgrp->planes.alpha)
+	if (property == rcdu->props.alpha)
 		rstate->alpha = val;
-	else if (property == rgrp->planes.colorkey)
+	else if (property == rcdu->props.colorkey)
 		rstate->colorkey = val;
-	else if (property == rgrp->planes.zpos)
+	else if (property == rcdu->props.zpos)
 		rstate->zpos = val;
 	else
 		return -EINVAL;
@@ -349,14 +348,13 @@ static int rcar_du_plane_atomic_get_property(struct drm_plane *plane,
 {
 	const struct rcar_du_plane_state *rstate =
 		container_of(state, const struct rcar_du_plane_state, state);
-	struct rcar_du_plane *rplane = to_rcar_plane(plane);
-	struct rcar_du_group *rgrp = rplane->group;
+	struct rcar_du_device *rcdu = to_rcar_plane(plane)->group->dev;
 
-	if (property == rgrp->planes.alpha)
+	if (property == rcdu->props.alpha)
 		*val = rstate->alpha;
-	else if (property == rgrp->planes.colorkey)
+	else if (property == rcdu->props.colorkey)
 		*val = rstate->colorkey;
-	else if (property == rgrp->planes.zpos)
+	else if (property == rcdu->props.zpos)
 		*val = rstate->zpos;
 	else
 		return -EINVAL;
@@ -391,47 +389,23 @@ static const uint32_t formats[] = {
 
 int rcar_du_planes_init(struct rcar_du_group *rgrp)
 {
-	struct rcar_du_planes *planes = &rgrp->planes;
 	struct rcar_du_device *rcdu = rgrp->dev;
-	unsigned int num_planes;
-	unsigned int num_crtcs;
 	unsigned int crtcs;
 	unsigned int i;
 	int ret;
 
-	planes->alpha =
-		drm_property_create_range(rcdu->ddev, 0, "alpha", 0, 255);
-	if (planes->alpha == NULL)
-		return -ENOMEM;
-
-	/* The color key is expressed as an RGB888 triplet stored in a 32-bit
-	 * integer in XRGB8888 format. Bit 24 is used as a flag to disable (0)
-	 * or enable source color keying (1).
-	 */
-	planes->colorkey =
-		drm_property_create_range(rcdu->ddev, 0, "colorkey",
-					  0, 0x01ffffff);
-	if (planes->colorkey == NULL)
-		return -ENOMEM;
-
-	planes->zpos =
-		drm_property_create_range(rcdu->ddev, 0, "zpos", 1, 7);
-	if (planes->zpos == NULL)
-		return -ENOMEM;
-
-	 /* Create one primary plane per in this group CRTC and seven overlay
+	 /* Create one primary plane per CRTC in this group and seven overlay
 	  * planes.
 	  */
-	num_crtcs = min(rcdu->num_crtcs - 2 * rgrp->index, 2U);
-	num_planes = num_crtcs + 7;
+	rgrp->num_planes = rgrp->num_crtcs + 7;
 
 	crtcs = ((1 << rcdu->num_crtcs) - 1) & (3 << (2 * rgrp->index));
 
-	for (i = 0; i < num_planes; ++i) {
-		enum drm_plane_type type = i < num_crtcs
+	for (i = 0; i < rgrp->num_planes; ++i) {
+		enum drm_plane_type type = i < rgrp->num_crtcs
 					 ? DRM_PLANE_TYPE_PRIMARY
 					 : DRM_PLANE_TYPE_OVERLAY;
-		struct rcar_du_plane *plane = &planes->planes[i];
+		struct rcar_du_plane *plane = &rgrp->planes[i];
 
 		plane->group = rgrp;
 
@@ -448,12 +422,12 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 			continue;
 
 		drm_object_attach_property(&plane->plane.base,
-					   planes->alpha, 255);
+					   rcdu->props.alpha, 255);
 		drm_object_attach_property(&plane->plane.base,
-					   planes->colorkey,
+					   rcdu->props.colorkey,
 					   RCAR_DU_COLORKEY_NONE);
 		drm_object_attach_property(&plane->plane.base,
-					   planes->zpos, 1);
+					   rcdu->props.zpos, 1);
 	}
 
 	return 0;

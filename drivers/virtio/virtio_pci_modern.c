@@ -499,7 +499,7 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
  * Returns offset of the capability, or 0.
  */
 static inline int virtio_pci_find_capability(struct pci_dev *dev, u8 cfg_type,
-					     u32 ioresource_types)
+					     u32 ioresource_types, int *bars)
 {
 	int pos;
 
@@ -520,8 +520,10 @@ static inline int virtio_pci_find_capability(struct pci_dev *dev, u8 cfg_type,
 
 		if (type == cfg_type) {
 			if (pci_resource_len(dev, bar) &&
-			    pci_resource_flags(dev, bar) & ioresource_types)
+			    pci_resource_flags(dev, bar) & ioresource_types) {
+				*bars |= (1 << bar);
 				return pos;
+			}
 		}
 	}
 	return 0;
@@ -617,7 +619,8 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 
 	/* check for a common config: if not, use legacy mode (bar 0). */
 	common = virtio_pci_find_capability(pci_dev, VIRTIO_PCI_CAP_COMMON_CFG,
-					    IORESOURCE_IO | IORESOURCE_MEM);
+					    IORESOURCE_IO | IORESOURCE_MEM,
+					    &vp_dev->modern_bars);
 	if (!common) {
 		dev_info(&pci_dev->dev,
 			 "virtio_pci: leaving for legacy driver\n");
@@ -626,9 +629,11 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 
 	/* If common is there, these should be too... */
 	isr = virtio_pci_find_capability(pci_dev, VIRTIO_PCI_CAP_ISR_CFG,
-					 IORESOURCE_IO | IORESOURCE_MEM);
+					 IORESOURCE_IO | IORESOURCE_MEM,
+					 &vp_dev->modern_bars);
 	notify = virtio_pci_find_capability(pci_dev, VIRTIO_PCI_CAP_NOTIFY_CFG,
-					    IORESOURCE_IO | IORESOURCE_MEM);
+					    IORESOURCE_IO | IORESOURCE_MEM,
+					    &vp_dev->modern_bars);
 	if (!isr || !notify) {
 		dev_err(&pci_dev->dev,
 			"virtio_pci: missing capabilities %i/%i/%i\n",
@@ -640,7 +645,13 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 	 * device-specific configuration.
 	 */
 	device = virtio_pci_find_capability(pci_dev, VIRTIO_PCI_CAP_DEVICE_CFG,
-					    IORESOURCE_IO | IORESOURCE_MEM);
+					    IORESOURCE_IO | IORESOURCE_MEM,
+					    &vp_dev->modern_bars);
+
+	err = pci_request_selected_regions(pci_dev, vp_dev->modern_bars,
+					   "virtio-pci-modern");
+	if (err)
+		return err;
 
 	err = -EINVAL;
 	vp_dev->common = map_capability(pci_dev, common,
@@ -727,4 +738,5 @@ void virtio_pci_modern_remove(struct virtio_pci_device *vp_dev)
 		pci_iounmap(pci_dev, vp_dev->notify_base);
 	pci_iounmap(pci_dev, vp_dev->isr);
 	pci_iounmap(pci_dev, vp_dev->common);
+	pci_release_selected_regions(pci_dev, vp_dev->modern_bars);
 }

@@ -39,36 +39,6 @@
 #include "rds.h"
 #include "ib.h"
 
-static char *rds_ib_event_type_strings[] = {
-#define RDS_IB_EVENT_STRING(foo) \
-		[IB_EVENT_##foo] = __stringify(IB_EVENT_##foo)
-	RDS_IB_EVENT_STRING(CQ_ERR),
-	RDS_IB_EVENT_STRING(QP_FATAL),
-	RDS_IB_EVENT_STRING(QP_REQ_ERR),
-	RDS_IB_EVENT_STRING(QP_ACCESS_ERR),
-	RDS_IB_EVENT_STRING(COMM_EST),
-	RDS_IB_EVENT_STRING(SQ_DRAINED),
-	RDS_IB_EVENT_STRING(PATH_MIG),
-	RDS_IB_EVENT_STRING(PATH_MIG_ERR),
-	RDS_IB_EVENT_STRING(DEVICE_FATAL),
-	RDS_IB_EVENT_STRING(PORT_ACTIVE),
-	RDS_IB_EVENT_STRING(PORT_ERR),
-	RDS_IB_EVENT_STRING(LID_CHANGE),
-	RDS_IB_EVENT_STRING(PKEY_CHANGE),
-	RDS_IB_EVENT_STRING(SM_CHANGE),
-	RDS_IB_EVENT_STRING(SRQ_ERR),
-	RDS_IB_EVENT_STRING(SRQ_LIMIT_REACHED),
-	RDS_IB_EVENT_STRING(QP_LAST_WQE_REACHED),
-	RDS_IB_EVENT_STRING(CLIENT_REREGISTER),
-#undef RDS_IB_EVENT_STRING
-};
-
-static char *rds_ib_event_str(enum ib_event_type type)
-{
-	return rds_str_array(rds_ib_event_type_strings,
-			     ARRAY_SIZE(rds_ib_event_type_strings), type);
-};
-
 /*
  * Set the selected protocol version
  */
@@ -165,7 +135,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	rds_ib_recv_init_ring(ic);
 	/* Post receive buffers - as a side effect, this will update
 	 * the posted credit count. */
-	rds_ib_recv_refill(conn, 1);
+	rds_ib_recv_refill(conn, 1, GFP_KERNEL);
 
 	/* Tune RNR behavior */
 	rds_ib_tune_rnr(ic, &qp_attr);
@@ -243,7 +213,7 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 static void rds_ib_cq_event_handler(struct ib_event *event, void *data)
 {
 	rdsdebug("event %u (%s) data %p\n",
-		 event->event, rds_ib_event_str(event->event), data);
+		 event->event, ib_event_msg(event->event), data);
 }
 
 static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
@@ -252,7 +222,7 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
 	rdsdebug("conn %p ic %p event %u (%s)\n", conn, ic, event->event,
-		 rds_ib_event_str(event->event));
+		 ib_event_msg(event->event));
 
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
@@ -261,7 +231,7 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 	default:
 		rdsdebug("Fatal QP Event %u (%s) "
 			"- connection %pI4->%pI4, reconnecting\n",
-			event->event, rds_ib_event_str(event->event),
+			event->event, ib_event_msg(event->event),
 			&conn->c_laddr, &conn->c_faddr);
 		rds_conn_drop(conn);
 		break;
@@ -277,6 +247,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct ib_device *dev = ic->i_cm_id->device;
 	struct ib_qp_init_attr attr;
+	struct ib_cq_init_attr cq_attr = {};
 	struct rds_ib_device *rds_ibdev;
 	int ret;
 
@@ -298,11 +269,11 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 
 	/* Protection domain and memory range */
 	ic->i_pd = rds_ibdev->pd;
-	ic->i_mr = rds_ibdev->mr;
 
+	cq_attr.cqe = ic->i_send_ring.w_nr + 1;
 	ic->i_send_cq = ib_create_cq(dev, rds_ib_send_cq_comp_handler,
 				     rds_ib_cq_event_handler, conn,
-				     ic->i_send_ring.w_nr + 1, 0);
+				     &cq_attr);
 	if (IS_ERR(ic->i_send_cq)) {
 		ret = PTR_ERR(ic->i_send_cq);
 		ic->i_send_cq = NULL;
@@ -310,9 +281,10 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		goto out;
 	}
 
+	cq_attr.cqe = ic->i_recv_ring.w_nr;
 	ic->i_recv_cq = ib_create_cq(dev, rds_ib_recv_cq_comp_handler,
 				     rds_ib_cq_event_handler, conn,
-				     ic->i_recv_ring.w_nr, 0);
+				     &cq_attr);
 	if (IS_ERR(ic->i_recv_cq)) {
 		ret = PTR_ERR(ic->i_recv_cq);
 		ic->i_recv_cq = NULL;
@@ -402,7 +374,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 
 	rds_ib_recv_init_ack(ic);
 
-	rdsdebug("conn %p pd %p mr %p cq %p %p\n", conn, ic->i_pd, ic->i_mr,
+	rdsdebug("conn %p pd %p cq %p %p\n", conn, ic->i_pd,
 		 ic->i_send_cq, ic->i_recv_cq);
 
 out:
@@ -475,8 +447,9 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		 (unsigned long long)be64_to_cpu(lguid),
 		 (unsigned long long)be64_to_cpu(fguid));
 
-	conn = rds_conn_create(dp->dp_daddr, dp->dp_saddr, &rds_ib_transport,
-			       GFP_KERNEL);
+	/* RDS/IB is not currently netns aware, thus init_net */
+	conn = rds_conn_create(&init_net, dp->dp_daddr, dp->dp_saddr,
+			       &rds_ib_transport, GFP_KERNEL);
 	if (IS_ERR(conn)) {
 		rdsdebug("rds_conn_create failed (%ld)\n", PTR_ERR(conn));
 		conn = NULL;
@@ -666,6 +639,15 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 			   (atomic_read(&ic->i_signaled_sends) == 0));
 		tasklet_kill(&ic->i_recv_tasklet);
 
+		/* first destroy the ib state that generates callbacks */
+		if (ic->i_cm_id->qp)
+			rdma_destroy_qp(ic->i_cm_id);
+		if (ic->i_send_cq)
+			ib_destroy_cq(ic->i_send_cq);
+		if (ic->i_recv_cq)
+			ib_destroy_cq(ic->i_recv_cq);
+
+		/* then free the resources that ib callbacks use */
 		if (ic->i_send_hdrs)
 			ib_dma_free_coherent(dev,
 					   ic->i_send_ring.w_nr *
@@ -689,12 +671,6 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 		if (ic->i_recvs)
 			rds_ib_recv_clear_ring(ic);
 
-		if (ic->i_cm_id->qp)
-			rdma_destroy_qp(ic->i_cm_id);
-		if (ic->i_send_cq)
-			ib_destroy_cq(ic->i_send_cq);
-		if (ic->i_recv_cq)
-			ib_destroy_cq(ic->i_recv_cq);
 		rdma_destroy_id(ic->i_cm_id);
 
 		/*
@@ -705,7 +681,6 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 
 		ic->i_cm_id = NULL;
 		ic->i_pd = NULL;
-		ic->i_mr = NULL;
 		ic->i_send_cq = NULL;
 		ic->i_recv_cq = NULL;
 		ic->i_send_hdrs = NULL;

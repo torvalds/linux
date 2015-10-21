@@ -207,9 +207,11 @@ static int mfd_add_device(struct device *parent, int id,
 		}
 
 		if (!cell->ignore_resource_conflicts) {
-			ret = acpi_check_resource_conflict(&res[r]);
-			if (ret)
-				goto fail_alias;
+			if (has_acpi_companion(&pdev->dev)) {
+				ret = acpi_check_resource_conflict(&res[r]);
+				if (ret)
+					goto fail_alias;
+			}
 		}
 	}
 
@@ -300,7 +302,7 @@ void mfd_remove_devices(struct device *parent)
 {
 	atomic_t *cnts = NULL;
 
-	device_for_each_child(parent, &cnts, mfd_remove_devices_fn);
+	device_for_each_child_reverse(parent, &cnts, mfd_remove_devices_fn);
 	kfree(cnts);
 }
 EXPORT_SYMBOL(mfd_remove_devices);

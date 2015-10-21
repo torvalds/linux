@@ -937,7 +937,6 @@ END(interrupt)
 	 *	- ar.fpsr: set to kernel settings
 	 *	-  b6: preserved (same as on entry)
 	 */
-#ifdef __IA64_ASM_PARAVIRTUALIZED_NATIVE
 GLOBAL_ENTRY(ia64_syscall_setup)
 #if PT(B6) != 0
 # error This code assumes that b6 is the first field in pt_regs.
@@ -1029,7 +1028,6 @@ GLOBAL_ENTRY(ia64_syscall_setup)
 (p10)	mov r8=-EINVAL
 	br.ret.sptk.many b7
 END(ia64_syscall_setup)
-#endif /* __IA64_ASM_PARAVIRTUALIZED_NATIVE */
 
 	.org ia64_ivt+0x3c00
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1043,7 +1041,7 @@ END(ia64_syscall_setup)
 	DBG_FAULT(16)
 	FAULT(16)
 
-#if defined(CONFIG_VIRT_CPU_ACCOUNTING_NATIVE) && defined(__IA64_ASM_PARAVIRTUALIZED_NATIVE)
+#if defined(CONFIG_VIRT_CPU_ACCOUNTING_NATIVE)
 	/*
 	 * There is no particular reason for this code to be here, other than
 	 * that there happens to be space here that would go unused otherwise.

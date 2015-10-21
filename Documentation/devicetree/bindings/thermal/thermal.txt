@@ -55,19 +55,11 @@ of heat dissipation). For example a fan's cooling states correspond to
 the different fan speeds possible. Cooling states are referred to by
 single unsigned integers, where larger numbers mean greater heat
 dissipation. The precise set of cooling states associated with a device
-(as referred to be the cooling-min-state and cooling-max-state
+(as referred to by the cooling-min-level and cooling-max-level
 properties) should be defined in a particular device's binding.
 For more examples of cooling devices, refer to the example sections below.
 
 Required properties:
-- cooling-min-state:	An integer indicating the smallest
-  Type: unsigned	cooling state accepted. Typically 0.
-  Size: one cell
-
-- cooling-max-state:	An integer indicating the largest
-  Type: unsigned	cooling state accepted.
-  Size: one cell
-
 - #cooling-cells:	Used to provide cooling device specific information
   Type: unsigned	while referring to it. Must be at least 2, in order
   Size: one cell      	to specify minimum and maximum cooling state used
@@ -76,6 +68,15 @@ Required properties:
 			the maximum cooling state requested in the reference.
 			See Cooling device maps section below for more details
 			on how consumers refer to cooling devices.
+
+Optional properties:
+- cooling-min-level:	An integer indicating the smallest
+  Type: unsigned	cooling state accepted. Typically 0.
+  Size: one cell
+
+- cooling-max-level:	An integer indicating the largest
+  Type: unsigned	cooling state accepted.
+  Size: one cell
 
 * Trip points
 
@@ -167,6 +168,13 @@ Optional property:
 			by means of sensor ID. Additional coefficients are
 			interpreted as constant offset.
 
+- sustainable-power:	An estimate of the sustainable power (in mW) that the
+  Type: unsigned	thermal zone can dissipate at the desired
+  Size: one cell	control temperature.  For reference, the
+			sustainable power of a 4'' phone is typically
+			2000mW, while on a 10'' tablet is around
+			4500mW.
+
 Note: The delay properties are bound to the maximum dT/dt (temperature
 derivative over time) in two situations for a thermal zone:
 (i)  - when passive cooling is activated (polling-delay-passive); and
@@ -218,8 +226,8 @@ cpus {
 			396000  950000
 			198000  850000
 		>;
-		cooling-min-state = <0>;
-		cooling-max-state = <3>;
+		cooling-min-level = <0>;
+		cooling-max-level = <3>;
 		#cooling-cells = <2>; /* min followed by max */
 	};
 	...
@@ -233,8 +241,8 @@ cpus {
 	 */
 	fan0: fan@0x48 {
 		...
-		cooling-min-state = <0>;
-		cooling-max-state = <9>;
+		cooling-min-level = <0>;
+		cooling-max-level = <9>;
 		#cooling-cells = <2>; /* min followed by max */
 	};
 };
@@ -545,6 +553,8 @@ thermal-zones {
 		 * z = c1*x1 + c2*x2 + c3*x3
 		 */
 		coefficients =		<1200	-345	890>;
+
+		sustainable-power = <2500>;
 
 		trips {
 			/* Trips are based on resulting linear equation */

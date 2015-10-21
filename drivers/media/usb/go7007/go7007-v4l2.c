@@ -250,15 +250,17 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 	go->encoder_v_offset = go->board_info->sensor_v_offset;
 
 	if (go->board_info->sensor_flags & GO7007_SENSOR_SCALING) {
-		struct v4l2_mbus_framefmt mbus_fmt;
+		struct v4l2_subdev_format format = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
 
-		mbus_fmt.code = MEDIA_BUS_FMT_FIXED;
-		mbus_fmt.width = fmt ? fmt->fmt.pix.width : width;
-		mbus_fmt.height = height;
+		format.format.code = MEDIA_BUS_FMT_FIXED;
+		format.format.width = fmt ? fmt->fmt.pix.width : width;
+		format.format.height = height;
 		go->encoder_h_halve = 0;
 		go->encoder_v_halve = 0;
 		go->encoder_subsample = 0;
-		call_all(&go->v4l2_dev, video, s_mbus_fmt, &mbus_fmt);
+		call_all(&go->v4l2_dev, pad, set_fmt, NULL, &format);
 	} else {
 		if (width <= sensor_width / 4) {
 			go->encoder_h_halve = 1;

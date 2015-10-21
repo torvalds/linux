@@ -756,7 +756,7 @@ xfs_qm_qino_alloc(
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_create,
 				  XFS_QM_QINOCREATE_SPACE_RES(mp), 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -764,8 +764,7 @@ xfs_qm_qino_alloc(
 		error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0, 0, 1, ip,
 								&committed);
 		if (error) {
-			xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
-					 XFS_TRANS_ABORT);
+			xfs_trans_cancel(tp);
 			return error;
 		}
 	}
@@ -796,7 +795,7 @@ xfs_qm_qino_alloc(
 	spin_unlock(&mp->m_sb_lock);
 	xfs_log_sb(tp);
 
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp);
 	if (error) {
 		ASSERT(XFS_FORCED_SHUTDOWN(mp));
 		xfs_alert(mp, "%s failed (error %d)!", __func__, error);

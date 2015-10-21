@@ -484,10 +484,13 @@ static void xhci_hub_report_usb3_link_state(struct xhci_hcd *xhci,
 	u32 pls = status_reg & PORT_PLS_MASK;
 
 	/* resume state is a xHCI internal state.
-	 * Do not report it to usb core.
+	 * Do not report it to usb core, instead, pretend to be U3,
+	 * thus usb core knows it's not ready for transfer
 	 */
-	if (pls == XDEV_RESUME)
+	if (pls == XDEV_RESUME) {
+		*status |= USB_SS_PORT_LS_U3;
 		return;
+	}
 
 	/* When the CAS bit is set then warm reset
 	 * should be performed on port
@@ -588,7 +591,14 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		status |= USB_PORT_STAT_C_RESET << 16;
 	/* USB3.0 only */
 	if (hcd->speed == HCD_USB3) {
-		if ((raw_port_status & PORT_PLC))
+		/* Port link change with port in resume state should not be
+		 * reported to usbcore, as this is an internal state to be
+		 * handled by xhci driver. Reporting PLC to usbcore may
+		 * cause usbcore clearing PLC first and port change event
+		 * irq won't be generated.
+		 */
+		if ((raw_port_status & PORT_PLC) &&
+			(raw_port_status & PORT_PLS_MASK) != XDEV_RESUME)
 			status |= USB_PORT_STAT_C_LINK_STATE << 16;
 		if ((raw_port_status & PORT_WRC))
 			status |= USB_PORT_STAT_C_BH_RESET << 16;
@@ -1120,10 +1130,10 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	if (hcd->self.root_hub->do_remote_wakeup) {
-		if (bus_state->resuming_ports) {
+		if (bus_state->resuming_ports ||	/* USB2 */
+		    bus_state->port_remote_wakeup) {	/* USB3 */
 			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_dbg(xhci, "suspend failed because "
-						"a port is resuming\n");
+			xhci_dbg(xhci, "suspend failed because a port is resuming\n");
 			return -EBUSY;
 		}
 	}
@@ -1184,6 +1194,10 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	struct xhci_bus_state *bus_state;
 	u32 temp;
 	unsigned long flags;
+	unsigned long port_was_suspended = 0;
+	bool need_usb2_u3_exit = false;
+	int slot_id;
+	int sret;
 
 	max_ports = xhci_get_ports(hcd, &port_array);
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
@@ -1207,7 +1221,6 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 		/* Check whether need resume ports. If needed
 		   resume port and disable remote wakeup */
 		u32 temp;
-		int slot_id;
 
 		temp = readl(port_array[port_index]);
 		if (DEV_SUPERSPEED(temp))
@@ -1216,37 +1229,45 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 		if (test_bit(port_index, &bus_state->bus_suspended) &&
 		    (temp & PORT_PLS_MASK)) {
-			if (DEV_SUPERSPEED(temp)) {
-				xhci_set_link_state(xhci, port_array,
-							port_index, XDEV_U0);
-			} else {
+			set_bit(port_index, &port_was_suspended);
+			if (!DEV_SUPERSPEED(temp)) {
 				xhci_set_link_state(xhci, port_array,
 						port_index, XDEV_RESUME);
-
-				spin_unlock_irqrestore(&xhci->lock, flags);
-				msleep(20);
-				spin_lock_irqsave(&xhci->lock, flags);
-
-				xhci_set_link_state(xhci, port_array,
-							port_index, XDEV_U0);
+				need_usb2_u3_exit = true;
 			}
-			/* wait for the port to enter U0 and report port link
-			 * state change.
-			 */
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			msleep(20);
-			spin_lock_irqsave(&xhci->lock, flags);
-
-			/* Clear PLC */
-			xhci_test_and_clear_bit(xhci, port_array, port_index,
-						PORT_PLC);
-
-			slot_id = xhci_find_slot_id_by_port(hcd,
-					xhci, port_index + 1);
-			if (slot_id)
-				xhci_ring_device(xhci, slot_id);
 		} else
 			writel(temp, port_array[port_index]);
+	}
+
+	if (need_usb2_u3_exit) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		msleep(20);
+		spin_lock_irqsave(&xhci->lock, flags);
+	}
+
+	port_index = max_ports;
+	while (port_index--) {
+		if (!(port_was_suspended & BIT(port_index)))
+			continue;
+		/* Clear PLC to poll it later after XDEV_U0 */
+		xhci_test_and_clear_bit(xhci, port_array, port_index, PORT_PLC);
+		xhci_set_link_state(xhci, port_array, port_index, XDEV_U0);
+	}
+
+	port_index = max_ports;
+	while (port_index--) {
+		if (!(port_was_suspended & BIT(port_index)))
+			continue;
+		/* Poll and Clear PLC */
+		sret = xhci_handshake(port_array[port_index], PORT_PLC,
+				      PORT_PLC, 10 * 1000);
+		if (sret)
+			xhci_warn(xhci, "port %d resume PLC timeout\n",
+				  port_index);
+		xhci_test_and_clear_bit(xhci, port_array, port_index, PORT_PLC);
+		slot_id = xhci_find_slot_id_by_port(hcd, xhci, port_index + 1);
+		if (slot_id)
+			xhci_ring_device(xhci, slot_id);
 	}
 
 	(void) readl(&xhci->op_regs->command);

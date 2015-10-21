@@ -144,14 +144,8 @@ struct lmv_tgt_desc
 *lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 		struct lu_fid *fid);
 /* lproc_lmv.c */
-#if defined(CONFIG_PROC_FS)
 void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars);
-#else
-static inline void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars)
-{
-	memset(lvars, 0, sizeof(*lvars));
-}
-#endif
+
 extern struct file_operations lmv_proc_target_fops;
 
 #endif

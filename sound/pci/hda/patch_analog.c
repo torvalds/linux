@@ -205,8 +205,6 @@ static int ad198x_parse_auto_config(struct hda_codec *codec, bool indep_hp)
 	if (err < 0)
 		return err;
 
-	codec->patch_ops = ad198x_auto_patch_ops;
-
 	return 0;
 }
 
@@ -223,6 +221,7 @@ static int alloc_ad_spec(struct hda_codec *codec)
 		return -ENOMEM;
 	codec->spec = spec;
 	snd_hda_gen_spec_init(&spec->gen);
+	codec->patch_ops = ad198x_auto_patch_ops;
 	return 0;
 }
 

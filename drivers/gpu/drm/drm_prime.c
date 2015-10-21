@@ -309,7 +309,7 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
  * Drivers can implement @gem_prime_export and @gem_prime_import in terms of
  * simpler APIs by using the helper functions @drm_gem_prime_export and
  * @drm_gem_prime_import.  These functions implement dma-buf support in terms of
- * five lower-level driver callbacks:
+ * six lower-level driver callbacks:
  *
  * Export callbacks:
  *
@@ -320,6 +320,8 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
  *  - @gem_prime_vmap: vmap a buffer exported by your driver
  *
  *  - @gem_prime_vunmap: vunmap a buffer exported by your driver
+ *
+ *  - @gem_prime_mmap (optional): mmap a buffer exported by your driver
  *
  * Import callback:
  *
@@ -502,9 +504,6 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 	struct drm_gem_object *obj;
 	int ret;
 
-	if (!dev->driver->gem_prime_import_sg_table)
-		return ERR_PTR(-EINVAL);
-
 	if (dma_buf->ops == &drm_gem_prime_dmabuf_ops) {
 		obj = dma_buf->priv;
 		if (obj->dev == dev) {
@@ -516,6 +515,9 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 			return obj;
 		}
 	}
+
+	if (!dev->driver->gem_prime_import_sg_table)
+		return ERR_PTR(-EINVAL);
 
 	attach = dma_buf_attach(dma_buf, dev->dev);
 	if (IS_ERR(attach))

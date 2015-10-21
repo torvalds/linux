@@ -95,7 +95,7 @@ int cs46xx_dsp_resume(struct snd_cs46xx * chip);
 #endif
 struct dsp_symbol_entry *cs46xx_dsp_lookup_symbol (struct snd_cs46xx * chip, char * symbol_name,
 						   int symbol_type);
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 int cs46xx_dsp_proc_init (struct snd_card *card, struct snd_cs46xx *chip);
 int cs46xx_dsp_proc_done (struct snd_cs46xx *chip);
 #else
@@ -118,7 +118,7 @@ int cs46xx_dsp_disable_adc_capture (struct snd_cs46xx *chip);
 int cs46xx_poke_via_dsp (struct snd_cs46xx *chip, u32 address, u32 data);
 struct dsp_scb_descriptor * cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name,
 						   u32 * scb_data, u32 dest);
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 void cs46xx_dsp_proc_free_scb_desc (struct dsp_scb_descriptor * scb);
 void cs46xx_dsp_proc_register_scb_desc (struct snd_cs46xx *chip,
 					struct dsp_scb_descriptor * scb);

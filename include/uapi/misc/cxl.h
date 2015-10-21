@@ -29,13 +29,37 @@ struct cxl_ioctl_start_work {
 
 #define CXL_START_WORK_AMR		0x0000000000000001ULL
 #define CXL_START_WORK_NUM_IRQS		0x0000000000000002ULL
+#define CXL_START_WORK_ERR_FF		0x0000000000000004ULL
 #define CXL_START_WORK_ALL		(CXL_START_WORK_AMR |\
-					 CXL_START_WORK_NUM_IRQS)
+					 CXL_START_WORK_NUM_IRQS |\
+					 CXL_START_WORK_ERR_FF)
+
+
+/* Possible modes that an afu can be in */
+#define CXL_MODE_DEDICATED   0x1
+#define CXL_MODE_DIRECTED    0x2
+
+/* possible flags for the cxl_afu_id flags field */
+#define CXL_AFUID_FLAG_SLAVE    0x1  /* In directed-mode afu is in slave mode */
+
+struct cxl_afu_id {
+	__u64 flags;     /* One of CXL_AFUID_FLAG_X */
+	__u32 card_id;
+	__u32 afu_offset;
+	__u32 afu_mode;  /* one of the CXL_MODE_X */
+	__u32 reserved1;
+	__u64 reserved2;
+	__u64 reserved3;
+	__u64 reserved4;
+	__u64 reserved5;
+	__u64 reserved6;
+};
 
 /* ioctl numbers */
 #define CXL_MAGIC 0xCA
 #define CXL_IOCTL_START_WORK		_IOW(CXL_MAGIC, 0x00, struct cxl_ioctl_start_work)
 #define CXL_IOCTL_GET_PROCESS_ELEMENT	_IOR(CXL_MAGIC, 0x01, __u32)
+#define CXL_IOCTL_GET_AFU_ID            _IOR(CXL_MAGIC, 0x02, struct cxl_afu_id)
 
 #define CXL_READ_MIN_SIZE 0x1000 /* 4K */
 

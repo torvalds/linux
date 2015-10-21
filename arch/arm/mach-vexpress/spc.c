@@ -589,4 +589,4 @@ static int __init ve_spc_clk_init(void)
 	platform_device_register_simple("vexpress-spc-cpufreq", -1, NULL, 0);
 	return 0;
 }
-module_init(ve_spc_clk_init);
+device_initcall(ve_spc_clk_init);

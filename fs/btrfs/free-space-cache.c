@@ -231,6 +231,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 {
 	int ret = 0;
 	struct btrfs_path *path = btrfs_alloc_path();
+	bool locked = false;
 
 	if (!path) {
 		ret = -ENOMEM;
@@ -238,6 +239,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	}
 
 	if (block_group) {
+		locked = true;
 		mutex_lock(&trans->transaction->cache_write_mutex);
 		if (!list_empty(&block_group->io_list)) {
 			list_del_init(&block_group->io_list);
@@ -269,18 +271,14 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	 */
 	ret = btrfs_truncate_inode_items(trans, root, inode,
 					 0, BTRFS_EXTENT_DATA_KEY);
-	if (ret) {
-		mutex_unlock(&trans->transaction->cache_write_mutex);
-		btrfs_abort_transaction(trans, root, ret);
-		return ret;
-	}
+	if (ret)
+		goto fail;
 
 	ret = btrfs_update_inode(trans, root, inode);
 
-	if (block_group)
-		mutex_unlock(&trans->transaction->cache_write_mutex);
-
 fail:
+	if (locked)
+		mutex_unlock(&trans->transaction->cache_write_mutex);
 	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
 
@@ -3274,35 +3272,23 @@ next:
 	return ret;
 }
 
-int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
-			   u64 *trimmed, u64 start, u64 end, u64 minlen)
+void btrfs_get_block_group_trimming(struct btrfs_block_group_cache *cache)
 {
-	int ret;
+	atomic_inc(&cache->trimming);
+}
 
-	*trimmed = 0;
+void btrfs_put_block_group_trimming(struct btrfs_block_group_cache *block_group)
+{
+	struct extent_map_tree *em_tree;
+	struct extent_map *em;
+	bool cleanup;
 
 	spin_lock(&block_group->lock);
-	if (block_group->removed) {
-		spin_unlock(&block_group->lock);
-		return 0;
-	}
-	atomic_inc(&block_group->trimming);
+	cleanup = (atomic_dec_and_test(&block_group->trimming) &&
+		   block_group->removed);
 	spin_unlock(&block_group->lock);
 
-	ret = trim_no_bitmap(block_group, trimmed, start, end, minlen);
-	if (ret)
-		goto out;
-
-	ret = trim_bitmaps(block_group, trimmed, start, end, minlen);
-out:
-	spin_lock(&block_group->lock);
-	if (atomic_dec_and_test(&block_group->trimming) &&
-	    block_group->removed) {
-		struct extent_map_tree *em_tree;
-		struct extent_map *em;
-
-		spin_unlock(&block_group->lock);
-
+	if (cleanup) {
 		lock_chunks(block_group->fs_info->chunk_root);
 		em_tree = &block_group->fs_info->mapping_tree.map_tree;
 		write_lock(&em_tree->lock);
@@ -3326,10 +3312,31 @@ out:
 		 * this block group have left 1 entry each one. Free them.
 		 */
 		__btrfs_remove_free_space_cache(block_group->free_space_ctl);
-	} else {
-		spin_unlock(&block_group->lock);
 	}
+}
 
+int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
+			   u64 *trimmed, u64 start, u64 end, u64 minlen)
+{
+	int ret;
+
+	*trimmed = 0;
+
+	spin_lock(&block_group->lock);
+	if (block_group->removed) {
+		spin_unlock(&block_group->lock);
+		return 0;
+	}
+	btrfs_get_block_group_trimming(block_group);
+	spin_unlock(&block_group->lock);
+
+	ret = trim_no_bitmap(block_group, trimmed, start, end, minlen);
+	if (ret)
+		goto out;
+
+	ret = trim_bitmaps(block_group, trimmed, start, end, minlen);
+out:
+	btrfs_put_block_group_trimming(block_group);
 	return ret;
 }
 

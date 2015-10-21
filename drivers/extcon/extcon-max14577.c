@@ -148,33 +148,14 @@ enum max14577_muic_acc_type {
 	MAX14577_MUIC_ADC_OPEN,
 };
 
-/* max14577 MUIC device support below list of accessories(external connector) */
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_TA,
-	EXTCON_CABLE_FAST_CHARGER,
-	EXTCON_CABLE_SLOW_CHARGER,
-	EXTCON_CABLE_CHARGE_DOWNSTREAM,
-	EXTCON_CABLE_JIG_USB_ON,
-	EXTCON_CABLE_JIG_USB_OFF,
-	EXTCON_CABLE_JIG_UART_OFF,
-	EXTCON_CABLE_JIG_UART_ON,
-
-	_EXTCON_CABLE_NUM,
-};
-
-static const char *max14577_extcon_cable[] = {
-	[EXTCON_CABLE_USB]			= "USB",
-	[EXTCON_CABLE_TA]			= "TA",
-	[EXTCON_CABLE_FAST_CHARGER]		= "Fast-charger",
-	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
-	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
-	[EXTCON_CABLE_JIG_USB_ON]		= "JIG-USB-ON",
-	[EXTCON_CABLE_JIG_USB_OFF]		= "JIG-USB-OFF",
-	[EXTCON_CABLE_JIG_UART_OFF]		= "JIG-UART-OFF",
-	[EXTCON_CABLE_JIG_UART_ON]		= "JIG-UART-ON",
-
-	NULL,
+static const unsigned int max14577_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_TA,
+	EXTCON_FAST_CHARGER,
+	EXTCON_SLOW_CHARGER,
+	EXTCON_CHARGE_DOWNSTREAM,
+	EXTCON_JIG,
+	EXTCON_NONE,
 };
 
 /*
@@ -348,7 +329,6 @@ static int max14577_muic_get_cable_type(struct max14577_muic_info *info,
 static int max14577_muic_jig_handler(struct max14577_muic_info *info,
 		int cable_type, bool attached)
 {
-	char cable_name[32];
 	int ret = 0;
 	u8 path = CTRL1_SW_OPEN;
 
@@ -358,18 +338,12 @@ static int max14577_muic_jig_handler(struct max14577_muic_info *info,
 
 	switch (cable_type) {
 	case MAX14577_MUIC_ADC_FACTORY_MODE_USB_OFF:	/* ADC_JIG_USB_OFF */
-		/* PATH:AP_USB */
-		strcpy(cable_name, "JIG-USB-OFF");
-		path = CTRL1_SW_USB;
-		break;
 	case MAX14577_MUIC_ADC_FACTORY_MODE_USB_ON:	/* ADC_JIG_USB_ON */
 		/* PATH:AP_USB */
-		strcpy(cable_name, "JIG-USB-ON");
 		path = CTRL1_SW_USB;
 		break;
 	case MAX14577_MUIC_ADC_FACTORY_MODE_UART_OFF:	/* ADC_JIG_UART_OFF */
 		/* PATH:AP_UART */
-		strcpy(cable_name, "JIG-UART-OFF");
 		path = CTRL1_SW_UART;
 		break;
 	default:
@@ -382,7 +356,7 @@ static int max14577_muic_jig_handler(struct max14577_muic_info *info,
 	if (ret < 0)
 		return ret;
 
-	extcon_set_cable_state(info->edev, cable_name, attached);
+	extcon_set_cable_state_(info->edev, EXTCON_JIG, attached);
 
 	return 0;
 }
@@ -479,20 +453,22 @@ static int max14577_muic_chg_handler(struct max14577_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state(info->edev, "USB", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
 		break;
 	case MAX14577_CHARGER_TYPE_DEDICATED_CHG:
-		extcon_set_cable_state(info->edev, "TA", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_TA, attached);
 		break;
 	case MAX14577_CHARGER_TYPE_DOWNSTREAM_PORT:
-		extcon_set_cable_state(info->edev,
-				"Charge-downstream", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHARGE_DOWNSTREAM,
+					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_SPECIAL_500MA:
-		extcon_set_cable_state(info->edev, "Slow-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_SLOW_CHARGER,
+					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_SPECIAL_1A:
-		extcon_set_cable_state(info->edev, "Fast-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_FAST_CHARGER,
+					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_NONE:
 	case MAX14577_CHARGER_TYPE_DEAD_BATTERY:
@@ -741,8 +717,6 @@ static int max14577_muic_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		return -ENOMEM;
 	}
-
-	info->edev->name = dev_name(&pdev->dev);
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {

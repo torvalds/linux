@@ -63,13 +63,15 @@ void __init oss_nubus_init(void)
  * Handle miscellaneous OSS interrupts.
  */
 
-static void oss_irq(unsigned int irq, struct irq_desc *desc)
+static void oss_irq(struct irq_desc *desc)
 {
 	int events = oss->irq_pending &
-	             (OSS_IP_IOPSCC | OSS_IP_SCSI | OSS_IP_IOPISM);
+		(OSS_IP_IOPSCC | OSS_IP_SCSI | OSS_IP_IOPISM);
 
 #ifdef DEBUG_IRQS
 	if ((console_loglevel == 10) && !(events & OSS_IP_SCSI)) {
+		unsigned int irq = irq_desc_get_irq(desc);
+
 		printk("oss_irq: irq %u events = 0x%04X\n", irq,
 			(int) oss->irq_pending);
 	}
@@ -97,7 +99,7 @@ static void oss_irq(unsigned int irq, struct irq_desc *desc)
  * Unlike the VIA/RBV this is on its own autovector interrupt level.
  */
 
-static void oss_nubus_irq(unsigned int irq, struct irq_desc *desc)
+static void oss_nubus_irq(struct irq_desc *desc)
 {
 	int events, irq_bit, i;
 

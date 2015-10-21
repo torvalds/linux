@@ -1728,10 +1728,8 @@ BBuGetFrameTime(
 	unsigned int uRateIdx = (unsigned int) wRate;
 	unsigned int uRate = 0;
 
-	if (uRateIdx > RATE_54M) {
-		ASSERT(0);
+	if (uRateIdx > RATE_54M)
 		return 0;
-	}
 
 	uRate = (unsigned int)awcFrameTime[uRateIdx];
 
@@ -1945,7 +1943,6 @@ bool BBbReadEmbedded(struct vnt_private *priv,
 	VNSvInPortB(dwIoBase + MAC_REG_BBREGDATA, pbyData);
 
 	if (ww == W_MAX_TIMEOUT) {
-		DBG_PORT80(0x30);
 		pr_debug(" DBG_PORT80(0x30)\n");
 		return false;
 	}
@@ -1988,7 +1985,6 @@ bool BBbWriteEmbedded(struct vnt_private *priv,
 	}
 
 	if (ww == W_MAX_TIMEOUT) {
-		DBG_PORT80(0x31);
 		pr_debug(" DBG_PORT80(0x31)\n");
 		return false;
 	}

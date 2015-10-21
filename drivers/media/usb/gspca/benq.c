@@ -236,8 +236,8 @@ static void sd_isoc_irq(struct urb *urb)
 		}
 		data = (u8 *) urb->transfer_buffer
 					+ urb->iso_frame_desc[i].offset;
-			gspca_frame_add(gspca_dev, INTER_PACKET,
-					data, SD_PKT_SZ);
+		gspca_frame_add(gspca_dev, INTER_PACKET,
+				data, SD_PKT_SZ);
 	}
 
 	/* resubmit the URBs */

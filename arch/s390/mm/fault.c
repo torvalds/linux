@@ -399,7 +399,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	 * user context.
 	 */
 	fault = VM_FAULT_BADCONTEXT;
-	if (unlikely(!user_space_fault(regs) || in_atomic() || !mm))
+	if (unlikely(!user_space_fault(regs) || faulthandler_disabled() || !mm))
 		goto out;
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
@@ -646,7 +646,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 		return;
 	inc_irq_stat(IRQEXT_PFL);
 	/* Get the token (= pid of the affected task). */
-	pid = sizeof(void *) == 4 ? param32 : param64;
+	pid = param64;
 	rcu_read_lock();
 	tsk = find_task_by_pid_ns(pid, &init_pid_ns);
 	if (tsk)

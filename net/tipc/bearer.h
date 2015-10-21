@@ -38,9 +38,9 @@
 #define _TIPC_BEARER_H
 
 #include "netlink.h"
+#include "core.h"
 #include <net/genetlink.h>
 
-#define MAX_BEARERS	2
 #define MAX_MEDIA	3
 #define MAX_NODES	4096
 #define WSIZE		32
@@ -217,5 +217,8 @@ void tipc_bearer_cleanup(void);
 void tipc_bearer_stop(struct net *net);
 void tipc_bearer_send(struct net *net, u32 bearer_id, struct sk_buff *buf,
 		      struct tipc_media_addr *dest);
+void tipc_bearer_xmit(struct net *net, u32 bearer_id,
+		      struct sk_buff_head *xmitq,
+		      struct tipc_media_addr *dst);
 
 #endif	/* _TIPC_BEARER_H */

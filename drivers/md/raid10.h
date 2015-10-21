@@ -53,6 +53,12 @@ struct r10conf {
 	sector_t		offset_diff;
 
 	struct list_head	retry_list;
+	/* A separate list of r1bio which just need raid_end_bio_io called.
+	 * This mustn't happen for writes which had any errors if the superblock
+	 * needs to be written.
+	 */
+	struct list_head	bio_end_io_list;
+
 	/* queue pending writes and submit them on unplug */
 	struct bio_list		pending_bio_list;
 	int			pending_count;

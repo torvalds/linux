@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/clkdev.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
@@ -14,7 +15,6 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/clk.h>
 #include <linux/omapfb.h>
 
 #include <linux/spi/spi.h>
@@ -294,6 +294,7 @@ MACHINE_START(NOKIA770, "Nokia 770")
 	.map_io		= omap16xx_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= omap_nokia770_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

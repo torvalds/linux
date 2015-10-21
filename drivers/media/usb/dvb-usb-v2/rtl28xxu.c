@@ -217,7 +217,7 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				req.data = &msg[0].buf[1];
 				ret = rtl28xxu_ctrl_msg(d, &req);
 			}
-		} else if (msg[0].len < 23) {
+		} else if ((msg[0].len < 23) && (!dev->new_i2c_write)) {
 			/* method 2 - old I2C */
 			req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
 			req.index = CMD_I2C_WR;
@@ -232,8 +232,14 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			req.data = msg[0].buf;
 			ret = rtl28xxu_ctrl_msg(d, &req);
 		}
+	} else if (num == 1 && (msg[0].flags & I2C_M_RD)) {
+		req.value = (msg[0].addr << 1);
+		req.index = CMD_I2C_DA_RD;
+		req.size = msg[0].len;
+		req.data = msg[0].buf;
+		ret = rtl28xxu_ctrl_msg(d, &req);
 	} else {
-		ret = -EINVAL;
+		ret = -EOPNOTSUPP;
 	}
 
 err_mutex_unlock:
@@ -357,6 +363,8 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 	struct rtl28xxu_req req_r828d = {0x0074, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_mn88472 = {0xff38, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_mn88473 = {0xff38, CMD_I2C_RD, 1, buf};
+	struct rtl28xxu_req req_si2157 = {0x00c0, CMD_I2C_RD, 1, buf};
+	struct rtl28xxu_req req_si2168 = {0x00c8, CMD_I2C_RD, 1, buf};
 
 	dev_dbg(&d->intf->dev, "\n");
 
@@ -477,6 +485,35 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 		goto tuner_found;
 	}
 
+	/* GPIO0 and GPIO5 to reset Si2157/Si2168 tuner and demod */
+	ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_VAL, 0x00, 0x21);
+	if (ret)
+		goto err;
+
+	ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_EN, 0x00, 0x21);
+	if (ret)
+		goto err;
+
+	msleep(50);
+
+	ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_VAL, 0x21, 0x21);
+	if (ret)
+		goto err;
+
+	ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_EN, 0x21, 0x21);
+	if (ret)
+		goto err;
+
+	msleep(50);
+
+	/* check Si2157 ID register; reg=c0 val=80 */
+	ret = rtl28xxu_ctrl_msg(d, &req_si2157);
+	if (ret == 0 && ((buf[0] & 0x80) == 0x80)) {
+		dev->tuner = TUNER_RTL2832_SI2157;
+		dev->tuner_name = "SI2157";
+		goto tuner_found;
+	}
+
 tuner_found:
 	dev_dbg(&d->intf->dev, "tuner=%s\n", dev->tuner_name);
 
@@ -507,6 +544,15 @@ tuner_found:
 		if (ret == 0 && buf[0] == 0x03) {
 			dev_dbg(&d->intf->dev, "MN88473 found\n");
 			dev->slave_demod = SLAVE_DEMOD_MN88473;
+			goto demod_found;
+		}
+	}
+	if (dev->tuner == TUNER_RTL2832_SI2157) {
+		/* check Si2168 ID register; reg=c8 val=80 */
+		ret = rtl28xxu_ctrl_msg(d, &req_si2168);
+		if (ret == 0 && ((buf[0] & 0x80) == 0x80)) {
+			dev_dbg(&d->intf->dev, "Si2168 found\n");
+			dev->slave_demod = SLAVE_DEMOD_SI2168;
 			goto demod_found;
 		}
 	}
@@ -643,6 +689,11 @@ err:
 	return ret;
 }
 
+static const struct rtl2832_platform_data rtl2832_fc2580_platform_data = {
+	.clk = 28800000,
+	.tuner = TUNER_RTL2832_FC2580,
+};
+
 static const struct rtl2832_platform_data rtl2832_fc0012_platform_data = {
 	.clk = 28800000,
 	.tuner = TUNER_RTL2832_FC0012
@@ -666,6 +717,11 @@ static const struct rtl2832_platform_data rtl2832_e4000_platform_data = {
 static const struct rtl2832_platform_data rtl2832_r820t_platform_data = {
 	.clk = 28800000,
 	.tuner = TUNER_RTL2832_R820T,
+};
+
+static const struct rtl2832_platform_data rtl2832_si2157_platform_data = {
+	.clk = 28800000,
+	.tuner = TUNER_RTL2832_SI2157,
 };
 
 static int rtl2832u_fc0012_tuner_callback(struct dvb_usb_device *d,
@@ -804,8 +860,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 		*pdata = rtl2832_fc0013_platform_data;
 		break;
 	case TUNER_RTL2832_FC2580:
-		/* FIXME: do not abuse fc0012 settings */
-		*pdata = rtl2832_fc0012_platform_data;
+		*pdata = rtl2832_fc2580_platform_data;
 		break;
 	case TUNER_RTL2832_TUA9001:
 		*pdata = rtl2832_tua9001_platform_data;
@@ -816,6 +871,9 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 	case TUNER_RTL2832_R820T:
 	case TUNER_RTL2832_R828D:
 		*pdata = rtl2832_r820t_platform_data;
+		break;
+	case TUNER_RTL2832_SI2157:
+		*pdata = rtl2832_si2157_platform_data;
 		break;
 	default:
 		dev_err(&d->intf->dev, "unknown tuner %s\n", dev->tuner_name);
@@ -884,7 +942,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			}
 
 			dev->i2c_client_slave_demod = client;
-		} else {
+		} else if (dev->slave_demod == SLAVE_DEMOD_MN88473) {
 			struct mn88473_config mn88473_config = {};
 
 			mn88473_config.fe = &adap->fe[1];
@@ -906,9 +964,37 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			}
 
 			dev->i2c_client_slave_demod = client;
+		} else {
+			struct si2168_config si2168_config = {};
+			struct i2c_adapter *adapter;
+
+			si2168_config.i2c_adapter = &adapter;
+			si2168_config.fe = &adap->fe[1];
+			si2168_config.ts_mode = SI2168_TS_SERIAL;
+			si2168_config.ts_clock_inv = false;
+			si2168_config.ts_clock_gapped = true;
+			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			info.addr = 0x64;
+			info.platform_data = &si2168_config;
+			request_module(info.type);
+			client = i2c_new_device(&d->i2c_adap, &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				dev->slave_demod = SLAVE_DEMOD_NONE;
+				goto err_slave_demod_failed;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				dev->slave_demod = SLAVE_DEMOD_NONE;
+				goto err_slave_demod_failed;
+			}
+
+			dev->i2c_client_slave_demod = client;
+
+			/* for Si2168 devices use only new I2C write method */
+			dev->new_i2c_write = true;
 		}
 	}
-
 	return 0;
 err_slave_demod_failed:
 err:
@@ -1018,15 +1104,6 @@ err:
 	return ret;
 }
 
-static const struct fc2580_config rtl2832u_fc2580_config = {
-	.i2c_addr = 0x56,
-	.clock = 16384000,
-};
-
-static struct tua9001_config rtl2832u_tua9001_config = {
-	.i2c_addr = 0x60,
-};
-
 static const struct fc0012_config rtl2832u_fc0012_config = {
 	.i2c_address = 0x63, /* 0xc6 >> 1 */
 	.xtal_freq = FC_XTAL_28_8_MHZ,
@@ -1105,12 +1182,34 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 			subdev = i2c_get_clientdata(client);
 		}
 		break;
-	case TUNER_RTL2832_FC2580:
-		fe = dvb_attach(fc2580_attach, adap->fe[0],
-				dev->demod_i2c_adapter,
-				&rtl2832u_fc2580_config);
+	case TUNER_RTL2832_FC2580: {
+			struct fc2580_platform_data fc2580_pdata = {
+				.dvb_frontend = adap->fe[0],
+			};
+			struct i2c_board_info board_info = {};
+
+			strlcpy(board_info.type, "fc2580", I2C_NAME_SIZE);
+			board_info.addr = 0x56;
+			board_info.platform_data = &fc2580_pdata;
+			request_module("fc2580");
+			client = i2c_new_device(dev->demod_i2c_adapter,
+						&board_info);
+			if (client == NULL || client->dev.driver == NULL)
+				break;
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				break;
+			}
+			dev->i2c_client_tuner = client;
+			subdev = fc2580_pdata.get_v4l2_subdev(client);
+		}
 		break;
-	case TUNER_RTL2832_TUA9001:
+	case TUNER_RTL2832_TUA9001: {
+		struct tua9001_platform_data tua9001_pdata = {
+			.dvb_frontend = adap->fe[0],
+		};
+		struct i2c_board_info board_info = {};
+
 		/* enable GPIO1 and GPIO4 as output */
 		ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_DIR, 0x00, 0x12);
 		if (ret)
@@ -1120,10 +1219,20 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		if (ret)
 			goto err;
 
-		fe = dvb_attach(tua9001_attach, adap->fe[0],
-				dev->demod_i2c_adapter,
-				&rtl2832u_tua9001_config);
+		strlcpy(board_info.type, "tua9001", I2C_NAME_SIZE);
+		board_info.addr = 0x60;
+		board_info.platform_data = &tua9001_pdata;
+		request_module("tua9001");
+		client = i2c_new_device(dev->demod_i2c_adapter, &board_info);
+		if (client == NULL || client->dev.driver == NULL)
+			break;
+		if (!try_module_get(client->dev.driver->owner)) {
+			i2c_unregister_device(client);
+			break;
+		}
+		dev->i2c_client_tuner = client;
 		break;
+	}
 	case TUNER_RTL2832_R820T:
 		fe = dvb_attach(r820t_attach, adap->fe[0],
 				dev->demod_i2c_adapter,
@@ -1148,6 +1257,39 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 					adap->fe[1]->ops.tuner_ops.get_rf_strength;
 		}
 		break;
+	case TUNER_RTL2832_SI2157: {
+			struct si2157_config si2157_config = {
+				.fe = adap->fe[0],
+				.if_port = 0,
+				.inversion = false,
+			};
+
+			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			info.addr = 0x60;
+			info.platform_data = &si2157_config;
+			request_module(info.type);
+			client = i2c_new_device(&d->i2c_adap, &info);
+			if (client == NULL || client->dev.driver == NULL)
+				break;
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				break;
+			}
+
+			dev->i2c_client_tuner = client;
+			subdev = i2c_get_clientdata(client);
+
+			/* copy tuner ops for 2nd FE as tuner is shared */
+			if (adap->fe[1]) {
+				adap->fe[1]->tuner_priv =
+						adap->fe[0]->tuner_priv;
+				memcpy(&adap->fe[1]->ops.tuner_ops,
+						&adap->fe[0]->ops.tuner_ops,
+						sizeof(struct dvb_tuner_ops));
+			}
+		}
+		break;
 	default:
 		dev_err(&d->intf->dev, "unknown tuner %d\n", dev->tuner);
 	}
@@ -1158,6 +1300,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 
 	/* register SDR */
 	switch (dev->tuner) {
+	case TUNER_RTL2832_FC2580:
 	case TUNER_RTL2832_FC0012:
 	case TUNER_RTL2832_FC0013:
 	case TUNER_RTL2832_E4000:
@@ -1178,7 +1321,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 						     "rtl2832_sdr",
 						     PLATFORM_DEVID_AUTO,
 						     &pdata, sizeof(pdata));
-		if (pdev == NULL || pdev->dev.driver == NULL)
+		if (IS_ERR(pdev) || pdev->dev.driver == NULL)
 			break;
 		dev->platform_device_sdr = pdev;
 		break;
@@ -1764,6 +1907,8 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 	/* RTL2832P devices: */
 	{ DVB_USB_DEVICE(USB_VID_HANFTEK, 0x0131,
 		&rtl28xxu_props, "Astrometa DVB-T2", NULL) },
+	{ DVB_USB_DEVICE(0x5654, 0xca42,
+		&rtl28xxu_props, "GoTView MasterHD 3", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, rtl28xxu_id_table);

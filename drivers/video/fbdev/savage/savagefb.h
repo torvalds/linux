@@ -213,9 +213,7 @@ struct savagefb_par {
 		void   __iomem *vbase;
 		u32    pbase;
 		u32    len;
-#ifdef CONFIG_MTRR
-		int    mtrr;
-#endif
+		int    wc_cookie;
 	} video;
 
 	struct {

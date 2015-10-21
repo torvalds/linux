@@ -5189,16 +5189,16 @@ de4x5_parse_params(struct net_device *dev)
 	if (strstr(p, "fdx") || strstr(p, "FDX")) lp->params.fdx = true;
 
 	if (strstr(p, "autosense") || strstr(p, "AUTOSENSE")) {
-	    if (strstr(p, "TP")) {
-		lp->params.autosense = TP;
-	    } else if (strstr(p, "TP_NW")) {
+	    if (strstr(p, "TP_NW")) {
 		lp->params.autosense = TP_NW;
+	    } else if (strstr(p, "TP")) {
+		lp->params.autosense = TP;
+	    } else if (strstr(p, "BNC_AUI")) {
+		lp->params.autosense = BNC;
 	    } else if (strstr(p, "BNC")) {
 		lp->params.autosense = BNC;
 	    } else if (strstr(p, "AUI")) {
 		lp->params.autosense = AUI;
-	    } else if (strstr(p, "BNC_AUI")) {
-		lp->params.autosense = BNC;
 	    } else if (strstr(p, "10Mb")) {
 		lp->params.autosense = _10Mb;
 	    } else if (strstr(p, "100Mb")) {

@@ -29,7 +29,7 @@
 #include <uapi/linux/if_arp.h>
 #include <net/mac80211.h>
 
-
+#define MWIFIEX_BSS_COEX_COUNT	     2
 #define MWIFIEX_MAX_BSS_NUM         (3)
 
 #define MWIFIEX_DMA_ALIGN_SZ	    64
@@ -49,7 +49,12 @@
 
 #define MWIFIEX_STA_AMPDU_DEF_TXWINSIZE        64
 #define MWIFIEX_STA_AMPDU_DEF_RXWINSIZE        64
+#define MWIFIEX_STA_COEX_AMPDU_DEF_RXWINSIZE   16
+
 #define MWIFIEX_UAP_AMPDU_DEF_TXWINSIZE        32
+
+#define MWIFIEX_UAP_COEX_AMPDU_DEF_RXWINSIZE   16
+
 #define MWIFIEX_UAP_AMPDU_DEF_RXWINSIZE        16
 #define MWIFIEX_11AC_STA_AMPDU_DEF_TXWINSIZE   64
 #define MWIFIEX_11AC_STA_AMPDU_DEF_RXWINSIZE   64
@@ -136,6 +141,9 @@ enum mwifiex_tdls_status {
 	TDLS_SETUP_COMPLETE,
 	TDLS_SETUP_FAILURE,
 	TDLS_LINK_TEARDOWN,
+	TDLS_CHAN_SWITCHING,
+	TDLS_IN_BASE_CHAN,
+	TDLS_IN_OFF_CHAN,
 };
 
 enum mwifiex_tdls_error_code {

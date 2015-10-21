@@ -24,8 +24,10 @@
 #include "iss_ipipe.h"
 
 static struct v4l2_mbus_framefmt *
-__ipipe_get_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_pad_config *cfg,
-		  unsigned int pad, enum v4l2_subdev_format_whence which);
+__ipipe_get_format(struct iss_ipipe_device *ipipe,
+		   struct v4l2_subdev_pad_config *cfg,
+		   unsigned int pad,
+		   enum v4l2_subdev_format_whence which);
 
 static const unsigned int ipipe_fmts[] = {
 	MEDIA_BUS_FMT_SGRBG10_1X10,
@@ -176,8 +178,10 @@ static int ipipe_set_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static struct v4l2_mbus_framefmt *
-__ipipe_get_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_pad_config *cfg,
-		  unsigned int pad, enum v4l2_subdev_format_whence which)
+__ipipe_get_format(struct iss_ipipe_device *ipipe,
+		   struct v4l2_subdev_pad_config *cfg,
+		   unsigned int pad,
+		   enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&ipipe->subdev, cfg, pad);
@@ -193,9 +197,11 @@ __ipipe_get_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_pad_config
  * @fmt: Format
  */
 static void
-ipipe_try_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_pad_config *cfg,
-		unsigned int pad, struct v4l2_mbus_framefmt *fmt,
-		enum v4l2_subdev_format_whence which)
+ipipe_try_format(struct iss_ipipe_device *ipipe,
+		 struct v4l2_subdev_pad_config *cfg,
+		 unsigned int pad,
+		 struct v4l2_mbus_framefmt *fmt,
+		 enum v4l2_subdev_format_whence which)
 {
 	struct v4l2_mbus_framefmt *format;
 	unsigned int width = fmt->width;
@@ -306,8 +312,9 @@ static int ipipe_enum_frame_size(struct v4l2_subdev *sd,
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond
  * to the format type.
  */
-static int ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *fmt)
+static int ipipe_get_format(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_format *fmt)
 {
 	struct iss_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
@@ -329,8 +336,9 @@ static int ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_confi
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond
  * to the format type.
  */
-static int ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *fmt)
+static int ipipe_set_format(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_format *fmt)
 {
 	struct iss_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;

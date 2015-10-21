@@ -53,7 +53,7 @@ static inline unsigned int leon_eirq_get(int cpu)
 }
 
 /* Handle one or multiple IRQs from the extended interrupt controller */
-static void leon_handle_ext_irq(unsigned int irq, struct irq_desc *desc)
+static void leon_handle_ext_irq(struct irq_desc *desc)
 {
 	unsigned int eirq;
 	struct irq_bucket *p;
@@ -126,7 +126,7 @@ static int leon_set_affinity(struct irq_data *data, const struct cpumask *dest,
 	int oldcpu, newcpu;
 
 	mask = (unsigned long)data->chip_data;
-	oldcpu = irq_choose_cpu(data->affinity);
+	oldcpu = irq_choose_cpu(irq_data_get_affinity_mask(data));
 	newcpu = irq_choose_cpu(dest);
 
 	if (oldcpu == newcpu)
@@ -149,7 +149,7 @@ static void leon_unmask_irq(struct irq_data *data)
 	int cpu;
 
 	mask = (unsigned long)data->chip_data;
-	cpu = irq_choose_cpu(data->affinity);
+	cpu = irq_choose_cpu(irq_data_get_affinity_mask(data));
 	spin_lock_irqsave(&leon_irq_lock, flags);
 	oldmask = LEON3_BYPASS_LOAD_PA(LEON_IMASK(cpu));
 	LEON3_BYPASS_STORE_PA(LEON_IMASK(cpu), (oldmask | mask));
@@ -162,7 +162,7 @@ static void leon_mask_irq(struct irq_data *data)
 	int cpu;
 
 	mask = (unsigned long)data->chip_data;
-	cpu = irq_choose_cpu(data->affinity);
+	cpu = irq_choose_cpu(irq_data_get_affinity_mask(data));
 	spin_lock_irqsave(&leon_irq_lock, flags);
 	oldmask = LEON3_BYPASS_LOAD_PA(LEON_IMASK(cpu));
 	LEON3_BYPASS_STORE_PA(LEON_IMASK(cpu), (oldmask & ~mask));

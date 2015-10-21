@@ -136,7 +136,6 @@ struct lp855x_rom_data {
 		Only valid when mode is PWM_BASED.
  * @size_program : total size of lp855x_rom_data
  * @rom_data : list of new eeprom/eprom registers
- * @supply : regulator that supplies 3V input
  */
 struct lp855x_platform_data {
 	const char *name;
@@ -145,7 +144,6 @@ struct lp855x_platform_data {
 	unsigned int period_ns;
 	int size_program;
 	struct lp855x_rom_data *rom_data;
-	struct regulator *supply;
 };
 
 #endif

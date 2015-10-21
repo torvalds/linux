@@ -199,6 +199,38 @@
 			gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;   /* GPIO_108 */
 		};
 	};
+
+	/* HS USB Host PHY on PORT 2 */
+	hsusb2_phy: hsusb2_phy {
+		compatible = "usb-nop-xceiv";
+		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>; /* GPIO_16 */
+		vcc-supply = <&vaux2>;
+	};
+
+	/* HS USB Host VBUS supply
+	 * disabling this regulator causes current leakage, and LCD flicker
+	 * on earlier (CC) board revisions, so keep it always on */
+	usb_host_5v: fixed-regulator-usb_host_5v {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_host_5v";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio6 4 0>;	/* GPIO_164 */
+	};
+
+	/* wg7210 (wifi+bt module) 32k clock buffer */
+	wg7210_32k: fixed-regulator-wg7210_32k {
+		compatible = "regulator-fixed";
+		regulator-name = "wg7210_32k";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		enable-active-high;
+		gpio = <&twl_gpio 13 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &omap3_pmx_core {
@@ -459,13 +491,18 @@
 	power = <50>;
 };
 
+/*
+ * Many pandora boards have been produced with defective write-protect switches
+ * on either slot, so it was decided not to use this feature. If you know
+ * your board has good switches, feel free to uncomment wp-gpios below.
+ */
 &mmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
 	cd-gpios = <&twl_gpio 0 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;	/* GPIO_126 */
+	/*wp-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;*/	/* GPIO_126 */
 };
 
 &mmc2 {
@@ -473,8 +510,13 @@
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&vmmc2>;
 	bus-width = <4>;
-	cd-gpios = <&twl_gpio 1 GPIO_ACTIVE_HIGH>;
-	wp-gpios = <&gpio4 31 GPIO_ACTIVE_LOW>;	/* GPIO_127 */
+	cd-gpios = <&twl_gpio 1 GPIO_ACTIVE_LOW>;
+	/*wp-gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>;*/	/* GPIO_127 */
+};
+
+/* mmc3 is probed using pdata-quirks to pass wl1251 card data */
+&mmc3 {
+	status = "disabled";
 };
 
 /* bluetooth*/
@@ -494,6 +536,10 @@
 
 &usbhshost {
 	port2-mode = "ehci-phy";
+};
+
+&usbhsehci {
+	phys = <0 &hsusb2_phy>;
 };
 
 &gpmc {
@@ -545,7 +591,7 @@
 			reg = <0x280000 0xa00000>;
 		};
 
-		filesystem@680000 {
+		filesystem@c80000 {
 			label = "rootfs";
 			reg = <0xc80000 0>;	/* 0 = MTDPART_SIZ_FULL */
 		};

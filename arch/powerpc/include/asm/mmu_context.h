@@ -8,7 +8,6 @@
 #include <linux/spinlock.h>
 #include <asm/mmu.h>	
 #include <asm/cputable.h>
-#include <asm-generic/mm_hooks.h>
 #include <asm/cputhreads.h>
 
 /*
@@ -16,6 +15,24 @@
  */
 extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 extern void destroy_context(struct mm_struct *mm);
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+struct mm_iommu_table_group_mem_t;
+
+extern bool mm_iommu_preregistered(void);
+extern long mm_iommu_get(unsigned long ua, unsigned long entries,
+		struct mm_iommu_table_group_mem_t **pmem);
+extern long mm_iommu_put(struct mm_iommu_table_group_mem_t *mem);
+extern void mm_iommu_init(mm_context_t *ctx);
+extern void mm_iommu_cleanup(mm_context_t *ctx);
+extern struct mm_iommu_table_group_mem_t *mm_iommu_lookup(unsigned long ua,
+		unsigned long size);
+extern struct mm_iommu_table_group_mem_t *mm_iommu_find(unsigned long ua,
+		unsigned long entries);
+extern long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
+		unsigned long ua, unsigned long *hpa);
+extern long mm_iommu_mapped_inc(struct mm_iommu_table_group_mem_t *mem);
+extern void mm_iommu_mapped_dec(struct mm_iommu_table_group_mem_t *mem);
+#endif
 
 extern void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next);
 extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
@@ -107,6 +124,28 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 #ifdef CONFIG_PPC_BOOK3E_64
 	get_paca()->pgd = NULL;
 #endif
+}
+
+static inline void arch_dup_mmap(struct mm_struct *oldmm,
+				 struct mm_struct *mm)
+{
+}
+
+static inline void arch_exit_mmap(struct mm_struct *mm)
+{
+}
+
+static inline void arch_unmap(struct mm_struct *mm,
+			      struct vm_area_struct *vma,
+			      unsigned long start, unsigned long end)
+{
+	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
+		mm->context.vdso_base = 0;
+}
+
+static inline void arch_bprm_mm_init(struct mm_struct *mm,
+				     struct vm_area_struct *vma)
+{
 }
 
 #endif /* __KERNEL__ */

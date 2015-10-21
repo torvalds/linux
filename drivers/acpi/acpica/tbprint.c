@@ -73,7 +73,7 @@ static void acpi_tb_fix_string(char *string, acpi_size length)
 {
 
 	while (length && *string) {
-		if (!ACPI_IS_PRINT(*string)) {
+		if (!isprint((int)*string)) {
 			*string = '?';
 		}
 		string++;
@@ -100,7 +100,7 @@ acpi_tb_cleanup_table_header(struct acpi_table_header *out_header,
 			     struct acpi_table_header *header)
 {
 
-	ACPI_MEMCPY(out_header, header, sizeof(struct acpi_table_header));
+	memcpy(out_header, header, sizeof(struct acpi_table_header));
 
 	acpi_tb_fix_string(out_header->signature, ACPI_NAME_SIZE);
 	acpi_tb_fix_string(out_header->oem_id, ACPI_OEM_ID_SIZE);
@@ -138,9 +138,9 @@ acpi_tb_print_table_header(acpi_physical_address address,
 
 		/* RSDP has no common fields */
 
-		ACPI_MEMCPY(local_header.oem_id,
-			    ACPI_CAST_PTR(struct acpi_table_rsdp,
-					  header)->oem_id, ACPI_OEM_ID_SIZE);
+		memcpy(local_header.oem_id,
+		       ACPI_CAST_PTR(struct acpi_table_rsdp, header)->oem_id,
+		       ACPI_OEM_ID_SIZE);
 		acpi_tb_fix_string(local_header.oem_id, ACPI_OEM_ID_SIZE);
 
 		ACPI_INFO((AE_INFO, "RSDP 0x%8.8X%8.8X %06X (v%.2d %-6.6s)",

@@ -99,6 +99,7 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 	struct net *net = sock_net(sk);
 	int smallest_size = -1, smallest_rover;
 	kuid_t uid = sock_i_uid(sk);
+	int attempt_half = (sk->sk_reuse == SK_CAN_REUSE) ? 1 : 0;
 
 	local_bh_disable();
 	if (!snum) {
@@ -106,6 +107,14 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 
 again:
 		inet_get_local_port_range(net, &low, &high);
+		if (attempt_half) {
+			int half = low + ((high - low) >> 1);
+
+			if (attempt_half == 1)
+				high = half;
+			else
+				low = half;
+		}
 		remaining = (high - low) + 1;
 		smallest_rover = rover = prandom_u32() % remaining + low;
 
@@ -127,11 +136,6 @@ again:
 					    (tb->num_owners < smallest_size || smallest_size == -1)) {
 						smallest_size = tb->num_owners;
 						smallest_rover = rover;
-						if (atomic_read(&hashinfo->bsockets) > (high - low) + 1 &&
-						    !inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, false)) {
-							snum = smallest_rover;
-							goto tb_found;
-						}
 					}
 					if (!inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, false)) {
 						snum = rover;
@@ -158,6 +162,11 @@ again:
 			if (smallest_size != -1) {
 				snum = smallest_rover;
 				goto have_snum;
+			}
+			if (attempt_half == 1) {
+				/* OK we now try the upper half of the range */
+				attempt_half = 2;
+				goto again;
 			}
 			goto fail;
 		}
@@ -568,23 +577,24 @@ EXPORT_SYMBOL(inet_rtx_syn_ack);
 static bool reqsk_queue_unlink(struct request_sock_queue *queue,
 			       struct request_sock *req)
 {
-	struct listen_sock *lopt = queue->listen_opt;
 	struct request_sock **prev;
+	struct listen_sock *lopt;
 	bool found = false;
 
 	spin_lock(&queue->syn_wait_lock);
-
-	for (prev = &lopt->syn_table[req->rsk_hash]; *prev != NULL;
-	     prev = &(*prev)->dl_next) {
-		if (*prev == req) {
-			*prev = req->dl_next;
-			found = true;
-			break;
+	lopt = queue->listen_opt;
+	if (lopt) {
+		for (prev = &lopt->syn_table[req->rsk_hash]; *prev != NULL;
+		     prev = &(*prev)->dl_next) {
+			if (*prev == req) {
+				*prev = req->dl_next;
+				found = true;
+				break;
+			}
 		}
 	}
-
 	spin_unlock(&queue->syn_wait_lock);
-	if (del_timer(&req->rsk_timer))
+	if (timer_pending(&req->rsk_timer) && del_timer_sync(&req->rsk_timer))
 		reqsk_put(req);
 	return found;
 }
@@ -676,20 +686,20 @@ void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	req->num_timeout = 0;
 	req->sk = NULL;
 
+	setup_timer(&req->rsk_timer, reqsk_timer_handler, (unsigned long)req);
+	mod_timer_pinned(&req->rsk_timer, jiffies + timeout);
+	req->rsk_hash = hash;
+
 	/* before letting lookups find us, make sure all req fields
 	 * are committed to memory and refcnt initialized.
 	 */
 	smp_wmb();
 	atomic_set(&req->rsk_refcnt, 2);
-	setup_timer(&req->rsk_timer, reqsk_timer_handler, (unsigned long)req);
-	req->rsk_hash = hash;
 
 	spin_lock(&queue->syn_wait_lock);
 	req->dl_next = lopt->syn_table[hash];
 	lopt->syn_table[hash] = req;
 	spin_unlock(&queue->syn_wait_lock);
-
-	mod_timer_pinned(&req->rsk_timer, jiffies + timeout);
 }
 EXPORT_SYMBOL(reqsk_queue_hash_req);
 

@@ -112,6 +112,8 @@ typedef struct xfs_alloc_arg {
 	xfs_extlen_t	total;		/* total blocks needed in xaction */
 	xfs_extlen_t	alignment;	/* align answer to multiple of this */
 	xfs_extlen_t	minalignslop;	/* slop for minlen+alignment calcs */
+	xfs_agblock_t	min_agbno;	/* set an agbno range for NEAR allocs */
+	xfs_agblock_t	max_agbno;	/* ... */
 	xfs_extlen_t	len;		/* output: actual size of extent */
 	xfs_alloctype_t	type;		/* allocation type XFS_ALLOCTYPE_... */
 	xfs_alloctype_t	otype;		/* original allocation type */
@@ -128,11 +130,9 @@ typedef struct xfs_alloc_arg {
 #define XFS_ALLOC_USERDATA		1	/* allocation is for user data*/
 #define XFS_ALLOC_INITIAL_USER_DATA	2	/* special case start of file */
 
-/*
- * Find the length of the longest extent in an AG.
- */
-xfs_extlen_t
-xfs_alloc_longest_free_extent(struct xfs_mount *mp,
+xfs_extlen_t xfs_alloc_longest_free_extent(struct xfs_mount *mp,
+		struct xfs_perag *pag, xfs_extlen_t need);
+unsigned int xfs_alloc_min_freelist(struct xfs_mount *mp,
 		struct xfs_perag *pag);
 
 /*

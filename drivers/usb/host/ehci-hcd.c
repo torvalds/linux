@@ -239,7 +239,7 @@ static void tdi_reset (struct ehci_hcd *ehci)
  * Reset a non-running (STS_HALT == 1) controller.
  * Must be called with interrupts enabled and the lock not held.
  */
-static int ehci_reset (struct ehci_hcd *ehci)
+int ehci_reset(struct ehci_hcd *ehci)
 {
 	int	retval;
 	u32	command = ehci_readl(ehci, &ehci->regs->command);
@@ -275,6 +275,7 @@ static int ehci_reset (struct ehci_hcd *ehci)
 			ehci->resuming_ports = 0;
 	return retval;
 }
+EXPORT_SYMBOL_GPL(ehci_reset);
 
 /*
  * Idle the controller (turn off the schedules).
@@ -1249,11 +1250,6 @@ EXPORT_SYMBOL_GPL(ehci_init_driver);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR (DRIVER_AUTHOR);
 MODULE_LICENSE ("GPL");
-
-#ifdef CONFIG_USB_EHCI_FSL
-#include "ehci-fsl.c"
-#define	PLATFORM_DRIVER		ehci_fsl_driver
-#endif
 
 #ifdef CONFIG_USB_EHCI_SH
 #include "ehci-sh.c"

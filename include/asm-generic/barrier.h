@@ -55,19 +55,45 @@
 #endif
 
 #ifdef CONFIG_SMP
+
+#ifndef smp_mb
 #define smp_mb()	mb()
+#endif
+
+#ifndef smp_rmb
 #define smp_rmb()	rmb()
+#endif
+
+#ifndef smp_wmb
 #define smp_wmb()	wmb()
+#endif
+
+#ifndef smp_read_barrier_depends
 #define smp_read_barrier_depends()	read_barrier_depends()
-#else
+#endif
+
+#else	/* !CONFIG_SMP */
+
+#ifndef smp_mb
 #define smp_mb()	barrier()
+#endif
+
+#ifndef smp_rmb
 #define smp_rmb()	barrier()
+#endif
+
+#ifndef smp_wmb
 #define smp_wmb()	barrier()
+#endif
+
+#ifndef smp_read_barrier_depends
 #define smp_read_barrier_depends()	do { } while (0)
 #endif
 
-#ifndef set_mb
-#define set_mb(var, value)  do { (var) = (value); mb(); } while (0)
+#endif	/* CONFIG_SMP */
+
+#ifndef smp_store_mb
+#define smp_store_mb(var, value)  do { WRITE_ONCE(var, value); mb(); } while (0)
 #endif
 
 #ifndef smp_mb__before_atomic
@@ -82,12 +108,12 @@
 do {									\
 	compiletime_assert_atomic_type(*p);				\
 	smp_mb();							\
-	ACCESS_ONCE(*p) = (v);						\
+	WRITE_ONCE(*p, v);						\
 } while (0)
 
 #define smp_load_acquire(p)						\
 ({									\
-	typeof(*p) ___p1 = ACCESS_ONCE(*p);				\
+	typeof(*p) ___p1 = READ_ONCE(*p);				\
 	compiletime_assert_atomic_type(*p);				\
 	smp_mb();							\
 	___p1;								\

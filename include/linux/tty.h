@@ -422,7 +422,7 @@ static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 
 extern int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
 			      const char *routine);
-extern char *tty_name(struct tty_struct *tty, char *buf);
+extern const char *tty_name(const struct tty_struct *tty);
 extern void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 extern int tty_check_change(struct tty_struct *tty);
 extern void __stop_tty(struct tty_struct *tty);
@@ -708,5 +708,11 @@ extern void proc_tty_unregister_driver(struct tty_driver *);
 static inline void proc_tty_register_driver(struct tty_driver *d) {}
 static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
 #endif
+
+#define tty_debug(tty, f, args...)					\
+	do {								\
+		printk(KERN_DEBUG "%s: %s: " f, __func__,		\
+		       tty_name(tty), ##args);				\
+	} while (0)
 
 #endif

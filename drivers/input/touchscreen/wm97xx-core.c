@@ -732,8 +732,7 @@ static int wm97xx_remove(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm97xx_suspend(struct device *dev, pm_message_t state)
+static int __maybe_unused wm97xx_suspend(struct device *dev)
 {
 	struct wm97xx *wm = dev_get_drvdata(dev);
 	u16 reg;
@@ -765,7 +764,7 @@ static int wm97xx_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int wm97xx_resume(struct device *dev)
+static int __maybe_unused wm97xx_resume(struct device *dev)
 {
 	struct wm97xx *wm = dev_get_drvdata(dev);
 
@@ -799,10 +798,7 @@ static int wm97xx_resume(struct device *dev)
 	return 0;
 }
 
-#else
-#define wm97xx_suspend		NULL
-#define wm97xx_resume		NULL
-#endif
+static SIMPLE_DEV_PM_OPS(wm97xx_pm_ops, wm97xx_suspend, wm97xx_resume);
 
 /*
  * Machine specific operations
@@ -836,8 +832,7 @@ static struct device_driver wm97xx_driver = {
 	.owner =	THIS_MODULE,
 	.probe =	wm97xx_probe,
 	.remove =	wm97xx_remove,
-	.suspend =	wm97xx_suspend,
-	.resume =	wm97xx_resume,
+	.pm =		&wm97xx_pm_ops,
 };
 
 static int __init wm97xx_init(void)

@@ -99,7 +99,7 @@ struct klp_object {
 	struct klp_func *funcs;
 
 	/* internal */
-	struct kobject *kobj;
+	struct kobject kobj;
 	struct module *mod;
 	enum klp_state state;
 };
@@ -122,6 +122,12 @@ struct klp_patch {
 	struct kobject kobj;
 	enum klp_state state;
 };
+
+#define klp_for_each_object(patch, obj) \
+	for (obj = patch->objs; obj->funcs; obj++)
+
+#define klp_for_each_func(obj, func) \
+	for (func = obj->funcs; func->old_name; func++)
 
 int klp_register_patch(struct klp_patch *);
 int klp_unregister_patch(struct klp_patch *);

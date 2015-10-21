@@ -10,12 +10,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Note the Toshiba Bluetooth RFKill switch seems to be a strange
- * fish. It only provides a BT event when the switch is flipped to
- * the 'on' position. When flipping it to 'off', the USB device is
- * simply pulled away underneath us, without any BT event being
- * delivered.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -25,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
+#include <linux/rfkill.h>
 
 #define BT_KILLSWITCH_MASK	0x01
 #define BT_PLUGGED_MASK		0x40
@@ -33,6 +28,15 @@
 MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@gmail.com>");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Bluetooth Enable Driver");
 MODULE_LICENSE("GPL");
+
+struct toshiba_bluetooth_dev {
+	struct acpi_device *acpi_dev;
+	struct rfkill *rfk;
+
+	bool killswitch;
+	bool plugged;
+	bool powered;
+};
 
 static int toshiba_bt_rfkill_add(struct acpi_device *device);
 static int toshiba_bt_rfkill_remove(struct acpi_device *device);
@@ -95,41 +99,12 @@ static int toshiba_bluetooth_status(acpi_handle handle)
 		return -ENXIO;
 	}
 
-	pr_info("Bluetooth status %llu\n", status);
-
 	return status;
 }
 
 static int toshiba_bluetooth_enable(acpi_handle handle)
 {
 	acpi_status result;
-	bool killswitch;
-	bool powered;
-	bool plugged;
-	int status;
-
-	/*
-	 * Query ACPI to verify RFKill switch is set to 'on'.
-	 * If not, we return silently, no need to report it as
-	 * an error.
-	 */
-	status = toshiba_bluetooth_status(handle);
-	if (status < 0)
-		return status;
-
-	killswitch = (status & BT_KILLSWITCH_MASK) ? true : false;
-	powered = (status & BT_POWER_MASK) ? true : false;
-	plugged = (status & BT_PLUGGED_MASK) ? true : false;
-
-	if (!killswitch)
-		return 0;
-	/*
-	 * This check ensures to only enable the device if it is powered
-	 * off or detached, as some recent devices somehow pass the killswitch
-	 * test, causing a loop enabling/disabling the device, see bug 93911.
-	 */
-	if (powered || plugged)
-		return 0;
 
 	result = acpi_evaluate_object(handle, "AUSB", NULL, NULL);
 	if (ACPI_FAILURE(result)) {
@@ -165,20 +140,102 @@ static int toshiba_bluetooth_disable(acpi_handle handle)
 	return 0;
 }
 
+/* Helper function */
+static int toshiba_bluetooth_sync_status(struct toshiba_bluetooth_dev *bt_dev)
+{
+	int status;
+
+	status = toshiba_bluetooth_status(bt_dev->acpi_dev->handle);
+	if (status < 0) {
+		pr_err("Could not sync bluetooth device status\n");
+		return status;
+	}
+
+	bt_dev->killswitch = (status & BT_KILLSWITCH_MASK) ? true : false;
+	bt_dev->plugged = (status & BT_PLUGGED_MASK) ? true : false;
+	bt_dev->powered = (status & BT_POWER_MASK) ? true : false;
+
+	pr_debug("Bluetooth status %d killswitch %d plugged %d powered %d\n",
+		 status, bt_dev->killswitch, bt_dev->plugged, bt_dev->powered);
+
+	return 0;
+}
+
+/* RFKill handlers */
+static int bt_rfkill_set_block(void *data, bool blocked)
+{
+	struct toshiba_bluetooth_dev *bt_dev = data;
+	int ret;
+
+	ret = toshiba_bluetooth_sync_status(bt_dev);
+	if (ret)
+		return ret;
+
+	if (!bt_dev->killswitch)
+		return 0;
+
+	if (blocked)
+		ret = toshiba_bluetooth_disable(bt_dev->acpi_dev->handle);
+	else
+		ret = toshiba_bluetooth_enable(bt_dev->acpi_dev->handle);
+
+	return ret;
+}
+
+static void bt_rfkill_poll(struct rfkill *rfkill, void *data)
+{
+	struct toshiba_bluetooth_dev *bt_dev = data;
+
+	if (toshiba_bluetooth_sync_status(bt_dev))
+		return;
+
+	/*
+	 * Note the Toshiba Bluetooth RFKill switch seems to be a strange
+	 * fish. It only provides a BT event when the switch is flipped to
+	 * the 'on' position. When flipping it to 'off', the USB device is
+	 * simply pulled away underneath us, without any BT event being
+	 * delivered.
+	 */
+	rfkill_set_hw_state(bt_dev->rfk, !bt_dev->killswitch);
+}
+
+static const struct rfkill_ops rfk_ops = {
+	.set_block = bt_rfkill_set_block,
+	.poll = bt_rfkill_poll,
+};
+
+/* ACPI driver functions */
 static void toshiba_bt_rfkill_notify(struct acpi_device *device, u32 event)
 {
-	toshiba_bluetooth_enable(device->handle);
+	struct toshiba_bluetooth_dev *bt_dev = acpi_driver_data(device);
+
+	if (toshiba_bluetooth_sync_status(bt_dev))
+		return;
+
+	rfkill_set_hw_state(bt_dev->rfk, !bt_dev->killswitch);
 }
 
 #ifdef CONFIG_PM_SLEEP
 static int toshiba_bt_resume(struct device *dev)
 {
-	return toshiba_bluetooth_enable(to_acpi_device(dev)->handle);
+	struct toshiba_bluetooth_dev *bt_dev;
+	int ret;
+
+	bt_dev = acpi_driver_data(to_acpi_device(dev));
+
+	ret = toshiba_bluetooth_sync_status(bt_dev);
+	if (ret)
+		return ret;
+
+	rfkill_set_hw_state(bt_dev->rfk, !bt_dev->killswitch);
+
+	return 0;
 }
 #endif
 
 static int toshiba_bt_rfkill_add(struct acpi_device *device)
 {
+	struct toshiba_bluetooth_dev *bt_dev;
 	int result;
 
 	result = toshiba_bluetooth_present(device->handle);
@@ -187,17 +244,54 @@ static int toshiba_bt_rfkill_add(struct acpi_device *device)
 
 	pr_info("Toshiba ACPI Bluetooth device driver\n");
 
-	/* Enable the BT device */
-	result = toshiba_bluetooth_enable(device->handle);
-	if (result)
+	bt_dev = kzalloc(sizeof(*bt_dev), GFP_KERNEL);
+	if (!bt_dev)
+		return -ENOMEM;
+	bt_dev->acpi_dev = device;
+	device->driver_data = bt_dev;
+	dev_set_drvdata(&device->dev, bt_dev);
+
+	result = toshiba_bluetooth_sync_status(bt_dev);
+	if (result) {
+		kfree(bt_dev);
 		return result;
+	}
+
+	bt_dev->rfk = rfkill_alloc("Toshiba Bluetooth",
+				   &device->dev,
+				   RFKILL_TYPE_BLUETOOTH,
+				   &rfk_ops,
+				   bt_dev);
+	if (!bt_dev->rfk) {
+		pr_err("Unable to allocate rfkill device\n");
+		kfree(bt_dev);
+		return -ENOMEM;
+	}
+
+	rfkill_set_hw_state(bt_dev->rfk, !bt_dev->killswitch);
+
+	result = rfkill_register(bt_dev->rfk);
+	if (result) {
+		pr_err("Unable to register rfkill device\n");
+		rfkill_destroy(bt_dev->rfk);
+		kfree(bt_dev);
+	}
 
 	return result;
 }
 
 static int toshiba_bt_rfkill_remove(struct acpi_device *device)
 {
+	struct toshiba_bluetooth_dev *bt_dev = acpi_driver_data(device);
+
 	/* clean up */
+	if (bt_dev->rfk) {
+		rfkill_unregister(bt_dev->rfk);
+		rfkill_destroy(bt_dev->rfk);
+	}
+
+	kfree(bt_dev);
+
 	return toshiba_bluetooth_disable(device->handle);
 }
 

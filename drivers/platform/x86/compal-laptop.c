@@ -82,7 +82,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/power_supply.h>
 #include <linux/fb.h>
-
+#include <acpi/video.h>
 
 /* ======= */
 /* Defines */
@@ -959,7 +959,7 @@ static int __init compal_init(void)
 		return -ENODEV;
 	}
 
-	if (!acpi_video_backlight_support()) {
+	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		struct backlight_properties props;
 		memset(&props, 0, sizeof(struct backlight_properties));
 		props.type = BACKLIGHT_PLATFORM;

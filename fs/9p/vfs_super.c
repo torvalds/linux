@@ -130,11 +130,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	fid = v9fs_session_init(v9ses, dev_name, data);
 	if (IS_ERR(fid)) {
 		retval = PTR_ERR(fid);
-		/*
-		 * we need to call session_close to tear down some
-		 * of the data structure setup by session_init
-		 */
-		goto close_session;
+		goto free_session;
 	}
 
 	sb = sget(fs_type, NULL, v9fs_set_super, flags, v9ses);
@@ -195,8 +191,8 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 
 clunk_fid:
 	p9_client_clunk(fid);
-close_session:
 	v9fs_session_close(v9ses);
+free_session:
 	kfree(v9ses);
 	return ERR_PTR(retval);
 

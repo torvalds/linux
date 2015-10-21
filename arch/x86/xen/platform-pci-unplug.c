@@ -68,7 +68,7 @@ static int check_platform_magic(void)
 	return 0;
 }
 
-bool xen_has_pv_devices()
+bool xen_has_pv_devices(void)
 {
 	if (!xen_domain())
 		return false;

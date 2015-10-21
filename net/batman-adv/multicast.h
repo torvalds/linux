@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2014-2015 B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  *
@@ -17,6 +17,10 @@
 
 #ifndef _NET_BATMAN_ADV_MULTICAST_H_
 #define _NET_BATMAN_ADV_MULTICAST_H_
+
+#include "main.h"
+
+struct sk_buff;
 
 /**
  * batadv_forw_mode - the way a packet should be forwarded as

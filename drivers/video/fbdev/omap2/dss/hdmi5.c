@@ -37,6 +37,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
+#include <linux/component.h>
 #include <video/omapdss.h>
 #include <sound/omap-hdmi-audio.h>
 
@@ -681,8 +682,9 @@ static int hdmi_audio_register(struct device *dev)
 }
 
 /* HDMI HW IP initialisation */
-static int omapdss_hdmihw_probe(struct platform_device *pdev)
+static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	int r;
 	int irq;
 
@@ -748,8 +750,10 @@ err:
 	return r;
 }
 
-static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
+static void hdmi5_unbind(struct device *dev, struct device *master, void *data)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+
 	if (hdmi.audio_pdev)
 		platform_device_unregister(hdmi.audio_pdev);
 
@@ -758,7 +762,21 @@ static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 	hdmi_pll_uninit(&hdmi.pll);
 
 	pm_runtime_disable(&pdev->dev);
+}
 
+static const struct component_ops hdmi5_component_ops = {
+	.bind	= hdmi5_bind,
+	.unbind	= hdmi5_unbind,
+};
+
+static int hdmi5_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &hdmi5_component_ops);
+}
+
+static int hdmi5_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &hdmi5_component_ops);
 	return 0;
 }
 
@@ -792,8 +810,8 @@ static const struct of_device_id hdmi_of_match[] = {
 };
 
 static struct platform_driver omapdss_hdmihw_driver = {
-	.probe		= omapdss_hdmihw_probe,
-	.remove         = __exit_p(omapdss_hdmihw_remove),
+	.probe		= hdmi5_probe,
+	.remove		= hdmi5_remove,
 	.driver         = {
 		.name   = "omapdss_hdmi5",
 		.pm	= &hdmi_pm_ops,
@@ -807,7 +825,7 @@ int __init hdmi5_init_platform_driver(void)
 	return platform_driver_register(&omapdss_hdmihw_driver);
 }
 
-void __exit hdmi5_uninit_platform_driver(void)
+void hdmi5_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omapdss_hdmihw_driver);
 }

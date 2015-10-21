@@ -162,38 +162,20 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 
 #endif
 
+__printf(4, 5)
+void __mlog_printk(const u64 *m, const char *func, int line,
+		   const char *fmt, ...);
+
 /*
- * smp_processor_id() "helpfully" screams when called outside preemptible
- * regions in current kernels.  sles doesn't have the variants that don't
- * scream.  just do this instead of trying to guess which we're building
- * against.. *sigh*.
+ * Testing before the __mlog_printk call lets the compiler eliminate the
+ * call completely when (m & ML_ALLOWED_BITS) is 0.
  */
-#define __mlog_cpu_guess ({		\
-	unsigned long _cpu = get_cpu();	\
-	put_cpu();			\
-	_cpu;				\
-})
-
-/* In the following two macros, the whitespace after the ',' just
- * before ##args is intentional. Otherwise, gcc 2.95 will eat the
- * previous token if args expands to nothing.
- */
-#define __mlog_printk(level, fmt, args...)				\
-	printk(level "(%s,%u,%lu):%s:%d " fmt, current->comm,		\
-	       task_pid_nr(current), __mlog_cpu_guess,			\
-	       __PRETTY_FUNCTION__, __LINE__ , ##args)
-
-#define mlog(mask, fmt, args...) do {					\
-	u64 __m = MLOG_MASK_PREFIX | (mask);				\
-	if ((__m & ML_ALLOWED_BITS) &&					\
-	    __mlog_test_u64(__m, mlog_and_bits) &&			\
-	    !__mlog_test_u64(__m, mlog_not_bits)) {			\
-		if (__m & ML_ERROR)					\
-			__mlog_printk(KERN_ERR, "ERROR: "fmt , ##args);	\
-		else if (__m & ML_NOTICE)				\
-			__mlog_printk(KERN_NOTICE, fmt , ##args);	\
-		else __mlog_printk(KERN_INFO, fmt , ##args);		\
-	}								\
+#define mlog(mask, fmt, ...)						\
+do {									\
+	u64 _m = MLOG_MASK_PREFIX | (mask);				\
+	if (_m & ML_ALLOWED_BITS)					\
+		__mlog_printk(&_m, __func__, __LINE__, fmt,		\
+			      ##__VA_ARGS__);				\
 } while (0)
 
 #define mlog_errno(st) ({						\

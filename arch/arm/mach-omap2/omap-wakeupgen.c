@@ -392,6 +392,7 @@ static struct irq_chip wakeupgen_chip = {
 	.irq_mask		= wakeupgen_mask,
 	.irq_unmask		= wakeupgen_unmask,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_type		= irq_chip_set_type_parent,
 	.flags			= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
@@ -444,7 +445,7 @@ static int wakeupgen_domain_alloc(struct irq_domain *domain,
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &parent_args);
 }
 
-static struct irq_domain_ops wakeupgen_domain_ops = {
+static const struct irq_domain_ops wakeupgen_domain_ops = {
 	.xlate	= wakeupgen_domain_xlate,
 	.alloc	= wakeupgen_domain_alloc,
 	.free	= irq_domain_free_irqs_common,

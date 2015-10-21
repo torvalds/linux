@@ -317,15 +317,12 @@ static u64 __init get_ramdisk_size(void)
 	return ramdisk_size;
 }
 
-#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
 static void __init relocate_initrd(void)
 {
 	/* Assume only end is not page aligned */
 	u64 ramdisk_image = get_ramdisk_image();
 	u64 ramdisk_size  = get_ramdisk_size();
 	u64 area_size     = PAGE_ALIGN(ramdisk_size);
-	unsigned long slop, clen, mapaddr;
-	char *p, *q;
 
 	/* We need to move the initrd down into directly mapped mem */
 	relocated_ramdisk = memblock_find_in_range(0, PFN_PHYS(max_pfn_mapped),
@@ -343,25 +340,8 @@ static void __init relocate_initrd(void)
 	printk(KERN_INFO "Allocated new RAMDISK: [mem %#010llx-%#010llx]\n",
 	       relocated_ramdisk, relocated_ramdisk + ramdisk_size - 1);
 
-	q = (char *)initrd_start;
+	copy_from_early_mem((void *)initrd_start, ramdisk_image, ramdisk_size);
 
-	/* Copy the initrd */
-	while (ramdisk_size) {
-		slop = ramdisk_image & ~PAGE_MASK;
-		clen = ramdisk_size;
-		if (clen > MAX_MAP_CHUNK-slop)
-			clen = MAX_MAP_CHUNK-slop;
-		mapaddr = ramdisk_image & PAGE_MASK;
-		p = early_memremap(mapaddr, clen+slop);
-		memcpy(q, p+slop, clen);
-		early_memunmap(p, clen+slop);
-		q += clen;
-		ramdisk_image += clen;
-		ramdisk_size  -= clen;
-	}
-
-	ramdisk_image = get_ramdisk_image();
-	ramdisk_size  = get_ramdisk_size();
 	printk(KERN_INFO "Move RAMDISK from [mem %#010llx-%#010llx] to"
 		" [mem %#010llx-%#010llx]\n",
 		ramdisk_image, ramdisk_image + ramdisk_size - 1,
@@ -461,19 +441,18 @@ static void __init e820_reserve_setup_data(void)
 {
 	struct setup_data *data;
 	u64 pa_data;
-	int found = 0;
 
 	pa_data = boot_params.hdr.setup_data;
+	if (!pa_data)
+		return;
+
 	while (pa_data) {
 		data = early_memremap(pa_data, sizeof(*data));
 		e820_update_range(pa_data, sizeof(*data)+data->len,
 			 E820_RAM, E820_RESERVED_KERN);
-		found = 1;
 		pa_data = data->next;
 		early_memunmap(data, sizeof(*data));
 	}
-	if (!found)
-		return;
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 	memcpy(&e820_saved, &e820, sizeof(struct e820map));
@@ -499,7 +478,7 @@ static void __init memblock_x86_reserve_range_setup_data(void)
  * --------- Crashkernel reservation ------------------------------
  */
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 
 /*
  * Keep the crash kernel below this limit.  On 32 bits earlier kernels
@@ -531,12 +510,14 @@ static void __init reserve_crashkernel_low(void)
 	if (ret != 0) {
 		/*
 		 * two parts from lib/swiotlb.c:
-		 *	swiotlb size: user specified with swiotlb= or default.
-		 *	swiotlb overflow buffer: now is hardcoded to 32k.
-		 *		We round it to 8M for other buffers that
-		 *		may need to stay low too.
+		 * -swiotlb size: user-specified with swiotlb= or default.
+		 *
+		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
+		 * to 8M for other buffers that may need to stay low too. Also
+		 * make sure we allocate enough extra low memory so that we
+		 * don't run out of DMA buffers for 32-bit devices.
 		 */
-		low_size = swiotlb_size_or_default() + (8UL<<20);
+		low_size = max(swiotlb_size_or_default() + (8UL<<20), 256UL<<20);
 		auto_set = true;
 	} else {
 		/* passed with crashkernel=0,low ? */
@@ -834,7 +815,7 @@ dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
 {
 	if (kaslr_enabled()) {
 		pr_emerg("Kernel Offset: 0x%lx from 0x%lx (relocation range: 0x%lx-0x%lx)\n",
-			 (unsigned long)&_text - __START_KERNEL,
+			 kaslr_offset(),
 			 __START_KERNEL,
 			 __START_KERNEL_map,
 			 MODULES_VADDR-1);
@@ -915,11 +896,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_32
 	apm_info.bios = boot_params.apm_bios_info;
 	ist_info = boot_params.ist_info;
-	if (boot_params.sys_desc_table.length != 0) {
-		machine_id = boot_params.sys_desc_table.table[0];
-		machine_submodel_id = boot_params.sys_desc_table.table[1];
-		BIOS_revision = boot_params.sys_desc_table.table[2];
-	}
 #endif
 	saved_video_mode = boot_params.hdr.vid_mode;
 	bootloader_type = boot_params.hdr.type_of_loader;
@@ -1103,6 +1079,9 @@ void __init setup_arch(char **cmdline_p)
 	memblock_set_current_limit(ISA_END_ADDRESS);
 	memblock_x86_fill();
 
+	if (efi_enabled(EFI_BOOT))
+		efi_find_mirror();
+
 	/*
 	 * The EFI specification says that boot service code won't be called
 	 * after ExitBootServices(). This is, in fact, a lie.
@@ -1222,8 +1201,7 @@ void __init setup_arch(char **cmdline_p)
 	init_cpu_to_node();
 
 	init_apic_mappings();
-	if (x86_io_apic_ops.init)
-		x86_io_apic_ops.init();
+	io_apic_init_mappings();
 
 	kvm_guest_init();
 

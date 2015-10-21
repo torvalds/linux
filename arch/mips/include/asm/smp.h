@@ -23,6 +23,7 @@
 extern int smp_num_siblings;
 extern cpumask_t cpu_sibling_map[];
 extern cpumask_t cpu_core_map[];
+extern cpumask_t cpu_foreign_map;
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
@@ -81,8 +82,6 @@ static inline void __cpu_die(unsigned int cpu)
 
 extern void play_dead(void);
 #endif
-
-extern asmlinkage void smp_call_function_interrupt(void);
 
 static inline void arch_send_call_function_single_ipi(int cpu)
 {

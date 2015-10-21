@@ -1,0 +1,46 @@
+Binding for Qualcomm Atheros AR7xxx/AR9XXX MISC interrupt controller
+
+The MISC interrupt controller is a secondary controller for lower priority
+interrupt.
+
+Required Properties:
+- compatible: has to be "qca,<soctype>-cpu-intc", "qca,ar7100-misc-intc" or
+  "qca,<soctype>-cpu-intc", "qca,ar7240-misc-intc"
+- reg: Base address and size of the controllers memory area
+- interrupt-parent: phandle of the parent interrupt controller.
+- interrupts: Interrupt specifier for the controllers interrupt.
+- interrupt-controller : Identifies the node as an interrupt controller
+- #interrupt-cells : Specifies the number of cells needed to encode interrupt
+		     source, should be 1
+
+Compatible fallback depends on the SoC. Use ar7100 for ar71xx and ar913x,
+use ar7240 for all other SoCs.
+
+Please refer to interrupts.txt in this directory for details of the common
+Interrupt Controllers bindings used by client devices.
+
+Example:
+
+	interrupt-controller@18060010 {
+		compatible = "qca,ar9132-misc-intc", qca,ar7100-misc-intc";
+		reg = <0x18060010 0x4>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <6>;
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+Another example:
+
+	interrupt-controller@18060010 {
+		compatible = "qca,ar9331-misc-intc", qca,ar7240-misc-intc";
+		reg = <0x18060010 0x4>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <6>;
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};

@@ -224,16 +224,13 @@ void *snd_lookup_oss_minor_data(unsigned int minor, int type);
 #endif
 
 int snd_minor_info_init(void);
-int snd_minor_info_done(void);
 
 /* sound_oss.c */
 
 #ifdef CONFIG_SND_OSSEMUL
 int snd_minor_info_oss_init(void);
-int snd_minor_info_oss_done(void);
 #else
 static inline int snd_minor_info_oss_init(void) { return 0; }
-static inline int snd_minor_info_oss_done(void) { return 0; }
 #endif
 
 /* memory.c */
@@ -262,7 +259,6 @@ int snd_card_free_when_closed(struct snd_card *card);
 void snd_card_set_id(struct snd_card *card, const char *id);
 int snd_card_register(struct snd_card *card);
 int snd_card_info_init(void);
-int snd_card_info_done(void);
 int snd_card_add_dev_attr(struct snd_card *card,
 			  const struct attribute_group *group);
 int snd_component_add(struct snd_card *card, const char *component);

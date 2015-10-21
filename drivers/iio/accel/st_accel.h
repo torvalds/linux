@@ -20,11 +20,13 @@
 #define LSM330D_ACCEL_DEV_NAME		"lsm330d_accel"
 #define LSM330DL_ACCEL_DEV_NAME		"lsm330dl_accel"
 #define LSM330DLC_ACCEL_DEV_NAME	"lsm330dlc_accel"
+#define LIS331DL_ACCEL_DEV_NAME		"lis331dl_accel"
 #define LIS331DLH_ACCEL_DEV_NAME	"lis331dlh"
 #define LSM303DL_ACCEL_DEV_NAME		"lsm303dl_accel"
 #define LSM303DLH_ACCEL_DEV_NAME	"lsm303dlh_accel"
 #define LSM303DLM_ACCEL_DEV_NAME	"lsm303dlm_accel"
 #define LSM330_ACCEL_DEV_NAME		"lsm330_accel"
+#define LSM303AGR_ACCEL_DEV_NAME	"lsm303agr_accel"
 
 /**
 * struct st_sensors_platform_data - default accel platform data

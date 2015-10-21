@@ -119,14 +119,16 @@ dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 
 EXPORT_SYMBOL(dma_map_single);
 
-int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+int dma_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	       enum dma_data_direction direction)
 {
 	int i;
+	struct scatterlist *sg;
 
-	for (i=0; i<nents; i++)
-		frv_cache_wback_inv(sg_dma_address(&sg[i]),
-				    sg_dma_address(&sg[i]) + sg_dma_len(&sg[i]));
+	for_each_sg(sglist, sg, nents, i) {
+		frv_cache_wback_inv(sg_dma_address(sg),
+				    sg_dma_address(sg) + sg_dma_len(sg));
+	}
 
 	BUG_ON(direction == DMA_NONE);
 

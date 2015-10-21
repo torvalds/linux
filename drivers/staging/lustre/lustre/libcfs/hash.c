@@ -427,31 +427,31 @@ cfs_hash_dd_hnode_del(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 }
 
 static cfs_hash_hlist_ops_t cfs_hash_hh_hops = {
-       .hop_hhead      = cfs_hash_hh_hhead,
-       .hop_hhead_size = cfs_hash_hh_hhead_size,
-       .hop_hnode_add  = cfs_hash_hh_hnode_add,
-       .hop_hnode_del  = cfs_hash_hh_hnode_del,
+	.hop_hhead      = cfs_hash_hh_hhead,
+	.hop_hhead_size = cfs_hash_hh_hhead_size,
+	.hop_hnode_add  = cfs_hash_hh_hnode_add,
+	.hop_hnode_del  = cfs_hash_hh_hnode_del,
 };
 
 static cfs_hash_hlist_ops_t cfs_hash_hd_hops = {
-       .hop_hhead      = cfs_hash_hd_hhead,
-       .hop_hhead_size = cfs_hash_hd_hhead_size,
-       .hop_hnode_add  = cfs_hash_hd_hnode_add,
-       .hop_hnode_del  = cfs_hash_hd_hnode_del,
+	.hop_hhead      = cfs_hash_hd_hhead,
+	.hop_hhead_size = cfs_hash_hd_hhead_size,
+	.hop_hnode_add  = cfs_hash_hd_hnode_add,
+	.hop_hnode_del  = cfs_hash_hd_hnode_del,
 };
 
 static cfs_hash_hlist_ops_t cfs_hash_dh_hops = {
-       .hop_hhead      = cfs_hash_dh_hhead,
-       .hop_hhead_size = cfs_hash_dh_hhead_size,
-       .hop_hnode_add  = cfs_hash_dh_hnode_add,
-       .hop_hnode_del  = cfs_hash_dh_hnode_del,
+	.hop_hhead      = cfs_hash_dh_hhead,
+	.hop_hhead_size = cfs_hash_dh_hhead_size,
+	.hop_hnode_add  = cfs_hash_dh_hnode_add,
+	.hop_hnode_del  = cfs_hash_dh_hnode_del,
 };
 
 static cfs_hash_hlist_ops_t cfs_hash_dd_hops = {
-       .hop_hhead      = cfs_hash_dd_hhead,
-       .hop_hhead_size = cfs_hash_dd_hhead_size,
-       .hop_hnode_add  = cfs_hash_dd_hnode_add,
-       .hop_hnode_del  = cfs_hash_dd_hnode_del,
+	.hop_hhead      = cfs_hash_dd_hhead,
+	.hop_hhead_size = cfs_hash_dd_hhead_size,
+	.hop_hnode_add  = cfs_hash_dd_hnode_add,
+	.hop_hnode_del  = cfs_hash_dd_hnode_del,
 };
 
 static void

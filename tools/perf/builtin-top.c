@@ -40,6 +40,7 @@
 #include "util/xyarray.h"
 #include "util/sort.h"
 #include "util/intlist.h"
+#include "util/parse-branch-options.h"
 #include "arch/common.h"
 
 #include "util/debug.h"
@@ -235,10 +236,13 @@ static void perf_top__show_details(struct perf_top *top)
 
 	more = symbol__annotate_printf(symbol, he->ms.map, top->sym_evsel,
 				       0, top->sym_pcnt_filter, top->print_entries, 4);
-	if (top->zero)
-		symbol__annotate_zero_histogram(symbol, top->sym_evsel->idx);
-	else
-		symbol__annotate_decay_histogram(symbol, top->sym_evsel->idx);
+
+	if (top->evlist->enabled) {
+		if (top->zero)
+			symbol__annotate_zero_histogram(symbol, top->sym_evsel->idx);
+		else
+			symbol__annotate_decay_histogram(symbol, top->sym_evsel->idx);
+	}
 	if (more != 0)
 		printf("%d lines not displayed, maybe increase display entries [e]\n", more);
 out_unlock:
@@ -276,11 +280,13 @@ static void perf_top__print_sym_table(struct perf_top *top)
 		return;
 	}
 
-	if (top->zero) {
-		hists__delete_entries(hists);
-	} else {
-		hists__decay_entries(hists, top->hide_user_symbols,
-				     top->hide_kernel_symbols);
+	if (top->evlist->enabled) {
+		if (top->zero) {
+			hists__delete_entries(hists);
+		} else {
+			hists__decay_entries(hists, top->hide_user_symbols,
+					     top->hide_kernel_symbols);
+		}
 	}
 
 	hists__collapse_resort(hists, NULL);
@@ -545,11 +551,13 @@ static void perf_top__sort_new_samples(void *arg)
 
 	hists = evsel__hists(t->sym_evsel);
 
-	if (t->zero) {
-		hists__delete_entries(hists);
-	} else {
-		hists__decay_entries(hists, t->hide_user_symbols,
-				     t->hide_kernel_symbols);
+	if (t->evlist->enabled) {
+		if (t->zero) {
+			hists__delete_entries(hists);
+		} else {
+			hists__decay_entries(hists, t->hide_user_symbols,
+					     t->hide_kernel_symbols);
+		}
 	}
 
 	hists__collapse_resort(hists, NULL);
@@ -579,7 +587,8 @@ static void *display_thread_tui(void *arg)
 		hists->uid_filter_str = top->record_opts.target.uid_str;
 	}
 
-	perf_evlist__tui_browse_hists(top->evlist, help, &hbt, top->min_percent,
+	perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
+				      top->min_percent,
 				      &top->session->header.env);
 
 	done = 1;
@@ -593,8 +602,8 @@ static void display_sig(int sig __maybe_unused)
 
 static void display_setup_sig(void)
 {
-	signal(SIGSEGV, display_sig);
-	signal(SIGFPE,  display_sig);
+	signal(SIGSEGV, sighandler_dump_stack);
+	signal(SIGFPE, sighandler_dump_stack);
 	signal(SIGINT,  display_sig);
 	signal(SIGQUIT, display_sig);
 	signal(SIGTERM, display_sig);
@@ -687,6 +696,8 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 		perf_top__record_precise_ip(top, he, evsel->idx, ip);
 	}
 
+	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
+		     !(top->record_opts.branch_stack & PERF_SAMPLE_BRANCH_ANY));
 	return 0;
 }
 
@@ -775,7 +786,9 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	if (al.sym == NULL || !al.sym->ignore) {
 		struct hists *hists = evsel__hists(evsel);
 		struct hist_entry_iter iter = {
-			.add_entry_cb = hist_iter__top_callback,
+			.evsel		= evsel,
+			.sample 	= sample,
+			.add_entry_cb 	= hist_iter__top_callback,
 		};
 
 		if (symbol_conf.cumulate_callchain)
@@ -785,15 +798,14 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 		pthread_mutex_lock(&hists->lock);
 
-		err = hist_entry_iter__add(&iter, &al, evsel, sample,
-					   top->max_stack, top);
+		err = hist_entry_iter__add(&iter, &al, top->max_stack, top);
 		if (err < 0)
 			pr_err("Problem incrementing symbol period, skipping event\n");
 
 		pthread_mutex_unlock(&hists->lock);
 	}
 
-	return;
+	addr_location__put(&al);
 }
 
 static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
@@ -950,7 +962,7 @@ static int __cmd_top(struct perf_top *top)
 		goto out_delete;
 
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
-				    top->evlist->threads, false);
+				    top->evlist->threads, false, opts->proc_map_timeout);
 	ret = perf_top__start_counters(top);
 	if (ret)
 		goto out_delete;
@@ -1060,6 +1072,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 			.target		= {
 				.uses_mmap   = true,
 			},
+			.proc_map_timeout    = 500,
 		},
 		.max_stack	     = PERF_MAX_STACK_DEPTH,
 		.sym_pcnt_filter     = 5,
@@ -1159,6 +1172,14 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
+	OPT_UINTEGER(0, "proc-map-timeout", &opts->proc_map_timeout,
+			"per thread proc mmap processing timeout in ms"),
+	OPT_CALLBACK_NOOPT('b', "branch-any", &opts->branch_stack,
+		     "branch any", "sample any taken branches",
+		     parse_branch_stack),
+	OPT_CALLBACK('j', "branch-filter", &opts->branch_stack,
+		     "branch filter mask", "branch stack filter modes",
+		     parse_branch_stack),
 	OPT_END()
 	};
 	const char * const top_usage[] = {

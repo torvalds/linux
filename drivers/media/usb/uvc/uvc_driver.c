@@ -1967,8 +1967,6 @@ static void uvc_disconnect(struct usb_interface *intf)
 	    UVC_SC_VIDEOSTREAMING)
 		return;
 
-	dev->state |= UVC_DEV_DISCONNECTED;
-
 	uvc_unregister_video(dev);
 }
 

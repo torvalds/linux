@@ -158,6 +158,7 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 	new_bus->name = "GPIO Bitbanged MDIO",
 
 	new_bus->phy_mask = pdata->phy_mask;
+	new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
 	new_bus->irq = pdata->irqs;
 	new_bus->parent = dev;
 
@@ -260,6 +261,7 @@ static const struct of_device_id mdio_gpio_of_match[] = {
 	{ .compatible = "virtual,mdio-gpio", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mdio_gpio_of_match);
 
 static struct platform_driver mdio_gpio_driver = {
 	.probe = mdio_gpio_probe,

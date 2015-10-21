@@ -82,11 +82,26 @@ config PINCTRL_AMD
 	  Requires ACPI/FDT device enumeration code to set up a platform
 	  device.
 
+config PINCTRL_DIGICOLOR
+	bool
+	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
+	select PINMUX
+	select GENERIC_PINCONF
+
 config PINCTRL_LANTIQ
 	bool
 	depends on LANTIQ
 	select PINMUX
 	select PINCONF
+
+config PINCTRL_LPC18XX
+	bool "NXP LPC18XX/43XX SCU pinctrl driver"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	default ARCH_LPC18XX
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Pinctrl driver for NXP LPC18xx/43xx System Control Unit (SCU).
 
 config PINCTRL_FALCON
 	bool
@@ -123,7 +138,17 @@ config PINCTRL_SIRF
 	bool "CSR SiRFprimaII pin controller driver"
 	depends on ARCH_SIRF
 	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
 	select GPIOLIB_IRQCHIP
+
+config PINCTRL_PISTACHIO
+	def_bool y if MACH_PISTACHIO
+	depends on GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
 
 config PINCTRL_ST
 	bool
@@ -221,6 +246,7 @@ source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"
+source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"
 

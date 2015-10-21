@@ -252,7 +252,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz)
 	}
 
 	/*  (1) The sequence number of each non-Qos frame / broadcast / multicast / */
-	/*  mgnt frame should be controled by Hw because Fw will also send null data */
+	/*  mgnt frame should be controlled by Hw because Fw will also send null data */
 	/*  which we cannot control when Fw LPS enable. */
 	/*  --> default enable non-Qos data sequense number. 2010.06.23. by tynli. */
 	/*  (2) Enable HW SEQ control for beacon packet, because we use Hw beacon. */

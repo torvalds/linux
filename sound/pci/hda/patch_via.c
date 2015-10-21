@@ -117,6 +117,8 @@ static void via_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 				  struct snd_pcm_substream *substream,
 				  int action);
 
+static const struct hda_codec_ops via_patch_ops; /* defined below */
+
 static struct via_spec *via_new_spec(struct hda_codec *codec)
 {
 	struct via_spec *spec;
@@ -137,6 +139,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 	spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_AUTO;
 	codec->power_save_node = 1;
 	spec->gen.power_down_unused = 1;
+	codec->patch_ops = via_patch_ops;
 	return spec;
 }
 
@@ -238,7 +241,9 @@ static int via_pin_power_ctl_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	ucontrol->value.enumerated.item[0] = codec->power_save_node;
+	struct via_spec *spec = codec->spec;
+
+	ucontrol->value.enumerated.item[0] = spec->gen.power_down_unused;
 	return 0;
 }
 
@@ -249,9 +254,9 @@ static int via_pin_power_ctl_put(struct snd_kcontrol *kcontrol,
 	struct via_spec *spec = codec->spec;
 	bool val = !!ucontrol->value.enumerated.item[0];
 
-	if (val == codec->power_save_node)
+	if (val == spec->gen.power_down_unused)
 		return 0;
-	codec->power_save_node = val;
+	/* codec->power_save_node = val; */ /* widget PM seems yet broken */
 	spec->gen.power_down_unused = val;
 	analog_low_current_mode(codec);
 	return 1;
@@ -481,7 +486,6 @@ static const struct hda_codec_ops via_patch_ops = {
 	.init = via_init,
 	.free = via_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-	.stream_pm = snd_hda_gen_stream_pm,
 #ifdef CONFIG_PM
 	.suspend = via_suspend,
 	.resume = via_resume,
@@ -661,6 +665,9 @@ static int patch_vt1708(struct hda_codec *codec)
 	if (spec == NULL)
 		return -ENOMEM;
 
+	/* override some patch_ops */
+	codec->patch_ops.build_controls = vt1708_build_controls;
+	codec->patch_ops.build_pcms = vt1708_build_pcms;
 	spec->gen.mixer_nid = 0x17;
 
 	/* set jackpoll_interval while parsing the codec */
@@ -689,10 +696,6 @@ static int patch_vt1708(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt1708_init_verbs;
 
-	codec->patch_ops = via_patch_ops;
-	codec->patch_ops.build_controls = vt1708_build_controls;
-	codec->patch_ops.build_pcms = vt1708_build_pcms;
-
 	/* clear jackpoll_interval again; it's set dynamically */
 	codec->jackpoll_interval = 0;
 
@@ -716,8 +719,6 @@ static int patch_vt1709(struct hda_codec *codec)
 		via_free(codec);
 		return err;
 	}
-
-	codec->patch_ops = via_patch_ops;
 
 	return 0;
 }
@@ -745,7 +746,6 @@ static int patch_vt1708B(struct hda_codec *codec)
 		return err;
 	}
 
-	codec->patch_ops = via_patch_ops;
 	return 0;
 }
 
@@ -810,7 +810,6 @@ static int patch_vt1708S(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt1708S_init_verbs;
 
-	codec->patch_ops = via_patch_ops;
 	return 0;
 }
 
@@ -852,7 +851,6 @@ static int patch_vt1702(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt1702_init_verbs;
 
-	codec->patch_ops = via_patch_ops;
 	return 0;
 }
 
@@ -925,7 +923,6 @@ static int patch_vt1718S(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_init_verbs;
 
-	codec->patch_ops = via_patch_ops;
 	return 0;
 }
 
@@ -1025,7 +1022,6 @@ static int patch_vt1716S(struct hda_codec *codec)
 	spec->mixers[spec->num_mixers++] = vt1716s_dmic_mixer;
 	spec->mixers[spec->num_mixers++] = vt1716S_mono_out_mixer;
 
-	codec->patch_ops = via_patch_ops;
 	return 0;
 }
 
@@ -1133,7 +1129,6 @@ static int patch_vt2002P(struct hda_codec *codec)
 	else
 		spec->init_verbs[spec->num_iverbs++] = vt2002P_init_verbs;
 
-	codec->patch_ops = via_patch_ops;
 	return 0;
 }
 
@@ -1172,7 +1167,6 @@ static int patch_vt1812(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1812_init_verbs;
 
-	codec->patch_ops = via_patch_ops;
 	return 0;
 }
 
@@ -1210,7 +1204,6 @@ static int patch_vt3476(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt3476_init_verbs;
 
-	codec->patch_ops = via_patch_ops;
 	return 0;
 }
 

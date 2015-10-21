@@ -1559,6 +1559,7 @@ void fm10k_down(struct fm10k_intfc *interface)
 
 	/* free any buffers still on the rings */
 	fm10k_clean_all_tx_rings(interface);
+	fm10k_clean_all_rx_rings(interface);
 }
 
 /**
@@ -1740,30 +1741,18 @@ static int fm10k_probe(struct pci_dev *pdev,
 	struct fm10k_intfc *interface;
 	struct fm10k_hw *hw;
 	int err;
-	u64 dma_mask;
 
 	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
 
-	/* By default fm10k only supports a 48 bit DMA mask */
-	dma_mask = DMA_BIT_MASK(48) | dma_get_required_mask(&pdev->dev);
-
-	if ((dma_mask <= DMA_BIT_MASK(32)) ||
-	    dma_set_mask_and_coherent(&pdev->dev, dma_mask)) {
-		dma_mask &= DMA_BIT_MASK(32);
-
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
+	if (err)
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err) {
-				dev_err(&pdev->dev,
-					"No usable DMA configuration, aborting\n");
-				goto err_dma;
-			}
-		}
+	if (err) {
+		dev_err(&pdev->dev,
+			"DMA configuration failed: %d\n", err);
+		goto err_dma;
 	}
 
 	err = pci_request_selected_regions(pdev,
@@ -1772,7 +1761,7 @@ static int fm10k_probe(struct pci_dev *pdev,
 					   fm10k_driver_name);
 	if (err) {
 		dev_err(&pdev->dev,
-			"pci_request_selected_regions failed 0x%x\n", err);
+			"pci_request_selected_regions failed: %d\n", err);
 		goto err_pci_reg;
 	}
 

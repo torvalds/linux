@@ -56,8 +56,8 @@
  */
 
 #include "../../include/linux/libcfs/libcfs.h"
-// #include <obd.h>
-#include "../../include/linux/lnet/lnet.h"
+#include "../../include/linux/lnet/nidstr.h"
+#include "../../include/linux/lnet/api.h"
 #include "lustre/lustre_idl.h"
 #include "lustre_ha.h"
 #include "lustre_sec.h"
@@ -1978,8 +1978,8 @@ struct ptlrpc_service {
 	int				srv_nthrs_cpt_init;
 	/** limit of threads number for each partition */
 	int				srv_nthrs_cpt_limit;
-	/** Root of /proc dir tree for this service */
-	struct proc_dir_entry	   *srv_procroot;
+	/** Root of debugfs dir tree for this service */
+	struct dentry		   *srv_debugfs_entry;
 	/** Pointer to statistic data for this service */
 	struct lprocfs_stats	   *srv_stats;
 	/** # hp per lp reqs to handle */
@@ -2016,6 +2016,10 @@ struct ptlrpc_service {
 	int				srv_cpt_bits;
 	/** CPT table this service is running over */
 	struct cfs_cpt_table		*srv_cptable;
+
+	/* sysfs object */
+	struct kobject			 srv_kobj;
+	struct completion		 srv_kobj_unregister;
 	/**
 	 * partition data for ptlrpc service
 	 */
@@ -2179,7 +2183,7 @@ struct ptlrpcd_ctl {
 	 */
 	struct ptlrpc_request_set  *pc_set;
 	/**
-	 * Thread name used in cfs_daemonize()
+	 * Thread name used in kthread_run()
 	 */
 	char			pc_name[16];
 	/**
@@ -2273,18 +2277,18 @@ static inline bool nrs_policy_compat_one(const struct ptlrpc_service *svc,
 
 /* ptlrpc/events.c */
 extern lnet_handle_eq_t ptlrpc_eq_h;
-extern int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
-			       lnet_process_id_t *peer, lnet_nid_t *self);
+int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
+			lnet_process_id_t *peer, lnet_nid_t *self);
 /**
  * These callbacks are invoked by LNet when something happened to
  * underlying buffer
  * @{
  */
-extern void request_out_callback(lnet_event_t *ev);
-extern void reply_in_callback(lnet_event_t *ev);
-extern void client_bulk_callback(lnet_event_t *ev);
-extern void request_in_callback(lnet_event_t *ev);
-extern void reply_out_callback(lnet_event_t *ev);
+void request_out_callback(lnet_event_t *ev);
+void reply_in_callback(lnet_event_t *ev);
+void client_bulk_callback(lnet_event_t *ev);
+void request_in_callback(lnet_event_t *ev);
+void reply_out_callback(lnet_event_t *ev);
 /** @} */
 
 /* ptlrpc/connection.c */
@@ -2295,7 +2299,7 @@ int ptlrpc_connection_put(struct ptlrpc_connection *c);
 struct ptlrpc_connection *ptlrpc_connection_addref(struct ptlrpc_connection *);
 int ptlrpc_connection_init(void);
 void ptlrpc_connection_fini(void);
-extern lnet_pid_t ptl_get_pid(void);
+lnet_pid_t ptl_get_pid(void);
 
 /* ptlrpc/niobuf.c */
 /**
@@ -2525,7 +2529,8 @@ void ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs);
 int ptlrpc_hpreq_handler(struct ptlrpc_request *req);
 struct ptlrpc_service *ptlrpc_register_service(
 				struct ptlrpc_service_conf *conf,
-				struct proc_dir_entry *proc_entry);
+				struct kset *parent,
+				struct dentry *debugfs_entry);
 void ptlrpc_stop_all_threads(struct ptlrpc_service *svc);
 
 int ptlrpc_start_threads(struct ptlrpc_service *svc);
@@ -2947,15 +2952,9 @@ void ptlrpcd_decref(void);
  * @{
  */
 const char *ll_opcode2str(__u32 opcode);
-#if defined (CONFIG_PROC_FS)
 void ptlrpc_lprocfs_register_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes);
-#else
-static inline void ptlrpc_lprocfs_register_obd(struct obd_device *obd) {}
-static inline void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd) {}
-static inline void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes) {}
-#endif
 /** @} */
 
 /* ptlrpc/llog_client.c */

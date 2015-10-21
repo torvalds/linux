@@ -313,7 +313,6 @@ struct apic {
 	/* wakeup_secondary_cpu */
 	int (*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
 
-	bool wait_for_init_deassert;
 	void (*inquire_remote_apic)(int apicid);
 
 	/* apic ops */
@@ -378,7 +377,6 @@ extern struct apic *__apicdrivers[], *__apicdrivers_end[];
  * APIC functionality to boot other CPUs - only used on SMP:
  */
 #ifdef CONFIG_SMP
-extern atomic_t init_deasserted;
 extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
 #endif
 
@@ -642,6 +640,12 @@ static inline void entering_ack_irq(void)
 {
 	ack_APIC_irq();
 	entering_irq();
+}
+
+static inline void ipi_entering_ack_irq(void)
+{
+	ack_APIC_irq();
+	irq_enter();
 }
 
 static inline void exiting_irq(void)

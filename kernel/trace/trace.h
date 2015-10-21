@@ -12,7 +12,7 @@
 #include <linux/ftrace.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/trace_seq.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 #include <linux/compiler.h>
 #include <linux/trace_seq.h>
 
@@ -211,8 +211,8 @@ struct trace_array {
 #ifdef CONFIG_FTRACE_SYSCALLS
 	int			sys_refcount_enter;
 	int			sys_refcount_exit;
-	struct ftrace_event_file __rcu *enter_syscall_files[NR_syscalls];
-	struct ftrace_event_file __rcu *exit_syscall_files[NR_syscalls];
+	struct trace_event_file __rcu *enter_syscall_files[NR_syscalls];
+	struct trace_event_file __rcu *exit_syscall_files[NR_syscalls];
 #endif
 	int			stop_count;
 	int			clock_id;
@@ -444,6 +444,7 @@ enum {
 
 	TRACE_CONTROL_BIT,
 
+	TRACE_BRANCH_BIT,
 /*
  * Abuse of the trace_recursion.
  * As we need a way to maintain state if we are tracing the function
@@ -858,7 +859,7 @@ void ftrace_destroy_filter_files(struct ftrace_ops *ops);
 #define ftrace_destroy_filter_files(ops) do { } while (0)
 #endif /* CONFIG_FUNCTION_TRACER && CONFIG_DYNAMIC_FTRACE */
 
-int ftrace_event_is_function(struct ftrace_event_call *call);
+int ftrace_event_is_function(struct trace_event_call *call);
 
 /*
  * struct trace_parser - servers for reading the user input separated by spaces
@@ -992,7 +993,7 @@ struct event_subsystem {
 	int			ref_count;
 };
 
-struct ftrace_subsystem_dir {
+struct trace_subsystem_dir {
 	struct list_head		list;
 	struct event_subsystem		*subsystem;
 	struct trace_array		*tr;
@@ -1052,30 +1053,30 @@ struct filter_pred {
 
 extern enum regex_type
 filter_parse_regex(char *buff, int len, char **search, int *not);
-extern void print_event_filter(struct ftrace_event_file *file,
+extern void print_event_filter(struct trace_event_file *file,
 			       struct trace_seq *s);
-extern int apply_event_filter(struct ftrace_event_file *file,
+extern int apply_event_filter(struct trace_event_file *file,
 			      char *filter_string);
-extern int apply_subsystem_event_filter(struct ftrace_subsystem_dir *dir,
+extern int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 					char *filter_string);
 extern void print_subsystem_event_filter(struct event_subsystem *system,
 					 struct trace_seq *s);
 extern int filter_assign_type(const char *type);
-extern int create_event_filter(struct ftrace_event_call *call,
+extern int create_event_filter(struct trace_event_call *call,
 			       char *filter_str, bool set_str,
 			       struct event_filter **filterp);
 extern void free_event_filter(struct event_filter *filter);
 
 struct ftrace_event_field *
-trace_find_event_field(struct ftrace_event_call *call, char *name);
+trace_find_event_field(struct trace_event_call *call, char *name);
 
 extern void trace_event_enable_cmd_record(bool enable);
 extern int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr);
 extern int event_trace_del_tracer(struct trace_array *tr);
 
-extern struct ftrace_event_file *find_event_file(struct trace_array *tr,
-						 const char *system,
-						 const char *event);
+extern struct trace_event_file *find_event_file(struct trace_array *tr,
+						const char *system,
+						const char *event);
 
 static inline void *event_file_data(struct file *filp)
 {
@@ -1180,7 +1181,7 @@ struct event_trigger_ops {
  *	commands need to do this if they themselves log to the trace
  *	buffer (see the @post_trigger() member below).  @trigger_type
  *	values are defined by adding new values to the trigger_type
- *	enum in include/linux/ftrace_event.h.
+ *	enum in include/linux/trace_events.h.
  *
  * @post_trigger: A flag that says whether or not this command needs
  *	to have its action delayed until after the current event has
@@ -1242,23 +1243,23 @@ struct event_command {
 	enum event_trigger_type	trigger_type;
 	bool			post_trigger;
 	int			(*func)(struct event_command *cmd_ops,
-					struct ftrace_event_file *file,
+					struct trace_event_file *file,
 					char *glob, char *cmd, char *params);
 	int			(*reg)(char *glob,
 				       struct event_trigger_ops *ops,
 				       struct event_trigger_data *data,
-				       struct ftrace_event_file *file);
+				       struct trace_event_file *file);
 	void			(*unreg)(char *glob,
 					 struct event_trigger_ops *ops,
 					 struct event_trigger_data *data,
-					 struct ftrace_event_file *file);
+					 struct trace_event_file *file);
 	int			(*set_filter)(char *filter_str,
 					      struct event_trigger_data *data,
-					      struct ftrace_event_file *file);
+					      struct trace_event_file *file);
 	struct event_trigger_ops *(*get_trigger_ops)(char *cmd, char *param);
 };
 
-extern int trace_event_enable_disable(struct ftrace_event_file *file,
+extern int trace_event_enable_disable(struct trace_event_file *file,
 				      int enable, int soft_disable);
 extern int tracing_alloc_snapshot(void);
 
@@ -1286,7 +1287,7 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled);
 
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(call, struct_name, id, tstruct, print, filter)	\
-	extern struct ftrace_event_call					\
+	extern struct trace_event_call					\
 	__aligned(4) event_##call;
 #undef FTRACE_ENTRY_DUP
 #define FTRACE_ENTRY_DUP(call, struct_name, id, tstruct, print, filter)	\
@@ -1295,7 +1296,7 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled);
 #include "trace_entries.h"
 
 #if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_FUNCTION_TRACER)
-int perf_ftrace_event_register(struct ftrace_event_call *call,
+int perf_ftrace_event_register(struct trace_event_call *call,
 			       enum trace_reg type, void *data);
 #else
 #define perf_ftrace_event_register NULL
@@ -1312,7 +1313,7 @@ void trace_event_init(void);
 void trace_event_enum_update(struct trace_enum_map **map, int len);
 #else
 static inline void __init trace_event_init(void) { }
-static inlin void trace_event_enum_update(struct trace_enum_map **map, int len) { }
+static inline void trace_event_enum_update(struct trace_enum_map **map, int len) { }
 #endif
 
 extern struct trace_iterator *tracepoint_print_iter;

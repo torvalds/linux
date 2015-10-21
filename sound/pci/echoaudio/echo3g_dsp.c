@@ -59,8 +59,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		cpu_to_le32((E3G_MAGIC_NUMBER / 48000) - 2);
 	chip->device_id = device_id;
 	chip->subdevice_id = subdevice_id;
-	chip->bad_board = TRUE;
-	chip->has_midi = TRUE;
+	chip->bad_board = true;
+	chip->has_midi = true;
 	chip->dsp_code_to_load = FW_ECHO3G_DSP;
 
 	/* Load the DSP code and the ASIC on the PCI card and get
@@ -78,8 +78,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		chip->px_analog_in = chip->bx_analog_in = 14;
 		chip->px_digital_in = chip->bx_digital_in = 16;
 		chip->px_num = chip->bx_num = 24;
-		chip->has_phantom_power = TRUE;
-		chip->hasnt_input_nominal_level = TRUE;
+		chip->has_phantom_power = true;
+		chip->hasnt_input_nominal_level = true;
 	} else if (err == E3G_LAYLA3G_BOX_TYPE) {
 		chip->input_clock_types =	ECHO_CLOCK_BIT_INTERNAL |
 						ECHO_CLOCK_BIT_SPDIF |
@@ -106,10 +106,10 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 static int set_mixer_defaults(struct echoaudio *chip)
 {
 	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
-	chip->professional_spdif = FALSE;
-	chip->non_audio_spdif = FALSE;
-	chip->bad_board = FALSE;
-	chip->phantom_power = FALSE;
+	chip->professional_spdif = false;
+	chip->non_audio_spdif = false;
+	chip->bad_board = false;
+	chip->phantom_power = false;
 	return init_line_levels(chip);
 }
 

@@ -117,12 +117,16 @@ struct backlight_device {
 	int use_count;
 };
 
-static inline void backlight_update_status(struct backlight_device *bd)
+static inline int backlight_update_status(struct backlight_device *bd)
 {
+	int ret = -ENOENT;
+
 	mutex_lock(&bd->update_lock);
 	if (bd->ops && bd->ops->update_status)
-		bd->ops->update_status(bd);
+		ret = bd->ops->update_status(bd);
 	mutex_unlock(&bd->update_lock);
+
+	return ret;
 }
 
 extern struct backlight_device *backlight_device_register(const char *name,

@@ -119,6 +119,16 @@ static int tegra_dsi_show_regs(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_dsi *dsi = node->info_ent->data;
+	struct drm_crtc *crtc = dsi->output.encoder.crtc;
+	struct drm_device *drm = node->minor->dev;
+	int err = 0;
+
+	drm_modeset_lock_all(drm);
+
+	if (!crtc || !crtc->state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 #define DUMP_REG(name)						\
 	seq_printf(s, "%-32s %#05x %08x\n", #name, name,	\
@@ -208,7 +218,9 @@ static int tegra_dsi_show_regs(struct seq_file *s, void *data)
 
 #undef DUMP_REG
 
-	return 0;
+unlock:
+	drm_modeset_unlock_all(drm);
+	return err;
 }
 
 static struct drm_info_list debugfs_files[] = {
@@ -548,14 +560,19 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 
 		/* horizontal sync width */
 		hsw = (mode->hsync_end - mode->hsync_start) * mul / div;
-		hsw -= 10;
 
 		/* horizontal back porch */
 		hbp = (mode->htotal - mode->hsync_end) * mul / div;
-		hbp -= 14;
+
+		if ((dsi->flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) == 0)
+			hbp += hsw;
 
 		/* horizontal front porch */
 		hfp = (mode->hsync_start - mode->hdisplay) * mul / div;
+
+		/* subtract packet overhead */
+		hsw -= 10;
+		hbp -= 14;
 		hfp -= 8;
 
 		tegra_dsi_writel(dsi, hsw << 16 | 0, DSI_PKT_LEN_0_1);
@@ -726,10 +743,6 @@ static void tegra_dsi_soft_reset(struct tegra_dsi *dsi)
 		tegra_dsi_soft_reset(dsi->slave);
 }
 
-static void tegra_dsi_connector_dpms(struct drm_connector *connector, int mode)
-{
-}
-
 static void tegra_dsi_connector_reset(struct drm_connector *connector)
 {
 	struct tegra_dsi_state *state;
@@ -756,7 +769,7 @@ tegra_dsi_connector_duplicate_state(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs tegra_dsi_connector_funcs = {
-	.dpms = tegra_dsi_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = tegra_dsi_connector_reset,
 	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -781,59 +794,6 @@ static const struct drm_connector_helper_funcs tegra_dsi_connector_helper_funcs 
 static const struct drm_encoder_funcs tegra_dsi_encoder_funcs = {
 	.destroy = tegra_output_encoder_destroy,
 };
-
-static void tegra_dsi_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-}
-
-static void tegra_dsi_encoder_prepare(struct drm_encoder *encoder)
-{
-}
-
-static void tegra_dsi_encoder_commit(struct drm_encoder *encoder)
-{
-}
-
-static void tegra_dsi_encoder_mode_set(struct drm_encoder *encoder,
-				       struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted)
-{
-	struct tegra_output *output = encoder_to_output(encoder);
-	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
-	struct tegra_dsi *dsi = to_dsi(output);
-	struct tegra_dsi_state *state;
-	u32 value;
-
-	state = tegra_dsi_get_state(dsi);
-
-	tegra_dsi_set_timeout(dsi, state->bclk, state->vrefresh);
-
-	/*
-	 * The D-PHY timing fields are expressed in byte-clock cycles, so
-	 * multiply the period by 8.
-	 */
-	tegra_dsi_set_phy_timing(dsi, state->period * 8, &state->timing);
-
-	if (output->panel)
-		drm_panel_prepare(output->panel);
-
-	tegra_dsi_configure(dsi, dc->pipe, mode);
-
-	/* enable display controller */
-	value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
-	value |= DSI_ENABLE;
-	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
-
-	tegra_dc_commit(dc);
-
-	/* enable DSI controller */
-	tegra_dsi_enable(dsi);
-
-	if (output->panel)
-		drm_panel_enable(output->panel);
-
-	return;
-}
 
 static void tegra_dsi_encoder_disable(struct drm_encoder *encoder)
 {
@@ -870,6 +830,46 @@ static void tegra_dsi_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_unprepare(output->panel);
 
 	tegra_dsi_disable(dsi);
+
+	return;
+}
+
+static void tegra_dsi_encoder_enable(struct drm_encoder *encoder)
+{
+	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
+	struct tegra_output *output = encoder_to_output(encoder);
+	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
+	struct tegra_dsi *dsi = to_dsi(output);
+	struct tegra_dsi_state *state;
+	u32 value;
+
+	state = tegra_dsi_get_state(dsi);
+
+	tegra_dsi_set_timeout(dsi, state->bclk, state->vrefresh);
+
+	/*
+	 * The D-PHY timing fields are expressed in byte-clock cycles, so
+	 * multiply the period by 8.
+	 */
+	tegra_dsi_set_phy_timing(dsi, state->period * 8, &state->timing);
+
+	if (output->panel)
+		drm_panel_prepare(output->panel);
+
+	tegra_dsi_configure(dsi, dc->pipe, mode);
+
+	/* enable display controller */
+	value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+	value |= DSI_ENABLE;
+	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
+
+	tegra_dc_commit(dc);
+
+	/* enable DSI controller */
+	tegra_dsi_enable(dsi);
+
+	if (output->panel)
+		drm_panel_enable(output->panel);
 
 	return;
 }
@@ -956,11 +956,8 @@ tegra_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs tegra_dsi_encoder_helper_funcs = {
-	.dpms = tegra_dsi_encoder_dpms,
-	.prepare = tegra_dsi_encoder_prepare,
-	.commit = tegra_dsi_encoder_commit,
-	.mode_set = tegra_dsi_encoder_mode_set,
 	.disable = tegra_dsi_encoder_disable,
+	.enable = tegra_dsi_encoder_enable,
 	.atomic_check = tegra_dsi_encoder_atomic_check,
 };
 
@@ -991,6 +988,10 @@ static int tegra_dsi_pad_calibrate(struct tegra_dsi *dsi)
 		DSI_PAD_LP_UP(0x1) | DSI_PAD_LP_DN(0x1) |
 		DSI_PAD_OUT_CLK(0x0);
 	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_2);
+
+	value = DSI_PAD_PREEMP_PD_CLK(0x3) | DSI_PAD_PREEMP_PU_CLK(0x3) |
+		DSI_PAD_PREEMP_PD(0x03) | DSI_PAD_PREEMP_PU(0x3);
+	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_3);
 
 	return tegra_mipi_calibrate(dsi->mipi);
 }
@@ -1621,6 +1622,9 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra_dsi_of_match[] = {
+	{ .compatible = "nvidia,tegra210-dsi", },
+	{ .compatible = "nvidia,tegra132-dsi", },
+	{ .compatible = "nvidia,tegra124-dsi", },
 	{ .compatible = "nvidia,tegra114-dsi", },
 	{ },
 };

@@ -660,7 +660,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	eeh_pe_dev_traverse(pe, eeh_report_error, &result);
 
 	/* Get the current PCI slot state. This can take a long time,
-	 * sometimes over 3 seconds for certain systems.
+	 * sometimes over 300 seconds for certain systems.
 	 */
 	rc = eeh_ops->wait_state(pe, MAX_WAIT_FOR_RECOVERY*1000);
 	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {

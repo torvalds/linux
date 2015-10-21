@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,7 @@
 #include "fw-api-coex.h"
 #include "fw-api-scan.h"
 #include "fw-api-stats.h"
+#include "fw-api-tof.h"
 
 /* Tx queue numbers */
 enum {
@@ -108,6 +109,7 @@ enum {
 	ANTENNA_COUPLING_NOTIFICATION = 0xa,
 
 	/* UMAC scan commands */
+	SCAN_ITERATION_COMPLETE_UMAC = 0xb5,
 	SCAN_CFG_CMD = 0xc,
 	SCAN_REQ_UMAC = 0xd,
 	SCAN_ABORT_UMAC = 0xe,
@@ -117,6 +119,9 @@ enum {
 	ADD_STA_KEY = 0x17,
 	ADD_STA = 0x18,
 	REMOVE_STA = 0x19,
+
+	/* paging get item */
+	FW_GET_ITEM_CMD = 0x1a,
 
 	/* TX */
 	TX_CMD = 0x1c,
@@ -147,12 +152,8 @@ enum {
 
 	LQ_CMD = 0x4e,
 
-	/* Calibration */
-	TEMPERATURE_NOTIFICATION = 0x62,
-	CALIBRATION_CFG_CMD = 0x65,
-	CALIBRATION_RES_NOTIFICATION = 0x66,
-	CALIBRATION_COMPLETE_NOTIFICATION = 0x67,
-	RADIO_VERSION_NOTIFICATION = 0x68,
+	/* paging block to FW cpu2 */
+	FW_PAGING_BLOCK_CMD = 0x4f,
 
 	/* Scan offload */
 	SCAN_OFFLOAD_REQUEST_CMD = 0x51,
@@ -169,6 +170,10 @@ enum {
 	CALIB_RES_NOTIF_PHY_DB = 0x6b,
 	/* PHY_DB_CMD = 0x6c, */
 
+	/* ToF - 802.11mc FTM */
+	TOF_CMD = 0x10,
+	TOF_NOTIFICATION = 0x11,
+
 	/* Power - legacy power table command */
 	POWER_TABLE_CMD = 0x77,
 	PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78,
@@ -177,12 +182,8 @@ enum {
 	/* Thermal Throttling*/
 	REPLY_THERMAL_MNG_BACKOFF = 0x7e,
 
-	/* Scanning */
-	SCAN_REQUEST_CMD = 0x80,
-	SCAN_ABORT_CMD = 0x81,
-	SCAN_START_NOTIFICATION = 0x82,
-	SCAN_RESULTS_NOTIFICATION = 0x83,
-	SCAN_COMPLETE_NOTIFICATION = 0x84,
+	/* Set/Get DC2DC frequency tune */
+	DC2DC_CONFIG_CMD = 0x83,
 
 	/* NVM */
 	NVM_ACCESS_CMD = 0x88,
@@ -374,6 +375,50 @@ struct iwl_nvm_access_cmd {
 	__le16 length;
 	u8 data[];
 } __packed; /* NVM_ACCESS_CMD_API_S_VER_2 */
+
+#define NUM_OF_FW_PAGING_BLOCKS	33 /* 32 for data and 1 block for CSS */
+
+/*
+ * struct iwl_fw_paging_cmd - paging layout
+ *
+ * (FW_PAGING_BLOCK_CMD = 0x4f)
+ *
+ * Send to FW the paging layout in the driver.
+ *
+ * @flags: various flags for the command
+ * @block_size: the block size in powers of 2
+ * @block_num: number of blocks specified in the command.
+ * @device_phy_addr: virtual addresses from device side
+*/
+struct iwl_fw_paging_cmd {
+	__le32 flags;
+	__le32 block_size;
+	__le32 block_num;
+	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
+} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
+
+/*
+ * Fw items ID's
+ *
+ * @IWL_FW_ITEM_ID_PAGING: Address of the pages that the FW will upload
+ *	download
+ */
+enum iwl_fw_item_id {
+	IWL_FW_ITEM_ID_PAGING = 3,
+};
+
+/*
+ * struct iwl_fw_get_item_cmd - get an item from the fw
+ */
+struct iwl_fw_get_item_cmd {
+	__le32 item_id;
+} __packed; /* FW_GET_ITEM_CMD_API_S_VER_1 */
+
+struct iwl_fw_get_item_resp {
+	__le32 item_id;
+	__le32 item_byte_cnt;
+	__le32 item_val;
+} __packed; /* FW_GET_ITEM_RSP_S_VER_1 */
 
 /**
  * struct iwl_nvm_access_resp_ver2 - response to NVM_ACCESS_CMD
@@ -1090,10 +1135,33 @@ struct iwl_rx_phy_info {
 	__le16 frame_time;
 } __packed;
 
+/*
+ * TCP offload Rx assist info
+ *
+ * bits 0:3 - reserved
+ * bits 4:7 - MIC CRC length
+ * bits 8:12 - MAC header length
+ * bit 13 - Padding indication
+ * bit 14 - A-AMSDU indication
+ * bit 15 - Offload enabled
+ */
+enum iwl_csum_rx_assist_info {
+	CSUM_RXA_RESERVED_MASK	= 0x000f,
+	CSUM_RXA_MICSIZE_MASK	= 0x00f0,
+	CSUM_RXA_HEADERLEN_MASK	= 0x1f00,
+	CSUM_RXA_PADD		= BIT(13),
+	CSUM_RXA_AMSDU		= BIT(14),
+	CSUM_RXA_ENA		= BIT(15)
+};
+
+/**
+ * struct iwl_rx_mpdu_res_start - phy info
+ * @assist: see CSUM_RX_ASSIST_ above
+ */
 struct iwl_rx_mpdu_res_start {
 	__le16 byte_count;
-	__le16 reserved;
-} __packed;
+	__le16 assist;
+} __packed; /* _RX_MPDU_RES_START_API_S_VER_2 */
 
 /**
  * enum iwl_rx_phy_flags - to parse %iwl_rx_phy_info phy_flags
@@ -1146,6 +1214,8 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP:
  * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT:
  * @RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME: this frame is an 11w management frame
+ * @RX_MPDU_RES_STATUS_CSUM_DONE: checksum was done by the hw
+ * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
  * @RX_MPDU_RES_STATUS_HASH_INDEX_MSK:
  * @RX_MPDU_RES_STATUS_STA_ID_MSK:
  * @RX_MPDU_RES_STATUS_RRF_KILL:
@@ -1175,6 +1245,8 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP		= BIT(13),
 	RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT		= BIT(14),
 	RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME		= BIT(15),
+	RX_MPDU_RES_STATUS_CSUM_DONE			= BIT(16),
+	RX_MPDU_RES_STATUS_CSUM_OK			= BIT(17),
 	RX_MPDU_RES_STATUS_HASH_INDEX_MSK		= (0x3F0000),
 	RX_MPDU_RES_STATUS_STA_ID_MSK			= (0x1f000000),
 	RX_MPDU_RES_STATUS_RRF_KILL			= BIT(29),
@@ -1401,6 +1473,49 @@ struct iwl_mvm_marker {
 	__le64 timestamp;
 	__le32 metadata[0];
 } __packed; /* MARKER_API_S_VER_1 */
+
+/*
+ * enum iwl_dc2dc_config_id - flag ids
+ *
+ * Ids of dc2dc configuration flags
+ */
+enum iwl_dc2dc_config_id {
+	DCDC_LOW_POWER_MODE_MSK_SET  = 0x1, /* not used */
+	DCDC_FREQ_TUNE_SET = 0x2,
+}; /* MARKER_ID_API_E_VER_1 */
+
+/**
+ * struct iwl_dc2dc_config_cmd - configure dc2dc values
+ *
+ * (DC2DC_CONFIG_CMD = 0x83)
+ *
+ * Set/Get & configure dc2dc values.
+ * The command always returns the current dc2dc values.
+ *
+ * @flags: set/get dc2dc
+ * @enable_low_power_mode: not used.
+ * @dc2dc_freq_tune0: frequency divider - digital domain
+ * @dc2dc_freq_tune1: frequency divider - analog domain
+ */
+struct iwl_dc2dc_config_cmd {
+	__le32 flags;
+	__le32 enable_low_power_mode; /* not used */
+	__le32 dc2dc_freq_tune0;
+	__le32 dc2dc_freq_tune1;
+} __packed; /* DC2DC_CONFIG_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_dc2dc_config_resp - response for iwl_dc2dc_config_cmd
+ *
+ * Current dc2dc values returned by the FW.
+ *
+ * @dc2dc_freq_tune0: frequency divider - digital domain
+ * @dc2dc_freq_tune1: frequency divider - analog domain
+ */
+struct iwl_dc2dc_config_resp {
+	__le32 dc2dc_freq_tune0;
+	__le32 dc2dc_freq_tune1;
+} __packed; /* DC2DC_CONFIG_RESP_API_S_VER_1 */
 
 /***********************************
  * Smart Fifo API

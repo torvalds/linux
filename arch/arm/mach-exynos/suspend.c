@@ -32,13 +32,11 @@
 #include <asm/suspend.h>
 
 #include <plat/pm-common.h>
-#include <plat/regs-srom.h>
 
 #include "common.h"
-#include "regs-pmu.h"
 #include "exynos-pmu.h"
-
-#define S5P_CHECK_SLEEP 0x00000BAD
+#include "regs-pmu.h"
+#include "regs-srom.h"
 
 #define REG_TABLE_END (-1U)
 
@@ -223,7 +221,7 @@ static int exynos_pmu_domain_alloc(struct irq_domain *domain,
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &parent_args);
 }
 
-static struct irq_domain_ops exynos_pmu_domain_ops = {
+static const struct irq_domain_ops exynos_pmu_domain_ops = {
 	.xlate	= exynos_pmu_domain_xlate,
 	.alloc	= exynos_pmu_domain_alloc,
 	.free	= irq_domain_free_irqs_common,
@@ -311,13 +309,7 @@ static int exynos5420_cpu_suspend(unsigned long arg)
 
 	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM)) {
 		mcpm_set_entry_vector(cpu, cluster, exynos_cpu_resume);
-
-		/*
-		 * Residency value passed to mcpm_cpu_suspend back-end
-		 * has to be given clear semantics. Set to 0 as a
-		 * temporary value.
-		 */
-		mcpm_cpu_suspend(0);
+		mcpm_cpu_suspend();
 	}
 
 	pr_info("Failed to suspend the system\n");
@@ -337,7 +329,7 @@ static void exynos_pm_enter_sleep_mode(void)
 {
 	/* Set value of power down register for sleep mode */
 	exynos_sys_powerdown_conf(SYS_SLEEP);
-	pmu_raw_writel(S5P_CHECK_SLEEP, S5P_INFORM1);
+	pmu_raw_writel(EXYNOS_SLEEP_MAGIC, S5P_INFORM1);
 }
 
 static void exynos_pm_prepare(void)

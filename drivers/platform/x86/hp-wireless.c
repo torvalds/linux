@@ -114,14 +114,9 @@ static int __init hpwl_init(void)
 
 	pr_info("Initializing HPQ6001 module\n");
 	err = acpi_bus_register_driver(&hpwl_driver);
-	if (err) {
+	if (err)
 		pr_err("Unable to register HP wireless control driver.\n");
-		goto error_acpi_register;
-	}
 
-	return 0;
-
-error_acpi_register:
 	return err;
 }
 

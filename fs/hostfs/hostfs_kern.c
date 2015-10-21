@@ -260,7 +260,7 @@ static int hostfs_show_options(struct seq_file *seq, struct dentry *root)
 	size_t offset = strlen(root_ino) + 1;
 
 	if (strlen(root_path) > offset)
-		seq_printf(seq, ",%s", root_path + offset);
+		seq_show_option(seq, root_path + offset, NULL);
 
 	if (append)
 		seq_puts(seq, ",append");
@@ -892,7 +892,7 @@ static const struct inode_operations hostfs_dir_iops = {
 	.setattr	= hostfs_setattr,
 };
 
-static void *hostfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *hostfs_follow_link(struct dentry *dentry, void **cookie)
 {
 	char *link = __getname();
 	if (link) {
@@ -906,21 +906,18 @@ static void *hostfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 		}
 		if (err < 0) {
 			__putname(link);
-			link = ERR_PTR(err);
+			return ERR_PTR(err);
 		}
 	} else {
-		link = ERR_PTR(-ENOMEM);
+		return ERR_PTR(-ENOMEM);
 	}
 
-	nd_set_link(nd, link);
-	return NULL;
+	return *cookie = link;
 }
 
-static void hostfs_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
+static void hostfs_put_link(struct inode *unused, void *cookie)
 {
-	char *s = nd_get_link(nd);
-	if (!IS_ERR(s))
-		__putname(s);
+	__putname(cookie);
 }
 
 static const struct inode_operations hostfs_link_iops = {

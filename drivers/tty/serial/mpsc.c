@@ -913,7 +913,8 @@ static int mpsc_make_ready(struct mpsc_port_info *pi)
 
 	if (!pi->ready) {
 		mpsc_init_hw(pi);
-		if ((rc = mpsc_alloc_ring_mem(pi)))
+		rc = mpsc_alloc_ring_mem(pi);
+		if (rc)
 			return rc;
 		mpsc_init_rings(pi);
 		pi->ready = 1;
@@ -1895,7 +1896,8 @@ static int mpsc_shared_drv_probe(struct platform_device *dev)
 	int				 rc = -ENODEV;
 
 	if (dev->id == 0) {
-		if (!(rc = mpsc_shared_map_regs(dev))) {
+		rc = mpsc_shared_map_regs(dev);
+		if (!rc) {
 			pdata = (struct mpsc_shared_pdata *)
 				dev_get_platdata(&dev->dev);
 
@@ -2081,14 +2083,16 @@ static int mpsc_drv_probe(struct platform_device *dev)
 	if (dev->id < MPSC_NUM_CTLRS) {
 		pi = &mpsc_ports[dev->id];
 
-		if (!(rc = mpsc_drv_map_regs(pi, dev))) {
+		rc = mpsc_drv_map_regs(pi, dev);
+		if (!rc) {
 			mpsc_drv_get_platform_data(pi, dev, dev->id);
 			pi->port.dev = &dev->dev;
 
-			if (!(rc = mpsc_make_ready(pi))) {
+			rc = mpsc_make_ready(pi);
+			if (!rc) {
 				spin_lock_init(&pi->tx_lock);
-				if (!(rc = uart_add_one_port(&mpsc_reg,
-								&pi->port))) {
+				rc = uart_add_one_port(&mpsc_reg, &pi->port);
+				if (!rc) {
 					rc = 0;
 				} else {
 					mpsc_release_port((struct uart_port *)
@@ -2136,9 +2140,12 @@ static int __init mpsc_drv_init(void)
 	memset(mpsc_ports, 0, sizeof(mpsc_ports));
 	memset(&mpsc_shared_regs, 0, sizeof(mpsc_shared_regs));
 
-	if (!(rc = uart_register_driver(&mpsc_reg))) {
-		if (!(rc = platform_driver_register(&mpsc_shared_driver))) {
-			if ((rc = platform_driver_register(&mpsc_driver))) {
+	rc = uart_register_driver(&mpsc_reg);
+	if (!rc) {
+		rc = platform_driver_register(&mpsc_shared_driver);
+		if (!rc) {
+			rc = platform_driver_register(&mpsc_driver);
+			if (rc) {
 				platform_driver_unregister(&mpsc_shared_driver);
 				uart_unregister_driver(&mpsc_reg);
 			}

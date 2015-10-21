@@ -2,7 +2,7 @@
 
 Required properties:
   - compatible: Should be "solomon,<chip>fb-<bus>". The only supported bus for
-    now is i2c, and the supported chips are ssd1306 and ssd1307.
+    now is i2c, and the supported chips are ssd1305, ssd1306 and ssd1307.
   - reg: Should contain address of the controller on the I2C bus. Most likely
          0x3c or 0x3d
   - pwm: Should contain the pwm to use according to the OF device tree PWM
@@ -15,6 +15,16 @@ Required properties:
 
 Optional properties:
   - reset-active-low: Is the reset gpio is active on physical low?
+  - solomon,segment-no-remap: Display needs normal (non-inverted) data column
+                              to segment mapping
+  - solomon,com-seq: Display uses sequential COM pin configuration
+  - solomon,com-lrremap: Display uses left-right COM pin remap
+  - solomon,com-invdir: Display uses inverted COM pin scan direction
+  - solomon,com-offset: Number of the COM pin wired to the first display line
+  - solomon,prechargep1: Length of deselect period (phase 1) in clock cycles.
+  - solomon,prechargep2: Length of precharge period (phase 2) in clock cycles.
+                         This needs to be the higher, the higher the capacitance
+                         of the OLED's pixels is
 
 [0]: Documentation/devicetree/bindings/pwm/pwm.txt
 
@@ -25,4 +35,15 @@ ssd1307: oled@3c {
         pwms = <&pwm 4 3000>;
         reset-gpios = <&gpio2 7>;
         reset-active-low;
+};
+
+ssd1306: oled@3c {
+        compatible = "solomon,ssd1306fb-i2c";
+        reg = <0x3c>;
+        pwms = <&pwm 4 3000>;
+        reset-gpios = <&gpio2 7>;
+        reset-active-low;
+        solomon,com-lrremap;
+        solomon,com-invdir;
+        solomon,com-offset = <32>;
 };

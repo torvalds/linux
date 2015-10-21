@@ -57,6 +57,7 @@ static const struct pm8001_chip_info pm8001_chips[] = {
 	[chip_8074] = {0,  8, &pm8001_80xx_dispatch,},
 	[chip_8076] = {0,  16, &pm8001_80xx_dispatch,},
 	[chip_8077] = {0,  16, &pm8001_80xx_dispatch,},
+	[chip_8006] = {0,  16, &pm8001_80xx_dispatch,},
 };
 static int pm8001_id;
 
@@ -78,7 +79,6 @@ static struct scsi_host_template pm8001_sht = {
 	.change_queue_depth	= sas_change_queue_depth,
 	.bios_param		= sas_bios_param,
 	.can_queue		= 1,
-	.cmd_per_lun		= 1,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
@@ -1108,6 +1108,8 @@ err_out_enable:
  */
 static struct pci_device_id pm8001_pci_table[] = {
 	{ PCI_VDEVICE(PMC_Sierra, 0x8001), chip_8001 },
+	{ PCI_VDEVICE(PMC_Sierra, 0x8006), chip_8006 },
+	{ PCI_VDEVICE(ADAPTEC2, 0x8006), chip_8006 },
 	{ PCI_VDEVICE(ATTO, 0x0042), chip_8001 },
 	/* Support for SPC/SPCv/SPCve controllers */
 	{ PCI_VDEVICE(ADAPTEC2, 0x8001), chip_8001 },
@@ -1218,7 +1220,7 @@ MODULE_AUTHOR("Anand Kumar Santhanam <AnandKumar.Santhanam@pmcs.com>");
 MODULE_AUTHOR("Sangeetha Gnanasekaran <Sangeetha.Gnanasekaran@pmcs.com>");
 MODULE_AUTHOR("Nikith Ganigarakoppal <Nikith.Ganigarakoppal@pmcs.com>");
 MODULE_DESCRIPTION(
-		"PMC-Sierra PM8001/8081/8088/8089/8074/8076/8077 "
+		"PMC-Sierra PM8001/8006/8081/8088/8089/8074/8076/8077 "
 		"SAS/SATA controller driver");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");

@@ -354,6 +354,10 @@ static struct sst_machines sst_acpi_chv[] = {
 						&chv_platform_data },
 	{"10EC5645", "cht-bsw", "cht-bsw-rt5645", NULL, "intel/fw_sst_22a8.bin",
 						&chv_platform_data },
+	{"10EC5650", "cht-bsw", "cht-bsw-rt5645", NULL, "intel/fw_sst_22a8.bin",
+						&chv_platform_data },
+	{"193C9890", "cht-bsw", "cht-bsw-max98090", NULL,
+	"intel/fw_sst_22a8.bin", &chv_platform_data },
 	{},
 };
 

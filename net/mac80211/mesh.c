@@ -158,7 +158,7 @@ void mesh_sta_cleanup(struct sta_info *sta)
 	changed = mesh_accept_plinks_update(sdata);
 	if (!sdata->u.mesh.user_mpm) {
 		changed |= mesh_plink_deactivate(sta);
-		del_timer_sync(&sta->plink_timer);
+		del_timer_sync(&sta->mesh->plink_timer);
 	}
 
 	if (changed)
@@ -680,6 +680,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		*pos++ = 0x0;
 		*pos++ = ieee80211_frequency_to_channel(
 				csa->settings.chandef.chan->center_freq);
+		bcn->csa_current_counter = csa->settings.count;
 		bcn->csa_counter_offsets[0] = hdr_len + 6;
 		*pos++ = csa->settings.count;
 		*pos++ = WLAN_EID_CHAN_SWITCH_PARAM;

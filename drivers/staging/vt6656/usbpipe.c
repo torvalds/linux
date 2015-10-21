@@ -141,7 +141,7 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
 {
 	int status = STATUS_FAILURE;
 
-	if (priv->int_buf.in_use == true)
+	if (priv->int_buf.in_use)
 		return STATUS_FAILURE;
 
 	priv->int_buf.in_use = true;

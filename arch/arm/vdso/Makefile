@@ -6,9 +6,15 @@ obj-vdso := vgettimeofday.o datapage.o
 targets := $(obj-vdso) vdso.so vdso.so.dbg vdso.so.raw vdso.lds
 obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 
-ccflags-y := -shared -fPIC -fno-common -fno-builtin -fno-stack-protector
-ccflags-y += -nostdlib -Wl,-soname=linux-vdso.so.1 -DDISABLE_BRANCH_PROFILING
-ccflags-y += -Wl,--no-undefined $(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
+ccflags-y := -fPIC -fno-common -fno-builtin -fno-stack-protector
+ccflags-y += -DDISABLE_BRANCH_PROFILING
+
+VDSO_LDFLAGS := -Wl,-Bsymbolic -Wl,--no-undefined -Wl,-soname=linux-vdso.so.1
+VDSO_LDFLAGS += -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
+VDSO_LDFLAGS += -nostdlib -shared
+VDSO_LDFLAGS += $(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
+VDSO_LDFLAGS += $(call cc-ldoption, -Wl$(comma)--build-id)
+VDSO_LDFLAGS += $(call cc-ldoption, -fuse-ld=bfd)
 
 obj-$(CONFIG_VDSO) += vdso.o
 extra-$(CONFIG_VDSO) += vdso.lds
@@ -40,10 +46,8 @@ $(obj)/%.so: $(obj)/%.so.dbg FORCE
 
 # Actual build commands
 quiet_cmd_vdsold = VDSO    $@
-      cmd_vdsold = $(CC) $(c_flags) -Wl,-T $(filter %.lds,$^) $(filter %.o,$^) \
-                   $(call cc-ldoption, -Wl$(comma)--build-id) \
-                   -Wl,-Bsymbolic -Wl,-z,max-page-size=4096 \
-                   -Wl,-z,common-page-size=4096 -o $@
+      cmd_vdsold = $(CC) $(c_flags) $(VDSO_LDFLAGS) \
+                   -Wl,-T $(filter %.lds,$^) $(filter %.o,$^) -o $@
 
 quiet_cmd_vdsomunge = MUNGE   $@
       cmd_vdsomunge = $(objtree)/$(obj)/vdsomunge $< $@

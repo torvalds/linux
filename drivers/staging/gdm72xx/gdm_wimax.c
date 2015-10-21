@@ -584,7 +584,7 @@ static int gdm_wimax_get_prepared_info(struct net_device *dev, char *buf,
 		if (T == TLV_T(T_MAC_ADDRESS)) {
 			if (L != dev->addr_len) {
 				netdev_err(dev,
-					   "%s Invalid inofrmation result T/L [%x/%d]\n",
+					   "%s Invalid information result T/L [%x/%d]\n",
 					   __func__, T, L);
 				return -1;
 			}

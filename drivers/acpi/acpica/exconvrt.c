@@ -227,9 +227,8 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 		/* Copy the integer to the buffer, LSB first */
 
 		new_buf = return_desc->buffer.pointer;
-		ACPI_MEMCPY(new_buf,
-			    &obj_desc->integer.value,
-			    acpi_gbl_integer_byte_width);
+		memcpy(new_buf,
+		       &obj_desc->integer.value, acpi_gbl_integer_byte_width);
 		break;
 
 	case ACPI_TYPE_STRING:
@@ -252,8 +251,8 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 		/* Copy the string to the buffer */
 
 		new_buf = return_desc->buffer.pointer;
-		ACPI_STRNCPY((char *)new_buf, (char *)obj_desc->string.pointer,
-			     obj_desc->string.length);
+		strncpy((char *)new_buf, (char *)obj_desc->string.pointer,
+			obj_desc->string.length);
 		break;
 
 	default:

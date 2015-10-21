@@ -3,3 +3,4 @@ header-y += fc/
 header-y += scsi_bsg_fc.h
 header-y += scsi_netlink.h
 header-y += scsi_netlink_fc.h
+header-y += cxlflash_ioctl.h

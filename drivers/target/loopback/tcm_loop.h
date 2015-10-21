@@ -2,11 +2,6 @@
 #define TL_WWN_ADDR_LEN			256
 #define TL_TPGS_PER_HBA			32
 
-/*
- * Used in tcm_loop_driver_probe() for struct Scsi_Host->max_cmd_len
- */
-#define TL_SCSI_MAX_CMD_LEN		32
-
 struct tcm_loop_cmd {
 	/* State of Linux/SCSI CDB+Data descriptor */
 	u32 sc_cmd_state;
@@ -31,10 +26,6 @@ struct tcm_loop_nexus {
 	 * Pointer to TCM session for I_T Nexus
 	 */
 	struct se_session *se_sess;
-};
-
-struct tcm_loop_nacl {
-	struct se_node_acl se_node_acl;
 };
 
 #define TCM_TRANSPORT_ONLINE 0

@@ -158,7 +158,7 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (!cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
 		goto err;
 
-	ret = cdc_ncm_bind_common(dev, intf, data_altsetting);
+	ret = cdc_ncm_bind_common(dev, intf, data_altsetting, 0);
 	if (ret)
 		goto err;
 

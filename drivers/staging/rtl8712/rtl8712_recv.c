@@ -58,8 +58,8 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
 
 	/*init recv_buf*/
 	_init_queue(&precvpriv->free_recv_buf_queue);
-	precvpriv->pallocated_recv_buf = kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4,
-						 GFP_ATOMIC);
+	precvpriv->pallocated_recv_buf =
+		kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4, GFP_ATOMIC);
 	if (precvpriv->pallocated_recv_buf == NULL)
 		return _FAIL;
 	precvpriv->precv_buf = precvpriv->pallocated_recv_buf + 4 -
@@ -1056,7 +1056,8 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		/* for first fragment packet, driver need allocate 1536 +
 		 * drvinfo_sz + RXDESC_SIZE to defrag packet. */
 		if ((mf == 1) && (frag == 0))
-			alloc_sz = 1658;/*1658+6=1664, 1664 is 128 alignment.*/
+			/*1658+6=1664, 1664 is 128 alignment.*/
+			alloc_sz = max_t(u16, tmp_len, 1658);
 		else
 			alloc_sz = tmp_len;
 		/* 2 is for IP header 4 bytes alignment in QoS packet case.

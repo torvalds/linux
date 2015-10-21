@@ -57,6 +57,7 @@
 #include <asm/fadump.h>
 #include <asm/firmware.h>
 #include <asm/tm.h>
+#include <asm/trace.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -639,7 +640,7 @@ extern u32 ht64_call_hpte_updatepp[];
 
 static void __init htab_finish_init(void)
 {
-#ifdef CONFIG_PPC_HAS_HASH_64K
+#ifdef CONFIG_PPC_64K_PAGES
 	patch_branch(ht64_call_hpte_insert1,
 		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
@@ -652,7 +653,7 @@ static void __init htab_finish_init(void)
 	patch_branch(ht64_call_hpte_updatepp,
 		ppc_function_entry(ppc_md.hpte_updatepp),
 		BRANCH_SET_LINK);
-#endif /* CONFIG_PPC_HAS_HASH_64K */
+#endif /* CONFIG_PPC_64K_PAGES */
 
 	patch_branch(htab_call_hpte_insert1,
 		ppc_function_entry(ppc_md.hpte_insert),
@@ -1004,6 +1005,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 
 	DBG_LOW("hash_page(ea=%016lx, access=%lx, trap=%lx\n",
 		ea, access, trap);
+	trace_hash_fault(ea, access, trap);
 
 	/* Get region & vsid */
  	switch (REGION_ID(ea)) {
@@ -1149,12 +1151,12 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		check_paca_psize(ea, mm, psize, user_region);
 #endif /* CONFIG_PPC_64K_PAGES */
 
-#ifdef CONFIG_PPC_HAS_HASH_64K
+#ifdef CONFIG_PPC_64K_PAGES
 	if (psize == MMU_PAGE_64K)
 		rc = __hash_page_64K(ea, access, vsid, ptep, trap,
 				     flags, ssize);
 	else
-#endif /* CONFIG_PPC_HAS_HASH_64K */
+#endif /* CONFIG_PPC_64K_PAGES */
 	{
 		int spp = subpage_protection(mm, ea);
 		if (access & spp)
@@ -1262,12 +1264,12 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 		update_flags |= HPTE_LOCAL_UPDATE;
 
 	/* Hash it in */
-#ifdef CONFIG_PPC_HAS_HASH_64K
+#ifdef CONFIG_PPC_64K_PAGES
 	if (mm->context.user_psize == MMU_PAGE_64K)
 		rc = __hash_page_64K(ea, access, vsid, ptep, trap,
 				     update_flags, ssize);
 	else
-#endif /* CONFIG_PPC_HAS_HASH_64K */
+#endif /* CONFIG_PPC_64K_PAGES */
 		rc = __hash_page_4K(ea, access, vsid, ptep, trap, update_flags,
 				    ssize, subpage_protection(mm, ea));
 
@@ -1475,7 +1477,7 @@ static void kernel_map_linear_page(unsigned long vaddr, unsigned long lmi)
 	unsigned long hash;
 	unsigned long vsid = get_kernel_vsid(vaddr, mmu_kernel_ssize);
 	unsigned long vpn = hpt_vpn(vaddr, vsid, mmu_kernel_ssize);
-	unsigned long mode = htab_convert_pte_flags(PAGE_KERNEL);
+	unsigned long mode = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL));
 	long ret;
 
 	hash = hpt_hash(vpn, PAGE_SHIFT, mmu_kernel_ssize);

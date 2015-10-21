@@ -458,9 +458,9 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static void mvebu_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void mvebu_gpio_irq_handler(struct irq_desc *desc)
 {
-	struct mvebu_gpio_chip *mvchip = irq_get_handler_data(irq);
+	struct mvebu_gpio_chip *mvchip = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	u32 cause, type;
 	int i;
@@ -787,8 +787,8 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 		if (irq < 0)
 			continue;
-		irq_set_handler_data(irq, mvchip);
-		irq_set_chained_handler(irq, mvebu_gpio_irq_handler);
+		irq_set_chained_handler_and_data(irq, mvebu_gpio_irq_handler,
+						 mvchip);
 	}
 
 	mvchip->irqbase = irq_alloc_descs(-1, 0, ngpios, -1);

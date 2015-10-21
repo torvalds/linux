@@ -46,8 +46,6 @@ void armada_drm_vbl_event_add(struct armada_crtc *,
 	struct armada_vbl_event *);
 void armada_drm_vbl_event_remove(struct armada_crtc *,
 	struct armada_vbl_event *);
-void armada_drm_vbl_event_remove_unlocked(struct armada_crtc *,
-	struct armada_vbl_event *);
 #define armada_drm_vbl_event_init(_e, _f, _d) do {	\
 	struct armada_vbl_event *__e = _e;		\
 	INIT_LIST_HEAD(&__e->node);			\

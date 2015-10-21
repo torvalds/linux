@@ -50,9 +50,6 @@ extern daddr_t			vxfs_bmap1(struct inode *, long);
 /* vxfs_fshead.c */
 extern int			vxfs_read_fshead(struct super_block *);
 
-/* vxfs_immed.c */
-extern const struct inode_operations vxfs_immed_symlink_iops;
-
 /* vxfs_inode.c */
 extern const struct address_space_operations vxfs_immed_aops;
 extern struct kmem_cache	*vxfs_inode_cachep;

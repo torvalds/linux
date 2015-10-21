@@ -867,7 +867,13 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	else
 		idx = index % MCS_GROUP_RATES + (group->streams - 1) * 8;
 
-	if (offset > 0) {
+	/* enable RTS/CTS if needed:
+	 *  - if station is in dynamic SMPS (and streams > 1)
+	 *  - for fallback rates, to increase chances of getting through
+	 */
+	if (offset > 0 &&
+	    (mi->sta->smps_mode == IEEE80211_SMPS_DYNAMIC &&
+	     group->streams > 1)) {
 		ratetbl->rate[offset].count = ratetbl->rate[offset].count_rts;
 		flags |= IEEE80211_TX_RC_USE_RTS_CTS;
 	}
@@ -1070,7 +1076,7 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	if (sband->band != IEEE80211_BAND_2GHZ)
 		return;
 
-	if (!(mp->hw->flags & IEEE80211_HW_SUPPORTS_HT_CCK_RATES))
+	if (!ieee80211_hw_check(mp->hw, SUPPORTS_HT_CCK_RATES))
 		return;
 
 	mi->cck_supported = 0;

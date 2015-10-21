@@ -40,7 +40,7 @@
 
 #define DEBUG_SUBSYSTEM D_OTHER
 
-#include <linux/unaligned/access_ok.h>
+#include <asm/unaligned.h>
 
 #include "../include/obd_support.h"
 #include "../include/lustre_debug.h"

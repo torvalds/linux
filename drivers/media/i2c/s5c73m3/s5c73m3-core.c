@@ -1453,7 +1453,7 @@ static int s5c73m3_oif_set_power(struct v4l2_subdev *sd, int on)
 			state->apply_fiv = 1;
 			state->apply_fmt = 1;
 		}
-	} else if (!on == state->power) {
+	} else if (state->power == !on) {
 		ret = s5c73m3_set_af_softlanding(state);
 		if (!ret)
 			ret = __s5c73m3_power_off(state);

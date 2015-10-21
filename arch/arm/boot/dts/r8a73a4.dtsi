@@ -163,6 +163,7 @@
 			     <0 29 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 30 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 31 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp4_clks R8A73A4_CLK_IRQC>;
 		power-domains = <&pd_c4>;
 	};
 
@@ -197,6 +198,7 @@
 			     <0 55 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 56 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 57 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp4_clks R8A73A4_CLK_IRQC>;
 		power-domains = <&pd_c4>;
 	};
 
@@ -205,6 +207,13 @@
 		reg = <0 0xe6050000 0 0x9000>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		gpio-ranges =
+			<&pfc 0 0 31>, <&pfc 32 32 9>,
+			<&pfc 64 64 22>, <&pfc 96 96 31>,
+			<&pfc 128 128 7>, <&pfc 160 160 19>,
+			<&pfc 192 192 31>, <&pfc 224 224 27>,
+			<&pfc 256 256 28>, <&pfc 288 288 21>,
+			<&pfc 320 320 10>;
 		interrupts-extended =
 			<&irqc0  0 0>, <&irqc0  1 0>, <&irqc0  2 0>, <&irqc0  3 0>,
 			<&irqc0  4 0>, <&irqc0  5 0>, <&irqc0  6 0>, <&irqc0  7 0>,
@@ -432,7 +441,7 @@
 	};
 
 	gic: interrupt-controller@f1001000 {
-		compatible = "arm,cortex-a15-gic";
+		compatible = "arm,gic-400";
 		#interrupt-cells = <3>;
 		#address-cells = <0>;
 		interrupt-controller;
@@ -724,15 +733,16 @@
 		mstp4_clks: mstp4_clks@e6150140 {
 			compatible = "renesas,r8a73a4-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe6150140 0 4>, <0 0xe615004c 0 4>;
-			clocks = <&main_div2_clk>, <&cpg_clocks R8A73A4_CLK_HP>,
+			clocks = <&main_div2_clk>, <&main_div2_clk>,
+				 <&cpg_clocks R8A73A4_CLK_HP>,
 				 <&cpg_clocks R8A73A4_CLK_HP>;
 			#clock-cells = <1>;
 			clock-indices = <
-				R8A73A4_CLK_IIC5 R8A73A4_CLK_IIC4
-				R8A73A4_CLK_IIC3
+				R8A73A4_CLK_IRQC R8A73A4_CLK_IIC5
+				R8A73A4_CLK_IIC4 R8A73A4_CLK_IIC3
 			>;
 			clock-output-names =
-				"iic5", "iic4", "iic3";
+				"irqc", "iic5", "iic4", "iic3";
 		};
 		mstp5_clks: mstp5_clks@e6150144 {
 			compatible = "renesas,r8a73a4-mstp-clocks", "renesas,cpg-mstp-clocks";

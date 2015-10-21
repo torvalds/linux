@@ -18,6 +18,7 @@
 #include <linux/parser.h>
 #include <linux/uio.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <asm/unaligned.h>
 #include "fat.h"
 

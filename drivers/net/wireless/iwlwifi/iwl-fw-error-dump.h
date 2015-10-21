@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,6 +84,8 @@
  * @IWL_FW_ERROR_DUMP_MEM: chunk of memory
  * @IWL_FW_ERROR_DUMP_ERROR_INFO: description of what triggered this dump.
  *	Structured as &struct iwl_fw_error_dump_trigger_desc.
+ * @IWL_FW_ERROR_DUMP_RB: the content of an RB structured as
+ *	&struct iwl_fw_error_dump_rb
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -97,6 +99,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_FH_REGS = 8,
 	IWL_FW_ERROR_DUMP_MEM = 9,
 	IWL_FW_ERROR_DUMP_ERROR_INFO = 10,
+	IWL_FW_ERROR_DUMP_RB = 11,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -223,6 +226,20 @@ struct iwl_fw_error_dump_mem {
 };
 
 /**
+ * struct iwl_fw_error_dump_rb - content of an Receive Buffer
+ * @index: the index of the Receive Buffer in the Rx queue
+ * @rxq: the RB's Rx queue
+ * @reserved:
+ * @data: the content of the Receive Buffer
+ */
+struct iwl_fw_error_dump_rb {
+	__le32 index;
+	__le32 rxq;
+	__le32 reserved;
+	u8 data[];
+};
+
+/**
  * iwl_fw_error_next_data - advance fw error dump data pointer
  * @data: previous data block
  * Returns: next data block
@@ -254,6 +271,7 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  *	detection.
  * @FW_DBG_TRIGGER_TIME_EVENT: trigger log collection upon time events related
  *	events.
+ * @FW_DBG_TRIGGER_BA: trigger log collection upon BlockAck related events.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -267,6 +285,7 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_RSSI,
 	FW_DBG_TRIGGER_TXQ_TIMERS,
 	FW_DBG_TRIGGER_TIME_EVENT,
+	FW_DBG_TRIGGER_BA,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

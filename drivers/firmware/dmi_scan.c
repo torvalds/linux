@@ -10,6 +10,9 @@
 #include <asm/dmi.h>
 #include <asm/unaligned.h>
 
+struct kobject *dmi_kobj;
+EXPORT_SYMBOL_GPL(dmi_kobj);
+
 /*
  * DMI stands for "Desktop Management Interface".  It is part
  * of and an antecedent to, SMBIOS, which stands for System
@@ -20,6 +23,9 @@ static const char dmi_empty_string[] = "        ";
 static u32 dmi_ver __initdata;
 static u32 dmi_len;
 static u16 dmi_num;
+static u8 smbios_entry_point[32];
+static int smbios_entry_point_size;
+
 /*
  * Catch too early calls to dmi_check_system():
  */
@@ -80,18 +86,18 @@ static const char * __init dmi_string(const struct dmi_header *dm, u8 s)
  *	We have to be cautious here. We have seen BIOSes with DMI pointers
  *	pointing to completely the wrong place for example
  */
-static void dmi_table(u8 *buf,
-		      void (*decode)(const struct dmi_header *, void *),
-		      void *private_data)
+static void dmi_decode_table(u8 *buf,
+			     void (*decode)(const struct dmi_header *, void *),
+			     void *private_data)
 {
 	u8 *data = buf;
 	int i = 0;
 
 	/*
 	 * Stop when we have seen all the items the table claimed to have
-	 * (SMBIOS < 3.0 only) OR we reach an end-of-table marker OR we run
-	 * off the end of the table (should never happen but sometimes does
-	 * on bogus implementations.)
+	 * (SMBIOS < 3.0 only) OR we reach an end-of-table marker (SMBIOS
+	 * >= 3.0 only) OR we run off the end of the table (should never
+	 * happen but sometimes does on bogus implementations.)
 	 */
 	while ((!dmi_num || i < dmi_num) &&
 	       (data - buf + sizeof(struct dmi_header)) <= dmi_len) {
@@ -108,15 +114,24 @@ static void dmi_table(u8 *buf,
 		if (data - buf < dmi_len - 1)
 			decode(dm, private_data);
 
-		/*
-		 * 7.45 End-of-Table (Type 127) [SMBIOS reference spec v3.0.0]
-		 */
-		if (dm->type == DMI_ENTRY_END_OF_TABLE)
-			break;
-
 		data += 2;
 		i++;
+
+		/*
+		 * 7.45 End-of-Table (Type 127) [SMBIOS reference spec v3.0.0]
+		 * For tables behind a 64-bit entry point, we have no item
+		 * count and no exact table length, so stop on end-of-table
+		 * marker. For tables behind a 32-bit entry point, we have
+		 * seen OEM structures behind the end-of-table marker on
+		 * some systems, so don't trust it.
+		 */
+		if (!dmi_num && dm->type == DMI_ENTRY_END_OF_TABLE)
+			break;
 	}
+
+	/* Trim DMI table length if needed */
+	if (dmi_len > data - buf)
+		dmi_len = data - buf;
 }
 
 static phys_addr_t dmi_base;
@@ -125,16 +140,17 @@ static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
 		void *))
 {
 	u8 *buf;
+	u32 orig_dmi_len = dmi_len;
 
-	buf = dmi_early_remap(dmi_base, dmi_len);
+	buf = dmi_early_remap(dmi_base, orig_dmi_len);
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, decode, NULL);
+	dmi_decode_table(buf, decode, NULL);
 
 	add_device_randomness(buf, dmi_len);
 
-	dmi_early_unmap(buf, dmi_len);
+	dmi_early_unmap(buf, orig_dmi_len);
 	return 0;
 }
 
@@ -478,17 +494,19 @@ static int __init dmi_present(const u8 *buf)
 	if (memcmp(buf, "_SM_", 4) == 0 &&
 	    buf[5] < 32 && dmi_checksum(buf, buf[5])) {
 		smbios_ver = get_unaligned_be16(buf + 6);
+		smbios_entry_point_size = buf[5];
+		memcpy(smbios_entry_point, buf, smbios_entry_point_size);
 
 		/* Some BIOS report weird SMBIOS version, fix that up */
 		switch (smbios_ver) {
 		case 0x021F:
 		case 0x0221:
-			pr_debug("SMBIOS version fixup(2.%d->2.%d)\n",
+			pr_debug("SMBIOS version fixup (2.%d->2.%d)\n",
 				 smbios_ver & 0xFF, 3);
 			smbios_ver = 0x0203;
 			break;
 		case 0x0233:
-			pr_debug("SMBIOS version fixup(2.%d->2.%d)\n", 51, 6);
+			pr_debug("SMBIOS version fixup (2.%d->2.%d)\n", 51, 6);
 			smbios_ver = 0x0206;
 			break;
 		}
@@ -512,6 +530,9 @@ static int __init dmi_present(const u8 *buf)
 				pr_info("SMBIOS %d.%d present.\n",
 				       dmi_ver >> 8, dmi_ver & 0xFF);
 			} else {
+				smbios_entry_point_size = 15;
+				memcpy(smbios_entry_point, buf,
+				       smbios_entry_point_size);
 				pr_info("Legacy DMI %d.%d present.\n",
 				       dmi_ver >> 8, dmi_ver & 0xFF);
 			}
@@ -533,11 +554,12 @@ static int __init dmi_smbios3_present(const u8 *buf)
 {
 	if (memcmp(buf, "_SM3_", 5) == 0 &&
 	    buf[6] < 32 && dmi_checksum(buf, buf[6])) {
-		dmi_ver = get_unaligned_be32(buf + 6);
-		dmi_ver &= 0xFFFFFF;
+		dmi_ver = get_unaligned_be32(buf + 6) & 0xFFFFFF;
 		dmi_num = 0;			/* No longer specified */
 		dmi_len = get_unaligned_le32(buf + 12);
 		dmi_base = get_unaligned_le64(buf + 16);
+		smbios_entry_point_size = buf[6];
+		memcpy(smbios_entry_point, buf, smbios_entry_point_size);
 
 		if (dmi_walk_early(dmi_decode) == 0) {
 			pr_info("SMBIOS %d.%d.%d present.\n",
@@ -628,6 +650,71 @@ void __init dmi_scan_machine(void)
  out:
 	dmi_initialized = 1;
 }
+
+static ssize_t raw_table_read(struct file *file, struct kobject *kobj,
+			      struct bin_attribute *attr, char *buf,
+			      loff_t pos, size_t count)
+{
+	memcpy(buf, attr->private + pos, count);
+	return count;
+}
+
+static BIN_ATTR(smbios_entry_point, S_IRUSR, raw_table_read, NULL, 0);
+static BIN_ATTR(DMI, S_IRUSR, raw_table_read, NULL, 0);
+
+static int __init dmi_init(void)
+{
+	struct kobject *tables_kobj;
+	u8 *dmi_table;
+	int ret = -ENOMEM;
+
+	if (!dmi_available) {
+		ret = -ENODATA;
+		goto err;
+	}
+
+	/*
+	 * Set up dmi directory at /sys/firmware/dmi. This entry should stay
+	 * even after farther error, as it can be used by other modules like
+	 * dmi-sysfs.
+	 */
+	dmi_kobj = kobject_create_and_add("dmi", firmware_kobj);
+	if (!dmi_kobj)
+		goto err;
+
+	tables_kobj = kobject_create_and_add("tables", dmi_kobj);
+	if (!tables_kobj)
+		goto err;
+
+	dmi_table = dmi_remap(dmi_base, dmi_len);
+	if (!dmi_table)
+		goto err_tables;
+
+	bin_attr_smbios_entry_point.size = smbios_entry_point_size;
+	bin_attr_smbios_entry_point.private = smbios_entry_point;
+	ret = sysfs_create_bin_file(tables_kobj, &bin_attr_smbios_entry_point);
+	if (ret)
+		goto err_unmap;
+
+	bin_attr_DMI.size = dmi_len;
+	bin_attr_DMI.private = dmi_table;
+	ret = sysfs_create_bin_file(tables_kobj, &bin_attr_DMI);
+	if (!ret)
+		return 0;
+
+	sysfs_remove_bin_file(tables_kobj,
+			      &bin_attr_smbios_entry_point);
+ err_unmap:
+	dmi_unmap(dmi_table);
+ err_tables:
+	kobject_del(tables_kobj);
+	kobject_put(tables_kobj);
+ err:
+	pr_err("dmi: Firmware registration failed.\n");
+
+	return ret;
+}
+subsys_initcall(dmi_init);
 
 /**
  * dmi_set_dump_stack_arch_desc - set arch description for dump_stack()
@@ -897,7 +984,7 @@ int dmi_walk(void (*decode)(const struct dmi_header *, void *),
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, decode, private_data);
+	dmi_decode_table(buf, decode, private_data);
 
 	dmi_unmap(buf);
 	return 0;

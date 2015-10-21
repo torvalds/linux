@@ -98,9 +98,6 @@
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
 #endif
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
 
 /*
  * Debug flags.
@@ -303,9 +300,7 @@ static struct fb_ops atyfb_ops = {
 };
 
 static bool noaccel;
-#ifdef CONFIG_MTRR
 static bool nomtrr;
-#endif
 static int vram;
 static int pll;
 static int mclk;
@@ -426,6 +421,20 @@ static struct {
 	{ PCI_CHIP_MACH64LS, "3D RAGE Mobility L (Mach64 LS, PCI)", 230, 83, 125, 135, ATI_CHIP_MOBILITY },
 #endif /* CONFIG_FB_ATY_CT */
 };
+
+/*
+ * Last page of 8 MB (4 MB on ISA) aperture is MMIO,
+ * unless the auxiliary register aperture is used.
+ */
+static void aty_fudge_framebuffer_len(struct fb_info *info)
+{
+	struct atyfb_par *par = (struct atyfb_par *) info->par;
+
+	if (!par->aux_start &&
+	    (info->fix.smem_len == 0x800000 ||
+	     (par->bus_type == ISA && info->fix.smem_len == 0x400000)))
+		info->fix.smem_len -= GUI_RESERVE;
+}
 
 static int correct_chipset(struct atyfb_par *par)
 {
@@ -2603,14 +2612,7 @@ static int aty_init(struct fb_info *info)
 	if (par->pll_ops->resume_pll)
 		par->pll_ops->resume_pll(info, &par->pll);
 
-	/*
-	 * Last page of 8 MB (4 MB on ISA) aperture is MMIO,
-	 * unless the auxiliary register aperture is used.
-	 */
-	if (!par->aux_start &&
-	    (info->fix.smem_len == 0x800000 ||
-	     (par->bus_type == ISA && info->fix.smem_len == 0x400000)))
-		info->fix.smem_len -= GUI_RESERVE;
+	aty_fudge_framebuffer_len(info);
 
 	/*
 	 * Disable register access through the linear aperture
@@ -2621,25 +2623,13 @@ static int aty_init(struct fb_info *info)
 		aty_st_le32(BUS_CNTL, aty_ld_le32(BUS_CNTL, par) |
 			    BUS_APER_REG_DIS, par);
 
-#ifdef CONFIG_MTRR
-	par->mtrr_aper = -1;
-	par->mtrr_reg = -1;
-	if (!nomtrr) {
-		/* Cover the whole resource. */
-		par->mtrr_aper = mtrr_add(par->res_start, par->res_size,
-					  MTRR_TYPE_WRCOMB, 1);
-		if (par->mtrr_aper >= 0 && !par->aux_start) {
-			/* Make a hole for mmio. */
-			par->mtrr_reg = mtrr_add(par->res_start + 0x800000 -
-						 GUI_RESERVE, GUI_RESERVE,
-						 MTRR_TYPE_UNCACHABLE, 1);
-			if (par->mtrr_reg < 0) {
-				mtrr_del(par->mtrr_aper, 0, 0);
-				par->mtrr_aper = -1;
-			}
-		}
-	}
-#endif
+	if (!nomtrr)
+		/*
+		 * Only the ioremap_wc()'d area will get WC here
+		 * since ioremap_uc() was used on the entire PCI BAR.
+		 */
+		par->wc_cookie = arch_phys_wc_add(par->res_start,
+						  par->res_size);
 
 	info->fbops = &atyfb_ops;
 	info->pseudo_palette = par->pseudo_palette;
@@ -2767,17 +2757,8 @@ aty_init_exit:
 	/* restore video mode */
 	aty_set_crtc(par, &par->saved_crtc);
 	par->pll_ops->set_pll(info, &par->saved_pll);
+	arch_phys_wc_del(par->wc_cookie);
 
-#ifdef CONFIG_MTRR
-	if (par->mtrr_reg >= 0) {
-		mtrr_del(par->mtrr_reg, 0, 0);
-		par->mtrr_reg = -1;
-	}
-	if (par->mtrr_aper >= 0) {
-		mtrr_del(par->mtrr_aper, 0, 0);
-		par->mtrr_aper = -1;
-	}
-#endif
 	return ret;
 }
 
@@ -3459,7 +3440,11 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 	}
 
 	info->fix.mmio_start = raddr;
-	par->ati_regbase = ioremap(info->fix.mmio_start, 0x1000);
+	/*
+	 * By using strong UC we force the MTRR to never have an
+	 * effect on the MMIO region on both non-PAT and PAT systems.
+	 */
+	par->ati_regbase = ioremap_uc(info->fix.mmio_start, 0x1000);
 	if (par->ati_regbase == NULL)
 		return -ENOMEM;
 
@@ -3482,7 +3467,24 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 
 	/* Map in frame buffer */
 	info->fix.smem_start = addr;
-	info->screen_base = ioremap(addr, 0x800000);
+
+	/*
+	 * The framebuffer is not always 8 MiB, that's just the size of the
+	 * PCI BAR. We temporarily abuse smem_len here to store the size
+	 * of the BAR. aty_init() will later correct it to match the actual
+	 * framebuffer size.
+	 *
+	 * On devices that don't have the auxiliary register aperture, the
+	 * registers are housed at the top end of the framebuffer PCI BAR.
+	 * aty_fudge_framebuffer_len() is used to reduce smem_len to not
+	 * overlap with the registers.
+	 */
+	info->fix.smem_len = 0x800000;
+
+	aty_fudge_framebuffer_len(info);
+
+	info->screen_base = ioremap_wc(info->fix.smem_start,
+				       info->fix.smem_len);
 	if (info->screen_base == NULL) {
 		ret = -ENOMEM;
 		goto atyfb_setup_generic_fail;
@@ -3554,6 +3556,7 @@ static int atyfb_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 	par = info->par;
+	par->bus_type = PCI;
 	info->fix = atyfb_fix;
 	info->device = &pdev->dev;
 	par->pci_id = pdev->device;
@@ -3655,7 +3658,8 @@ static int __init atyfb_atari_probe(void)
 		 * Map the video memory (physical address given)
 		 * to somewhere in the kernel address space.
 		 */
-		info->screen_base = ioremap(phys_vmembase[m64_num], phys_size[m64_num]);
+		info->screen_base = ioremap_wc(phys_vmembase[m64_num],
+					       phys_size[m64_num]);
 		info->fix.smem_start = (unsigned long)info->screen_base; /* Fake! */
 		par->ati_regbase = ioremap(phys_guiregbase[m64_num], 0x10000) +
 						0xFC00ul;
@@ -3721,17 +3725,8 @@ static void atyfb_remove(struct fb_info *info)
 	if (M64_HAS(MOBIL_BUS))
 		aty_bl_exit(info->bl_dev);
 #endif
+	arch_phys_wc_del(par->wc_cookie);
 
-#ifdef CONFIG_MTRR
-	if (par->mtrr_reg >= 0) {
-		mtrr_del(par->mtrr_reg, 0, 0);
-		par->mtrr_reg = -1;
-	}
-	if (par->mtrr_aper >= 0) {
-		mtrr_del(par->mtrr_aper, 0, 0);
-		par->mtrr_aper = -1;
-	}
-#endif
 #ifndef __sparc__
 	if (par->ati_regbase)
 		iounmap(par->ati_regbase);
@@ -3847,10 +3842,8 @@ static int __init atyfb_setup(char *options)
 	while ((this_opt = strsep(&options, ",")) != NULL) {
 		if (!strncmp(this_opt, "noaccel", 7)) {
 			noaccel = 1;
-#ifdef CONFIG_MTRR
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;
-#endif
 		} else if (!strncmp(this_opt, "vram:", 5))
 			vram = simple_strtoul(this_opt + 5, NULL, 0);
 		else if (!strncmp(this_opt, "pll:", 4))
@@ -4020,7 +4013,5 @@ module_param(comp_sync, int, 0);
 MODULE_PARM_DESC(comp_sync, "Set composite sync signal to low (0) or high (1)");
 module_param(mode, charp, 0);
 MODULE_PARM_DESC(mode, "Specify resolution as \"<xres>x<yres>[-<bpp>][@<refresh>]\" ");
-#ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "bool: disable use of MTRR registers");
-#endif

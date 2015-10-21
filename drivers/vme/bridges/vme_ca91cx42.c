@@ -1192,7 +1192,7 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 {
 	struct vme_dma_resource *ctrlr;
 	struct ca91cx42_dma_entry *entry;
-	int retval = 0;
+	int retval;
 	dma_addr_t bus_addr;
 	u32 val;
 	struct device *dev;
@@ -1245,8 +1245,18 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 
 	iowrite32(val, bridge->base + DGCS);
 
-	wait_event_interruptible(bridge->dma_queue,
-		ca91cx42_dma_busy(ctrlr->parent));
+	retval = wait_event_interruptible(bridge->dma_queue,
+					  ca91cx42_dma_busy(ctrlr->parent));
+
+	if (retval) {
+		val = ioread32(bridge->base + DGCS);
+		iowrite32(val | CA91CX42_DGCS_STOP_REQ, bridge->base + DGCS);
+		/* Wait for the operation to abort */
+		wait_event(bridge->dma_queue,
+			   ca91cx42_dma_busy(ctrlr->parent));
+		retval = -EINTR;
+		goto exit;
+	}
 
 	/*
 	 * Read status register, this register is valid until we kick off a
@@ -1259,8 +1269,10 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 
 		dev_err(dev, "ca91c042: DMA Error. DGCS=%08X\n", val);
 		val = ioread32(bridge->base + DCTL);
+		retval = -EIO;
 	}
 
+exit:
 	/* Remove list from running list */
 	mutex_lock(&ctrlr->mtx);
 	list_del(&list->list);

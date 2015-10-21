@@ -51,13 +51,13 @@ void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
 }
 
 /*
- * __cpu_suspend
+ * cpu_suspend
  *
  * arg: argument to pass to the finisher function
  * fn: finisher function pointer
  *
  */
-int __cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
+int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 {
 	struct mm_struct *mm = current->active_mm;
 	int ret;
@@ -82,7 +82,7 @@ int __cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		 * We are resuming from reset with TTBR0_EL1 set to the
 		 * idmap to enable the MMU; restore the active_mm mappings in
 		 * TTBR0_EL1 unless the active_mm == &init_mm, in which case
-		 * the thread entered __cpu_suspend with TTBR0_EL1 set to
+		 * the thread entered cpu_suspend with TTBR0_EL1 set to
 		 * reserved TTBR0 page tables and should be restored as such.
 		 */
 		if (mm == &init_mm)
@@ -118,7 +118,6 @@ int __cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 }
 
 struct sleep_save_sp sleep_save_sp;
-phys_addr_t sleep_idmap_phys;
 
 static int __init cpu_suspend_init(void)
 {
@@ -132,9 +131,7 @@ static int __init cpu_suspend_init(void)
 
 	sleep_save_sp.save_ptr_stash = ctx_ptr;
 	sleep_save_sp.save_ptr_stash_phys = virt_to_phys(ctx_ptr);
-	sleep_idmap_phys = virt_to_phys(idmap_pg_dir);
 	__flush_dcache_area(&sleep_save_sp, sizeof(struct sleep_save_sp));
-	__flush_dcache_area(&sleep_idmap_phys, sizeof(sleep_idmap_phys));
 
 	return 0;
 }

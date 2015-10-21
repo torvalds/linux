@@ -17,11 +17,15 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
+#include <linux/wait.h>
 
-#include "drm_crtc_helper.h"
-#include "drm_fb_helper.h"
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
+
 #include "omap_dmm_tiler.h"
+#include "omap_drv.h"
 
 #define DRIVER_NAME		MODULE_NAME
 #define DRIVER_DESC		"OMAP DRM"
@@ -55,9 +59,153 @@ static void omap_fb_output_poll_changed(struct drm_device *dev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
 }
 
+struct omap_atomic_state_commit {
+	struct work_struct work;
+	struct drm_device *dev;
+	struct drm_atomic_state *state;
+	u32 crtcs;
+};
+
+static void omap_atomic_wait_for_completion(struct drm_device *dev,
+					    struct drm_atomic_state *old_state)
+{
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc *crtc;
+	unsigned int i;
+	int ret;
+
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		if (!crtc->state->enable)
+			continue;
+
+		ret = omap_crtc_wait_pending(crtc);
+
+		if (!ret)
+			dev_warn(dev->dev,
+				 "atomic complete timeout (pipe %u)!\n", i);
+	}
+}
+
+static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
+{
+	struct drm_device *dev = commit->dev;
+	struct omap_drm_private *priv = dev->dev_private;
+	struct drm_atomic_state *old_state = commit->state;
+
+	/* Apply the atomic update. */
+	dispc_runtime_get();
+
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+	drm_atomic_helper_commit_planes(dev, old_state);
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+	omap_atomic_wait_for_completion(dev, old_state);
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
+
+	dispc_runtime_put();
+
+	drm_atomic_state_free(old_state);
+
+	/* Complete the commit, wake up any waiter. */
+	spin_lock(&priv->commit.lock);
+	priv->commit.pending &= ~commit->crtcs;
+	spin_unlock(&priv->commit.lock);
+
+	wake_up_all(&priv->commit.wait);
+
+	kfree(commit);
+}
+
+static void omap_atomic_work(struct work_struct *work)
+{
+	struct omap_atomic_state_commit *commit =
+		container_of(work, struct omap_atomic_state_commit, work);
+
+	omap_atomic_complete(commit);
+}
+
+static bool omap_atomic_is_pending(struct omap_drm_private *priv,
+				   struct omap_atomic_state_commit *commit)
+{
+	bool pending;
+
+	spin_lock(&priv->commit.lock);
+	pending = priv->commit.pending & commit->crtcs;
+	spin_unlock(&priv->commit.lock);
+
+	return pending;
+}
+
+static int omap_atomic_commit(struct drm_device *dev,
+			      struct drm_atomic_state *state, bool async)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+	struct omap_atomic_state_commit *commit;
+	unsigned long flags;
+	unsigned int i;
+	int ret;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/* Allocate the commit object. */
+	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+	if (commit == NULL) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	INIT_WORK(&commit->work, omap_atomic_work);
+	commit->dev = dev;
+	commit->state = state;
+
+	/* Wait until all affected CRTCs have completed previous commits and
+	 * mark them as pending.
+	 */
+	for (i = 0; i < dev->mode_config.num_crtc; ++i) {
+		if (state->crtcs[i])
+			commit->crtcs |= 1 << drm_crtc_index(state->crtcs[i]);
+	}
+
+	wait_event(priv->commit.wait, !omap_atomic_is_pending(priv, commit));
+
+	spin_lock(&priv->commit.lock);
+	priv->commit.pending |= commit->crtcs;
+	spin_unlock(&priv->commit.lock);
+
+	/* Keep track of all CRTC events to unlink them in preclose(). */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	for (i = 0; i < dev->mode_config.num_crtc; ++i) {
+		struct drm_crtc_state *cstate = state->crtc_states[i];
+
+		if (cstate && cstate->event)
+			list_add_tail(&cstate->event->base.link,
+				      &priv->commit.events);
+	}
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	/* Swap the state, this is the point of no return. */
+	drm_atomic_helper_swap_state(dev, state);
+
+	if (async)
+		schedule_work(&commit->work);
+	else
+		omap_atomic_complete(commit);
+
+	return 0;
+
+error:
+	drm_atomic_helper_cleanup_planes(dev, state);
+	return ret;
+}
+
 static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 	.fb_create = omap_framebuffer_create,
 	.output_poll_changed = omap_fb_output_poll_changed,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = omap_atomic_commit,
 };
 
 static int get_connector_type(struct omap_dss_device *dssdev)
@@ -151,6 +299,27 @@ static int omap_modeset_create_crtc(struct drm_device *dev, int id,
 	return 0;
 }
 
+static int omap_modeset_init_properties(struct drm_device *dev)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+
+	if (priv->has_dmm) {
+		dev->mode_config.rotation_property =
+			drm_mode_create_rotation_property(dev,
+				BIT(DRM_ROTATE_0) | BIT(DRM_ROTATE_90) |
+				BIT(DRM_ROTATE_180) | BIT(DRM_ROTATE_270) |
+				BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y));
+		if (!dev->mode_config.rotation_property)
+			return -ENOMEM;
+	}
+
+	priv->zorder_prop = drm_property_create_range(dev, 0, "zorder", 0, 3);
+	if (!priv->zorder_prop)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
@@ -164,6 +333,10 @@ static int omap_modeset_init(struct drm_device *dev)
 	drm_mode_config_init(dev);
 
 	omap_drm_irq_install(dev);
+
+	ret = omap_modeset_init_properties(dev);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * We usually don't want to create a CRTC for each manager, at least
@@ -325,6 +498,8 @@ static int omap_modeset_init(struct drm_device *dev)
 
 	dev->mode_config.funcs = &omap_mode_config_funcs;
 
+	drm_mode_config_reset(dev);
+
 	return 0;
 }
 
@@ -477,6 +652,7 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 {
 	struct omap_drm_platform_data *pdata = dev->dev->platform_data;
 	struct omap_drm_private *priv;
+	unsigned int i;
 	int ret;
 
 	DBG("load: dev=%p", dev);
@@ -490,6 +666,9 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = priv;
 
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
+	init_waitqueue_head(&priv->commit.wait);
+	spin_lock_init(&priv->commit.lock);
+	INIT_LIST_HEAD(&priv->commit.events);
 
 	spin_lock_init(&priv->list_lock);
 	INIT_LIST_HEAD(&priv->obj_list);
@@ -504,9 +683,13 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 		return ret;
 	}
 
+	/* Initialize vblank handling, start with all CRTCs disabled. */
 	ret = drm_vblank_init(dev, priv->num_crtcs);
 	if (ret)
 		dev_warn(dev->dev, "could not init vblank\n");
+
+	for (i = 0; i < priv->num_crtcs; i++)
+		drm_crtc_vblank_off(priv->crtcs[i]);
 
 	priv->fbdev = omap_fbdev_init(dev);
 	if (!priv->fbdev) {
@@ -525,7 +708,6 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 static int dev_unload(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	int i;
 
 	DBG("unload: dev=%p", dev);
 
@@ -533,10 +715,6 @@ static int dev_unload(struct drm_device *dev)
 
 	if (priv->fbdev)
 		omap_fbdev_free(dev);
-
-	/* flush crtcs so the fbs get released */
-	for (i = 0; i < priv->num_crtcs; i++)
-		omap_crtc_flush(priv->crtcs[i]);
 
 	omap_modeset_free(dev);
 	omap_gem_deinit(dev);
@@ -583,7 +761,7 @@ static void dev_lastclose(struct drm_device *dev)
 
 	DBG("lastclose: dev=%p", dev);
 
-	if (priv->rotation_prop) {
+	if (dev->mode_config.rotation_property) {
 		/* need to restore default rotation state.. not sure
 		 * if there is a cleaner way to restore properties to
 		 * default state?  Maybe a flag that properties should
@@ -592,12 +770,12 @@ static void dev_lastclose(struct drm_device *dev)
 		 */
 		for (i = 0; i < priv->num_crtcs; i++) {
 			drm_object_property_set_value(&priv->crtcs[i]->base,
-					priv->rotation_prop, 0);
+					dev->mode_config.rotation_property, 0);
 		}
 
 		for (i = 0; i < priv->num_planes; i++) {
 			drm_object_property_set_value(&priv->planes[i]->base,
-					priv->rotation_prop, 0);
+					dev->mode_config.rotation_property, 0);
 		}
 	}
 
@@ -610,7 +788,24 @@ static void dev_lastclose(struct drm_device *dev)
 
 static void dev_preclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct omap_drm_private *priv = dev->dev_private;
+	struct drm_pending_event *event;
+	unsigned long flags;
+
 	DBG("preclose: dev=%p", dev);
+
+	/*
+	 * Unlink all pending CRTC events to make sure they won't be queued up
+	 * by a pending asynchronous commit.
+	 */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	list_for_each_entry(event, &priv->commit.events, link) {
+		if (event->file_priv == file) {
+			file->event_space += event->event->length;
+			event->file_priv = NULL;
+		}
+	}
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
 static void dev_postclose(struct drm_device *dev, struct drm_file *file)
@@ -636,8 +831,7 @@ static const struct file_operations omapdriver_fops = {
 };
 
 static struct drm_driver omap_drm_driver = {
-	.driver_features = DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM
-			 | DRIVER_PRIME,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM  | DRIVER_PRIME,
 	.load = dev_load,
 	.unload = dev_unload,
 	.open = dev_open,
@@ -648,10 +842,6 @@ static struct drm_driver omap_drm_driver = {
 	.get_vblank_counter = drm_vblank_count,
 	.enable_vblank = omap_irq_enable_vblank,
 	.disable_vblank = omap_irq_disable_vblank,
-	.irq_preinstall = omap_irq_preinstall,
-	.irq_postinstall = omap_irq_postinstall,
-	.irq_uninstall = omap_irq_uninstall,
-	.irq_handler = omap_irq_handler,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = omap_debugfs_init,
 	.debugfs_cleanup = omap_debugfs_cleanup,

@@ -12,12 +12,6 @@
 #ifndef __TUSB6010_H__
 #define __TUSB6010_H__
 
-#ifdef CONFIG_USB_TUSB_OMAP_DMA
-#define tusb_dma_omap()			1
-#else
-#define tusb_dma_omap()			0
-#endif
-
 /* VLYNQ control register. 32-bit at offset 0x000 */
 #define TUSB_VLYNQ_CTRL			0x004
 

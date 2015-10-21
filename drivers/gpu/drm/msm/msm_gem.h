@@ -96,6 +96,7 @@ static inline uint32_t msm_gem_fence(struct msm_gem_object *msm_obj,
 struct msm_gem_submit {
 	struct drm_device *dev;
 	struct msm_gpu *gpu;
+	struct list_head node;   /* node in gpu submit_list */
 	struct list_head bo_list;
 	struct ww_acquire_ctx ticket;
 	uint32_t fence;

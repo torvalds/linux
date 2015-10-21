@@ -153,6 +153,44 @@
 #define ST_ACCEL_4_IG1_EN_MASK			0x08
 #define ST_ACCEL_4_MULTIREAD_BIT		true
 
+/* CUSTOM VALUES FOR SENSOR 5 */
+#define ST_ACCEL_5_WAI_EXP			0x3b
+#define ST_ACCEL_5_ODR_ADDR			0x20
+#define ST_ACCEL_5_ODR_MASK			0x80
+#define ST_ACCEL_5_ODR_AVL_100HZ_VAL		0x00
+#define ST_ACCEL_5_ODR_AVL_400HZ_VAL		0x01
+#define ST_ACCEL_5_PW_ADDR			0x20
+#define ST_ACCEL_5_PW_MASK			0x40
+#define ST_ACCEL_5_FS_ADDR			0x20
+#define ST_ACCEL_5_FS_MASK			0x20
+#define ST_ACCEL_5_FS_AVL_2_VAL			0X00
+#define ST_ACCEL_5_FS_AVL_8_VAL			0X01
+/* TODO: check these resulting gain settings, these are not in the datsheet */
+#define ST_ACCEL_5_FS_AVL_2_GAIN		IIO_G_TO_M_S_2(18000)
+#define ST_ACCEL_5_FS_AVL_8_GAIN		IIO_G_TO_M_S_2(72000)
+#define ST_ACCEL_5_DRDY_IRQ_ADDR		0x22
+#define ST_ACCEL_5_DRDY_IRQ_INT1_MASK		0x04
+#define ST_ACCEL_5_DRDY_IRQ_INT2_MASK		0x20
+#define ST_ACCEL_5_IG1_EN_ADDR			0x21
+#define ST_ACCEL_5_IG1_EN_MASK			0x08
+#define ST_ACCEL_5_MULTIREAD_BIT		false
+
+static const struct iio_chan_spec st_accel_8bit_channels[] = {
+	ST_SENSORS_LSM_CHANNELS(IIO_ACCEL,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_X, 1, IIO_MOD_X, 's', IIO_LE, 8, 8,
+			ST_ACCEL_DEFAULT_OUT_X_L_ADDR+1),
+	ST_SENSORS_LSM_CHANNELS(IIO_ACCEL,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Y, 1, IIO_MOD_Y, 's', IIO_LE, 8, 8,
+			ST_ACCEL_DEFAULT_OUT_Y_L_ADDR+1),
+	ST_SENSORS_LSM_CHANNELS(IIO_ACCEL,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 8, 8,
+			ST_ACCEL_DEFAULT_OUT_Z_L_ADDR+1),
+	IIO_CHAN_SOFT_TIMESTAMP(3)
+};
+
 static const struct iio_chan_spec st_accel_12bit_channels[] = {
 	ST_SENSORS_LSM_CHANNELS(IIO_ACCEL,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
@@ -188,12 +226,14 @@ static const struct iio_chan_spec st_accel_16bit_channels[] = {
 static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	{
 		.wai = ST_ACCEL_1_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS3DH_ACCEL_DEV_NAME,
 			[1] = LSM303DLHC_ACCEL_DEV_NAME,
 			[2] = LSM330D_ACCEL_DEV_NAME,
 			[3] = LSM330DL_ACCEL_DEV_NAME,
 			[4] = LSM330DLC_ACCEL_DEV_NAME,
+			[5] = LSM303AGR_ACCEL_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_accel_12bit_channels,
 		.odr = {
@@ -259,6 +299,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	},
 	{
 		.wai = ST_ACCEL_2_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS331DLH_ACCEL_DEV_NAME,
 			[1] = LSM303DL_ACCEL_DEV_NAME,
@@ -321,6 +362,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	},
 	{
 		.wai = ST_ACCEL_3_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LSM330_ACCEL_DEV_NAME,
 		},
@@ -399,6 +441,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	},
 	{
 		.wai = ST_ACCEL_4_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS3LV02DL_ACCEL_DEV_NAME,
 		},
@@ -452,6 +495,55 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			},
 		},
 		.multi_read_bit = ST_ACCEL_4_MULTIREAD_BIT,
+		.bootime = 2, /* guess */
+	},
+	{
+		.wai = ST_ACCEL_5_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = LIS331DL_ACCEL_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_accel_8bit_channels,
+		.odr = {
+			.addr = ST_ACCEL_5_ODR_ADDR,
+			.mask = ST_ACCEL_5_ODR_MASK,
+			.odr_avl = {
+				{ 100, ST_ACCEL_5_ODR_AVL_100HZ_VAL },
+				{ 400, ST_ACCEL_5_ODR_AVL_400HZ_VAL, },
+			},
+		},
+		.pw = {
+			.addr = ST_ACCEL_5_PW_ADDR,
+			.mask = ST_ACCEL_5_PW_MASK,
+			.value_on = ST_SENSORS_DEFAULT_POWER_ON_VALUE,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.enable_axis = {
+			.addr = ST_SENSORS_DEFAULT_AXIS_ADDR,
+			.mask = ST_SENSORS_DEFAULT_AXIS_MASK,
+		},
+		.fs = {
+			.addr = ST_ACCEL_5_FS_ADDR,
+			.mask = ST_ACCEL_5_FS_MASK,
+			.fs_avl = {
+				[0] = {
+					.num = ST_ACCEL_FS_AVL_2G,
+					.value = ST_ACCEL_5_FS_AVL_2_VAL,
+					.gain = ST_ACCEL_5_FS_AVL_2_GAIN,
+				},
+				[1] = {
+					.num = ST_ACCEL_FS_AVL_8G,
+					.value = ST_ACCEL_5_FS_AVL_8_VAL,
+					.gain = ST_ACCEL_5_FS_AVL_8_GAIN,
+				},
+			},
+		},
+		.drdy_irq = {
+			.addr = ST_ACCEL_5_DRDY_IRQ_ADDR,
+			.mask_int1 = ST_ACCEL_5_DRDY_IRQ_INT1_MASK,
+			.mask_int2 = ST_ACCEL_5_DRDY_IRQ_INT2_MASK,
+		},
+		.multi_read_bit = ST_ACCEL_5_MULTIREAD_BIT,
 		.bootime = 2, /* guess */
 	},
 };

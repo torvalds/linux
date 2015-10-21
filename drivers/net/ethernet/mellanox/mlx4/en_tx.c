@@ -66,6 +66,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->size = size;
 	ring->size_mask = size - 1;
 	ring->stride = stride;
+	ring->full_size = ring->size - HEADROOM - MAX_DESC_TXBBS;
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
 	ring->tx_info = kmalloc_node(tmp, GFP_KERNEL | __GFP_NOWARN, node);
@@ -180,6 +181,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 		mlx4_bf_free(mdev->dev, &ring->bf);
 	mlx4_qp_remove(mdev->dev, &ring->qp);
 	mlx4_qp_free(mdev->dev, &ring->qp);
+	mlx4_qp_release_range(priv->mdev->dev, ring->qpn, 1);
 	mlx4_en_unmap_buffer(&ring->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 	kfree(ring->bounce_buf);
@@ -229,6 +231,11 @@ void mlx4_en_deactivate_tx_ring(struct mlx4_en_priv *priv,
 
 	mlx4_qp_modify(mdev->dev, NULL, ring->qp_state,
 		       MLX4_QP_STATE_RST, NULL, 0, 0, &ring->qp);
+}
+
+static inline bool mlx4_en_is_tx_ring_full(struct mlx4_en_tx_ring *ring)
+{
+	return ring->prod - ring->cons > ring->full_size;
 }
 
 static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
@@ -473,11 +480,10 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 
 	netdev_tx_completed_queue(ring->tx_queue, packets, bytes);
 
-	/*
-	 * Wakeup Tx queue if this stopped, and at least 1 packet
-	 * was completed
+	/* Wakeup Tx queue if this stopped, and ring is not full.
 	 */
-	if (netif_tx_queue_stopped(ring->tx_queue) && txbbs_skipped > 0) {
+	if (netif_tx_queue_stopped(ring->tx_queue) &&
+	    !mlx4_en_is_tx_ring_full(ring)) {
 		netif_tx_wake_queue(ring->tx_queue);
 		ring->wake_queue++;
 	}
@@ -712,6 +718,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 index, bf_index;
 	__be32 op_own;
 	u16 vlan_tag = 0;
+	u16 vlan_proto = 0;
 	int i_frag;
 	int lso_header_size;
 	void *fragptr = NULL;
@@ -744,9 +751,10 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto tx_drop;
 	}
 
-	if (skb_vlan_tag_present(skb))
+	if (skb_vlan_tag_present(skb)) {
 		vlan_tag = skb_vlan_tag_get(skb);
-
+		vlan_proto = be16_to_cpu(skb->vlan_proto);
+	}
 
 	netdev_txq_bql_enqueue_prefetchw(ring->tx_queue);
 
@@ -921,8 +929,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 
 	/* Check available TXBBs And 2K spare for prefetch */
-	stop_queue = (int)(ring->prod - ring_cons) >
-		      ring->size - HEADROOM - MAX_DESC_TXBBS;
+	stop_queue = mlx4_en_is_tx_ring_full(ring);
 	if (unlikely(stop_queue)) {
 		netif_tx_stop_queue(ring->tx_queue);
 		ring->queue_stopped++;
@@ -953,8 +960,11 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		ring->bf.offset ^= ring->bf.buf_size;
 	} else {
 		tx_desc->ctrl.vlan_tag = cpu_to_be16(vlan_tag);
-		tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN *
-			!!skb_vlan_tag_present(skb);
+		if (vlan_proto == ETH_P_8021AD)
+			tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_SVLAN;
+		else if (vlan_proto == ETH_P_8021Q)
+			tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_CVLAN;
+
 		tx_desc->ctrl.fence_size = real_size;
 
 		/* Ensure new descriptor hits memory
@@ -991,8 +1001,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		smp_rmb();
 
 		ring_cons = ACCESS_ONCE(ring->cons);
-		if (unlikely(((int)(ring->prod - ring_cons)) <=
-			     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
+		if (unlikely(!mlx4_en_is_tx_ring_full(ring))) {
 			netif_tx_wake_queue(ring->tx_queue);
 			ring->wake_queue++;
 		}

@@ -49,6 +49,28 @@ do {										\
 	__asm__ __volatile__ ("wr %%g0, %0, %%asi" : : "r" ((val).seg));	\
 } while(0)
 
+/*
+ * Test whether a block of memory is a valid user space address.
+ * Returns 0 if the range is valid, nonzero otherwise.
+ */
+static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, unsigned long limit)
+{
+	if (__builtin_constant_p(size))
+		return addr > limit - size;
+
+	addr += size;
+	if (addr < size)
+		return true;
+
+	return addr > limit;
+}
+
+#define __range_not_ok(addr, size, limit)                               \
+({                                                                      \
+	__chk_user_ptr(addr);                                           \
+	__chk_range_not_ok((unsigned long __force)(addr), size, limit); \
+})
+
 static inline int __access_ok(const void __user * addr, unsigned long size)
 {
 	return 1;

@@ -298,7 +298,7 @@ acpi_tb_select_address(char *register_name, u32 address32, u64 address64)
  *
  * FUNCTION:    acpi_tb_parse_fadt
  *
- * PARAMETERS:  table_index         - Index for the FADT
+ * PARAMETERS:  None
  *
  * RETURN:      None
  *
@@ -307,7 +307,7 @@ acpi_tb_select_address(char *register_name, u32 address32, u64 address64)
  *
  ******************************************************************************/
 
-void acpi_tb_parse_fadt(u32 table_index)
+void acpi_tb_parse_fadt(void)
 {
 	u32 length;
 	struct acpi_table_header *table;
@@ -319,11 +319,11 @@ void acpi_tb_parse_fadt(u32 table_index)
 	 * Get a local copy of the FADT and convert it to a common format
 	 * Map entire FADT, assumed to be smaller than one page.
 	 */
-	length = acpi_gbl_root_table_list.tables[table_index].length;
+	length = acpi_gbl_root_table_list.tables[acpi_gbl_fadt_index].length;
 
 	table =
-	    acpi_os_map_memory(acpi_gbl_root_table_list.tables[table_index].
-			       address, length);
+	    acpi_os_map_memory(acpi_gbl_root_table_list.
+			       tables[acpi_gbl_fadt_index].address, length);
 	if (!table) {
 		return;
 	}
@@ -345,14 +345,23 @@ void acpi_tb_parse_fadt(u32 table_index)
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
 	acpi_tb_install_fixed_table((acpi_physical_address) acpi_gbl_FADT.Xdsdt,
-				    ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
+				    ACPI_SIG_DSDT, &acpi_gbl_dsdt_index);
 
 	/* If Hardware Reduced flag is set, there is no FACS */
 
 	if (!acpi_gbl_reduced_hardware) {
-		acpi_tb_install_fixed_table((acpi_physical_address)
-					    acpi_gbl_FADT.Xfacs, ACPI_SIG_FACS,
-					    ACPI_TABLE_INDEX_FACS);
+		if (acpi_gbl_FADT.facs) {
+			acpi_tb_install_fixed_table((acpi_physical_address)
+						    acpi_gbl_FADT.facs,
+						    ACPI_SIG_FACS,
+						    &acpi_gbl_facs_index);
+		}
+		if (acpi_gbl_FADT.Xfacs) {
+			acpi_tb_install_fixed_table((acpi_physical_address)
+						    acpi_gbl_FADT.Xfacs,
+						    ACPI_SIG_FACS,
+						    &acpi_gbl_xfacs_index);
+		}
 	}
 }
 
@@ -389,12 +398,12 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 
 	/* Clear the entire local FADT */
 
-	ACPI_MEMSET(&acpi_gbl_FADT, 0, sizeof(struct acpi_table_fadt));
+	memset(&acpi_gbl_FADT, 0, sizeof(struct acpi_table_fadt));
 
 	/* Copy the original FADT, up to sizeof (struct acpi_table_fadt) */
 
-	ACPI_MEMCPY(&acpi_gbl_FADT, table,
-		    ACPI_MIN(length, sizeof(struct acpi_table_fadt)));
+	memcpy(&acpi_gbl_FADT, table,
+	       ACPI_MIN(length, sizeof(struct acpi_table_fadt)));
 
 	/* Take a copy of the Hardware Reduced flag */
 
@@ -491,13 +500,9 @@ static void acpi_tb_convert_fadt(void)
 	acpi_gbl_FADT.header.length = sizeof(struct acpi_table_fadt);
 
 	/*
-	 * Expand the 32-bit FACS and DSDT addresses to 64-bit as necessary.
+	 * Expand the 32-bit DSDT addresses to 64-bit as necessary.
 	 * Later ACPICA code will always use the X 64-bit field.
 	 */
-	acpi_gbl_FADT.Xfacs = acpi_tb_select_address("FACS",
-						     acpi_gbl_FADT.facs,
-						     acpi_gbl_FADT.Xfacs);
-
 	acpi_gbl_FADT.Xdsdt = acpi_tb_select_address("DSDT",
 						     acpi_gbl_FADT.dsdt,
 						     acpi_gbl_FADT.Xdsdt);

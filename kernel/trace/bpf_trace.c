@@ -79,27 +79,18 @@ static const struct bpf_func_proto bpf_probe_read_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-static u64 bpf_ktime_get_ns(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
-{
-	/* NMI safe access to clock monotonic */
-	return ktime_get_mono_fast_ns();
-}
-
-static const struct bpf_func_proto bpf_ktime_get_ns_proto = {
-	.func		= bpf_ktime_get_ns,
-	.gpl_only	= true,
-	.ret_type	= RET_INTEGER,
-};
-
 /*
  * limited trace_printk()
- * only %d %u %x %ld %lu %lx %lld %llu %llx %p conversion specifiers allowed
+ * only %d %u %x %ld %lu %lx %lld %llu %llx %p %s conversion specifiers allowed
  */
 static u64 bpf_trace_printk(u64 r1, u64 fmt_size, u64 r3, u64 r4, u64 r5)
 {
 	char *fmt = (char *) (long) r1;
+	bool str_seen = false;
 	int mod[3] = {};
 	int fmt_cnt = 0;
+	u64 unsafe_addr;
+	char buf[64];
 	int i;
 
 	/*
@@ -126,12 +117,37 @@ static u64 bpf_trace_printk(u64 r1, u64 fmt_size, u64 r3, u64 r4, u64 r5)
 		if (fmt[i] == 'l') {
 			mod[fmt_cnt]++;
 			i++;
-		} else if (fmt[i] == 'p') {
+		} else if (fmt[i] == 'p' || fmt[i] == 's') {
 			mod[fmt_cnt]++;
 			i++;
 			if (!isspace(fmt[i]) && !ispunct(fmt[i]) && fmt[i] != 0)
 				return -EINVAL;
 			fmt_cnt++;
+			if (fmt[i - 1] == 's') {
+				if (str_seen)
+					/* allow only one '%s' per fmt string */
+					return -EINVAL;
+				str_seen = true;
+
+				switch (fmt_cnt) {
+				case 1:
+					unsafe_addr = r3;
+					r3 = (long) buf;
+					break;
+				case 2:
+					unsafe_addr = r4;
+					r4 = (long) buf;
+					break;
+				case 3:
+					unsafe_addr = r5;
+					r5 = (long) buf;
+					break;
+				}
+				buf[0] = 0;
+				strncpy_from_unsafe(buf,
+						    (void *) (long) unsafe_addr,
+						    sizeof(buf));
+			}
 			continue;
 		}
 
@@ -159,6 +175,46 @@ static const struct bpf_func_proto bpf_trace_printk_proto = {
 	.arg2_type	= ARG_CONST_STACK_SIZE,
 };
 
+const struct bpf_func_proto *bpf_get_trace_printk_proto(void)
+{
+	/*
+	 * this program might be calling bpf_trace_printk,
+	 * so allocate per-cpu printk buffers
+	 */
+	trace_printk_init_buffers();
+
+	return &bpf_trace_printk_proto;
+}
+
+static u64 bpf_perf_event_read(u64 r1, u64 index, u64 r3, u64 r4, u64 r5)
+{
+	struct bpf_map *map = (struct bpf_map *) (unsigned long) r1;
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	struct perf_event *event;
+
+	if (unlikely(index >= array->map.max_entries))
+		return -E2BIG;
+
+	event = (struct perf_event *)array->ptrs[index];
+	if (!event)
+		return -ENOENT;
+
+	/*
+	 * we don't know if the function is run successfully by the
+	 * return value. It can be judged in other places, such as
+	 * eBPF programs.
+	 */
+	return perf_event_read_local(event);
+}
+
+const struct bpf_func_proto bpf_perf_event_read_proto = {
+	.func		= bpf_perf_event_read,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_CONST_MAP_PTR,
+	.arg2_type	= ARG_ANYTHING,
+};
+
 static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
@@ -172,15 +228,20 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 		return &bpf_probe_read_proto;
 	case BPF_FUNC_ktime_get_ns:
 		return &bpf_ktime_get_ns_proto;
-
+	case BPF_FUNC_tail_call:
+		return &bpf_tail_call_proto;
+	case BPF_FUNC_get_current_pid_tgid:
+		return &bpf_get_current_pid_tgid_proto;
+	case BPF_FUNC_get_current_uid_gid:
+		return &bpf_get_current_uid_gid_proto;
+	case BPF_FUNC_get_current_comm:
+		return &bpf_get_current_comm_proto;
 	case BPF_FUNC_trace_printk:
-		/*
-		 * this program might be calling bpf_trace_printk,
-		 * so allocate per-cpu printk buffers
-		 */
-		trace_printk_init_buffers();
-
-		return &bpf_trace_printk_proto;
+		return bpf_get_trace_printk_proto();
+	case BPF_FUNC_get_smp_processor_id:
+		return &bpf_get_smp_processor_id_proto;
+	case BPF_FUNC_perf_event_read:
+		return &bpf_perf_event_read_proto;
 	default:
 		return NULL;
 	}

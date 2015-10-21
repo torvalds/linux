@@ -602,7 +602,7 @@ static struct lu_object *lu_object_new(const struct lu_env *env,
 	struct lu_site_bkt_data *bkt;
 
 	o = lu_object_alloc(env, dev, f, conf);
-	if (unlikely(IS_ERR(o)))
+	if (IS_ERR(o))
 		return o;
 
 	hs = dev->ld_site->ls_obj_hash;
@@ -666,7 +666,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 	 * operations, including fld queries, inode loading, etc.
 	 */
 	o = lu_object_alloc(env, dev, f, conf);
-	if (unlikely(IS_ERR(o)))
+	if (IS_ERR(o))
 		return o;
 
 	LASSERT(lu_fid_eq(lu_object_fid(o), f));
@@ -674,7 +674,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 	cfs_hash_bd_lock(hs, &bd, 1);
 
 	shadow = htable_lookup(s, &bd, f, waiter, &version);
-	if (likely(IS_ERR(shadow) && PTR_ERR(shadow) == -ENOENT)) {
+	if (likely(PTR_ERR(shadow) == -ENOENT)) {
 		struct lu_site_bkt_data *bkt;
 
 		bkt = cfs_hash_bd_extra_get(hs, &bd);
@@ -1532,7 +1532,7 @@ static void keys_fini(struct lu_context *ctx)
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i)
 		key_fini(ctx, i);
 
-	OBD_FREE(ctx->lc_value, ARRAY_SIZE(lu_keys) * sizeof(ctx->lc_value[0]));
+	kfree(ctx->lc_value);
 	ctx->lc_value = NULL;
 }
 
@@ -1558,7 +1558,7 @@ static int keys_fill(struct lu_context *ctx)
 			LINVRNT(key->lct_index == i);
 
 			value = key->lct_init(ctx, key);
-			if (unlikely(IS_ERR(value)))
+			if (IS_ERR(value))
 				return PTR_ERR(value);
 
 			if (!(ctx->lc_tags & LCT_NOREF))
@@ -1581,8 +1581,8 @@ static int keys_fill(struct lu_context *ctx)
 
 static int keys_init(struct lu_context *ctx)
 {
-	OBD_ALLOC(ctx->lc_value,
-		  ARRAY_SIZE(lu_keys) * sizeof(ctx->lc_value[0]));
+	ctx->lc_value = kcalloc(ARRAY_SIZE(lu_keys), sizeof(ctx->lc_value[0]),
+				GFP_NOFS);
 	if (likely(ctx->lc_value != NULL))
 		return keys_fill(ctx);
 
@@ -1989,14 +1989,10 @@ void lu_global_fini(void)
 
 static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx)
 {
-#if defined (CONFIG_PROC_FS)
 	struct lprocfs_counter ret;
 
 	lprocfs_stats_collect(stats, idx, &ret);
 	return (__u32)ret.lc_count;
-#else
-	return 0;
-#endif
 }
 
 /**
@@ -2125,7 +2121,7 @@ void lu_buf_free(struct lu_buf *buf)
 	LASSERT(buf);
 	if (buf->lb_buf) {
 		LASSERT(buf->lb_len > 0);
-		OBD_FREE_LARGE(buf->lb_buf, buf->lb_len);
+		kvfree(buf->lb_buf);
 		buf->lb_buf = NULL;
 		buf->lb_len = 0;
 	}
@@ -2137,7 +2133,7 @@ void lu_buf_alloc(struct lu_buf *buf, int size)
 	LASSERT(buf);
 	LASSERT(buf->lb_buf == NULL);
 	LASSERT(buf->lb_len == 0);
-	OBD_ALLOC_LARGE(buf->lb_buf, size);
+	buf->lb_buf = libcfs_kvzalloc(size, GFP_NOFS);
 	if (likely(buf->lb_buf))
 		buf->lb_len = size;
 }
@@ -2175,14 +2171,14 @@ int lu_buf_check_and_grow(struct lu_buf *buf, int len)
 	if (len <= buf->lb_len)
 		return 0;
 
-	OBD_ALLOC_LARGE(ptr, len);
+	ptr = libcfs_kvzalloc(len, GFP_NOFS);
 	if (ptr == NULL)
 		return -ENOMEM;
 
 	/* Free the old buf */
 	if (buf->lb_buf != NULL) {
 		memcpy(ptr, buf->lb_buf, buf->lb_len);
-		OBD_FREE_LARGE(buf->lb_buf, buf->lb_len);
+		kvfree(buf->lb_buf);
 	}
 
 	buf->lb_buf = ptr;

@@ -41,8 +41,6 @@ void rtw_os_indicate_connect(struct adapter *adapter)
 {
 	rtw_indicate_wx_assoc_event(adapter);
 	netif_carrier_on(adapter->pnetdev);
-	if (adapter->pid[2] != 0)
-		rtw_signal_process(adapter->pid[2], SIGALRM);
 }
 
 void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
@@ -82,7 +80,7 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 		/* reset values in securitypriv */
 		struct security_priv *psec_priv = &adapter->securitypriv;
 
-		psec_priv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;  /* open system */
+		psec_priv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 		psec_priv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
 		psec_priv->dot11PrivacyKeyIndex = 0;
 		psec_priv->dot118021XGrpPrivacy = _NO_PRIVACY_;

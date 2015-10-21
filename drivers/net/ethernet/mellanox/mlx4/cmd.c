@@ -49,6 +49,7 @@
 #include "mlx4.h"
 #include "fw.h"
 #include "fw_qos.h"
+#include "mlx4_stats.h"
 
 #define CMD_POLL_TOKEN 0xffff
 #define INBOX_MASK	0xffffffffffffff00ULL
@@ -685,6 +686,7 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 {
 	struct mlx4_cmd *cmd = &mlx4_priv(dev)->cmd;
 	struct mlx4_cmd_context *context;
+	long ret_wait;
 	int err = 0;
 
 	down(&cmd->event_sem);
@@ -710,8 +712,20 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	if (err)
 		goto out_reset;
 
-	if (!wait_for_completion_timeout(&context->done,
-					 msecs_to_jiffies(timeout))) {
+	if (op == MLX4_CMD_SENSE_PORT) {
+		ret_wait =
+			wait_for_completion_interruptible_timeout(&context->done,
+								  msecs_to_jiffies(timeout));
+		if (ret_wait < 0) {
+			context->fw_status = 0;
+			context->out_param = 0;
+			context->result = 0;
+		}
+	} else {
+		ret_wait = (long)wait_for_completion_timeout(&context->done,
+							     msecs_to_jiffies(timeout));
+	}
+	if (!ret_wait) {
 		mlx4_warn(dev, "command 0x%x timed out (go bit not cleared)\n",
 			  op);
 		if (op == MLX4_CMD_NOP) {
@@ -882,7 +896,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 {
 	struct ib_smp *smp = inbox->buf;
 	u32 index;
-	u8 port;
+	u8 port, slave_port;
 	u8 opcode_modifier;
 	u16 *table;
 	int err;
@@ -894,7 +908,8 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 	__be32 slave_cap_mask;
 	__be64 slave_node_guid;
 
-	port = vhcr->in_modifier;
+	slave_port = vhcr->in_modifier;
+	port = mlx4_slave_convert_port(dev, slave, slave_port);
 
 	/* network-view bit is for driver use only, and should not be passed to FW */
 	opcode_modifier = vhcr->op_modifier & ~0x8; /* clear netw view bit */
@@ -930,8 +945,9 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 			if (smp->attr_id == IB_SMP_ATTR_PORT_INFO) {
 				/*get the slave specific caps:*/
 				/*do the command */
+				smp->attr_mod = cpu_to_be32(port);
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					    vhcr->in_modifier, opcode_modifier,
+					    port, opcode_modifier,
 					    vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				/* modify the response for slaves */
 				if (!err && slave != mlx4_master_func_num(dev)) {
@@ -975,7 +991,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 			}
 			if (smp->attr_id == IB_SMP_ATTR_NODE_INFO) {
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, opcode_modifier,
+					     port, opcode_modifier,
 					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				if (!err) {
 					slave_node_guid =  mlx4_get_slave_node_guid(dev, slave);
@@ -2915,7 +2931,7 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 	s_info->mac = mac;
-	mlx4_info(dev, "default mac on vf %d port %d to %llX will take afect only after vf restart\n",
+	mlx4_info(dev, "default mac on vf %d port %d to %llX will take effect only after vf restart\n",
 		  vf, port, s_info->mac);
 	return 0;
 }
@@ -3164,6 +3180,92 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_link_state);
 
+int mlx4_get_counter_stats(struct mlx4_dev *dev, int counter_index,
+			   struct mlx4_counter *counter_stats, int reset)
+{
+	struct mlx4_cmd_mailbox *mailbox = NULL;
+	struct mlx4_counter *tmp_counter;
+	int err;
+	u32 if_stat_in_mod;
+
+	if (!counter_stats)
+		return -EINVAL;
+
+	if (counter_index == MLX4_SINK_COUNTER_INDEX(dev))
+		return 0;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	memset(mailbox->buf, 0, sizeof(struct mlx4_counter));
+	if_stat_in_mod = counter_index;
+	if (reset)
+		if_stat_in_mod |= MLX4_QUERY_IF_STAT_RESET;
+	err = mlx4_cmd_box(dev, 0, mailbox->dma,
+			   if_stat_in_mod, 0,
+			   MLX4_CMD_QUERY_IF_STAT,
+			   MLX4_CMD_TIME_CLASS_C,
+			   MLX4_CMD_NATIVE);
+	if (err) {
+		mlx4_dbg(dev, "%s: failed to read statistics for counter index %d\n",
+			 __func__, counter_index);
+		goto if_stat_out;
+	}
+	tmp_counter = (struct mlx4_counter *)mailbox->buf;
+	counter_stats->counter_mode = tmp_counter->counter_mode;
+	if (counter_stats->counter_mode == 0) {
+		counter_stats->rx_frames =
+			cpu_to_be64(be64_to_cpu(counter_stats->rx_frames) +
+				    be64_to_cpu(tmp_counter->rx_frames));
+		counter_stats->tx_frames =
+			cpu_to_be64(be64_to_cpu(counter_stats->tx_frames) +
+				    be64_to_cpu(tmp_counter->tx_frames));
+		counter_stats->rx_bytes =
+			cpu_to_be64(be64_to_cpu(counter_stats->rx_bytes) +
+				    be64_to_cpu(tmp_counter->rx_bytes));
+		counter_stats->tx_bytes =
+			cpu_to_be64(be64_to_cpu(counter_stats->tx_bytes) +
+				    be64_to_cpu(tmp_counter->tx_bytes));
+	}
+
+if_stat_out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_counter_stats);
+
+int mlx4_get_vf_stats(struct mlx4_dev *dev, int port, int vf_idx,
+		      struct ifla_vf_stats *vf_stats)
+{
+	struct mlx4_counter tmp_vf_stats;
+	int slave;
+	int err = 0;
+
+	if (!vf_stats)
+		return -EINVAL;
+
+	if (!mlx4_is_master(dev))
+		return -EPROTONOSUPPORT;
+
+	slave = mlx4_get_slave_indx(dev, vf_idx);
+	if (slave < 0)
+		return -EINVAL;
+
+	port = mlx4_slaves_closest_port(dev, slave, port);
+	err = mlx4_calc_vf_counters(dev, slave, port, &tmp_vf_stats);
+	if (!err && tmp_vf_stats.counter_mode == 0) {
+		vf_stats->rx_packets = be64_to_cpu(tmp_vf_stats.rx_frames);
+		vf_stats->tx_packets = be64_to_cpu(tmp_vf_stats.tx_frames);
+		vf_stats->rx_bytes = be64_to_cpu(tmp_vf_stats.rx_bytes);
+		vf_stats->tx_bytes = be64_to_cpu(tmp_vf_stats.tx_bytes);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_vf_stats);
+
 int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -3197,6 +3299,12 @@ int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
 				 int enabled)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
+			&priv->dev, slave);
+	int min_port = find_first_bit(actv_ports.ports,
+				      priv->dev.caps.num_ports) + 1;
+	int max_port = min_port - 1 +
+		bitmap_weight(actv_ports.ports, priv->dev.caps.num_ports);
 
 	if (slave == mlx4_master_func_num(dev))
 		return 0;
@@ -3205,6 +3313,11 @@ int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
 	    port < 1 || port > MLX4_MAX_PORTS ||
 	    enabled < 0 || enabled > 1)
 		return -EINVAL;
+
+	if (min_port == max_port && dev->caps.num_ports > 1) {
+		mlx4_info(dev, "SMI access disallowed for single ported VFs\n");
+		return -EPROTONOSUPPORT;
+	}
 
 	priv->mfunc.master.vf_admin[slave].enable_smi[port] = enabled;
 	return 0;

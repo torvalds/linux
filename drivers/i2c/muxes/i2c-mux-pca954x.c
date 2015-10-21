@@ -134,7 +134,7 @@ static int pca954x_reg_write(struct i2c_adapter *adap,
 		msg.len = 1;
 		buf[0] = val;
 		msg.buf = buf;
-		ret = adap->algo->master_xfer(adap, &msg, 1);
+		ret = __i2c_transfer(adap, &msg, 1);
 	} else {
 		union i2c_smbus_data data;
 		ret = adap->algo->smbus_xfer(adap, client->addr,
@@ -300,7 +300,6 @@ static struct i2c_driver pca954x_driver = {
 	.driver		= {
 		.name	= "pca954x",
 		.pm	= &pca954x_pm,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pca954x_probe,
 	.remove		= pca954x_remove,

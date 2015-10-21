@@ -48,7 +48,7 @@ config ATA_VERBOSE_ERROR
 
 config ATA_ACPI
 	bool "ATA ACPI Support"
-	depends on ACPI && PCI
+	depends on ACPI
 	default y
 	help
 	  This option adds support for ATA-related ACPI objects.
@@ -98,6 +98,15 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
+config AHCI_BRCMSTB
+	tristate "Broadcom STB AHCI SATA support"
+	depends on ARCH_BRCMSTB
+	help
+	  This option enables support for the AHCI SATA3 controller found on
+	  STB SoC's.
+
+	  If unsure, say N.
+
 config AHCI_DA850
 	tristate "DaVinci DA850 AHCI SATA support"
 	depends on ARCH_DAVINCI_DA850
@@ -121,6 +130,15 @@ config AHCI_IMX
 	help
 	  This option enables support for the Freescale i.MX SoC's
 	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
+config AHCI_CEVA
+	tristate "CEVA AHCI SATA support"
+	depends on OF
+	help
+	  This option enables support for the CEVA AHCI SATA.
+	  It can be found on the Xilinx Zynq UltraScale+ MPSoC.
 
 	  If unsure, say N.
 
@@ -827,7 +845,6 @@ config PATA_AT32
 config PATA_AT91
 	tristate "PATA support for AT91SAM9260"
 	depends on ARM && SOC_AT91SAM9
-	depends on !ARCH_MULTIPLATFORM
 	help
 	  This option enables support for IDE devices on the Atmel AT91SAM9260 SoC.
 

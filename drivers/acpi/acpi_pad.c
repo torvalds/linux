@@ -12,10 +12,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #include <linux/kernel.h>
@@ -105,7 +101,7 @@ static void round_robin_cpu(unsigned int tsk_index)
 	mutex_lock(&round_robin_lock);
 	cpumask_clear(tmp);
 	for_each_cpu(cpu, pad_busy_cpus)
-		cpumask_or(tmp, tmp, topology_thread_cpumask(cpu));
+		cpumask_or(tmp, tmp, topology_sibling_cpumask(cpu));
 	cpumask_andnot(tmp, cpu_online_mask, tmp);
 	/* avoid HT sibilings if possible */
 	if (cpumask_empty(tmp))

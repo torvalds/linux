@@ -1,6 +1,6 @@
 config CRYPTO_DEV_VMX_ENCRYPT
 	tristate "Encryption acceleration support on P8 CPU"
-	depends on PPC64 && CRYPTO_DEV_VMX
+	depends on CRYPTO_DEV_VMX
 	default y
 	help
 	  Support for VMX cryptographic acceleration instructions on Power8 CPU.

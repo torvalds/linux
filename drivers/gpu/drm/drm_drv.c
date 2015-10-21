@@ -46,13 +46,11 @@ MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output");
-MODULE_PARM_DESC(atomic, "Enable experimental atomic KMS API");
 MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs] (0: never disable, <0: disable immediately)");
 MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
 MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
 
 module_param_named(debug, drm_debug, int, 0600);
-module_param_named_unsafe(atomic, drm_atomic, bool, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
 static struct idr drm_minors_idr;
@@ -92,8 +90,6 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 }
 EXPORT_SYMBOL(drm_ut_debug_printk);
 
-#define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
-
 struct drm_master *drm_master_create(struct drm_minor *minor)
 {
 	struct drm_master *master;
@@ -105,11 +101,7 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 	kref_init(&master->refcount);
 	spin_lock_init(&master->lock.spinlock);
 	init_waitqueue_head(&master->lock.lock_queue);
-	if (drm_ht_create(&master->magiclist, DRM_MAGIC_HASH_ORDER)) {
-		kfree(master);
-		return NULL;
-	}
-	INIT_LIST_HEAD(&master->magicfree);
+	idr_init(&master->magic_map);
 	master->minor = minor;
 
 	return master;
@@ -138,16 +130,10 @@ static void drm_master_destroy(struct kref *kref)
 			r_list = NULL;
 		}
 	}
-
-	if (master->unique) {
-		kfree(master->unique);
-		master->unique = NULL;
-		master->unique_len = 0;
-	}
-
-	drm_ht_remove(&master->magiclist);
-
 	mutex_unlock(&dev->struct_mutex);
+
+	idr_destroy(&master->magic_map);
+	kfree(master->unique);
 	kfree(master);
 }
 
@@ -299,7 +285,6 @@ static void drm_minor_free(struct drm_device *dev, unsigned int type)
 	if (!minor)
 		return;
 
-	drm_mode_group_destroy(&minor->mode_group);
 	put_device(minor->kdev);
 
 	spin_lock_irqsave(&drm_minor_lock, flags);
@@ -596,11 +581,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	if (drm_ht_create(&dev->map_hash, 12))
 		goto err_minors;
 
-	ret = drm_legacy_ctxbitmap_init(dev);
-	if (ret) {
-		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
-		goto err_ht;
-	}
+	drm_legacy_ctxbitmap_init(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_GEM)) {
 		ret = drm_gem_init(dev);
@@ -614,7 +595,6 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 
 err_ctxbitmap:
 	drm_legacy_ctxbitmap_cleanup(dev);
-err_ht:
 	drm_ht_remove(&dev->map_hash);
 err_minors:
 	drm_minor_free(dev, DRM_MINOR_LEGACY);
@@ -719,20 +699,9 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 			goto err_minors;
 	}
 
-	/* setup grouping for legacy outputs */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_mode_group_init_legacy_group(dev,
-				&dev->primary->mode_group);
-		if (ret)
-			goto err_unload;
-	}
-
 	ret = 0;
 	goto out_unlock;
 
-err_unload:
-	if (dev->driver->unload)
-		dev->driver->unload(dev);
 err_minors:
 	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);

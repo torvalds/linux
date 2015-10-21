@@ -35,7 +35,7 @@
 #include <asm/io.h>
 #include <asm/serial.h>
 
-unsigned int __weak __init serial8250_early_in(struct uart_port *port, int offset)
+static unsigned int __init serial8250_early_in(struct uart_port *port, int offset)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -51,7 +51,7 @@ unsigned int __weak __init serial8250_early_in(struct uart_port *port, int offse
 	}
 }
 
-void __weak __init serial8250_early_out(struct uart_port *port, int offset, int value)
+static void __init serial8250_early_out(struct uart_port *port, int offset, int value)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -131,7 +131,7 @@ static void __init init_port(struct earlycon_device *device)
 	serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
 }
 
-static int __init early_serial8250_setup(struct earlycon_device *device,
+int __init early_serial8250_setup(struct earlycon_device *device,
 					 const char *options)
 {
 	if (!(device->port.membase || device->port.iobase))

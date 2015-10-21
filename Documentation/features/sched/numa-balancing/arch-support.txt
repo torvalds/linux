@@ -1,0 +1,40 @@
+#
+# Feature name:          numa-balancing
+#         Kconfig:       ARCH_SUPPORTS_NUMA_BALANCING
+#         description:   arch supports NUMA balancing
+#
+    -----------------------
+    |         arch |status|
+    -----------------------
+    |       alpha: | TODO |
+    |         arc: |  ..  |
+    |         arm: |  ..  |
+    |       arm64: |  ..  |
+    |       avr32: |  ..  |
+    |    blackfin: |  ..  |
+    |         c6x: |  ..  |
+    |        cris: |  ..  |
+    |         frv: |  ..  |
+    |       h8300: |  ..  |
+    |     hexagon: |  ..  |
+    |        ia64: | TODO |
+    |        m32r: |  ..  |
+    |        m68k: |  ..  |
+    |       metag: |  ..  |
+    |  microblaze: |  ..  |
+    |        mips: | TODO |
+    |     mn10300: |  ..  |
+    |       nios2: |  ..  |
+    |    openrisc: |  ..  |
+    |      parisc: |  ..  |
+    |     powerpc: |  ok  |
+    |        s390: |  ..  |
+    |       score: |  ..  |
+    |          sh: |  ..  |
+    |       sparc: | TODO |
+    |        tile: | TODO |
+    |          um: |  ..  |
+    |   unicore32: |  ..  |
+    |         x86: |  ok  |
+    |      xtensa: |  ..  |
+    -----------------------

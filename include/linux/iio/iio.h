@@ -32,6 +32,7 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW,
 	IIO_CHAN_INFO_AVERAGE_RAW,
 	IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY,
+	IIO_CHAN_INFO_HIGH_PASS_FILTER_3DB_FREQUENCY,
 	IIO_CHAN_INFO_SAMP_FREQ,
 	IIO_CHAN_INFO_FREQUENCY,
 	IIO_CHAN_INFO_PHASE,
@@ -43,6 +44,8 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_CALIBWEIGHT,
 	IIO_CHAN_INFO_DEBOUNCE_COUNT,
 	IIO_CHAN_INFO_DEBOUNCE_TIME,
+	IIO_CHAN_INFO_CALIBEMISSIVITY,
+	IIO_CHAN_INFO_OVERSAMPLING_RATIO,
 };
 
 enum iio_shared_by {
@@ -642,11 +645,28 @@ int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,
 #define IIO_DEGREE_TO_RAD(deg) (((deg) * 314159ULL + 9000000ULL) / 18000000ULL)
 
 /**
+ * IIO_RAD_TO_DEGREE() - Convert rad to degree
+ * @rad: A value in rad
+ *
+ * Returns the given value converted from rad to degree
+ */
+#define IIO_RAD_TO_DEGREE(rad) \
+	(((rad) * 18000000ULL + 314159ULL / 2) / 314159ULL)
+
+/**
  * IIO_G_TO_M_S_2() - Convert g to meter / second**2
  * @g: A value in g
  *
  * Returns the given value converted from g to meter / second**2
  */
 #define IIO_G_TO_M_S_2(g) ((g) * 980665ULL / 100000ULL)
+
+/**
+ * IIO_M_S_2_TO_G() - Convert meter / second**2 to g
+ * @ms2: A value in meter / second**2
+ *
+ * Returns the given value converted from meter / second**2 to g
+ */
+#define IIO_M_S_2_TO_G(ms2) (((ms2) * 100000ULL + 980665ULL / 2) / 980665ULL)
 
 #endif /* _INDUSTRIAL_IO_H_ */

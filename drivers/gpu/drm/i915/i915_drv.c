@@ -356,7 +356,6 @@ static const struct intel_device_info intel_cherryview_info = {
 };
 
 static const struct intel_device_info intel_skylake_info = {
-	.is_preliminary = 1,
 	.is_skylake = 1,
 	.gen = 9, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
@@ -369,12 +368,23 @@ static const struct intel_device_info intel_skylake_info = {
 };
 
 static const struct intel_device_info intel_skylake_gt3_info = {
-	.is_preliminary = 1,
 	.is_skylake = 1,
 	.gen = 9, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 	.has_llc = 1,
+	.has_ddi = 1,
+	.has_fbc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+	IVB_CURSOR_OFFSETS,
+};
+
+static const struct intel_device_info intel_broxton_info = {
+	.is_preliminary = 1,
+	.gen = 9,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.num_pipes = 3,
 	.has_ddi = 1,
 	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
@@ -420,16 +430,15 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	INTEL_CHV_IDS(&intel_cherryview_info),	\
 	INTEL_SKL_GT1_IDS(&intel_skylake_info),	\
 	INTEL_SKL_GT2_IDS(&intel_skylake_info),	\
-	INTEL_SKL_GT3_IDS(&intel_skylake_gt3_info)	\
+	INTEL_SKL_GT3_IDS(&intel_skylake_gt3_info),	\
+	INTEL_BXT_IDS(&intel_broxton_info)
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_PCI_IDS,
 	{0, 0, 0}
 };
 
-#if defined(CONFIG_DRM_I915_KMS)
 MODULE_DEVICE_TABLE(pci, pciidlist);
-#endif
 
 void intel_detect_pch(struct drm_device *dev)
 {
@@ -528,19 +537,24 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	return true;
 }
 
-void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
+void i915_firmware_load_error_print(const char *fw_path, int err)
 {
-	spin_lock_irq(&dev_priv->irq_lock);
+	DRM_ERROR("failed to load firmware %s (%d)\n", fw_path, err);
 
-	dev_priv->long_hpd_port_mask = 0;
-	dev_priv->short_hpd_port_mask = 0;
-	dev_priv->hpd_event_bits = 0;
+	/*
+	 * If the reason is not known assume -ENOENT since that's the most
+	 * usual failure mode.
+	 */
+	if (!err)
+		err = -ENOENT;
 
-	spin_unlock_irq(&dev_priv->irq_lock);
+	if (!(IS_BUILTIN(CONFIG_DRM_I915) && err == -ENOENT))
+		return;
 
-	cancel_work_sync(&dev_priv->dig_port_work);
-	cancel_work_sync(&dev_priv->hotplug_work);
-	cancel_delayed_work_sync(&dev_priv->hotplug_reenable_work);
+	DRM_ERROR(
+	  "The driver is built-in, so to load the firmware you need to\n"
+	  "include it either in the kernel (see CONFIG_EXTRA_FIRMWARE) or\n"
+	  "in your initrd/initramfs image.\n");
 }
 
 static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
@@ -561,11 +575,13 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 static int intel_suspend_complete(struct drm_i915_private *dev_priv);
 static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 			      bool rpm_resume);
+static int skl_resume_prepare(struct drm_i915_private *dev_priv);
+static int bxt_resume_prepare(struct drm_i915_private *dev_priv);
+
 
 static int i915_drm_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
 	pci_power_t opregion_target_state;
 	int error;
 
@@ -596,8 +612,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	 * for _thaw. Also, power gate the CRTC power wells.
 	 */
 	drm_modeset_lock_all(dev);
-	for_each_crtc(dev, crtc)
-		intel_crtc_control(crtc, false);
+	intel_display_suspend(dev);
 	drm_modeset_unlock_all(dev);
 
 	intel_dp_mst_suspend(dev);
@@ -647,15 +662,18 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 
 	pci_disable_device(drm_dev->pdev);
 	/*
-	 * During hibernation on some GEN4 platforms the BIOS may try to access
+	 * During hibernation on some platforms the BIOS may try to access
 	 * the device even though it's already in D3 and hang the machine. So
 	 * leave the device in D0 on those platforms and hope the BIOS will
-	 * power down the device properly. Platforms where this was seen:
-	 * Lenovo Thinkpad X301, X61s
+	 * power down the device properly. The issue was seen on multiple old
+	 * GENs with different BIOS vendors, so having an explicit blacklist
+	 * is inpractical; apply the workaround on everything pre GEN6. The
+	 * platforms where the issue was seen:
+	 * Lenovo Thinkpad X301, X61s, X60, T60, X41
+	 * Fujitsu FSC S7110
+	 * Acer Aspire 1830T
 	 */
-	if (!(hibernation &&
-	      drm_dev->pdev->subsystem_vendor == PCI_VENDOR_ID_LENOVO &&
-	      INTEL_INFO(dev_priv)->gen == 4))
+	if (!(hibernation && INTEL_INFO(dev_priv)->gen < 6))
 		pci_set_power_state(drm_dev->pdev, PCI_D3hot);
 
 	return 0;
@@ -712,7 +730,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 	if (i915_gem_init_hw(dev)) {
 		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
-		atomic_set_mask(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
+			atomic_or(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -724,7 +742,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	drm_modeset_lock_all(dev);
-	intel_modeset_setup_hw_state(dev, true);
+	intel_display_resume(dev);
 	drm_modeset_unlock_all(dev);
 
 	intel_dp_mst_resume(dev);
@@ -776,11 +794,16 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev_priv))
 		ret = vlv_resume_prepare(dev_priv, false);
 	if (ret)
-		DRM_ERROR("Resume prepare failed: %d,Continuing resume\n", ret);
+		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
+			  ret);
 
 	intel_uncore_early_sanitize(dev, true);
 
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (IS_BROXTON(dev))
+		ret = bxt_resume_prepare(dev_priv);
+	else if (IS_SKYLAKE(dev_priv))
+		ret = skl_resume_prepare(dev_priv);
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
 
 	intel_uncore_sanitize(dev);
@@ -823,9 +846,6 @@ int i915_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool simulated;
 	int ret;
-
-	if (!i915.reset)
-		return 0;
 
 	intel_reset_gt_powersave(dev);
 
@@ -918,8 +938,6 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
 
-	driver.driver_features &= ~(DRIVER_USE_AGP);
-
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
@@ -952,7 +970,7 @@ static int i915_pm_suspend_late(struct device *dev)
 	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	/*
-	 * We have a suspedn ordering issue with the snd-hda driver also
+	 * We have a suspend ordering issue with the snd-hda driver also
 	 * requiring our device to be power up. Due to the lack of a
 	 * parent/child relationship we currently solve this with an late
 	 * suspend hook.
@@ -996,9 +1014,66 @@ static int i915_pm_resume(struct device *dev)
 	return i915_drm_resume(drm_dev);
 }
 
+static int skl_suspend_complete(struct drm_i915_private *dev_priv)
+{
+	/* Enabling DC6 is not a hard requirement to enter runtime D3 */
+
+	/*
+	 * This is to ensure that CSR isn't identified as loaded before
+	 * CSR-loading program is called during runtime-resume.
+	 */
+	intel_csr_load_status_set(dev_priv, FW_UNINITIALIZED);
+
+	skl_uninit_cdclk(dev_priv);
+
+	return 0;
+}
+
 static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
 {
 	hsw_enable_pc8(dev_priv);
+
+	return 0;
+}
+
+static int bxt_suspend_complete(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	/* TODO: when DC5 support is added disable DC5 here. */
+
+	broxton_ddi_phy_uninit(dev);
+	broxton_uninit_cdclk(dev);
+	bxt_enable_dc9(dev_priv);
+
+	return 0;
+}
+
+static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	/* TODO: when CSR FW support is added make sure the FW is loaded */
+
+	bxt_disable_dc9(dev_priv);
+
+	/*
+	 * TODO: when DC5 support is added enable DC5 here if the CSR FW
+	 * is available.
+	 */
+	broxton_init_cdclk(dev);
+	broxton_ddi_phy_init(dev);
+	intel_prepare_ddi(dev);
+
+	return 0;
+}
+
+static int skl_resume_prepare(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	skl_init_cdclk(dev_priv);
+	intel_csr_load_program(dev);
 
 	return 0;
 }
@@ -1417,7 +1492,15 @@ static int intel_runtime_suspend(struct device *device)
 	 * FIXME: We really should find a document that references the arguments
 	 * used below!
 	 */
-	if (IS_HASWELL(dev)) {
+	if (IS_BROADWELL(dev)) {
+		/*
+		 * On Broadwell, if we use PCI_D1 the PCH DDI ports will stop
+		 * being detected, and the call we do at intel_runtime_resume()
+		 * won't be able to restore them. Since PCI_D3hot matches the
+		 * actual specification and appears to be working, use it.
+		 */
+		intel_opregion_notify_adapter(dev, PCI_D3hot);
+	} else {
 		/*
 		 * current versions of firmware which depend on this opregion
 		 * notification have repurposed the D1 definition to mean
@@ -1426,16 +1509,6 @@ static int intel_runtime_suspend(struct device *device)
 		 * the suspend path.
 		 */
 		intel_opregion_notify_adapter(dev, PCI_D1);
-	} else {
-		/*
-		 * On Broadwell, if we use PCI_D1 the PCH DDI ports will stop
-		 * being detected, and the call we do at intel_runtime_resume()
-		 * won't be able to restore them. Since PCI_D3hot matches the
-		 * actual specification and appears to be working, use it. Let's
-		 * assume the other non-Haswell platforms will stay the same as
-		 * Broadwell.
-		 */
-		intel_opregion_notify_adapter(dev, PCI_D3hot);
 	}
 
 	assert_forcewakes_inactive(dev_priv);
@@ -1461,6 +1534,11 @@ static int intel_runtime_resume(struct device *device)
 
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev);
+
+	if (IS_BROXTON(dev))
+		ret = bxt_resume_prepare(dev_priv);
+	else if (IS_SKYLAKE(dev))
+		ret = skl_resume_prepare(dev_priv);
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv))
@@ -1490,12 +1568,15 @@ static int intel_runtime_resume(struct device *device)
  */
 static int intel_suspend_complete(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	int ret;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_BROXTON(dev_priv))
+		ret = bxt_suspend_complete(dev_priv);
+	else if (IS_SKYLAKE(dev_priv))
+		ret = skl_suspend_complete(dev_priv);
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		ret = hsw_suspend_complete(dev_priv);
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		ret = vlv_suspend_complete(dev_priv);
 	else
 		ret = 0;
@@ -1567,7 +1648,6 @@ static struct drm_driver driver = {
 	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
-	    DRIVER_USE_AGP |
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
 	    DRIVER_RENDER,
 	.load = i915_driver_load,
@@ -1582,7 +1662,6 @@ static struct drm_driver driver = {
 	.suspend = i915_suspend_legacy,
 	.resume = i915_resume_legacy,
 
-	.device_is_agp = i915_driver_device_is_agp,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = i915_debugfs_init,
 	.debugfs_cleanup = i915_debugfs_cleanup,
@@ -1621,20 +1700,14 @@ static int __init i915_init(void)
 	driver.num_ioctls = i915_max_ioctl;
 
 	/*
-	 * If CONFIG_DRM_I915_KMS is set, default to KMS unless
-	 * explicitly disabled with the module pararmeter.
-	 *
-	 * Otherwise, just follow the parameter (defaulting to off).
-	 *
-	 * Allow optional vga_text_mode_force boot option to override
-	 * the default behavior.
+	 * Enable KMS by default, unless explicitly overriden by
+	 * either the i915.modeset prarameter or by the
+	 * vga_text_mode_force boot option.
 	 */
-#if defined(CONFIG_DRM_I915_KMS)
-	if (i915.modeset != 0)
-		driver.driver_features |= DRIVER_MODESET;
-#endif
-	if (i915.modeset == 1)
-		driver.driver_features |= DRIVER_MODESET;
+	driver.driver_features |= DRIVER_MODESET;
+
+	if (i915.modeset == 0)
+		driver.driver_features &= ~DRIVER_MODESET;
 
 #ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && i915.modeset == -1)
@@ -1653,7 +1726,7 @@ static int __init i915_init(void)
 	 * to the atomic ioctl and the atomic properties.  Only plane operations on
 	 * a single CRTC will actually work.
 	 */
-	if (i915.nuclear_pageflip)
+	if (driver.driver_features & DRIVER_MODESET)
 		driver.driver_features |= DRIVER_ATOMIC;
 
 	return drm_pci_init(&driver, &i915_pci_driver);

@@ -25,115 +25,75 @@
 #include "rtl_core.h"
 #include "rtl_eeprom.h"
 
-static void eprom_cs(struct net_device *dev, short bit)
+static void _rtl92e_gpio_write_bit(struct net_device *dev, int no, bool val)
 {
-	if (bit)
-		write_nic_byte(dev, EPROM_CMD,
-			       (1 << EPROM_CS_SHIFT) |
-			       read_nic_byte(dev, EPROM_CMD));
+	u8 reg = rtl92e_readb(dev, EPROM_CMD);
+
+	if (val)
+		reg |= 1 << no;
 	else
-		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)
-			       & ~(1<<EPROM_CS_SHIFT));
+		reg &= ~(1 << no);
 
+	rtl92e_writeb(dev, EPROM_CMD, reg);
 	udelay(EPROM_DELAY);
 }
 
-
-static void eprom_ck_cycle(struct net_device *dev)
+static bool _rtl92e_gpio_get_bit(struct net_device *dev, int no)
 {
-	write_nic_byte(dev, EPROM_CMD,
-		       (1<<EPROM_CK_SHIFT) | read_nic_byte(dev, EPROM_CMD));
-	udelay(EPROM_DELAY);
-	write_nic_byte(dev, EPROM_CMD,
-		       read_nic_byte(dev, EPROM_CMD) & ~(1<<EPROM_CK_SHIFT));
-	udelay(EPROM_DELAY);
+	u8 reg = rtl92e_readb(dev, EPROM_CMD);
+
+	return (reg >> no) & 0x1;
 }
 
-
-static void eprom_w(struct net_device *dev, short bit)
+static void _rtl92e_eeprom_ck_cycle(struct net_device *dev)
 {
-	if (bit)
-		write_nic_byte(dev, EPROM_CMD, (1<<EPROM_W_SHIFT) |
-			       read_nic_byte(dev, EPROM_CMD));
-	else
-		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)
-			       & ~(1<<EPROM_W_SHIFT));
-
-	udelay(EPROM_DELAY);
+	_rtl92e_gpio_write_bit(dev, EPROM_CK_BIT, 1);
+	_rtl92e_gpio_write_bit(dev, EPROM_CK_BIT, 0);
 }
 
-
-static short eprom_r(struct net_device *dev)
+static u16 _rtl92e_eeprom_xfer(struct net_device *dev, u16 data, int tx_len)
 {
-	short bit;
+	u16 ret = 0;
+	int rx_len = 16;
 
-	bit = (read_nic_byte(dev, EPROM_CMD) & (1<<EPROM_R_SHIFT));
-	udelay(EPROM_DELAY);
+	_rtl92e_gpio_write_bit(dev, EPROM_CS_BIT, 1);
+	_rtl92e_eeprom_ck_cycle(dev);
 
-	if (bit)
-		return 1;
-	return 0;
-}
-
-static void eprom_send_bits_string(struct net_device *dev, short b[], int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++) {
-		eprom_w(dev, b[i]);
-		eprom_ck_cycle(dev);
+	while (tx_len--) {
+		_rtl92e_gpio_write_bit(dev, EPROM_W_BIT,
+				       (data >> tx_len) & 0x1);
+		_rtl92e_eeprom_ck_cycle(dev);
 	}
+
+	_rtl92e_gpio_write_bit(dev, EPROM_W_BIT, 0);
+
+	while (rx_len--) {
+		_rtl92e_eeprom_ck_cycle(dev);
+		ret |= _rtl92e_gpio_get_bit(dev, EPROM_R_BIT) << rx_len;
+	}
+
+	_rtl92e_gpio_write_bit(dev, EPROM_CS_BIT, 0);
+	_rtl92e_eeprom_ck_cycle(dev);
+
+	return ret;
 }
 
-u32 eprom_read(struct net_device *dev, u32 addr)
+u32 rtl92e_eeprom_read(struct net_device *dev, u32 addr)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	short read_cmd[] = {1, 1, 0};
-	short addr_str[8];
-	int i;
-	int addr_len;
-	u32 ret;
+	u32 ret = 0;
 
-	ret = 0;
-	write_nic_byte(dev, EPROM_CMD,
-		       (EPROM_CMD_PROGRAM << EPROM_CMD_OPERATING_MODE_SHIFT));
+	rtl92e_writeb(dev, EPROM_CMD,
+		      (EPROM_CMD_PROGRAM << EPROM_CMD_OPERATING_MODE_SHIFT));
 	udelay(EPROM_DELAY);
 
-	if (priv->epromtype == EEPROM_93C56) {
-		addr_str[7] = addr & 1;
-		addr_str[6] = addr & (1<<1);
-		addr_str[5] = addr & (1<<2);
-		addr_str[4] = addr & (1<<3);
-		addr_str[3] = addr & (1<<4);
-		addr_str[2] = addr & (1<<5);
-		addr_str[1] = addr & (1<<6);
-		addr_str[0] = addr & (1<<7);
-		addr_len = 8;
-	} else {
-		addr_str[5] = addr & 1;
-		addr_str[4] = addr & (1<<1);
-		addr_str[3] = addr & (1<<2);
-		addr_str[2] = addr & (1<<3);
-		addr_str[1] = addr & (1<<4);
-		addr_str[0] = addr & (1<<5);
-		addr_len = 6;
-	}
-	eprom_cs(dev, 1);
-	eprom_ck_cycle(dev);
-	eprom_send_bits_string(dev, read_cmd, 3);
-	eprom_send_bits_string(dev, addr_str, addr_len);
+	/* EEPROM is configured as x16 */
+	if (priv->epromtype == EEPROM_93C56)
+		ret = _rtl92e_eeprom_xfer(dev, (addr & 0xFF) | (0x6 << 8), 11);
+	else
+		ret = _rtl92e_eeprom_xfer(dev, (addr & 0x3F) | (0x6 << 6), 9);
 
-	eprom_w(dev, 0);
-
-	for (i = 0; i < 16; i++) {
-		eprom_ck_cycle(dev);
-		ret |= (eprom_r(dev)<<(15-i));
-	}
-
-	eprom_cs(dev, 0);
-	eprom_ck_cycle(dev);
-
-	write_nic_byte(dev, EPROM_CMD,
-		       (EPROM_CMD_NORMAL<<EPROM_CMD_OPERATING_MODE_SHIFT));
+	rtl92e_writeb(dev, EPROM_CMD,
+		      (EPROM_CMD_NORMAL<<EPROM_CMD_OPERATING_MODE_SHIFT));
 	return ret;
 }

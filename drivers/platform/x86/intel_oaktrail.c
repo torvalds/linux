@@ -50,6 +50,7 @@
 #include <linux/platform_device.h>
 #include <linux/dmi.h>
 #include <linux/rfkill.h>
+#include <acpi/video.h>
 
 #define DRIVER_NAME	"intel_oaktrail"
 #define DRIVER_VERSION	"0.4ac1"
@@ -343,13 +344,11 @@ static int __init oaktrail_init(void)
 		goto err_device_add;
 	}
 
-	if (!acpi_video_backlight_support()) {
+	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		ret = oaktrail_backlight_init();
 		if (ret)
 			goto err_backlight;
-
-	} else
-		pr_info("Backlight controlled by ACPI video driver\n");
+	}
 
 	ret = oaktrail_rfkill_init();
 	if (ret) {

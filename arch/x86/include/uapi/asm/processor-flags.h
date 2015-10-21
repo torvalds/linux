@@ -37,8 +37,6 @@
 #define X86_EFLAGS_VM		_BITUL(X86_EFLAGS_VM_BIT)
 #define X86_EFLAGS_AC_BIT	18 /* Alignment Check/Access Control */
 #define X86_EFLAGS_AC		_BITUL(X86_EFLAGS_AC_BIT)
-#define X86_EFLAGS_AC_BIT	18 /* Alignment Check/Access Control */
-#define X86_EFLAGS_AC		_BITUL(X86_EFLAGS_AC_BIT)
 #define X86_EFLAGS_VIF_BIT	19 /* Virtual Interrupt Flag */
 #define X86_EFLAGS_VIF		_BITUL(X86_EFLAGS_VIF_BIT)
 #define X86_EFLAGS_VIP_BIT	20 /* Virtual Interrupt Pending */

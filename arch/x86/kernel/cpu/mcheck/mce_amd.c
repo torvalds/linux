@@ -1,19 +1,13 @@
 /*
- *  (c) 2005-2012 Advanced Micro Devices, Inc.
+ *  (c) 2005-2015 Advanced Micro Devices, Inc.
  *  Your use of this code is subject to the terms and conditions of the
  *  GNU general public license version 2. See "COPYING" or
  *  http://www.gnu.org/licenses/gpl.html
  *
  *  Written by Jacob Shin - AMD, Inc.
- *
  *  Maintained by: Borislav Petkov <bp@alien8.de>
  *
- *  April 2006
- *     - added support for AMD Family 0x10 processors
- *  May 2012
- *     - major scrubbing
- *
- *  All MC4_MISCi registers are shared between multi-cores
+ *  All MC4_MISCi registers are shared between cores on a node.
  */
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
@@ -32,6 +26,7 @@
 #include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
+#include <asm/trace/irq_vectors.h>
 
 #define NR_BLOCKS         9
 #define THRESHOLD_MAX     0xFFF
@@ -47,6 +42,13 @@
 #define MASK_BLKPTR_LO    0xFF000000
 #define MCG_XBLK_ADDR     0xC0000400
 
+/* Deferred error settings */
+#define MSR_CU_DEF_ERR		0xC0000410
+#define MASK_DEF_LVTOFF		0x000000F0
+#define MASK_DEF_INT_TYPE	0x00000006
+#define DEF_LVT_OFF		0x2
+#define DEF_INT_TYPE_APIC	0x2
+
 static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
@@ -60,6 +62,13 @@ static DEFINE_PER_CPU(struct threshold_bank **, threshold_banks);
 static DEFINE_PER_CPU(unsigned char, bank_map);	/* see which banks are on */
 
 static void amd_threshold_interrupt(void);
+static void amd_deferred_error_interrupt(void);
+
+static void default_deferred_error_interrupt(void)
+{
+	pr_err("Unexpected deferred interrupt at vector %x\n", DEFERRED_ERROR_VECTOR);
+}
+void (*deferred_error_int_vector)(void) = default_deferred_error_interrupt;
 
 /*
  * CPU Initialization
@@ -196,13 +205,46 @@ static void mce_threshold_block_init(struct threshold_block *b, int offset)
 	threshold_restart_bank(&tr);
 };
 
-static int setup_APIC_mce(int reserved, int new)
+static int setup_APIC_mce_threshold(int reserved, int new)
 {
 	if (reserved < 0 && !setup_APIC_eilvt(new, THRESHOLD_APIC_VECTOR,
 					      APIC_EILVT_MSG_FIX, 0))
 		return new;
 
 	return reserved;
+}
+
+static int setup_APIC_deferred_error(int reserved, int new)
+{
+	if (reserved < 0 && !setup_APIC_eilvt(new, DEFERRED_ERROR_VECTOR,
+					      APIC_EILVT_MSG_FIX, 0))
+		return new;
+
+	return reserved;
+}
+
+static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
+{
+	u32 low = 0, high = 0;
+	int def_offset = -1, def_new;
+
+	if (rdmsr_safe(MSR_CU_DEF_ERR, &low, &high))
+		return;
+
+	def_new = (low & MASK_DEF_LVTOFF) >> 4;
+	if (!(low & MASK_DEF_LVTOFF)) {
+		pr_err(FW_BUG "Your BIOS is not setting up LVT offset 0x2 for deferred error IRQs correctly.\n");
+		def_new = DEF_LVT_OFF;
+		low = (low & ~MASK_DEF_LVTOFF) | (DEF_LVT_OFF << 4);
+	}
+
+	def_offset = setup_APIC_deferred_error(def_offset, def_new);
+	if ((def_offset == def_new) &&
+	    (deferred_error_int_vector != amd_deferred_error_interrupt))
+		deferred_error_int_vector = amd_deferred_error_interrupt;
+
+	low = (low & ~MASK_DEF_INT_TYPE) | DEF_INT_TYPE_APIC;
+	wrmsr(MSR_CU_DEF_ERR, low, high);
 }
 
 /* cpu init entry point, called from mce.c with preempt off */
@@ -252,7 +294,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 
 			b.interrupt_enable = 1;
 			new	= (high & MASK_LVTOFF_HI) >> 20;
-			offset  = setup_APIC_mce(offset, new);
+			offset  = setup_APIC_mce_threshold(offset, new);
 
 			if ((offset == new) &&
 			    (mce_threshold_vector != amd_threshold_interrupt))
@@ -261,6 +303,73 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 init:
 			mce_threshold_block_init(&b, offset);
 		}
+	}
+
+	if (mce_flags.succor)
+		deferred_error_interrupt_enable(c);
+}
+
+static void __log_error(unsigned int bank, bool threshold_err, u64 misc)
+{
+	struct mce m;
+	u64 status;
+
+	rdmsrl(MSR_IA32_MCx_STATUS(bank), status);
+	if (!(status & MCI_STATUS_VAL))
+		return;
+
+	mce_setup(&m);
+
+	m.status = status;
+	m.bank = bank;
+
+	if (threshold_err)
+		m.misc = misc;
+
+	if (m.status & MCI_STATUS_ADDRV)
+		rdmsrl(MSR_IA32_MCx_ADDR(bank), m.addr);
+
+	mce_log(&m);
+	wrmsrl(MSR_IA32_MCx_STATUS(bank), 0);
+}
+
+static inline void __smp_deferred_error_interrupt(void)
+{
+	inc_irq_stat(irq_deferred_error_count);
+	deferred_error_int_vector();
+}
+
+asmlinkage __visible void smp_deferred_error_interrupt(void)
+{
+	entering_irq();
+	__smp_deferred_error_interrupt();
+	exiting_ack_irq();
+}
+
+asmlinkage __visible void smp_trace_deferred_error_interrupt(void)
+{
+	entering_irq();
+	trace_deferred_error_apic_entry(DEFERRED_ERROR_VECTOR);
+	__smp_deferred_error_interrupt();
+	trace_deferred_error_apic_exit(DEFERRED_ERROR_VECTOR);
+	exiting_ack_irq();
+}
+
+/* APIC interrupt handler for deferred errors */
+static void amd_deferred_error_interrupt(void)
+{
+	u64 status;
+	unsigned int bank;
+
+	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+		rdmsrl(MSR_IA32_MCx_STATUS(bank), status);
+
+		if (!(status & MCI_STATUS_VAL) ||
+		    !(status & MCI_STATUS_DEFERRED))
+			continue;
+
+		__log_error(bank, false, 0);
+		break;
 	}
 }
 
@@ -273,12 +382,12 @@ init:
  * the interrupt goes off when error_count reaches threshold_limit.
  * the handler will simply log mcelog w/ software defined bank number.
  */
+
 static void amd_threshold_interrupt(void)
 {
 	u32 low = 0, high = 0, address = 0;
 	int cpu = smp_processor_id();
 	unsigned int bank, block;
-	struct mce m;
 
 	/* assume first bank caused it */
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
@@ -321,15 +430,7 @@ static void amd_threshold_interrupt(void)
 	return;
 
 log:
-	mce_setup(&m);
-	rdmsrl(MSR_IA32_MCx_STATUS(bank), m.status);
-	if (!(m.status & MCI_STATUS_VAL))
-		return;
-	m.misc = ((u64)high << 32) | low;
-	m.bank = bank;
-	mce_log(&m);
-
-	wrmsrl(MSR_IA32_MCx_STATUS(bank), 0);
+	__log_error(bank, true, ((u64)high << 32) | low);
 }
 
 /*

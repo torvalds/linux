@@ -209,8 +209,8 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 	 * end_tag descriptor is copied from Operand1.
 	 */
 	new_buf = return_desc->buffer.pointer;
-	ACPI_MEMCPY(new_buf, operand0->buffer.pointer, length0);
-	ACPI_MEMCPY(new_buf + length0, operand1->buffer.pointer, length1);
+	memcpy(new_buf, operand0->buffer.pointer, length0);
+	memcpy(new_buf + length0, operand1->buffer.pointer, length1);
 
 	/* Insert end_tag and set the checksum to zero, means "ignore checksum" */
 
@@ -318,14 +318,14 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 		/* Copy the first integer, LSB first */
 
-		ACPI_MEMCPY(new_buf, &operand0->integer.value,
-			    acpi_gbl_integer_byte_width);
+		memcpy(new_buf, &operand0->integer.value,
+		       acpi_gbl_integer_byte_width);
 
 		/* Copy the second integer (LSB first) after the first */
 
-		ACPI_MEMCPY(new_buf + acpi_gbl_integer_byte_width,
-			    &local_operand1->integer.value,
-			    acpi_gbl_integer_byte_width);
+		memcpy(new_buf + acpi_gbl_integer_byte_width,
+		       &local_operand1->integer.value,
+		       acpi_gbl_integer_byte_width);
 		break;
 
 	case ACPI_TYPE_STRING:
@@ -346,9 +346,9 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 		/* Concatenate the strings */
 
-		ACPI_STRCPY(new_buf, operand0->string.pointer);
-		ACPI_STRCPY(new_buf + operand0->string.length,
-			    local_operand1->string.pointer);
+		strcpy(new_buf, operand0->string.pointer);
+		strcpy(new_buf + operand0->string.length,
+		       local_operand1->string.pointer);
 		break;
 
 	case ACPI_TYPE_BUFFER:
@@ -369,11 +369,11 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 		/* Concatenate the buffers */
 
-		ACPI_MEMCPY(new_buf, operand0->buffer.pointer,
-			    operand0->buffer.length);
-		ACPI_MEMCPY(new_buf + operand0->buffer.length,
-			    local_operand1->buffer.pointer,
-			    local_operand1->buffer.length);
+		memcpy(new_buf, operand0->buffer.pointer,
+		       operand0->buffer.length);
+		memcpy(new_buf + operand0->buffer.length,
+		       local_operand1->buffer.pointer,
+		       local_operand1->buffer.length);
 		break;
 
 	default:
@@ -660,9 +660,9 @@ acpi_ex_do_logical_op(u16 opcode,
 
 		/* Lexicographic compare: compare the data bytes */
 
-		compare = ACPI_MEMCMP(operand0->buffer.pointer,
-				      local_operand1->buffer.pointer,
-				      (length0 > length1) ? length1 : length0);
+		compare = memcmp(operand0->buffer.pointer,
+				 local_operand1->buffer.pointer,
+				 (length0 > length1) ? length1 : length0);
 
 		switch (opcode) {
 		case AML_LEQUAL_OP:	/* LEqual (Operand0, Operand1) */

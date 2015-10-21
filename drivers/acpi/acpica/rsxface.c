@@ -398,8 +398,8 @@ acpi_resource_to_address64(struct acpi_resource *resource,
 
 		/* Simple copy for 64 bit source */
 
-		ACPI_MEMCPY(out, &resource->data,
-			    sizeof(struct acpi_resource_address64));
+		memcpy(out, &resource->data,
+		       sizeof(struct acpi_resource_address64));
 		break;
 
 	default:
@@ -499,7 +499,7 @@ acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
 	 */
 	if ((vendor->byte_length < (ACPI_UUID_LENGTH + 1)) ||
 	    (vendor->uuid_subtype != info->uuid->subtype) ||
-	    (ACPI_MEMCMP(vendor->uuid, info->uuid->data, ACPI_UUID_LENGTH))) {
+	    (memcmp(vendor->uuid, info->uuid->data, ACPI_UUID_LENGTH))) {
 		return (AE_OK);
 	}
 
@@ -513,7 +513,7 @@ acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
 
 	/* Found the correct resource, copy and return it */
 
-	ACPI_MEMCPY(buffer->pointer, resource, resource->length);
+	memcpy(buffer->pointer, resource, resource->length);
 	buffer->length = resource->length;
 
 	/* Found the desired descriptor, terminate resource walk */

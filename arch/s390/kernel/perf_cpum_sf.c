@@ -1019,12 +1019,9 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 		break;
 	}
 
-	/* The host-program-parameter (hpp) contains the sie control
-	 * block that is set by sie64a() in entry64.S.	Check if hpp
-	 * refers to a valid control block and set sde_regs flags
-	 * accordingly.  This would allow to use hpp values for other
-	 * purposes too.
-	 * For now, simply use a non-zero value as guest indicator.
+	/* The host-program-parameter (hpp) contains the pid of
+	 * the CPU thread as set by sie64a() in entry.S.
+	 * If non-zero assume a guest sample.
 	 */
 	if (sfr->basic.hpp)
 		sde_regs->in_guest = 1;
@@ -1572,7 +1569,7 @@ static int param_set_sfb_size(const char *val, const struct kernel_param *kp)
 }
 
 #define param_check_sfb_size(name, p) __param_check(name, p, void)
-static struct kernel_param_ops param_ops_sfb_size = {
+static const struct kernel_param_ops param_ops_sfb_size = {
 	.set = param_set_sfb_size,
 	.get = param_get_sfb_size,
 };

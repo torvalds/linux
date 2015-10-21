@@ -977,18 +977,18 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct apci3120_board *this_board = NULL;
+	const struct apci3120_board *board = NULL;
 	struct apci3120_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int status;
 	int ret;
 
 	if (context < ARRAY_SIZE(apci3120_boardtypes))
-		this_board = &apci3120_boardtypes[context];
-	if (!this_board)
+		board = &apci3120_boardtypes[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -1031,7 +1031,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= 16;
-	s->maxdata	= this_board->ai_is_16bit ? 0xffff : 0x0fff;
+	s->maxdata	= board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= &apci3120_ai_range;
 	s->insn_read	= apci3120_ai_insn_read;
 	if (dev->irq) {
@@ -1045,7 +1045,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	if (this_board->has_ao) {
+	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= 8;

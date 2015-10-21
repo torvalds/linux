@@ -77,8 +77,8 @@ EXPORT_SYMBOL_GPL(nfs_pgheader_init);
 void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos)
 {
 	spin_lock(&hdr->lock);
-	if (pos < hdr->io_start + hdr->good_bytes) {
-		set_bit(NFS_IOHDR_ERROR, &hdr->flags);
+	if (!test_and_set_bit(NFS_IOHDR_ERROR, &hdr->flags)
+	    || pos < hdr->io_start + hdr->good_bytes) {
 		clear_bit(NFS_IOHDR_EOF, &hdr->flags);
 		hdr->good_bytes = pos - hdr->io_start;
 		hdr->error = error;
@@ -508,7 +508,7 @@ size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 	 * for it without upsetting the slab allocator.
 	 */
 	if (((mirror->pg_count + req->wb_bytes) >> PAGE_SHIFT) *
-			sizeof(struct page) > PAGE_SIZE)
+			sizeof(struct page *) > PAGE_SIZE)
 		return 0;
 
 	return min(mirror->pg_bsize - mirror->pg_count, (size_t)req->wb_bytes);
@@ -636,9 +636,8 @@ int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
 
 	hdr->rw_ops->rw_initiate(hdr, &msg, rpc_ops, &task_setup_data, how);
 
-	dprintk("NFS: %5u initiated pgio call "
+	dprintk("NFS: initiated pgio call "
 		"(req %s/%llu, %u bytes @ offset %llu)\n",
-		hdr->task.tk_pid,
 		hdr->inode->i_sb->s_id,
 		(unsigned long long)NFS_FILEID(hdr->inode),
 		hdr->args.count,
@@ -690,8 +689,6 @@ static int nfs_pgio_error(struct nfs_pageio_descriptor *desc,
 static void nfs_pgio_release(void *calldata)
 {
 	struct nfs_pgio_header *hdr = calldata;
-	if (hdr->rw_ops->rw_release)
-		hdr->rw_ops->rw_release(hdr);
 	nfs_pgio_data_destroy(hdr);
 	hdr->completion_ops->completion(hdr);
 }
@@ -711,7 +708,9 @@ static void nfs_pageio_mirror_init(struct nfs_pgio_mirror *mirror,
  * nfs_pageio_init - initialise a page io descriptor
  * @desc: pointer to descriptor
  * @inode: pointer to inode
- * @doio: pointer to io function
+ * @pg_ops: pointer to pageio operations
+ * @compl_ops: pointer to pageio completion operations
+ * @rw_ops: pointer to nfs read/write operations
  * @bsize: io block size
  * @io_flags: extra parameters for the io function
  */
@@ -1101,8 +1100,6 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 		mirror->pg_base = 0;
 		mirror->pg_recoalesce = 0;
 
-		desc->pg_moreio = 0;
-
 		while (!list_empty(&head)) {
 			struct nfs_page *req;
 
@@ -1110,8 +1107,11 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 			nfs_list_remove_request(req);
 			if (__nfs_pageio_add_request(desc, req))
 				continue;
-			if (desc->pg_error < 0)
+			if (desc->pg_error < 0) {
+				list_splice_tail(&head, &mirror->pg_list);
+				mirror->pg_recoalesce = 1;
 				return 0;
+			}
 			break;
 		}
 	} while (mirror->pg_recoalesce);
@@ -1186,6 +1186,7 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
  * nfs_pageio_complete_mirror - Complete I/O on the current mirror of an
  *				nfs_pageio_descriptor
  * @desc: pointer to io descriptor
+ * @mirror_idx: pointer to mirror index
  */
 static void nfs_pageio_complete_mirror(struct nfs_pageio_descriptor *desc,
 				       u32 mirror_idx)

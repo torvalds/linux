@@ -346,7 +346,7 @@ static void gsta_alloc_irq_chip(struct gsta_gpio *chip)
 			i = chip->irq_base + j;
 			irq_set_chip_and_handler(i, &ct->chip, ct->handler);
 			irq_set_chip_data(i, gc);
-			irq_modify_status(i, IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+			irq_clear_status_flags(i, IRQ_NOREQUEST | IRQ_NOPROBE);
 		}
 		gc->irq_cnt = i - gc->irq_base;
 	}

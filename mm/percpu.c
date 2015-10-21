@@ -1030,7 +1030,7 @@ area_found:
 		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
 
 	ptr = __addr_to_pcpu_ptr(chunk->base_addr + off);
-	kmemleak_alloc_percpu(ptr, size);
+	kmemleak_alloc_percpu(ptr, size, gfp);
 	return ptr;
 
 fail_unlock:
@@ -1668,9 +1668,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	schunk->map[1] = ai->static_size;
 	schunk->map_used = 1;
 	if (schunk->free_size)
-		schunk->map[++schunk->map_used] = 1 | (ai->static_size + schunk->free_size);
-	else
-		schunk->map[1] |= 1;
+		schunk->map[++schunk->map_used] = ai->static_size + schunk->free_size;
+	schunk->map[schunk->map_used] |= 1;
 
 	/* init dynamic chunk if necessary */
 	if (dyn_size) {

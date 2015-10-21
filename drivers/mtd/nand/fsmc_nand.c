@@ -562,6 +562,7 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	dma_cookie_t cookie;
 	unsigned long flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 	int ret;
+	unsigned long time_left;
 
 	if (direction == DMA_TO_DEVICE)
 		chan = host->write_dma_chan;
@@ -601,14 +602,13 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 
 	dma_async_issue_pending(chan);
 
-	ret =
+	time_left =
 	wait_for_completion_timeout(&host->dma_access_complete,
 				msecs_to_jiffies(3000));
-	if (ret <= 0) {
+	if (time_left == 0) {
 		dmaengine_terminate_all(chan);
 		dev_err(host->dev, "wait_for_completion_timeout\n");
-		if (!ret)
-			ret = -ETIMEDOUT;
+		ret = -ETIMEDOUT;
 		goto unmap_dma;
 	}
 

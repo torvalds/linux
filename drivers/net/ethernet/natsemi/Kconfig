@@ -6,9 +6,7 @@ config NET_VENDOR_NATSEMI
 	bool "National Semi-conductor devices"
 	default y
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -24,8 +22,7 @@ config MACSONIC
 	  Support for NatSemi SONIC based Ethernet devices.  This includes
 	  the onboard Ethernet in many Quadras as well as some LC-PDS,
 	  a few Nubus and all known Comm Slot Ethernet cards.  If you have
-	  one of these say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  one of these say Y here.
 
 	  To compile this driver as a module, choose M here. This module will
 	  be called macsonic.

@@ -501,6 +501,7 @@ static void virtio_scsi_init_hdr(struct virtio_device *vdev,
 	cmd->crn = 0;
 }
 
+#ifdef CONFIG_BLK_DEV_INTEGRITY
 static void virtio_scsi_init_hdr_pi(struct virtio_device *vdev,
 				    struct virtio_scsi_cmd_req_pi *cmd_pi,
 				    struct scsi_cmnd *sc)
@@ -524,6 +525,7 @@ static void virtio_scsi_init_hdr_pi(struct virtio_device *vdev,
 						       blk_rq_sectors(rq) *
 						       bi->tuple_size);
 }
+#endif
 
 static int virtscsi_queuecommand(struct virtio_scsi *vscsi,
 				 struct virtio_scsi_vq *req_vq,
@@ -546,11 +548,14 @@ static int virtscsi_queuecommand(struct virtio_scsi *vscsi,
 
 	BUG_ON(sc->cmd_len > VIRTIO_SCSI_CDB_SIZE);
 
+#ifdef CONFIG_BLK_DEV_INTEGRITY
 	if (virtio_has_feature(vscsi->vdev, VIRTIO_SCSI_F_T10_PI)) {
 		virtio_scsi_init_hdr_pi(vscsi->vdev, &cmd->req.cmd_pi, sc);
 		memcpy(cmd->req.cmd_pi.cdb, sc->cmnd, sc->cmd_len);
 		req_size = sizeof(cmd->req.cmd_pi);
-	} else {
+	} else
+#endif
+	{
 		virtio_scsi_init_hdr(vscsi->vdev, &cmd->req.cmd, sc);
 		memcpy(cmd->req.cmd.cdb, sc->cmnd, sc->cmd_len);
 		req_size = sizeof(cmd->req.cmd);
@@ -944,7 +949,7 @@ static int virtscsi_probe(struct virtio_device *vdev)
 {
 	struct Scsi_Host *shost;
 	struct virtio_scsi *vscsi;
-	int err, host_prot;
+	int err;
 	u32 sg_elems, num_targets;
 	u32 cmd_per_lun;
 	u32 num_queues;
@@ -1002,7 +1007,10 @@ static int virtscsi_probe(struct virtio_device *vdev)
 	shost->max_cmd_len = VIRTIO_SCSI_CDB_SIZE;
 	shost->nr_hw_queues = num_queues;
 
+#ifdef CONFIG_BLK_DEV_INTEGRITY
 	if (virtio_has_feature(vdev, VIRTIO_SCSI_F_T10_PI)) {
+		int host_prot;
+
 		host_prot = SHOST_DIF_TYPE1_PROTECTION | SHOST_DIF_TYPE2_PROTECTION |
 			    SHOST_DIF_TYPE3_PROTECTION | SHOST_DIX_TYPE1_PROTECTION |
 			    SHOST_DIX_TYPE2_PROTECTION | SHOST_DIX_TYPE3_PROTECTION;
@@ -1010,6 +1018,7 @@ static int virtscsi_probe(struct virtio_device *vdev)
 		scsi_host_set_prot(shost, host_prot);
 		scsi_host_set_guard(shost, SHOST_DIX_GUARD_CRC);
 	}
+#endif
 
 	err = scsi_add_host(shost, &vdev->dev);
 	if (err)
@@ -1090,7 +1099,9 @@ static struct virtio_device_id id_table[] = {
 static unsigned int features[] = {
 	VIRTIO_SCSI_F_HOTPLUG,
 	VIRTIO_SCSI_F_CHANGE,
+#ifdef CONFIG_BLK_DEV_INTEGRITY
 	VIRTIO_SCSI_F_T10_PI,
+#endif
 };
 
 static struct virtio_driver virtio_scsi_driver = {

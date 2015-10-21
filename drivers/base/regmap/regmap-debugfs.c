@@ -32,8 +32,7 @@ static DEFINE_MUTEX(regmap_debugfs_early_lock);
 /* Calculate the length of a fixed format  */
 static size_t regmap_calc_reg_len(int max_val, char *buf, size_t buf_size)
 {
-	snprintf(buf, buf_size, "%x", max_val);
-	return strlen(buf);
+	return snprintf(NULL, 0, "%x", max_val);
 }
 
 static ssize_t regmap_name_read_file(struct file *file,
@@ -432,7 +431,7 @@ static ssize_t regmap_access_read_file(struct file *file,
 		/* If we're in the region the user is trying to read */
 		if (p >= *ppos) {
 			/* ...but not beyond it */
-			if (buf_pos >= count - 1 - tot_len)
+			if (buf_pos + tot_len + 1 >= count)
 				break;
 
 			/* Format the register */
@@ -467,6 +466,87 @@ static const struct file_operations regmap_access_fops = {
 	.open = simple_open,
 	.read = regmap_access_read_file,
 	.llseek = default_llseek,
+};
+
+static ssize_t regmap_cache_only_write_file(struct file *file,
+					    const char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct regmap *map = container_of(file->private_data,
+					  struct regmap, cache_only);
+	ssize_t result;
+	bool was_enabled, require_sync = false;
+	int err;
+
+	map->lock(map->lock_arg);
+
+	was_enabled = map->cache_only;
+
+	result = debugfs_write_file_bool(file, user_buf, count, ppos);
+	if (result < 0) {
+		map->unlock(map->lock_arg);
+		return result;
+	}
+
+	if (map->cache_only && !was_enabled) {
+		dev_warn(map->dev, "debugfs cache_only=Y forced\n");
+		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+	} else if (!map->cache_only && was_enabled) {
+		dev_warn(map->dev, "debugfs cache_only=N forced: syncing cache\n");
+		require_sync = true;
+	}
+
+	map->unlock(map->lock_arg);
+
+	if (require_sync) {
+		err = regcache_sync(map);
+		if (err)
+			dev_err(map->dev, "Failed to sync cache %d\n", err);
+	}
+
+	return result;
+}
+
+static const struct file_operations regmap_cache_only_fops = {
+	.open = simple_open,
+	.read = debugfs_read_file_bool,
+	.write = regmap_cache_only_write_file,
+};
+
+static ssize_t regmap_cache_bypass_write_file(struct file *file,
+					      const char __user *user_buf,
+					      size_t count, loff_t *ppos)
+{
+	struct regmap *map = container_of(file->private_data,
+					  struct regmap, cache_bypass);
+	ssize_t result;
+	bool was_enabled;
+
+	map->lock(map->lock_arg);
+
+	was_enabled = map->cache_bypass;
+
+	result = debugfs_write_file_bool(file, user_buf, count, ppos);
+	if (result < 0)
+		goto out;
+
+	if (map->cache_bypass && !was_enabled) {
+		dev_warn(map->dev, "debugfs cache_bypass=Y forced\n");
+		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+	} else if (!map->cache_bypass && was_enabled) {
+		dev_warn(map->dev, "debugfs cache_bypass=N forced\n");
+	}
+
+out:
+	map->unlock(map->lock_arg);
+
+	return result;
+}
+
+static const struct file_operations regmap_cache_bypass_fops = {
+	.open = simple_open,
+	.read = debugfs_read_file_bool,
+	.write = regmap_cache_bypass_write_file,
 };
 
 void regmap_debugfs_init(struct regmap *map, const char *name)
@@ -518,10 +598,11 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 	if (map->max_register || regmap_readable(map, 0)) {
 		umode_t registers_mode;
 
-		if (IS_ENABLED(REGMAP_ALLOW_WRITE_DEBUGFS))
-			registers_mode = 0600;
-		else
-			registers_mode = 0400;
+#if defined(REGMAP_ALLOW_WRITE_DEBUGFS)
+		registers_mode = 0600;
+#else
+		registers_mode = 0400;
+#endif
 
 		debugfs_create_file("registers", registers_mode, map->debugfs,
 				    map, &regmap_map_fops);
@@ -530,12 +611,13 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 	}
 
 	if (map->cache_type) {
-		debugfs_create_bool("cache_only", 0400, map->debugfs,
-				    &map->cache_only);
+		debugfs_create_file("cache_only", 0600, map->debugfs,
+				    &map->cache_only, &regmap_cache_only_fops);
 		debugfs_create_bool("cache_dirty", 0400, map->debugfs,
 				    &map->cache_dirty);
-		debugfs_create_bool("cache_bypass", 0400, map->debugfs,
-				    &map->cache_bypass);
+		debugfs_create_file("cache_bypass", 0600, map->debugfs,
+				    &map->cache_bypass,
+				    &regmap_cache_bypass_fops);
 	}
 
 	next = rb_first(&map->range_tree);

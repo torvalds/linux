@@ -16,10 +16,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *  General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
@@ -158,8 +154,9 @@ static int fan_get_state(struct acpi_device *device, unsigned long *state)
 	if (result)
 		return result;
 
-	*state = (acpi_state == ACPI_STATE_D3_COLD ? 0 :
-		 (acpi_state == ACPI_STATE_D0 ? 1 : -1));
+	*state = acpi_state == ACPI_STATE_D3_COLD
+			|| acpi_state == ACPI_STATE_D3_HOT ?
+		0 : (acpi_state == ACPI_STATE_D0 ? 1 : -1);
 	return 0;
 }
 

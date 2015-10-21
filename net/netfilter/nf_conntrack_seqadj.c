@@ -103,9 +103,9 @@ static void nf_ct_sack_block_adjust(struct sk_buff *skb,
 			 ntohl(sack->end_seq), ntohl(new_end_seq));
 
 		inet_proto_csum_replace4(&tcph->check, skb,
-					 sack->start_seq, new_start_seq, 0);
+					 sack->start_seq, new_start_seq, false);
 		inet_proto_csum_replace4(&tcph->check, skb,
-					 sack->end_seq, new_end_seq, 0);
+					 sack->end_seq, new_end_seq, false);
 		sack->start_seq = new_start_seq;
 		sack->end_seq = new_end_seq;
 		sackoff += sizeof(*sack);
@@ -193,8 +193,9 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 	newseq = htonl(ntohl(tcph->seq) + seqoff);
 	newack = htonl(ntohl(tcph->ack_seq) - ackoff);
 
-	inet_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, 0);
-	inet_proto_csum_replace4(&tcph->check, skb, tcph->ack_seq, newack, 0);
+	inet_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, false);
+	inet_proto_csum_replace4(&tcph->check, skb, tcph->ack_seq, newack,
+				 false);
 
 	pr_debug("Adjusting sequence number from %u->%u, ack from %u->%u\n",
 		 ntohl(tcph->seq), ntohl(newseq), ntohl(tcph->ack_seq),

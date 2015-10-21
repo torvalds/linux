@@ -9,8 +9,8 @@
 #define DRIVER_DATE		"20120801"
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		2
-#define DRIVER_PATCHLEVEL	2
+#define DRIVER_MINOR		3
+#define DRIVER_PATCHLEVEL	0
 
 /*
  * 1.1.1:
@@ -30,6 +30,9 @@
  *      - allow concurrent access to bo's mapped read/write.
  * 1.2.2:
  *      - add NOUVEAU_GEM_DOMAIN_COHERENT flag
+ * 1.3.0:
+ *      - NVIF ABI modified, safe because only (current) users are test
+ *        programs that get directly linked with NVKM.
  */
 
 #include <nvif/client.h>
@@ -88,6 +91,8 @@ struct nouveau_cli {
 	void *abi16;
 	struct list_head objects;
 	struct list_head notifys;
+	char name[32];
+	struct drm_device *dev;
 };
 
 static inline struct nouveau_cli *
@@ -109,13 +114,10 @@ struct nouveau_drm {
 	struct list_head clients;
 
 	struct {
-		enum {
-			UNKNOWN = 0,
-			DISABLE = 1,
-			ENABLED = 2
-		} stat;
+		struct agp_bridge_data *bridge;
 		u32 base;
 		u32 size;
+		bool cma;
 	} agp;
 
 	/* TTM interface support */
@@ -148,6 +150,7 @@ struct nouveau_drm {
 	struct nouveau_fbdev *fbcon;
 	struct nvif_object nvsw;
 	struct nvif_object ntfy;
+	struct nvif_notify flip;
 
 	/* nv10-nv40 tiling regions */
 	struct {
@@ -180,22 +183,22 @@ nouveau_drm(struct drm_device *dev)
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
 
-#define nouveau_platform_device_create(p, u)                                   \
-	nouveau_platform_device_create_(p, sizeof(**u), (void **)u)
 struct drm_device *
-nouveau_platform_device_create_(struct platform_device *pdev,
-				int size, void **pobject);
+nouveau_platform_device_create(struct platform_device *, struct nvkm_device **);
 void nouveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \
 	struct nouveau_cli *_cli = (c);                                        \
-	nv_##l(_cli->base.base.priv, f, ##a);                                  \
+	dev_##l(_cli->dev->dev, "%s: "f, _cli->name, ##a);                     \
 } while(0)
-#define NV_FATAL(drm,f,a...) NV_PRINTK(fatal, &(drm)->client, f, ##a)
-#define NV_ERROR(drm,f,a...) NV_PRINTK(error, &(drm)->client, f, ##a)
+#define NV_FATAL(drm,f,a...) NV_PRINTK(crit, &(drm)->client, f, ##a)
+#define NV_ERROR(drm,f,a...) NV_PRINTK(err, &(drm)->client, f, ##a)
 #define NV_WARN(drm,f,a...) NV_PRINTK(warn, &(drm)->client, f, ##a)
 #define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
-#define NV_DEBUG(drm,f,a...) NV_PRINTK(debug, &(drm)->client, f, ##a)
+#define NV_DEBUG(drm,f,a...) do {                                              \
+	if (unlikely(drm_debug & DRM_UT_DRIVER))                               \
+		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
+} while(0)
 
 extern int nouveau_modeset;
 

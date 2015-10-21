@@ -109,6 +109,12 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 static struct regulator *create_regulator(struct regulator_dev *rdev,
 					  struct device *dev,
 					  const char *supply_name);
+static void _regulator_put(struct regulator *regulator);
+
+static struct regulator_dev *dev_to_rdev(struct device *dev)
+{
+	return container_of(dev, struct regulator_dev, dev);
+}
 
 static const char *rdev_get_name(struct regulator_dev *rdev)
 {
@@ -295,7 +301,7 @@ static int regulator_check_drms(struct regulator_dev *rdev)
 		return -ENODEV;
 	}
 	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_DRMS)) {
-		rdev_err(rdev, "operation not allowed\n");
+		rdev_dbg(rdev, "operation not allowed\n");
 		return -EPERM;
 	}
 	return 0;
@@ -640,6 +646,8 @@ static int drms_uA_update(struct regulator_dev *rdev)
 	int current_uA = 0, output_uV, input_uV, err;
 	unsigned int mode;
 
+	lockdep_assert_held_once(&rdev->mutex);
+
 	/*
 	 * first check to see if we can set modes at all, otherwise just
 	 * tell the consumer everything is OK.
@@ -677,6 +685,8 @@ static int drms_uA_update(struct regulator_dev *rdev)
 	/* calc total requested load */
 	list_for_each_entry(sibling, &rdev->consumer_list, list)
 		current_uA += sibling->uA_load;
+
+	current_uA += rdev->constraints->system_load;
 
 	if (rdev->desc->ops->set_load) {
 		/* set the optimum mode for our new total regulator load */
@@ -758,6 +768,8 @@ static int suspend_set_state(struct regulator_dev *rdev,
 /* locks held by caller */
 static int suspend_prepare(struct regulator_dev *rdev, suspend_state_t state)
 {
+	lockdep_assert_held_once(&rdev->mutex);
+
 	if (!rdev->constraints)
 		return -EINVAL;
 
@@ -779,59 +791,64 @@ static int suspend_prepare(struct regulator_dev *rdev, suspend_state_t state)
 static void print_constraints(struct regulator_dev *rdev)
 {
 	struct regulation_constraints *constraints = rdev->constraints;
-	char buf[80] = "";
+	char buf[160] = "";
+	size_t len = sizeof(buf) - 1;
 	int count = 0;
 	int ret;
 
 	if (constraints->min_uV && constraints->max_uV) {
 		if (constraints->min_uV == constraints->max_uV)
-			count += sprintf(buf + count, "%d mV ",
-					 constraints->min_uV / 1000);
+			count += scnprintf(buf + count, len - count, "%d mV ",
+					   constraints->min_uV / 1000);
 		else
-			count += sprintf(buf + count, "%d <--> %d mV ",
-					 constraints->min_uV / 1000,
-					 constraints->max_uV / 1000);
+			count += scnprintf(buf + count, len - count,
+					   "%d <--> %d mV ",
+					   constraints->min_uV / 1000,
+					   constraints->max_uV / 1000);
 	}
 
 	if (!constraints->min_uV ||
 	    constraints->min_uV != constraints->max_uV) {
 		ret = _regulator_get_voltage(rdev);
 		if (ret > 0)
-			count += sprintf(buf + count, "at %d mV ", ret / 1000);
+			count += scnprintf(buf + count, len - count,
+					   "at %d mV ", ret / 1000);
 	}
 
 	if (constraints->uV_offset)
-		count += sprintf(buf, "%dmV offset ",
-				 constraints->uV_offset / 1000);
+		count += scnprintf(buf + count, len - count, "%dmV offset ",
+				   constraints->uV_offset / 1000);
 
 	if (constraints->min_uA && constraints->max_uA) {
 		if (constraints->min_uA == constraints->max_uA)
-			count += sprintf(buf + count, "%d mA ",
-					 constraints->min_uA / 1000);
+			count += scnprintf(buf + count, len - count, "%d mA ",
+					   constraints->min_uA / 1000);
 		else
-			count += sprintf(buf + count, "%d <--> %d mA ",
-					 constraints->min_uA / 1000,
-					 constraints->max_uA / 1000);
+			count += scnprintf(buf + count, len - count,
+					   "%d <--> %d mA ",
+					   constraints->min_uA / 1000,
+					   constraints->max_uA / 1000);
 	}
 
 	if (!constraints->min_uA ||
 	    constraints->min_uA != constraints->max_uA) {
 		ret = _regulator_get_current_limit(rdev);
 		if (ret > 0)
-			count += sprintf(buf + count, "at %d mA ", ret / 1000);
+			count += scnprintf(buf + count, len - count,
+					   "at %d mA ", ret / 1000);
 	}
 
 	if (constraints->valid_modes_mask & REGULATOR_MODE_FAST)
-		count += sprintf(buf + count, "fast ");
+		count += scnprintf(buf + count, len - count, "fast ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_NORMAL)
-		count += sprintf(buf + count, "normal ");
+		count += scnprintf(buf + count, len - count, "normal ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_IDLE)
-		count += sprintf(buf + count, "idle ");
+		count += scnprintf(buf + count, len - count, "idle ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_STANDBY)
-		count += sprintf(buf + count, "standby");
+		count += scnprintf(buf + count, len - count, "standby");
 
 	if (!count)
-		sprintf(buf, "no parameters");
+		scnprintf(buf, len, "no parameters");
 
 	rdev_dbg(rdev, "%s\n", buf);
 
@@ -1006,6 +1023,15 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	if (ret != 0)
 		goto out;
 
+	if (rdev->constraints->ilim_uA && ops->set_input_current_limit) {
+		ret = ops->set_input_current_limit(rdev,
+						   rdev->constraints->ilim_uA);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set input limit\n");
+			goto out;
+		}
+	}
+
 	/* do we need to setup our suspend state */
 	if (rdev->constraints->initial_state) {
 		ret = suspend_prepare(rdev, rdev->constraints->initial_state);
@@ -1049,6 +1075,31 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
+	if (rdev->constraints->pull_down && ops->set_pull_down) {
+		ret = ops->set_pull_down(rdev);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set pull down\n");
+			goto out;
+		}
+	}
+
+	if (rdev->constraints->soft_start && ops->set_soft_start) {
+		ret = ops->set_soft_start(rdev);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set soft start\n");
+			goto out;
+		}
+	}
+
+	if (rdev->constraints->over_current_protection
+		&& ops->set_over_current_protection) {
+		ret = ops->set_over_current_protection(rdev);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set over current protection\n");
+			goto out;
+		}
+	}
+
 	print_constraints(rdev);
 	return 0;
 out:
@@ -1072,6 +1123,9 @@ static int set_supply(struct regulator_dev *rdev,
 	int err;
 
 	rdev_info(rdev, "supplied by %s\n", rdev_get_name(supply_rdev));
+
+	if (!try_module_get(supply_rdev->owner))
+		return -ENODEV;
 
 	rdev->supply = create_regulator(supply_rdev, &rdev->dev, "SUPPLY");
 	if (rdev->supply == NULL) {
@@ -1192,10 +1246,10 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 		if (regulator->supply_name == NULL)
 			goto overflow_err;
 
-		err = sysfs_create_link(&rdev->dev.kobj, &dev->kobj,
+		err = sysfs_create_link_nowarn(&rdev->dev.kobj, &dev->kobj,
 					buf);
 		if (err) {
-			rdev_warn(rdev, "could not add device link %s err %d\n",
+			rdev_dbg(rdev, "could not add device link %s err %d\n",
 				  dev->kobj.name, err);
 			/* non-fatal */
 		}
@@ -1208,7 +1262,7 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 	regulator->debugfs = debugfs_create_dir(regulator->supply_name,
 						rdev->debugfs);
 	if (!regulator->debugfs) {
-		rdev_warn(rdev, "Failed to create debugfs directory\n");
+		rdev_dbg(rdev, "Failed to create debugfs directory\n");
 	} else {
 		debugfs_create_u32("uA_load", 0444, regulator->debugfs,
 				   &regulator->uA_load);
@@ -1340,18 +1394,26 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		return 0;
 
 	r = regulator_dev_lookup(dev, rdev->supply_name, &ret);
-	if (ret == -ENODEV) {
-		/*
-		 * No supply was specified for this regulator and
-		 * there will never be one.
-		 */
-		return 0;
-	}
-
 	if (!r) {
-		dev_err(dev, "Failed to resolve %s-supply for %s\n",
-			rdev->supply_name, rdev->desc->name);
-		return -EPROBE_DEFER;
+		if (ret == -ENODEV) {
+			/*
+			 * No supply was specified for this regulator and
+			 * there will never be one.
+			 */
+			return 0;
+		}
+
+		/* Did the lookup explicitly defer for us? */
+		if (ret == -EPROBE_DEFER)
+			return ret;
+
+		if (have_full_constraints()) {
+			r = dummy_regulator_rdev;
+		} else {
+			dev_err(dev, "Failed to resolve %s-supply for %s\n",
+				rdev->supply_name, rdev->desc->name);
+			return -EPROBE_DEFER;
+		}
 	}
 
 	/* Recursively resolve the supply of the supply */
@@ -1364,10 +1426,12 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		return ret;
 
 	/* Cascade always-on state to supply */
-	if (_regulator_is_enabled(rdev)) {
+	if (_regulator_is_enabled(rdev) && rdev->supply) {
 		ret = regulator_enable(rdev->supply);
-		if (ret < 0)
+		if (ret < 0) {
+			_regulator_put(rdev->supply);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -1552,8 +1616,10 @@ static void _regulator_put(struct regulator *regulator)
 {
 	struct regulator_dev *rdev;
 
-	if (regulator == NULL || IS_ERR(regulator))
+	if (IS_ERR_OR_NULL(regulator))
 		return;
+
+	lockdep_assert_held_once(&regulator_list_mutex);
 
 	rdev = regulator->rdev;
 
@@ -1563,13 +1629,14 @@ static void _regulator_put(struct regulator *regulator)
 	if (regulator->dev)
 		sysfs_remove_link(&rdev->dev.kobj, regulator->supply_name);
 	mutex_lock(&rdev->mutex);
-	kfree(regulator->supply_name);
 	list_del(&regulator->list);
-	kfree(regulator);
 
 	rdev->open_count--;
 	rdev->exclusive = 0;
 	mutex_unlock(&rdev->mutex);
+
+	kfree(regulator->supply_name);
+	kfree(regulator);
 
 	module_put(rdev->owner);
 }
@@ -1933,6 +2000,8 @@ static int _regulator_enable(struct regulator_dev *rdev)
 {
 	int ret;
 
+	lockdep_assert_held_once(&rdev->mutex);
+
 	/* check voltage and requested load before enabling */
 	if (rdev->constraints &&
 	    (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_DRMS))
@@ -2033,6 +2102,8 @@ static int _regulator_disable(struct regulator_dev *rdev)
 {
 	int ret = 0;
 
+	lockdep_assert_held_once(&rdev->mutex);
+
 	if (WARN(rdev->use_count <= 0,
 		 "unbalanced disables for %s\n", rdev_get_name(rdev)))
 		return -EIO;
@@ -2110,6 +2181,8 @@ EXPORT_SYMBOL_GPL(regulator_disable);
 static int _regulator_force_disable(struct regulator_dev *rdev)
 {
 	int ret = 0;
+
+	lockdep_assert_held_once(&rdev->mutex);
 
 	ret = _notifier_call_chain(rdev, REGULATOR_EVENT_FORCE_DISABLE |
 			REGULATOR_EVENT_PRE_DISABLE, NULL);
@@ -2679,7 +2752,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 		goto out;
 
 	/* If we're trying to set a range that overlaps the current voltage,
-	 * return succesfully even though the regulator does not support
+	 * return successfully even though the regulator does not support
 	 * changing the voltage.
 	 */
 	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE)) {
@@ -3407,6 +3480,8 @@ EXPORT_SYMBOL_GPL(regulator_bulk_free);
 int regulator_notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data)
 {
+	lockdep_assert_held_once(&rdev->mutex);
+
 	_notifier_call_chain(rdev, event, data);
 	return NOTIFY_DONE;
 
@@ -3551,6 +3626,9 @@ static const struct attribute_group *regulator_dev_groups[] = {
 static void regulator_dev_release(struct device *dev)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
+
+	kfree(rdev->constraints);
+	of_node_put(rdev->dev.of_node);
 	kfree(rdev);
 }
 
@@ -3781,11 +3859,9 @@ void regulator_unregister(struct regulator_dev *rdev)
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
-	kfree(rdev->constraints);
-	regulator_ena_gpio_free(rdev);
-	of_node_put(rdev->dev.of_node);
-	device_unregister(&rdev->dev);
 	mutex_unlock(&regulator_list_mutex);
+	regulator_ena_gpio_free(rdev);
+	device_unregister(&rdev->dev);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
 
@@ -4104,13 +4180,57 @@ static int __init regulator_init(void)
 /* init early to allow our consumers to complete system booting */
 core_initcall(regulator_init);
 
-static int __init regulator_init_complete(void)
+static int __init regulator_late_cleanup(struct device *dev, void *data)
 {
-	struct regulator_dev *rdev;
-	const struct regulator_ops *ops;
-	struct regulation_constraints *c;
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+	const struct regulator_ops *ops = rdev->desc->ops;
+	struct regulation_constraints *c = rdev->constraints;
 	int enabled, ret;
 
+	if (c && c->always_on)
+		return 0;
+
+	if (c && !(c->valid_ops_mask & REGULATOR_CHANGE_STATUS))
+		return 0;
+
+	mutex_lock(&rdev->mutex);
+
+	if (rdev->use_count)
+		goto unlock;
+
+	/* If we can't read the status assume it's on. */
+	if (ops->is_enabled)
+		enabled = ops->is_enabled(rdev);
+	else
+		enabled = 1;
+
+	if (!enabled)
+		goto unlock;
+
+	if (have_full_constraints()) {
+		/* We log since this may kill the system if it goes
+		 * wrong. */
+		rdev_info(rdev, "disabling\n");
+		ret = _regulator_do_disable(rdev);
+		if (ret != 0)
+			rdev_err(rdev, "couldn't disable: %d\n", ret);
+	} else {
+		/* The intention is that in future we will
+		 * assume that full constraints are provided
+		 * so warn even if we aren't going to do
+		 * anything here.
+		 */
+		rdev_warn(rdev, "incomplete constraints, leaving on\n");
+	}
+
+unlock:
+	mutex_unlock(&rdev->mutex);
+
+	return 0;
+}
+
+static int __init regulator_init_complete(void)
+{
 	/*
 	 * Since DT doesn't provide an idiomatic mechanism for
 	 * enabling full constraints and since it's much more natural
@@ -4120,58 +4240,13 @@ static int __init regulator_init_complete(void)
 	if (of_have_populated_dt())
 		has_full_constraints = true;
 
-	mutex_lock(&regulator_list_mutex);
-
 	/* If we have a full configuration then disable any regulators
 	 * we have permission to change the status for and which are
 	 * not in use or always_on.  This is effectively the default
 	 * for DT and ACPI as they have full constraints.
 	 */
-	list_for_each_entry(rdev, &regulator_list, list) {
-		ops = rdev->desc->ops;
-		c = rdev->constraints;
-
-		if (c && c->always_on)
-			continue;
-
-		if (c && !(c->valid_ops_mask & REGULATOR_CHANGE_STATUS))
-			continue;
-
-		mutex_lock(&rdev->mutex);
-
-		if (rdev->use_count)
-			goto unlock;
-
-		/* If we can't read the status assume it's on. */
-		if (ops->is_enabled)
-			enabled = ops->is_enabled(rdev);
-		else
-			enabled = 1;
-
-		if (!enabled)
-			goto unlock;
-
-		if (have_full_constraints()) {
-			/* We log since this may kill the system if it
-			 * goes wrong. */
-			rdev_info(rdev, "disabling\n");
-			ret = _regulator_do_disable(rdev);
-			if (ret != 0)
-				rdev_err(rdev, "couldn't disable: %d\n", ret);
-		} else {
-			/* The intention is that in future we will
-			 * assume that full constraints are provided
-			 * so warn even if we aren't going to do
-			 * anything here.
-			 */
-			rdev_warn(rdev, "incomplete constraints, leaving on\n");
-		}
-
-unlock:
-		mutex_unlock(&rdev->mutex);
-	}
-
-	mutex_unlock(&regulator_list_mutex);
+	class_for_each_device(&regulator_class, NULL, NULL,
+			      regulator_late_cleanup);
 
 	return 0;
 }

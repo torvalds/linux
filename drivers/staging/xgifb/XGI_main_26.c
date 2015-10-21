@@ -8,10 +8,7 @@
 
 #include <linux/sizes.h>
 #include <linux/module.h>
-
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
+#include <linux/pci.h>
 
 #include "XGI_main.h"
 #include "vb_init.h"
@@ -21,8 +18,8 @@
 #define Index_CR_GPIO_Reg1 0x48
 #define Index_CR_GPIO_Reg3 0x4a
 
-#define GPIOG_EN    (1<<6)
-#define GPIOG_READ  (1<<1)
+#define GPIOG_EN    BIT(6)
+#define GPIOG_READ  BIT(1)
 
 static char *forcecrt2type;
 static char *mode;
@@ -32,7 +29,7 @@ static unsigned int refresh_rate;
 /* -------------------- Macro definitions ---------------------------- */
 
 #ifdef DEBUG
-static void dumpVGAReg(void)
+static void dumpVGAReg(struct xgifb_video_info *xgifb_info)
 {
 	u8 i, reg;
 
@@ -51,7 +48,7 @@ static void dumpVGAReg(void)
 	}
 }
 #else
-static inline void dumpVGAReg(void)
+static inline void dumpVGAReg(struct xgifb_video_info *xgifb_info)
 {
 }
 #endif
@@ -1076,7 +1073,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	}
 	XGIfb_bpp_to_var(xgifb_info, var); /*update ARGB info*/
 
-	dumpVGAReg();
+	dumpVGAReg(xgifb_info);
 	return 0;
 }
 
@@ -1770,7 +1767,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	}
 
 	xgifb_info->video_vbase = hw_info->pjVideoMemoryAddress =
-	ioremap(xgifb_info->video_base, xgifb_info->video_size);
+		ioremap_wc(xgifb_info->video_base, xgifb_info->video_size);
 	xgifb_info->mmio_vbase = ioremap(xgifb_info->mmio_base,
 					    xgifb_info->mmio_size);
 
@@ -2014,28 +2011,20 @@ static int xgifb_probe(struct pci_dev *pdev,
 
 	fb_alloc_cmap(&fb_info->cmap, 256, 0);
 
-#ifdef CONFIG_MTRR
-	xgifb_info->mtrr = mtrr_add(xgifb_info->video_base,
-		xgifb_info->video_size, MTRR_TYPE_WRCOMB, 1);
-	if (xgifb_info->mtrr >= 0)
-		dev_info(&pdev->dev, "Added MTRR\n");
-#endif
+	xgifb_info->mtrr = arch_phys_wc_add(xgifb_info->video_base,
+					    xgifb_info->video_size);
 
 	if (register_framebuffer(fb_info) < 0) {
 		ret = -EINVAL;
 		goto error_mtrr;
 	}
 
-	dumpVGAReg();
+	dumpVGAReg(xgifb_info);
 
 	return 0;
 
 error_mtrr:
-#ifdef CONFIG_MTRR
-	if (xgifb_info->mtrr >= 0)
-		mtrr_del(xgifb_info->mtrr, xgifb_info->video_base,
-			xgifb_info->video_size);
-#endif /* CONFIG_MTRR */
+	arch_phys_wc_del(xgifb_info->mtrr);
 error_1:
 	iounmap(xgifb_info->mmio_vbase);
 	iounmap(xgifb_info->video_vbase);
@@ -2059,11 +2048,7 @@ static void xgifb_remove(struct pci_dev *pdev)
 	struct fb_info *fb_info = xgifb_info->fb_info;
 
 	unregister_framebuffer(fb_info);
-#ifdef CONFIG_MTRR
-	if (xgifb_info->mtrr >= 0)
-		mtrr_del(xgifb_info->mtrr, xgifb_info->video_base,
-			xgifb_info->video_size);
-#endif /* CONFIG_MTRR */
+	arch_phys_wc_del(xgifb_info->mtrr);
 	iounmap(xgifb_info->mmio_vbase);
 	iounmap(xgifb_info->video_vbase);
 	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);

@@ -42,9 +42,9 @@
 #include <linux/i2c/i2c-hid.h>
 
 /* flags */
-#define I2C_HID_STARTED		(1 << 0)
-#define I2C_HID_RESET_PENDING	(1 << 1)
-#define I2C_HID_READ_PENDING	(1 << 2)
+#define I2C_HID_STARTED		0
+#define I2C_HID_RESET_PENDING	1
+#define I2C_HID_READ_PENDING	2
 
 #define I2C_HID_PWR_ON		0x00
 #define I2C_HID_PWR_SLEEP	0x01
@@ -149,6 +149,8 @@ struct i2c_hid {
 	int			irq;
 
 	struct i2c_hid_platform_data pdata;
+
+	bool			irq_wake_enabled;
 };
 
 static int __i2c_hid_command(struct i2c_client *client,
@@ -1019,7 +1021,6 @@ static int i2c_hid_probe(struct i2c_client *client,
 	hid->driver_data = client;
 	hid->ll_driver = &i2c_hid_ll_driver;
 	hid->dev.parent = &client->dev;
-	ACPI_COMPANION_SET(&hid->dev, ACPI_COMPANION(&client->dev));
 	hid->bus = BUS_I2C;
 	hid->version = le16_to_cpu(ihid->hdesc.bcdVersion);
 	hid->vendor = le16_to_cpu(ihid->hdesc.wVendorID);
@@ -1092,13 +1093,20 @@ static int i2c_hid_suspend(struct device *dev)
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	struct hid_device *hid = ihid->hid;
 	int ret = 0;
-
-	disable_irq(ihid->irq);
-	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(ihid->irq);
+	int wake_status;
 
 	if (hid->driver && hid->driver->suspend)
 		ret = hid->driver->suspend(hid, PMSG_SUSPEND);
+
+	disable_irq(ihid->irq);
+	if (device_may_wakeup(&client->dev)) {
+		wake_status = enable_irq_wake(ihid->irq);
+		if (!wake_status)
+			ihid->irq_wake_enabled = true;
+		else
+			hid_warn(hid, "Failed to enable irq wake: %d\n",
+				wake_status);
+	}
 
 	/* Save some power */
 	i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
@@ -1112,14 +1120,21 @@ static int i2c_hid_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	struct hid_device *hid = ihid->hid;
+	int wake_status;
 
 	enable_irq(ihid->irq);
 	ret = i2c_hid_hwreset(client);
 	if (ret)
 		return ret;
 
-	if (device_may_wakeup(&client->dev))
-		disable_irq_wake(ihid->irq);
+	if (device_may_wakeup(&client->dev) && ihid->irq_wake_enabled) {
+		wake_status = disable_irq_wake(ihid->irq);
+		if (!wake_status)
+			ihid->irq_wake_enabled = false;
+		else
+			hid_warn(hid, "Failed to disable irq wake: %d\n",
+				wake_status);
+	}
 
 	if (hid->driver && hid->driver->reset_resume) {
 		ret = hid->driver->reset_resume(hid);

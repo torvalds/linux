@@ -82,7 +82,8 @@ int tm_syscall(void)
 	unsigned count = 0;
 	struct timeval end, now;
 
-	SKIP_IF(!((long)get_auxv_entry(AT_HWCAP2) & PPC_FEATURE2_HTM));
+	SKIP_IF(!((long)get_auxv_entry(AT_HWCAP2)
+		  & PPC_FEATURE2_HTM_NOSC));
 	setbuf(stdout, NULL);
 
 	printf("Testing transactional syscalls for %d seconds...\n", TEST_DURATION);

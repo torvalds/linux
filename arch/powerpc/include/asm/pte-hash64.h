@@ -16,6 +16,7 @@
  */
 #define _PAGE_PRESENT		0x0001 /* software: pte contains a translation */
 #define _PAGE_USER		0x0002 /* matches one of the PP bits */
+#define _PAGE_BIT_SWAP_TYPE	2
 #define _PAGE_EXEC		0x0004 /* No execute on POWER4 and newer (we invert) */
 #define _PAGE_GUARDED		0x0008
 /* We can derive Memory coherence from _PAGE_NO_CACHE */

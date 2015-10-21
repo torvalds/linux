@@ -21,6 +21,10 @@
 #include <asm/io.h>
 #include <asm/fixmap.h>
 
+int __read_mostly alternatives_patched;
+
+EXPORT_SYMBOL_GPL(alternatives_patched);
+
 #define MAX_PATCH_LEN (255-1)
 
 static int __initdata_or_module debug_alternative;
@@ -227,6 +231,15 @@ void __init arch_init_ideal_nops(void)
 #endif
 		}
 		break;
+
+	case X86_VENDOR_AMD:
+		if (boot_cpu_data.x86 > 0xf) {
+			ideal_nops = p6_nops;
+			return;
+		}
+
+		/* fall through */
+
 	default:
 #ifdef CONFIG_X86_64
 		ideal_nops = k8_nops;
@@ -325,10 +338,15 @@ done:
 
 static void __init_or_module optimize_nops(struct alt_instr *a, u8 *instr)
 {
+	unsigned long flags;
+
 	if (instr[0] != 0x90)
 		return;
 
+	local_irq_save(flags);
 	add_nops(instr + (a->instrlen - a->padlen), a->padlen);
+	sync_core();
+	local_irq_restore(flags);
 
 	DUMP_BYTES(instr, a->instrlen, "%p: [%d:%d) optimized NOPs: ",
 		   instr, a->instrlen - a->padlen, a->padlen);
@@ -627,6 +645,7 @@ void __init alternative_instructions(void)
 	apply_paravirt(__parainstructions, __parainstructions_end);
 
 	restart_nmi();
+	alternatives_patched = 1;
 }
 
 /**

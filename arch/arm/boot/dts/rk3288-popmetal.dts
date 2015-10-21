@@ -49,6 +49,7 @@
 	compatible = "chipspark,popmetal-rk3288", "rockchip,rk3288";
 
 	memory{
+		device_type = "memory";
 		reg = <0 0x80000000>;
 	};
 
@@ -404,6 +405,12 @@
 			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+};
+
+&tsadc {
+	rockchip,hw-tshut-mode = <0>;
+	rockchip,hw-tshut-polarity = <0>;
+	status = "okay";
 };
 
 &vopb {

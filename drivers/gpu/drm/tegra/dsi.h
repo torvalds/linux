@@ -113,6 +113,10 @@
 #define DSI_PAD_SLEW_DN(x)		(((x) & 0x7) << 12)
 #define DSI_PAD_SLEW_UP(x)		(((x) & 0x7) << 16)
 #define DSI_PAD_CONTROL_3		0x51
+#define  DSI_PAD_PREEMP_PD_CLK(x)	(((x) & 0x3) << 12)
+#define  DSI_PAD_PREEMP_PU_CLK(x)	(((x) & 0x3) << 8)
+#define  DSI_PAD_PREEMP_PD(x)		(((x) & 0x3) << 4)
+#define  DSI_PAD_PREEMP_PU(x)		(((x) & 0x3) << 0)
 #define DSI_PAD_CONTROL_4		0x52
 #define DSI_GANGED_MODE_CONTROL		0x53
 #define DSI_GANGED_MODE_CONTROL_ENABLE	(1 << 0)

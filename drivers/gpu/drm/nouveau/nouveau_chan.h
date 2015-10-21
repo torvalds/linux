@@ -37,7 +37,7 @@ struct nouveau_channel {
 	u32 user_get;
 	u32 user_put;
 
-	struct nvif_object *object;
+	struct nvif_object user;
 };
 
 

@@ -260,8 +260,8 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 
 	snprintf(adap->name, sizeof(adap->name), "i2c-designware-pci");
 
-	r = devm_request_irq(&pdev->dev, pdev->irq, i2c_dw_isr, IRQF_SHARED,
-			adap->name, dev);
+	r = devm_request_irq(&pdev->dev, pdev->irq, i2c_dw_isr,
+			IRQF_SHARED | IRQF_COND_SUSPEND, adap->name, dev);
 	if (r) {
 		dev_err(&pdev->dev, "failure requesting irq %i\n", dev->irq);
 		return r;

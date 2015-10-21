@@ -21,6 +21,18 @@ static unsigned long long (*bpf_ktime_get_ns)(void) =
 	(void *) BPF_FUNC_ktime_get_ns;
 static int (*bpf_trace_printk)(const char *fmt, int fmt_size, ...) =
 	(void *) BPF_FUNC_trace_printk;
+static void (*bpf_tail_call)(void *ctx, void *map, int index) =
+	(void *) BPF_FUNC_tail_call;
+static unsigned long long (*bpf_get_smp_processor_id)(void) =
+	(void *) BPF_FUNC_get_smp_processor_id;
+static unsigned long long (*bpf_get_current_pid_tgid)(void) =
+	(void *) BPF_FUNC_get_current_pid_tgid;
+static unsigned long long (*bpf_get_current_uid_gid)(void) =
+	(void *) BPF_FUNC_get_current_uid_gid;
+static int (*bpf_get_current_comm)(void *buf, int buf_size) =
+	(void *) BPF_FUNC_get_current_comm;
+static int (*bpf_perf_event_read)(void *map, int index) =
+	(void *) BPF_FUNC_perf_event_read;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
@@ -50,4 +62,29 @@ static int (*bpf_l3_csum_replace)(void *ctx, int off, int from, int to, int flag
 static int (*bpf_l4_csum_replace)(void *ctx, int off, int from, int to, int flags) =
 	(void *) BPF_FUNC_l4_csum_replace;
 
+#if defined(__x86_64__)
+
+#define PT_REGS_PARM1(x) ((x)->di)
+#define PT_REGS_PARM2(x) ((x)->si)
+#define PT_REGS_PARM3(x) ((x)->dx)
+#define PT_REGS_PARM4(x) ((x)->cx)
+#define PT_REGS_PARM5(x) ((x)->r8)
+#define PT_REGS_RET(x) ((x)->sp)
+#define PT_REGS_FP(x) ((x)->bp)
+#define PT_REGS_RC(x) ((x)->ax)
+#define PT_REGS_SP(x) ((x)->sp)
+
+#elif defined(__s390x__)
+
+#define PT_REGS_PARM1(x) ((x)->gprs[2])
+#define PT_REGS_PARM2(x) ((x)->gprs[3])
+#define PT_REGS_PARM3(x) ((x)->gprs[4])
+#define PT_REGS_PARM4(x) ((x)->gprs[5])
+#define PT_REGS_PARM5(x) ((x)->gprs[6])
+#define PT_REGS_RET(x) ((x)->gprs[14])
+#define PT_REGS_FP(x) ((x)->gprs[11]) /* Works only with CONFIG_FRAME_POINTER */
+#define PT_REGS_RC(x) ((x)->gprs[2])
+#define PT_REGS_SP(x) ((x)->gprs[15])
+
+#endif
 #endif

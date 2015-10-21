@@ -38,7 +38,6 @@ struct net;
 #define SOCK_NOSPACE		2
 #define SOCK_PASSCRED		3
 #define SOCK_PASSSEC		4
-#define SOCK_EXTERNALLY_ALLOCATED 5
 
 #ifndef ARCH_HAS_SOCKET_TYPES
 /**
@@ -208,7 +207,7 @@ void sock_unregister(int family);
 int __sock_create(struct net *net, int family, int type, int proto,
 		  struct socket **res, int kern);
 int sock_create(int family, int type, int proto, struct socket **res);
-int sock_create_kern(int family, int type, int proto, struct socket **res);
+int sock_create_kern(struct net *net, int family, int type, int proto, struct socket **res);
 int sock_create_lite(int family, int type, int proto, struct socket **res);
 void sock_release(struct socket *sock);
 int sock_sendmsg(struct socket *sock, struct msghdr *msg);
@@ -240,8 +239,16 @@ do {								\
 	net_ratelimited_function(pr_warn, fmt, ##__VA_ARGS__)
 #define net_info_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_info, fmt, ##__VA_ARGS__)
+#if defined(DEBUG)
 #define net_dbg_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_debug, fmt, ##__VA_ARGS__)
+#else
+#define net_dbg_ratelimited(fmt, ...)				\
+	do {							\
+		if (0)						\
+			no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); \
+	} while (0)
+#endif
 
 bool __net_get_random_once(void *buf, int nbytes, bool *done,
 			   struct static_key *done_key);

@@ -1,5 +1,5 @@
 /*
- * Author: Anil Kumar <anilk4.v@gmail.com>
+ * Author: Anthoine Bourgeois <anthoine.bourgeois@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -7,153 +7,13 @@
  */
 /dts-v1/;
 
-#include "omap34xx.dtsi"
+#include "omap3-devkit8000-common.dtsi"
 / {
 	model = "TimLL OMAP3 Devkit8000";
 	compatible = "timll,omap3-devkit8000", "ti,omap3";
 
-	memory {
-		device_type = "memory";
-		reg = <0x80000000 0x10000000>;	/* 256 MB */
-	};
-
-	leds {
-		compatible = "gpio-leds";
-
-		heartbeat {
-			label = "devkit8000::led1";
-			gpios = <&gpio6 26 GPIO_ACTIVE_HIGH>;	/* 186 -> LED1 */
-			default-state = "on";
-			linux,default-trigger = "heartbeat";
-		};
-
-		mmc {
-			label = "devkit8000::led2";
-			gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;	/* 163 -> LED2 */
-			default-state = "on";
-			linux,default-trigger = "none";
-		};
-
-		usr {
-			label = "devkit8000::led3";
-			gpios = <&gpio6 4 GPIO_ACTIVE_HIGH>;	/* 164 -> LED3 */
-			default-state = "on";
-			linux,default-trigger = "usr";
-                };
-
-	};
-
-	sound {
-		compatible = "ti,omap-twl4030";
-		ti,model = "devkit8000";
-
-		ti,mcbsp = <&mcbsp2>;
-		ti,audio-routing =
-			"Ext Spk", "PREDRIVEL",
-			"Ext Spk", "PREDRIVER",
-			"MAINMIC", "Main Mic",
-			"Main Mic", "Mic Bias 1";
-	};
-};
-
-&i2c1 {
-	clock-frequency = <2600000>;
-
-	twl: twl@48 {
-		reg = <0x48>;
-		interrupts = <7>;	/* SYS_NIRQ cascaded to intc */
-
-		twl_audio: audio {
-			compatible = "ti,twl4030-audio";
-			codec {
-			};
-		};
-	};
-};
-
-&i2c2 {
-	status = "disabled";
-};
-
-&i2c3 {
-	status = "disabled";
-};
-
-#include "twl4030.dtsi"
-#include "twl4030_omap3.dtsi"
-
-&mmc1 {
-	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
-	bus-width = <8>;
-};
-
-&mmc2 {
-	status = "disabled";
-};
-
-&mmc3 {
-	status = "disabled";
-};
-
-&wdt2 {
-	status = "disabled";
-};
-
-&mcbsp2 {
-	status = "okay";
-};
-
-&gpmc {
-	ranges = <0 0 0x30000000 0x1000000>;       /* CS0: 16MB for NAND */
-
-	nand@0,0 {
-		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
-		nand-bus-width = <16>;
-		gpmc,device-width = <2>;
-		ti,nand-ecc-opt = "sw";
-
-		gpmc,sync-clk-ps = <0>;
-		gpmc,cs-on-ns = <0>;
-		gpmc,cs-rd-off-ns = <44>;
-		gpmc,cs-wr-off-ns = <44>;
-		gpmc,adv-on-ns = <6>;
-		gpmc,adv-rd-off-ns = <34>;
-		gpmc,adv-wr-off-ns = <44>;
-		gpmc,we-off-ns = <40>;
-		gpmc,oe-off-ns = <54>;
-		gpmc,access-ns = <64>;
-		gpmc,rd-cycle-ns = <82>;
-		gpmc,wr-cycle-ns = <82>;
-		gpmc,wr-access-ns = <40>;
-		gpmc,wr-data-mux-bus-ns = <0>;
-
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		x-loader@0 {
-			label = "X-Loader";
-			reg = <0 0x80000>;
-		};
-
-		bootloaders@80000 {
-			label = "U-Boot";
-			reg = <0x80000 0x1e0000>;
-		};
-
-		bootloaders_env@260000 {
-			label = "U-Boot Env";
-			reg = <0x260000 0x20000>;
-		};
-
-		kernel@280000 {
-			label = "Kernel";
-			reg = <0x280000 0x400000>;
-		};
-
-		filesystem@680000 {
-			label = "File System";
-			reg = <0x680000 0xf980000>;
-		};
+	aliases {
+		display1 = &dvi0;
+		display2 = &tv0;
 	};
 };

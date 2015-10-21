@@ -1021,7 +1021,7 @@ static int closest_thres(const struct sge *s, int thres)
 static unsigned int qtimer_val(const struct adapter *adapter,
 			       const struct sge_rspq *rspq)
 {
-	unsigned int timer_idx = QINTR_TIMER_IDX_GET(rspq->intr_params);
+	unsigned int timer_idx = QINTR_TIMER_IDX_G(rspq->intr_params);
 
 	return timer_idx < SGE_NTIMERS
 		? adapter->sge.timer_val[timer_idx]
@@ -1086,8 +1086,8 @@ static int set_rxq_intr_params(struct adapter *adapter, struct sge_rspq *rspq,
 	 * Update the response queue's interrupt coalescing parameters and
 	 * return success.
 	 */
-	rspq->intr_params = (QINTR_TIMER_IDX(timer_idx) |
-			     (cnt > 0 ? QINTR_CNT_EN : 0));
+	rspq->intr_params = (QINTR_TIMER_IDX_V(timer_idx) |
+			     QINTR_CNT_EN_V(cnt > 0));
 	return 0;
 }
 
@@ -1439,7 +1439,7 @@ static int cxgb4vf_get_coalesce(struct net_device *dev,
 
 	coalesce->rx_coalesce_usecs = qtimer_val(adapter, rspq);
 	coalesce->rx_max_coalesced_frames =
-		((rspq->intr_params & QINTR_CNT_EN)
+		((rspq->intr_params & QINTR_CNT_EN_F)
 		 ? adapter->sge.counter_val[rspq->pktcnt_idx]
 		 : 0);
 	return 0;
@@ -2393,8 +2393,9 @@ static inline void init_rspq(struct sge_rspq *rspq, u8 timer_idx,
 			     u8 pkt_cnt_idx, unsigned int size,
 			     unsigned int iqe_size)
 {
-	rspq->intr_params = (QINTR_TIMER_IDX(timer_idx) |
-			     (pkt_cnt_idx < SGE_NCOUNTERS ? QINTR_CNT_EN : 0));
+	rspq->intr_params = (QINTR_TIMER_IDX_V(timer_idx) |
+			     (pkt_cnt_idx < SGE_NCOUNTERS ?
+			      QINTR_CNT_EN_F : 0));
 	rspq->pktcnt_idx = (pkt_cnt_idx < SGE_NCOUNTERS
 			    ? pkt_cnt_idx
 			    : 0);

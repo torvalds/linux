@@ -130,6 +130,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -299,7 +300,20 @@ static void _write_sysconfig(u32 v, struct omap_hwmod *oh)
 
 	/* Module might have lost context, always update cache and register */
 	oh->_sysc_cache = v;
+
+	/*
+	 * Some IP blocks (such as RTC) require unlocking of IP before
+	 * accessing its registers. If a function pointer is present
+	 * to unlock, then call it before accessing sysconfig and
+	 * call lock after writing sysconfig.
+	 */
+	if (oh->class->unlock)
+		oh->class->unlock(oh);
+
 	omap_hwmod_write(v, oh, oh->class->sysc->sysc_offs);
+
+	if (oh->class->lock)
+		oh->class->lock(oh);
 }
 
 /**
@@ -2373,6 +2387,9 @@ static int of_dev_hwmod_lookup(struct device_node *np,
  * registers.  This address is needed early so the OCP registers that
  * are part of the device's address space can be ioremapped properly.
  *
+ * If SYSC access is not needed, the registers will not be remapped
+ * and non-availability of MPU access is not treated as an error.
+ *
  * Returns 0 on success, -EINVAL if an invalid hwmod is passed, and
  * -ENXIO on absent or invalid register target address space.
  */
@@ -2387,6 +2404,11 @@ static int __init _init_mpu_rt_base(struct omap_hwmod *oh, void *data,
 
 	_save_mpu_port_index(oh);
 
+	/* if we don't need sysc access we don't need to ioremap */
+	if (!oh->class->sysc)
+		return 0;
+
+	/* we can't continue without MPU PORT if we need sysc access */
 	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
 		return -ENXIO;
 
@@ -2396,8 +2418,10 @@ static int __init _init_mpu_rt_base(struct omap_hwmod *oh, void *data,
 			 oh->name);
 
 		/* Extract the IO space from device tree blob */
-		if (!np)
+		if (!np) {
+			pr_err("omap_hwmod: %s: no dt node\n", oh->name);
 			return -ENXIO;
+		}
 
 		va_start = of_iomap(np, index + oh->mpu_rt_idx);
 	} else {
@@ -2456,13 +2480,11 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 				oh->name, np->name);
 	}
 
-	if (oh->class->sysc) {
-		r = _init_mpu_rt_base(oh, NULL, index, np);
-		if (r < 0) {
-			WARN(1, "omap_hwmod: %s: doesn't have mpu register target base\n",
-			     oh->name);
-			return 0;
-		}
+	r = _init_mpu_rt_base(oh, NULL, index, np);
+	if (r < 0) {
+		WARN(1, "omap_hwmod: %s: doesn't have mpu register target base\n",
+		     oh->name);
+		return 0;
 	}
 
 	r = _init_clocks(oh, NULL);
@@ -3318,16 +3340,17 @@ int omap_hwmod_enable(struct omap_hwmod *oh)
  */
 int omap_hwmod_idle(struct omap_hwmod *oh)
 {
+	int r;
 	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
 
 	spin_lock_irqsave(&oh->_lock, flags);
-	_idle(oh);
+	r = _idle(oh);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
-	return 0;
+	return r;
 }
 
 /**
@@ -3340,16 +3363,17 @@ int omap_hwmod_idle(struct omap_hwmod *oh)
  */
 int omap_hwmod_shutdown(struct omap_hwmod *oh)
 {
+	int r;
 	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
 
 	spin_lock_irqsave(&oh->_lock, flags);
-	_shutdown(oh);
+	r = _shutdown(oh);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
-	return 0;
+	return r;
 }
 
 /*
@@ -3876,7 +3900,8 @@ void __init omap_hwmod_init(void)
 		soc_ops.init_clkdm = _init_clkdm;
 		soc_ops.update_context_lost = _omap4_update_context_lost;
 		soc_ops.get_context_lost = _omap4_get_context_lost;
-	} else if (cpu_is_ti816x() || soc_is_am33xx() || soc_is_am43xx()) {
+	} else if (cpu_is_ti814x() || cpu_is_ti816x() || soc_is_am33xx() ||
+		   soc_is_am43xx()) {
 		soc_ops.enable_module = _omap4_enable_module;
 		soc_ops.disable_module = _omap4_disable_module;
 		soc_ops.wait_target_ready = _omap4_wait_target_ready;

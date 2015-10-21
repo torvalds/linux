@@ -82,9 +82,10 @@ struct acpi_walk_state {
 	u8 return_used;
 	u8 scope_depth;
 	u8 pass_number;		/* Parse pass during table load */
+	u8 namespace_override;	/* Override existing objects */
 	u8 result_size;		/* Total elements for the result stack */
 	u8 result_count;	/* Current number of occupied elements of result stack */
-	u32 aml_offset;
+	u8 *aml;
 	u32 arg_types;
 	u32 method_breakpoint;	/* For single stepping */
 	u32 user_breakpoint;	/* User AML breakpoint */

@@ -301,7 +301,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 	return ret;
 }
 
-#ifdef	CONFIG_PM
+#ifdef	CONFIG_PM_SLEEP
 
 /**
  * l3_resume_noirq() - resume function for l3_noc
@@ -347,7 +347,7 @@ static int l3_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops l3_dev_pm_ops = {
-	.resume_noirq		= l3_resume_noirq,
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, l3_resume_noirq)
 };
 
 #define L3_DEV_PM_OPS (&l3_dev_pm_ops)

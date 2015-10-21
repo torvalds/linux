@@ -58,6 +58,10 @@ MODULE_PARM_DESC(ldlm_cpts, "CPU partitions ldlm threads should run on");
 static struct mutex	ldlm_ref_mutex;
 static int ldlm_refcount;
 
+struct kobject *ldlm_kobj;
+struct kset *ldlm_ns_kset;
+struct kset *ldlm_svc_kset;
+
 struct ldlm_cb_async_args {
 	struct ldlm_cb_set_arg *ca_set_arg;
 	struct ldlm_lock       *ca_lock;
@@ -70,15 +74,6 @@ static struct ldlm_state *ldlm_state;
 inline unsigned long round_timeout(unsigned long timeout)
 {
 	return cfs_time_seconds((int)cfs_duration_sec(cfs_time_sub(timeout, 0)) + 1);
-}
-
-/* timeout for initial callback (AST) reply (bz10399) */
-static inline unsigned int ldlm_get_rq_timeout(void)
-{
-	/* Non-AT value */
-	unsigned int timeout = min(ldlm_timeout, obd_timeout / 3);
-
-	return timeout < 1 ? 1 : timeout;
 }
 
 #define ELT_STOPPED   0
@@ -220,8 +215,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 						     * variable length */
 			void *lvb_data;
 
-			OBD_ALLOC(lvb_data, lvb_len);
-			if (lvb_data == NULL) {
+			lvb_data = kzalloc(lvb_len, GFP_NOFS);
+			if (!lvb_data) {
 				LDLM_ERROR(lock, "No memory: %d.\n", lvb_len);
 				rc = -ENOMEM;
 				goto out;
@@ -448,8 +443,8 @@ static int ldlm_bl_to_thread(struct ldlm_namespace *ns,
 	if (cancel_flags & LCF_ASYNC) {
 		struct ldlm_bl_work_item *blwi;
 
-		OBD_ALLOC(blwi, sizeof(*blwi));
-		if (blwi == NULL)
+		blwi = kzalloc(sizeof(*blwi), GFP_NOFS);
+		if (!blwi)
 			return -ENOMEM;
 		init_blwi(blwi, ns, ld, cancels, count, lock, cancel_flags);
 
@@ -849,7 +844,7 @@ static int ldlm_bl_thread_main(void *arg)
 			memory_pressure_clr();
 
 		if (blwi->blwi_flags & LCF_ASYNC)
-			OBD_FREE(blwi, sizeof(*blwi));
+			kfree(blwi);
 		else
 			complete(&blwi->blwi_comp);
 	}
@@ -1002,6 +997,42 @@ void ldlm_destroy_export(struct obd_export *exp)
 }
 EXPORT_SYMBOL(ldlm_destroy_export);
 
+extern unsigned int ldlm_cancel_unused_locks_before_replay;
+
+static ssize_t cancel_unused_locks_before_replay_show(struct kobject *kobj,
+						      struct attribute *attr,
+						      char *buf)
+{
+	return sprintf(buf, "%d\n", ldlm_cancel_unused_locks_before_replay);
+}
+static ssize_t cancel_unused_locks_before_replay_store(struct kobject *kobj,
+						       struct attribute *attr,
+						       const char *buffer,
+						       size_t count)
+{
+	int rc;
+	unsigned long val;
+
+	rc = kstrtoul(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	ldlm_cancel_unused_locks_before_replay = val;
+
+	return count;
+}
+LUSTRE_RW_ATTR(cancel_unused_locks_before_replay);
+
+/* These are for root of /sys/fs/lustre/ldlm */
+static struct attribute *ldlm_attrs[] = {
+	&lustre_attr_cancel_unused_locks_before_replay.attr,
+	NULL,
+};
+
+static struct attribute_group ldlm_attr_group = {
+	.attrs = ldlm_attrs,
+};
+
 static int ldlm_setup(void)
 {
 	static struct ptlrpc_service_conf	conf;
@@ -1012,11 +1043,33 @@ static int ldlm_setup(void)
 	if (ldlm_state != NULL)
 		return -EALREADY;
 
-	OBD_ALLOC(ldlm_state, sizeof(*ldlm_state));
-	if (ldlm_state == NULL)
+	ldlm_state = kzalloc(sizeof(*ldlm_state), GFP_NOFS);
+	if (!ldlm_state)
 		return -ENOMEM;
 
-	rc = ldlm_proc_setup();
+	ldlm_kobj = kobject_create_and_add("ldlm", lustre_kobj);
+	if (!ldlm_kobj) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = sysfs_create_group(ldlm_kobj, &ldlm_attr_group);
+	if (rc)
+		goto out;
+
+	ldlm_ns_kset = kset_create_and_add("namespaces", NULL, ldlm_kobj);
+	if (!ldlm_ns_kset) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	ldlm_svc_kset = kset_create_and_add("services", NULL, ldlm_kobj);
+	if (!ldlm_svc_kset) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = ldlm_debugfs_setup();
 	if (rc != 0)
 		goto out;
 
@@ -1050,7 +1103,8 @@ static int ldlm_setup(void)
 		},
 	};
 	ldlm_state->ldlm_cb_service =
-			ptlrpc_register_service(&conf, ldlm_svc_proc_dir);
+			ptlrpc_register_service(&conf, ldlm_svc_kset,
+						ldlm_svc_debugfs_dir);
 	if (IS_ERR(ldlm_state->ldlm_cb_service)) {
 		CERROR("failed to start service\n");
 		rc = PTR_ERR(ldlm_state->ldlm_cb_service);
@@ -1059,8 +1113,8 @@ static int ldlm_setup(void)
 	}
 
 
-	OBD_ALLOC(blp, sizeof(*blp));
-	if (blp == NULL) {
+	blp = kzalloc(sizeof(*blp), GFP_NOFS);
+	if (!blp) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -1087,7 +1141,6 @@ static int ldlm_setup(void)
 		if (rc < 0)
 			goto out;
 	}
-
 
 	rc = ldlm_pools_init();
 	if (rc) {
@@ -1129,16 +1182,22 @@ static int ldlm_cleanup(void)
 			wait_for_completion(&blp->blp_comp);
 		}
 
-		OBD_FREE(blp, sizeof(*blp));
+		kfree(blp);
 	}
 
 	if (ldlm_state->ldlm_cb_service != NULL)
 		ptlrpc_unregister_service(ldlm_state->ldlm_cb_service);
 
-	ldlm_proc_cleanup();
+	if (ldlm_ns_kset)
+		kset_unregister(ldlm_ns_kset);
+	if (ldlm_svc_kset)
+		kset_unregister(ldlm_svc_kset);
+	if (ldlm_kobj)
+		kobject_put(ldlm_kobj);
 
+	ldlm_debugfs_cleanup();
 
-	OBD_FREE(ldlm_state, sizeof(*ldlm_state));
+	kfree(ldlm_state);
 	ldlm_state = NULL;
 
 	return 0;

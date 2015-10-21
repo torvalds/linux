@@ -52,6 +52,10 @@ Required properties:
 Optional properties:
 - dr_mode:      One of "host", "peripheral" or "otg". Defaults to "otg"
 
+- switch-gpio:  A phandle + gpio-specifier pair. Some boards are using Dual
+                SPDT USB Switch, witch is cotrolled by GPIO to de/multiplex
+                D+/D- USB lines between connectors.
+
 - qcom,phy-init-sequence: PHY configuration sequence values. This is related to Device
                 Mode Eye Diagram test. Start address at which these values will be
                 written is ULPI_EXT_VENDOR_SPECIFIC. Value of -1 is reserved as
@@ -68,6 +72,17 @@ Optional properties:
 - qcom,vdd-levels: This property must be a list of three integer values
                 (no, min, max) where each value represents either a voltage
                 in microvolts or a value corresponding to voltage corner.
+
+- qcom,manual-pullup: If present, vbus is not routed to USB controller/phy
+                and controller driver therefore enables pull-up explicitly
+                before starting controller using usbcmd run/stop bit.
+
+- extcon:       phandles to external connector devices. First phandle
+                should point to external connector, which provide "USB"
+                cable events, the second should point to external connector
+                device, which provide "USB-HOST" cable events. If one of
+                the external connector devices is not required empty <0>
+                phandle should be specified.
 
 Example HSUSB OTG controller device node:
 

@@ -15,6 +15,8 @@
 #include <linux/io.h>
 #include <linux/suspend.h>
 #include <linux/platform_data/arm-ux500-pm.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "db8500-regs.h"
 #include "pm_domains.h"
@@ -42,6 +44,7 @@
 #define PRCM_ARMITVAL127TO96	(prcmu_base + 0x26C)
 
 static void __iomem *prcmu_base;
+static void __iomem *dist_base;
 
 /* This function decouple the gic from the prcmu */
 int prcmu_gic_decouple(void)
@@ -88,7 +91,6 @@ bool prcmu_gic_pending_irq(void)
 {
 	u32 pr; /* Pending register */
 	u32 er; /* Enable register */
-	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
 	int i;
 
 	/* 5 registers. STI & PPI not skipped */
@@ -143,7 +145,6 @@ bool prcmu_is_cpu_in_wfi(int cpu)
 int prcmu_copy_gic_settings(void)
 {
 	u32 er; /* Enable register */
-	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
 	int i;
 
 	/* We skip the STI and PPI */
@@ -179,11 +180,21 @@ static const struct platform_suspend_ops ux500_suspend_ops = {
 
 void __init ux500_pm_init(u32 phy_base, u32 size)
 {
+	struct device_node *np;
+
 	prcmu_base = ioremap(phy_base, size);
 	if (!prcmu_base) {
 		pr_err("could not remap PRCMU for PM functions\n");
 		return;
 	}
+	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-gic");
+	dist_base = of_iomap(np, 0);
+	of_node_put(np);
+	if (!dist_base) {
+		pr_err("could not remap GIC dist base for PM functions\n");
+		return;
+	}
+
 	/*
 	 * On watchdog reboot the GIC is in some cases decoupled.
 	 * This will make sure that the GIC is correctly configured.

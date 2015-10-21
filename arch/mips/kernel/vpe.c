@@ -817,6 +817,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 
 static int vpe_release(struct inode *inode, struct file *filp)
 {
+#if defined(CONFIG_MIPS_VPE_LOADER_MT) || defined(CONFIG_MIPS_VPE_LOADER_CMP)
 	struct vpe *v;
 	Elf_Ehdr *hdr;
 	int ret = 0;
@@ -827,7 +828,7 @@ static int vpe_release(struct inode *inode, struct file *filp)
 
 	hdr = (Elf_Ehdr *) v->pbuffer;
 	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) == 0) {
-		if ((vpe_elfload(v) >= 0) && vpe_run) {
+		if (vpe_elfload(v) >= 0) {
 			vpe_run(v);
 		} else {
 			pr_warn("VPE loader: ELF load failed.\n");
@@ -850,6 +851,10 @@ static int vpe_release(struct inode *inode, struct file *filp)
 	v->plen = 0;
 
 	return ret;
+#else
+	pr_warn("VPE loader: ELF load failed.\n");
+	return -ENOEXEC;
+#endif
 }
 
 static ssize_t vpe_write(struct file *file, const char __user *buffer,

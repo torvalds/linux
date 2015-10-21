@@ -146,7 +146,8 @@ static int xhci_start(struct xhci_hcd *xhci)
 				"waited %u microseconds.\n",
 				XHCI_MAX_HALT_USEC);
 	if (!ret)
-		xhci->xhc_state &= ~XHCI_STATE_HALTED;
+		xhci->xhc_state &= ~(XHCI_STATE_HALTED | XHCI_STATE_DYING);
+
 	return ret;
 }
 
@@ -654,21 +655,6 @@ int xhci_run(struct usb_hcd *hcd)
 }
 EXPORT_SYMBOL_GPL(xhci_run);
 
-static void xhci_only_stop_hcd(struct usb_hcd *hcd)
-{
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-
-	spin_lock_irq(&xhci->lock);
-	xhci_halt(xhci);
-
-	/* The shared_hcd is going to be deallocated shortly (the USB core only
-	 * calls this function when allocation fails in usb_add_hcd(), or
-	 * usb_remove_hcd() is called).  So we need to unset xHCI's pointer.
-	 */
-	xhci->shared_hcd = NULL;
-	spin_unlock_irq(&xhci->lock);
-}
-
 /*
  * Stop xHCI driver.
  *
@@ -683,12 +669,14 @@ void xhci_stop(struct usb_hcd *hcd)
 	u32 temp;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
-	if (!usb_hcd_is_primary_hcd(hcd)) {
-		xhci_only_stop_hcd(xhci->shared_hcd);
+	if (xhci->xhc_state & XHCI_STATE_HALTED)
 		return;
-	}
 
+	mutex_lock(&xhci->mutex);
 	spin_lock_irq(&xhci->lock);
+	xhci->xhc_state |= XHCI_STATE_HALTED;
+	xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
+
 	/* Make sure the xHC is halted for a USB3 roothub
 	 * (xhci_stop() could be called as part of failed init).
 	 */
@@ -723,6 +711,7 @@ void xhci_stop(struct usb_hcd *hcd)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"xhci_stop completed - status = %x",
 			readl(&xhci->op_regs->status));
+	mutex_unlock(&xhci->mutex);
 }
 
 /*
@@ -897,6 +886,9 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	u32			command;
 
+	if (!hcd->state)
+		return 0;
+
 	if (hcd->state != HC_STATE_SUSPENDED ||
 			xhci->shared_hcd->state != HC_STATE_SUSPENDED)
 		return -EINVAL;
@@ -982,6 +974,9 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	struct usb_hcd		*secondary_hcd;
 	int			retval = 0;
 	bool			comp_timer_running = false;
+
+	if (!hcd->state)
+		return 0;
 
 	/* Wait a bit if either of the roothubs need to settle from the
 	 * transition into bus suspend.
@@ -1340,6 +1335,11 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 
 	if (usb_endpoint_xfer_isoc(&urb->ep->desc))
 		size = urb->number_of_packets;
+	else if (usb_endpoint_is_bulk_out(&urb->ep->desc) &&
+	    urb->transfer_buffer_length > 0 &&
+	    urb->transfer_flags & URB_ZERO_PACKET &&
+	    !(urb->transfer_buffer_length % usb_endpoint_maxp(&urb->ep->desc)))
+		size = 2;
 	else
 		size = 1;
 
@@ -3117,7 +3117,7 @@ static u32 xhci_calculate_no_streams_bitmask(struct xhci_hcd *xhci,
 }
 
 /*
- * The USB device drivers use this function (though the HCD interface in USB
+ * The USB device drivers use this function (through the HCD interface in USB
  * core) to prepare a set of bulk endpoints to use streams.  Streams are used to
  * coordinate mass storage command queueing across multiple endpoints (basically
  * a stream ID == a task ID).
@@ -3453,6 +3453,9 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 			return -EINVAL;
 	}
 
+	if (virt_dev->tt_info)
+		old_active_eps = virt_dev->tt_info->active_eps;
+
 	if (virt_dev->udev != udev) {
 		/* If the virt_dev and the udev does not match, this virt_dev
 		 * may belong to another udev.
@@ -3769,8 +3772,6 @@ disable_slot:
 /*
  * Issue an Address Device command and optionally send a corresponding
  * SetAddress request to the device.
- * We should be protected by the usb_address0_mutex in hub_wq's hub_port_init,
- * so we should only issue and wait on one address command at the same time.
  */
 static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 			     enum xhci_setup_dev setup)
@@ -3786,6 +3787,9 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	struct xhci_command *command = NULL;
 
 	mutex_lock(&xhci->mutex);
+
+	if (xhci->xhc_state)	/* dying or halted */
+		goto out;
 
 	if (!udev->slot_id) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
@@ -4677,7 +4681,6 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 {
 	struct xhci_hcd	*xhci;
 	u16 mel;
-	int ret;
 
 	xhci = hcd_to_xhci(hcd);
 	if (!xhci || !(xhci->quirks & XHCI_LPM_SUPPORT) ||
@@ -4685,10 +4688,7 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 		return 0;
 
 	mel = calculate_max_exit_latency(udev, state, USB3_LPM_DISABLED);
-	ret = xhci_change_max_exit_latency(xhci, udev, mel);
-	if (ret)
-		return ret;
-	return 0;
+	return xhci_change_max_exit_latency(xhci, udev, mel);
 }
 #else /* CONFIG_PM */
 
@@ -4842,10 +4842,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	hcd->self.no_stop_on_short = 1;
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		xhci = kzalloc(sizeof(struct xhci_hcd), GFP_KERNEL);
-		if (!xhci)
-			return -ENOMEM;
-		*((struct xhci_hcd **) hcd->hcd_priv) = xhci;
+		xhci = hcd_to_xhci(hcd);
 		xhci->main_hcd = hcd;
 		/* Mark the first roothub as being USB 2.0.
 		 * The xHCI driver will register the USB 3.0 roothub.
@@ -4894,13 +4891,13 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);
 	if (retval)
-		goto error;
+		return retval;
 
 	xhci_dbg(xhci, "Resetting HCD\n");
 	/* Reset the internal HC memory state and registers. */
 	retval = xhci_reset(xhci);
 	if (retval)
-		goto error;
+		return retval;
 	xhci_dbg(xhci, "Reset complete\n");
 
 	/* Set dma_mask and coherent_dma_mask to 64-bits,
@@ -4915,16 +4912,13 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	/* Initialize HCD and host controller data structures. */
 	retval = xhci_init(hcd);
 	if (retval)
-		goto error;
+		return retval;
 	xhci_dbg(xhci, "Called HCD init\n");
 
 	xhci_info(xhci, "hcc params 0x%08x hci version 0x%x quirks 0x%08x\n",
 		  xhci->hcc_params, xhci->hci_version, xhci->quirks);
 
 	return 0;
-error:
-	kfree(xhci);
-	return retval;
 }
 EXPORT_SYMBOL_GPL(xhci_gen_setup);
 
@@ -4989,11 +4983,21 @@ static const struct hc_driver xhci_hc_driver = {
 	.find_raw_port_number =	xhci_find_raw_port_number,
 };
 
-void xhci_init_driver(struct hc_driver *drv, int (*setup_fn)(struct usb_hcd *))
+void xhci_init_driver(struct hc_driver *drv,
+		      const struct xhci_driver_overrides *over)
 {
-	BUG_ON(!setup_fn);
+	BUG_ON(!over);
+
+	/* Copy the generic table to drv then apply the overrides */
 	*drv = xhci_hc_driver;
-	drv->reset = setup_fn;
+
+	if (over) {
+		drv->hcd_priv_size += over->extra_priv_size;
+		if (over->reset)
+			drv->reset = over->reset;
+		if (over->start)
+			drv->start = over->start;
+	}
 }
 EXPORT_SYMBOL_GPL(xhci_init_driver);
 

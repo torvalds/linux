@@ -41,13 +41,9 @@ static __u8 *cp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 	for (i = 0; i < *rsize - 4; i++)
 		if (rdesc[i] == 0x29 && rdesc[i + 2] == 0x19) {
-			__u8 tmp;
-
 			rdesc[i] = 0x19;
 			rdesc[i + 2] = 0x29;
-			tmp = rdesc[i + 3];
-			rdesc[i + 3] = rdesc[i + 1];
-			rdesc[i + 1] = tmp;
+			swap(rdesc[i + 3], rdesc[i + 1]);
 		}
 	return rdesc;
 }

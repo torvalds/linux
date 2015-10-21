@@ -239,7 +239,8 @@ static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
 	return atmel_hlcdc_plane_prepare_disc_area(s);
 }
 
-static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c)
+static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c,
+					  struct drm_crtc_state *old_s)
 {
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
 
@@ -253,7 +254,8 @@ static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c)
 	}
 }
 
-static void atmel_hlcdc_crtc_atomic_flush(struct drm_crtc *crtc)
+static void atmel_hlcdc_crtc_atomic_flush(struct drm_crtc *crtc,
+					  struct drm_crtc_state *old_s)
 {
 	/* TODO: write common plane control register if available */
 }
@@ -355,6 +357,7 @@ int atmel_hlcdc_crtc_create(struct drm_device *dev)
 		planes->overlays[i]->base.possible_crtcs = 1 << crtc->id;
 
 	drm_crtc_helper_add(&crtc->base, &lcdc_crtc_helper_funcs);
+	drm_crtc_vblank_reset(&crtc->base);
 
 	dc->crtc = &crtc->base;
 

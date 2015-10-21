@@ -815,6 +815,8 @@ void hid_disconnect(struct hid_device *hid);
 const struct hid_device_id *hid_match_id(struct hid_device *hdev,
 					 const struct hid_device_id *id);
 s32 hid_snto32(__u32 value, unsigned n);
+__u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
+		     unsigned offset, unsigned n);
 
 /**
  * hid_device_io_start - enable HID input during probe, remove

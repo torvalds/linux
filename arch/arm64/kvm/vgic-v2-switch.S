@@ -47,7 +47,6 @@ __save_vgic_v2_state:
 	add	x3, x0, #VCPU_VGIC_CPU
 
 	/* Save all interesting registers */
-	ldr	w4, [x2, #GICH_HCR]
 	ldr	w5, [x2, #GICH_VMCR]
 	ldr	w6, [x2, #GICH_MISR]
 	ldr	w7, [x2, #GICH_EISR0]
@@ -55,7 +54,6 @@ __save_vgic_v2_state:
 	ldr	w9, [x2, #GICH_ELRSR0]
 	ldr	w10, [x2, #GICH_ELRSR1]
 	ldr	w11, [x2, #GICH_APR]
-CPU_BE(	rev	w4,  w4  )
 CPU_BE(	rev	w5,  w5  )
 CPU_BE(	rev	w6,  w6  )
 CPU_BE(	rev	w7,  w7  )
@@ -64,7 +62,6 @@ CPU_BE(	rev	w9,  w9  )
 CPU_BE(	rev	w10, w10 )
 CPU_BE(	rev	w11, w11 )
 
-	str	w4, [x3, #VGIC_V2_CPU_HCR]
 	str	w5, [x3, #VGIC_V2_CPU_VMCR]
 	str	w6, [x3, #VGIC_V2_CPU_MISR]
 CPU_LE(	str	w7, [x3, #VGIC_V2_CPU_EISR] )

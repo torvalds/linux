@@ -127,7 +127,7 @@ xfs_error_report(
 	struct xfs_mount	*mp,
 	const char		*filename,
 	int			linenum,
-	inst_t			*ra)
+	void			*ra)
 {
 	if (level <= xfs_error_level) {
 		xfs_alert_tag(mp, XFS_PTAG_ERROR_REPORT,
@@ -146,7 +146,7 @@ xfs_corruption_error(
 	void			*p,
 	const char		*filename,
 	int			linenum,
-	inst_t			*ra)
+	void			*ra)
 {
 	if (level <= xfs_error_level)
 		xfs_hex_dump(p, 64);

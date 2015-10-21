@@ -26,6 +26,7 @@
 #include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/backing-dev.h>
 #include <trace/events/ext4.h>
 
 #ifdef CONFIG_EXT4_DEBUG
@@ -882,10 +883,8 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 
 	/* wait for I/O completion */
 	for (i = 0, group = first_group; i < groups_per_page; i++, group++) {
-		if (bh[i] && ext4_wait_block_bitmap(sb, group, bh[i])) {
+		if (bh[i] && ext4_wait_block_bitmap(sb, group, bh[i]))
 			err = -EIO;
-			goto out;
-		}
 	}
 
 	first_block = page->index * blocks_per_page;
@@ -897,6 +896,11 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 		if (!bh[group - first_group])
 			/* skip initialized uptodate buddy */
 			continue;
+
+		if (!buffer_verified(bh[group - first_group]))
+			/* Skip faulty bitmaps */
+			continue;
+		err = 0;
 
 		/*
 		 * data carry information regarding this
@@ -2008,7 +2012,12 @@ void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 	}
 }
 
-/* This is now called BEFORE we load the buddy bitmap. */
+/*
+ * This is now called BEFORE we load the buddy bitmap.
+ * Returns either 1 or 0 indicating that the group is either suitable
+ * for the allocation or not. In addition it can also return negative
+ * error code when something goes wrong.
+ */
 static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 				ext4_group_t group, int cr)
 {
@@ -2031,7 +2040,7 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 	if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
 		int ret = ext4_mb_init_group(ac->ac_sb, group);
 		if (ret)
-			return 0;
+			return ret;
 	}
 
 	fragments = grp->bb_fragments;
@@ -2078,7 +2087,7 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 {
 	ext4_group_t ngroups, group, i;
 	int cr;
-	int err = 0;
+	int err = 0, first_err = 0;
 	struct ext4_sb_info *sbi;
 	struct super_block *sb;
 	struct ext4_buddy e4b;
@@ -2145,6 +2154,7 @@ repeat:
 		group = ac->ac_g_ex.fe_group;
 
 		for (i = 0; i < ngroups; group++, i++) {
+			int ret = 0;
 			cond_resched();
 			/*
 			 * Artificially restricted ngroups for non-extent
@@ -2154,8 +2164,12 @@ repeat:
 				group = 0;
 
 			/* This now checks without needing the buddy page */
-			if (!ext4_mb_good_group(ac, group, cr))
+			ret = ext4_mb_good_group(ac, group, cr);
+			if (ret <= 0) {
+				if (!first_err)
+					first_err = ret;
 				continue;
+			}
 
 			err = ext4_mb_load_buddy(sb, group, &e4b);
 			if (err)
@@ -2167,9 +2181,12 @@ repeat:
 			 * We need to check again after locking the
 			 * block group
 			 */
-			if (!ext4_mb_good_group(ac, group, cr)) {
+			ret = ext4_mb_good_group(ac, group, cr);
+			if (ret <= 0) {
 				ext4_unlock_group(sb, group);
 				ext4_mb_unload_buddy(&e4b);
+				if (!first_err)
+					first_err = ret;
 				continue;
 			}
 
@@ -2216,6 +2233,8 @@ repeat:
 		}
 	}
 out:
+	if (!err && ac->ac_status != AC_STATUS_FOUND && first_err)
+		err = first_err;
 	return err;
 }
 
@@ -2257,12 +2276,9 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 
 	group--;
 	if (group == 0)
-		seq_printf(seq, "#%-5s: %-5s %-5s %-5s "
-				"[ %-5s %-5s %-5s %-5s %-5s %-5s %-5s "
-				  "%-5s %-5s %-5s %-5s %-5s %-5s %-5s ]\n",
-			   "group", "free", "frags", "first",
-			   "2^0", "2^1", "2^2", "2^3", "2^4", "2^5", "2^6",
-			   "2^7", "2^8", "2^9", "2^10", "2^11", "2^12", "2^13");
+		seq_puts(seq, "#group: free  frags first ["
+			      " 2^0   2^1   2^2   2^3   2^4   2^5   2^6  "
+			      " 2^7   2^8   2^9   2^10  2^11  2^12  2^13  ]");
 
 	i = (sb->s_blocksize_bits + 2) * sizeof(sg.info.bb_counters[0]) +
 		sizeof(struct ext4_group_info);
@@ -4800,18 +4816,12 @@ do_more:
 		/*
 		 * blocks being freed are metadata. these blocks shouldn't
 		 * be used until this transaction is committed
+		 *
+		 * We use __GFP_NOFAIL because ext4_free_blocks() is not allowed
+		 * to fail.
 		 */
-	retry:
-		new_entry = kmem_cache_alloc(ext4_free_data_cachep, GFP_NOFS);
-		if (!new_entry) {
-			/*
-			 * We use a retry loop because
-			 * ext4_free_blocks() is not allowed to fail.
-			 */
-			cond_resched();
-			congestion_wait(BLK_RW_ASYNC, HZ/50);
-			goto retry;
-		}
+		new_entry = kmem_cache_alloc(ext4_free_data_cachep,
+				GFP_NOFS|__GFP_NOFAIL);
 		new_entry->efd_start_cluster = bit;
 		new_entry->efd_group = block_group;
 		new_entry->efd_count = count_clusters;

@@ -9,6 +9,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -558,8 +559,7 @@ static void __init ti_fapll_setup(struct device_node *node)
 		goto free;
 	}
 
-	parent_name[0] = of_clk_get_parent_name(node, 0);
-	parent_name[1] = of_clk_get_parent_name(node, 1);
+	of_clk_parent_fill(node, parent_name, 2);
 	init->parent_names = parent_name;
 
 	fd->clk_ref = of_clk_get(node, 0);
@@ -621,13 +621,13 @@ static void __init ti_fapll_setup(struct device_node *node)
 
 		/* Check for hardwired audio_pll_clk1 */
 		if (is_audio_pll_clk1(freq)) {
-			freq = 0;
-			div = 0;
+			freq = NULL;
+			div = NULL;
 		} else {
 			/* Does the synthesizer have a FREQ register? */
 			v = readl_relaxed(freq);
 			if (!v)
-				freq = 0;
+				freq = NULL;
 		}
 		synth_clk = ti_fapll_synth_setup(fd, freq, div, output_instance,
 						 output_name, node->name,

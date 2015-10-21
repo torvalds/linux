@@ -34,6 +34,8 @@ struct cfg802154_ops {
 							   int type);
 	void	(*del_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
 					       struct net_device *dev);
+	int	(*suspend)(struct wpan_phy *wpan_phy);
+	int	(*resume)(struct wpan_phy *wpan_phy);
 	int	(*add_virtual_intf)(struct wpan_phy *wpan_phy,
 				    const char *name,
 				    unsigned char name_assign_type,
@@ -44,6 +46,8 @@ struct cfg802154_ops {
 	int	(*set_channel)(struct wpan_phy *wpan_phy, u8 page, u8 channel);
 	int	(*set_cca_mode)(struct wpan_phy *wpan_phy,
 				const struct wpan_phy_cca *cca);
+	int     (*set_cca_ed_level)(struct wpan_phy *wpan_phy, s32 ed_level);
+	int     (*set_tx_power)(struct wpan_phy *wpan_phy, s32 power);
 	int	(*set_pan_id)(struct wpan_phy *wpan_phy,
 			      struct wpan_dev *wpan_dev, __le16 pan_id);
 	int	(*set_short_addr)(struct wpan_phy *wpan_phy,
@@ -59,6 +63,36 @@ struct cfg802154_ops {
 					 s8 max_frame_retries);
 	int	(*set_lbt_mode)(struct wpan_phy *wpan_phy,
 				struct wpan_dev *wpan_dev, bool mode);
+	int	(*set_ackreq_default)(struct wpan_phy *wpan_phy,
+				      struct wpan_dev *wpan_dev, bool ackreq);
+};
+
+static inline bool
+wpan_phy_supported_bool(bool b, enum nl802154_supported_bool_states st)
+{
+	switch (st) {
+	case NL802154_SUPPORTED_BOOL_TRUE:
+		return b;
+	case NL802154_SUPPORTED_BOOL_FALSE:
+		return !b;
+	case NL802154_SUPPORTED_BOOL_BOTH:
+		return true;
+	default:
+		WARN_ON(1);
+	}
+
+	return false;
+}
+
+struct wpan_phy_supported {
+	u32 channels[IEEE802154_MAX_PAGE + 1],
+	    cca_modes, cca_opts, iftypes;
+	enum nl802154_supported_bool_states lbt;
+	u8 min_minbe, max_minbe, min_maxbe, max_maxbe,
+	   min_csma_backoffs, max_csma_backoffs;
+	s8 min_frame_retries, max_frame_retries;
+	size_t tx_powers_size, cca_ed_levels_size;
+	const s32 *tx_powers, *cca_ed_levels;
 };
 
 struct wpan_phy_cca {
@@ -66,9 +100,33 @@ struct wpan_phy_cca {
 	enum nl802154_cca_opts opt;
 };
 
-struct wpan_phy {
-	struct mutex pib_lock;
+static inline bool
+wpan_phy_cca_cmp(const struct wpan_phy_cca *a, const struct wpan_phy_cca *b)
+{
+	if (a->mode != b->mode)
+		return false;
 
+	if (a->mode == NL802154_CCA_ENERGY_CARRIER)
+		return a->opt == b->opt;
+
+	return true;
+}
+
+/**
+ * @WPAN_PHY_FLAG_TRANSMIT_POWER: Indicates that transceiver will support
+ *	transmit power setting.
+ * @WPAN_PHY_FLAG_CCA_ED_LEVEL: Indicates that transceiver will support cca ed
+ *	level setting.
+ * @WPAN_PHY_FLAG_CCA_MODE: Indicates that transceiver will support cca mode
+ *	setting.
+ */
+enum wpan_phy_flags {
+	WPAN_PHY_FLAG_TXPOWER		= BIT(1),
+	WPAN_PHY_FLAG_CCA_ED_LEVEL	= BIT(2),
+	WPAN_PHY_FLAG_CCA_MODE		= BIT(3),
+};
+
+struct wpan_phy {
 	/* If multiple wpan_phys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee802154_ptr, you won't
 	 * know whether it points to a wpan_phy your driver has registered
@@ -77,6 +135,8 @@ struct wpan_phy {
 	 */
 	const void *privid;
 
+	u32 flags;
+
 	/*
 	 * This is a PIB according to 802.15.4-2011.
 	 * We do not provide timing-related variables, as they
@@ -84,12 +144,14 @@ struct wpan_phy {
 	 */
 	u8 current_channel;
 	u8 current_page;
-	u32 channels_supported[IEEE802154_MAX_PAGE + 1];
-	s8 transmit_power;
+	struct wpan_phy_supported supported;
+	/* current transmit_power in mBm */
+	s32 transmit_power;
 	struct wpan_phy_cca cca;
 
 	__le64 perm_extended_addr;
 
+	/* current cca ed threshold in mBm */
 	s32 cca_ed_level;
 
 	/* PHY depended MAC PIB values */
@@ -113,6 +175,9 @@ struct wpan_dev {
 	struct list_head list;
 	struct net_device *netdev;
 
+	/* lowpan interface, set when the wpan_dev belongs to one lowpan_dev */
+	struct net_device *lowpan_dev;
+
 	u32 identifier;
 
 	/* MAC PIB */
@@ -121,9 +186,9 @@ struct wpan_dev {
 	__le64 extended_addr;
 
 	/* MAC BSN field */
-	u8 bsn;
+	atomic_t bsn;
 	/* MAC DSN field */
-	u8 dsn;
+	atomic_t dsn;
 
 	u8 min_be;
 	u8 max_be;
@@ -133,6 +198,9 @@ struct wpan_dev {
 	bool lbt;
 
 	bool promiscuous_mode;
+
+	/* fallback for acknowledgment bit setting */
+	bool ackreq;
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)

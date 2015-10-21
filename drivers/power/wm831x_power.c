@@ -609,6 +609,7 @@ static int wm831x_power_probe(struct platform_device *pdev)
 	return ret;
 
 err_bat_irq:
+	--i;
 	for (; i >= 0; i--) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
 		free_irq(irq, power);

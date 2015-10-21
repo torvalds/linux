@@ -131,10 +131,11 @@ xfs_mount_validate_sb(
 		if (xfs_sb_has_compat_feature(sbp,
 					XFS_SB_FEAT_COMPAT_UNKNOWN)) {
 			xfs_warn(mp,
-"Superblock has unknown compatible features (0x%x) enabled.\n"
-"Using a more recent kernel is recommended.",
+"Superblock has unknown compatible features (0x%x) enabled.",
 				(sbp->sb_features_compat &
 						XFS_SB_FEAT_COMPAT_UNKNOWN));
+			xfs_warn(mp,
+"Using a more recent kernel is recommended.");
 		}
 
 		if (xfs_sb_has_ro_compat_feature(sbp,
@@ -145,18 +146,21 @@ xfs_mount_validate_sb(
 						XFS_SB_FEAT_RO_COMPAT_UNKNOWN));
 			if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
 				xfs_warn(mp,
-"Attempted to mount read-only compatible filesystem read-write.\n"
+"Attempted to mount read-only compatible filesystem read-write.");
+				xfs_warn(mp,
 "Filesystem can only be safely mounted read only.");
+
 				return -EINVAL;
 			}
 		}
 		if (xfs_sb_has_incompat_feature(sbp,
 					XFS_SB_FEAT_INCOMPAT_UNKNOWN)) {
 			xfs_warn(mp,
-"Superblock has unknown incompatible features (0x%x) enabled.\n"
-"Filesystem can not be safely mounted by this kernel.",
+"Superblock has unknown incompatible features (0x%x) enabled.",
 				(sbp->sb_features_incompat &
 						XFS_SB_FEAT_INCOMPAT_UNKNOWN));
+			xfs_warn(mp,
+"Filesystem can not be safely mounted by this kernel.");
 			return -EINVAL;
 		}
 	}
@@ -172,6 +176,24 @@ xfs_mount_validate_sb(
 			xfs_notice(mp,
 "Superblock earlier than Version 5 has XFS_[PQ]UOTA_{ENFD|CHKD} bits.");
 			return -EFSCORRUPTED;
+	}
+
+	/*
+	 * Full inode chunks must be aligned to inode chunk size when
+	 * sparse inodes are enabled to support the sparse chunk
+	 * allocation algorithm and prevent overlapping inode records.
+	 */
+	if (xfs_sb_version_hassparseinodes(sbp)) {
+		uint32_t	align;
+
+		align = XFS_INODES_PER_CHUNK * sbp->sb_inodesize
+				>> sbp->sb_blocklog;
+		if (sbp->sb_inoalignmt != align) {
+			xfs_warn(mp,
+"Inode block alignment (%u) must match chunk size (%u) for sparse inodes.",
+				 sbp->sb_inoalignmt, align);
+			return -EINVAL;
+		}
 	}
 
 	if (unlikely(
@@ -374,9 +396,17 @@ __xfs_sb_from_disk(
 				be32_to_cpu(from->sb_features_log_incompat);
 	/* crc is only used on disk, not in memory; just init to 0 here. */
 	to->sb_crc = 0;
-	to->sb_pad = 0;
+	to->sb_spino_align = be32_to_cpu(from->sb_spino_align);
 	to->sb_pquotino = be64_to_cpu(from->sb_pquotino);
 	to->sb_lsn = be64_to_cpu(from->sb_lsn);
+	/*
+	 * sb_meta_uuid is only on disk if it differs from sb_uuid and the
+	 * feature flag is set; if not set we keep it only in memory.
+	 */
+	if (xfs_sb_version_hasmetauuid(to))
+		uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
+	else
+		uuid_copy(&to->sb_meta_uuid, &from->sb_uuid);
 	/* Convert on-disk flags to in-memory flags? */
 	if (convert_xquota)
 		xfs_sb_quota_from_disk(to);
@@ -516,8 +546,10 @@ xfs_sb_to_disk(
 				cpu_to_be32(from->sb_features_incompat);
 		to->sb_features_log_incompat =
 				cpu_to_be32(from->sb_features_log_incompat);
-		to->sb_pad = 0;
+		to->sb_spino_align = cpu_to_be32(from->sb_spino_align);
 		to->sb_lsn = cpu_to_be64(from->sb_lsn);
+		if (xfs_sb_version_hasmetauuid(from))
+			uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
 	}
 }
 
@@ -689,6 +721,11 @@ xfs_sb_mount_common(
 	mp->m_ialloc_inos = (int)MAX((__uint16_t)XFS_INODES_PER_CHUNK,
 					sbp->sb_inopblock);
 	mp->m_ialloc_blks = mp->m_ialloc_inos >> sbp->sb_inopblog;
+
+	if (sbp->sb_spino_align)
+		mp->m_ialloc_min_blks = sbp->sb_spino_align;
+	else
+		mp->m_ialloc_min_blks = mp->m_ialloc_blks;
 }
 
 /*
@@ -792,12 +829,12 @@ xfs_sync_sb(
 	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_CHANGE, KM_SLEEP);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
 	xfs_log_sb(tp);
 	if (wait)
 		xfs_trans_set_sync(tp);
-	return xfs_trans_commit(tp, 0);
+	return xfs_trans_commit(tp);
 }

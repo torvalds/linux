@@ -1,0 +1,9 @@
+#
+# Unisys visorbus configuration
+#
+
+config UNISYS_VISORBUS
+	tristate "Unisys visorbus driver"
+	depends on UNISYSSPAR
+	---help---
+	If you say Y here, you will enable the Unisys visorbus driver.

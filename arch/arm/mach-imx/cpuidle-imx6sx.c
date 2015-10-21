@@ -25,7 +25,7 @@ static int imx6sx_idle_finish(unsigned long val)
 static int imx6sx_enter_wait(struct cpuidle_device *dev,
 			    struct cpuidle_driver *drv, int index)
 {
-	imx6q_set_lpm(WAIT_UNCLOCKED);
+	imx6_set_lpm(WAIT_UNCLOCKED);
 
 	switch (index) {
 	case 1:
@@ -50,7 +50,7 @@ static int imx6sx_enter_wait(struct cpuidle_device *dev,
 		break;
 	}
 
-	imx6q_set_lpm(WAIT_CLOCKED);
+	imx6_set_lpm(WAIT_CLOCKED);
 
 	return index;
 }

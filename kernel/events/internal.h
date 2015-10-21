@@ -11,6 +11,7 @@
 struct ring_buffer {
 	atomic_t			refcount;
 	struct rcu_head			rcu_head;
+	struct irq_work			irq_work;
 #ifdef CONFIG_PERF_USE_VMALLOC
 	struct work_struct		work;
 	int				page_order;	/* allocation order  */
@@ -55,6 +56,15 @@ struct ring_buffer {
 };
 
 extern void rb_free(struct ring_buffer *rb);
+
+static inline void rb_free_rcu(struct rcu_head *rcu_head)
+{
+	struct ring_buffer *rb;
+
+	rb = container_of(rcu_head, struct ring_buffer, rcu_head);
+	rb_free(rb);
+}
+
 extern struct ring_buffer *
 rb_alloc(int nr_pages, long watermark, int cpu, int flags);
 extern void perf_event_wakeup(struct perf_event *event);
@@ -71,15 +81,6 @@ static inline bool rb_has_aux(struct ring_buffer *rb)
 
 void perf_event_aux_event(struct perf_event *event, unsigned long head,
 			  unsigned long size, u64 flags);
-
-extern void
-perf_event_header__init_id(struct perf_event_header *header,
-			   struct perf_sample_data *data,
-			   struct perf_event *event);
-extern void
-perf_event__output_id_sample(struct perf_event *event,
-			     struct perf_output_handle *handle,
-			     struct perf_sample_data *sample);
 
 extern struct page *
 perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff);

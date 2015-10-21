@@ -97,7 +97,8 @@ static noinline void cachefiles_printk_object(struct cachefiles_object *object,
  *   call vfs_unlink(), vfs_rmdir() or vfs_rename()
  */
 static void cachefiles_mark_object_buried(struct cachefiles_cache *cache,
-					  struct dentry *dentry)
+					  struct dentry *dentry,
+					  enum fscache_why_object_killed why)
 {
 	struct cachefiles_object *object;
 	struct rb_node *p;
@@ -132,8 +133,9 @@ found_dentry:
 		pr_err("\n");
 		pr_err("Error: Can't preemptively bury live object\n");
 		cachefiles_printk_object(object, NULL);
-	} else if (test_and_set_bit(CACHEFILES_OBJECT_BURIED, &object->flags)) {
-		pr_err("Error: Object already preemptively buried\n");
+	} else {
+		if (why != FSCACHE_OBJECT_IS_STALE)
+			fscache_object_mark_killed(&object->fscache, why);
 	}
 
 	write_unlock(&cache->active_lock);
@@ -265,7 +267,8 @@ requeue:
 static int cachefiles_bury_object(struct cachefiles_cache *cache,
 				  struct dentry *dir,
 				  struct dentry *rep,
-				  bool preemptive)
+				  bool preemptive,
+				  enum fscache_why_object_killed why)
 {
 	struct dentry *grave, *trap;
 	struct path path, path_to_graveyard;
@@ -289,7 +292,7 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 			ret = vfs_unlink(d_inode(dir), rep, NULL);
 
 			if (preemptive)
-				cachefiles_mark_object_buried(cache, rep);
+				cachefiles_mark_object_buried(cache, rep, why);
 		}
 
 		mutex_unlock(&d_inode(dir)->i_mutex);
@@ -394,7 +397,7 @@ try_again:
 					    "Rename failed with error %d", ret);
 
 		if (preemptive)
-			cachefiles_mark_object_buried(cache, rep);
+			cachefiles_mark_object_buried(cache, rep, why);
 	}
 
 	unlock_rename(cache->graveyard, dir);
@@ -422,7 +425,7 @@ int cachefiles_delete_object(struct cachefiles_cache *cache,
 
 	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_PARENT);
 
-	if (test_bit(CACHEFILES_OBJECT_BURIED, &object->flags)) {
+	if (test_bit(FSCACHE_OBJECT_KILLED_BY_CACHE, &object->fscache.flags)) {
 		/* object allocation for the same key preemptively deleted this
 		 * object's file so that it could create its own file */
 		_debug("object preemptively buried");
@@ -433,7 +436,8 @@ int cachefiles_delete_object(struct cachefiles_cache *cache,
 		 * may have been renamed */
 		if (dir == object->dentry->d_parent) {
 			ret = cachefiles_bury_object(cache, dir,
-						     object->dentry, false);
+						     object->dentry, false,
+						     FSCACHE_OBJECT_WAS_RETIRED);
 		} else {
 			/* it got moved, presumably by cachefilesd culling it,
 			 * so it's no longer in the key path and we can ignore
@@ -522,7 +526,7 @@ lookup_again:
 		if (d_is_negative(next)) {
 			ret = cachefiles_has_space(cache, 1, 0);
 			if (ret < 0)
-				goto create_error;
+				goto no_space_error;
 
 			path.dentry = dir;
 			ret = security_path_mkdir(&path, next, 0);
@@ -551,7 +555,7 @@ lookup_again:
 		if (d_is_negative(next)) {
 			ret = cachefiles_has_space(cache, 1, 0);
 			if (ret < 0)
-				goto create_error;
+				goto no_space_error;
 
 			path.dentry = dir;
 			ret = security_path_mknod(&path, next, S_IFREG, 0);
@@ -602,7 +606,8 @@ lookup_again:
 			 * mutex) */
 			object->dentry = NULL;
 
-			ret = cachefiles_bury_object(cache, dir, next, true);
+			ret = cachefiles_bury_object(cache, dir, next, true,
+						     FSCACHE_OBJECT_IS_STALE);
 			dput(next);
 			next = NULL;
 
@@ -610,6 +615,7 @@ lookup_again:
 				goto delete_error;
 
 			_debug("redo lookup");
+			fscache_object_retrying_stale(&object->fscache);
 			goto lookup_again;
 		}
 	}
@@ -662,6 +668,8 @@ lookup_again:
 	_leave(" = 0 [%lu]", d_backing_inode(object->dentry)->i_ino);
 	return 0;
 
+no_space_error:
+	fscache_object_mark_killed(&object->fscache, FSCACHE_OBJECT_NO_SPACE);
 create_error:
 	_debug("create error %d", ret);
 	if (ret == -EIO)
@@ -927,7 +935,8 @@ int cachefiles_cull(struct cachefiles_cache *cache, struct dentry *dir,
 	/*  actually remove the victim (drops the dir mutex) */
 	_debug("bury");
 
-	ret = cachefiles_bury_object(cache, dir, victim, false);
+	ret = cachefiles_bury_object(cache, dir, victim, false,
+				     FSCACHE_OBJECT_WAS_CULLED);
 	if (ret < 0)
 		goto error;
 

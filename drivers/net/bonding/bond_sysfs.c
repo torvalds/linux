@@ -380,7 +380,7 @@ static ssize_t bonding_show_ad_select(struct device *d,
 static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,
 		   bonding_show_ad_select, bonding_sysfs_store_option);
 
-/* Show and set the number of peer notifications to send after a failover event. */
+/* Show the number of peer notifications to send after a failover event. */
 static ssize_t bonding_show_num_peer_notif(struct device *d,
 					   struct device_attribute *attr,
 					   char *buf)
@@ -388,24 +388,10 @@ static ssize_t bonding_show_num_peer_notif(struct device *d,
 	struct bonding *bond = to_bond(d);
 	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
 }
-
-static ssize_t bonding_store_num_peer_notif(struct device *d,
-					    struct device_attribute *attr,
-					    const char *buf, size_t count)
-{
-	struct bonding *bond = to_bond(d);
-	int ret;
-
-	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_NUM_PEER_NOTIF, (char *)buf);
-	if (!ret)
-		ret = count;
-
-	return ret;
-}
 static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR,
-		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
+		   bonding_show_num_peer_notif, bonding_sysfs_store_option);
 static DEVICE_ATTR(num_unsol_na, S_IRUGO | S_IWUSR,
-		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
+		   bonding_show_num_peer_notif, bonding_sysfs_store_option);
 
 /* Show the MII monitor interval. */
 static ssize_t bonding_show_miimon(struct device *d,
@@ -549,7 +535,7 @@ static ssize_t bonding_show_ad_actor_key(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN)) {
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
@@ -569,7 +555,7 @@ static ssize_t bonding_show_ad_partner_key(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN)) {
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
@@ -589,7 +575,7 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN)) {
 		struct ad_info ad_info;
 		if (!bond_3ad_get_active_agg_info(bond, &ad_info))
 			count = sprintf(buf, "%pM\n", ad_info.partner_system);
@@ -692,6 +678,49 @@ static ssize_t bonding_show_packets_per_slave(struct device *d,
 static DEVICE_ATTR(packets_per_slave, S_IRUGO | S_IWUSR,
 		   bonding_show_packets_per_slave, bonding_sysfs_store_option);
 
+static ssize_t bonding_show_ad_actor_sys_prio(struct device *d,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN))
+		return sprintf(buf, "%hu\n", bond->params.ad_actor_sys_prio);
+
+	return 0;
+}
+static DEVICE_ATTR(ad_actor_sys_prio, S_IRUGO | S_IWUSR,
+		   bonding_show_ad_actor_sys_prio, bonding_sysfs_store_option);
+
+static ssize_t bonding_show_ad_actor_system(struct device *d,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN))
+		return sprintf(buf, "%pM\n", bond->params.ad_actor_system);
+
+	return 0;
+}
+
+static DEVICE_ATTR(ad_actor_system, S_IRUGO | S_IWUSR,
+		   bonding_show_ad_actor_system, bonding_sysfs_store_option);
+
+static ssize_t bonding_show_ad_user_port_key(struct device *d,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN))
+		return sprintf(buf, "%hu\n", bond->params.ad_user_port_key);
+
+	return 0;
+}
+static DEVICE_ATTR(ad_user_port_key, S_IRUGO | S_IWUSR,
+		   bonding_show_ad_user_port_key, bonding_sysfs_store_option);
+
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
 	&dev_attr_mode.attr,
@@ -725,6 +754,9 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_lp_interval.attr,
 	&dev_attr_packets_per_slave.attr,
 	&dev_attr_tlb_dynamic_lb.attr,
+	&dev_attr_ad_actor_sys_prio.attr,
+	&dev_attr_ad_actor_system.attr,
+	&dev_attr_ad_user_port_key.attr,
 	NULL,
 };
 

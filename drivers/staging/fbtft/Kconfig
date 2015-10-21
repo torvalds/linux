@@ -1,6 +1,7 @@
 menuconfig FB_TFT
 	tristate "Support for small TFT LCD display modules"
-	depends on FB && SPI && GPIOLIB
+	depends on FB && SPI
+	depends on GPIOLIB || COMPILE_TEST
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
@@ -12,7 +13,7 @@ config FB_TFT_AGM1264K_FL
 	tristate "FB driver for the AGM1264K-FL LCD display"
 	depends on FB_TFT
 	help
-	  Framebuffer support for the AGM1264K-FL LCD display (two Samsung KS0108 compatable chips)
+	  Framebuffer support for the AGM1264K-FL LCD display (two Samsung KS0108 compatible chips)
 
 config FB_TFT_BD663474
 	tristate "FB driver for the BD663474 LCD Controller"
@@ -37,6 +38,12 @@ config FB_TFT_HX8353D
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for HX8353D
+
+config FB_TFT_HX8357D
+	tristate "FB driver for the HX8357D LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for HX8357D
 
 config FB_TFT_ILI9163
 	tristate "FB driver for the ILI9163 LCD Controller"
@@ -145,6 +152,12 @@ config FB_TFT_TLS8204
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for TLS8204
+
+config FB_TFT_UC1611
+	tristate "FB driver for the UC1611 LCD controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for UC1611
 
 config FB_TFT_UC1701
 	tristate "FB driver for the UC1701 LCD Controller"

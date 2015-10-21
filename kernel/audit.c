@@ -1761,7 +1761,7 @@ void audit_log_name(struct audit_context *context, struct audit_names *n,
 	} else
 		audit_log_format(ab, " name=(null)");
 
-	if (n->ino != (unsigned long)-1)
+	if (n->ino != AUDIT_INO_UNSET)
 		audit_log_format(ab, " inode=%lu"
 				 " dev=%02x:%02x mode=%#ho"
 				 " ouid=%u ogid=%u rdev=%02x:%02x",
@@ -1904,7 +1904,7 @@ EXPORT_SYMBOL(audit_log_task_info);
 
 /**
  * audit_log_link_denied - report a link restriction denial
- * @operation: specific link opreation
+ * @operation: specific link operation
  * @link: the path that triggered the restriction
  */
 void audit_log_link_denied(const char *operation, struct path *link)

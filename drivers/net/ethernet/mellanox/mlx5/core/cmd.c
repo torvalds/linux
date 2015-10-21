@@ -75,25 +75,6 @@ enum {
 	MLX5_CMD_DELIVERY_STAT_CMD_DESCR_ERR		= 0x10,
 };
 
-enum {
-	MLX5_CMD_STAT_OK			= 0x0,
-	MLX5_CMD_STAT_INT_ERR			= 0x1,
-	MLX5_CMD_STAT_BAD_OP_ERR		= 0x2,
-	MLX5_CMD_STAT_BAD_PARAM_ERR		= 0x3,
-	MLX5_CMD_STAT_BAD_SYS_STATE_ERR		= 0x4,
-	MLX5_CMD_STAT_BAD_RES_ERR		= 0x5,
-	MLX5_CMD_STAT_RES_BUSY			= 0x6,
-	MLX5_CMD_STAT_LIM_ERR			= 0x8,
-	MLX5_CMD_STAT_BAD_RES_STATE_ERR		= 0x9,
-	MLX5_CMD_STAT_IX_ERR			= 0xa,
-	MLX5_CMD_STAT_NO_RES_ERR		= 0xf,
-	MLX5_CMD_STAT_BAD_INP_LEN_ERR		= 0x50,
-	MLX5_CMD_STAT_BAD_OUTP_LEN_ERR		= 0x51,
-	MLX5_CMD_STAT_BAD_QP_STATE_ERR		= 0x10,
-	MLX5_CMD_STAT_BAD_PKT_ERR		= 0x30,
-	MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR	= 0x40,
-};
-
 static struct mlx5_cmd_work_ent *alloc_cmd(struct mlx5_cmd *cmd,
 					   struct mlx5_cmd_msg *in,
 					   struct mlx5_cmd_msg *out,
@@ -390,8 +371,17 @@ const char *mlx5_command_str(int command)
 	case MLX5_CMD_OP_ARM_RQ:
 		return "ARM_RQ";
 
-	case MLX5_CMD_OP_RESIZE_SRQ:
-		return "RESIZE_SRQ";
+	case MLX5_CMD_OP_CREATE_XRC_SRQ:
+		return "CREATE_XRC_SRQ";
+
+	case MLX5_CMD_OP_DESTROY_XRC_SRQ:
+		return "DESTROY_XRC_SRQ";
+
+	case MLX5_CMD_OP_QUERY_XRC_SRQ:
+		return "QUERY_XRC_SRQ";
+
+	case MLX5_CMD_OP_ARM_XRC_SRQ:
+		return "ARM_XRC_SRQ";
 
 	case MLX5_CMD_OP_ALLOC_PD:
 		return "ALLOC_PD";
@@ -408,8 +398,8 @@ const char *mlx5_command_str(int command)
 	case MLX5_CMD_OP_ATTACH_TO_MCG:
 		return "ATTACH_TO_MCG";
 
-	case MLX5_CMD_OP_DETACH_FROM_MCG:
-		return "DETACH_FROM_MCG";
+	case MLX5_CMD_OP_DETTACH_FROM_MCG:
+		return "DETTACH_FROM_MCG";
 
 	case MLX5_CMD_OP_ALLOC_XRCD:
 		return "ALLOC_XRCD";

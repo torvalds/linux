@@ -1,8 +1,6 @@
 # define_trace.h needs to know how to find our header
 CFLAGS_trace.o				:= -I$(src)
 
-ccflags-$(CONFIG_USB_DWC3_DEBUG)	:= -DDEBUG
-
 obj-$(CONFIG_USB_DWC3)			+= dwc3.o
 
 dwc3-y					:= core.o debug.o trace.o
@@ -13,6 +11,10 @@ endif
 
 ifneq ($(filter y,$(CONFIG_USB_DWC3_GADGET) $(CONFIG_USB_DWC3_DUAL_ROLE)),)
 	dwc3-y				+= gadget.o ep0.o
+endif
+
+ifneq ($(CONFIG_USB_DWC3_ULPI),)
+	dwc3-y				+= ulpi.o
 endif
 
 ifneq ($(CONFIG_DEBUG_FS),)

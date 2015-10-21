@@ -2,6 +2,7 @@
 started by Ingo Molnar <mingo@redhat.com>, 2001.09.17
 2.6 port and netpoll api by Matt Mackall <mpm@selenic.com>, Sep 9 2003
 IPv6 support by Cong Wang <xiyou.wangcong@gmail.com>, Jan 1 2013
+Extended console support by Tejun Heo <tj@kernel.org>, May 1 2015
 
 Please send bug reports to Matt Mackall <mpm@selenic.com>
 Satyam Sharma <satyam.sharma@gmail.com>, and Cong Wang <xiyou.wangcong@gmail.com>
@@ -24,9 +25,10 @@ Sender and receiver configuration:
 It takes a string configuration parameter "netconsole" in the
 following format:
 
- netconsole=[src-port]@[src-ip]/[<dev>],[tgt-port]@<tgt-ip>/[tgt-macaddr]
+ netconsole=[+][src-port]@[src-ip]/[<dev>],[tgt-port]@<tgt-ip>/[tgt-macaddr]
 
    where
+        +             if present, enable extended console support
         src-port      source for UDP packets (defaults to 6665)
         src-ip        source IP to use (interface address)
         dev           network interface (eth0)
@@ -107,6 +109,7 @@ To remove a target:
 The interface exposes these parameters of a netconsole target to userspace:
 
 	enabled		Is this target currently enabled?	(read-write)
+	extended	Extended mode enabled			(read-write)
 	dev_name	Local network interface name		(read-write)
 	local_port	Source UDP port to use			(read-write)
 	remote_port	Remote agent's UDP port			(read-write)
@@ -131,6 +134,36 @@ To update a target's parameters:
 You can also update the local interface dynamically. This is especially
 useful if you want to use interfaces that have newly come up (and may not
 have existed when netconsole was loaded / initialized).
+
+Extended console:
+=================
+
+If '+' is prefixed to the configuration line or "extended" config file
+is set to 1, extended console support is enabled. An example boot
+param follows.
+
+ linux netconsole=+4444@10.0.0.1/eth1,9353@10.0.0.2/12:34:56:78:9a:bc
+
+Log messages are transmitted with extended metadata header in the
+following format which is the same as /dev/kmsg.
+
+ <level>,<sequnum>,<timestamp>,<contflag>;<message text>
+
+Non printable characters in <message text> are escaped using "\xff"
+notation. If the message contains optional dictionary, verbatim
+newline is used as the delimeter.
+
+If a message doesn't fit in certain number of bytes (currently 1000),
+the message is split into multiple fragments by netconsole. These
+fragments are transmitted with "ncfrag" header field added.
+
+ ncfrag=<byte-offset>/<total-bytes>
+
+For example, assuming a lot smaller chunk size, a message "the first
+chunk, the 2nd chunk." may be split as follows.
+
+ 6,416,1758426,-,ncfrag=0/31;the first chunk,
+ 6,416,1758426,-,ncfrag=16/31; the 2nd chunk.
 
 Miscellaneous notes:
 ====================

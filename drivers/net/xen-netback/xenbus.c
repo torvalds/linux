@@ -327,6 +327,14 @@ static int netback_probe(struct xenbus_device *dev,
 			goto abort_transaction;
 		}
 
+		/* We support multicast-control. */
+		err = xenbus_printf(xbt, dev->nodename,
+				    "feature-multicast-control", "%d", 1);
+		if (err) {
+			message = "writing feature-multicast-control";
+			goto abort_transaction;
+		}
+
 		err = xenbus_transaction_end(xbt, 0);
 	} while (err == -EAGAIN);
 
@@ -681,6 +689,9 @@ static int xen_register_watchers(struct xenbus_device *dev, struct xenvif *vif)
 	char *node;
 	unsigned maxlen = strlen(dev->nodename) + sizeof("/rate");
 
+	if (vif->credit_watch.node)
+		return -EADDRINUSE;
+
 	node = kmalloc(maxlen, GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
@@ -770,12 +781,19 @@ static void connect(struct backend_info *be)
 	}
 
 	xen_net_read_rate(dev, &credit_bytes, &credit_usec);
+	xen_unregister_watchers(be->vif);
 	xen_register_watchers(dev, be->vif);
 	read_xenbus_vif_flags(be);
 
 	/* Use the number of queues requested by the frontend */
 	be->vif->queues = vzalloc(requested_num_queues *
 				  sizeof(struct xenvif_queue));
+	if (!be->vif->queues) {
+		xenbus_dev_fatal(dev, -ENOMEM,
+				 "allocating queues");
+		return;
+	}
+
 	be->vif->num_queues = requested_num_queues;
 	be->vif->stalled_queues = requested_num_queues;
 
@@ -1011,6 +1029,11 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 			 "%d", &val) < 0)
 		val = 0;
 	vif->ipv6_csum = !!val;
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend, "request-multicast-control",
+			 "%d", &val) < 0)
+		val = 0;
+	vif->multicast_control = !!val;
 
 	return 0;
 }

@@ -34,6 +34,13 @@
 /* color index */
 #define DRM_FORMAT_C8		fourcc_code('C', '8', ' ', ' ') /* [7:0] C */
 
+/* 8 bpp Red */
+#define DRM_FORMAT_R8		fourcc_code('R', '8', ' ', ' ') /* [7:0] R */
+
+/* 16 bpp RG */
+#define DRM_FORMAT_RG88		fourcc_code('R', 'G', '8', '8') /* [15:0] R:G 8:8 little endian */
+#define DRM_FORMAT_GR88		fourcc_code('G', 'R', '8', '8') /* [15:0] G:R 8:8 little endian */
+
 /* 8 bpp RGB */
 #define DRM_FORMAT_RGB332	fourcc_code('R', 'G', 'B', '8') /* [7:0] R:G:B 3:3:2 */
 #define DRM_FORMAT_BGR233	fourcc_code('B', 'G', 'R', '8') /* [7:0] B:G:R 2:3:3 */
@@ -206,5 +213,20 @@
  * in pixel depends on the pixel depth.
  */
 #define I915_FORMAT_MOD_Yf_TILED fourcc_mod_code(INTEL, 3)
+
+/*
+ * Tiled, NV12MT, grouped in 64 (pixels) x 32 (lines) -sized macroblocks
+ *
+ * Macroblocks are laid in a Z-shape, and each pixel data is following the
+ * standard NV12 style.
+ * As for NV12, an image is the result of two frame buffers: one for Y,
+ * one for the interleaved Cb/Cr components (1/2 the height of the Y buffer).
+ * Alignment requirements are (for each buffer):
+ * - multiple of 128 pixels for the width
+ * - multiple of  32 pixels for the height
+ *
+ * For more information: see http://linuxtv.org/downloads/v4l-dvb-apis/re32.html
+ */
+#define DRM_FORMAT_MOD_SAMSUNG_64_32_TILE	fourcc_mod_code(SAMSUNG, 1)
 
 #endif /* DRM_FOURCC_H */

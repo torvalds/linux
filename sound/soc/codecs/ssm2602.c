@@ -75,11 +75,10 @@ static const struct soc_enum ssm2602_enum[] = {
 			ssm2602_deemph),
 };
 
-static const unsigned int ssm260x_outmix_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(ssm260x_outmix_tlv,
 	0, 47, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 0),
-	48, 127, TLV_DB_SCALE_ITEM(-7400, 100, 0),
-};
+	48, 127, TLV_DB_SCALE_ITEM(-7400, 100, 0)
+);
 
 static const DECLARE_TLV_DB_SCALE(ssm260x_inpga_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(ssm260x_sidetone_tlv, -1500, 300, 0);
@@ -473,7 +472,6 @@ static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -524,8 +522,8 @@ static int ssm2602_resume(struct snd_soc_codec *codec)
 
 static int ssm2602_codec_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	regmap_update_bits(ssm2602->regmap, SSM2602_LOUT1V,
@@ -549,7 +547,7 @@ static int ssm2602_codec_probe(struct snd_soc_codec *codec)
 
 static int ssm2604_codec_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	int ret;
 
 	ret = snd_soc_dapm_new_controls(dapm, ssm2604_dapm_widgets,

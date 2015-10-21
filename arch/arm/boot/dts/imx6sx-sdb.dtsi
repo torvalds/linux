@@ -293,7 +293,7 @@
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	bus-width = <8>;
-	cd-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio2 15 GPIO_ACTIVE_HIGH>;
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
@@ -304,7 +304,7 @@
 &usdhc4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
-	cd-gpios = <&gpio6 21 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio6 21 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio6 20 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };

@@ -1,0 +1,33 @@
+menuconfig STAGING_RDMA
+        bool "RDMA staging drivers"
+	depends on INFINIBAND
+	depends on PCI || BROKEN
+	depends on HAS_IOMEM
+	depends on NET
+	depends on INET
+        default n
+        ---help---
+          This option allows you to select a number of RDMA drivers that
+	  fall into one of two categories: deprecated drivers being held
+	  here before finally being removed or new drivers that still need
+	  some work before being moved to the normal RDMA driver area.
+
+          If you wish to work on these drivers, to help improve them, or
+          to report problems you have with them, please use the
+	  linux-rdma@vger.kernel.org mailing list.
+
+          If in doubt, say N here.
+
+
+# Please keep entries in alphabetic order
+if STAGING_RDMA
+
+source "drivers/staging/rdma/amso1100/Kconfig"
+
+source "drivers/staging/rdma/ehca/Kconfig"
+
+source "drivers/staging/rdma/hfi1/Kconfig"
+
+source "drivers/staging/rdma/ipath/Kconfig"
+
+endif

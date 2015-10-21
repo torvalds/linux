@@ -69,14 +69,14 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL7260_UCODE_API_MAX	13
+#define IWL7260_UCODE_API_MAX	17
 
 /* Oldest version we won't warn about */
 #define IWL7260_UCODE_API_OK	12
 #define IWL3165_UCODE_API_OK	13
 
 /* Lowest firmware API version supported */
-#define IWL7260_UCODE_API_MIN	10
+#define IWL7260_UCODE_API_MIN	12
 #define IWL3165_UCODE_API_MIN	13
 
 /* NVM versions */
@@ -124,6 +124,28 @@ static const struct iwl_base_params iwl7000_base_params = {
 	.apmg_wake_up_wa = true,
 };
 
+static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
+	.ct_kill_entry = 118,
+	.ct_kill_exit = 96,
+	.ct_kill_duration = 5,
+	.dynamic_smps_entry = 114,
+	.dynamic_smps_exit = 110,
+	.tx_protection_entry = 114,
+	.tx_protection_exit = 108,
+	.tx_backoff = {
+		{.temperature = 112, .backoff = 300},
+		{.temperature = 113, .backoff = 800},
+		{.temperature = 114, .backoff = 1500},
+		{.temperature = 115, .backoff = 3000},
+		{.temperature = 116, .backoff = 5000},
+		{.temperature = 117, .backoff = 10000},
+	},
+	.support_ct_kill = true,
+	.support_dynamic_smps = true,
+	.support_tx_protection = true,
+	.support_tx_backoff = true,
+};
+
 static const struct iwl_ht_params iwl7000_ht_params = {
 	.stbc = true,
 	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
@@ -166,6 +188,7 @@ const struct iwl_cfg iwl7260_2ac_cfg_high_temp = {
 	.host_interrupt_operation_mode = true,
 	.lp_xtal_workaround = true,
 	.dccm_len = IWL7260_DCCM_LEN,
+	.thermal_params = &iwl7000_high_temp_tt_params,
 };
 
 const struct iwl_cfg iwl7260_2n_cfg = {
@@ -325,6 +348,6 @@ const struct iwl_cfg iwl7265d_n_cfg = {
 };
 
 MODULE_FIRMWARE(IWL7260_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
-MODULE_FIRMWARE(IWL3160_MODULE_FIRMWARE(IWL3160_UCODE_API_OK));
+MODULE_FIRMWARE(IWL3160_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
 MODULE_FIRMWARE(IWL7265_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
 MODULE_FIRMWARE(IWL7265D_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));

@@ -23,7 +23,8 @@ static inline struct cgroup_cls_state *css_cls_state(struct cgroup_subsys_state 
 
 struct cgroup_cls_state *task_cls_state(struct task_struct *p)
 {
-	return css_cls_state(task_css(p, net_cls_cgrp_id));
+	return css_cls_state(task_css_check(p, net_cls_cgrp_id,
+					    rcu_read_lock_bh_held()));
 }
 EXPORT_SYMBOL_GPL(task_cls_state);
 

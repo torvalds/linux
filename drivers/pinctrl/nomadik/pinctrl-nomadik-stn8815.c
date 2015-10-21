@@ -264,20 +264,6 @@ static const struct pinctrl_pin_desc nmk_stn8815_pins[] = {
 	PINCTRL_PIN(STN8815_PIN_J22, "GPIO123_J22"),
 };
 
-#define STN8815_GPIO_RANGE(a, b, c) { .name = "STN8815", .id = a, .base = b, \
-			.pin_base = b, .npins = c }
-
-/*
- * This matches the 32-pin gpio chips registered by the GPIO portion. This
- * cannot be const since we assign the struct gpio_chip * pointer at runtime.
- */
-static struct pinctrl_gpio_range nmk_stn8815_ranges[] = {
-	STN8815_GPIO_RANGE(0, 0, 32),
-	STN8815_GPIO_RANGE(1, 32, 32),
-	STN8815_GPIO_RANGE(2, 64, 32),
-	STN8815_GPIO_RANGE(3, 96, 28),
-};
-
 /*
  * Read the pin group names like this:
  * u0_a_1    = first groups of pins for uart0 on alt function a
@@ -285,9 +271,11 @@ static struct pinctrl_gpio_range nmk_stn8815_ranges[] = {
  */
 
 /* Altfunction A */
-static const unsigned u0_a_1_pins[] = { STN8815_PIN_B4, STN8815_PIN_D5,
-	STN8815_PIN_C5, STN8815_PIN_A4, STN8815_PIN_B5, STN8815_PIN_D6,
-	STN8815_PIN_C6, STN8815_PIN_B6 };
+static const unsigned u0txrx_a_1_pins[] = { STN8815_PIN_B4, STN8815_PIN_D5 };
+static const unsigned u0ctsrts_a_1_pins[] = { STN8815_PIN_C5, STN8815_PIN_B6 };
+/* Modem pins: DCD, DSR, RI, DTR */
+static const unsigned u0modem_a_1_pins[] = { STN8815_PIN_A4, STN8815_PIN_B5,
+	STN8815_PIN_D6, STN8815_PIN_C6 };
 static const unsigned mmcsd_a_1_pins[] = { STN8815_PIN_B10, STN8815_PIN_A10,
 	STN8815_PIN_C11, STN8815_PIN_B11, STN8815_PIN_A11, STN8815_PIN_C12,
 	STN8815_PIN_B12, STN8815_PIN_A12, STN8815_PIN_C13, STN8815_PIN_C15 };
@@ -304,7 +292,9 @@ static const unsigned i2cusb_b_1_pins[] = { STN8815_PIN_C21, STN8815_PIN_C20 };
 			.npins = ARRAY_SIZE(a##_pins), .altsetting = b }
 
 static const struct nmk_pingroup nmk_stn8815_groups[] = {
-	STN8815_PIN_GROUP(u0_a_1, NMK_GPIO_ALT_A),
+	STN8815_PIN_GROUP(u0txrx_a_1, NMK_GPIO_ALT_A),
+	STN8815_PIN_GROUP(u0ctsrts_a_1, NMK_GPIO_ALT_A),
+	STN8815_PIN_GROUP(u0modem_a_1, NMK_GPIO_ALT_A),
 	STN8815_PIN_GROUP(mmcsd_a_1, NMK_GPIO_ALT_A),
 	STN8815_PIN_GROUP(mmcsd_b_1, NMK_GPIO_ALT_B),
 	STN8815_PIN_GROUP(u1_a_1, NMK_GPIO_ALT_A),
@@ -318,7 +308,7 @@ static const struct nmk_pingroup nmk_stn8815_groups[] = {
 #define STN8815_FUNC_GROUPS(a, b...)	   \
 static const char * const a##_groups[] = { b };
 
-STN8815_FUNC_GROUPS(u0, "u0_a_1");
+STN8815_FUNC_GROUPS(u0, "u0txrx_a_1", "u0ctsrts_a_1", "u0modem_a_1");
 STN8815_FUNC_GROUPS(mmcsd, "mmcsd_a_1", "mmcsd_b_1");
 STN8815_FUNC_GROUPS(u1, "u1_a_1", "u1_b_1");
 STN8815_FUNC_GROUPS(i2c1, "i2c1_a_1");
@@ -342,8 +332,6 @@ static const struct nmk_function nmk_stn8815_functions[] = {
 };
 
 static const struct nmk_pinctrl_soc_data nmk_stn8815_soc = {
-	.gpio_ranges = nmk_stn8815_ranges,
-	.gpio_num_ranges = ARRAY_SIZE(nmk_stn8815_ranges),
 	.pins = nmk_stn8815_pins,
 	.npins = ARRAY_SIZE(nmk_stn8815_pins),
 	.functions = nmk_stn8815_functions,

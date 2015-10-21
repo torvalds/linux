@@ -1,0 +1,22 @@
+Device Tree bindings for Freescale DCU DRM Driver
+
+Required properties:
+- compatible:		Should be one of
+	* "fsl,ls1021a-dcu".
+	* "fsl,vf610-dcu".
+
+- reg:			Address and length of the register set for dcu.
+- clocks:		From common clock binding: handle to dcu clock.
+- clock-names:		From common clock binding: Shall be "dcu".
+- big-endian		Boolean property, LS1021A DCU registers are big-endian.
+- fsl,panel:		The phandle to panel node.
+
+Examples:
+dcu: dcu@2ce0000 {
+	compatible = "fsl,ls1021a-dcu";
+	reg = <0x0 0x2ce0000 0x0 0x10000>;
+	clocks = <&platform_clk 0>;
+	clock-names = "dcu";
+	big-endian;
+	fsl,panel = <&panel>;
+};

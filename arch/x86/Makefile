@@ -39,6 +39,16 @@ ifdef CONFIG_X86_NEED_RELOCS
         LDFLAGS_vmlinux := --emit-relocs
 endif
 
+#
+# Prevent GCC from generating any FP code by mistake.
+#
+# This must happen before we try the -mpreferred-stack-boundary, see:
+#
+#    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53383
+#
+KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow
+KBUILD_CFLAGS += $(call cc-option,-mno-avx,)
+
 ifeq ($(CONFIG_X86_32),y)
         BITS := 32
         UTS_MACHINE := i386
@@ -77,12 +87,21 @@ else
         KBUILD_AFLAGS += -m64
         KBUILD_CFLAGS += -m64
 
+        # Align jump targets to 1 byte, not the default 16 bytes:
+        KBUILD_CFLAGS += -falign-jumps=1
+
+        # Pack loops tightly as well:
+        KBUILD_CFLAGS += -falign-loops=1
+
         # Don't autogenerate traditional x87 instructions
         KBUILD_CFLAGS += $(call cc-option,-mno-80387)
         KBUILD_CFLAGS += $(call cc-option,-mno-fp-ret-in-387)
 
 	# Use -mpreferred-stack-boundary=3 if supported.
 	KBUILD_CFLAGS += $(call cc-option,-mpreferred-stack-boundary=3)
+
+	# Use -mskip-rax-setup if supported.
+	KBUILD_CFLAGS += $(call cc-option,-mskip-rax-setup)
 
         # FIXME - should be integrated in Makefile.cpu (Makefile_32.cpu)
         cflags-$(CONFIG_MK8) += $(call cc-option,-march=k8)
@@ -140,12 +159,6 @@ endif
 sp-$(CONFIG_X86_32) := esp
 sp-$(CONFIG_X86_64) := rsp
 
-# do binutils support CFI?
-cfi := $(call as-instr,.cfi_startproc\n.cfi_rel_offset $(sp-y)$(comma)0\n.cfi_endproc,-DCONFIG_AS_CFI=1)
-# is .cfi_signal_frame supported too?
-cfi-sigframe := $(call as-instr,.cfi_startproc\n.cfi_signal_frame\n.cfi_endproc,-DCONFIG_AS_CFI_SIGNAL_FRAME=1)
-cfi-sections := $(call as-instr,.cfi_sections .debug_frame,-DCONFIG_AS_CFI_SECTIONS=1)
-
 # does binutils support specific instructions?
 asinstr := $(call as-instr,fxsaveq (%rax),-DCONFIG_AS_FXSAVEQ=1)
 asinstr += $(call as-instr,pshufb %xmm0$(comma)%xmm0,-DCONFIG_AS_SSSE3=1)
@@ -153,8 +166,8 @@ asinstr += $(call as-instr,crc32l %eax$(comma)%eax,-DCONFIG_AS_CRC32=1)
 avx_instr := $(call as-instr,vxorps %ymm0$(comma)%ymm1$(comma)%ymm2,-DCONFIG_AS_AVX=1)
 avx2_instr :=$(call as-instr,vpbroadcastb %xmm0$(comma)%ymm1,-DCONFIG_AS_AVX2=1)
 
-KBUILD_AFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr)
-KBUILD_CFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr)
+KBUILD_AFLAGS += $(asinstr) $(avx_instr) $(avx2_instr)
+KBUILD_CFLAGS += $(asinstr) $(avx_instr) $(avx2_instr)
 
 LDFLAGS := -m elf_$(UTS_MACHINE)
 
@@ -164,9 +177,6 @@ KBUILD_CFLAGS += -pipe
 KBUILD_CFLAGS += -Wno-sign-compare
 #
 KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
-# prevent gcc from generating any FP code by mistake
-KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow
-KBUILD_CFLAGS += $(call cc-option,-mno-avx,)
 
 KBUILD_CFLAGS += $(mflags-y)
 KBUILD_AFLAGS += $(mflags-y)
@@ -178,7 +188,7 @@ archscripts: scripts_basic
 # Syscall table generation
 
 archheaders:
-	$(Q)$(MAKE) $(build)=arch/x86/syscalls all
+	$(Q)$(MAKE) $(build)=arch/x86/entry/syscalls all
 
 archprepare:
 ifeq ($(CONFIG_KEXEC_FILE),y)
@@ -208,6 +218,8 @@ drivers-$(CONFIG_OPROFILE) += arch/x86/oprofile/
 drivers-$(CONFIG_PM) += arch/x86/power/
 
 drivers-$(CONFIG_FB) += arch/x86/video/
+
+drivers-$(CONFIG_RAS) += arch/x86/ras/
 
 ####
 # boot loader support. Several targets are kept for legacy purposes
@@ -241,7 +253,7 @@ install:
 
 PHONY += vdso_install
 vdso_install:
-	$(Q)$(MAKE) $(build)=arch/x86/vdso $@
+	$(Q)$(MAKE) $(build)=arch/x86/entry/vdso $@
 
 archclean:
 	$(Q)rm -rf $(objtree)/arch/i386

@@ -33,15 +33,15 @@ nvbios_fan_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version == 2 && bit_P.length >= 0x5a)
-			fan = nv_ro16(bios, bit_P.offset + 0x58);
+			fan = nvbios_rd16(bios, bit_P.offset + 0x58);
 
 		if (fan) {
-			*ver = nv_ro08(bios, fan + 0);
+			*ver = nvbios_rd08(bios, fan + 0);
 			switch (*ver) {
 			case 0x10:
-				*hdr = nv_ro08(bios, fan + 1);
-				*len = nv_ro08(bios, fan + 2);
-				*cnt = nv_ro08(bios, fan + 3);
+				*hdr = nvbios_rd08(bios, fan + 1);
+				*len = nvbios_rd08(bios, fan + 2);
+				*cnt = nvbios_rd08(bios, fan + 3);
 				return fan;
 			default:
 				break;
@@ -69,7 +69,7 @@ nvbios_fan_parse(struct nvkm_bios *bios, struct nvbios_therm_fan *fan)
 
 	u16 data = nvbios_fan_entry(bios, 0, &ver, &hdr, &cnt, &len);
 	if (data) {
-		u8 type = nv_ro08(bios, data + 0x00);
+		u8 type = nvbios_rd08(bios, data + 0x00);
 		switch (type) {
 		case 0:
 			fan->type = NVBIOS_THERM_FAN_TOGGLE;
@@ -83,10 +83,10 @@ nvbios_fan_parse(struct nvkm_bios *bios, struct nvbios_therm_fan *fan)
 			fan->type = NVBIOS_THERM_FAN_UNK;
 		}
 
-		fan->min_duty = nv_ro08(bios, data + 0x02);
-		fan->max_duty = nv_ro08(bios, data + 0x03);
+		fan->min_duty = nvbios_rd08(bios, data + 0x02);
+		fan->max_duty = nvbios_rd08(bios, data + 0x03);
 
-		fan->pwm_freq = nv_ro32(bios, data + 0x0b) & 0xffffff;
+		fan->pwm_freq = nvbios_rd32(bios, data + 0x0b) & 0xffffff;
 	}
 
 	return data;

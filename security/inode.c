@@ -25,11 +25,6 @@
 static struct vfsmount *mount;
 static int mount_count;
 
-static inline int positive(struct dentry *dentry)
-{
-	return d_really_is_positive(dentry) && !d_unhashed(dentry);
-}
-
 static int fill_super(struct super_block *sb, void *data, int silent)
 {
 	static struct tree_descr files[] = {{""}};
@@ -201,33 +196,29 @@ void securityfs_remove(struct dentry *dentry)
 		return;
 
 	mutex_lock(&d_inode(parent)->i_mutex);
-	if (positive(dentry)) {
-		if (d_really_is_positive(dentry)) {
-			if (d_is_dir(dentry))
-				simple_rmdir(d_inode(parent), dentry);
-			else
-				simple_unlink(d_inode(parent), dentry);
-			dput(dentry);
-		}
+	if (simple_positive(dentry)) {
+		if (d_is_dir(dentry))
+			simple_rmdir(d_inode(parent), dentry);
+		else
+			simple_unlink(d_inode(parent), dentry);
+		dput(dentry);
 	}
 	mutex_unlock(&d_inode(parent)->i_mutex);
 	simple_release_fs(&mount, &mount_count);
 }
 EXPORT_SYMBOL_GPL(securityfs_remove);
 
-static struct kobject *security_kobj;
-
 static int __init securityfs_init(void)
 {
 	int retval;
 
-	security_kobj = kobject_create_and_add("security", kernel_kobj);
-	if (!security_kobj)
-		return -EINVAL;
+	retval = sysfs_create_mount_point(kernel_kobj, "security");
+	if (retval)
+		return retval;
 
 	retval = register_filesystem(&fs_type);
 	if (retval)
-		kobject_put(security_kobj);
+		sysfs_remove_mount_point(kernel_kobj, "security");
 	return retval;
 }
 

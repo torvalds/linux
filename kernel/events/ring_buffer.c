@@ -141,7 +141,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 	perf_output_get_handle(handle);
 
 	do {
-		tail = ACCESS_ONCE(rb->user_page->data_tail);
+		tail = READ_ONCE_CTRL(rb->user_page->data_tail);
 		offset = head = local_read(&rb->head);
 		if (!rb->overwrite &&
 		    unlikely(CIRC_SPACE(head, tail, perf_data_size(rb)) < size))
@@ -221,6 +221,8 @@ void perf_output_end(struct perf_output_handle *handle)
 	rcu_read_unlock();
 }
 
+static void rb_irq_work(struct irq_work *work);
+
 static void
 ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
 {
@@ -241,6 +243,16 @@ ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
 
 	INIT_LIST_HEAD(&rb->event_list);
 	spin_lock_init(&rb->event_lock);
+	init_irq_work(&rb->irq_work, rb_irq_work);
+}
+
+static void ring_buffer_put_async(struct ring_buffer *rb)
+{
+	if (!atomic_dec_and_test(&rb->refcount))
+		return;
+
+	rb->rcu_head.next = (void *)rb;
+	irq_work_queue(&rb->irq_work);
 }
 
 /*
@@ -319,7 +331,7 @@ err_put:
 	rb_free_aux(rb);
 
 err:
-	ring_buffer_put(rb);
+	ring_buffer_put_async(rb);
 	handle->event = NULL;
 
 	return NULL;
@@ -370,7 +382,7 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size,
 
 	local_set(&rb->aux_nest, 0);
 	rb_free_aux(rb);
-	ring_buffer_put(rb);
+	ring_buffer_put_async(rb);
 }
 
 /*
@@ -425,7 +437,10 @@ static struct page *rb_alloc_aux_page(int node, int order)
 
 	if (page && order) {
 		/*
-		 * Communicate the allocation size to the driver
+		 * Communicate the allocation size to the driver:
+		 * if we managed to secure a high-order allocation,
+		 * set its first page's private to this order;
+		 * !PagePrivate(page) means it's just a normal page.
 		 */
 		split_page(page, order);
 		SetPagePrivate(page);
@@ -547,17 +562,30 @@ static void __rb_free_aux(struct ring_buffer *rb)
 		rb->aux_priv = NULL;
 	}
 
-	for (pg = 0; pg < rb->aux_nr_pages; pg++)
-		rb_free_aux_page(rb, pg);
+	if (rb->aux_nr_pages) {
+		for (pg = 0; pg < rb->aux_nr_pages; pg++)
+			rb_free_aux_page(rb, pg);
 
-	kfree(rb->aux_pages);
-	rb->aux_nr_pages = 0;
+		kfree(rb->aux_pages);
+		rb->aux_nr_pages = 0;
+	}
 }
 
 void rb_free_aux(struct ring_buffer *rb)
 {
 	if (atomic_dec_and_test(&rb->aux_refcount))
+		irq_work_queue(&rb->irq_work);
+}
+
+static void rb_irq_work(struct irq_work *work)
+{
+	struct ring_buffer *rb = container_of(work, struct ring_buffer, irq_work);
+
+	if (!atomic_read(&rb->aux_refcount))
 		__rb_free_aux(rb);
+
+	if (rb->rcu_head.next == (void *)rb)
+		call_rcu(&rb->rcu_head, rb_free_rcu);
 }
 
 #ifndef CONFIG_PERF_USE_VMALLOC

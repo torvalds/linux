@@ -74,18 +74,57 @@ static const char driver_desc[] = DRIVER_DESC;
 
 static const u32 ep_bit[9] = { 0, 17, 2, 19, 4, 1, 18, 3, 20 };
 static const char ep0name[] = "ep0";
-static const char *const ep_name[] = {
-	ep0name,
-	"ep-a", "ep-b", "ep-c", "ep-d",
-	"ep-e", "ep-f", "ep-g", "ep-h",
+
+#define EP_INFO(_name, _caps) \
+	{ \
+		.name = _name, \
+		.caps = _caps, \
+	}
+
+static const struct {
+	const char *name;
+	const struct usb_ep_caps caps;
+} ep_info_dft[] = { /* Default endpoint configuration */
+	EP_INFO(ep0name,
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-a",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-b",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-c",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-d",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-e",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-f",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-g",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-h",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+}, ep_info_adv[] = { /* Endpoints for usb3380 advance mode */
+	EP_INFO(ep0name,
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep1in",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep2out",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep3in",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep4out",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep1out",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep2in",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep3out",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep4in",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
 };
 
-/* Endpoint names for usb3380 advance mode */
-static const char *const ep_name_adv[] = {
-	ep0name,
-	"ep1in", "ep2out", "ep3in", "ep4out",
-	"ep1out", "ep2in", "ep3out", "ep4in",
-};
+#undef EP_INFO
 
 /* mode 0 == ep-{a,b,c,d} 1K fifo each
  * mode 1 == ep-{a,b} 2K fifo each, ep-{c,d} unavailable
@@ -123,6 +162,11 @@ static char *type_string(u8 bmAttributes)
 #define valid_bit	cpu_to_le32(BIT(VALID_BIT))
 #define dma_done_ie	cpu_to_le32(BIT(DMA_DONE_INTERRUPT_ENABLE))
 
+static void ep_clear_seqnum(struct net2280_ep *ep);
+static void stop_activity(struct net2280 *dev,
+					struct usb_gadget_driver *driver);
+static void ep0_start(struct net2280 *dev);
+
 /*-------------------------------------------------------------------------*/
 static inline void enable_pciirqenb(struct net2280_ep *ep)
 {
@@ -142,7 +186,9 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 {
 	struct net2280		*dev;
 	struct net2280_ep	*ep;
-	u32			max, tmp;
+	u32			max;
+	u32 tmp = 0;
+	u32 type;
 	unsigned long		flags;
 	static const u32 ep_key[9] = { 1, 0, 1, 0, 1, 1, 0, 1, 0 };
 	int ret = 0;
@@ -198,15 +244,29 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 
 	/* set type, direction, address; reset fifo counters */
 	writel(BIT(FIFO_FLUSH), &ep->regs->ep_stat);
-	tmp = (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK);
-	if (tmp == USB_ENDPOINT_XFER_INT) {
+
+	if ((dev->quirks & PLX_SUPERSPEED) && dev->enhanced_mode) {
+		tmp = readl(&ep->cfg->ep_cfg);
+		/* If USB ep number doesn't match hardware ep number */
+		if ((tmp & 0xf) != usb_endpoint_num(desc)) {
+			ret = -EINVAL;
+			spin_unlock_irqrestore(&dev->lock, flags);
+			goto print_err;
+		}
+		if (ep->is_in)
+			tmp &= ~USB3380_EP_CFG_MASK_IN;
+		else
+			tmp &= ~USB3380_EP_CFG_MASK_OUT;
+	}
+	type = (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK);
+	if (type == USB_ENDPOINT_XFER_INT) {
 		/* erratum 0105 workaround prevents hs NYET */
 		if (dev->chiprev == 0100 &&
 				dev->gadget.speed == USB_SPEED_HIGH &&
 				!(desc->bEndpointAddress & USB_DIR_IN))
 			writel(BIT(CLEAR_NAK_OUT_PACKETS_MODE),
 				&ep->regs->ep_rsp);
-	} else if (tmp == USB_ENDPOINT_XFER_BULK) {
+	} else if (type == USB_ENDPOINT_XFER_BULK) {
 		/* catch some particularly blatant driver bugs */
 		if ((dev->gadget.speed == USB_SPEED_SUPER && max != 1024) ||
 		    (dev->gadget.speed == USB_SPEED_HIGH && max != 512) ||
@@ -216,10 +276,10 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			goto print_err;
 		}
 	}
-	ep->is_iso = (tmp == USB_ENDPOINT_XFER_ISOC);
+	ep->is_iso = (type == USB_ENDPOINT_XFER_ISOC);
 	/* Enable this endpoint */
 	if (dev->quirks & PLX_LEGACY) {
-		tmp <<= ENDPOINT_TYPE;
+		tmp |= type << ENDPOINT_TYPE;
 		tmp |= desc->bEndpointAddress;
 		/* default full fifo lines */
 		tmp |= (4 << ENDPOINT_BYTE_COUNT);
@@ -228,17 +288,17 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	} else {
 		/* In Legacy mode, only OUT endpoints are used */
 		if (dev->enhanced_mode && ep->is_in) {
-			tmp <<= IN_ENDPOINT_TYPE;
+			tmp |= type << IN_ENDPOINT_TYPE;
 			tmp |= BIT(IN_ENDPOINT_ENABLE);
-			/* Not applicable to Legacy */
-			tmp |= BIT(ENDPOINT_DIRECTION);
 		} else {
-			tmp <<= OUT_ENDPOINT_TYPE;
+			tmp |= type << OUT_ENDPOINT_TYPE;
 			tmp |= BIT(OUT_ENDPOINT_ENABLE);
 			tmp |= (ep->is_in << ENDPOINT_DIRECTION);
 		}
 
-		tmp |= usb_endpoint_num(desc);
+		tmp |= (4 << ENDPOINT_BYTE_COUNT);
+		if (!dev->enhanced_mode)
+			tmp |= usb_endpoint_num(desc);
 		tmp |= (ep->ep.maxburst << MAX_BURST_SIZE);
 	}
 
@@ -256,6 +316,8 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			BIT(CLEAR_NAK_OUT_PACKETS_MODE), &ep->regs->ep_rsp);
 	}
 
+	if (dev->quirks & PLX_SUPERSPEED)
+		ep_clear_seqnum(ep);
 	writel(tmp, &ep->cfg->ep_cfg);
 
 	/* enable irqs */
@@ -441,6 +503,13 @@ static void ep_reset_338x(struct net2280_regs __iomem *regs,
 	       BIT(DATA_PACKET_TRANSMITTED_INTERRUPT) |
 	       BIT(DATA_OUT_PING_TOKEN_INTERRUPT) |
 	       BIT(DATA_IN_TOKEN_INTERRUPT), &ep->regs->ep_stat);
+
+	tmp = readl(&ep->cfg->ep_cfg);
+	if (ep->is_in)
+		tmp &= ~USB3380_EP_CFG_MASK_IN;
+	else
+		tmp &= ~USB3380_EP_CFG_MASK_OUT;
+	writel(tmp, &ep->cfg->ep_cfg);
 }
 
 static void nuke(struct net2280_ep *);
@@ -1468,14 +1537,44 @@ static int net2280_pullup(struct usb_gadget *_gadget, int is_on)
 	spin_lock_irqsave(&dev->lock, flags);
 	tmp = readl(&dev->usb->usbctl);
 	dev->softconnect = (is_on != 0);
-	if (is_on)
-		tmp |= BIT(USB_DETECT_ENABLE);
-	else
-		tmp &= ~BIT(USB_DETECT_ENABLE);
-	writel(tmp, &dev->usb->usbctl);
+	if (is_on) {
+		ep0_start(dev);
+		writel(tmp | BIT(USB_DETECT_ENABLE), &dev->usb->usbctl);
+	} else {
+		writel(tmp & ~BIT(USB_DETECT_ENABLE), &dev->usb->usbctl);
+		stop_activity(dev, dev->driver);
+	}
+
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	return 0;
+}
+
+static struct usb_ep *net2280_match_ep(struct usb_gadget *_gadget,
+		struct usb_endpoint_descriptor *desc,
+		struct usb_ss_ep_comp_descriptor *ep_comp)
+{
+	char name[8];
+	struct usb_ep *ep;
+
+	if (usb_endpoint_type(desc) == USB_ENDPOINT_XFER_INT) {
+		/* ep-e, ep-f are PIO with only 64 byte fifos */
+		ep = gadget_find_ep_by_name(_gadget, "ep-e");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep-f");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	}
+
+	/* USB3380: use same address for usb and hardware endpoints */
+	snprintf(name, sizeof(name), "ep%d%s", usb_endpoint_num(desc),
+			usb_endpoint_dir_in(desc) ? "in" : "out");
+	ep = gadget_find_ep_by_name(_gadget, name);
+	if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+		return ep;
+
+	return NULL;
 }
 
 static int net2280_start(struct usb_gadget *_gadget,
@@ -1489,6 +1588,7 @@ static const struct usb_gadget_ops net2280_ops = {
 	.pullup		= net2280_pullup,
 	.udc_start	= net2280_start,
 	.udc_stop	= net2280_stop,
+	.match_ep	= net2280_match_ep,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1860,8 +1960,8 @@ static void defect7374_enable_data_eps_zero(struct net2280 *dev)
 	tmp = ((0 << ENDPOINT_NUMBER) | BIT(ENDPOINT_DIRECTION) |
 			(2 << OUT_ENDPOINT_TYPE) | (2 << IN_ENDPOINT_TYPE) |
 			((dev->enhanced_mode) ?
-			 BIT(OUT_ENDPOINT_ENABLE) : BIT(ENDPOINT_ENABLE)) |
-			BIT(IN_ENDPOINT_ENABLE));
+			 BIT(OUT_ENDPOINT_ENABLE) | BIT(IN_ENDPOINT_ENABLE) :
+			 BIT(ENDPOINT_ENABLE)));
 
 	for (i = 1; i < 5; i++)
 		writel(tmp, &dev->ep[i].cfg->ep_cfg);
@@ -1975,9 +2075,15 @@ static void usb_reset_338x(struct net2280 *dev)
 	/* clear old dma and irq state */
 	for (tmp = 0; tmp < 4; tmp++) {
 		struct net2280_ep *ep = &dev->ep[tmp + 1];
+		struct net2280_dma_regs __iomem *dma;
 
-		if (ep->dma)
+		if (ep->dma) {
 			abort_dma(ep);
+		} else {
+			dma = &dev->dma[tmp];
+			writel(BIT(DMA_ABORT), &dma->dmastat);
+			writel(0, &dma->dmactl);
+		}
 	}
 
 	writel(~0, &dev->regs->irqstat0), writel(~0, &dev->regs->irqstat1);
@@ -2016,7 +2122,8 @@ static void usb_reinit_228x(struct net2280 *dev)
 	for (tmp = 0; tmp < 7; tmp++) {
 		struct net2280_ep	*ep = &dev->ep[tmp];
 
-		ep->ep.name = ep_name[tmp];
+		ep->ep.name = ep_info_dft[tmp].name;
+		ep->ep.caps = ep_info_dft[tmp].caps;
 		ep->dev = dev;
 		ep->num = tmp;
 
@@ -2056,7 +2163,10 @@ static void usb_reinit_338x(struct net2280 *dev)
 	for (i = 0; i < dev->n_ep; i++) {
 		struct net2280_ep *ep = &dev->ep[i];
 
-		ep->ep.name = dev->enhanced_mode ? ep_name_adv[i] : ep_name[i];
+		ep->ep.name = dev->enhanced_mode ? ep_info_adv[i].name :
+						   ep_info_dft[i].name;
+		ep->ep.caps = dev->enhanced_mode ? ep_info_adv[i].caps :
+						   ep_info_dft[i].caps;
 		ep->dev = dev;
 		ep->num = i;
 
@@ -2065,6 +2175,12 @@ static void usb_reinit_338x(struct net2280 *dev)
 
 		if (dev->enhanced_mode) {
 			ep->cfg = &dev->epregs[ne[i]];
+			/*
+			 * Set USB endpoint number, hardware allows same number
+			 * in both directions.
+			 */
+			 if (i > 0 && i < 5)
+				writel(ne[i], &ep->cfg->ep_cfg);
 			ep->regs = (struct net2280_ep_regs __iomem *)
 				(((void __iomem *)&dev->epregs[ne[i]]) +
 				ep_reg_addr[i]);
@@ -2874,6 +2990,26 @@ next_endpoints3:
 	return;
 }
 
+static void usb338x_handle_ep_intr(struct net2280 *dev, u32 stat0)
+{
+	u32 index;
+	u32 bit;
+
+	for (index = 0; index < ARRAY_SIZE(ep_bit); index++) {
+		bit = BIT(ep_bit[index]);
+
+		if (!stat0)
+			break;
+
+		if (!(stat0 & bit))
+			continue;
+
+		stat0 &= ~bit;
+
+		handle_ep_small(&dev->ep[index]);
+	}
+}
+
 static void handle_stat0_irqs(struct net2280 *dev, u32 stat)
 {
 	struct net2280_ep	*ep;
@@ -3098,20 +3234,31 @@ do_stall:
 #undef	w_length
 
 next_endpoints:
-	/* endpoint data irq ? */
-	scratch = stat & 0x7f;
-	stat &= ~0x7f;
-	for (num = 0; scratch; num++) {
-		u32		t;
+	if ((dev->quirks & PLX_SUPERSPEED) && dev->enhanced_mode) {
+		u32 mask = (BIT(ENDPOINT_0_INTERRUPT) |
+			USB3380_IRQSTAT0_EP_INTR_MASK_IN |
+			USB3380_IRQSTAT0_EP_INTR_MASK_OUT);
 
-		/* do this endpoint's FIFO and queue need tending? */
-		t = BIT(num);
-		if ((scratch & t) == 0)
-			continue;
-		scratch ^= t;
+		if (stat & mask) {
+			usb338x_handle_ep_intr(dev, stat & mask);
+			stat &= ~mask;
+		}
+	} else {
+		/* endpoint data irq ? */
+		scratch = stat & 0x7f;
+		stat &= ~0x7f;
+		for (num = 0; scratch; num++) {
+			u32		t;
 
-		ep = &dev->ep[num];
-		handle_ep_small(ep);
+			/* do this endpoint's FIFO and queue need tending? */
+			t = BIT(num);
+			if ((scratch & t) == 0)
+				continue;
+			scratch ^= t;
+
+			ep = &dev->ep[num];
+			handle_ep_small(ep);
+		}
 	}
 
 	if (stat)

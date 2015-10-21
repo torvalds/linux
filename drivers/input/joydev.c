@@ -859,12 +859,11 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	joydev->handle.handler = handler;
 	joydev->handle.private = joydev;
 
-	for (i = 0; i < ABS_CNT; i++)
-		if (test_bit(i, dev->absbit)) {
-			joydev->absmap[i] = joydev->nabs;
-			joydev->abspam[joydev->nabs] = i;
-			joydev->nabs++;
-		}
+	for_each_set_bit(i, dev->absbit, ABS_CNT) {
+		joydev->absmap[i] = joydev->nabs;
+		joydev->abspam[joydev->nabs] = i;
+		joydev->nabs++;
+	}
 
 	for (i = BTN_JOYSTICK - BTN_MISC; i < KEY_MAX - BTN_MISC + 1; i++)
 		if (test_bit(i + BTN_MISC, dev->keybit)) {

@@ -10,6 +10,7 @@
 #include <linux/input.h>	/* BUS_I2C */
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/types.h>
 #include <linux/pm.h>
 #include "adxl34x.h"
@@ -135,11 +136,30 @@ static const struct i2c_device_id adxl34x_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, adxl34x_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id adxl34x_of_id[] = {
+	/*
+	 * The ADXL346 is backward-compatible with the ADXL345. Differences are
+	 * handled by runtime detection of the device model, there's thus no
+	 * need for listing the "adi,adxl346" compatible value explicitly.
+	 */
+	{ .compatible = "adi,adxl345", },
+	/*
+	 * Deprecated, DT nodes should use one or more of the device-specific
+	 * compatible values "adi,adxl345" and "adi,adxl346".
+	 */
+	{ .compatible = "adi,adxl34x", },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, adxl34x_of_id);
+#endif
+
 static struct i2c_driver adxl34x_driver = {
 	.driver = {
 		.name = "adxl34x",
-		.owner = THIS_MODULE,
 		.pm = &adxl34x_i2c_pm,
+		.of_match_table = of_match_ptr(adxl34x_of_id),
 	},
 	.probe    = adxl34x_i2c_probe,
 	.remove   = adxl34x_i2c_remove,

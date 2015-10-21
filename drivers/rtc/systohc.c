@@ -31,7 +31,7 @@ int rtc_set_ntp_time(struct timespec64 now)
 	else
 		rtc_time64_to_tm(now.tv_sec + 1, &tm);
 
-	rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
+	rtc = rtc_class_open(CONFIG_RTC_SYSTOHC_DEVICE);
 	if (rtc) {
 		/* rtc_hctosys exclusively uses UTC, so we call set_time here,
 		 * not set_mmss. */

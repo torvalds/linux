@@ -35,6 +35,7 @@
 #include <linux/idr.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 
 #include <linux/power/bq2415x_charger.h>
 
@@ -169,7 +170,7 @@ struct bq2415x_device {
 	struct power_supply *charger;
 	struct power_supply_desc charger_desc;
 	struct delayed_work work;
-	struct power_supply *notify_psy;
+	struct device_node *notify_node;
 	struct notifier_block nb;
 	enum bq2415x_mode reported_mode;/* mode reported by hook function */
 	enum bq2415x_mode mode;		/* currently configured mode */
@@ -631,7 +632,7 @@ static int bq2415x_set_charge_current(struct bq2415x_device *bq, int mA)
 	int val;
 
 	if (bq->init_data.resistor_sense <= 0)
-		return -ENOSYS;
+		return -EINVAL;
 
 	val = (mA * bq->init_data.resistor_sense - 37400) / 6800;
 	if (val < 0)
@@ -650,7 +651,7 @@ static int bq2415x_get_charge_current(struct bq2415x_device *bq)
 	int ret;
 
 	if (bq->init_data.resistor_sense <= 0)
-		return -ENOSYS;
+		return -EINVAL;
 
 	ret = bq2415x_i2c_read_mask(bq, BQ2415X_REG_CURRENT,
 			BQ2415X_MASK_VI_CHRG, BQ2415X_SHIFT_VI_CHRG);
@@ -665,7 +666,7 @@ static int bq2415x_set_termination_current(struct bq2415x_device *bq, int mA)
 	int val;
 
 	if (bq->init_data.resistor_sense <= 0)
-		return -ENOSYS;
+		return -EINVAL;
 
 	val = (mA * bq->init_data.resistor_sense - 3400) / 3400;
 	if (val < 0)
@@ -684,7 +685,7 @@ static int bq2415x_get_termination_current(struct bq2415x_device *bq)
 	int ret;
 
 	if (bq->init_data.resistor_sense <= 0)
-		return -ENOSYS;
+		return -EINVAL;
 
 	ret = bq2415x_i2c_read_mask(bq, BQ2415X_REG_CURRENT,
 			BQ2415X_MASK_VI_TERM, BQ2415X_SHIFT_VI_TERM);
@@ -791,31 +792,9 @@ static int bq2415x_set_mode(struct bq2415x_device *bq, enum bq2415x_mode mode)
 
 }
 
-static int bq2415x_notifier_call(struct notifier_block *nb,
-		unsigned long val, void *v)
+static bool bq2415x_update_reported_mode(struct bq2415x_device *bq, int mA)
 {
-	struct bq2415x_device *bq =
-		container_of(nb, struct bq2415x_device, nb);
-	struct power_supply *psy = v;
 	enum bq2415x_mode mode;
-	union power_supply_propval prop;
-	int ret;
-	int mA;
-
-	if (val != PSY_EVENT_PROP_CHANGED)
-		return NOTIFY_OK;
-
-	if (psy != bq->notify_psy)
-		return NOTIFY_OK;
-
-	dev_dbg(bq->dev, "notifier call was called\n");
-
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX,
-			&prop);
-	if (ret != 0)
-		return NOTIFY_OK;
-
-	mA = prop.intval;
 
 	if (mA == 0)
 		mode = BQ2415X_MODE_OFF;
@@ -827,9 +806,43 @@ static int bq2415x_notifier_call(struct notifier_block *nb,
 		mode = BQ2415X_MODE_DEDICATED_CHARGER;
 
 	if (bq->reported_mode == mode)
-		return NOTIFY_OK;
+		return false;
 
 	bq->reported_mode = mode;
+	return true;
+}
+
+static int bq2415x_notifier_call(struct notifier_block *nb,
+		unsigned long val, void *v)
+{
+	struct bq2415x_device *bq =
+		container_of(nb, struct bq2415x_device, nb);
+	struct power_supply *psy = v;
+	union power_supply_propval prop;
+	int ret;
+
+	if (val != PSY_EVENT_PROP_CHANGED)
+		return NOTIFY_OK;
+
+	/* Ignore event if it was not send by notify_node/notify_device */
+	if (bq->notify_node) {
+		if (!psy->dev.parent ||
+		    psy->dev.parent->of_node != bq->notify_node)
+			return NOTIFY_OK;
+	} else if (bq->init_data.notify_device) {
+		if (strcmp(psy->desc->name, bq->init_data.notify_device) != 0)
+			return NOTIFY_OK;
+	}
+
+	dev_dbg(bq->dev, "notifier call was called\n");
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX,
+			&prop);
+	if (ret != 0)
+		return NOTIFY_OK;
+
+	if (!bq2415x_update_reported_mode(bq, prop.intval))
+		return NOTIFY_OK;
 
 	/* if automode is not enabled do not tell about reported_mode */
 	if (bq->automode < 1)
@@ -1166,7 +1179,7 @@ static ssize_t bq2415x_sysfs_set_mode(struct device *dev,
 
 	if (strncmp(buf, "auto", 4) == 0) {
 		if (bq->automode < 0)
-			return -ENOSYS;
+			return -EINVAL;
 		bq->automode = 1;
 		mode = bq->reported_mode;
 	} else if (strncmp(buf, "off", 3) == 0) {
@@ -1530,13 +1543,16 @@ static int bq2415x_probe(struct i2c_client *client,
 {
 	int ret;
 	int num;
-	char *name;
+	char *name = NULL;
 	struct bq2415x_device *bq;
 	struct device_node *np = client->dev.of_node;
 	struct bq2415x_platform_data *pdata = client->dev.platform_data;
+	const struct acpi_device_id *acpi_id = NULL;
+	struct power_supply *notify_psy = NULL;
+	union power_supply_propval prop;
 
-	if (!np && !pdata) {
-		dev_err(&client->dev, "platform data missing\n");
+	if (!np && !pdata && !ACPI_HANDLE(&client->dev)) {
+		dev_err(&client->dev, "Neither devicetree, nor platform data, nor ACPI support\n");
 		return -ENODEV;
 	}
 
@@ -1547,7 +1563,14 @@ static int bq2415x_probe(struct i2c_client *client,
 	if (num < 0)
 		return num;
 
-	name = kasprintf(GFP_KERNEL, "%s-%d", id->name, num);
+	if (id) {
+		name = kasprintf(GFP_KERNEL, "%s-%d", id->name, num);
+	} else if (ACPI_HANDLE(&client->dev)) {
+		acpi_id =
+			acpi_match_device(client->dev.driver->acpi_match_table,
+					  &client->dev);
+		name = kasprintf(GFP_KERNEL, "%s-%d", acpi_id->id, num);
+	}
 	if (!name) {
 		dev_err(&client->dev, "failed to allocate device name\n");
 		ret = -ENOMEM;
@@ -1556,65 +1579,58 @@ static int bq2415x_probe(struct i2c_client *client,
 
 	bq = devm_kzalloc(&client->dev, sizeof(*bq), GFP_KERNEL);
 	if (!bq) {
-		dev_err(&client->dev, "failed to allocate device data\n");
 		ret = -ENOMEM;
 		goto error_2;
 	}
-
-	if (np) {
-		bq->notify_psy = power_supply_get_by_phandle(np, "ti,usb-charger-detection");
-
-		if (IS_ERR(bq->notify_psy)) {
-			dev_info(&client->dev,
-				"no 'ti,usb-charger-detection' property (err=%ld)\n",
-				PTR_ERR(bq->notify_psy));
-			bq->notify_psy = NULL;
-		} else if (!bq->notify_psy) {
-			ret = -EPROBE_DEFER;
-			goto error_2;
-		}
-	}
-	else if (pdata->notify_device)
-		bq->notify_psy = power_supply_get_by_name(pdata->notify_device);
-	else
-		bq->notify_psy = NULL;
 
 	i2c_set_clientdata(client, bq);
 
 	bq->id = num;
 	bq->dev = &client->dev;
-	bq->chip = id->driver_data;
+	if (id)
+		bq->chip = id->driver_data;
+	else if (ACPI_HANDLE(bq->dev))
+		bq->chip = acpi_id->driver_data;
 	bq->name = name;
 	bq->mode = BQ2415X_MODE_OFF;
 	bq->reported_mode = BQ2415X_MODE_OFF;
 	bq->autotimer = 0;
 	bq->automode = 0;
 
-	if (np) {
-		ret = of_property_read_u32(np, "ti,current-limit",
-				&bq->init_data.current_limit);
+	if (np || ACPI_HANDLE(bq->dev)) {
+		ret = device_property_read_u32(bq->dev,
+					       "ti,current-limit",
+					       &bq->init_data.current_limit);
 		if (ret)
-			goto error_3;
-		ret = of_property_read_u32(np, "ti,weak-battery-voltage",
-				&bq->init_data.weak_battery_voltage);
+			goto error_2;
+		ret = device_property_read_u32(bq->dev,
+					"ti,weak-battery-voltage",
+					&bq->init_data.weak_battery_voltage);
 		if (ret)
-			goto error_3;
-		ret = of_property_read_u32(np, "ti,battery-regulation-voltage",
+			goto error_2;
+		ret = device_property_read_u32(bq->dev,
+				"ti,battery-regulation-voltage",
 				&bq->init_data.battery_regulation_voltage);
 		if (ret)
-			goto error_3;
-		ret = of_property_read_u32(np, "ti,charge-current",
-				&bq->init_data.charge_current);
+			goto error_2;
+		ret = device_property_read_u32(bq->dev,
+					       "ti,charge-current",
+					       &bq->init_data.charge_current);
 		if (ret)
-			goto error_3;
-		ret = of_property_read_u32(np, "ti,termination-current",
+			goto error_2;
+		ret = device_property_read_u32(bq->dev,
+				"ti,termination-current",
 				&bq->init_data.termination_current);
 		if (ret)
-			goto error_3;
-		ret = of_property_read_u32(np, "ti,resistor-sense",
-				&bq->init_data.resistor_sense);
+			goto error_2;
+		ret = device_property_read_u32(bq->dev,
+					       "ti,resistor-sense",
+					       &bq->init_data.resistor_sense);
 		if (ret)
-			goto error_3;
+			goto error_2;
+		if (np)
+			bq->notify_node = of_parse_phandle(np,
+						"ti,usb-charger-detection", 0);
 	} else {
 		memcpy(&bq->init_data, pdata, sizeof(bq->init_data));
 	}
@@ -1624,38 +1640,57 @@ static int bq2415x_probe(struct i2c_client *client,
 	ret = bq2415x_power_supply_init(bq);
 	if (ret) {
 		dev_err(bq->dev, "failed to register power supply: %d\n", ret);
-		goto error_3;
+		goto error_2;
 	}
 
 	ret = bq2415x_sysfs_init(bq);
 	if (ret) {
 		dev_err(bq->dev, "failed to create sysfs entries: %d\n", ret);
-		goto error_4;
+		goto error_3;
 	}
 
 	ret = bq2415x_set_defaults(bq);
 	if (ret) {
 		dev_err(bq->dev, "failed to set default values: %d\n", ret);
-		goto error_5;
+		goto error_4;
 	}
 
-	if (bq->notify_psy) {
+	if (bq->notify_node || bq->init_data.notify_device) {
 		bq->nb.notifier_call = bq2415x_notifier_call;
 		ret = power_supply_reg_notifier(&bq->nb);
 		if (ret) {
 			dev_err(bq->dev, "failed to reg notifier: %d\n", ret);
-			goto error_6;
+			goto error_4;
 		}
 
-		/* Query for initial reported_mode and set it */
-		bq2415x_notifier_call(&bq->nb, PSY_EVENT_PROP_CHANGED, bq->notify_psy);
-		bq2415x_set_mode(bq, bq->reported_mode);
-
 		bq->automode = 1;
-		dev_info(bq->dev, "automode enabled\n");
+		dev_info(bq->dev, "automode supported, waiting for events\n");
 	} else {
 		bq->automode = -1;
 		dev_info(bq->dev, "automode not supported\n");
+	}
+
+	/* Query for initial reported_mode and set it */
+	if (bq->nb.notifier_call) {
+		if (np) {
+			notify_psy = power_supply_get_by_phandle(np,
+						"ti,usb-charger-detection");
+			if (IS_ERR(notify_psy))
+				notify_psy = NULL;
+		} else if (bq->init_data.notify_device) {
+			notify_psy = power_supply_get_by_name(
+						bq->init_data.notify_device);
+		}
+	}
+	if (notify_psy) {
+		ret = power_supply_get_property(notify_psy,
+					POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
+		power_supply_put(notify_psy);
+
+		if (ret == 0) {
+			bq2415x_update_reported_mode(bq, prop.intval);
+			bq2415x_set_mode(bq, bq->reported_mode);
+		}
 	}
 
 	INIT_DELAYED_WORK(&bq->work, bq2415x_timer_work);
@@ -1664,15 +1699,13 @@ static int bq2415x_probe(struct i2c_client *client,
 	dev_info(bq->dev, "driver registered\n");
 	return 0;
 
-error_6:
-error_5:
-	bq2415x_sysfs_exit(bq);
 error_4:
-	bq2415x_power_supply_exit(bq);
+	bq2415x_sysfs_exit(bq);
 error_3:
-	if (bq->notify_psy)
-		power_supply_put(bq->notify_psy);
+	bq2415x_power_supply_exit(bq);
 error_2:
+	if (bq->notify_node)
+		of_node_put(bq->notify_node);
 	kfree(name);
 error_1:
 	mutex_lock(&bq2415x_id_mutex);
@@ -1688,10 +1721,11 @@ static int bq2415x_remove(struct i2c_client *client)
 {
 	struct bq2415x_device *bq = i2c_get_clientdata(client);
 
-	if (bq->notify_psy) {
+	if (bq->nb.notifier_call)
 		power_supply_unreg_notifier(&bq->nb);
-		power_supply_put(bq->notify_psy);
-	}
+
+	if (bq->notify_node)
+		of_node_put(bq->notify_node);
 
 	bq2415x_sysfs_exit(bq);
 	bq2415x_power_supply_exit(bq);
@@ -1727,9 +1761,28 @@ static const struct i2c_device_id bq2415x_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq2415x_i2c_id_table);
 
+static const struct acpi_device_id bq2415x_i2c_acpi_match[] = {
+	{ "BQ2415X", BQUNKNOWN },
+	{ "BQ241500", BQ24150 },
+	{ "BQA24150", BQ24150A },
+	{ "BQ241510", BQ24151 },
+	{ "BQA24151", BQ24151A },
+	{ "BQ241520", BQ24152 },
+	{ "BQ241530", BQ24153 },
+	{ "BQA24153", BQ24153A },
+	{ "BQ241550", BQ24155 },
+	{ "BQ241560", BQ24156 },
+	{ "BQA24156", BQ24156A },
+	{ "BQS24157", BQ24157S },
+	{ "BQ241580", BQ24158 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, bq2415x_i2c_acpi_match);
+
 static struct i2c_driver bq2415x_driver = {
 	.driver = {
 		.name = "bq2415x-charger",
+		.acpi_match_table = ACPI_PTR(bq2415x_i2c_acpi_match),
 	},
 	.probe = bq2415x_probe,
 	.remove = bq2415x_remove,

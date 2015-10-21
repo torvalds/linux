@@ -364,7 +364,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	 * on the ethertype for the given device
 	 */
 	fcoe->fcoe_packet_type.func = fcoe_rcv;
-	fcoe->fcoe_packet_type.type = __constant_htons(ETH_P_FCOE);
+	fcoe->fcoe_packet_type.type = htons(ETH_P_FCOE);
 	fcoe->fcoe_packet_type.dev = netdev;
 	dev_add_pack(&fcoe->fcoe_packet_type);
 

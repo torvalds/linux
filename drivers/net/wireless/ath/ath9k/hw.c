@@ -279,6 +279,7 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 		return;
 	case AR9300_DEVID_QCA956X:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9561;
+		return;
 	}
 
 	val = REG_READ(ah, AR_SREV) & AR_SREV_ID;
@@ -3185,6 +3186,7 @@ static struct {
 	{ AR_SREV_VERSION_9550,         "9550" },
 	{ AR_SREV_VERSION_9565,         "9565" },
 	{ AR_SREV_VERSION_9531,         "9531" },
+	{ AR_SREV_VERSION_9561,         "9561" },
 };
 
 /* For devices with external radios */

@@ -206,7 +206,7 @@ struct jfs_sb_info {
 
 static inline struct jfs_inode_info *JFS_IP(struct inode *inode)
 {
-	return list_entry(inode, struct jfs_inode_info, vfs_inode);
+	return container_of(inode, struct jfs_inode_info, vfs_inode);
 }
 
 static inline int jfs_dirtable_inline(struct inode *inode)

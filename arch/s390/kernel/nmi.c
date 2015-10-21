@@ -21,6 +21,8 @@
 #include <asm/nmi.h>
 #include <asm/crw.h>
 #include <asm/switch_to.h>
+#include <asm/fpu-internal.h>
+#include <asm/ctl_reg.h>
 
 struct mcck_struct {
 	int kill_task;
@@ -129,26 +131,30 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 	} else
 		asm volatile("lfpc 0(%0)" : : "a" (fpt_creg_save_area));
 
-	asm volatile(
-		"	ld	0,0(%0)\n"
-		"	ld	1,8(%0)\n"
-		"	ld	2,16(%0)\n"
-		"	ld	3,24(%0)\n"
-		"	ld	4,32(%0)\n"
-		"	ld	5,40(%0)\n"
-		"	ld	6,48(%0)\n"
-		"	ld	7,56(%0)\n"
-		"	ld	8,64(%0)\n"
-		"	ld	9,72(%0)\n"
-		"	ld	10,80(%0)\n"
-		"	ld	11,88(%0)\n"
-		"	ld	12,96(%0)\n"
-		"	ld	13,104(%0)\n"
-		"	ld	14,112(%0)\n"
-		"	ld	15,120(%0)\n"
-		: : "a" (fpt_save_area));
-	/* Revalidate vector registers */
-	if (MACHINE_HAS_VX && current->thread.vxrs) {
+	if (!MACHINE_HAS_VX) {
+		/* Revalidate floating point registers */
+		asm volatile(
+			"	ld	0,0(%0)\n"
+			"	ld	1,8(%0)\n"
+			"	ld	2,16(%0)\n"
+			"	ld	3,24(%0)\n"
+			"	ld	4,32(%0)\n"
+			"	ld	5,40(%0)\n"
+			"	ld	6,48(%0)\n"
+			"	ld	7,56(%0)\n"
+			"	ld	8,64(%0)\n"
+			"	ld	9,72(%0)\n"
+			"	ld	10,80(%0)\n"
+			"	ld	11,88(%0)\n"
+			"	ld	12,96(%0)\n"
+			"	ld	13,104(%0)\n"
+			"	ld	14,112(%0)\n"
+			"	ld	15,120(%0)\n"
+			: : "a" (fpt_save_area));
+	} else {
+		/* Revalidate vector registers */
+		union ctlreg0 cr0;
+
 		if (!mci->vr) {
 			/*
 			 * Vector registers can't be restored and therefore
@@ -156,8 +162,16 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 			 */
 			kill_task = 1;
 		}
-		restore_vx_regs((__vector128 *)
-				S390_lowcore.vector_save_area_addr);
+		cr0.val = S390_lowcore.cregs_save_area[0];
+		cr0.afp = cr0.vx = 1;
+		__ctl_load(cr0.val, 0, 0);
+		asm volatile(
+			"	la	1,%0\n"
+			"	.word	0xe70f,0x1000,0x0036\n"	/* vlm 0,15,0(1) */
+			"	.word	0xe70f,0x1100,0x0c36\n"	/* vlm 16,31,256(1) */
+			: : "Q" (*(struct vx_array *)
+				 &S390_lowcore.vector_save_area) : "1");
+		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
 	/* Revalidate access registers */
 	asm volatile(
@@ -349,4 +363,4 @@ static int __init machine_check_init(void)
 	ctl_set_bit(14, 24);	/* enable warning MCH */
 	return 0;
 }
-arch_initcall(machine_check_init);
+early_initcall(machine_check_init);

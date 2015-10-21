@@ -43,14 +43,25 @@
 				  <&vaudio_hf_hrefv60_mode>,
 				  <&gbf_hrefv60_mode>,
 				  <&hdtv_hrefv60_mode>,
-				  <&touch_hrefv60_mode>;
+				  <&touch_hrefv60_mode>,
+				  <&gpios_hrefv60_mode>;
 
 			sdi0 {
-				/* SD card detect GPIO pin, extend default state */
 				sdi0_default_mode: sdi0_default {
+					/* SD card detect GPIO pin, extend default state */
 					default_hrefv60_cfg1 {
 						pins = "GPIO95_E8";
 						ste,config = <&gpio_in_pu>;
+					};
+					/* VMMCI level-shifter enable */
+					default_hrefv60_cfg2 {
+						pins = "GPIO169_D22";
+						ste,config = <&gpio_out_lo>;
+					};
+					/* VMMCI level-shifter voltage select */
+					default_hrefv60_cfg3 {
+						pins = "GPIO5_AG6";
+						ste,config = <&gpio_out_hi>;
 					};
 				};
 			};
@@ -210,6 +221,16 @@
 					hrefv60_cfg2 {
 						pins ="GPIO66_G3";
 						ste,config = <&gpio_out_lo>;
+					};
+				};
+			};
+			gpios {
+				/* Dangling GPIO pins */
+				gpios_hrefv60_mode: gpios_hrefv60 {
+					default_cfg1 {
+						/* Normally UART1 RXD, now dangling */
+						pins = "GPIO4_AH6";
+						ste,config = <&in_pu>;
 					};
 				};
 			};

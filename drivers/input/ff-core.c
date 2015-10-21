@@ -70,7 +70,7 @@ static int compat_effect(struct ff_device *ff, struct ff_effect *effect)
 			return -EINVAL;
 
 		/*
-		 * calculate manginude of sine wave as average of rumble's
+		 * calculate magnitude of sine wave as average of rumble's
 		 * 2/3 of strong magnitude and 1/3 of weak magnitude
 		 */
 		magnitude = effect->u.rumble.strong_magnitude / 3 +
@@ -213,7 +213,7 @@ static int erase_effect(struct input_dev *dev, int effect_id,
 /**
  * input_ff_erase - erase a force-feedback effect from device
  * @dev: input device to erase effect from
- * @effect_id: id of the ffect to be erased
+ * @effect_id: id of the effect to be erased
  * @file: purported owner of the request
  *
  * This function erases a force-feedback effect from specified device.
@@ -343,9 +343,8 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 	__set_bit(EV_FF, dev->evbit);
 
 	/* Copy "true" bits into ff device bitmap */
-	for (i = 0; i <= FF_MAX; i++)
-		if (test_bit(i, dev->ffbit))
-			__set_bit(i, ff->ffbit);
+	for_each_set_bit(i, dev->ffbit, FF_CNT)
+		__set_bit(i, ff->ffbit);
 
 	/* we can emulate RUMBLE with periodic effects */
 	if (test_bit(FF_PERIODIC, ff->ffbit))

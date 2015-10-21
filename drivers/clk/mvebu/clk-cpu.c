@@ -10,7 +10,8 @@
  * warranty of any kind, whether express or implied.
  */
 #include <linux/kernel.h>
-#include <linux/clkdev.h>
+#include <linux/slab.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
@@ -120,7 +121,7 @@ static int clk_cpu_on_set_rate(struct clk_hw *hwclk, unsigned long rate,
 	if (!cpuclk->pmu_dfs)
 		return -ENODEV;
 
-	cur_rate = __clk_get_rate(hwclk->clk);
+	cur_rate = clk_hw_get_rate(hwclk);
 
 	reg = readl(cpuclk->reg_base + SYS_CTRL_CLK_DIVIDER_CTRL2_OFFSET);
 	fabric_div = (reg >> SYS_CTRL_CLK_DIVIDER_CTRL2_NBCLK_RATIO_SHIFT) &

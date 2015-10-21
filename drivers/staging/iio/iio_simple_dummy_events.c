@@ -84,6 +84,7 @@ int iio_simple_dummy_write_event_config(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+		break;
 	case IIO_STEPS:
 		switch (type) {
 		case IIO_EV_TYPE_CHANGE:
@@ -92,6 +93,7 @@ int iio_simple_dummy_write_event_config(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -118,7 +120,7 @@ int iio_simple_dummy_read_event_value(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
 				      enum iio_event_direction dir,
-					  enum iio_event_info info,
+				      enum iio_event_info info,
 				      int *val, int *val2)
 {
 	struct iio_dummy_state *st = iio_priv(indio_dev);
@@ -141,7 +143,7 @@ int iio_simple_dummy_write_event_value(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,
 				       enum iio_event_type type,
 				       enum iio_event_direction dir,
-					   enum iio_event_info info,
+				       enum iio_event_info info,
 				       int val, int val2)
 {
 	struct iio_dummy_state *st = iio_priv(indio_dev);
@@ -255,13 +257,11 @@ error_ret:
  * iio_simple_dummy_events_unregister() - tidy up interrupt handling on remove
  * @indio_dev: device instance data
  */
-int iio_simple_dummy_events_unregister(struct iio_dev *indio_dev)
+void iio_simple_dummy_events_unregister(struct iio_dev *indio_dev)
 {
 	struct iio_dummy_state *st = iio_priv(indio_dev);
 
 	free_irq(st->event_irq, indio_dev);
 	/* Not part of normal driver */
 	iio_dummy_evgen_release_irq(st->event_irq);
-
-	return 0;
 }

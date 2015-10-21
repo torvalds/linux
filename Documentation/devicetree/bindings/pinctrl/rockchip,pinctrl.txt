@@ -21,14 +21,15 @@ defined as gpio sub-nodes of the pinmux controller.
 Required properties for iomux controller:
   - compatible: one of "rockchip,rk2928-pinctrl", "rockchip,rk3066a-pinctrl"
 		       "rockchip,rk3066b-pinctrl", "rockchip,rk3188-pinctrl"
-		       "rockchip,rk3288-pinctrl"
+		       "rockchip,rk3288-pinctrl", "rockchip,rk3368-pinctrl"
   - rockchip,grf: phandle referencing a syscon providing the
 	 "general register files"
 
 Optional properties for iomux controller:
   - rockchip,pmu: phandle referencing a syscon providing the pmu registers
 	 as some SoCs carry parts of the iomux controller registers there.
-	 Required for at least rk3188 and rk3288.
+	 Required for at least rk3188 and rk3288. On the rk3368 this should
+	 point to the PMUGRF syscon.
 
 Deprecated properties for iomux controller:
   - reg: first element is the general register space of the iomux controller

@@ -60,8 +60,8 @@ void irlap_start_query_timer(struct irlap_cb *self, int S, int s)
 	 * to avoid messing with for incoming connections requests and
 	 * to accommodate devices that perform discovery slower than us.
 	 * Jean II */
-	timeout = ((sysctl_slot_timeout * HZ / 1000) * (S - s)
-		   + XIDEXTRA_TIMEOUT + SMALLBUSY_TIMEOUT);
+	timeout = msecs_to_jiffies(sysctl_slot_timeout) * (S - s)
+		   + XIDEXTRA_TIMEOUT + SMALLBUSY_TIMEOUT;
 
 	/* Set or re-set the timer. We reset the timer for each received
 	 * discovery query, which allow us to automatically adjust to

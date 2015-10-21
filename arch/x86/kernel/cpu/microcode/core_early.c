@@ -3,6 +3,7 @@
  *
  *	Copyright (C) 2012 Fenghua Yu <fenghua.yu@intel.com>
  *			   H Peter Anvin" <hpa@zytor.com>
+ *		  (C) 2015 Borislav Petkov <bp@alien8.de>
  *
  *	This driver allows to early upgrade microcode on Intel processors
  *	belonging to IA-32 family - PentiumPro, Pentium II,
@@ -17,6 +18,7 @@
  *	2 of the License, or (at your option) any later version.
  */
 #include <linux/module.h>
+#include <linux/firmware.h>
 #include <asm/microcode.h>
 #include <asm/microcode_intel.h>
 #include <asm/microcode_amd.h>
@@ -43,9 +45,29 @@ static bool __init check_loader_disabled_bsp(void)
 	return *res;
 }
 
+extern struct builtin_fw __start_builtin_fw[];
+extern struct builtin_fw __end_builtin_fw[];
+
+bool get_builtin_firmware(struct cpio_data *cd, const char *name)
+{
+#ifdef CONFIG_FW_LOADER
+	struct builtin_fw *b_fw;
+
+	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
+		if (!strcmp(name, b_fw->name)) {
+			cd->size = b_fw->size;
+			cd->data = b_fw->data;
+			return true;
+		}
+	}
+#endif
+	return false;
+}
+
 void __init load_ucode_bsp(void)
 {
-	int vendor, family;
+	int vendor;
+	unsigned int family;
 
 	if (check_loader_disabled_bsp())
 		return;
@@ -63,7 +85,7 @@ void __init load_ucode_bsp(void)
 		break;
 	case X86_VENDOR_AMD:
 		if (family >= 0x10)
-			load_ucode_amd_bsp();
+			load_ucode_amd_bsp(family);
 		break;
 	default:
 		break;

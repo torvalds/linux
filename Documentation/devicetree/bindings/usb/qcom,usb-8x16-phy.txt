@@ -1,0 +1,76 @@
+Qualcomm's APQ8016/MSM8916 USB transceiver controller
+
+- compatible:
+    Usage: required
+    Value type: <string>
+    Definition: Should contain "qcom,usb-8x16-phy".
+
+- reg:
+    Usage: required
+    Value type: <prop-encoded-array>
+    Definition: USB PHY base address and length of the register map
+
+- clocks:
+    Usage: required
+    Value type: <prop-encoded-array>
+    Definition: See clock-bindings.txt section "consumers". List of
+                two clock specifiers for interface and core controller
+                clocks.
+
+- clock-names:
+    Usage: required
+    Value type: <string>
+    Definition: Must contain "iface" and "core" strings.
+
+- vddcx-supply:
+    Usage: required
+    Value type: <phandle>
+    Definition: phandle to the regulator VDCCX supply node.
+
+- v1p8-supply:
+    Usage: required
+    Value type: <phandle>
+    Definition: phandle to the regulator 1.8V supply node.
+
+- v3p3-supply:
+    Usage: required
+    Value type: <phandle>
+    Definition: phandle to the regulator 3.3V supply node.
+
+- resets:
+    Usage: required
+    Value type: <prop-encoded-array>
+    Definition: See reset.txt section "consumers". PHY reset specifier.
+
+- reset-names:
+    Usage: required
+    Value type: <string>
+    Definition: Must contain "phy" string.
+
+- switch-gpio:
+    Usage: optional
+    Value type: <prop-encoded-array>
+    Definition: Some boards are using Dual SPDT USB Switch, witch is
+                controlled by GPIO to de/multiplex D+/D- USB lines
+                between connectors.
+
+Example:
+	usb_phy: phy@78d9000 {
+		compatible = "qcom,usb-8x16-phy";
+		reg = <0x78d9000 0x400>;
+
+		vddcx-supply = <&pm8916_s1_corner>;
+		v1p8-supply = <&pm8916_l7>;
+		v3p3-supply = <&pm8916_l13>;
+
+		clocks = <&gcc GCC_USB_HS_AHB_CLK>,
+			     <&gcc GCC_USB_HS_SYSTEM_CLK>;
+		clock-names = "iface", "core";
+
+		resets = <&gcc GCC_USB2A_PHY_BCR>;
+		reset-names = "phy";
+
+		// D+/D- lines: 1 - Routed to HUB, 0 - Device connector
+		switch-gpio = <&pm8916_gpios 4 GPIO_ACTIVE_HIGH>;
+	};
+

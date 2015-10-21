@@ -543,6 +543,7 @@ struct fc_vft_header {
 #define ELS_CMD_TEST      0x11000000
 #define ELS_CMD_RRQ       0x12000000
 #define ELS_CMD_REC       0x13000000
+#define ELS_CMD_RDP       0x18000000
 #define ELS_CMD_PRLI      0x20100014
 #define ELS_CMD_PRLO      0x21100014
 #define ELS_CMD_PRLO_ACC  0x02100014
@@ -558,6 +559,7 @@ struct fc_vft_header {
 #define ELS_CMD_SCR       0x62000000
 #define ELS_CMD_RNID      0x78000000
 #define ELS_CMD_LIRR      0x7A000000
+#define ELS_CMD_LCB	  0x81000000
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 #define ELS_CMD_MASK      0xffff
 #define ELS_RSP_MASK      0xff
@@ -580,6 +582,7 @@ struct fc_vft_header {
 #define ELS_CMD_TEST      0x11
 #define ELS_CMD_RRQ       0x12
 #define ELS_CMD_REC       0x13
+#define ELS_CMD_RDP	  0x18
 #define ELS_CMD_PRLI      0x14001020
 #define ELS_CMD_PRLO      0x14001021
 #define ELS_CMD_PRLO_ACC  0x14001002
@@ -595,6 +598,7 @@ struct fc_vft_header {
 #define ELS_CMD_SCR       0x62
 #define ELS_CMD_RNID      0x78
 #define ELS_CMD_LIRR      0x7A
+#define ELS_CMD_LCB	  0x81
 #endif
 
 /*
@@ -1009,6 +1013,198 @@ typedef struct _ELS_PKT {	/* Structure is in Big Endian format */
 		uint8_t pad[128 - 4];	/* Pad out to payload of 128 bytes */
 	} un;
 } ELS_PKT;
+
+/*
+ * Link Cable Beacon (LCB) ELS Frame
+ */
+
+struct fc_lcb_request_frame {
+	uint32_t      lcb_command;      /* ELS command opcode (0x81)     */
+	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
+#define LPFC_LCB_ON    0x1
+#define LPFC_LCB_OFF   0x2
+	uint8_t       reserved[3];
+
+	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
+#define LPFC_LCB_GREEN 0x1
+#define LPFC_LCB_AMBER 0x2
+	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
+	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */
+};
+
+/*
+ * Link Cable Beacon (LCB) ELS Response Frame
+ */
+struct fc_lcb_res_frame {
+	uint32_t      lcb_ls_acc;       /* Acceptance of LCB request (0x02) */
+	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
+	uint8_t       reserved[3];
+	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
+	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
+	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */
+};
+
+/*
+ * Read Diagnostic Parameters (RDP) ELS frame.
+ */
+#define SFF_PG0_IDENT_SFP              0x3
+
+#define SFP_FLAG_PT_OPTICAL            0x0
+#define SFP_FLAG_PT_SWLASER            0x01
+#define SFP_FLAG_PT_LWLASER_LC1310     0x02
+#define SFP_FLAG_PT_LWLASER_LL1550     0x03
+#define SFP_FLAG_PT_MASK               0x0F
+#define SFP_FLAG_PT_SHIFT              0
+
+#define SFP_FLAG_IS_OPTICAL_PORT       0x01
+#define SFP_FLAG_IS_OPTICAL_MASK       0x010
+#define SFP_FLAG_IS_OPTICAL_SHIFT      4
+
+#define SFP_FLAG_IS_DESC_VALID         0x01
+#define SFP_FLAG_IS_DESC_VALID_MASK    0x020
+#define SFP_FLAG_IS_DESC_VALID_SHIFT   5
+
+#define SFP_FLAG_CT_UNKNOWN            0x0
+#define SFP_FLAG_CT_SFP_PLUS           0x01
+#define SFP_FLAG_CT_MASK               0x3C
+#define SFP_FLAG_CT_SHIFT              6
+
+struct fc_rdp_port_name_info {
+	uint8_t wwnn[8];
+	uint8_t wwpn[8];
+};
+
+
+/*
+ * Link Error Status Block Structure (FC-FS-3) for RDP
+ * This similar to RPS ELS
+ */
+struct fc_link_status {
+	uint32_t      link_failure_cnt;
+	uint32_t      loss_of_synch_cnt;
+	uint32_t      loss_of_signal_cnt;
+	uint32_t      primitive_seq_proto_err;
+	uint32_t      invalid_trans_word;
+	uint32_t      invalid_crc_cnt;
+
+};
+
+#define RDP_PORT_NAMES_DESC_TAG  0x00010003
+struct fc_rdp_port_name_desc {
+	uint32_t	tag;     /* 0001 0003h */
+	uint32_t	length;  /* set to size of payload struct */
+	struct fc_rdp_port_name_info  port_names;
+};
+
+
+struct fc_rdp_link_error_status_payload_info {
+	struct fc_link_status link_status; /* 24 bytes */
+	uint32_t  port_type;             /* bits 31-30 only */
+};
+
+#define RDP_LINK_ERROR_STATUS_DESC_TAG  0x00010002
+struct fc_rdp_link_error_status_desc {
+	uint32_t         tag;     /* 0001 0002h */
+	uint32_t         length;  /* set to size of payload struct */
+	struct fc_rdp_link_error_status_payload_info info;
+};
+
+#define VN_PT_PHY_UNKNOWN      0x00
+#define VN_PT_PHY_PF_PORT      0x01
+#define VN_PT_PHY_ETH_MAC      0x10
+#define VN_PT_PHY_SHIFT                30
+
+#define RDP_PS_1GB             0x8000
+#define RDP_PS_2GB             0x4000
+#define RDP_PS_4GB             0x2000
+#define RDP_PS_10GB            0x1000
+#define RDP_PS_8GB             0x0800
+#define RDP_PS_16GB            0x0400
+#define RDP_PS_32GB            0x0200
+
+#define RDP_CAP_UNKNOWN        0x0001
+#define RDP_PS_UNKNOWN         0x0002
+#define RDP_PS_NOT_ESTABLISHED 0x0001
+
+struct fc_rdp_port_speed {
+	uint16_t   capabilities;
+	uint16_t   speed;
+};
+
+struct fc_rdp_port_speed_info {
+	struct fc_rdp_port_speed   port_speed;
+};
+
+#define RDP_PORT_SPEED_DESC_TAG  0x00010001
+struct fc_rdp_port_speed_desc {
+	uint32_t         tag;            /* 00010001h */
+	uint32_t         length;         /* set to size of payload struct */
+	struct fc_rdp_port_speed_info info;
+};
+
+#define RDP_NPORT_ID_SIZE      4
+#define RDP_N_PORT_DESC_TAG    0x00000003
+struct fc_rdp_nport_desc {
+	uint32_t         tag;          /* 0000 0003h, big endian */
+	uint32_t         length;       /* size of RDP_N_PORT_ID struct */
+	uint32_t         nport_id : 12;
+	uint32_t         reserved : 8;
+};
+
+
+struct fc_rdp_link_service_info {
+	uint32_t         els_req;    /* Request payload word 0 value.*/
+};
+
+#define RDP_LINK_SERVICE_DESC_TAG  0x00000001
+struct fc_rdp_link_service_desc {
+	uint32_t         tag;     /* Descriptor tag  1 */
+	uint32_t         length;  /* set to size of payload struct. */
+	struct fc_rdp_link_service_info  payload;
+				  /* must be ELS req Word 0(0x18) */
+};
+
+struct fc_rdp_sfp_info {
+	uint16_t	temperature;
+	uint16_t	vcc;
+	uint16_t	tx_bias;
+	uint16_t	tx_power;
+	uint16_t	rx_power;
+	uint16_t	flags;
+};
+
+#define RDP_SFP_DESC_TAG  0x00010000
+struct fc_rdp_sfp_desc {
+	uint32_t         tag;
+	uint32_t         length;  /* set to size of sfp_info struct */
+	struct fc_rdp_sfp_info sfp_info;
+};
+
+struct fc_rdp_req_frame {
+	uint32_t         rdp_command;           /* ELS command opcode (0x18)*/
+	uint32_t         rdp_des_length;        /* RDP Payload Word 1 */
+	struct fc_rdp_nport_desc nport_id_desc; /* RDP Payload Word 2 - 4 */
+};
+
+
+struct fc_rdp_res_frame {
+	uint32_t	reply_sequence;		/* FC word0 LS_ACC or LS_RJT */
+	uint32_t	length;			/* FC Word 1      */
+	struct fc_rdp_link_service_desc link_service_desc;    /* Word 2 -4  */
+	struct fc_rdp_sfp_desc sfp_desc;                      /* Word 5 -9  */
+	struct fc_rdp_port_speed_desc portspeed_desc;         /* Word 10-12 */
+	struct fc_rdp_link_error_status_desc link_error_desc; /* Word 13-21 */
+	struct fc_rdp_port_name_desc diag_port_names_desc;    /* Word 22-27 */
+	struct fc_rdp_port_name_desc attached_port_names_desc;/* Word 28-33 */
+};
+
+
+#define RDP_DESC_PAYLOAD_SIZE (sizeof(struct fc_rdp_link_service_desc) \
+			+ sizeof(struct fc_rdp_sfp_desc) \
+			+ sizeof(struct fc_rdp_port_speed_desc) \
+			+ sizeof(struct fc_rdp_link_error_status_desc) \
+			+ (sizeof(struct fc_rdp_port_name_desc) * 2))
+
 
 /******** FDMI ********/
 
@@ -1585,6 +1781,11 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_TIMEOUT                0xfffffe /* time-out expired waiting for */
 
 #define TEMPERATURE_OFFSET 0xB0	/* Slim offset for critical temperature event */
+
+/*
+ * return code Fail
+ */
+#define FAILURE 1
 
 /*
  *    Begin Structure Definitions for Mailbox Commands

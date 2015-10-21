@@ -24,19 +24,30 @@
 #define ARM64_WORKAROUND_CLEAN_CACHE		0
 #define ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE	1
 #define ARM64_WORKAROUND_845719			2
+#define ARM64_HAS_SYSREG_GIC_CPUIF		3
+#define ARM64_HAS_PAN				4
+#define ARM64_HAS_LSE_ATOMICS			5
 
-#define ARM64_NCAPS				3
+#define ARM64_NCAPS				6
 
 #ifndef __ASSEMBLY__
+
+#include <linux/kernel.h>
 
 struct arm64_cpu_capabilities {
 	const char *desc;
 	u16 capability;
 	bool (*matches)(const struct arm64_cpu_capabilities *);
+	void (*enable)(void);
 	union {
 		struct {	/* To be used for erratum handling only */
 			u32 midr_model;
 			u32 midr_range_min, midr_range_max;
+		};
+
+		struct {	/* Feature register checking */
+			int field_pos;
+			int min_field_value;
 		};
 	};
 };
@@ -63,6 +74,13 @@ static inline void cpus_set_cap(unsigned int num)
 	else
 		__set_bit(num, cpu_hwcaps);
 }
+
+static inline int __attribute_const__ cpuid_feature_extract_field(u64 features,
+								  int field)
+{
+	return (s64)(features << (64 - 4 - field)) >> (64 - 4);
+}
+
 
 void check_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			    const char *info);

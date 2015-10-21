@@ -145,6 +145,7 @@ extern struct omap_hwmod am33xx_uart5_hwmod;
 extern struct omap_hwmod am33xx_uart6_hwmod;
 extern struct omap_hwmod am33xx_wd_timer1_hwmod;
 
+extern struct omap_hwmod_class am33xx_emif_hwmod_class;
 extern struct omap_hwmod_class am33xx_l4_hwmod_class;
 extern struct omap_hwmod_class am33xx_wkup_m3_hwmod_class;
 extern struct omap_hwmod_class am33xx_control_hwmod_class;

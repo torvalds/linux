@@ -687,6 +687,7 @@ DEFINE_INODE_EVENT(xfs_inode_clear_eofblocks_tag);
 DEFINE_INODE_EVENT(xfs_inode_free_eofblocks_invalid);
 
 DEFINE_INODE_EVENT(xfs_filemap_fault);
+DEFINE_INODE_EVENT(xfs_filemap_pmd_fault);
 DEFINE_INODE_EVENT(xfs_filemap_page_mkwrite);
 
 DECLARE_EVENT_CLASS(xfs_iref_class,
@@ -736,6 +737,53 @@ TRACE_EVENT(xfs_iomap_prealloc_size,
 		  "m_writeio_blocks %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->ino,
 		  __entry->blocks, __entry->shift, __entry->writeio_blocks)
+)
+
+TRACE_EVENT(xfs_irec_merge_pre,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agino_t agino,
+		 uint16_t holemask, xfs_agino_t nagino, uint16_t nholemask),
+	TP_ARGS(mp, agno, agino, holemask, nagino, nholemask),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(uint16_t, holemask)
+		__field(xfs_agino_t, nagino)
+		__field(uint16_t, nholemask)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->agino = agino;
+		__entry->holemask = holemask;
+		__entry->nagino = nagino;
+		__entry->nholemask = holemask;
+	),
+	TP_printk("dev %d:%d agno %d inobt (%u:0x%x) new (%u:0x%x)",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->agno,
+		  __entry->agino, __entry->holemask, __entry->nagino,
+		  __entry->nholemask)
+)
+
+TRACE_EVENT(xfs_irec_merge_post,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agino_t agino,
+		 uint16_t holemask),
+	TP_ARGS(mp, agno, agino, holemask),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(uint16_t, holemask)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->agino = agino;
+		__entry->holemask = holemask;
+	),
+	TP_printk("dev %d:%d agno %d inobt (%u:0x%x)", MAJOR(__entry->dev),
+		  MINOR(__entry->dev), __entry->agno, __entry->agino,
+		  __entry->holemask)
 )
 
 #define DEFINE_IREF_EVENT(name) \
@@ -2041,6 +2089,40 @@ DEFINE_EVENT(xfs_log_recover_ino_item_class, name, \
 DEFINE_LOG_RECOVER_INO_ITEM(xfs_log_recover_inode_recover);
 DEFINE_LOG_RECOVER_INO_ITEM(xfs_log_recover_inode_cancel);
 DEFINE_LOG_RECOVER_INO_ITEM(xfs_log_recover_inode_skip);
+
+DECLARE_EVENT_CLASS(xfs_log_recover_icreate_item_class,
+	TP_PROTO(struct xlog *log, struct xfs_icreate_log *in_f),
+	TP_ARGS(log, in_f),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(unsigned int, count)
+		__field(unsigned int, isize)
+		__field(xfs_agblock_t, length)
+		__field(unsigned int, gen)
+	),
+	TP_fast_assign(
+		__entry->dev = log->l_mp->m_super->s_dev;
+		__entry->agno = be32_to_cpu(in_f->icl_ag);
+		__entry->agbno = be32_to_cpu(in_f->icl_agbno);
+		__entry->count = be32_to_cpu(in_f->icl_count);
+		__entry->isize = be32_to_cpu(in_f->icl_isize);
+		__entry->length = be32_to_cpu(in_f->icl_length);
+		__entry->gen = be32_to_cpu(in_f->icl_gen);
+	),
+	TP_printk("dev %d:%d agno %u agbno %u count %u isize %u length %u "
+		  "gen %u", MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno, __entry->agbno, __entry->count, __entry->isize,
+		  __entry->length, __entry->gen)
+)
+#define DEFINE_LOG_RECOVER_ICREATE_ITEM(name) \
+DEFINE_EVENT(xfs_log_recover_icreate_item_class, name, \
+	TP_PROTO(struct xlog *log, struct xfs_icreate_log *in_f), \
+	TP_ARGS(log, in_f))
+
+DEFINE_LOG_RECOVER_ICREATE_ITEM(xfs_log_recover_icreate_cancel);
+DEFINE_LOG_RECOVER_ICREATE_ITEM(xfs_log_recover_icreate_recover);
 
 DECLARE_EVENT_CLASS(xfs_discard_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,

@@ -29,7 +29,7 @@
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
 
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 #ifdef DEBUG_LOW
 #define DBG_LOW(fmt...) udbg_printf(fmt)
@@ -582,26 +582,27 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
  * be when they isi), and we are the only one left.  We rely on our kernel
  * mapping being 0xC0's and the hardware ignoring those two real bits.
  *
+ * This must be called with interrupts disabled.
+ *
+ * Taking the native_tlbie_lock is unsafe here due to the possibility of
+ * lockdep being on. On pre POWER5 hardware, not taking the lock could
+ * cause deadlock. POWER5 and newer not taking the lock is fine. This only
+ * gets called during boot before secondary CPUs have come up and during
+ * crashdump and all bets are off anyway.
+ *
  * TODO: add batching support when enabled.  remember, no dynamic memory here,
  * athough there is the control page available...
  */
 static void native_hpte_clear(void)
 {
 	unsigned long vpn = 0;
-	unsigned long slot, slots, flags;
+	unsigned long slot, slots;
 	struct hash_pte *hptep = htab_address;
 	unsigned long hpte_v;
 	unsigned long pteg_count;
 	int psize, apsize, ssize;
 
 	pteg_count = htab_hash_mask + 1;
-
-	local_irq_save(flags);
-
-	/* we take the tlbie lock and hold it.  Some hardware will
-	 * deadlock if we try to tlbie from two processors at once.
-	 */
-	raw_spin_lock(&native_tlbie_lock);
 
 	slots = pteg_count * HPTES_PER_GROUP;
 
@@ -614,8 +615,8 @@ static void native_hpte_clear(void)
 		hpte_v = be64_to_cpu(hptep->v);
 
 		/*
-		 * Call __tlbie() here rather than tlbie() since we
-		 * already hold the native_tlbie_lock.
+		 * Call __tlbie() here rather than tlbie() since we can't take the
+		 * native_tlbie_lock.
 		 */
 		if (hpte_v & HPTE_V_VALID) {
 			hpte_decode(hptep, slot, &psize, &apsize, &ssize, &vpn);
@@ -625,8 +626,6 @@ static void native_hpte_clear(void)
 	}
 
 	asm volatile("eieio; tlbsync; ptesync":::"memory");
-	raw_spin_unlock(&native_tlbie_lock);
-	local_irq_restore(flags);
 }
 
 /*

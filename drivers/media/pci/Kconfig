@@ -11,16 +11,17 @@ if MEDIA_PCI_SUPPORT
 if MEDIA_CAMERA_SUPPORT
 	comment "Media capture support"
 source "drivers/media/pci/meye/Kconfig"
+source "drivers/media/pci/solo6x10/Kconfig"
 source "drivers/media/pci/sta2x11/Kconfig"
+source "drivers/media/pci/tw68/Kconfig"
+source "drivers/media/pci/zoran/Kconfig"
 endif
 
 if MEDIA_ANALOG_TV_SUPPORT
 	comment "Media capture/analog TV support"
 source "drivers/media/pci/ivtv/Kconfig"
-source "drivers/media/pci/zoran/Kconfig"
 source "drivers/media/pci/saa7146/Kconfig"
-source "drivers/media/pci/solo6x10/Kconfig"
-source "drivers/media/pci/tw68/Kconfig"
+source "drivers/media/pci/dt3155/Kconfig"
 endif
 
 if MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
@@ -32,6 +33,7 @@ source "drivers/media/pci/cx88/Kconfig"
 source "drivers/media/pci/bt8xx/Kconfig"
 source "drivers/media/pci/saa7134/Kconfig"
 source "drivers/media/pci/saa7164/Kconfig"
+source "drivers/media/pci/cobalt/Kconfig"
 
 endif
 
@@ -47,6 +49,7 @@ source "drivers/media/pci/mantis/Kconfig"
 source "drivers/media/pci/ngene/Kconfig"
 source "drivers/media/pci/ddbridge/Kconfig"
 source "drivers/media/pci/smipcie/Kconfig"
+source "drivers/media/pci/netup_unidvb/Kconfig"
 endif
 
 endif #MEDIA_PCI_SUPPORT

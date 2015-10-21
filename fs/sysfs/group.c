@@ -135,7 +135,7 @@ static int internal_create_group(struct kobject *kobj, int update,
  * This function creates a group for the first time.  It will explicitly
  * warn and error if any of the attribute files being created already exist.
  *
- * Returns 0 on success or error.
+ * Returns 0 on success or error code on failure.
  */
 int sysfs_create_group(struct kobject *kobj,
 		       const struct attribute_group *grp)
@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_group);
  * It will explicitly warn and error if any of the attribute files being
  * created already exist.
  *
- * Returns 0 on success or error code from sysfs_create_group on error.
+ * Returns 0 on success or error code from sysfs_create_group on failure.
  */
 int sysfs_create_groups(struct kobject *kobj,
 			const struct attribute_group **groups)
@@ -193,7 +193,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_groups);
  * The primary use for this function is to call it after making a change
  * that affects group visibility.
  *
- * Returns 0 on success or error.
+ * Returns 0 on success or error code on failure.
  */
 int sysfs_update_group(struct kobject *kobj,
 		       const struct attribute_group *grp)

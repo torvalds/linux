@@ -650,7 +650,7 @@ static void kvmppc_rmap_reset(struct kvm *kvm)
 	int srcu_idx;
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	slots = kvm->memslots;
+	slots = kvm_memslots(kvm);
 	kvm_for_each_memslot(memslot, slots) {
 		/*
 		 * This assumes it is acceptable to lose reference and
@@ -761,6 +761,8 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			/* Harvest R and C */
 			rcbits = be64_to_cpu(hptep[1]) & (HPTE_R_R | HPTE_R_C);
 			*rmapp |= rcbits << KVMPPC_RMAP_RC_SHIFT;
+			if (rcbits & HPTE_R_C)
+				kvmppc_update_rmap_change(rmapp, psize);
 			if (rcbits & ~rev[i].guest_rpte) {
 				rev[i].guest_rpte = ptel | rcbits;
 				note_hpte_modification(kvm, &rev[i]);
@@ -927,8 +929,12 @@ static int kvm_test_clear_dirty_npages(struct kvm *kvm, unsigned long *rmapp)
  retry:
 	lock_rmap(rmapp);
 	if (*rmapp & KVMPPC_RMAP_CHANGED) {
-		*rmapp &= ~KVMPPC_RMAP_CHANGED;
+		long change_order = (*rmapp & KVMPPC_RMAP_CHG_ORDER)
+			>> KVMPPC_RMAP_CHG_SHIFT;
+		*rmapp &= ~(KVMPPC_RMAP_CHANGED | KVMPPC_RMAP_CHG_ORDER);
 		npages_dirty = 1;
+		if (change_order > PAGE_SHIFT)
+			npages_dirty = 1ul << (change_order - PAGE_SHIFT);
 	}
 	if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
 		unlock_rmap(rmapp);

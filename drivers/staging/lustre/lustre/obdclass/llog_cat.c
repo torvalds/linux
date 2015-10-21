@@ -279,9 +279,8 @@ static struct llog_handle *llog_cat_current_log(struct llog_handle *cathandle,
 		    loghandle->lgh_last_idx < LLOG_BITMAP_SIZE(llh) - 1) {
 			up_read(&cathandle->lgh_lock);
 			return loghandle;
-		} else {
-			up_write(&loghandle->lgh_lock);
 		}
+		up_write(&loghandle->lgh_lock);
 	}
 	up_read(&cathandle->lgh_lock);
 
@@ -299,9 +298,8 @@ static struct llog_handle *llog_cat_current_log(struct llog_handle *cathandle,
 		if (loghandle->lgh_last_idx < LLOG_BITMAP_SIZE(llh) - 1) {
 			up_write(&cathandle->lgh_lock);
 			return loghandle;
-		} else {
-			up_write(&loghandle->lgh_lock);
 		}
+		up_write(&loghandle->lgh_lock);
 	}
 
 	CDEBUG(D_INODE, "use next log\n");

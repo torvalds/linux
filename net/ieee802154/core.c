@@ -121,8 +121,6 @@ wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size)
 	/* atomic_inc_return makes it start at 1, make it start at 0 */
 	rdev->wpan_phy_idx--;
 
-	mutex_init(&rdev->wpan_phy.pib_lock);
-
 	INIT_LIST_HEAD(&rdev->wpan_dev_list);
 	device_initialize(&rdev->wpan_phy.dev);
 	dev_set_name(&rdev->wpan_phy.dev, PHY_NAME "%d", rdev->wpan_phy_idx);

@@ -18,12 +18,7 @@ ARM_BE8(rev	r0, r0)
 .globl zynq_secondary_trampoline_jump
 zynq_secondary_trampoline_jump:
 	/* Space for jumping address */
-	.word	/* cpu 1 */
+	.word	0	/* cpu 1 */
 .globl zynq_secondary_trampoline_end
 zynq_secondary_trampoline_end:
 ENDPROC(zynq_secondary_trampoline)
-
-ENTRY(zynq_secondary_startup)
-	bl	v7_invalidate_l1
-	b	secondary_startup
-ENDPROC(zynq_secondary_startup)

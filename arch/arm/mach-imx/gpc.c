@@ -227,7 +227,7 @@ static int imx_gpc_domain_alloc(struct irq_domain *domain,
 	return irq_domain_alloc_irqs_parent(domain, irq, nr_irqs, &parent_args);
 }
 
-static struct irq_domain_ops imx_gpc_domain_ops = {
+static const struct irq_domain_ops imx_gpc_domain_ops = {
 	.xlate	= imx_gpc_domain_xlate,
 	.alloc	= imx_gpc_domain_alloc,
 	.free	= irq_domain_free_irqs_common,
@@ -290,8 +290,6 @@ void __init imx_gpc_check_dt(void)
 		gpc_base = of_iomap(np, 0);
 	}
 }
-
-#ifdef CONFIG_PM_GENERIC_DOMAINS
 
 static void _imx6q_pm_pu_power_off(struct generic_pm_domain *genpd)
 {
@@ -399,7 +397,6 @@ static struct genpd_onecell_data imx_gpc_onecell_data = {
 static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 {
 	struct clk *clk;
-	bool is_off;
 	int i;
 
 	imx6q_pu_domain.reg = pu_reg;
@@ -416,18 +413,13 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 	}
 	imx6q_pu_domain.num_clks = i;
 
-	is_off = IS_ENABLED(CONFIG_PM);
-	if (is_off) {
-		_imx6q_pm_pu_power_off(&imx6q_pu_domain.base);
-	} else {
-		/*
-		 * Enable power if compiled without CONFIG_PM in case the
-		 * bootloader disabled it.
-		 */
-		imx6q_pm_pu_power_on(&imx6q_pu_domain.base);
-	}
+	/* Enable power always in case bootloader disabled it. */
+	imx6q_pm_pu_power_on(&imx6q_pu_domain.base);
 
-	pm_genpd_init(&imx6q_pu_domain.base, NULL, is_off);
+	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
+		return 0;
+
+	pm_genpd_init(&imx6q_pu_domain.base, NULL, false);
 	return of_genpd_add_provider_onecell(dev->of_node,
 					     &imx_gpc_onecell_data);
 
@@ -436,13 +428,6 @@ clk_err:
 		clk_put(imx6q_pu_domain.clk[i]);
 	return -EINVAL;
 }
-
-#else
-static inline int imx_gpc_genpd_init(struct device *dev, struct regulator *reg)
-{
-	return 0;
-}
-#endif /* CONFIG_PM_GENERIC_DOMAINS */
 
 static int imx_gpc_probe(struct platform_device *pdev)
 {
@@ -474,7 +459,6 @@ static const struct of_device_id imx_gpc_dt_ids[] = {
 static struct platform_driver imx_gpc_driver = {
 	.driver = {
 		.name = "imx-gpc",
-		.owner = THIS_MODULE,
 		.of_match_table = imx_gpc_dt_ids,
 	},
 	.probe = imx_gpc_probe,

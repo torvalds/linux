@@ -349,3 +349,7 @@ static struct platform_driver rockchip_saradc_driver = {
 };
 
 module_platform_driver(rockchip_saradc_driver);
+
+MODULE_AUTHOR("Heiko Stuebner <heiko@sntech.de>");
+MODULE_DESCRIPTION("Rockchip SARADC driver");
+MODULE_LICENSE("GPL v2");

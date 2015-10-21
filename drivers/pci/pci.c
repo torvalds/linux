@@ -81,7 +81,7 @@ unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 unsigned long pci_hotplug_io_size  = DEFAULT_HOTPLUG_IO_SIZE;
 unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
 
-enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_TUNE_OFF;
+enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_DEFAULT;
 
 /*
  * The default CLS is used if arch didn't set CLS explicitly and not
@@ -138,9 +138,22 @@ void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar)
 	return ioremap_nocache(res->start, resource_size(res));
 }
 EXPORT_SYMBOL_GPL(pci_ioremap_bar);
+
+void __iomem *pci_ioremap_wc_bar(struct pci_dev *pdev, int bar)
+{
+	/*
+	 * Make sure the BAR is actually a memory resource, not an IO resource
+	 */
+	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
+		WARN_ON(1);
+		return NULL;
+	}
+	return ioremap_wc(pci_resource_start(pdev, bar),
+			  pci_resource_len(pdev, bar));
+}
+EXPORT_SYMBOL_GPL(pci_ioremap_wc_bar);
 #endif
 
-#define PCI_FIND_CAP_TTL	48
 
 static int __pci_find_next_cap_ttl(struct pci_bus *bus, unsigned int devfn,
 				   u8 pos, int cap, int *ttl)
@@ -196,8 +209,6 @@ static int __pci_bus_find_cap_start(struct pci_bus *bus,
 		return PCI_CAPABILITY_LIST;
 	case PCI_HEADER_TYPE_CARDBUS:
 		return PCI_CB_CAPABILITY_LIST;
-	default:
-		return 0;
 	}
 
 	return 0;
@@ -972,7 +983,7 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	struct pci_cap_saved_state *save_state;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
-	if (pos <= 0)
+	if (!pos)
 		return 0;
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
@@ -995,7 +1006,7 @@ static void pci_restore_pcix_state(struct pci_dev *dev)
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
-	if (!save_state || pos <= 0)
+	if (!save_state || !pos)
 		return;
 	cap = (u16 *)&save_state->cap.data[0];
 
@@ -1092,6 +1103,9 @@ void pci_restore_state(struct pci_dev *dev)
 
 	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
+
+	/* Restore ACS and IOV configuration state */
+	pci_enable_acs(dev);
 	pci_restore_iov_state(dev);
 
 	dev->state_saved = false;
@@ -2159,7 +2173,7 @@ static int _pci_add_cap_save_buffer(struct pci_dev *dev, u16 cap,
 	else
 		pos = pci_find_capability(dev, cap);
 
-	if (pos <= 0)
+	if (!pos)
 		return 0;
 
 	save_state = kzalloc(sizeof(*save_state) + size, GFP_KERNEL);
@@ -3100,39 +3114,6 @@ bool pci_check_and_unmask_intx(struct pci_dev *dev)
 	return pci_check_and_set_intx_mask(dev, false);
 }
 EXPORT_SYMBOL_GPL(pci_check_and_unmask_intx);
-
-/**
- * pci_msi_off - disables any MSI or MSI-X capabilities
- * @dev: the PCI device to operate on
- *
- * If you want to use MSI, see pci_enable_msi() and friends.
- * This is a lower-level primitive that allows us to disable
- * MSI operation at the device level.
- */
-void pci_msi_off(struct pci_dev *dev)
-{
-	int pos;
-	u16 control;
-
-	/*
-	 * This looks like it could go in msi.c, but we need it even when
-	 * CONFIG_PCI_MSI=n.  For the same reason, we can't use
-	 * dev->msi_cap or dev->msix_cap here.
-	 */
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
-	if (pos) {
-		pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
-		control &= ~PCI_MSI_FLAGS_ENABLE;
-		pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
-	}
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	if (pos) {
-		pci_read_config_word(dev, pos + PCI_MSIX_FLAGS, &control);
-		control &= ~PCI_MSIX_FLAGS_ENABLE;
-		pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
-	}
-}
-EXPORT_SYMBOL_GPL(pci_msi_off);
 
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
 {
@@ -4323,6 +4304,17 @@ bool pci_device_is_present(struct pci_dev *pdev)
 	return pci_bus_read_dev_vendor_id(pdev->bus, pdev->devfn, &v, 0);
 }
 EXPORT_SYMBOL_GPL(pci_device_is_present);
+
+void pci_ignore_hotplug(struct pci_dev *dev)
+{
+	struct pci_dev *bridge = dev->bus->self;
+
+	dev->ignore_hotplug = 1;
+	/* Propagate the "ignore hotplug" setting to the parent bridge. */
+	if (bridge)
+		bridge->ignore_hotplug = 1;
+}
+EXPORT_SYMBOL_GPL(pci_ignore_hotplug);
 
 #define RESOURCE_ALIGNMENT_PARAM_SIZE COMMAND_LINE_SIZE
 static char resource_alignment_param[RESOURCE_ALIGNMENT_PARAM_SIZE] = {0};

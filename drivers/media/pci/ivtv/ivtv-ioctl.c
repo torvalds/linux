@@ -581,7 +581,9 @@ static int ivtv_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 {
 	struct ivtv_open_id *id = fh2id(fh);
 	struct ivtv *itv = id->itv;
-	struct v4l2_mbus_framefmt mbus_fmt;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret = ivtv_try_fmt_vid_cap(file, fh, fmt);
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
@@ -599,10 +601,10 @@ static int ivtv_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 	itv->cxhdl.height = h;
 	if (v4l2_ctrl_g_ctrl(itv->cxhdl.video_encoding) == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
 		fmt->fmt.pix.width /= 2;
-	mbus_fmt.width = fmt->fmt.pix.width;
-	mbus_fmt.height = h;
-	mbus_fmt.code = MEDIA_BUS_FMT_FIXED;
-	v4l2_subdev_call(itv->sd_video, video, s_mbus_fmt, &mbus_fmt);
+	format.format.width = fmt->fmt.pix.width;
+	format.format.height = h;
+	format.format.code = MEDIA_BUS_FMT_FIXED;
+	v4l2_subdev_call(itv->sd_video, pad, set_fmt, NULL, &format);
 	return ivtv_g_fmt_vid_cap(file, fh, fmt);
 }
 
@@ -1529,7 +1531,8 @@ static int ivtv_log_status(struct file *file, void *fh)
 	ivtv_get_audio_input(itv, itv->audio_input, &audin);
 	IVTV_INFO("Video Input:  %s\n", vidin.name);
 	IVTV_INFO("Audio Input:  %s%s\n", audin.name,
-		(itv->dualwatch_stereo_mode & ~0x300) == 0x200 ? " (Bilingual)" : "");
+		itv->dualwatch_stereo_mode == V4L2_MPEG_AUDIO_MODE_DUAL ?
+			" (Bilingual)" : "");
 	if (has_output) {
 		struct v4l2_output vidout;
 		struct v4l2_audioout audout;

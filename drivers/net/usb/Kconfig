@@ -106,6 +106,16 @@ config USB_RTL8152
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8152.
 
+config USB_LAN78XX
+	tristate "Microchip LAN78XX Based USB Ethernet Adapters"
+	select MII
+	help
+	  This option adds support for Microchip LAN78XX based USB 2
+	  & USB 3 10/100/1000 Ethernet adapters.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lan78xx.
+
 config USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
 	select MII
@@ -154,6 +164,7 @@ config USB_NET_AX8817X
 	    * Aten UC210T
 	    * ASIX AX88172
 	    * Billionton Systems, USB2AR
+	    * Billionton Systems, GUSB2AM-1G-B
 	    * Buffalo LUA-U2-KTX
 	    * Corega FEther USB2-TX
 	    * D-Link DUB-E100
@@ -572,5 +583,16 @@ config USB_VL600
 	  4G modem from Verizon:
 
 	  http://ubuntuforums.org/showpost.php?p=10589647&postcount=17
+
+config USB_NET_CH9200
+	tristate "QingHeng CH9200 USB ethernet support"
+	depends on USB_USBNET
+	select MII
+	help
+	  Choose this option if you have a USB ethernet adapter with a QinHeng
+	  CH9200 chipset.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ch9200.
 
 endif # USB_NET_DRIVERS

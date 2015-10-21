@@ -28,8 +28,9 @@
  * 3 for virtio network, console and block devices.
  * 1 for card shutdown notifications.
  * 4 for host owned DMA channels.
+ * 1 for SCIF
  */
-#define MIC_MIN_MSIX 8
+#define MIC_MIN_MSIX 9
 #define MIC_NUM_OFFSETS 32
 
 /**

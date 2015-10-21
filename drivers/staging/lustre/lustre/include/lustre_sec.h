@@ -1061,15 +1061,7 @@ const char *sec2target_str(struct ptlrpc_sec *sec);
 /*
  * lprocfs
  */
-#if defined (CONFIG_PROC_FS)
-struct proc_dir_entry;
-extern struct proc_dir_entry *sptlrpc_proc_root;
 int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev);
-#else
-#define sptlrpc_proc_root	NULL
-static inline int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev)
-{ return 0; }
-#endif
 
 /*
  * server side

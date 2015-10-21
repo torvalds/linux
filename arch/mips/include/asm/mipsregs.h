@@ -112,6 +112,30 @@
 #define CP0_TX39_CACHE	$7
 
 
+/* Generic EntryLo bit definitions */
+#define ENTRYLO_G		(_ULCAST_(1) << 0)
+#define ENTRYLO_V		(_ULCAST_(1) << 1)
+#define ENTRYLO_D		(_ULCAST_(1) << 2)
+#define ENTRYLO_C_SHIFT		3
+#define ENTRYLO_C		(_ULCAST_(7) << ENTRYLO_C_SHIFT)
+
+/* R3000 EntryLo bit definitions */
+#define R3K_ENTRYLO_G		(_ULCAST_(1) << 8)
+#define R3K_ENTRYLO_V		(_ULCAST_(1) << 9)
+#define R3K_ENTRYLO_D		(_ULCAST_(1) << 10)
+#define R3K_ENTRYLO_N		(_ULCAST_(1) << 11)
+
+/* MIPS32/64 EntryLo bit definitions */
+#ifdef CONFIG_64BIT
+/* as read by dmfc0 */
+#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 62)
+#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 63)
+#else
+/* as read by mfc0 */
+#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 30)
+#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 31)
+#endif
+
 /*
  * Values for PageMask register
  */
@@ -202,6 +226,9 @@
 #define PG_ELPA		(_ULCAST_(1) <<	 29)
 #define PG_ESP		(_ULCAST_(1) <<	 28)
 #define PG_IEC		(_ULCAST_(1) <<  27)
+
+/* MIPS32/64 EntryHI bit definitions */
+#define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
 
 /*
  * R4x00 interrupt enable / cause bits
@@ -460,6 +487,8 @@
 
 /* Bits specific to the MIPS32/64 PRA.	*/
 #define MIPS_CONF_MT		(_ULCAST_(7) <<	 7)
+#define MIPS_CONF_MT_TLB	(_ULCAST_(1) <<  7)
+#define MIPS_CONF_MT_FTLB	(_ULCAST_(4) <<  7)
 #define MIPS_CONF_AR		(_ULCAST_(7) << 10)
 #define MIPS_CONF_AT		(_ULCAST_(3) << 13)
 #define MIPS_CONF_M		(_ULCAST_(1) << 31)
@@ -579,15 +608,14 @@
 
 #define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
 #define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
+/* FTLB probability bits for R6 */
+#define MIPS_CONF7_FTLBP_SHIFT	(18)
 
 /* MAAR bit definitions */
 #define MIPS_MAAR_ADDR		((BIT_ULL(BITS_PER_LONG - 12) - 1) << 12)
 #define MIPS_MAAR_ADDR_SHIFT	12
 #define MIPS_MAAR_S		(_ULCAST_(1) << 1)
 #define MIPS_MAAR_V		(_ULCAST_(1) << 0)
-
-/*  EntryHI bit definition */
-#define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
 
 /* CMGCRBase bit definitions */
 #define MIPS_CMGCRB_BASE	11
@@ -685,6 +713,15 @@
 #define TX39_CONF_DRSIZE_SHIFT	0
 #define TX39_CONF_DRSIZE_MASK	0x00000003
 
+/*
+ * Interesting Bits in the R10K CP0 Branch Diagnostic Register
+ */
+/* Disable Branch Target Address Cache */
+#define R10K_DIAG_D_BTAC	(_ULCAST_(1) << 27)
+/* Enable Branch Prediction Global History */
+#define R10K_DIAG_E_GHIST	(_ULCAST_(1) << 26)
+/* Disable Branch Return Cache */
+#define R10K_DIAG_D_BRC		(_ULCAST_(1) << 22)
 
 /*
  * Coprocessor 1 (FPU) register names
@@ -901,7 +938,7 @@ do {								\
  */
 
 #define __read_32bit_c0_register(source, sel)				\
-({ int __res;								\
+({ unsigned int __res;							\
 	if (sel == 0)							\
 		__asm__ __volatile__(					\
 			"mfc0\t%0, " #source "\n\t"			\
@@ -983,7 +1020,7 @@ do {									\
  * On RM7000/RM9000 these are uses to access cop0 set 1 registers
  */
 #define __read_32bit_c0_ctrl_register(source)				\
-({ int __res;								\
+({ unsigned int __res;							\
 	__asm__ __volatile__(						\
 		"cfc0\t%0, " #source "\n\t"				\
 		: "=r" (__res));					\
@@ -1247,6 +1284,10 @@ do {									\
 #define read_c0_diag()		__read_32bit_c0_register($22, 0)
 #define write_c0_diag(val)	__write_32bit_c0_register($22, 0, val)
 
+/* R10K CP0 Branch Diagnostic register is 64bits wide */
+#define read_c0_r10k_diag()	__read_64bit_c0_register($22, 0)
+#define write_c0_r10k_diag(val)	__write_64bit_c0_register($22, 0, val)
+
 #define read_c0_diag1()		__read_32bit_c0_register($22, 1)
 #define write_c0_diag1(val)	__write_32bit_c0_register($22, 1, val)
 
@@ -1436,7 +1477,7 @@ do {									\
  */
 #define _read_32bit_cp1_register(source, gas_hardfloat)			\
 ({									\
-	int __res;							\
+	unsigned int __res;						\
 									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\

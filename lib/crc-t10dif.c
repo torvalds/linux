@@ -19,7 +19,7 @@
 static struct crypto_shash *crct10dif_tfm;
 static struct static_key crct10dif_fallback __read_mostly;
 
-__u16 crc_t10dif(const unsigned char *buffer, size_t len)
+__u16 crc_t10dif_update(__u16 crc, const unsigned char *buffer, size_t len)
 {
 	struct {
 		struct shash_desc shash;
@@ -28,16 +28,22 @@ __u16 crc_t10dif(const unsigned char *buffer, size_t len)
 	int err;
 
 	if (static_key_false(&crct10dif_fallback))
-		return crc_t10dif_generic(0, buffer, len);
+		return crc_t10dif_generic(crc, buffer, len);
 
 	desc.shash.tfm = crct10dif_tfm;
 	desc.shash.flags = 0;
-	*(__u16 *)desc.ctx = 0;
+	*(__u16 *)desc.ctx = crc;
 
 	err = crypto_shash_update(&desc.shash, buffer, len);
 	BUG_ON(err);
 
 	return *(__u16 *)desc.ctx;
+}
+EXPORT_SYMBOL(crc_t10dif_update);
+
+__u16 crc_t10dif(const unsigned char *buffer, size_t len)
+{
+	return crc_t10dif_update(0, buffer, len);
 }
 EXPORT_SYMBOL(crc_t10dif);
 

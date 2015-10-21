@@ -176,6 +176,17 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	OUT_PKT3(ring, CP_INTERRUPT, 1);
 	OUT_RING(ring, 0x80000000);
 
+	/* Workaround for missing irq issue on 8x16/a306.  Unsure if the
+	 * root cause is a platform issue or some a306 quirk, but this
+	 * keeps things humming along:
+	 */
+	if (adreno_is_a306(adreno_gpu)) {
+		OUT_PKT3(ring, CP_WAIT_FOR_IDLE, 1);
+		OUT_RING(ring, 0x00000000);
+		OUT_PKT3(ring, CP_INTERRUPT, 1);
+		OUT_RING(ring, 0x80000000);
+	}
+
 #if 0
 	if (adreno_is_a3xx(adreno_gpu)) {
 		/* Dummy set-constant to trigger context rollover */
@@ -249,8 +260,13 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 }
 #endif
 
-/* would be nice to not have to duplicate the _show() stuff with printk(): */
-void adreno_dump(struct msm_gpu *gpu)
+/* Dump common gpu status and scratch registers on any hang, to make
+ * the hangcheck logs more useful.  The scratch registers seem always
+ * safe to read when GPU has hung (unlike some other regs, depending
+ * on how the GPU hung), and they are useful to match up to cmdstream
+ * dumps when debugging hangs:
+ */
+void adreno_dump_info(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int i;
@@ -265,6 +281,18 @@ void adreno_dump(struct msm_gpu *gpu)
 	printk("rptr:     %d\n", adreno_gpu->memptrs->rptr);
 	printk("wptr:     %d\n", adreno_gpu->memptrs->wptr);
 	printk("rb wptr:  %d\n", get_wptr(gpu->rb));
+
+	for (i = 0; i < 8; i++) {
+		printk("CP_SCRATCH_REG%d: %u\n", i,
+			gpu_read(gpu, REG_AXXX_CP_SCRATCH_REG0 + i));
+	}
+}
+
+/* would be nice to not have to duplicate the _show() stuff with printk(): */
+void adreno_dump(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int i;
 
 	/* dump these out in a form that can be parsed by demsm: */
 	printk("IO:region %s 00000000 00020000\n", gpu->name);
@@ -317,7 +345,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	gpu->fast_rate = config->fast_rate;
 	gpu->slow_rate = config->slow_rate;
 	gpu->bus_freq  = config->bus_freq;
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	gpu->bus_scale_table = config->bus_scale_table;
 #endif
 

@@ -1035,20 +1035,15 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
-	__set_bit(EV_KEY, input->evbit);
-	__set_bit(EV_ABS, input->evbit);
-	__set_bit(BTN_TOUCH, input->keybit);
-	input_set_abs_params(input, ABS_X, 0, tsdata->num_x * 64 - 1, 0, 0);
-	input_set_abs_params(input, ABS_Y, 0, tsdata->num_y * 64 - 1, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_X,
 			     0, tsdata->num_x * 64 - 1, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y,
 			     0, tsdata->num_y * 64 - 1, 0, 0);
 
 	if (!pdata)
-		touchscreen_parse_of_params(input);
+		touchscreen_parse_properties(input, true);
 
-	error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, 0);
+	error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, INPUT_MT_DIRECT);
 	if (error) {
 		dev_err(&client->dev, "Unable to init MT slots.\n");
 		return error;
@@ -1139,7 +1134,6 @@ MODULE_DEVICE_TABLE(of, edt_ft5x06_of_match);
 
 static struct i2c_driver edt_ft5x06_ts_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "edt_ft5x06",
 		.of_match_table = of_match_ptr(edt_ft5x06_of_match),
 		.pm = &edt_ft5x06_ts_pm_ops,

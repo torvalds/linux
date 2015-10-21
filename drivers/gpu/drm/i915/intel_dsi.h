@@ -42,6 +42,9 @@ struct intel_dsi {
 	struct drm_panel *panel;
 	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
 
+	/* GPIO Desc for CRC based Panel control */
+	struct gpio_desc *gpio_panel;
+
 	struct intel_connector *attached_connector;
 
 	/* bit mask of ports being driven */

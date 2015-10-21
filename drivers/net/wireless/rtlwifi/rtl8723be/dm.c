@@ -909,23 +909,22 @@ static void rtl8723be_dm_txpower_tracking_callback_thermalmeter(
 void rtl8723be_dm_check_txpower_tracking(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	static u8 tm_trigger;
 
 	if (!rtlpriv->dm.txpower_tracking)
 		return;
 
-	if (!tm_trigger) {
+	if (!rtlpriv->dm.tm_trigger) {
 		rtl_set_rfreg(hw, RF90_PATH_A, RF_T_METER, BIT(17) | BIT(16),
 			      0x03);
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "Trigger 8723be Thermal Meter!!\n");
-		tm_trigger = 1;
+		rtlpriv->dm.tm_trigger = 1;
 		return;
 	} else {
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "Schedule TxPowerTracking !!\n");
 		rtl8723be_dm_txpower_tracking_callback_thermalmeter(hw);
-		tm_trigger = 0;
+		rtlpriv->dm.tm_trigger = 0;
 	}
 }
 

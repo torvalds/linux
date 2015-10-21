@@ -13,12 +13,14 @@
 #include <linux/hugetlb.h>		/* hstate_index_to_shift	*/
 #include <linux/prefetch.h>		/* prefetchw			*/
 #include <linux/context_tracking.h>	/* exception_enter(), ...	*/
+#include <linux/uaccess.h>		/* faulthandler_disabled()	*/
 
 #include <asm/traps.h>			/* dotraplinkage, ...		*/
 #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
 #include <asm/kmemcheck.h>		/* kmemcheck_*(), ...		*/
 #include <asm/fixmap.h>			/* VSYSCALL_ADDR		*/
 #include <asm/vsyscall.h>		/* emulate_vsyscall		*/
+#include <asm/vm86.h>			/* struct vm86			*/
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
@@ -300,14 +302,16 @@ static inline void
 check_v8086_mode(struct pt_regs *regs, unsigned long address,
 		 struct task_struct *tsk)
 {
+#ifdef CONFIG_VM86
 	unsigned long bit;
 
-	if (!v8086_mode(regs))
+	if (!v8086_mode(regs) || !tsk->thread.vm86)
 		return;
 
 	bit = (address - 0xA0000) >> PAGE_SHIFT;
 	if (bit < 32)
-		tsk->thread.screen_bitmap |= 1 << bit;
+		tsk->thread.vm86->screen_bitmap |= 1 << bit;
+#endif
 }
 
 static bool low_pfn(unsigned long pfn)
@@ -1126,9 +1130,9 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
 
 	/*
 	 * If we're in an interrupt, have no user context or are running
-	 * in an atomic region then we must not take the fault:
+	 * in a region with pagefaults disabled then we must not take the fault
 	 */
-	if (unlikely(in_atomic() || !mm)) {
+	if (unlikely(faulthandler_disabled() || !mm)) {
 		bad_area_nosemaphore(regs, error_code, address);
 		return;
 	}

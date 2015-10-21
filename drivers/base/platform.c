@@ -375,9 +375,7 @@ int platform_device_add(struct platform_device *pdev)
 
 	while (--i >= 0) {
 		struct resource *r = &pdev->resource[i];
-		unsigned long type = resource_type(r);
-
-		if (type == IORESOURCE_MEM || type == IORESOURCE_IO)
+		if (r->parent)
 			release_resource(r);
 	}
 
@@ -408,9 +406,7 @@ void platform_device_del(struct platform_device *pdev)
 
 		for (i = 0; i < pdev->num_resources; i++) {
 			struct resource *r = &pdev->resource[i];
-			unsigned long type = resource_type(r);
-
-			if (type == IORESOURCE_MEM || type == IORESOURCE_IO)
+			if (r->parent)
 				release_resource(r);
 		}
 	}
@@ -612,6 +608,19 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 		int (*probe)(struct platform_device *), struct module *module)
 {
 	int retval, code;
+
+	if (drv->driver.probe_type == PROBE_PREFER_ASYNCHRONOUS) {
+		pr_err("%s: drivers registered with %s can not be probed asynchronously\n",
+			 drv->driver.name, __func__);
+		return -EINVAL;
+	}
+
+	/*
+	 * We have to run our probes synchronously because we check if
+	 * we find any devices to bind to and exit with error if there
+	 * are any.
+	 */
+	drv->driver.probe_type = PROBE_FORCE_SYNCHRONOUS;
 
 	/*
 	 * Prevent driver from requesting probe deferral to avoid further

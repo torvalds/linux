@@ -57,7 +57,6 @@ KEY_CONF_FILE(keylen, D);
 KEY_CONF_FILE(keyidx, D);
 KEY_CONF_FILE(hw_key_idx, D);
 KEY_FILE(flags, X);
-KEY_FILE(tx_rx_count, D);
 KEY_READ(ifindex, sdata->name, "%s\n");
 KEY_OPS(ifindex);
 
@@ -95,28 +94,13 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
-		pn = atomic64_read(&key->u.ccmp.tx_pn);
-		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
-				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
-				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
-		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		pn = atomic64_read(&key->u.aes_cmac.tx_pn);
-		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
-				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
-				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
-		break;
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		pn = atomic64_read(&key->u.aes_gmac.tx_pn);
-		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
-				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
-				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
-		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		pn = atomic64_read(&key->u.gcmp.tx_pn);
+		pn = atomic64_read(&key->conf.tx_pn);
 		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
 				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
 				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
@@ -325,7 +309,6 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(keyidx);
 	DEBUGFS_ADD(hw_key_idx);
-	DEBUGFS_ADD(tx_rx_count);
 	DEBUGFS_ADD(algorithm);
 	DEBUGFS_ADD(tx_spec);
 	DEBUGFS_ADD(rx_spec);

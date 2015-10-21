@@ -49,14 +49,10 @@
 
 #include <generated/utsrelease.h>
 
-#include <scsi/scsi.h>
-#include <scsi/scsi_dbg.h>
-#include <scsi/scsi_eh.h>
-#include <scsi/scsi_tcq.h>
+#include <scsi/scsi_host.h> /* SG_ALL */
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 #include <target/target_core_fabric_configfs.h>
 
 #include <asm/hypervisor.h>
@@ -203,8 +199,6 @@ static LIST_HEAD(scsiback_free_pages);
 /* Global spinlock to protect scsiback TPG list */
 static DEFINE_MUTEX(scsiback_mutex);
 static LIST_HEAD(scsiback_list);
-
-static const struct target_core_fabric_ops scsiback_ops;
 
 static void scsiback_get(struct vscsibk_info *info)
 {
@@ -400,6 +394,7 @@ static void scsiback_cmd_exec(struct vscsibk_pend *pending_req)
 	memset(se_cmd, 0, sizeof(*se_cmd));
 
 	scsiback_get(pending_req->info);
+	se_cmd->tag = pending_req->rqid;
 	rc = target_submit_cmd_map_sgls(se_cmd, sess, pending_req->cmnd,
 			pending_req->sense_buffer, pending_req->v2p->lun,
 			pending_req->data_len, 0,
@@ -866,7 +861,8 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	struct list_head *head = &(info->v2p_entry_lists);
 	unsigned long flags;
 	char *lunp;
-	unsigned int lun;
+	unsigned long long unpacked_lun;
+	struct se_lun *se_lun;
 	struct scsiback_tpg *tpg_entry, *tpg = NULL;
 	char *error = "doesn't exist";
 
@@ -877,24 +873,27 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	}
 	*lunp = 0;
 	lunp++;
-	if (kstrtouint(lunp, 10, &lun) || lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
+	err = kstrtoull(lunp, 10, &unpacked_lun);
+	if (err < 0) {
 		pr_err("lun number not valid: %s\n", lunp);
-		return -EINVAL;
+		return err;
 	}
 
 	mutex_lock(&scsiback_mutex);
 	list_for_each_entry(tpg_entry, &scsiback_list, tv_tpg_list) {
 		if (!strcmp(phy, tpg_entry->tport->tport_name) ||
 		    !strcmp(phy, tpg_entry->param_alias)) {
-			spin_lock(&tpg_entry->se_tpg.tpg_lun_lock);
-			if (tpg_entry->se_tpg.tpg_lun_list[lun]->lun_status ==
-			    TRANSPORT_LUN_STATUS_ACTIVE) {
-				if (!tpg_entry->tpg_nexus)
-					error = "nexus undefined";
-				else
-					tpg = tpg_entry;
+			mutex_lock(&tpg_entry->se_tpg.tpg_lun_mutex);
+			hlist_for_each_entry(se_lun, &tpg_entry->se_tpg.tpg_lun_hlist, link) {
+				if (se_lun->unpacked_lun == unpacked_lun) {
+					if (!tpg_entry->tpg_nexus)
+						error = "nexus undefined";
+					else
+						tpg = tpg_entry;
+					break;
+				}
 			}
-			spin_unlock(&tpg_entry->se_tpg.tpg_lun_lock);
+			mutex_unlock(&tpg_entry->se_tpg.tpg_lun_mutex);
 			break;
 		}
 	}
@@ -906,7 +905,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	mutex_unlock(&scsiback_mutex);
 
 	if (!tpg) {
-		pr_err("%s:%d %s\n", phy, lun, error);
+		pr_err("%s:%llu %s\n", phy, unpacked_lun, error);
 		return -ENODEV;
 	}
 
@@ -934,7 +933,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	kref_init(&new->kref);
 	new->v = *v;
 	new->tpg = tpg;
-	new->lun = lun;
+	new->lun = unpacked_lun;
 	list_add_tail(&new->l, head);
 
 out:
@@ -1254,28 +1253,6 @@ static char *scsiback_dump_proto_id(struct scsiback_tport *tport)
 	return "Unknown";
 }
 
-static u8 scsiback_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	struct scsiback_tpg *tpg = container_of(se_tpg,
-				struct scsiback_tpg, se_tpg);
-	struct scsiback_tport *tport = tpg->tport;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_fabric_proto_ident(se_tpg);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_fabric_proto_ident(se_tpg);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_fabric_proto_ident(se_tpg);
-	default:
-		pr_err("Unknown tport_proto_id: 0x%02x, using SAS emulation\n",
-			tport->tport_proto_id);
-		break;
-	}
-
-	return sas_get_fabric_proto_ident(se_tpg);
-}
-
 static char *scsiback_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct scsiback_tpg *tpg = container_of(se_tpg,
@@ -1290,102 +1267,6 @@ static u16 scsiback_get_tag(struct se_portal_group *se_tpg)
 	struct scsiback_tpg *tpg = container_of(se_tpg,
 				struct scsiback_tpg, se_tpg);
 	return tpg->tport_tpgt;
-}
-
-static u32 scsiback_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
-static u32
-scsiback_get_pr_transport_id(struct se_portal_group *se_tpg,
-			      struct se_node_acl *se_nacl,
-			      struct t10_pr_registration *pr_reg,
-			      int *format_code,
-			      unsigned char *buf)
-{
-	struct scsiback_tpg *tpg = container_of(se_tpg,
-				struct scsiback_tpg, se_tpg);
-	struct scsiback_tport *tport = tpg->tport;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	default:
-		pr_err("Unknown tport_proto_id: 0x%02x, using SAS emulation\n",
-			tport->tport_proto_id);
-		break;
-	}
-
-	return sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-			format_code, buf);
-}
-
-static u32
-scsiback_get_pr_transport_id_len(struct se_portal_group *se_tpg,
-				  struct se_node_acl *se_nacl,
-				  struct t10_pr_registration *pr_reg,
-				  int *format_code)
-{
-	struct scsiback_tpg *tpg = container_of(se_tpg,
-				struct scsiback_tpg, se_tpg);
-	struct scsiback_tport *tport = tpg->tport;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	default:
-		pr_err("Unknown tport_proto_id: 0x%02x, using SAS emulation\n",
-			tport->tport_proto_id);
-		break;
-	}
-
-	return sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-			format_code);
-}
-
-static char *
-scsiback_parse_pr_out_transport_id(struct se_portal_group *se_tpg,
-				    const char *buf,
-				    u32 *out_tid_len,
-				    char **port_nexus_ptr)
-{
-	struct scsiback_tpg *tpg = container_of(se_tpg,
-				struct scsiback_tpg, se_tpg);
-	struct scsiback_tport *tport = tpg->tport;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	case SCSI_PROTOCOL_FCP:
-		return fc_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	default:
-		pr_err("Unknown tport_proto_id: 0x%02x, using SAS emulation\n",
-			tport->tport_proto_id);
-		break;
-	}
-
-	return sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-			port_nexus_ptr);
 }
 
 static struct se_wwn *
@@ -1454,19 +1335,6 @@ static void scsiback_drop_tport(struct se_wwn *wwn)
 	kfree(tport);
 }
 
-static struct se_node_acl *
-scsiback_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
-}
-
-static void
-scsiback_release_fabric_acl(struct se_portal_group *se_tpg,
-			     struct se_node_acl *se_nacl)
-{
-	kfree(se_nacl);
-}
-
 static u32 scsiback_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -1523,14 +1391,6 @@ static int scsiback_write_pending_status(struct se_cmd *se_cmd)
 
 static void scsiback_set_default_node_attrs(struct se_node_acl *nacl)
 {
-}
-
-static u32 scsiback_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct vscsibk_pend *pending_req = container_of(se_cmd,
-				struct vscsibk_pend, se_cmd);
-
-	return pending_req->rqid;
 }
 
 static int scsiback_get_cmd_state(struct se_cmd *se_cmd)
@@ -1901,8 +1761,7 @@ scsiback_make_tpg(struct se_wwn *wwn,
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
-	ret = core_tpg_register(&scsiback_ops, wwn,
-				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(wwn, &tpg->se_tpg, tport->tport_proto_id);
 	if (ret < 0) {
 		kfree(tpg);
 		return NULL;
@@ -1947,23 +1806,15 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.module				= THIS_MODULE,
 	.name				= "xen-pvscsi",
 	.get_fabric_name		= scsiback_get_fabric_name,
-	.get_fabric_proto_ident		= scsiback_get_fabric_proto_ident,
 	.tpg_get_wwn			= scsiback_get_fabric_wwn,
 	.tpg_get_tag			= scsiback_get_tag,
-	.tpg_get_default_depth		= scsiback_get_default_depth,
-	.tpg_get_pr_transport_id	= scsiback_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= scsiback_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= scsiback_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= scsiback_check_true,
 	.tpg_check_demo_mode_cache	= scsiback_check_true,
 	.tpg_check_demo_mode_write_protect = scsiback_check_false,
 	.tpg_check_prod_mode_write_protect = scsiback_check_false,
-	.tpg_alloc_fabric_acl		= scsiback_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= scsiback_release_fabric_acl,
 	.tpg_get_inst_index		= scsiback_tpg_get_inst_index,
 	.check_stop_free		= scsiback_check_stop_free,
 	.release_cmd			= scsiback_release_cmd,
-	.put_session			= NULL,
 	.shutdown_session		= scsiback_shutdown_session,
 	.close_session			= scsiback_close_session,
 	.sess_get_index			= scsiback_sess_get_index,
@@ -1971,7 +1822,6 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.write_pending			= scsiback_write_pending,
 	.write_pending_status		= scsiback_write_pending_status,
 	.set_default_node_attributes	= scsiback_set_default_node_attrs,
-	.get_task_tag			= scsiback_get_task_tag,
 	.get_cmd_state			= scsiback_get_cmd_state,
 	.queue_data_in			= scsiback_queue_data_in,
 	.queue_status			= scsiback_queue_status,
@@ -1986,12 +1836,6 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.fabric_drop_tpg		= scsiback_drop_tpg,
 	.fabric_post_link		= scsiback_port_link,
 	.fabric_pre_unlink		= scsiback_port_unlink,
-	.fabric_make_np			= NULL,
-	.fabric_drop_np			= NULL,
-#if 0
-	.fabric_make_nodeacl		= scsiback_make_nodeacl,
-	.fabric_drop_nodeacl		= scsiback_drop_nodeacl,
-#endif
 
 	.tfc_wwn_attrs			= scsiback_wwn_attrs,
 	.tfc_tpg_base_attrs		= scsiback_tpg_attrs,

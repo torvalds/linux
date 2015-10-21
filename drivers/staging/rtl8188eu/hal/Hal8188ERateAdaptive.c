@@ -87,7 +87,7 @@ static u8 DROPING_NECESSARY[RATESIZE] = {
 
 static u8 PendingForRateUpFail[5] = {2, 10, 24, 40, 60};
 static u16 DynamicTxRPTTiming[6] = {
-	0x186a, 0x30d4, 0x493e, 0x61a8, 0x7a12 , 0x927c}; /*  200ms-1200ms */
+	0x186a, 0x30d4, 0x493e, 0x61a8, 0x7a12, 0x927c}; /*  200ms-1200ms */
 
 /*  End Rate adaptive parameters */
 
@@ -659,11 +659,11 @@ void ODM_RA_UpdateRateInfo_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rate
 {
 	struct odm_ra_info *pRaInfo = NULL;
 
+	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+		return;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
 		     ("macid =%d RateID = 0x%x RateMask = 0x%x SGIEnable =%d\n",
 		     macid, RateID, RateMask, SGIEnable));
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
-		return;
 
 	pRaInfo = &(dm_odm->RAInfo[macid]);
 	pRaInfo->RateID = RateID;
@@ -676,10 +676,10 @@ void ODM_RA_SetRSSI_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rssi)
 {
 	struct odm_ra_info *pRaInfo = NULL;
 
-	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
-		     (" macid =%d Rssi =%d\n", macid, Rssi));
 	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
 		return;
+	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
+		     (" macid =%d Rssi =%d\n", macid, Rssi));
 
 	pRaInfo = &(dm_odm->RAInfo[macid]);
 	pRaInfo->RssiStaRA = Rssi;

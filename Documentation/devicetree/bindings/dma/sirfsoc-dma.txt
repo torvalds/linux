@@ -3,7 +3,8 @@
 See dma.txt first
 
 Required properties:
-- compatible: Should be "sirf,prima2-dmac" or "sirf,marco-dmac"
+- compatible: Should be "sirf,prima2-dmac", "sirf,atlas7-dmac" or
+  "sirf,atlas7-dmac-v2"
 - reg: Should contain DMA registers location and length.
 - interrupts: Should contain one interrupt shared by all channel
 - #dma-cells: must be <1>. used to represent the number of integer

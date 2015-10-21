@@ -50,7 +50,7 @@
  * sorted by increasing expiry time. The number of slots is 2**7 (128),
  * to cover a time period of 1024 seconds into the future before wrapping.
  */
-#define STTIMER_MINPOLL	3   /* log2 min poll interval (8 s) */
+#define STTIMER_MINPOLL        3   /* log2 min poll interval (8 s) */
 #define STTIMER_SLOTTIME       (1 << STTIMER_MINPOLL)
 #define STTIMER_SLOTTIMEMASK   (~(STTIMER_SLOTTIME - 1))
 #define STTIMER_NSLOTS	       (1 << 7)
@@ -58,13 +58,13 @@
 						    (STTIMER_NSLOTS - 1))])
 
 static struct st_timer_data {
-	spinlock_t	 stt_lock;
-	/* start time of the slot processed previously */
-	unsigned long       stt_prev_slot;
-	struct list_head       stt_hash[STTIMER_NSLOTS];
-	int	      stt_shuttingdown;
-	wait_queue_head_t      stt_waitq;
-	int	      stt_nthreads;
+	spinlock_t        stt_lock;
+	unsigned long     stt_prev_slot; /* start time of the slot processed
+					  * previously */
+	struct list_head  stt_hash[STTIMER_NSLOTS];
+	int               stt_shuttingdown;
+	wait_queue_head_t stt_waitq;
+	int               stt_nthreads;
 } stt_data;
 
 void
@@ -124,7 +124,7 @@ stt_del_timer(stt_timer_t *timer)
 static int
 stt_expire_list(struct list_head *slot, unsigned long now)
 {
-	int	  expired = 0;
+	int expired = 0;
 	stt_timer_t *timer;
 
 	while (!list_empty(slot)) {
@@ -148,7 +148,7 @@ stt_expire_list(struct list_head *slot, unsigned long now)
 static int
 stt_check_timers(unsigned long *last)
 {
-	int	expired = 0;
+	int expired = 0;
 	unsigned long now;
 	unsigned long this_slot;
 

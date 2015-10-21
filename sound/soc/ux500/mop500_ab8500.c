@@ -372,6 +372,10 @@ int mop500_ab8500_machine_init(struct snd_soc_pcm_runtime *rtd)
 	/* Create driver private-data struct */
 	drvdata = devm_kzalloc(dev, sizeof(struct mop500_ab8500_drvdata),
 			GFP_KERNEL);
+
+	if (!drvdata)
+		return -ENOMEM;
+
 	snd_soc_card_set_drvdata(rtd->card, drvdata);
 
 	/* Setup clocks */

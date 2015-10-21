@@ -37,6 +37,16 @@
 	alloc-ranges = <0 0 0x10000 0>;
 };
 
+&qman_fqd {
+	compatible = "fsl,qman-fqd";
+	alloc-ranges = <0 0 0x10000 0>;
+};
+
+&qman_pfdr {
+	compatible = "fsl,qman-pfdr";
+	alloc-ranges = <0 0 0x10000 0>;
+};
+
 &lbc {
 	compatible = "fsl,p5040-elbc", "fsl,elbc", "simple-bus";
 	interrupts = <25 2 0 0>;
@@ -202,6 +212,8 @@
 
 /include/ "qoriq-bman1-portals.dtsi"
 
+/include/ "qoriq-qman1-portals.dtsi"
+
 &soc {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -362,6 +374,7 @@
 
 /include/ "qoriq-esdhc-0.dtsi"
 	sdhc@114000 {
+		compatible = "fsl,p5040-esdhc", "fsl,esdhc";
 		fsl,iommu-parent = <&pamu2>;
 		fsl,liodn-reg = <&guts 0x530>; /* eSDHCLIODNR */
 		sdhci,auto-cmd12;
@@ -407,5 +420,6 @@
 		fsl,iommu-parent = <&pamu4>;
 	};
 
+/include/ "qoriq-qman1.dtsi"
 /include/ "qoriq-bman1.dtsi"
 };

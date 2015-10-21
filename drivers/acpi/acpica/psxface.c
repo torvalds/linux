@@ -47,15 +47,12 @@
 #include "acdispat.h"
 #include "acinterp.h"
 #include "actables.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psxface")
 
 /* Local Prototypes */
-static void acpi_ps_start_trace(struct acpi_evaluate_info *info);
-
-static void acpi_ps_stop_trace(struct acpi_evaluate_info *info);
-
 static void
 acpi_ps_update_parameter_list(struct acpi_evaluate_info *info, u16 action);
 
@@ -76,7 +73,7 @@ acpi_ps_update_parameter_list(struct acpi_evaluate_info *info, u16 action);
  ******************************************************************************/
 
 acpi_status
-acpi_debug_trace(char *name, u32 debug_level, u32 debug_layer, u32 flags)
+acpi_debug_trace(const char *name, u32 debug_level, u32 debug_layer, u32 flags)
 {
 	acpi_status status;
 
@@ -85,108 +82,14 @@ acpi_debug_trace(char *name, u32 debug_level, u32 debug_layer, u32 flags)
 		return (status);
 	}
 
-	/* TBDs: Validate name, allow full path or just nameseg */
-
-	acpi_gbl_trace_method_name = *ACPI_CAST_PTR(u32, name);
+	acpi_gbl_trace_method_name = name;
 	acpi_gbl_trace_flags = flags;
-
-	if (debug_level) {
-		acpi_gbl_trace_dbg_level = debug_level;
-	}
-	if (debug_layer) {
-		acpi_gbl_trace_dbg_layer = debug_layer;
-	}
+	acpi_gbl_trace_dbg_level = debug_level;
+	acpi_gbl_trace_dbg_layer = debug_layer;
+	status = AE_OK;
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-	return (AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ps_start_trace
- *
- * PARAMETERS:  info        - Method info struct
- *
- * RETURN:      None
- *
- * DESCRIPTION: Start control method execution trace
- *
- ******************************************************************************/
-
-static void acpi_ps_start_trace(struct acpi_evaluate_info *info)
-{
-	acpi_status status;
-
-	ACPI_FUNCTION_ENTRY();
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		return;
-	}
-
-	if ((!acpi_gbl_trace_method_name) ||
-	    (acpi_gbl_trace_method_name != info->node->name.integer)) {
-		goto exit;
-	}
-
-	acpi_gbl_original_dbg_level = acpi_dbg_level;
-	acpi_gbl_original_dbg_layer = acpi_dbg_layer;
-
-	acpi_dbg_level = 0x00FFFFFF;
-	acpi_dbg_layer = ACPI_UINT32_MAX;
-
-	if (acpi_gbl_trace_dbg_level) {
-		acpi_dbg_level = acpi_gbl_trace_dbg_level;
-	}
-	if (acpi_gbl_trace_dbg_layer) {
-		acpi_dbg_layer = acpi_gbl_trace_dbg_layer;
-	}
-
-exit:
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ps_stop_trace
- *
- * PARAMETERS:  info        - Method info struct
- *
- * RETURN:      None
- *
- * DESCRIPTION: Stop control method execution trace
- *
- ******************************************************************************/
-
-static void acpi_ps_stop_trace(struct acpi_evaluate_info *info)
-{
-	acpi_status status;
-
-	ACPI_FUNCTION_ENTRY();
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		return;
-	}
-
-	if ((!acpi_gbl_trace_method_name) ||
-	    (acpi_gbl_trace_method_name != info->node->name.integer)) {
-		goto exit;
-	}
-
-	/* Disable further tracing if type is one-shot */
-
-	if (acpi_gbl_trace_flags & 1) {
-		acpi_gbl_trace_method_name = 0;
-		acpi_gbl_trace_dbg_level = 0;
-		acpi_gbl_trace_dbg_layer = 0;
-	}
-
-	acpi_dbg_level = acpi_gbl_original_dbg_level;
-	acpi_dbg_layer = acpi_gbl_original_dbg_layer;
-
-exit:
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+	return (status);
 }
 
 /*******************************************************************************
@@ -212,7 +115,7 @@ exit:
  *
  ******************************************************************************/
 
-acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
+acpi_status acpi_ps_execute_method(struct acpi_evaluate_info * info)
 {
 	acpi_status status;
 	union acpi_parse_object *op;
@@ -243,10 +146,6 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 	 */
 	acpi_ps_update_parameter_list(info, REF_INCREMENT);
 
-	/* Begin tracing if requested */
-
-	acpi_ps_start_trace(info);
-
 	/*
 	 * Execute the method. Performs parse simultaneously
 	 */
@@ -256,7 +155,7 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 
 	/* Create and init a Root Node */
 
-	op = acpi_ps_create_scope_op();
+	op = acpi_ps_create_scope_op(info->obj_desc->method.aml_start);
 	if (!op) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -325,10 +224,6 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 
 cleanup:
 	acpi_ps_delete_parse_tree(op);
-
-	/* End optional tracing */
-
-	acpi_ps_stop_trace(info);
 
 	/* Take away the extra reference that we gave the parameters above */
 

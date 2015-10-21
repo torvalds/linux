@@ -39,4 +39,4 @@ Example:
 	};
 
 Macro definitions for the supported reset channels can be found in:
-include/dt-bindings/reset-controller/stih407-resets.h
+include/dt-bindings/reset/stih407-resets.h

@@ -749,14 +749,6 @@ late_initcall(arm_mrc_hook_init);
 
 #endif
 
-void __bad_xchg(volatile void *ptr, int size)
-{
-	pr_err("xchg: bad data size: pc 0x%p, ptr 0x%p, size %d\n",
-	       __builtin_return_address(0), ptr, size);
-	BUG();
-}
-EXPORT_SYMBOL(__bad_xchg);
-
 /*
  * A data abort trap was taken, but we did not handle the instruction.
  * Try to abort the user program, or panic if it was the kernel.
@@ -878,7 +870,6 @@ void __init early_trap_init(void *vectors_base)
 	kuser_init(vectors_base);
 
 	flush_icache_range(vectors, vectors + PAGE_SIZE * 2);
-	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
 #else /* ifndef CONFIG_CPU_V7M */
 	/*
 	 * on V7-M there is no need to copy the vector table to a dedicated

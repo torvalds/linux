@@ -336,9 +336,33 @@ config SERIAL_8250_FINTEK
 	  LPC to 4 UART. This device has some RS485 functionality not available
 	  through the PNP driver. If unsure, say N.
 
+config SERIAL_8250_LPC18XX
+	bool "NXP LPC18xx/43xx serial port support"
+	depends on SERIAL_8250 && OF && (ARCH_LPC18XX || COMPILE_TEST)
+	default ARCH_LPC18XX
+	help
+	  If you have a LPC18xx/43xx based board and want to use the
+	  serial port, say Y to this option. If unsure, say Y.
+
 config SERIAL_8250_MT6577
 	bool "Mediatek serial port support"
 	depends on SERIAL_8250 && ARCH_MEDIATEK
 	help
 	  If you have a Mediatek based board and want to use the
 	  serial port, say Y to this option. If unsure, say N.
+
+config SERIAL_8250_UNIPHIER
+	tristate "Support for UniPhier on-chip UART"
+	depends on SERIAL_8250 && ARCH_UNIPHIER
+	help
+	  If you have a UniPhier based board and want to use the on-chip
+	  serial ports, say Y to this option. If unsure, say N.
+
+config SERIAL_8250_INGENIC
+	bool "Support for Ingenic SoC serial ports"
+	depends on SERIAL_8250_CONSOLE && OF_FLATTREE
+	select LIBFDT
+	select SERIAL_EARLYCON
+	help
+	  If you have a system using an Ingenic SoC and wish to make use of
+	  its UARTs, say Y to this option. If unsure, say N.

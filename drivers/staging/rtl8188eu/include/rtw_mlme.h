@@ -65,7 +65,7 @@
 #define _FW_UNDER_SURVEY	WIFI_SITE_MONITOR
 
 enum dot11AuthAlgrthmNum {
-	dot11AuthAlgrthm_Open = 0,
+	dot11AuthAlgrthm_Open = 0, /* open system */
 	dot11AuthAlgrthm_Shared,
 	dot11AuthAlgrthm_8021X,
 	dot11AuthAlgrthm_Auto,
@@ -535,7 +535,8 @@ void rtw_generate_random_ibss(u8 *pibss);
 struct wlan_network *rtw_find_network(struct __queue *scanned_queue, u8 *addr);
 struct wlan_network *rtw_get_oldest_wlan_network(struct __queue *scanned_queue);
 
-void rtw_free_assoc_resources(struct adapter *adapter, int lock_scanned_queue);
+void rtw_free_assoc_resources(struct adapter *adapter);
+void rtw_free_assoc_resources_locked(struct adapter *adapter);
 void rtw_indicate_disconnect(struct adapter *adapter);
 void rtw_indicate_connect(struct adapter *adapter);
 void rtw_indicate_scan_done(struct adapter *padapter, bool aborted);

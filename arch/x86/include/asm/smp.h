@@ -37,16 +37,6 @@ DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_llc_shared_map);
 DECLARE_PER_CPU_READ_MOSTLY(u16, cpu_llc_id);
 DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
 
-static inline struct cpumask *cpu_sibling_mask(int cpu)
-{
-	return per_cpu(cpu_sibling_map, cpu);
-}
-
-static inline struct cpumask *cpu_core_mask(int cpu)
-{
-	return per_cpu(cpu_core_map, cpu);
-}
-
 static inline struct cpumask *cpu_llc_shared_mask(int cpu)
 {
 	return per_cpu(cpu_llc_shared_map, cpu);

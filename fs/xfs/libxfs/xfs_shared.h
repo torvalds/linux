@@ -182,12 +182,6 @@ int	xfs_log_calc_minimum_size(struct xfs_mount *);
 #define XFS_TRANS_FREEZE_PROT	0x40	/* Transaction has elevated writer
 					   count in superblock */
 /*
- * Values for call flags parameter.
- */
-#define	XFS_TRANS_RELEASE_LOG_RES	0x4
-#define	XFS_TRANS_ABORT			0x8
-
-/*
  * Field values for xfs_trans_mod_sb.
  */
 #define	XFS_TRANS_SB_ICOUNT		0x00000001

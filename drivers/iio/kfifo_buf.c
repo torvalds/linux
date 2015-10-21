@@ -136,6 +136,8 @@ static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_kfifo,
 	.set_length = &iio_set_length_kfifo,
 	.release = &iio_kfifo_buffer_release,
+
+	.modes = INDIO_BUFFER_SOFTWARE | INDIO_BUFFER_TRIGGERED,
 };
 
 struct iio_buffer *iio_kfifo_allocate(void)

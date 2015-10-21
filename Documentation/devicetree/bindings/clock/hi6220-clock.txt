@@ -1,0 +1,51 @@
+* Hisilicon Hi6220 Clock Controller
+
+Clock control registers reside in different Hi6220 system controllers,
+please refer the following document to know more about the binding rules
+for these system controllers:
+
+Documentation/devicetree/bindings/arm/hisilicon/hisilicon.txt
+
+Required Properties:
+
+- compatible: the compatible should be one of the following strings to
+	indicate the clock controller functionality.
+
+	- "hisilicon,hi6220-aoctrl"
+	- "hisilicon,hi6220-sysctrl"
+	- "hisilicon,hi6220-mediactrl"
+	- "hisilicon,hi6220-pmctrl"
+	- "hisilicon,hi6220-stub-clk"
+
+- reg: physical base address of the controller and length of memory mapped
+  region.
+
+- #clock-cells: should be 1.
+
+Optional Properties:
+
+- hisilicon,hi6220-clk-sram: phandle to the syscon managing the SoC internal sram;
+  the driver need use the sram to pass parameters for frequency change.
+
+- mboxes: use the label reference for the mailbox as the first parameter, the
+  second parameter is the channel number.
+
+Example 1:
+	sys_ctrl: sys_ctrl@f7030000 {
+		compatible = "hisilicon,hi6220-sysctrl", "syscon";
+		reg = <0x0 0xf7030000 0x0 0x2000>;
+		#clock-cells = <1>;
+	};
+
+Example 2:
+	stub_clock: stub_clock {
+		compatible = "hisilicon,hi6220-stub-clk";
+		hisilicon,hi6220-clk-sram = <&sram>;
+		#clock-cells = <1>;
+		mboxes = <&mailbox 1>;
+	};
+
+Each clock is assigned an identifier and client nodes use this identifier
+to specify the clock which they consume.
+
+All these identifier could be found in <dt-bindings/clock/hi6220-clock.h>.

@@ -18,7 +18,7 @@ int thread__init_map_groups(struct thread *thread, struct machine *machine)
 	if (pid == thread->tid || pid == -1) {
 		thread->mg = map_groups__new(machine);
 	} else {
-		leader = machine__findnew_thread(machine, pid, pid);
+		leader = __machine__findnew_thread(machine, pid, pid);
 		if (leader)
 			thread->mg = map_groups__get(leader->mg);
 	}
@@ -53,7 +53,8 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 			goto err_thread;
 
 		list_add(&comm->list, &thread->comm_list);
-
+		atomic_set(&thread->refcnt, 0);
+		RB_CLEAR_NODE(&thread->rb_node);
 	}
 
 	return thread;
@@ -66,6 +67,8 @@ err_thread:
 void thread__delete(struct thread *thread)
 {
 	struct comm *comm, *tmp;
+
+	BUG_ON(!RB_EMPTY_NODE(&thread->rb_node));
 
 	thread_stack__free(thread);
 
@@ -84,13 +87,14 @@ void thread__delete(struct thread *thread)
 
 struct thread *thread__get(struct thread *thread)
 {
-	++thread->refcnt;
+	if (thread)
+		atomic_inc(&thread->refcnt);
 	return thread;
 }
 
 void thread__put(struct thread *thread)
 {
-	if (thread && --thread->refcnt == 0) {
+	if (thread && atomic_dec_and_test(&thread->refcnt)) {
 		list_del_init(&thread->node);
 		thread__delete(thread);
 	}
@@ -186,6 +190,12 @@ static int thread__clone_map_groups(struct thread *thread,
 	/* This is new thread, we share map groups for process. */
 	if (thread->pid_ == parent->pid_)
 		return 0;
+
+	if (thread->mg == parent->mg) {
+		pr_debug("broken map groups on thread %d/%d parent %d/%d\n",
+			 thread->pid_, thread->tid, parent->pid_, parent->tid);
+		return 0;
+	}
 
 	/* But this one is new process, copy maps. */
 	for (i = 0; i < MAP__NR_TYPES; ++i)

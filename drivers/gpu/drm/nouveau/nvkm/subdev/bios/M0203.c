@@ -33,14 +33,14 @@ nvbios_M0203Te(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 
 	if (!bit_entry(bios, 'M', &bit_M)) {
 		if (bit_M.version == 2 && bit_M.length > 0x04)
-			data = nv_ro16(bios, bit_M.offset + 0x03);
+			data = nvbios_rd16(bios, bit_M.offset + 0x03);
 		if (data) {
-			*ver = nv_ro08(bios, data + 0x00);
+			*ver = nvbios_rd08(bios, data + 0x00);
 			switch (*ver) {
 			case 0x10:
-				*hdr = nv_ro08(bios, data + 0x01);
-				*len = nv_ro08(bios, data + 0x02);
-				*cnt = nv_ro08(bios, data + 0x03);
+				*hdr = nvbios_rd08(bios, data + 0x01);
+				*len = nvbios_rd08(bios, data + 0x02);
+				*cnt = nvbios_rd08(bios, data + 0x03);
 				return data;
 			default:
 				break;
@@ -59,8 +59,8 @@ nvbios_M0203Tp(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	memset(info, 0x00, sizeof(*info));
 	switch (!!data * *ver) {
 	case 0x10:
-		info->type    = nv_ro08(bios, data + 0x04);
-		info->pointer = nv_ro16(bios, data + 0x05);
+		info->type    = nvbios_rd08(bios, data + 0x04);
+		info->pointer = nvbios_rd16(bios, data + 0x05);
 		break;
 	default:
 		break;
@@ -89,9 +89,9 @@ nvbios_M0203Ep(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	memset(info, 0x00, sizeof(*info));
 	switch (!!data * *ver) {
 	case 0x10:
-		info->type  = (nv_ro08(bios, data + 0x00) & 0x0f) >> 0;
-		info->strap = (nv_ro08(bios, data + 0x00) & 0xf0) >> 4;
-		info->group = (nv_ro08(bios, data + 0x01) & 0x0f) >> 0;
+		info->type  = (nvbios_rd08(bios, data + 0x00) & 0x0f) >> 0;
+		info->strap = (nvbios_rd08(bios, data + 0x00) & 0xf0) >> 4;
+		info->group = (nvbios_rd08(bios, data + 0x01) & 0x0f) >> 0;
 		return data;
 	default:
 		break;
@@ -103,12 +103,13 @@ u32
 nvbios_M0203Em(struct nvkm_bios *bios, u8 ramcfg, u8 *ver, u8 *hdr,
 	       struct nvbios_M0203E *info)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	struct nvbios_M0203T M0203T;
 	u8  cnt, len, idx = 0xff;
 	u32 data;
 
 	if (!nvbios_M0203Tp(bios, ver, hdr, &cnt, &len, &M0203T)) {
-		nv_warn(bios, "M0203T not found\n");
+		nvkm_warn(subdev, "M0203T not found\n");
 		return 0x00000000;
 	}
 
@@ -119,7 +120,7 @@ nvbios_M0203Em(struct nvkm_bios *bios, u8 ramcfg, u8 *ver, u8 *hdr,
 				continue;
 			return data;
 		default:
-			nv_warn(bios, "M0203T type %02x\n", M0203T.type);
+			nvkm_warn(subdev, "M0203T type %02x\n", M0203T.type);
 			return 0x00000000;
 		}
 	}

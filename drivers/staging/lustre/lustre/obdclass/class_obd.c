@@ -78,12 +78,8 @@ atomic_t obd_dirty_pages;
 EXPORT_SYMBOL(obd_dirty_pages);
 unsigned int obd_timeout = OBD_TIMEOUT_DEFAULT;   /* seconds */
 EXPORT_SYMBOL(obd_timeout);
-unsigned int ldlm_timeout = LDLM_TIMEOUT_DEFAULT; /* seconds */
-EXPORT_SYMBOL(ldlm_timeout);
 unsigned int obd_timeout_set;
 EXPORT_SYMBOL(obd_timeout_set);
-unsigned int ldlm_timeout_set;
-EXPORT_SYMBOL(ldlm_timeout_set);
 /* Adaptive timeout defs here instead of ptlrpc module for /proc/sys/ access */
 unsigned int at_min = 0;
 EXPORT_SYMBOL(at_min);
@@ -144,11 +140,11 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 		CERROR("%s%salloc of %s (%llu bytes) failed at %s:%d\n",
 		       ptr ? "force " :"", type, name, (__u64)size, file,
 		       line);
-		CERROR("%llu total bytes and %llu total pages (%llu bytes) allocated by Lustre, %d total bytes by LNET\n",
+		CERROR("%llu total bytes and %llu total pages"
+			" (%llu bytes) allocated by Lustre\n",
 		       obd_memory_sum(),
 		       obd_pages_sum() << PAGE_CACHE_SHIFT,
-		       obd_pages_sum(),
-		       atomic_read(&libcfs_kmemory));
+		       obd_pages_sum());
 		return 1;
 	}
 	return 0;
@@ -231,8 +227,8 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 			err = -EINVAL;
 			goto out;
 		}
-		OBD_ALLOC(lcfg, data->ioc_plen1);
-		if (lcfg == NULL) {
+		lcfg = kzalloc(data->ioc_plen1, GFP_NOFS);
+		if (!lcfg) {
 			err = -ENOMEM;
 			goto out;
 		}
@@ -243,7 +239,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		if (!err)
 			err = class_process_config(lcfg);
 
-		OBD_FREE(lcfg, data->ioc_plen1);
+		kfree(lcfg);
 		goto out;
 	}
 
@@ -506,15 +502,8 @@ int obd_init_checks(void)
 	return ret;
 }
 
-#if defined (CONFIG_PROC_FS)
 extern int class_procfs_init(void);
 extern int class_procfs_clean(void);
-#else
-static inline int class_procfs_init(void)
-{ return 0; }
-static inline int class_procfs_clean(void)
-{ return 0; }
-#endif
 
 static int __init init_obdclass(void)
 {
@@ -529,23 +518,21 @@ static int __init init_obdclass(void)
 	spin_lock_init(&obd_types_lock);
 	obd_zombie_impexp_init();
 
-	if (IS_ENABLED(CONFIG_PROC_FS)) {
-		obd_memory = lprocfs_alloc_stats(OBD_STATS_NUM,
-						 LPROCFS_STATS_FLAG_NONE |
-						 LPROCFS_STATS_FLAG_IRQ_SAFE);
+	obd_memory = lprocfs_alloc_stats(OBD_STATS_NUM,
+					 LPROCFS_STATS_FLAG_NONE |
+					 LPROCFS_STATS_FLAG_IRQ_SAFE);
 
-		if (obd_memory == NULL) {
-			CERROR("kmalloc of 'obd_memory' failed\n");
-			return -ENOMEM;
-		}
-
-		lprocfs_counter_init(obd_memory, OBD_MEMORY_STAT,
-				     LPROCFS_CNTR_AVGMINMAX,
-				     "memused", "bytes");
-		lprocfs_counter_init(obd_memory, OBD_MEMORY_PAGES_STAT,
-				     LPROCFS_CNTR_AVGMINMAX,
-				     "pagesused", "pages");
+	if (obd_memory == NULL) {
+		CERROR("kmalloc of 'obd_memory' failed\n");
+		return -ENOMEM;
 	}
+
+	lprocfs_counter_init(obd_memory, OBD_MEMORY_STAT,
+			     LPROCFS_CNTR_AVGMINMAX,
+			     "memused", "bytes");
+	lprocfs_counter_init(obd_memory, OBD_MEMORY_PAGES_STAT,
+			     LPROCFS_CNTR_AVGMINMAX,
+			     "pagesused", "pages");
 
 	err = obd_init_checks();
 	if (err == -EOVERFLOW)
@@ -580,9 +567,11 @@ static int __init init_obdclass(void)
 	if (err)
 		return err;
 
-	obd_sysctl_init();
-
 	err = class_procfs_init();
+	if (err)
+		return err;
+
+	err = obd_sysctl_init();
 	if (err)
 		return err;
 
@@ -620,7 +609,6 @@ void obd_update_maxusage(void)
 }
 EXPORT_SYMBOL(obd_update_maxusage);
 
-#if defined (CONFIG_PROC_FS)
 __u64 obd_memory_max(void)
 {
 	__u64 ret;
@@ -644,7 +632,6 @@ __u64 obd_pages_max(void)
 	return ret;
 }
 EXPORT_SYMBOL(obd_pages_max);
-#endif
 
 /* liblustre doesn't call cleanup_obdclass, apparently.  we carry on in this
  * ifdef to the end of the file to cover module and versioning goo.*/
@@ -672,7 +659,6 @@ static void cleanup_obdclass(void)
 	lu_global_fini();
 
 	obd_cleanup_caches();
-	obd_sysctl_clean();
 
 	class_procfs_clean();
 

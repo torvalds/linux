@@ -67,7 +67,7 @@ struct lgdt330x_state
 	struct dvb_frontend frontend;
 
 	/* Demodulator private data */
-	fe_modulation_t current_modulation;
+	enum fe_modulation current_modulation;
 	u32 snr; /* Result of last SNR calculation */
 
 	/* Tuner private data */
@@ -447,7 +447,8 @@ static int lgdt330x_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int lgdt3302_read_status(struct dvb_frontend *fe,
+				enum fe_status *status)
 {
 	struct lgdt330x_state* state = fe->demodulator_priv;
 	u8 buf[3];
@@ -505,7 +506,8 @@ static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	return 0;
 }
 
-static int lgdt3303_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int lgdt3303_read_status(struct dvb_frontend *fe,
+				enum fe_status *status)
 {
 	struct lgdt330x_state* state = fe->demodulator_priv;
 	int err;
