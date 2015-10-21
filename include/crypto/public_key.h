@@ -15,7 +15,6 @@
 #define _LINUX_PUBLIC_KEY_H
 
 #include <linux/mpi.h>
-#include <keys/asymmetric-type.h>
 #include <crypto/hash_info.h>
 
 enum pkey_algo {

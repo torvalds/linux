@@ -266,7 +266,8 @@ static int x509_validate_trust(struct x509_certificate *cert,
 	if (!IS_ERR(key))  {
 		if (!use_builtin_keys
 		    || test_bit(KEY_FLAG_BUILTIN, &key->flags))
-			ret = x509_check_signature(key->payload.data, cert);
+			ret = x509_check_signature(key->payload.data[asym_crypto],
+						   cert);
 		key_put(key);
 	}
 	return ret;
@@ -352,9 +353,9 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 
 	/* We're pinning the module by being linked against it */
 	__module_get(public_key_subtype.owner);
-	prep->type_data[0] = &public_key_subtype;
-	prep->type_data[1] = kids;
-	prep->payload[0] = cert->pub;
+	prep->payload.data[asym_subtype] = &public_key_subtype;
+	prep->payload.data[asym_key_ids] = kids;
+	prep->payload.data[asym_crypto] = cert->pub;
 	prep->description = desc;
 	prep->quotalen = 100;
 

@@ -1007,7 +1007,7 @@ static void trusted_rcu_free(struct rcu_head *rcu)
  */
 static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 {
-	struct trusted_key_payload *p = key->payload.data;
+	struct trusted_key_payload *p = key->payload.data[0];
 	struct trusted_key_payload *new_p;
 	struct trusted_key_options *new_o;
 	size_t datalen = prep->datalen;
@@ -1114,12 +1114,12 @@ static long trusted_read(const struct key *key, char __user *buffer,
  */
 static void trusted_destroy(struct key *key)
 {
-	struct trusted_key_payload *p = key->payload.data;
+	struct trusted_key_payload *p = key->payload.data[0];
 
 	if (!p)
 		return;
 	memset(p->key, 0, p->key_len);
-	kfree(key->payload.data);
+	kfree(key->payload.data[0]);
 }
 
 struct key_type key_type_trusted = {

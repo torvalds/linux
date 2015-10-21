@@ -1027,7 +1027,7 @@ long keyctl_instantiate_key_common(key_serial_t id,
 	if (!instkey)
 		goto error;
 
-	rka = instkey->payload.data;
+	rka = instkey->payload.data[0];
 	if (rka->target_key->serial != id)
 		goto error;
 
@@ -1194,7 +1194,7 @@ long keyctl_reject_key(key_serial_t id, unsigned timeout, unsigned error,
 	if (!instkey)
 		goto error;
 
-	rka = instkey->payload.data;
+	rka = instkey->payload.data[0];
 	if (rka->target_key->serial != id)
 		goto error;
 
