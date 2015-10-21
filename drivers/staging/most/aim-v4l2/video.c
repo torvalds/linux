@@ -88,7 +88,7 @@ static int aim_vdev_open(struct file *filp)
 		return -EINVAL;
 	}
 
-	fh = kzalloc(sizeof(struct aim_fh), GFP_KERNEL);
+	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (!fh)
 		return -ENOMEM;
 
