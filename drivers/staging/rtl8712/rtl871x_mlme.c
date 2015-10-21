@@ -62,8 +62,8 @@ static sint _init_mlme_priv(struct _adapter *padapter)
 	_init_queue(&(pmlmepriv->scanned_queue));
 	set_scanned_network_val(pmlmepriv, 0);
 	memset(&pmlmepriv->assoc_ssid, 0, sizeof(struct ndis_802_11_ssid));
-	pbuf = kmalloc(MAX_BSS_CNT * (sizeof(struct wlan_network)),
-		       GFP_ATOMIC);
+	pbuf = kmalloc_array(MAX_BSS_CNT, sizeof(struct wlan_network),
+			     GFP_ATOMIC);
 	if (pbuf == NULL)
 		return _FAIL;
 	pmlmepriv->free_bss_buf = pbuf;
