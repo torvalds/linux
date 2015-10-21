@@ -162,18 +162,18 @@ static int cberry28_init_sequence[] = {
 	/* VDV = 0V */
 	-1, 0xC4, 0x20,
 
-	/* VCOM = 0.875V */
-	-1, 0xBB, 0x1F,
+	/* VCOM = 0.675V */
+	-1, 0xBB, 0x17,
 
 	/* VCOM offset = 0V */
 	-1, 0xC5, 0x20,
 
 	/*
-	 * AVDD = 6.6V
+	 * AVDD = 6.8V
 	 * AVCL = -4.8V
 	 * VDS = 2.3V
 	 */
-	-1, 0xD0, 0xA4, 0x61,
+	-1, 0xD0, 0xA4, 0xA1,
 
 	-1, MIPI_DCS_SET_DISPLAY_ON,
 
