@@ -55,6 +55,13 @@
 			     <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	reset: reset@110e0110{
+		compatible = "rockchip,reset";
+		reg = <0x110e0110 0x20>;
+		rockchip,reset-flag = <ROCKCHIP_RESET_HIWORD_MASK>;
+		#reset-cells = <1>;
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13
