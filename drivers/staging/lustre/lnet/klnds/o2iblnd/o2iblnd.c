@@ -2154,23 +2154,23 @@ static int kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 	if (rc != 0)
 		return rc;
 
-		LIBCFS_ALLOC(hdev->ibh_mrs, 1 * sizeof(*hdev->ibh_mrs));
-		if (hdev->ibh_mrs == NULL) {
-			CERROR("Failed to allocate MRs table\n");
-			return -ENOMEM;
-		}
+	LIBCFS_ALLOC(hdev->ibh_mrs, 1 * sizeof(*hdev->ibh_mrs));
+	if (hdev->ibh_mrs == NULL) {
+		CERROR("Failed to allocate MRs table\n");
+		return -ENOMEM;
+	}
 
-		hdev->ibh_mrs[0] = NULL;
-		hdev->ibh_nmrs   = 1;
+	hdev->ibh_mrs[0] = NULL;
+	hdev->ibh_nmrs   = 1;
 
-		mr = ib_get_dma_mr(hdev->ibh_pd, acflags);
-		if (IS_ERR(mr)) {
-			CERROR("Failed ib_get_dma_mr : %ld\n", PTR_ERR(mr));
-			kiblnd_hdev_cleanup_mrs(hdev);
-			return PTR_ERR(mr);
-		}
+	mr = ib_get_dma_mr(hdev->ibh_pd, acflags);
+	if (IS_ERR(mr)) {
+		CERROR("Failed ib_get_dma_mr : %ld\n", PTR_ERR(mr));
+		kiblnd_hdev_cleanup_mrs(hdev);
+		return PTR_ERR(mr);
+	}
 
-		hdev->ibh_mrs[0] = mr;
+	hdev->ibh_mrs[0] = mr;
 
 	return 0;
 }
