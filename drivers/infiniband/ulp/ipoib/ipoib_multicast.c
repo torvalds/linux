@@ -106,7 +106,7 @@ static void __ipoib_mcast_schedule_join_thread(struct ipoib_dev_priv *priv,
 		queue_delayed_work(priv->wq, &priv->mcast_task, 0);
 }
 
-static void ipoib_mcast_free(struct ipoib_mcast *mcast)
+void ipoib_mcast_free(struct ipoib_mcast *mcast)
 {
 	struct net_device *dev = mcast->dev;
 	int tx_dropped = 0;
@@ -153,7 +153,7 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 	return mcast;
 }
 
-static struct ipoib_mcast *__ipoib_mcast_find(struct net_device *dev, void *mgid)
+struct ipoib_mcast *__ipoib_mcast_find(struct net_device *dev, void *mgid)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct rb_node *n = priv->multicast_tree.rb_node;
@@ -508,17 +508,19 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast)
 		rec.hop_limit	  = priv->broadcast->mcmember.hop_limit;
 
 		/*
-		 * Historically Linux IPoIB has never properly supported SEND
-		 * ONLY join. It emulated it by not providing all the required
-		 * attributes, which is enough to prevent group creation and
-		 * detect if there are full members or not. A major problem
-		 * with supporting SEND ONLY is detecting when the group is
-		 * auto-destroyed as IPoIB will cache the MLID..
+		 * Send-only IB Multicast joins do not work at the core
+		 * IB layer yet, so we can't use them here.  However,
+		 * we are emulating an Ethernet multicast send, which
+		 * does not require a multicast subscription and will
+		 * still send properly.  The most appropriate thing to
+		 * do is to create the group if it doesn't exist as that
+		 * most closely emulates the behavior, from a user space
+		 * application perspecitive, of Ethernet multicast
+		 * operation.  For now, we do a full join, maybe later
+		 * when the core IB layers support send only joins we
+		 * will use them.
 		 */
-#if 1
-		if (test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags))
-			comp_mask &= ~IB_SA_MCMEMBER_REC_TRAFFIC_CLASS;
-#else
+#if 0
 		if (test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags))
 			rec.join_state = 4;
 #endif
@@ -675,7 +677,7 @@ int ipoib_mcast_stop_thread(struct net_device *dev)
 	return 0;
 }
 
-static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
+int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret = 0;
