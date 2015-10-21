@@ -76,7 +76,7 @@ void cxlflash_free_errpage(void)
  *
  * When the host needs to go down, all users must be quiesced and their
  * memory freed. This is accomplished by putting the contexts in error
- * state which will notify the user and let them 'drive' the tear-down.
+ * state which will notify the user and let them 'drive' the tear down.
  * Meanwhile, this routine camps until all user contexts have been removed.
  */
 void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *cfg)

@@ -34,7 +34,6 @@ MODULE_AUTHOR("Manoj N. Kumar <manoj@linux.vnet.ibm.com>");
 MODULE_AUTHOR("Matthew R. Ochs <mrochs@linux.vnet.ibm.com>");
 MODULE_LICENSE("GPL");
 
-
 /**
  * cmd_checkout() - checks out an AFU command
  * @afu:	AFU to checkout from.
@@ -730,7 +729,7 @@ static void cxlflash_remove(struct pci_dev *pdev)
 	case INIT_STATE_SCSI:
 		cxlflash_term_local_luns(cfg);
 		scsi_remove_host(cfg->host);
-		/* Fall through */
+		/* fall through */
 	case INIT_STATE_AFU:
 		term_afu(cfg);
 		cancel_work_sync(&cfg->work_q);
@@ -763,9 +762,7 @@ static int alloc_mem(struct cxlflash_cfg *cfg)
 	char *buf = NULL;
 	struct device *dev = &cfg->dev->dev;
 
-	/* This allocation is about 12K, i.e. only 1 64k page
-	 * and upto 4 4k pages
-	 */
+	/* AFU is ~12k, i.e. only one 64k page or up to four 4k pages */
 	cfg->afu = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 					    get_order(sizeof(struct afu)));
 	if (unlikely(!cfg->afu)) {
@@ -1295,10 +1292,10 @@ static irqreturn_t cxlflash_async_err_irq(int irq, void *data)
 		goto out;
 	}
 
-	/* it is OK to clear AFU status before FC_ERROR */
+	/* FYI, it is 'okay' to clear AFU status before FC_ERROR */
 	writeq_be(reg_unmasked, &global->regs.aintr_clear);
 
-	/* check each bit that is on */
+	/* Check each bit that is on */
 	for (i = 0; reg_unmasked; i++, reg_unmasked = (reg_unmasked >> 1)) {
 		info = find_ainfo(1ULL << i);
 		if (((reg_unmasked & 0x1) == 0) || !info)
@@ -1311,7 +1308,7 @@ static irqreturn_t cxlflash_async_err_irq(int irq, void *data)
 		       readq_be(&global->fc_regs[port][FC_STATUS / 8]));
 
 		/*
-		 * do link reset first, some OTHER errors will set FC_ERROR
+		 * Do link reset first, some OTHER errors will set FC_ERROR
 		 * again if cleared before or w/o a reset
 		 */
 		if (info->action & LINK_RESET) {
@@ -1326,7 +1323,7 @@ static irqreturn_t cxlflash_async_err_irq(int irq, void *data)
 			reg = readq_be(&global->fc_regs[port][FC_ERROR / 8]);
 
 			/*
-			 * since all errors are unmasked, FC_ERROR and FC_ERRCAP
+			 * Since all errors are unmasked, FC_ERROR and FC_ERRCAP
 			 * should be the same and tracing one is sufficient.
 			 */
 
@@ -1472,23 +1469,22 @@ static void init_pcr(struct cxlflash_cfg *cfg)
 
 	for (i = 0; i < MAX_CONTEXT; i++) {
 		ctrl_map = &afu->afu_map->ctrls[i].ctrl;
-		/* disrupt any clients that could be running */
-		/* e. g. clients that survived a master restart */
+		/* Disrupt any clients that could be running */
+		/* e.g. clients that survived a master restart */
 		writeq_be(0, &ctrl_map->rht_start);
 		writeq_be(0, &ctrl_map->rht_cnt_id);
 		writeq_be(0, &ctrl_map->ctx_cap);
 	}
 
-	/* copy frequently used fields into afu */
+	/* Copy frequently used fields into afu */
 	afu->ctx_hndl = (u16) cxl_process_element(cfg->mcctx);
-	/* ctx_hndl is 16 bits in CAIA */
 	afu->host_map = &afu->afu_map->hosts[afu->ctx_hndl].host;
 	afu->ctrl_map = &afu->afu_map->ctrls[afu->ctx_hndl].ctrl;
 
 	/* Program the Endian Control for the master context */
 	writeq_be(SISL_ENDIAN_CTRL, &afu->host_map->endian_ctrl);
 
-	/* initialize cmd fields that never change */
+	/* Initialize cmd fields that never change */
 	for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
 		afu->cmd[i].rcb.ctx_id = afu->ctx_hndl;
 		afu->cmd[i].rcb.msi = SISL_MSI_RRQ_UPDATED;
@@ -1517,7 +1513,7 @@ static int init_global(struct cxlflash_cfg *cfg)
 
 	pr_debug("%s: wwpn0=0x%llX wwpn1=0x%llX\n", __func__, wwpn[0], wwpn[1]);
 
-	/* set up RRQ in AFU for master issued cmds */
+	/* Set up RRQ in AFU for master issued cmds */
 	writeq_be((u64) afu->hrrq_start, &afu->host_map->rrq_start);
 	writeq_be((u64) afu->hrrq_end, &afu->host_map->rrq_end);
 
@@ -1530,9 +1526,9 @@ static int init_global(struct cxlflash_cfg *cfg)
 	/* checker on if dual afu */
 	writeq_be(reg, &afu->afu_map->global.regs.afu_config);
 
-	/* global port select: select either port */
+	/* Global port select: select either port */
 	if (afu->internal_lun) {
-		/* only use port 0 */
+		/* Only use port 0 */
 		writeq_be(PORT0, &afu->afu_map->global.regs.afu_port_sel);
 		num_ports = NUM_FC_PORTS - 1;
 	} else {
@@ -1541,15 +1537,15 @@ static int init_global(struct cxlflash_cfg *cfg)
 	}
 
 	for (i = 0; i < num_ports; i++) {
-		/* unmask all errors (but they are still masked at AFU) */
+		/* Unmask all errors (but they are still masked at AFU) */
 		writeq_be(0, &afu->afu_map->global.fc_regs[i][FC_ERRMSK / 8]);
-		/* clear CRC error cnt & set a threshold */
+		/* Clear CRC error cnt & set a threshold */
 		(void)readq_be(&afu->afu_map->global.
 			       fc_regs[i][FC_CNT_CRCERR / 8]);
 		writeq_be(MC_CRC_THRESH, &afu->afu_map->global.fc_regs[i]
 			  [FC_CRC_THRESH / 8]);
 
-		/* set WWPNs. If already programmed, wwpn[i] is 0 */
+		/* Set WWPNs. If already programmed, wwpn[i] is 0 */
 		if (wwpn[i] != 0 &&
 		    afu_set_wwpn(afu, i,
 				 &afu->afu_map->global.fc_regs[i][0],
@@ -1563,18 +1559,17 @@ static int init_global(struct cxlflash_cfg *cfg)
 		 * offline/online transitions and a PLOGI
 		 */
 		msleep(100);
-
 	}
 
-	/* set up master's own CTX_CAP to allow real mode, host translation */
-	/* tbls, afu cmds and read/write GSCSI cmds. */
+	/* Set up master's own CTX_CAP to allow real mode, host translation */
+	/* tables, afu cmds and read/write GSCSI cmds. */
 	/* First, unlock ctx_cap write by reading mbox */
 	(void)readq_be(&afu->ctrl_map->mbox_r);	/* unlock ctx_cap */
 	writeq_be((SISL_CTX_CAP_REAL_MODE | SISL_CTX_CAP_HOST_XLATE |
 		   SISL_CTX_CAP_READ_CMD | SISL_CTX_CAP_WRITE_CMD |
 		   SISL_CTX_CAP_AFU_CMD | SISL_CTX_CAP_GSCSI_CMD),
 		  &afu->ctrl_map->ctx_cap);
-	/* init heartbeat */
+	/* Initialize heartbeat */
 	afu->hb = readq_be(&afu->afu_map->global.regs.afu_hb);
 
 out:
@@ -1603,7 +1598,7 @@ static int start_afu(struct cxlflash_cfg *cfg)
 
 	init_pcr(cfg);
 
-	/* initialize RRQ pointers */
+	/* Initialize RRQ pointers */
 	afu->hrrq_start = &afu->rrq_entry[0];
 	afu->hrrq_end = &afu->rrq_entry[NUM_RRQ_ENTRY - 1];
 	afu->hrrq_curr = afu->hrrq_start;
@@ -1726,8 +1721,7 @@ static int init_afu(struct cxlflash_cfg *cfg)
 		goto err1;
 	}
 
-	/* Map the entire MMIO space of the AFU.
-	 */
+	/* Map the entire MMIO space of the AFU */
 	afu->afu_map = cxl_psa_map(cfg->mcctx);
 	if (!afu->afu_map) {
 		rc = -ENOMEM;
@@ -1779,7 +1773,7 @@ err1:
  * @mode:	Type of sync to issue (lightweight, heavyweight, global).
  *
  * The AFU can only take 1 sync command at a time. This routine enforces this
- * limitation by using a mutex to provide exlusive access to the AFU during
+ * limitation by using a mutex to provide exclusive access to the AFU during
  * the sync. This design point requires calling threads to not be on interrupt
  * context due to the possibility of sleeping during concurrent sync operations.
  *
@@ -1845,7 +1839,7 @@ retry:
 
 	wait_resp(afu, cmd);
 
-	/* set on timeout */
+	/* Set on timeout */
 	if (unlikely((cmd->sa.ioasc != 0) ||
 		     (cmd->sa.host_use_b[0] & B_ERROR)))
 		rc = -1;
@@ -2262,7 +2256,7 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun = 16,
 	.can_queue = CXLFLASH_MAX_CMDS,
 	.this_id = -1,
-	.sg_tablesize = SG_NONE,	/* No scatter gather support. */
+	.sg_tablesize = SG_NONE,	/* No scatter gather support */
 	.max_sectors = CXLFLASH_MAX_SECTORS,
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = cxlflash_host_attrs,
@@ -2322,8 +2316,7 @@ static void cxlflash_worker_thread(struct work_struct *work)
 
 			/* The reset can block... */
 			afu_link_reset(afu, port,
-				       &afu->afu_map->
-				       global.fc_regs[port][0]);
+				       &afu->afu_map->global.fc_regs[port][0]);
 			spin_lock_irqsave(cfg->host->host_lock, lock_flags);
 		}
 
@@ -2402,7 +2395,6 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	cfg->last_lun_index[1] = CXLFLASH_NUM_VLUNS/2 - 1;
 
 	cfg->dev_id = (struct pci_device_id *)dev_id;
-	cfg->mcctx = NULL;
 
 	init_waitqueue_head(&cfg->tmf_waitq);
 	init_waitqueue_head(&cfg->reset_waitq);
@@ -2418,7 +2410,8 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, cfg);
 
-	/* Use the special service provided to look up the physical
+	/*
+	 * Use the special service provided to look up the physical
 	 * PCI device, since we are called on the probe of the virtual
 	 * PCI host bus (vphb)
 	 */
@@ -2447,7 +2440,6 @@ static int cxlflash_probe(struct pci_dev *pdev,
 		goto out_remove;
 	}
 	cfg->init_state = INIT_STATE_AFU;
-
 
 	rc = init_scsi(cfg);
 	if (rc) {

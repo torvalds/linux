@@ -132,7 +132,7 @@ static int ba_init(struct ba_lun *ba_lun)
 		return -ENOMEM;
 	}
 
-	/* Pass the allocated lun info as a handle to the user */
+	/* Pass the allocated LUN info as a handle to the user */
 	ba_lun->ba_lun_handle = bali;
 
 	pr_debug("%s: Successfully initialized the LUN: "
@@ -165,7 +165,7 @@ static int find_free_range(u32 low,
 			num_bits = (sizeof(*lam) * BITS_PER_BYTE);
 			bit_pos = find_first_bit(lam, num_bits);
 
-			pr_devel("%s: Found free bit %llX in lun "
+			pr_devel("%s: Found free bit %llX in LUN "
 				 "map entry %llX at bitmap index = %X\n",
 				 __func__, bit_pos, bali->lun_alloc_map[i],
 				 i);
@@ -682,14 +682,14 @@ out:
 }
 
 /**
- * _cxlflash_vlun_resize() - changes the size of a virtual lun
+ * _cxlflash_vlun_resize() - changes the size of a virtual LUN
  * @sdev:	SCSI device associated with LUN owning virtual LUN.
  * @ctxi:	Context owning resources.
  * @resize:	Resize ioctl data structure.
  *
  * On successful return, the user is informed of the new size (in blocks)
- * of the virtual lun in last LBA format. When the size of the virtual
- * lun is zero, the last LBA is reflected as -1. See comment in the
+ * of the virtual LUN in last LBA format. When the size of the virtual
+ * LUN is zero, the last LBA is reflected as -1. See comment in the
  * prologue for _cxlflash_disk_release() regarding AFU syncs and contexts
  * on the error recovery list.
  *
@@ -886,8 +886,8 @@ out:
  * @arg:	UVirtual ioctl data structure.
  *
  * On successful return, the user is informed of the resource handle
- * to be used to identify the virtual lun and the size (in blocks) of
- * the virtual lun in last LBA format. When the size of the virtual lun
+ * to be used to identify the virtual LUN and the size (in blocks) of
+ * the virtual LUN in last LBA format. When the size of the virtual LUN
  * is zero, the last LBA is reflected as -1.
  *
  * Return: 0 on success, -errno on failure
