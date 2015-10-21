@@ -140,21 +140,21 @@ struct board_id {
 };
 
 static struct board_id dgap_ids[] = {
-	{ PPCM,        PCI_DEV_XEM_NAME,     64, (T_PCXM|T_PCLITE|T_PCIBUS) },
-	{ PCX,         PCI_DEV_CX_NAME,     128, (T_CX|T_PCIBUS)            },
-	{ PCX,         PCI_DEV_CX_IBM_NAME, 128, (T_CX|T_PCIBUS)            },
-	{ PEPC,        PCI_DEV_EPCJ_NAME,   224, (T_EPC|T_PCIBUS)           },
-	{ APORT2_920P, PCI_DEV_920_2_NAME,    2, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ APORT4_920P, PCI_DEV_920_4_NAME,    4, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ APORT8_920P, PCI_DEV_920_8_NAME,    8, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ PAPORT8,     PCI_DEV_XR_NAME,       8, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ PAPORT8,     PCI_DEV_XRJ_NAME,      8, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ PAPORT8,     PCI_DEV_XR_422_NAME,   8, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ PAPORT8,     PCI_DEV_XR_IBM_NAME,   8, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ PAPORT8,     PCI_DEV_XR_SAIP_NAME,  8, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ PAPORT8,     PCI_DEV_XR_BULL_NAME,  8, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ APORT8_920P, PCI_DEV_920_8_HP_NAME, 8, (T_PCXR|T_PCLITE|T_PCIBUS) },
-	{ PPCM,        PCI_DEV_XEM_HP_NAME,  64, (T_PCXM|T_PCLITE|T_PCIBUS) },
+	{PPCM,        PCI_DEV_XEM_NAME,     64, (T_PCXM | T_PCLITE | T_PCIBUS)},
+	{PCX,         PCI_DEV_CX_NAME,     128, (T_CX | T_PCIBUS)            },
+	{PCX,         PCI_DEV_CX_IBM_NAME, 128, (T_CX | T_PCIBUS)            },
+	{PEPC,        PCI_DEV_EPCJ_NAME,   224, (T_EPC | T_PCIBUS)           },
+	{APORT2_920P, PCI_DEV_920_2_NAME,    2, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{APORT4_920P, PCI_DEV_920_4_NAME,    4, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{APORT8_920P, PCI_DEV_920_8_NAME,    8, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{PAPORT8,     PCI_DEV_XR_NAME,       8, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{PAPORT8,     PCI_DEV_XRJ_NAME,      8, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{PAPORT8,     PCI_DEV_XR_422_NAME,   8, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{PAPORT8,     PCI_DEV_XR_IBM_NAME,   8, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{PAPORT8,     PCI_DEV_XR_SAIP_NAME,  8, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{PAPORT8,     PCI_DEV_XR_BULL_NAME,  8, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{APORT8_920P, PCI_DEV_920_8_HP_NAME, 8, (T_PCXR | T_PCLITE | T_PCIBUS)},
+	{PPCM,        PCI_DEV_XEM_HP_NAME,  64, (T_PCXM | T_PCLITE | T_PCIBUS)},
 	{0,}						/* 0 terminated list. */
 };
 
@@ -2704,7 +2704,7 @@ static int dgap_param(struct channel_t *ch, struct board_t *bd, u32 un_type)
 		ch->ch_flags |= (CH_BAUD0);
 
 		/* Drop RTS and DTR */
-		ch->ch_mval &= ~(D_RTS(ch)|D_DTR(ch));
+		ch->ch_mval &= ~(D_RTS(ch) | D_DTR(ch));
 		mval = D_DTR(ch) | D_RTS(ch);
 		ch->ch_baud_info = 0;
 
@@ -2725,7 +2725,7 @@ static int dgap_param(struct channel_t *ch, struct board_t *bd, u32 un_type)
 		/* Handle transition from B0 */
 		if (ch->ch_flags & CH_BAUD0) {
 			ch->ch_flags &= ~(CH_BAUD0);
-			ch->ch_mval |= (D_RTS(ch)|D_DTR(ch));
+			ch->ch_mval |= (D_RTS(ch) | D_DTR(ch));
 		}
 		mval = D_DTR(ch) | D_RTS(ch);
 
@@ -2871,7 +2871,7 @@ static int dgap_param(struct channel_t *ch, struct board_t *bd, u32 un_type)
 		/* Handle transition from B0 */
 		if (ch->ch_flags & CH_BAUD0) {
 			ch->ch_flags &= ~(CH_BAUD0);
-			ch->ch_mval |= (D_RTS(ch)|D_DTR(ch));
+			ch->ch_mval |= (D_RTS(ch) | D_DTR(ch));
 		}
 		mval = D_DTR(ch) | D_RTS(ch);
 	}
@@ -3160,12 +3160,12 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
 	head = readw(&ch->ch_bs->tx_head);
 	dgap_cmdw(ch, FLUSHTX, (u16)head, 0);
 	dgap_cmdw(ch, RESUMETX, 0, 0);
-	if (ch->ch_tun.un_flags & (UN_LOW|UN_EMPTY)) {
-		ch->ch_tun.un_flags &= ~(UN_LOW|UN_EMPTY);
+	if (ch->ch_tun.un_flags & (UN_LOW | UN_EMPTY)) {
+		ch->ch_tun.un_flags &= ~(UN_LOW | UN_EMPTY);
 		wake_up_interruptible(&ch->ch_tun.un_flags_wait);
 	}
-	if (ch->ch_pun.un_flags & (UN_LOW|UN_EMPTY)) {
-		ch->ch_pun.un_flags &= ~(UN_LOW|UN_EMPTY);
+	if (ch->ch_pun.un_flags & (UN_LOW | UN_EMPTY)) {
+		ch->ch_pun.un_flags &= ~(UN_LOW | UN_EMPTY);
 		wake_up_interruptible(&ch->ch_pun.un_flags_wait);
 	}
 
@@ -3981,7 +3981,7 @@ static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd,
 		break;
 
 	case TIOCMSET:
-		ch->ch_mforce = D_DTR(ch)|D_RTS(ch);
+		ch->ch_mforce = D_DTR(ch) | D_RTS(ch);
 
 		if (arg & TIOCM_RTS)
 			ch->ch_mval |= D_RTS(ch);
@@ -4588,8 +4588,8 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 		 * If we have HUPCL set, lower DTR and RTS
 		 */
 		if (ch->ch_c_cflag & HUPCL) {
-			ch->ch_mostat &= ~(D_RTS(ch)|D_DTR(ch));
-			dgap_cmdb(ch, SMODEM, 0, D_DTR(ch)|D_RTS(ch), 0);
+			ch->ch_mostat &= ~(D_RTS(ch) | D_DTR(ch));
+			dgap_cmdb(ch, SMODEM, 0, D_DTR(ch) | D_RTS(ch), 0);
 
 			/*
 			 * Go to sleep to ensure RTS/DTR
@@ -4961,12 +4961,12 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		head = readw(&ch->ch_bs->tx_head);
 		dgap_cmdw(ch, FLUSHTX, (u16)head, 0);
 		dgap_cmdw(ch, RESUMETX, 0, 0);
-		if (ch->ch_tun.un_flags & (UN_LOW|UN_EMPTY)) {
-			ch->ch_tun.un_flags &= ~(UN_LOW|UN_EMPTY);
+		if (ch->ch_tun.un_flags & (UN_LOW | UN_EMPTY)) {
+			ch->ch_tun.un_flags &= ~(UN_LOW | UN_EMPTY);
 			wake_up_interruptible(&ch->ch_tun.un_flags_wait);
 		}
-		if (ch->ch_pun.un_flags & (UN_LOW|UN_EMPTY)) {
-			ch->ch_pun.un_flags &= ~(UN_LOW|UN_EMPTY);
+		if (ch->ch_pun.un_flags & (UN_LOW | UN_EMPTY)) {
+			ch->ch_pun.un_flags &= ~(UN_LOW | UN_EMPTY);
 			wake_up_interruptible(&ch->ch_pun.un_flags_wait);
 		}
 		if (waitqueue_active(&tty->write_wait))
