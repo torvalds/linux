@@ -3516,7 +3516,7 @@ static void watch_dog_timer_callback(unsigned long data)
 
 	queue_delayed_work(priv->priv_wq, &priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer,
-		  jiffies + MSECS(IEEE80211_WATCH_DOG_TIME));
+		  jiffies + msecs_to_jiffies(IEEE80211_WATCH_DOG_TIME));
 }
 static int _rtl8192_up(struct net_device *dev)
 {
