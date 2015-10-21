@@ -26,6 +26,7 @@ struct acpi_device;
  * struct gpio_device - internal state container for GPIO devices
  * @id: numerical ID number for the GPIO chip
  * @dev: the GPIO device struct
+ * @chrdev: character device for the GPIO device
  * @owner: helps prevent removal of modules exporting active GPIOs
  * @chip: pointer to the corresponding gpiochip, holding static
  * data for this device
@@ -39,6 +40,7 @@ struct acpi_device;
 struct gpio_device {
 	int			id;
 	struct device		dev;
+	struct cdev		chrdev;
 	struct module		*owner;
 	struct gpio_chip	*chip;
 	struct list_head        list;

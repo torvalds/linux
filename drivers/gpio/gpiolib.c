@@ -17,6 +17,10 @@
 #include <linux/gpio/machine.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/idr.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+#include <uapi/linux/gpio.h>
 
 #include "gpiolib.h"
 
@@ -45,6 +49,11 @@
 
 /* Device and char device-related information */
 static DEFINE_IDA(gpio_ida);
+static dev_t gpio_devt;
+#define GPIO_DEV_MAX 256 /* 256 GPIO chip devices supported */
+static struct bus_type gpio_bus_type = {
+	.name = "gpio",
+};
 
 /* gpio_lock prevents conflicts during gpio_desc[] table updates.
  * While any GPIO is requested, its gpio_chip is not removable;
@@ -316,10 +325,84 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 	return 0;
 }
 
+/**
+ * gpio_ioctl() - ioctl handler for the GPIO chardev
+ */
+static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct gpio_device *gdev = filp->private_data;
+	struct gpio_chip *chip = gdev->chip;
+	int __user *ip = (int __user *)arg;
+	struct gpiochip_info chipinfo;
+
+	/* We fail any subsequent ioctl():s when the chip is gone */
+	if (!chip)
+		return -ENODEV;
+
+	if (cmd == GPIO_GET_CHIPINFO_IOCTL) {
+		/* Fill in the struct and pass to userspace */
+		strncpy(chipinfo.name, dev_name(&gdev->dev),
+			sizeof(chipinfo.name));
+		chipinfo.name[sizeof(chipinfo.name)-1] = '\0';
+		chipinfo.lines = chip->ngpio;
+		if (copy_to_user(ip, &chipinfo, sizeof(chipinfo)))
+			return -EFAULT;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+/**
+ * gpio_chrdev_open() - open the chardev for ioctl operations
+ * @inode: inode for this chardev
+ * @filp: file struct for storing private data
+ * Returns 0 on success
+ */
+static int gpio_chrdev_open(struct inode *inode, struct file *filp)
+{
+	struct gpio_device *gdev = container_of(inode->i_cdev,
+					      struct gpio_device, chrdev);
+
+	/* Fail on open if the backing gpiochip is gone */
+	if (!gdev || !gdev->chip)
+		return -ENODEV;
+	get_device(&gdev->dev);
+	filp->private_data = gdev;
+	return 0;
+}
+
+/**
+ * gpio_chrdev_release() - close chardev after ioctl operations
+ * @inode: inode for this chardev
+ * @filp: file struct for storing private data
+ * Returns 0 on success
+ */
+static int gpio_chrdev_release(struct inode *inode, struct file *filp)
+{
+	struct gpio_device *gdev = container_of(inode->i_cdev,
+					      struct gpio_device, chrdev);
+
+	if (!gdev)
+		return -ENODEV;
+	put_device(&gdev->dev);
+	return 0;
+}
+
+
+static const struct file_operations gpio_fileops = {
+	.release = gpio_chrdev_release,
+	.open = gpio_chrdev_open,
+	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
+	.unlocked_ioctl = gpio_ioctl,
+	.compat_ioctl = gpio_ioctl,
+};
+
 static void gpiodevice_release(struct device *dev)
 {
 	struct gpio_device *gdev = dev_get_drvdata(dev);
 
+	cdev_del(&gdev->chrdev);
 	list_del(&gdev->list);
 	ida_simple_remove(&gpio_ida, gdev->id);
 }
@@ -357,6 +440,7 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 	gdev = kmalloc(sizeof(*gdev), GFP_KERNEL);
 	if (!gdev)
 		return -ENOMEM;
+	gdev->dev.bus = &gpio_bus_type;
 	gdev->chip = chip;
 	chip->gpiodev = gdev;
 	if (chip->parent) {
@@ -452,9 +536,26 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 
 	acpi_gpiochip_add(chip);
 
+	/*
+	 * By first adding the chardev, and then adding the device,
+	 * we get a device node entry in sysfs under
+	 * /sys/bus/gpio/devices/gpiochipN/dev that can be used for
+	 * coldplug of device nodes and other udev business.
+	 */
+	cdev_init(&gdev->chrdev, &gpio_fileops);
+	gdev->chrdev.owner = THIS_MODULE;
+	gdev->chrdev.kobj.parent = &gdev->dev.kobj;
+	gdev->dev.devt = MKDEV(MAJOR(gpio_devt), gdev->id);
+	status = cdev_add(&gdev->chrdev, gdev->dev.devt, 1);
+	if (status < 0)
+		chip_warn(chip, "failed to add char device %d:%d\n",
+			  MAJOR(gpio_devt), gdev->id);
+	else
+		chip_dbg(chip, "added GPIO chardev (%d:%d)\n",
+			 MAJOR(gpio_devt), gdev->id);
 	status = device_add(&gdev->dev);
 	if (status)
-		goto err_remove_chip;
+		goto err_remove_chardev;
 
 	status = gpiochip_sysfs_register(chip);
 	if (status)
@@ -471,6 +572,8 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 
 err_remove_device:
 	device_del(&gdev->dev);
+err_remove_chardev:
+	cdev_del(&gdev->chrdev);
 err_remove_chip:
 	acpi_gpiochip_remove(chip);
 	gpiochip_free_hogs(chip);
@@ -2542,6 +2645,26 @@ void gpiod_put_array(struct gpio_descs *descs)
 	kfree(descs);
 }
 EXPORT_SYMBOL_GPL(gpiod_put_array);
+
+static int __init gpiolib_dev_init(void)
+{
+	int ret;
+
+	/* Register GPIO sysfs bus */
+	ret  = bus_register(&gpio_bus_type);
+	if (ret < 0) {
+		pr_err("gpiolib: could not register GPIO bus type\n");
+		return ret;
+	}
+
+	ret = alloc_chrdev_region(&gpio_devt, 0, GPIO_DEV_MAX, "gpiochip");
+	if (ret < 0) {
+		pr_err("gpiolib: failed to allocate char dev region\n");
+		bus_unregister(&gpio_bus_type);
+	}
+	return ret;
+}
+core_initcall(gpiolib_dev_init);
 
 #ifdef CONFIG_DEBUG_FS
 
