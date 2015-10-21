@@ -402,7 +402,7 @@ static int da7219_alc_sw_put(struct snd_kcontrol *kcontrol,
 	/* Force ALC offset calibration if enabling ALC */
 	if ((ucontrol->value.integer.value[0]) && (!da7219->alc_en)) {
 		da7219_alc_calib(codec);
-		da7219->alc_en = false;
+		da7219->alc_en = true;
 	} else {
 		da7219->alc_en = false;
 	}
