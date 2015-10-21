@@ -261,8 +261,10 @@ static void __init mx27_clocks_init_dt(struct device_node *np)
 		if (!of_device_is_compatible(refnp, "fsl,imx-osc26m"))
 			continue;
 
-		if (!of_property_read_u32(refnp, "clock-frequency", &fref))
+		if (!of_property_read_u32(refnp, "clock-frequency", &fref)) {
+			of_node_put(refnp);
 			break;
+		}
 	}
 
 	ccm = of_iomap(np, 0);
