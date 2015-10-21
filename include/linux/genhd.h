@@ -210,7 +210,6 @@ struct gendisk {
 	atomic_t sync_io;		/* RAID */
 	struct disk_events *ev;
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
-	struct blk_integrity integrity;
 	struct kobject integrity_kobj;
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
 	int node_id;

@@ -142,8 +142,8 @@ EXPORT_SYMBOL(blk_rq_map_integrity_sg);
  */
 int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
 {
-	struct blk_integrity *b1 = &gd1->integrity;
-	struct blk_integrity *b2 = &gd2->integrity;
+	struct blk_integrity *b1 = &gd1->queue->integrity;
+	struct blk_integrity *b2 = &gd2->queue->integrity;
 
 	if (!b1->profile && !b2->profile)
 		return 0;
@@ -246,7 +246,7 @@ static ssize_t integrity_attr_show(struct kobject *kobj, struct attribute *attr,
 				   char *page)
 {
 	struct gendisk *disk = container_of(kobj, struct gendisk, integrity_kobj);
-	struct blk_integrity *bi = &disk->integrity;
+	struct blk_integrity *bi = &disk->queue->integrity;
 	struct integrity_sysfs_entry *entry =
 		container_of(attr, struct integrity_sysfs_entry, attr);
 
@@ -258,7 +258,7 @@ static ssize_t integrity_attr_store(struct kobject *kobj,
 				    size_t count)
 {
 	struct gendisk *disk = container_of(kobj, struct gendisk, integrity_kobj);
-	struct blk_integrity *bi = &disk->integrity;
+	struct blk_integrity *bi = &disk->queue->integrity;
 	struct integrity_sysfs_entry *entry =
 		container_of(attr, struct integrity_sysfs_entry, attr);
 	ssize_t ret = 0;
@@ -397,7 +397,7 @@ static struct kobj_type integrity_ktype = {
  */
 void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 {
-	struct blk_integrity *bi = &disk->integrity;
+	struct blk_integrity *bi = &disk->queue->integrity;
 
 	bi->flags = BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE |
 		template->flags;
@@ -420,13 +420,13 @@ EXPORT_SYMBOL(blk_integrity_register);
 void blk_integrity_unregister(struct gendisk *disk)
 {
 	blk_integrity_revalidate(disk);
-	memset(&disk->integrity, 0, sizeof(struct blk_integrity));
+	memset(&disk->queue->integrity, 0, sizeof(struct blk_integrity));
 }
 EXPORT_SYMBOL(blk_integrity_unregister);
 
 void blk_integrity_revalidate(struct gendisk *disk)
 {
-	struct blk_integrity *bi = &disk->integrity;
+	struct blk_integrity *bi = &disk->queue->integrity;
 
 	if (!(disk->flags & GENHD_FL_UP))
 		return;

@@ -538,7 +538,7 @@ static void nvme_dif_remap(struct request *req,
 	virt = bip_get_seed(bip);
 	phys = nvme_block_nr(ns, blk_rq_pos(req));
 	nlb = (blk_rq_bytes(req) >> ns->lba_shift);
-	ts = ns->disk->integrity.tuple_size;
+	ts = ns->disk->queue->integrity.tuple_size;
 
 	for (i = 0; i < nlb; i++, virt++, phys++) {
 		pi = (struct t10_pi_tuple *)p;

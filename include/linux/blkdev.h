@@ -369,6 +369,10 @@ struct request_queue {
 	 */
 	struct kobject mq_kobj;
 
+#ifdef  CONFIG_BLK_DEV_INTEGRITY
+	struct blk_integrity integrity;
+#endif	/* CONFIG_BLK_DEV_INTEGRITY */
+
 #ifdef CONFIG_PM
 	struct device		*dev;
 	int			rpm_status;
@@ -1481,7 +1485,7 @@ extern bool blk_integrity_merge_bio(struct request_queue *, struct request *,
 
 static inline struct blk_integrity *blk_get_integrity(struct gendisk *disk)
 {
-	struct blk_integrity *bi = &disk->integrity;
+	struct blk_integrity *bi = &disk->queue->integrity;
 
 	if (!bi->profile)
 		return NULL;
