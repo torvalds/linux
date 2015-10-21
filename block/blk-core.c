@@ -554,13 +554,10 @@ void blk_cleanup_queue(struct request_queue *q)
 	 * Drain all requests queued before DYING marking. Set DEAD flag to
 	 * prevent that q->request_fn() gets invoked after draining finished.
 	 */
-	if (q->mq_ops) {
-		blk_mq_freeze_queue(q);
-		spin_lock_irq(lock);
-	} else {
-		spin_lock_irq(lock);
+	blk_freeze_queue(q);
+	spin_lock_irq(lock);
+	if (!q->mq_ops)
 		__blk_drain_queue(q, true);
-	}
 	queue_flag_set(QUEUE_FLAG_DEAD, q);
 	spin_unlock_irq(lock);
 
@@ -570,6 +567,7 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	if (q->mq_ops)
 		blk_mq_free_queue(q);
+	percpu_ref_exit(&q->q_usage_counter);
 
 	spin_lock_irq(lock);
 	if (q->queue_lock != &q->__queue_lock)
@@ -628,6 +626,40 @@ struct request_queue *blk_alloc_queue(gfp_t gfp_mask)
 	return blk_alloc_queue_node(gfp_mask, NUMA_NO_NODE);
 }
 EXPORT_SYMBOL(blk_alloc_queue);
+
+int blk_queue_enter(struct request_queue *q, gfp_t gfp)
+{
+	while (true) {
+		int ret;
+
+		if (percpu_ref_tryget_live(&q->q_usage_counter))
+			return 0;
+
+		if (!(gfp & __GFP_WAIT))
+			return -EBUSY;
+
+		ret = wait_event_interruptible(q->mq_freeze_wq,
+				!atomic_read(&q->mq_freeze_depth) ||
+				blk_queue_dying(q));
+		if (blk_queue_dying(q))
+			return -ENODEV;
+		if (ret)
+			return ret;
+	}
+}
+
+void blk_queue_exit(struct request_queue *q)
+{
+	percpu_ref_put(&q->q_usage_counter);
+}
+
+static void blk_queue_usage_counter_release(struct percpu_ref *ref)
+{
+	struct request_queue *q =
+		container_of(ref, struct request_queue, q_usage_counter);
+
+	wake_up_all(&q->mq_freeze_wq);
+}
 
 struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 {
@@ -690,11 +722,22 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 
 	init_waitqueue_head(&q->mq_freeze_wq);
 
-	if (blkcg_init_queue(q))
+	/*
+	 * Init percpu_ref in atomic mode so that it's faster to shutdown.
+	 * See blk_register_queue() for details.
+	 */
+	if (percpu_ref_init(&q->q_usage_counter,
+				blk_queue_usage_counter_release,
+				PERCPU_REF_INIT_ATOMIC, GFP_KERNEL))
 		goto fail_bdi;
+
+	if (blkcg_init_queue(q))
+		goto fail_ref;
 
 	return q;
 
+fail_ref:
+	percpu_ref_exit(&q->q_usage_counter);
 fail_bdi:
 	bdi_destroy(&q->backing_dev_info);
 fail_split:
@@ -1966,9 +2009,19 @@ void generic_make_request(struct bio *bio)
 	do {
 		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 
-		q->make_request_fn(q, bio);
+		if (likely(blk_queue_enter(q, __GFP_WAIT) == 0)) {
 
-		bio = bio_list_pop(current->bio_list);
+			q->make_request_fn(q, bio);
+
+			blk_queue_exit(q);
+
+			bio = bio_list_pop(current->bio_list);
+		} else {
+			struct bio *bio_next = bio_list_pop(current->bio_list);
+
+			bio_io_error(bio);
+			bio = bio_next;
+		}
 	} while (bio);
 	current->bio_list = NULL; /* deactivate */
 }

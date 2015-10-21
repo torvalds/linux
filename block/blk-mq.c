@@ -78,47 +78,13 @@ static void blk_mq_hctx_clear_pending(struct blk_mq_hw_ctx *hctx,
 	clear_bit(CTX_TO_BIT(hctx, ctx), &bm->word);
 }
 
-static int blk_mq_queue_enter(struct request_queue *q, gfp_t gfp)
-{
-	while (true) {
-		int ret;
-
-		if (percpu_ref_tryget_live(&q->mq_usage_counter))
-			return 0;
-
-		if (!(gfp & __GFP_WAIT))
-			return -EBUSY;
-
-		ret = wait_event_interruptible(q->mq_freeze_wq,
-				!atomic_read(&q->mq_freeze_depth) ||
-				blk_queue_dying(q));
-		if (blk_queue_dying(q))
-			return -ENODEV;
-		if (ret)
-			return ret;
-	}
-}
-
-static void blk_mq_queue_exit(struct request_queue *q)
-{
-	percpu_ref_put(&q->mq_usage_counter);
-}
-
-static void blk_mq_usage_counter_release(struct percpu_ref *ref)
-{
-	struct request_queue *q =
-		container_of(ref, struct request_queue, mq_usage_counter);
-
-	wake_up_all(&q->mq_freeze_wq);
-}
-
 void blk_mq_freeze_queue_start(struct request_queue *q)
 {
 	int freeze_depth;
 
 	freeze_depth = atomic_inc_return(&q->mq_freeze_depth);
 	if (freeze_depth == 1) {
-		percpu_ref_kill(&q->mq_usage_counter);
+		percpu_ref_kill(&q->q_usage_counter);
 		blk_mq_run_hw_queues(q, false);
 	}
 }
@@ -126,17 +92,33 @@ EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_start);
 
 static void blk_mq_freeze_queue_wait(struct request_queue *q)
 {
-	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->mq_usage_counter));
+	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->q_usage_counter));
 }
 
 /*
  * Guarantee no request is in use, so we can change any data structure of
  * the queue afterward.
  */
-void blk_mq_freeze_queue(struct request_queue *q)
+void blk_freeze_queue(struct request_queue *q)
 {
+	/*
+	 * In the !blk_mq case we are only calling this to kill the
+	 * q_usage_counter, otherwise this increases the freeze depth
+	 * and waits for it to return to zero.  For this reason there is
+	 * no blk_unfreeze_queue(), and blk_freeze_queue() is not
+	 * exported to drivers as the only user for unfreeze is blk_mq.
+	 */
 	blk_mq_freeze_queue_start(q);
 	blk_mq_freeze_queue_wait(q);
+}
+
+void blk_mq_freeze_queue(struct request_queue *q)
+{
+	/*
+	 * ...just an alias to keep freeze and unfreeze actions balanced
+	 * in the blk_mq_* namespace
+	 */
+	blk_freeze_queue(q);
 }
 EXPORT_SYMBOL_GPL(blk_mq_freeze_queue);
 
@@ -147,7 +129,7 @@ void blk_mq_unfreeze_queue(struct request_queue *q)
 	freeze_depth = atomic_dec_return(&q->mq_freeze_depth);
 	WARN_ON_ONCE(freeze_depth < 0);
 	if (!freeze_depth) {
-		percpu_ref_reinit(&q->mq_usage_counter);
+		percpu_ref_reinit(&q->q_usage_counter);
 		wake_up_all(&q->mq_freeze_wq);
 	}
 }
@@ -256,7 +238,7 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
 	struct blk_mq_alloc_data alloc_data;
 	int ret;
 
-	ret = blk_mq_queue_enter(q, gfp);
+	ret = blk_queue_enter(q, gfp);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -279,7 +261,7 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
 	}
 	blk_mq_put_ctx(ctx);
 	if (!rq) {
-		blk_mq_queue_exit(q);
+		blk_queue_exit(q);
 		return ERR_PTR(-EWOULDBLOCK);
 	}
 	return rq;
@@ -298,7 +280,7 @@ static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
 	blk_mq_put_tag(hctx, tag, &ctx->last_tag);
-	blk_mq_queue_exit(q);
+	blk_queue_exit(q);
 }
 
 void blk_mq_free_hctx_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
@@ -1177,11 +1159,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	int rw = bio_data_dir(bio);
 	struct blk_mq_alloc_data alloc_data;
 
-	if (unlikely(blk_mq_queue_enter(q, GFP_KERNEL))) {
-		bio_io_error(bio);
-		return NULL;
-	}
-
+	blk_queue_enter_live(q);
 	ctx = blk_mq_get_ctx(q);
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
@@ -2000,14 +1978,6 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 		hctxs[i]->queue_num = i;
 	}
 
-	/*
-	 * Init percpu_ref in atomic mode so that it's faster to shutdown.
-	 * See blk_register_queue() for details.
-	 */
-	if (percpu_ref_init(&q->mq_usage_counter, blk_mq_usage_counter_release,
-			    PERCPU_REF_INIT_ATOMIC, GFP_KERNEL))
-		goto err_hctxs;
-
 	setup_timer(&q->timeout, blk_mq_rq_timer, (unsigned long) q);
 	blk_queue_rq_timeout(q, set->timeout ? set->timeout : 30 * HZ);
 
@@ -2088,8 +2058,6 @@ void blk_mq_free_queue(struct request_queue *q)
 
 	blk_mq_exit_hw_queues(q, set, set->nr_hw_queues);
 	blk_mq_free_hw_queues(q, set);
-
-	percpu_ref_exit(&q->mq_usage_counter);
 }
 
 /* Basically redo blk_mq_init_queue with queue frozen */
