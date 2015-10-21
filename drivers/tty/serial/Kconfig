@@ -1044,7 +1044,7 @@ config SERIAL_SGI_IOC3
 	  say Y or M.  Otherwise, say N.
 
 config SERIAL_MSM
-	bool "MSM on-chip serial port support"
+	tristate "MSM on-chip serial port support"
 	depends on ARCH_QCOM
 	select SERIAL_CORE
 
