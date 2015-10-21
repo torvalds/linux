@@ -13,6 +13,9 @@
  * Example core scaling policy.
  */
 
+/* #define ENABLE_DEBUG_LOG */
+#include "custom_log.h"
+
 #include "arm_core_scaling.h"
 
 #include <linux/mali/mali_utgard.h>
@@ -22,6 +25,16 @@
 
 static int num_cores_total;
 static int num_cores_enabled;
+
+/**
+ * 对连续的 request_to_disable_on_core 的计数.
+ */
+static int count_of_requests_to_disable_one_core;
+/**
+ * 在 count_of_requests_to_disable_one_core 等于本 value 的时候,
+ * 将执行确实的 disable_one_core 操作.
+ */
+#define NUM_OF_REQUESTS_TO_REALLY_DISABLE_ONE_CORE		(10)
 
 static struct work_struct wq_work;
 
@@ -114,17 +127,30 @@ void mali_core_scaling_update(struct mali_gpu_utilization_data *data)
 			  num_cores_total));
 
 	/* NOTE:
-	 * this function is normally called directly
-	 * from the utilization callback which is in timer context. */
+	 * this function
+	 * is normally called directly
+	 *	from the utilization callback
+	 *		which is in timer context. */
 
-	if (PERCENT_OF(90, 256) < data->utilization_pp)
+	if (PERCENT_OF(90, 256) < data->utilization_pp) {
+		V("to enable max num of pp_cores.");
 		enable_max_num_cores();
-	else if (PERCENT_OF(50, 256) < data->utilization_pp)
+		count_of_requests_to_disable_one_core = 0;
+	} else if (PERCENT_OF(50, 256) < data->utilization_pp) {
+		V("to enable more one pp_core.");
 		enable_one_core();
-	else if (PERCENT_OF(40, 256) < data->utilization_pp)
-		MALI_DEBUG_PRINT(6, ("do nothing"));
-	else if (PERCENT_OF(0, 256) < data->utilization_pp)
-		disable_one_core();
-	else
-		MALI_DEBUG_PRINT(6, ("do nothing"));
+		count_of_requests_to_disable_one_core = 0;
+	} else if (PERCENT_OF(40, 256) < data->utilization_pp) {
+		count_of_requests_to_disable_one_core = 0;
+	} else if (PERCENT_OF(0, 256) < data->utilization_pp) {
+		count_of_requests_to_disable_one_core++;
+		if (count_of_requests_to_disable_one_core
+			>= NUM_OF_REQUESTS_TO_REALLY_DISABLE_ONE_CORE) {
+			V("to disable a pp_core.");
+			disable_one_core();
+			count_of_requests_to_disable_one_core = 0;
+		}
+	} else {
+		count_of_requests_to_disable_one_core = 0;
+	}
 }
