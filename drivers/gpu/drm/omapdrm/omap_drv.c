@@ -352,7 +352,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
 		enum omap_channel channel;
-		struct omap_overlay_manager *mgr;
+		struct omap_dss_device *out;
 
 		if (!omapdss_device_is_connected(dssdev))
 			continue;
@@ -399,8 +399,10 @@ static int omap_modeset_init(struct drm_device *dev)
 		 * not considered.
 		 */
 
-		mgr = omapdss_find_mgr_from_display(dssdev);
-		channel = mgr->id;
+		out = omapdss_find_output_from_display(dssdev);
+		channel = out->dispc_channel;
+		omap_dss_put_device(out);
+
 		/*
 		 * if this channel hasn't already been taken by a previously
 		 * allocated crtc, we create a new crtc for it

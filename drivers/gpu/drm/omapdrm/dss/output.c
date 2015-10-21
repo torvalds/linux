@@ -169,24 +169,6 @@ struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device 
 }
 EXPORT_SYMBOL(omapdss_find_output_from_display);
 
-struct omap_overlay_manager *omapdss_find_mgr_from_display(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *out;
-	struct omap_overlay_manager *mgr;
-
-	out = omapdss_find_output_from_display(dssdev);
-
-	if (out == NULL)
-		return NULL;
-
-	mgr = out->manager;
-
-	omap_dss_put_device(out);
-
-	return mgr;
-}
-EXPORT_SYMBOL(omapdss_find_mgr_from_display);
-
 static const struct dss_mgr_ops *dss_mgr_ops;
 
 int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops)
