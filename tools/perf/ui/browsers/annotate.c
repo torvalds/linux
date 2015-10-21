@@ -1125,8 +1125,8 @@ static struct annotate_config {
 	ANNOTATE_CFG(jump_arrows),
 	ANNOTATE_CFG(show_linenr),
 	ANNOTATE_CFG(show_nr_jumps),
-	ANNOTATE_CFG(use_offset),
 	ANNOTATE_CFG(show_total_period),
+	ANNOTATE_CFG(use_offset),
 };
 
 #undef ANNOTATE_CFG
