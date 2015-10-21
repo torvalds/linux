@@ -301,11 +301,16 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 {
 	int s;
 	uint32_t max_entries = le32_to_cpu(left->header.max_entries);
-	unsigned target = (nr_left + nr_center + nr_right) / 3;
-	BUG_ON(target > max_entries);
+	unsigned total = nr_left + nr_center + nr_right;
+	unsigned target_right = total / 3;
+	unsigned remainder = (target_right * 3) != total;
+	unsigned target_left = target_right + remainder;
+
+	BUG_ON(target_left > max_entries);
+	BUG_ON(target_right > max_entries);
 
 	if (nr_left < nr_right) {
-		s = nr_left - target;
+		s = nr_left - target_left;
 
 		if (s < 0 && nr_center < -s) {
 			/* not enough in central node */
@@ -316,10 +321,10 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 		} else
 			shift(left, center, s);
 
-		shift(center, right, target - nr_right);
+		shift(center, right, target_right - nr_right);
 
 	} else {
-		s = target - nr_right;
+		s = target_right - nr_right;
 		if (s > 0 && nr_center < s) {
 			/* not enough in central node */
 			shift(center, right, nr_center);
@@ -329,7 +334,7 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 		} else
 			shift(center, right, s);
 
-		shift(left, center, nr_left - target);
+		shift(left, center, nr_left - target_left);
 	}
 
 	*key_ptr(parent, c->index) = center->keys[0];
