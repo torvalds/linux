@@ -52,7 +52,7 @@
 			label = "Power Button";
 			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -276,7 +276,7 @@
 		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&gpio2 22 GPIO_ACTIVE_LOW>;
 		wake-gpios = <&gpio2 21 GPIO_ACTIVE_HIGH>;
-		linux,wakeup;
+		wakeup-source;
 	};
 
 	touchscreen: tsc2007@48 {
@@ -288,7 +288,7 @@
 		interrupts = <26 0>;
 		gpios = <&gpio3 26 GPIO_ACTIVE_LOW>;
 		ti,x-plate-ohms = <660>;
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 
