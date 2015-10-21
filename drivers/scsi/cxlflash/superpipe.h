@@ -91,7 +91,7 @@ enum ctx_ctrl {
 #define DECODE_CTXID(_val)	(_val & 0xFFFFFFFF)
 
 struct ctx_info {
-	struct sisl_ctrl_map *ctrl_map; /* initialized at startup */
+	struct sisl_ctrl_map __iomem *ctrl_map; /* initialized at startup */
 	struct sisl_rht_entry *rht_start; /* 1 page (req'd for alignment),
 					     alloc/free on attach/detach */
 	u32 rht_out;		/* Number of checked out RHT entries */

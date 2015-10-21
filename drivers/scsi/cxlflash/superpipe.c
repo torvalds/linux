@@ -253,7 +253,7 @@ static int afu_attach(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 {
 	struct device *dev = &cfg->dev->dev;
 	struct afu *afu = cfg->afu;
-	struct sisl_ctrl_map *ctrl_map = ctxi->ctrl_map;
+	struct sisl_ctrl_map __iomem *ctrl_map = ctxi->ctrl_map;
 	int rc = 0;
 	u64 val;
 
@@ -365,8 +365,8 @@ retry:
 	 * as the buffer is allocated on an aligned boundary.
 	 */
 	mutex_lock(&gli->mutex);
-	gli->max_lba = be64_to_cpu(*((u64 *)&cmd_buf[0]));
-	gli->blk_len = be32_to_cpu(*((u32 *)&cmd_buf[8]));
+	gli->max_lba = be64_to_cpu(*((__be64 *)&cmd_buf[0]));
+	gli->blk_len = be32_to_cpu(*((__be32 *)&cmd_buf[8]));
 	mutex_unlock(&gli->mutex);
 
 out:

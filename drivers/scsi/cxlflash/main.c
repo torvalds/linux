@@ -644,7 +644,7 @@ static void stop_afu(struct cxlflash_cfg *cfg)
 			complete(&afu->cmd[i].cevent);
 
 		if (likely(afu->afu_map)) {
-			cxl_psa_unmap((void *)afu->afu_map);
+			cxl_psa_unmap((void __iomem *)afu->afu_map);
 			afu->afu_map = NULL;
 		}
 	}
@@ -914,7 +914,7 @@ out:
  * that the FC link layer has synced, completed the handshaking process, and
  * is ready for login to start.
  */
-static void set_port_online(u64 *fc_regs)
+static void set_port_online(__be64 __iomem *fc_regs)
 {
 	u64 cmdcfg;
 
@@ -930,7 +930,7 @@ static void set_port_online(u64 *fc_regs)
  *
  * The provided MMIO region must be mapped prior to call.
  */
-static void set_port_offline(u64 *fc_regs)
+static void set_port_offline(__be64 __iomem *fc_regs)
 {
 	u64 cmdcfg;
 
@@ -954,7 +954,7 @@ static void set_port_offline(u64 *fc_regs)
  *	FALSE (0) when the specified port fails to come online after timeout
  *	-EINVAL when @delay_us is less than 1000
  */
-static int wait_port_online(u64 *fc_regs, u32 delay_us, u32 nretry)
+static int wait_port_online(__be64 __iomem *fc_regs, u32 delay_us, u32 nretry)
 {
 	u64 status;
 
@@ -985,7 +985,7 @@ static int wait_port_online(u64 *fc_regs, u32 delay_us, u32 nretry)
  *	FALSE (0) when the specified port fails to go offline after timeout
  *	-EINVAL when @delay_us is less than 1000
  */
-static int wait_port_offline(u64 *fc_regs, u32 delay_us, u32 nretry)
+static int wait_port_offline(__be64 __iomem *fc_regs, u32 delay_us, u32 nretry)
 {
 	u64 status;
 
@@ -1020,7 +1020,8 @@ static int wait_port_offline(u64 *fc_regs, u32 delay_us, u32 nretry)
  *	0 when the WWPN is successfully written and the port comes back online
  *	-1 when the port fails to go offline or come back up online
  */
-static int afu_set_wwpn(struct afu *afu, int port, u64 *fc_regs, u64 wwpn)
+static int afu_set_wwpn(struct afu *afu, int port, __be64 __iomem *fc_regs,
+			u64 wwpn)
 {
 	int rc = 0;
 
@@ -1065,7 +1066,7 @@ static int afu_set_wwpn(struct afu *afu, int port, u64 *fc_regs, u64 wwpn)
  * the alternate port exclusively while the reset takes place.
  * failure to come online is overridden.
  */
-static void afu_link_reset(struct afu *afu, int port, u64 *fc_regs)
+static void afu_link_reset(struct afu *afu, int port, __be64 __iomem *fc_regs)
 {
 	u64 port_sel;
 
@@ -1280,7 +1281,7 @@ static irqreturn_t cxlflash_async_err_irq(int irq, void *data)
 	struct device *dev = &cfg->dev->dev;
 	u64 reg_unmasked;
 	const struct asyc_intr_info *info;
-	struct sisl_global_map *global = &afu->afu_map->global;
+	struct sisl_global_map __iomem *global = &afu->afu_map->global;
 	u64 reg;
 	u8 port;
 	int i;
@@ -1466,7 +1467,7 @@ out:
 static void init_pcr(struct cxlflash_cfg *cfg)
 {
 	struct afu *afu = cfg->afu;
-	struct sisl_ctrl_map *ctrl_map;
+	struct sisl_ctrl_map __iomem *ctrl_map;
 	int i;
 
 	for (i = 0; i < MAX_CONTEXT; i++) {
@@ -1755,7 +1756,7 @@ static int init_afu(struct cxlflash_cfg *cfg)
 		dev_err(dev, "%s: call to start_afu failed, rc=%d!\n",
 			__func__, rc);
 		term_mc(cfg, UNDO_START);
-		cxl_psa_unmap((void *)afu->afu_map);
+		cxl_psa_unmap((void __iomem *)afu->afu_map);
 		afu->afu_map = NULL;
 		goto err1;
 	}
@@ -1835,8 +1836,8 @@ retry:
 	cmd->rcb.cdb[1] = mode;
 
 	/* The cdb is aligned, no unaligned accessors required */
-	*((u16 *)&cmd->rcb.cdb[2]) = swab16(ctx_hndl_u);
-	*((u32 *)&cmd->rcb.cdb[4]) = swab32(res_hndl_u);
+	*((__be16 *)&cmd->rcb.cdb[2]) = cpu_to_be16(ctx_hndl_u);
+	*((__be32 *)&cmd->rcb.cdb[4]) = cpu_to_be32(res_hndl_u);
 
 	rc = send_cmd(afu, cmd);
 	if (unlikely(rc))

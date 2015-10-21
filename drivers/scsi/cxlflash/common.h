@@ -164,9 +164,9 @@ struct afu {
 
 	/* AFU HW */
 	struct cxl_ioctl_start_work work;
-	struct cxlflash_afu_map *afu_map;	/* entire MMIO map */
-	struct sisl_host_map *host_map;		/* MC host map */
-	struct sisl_ctrl_map *ctrl_map;		/* MC control map */
+	struct cxlflash_afu_map __iomem *afu_map;	/* entire MMIO map */
+	struct sisl_host_map __iomem *host_map;		/* MC host map */
+	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
 
 	ctx_hndl_t ctx_hndl;	/* master's context handle */
 	u64 *hrrq_start;
@@ -188,10 +188,10 @@ struct afu {
 
 static inline u64 lun_to_lunid(u64 lun)
 {
-	u64 lun_id;
+	__be64 lun_id;
 
 	int_to_scsilun(lun, (struct scsi_lun *)&lun_id);
-	return swab64(lun_id);
+	return be64_to_cpu(lun_id);
 }
 
 int cxlflash_afu_sync(struct afu *, ctx_hndl_t, res_hndl_t, u8);

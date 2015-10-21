@@ -786,7 +786,7 @@ void cxlflash_restore_luntable(struct cxlflash_cfg *cfg)
 	u32 chan;
 	u32 lind;
 	struct afu *afu = cfg->afu;
-	struct sisl_global_map *agm = &afu->afu_map->global;
+	struct sisl_global_map __iomem *agm = &afu->afu_map->global;
 
 	mutex_lock(&global.mutex);
 
@@ -831,7 +831,7 @@ static int init_luntable(struct cxlflash_cfg *cfg, struct llun_info *lli)
 	u32 lind;
 	int rc = 0;
 	struct afu *afu = cfg->afu;
-	struct sisl_global_map *agm = &afu->afu_map->global;
+	struct sisl_global_map __iomem *agm = &afu->afu_map->global;
 
 	mutex_lock(&global.mutex);
 
