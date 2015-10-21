@@ -3197,13 +3197,15 @@ void __init of_clk_init(const struct of_device_id *matches)
 			list_for_each_entry_safe(clk_provider, next,
 						 &clk_provider_list, node) {
 				list_del(&clk_provider->node);
+				of_node_put(clk_provider->np);
 				kfree(clk_provider);
 			}
+			of_node_put(np);
 			return;
 		}
 
 		parent->clk_init_cb = match->data;
-		parent->np = np;
+		parent->np = of_node_get(np);
 		list_add_tail(&parent->node, &clk_provider_list);
 	}
 
@@ -3217,6 +3219,7 @@ void __init of_clk_init(const struct of_device_id *matches)
 				of_clk_set_defaults(clk_provider->np, true);
 
 				list_del(&clk_provider->node);
+				of_node_put(clk_provider->np);
 				kfree(clk_provider);
 				is_init_done = true;
 			}
