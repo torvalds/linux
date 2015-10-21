@@ -1417,7 +1417,7 @@ static int __init hdm_usb_init(void)
 		return -EIO;
 	}
 	schedule_usb_work = create_workqueue("hdmu_work");
-	if (schedule_usb_work == NULL) {
+	if (!schedule_usb_work) {
 		pr_err("could not create workqueue\n");
 		usb_deregister(&hdm_usb);
 		return -ENOMEM;
