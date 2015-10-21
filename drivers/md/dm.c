@@ -2233,8 +2233,6 @@ static void cleanup_mapped_device(struct mapped_device *md)
 		spin_lock(&_minor_lock);
 		md->disk->private_data = NULL;
 		spin_unlock(&_minor_lock);
-		if (blk_get_integrity(md->disk))
-			blk_integrity_unregister(md->disk);
 		del_gendisk(md->disk);
 		put_disk(md->disk);
 	}

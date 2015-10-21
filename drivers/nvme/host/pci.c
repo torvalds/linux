@@ -2407,11 +2407,8 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 
 	if (kill)
 		blk_set_queue_dying(ns->queue);
-	if (ns->disk->flags & GENHD_FL_UP) {
-		if (blk_get_integrity(ns->disk))
-			blk_integrity_unregister(ns->disk);
+	if (ns->disk->flags & GENHD_FL_UP)
 		del_gendisk(ns->disk);
-	}
 	if (kill || !blk_queue_dying(ns->queue)) {
 		blk_mq_abort_requeue_list(ns->queue);
 		blk_cleanup_queue(ns->queue);
