@@ -438,11 +438,14 @@ static int create_modules(struct gb_endo *endo)
 static int gb_endo_register(struct greybus_host_device *hd,
 			    struct gb_endo *endo)
 {
+	int dev_id;
 	int retval;
 
-	retval = ida_simple_get(&greybus_endo_id_map, 0, 0, GFP_KERNEL);
-	if (retval < 0)
-		return retval;
+	dev_id = ida_simple_get(&greybus_endo_id_map, 0, 0, GFP_KERNEL);
+	if (dev_id < 0)
+		return dev_id;
+
+	endo->dev_id = dev_id;
 
 	endo->dev.parent = hd->parent;
 	endo->dev.bus = &greybus_bus_type;
