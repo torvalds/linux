@@ -83,8 +83,9 @@ static void hci_connect_le_scan_cleanup(struct hci_conn *conn)
 		bdaddr_type = irk->addr_type;
 	}
 
-	params = hci_explicit_connect_lookup(hdev, bdaddr, bdaddr_type);
-	if (!params)
+	params = hci_pend_le_action_lookup(&hdev->pend_le_conns, bdaddr,
+					   bdaddr_type);
+	if (!params || !params->explicit_connect)
 		return;
 
 	/* The connection attempt was doing scan for new RPA, and is

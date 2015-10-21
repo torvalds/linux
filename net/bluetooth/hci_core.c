@@ -2941,23 +2941,6 @@ struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
 }
 
 /* This function requires the caller holds hdev->lock */
-struct hci_conn_params *hci_explicit_connect_lookup(struct hci_dev *hdev,
-						    bdaddr_t *addr,
-						    u8 addr_type)
-{
-	struct hci_conn_params *param;
-
-	list_for_each_entry(param, &hdev->pend_le_conns, action) {
-		if (bacmp(&param->addr, addr) == 0 &&
-		    param->addr_type == addr_type &&
-		    param->explicit_connect)
-			return param;
-	}
-
-	return NULL;
-}
-
-/* This function requires the caller holds hdev->lock */
 struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 					    bdaddr_t *addr, u8 addr_type)
 {
