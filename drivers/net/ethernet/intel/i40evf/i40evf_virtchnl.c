@@ -724,9 +724,29 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		return;
 	}
 	if (v_retval) {
-		dev_err(&adapter->pdev->dev, "PF returned error %d (%s) to our request %d\n",
-			v_retval, i40evf_stat_str(&adapter->hw, v_retval),
-			v_opcode);
+		switch (v_opcode) {
+		case I40E_VIRTCHNL_OP_ADD_VLAN:
+			dev_err(&adapter->pdev->dev, "Failed to add VLAN filter, error %s\n",
+				i40evf_stat_str(&adapter->hw, v_retval));
+			break;
+		case I40E_VIRTCHNL_OP_ADD_ETHER_ADDRESS:
+			dev_err(&adapter->pdev->dev, "Failed to add MAC filter, error %s\n",
+				i40evf_stat_str(&adapter->hw, v_retval));
+			break;
+		case I40E_VIRTCHNL_OP_DEL_VLAN:
+			dev_err(&adapter->pdev->dev, "Failed to delete VLAN filter, error %s\n",
+				i40evf_stat_str(&adapter->hw, v_retval));
+			break;
+		case I40E_VIRTCHNL_OP_DEL_ETHER_ADDRESS:
+			dev_err(&adapter->pdev->dev, "Failed to delete MAC filter, error %s\n",
+				i40evf_stat_str(&adapter->hw, v_retval));
+			break;
+		default:
+			dev_err(&adapter->pdev->dev, "PF returned error %d (%s) to our request %d\n",
+				v_retval,
+				i40evf_stat_str(&adapter->hw, v_retval),
+				v_opcode);
+		}
 	}
 	switch (v_opcode) {
 	case I40E_VIRTCHNL_OP_GET_STATS: {
