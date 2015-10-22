@@ -158,6 +158,21 @@ int tipc_link_is_active(struct tipc_link *l)
 	return (node_active_link(n, 0) == l) || (node_active_link(n, 1) == l);
 }
 
+void tipc_link_add_bc_peer(struct tipc_link *l)
+{
+	l->ackers++;
+}
+
+void tipc_link_remove_bc_peer(struct tipc_link *l)
+{
+	l->ackers--;
+}
+
+int tipc_link_bc_peers(struct tipc_link *l)
+{
+	return l->ackers;
+}
+
 static u32 link_own_addr(struct tipc_link *l)
 {
 	return msg_prevnode(l->pmsg);
@@ -258,6 +273,7 @@ bool tipc_link_bc_create(struct tipc_node *n, int mtu, int window,
 	l = *link;
 	strcpy(l->name, tipc_bclink_name);
 	tipc_link_reset(l);
+	l->ackers = 0;
 	return true;
 }
 
@@ -898,8 +914,7 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 		char addr_string[16];
 
 		pr_info("Msg seq number: %u,  ", msg_seqno(msg));
-		pr_cont("Outstanding acks: %lu\n",
-			(unsigned long) TIPC_SKB_CB(buf)->handle);
+		pr_cont("Outstanding acks: %u\n", TIPC_SKB_CB(buf)->ackers);
 
 		n_ptr = tipc_bclink_retransmit_to(net);
 

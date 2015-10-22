@@ -790,7 +790,7 @@ bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos);
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err);
-struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
+bool tipc_msg_reassemble(struct sk_buff_head *list, struct sk_buff_head *rcvq);
 void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
 			     struct sk_buff *skb);
 
