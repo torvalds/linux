@@ -116,7 +116,7 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 	ret = pm_runtime_get_sync(dai->dev);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	stream = snd_hdac_ext_stream_assign(ebus, substream,
