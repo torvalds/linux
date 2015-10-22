@@ -47,6 +47,31 @@
 		      <0x32012000 0x1000>;
 	};
 
+	sgrf: syscon@10140000 {
+		compatible = "rockchip,rk3228-sgrf", "rockchip,sgrf", "syscon";
+		reg = <0x10140000 0x1000>;
+	};
+
+	grf: syscon@11000000 {
+		compatible = "rockchip,rk3228-grf", "rockchip,grf", "syscon";
+		reg = <0x11000000 0x1000>;
+	};
+
+	cru: syscon@110e0000 {
+		compatible = "rockchip,rk3228-cru", "rockchip,cru", "syscon";
+		reg = <0x110e0000 0x1000>;
+	};
+
+	ddrpctl: syscon@11200000 {
+		compatible = "rockchip,rk3228-ddrpctl", "syscon";
+		reg = <0x11200000 0x400>;
+	};
+
+	msch: syscon@31020000 {
+		compatible = "rockchip,rk32288-msch", "rockchip,msch", "syscon";
+		reg = <0x31020000 0x3000>;
+	};
+
 	arm-pmu {
 		compatible = "arm,cortex-a7-pmu";
 		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
