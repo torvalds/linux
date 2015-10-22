@@ -212,7 +212,7 @@
 #undef  RCNT
 #define RCNT  (SKEIN_1024_ROUNDS_TOTAL/8)
 #ifdef SKEIN_LOOP /* configure how much to unroll the loop */
-#define SKEIN_UNROLL_1024 ((SKEIN_LOOP)%10)
+#define SKEIN_UNROLL_1024 ((SKEIN_LOOP) % 10)
 #else
 #define SKEIN_UNROLL_1024 (0)
 #endif
