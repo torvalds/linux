@@ -3127,6 +3127,9 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto done;
 	}
 
+	/* Abort any ongoing SMP pairing */
+	smp_cancel_pairing(conn);
+
 	/* Defer clearing up the connection parameters until closing to
 	 * give a chance of keeping them if a repairing happens.
 	 */

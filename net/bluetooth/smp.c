@@ -2380,6 +2380,32 @@ unlock:
 	return ret;
 }
 
+void smp_cancel_pairing(struct hci_conn *hcon)
+{
+	struct l2cap_conn *conn = hcon->l2cap_data;
+	struct l2cap_chan *chan;
+	struct smp_chan *smp;
+
+	if (!conn)
+		return;
+
+	chan = conn->smp;
+	if (!chan)
+		return;
+
+	l2cap_chan_lock(chan);
+
+	smp = chan->data;
+	if (smp) {
+		if (test_bit(SMP_FLAG_COMPLETE, &smp->flags))
+			smp_failure(conn, 0);
+		else
+			smp_failure(conn, SMP_UNSPECIFIED);
+	}
+
+	l2cap_chan_unlock(chan);
+}
+
 static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_encrypt_info *rp = (void *) skb->data;
