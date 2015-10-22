@@ -305,7 +305,7 @@ static int apb_ctrl_probe(struct platform_device *pdev)
 	 *
 	 * Not sure anything else needs to take care here.
 	 */
-	dev_err(dev, "Device registered successfully \n");
+	dev_info(dev, "Device registered successfully \n");
 	return 0;
 
 exit:
