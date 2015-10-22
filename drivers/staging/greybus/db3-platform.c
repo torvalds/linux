@@ -75,9 +75,9 @@ static irqreturn_t apb_ctrl_wake_detect_irq(int irq, void *devid)
 
 	/*
 	 * TODO:
-	 * Since currently SoC gpio's are being used we are safe here
+	 * Since currently SoC GPIOs are being used we are safe here
 	 * But ideally we should create a workqueue and process the control
-	 * signals, especially when we start using GPIO's over slow
+	 * signals, especially when we start using GPIOs over slow
 	 * buses like I2C.
 	 */
 	if (!gpio_is_valid(apb_data->ctrl.wake_detect) &&
@@ -209,7 +209,7 @@ static int apb_ctrl_get_devtree_data(struct device *dev,
 		return apb_data->ctrl.boot_ret;
 	}
 
-	/* It's not mandetory to support power management interface */
+	/* It's not mandatory to support power management interface */
 	apb_data->ctrl.pwroff = of_get_named_gpio(np, "pwr-off-gpios", 0);
 	if (apb_data->ctrl.pwroff < 0 ||
 			!gpio_is_valid(apb_data->ctrl.pwroff))
