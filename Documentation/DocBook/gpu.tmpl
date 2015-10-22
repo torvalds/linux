@@ -615,18 +615,6 @@ char *date;</synopsis>
           <function>drm_gem_object_init</function>. Storage for private GEM
           objects must be managed by drivers.
         </para>
-        <para>
-          Drivers that do not need to extend GEM objects with private information
-          can call the <function>drm_gem_object_alloc</function> function to
-          allocate and initialize a struct <structname>drm_gem_object</structname>
-          instance. The GEM core will call the optional driver
-          <methodname>gem_init_object</methodname> operation after initializing
-          the GEM object with <function>drm_gem_object_init</function>.
-          <synopsis>int (*gem_init_object) (struct drm_gem_object *obj);</synopsis>
-        </para>
-        <para>
-          No alloc-and-init function exists for private GEM objects.
-        </para>
       </sect3>
       <sect3>
         <title>GEM Objects Lifetime</title>
@@ -649,15 +637,9 @@ char *date;</synopsis>
         </para>
         <para>
           <synopsis>void (*gem_free_object) (struct drm_gem_object *obj);</synopsis>
-          Drivers are responsible for freeing all GEM object resources, including
-          the resources created by the GEM core. If an mmap offset has been
-          created for the object (in which case
-          <structname>drm_gem_object</structname>::<structfield>map_list</structfield>::<structfield>map</structfield>
-          is not NULL) it must be freed by a call to
-          <function>drm_gem_free_mmap_offset</function>. The shmfs backing store
-          must be released by calling <function>drm_gem_object_release</function>
-          (that function can safely be called if no shmfs backing store has been
-          created).
+          Drivers are responsible for freeing all GEM object resources. This includes
+          the resources created by the GEM core, which need to be released with
+          <function>drm_gem_object_release</function>.
         </para>
       </sect3>
       <sect3>
@@ -740,17 +722,10 @@ char *date;</synopsis>
           DRM identifies the GEM object to be mapped by a fake offset passed
           through the mmap offset argument. Prior to being mapped, a GEM object
           must thus be associated with a fake offset. To do so, drivers must call
-          <function>drm_gem_create_mmap_offset</function> on the object. The
-          function allocates a fake offset range from a pool and stores the
-          offset divided by PAGE_SIZE in
-          <literal>obj-&gt;map_list.hash.key</literal>. Care must be taken not to
-          call <function>drm_gem_create_mmap_offset</function> if a fake offset
-          has already been allocated for the object. This can be tested by
-          <literal>obj-&gt;map_list.map</literal> being non-NULL.
+          <function>drm_gem_create_mmap_offset</function> on the object.
         </para>
         <para>
           Once allocated, the fake offset value
-          (<literal>obj-&gt;map_list.hash.key &lt;&lt; PAGE_SHIFT</literal>)
           must be passed to the application in a driver-specific way and can then
           be used as the mmap offset argument.
         </para>
