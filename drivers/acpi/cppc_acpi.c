@@ -302,7 +302,7 @@ err_ret:
 }
 EXPORT_SYMBOL_GPL(acpi_get_psd_map);
 
-static int register_pcc_channel(unsigned pcc_subspace_idx)
+static int register_pcc_channel(int pcc_subspace_idx)
 {
 	struct acpi_pcct_subspace *cppc_ss;
 	unsigned int len;
