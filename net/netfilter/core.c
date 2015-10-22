@@ -152,6 +152,8 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 #endif
 	synchronize_net();
 	nf_queue_nf_hook_drop(net, &entry->ops);
+	/* other cpu might still process nfqueue verdict that used reg */
+	synchronize_net();
 	kfree(entry);
 }
 EXPORT_SYMBOL(nf_unregister_net_hook);
