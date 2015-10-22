@@ -288,7 +288,7 @@ static const struct super_operations pstore_ops = {
 
 static struct super_block *pstore_sb;
 
-int pstore_is_mounted(void)
+bool pstore_is_mounted(void)
 {
 	return pstore_sb != NULL;
 }

@@ -63,6 +63,6 @@ extern int	pstore_mkfile(enum pstore_type_id, char *psname, u64 id,
 			      int count, char *data, bool compressed,
 			      size_t size, struct timespec time,
 			      struct pstore_info *psi);
-extern int	pstore_is_mounted(void);
+extern bool	pstore_is_mounted(void);
 
 #endif
