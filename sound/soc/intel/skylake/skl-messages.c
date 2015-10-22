@@ -303,6 +303,7 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 			struct skl_cpr_cfg *cpr_mconfig)
 {
 	union skl_connector_node_id node_id = {0};
+	union skl_ssp_dma_node ssp_node  = {0};
 	struct skl_pipe_params *params = mconfig->pipe->p_params;
 
 	switch (mconfig->dev_type) {
@@ -320,9 +321,9 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 			(SKL_CONN_SOURCE == mconfig->hw_conn_type) ?
 			SKL_DMA_I2S_LINK_OUTPUT_CLASS :
 			SKL_DMA_I2S_LINK_INPUT_CLASS;
-		node_id.node.vindex = params->host_dma_id +
-					 (mconfig->time_slot << 1) +
-					 (mconfig->vbus_id << 3);
+		ssp_node.dma_node.time_slot_index = mconfig->time_slot;
+		ssp_node.dma_node.i2s_instance = mconfig->vbus_id;
+		node_id.node.vindex = ssp_node.val;
 		break;
 
 	case SKL_DEVICE_DMIC:

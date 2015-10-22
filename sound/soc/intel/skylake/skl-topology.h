@@ -153,8 +153,7 @@ enum skl_dma_type {
 union skl_ssp_dma_node {
 	u8 val;
 	struct {
-		u8 dual_mono:1;
-		u8 time_slot:3;
+		u8 time_slot_index:4;
 		u8 i2s_instance:4;
 	} dma_node;
 };
