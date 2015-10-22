@@ -106,6 +106,11 @@ struct tipc_bc_base {
 	struct tipc_node *retransmit_to;
 };
 
+static struct tipc_bc_base *tipc_bc_base(struct net *net)
+{
+	return tipc_net(net)->bcbase;
+}
+
 /**
  * tipc_nmap_equal - test for equality of node maps
  */
@@ -1041,12 +1046,19 @@ int tipc_bcast_init(struct net *net)
 	bcl->bearer_id = MAX_BEARERS;
 	rcu_assign_pointer(tn->bearer_list[MAX_BEARERS], &bcbearer->bearer);
 	bcl->pmsg = (struct tipc_msg *)&bcl->proto_msg;
-	msg_set_prevnode(bcl->pmsg, tn->own_addr);
+
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 	tn->bcbearer = bcbearer;
 	tn->bcbase = bclink;
 	tn->bcl = bcl;
 	return 0;
+}
+
+void tipc_bcast_reinit(struct net *net)
+{
+	struct tipc_bc_base *b = tipc_bc_base(net);
+
+	msg_set_prevnode(b->link.pmsg, tipc_own_addr(net));
 }
 
 void tipc_bcast_stop(struct net *net)
@@ -1056,7 +1068,6 @@ void tipc_bcast_stop(struct net *net)
 	tipc_bclink_lock(net);
 	tipc_link_purge_queues(tn->bcl);
 	tipc_bclink_unlock(net);
-
 	RCU_INIT_POINTER(tn->bearer_list[BCBEARER], NULL);
 	synchronize_net();
 	kfree(tn->bcbearer);

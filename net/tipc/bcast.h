@@ -47,6 +47,7 @@ struct tipc_node_map;
 extern const char tipc_bclink_name[];
 
 int tipc_bcast_init(struct net *net);
+void tipc_bcast_reinit(struct net *net);
 void tipc_bcast_stop(struct net *net);
 void tipc_bclink_add_node(struct net *net, u32 addr);
 void tipc_bclink_remove_node(struct net *net, u32 addr);
