@@ -1639,35 +1639,8 @@ static int clean_up_hci_state(struct hci_dev *hdev)
 	discov_stopped = hci_stop_discovery(&req);
 
 	list_for_each_entry(conn, &hdev->conn_hash.list, list) {
-		struct hci_cp_disconnect dc;
-		struct hci_cp_reject_conn_req rej;
-
-		switch (conn->state) {
-		case BT_CONNECTED:
-		case BT_CONFIG:
-			dc.handle = cpu_to_le16(conn->handle);
-			dc.reason = 0x15; /* Terminated due to Power Off */
-			hci_req_add(&req, HCI_OP_DISCONNECT, sizeof(dc), &dc);
-			break;
-		case BT_CONNECT:
-			if (conn->type == LE_LINK)
-				hci_req_add(&req, HCI_OP_LE_CREATE_CONN_CANCEL,
-					    0, NULL);
-			else if (conn->type == ACL_LINK)
-				hci_req_add(&req, HCI_OP_CREATE_CONN_CANCEL,
-					    6, &conn->dst);
-			break;
-		case BT_CONNECT2:
-			bacpy(&rej.bdaddr, &conn->dst);
-			rej.reason = 0x15; /* Terminated due to Power Off */
-			if (conn->type == ACL_LINK)
-				hci_req_add(&req, HCI_OP_REJECT_CONN_REQ,
-					    sizeof(rej), &rej);
-			else if (conn->type == SCO_LINK)
-				hci_req_add(&req, HCI_OP_REJECT_SYNC_CONN_REQ,
-					    sizeof(rej), &rej);
-			break;
-		}
+		/* 0x15 == Terminated due to Power Off */
+		__hci_abort_conn(&req, conn, 0x15);
 	}
 
 	err = hci_req_run(&req, clean_up_hci_complete);
@@ -3053,7 +3026,6 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct mgmt_cp_unpair_device *cp = data;
 	struct mgmt_rp_unpair_device rp;
 	struct hci_conn_params *params;
-	struct hci_cp_disconnect dc;
 	struct mgmt_pending_cmd *cmd;
 	struct hci_conn *conn;
 	u8 addr_type;
@@ -3170,9 +3142,7 @@ done:
 
 	cmd->cmd_complete = addr_cmd_complete;
 
-	dc.handle = cpu_to_le16(conn->handle);
-	dc.reason = 0x13; /* Remote User Terminated Connection */
-	err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
+	err = hci_abort_conn(conn, HCI_ERROR_REMOTE_USER_TERM);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 

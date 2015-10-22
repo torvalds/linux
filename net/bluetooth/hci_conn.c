@@ -59,11 +59,6 @@ static const struct sco_param esco_param_msbc[] = {
 	{ EDR_ESCO_MASK | ESCO_EV3,   0x0008,	0x02 }, /* T1 */
 };
 
-static void hci_le_create_connection_cancel(struct hci_conn *conn)
-{
-	hci_send_cmd(conn->hdev, HCI_OP_LE_CREATE_CONN_CANCEL, 0, NULL);
-}
-
 /* This function requires the caller holds hdev->lock */
 static void hci_connect_le_scan_cleanup(struct hci_conn *conn)
 {
@@ -229,29 +224,6 @@ static void hci_acl_create_connection(struct hci_conn *conn)
 	hci_send_cmd(hdev, HCI_OP_CREATE_CONN, sizeof(cp), &cp);
 }
 
-static void hci_acl_create_connection_cancel(struct hci_conn *conn)
-{
-	struct hci_cp_create_conn_cancel cp;
-
-	BT_DBG("hcon %p", conn);
-
-	if (conn->hdev->hci_ver < BLUETOOTH_VER_1_2)
-		return;
-
-	bacpy(&cp.bdaddr, &conn->dst);
-	hci_send_cmd(conn->hdev, HCI_OP_CREATE_CONN_CANCEL, sizeof(cp), &cp);
-}
-
-static void hci_reject_sco(struct hci_conn *conn)
-{
-	struct hci_cp_reject_sync_conn_req cp;
-
-	cp.reason = HCI_ERROR_REJ_LIMITED_RESOURCES;
-	bacpy(&cp.bdaddr, &conn->dst);
-
-	hci_send_cmd(conn->hdev, HCI_OP_REJECT_SYNC_CONN_REQ, sizeof(cp), &cp);
-}
-
 int hci_disconnect(struct hci_conn *conn, __u8 reason)
 {
 	struct hci_cp_disconnect cp;
@@ -277,20 +249,6 @@ int hci_disconnect(struct hci_conn *conn, __u8 reason)
 	cp.handle = cpu_to_le16(conn->handle);
 	cp.reason = reason;
 	return hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
-}
-
-static void hci_amp_disconn(struct hci_conn *conn)
-{
-	struct hci_cp_disconn_phy_link cp;
-
-	BT_DBG("hcon %p", conn);
-
-	conn->state = BT_DISCONN;
-
-	cp.phy_handle = HCI_PHY_HANDLE(conn->handle);
-	cp.reason = hci_proto_disconn_ind(conn);
-	hci_send_cmd(conn->hdev, HCI_OP_DISCONN_PHY_LINK,
-		     sizeof(cp), &cp);
 }
 
 static void hci_add_sco(struct hci_conn *conn, __u16 handle)
@@ -456,35 +414,14 @@ static void hci_conn_timeout(struct work_struct *work)
 	if (refcnt > 0)
 		return;
 
-	switch (conn->state) {
-	case BT_CONNECT:
-	case BT_CONNECT2:
-		if (conn->out) {
-			if (conn->type == ACL_LINK)
-				hci_acl_create_connection_cancel(conn);
-			else if (conn->type == LE_LINK) {
-				if (test_bit(HCI_CONN_SCANNING, &conn->flags))
-					hci_connect_le_scan_remove(conn);
-				else
-					hci_le_create_connection_cancel(conn);
-			}
-		} else if (conn->type == SCO_LINK || conn->type == ESCO_LINK) {
-			hci_reject_sco(conn);
-		}
-		break;
-	case BT_CONFIG:
-	case BT_CONNECTED:
-		if (conn->type == AMP_LINK) {
-			hci_amp_disconn(conn);
-		} else {
-			__u8 reason = hci_proto_disconn_ind(conn);
-			hci_disconnect(conn, reason);
-		}
-		break;
-	default:
-		conn->state = BT_CLOSED;
-		break;
+	/* LE connections in scanning state need special handling */
+	if (conn->state == BT_CONNECT && conn->type == LE_LINK &&
+	    test_bit(HCI_CONN_SCANNING, &conn->flags)) {
+		hci_connect_le_scan_remove(conn);
+		return;
 	}
+
+	hci_abort_conn(conn, hci_proto_disconn_ind(conn));
 }
 
 /* Enter sniff mode */
@@ -552,7 +489,7 @@ static void le_conn_timeout(struct work_struct *work)
 		return;
 	}
 
-	hci_le_create_connection_cancel(conn);
+	hci_abort_conn(conn, HCI_ERROR_REMOTE_USER_TERM);
 }
 
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
