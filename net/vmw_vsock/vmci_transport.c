@@ -1570,7 +1570,7 @@ static int vmci_transport_socket_init(struct vsock_sock *vsk,
 	vmci_trans(vsk)->notify_ops = NULL;
 	INIT_LIST_HEAD(&vmci_trans(vsk)->elem);
 	vmci_trans(vsk)->sk = &vsk->sk;
-	vmci_trans(vsk)->lock = __SPIN_LOCK_UNLOCKED(vmci_trans(vsk)->lock);
+	spin_lock_init(&vmci_trans(vsk)->lock);
 	if (psk) {
 		vmci_trans(vsk)->queue_pair_size =
 			vmci_trans(psk)->queue_pair_size;
