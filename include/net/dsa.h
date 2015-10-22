@@ -198,6 +198,7 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 }
 
 struct switchdev_trans;
+struct switchdev_obj;
 struct switchdev_obj_port_fdb;
 
 struct dsa_switch_driver {
@@ -330,6 +331,9 @@ struct dsa_switch_driver {
 	int	(*port_fdb_getnext)(struct dsa_switch *ds, int port,
 				    unsigned char *addr, u16 *vid,
 				    bool *is_static);
+	int	(*port_fdb_dump)(struct dsa_switch *ds, int port,
+				 struct switchdev_obj_port_fdb *fdb,
+				 int (*cb)(struct switchdev_obj *obj));
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);

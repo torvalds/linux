@@ -382,6 +382,9 @@ static int dsa_slave_port_fdb_dump(struct net_device *dev,
 	u16 vid = 0;
 	int ret;
 
+	if (ds->drv->port_fdb_dump)
+		return ds->drv->port_fdb_dump(ds, p->port, fdb, cb);
+
 	if (!ds->drv->port_fdb_getnext)
 		return -EOPNOTSUPP;
 
