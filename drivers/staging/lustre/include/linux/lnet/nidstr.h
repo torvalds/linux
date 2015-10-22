@@ -89,6 +89,9 @@ struct netstrfns {
 	int	(*nf_print_addrlist)(char *buffer, int count,
 				     struct list_head *list);
 	int	(*nf_match_addr)(__u32 addr, struct list_head *list);
+	bool	(*nf_is_contiguous)(struct list_head *nidlist);
+	void	(*nf_min_max)(struct list_head *nidlist, __u32 *min_nid,
+			      __u32 *max_nid);
 };
 
 #endif /* _LNET_NIDSTRINGS_H */
