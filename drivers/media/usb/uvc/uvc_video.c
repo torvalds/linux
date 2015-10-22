@@ -706,7 +706,7 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 	vbuf->vb2_buf.timestamp = timespec_to_ns(&ts);
 
 done:
-	spin_unlock_irqrestore(&stream->clock.lock, flags);
+	spin_unlock_irqrestore(&clock->lock, flags);
 }
 
 /* ------------------------------------------------------------------------
