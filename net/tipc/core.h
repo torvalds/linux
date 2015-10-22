@@ -115,6 +115,11 @@ static inline struct tipc_net *tipc_net(struct net *net)
 	return net_generic(net, tipc_net_id);
 }
 
+static inline int tipc_netid(struct net *net)
+{
+	return tipc_net(net)->net_id;
+}
+
 static inline u16 mod(u16 x)
 {
 	return x & 0xffffu;

@@ -100,6 +100,14 @@ struct tipc_link_entry {
 	struct tipc_media_addr maddr;
 };
 
+struct tipc_bclink_entry {
+	struct tipc_link *link;
+	struct sk_buff_head inputq1;
+	struct sk_buff_head arrvq;
+	struct sk_buff_head inputq2;
+	struct sk_buff_head namedq;
+};
+
 /**
  * struct tipc_node - TIPC node structure
  * @addr: network address of node
@@ -132,6 +140,7 @@ struct tipc_node {
 	struct hlist_node hash;
 	int active_links[2];
 	struct tipc_link_entry links[MAX_BEARERS];
+	struct tipc_bclink_entry bc_entry;
 	int action_flags;
 	struct tipc_node_bclink bclink;
 	struct list_head list;

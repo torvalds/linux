@@ -601,6 +601,11 @@ static inline u32 msg_last_bcast(struct tipc_msg *m)
 	return msg_bits(m, 4, 16, 0xffff);
 }
 
+static inline u32 msg_bc_snd_nxt(struct tipc_msg *m)
+{
+	return msg_last_bcast(m) + 1;
+}
+
 static inline void msg_set_last_bcast(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 4, 16, 0xffff, n);

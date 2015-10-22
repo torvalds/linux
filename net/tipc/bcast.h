@@ -47,8 +47,11 @@ struct tipc_node_map;
 int tipc_bcast_init(struct net *net);
 void tipc_bcast_reinit(struct net *net);
 void tipc_bcast_stop(struct net *net);
-void tipc_bclink_add_node(struct net *net, u32 addr);
-void tipc_bclink_remove_node(struct net *net, u32 addr);
+void tipc_bcast_add_peer(struct net *net, u32 addr,
+			 struct tipc_link *l,
+			 struct sk_buff_head *xmitq);
+void tipc_bcast_remove_peer(struct net *net, u32 addr,
+			    struct tipc_link *rcv_bcl);
 struct tipc_node *tipc_bclink_retransmit_to(struct net *tn);
 void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked);
 void tipc_bclink_rcv(struct net *net, struct sk_buff *buf);
@@ -62,6 +65,10 @@ int  tipc_bclink_reset_stats(struct net *net);
 int  tipc_bclink_set_queue_limits(struct net *net, u32 limit);
 uint  tipc_bcast_get_mtu(void);
 int tipc_bcast_xmit(struct net *net, struct sk_buff_head *list);
+int tipc_bcast_rcv(struct net *net, struct tipc_link *l, struct sk_buff *skb);
+void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l, u32 acked);
+void tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
+			 struct tipc_msg *hdr);
 void tipc_bclink_wakeup_users(struct net *net);
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg);
 int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[]);
@@ -76,6 +83,11 @@ static inline void tipc_bcast_lock(struct net *net)
 static inline void tipc_bcast_unlock(struct net *net)
 {
 	spin_unlock_bh(&tipc_net(net)->bclock);
+}
+
+static inline struct tipc_link *tipc_bc_sndlink(struct net *net)
+{
+	return tipc_net(net)->bcl;
 }
 
 #endif
