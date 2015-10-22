@@ -6,6 +6,9 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef __SOC_RASPBERRY_FIRMWARE_H__
+#define __SOC_RASPBERRY_FIRMWARE_H__
+
 #include <linux/types.h>
 #include <linux/of_device.h>
 
@@ -113,3 +116,5 @@ int rpi_firmware_property(struct rpi_firmware *fw,
 int rpi_firmware_property_list(struct rpi_firmware *fw,
 			       void *data, size_t tag_size);
 struct rpi_firmware *rpi_firmware_get(struct device_node *firmware_node);
+
+#endif /* __SOC_RASPBERRY_FIRMWARE_H__ */
