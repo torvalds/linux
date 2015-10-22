@@ -303,6 +303,9 @@ enum {
 	Opt_commit_interval, Opt_barrier, Opt_nodefrag, Opt_nodiscard,
 	Opt_noenospc_debug, Opt_noflushoncommit, Opt_acl, Opt_datacow,
 	Opt_datasum, Opt_treelog, Opt_noinode_cache,
+#ifdef CONFIG_BTRFS_DEBUG
+	Opt_fragment_data, Opt_fragment_metadata, Opt_fragment_all,
+#endif
 	Opt_err,
 };
 
@@ -355,6 +358,11 @@ static match_table_t tokens = {
 	{Opt_rescan_uuid_tree, "rescan_uuid_tree"},
 	{Opt_fatal_errors, "fatal_errors=%s"},
 	{Opt_commit_interval, "commit=%d"},
+#ifdef CONFIG_BTRFS_DEBUG
+	{Opt_fragment_data, "fragment=data"},
+	{Opt_fragment_metadata, "fragment=metadata"},
+	{Opt_fragment_all, "fragment=all"},
+#endif
 	{Opt_err, NULL},
 };
 
@@ -721,6 +729,22 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				info->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
 			}
 			break;
+#ifdef CONFIG_BTRFS_DEBUG
+		case Opt_fragment_all:
+			btrfs_info(root->fs_info, "fragmenting all space");
+			btrfs_set_opt(info->mount_opt, FRAGMENT_DATA);
+			btrfs_set_opt(info->mount_opt, FRAGMENT_METADATA);
+			break;
+		case Opt_fragment_metadata:
+			btrfs_info(root->fs_info, "fragmenting metadata");
+			btrfs_set_opt(info->mount_opt,
+				      FRAGMENT_METADATA);
+			break;
+		case Opt_fragment_data:
+			btrfs_info(root->fs_info, "fragmenting data");
+			btrfs_set_opt(info->mount_opt, FRAGMENT_DATA);
+			break;
+#endif
 		case Opt_err:
 			btrfs_info(root->fs_info, "unrecognized mount option '%s'", p);
 			ret = -EINVAL;
@@ -1172,6 +1196,12 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",fatal_errors=panic");
 	if (info->commit_interval != BTRFS_DEFAULT_COMMIT_INTERVAL)
 		seq_printf(seq, ",commit=%d", info->commit_interval);
+#ifdef CONFIG_BTRFS_DEBUG
+	if (btrfs_test_opt(root, FRAGMENT_DATA))
+		seq_puts(seq, ",fragment=data");
+	if (btrfs_test_opt(root, FRAGMENT_METADATA))
+		seq_puts(seq, ",fragment=metadata");
+#endif
 	seq_printf(seq, ",subvolid=%llu",
 		  BTRFS_I(d_inode(dentry))->root->root_key.objectid);
 	seq_puts(seq, ",subvol=");

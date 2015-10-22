@@ -332,6 +332,27 @@ static void put_caching_control(struct btrfs_caching_control *ctl)
 		kfree(ctl);
 }
 
+#ifdef CONFIG_BTRFS_DEBUG
+static void fragment_free_space(struct btrfs_root *root,
+				struct btrfs_block_group_cache *block_group)
+{
+	u64 start = block_group->key.objectid;
+	u64 len = block_group->key.offset;
+	u64 chunk = block_group->flags & BTRFS_BLOCK_GROUP_METADATA ?
+		root->nodesize : root->sectorsize;
+	u64 step = chunk << 1;
+
+	while (len > chunk) {
+		btrfs_remove_free_space(block_group, start, chunk);
+		start += step;
+		if (len < step)
+			len = 0;
+		else
+			len -= step;
+	}
+}
+#endif
+
 /*
  * this is only called by cache_block_group, since we could have freed extents
  * we need to check the pinned_extents for any extents that can't be used yet
@@ -388,6 +409,7 @@ static noinline void caching_thread(struct btrfs_work *work)
 	u64 last = 0;
 	u32 nritems;
 	int ret = -ENOMEM;
+	bool wakeup = true;
 
 	caching_ctl = container_of(work, struct btrfs_caching_control, work);
 	block_group = caching_ctl->block_group;
@@ -400,6 +422,15 @@ static noinline void caching_thread(struct btrfs_work *work)
 
 	last = max_t(u64, block_group->key.objectid, BTRFS_SUPER_INFO_OFFSET);
 
+#ifdef CONFIG_BTRFS_DEBUG
+	/*
+	 * If we're fragmenting we don't want to make anybody think we can
+	 * allocate from this block group until we've had a chance to fragment
+	 * the free space.
+	 */
+	if (btrfs_should_fragment_free_space(extent_root, block_group))
+		wakeup = false;
+#endif
 	/*
 	 * We don't want to deadlock with somebody trying to allocate a new
 	 * extent for the extent root while also trying to search the extent
@@ -441,7 +472,8 @@ next:
 
 			if (need_resched() ||
 			    rwsem_is_contended(&fs_info->commit_root_sem)) {
-				caching_ctl->progress = last;
+				if (wakeup)
+					caching_ctl->progress = last;
 				btrfs_release_path(path);
 				up_read(&fs_info->commit_root_sem);
 				mutex_unlock(&caching_ctl->mutex);
@@ -464,7 +496,8 @@ next:
 			key.offset = 0;
 			key.type = BTRFS_EXTENT_ITEM_KEY;
 
-			caching_ctl->progress = last;
+			if (wakeup)
+				caching_ctl->progress = last;
 			btrfs_release_path(path);
 			goto next;
 		}
@@ -491,7 +524,8 @@ next:
 
 			if (total_found > (1024 * 1024 * 2)) {
 				total_found = 0;
-				wake_up(&caching_ctl->wait);
+				if (wakeup)
+					wake_up(&caching_ctl->wait);
 			}
 		}
 		path->slots[0]++;
@@ -501,13 +535,27 @@ next:
 	total_found += add_new_free_space(block_group, fs_info, last,
 					  block_group->key.objectid +
 					  block_group->key.offset);
-	caching_ctl->progress = (u64)-1;
-
 	spin_lock(&block_group->lock);
 	block_group->caching_ctl = NULL;
 	block_group->cached = BTRFS_CACHE_FINISHED;
 	spin_unlock(&block_group->lock);
 
+#ifdef CONFIG_BTRFS_DEBUG
+	if (btrfs_should_fragment_free_space(extent_root, block_group)) {
+		u64 bytes_used;
+
+		spin_lock(&block_group->space_info->lock);
+		spin_lock(&block_group->lock);
+		bytes_used = block_group->key.offset -
+			btrfs_block_group_used(&block_group->item);
+		block_group->space_info->bytes_used += bytes_used >> 1;
+		spin_unlock(&block_group->lock);
+		spin_unlock(&block_group->space_info->lock);
+		fragment_free_space(extent_root, block_group);
+	}
+#endif
+
+	caching_ctl->progress = (u64)-1;
 err:
 	btrfs_free_path(path);
 	up_read(&fs_info->commit_root_sem);
@@ -607,6 +655,22 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 			}
 		}
 		spin_unlock(&cache->lock);
+#ifdef CONFIG_BTRFS_DEBUG
+		if (ret == 1 &&
+		    btrfs_should_fragment_free_space(fs_info->extent_root,
+						     cache)) {
+			u64 bytes_used;
+
+			spin_lock(&cache->space_info->lock);
+			spin_lock(&cache->lock);
+			bytes_used = cache->key.offset -
+				btrfs_block_group_used(&cache->item);
+			cache->space_info->bytes_used += bytes_used >> 1;
+			spin_unlock(&cache->lock);
+			spin_unlock(&cache->space_info->lock);
+			fragment_free_space(fs_info->extent_root, cache);
+		}
+#endif
 		mutex_unlock(&caching_ctl->mutex);
 
 		wake_up(&caching_ctl->wait);
@@ -3344,6 +3408,15 @@ again:
 	spin_unlock(&block_group->lock);
 
 	/*
+	 * We hit an ENOSPC when setting up the cache in this transaction, just
+	 * skip doing the setup, we've already cleared the cache so we're safe.
+	 */
+	if (test_bit(BTRFS_TRANS_CACHE_ENOSPC, &trans->transaction->flags)) {
+		ret = -ENOSPC;
+		goto out_put;
+	}
+
+	/*
 	 * Try to preallocate enough space based on how big the block group is.
 	 * Keep in mind this has to include any pinned space which could end up
 	 * taking up quite a bit since it's not folded into the other space
@@ -3363,8 +3436,18 @@ again:
 	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, num_pages,
 					      num_pages, num_pages,
 					      &alloc_hint);
+	/*
+	 * Our cache requires contiguous chunks so that we don't modify a bunch
+	 * of metadata or split extents when writing the cache out, which means
+	 * we can enospc if we are heavily fragmented in addition to just normal
+	 * out of space conditions.  So if we hit this just skip setting up any
+	 * other block groups for this transaction, maybe we'll unpin enough
+	 * space the next time around.
+	 */
 	if (!ret)
 		dcs = BTRFS_DC_SETUP;
+	else if (ret == -ENOSPC)
+		set_bit(BTRFS_TRANS_CACHE_ENOSPC, &trans->transaction->flags);
 	btrfs_free_reserved_data_space(inode, 0, num_pages);
 
 out_put:
@@ -3751,6 +3834,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->bytes_readonly = 0;
 	found->bytes_may_use = 0;
 	found->full = 0;
+	found->max_extent_size = 0;
 	found->force_alloc = CHUNK_ALLOC_NO_FORCE;
 	found->chunk_alloc = 0;
 	found->flush = 0;
@@ -4003,7 +4087,8 @@ commit_trans:
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
 			if (have_pinned_space >= 0 ||
-			    trans->transaction->have_free_bgs ||
+			    test_bit(BTRFS_TRANS_HAVE_FREE_BGS,
+				     &trans->transaction->flags) ||
 			    need_commit > 0) {
 				ret = btrfs_commit_transaction(trans, root);
 				if (ret)
@@ -6112,6 +6197,34 @@ void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 	update_global_block_rsv(fs_info);
 }
 
+/*
+ * Returns the free cluster for the given space info and sets empty_cluster to
+ * what it should be based on the mount options.
+ */
+static struct btrfs_free_cluster *
+fetch_cluster_info(struct btrfs_root *root, struct btrfs_space_info *space_info,
+		   u64 *empty_cluster)
+{
+	struct btrfs_free_cluster *ret = NULL;
+	bool ssd = btrfs_test_opt(root, SSD);
+
+	*empty_cluster = 0;
+	if (btrfs_mixed_space_info(space_info))
+		return ret;
+
+	if (ssd)
+		*empty_cluster = 2 * 1024 * 1024;
+	if (space_info->flags & BTRFS_BLOCK_GROUP_METADATA) {
+		ret = &root->fs_info->meta_alloc_cluster;
+		if (!ssd)
+			*empty_cluster = 64 * 1024;
+	} else if ((space_info->flags & BTRFS_BLOCK_GROUP_DATA) && ssd) {
+		ret = &root->fs_info->data_alloc_cluster;
+	}
+
+	return ret;
+}
+
 static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 			      const bool return_free_space)
 {
@@ -6119,7 +6232,10 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 	struct btrfs_block_group_cache *cache = NULL;
 	struct btrfs_space_info *space_info;
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
+	struct btrfs_free_cluster *cluster = NULL;
 	u64 len;
+	u64 total_unpinned = 0;
+	u64 empty_cluster = 0;
 	bool readonly;
 
 	while (start <= end) {
@@ -6128,8 +6244,14 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 		    start >= cache->key.objectid + cache->key.offset) {
 			if (cache)
 				btrfs_put_block_group(cache);
+			total_unpinned = 0;
 			cache = btrfs_lookup_block_group(fs_info, start);
 			BUG_ON(!cache); /* Logic error */
+
+			cluster = fetch_cluster_info(root,
+						     cache->space_info,
+						     &empty_cluster);
+			empty_cluster <<= 1;
 		}
 
 		len = cache->key.objectid + cache->key.offset - start;
@@ -6142,12 +6264,27 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 		}
 
 		start += len;
+		total_unpinned += len;
 		space_info = cache->space_info;
+
+		/*
+		 * If this space cluster has been marked as fragmented and we've
+		 * unpinned enough in this block group to potentially allow a
+		 * cluster to be created inside of it go ahead and clear the
+		 * fragmented check.
+		 */
+		if (cluster && cluster->fragmented &&
+		    total_unpinned > empty_cluster) {
+			spin_lock(&cluster->lock);
+			cluster->fragmented = 0;
+			spin_unlock(&cluster->lock);
+		}
 
 		spin_lock(&space_info->lock);
 		spin_lock(&cache->lock);
 		cache->pinned -= len;
 		space_info->bytes_pinned -= len;
+		space_info->max_extent_size = 0;
 		percpu_counter_add(&space_info->total_bytes_pinned, -len);
 		if (cache->ro) {
 			space_info->bytes_readonly += len;
@@ -6880,7 +7017,7 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	struct btrfs_block_group_cache *block_group = NULL;
 	u64 search_start = 0;
 	u64 max_extent_size = 0;
-	int empty_cluster = 2 * 1024 * 1024;
+	u64 empty_cluster = 0;
 	struct btrfs_space_info *space_info;
 	int loop = 0;
 	int index = __get_raid_index(flags);
@@ -6890,6 +7027,7 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	bool failed_alloc = false;
 	bool use_cluster = true;
 	bool have_caching_bg = false;
+	bool full_search = false;
 
 	WARN_ON(num_bytes < root->sectorsize);
 	ins->type = BTRFS_EXTENT_ITEM_KEY;
@@ -6905,36 +7043,47 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	}
 
 	/*
-	 * If the space info is for both data and metadata it means we have a
-	 * small filesystem and we can't use the clustering stuff.
+	 * If our free space is heavily fragmented we may not be able to make
+	 * big contiguous allocations, so instead of doing the expensive search
+	 * for free space, simply return ENOSPC with our max_extent_size so we
+	 * can go ahead and search for a more manageable chunk.
+	 *
+	 * If our max_extent_size is large enough for our allocation simply
+	 * disable clustering since we will likely not be able to find enough
+	 * space to create a cluster and induce latency trying.
 	 */
-	if (btrfs_mixed_space_info(space_info))
-		use_cluster = false;
-
-	if (flags & BTRFS_BLOCK_GROUP_METADATA && use_cluster) {
-		last_ptr = &root->fs_info->meta_alloc_cluster;
-		if (!btrfs_test_opt(root, SSD))
-			empty_cluster = 64 * 1024;
+	if (unlikely(space_info->max_extent_size)) {
+		spin_lock(&space_info->lock);
+		if (space_info->max_extent_size &&
+		    num_bytes > space_info->max_extent_size) {
+			ins->offset = space_info->max_extent_size;
+			spin_unlock(&space_info->lock);
+			return -ENOSPC;
+		} else if (space_info->max_extent_size) {
+			use_cluster = false;
+		}
+		spin_unlock(&space_info->lock);
 	}
 
-	if ((flags & BTRFS_BLOCK_GROUP_DATA) && use_cluster &&
-	    btrfs_test_opt(root, SSD)) {
-		last_ptr = &root->fs_info->data_alloc_cluster;
-	}
-
+	last_ptr = fetch_cluster_info(orig_root, space_info, &empty_cluster);
 	if (last_ptr) {
 		spin_lock(&last_ptr->lock);
 		if (last_ptr->block_group)
 			hint_byte = last_ptr->window_start;
+		if (last_ptr->fragmented) {
+			/*
+			 * We still set window_start so we can keep track of the
+			 * last place we found an allocation to try and save
+			 * some time.
+			 */
+			hint_byte = last_ptr->window_start;
+			use_cluster = false;
+		}
 		spin_unlock(&last_ptr->lock);
 	}
 
 	search_start = max(search_start, first_logical_byte(root, 0));
 	search_start = max(search_start, hint_byte);
-
-	if (!last_ptr)
-		empty_cluster = 0;
-
 	if (search_start == hint_byte) {
 		block_group = btrfs_lookup_block_group(root->fs_info,
 						       search_start);
@@ -6969,6 +7118,8 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	}
 search:
 	have_caching_bg = false;
+	if (index == 0 || index == __get_raid_index(flags))
+		full_search = true;
 	down_read(&space_info->groups_sem);
 	list_for_each_entry(block_group, &space_info->block_groups[index],
 			    list) {
@@ -7002,6 +7153,7 @@ search:
 have_block_group:
 		cached = block_group_cache_done(block_group);
 		if (unlikely(!cached)) {
+			have_caching_bg = true;
 			ret = cache_block_group(block_group, 0);
 			BUG_ON(ret < 0);
 			ret = 0;
@@ -7016,7 +7168,7 @@ have_block_group:
 		 * Ok we want to try and use the cluster allocator, so
 		 * lets look there
 		 */
-		if (last_ptr) {
+		if (last_ptr && use_cluster) {
 			struct btrfs_block_group_cache *used_block_group;
 			unsigned long aligned_cluster;
 			/*
@@ -7142,6 +7294,16 @@ refill_cluster:
 		}
 
 unclustered_alloc:
+		/*
+		 * We are doing an unclustered alloc, set the fragmented flag so
+		 * we don't bother trying to setup a cluster again until we get
+		 * more space.
+		 */
+		if (unlikely(last_ptr)) {
+			spin_lock(&last_ptr->lock);
+			last_ptr->fragmented = 1;
+			spin_unlock(&last_ptr->lock);
+		}
 		spin_lock(&block_group->free_space_ctl->tree_lock);
 		if (cached &&
 		    block_group->free_space_ctl->free_space <
@@ -7174,8 +7336,6 @@ unclustered_alloc:
 			failed_alloc = true;
 			goto have_block_group;
 		} else if (!offset) {
-			if (!cached)
-				have_caching_bg = true;
 			goto loop;
 		}
 checks:
@@ -7232,7 +7392,20 @@ loop:
 	 */
 	if (!ins->objectid && loop < LOOP_NO_EMPTY_SIZE) {
 		index = 0;
-		loop++;
+		if (loop == LOOP_CACHING_NOWAIT) {
+			/*
+			 * We want to skip the LOOP_CACHING_WAIT step if we
+			 * don't have any unached bgs and we've alrelady done a
+			 * full search through.
+			 */
+			if (have_caching_bg || !full_search)
+				loop = LOOP_CACHING_WAIT;
+			else
+				loop = LOOP_ALLOC_CHUNK;
+		} else {
+			loop++;
+		}
+
 		if (loop == LOOP_ALLOC_CHUNK) {
 			struct btrfs_trans_handle *trans;
 			int exist = 0;
@@ -7250,6 +7423,15 @@ loop:
 
 			ret = do_chunk_alloc(trans, root, flags,
 					     CHUNK_ALLOC_FORCE);
+
+			/*
+			 * If we can't allocate a new chunk we've already looped
+			 * through at least once, move on to the NO_EMPTY_SIZE
+			 * case.
+			 */
+			if (ret == -ENOSPC)
+				loop = LOOP_NO_EMPTY_SIZE;
+
 			/*
 			 * Do not bail out on ENOSPC since we
 			 * can do more things.
@@ -7266,6 +7448,15 @@ loop:
 		}
 
 		if (loop == LOOP_NO_EMPTY_SIZE) {
+			/*
+			 * Don't loop again if we already have no empty_size and
+			 * no empty_cluster.
+			 */
+			if (empty_size == 0 &&
+			    empty_cluster == 0) {
+				ret = -ENOSPC;
+				goto out;
+			}
 			empty_size = 0;
 			empty_cluster = 0;
 		}
@@ -7274,11 +7465,20 @@ loop:
 	} else if (!ins->objectid) {
 		ret = -ENOSPC;
 	} else if (ins->objectid) {
+		if (!use_cluster && last_ptr) {
+			spin_lock(&last_ptr->lock);
+			last_ptr->window_start = ins->objectid;
+			spin_unlock(&last_ptr->lock);
+		}
 		ret = 0;
 	}
 out:
-	if (ret == -ENOSPC)
+	if (ret == -ENOSPC) {
+		spin_lock(&space_info->lock);
+		space_info->max_extent_size = max_extent_size;
+		spin_unlock(&space_info->lock);
 		ins->offset = max_extent_size;
+	}
 	return ret;
 }
 
@@ -7327,7 +7527,7 @@ int btrfs_reserve_extent(struct btrfs_root *root,
 			 u64 empty_size, u64 hint_byte,
 			 struct btrfs_key *ins, int is_data, int delalloc)
 {
-	bool final_tried = false;
+	bool final_tried = num_bytes == min_alloc_size;
 	u64 flags;
 	int ret;
 
@@ -8929,7 +9129,7 @@ again:
 	 * back off and let this transaction commit
 	 */
 	mutex_lock(&root->fs_info->ro_block_group_mutex);
-	if (trans->transaction->dirty_bg_run) {
+	if (test_bit(BTRFS_TRANS_DIRTY_BG_RUN, &trans->transaction->flags)) {
 		u64 transid = trans->transid;
 
 		mutex_unlock(&root->fs_info->ro_block_group_mutex);
@@ -9679,6 +9879,14 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 
 	free_excluded_extents(root, cache);
 
+#ifdef CONFIG_BTRFS_DEBUG
+	if (btrfs_should_fragment_free_space(root, cache)) {
+		u64 new_bytes_used = size - bytes_used;
+
+		bytes_used += new_bytes_used >> 1;
+		fragment_free_space(root, cache);
+	}
+#endif
 	/*
 	 * Call to ensure the corresponding space_info object is created and
 	 * assigned to our block group, but don't update its counters just yet.

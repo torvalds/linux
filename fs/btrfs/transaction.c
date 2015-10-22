@@ -232,15 +232,16 @@ loop:
 	extwriter_counter_init(cur_trans, type);
 	init_waitqueue_head(&cur_trans->writer_wait);
 	init_waitqueue_head(&cur_trans->commit_wait);
+	init_waitqueue_head(&cur_trans->pending_wait);
 	cur_trans->state = TRANS_STATE_RUNNING;
 	/*
 	 * One for this trans handle, one so it will live on until we
 	 * commit the transaction.
 	 */
 	atomic_set(&cur_trans->use_count, 2);
-	cur_trans->have_free_bgs = 0;
+	atomic_set(&cur_trans->pending_ordered, 0);
+	cur_trans->flags = 0;
 	cur_trans->start_time = get_seconds();
-	cur_trans->dirty_bg_run = 0;
 
 	memset(&cur_trans->delayed_refs, 0, sizeof(cur_trans->delayed_refs));
 
@@ -266,7 +267,6 @@ loop:
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 	INIT_LIST_HEAD(&cur_trans->pending_chunks);
 	INIT_LIST_HEAD(&cur_trans->switch_commits);
-	INIT_LIST_HEAD(&cur_trans->pending_ordered);
 	INIT_LIST_HEAD(&cur_trans->dirty_bgs);
 	INIT_LIST_HEAD(&cur_trans->io_bgs);
 	INIT_LIST_HEAD(&cur_trans->dropped_roots);
@@ -549,7 +549,6 @@ again:
 	h->can_flush_pending_bgs = true;
 	INIT_LIST_HEAD(&h->qgroup_ref_list);
 	INIT_LIST_HEAD(&h->new_bgs);
-	INIT_LIST_HEAD(&h->ordered);
 
 	smp_mb();
 	if (cur_trans->state >= TRANS_STATE_BLOCKED &&
@@ -779,12 +778,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	if (!list_empty(&trans->new_bgs))
 		btrfs_create_pending_block_groups(trans, root);
-
-	if (!list_empty(&trans->ordered)) {
-		spin_lock(&info->trans_lock);
-		list_splice_init(&trans->ordered, &cur_trans->pending_ordered);
-		spin_unlock(&info->trans_lock);
-	}
 
 	trans->delayed_ref_updates = 0;
 	if (!trans->sync) {
@@ -1776,25 +1769,10 @@ static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
 }
 
 static inline void
-btrfs_wait_pending_ordered(struct btrfs_transaction *cur_trans,
-			   struct btrfs_fs_info *fs_info)
+btrfs_wait_pending_ordered(struct btrfs_transaction *cur_trans)
 {
-	struct btrfs_ordered_extent *ordered;
-
-	spin_lock(&fs_info->trans_lock);
-	while (!list_empty(&cur_trans->pending_ordered)) {
-		ordered = list_first_entry(&cur_trans->pending_ordered,
-					   struct btrfs_ordered_extent,
-					   trans_list);
-		list_del_init(&ordered->trans_list);
-		spin_unlock(&fs_info->trans_lock);
-
-		wait_event(ordered->wait, test_bit(BTRFS_ORDERED_COMPLETE,
-						   &ordered->flags));
-		btrfs_put_ordered_extent(ordered);
-		spin_lock(&fs_info->trans_lock);
-	}
-	spin_unlock(&fs_info->trans_lock);
+	wait_event(cur_trans->pending_wait,
+		   atomic_read(&cur_trans->pending_ordered) == 0);
 }
 
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
@@ -1842,7 +1820,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	if (!cur_trans->dirty_bg_run) {
+	if (!test_bit(BTRFS_TRANS_DIRTY_BG_RUN, &cur_trans->flags)) {
 		int run_it = 0;
 
 		/* this mutex is also taken before trying to set
@@ -1851,18 +1829,17 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		 * after a extents from that block group have been
 		 * allocated for cache files.  btrfs_set_block_group_ro
 		 * will wait for the transaction to commit if it
-		 * finds dirty_bg_run = 1
+		 * finds BTRFS_TRANS_DIRTY_BG_RUN set.
 		 *
-		 * The dirty_bg_run flag is also used to make sure only
-		 * one process starts all the block group IO.  It wouldn't
+		 * The BTRFS_TRANS_DIRTY_BG_RUN flag is also used to make sure
+		 * only one process starts all the block group IO.  It wouldn't
 		 * hurt to have more than one go through, but there's no
 		 * real advantage to it either.
 		 */
 		mutex_lock(&root->fs_info->ro_block_group_mutex);
-		if (!cur_trans->dirty_bg_run) {
+		if (!test_and_set_bit(BTRFS_TRANS_DIRTY_BG_RUN,
+				      &cur_trans->flags))
 			run_it = 1;
-			cur_trans->dirty_bg_run = 1;
-		}
 		mutex_unlock(&root->fs_info->ro_block_group_mutex);
 
 		if (run_it)
@@ -1874,7 +1851,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	}
 
 	spin_lock(&root->fs_info->trans_lock);
-	list_splice_init(&trans->ordered, &cur_trans->pending_ordered);
 	if (cur_trans->state >= TRANS_STATE_COMMIT_START) {
 		spin_unlock(&root->fs_info->trans_lock);
 		atomic_inc(&cur_trans->use_count);
@@ -1933,7 +1909,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_wait_delalloc_flush(root->fs_info);
 
-	btrfs_wait_pending_ordered(cur_trans, root->fs_info);
+	btrfs_wait_pending_ordered(cur_trans);
 
 	btrfs_scrub_pause(root);
 	/*
@@ -2133,7 +2109,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_finish_extent_commit(trans, root);
 
-	if (cur_trans->have_free_bgs)
+	if (test_bit(BTRFS_TRANS_HAVE_FREE_BGS, &cur_trans->flags))
 		btrfs_clear_space_info_full(root->fs_info);
 
 	root->fs_info->last_trans_committed = cur_trans->transid;
