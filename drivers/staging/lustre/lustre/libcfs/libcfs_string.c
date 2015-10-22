@@ -321,6 +321,73 @@ cfs_range_expr_parse(struct cfs_lstr *src, unsigned min, unsigned max,
 }
 
 /**
+ * Print the range expression \a re into specified \a buffer.
+ * If \a bracketed is true, expression does not need additional
+ * brackets.
+ *
+ * \retval number of characters written
+ */
+static int
+cfs_range_expr_print(char *buffer, int count, struct cfs_range_expr *expr,
+		     bool bracketed)
+{
+	int i;
+	char s[] = "[";
+	char e[] = "]";
+
+	if (bracketed)
+		s[0] = e[0] = '\0';
+
+	if (expr->re_lo == expr->re_hi)
+		i = scnprintf(buffer, count, "%u", expr->re_lo);
+	else if (expr->re_stride == 1)
+		i = scnprintf(buffer, count, "%s%u-%u%s",
+				s, expr->re_lo, expr->re_hi, e);
+	else
+		i = scnprintf(buffer, count, "%s%u-%u/%u%s",
+				s, expr->re_lo, expr->re_hi,
+				expr->re_stride, e);
+	return i;
+}
+
+/**
+ * Print a list of range expressions (\a expr_list) into specified \a buffer.
+ * If the list contains several expressions, separate them with comma
+ * and surround the list with brackets.
+ *
+ * \retval number of characters written
+ */
+int
+cfs_expr_list_print(char *buffer, int count, struct cfs_expr_list *expr_list)
+{
+	struct cfs_range_expr *expr;
+	int i = 0, j = 0;
+	int numexprs = 0;
+
+	if (count <= 0)
+		return 0;
+
+	list_for_each_entry(expr, &expr_list->el_exprs, re_link)
+		numexprs++;
+
+	if (numexprs > 1)
+		i += scnprintf(buffer + i, count - i, "[");
+
+	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
+		if (j++ != 0)
+			i += scnprintf(buffer + i, count - i, ",");
+		i += cfs_range_expr_print(buffer + i, count - i, expr,
+					  numexprs > 1);
+	}
+
+	if (numexprs > 1)
+		i += scnprintf(buffer + i, count - i, "]");
+
+	return i;
+}
+EXPORT_SYMBOL(cfs_expr_list_print);
+
+/**
  * Matches value (\a value) against ranges expression list \a expr_list.
  *
  * \retval 1 if \a value matches
@@ -412,8 +479,8 @@ EXPORT_SYMBOL(cfs_expr_list_free);
 /**
  * Parses \<cfs_expr_list\> token of the syntax.
  *
- * \retval 1 if \a str parses to \<number\> | \<expr_list\>
- * \retval 0 otherwise
+ * \retval 0 if \a str parses to \<number\> | \<expr_list\>
+ * \retval -errno otherwise
  */
 int
 cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
