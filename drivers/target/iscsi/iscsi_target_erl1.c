@@ -160,8 +160,7 @@ static int iscsit_handle_r2t_snack(
 			" protocol error.\n", cmd->init_task_tag, begrun,
 			(begrun + runlength), cmd->acked_data_sn);
 
-			return iscsit_reject_cmd(cmd,
-					ISCSI_REASON_PROTOCOL_ERROR, buf);
+		return iscsit_reject_cmd(cmd, ISCSI_REASON_PROTOCOL_ERROR, buf);
 	}
 
 	if (runlength) {
@@ -628,8 +627,8 @@ int iscsit_dataout_datapduinorder_no_fbit(
 			if (cmd->pdu_list[i].seq_no == pdu->seq_no) {
 				if (!first_pdu)
 					first_pdu = &cmd->pdu_list[i];
-				 xfer_len += cmd->pdu_list[i].length;
-				 pdu_count++;
+				xfer_len += cmd->pdu_list[i].length;
+				pdu_count++;
 			} else if (pdu_count)
 				break;
 		}
