@@ -1553,7 +1553,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 
 out:
 	if (flock->fl_flags & FL_POSIX && !rc)
-		rc = posix_lock_file_wait(file, flock);
+		rc = locks_lock_file_wait(file, flock);
 	return rc;
 }
 

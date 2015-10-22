@@ -1961,7 +1961,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 					  (can_sleep) ? F_SETLKW : F_SETLK,
 					  lock);
 	else
-		error = flock_lock_file_wait(f.file, lock);
+		error = locks_lock_file_wait(f.file, lock);
 
  out_free:
 	locks_free_lock(lock);
