@@ -660,7 +660,6 @@ static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		}
 	}
 	return 0;
-
 }
 #endif
 
@@ -711,7 +710,6 @@ static int spinand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 
 static void spinand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
-
 	struct spinand_state *state = mtd_to_state(mtd);
 
 	memcpy(state->buf + state->buf_ptr, buf, len);
