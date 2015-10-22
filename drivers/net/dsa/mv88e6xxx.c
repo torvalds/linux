@@ -1799,6 +1799,71 @@ static int _mv88e6xxx_atu_getnext(struct dsa_switch *ds, u16 fid,
 	return 0;
 }
 
+int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
+			    struct switchdev_obj_port_fdb *fdb,
+			    int (*cb)(struct switchdev_obj *obj))
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_vtu_stu_entry vlan = {
+		.vid = GLOBAL_VTU_VID_MASK, /* all ones */
+	};
+	int err;
+
+	mutex_lock(&ps->smi_mutex);
+
+	err = _mv88e6xxx_vtu_vid_write(ds, vlan.vid);
+	if (err)
+		goto unlock;
+
+	do {
+		struct mv88e6xxx_atu_entry addr = {
+			.mac = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
+		};
+
+		err = _mv88e6xxx_vtu_getnext(ds, &vlan);
+		if (err)
+			goto unlock;
+
+		if (!vlan.valid)
+			break;
+
+		err = _mv88e6xxx_atu_mac_write(ds, addr.mac);
+		if (err)
+			goto unlock;
+
+		do {
+			err = _mv88e6xxx_atu_getnext(ds, vlan.fid, &addr);
+			if (err)
+				goto unlock;
+
+			if (addr.state == GLOBAL_ATU_DATA_STATE_UNUSED)
+				break;
+
+			if (!addr.trunk && addr.portv_trunkid & BIT(port)) {
+				bool is_static = addr.state ==
+					(is_multicast_ether_addr(addr.mac) ?
+					 GLOBAL_ATU_DATA_STATE_MC_STATIC :
+					 GLOBAL_ATU_DATA_STATE_UC_STATIC);
+
+				fdb->vid = vlan.vid;
+				ether_addr_copy(fdb->addr, addr.mac);
+				fdb->ndm_state = is_static ? NUD_NOARP :
+					NUD_REACHABLE;
+
+				err = cb(&fdb->obj);
+				if (err)
+					goto unlock;
+			}
+		} while (!is_broadcast_ether_addr(addr.mac));
+
+	} while (vlan.vid < GLOBAL_VTU_VID_MASK);
+
+unlock:
+	mutex_unlock(&ps->smi_mutex);
+
+	return err;
+}
+
 /* get next entry for port */
 int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
 			       unsigned char *addr, u16 *vid, bool *is_static)
