@@ -1020,4 +1020,47 @@ rdev_tdls_cancel_channel_switch(struct cfg80211_registered_device *rdev,
 	trace_rdev_return_void(&rdev->wiphy);
 }
 
+static inline int
+rdev_start_radar_detection(struct cfg80211_registered_device *rdev,
+			   struct net_device *dev,
+			   struct cfg80211_chan_def *chandef,
+			   u32 cac_time_ms)
+{
+	int ret = -ENOTSUPP;
+
+	trace_rdev_start_radar_detection(&rdev->wiphy, dev, chandef,
+					 cac_time_ms);
+	if (rdev->ops->start_radar_detection)
+		ret = rdev->ops->start_radar_detection(&rdev->wiphy, dev,
+						       chandef, cac_time_ms);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int
+rdev_set_mcast_rate(struct cfg80211_registered_device *rdev,
+		    struct net_device *dev,
+		    int mcast_rate[IEEE80211_NUM_BANDS])
+{
+	int ret = -ENOTSUPP;
+
+	trace_rdev_set_mcast_rate(&rdev->wiphy, dev, mcast_rate);
+	if (rdev->ops->set_mcast_rate)
+		ret = rdev->ops->set_mcast_rate(&rdev->wiphy, dev, mcast_rate);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int
+rdev_set_coalesce(struct cfg80211_registered_device *rdev,
+		  struct cfg80211_coalesce *coalesce)
+{
+	int ret = -ENOTSUPP;
+
+	trace_rdev_set_coalesce(&rdev->wiphy, coalesce);
+	if (rdev->ops->set_coalesce)
+		ret = rdev->ops->set_coalesce(&rdev->wiphy, coalesce);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
 #endif /* __CFG80211_RDEV_OPS */
