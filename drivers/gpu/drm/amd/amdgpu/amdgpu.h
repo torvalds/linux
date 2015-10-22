@@ -447,9 +447,6 @@ int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
-struct amdgpu_fence *amdgpu_fence_ref(struct amdgpu_fence *fence);
-void amdgpu_fence_unref(struct amdgpu_fence **fence);
-
 bool amdgpu_fence_need_sync(struct amdgpu_fence *fence,
 			    struct amdgpu_ring *ring);
 void amdgpu_fence_note_sync(struct amdgpu_fence *fence,

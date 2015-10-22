@@ -417,36 +417,6 @@ int amdgpu_fence_wait_empty(struct amdgpu_ring *ring)
 }
 
 /**
- * amdgpu_fence_ref - take a ref on a fence
- *
- * @fence: amdgpu fence object
- *
- * Take a reference on a fence (all asics).
- * Returns the fence.
- */
-struct amdgpu_fence *amdgpu_fence_ref(struct amdgpu_fence *fence)
-{
-	fence_get(&fence->base);
-	return fence;
-}
-
-/**
- * amdgpu_fence_unref - remove a ref on a fence
- *
- * @fence: amdgpu fence object
- *
- * Remove a reference on a fence (all asics).
- */
-void amdgpu_fence_unref(struct amdgpu_fence **fence)
-{
-	struct amdgpu_fence *tmp = *fence;
-
-	*fence = NULL;
-	if (tmp)
-		fence_put(&tmp->base);
-}
-
-/**
  * amdgpu_fence_count_emitted - get the count of emitted fences
  *
  * @ring: ring the fence is associated with
