@@ -7,6 +7,18 @@
 #include "event.h"
 #include "symbol.h"
 
+#define CALLCHAIN_HELP "setup and enables call-graph (stack chain/backtrace) recording: "
+
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+#define CALLCHAIN_RECORD_HELP  CALLCHAIN_HELP "fp dwarf lbr"
+#else
+#define CALLCHAIN_RECORD_HELP  CALLCHAIN_HELP "fp lbr"
+#endif
+
+#define CALLCHAIN_REPORT_HELP  "output_type (graph, flat, fractal, or none), " \
+	"min percent threshold, optional print limit, callchain order, " \
+	"key (function or address), add branches"
+
 enum perf_call_graph_mode {
 	CALLCHAIN_NONE,
 	CALLCHAIN_FP,

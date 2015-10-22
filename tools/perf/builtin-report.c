@@ -625,6 +625,9 @@ parse_percent_limit(const struct option *opt, const char *str,
 	return 0;
 }
 
+const char report_callchain_help[] = "Display callchains using " CALLCHAIN_REPORT_HELP ". "
+				     "Default: graph,0.5,caller";
+
 int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_session *session;
@@ -699,9 +702,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", &report, "output_type,min_percent[,print_limit],call_order[,branch]",
-		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold, optional print limit, callchain order, key (function or address), add branches. "
-		     "Default: graph,0.5,caller", &report_parse_callchain_opt, callchain_default_opt),
+	OPT_CALLBACK_DEFAULT('g', "call-graph", &report,
+			     "output_type,min_percent[,print_limit],call_order[,branch]",
+			     report_callchain_help, &report_parse_callchain_opt,
+			     callchain_default_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
 		    "Accumulate callchains of children and show total overhead as well"),
 	OPT_INTEGER(0, "max-stack", &report.max_stack,

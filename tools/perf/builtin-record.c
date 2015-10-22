@@ -1010,13 +1010,7 @@ static struct record record = {
 	},
 };
 
-#define CALLCHAIN_HELP "setup and enables call-graph (stack chain/backtrace) recording: "
-
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-const char record_callchain_help[] = CALLCHAIN_HELP "fp dwarf lbr";
-#else
-const char record_callchain_help[] = CALLCHAIN_HELP "fp lbr";
-#endif
+const char record_callchain_help[] = CALLCHAIN_RECORD_HELP;
 
 /*
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing
