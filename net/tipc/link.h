@@ -134,6 +134,8 @@ struct tipc_stats {
  * @snt_nxt: next sequence number to use for outbound messages
  * @last_retransmitted: sequence number of most recently retransmitted message
  * @stale_count: # of identical retransmit requests made by peer
+ * @ackers: # of peers that needs to ack each packet before it can be released
+ * @acked: # last packet acked by a certain peer. Used for broadcast.
  * @rcv_nxt: next sequence number to expect for inbound messages
  * @deferred_queue: deferred queue saved OOS b'cast message received from node
  * @unacked_window: # of inbound messages rx'd without ack'ing back to peer
@@ -143,6 +145,7 @@ struct tipc_stats {
  * @wakeupq: linked list of wakeup msgs waiting for link congestion to abate
  * @long_msg_seq_no: next identifier to use for outbound fragmented messages
  * @reasm_buf: head of partially reassembled inbound message fragments
+ * @bc_rcvr: marks that this is a broadcast receiver link
  * @stats: collects statistics regarding link activity
  */
 struct tipc_link {
@@ -200,6 +203,10 @@ struct tipc_link {
 
 	/* Fragmentation/reassembly */
 	struct sk_buff *reasm_buf;
+
+	/* Broadcast */
+	u16 ackers;
+	u16 acked;
 
 	/* Statistics */
 	struct tipc_stats stats;

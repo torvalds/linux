@@ -112,6 +112,7 @@ struct tipc_skb_cb {
 	bool wakeup_pending;
 	u16 chain_sz;
 	u16 chain_imp;
+	u16 ackers;
 };
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))

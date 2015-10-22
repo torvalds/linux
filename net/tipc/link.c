@@ -221,6 +221,7 @@ bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
 	l->mtu = mtu;
 	l->priority = priority;
 	tipc_link_set_queue_limits(l, window);
+	l->ackers = 1;
 	l->inputq = inputq;
 	l->namedq = namedq;
 	l->state = LINK_RESETTING;
@@ -647,6 +648,7 @@ void tipc_link_reset(struct tipc_link *l)
 	l->rcv_unacked = 0;
 	l->snd_nxt = 1;
 	l->rcv_nxt = 1;
+	l->acked = 0;
 	l->silent_intv_cnt = 0;
 	l->stats.recv_info = 0;
 	l->stale_count = 0;
@@ -769,6 +771,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 			__skb_dequeue(list);
 			__skb_queue_tail(transmq, skb);
 			__skb_queue_tail(xmitq, _skb);
+			TIPC_SKB_CB(skb)->ackers = l->ackers;
 			l->rcv_unacked = 0;
 			seqno++;
 			continue;
@@ -829,6 +832,7 @@ void tipc_link_push_packets(struct tipc_link *link)
 		skb = __skb_dequeue(&link->backlogq);
 		if (!skb)
 			break;
+		TIPC_SKB_CB(skb)->ackers = link->ackers;
 		msg = buf_msg(skb);
 		link->backlog[msg_importance(msg)].len--;
 		msg_set_ack(msg, ack);
@@ -862,6 +866,7 @@ void tipc_link_advance_backlog(struct tipc_link *l, struct sk_buff_head *xmitq)
 		l->backlog[msg_importance(hdr)].len--;
 		__skb_queue_tail(&l->transmq, skb);
 		__skb_queue_tail(xmitq, _skb);
+		TIPC_SKB_CB(skb)->ackers = l->ackers;
 		msg_set_ack(hdr, ack);
 		msg_set_seqno(hdr, seqno);
 		msg_set_bcast_ack(hdr, l->owner->bclink.last_in);
@@ -947,11 +952,13 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *skb,
 	}
 }
 
-static int tipc_link_retransm(struct tipc_link *l, int retransm,
-			      struct sk_buff_head *xmitq)
+int tipc_link_retrans(struct tipc_link *l, u16 from, u16 to,
+		      struct sk_buff_head *xmitq)
 {
 	struct sk_buff *_skb, *skb = skb_peek(&l->transmq);
 	struct tipc_msg *hdr;
+	u16 ack = l->rcv_nxt - 1;
+	u16 bc_ack = l->owner->bclink.last_in;
 
 	if (!skb)
 		return 0;
@@ -964,19 +971,25 @@ static int tipc_link_retransm(struct tipc_link *l, int retransm,
 		link_retransmit_failure(l, skb);
 		return tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
 	}
+
+	/* Move forward to where retransmission should start */
 	skb_queue_walk(&l->transmq, skb) {
-		if (!retransm)
-			return 0;
+		if (!less(buf_seqno(skb), from))
+			break;
+	}
+
+	skb_queue_walk_from(&l->transmq, skb) {
+		if (more(buf_seqno(skb), to))
+			break;
 		hdr = buf_msg(skb);
 		_skb = __pskb_copy(skb, MIN_H_SIZE, GFP_ATOMIC);
 		if (!_skb)
 			return 0;
 		hdr = buf_msg(_skb);
-		msg_set_ack(hdr, l->rcv_nxt - 1);
-		msg_set_bcast_ack(hdr, l->owner->bclink.last_in);
+		msg_set_ack(hdr, ack);
+		msg_set_bcast_ack(hdr, bc_ack);
 		_skb->priority = TC_PRIO_CONTROL;
 		__skb_queue_tail(xmitq, _skb);
-		retransm--;
 		l->stats.retransmitted++;
 	}
 	return 0;
@@ -1390,7 +1403,8 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 {
 	struct tipc_msg *hdr = buf_msg(skb);
 	u16 rcvgap = 0;
-	u16 nacked_gap = msg_seq_gap(hdr);
+	u16 ack = msg_ack(hdr);
+	u16 gap = msg_seq_gap(hdr);
 	u16 peers_snd_nxt =  msg_next_sent(hdr);
 	u16 peers_tol = msg_link_tolerance(hdr);
 	u16 peers_prio = msg_linkprio(hdr);
@@ -1469,11 +1483,11 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		if (rcvgap || (msg_probe(hdr)))
 			tipc_link_build_proto_msg(l, STATE_MSG, 0, rcvgap,
 						  0, 0, xmitq);
-		tipc_link_release_pkts(l, msg_ack(hdr));
+		tipc_link_release_pkts(l, ack);
 
 		/* If NACK, retransmit will now start at right position */
-		if (nacked_gap) {
-			rc = tipc_link_retransm(l, nacked_gap, xmitq);
+		if (gap) {
+			rc = tipc_link_retrans(l, ack + 1, ack + gap, xmitq);
 			l->stats.recv_nacks++;
 		}
 
@@ -1550,7 +1564,7 @@ static void link_reset_statistics(struct tipc_link *l_ptr)
 static void link_print(struct tipc_link *l, const char *str)
 {
 	struct sk_buff *hskb = skb_peek(&l->transmq);
-	u16 head = hskb ? msg_seqno(buf_msg(hskb)) : l->snd_nxt;
+	u16 head = hskb ? msg_seqno(buf_msg(hskb)) : l->snd_nxt - 1;
 	u16 tail = l->snd_nxt - 1;
 
 	pr_info("%s Link <%s> state %x\n", str, l->name, l->state);
