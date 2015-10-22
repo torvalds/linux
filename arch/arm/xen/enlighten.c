@@ -86,6 +86,14 @@ static void xen_percpu_init(void)
 	int err;
 	int cpu = get_cpu();
 
+	/* 
+	 * VCPUOP_register_vcpu_info cannot be called twice for the same
+	 * vcpu, so if vcpu_info is already registered, just get out. This
+	 * can happen with cpu-hotplug.
+	 */
+	if (per_cpu(xen_vcpu, cpu) != NULL)
+		goto after_register_vcpu_info;
+
 	pr_info("Xen: initializing cpu%d\n", cpu);
 	vcpup = per_cpu_ptr(xen_vcpu_info, cpu);
 
@@ -96,6 +104,7 @@ static void xen_percpu_init(void)
 	BUG_ON(err);
 	per_cpu(xen_vcpu, cpu) = vcpup;
 
+after_register_vcpu_info:
 	enable_percpu_irq(xen_events_irq, 0);
 	put_cpu();
 }
@@ -123,6 +132,9 @@ static int xen_cpu_notification(struct notifier_block *self,
 	switch (action) {
 	case CPU_STARTING:
 		xen_percpu_init();
+		break;
+	case CPU_DYING:
+		disable_percpu_irq(xen_events_irq);
 		break;
 	default:
 		break;
