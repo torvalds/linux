@@ -113,6 +113,44 @@ static int libcfs_ip_str2addr(const char *str, int nob, __u32 *addr)
 	return 0;
 }
 
+int
+cfs_ip_addr_parse(char *str, int len, struct list_head *list)
+{
+	struct cfs_expr_list *el;
+	struct cfs_lstr src;
+	int rc;
+	int i;
+
+	src.ls_str = str;
+	src.ls_len = len;
+	i = 0;
+
+	while (src.ls_str != NULL) {
+		struct cfs_lstr res;
+
+		if (!cfs_gettok(&src, '.', &res)) {
+			rc = -EINVAL;
+			goto out;
+		}
+
+		rc = cfs_expr_list_parse(res.ls_str, res.ls_len, 0, 255, &el);
+		if (rc != 0)
+			goto out;
+
+		list_add_tail(&el->el_link, list);
+		i++;
+	}
+
+	if (i == 4)
+		return 0;
+
+	rc = -EINVAL;
+out:
+	cfs_expr_list_free_list(list);
+
+	return rc;
+}
+
 static int
 libcfs_ip_addr_range_print(char *buffer, int count, struct list_head *list)
 {
@@ -126,6 +164,28 @@ libcfs_ip_addr_range_print(char *buffer, int count, struct list_head *list)
 		i += cfs_expr_list_print(buffer + i, count - i, el);
 	}
 	return i;
+}
+
+/**
+ * Matches address (\a addr) against address set encoded in \a list.
+ *
+ * \retval 1 if \a addr matches
+ * \retval 0 otherwise
+ */
+int
+cfs_ip_addr_match(__u32 addr, struct list_head *list)
+{
+	struct cfs_expr_list *el;
+	int i = 0;
+
+	list_for_each_entry_reverse(el, list, el_link) {
+		if (!cfs_expr_list_match(addr & 0xff, el))
+			return 0;
+		addr >>= 8;
+		i++;
+	}
+
+	return i == 4;
 }
 
 static void libcfs_decnum_addr2str(__u32 addr, char *str)
