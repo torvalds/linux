@@ -814,8 +814,9 @@ static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 }
 
 static unsigned int pxa2xx_ssp_get_clk_div(struct driver_data *drv_data,
-					   struct chip_data *chip, int rate)
+					   int rate)
 {
+	struct chip_data *chip = drv_data->cur_chip;
 	unsigned int clk_div;
 
 	switch (drv_data->ssp_type) {
@@ -921,7 +922,7 @@ static void pump_transfers(unsigned long data)
 	bits = transfer->bits_per_word;
 	speed = transfer->speed_hz;
 
-	clk_div = pxa2xx_ssp_get_clk_div(drv_data, chip, speed);
+	clk_div = pxa2xx_ssp_get_clk_div(drv_data, speed);
 
 	if (bits <= 8) {
 		drv_data->n_bytes = 1;
