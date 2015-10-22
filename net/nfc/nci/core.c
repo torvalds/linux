@@ -602,12 +602,19 @@ int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 	if (!cmd)
 		return -ENOMEM;
 
+	if (!number_destination_params)
+		return -EINVAL;
+
 	cmd->destination_type = destination_type;
 	cmd->number_destination_params = number_destination_params;
 	memcpy(cmd->params, params, params_len);
 
 	data.cmd = cmd;
-	ndev->cur_id = params->value[DEST_SPEC_PARAMS_ID_INDEX];
+
+	if (params->length > 0)
+		ndev->cur_id = params->value[DEST_SPEC_PARAMS_ID_INDEX];
+	else
+		ndev->cur_id = 0;
 
 	r = __nci_request(ndev, nci_core_conn_create_req,
 			  (unsigned long)&data,
