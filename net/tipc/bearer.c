@@ -414,10 +414,9 @@ void tipc_disable_l2_media(struct tipc_bearer *b)
  * @b_ptr: the bearer through which the packet is to be sent
  * @dest: peer destination address
  */
-int tipc_l2_send_msg(struct net *net, struct sk_buff *buf,
+int tipc_l2_send_msg(struct net *net, struct sk_buff *skb,
 		     struct tipc_bearer *b, struct tipc_media_addr *dest)
 {
-	struct sk_buff *clone;
 	struct net_device *dev;
 	int delta;
 
@@ -425,23 +424,19 @@ int tipc_l2_send_msg(struct net *net, struct sk_buff *buf,
 	if (!dev)
 		return 0;
 
-	clone = skb_clone(buf, GFP_ATOMIC);
-	if (!clone)
-		return 0;
-
-	delta = dev->hard_header_len - skb_headroom(buf);
+	delta = dev->hard_header_len - skb_headroom(skb);
 	if ((delta > 0) &&
-	    pskb_expand_head(clone, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
-		kfree_skb(clone);
+	    pskb_expand_head(skb, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
+		kfree_skb(skb);
 		return 0;
 	}
 
-	skb_reset_network_header(clone);
-	clone->dev = dev;
-	clone->protocol = htons(ETH_P_TIPC);
-	dev_hard_header(clone, dev, ETH_P_TIPC, dest->value,
-			dev->dev_addr, clone->len);
-	dev_queue_xmit(clone);
+	skb_reset_network_header(skb);
+	skb->dev = dev;
+	skb->protocol = htons(ETH_P_TIPC);
+	dev_hard_header(skb, dev, ETH_P_TIPC, dest->value,
+			dev->dev_addr, skb->len);
+	dev_queue_xmit(skb);
 	return 0;
 }
 
@@ -491,8 +486,6 @@ void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
 	if (likely(b))
 		b->media->send_msg(net, skb, b, dest);
 	rcu_read_unlock();
-	/* Until we remove cloning in tipc_l2_send_msg(): */
-	kfree_skb(skb);
 }
 
 /* tipc_bearer_xmit() -send buffer to destination over bearer
@@ -514,8 +507,6 @@ void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		skb_queue_walk_safe(xmitq, skb, tmp) {
 			__skb_dequeue(xmitq);
 			b->media->send_msg(net, skb, b, dst);
-			/* Until we remove cloning in tipc_l2_send_msg(): */
-			kfree_skb(skb);
 		}
 	}
 	rcu_read_unlock();
@@ -541,8 +532,6 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 			msg_set_mc_netid(hdr, net_id);
 			__skb_dequeue(xmitq);
 			b->media->send_msg(net, skb, b, &b->bcast_addr);
-			/* Until we remove cloning in tipc_l2_send_msg(): */
-			kfree_skb(skb);
 		}
 	}
 	rcu_read_unlock();

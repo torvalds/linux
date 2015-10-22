@@ -155,14 +155,12 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 	struct udp_bearer *ub;
 	struct udp_media_addr *dst = (struct udp_media_addr *)&dest->value;
 	struct udp_media_addr *src = (struct udp_media_addr *)&b->addr.value;
-	struct sk_buff *clone;
 	struct rtable *rt;
 
 	if (skb_headroom(skb) < UDP_MIN_HEADROOM)
 		pskb_expand_head(skb, UDP_MIN_HEADROOM, 0, GFP_ATOMIC);
 
-	clone = skb_clone(skb, GFP_ATOMIC);
-	skb_set_inner_protocol(clone, htons(ETH_P_TIPC));
+	skb_set_inner_protocol(skb, htons(ETH_P_TIPC));
 	ub = rcu_dereference_rtnl(b->media_ptr);
 	if (!ub) {
 		err = -ENODEV;
@@ -172,7 +170,7 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 		struct flowi4 fl = {
 			.daddr = dst->ipv4.s_addr,
 			.saddr = src->ipv4.s_addr,
-			.flowi4_mark = clone->mark,
+			.flowi4_mark = skb->mark,
 			.flowi4_proto = IPPROTO_UDP
 		};
 		rt = ip_route_output_key(net, &fl);
@@ -181,7 +179,7 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 			goto tx_error;
 		}
 		ttl = ip4_dst_hoplimit(&rt->dst);
-		err = udp_tunnel_xmit_skb(rt, ub->ubsock->sk, clone,
+		err = udp_tunnel_xmit_skb(rt, ub->ubsock->sk, skb,
 					  src->ipv4.s_addr,
 					  dst->ipv4.s_addr, 0, ttl, 0,
 					  src->udp_port, dst->udp_port,
@@ -204,7 +202,7 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 		if (err)
 			goto tx_error;
 		ttl = ip6_dst_hoplimit(ndst);
-		err = udp_tunnel6_xmit_skb(ndst, ub->ubsock->sk, clone,
+		err = udp_tunnel6_xmit_skb(ndst, ub->ubsock->sk, skb,
 					   ndst->dev, &src->ipv6,
 					   &dst->ipv6, 0, ttl, src->udp_port,
 					   dst->udp_port, false);
@@ -213,7 +211,7 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 	return err;
 
 tx_error:
-	kfree_skb(clone);
+	kfree_skb(skb);
 	return err;
 }
 
