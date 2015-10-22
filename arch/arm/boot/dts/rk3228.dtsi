@@ -12,7 +12,9 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
-		serial2 = &uart_dbg;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -103,18 +105,6 @@
 		clock-frequency = <24000000>;
 	};
 
-	uart_dbg: serial@11030000 {
-		compatible = "rockchip,serial";
-		reg = <0x11030000 0x100>;
-		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-		clock-frequency = <24000000>;
-		clocks = <&xin24m>, <&xin24m>;
-		clock-names = "sclk_uart", "pclk_uart";
-		reg-shift = <2>;
-		reg-io-width = <4>;
-		status = "disabled";
-	};
-
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
 		rockchip,serial-id = <2>;
@@ -201,6 +191,54 @@
 			<&clk_gates7 15>, /* g_aclk_gpu_noc */
 
 			<&clk_gates1 3>;/*clk_jtag*/
+	};
+
+	uart0: serial@11010000 {
+		compatible = "rockchip,serial";
+		reg = <0x11010000 0x100>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <24000000>;
+		clocks = <&clk_uart0>, <&clk_gates9 12>;
+		clock-names = "sclk_uart", "pclk_uart";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&pdma 2>, <&pdma 3>;
+		#dma-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
+		status = "disabled";
+	};
+
+	uart1: serial@11020000 {
+		compatible = "rockchip,serial";
+		reg = <0x11020000 0x100>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <24000000>;
+		clocks = <&clk_uart1>, <&clk_gates9 13>;
+		clock-names = "sclk_uart", "pclk_uart";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&pdma 4>, <&pdma 5>;
+		#dma-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart1_xfer &uart1_cts &uart1_rts>;
+		status = "disabled";
+	};
+
+	uart2: serial@11030000 {
+		compatible = "rockchip,serial";
+		reg = <0x11030000 0x100>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <24000000>;
+		clocks = <&clk_uart2>, <&clk_gates9 14>;
+		lock-names = "sclk_uart", "pclk_uart";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&pdma 6>, <&pdma 7>;
+		#dma-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2_xfer>;
+		status = "disabled";
 	};
 
 	i2c0: i2c@11050000 {
