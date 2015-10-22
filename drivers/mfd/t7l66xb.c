@@ -185,7 +185,7 @@ static struct mfd_cell t7l66xb_cells[] = {
 /*--------------------------------------------------------------------------*/
 
 /* Handle the T7L66XB interrupt mux */
-static void t7l66xb_irq(unsigned int irq, struct irq_desc *desc)
+static void t7l66xb_irq(struct irq_desc *desc)
 {
 	struct t7l66xb *t7l66xb = irq_desc_get_handler_data(desc);
 	unsigned int isr;

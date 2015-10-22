@@ -406,6 +406,22 @@ static struct blk_mq_ops null_mq_ops = {
 	.complete	= null_softirq_done_fn,
 };
 
+static void cleanup_queue(struct nullb_queue *nq)
+{
+	kfree(nq->tag_map);
+	kfree(nq->cmds);
+}
+
+static void cleanup_queues(struct nullb *nullb)
+{
+	int i;
+
+	for (i = 0; i < nullb->nr_queues; i++)
+		cleanup_queue(&nullb->queues[i]);
+
+	kfree(nullb->queues);
+}
+
 static void null_del_dev(struct nullb *nullb)
 {
 	list_del_init(&nullb->list);
@@ -415,6 +431,7 @@ static void null_del_dev(struct nullb *nullb)
 	if (queue_mode == NULL_Q_MQ)
 		blk_mq_free_tag_set(&nullb->tag_set);
 	put_disk(nullb->disk);
+	cleanup_queues(nullb);
 	kfree(nullb);
 }
 
@@ -457,22 +474,6 @@ static int setup_commands(struct nullb_queue *nq)
 	}
 
 	return 0;
-}
-
-static void cleanup_queue(struct nullb_queue *nq)
-{
-	kfree(nq->tag_map);
-	kfree(nq->cmds);
-}
-
-static void cleanup_queues(struct nullb *nullb)
-{
-	int i;
-
-	for (i = 0; i < nullb->nr_queues; i++)
-		cleanup_queue(&nullb->queues[i]);
-
-	kfree(nullb->queues);
 }
 
 static int setup_queues(struct nullb *nullb)
@@ -588,8 +589,7 @@ static int null_add_dev(void)
 	blk_queue_physical_block_size(nullb->q, bs);
 
 	size = gb * 1024 * 1024 * 1024ULL;
-	sector_div(size, bs);
-	set_capacity(disk, size);
+	set_capacity(disk, size >> 9);
 
 	disk->flags |= GENHD_FL_EXT_DEVT | GENHD_FL_SUPPRESS_PARTITION_INFO;
 	disk->major		= null_major;

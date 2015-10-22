@@ -1475,7 +1475,7 @@ static const struct gpio_chip rockchip_gpiolib_chip = {
  * Interrupt handling
  */
 
-static void rockchip_irq_demux(unsigned int __irq, struct irq_desc *desc)
+static void rockchip_irq_demux(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct rockchip_pin_bank *bank = irq_desc_get_handler_data(desc);

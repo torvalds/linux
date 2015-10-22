@@ -116,8 +116,9 @@ static bool do_test(struct vm86plus_struct *v86, unsigned long eip,
 	v86->regs.eip = eip;
 	ret = vm86(VM86_ENTER, v86);
 
-	if (ret == -1 && errno == ENOSYS) {
-		printf("[SKIP]\tvm86 not supported\n");
+	if (ret == -1 && (errno == ENOSYS || errno == EPERM)) {
+		printf("[SKIP]\tvm86 %s\n",
+		       errno == ENOSYS ? "not supported" : "not allowed");
 		return false;
 	}
 

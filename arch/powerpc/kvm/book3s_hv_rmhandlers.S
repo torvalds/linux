@@ -1257,6 +1257,7 @@ mc_cont:
 	bl	kvmhv_accumulate_time
 #endif
 
+	mr 	r3, r12
 	/* Increment exit count, poke other threads to exit */
 	bl	kvmhv_commence_exit
 	nop

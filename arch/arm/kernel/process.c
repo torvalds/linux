@@ -226,6 +226,7 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 
 	memset(&thread->cpu_context, 0, sizeof(struct cpu_context_save));
 
+#ifdef CONFIG_CPU_USE_DOMAINS
 	/*
 	 * Copy the initial value of the domain access control register
 	 * from the current thread: thread->addr_limit will have been
@@ -233,6 +234,7 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	 * kernel/fork.c
 	 */
 	thread->cpu_domain = get_domain();
+#endif
 
 	if (likely(!(p->flags & PF_KTHREAD))) {
 		*childregs = *current_pt_regs();

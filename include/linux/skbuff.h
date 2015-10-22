@@ -179,6 +179,9 @@ struct nf_bridge_info {
 	u8			bridged_dnat:1;
 	__u16			frag_max_size;
 	struct net_device	*physindev;
+
+	/* always valid & non-NULL from FORWARD on, for physdev match */
+	struct net_device	*physoutdev;
 	union {
 		/* prerouting: detect dnat in orig/reply direction */
 		__be32          ipv4_daddr;
@@ -189,9 +192,6 @@ struct nf_bridge_info {
 		 * skb is out in neigh layer.
 		 */
 		char neigh_header[8];
-
-		/* always valid & non-NULL from FORWARD on, for physdev match */
-		struct net_device *physoutdev;
 	};
 };
 #endif
@@ -2707,6 +2707,9 @@ static inline void skb_postpull_rcsum(struct sk_buff *skb,
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_sub(skb->csum, csum_partial(start, len, 0));
+	else if (skb->ip_summed == CHECKSUM_PARTIAL &&
+		 skb_checksum_start_offset(skb) <= len)
+		skb->ip_summed = CHECKSUM_NONE;
 }
 
 unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len);

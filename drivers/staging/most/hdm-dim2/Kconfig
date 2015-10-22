@@ -5,6 +5,7 @@
 config HDM_DIM2
 	tristate "DIM2 HDM"
 	depends on AIM_NETWORK
+	depends on HAS_IOMEM
 
 	---help---
 	  Say Y here if you want to connect via MediaLB to network transceiver.

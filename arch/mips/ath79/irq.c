@@ -26,7 +26,7 @@
 #include "common.h"
 #include "machtypes.h"
 
-static void ath79_misc_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ath79_misc_irq_handler(struct irq_desc *desc)
 {
 	void __iomem *base = ath79_reset_base;
 	u32 pending;
@@ -119,7 +119,7 @@ static void __init ath79_misc_irq_init(void)
 	irq_set_chained_handler(ATH79_CPU_IRQ(6), ath79_misc_irq_handler);
 }
 
-static void ar934x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+static void ar934x_ip2_irq_dispatch(struct irq_desc *desc)
 {
 	u32 status;
 
@@ -148,7 +148,7 @@ static void ar934x_ip2_irq_init(void)
 	irq_set_chained_handler(ATH79_CPU_IRQ(2), ar934x_ip2_irq_dispatch);
 }
 
-static void qca955x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+static void qca955x_ip2_irq_dispatch(struct irq_desc *desc)
 {
 	u32 status;
 
@@ -171,7 +171,7 @@ static void qca955x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static void qca955x_ip3_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+static void qca955x_ip3_irq_dispatch(struct irq_desc *desc)
 {
 	u32 status;
 

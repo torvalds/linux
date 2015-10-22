@@ -1011,11 +1011,11 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 					set_bit(epidx, &irq_bit);
 				break;
 			}
+
+			hw->ep_shm_info[epidx].es_status =
+				info[epidx].es_status;
+			hw->ep_shm_info[epidx].zone = info[epidx].zone;
 		}
-
-		hw->ep_shm_info[epidx].es_status = info[epidx].es_status;
-		hw->ep_shm_info[epidx].zone = info[epidx].zone;
-
 		break;
 	}
 

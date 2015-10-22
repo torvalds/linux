@@ -623,7 +623,7 @@ static int intel_bts_process_event(struct perf_session *session,
 	if (err)
 		return err;
 	if (event->header.type == PERF_RECORD_EXIT) {
-		err = intel_bts_process_tid_exit(bts, event->comm.tid);
+		err = intel_bts_process_tid_exit(bts, event->fork.tid);
 		if (err)
 			return err;
 	}

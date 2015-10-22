@@ -1968,7 +1968,8 @@ skip_annotation:
 					  &options[nr_options], dso);
 		nr_options += add_map_opt(browser, &actions[nr_options],
 					  &options[nr_options],
-					  browser->selection->map);
+					  browser->selection ?
+						browser->selection->map : NULL);
 
 		/* perf script support */
 		if (browser->he_selection) {
@@ -1976,6 +1977,15 @@ skip_annotation:
 						     &actions[nr_options],
 						     &options[nr_options],
 						     thread, NULL);
+			/*
+			 * Note that browser->selection != NULL
+			 * when browser->he_selection is not NULL,
+			 * so we don't need to check browser->selection
+			 * before fetching browser->selection->sym like what
+			 * we do before fetching browser->selection->map.
+			 *
+			 * See hist_browser__show_entry.
+			 */
 			nr_options += add_script_opt(browser,
 						     &actions[nr_options],
 						     &options[nr_options],

@@ -297,7 +297,9 @@ static inline void __iomem * ioremap_nocache(unsigned long offset,
 					     unsigned long size)
 {
 	return ioremap(offset, size);
-} 
+}
+
+#define ioremap_uc ioremap_nocache
 
 static inline void iounmap(volatile void __iomem *addr)
 {

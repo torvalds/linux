@@ -1679,7 +1679,7 @@ static irqreturn_t pcs_irq_handler(int irq, void *d)
  * Use this if you have a separate interrupt for each
  * pinctrl-single instance.
  */
-static void pcs_irq_chain_handler(unsigned int irq, struct irq_desc *desc)
+static void pcs_irq_chain_handler(struct irq_desc *desc)
 {
 	struct pcs_soc_data *pcs_soc = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip;

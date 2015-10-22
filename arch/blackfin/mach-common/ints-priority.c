@@ -656,8 +656,7 @@ static struct irq_chip bfin_mac_status_irqchip = {
 	.irq_set_wake = bfin_mac_status_set_wake,
 };
 
-void bfin_demux_mac_status_irq(unsigned int int_err_irq,
-			       struct irq_desc *inta_desc)
+void bfin_demux_mac_status_irq(struct irq_desc *inta_desc)
 {
 	int i, irq = 0;
 	u32 status = bfin_read_EMAC_SYSTAT();
@@ -825,7 +824,7 @@ static void bfin_demux_gpio_block(unsigned int irq)
 	}
 }
 
-void bfin_demux_gpio_irq(unsigned int __inta_irq, struct irq_desc *desc)
+void bfin_demux_gpio_irq(struct irq_desc *desc)
 {
 	unsigned int inta_irq = irq_desc_get_irq(desc);
 	unsigned int irq;

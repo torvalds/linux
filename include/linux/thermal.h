@@ -360,7 +360,7 @@ static inline struct thermal_zone_device *
 thermal_zone_of_sensor_register(struct device *dev, int id, void *data,
 				const struct thermal_zone_of_device_ops *ops)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 static inline
@@ -380,6 +380,8 @@ static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 
 int power_actor_get_max_power(struct thermal_cooling_device *,
 			      struct thermal_zone_device *tz, u32 *max_power);
+int power_actor_get_min_power(struct thermal_cooling_device *,
+			      struct thermal_zone_device *tz, u32 *min_power);
 int power_actor_set_power(struct thermal_cooling_device *,
 			  struct thermal_instance *, u32);
 struct thermal_zone_device *thermal_zone_device_register(const char *, int, int,
@@ -415,6 +417,10 @@ static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 static inline int power_actor_get_max_power(struct thermal_cooling_device *cdev,
 			      struct thermal_zone_device *tz, u32 *max_power)
 { return 0; }
+static inline int power_actor_get_min_power(struct thermal_cooling_device *cdev,
+					    struct thermal_zone_device *tz,
+					    u32 *min_power)
+{ return -ENODEV; }
 static inline int power_actor_set_power(struct thermal_cooling_device *cdev,
 			  struct thermal_instance *tz, u32 power)
 { return 0; }

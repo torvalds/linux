@@ -2740,10 +2740,8 @@ static void req_prot_cleanup(struct request_sock_ops *rsk_prot)
 		return;
 	kfree(rsk_prot->slab_name);
 	rsk_prot->slab_name = NULL;
-	if (rsk_prot->slab) {
-		kmem_cache_destroy(rsk_prot->slab);
-		rsk_prot->slab = NULL;
-	}
+	kmem_cache_destroy(rsk_prot->slab);
+	rsk_prot->slab = NULL;
 }
 
 static int req_prot_init(const struct proto *prot)
@@ -2828,10 +2826,8 @@ void proto_unregister(struct proto *prot)
 	list_del(&prot->node);
 	mutex_unlock(&proto_list_mutex);
 
-	if (prot->slab != NULL) {
-		kmem_cache_destroy(prot->slab);
-		prot->slab = NULL;
-	}
+	kmem_cache_destroy(prot->slab);
+	prot->slab = NULL;
 
 	req_prot_cleanup(prot->rsk_prot);
 

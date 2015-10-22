@@ -22,6 +22,7 @@
 
 typedef unsigned long long dma_addr_t;
 typedef size_t __kernel_size_t;
+typedef unsigned int __wsum;
 
 struct page {
 	unsigned long long dummy;
@@ -46,6 +47,13 @@ static inline void *kmalloc(size_t s, gfp_t gfp)
 	if (__kmalloc_fake)
 		return __kmalloc_fake;
 	return malloc(s);
+}
+static inline void *kzalloc(size_t s, gfp_t gfp)
+{
+	void *p = kmalloc(s, gfp);
+
+	memset(p, 0, s);
+	return p;
 }
 
 static inline void kfree(void *p)

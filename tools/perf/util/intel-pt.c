@@ -1494,7 +1494,7 @@ static int intel_pt_process_event(struct perf_session *session,
 	if (pt->timeless_decoding) {
 		if (event->header.type == PERF_RECORD_EXIT) {
 			err = intel_pt_process_timeless_queues(pt,
-							       event->comm.tid,
+							       event->fork.tid,
 							       sample->time);
 		}
 	} else if (timestamp) {

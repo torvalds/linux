@@ -236,7 +236,7 @@ static void brcmstb_gpio_irq_bank_handler(struct brcmstb_gpio_bank *bank)
 }
 
 /* Each UPG GIO block has one IRQ for all banks */
-static void brcmstb_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void brcmstb_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct brcmstb_gpio_priv *priv = brcmstb_gpio_gc_to_priv(gc);

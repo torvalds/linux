@@ -723,9 +723,9 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 #endif
 
 	pctrl->pctrl = pinctrl_register(&pctrl->desc, &pdev->dev, pctrl);
-	if (!pctrl->pctrl) {
+	if (IS_ERR(pctrl->pctrl)) {
 		dev_err(&pdev->dev, "couldn't register pm8xxx gpio driver\n");
-		return -ENODEV;
+		return PTR_ERR(pctrl->pctrl);
 	}
 
 	pctrl->chip = pm8xxx_gpio_template;

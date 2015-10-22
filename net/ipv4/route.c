@@ -2045,6 +2045,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 	struct fib_result res;
 	struct rtable *rth;
 	int orig_oif;
+	int err = -ENETUNREACH;
 
 	res.tclassid	= 0;
 	res.fi		= NULL;
@@ -2153,7 +2154,8 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 		goto make_route;
 	}
 
-	if (fib_lookup(net, fl4, &res, 0)) {
+	err = fib_lookup(net, fl4, &res, 0);
+	if (err) {
 		res.fi = NULL;
 		res.table = NULL;
 		if (fl4->flowi4_oif) {
@@ -2181,7 +2183,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			res.type = RTN_UNICAST;
 			goto make_route;
 		}
-		rth = ERR_PTR(-ENETUNREACH);
+		rth = ERR_PTR(err);
 		goto out;
 	}
 

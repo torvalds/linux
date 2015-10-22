@@ -84,7 +84,6 @@ static int icoll_irq_domain_map(struct irq_domain *d, unsigned int virq,
 				irq_hw_number_t hw)
 {
 	irq_set_chip_and_handler(virq, &mxs_icoll_chip, handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID);
 
 	return 0;
 }

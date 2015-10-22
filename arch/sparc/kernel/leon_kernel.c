@@ -53,7 +53,7 @@ static inline unsigned int leon_eirq_get(int cpu)
 }
 
 /* Handle one or multiple IRQs from the extended interrupt controller */
-static void leon_handle_ext_irq(unsigned int irq, struct irq_desc *desc)
+static void leon_handle_ext_irq(struct irq_desc *desc)
 {
 	unsigned int eirq;
 	struct irq_bucket *p;

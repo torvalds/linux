@@ -117,6 +117,6 @@ handle_irq(int irq)
 	}
 
 	irq_enter();
-	generic_handle_irq_desc(irq, desc);
+	generic_handle_irq_desc(desc);
 	irq_exit();
 }

@@ -407,7 +407,7 @@ static const struct irq_domain_ops s3c64xx_gpio_irqd_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
-static void s3c64xx_eint_gpio_irq(unsigned int irq, struct irq_desc *desc)
+static void s3c64xx_eint_gpio_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct s3c64xx_eint_gpio_data *data = irq_desc_get_handler_data(desc);
@@ -631,22 +631,22 @@ static inline void s3c64xx_irq_demux_eint(struct irq_desc *desc, u32 range)
 	chained_irq_exit(chip, desc);
 }
 
-static void s3c64xx_demux_eint0_3(unsigned int irq, struct irq_desc *desc)
+static void s3c64xx_demux_eint0_3(struct irq_desc *desc)
 {
 	s3c64xx_irq_demux_eint(desc, 0xf);
 }
 
-static void s3c64xx_demux_eint4_11(unsigned int irq, struct irq_desc *desc)
+static void s3c64xx_demux_eint4_11(struct irq_desc *desc)
 {
 	s3c64xx_irq_demux_eint(desc, 0xff0);
 }
 
-static void s3c64xx_demux_eint12_19(unsigned int irq, struct irq_desc *desc)
+static void s3c64xx_demux_eint12_19(struct irq_desc *desc)
 {
 	s3c64xx_irq_demux_eint(desc, 0xff000);
 }
 
-static void s3c64xx_demux_eint20_27(unsigned int irq, struct irq_desc *desc)
+static void s3c64xx_demux_eint20_27(struct irq_desc *desc)
 {
 	s3c64xx_irq_demux_eint(desc, 0xff00000);
 }

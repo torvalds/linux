@@ -4,7 +4,7 @@ Power allocator governor tunables
 Trip points
 -----------
 
-The governor requires the following two passive trip points:
+The governor works optimally with the following two passive trip points:
 
 1.  "switch on" trip point: temperature above which the governor
     control loop starts operating.  This is the first passive trip

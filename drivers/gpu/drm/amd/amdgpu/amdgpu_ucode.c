@@ -247,7 +247,7 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	const struct common_firmware_header *header = NULL;
 
 	err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
-			AMDGPU_GEM_DOMAIN_GTT, 0, NULL, bo);
+			AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL, bo);
 	if (err) {
 		dev_err(adev->dev, "(%d) Firmware buffer allocate failed\n", err);
 		err = -ENOMEM;

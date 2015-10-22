@@ -1658,9 +1658,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		 * groups on disk until we're mounted read-write again
 		 * unless we clean them up here.
 		 */
-		mutex_lock(&root->fs_info->cleaner_mutex);
 		btrfs_delete_unused_bgs(fs_info);
-		mutex_unlock(&root->fs_info->cleaner_mutex);
 
 		btrfs_dev_replace_suspend_for_unmount(fs_info);
 		btrfs_scrub_cancel(fs_info);

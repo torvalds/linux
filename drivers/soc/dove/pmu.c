@@ -222,9 +222,9 @@ static void __pmu_domain_register(struct pmu_domain *domain,
 }
 
 /* PMU IRQ controller */
-static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void pmu_irq_handler(struct irq_desc *desc)
 {
-	struct pmu_data *pmu = irq_get_handler_data(irq);
+	struct pmu_data *pmu = irq_desc_get_handler_data(desc);
 	struct irq_chip_generic *gc = pmu->irq_gc;
 	struct irq_domain *domain = pmu->irq_domain;
 	void __iomem *base = gc->reg_base;
@@ -232,7 +232,7 @@ static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
 	u32 done = ~0;
 
 	if (stat == 0) {
-		handle_bad_irq(irq, desc);
+		handle_bad_irq(desc);
 		return;
 	}
 

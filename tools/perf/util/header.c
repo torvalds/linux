@@ -1438,7 +1438,7 @@ static int process_nrcpus(struct perf_file_section *section __maybe_unused,
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
-	ph->env.nr_cpus_online = nr;
+	ph->env.nr_cpus_avail = nr;
 
 	ret = readn(fd, &nr, sizeof(nr));
 	if (ret != sizeof(nr))
@@ -1447,7 +1447,7 @@ static int process_nrcpus(struct perf_file_section *section __maybe_unused,
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
-	ph->env.nr_cpus_avail = nr;
+	ph->env.nr_cpus_online = nr;
 	return 0;
 }
 

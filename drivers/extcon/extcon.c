@@ -159,7 +159,7 @@ static int find_cable_index_by_name(struct extcon_dev *edev, const char *name)
 static bool is_extcon_changed(u32 prev, u32 new, int idx, bool *attached)
 {
 	if (((prev >> idx) & 0x1) != ((new >> idx) & 0x1)) {
-		*attached = new ? true : false;
+		*attached = ((new >> idx) & 0x1) ? true : false;
 		return true;
 	}
 

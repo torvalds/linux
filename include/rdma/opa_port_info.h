@@ -294,8 +294,8 @@ struct opa_port_states {
 
 struct opa_port_state_info {
 	struct opa_port_states port_states;
-	u16 link_width_downgrade_tx_active;
-	u16 link_width_downgrade_rx_active;
+	__be16 link_width_downgrade_tx_active;
+	__be16 link_width_downgrade_rx_active;
 };
 
 struct opa_port_info {

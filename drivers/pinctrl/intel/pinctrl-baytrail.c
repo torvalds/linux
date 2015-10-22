@@ -425,7 +425,7 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	}
 }
 
-static void byt_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void byt_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct byt_gpio *vg = to_byt_gpio(irq_desc_get_handler_data(desc));

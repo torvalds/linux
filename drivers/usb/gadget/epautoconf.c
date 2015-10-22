@@ -186,6 +186,7 @@ void usb_ep_autoconfig_reset (struct usb_gadget *gadget)
 
 	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
 		ep->claimed = false;
+		ep->driver_data = NULL;
 	}
 	gadget->in_epnum = 0;
 	gadget->out_epnum = 0;

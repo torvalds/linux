@@ -91,7 +91,7 @@
 #define TWL4030_MSTATEC_COMPLETE1	0x0b
 #define TWL4030_MSTATEC_COMPLETE4	0x0e
 
-#if IS_ENABLED(CONFIG_TWL4030_MADC)
+#if IS_REACHABLE(CONFIG_TWL4030_MADC)
 /*
  * If AC (Accessory Charger) voltage exceeds 4.5V (MADC 11)
  * then AC is available.
@@ -1057,13 +1057,9 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 
 		phynode = of_find_compatible_node(bci->dev->of_node->parent,
 						  NULL, "ti,twl4030-usb");
-		if (phynode) {
+		if (phynode)
 			bci->transceiver = devm_usb_get_phy_by_node(
 				bci->dev, phynode, &bci->usb_nb);
-			if (IS_ERR(bci->transceiver) &&
-			    PTR_ERR(bci->transceiver) == -EPROBE_DEFER)
-				return -EPROBE_DEFER;
-		}
 	}
 
 	/* Enable interrupts now. */

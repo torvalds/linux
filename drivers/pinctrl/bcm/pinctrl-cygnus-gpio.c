@@ -143,7 +143,7 @@ static inline bool cygnus_get_bit(struct cygnus_gpio *chip, unsigned int reg,
 	return !!(readl(chip->base + offset) & BIT(shift));
 }
 
-static void cygnus_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void cygnus_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct cygnus_gpio *chip = to_cygnus_gpio(gc);

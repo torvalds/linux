@@ -861,7 +861,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	r = amdgpu_bo_create(adev, 256 * 1024, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-			     NULL, &adev->stollen_vga_memory);
+			     NULL, NULL, &adev->stollen_vga_memory);
 	if (r) {
 		return r;
 	}

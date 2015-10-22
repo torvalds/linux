@@ -311,8 +311,8 @@ unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 }
 
 void __init qe_ic_init(struct device_node *node, unsigned int flags,
-		void (*low_handler)(unsigned int irq, struct irq_desc *desc),
-		void (*high_handler)(unsigned int irq, struct irq_desc *desc))
+		       void (*low_handler)(struct irq_desc *desc),
+		       void (*high_handler)(struct irq_desc *desc))
 {
 	struct qe_ic *qe_ic;
 	struct resource res;

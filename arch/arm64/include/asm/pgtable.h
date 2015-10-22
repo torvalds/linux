@@ -26,13 +26,9 @@
  * Software defined PTE bits definition.
  */
 #define PTE_VALID		(_AT(pteval_t, 1) << 0)
+#define PTE_WRITE		(PTE_DBM)		 /* same as DBM (51) */
 #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
 #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
-#ifdef CONFIG_ARM64_HW_AFDBM
-#define PTE_WRITE		(PTE_DBM)		 /* same as DBM */
-#else
-#define PTE_WRITE		(_AT(pteval_t, 1) << 57)
-#endif
 #define PTE_PROT_NONE		(_AT(pteval_t, 1) << 58) /* only when !PTE_VALID */
 
 /*
@@ -146,7 +142,7 @@ extern struct page *empty_zero_page;
 #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
 
 #ifdef CONFIG_ARM64_HW_AFDBM
-#define pte_hw_dirty(pte)	(!(pte_val(pte) & PTE_RDONLY))
+#define pte_hw_dirty(pte)	(pte_write(pte) && !(pte_val(pte) & PTE_RDONLY))
 #else
 #define pte_hw_dirty(pte)	(0)
 #endif
@@ -238,7 +234,7 @@ extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
  * When hardware DBM is not present, the sofware PTE_DIRTY bit is updated via
  * the page fault mechanism. Checking the dirty status of a pte becomes:
  *
- *   PTE_DIRTY || !PTE_RDONLY
+ *   PTE_DIRTY || (PTE_WRITE && !PTE_RDONLY)
  */
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
@@ -503,7 +499,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 			      PTE_PROT_NONE | PTE_WRITE | PTE_TYPE_MASK;
 	/* preserve the hardware dirty information */
 	if (pte_hw_dirty(pte))
-		newprot |= PTE_DIRTY;
+		pte = pte_mkdirty(pte);
 	pte_val(pte) = (pte_val(pte) & ~mask) | (pgprot_val(newprot) & mask);
 	return pte;
 }

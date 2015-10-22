@@ -1181,6 +1181,7 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 	struct hfi1_filedata *fd = fp->private_data;
 	int ret = 0;
 
+	memset(&cinfo, 0, sizeof(cinfo));
 	ret = hfi1_get_base_kinfo(uctxt, &cinfo);
 	if (ret < 0)
 		goto done;
@@ -2089,14 +2090,16 @@ static int user_add(struct hfi1_devdata *dd)
 
 	if (atomic_inc_return(&user_count) == 1) {
 		ret = hfi1_cdev_init(0, class_name(), &hfi1_file_ops,
-				     &wildcard_cdev, &wildcard_device);
+				     &wildcard_cdev, &wildcard_device,
+				     true);
 		if (ret)
 			goto done;
 	}
 
 	snprintf(name, sizeof(name), "%s_%d", class_name(), dd->unit);
 	ret = hfi1_cdev_init(dd->unit + 1, name, &hfi1_file_ops,
-			     &dd->user_cdev, &dd->user_device);
+			     &dd->user_cdev, &dd->user_device,
+			     true);
 	if (ret)
 		goto done;
 
@@ -2104,7 +2107,8 @@ static int user_add(struct hfi1_devdata *dd)
 		snprintf(name, sizeof(name),
 			 "%s_ui%d", class_name(), dd->unit);
 		ret = hfi1_cdev_init(dd->unit + UI_OFFSET, name, &ui_file_ops,
-				     &dd->ui_cdev, &dd->ui_device);
+				     &dd->ui_cdev, &dd->ui_device,
+				     false);
 		if (ret)
 			goto done;
 	}

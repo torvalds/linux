@@ -120,7 +120,7 @@ static int vf610_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 	return pinctrl_gpio_direction_output(chip->base + gpio);
 }
 
-static void vf610_gpio_irq_handler(u32 irq, struct irq_desc *desc)
+static void vf610_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct vf610_gpio_port *port = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
@@ -176,9 +176,9 @@ static int vf610_gpio_irq_set_type(struct irq_data *d, u32 type)
 	port->irqc[d->hwirq] = irqc;
 
 	if (type & IRQ_TYPE_LEVEL_MASK)
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	else
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 
 	return 0;
 }

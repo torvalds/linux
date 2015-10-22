@@ -65,8 +65,14 @@ static bool amdgpu_sync_same_dev(struct amdgpu_device *adev, struct fence *f)
 
 	if (a_fence)
 		return a_fence->ring->adev == adev;
-	if (s_fence)
-		return (struct amdgpu_device *)s_fence->scheduler->priv == adev;
+
+	if (s_fence) {
+		struct amdgpu_ring *ring;
+
+		ring = container_of(s_fence->sched, struct amdgpu_ring, sched);
+		return ring->adev == adev;
+	}
+
 	return false;
 }
 
@@ -251,6 +257,20 @@ int amdgpu_sync_wait(struct amdgpu_sync *sync)
 		fence_put(e->fence);
 		kfree(e);
 	}
+
+	if (amdgpu_enable_semaphores)
+		return 0;
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+		struct amdgpu_fence *fence = sync->sync_to[i];
+		if (!fence)
+			continue;
+
+		r = fence_wait(&fence->base, false);
+		if (r)
+			return r;
+	}
+
 	return 0;
 }
 
@@ -285,7 +305,8 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 			return -EINVAL;
 		}
 
-		if (amdgpu_enable_scheduler || (count >= AMDGPU_NUM_SYNCS)) {
+		if (amdgpu_enable_scheduler || !amdgpu_enable_semaphores ||
+		    (count >= AMDGPU_NUM_SYNCS)) {
 			/* not enough room, wait manually */
 			r = fence_wait(&fence->base, false);
 			if (r)

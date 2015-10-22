@@ -3765,9 +3765,7 @@ void close_ctree(struct btrfs_root *root)
 		 * block groups queued for removal, the deletion will be
 		 * skipped when we quit the cleaner thread.
 		 */
-		mutex_lock(&root->fs_info->cleaner_mutex);
 		btrfs_delete_unused_bgs(root->fs_info);
-		mutex_unlock(&root->fs_info->cleaner_mutex);
 
 		ret = btrfs_commit_super(root);
 		if (ret)

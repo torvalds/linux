@@ -115,7 +115,7 @@ static inline void l1_writel(u32 val, void __iomem *reg)
 		writel(val, reg);
 }
 
-static void bcm7038_l1_irq_handle(unsigned int irq, struct irq_desc *desc)
+static void bcm7038_l1_irq_handle(struct irq_desc *desc)
 {
 	struct bcm7038_l1_chip *intc = irq_desc_get_handler_data(desc);
 	struct bcm7038_l1_cpu *cpu;

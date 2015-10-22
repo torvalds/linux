@@ -370,6 +370,9 @@ static void blkg_destroy_all(struct request_queue *q)
 		blkg_destroy(blkg);
 		spin_unlock(&blkcg->lock);
 	}
+
+	q->root_blkg = NULL;
+	q->root_rl.blkg = NULL;
 }
 
 /*

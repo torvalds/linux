@@ -95,8 +95,8 @@ static void gicv2m_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct v2m_data *v2m = irq_data_get_irq_chip_data(data);
 	phys_addr_t addr = v2m->res.start + V2M_MSI_SETSPI_NS;
 
-	msg->address_hi = (u32) (addr >> 32);
-	msg->address_lo = (u32) (addr);
+	msg->address_hi = upper_32_bits(addr);
+	msg->address_lo = lower_32_bits(addr);
 	msg->data = data->hwirq;
 }
 

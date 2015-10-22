@@ -478,9 +478,9 @@ do_pass:
 				bpf_src = BPF_X;
 			} else {
 				insn->dst_reg = BPF_REG_A;
-				insn->src_reg = BPF_REG_X;
 				insn->imm = fp->k;
 				bpf_src = BPF_SRC(fp->code);
+				insn->src_reg = bpf_src == BPF_X ? BPF_REG_X : 0;
 			}
 
 			/* Common case where 'jump_false' is next insn. */

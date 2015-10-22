@@ -15,17 +15,18 @@ Required properties:
 - interrupts: Should contain spi interrupt
 
 - clocks: phandles to input clocks.
-  The first should be <&topckgen CLK_TOP_SPI_SEL>.
-  The second should be one of the following.
+  The first should be one of the following. It's PLL.
    -  <&clk26m>: specify parent clock 26MHZ.
    -  <&topckgen CLK_TOP_SYSPLL3_D2>: specify parent clock 109MHZ.
 				      It's the default one.
    -  <&topckgen CLK_TOP_SYSPLL4_D2>: specify parent clock 78MHZ.
    -  <&topckgen CLK_TOP_UNIVPLL2_D4>: specify parent clock 104MHZ.
    -  <&topckgen CLK_TOP_UNIVPLL1_D8>: specify parent clock 78MHZ.
+  The second should be <&topckgen CLK_TOP_SPI_SEL>. It's clock mux.
+  The third is <&pericfg CLK_PERI_SPI0>. It's clock gate.
 
-- clock-names: shall be "spi-clk" for the controller clock, and
-  "parent-clk" for the parent clock.
+- clock-names: shall be "parent-clk" for the parent clock, "sel-clk" for the
+  muxes clock, and "spi-clk" for the clock gate.
 
 Optional properties:
 - mediatek,pad-select: specify which pins group(ck/mi/mo/cs) spi
@@ -44,8 +45,11 @@ spi: spi@1100a000 {
 	#size-cells = <0>;
 	reg = <0 0x1100a000 0 0x1000>;
 	interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_LOW>;
-	clocks = <&topckgen CLK_TOP_SPI_SEL>, <&topckgen CLK_TOP_SYSPLL3_D2>;
-	clock-names = "spi-clk", "parent-clk";
+	clocks = <&topckgen CLK_TOP_SYSPLL3_D2>,
+		 <&topckgen CLK_TOP_SPI_SEL>,
+		 <&pericfg CLK_PERI_SPI0>;
+	clock-names = "parent-clk", "sel-clk", "spi-clk";
+
 	mediatek,pad-select = <0>;
 	status = "disabled";
 };

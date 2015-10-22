@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 
 static DEFINE_SPINLOCK(clklock);
 

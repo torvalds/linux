@@ -55,7 +55,7 @@ static int mpc8xx_set_irq_type(struct irq_data *d, unsigned int flow_type)
 		unsigned int siel = in_be32(&siu_reg->sc_siel);
 		siel |= mpc8xx_irqd_to_bit(d);
 		out_be32(&siu_reg->sc_siel, siel);
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	}
 	return 0;
 }
