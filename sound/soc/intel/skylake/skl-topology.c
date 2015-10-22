@@ -844,7 +844,7 @@ skl_tplg_fe_get_cpr_module(struct snd_soc_dai *dai, int stream)
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		w = dai->playback_widget;
-		snd_soc_dapm_widget_for_each_source_path(w, p) {
+		snd_soc_dapm_widget_for_each_sink_path(w, p) {
 			if (p->connect && p->sink->power &&
 					is_skl_dsp_widget_type(p->sink))
 				continue;
@@ -857,7 +857,7 @@ skl_tplg_fe_get_cpr_module(struct snd_soc_dai *dai, int stream)
 		}
 	} else {
 		w = dai->capture_widget;
-		snd_soc_dapm_widget_for_each_sink_path(w, p) {
+		snd_soc_dapm_widget_for_each_source_path(w, p) {
 			if (p->connect && p->source->power &&
 					is_skl_dsp_widget_type(p->source))
 				continue;
@@ -945,7 +945,7 @@ static int skl_tplg_be_set_src_pipe_params(struct snd_soc_dai *dai,
 {
 	struct snd_soc_dapm_path *p;
 
-	snd_soc_dapm_widget_for_each_sink_path(w, p) {
+	snd_soc_dapm_widget_for_each_source_path(w, p) {
 		if (p->connect && is_skl_dsp_widget_type(p->source) &&
 						p->source->priv) {
 
@@ -969,7 +969,7 @@ static int skl_tplg_be_set_sink_pipe_params(struct snd_soc_dai *dai,
 {
 	struct snd_soc_dapm_path *p = NULL;
 
-	snd_soc_dapm_widget_for_each_source_path(w, p) {
+	snd_soc_dapm_widget_for_each_sink_path(w, p) {
 		if (p->connect && is_skl_dsp_widget_type(p->sink) &&
 						p->sink->priv) {
 
