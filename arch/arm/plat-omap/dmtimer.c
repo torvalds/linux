@@ -972,6 +972,10 @@ static const struct of_device_id omap_timer_match[] = {
 		.compatible = "ti,am335x-timer-1ms",
 		.data = &omap3plus_pdata,
 	},
+	{
+		.compatible = "ti,dm816-timer",
+		.data = &omap3plus_pdata,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_timer_match);
