@@ -90,7 +90,6 @@ struct tipc_bcbearer {
 
 /**
  * struct tipc_bc_base - link used for broadcast messages
- * @lock: spinlock governing access to structure
  * @link: (non-standard) broadcast link structure
  * @node: (non-standard) node structure representing b'cast link's peer node
  * @bcast_nodes: map of broadcast-capable nodes
@@ -99,7 +98,6 @@ struct tipc_bcbearer {
  * Handles sequence numbering, fragmentation, bundling, etc.
  */
 struct tipc_bc_base {
-	spinlock_t lock; /* spinlock protecting broadcast structs */
 	struct tipc_link link;
 	struct tipc_node node;
 	struct sk_buff_head arrvq;
@@ -124,16 +122,12 @@ static void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node);
 static void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node);
 static void tipc_bclink_lock(struct net *net)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-
-	spin_lock_bh(&tn->bcbase->lock);
+	tipc_bcast_lock(net);
 }
 
 static void tipc_bclink_unlock(struct net *net)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-
-	spin_unlock_bh(&tn->bcbase->lock);
+	tipc_bcast_unlock(net);
 }
 
 void tipc_bclink_input(struct net *net)
@@ -1031,7 +1025,7 @@ int tipc_bcast_init(struct net *net)
 	bcbearer->media.send_msg = tipc_bcbearer_send;
 	sprintf(bcbearer->media.name, "tipc-broadcast");
 
-	spin_lock_init(&bclink->lock);
+	spin_lock_init(&tipc_net(net)->bclock);
 	__skb_queue_head_init(&bcl->transmq);
 	__skb_queue_head_init(&bcl->backlogq);
 	__skb_queue_head_init(&bcl->deferdq);

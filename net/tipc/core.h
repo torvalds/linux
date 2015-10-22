@@ -93,6 +93,7 @@ struct tipc_net {
 	struct tipc_bearer __rcu *bearer_list[MAX_BEARERS + 1];
 
 	/* Broadcast link */
+	spinlock_t bclock;
 	struct tipc_bcbearer *bcbearer;
 	struct tipc_bc_base *bcbase;
 	struct tipc_link *bcl;

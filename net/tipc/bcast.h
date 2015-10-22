@@ -69,4 +69,14 @@ int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[]);
 void tipc_bclink_input(struct net *net);
 void tipc_bclink_sync_state(struct tipc_node *n, struct tipc_msg *msg);
 
+static inline void tipc_bcast_lock(struct net *net)
+{
+	spin_lock_bh(&tipc_net(net)->bclock);
+}
+
+static inline void tipc_bcast_unlock(struct net *net)
+{
+	spin_unlock_bh(&tipc_net(net)->bclock);
+}
+
 #endif
