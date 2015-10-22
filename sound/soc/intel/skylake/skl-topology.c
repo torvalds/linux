@@ -1034,18 +1034,17 @@ static const struct snd_soc_tplg_widget_events skl_tplg_widget_ops[] = {
  * The topology binary passes the pin info for a module so initialize the pin
  * info passed into module instance
  */
-static void skl_fill_module_pin_info(struct device *dev,
-			struct skl_module_pin *m_pin,
-			int max_pin)
+static void skl_fill_module_pin_info(struct skl_dfw_module_pin *dfw_pin,
+						struct skl_module_pin *m_pin,
+						bool is_dynamic, int max_pin)
 {
 	int i;
 
 	for (i = 0; i < max_pin; i++) {
-		m_pin[i].id.module_id = 0;
-		m_pin[i].id.instance_id = 0;
+		m_pin[i].id.module_id = dfw_pin[i].module_id;
+		m_pin[i].id.instance_id = dfw_pin[i].instance_id;
 		m_pin[i].in_use = false;
-		m_pin[i].is_dynamic = true;
-		m_pin[i].pin_index = i;
+		m_pin[i].is_dynamic = is_dynamic;
 	}
 }
 
@@ -1164,17 +1163,20 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	if (!mconfig->m_in_pin)
 		return -ENOMEM;
 
-	mconfig->m_out_pin = devm_kzalloc(bus->dev,
-				(mconfig->max_in_queue) *
-					sizeof(*mconfig->m_out_pin),
-				GFP_KERNEL);
+	mconfig->m_out_pin = devm_kzalloc(bus->dev, (mconfig->max_out_queue) *
+						sizeof(*mconfig->m_out_pin),
+						GFP_KERNEL);
 	if (!mconfig->m_out_pin)
 		return -ENOMEM;
 
-	skl_fill_module_pin_info(bus->dev, mconfig->m_in_pin,
-				mconfig->max_in_queue);
-	skl_fill_module_pin_info(bus->dev, mconfig->m_out_pin,
-				mconfig->max_out_queue);
+	skl_fill_module_pin_info(dfw_config->in_pin, mconfig->m_in_pin,
+						dfw_config->is_dynamic_in_pin,
+						mconfig->max_in_queue);
+
+	skl_fill_module_pin_info(dfw_config->out_pin, mconfig->m_out_pin,
+						 dfw_config->is_dynamic_out_pin,
+							mconfig->max_out_queue);
+
 
 	if (mconfig->formats_config.caps_size == 0)
 		goto bind_event;

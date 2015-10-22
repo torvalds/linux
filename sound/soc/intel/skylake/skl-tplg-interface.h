@@ -113,8 +113,6 @@ enum skl_dev_type {
 struct skl_dfw_module_pin {
 	u16 module_id;
 	u16 instance_id;
-	u8 pin_id;
-	bool is_dynamic;
 } __packed;
 
 struct skl_dfw_module_fmt {
@@ -155,9 +153,13 @@ struct skl_dfw_module {
 	u32 converter;
 	u32 module_type;
 	u32 vbus_id;
+	u8 is_dynamic_in_pin;
+	u8 is_dynamic_out_pin;
 	struct skl_dfw_pipe pipe;
 	struct skl_dfw_module_fmt in_fmt;
 	struct skl_dfw_module_fmt out_fmt;
+	struct skl_dfw_module_pin in_pin[MAX_IN_QUEUE];
+	struct skl_dfw_module_pin out_pin[MAX_OUT_QUEUE];
 	struct skl_dfw_module_caps caps;
 } __packed;
 
