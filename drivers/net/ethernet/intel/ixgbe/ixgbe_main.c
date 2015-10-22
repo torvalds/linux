@@ -4031,124 +4031,156 @@ static int ixgbe_write_mc_addr_list(struct net_device *netdev)
 #ifdef CONFIG_PCI_IOV
 void ixgbe_full_sync_mac_table(struct ixgbe_adapter *adapter)
 {
+	struct ixgbe_mac_addr *mac_table = &adapter->mac_table[0];
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
-	for (i = 0; i < hw->mac.num_rar_entries; i++) {
-		if (adapter->mac_table[i].state & IXGBE_MAC_STATE_IN_USE)
-			hw->mac.ops.set_rar(hw, i, adapter->mac_table[i].addr,
-					    adapter->mac_table[i].queue,
+
+	for (i = 0; i < hw->mac.num_rar_entries; i++, mac_table++) {
+		mac_table->state &= ~IXGBE_MAC_STATE_MODIFIED;
+
+		if (mac_table->state & IXGBE_MAC_STATE_IN_USE)
+			hw->mac.ops.set_rar(hw, i,
+					    mac_table->addr,
+					    mac_table->pool,
 					    IXGBE_RAH_AV);
 		else
 			hw->mac.ops.clear_rar(hw, i);
-
-		adapter->mac_table[i].state &= ~(IXGBE_MAC_STATE_MODIFIED);
 	}
 }
-#endif
 
+#endif
 static void ixgbe_sync_mac_table(struct ixgbe_adapter *adapter)
 {
+	struct ixgbe_mac_addr *mac_table = &adapter->mac_table[0];
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
-	for (i = 0; i < hw->mac.num_rar_entries; i++) {
-		if (adapter->mac_table[i].state & IXGBE_MAC_STATE_MODIFIED) {
-			if (adapter->mac_table[i].state &
-			    IXGBE_MAC_STATE_IN_USE)
-				hw->mac.ops.set_rar(hw, i,
-						adapter->mac_table[i].addr,
-						adapter->mac_table[i].queue,
-						IXGBE_RAH_AV);
-			else
-				hw->mac.ops.clear_rar(hw, i);
 
-			adapter->mac_table[i].state &=
-						~(IXGBE_MAC_STATE_MODIFIED);
-		}
+	for (i = 0; i < hw->mac.num_rar_entries; i++, mac_table++) {
+		if (!(mac_table->state & IXGBE_MAC_STATE_MODIFIED))
+			continue;
+
+		mac_table->state &= ~IXGBE_MAC_STATE_MODIFIED;
+
+		if (mac_table->state & IXGBE_MAC_STATE_IN_USE)
+			hw->mac.ops.set_rar(hw, i,
+					    mac_table->addr,
+					    mac_table->pool,
+					    IXGBE_RAH_AV);
+		else
+			hw->mac.ops.clear_rar(hw, i);
 	}
 }
 
 static void ixgbe_flush_sw_mac_table(struct ixgbe_adapter *adapter)
 {
-	int i;
+	struct ixgbe_mac_addr *mac_table = &adapter->mac_table[0];
 	struct ixgbe_hw *hw = &adapter->hw;
+	int i;
 
-	for (i = 0; i < hw->mac.num_rar_entries; i++) {
-		adapter->mac_table[i].state |= IXGBE_MAC_STATE_MODIFIED;
-		adapter->mac_table[i].state &= ~IXGBE_MAC_STATE_IN_USE;
-		eth_zero_addr(adapter->mac_table[i].addr);
-		adapter->mac_table[i].queue = 0;
+	for (i = 0; i < hw->mac.num_rar_entries; i++, mac_table++) {
+		mac_table->state |= IXGBE_MAC_STATE_MODIFIED;
+		mac_table->state &= ~IXGBE_MAC_STATE_IN_USE;
 	}
+
 	ixgbe_sync_mac_table(adapter);
 }
 
-static int ixgbe_available_rars(struct ixgbe_adapter *adapter)
+static int ixgbe_available_rars(struct ixgbe_adapter *adapter, u16 pool)
 {
+	struct ixgbe_mac_addr *mac_table = &adapter->mac_table[0];
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i, count = 0;
 
-	for (i = 0; i < hw->mac.num_rar_entries; i++) {
-		if (adapter->mac_table[i].state == 0)
-			count++;
+	for (i = 0; i < hw->mac.num_rar_entries; i++, mac_table++) {
+		/* do not count default RAR as available */
+		if (mac_table->state & IXGBE_MAC_STATE_DEFAULT)
+			continue;
+
+		/* only count unused and addresses that belong to us */
+		if (mac_table->state & IXGBE_MAC_STATE_IN_USE) {
+			if (mac_table->pool != pool)
+				continue;
+		}
+
+		count++;
 	}
+
 	return count;
 }
 
 /* this function destroys the first RAR entry */
-static void ixgbe_mac_set_default_filter(struct ixgbe_adapter *adapter,
-					 u8 *addr)
+static void ixgbe_mac_set_default_filter(struct ixgbe_adapter *adapter)
 {
+	struct ixgbe_mac_addr *mac_table = &adapter->mac_table[0];
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	memcpy(&adapter->mac_table[0].addr, addr, ETH_ALEN);
-	adapter->mac_table[0].queue = VMDQ_P(0);
-	adapter->mac_table[0].state = (IXGBE_MAC_STATE_DEFAULT |
-				       IXGBE_MAC_STATE_IN_USE);
-	hw->mac.ops.set_rar(hw, 0, adapter->mac_table[0].addr,
-			    adapter->mac_table[0].queue,
+	memcpy(&mac_table->addr, hw->mac.addr, ETH_ALEN);
+	mac_table->pool = VMDQ_P(0);
+
+	mac_table->state = IXGBE_MAC_STATE_DEFAULT | IXGBE_MAC_STATE_IN_USE;
+
+	hw->mac.ops.set_rar(hw, 0, mac_table->addr, mac_table->pool,
 			    IXGBE_RAH_AV);
 }
 
-int ixgbe_add_mac_filter(struct ixgbe_adapter *adapter, u8 *addr, u16 queue)
+int ixgbe_add_mac_filter(struct ixgbe_adapter *adapter,
+			 const u8 *addr, u16 pool)
 {
+	struct ixgbe_mac_addr *mac_table = &adapter->mac_table[0];
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
 
 	if (is_zero_ether_addr(addr))
 		return -EINVAL;
 
-	for (i = 0; i < hw->mac.num_rar_entries; i++) {
-		if (adapter->mac_table[i].state & IXGBE_MAC_STATE_IN_USE)
+	for (i = 0; i < hw->mac.num_rar_entries; i++, mac_table++) {
+		if (mac_table->state & IXGBE_MAC_STATE_IN_USE)
 			continue;
-		adapter->mac_table[i].state |= (IXGBE_MAC_STATE_MODIFIED |
-						IXGBE_MAC_STATE_IN_USE);
-		ether_addr_copy(adapter->mac_table[i].addr, addr);
-		adapter->mac_table[i].queue = queue;
+
+		ether_addr_copy(mac_table->addr, addr);
+		mac_table->pool = pool;
+
+		mac_table->state |= IXGBE_MAC_STATE_MODIFIED |
+				    IXGBE_MAC_STATE_IN_USE;
+
 		ixgbe_sync_mac_table(adapter);
+
 		return i;
 	}
+
 	return -ENOMEM;
 }
 
-int ixgbe_del_mac_filter(struct ixgbe_adapter *adapter, u8 *addr, u16 queue)
+int ixgbe_del_mac_filter(struct ixgbe_adapter *adapter,
+			 const u8 *addr, u16 pool)
 {
-	/* search table for addr, if found, set to 0 and sync */
-	int i;
+	struct ixgbe_mac_addr *mac_table = &adapter->mac_table[0];
 	struct ixgbe_hw *hw = &adapter->hw;
+	int i;
 
 	if (is_zero_ether_addr(addr))
 		return -EINVAL;
 
-	for (i = 0; i < hw->mac.num_rar_entries; i++) {
-		if (ether_addr_equal(addr, adapter->mac_table[i].addr) &&
-		    adapter->mac_table[i].queue == queue) {
-			adapter->mac_table[i].state |= IXGBE_MAC_STATE_MODIFIED;
-			adapter->mac_table[i].state &= ~IXGBE_MAC_STATE_IN_USE;
-			eth_zero_addr(adapter->mac_table[i].addr);
-			adapter->mac_table[i].queue = 0;
-			ixgbe_sync_mac_table(adapter);
-			return 0;
-		}
+	/* search table for addr, if found clear IN_USE flag and sync */
+	for (i = 0; i < hw->mac.num_rar_entries; i++, mac_table++) {
+		/* we can only delete an entry if it is in use */
+		if (!(mac_table->state & IXGBE_MAC_STATE_IN_USE))
+			continue;
+		/* we only care about entries that belong to the given pool */
+		if (mac_table->pool != pool)
+			continue;
+		/* we only care about a specific MAC address */
+		if (!ether_addr_equal(addr, mac_table->addr))
+			continue;
+
+		mac_table->state |= IXGBE_MAC_STATE_MODIFIED;
+		mac_table->state &= ~IXGBE_MAC_STATE_IN_USE;
+
+		ixgbe_sync_mac_table(adapter);
+
+		return 0;
 	}
+
 	return -ENOMEM;
 }
 /**
@@ -4166,7 +4198,7 @@ static int ixgbe_write_uc_addr_list(struct net_device *netdev, int vfn)
 	int count = 0;
 
 	/* return ENOMEM indicating insufficient memory for addresses */
-	if (netdev_uc_count(netdev) > ixgbe_available_rars(adapter))
+	if (netdev_uc_count(netdev) > ixgbe_available_rars(adapter, vfn))
 		return -ENOMEM;
 
 	if (!netdev_uc_empty(netdev)) {
@@ -5039,7 +5071,6 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 	int err;
-	u8 old_addr[ETH_ALEN];
 
 	if (ixgbe_removed(hw->hw_addr))
 		return;
@@ -5076,9 +5107,8 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 
 	clear_bit(__IXGBE_IN_SFP_INIT, &adapter->state);
 	/* do not flush user set addresses */
-	memcpy(old_addr, &adapter->mac_table[0].addr, netdev->addr_len);
 	ixgbe_flush_sw_mac_table(adapter);
-	ixgbe_mac_set_default_filter(adapter, old_addr);
+	ixgbe_mac_set_default_filter(adapter);
 
 	/* update SAN MAC vmdq pool selection */
 	if (hw->mac.san_mac_rar_index)
@@ -7656,17 +7686,16 @@ static int ixgbe_set_mac(struct net_device *netdev, void *p)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct sockaddr *addr = p;
-	int ret;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ixgbe_del_mac_filter(adapter, hw->mac.addr, VMDQ_P(0));
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
-	ret = ixgbe_add_mac_filter(adapter, hw->mac.addr, VMDQ_P(0));
-	return ret > 0 ? 0 : ret;
+	ixgbe_mac_set_default_filter(adapter);
+
+	return 0;
 }
 
 static int
@@ -8867,7 +8896,7 @@ skip_sriov:
 		goto err_sw_init;
 	}
 
-	ixgbe_mac_set_default_filter(adapter, hw->mac.perm_addr);
+	ixgbe_mac_set_default_filter(adapter);
 
 	setup_timer(&adapter->service_timer, &ixgbe_service_timer,
 		    (unsigned long) adapter);
