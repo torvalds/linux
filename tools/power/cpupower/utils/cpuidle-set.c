@@ -148,12 +148,21 @@ int cmd_idle_set(int argc, char **argv)
 					(cpu, idlestate);
 				state_latency = sysfs_get_idlestate_latency
 					(cpu, idlestate);
-				if (disabled == 1 || latency > state_latency)
+				if (disabled == 1) {
+					if (latency > state_latency){
+						ret = sysfs_idlestate_disable
+							(cpu, idlestate, 0);
+						if (ret == 0)
+		printf(_("Idlestate %u enabled on CPU %u\n"),  idlestate, cpu);
+					}
 					continue;
-				ret = sysfs_idlestate_disable
-					(cpu, idlestate, 1);
-				if (ret == 0)
+				}
+				if (latency <= state_latency){
+					ret = sysfs_idlestate_disable
+						(cpu, idlestate, 1);
+					if (ret == 0)
 		printf(_("Idlestate %u disabled on CPU %u\n"), idlestate, cpu);
+				}
 			}
 			break;
 		case 'E':
