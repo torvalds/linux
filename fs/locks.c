@@ -1171,10 +1171,9 @@ EXPORT_SYMBOL(posix_lock_file);
  * @inode: inode of file to which lock request should be applied
  * @fl: The lock to be applied
  *
- * Variant of posix_lock_file_wait that does not take a filp, and so can be
- * used after the filp has already been torn down.
+ * Apply a POSIX style lock request to an inode.
  */
-int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
+static int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 {
 	int error;
 	might_sleep ();
@@ -1191,7 +1190,6 @@ int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 	}
 	return error;
 }
-EXPORT_SYMBOL(posix_lock_inode_wait);
 
 /**
  * locks_mandatory_locked - Check for an active lock
@@ -1862,7 +1860,7 @@ int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
  *
  * Apply a FLOCK style lock request to an inode.
  */
-int flock_lock_inode_wait(struct inode *inode, struct file_lock *fl)
+static int flock_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 {
 	int error;
 	might_sleep();
@@ -1879,7 +1877,6 @@ int flock_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 	}
 	return error;
 }
-EXPORT_SYMBOL(flock_lock_inode_wait);
 
 /**
  * locks_lock_inode_wait - Apply a lock to an inode
