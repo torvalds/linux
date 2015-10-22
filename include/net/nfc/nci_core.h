@@ -67,7 +67,7 @@ enum nci_state {
 
 struct nci_dev;
 
-struct nci_prop_ops {
+struct nci_driver_ops {
 	__u16 opcode;
 	int (*rsp)(struct nci_dev *dev, struct sk_buff *skb);
 	int (*ntf)(struct nci_dev *dev, struct sk_buff *skb);
@@ -94,10 +94,10 @@ struct nci_ops {
 	void  (*hci_cmd_received)(struct nci_dev *ndev, u8 pipe, u8 cmd,
 				  struct sk_buff *skb);
 
-	struct nci_prop_ops *prop_ops;
+	struct nci_driver_ops *prop_ops;
 	size_t n_prop_ops;
 
-	struct nci_prop_ops *core_ops;
+	struct nci_driver_ops *core_ops;
 	size_t n_core_ops;
 };
 
