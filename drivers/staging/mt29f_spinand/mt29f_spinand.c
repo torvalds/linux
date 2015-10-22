@@ -677,7 +677,6 @@ static uint8_t spinand_read_byte(struct mtd_info *mtd)
 	return data;
 }
 
-
 static int spinand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 {
 	struct spinand_info *info = (struct spinand_info *)chip->priv;
