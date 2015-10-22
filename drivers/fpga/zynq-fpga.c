@@ -416,7 +416,6 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, priv);
 	priv->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -477,10 +476,12 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 static int zynq_fpga_remove(struct platform_device *pdev)
 {
 	struct zynq_fpga_priv *priv;
+	struct fpga_manager *mgr;
+
+	mgr = platform_get_drvdata(pdev);
+	priv = mgr->priv;
 
 	fpga_mgr_unregister(&pdev->dev);
-
-	priv = platform_get_drvdata(pdev);
 
 	clk_unprepare(priv->clk);
 
