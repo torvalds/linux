@@ -189,35 +189,30 @@ static int apb_ctrl_get_devtree_data(struct device *dev,
 
 	/* fetch control signals */
 	apb_data->ctrl.wake_detect = of_get_named_gpio(np, "wake-detect-gpios", 0);
-	if (apb_data->ctrl.wake_detect < 0 ||
-			!gpio_is_valid(apb_data->ctrl.wake_detect)) {
+	if (!gpio_is_valid(apb_data->ctrl.wake_detect)) {
 		dev_err(dev, "failed to get wake detect gpio\n");
 		return apb_data->ctrl.wake_detect;
 	}
 
 	apb_data->ctrl.reset = of_get_named_gpio(np, "reset-gpios", 0);
-	if (apb_data->ctrl.reset < 0 ||
-			!gpio_is_valid(apb_data->ctrl.reset)) {
+	if (!gpio_is_valid(apb_data->ctrl.reset)) {
 		dev_err(dev, "failed to get reset gpio\n");
 		return apb_data->ctrl.reset;
 	}
 
 	apb_data->ctrl.boot_ret = of_get_named_gpio(np, "boot-ret-gpios", 0);
-	if (apb_data->ctrl.boot_ret < 0 ||
-			!gpio_is_valid(apb_data->ctrl.boot_ret)) {
+	if (!gpio_is_valid(apb_data->ctrl.boot_ret)) {
 		dev_err(dev, "failed to get boot retention gpio\n");
 		return apb_data->ctrl.boot_ret;
 	}
 
 	/* It's not mandatory to support power management interface */
 	apb_data->ctrl.pwroff = of_get_named_gpio(np, "pwr-off-gpios", 0);
-	if (apb_data->ctrl.pwroff < 0 ||
-			!gpio_is_valid(apb_data->ctrl.pwroff))
+	if (!gpio_is_valid(apb_data->ctrl.pwroff))
 		dev_info(dev, "failed to get power off gpio\n");
 
 	apb_data->ctrl.pwrdn = of_get_named_gpio(np, "pwr-down-gpios", 0);
-	if (apb_data->ctrl.pwrdn < 0 ||
-			!gpio_is_valid(apb_data->ctrl.pwrdn))
+	if (!gpio_is_valid(apb_data->ctrl.pwrdn))
 		dev_info(dev, "failed to get power down gpio\n");
 
 	/* Regulators are optional, as we may have fixed supply coming in */
