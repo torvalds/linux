@@ -27,13 +27,13 @@
 #define FSL_SAI_FLAGS (FSL_SAI_CSR_SEIE |\
 		       FSL_SAI_CSR_FEIE)
 
-static u32 fsl_sai_rates[] = {
+static const unsigned int fsl_sai_rates[] = {
 	8000, 11025, 12000, 16000, 22050,
 	24000, 32000, 44100, 48000, 64000,
 	88200, 96000, 176400, 192000
 };
 
-static struct snd_pcm_hw_constraint_list fsl_sai_rate_constraints = {
+static const struct snd_pcm_hw_constraint_list fsl_sai_rate_constraints = {
 	.count = ARRAY_SIZE(fsl_sai_rates),
 	.list = fsl_sai_rates,
 };
