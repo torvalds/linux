@@ -410,11 +410,14 @@ err_out:
 	 * If the symlink path is stored into inline_data, there is no
 	 * performance regression.
 	 */
-	if (!err)
+	if (!err) {
 		filemap_write_and_wait_range(inode->i_mapping, 0, p_len - 1);
 
-	if (IS_DIRSYNC(dir))
-		f2fs_sync_fs(sbi->sb, 1);
+		if (IS_DIRSYNC(dir))
+			f2fs_sync_fs(sbi->sb, 1);
+	} else {
+		f2fs_unlink(dir, dentry);
+	}
 
 	kfree(sd);
 	f2fs_fname_crypto_free_buffer(&disk_link);
