@@ -42,6 +42,82 @@
 #include "dev-replace.h"
 #include "sysfs.h"
 
+const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
+	[BTRFS_RAID_RAID10] = {
+		.sub_stripes	= 2,
+		.dev_stripes	= 1,
+		.devs_max	= 0,	/* 0 == as many as possible */
+		.devs_min	= 4,
+		.tolerated_failures = 1,
+		.devs_increment	= 2,
+		.ncopies	= 2,
+	},
+	[BTRFS_RAID_RAID1] = {
+		.sub_stripes	= 1,
+		.dev_stripes	= 1,
+		.devs_max	= 2,
+		.devs_min	= 2,
+		.tolerated_failures = 1,
+		.devs_increment	= 2,
+		.ncopies	= 2,
+	},
+	[BTRFS_RAID_DUP] = {
+		.sub_stripes	= 1,
+		.dev_stripes	= 2,
+		.devs_max	= 1,
+		.devs_min	= 1,
+		.tolerated_failures = 0,
+		.devs_increment	= 1,
+		.ncopies	= 2,
+	},
+	[BTRFS_RAID_RAID0] = {
+		.sub_stripes	= 1,
+		.dev_stripes	= 1,
+		.devs_max	= 0,
+		.devs_min	= 2,
+		.tolerated_failures = 0,
+		.devs_increment	= 1,
+		.ncopies	= 1,
+	},
+	[BTRFS_RAID_SINGLE] = {
+		.sub_stripes	= 1,
+		.dev_stripes	= 1,
+		.devs_max	= 1,
+		.devs_min	= 1,
+		.tolerated_failures = 0,
+		.devs_increment	= 1,
+		.ncopies	= 1,
+	},
+	[BTRFS_RAID_RAID5] = {
+		.sub_stripes	= 1,
+		.dev_stripes	= 1,
+		.devs_max	= 0,
+		.devs_min	= 2,
+		.tolerated_failures = 1,
+		.devs_increment	= 1,
+		.ncopies	= 2,
+	},
+	[BTRFS_RAID_RAID6] = {
+		.sub_stripes	= 1,
+		.dev_stripes	= 1,
+		.devs_max	= 0,
+		.devs_min	= 3,
+		.tolerated_failures = 2,
+		.devs_increment	= 1,
+		.ncopies	= 3,
+	},
+};
+
+const u64 const btrfs_raid_group[BTRFS_NR_RAID_TYPES] = {
+	[BTRFS_RAID_RAID10] = BTRFS_BLOCK_GROUP_RAID10,
+	[BTRFS_RAID_RAID1]  = BTRFS_BLOCK_GROUP_RAID1,
+	[BTRFS_RAID_DUP]    = BTRFS_BLOCK_GROUP_DUP,
+	[BTRFS_RAID_RAID0]  = BTRFS_BLOCK_GROUP_RAID0,
+	[BTRFS_RAID_SINGLE] = 0,
+	[BTRFS_RAID_RAID5]  = BTRFS_BLOCK_GROUP_RAID5,
+	[BTRFS_RAID_RAID6]  = BTRFS_BLOCK_GROUP_RAID6,
+};
+
 static int init_first_rw_device(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				struct btrfs_device *device);
@@ -3440,6 +3516,15 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
 }
 
+/* Non-zero return value signifies invalidity */
+static inline int validate_convert_profile(struct btrfs_balance_args *bctl_arg,
+		u64 allowed)
+{
+	return ((bctl_arg->flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+		(!alloc_profile_is_valid(bctl_arg->target, 1) ||
+		 (bctl_arg->target & ~allowed)));
+}
+
 /*
  * Should be called with both balance and volume mutexes held
  */
@@ -3497,27 +3582,21 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	if (num_devices > 3)
 		allowed |= (BTRFS_BLOCK_GROUP_RAID10 |
 			    BTRFS_BLOCK_GROUP_RAID6);
-	if ((bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	    (!alloc_profile_is_valid(bctl->data.target, 1) ||
-	     (bctl->data.target & ~allowed))) {
+	if (validate_convert_profile(&bctl->data, allowed)) {
 		btrfs_err(fs_info, "unable to start balance with target "
 			   "data profile %llu",
 		       bctl->data.target);
 		ret = -EINVAL;
 		goto out;
 	}
-	if ((bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	    (!alloc_profile_is_valid(bctl->meta.target, 1) ||
-	     (bctl->meta.target & ~allowed))) {
+	if (validate_convert_profile(&bctl->meta, allowed)) {
 		btrfs_err(fs_info,
 			   "unable to start balance with target metadata profile %llu",
 		       bctl->meta.target);
 		ret = -EINVAL;
 		goto out;
 	}
-	if ((bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	    (!alloc_profile_is_valid(bctl->sys.target, 1) ||
-	     (bctl->sys.target & ~allowed))) {
+	if (validate_convert_profile(&bctl->sys, allowed)) {
 		btrfs_err(fs_info,
 			   "unable to start balance with target system profile %llu",
 		       bctl->sys.target);
@@ -4258,65 +4337,6 @@ static int btrfs_cmp_device_info(const void *a, const void *b)
 		return 1;
 	return 0;
 }
-
-static const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
-	[BTRFS_RAID_RAID10] = {
-		.sub_stripes	= 2,
-		.dev_stripes	= 1,
-		.devs_max	= 0,	/* 0 == as many as possible */
-		.devs_min	= 4,
-		.devs_increment	= 2,
-		.ncopies	= 2,
-	},
-	[BTRFS_RAID_RAID1] = {
-		.sub_stripes	= 1,
-		.dev_stripes	= 1,
-		.devs_max	= 2,
-		.devs_min	= 2,
-		.devs_increment	= 2,
-		.ncopies	= 2,
-	},
-	[BTRFS_RAID_DUP] = {
-		.sub_stripes	= 1,
-		.dev_stripes	= 2,
-		.devs_max	= 1,
-		.devs_min	= 1,
-		.devs_increment	= 1,
-		.ncopies	= 2,
-	},
-	[BTRFS_RAID_RAID0] = {
-		.sub_stripes	= 1,
-		.dev_stripes	= 1,
-		.devs_max	= 0,
-		.devs_min	= 2,
-		.devs_increment	= 1,
-		.ncopies	= 1,
-	},
-	[BTRFS_RAID_SINGLE] = {
-		.sub_stripes	= 1,
-		.dev_stripes	= 1,
-		.devs_max	= 1,
-		.devs_min	= 1,
-		.devs_increment	= 1,
-		.ncopies	= 1,
-	},
-	[BTRFS_RAID_RAID5] = {
-		.sub_stripes	= 1,
-		.dev_stripes	= 1,
-		.devs_max	= 0,
-		.devs_min	= 2,
-		.devs_increment	= 1,
-		.ncopies	= 2,
-	},
-	[BTRFS_RAID_RAID6] = {
-		.sub_stripes	= 1,
-		.dev_stripes	= 1,
-		.devs_max	= 0,
-		.devs_min	= 3,
-		.devs_increment	= 1,
-		.ncopies	= 3,
-	},
-};
 
 static u32 find_raid56_stripe_len(u32 data_devices, u32 dev_stripe_target)
 {

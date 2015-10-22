@@ -667,7 +667,7 @@ static int btrfsic_process_superblock(struct btrfsic_state *state,
 	selected_super = kzalloc(sizeof(*selected_super), GFP_NOFS);
 	if (NULL == selected_super) {
 		printk(KERN_INFO "btrfsic: error, kmalloc failed!\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	list_for_each_entry(device, dev_head, dev_list) {
@@ -1660,7 +1660,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 					  sizeof(*block_ctx->pagev)) *
 					 num_pages, GFP_NOFS);
 	if (!block_ctx->mem_to_free)
-		return -1;
+		return -ENOMEM;
 	block_ctx->datav = block_ctx->mem_to_free;
 	block_ctx->pagev = (struct page **)(block_ctx->datav + num_pages);
 	for (i = 0; i < num_pages; i++) {

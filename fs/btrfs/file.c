@@ -1469,7 +1469,6 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	u64 release_bytes = 0;
 	u64 lockstart;
 	u64 lockend;
-	unsigned long first_index;
 	size_t num_written = 0;
 	int nrptrs;
 	int ret = 0;
@@ -1484,8 +1483,6 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	pages = kmalloc_array(nrptrs, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
-
-	first_index = pos >> PAGE_CACHE_SHIFT;
 
 	while (iov_iter_count(i) > 0) {
 		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
@@ -2266,7 +2263,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	u64 drop_end;
 	int ret = 0;
 	int err = 0;
-	int rsv_count;
+	unsigned int rsv_count;
 	bool same_page;
 	bool no_holes = btrfs_fs_incompat(root->fs_info, NO_HOLES);
 	u64 ino_size;

@@ -4940,8 +4940,8 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	struct extent_buffer *leaf;
 	struct btrfs_item *item;
-	int last_off;
-	int dsize = 0;
+	u32 last_off;
+	u32 dsize = 0;
 	int ret = 0;
 	int wret;
 	int i;

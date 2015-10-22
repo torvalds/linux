@@ -334,9 +334,14 @@ struct btrfs_raid_attr {
 	int dev_stripes;	/* stripes per dev */
 	int devs_max;		/* max devs to use */
 	int devs_min;		/* min devs needed */
+	int tolerated_failures; /* max tolerated fail devs */
 	int devs_increment;	/* ndevs has to be a multiple of this */
 	int ncopies;		/* how many copies to data has */
 };
+
+extern const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES];
+
+extern const u64 btrfs_raid_group[BTRFS_NR_RAID_TYPES];
 
 struct map_lookup {
 	u64 type;

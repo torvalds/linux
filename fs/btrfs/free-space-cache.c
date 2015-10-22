@@ -1215,7 +1215,7 @@ out:
  * @offset - the offset for the key we'll insert
  *
  * This function writes out a free space cache struct to disk for quick recovery
- * on mount.  This will return 0 if it was successfull in writing the cache out,
+ * on mount.  This will return 0 if it was successful in writing the cache out,
  * or an errno if it was not.
  */
 static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,

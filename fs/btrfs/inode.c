@@ -1864,15 +1864,15 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 			  u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	enum btrfs_wq_endio_type metadata = BTRFS_WQ_ENDIO_DATA;
 	int ret = 0;
 	int skip_sum;
-	int metadata = 0;
 	int async = !atomic_read(&BTRFS_I(inode)->sync_writers);
 
 	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
 	if (btrfs_is_free_space_inode(inode))
-		metadata = 2;
+		metadata = BTRFS_WQ_ENDIO_FREE_SPACE;
 
 	if (!(rw & REQ_WRITE)) {
 		ret = btrfs_bio_wq_end_io(root->fs_info, bio, metadata);
@@ -2602,7 +2602,6 @@ static void free_sa_defrag_extent(struct new_sa_defrag_extent *new)
 		return;
 
 	list_for_each_entry_safe(old, tmp, &new->head, list) {
-		list_del(&old->list);
 		kfree(old);
 	}
 	kfree(new);
