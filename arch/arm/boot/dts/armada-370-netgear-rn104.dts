@@ -83,6 +83,12 @@
 		};
 
 		internal-regs {
+
+			/* RTC is provided by Intersil ISL12057 I2C RTC chip */
+			rtc@10300 {
+				status = "disabled";
+			};
+
 			serial@12000 {
 				status = "okay";
 			};
