@@ -195,7 +195,6 @@ static void XGINew_DDRII_Bootup_XG27(
 	/* Set SR1B refresh control 000:close; 010:open */
 	xgifb_reg_set(P3c4, 0x1B, 0x04);
 	usleep_range(200, 1200);
-
 }
 
 static void XGINew_DDR2_MRS_XG20(struct xgi_hw_device_info *HwDeviceExtension,
@@ -597,7 +596,6 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 
 			if ((HwDeviceExtension->ulVideoMemorySize - 1)
 					> 0x1000000) {
-
 				pVBInfo->ram_bus = 32; /* 32 bits */
 				/* 22bit + 2 rank + 32bit */
 				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xB1);
@@ -1059,7 +1057,6 @@ static void XGINew_SetModeScratch(struct vb_device_info *pVBInfo)
 	CR38Data &= ~SetYPbPr;
 	CR38Data |= tempch;
 	xgifb_reg_set(pVBInfo->P3d4, 0x38, CR38Data);
-
 }
 
 static unsigned short XGINew_SenseLCD(struct xgi_hw_device_info
@@ -1134,7 +1131,6 @@ static void XGINew_GetXG27Sense(struct vb_device_info *pVBInfo)
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xA0);
 	}
 	xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
-
 }
 
 static unsigned char GetXG21FPBits(struct vb_device_info *pVBInfo)
@@ -1329,14 +1325,12 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	XGI_SenseCRT1(pVBInfo);
 
 	if (HwDeviceExtension->jChipType == XG21) {
-
 		xgifb_reg_and_or(pVBInfo->P3d4,
 				 0x32,
 				 ~Monitor1Sense,
 				 Monitor1Sense); /* Z9 default has CRT */
 		temp = GetXG21FPBits(pVBInfo);
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x37, ~0x01, temp);
-
 	}
 	if (HwDeviceExtension->jChipType == XG27) {
 		xgifb_reg_and_or(pVBInfo->P3d4,
