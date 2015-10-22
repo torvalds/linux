@@ -61,13 +61,7 @@
 static char      libcfs_nidstrings[LNET_NIDSTR_COUNT][LNET_NIDSTR_SIZE];
 static int       libcfs_nidstring_idx;
 
-static spinlock_t libcfs_nidstring_lock;
-
-void libcfs_init_nidstrings(void)
-{
-	spin_lock_init(&libcfs_nidstring_lock);
-}
-EXPORT_SYMBOL(libcfs_init_nidstrings);
+static DEFINE_SPINLOCK(libcfs_nidstring_lock);
 
 char *
 libcfs_next_nidstring(void)

@@ -701,8 +701,6 @@ static int init_libcfs_module(void)
 {
 	int rc;
 
-	libcfs_init_nidstrings();
-
 	rc = libcfs_debug_init(5 * 1024 * 1024);
 	if (rc < 0) {
 		pr_err("LustreError: libcfs_debug_init: %d\n", rc);
