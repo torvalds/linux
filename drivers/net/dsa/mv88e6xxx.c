@@ -1259,18 +1259,19 @@ static int _mv88e6xxx_vtu_stu_data_write(struct dsa_switch *ds,
 	return 0;
 }
 
-static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds, u16 vid,
+static int _mv88e6xxx_vtu_vid_write(struct dsa_switch *ds, u16 vid)
+{
+	return _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_VID,
+				    vid & GLOBAL_VTU_VID_MASK);
+}
+
+static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds,
 				  struct mv88e6xxx_vtu_stu_entry *entry)
 {
 	struct mv88e6xxx_vtu_stu_entry next = { 0 };
 	int ret;
 
 	ret = _mv88e6xxx_vtu_wait(ds);
-	if (ret < 0)
-		return ret;
-
-	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_VID,
-				   vid & GLOBAL_VTU_VID_MASK);
 	if (ret < 0)
 		return ret;
 
@@ -1485,7 +1486,12 @@ int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 	int err;
 
 	mutex_lock(&ps->smi_mutex);
-	err = _mv88e6xxx_vtu_getnext(ds, vid - 1, &vlan);
+
+	err = _mv88e6xxx_vtu_vid_write(ds, vid - 1);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_vtu_getnext(ds, &vlan);
 	if (err)
 		goto unlock;
 
@@ -1514,7 +1520,11 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 
 	mutex_lock(&ps->smi_mutex);
 
-	err = _mv88e6xxx_vtu_getnext(ds, vid - 1, &vlan);
+	err = _mv88e6xxx_vtu_vid_write(ds, vid - 1);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_vtu_getnext(ds, &vlan);
 	if (err)
 		goto unlock;
 
@@ -1549,29 +1559,6 @@ unlock:
 	return err;
 }
 
-static int _mv88e6xxx_port_vtu_getnext(struct dsa_switch *ds, int port, u16 vid,
-				       struct mv88e6xxx_vtu_stu_entry *entry)
-{
-	int err;
-
-	do {
-		if (vid == 4095)
-			return -ENOENT;
-
-		err = _mv88e6xxx_vtu_getnext(ds, vid, entry);
-		if (err)
-			return err;
-
-		if (!entry->valid)
-			return -ENOENT;
-
-		vid = entry->vid;
-	} while (entry->data[port] != GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED &&
-		 entry->data[port] != GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED);
-
-	return 0;
-}
-
 int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
 			   unsigned long *ports, unsigned long *untagged)
 {
@@ -1584,7 +1571,12 @@ int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
 		return -ENOENT;
 
 	mutex_lock(&ps->smi_mutex);
-	err = _mv88e6xxx_vtu_getnext(ds, *vid, &next);
+	err = _mv88e6xxx_vtu_vid_write(ds, *vid);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_vtu_getnext(ds, &next);
+unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	if (err)
@@ -1732,7 +1724,6 @@ int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 }
 
 static int _mv88e6xxx_atu_getnext(struct dsa_switch *ds, u16 fid,
-				  const unsigned char *addr,
 				  struct mv88e6xxx_atu_entry *entry)
 {
 	struct mv88e6xxx_atu_entry next = { 0 };
@@ -1741,10 +1732,6 @@ static int _mv88e6xxx_atu_getnext(struct dsa_switch *ds, u16 fid,
 	next.fid = fid;
 
 	ret = _mv88e6xxx_atu_wait(ds);
-	if (ret < 0)
-		return ret;
-
-	ret = _mv88e6xxx_atu_mac_write(ds, addr);
 	if (ret < 0)
 		return ret;
 
@@ -1785,46 +1772,69 @@ static int _mv88e6xxx_atu_getnext(struct dsa_switch *ds, u16 fid,
 	return 0;
 }
 
-/* get next entry for port */
-int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
-			       unsigned char *addr, u16 *vid, bool *is_static)
+int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
+			    struct switchdev_obj_port_fdb *fdb,
+			    int (*cb)(struct switchdev_obj *obj))
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	struct mv88e6xxx_atu_entry next;
-	u16 fid = *vid; /* We use one FID per VLAN */
-	int ret;
+	struct mv88e6xxx_vtu_stu_entry vlan = {
+		.vid = GLOBAL_VTU_VID_MASK, /* all ones */
+	};
+	int err;
 
 	mutex_lock(&ps->smi_mutex);
 
+	err = _mv88e6xxx_vtu_vid_write(ds, vlan.vid);
+	if (err)
+		goto unlock;
+
 	do {
-		if (is_broadcast_ether_addr(addr)) {
-			struct mv88e6xxx_vtu_stu_entry vtu;
+		struct mv88e6xxx_atu_entry addr = {
+			.mac = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
+		};
 
-			ret = _mv88e6xxx_port_vtu_getnext(ds, port, *vid, &vtu);
-			if (ret < 0)
-				goto unlock;
-
-			*vid = vtu.vid;
-			fid = vtu.fid;
-		}
-
-		ret = _mv88e6xxx_atu_getnext(ds, fid, addr, &next);
-		if (ret < 0)
+		err = _mv88e6xxx_vtu_getnext(ds, &vlan);
+		if (err)
 			goto unlock;
 
-		ether_addr_copy(addr, next.mac);
+		if (!vlan.valid)
+			break;
 
-		if (next.state == GLOBAL_ATU_DATA_STATE_UNUSED)
-			continue;
-	} while (next.trunk || (next.portv_trunkid & BIT(port)) == 0);
+		err = _mv88e6xxx_atu_mac_write(ds, addr.mac);
+		if (err)
+			goto unlock;
 
-	*is_static = next.state == (is_multicast_ether_addr(addr) ?
-				    GLOBAL_ATU_DATA_STATE_MC_STATIC :
-				    GLOBAL_ATU_DATA_STATE_UC_STATIC);
+		do {
+			err = _mv88e6xxx_atu_getnext(ds, vlan.fid, &addr);
+			if (err)
+				goto unlock;
+
+			if (addr.state == GLOBAL_ATU_DATA_STATE_UNUSED)
+				break;
+
+			if (!addr.trunk && addr.portv_trunkid & BIT(port)) {
+				bool is_static = addr.state ==
+					(is_multicast_ether_addr(addr.mac) ?
+					 GLOBAL_ATU_DATA_STATE_MC_STATIC :
+					 GLOBAL_ATU_DATA_STATE_UC_STATIC);
+
+				fdb->vid = vlan.vid;
+				ether_addr_copy(fdb->addr, addr.mac);
+				fdb->ndm_state = is_static ? NUD_NOARP :
+					NUD_REACHABLE;
+
+				err = cb(&fdb->obj);
+				if (err)
+					goto unlock;
+			}
+		} while (!is_broadcast_ether_addr(addr.mac));
+
+	} while (vlan.vid < GLOBAL_VTU_VID_MASK);
+
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 
-	return ret;
+	return err;
 }
 
 static void mv88e6xxx_bridge_work(struct work_struct *work)
