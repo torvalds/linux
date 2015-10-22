@@ -276,7 +276,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 	ret = 0;
 	par = container_of(crtc, struct lynxfb_par, crtc);
 	share = par->share;
-#if 1
+
 	if (!share->accel_off) {
 		/* set 2d engine pixel format according to mode bpp */
 		switch (var->bits_per_pixel) {
@@ -293,7 +293,6 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 		}
 		hw_set2dformat(&share->accel, fmt);
 	}
-#endif
 
 	/* set timing */
 	modparm.pixel_clock = ps_to_hz(var->pixclock);

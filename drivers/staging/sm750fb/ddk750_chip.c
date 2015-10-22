@@ -60,11 +60,10 @@ static void setChipClock(unsigned int frequency)
 {
 	pll_value_t pll;
 	unsigned int ulActualMxClk;
-#if 1
+
 	/* Cheok_0509: For SM750LE, the chip clock is fixed. Nothing to set. */
 	if (getChipType() == SM750LE)
 		return;
-#endif
 
 	if (frequency) {
 		/*
@@ -88,11 +87,11 @@ static void setChipClock(unsigned int frequency)
 static void setMemoryClock(unsigned int frequency)
 {
 	unsigned int ulReg, divisor;
- #if 1
+
 	/* Cheok_0509: For SM750LE, the memory clock is fixed. Nothing to set. */
 	if (getChipType() == SM750LE)
 		return;
-#endif
+
 	if (frequency) {
 		/* Set the frequency to the maximum frequency that the DDR Memory can take
 		which is 336MHz. */
@@ -135,11 +134,11 @@ static void setMemoryClock(unsigned int frequency)
 static void setMasterClock(unsigned int frequency)
 {
 	unsigned int ulReg, divisor;
-#if 1
+
 	/* Cheok_0509: For SM750LE, the memory clock is fixed. Nothing to set. */
 	if (getChipType() == SM750LE)
 		return;
-#endif
+
 	if (frequency) {
 		/* Set the frequency to the maximum frequency that the SM750 engine can
 		run, which is about 190 MHz. */
@@ -332,13 +331,11 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	unsigned int tmpClock, ret;
 	pllcalparam *xparm;
 
-#if 1
 	if (getChipType() == SM750LE) {
 		/* SM750LE don't have prgrammable PLL and M/N values to work on.
 		Just return the requested clock. */
 		return request_orig;
 	}
-#endif
 
 	ret = 0;
 	mini_diff = ~0;
