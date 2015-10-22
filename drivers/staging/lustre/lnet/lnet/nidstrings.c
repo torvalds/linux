@@ -208,19 +208,6 @@ libcfs_num_match(__u32 addr, struct list_head *numaddr)
 	return cfs_expr_list_match(addr, el);
 }
 
-struct netstrfns {
-	int	  nf_type;
-	char	*nf_name;
-	char	*nf_modname;
-	void       (*nf_addr2str)(__u32 addr, char *str);
-	int	(*nf_str2addr)(const char *str, int nob, __u32 *addr);
-	int	(*nf_parse_addrlist)(char *str, int len,
-					struct list_head *list);
-	int	(*nf_print_addrlist)(char *buffer, int count,
-				     struct list_head *list);
-	int	(*nf_match_addr)(__u32 addr, struct list_head *list);
-};
-
 static struct netstrfns  libcfs_netstrfns[] = {
 	{/* .nf_type      */  LOLND,
 	 /* .nf_name      */  "lo",

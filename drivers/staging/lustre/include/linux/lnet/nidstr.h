@@ -76,4 +76,17 @@ bool cfs_nidrange_is_contiguous(struct list_head *nidlist);
 void cfs_nidrange_find_min_max(struct list_head *nidlist, char *min_nid,
 			       char *max_nid, size_t nidstr_length);
 
+struct netstrfns {
+	int	nf_type;
+	char	*nf_name;
+	char	*nf_modname;
+	void	(*nf_addr2str)(__u32 addr, char *str);
+	int	(*nf_str2addr)(const char *str, int nob, __u32 *addr);
+	int	(*nf_parse_addrlist)(char *str, int len,
+				     struct list_head *list);
+	int	(*nf_print_addrlist)(char *buffer, int count,
+				     struct list_head *list);
+	int	(*nf_match_addr)(__u32 addr, struct list_head *list);
+};
+
 #endif /* _LNET_NIDSTRINGS_H */
