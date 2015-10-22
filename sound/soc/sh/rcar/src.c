@@ -159,7 +159,7 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 	/*
 	 * SSI_MODE1
 	 */
-	if (rsnd_ssi_is_pin_sharing(ssi_mod)) {
+	if (rsnd_ssi_is_pin_sharing(io)) {
 		int shift = -1;
 		switch (ssi_id) {
 		case 1:
