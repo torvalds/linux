@@ -321,6 +321,7 @@ static void skl_copy_copier_caps(struct skl_module_cfg *mconfig,
 			(mconfig->formats_config.caps_size) / 4;
 }
 
+#define SKL_NON_GATEWAY_CPR_NODE_ID 0xFFFFFFFF
 /*
  * Calculate the gatewat settings required for copier module, type of
  * gateway and index of gateway to use
@@ -367,13 +368,18 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 		node_id.node.vindex = params->link_dma_id;
 		break;
 
-	default:
+	case SKL_DEVICE_HDAHOST:
 		node_id.node.dma_type =
 			(SKL_CONN_SOURCE == mconfig->hw_conn_type) ?
 			SKL_DMA_HDA_HOST_OUTPUT_CLASS :
 			SKL_DMA_HDA_HOST_INPUT_CLASS;
 		node_id.node.vindex = params->host_dma_id;
 		break;
+
+	default:
+		cpr_mconfig->gtw_cfg.node_id = SKL_NON_GATEWAY_CPR_NODE_ID;
+		cpr_mconfig->cpr_feature_mask = 0;
+		return;
 	}
 
 	cpr_mconfig->gtw_cfg.node_id = node_id.val;
