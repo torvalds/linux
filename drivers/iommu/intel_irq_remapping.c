@@ -690,7 +690,7 @@ static int __init intel_prepare_irq_remapping(void)
 	if (!dmar_ir_support())
 		return -ENODEV;
 
-	if (parse_ioapics_under_ir() != 1) {
+	if (!parse_ioapics_under_ir()) {
 		pr_info("Not enabling interrupt remapping\n");
 		goto error;
 	}
@@ -943,7 +943,7 @@ static int __init parse_ioapics_under_ir(void)
 		}
 
 	if (!ir_supported)
-		return 0;
+		return -ENODEV;
 
 	for (ioapic_idx = 0; ioapic_idx < nr_ioapics; ioapic_idx++) {
 		int ioapic_id = mpc_ioapic_id(ioapic_idx);
@@ -955,7 +955,7 @@ static int __init parse_ioapics_under_ir(void)
 		}
 	}
 
-	return 1;
+	return 0;
 }
 
 static int __init ir_dev_scope_init(void)
