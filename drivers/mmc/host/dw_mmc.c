@@ -752,9 +752,7 @@ static int dw_mci_edmac_init(struct dw_mci *host)
 
 	host->dms->ch = dma_request_slave_channel(host->dev, "rx-tx");
 	if (!host->dms->ch) {
-		dev_err(host->dev,
-			"Failed to get external DMA channel %d\n",
-			host->dms->ch->chan_id);
+		dev_err(host->dev, "Failed to get external DMA channel.\n");
 		kfree(host->dms);
 		host->dms = NULL;
 		return -ENXIO;
