@@ -357,6 +357,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	}
 
 	res = &hose->mem_resources[1];
+	res->name = dn->full_name;
 	res->start = of_translate_address(dn, r + 2);
 	res->end = res->start + of_read_number(r + 4, 2) - 1;
 	res->flags = (IORESOURCE_MEM | IORESOURCE_MEM_64 | IORESOURCE_PREFETCH);
