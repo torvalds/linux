@@ -8200,7 +8200,10 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 {
 	/* guarantee we can provide a unique filter for the unicast address */
 	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr)) {
-		if (IXGBE_MAX_PF_MACVLANS <= netdev_uc_count(dev))
+		struct ixgbe_adapter *adapter = netdev_priv(dev);
+		u16 pool = VMDQ_P(0);
+
+		if (netdev_uc_count(dev) >= ixgbe_available_rars(adapter, pool))
 			return -ENOMEM;
 	}
 
