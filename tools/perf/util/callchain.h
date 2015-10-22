@@ -192,6 +192,7 @@ extern const char record_callchain_help[];
 extern int parse_callchain_record(const char *arg, struct callchain_param *param);
 int parse_callchain_record_opt(const char *arg, struct callchain_param *param);
 int parse_callchain_report_opt(const char *arg);
+int parse_callchain_top_opt(const char *arg);
 int perf_callchain_config(const char *var, const char *value);
 
 static inline void callchain_cursor_snapshot(struct callchain_cursor *dest,

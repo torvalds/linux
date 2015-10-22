@@ -1053,8 +1053,22 @@ callchain_opt(const struct option *opt, const char *arg, int unset)
 static int
 parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
-	symbol_conf.use_callchain = true;
-	return record_parse_callchain_opt(opt, arg, unset);
+	struct record_opts *record = (struct record_opts *)opt->value;
+
+	record->callgraph_set = true;
+	callchain_param.enabled = !unset;
+	callchain_param.record_mode = CALLCHAIN_FP;
+
+	/*
+	 * --no-call-graph
+	 */
+	if (unset) {
+		symbol_conf.use_callchain = false;
+		callchain_param.record_mode = CALLCHAIN_NONE;
+		return 0;
+	}
+
+	return parse_callchain_top_opt(arg);
 }
 
 static int perf_top_config(const char *var, const char *value, void *cb)
@@ -1078,6 +1092,8 @@ parse_percent_limit(const struct option *opt, const char *arg,
 	top->min_percent = strtof(arg, NULL);
 	return 0;
 }
+
+const char top_callchain_help[] = CALLCHAIN_RECORD_HELP ", " CALLCHAIN_REPORT_HELP;
 
 int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -1154,11 +1170,11 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
 		    "Show a column with the number of samples"),
 	OPT_CALLBACK_NOOPT('g', NULL, &top.record_opts,
-			   NULL, "enables call-graph recording",
+			   NULL, "enables call-graph recording and display",
 			   &callchain_opt),
 	OPT_CALLBACK(0, "call-graph", &top.record_opts,
-		     "mode[,dump_size]", record_callchain_help,
-		     &parse_callchain_opt),
+		     "mode[,dump_size],output_type,min_percent[,print_limit],call_order[,branch]",
+		     top_callchain_help, &parse_callchain_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
 		    "Accumulate callchains of children and show total overhead as well"),
 	OPT_INTEGER(0, "max-stack", &top.max_stack,
