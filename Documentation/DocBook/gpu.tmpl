@@ -635,10 +635,10 @@ char *date;</synopsis>
           acquired and release by <function>calling drm_gem_object_reference</function>
           and <function>drm_gem_object_unreference</function> respectively. The
           caller must hold the <structname>drm_device</structname>
-          <structfield>struct_mutex</structfield> lock. As a convenience, GEM
-          provides the <function>drm_gem_object_reference_unlocked</function> and
-          <function>drm_gem_object_unreference_unlocked</function> functions that
-          can be called without holding the lock.
+	  <structfield>struct_mutex</structfield> lock when calling
+	  <function>drm_gem_object_reference</function>. As a convenience, GEM
+	  provides <function>drm_gem_object_unreference_unlocked</function>
+	  functions that can be called without holding the lock.
         </para>
         <para>
           When the last reference to a GEM object is released the GEM core calls
@@ -836,10 +836,11 @@ char *date;</synopsis>
           abstracted from the client in libdrm.
         </para>
       </sect3>
-      <sect3>
-        <title>GEM Function Reference</title>
+    </sect2>
+    <sect2>
+      <title>GEM Function Reference</title>
 !Edrivers/gpu/drm/drm_gem.c
-      </sect3>
+!Iinclude/drm/drm_gem.h
     </sect2>
     <sect2>
       <title>VMA Offset Manager</title>
