@@ -143,7 +143,7 @@ static ssize_t mbox_test_message_read(struct file *filp, char __user *userbuf,
 	int l = 0;
 	int ret;
 
-	touser = kzalloc(MBOX_HEXDUMP_MAX_LEN, GFP_KERNEL);
+	touser = kzalloc(MBOX_HEXDUMP_MAX_LEN + 1, GFP_KERNEL);
 	if (!touser)
 		return -ENOMEM;
 
