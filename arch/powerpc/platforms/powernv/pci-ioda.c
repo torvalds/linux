@@ -3129,17 +3129,21 @@ static resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
 						      int resno)
 {
 	struct pci_dn *pdn = pci_get_pdn(pdev);
-	resource_size_t align, iov_align;
+	resource_size_t align;
 
-	iov_align = resource_size(&pdev->resource[resno]);
-	if (iov_align)
-		return iov_align;
-
+	/*
+	 * On PowerNV platform, IOV BAR is mapped by M64 BAR to enable the
+	 * SR-IOV. While from hardware perspective, the range mapped by M64
+	 * BAR should be size aligned.
+	 *
+	 * This function returns the total IOV BAR size if M64 BAR is in
+	 * Shared PE mode or just VF BAR size if not.
+	 */
 	align = pci_iov_resource_size(pdev, resno);
-	if (pdn->vfs_expanded)
-		return pdn->vfs_expanded * align;
+	if (!pdn->vfs_expanded)
+		return align;
 
-	return align;
+	return pdn->vfs_expanded * align;
 }
 #endif /* CONFIG_PCI_IOV */
 
