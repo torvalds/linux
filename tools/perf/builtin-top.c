@@ -1093,7 +1093,8 @@ parse_percent_limit(const struct option *opt, const char *arg,
 	return 0;
 }
 
-const char top_callchain_help[] = CALLCHAIN_RECORD_HELP ", " CALLCHAIN_REPORT_HELP;
+const char top_callchain_help[] = CALLCHAIN_RECORD_HELP CALLCHAIN_REPORT_HELP
+	"\n\t\t\t\tDefault: fp,graph,0.5,caller,function";
 
 int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -1173,7 +1174,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 			   NULL, "enables call-graph recording and display",
 			   &callchain_opt),
 	OPT_CALLBACK(0, "call-graph", &top.record_opts,
-		     "mode[,dump_size],output_type,min_percent[,print_limit],call_order[,branch]",
+		     "record_mode[,record_size],print_type,threshold[,print_limit],order,sort_key[,branch]",
 		     top_callchain_help, &parse_callchain_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
 		    "Accumulate callchains of children and show total overhead as well"),

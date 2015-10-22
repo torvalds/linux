@@ -7,17 +7,29 @@
 #include "event.h"
 #include "symbol.h"
 
-#define CALLCHAIN_HELP "setup and enables call-graph (stack chain/backtrace) recording: "
+#define HELP_PAD "\t\t\t\t"
+
+#define CALLCHAIN_HELP "setup and enables call-graph (stack chain/backtrace):\n\n"
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-#define CALLCHAIN_RECORD_HELP  CALLCHAIN_HELP "fp dwarf lbr"
+# define RECORD_MODE_HELP  HELP_PAD "record_mode:\tcall graph recording mode (fp|dwarf|lbr)\n"
 #else
-#define CALLCHAIN_RECORD_HELP  CALLCHAIN_HELP "fp lbr"
+# define RECORD_MODE_HELP  HELP_PAD "record_mode:\tcall graph recording mode (fp|lbr)\n"
 #endif
 
-#define CALLCHAIN_REPORT_HELP  "output_type (graph, flat, fractal, or none), " \
-	"min percent threshold, optional print limit, callchain order, " \
-	"key (function or address), add branches"
+#define RECORD_SIZE_HELP						\
+	HELP_PAD "record_size:\tif record_mode is 'dwarf', max size of stack recording (<bytes>)\n" \
+	HELP_PAD "\t\tdefault: 8192 (bytes)\n"
+
+#define CALLCHAIN_RECORD_HELP  CALLCHAIN_HELP RECORD_MODE_HELP RECORD_SIZE_HELP
+
+#define CALLCHAIN_REPORT_HELP						\
+	HELP_PAD "print_type:\tcall graph printing style (graph|flat|fractal|none)\n" \
+	HELP_PAD "threshold:\tminimum call graph inclusion threshold (<percent>)\n" \
+	HELP_PAD "print_limit:\tmaximum number of call graph entry (<number>)\n" \
+	HELP_PAD "order:\t\tcall graph order (caller|callee)\n" \
+	HELP_PAD "sort_key:\tcall graph sort key (function|address)\n"	\
+	HELP_PAD "branch:\t\tinclude last branch info to call graph (branch)\n"
 
 enum perf_call_graph_mode {
 	CALLCHAIN_NONE,

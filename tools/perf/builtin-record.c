@@ -1010,7 +1010,8 @@ static struct record record = {
 	},
 };
 
-const char record_callchain_help[] = CALLCHAIN_RECORD_HELP;
+const char record_callchain_help[] = CALLCHAIN_RECORD_HELP
+	"\n\t\t\t\tDefault: fp";
 
 /*
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing
@@ -1058,7 +1059,7 @@ struct option __record_options[] = {
 			   NULL, "enables call-graph recording" ,
 			   &record_callchain_opt),
 	OPT_CALLBACK(0, "call-graph", &record.opts,
-		     "mode[,dump_size]", record_callchain_help,
+		     "record_mode[,record_size]", record_callchain_help,
 		     &record_parse_callchain_opt),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),

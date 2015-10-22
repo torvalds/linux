@@ -625,8 +625,11 @@ parse_percent_limit(const struct option *opt, const char *str,
 	return 0;
 }
 
-const char report_callchain_help[] = "Display callchains using " CALLCHAIN_REPORT_HELP ". "
-				     "Default: graph,0.5,caller";
+#define CALLCHAIN_DEFAULT_OPT  "graph,0.5,caller,function"
+
+const char report_callchain_help[] = "Display call graph (stack chain/backtrace):\n\n"
+				     CALLCHAIN_REPORT_HELP
+				     "\n\t\t\t\tDefault: " CALLCHAIN_DEFAULT_OPT;
 
 int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -636,7 +639,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	bool has_br_stack = false;
 	int branch_mode = -1;
 	bool branch_call_mode = false;
-	char callchain_default_opt[] = "graph,0.5,caller";
+	char callchain_default_opt[] = CALLCHAIN_DEFAULT_OPT;
 	const char * const report_usage[] = {
 		"perf report [<options>]",
 		NULL
@@ -703,7 +706,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &report,
-			     "output_type,min_percent[,print_limit],call_order[,branch]",
+			     "print_type,threshold[,print_limit],order,sort_key[,branch]",
 			     report_callchain_help, &report_parse_callchain_opt,
 			     callchain_default_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
