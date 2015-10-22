@@ -63,6 +63,8 @@ static int       libcfs_nidstring_idx;
 
 static DEFINE_SPINLOCK(libcfs_nidstring_lock);
 
+static struct netstrfns *libcfs_namenum2netstrfns(const char *name);
+
 char *
 libcfs_next_nidstring(void)
 {
@@ -80,20 +82,403 @@ libcfs_next_nidstring(void)
 }
 EXPORT_SYMBOL(libcfs_next_nidstring);
 
-static int libcfs_lo_str2addr(const char *str, int nob, __u32 *addr)
+/**
+ * Nid range list syntax.
+ * \verbatim
+ *
+ * <nidlist>         :== <nidrange> [ ' ' <nidrange> ]
+ * <nidrange>        :== <addrrange> '@' <net>
+ * <addrrange>       :== '*' |
+ *                       <ipaddr_range> |
+ *			 <cfs_expr_list>
+ * <ipaddr_range>    :== <cfs_expr_list>.<cfs_expr_list>.<cfs_expr_list>.
+ *			 <cfs_expr_list>
+ * <cfs_expr_list>   :== <number> |
+ *                       <expr_list>
+ * <expr_list>       :== '[' <range_expr> [ ',' <range_expr>] ']'
+ * <range_expr>      :== <number> |
+ *                       <number> '-' <number> |
+ *                       <number> '-' <number> '/' <number>
+ * <net>             :== <netname> | <netname><number>
+ * <netname>         :== "lo" | "tcp" | "o2ib" | "cib" | "openib" | "iib" |
+ *                       "vib" | "ra" | "elan" | "mx" | "ptl"
+ * \endverbatim
+ */
+
+/**
+ * Structure to represent \<nidrange\> token of the syntax.
+ *
+ * One of this is created for each \<net\> parsed.
+ */
+struct nidrange {
+	/**
+	 * Link to list of this structures which is built on nid range
+	 * list parsing.
+	 */
+	struct list_head nr_link;
+	/**
+	 * List head for addrrange::ar_link.
+	 */
+	struct list_head nr_addrranges;
+	/**
+	 * Flag indicating that *@<net> is found.
+	 */
+	int nr_all;
+	/**
+	 * Pointer to corresponding element of libcfs_netstrfns.
+	 */
+	struct netstrfns *nr_netstrfns;
+	/**
+	 * Number of network. E.g. 5 if \<net\> is "elan5".
+	 */
+	int nr_netnum;
+};
+
+/**
+ * Structure to represent \<addrrange\> token of the syntax.
+ */
+struct addrrange {
+	/**
+	 * Link to nidrange::nr_addrranges.
+	 */
+	struct list_head ar_link;
+	/**
+	 * List head for cfs_expr_list::el_list.
+	 */
+	struct list_head ar_numaddr_ranges;
+};
+
+/**
+ * Parses \<addrrange\> token on the syntax.
+ *
+ * Allocates struct addrrange and links to \a nidrange via
+ * (nidrange::nr_addrranges)
+ *
+ * \retval 0 if \a src parses to '*' | \<ipaddr_range\> | \<cfs_expr_list\>
+ * \retval -errno otherwise
+ */
+static int
+parse_addrange(const struct cfs_lstr *src, struct nidrange *nidrange)
+{
+	struct addrrange *addrrange;
+
+	if (src->ls_len == 1 && src->ls_str[0] == '*') {
+		nidrange->nr_all = 1;
+		return 0;
+	}
+
+	LIBCFS_ALLOC(addrrange, sizeof(struct addrrange));
+	if (addrrange == NULL)
+		return -ENOMEM;
+	list_add_tail(&addrrange->ar_link, &nidrange->nr_addrranges);
+	INIT_LIST_HEAD(&addrrange->ar_numaddr_ranges);
+
+	return nidrange->nr_netstrfns->nf_parse_addrlist(src->ls_str,
+						src->ls_len,
+						&addrrange->ar_numaddr_ranges);
+}
+
+/**
+ * Finds or creates struct nidrange.
+ *
+ * Checks if \a src is a valid network name, looks for corresponding
+ * nidrange on the ist of nidranges (\a nidlist), creates new struct
+ * nidrange if it is not found.
+ *
+ * \retval pointer to struct nidrange matching network specified via \a src
+ * \retval NULL if \a src does not match any network
+ */
+static struct nidrange *
+add_nidrange(const struct cfs_lstr *src,
+	     struct list_head *nidlist)
+{
+	struct netstrfns *nf;
+	struct nidrange *nr;
+	int endlen;
+	unsigned netnum;
+
+	if (src->ls_len >= LNET_NIDSTR_SIZE)
+		return NULL;
+
+	nf = libcfs_namenum2netstrfns(src->ls_str);
+	if (nf == NULL)
+		return NULL;
+	endlen = src->ls_len - strlen(nf->nf_name);
+	if (endlen == 0)
+		/* network name only, e.g. "elan" or "tcp" */
+		netnum = 0;
+	else {
+		/* e.g. "elan25" or "tcp23", refuse to parse if
+		 * network name is not appended with decimal or
+		 * hexadecimal number */
+		if (!cfs_str2num_check(src->ls_str + strlen(nf->nf_name),
+				       endlen, &netnum, 0, MAX_NUMERIC_VALUE))
+			return NULL;
+	}
+
+	list_for_each_entry(nr, nidlist, nr_link) {
+		if (nr->nr_netstrfns != nf)
+			continue;
+		if (nr->nr_netnum != netnum)
+			continue;
+		return nr;
+	}
+
+	LIBCFS_ALLOC(nr, sizeof(struct nidrange));
+	if (nr == NULL)
+		return NULL;
+	list_add_tail(&nr->nr_link, nidlist);
+	INIT_LIST_HEAD(&nr->nr_addrranges);
+	nr->nr_netstrfns = nf;
+	nr->nr_all = 0;
+	nr->nr_netnum = netnum;
+
+	return nr;
+}
+
+/**
+ * Parses \<nidrange\> token of the syntax.
+ *
+ * \retval 1 if \a src parses to \<addrrange\> '@' \<net\>
+ * \retval 0 otherwise
+ */
+static int
+parse_nidrange(struct cfs_lstr *src, struct list_head *nidlist)
+{
+	struct cfs_lstr addrrange;
+	struct cfs_lstr net;
+	struct cfs_lstr tmp;
+	struct nidrange *nr;
+
+	tmp = *src;
+	if (cfs_gettok(src, '@', &addrrange) == 0)
+		goto failed;
+
+	if (cfs_gettok(src, '@', &net) == 0 || src->ls_str != NULL)
+		goto failed;
+
+	nr = add_nidrange(&net, nidlist);
+	if (nr == NULL)
+		goto failed;
+
+	if (parse_addrange(&addrrange, nr) != 0)
+		goto failed;
+
+	return 1;
+failed:
+	CWARN("can't parse nidrange: \"%.*s\"\n", tmp.ls_len, tmp.ls_str);
+	return 0;
+}
+
+/**
+ * Frees addrrange structures of \a list.
+ *
+ * For each struct addrrange structure found on \a list it frees
+ * cfs_expr_list list attached to it and frees the addrrange itself.
+ *
+ * \retval none
+ */
+static void
+free_addrranges(struct list_head *list)
+{
+	while (!list_empty(list)) {
+		struct addrrange *ar;
+
+		ar = list_entry(list->next, struct addrrange, ar_link);
+
+		cfs_expr_list_free_list(&ar->ar_numaddr_ranges);
+		list_del(&ar->ar_link);
+		LIBCFS_FREE(ar, sizeof(struct addrrange));
+	}
+}
+
+/**
+ * Frees nidrange strutures of \a list.
+ *
+ * For each struct nidrange structure found on \a list it frees
+ * addrrange list attached to it and frees the nidrange itself.
+ *
+ * \retval none
+ */
+void
+cfs_free_nidlist(struct list_head *list)
+{
+	struct list_head *pos, *next;
+	struct nidrange *nr;
+
+	list_for_each_safe(pos, next, list) {
+		nr = list_entry(pos, struct nidrange, nr_link);
+		free_addrranges(&nr->nr_addrranges);
+		list_del(pos);
+		LIBCFS_FREE(nr, sizeof(struct nidrange));
+	}
+}
+EXPORT_SYMBOL(cfs_free_nidlist);
+
+/**
+ * Parses nid range list.
+ *
+ * Parses with rigorous syntax and overflow checking \a str into
+ * \<nidrange\> [ ' ' \<nidrange\> ], compiles \a str into set of
+ * structures and links that structure to \a nidlist. The resulting
+ * list can be used to match a NID againts set of NIDS defined by \a
+ * str.
+ * \see cfs_match_nid
+ *
+ * \retval 1 on success
+ * \retval 0 otherwise
+ */
+int
+cfs_parse_nidlist(char *str, int len, struct list_head *nidlist)
+{
+	struct cfs_lstr src;
+	struct cfs_lstr res;
+	int rc;
+
+	src.ls_str = str;
+	src.ls_len = len;
+	INIT_LIST_HEAD(nidlist);
+	while (src.ls_str) {
+		rc = cfs_gettok(&src, ' ', &res);
+		if (rc == 0) {
+			cfs_free_nidlist(nidlist);
+			return 0;
+		}
+		rc = parse_nidrange(&res, nidlist);
+		if (rc == 0) {
+			cfs_free_nidlist(nidlist);
+			return 0;
+		}
+	}
+	return 1;
+}
+EXPORT_SYMBOL(cfs_parse_nidlist);
+
+/**
+ * Matches a nid (\a nid) against the compiled list of nidranges (\a nidlist).
+ *
+ * \see cfs_parse_nidlist()
+ *
+ * \retval 1 on match
+ * \retval 0  otherwises
+ */
+int cfs_match_nid(lnet_nid_t nid, struct list_head *nidlist)
+{
+	struct nidrange *nr;
+	struct addrrange *ar;
+
+	list_for_each_entry(nr, nidlist, nr_link) {
+		if (nr->nr_netstrfns->nf_type != LNET_NETTYP(LNET_NIDNET(nid)))
+			continue;
+		if (nr->nr_netnum != LNET_NETNUM(LNET_NIDNET(nid)))
+			continue;
+		if (nr->nr_all)
+			return 1;
+		list_for_each_entry(ar, &nr->nr_addrranges, ar_link)
+			if (nr->nr_netstrfns->nf_match_addr(LNET_NIDADDR(nid),
+						       &ar->ar_numaddr_ranges))
+				return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(cfs_match_nid);
+
+/**
+ * Print the network part of the nidrange \a nr into the specified \a buffer.
+ *
+ * \retval number of characters written
+ */
+static int
+cfs_print_network(char *buffer, int count, struct nidrange *nr)
+{
+	struct netstrfns *nf = nr->nr_netstrfns;
+
+	if (nr->nr_netnum == 0)
+		return scnprintf(buffer, count, "@%s", nf->nf_name);
+	else
+		return scnprintf(buffer, count, "@%s%u",
+				 nf->nf_name, nr->nr_netnum);
+}
+
+/**
+ * Print a list of addrrange (\a addrranges) into the specified \a buffer.
+ * At max \a count characters can be printed into \a buffer.
+ *
+ * \retval number of characters written
+ */
+static int
+cfs_print_addrranges(char *buffer, int count, struct list_head *addrranges,
+		     struct nidrange *nr)
+{
+	int i = 0;
+	struct addrrange *ar;
+	struct netstrfns *nf = nr->nr_netstrfns;
+
+	list_for_each_entry(ar, addrranges, ar_link) {
+		if (i != 0)
+			i += scnprintf(buffer + i, count - i, " ");
+		i += nf->nf_print_addrlist(buffer + i, count - i,
+					   &ar->ar_numaddr_ranges);
+		i += cfs_print_network(buffer + i, count - i, nr);
+	}
+	return i;
+}
+
+/**
+ * Print a list of nidranges (\a nidlist) into the specified \a buffer.
+ * At max \a count characters can be printed into \a buffer.
+ * Nidranges are separated by a space character.
+ *
+ * \retval number of characters written
+ */
+int cfs_print_nidlist(char *buffer, int count, struct list_head *nidlist)
+{
+	int i = 0;
+	struct nidrange *nr;
+
+	if (count <= 0)
+		return 0;
+
+	list_for_each_entry(nr, nidlist, nr_link) {
+		if (i != 0)
+			i += scnprintf(buffer + i, count - i, " ");
+
+		if (nr->nr_all != 0) {
+			LASSERT(list_empty(&nr->nr_addrranges));
+			i += scnprintf(buffer + i, count - i, "*");
+			i += cfs_print_network(buffer + i, count - i, nr);
+		} else {
+			i += cfs_print_addrranges(buffer + i, count - i,
+						  &nr->nr_addrranges, nr);
+		}
+	}
+	return i;
+}
+EXPORT_SYMBOL(cfs_print_nidlist);
+
+static int
+libcfs_lo_str2addr(const char *str, int nob, __u32 *addr)
 {
 	*addr = 0;
 	return 1;
 }
 
-static void libcfs_ip_addr2str(__u32 addr, char *str)
+static void
+libcfs_ip_addr2str(__u32 addr, char *str)
 {
 	snprintf(str, LNET_NIDSTR_SIZE, "%u.%u.%u.%u",
 		 (addr >> 24) & 0xff, (addr >> 16) & 0xff,
 		 (addr >> 8) & 0xff, addr & 0xff);
 }
 
-static int libcfs_ip_str2addr(const char *str, int nob, __u32 *addr)
+/* CAVEAT EMPTOR XscanfX
+ * I use "%n" at the end of a sscanf format to detect trailing junk.  However
+ * sscanf may return immediately if it sees the terminating '0' in a string, so
+ * I initialise the %n variable to the expected length.  If sscanf sets it;
+ * fine, if it doesn't, then the scan ended at the end of the string, which is
+ * fine too :) */
+static int
+libcfs_ip_str2addr(const char *str, int nob, __u32 *addr)
 {
 	unsigned int	a;
 	unsigned int	b;
@@ -113,6 +498,7 @@ static int libcfs_ip_str2addr(const char *str, int nob, __u32 *addr)
 	return 0;
 }
 
+/* Used by lnet/config.c so it can't be static */
 int
 cfs_ip_addr_parse(char *str, int len, struct list_head *list)
 {
@@ -188,17 +574,20 @@ cfs_ip_addr_match(__u32 addr, struct list_head *list)
 	return i == 4;
 }
 
-static void libcfs_decnum_addr2str(__u32 addr, char *str)
+static void
+libcfs_decnum_addr2str(__u32 addr, char *str)
 {
 	snprintf(str, LNET_NIDSTR_SIZE, "%u", addr);
 }
 
-static void libcfs_hexnum_addr2str(__u32 addr, char *str)
+static void
+libcfs_hexnum_addr2str(__u32 addr, char *str)
 {
 	snprintf(str, LNET_NIDSTR_SIZE, "0x%x", addr);
 }
 
-static int libcfs_num_str2addr(const char *str, int nob, __u32 *addr)
+static int
+libcfs_num_str2addr(const char *str, int nob, __u32 *addr)
 {
 	int     n;
 
@@ -378,13 +767,6 @@ static struct netstrfns  libcfs_netstrfns[] = {
 };
 
 static const int libcfs_nnetstrfns = ARRAY_SIZE(libcfs_netstrfns);
-
-/* CAVEAT EMPTOR XscanfX
- * I use "%n" at the end of a sscanf format to detect trailing junk.  However
- * sscanf may return immediately if it sees the terminating '0' in a string, so
- * I initialise the %n variable to the expected length.  If sscanf sets it;
- * fine, if it doesn't, then the scan ended at the end of the string, which is
- * fine too :) */
 
 static struct netstrfns *
 libcfs_lnd2netstrfns(int lnd)
@@ -628,377 +1010,3 @@ libcfs_str2anynid(lnet_nid_t *nidp, const char *str)
 	return *nidp != LNET_NID_ANY;
 }
 EXPORT_SYMBOL(libcfs_str2anynid);
-
-/**
- * Nid range list syntax.
- * \verbatim
- *
- * <nidlist>	 :== <nidrange> [ ' ' <nidrange> ]
- * <nidrange>	:== <addrrange> '@' <net>
- * <addrrange>       :== '*' |
- *		       <ipaddr_range> |
- *			 <cfs_expr_list>
- * <ipaddr_range>    :== <cfs_expr_list>.<cfs_expr_list>.<cfs_expr_list>.
- *			 <cfs_expr_list>
- * <cfs_expr_list>   :== <number> |
- *		       <expr_list>
- * <expr_list>       :== '[' <range_expr> [ ',' <range_expr>] ']'
- * <range_expr>      :== <number> |
- *		       <number> '-' <number> |
- *		       <number> '-' <number> '/' <number>
- * <net>	     :== <netname> | <netname><number>
- * <netname>	 :== "lo" | "tcp" | "o2ib" | "cib" | "openib" | "iib" |
- *		       "vib" | "ra" | "elan" | "mx" | "ptl"
- * \endverbatim
- */
-
-/**
- * Structure to represent \<nidrange\> token of the syntax.
- *
- * One of this is created for each \<net\> parsed.
- */
-struct nidrange {
-	/**
-	 * Link to list of this structures which is built on nid range
-	 * list parsing.
-	 */
-	struct list_head nr_link;
-	/**
-	 * List head for addrrange::ar_link.
-	 */
-	struct list_head nr_addrranges;
-	/**
-	 * Flag indicating that *@<net> is found.
-	 */
-	int nr_all;
-	/**
-	 * Pointer to corresponding element of libcfs_netstrfns.
-	 */
-	struct netstrfns *nr_netstrfns;
-	/**
-	 * Number of network. E.g. 5 if \<net\> is "elan5".
-	 */
-	int nr_netnum;
-};
-
-/**
- * Structure to represent \<addrrange\> token of the syntax.
- */
-struct addrrange {
-	/**
-	 * Link to nidrange::nr_addrranges.
-	 */
-	struct list_head ar_link;
-	/**
-	 * List head for cfs_expr_list::el_list.
-	 */
-	struct list_head ar_numaddr_ranges;
-};
-
-/**
- * Parses \<addrrange\> token on the syntax.
- *
- * Allocates struct addrrange and links to \a nidrange via
- * (nidrange::nr_addrranges)
- *
- * \retval 0 if \a src parses to '*' | \<ipaddr_range\> | \<cfs_expr_list\>
- * \retval -errno otherwise
- */
-static int
-parse_addrange(const struct cfs_lstr *src, struct nidrange *nidrange)
-{
-	struct addrrange *addrrange;
-
-	if (src->ls_len == 1 && src->ls_str[0] == '*') {
-		nidrange->nr_all = 1;
-		return 0;
-	}
-
-	LIBCFS_ALLOC(addrrange, sizeof(struct addrrange));
-	if (addrrange == NULL)
-		return -ENOMEM;
-	list_add_tail(&addrrange->ar_link, &nidrange->nr_addrranges);
-	INIT_LIST_HEAD(&addrrange->ar_numaddr_ranges);
-
-	return nidrange->nr_netstrfns->nf_parse_addrlist(src->ls_str,
-						src->ls_len,
-						&addrrange->ar_numaddr_ranges);
-}
-
-/**
- * Finds or creates struct nidrange.
- *
- * Checks if \a src is a valid network name, looks for corresponding
- * nidrange on the ist of nidranges (\a nidlist), creates new struct
- * nidrange if it is not found.
- *
- * \retval pointer to struct nidrange matching network specified via \a src
- * \retval NULL if \a src does not match any network
- */
-static struct nidrange *
-add_nidrange(const struct cfs_lstr *src,
-	     struct list_head *nidlist)
-{
-	struct netstrfns *nf;
-	struct nidrange *nr;
-	int endlen;
-	unsigned netnum;
-
-	if (src->ls_len >= LNET_NIDSTR_SIZE)
-		return NULL;
-
-	nf = libcfs_namenum2netstrfns(src->ls_str);
-	if (nf == NULL)
-		return NULL;
-	endlen = src->ls_len - strlen(nf->nf_name);
-	if (endlen == 0)
-		/* network name only, e.g. "elan" or "tcp" */
-		netnum = 0;
-	else {
-		/* e.g. "elan25" or "tcp23", refuse to parse if
-		 * network name is not appended with decimal or
-		 * hexadecimal number */
-		if (!cfs_str2num_check(src->ls_str + strlen(nf->nf_name),
-				       endlen, &netnum, 0, MAX_NUMERIC_VALUE))
-			return NULL;
-	}
-
-	list_for_each_entry(nr, nidlist, nr_link) {
-		if (nr->nr_netstrfns != nf)
-			continue;
-		if (nr->nr_netnum != netnum)
-			continue;
-		return nr;
-	}
-
-	LIBCFS_ALLOC(nr, sizeof(struct nidrange));
-	if (nr == NULL)
-		return NULL;
-	list_add_tail(&nr->nr_link, nidlist);
-	INIT_LIST_HEAD(&nr->nr_addrranges);
-	nr->nr_netstrfns = nf;
-	nr->nr_all = 0;
-	nr->nr_netnum = netnum;
-
-	return nr;
-}
-
-/**
- * Parses \<nidrange\> token of the syntax.
- *
- * \retval 1 if \a src parses to \<addrrange\> '@' \<net\>
- * \retval 0 otherwise
- */
-static int
-parse_nidrange(struct cfs_lstr *src, struct list_head *nidlist)
-{
-	struct cfs_lstr addrrange;
-	struct cfs_lstr net;
-	struct cfs_lstr tmp;
-	struct nidrange *nr;
-
-	tmp = *src;
-	if (cfs_gettok(src, '@', &addrrange) == 0)
-		goto failed;
-
-	if (cfs_gettok(src, '@', &net) == 0 || src->ls_str != NULL)
-		goto failed;
-
-	nr = add_nidrange(&net, nidlist);
-	if (nr == NULL)
-		goto failed;
-
-	if (parse_addrange(&addrrange, nr) != 0)
-		goto failed;
-
-	return 1;
- failed:
-	CWARN("can't parse nidrange: \"%.*s\"\n", tmp.ls_len, tmp.ls_str);
-	return 0;
-}
-
-/**
- * Frees addrrange structures of \a list.
- *
- * For each struct addrrange structure found on \a list it frees
- * cfs_expr_list list attached to it and frees the addrrange itself.
- *
- * \retval none
- */
-static void
-free_addrranges(struct list_head *list)
-{
-	while (!list_empty(list)) {
-		struct addrrange *ar;
-
-		ar = list_entry(list->next, struct addrrange, ar_link);
-
-		cfs_expr_list_free_list(&ar->ar_numaddr_ranges);
-		list_del(&ar->ar_link);
-		LIBCFS_FREE(ar, sizeof(struct addrrange));
-	}
-}
-
-/**
- * Frees nidrange strutures of \a list.
- *
- * For each struct nidrange structure found on \a list it frees
- * addrrange list attached to it and frees the nidrange itself.
- *
- * \retval none
- */
-void
-cfs_free_nidlist(struct list_head *list)
-{
-	struct list_head *pos, *next;
-	struct nidrange *nr;
-
-	list_for_each_safe(pos, next, list) {
-		nr = list_entry(pos, struct nidrange, nr_link);
-		free_addrranges(&nr->nr_addrranges);
-		list_del(pos);
-		LIBCFS_FREE(nr, sizeof(struct nidrange));
-	}
-}
-EXPORT_SYMBOL(cfs_free_nidlist);
-
-/**
- * Parses nid range list.
- *
- * Parses with rigorous syntax and overflow checking \a str into
- * \<nidrange\> [ ' ' \<nidrange\> ], compiles \a str into set of
- * structures and links that structure to \a nidlist. The resulting
- * list can be used to match a NID againts set of NIDS defined by \a
- * str.
- * \see cfs_match_nid
- *
- * \retval 1 on success
- * \retval 0 otherwise
- */
-int
-cfs_parse_nidlist(char *str, int len, struct list_head *nidlist)
-{
-	struct cfs_lstr src;
-	struct cfs_lstr res;
-	int rc;
-
-	src.ls_str = str;
-	src.ls_len = len;
-	INIT_LIST_HEAD(nidlist);
-	while (src.ls_str) {
-		rc = cfs_gettok(&src, ' ', &res);
-		if (rc == 0) {
-			cfs_free_nidlist(nidlist);
-			return 0;
-		}
-		rc = parse_nidrange(&res, nidlist);
-		if (rc == 0) {
-			cfs_free_nidlist(nidlist);
-			return 0;
-		}
-	}
-	return 1;
-}
-EXPORT_SYMBOL(cfs_parse_nidlist);
-
-/**
- * Matches a nid (\a nid) against the compiled list of nidranges (\a nidlist).
- *
- * \see cfs_parse_nidlist()
- *
- * \retval 1 on match
- * \retval 0  otherwises
- */
-int cfs_match_nid(lnet_nid_t nid, struct list_head *nidlist)
-{
-	struct nidrange *nr;
-	struct addrrange *ar;
-
-	list_for_each_entry(nr, nidlist, nr_link) {
-		if (nr->nr_netstrfns->nf_type != LNET_NETTYP(LNET_NIDNET(nid)))
-			continue;
-		if (nr->nr_netnum != LNET_NETNUM(LNET_NIDNET(nid)))
-			continue;
-		if (nr->nr_all)
-			return 1;
-		list_for_each_entry(ar, &nr->nr_addrranges, ar_link)
-			if (nr->nr_netstrfns->nf_match_addr(LNET_NIDADDR(nid),
-						       &ar->ar_numaddr_ranges))
-				return 1;
-	}
-	return 0;
-}
-EXPORT_SYMBOL(cfs_match_nid);
-
-/**
- * Print the network part of the nidrange \a nr into the specified \a buffer.
- *
- * \retval number of characters written
- */
-static int
-cfs_print_network(char *buffer, int count, struct nidrange *nr)
-{
-	struct netstrfns *nf = nr->nr_netstrfns;
-
-	if (nr->nr_netnum == 0)
-		return scnprintf(buffer, count, "@%s", nf->nf_name);
-	else
-		return scnprintf(buffer, count, "@%s%u",
-				 nf->nf_name, nr->nr_netnum);
-}
-
-/**
- * Print a list of addrrange (\a addrranges) into the specified \a buffer.
- * At max \a count characters can be printed into \a buffer.
- *
- * \retval number of characters written
- */
-static int
-cfs_print_addrranges(char *buffer, int count, struct list_head *addrranges,
-		     struct nidrange *nr)
-{
-	int i = 0;
-	struct addrrange *ar;
-	struct netstrfns *nf = nr->nr_netstrfns;
-
-	list_for_each_entry(ar, addrranges, ar_link) {
-		if (i != 0)
-			i += scnprintf(buffer + i, count - i, " ");
-		i += nf->nf_print_addrlist(buffer + i, count - i,
-					   &ar->ar_numaddr_ranges);
-		i += cfs_print_network(buffer + i, count - i, nr);
-	}
-	return i;
-}
-
-/**
- * Print a list of nidranges (\a nidlist) into the specified \a buffer.
- * At max \a count characters can be printed into \a buffer.
- * Nidranges are separated by a space character.
- *
- * \retval number of characters written
- */
-int cfs_print_nidlist(char *buffer, int count, struct list_head *nidlist)
-{
-	int i = 0;
-	struct nidrange *nr;
-
-	if (count <= 0)
-		return 0;
-
-	list_for_each_entry(nr, nidlist, nr_link) {
-		if (i != 0)
-			i += scnprintf(buffer + i, count - i, " ");
-
-		if (nr->nr_all != 0) {
-			LASSERT(list_empty(&nr->nr_addrranges));
-			i += scnprintf(buffer + i, count - i, "*");
-			i += cfs_print_network(buffer + i, count - i, nr);
-		} else {
-			i += cfs_print_addrranges(buffer + i, count - i,
-						  &nr->nr_addrranges, nr);
-		}
-	}
-	return i;
-}
-EXPORT_SYMBOL(cfs_print_nidlist);
