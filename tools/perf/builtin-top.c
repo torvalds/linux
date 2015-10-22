@@ -1304,6 +1304,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		perf_hpp__cancel_cumulate();
 	}
 
+	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
+		callchain_param.order = ORDER_CALLER;
+
 	symbol_conf.priv_size = sizeof(struct annotation);
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);

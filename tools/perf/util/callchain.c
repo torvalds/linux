@@ -51,10 +51,12 @@ static int parse_callchain_order(const char *value)
 {
 	if (!strncmp(value, "caller", strlen(value))) {
 		callchain_param.order = ORDER_CALLER;
+		callchain_param.order_set = true;
 		return 0;
 	}
 	if (!strncmp(value, "callee", strlen(value))) {
 		callchain_param.order = ORDER_CALLEE;
+		callchain_param.order_set = true;
 		return 0;
 	}
 	return -1;

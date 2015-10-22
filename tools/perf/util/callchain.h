@@ -75,6 +75,7 @@ struct callchain_param {
 	double			min_percent;
 	sort_chain_func_t	sort;
 	enum chain_order	order;
+	bool			order_set;
 	enum chain_key		key;
 	bool			branch_callstack;
 };

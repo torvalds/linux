@@ -812,6 +812,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;
+	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
+		callchain_param.order = ORDER_CALLER;
 
 	if (itrace_synth_opts.callchain &&
 	    (int)itrace_synth_opts.callchain_sz > report.max_stack)
