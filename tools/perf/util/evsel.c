@@ -1262,6 +1262,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(bp_type, p_unsigned);
 	PRINT_ATTRn("{ bp_addr, config1 }", bp_addr, p_hex);
 	PRINT_ATTRn("{ bp_len, config2 }", bp_len, p_hex);
+	PRINT_ATTRf(branch_sample_type, p_unsigned);
 	PRINT_ATTRf(sample_regs_user, p_hex);
 	PRINT_ATTRf(sample_stack_user, p_unsigned);
 	PRINT_ATTRf(clockid, p_signed);
