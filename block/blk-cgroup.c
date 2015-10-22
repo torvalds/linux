@@ -896,6 +896,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 struct cftype blkcg_files[] = {
 	{
 		.name = "stat",
+		.flags = CFTYPE_NOT_ON_ROOT,
 		.seq_show = blkcg_print_stat,
 	},
 	{ }	/* terminate */
