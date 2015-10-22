@@ -1579,7 +1579,6 @@ isert_rx_do_work(struct iser_rx_desc *rx_desc, struct isert_conn *isert_conn)
 	struct iser_hdr *iser_hdr = &rx_desc->iser_header;
 	uint64_t read_va = 0, write_va = 0;
 	uint32_t read_stag = 0, write_stag = 0;
-	int rc;
 
 	switch (iser_hdr->flags & 0xF0) {
 	case ISCSI_CTRL:
@@ -1606,8 +1605,8 @@ isert_rx_do_work(struct iser_rx_desc *rx_desc, struct isert_conn *isert_conn)
 		break;
 	}
 
-	rc = isert_rx_opcode(isert_conn, rx_desc,
-			     read_stag, read_va, write_stag, write_va);
+	isert_rx_opcode(isert_conn, rx_desc,
+			read_stag, read_va, write_stag, write_va);
 }
 
 static void
