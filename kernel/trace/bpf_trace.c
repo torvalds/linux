@@ -215,6 +215,50 @@ const struct bpf_func_proto bpf_perf_event_read_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 
+static u64 bpf_perf_event_output(u64 r1, u64 r2, u64 index, u64 r4, u64 size)
+{
+	struct pt_regs *regs = (struct pt_regs *) (long) r1;
+	struct bpf_map *map = (struct bpf_map *) (long) r2;
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	void *data = (void *) (long) r4;
+	struct perf_sample_data sample_data;
+	struct perf_event *event;
+	struct perf_raw_record raw = {
+		.size = size,
+		.data = data,
+	};
+
+	if (unlikely(index >= array->map.max_entries))
+		return -E2BIG;
+
+	event = (struct perf_event *)array->ptrs[index];
+	if (unlikely(!event))
+		return -ENOENT;
+
+	if (unlikely(event->attr.type != PERF_TYPE_SOFTWARE ||
+		     event->attr.config != PERF_COUNT_SW_BPF_OUTPUT))
+		return -EINVAL;
+
+	if (unlikely(event->oncpu != smp_processor_id()))
+		return -EOPNOTSUPP;
+
+	perf_sample_data_init(&sample_data, 0, 0);
+	sample_data.raw = &raw;
+	perf_event_output(event, &sample_data, regs);
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_perf_event_output_proto = {
+	.func		= bpf_perf_event_output,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_STACK,
+	.arg5_type	= ARG_CONST_STACK_SIZE,
+};
+
 static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
@@ -242,6 +286,8 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 		return &bpf_get_smp_processor_id_proto;
 	case BPF_FUNC_perf_event_read:
 		return &bpf_perf_event_read_proto;
+	case BPF_FUNC_perf_event_output:
+		return &bpf_perf_event_output_proto;
 	default:
 		return NULL;
 	}

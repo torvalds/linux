@@ -295,6 +295,8 @@ static void *perf_event_fd_array_get_ptr(struct bpf_map *map, int fd)
 		return (void *)attr;
 
 	if (attr->type != PERF_TYPE_RAW &&
+	    !(attr->type == PERF_TYPE_SOFTWARE &&
+	      attr->config == PERF_COUNT_SW_BPF_OUTPUT) &&
 	    attr->type != PERF_TYPE_HARDWARE) {
 		perf_event_release_kernel(event);
 		return ERR_PTR(-EINVAL);
