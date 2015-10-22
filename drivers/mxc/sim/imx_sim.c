@@ -926,69 +926,36 @@ static void sim_start(struct sim_t *sim)
 	__raw_writel(reg_data, sim->ioaddr + sim->port_detect_reg);
 };
 
-static void sim_activate(struct sim_t *sim)
-{
-	u32 reg_data;
-	pr_debug("%s Activate on the sim port.\n", __func__);
-	/* activate on sequence */
-	if (sim->present != SIM_PRESENT_REMOVED) {
-		/*Disable Reset pin*/
-		reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
-		reg_data &= ~SIM_PORT_CNTL_SRST;
-		/*If sven is low active, we need to set sevn to be high*/
-		if (sim->sven_low_active)
-			reg_data |= SIM_PORT_CNTL_SVEN;
-
-		__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
-
-		/*Enable VCC pin*/
-		reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
-
-		if (sim->sven_low_active)
-			reg_data &= ~SIM_PORT_CNTL_SVEN;
-		else
-			reg_data |= SIM_PORT_CNTL_SVEN;
-
-		__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
-
-		msleep(10);
-		/*Enable clock pin*/
-		reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
-		reg_data |= SIM_PORT_CNTL_SCEN;
-		__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
-		msleep(10);
-	} else {
-		pr_err("No card%s\n", __func__);
-	}
-}
-
 static void sim_cold_reset_sequency(struct sim_t *sim)
 {
 	u32 reg_data;
 
 	sim->state = SIM_STATE_RESET_SEQUENCY;
-	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
-	reg_data &= ~SIM_PORT_CNTL_SRST;
-	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
-	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 
+	/*set VCC*/
+	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	if (sim->sven_low_active)
 		reg_data &= ~SIM_PORT_CNTL_SVEN;
 	else
 		reg_data |= SIM_PORT_CNTL_SVEN;
-
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
+
 	msleep(9);
 
+	/*enable CLK*/
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SCEN;
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 
+	/*RST low time*/
 	sim_reset_low_timing(sim, EMV_RESET_LOW_CYCLES);
 
+	/*RST high*/
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SRST;
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
+
+	/*wait for ATR*/
 	sim_set_gpc_timer(sim, ATR_MAX_DELAY_CLK);
 };
 
@@ -1406,7 +1373,6 @@ static long sim_ioctl(struct file *file,
 		sim_reset_module(sim);
 		sim_data_reset(sim);
 		sim_start(sim);
-		sim_activate(sim);
 		sim_cold_reset(sim);
 
 		break;
