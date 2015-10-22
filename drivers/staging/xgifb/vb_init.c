@@ -498,7 +498,6 @@ static void XGINew_SetDRAMDefaultRegister340(
 	xgifb_reg_set(P3c4, 0x1B, 0x03); /* SR1B */
 }
 
-
 static unsigned short XGINew_SetDRAMSize20Reg(
 		unsigned short dram_size,
 		struct vb_device_info *pVBInfo)
