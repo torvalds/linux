@@ -1440,7 +1440,7 @@ dump_config_tdp(void)
 	
 	get_msr(base_cpu, MSR_TURBO_ACTIVATION_RATIO, &msr);
 	fprintf(stderr, "cpu%d: MSR_TURBO_ACTIVATION_RATIO: 0x%08llx (", base_cpu, msr);
-	fprintf(stderr, "MAX_NON_TURBO_RATIO=%d", (unsigned int)(msr) & 0xEF);
+	fprintf(stderr, "MAX_NON_TURBO_RATIO=%d", (unsigned int)(msr) & 0x7F);
 	fprintf(stderr, " lock=%d", (unsigned int)(msr >> 31) & 1);
 	fprintf(stderr, ")\n");
 }
