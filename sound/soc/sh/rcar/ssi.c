@@ -184,7 +184,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	u32 cr;
 
 	if (0 == ssi->usrcnt) {
-		rsnd_mod_hw_start(mod);
+		rsnd_mod_power_on(mod);
 
 		if (rsnd_rdai_is_clk_master(rdai)) {
 			struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
@@ -265,7 +265,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_dai_stream *io, struct rsnd_ssi *ssi)
 				rsnd_ssi_master_clk_stop(ssi);
 		}
 
-		rsnd_mod_hw_stop(mod);
+		rsnd_mod_power_off(mod);
 
 		ssi->chan = 0;
 	}

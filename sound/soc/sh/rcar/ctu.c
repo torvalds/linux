@@ -35,7 +35,7 @@ static int rsnd_ctu_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 
 	rsnd_ctu_initialize_lock(mod);
 
@@ -50,7 +50,7 @@ static int rsnd_ctu_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	return 0;
 }

@@ -352,7 +352,7 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 
 	rsnd_src_soft_reset(mod);
 
@@ -373,7 +373,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	if (src->err)
 		dev_warn(dev, "%s[%d] under/over flow err = %d\n",

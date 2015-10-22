@@ -58,7 +58,7 @@ static int rsnd_mix_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 
 	rsnd_mix_soft_reset(mod);
 
@@ -83,7 +83,7 @@ static int rsnd_mix_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	return 0;
 }
