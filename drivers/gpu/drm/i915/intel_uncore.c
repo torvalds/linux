@@ -726,7 +726,9 @@ static u##x \
 vlv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	enum forcewake_domains fw_engine = 0; \
 	GEN6_READ_HEADER(x); \
-	if (FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg)) \
+	if (!NEEDS_FORCE_WAKE(reg)) \
+		fw_engine = 0; \
+	else if (FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg)) \
 		fw_engine = FORCEWAKE_RENDER; \
 	else if (FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)) \
 		fw_engine = FORCEWAKE_MEDIA; \
@@ -741,7 +743,9 @@ static u##x \
 chv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	enum forcewake_domains fw_engine = 0; \
 	GEN6_READ_HEADER(x); \
-	if (FORCEWAKE_CHV_RENDER_RANGE_OFFSET(reg)) \
+	if (!NEEDS_FORCE_WAKE(reg)) \
+		fw_engine = 0; \
+	else if (FORCEWAKE_CHV_RENDER_RANGE_OFFSET(reg)) \
 		fw_engine = FORCEWAKE_RENDER; \
 	else if (FORCEWAKE_CHV_MEDIA_RANGE_OFFSET(reg)) \
 		fw_engine = FORCEWAKE_MEDIA; \
@@ -935,7 +939,8 @@ static void \
 chv_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	enum forcewake_domains fw_engine = 0; \
 	GEN6_WRITE_HEADER; \
-	if (is_gen8_shadowed(dev_priv, reg)) \
+	if (!NEEDS_FORCE_WAKE(reg) || \
+	    is_gen8_shadowed(dev_priv, reg)) \
 		fw_engine = 0; \
 	else if (FORCEWAKE_CHV_RENDER_RANGE_OFFSET(reg)) \
 		fw_engine = FORCEWAKE_RENDER; \
