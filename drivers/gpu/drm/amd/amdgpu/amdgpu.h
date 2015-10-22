@@ -970,7 +970,7 @@ struct amdgpu_vm_id {
 	/* last flushed PD/PT update */
 	struct fence	        *flushed_updates;
 	/* last use of vmid */
-	struct amdgpu_fence	*last_id_use;
+	struct fence		*last_id_use;
 };
 
 struct amdgpu_vm {
@@ -1003,7 +1003,7 @@ struct amdgpu_vm {
 };
 
 struct amdgpu_vm_manager {
-	struct amdgpu_fence		*active[AMDGPU_NUM_VM];
+	struct fence			*active[AMDGPU_NUM_VM];
 	uint32_t			max_pfn;
 	/* number of VMIDs */
 	unsigned			nvm;
