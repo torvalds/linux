@@ -126,6 +126,7 @@ int selinux_enabled = 1;
 #endif
 
 static struct kmem_cache *sel_inode_cache;
+static struct kmem_cache *file_security_cache;
 
 /**
  * selinux_secmark_enabled - Check to see if SECMARK is currently enabled
@@ -287,7 +288,7 @@ static int file_alloc_security(struct file *file)
 	struct file_security_struct *fsec;
 	u32 sid = current_sid();
 
-	fsec = kzalloc(sizeof(struct file_security_struct), GFP_KERNEL);
+	fsec = kmem_cache_zalloc(file_security_cache, GFP_KERNEL);
 	if (!fsec)
 		return -ENOMEM;
 
@@ -302,7 +303,7 @@ static void file_free_security(struct file *file)
 {
 	struct file_security_struct *fsec = file->f_security;
 	file->f_security = NULL;
-	kfree(fsec);
+	kmem_cache_free(file_security_cache, fsec);
 }
 
 static int superblock_alloc_security(struct super_block *sb)
@@ -674,10 +675,9 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 
 		if (flags[i] == SBLABEL_MNT)
 			continue;
-		rc = security_context_to_sid(mount_options[i],
-					     strlen(mount_options[i]), &sid, GFP_KERNEL);
+		rc = security_context_str_to_sid(mount_options[i], &sid, GFP_KERNEL);
 		if (rc) {
-			printk(KERN_WARNING "SELinux: security_context_to_sid"
+			printk(KERN_WARNING "SELinux: security_context_str_to_sid"
 			       "(%s) failed for (dev %s, type %s) errno=%d\n",
 			       mount_options[i], sb->s_id, name, rc);
 			goto out;
@@ -2617,15 +2617,12 @@ static int selinux_sb_remount(struct super_block *sb, void *data)
 
 	for (i = 0; i < opts.num_mnt_opts; i++) {
 		u32 sid;
-		size_t len;
 
 		if (flags[i] == SBLABEL_MNT)
 			continue;
-		len = strlen(mount_options[i]);
-		rc = security_context_to_sid(mount_options[i], len, &sid,
-					     GFP_KERNEL);
+		rc = security_context_str_to_sid(mount_options[i], &sid, GFP_KERNEL);
 		if (rc) {
-			printk(KERN_WARNING "SELinux: security_context_to_sid"
+			printk(KERN_WARNING "SELinux: security_context_str_to_sid"
 			       "(%s) failed for (dev %s, type %s) errno=%d\n",
 			       mount_options[i], sb->s_id, sb->s_type->name, rc);
 			goto out_free_opts;
@@ -2946,7 +2943,8 @@ static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 			ATTR_ATIME_SET | ATTR_MTIME_SET | ATTR_TIMES_SET))
 		return dentry_has_perm(cred, dentry, FILE__SETATTR);
 
-	if (selinux_policycap_openperm && (ia_valid & ATTR_SIZE))
+	if (selinux_policycap_openperm && (ia_valid & ATTR_SIZE)
+			&& !(ia_valid & ATTR_FILE))
 		av |= FILE__OPEN;
 
 	return dentry_has_perm(cred, dentry, av);
@@ -3166,7 +3164,7 @@ static int selinux_inode_setsecurity(struct inode *inode, const char *name,
 	if (!value || !size)
 		return -EACCES;
 
-	rc = security_context_to_sid((void *)value, size, &newsid, GFP_KERNEL);
+	rc = security_context_to_sid(value, size, &newsid, GFP_KERNEL);
 	if (rc)
 		return rc;
 
@@ -3238,7 +3236,7 @@ static void selinux_file_free_security(struct file *file)
  * Check whether a task has the ioctl permission and cmd
  * operation to an inode.
  */
-int ioctl_has_perm(const struct cred *cred, struct file *file,
+static int ioctl_has_perm(const struct cred *cred, struct file *file,
 		u32 requested, u16 cmd)
 {
 	struct common_audit_data ad;
@@ -6088,6 +6086,9 @@ static __init int selinux_init(void)
 
 	sel_inode_cache = kmem_cache_create("selinux_inode_security",
 					    sizeof(struct inode_security_struct),
+					    0, SLAB_PANIC, NULL);
+	file_security_cache = kmem_cache_create("selinux_file_security",
+					    sizeof(struct file_security_struct),
 					    0, SLAB_PANIC, NULL);
 	avc_init();
 
