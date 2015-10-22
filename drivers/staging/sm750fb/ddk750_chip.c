@@ -4,13 +4,6 @@
 #include "ddk750_reg.h"
 #include "ddk750_chip.h"
 #include "ddk750_power.h"
-typedef struct _pllcalparam {
-	unsigned char power;/* d : 0~ 6*/
-	unsigned char pod;
-	unsigned char od;
-	unsigned char value;/* value of  2 power d (2^d) */
-}
-pllcalparam;
 
 logical_chip_type_t getChipType(void)
 {
