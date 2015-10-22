@@ -278,7 +278,9 @@ int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
 
 struct sock *dccp_v4_request_recv_sock(const struct sock *sk, struct sk_buff *skb,
 				       struct request_sock *req,
-				       struct dst_entry *dst);
+				       struct dst_entry *dst,
+				       struct request_sock *req_unhash,
+				       bool *own_req);
 struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 			    struct request_sock *req);
 

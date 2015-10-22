@@ -523,15 +523,15 @@ static bool reqsk_queue_unlink(struct request_sock_queue *queue,
 			       struct request_sock *req)
 {
 	struct inet_hashinfo *hashinfo = req_to_sk(req)->sk_prot->h.hashinfo;
-	spinlock_t *lock;
-	bool found;
+	bool found = false;
 
-	lock = inet_ehash_lockp(hashinfo, req->rsk_hash);
+	if (sk_hashed(req_to_sk(req))) {
+		spinlock_t *lock = inet_ehash_lockp(hashinfo, req->rsk_hash);
 
-	spin_lock(lock);
-	found = __sk_nulls_del_node_init_rcu(req_to_sk(req));
-	spin_unlock(lock);
-
+		spin_lock(lock);
+		found = __sk_nulls_del_node_init_rcu(req_to_sk(req));
+		spin_unlock(lock);
+	}
 	if (timer_pending(&req->rsk_timer) && del_timer_sync(&req->rsk_timer))
 		reqsk_put(req);
 	return found;
@@ -810,6 +810,25 @@ void inet_csk_reqsk_queue_add(struct sock *sk, struct request_sock *req,
 	spin_unlock(&queue->rskq_lock);
 }
 EXPORT_SYMBOL(inet_csk_reqsk_queue_add);
+
+struct sock *inet_csk_complete_hashdance(struct sock *sk, struct sock *child,
+					 struct request_sock *req, bool own_req)
+{
+	if (own_req) {
+		inet_csk_reqsk_queue_drop(sk, req);
+		reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req);
+		inet_csk_reqsk_queue_add(sk, req, child);
+		/* Warning: caller must not call reqsk_put(req);
+		 * child stole last reference on it.
+		 */
+		return child;
+	}
+	/* Too bad, another child took ownership of the request, undo. */
+	bh_unlock_sock(child);
+	sock_put(child);
+	return NULL;
+}
+EXPORT_SYMBOL(inet_csk_complete_hashdance);
 
 /*
  *	This routine closes sockets which have been at least partially

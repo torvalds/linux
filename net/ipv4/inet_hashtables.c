@@ -407,13 +407,13 @@ static u32 inet_sk_port_offset(const struct sock *sk)
 /* insert a socket into ehash, and eventually remove another one
  * (The another one can be a SYN_RECV or TIMEWAIT
  */
-int inet_ehash_insert(struct sock *sk, struct sock *osk)
+bool inet_ehash_insert(struct sock *sk, struct sock *osk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct hlist_nulls_head *list;
 	struct inet_ehash_bucket *head;
 	spinlock_t *lock;
-	int ret = 0;
+	bool ret = true;
 
 	WARN_ON_ONCE(!sk_unhashed(sk));
 
@@ -423,30 +423,41 @@ int inet_ehash_insert(struct sock *sk, struct sock *osk)
 	lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 
 	spin_lock(lock);
-	__sk_nulls_add_node_rcu(sk, list);
 	if (osk) {
-		WARN_ON(sk->sk_hash != osk->sk_hash);
-		sk_nulls_del_node_init_rcu(osk);
+		WARN_ON_ONCE(sk->sk_hash != osk->sk_hash);
+		ret = sk_nulls_del_node_init_rcu(osk);
 	}
+	if (ret)
+		__sk_nulls_add_node_rcu(sk, list);
 	spin_unlock(lock);
 	return ret;
 }
 
-void __inet_hash_nolisten(struct sock *sk, struct sock *osk)
+bool inet_ehash_nolisten(struct sock *sk, struct sock *osk)
 {
-	inet_ehash_insert(sk, osk);
-	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+	bool ok = inet_ehash_insert(sk, osk);
+
+	if (ok) {
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+	} else {
+		percpu_counter_inc(sk->sk_prot->orphan_count);
+		sk->sk_state = TCP_CLOSE;
+		sock_set_flag(sk, SOCK_DEAD);
+		inet_csk_destroy_sock(sk);
+	}
+	return ok;
 }
-EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
+EXPORT_SYMBOL_GPL(inet_ehash_nolisten);
 
 void __inet_hash(struct sock *sk, struct sock *osk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct inet_listen_hashbucket *ilb;
 
-	if (sk->sk_state != TCP_LISTEN)
-		return __inet_hash_nolisten(sk, osk);
-
+	if (sk->sk_state != TCP_LISTEN) {
+		inet_ehash_nolisten(sk, osk);
+		return;
+	}
 	WARN_ON(!sk_unhashed(sk));
 	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
 
@@ -567,7 +578,7 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->inet_sport = htons(port);
-			__inet_hash_nolisten(sk, (struct sock *)tw);
+			inet_ehash_nolisten(sk, (struct sock *)tw);
 		}
 		if (tw)
 			inet_twsk_bind_unhash(tw, hinfo);
@@ -584,7 +595,7 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		__inet_hash_nolisten(sk, NULL);
+		inet_ehash_nolisten(sk, NULL);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {

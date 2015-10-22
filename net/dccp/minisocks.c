@@ -143,6 +143,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 {
 	struct sock *child = NULL;
 	struct dccp_request_sock *dreq = dccp_rsk(req);
+	bool own_req;
 
 	/* Check for retransmitted REQUEST */
 	if (dccp_hdr(skb)->dccph_type == DCCP_PKT_REQUEST) {
@@ -182,14 +183,13 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (dccp_parse_options(sk, dreq, skb))
 		 goto drop;
 
-	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
-	if (child == NULL)
+	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL,
+							 req, &own_req);
+	if (!child)
 		goto listen_overflow;
 
-	inet_csk_reqsk_queue_drop(sk, req);
-	inet_csk_reqsk_queue_add(sk, req, child);
-out:
-	return child;
+	return inet_csk_complete_hashdance(sk, child, req, own_req);
+
 listen_overflow:
 	dccp_pr_debug("listen_overflow!\n");
 	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_TOO_BUSY;
@@ -198,7 +198,7 @@ drop:
 		req->rsk_ops->send_reset(sk, skb);
 
 	inet_csk_reqsk_queue_drop(sk, req);
-	goto out;
+	return NULL;
 }
 
 EXPORT_SYMBOL_GPL(dccp_check_req);

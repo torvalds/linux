@@ -43,7 +43,9 @@ struct inet_connection_sock_af_ops {
 	int	    (*conn_request)(struct sock *sk, struct sk_buff *skb);
 	struct sock *(*syn_recv_sock)(const struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req,
-				      struct dst_entry *dst);
+				      struct dst_entry *dst,
+				      struct request_sock *req_unhash,
+				      bool *own_req);
 	u16	    net_header_len;
 	u16	    net_frag_header_len;
 	u16	    sockaddr_len;
@@ -272,6 +274,9 @@ void inet_csk_reqsk_queue_add(struct sock *sk, struct request_sock *req,
 			      struct sock *child);
 void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 				   unsigned long timeout);
+struct sock *inet_csk_complete_hashdance(struct sock *sk, struct sock *child,
+					 struct request_sock *req,
+					 bool own_req);
 
 static inline void inet_csk_reqsk_queue_added(struct sock *sk)
 {
