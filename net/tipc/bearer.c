@@ -464,6 +464,19 @@ void tipc_bearer_send(struct net *net, u32 bearer_id, struct sk_buff *buf,
 	rcu_read_unlock();
 }
 
+int tipc_bearer_mtu(struct net *net, u32 bearer_id)
+{
+	int mtu = 0;
+	struct tipc_bearer *b;
+
+	rcu_read_lock();
+	b = rcu_dereference_rtnl(tipc_net(net)->bearer_list[bearer_id]);
+	if (b)
+		mtu = b->mtu;
+	rcu_read_unlock();
+	return mtu;
+}
+
 /* tipc_bearer_xmit() -send buffer to destination over bearer
  */
 void tipc_bearer_xmit(struct net *net, u32 bearer_id,

@@ -148,9 +148,9 @@ void tipc_bclink_input(struct net *net)
 	tipc_sk_mcast_rcv(net, &tn->bcbase->arrvq, &tn->bcbase->inputq);
 }
 
-uint  tipc_bcast_get_mtu(void)
+int tipc_bcast_get_mtu(struct net *net)
 {
-	return MAX_PKT_DEFAULT_MCAST;
+	return tipc_link_mtu(tipc_bc_sndlink(net));
 }
 
 static u16 bcbuf_acks(struct sk_buff *skb)
@@ -175,7 +175,7 @@ static void tipc_bcbase_select_primary(struct net *net)
 {
 	struct tipc_bc_base *bb = tipc_bc_base(net);
 	int all_dests =  tipc_link_bc_peers(bb->link);
-	int i;
+	int i, mtu;
 
 	bb->primary_bearer = INVALID_BEARER_ID;
 
@@ -183,6 +183,13 @@ static void tipc_bcbase_select_primary(struct net *net)
 		return;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
+		if (!bb->dests[i])
+			continue;
+
+		mtu = tipc_bearer_mtu(net, i);
+		if (mtu < tipc_link_mtu(bb->link))
+			tipc_link_set_mtu(bb->link, mtu);
+
 		if (bb->dests[i] < all_dests)
 			continue;
 
@@ -1220,7 +1227,7 @@ int tipc_bcast_init(struct net *net)
 	bb->node.net = net;
 
 	if (!tipc_link_bc_create(&bb->node, 0, 0,
-				 MAX_PKT_DEFAULT_MCAST,
+				 U16_MAX,
 				 BCLINK_WIN_DEFAULT,
 				 0,
 				 &bb->inputq,

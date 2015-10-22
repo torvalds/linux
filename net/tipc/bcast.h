@@ -63,7 +63,7 @@ void tipc_bcbearer_sort(struct net *net, struct tipc_node_map *nm_ptr,
 			u32 node, bool action);
 int  tipc_bclink_reset_stats(struct net *net);
 int  tipc_bclink_set_queue_limits(struct net *net, u32 limit);
-uint  tipc_bcast_get_mtu(void);
+int  tipc_bcast_get_mtu(struct net *net);
 int tipc_bcast_xmit(struct net *net, struct sk_buff_head *list);
 int tipc_bcast_rcv(struct net *net, struct tipc_link *l, struct sk_buff *skb);
 void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l, u32 acked);

@@ -212,6 +212,16 @@ int tipc_link_bc_peers(struct tipc_link *l)
 	return l->ackers;
 }
 
+void tipc_link_set_mtu(struct tipc_link *l, int mtu)
+{
+	l->mtu = mtu;
+}
+
+int tipc_link_mtu(struct tipc_link *l)
+{
+	return l->mtu;
+}
+
 static u32 link_own_addr(struct tipc_link *l)
 {
 	return msg_prevnode(l->pmsg);
