@@ -39,6 +39,7 @@
  *    far_copies (stored in second byte of layout)
  *    far_offset (stored in bit 16 of layout )
  *    use_far_sets (stored in bit 17 of layout )
+ *    use_far_sets_bugfixed (stored in bit 18 of layout )
  *
  * The data to be stored is divided into chunks using chunksize.  Each device
  * is divided into far_copies sections.   In each section, chunks are laid out
@@ -1497,6 +1498,8 @@ static void status(struct seq_file *seq, struct mddev *mddev)
 			seq_printf(seq, " %d offset-copies", conf->geo.far_copies);
 		else
 			seq_printf(seq, " %d far-copies", conf->geo.far_copies);
+		if (conf->geo.far_set_size != conf->geo.raid_disks)
+			seq_printf(seq, " %d devices per set", conf->geo.far_set_size);
 	}
 	seq_printf(seq, " [%d/%d] [", conf->geo.raid_disks,
 					conf->geo.raid_disks - mddev->degraded);
@@ -3394,7 +3397,7 @@ static int setup_geo(struct geom *geo, struct mddev *mddev, enum geo_type new)
 		disks = mddev->raid_disks + mddev->delta_disks;
 		break;
 	}
-	if (layout >> 18)
+	if (layout >> 19)
 		return -1;
 	if (chunk < (PAGE_SIZE >> 9) ||
 	    !is_power_of_2(chunk))
@@ -3406,7 +3409,22 @@ static int setup_geo(struct geom *geo, struct mddev *mddev, enum geo_type new)
 	geo->near_copies = nc;
 	geo->far_copies = fc;
 	geo->far_offset = fo;
-	geo->far_set_size = (layout & (1<<17)) ? disks / fc : disks;
+	switch (layout >> 17) {
+	case 0:	/* original layout.  simple but not always optimal */
+		geo->far_set_size = disks;
+		break;
+	case 1: /* "improved" layout which was buggy.  Hopefully no-one is
+		 * actually using this, but leave code here just in case.*/
+		geo->far_set_size = disks/fc;
+		WARN(geo->far_set_size < fc,
+		     "This RAID10 layout does not provide data safety - please backup and create new array\n");
+		break;
+	case 2: /* "improved" layout fixed to match documentation */
+		geo->far_set_size = fc * nc;
+		break;
+	default: /* Not a valid layout */
+		return -1;
+	}
 	geo->chunk_mask = chunk - 1;
 	geo->chunk_shift = ffz(~chunk);
 	return nc*fc;
