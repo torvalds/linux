@@ -1105,13 +1105,13 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 }
 
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
-			       bool bss_notify)
+			       bool bss_notify, bool enable_qos)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	int ac;
-	bool use_11b, enable_qos;
+	bool use_11b;
 	bool is_ocb; /* Use another EDCA parameters if dot11OCBActivated=true */
 	int aCWmin, aCWmax;
 
@@ -1129,13 +1129,6 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 		   chanctx_conf->def.chan->band == IEEE80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
 	rcu_read_unlock();
-
-	/*
-	 * By default disable QoS in STA mode for old access points, which do
-	 * not support 802.11e. New APs will provide proper queue parameters,
-	 * that we will configure later.
-	 */
-	enable_qos = (sdata->vif.type != NL80211_IFTYPE_STATION);
 
 	is_ocb = (sdata->vif.type == NL80211_IFTYPE_OCB);
 
