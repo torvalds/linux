@@ -926,7 +926,7 @@ static int skl_tplg_be_fill_pipe_params(struct snd_soc_dai *dai,
 					params->s_freq, params->stream);
 	if (cfg) {
 		mconfig->formats_config.caps_size = cfg->size;
-		memcpy(mconfig->formats_config.caps, &cfg->caps, cfg->size);
+		mconfig->formats_config.caps = (u32 *) &cfg->caps;
 	} else {
 		dev_err(dai->dev, "Blob NULL for id %x type %d dirn %d\n",
 					mconfig->vbus_id, link_type,
