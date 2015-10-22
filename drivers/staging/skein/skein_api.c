@@ -50,7 +50,7 @@ int skein_init(struct skein_ctx *ctx, size_t hash_bit_len)
 	 * memory available.  The beauty of C :-) .
 	 */
 	x = ctx->m.s256.x;
-	x_len = ctx->skein_size/8;
+	x_len = ctx->skein_size / 8;
 	/*
 	 * If size is the same and hash bit length is zero then reuse
 	 * the save chaining variables.
@@ -91,7 +91,7 @@ int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t key_len,
 	skein_assert_ret(ctx, SKEIN_FAIL);
 
 	x = ctx->m.s256.x;
-	x_len = ctx->skein_size/8;
+	x_len = ctx->skein_size / 8;
 
 	skein_assert_ret(hash_bit_len, SKEIN_BAD_HASHLEN);
 
@@ -135,7 +135,7 @@ void skein_reset(struct skein_ctx *ctx)
 	 * memory available.  The beautiy of C :-) .
 	 */
 	x = ctx->m.s256.x;
-	x_len = ctx->skein_size/8;
+	x_len = ctx->skein_size / 8;
 	/* Restore the chaing variable, reset byte counter */
 	memcpy(x, ctx->x_save, x_len);
 
@@ -212,7 +212,7 @@ int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
 	/* partial byte bit mask */
 	mask = (u8) (1u << (7 - (msg_bit_cnt & 7)));
 	/* apply bit padding on final byte (in the buffer) */
-	up[length-1]  = (u8)((up[length-1] & (0-mask))|mask);
+	up[length - 1]  = (u8)((up[length - 1] & (0 - mask)) | mask);
 
 	return SKEIN_SUCCESS;
 }
