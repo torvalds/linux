@@ -1017,7 +1017,7 @@ int iser_connect(struct iser_conn   *iser_conn,
 	ib_conn->beacon.wr_id = ISER_BEACON_WRID;
 	ib_conn->beacon.opcode = IB_WR_SEND;
 
-	ib_conn->cma_id = rdma_create_id(iser_cma_handler,
+	ib_conn->cma_id = rdma_create_id(&init_net, iser_cma_handler,
 					 (void *)iser_conn,
 					 RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ib_conn->cma_id)) {

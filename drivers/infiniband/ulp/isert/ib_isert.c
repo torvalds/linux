@@ -3096,7 +3096,7 @@ isert_setup_id(struct isert_np *isert_np)
 	sa = (struct sockaddr *)&np->np_sockaddr;
 	isert_dbg("ksockaddr: %p, sa: %p\n", &np->np_sockaddr, sa);
 
-	id = rdma_create_id(isert_cma_handler, isert_np,
+	id = rdma_create_id(&init_net, isert_cma_handler, isert_np,
 			    RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(id)) {
 		isert_err("rdma_create_id() failed: %ld\n", PTR_ERR(id));

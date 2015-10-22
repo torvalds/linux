@@ -160,13 +160,17 @@ struct rdma_cm_id {
 /**
  * rdma_create_id - Create an RDMA identifier.
  *
+ * @net: The network namespace in which to create the new id.
  * @event_handler: User callback invoked to report events associated with the
  *   returned rdma_id.
  * @context: User specified context associated with the id.
  * @ps: RDMA port space.
  * @qp_type: type of queue pair associated with the id.
+ *
+ * The id holds a reference on the network namespace until it is destroyed.
  */
-struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
+struct rdma_cm_id *rdma_create_id(struct net *net,
+				  rdma_cm_event_handler event_handler,
 				  void *context, enum rdma_port_space ps,
 				  enum ib_qp_type qp_type);
 
