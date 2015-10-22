@@ -1230,7 +1230,17 @@ static struct platform_driver zynq_pinctrl_driver = {
 	.remove = zynq_pinctrl_remove,
 };
 
-module_platform_driver(zynq_pinctrl_driver);
+static int __init zynq_pinctrl_init(void)
+{
+	return platform_driver_register(&zynq_pinctrl_driver);
+}
+arch_initcall(zynq_pinctrl_init);
+
+static void __exit zynq_pinctrl_exit(void)
+{
+	platform_driver_unregister(&zynq_pinctrl_driver);
+}
+module_exit(zynq_pinctrl_exit);
 
 MODULE_AUTHOR("SÃ¶ren Brinkmann <soren.brinkmann@xilinx.com>");
 MODULE_DESCRIPTION("Xilinx Zynq pinctrl driver");
