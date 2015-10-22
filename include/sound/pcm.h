@@ -402,10 +402,6 @@ struct snd_pcm_runtime {
 	struct snd_pcm_hardware hw;
 	struct snd_pcm_hw_constraints hw_constraints;
 
-	/* -- interrupt callbacks -- */
-	void (*transfer_ack_begin)(struct snd_pcm_substream *substream);
-	void (*transfer_ack_end)(struct snd_pcm_substream *substream);
-
 	/* -- timer -- */
 	unsigned int timer_resolution;	/* timer resolution */
 	int tstamp_type;		/* timestamp type */
