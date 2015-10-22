@@ -79,10 +79,10 @@ u32 rsnd_read(struct rsnd_priv *priv,
 	if (!rsnd_is_accessible_reg(priv, gen, reg))
 		return 0;
 
+	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
+
 	dev_dbg(dev, "r %s[%d] - %4d : %08x\n",
 		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, val);
-
-	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
 
 	return val;
 }
