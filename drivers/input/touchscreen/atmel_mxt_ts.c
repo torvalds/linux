@@ -418,7 +418,7 @@ static void mxt_debug_msg_enable(struct mxt_data *data)
 	data->debug_v2_enabled = true;
 	mutex_unlock(&data->debug_msg_lock);
 
-	dev_info(dev, "Enabled message output\n");
+	dev_dbg(dev, "Enabled message output\n");
 }
 
 static void mxt_debug_msg_disable(struct mxt_data *data)
@@ -428,7 +428,6 @@ static void mxt_debug_msg_disable(struct mxt_data *data)
 	if (!data->debug_v2_enabled)
 		return;
 
-	dev_info(dev, "disabling message output\n");
 	data->debug_v2_enabled = false;
 
 	mutex_lock(&data->debug_msg_lock);
@@ -436,7 +435,7 @@ static void mxt_debug_msg_disable(struct mxt_data *data)
 	data->debug_msg_data = NULL;
 	data->debug_msg_count = 0;
 	mutex_unlock(&data->debug_msg_lock);
-	dev_info(dev, "Disabled message output\n");
+	dev_dbg(dev, "Disabled message output\n");
 }
 
 static void mxt_debug_msg_add(struct mxt_data *data, u8 *msg)
