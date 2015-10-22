@@ -576,7 +576,7 @@ void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 	REG_RANGE((reg), 0x9400, 0x9800)
 
 #define FORCEWAKE_GEN9_BLITTER_RANGE_OFFSET(reg) \
-	((reg) < 0x40000 &&\
+	((reg) < 0x40000 && \
 	 !FORCEWAKE_GEN9_UNCORE_RANGE_OFFSET(reg) && \
 	 !FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(reg) && \
 	 !FORCEWAKE_GEN9_MEDIA_RANGE_OFFSET(reg) && \
@@ -749,7 +749,7 @@ chv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 }
 
 #define SKL_NEEDS_FORCE_WAKE(reg) \
-	 ((reg) < 0x40000 && !FORCEWAKE_GEN9_UNCORE_RANGE_OFFSET(reg))
+	((reg) < 0x40000 && !FORCEWAKE_GEN9_UNCORE_RANGE_OFFSET(reg))
 
 #define __gen9_read(x) \
 static u##x \
