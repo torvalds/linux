@@ -1059,6 +1059,7 @@ extern int vfs_test_lock(struct file *, struct file_lock *);
 extern int vfs_lock_file(struct file *, unsigned int, struct file_lock *, struct file_lock *);
 extern int vfs_cancel_lock(struct file *filp, struct file_lock *fl);
 extern int flock_lock_inode_wait(struct inode *inode, struct file_lock *fl);
+extern int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl);
 extern int __break_lease(struct inode *inode, unsigned int flags, unsigned int type);
 extern void lease_get_mtime(struct inode *, struct timespec *time);
 extern int generic_setlease(struct file *, long, struct file_lock **, void **priv);
@@ -1177,6 +1178,11 @@ static inline int flock_lock_inode_wait(struct inode *inode,
 	return -ENOLCK;
 }
 
+static inline int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl)
+{
+	return -ENOLCK;
+}
+
 static inline int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 {
 	return 0;
@@ -1223,6 +1229,11 @@ static inline int posix_lock_file_wait(struct file *filp, struct file_lock *fl)
 static inline int flock_lock_file_wait(struct file *filp, struct file_lock *fl)
 {
 	return flock_lock_inode_wait(file_inode(filp), fl);
+}
+
+static inline int locks_lock_file_wait(struct file *filp, struct file_lock *fl)
+{
+	return locks_lock_inode_wait(file_inode(filp), fl);
 }
 
 struct fasync_struct {

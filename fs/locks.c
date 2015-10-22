@@ -1882,6 +1882,30 @@ int flock_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 EXPORT_SYMBOL(flock_lock_inode_wait);
 
 /**
+ * locks_lock_inode_wait - Apply a lock to an inode
+ * @inode: inode of the file to apply to
+ * @fl: The lock to be applied
+ *
+ * Apply a POSIX or FLOCK style lock request to an inode.
+ */
+int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl)
+{
+	int res = 0;
+	switch (fl->fl_flags & (FL_POSIX|FL_FLOCK)) {
+		case FL_POSIX:
+			res = posix_lock_inode_wait(inode, fl);
+			break;
+		case FL_FLOCK:
+			res = flock_lock_inode_wait(inode, fl);
+			break;
+		default:
+			BUG();
+	}
+	return res;
+}
+EXPORT_SYMBOL(locks_lock_inode_wait);
+
+/**
  *	sys_flock: - flock() system call.
  *	@fd: the file descriptor to lock.
  *	@cmd: the type of lock to apply.
