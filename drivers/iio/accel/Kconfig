@@ -158,6 +158,17 @@ config MXC4005
 	  To compile this driver as a module, choose M. The module will be
 	  called mxc4005.
 
+config MXC6255
+	tristate "Memsic MXC6255 Orientation Sensing Accelerometer Driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for the Memsic MXC6255 Orientation
+	  Sensing Accelerometer Driver.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mxc6255.
+
 config STK8312
 	tristate "Sensortek STK8312 3-Axis Accelerometer Driver"
 	depends on I2C

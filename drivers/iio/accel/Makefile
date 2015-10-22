@@ -17,6 +17,7 @@ obj-$(CONFIG_MMA9551)		+= mma9551.o
 obj-$(CONFIG_MMA9553)		+= mma9553.o
 
 obj-$(CONFIG_MXC4005)		+= mxc4005.o
+obj-$(CONFIG_MXC6255)		+= mxc6255.o
 
 obj-$(CONFIG_STK8312)		+= stk8312.o
 obj-$(CONFIG_STK8BA50)		+= stk8ba50.o
