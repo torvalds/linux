@@ -3052,6 +3052,7 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_unpair_device *cp = data;
 	struct mgmt_rp_unpair_device rp;
+	struct hci_conn_params *params;
 	struct hci_cp_disconnect dc;
 	struct mgmt_pending_cmd *cmd;
 	struct hci_conn *conn;
@@ -3130,6 +3131,15 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	 * give a chance of keeping them if a repairing happens.
 	 */
 	set_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags);
+
+	/* Disable auto-connection parameters if present */
+	params = hci_conn_params_lookup(hdev, &cp->addr.bdaddr, addr_type);
+	if (params) {
+		if (params->explicit_connect)
+			params->auto_connect = HCI_AUTO_CONN_EXPLICIT;
+		else
+			params->auto_connect = HCI_AUTO_CONN_DISABLED;
+	}
 
 	/* If disconnection is not requested, then clear the connection
 	 * variable so that the link is not terminated.
