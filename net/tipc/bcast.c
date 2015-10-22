@@ -98,10 +98,11 @@ struct tipc_bcbearer {
  * Handles sequence numbering, fragmentation, bundling, etc.
  */
 struct tipc_bc_base {
-	struct tipc_link link;
+	struct tipc_link *link;
 	struct tipc_node node;
 	struct sk_buff_head arrvq;
 	struct sk_buff_head inputq;
+	struct sk_buff_head namedq;
 	struct tipc_node_map bcast_nodes;
 	struct tipc_node *retransmit_to;
 };
@@ -180,7 +181,7 @@ void tipc_bclink_remove_node(struct net *net, u32 addr)
 
 	/* Last node? => reset backlog queue */
 	if (!tn->bcbase->bcast_nodes.count)
-		tipc_link_purge_backlog(&tn->bcbase->link);
+		tipc_link_purge_backlog(tn->bcbase->link);
 
 	tipc_bclink_unlock(net);
 }
@@ -1010,55 +1011,56 @@ int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[])
 
 int tipc_bcast_init(struct net *net)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct tipc_bcbearer *bcbearer;
-	struct tipc_bc_base *bclink;
-	struct tipc_link *bcl;
+	struct tipc_net *tn = tipc_net(net);
+	struct tipc_bcbearer *bcb = NULL;
+	struct tipc_bc_base *bb = NULL;
+	struct tipc_link *l = NULL;
 
-	bcbearer = kzalloc(sizeof(*bcbearer), GFP_ATOMIC);
-	if (!bcbearer)
-		return -ENOMEM;
+	bcb = kzalloc(sizeof(*bcb), GFP_ATOMIC);
+	if (!bcb)
+		goto enomem;
+	tn->bcbearer = bcb;
 
-	bclink = kzalloc(sizeof(*bclink), GFP_ATOMIC);
-	if (!bclink) {
-		kfree(bcbearer);
-		return -ENOMEM;
-	}
+	bcb->bearer.window = BCLINK_WIN_DEFAULT;
+	bcb->bearer.mtu = MAX_PKT_DEFAULT_MCAST;
+	bcb->bearer.identity = MAX_BEARERS;
 
-	bcl = &bclink->link;
-	bcbearer->bearer.media = &bcbearer->media;
-	bcbearer->media.send_msg = tipc_bcbearer_send;
-	sprintf(bcbearer->media.name, "tipc-broadcast");
+	bcb->bearer.media = &bcb->media;
+	bcb->media.send_msg = tipc_bcbearer_send;
+	sprintf(bcb->media.name, "tipc-broadcast");
+	strcpy(bcb->bearer.name, bcb->media.name);
 
+	bb = kzalloc(sizeof(*bb), GFP_ATOMIC);
+	if (!bb)
+		goto enomem;
+	tn->bcbase = bb;
+	__skb_queue_head_init(&bb->arrvq);
 	spin_lock_init(&tipc_net(net)->bclock);
-	__skb_queue_head_init(&bcl->transmq);
-	__skb_queue_head_init(&bcl->backlogq);
-	__skb_queue_head_init(&bcl->deferdq);
-	skb_queue_head_init(&bcl->wakeupq);
-	bcl->snd_nxt = 1;
-	spin_lock_init(&bclink->node.lock);
-	__skb_queue_head_init(&bclink->arrvq);
-	skb_queue_head_init(&bclink->inputq);
-	bcl->owner = &bclink->node;
-	bcl->owner->net = net;
-	bcl->mtu = MAX_PKT_DEFAULT_MCAST;
-	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);
-	bcl->bearer_id = MAX_BEARERS;
-	rcu_assign_pointer(tn->bearer_list[MAX_BEARERS], &bcbearer->bearer);
-	bcl->pmsg = (struct tipc_msg *)&bcl->proto_msg;
+	bb->node.net = net;
 
-	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
-	tn->bcbearer = bcbearer;
-	tn->bcbase = bclink;
-	tn->bcl = bcl;
+	if (!tipc_link_bc_create(&bb->node,
+				 MAX_PKT_DEFAULT_MCAST,
+				 BCLINK_WIN_DEFAULT,
+				 &bb->inputq,
+				 &bb->namedq,
+				 &l))
+		goto enomem;
+	bb->link = l;
+	tn->bcl = l;
+	rcu_assign_pointer(tn->bearer_list[MAX_BEARERS], &bcb->bearer);
 	return 0;
+enomem:
+	kfree(bcb);
+	kfree(bb);
+	kfree(l);
+	return -ENOMEM;
 }
 
 void tipc_bcast_reinit(struct net *net)
 {
 	struct tipc_bc_base *b = tipc_bc_base(net);
 
-	msg_set_prevnode(b->link.pmsg, tipc_own_addr(net));
+	msg_set_prevnode(b->link->pmsg, tipc_own_addr(net));
 }
 
 void tipc_bcast_stop(struct net *net)
@@ -1072,6 +1074,7 @@ void tipc_bcast_stop(struct net *net)
 	synchronize_net();
 	kfree(tn->bcbearer);
 	kfree(tn->bcbase);
+	kfree(tn->bcl);
 }
 
 /**

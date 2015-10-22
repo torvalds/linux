@@ -50,6 +50,7 @@
  */
 static const char *link_co_err = "Link tunneling error, ";
 static const char *link_rst_msg = "Resetting link ";
+static const char tipc_bclink_name[] = "broadcast-link";
 
 static const struct nla_policy tipc_nl_link_policy[TIPC_NLA_LINK_MAX + 1] = {
 	[TIPC_NLA_LINK_UNSPEC]		= { .type = NLA_UNSPEC },
@@ -228,6 +229,34 @@ bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
 	__skb_queue_head_init(&l->deferdq);
 	skb_queue_head_init(&l->wakeupq);
 	skb_queue_head_init(l->inputq);
+	return true;
+}
+
+/**
+ * tipc_link_bc_create - create new link to be used for broadcast
+ * @n: pointer to associated node
+ * @mtu: mtu to be used
+ * @window: send window to be used
+ * @inputq: queue to put messages ready for delivery
+ * @namedq: queue to put binding table update messages ready for delivery
+ * @link: return value, pointer to put the created link
+ *
+ * Returns true if link was created, otherwise false
+ */
+bool tipc_link_bc_create(struct tipc_node *n, int mtu, int window,
+			 struct sk_buff_head *inputq,
+			 struct sk_buff_head *namedq,
+			 struct tipc_link **link)
+{
+	struct tipc_link *l;
+
+	if (!tipc_link_create(n, "", MAX_BEARERS, 0, 'Z', mtu, 0, window,
+			      0, 0, 0, NULL, inputq, namedq, link))
+		return false;
+
+	l = *link;
+	strcpy(l->name, tipc_bclink_name);
+	tipc_link_reset(l);
 	return true;
 }
 

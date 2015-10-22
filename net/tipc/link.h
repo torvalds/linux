@@ -211,6 +211,10 @@ bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
 		      struct tipc_media_addr *maddr,
 		      struct sk_buff_head *inputq, struct sk_buff_head *namedq,
 		      struct tipc_link **link);
+bool tipc_link_bc_create(struct tipc_node *n, int mtu, int window,
+			 struct sk_buff_head *inputq,
+			 struct sk_buff_head *namedq,
+			 struct tipc_link **link);
 void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 			   int mtyp, struct sk_buff_head *xmitq);
 void tipc_link_build_bcast_sync_msg(struct tipc_link *l,
