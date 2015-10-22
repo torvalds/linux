@@ -1305,7 +1305,8 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	struct resource *res;
 	const struct acpi_device_id *adev_id = NULL;
 	const struct pci_device_id *pcidev_id = NULL;
-	int devid, type;
+	unsigned int devid;
+	int type;
 
 	adev = ACPI_COMPANION(&pdev->dev);
 	if (!adev)
@@ -1352,7 +1353,7 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	ssp->pdev = pdev;
 
 	ssp->port_id = -1;
-	if (adev->pnp.unique_id && !kstrtoint(adev->pnp.unique_id, 0, &devid))
+	if (adev->pnp.unique_id && !kstrtouint(adev->pnp.unique_id, 0, &devid))
 		ssp->port_id = devid;
 
 	pdata->num_chipselect = 1;
