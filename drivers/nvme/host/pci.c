@@ -2094,8 +2094,8 @@ static int nvme_pr_command(struct block_device *bdev, u32 cdw10,
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = op;
-	c.common.nsid = ns->ns_id;
-	c.common.cdw10[0] = cdw10;
+	c.common.nsid = cpu_to_le32(ns->ns_id);
+	c.common.cdw10[0] = cpu_to_le32(cdw10);
 
 	return nvme_submit_sync_cmd(ns->queue, &c, data, 16);
 }
