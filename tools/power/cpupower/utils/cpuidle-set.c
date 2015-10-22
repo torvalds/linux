@@ -148,8 +148,6 @@ int cmd_idle_set(int argc, char **argv)
 					(cpu, idlestate);
 				state_latency = sysfs_get_idlestate_latency
 					(cpu, idlestate);
-				printf("CPU: %u - idlestate %u - state_latency: %llu - latency: %llu\n",
-				       cpu, idlestate, state_latency, latency);
 				if (disabled == 1 || latency > state_latency)
 					continue;
 				ret = sysfs_idlestate_disable
