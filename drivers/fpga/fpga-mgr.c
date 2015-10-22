@@ -204,9 +204,7 @@ struct fpga_manager *of_fpga_mgr_get(struct device_node *node)
 {
 	struct fpga_manager *mgr;
 	struct device *dev;
-
-	if (!node)
-		return ERR_PTR(-EINVAL);
+	int ret = -ENODEV;
 
 	dev = class_find_device(fpga_mgr_class, NULL, node,
 				fpga_mgr_of_node_match);
@@ -214,20 +212,25 @@ struct fpga_manager *of_fpga_mgr_get(struct device_node *node)
 		return ERR_PTR(-ENODEV);
 
 	mgr = to_fpga_manager(dev);
-	put_device(dev);
 	if (!mgr)
-		return ERR_PTR(-ENODEV);
+		goto err_dev;
 
 	/* Get exclusive use of fpga manager */
-	if (!mutex_trylock(&mgr->ref_mutex))
-		return ERR_PTR(-EBUSY);
-
-	if (!try_module_get(THIS_MODULE)) {
-		mutex_unlock(&mgr->ref_mutex);
-		return ERR_PTR(-ENODEV);
+	if (!mutex_trylock(&mgr->ref_mutex)) {
+		ret = -EBUSY;
+		goto err_dev;
 	}
 
+	if (!try_module_get(dev->parent->driver->owner))
+		goto err_ll_mod;
+
 	return mgr;
+
+err_ll_mod:
+	mutex_unlock(&mgr->ref_mutex);
+err_dev:
+	put_device(dev);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(of_fpga_mgr_get);
 
@@ -237,10 +240,9 @@ EXPORT_SYMBOL_GPL(of_fpga_mgr_get);
  */
 void fpga_mgr_put(struct fpga_manager *mgr)
 {
-	if (mgr) {
-		module_put(THIS_MODULE);
-		mutex_unlock(&mgr->ref_mutex);
-	}
+	module_put(mgr->dev.parent->driver->owner);
+	mutex_unlock(&mgr->ref_mutex);
+	put_device(&mgr->dev);
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_put);
 
