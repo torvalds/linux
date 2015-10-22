@@ -253,6 +253,7 @@ int commit_inmem_pages(struct inode *inode, bool abort)
 					unlock_page(cur->page);
 					break;
 				}
+				clear_cold_data(cur->page);
 				submit_bio = true;
 			}
 		} else {
