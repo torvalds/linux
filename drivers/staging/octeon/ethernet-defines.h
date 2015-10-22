@@ -42,5 +42,4 @@
 
 #define TOTAL_NUMBER_OF_PORTS       (CVMX_PIP_NUM_INPUT_PORTS+1)
 
-
 #endif /* __ETHERNET_DEFINES_H__ */
