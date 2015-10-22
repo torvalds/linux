@@ -2230,7 +2230,6 @@ static bool does_sb_need_changing(struct mddev *mddev)
 	/* Check if any mddev parameters have changed */
 	if ((mddev->dev_sectors != le64_to_cpu(sb->size)) ||
 	    (mddev->reshape_position != le64_to_cpu(sb->reshape_position)) ||
-	    (mddev->recovery_cp != le64_to_cpu(sb->resync_offset)) ||
 	    (mddev->layout != le64_to_cpu(sb->layout)) ||
 	    (mddev->raid_disks != le32_to_cpu(sb->raid_disks)) ||
 	    (mddev->chunk_sectors != le32_to_cpu(sb->chunksize)))
@@ -3313,6 +3312,11 @@ static ssize_t
 safe_delay_store(struct mddev *mddev, const char *cbuf, size_t len)
 {
 	unsigned long msec;
+
+	if (mddev_is_clustered(mddev)) {
+		pr_info("md: Safemode is disabled for clustered mode\n");
+		return -EINVAL;
+	}
 
 	if (strict_strtoul_scaled(cbuf, &msec, 3) < 0)
 		return -EINVAL;
@@ -5224,7 +5228,10 @@ int md_run(struct mddev *mddev)
 	atomic_set(&mddev->max_corr_read_errors,
 		   MD_DEFAULT_MAX_CORRECTED_READ_ERRORS);
 	mddev->safemode = 0;
-	mddev->safemode_delay = (200 * HZ)/1000 +1; /* 200 msec delay */
+	if (mddev_is_clustered(mddev))
+		mddev->safemode_delay = 0;
+	else
+		mddev->safemode_delay = (200 * HZ)/1000 +1; /* 200 msec delay */
 	mddev->in_sync = 1;
 	smp_wmb();
 	spin_lock(&mddev->lock);
@@ -5266,6 +5273,9 @@ static int do_md_run(struct mddev *mddev)
 		bitmap_destroy(mddev);
 		goto out;
 	}
+
+	if (mddev_is_clustered(mddev))
+		md_allow_write(mddev);
 
 	md_wakeup_thread(mddev->thread);
 	md_wakeup_thread(mddev->sync_thread); /* possibly kick off a reshape */
@@ -5363,9 +5373,11 @@ static void __md_stop_writes(struct mddev *mddev)
 	md_super_wait(mddev);
 
 	if (mddev->ro == 0 &&
-	    (!mddev->in_sync || (mddev->flags & MD_UPDATE_SB_FLAGS))) {
+	    ((!mddev->in_sync && !mddev_is_clustered(mddev)) ||
+	     (mddev->flags & MD_UPDATE_SB_FLAGS))) {
 		/* mark array as shutdown cleanly */
-		mddev->in_sync = 1;
+		if (!mddev_is_clustered(mddev))
+			mddev->in_sync = 1;
 		md_update_sb(mddev, 1);
 	}
 }
@@ -9007,9 +9019,8 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 		}
 	}
 
-	/* recovery_cp changed */
-	if (le64_to_cpu(sb->resync_offset) != mddev->recovery_cp)
-		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
+	if (mddev->raid_disks != le32_to_cpu(sb->raid_disks))
+		update_raid_disks(mddev, le32_to_cpu(sb->raid_disks));
 
 	/* Finally set the event to be up to date */
 	mddev->events = le64_to_cpu(sb->events);

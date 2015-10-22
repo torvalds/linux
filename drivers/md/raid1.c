@@ -3044,9 +3044,11 @@ static int raid1_reshape(struct mddev *mddev)
 		return -EINVAL;
 	}
 
-	err = md_allow_write(mddev);
-	if (err)
-		return err;
+	if (!mddev_is_clustered(mddev)) {
+		err = md_allow_write(mddev);
+		if (err)
+			return err;
+	}
 
 	raid_disks = mddev->raid_disks + mddev->delta_disks;
 
