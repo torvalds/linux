@@ -53,6 +53,8 @@
 #define ARMV8_PMUV3_PERFCTR_PC_PROC_RETURN			0x0E
 #define ARMV8_PMUV3_PERFCTR_MEM_UNALIGNED_ACCESS		0x0F
 #define ARMV8_PMUV3_PERFCTR_TTBR_WRITE				0x1C
+#define ARMV8_PMUV3_PERFCTR_CHAIN				0x1E
+#define ARMV8_PMUV3_PERFCTR_BR_RETIRED				0x21
 
 /* Common microarchitectural events. */
 #define ARMV8_PMUV3_PERFCTR_L1_ICACHE_REFILL			0x01
@@ -67,6 +69,23 @@
 #define ARMV8_PMUV3_PERFCTR_BUS_ACCESS				0x19
 #define ARMV8_PMUV3_PERFCTR_MEM_ERROR				0x1A
 #define ARMV8_PMUV3_PERFCTR_BUS_CYCLES				0x1D
+#define ARMV8_PMUV3_PERFCTR_L1D_CACHE_ALLOCATE			0x1F
+#define ARMV8_PMUV3_PERFCTR_L2D_CACHE_ALLOCATE			0x20
+#define ARMV8_PMUV3_PERFCTR_BR_MIS_PRED_RETIRED			0x22
+#define ARMV8_PMUV3_PERFCTR_STALL_FRONTEND			0x23
+#define ARMV8_PMUV3_PERFCTR_STALL_BACKEND			0x24
+#define ARMV8_PMUV3_PERFCTR_L1D_TLB				0x25
+#define ARMV8_PMUV3_PERFCTR_L1I_TLB				0x26
+#define ARMV8_PMUV3_PERFCTR_L2I_CACHE				0x27
+#define ARMV8_PMUV3_PERFCTR_L2I_CACHE_REFILL			0x28
+#define ARMV8_PMUV3_PERFCTR_L3D_CACHE_ALLOCATE			0x29
+#define ARMV8_PMUV3_PERFCTR_L3D_CACHE_REFILL			0x2A
+#define ARMV8_PMUV3_PERFCTR_L3D_CACHE				0x2B
+#define ARMV8_PMUV3_PERFCTR_L3D_CACHE_WB			0x2C
+#define ARMV8_PMUV3_PERFCTR_L2D_TLB_REFILL			0x2D
+#define ARMV8_PMUV3_PERFCTR_L21_TLB_REFILL			0x2E
+#define ARMV8_PMUV3_PERFCTR_L2D_TLB				0x2F
+#define ARMV8_PMUV3_PERFCTR_L21_TLB				0x30
 
 /* ARMv8 Cortex-A53 specific event types. */
 #define ARMV8_A53_PERFCTR_PREFETCH_LINEFILL			0xC2
@@ -173,6 +192,123 @@ static const unsigned armv8_a57_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 	[C(BPU)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV8_PMUV3_PERFCTR_PC_BRANCH_MIS_PRED,
 };
 
+#define ARMV8_EVENT_ATTR_RESOLVE(m) #m
+#define ARMV8_EVENT_ATTR(name, config) \
+	PMU_EVENT_ATTR_STRING(name, armv8_event_attr_##name, \
+			      "event=" ARMV8_EVENT_ATTR_RESOLVE(config))
+
+ARMV8_EVENT_ATTR(sw_incr, ARMV8_PMUV3_PERFCTR_PMNC_SW_INCR);
+ARMV8_EVENT_ATTR(l1i_cache_refill, ARMV8_PMUV3_PERFCTR_L1_ICACHE_REFILL);
+ARMV8_EVENT_ATTR(l1i_tlb_refill, ARMV8_PMUV3_PERFCTR_ITLB_REFILL);
+ARMV8_EVENT_ATTR(l1d_cache_refill, ARMV8_PMUV3_PERFCTR_L1_DCACHE_REFILL);
+ARMV8_EVENT_ATTR(l1d_cache, ARMV8_PMUV3_PERFCTR_L1_DCACHE_ACCESS);
+ARMV8_EVENT_ATTR(l1d_tlb_refill, ARMV8_PMUV3_PERFCTR_DTLB_REFILL);
+ARMV8_EVENT_ATTR(ld_retired, ARMV8_PMUV3_PERFCTR_MEM_READ);
+ARMV8_EVENT_ATTR(st_retired, ARMV8_PMUV3_PERFCTR_MEM_WRITE);
+ARMV8_EVENT_ATTR(inst_retired, ARMV8_PMUV3_PERFCTR_INSTR_EXECUTED);
+ARMV8_EVENT_ATTR(exc_taken, ARMV8_PMUV3_PERFCTR_EXC_TAKEN);
+ARMV8_EVENT_ATTR(exc_return, ARMV8_PMUV3_PERFCTR_EXC_EXECUTED);
+ARMV8_EVENT_ATTR(cid_write_retired, ARMV8_PMUV3_PERFCTR_CID_WRITE);
+ARMV8_EVENT_ATTR(pc_write_retired, ARMV8_PMUV3_PERFCTR_PC_WRITE);
+ARMV8_EVENT_ATTR(br_immed_retired, ARMV8_PMUV3_PERFCTR_PC_IMM_BRANCH);
+ARMV8_EVENT_ATTR(br_return_retired, ARMV8_PMUV3_PERFCTR_PC_PROC_RETURN);
+ARMV8_EVENT_ATTR(unaligned_ldst_retired, ARMV8_PMUV3_PERFCTR_MEM_UNALIGNED_ACCESS);
+ARMV8_EVENT_ATTR(br_mis_pred, ARMV8_PMUV3_PERFCTR_PC_BRANCH_MIS_PRED);
+ARMV8_EVENT_ATTR(cpu_cycles, ARMV8_PMUV3_PERFCTR_CLOCK_CYCLES);
+ARMV8_EVENT_ATTR(br_pred, ARMV8_PMUV3_PERFCTR_PC_BRANCH_PRED);
+ARMV8_EVENT_ATTR(mem_access, ARMV8_PMUV3_PERFCTR_MEM_ACCESS);
+ARMV8_EVENT_ATTR(l1i_cache, ARMV8_PMUV3_PERFCTR_L1_ICACHE_ACCESS);
+ARMV8_EVENT_ATTR(l1d_cache_wb, ARMV8_PMUV3_PERFCTR_L1_DCACHE_WB);
+ARMV8_EVENT_ATTR(l2d_cache, ARMV8_PMUV3_PERFCTR_L2_CACHE_ACCESS);
+ARMV8_EVENT_ATTR(l2d_cache_refill, ARMV8_PMUV3_PERFCTR_L2_CACHE_REFILL);
+ARMV8_EVENT_ATTR(l2d_cache_wb, ARMV8_PMUV3_PERFCTR_L2_CACHE_WB);
+ARMV8_EVENT_ATTR(bus_access, ARMV8_PMUV3_PERFCTR_BUS_ACCESS);
+ARMV8_EVENT_ATTR(memory_error, ARMV8_PMUV3_PERFCTR_MEM_ERROR);
+ARMV8_EVENT_ATTR(inst_spec, ARMV8_PMUV3_PERFCTR_OP_SPEC);
+ARMV8_EVENT_ATTR(ttbr_write_retired, ARMV8_PMUV3_PERFCTR_TTBR_WRITE);
+ARMV8_EVENT_ATTR(bus_cycles, ARMV8_PMUV3_PERFCTR_BUS_CYCLES);
+ARMV8_EVENT_ATTR(chain, ARMV8_PMUV3_PERFCTR_CHAIN);
+ARMV8_EVENT_ATTR(l1d_cache_allocate, ARMV8_PMUV3_PERFCTR_L1D_CACHE_ALLOCATE);
+ARMV8_EVENT_ATTR(l2d_cache_allocate, ARMV8_PMUV3_PERFCTR_L2D_CACHE_ALLOCATE);
+ARMV8_EVENT_ATTR(br_retired, ARMV8_PMUV3_PERFCTR_BR_RETIRED);
+ARMV8_EVENT_ATTR(br_mis_pred_retired, ARMV8_PMUV3_PERFCTR_BR_MIS_PRED_RETIRED);
+ARMV8_EVENT_ATTR(stall_frontend, ARMV8_PMUV3_PERFCTR_STALL_FRONTEND);
+ARMV8_EVENT_ATTR(stall_backend, ARMV8_PMUV3_PERFCTR_STALL_BACKEND);
+ARMV8_EVENT_ATTR(l1d_tlb, ARMV8_PMUV3_PERFCTR_L1D_TLB);
+ARMV8_EVENT_ATTR(l1i_tlb, ARMV8_PMUV3_PERFCTR_L1I_TLB);
+ARMV8_EVENT_ATTR(l2i_cache, ARMV8_PMUV3_PERFCTR_L2I_CACHE);
+ARMV8_EVENT_ATTR(l2i_cache_refill, ARMV8_PMUV3_PERFCTR_L2I_CACHE_REFILL);
+ARMV8_EVENT_ATTR(l3d_cache_allocate, ARMV8_PMUV3_PERFCTR_L3D_CACHE_ALLOCATE);
+ARMV8_EVENT_ATTR(l3d_cache_refill, ARMV8_PMUV3_PERFCTR_L3D_CACHE_REFILL);
+ARMV8_EVENT_ATTR(l3d_cache, ARMV8_PMUV3_PERFCTR_L3D_CACHE);
+ARMV8_EVENT_ATTR(l3d_cache_wb, ARMV8_PMUV3_PERFCTR_L3D_CACHE_WB);
+ARMV8_EVENT_ATTR(l2d_tlb_refill, ARMV8_PMUV3_PERFCTR_L2D_TLB_REFILL);
+ARMV8_EVENT_ATTR(l21_tlb_refill, ARMV8_PMUV3_PERFCTR_L21_TLB_REFILL);
+ARMV8_EVENT_ATTR(l2d_tlb, ARMV8_PMUV3_PERFCTR_L2D_TLB);
+ARMV8_EVENT_ATTR(l21_tlb, ARMV8_PMUV3_PERFCTR_L21_TLB);
+
+static struct attribute *armv8_pmuv3_event_attrs[] = {
+	&armv8_event_attr_sw_incr.attr.attr,
+	&armv8_event_attr_l1i_cache_refill.attr.attr,
+	&armv8_event_attr_l1i_tlb_refill.attr.attr,
+	&armv8_event_attr_l1d_cache_refill.attr.attr,
+	&armv8_event_attr_l1d_cache.attr.attr,
+	&armv8_event_attr_l1d_tlb_refill.attr.attr,
+	&armv8_event_attr_ld_retired.attr.attr,
+	&armv8_event_attr_st_retired.attr.attr,
+	&armv8_event_attr_inst_retired.attr.attr,
+	&armv8_event_attr_exc_taken.attr.attr,
+	&armv8_event_attr_exc_return.attr.attr,
+	&armv8_event_attr_cid_write_retired.attr.attr,
+	&armv8_event_attr_pc_write_retired.attr.attr,
+	&armv8_event_attr_br_immed_retired.attr.attr,
+	&armv8_event_attr_br_return_retired.attr.attr,
+	&armv8_event_attr_unaligned_ldst_retired.attr.attr,
+	&armv8_event_attr_br_mis_pred.attr.attr,
+	&armv8_event_attr_cpu_cycles.attr.attr,
+	&armv8_event_attr_br_pred.attr.attr,
+	&armv8_event_attr_mem_access.attr.attr,
+	&armv8_event_attr_l1i_cache.attr.attr,
+	&armv8_event_attr_l1d_cache_wb.attr.attr,
+	&armv8_event_attr_l2d_cache.attr.attr,
+	&armv8_event_attr_l2d_cache_refill.attr.attr,
+	&armv8_event_attr_l2d_cache_wb.attr.attr,
+	&armv8_event_attr_bus_access.attr.attr,
+	&armv8_event_attr_memory_error.attr.attr,
+	&armv8_event_attr_inst_spec.attr.attr,
+	&armv8_event_attr_ttbr_write_retired.attr.attr,
+	&armv8_event_attr_bus_cycles.attr.attr,
+	&armv8_event_attr_chain.attr.attr,
+	&armv8_event_attr_l1d_cache_allocate.attr.attr,
+	&armv8_event_attr_l2d_cache_allocate.attr.attr,
+	&armv8_event_attr_br_retired.attr.attr,
+	&armv8_event_attr_br_mis_pred_retired.attr.attr,
+	&armv8_event_attr_stall_frontend.attr.attr,
+	&armv8_event_attr_stall_backend.attr.attr,
+	&armv8_event_attr_l1d_tlb.attr.attr,
+	&armv8_event_attr_l1i_tlb.attr.attr,
+	&armv8_event_attr_l2i_cache.attr.attr,
+	&armv8_event_attr_l2i_cache_refill.attr.attr,
+	&armv8_event_attr_l3d_cache_allocate.attr.attr,
+	&armv8_event_attr_l3d_cache_refill.attr.attr,
+	&armv8_event_attr_l3d_cache.attr.attr,
+	&armv8_event_attr_l3d_cache_wb.attr.attr,
+	&armv8_event_attr_l2d_tlb_refill.attr.attr,
+	&armv8_event_attr_l21_tlb_refill.attr.attr,
+	&armv8_event_attr_l2d_tlb.attr.attr,
+	&armv8_event_attr_l21_tlb.attr.attr,
+	NULL
+};
+
+static struct attribute_group armv8_pmuv3_events_attr_group = {
+	.name = "events",
+	.attrs = armv8_pmuv3_event_attrs,
+};
+
+static const struct attribute_group *armv8_pmuv3_attr_groups[] = {
+	&armv8_pmuv3_events_attr_group,
+	NULL
+};
 
 /*
  * Perf Events' indices
@@ -638,6 +774,7 @@ static int armv8_a53_pmu_init(struct arm_pmu *cpu_pmu)
 	armv8_pmu_init(cpu_pmu);
 	cpu_pmu->name			= "armv8_cortex_a53";
 	cpu_pmu->map_event		= armv8_a53_map_event;
+	cpu_pmu->pmu.attr_groups	= armv8_pmuv3_attr_groups;
 	return armv8pmu_probe_num_events(cpu_pmu);
 }
 
@@ -646,6 +783,7 @@ static int armv8_a57_pmu_init(struct arm_pmu *cpu_pmu)
 	armv8_pmu_init(cpu_pmu);
 	cpu_pmu->name			= "armv8_cortex_a57";
 	cpu_pmu->map_event		= armv8_a57_map_event;
+	cpu_pmu->pmu.attr_groups	= armv8_pmuv3_attr_groups;
 	return armv8pmu_probe_num_events(cpu_pmu);
 }
 
