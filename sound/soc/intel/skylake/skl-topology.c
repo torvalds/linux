@@ -944,48 +944,60 @@ static int skl_tplg_be_set_src_pipe_params(struct snd_soc_dai *dai,
 				struct skl_pipe_params *params)
 {
 	struct snd_soc_dapm_path *p;
+	int ret = -EIO;
 
 	snd_soc_dapm_widget_for_each_source_path(w, p) {
 		if (p->connect && is_skl_dsp_widget_type(p->source) &&
 						p->source->priv) {
 
-			if (!p->source->power)
-				return skl_tplg_be_fill_pipe_params(
+			if (!p->source->power) {
+				ret = skl_tplg_be_fill_pipe_params(
 						dai, p->source->priv,
 						params);
-			else
+				if (ret < 0)
+					return ret;
+			} else {
 				return -EBUSY;
+			}
 		} else {
-			return skl_tplg_be_set_src_pipe_params(
+			ret = skl_tplg_be_set_src_pipe_params(
 						dai, p->source,	params);
+			if (ret < 0)
+				return ret;
 		}
 	}
 
-	return -EIO;
+	return ret;
 }
 
 static int skl_tplg_be_set_sink_pipe_params(struct snd_soc_dai *dai,
 	struct snd_soc_dapm_widget *w, struct skl_pipe_params *params)
 {
 	struct snd_soc_dapm_path *p = NULL;
+	int ret = -EIO;
 
 	snd_soc_dapm_widget_for_each_sink_path(w, p) {
 		if (p->connect && is_skl_dsp_widget_type(p->sink) &&
 						p->sink->priv) {
 
-			if (!p->sink->power)
-				return skl_tplg_be_fill_pipe_params(
+			if (!p->sink->power) {
+				ret = skl_tplg_be_fill_pipe_params(
 						dai, p->sink->priv, params);
-			else
+				if (ret < 0)
+					return ret;
+			} else {
 				return -EBUSY;
+			}
 
 		} else {
-			return skl_tplg_be_set_sink_pipe_params(
+			ret = skl_tplg_be_set_sink_pipe_params(
 						dai, p->sink, params);
+			if (ret < 0)
+				return ret;
 		}
 	}
 
-	return -EIO;
+	return ret;
 }
 
 /*
