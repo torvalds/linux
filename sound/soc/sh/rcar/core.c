@@ -327,9 +327,7 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 		mod = (io)->mod[i];				\
 		if (!mod)					\
 			continue;				\
-		ret = rsnd_mod_call(mod, io, fn, param);	\
-		if (ret < 0)					\
-			break;					\
+		ret |= rsnd_mod_call(mod, io, fn, param);	\
 	}							\
 	ret;							\
 })
@@ -495,16 +493,10 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		ret = rsnd_dai_call(stop, io, priv);
-		if (ret < 0)
-			goto dai_trigger_end;
 
-		ret = rsnd_dai_call(quit, io, priv);
-		if (ret < 0)
-			goto dai_trigger_end;
+		ret |= rsnd_dai_call(quit, io, priv);
 
-		ret = rsnd_platform_call(priv, dai, stop, ssi_id);
-		if (ret < 0)
-			goto dai_trigger_end;
+		ret |= rsnd_platform_call(priv, dai, stop, ssi_id);
 
 		rsnd_dai_stream_quit(io);
 		break;
