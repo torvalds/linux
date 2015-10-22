@@ -482,7 +482,9 @@ struct ieee80211_event {
  *	Note that with TDLS this can be the case (channel is HT, protection must
  *	be used from this field) even when the BSS association isn't using HT.
  * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
- *	implies disabled
+ *	implies disabled. As with the cfg80211 callback, a change here should
+ *	cause an event to be sent indicating where the current value is in
+ *	relation to the newly configured threshold.
  * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
  * @arp_addr_list: List of IPv4 addresses for hardware ARP filtering. The
  *	may filter ARP queries targeted for other addresses than listed here.
