@@ -38,7 +38,8 @@ static struct class *fpga_mgr_class;
  *
  * Step the low level fpga manager through the device-specific steps of getting
  * an FPGA ready to be configured, writing the image to it, then doing whatever
- * post-configuration steps necessary.
+ * post-configuration steps necessary.  This code assumes the caller got the
+ * mgr pointer from of_fpga_mgr_get() and checked that it is not an error code.
  *
  * Return: 0 on success, negative error code otherwise.
  */
@@ -47,9 +48,6 @@ int fpga_mgr_buf_load(struct fpga_manager *mgr, u32 flags, const char *buf,
 {
 	struct device *dev = &mgr->dev;
 	int ret;
-
-	if (!mgr)
-		return -ENODEV;
 
 	/*
 	 * Call the low level driver's write_init function.  This will do the
@@ -100,7 +98,8 @@ EXPORT_SYMBOL_GPL(fpga_mgr_buf_load);
  *
  * Request an FPGA image using the firmware class, then write out to the FPGA.
  * Update the state before each step to provide info on what step failed if
- * there is a failure.
+ * there is a failure.  This code assumes the caller got the mgr pointer
+ * from of_fpga_mgr_get() and checked that it is not an error code.
  *
  * Return: 0 on success, negative error code otherwise.
  */
@@ -110,9 +109,6 @@ int fpga_mgr_firmware_load(struct fpga_manager *mgr, u32 flags,
 	struct device *dev = &mgr->dev;
 	const struct firmware *fw;
 	int ret;
-
-	if (!mgr)
-		return -ENODEV;
 
 	dev_info(dev, "writing %s to %s\n", image_name, mgr->name);
 
