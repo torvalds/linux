@@ -17,7 +17,6 @@
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
-#include "cfg.h"
 #include "rate.h"
 #include "mesh.h"
 #include "wme.h"
@@ -467,45 +466,6 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 		rinfo->bw = RATE_INFO_BW_20;
 	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
-}
-
-void sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
-{
-	rinfo->flags = 0;
-
-	if (sta->last_rx_rate_flag & RX_FLAG_HT) {
-		rinfo->flags |= RATE_INFO_FLAGS_MCS;
-		rinfo->mcs = sta->last_rx_rate_idx;
-	} else if (sta->last_rx_rate_flag & RX_FLAG_VHT) {
-		rinfo->flags |= RATE_INFO_FLAGS_VHT_MCS;
-		rinfo->nss = sta->last_rx_rate_vht_nss;
-		rinfo->mcs = sta->last_rx_rate_idx;
-	} else {
-		struct ieee80211_supported_band *sband;
-		int shift = ieee80211_vif_get_shift(&sta->sdata->vif);
-		u16 brate;
-
-		sband = sta->local->hw.wiphy->bands[
-				ieee80211_get_sdata_band(sta->sdata)];
-		brate = sband->bitrates[sta->last_rx_rate_idx].bitrate;
-		rinfo->legacy = DIV_ROUND_UP(brate, 1 << shift);
-	}
-
-	if (sta->last_rx_rate_flag & RX_FLAG_SHORT_GI)
-		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
-
-	if (sta->last_rx_rate_flag & RX_FLAG_5MHZ)
-		rinfo->bw = RATE_INFO_BW_5;
-	else if (sta->last_rx_rate_flag & RX_FLAG_10MHZ)
-		rinfo->bw = RATE_INFO_BW_10;
-	else if (sta->last_rx_rate_flag & RX_FLAG_40MHZ)
-		rinfo->bw = RATE_INFO_BW_40;
-	else if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_80MHZ)
-		rinfo->bw = RATE_INFO_BW_80;
-	else if (sta->last_rx_rate_vht_flag & RX_VHT_FLAG_160MHZ)
-		rinfo->bw = RATE_INFO_BW_160;
-	else
-		rinfo->bw = RATE_INFO_BW_20;
 }
 
 static int ieee80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
@@ -1138,6 +1098,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	}
 
 	if (mask & BIT(NL80211_STA_FLAG_MFP)) {
+		sta->sta.mfp = !!(set & BIT(NL80211_STA_FLAG_MFP));
 		if (set & BIT(NL80211_STA_FLAG_MFP))
 			set_sta_flag(sta, WLAN_STA_MFP);
 		else
@@ -1427,7 +1388,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
-		ieee80211_recalc_ps(local, -1);
+		ieee80211_recalc_ps(local);
 		ieee80211_recalc_ps_vif(sdata);
 	}
 
@@ -2462,7 +2423,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	if (ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 
-	ieee80211_recalc_ps(local, -1);
+	ieee80211_recalc_ps(local);
 	ieee80211_recalc_ps_vif(sdata);
 
 	return 0;

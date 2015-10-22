@@ -27,7 +27,6 @@ mac80211-y := \
 	key.o \
 	util.o \
 	wme.o \
-	event.o \
 	chan.o \
 	trace.o mlme.o \
 	tdls.o \

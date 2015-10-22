@@ -1951,7 +1951,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
-	ieee80211_recalc_ps(local, -1);
+	ieee80211_recalc_ps(local);
 
 	/*
 	 * The sta might be in psm against the ap (e.g. because
@@ -2042,9 +2042,13 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	if (sched_scan_sdata && sched_scan_req)
 		/*
 		 * Sched scan stopped, but we don't want to report it. Instead,
-		 * we're trying to reschedule.
+		 * we're trying to reschedule. However, if more than one scan
+		 * plan was set, we cannot reschedule since we don't know which
+		 * scan plan was currently running (and some scan plans may have
+		 * already finished).
 		 */
-		if (__ieee80211_request_sched_scan_start(sched_scan_sdata,
+		if (sched_scan_req->n_scan_plans > 1 ||
+		    __ieee80211_request_sched_scan_start(sched_scan_sdata,
 							 sched_scan_req))
 			sched_scan_stopped = true;
 	mutex_unlock(&local->mtx);
@@ -3301,9 +3305,11 @@ void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
 	if (sta) {
 		txqi->txq.sta = &sta->sta;
 		sta->sta.txq[tid] = &txqi->txq;
+		txqi->txq.tid = tid;
 		txqi->txq.ac = ieee802_1d_to_ac[tid & 7];
 	} else {
 		sdata->vif.txq = &txqi->txq;
+		txqi->txq.tid = 0;
 		txqi->txq.ac = IEEE80211_AC_BE;
 	}
 }
