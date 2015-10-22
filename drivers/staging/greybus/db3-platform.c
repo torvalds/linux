@@ -196,10 +196,10 @@ static int apb_ctrl_get_devtree_data(struct device *dev,
 	}
 
 	apb_data->ctrl.reset = of_get_named_gpio(np, "reset-gpios", 0);
-	if (apb_data->ctrl.wake_detect < 0 ||
+	if (apb_data->ctrl.reset < 0 ||
 			!gpio_is_valid(apb_data->ctrl.reset)) {
-		dev_err(dev, "failed to get wake detect gpio\n");
-		return apb_data->ctrl.wake_detect;
+		dev_err(dev, "failed to get reset gpio\n");
+		return apb_data->ctrl.reset;
 	}
 
 	apb_data->ctrl.boot_ret = of_get_named_gpio(np, "boot-ret-gpios", 0);
