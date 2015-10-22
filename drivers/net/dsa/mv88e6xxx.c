@@ -1559,33 +1559,6 @@ unlock:
 	return err;
 }
 
-static int _mv88e6xxx_port_vtu_getnext(struct dsa_switch *ds, int port, u16 vid,
-				       struct mv88e6xxx_vtu_stu_entry *entry)
-{
-	int err;
-
-	do {
-		if (vid == 4095)
-			return -ENOENT;
-
-		err = _mv88e6xxx_vtu_vid_write(ds, vid);
-		if (err)
-			return err;
-
-		err = _mv88e6xxx_vtu_getnext(ds, entry);
-		if (err)
-			return err;
-
-		if (!entry->valid)
-			return -ENOENT;
-
-		vid = entry->vid;
-	} while (entry->data[port] != GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED &&
-		 entry->data[port] != GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED);
-
-	return 0;
-}
-
 int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
 			   unsigned long *ports, unsigned long *untagged)
 {
@@ -1862,52 +1835,6 @@ unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	return err;
-}
-
-/* get next entry for port */
-int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
-			       unsigned char *addr, u16 *vid, bool *is_static)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	struct mv88e6xxx_atu_entry next;
-	u16 fid = *vid; /* We use one FID per VLAN */
-	int ret;
-
-	mutex_lock(&ps->smi_mutex);
-
-	do {
-		if (is_broadcast_ether_addr(addr)) {
-			struct mv88e6xxx_vtu_stu_entry vtu;
-
-			ret = _mv88e6xxx_port_vtu_getnext(ds, port, *vid, &vtu);
-			if (ret < 0)
-				goto unlock;
-
-			*vid = vtu.vid;
-			fid = vtu.fid;
-		}
-
-		ret = _mv88e6xxx_atu_mac_write(ds, addr);
-		if (ret < 0)
-			goto unlock;
-
-		ret = _mv88e6xxx_atu_getnext(ds, fid, &next);
-		if (ret < 0)
-			goto unlock;
-
-		ether_addr_copy(addr, next.mac);
-
-		if (next.state == GLOBAL_ATU_DATA_STATE_UNUSED)
-			continue;
-	} while (next.trunk || (next.portv_trunkid & BIT(port)) == 0);
-
-	*is_static = next.state == (is_multicast_ether_addr(addr) ?
-				    GLOBAL_ATU_DATA_STATE_MC_STATIC :
-				    GLOBAL_ATU_DATA_STATE_UC_STATIC);
-unlock:
-	mutex_unlock(&ps->smi_mutex);
-
-	return ret;
 }
 
 static void mv88e6xxx_bridge_work(struct work_struct *work)

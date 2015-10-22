@@ -122,7 +122,6 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 	.port_fdb_prepare	= mv88e6xxx_port_fdb_prepare,
 	.port_fdb_add		= mv88e6xxx_port_fdb_add,
 	.port_fdb_del		= mv88e6xxx_port_fdb_del,
-	.port_fdb_getnext	= mv88e6xxx_port_fdb_getnext,
 	.port_fdb_dump		= mv88e6xxx_port_fdb_dump,
 };
 
