@@ -111,7 +111,7 @@ struct tipc_stats {
  * @name: link name character string
  * @media_addr: media address to use when sending messages over link
  * @timer: link timer
- * @owner: pointer to peer node
+ * @net: pointer to namespace struct
  * @refcnt: reference counter for permanent references (owner node & timer)
  * @peer_session: link session # being used by peer end of link
  * @peer_bearer_id: bearer id used by link's peer endpoint
@@ -154,7 +154,7 @@ struct tipc_link {
 	u32 addr;
 	char name[TIPC_MAX_LINK_NAME];
 	struct tipc_media_addr *media_addr;
-	struct tipc_node *owner;
+	struct net *net;
 
 	/* Management and link supervision data */
 	u32 peer_session;
@@ -165,6 +165,7 @@ struct tipc_link {
 	u32 abort_limit;
 	u32 state;
 	u16 peer_caps;
+	bool active;
 	u32 silent_intv_cnt;
 	struct {
 		unchar hdr[INT_H_SIZE];
@@ -219,7 +220,7 @@ struct tipc_link {
 	struct tipc_stats stats;
 };
 
-bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
+bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 		      int tolerance, char net_plane, u32 mtu, int priority,
 		      int window, u32 session, u32 ownnode, u32 peer,
 		      u16 peer_caps,
@@ -229,7 +230,7 @@ bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
 		      struct sk_buff_head *inputq,
 		      struct sk_buff_head *namedq,
 		      struct tipc_link **link);
-bool tipc_link_bc_create(struct tipc_node *n, u32 ownnode, u32 peer,
+bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 			 int mtu, int window, u16 peer_caps,
 			 struct sk_buff_head *inputq,
 			 struct sk_buff_head *namedq,
@@ -247,7 +248,7 @@ bool tipc_link_is_establishing(struct tipc_link *l);
 bool tipc_link_is_synching(struct tipc_link *l);
 bool tipc_link_is_failingover(struct tipc_link *l);
 bool tipc_link_is_blocked(struct tipc_link *l);
-int tipc_link_is_active(struct tipc_link *l_ptr);
+void tipc_link_set_active(struct tipc_link *l, bool active);
 void tipc_link_purge_queues(struct tipc_link *l_ptr);
 void tipc_link_purge_backlog(struct tipc_link *l);
 void tipc_link_reset(struct tipc_link *l_ptr);

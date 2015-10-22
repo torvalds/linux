@@ -175,9 +175,12 @@ bool link_is_bc_rcvlink(struct tipc_link *l)
 
 int tipc_link_is_active(struct tipc_link *l)
 {
-	struct tipc_node *n = l->owner;
+	return l->active;
+}
 
-	return (node_active_link(n, 0) == l) || (node_active_link(n, 1) == l);
+void tipc_link_set_active(struct tipc_link *l, bool active)
+{
+	l->active = active;
 }
 
 void tipc_link_add_bc_peer(struct tipc_link *snd_l,
@@ -250,7 +253,7 @@ static u32 link_own_addr(struct tipc_link *l)
  *
  * Returns true if link was created, otherwise false
  */
-bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
+bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 		      int tolerance, char net_plane, u32 mtu, int priority,
 		      int window, u32 session, u32 ownnode, u32 peer,
 		      u16 peer_caps,
@@ -284,7 +287,7 @@ bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
 	l->addr = peer;
 	l->peer_caps = peer_caps;
 	l->media_addr = maddr;
-	l->owner = n;
+	l->net = net;
 	l->peer_session = WILDCARD_SESSION;
 	l->bearer_id = bearer_id;
 	l->tolerance = tolerance;
@@ -318,7 +321,7 @@ bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
  *
  * Returns true if link was created, otherwise false
  */
-bool tipc_link_bc_create(struct tipc_node *n, u32 ownnode, u32 peer,
+bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 			 int mtu, int window, u16 peer_caps,
 			 struct sk_buff_head *inputq,
 			 struct sk_buff_head *namedq,
@@ -327,7 +330,7 @@ bool tipc_link_bc_create(struct tipc_node *n, u32 ownnode, u32 peer,
 {
 	struct tipc_link *l;
 
-	if (!tipc_link_create(n, "", MAX_BEARERS, 0, 'Z', mtu, 0, window,
+	if (!tipc_link_create(net, "", MAX_BEARERS, 0, 'Z', mtu, 0, window,
 			      0, ownnode, peer, peer_caps, NULL, bc_sndlink,
 			      NULL, inputq, namedq, link))
 		return false;
@@ -889,10 +892,10 @@ void tipc_link_push_packets(struct tipc_link *link)
 		msg_set_ack(msg, ack);
 		msg_set_seqno(msg, seqno);
 		seqno = mod(seqno + 1);
-		msg_set_bcast_ack(msg, link->owner->bclink.last_in);
+		/* msg_set_bcast_ack(msg, link->owner->bclink.last_in); */
 		link->rcv_unacked = 0;
 		__skb_queue_tail(&link->transmq, skb);
-		tipc_bearer_send(link->owner->net, link->bearer_id,
+		tipc_bearer_send(link->net, link->bearer_id,
 				 skb, link->media_addr);
 	}
 	link->snd_nxt = seqno;
@@ -966,8 +969,8 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *skb,
 			break;
 		msg = buf_msg(skb);
 		msg_set_ack(msg, mod(l_ptr->rcv_nxt - 1));
-		msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in);
-		tipc_bearer_send(l_ptr->owner->net, l_ptr->bearer_id, skb,
+		/* msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in); */
+		tipc_bearer_send(l_ptr->net, l_ptr->bearer_id, skb,
 				 l_ptr->media_addr);
 		retransmits--;
 		l_ptr->stats.retransmitted++;
@@ -1102,9 +1105,9 @@ static int tipc_link_input(struct tipc_link *l, struct sk_buff *skb,
 		}
 		return 0;
 	} else if (usr == BCAST_PROTOCOL) {
-		tipc_bcast_lock(l->owner->net);
+		tipc_bcast_lock(l->net);
 		tipc_link_bc_init_rcv(l->bc_rcvlink, hdr);
-		tipc_bcast_unlock(l->owner->net);
+		tipc_bcast_unlock(l->net);
 	}
 drop:
 	kfree_skb(skb);
@@ -1300,7 +1303,7 @@ void tipc_link_proto_xmit(struct tipc_link *l, u32 msg_typ, int probe_msg,
 	skb = __skb_dequeue(&xmitq);
 	if (!skb)
 		return;
-	tipc_bearer_xmit_skb(l->owner->net, l->bearer_id, skb, l->media_addr);
+	tipc_bearer_xmit_skb(l->net, l->bearer_id, skb, l->media_addr);
 	l->rcv_unacked = 0;
 }
 
@@ -2004,7 +2007,7 @@ static int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
 	if (tipc_link_is_up(link))
 		if (nla_put_flag(msg->skb, TIPC_NLA_LINK_UP))
 			goto attr_msg_full;
-	if (tipc_link_is_active(link))
+	if (link->active)
 		if (nla_put_flag(msg->skb, TIPC_NLA_LINK_ACTIVE))
 			goto attr_msg_full;
 

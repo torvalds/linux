@@ -1226,7 +1226,7 @@ int tipc_bcast_init(struct net *net)
 	spin_lock_init(&tipc_net(net)->bclock);
 	bb->node.net = net;
 
-	if (!tipc_link_bc_create(&bb->node, 0, 0,
+	if (!tipc_link_bc_create(net, 0, 0,
 				 U16_MAX,
 				 BCLINK_WIN_DEFAULT,
 				 0,

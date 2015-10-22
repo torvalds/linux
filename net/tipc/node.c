@@ -178,7 +178,7 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 	n_ptr->signature = INVALID_NODE_SIG;
 	n_ptr->active_links[0] = INVALID_BEARER_ID;
 	n_ptr->active_links[1] = INVALID_BEARER_ID;
-	if (!tipc_link_bc_create(n_ptr, tipc_own_addr(net), n_ptr->addr,
+	if (!tipc_link_bc_create(net, tipc_own_addr(net), n_ptr->addr,
 				 U16_MAX, tipc_bc_sndlink(net)->window,
 				 n_ptr->capabilities,
 				 &n_ptr->bc_entry.inputq1,
@@ -366,7 +366,10 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 		pr_debug("Old link <%s> becomes standby\n", ol->name);
 		*slot0 = bearer_id;
 		*slot1 = bearer_id;
+		tipc_link_set_active(nl, true);
+		tipc_link_set_active(ol, false);
 	} else if (nl->priority == ol->priority) {
+		tipc_link_set_active(nl, true);
 		*slot0 = bearer_id;
 	} else {
 		pr_debug("New link <%s> is standby\n", nl->name);
@@ -599,7 +602,7 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 			goto exit;
 		}
 		if_name = strchr(b->name, ':') + 1;
-		if (!tipc_link_create(n, if_name, b->identity, b->tolerance,
+		if (!tipc_link_create(net, if_name, b->identity, b->tolerance,
 				      b->net_plane, b->mtu, b->priority,
 				      b->window, mod(tipc_net(net)->random),
 				      tipc_own_addr(net), onode,
