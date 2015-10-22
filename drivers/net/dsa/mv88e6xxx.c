@@ -1259,18 +1259,19 @@ static int _mv88e6xxx_vtu_stu_data_write(struct dsa_switch *ds,
 	return 0;
 }
 
-static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds, u16 vid,
+static int _mv88e6xxx_vtu_vid_write(struct dsa_switch *ds, u16 vid)
+{
+	return _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_VID,
+				    vid & GLOBAL_VTU_VID_MASK);
+}
+
+static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds,
 				  struct mv88e6xxx_vtu_stu_entry *entry)
 {
 	struct mv88e6xxx_vtu_stu_entry next = { 0 };
 	int ret;
 
 	ret = _mv88e6xxx_vtu_wait(ds);
-	if (ret < 0)
-		return ret;
-
-	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_VID,
-				   vid & GLOBAL_VTU_VID_MASK);
 	if (ret < 0)
 		return ret;
 
@@ -1485,7 +1486,12 @@ int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 	int err;
 
 	mutex_lock(&ps->smi_mutex);
-	err = _mv88e6xxx_vtu_getnext(ds, vid - 1, &vlan);
+
+	err = _mv88e6xxx_vtu_vid_write(ds, vid - 1);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_vtu_getnext(ds, &vlan);
 	if (err)
 		goto unlock;
 
@@ -1514,7 +1520,11 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 
 	mutex_lock(&ps->smi_mutex);
 
-	err = _mv88e6xxx_vtu_getnext(ds, vid - 1, &vlan);
+	err = _mv88e6xxx_vtu_vid_write(ds, vid - 1);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_vtu_getnext(ds, &vlan);
 	if (err)
 		goto unlock;
 
@@ -1558,7 +1568,11 @@ static int _mv88e6xxx_port_vtu_getnext(struct dsa_switch *ds, int port, u16 vid,
 		if (vid == 4095)
 			return -ENOENT;
 
-		err = _mv88e6xxx_vtu_getnext(ds, vid, entry);
+		err = _mv88e6xxx_vtu_vid_write(ds, vid);
+		if (err)
+			return err;
+
+		err = _mv88e6xxx_vtu_getnext(ds, entry);
 		if (err)
 			return err;
 
@@ -1584,7 +1598,12 @@ int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
 		return -ENOENT;
 
 	mutex_lock(&ps->smi_mutex);
-	err = _mv88e6xxx_vtu_getnext(ds, *vid, &next);
+	err = _mv88e6xxx_vtu_vid_write(ds, *vid);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_vtu_getnext(ds, &next);
+unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	if (err)
