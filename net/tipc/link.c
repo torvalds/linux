@@ -165,9 +165,16 @@ static u32 link_own_addr(struct tipc_link *l)
 /**
  * tipc_link_create - create a new link
  * @n: pointer to associated node
- * @b: pointer to associated bearer
+ * @if_name: associated interface name
+ * @bearer_id: id (index) of associated bearer
+ * @tolerance: link tolerance to be used by link
+ * @net_plane: network plane (A,B,c..) this link belongs to
+ * @mtu: mtu to be advertised by link
+ * @priority: priority to be used by link
+ * @window: send window to be used by link
+ * @session: session to be used by link
  * @ownnode: identity of own node
- * @peer: identity of peer node
+ * @peer: node id of peer node
  * @maddr: media address to be used
  * @inputq: queue to put messages ready for delivery
  * @namedq: queue to put binding table update messages ready for delivery
@@ -175,47 +182,47 @@ static u32 link_own_addr(struct tipc_link *l)
  *
  * Returns true if link was created, otherwise false
  */
-bool tipc_link_create(struct tipc_node *n, struct tipc_bearer *b, u32 session,
-		      u32 ownnode, u32 peer, struct tipc_media_addr *maddr,
+bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
+		      int tolerance, char net_plane, u32 mtu, int priority,
+		      int window, u32 session, u32 ownnode, u32 peer,
+		      struct tipc_media_addr *maddr,
 		      struct sk_buff_head *inputq, struct sk_buff_head *namedq,
 		      struct tipc_link **link)
 {
 	struct tipc_link *l;
 	struct tipc_msg *hdr;
-	char *if_name;
 
 	l = kzalloc(sizeof(*l), GFP_ATOMIC);
 	if (!l)
 		return false;
 	*link = l;
-
-	/* Note: peer i/f name is completed by reset/activate message */
-	if_name = strchr(b->name, ':') + 1;
-	sprintf(l->name, "%u.%u.%u:%s-%u.%u.%u:unknown",
-		tipc_zone(ownnode), tipc_cluster(ownnode), tipc_node(ownnode),
-		if_name, tipc_zone(peer), tipc_cluster(peer), tipc_node(peer));
-
-	l->addr = peer;
-	l->media_addr = maddr;
-	l->owner = n;
-	l->peer_session = WILDCARD_SESSION;
-	l->bearer_id = b->identity;
-	l->tolerance = b->tolerance;
-	l->net_plane = b->net_plane;
-	l->advertised_mtu = b->mtu;
-	l->mtu = b->mtu;
-	l->priority = b->priority;
-	tipc_link_set_queue_limits(l, b->window);
-	l->inputq = inputq;
-	l->namedq = namedq;
-	l->state = LINK_RESETTING;
 	l->pmsg = (struct tipc_msg *)&l->proto_msg;
 	hdr = l->pmsg;
 	tipc_msg_init(ownnode, hdr, LINK_PROTOCOL, RESET_MSG, INT_H_SIZE, peer);
 	msg_set_size(hdr, sizeof(l->proto_msg));
 	msg_set_session(hdr, session);
 	msg_set_bearer_id(hdr, l->bearer_id);
+
+	/* Note: peer i/f name is completed by reset/activate message */
+	sprintf(l->name, "%u.%u.%u:%s-%u.%u.%u:unknown",
+		tipc_zone(ownnode), tipc_cluster(ownnode), tipc_node(ownnode),
+		if_name, tipc_zone(peer), tipc_cluster(peer), tipc_node(peer));
 	strcpy((char *)msg_data(hdr), if_name);
+
+	l->addr = peer;
+	l->media_addr = maddr;
+	l->owner = n;
+	l->peer_session = WILDCARD_SESSION;
+	l->bearer_id = bearer_id;
+	l->tolerance = tolerance;
+	l->net_plane = net_plane;
+	l->advertised_mtu = mtu;
+	l->mtu = mtu;
+	l->priority = priority;
+	tipc_link_set_queue_limits(l, window);
+	l->inputq = inputq;
+	l->namedq = namedq;
+	l->state = LINK_RESETTING;
 	__skb_queue_head_init(&l->transmq);
 	__skb_queue_head_init(&l->backlogq);
 	__skb_queue_head_init(&l->deferdq);

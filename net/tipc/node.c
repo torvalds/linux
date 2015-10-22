@@ -493,6 +493,7 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 	bool link_up = false;
 	bool accept_addr = false;
 	bool reset = true;
+	char *if_name;
 
 	*dupl_addr = false;
 	*respond = false;
@@ -579,7 +580,10 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 			pr_warn("Cannot establish 3rd link to %x\n", n->addr);
 			goto exit;
 		}
-		if (!tipc_link_create(n, b, mod(tipc_net(net)->random),
+		if_name = strchr(b->name, ':') + 1;
+		if (!tipc_link_create(n, if_name, b->identity, b->tolerance,
+				      b->net_plane, b->mtu, b->priority,
+				      b->window, mod(tipc_net(net)->random),
 				      tipc_own_addr(net), onode, &le->maddr,
 				      &le->inputq, &n->bclink.namedq, &l)) {
 			*respond = false;

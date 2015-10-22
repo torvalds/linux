@@ -205,8 +205,10 @@ struct tipc_link {
 	struct tipc_stats stats;
 };
 
-bool tipc_link_create(struct tipc_node *n, struct tipc_bearer *b, u32 session,
-		      u32 ownnode, u32 peer, struct tipc_media_addr *maddr,
+bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
+		      int tolerance, char net_plane, u32 mtu, int priority,
+		      int window, u32 session, u32 ownnode, u32 peer,
+		      struct tipc_media_addr *maddr,
 		      struct sk_buff_head *inputq, struct sk_buff_head *namedq,
 		      struct tipc_link **link);
 void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
