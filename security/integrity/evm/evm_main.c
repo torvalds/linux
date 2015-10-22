@@ -358,6 +358,15 @@ int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 	return evm_protect_xattr(dentry, xattr_name, NULL, 0);
 }
 
+static void evm_reset_status(struct inode *inode)
+{
+	struct integrity_iint_cache *iint;
+
+	iint = integrity_iint_find(inode);
+	if (iint)
+		iint->evm_status = INTEGRITY_UNKNOWN;
+}
+
 /**
  * evm_inode_post_setxattr - update 'security.evm' to reflect the changes
  * @dentry: pointer to the affected dentry
@@ -378,6 +387,8 @@ void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
 				 && !posix_xattr_acl(xattr_name)))
 		return;
 
+	evm_reset_status(dentry->d_inode);
+
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
 }
 
@@ -395,6 +406,8 @@ void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
 {
 	if (!evm_initialized || !evm_protected_xattr(xattr_name))
 		return;
+
+	evm_reset_status(dentry->d_inode);
 
 	evm_update_evmxattr(dentry, xattr_name, NULL, 0);
 }
