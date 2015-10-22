@@ -170,4 +170,23 @@ config SYSTEMPORT
 	  Broadcom BCM7xxx Set Top Box family chipset using an internal
 	  Ethernet switch.
 
+config BNXT
+	tristate "Broadcom NetXtreme-C/E support"
+	depends on PCI
+	select FW_LOADER
+	select LIBCRC32C
+	---help---
+	  This driver supports Broadcom NetXtreme-C/E 10/25/40/50 gigabit
+	  Ethernet cards.  To compile this driver as a module, choose M here:
+	  the module will be called bnxt_en.  This is recommended.
+
+config BNXT_SRIOV
+	bool "Broadcom NetXtreme-C/E SR-IOV support"
+	depends on BNXT && PCI_IOV
+	default y
+	---help---
+	  This configuration parameter enables Single Root Input Output
+	  Virtualization support in the NetXtreme-C/E products. This
+	  allows for virtual function acceleration in virtual environments.
+
 endif # NET_VENDOR_BROADCOM
