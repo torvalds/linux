@@ -108,7 +108,6 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 {
 	struct amdgpu_sync_entry *e;
 	struct amdgpu_fence *fence;
-	struct amdgpu_fence *other;
 
 	if (!f)
 		return 0;
@@ -136,10 +135,7 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		return 0;
 	}
 
-	other = sync->sync_to[fence->ring->idx];
-	sync->sync_to[fence->ring->idx] = amdgpu_fence_ref(
-		amdgpu_fence_later(fence, other));
-	amdgpu_fence_unref(&other);
+	amdgpu_sync_keep_later(&sync->sync_to[fence->ring->idx], f);
 
 	return 0;
 }
@@ -258,11 +254,11 @@ int amdgpu_sync_wait(struct amdgpu_sync *sync)
 		return 0;
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_fence *fence = sync->sync_to[i];
+		struct fence *fence = sync->sync_to[i];
 		if (!fence)
 			continue;
 
-		r = fence_wait(&fence->base, false);
+		r = fence_wait(fence, false);
 		if (r)
 			return r;
 	}
@@ -287,9 +283,14 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 	int i, r;
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_fence *fence = sync->sync_to[i];
-		struct amdgpu_semaphore *semaphore;
 		struct amdgpu_ring *other = adev->rings[i];
+		struct amdgpu_semaphore *semaphore;
+		struct amdgpu_fence *fence;
+
+		if (!sync->sync_to[i])
+			continue;
+
+		fence = to_amdgpu_fence(sync->sync_to[i]);
 
 		/* check if we really need to sync */
 		if (!amdgpu_fence_need_sync(fence, ring))
@@ -374,7 +375,7 @@ void amdgpu_sync_free(struct amdgpu_device *adev,
 		amdgpu_semaphore_free(adev, &sync->semaphores[i], fence);
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		amdgpu_fence_unref(&sync->sync_to[i]);
+		fence_put(sync->sync_to[i]);
 
 	fence_put(sync->last_vm_update);
 }
