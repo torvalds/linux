@@ -1816,6 +1816,13 @@ static bool ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		}
 
 		params.aifs = pos[0] & 0x0f;
+
+		if (params.aifs < 2) {
+			sdata_info(sdata,
+				   "AP has invalid WMM params (AIFSN=%d for ACI %d), will use 2\n",
+				   params.aifs, aci);
+			params.aifs = 2;
+		}
 		params.cw_max = ecw2cw((pos[1] & 0xf0) >> 4);
 		params.cw_min = ecw2cw(pos[1] & 0x0f);
 		params.txop = get_unaligned_le16(pos + 2);
@@ -4559,17 +4566,10 @@ static bool ieee80211_usable_wmm_params(struct ieee80211_sub_if_data *sdata,
 	left = len - 8;
 
 	for (; left >= 4; left -= 4, pos += 4) {
-		u8 aifsn = pos[0] & 0x0f;
 		u8 ecwmin = pos[1] & 0x0f;
 		u8 ecwmax = (pos[1] & 0xf0) >> 4;
 		int aci = (pos[0] >> 5) & 0x03;
 
-		if (aifsn < 2) {
-			sdata_info(sdata,
-				   "AP has invalid WMM params (AIFSN=%d for ACI %d), disabling WMM\n",
-				   aifsn, aci);
-			return false;
-		}
 		if (ecwmin > ecwmax) {
 			sdata_info(sdata,
 				   "AP has invalid WMM params (ECWmin/max=%d/%d for ACI %d), disabling WMM\n",
