@@ -156,8 +156,9 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 
 	fb = __intel_framebuffer_create(dev, &mode_cmd, obj);
 	if (IS_ERR(fb)) {
+		drm_gem_object_unreference(&obj->base);
 		ret = PTR_ERR(fb);
-		goto out_unref;
+		goto out;
 	}
 
 	/* Flush everything out, we'll be doing GTT only from now on */
@@ -173,8 +174,6 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 
 out_fb:
 	drm_framebuffer_remove(fb);
-out_unref:
-	drm_gem_object_unreference(&obj->base);
 out:
 	return ret;
 }
