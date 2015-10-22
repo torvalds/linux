@@ -33,7 +33,7 @@
  * This file is part of Lustre, http://www.lustre.org/
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
- * libcfs/libcfs/nidstrings.c
+ * lnet/lnet/nidstrings.c
  *
  * Author: Phil Schwan <phil@clusterfs.com>
  */
@@ -42,6 +42,9 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../../include/linux/lnet/lnet.h"
+
+/* max value for numeric network address */
+#define MAX_NUMERIC_VALUE 0xffffffff
 
 /* CAVEAT VENDITOR! Keep the canonical string representation of nets/nids
  * consistent in all conversion functions.  Some code fragments are copied
@@ -64,12 +67,13 @@ void libcfs_init_nidstrings(void)
 {
 	spin_lock_init(&libcfs_nidstring_lock);
 }
+EXPORT_SYMBOL(libcfs_init_nidstrings);
 
-static char *
+char *
 libcfs_next_nidstring(void)
 {
-	char	  *str;
-	unsigned long  flags;
+	char *str;
+	unsigned long flags;
 
 	spin_lock_irqsave(&libcfs_nidstring_lock, flags);
 
@@ -80,6 +84,7 @@ libcfs_next_nidstring(void)
 	spin_unlock_irqrestore(&libcfs_nidstring_lock, flags);
 	return str;
 }
+EXPORT_SYMBOL(libcfs_next_nidstring);
 
 static int libcfs_lo_str2addr(const char *str, int nob, __u32 *addr)
 {
