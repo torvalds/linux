@@ -1094,13 +1094,13 @@ static void nvme_abort_req(struct request *req)
 	struct nvme_command cmd;
 
 	if (!nvmeq->qid || cmd_rq->aborted) {
-		spin_lock(&dev_list_lock);
+		spin_lock_irq(&dev_list_lock);
 		if (!__nvme_reset(dev)) {
 			dev_warn(dev->dev,
 				 "I/O %d QID %d timeout, reset controller\n",
 				 req->tag, nvmeq->qid);
 		}
-		spin_unlock(&dev_list_lock);
+		spin_unlock_irq(&dev_list_lock);
 		return;
 	}
 
@@ -1164,9 +1164,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 
 	dev_warn(nvmeq->q_dmadev, "Timeout I/O %d QID %d\n", req->tag,
 							nvmeq->qid);
-	spin_lock_irq(&nvmeq->q_lock);
 	nvme_abort_req(req);
-	spin_unlock_irq(&nvmeq->q_lock);
 
 	/*
 	 * The aborted req will be completed on receiving the abort req.
