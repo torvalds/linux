@@ -11,6 +11,17 @@
 	compatible = "qcom,apq8064";
 	interrupt-parent = <&intc>;
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		smem_region: smem@80000000 {
+			reg = <0x80000000 0x200000>;
+			no-map;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -78,6 +89,19 @@
 	cpu-pmu {
 		compatible = "qcom,krait-pmu";
 		interrupts = <1 10 0x304>;
+	};
+
+	sfpb_mutex: hwmutex {
+		compatible = "qcom,sfpb-mutex";
+		syscon = <&sfpb_wrapper_mutex 0x604 0x4>;
+		#hwlock-cells = <1>;
+	};
+
+	smem {
+		compatible = "qcom,smem";
+		memory-region = <&smem_region>;
+
+		hwlocks = <&sfpb_mutex 3>;
 	};
 
 	soc: soc {
@@ -154,6 +178,11 @@
 					function = "gsbi7";
 				};
 			};
+		};
+
+		sfpb_wrapper_mutex: syscon@1200000 {
+			compatible = "syscon";
+			reg = <0x01200000 0x8000>;
 		};
 
 		intc: interrupt-controller@2000000 {
