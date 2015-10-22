@@ -850,11 +850,11 @@ static u8 *xgifb_copy_rom(struct pci_dev *dev, size_t *rom_size)
 	u8 *rom_copy;
 
 	rom_address = pci_map_rom(dev, rom_size);
-	if (rom_address == NULL)
+	if (!rom_address)
 		return NULL;
 
 	rom_copy = vzalloc(XGIFB_ROM_SIZE);
-	if (rom_copy == NULL)
+	if (!rom_copy)
 		goto done;
 
 	*rom_size = min_t(size_t, *rom_size, XGIFB_ROM_SIZE);
@@ -876,7 +876,7 @@ static bool xgifb_read_vbios(struct pci_dev *pdev)
 	int entry;
 
 	vbios = xgifb_copy_rom(pdev, &vbios_size);
-	if (vbios == NULL) {
+	if (!vbios) {
 		dev_err(&pdev->dev, "Video BIOS not available\n");
 		return false;
 	}
@@ -1186,7 +1186,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
-	if (pVBInfo->FBAddr == NULL) {
+	if (!pVBInfo->FBAddr) {
 		dev_dbg(&pdev->dev, "pVBInfo->FBAddr == 0\n");
 		return 0;
 	}
