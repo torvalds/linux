@@ -889,7 +889,7 @@ static int fsl_sai_runtime_suspend(struct device *dev)
 }
 #endif
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int fsl_sai_suspend(struct device *dev)
 {
 	struct fsl_sai *sai = dev_get_drvdata(dev);

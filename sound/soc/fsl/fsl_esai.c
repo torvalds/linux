@@ -1035,7 +1035,7 @@ static const struct of_device_id fsl_esai_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_esai_dt_ids);
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int fsl_esai_suspend(struct device *dev)
 {
 	struct fsl_esai *esai = dev_get_drvdata(dev);
