@@ -440,25 +440,6 @@ int tipc_l2_send_msg(struct net *net, struct sk_buff *skb,
 	return 0;
 }
 
-/* tipc_bearer_send- sends buffer to destination over bearer
- *
- * IMPORTANT:
- * The media send routine must not alter the buffer being passed in
- * as it may be needed for later retransmission!
- */
-void tipc_bearer_send(struct net *net, u32 bearer_id, struct sk_buff *buf,
-		      struct tipc_media_addr *dest)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct tipc_bearer *b_ptr;
-
-	rcu_read_lock();
-	b_ptr = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
-	if (likely(b_ptr))
-		b_ptr->media->send_msg(net, buf, b_ptr, dest);
-	rcu_read_unlock();
-}
-
 int tipc_bearer_mtu(struct net *net, u32 bearer_id)
 {
 	int mtu = 0;

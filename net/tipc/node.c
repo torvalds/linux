@@ -606,7 +606,7 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 				      b->net_plane, b->mtu, b->priority,
 				      b->window, mod(tipc_net(net)->random),
 				      tipc_own_addr(net), onode,
-				      n->capabilities, &le->maddr,
+				      n->capabilities,
 				      tipc_bc_sndlink(n->net), n->bc_entry.link,
 				      &le->inputq,
 				      &n->bc_entry.namedq, &l)) {
@@ -943,17 +943,12 @@ void tipc_node_unlock(struct tipc_node *node)
 	publ_list = &node->publ_list;
 
 	node->action_flags &= ~(TIPC_NOTIFY_NODE_DOWN | TIPC_NOTIFY_NODE_UP |
-				TIPC_NOTIFY_LINK_DOWN | TIPC_NOTIFY_LINK_UP |
-				TIPC_WAKEUP_BCAST_USERS | TIPC_BCAST_MSG_EVT |
-				TIPC_BCAST_RESET);
+				TIPC_NOTIFY_LINK_DOWN | TIPC_NOTIFY_LINK_UP);
 
 	spin_unlock_bh(&node->lock);
 
 	if (flags & TIPC_NOTIFY_NODE_DOWN)
 		tipc_publ_notify(net, publ_list, addr);
-
-	if (flags & TIPC_WAKEUP_BCAST_USERS)
-		tipc_bclink_wakeup_users(net);
 
 	if (flags & TIPC_NOTIFY_NODE_UP)
 		tipc_named_node_up(net, addr);
@@ -966,11 +961,6 @@ void tipc_node_unlock(struct tipc_node *node)
 		tipc_nametbl_withdraw(net, TIPC_LINK_STATE, addr,
 				      link_id, addr);
 
-	if (flags & TIPC_BCAST_MSG_EVT)
-		tipc_bclink_input(net);
-
-	if (flags & TIPC_BCAST_RESET)
-		tipc_node_reset_links(node);
 }
 
 /* Caller should hold node lock for the passed node */

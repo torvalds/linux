@@ -224,7 +224,6 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 		      int tolerance, char net_plane, u32 mtu, int priority,
 		      int window, u32 session, u32 ownnode, u32 peer,
 		      u16 peer_caps,
-		      struct tipc_media_addr *maddr,
 		      struct tipc_link *bc_sndlink,
 		      struct tipc_link *bc_rcvlink,
 		      struct sk_buff_head *inputq,
@@ -249,22 +248,10 @@ bool tipc_link_is_synching(struct tipc_link *l);
 bool tipc_link_is_failingover(struct tipc_link *l);
 bool tipc_link_is_blocked(struct tipc_link *l);
 void tipc_link_set_active(struct tipc_link *l, bool active);
-void tipc_link_purge_queues(struct tipc_link *l_ptr);
-void tipc_link_purge_backlog(struct tipc_link *l);
 void tipc_link_reset(struct tipc_link *l_ptr);
-int __tipc_link_xmit(struct net *net, struct tipc_link *link,
-		     struct sk_buff_head *list);
 int tipc_link_xmit(struct tipc_link *link,	struct sk_buff_head *list,
 		   struct sk_buff_head *xmitq);
-void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int prob,
-			  u32 gap, u32 tolerance, u32 priority);
-void tipc_link_push_packets(struct tipc_link *l_ptr);
-u32 tipc_link_defer_pkt(struct sk_buff_head *list, struct sk_buff *buf);
-void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window);
-void tipc_link_retransmit(struct tipc_link *l_ptr,
-			  struct sk_buff *start, u32 retransmits);
-struct sk_buff *tipc_skb_queue_next(const struct sk_buff_head *list,
-				    const struct sk_buff *skb);
+void tipc_link_set_queue_limits(struct tipc_link *l, u32 window);
 
 int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info);

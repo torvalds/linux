@@ -55,11 +55,8 @@
 enum {
 	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
 	TIPC_NOTIFY_NODE_UP		= (1 << 4),
-	TIPC_WAKEUP_BCAST_USERS		= (1 << 5),
 	TIPC_NOTIFY_LINK_UP		= (1 << 6),
-	TIPC_NOTIFY_LINK_DOWN		= (1 << 7),
-	TIPC_BCAST_MSG_EVT		= (1 << 9),
-	TIPC_BCAST_RESET		= (1 << 10)
+	TIPC_NOTIFY_LINK_DOWN		= (1 << 7)
 };
 
 /* Optional capabilities supported by this code version
@@ -69,29 +66,6 @@ enum {
 };
 
 #define TIPC_NODE_CAPABILITIES TIPC_BCAST_SYNCH
-
-/**
- * struct tipc_node_bclink - TIPC node bclink structure
- * @acked: sequence # of last outbound b'cast message acknowledged by node
- * @last_in: sequence # of last in-sequence b'cast message received from node
- * @last_sent: sequence # of last b'cast message sent by node
- * @oos_state: state tracker for handling OOS b'cast messages
- * @deferred_queue: deferred queue saved OOS b'cast message received from node
- * @reasm_buf: broadcast reassembly queue head from node
- * @inputq_map: bitmap indicating which inqueues should be kicked
- * @recv_permitted: true if node is allowed to receive b'cast messages
- */
-struct tipc_node_bclink {
-	u32 acked;
-	u32 last_in;
-	u32 last_sent;
-	u32 oos_state;
-	u32 deferred_size;
-	struct sk_buff_head deferdq;
-	struct sk_buff *reasm_buf;
-	struct sk_buff_head namedq;
-	bool recv_permitted;
-};
 
 struct tipc_link_entry {
 	struct tipc_link *link;
@@ -120,7 +94,6 @@ struct tipc_bclink_entry {
  * @active_links: bearer ids of active links, used as index into links[] array
  * @links: array containing references to all links to node
  * @action_flags: bit mask of different types of node actions
- * @bclink: broadcast-related info
  * @state: connectivity state vs peer node
  * @sync_point: sequence number where synch/failover is finished
  * @list: links to adjacent nodes in sorted list of cluster's nodes
@@ -142,7 +115,6 @@ struct tipc_node {
 	struct tipc_link_entry links[MAX_BEARERS];
 	struct tipc_bclink_entry bc_entry;
 	int action_flags;
-	struct tipc_node_bclink bclink;
 	struct list_head list;
 	int state;
 	u16 sync_point;
