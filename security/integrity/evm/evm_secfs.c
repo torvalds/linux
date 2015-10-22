@@ -62,7 +62,7 @@ static ssize_t evm_write_key(struct file *file, const char __user *buf,
 			     size_t count, loff_t *ppos)
 {
 	char temp[80];
-	int i, error;
+	int i;
 
 	if (!capable(CAP_SYS_ADMIN) || (evm_initialized & EVM_INIT_HMAC))
 		return -EPERM;
@@ -78,12 +78,8 @@ static ssize_t evm_write_key(struct file *file, const char __user *buf,
 	if ((sscanf(temp, "%d", &i) != 1) || (i != 1))
 		return -EINVAL;
 
-	error = evm_init_key();
-	if (!error) {
-		evm_initialized |= EVM_INIT_HMAC;
-		pr_info("initialized\n");
-	} else
-		pr_err("initialization failed\n");
+	evm_init_key();
+
 	return count;
 }
 
