@@ -57,12 +57,29 @@ struct list_head;
 #define LNET_NIDSTR_COUNT  1024    /* # of nidstrings */
 #define LNET_NIDSTR_SIZE   32      /* size of each one (see below for usage) */
 
-int libcfs_isknown_lnd(int type);
-char *libcfs_lnd2modname(int type);
-char *libcfs_lnd2str(int type);
+/* support decl needed by both kernel and user space */
+char *libcfs_next_nidstring(void);
+int libcfs_isknown_lnd(__u32 lnd);
+char *libcfs_lnd2modname(__u32 lnd);
+char *libcfs_lnd2str_r(__u32 lnd, char *buf, size_t buf_size);
+static inline char *libcfs_lnd2str(__u32 lnd)
+{
+	return libcfs_lnd2str_r(lnd, libcfs_next_nidstring(),
+				LNET_NIDSTR_SIZE);
+}
 int libcfs_str2lnd(const char *str);
-char *libcfs_net2str(__u32 net);
-char *libcfs_nid2str(lnet_nid_t nid);
+char *libcfs_net2str_r(__u32 net, char *buf, size_t buf_size);
+static inline char *libcfs_net2str(__u32 net)
+{
+	return libcfs_net2str_r(net, libcfs_next_nidstring(),
+				LNET_NIDSTR_SIZE);
+}
+char *libcfs_nid2str_r(lnet_nid_t nid, char *buf, size_t buf_size);
+static inline char *libcfs_nid2str(lnet_nid_t nid)
+{
+	return libcfs_nid2str_r(nid, libcfs_next_nidstring(),
+				LNET_NIDSTR_SIZE);
+}
 __u32 libcfs_str2net(const char *str);
 lnet_nid_t libcfs_str2nid(const char *str);
 int libcfs_str2anynid(lnet_nid_t *nid, const char *str);
@@ -79,10 +96,10 @@ void cfs_nidrange_find_min_max(struct list_head *nidlist, char *min_nid,
 			       char *max_nid, size_t nidstr_length);
 
 struct netstrfns {
-	int	nf_type;
+	__u32	nf_type;
 	char	*nf_name;
 	char	*nf_modname;
-	void	(*nf_addr2str)(__u32 addr, char *str);
+	void	(*nf_addr2str)(__u32 addr, char *str, size_t size);
 	int	(*nf_str2addr)(const char *str, int nob, __u32 *addr);
 	int	(*nf_parse_addrlist)(char *str, int len,
 				     struct list_head *list);

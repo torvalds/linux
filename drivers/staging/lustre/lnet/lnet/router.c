@@ -235,7 +235,7 @@ lnet_find_net_locked(__u32 net)
 static void lnet_shuffle_seed(void)
 {
 	static int seeded;
-	int lnd_type, seed[2];
+	__u32 lnd_type, seed[2];
 	struct timespec64 ts;
 	lnet_ni_t *ni;
 	struct list_head *tmp;

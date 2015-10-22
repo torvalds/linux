@@ -610,6 +610,7 @@ static void obd_connect_seq_flags2str(struct seq_file *m, __u64 flags, char *sep
 
 int lprocfs_rd_import(struct seq_file *m, void *data)
 {
+	char				nidstr[LNET_NIDSTR_SIZE];
 	struct lprocfs_counter		ret;
 	struct lprocfs_counter_header	*header;
 	struct obd_device		*obd	= data;
@@ -647,18 +648,20 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	spin_lock(&imp->imp_lock);
 	j = 0;
 	list_for_each_entry(conn, &imp->imp_conn_list, oic_item) {
-		seq_printf(m, "%s%s", j ? ", " : "",
-			   libcfs_nid2str(conn->oic_conn->c_peer.nid));
+		libcfs_nid2str_r(conn->oic_conn->c_peer.nid,
+				 nidstr, sizeof(nidstr));
+		seq_printf(m, "%s%s", j ? ", " : "", nidstr);
 		j++;
 	}
+	libcfs_nid2str_r(imp->imp_connection->c_peer.nid,
+			 nidstr, sizeof(nidstr));
 	seq_printf(m,
 		      "]\n"
 		      "       current_connection: %s\n"
 		      "       connection_attempts: %u\n"
 		      "       generation: %u\n"
 		      "       in-progress_invalidations: %u\n",
-		      imp->imp_connection == NULL ? "<none>" :
-			      libcfs_nid2str(imp->imp_connection->c_peer.nid),
+		      imp->imp_connection == NULL ? "<none>" : nidstr,
 		      imp->imp_conn_cnt,
 		      imp->imp_generation,
 		      atomic_read(&imp->imp_inval_count));

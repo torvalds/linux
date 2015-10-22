@@ -909,8 +909,11 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 	rc = ptlrpc_lprocfs_svc_req_history_seek(svcpt, srhi, srhi->srhi_seq);
 
 	if (rc == 0) {
+		char nidstr[LNET_NIDSTR_SIZE];
+
 		req = srhi->srhi_req;
 
+		libcfs_nid2str_r(req->rq_self, nidstr, sizeof(nidstr));
 		/* Print common req fields.
 		 * CAVEAT EMPTOR: we're racing with the service handler
 		 * here.  The request could contain any old crap, so you
@@ -918,7 +921,7 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 		 * parser. Currently I only print stuff here I know is OK
 		 * to look at coz it was set up in request_in_callback()!!! */
 		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%lld:%lds(%+lds) ",
-			   req->rq_history_seq, libcfs_nid2str(req->rq_self),
+			   req->rq_history_seq, nidstr,
 			   libcfs_id2str(req->rq_peer), req->rq_xid,
 			   req->rq_reqlen, ptlrpc_rqphase2str(req),
 			   (s64)req->rq_arrival_time.tv_sec,

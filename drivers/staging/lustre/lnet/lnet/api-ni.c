@@ -263,7 +263,7 @@ static void lnet_assert_wire_constants(void)
 }
 
 static lnd_t *
-lnet_find_lnd_by_type(int type)
+lnet_find_lnd_by_type(__u32 type)
 {
 	lnd_t *lnd;
 	struct list_head *tmp;
@@ -272,7 +272,7 @@ lnet_find_lnd_by_type(int type)
 	list_for_each(tmp, &the_lnet.ln_lnds) {
 		lnd = list_entry(tmp, lnd_t, lnd_list);
 
-		if ((int)lnd->lnd_type == type)
+		if (lnd->lnd_type == type)
 			return lnd;
 	}
 
@@ -962,7 +962,7 @@ lnet_startup_lndnis(void)
 	struct list_head nilist;
 	int i;
 	int rc = 0;
-	int lnd_type;
+	__u32 lnd_type;
 	int nicount = 0;
 	char *nets = lnet_get_networks();
 

@@ -209,9 +209,10 @@ int lustre_start_mgc(struct super_block *sb)
 	struct obd_uuid *uuid;
 	class_uuid_t uuidc;
 	lnet_nid_t nid;
+	char nidstr[LNET_NIDSTR_SIZE];
 	char *mgcname = NULL, *niduuid = NULL, *mgssec = NULL;
 	char *ptr;
-	int rc = 0, i = 0, j, len;
+	int rc = 0, i = 0, j;
 
 	LASSERT(lsi->lsi_lmd);
 
@@ -226,9 +227,9 @@ int lustre_start_mgc(struct super_block *sb)
 
 	mutex_lock(&mgc_start_lock);
 
-	len = strlen(LUSTRE_MGC_OBDNAME) + strlen(libcfs_nid2str(nid)) + 1;
+	libcfs_nid2str_r(nid, nidstr, sizeof(nidstr));
 	mgcname = kasprintf(GFP_NOFS,
-			    "%s%s", LUSTRE_MGC_OBDNAME, libcfs_nid2str(nid));
+			    "%s%s", LUSTRE_MGC_OBDNAME, nidstr);
 	niduuid = kasprintf(GFP_NOFS, "%s_%x", mgcname, i);
 	if (!mgcname || !niduuid) {
 		rc = -ENOMEM;

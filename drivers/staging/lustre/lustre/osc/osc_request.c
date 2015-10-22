@@ -1547,8 +1547,8 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 	if (body->oa.o_valid & OBD_MD_FLCKSUM) {
 		static int cksum_counter;
 		__u32 server_cksum = body->oa.o_cksum;
-		char *via;
-		char *router;
+		char *via = "";
+		char *router = "";
 		cksum_type_t cksum_type;
 
 		cksum_type = cksum_type_unpack(body->oa.o_valid&OBD_MD_FLFLAGS ?
@@ -1557,9 +1557,7 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 						 aa->aa_ppga, OST_READ,
 						 cksum_type);
 
-		if (peer->nid == req->rq_bulk->bd_sender) {
-			via = router = "";
-		} else {
+		if (peer->nid != req->rq_bulk->bd_sender) {
 			via = " via ";
 			router = libcfs_nid2str(req->rq_bulk->bd_sender);
 		}
