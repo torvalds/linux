@@ -249,11 +249,11 @@ int commit_inmem_pages(struct inode *inode, bool abort)
 				trace_f2fs_commit_inmem_page(cur->page, INMEM);
 				fio.page = cur->page;
 				err = do_write_data_page(&fio);
-				submit_bio = true;
 				if (err) {
 					unlock_page(cur->page);
 					break;
 				}
+				submit_bio = true;
 			}
 		} else {
 			trace_f2fs_commit_inmem_page(cur->page, INMEM_DROP);
