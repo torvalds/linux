@@ -18,6 +18,11 @@ static void enable_hotplug_cpu(int cpu)
 
 static void disable_hotplug_cpu(int cpu)
 {
+	if (cpu_online(cpu)) {
+		lock_device_hotplug();
+		device_offline(get_cpu_device(cpu));
+		unlock_device_hotplug();
+	}
 	if (cpu_present(cpu))
 		xen_arch_unregister_cpu(cpu);
 
@@ -55,7 +60,6 @@ static void vcpu_hotplug(unsigned int cpu)
 		enable_hotplug_cpu(cpu);
 		break;
 	case 0:
-		(void)cpu_down(cpu);
 		disable_hotplug_cpu(cpu);
 		break;
 	default:
