@@ -1457,8 +1457,7 @@ static void core_scsi3_nodeacl_undepend_item(struct se_node_acl *nacl)
 static int core_scsi3_lunacl_depend_item(struct se_dev_entry *se_deve)
 {
 	struct se_lun_acl *lun_acl;
-	struct se_node_acl *nacl;
-	struct se_portal_group *tpg;
+
 	/*
 	 * For nacl->dynamic_node_acl=1
 	 */
@@ -1467,17 +1466,13 @@ static int core_scsi3_lunacl_depend_item(struct se_dev_entry *se_deve)
 	if (!lun_acl)
 		return 0;
 
-	nacl = lun_acl->se_lun_nacl;
-	tpg = nacl->se_tpg;
-
 	return target_depend_item(&lun_acl->se_lun_group.cg_item);
 }
 
 static void core_scsi3_lunacl_undepend_item(struct se_dev_entry *se_deve)
 {
 	struct se_lun_acl *lun_acl;
-	struct se_node_acl *nacl;
-	struct se_portal_group *tpg;
+
 	/*
 	 * For nacl->dynamic_node_acl=1
 	 */
@@ -1487,8 +1482,6 @@ static void core_scsi3_lunacl_undepend_item(struct se_dev_entry *se_deve)
 		kref_put(&se_deve->pr_kref, target_pr_kref_release);
 		return;
 	}
-	nacl = lun_acl->se_lun_nacl;
-	tpg = nacl->se_tpg;
 
 	target_undepend_item(&lun_acl->se_lun_group.cg_item);
 	kref_put(&se_deve->pr_kref, target_pr_kref_release);
