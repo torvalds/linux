@@ -89,7 +89,7 @@ static void tipc_disc_init_msg(struct net *net, struct sk_buff *buf, u32 type,
 		      MAX_H_SIZE, dest_domain);
 	msg_set_non_seq(msg, 1);
 	msg_set_node_sig(msg, tn->random);
-	msg_set_node_capabilities(msg, 0);
+	msg_set_node_capabilities(msg, TIPC_NODE_CAPABILITIES);
 	msg_set_dest_domain(msg, dest_domain);
 	msg_set_bc_netid(msg, tn->net_id);
 	b_ptr->media->addr2msg(msg_media_addr(msg), &b_ptr->addr);

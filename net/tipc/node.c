@@ -584,8 +584,10 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 		if (!tipc_link_create(n, if_name, b->identity, b->tolerance,
 				      b->net_plane, b->mtu, b->priority,
 				      b->window, mod(tipc_net(net)->random),
-				      tipc_own_addr(net), onode, &le->maddr,
-				      &le->inputq, &n->bclink.namedq, &l)) {
+				      tipc_own_addr(net), onode,
+				      n->capabilities,
+				      &le->maddr, &le->inputq,
+				      &n->bclink.namedq, &l)) {
 			*respond = false;
 			goto exit;
 		}

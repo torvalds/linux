@@ -62,6 +62,14 @@ enum {
 	TIPC_BCAST_RESET		= (1 << 10)
 };
 
+/* Optional capabilities supported by this code version
+ */
+enum {
+	TIPC_BCAST_SYNCH = (1 << 1)
+};
+
+#define TIPC_NODE_CAPABILITIES TIPC_BCAST_SYNCH
+
 /**
  * struct tipc_node_bclink - TIPC node bclink structure
  * @acked: sequence # of last outbound b'cast message acknowledged by node

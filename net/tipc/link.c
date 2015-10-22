@@ -191,6 +191,7 @@ static u32 link_own_addr(struct tipc_link *l)
  * @session: session to be used by link
  * @ownnode: identity of own node
  * @peer: node id of peer node
+ * @peer_caps: bitmap describing peer node capabilities
  * @maddr: media address to be used
  * @inputq: queue to put messages ready for delivery
  * @namedq: queue to put binding table update messages ready for delivery
@@ -201,7 +202,7 @@ static u32 link_own_addr(struct tipc_link *l)
 bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
 		      int tolerance, char net_plane, u32 mtu, int priority,
 		      int window, u32 session, u32 ownnode, u32 peer,
-		      struct tipc_media_addr *maddr,
+		      u16 peer_caps, struct tipc_media_addr *maddr,
 		      struct sk_buff_head *inputq, struct sk_buff_head *namedq,
 		      struct tipc_link **link)
 {
@@ -226,6 +227,7 @@ bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
 	strcpy((char *)msg_data(hdr), if_name);
 
 	l->addr = peer;
+	l->peer_caps = peer_caps;
 	l->media_addr = maddr;
 	l->owner = n;
 	l->peer_session = WILDCARD_SESSION;
@@ -260,6 +262,7 @@ bool tipc_link_create(struct tipc_node *n, char *if_name, int bearer_id,
  * Returns true if link was created, otherwise false
  */
 bool tipc_link_bc_create(struct tipc_node *n, int mtu, int window,
+			 u16 peer_caps,
 			 struct sk_buff_head *inputq,
 			 struct sk_buff_head *namedq,
 			 struct tipc_link **link)
@@ -267,7 +270,7 @@ bool tipc_link_bc_create(struct tipc_node *n, int mtu, int window,
 	struct tipc_link *l;
 
 	if (!tipc_link_create(n, "", MAX_BEARERS, 0, 'Z', mtu, 0, window,
-			      0, 0, 0, NULL, inputq, namedq, link))
+			      0, 0, 0, peer_caps, NULL, inputq, namedq, link))
 		return false;
 
 	l = *link;

@@ -1045,6 +1045,7 @@ int tipc_bcast_init(struct net *net)
 	if (!tipc_link_bc_create(&bb->node,
 				 MAX_PKT_DEFAULT_MCAST,
 				 BCLINK_WIN_DEFAULT,
+				 0,
 				 &bb->inputq,
 				 &bb->namedq,
 				 &l))
