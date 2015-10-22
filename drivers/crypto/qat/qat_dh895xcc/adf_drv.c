@@ -253,13 +253,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	accel_dev->hw_device = hw_data;
-	switch (ent->device) {
-	case ADF_DH895XCC_PCI_DEVICE_ID:
-		adf_init_hw_data_dh895xcc(accel_dev->hw_device);
-		break;
-	default:
-		return -ENODEV;
-	}
+	adf_init_hw_data_dh895xcc(accel_dev->hw_device);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &accel_pci_dev->revid);
 	pci_read_config_dword(pdev, ADF_DH895XCC_FUSECTL_OFFSET,
 			      &hw_data->fuses);

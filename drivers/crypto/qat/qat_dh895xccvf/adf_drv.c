@@ -243,14 +243,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err;
 	}
 	accel_dev->hw_device = hw_data;
-	switch (ent->device) {
-	case ADF_DH895XCCIOV_PCI_DEVICE_ID:
-		adf_init_hw_data_dh895xcciov(accel_dev->hw_device);
-		break;
-	default:
-		ret = -ENODEV;
-		goto out_err;
-	}
+	adf_init_hw_data_dh895xcciov(accel_dev->hw_device);
 
 	/* Get Accelerators and Accelerators Engines masks */
 	hw_data->accel_mask = hw_data->get_accel_mask(hw_data->fuses);
