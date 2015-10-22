@@ -62,8 +62,6 @@ source "drivers/staging/xgifb/Kconfig"
 
 source "drivers/staging/emxx_udc/Kconfig"
 
-source "drivers/staging/ft1000/Kconfig"
-
 source "drivers/staging/speakup/Kconfig"
 
 source "drivers/staging/ste_rmi4/Kconfig"
