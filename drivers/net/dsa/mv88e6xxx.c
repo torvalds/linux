@@ -1751,7 +1751,6 @@ int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 }
 
 static int _mv88e6xxx_atu_getnext(struct dsa_switch *ds, u16 fid,
-				  const unsigned char *addr,
 				  struct mv88e6xxx_atu_entry *entry)
 {
 	struct mv88e6xxx_atu_entry next = { 0 };
@@ -1760,10 +1759,6 @@ static int _mv88e6xxx_atu_getnext(struct dsa_switch *ds, u16 fid,
 	next.fid = fid;
 
 	ret = _mv88e6xxx_atu_wait(ds);
-	if (ret < 0)
-		return ret;
-
-	ret = _mv88e6xxx_atu_mac_write(ds, addr);
 	if (ret < 0)
 		return ret;
 
@@ -1827,7 +1822,11 @@ int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
 			fid = vtu.fid;
 		}
 
-		ret = _mv88e6xxx_atu_getnext(ds, fid, addr, &next);
+		ret = _mv88e6xxx_atu_mac_write(ds, addr);
+		if (ret < 0)
+			goto unlock;
+
+		ret = _mv88e6xxx_atu_getnext(ds, fid, &next);
 		if (ret < 0)
 			goto unlock;
 
