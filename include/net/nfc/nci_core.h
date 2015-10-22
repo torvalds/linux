@@ -374,6 +374,7 @@ void nci_clear_target_list(struct nci_dev *ndev);
 void nci_req_complete(struct nci_dev *ndev, int result);
 struct nci_conn_info *nci_get_conn_info_by_conn_id(struct nci_dev *ndev,
 						   int conn_id);
+int nci_get_conn_info_by_id(struct nci_dev *ndev, u8 id);
 
 /* ----- NCI status code ----- */
 int nci_to_errno(__u8 code);
