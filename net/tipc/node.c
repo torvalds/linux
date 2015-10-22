@@ -370,7 +370,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 		tipc_link_set_active(ol, false);
 	} else if (nl->priority == ol->priority) {
 		tipc_link_set_active(nl, true);
-		*slot0 = bearer_id;
+		*slot1 = bearer_id;
 	} else {
 		pr_debug("New link <%s> is standby\n", nl->name);
 	}
