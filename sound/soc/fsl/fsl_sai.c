@@ -806,7 +806,7 @@ static const struct of_device_id fsl_sai_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_sai_ids);
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int fsl_sai_suspend(struct device *dev)
 {
 	struct fsl_sai *sai = dev_get_drvdata(dev);
