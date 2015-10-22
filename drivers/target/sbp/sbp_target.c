@@ -39,8 +39,6 @@
 
 #include "sbp_target.h"
 
-static const struct target_core_fabric_ops sbp_ops;
-
 /* FireWire address region for management and command block address handlers */
 static const struct fw_address_region sbp_register_region = {
 	.start	= CSR_REGISTER_BASE + 0x10000,
