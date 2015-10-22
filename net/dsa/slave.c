@@ -378,34 +378,11 @@ static int dsa_slave_port_fdb_dump(struct net_device *dev,
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
-	unsigned char addr[ETH_ALEN] = { 0 };
-	u16 vid = 0;
-	int ret;
 
 	if (ds->drv->port_fdb_dump)
 		return ds->drv->port_fdb_dump(ds, p->port, fdb, cb);
 
-	if (!ds->drv->port_fdb_getnext)
-		return -EOPNOTSUPP;
-
-	for (;;) {
-		bool is_static;
-
-		ret = ds->drv->port_fdb_getnext(ds, p->port, addr, &vid,
-						&is_static);
-		if (ret < 0)
-			break;
-
-		ether_addr_copy(fdb->addr, addr);
-		fdb->vid = vid;
-		fdb->ndm_state = is_static ? NUD_NOARP : NUD_REACHABLE;
-
-		ret = cb(&fdb->obj);
-		if (ret < 0)
-			break;
-	}
-
-	return ret == -ENOENT ? 0 : ret;
+	return -EOPNOTSUPP;
 }
 
 static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
