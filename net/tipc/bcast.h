@@ -47,11 +47,11 @@ struct tipc_node_map;
 int tipc_bcast_init(struct net *net);
 void tipc_bcast_reinit(struct net *net);
 void tipc_bcast_stop(struct net *net);
-void tipc_bcast_add_peer(struct net *net, u32 addr,
-			 struct tipc_link *l,
+void tipc_bcast_add_peer(struct net *net, struct tipc_link *l,
 			 struct sk_buff_head *xmitq);
-void tipc_bcast_remove_peer(struct net *net, u32 addr,
-			    struct tipc_link *rcv_bcl);
+void tipc_bcast_remove_peer(struct net *net, struct tipc_link *rcv_bcl);
+void tipc_bcast_inc_bearer_dst_cnt(struct net *net, int bearer_id);
+void tipc_bcast_dec_bearer_dst_cnt(struct net *net, int bearer_id);
 struct tipc_node *tipc_bclink_retransmit_to(struct net *tn);
 void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked);
 void tipc_bclink_rcv(struct net *net, struct sk_buff *buf);

@@ -193,10 +193,8 @@ void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 
 	rcu_read_lock();
 	b_ptr = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
-	if (b_ptr) {
-		tipc_bcbearer_sort(net, &b_ptr->nodes, dest, true);
+	if (b_ptr)
 		tipc_disc_add_dest(b_ptr->link_req);
-	}
 	rcu_read_unlock();
 }
 
@@ -207,10 +205,8 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
 
 	rcu_read_lock();
 	b_ptr = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
-	if (b_ptr) {
-		tipc_bcbearer_sort(net, &b_ptr->nodes, dest, false);
+	if (b_ptr)
 		tipc_disc_remove_dest(b_ptr->link_req);
-	}
 	rcu_read_unlock();
 }
 
@@ -487,6 +483,33 @@ void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		skb_queue_walk_safe(xmitq, skb, tmp) {
 			__skb_dequeue(xmitq);
 			b->media->send_msg(net, skb, b, dst);
+			/* Until we remove cloning in tipc_l2_send_msg(): */
+			kfree_skb(skb);
+		}
+	}
+	rcu_read_unlock();
+}
+
+/* tipc_bearer_bc_xmit() - broadcast buffers to all destinations
+ */
+void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
+			 struct sk_buff_head *xmitq)
+{
+	struct tipc_net *tn = tipc_net(net);
+	int net_id = tn->net_id;
+	struct tipc_bearer *b;
+	struct sk_buff *skb, *tmp;
+	struct tipc_msg *hdr;
+
+	rcu_read_lock();
+	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
+	if (likely(b)) {
+		skb_queue_walk_safe(xmitq, skb, tmp) {
+			hdr = buf_msg(skb);
+			msg_set_non_seq(hdr, 1);
+			msg_set_mc_netid(hdr, net_id);
+			__skb_dequeue(xmitq);
+			b->media->send_msg(net, skb, b, &b->bcast_addr);
 			/* Until we remove cloning in tipc_l2_send_msg(): */
 			kfree_skb(skb);
 		}

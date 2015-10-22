@@ -163,6 +163,7 @@ struct tipc_bearer {
 	u32 identity;
 	struct tipc_link_req *link_req;
 	char net_plane;
+	int node_cnt;
 	struct tipc_node_map nodes;
 };
 
@@ -220,5 +221,7 @@ void tipc_bearer_send(struct net *net, u32 bearer_id, struct sk_buff *buf,
 void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		      struct sk_buff_head *xmitq,
 		      struct tipc_media_addr *dst);
+void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
+			 struct sk_buff_head *xmitq);
 
 #endif	/* _TIPC_BEARER_H */

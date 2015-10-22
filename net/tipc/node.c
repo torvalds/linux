@@ -346,6 +346,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 	n->links[bearer_id].mtu = nl->mtu - INT_H_SIZE;
 
 	tipc_bearer_add_dest(n->net, bearer_id, n->addr);
+	tipc_bcast_inc_bearer_dst_cnt(n->net, bearer_id);
 
 	pr_debug("Established link <%s> on network plane %c\n",
 		 nl->name, nl->net_plane);
@@ -356,7 +357,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 		*slot1 = bearer_id;
 		tipc_node_fsm_evt(n, SELF_ESTABL_CONTACT_EVT);
 		n->action_flags |= TIPC_NOTIFY_NODE_UP;
-		tipc_bcast_add_peer(n->net, n->addr, nl, xmitq);
+		tipc_bcast_add_peer(n->net, nl, xmitq);
 		return;
 	}
 
@@ -443,8 +444,10 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 		tipc_link_build_reset_msg(l, xmitq);
 		*maddr = &n->links[*bearer_id].maddr;
 		node_lost_contact(n, &le->inputq);
+		tipc_bcast_dec_bearer_dst_cnt(n->net, *bearer_id);
 		return;
 	}
+	tipc_bcast_dec_bearer_dst_cnt(n->net, *bearer_id);
 
 	/* There is still a working link => initiate failover */
 	tnl = node_active_link(n, 0);
@@ -860,7 +863,7 @@ static void node_lost_contact(struct tipc_node *n,
 		 tipc_addr_string_fill(addr_string, n->addr));
 
 	/* Clean up broadcast state */
-	tipc_bcast_remove_peer(n->net, n->addr, n->bc_entry.link);
+	tipc_bcast_remove_peer(n->net, n->bc_entry.link);
 
 	/* Abort any ongoing link failover */
 	for (i = 0; i < MAX_BEARERS; i++) {
