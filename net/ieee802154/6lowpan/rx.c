@@ -284,16 +284,16 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	if (wdev->type != ARPHRD_IEEE802154 ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    !lowpan_rx_h_check(skb))
-		return NET_RX_DROP;
+		goto drop;
 
 	ldev = wdev->ieee802154_ptr->lowpan_dev;
 	if (!ldev || !netif_running(ldev))
-		return NET_RX_DROP;
+		goto drop;
 
 	/* Replacing skb->dev and followed rx handlers will manipulate skb. */
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
-		return NET_RX_DROP;
+		goto out;
 	skb->dev = ldev;
 
 	/* When receive frag1 it's likely that we manipulate the buffer.
@@ -304,10 +304,15 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	    lowpan_is_iphc(*skb_network_header(skb))) {
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (!skb)
-			return NET_RX_DROP;
+			goto out;
 	}
 
 	return lowpan_invoke_rx_handlers(skb);
+
+drop:
+	kfree_skb(skb);
+out:
+	return NET_RX_DROP;
 }
 
 static struct packet_type lowpan_packet_type = {
