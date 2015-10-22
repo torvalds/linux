@@ -513,8 +513,7 @@ void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 }
 
 /* We give fast paths for the really cool registers */
-#define NEEDS_FORCE_WAKE(reg) \
-	 ((reg) < 0x40000 && (reg) != FORCEWAKE)
+#define NEEDS_FORCE_WAKE(reg) ((reg) < 0x40000)
 
 #define REG_RANGE(reg, start, end) ((reg) >= (start) && (reg) < (end))
 
@@ -918,7 +917,7 @@ static void \
 gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	GEN6_WRITE_HEADER; \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
-	if (reg < 0x40000 && !is_gen8_shadowed(dev_priv, reg)) \
+	if (NEEDS_FORCE_WAKE(reg) && !is_gen8_shadowed(dev_priv, reg)) \
 		__force_wake_get(dev_priv, FORCEWAKE_RENDER); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \

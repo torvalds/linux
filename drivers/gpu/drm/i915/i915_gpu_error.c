@@ -1200,7 +1200,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	if (IS_VALLEYVIEW(dev)) {
 		error->gtier[0] = I915_READ(GTIER);
 		error->ier = I915_READ(VLV_IER);
-		error->forcewake = I915_READ(FORCEWAKE_VLV);
+		error->forcewake = I915_READ_FW(FORCEWAKE_VLV);
 	}
 
 	if (IS_GEN7(dev))
@@ -1212,14 +1212,14 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	}
 
 	if (IS_GEN6(dev)) {
-		error->forcewake = I915_READ(FORCEWAKE);
+		error->forcewake = I915_READ_FW(FORCEWAKE);
 		error->gab_ctl = I915_READ(GAB_CTL);
 		error->gfx_mode = I915_READ(GFX_MODE);
 	}
 
 	/* 2: Registers which belong to multiple generations */
 	if (INTEL_INFO(dev)->gen >= 7)
-		error->forcewake = I915_READ(FORCEWAKE_MT);
+		error->forcewake = I915_READ_FW(FORCEWAKE_MT);
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		error->derrmr = I915_READ(DERRMR);
