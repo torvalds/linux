@@ -186,6 +186,7 @@ static int wait_till_ready(struct spi_device *spi_nand)
 
 	return -1;
 }
+
 /**
  * spinand_get_otp- send command 0xf to read the SPI Nand OTP register
  * Description:
@@ -839,6 +840,7 @@ static int spinand_lock_block(struct spi_device *spi_nand, u8 lock)
 
 	return ret;
 }
+
 /*
  * spinand_probe - [spinand Interface]
  * @spi_nand: registered device driver.
