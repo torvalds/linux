@@ -467,7 +467,7 @@ static int i2c_imx_acked(struct imx_i2c_struct *i2c_imx)
 {
 	if (imx_i2c_read_reg(i2c_imx, IMX_I2C_I2SR) & I2SR_RXAK) {
 		dev_dbg(&i2c_imx->adapter.dev, "<%s> No ACK\n", __func__);
-		return -EIO;  /* No ACK */
+		return -ENXIO;  /* No ACK */
 	}
 
 	dev_dbg(&i2c_imx->adapter.dev, "<%s> ACK received\n", __func__);
