@@ -872,9 +872,6 @@ static int pnv_pci_vf_resource_shift(struct pci_dev *dev, int offset)
 		if (!res->flags || !res->parent)
 			continue;
 
-		if (!pnv_pci_is_mem_pref_64(res->flags))
-			continue;
-
 		/*
 		 * The actual IOV BAR range is determined by the start address
 		 * and the actual size for num_vfs VFs BAR.  This check is to
@@ -901,9 +898,6 @@ static int pnv_pci_vf_resource_shift(struct pci_dev *dev, int offset)
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
 		res = &dev->resource[i + PCI_IOV_RESOURCES];
 		if (!res->flags || !res->parent)
-			continue;
-
-		if (!pnv_pci_is_mem_pref_64(res->flags))
 			continue;
 
 		size = pci_iov_resource_size(dev, i + PCI_IOV_RESOURCES);
@@ -1263,9 +1257,6 @@ static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 		if (!res->flags || !res->parent)
 			continue;
 
-		if (!pnv_pci_is_mem_pref_64(res->flags))
-			continue;
-
 		for (j = 0; j < vf_groups; j++) {
 			do {
 				win = find_next_zero_bit(&phb->ioda.m64_bar_alloc,
@@ -1552,6 +1543,12 @@ int pnv_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 	pdn = pci_get_pdn(pdev);
 
 	if (phb->type == PNV_PHB_IODA2) {
+		if (!pdn->vfs_expanded) {
+			dev_info(&pdev->dev, "don't support this SRIOV device"
+				" with non 64bit-prefetchable IOV BAR\n");
+			return -ENOSPC;
+		}
+
 		/* Calculate available PE for required VFs */
 		mutex_lock(&phb->ioda.pe_alloc_mutex);
 		pdn->offset = bitmap_find_next_zero_area(
@@ -2877,9 +2874,10 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		if (!res->flags || res->parent)
 			continue;
 		if (!pnv_pci_is_mem_pref_64(res->flags)) {
-			dev_warn(&pdev->dev, " non M64 VF BAR%d: %pR\n",
+			dev_warn(&pdev->dev, "Don't support SR-IOV with"
+					" non M64 VF BAR%d: %pR. \n",
 				 i, res);
-			continue;
+			goto truncate_iov;
 		}
 
 		size = pci_iov_resource_size(pdev, i + PCI_IOV_RESOURCES);
@@ -2898,11 +2896,6 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		if (!res->flags || res->parent)
 			continue;
-		if (!pnv_pci_is_mem_pref_64(res->flags)) {
-			dev_warn(&pdev->dev, "Skipping expanding VF BAR%d: %pR\n",
-				 i, res);
-			continue;
-		}
 
 		dev_dbg(&pdev->dev, " Fixing VF BAR%d: %pR to\n", i, res);
 		size = pci_iov_resource_size(pdev, i + PCI_IOV_RESOURCES);
@@ -2912,6 +2905,16 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 			 i, res, mul);
 	}
 	pdn->vfs_expanded = mul;
+
+	return;
+
+truncate_iov:
+	/* To save MMIO space, IOV BAR is truncated. */
+	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
+		res = &pdev->resource[i + PCI_IOV_RESOURCES];
+		res->flags = 0;
+		res->end = res->start - 1;
+	}
 }
 #endif /* CONFIG_PCI_IOV */
 
