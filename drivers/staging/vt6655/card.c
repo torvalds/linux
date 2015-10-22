@@ -286,7 +286,7 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 
 		if (priv->bShortSlotTime) {
 			bySlot = C_SLOT_SHORT;
-			byDIFS = C_SIFS_BG + 2*C_SLOT_SHORT;
+			byDIFS = C_SIFS_BG + 2 * C_SLOT_SHORT;
 		} else {
 			bySlot = C_SLOT_LONG;
 			byDIFS = C_SIFS_BG + 2*C_SLOT_LONG;
