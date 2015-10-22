@@ -1300,9 +1300,8 @@ void tipc_link_proto_xmit(struct tipc_link *l, u32 msg_typ, int probe_msg,
 	skb = __skb_dequeue(&xmitq);
 	if (!skb)
 		return;
-	tipc_bearer_send(l->owner->net, l->bearer_id, skb, l->media_addr);
+	tipc_bearer_xmit_skb(l->owner->net, l->bearer_id, skb, l->media_addr);
 	l->rcv_unacked = 0;
-	kfree_skb(skb);
 }
 
 static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,

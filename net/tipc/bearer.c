@@ -477,6 +477,24 @@ int tipc_bearer_mtu(struct net *net, u32 bearer_id)
 	return mtu;
 }
 
+/* tipc_bearer_xmit_skb - sends buffer to destination over bearer
+ */
+void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
+			  struct sk_buff *skb,
+			  struct tipc_media_addr *dest)
+{
+	struct tipc_net *tn = tipc_net(net);
+	struct tipc_bearer *b;
+
+	rcu_read_lock();
+	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
+	if (likely(b))
+		b->media->send_msg(net, skb, b, dest);
+	rcu_read_unlock();
+	/* Until we remove cloning in tipc_l2_send_msg(): */
+	kfree_skb(skb);
+}
+
 /* tipc_bearer_xmit() -send buffer to destination over bearer
  */
 void tipc_bearer_xmit(struct net *net, u32 bearer_id,
