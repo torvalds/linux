@@ -87,6 +87,15 @@ static bool amdgpu_sync_test_owner(struct fence *f, void *owner)
 	return false;
 }
 
+static void amdgpu_sync_keep_later(struct fence **keep, struct fence *fence)
+{
+	if (*keep && fence_is_later(*keep, fence))
+		return;
+
+	fence_put(*keep);
+	*keep = fence_get(fence);
+}
+
 /**
  * amdgpu_sync_fence - remember to sync to this fence
  *
@@ -100,34 +109,21 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	struct amdgpu_sync_entry *e;
 	struct amdgpu_fence *fence;
 	struct amdgpu_fence *other;
-	struct fence *tmp, *later;
 
 	if (!f)
 		return 0;
 
 	if (amdgpu_sync_same_dev(adev, f) &&
-	    amdgpu_sync_test_owner(f, AMDGPU_FENCE_OWNER_VM)) {
-		if (sync->last_vm_update) {
-			tmp = sync->last_vm_update;
-			BUG_ON(f->context != tmp->context);
-			later = (f->seqno - tmp->seqno <= INT_MAX) ? f : tmp;
-			sync->last_vm_update = fence_get(later);
-			fence_put(tmp);
-		} else
-			sync->last_vm_update = fence_get(f);
-	}
+	    amdgpu_sync_test_owner(f, AMDGPU_FENCE_OWNER_VM))
+		amdgpu_sync_keep_later(&sync->last_vm_update, f);
 
 	fence = to_amdgpu_fence(f);
 	if (!fence || fence->ring->adev != adev) {
 		hash_for_each_possible(sync->fences, e, node, f->context) {
-			struct fence *new;
 			if (unlikely(e->fence->context != f->context))
 				continue;
-			new = fence_get(fence_later(e->fence, f));
-			if (new) {
-				fence_put(e->fence);
-				e->fence = new;
-			}
+
+			amdgpu_sync_keep_later(&e->fence, f);
 			return 0;
 		}
 
