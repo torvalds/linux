@@ -102,6 +102,5 @@ int cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
 void cfs_expr_list_free_list(struct list_head *list);
 int cfs_ip_addr_parse(char *str, int len, struct list_head *list);
 int cfs_ip_addr_match(__u32 addr, struct list_head *list);
-void cfs_ip_addr_free(struct list_head *list);
 
 #endif

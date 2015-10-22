@@ -624,10 +624,3 @@ cfs_ip_addr_match(__u32 addr, struct list_head *list)
 	return i == 4;
 }
 EXPORT_SYMBOL(cfs_ip_addr_match);
-
-void
-cfs_ip_addr_free(struct list_head *list)
-{
-	cfs_expr_list_free_list(list);
-}
-EXPORT_SYMBOL(cfs_ip_addr_free);

@@ -824,7 +824,7 @@ lnet_match_network_token(char *token, int len, __u32 *ipaddrs, int nip)
 	for (rc = i = 0; !rc && i < nip; i++)
 		rc = cfs_ip_addr_match(ipaddrs[i], &list);
 
-	cfs_ip_addr_free(&list);
+	cfs_expr_list_free_list(&list);
 
 	return rc;
 }
