@@ -2101,11 +2101,10 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	}
 
 	for (i = 0; i < count; i++, val = (char *)val + incr) {
-		if (next_id) {
+		if (next_id)
 			tgt = lov->lov_tgts[((struct obd_id_info *)val)->idx];
-		} else {
+		else
 			tgt = lov->lov_tgts[i];
-		}
 		/* OST was disconnected */
 		if (!tgt || !tgt->ltd_exp)
 			continue;
