@@ -59,7 +59,7 @@ static const char ixgbevf_driver_string[] =
 #define DRV_VERSION "2.12.1-k"
 const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] =
-	"Copyright (c) 2009 - 2012 Intel Corporation.";
+	"Copyright (c) 2009 - 2015 Intel Corporation.";
 
 static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
 	[board_82599_vf] = &ixgbevf_82599_vf_info,
@@ -96,12 +96,14 @@ static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
+static struct workqueue_struct *ixgbevf_wq;
+
 static void ixgbevf_service_event_schedule(struct ixgbevf_adapter *adapter)
 {
 	if (!test_bit(__IXGBEVF_DOWN, &adapter->state) &&
 	    !test_bit(__IXGBEVF_REMOVING, &adapter->state) &&
 	    !test_and_set_bit(__IXGBEVF_SERVICE_SCHED, &adapter->state))
-		schedule_work(&adapter->service_task);
+		queue_work(ixgbevf_wq, &adapter->service_task);
 }
 
 static void ixgbevf_service_event_complete(struct ixgbevf_adapter *adapter)
@@ -4250,6 +4252,11 @@ static int __init ixgbevf_init_module(void)
 		ixgbevf_driver_version);
 
 	pr_info("%s\n", ixgbevf_copyright);
+	ixgbevf_wq = create_singlethread_workqueue(ixgbevf_driver_name);
+	if (!ixgbevf_wq) {
+		pr_err("%s: Failed to create workqueue\n", ixgbevf_driver_name);
+		return -ENOMEM;
+	}
 
 	ret = pci_register_driver(&ixgbevf_driver);
 	return ret;
@@ -4266,6 +4273,10 @@ module_init(ixgbevf_init_module);
 static void __exit ixgbevf_exit_module(void)
 {
 	pci_unregister_driver(&ixgbevf_driver);
+	if (ixgbevf_wq) {
+		destroy_workqueue(ixgbevf_wq);
+		ixgbevf_wq = NULL;
+	}
 }
 
 #ifdef DEBUG
