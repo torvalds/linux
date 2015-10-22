@@ -814,7 +814,7 @@ static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 
 		memsize += (pVBInfo->ram_channel - 2) + 20;
 		if ((HwDeviceExtension->ulVideoMemorySize - 1) <
-			(unsigned long) (1 << memsize))
+			(unsigned long)(1 << memsize))
 			continue;
 
 		if (XGINew_ReadWriteRest(memsize, start_addr, pVBInfo) == 1)
@@ -835,13 +835,13 @@ static void XGINew_SetDRAMSize_340(struct xgifb_video_info *xgifb_info,
 
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x21);
 	/* disable read cache */
-	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short) (data & 0xDF));
+	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short)(data & 0xDF));
 	XGI_DisplayOff(xgifb_info, HwDeviceExtension, pVBInfo);
 
 	XGINew_DDRSizing340(HwDeviceExtension, pVBInfo);
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x21);
 	/* enable read cache */
-	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short) (data | 0x20));
+	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short)(data | 0x20));
 }
 
 static u8 *xgifb_copy_rom(struct pci_dev *dev, size_t *rom_size)
