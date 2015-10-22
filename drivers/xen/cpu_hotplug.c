@@ -11,7 +11,7 @@
 static void enable_hotplug_cpu(int cpu)
 {
 	if (!cpu_present(cpu))
-		arch_register_cpu(cpu);
+		xen_arch_register_cpu(cpu);
 
 	set_cpu_present(cpu, true);
 }
@@ -19,7 +19,7 @@ static void enable_hotplug_cpu(int cpu)
 static void disable_hotplug_cpu(int cpu)
 {
 	if (cpu_present(cpu))
-		arch_unregister_cpu(cpu);
+		xen_arch_unregister_cpu(cpu);
 
 	set_cpu_present(cpu, false);
 }
@@ -102,7 +102,11 @@ static int __init setup_vcpu_hotplug_event(void)
 	static struct notifier_block xsn_cpu = {
 		.notifier_call = setup_cpu_watcher };
 
+#ifdef CONFIG_X86
 	if (!xen_pv_domain())
+#else
+	if (!xen_domain())
+#endif
 		return -ENODEV;
 
 	register_xenstore_notifier(&xsn_cpu);
