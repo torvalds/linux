@@ -813,8 +813,6 @@ struct iwl_mvm {
 	bool lar_regdom_set;
 	enum iwl_mcc_source mcc_src;
 
-	u8 low_latency_agg_frame_limit;
-
 	/* TDLS channel switch data */
 	struct {
 		struct delayed_work dwork;

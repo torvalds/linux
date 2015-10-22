@@ -1491,10 +1491,6 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 		goto err;
 #endif
 
-	if (!debugfs_create_u8("low_latency_agg_frame_limit", S_IRUSR | S_IWUSR,
-			       mvm->debugfs_dir,
-			       &mvm->low_latency_agg_frame_limit))
-		goto err;
 	if (!debugfs_create_u8("ps_disabled", S_IRUSR,
 			       mvm->debugfs_dir, &mvm->ps_disabled))
 		goto err;

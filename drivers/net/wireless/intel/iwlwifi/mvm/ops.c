@@ -452,7 +452,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		mvm->first_agg_queue = 12;
 	}
 	mvm->sf_state = SF_UNINIT;
-	mvm->low_latency_agg_frame_limit = 6;
 	mvm->cur_ucode = IWL_UCODE_INIT;
 
 	mutex_init(&mvm->mutex);
