@@ -1242,46 +1242,77 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 }
 
 /* Proprietary commands API */
-static struct nci_prop_ops *prop_cmd_lookup(struct nci_dev *ndev,
-					    __u16 opcode)
+static struct nci_prop_ops *ops_cmd_lookup(struct nci_prop_ops *ops,
+					   size_t n_ops,
+					   __u16 opcode)
 {
 	size_t i;
-	struct nci_prop_ops *prop_op;
+	struct nci_prop_ops *op;
 
-	if (!ndev->ops->prop_ops || !ndev->ops->n_prop_ops)
+	if (!ops || !n_ops)
 		return NULL;
 
-	for (i = 0; i < ndev->ops->n_prop_ops; i++) {
-		prop_op = &ndev->ops->prop_ops[i];
-		if (prop_op->opcode == opcode)
-			return prop_op;
+	for (i = 0; i < n_ops; i++) {
+		op = &ops[i];
+		if (op->opcode == opcode)
+			return op;
 	}
 
 	return NULL;
 }
 
-int nci_prop_rsp_packet(struct nci_dev *ndev, __u16 rsp_opcode,
-			struct sk_buff *skb)
+static int nci_op_rsp_packet(struct nci_dev *ndev, __u16 rsp_opcode,
+			     struct sk_buff *skb, struct nci_prop_ops *ops,
+			     size_t n_ops)
 {
-	struct nci_prop_ops *prop_op;
+	struct nci_prop_ops *op;
 
-	prop_op = prop_cmd_lookup(ndev, rsp_opcode);
-	if (!prop_op || !prop_op->rsp)
+	op = ops_cmd_lookup(ops, n_ops, rsp_opcode);
+	if (!op || !op->rsp)
 		return -ENOTSUPP;
 
-	return prop_op->rsp(ndev, skb);
+	return op->rsp(ndev, skb);
 }
 
-int nci_prop_ntf_packet(struct nci_dev *ndev, __u16 ntf_opcode,
-			struct sk_buff *skb)
+static int nci_op_ntf_packet(struct nci_dev *ndev, __u16 ntf_opcode,
+			     struct sk_buff *skb, struct nci_prop_ops *ops,
+			     size_t n_ops)
 {
-	struct nci_prop_ops *prop_op;
+	struct nci_prop_ops *op;
 
-	prop_op = prop_cmd_lookup(ndev, ntf_opcode);
-	if (!prop_op || !prop_op->ntf)
+	op = ops_cmd_lookup(ops, n_ops, ntf_opcode);
+	if (!op || !op->ntf)
 		return -ENOTSUPP;
 
-	return prop_op->ntf(ndev, skb);
+	return op->ntf(ndev, skb);
+}
+
+inline int nci_prop_rsp_packet(struct nci_dev *ndev, __u16 opcode,
+			       struct sk_buff *skb)
+{
+	return nci_op_rsp_packet(ndev, opcode, skb, ndev->ops->prop_ops,
+				 ndev->ops->n_prop_ops);
+}
+
+inline int nci_prop_ntf_packet(struct nci_dev *ndev, __u16 opcode,
+			       struct sk_buff *skb)
+{
+	return nci_op_ntf_packet(ndev, opcode, skb, ndev->ops->prop_ops,
+				 ndev->ops->n_prop_ops);
+}
+
+inline int nci_core_rsp_packet(struct nci_dev *ndev, __u16 opcode,
+			       struct sk_buff *skb)
+{
+	return nci_op_rsp_packet(ndev, opcode, skb, ndev->ops->core_ops,
+				  ndev->ops->n_core_ops);
+}
+
+inline int nci_core_ntf_packet(struct nci_dev *ndev, __u16 opcode,
+			       struct sk_buff *skb)
+{
+	return nci_op_ntf_packet(ndev, opcode, skb, ndev->ops->core_ops,
+				 ndev->ops->n_core_ops);
 }
 
 /* ---- NCI TX Data worker thread ---- */
