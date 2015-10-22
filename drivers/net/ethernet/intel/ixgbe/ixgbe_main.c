@@ -4212,6 +4212,25 @@ static int ixgbe_write_uc_addr_list(struct net_device *netdev, int vfn)
 	return count;
 }
 
+static int ixgbe_uc_sync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	int ret;
+
+	ret = ixgbe_add_mac_filter(adapter, addr, VMDQ_P(0));
+
+	return min_t(int, ret, 0);
+}
+
+static int ixgbe_uc_unsync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	ixgbe_del_mac_filter(adapter, addr, VMDQ_P(0));
+
+	return 0;
+}
+
 /**
  * ixgbe_set_rx_mode - Unicast, Multicast and Promiscuous mode set
  * @netdev: network interface device structure
@@ -4267,8 +4286,7 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	 * sufficient space to store all the addresses then enable
 	 * unicast promiscuous mode
 	 */
-	count = ixgbe_write_uc_addr_list(netdev, VMDQ_P(0));
-	if (count < 0) {
+	if (__dev_uc_sync(netdev, ixgbe_uc_sync, ixgbe_uc_unsync)) {
 		fctrl |= IXGBE_FCTRL_UPE;
 		vmolr |= IXGBE_VMOLR_ROPE;
 	}
@@ -5106,8 +5124,12 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 	}
 
 	clear_bit(__IXGBE_IN_SFP_INIT, &adapter->state);
-	/* do not flush user set addresses */
+
+	/* flush entries out of MAC table */
 	ixgbe_flush_sw_mac_table(adapter);
+	__dev_uc_unsync(netdev, NULL);
+
+	/* do not flush user set addresses */
 	ixgbe_mac_set_default_filter(adapter);
 
 	/* update SAN MAC vmdq pool selection */
