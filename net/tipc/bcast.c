@@ -35,11 +35,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/tipc_config.h>
 #include "socket.h"
 #include "msg.h"
 #include "bcast.h"
 #include "name_distr.h"
-#include "core.h"
+#include "link.h"
+#include "node.h"
 
 #define	MAX_PKT_DEFAULT_MCAST	1500	/* bcast link max packet size (fixed) */
 #define	BCLINK_WIN_DEFAULT	50	/* bcast link window size (default) */
@@ -47,34 +49,101 @@
 
 const char tipc_bclink_name[] = "broadcast-link";
 
+/**
+ * struct tipc_bcbearer_pair - a pair of bearers used by broadcast link
+ * @primary: pointer to primary bearer
+ * @secondary: pointer to secondary bearer
+ *
+ * Bearers must have same priority and same set of reachable destinations
+ * to be paired.
+ */
+
+struct tipc_bcbearer_pair {
+	struct tipc_bearer *primary;
+	struct tipc_bearer *secondary;
+};
+
+#define	BCBEARER		MAX_BEARERS
+
+/**
+ * struct tipc_bcbearer - bearer used by broadcast link
+ * @bearer: (non-standard) broadcast bearer structure
+ * @media: (non-standard) broadcast media structure
+ * @bpairs: array of bearer pairs
+ * @bpairs_temp: temporary array of bearer pairs used by tipc_bcbearer_sort()
+ * @remains: temporary node map used by tipc_bcbearer_send()
+ * @remains_new: temporary node map used tipc_bcbearer_send()
+ *
+ * Note: The fields labelled "temporary" are incorporated into the bearer
+ * to avoid consuming potentially limited stack space through the use of
+ * large local variables within multicast routines.  Concurrent access is
+ * prevented through use of the spinlock "bcast_lock".
+ */
+struct tipc_bcbearer {
+	struct tipc_bearer bearer;
+	struct tipc_media media;
+	struct tipc_bcbearer_pair bpairs[MAX_BEARERS];
+	struct tipc_bcbearer_pair bpairs_temp[TIPC_MAX_LINK_PRI + 1];
+	struct tipc_node_map remains;
+	struct tipc_node_map remains_new;
+};
+
+/**
+ * struct tipc_bc_base - link used for broadcast messages
+ * @lock: spinlock governing access to structure
+ * @link: (non-standard) broadcast link structure
+ * @node: (non-standard) node structure representing b'cast link's peer node
+ * @bcast_nodes: map of broadcast-capable nodes
+ * @retransmit_to: node that most recently requested a retransmit
+ *
+ * Handles sequence numbering, fragmentation, bundling, etc.
+ */
+struct tipc_bc_base {
+	spinlock_t lock; /* spinlock protecting broadcast structs */
+	struct tipc_link link;
+	struct tipc_node node;
+	struct sk_buff_head arrvq;
+	struct sk_buff_head inputq;
+	struct tipc_node_map bcast_nodes;
+	struct tipc_node *retransmit_to;
+};
+
+/**
+ * tipc_nmap_equal - test for equality of node maps
+ */
+static int tipc_nmap_equal(struct tipc_node_map *nm_a,
+			   struct tipc_node_map *nm_b)
+{
+	return !memcmp(nm_a, nm_b, sizeof(*nm_a));
+}
+
 static void tipc_nmap_diff(struct tipc_node_map *nm_a,
 			   struct tipc_node_map *nm_b,
 			   struct tipc_node_map *nm_diff);
 static void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node);
 static void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node);
-
 static void tipc_bclink_lock(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
-	spin_lock_bh(&tn->bclink->lock);
+	spin_lock_bh(&tn->bcbase->lock);
 }
 
 static void tipc_bclink_unlock(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
-	spin_unlock_bh(&tn->bclink->lock);
+	spin_unlock_bh(&tn->bcbase->lock);
 }
 
 void tipc_bclink_input(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
-	tipc_sk_mcast_rcv(net, &tn->bclink->arrvq, &tn->bclink->inputq);
+	tipc_sk_mcast_rcv(net, &tn->bcbase->arrvq, &tn->bcbase->inputq);
 }
 
-uint  tipc_bclink_get_mtu(void)
+uint  tipc_bcast_get_mtu(void)
 {
 	return MAX_PKT_DEFAULT_MCAST;
 }
@@ -99,7 +168,7 @@ void tipc_bclink_add_node(struct net *net, u32 addr)
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	tipc_bclink_lock(net);
-	tipc_nmap_add(&tn->bclink->bcast_nodes, addr);
+	tipc_nmap_add(&tn->bcbase->bcast_nodes, addr);
 	tipc_bclink_unlock(net);
 }
 
@@ -108,11 +177,11 @@ void tipc_bclink_remove_node(struct net *net, u32 addr)
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	tipc_bclink_lock(net);
-	tipc_nmap_remove(&tn->bclink->bcast_nodes, addr);
+	tipc_nmap_remove(&tn->bcbase->bcast_nodes, addr);
 
 	/* Last node? => reset backlog queue */
-	if (!tn->bclink->bcast_nodes.count)
-		tipc_link_purge_backlog(&tn->bclink->link);
+	if (!tn->bcbase->bcast_nodes.count)
+		tipc_link_purge_backlog(&tn->bcbase->link);
 
 	tipc_bclink_unlock(net);
 }
@@ -147,7 +216,7 @@ struct tipc_node *tipc_bclink_retransmit_to(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
-	return tn->bclink->retransmit_to;
+	return tn->bcbase->retransmit_to;
 }
 
 /**
@@ -241,7 +310,7 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 		 * acknowledge sent messages only (if other nodes still exist)
 		 * or both sent and unsent messages (otherwise)
 		 */
-		if (tn->bclink->bcast_nodes.count)
+		if (tn->bcbase->bcast_nodes.count)
 			acked = tn->bcl->silent_intv_cnt;
 		else
 			acked = tn->bcl->snd_nxt;
@@ -390,18 +459,18 @@ static void bclink_peek_nack(struct net *net, struct tipc_msg *msg)
 	tipc_node_put(n_ptr);
 }
 
-/* tipc_bclink_xmit - deliver buffer chain to all nodes in cluster
+/* tipc_bcast_xmit - deliver buffer chain to all nodes in cluster
  *                    and to identified node local sockets
  * @net: the applicable net namespace
  * @list: chain of buffers containing message
  * Consumes the buffer chain, except when returning -ELINKCONG
  * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
  */
-int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list)
+int tipc_bcast_xmit(struct net *net, struct sk_buff_head *list)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_link *bcl = tn->bcl;
-	struct tipc_bclink *bclink = tn->bclink;
+	struct tipc_bc_base *bclink = tn->bcbase;
 	int rc = 0;
 	int bc = 0;
 	struct sk_buff *skb;
@@ -508,7 +577,7 @@ void tipc_bclink_rcv(struct net *net, struct sk_buff *buf)
 			tipc_bclink_acknowledge(node, msg_bcast_ack(msg));
 			tipc_bclink_lock(net);
 			bcl->stats.recv_nacks++;
-			tn->bclink->retransmit_to = node;
+			tn->bcbase->retransmit_to = node;
 			bclink_retransmit_pkt(tn, msg_bcgap_after(msg),
 					      msg_bcgap_to(msg));
 			tipc_bclink_unlock(net);
@@ -524,8 +593,8 @@ void tipc_bclink_rcv(struct net *net, struct sk_buff *buf)
 	/* Handle in-sequence broadcast message */
 	seqno = msg_seqno(msg);
 	next_in = mod(node->bclink.last_in + 1);
-	arrvq = &tn->bclink->arrvq;
-	inputq = &tn->bclink->inputq;
+	arrvq = &tn->bcbase->arrvq;
+	inputq = &tn->bcbase->inputq;
 
 	if (likely(seqno == next_in)) {
 receive:
@@ -651,7 +720,7 @@ static int tipc_bcbearer_send(struct net *net, struct sk_buff *buf,
 	struct tipc_msg *msg = buf_msg(buf);
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_bcbearer *bcbearer = tn->bcbearer;
-	struct tipc_bclink *bclink = tn->bclink;
+	struct tipc_bc_base *bclink = tn->bcbase;
 
 	/* Prepare broadcast link message for reliable transmission,
 	 * if first time trying to send it;
@@ -940,11 +1009,11 @@ int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[])
 	return tipc_bclink_set_queue_limits(net, win);
 }
 
-int tipc_bclink_init(struct net *net)
+int tipc_bcast_init(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_bcbearer *bcbearer;
-	struct tipc_bclink *bclink;
+	struct tipc_bc_base *bclink;
 	struct tipc_link *bcl;
 
 	bcbearer = kzalloc(sizeof(*bcbearer), GFP_ATOMIC);
@@ -981,12 +1050,12 @@ int tipc_bclink_init(struct net *net)
 	msg_set_prevnode(bcl->pmsg, tn->own_addr);
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 	tn->bcbearer = bcbearer;
-	tn->bclink = bclink;
+	tn->bcbase = bclink;
 	tn->bcl = bcl;
 	return 0;
 }
 
-void tipc_bclink_stop(struct net *net)
+void tipc_bcast_stop(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
@@ -997,7 +1066,7 @@ void tipc_bclink_stop(struct net *net)
 	RCU_INIT_POINTER(tn->bearer_list[BCBEARER], NULL);
 	synchronize_net();
 	kfree(tn->bcbearer);
-	kfree(tn->bclink);
+	kfree(tn->bcbase);
 }
 
 /**

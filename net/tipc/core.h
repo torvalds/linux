@@ -63,7 +63,7 @@
 struct tipc_node;
 struct tipc_bearer;
 struct tipc_bcbearer;
-struct tipc_bclink;
+struct tipc_bc_base;
 struct tipc_link;
 struct tipc_name_table;
 struct tipc_server;
@@ -94,7 +94,7 @@ struct tipc_net {
 
 	/* Broadcast link */
 	struct tipc_bcbearer *bcbearer;
-	struct tipc_bclink *bclink;
+	struct tipc_bc_base *bcbase;
 	struct tipc_link *bcl;
 
 	/* Socket hash table */

@@ -117,7 +117,7 @@ int tipc_net_start(struct net *net, u32 addr)
 	tn->own_addr = addr;
 	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
-	res = tipc_bclink_init(net);
+	res = tipc_bcast_init(net);
 	if (res)
 		return res;
 
@@ -142,7 +142,7 @@ void tipc_net_stop(struct net *net)
 			      tn->own_addr);
 	rtnl_lock();
 	tipc_bearer_stop(net);
-	tipc_bclink_stop(net);
+	tipc_bcast_stop(net);
 	tipc_node_stop(net);
 	rtnl_unlock();
 
