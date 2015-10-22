@@ -1443,13 +1443,9 @@ static int f2fs_ioc_abort_volatile_write(struct file *filp)
 
 	f2fs_balance_fs(F2FS_I_SB(inode));
 
-	if (f2fs_is_atomic_file(inode)) {
-		clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
-		commit_inmem_pages(inode, true);
-	}
-
-	if (f2fs_is_volatile_file(inode))
-		clear_inode_flag(F2FS_I(inode), FI_VOLATILE_FILE);
+	clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
+	clear_inode_flag(F2FS_I(inode), FI_VOLATILE_FILE);
+	commit_inmem_pages(inode, true);
 
 	mnt_drop_write_file(filp);
 	return ret;
