@@ -2137,7 +2137,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 	for (_pte = pte; _pte < pte+HPAGE_PMD_NR;
 	     _pte++, address += PAGE_SIZE) {
 		pte_t pteval = *_pte;
-		if (pte_none(pteval) || is_zero_pfn(pte_pfn(pteval))) {
+		if (pte_none(pteval) || (pte_present(pteval) &&
+			is_zero_pfn(pte_pfn(pteval)))) {
 			if (++none_or_zero <= khugepaged_max_ptes_none)
 				continue;
 			else
