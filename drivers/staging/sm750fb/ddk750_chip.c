@@ -303,33 +303,14 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 */
 unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 {
-	/* used for primary and secondary channel pixel clock pll */
-	static pllcalparam xparm_PIXEL[] = {
-		/* 2^0 = 1*/			{0, 0, 0, 1},
-		/* 2^ 1 =2*/			{1, 0, 1, 2},
-		/* 2^ 2  = 4*/		{2, 0, 2, 4},
-							{3, 0, 3, 8},
-							{4, 1, 3, 16},
-							{5, 2, 3, 32},
-		/* 2^6 = 64  */		{6, 3, 3, 64},
-							};
-
-	/* used for MXCLK (chip clock) */
-	static pllcalparam xparm_MXCLK[] = {
-		/* 2^0 = 1*/			{0, 0, 0, 1},
-		/* 2^ 1 =2*/			{1, 0, 1, 2},
-		/* 2^ 2  = 4*/		{2, 0, 2, 4},
-							{3, 0, 3, 8},
-							};
-
 	/* as sm750 register definition, N located in 2,15 and M located in 1,255	*/
 	int N, M, X, d;
-	int xcnt;
 	int mini_diff;
 	unsigned int RN, quo, rem, fl_quo;
 	unsigned int input, request;
 	unsigned int tmpClock, ret;
-	pllcalparam *xparm;
+	const int max_OD = 3;
+	int max_d;
 
 	if (getChipType() == SM750LE) {
 		/* SM750LE don't have prgrammable PLL and M/N values to work on.
@@ -343,15 +324,8 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	input = pll->inputFreq / 1000;
 
 	/* for MXCLK register , no POD provided, so need be treated differently	*/
-
-	if (pll->clockType != MXCLK_PLL) {
-		xparm = &xparm_PIXEL[0];
-		xcnt = ARRAY_SIZE(xparm_PIXEL);
-	} else {
-		xparm = &xparm_MXCLK[0];
-		xcnt = ARRAY_SIZE(xparm_MXCLK);
-	}
-
+	if (pll->clockType == MXCLK_PLL)
+		max_d = 3;
 
 	for (N = 15; N > 1; N--) {
 		/* RN will not exceed maximum long if @request <= 285 MHZ (for 32bit cpu) */
@@ -360,8 +334,8 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 		rem = RN % input;/* rem always small than 14318181 */
 		fl_quo = (rem * 10000 / input);
 
-		for (d = xcnt - 1; d >= 0; d--) {
-			X = xparm[d].value;
+		for (d = max_d; d >= 0; d--) {
+			X = (1 << d);
 			M = quo * X;
 			M += fl_quo * X / 10000;
 			/* round step */
@@ -374,8 +348,10 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 				if (diff < mini_diff) {
 					pll->M = M;
 					pll->N = N;
-					pll->OD = xparm[d].od;
-					pll->POD = xparm[d].pod;
+					pll->POD = 0;
+					if (d > max_OD)
+						pll->POD = d - max_OD;
+					pll->OD = d - pll->POD;
 					mini_diff = diff;
 					ret = tmpClock;
 				}
