@@ -4815,6 +4815,7 @@ L:	linux-gpio@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio.git
 S:	Maintained
 F:	Documentation/gpio/
+F:	Documentation/ABI/testing/gpio-cdev
 F:	drivers/gpio/
 F:	include/linux/gpio/
 F:	include/linux/gpio.h
