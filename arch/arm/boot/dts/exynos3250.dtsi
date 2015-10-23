@@ -333,7 +333,7 @@
 		};
 
 		mshc_0: mshc@12510000 {
-			compatible = "samsung,exynos5250-dw-mshc";
+			compatible = "samsung,exynos5420-dw-mshc";
 			reg = <0x12510000 0x1000>;
 			interrupts = <0 142 0>;
 			clocks = <&cmu CLK_SDMMC0>, <&cmu CLK_SCLK_MMC0>;
@@ -345,7 +345,7 @@
 		};
 
 		mshc_1: mshc@12520000 {
-			compatible = "samsung,exynos5250-dw-mshc";
+			compatible = "samsung,exynos5420-dw-mshc";
 			reg = <0x12520000 0x1000>;
 			interrupts = <0 143 0>;
 			clocks = <&cmu CLK_SDMMC1>, <&cmu CLK_SCLK_MMC1>;
