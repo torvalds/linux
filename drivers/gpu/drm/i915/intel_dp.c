@@ -3594,20 +3594,28 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 	intel_dp->DP = (intel_dp->DP & ~mask) | signal_levels;
 }
 
-static bool
-intel_dp_set_link_train(struct intel_dp *intel_dp,
-			uint8_t dp_train_pat)
+static void
+intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
+				       uint8_t dp_train_pat)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv =
 		to_i915(intel_dig_port->base.base.dev);
-	uint8_t buf[sizeof(intel_dp->train_set) + 1];
-	int ret, len;
 
 	_intel_dp_set_link_train(intel_dp, &intel_dp->DP, dp_train_pat);
 
 	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
 	POSTING_READ(intel_dp->output_reg);
+}
+
+static bool
+intel_dp_set_link_train(struct intel_dp *intel_dp,
+			uint8_t dp_train_pat)
+{
+	uint8_t buf[sizeof(intel_dp->train_set) + 1];
+	int ret, len;
+
+	intel_dp_program_link_training_pattern(intel_dp, dp_train_pat);
 
 	buf[0] = dp_train_pat;
 	if ((dp_train_pat & DP_TRAINING_PATTERN_MASK) ==
