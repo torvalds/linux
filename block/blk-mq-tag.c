@@ -641,6 +641,7 @@ void blk_mq_free_tags(struct blk_mq_tags *tags)
 {
 	bt_free(&tags->bitmap_tags);
 	bt_free(&tags->breserved_tags);
+	free_cpumask_var(tags->cpumask);
 	kfree(tags);
 }
 
