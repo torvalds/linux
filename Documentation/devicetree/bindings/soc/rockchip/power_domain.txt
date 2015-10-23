@@ -13,7 +13,7 @@ Required properties for power domain controller:
 
 Required properties for power domain sub nodes:
 - reg: index of the power domain, should use macros in:
-	"include/dt-bindings/power-domain/rk3288.h" - for RK3288 type power domain.
+	"include/dt-bindings/power/rk3288-power.h" - for RK3288 type power domain.
 - clocks (optional): phandles to clocks which need to be enabled while power domain
 	switches state.
 
@@ -35,7 +35,7 @@ Node of a device using power domains must have a power-domains property,
 containing a phandle to the power device node and an index specifying which
 power domain to use.
 The index should use macros in:
-	"include/dt-bindings/power-domain/rk3288.h" - for rk3288 type power domain.
+	"include/dt-bindings/power/rk3288-power.h" - for rk3288 type power domain.
 
 Example of the node using power domain:
 
