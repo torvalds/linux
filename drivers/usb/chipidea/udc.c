@@ -26,7 +26,6 @@
 #include "ci.h"
 #include "udc.h"
 #include "bits.h"
-#include "debug.h"
 #include "otg.h"
 #include "otg_fsm.h"
 

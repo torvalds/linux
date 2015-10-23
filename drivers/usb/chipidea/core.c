@@ -70,7 +70,6 @@
 #include "udc.h"
 #include "bits.h"
 #include "host.h"
-#include "debug.h"
 #include "otg.h"
 #include "otg_fsm.h"
 

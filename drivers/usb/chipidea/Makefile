@@ -2,10 +2,9 @@ ccflags-$(CONFIG_USB_CHIPIDEA_DEBUG) := -DDEBUG
 
 obj-$(CONFIG_USB_CHIPIDEA)		+= ci_hdrc.o
 
-ci_hdrc-y				:= core.o otg.o
+ci_hdrc-y				:= core.o otg.o debug.o
 ci_hdrc-$(CONFIG_USB_CHIPIDEA_UDC)	+= udc.o
 ci_hdrc-$(CONFIG_USB_CHIPIDEA_HOST)	+= host.o
-ci_hdrc-$(CONFIG_USB_CHIPIDEA_DEBUG)	+= debug.o
 ci_hdrc-$(CONFIG_USB_OTG_FSM)		+= otg_fsm.o
 
 # Glue/Bridge layers go here
