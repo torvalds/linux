@@ -140,17 +140,12 @@
 				clock-output-names = "socplldiv2";
 			};
 
-			ahbclk: ahbclk@1f2ac000 {
+			ahbclk: ahbclk@17000000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
 				clocks = <&socplldiv2 0>;
-				reg = <0x0 0x1f2ac000 0x0 0x1000
-					0x0 0x17000000 0x0 0x2000>;
-				reg-names = "csr-reg", "div-reg";
-				csr-offset = <0x0>;
-				csr-mask = <0x1>;
-				enable-offset = <0x8>;
-				enable-mask = <0x1>;
+				reg = <0x0 0x17000000 0x0 0x2000>;
+				reg-names = "div-reg";
 				divider-offset = <0x164>;
 				divider-width = <0x5>;
 				divider-shift = <0x0>;
