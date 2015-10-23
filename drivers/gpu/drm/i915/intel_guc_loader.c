@@ -364,6 +364,9 @@ int intel_guc_ucode_load(struct drm_device *dev)
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	int err = 0;
 
+	if (!i915.enable_guc_submission)
+		return 0;
+
 	DRM_DEBUG_DRIVER("GuC fw status: fetch %s, load %s\n",
 		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status),
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
@@ -588,6 +591,9 @@ void intel_guc_ucode_init(struct drm_device *dev)
 		i915.enable_guc_submission = false;
 		fw_path = "";	/* unknown device */
 	}
+
+	if (!i915.enable_guc_submission)
+		return;
 
 	guc_fw->guc_dev = dev;
 	guc_fw->guc_fw_path = fw_path;
