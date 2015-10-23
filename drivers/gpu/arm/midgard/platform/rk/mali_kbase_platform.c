@@ -1044,13 +1044,13 @@ static ssize_t set_under_lock_dvfs(struct device *dev, struct device_attribute *
  *
  * This is used for obtaining information about the mali t6xx operating clock & framebuffer address,
  */
-DEVICE_ATTR(clock, S_IRUGO | S_IWUSR, show_clock, set_clock);
-DEVICE_ATTR(fbdev, S_IRUGO, show_fbdev, NULL);
-DEVICE_ATTR(dtlb, S_IRUGO | S_IWUSR, show_dtlb, set_dtlb);
-DEVICE_ATTR(dvfs, S_IRUGO | S_IWUSR, show_dvfs, set_dvfs);
-DEVICE_ATTR(dvfs_upper_lock, S_IRUGO | S_IWUSR, show_upper_lock_dvfs, set_upper_lock_dvfs);
-DEVICE_ATTR(dvfs_under_lock, S_IRUGO | S_IWUSR, show_under_lock_dvfs, set_under_lock_dvfs);
-DEVICE_ATTR(time_in_state, S_IRUGO | S_IWUSR, show_time_in_state, set_time_in_state);
+static DEVICE_ATTR(clock, S_IRUGO | S_IWUSR, show_clock, set_clock);
+static DEVICE_ATTR(fbdev, S_IRUGO, show_fbdev, NULL);
+static DEVICE_ATTR(dtlb, S_IRUGO | S_IWUSR, show_dtlb, set_dtlb);
+static DEVICE_ATTR(dvfs, S_IRUGO | S_IWUSR, show_dvfs, set_dvfs);
+static DEVICE_ATTR(dvfs_upper_lock, S_IRUGO | S_IWUSR, show_upper_lock_dvfs, set_upper_lock_dvfs);
+static DEVICE_ATTR(dvfs_under_lock, S_IRUGO | S_IWUSR, show_under_lock_dvfs, set_under_lock_dvfs);
+static DEVICE_ATTR(time_in_state, S_IRUGO | S_IWUSR, show_time_in_state, set_time_in_state);
 /*---------------------------------------------------------------------------*/
 
 int kbase_platform_create_sysfs_file(struct device *dev)
