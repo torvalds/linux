@@ -1607,6 +1607,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/uniphier*
 F:	arch/arm/mach-uniphier/
+F:	drivers/i2c/busses/i2c-uniphier*
 F:	drivers/pinctrl/uniphier/
 F:	drivers/tty/serial/8250/8250_uniphier.c
 N:	uniphier
