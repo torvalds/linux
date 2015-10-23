@@ -1838,7 +1838,6 @@ ksocknal_query(lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
 		ksocknal_launch_all_connections_locked(peer);
 
 	write_unlock_bh(glock);
-	return;
 }
 
 static void
