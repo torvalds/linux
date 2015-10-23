@@ -361,7 +361,7 @@ config SERIAL_8250_UNIPHIER
 
 config SERIAL_8250_INGENIC
 	bool "Support for Ingenic SoC serial ports"
-	depends on SERIAL_8250_CONSOLE && OF_FLATTREE
+	depends on OF_FLATTREE
 	select LIBFDT
 	help
 	  If you have a system using an Ingenic SoC and wish to make use of
