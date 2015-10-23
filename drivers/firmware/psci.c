@@ -347,9 +347,10 @@ static int __init psci_probe(void)
 
 	psci_init_migrate();
 
-	psci_init_cpu_suspend();
-
-	psci_init_system_suspend();
+	if (PSCI_VERSION_MAJOR(ver) >= 1) {
+		psci_init_cpu_suspend();
+		psci_init_system_suspend();
+	}
 
 	return 0;
 }
