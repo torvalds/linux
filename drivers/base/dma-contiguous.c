@@ -187,7 +187,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
  * global one. Requires architecture specific dev_get_cma_area() helper
  * function.
  */
-struct page *dma_alloc_from_contiguous(struct device *dev, int count,
+struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
 				       unsigned int align)
 {
 	if (align > CONFIG_CMA_ALIGNMENT)
