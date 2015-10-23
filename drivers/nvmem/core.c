@@ -67,7 +67,7 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 	int rc;
 
 	/* Stop the user from reading */
-	if (pos > nvmem->size)
+	if (pos >= nvmem->size)
 		return 0;
 
 	if (pos + count > nvmem->size)
@@ -92,7 +92,7 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 	int rc;
 
 	/* Stop the user from writing */
-	if (pos > nvmem->size)
+	if (pos >= nvmem->size)
 		return 0;
 
 	if (pos + count > nvmem->size)
@@ -825,7 +825,7 @@ static int __nvmem_cell_read(struct nvmem_device *nvmem,
 		return rc;
 
 	/* shift bits in-place */
-	if (cell->bit_offset || cell->bit_offset)
+	if (cell->bit_offset || cell->nbits)
 		nvmem_shift_read_buffer_in_place(cell, buf);
 
 	*len = cell->bytes;
@@ -938,7 +938,7 @@ int nvmem_cell_write(struct nvmem_cell *cell, void *buf, size_t len)
 	rc = regmap_raw_write(nvmem->regmap, cell->offset, buf, cell->bytes);
 
 	/* free the tmp buffer */
-	if (cell->bit_offset)
+	if (cell->bit_offset || cell->nbits)
 		kfree(buf);
 
 	if (IS_ERR_VALUE(rc))

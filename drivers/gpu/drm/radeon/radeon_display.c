@@ -1633,18 +1633,8 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	radeon_fbdev_init(rdev);
 	drm_kms_helper_poll_init(rdev->ddev);
 
-	if (rdev->pm.dpm_enabled) {
-		/* do dpm late init */
-		ret = radeon_pm_late_init(rdev);
-		if (ret) {
-			rdev->pm.dpm_enabled = false;
-			DRM_ERROR("radeon_pm_late_init failed, disabling dpm\n");
-		}
-		/* set the dpm state for PX since there won't be
-		 * a modeset to call this.
-		 */
-		radeon_pm_compute_clocks(rdev);
-	}
+	/* do pm late init */
+	ret = radeon_pm_late_init(rdev);
 
 	return 0;
 }

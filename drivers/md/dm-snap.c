@@ -1098,7 +1098,7 @@ static void stop_merge(struct dm_snapshot *s)
 }
 
 /*
- * Construct a snapshot mapping: <origin_dev> <COW-dev> <p/n> <chunk-size>
+ * Construct a snapshot mapping: <origin_dev> <COW-dev> <p|po|n> <chunk-size>
  */
 static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
@@ -1302,6 +1302,7 @@ static void __handover_exceptions(struct dm_snapshot *snap_src,
 
 	u.store_swap = snap_dest->store;
 	snap_dest->store = snap_src->store;
+	snap_dest->store->userspace_supports_overflow = u.store_swap->userspace_supports_overflow;
 	snap_src->store = u.store_swap;
 
 	snap_dest->store->snap = snap_dest;
@@ -1739,8 +1740,11 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 
 			pe = __find_pending_exception(s, pe, chunk);
 			if (!pe) {
-				s->snapshot_overflowed = 1;
-				DMERR("Snapshot overflowed: Unable to allocate exception.");
+				if (s->store->userspace_supports_overflow) {
+					s->snapshot_overflowed = 1;
+					DMERR("Snapshot overflowed: Unable to allocate exception.");
+				} else
+					__invalidate_snapshot(s, -ENOMEM);
 				r = -EIO;
 				goto out_unlock;
 			}
@@ -2365,7 +2369,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 14, 0},
+	.version = {1, 15, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
@@ -2379,7 +2383,7 @@ static struct target_type snapshot_target = {
 
 static struct target_type merge_target = {
 	.name    = dm_snapshot_merge_target_name,
-	.version = {1, 3, 0},
+	.version = {1, 4, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,

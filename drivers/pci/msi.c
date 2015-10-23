@@ -1243,6 +1243,10 @@ static void pci_msi_domain_update_chip_ops(struct msi_domain_info *info)
 	BUG_ON(!chip);
 	if (!chip->irq_write_msi_msg)
 		chip->irq_write_msi_msg = pci_msi_domain_write_msg;
+	if (!chip->irq_mask)
+		chip->irq_mask = pci_msi_mask_irq;
+	if (!chip->irq_unmask)
+		chip->irq_unmask = pci_msi_unmask_irq;
 }
 
 /**

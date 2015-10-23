@@ -495,6 +495,7 @@ void ipoib_dev_cleanup(struct net_device *dev);
 void ipoib_mcast_join_task(struct work_struct *work);
 void ipoib_mcast_carrier_on_task(struct work_struct *work);
 void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb);
+void ipoib_mcast_free(struct ipoib_mcast *mc);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
 int ipoib_mcast_start_thread(struct net_device *dev);

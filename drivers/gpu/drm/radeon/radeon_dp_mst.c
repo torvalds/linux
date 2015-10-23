@@ -283,6 +283,7 @@ static struct drm_connector *radeon_dp_add_mst_connector(struct drm_dp_mst_topol
 	radeon_connector->mst_encoder = radeon_dp_create_fake_mst_encoder(master);
 
 	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
+	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
 	drm_mode_connector_set_path_property(connector, pathprop);
 
 	return connector;

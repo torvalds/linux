@@ -364,6 +364,8 @@ static void __init relocate_initrd(void)
 		to_free = ram_end - orig_start;
 
 	size = orig_end - orig_start;
+	if (!size)
+		return;
 
 	/* initrd needs to be relocated completely inside linear mapping */
 	new_start = memblock_find_in_range(0, PFN_PHYS(max_pfn),

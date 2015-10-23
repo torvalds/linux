@@ -6185,6 +6185,11 @@ static int ci_dpm_late_init(void *handle)
 	if (!amdgpu_dpm)
 		return 0;
 
+	/* init the sysfs and debugfs files late */
+	ret = amdgpu_pm_sysfs_init(adev);
+	if (ret)
+		return ret;
+
 	ret = ci_set_temperature_range(adev);
 	if (ret)
 		return ret;
@@ -6232,9 +6237,6 @@ static int ci_dpm_sw_init(void *handle)
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
 	if (amdgpu_dpm == 1)
 		amdgpu_pm_print_power_states(adev);
-	ret = amdgpu_pm_sysfs_init(adev);
-	if (ret)
-		goto dpm_failed;
 	mutex_unlock(&adev->pm.mutex);
 	DRM_INFO("amdgpu: dpm initialized\n");
 

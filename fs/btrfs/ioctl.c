@@ -4639,6 +4639,11 @@ locked:
 		bctl->flags |= BTRFS_BALANCE_TYPE_MASK;
 	}
 
+	if (bctl->flags & ~(BTRFS_BALANCE_ARGS_MASK | BTRFS_BALANCE_TYPE_MASK)) {
+		ret = -EINVAL;
+		goto out_bargs;
+	}
+
 do_balance:
 	/*
 	 * Ownership of bctl and mutually_exclusive_operation_running

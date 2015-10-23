@@ -402,3 +402,19 @@ bool amdgpu_fbdev_robj_is_fb(struct amdgpu_device *adev, struct amdgpu_bo *robj)
 		return true;
 	return false;
 }
+
+void amdgpu_fbdev_restore_mode(struct amdgpu_device *adev)
+{
+	struct amdgpu_fbdev *afbdev = adev->mode_info.rfbdev;
+	struct drm_fb_helper *fb_helper;
+	int ret;
+
+	if (!afbdev)
+		return;
+
+	fb_helper = &afbdev->helper;
+
+	ret = drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
+	if (ret)
+		DRM_DEBUG("failed to restore crtc mode\n");
+}

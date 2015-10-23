@@ -147,6 +147,10 @@
 #define NFC_ECC_MODE		GENMASK(15, 12)
 #define NFC_RANDOM_SEED		GENMASK(30, 16)
 
+/* NFC_USER_DATA helper macros */
+#define NFC_BUF_TO_USER_DATA(buf)	((buf)[0] | ((buf)[1] << 8) | \
+					((buf)[2] << 16) | ((buf)[3] << 24))
+
 #define NFC_DEFAULT_TIMEOUT_MS	1000
 
 #define NFC_SRAM_SIZE		1024
@@ -646,15 +650,9 @@ static int sunxi_nfc_hw_ecc_write_page(struct mtd_info *mtd,
 		offset = layout->eccpos[i * ecc->bytes] - 4 + mtd->writesize;
 
 		/* Fill OOB data in */
-		if (oob_required) {
-			tmp = 0xffffffff;
-			memcpy_toio(nfc->regs + NFC_REG_USER_DATA_BASE, &tmp,
-				    4);
-		} else {
-			memcpy_toio(nfc->regs + NFC_REG_USER_DATA_BASE,
-				    chip->oob_poi + offset - mtd->writesize,
-				    4);
-		}
+		writel(NFC_BUF_TO_USER_DATA(chip->oob_poi +
+					    layout->oobfree[i].offset),
+		       nfc->regs + NFC_REG_USER_DATA_BASE);
 
 		chip->cmdfunc(mtd, NAND_CMD_RNDIN, offset, -1);
 
@@ -784,14 +782,8 @@ static int sunxi_nfc_hw_syndrome_ecc_write_page(struct mtd_info *mtd,
 		offset += ecc->size;
 
 		/* Fill OOB data in */
-		if (oob_required) {
-			tmp = 0xffffffff;
-			memcpy_toio(nfc->regs + NFC_REG_USER_DATA_BASE, &tmp,
-				    4);
-		} else {
-			memcpy_toio(nfc->regs + NFC_REG_USER_DATA_BASE, oob,
-				    4);
-		}
+		writel(NFC_BUF_TO_USER_DATA(oob),
+		       nfc->regs + NFC_REG_USER_DATA_BASE);
 
 		tmp = NFC_DATA_TRANS | NFC_DATA_SWAP_METHOD | NFC_ACCESS_DIR |
 		      (1 << 30);
@@ -1389,6 +1381,7 @@ static void sunxi_nand_chips_cleanup(struct sunxi_nfc *nfc)
 					node);
 		nand_release(&chip->mtd);
 		sunxi_nand_ecc_cleanup(&chip->nand.ecc);
+		list_del(&chip->node);
 	}
 }
 
