@@ -638,6 +638,8 @@ static int __maybe_unused rockchip_thermal_suspend(struct device *dev)
 	clk_disable(thermal->pclk);
 	clk_disable(thermal->clk);
 
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
@@ -673,6 +675,8 @@ static int __maybe_unused rockchip_thermal_resume(struct device *dev)
 
 	for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++)
 		rockchip_thermal_toggle_sensor(&thermal->sensors[i], true);
+
+	pinctrl_pm_select_default_state(dev);
 
 	return 0;
 }
