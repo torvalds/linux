@@ -2366,8 +2366,15 @@ void wake_up_new_task(struct task_struct *p)
 	trace_sched_wakeup_new(p);
 	check_preempt_curr(rq, p, WF_FORK);
 #ifdef CONFIG_SMP
-	if (p->sched_class->task_woken)
+	if (p->sched_class->task_woken) {
+		/*
+		 * Nothing relies on rq->lock after this, so its fine to
+		 * drop it.
+		 */
+		lockdep_unpin_lock(&rq->lock);
 		p->sched_class->task_woken(rq, p);
+		lockdep_pin_lock(&rq->lock);
+	}
 #endif
 	task_rq_unlock(rq, p, &flags);
 }

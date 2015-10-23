@@ -668,8 +668,15 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 	 * Queueing this task back might have overloaded rq, check if we need
 	 * to kick someone away.
 	 */
-	if (has_pushable_dl_tasks(rq))
+	if (has_pushable_dl_tasks(rq)) {
+		/*
+		 * Nothing relies on rq->lock after this, so its safe to drop
+		 * rq->lock.
+		 */
+		lockdep_unpin_lock(&rq->lock);
 		push_dl_task(rq);
+		lockdep_pin_lock(&rq->lock);
+	}
 #endif
 
 unlock:
