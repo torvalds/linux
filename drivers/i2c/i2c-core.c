@@ -156,7 +156,7 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 	info.fwnode = acpi_fwnode_handle(adev);
 
 	memset(&lookup, 0, sizeof(lookup));
-	lookup.adapter_handle = ACPI_HANDLE(adapter->dev.parent);
+	lookup.adapter_handle = ACPI_HANDLE(&adapter->dev);
 	lookup.device_handle = handle;
 	lookup.info = &info;
 
@@ -212,7 +212,7 @@ static void acpi_i2c_register_devices(struct i2c_adapter *adap)
 {
 	acpi_status status;
 
-	if (!adap->dev.parent || !has_acpi_companion(adap->dev.parent))
+	if (!has_acpi_companion(&adap->dev))
 		return;
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,

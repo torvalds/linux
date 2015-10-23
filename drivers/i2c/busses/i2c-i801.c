@@ -1257,6 +1257,9 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	priv->adapter.owner = THIS_MODULE;
 	priv->adapter.class = i801_get_adapter_class(priv);
 	priv->adapter.algo = &smbus_algorithm;
+	priv->adapter.dev.parent = &dev->dev;
+	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&dev->dev));
+	priv->adapter.retries = 3;
 
 	priv->pci_dev = dev;
 	switch (dev->device) {
@@ -1387,12 +1390,6 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		 priv->features & FEATURE_IRQ ? "PCI interrupt" : "polling");
 
 	i801_add_tco(priv);
-
-	/* set up the sysfs linkage to our parent device */
-	priv->adapter.dev.parent = &dev->dev;
-
-	/* Retry up to 3 times on lost arbitration */
-	priv->adapter.retries = 3;
 
 	snprintf(priv->adapter.name, sizeof(priv->adapter.name),
 		"SMBus I801 adapter at %04lx", priv->smba);

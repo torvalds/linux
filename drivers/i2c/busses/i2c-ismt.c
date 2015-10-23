@@ -842,17 +842,13 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	pci_set_drvdata(pdev, priv);
+
 	i2c_set_adapdata(&priv->adapter, priv);
 	priv->adapter.owner = THIS_MODULE;
-
 	priv->adapter.class = I2C_CLASS_HWMON;
-
 	priv->adapter.algo = &smbus_algorithm;
-
-	/* set up the sysfs linkage to our parent device */
 	priv->adapter.dev.parent = &pdev->dev;
-
-	/* number of retries on lost arbitration */
+	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	priv->adapter.retries = ISMT_MAX_RETRIES;
 
 	priv->pci_dev = pdev;
