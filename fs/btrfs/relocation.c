@@ -1716,7 +1716,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 		ret = btrfs_inc_extent_ref(trans, root, new_bytenr,
 					   num_bytes, parent,
 					   btrfs_header_owner(leaf),
-					   key.objectid, key.offset, 1);
+					   key.objectid, key.offset);
 		if (ret) {
 			btrfs_abort_transaction(trans, root, ret);
 			break;
@@ -1724,7 +1724,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					parent, btrfs_header_owner(leaf),
-					key.objectid, key.offset, 1);
+					key.objectid, key.offset);
 		if (ret) {
 			btrfs_abort_transaction(trans, root, ret);
 			break;
@@ -1900,23 +1900,21 @@ again:
 
 		ret = btrfs_inc_extent_ref(trans, src, old_bytenr, blocksize,
 					path->nodes[level]->start,
-					src->root_key.objectid, level - 1, 0,
-					1);
+					src->root_key.objectid, level - 1, 0);
 		BUG_ON(ret);
 		ret = btrfs_inc_extent_ref(trans, dest, new_bytenr, blocksize,
 					0, dest->root_key.objectid, level - 1,
-					0, 1);
+					0);
 		BUG_ON(ret);
 
 		ret = btrfs_free_extent(trans, src, new_bytenr, blocksize,
 					path->nodes[level]->start,
-					src->root_key.objectid, level - 1, 0,
-					1);
+					src->root_key.objectid, level - 1, 0);
 		BUG_ON(ret);
 
 		ret = btrfs_free_extent(trans, dest, old_bytenr, blocksize,
 					0, dest->root_key.objectid, level - 1,
-					0, 1);
+					0);
 		BUG_ON(ret);
 
 		btrfs_unlock_up_safe(path, 0);
@@ -2745,7 +2743,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 						node->eb->start, blocksize,
 						upper->eb->start,
 						btrfs_header_owner(upper->eb),
-						node->level, 0, 1);
+						node->level, 0);
 			BUG_ON(ret);
 
 			ret = btrfs_drop_subtree(trans, root, eb, upper->eb);

@@ -68,7 +68,6 @@ struct btrfs_delayed_ref_node {
 
 	unsigned int action:8;
 	unsigned int type:8;
-	unsigned int no_quota:1;
 	/* is this node still in the rbtree? */
 	unsigned int is_head:1;
 	unsigned int in_tree:1;
@@ -244,15 +243,13 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes, u64 parent,
 			       u64 ref_root, int level, int action,
-			       struct btrfs_delayed_extent_op *extent_op,
-			       int no_quota);
+			       struct btrfs_delayed_extent_op *extent_op);
 int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes,
 			       u64 parent, u64 ref_root,
 			       u64 owner, u64 offset, int action,
-			       struct btrfs_delayed_extent_op *extent_op,
-			       int no_quota);
+			       struct btrfs_delayed_extent_op *extent_op);
 int btrfs_add_delayed_qgroup_reserve(struct btrfs_fs_info *fs_info,
 				     struct btrfs_trans_handle *trans,
 				     u64 ref_root, u64 bytenr, u64 num_bytes);

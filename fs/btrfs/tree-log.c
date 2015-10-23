@@ -693,7 +693,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				ret = btrfs_inc_extent_ref(trans, root,
 						ins.objectid, ins.offset,
 						0, root->root_key.objectid,
-						key->objectid, offset, 0);
+						key->objectid, offset);
 				if (ret)
 					goto out;
 			} else {
