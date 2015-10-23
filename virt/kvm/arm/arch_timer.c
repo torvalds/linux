@@ -137,6 +137,8 @@ bool kvm_timer_should_fire(struct kvm_vcpu *vcpu)
 void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	bool phys_active;
+	int ret;
 
 	/*
 	 * We're about to run this vcpu again, so there is no need to
@@ -151,6 +153,23 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	 */
 	if (kvm_timer_should_fire(vcpu))
 		kvm_timer_inject_irq(vcpu);
+
+	/*
+	 * We keep track of whether the edge-triggered interrupt has been
+	 * signalled to the vgic/guest, and if so, we mask the interrupt and
+	 * the physical distributor to prevent the timer from raising a
+	 * physical interrupt whenever we run a guest, preventing forward
+	 * VCPU progress.
+	 */
+	if (kvm_vgic_get_phys_irq_active(timer->map))
+		phys_active = true;
+	else
+		phys_active = false;
+
+	ret = irq_set_irqchip_state(timer->map->irq,
+				    IRQCHIP_STATE_ACTIVE,
+				    phys_active);
+	WARN_ON(ret);
 }
 
 /**
