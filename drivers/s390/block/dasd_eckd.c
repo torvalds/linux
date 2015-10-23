@@ -1171,7 +1171,12 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			path_data->ppm |= lpm;
 			break;
 		}
-		path_data->opm |= lpm;
+		if (!path_data->opm) {
+			path_data->opm = lpm;
+			dasd_generic_path_operational(device);
+		} else {
+			path_data->opm |= lpm;
+		}
 		/*
 		 * if the path is used
 		 * it should not be in one of the negative lists
