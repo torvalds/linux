@@ -103,6 +103,16 @@ struct device_node;
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
 int gic_cpu_if_down(unsigned int gic_nr);
 
+/*
+ * Subdrivers that need some preparatory work can initialize their
+ * chips and call this to register their GICs.
+ */
+int gic_of_init(struct device_node *node, struct device_node *parent);
+
+/*
+ * Legacy platforms not converted to DT yet must use this to init
+ * their GIC
+ */
 void gic_init(unsigned int nr, int start,
 	      void __iomem *dist , void __iomem *cpu);
 
