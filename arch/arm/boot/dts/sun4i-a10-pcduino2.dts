@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright 2015 Siarhei Siamashka <siarhei.siamashka@gmail.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -40,44 +40,39 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
-#include "sunxi-common-regulators.dtsi"
+/*
+ * The LinkSprite pcDuino2 board is almost identical to the older
+ * LinkSprite pcDuino1 board. The only software visible difference
+ * is that the pcDuino2 board got a USB VBUS voltage regulator, which
+ * is controlled by the PD2 pin (pulled-up by default). Also one of
+ * the USB host ports has been replaced with a USB WIFI chip.
+ */
 
-&i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
-	status = "okay";
+#include "sun4i-a10-pcduino.dts"
+
+/ {
+	model = "LinkSprite pcDuino2";
+	compatible = "linksprite,a10-pcduino2", "allwinner,sun4i-a10";
 };
 
-&i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
-	status = "okay";
-};
-
-&lradc {
-	vref-supply = <&reg_vcc3v0>;
-	status = "okay";
-
-	button@200 {
-		label = "Volume Up";
-		linux,code = <KEY_VOLUMEUP>;
-		channel = <0>;
-		voltage = <200000>;
-	};
-
-	button@400 {
-		label = "Volume Down";
-		linux,code = <KEY_VOLUMEDOWN>;
-		channel = <0>;
-		voltage = <400000>;
+&pio {
+	usb2_vbus_pin_pcduino2: usb2_vbus_pin@0 {
+		allwinner,pins = "PD2";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
-&pwm {
+&reg_usb2_vbus {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pins>;
+	pinctrl-0 = <&usb2_vbus_pin_pcduino2>;
+	gpio = <&pio 3 2 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&usbphy {
+	usb1_vbus-supply = <&reg_vcc3v3>; /* USB WIFI is always on */
+	usb2_vbus-supply = <&reg_usb2_vbus>;
 	status = "okay";
 };

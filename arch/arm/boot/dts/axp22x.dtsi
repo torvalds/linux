@@ -1,5 +1,7 @@
 /*
- * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright 2015 Chen-Yu Tsai
+ *
+ * Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -40,44 +42,102 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
-#include "sunxi-common-regulators.dtsi"
+/*
+ * AXP221/221s/223 Integrated Power Management Chip
+ * http://www.x-powers.com/product/AXP22X.php
+ * http://dl.linux-sunxi.org/AXP/AXP221%20Datasheet%20V1.2%2020130326%20.pdf
+ */
 
-&i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
-	status = "okay";
-};
+&axp22x {
+	interrupt-controller;
+	#interrupt-cells = <1>;
 
-&i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
-	status = "okay";
-};
+	regulators {
+		/* Default work frequency for buck regulators */
+		x-powers,dcdc-freq = <3000>;
 
-&lradc {
-	vref-supply = <&reg_vcc3v0>;
-	status = "okay";
+		reg_dcdc1: dcdc1 {
+			regulator-name = "dcdc1";
+		};
 
-	button@200 {
-		label = "Volume Up";
-		linux,code = <KEY_VOLUMEUP>;
-		channel = <0>;
-		voltage = <200000>;
+		reg_dcdc2: dcdc2 {
+			regulator-name = "dcdc2";
+		};
+
+		reg_dcdc3: dcdc3 {
+			regulator-name = "dcdc3";
+		};
+
+		reg_dcdc4: dcdc4 {
+			regulator-name = "dcdc4";
+		};
+
+		reg_dcdc5: dcdc5 {
+			regulator-name = "dcdc5";
+		};
+
+		reg_dc1sw: dc1sw {
+			regulator-name = "dc1sw";
+		};
+
+		reg_dc5ldo: dc5ldo {
+			regulator-name = "dc5ldo";
+		};
+
+		reg_aldo1: aldo1 {
+			regulator-name = "aldo1";
+		};
+
+		reg_aldo2: aldo2 {
+			regulator-name = "aldo2";
+		};
+
+		reg_aldo3: aldo3 {
+			regulator-name = "aldo3";
+		};
+
+		reg_dldo1: dldo1 {
+			regulator-name = "dldo1";
+		};
+
+		reg_dldo2: dldo2 {
+			regulator-name = "dldo2";
+		};
+
+		reg_dldo3: dldo3 {
+			regulator-name = "dldo3";
+		};
+
+		reg_dldo4: dldo4 {
+			regulator-name = "dldo4";
+		};
+
+		reg_eldo1: eldo1 {
+			regulator-name = "eldo1";
+		};
+
+		reg_eldo2: eldo2 {
+			regulator-name = "eldo2";
+		};
+
+		reg_eldo3: eldo3 {
+			regulator-name = "eldo3";
+		};
+
+		reg_ldo_io0: ldo_io0 {
+			regulator-name = "ldo_io0";
+		};
+
+		reg_ldo_io1: ldo_io1 {
+			regulator-name = "ldo_io1";
+		};
+
+		reg_rtc_ldo: rtc_ldo {
+			/* RTC_LDO is a fixed, always-on regulator */
+			regulator-always-on;
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			regulator-name = "rtc_ldo";
+		};
 	};
-
-	button@400 {
-		label = "Volume Down";
-		linux,code = <KEY_VOLUMEDOWN>;
-		channel = <0>;
-		voltage = <400000>;
-	};
-};
-
-&pwm {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pins>;
-	status = "okay";
 };
