@@ -157,6 +157,16 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	int crtc_w = state->crtc_w;
 	int crtc_h = state->crtc_h;
 
+	if (state->crtc_w << 16 != state->src_w ||
+	    state->crtc_h << 16 != state->src_h) {
+		/* We don't support scaling yet, which involves
+		 * allocating the LBM memory for scaling temporary
+		 * storage, and putting filter kernels in the HVS
+		 * context.
+		 */
+		return -EINVAL;
+	}
+
 	if (crtc_x < 0) {
 		offset += drm_format_plane_cpp(fb->pixel_format, 0) * -crtc_x;
 		crtc_w += crtc_x;
