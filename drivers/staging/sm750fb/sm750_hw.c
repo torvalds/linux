@@ -394,41 +394,23 @@ int hw_sm750le_setBLANK(struct lynxfb_output *output, int blank)
 	int dpms, crtdb;
 
 	switch (blank) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_UNBLANK:
-#else
-	case VESA_NO_BLANKING:
-#endif
 		dpms = CRT_DISPLAY_CTRL_DPMS_0;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_OFF;
 		break;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_NORMAL:
 		dpms = CRT_DISPLAY_CTRL_DPMS_0;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_VSYNC_SUSPEND:
-#else
-	case VESA_VSYNC_SUSPEND:
-#endif
 		dpms = CRT_DISPLAY_CTRL_DPMS_2;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_HSYNC_SUSPEND:
-#else
-	case VESA_HSYNC_SUSPEND:
-#endif
 		dpms = CRT_DISPLAY_CTRL_DPMS_1;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_POWERDOWN:
-#else
-	case VESA_POWERDOWN:
-#endif
 		dpms = CRT_DISPLAY_CTRL_DPMS_3;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
@@ -450,47 +432,29 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 	dpms = pps = crtdb = 0;
 
 	switch (blank) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_UNBLANK:
-#else
-	case VESA_NO_BLANKING:
-#endif
 		pr_info("flag = FB_BLANK_UNBLANK\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		pps = PANEL_DISPLAY_CTRL_DATA_ENABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_OFF;
 		break;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_NORMAL:
 		pr_info("flag = FB_BLANK_NORMAL\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_VSYNC_SUSPEND:
-#else
-	case VESA_VSYNC_SUSPEND:
-#endif
 		dpms = SYSTEM_CTRL_DPMS_VNHP;
 		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_HSYNC_SUSPEND:
-#else
-	case VESA_HSYNC_SUSPEND:
-#endif
 		dpms = SYSTEM_CTRL_DPMS_VPHN;
 		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
 	case FB_BLANK_POWERDOWN:
-#else
-	case VESA_POWERDOWN:
-#endif
 		dpms = SYSTEM_CTRL_DPMS_VNHN;
 		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
