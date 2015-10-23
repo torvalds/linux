@@ -2337,6 +2337,46 @@ static int vxlan_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static int egress_ipv4_tun_info(struct net_device *dev, struct sk_buff *skb,
+				struct ip_tunnel_info *info,
+				__be16 sport, __be16 dport)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct rtable *rt;
+	struct flowi4 fl4;
+
+	memset(&fl4, 0, sizeof(fl4));
+	fl4.flowi4_tos = RT_TOS(info->key.tos);
+	fl4.flowi4_mark = skb->mark;
+	fl4.flowi4_proto = IPPROTO_UDP;
+	fl4.daddr = info->key.u.ipv4.dst;
+
+	rt = ip_route_output_key(vxlan->net, &fl4);
+	if (IS_ERR(rt))
+		return PTR_ERR(rt);
+	ip_rt_put(rt);
+
+	info->key.u.ipv4.src = fl4.saddr;
+	info->key.tp_src = sport;
+	info->key.tp_dst = dport;
+	return 0;
+}
+
+static int vxlan_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct ip_tunnel_info *info = skb_tunnel_info(skb);
+	__be16 sport, dport;
+
+	sport = udp_flow_src_port(dev_net(dev), skb, vxlan->cfg.port_min,
+				  vxlan->cfg.port_max, true);
+	dport = info->key.tp_dst ? : vxlan->cfg.dst_port;
+
+	if (ip_tunnel_info_af(info) == AF_INET)
+		return egress_ipv4_tun_info(dev, skb, info, sport, dport);
+	return -EINVAL;
+}
+
 static const struct net_device_ops vxlan_netdev_ops = {
 	.ndo_init		= vxlan_init,
 	.ndo_uninit		= vxlan_uninit,
@@ -2351,6 +2391,7 @@ static const struct net_device_ops vxlan_netdev_ops = {
 	.ndo_fdb_add		= vxlan_fdb_add,
 	.ndo_fdb_del		= vxlan_fdb_delete,
 	.ndo_fdb_dump		= vxlan_fdb_dump,
+	.ndo_fill_metadata_dst	= vxlan_fill_metadata_dst,
 };
 
 /* Info for udev, that this is a virtual tunnel endpoint */

@@ -717,7 +717,7 @@ static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 	if ((output->tun_flags & TUNNEL_OAM) &&
 	    nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_OAM))
 		return -EMSGSIZE;
-	if (tun_opts) {
+	if (swkey_tun_opts_len) {
 		if (output->tun_flags & TUNNEL_GENEVE_OPT &&
 		    nla_put(skb, OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS,
 			    swkey_tun_opts_len, tun_opts))
@@ -749,13 +749,12 @@ static int ipv4_tun_to_nlattr(struct sk_buff *skb,
 	return 0;
 }
 
-int ovs_nla_put_egress_tunnel_key(struct sk_buff *skb,
-				  const struct ip_tunnel_info *egress_tun_info,
-				  const void *egress_tun_opts)
+int ovs_nla_put_tunnel_info(struct sk_buff *skb,
+			    struct ip_tunnel_info *tun_info)
 {
-	return __ipv4_tun_to_nlattr(skb, &egress_tun_info->key,
-				    egress_tun_opts,
-				    egress_tun_info->options_len);
+	return __ipv4_tun_to_nlattr(skb, &tun_info->key,
+				    ip_tunnel_info_opts(tun_info),
+				    tun_info->options_len);
 }
 
 static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
@@ -2383,10 +2382,7 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 		if (!start)
 			return -EMSGSIZE;
 
-		err = ipv4_tun_to_nlattr(skb, &tun_info->key,
-					 tun_info->options_len ?
-					     ip_tunnel_info_opts(tun_info) : NULL,
-					 tun_info->options_len);
+		err = ovs_nla_put_tunnel_info(skb, tun_info);
 		if (err)
 			return err;
 		nla_nest_end(skb, start);
