@@ -549,8 +549,8 @@ static int  tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static int  set_break(struct tty_struct *tty, int break_state);
 
-static void add_device(SLMP_INFO *info);
-static void device_init(int adapter_num, struct pci_dev *pdev);
+static int  add_device(SLMP_INFO *info);
+static int  device_init(int adapter_num, struct pci_dev *pdev);
 static int  claim_resources(SLMP_INFO *info);
 static void release_resources(SLMP_INFO *info);
 
@@ -3688,7 +3688,7 @@ static void release_resources(SLMP_INFO *info)
 /* Add the specified device instance data structure to the
  * global linked list of devices and increment the device count.
  */
-static void add_device(SLMP_INFO *info)
+static int add_device(SLMP_INFO *info)
 {
 	info->next_device = NULL;
 	info->line = synclinkmp_device_count;
@@ -3726,7 +3726,9 @@ static void add_device(SLMP_INFO *info)
 		info->max_frame_size );
 
 #if SYNCLINK_GENERIC_HDLC
-	hdlcdev_init(info);
+	return hdlcdev_init(info);
+#else
+	return 0;
 #endif
 }
 
@@ -3815,10 +3817,10 @@ static SLMP_INFO *alloc_dev(int adapter_num, int port_num, struct pci_dev *pdev)
 	return info;
 }
 
-static void device_init(int adapter_num, struct pci_dev *pdev)
+static int device_init(int adapter_num, struct pci_dev *pdev)
 {
 	SLMP_INFO *port_array[SCA_MAX_PORTS];
-	int port;
+	int port, rc;
 
 	/* allocate device instances for up to SCA_MAX_PORTS devices */
 	for ( port = 0; port < SCA_MAX_PORTS; ++port ) {
@@ -3828,14 +3830,16 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 				tty_port_destroy(&port_array[port]->port);
 				kfree(port_array[port]);
 			}
-			return;
+			return -ENOMEM;
 		}
 	}
 
 	/* give copy of port_array to all ports and add to device list  */
 	for ( port = 0; port < SCA_MAX_PORTS; ++port ) {
 		memcpy(port_array[port]->port_array,port_array,sizeof(port_array));
-		add_device( port_array[port] );
+		rc = add_device( port_array[port] );
+		if (rc)
+			goto err_add;
 		spin_lock_init(&port_array[port]->lock);
 	}
 
@@ -3855,21 +3859,30 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 			alloc_dma_bufs(port_array[port]);
 		}
 
-		if ( request_irq(port_array[0]->irq_level,
+		rc = request_irq(port_array[0]->irq_level,
 					synclinkmp_interrupt,
 					port_array[0]->irq_flags,
 					port_array[0]->device_name,
-					port_array[0]) < 0 ) {
+					port_array[0]);
+		if ( rc ) {
 			printk( "%s(%d):%s Can't request interrupt, IRQ=%d\n",
 				__FILE__,__LINE__,
 				port_array[0]->device_name,
 				port_array[0]->irq_level );
+			goto err_irq;
 		}
-		else {
-			port_array[0]->irq_requested = true;
-			adapter_test(port_array[0]);
-		}
+		port_array[0]->irq_requested = true;
+		adapter_test(port_array[0]);
 	}
+	return 0;
+err_irq:
+	release_resources( port_array[0] );
+err_add:
+	for ( port = 0; port < SCA_MAX_PORTS; ++port ) {
+		tty_port_destroy(&port_array[port]->port);
+		kfree(port_array[port]);
+	}
+	return rc;
 }
 
 static const struct tty_operations ops = {
@@ -5584,8 +5597,7 @@ static int synclinkmp_init_one (struct pci_dev *dev,
 		printk("error enabling pci device %p\n", dev);
 		return -EIO;
 	}
-	device_init( ++synclinkmp_adapter_count, dev );
-	return 0;
+	return device_init( ++synclinkmp_adapter_count, dev );
 }
 
 static void synclinkmp_remove_one (struct pci_dev *dev)
