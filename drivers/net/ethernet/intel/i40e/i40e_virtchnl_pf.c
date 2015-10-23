@@ -944,6 +944,7 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 	if (pci_num_vf(pf->pdev) != num_alloc_vfs) {
 		ret = pci_enable_sriov(pf->pdev, num_alloc_vfs);
 		if (ret) {
+			pf->flags &= ~I40E_FLAG_VEB_MODE_ENABLED;
 			pf->num_alloc_vfs = 0;
 			goto err_iov;
 		}

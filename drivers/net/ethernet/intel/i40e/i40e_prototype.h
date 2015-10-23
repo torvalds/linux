@@ -322,4 +322,6 @@ i40e_status i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
 			       void *buff, u16 *ret_buff_size,
 			       u8 *ret_next_table, u32 *ret_next_index,
 			       struct i40e_asq_cmd_details *cmd_details);
+void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
+						    u16 vsi_seid);
 #endif /* _I40E_PROTOTYPE_H_ */

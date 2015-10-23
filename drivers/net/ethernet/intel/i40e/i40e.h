@@ -109,8 +109,10 @@
 #define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
 #define I40E_NVM_VERSION_HI_SHIFT  12
 #define I40E_NVM_VERSION_HI_MASK   (0xf << I40E_NVM_VERSION_HI_SHIFT)
-#define I40E_OEM_VER_BUILD_MASK    0xff00
+#define I40E_OEM_VER_BUILD_MASK    0xffff
 #define I40E_OEM_VER_PATCH_MASK    0xff
+#define I40E_OEM_VER_BUILD_SHIFT   8
+#define I40E_OEM_VER_SHIFT         24
 
 /* The values in here are decimal coded as hex as is the case in the NVM map*/
 #define I40E_CURRENT_NVM_VERSION_HI 0x2
@@ -594,6 +596,15 @@ struct i40e_device {
 static inline char *i40e_nvm_version_str(struct i40e_hw *hw)
 {
 	static char buf[32];
+	u32 full_ver;
+	u8 ver, patch;
+	u16 build;
+
+	full_ver = hw->nvm.oem_ver;
+	ver = (u8)(full_ver >> I40E_OEM_VER_SHIFT);
+	build = (u16)((full_ver >> I40E_OEM_VER_BUILD_SHIFT)
+		 & I40E_OEM_VER_BUILD_MASK);
+	patch = (u8)(full_ver & I40E_OEM_VER_PATCH_MASK);
 
 	snprintf(buf, sizeof(buf),
 		 "%x.%02x 0x%x %d.%d.%d",
@@ -601,9 +612,7 @@ static inline char *i40e_nvm_version_str(struct i40e_hw *hw)
 			I40E_NVM_VERSION_HI_SHIFT,
 		 (hw->nvm.version & I40E_NVM_VERSION_LO_MASK) >>
 			I40E_NVM_VERSION_LO_SHIFT,
-		 hw->nvm.eetrack, (hw->nvm.oem_ver >> 24),
-		 (hw->nvm.oem_ver & I40E_OEM_VER_BUILD_MASK) >> 8,
-		 hw->nvm.oem_ver & I40E_OEM_VER_PATCH_MASK);
+		 hw->nvm.eetrack, ver, build, patch);
 
 	return buf;
 }

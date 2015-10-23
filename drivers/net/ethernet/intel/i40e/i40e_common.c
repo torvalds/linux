@@ -331,25 +331,11 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 			len = buf_len;
 		/* write the full 16-byte chunks */
 		for (i = 0; i < (len - 16); i += 16)
-			i40e_debug(hw, mask,
-				   "\t0x%04X  %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
-				   i, buf[i], buf[i + 1], buf[i + 2],
-				   buf[i + 3], buf[i + 4], buf[i + 5],
-				   buf[i + 6], buf[i + 7], buf[i + 8],
-				   buf[i + 9], buf[i + 10], buf[i + 11],
-				   buf[i + 12], buf[i + 13], buf[i + 14],
-				   buf[i + 15]);
+			i40e_debug(hw, mask, "\t0x%04X  %16ph\n", i, buf + i);
 		/* write whatever's left over without overrunning the buffer */
-		if (i < len) {
-			char d_buf[80];
-			int j = 0;
-
-			memset(d_buf, 0, sizeof(d_buf));
-			j += sprintf(d_buf, "\t0x%04X ", i);
-			while (i < len)
-				j += sprintf(&d_buf[j], " %02X", buf[i++]);
-			i40e_debug(hw, mask, "%s\n", d_buf);
-		}
+		if (i < len)
+			i40e_debug(hw, mask, "\t0x%04X  %*ph\n",
+					     i, len - i, buf + i);
 	}
 }
 
@@ -3826,6 +3812,28 @@ i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 	}
 
 	return status;
+}
+
+/**
+ * i40e_add_filter_to_drop_tx_flow_control_frames- filter to drop flow control
+ * @hw: pointer to the hw struct
+ * @seid: VSI seid to add ethertype filter from
+ **/
+#define I40E_FLOW_CONTROL_ETHTYPE 0x8808
+void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
+						    u16 seid)
+{
+	u16 flag = I40E_AQC_ADD_CONTROL_PACKET_FLAGS_IGNORE_MAC |
+		   I40E_AQC_ADD_CONTROL_PACKET_FLAGS_DROP |
+		   I40E_AQC_ADD_CONTROL_PACKET_FLAGS_TX;
+	u16 ethtype = I40E_FLOW_CONTROL_ETHTYPE;
+	i40e_status status;
+
+	status = i40e_aq_add_rem_control_packet_filter(hw, NULL, ethtype, flag,
+						       seid, 0, true, NULL,
+						       NULL);
+	if (status)
+		hw_dbg(hw, "Ethtype Filter Add failed: Error pruning Tx flow control frames\n");
 }
 
 /**

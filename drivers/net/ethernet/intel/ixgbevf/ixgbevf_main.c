@@ -1894,8 +1894,16 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
+	unsigned int flags = netdev->flags;
+	int xcast_mode;
+
+	xcast_mode = (flags & IFF_ALLMULTI) ? IXGBEVF_XCAST_MODE_ALLMULTI :
+		     (flags & (IFF_BROADCAST | IFF_MULTICAST)) ?
+		     IXGBEVF_XCAST_MODE_MULTI : IXGBEVF_XCAST_MODE_NONE;
 
 	spin_lock_bh(&adapter->mbx_lock);
+
+	hw->mac.ops.update_xcast_mode(hw, netdev, xcast_mode);
 
 	/* reprogram multicast list */
 	hw->mac.ops.update_mc_addr_list(hw, netdev);
