@@ -5731,6 +5731,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	else
 		intel_dp->get_aux_send_ctl = i9xx_get_aux_send_ctl;
 
+	if (HAS_DDI(dev))
+		intel_dp->prepare_link_retrain = intel_ddi_prepare_link_retrain;
+
 	/* Preserve the current hw state. */
 	intel_dp->DP = I915_READ(intel_dp->output_reg);
 	intel_dp->attached_connector = intel_connector;

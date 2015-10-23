@@ -2971,11 +2971,11 @@ void intel_ddi_pll_init(struct drm_device *dev)
 	}
 }
 
-void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder)
+void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
-	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv =
+		to_i915(intel_dig_port->base.base.dev);
 	enum port port = intel_dig_port->port;
 	uint32_t val;
 	bool wait = false;
