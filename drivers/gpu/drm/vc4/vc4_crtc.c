@@ -168,7 +168,7 @@ static int vc4_get_clock_select(struct drm_crtc *crtc)
 	struct drm_connector *connector;
 
 	drm_for_each_connector(connector, crtc->dev) {
-		if (connector && connector->state->crtc == crtc) {
+		if (connector->state->crtc == crtc) {
 			struct drm_encoder *encoder = connector->encoder;
 			struct vc4_encoder *vc4_encoder =
 				to_vc4_encoder(encoder);
