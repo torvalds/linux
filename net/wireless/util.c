@@ -1325,13 +1325,6 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 }
 EXPORT_SYMBOL(ieee80211_ie_split_ric);
 
-size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
-			  const u8 *ids, int n_ids, size_t offset)
-{
-	return ieee80211_ie_split_ric(ies, ielen, ids, n_ids, NULL, 0, offset);
-}
-EXPORT_SYMBOL(ieee80211_ie_split);
-
 bool ieee80211_operating_class_to_band(u8 operating_class,
 				       enum ieee80211_band *band)
 {
