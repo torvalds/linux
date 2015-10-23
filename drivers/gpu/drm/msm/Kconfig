@@ -14,20 +14,6 @@ config DRM_MSM
 	help
 	  DRM/KMS driver for MSM/snapdragon.
 
-config DRM_MSM_FBDEV
-	bool "Enable legacy fbdev support for MSM modesetting driver"
-	depends on DRM_MSM
-	select DRM_KMS_FB_HELPER
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
-	default y
-	help
-	  Choose this option if you have a need for the legacy fbdev
-	  support. Note that this support also provide the linux console
-	  support on top of the MSM modesetting driver.
-
 config DRM_MSM_REGISTER_LOGGING
 	bool "MSM DRM register logging"
 	depends on DRM_MSM

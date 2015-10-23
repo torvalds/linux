@@ -21,11 +21,9 @@
 
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
-#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
-#endif
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
@@ -56,7 +54,7 @@ module_param(reglog, bool, 0600);
 #define reglog 0
 #endif
 
-#ifdef CONFIG_DRM_MSM_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 static bool fbdev = true;
 MODULE_PARM_DESC(fbdev, "Enable fbdev compat layer");
 module_param(fbdev, bool, 0600);
@@ -423,7 +421,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_reset(dev);
 
-#ifdef CONFIG_DRM_MSM_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fbdev)
 		priv->fbdev = msm_fbdev_init(dev);
 #endif
@@ -491,11 +489,9 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 
 static void msm_lastclose(struct drm_device *dev)
 {
-#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
-#endif
 }
 
 static irqreturn_t msm_irq(int irq, void *arg)
