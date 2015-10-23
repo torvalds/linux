@@ -292,16 +292,23 @@ static void *perf_event_fd_array_get_ptr(struct bpf_map *map, int fd)
 
 	attr = perf_event_attrs(event);
 	if (IS_ERR(attr))
-		return (void *)attr;
+		goto err;
 
-	if (attr->type != PERF_TYPE_RAW &&
-	    !(attr->type == PERF_TYPE_SOFTWARE &&
-	      attr->config == PERF_COUNT_SW_BPF_OUTPUT) &&
-	    attr->type != PERF_TYPE_HARDWARE) {
-		perf_event_release_kernel(event);
-		return ERR_PTR(-EINVAL);
-	}
-	return event;
+	if (attr->inherit)
+		goto err;
+
+	if (attr->type == PERF_TYPE_RAW)
+		return event;
+
+	if (attr->type == PERF_TYPE_HARDWARE)
+		return event;
+
+	if (attr->type == PERF_TYPE_SOFTWARE &&
+	    attr->config == PERF_COUNT_SW_BPF_OUTPUT)
+		return event;
+err:
+	perf_event_release_kernel(event);
+	return ERR_PTR(-EINVAL);
 }
 
 static void perf_event_fd_array_put_ptr(void *ptr)
