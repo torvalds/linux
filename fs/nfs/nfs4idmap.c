@@ -297,7 +297,7 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 {
 	const struct cred *saved_cred;
 	struct key *rkey;
-	struct user_key_payload *payload;
+	const struct user_key_payload *payload;
 	ssize_t ret;
 
 	saved_cred = override_creds(id_resolver_cache);
@@ -316,7 +316,7 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 	if (ret < 0)
 		goto out_up;
 
-	payload = rcu_dereference(rkey->payload.rcudata);
+	payload = user_key_payload(rkey);
 	if (IS_ERR_OR_NULL(payload)) {
 		ret = PTR_ERR(payload);
 		goto out_up;

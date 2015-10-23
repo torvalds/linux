@@ -318,7 +318,7 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 		goto out;
 	}
 
-	ckey = ukey->payload.data;
+	ckey = ukey->payload.data[0];
 	err = ceph_crypto_key_clone(dst, ckey);
 	if (err)
 		goto out_key;

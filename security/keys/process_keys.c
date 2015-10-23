@@ -457,7 +457,7 @@ key_ref_t search_process_keyrings(struct keyring_search_context *ctx)
 		down_read(&cred->request_key_auth->sem);
 
 		if (key_validate(ctx->cred->request_key_auth) == 0) {
-			rka = ctx->cred->request_key_auth->payload.data;
+			rka = ctx->cred->request_key_auth->payload.data[0];
 
 			ctx->cred = rka->cred;
 			key_ref = search_process_keyrings(ctx);
@@ -647,7 +647,7 @@ try_again:
 			key_ref = ERR_PTR(-EKEYREVOKED);
 			key = NULL;
 		} else {
-			rka = ctx.cred->request_key_auth->payload.data;
+			rka = ctx.cred->request_key_auth->payload.data[0];
 			key = rka->dest_keyring;
 			__key_get(key);
 		}
