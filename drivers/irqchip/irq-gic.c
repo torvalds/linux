@@ -69,6 +69,7 @@ union gic_base {
 };
 
 struct gic_chip_data {
+	struct irq_chip chip;
 	union gic_base dist_base;
 	union gic_base cpu_base;
 #ifdef CONFIG_CPU_PM
@@ -383,7 +384,6 @@ static void gic_handle_cascade_irq(struct irq_desc *desc)
 }
 
 static struct irq_chip gic_chip = {
-	.name			= "GIC",
 	.irq_mask		= gic_mask_irq,
 	.irq_unmask		= gic_unmask_irq,
 	.irq_eoi		= gic_eoi_irq,
@@ -925,20 +925,15 @@ void __init gic_init_physaddr(struct device_node *node)
 static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 				irq_hw_number_t hw)
 {
-	struct irq_chip *chip = &gic_chip;
-
-	if (static_key_true(&supports_deactivate)) {
-		if (d->host_data == (void *)&gic_data[0])
-			chip = &gic_eoimode1_chip;
-	}
+	struct gic_chip_data *gic = d->host_data;
 
 	if (hw < 32) {
 		irq_set_percpu_devid(irq);
-		irq_domain_set_info(d, irq, hw, chip, d->host_data,
+		irq_domain_set_info(d, irq, hw, &gic->chip, d->host_data,
 				    handle_percpu_devid_irq, NULL, NULL);
 		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 	} else {
-		irq_domain_set_info(d, irq, hw, chip, d->host_data,
+		irq_domain_set_info(d, irq, hw, &gic->chip, d->host_data,
 				    handle_fasteoi_irq, NULL, NULL);
 		irq_set_probe(irq);
 	}
@@ -1045,6 +1040,15 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 	gic_check_cpu_features();
 
 	gic = &gic_data[gic_nr];
+
+	/* Initialize irq_chip */
+	if (static_key_true(&supports_deactivate) && gic_nr == 0) {
+		gic->chip = gic_eoimode1_chip;
+	} else {
+		gic->chip = gic_chip;
+		gic->chip.name = kasprintf(GFP_KERNEL, "GIC-%d", gic_nr);
+	}
+
 #ifdef CONFIG_GIC_NON_BANKED
 	if (percpu_offset) { /* Frankein-GIC without banked registers... */
 		unsigned int cpu;
