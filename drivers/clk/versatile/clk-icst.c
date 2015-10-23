@@ -157,8 +157,10 @@ struct clk *icst_clk_register(struct device *dev,
 	icst->lockreg = base + desc->lock_offset;
 
 	clk = clk_register(dev, &icst->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		kfree(pclone);
 		kfree(icst);
+	}
 
 	return clk;
 }
