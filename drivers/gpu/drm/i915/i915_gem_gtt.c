@@ -24,6 +24,7 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/stop_machine.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -2533,6 +2534,26 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	return 0;
 }
 
+struct ggtt_bind_vma__cb {
+	struct i915_vma *vma;
+	enum i915_cache_level cache_level;
+	u32 flags;
+};
+
+static int ggtt_bind_vma__cb(void *_arg)
+{
+	struct ggtt_bind_vma__cb *arg = _arg;
+	return ggtt_bind_vma(arg->vma, arg->cache_level, arg->flags);
+}
+
+static int ggtt_bind_vma__BKL(struct i915_vma *vma,
+			      enum i915_cache_level cache_level,
+			      u32 flags)
+{
+	struct ggtt_bind_vma__cb arg = { vma, cache_level, flags };
+	return stop_machine(ggtt_bind_vma__cb, &arg, NULL);
+}
+
 static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 				 enum i915_cache_level cache_level,
 				 u32 flags)
@@ -2999,6 +3020,9 @@ static int gen8_gmch_probe(struct drm_device *dev,
 	dev_priv->gtt.base.insert_entries = gen8_ggtt_insert_entries;
 	dev_priv->gtt.base.bind_vma = ggtt_bind_vma;
 	dev_priv->gtt.base.unbind_vma = ggtt_unbind_vma;
+
+	if (IS_CHERRYVIEW(dev))
+		dev_priv->gtt.base.bind_vma = ggtt_bind_vma__BKL;
 
 	return ret;
 }
