@@ -2,6 +2,7 @@
 #include "parse-options.h"
 #include "cache.h"
 #include "header.h"
+#include <linux/string.h>
 
 #define OPT_SHORT 1
 #define OPT_UNSET 2
@@ -642,9 +643,50 @@ static void print_option_help(const struct option *opts, int full)
 	fprintf(stderr, "%*s%s\n", pad + USAGE_GAP, "", opts->help);
 }
 
+static int option__cmp(const void *va, const void *vb)
+{
+	const struct option *a = va, *b = vb;
+	int sa = tolower(a->short_name), sb = tolower(b->short_name), ret;
+
+	if (sa == 0)
+		sa = 'z' + 1;
+	if (sb == 0)
+		sb = 'z' + 1;
+
+	ret = sa - sb;
+
+	if (ret == 0) {
+		const char *la = a->long_name ?: "",
+			   *lb = b->long_name ?: "";
+		ret = strcmp(la, lb);
+	}
+
+	return ret;
+}
+
+static struct option *options__order(const struct option *opts)
+{
+	int nr_opts = 0;
+	const struct option *o = opts;
+	struct option *ordered;
+
+	for (o = opts; o->type != OPTION_END; o++)
+		++nr_opts;
+
+	ordered = memdup(opts, sizeof(*o) * (nr_opts + 1));
+	if (ordered == NULL)
+		goto out;
+
+	qsort(ordered, nr_opts, sizeof(*o), option__cmp);
+out:
+	return ordered;
+}
+
 int usage_with_options_internal(const char * const *usagestr,
 				const struct option *opts, int full)
 {
+	struct option *ordered;
+
 	if (!usagestr)
 		return PARSE_OPT_HELP;
 
@@ -661,10 +703,16 @@ int usage_with_options_internal(const char * const *usagestr,
 	if (opts->type != OPTION_GROUP)
 		fputc('\n', stderr);
 
+	ordered = options__order(opts);
+	if (ordered)
+		opts = ordered;
+
 	for (  ; opts->type != OPTION_END; opts++)
 		print_option_help(opts, full);
 
 	fputc('\n', stderr);
+
+	free(ordered);
 
 	return PARSE_OPT_HELP;
 }
