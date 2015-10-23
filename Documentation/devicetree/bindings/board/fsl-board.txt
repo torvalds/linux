@@ -21,11 +21,14 @@ Example:
 
 This is the memory-mapped registers for on board FPGA.
 
-Required properities:
+Required properties:
 - compatible: should be a board-specific string followed by a string
   indicating the type of FPGA.  Example:
-	"fsl,<board>-fpga", "fsl,fpga-pixis"
+	"fsl,<board>-fpga", "fsl,fpga-pixis", or
+	"fsl,<board>-fpga", "fsl,fpga-qixis"
 - reg: should contain the address and the length of the FPGA register set.
+
+Optional properties:
 - interrupt-parent: should specify phandle for the interrupt controller.
 - interrupts: should specify event (wakeup) IRQ.
 
@@ -37,6 +40,13 @@ Example (P1022DS):
 		 interrupt-parent = <&mpic>;
 		 interrupts = <8 8 0 0>;
 	 };
+
+Example (LS2080A-RDB):
+
+        cpld@3,0 {
+                compatible = "fsl,ls2080ardb-fpga", "fsl,fpga-qixis";
+                reg = <0x3 0 0x10000>;
+        };
 
 * Freescale BCSR GPIO banks
 
