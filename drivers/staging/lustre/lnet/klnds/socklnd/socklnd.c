@@ -2259,9 +2259,8 @@ ksocknal_base_shutdown(void)
 	case SOCKNAL_INIT_ALL:
 	case SOCKNAL_INIT_DATA:
 		LASSERT(ksocknal_data.ksnd_peers != NULL);
-		for (i = 0; i < ksocknal_data.ksnd_peer_hash_size; i++) {
+		for (i = 0; i < ksocknal_data.ksnd_peer_hash_size; i++)
 			LASSERT(list_empty(&ksocknal_data.ksnd_peers[i]));
-		}
 
 		LASSERT(list_empty(&ksocknal_data.ksnd_nets));
 		LASSERT(list_empty(&ksocknal_data.ksnd_enomem_conns));
