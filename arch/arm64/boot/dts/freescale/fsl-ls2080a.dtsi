@@ -1,7 +1,7 @@
 /*
- * Device Tree Include file for Freescale Layerscape-2085A family SoC.
+ * Device Tree Include file for Freescale Layerscape-2080A family SoC.
  *
- * Copyright (C) 2014, Freescale Semiconductor
+ * Copyright (C) 2014-2015, Freescale Semiconductor
  *
  * Bhupesh Sharma <bhupesh.sharma@freescale.com>
  *
@@ -50,7 +50,7 @@
  */
 
 / {
-	compatible = "fsl,ls2085a";
+	compatible = "fsl,ls2080a";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

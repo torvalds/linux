@@ -1,7 +1,7 @@
 /*
- * Device Tree file for Freescale LS2085a software Simulator model
+ * Device Tree file for Freescale LS2080a software Simulator model
  *
- * Copyright (C) 2014, Freescale Semiconductor
+ * Copyright (C) 2014-2015, Freescale Semiconductor
  *
  * Bhupesh Sharma <bhupesh.sharma@freescale.com>
  *
@@ -51,11 +51,11 @@
 
 /dts-v1/;
 
-/include/ "fsl-ls2085a.dtsi"
+/include/ "fsl-ls2080a.dtsi"
 
 / {
-	model = "Freescale Layerscape 2085a software Simulator model";
-	compatible = "fsl,ls2085a-simu", "fsl,ls2085a";
+	model = "Freescale Layerscape 2080a software Simulator model";
+	compatible = "fsl,ls2080a-simu", "fsl,ls2080a";
 
 	ethernet@2210000 {
 		compatible = "smsc,lan91c111";

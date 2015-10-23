@@ -131,7 +131,7 @@ Example:
 Freescale ARMv8 based Layerscape SoC family Device Tree Bindings
 ----------------------------------------------------------------
 
-LS2085A ARMv8 based Simulator model
+LS2080A ARMv8 based Simulator model
 Required root node properties:
-    - compatible = "fsl,ls2085a-simu", "fsl,ls2085a";
+    - compatible = "fsl,ls2080a-simu", "fsl,ls2080a";
 
