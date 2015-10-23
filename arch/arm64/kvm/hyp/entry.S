@@ -147,6 +147,7 @@ ENTRY(__fpsimd_guest_restore)
 	add	x0, x2, #CPU_GP_REG_OFFSET(CPU_FP_REGS)
 	bl	__fpsimd_restore_state
 
+	// Skip restoring fpexc32 for AArch64 guests
 	mrs	x1, hcr_el2
 	tbnz	x1, #HCR_RW_SHIFT, 1f
 	ldr	x4, [x2, #CPU_SYSREG_OFFSET(FPEXC32_EL2)]
