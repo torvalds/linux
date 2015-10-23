@@ -3059,14 +3059,12 @@ static bool skl_ddb_allocation_changed(const struct skl_ddb_allocation *new_ddb,
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct skl_ddb_allocation *cur_ddb = &dev_priv->wm.skl_hw.ddb;
-	enum pipe pipe = intel_crtc->pipe;
 
-	if (memcmp(new_ddb->plane[pipe], cur_ddb->plane[pipe],
-		   sizeof(new_ddb->plane[pipe])))
-		return true;
-
-	if (memcmp(&new_ddb->plane[pipe][PLANE_CURSOR], &cur_ddb->plane[pipe][PLANE_CURSOR],
-		    sizeof(new_ddb->plane[pipe][PLANE_CURSOR])))
+	/*
+	 * If ddb allocation of pipes changed, it may require recalculation of
+	 * watermarks
+	 */
+	if (memcmp(new_ddb->pipe, cur_ddb->pipe, sizeof(new_ddb->pipe)))
 		return true;
 
 	return false;
