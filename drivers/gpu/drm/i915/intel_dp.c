@@ -3645,15 +3645,13 @@ intel_dp_reset_link_train(struct intel_dp *intel_dp,
 }
 
 static bool
-intel_dp_update_link_train(struct intel_dp *intel_dp,
-			   const uint8_t link_status[DP_LINK_STATUS_SIZE])
+intel_dp_update_link_train(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv =
 		to_i915(intel_dig_port->base.base.dev);
 	int ret;
 
-	intel_get_adjust_train(intel_dp, link_status);
 	intel_dp_set_signal_levels(intel_dp);
 
 	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
@@ -3801,7 +3799,8 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
 
 		/* Update training set as requested by target */
-		if (!intel_dp_update_link_train(intel_dp, link_status)) {
+		intel_get_adjust_train(intel_dp, link_status);
+		if (!intel_dp_update_link_train(intel_dp)) {
 			DRM_ERROR("failed to update link training\n");
 			break;
 		}
@@ -3888,7 +3887,8 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 		}
 
 		/* Update training set as requested by target */
-		if (!intel_dp_update_link_train(intel_dp, link_status)) {
+		intel_get_adjust_train(intel_dp, link_status);
+		if (!intel_dp_update_link_train(intel_dp)) {
 			DRM_ERROR("failed to update link training\n");
 			break;
 		}
