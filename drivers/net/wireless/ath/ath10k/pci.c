@@ -1594,7 +1594,6 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 	struct ath10k_pci *ar_pci;
 	struct ath10k_ce_pipe *ce_pipe;
 	struct ath10k_ce_ring *ce_ring;
-	struct ce_desc *ce_desc;
 	struct sk_buff *skb;
 	int i;
 
@@ -1607,10 +1606,6 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 		return;
 
 	if (!pci_pipe->buf_sz)
-		return;
-
-	ce_desc = ce_ring->shadow_base;
-	if (WARN_ON(!ce_desc))
 		return;
 
 	for (i = 0; i < ce_ring->nentries; i++) {

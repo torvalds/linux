@@ -921,27 +921,6 @@ ath10k_ce_alloc_src_ring(struct ath10k *ar, unsigned int ce_id,
 			src_ring->base_addr_ce_space_unaligned,
 			CE_DESC_RING_ALIGN);
 
-	/*
-	 * Also allocate a shadow src ring in regular
-	 * mem to use for faster access.
-	 */
-	src_ring->shadow_base_unaligned =
-		kmalloc((nentries * sizeof(struct ce_desc) +
-			 CE_DESC_RING_ALIGN), GFP_KERNEL);
-	if (!src_ring->shadow_base_unaligned) {
-		dma_free_coherent(ar->dev,
-				  (nentries * sizeof(struct ce_desc) +
-				   CE_DESC_RING_ALIGN),
-				  src_ring->base_addr_owner_space,
-				  src_ring->base_addr_ce_space);
-		kfree(src_ring);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	src_ring->shadow_base = PTR_ALIGN(
-			src_ring->shadow_base_unaligned,
-			CE_DESC_RING_ALIGN);
-
 	return src_ring;
 }
 
@@ -1120,7 +1099,6 @@ void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id)
 	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 
 	if (ce_state->src_ring) {
-		kfree(ce_state->src_ring->shadow_base_unaligned);
 		dma_free_coherent(ar->dev,
 				  (ce_state->src_ring->nentries *
 				   sizeof(struct ce_desc) +

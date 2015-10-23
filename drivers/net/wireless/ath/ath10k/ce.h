@@ -100,12 +100,6 @@ struct ath10k_ce_ring {
 
 	/* CE address space */
 	u32 base_addr_ce_space;
-	/*
-	 * Start of shadow copy of descriptors, within regular memory.
-	 * Aligned to descriptor-size boundary.
-	 */
-	void *shadow_base_unaligned;
-	struct ce_desc *shadow_base;
 
 	/* keep last */
 	void *per_transfer_context[0];
