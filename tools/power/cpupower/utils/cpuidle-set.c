@@ -13,15 +13,11 @@
 #include "helpers/sysfs.h"
 
 static struct option info_opts[] = {
-	{ .name = "disable",
-	  .has_arg = required_argument,	.flag = NULL,	.val = 'd'},
-	{ .name = "enable",
-	  .has_arg = required_argument,	.flag = NULL,	.val = 'e'},
-	{ .name = "disable-by-latency",
-	  .has_arg = required_argument,	.flag = NULL,	.val = 'D'},
-	{ .name = "enable-all",
-	  .has_arg = no_argument,	.flag = NULL,	.val = 'E'},
-	{ },
+     {"disable",	required_argument,		NULL, 'd'},
+     {"enable",		required_argument,		NULL, 'e'},
+     {"disable-by-latency", required_argument,		NULL, 'D'},
+     {"enable-all",	no_argument,			NULL, 'E'},
+     { },
 };
 
 
