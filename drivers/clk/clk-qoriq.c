@@ -128,8 +128,8 @@ static const struct clockgen_muxinfo p2041_cmux_grp1 = {
 static const struct clockgen_muxinfo p2041_cmux_grp2 = {
 	{
 		[0] = { CLKSEL_VALID, CGA_PLL1, PLL_DIV1 },
-		[4] = { CLKSEL_VALID, CGA_PLL1, PLL_DIV2 },
-		[5] = { CLKSEL_VALID, CGA_PLL2, PLL_DIV1 },
+		[4] = { CLKSEL_VALID, CGA_PLL2, PLL_DIV1 },
+		[5] = { CLKSEL_VALID, CGA_PLL2, PLL_DIV2 },
 	}
 };
 
