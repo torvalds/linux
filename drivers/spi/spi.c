@@ -123,6 +123,28 @@ SPI_STATISTICS_SHOW(bytes, "%llu");
 SPI_STATISTICS_SHOW(bytes_rx, "%llu");
 SPI_STATISTICS_SHOW(bytes_tx, "%llu");
 
+#define SPI_STATISTICS_TRANSFER_BYTES_HISTO(index, number)		\
+	SPI_STATISTICS_SHOW_NAME(transfer_bytes_histo##index,		\
+				 "transfer_bytes_histo_" number,	\
+				 transfer_bytes_histo[index],  "%lu")
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(0,  "0-1");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(1,  "2-3");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(2,  "4-7");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(3,  "8-15");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(4,  "16-31");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(5,  "32-63");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(6,  "64-127");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(7,  "128-255");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(8,  "256-511");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(9,  "512-1023");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(10, "1024-2047");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(11, "2048-4095");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(12, "4096-8191");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(13, "8192-16383");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(14, "16384-32767");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(15, "32768-65535");
+SPI_STATISTICS_TRANSFER_BYTES_HISTO(16, "65536+");
+
 static struct attribute *spi_dev_attrs[] = {
 	&dev_attr_modalias.attr,
 	NULL,
@@ -143,6 +165,23 @@ static struct attribute *spi_device_statistics_attrs[] = {
 	&dev_attr_spi_device_bytes.attr,
 	&dev_attr_spi_device_bytes_rx.attr,
 	&dev_attr_spi_device_bytes_tx.attr,
+	&dev_attr_spi_device_transfer_bytes_histo0.attr,
+	&dev_attr_spi_device_transfer_bytes_histo1.attr,
+	&dev_attr_spi_device_transfer_bytes_histo2.attr,
+	&dev_attr_spi_device_transfer_bytes_histo3.attr,
+	&dev_attr_spi_device_transfer_bytes_histo4.attr,
+	&dev_attr_spi_device_transfer_bytes_histo5.attr,
+	&dev_attr_spi_device_transfer_bytes_histo6.attr,
+	&dev_attr_spi_device_transfer_bytes_histo7.attr,
+	&dev_attr_spi_device_transfer_bytes_histo8.attr,
+	&dev_attr_spi_device_transfer_bytes_histo9.attr,
+	&dev_attr_spi_device_transfer_bytes_histo10.attr,
+	&dev_attr_spi_device_transfer_bytes_histo11.attr,
+	&dev_attr_spi_device_transfer_bytes_histo12.attr,
+	&dev_attr_spi_device_transfer_bytes_histo13.attr,
+	&dev_attr_spi_device_transfer_bytes_histo14.attr,
+	&dev_attr_spi_device_transfer_bytes_histo15.attr,
+	&dev_attr_spi_device_transfer_bytes_histo16.attr,
 	NULL,
 };
 
@@ -168,6 +207,23 @@ static struct attribute *spi_master_statistics_attrs[] = {
 	&dev_attr_spi_master_bytes.attr,
 	&dev_attr_spi_master_bytes_rx.attr,
 	&dev_attr_spi_master_bytes_tx.attr,
+	&dev_attr_spi_master_transfer_bytes_histo0.attr,
+	&dev_attr_spi_master_transfer_bytes_histo1.attr,
+	&dev_attr_spi_master_transfer_bytes_histo2.attr,
+	&dev_attr_spi_master_transfer_bytes_histo3.attr,
+	&dev_attr_spi_master_transfer_bytes_histo4.attr,
+	&dev_attr_spi_master_transfer_bytes_histo5.attr,
+	&dev_attr_spi_master_transfer_bytes_histo6.attr,
+	&dev_attr_spi_master_transfer_bytes_histo7.attr,
+	&dev_attr_spi_master_transfer_bytes_histo8.attr,
+	&dev_attr_spi_master_transfer_bytes_histo9.attr,
+	&dev_attr_spi_master_transfer_bytes_histo10.attr,
+	&dev_attr_spi_master_transfer_bytes_histo11.attr,
+	&dev_attr_spi_master_transfer_bytes_histo12.attr,
+	&dev_attr_spi_master_transfer_bytes_histo13.attr,
+	&dev_attr_spi_master_transfer_bytes_histo14.attr,
+	&dev_attr_spi_master_transfer_bytes_histo15.attr,
+	&dev_attr_spi_master_transfer_bytes_histo16.attr,
 	NULL,
 };
 
@@ -186,10 +242,15 @@ void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
 				       struct spi_master *master)
 {
 	unsigned long flags;
+	int l2len = min(fls(xfer->len), SPI_STATISTICS_HISTO_SIZE) - 1;
+
+	if (l2len < 0)
+		l2len = 0;
 
 	spin_lock_irqsave(&stats->lock, flags);
 
 	stats->transfers++;
+	stats->transfer_bytes_histo[l2len]++;
 
 	stats->bytes += xfer->len;
 	if ((xfer->tx_buf) &&
@@ -270,15 +331,24 @@ EXPORT_SYMBOL_GPL(spi_bus_type);
 static int spi_drv_probe(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+	struct spi_device		*spi = to_spi_device(dev);
 	int ret;
 
 	ret = of_clk_set_defaults(dev->of_node, false);
 	if (ret)
 		return ret;
 
+	if (dev->of_node) {
+		spi->irq = of_irq_get(dev->of_node, 0);
+		if (spi->irq == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		if (spi->irq < 0)
+			spi->irq = 0;
+	}
+
 	ret = dev_pm_domain_attach(dev, true);
 	if (ret != -EPROBE_DEFER) {
-		ret = sdrv->probe(to_spi_device(dev));
+		ret = sdrv->probe(spi);
 		if (ret)
 			dev_pm_domain_detach(dev, true);
 	}
@@ -597,7 +667,7 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 	if (spi->mode & SPI_CS_HIGH)
 		enable = !enable;
 
-	if (spi->cs_gpio >= 0)
+	if (gpio_is_valid(spi->cs_gpio))
 		gpio_set_value(spi->cs_gpio, !enable);
 	else if (spi->master->set_cs)
 		spi->master->set_cs(spi, !enable);
@@ -1433,9 +1503,6 @@ of_register_spi_device(struct spi_master *master, struct device_node *nc)
 	}
 	spi->max_speed_hz = value;
 
-	/* IRQ */
-	spi->irq = irq_of_parse_and_map(nc, 0);
-
 	/* Store a pointer to the node in the device structure */
 	of_node_get(nc);
 	spi->dev.of_node = nc;
@@ -1949,7 +2016,7 @@ static int __spi_validate_bits_per_word(struct spi_master *master, u8 bits_per_w
 int spi_setup(struct spi_device *spi)
 {
 	unsigned	bad_bits, ugly_bits;
-	int		status = 0;
+	int		status;
 
 	/* check mode to prevent that DUAL and QUAD set at the same time
 	 */
@@ -1986,8 +2053,9 @@ int spi_setup(struct spi_device *spi)
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
 
-	if (__spi_validate_bits_per_word(spi->master, spi->bits_per_word))
-		return -EINVAL;
+	status = __spi_validate_bits_per_word(spi->master, spi->bits_per_word);
+	if (status)
+		return status;
 
 	if (!spi->max_speed_hz)
 		spi->max_speed_hz = spi->master->max_speed_hz;

@@ -51,6 +51,8 @@ extern struct bus_type spi_bus_type;
  * @bytes_tx:      number of bytes sent to device
  * @bytes_rx:      number of bytes received from device
  *
+ * @transfer_bytes_histo:
+ *                 transfer bytes histogramm
  */
 struct spi_statistics {
 	spinlock_t		lock; /* lock for the whole structure */
@@ -68,6 +70,8 @@ struct spi_statistics {
 	unsigned long long	bytes_rx;
 	unsigned long long	bytes_tx;
 
+#define SPI_STATISTICS_HISTO_SIZE 17
+	unsigned long transfer_bytes_histo[SPI_STATISTICS_HISTO_SIZE];
 };
 
 void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
