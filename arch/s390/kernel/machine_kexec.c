@@ -44,11 +44,11 @@ static void setup_regs(void)
 	int cpu, this_cpu;
 
 	/* setup_regs is called with the prefix register = 0 */
-	sa_0 = (struct save_area *) SAVE_AREA_BASE;
+	sa_0 = (struct save_area *) __LC_FPREGS_SAVE_AREA;
 
 	/* Get status of this CPU out of absolute zero */
 	prefix = (unsigned long) S390_lowcore.prefixreg_save_area;
-	sa = (struct save_area *)(prefix + SAVE_AREA_BASE);
+	sa = (struct save_area *)(prefix + __LC_FPREGS_SAVE_AREA);
 	memcpy(sa, sa_0, sizeof(struct save_area));
 	if (MACHINE_HAS_VX) {
 		struct _lowcore *lc = (struct _lowcore *) prefix;
@@ -63,7 +63,7 @@ static void setup_regs(void)
 		if (smp_store_status(cpu))
 			continue;
 		prefix = (unsigned long) S390_lowcore.prefixreg_save_area;
-		sa = (struct save_area *)(prefix + SAVE_AREA_BASE);
+		sa = (struct save_area *)(prefix + __LC_FPREGS_SAVE_AREA);
 		memcpy(sa, sa_0, sizeof(struct save_area));
 	}
 }

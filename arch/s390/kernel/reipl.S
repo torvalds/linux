@@ -19,49 +19,56 @@
 ENTRY(store_status)
 	/* Save register one and load save area base */
 	stg	%r1,__LC_SAVE_AREA_RESTART
-	lghi	%r1,SAVE_AREA_BASE
 	/* General purpose registers */
-	stmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	lg	%r2,__LC_SAVE_AREA_RESTART
-	stg	%r2,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE+8(%r1)
+	lghi	%r1,__LC_GPREGS_SAVE_AREA
+	stmg	%r0,%r15,0(%r1)
+	mvc	8(8,%r1),__LC_SAVE_AREA_RESTART
 	/* Control registers */
-	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lghi	%r1,__LC_CREGS_SAVE_AREA
+	stctg	%c0,%c15,0(%r1)
 	/* Access registers */
-	stam	%a0,%a15,__LC_AREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lghi	%r1,__LC_AREGS_SAVE_AREA
+	stam	%a0,%a15,0(%r1)
 	/* Floating point registers */
-	std	%f0, 0x00 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f1, 0x08 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f2, 0x10 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f3, 0x18 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f4, 0x20 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f5, 0x28 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f6, 0x30 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f7, 0x38 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f8, 0x40 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f9, 0x48 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f10,0x50 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f11,0x58 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f12,0x60 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f13,0x68 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f14,0x70 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f15,0x78 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lghi	%r1,__LC_FPREGS_SAVE_AREA
+	std	%f0, 0x00(%r1)
+	std	%f1, 0x08(%r1)
+	std	%f2, 0x10(%r1)
+	std	%f3, 0x18(%r1)
+	std	%f4, 0x20(%r1)
+	std	%f5, 0x28(%r1)
+	std	%f6, 0x30(%r1)
+	std	%f7, 0x38(%r1)
+	std	%f8, 0x40(%r1)
+	std	%f9, 0x48(%r1)
+	std	%f10,0x50(%r1)
+	std	%f11,0x58(%r1)
+	std	%f12,0x60(%r1)
+	std	%f13,0x68(%r1)
+	std	%f14,0x70(%r1)
+	std	%f15,0x78(%r1)
 	/* Floating point control register */
-	stfpc	__LC_FP_CREG_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lghi	%r1,__LC_FP_CREG_SAVE_AREA
+	stfpc	0(%r1)
 	/* CPU timer */
-	stpt	__LC_CPU_TIMER_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lghi	%r1,__LC_CPU_TIMER_SAVE_AREA
+	stpt	0(%r1)
 	/* Saved prefix register */
+	lghi	%r1,__LC_PREFIX_SAVE_AREA
 	larl	%r2,dump_prefix_page
-	mvc	__LC_PREFIX_SAVE_AREA-SAVE_AREA_BASE(4,%r1),0(%r2)
+	mvc	0(4,%r1),0(%r2)
 	/* Clock comparator - seven bytes */
+	lghi	%r1,__LC_CLOCK_COMP_SAVE_AREA
 	larl	%r2,.Lclkcmp
 	stckc	0(%r2)
-	mvc	__LC_CLOCK_COMP_SAVE_AREA-SAVE_AREA_BASE + 1(7,%r1),1(%r2)
+	mvc	1(7,%r1),1(%r2)
 	/* Program status word */
+	lghi	%r1,__LC_PSW_SAVE_AREA
 	epsw	%r2,%r3
-	st	%r2,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 0(%r1)
-	st	%r3,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 4(%r1)
+	st	%r2,0(%r1)
+	st	%r3,4(%r1)
 	larl	%r2,store_status
-	stg	%r2,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 8(%r1)
+	stg	%r2,8(%r1)
 	br	%r14
 
 	.section .bss

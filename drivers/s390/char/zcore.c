@@ -124,7 +124,7 @@ static int __init init_cpu_info(void)
 	sa_ext = dump_save_areas.areas[0];
 	if (!sa_ext)
 		return -ENOMEM;
-	if (memcpy_hsa_kernel(&sa_ext->sa, SAVE_AREA_BASE,
+	if (memcpy_hsa_kernel(&sa_ext->sa, __LC_FPREGS_SAVE_AREA,
 			      sizeof(struct save_area)) < 0) {
 		TRACE("could not copy from HSA\n");
 		return -EIO;
