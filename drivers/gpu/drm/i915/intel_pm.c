@@ -1135,7 +1135,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 		case DRM_PLANE_TYPE_CURSOR:
 			for (level = 0; level < wm_state->num_levels; level++)
 				wm_state->sr[level].cursor =
-					wm_state->sr[level].cursor;
+					wm_state->wm[level].cursor;
 			break;
 		case DRM_PLANE_TYPE_PRIMARY:
 			for (level = 0; level < wm_state->num_levels; level++)
