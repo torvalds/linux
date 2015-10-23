@@ -1071,25 +1071,6 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		list_for_each_entry(request, &ring->request_list, list) {
 			struct drm_i915_error_request *erq;
 
-			if (count >= error->ring[i].num_requests) {
-				/*
-				 * If the ring request list was changed in
-				 * between the point where the error request
-				 * list was created and dimensioned and this
-				 * point then just exit early to avoid crashes.
-				 *
-				 * We don't need to communicate that the
-				 * request list changed state during error
-				 * state capture and that the error state is
-				 * slightly incorrect as a consequence since we
-				 * are typically only interested in the request
-				 * list state at the point of error state
-				 * capture, not in any changes happening during
-				 * the capture.
-				 */
-				break;
-			}
-
 			erq = &error->ring[i].requests[count++];
 			erq->seqno = request->seqno;
 			erq->jiffies = request->emitted_jiffies;
