@@ -134,6 +134,12 @@ struct bcm_sf2_priv {
 
 	/* Mask of ports enabled for Wake-on-LAN */
 	u32				wol_ports_mask;
+
+	/* MoCA port location */
+	int				moca_port;
+
+	/* Bitmask of ports having an integrated PHY */
+	unsigned int			int_phy_mask;
 };
 
 struct bcm_sf2_hw_stats {
