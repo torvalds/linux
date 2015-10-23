@@ -1127,7 +1127,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	struct sh_eth_txdesc *txdesc = NULL;
 	int rx_ringsize = sizeof(*rxdesc) * mdp->num_rx_ring;
 	int tx_ringsize = sizeof(*txdesc) * mdp->num_tx_ring;
-	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN - 1;
+	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN + 32 - 1;
 	dma_addr_t dma_addr;
 
 	mdp->cur_rx = 0;
@@ -1450,7 +1450,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	struct sk_buff *skb;
 	u16 pkt_len = 0;
 	u32 desc_status;
-	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN - 1;
+	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN + 32 - 1;
 	dma_addr_t dma_addr;
 
 	boguscnt = min(boguscnt, *quota);
