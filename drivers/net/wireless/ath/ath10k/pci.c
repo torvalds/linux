@@ -920,16 +920,6 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 			}
 		}
 
-		if (nbytes != completed_nbytes) {
-			ret = -EIO;
-			goto done;
-		}
-
-		if (buf != (u32)address) {
-			ret = -EIO;
-			goto done;
-		}
-
 		i = 0;
 		while (ath10k_ce_completed_recv_next_nolock(ce_diag, NULL, &buf,
 							    &completed_nbytes,
@@ -1092,16 +1082,6 @@ static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 				ret = -EBUSY;
 				goto done;
 			}
-		}
-
-		if (nbytes != completed_nbytes) {
-			ret = -EIO;
-			goto done;
-		}
-
-		if (buf != ce_data) {
-			ret = -EIO;
-			goto done;
 		}
 
 		i = 0;
