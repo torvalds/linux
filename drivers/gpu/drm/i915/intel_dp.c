@@ -1189,8 +1189,11 @@ intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 	return (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
 }
 
-bool intel_dp_source_supports_hbr2(struct drm_device *dev)
+bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
 {
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+
 	/* WaDisableHBR2:skl */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_B0))
 		return false;
@@ -1203,8 +1206,10 @@ bool intel_dp_source_supports_hbr2(struct drm_device *dev)
 }
 
 static int
-intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
+intel_dp_source_rates(struct intel_dp *intel_dp, const int **source_rates)
 {
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
 	int size;
 
 	if (IS_BROXTON(dev)) {
@@ -1219,7 +1224,7 @@ intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 	}
 
 	/* This depends on the fact that 5.4 is last value in the array */
-	if (!intel_dp_source_supports_hbr2(dev))
+	if (!intel_dp_source_supports_hbr2(intel_dp))
 		size--;
 
 	return size;
@@ -1284,12 +1289,11 @@ static int intersect_rates(const int *source_rates, int source_len,
 static int intel_dp_common_rates(struct intel_dp *intel_dp,
 				 int *common_rates)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	const int *source_rates, *sink_rates;
 	int source_len, sink_len;
 
 	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
-	source_len = intel_dp_source_rates(dev, &source_rates);
+	source_len = intel_dp_source_rates(intel_dp, &source_rates);
 
 	return intersect_rates(source_rates, source_len,
 			       sink_rates, sink_len,
@@ -1314,7 +1318,6 @@ static void snprintf_int_array(char *str, size_t len,
 
 static void intel_dp_print_rates(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	const int *source_rates, *sink_rates;
 	int source_len, sink_len, common_len;
 	int common_rates[DP_MAX_SUPPORTED_RATES];
@@ -1323,7 +1326,7 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 	if ((drm_debug & DRM_UT_KMS) == 0)
 		return;
 
-	source_len = intel_dp_source_rates(dev, &source_rates);
+	source_len = intel_dp_source_rates(intel_dp, &source_rates);
 	snprintf_int_array(str, sizeof(str), source_rates, source_len);
 	DRM_DEBUG_KMS("source rates: %s\n", str);
 
@@ -3711,7 +3714,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	}
 
 	DRM_DEBUG_KMS("Display Port TPS3 support: source %s, sink %s\n",
-		      yesno(intel_dp_source_supports_hbr2(dev)),
+		      yesno(intel_dp_source_supports_hbr2(intel_dp)),
 		      yesno(drm_dp_tps3_supported(intel_dp->dpcd)));
 
 	/* Intermediate frequency support */

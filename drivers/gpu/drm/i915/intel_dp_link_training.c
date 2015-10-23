@@ -218,8 +218,6 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 static void
 intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = dig_port->base.base.dev;
 	bool channel_eq = false;
 	int tries, cr_tries;
 	uint32_t training_pattern = DP_TRAINING_PATTERN_2;
@@ -233,7 +231,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 	 * Due to WaDisableHBR2 SKL < B0 is the only exception where TPS3 is
 	 * supported but still not enabled.
 	 */
-	if (intel_dp_source_supports_hbr2(dev) &&
+	if (intel_dp_source_supports_hbr2(intel_dp) &&
 	    drm_dp_tps3_supported(intel_dp->dpcd))
 		training_pattern = DP_TRAINING_PATTERN_3;
 	else if (intel_dp->link_rate == 540000)
