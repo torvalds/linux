@@ -774,6 +774,31 @@ void bnxt_hwrm_exec_fwd_req(struct bnxt *bp)
 		i = vf_id + 1;
 	}
 }
+
+void bnxt_update_vf_mac(struct bnxt *bp)
+{
+	struct hwrm_func_qcaps_input req = {0};
+	struct hwrm_func_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCAPS, -1, -1);
+	req.fid = cpu_to_le16(0xffff);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	if (_hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT))
+		goto update_vf_mac_exit;
+
+	if (!is_valid_ether_addr(resp->perm_mac_address))
+		goto update_vf_mac_exit;
+
+	if (ether_addr_equal(resp->perm_mac_address, bp->vf.mac_addr))
+		goto update_vf_mac_exit;
+
+	memcpy(bp->vf.mac_addr, resp->perm_mac_address, ETH_ALEN);
+	memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
+update_vf_mac_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+}
+
 #else
 
 void bnxt_sriov_disable(struct bnxt *bp)
@@ -782,6 +807,10 @@ void bnxt_sriov_disable(struct bnxt *bp)
 
 void bnxt_hwrm_exec_fwd_req(struct bnxt *bp)
 {
-	netdev_err(dev, "Invalid VF message received when SRIOV is not enable\n");
+	netdev_err(bp->dev, "Invalid VF message received when SRIOV is not enable\n");
+}
+
+void bnxt_update_vf_mac(struct bnxt *bp)
+{
 }
 #endif

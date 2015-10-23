@@ -19,4 +19,5 @@ int bnxt_set_vf_spoofchk(struct net_device *, int, bool);
 int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs);
 void bnxt_sriov_disable(struct bnxt *);
 void bnxt_hwrm_exec_fwd_req(struct bnxt *);
+void bnxt_update_vf_mac(struct bnxt *);
 #endif

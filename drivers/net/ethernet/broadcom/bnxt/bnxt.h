@@ -709,6 +709,7 @@ struct bnxt_vf_info {
 	void	*hwrm_cmd_req_addr;
 	dma_addr_t	hwrm_cmd_req_dma_addr;
 };
+#endif
 
 struct bnxt_pf_info {
 #define BNXT_FIRST_PF_FID	1
@@ -741,7 +742,6 @@ struct bnxt_pf_info {
 	dma_addr_t		hwrm_cmd_req_dma_addr[4];
 	struct bnxt_vf_info	*vf;
 };
-#endif
 
 struct bnxt_ntuple_filter {
 	struct hlist_node	hash;
@@ -960,9 +960,9 @@ struct bnxt {
 #define BNXT_RESET_TASK_SP_EVENT	32
 #define BNXT_RST_RING_SP_EVENT		64
 
+	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
 	int			nr_vfs;
-	struct bnxt_pf_info	pf;
 	struct bnxt_vf_info	vf;
 	wait_queue_head_t	sriov_cfg_wait;
 	bool			sriov_cfg;

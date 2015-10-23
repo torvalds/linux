@@ -3645,6 +3645,7 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		pf->max_rx_em_flows = le32_to_cpu(resp->max_rx_em_flows);
 		pf->max_rx_wm_flows = le32_to_cpu(resp->max_rx_wm_flows);
 	} else {
+#ifdef CONFIG_BNXT_SRIOV
 		struct bnxt_vf_info *vf = &bp->vf;
 
 		vf->fw_fid = le16_to_cpu(resp->fid);
@@ -3659,6 +3660,7 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		vf->max_l2_ctxs = le16_to_cpu(resp->max_l2_ctxs);
 		vf->max_vnics = le16_to_cpu(resp->max_vnics);
 		vf->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
+#endif
 	}
 
 	bp->tx_push_thresh = 0;
@@ -3878,30 +3880,6 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 #else
 	return 0;
 #endif
-}
-
-static void bnxt_update_vf_mac(struct bnxt *bp)
-{
-	struct hwrm_func_qcaps_input req = {0};
-	struct hwrm_func_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
-
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCAPS, -1, -1);
-	req.fid = cpu_to_le16(0xffff);
-
-	mutex_lock(&bp->hwrm_cmd_lock);
-	if (_hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT))
-		goto update_vf_mac_exit;
-
-	if (!is_valid_ether_addr(resp->perm_mac_address))
-		goto update_vf_mac_exit;
-
-	if (ether_addr_equal(resp->perm_mac_address, bp->vf.mac_addr))
-		goto update_vf_mac_exit;
-
-	memcpy(bp->vf.mac_addr, resp->perm_mac_address, ETH_ALEN);
-	memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
-update_vf_mac_exit:
-	mutex_unlock(&bp->hwrm_cmd_lock);
 }
 
 static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
@@ -5581,7 +5559,7 @@ static int bnxt_get_max_irq(struct pci_dev *pdev)
 
 void bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx)
 {
-	int max_rings;
+	int max_rings = 0;
 
 	if (BNXT_PF(bp)) {
 		*max_tx = bp->pf.max_pf_tx_rings;
@@ -5589,10 +5567,12 @@ void bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx)
 		max_rings = min_t(int, bp->pf.max_irqs, bp->pf.max_cp_rings);
 		max_rings = min_t(int, max_rings, bp->pf.max_stat_ctxs);
 	} else {
+#ifdef CONFIG_BNXT_SRIOV
 		*max_tx = bp->vf.max_tx_rings;
 		*max_rx = bp->vf.max_rx_rings;
 		max_rings = min_t(int, bp->vf.max_irqs, bp->vf.max_cp_rings);
 		max_rings = min_t(int, max_rings, bp->vf.max_stat_ctxs);
+#endif
 	}
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		*max_rx >>= 1;
@@ -5696,8 +5676,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		memcpy(dev->dev_addr, bp->pf.mac_addr, ETH_ALEN);
 		bp->pf.max_irqs = max_irqs;
 	} else {
+#if defined(CONFIG_BNXT_SRIOV)
 		memcpy(dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
 		bp->vf.max_irqs = max_irqs;
+#endif
 	}
 	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings);
 	bp->rx_nr_rings = min_t(int, dflt_rings, max_rx_rings);
