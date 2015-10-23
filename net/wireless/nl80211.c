@@ -3968,10 +3968,13 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 				  struct station_parameters *params,
 				  enum cfg80211_station_type statype)
 {
-	if (params->listen_interval != -1)
+	if (params->listen_interval != -1 &&
+	    statype != CFG80211_STA_AP_CLIENT_UNASSOC)
 		return -EINVAL;
+
 	if (params->aid &&
-	    !(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)))
+	    !(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
+	    statype != CFG80211_STA_AP_CLIENT_UNASSOC)
 		return -EINVAL;
 
 	/* When you run into this, adjust the code below for the new flag */
@@ -4245,13 +4248,22 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 
 	memset(&params, 0, sizeof(params));
 
-	params.listen_interval = -1;
-
 	if (!rdev->ops->change_station)
 		return -EOPNOTSUPP;
 
-	if (info->attrs[NL80211_ATTR_STA_AID])
-		return -EINVAL;
+	/*
+	 * AID and listen_interval properties can be set only for unassociated
+	 * station. Include these parameters here and will check them in
+	 * cfg80211_check_station_change().
+	 */
+	if (info->attrs[NL80211_ATTR_PEER_AID])
+		params.aid = nla_get_u16(info->attrs[NL80211_ATTR_PEER_AID]);
+
+	if (info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL])
+		params.listen_interval =
+		     nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
+	else
+		params.listen_interval = -1;
 
 	if (!info->attrs[NL80211_ATTR_MAC])
 		return -EINVAL;
@@ -4277,9 +4289,6 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		params.ext_capab_len =
 			nla_len(info->attrs[NL80211_ATTR_STA_EXT_CAPABILITY]);
 	}
-
-	if (info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL])
-		return -EINVAL;
 
 	if (parse_station_flags(info, dev->ieee80211_ptr->iftype, &params))
 		return -EINVAL;
