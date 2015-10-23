@@ -257,11 +257,11 @@ static int error_count_show(struct device *dev,
 	return sprintf(buf, "%d\n", mali_group_error);
 }
 
-DEVICE_ATTR(available_frequencies, S_IRUGO, show_available_frequencies, NULL);
-DEVICE_ATTR(clock, S_IRUGO | S_IWUSR, show_clock, set_clock);
-DEVICE_ATTR(dvfs_enable, S_IRUGO | S_IWUSR, show_dvfs_enable, set_dvfs_enable);
-DEVICE_ATTR(utilisation, S_IRUGO, show_utilisation, NULL);
-DEVICE_ATTR(error_count, 0644, error_count_show, NULL);
+static DEVICE_ATTR(available_frequencies, S_IRUGO, show_available_frequencies, NULL);
+static DEVICE_ATTR(clock, S_IRUGO | S_IWUSR, show_clock, set_clock);
+static DEVICE_ATTR(dvfs_enable, S_IRUGO | S_IWUSR, show_dvfs_enable, set_dvfs_enable);
+static DEVICE_ATTR(utilisation, S_IRUGO, show_utilisation, NULL);
+static DEVICE_ATTR(error_count, 0644, error_count_show, NULL);
 
 static struct attribute *mali_sysfs_entries[] = {
 	&dev_attr_available_frequencies.attr,
