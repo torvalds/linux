@@ -1,6 +1,7 @@
 synopsys DWC3 CORE
 
-DWC3- USB3 CONTROLLER
+DWC3- USB3 CONTROLLER. Complies to the generic USB binding properties
+      as described in 'usb/generic.txt'
 
 Required properties:
  - compatible: must be "snps,dwc3"
