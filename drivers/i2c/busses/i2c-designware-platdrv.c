@@ -73,7 +73,6 @@ static void dw_i2c_acpi_params(struct platform_device *pdev, char method[],
 static int dw_i2c_acpi_configure(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
-	const struct acpi_device_id *id;
 
 	dev->adapter.nr = -1;
 	dev->tx_fifo_depth = 32;
@@ -87,27 +86,7 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 	dw_i2c_acpi_params(pdev, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt,
 			   &dev->sda_hold_time);
 
-	/*
-	 * Provide a way for Designware I2C host controllers that are not
-	 * based on Intel LPSS to specify their input clock frequency via
-	 * id->driver_data.
-	 */
-	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
-	if (id && id->driver_data)
-		clk_register_fixed_rate(&pdev->dev, dev_name(&pdev->dev), NULL,
-					CLK_IS_ROOT, id->driver_data);
-
 	return 0;
-}
-
-static void dw_i2c_acpi_unconfigure(struct platform_device *pdev)
-{
-	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
-	if (id && id->driver_data)
-		clk_unregister(dev->clk);
 }
 
 static const struct acpi_device_id dw_i2c_acpi_match[] = {
@@ -117,7 +96,7 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT3433", 0 },
 	{ "80860F41", 0 },
 	{ "808622C1", 0 },
-	{ "AMD0010", 133 * 1000 * 1000 },
+	{ "AMD0010", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_i2c_acpi_match);
@@ -126,7 +105,6 @@ static inline int dw_i2c_acpi_configure(struct platform_device *pdev)
 {
 	return -ENODEV;
 }
-static inline void dw_i2c_acpi_unconfigure(struct platform_device *pdev) { }
 #endif
 
 static int dw_i2c_plat_probe(struct platform_device *pdev)
@@ -260,9 +238,6 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	if (has_acpi_companion(&pdev->dev))
-		dw_i2c_acpi_unconfigure(pdev);
 
 	return 0;
 }
