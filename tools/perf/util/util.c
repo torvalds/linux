@@ -19,7 +19,7 @@
 struct callchain_param	callchain_param = {
 	.mode	= CHAIN_GRAPH_ABS,
 	.min_percent = 0.5,
-	.order  = ORDER_CALLER,
+	.order  = ORDER_CALLEE,
 	.key	= CCKEY_FUNCTION
 };
 

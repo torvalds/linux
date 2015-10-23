@@ -625,6 +625,12 @@ parse_percent_limit(const struct option *opt, const char *str,
 	return 0;
 }
 
+#define CALLCHAIN_DEFAULT_OPT  "graph,0.5,caller,function"
+
+const char report_callchain_help[] = "Display call graph (stack chain/backtrace):\n\n"
+				     CALLCHAIN_REPORT_HELP
+				     "\n\t\t\t\tDefault: " CALLCHAIN_DEFAULT_OPT;
+
 int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_session *session;
@@ -633,7 +639,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	bool has_br_stack = false;
 	int branch_mode = -1;
 	bool branch_call_mode = false;
-	char callchain_default_opt[] = "graph,0.5,caller";
+	char callchain_default_opt[] = CALLCHAIN_DEFAULT_OPT;
 	const char * const report_usage[] = {
 		"perf report [<options>]",
 		NULL
@@ -699,9 +705,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", &report, "output_type,min_percent[,print_limit],call_order[,branch]",
-		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold, optional print limit, callchain order, key (function or address), add branches. "
-		     "Default: graph,0.5,caller", &report_parse_callchain_opt, callchain_default_opt),
+	OPT_CALLBACK_DEFAULT('g', "call-graph", &report,
+			     "print_type,threshold[,print_limit],order,sort_key[,branch]",
+			     report_callchain_help, &report_parse_callchain_opt,
+			     callchain_default_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
 		    "Accumulate callchains of children and show total overhead as well"),
 	OPT_INTEGER(0, "max-stack", &report.max_stack,
@@ -807,6 +814,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		use_browser = 2;
 
 	if (report.inverted_callchain)
+		callchain_param.order = ORDER_CALLER;
+	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
 		callchain_param.order = ORDER_CALLER;
 
 	if (itrace_synth_opts.callchain &&

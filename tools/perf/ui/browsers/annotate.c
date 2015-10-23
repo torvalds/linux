@@ -1125,8 +1125,8 @@ static struct annotate_config {
 	ANNOTATE_CFG(jump_arrows),
 	ANNOTATE_CFG(show_linenr),
 	ANNOTATE_CFG(show_nr_jumps),
-	ANNOTATE_CFG(use_offset),
 	ANNOTATE_CFG(show_total_period),
+	ANNOTATE_CFG(use_offset),
 };
 
 #undef ANNOTATE_CFG
@@ -1152,9 +1152,9 @@ static int annotate__config(const char *var, const char *value,
 		      sizeof(struct annotate_config), annotate_config__cmp);
 
 	if (cfg == NULL)
-		return -1;
-
-	*cfg->value = perf_config_bool(name, value);
+		ui__warning("%s variable unknown, ignoring...", var);
+	else
+		*cfg->value = perf_config_bool(name, value);
 	return 0;
 }
 
