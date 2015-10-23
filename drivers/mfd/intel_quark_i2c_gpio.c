@@ -31,6 +31,10 @@
 #define MFD_I2C_BAR		0
 #define MFD_GPIO_BAR		1
 
+/* ACPI _ADR value to match the child node */
+#define MFD_ACPI_MATCH_GPIO	0ULL
+#define MFD_ACPI_MATCH_I2C	1ULL
+
 /* The base GPIO number under GPIOLIB framework */
 #define INTEL_QUARK_MFD_GPIO_BASE	8
 
@@ -82,16 +86,25 @@ static struct resource intel_quark_i2c_res[] = {
 	},
 };
 
+static struct mfd_cell_acpi_match intel_quark_acpi_match_i2c = {
+	.adr = MFD_ACPI_MATCH_I2C,
+};
+
 static struct resource intel_quark_gpio_res[] = {
 	[INTEL_QUARK_IORES_MEM] = {
 		.flags = IORESOURCE_MEM,
 	},
 };
 
+static struct mfd_cell_acpi_match intel_quark_acpi_match_gpio = {
+	.adr = MFD_ACPI_MATCH_GPIO,
+};
+
 static struct mfd_cell intel_quark_mfd_cells[] = {
 	{
 		.id = MFD_GPIO_BAR,
 		.name = "gpio-dwapb",
+		.acpi_match = &intel_quark_acpi_match_gpio,
 		.num_resources = ARRAY_SIZE(intel_quark_gpio_res),
 		.resources = intel_quark_gpio_res,
 		.ignore_resource_conflicts = true,
@@ -99,6 +112,7 @@ static struct mfd_cell intel_quark_mfd_cells[] = {
 	{
 		.id = MFD_I2C_BAR,
 		.name = "i2c_designware",
+		.acpi_match = &intel_quark_acpi_match_i2c,
 		.num_resources = ARRAY_SIZE(intel_quark_i2c_res),
 		.resources = intel_quark_i2c_res,
 		.ignore_resource_conflicts = true,
