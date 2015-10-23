@@ -341,12 +341,43 @@ static int dw_i2s_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int dw_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
+{
+	struct dw_i2s_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
+	int ret = 0;
+
+	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBM_CFM:
+		if (dev->capability & DW_I2S_SLAVE)
+			ret = 0;
+		else
+			ret = -EINVAL;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		if (dev->capability & DW_I2S_MASTER)
+			ret = 0;
+		else
+			ret = -EINVAL;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBS_CFM:
+		ret = -EINVAL;
+		break;
+	default:
+		dev_dbg(dev->dev, "dwc : Invalid master/slave format\n");
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
 static struct snd_soc_dai_ops dw_i2s_dai_ops = {
 	.startup	= dw_i2s_startup,
 	.shutdown	= dw_i2s_shutdown,
 	.hw_params	= dw_i2s_hw_params,
 	.prepare	= dw_i2s_prepare,
 	.trigger	= dw_i2s_trigger,
+	.set_fmt	= dw_i2s_set_fmt,
 };
 
 static const struct snd_soc_component_driver dw_i2s_component = {
