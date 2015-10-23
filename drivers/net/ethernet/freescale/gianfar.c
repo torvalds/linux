@@ -3462,10 +3462,8 @@ static irqreturn_t gfar_error(int irq, void *grp_id)
 		netif_dbg(priv, tx_err, dev, "Transmit Error\n");
 	}
 	if (events & IEVENT_BSY) {
-		dev->stats.rx_errors++;
+		dev->stats.rx_over_errors++;
 		atomic64_inc(&priv->extra_stats.rx_bsy);
-
-		gfar_receive(irq, grp_id);
 
 		netif_dbg(priv, rx_err, dev, "busy error (rstat: %x)\n",
 			  gfar_read(&regs->rstat));
