@@ -1075,4 +1075,35 @@
                         hisilicon,consumer-supplies = "mcamera_core";
                 };
 	};
+
+	fixed_5v_hub: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed_5v_hub";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		gpio = <&gpio0 7 0>;
+		regulator-always-on;
+	};
+
+	usb2_phy: usbphy {
+		compatible = "hisilicon,hi6220-usb-phy";
+		vcc-supply = <&fixed_5v_hub>;
+		hisilicon,gpio-vbus = <&gpio2 6 0>;
+		hisilicon,gpio-id = <&gpio2 5 0>;
+		hisilicon,peripheral-syscon = <&sys_ctrl>;
+		clocks = <&sys_ctrl HI6220_USBOTG_HCLK>;
+	};
+
+	usb: usb@f72c0000 {
+		compatible = "hisilicon,hi6220-usb";
+		reg = <0x0 0xf72c0000 0x0 0x40000>;
+		phys = <&usb2_phy>;
+		dr_mode = "otg";
+		g-use-dma;
+		g-rx-fifo-size = <512>;
+		g-np-tx-fifo-size = <128>;
+		g-tx-fifo-size = <128>;
+		interrupts = <0 77 0x4>;
+	};
 };
