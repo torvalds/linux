@@ -254,7 +254,7 @@ subsys_initcall(efisubsys_init);
 int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
 	struct efi_memory_map *map = efi.memmap;
-	void *p, *e;
+	phys_addr_t p, e;
 
 	if (!efi_enabled(EFI_MEMMAP)) {
 		pr_err_once("EFI_MEMMAP is not enabled.\n");
@@ -286,10 +286,10 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 		 * So just always get our own virtual map on the CPU.
 		 *
 		 */
-		md = early_memremap((phys_addr_t)p, sizeof (*md));
+		md = early_memremap(p, sizeof (*md));
 		if (!md) {
-			pr_err_once("early_memremap(%p, %zu) failed.\n",
-				    p, sizeof (*md));
+			pr_err_once("early_memremap(%pa, %zu) failed.\n",
+				    &p, sizeof (*md));
 			return -ENOMEM;
 		}
 
