@@ -2757,20 +2757,13 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 
 	if (i915.enable_execlists) {
 		spin_lock_irq(&ring->execlist_lock);
-		while (!list_empty(&ring->execlist_queue)) {
-			struct drm_i915_gem_request *submit_req;
 
-			submit_req = list_first_entry(&ring->execlist_queue,
-					struct drm_i915_gem_request,
-					execlist_link);
-			list_del(&submit_req->execlist_link);
+		/* list_splice_tail_init checks for empty lists */
+		list_splice_tail_init(&ring->execlist_queue,
+				      &ring->execlist_retired_req_list);
 
-			if (submit_req->ctx != ring->default_context)
-				intel_lr_context_unpin(submit_req);
-
-			i915_gem_request_unreference(submit_req);
-		}
 		spin_unlock_irq(&ring->execlist_lock);
+		intel_execlists_retire_requests(ring);
 	}
 
 	/*
