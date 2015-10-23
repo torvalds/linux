@@ -934,13 +934,18 @@ static int __init parse_ioapics_under_ir(void)
 	bool ir_supported = false;
 	int ioapic_idx;
 
-	for_each_iommu(iommu, drhd)
-		if (ecap_ir_support(iommu->ecap)) {
-			if (ir_parse_ioapic_hpet_scope(drhd->hdr, iommu))
-				return -1;
+	for_each_iommu(iommu, drhd) {
+		int ret;
 
-			ir_supported = true;
-		}
+		if (!ecap_ir_support(iommu->ecap))
+			continue;
+
+		ret = ir_parse_ioapic_hpet_scope(drhd->hdr, iommu);
+		if (ret)
+			return ret;
+
+		ir_supported = true;
+	}
 
 	if (!ir_supported)
 		return -ENODEV;
