@@ -4105,17 +4105,13 @@ static void seg_setup(int seg)
 static int alloc_apic_access_page(struct kvm *kvm)
 {
 	struct page *page;
-	struct kvm_userspace_memory_region kvm_userspace_mem;
 	int r = 0;
 
 	mutex_lock(&kvm->slots_lock);
 	if (kvm->arch.apic_access_page_done)
 		goto out;
-	kvm_userspace_mem.slot = APIC_ACCESS_PAGE_PRIVATE_MEMSLOT;
-	kvm_userspace_mem.flags = 0;
-	kvm_userspace_mem.guest_phys_addr = APIC_DEFAULT_PHYS_BASE;
-	kvm_userspace_mem.memory_size = PAGE_SIZE;
-	r = __x86_set_memory_region(kvm, &kvm_userspace_mem);
+	r = __x86_set_memory_region(kvm, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
+				    APIC_DEFAULT_PHYS_BASE, PAGE_SIZE);
 	if (r)
 		goto out;
 
@@ -4140,17 +4136,12 @@ static int alloc_identity_pagetable(struct kvm *kvm)
 {
 	/* Called with kvm->slots_lock held. */
 
-	struct kvm_userspace_memory_region kvm_userspace_mem;
 	int r = 0;
 
 	BUG_ON(kvm->arch.ept_identity_pagetable_done);
 
-	kvm_userspace_mem.slot = IDENTITY_PAGETABLE_PRIVATE_MEMSLOT;
-	kvm_userspace_mem.flags = 0;
-	kvm_userspace_mem.guest_phys_addr =
-		kvm->arch.ept_identity_map_addr;
-	kvm_userspace_mem.memory_size = PAGE_SIZE;
-	r = __x86_set_memory_region(kvm, &kvm_userspace_mem);
+	r = __x86_set_memory_region(kvm, IDENTITY_PAGETABLE_PRIVATE_MEMSLOT,
+				    kvm->arch.ept_identity_map_addr, PAGE_SIZE);
 
 	return r;
 }
@@ -4949,14 +4940,9 @@ static int vmx_interrupt_allowed(struct kvm_vcpu *vcpu)
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
 {
 	int ret;
-	struct kvm_userspace_memory_region tss_mem = {
-		.slot = TSS_PRIVATE_MEMSLOT,
-		.guest_phys_addr = addr,
-		.memory_size = PAGE_SIZE * 3,
-		.flags = 0,
-	};
 
-	ret = x86_set_memory_region(kvm, &tss_mem);
+	ret = x86_set_memory_region(kvm, TSS_PRIVATE_MEMSLOT, addr,
+				    PAGE_SIZE * 3);
 	if (ret)
 		return ret;
 	kvm->arch.tss_addr = addr;

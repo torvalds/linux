@@ -3132,12 +3132,12 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 					     get_extent_t *get_extent,
 					     struct extent_map **em_cached,
 					     struct bio **bio, int mirror_num,
-					     unsigned long *bio_flags, int rw)
+					     unsigned long *bio_flags, int rw,
+					     u64 *prev_em_start)
 {
 	struct inode *inode;
 	struct btrfs_ordered_extent *ordered;
 	int index;
-	u64 prev_em_start = (u64)-1;
 
 	inode = pages[0]->mapping->host;
 	while (1) {
@@ -3153,7 +3153,7 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 
 	for (index = 0; index < nr_pages; index++) {
 		__do_readpage(tree, pages[index], get_extent, em_cached, bio,
-			      mirror_num, bio_flags, rw, &prev_em_start);
+			      mirror_num, bio_flags, rw, prev_em_start);
 		page_cache_release(pages[index]);
 	}
 }
@@ -3163,7 +3163,8 @@ static void __extent_readpages(struct extent_io_tree *tree,
 			       int nr_pages, get_extent_t *get_extent,
 			       struct extent_map **em_cached,
 			       struct bio **bio, int mirror_num,
-			       unsigned long *bio_flags, int rw)
+			       unsigned long *bio_flags, int rw,
+			       u64 *prev_em_start)
 {
 	u64 start = 0;
 	u64 end = 0;
@@ -3184,7 +3185,7 @@ static void __extent_readpages(struct extent_io_tree *tree,
 						  index - first_index, start,
 						  end, get_extent, em_cached,
 						  bio, mirror_num, bio_flags,
-						  rw);
+						  rw, prev_em_start);
 			start = page_start;
 			end = start + PAGE_CACHE_SIZE - 1;
 			first_index = index;
@@ -3195,7 +3196,8 @@ static void __extent_readpages(struct extent_io_tree *tree,
 		__do_contiguous_readpages(tree, &pages[first_index],
 					  index - first_index, start,
 					  end, get_extent, em_cached, bio,
-					  mirror_num, bio_flags, rw);
+					  mirror_num, bio_flags, rw,
+					  prev_em_start);
 }
 
 static int __extent_read_full_page(struct extent_io_tree *tree,
@@ -4207,6 +4209,7 @@ int extent_readpages(struct extent_io_tree *tree,
 	struct page *page;
 	struct extent_map *em_cached = NULL;
 	int nr = 0;
+	u64 prev_em_start = (u64)-1;
 
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
 		page = list_entry(pages->prev, struct page, lru);
@@ -4223,12 +4226,12 @@ int extent_readpages(struct extent_io_tree *tree,
 		if (nr < ARRAY_SIZE(pagepool))
 			continue;
 		__extent_readpages(tree, pagepool, nr, get_extent, &em_cached,
-				   &bio, 0, &bio_flags, READ);
+				   &bio, 0, &bio_flags, READ, &prev_em_start);
 		nr = 0;
 	}
 	if (nr)
 		__extent_readpages(tree, pagepool, nr, get_extent, &em_cached,
-				   &bio, 0, &bio_flags, READ);
+				   &bio, 0, &bio_flags, READ, &prev_em_start);
 
 	if (em_cached)
 		free_extent_map(em_cached);

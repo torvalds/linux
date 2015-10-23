@@ -1001,6 +1001,7 @@ static void end_clone_bio(struct bio *clone)
 	struct dm_rq_target_io *tio = info->tio;
 	struct bio *bio = info->orig;
 	unsigned int nr_bytes = info->orig->bi_iter.bi_size;
+	int error = clone->bi_error;
 
 	bio_put(clone);
 
@@ -1011,13 +1012,13 @@ static void end_clone_bio(struct bio *clone)
 		 * the remainder.
 		 */
 		return;
-	else if (bio->bi_error) {
+	else if (error) {
 		/*
 		 * Don't notice the error to the upper layer yet.
 		 * The error handling decision is made by the target driver,
 		 * when the request is completed.
 		 */
-		tio->error = bio->bi_error;
+		tio->error = error;
 		return;
 	}
 
@@ -2837,8 +2838,6 @@ static void __dm_destroy(struct mapped_device *md, bool wait)
 
 	might_sleep();
 
-	map = dm_get_live_table(md, &srcu_idx);
-
 	spin_lock(&_minor_lock);
 	idr_replace(&_minor_idr, MINOR_ALLOCED, MINOR(disk_devt(dm_disk(md))));
 	set_bit(DMF_FREEING, &md->flags);
@@ -2852,14 +2851,14 @@ static void __dm_destroy(struct mapped_device *md, bool wait)
 	 * do not race with internal suspend.
 	 */
 	mutex_lock(&md->suspend_lock);
+	map = dm_get_live_table(md, &srcu_idx);
 	if (!dm_suspended_md(md)) {
 		dm_table_presuspend_targets(map);
 		dm_table_postsuspend_targets(map);
 	}
-	mutex_unlock(&md->suspend_lock);
-
 	/* dm_put_live_table must be before msleep, otherwise deadlock is possible */
 	dm_put_live_table(md, srcu_idx);
+	mutex_unlock(&md->suspend_lock);
 
 	/*
 	 * Rare, but there may be I/O requests still going to complete,

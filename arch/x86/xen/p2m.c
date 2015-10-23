@@ -112,6 +112,15 @@ static unsigned long *p2m_identity;
 static pte_t *p2m_missing_pte;
 static pte_t *p2m_identity_pte;
 
+/*
+ * Hint at last populated PFN.
+ *
+ * Used to set HYPERVISOR_shared_info->arch.max_pfn so the toolstack
+ * can avoid scanning the whole P2M (which may be sized to account for
+ * hotplugged memory).
+ */
+static unsigned long xen_p2m_last_pfn;
+
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
 	BUG_ON(pfn >= MAX_P2M_PFN);
@@ -270,7 +279,7 @@ void xen_setup_mfn_list_list(void)
 	else
 		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
 			virt_to_mfn(p2m_top_mfn);
-	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
+	HYPERVISOR_shared_info->arch.max_pfn = xen_p2m_last_pfn;
 	HYPERVISOR_shared_info->arch.p2m_generation = 0;
 	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
 	HYPERVISOR_shared_info->arch.p2m_cr3 =
@@ -405,6 +414,8 @@ void __init xen_vmalloc_p2m_tree(void)
 {
 	static struct vm_struct vm;
 	unsigned long p2m_limit;
+
+	xen_p2m_last_pfn = xen_max_p2m_pfn;
 
 	p2m_limit = (phys_addr_t)P2M_LIMIT * 1024 * 1024 * 1024 / PAGE_SIZE;
 	vm.flags = VM_ALLOC;
@@ -606,6 +617,12 @@ static bool alloc_p2m(unsigned long pfn)
 
 		if (p2m)
 			free_p2m_page(p2m);
+	}
+
+	/* Expanded the p2m? */
+	if (pfn > xen_p2m_last_pfn) {
+		xen_p2m_last_pfn = pfn;
+		HYPERVISOR_shared_info->arch.max_pfn = xen_p2m_last_pfn;
 	}
 
 	return true;

@@ -1035,6 +1035,32 @@ static int cxl_read_vsec(struct cxl *adapter, struct pci_dev *dev)
 	return 0;
 }
 
+/*
+ * Workaround a PCIe Host Bridge defect on some cards, that can cause
+ * malformed Transaction Layer Packet (TLP) errors to be erroneously
+ * reported. Mask this error in the Uncorrectable Error Mask Register.
+ *
+ * The upper nibble of the PSL revision is used to distinguish between
+ * different cards. The affected ones have it set to 0.
+ */
+static void cxl_fixup_malformed_tlp(struct cxl *adapter, struct pci_dev *dev)
+{
+	int aer;
+	u32 data;
+
+	if (adapter->psl_rev & 0xf000)
+		return;
+	if (!(aer = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR)))
+		return;
+	pci_read_config_dword(dev, aer + PCI_ERR_UNCOR_MASK, &data);
+	if (data & PCI_ERR_UNC_MALF_TLP)
+		if (data & PCI_ERR_UNC_INTN)
+			return;
+	data |= PCI_ERR_UNC_MALF_TLP;
+	data |= PCI_ERR_UNC_INTN;
+	pci_write_config_dword(dev, aer + PCI_ERR_UNCOR_MASK, data);
+}
+
 static int cxl_vsec_looks_ok(struct cxl *adapter, struct pci_dev *dev)
 {
 	if (adapter->vsec_status & CXL_STATUS_SECOND_PORT)
@@ -1133,6 +1159,8 @@ static int cxl_configure_adapter(struct cxl *adapter, struct pci_dev *dev)
 
 	if ((rc = cxl_vsec_looks_ok(adapter, dev)))
 	        return rc;
+
+	cxl_fixup_malformed_tlp(adapter, dev);
 
 	if ((rc = setup_cxl_bars(dev)))
 		return rc;

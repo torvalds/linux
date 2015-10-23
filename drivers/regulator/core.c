@@ -1403,6 +1403,10 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 			return 0;
 		}
 
+		/* Did the lookup explicitly defer for us? */
+		if (ret == -EPROBE_DEFER)
+			return ret;
+
 		if (have_full_constraints()) {
 			r = dummy_regulator_rdev;
 		} else {

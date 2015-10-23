@@ -1207,8 +1207,10 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 
 out_unlock:
 	spin_unlock_irqrestore(&priv->lock, flags);
-	list_for_each_entry_safe(mcast, tmcast, &remove_list, list)
+	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
 		ipoib_mcast_leave(dev, mcast);
+		ipoib_mcast_free(mcast);
+	}
 }
 
 static void ipoib_reap_neigh(struct work_struct *work)
