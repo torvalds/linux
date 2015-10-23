@@ -242,10 +242,6 @@ static irqreturn_t isr_uh_routine(int irq, void *user_data)
 
 irqreturn_t isr_bh_routine(int irq, void *userdata)
 {
-	struct wilc *nic;
-
-	nic = (struct wilc *)userdata;
-
 	/*While mac is closing cacncel the handling of any interrupts received*/
 	if (g_linux_wlan->close) {
 		PRINT_ER("Driver is CLOSING: Can't handle BH interrupt\n");
