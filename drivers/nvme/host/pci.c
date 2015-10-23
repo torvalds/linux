@@ -1635,13 +1635,9 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 
 static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 {
-	struct nvme_dev *dev = to_nvme_dev(ns->ctrl);
 	struct nvme_user_io io;
 	struct nvme_command c;
 	unsigned length, meta_len;
-	int status, write;
-	dma_addr_t meta_dma = 0;
-	void *meta = NULL;
 	void __user *metadata;
 
 	if (copy_from_user(&io, uio, sizeof(io)))
@@ -1659,29 +1655,13 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	length = (io.nblocks + 1) << ns->lba_shift;
 	meta_len = (io.nblocks + 1) * ns->ms;
 	metadata = (void __user *)(uintptr_t)io.metadata;
-	write = io.opcode & 1;
 
 	if (ns->ext) {
 		length += meta_len;
 		meta_len = 0;
-	}
-	if (meta_len) {
-		if (((io.metadata & 3) || !io.metadata) && !ns->ext)
+	} else if (meta_len) {
+		if ((io.metadata & 3) || !io.metadata)
 			return -EINVAL;
-
-		meta = dma_alloc_coherent(dev->dev, meta_len,
-						&meta_dma, GFP_KERNEL);
-
-		if (!meta) {
-			status = -ENOMEM;
-			goto unmap;
-		}
-		if (write) {
-			if (copy_from_user(meta, metadata, meta_len)) {
-				status = -EFAULT;
-				goto unmap;
-			}
-		}
 	}
 
 	memset(&c, 0, sizeof(c));
@@ -1695,19 +1675,10 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.reftag = cpu_to_le32(io.reftag);
 	c.rw.apptag = cpu_to_le16(io.apptag);
 	c.rw.appmask = cpu_to_le16(io.appmask);
-	c.rw.metadata = cpu_to_le64(meta_dma);
 
-	status = nvme_submit_user_cmd(ns->queue, &c,
-			(void __user *)(uintptr_t)io.addr, length, NULL, 0);
- unmap:
-	if (meta) {
-		if (status == NVME_SC_SUCCESS && !write) {
-			if (copy_to_user(metadata, meta, meta_len))
-				status = -EFAULT;
-		}
-		dma_free_coherent(dev->dev, meta_len, meta, meta_dma);
-	}
-	return status;
+	return __nvme_submit_user_cmd(ns->queue, &c,
+			(void __user *)(uintptr_t)io.addr, length,
+			metadata, meta_len, io.slba, NULL, 0);
 }
 
 static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
