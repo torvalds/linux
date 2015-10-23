@@ -517,7 +517,8 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 	if (of_find_property(np, "nvidia,needs-ghost-filter", NULL))
 		kbc->use_ghost_filter = true;
 
-	if (of_find_property(np, "nvidia,wakeup-source", NULL))
+	if (of_property_read_bool(np, "wakeup-source") ||
+	    of_property_read_bool(np, "nvidia,wakeup-source")) /* legacy */
 		kbc->wakeup = true;
 
 	if (!of_get_property(np, "nvidia,kbc-row-pins", &proplen)) {
