@@ -425,6 +425,24 @@ unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
 }
 EXPORT_SYMBOL_GPL(comedi_bytes_per_scan);
 
+static unsigned int __comedi_nscans_left(struct comedi_subdevice *s,
+					 unsigned int nscans)
+{
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		unsigned int scans_left = 0;
+
+		if (async->scans_done < cmd->stop_arg)
+			scans_left = cmd->stop_arg - async->scans_done;
+
+		if (nscans > scans_left)
+			nscans = scans_left;
+	}
+	return nscans;
+}
+
 /**
  * comedi_nscans_left() - Return the number of scans left in the command
  * @s: COMEDI subdevice.
@@ -442,25 +460,12 @@ EXPORT_SYMBOL_GPL(comedi_bytes_per_scan);
 unsigned int comedi_nscans_left(struct comedi_subdevice *s,
 				unsigned int nscans)
 {
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-
 	if (nscans == 0) {
 		unsigned int nbytes = comedi_buf_read_n_available(s);
 
 		nscans = nbytes / comedi_bytes_per_scan(s);
 	}
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		unsigned int scans_left = 0;
-
-		if (async->scans_done < cmd->stop_arg)
-			scans_left = cmd->stop_arg - async->scans_done;
-
-		if (nscans > scans_left)
-			nscans = scans_left;
-	}
-	return nscans;
+	return __comedi_nscans_left(s, nscans);
 }
 EXPORT_SYMBOL_GPL(comedi_nscans_left);
 
@@ -479,9 +484,8 @@ unsigned int comedi_nsamples_left(struct comedi_subdevice *s,
 	struct comedi_cmd *cmd = &async->cmd;
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		/* +1 to force comedi_nscans_left() to return the scans left */
-		unsigned int nscans = (nsamples / cmd->scan_end_arg) + 1;
-		unsigned int scans_left = comedi_nscans_left(s, nscans);
+		unsigned int nscans = nsamples / cmd->scan_end_arg;
+		unsigned int scans_left = __comedi_nscans_left(s, nscans);
 		unsigned int scan_pos =
 		    comedi_bytes_to_samples(s, async->scan_progress);
 		unsigned long long samples_left = 0;
