@@ -304,7 +304,7 @@ static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,
 
 	par = info->par;
 	crtc = &par->crtc;
-	return crtc->proc_panDisplay(crtc, var, info);
+	return hw_sm750_pan_display(crtc, var, info);
 }
 
 static int lynxfb_ops_set_par(struct fb_info *info)
@@ -384,7 +384,7 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 		pr_err("pixel bpp format not satisfied\n.");
 		return ret;
 	}
-	ret = crtc->proc_setMode(crtc, var, fix);
+	ret = hw_sm750_crtc_setMode(crtc, var, fix);
 	if (!ret)
 		ret = output->proc_setMode(output, var, fix);
 	return ret;
@@ -581,7 +581,7 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 		return -ENOMEM;
 	}
 
-	return crtc->proc_checkMode(crtc, var);
+	return hw_sm750_crtc_checkMode(crtc, var);
 }
 
 static int lynxfb_ops_setcolreg(unsigned regno,
@@ -614,7 +614,7 @@ static int lynxfb_ops_setcolreg(unsigned regno,
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
-		ret = crtc->proc_setColReg(crtc, regno, red, green, blue);
+		ret = hw_sm750_setColReg(crtc, regno, red, green, blue);
 		goto exit;
 	}
 
@@ -669,10 +669,6 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	/* setup crtc and output member */
 	spec_share->hwCursor = g_hwcursor;
 
-	crtc->proc_setMode = hw_sm750_crtc_setMode;
-	crtc->proc_checkMode = hw_sm750_crtc_checkMode;
-	crtc->proc_setColReg = hw_sm750_setColReg;
-	crtc->proc_panDisplay = hw_sm750_pan_display;
 	crtc->line_pad = 16;
 	crtc->xpanstep = 8;
 	crtc->ypanstep = 1;

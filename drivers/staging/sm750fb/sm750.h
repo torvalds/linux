@@ -104,16 +104,6 @@ struct lynxfb_crtc {
 
 	void *priv;
 
-	int (*proc_setMode)(struct lynxfb_crtc*,
-						struct fb_var_screeninfo*,
-						struct fb_fix_screeninfo*);
-
-	int (*proc_checkMode)(struct lynxfb_crtc*, struct fb_var_screeninfo*);
-	int (*proc_setColReg)(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
-	/* pan display */
-	int (*proc_panDisplay)(struct lynxfb_crtc *,
-			       const struct fb_var_screeninfo *,
-			       const struct fb_info *);
 	/* cursor information */
 	struct lynx_cursor cursor;
 };
