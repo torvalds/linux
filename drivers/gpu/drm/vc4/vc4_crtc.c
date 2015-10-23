@@ -401,7 +401,8 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 		dlist_next++;
 
 		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
-			  (u32 *)vc4_crtc->dlist - (u32 *)vc4->hvs->dlist);
+			  (u32 __iomem *)vc4_crtc->dlist -
+			  (u32 __iomem *)vc4->hvs->dlist);
 
 		/* Make the next display list start after ours. */
 		vc4_crtc->dlist_size -= (dlist_next - vc4_crtc->dlist);
