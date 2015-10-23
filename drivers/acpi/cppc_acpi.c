@@ -524,7 +524,6 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	return 0;
 
 out_free:
-	cpc_ptr = per_cpu(cpc_desc_ptr, pr->id);
 	kfree(cpc_ptr);
 
 out_buf_free:
