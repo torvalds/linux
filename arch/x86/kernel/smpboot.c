@@ -509,7 +509,7 @@ void __inquire_remote_apic(int apicid)
  */
 #define UDELAY_10MS_DEFAULT 10000
 
-static unsigned int init_udelay = UDELAY_10MS_DEFAULT;
+static unsigned int init_udelay = INT_MAX;
 
 static int __init cpu_init_udelay(char *str)
 {
@@ -522,13 +522,16 @@ early_param("cpu_init_udelay", cpu_init_udelay);
 static void __init smp_quirk_init_udelay(void)
 {
 	/* if cmdline changed it from default, leave it alone */
-	if (init_udelay != UDELAY_10MS_DEFAULT)
+	if (init_udelay != INT_MAX)
 		return;
 
 	/* if modern processor, use no delay */
 	if (((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) && (boot_cpu_data.x86 == 6)) ||
 	    ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && (boot_cpu_data.x86 >= 0xF)))
 		init_udelay = 0;
+
+	/* else, use legacy delay */
+	init_udelay = UDELAY_10MS_DEFAULT;
 }
 
 /*
@@ -657,7 +660,9 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		/*
 		 * Give the other CPU some time to accept the IPI.
 		 */
-		if (init_udelay)
+		if (init_udelay == 0)
+			udelay(10);
+		else
 			udelay(300);
 
 		pr_debug("Startup point 1\n");
@@ -668,7 +673,9 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		/*
 		 * Give the other CPU some time to accept the IPI.
 		 */
-		if (init_udelay)
+		if (init_udelay == 0)
+			udelay(10);
+		else
 			udelay(200);
 
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
