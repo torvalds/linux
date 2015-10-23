@@ -910,9 +910,8 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 			goto done;
 
 		i = 0;
-		while (ath10k_ce_completed_send_next_nolock(ce_diag, NULL, &buf,
-							    &completed_nbytes,
-							    &id) != 0) {
+		while (ath10k_ce_completed_send_next_nolock(ce_diag,
+							    NULL) != 0) {
 			mdelay(1);
 			if (i++ > DIAG_ACCESS_CE_TIMEOUT_MS) {
 				ret = -EBUSY;
@@ -1073,9 +1072,8 @@ static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 			goto done;
 
 		i = 0;
-		while (ath10k_ce_completed_send_next_nolock(ce_diag, NULL, &buf,
-							    &completed_nbytes,
-							    &id) != 0) {
+		while (ath10k_ce_completed_send_next_nolock(ce_diag,
+							    NULL) != 0) {
 			mdelay(1);
 
 			if (i++ > DIAG_ACCESS_CE_TIMEOUT_MS) {
@@ -1139,13 +1137,9 @@ static void ath10k_pci_htc_tx_cb(struct ath10k_ce_pipe *ce_state)
 	struct ath10k *ar = ce_state->ar;
 	struct sk_buff_head list;
 	struct sk_buff *skb;
-	u32 ce_data;
-	unsigned int nbytes;
-	unsigned int transfer_id;
 
 	__skb_queue_head_init(&list);
-	while (ath10k_ce_completed_send_next(ce_state, (void **)&skb, &ce_data,
-					     &nbytes, &transfer_id) == 0) {
+	while (ath10k_ce_completed_send_next(ce_state, (void **)&skb) == 0) {
 		/* no need to call tx completion for NULL pointers */
 		if (skb == NULL)
 			continue;
@@ -1215,12 +1209,8 @@ static void ath10k_pci_htt_tx_cb(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct sk_buff *skb;
-	u32 ce_data;
-	unsigned int nbytes;
-	unsigned int transfer_id;
 
-	while (ath10k_ce_completed_send_next(ce_state, (void **)&skb, &ce_data,
-					     &nbytes, &transfer_id) == 0) {
+	while (ath10k_ce_completed_send_next(ce_state, (void **)&skb) == 0) {
 		/* no need to call tx completion for NULL pointers */
 		if (!skb)
 			continue;
@@ -1796,12 +1786,8 @@ err_dma:
 static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state)
 {
 	struct bmi_xfer *xfer;
-	u32 ce_data;
-	unsigned int nbytes;
-	unsigned int transfer_id;
 
-	if (ath10k_ce_completed_send_next(ce_state, (void **)&xfer, &ce_data,
-					  &nbytes, &transfer_id))
+	if (ath10k_ce_completed_send_next(ce_state, (void **)&xfer))
 		return;
 
 	xfer->tx_done = true;

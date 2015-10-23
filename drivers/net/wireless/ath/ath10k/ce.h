@@ -192,16 +192,10 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
  * Pops 1 completed send buffer from Source ring.
  */
 int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
-				  void **per_transfer_contextp,
-				  u32 *bufferp,
-				  unsigned int *nbytesp,
-				  unsigned int *transfer_idp);
+				  void **per_transfer_contextp);
 
 int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
-					 void **per_transfer_contextp,
-					 u32 *bufferp,
-					 unsigned int *nbytesp,
-					 unsigned int *transfer_idp);
+					 void **per_transfer_contextp);
 
 /*==================CE Engine Initialization=======================*/
 
