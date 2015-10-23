@@ -634,10 +634,10 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 
 	disk_super = dm_block_data(sblock);
 
+	disk_super->flags = cpu_to_le32(cmd->flags);
 	if (mutator)
 		update_flags(disk_super, mutator);
 
-	disk_super->flags = cpu_to_le32(cmd->flags);
 	disk_super->mapping_root = cpu_to_le64(cmd->root);
 	disk_super->hint_root = cpu_to_le64(cmd->hint_root);
 	disk_super->discard_root = cpu_to_le64(cmd->discard_root);
