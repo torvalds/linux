@@ -2759,6 +2759,10 @@ config STACKTRACE_SUPPORT
 	bool
 	default y
 
+config HAVE_LATENCYTOP_SUPPORT
+	bool
+	default y
+
 config PGTABLE_LEVELS
 	int
 	default 3 if 64BIT && !PAGE_SIZE_64KB
