@@ -395,6 +395,26 @@ static struct resource pxa_ir_resources[] = {
 		.end    = IRQ_ICP,
 		.flags  = IORESOURCE_IRQ,
 	},
+	[3] = {
+		.start  = 0x40800000,
+		.end	= 0x4080001b,
+		.flags  = IORESOURCE_MEM,
+	},
+	[4] = {
+		.start  = 0x40700000,
+		.end	= 0x40700023,
+		.flags  = IORESOURCE_MEM,
+	},
+	[5] = {
+		.start  = 17,
+		.end	= 17,
+		.flags  = IORESOURCE_DMA,
+	},
+	[6] = {
+		.start  = 18,
+		.end	= 18,
+		.flags  = IORESOURCE_DMA,
+	},
 };
 
 struct platform_device pxa_device_ficp = {

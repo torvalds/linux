@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
@@ -49,11 +50,14 @@
 #define GPIO19_GEN1_CAM_RST		19
 #define GPIO28_GEN2_CAM_RST		28
 
+static struct pwm_lookup ezx_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.0", 0, "pwm-backlight.0", NULL, 78700,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data ezx_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
-	.pwm_period_ns	= 78770,
 	.enable_gpio	= -1,
 };
 
@@ -817,6 +821,7 @@ static void __init a780_init(void)
 		platform_device_register(&a780_camera);
 	}
 
+	pwm_add_table(ezx_pwm_lookup, ARRAY_SIZE(ezx_pwm_lookup));
 	platform_add_devices(ARRAY_AND_SIZE(ezx_devices));
 	platform_add_devices(ARRAY_AND_SIZE(a780_devices));
 }
