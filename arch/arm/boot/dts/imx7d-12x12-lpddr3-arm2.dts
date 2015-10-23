@@ -564,6 +564,7 @@
 				MX7D_PAD_SD2_CD_B__GPIO5_IO9      0x59
 				MX7D_PAD_SD2_WP__GPIO5_IO10       0x59
 				MX7D_PAD_SD2_RESET_B__GPIO5_IO11  0x59
+				MX7D_PAD_GPIO1_IO13__GPIO1_IO13   0x59
 
                                 MX7D_PAD_ECSPI1_SCLK__GPIO4_IO16  0x59
                                 MX7D_PAD_ECSPI1_MOSI__GPIO4_IO17  0x59
@@ -573,6 +574,12 @@
 		pinctrl_hog_sd2_vselect: hoggrp_sd2vselect {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO12__SD2_VSELECT  0x59
+			>;
+		};
+
+		pinctrl_hog_headphone_det: hoggrp_headphone_det {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO12__GPIO1_IO12	  0x59
 			>;
 		};
 
@@ -670,9 +677,6 @@
 				MX7D_PAD_SAI1_RX_SYNC__SAI1_RX_SYNC     0x1f
 				MX7D_PAD_SAI1_RX_DATA__SAI1_RX_DATA0    0x1f
 				MX7D_PAD_SAI1_TX_DATA__SAI1_TX_DATA0    0
-
-				MX7D_PAD_GPIO1_IO12__GPIO1_IO12		0x59
-				MX7D_PAD_GPIO1_IO13__GPIO1_IO13		0x59
 			>;
 		};
 
