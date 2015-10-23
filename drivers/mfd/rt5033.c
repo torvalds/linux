@@ -47,6 +47,9 @@ static const struct mfd_cell rt5033_devs[] = {
 	}, {
 		.name = "rt5033-battery",
 		.of_compatible = "richtek,rt5033-battery",
+	}, {
+		.name = "rt5033-led",
+		.of_compatible = "richtek,rt5033-led",
 	},
 };
 
