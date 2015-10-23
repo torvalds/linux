@@ -1,6 +1,5 @@
 /*
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
+ * Copyright 2015 Boundary Devices, Inc.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,12 +38,12 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-
 /dts-v1/;
+
 #include "imx6dl.dtsi"
-#include "imx6qdl-sabrelite.dtsi"
+#include "imx6qdl-nit6xlite.dtsi"
 
 / {
-	model = "Freescale i.MX6 DualLite SABRE Lite Board";
-	compatible = "fsl,imx6dl-sabrelite", "fsl,imx6dl";
+	model = "Boundary Devices i.MX6 Solo Nitrogen6_Lite Board";
+	compatible = "boundary,imx6dl-nit6xlite", "fsl,imx6dl";
 };

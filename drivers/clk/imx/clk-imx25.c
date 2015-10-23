@@ -86,6 +86,16 @@ enum mx25_clks {
 
 static struct clk *clk[clk_max];
 
+static struct clk ** const uart_clks[] __initconst = {
+	&clk[uart_ipg_per],
+	&clk[uart1_ipg],
+	&clk[uart2_ipg],
+	&clk[uart3_ipg],
+	&clk[uart4_ipg],
+	&clk[uart5_ipg],
+	NULL
+};
+
 static int __init __mx25_clocks_init(unsigned long osc_rate,
 				     void __iomem *ccm_base)
 {
@@ -232,6 +242,8 @@ static int __init __mx25_clocks_init(unsigned long osc_rate,
 	 * is used on some imx25 board designs to clock the audio codec.
 	 */
 	clk_set_parent(clk[cko_sel], clk[ipg]);
+
+	imx_register_uart_clocks(uart_clks);
 
 	return 0;
 }
