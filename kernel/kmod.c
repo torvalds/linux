@@ -327,9 +327,13 @@ static void call_usermodehelper_exec_work(struct work_struct *work)
 		call_usermodehelper_exec_sync(sub_info);
 	} else {
 		pid_t pid;
-
+		/*
+		 * Use CLONE_PARENT to reparent it to kthreadd; we do not
+		 * want to pollute current->children, and we need a parent
+		 * that always ignores SIGCHLD to ensure auto-reaping.
+		 */
 		pid = kernel_thread(call_usermodehelper_exec_async, sub_info,
-				    SIGCHLD);
+				    CLONE_PARENT | SIGCHLD);
 		if (pid < 0) {
 			sub_info->retval = pid;
 			umh_complete(sub_info);

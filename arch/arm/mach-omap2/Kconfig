@@ -49,6 +49,7 @@ config SOC_OMAP5
 	select OMAP_INTERCONNECT
 	select OMAP_INTERCONNECT_BARRIER
 	select PM_OPP if PM
+	select ZONE_DMA if ARM_LPAE
 
 config SOC_AM33XX
 	bool "TI AM33XX"
@@ -78,6 +79,7 @@ config SOC_DRA7XX
 	select OMAP_INTERCONNECT
 	select OMAP_INTERCONNECT_BARRIER
 	select PM_OPP if PM
+	select ZONE_DMA if ARM_LPAE
 
 config ARCH_OMAP2PLUS
 	bool
