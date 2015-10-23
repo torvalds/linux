@@ -84,8 +84,8 @@ struct spinand_info {
 };
 
 struct spinand_state {
-	uint32_t	col;
-	uint32_t	row;
+	u32	col;
+	u32	row;
 	int		buf_ptr;
 	u8		*buf;
 };
