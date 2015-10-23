@@ -90,17 +90,17 @@ static struct resource intel_quark_gpio_res[] = {
 
 static struct mfd_cell intel_quark_mfd_cells[] = {
 	{
-		.id = MFD_I2C_BAR,
-		.name = "i2c_designware",
-		.num_resources = ARRAY_SIZE(intel_quark_i2c_res),
-		.resources = intel_quark_i2c_res,
-		.ignore_resource_conflicts = true,
-	},
-	{
 		.id = MFD_GPIO_BAR,
 		.name = "gpio-dwapb",
 		.num_resources = ARRAY_SIZE(intel_quark_gpio_res),
 		.resources = intel_quark_gpio_res,
+		.ignore_resource_conflicts = true,
+	},
+	{
+		.id = MFD_I2C_BAR,
+		.name = "i2c_designware",
+		.num_resources = ARRAY_SIZE(intel_quark_i2c_res),
+		.resources = intel_quark_i2c_res,
 		.ignore_resource_conflicts = true,
 	},
 };
@@ -248,12 +248,11 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 
 	dev_set_drvdata(&pdev->dev, quark_mfd);
 
-	ret = intel_quark_i2c_setup(pdev, &intel_quark_mfd_cells[MFD_I2C_BAR]);
+	ret = intel_quark_i2c_setup(pdev, &intel_quark_mfd_cells[1]);
 	if (ret)
 		return ret;
 
-	ret = intel_quark_gpio_setup(pdev,
-				     &intel_quark_mfd_cells[MFD_GPIO_BAR]);
+	ret = intel_quark_gpio_setup(pdev, &intel_quark_mfd_cells[0]);
 	if (ret)
 		return ret;
 
