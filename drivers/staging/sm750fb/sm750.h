@@ -62,9 +62,6 @@ struct lynx_share {
 	unsigned char __iomem *pvMem;
 	/* locks*/
 	spinlock_t slock;
-	/* function pointers */
-	void (*suspend)(struct lynx_share *);
-	void (*resume)(struct lynx_share *);
 };
 
 struct lynx_cursor {

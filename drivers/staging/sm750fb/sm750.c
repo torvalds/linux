@@ -434,10 +434,6 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 			return ret;
 		}
 
-		/* set chip to sleep mode */
-		if (share->suspend)
-			(*share->suspend)(share);
-
 		pci_disable_device(pdev);
 		ret = pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
 		if (ret) {
@@ -482,8 +478,6 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		}
 		pci_set_master(pdev);
 	}
-	if (share->resume)
-		(*share->resume)(share);
 
 	hw_sm750_inithw(share, pdev);
 
