@@ -202,7 +202,6 @@ static int adis16060_w_remove(struct spi_device *spi)
 static struct spi_driver adis16060_r_driver = {
 	.driver = {
 		.name = "adis16060_r",
-		.owner = THIS_MODULE,
 	},
 	.probe = adis16060_r_probe,
 };
@@ -210,7 +209,6 @@ static struct spi_driver adis16060_r_driver = {
 static struct spi_driver adis16060_w_driver = {
 	.driver = {
 		.name = "adis16060_w",
-		.owner = THIS_MODULE,
 	},
 	.probe = adis16060_w_probe,
 	.remove = adis16060_w_remove,

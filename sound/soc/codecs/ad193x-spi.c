@@ -36,7 +36,6 @@ static int ad193x_spi_remove(struct spi_device *spi)
 static struct spi_driver ad193x_spi_driver = {
 	.driver = {
 		.name	= "ad193x",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad193x_spi_probe,
 	.remove		= ad193x_spi_remove,

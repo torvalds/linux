@@ -404,7 +404,6 @@ MODULE_DEVICE_TABLE(spi, mcp320x_id);
 static struct spi_driver mcp320x_driver = {
 	.driver = {
 		.name = "mcp320x",
-		.owner = THIS_MODULE,
 	},
 	.probe = mcp320x_probe,
 	.remove = mcp320x_remove,

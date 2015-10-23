@@ -291,7 +291,6 @@ MODULE_DEVICE_TABLE(spi, rx4581_id);
 static struct spi_driver rx4581_driver = {
 	.driver = {
 		.name	= "rtc-rx4581",
-		.owner	= THIS_MODULE,
 	},
 	.probe	= rx4581_probe,
 	.id_table = rx4581_id,

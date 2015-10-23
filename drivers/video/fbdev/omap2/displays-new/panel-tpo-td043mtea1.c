@@ -670,7 +670,6 @@ MODULE_DEVICE_TABLE(of, tpo_td043_of_match);
 static struct spi_driver tpo_td043_spi_driver = {
 	.driver = {
 		.name	= "panel-tpo-td043mtea1",
-		.owner	= THIS_MODULE,
 		.pm	= &tpo_td043_spi_pm,
 		.of_match_table = tpo_td043_of_match,
 		.suppress_bind_attrs = true,

@@ -1338,7 +1338,6 @@ MODULE_DEVICE_TABLE(spi, max310x_id_table);
 static struct spi_driver max310x_uart_driver = {
 	.driver = {
 		.name		= MAX310X_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(max310x_dt_ids),
 		.pm		= &max310x_pm_ops,
 	},

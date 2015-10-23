@@ -2223,7 +2223,6 @@ static struct spi_driver trf7970a_spi_driver = {
 	.id_table	= trf7970a_id_table,
 	.driver		= {
 		.name	= "trf7970a",
-		.owner	= THIS_MODULE,
 		.pm	= &trf7970a_pm_ops,
 	},
 };

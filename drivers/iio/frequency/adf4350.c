@@ -625,7 +625,6 @@ static const struct spi_device_id adf4350_id[] = {
 static struct spi_driver adf4350_driver = {
 	.driver = {
 		.name	= "adf4350",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= adf4350_probe,
 	.remove		= adf4350_remove,

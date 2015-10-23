@@ -974,7 +974,6 @@ MODULE_DEVICE_TABLE(spi, qca_spi_id);
 static struct spi_driver qca_spi_driver = {
 	.driver	= {
 		.name	= QCASPI_DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = qca_spi_of_match,
 	},
 	.id_table = qca_spi_id,
