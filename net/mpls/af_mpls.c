@@ -22,6 +22,11 @@
 #include <net/nexthop.h>
 #include "internal.h"
 
+/* Maximum number of labels to look ahead at when selecting a path of
+ * a multipath route
+ */
+#define MAX_MP_SELECT_LABELS 4
+
 static int zero = 0;
 static int label_limit = (1 << 20) - 1;
 
@@ -77,10 +82,78 @@ bool mpls_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
 }
 EXPORT_SYMBOL_GPL(mpls_pkt_too_big);
 
-static struct mpls_nh *mpls_select_multipath(struct mpls_route *rt)
+static struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
+					     struct sk_buff *skb, bool bos)
 {
-	/* assume single nexthop for now */
-	return &rt->rt_nh[0];
+	struct mpls_entry_decoded dec;
+	struct mpls_shim_hdr *hdr;
+	bool eli_seen = false;
+	int label_index;
+	int nh_index = 0;
+	u32 hash = 0;
+
+	/* No need to look further into packet if there's only
+	 * one path
+	 */
+	if (rt->rt_nhn == 1)
+		goto out;
+
+	for (label_index = 0; label_index < MAX_MP_SELECT_LABELS && !bos;
+	     label_index++) {
+		if (!pskb_may_pull(skb, sizeof(*hdr) * label_index))
+			break;
+
+		/* Read and decode the current label */
+		hdr = mpls_hdr(skb) + label_index;
+		dec = mpls_entry_decode(hdr);
+
+		/* RFC6790 - reserved labels MUST NOT be used as keys
+		 * for the load-balancing function
+		 */
+		if (likely(dec.label >= MPLS_LABEL_FIRST_UNRESERVED)) {
+			hash = jhash_1word(dec.label, hash);
+
+			/* The entropy label follows the entropy label
+			 * indicator, so this means that the entropy
+			 * label was just added to the hash - no need to
+			 * go any deeper either in the label stack or in the
+			 * payload
+			 */
+			if (eli_seen)
+				break;
+		} else if (dec.label == MPLS_LABEL_ENTROPY) {
+			eli_seen = true;
+		}
+
+		bos = dec.bos;
+		if (bos && pskb_may_pull(skb, sizeof(*hdr) * label_index +
+					 sizeof(struct iphdr))) {
+			const struct iphdr *v4hdr;
+
+			v4hdr = (const struct iphdr *)(mpls_hdr(skb) +
+						       label_index);
+			if (v4hdr->version == 4) {
+				hash = jhash_3words(ntohl(v4hdr->saddr),
+						    ntohl(v4hdr->daddr),
+						    v4hdr->protocol, hash);
+			} else if (v4hdr->version == 6 &&
+				pskb_may_pull(skb, sizeof(*hdr) * label_index +
+					      sizeof(struct ipv6hdr))) {
+				const struct ipv6hdr *v6hdr;
+
+				v6hdr = (const struct ipv6hdr *)(mpls_hdr(skb) +
+								label_index);
+
+				hash = __ipv6_addr_jhash(&v6hdr->saddr, hash);
+				hash = __ipv6_addr_jhash(&v6hdr->daddr, hash);
+				hash = jhash_1word(v6hdr->nexthdr, hash);
+			}
+		}
+	}
+
+	nh_index = hash % rt->rt_nhn;
+out:
+	return &rt->rt_nh[nh_index];
 }
 
 static bool mpls_egress(struct mpls_route *rt, struct sk_buff *skb,
@@ -175,7 +248,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	if (!rt)
 		goto drop;
 
-	nh = mpls_select_multipath(rt);
+	nh = mpls_select_multipath(rt, skb, dec.bos);
 	if (!nh)
 		goto drop;
 
@@ -539,6 +612,12 @@ static int mpls_nh_build_multi(struct mpls_route_config *cfg,
 
 		err = -EINVAL;
 		if (!rtnh_ok(rtnh, remaining))
+			goto errout;
+
+		/* neither weighted multipath nor any flags
+		 * are supported
+		 */
+		if (rtnh->rtnh_hops || rtnh->rtnh_flags)
 			goto errout;
 
 		attrlen = rtnh_attrlen(rtnh);
