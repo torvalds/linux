@@ -386,7 +386,7 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 	}
 	ret = hw_sm750_crtc_setMode(crtc, var, fix);
 	if (!ret)
-		ret = output->proc_setMode(output, var, fix);
+		ret = hw_sm750_output_setMode(output, var, fix);
 	return ret;
 }
 
@@ -673,8 +673,6 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	crtc->xpanstep = 8;
 	crtc->ypanstep = 1;
 	crtc->ywrapstep = 0;
-
-	output->proc_setMode = hw_sm750_output_setMode;
 
 	output->proc_setBLANK = (share->revid == SM750LE_REVISION_ID) ?
 				 hw_sm750le_setBLANK : hw_sm750_setBLANK;

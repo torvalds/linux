@@ -125,10 +125,6 @@ struct lynxfb_output {
 	*/
 	void *priv;
 
-	int (*proc_setMode)(struct lynxfb_output*,
-						struct fb_var_screeninfo*,
-						struct fb_fix_screeninfo*);
-
 	int (*proc_setBLANK)(struct lynxfb_output*, int);
 };
 
