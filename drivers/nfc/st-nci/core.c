@@ -24,7 +24,7 @@
 #include <linux/delay.h>
 
 #include "st-nci.h"
-#include "st-nci_se.h"
+#include "se.h"
 
 #define DRIVER_DESC "NCI NFC driver for ST_NCI"
 

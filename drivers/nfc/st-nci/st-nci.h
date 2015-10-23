@@ -19,7 +19,7 @@
 #ifndef __LOCAL_ST_NCI_H_
 #define __LOCAL_ST_NCI_H_
 
-#include "st-nci_se.h"
+#include "se.h"
 #include "ndlc.h"
 
 /* Define private flags: */
