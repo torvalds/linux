@@ -586,7 +586,7 @@ static void ncm_ep0out_complete(struct usb_ep *ep, struct usb_request *req)
 	unsigned		in_size;
 	struct usb_function	*f = req->context;
 	struct f_ncm		*ncm = func_to_ncm(f);
-	struct usb_composite_dev *cdev = ep->driver_data;
+	struct usb_composite_dev *cdev = f->config->cdev;
 
 	req->context = NULL;
 	if (req->status || req->actual != req->length) {
@@ -803,10 +803,8 @@ static int ncm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (alt != 0)
 			goto fail;
 
-		if (ncm->notify->driver_data) {
-			DBG(cdev, "reset ncm control %d\n", intf);
-			usb_ep_disable(ncm->notify);
-		}
+		DBG(cdev, "reset ncm control %d\n", intf);
+		usb_ep_disable(ncm->notify);
 
 		if (!(ncm->notify->desc)) {
 			DBG(cdev, "init ncm ctrl %d\n", intf);
@@ -814,14 +812,13 @@ static int ncm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 				goto fail;
 		}
 		usb_ep_enable(ncm->notify);
-		ncm->notify->driver_data = ncm;
 
 	/* Data interface has two altsettings, 0 and 1 */
 	} else if (intf == ncm->data_id) {
 		if (alt > 1)
 			goto fail;
 
-		if (ncm->port.in_ep->driver_data) {
+		if (ncm->port.in_ep->enabled) {
 			DBG(cdev, "reset ncm\n");
 			ncm->timer_stopping = true;
 			ncm->netdev = NULL;
@@ -885,7 +882,7 @@ static int ncm_get_alt(struct usb_function *f, unsigned intf)
 
 	if (intf == ncm->ctrl_id)
 		return 0;
-	return ncm->port.in_ep->driver_data ? 1 : 0;
+	return ncm->port.in_ep->enabled ? 1 : 0;
 }
 
 static struct sk_buff *package_for_tx(struct f_ncm *ncm)
@@ -1276,15 +1273,14 @@ static void ncm_disable(struct usb_function *f)
 
 	DBG(cdev, "ncm deactivated\n");
 
-	if (ncm->port.in_ep->driver_data) {
+	if (ncm->port.in_ep->enabled) {
 		ncm->timer_stopping = true;
 		ncm->netdev = NULL;
 		gether_disconnect(&ncm->port);
 	}
 
-	if (ncm->notify->driver_data) {
+	if (ncm->notify->enabled) {
 		usb_ep_disable(ncm->notify);
-		ncm->notify->driver_data = NULL;
 		ncm->notify->desc = NULL;
 	}
 }
@@ -1402,19 +1398,16 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	ncm->port.in_ep = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &fs_ncm_out_desc);
 	if (!ep)
 		goto fail;
 	ncm->port.out_ep = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &fs_ncm_notify_desc);
 	if (!ep)
 		goto fail;
 	ncm->notify = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	status = -ENOMEM;
 
@@ -1467,14 +1460,6 @@ fail:
 		kfree(ncm->notify_req->buf);
 		usb_ep_free_request(ncm->notify, ncm->notify_req);
 	}
-
-	/* we might as well release our claims on endpoints */
-	if (ncm->notify)
-		ncm->notify->driver_data = NULL;
-	if (ncm->port.out_ep)
-		ncm->port.out_ep->driver_data = NULL;
-	if (ncm->port.in_ep)
-		ncm->port.in_ep->driver_data = NULL;
 
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
 

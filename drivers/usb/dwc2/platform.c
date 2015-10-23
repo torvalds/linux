@@ -37,11 +37,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_device.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/phy/phy.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <linux/usb/of.h>
 
@@ -111,6 +114,145 @@ static const struct dwc2_core_params params_rk3066 = {
 	.hibernation			= -1,
 };
 
+static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
+{
+	struct platform_device *pdev = to_platform_device(hsotg->dev);
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
+				    hsotg->supplies);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(hsotg->clk);
+	if (ret)
+		return ret;
+
+	if (hsotg->uphy)
+		ret = usb_phy_init(hsotg->uphy);
+	else if (hsotg->plat && hsotg->plat->phy_init)
+		ret = hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
+	else {
+		ret = phy_power_on(hsotg->phy);
+		if (ret == 0)
+			ret = phy_init(hsotg->phy);
+	}
+
+	return ret;
+}
+
+/**
+ * dwc2_lowlevel_hw_enable - enable platform lowlevel hw resources
+ * @hsotg: The driver state
+ *
+ * A wrapper for platform code responsible for controlling
+ * low-level USB platform resources (phy, clock, regulators)
+ */
+int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
+{
+	int ret = __dwc2_lowlevel_hw_enable(hsotg);
+
+	if (ret == 0)
+		hsotg->ll_hw_enabled = true;
+	return ret;
+}
+
+static int __dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
+{
+	struct platform_device *pdev = to_platform_device(hsotg->dev);
+	int ret = 0;
+
+	if (hsotg->uphy)
+		usb_phy_shutdown(hsotg->uphy);
+	else if (hsotg->plat && hsotg->plat->phy_exit)
+		ret = hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
+	else {
+		ret = phy_exit(hsotg->phy);
+		if (ret == 0)
+			ret = phy_power_off(hsotg->phy);
+	}
+	if (ret)
+		return ret;
+
+	clk_disable_unprepare(hsotg->clk);
+
+	ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
+				     hsotg->supplies);
+
+	return ret;
+}
+
+/**
+ * dwc2_lowlevel_hw_disable - disable platform lowlevel hw resources
+ * @hsotg: The driver state
+ *
+ * A wrapper for platform code responsible for controlling
+ * low-level USB platform resources (phy, clock, regulators)
+ */
+int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
+{
+	int ret = __dwc2_lowlevel_hw_disable(hsotg);
+
+	if (ret == 0)
+		hsotg->ll_hw_enabled = false;
+	return ret;
+}
+
+static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
+{
+	int i, ret;
+
+	/* Set default UTMI width */
+	hsotg->phyif = GUSBCFG_PHYIF16;
+
+	/*
+	 * Attempt to find a generic PHY, then look for an old style
+	 * USB PHY and then fall back to pdata
+	 */
+	hsotg->phy = devm_phy_get(hsotg->dev, "usb2-phy");
+	if (IS_ERR(hsotg->phy)) {
+		hsotg->phy = NULL;
+		hsotg->uphy = devm_usb_get_phy(hsotg->dev, USB_PHY_TYPE_USB2);
+		if (IS_ERR(hsotg->uphy))
+			hsotg->uphy = NULL;
+		else
+			hsotg->plat = dev_get_platdata(hsotg->dev);
+	}
+
+	if (hsotg->phy) {
+		/*
+		 * If using the generic PHY framework, check if the PHY bus
+		 * width is 8-bit and set the phyif appropriately.
+		 */
+		if (phy_get_bus_width(hsotg->phy) == 8)
+			hsotg->phyif = GUSBCFG_PHYIF8;
+	}
+
+	if (!hsotg->phy && !hsotg->uphy && !hsotg->plat) {
+		dev_err(hsotg->dev, "no platform data or transceiver defined\n");
+		return -EPROBE_DEFER;
+	}
+
+	/* Clock */
+	hsotg->clk = devm_clk_get(hsotg->dev, "otg");
+	if (IS_ERR(hsotg->clk)) {
+		hsotg->clk = NULL;
+		dev_dbg(hsotg->dev, "cannot get otg clock\n");
+	}
+
+	/* Regulators */
+	for (i = 0; i < ARRAY_SIZE(hsotg->supplies); i++)
+		hsotg->supplies[i].supply = dwc2_hsotg_supply_names[i];
+
+	ret = devm_regulator_bulk_get(hsotg->dev, ARRAY_SIZE(hsotg->supplies),
+				      hsotg->supplies);
+	if (ret) {
+		dev_err(hsotg->dev, "failed to request supplies: %d\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
 /**
  * dwc2_driver_remove() - Called when the DWC_otg core is unregistered with the
  * DWC_otg driver
@@ -130,7 +272,10 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	if (hsotg->hcd_enabled)
 		dwc2_hcd_remove(hsotg);
 	if (hsotg->gadget_enabled)
-		s3c_hsotg_remove(hsotg);
+		dwc2_hsotg_remove(hsotg);
+
+	if (hsotg->ll_hw_enabled)
+		dwc2_lowlevel_hw_disable(hsotg);
 
 	return 0;
 }
@@ -163,8 +308,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	struct dwc2_core_params defparams;
 	struct dwc2_hsotg *hsotg;
 	struct resource *res;
-	struct phy *phy;
-	struct usb_phy *uphy;
 	int retval;
 	int irq;
 
@@ -220,33 +363,24 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)res->start, hsotg->regs);
 
-	hsotg->dr_mode = of_usb_get_dr_mode(dev->dev.of_node);
-
-	/*
-	 * Attempt to find a generic PHY, then look for an old style
-	 * USB PHY
-	 */
-	phy = devm_phy_get(&dev->dev, "usb2-phy");
-	if (IS_ERR(phy)) {
-		hsotg->phy = NULL;
-		uphy = devm_usb_get_phy(&dev->dev, USB_PHY_TYPE_USB2);
-		if (IS_ERR(uphy))
-			hsotg->uphy = NULL;
-		else
-			hsotg->uphy = uphy;
-	} else {
-		hsotg->phy = phy;
-		phy_power_on(hsotg->phy);
-		phy_init(hsotg->phy);
+	hsotg->dr_mode = usb_get_dr_mode(&dev->dev);
+	if (IS_ENABLED(CONFIG_USB_DWC2_HOST) &&
+			hsotg->dr_mode != USB_DR_MODE_HOST) {
+		hsotg->dr_mode = USB_DR_MODE_HOST;
+		dev_warn(hsotg->dev,
+			"Configuration mismatch. Forcing host mode\n");
+	} else if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) &&
+			hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
+		hsotg->dr_mode = USB_DR_MODE_PERIPHERAL;
+		dev_warn(hsotg->dev,
+			"Configuration mismatch. Forcing peripheral mode\n");
 	}
 
-	spin_lock_init(&hsotg->lock);
-	mutex_init(&hsotg->init_mutex);
-
-	/* Detect config values from hardware */
-	retval = dwc2_get_hwparams(hsotg);
+	retval = dwc2_lowlevel_hw_init(hsotg);
 	if (retval)
 		return retval;
+
+	spin_lock_init(&hsotg->lock);
 
 	hsotg->core_params = devm_kzalloc(&dev->dev,
 				sizeof(*hsotg->core_params), GFP_KERNEL);
@@ -255,13 +389,22 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	dwc2_set_all_params(hsotg->core_params, -1);
 
+	retval = dwc2_lowlevel_hw_enable(hsotg);
+	if (retval)
+		return retval;
+
+	/* Detect config values from hardware */
+	retval = dwc2_get_hwparams(hsotg);
+	if (retval)
+		goto error;
+
 	/* Validate parameter values */
 	dwc2_set_parameters(hsotg, params);
 
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
 		retval = dwc2_gadget_init(hsotg, irq);
 		if (retval)
-			return retval;
+			goto error;
 		hsotg->gadget_enabled = 1;
 	}
 
@@ -269,8 +412,8 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		retval = dwc2_hcd_init(hsotg, irq);
 		if (retval) {
 			if (hsotg->gadget_enabled)
-				s3c_hsotg_remove(hsotg);
-			return retval;
+				dwc2_hsotg_remove(hsotg);
+			goto error;
 		}
 		hsotg->hcd_enabled = 1;
 	}
@@ -279,6 +422,14 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	dwc2_debugfs_init(hsotg);
 
+	/* Gadget code manages lowlevel hw on its own */
+	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
+		dwc2_lowlevel_hw_disable(hsotg);
+
+	return 0;
+
+error:
+	dwc2_lowlevel_hw_disable(hsotg);
 	return retval;
 }
 
@@ -287,15 +438,12 @@ static int __maybe_unused dwc2_suspend(struct device *dev)
 	struct dwc2_hsotg *dwc2 = dev_get_drvdata(dev);
 	int ret = 0;
 
-	if (dwc2_is_device_mode(dwc2)) {
-		ret = s3c_hsotg_suspend(dwc2);
-	} else {
-		if (dwc2->lx_state == DWC2_L0)
-			return 0;
-		phy_exit(dwc2->phy);
-		phy_power_off(dwc2->phy);
+	if (dwc2_is_device_mode(dwc2))
+		dwc2_hsotg_suspend(dwc2);
 
-	}
+	if (dwc2->ll_hw_enabled)
+		ret = __dwc2_lowlevel_hw_disable(dwc2);
+
 	return ret;
 }
 
@@ -304,13 +452,15 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 	struct dwc2_hsotg *dwc2 = dev_get_drvdata(dev);
 	int ret = 0;
 
-	if (dwc2_is_device_mode(dwc2)) {
-		ret = s3c_hsotg_resume(dwc2);
-	} else {
-		phy_power_on(dwc2->phy);
-		phy_init(dwc2->phy);
-
+	if (dwc2->ll_hw_enabled) {
+		ret = __dwc2_lowlevel_hw_enable(dwc2);
+		if (ret)
+			return ret;
 	}
+
+	if (dwc2_is_device_mode(dwc2))
+		ret = dwc2_hsotg_resume(dwc2);
+
 	return ret;
 }
 

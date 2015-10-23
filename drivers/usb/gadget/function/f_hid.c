@@ -492,10 +492,7 @@ static void hidg_disable(struct usb_function *f)
 	struct f_hidg_req_list *list, *next;
 
 	usb_ep_disable(hidg->in_ep);
-	hidg->in_ep->driver_data = NULL;
-
 	usb_ep_disable(hidg->out_ep);
-	hidg->out_ep->driver_data = NULL;
 
 	list_for_each_entry_safe(list, next, &hidg->completed_out_req, list) {
 		list_del(&list->list);
@@ -513,8 +510,7 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	if (hidg->in_ep != NULL) {
 		/* restart endpoint */
-		if (hidg->in_ep->driver_data != NULL)
-			usb_ep_disable(hidg->in_ep);
+		usb_ep_disable(hidg->in_ep);
 
 		status = config_ep_by_speed(f->config->cdev->gadget, f,
 					    hidg->in_ep);
@@ -533,8 +529,7 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	if (hidg->out_ep != NULL) {
 		/* restart endpoint */
-		if (hidg->out_ep->driver_data != NULL)
-			usb_ep_disable(hidg->out_ep);
+		usb_ep_disable(hidg->out_ep);
 
 		status = config_ep_by_speed(f->config->cdev->gadget, f,
 					    hidg->out_ep);
@@ -566,7 +561,6 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 						hidg->out_ep->name, status);
 			} else {
 				usb_ep_disable(hidg->out_ep);
-				hidg->out_ep->driver_data = NULL;
 				status = -ENOMEM;
 				goto fail;
 			}
@@ -614,13 +608,11 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	ep = usb_ep_autoconfig(c->cdev->gadget, &hidg_fs_in_ep_desc);
 	if (!ep)
 		goto fail;
-	ep->driver_data = c->cdev;	/* claim */
 	hidg->in_ep = ep;
 
 	ep = usb_ep_autoconfig(c->cdev->gadget, &hidg_fs_out_ep_desc);
 	if (!ep)
 		goto fail;
-	ep->driver_data = c->cdev;	/* claim */
 	hidg->out_ep = ep;
 
 	/* preallocate request and buffer */

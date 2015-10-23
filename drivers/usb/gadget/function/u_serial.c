@@ -876,7 +876,6 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	else
 		gs_buf_clear(&port->port_write_buf);
 
-	tty->driver_data = NULL;
 	port->port.tty = NULL;
 
 	port->openclose = false;
@@ -1224,7 +1223,6 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 
 fail_out:
 	usb_ep_disable(gser->in);
-	gser->in->driver_data = NULL;
 	return status;
 }
 EXPORT_SYMBOL_GPL(gserial_connect);
@@ -1264,10 +1262,7 @@ void gserial_disconnect(struct gserial *gser)
 
 	/* disable endpoints, aborting down any active I/O */
 	usb_ep_disable(gser->out);
-	gser->out->driver_data = NULL;
-
 	usb_ep_disable(gser->in);
-	gser->in->driver_data = NULL;
 
 	/* finally, free any unused/unusable I/O buffers */
 	spin_lock_irqsave(&port->port_lock, flags);

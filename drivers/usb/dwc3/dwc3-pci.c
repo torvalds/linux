@@ -26,12 +26,14 @@
 
 #include "platform_data.h"
 
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3	0xabcd
-#define PCI_DEVICE_ID_INTEL_BYT		0x0f37
-#define PCI_DEVICE_ID_INTEL_MRFLD	0x119e
-#define PCI_DEVICE_ID_INTEL_BSW		0x22B7
-#define PCI_DEVICE_ID_INTEL_SPTLP	0x9d30
-#define PCI_DEVICE_ID_INTEL_SPTH	0xa130
+#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3		0xabcd
+#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI	0xabce
+#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31	0xabcf
+#define PCI_DEVICE_ID_INTEL_BYT			0x0f37
+#define PCI_DEVICE_ID_INTEL_MRFLD		0x119e
+#define PCI_DEVICE_ID_INTEL_BSW			0x22b7
+#define PCI_DEVICE_ID_INTEL_SPTLP		0x9d30
+#define PCI_DEVICE_ID_INTEL_SPTH		0xa130
 
 static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
 static const struct acpi_gpio_params cs_gpios = { 1, 0, false };
@@ -106,6 +108,22 @@ static int dwc3_pci_quirks(struct pci_dev *pdev)
 		}
 	}
 
+	if (pdev->vendor == PCI_VENDOR_ID_SYNOPSYS &&
+	    (pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3 ||
+	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI ||
+	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31)) {
+
+		struct dwc3_platform_data pdata;
+
+		memset(&pdata, 0, sizeof(pdata));
+		pdata.usb3_lpm_capable = true;
+		pdata.has_lpm_erratum = true;
+		pdata.dis_enblslpm_quirk = true;
+
+		return platform_device_add_data(pci_get_drvdata(pdev), &pdata,
+						sizeof(pdata));
+	}
+
 	return 0;
 }
 
@@ -154,6 +172,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 		goto err;
 
 	dwc3->dev.parent = dev;
+	ACPI_COMPANION_SET(&dwc3->dev, ACPI_COMPANION(dev));
 
 	ret = platform_device_add(dwc3);
 	if (ret) {
@@ -177,6 +196,14 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
 				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3),
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
+				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI),
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
+				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31),
 	},
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BYT), },

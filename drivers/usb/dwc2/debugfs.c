@@ -57,7 +57,7 @@ static ssize_t testmode_write(struct file *file, const char __user *ubuf, size_t
 		testmode = 0;
 
 	spin_lock_irqsave(&hsotg->lock, flags);
-	s3c_hsotg_set_test_mode(hsotg, testmode);
+	dwc2_hsotg_set_test_mode(hsotg, testmode);
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	return count;
 }
@@ -76,7 +76,7 @@ static int testmode_show(struct seq_file *s, void *unused)
 	int dctl;
 
 	spin_lock_irqsave(&hsotg->lock, flags);
-	dctl = readl(hsotg->regs + DCTL);
+	dctl = dwc2_readl(hsotg->regs + DCTL);
 	dctl &= DCTL_TSTCTL_MASK;
 	dctl >>= DCTL_TSTCTL_SHIFT;
 	spin_unlock_irqrestore(&hsotg->lock, flags);
@@ -137,38 +137,38 @@ static int state_show(struct seq_file *seq, void *v)
 	int idx;
 
 	seq_printf(seq, "DCFG=0x%08x, DCTL=0x%08x, DSTS=0x%08x\n",
-		 readl(regs + DCFG),
-		 readl(regs + DCTL),
-		 readl(regs + DSTS));
+		 dwc2_readl(regs + DCFG),
+		 dwc2_readl(regs + DCTL),
+		 dwc2_readl(regs + DSTS));
 
 	seq_printf(seq, "DIEPMSK=0x%08x, DOEPMASK=0x%08x\n",
-		   readl(regs + DIEPMSK), readl(regs + DOEPMSK));
+		   dwc2_readl(regs + DIEPMSK), dwc2_readl(regs + DOEPMSK));
 
 	seq_printf(seq, "GINTMSK=0x%08x, GINTSTS=0x%08x\n",
-		   readl(regs + GINTMSK),
-		   readl(regs + GINTSTS));
+		   dwc2_readl(regs + GINTMSK),
+		   dwc2_readl(regs + GINTSTS));
 
 	seq_printf(seq, "DAINTMSK=0x%08x, DAINT=0x%08x\n",
-		   readl(regs + DAINTMSK),
-		   readl(regs + DAINT));
+		   dwc2_readl(regs + DAINTMSK),
+		   dwc2_readl(regs + DAINT));
 
 	seq_printf(seq, "GNPTXSTS=0x%08x, GRXSTSR=%08x\n",
-		   readl(regs + GNPTXSTS),
-		   readl(regs + GRXSTSR));
+		   dwc2_readl(regs + GNPTXSTS),
+		   dwc2_readl(regs + GRXSTSR));
 
 	seq_puts(seq, "\nEndpoint status:\n");
 
 	for (idx = 0; idx < hsotg->num_of_eps; idx++) {
 		u32 in, out;
 
-		in = readl(regs + DIEPCTL(idx));
-		out = readl(regs + DOEPCTL(idx));
+		in = dwc2_readl(regs + DIEPCTL(idx));
+		out = dwc2_readl(regs + DOEPCTL(idx));
 
 		seq_printf(seq, "ep%d: DIEPCTL=0x%08x, DOEPCTL=0x%08x",
 			   idx, in, out);
 
-		in = readl(regs + DIEPTSIZ(idx));
-		out = readl(regs + DOEPTSIZ(idx));
+		in = dwc2_readl(regs + DIEPTSIZ(idx));
+		out = dwc2_readl(regs + DOEPTSIZ(idx));
 
 		seq_printf(seq, ", DIEPTSIZ=0x%08x, DOEPTSIZ=0x%08x",
 			   in, out);
@@ -208,9 +208,9 @@ static int fifo_show(struct seq_file *seq, void *v)
 	int idx;
 
 	seq_puts(seq, "Non-periodic FIFOs:\n");
-	seq_printf(seq, "RXFIFO: Size %d\n", readl(regs + GRXFSIZ));
+	seq_printf(seq, "RXFIFO: Size %d\n", dwc2_readl(regs + GRXFSIZ));
 
-	val = readl(regs + GNPTXFSIZ);
+	val = dwc2_readl(regs + GNPTXFSIZ);
 	seq_printf(seq, "NPTXFIFO: Size %d, Start 0x%08x\n",
 		   val >> FIFOSIZE_DEPTH_SHIFT,
 		   val & FIFOSIZE_DEPTH_MASK);
@@ -218,7 +218,7 @@ static int fifo_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nPeriodic TXFIFOs:\n");
 
 	for (idx = 1; idx < hsotg->num_of_eps; idx++) {
-		val = readl(regs + DPTXFSIZN(idx));
+		val = dwc2_readl(regs + DPTXFSIZN(idx));
 
 		seq_printf(seq, "\tDPTXFIFO%2d: Size %d, Start 0x%08x\n", idx,
 			   val >> FIFOSIZE_DEPTH_SHIFT,
@@ -256,9 +256,9 @@ static const char *decode_direction(int is_in)
  */
 static int ep_show(struct seq_file *seq, void *v)
 {
-	struct s3c_hsotg_ep *ep = seq->private;
+	struct dwc2_hsotg_ep *ep = seq->private;
 	struct dwc2_hsotg *hsotg = ep->parent;
-	struct s3c_hsotg_req *req;
+	struct dwc2_hsotg_req *req;
 	void __iomem *regs = hsotg->regs;
 	int index = ep->index;
 	int show_limit = 15;
@@ -270,20 +270,20 @@ static int ep_show(struct seq_file *seq, void *v)
 	/* first show the register state */
 
 	seq_printf(seq, "\tDIEPCTL=0x%08x, DOEPCTL=0x%08x\n",
-		   readl(regs + DIEPCTL(index)),
-		   readl(regs + DOEPCTL(index)));
+		   dwc2_readl(regs + DIEPCTL(index)),
+		   dwc2_readl(regs + DOEPCTL(index)));
 
 	seq_printf(seq, "\tDIEPDMA=0x%08x, DOEPDMA=0x%08x\n",
-		   readl(regs + DIEPDMA(index)),
-		   readl(regs + DOEPDMA(index)));
+		   dwc2_readl(regs + DIEPDMA(index)),
+		   dwc2_readl(regs + DOEPDMA(index)));
 
 	seq_printf(seq, "\tDIEPINT=0x%08x, DOEPINT=0x%08x\n",
-		   readl(regs + DIEPINT(index)),
-		   readl(regs + DOEPINT(index)));
+		   dwc2_readl(regs + DIEPINT(index)),
+		   dwc2_readl(regs + DOEPINT(index)));
 
 	seq_printf(seq, "\tDIEPTSIZ=0x%08x, DOEPTSIZ=0x%08x\n",
-		   readl(regs + DIEPTSIZ(index)),
-		   readl(regs + DOEPTSIZ(index)));
+		   dwc2_readl(regs + DIEPTSIZ(index)),
+		   dwc2_readl(regs + DOEPTSIZ(index)));
 
 	seq_puts(seq, "\n");
 	seq_printf(seq, "mps %d\n", ep->ep.maxpacket);
@@ -326,7 +326,7 @@ static const struct file_operations ep_fops = {
 };
 
 /**
- * s3c_hsotg_create_debug - create debugfs directory and files
+ * dwc2_hsotg_create_debug - create debugfs directory and files
  * @hsotg: The driver state
  *
  * Create the debugfs files to allow the user to get information
@@ -334,7 +334,7 @@ static const struct file_operations ep_fops = {
  * with the same name as the device itself, in case we end up
  * with multiple blocks in future systems.
  */
-static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
+static void dwc2_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 {
 	struct dentry *root;
 	struct dentry *file;
@@ -360,7 +360,7 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 
 	/* Create one file for each out endpoint */
 	for (epidx = 0; epidx < hsotg->num_of_eps; epidx++) {
-		struct s3c_hsotg_ep *ep;
+		struct dwc2_hsotg_ep *ep;
 
 		ep = hsotg->eps_out[epidx];
 		if (ep) {
@@ -373,7 +373,7 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 	}
 	/* Create one file for each in endpoint. EP0 is handled with out eps */
 	for (epidx = 1; epidx < hsotg->num_of_eps; epidx++) {
-		struct s3c_hsotg_ep *ep;
+		struct dwc2_hsotg_ep *ep;
 
 		ep = hsotg->eps_in[epidx];
 		if (ep) {
@@ -386,10 +386,10 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 	}
 }
 #else
-static inline void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_hsotg_create_debug(struct dwc2_hsotg *hsotg) {}
 #endif
 
-/* s3c_hsotg_delete_debug is removed as cleanup in done in dwc2_debugfs_exit */
+/* dwc2_hsotg_delete_debug is removed as cleanup in done in dwc2_debugfs_exit */
 
 #define dump_register(nm)	\
 {				\
@@ -737,7 +737,7 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 	}
 
 	/* Add gadget debugfs nodes */
-	s3c_hsotg_create_debug(hsotg);
+	dwc2_hsotg_create_debug(hsotg);
 
 	hsotg->regset = devm_kzalloc(hsotg->dev, sizeof(*hsotg->regset),
 								GFP_KERNEL);

@@ -428,21 +428,18 @@ static int acm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	/* we know alt == 0, so this is an activation or a reset */
 
 	if (intf == acm->ctrl_id) {
-		if (acm->notify->driver_data) {
-			dev_vdbg(&cdev->gadget->dev,
-				 "reset acm control interface %d\n", intf);
-			usb_ep_disable(acm->notify);
-		}
+		dev_vdbg(&cdev->gadget->dev,
+				"reset acm control interface %d\n", intf);
+		usb_ep_disable(acm->notify);
 
 		if (!acm->notify->desc)
 			if (config_ep_by_speed(cdev->gadget, f, acm->notify))
 				return -EINVAL;
 
 		usb_ep_enable(acm->notify);
-		acm->notify->driver_data = acm;
 
 	} else if (intf == acm->data_id) {
-		if (acm->port.in->driver_data) {
+		if (acm->notify->enabled) {
 			dev_dbg(&cdev->gadget->dev,
 				"reset acm ttyGS%d\n", acm->port_num);
 			gserial_disconnect(&acm->port);
@@ -475,7 +472,6 @@ static void acm_disable(struct usb_function *f)
 	dev_dbg(&cdev->gadget->dev, "acm ttyGS%d deactivated\n", acm->port_num);
 	gserial_disconnect(&acm->port);
 	usb_ep_disable(acm->notify);
-	acm->notify->driver_data = NULL;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -655,19 +651,16 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	acm->port.in = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &acm_fs_out_desc);
 	if (!ep)
 		goto fail;
 	acm->port.out = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &acm_fs_notify_desc);
 	if (!ep)
 		goto fail;
 	acm->notify = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	/* allocate notification */
 	acm->notify_req = gs_alloc_req(ep,
@@ -708,14 +701,6 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 fail:
 	if (acm->notify_req)
 		gs_free_req(acm->notify, acm->notify_req);
-
-	/* we might as well release our claims on endpoints */
-	if (acm->notify)
-		acm->notify->driver_data = NULL;
-	if (acm->port.out)
-		acm->port.out->driver_data = NULL;
-	if (acm->port.in)
-		acm->port.in->driver_data = NULL;
 
 	ERROR(cdev, "%s/%p: can't bind, err %d\n", f->name, f, status);
 
