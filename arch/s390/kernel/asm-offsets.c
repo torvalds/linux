@@ -176,6 +176,7 @@ int main(void)
 	DEFINE(__LC_PASTE, offsetof(struct _lowcore, paste));
 	DEFINE(__LC_FP_CREG_SAVE_AREA, offsetof(struct _lowcore, fpt_creg_save_area));
 	DEFINE(__LC_LAST_BREAK, offsetof(struct _lowcore, breaking_event_addr));
+	DEFINE(__LC_PERCPU_OFFSET, offsetof(struct _lowcore, percpu_offset));
 	DEFINE(__LC_VDSO_PER_CPU, offsetof(struct _lowcore, vdso_per_cpu_data));
 	DEFINE(__LC_GMAP, offsetof(struct _lowcore, gmap));
 	DEFINE(__LC_PGM_TDB, offsetof(struct _lowcore, pgm_tdb));

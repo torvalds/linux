@@ -2301,6 +2301,7 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 
 	if (ret) {
 		spin_unlock_irqrestore(&device_domain_lock, flags);
+		free_devinfo_mem(info);
 		return NULL;
 	}
 

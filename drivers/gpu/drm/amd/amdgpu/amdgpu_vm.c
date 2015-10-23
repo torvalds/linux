@@ -455,8 +455,10 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		return -ENOMEM;
 
 	r = amdgpu_ib_get(ring, NULL, ndw * 4, ib);
-	if (r)
+	if (r) {
+		kfree(ib);
 		return r;
+	}
 	ib->length_dw = 0;
 
 	/* walk over the address space and update the page directory */

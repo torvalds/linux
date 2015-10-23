@@ -653,7 +653,7 @@ static const struct sunxi_desc_pin sun5i_a10s_pins[] = {
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
 		  SUNXI_FUNCTION(0x2, "spi1"),		/* CS1 */
-		  SUNXI_FUNCTION(0x3, "uart3"),		/* PWM1 */
+		  SUNXI_FUNCTION(0x3, "pwm"),		/* PWM1 */
 		  SUNXI_FUNCTION(0x5, "uart2"),		/* CTS */
 		  SUNXI_FUNCTION_IRQ(0x6, 13)),		/* EINT13 */
 };

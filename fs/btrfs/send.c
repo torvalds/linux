@@ -1920,10 +1920,12 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 	/*
 	 * We know that it is or will be overwritten. Check this now.
 	 * The current inode being processed might have been the one that caused
-	 * inode 'ino' to be orphanized, therefore ow_inode can actually be the
-	 * same as sctx->send_progress.
+	 * inode 'ino' to be orphanized, therefore check if ow_inode matches
+	 * the current inode being processed.
 	 */
-	if (ow_inode <= sctx->send_progress)
+	if ((ow_inode < sctx->send_progress) ||
+	    (ino != sctx->cur_ino && ow_inode == sctx->cur_ino &&
+	     gen == sctx->cur_inode_gen))
 		ret = 1;
 	else
 		ret = 0;

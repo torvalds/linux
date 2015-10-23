@@ -414,7 +414,7 @@ void cxl_release_psl_irq(struct cxl_afu *afu)
 	kfree(afu->psl_irq_name);
 }
 
-static void afu_irq_name_free(struct cxl_context *ctx)
+void afu_irq_name_free(struct cxl_context *ctx)
 {
 	struct cxl_irq_name *irq_name, *tmp;
 
@@ -524,7 +524,5 @@ void afu_release_irqs(struct cxl_context *ctx, void *cookie)
 	afu_irq_name_free(ctx);
 	cxl_release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
 
-	kfree(ctx->irq_bitmap);
-	ctx->irq_bitmap = NULL;
 	ctx->irq_count = 0;
 }
