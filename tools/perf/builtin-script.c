@@ -1767,9 +1767,9 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		rep_script_path = get_script_path(argv[0], REPORT_SUFFIX);
 
 		if (!rec_script_path && !rep_script_path) {
-			fprintf(stderr, " Couldn't find script %s\n\n See perf"
+			usage_with_options_msg(script_usage, options,
+				"Couldn't find script `%s'\n\n See perf"
 				" script -l for available scripts.\n", argv[0]);
-			usage_with_options(script_usage, options);
 		}
 
 		if (is_top_script(argv[0])) {
@@ -1780,10 +1780,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			rep_args = has_required_arg(rep_script_path);
 			rec_args = (argc - 1) - rep_args;
 			if (rec_args < 0) {
-				fprintf(stderr, " %s script requires options."
+				usage_with_options_msg(script_usage, options,
+					"`%s' script requires options."
 					"\n\n See perf script -l for available "
 					"scripts and options.\n", argv[0]);
-				usage_with_options(script_usage, options);
 			}
 		}
 

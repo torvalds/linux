@@ -760,6 +760,21 @@ void usage_with_options(const char * const *usagestr,
 	exit(129);
 }
 
+void usage_with_options_msg(const char * const *usagestr,
+			    const struct option *opts, const char *fmt, ...)
+{
+	va_list ap;
+
+	exit_browser(false);
+
+	va_start(ap, fmt);
+	strbuf_addv(&error_buf, fmt, ap);
+	va_end(ap);
+
+	usage_with_options_internal(usagestr, opts, 0, NULL);
+	exit(129);
+}
+
 int parse_options_usage(const char * const *usagestr,
 			const struct option *opts,
 			const char *optstr, bool short_opt)

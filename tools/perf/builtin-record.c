@@ -1135,14 +1135,15 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		usage_with_options(record_usage, record_options);
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
-		ui__error("cgroup monitoring only available in"
-			  " system-wide mode\n");
-		usage_with_options(record_usage, record_options);
+		usage_with_options_msg(record_usage, record_options,
+			"cgroup monitoring only available in system-wide mode");
+
 	}
 	if (rec->opts.record_switch_events &&
 	    !perf_can_record_switch_events()) {
-		ui__error("kernel does not support recording context switch events (--switch-events option)\n");
-		usage_with_options(record_usage, record_options);
+		ui__error("kernel does not support recording context switch events\n");
+		parse_options_usage(record_usage, record_options, "switch-events", 0);
+		return -EINVAL;
 	}
 
 	if (!rec->itr) {

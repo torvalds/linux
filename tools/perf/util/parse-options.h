@@ -161,6 +161,10 @@ extern int parse_options_subcommand(int argc, const char **argv,
 
 extern NORETURN void usage_with_options(const char * const *usagestr,
                                         const struct option *options);
+extern NORETURN __attribute__((format(printf,3,4)))
+void usage_with_options_msg(const char * const *usagestr,
+			    const struct option *options,
+			    const char *fmt, ...);
 
 /*----- incremantal advanced APIs -----*/
 
