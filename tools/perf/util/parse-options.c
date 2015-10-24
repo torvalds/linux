@@ -770,23 +770,22 @@ int parse_options_usage(const char * const *usagestr,
 opt:
 	for (  ; opts->type != OPTION_END; opts++) {
 		if (short_opt) {
-			if (opts->short_name == *optstr)
+			if (opts->short_name == *optstr) {
+				print_option_help(opts, 0);
 				break;
+			}
 			continue;
 		}
 
 		if (opts->long_name == NULL)
 			continue;
 
-		if (!prefixcmp(optstr, opts->long_name))
-			break;
-		if (!prefixcmp(optstr, "no-") &&
-		    !prefixcmp(optstr + 3, opts->long_name))
-			break;
+		if (!prefixcmp(opts->long_name, optstr))
+			print_option_help(opts, 0);
+		if (!prefixcmp("no-", optstr) &&
+		    !prefixcmp(opts->long_name, optstr + 3))
+			print_option_help(opts, 0);
 	}
-
-	if (opts->type != OPTION_END)
-		print_option_help(opts, 0);
 
 	return PARSE_OPT_HELP;
 }
