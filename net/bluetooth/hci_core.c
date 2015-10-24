@@ -162,6 +162,16 @@ static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
 	if (strtobool(buf, &enable))
 		return -EINVAL;
 
+	/* When the diagnostic flags are not persistent and the transport
+	 * is not active, then there is no need for the vendor callback.
+	 *
+	 * Instead just store the desired value. If needed the setting
+	 * will be programmed when the controller gets powered on.
+	 */
+	if (test_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks) &&
+	    !test_bit(HCI_RUNNING, &hdev->flags))
+		goto done;
+
 	hci_req_lock(hdev);
 	err = hdev->set_diag(hdev, enable);
 	hci_req_unlock(hdev);
@@ -169,6 +179,7 @@ static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
 	if (err < 0)
 		return err;
 
+done:
 	if (enable)
 		hci_dev_set_flag(hdev, HCI_VENDOR_DIAG);
 	else
@@ -1450,6 +1461,8 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	set_bit(HCI_INIT, &hdev->flags);
 
 	if (hci_dev_test_flag(hdev, HCI_SETUP)) {
+		hci_sock_dev_event(hdev, HCI_DEV_SETUP);
+
 		if (hdev->setup)
 			ret = hdev->setup(hdev);
 
@@ -1490,9 +1503,20 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 
 	if (!ret) {
 		if (!hci_dev_test_flag(hdev, HCI_UNCONFIGURED) &&
-		    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL))
+		    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
 			ret = __hci_init(hdev);
+			if (!ret && hdev->post_init)
+				ret = hdev->post_init(hdev);
+		}
 	}
+
+	/* If the HCI Reset command is clearing all diagnostic settings,
+	 * then they need to be reprogrammed after the init procedure
+	 * completed.
+	 */
+	if (test_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks) &&
+	    hci_dev_test_flag(hdev, HCI_VENDOR_DIAG) && hdev->set_diag)
+		ret = hdev->set_diag(hdev, true);
 
 	clear_bit(HCI_INIT, &hdev->flags);
 
@@ -2917,23 +2941,6 @@ struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
 }
 
 /* This function requires the caller holds hdev->lock */
-struct hci_conn_params *hci_explicit_connect_lookup(struct hci_dev *hdev,
-						    bdaddr_t *addr,
-						    u8 addr_type)
-{
-	struct hci_conn_params *param;
-
-	list_for_each_entry(param, &hdev->pend_le_conns, action) {
-		if (bacmp(&param->addr, addr) == 0 &&
-		    param->addr_type == addr_type &&
-		    param->explicit_connect)
-			return param;
-	}
-
-	return NULL;
-}
-
-/* This function requires the caller holds hdev->lock */
 struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 					    bdaddr_t *addr, u8 addr_type)
 {
@@ -3555,14 +3562,15 @@ EXPORT_SYMBOL(hci_recv_frame);
 /* Receive diagnostic message from HCI drivers */
 int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb)
 {
+	/* Mark as diagnostic packet */
+	bt_cb(skb)->pkt_type = HCI_DIAG_PKT;
+
 	/* Time stamp */
 	__net_timestamp(skb);
 
-	/* Mark as diagnostic packet and send to monitor */
-	bt_cb(skb)->pkt_type = HCI_DIAG_PKT;
-	hci_send_to_monitor(hdev, skb);
+	skb_queue_tail(&hdev->rx_q, skb);
+	queue_work(hdev->workqueue, &hdev->rx_work);
 
-	kfree_skb(skb);
 	return 0;
 }
 EXPORT_SYMBOL(hci_recv_diag);

@@ -259,8 +259,8 @@ static int bcm_set_diag(struct hci_dev *hdev, bool enable)
 		return -ENETDOWN;
 
 	skb = bt_skb_alloc(3, GFP_KERNEL);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
+	if (!skb)
+		return -ENOMEM;
 
 	*skb_put(skb, 1) = BCM_LM_DIAG_PKT;
 	*skb_put(skb, 1) = 0xf0;
@@ -799,6 +799,7 @@ static int bcm_remove(struct platform_device *pdev)
 static const struct hci_uart_proto bcm_proto = {
 	.id		= HCI_UART_BCM,
 	.name		= "BCM",
+	.manufacturer	= 15,
 	.init_speed	= 115200,
 	.oper_speed	= 4000000,
 	.open		= bcm_open,

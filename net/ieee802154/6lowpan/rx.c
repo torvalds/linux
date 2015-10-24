@@ -90,36 +90,12 @@ static lowpan_rx_result lowpan_rx_h_frag(struct sk_buff *skb)
 
 int lowpan_iphc_decompress(struct sk_buff *skb)
 {
-	struct ieee802154_addr_sa sa, da;
 	struct ieee802154_hdr hdr;
-	u8 iphc0, iphc1;
-	void *sap, *dap;
 
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
 		return -EINVAL;
 
-	raw_dump_table(__func__, "raw skb data dump", skb->data, skb->len);
-
-	if (lowpan_fetch_skb_u8(skb, &iphc0) ||
-	    lowpan_fetch_skb_u8(skb, &iphc1))
-		return -EINVAL;
-
-	ieee802154_addr_to_sa(&sa, &hdr.source);
-	ieee802154_addr_to_sa(&da, &hdr.dest);
-
-	if (sa.addr_type == IEEE802154_ADDR_SHORT)
-		sap = &sa.short_addr;
-	else
-		sap = &sa.hwaddr;
-
-	if (da.addr_type == IEEE802154_ADDR_SHORT)
-		dap = &da.short_addr;
-	else
-		dap = &da.hwaddr;
-
-	return lowpan_header_decompress(skb, skb->dev, sap, sa.addr_type,
-					IEEE802154_ADDR_LEN, dap, da.addr_type,
-					IEEE802154_ADDR_LEN, iphc0, iphc1);
+	return lowpan_header_decompress(skb, skb->dev, &hdr.dest, &hdr.source);
 }
 
 static lowpan_rx_result lowpan_rx_h_iphc(struct sk_buff *skb)
@@ -308,16 +284,16 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	if (wdev->type != ARPHRD_IEEE802154 ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    !lowpan_rx_h_check(skb))
-		return NET_RX_DROP;
+		goto drop;
 
 	ldev = wdev->ieee802154_ptr->lowpan_dev;
 	if (!ldev || !netif_running(ldev))
-		return NET_RX_DROP;
+		goto drop;
 
 	/* Replacing skb->dev and followed rx handlers will manipulate skb. */
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
-		return NET_RX_DROP;
+		goto out;
 	skb->dev = ldev;
 
 	/* When receive frag1 it's likely that we manipulate the buffer.
@@ -328,10 +304,15 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	    lowpan_is_iphc(*skb_network_header(skb))) {
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (!skb)
-			return NET_RX_DROP;
+			goto out;
 	}
 
 	return lowpan_invoke_rx_handlers(skb);
+
+drop:
+	kfree_skb(skb);
+out:
+	return NET_RX_DROP;
 }
 
 static struct packet_type lowpan_packet_type = {

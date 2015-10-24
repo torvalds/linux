@@ -557,6 +557,7 @@ static int intel_setup(struct hci_uart *hu)
 
 	bt_dev_dbg(hdev, "start intel_setup");
 
+	hu->hdev->set_diag = btintel_set_diag;
 	hu->hdev->set_bdaddr = btintel_set_bdaddr;
 
 	calltime = ktime_get();
@@ -1147,6 +1148,7 @@ static struct sk_buff *intel_dequeue(struct hci_uart *hu)
 static const struct hci_uart_proto intel_proto = {
 	.id		= HCI_UART_INTEL,
 	.name		= "Intel",
+	.manufacturer	= 2,
 	.init_speed	= 115200,
 	.oper_speed	= 3000000,
 	.open		= intel_open,

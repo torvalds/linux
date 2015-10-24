@@ -587,6 +587,13 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	hdev->bus = HCI_UART;
 	hci_set_drvdata(hdev, hu);
 
+	/* Only when vendor specific setup callback is provided, consider
+	 * the manufacturer information valid. This avoids filling in the
+	 * value for Ericsson when nothing is specified.
+	 */
+	if (hu->proto->setup)
+		hdev->manufacturer = hu->proto->manufacturer;
+
 	hdev->open  = hci_uart_open;
 	hdev->close = hci_uart_close;
 	hdev->flush = hci_uart_flush;

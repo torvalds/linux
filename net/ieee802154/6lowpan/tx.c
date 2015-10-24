@@ -14,6 +14,9 @@
 
 #include "6lowpan_i.h"
 
+#define LOWPAN_FRAG1_HEAD_SIZE	0x4
+#define LOWPAN_FRAGN_HEAD_SIZE	0x5
+
 /* don't save pan id, it's intra pan */
 struct lowpan_addr {
 	u8 mode;
@@ -218,7 +221,7 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 	saddr = &info.saddr.u.extended_addr;
 
 	*dgram_size = skb->len;
-	lowpan_header_compress(skb, ldev, ETH_P_IPV6, daddr, saddr, skb->len);
+	lowpan_header_compress(skb, ldev, daddr, saddr);
 	/* dgram_offset = (saved bytes after compression) + lowpan header len */
 	*dgram_offset = (*dgram_size - skb->len) + skb_network_header_len(skb);
 
@@ -235,7 +238,7 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 	/* if the destination address is the broadcast address, use the
 	 * corresponding short address
 	 */
-	if (lowpan_is_addr_broadcast((const u8 *)daddr)) {
+	if (!memcmp(daddr, ldev->broadcast, EUI64_ADDR_LEN)) {
 		da.mode = IEEE802154_ADDR_SHORT;
 		da.short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 		cb->ackreq = false;
