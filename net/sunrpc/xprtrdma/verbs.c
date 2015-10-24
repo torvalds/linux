@@ -158,25 +158,30 @@ rpcrdma_sendcq_process_wc(struct ib_wc *wc)
 	}
 }
 
-static int
-rpcrdma_sendcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
+/* The common case is a single send completion is waiting. By
+ * passing two WC entries to ib_poll_cq, a return code of 1
+ * means there is exactly one WC waiting and no more. We don't
+ * have to invoke ib_poll_cq again to know that the CQ has been
+ * properly drained.
+ */
+static void
+rpcrdma_sendcq_poll(struct ib_cq *cq)
 {
-	struct ib_wc *wcs;
-	int budget, count, rc;
+	struct ib_wc *pos, wcs[2];
+	int count, rc;
 
-	budget = RPCRDMA_WC_BUDGET / RPCRDMA_POLLSIZE;
 	do {
-		wcs = ep->rep_send_wcs;
+		pos = wcs;
 
-		rc = ib_poll_cq(cq, RPCRDMA_POLLSIZE, wcs);
-		if (rc <= 0)
-			return rc;
+		rc = ib_poll_cq(cq, ARRAY_SIZE(wcs), pos);
+		if (rc < 0)
+			break;
 
 		count = rc;
 		while (count-- > 0)
-			rpcrdma_sendcq_process_wc(wcs++);
-	} while (rc == RPCRDMA_POLLSIZE && --budget);
-	return 0;
+			rpcrdma_sendcq_process_wc(pos++);
+	} while (rc == ARRAY_SIZE(wcs));
+	return;
 }
 
 /* Handle provider send completion upcalls.
@@ -184,10 +189,8 @@ rpcrdma_sendcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 static void
 rpcrdma_sendcq_upcall(struct ib_cq *cq, void *cq_context)
 {
-	struct rpcrdma_ep *ep = (struct rpcrdma_ep *)cq_context;
-
 	do {
-		rpcrdma_sendcq_poll(cq, ep);
+		rpcrdma_sendcq_poll(cq);
 	} while (ib_req_notify_cq(cq, IB_CQ_NEXT_COMP |
 				  IB_CQ_REPORT_MISSED_EVENTS) > 0);
 }
@@ -226,31 +229,32 @@ out_fail:
 	goto out_schedule;
 }
 
-static int
-rpcrdma_recvcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
+/* The wc array is on stack: automatic memory is always CPU-local.
+ *
+ * struct ib_wc is 64 bytes, making the poll array potentially
+ * large. But this is at the bottom of the call chain. Further
+ * substantial work is done in another thread.
+ */
+static void
+rpcrdma_recvcq_poll(struct ib_cq *cq)
 {
-	struct list_head sched_list;
-	struct ib_wc *wcs;
-	int budget, count, rc;
+	struct ib_wc *pos, wcs[4];
+	LIST_HEAD(sched_list);
+	int count, rc;
 
-	INIT_LIST_HEAD(&sched_list);
-	budget = RPCRDMA_WC_BUDGET / RPCRDMA_POLLSIZE;
 	do {
-		wcs = ep->rep_recv_wcs;
+		pos = wcs;
 
-		rc = ib_poll_cq(cq, RPCRDMA_POLLSIZE, wcs);
-		if (rc <= 0)
-			goto out_schedule;
+		rc = ib_poll_cq(cq, ARRAY_SIZE(wcs), pos);
+		if (rc < 0)
+			break;
 
 		count = rc;
 		while (count-- > 0)
-			rpcrdma_recvcq_process_wc(wcs++, &sched_list);
-	} while (rc == RPCRDMA_POLLSIZE && --budget);
-	rc = 0;
+			rpcrdma_recvcq_process_wc(pos++, &sched_list);
+	} while (rc == ARRAY_SIZE(wcs));
 
-out_schedule:
 	rpcrdma_schedule_tasklet(&sched_list);
-	return rc;
 }
 
 /* Handle provider receive completion upcalls.
@@ -258,10 +262,8 @@ out_schedule:
 static void
 rpcrdma_recvcq_upcall(struct ib_cq *cq, void *cq_context)
 {
-	struct rpcrdma_ep *ep = (struct rpcrdma_ep *)cq_context;
-
 	do {
-		rpcrdma_recvcq_poll(cq, ep);
+		rpcrdma_recvcq_poll(cq);
 	} while (ib_req_notify_cq(cq, IB_CQ_NEXT_COMP |
 				  IB_CQ_REPORT_MISSED_EVENTS) > 0);
 }
@@ -623,7 +625,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	cq_attr.cqe = ep->rep_attr.cap.max_send_wr + 1;
 	sendcq = ib_create_cq(ia->ri_device, rpcrdma_sendcq_upcall,
-			      rpcrdma_cq_async_error_upcall, ep, &cq_attr);
+			      rpcrdma_cq_async_error_upcall, NULL, &cq_attr);
 	if (IS_ERR(sendcq)) {
 		rc = PTR_ERR(sendcq);
 		dprintk("RPC:       %s: failed to create send CQ: %i\n",
@@ -640,7 +642,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	cq_attr.cqe = ep->rep_attr.cap.max_recv_wr + 1;
 	recvcq = ib_create_cq(ia->ri_device, rpcrdma_recvcq_upcall,
-			      rpcrdma_cq_async_error_upcall, ep, &cq_attr);
+			      rpcrdma_cq_async_error_upcall, NULL, &cq_attr);
 	if (IS_ERR(recvcq)) {
 		rc = PTR_ERR(recvcq);
 		dprintk("RPC:       %s: failed to create recv CQ: %i\n",
