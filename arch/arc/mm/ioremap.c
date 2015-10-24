@@ -14,6 +14,18 @@
 #include <linux/slab.h>
 #include <linux/cache.h>
 
+static inline bool arc_uncached_addr_space(phys_addr_t paddr)
+{
+	if (is_isa_arcompact()) {
+		if (paddr >= ARC_UNCACHED_ADDR_SPACE)
+			return true;
+	} else if (paddr >= perip_base && paddr <= 0xFFFFFFFF) {
+		return true;
+	}
+
+	return false;
+}
+
 void __iomem *ioremap(phys_addr_t paddr, unsigned long size)
 {
 	phys_addr_t end;
@@ -27,7 +39,7 @@ void __iomem *ioremap(phys_addr_t paddr, unsigned long size)
 	 * If the region is h/w uncached, MMU mapping can be elided as optim
 	 * The cast to u32 is fine as this region can only be inside 4GB
 	 */
-	if (paddr >= ARC_UNCACHED_ADDR_SPACE)
+	if (arc_uncached_addr_space(paddr))
 		return (void __iomem *)(u32)paddr;
 
 	return ioremap_prot(paddr, size, PAGE_KERNEL_NO_CACHE);
@@ -85,7 +97,8 @@ EXPORT_SYMBOL(ioremap_prot);
 
 void iounmap(const void __iomem *addr)
 {
-	if (addr >= (void __force __iomem *)ARC_UNCACHED_ADDR_SPACE)
+	/* weird double cast to handle phys_addr_t > 32 bits */
+	if (arc_uncached_addr_space((phys_addr_t)(u32)addr))
 		return;
 
 	vfree((void *)(PAGE_MASK & (unsigned long __force)addr));

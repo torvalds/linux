@@ -91,11 +91,9 @@ static void read_decode_ccm_bcr(struct cpuinfo_arc *cpu)
 
 static void read_arc_build_cfg_regs(void)
 {
-	struct bcr_perip uncached_space;
 	struct bcr_timer timer;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
-	unsigned long perip_space;
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
@@ -107,14 +105,6 @@ static void read_arc_build_cfg_regs(void)
 	cpu->extn.rtc = timer.rtc;
 
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
-
-	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
-        if (uncached_space.ver < 3)
-		perip_space = uncached_space.start << 24;
-	else
-		perip_space = read_aux_reg(AUX_NON_VOL) & 0xF0000000;
-
-	BUG_ON(perip_space != ARC_UNCACHED_ADDR_SPACE);
 
 	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
@@ -288,8 +278,8 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	FIX_PTR(cpu);
 
 	n += scnprintf(buf + n, len - n,
-		       "Vector Table\t: %#x\nUncached Base\t: %#x\n",
-		       cpu->vec_base, ARC_UNCACHED_ADDR_SPACE);
+		       "Vector Table\t: %#x\nUncached Base\t: %#lx\n",
+		       cpu->vec_base, perip_base);
 
 	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
 		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
