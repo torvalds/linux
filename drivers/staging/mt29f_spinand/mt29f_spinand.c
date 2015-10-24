@@ -736,7 +736,7 @@ static void spinand_reset(struct spi_device *spi_nand)
 		pr_info("spinand reset failed!\n");
 
 	/* elapse 1ms before issuing any other command */
-	udelay(1000);
+	usleep_range(1000, 2000);
 
 	if (wait_till_ready(spi_nand))
 		dev_err(&spi_nand->dev, "wait timedout!\n");
@@ -802,7 +802,7 @@ static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		if (wait_till_ready(info->spi))
 			dev_err(&info->spi->dev, "WAIT timedout!!!\n");
 		/* a minimum of 250us must elapse before issuing RESET cmd*/
-		udelay(250);
+		usleep_range(250, 1000);
 		spinand_reset(info->spi);
 		break;
 	default:
