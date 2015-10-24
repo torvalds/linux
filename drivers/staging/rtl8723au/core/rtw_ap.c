@@ -658,10 +658,10 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	 * and at first time the security
 	 * ie (RSN/WPA IE) will not include in beacon
 	 */
-	if (NULL == cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
-					    WLAN_OUI_TYPE_MICROSOFT_WPS,
-					    pnetwork->IEs,
-					    pnetwork->IELength))
+	if (!cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+				     WLAN_OUI_TYPE_MICROSOFT_WPS,
+				     pnetwork->IEs,
+				     pnetwork->IELength))
 		pmlmeext->bstart_bss = true;
 
 	/* todo: update wmm, ht cap */
