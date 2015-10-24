@@ -168,6 +168,8 @@ struct rpcrdma_rep {
 	struct rpcrdma_regbuf	*rr_rdmabuf;
 };
 
+#define RPCRDMA_BAD_LEN		(~0U)
+
 /*
  * struct rpcrdma_mw - external memory region metadata
  *
