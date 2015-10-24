@@ -1063,24 +1063,23 @@ struct rpcrdma_req *
 rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 {
 	struct rpcrdma_req *req;
-	unsigned long flags;
 
-	spin_lock_irqsave(&buffers->rb_lock, flags);
+	spin_lock(&buffers->rb_lock);
 	if (list_empty(&buffers->rb_send_bufs))
 		goto out_reqbuf;
 	req = rpcrdma_buffer_get_req_locked(buffers);
 	if (list_empty(&buffers->rb_recv_bufs))
 		goto out_repbuf;
 	req->rl_reply = rpcrdma_buffer_get_rep_locked(buffers);
-	spin_unlock_irqrestore(&buffers->rb_lock, flags);
+	spin_unlock(&buffers->rb_lock);
 	return req;
 
 out_reqbuf:
-	spin_unlock_irqrestore(&buffers->rb_lock, flags);
+	spin_unlock(&buffers->rb_lock);
 	pr_warn("RPC:       %s: out of request buffers\n", __func__);
 	return NULL;
 out_repbuf:
-	spin_unlock_irqrestore(&buffers->rb_lock, flags);
+	spin_unlock(&buffers->rb_lock);
 	pr_warn("RPC:       %s: out of reply buffers\n", __func__);
 	req->rl_reply = NULL;
 	return req;
@@ -1095,16 +1094,15 @@ rpcrdma_buffer_put(struct rpcrdma_req *req)
 {
 	struct rpcrdma_buffer *buffers = req->rl_buffer;
 	struct rpcrdma_rep *rep = req->rl_reply;
-	unsigned long flags;
 
 	req->rl_niovs = 0;
 	req->rl_reply = NULL;
 
-	spin_lock_irqsave(&buffers->rb_lock, flags);
+	spin_lock(&buffers->rb_lock);
 	list_add_tail(&req->rl_free, &buffers->rb_send_bufs);
 	if (rep)
 		list_add_tail(&rep->rr_list, &buffers->rb_recv_bufs);
-	spin_unlock_irqrestore(&buffers->rb_lock, flags);
+	spin_unlock(&buffers->rb_lock);
 }
 
 /*
@@ -1115,12 +1113,11 @@ void
 rpcrdma_recv_buffer_get(struct rpcrdma_req *req)
 {
 	struct rpcrdma_buffer *buffers = req->rl_buffer;
-	unsigned long flags;
 
-	spin_lock_irqsave(&buffers->rb_lock, flags);
+	spin_lock(&buffers->rb_lock);
 	if (!list_empty(&buffers->rb_recv_bufs))
 		req->rl_reply = rpcrdma_buffer_get_rep_locked(buffers);
-	spin_unlock_irqrestore(&buffers->rb_lock, flags);
+	spin_unlock(&buffers->rb_lock);
 }
 
 /*
@@ -1131,11 +1128,10 @@ void
 rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
 {
 	struct rpcrdma_buffer *buffers = &rep->rr_rxprt->rx_buf;
-	unsigned long flags;
 
-	spin_lock_irqsave(&buffers->rb_lock, flags);
+	spin_lock(&buffers->rb_lock);
 	list_add_tail(&rep->rr_list, &buffers->rb_recv_bufs);
-	spin_unlock_irqrestore(&buffers->rb_lock, flags);
+	spin_unlock(&buffers->rb_lock);
 }
 
 /*
