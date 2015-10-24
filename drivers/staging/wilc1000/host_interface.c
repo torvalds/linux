@@ -1438,7 +1438,7 @@ static s32 Handle_RcvdNtwrkInfo(struct host_if_drv *hif_drv,
 			}
 		}
 
-		if (bNewNtwrkFound == true) {
+		if (bNewNtwrkFound) {
 			PRINT_D(HOSTINF_DBG, "New network found\n");
 
 			if (hif_drv->strWILC_UsrScanReq.u32RcvdChCount < MAX_NUM_SCANNED_NETWORKS) {
@@ -2692,7 +2692,7 @@ static void Handle_PowerManagement(struct host_if_drv *hif_drv,
 
 	strWID.id = (u16)WID_POWER_MANAGEMENT;
 
-	if (strPowerMgmtParam->enabled == true)
+	if (strPowerMgmtParam->enabled)
 		s8PowerMode = MIN_FAST_PS;
 	else
 		s8PowerMode = NO_POWERSAVE;
