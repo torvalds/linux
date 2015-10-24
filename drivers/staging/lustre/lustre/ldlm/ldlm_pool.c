@@ -1005,7 +1005,6 @@ static int ldlm_pools_recalc(ldlm_side_t client)
 	}
 	return time;
 }
-EXPORT_SYMBOL(ldlm_pools_recalc);
 
 static int ldlm_pools_thread_main(void *arg)
 {
