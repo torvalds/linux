@@ -5,12 +5,16 @@
  */
 
 #include <linux/module.h>
+#include <linux/sunrpc/xprt.h>
+#include <linux/sunrpc/svc.h>
 
 #include "xprt_rdma.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
+
+#define RPCRDMA_BACKCHANNEL_DEBUG
 
 static void rpcrdma_bc_free_rqst(struct rpcrdma_xprt *r_xprt,
 				 struct rpc_rqst *rqst)
@@ -252,4 +256,118 @@ void xprt_rdma_bc_free_rqst(struct rpc_rqst *rqst)
 	spin_lock_bh(&xprt->bc_pa_lock);
 	list_add_tail(&rqst->rq_bc_pa_list, &xprt->bc_pa_list);
 	spin_unlock_bh(&xprt->bc_pa_lock);
+}
+
+/**
+ * rpcrdma_bc_receive_call - Handle a backward direction call
+ * @xprt: transport receiving the call
+ * @rep: receive buffer containing the call
+ *
+ * Called in the RPC reply handler, which runs in a tasklet.
+ * Be quick about it.
+ *
+ * Operational assumptions:
+ *    o Backchannel credits are ignored, just as the NFS server
+ *      forechannel currently does
+ *    o The ULP manages a replay cache (eg, NFSv4.1 sessions).
+ *      No replay detection is done at the transport level
+ */
+void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
+			     struct rpcrdma_rep *rep)
+{
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+	struct rpcrdma_msg *headerp;
+	struct svc_serv *bc_serv;
+	struct rpcrdma_req *req;
+	struct rpc_rqst *rqst;
+	struct xdr_buf *buf;
+	size_t size;
+	__be32 *p;
+
+	headerp = rdmab_to_msg(rep->rr_rdmabuf);
+#ifdef RPCRDMA_BACKCHANNEL_DEBUG
+	pr_info("RPC:       %s: callback XID %08x, length=%u\n",
+		__func__, be32_to_cpu(headerp->rm_xid), rep->rr_len);
+	pr_info("RPC:       %s: %*ph\n", __func__, rep->rr_len, headerp);
+#endif
+
+	/* Sanity check:
+	 * Need at least enough bytes for RPC/RDMA header, as code
+	 * here references the header fields by array offset. Also,
+	 * backward calls are always inline, so ensure there
+	 * are some bytes beyond the RPC/RDMA header.
+	 */
+	if (rep->rr_len < RPCRDMA_HDRLEN_MIN + 24)
+		goto out_short;
+	p = (__be32 *)((unsigned char *)headerp + RPCRDMA_HDRLEN_MIN);
+	size = rep->rr_len - RPCRDMA_HDRLEN_MIN;
+
+	/* Grab a free bc rqst */
+	spin_lock(&xprt->bc_pa_lock);
+	if (list_empty(&xprt->bc_pa_list)) {
+		spin_unlock(&xprt->bc_pa_lock);
+		goto out_overflow;
+	}
+	rqst = list_first_entry(&xprt->bc_pa_list,
+				struct rpc_rqst, rq_bc_pa_list);
+	list_del(&rqst->rq_bc_pa_list);
+	spin_unlock(&xprt->bc_pa_lock);
+#ifdef RPCRDMA_BACKCHANNEL_DEBUG
+	pr_info("RPC:       %s: using rqst %p\n", __func__, rqst);
+#endif
+
+	/* Prepare rqst */
+	rqst->rq_reply_bytes_recvd = 0;
+	rqst->rq_bytes_sent = 0;
+	rqst->rq_xid = headerp->rm_xid;
+	set_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state);
+
+	buf = &rqst->rq_rcv_buf;
+	memset(buf, 0, sizeof(*buf));
+	buf->head[0].iov_base = p;
+	buf->head[0].iov_len = size;
+	buf->len = size;
+
+	/* The receive buffer has to be hooked to the rpcrdma_req
+	 * so that it can be reposted after the server is done
+	 * parsing it but just before sending the backward
+	 * direction reply.
+	 */
+	req = rpcr_to_rdmar(rqst);
+#ifdef RPCRDMA_BACKCHANNEL_DEBUG
+	pr_info("RPC:       %s: attaching rep %p to req %p\n",
+		__func__, rep, req);
+#endif
+	req->rl_reply = rep;
+
+	/* Defeat the retransmit detection logic in send_request */
+	req->rl_connect_cookie = 0;
+
+	/* Queue rqst for ULP's callback service */
+	bc_serv = xprt->bc_serv;
+	spin_lock(&bc_serv->sv_cb_lock);
+	list_add(&rqst->rq_bc_list, &bc_serv->sv_cb_list);
+	spin_unlock(&bc_serv->sv_cb_lock);
+
+	wake_up(&bc_serv->sv_cb_waitq);
+
+	r_xprt->rx_stats.bcall_count++;
+	return;
+
+out_overflow:
+	pr_warn("RPC/RDMA backchannel overflow\n");
+	xprt_disconnect_done(xprt);
+	/* This receive buffer gets reposted automatically
+	 * when the connection is re-established.
+	 */
+	return;
+
+out_short:
+	pr_warn("RPC/RDMA short backward direction call\n");
+
+	if (rpcrdma_ep_post_recv(&r_xprt->rx_ia, &r_xprt->rx_ep, rep))
+		xprt_disconnect_done(xprt);
+	else
+		pr_warn("RPC:       %s: reposting rep %p\n",
+			__func__, rep);
 }
