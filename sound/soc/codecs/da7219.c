@@ -1306,7 +1306,7 @@ static int da7219_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	channels = params_channels(params);
-	if ((channels < 1) | (channels > DA7219_DAI_CH_NUM_MAX)) {
+	if ((channels < 1) || (channels > DA7219_DAI_CH_NUM_MAX)) {
 		dev_err(codec->dev,
 			"Invalid number of channels, only 1 to %d supported\n",
 			DA7219_DAI_CH_NUM_MAX);
