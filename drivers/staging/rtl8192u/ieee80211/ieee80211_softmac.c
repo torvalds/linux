@@ -417,7 +417,6 @@ static void ieee80211_send_probe_requests(struct ieee80211_device *ieee)
 		ieee80211_send_probe(ieee);
 	}
 }
-EXPORT_SYMBOL(ieee80211_send_probe_requests);
 
 /* this performs syncro scan blocking the caller until all channels
  * in the allowed channel map has been checked.
