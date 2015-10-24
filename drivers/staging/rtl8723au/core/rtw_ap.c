@@ -21,10 +21,7 @@
 #include <rtl8723a_cmd.h>
 #include <rtl8723a_hal.h>
 #include <asm/unaligned.h>
-
-extern unsigned char WMM_OUI23A[];
-extern unsigned char WPS_OUI23A[];
-extern unsigned char P2P_OUI23A[];
+#include <rtw_mlme_ext.h>
 
 void init_mlme_ap_info23a(struct rtw_adapter *padapter)
 {
