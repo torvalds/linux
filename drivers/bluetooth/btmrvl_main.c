@@ -516,14 +516,17 @@ static int btmrvl_check_device_tree(struct btmrvl_private *priv)
 		ret = of_property_read_u8_array(dt_node, "btmrvl,cal-data",
 						cal_data + BT_CAL_HDR_LEN,
 						BT_CAL_DATA_SIZE);
-		if (ret)
+		if (ret) {
+			of_node_put(dt_node);
 			return ret;
+		}
 
 		BT_DBG("Use cal data from device tree");
 		ret = btmrvl_download_cal_data(priv, cal_data,
 					       BT_CAL_DATA_SIZE);
 		if (ret) {
 			BT_ERR("Fail to download calibrate data");
+			of_node_put(dt_node);
 			return ret;
 		}
 	}
