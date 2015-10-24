@@ -164,6 +164,7 @@ struct rpcrdma_rep {
 	unsigned int		rr_len;
 	struct ib_device	*rr_device;
 	struct rpcrdma_xprt	*rr_rxprt;
+	struct work_struct	rr_work;
 	struct list_head	rr_list;
 	struct rpcrdma_regbuf	*rr_rdmabuf;
 };
@@ -429,6 +430,9 @@ unsigned int rpcrdma_max_segments(struct rpcrdma_xprt *);
 
 int frwr_alloc_recovery_wq(void);
 void frwr_destroy_recovery_wq(void);
+
+int rpcrdma_alloc_wq(void);
+void rpcrdma_destroy_wq(void);
 
 /*
  * Wrappers for chunk registration, shared by read/write chunk code.
