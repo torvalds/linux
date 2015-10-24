@@ -125,6 +125,9 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 	 * Twice as many rpc_rqsts are prepared to ensure there is
 	 * always an rpc_rqst available as soon as a reply is sent.
 	 */
+	if (reqs > RPCRDMA_BACKWARD_WRS >> 1)
+		goto out_err;
+
 	for (i = 0; i < (reqs << 1); i++) {
 		rqst = kzalloc(sizeof(*rqst), GFP_KERNEL);
 		if (!rqst) {
@@ -161,6 +164,7 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 out_free:
 	xprt_rdma_bc_destroy(xprt, reqs);
 
+out_err:
 	pr_err("RPC:       %s: setup backchannel transport failed\n", __func__);
 	return -ENOMEM;
 }

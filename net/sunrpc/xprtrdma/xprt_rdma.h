@@ -101,6 +101,16 @@ struct rpcrdma_ep {
  */
 #define RPCRDMA_IGNORE_COMPLETION	(0ULL)
 
+/* Pre-allocate extra Work Requests for handling backward receives
+ * and sends. This is a fixed value because the Work Queues are
+ * allocated when the forward channel is set up.
+ */
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+#define RPCRDMA_BACKWARD_WRS		(8)
+#else
+#define RPCRDMA_BACKWARD_WRS		(0)
+#endif
+
 /* Registered buffer -- registered kmalloc'd memory for RDMA SEND/RECV
  *
  * The below structure appears at the front of a large region of kmalloc'd
