@@ -29,7 +29,7 @@ OPTIONS
 --show-nr-samples::
 	Show the number of samples for each symbol
 
---showcpuutilization::
+--show-cpu-utilization::
         Show sample percentage for different cpu modes.
 
 -T::
