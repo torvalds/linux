@@ -236,12 +236,12 @@ static void intel_invalidate_range(struct mmu_notifier *mn,
 }
 
 
-static void intel_flush_pasid_dev(struct intel_svm *svm, struct intel_svm_dev *sdev)
+static void intel_flush_pasid_dev(struct intel_svm *svm, struct intel_svm_dev *sdev, int pasid)
 {
 	struct qi_desc desc;
 
 	desc.high = 0;
-	desc.low = QI_PC_TYPE | QI_PC_DID(sdev->did) | QI_PC_PASID_SEL | QI_PC_PASID(svm->pasid);
+	desc.low = QI_PC_TYPE | QI_PC_DID(sdev->did) | QI_PC_PASID_SEL | QI_PC_PASID(pasid);
 
 	qi_submit_sync(&desc, svm->iommu);
 }
@@ -356,8 +356,10 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		if (pasid_max > 2 << ecap_pss(iommu->ecap))
 			pasid_max = 2 << ecap_pss(iommu->ecap);
 
-		ret = idr_alloc(&iommu->pasid_idr, svm, 0, pasid_max - 1,
-				GFP_KERNEL);
+		/* Do not use PASID 0 in caching mode (virtualised IOMMU) */
+		ret = idr_alloc(&iommu->pasid_idr, svm,
+				!!cap_caching_mode(iommu->cap),
+				pasid_max - 1, GFP_KERNEL);
 		if (ret < 0) {
 			kfree(svm);
 			goto out;
@@ -381,6 +383,17 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		} else
 			iommu->pasid_table[svm->pasid].val = (u64)__pa(init_mm.pgd) | 1 | (1ULL << 11);
 		wmb();
+		/* In caching mode, we still have to flush with PASID 0 when
+		 * a PASID table entry becomes present. Not entirely clear
+		 * *why* that would be the case — surely we could just issue
+		 * a flush with the PASID value that we've changed? The PASID
+		 * is the index into the table, after all. It's not like domain
+		 * IDs in the case of the equivalent context-entry change in
+		 * caching mode. And for that matter it's not entirely clear why
+		 * a VMM would be in the business of caching the PASID table
+		 * anyway. Surely that can be left entirely to the guest? */
+		if (cap_caching_mode(iommu->cap))
+			intel_flush_pasid_dev(svm, sdev, 0);
 	}
 	list_add_rcu(&sdev->list, &svm->devs);
 
@@ -424,7 +437,7 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 				 * to use. We have a *shared* PASID table, because it's
 				 * large and has to be physically contiguous. So it's
 				 * hard to be as defensive as we might like. */
-				intel_flush_pasid_dev(svm, sdev);
+				intel_flush_pasid_dev(svm, sdev, svm->pasid);
 				intel_flush_svm_range_dev(svm, sdev, 0, -1, 0, !svm->mm);
 				kfree_rcu(sdev, rcu);
 
