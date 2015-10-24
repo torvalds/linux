@@ -1952,8 +1952,10 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 		 * cases where only a single display controller is used.
 		 */
 		for_each_matching_node(np, tegra_dc_of_match) {
-			if (np == dc->dev->of_node)
+			if (np == dc->dev->of_node) {
+				of_node_put(np);
 				break;
+			}
 
 			value++;
 		}
