@@ -22,7 +22,6 @@
 
 struct nicpf {
 	struct pci_dev		*pdev;
-	u8			rev_id;
 	u8			node;
 	unsigned int		flags;
 	u8			num_vf_en;      /* No of VF enabled */
@@ -53,6 +52,11 @@ struct nicpf {
 	struct msix_entry	msix_entries[NIC_PF_MSIX_VECTORS];
 	bool			irq_allocated[NIC_PF_MSIX_VECTORS];
 };
+
+static inline bool pass1_silicon(struct nicpf *nic)
+{
+	return nic->pdev->revision < 8;
+}
 
 /* Supported devices */
 static const struct pci_device_id nic_id_table[] = {
@@ -117,7 +121,7 @@ static void nic_send_msg_to_vf(struct nicpf *nic, int vf, union nic_mbx *mbx)
 	 * when PF writes to MBOX(1), in next revisions when
 	 * PF writes to MBOX(0)
 	 */
-	if (nic->rev_id == 0) {
+	if (pass1_silicon(nic)) {
 		/* see the comment for nic_reg_write()/nic_reg_read()
 		 * functions above
 		 */
@@ -997,8 +1001,6 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto err_release_regions;
 	}
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &nic->rev_id);
 
 	nic->node = nic_get_node_id(pdev);
 
