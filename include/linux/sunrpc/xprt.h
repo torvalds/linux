@@ -54,6 +54,8 @@ enum rpc_display_format_t {
 struct rpc_task;
 struct rpc_xprt;
 struct seq_file;
+struct svc_serv;
+struct net;
 
 /*
  * This describes a complete RPC request
@@ -138,6 +140,7 @@ struct rpc_xprt_ops {
 	void		(*inject_disconnect)(struct rpc_xprt *xprt);
 	int		(*bc_setup)(struct rpc_xprt *xprt,
 				    unsigned int min_reqs);
+	int		(*bc_up)(struct svc_serv *serv, struct net *net);
 	void		(*bc_free_rqst)(struct rpc_rqst *rqst);
 	void		(*bc_destroy)(struct rpc_xprt *xprt,
 				      unsigned int max_reqs);
