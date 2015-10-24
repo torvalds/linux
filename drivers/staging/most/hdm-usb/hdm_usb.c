@@ -1239,11 +1239,10 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	num_endpoints = usb_iface_desc->desc.bNumEndpoints;
 	mutex_init(&mdev->io_mutex);
 	INIT_WORK(&mdev->poll_work_obj, wq_netinfo);
-	init_timer(&mdev->link_stat_timer);
+	setup_timer(&mdev->link_stat_timer, link_stat_timer_handler,
+		    (unsigned long)mdev);
 
 	mdev->usb_device = usb_dev;
-	mdev->link_stat_timer.function = link_stat_timer_handler;
-	mdev->link_stat_timer.data = (unsigned long)mdev;
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);
 
 	mdev->iface.mod = hdm_usb_fops.owner;
