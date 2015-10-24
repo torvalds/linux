@@ -403,8 +403,10 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 			rc = bcm6328_led(dev, child, reg, mem, lock,
 					 blink_leds, blink_delay);
 
-		if (rc < 0)
+		if (rc < 0) {
+			of_node_put(child);
 			return rc;
+		}
 	}
 
 	return 0;
