@@ -764,7 +764,7 @@ static int __ip_tun_to_nlattr(struct sk_buff *skb,
 	if ((output->tun_flags & TUNNEL_OAM) &&
 	    nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_OAM))
 		return -EMSGSIZE;
-	if (tun_opts) {
+	if (swkey_tun_opts_len) {
 		if (output->tun_flags & TUNNEL_GENEVE_OPT &&
 		    nla_put(skb, OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS,
 			    swkey_tun_opts_len, tun_opts))
@@ -798,14 +798,13 @@ static int ip_tun_to_nlattr(struct sk_buff *skb,
 	return 0;
 }
 
-int ovs_nla_put_egress_tunnel_key(struct sk_buff *skb,
-				  const struct ip_tunnel_info *egress_tun_info,
-				  const void *egress_tun_opts)
+int ovs_nla_put_tunnel_info(struct sk_buff *skb,
+			    struct ip_tunnel_info *tun_info)
 {
-	return __ip_tun_to_nlattr(skb, &egress_tun_info->key,
-				  egress_tun_opts,
-				  egress_tun_info->options_len,
-				  ip_tunnel_info_af(egress_tun_info));
+	return __ip_tun_to_nlattr(skb, &tun_info->key,
+				  ip_tunnel_info_opts(tun_info),
+				  tun_info->options_len,
+				  ip_tunnel_info_af(tun_info));
 }
 
 static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
@@ -866,7 +865,7 @@ static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
 	    ovs_ct_verify(net, OVS_KEY_ATTR_CT_STATE)) {
 		u32 ct_state = nla_get_u32(a[OVS_KEY_ATTR_CT_STATE]);
 
-		if (!is_mask && !ovs_ct_state_supported(ct_state)) {
+		if (ct_state & ~CT_SUPPORTED_MASK) {
 			OVS_NLERR(log, "ct_state flags %08x unsupported",
 				  ct_state);
 			return -EINVAL;
@@ -1149,6 +1148,9 @@ static void nlattr_set(struct nlattr *attr, u8 val,
 		} else {
 			memset(nla_data(nla), val, nla_len(nla));
 		}
+
+		if (nla_type(nla) == OVS_KEY_ATTR_CT_STATE)
+			*(u32 *)nla_data(nla) &= CT_SUPPORTED_MASK;
 	}
 }
 
@@ -2432,11 +2434,7 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 		if (!start)
 			return -EMSGSIZE;
 
-		err = ip_tun_to_nlattr(skb, &tun_info->key,
-				       tun_info->options_len ?
-					     ip_tunnel_info_opts(tun_info) : NULL,
-				       tun_info->options_len,
-				       ip_tunnel_info_af(tun_info));
+		err = ovs_nla_put_tunnel_info(skb, tun_info);
 		if (err)
 			return err;
 		nla_nest_end(skb, start);

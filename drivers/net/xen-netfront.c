@@ -1706,19 +1706,19 @@ static void xennet_destroy_queues(struct netfront_info *info)
 }
 
 static int xennet_create_queues(struct netfront_info *info,
-				unsigned int num_queues)
+				unsigned int *num_queues)
 {
 	unsigned int i;
 	int ret;
 
-	info->queues = kcalloc(num_queues, sizeof(struct netfront_queue),
+	info->queues = kcalloc(*num_queues, sizeof(struct netfront_queue),
 			       GFP_KERNEL);
 	if (!info->queues)
 		return -ENOMEM;
 
 	rtnl_lock();
 
-	for (i = 0; i < num_queues; i++) {
+	for (i = 0; i < *num_queues; i++) {
 		struct netfront_queue *queue = &info->queues[i];
 
 		queue->id = i;
@@ -1728,7 +1728,7 @@ static int xennet_create_queues(struct netfront_info *info,
 		if (ret < 0) {
 			dev_warn(&info->netdev->dev,
 				 "only created %d queues\n", i);
-			num_queues = i;
+			*num_queues = i;
 			break;
 		}
 
@@ -1738,11 +1738,11 @@ static int xennet_create_queues(struct netfront_info *info,
 			napi_enable(&queue->napi);
 	}
 
-	netif_set_real_num_tx_queues(info->netdev, num_queues);
+	netif_set_real_num_tx_queues(info->netdev, *num_queues);
 
 	rtnl_unlock();
 
-	if (num_queues == 0) {
+	if (*num_queues == 0) {
 		dev_err(&info->netdev->dev, "no queues\n");
 		return -EINVAL;
 	}
@@ -1788,7 +1788,7 @@ static int talk_to_netback(struct xenbus_device *dev,
 	if (info->queues)
 		xennet_destroy_queues(info);
 
-	err = xennet_create_queues(info, num_queues);
+	err = xennet_create_queues(info, &num_queues);
 	if (err < 0)
 		goto destroy_ring;
 

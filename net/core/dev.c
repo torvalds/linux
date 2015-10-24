@@ -99,6 +99,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/stat.h>
 #include <net/dst.h>
+#include <net/dst_metadata.h>
 #include <net/pkt_sched.h>
 #include <net/checksum.h>
 #include <net/xfrm.h>
@@ -680,6 +681,32 @@ int dev_get_iflink(const struct net_device *dev)
 	return dev->ifindex;
 }
 EXPORT_SYMBOL(dev_get_iflink);
+
+/**
+ *	dev_fill_metadata_dst - Retrieve tunnel egress information.
+ *	@dev: targeted interface
+ *	@skb: The packet.
+ *
+ *	For better visibility of tunnel traffic OVS needs to retrieve
+ *	egress tunnel information for a packet. Following API allows
+ *	user to get this info.
+ */
+int dev_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
+{
+	struct ip_tunnel_info *info;
+
+	if (!dev->netdev_ops  || !dev->netdev_ops->ndo_fill_metadata_dst)
+		return -EINVAL;
+
+	info = skb_tunnel_info_unclone(skb);
+	if (!info)
+		return -ENOMEM;
+	if (unlikely(!(info->mode & IP_TUNNEL_INFO_TX)))
+		return -EINVAL;
+
+	return dev->netdev_ops->ndo_fill_metadata_dst(dev, skb);
+}
+EXPORT_SYMBOL_GPL(dev_fill_metadata_dst);
 
 /**
  *	__dev_get_by_name	- find a device by its name

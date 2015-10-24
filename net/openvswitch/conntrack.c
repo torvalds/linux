@@ -151,6 +151,8 @@ static void ovs_ct_update_key(const struct sk_buff *skb,
 	ct = nf_ct_get(skb, &ctinfo);
 	if (ct) {
 		state = ovs_ct_get_state(ctinfo);
+		if (!nf_ct_is_confirmed(ct))
+			state |= OVS_CS_F_NEW;
 		if (ct->master)
 			state |= OVS_CS_F_RELATED;
 		zone = nf_ct_zone(ct);
@@ -221,9 +223,6 @@ static int ovs_ct_set_labels(struct sk_buff *skb, struct sw_flow_key *key,
 	struct nf_conn_labels *cl;
 	struct nf_conn *ct;
 	int err;
-
-	if (!IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS))
-		return -ENOTSUPP;
 
 	/* The connection could be invalid, in which case set_label is no-op.*/
 	ct = nf_ct_get(skb, &ctinfo);
@@ -377,7 +376,7 @@ static bool skb_nfct_cached(const struct net *net, const struct sk_buff *skb,
 	return true;
 }
 
-static int __ovs_ct_lookup(struct net *net, const struct sw_flow_key *key,
+static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			   const struct ovs_conntrack_info *info,
 			   struct sk_buff *skb)
 {
@@ -408,6 +407,8 @@ static int __ovs_ct_lookup(struct net *net, const struct sw_flow_key *key,
 		}
 	}
 
+	ovs_ct_update_key(skb, key, true);
+
 	return 0;
 }
 
@@ -430,8 +431,6 @@ static int ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		err = __ovs_ct_lookup(net, key, info, skb);
 		if (err)
 			return err;
-
-		ovs_ct_update_key(skb, key, true);
 	}
 
 	return 0;
@@ -459,8 +458,6 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 		return err;
 	if (nf_conntrack_confirm(skb) != NF_ACCEPT)
 		return -EINVAL;
-
-	ovs_ct_update_key(skb, key, true);
 
 	return 0;
 }
@@ -587,6 +584,10 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 		case OVS_CT_ATTR_MARK: {
 			struct md_mark *mark = nla_data(a);
 
+			if (!mark->mask) {
+				OVS_NLERR(log, "ct_mark mask cannot be 0");
+				return -EINVAL;
+			}
 			info->mark = *mark;
 			break;
 		}
@@ -595,6 +596,10 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 		case OVS_CT_ATTR_LABELS: {
 			struct md_labels *labels = nla_data(a);
 
+			if (!labels_nonzero(&labels->mask)) {
+				OVS_NLERR(log, "ct_labels mask cannot be 0");
+				return -EINVAL;
+			}
 			info->labels = *labels;
 			break;
 		}
@@ -705,11 +710,12 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
 	    nla_put_u16(skb, OVS_CT_ATTR_ZONE, ct_info->zone.id))
 		return -EMSGSIZE;
-	if (IS_ENABLED(CONFIG_NF_CONNTRACK_MARK) &&
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_MARK) && ct_info->mark.mask &&
 	    nla_put(skb, OVS_CT_ATTR_MARK, sizeof(ct_info->mark),
 		    &ct_info->mark))
 		return -EMSGSIZE;
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
+	    labels_nonzero(&ct_info->labels.mask) &&
 	    nla_put(skb, OVS_CT_ATTR_LABELS, sizeof(ct_info->labels),
 		    &ct_info->labels))
 		return -EMSGSIZE;
