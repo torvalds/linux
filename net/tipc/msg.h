@@ -112,6 +112,7 @@ struct tipc_skb_cb {
 	bool wakeup_pending;
 	u16 chain_sz;
 	u16 chain_imp;
+	u16 ackers;
 };
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))
@@ -600,6 +601,11 @@ static inline u32 msg_last_bcast(struct tipc_msg *m)
 	return msg_bits(m, 4, 16, 0xffff);
 }
 
+static inline u32 msg_bc_snd_nxt(struct tipc_msg *m)
+{
+	return msg_last_bcast(m) + 1;
+}
+
 static inline void msg_set_last_bcast(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 4, 16, 0xffff, n);
@@ -789,7 +795,7 @@ bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos);
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err);
-struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
+bool tipc_msg_reassemble(struct sk_buff_head *list, struct sk_buff_head *rcvq);
 void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
 			     struct sk_buff *skb);
 

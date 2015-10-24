@@ -182,7 +182,6 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 	*buf = NULL;
 	return 0;
 err:
-	pr_warn_ratelimited("Unable to build fragment list\n");
 	kfree_skb(*buf);
 	kfree_skb(*headbuf);
 	*buf = *headbuf = NULL;
@@ -565,18 +564,22 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 /* tipc_msg_reassemble() - clone a buffer chain of fragments and
  *                         reassemble the clones into one message
  */
-struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list)
+bool tipc_msg_reassemble(struct sk_buff_head *list, struct sk_buff_head *rcvq)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb, *_skb;
 	struct sk_buff *frag = NULL;
 	struct sk_buff *head = NULL;
-	int hdr_sz;
+	int hdr_len;
 
 	/* Copy header if single buffer */
 	if (skb_queue_len(list) == 1) {
 		skb = skb_peek(list);
-		hdr_sz = skb_headroom(skb) + msg_hdr_sz(buf_msg(skb));
-		return __pskb_copy(skb, hdr_sz, GFP_ATOMIC);
+		hdr_len = skb_headroom(skb) + msg_hdr_sz(buf_msg(skb));
+		_skb = __pskb_copy(skb, hdr_len, GFP_ATOMIC);
+		if (!_skb)
+			return false;
+		__skb_queue_tail(rcvq, _skb);
+		return true;
 	}
 
 	/* Clone all fragments and reassemble */
@@ -590,11 +593,12 @@ struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list)
 		if (!head)
 			goto error;
 	}
-	return frag;
+	__skb_queue_tail(rcvq, frag);
+	return true;
 error:
 	pr_warn("Failed do clone local mcast rcv buffer\n");
 	kfree_skb(head);
-	return NULL;
+	return false;
 }
 
 /* tipc_skb_queue_sorted(); sort pkt into list according to sequence number
