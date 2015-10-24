@@ -686,6 +686,9 @@ static bool llid_in_use(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (sdata != sta->sdata)
+			continue;
+
 		if (!memcmp(&sta->mesh->llid, &llid, sizeof(llid))) {
 			in_use = true;
 			break;
