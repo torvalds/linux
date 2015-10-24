@@ -305,9 +305,6 @@ static void nic_init_hw(struct nicpf *nic)
 {
 	int i;
 
-	/* Reset NIC, in case the driver is repeatedly inserted and removed */
-	nic_reg_write(nic, NIC_PF_SOFT_RESET, 1);
-
 	/* Enable NIC HW block */
 	nic_reg_write(nic, NIC_PF_CFG, 0x3);
 
