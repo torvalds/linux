@@ -892,50 +892,23 @@ static const struct file_operations nbd_dbg_flags_ops = {
 static int nbd_dev_dbg_init(struct nbd_device *nbd)
 {
 	struct dentry *dir;
-	struct dentry *f;
+
+	if (!nbd_dbg_dir)
+		return -EIO;
 
 	dir = debugfs_create_dir(nbd_name(nbd), nbd_dbg_dir);
-	if (IS_ERR_OR_NULL(dir)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs dir for '%s' (%ld)\n",
-			nbd_name(nbd), PTR_ERR(dir));
-		return PTR_ERR(dir);
+	if (!dir) {
+		dev_err(nbd_to_dev(nbd), "Failed to create debugfs dir for '%s'\n",
+			nbd_name(nbd));
+		return -EIO;
 	}
 	nbd->dbg_dir = dir;
 
-	f = debugfs_create_file("tasks", 0444, dir, nbd, &nbd_dbg_tasks_ops);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'tasks', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
-
-	f = debugfs_create_u64("size_bytes", 0444, dir, &nbd->bytesize);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'size_bytes', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
-
-	f = debugfs_create_u32("timeout", 0444, dir, &nbd->xmit_timeout);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'timeout', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
-
-	f = debugfs_create_u32("blocksize", 0444, dir, &nbd->blksize);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'blocksize', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
-
-	f = debugfs_create_file("flags", 0444, dir, &nbd, &nbd_dbg_flags_ops);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'flags', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
+	debugfs_create_file("tasks", 0444, dir, nbd, &nbd_dbg_tasks_ops);
+	debugfs_create_u64("size_bytes", 0444, dir, &nbd->bytesize);
+	debugfs_create_u32("timeout", 0444, dir, &nbd->xmit_timeout);
+	debugfs_create_u32("blocksize", 0444, dir, &nbd->blksize);
+	debugfs_create_file("flags", 0444, dir, &nbd, &nbd_dbg_flags_ops);
 
 	return 0;
 }
@@ -950,8 +923,8 @@ static int nbd_dbg_init(void)
 	struct dentry *dbg_dir;
 
 	dbg_dir = debugfs_create_dir("nbd", NULL);
-	if (IS_ERR(dbg_dir))
-		return PTR_ERR(dbg_dir);
+	if (!dbg_dir)
+		return -EIO;
 
 	nbd_dbg_dir = dbg_dir;
 
