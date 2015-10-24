@@ -252,6 +252,7 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 #define RPCRDMA_MAX_IOVS	(2)
 
 struct rpcrdma_req {
+	struct list_head	rl_free;
 	unsigned int		rl_niovs;
 	unsigned int		rl_nchunks;
 	unsigned int		rl_connect_cookie;
@@ -285,12 +286,10 @@ struct rpcrdma_buffer {
 	struct list_head	rb_all;
 	char			*rb_pool;
 
-	spinlock_t		rb_lock;	/* protect buf arrays */
+	spinlock_t		rb_lock;	/* protect buf lists */
+	struct list_head	rb_send_bufs;
+	struct list_head	rb_recv_bufs;
 	u32			rb_max_requests;
-	int			rb_send_index;
-	int			rb_recv_index;
-	struct rpcrdma_req	**rb_send_bufs;
-	struct rpcrdma_rep	**rb_recv_bufs;
 };
 #define rdmab_to_ia(b) (&container_of((b), struct rpcrdma_xprt, rx_buf)->rx_ia)
 
