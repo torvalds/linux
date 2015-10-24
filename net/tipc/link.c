@@ -163,12 +163,12 @@ bool tipc_link_is_blocked(struct tipc_link *l)
 	return l->state & (LINK_RESETTING | LINK_PEER_RESET | LINK_FAILINGOVER);
 }
 
-bool link_is_bc_sndlink(struct tipc_link *l)
+static bool link_is_bc_sndlink(struct tipc_link *l)
 {
 	return !l->bc_sndlink;
 }
 
-bool link_is_bc_rcvlink(struct tipc_link *l)
+static bool link_is_bc_rcvlink(struct tipc_link *l)
 {
 	return ((l->bc_rcvlink == l) && !link_is_bc_sndlink(l));
 }
@@ -1364,8 +1364,8 @@ static bool tipc_link_build_bc_proto_msg(struct tipc_link *l, bool bcast,
  * Give a newly added peer node the sequence number where it should
  * start receiving and acking broadcast packets.
  */
-void tipc_link_build_bc_init_msg(struct tipc_link *l,
-				 struct sk_buff_head *xmitq)
+static void tipc_link_build_bc_init_msg(struct tipc_link *l,
+					struct sk_buff_head *xmitq)
 {
 	struct sk_buff_head list;
 

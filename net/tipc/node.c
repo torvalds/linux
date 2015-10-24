@@ -1083,7 +1083,7 @@ int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
  *
  * Invoked with no locks held.
  */
-void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id)
+static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id)
 {
 	int rc;
 	struct sk_buff_head xmitq;
