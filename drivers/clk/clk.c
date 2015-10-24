@@ -427,6 +427,11 @@ bool clk_hw_is_prepared(const struct clk_hw *hw)
 	return clk_core_is_prepared(hw->core);
 }
 
+bool clk_hw_is_enabled(const struct clk_hw *hw)
+{
+	return clk_core_is_enabled(hw->core);
+}
+
 bool __clk_is_enabled(struct clk *clk)
 {
 	if (!clk)
