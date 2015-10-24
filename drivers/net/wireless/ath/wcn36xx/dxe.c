@@ -79,6 +79,7 @@ static int wcn36xx_dxe_allocate_ctl_block(struct wcn36xx_dxe_ch *ch)
 	struct wcn36xx_dxe_ctl *cur_ctl = NULL;
 	int i;
 
+	spin_lock_init(&ch->lock);
 	for (i = 0; i < ch->desc_num; i++) {
 		cur_ctl = kzalloc(sizeof(*cur_ctl), GFP_KERNEL);
 		if (!cur_ctl)
@@ -345,7 +346,7 @@ void wcn36xx_dxe_tx_ack_ind(struct wcn36xx *wcn, u32 status)
 
 static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 {
-	struct wcn36xx_dxe_ctl *ctl = ch->tail_blk_ctl;
+	struct wcn36xx_dxe_ctl *ctl;
 	struct ieee80211_tx_info *info;
 	unsigned long flags;
 
@@ -354,6 +355,8 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	 * completely full head and tail are pointing to the same element
 	 * and while-do will not make any cycles.
 	 */
+	spin_lock_irqsave(&ch->lock, flags);
+	ctl = ch->tail_blk_ctl;
 	do {
 		if (ctl->desc->ctrl & WCN36XX_DXE_CTRL_VALID_MASK)
 			break;
@@ -365,12 +368,12 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 				/* Keep frame until TX status comes */
 				ieee80211_free_txskb(wcn->hw, ctl->skb);
 			}
-			spin_lock_irqsave(&ctl->skb_lock, flags);
+			spin_lock(&ctl->skb_lock);
 			if (wcn->queues_stopped) {
 				wcn->queues_stopped = false;
 				ieee80211_wake_queues(wcn->hw);
 			}
-			spin_unlock_irqrestore(&ctl->skb_lock, flags);
+			spin_unlock(&ctl->skb_lock);
 
 			ctl->skb = NULL;
 		}
@@ -379,6 +382,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	       !(ctl->desc->ctrl & WCN36XX_DXE_CTRL_VALID_MASK));
 
 	ch->tail_blk_ctl = ctl;
+	spin_unlock_irqrestore(&ch->lock, flags);
 }
 
 static irqreturn_t wcn36xx_irq_tx_complete(int irq, void *dev)
@@ -596,12 +600,14 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	struct wcn36xx_dxe_desc *desc = NULL;
 	struct wcn36xx_dxe_ch *ch = NULL;
 	unsigned long flags;
+	int ret;
 
 	ch = is_low ? &wcn->dxe_tx_l_ch : &wcn->dxe_tx_h_ch;
 
+	spin_lock_irqsave(&ch->lock, flags);
 	ctl = ch->head_blk_ctl;
 
-	spin_lock_irqsave(&ctl->next->skb_lock, flags);
+	spin_lock(&ctl->next->skb_lock);
 
 	/*
 	 * If skb is not null that means that we reached the tail of the ring
@@ -611,10 +617,11 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	if (NULL != ctl->next->skb) {
 		ieee80211_stop_queues(wcn->hw);
 		wcn->queues_stopped = true;
-		spin_unlock_irqrestore(&ctl->next->skb_lock, flags);
+		spin_unlock(&ctl->next->skb_lock);
+		spin_unlock_irqrestore(&ch->lock, flags);
 		return -EBUSY;
 	}
-	spin_unlock_irqrestore(&ctl->next->skb_lock, flags);
+	spin_unlock(&ctl->next->skb_lock);
 
 	ctl->skb = NULL;
 	desc = ctl->desc;
@@ -640,7 +647,8 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	desc = ctl->desc;
 	if (ctl->bd_cpu_addr) {
 		wcn36xx_err("bd_cpu_addr cannot be NULL for skb DXE\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	desc->src_addr_l = dma_map_single(NULL,
@@ -679,7 +687,10 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 			ch->reg_ctrl, ch->def_ctrl);
 	}
 
-	return 0;
+	ret = 0;
+unlock:
+	spin_unlock_irqrestore(&ch->lock, flags);
+	return ret;
 }
 
 int wcn36xx_dxe_init(struct wcn36xx *wcn)
