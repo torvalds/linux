@@ -184,6 +184,10 @@ static struct test generic_tests[] = {
 		.func = test__thread_map_synthesize,
 	},
 	{
+		.desc = "Test cpu map synthesize",
+		.func = test__cpu_map_synthesize,
+	},
+	{
 		.func = NULL,
 	},
 };
