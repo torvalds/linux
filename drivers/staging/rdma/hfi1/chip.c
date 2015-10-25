@@ -2215,9 +2215,7 @@ static void update_rcverr_timer(unsigned long opaque)
 
 static int init_rcverr(struct hfi1_devdata *dd)
 {
-	init_timer(&dd->rcverr_timer);
-	dd->rcverr_timer.function = update_rcverr_timer;
-	dd->rcverr_timer.data = (unsigned long) dd;
+	setup_timer(&dd->rcverr_timer, update_rcverr_timer, (unsigned long)dd);
 	/* Assume the hardware counter has been reset */
 	dd->rcv_ovfl_cnt = 0;
 	return mod_timer(&dd->rcverr_timer, jiffies + HZ * RCVERR_CHECK_TIME);
@@ -8156,9 +8154,8 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	struct hfi1_pportdata *ppd;
 
 	/* set up the stats timer; the add_timer is done at the end */
-	init_timer(&dd->synth_stats_timer);
-	dd->synth_stats_timer.function = update_synth_timer;
-	dd->synth_stats_timer.data = (unsigned long) dd;
+	setup_timer(&dd->synth_stats_timer, update_synth_timer,
+		    (unsigned long)dd);
 
 	/***********************/
 	/* per device counters */
