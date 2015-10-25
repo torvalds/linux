@@ -423,7 +423,7 @@ static int st_nci_control_se(struct nci_dev *ndev, u8 se_idx,
 			     u8 state)
 {
 	struct st_nci_info *info = nci_get_drvdata(ndev);
-	int r;
+	int r, i;
 	struct sk_buff *sk_host_list;
 	u8 host_id;
 
@@ -470,7 +470,10 @@ static int st_nci_control_se(struct nci_dev *ndev, u8 se_idx,
 	if (r != NCI_HCI_ANY_OK)
 		return r;
 
-	host_id = sk_host_list->data[sk_host_list->len - 1];
+	for (i = 0; i < sk_host_list->len &&
+		sk_host_list->data[i] != se_idx; i++)
+		;
+	host_id = sk_host_list->data[i];
 	kfree_skb(sk_host_list);
 	if (state == ST_NCI_SE_MODE_ON && host_id == se_idx)
 		return se_idx;
