@@ -835,9 +835,11 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 }
 
 static void nci_deactivate_target(struct nfc_dev *nfc_dev,
-				  struct nfc_target *target)
+				  struct nfc_target *target,
+				  __u8 mode)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
+	u8 nci_mode = NCI_DEACTIVATE_TYPE_IDLE_MODE;
 
 	pr_debug("entry\n");
 
@@ -848,9 +850,14 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 
 	ndev->target_active_prot = 0;
 
+	switch (mode) {
+	case NFC_TARGET_MODE_SLEEP:
+		nci_mode = NCI_DEACTIVATE_TYPE_SLEEP_MODE;
+		break;
+	}
+
 	if (atomic_read(&ndev->state) == NCI_POLL_ACTIVE) {
-		nci_request(ndev, nci_rf_deactivate_req,
-			    NCI_DEACTIVATE_TYPE_IDLE_MODE,
+		nci_request(ndev, nci_rf_deactivate_req, nci_mode,
 			    msecs_to_jiffies(NCI_RF_DEACTIVATE_TIMEOUT));
 	}
 }
@@ -884,7 +891,7 @@ static int nci_dep_link_down(struct nfc_dev *nfc_dev)
 	pr_debug("entry\n");
 
 	if (nfc_dev->rf_mode == NFC_RF_INITIATOR) {
-		nci_deactivate_target(nfc_dev, NULL);
+		nci_deactivate_target(nfc_dev, NULL, NCI_DEACTIVATE_TYPE_IDLE_MODE);
 	} else {
 		if (atomic_read(&ndev->state) == NCI_LISTEN_ACTIVE ||
 		    atomic_read(&ndev->state) == NCI_DISCOVERY) {
