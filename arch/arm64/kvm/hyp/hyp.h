@@ -84,6 +84,7 @@ static inline bool __fpsimd_enabled(void)
 }
 
 u64 __guest_enter(struct kvm_vcpu *vcpu, struct kvm_cpu_context *host_ctxt);
+void __noreturn __hyp_do_panic(unsigned long, ...);
 
 #endif /* __ARM64_KVM_HYP_H__ */
 

@@ -155,7 +155,16 @@ el1_irq:
 	mov	x1, #ARM_EXCEPTION_IRQ
 	b	__guest_exit
 
-.macro invalid_vector	label, target = __kvm_hyp_panic
+ENTRY(__hyp_do_panic)
+	mov	lr, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
+		      PSR_MODE_EL1h)
+	msr	spsr_el2, lr
+	ldr	lr, =panic
+	msr	elr_el2, lr
+	eret
+ENDPROC(__hyp_do_panic)
+
+.macro invalid_vector	label, target = __hyp_panic
 	.align	2
 \label:
 	b \target
