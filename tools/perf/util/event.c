@@ -820,6 +820,22 @@ size_t perf_event__fprintf_mmap2(union perf_event *event, FILE *fp)
 		       event->mmap2.filename);
 }
 
+size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp)
+{
+	struct thread_map *threads = thread_map__new_event(&event->thread_map);
+	size_t ret;
+
+	ret = fprintf(fp, " nr: ");
+
+	if (threads)
+		ret += thread_map__fprintf(threads, fp);
+	else
+		ret += fprintf(fp, "failed to get threads from event\n");
+
+	thread_map__put(threads);
+	return ret;
+}
+
 int perf_event__process_mmap(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct perf_sample *sample,
