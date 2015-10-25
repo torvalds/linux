@@ -79,6 +79,8 @@ struct nci_hcp_packet {
 #define NCI_EVT_HOT_PLUG           0x03
 
 #define NCI_HCI_ADMIN_PARAM_SESSION_IDENTITY       0x01
+#define NCI_HCI_ADM_CREATE_PIPE			0x10
+#define NCI_HCI_ADM_DELETE_PIPE			0x11
 
 /* HCP headers */
 #define NCI_HCI_HCP_PACKET_HEADER_LEN      1
@@ -523,6 +525,43 @@ int nci_hci_open_pipe(struct nci_dev *ndev, u8 pipe)
 }
 EXPORT_SYMBOL(nci_hci_open_pipe);
 
+static u8 nci_hci_create_pipe(struct nci_dev *ndev, u8 dest_host,
+			      u8 dest_gate, int *result)
+{
+	u8 pipe;
+	struct sk_buff *skb;
+	struct nci_hci_create_pipe_params params;
+	struct nci_hci_create_pipe_resp *resp;
+
+	pr_debug("gate=%d\n", dest_gate);
+
+	params.src_gate = NCI_HCI_ADMIN_GATE;
+	params.dest_host = dest_host;
+	params.dest_gate = dest_gate;
+
+	*result = nci_hci_send_cmd(ndev, NCI_HCI_ADMIN_GATE,
+				   NCI_HCI_ADM_CREATE_PIPE,
+				   (u8 *)&params, sizeof(params), &skb);
+	if (*result < 0)
+		return NCI_HCI_INVALID_PIPE;
+
+	resp = (struct nci_hci_create_pipe_resp *)skb->data;
+	pipe = resp->pipe;
+	kfree_skb(skb);
+
+	pr_debug("pipe created=%d\n", pipe);
+
+	return pipe;
+}
+
+static int nci_hci_delete_pipe(struct nci_dev *ndev, u8 pipe)
+{
+	pr_debug("\n");
+
+	return nci_hci_send_cmd(ndev, NCI_HCI_ADMIN_GATE,
+				NCI_HCI_ADM_DELETE_PIPE, &pipe, 1, NULL);
+}
+
 int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 		      const u8 *param, size_t param_len)
 {
@@ -616,6 +655,7 @@ EXPORT_SYMBOL(nci_hci_get_param);
 int nci_hci_connect_gate(struct nci_dev *ndev,
 			 u8 dest_host, u8 dest_gate, u8 pipe)
 {
+	bool pipe_created = false;
 	int r;
 
 	if (pipe == NCI_HCI_DO_NOT_OPEN_PIPE)
@@ -634,12 +674,26 @@ int nci_hci_connect_gate(struct nci_dev *ndev,
 	case NCI_HCI_ADMIN_GATE:
 		pipe = NCI_HCI_ADMIN_PIPE;
 	break;
+	default:
+		pipe = nci_hci_create_pipe(ndev, dest_host, dest_gate, &r);
+		if (pipe < 0)
+			return r;
+		pipe_created = true;
+		break;
 	}
 
 open_pipe:
 	r = nci_hci_open_pipe(ndev, pipe);
-	if (r < 0)
+	if (r < 0) {
+		if (pipe_created) {
+			if (nci_hci_delete_pipe(ndev, pipe) < 0) {
+				/* TODO: Cannot clean by deleting pipe...
+				 * -> inconsistent state
+				 */
+			}
+		}
 		return r;
+	}
 
 	ndev->hci_dev->pipes[pipe].gate = dest_gate;
 	ndev->hci_dev->pipes[pipe].host = dest_host;
