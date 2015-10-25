@@ -41,7 +41,6 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqchip/arm-gic.h>
-#include <linux/irqchip/arm-gic-acpi.h>
 
 #include <asm/cputype.h>
 #include <asm/irq.h>
@@ -1195,7 +1194,7 @@ IRQCHIP_DECLARE(msm_qgic2, "qcom,msm-qgic2", gic_of_init);
 #endif
 
 #ifdef CONFIG_ACPI
-static phys_addr_t dist_phy_base, cpu_phy_base __initdata;
+static phys_addr_t cpu_phy_base __initdata;
 
 static int __init
 gic_acpi_parse_madt_cpu(struct acpi_subtable_header *header,
@@ -1223,50 +1222,45 @@ gic_acpi_parse_madt_cpu(struct acpi_subtable_header *header,
 	return 0;
 }
 
-static int __init
-gic_acpi_parse_madt_distributor(struct acpi_subtable_header *header,
-				const unsigned long end)
+/* The things you have to do to just *count* something... */
+static int __init acpi_dummy_func(struct acpi_subtable_header *header,
+				  const unsigned long end)
 {
-	struct acpi_madt_generic_distributor *dist;
-
-	dist = (struct acpi_madt_generic_distributor *)header;
-
-	if (BAD_MADT_ENTRY(dist, end))
-		return -EINVAL;
-
-	dist_phy_base = dist->base_address;
 	return 0;
 }
 
-int __init
-gic_v2_acpi_init(struct acpi_table_header *table)
+static bool __init acpi_gic_redist_is_present(void)
 {
+	return acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR,
+				     acpi_dummy_func, 0) > 0;
+}
+
+static bool __init gic_validate_dist(struct acpi_subtable_header *header,
+				     struct acpi_probe_entry *ape)
+{
+	struct acpi_madt_generic_distributor *dist;
+	dist = (struct acpi_madt_generic_distributor *)header;
+
+	return (dist->version == ape->driver_data &&
+		(dist->version != ACPI_MADT_GIC_VERSION_NONE ||
+		 !acpi_gic_redist_is_present()));
+}
+
+#define ACPI_GICV2_DIST_MEM_SIZE	(SZ_4K)
+#define ACPI_GIC_CPU_IF_MEM_SIZE	(SZ_8K)
+
+static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
+				   const unsigned long end)
+{
+	struct acpi_madt_generic_distributor *dist;
 	void __iomem *cpu_base, *dist_base;
 	int count;
 
 	/* Collect CPU base addresses */
-	count = acpi_parse_entries(ACPI_SIG_MADT,
-				   sizeof(struct acpi_table_madt),
-				   gic_acpi_parse_madt_cpu, table,
-				   ACPI_MADT_TYPE_GENERIC_INTERRUPT, 0);
+	count = acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT,
+				      gic_acpi_parse_madt_cpu, 0);
 	if (count <= 0) {
 		pr_err("No valid GICC entries exist\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * Find distributor base address. We expect one distributor entry since
-	 * ACPI 5.1 spec neither support multi-GIC instances nor GIC cascade.
-	 */
-	count = acpi_parse_entries(ACPI_SIG_MADT,
-				   sizeof(struct acpi_table_madt),
-				   gic_acpi_parse_madt_distributor, table,
-				   ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR, 0);
-	if (count <= 0) {
-		pr_err("No valid GICD entries exist\n");
-		return -EINVAL;
-	} else if (count > 1) {
-		pr_err("More than one GICD entry detected\n");
 		return -EINVAL;
 	}
 
@@ -1276,7 +1270,8 @@ gic_v2_acpi_init(struct acpi_table_header *table)
 		return -ENOMEM;
 	}
 
-	dist_base = ioremap(dist_phy_base, ACPI_GICV2_DIST_MEM_SIZE);
+	dist = (struct acpi_madt_generic_distributor *)header;
+	dist_base = ioremap(dist->base_address, ACPI_GICV2_DIST_MEM_SIZE);
 	if (!dist_base) {
 		pr_err("Unable to map GICD registers\n");
 		iounmap(cpu_base);
@@ -1302,4 +1297,10 @@ gic_v2_acpi_init(struct acpi_table_header *table)
 	acpi_irq_model = ACPI_IRQ_MODEL_GIC;
 	return 0;
 }
+IRQCHIP_ACPI_DECLARE(gic_v2, ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR,
+		     gic_validate_dist, ACPI_MADT_GIC_VERSION_V2,
+		     gic_v2_acpi_init);
+IRQCHIP_ACPI_DECLARE(gic_v2_maybe, ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR,
+		     gic_validate_dist, ACPI_MADT_GIC_VERSION_NONE,
+		     gic_v2_acpi_init);
 #endif
