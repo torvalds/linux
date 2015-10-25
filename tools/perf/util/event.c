@@ -909,6 +909,30 @@ int perf_event__synthesize_stat_config(struct perf_tool *tool,
 	return err;
 }
 
+void perf_event__read_stat_config(struct perf_stat_config *config,
+				  struct stat_config_event *event)
+{
+	unsigned i;
+
+	for (i = 0; i < event->nr; i++) {
+
+		switch (event->data[i].tag) {
+#define CASE(__term, __val)					\
+		case PERF_STAT_CONFIG_TERM__##__term:		\
+			config->__val = event->data[i].val;	\
+			break;
+
+		CASE(AGGR_MODE, aggr_mode)
+		CASE(SCALE,     scale)
+		CASE(INTERVAL,  interval)
+#undef CASE
+		default:
+			pr_warning("unknown stat config term %" PRIu64 "\n",
+				   event->data[i].tag);
+		}
+	}
+}
+
 size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp)
 {
 	const char *s;

@@ -477,6 +477,8 @@ int perf_event__synthesize_stat_config(struct perf_tool *tool,
 				       struct perf_stat_config *config,
 				       perf_event__handler_t process,
 				       struct machine *machine);
+void perf_event__read_stat_config(struct perf_stat_config *config,
+				  struct stat_config_event *event);
 
 int perf_event__synthesize_modules(struct perf_tool *tool,
 				   perf_event__handler_t process,

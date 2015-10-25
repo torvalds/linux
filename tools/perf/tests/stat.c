@@ -24,6 +24,7 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 			 struct machine *machine __maybe_unused)
 {
 	struct stat_config_event *config = &event->stat_config;
+	struct perf_stat_config stat_config;
 
 #define HAS(term, val) \
 	has_term(config, PERF_STAT_CONFIG_TERM__##term, val)
@@ -35,6 +36,11 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 
 #undef HAS
 
+	perf_event__read_stat_config(&stat_config, config);
+
+	TEST_ASSERT_VAL("wrong aggr_mode", stat_config.aggr_mode == AGGR_CORE);
+	TEST_ASSERT_VAL("wrong scale",     stat_config.scale == 1);
+	TEST_ASSERT_VAL("wrong interval",  stat_config.interval == 1);
 	return 0;
 }
 
