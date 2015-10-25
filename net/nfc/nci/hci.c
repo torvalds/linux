@@ -146,18 +146,18 @@ static int nci_hci_send_data(struct nci_dev *ndev, u8 pipe,
 	if (!conn_info)
 		return -EPROTO;
 
-	skb = nci_skb_alloc(ndev, 2 + conn_info->max_pkt_payload_len +
+	i = 0;
+	skb = nci_skb_alloc(ndev, conn_info->max_pkt_payload_len +
 			    NCI_DATA_HDR_SIZE, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
-	skb_reserve(skb, 2 + NCI_DATA_HDR_SIZE);
+	skb_reserve(skb, NCI_DATA_HDR_SIZE + 2);
 	*skb_push(skb, 1) = data_type;
 
-	i = 0;
-	len = conn_info->max_pkt_payload_len;
-
 	do {
+		len = conn_info->max_pkt_payload_len;
+
 		/* If last packet add NCI_HFP_NO_CHAINING */
 		if (i + conn_info->max_pkt_payload_len -
 		    (skb->len + 1) >= data_len) {
@@ -177,9 +177,15 @@ static int nci_hci_send_data(struct nci_dev *ndev, u8 pipe,
 			return r;
 
 		i += len;
+
 		if (i < data_len) {
-			skb_trim(skb, 0);
-			skb_pull(skb, len);
+			skb = nci_skb_alloc(ndev,
+					    conn_info->max_pkt_payload_len +
+					    NCI_DATA_HDR_SIZE, GFP_KERNEL);
+			if (!skb)
+				return -ENOMEM;
+
+			skb_reserve(skb, NCI_DATA_HDR_SIZE + 1);
 		}
 	} while (i < data_len);
 
