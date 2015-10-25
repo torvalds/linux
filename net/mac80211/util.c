@@ -4,6 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2015	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1752,6 +1753,16 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		local->suspended = true;
 	}
 #endif
+
+	/*
+	 * In case of hw_restart during suspend (without wowlan),
+	 * cancel restart work, as we are reconfiguring the device
+	 * anyway.
+	 * Note that restart_work is scheduled on a frozen workqueue,
+	 * so we can't deadlock in this case.
+	 */
+	if (suspended && local->in_reconfig && !reconfig_due_to_wowlan)
+		cancel_work_sync(&local->restart_work);
 
 	/*
 	 * Upon resume hardware can sometimes be goofy due to
