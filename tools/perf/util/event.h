@@ -310,6 +310,11 @@ struct attr_event {
 
 enum {
 	PERF_EVENT_UPDATE__UNIT  = 0,
+	PERF_EVENT_UPDATE__SCALE = 1,
+};
+
+struct event_update_event_scale {
+	double scale;
 };
 
 struct event_update_event {

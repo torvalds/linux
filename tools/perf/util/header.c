@@ -2723,6 +2723,27 @@ perf_event__synthesize_event_update_unit(struct perf_tool *tool,
 	return err;
 }
 
+int
+perf_event__synthesize_event_update_scale(struct perf_tool *tool,
+					  struct perf_evsel *evsel,
+					  perf_event__handler_t process)
+{
+	struct event_update_event *ev;
+	struct event_update_event_scale *ev_data;
+	int err;
+
+	ev = event_update_event__new(sizeof(*ev_data), PERF_EVENT_UPDATE__SCALE, evsel->id[0]);
+	if (ev == NULL)
+		return -ENOMEM;
+
+	ev_data = (struct event_update_event_scale *) ev->data;
+	ev_data->scale = evsel->scale;
+	err = process(tool, (union perf_event*) ev, NULL, NULL);
+	free(ev);
+	return err;
+}
+
+
 int perf_event__synthesize_attrs(struct perf_tool *tool,
 				   struct perf_session *session,
 				   perf_event__handler_t process)
@@ -2787,6 +2808,7 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 				     struct perf_evlist **pevlist)
 {
 	struct event_update_event *ev = &event->event_update;
+	struct event_update_event_scale *ev_scale;
 	struct perf_evlist *evlist;
 	struct perf_evsel *evsel;
 
@@ -2802,6 +2824,10 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 	switch (ev->type) {
 	case PERF_EVENT_UPDATE__UNIT:
 		evsel->unit = strdup(ev->data);
+		break;
+	case PERF_EVENT_UPDATE__SCALE:
+		ev_scale = (struct event_update_event_scale *) ev->data;
+		evsel->scale = ev_scale->scale;
 	default:
 		break;
 	}
