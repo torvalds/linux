@@ -2008,6 +2008,29 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		if (ieee80211_sdata_running(sdata))
 			ieee80211_enable_keys(sdata);
 
+	/* Reconfigure sched scan if it was interrupted by FW restart */
+	mutex_lock(&local->mtx);
+	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
+						lockdep_is_held(&local->mtx));
+	sched_scan_req = rcu_dereference_protected(local->sched_scan_req,
+						lockdep_is_held(&local->mtx));
+	if (sched_scan_sdata && sched_scan_req)
+		/*
+		 * Sched scan stopped, but we don't want to report it. Instead,
+		 * we're trying to reschedule. However, if more than one scan
+		 * plan was set, we cannot reschedule since we don't know which
+		 * scan plan was currently running (and some scan plans may have
+		 * already finished).
+		 */
+		if (sched_scan_req->n_scan_plans > 1 ||
+		    __ieee80211_request_sched_scan_start(sched_scan_sdata,
+							 sched_scan_req))
+			sched_scan_stopped = true;
+	mutex_unlock(&local->mtx);
+
+	if (sched_scan_stopped)
+		cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy);
+
  wake_up:
 	local->in_reconfig = false;
 	barrier();
@@ -2041,32 +2064,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	ieee80211_wake_queues_by_reason(hw, IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_SUSPEND,
 					false);
-
-	/*
-	 * Reconfigure sched scan if it was interrupted by FW restart or
-	 * suspend.
-	 */
-	mutex_lock(&local->mtx);
-	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
-						lockdep_is_held(&local->mtx));
-	sched_scan_req = rcu_dereference_protected(local->sched_scan_req,
-						lockdep_is_held(&local->mtx));
-	if (sched_scan_sdata && sched_scan_req)
-		/*
-		 * Sched scan stopped, but we don't want to report it. Instead,
-		 * we're trying to reschedule. However, if more than one scan
-		 * plan was set, we cannot reschedule since we don't know which
-		 * scan plan was currently running (and some scan plans may have
-		 * already finished).
-		 */
-		if (sched_scan_req->n_scan_plans > 1 ||
-		    __ieee80211_request_sched_scan_start(sched_scan_sdata,
-							 sched_scan_req))
-			sched_scan_stopped = true;
-	mutex_unlock(&local->mtx);
-
-	if (sched_scan_stopped)
-		cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy);
 
 	/*
 	 * If this is for hw restart things are still running.

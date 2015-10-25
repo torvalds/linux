@@ -2010,12 +2010,12 @@ ieee80211_sched_scan_start(struct wiphy *wiphy,
 static int
 ieee80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = wiphy_priv(wiphy);
 
-	if (!sdata->local->ops->sched_scan_stop)
+	if (!local->ops->sched_scan_stop)
 		return -EOPNOTSUPP;
 
-	return ieee80211_request_sched_scan_stop(sdata);
+	return ieee80211_request_sched_scan_stop(local);
 }
 
 static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
