@@ -27,7 +27,7 @@
 #include <linux/nfc.h>
 #include <linux/platform_data/st-nci.h>
 
-#include "ndlc.h"
+#include "st-nci.h"
 
 #define DRIVER_DESC "NCI NFC driver for ST_NCI"
 

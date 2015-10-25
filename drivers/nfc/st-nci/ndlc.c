@@ -19,7 +19,6 @@
 #include <linux/sched.h>
 #include <net/nfc/nci_core.h>
 
-#include "ndlc.h"
 #include "st-nci.h"
 
 #define NDLC_TIMER_T1		100
