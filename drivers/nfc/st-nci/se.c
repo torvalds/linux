@@ -280,6 +280,8 @@ static void st_nci_hci_admin_event_received(struct nci_dev *ndev,
 			}
 		}
 	break;
+	default:
+		nfc_err(&ndev->nfc_dev->dev, "Unexpected event on admin gate\n");
 	}
 }
 
@@ -303,6 +305,9 @@ static int st_nci_hci_apdu_reader_event_received(struct nci_dev *ndev,
 		mod_timer(&info->se_info.bwi_timer, jiffies +
 			  msecs_to_jiffies(info->se_info.wt_timeout));
 	break;
+	default:
+		nfc_err(&ndev->nfc_dev->dev, "Unexpected event on apdu reader gate\n");
+		return 1;
 	}
 
 	kfree_skb(skb);
@@ -357,6 +362,7 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 		r = nfc_se_transaction(ndev->nfc_dev, host, transaction);
 		break;
 	default:
+		nfc_err(&ndev->nfc_dev->dev, "Unexpected event on connectivity gate\n");
 		return 1;
 	}
 	kfree_skb(skb);
