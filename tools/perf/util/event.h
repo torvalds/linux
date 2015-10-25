@@ -228,6 +228,7 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_AUXTRACE_ERROR		= 72,
 	PERF_RECORD_THREAD_MAP			= 73,
 	PERF_RECORD_CPU_MAP			= 74,
+	PERF_RECORD_STAT_CONFIG			= 75,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -395,6 +396,24 @@ struct thread_map_event {
 	struct thread_map_event_entry	entries[];
 };
 
+enum {
+	PERF_STAT_CONFIG_TERM__AGGR_MODE	= 0,
+	PERF_STAT_CONFIG_TERM__INTERVAL		= 1,
+	PERF_STAT_CONFIG_TERM__SCALE		= 2,
+	PERF_STAT_CONFIG_TERM__MAX		= 3,
+};
+
+struct stat_config_event_entry {
+	u64	tag;
+	u64	val;
+};
+
+struct stat_config_event {
+	struct perf_event_header	header;
+	u64				nr;
+	struct stat_config_event_entry	data[];
+};
+
 union perf_event {
 	struct perf_event_header	header;
 	struct mmap_event		mmap;
@@ -419,6 +438,7 @@ union perf_event {
 	struct context_switch_event	context_switch;
 	struct thread_map_event		thread_map;
 	struct cpu_map_event		cpu_map;
+	struct stat_config_event	stat_config;
 };
 
 void perf_event__print_totals(void);
