@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
+#include <net/nfc/nci.h>
 #include <linux/platform_data/st-nci.h>
 
 #include "st-nci.h"
@@ -94,7 +95,8 @@ static int st_nci_spi_write(void *phy_id, struct sk_buff *skb)
 	struct st_nci_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_dev;
 	struct sk_buff *skb_rx;
-	u8 buf[ST_NCI_SPI_MAX_SIZE];
+	u8 buf[ST_NCI_SPI_MAX_SIZE + NCI_DATA_HDR_SIZE +
+	       ST_NCI_FRAME_HEADROOM + ST_NCI_FRAME_TAILROOM];
 	struct spi_transfer spi_xfer = {
 		.tx_buf = skb->data,
 		.rx_buf = buf,
