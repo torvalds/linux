@@ -341,3 +341,26 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 
 	return 0;
 }
+
+int perf_event__process_stat_event(struct perf_tool *tool __maybe_unused,
+				   union perf_event *event,
+				   struct perf_session *session)
+{
+	struct perf_counts_values count;
+	struct stat_event *st = &event->stat;
+	struct perf_evsel *counter;
+
+	count.val = st->val;
+	count.ena = st->ena;
+	count.run = st->run;
+
+	counter = perf_evlist__id2evsel(session->evlist, st->id);
+	if (!counter) {
+		pr_err("Failed to resolve counter for stat event.\n");
+		return -EINVAL;
+	}
+
+	*perf_counts(counter->counts, st->cpu, st->thread) = count;
+	counter->supported = true;
+	return 0;
+}
