@@ -142,6 +142,9 @@ int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 	return exit_code;
 }
 
+__alias(__guest_run)
+int __weak __kvm_vcpu_run(struct kvm_vcpu *vcpu);
+
 static const char __hyp_panic_string[] = "HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%p\n";
 
 void __hyp_text __noreturn __hyp_panic(void)
