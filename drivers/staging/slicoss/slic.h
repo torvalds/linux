@@ -446,7 +446,7 @@ struct adapter {
 	*  SLIC Handles
 	*/
 	/* Object handles*/
-	struct slic_handle slic_handles[SLIC_CMDQ_MAXCMDS+1];
+	struct slic_handle slic_handles[SLIC_CMDQ_MAXCMDS + 1];
 	/* Free object handles*/
 	struct slic_handle *pfree_slic_handles;
 	/* Object handle list lock*/
@@ -512,6 +512,6 @@ struct adapter {
 #define FLUSH		true
 #define DONT_FLUSH	false
 
-#define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE+10)
+#define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE + 10)
 
 #endif /*  __SLIC_DRIVER_H__ */

@@ -160,7 +160,7 @@ static void slic_mcast_set_bit(struct adapter *adapter, char *address)
 	/* Get the CRC polynomial for the mac address */
 	/* we use bits 1-8 (lsb), bitwise reversed,
 	 * msb (= lsb bit 0 before bitrev) is automatically discarded */
-	crcpoly = ether_crc(ETH_ALEN, address)>>23;
+	crcpoly = ether_crc(ETH_ALEN, address) >> 23;
 
 	/* We only have space on the SLIC for 64 entries.  Lop
 	 * off the top two bits. (2^6 = 64)
