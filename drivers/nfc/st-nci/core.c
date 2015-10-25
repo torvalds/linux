@@ -152,14 +152,23 @@ int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 
 	nci_set_drvdata(ndlc->ndev, info);
 
+	r = st_nci_vendor_cmds_init(ndlc->ndev);
+	if (r) {
+		pr_err("Cannot register proprietary vendor cmds\n");
+		goto err_reg_dev;
+	}
+
 	r = nci_register_device(ndlc->ndev);
 	if (r) {
 		pr_err("Cannot register nfc device to nci core\n");
-		nci_free_device(ndlc->ndev);
-		return r;
+		goto err_reg_dev;
 	}
 
 	return st_nci_se_init(ndlc->ndev);
+
+err_reg_dev:
+	nci_free_device(ndlc->ndev);
+	return r;
 }
 EXPORT_SYMBOL_GPL(st_nci_probe);
 

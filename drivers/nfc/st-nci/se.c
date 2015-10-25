@@ -39,7 +39,6 @@ struct st_nci_pipe_info {
 #define ST_NCI_ESE_HOST_ID            0xc0
 
 /* Gates */
-#define ST_NCI_DEVICE_MGNT_GATE       0x01
 #define ST_NCI_APDU_READER_GATE       0xf0
 #define ST_NCI_CONNECTIVITY_GATE      0x41
 
@@ -113,6 +112,8 @@ static struct nci_hci_gate st_nci_gates[] = {
 					ST_NCI_HOST_CONTROLLER_ID},
 
 	{NCI_HCI_IDENTITY_MGMT_GATE, NCI_HCI_INVALID_PIPE,
+					ST_NCI_HOST_CONTROLLER_ID},
+	{NCI_HCI_LOOPBACK_GATE, NCI_HCI_INVALID_PIPE,
 					ST_NCI_HOST_CONTROLLER_ID},
 
 	/* Secure element pipes are created by secure element host */
@@ -376,8 +377,10 @@ void st_nci_hci_event_received(struct nci_dev *ndev, u8 pipe,
 		st_nci_hci_apdu_reader_event_received(ndev, event, skb);
 	break;
 	case ST_NCI_CONNECTIVITY_GATE:
-		st_nci_hci_connectivity_event_received(ndev, host, event,
-							 skb);
+		st_nci_hci_connectivity_event_received(ndev, host, event, skb);
+	break;
+	case NCI_HCI_LOOPBACK_GATE:
+		st_nci_hci_loopback_event_received(ndev, event, skb);
 	break;
 	}
 }
@@ -509,6 +512,7 @@ EXPORT_SYMBOL_GPL(st_nci_enable_se);
 
 static int st_nci_hci_network_init(struct nci_dev *ndev)
 {
+	struct st_nci_info *info = nci_get_drvdata(ndev);
 	struct core_conn_create_dest_spec_params *dest_params;
 	struct dest_spec_params spec_params;
 	struct nci_conn_info    *conn_info;
@@ -561,10 +565,17 @@ static int st_nci_hci_network_init(struct nci_dev *ndev)
 	if (r != NCI_HCI_ANY_OK)
 		goto free_dest_params;
 
-	r = nci_nfcee_mode_set(ndev, ndev->hci_dev->conn_info->id,
-			       NCI_NFCEE_ENABLE);
-	if (r != NCI_STATUS_OK)
-		goto free_dest_params;
+	/*
+	 * In factory mode, we prevent secure elements activation
+	 * by disabling nfcee on the current HCI connection id.
+	 * HCI will be used here only for proprietary commands.
+	 */
+	if (test_bit(ST_NCI_FACTORY_MODE, &info->flags))
+		r = nci_nfcee_mode_set(ndev, ndev->hci_dev->conn_info->id,
+				       NCI_NFCEE_DISABLE);
+	else
+		r = nci_nfcee_mode_set(ndev, ndev->hci_dev->conn_info->id,
+				       NCI_NFCEE_ENABLE);
 
 free_dest_params:
 	kfree(dest_params);
@@ -578,12 +589,16 @@ int st_nci_discover_se(struct nci_dev *ndev)
 	u8 param[2];
 	int r;
 	int se_count = 0;
+	struct st_nci_info *info = nci_get_drvdata(ndev);
 
 	pr_debug("st_nci_discover_se\n");
 
 	r = st_nci_hci_network_init(ndev);
 	if (r != 0)
 		return r;
+
+	if (test_bit(ST_NCI_FACTORY_MODE, &info->flags))
+		return 0;
 
 	param[0] = ST_NCI_UICC_HOST_ID;
 	param[1] = ST_NCI_HCI_HOST_ID_ESE;
