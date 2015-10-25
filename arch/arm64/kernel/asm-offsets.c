@@ -112,6 +112,7 @@ int main(void)
   DEFINE(CPU_ELR_EL1,		offsetof(struct kvm_regs, elr_el1));
   DEFINE(CPU_SPSR,		offsetof(struct kvm_regs, spsr));
   DEFINE(CPU_SYSREGS,		offsetof(struct kvm_cpu_context, sys_regs));
+  DEFINE(VCPU_FPEXC32_EL2,	offsetof(struct kvm_vcpu, arch.ctxt.sys_regs[FPEXC32_EL2]));
   DEFINE(VCPU_ESR_EL2,		offsetof(struct kvm_vcpu, arch.fault.esr_el2));
   DEFINE(VCPU_FAR_EL2,		offsetof(struct kvm_vcpu, arch.fault.far_el2));
   DEFINE(VCPU_HPFAR_EL2,	offsetof(struct kvm_vcpu, arch.fault.hpfar_el2));

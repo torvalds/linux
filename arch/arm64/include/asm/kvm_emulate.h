@@ -26,7 +26,6 @@
 
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
-#include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 #include <asm/ptrace.h>
 #include <asm/cputype.h>

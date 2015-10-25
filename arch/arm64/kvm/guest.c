@@ -28,7 +28,6 @@
 #include <asm/cputype.h>
 #include <asm/uaccess.h>
 #include <asm/kvm.h>
-#include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>
 
