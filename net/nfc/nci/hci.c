@@ -402,7 +402,7 @@ static void nci_hci_msg_rx_work(struct work_struct *work)
 	u8 pipe, type, instruction;
 
 	while ((skb = skb_dequeue(&hdev->msg_rx_queue)) != NULL) {
-		pipe = skb->data[0];
+		pipe = NCI_HCP_MSG_GET_PIPE(skb->data[0]);
 		skb_pull(skb, NCI_HCI_HCP_PACKET_HEADER_LEN);
 		message = (struct nci_hcp_message *)skb->data;
 		type = NCI_HCP_MSG_GET_TYPE(message->header);
@@ -439,7 +439,7 @@ void nci_hci_data_received_cb(void *context,
 
 	/* it's the last fragment. Does it need re-aggregation? */
 	if (skb_queue_len(&ndev->hci_dev->rx_hcp_frags)) {
-		pipe = packet->header & NCI_HCI_FRAGMENT;
+		pipe = NCI_HCP_MSG_GET_PIPE(packet->header);
 		skb_queue_tail(&ndev->hci_dev->rx_hcp_frags, skb);
 
 		msg_len = 0;
