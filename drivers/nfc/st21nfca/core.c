@@ -203,22 +203,13 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 	}
 
 	/*
-	 * 3 gates have a well known pipe ID.
-	 * They will never appear in the pipe list
+	 * 3 gates have a well known pipe ID. Only NFC_HCI_LINK_MGMT_GATE
+	 * is not yet open at this stage.
 	 */
-	if (skb_pipe_list->len + 3 < ARRAY_SIZE(st21nfca_gates)) {
-		for (i = skb_pipe_list->len + 3;
-				i < ARRAY_SIZE(st21nfca_gates) - 2; i++) {
-			r = nfc_hci_connect_gate(hdev,
-					NFC_HCI_HOST_CONTROLLER_ID,
-					st21nfca_gates[i].gate,
-					st21nfca_gates[i].pipe);
-			if (r < 0)
-				goto free_list;
-		}
-	}
+	r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID,
+				 NFC_HCI_LINK_MGMT_GATE,
+				 NFC_HCI_LINK_MGMT_PIPE);
 
-free_list:
 	kfree_skb(skb_pipe_list);
 	return r;
 }
