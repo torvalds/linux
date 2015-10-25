@@ -293,12 +293,6 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 	/* ignore MAC address, we already have it from the boot loader */
 	snprintf(wdev->wiphy->fw_version, sizeof(wdev->wiphy->fw_version),
 		 "%d", wil->fw_version);
-}
-
-static void wmi_evt_fw_ready(struct wil6210_priv *wil, int id, void *d,
-			     int len)
-{
-	wil_dbg_wmi(wil, "WMI: got FW ready event\n");
 
 	wil_set_recovery_state(wil, fw_recovery_idle);
 	set_bit(wil_status_fwready, wil->status);
@@ -699,7 +693,7 @@ static const struct {
 			void *data, int data_len);
 } wmi_evt_handlers[] = {
 	{WMI_READY_EVENTID,		wmi_evt_ready},
-	{WMI_FW_READY_EVENTID,		wmi_evt_fw_ready},
+	{WMI_FW_READY_EVENTID,			wmi_evt_ignore},
 	{WMI_RX_MGMT_PACKET_EVENTID,	wmi_evt_rx_mgmt},
 	{WMI_TX_MGMT_PACKET_EVENTID,		wmi_evt_tx_mgmt},
 	{WMI_SCAN_COMPLETE_EVENTID,	wmi_evt_scan_complete},
@@ -730,7 +724,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 	ulong flags;
 	unsigned n;
 
-	if (!test_bit(wil_status_reset_done, wil->status)) {
+	if (!test_bit(wil_status_mbox_ready, wil->status)) {
 		wil_err(wil, "Reset in progress. Cannot handle WMI event\n");
 		return;
 	}
