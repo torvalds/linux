@@ -226,6 +226,7 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_AUXTRACE_INFO		= 70,
 	PERF_RECORD_AUXTRACE			= 71,
 	PERF_RECORD_AUXTRACE_ERROR		= 72,
+	PERF_RECORD_THREAD_MAP			= 73,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -356,6 +357,17 @@ struct context_switch_event {
 	u32 next_prev_tid;
 };
 
+struct thread_map_event_entry {
+	u64	pid;
+	char	comm[16];
+};
+
+struct thread_map_event {
+	struct perf_event_header	header;
+	u64				nr;
+	struct thread_map_event_entry	entries[];
+};
+
 union perf_event {
 	struct perf_event_header	header;
 	struct mmap_event		mmap;
@@ -378,6 +390,7 @@ union perf_event {
 	struct aux_event		aux;
 	struct itrace_start_event	itrace_start;
 	struct context_switch_event	context_switch;
+	struct thread_map_event		thread_map;
 };
 
 void perf_event__print_totals(void);

@@ -296,6 +296,16 @@ int process_event_auxtrace_error_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+
+static
+int process_event_thread_map_stub(struct perf_tool *tool __maybe_unused,
+				  union perf_event *event __maybe_unused,
+				  struct perf_session *session __maybe_unused)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 void perf_tool__fill_defaults(struct perf_tool *tool)
 {
 	if (tool->sample == NULL)
@@ -346,6 +356,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->auxtrace = process_event_auxtrace_stub;
 	if (tool->auxtrace_error == NULL)
 		tool->auxtrace_error = process_event_auxtrace_error_stub;
+	if (tool->thread_map == NULL)
+		tool->thread_map = process_event_thread_map_stub;
 }
 
 static void swap_sample_id_all(union perf_event *event, void *data)
@@ -616,6 +628,17 @@ static void perf_event__auxtrace_error_swap(union perf_event *event,
 	event->auxtrace_error.ip   = bswap_64(event->auxtrace_error.ip);
 }
 
+static void perf_event__thread_map_swap(union perf_event *event,
+					bool sample_id_all __maybe_unused)
+{
+	unsigned i;
+
+	event->thread_map.nr = bswap_64(event->thread_map.nr);
+
+	for (i = 0; i < event->thread_map.nr; i++)
+		event->thread_map.entries[i].pid = bswap_64(event->thread_map.entries[i].pid);
+}
+
 typedef void (*perf_event__swap_op)(union perf_event *event,
 				    bool sample_id_all);
 
@@ -643,6 +666,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_AUXTRACE_INFO]	  = perf_event__auxtrace_info_swap,
 	[PERF_RECORD_AUXTRACE]		  = perf_event__auxtrace_swap,
 	[PERF_RECORD_AUXTRACE_ERROR]	  = perf_event__auxtrace_error_swap,
+	[PERF_RECORD_THREAD_MAP]	  = perf_event__thread_map_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
@@ -1179,6 +1203,8 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	case PERF_RECORD_AUXTRACE_ERROR:
 		perf_session__auxtrace_error_inc(session, event);
 		return tool->auxtrace_error(tool, event, session);
+	case PERF_RECORD_THREAD_MAP:
+		return tool->thread_map(tool, event, session);
 	default:
 		return -EINVAL;
 	}
