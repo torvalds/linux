@@ -59,7 +59,8 @@ struct perf_tool {
 			thread_map,
 			cpu_map,
 			stat_config,
-			stat;
+			stat,
+			stat_round;
 	event_op3	auxtrace;
 	bool		ordered_events;
 	bool		ordering_requires_timestamps;
