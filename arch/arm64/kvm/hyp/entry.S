@@ -27,7 +27,6 @@
 
 #define CPU_GP_REG_OFFSET(x)	(CPU_GP_REGS + x)
 #define CPU_XREG_OFFSET(x)	CPU_GP_REG_OFFSET(CPU_USER_PT_REGS + 8*x)
-#define CPU_SYSREG_OFFSET(x)	(CPU_SYSREGS + 8*x)
 
 	.text
 	.pushsection	.hyp.text, "ax"
@@ -150,7 +149,7 @@ ENTRY(__fpsimd_guest_restore)
 	// Skip restoring fpexc32 for AArch64 guests
 	mrs	x1, hcr_el2
 	tbnz	x1, #HCR_RW_SHIFT, 1f
-	ldr	x4, [x2, #CPU_SYSREG_OFFSET(FPEXC32_EL2)]
+	ldr	x4, [x3, #VCPU_FPEXC32_EL2]
 	msr	fpexc32_el2, x4
 1:
 	ldp	x4, lr, [sp], #16

@@ -28,6 +28,7 @@
 
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_arm.h>
+#include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
 
 /* These are for GICv2 emulation only */
