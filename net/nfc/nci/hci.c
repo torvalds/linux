@@ -706,6 +706,10 @@ int nci_hci_dev_session_init(struct nci_dev *ndev)
 		/* Restore gate<->pipe table from some proprietary location. */
 		r = ndev->ops->hci_load_session(ndev);
 	} else {
+		r = nci_hci_clear_all_pipes(ndev);
+		if (r < 0)
+			goto exit;
+
 		r = nci_hci_dev_connect_gates(ndev,
 					      ndev->hci_dev->init_data.gate_count,
 					      ndev->hci_dev->init_data.gates);
