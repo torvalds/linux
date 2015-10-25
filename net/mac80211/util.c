@@ -1665,7 +1665,6 @@ static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
 
 	local->resuming = false;
 	local->suspended = false;
-	local->started = false;
 	local->in_reconfig = false;
 
 	/* scheduled scan clearly can't be running any more, but tell
@@ -1763,6 +1762,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 */
 	if (suspended && local->in_reconfig && !reconfig_due_to_wowlan)
 		cancel_work_sync(&local->restart_work);
+
+	local->started = false;
 
 	/*
 	 * Upon resume hardware can sometimes be goofy due to
