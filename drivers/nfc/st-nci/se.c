@@ -244,9 +244,6 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 		kfree_skb(skb_pipe_info);
 	}
 
-	memcpy(ndev->hci_dev->init_data.gates, st_nci_gates,
-	       sizeof(st_nci_gates));
-
 	kfree_skb(skb_pipe_list);
 	return r;
 }
