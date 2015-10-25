@@ -162,7 +162,6 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 		r = nfc_hci_send_cmd(hdev, ST21NFCA_DEVICE_MGNT_GATE,
 					ST21NFCA_DM_GETINFO, pipe_info,
 					sizeof(pipe_info), &skb_pipe_info);
-
 		if (r)
 			continue;
 
@@ -982,7 +981,6 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 	 * persistent info to discriminate 2 identical chips
 	 */
 	dev_num = find_first_zero_bit(dev_mask, ST21NFCA_NUM_DEVICES);
-
 	if (dev_num >= ST21NFCA_NUM_DEVICES)
 		return -ENODEV;
 
