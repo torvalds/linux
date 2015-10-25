@@ -591,12 +591,19 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 		offset = noffset;
 	}
 
-	/* if HT support is only added in TDLS, we need an HT-operation IE */
+	/*
+	 * if HT support is only added in TDLS, we need an HT-operation IE.
+	 * add the IE as required by IEEE802.11-2012 9.23.3.2.
+	 */
 	if (!ap_sta->sta.ht_cap.ht_supported && sta->sta.ht_cap.ht_supported) {
+		u16 prot = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED |
+			   IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT |
+			   IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT;
+
 		pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
-		/* send an empty HT operation IE */
 		ieee80211_ie_build_ht_oper(pos, &sta->sta.ht_cap,
-					   &sdata->vif.bss_conf.chandef, 0);
+					   &sdata->vif.bss_conf.chandef, prot,
+					   true);
 	}
 
 	ieee80211_tdls_add_link_ie(sdata, skb, peer, initiator);
