@@ -1057,13 +1057,13 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	if (mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT) {
 		/* if we're not associated, this must be netdetect */
-		if (!wowlan->nd_config && !mvm->nd_config) {
+		if (!wowlan->nd_config) {
 			ret = 1;
 			goto out_noreset;
 		}
 
 		ret = iwl_mvm_netdetect_config(
-			mvm, wowlan, wowlan->nd_config ?: mvm->nd_config, vif);
+			mvm, wowlan, wowlan->nd_config, vif);
 		if (ret)
 			goto out;
 

@@ -642,12 +642,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
 	kfree(mvm->d3_resume_sram);
-	if (mvm->nd_config) {
-		kfree(mvm->nd_config->match_sets);
-		kfree(mvm->nd_config->scan_plans);
-		kfree(mvm->nd_config);
-		mvm->nd_config = NULL;
-	}
 #endif
 
 	iwl_trans_op_mode_leave(mvm->trans);

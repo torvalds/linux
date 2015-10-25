@@ -732,7 +732,6 @@ struct iwl_mvm {
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
 
 	/* sched scan settings for net detect */
-	struct cfg80211_sched_scan_request *nd_config;
 	struct ieee80211_scan_ies nd_ies;
 	struct cfg80211_match_set *nd_match_sets;
 	int n_nd_match_sets;
