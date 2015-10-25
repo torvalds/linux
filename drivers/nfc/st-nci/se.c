@@ -228,7 +228,7 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 			continue;
 		}
 
-		for (j = 0; (j < ARRAY_SIZE(st_nci_gates)) &&
+		for (j = 3; (j < ARRAY_SIZE(st_nci_gates)) &&
 		     (st_nci_gates[j].gate != dm_pipe_info->dst_gate_id); j++)
 			;
 
