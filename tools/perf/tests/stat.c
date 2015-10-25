@@ -88,3 +88,24 @@ int test__synthesize_stat(int subtest __maybe_unused)
 
 	return 0;
 }
+
+static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
+				    union perf_event *event,
+				    struct perf_sample *sample __maybe_unused,
+				    struct machine *machine __maybe_unused)
+{
+	struct stat_round_event *stat_round = &event->stat_round;
+
+	TEST_ASSERT_VAL("wrong time", stat_round->time == 0xdeadbeef);
+	TEST_ASSERT_VAL("wrong type", stat_round->type == PERF_STAT_ROUND_TYPE__INTERVAL);
+	return 0;
+}
+
+int test__synthesize_stat_round(int subtest __maybe_unused)
+{
+	TEST_ASSERT_VAL("failed to synthesize stat_config",
+		!perf_event__synthesize_stat_round(NULL, 0xdeadbeef, PERF_STAT_ROUND_TYPE__INTERVAL,
+						   process_stat_round_event, NULL));
+
+	return 0;
+}

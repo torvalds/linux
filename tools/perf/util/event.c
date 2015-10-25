@@ -933,6 +933,23 @@ int perf_event__synthesize_stat(struct perf_tool *tool,
 	return process(tool, (union perf_event *) &event, NULL, machine);
 }
 
+int perf_event__synthesize_stat_round(struct perf_tool *tool,
+				      u64 evtime, u64 type,
+				      perf_event__handler_t process,
+				      struct machine *machine)
+{
+	struct stat_round_event event;
+
+	event.header.type = PERF_RECORD_STAT_ROUND;
+	event.header.size = sizeof(event);
+	event.header.misc = 0;
+
+	event.time = evtime;
+	event.type = type;
+
+	return process(tool, (union perf_event *) &event, NULL, machine);
+}
+
 void perf_event__read_stat_config(struct perf_stat_config *config,
 				  struct stat_config_event *event)
 {

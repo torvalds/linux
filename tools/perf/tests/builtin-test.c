@@ -196,6 +196,10 @@ static struct test generic_tests[] = {
 		.func = test__synthesize_stat,
 	},
 	{
+		.desc = "Test stat round synthesize",
+		.func = test__synthesize_stat_round,
+	},
+	{
 		.func = NULL,
 	},
 };

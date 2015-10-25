@@ -517,6 +517,10 @@ int perf_event__synthesize_stat(struct perf_tool *tool,
 				struct perf_counts_values *count,
 				perf_event__handler_t process,
 				struct machine *machine);
+int perf_event__synthesize_stat_round(struct perf_tool *tool,
+				      u64 time, u64 type,
+				      perf_event__handler_t process,
+				      struct machine *machine);
 int perf_event__synthesize_modules(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine);
