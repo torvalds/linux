@@ -893,6 +893,8 @@ static int st21nfca_admin_event_received(struct nfc_hci_dev *hdev, u8 event,
 			}
 		}
 	break;
+	default:
+		nfc_err(&hdev->ndev->dev, "Unexpected event on admin gate\n");
 	}
 	kfree_skb(skb);
 	return 0;

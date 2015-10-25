@@ -342,6 +342,7 @@ int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 		r = nfc_se_transaction(hdev->ndev, host, transaction);
 		break;
 	default:
+		nfc_err(&hdev->ndev->dev, "Unexpected event on connectivity gate\n");
 		return 1;
 	}
 	kfree_skb(skb);
@@ -373,6 +374,9 @@ int st21nfca_apdu_reader_event_received(struct nfc_hci_dev *hdev,
 		mod_timer(&info->se_info.bwi_timer, jiffies +
 				msecs_to_jiffies(info->se_info.wt_timeout));
 		break;
+	default:
+		nfc_err(&hdev->ndev->dev, "Unexpected event on apdu reader gate\n");
+		return 1;
 	}
 
 exit:
