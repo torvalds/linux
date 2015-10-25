@@ -364,3 +364,42 @@ int perf_event__process_stat_event(struct perf_tool *tool __maybe_unused,
 	counter->supported = true;
 	return 0;
 }
+
+size_t perf_event__fprintf_stat(union perf_event *event, FILE *fp)
+{
+	struct stat_event *st = (struct stat_event *) event;
+	size_t ret;
+
+	ret  = fprintf(fp, "\n... id %" PRIu64 ", cpu %d, thread %d\n",
+		       st->id, st->cpu, st->thread);
+	ret += fprintf(fp, "... value %" PRIu64 ", enabled %" PRIu64 ", running %" PRIu64 "\n",
+		       st->val, st->ena, st->run);
+
+	return ret;
+}
+
+size_t perf_event__fprintf_stat_round(union perf_event *event, FILE *fp)
+{
+	struct stat_round_event *rd = (struct stat_round_event *)event;
+	size_t ret;
+
+	ret = fprintf(fp, "\n... time %" PRIu64 ", type %s\n", rd->time,
+		      rd->type == PERF_STAT_ROUND_TYPE__FINAL ? "FINAL" : "INTERVAL");
+
+	return ret;
+}
+
+size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp)
+{
+	struct perf_stat_config sc;
+	size_t ret;
+
+	perf_event__read_stat_config(&sc, &event->stat_config);
+
+	ret  = fprintf(fp, "\n");
+	ret += fprintf(fp, "... aggr_mode %d\n", sc.aggr_mode);
+	ret += fprintf(fp, "... scale     %d\n", sc.scale);
+	ret += fprintf(fp, "... interval  %u\n", sc.interval);
+
+	return ret;
+}
