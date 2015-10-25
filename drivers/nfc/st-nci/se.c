@@ -62,7 +62,7 @@ struct st_nci_pipe_info {
 
 #define ST_NCI_EVT_SE_HARD_RESET		0x20
 #define ST_NCI_EVT_TRANSMIT_DATA		0x10
-#define ST_NCI_EVT_WTX_REQUEST		0x11
+#define ST_NCI_EVT_WTX_REQUEST			0x11
 #define ST_NCI_EVT_SE_SOFT_RESET		0x11
 #define ST_NCI_EVT_SE_END_OF_APDU_TRANSFER	0x21
 #define ST_NCI_EVT_HOT_PLUG			0x03

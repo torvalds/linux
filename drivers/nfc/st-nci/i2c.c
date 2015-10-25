@@ -32,7 +32,7 @@
 #define DRIVER_DESC "NCI NFC driver for ST_NCI"
 
 /* ndlc header */
-#define ST_NCI_FRAME_HEADROOM	1
+#define ST_NCI_FRAME_HEADROOM 1
 #define ST_NCI_FRAME_TAILROOM 0
 
 #define ST_NCI_I2C_MIN_SIZE 4   /* PCB(1) + NCI Packet header(3) */

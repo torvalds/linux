@@ -407,7 +407,7 @@ static void nci_hci_hcp_message_rx(struct nci_dev *ndev, u8 pipe,
 		break;
 	}
 
-	nci_req_complete(ndev, 0);
+	nci_req_complete(ndev, NCI_STATUS_OK);
 }
 
 static void nci_hci_msg_rx_work(struct work_struct *work)
