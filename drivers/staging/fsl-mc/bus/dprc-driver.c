@@ -482,7 +482,7 @@ int __init dprc_driver_init(void)
 	return fsl_mc_driver_register(&dprc_driver);
 }
 
-void __exit dprc_driver_exit(void)
+void dprc_driver_exit(void)
 {
 	fsl_mc_driver_unregister(&dprc_driver);
 }

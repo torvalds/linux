@@ -103,7 +103,7 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev);
 
 int __init dprc_driver_init(void);
 
-void __exit dprc_driver_exit(void);
+void dprc_driver_exit(void);
 
 int __init fsl_mc_allocator_driver_init(void);
 
