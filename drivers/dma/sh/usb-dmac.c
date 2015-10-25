@@ -802,7 +802,7 @@ static int usb_dmac_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "runtime PM get sync failed (%d)\n", ret);
-		return ret;
+		goto error_pm;
 	}
 
 	ret = usb_dmac_init(dmac);
@@ -859,6 +859,7 @@ static int usb_dmac_probe(struct platform_device *pdev)
 error:
 	of_dma_controller_free(pdev->dev.of_node);
 	pm_runtime_put(&pdev->dev);
+error_pm:
 	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
