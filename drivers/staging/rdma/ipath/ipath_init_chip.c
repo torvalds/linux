@@ -950,9 +950,8 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		 * set up stats retrieval timer, even if we had errors
 		 * in last portion of setup
 		 */
-		init_timer(&dd->ipath_stats_timer);
-		dd->ipath_stats_timer.function = ipath_get_faststats;
-		dd->ipath_stats_timer.data = (unsigned long) dd;
+		setup_timer(&dd->ipath_stats_timer, ipath_get_faststats,
+				(unsigned long)dd);
 		/* every 5 seconds; */
 		dd->ipath_stats_timer.expires = jiffies + 5 * HZ;
 		/* takes ~16 seconds to overflow at full IB 4x bandwdith */
@@ -965,9 +964,8 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		ret = setup_sdma(dd);
 
 	/* Set up HoL state */
-	init_timer(&dd->ipath_hol_timer);
-	dd->ipath_hol_timer.function = ipath_hol_event;
-	dd->ipath_hol_timer.data = (unsigned long)dd;
+	setup_timer(&dd->ipath_hol_timer, ipath_hol_event, (unsigned long)dd);
+
 	dd->ipath_hol_state = IPATH_HOL_UP;
 
 done:
@@ -988,11 +986,9 @@ done:
 			 * to an alternate if necessary and possible
 			 */
 			if (!reinit) {
-				init_timer(&dd->ipath_intrchk_timer);
-				dd->ipath_intrchk_timer.function =
-					verify_interrupt;
-				dd->ipath_intrchk_timer.data =
-					(unsigned long) dd;
+				setup_timer(&dd->ipath_intrchk_timer,
+						verify_interrupt,
+						(unsigned long)dd);
 			}
 			dd->ipath_intrchk_timer.expires = jiffies + HZ/2;
 			add_timer(&dd->ipath_intrchk_timer);
