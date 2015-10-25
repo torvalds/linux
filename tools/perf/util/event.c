@@ -38,6 +38,7 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_AUXTRACE]			= "AUXTRACE",
 	[PERF_RECORD_AUXTRACE_ERROR]		= "AUXTRACE_ERROR",
 	[PERF_RECORD_THREAD_MAP]		= "THREAD_MAP",
+	[PERF_RECORD_CPU_MAP]			= "CPU_MAP",
 };
 
 const char *perf_event__name(unsigned int id)

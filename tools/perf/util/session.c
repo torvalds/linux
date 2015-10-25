@@ -306,6 +306,15 @@ int process_event_thread_map_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+static
+int process_event_cpu_map_stub(struct perf_tool *tool __maybe_unused,
+			       union perf_event *event __maybe_unused,
+			       struct perf_session *session __maybe_unused)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 void perf_tool__fill_defaults(struct perf_tool *tool)
 {
 	if (tool->sample == NULL)
@@ -358,6 +367,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->auxtrace_error = process_event_auxtrace_error_stub;
 	if (tool->thread_map == NULL)
 		tool->thread_map = process_event_thread_map_stub;
+	if (tool->cpu_map == NULL)
+		tool->cpu_map = process_event_cpu_map_stub;
 }
 
 static void swap_sample_id_all(union perf_event *event, void *data)
@@ -639,6 +650,42 @@ static void perf_event__thread_map_swap(union perf_event *event,
 		event->thread_map.entries[i].pid = bswap_64(event->thread_map.entries[i].pid);
 }
 
+static void perf_event__cpu_map_swap(union perf_event *event,
+				     bool sample_id_all __maybe_unused)
+{
+	struct cpu_map_data *data = &event->cpu_map.data;
+	struct cpu_map_entries *cpus;
+	struct cpu_map_mask *mask;
+	unsigned i;
+
+	data->type = bswap_64(data->type);
+
+	switch (data->type) {
+	case PERF_CPU_MAP__CPUS:
+		cpus = (struct cpu_map_entries *)data->data;
+
+		cpus->nr = bswap_16(cpus->nr);
+
+		for (i = 0; i < cpus->nr; i++)
+			cpus->cpu[i] = bswap_16(cpus->cpu[i]);
+		break;
+	case PERF_CPU_MAP__MASK:
+		mask = (struct cpu_map_mask *) data->data;
+
+		mask->nr = bswap_16(mask->nr);
+		mask->long_size = bswap_16(mask->long_size);
+
+		switch (mask->long_size) {
+		case 4: mem_bswap_32(&mask->mask, mask->nr); break;
+		case 8: mem_bswap_64(&mask->mask, mask->nr); break;
+		default:
+			pr_err("cpu_map swap: unsupported long size\n");
+		}
+	default:
+		break;
+	}
+}
+
 typedef void (*perf_event__swap_op)(union perf_event *event,
 				    bool sample_id_all);
 
@@ -667,6 +714,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_AUXTRACE]		  = perf_event__auxtrace_swap,
 	[PERF_RECORD_AUXTRACE_ERROR]	  = perf_event__auxtrace_error_swap,
 	[PERF_RECORD_THREAD_MAP]	  = perf_event__thread_map_swap,
+	[PERF_RECORD_CPU_MAP]		  = perf_event__cpu_map_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
@@ -1205,6 +1253,8 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		return tool->auxtrace_error(tool, event, session);
 	case PERF_RECORD_THREAD_MAP:
 		return tool->thread_map(tool, event, session);
+	case PERF_RECORD_CPU_MAP:
+		return tool->cpu_map(tool, event, session);
 	default:
 		return -EINVAL;
 	}
