@@ -117,12 +117,10 @@ static int isl29018_set_integration_time(struct isl29018_chip *chip,
 {
 	int i, ret;
 	unsigned int int_time, new_int_time;
-	struct isl29018_scale new_scale;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_int_utimes[chip->type]); ++i) {
 		if (utime == isl29018_int_utimes[chip->type][i]) {
 			new_int_time = i;
-			new_scale = isl29018_scales[new_int_time][0];
 			break;
 		}
 	}
