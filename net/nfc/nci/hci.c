@@ -101,6 +101,20 @@ struct nci_hcp_packet {
 #define NCI_HCP_MSG_GET_CMD(header)  (header & 0x3f)
 #define NCI_HCP_MSG_GET_PIPE(header) (header & 0x7f)
 
+static int nci_hci_result_to_errno(u8 result)
+{
+	switch (result) {
+	case NCI_HCI_ANY_OK:
+		return 0;
+	case NCI_HCI_ANY_E_REG_PAR_UNKNOWN:
+		return -EOPNOTSUPP;
+	case NCI_HCI_ANY_E_TIMEOUT:
+		return -ETIME;
+	default:
+		return -1;
+	}
+}
+
 /* HCI core */
 static void nci_hci_reset_pipes(struct nci_hci_dev *hdev)
 {
@@ -218,7 +232,8 @@ int nci_hci_send_cmd(struct nci_dev *ndev, u8 gate, u8 cmd,
 		     const u8 *param, size_t param_len,
 		     struct sk_buff **skb)
 {
-	struct nci_conn_info    *conn_info;
+	struct nci_hcp_message *message;
+	struct nci_conn_info   *conn_info;
 	struct nci_data data;
 	int r;
 	u8 pipe = ndev->hci_dev->gate2pipe[gate];
@@ -238,9 +253,15 @@ int nci_hci_send_cmd(struct nci_dev *ndev, u8 gate, u8 cmd,
 
 	r = nci_request(ndev, nci_hci_send_data_req, (unsigned long)&data,
 			msecs_to_jiffies(NCI_DATA_TIMEOUT));
+	if (r == NCI_STATUS_OK) {
+		message = (struct nci_hcp_message *)conn_info->rx_skb->data;
+		r = nci_hci_result_to_errno(
+			NCI_HCP_MSG_GET_CMD(message->header));
+		skb_pull(conn_info->rx_skb, NCI_HCI_HCP_MESSAGE_HEADER_LEN);
 
-	if (r == NCI_STATUS_OK && skb)
-		*skb = conn_info->rx_skb;
+		if (!r && skb)
+			*skb = conn_info->rx_skb;
+	}
 
 	return r;
 }
@@ -334,9 +355,6 @@ static void nci_hci_resp_received(struct nci_dev *ndev, u8 pipe,
 	struct nci_conn_info    *conn_info;
 	u8 status = result;
 
-	if (result != NCI_HCI_ANY_OK)
-		goto exit;
-
 	conn_info = ndev->hci_dev->conn_info;
 	if (!conn_info) {
 		status = NCI_STATUS_REJECTED;
@@ -346,7 +364,7 @@ static void nci_hci_resp_received(struct nci_dev *ndev, u8 pipe,
 	conn_info->rx_skb = skb;
 
 exit:
-	nci_req_complete(ndev, status);
+	nci_req_complete(ndev, NCI_STATUS_OK);
 }
 
 /* Receive hcp message for pipe, with type and cmd.
@@ -401,7 +419,7 @@ void nci_hci_data_received_cb(void *context,
 {
 	struct nci_dev *ndev = (struct nci_dev *)context;
 	struct nci_hcp_packet *packet;
-	u8 pipe, type, instruction;
+	u8 pipe, type;
 	struct sk_buff *hcp_skb;
 	struct sk_buff *frag_skb;
 	int msg_len;
@@ -440,7 +458,7 @@ void nci_hci_data_received_cb(void *context,
 		*skb_put(hcp_skb, NCI_HCI_HCP_PACKET_HEADER_LEN) = pipe;
 
 		skb_queue_walk(&ndev->hci_dev->rx_hcp_frags, frag_skb) {
-		       msg_len = frag_skb->len - NCI_HCI_HCP_PACKET_HEADER_LEN;
+			msg_len = frag_skb->len - NCI_HCI_HCP_PACKET_HEADER_LEN;
 			memcpy(skb_put(hcp_skb, msg_len), frag_skb->data +
 			       NCI_HCI_HCP_PACKET_HEADER_LEN, msg_len);
 		}
@@ -458,11 +476,10 @@ void nci_hci_data_received_cb(void *context,
 	packet = (struct nci_hcp_packet *)hcp_skb->data;
 	type = NCI_HCP_MSG_GET_TYPE(packet->message.header);
 	if (type == NCI_HCI_HCP_RESPONSE) {
-		pipe = packet->header;
-		instruction = NCI_HCP_MSG_GET_CMD(packet->message.header);
-		skb_pull(hcp_skb, NCI_HCI_HCP_PACKET_HEADER_LEN +
-			 NCI_HCI_HCP_MESSAGE_HEADER_LEN);
-		nci_hci_hcp_message_rx(ndev, pipe, type, instruction, hcp_skb);
+		pipe = NCI_HCP_MSG_GET_PIPE(packet->header);
+		skb_pull(hcp_skb, NCI_HCI_HCP_PACKET_HEADER_LEN);
+		nci_hci_hcp_message_rx(ndev, pipe, type,
+				       NCI_STATUS_OK, hcp_skb);
 	} else {
 		skb_queue_tail(&ndev->hci_dev->msg_rx_queue, hcp_skb);
 		schedule_work(&ndev->hci_dev->msg_rx_work);
@@ -494,6 +511,7 @@ EXPORT_SYMBOL(nci_hci_open_pipe);
 int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 		      const u8 *param, size_t param_len)
 {
+	struct nci_hcp_message *message;
 	struct nci_conn_info *conn_info;
 	struct nci_data data;
 	int r;
@@ -526,6 +544,12 @@ int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 	r = nci_request(ndev, nci_hci_send_data_req,
 			(unsigned long)&data,
 			msecs_to_jiffies(NCI_DATA_TIMEOUT));
+	if (r == NCI_STATUS_OK) {
+		message = (struct nci_hcp_message *)conn_info->rx_skb->data;
+		r = nci_hci_result_to_errno(
+			NCI_HCP_MSG_GET_CMD(message->header));
+		skb_pull(conn_info->rx_skb, NCI_HCI_HCP_MESSAGE_HEADER_LEN);
+	}
 
 	kfree(tmp);
 	return r;
@@ -535,6 +559,7 @@ EXPORT_SYMBOL(nci_hci_set_param);
 int nci_hci_get_param(struct nci_dev *ndev, u8 gate, u8 idx,
 		      struct sk_buff **skb)
 {
+	struct nci_hcp_message *message;
 	struct nci_conn_info    *conn_info;
 	struct nci_data data;
 	int r;
@@ -559,8 +584,15 @@ int nci_hci_get_param(struct nci_dev *ndev, u8 gate, u8 idx,
 	r = nci_request(ndev, nci_hci_send_data_req, (unsigned long)&data,
 			msecs_to_jiffies(NCI_DATA_TIMEOUT));
 
-	if (r == NCI_STATUS_OK)
-		*skb = conn_info->rx_skb;
+	if (r == NCI_STATUS_OK) {
+		message = (struct nci_hcp_message *)conn_info->rx_skb->data;
+		r = nci_hci_result_to_errno(
+			NCI_HCP_MSG_GET_CMD(message->header));
+		skb_pull(conn_info->rx_skb, NCI_HCI_HCP_MESSAGE_HEADER_LEN);
+
+		if (!r && skb)
+			*skb = conn_info->rx_skb;
+	}
 
 	return r;
 }
