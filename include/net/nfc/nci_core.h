@@ -128,6 +128,7 @@ struct nci_conn_info {
 
 /* Gates */
 #define NCI_HCI_ADMIN_GATE         0x00
+#define NCI_HCI_IDENTITY_MGMT_GATE 0x05
 #define NCI_HCI_LINK_MGMT_GATE     0x06
 
 /* Pipes */

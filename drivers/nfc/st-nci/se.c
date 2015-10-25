@@ -112,6 +112,9 @@ static struct nci_hci_gate st_nci_gates[] = {
 	{ST_NCI_DEVICE_MGNT_GATE, ST_NCI_DEVICE_MGNT_PIPE,
 					ST_NCI_HOST_CONTROLLER_ID},
 
+	{NCI_HCI_IDENTITY_MGMT_GATE, NCI_HCI_INVALID_PIPE,
+					ST_NCI_HOST_CONTROLLER_ID},
+
 	/* Secure element pipes are created by secure element host */
 	{ST_NCI_CONNECTIVITY_GATE, NCI_HCI_DO_NOT_OPEN_PIPE,
 					ST_NCI_HOST_CONTROLLER_ID},
