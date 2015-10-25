@@ -218,7 +218,6 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 		}
 	}
 
-	memcpy(hdev->init_data.gates, st21nfca_gates, sizeof(st21nfca_gates));
 free_list:
 	kfree_skb(skb_pipe_list);
 	return r;
