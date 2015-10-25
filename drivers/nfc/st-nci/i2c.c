@@ -52,6 +52,8 @@ struct st_nci_i2c_phy {
 
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
+
+	struct st_nci_se_status se_status;
 };
 
 #define I2C_DUMP_SKB(info, skb)					\
@@ -245,6 +247,11 @@ static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 
 	phy->irq_polarity = irq_get_trigger_type(client->irq);
 
+	phy->se_status.is_ese_present =
+				of_property_read_bool(pp, "ese-present");
+	phy->se_status.is_uicc_present =
+				of_property_read_bool(pp, "uicc-present");
+
 	return 0;
 }
 #else
@@ -276,6 +283,9 @@ static int st_nci_i2c_request_resources(struct i2c_client *client)
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
 		return r;
 	}
+
+	phy->se_status.is_ese_present = pdata->is_ese_present;
+	phy->se_status.is_uicc_present = pdata->is_uicc_present;
 
 	return 0;
 }
@@ -326,7 +336,7 @@ static int st_nci_i2c_probe(struct i2c_client *client,
 
 	r = ndlc_probe(phy, &i2c_phy_ops, &client->dev,
 			ST_NCI_FRAME_HEADROOM, ST_NCI_FRAME_TAILROOM,
-			&phy->ndlc);
+			&phy->ndlc, &phy->se_status);
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to register ndlc layer\n");
 		return r;

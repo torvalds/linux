@@ -419,12 +419,8 @@ void st_nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe, u8 cmd,
 }
 EXPORT_SYMBOL_GPL(st_nci_hci_cmd_received);
 
-/*
- * Remarks: On some early st_nci firmware, nci_nfcee_mode_set(0)
- * is rejected
- */
 static int st_nci_control_se(struct nci_dev *ndev, u8 se_idx,
-				   u8 state)
+			     u8 state)
 {
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 	int r;
@@ -449,7 +445,7 @@ static int st_nci_control_se(struct nci_dev *ndev, u8 se_idx,
 	 * retrieve a relevant host list.
 	 */
 	reinit_completion(&info->se_info.req_completion);
-	r = nci_nfcee_mode_set(ndev, se_idx, NCI_NFCEE_ENABLE);
+	r = nci_nfcee_mode_set(ndev, se_idx, state);
 	if (r != NCI_STATUS_OK)
 		return r;
 
@@ -465,7 +461,9 @@ static int st_nci_control_se(struct nci_dev *ndev, u8 se_idx,
 	 * There is no possible synchronization to prevent this.
 	 * Adding a small delay is the only way to solve the issue.
 	 */
-	usleep_range(3000, 5000);
+	if (info->se_info.se_status->is_ese_present &&
+	    info->se_info.se_status->is_uicc_present)
+		usleep_range(3000, 5000);
 
 	r = nci_hci_get_param(ndev, NCI_HCI_ADMIN_GATE,
 			NCI_HCI_ADMIN_PARAM_HOST_LIST, &sk_host_list);
@@ -488,11 +486,20 @@ int st_nci_disable_se(struct nci_dev *ndev, u32 se_idx)
 
 	pr_debug("st_nci_disable_se\n");
 
-	if (se_idx == NFC_SE_EMBEDDED) {
-		r = nci_hci_send_event(ndev, ST_NCI_APDU_READER_GATE,
-				ST_NCI_EVT_SE_END_OF_APDU_TRANSFER, NULL, 0);
-		if (r < 0)
-			return r;
+	/*
+	 * According to upper layer, se_idx == NFC_SE_UICC when
+	 * info->se_info.se_status->is_uicc_enable is true should never happen
+	 * Same for eSE.
+	 */
+	r = st_nci_control_se(ndev, se_idx, ST_NCI_SE_MODE_OFF);
+	if (r < 0) {
+		/* Do best effort to release SWP */
+		if (se_idx == NFC_SE_EMBEDDED) {
+			r = nci_hci_send_event(ndev, ST_NCI_APDU_READER_GATE,
+					ST_NCI_EVT_SE_END_OF_APDU_TRANSFER,
+					NULL, 0);
+		}
+		return r;
 	}
 
 	return 0;
@@ -505,11 +512,25 @@ int st_nci_enable_se(struct nci_dev *ndev, u32 se_idx)
 
 	pr_debug("st_nci_enable_se\n");
 
-	if (se_idx == ST_NCI_HCI_HOST_ID_ESE) {
+	/*
+	 * According to upper layer, se_idx == NFC_SE_UICC when
+	 * info->se_info.se_status->is_uicc_enable is true should never happen.
+	 * Same for eSE.
+	 */
+	r = st_nci_control_se(ndev, se_idx, ST_NCI_SE_MODE_ON);
+	if (r == ST_NCI_HCI_HOST_ID_ESE) {
+		st_nci_se_get_atr(ndev);
 		r = nci_hci_send_event(ndev, ST_NCI_APDU_READER_GATE,
 				ST_NCI_EVT_SE_SOFT_RESET, NULL, 0);
-		if (r < 0)
-			return r;
+	}
+
+	if (r < 0) {
+		/*
+		 * The activation procedure failed, the secure element
+		 * is not connected. Remove from the list.
+		 */
+		nfc_remove_se(ndev->nfc_dev, se_idx);
+		return r;
 	}
 
 	return 0;
@@ -592,8 +613,8 @@ exit:
 
 int st_nci_discover_se(struct nci_dev *ndev)
 {
-	u8 param[2];
-	int r;
+	u8 white_list[2];
+	int r, wl_size = 0;
 	int se_count = 0;
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 
@@ -606,29 +627,34 @@ int st_nci_discover_se(struct nci_dev *ndev)
 	if (test_bit(ST_NCI_FACTORY_MODE, &info->flags))
 		return 0;
 
-	param[0] = ST_NCI_UICC_HOST_ID;
-	param[1] = ST_NCI_HCI_HOST_ID_ESE;
-	r = nci_hci_set_param(ndev, NCI_HCI_ADMIN_GATE,
-				NCI_HCI_ADMIN_PARAM_WHITELIST,
-				param, sizeof(param));
-	if (r != NCI_HCI_ANY_OK)
-		return r;
+	if (info->se_info.se_status->is_ese_present &&
+	    info->se_info.se_status->is_uicc_present) {
+		white_list[wl_size++] = ST_NCI_UICC_HOST_ID;
+		white_list[wl_size++] = ST_NCI_ESE_HOST_ID;
+	} else if (!info->se_info.se_status->is_ese_present &&
+		   info->se_info.se_status->is_uicc_present) {
+		white_list[wl_size++] = ST_NCI_UICC_HOST_ID;
+	} else if (info->se_info.se_status->is_ese_present &&
+		   !info->se_info.se_status->is_uicc_present) {
+		white_list[wl_size++] = ST_NCI_ESE_HOST_ID;
+	}
 
-	r = st_nci_control_se(ndev, ST_NCI_UICC_HOST_ID,
-				ST_NCI_SE_MODE_ON);
-	if (r == ST_NCI_UICC_HOST_ID) {
+	if (wl_size) {
+		r = nci_hci_set_param(ndev, NCI_HCI_ADMIN_GATE,
+				      NCI_HCI_ADMIN_PARAM_WHITELIST,
+				      white_list, wl_size);
+		if (r != NCI_HCI_ANY_OK)
+			return r;
+	}
+
+	if (info->se_info.se_status->is_uicc_present) {
 		nfc_add_se(ndev->nfc_dev, ST_NCI_UICC_HOST_ID, NFC_SE_UICC);
 		se_count++;
 	}
 
-	/* Try to enable eSE in order to check availability */
-	r = st_nci_control_se(ndev, ST_NCI_HCI_HOST_ID_ESE,
-				ST_NCI_SE_MODE_ON);
-	if (r == ST_NCI_HCI_HOST_ID_ESE) {
-		nfc_add_se(ndev->nfc_dev, ST_NCI_HCI_HOST_ID_ESE,
-			   NFC_SE_EMBEDDED);
+	if (info->se_info.se_status->is_ese_present) {
+		nfc_add_se(ndev->nfc_dev, ST_NCI_ESE_HOST_ID, NFC_SE_EMBEDDED);
 		se_count++;
-		st_nci_se_get_atr(ndev);
 	}
 
 	return !se_count;
@@ -701,7 +727,7 @@ static void st_nci_se_activation_timeout(unsigned long data)
 	complete(&info->se_info.req_completion);
 }
 
-int st_nci_se_init(struct nci_dev *ndev)
+int st_nci_se_init(struct nci_dev *ndev, struct st_nci_se_status *se_status)
 {
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 
@@ -722,6 +748,8 @@ int st_nci_se_init(struct nci_dev *ndev)
 
 	info->se_info.wt_timeout =
 		ST_NCI_BWI_TO_TIMEOUT(ST_NCI_ATR_DEFAULT_BWI);
+
+	info->se_info.se_status = se_status;
 
 	return 0;
 }

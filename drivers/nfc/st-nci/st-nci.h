@@ -48,7 +48,13 @@ struct nci_mode_set_rsp {
 	u8 status;
 } __packed;
 
+struct st_nci_se_status {
+	bool is_ese_present;
+	bool is_uicc_present;
+};
+
 struct st_nci_se_info {
+	struct st_nci_se_status *se_status;
 	u8 atr[ST_NCI_ESE_MAX_LENGTH];
 	struct completion req_completion;
 
@@ -126,15 +132,16 @@ struct st_nci_vendor_info {
 struct st_nci_info {
 	struct llt_ndlc *ndlc;
 	unsigned long flags;
+
 	struct st_nci_se_info se_info;
 	struct st_nci_vendor_info vendor_info;
 };
 
 void st_nci_remove(struct nci_dev *ndev);
 int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
-		int phy_tailroom);
+		 int phy_tailroom, struct st_nci_se_status *se_status);
 
-int st_nci_se_init(struct nci_dev *ndev);
+int st_nci_se_init(struct nci_dev *ndev, struct st_nci_se_status *se_status);
 void st_nci_se_deinit(struct nci_dev *ndev);
 
 int st_nci_discover_se(struct nci_dev *ndev);
@@ -150,7 +157,7 @@ void st_nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe, u8 cmd,
 						struct sk_buff *skb);
 
 void st_nci_hci_loopback_event_received(struct nci_dev *ndev, u8 event,
-					 struct sk_buff *skb);
+					struct sk_buff *skb);
 int st_nci_vendor_cmds_init(struct nci_dev *ndev);
 
 #endif /* __LOCAL_ST_NCI_H_ */

@@ -123,7 +123,7 @@ static struct nci_ops st_nci_ops = {
 };
 
 int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
-		       int phy_tailroom)
+		 int phy_tailroom, struct st_nci_se_status *se_status)
 {
 	struct st_nci_info *info;
 	int r;
@@ -164,7 +164,7 @@ int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 		goto err_reg_dev;
 	}
 
-	return st_nci_se_init(ndlc->ndev);
+	return st_nci_se_init(ndlc->ndev, se_status);
 
 err_reg_dev:
 	nci_free_device(ndlc->ndev);

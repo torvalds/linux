@@ -53,6 +53,8 @@ struct st_nci_spi_phy {
 
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
+
+	struct st_nci_se_status se_status;
 };
 
 #define SPI_DUMP_SKB(info, skb)					\
@@ -260,6 +262,11 @@ static int st_nci_spi_of_request_resources(struct spi_device *dev)
 
 	phy->irq_polarity = irq_get_trigger_type(dev->irq);
 
+	phy->se_status.is_ese_present =
+				of_property_read_bool(pp, "ese-present");
+	phy->se_status.is_uicc_present =
+				of_property_read_bool(pp, "uicc-present");
+
 	return 0;
 }
 #else
@@ -291,6 +298,9 @@ static int st_nci_spi_request_resources(struct spi_device *dev)
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
 		return r;
 	}
+
+	phy->se_status.is_ese_present = pdata->is_ese_present;
+	phy->se_status.is_uicc_present = pdata->is_uicc_present;
 
 	return 0;
 }
@@ -342,7 +352,7 @@ static int st_nci_spi_probe(struct spi_device *dev)
 
 	r = ndlc_probe(phy, &spi_phy_ops, &dev->dev,
 			ST_NCI_FRAME_HEADROOM, ST_NCI_FRAME_TAILROOM,
-			&phy->ndlc);
+			&phy->ndlc, &phy->se_status);
 	if (r < 0) {
 		nfc_err(&dev->dev, "Unable to register ndlc layer\n");
 		return r;
