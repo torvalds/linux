@@ -1094,10 +1094,8 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 
 		sde->progress_check_head = 0;
 
-		init_timer(&sde->err_progress_check_timer);
-		sde->err_progress_check_timer.function =
-						sdma_err_progress_check;
-		sde->err_progress_check_timer.data = (unsigned long)sde;
+		setup_timer(&sde->err_progress_check_timer,
+			    sdma_err_progress_check, (unsigned long)sde);
 
 		sde->descq = dma_zalloc_coherent(
 			&dd->pcidev->dev,
