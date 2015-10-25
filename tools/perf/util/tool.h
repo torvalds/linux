@@ -50,6 +50,7 @@ struct perf_tool {
 			throttle,
 			unthrottle;
 	event_attr_op	attr;
+	event_attr_op	event_update;
 	event_op2	tracing_data;
 	event_oe	finished_round;
 	event_op2	build_id,

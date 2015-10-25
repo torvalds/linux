@@ -2745,6 +2745,26 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_evlist **pevlist)
+{
+	struct event_update_event *ev = &event->event_update;
+	struct perf_evlist *evlist;
+	struct perf_evsel *evsel;
+
+	if (!pevlist || *pevlist == NULL)
+		return -EINVAL;
+
+	evlist = *pevlist;
+
+	evsel = perf_evlist__id2evsel(evlist, ev->id);
+	if (evsel == NULL)
+		return -EINVAL;
+
+	return 0;
+}
+
 int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
 					struct perf_evlist *evlist,
 					perf_event__handler_t process)

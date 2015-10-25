@@ -231,6 +231,7 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_STAT_CONFIG			= 75,
 	PERF_RECORD_STAT			= 76,
 	PERF_RECORD_STAT_ROUND			= 77,
+	PERF_RECORD_EVENT_UPDATE		= 78,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -305,6 +306,14 @@ struct attr_event {
 	struct perf_event_header header;
 	struct perf_event_attr attr;
 	u64 id[];
+};
+
+struct event_update_event {
+	struct perf_event_header header;
+	u64 type;
+	u64 id;
+
+	char data[];
 };
 
 #define MAX_EVENT_NAME 64
@@ -456,6 +465,7 @@ union perf_event {
 	struct throttle_event		throttle;
 	struct sample_event		sample;
 	struct attr_event		attr;
+	struct event_update_event	event_update;
 	struct event_type_event		event_type;
 	struct tracing_data_event	tracing_data;
 	struct build_id_event		build_id;

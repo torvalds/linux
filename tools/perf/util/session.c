@@ -205,6 +205,15 @@ static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+static int process_event_synth_event_update_stub(struct perf_tool *tool __maybe_unused,
+						 union perf_event *event __maybe_unused,
+						 struct perf_evlist **pevlist
+						 __maybe_unused)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 static int process_event_sample_stub(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event __maybe_unused,
 				     struct perf_sample *sample __maybe_unused,
@@ -374,6 +383,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->unthrottle = process_event_stub;
 	if (tool->attr == NULL)
 		tool->attr = process_event_synth_attr_stub;
+	if (tool->event_update == NULL)
+		tool->event_update = process_event_synth_event_update_stub;
 	if (tool->tracing_data == NULL)
 		tool->tracing_data = process_event_synth_tracing_data_stub;
 	if (tool->build_id == NULL)
@@ -625,6 +636,13 @@ static void perf_event__hdr_attr_swap(union perf_event *event,
 	mem_bswap_64(event->attr.id, size);
 }
 
+static void perf_event__event_update_swap(union perf_event *event,
+					  bool sample_id_all __maybe_unused)
+{
+	event->event_update.type = bswap_64(event->event_update.type);
+	event->event_update.id   = bswap_64(event->event_update.id);
+}
+
 static void perf_event__event_type_swap(union perf_event *event,
 					bool sample_id_all __maybe_unused)
 {
@@ -779,6 +797,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_STAT_CONFIG]	  = perf_event__stat_config_swap,
 	[PERF_RECORD_STAT]		  = perf_event__stat_swap,
 	[PERF_RECORD_STAT_ROUND]	  = perf_event__stat_round_swap,
+	[PERF_RECORD_EVENT_UPDATE]	  = perf_event__event_update_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
@@ -1290,6 +1309,8 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 			perf_session__set_comm_exec(session);
 		}
 		return err;
+	case PERF_RECORD_EVENT_UPDATE:
+		return tool->event_update(tool, event, &session->evlist);
 	case PERF_RECORD_HEADER_EVENT_TYPE:
 		/*
 		 * Depreceated, but we need to handle it for sake
