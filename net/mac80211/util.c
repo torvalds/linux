@@ -2151,7 +2151,13 @@ void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata)
 	chanctx_conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
 					lockdep_is_held(&local->chanctx_mtx));
 
-	if (WARN_ON_ONCE(!chanctx_conf))
+	/*
+	 * This function can be called from a work, thus it may be possible
+	 * that the chanctx_conf is removed (due to a disconnection, for
+	 * example).
+	 * So nothing should be done in such case.
+	 */
+	if (!chanctx_conf)
 		goto unlock;
 
 	chanctx = container_of(chanctx_conf, struct ieee80211_chanctx, conf);
