@@ -761,6 +761,7 @@ int ssb_bus_sdiobus_register(struct ssb_bus *bus, struct sdio_func *func,
 EXPORT_SYMBOL(ssb_bus_sdiobus_register);
 #endif /* CONFIG_SSB_PCMCIAHOST */
 
+#ifdef CONFIG_SSB_HOST_SOC
 int ssb_bus_ssbbus_register(struct ssb_bus *bus, unsigned long baseaddr,
 			    ssb_invariants_func_t get_invariants)
 {
@@ -777,6 +778,7 @@ int ssb_bus_ssbbus_register(struct ssb_bus *bus, unsigned long baseaddr,
 
 	return err;
 }
+#endif
 
 int __ssb_driver_register(struct ssb_driver *drv, struct module *owner)
 {

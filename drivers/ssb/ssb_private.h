@@ -161,7 +161,9 @@ static inline int ssb_sdio_init(struct ssb_bus *bus)
  * host_soc.c
  **************************************************/
 
+#ifdef CONFIG_SSB_HOST_SOC
 extern const struct ssb_bus_ops ssb_host_soc_ops;
+#endif
 
 /* scan.c */
 extern const char *ssb_core_name(u16 coreid);
