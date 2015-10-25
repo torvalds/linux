@@ -308,6 +308,10 @@ struct attr_event {
 	u64 id[];
 };
 
+enum {
+	PERF_EVENT_UPDATE__UNIT  = 0,
+};
+
 struct event_update_event {
 	struct perf_event_header header;
 	u64 type;
