@@ -72,13 +72,12 @@ struct uinput_setup {
 /**
  * UI_DEV_SETUP - Set device parameters for setup
  *
- * This ioctl sets parameters for the input device to be created. It must be
- * issued *before* calling UI_DEV_CREATE or it will fail. This ioctl supersedes
- * the old "struct uinput_user_dev" method, which wrote this data via write().
- * To actually set the absolute axes, you also need to call the ioctl
- * UI_ABS_SETUP *before* calling this ioctl.
+ * This ioctl sets parameters for the input device to be created.  It
+ * supersedes the old "struct uinput_user_dev" method, which wrote this data
+ * via write(). To actually set the absolute axes UI_ABS_SETUP should be
+ * used.
  *
- * This ioctl takes a "struct uinput_setup" object as argument. The fields of
+ * The ioctl takes a "struct uinput_setup" object as argument. The fields of
  * this object are as follows:
  *              id: See the description of "struct input_id". This field is
  *                  copied unchanged into the new device.
@@ -87,9 +86,9 @@ struct uinput_setup {
  *                  See below for a description of FF with uinput.
  *
  * This ioctl can be called multiple times and will overwrite previous values.
- * If this ioctl fails with -EINVAL, you're recommended to use the old
- * "uinput_user_dev" method via write() as fallback, in case you run on an old
- * kernel that does not support this ioctl.
+ * If this ioctl fails with -EINVAL, it is recommended to use the old
+ * "uinput_user_dev" method via write() as a fallback, in case you run on an
+ * old kernel that does not support this ioctl.
  *
  * This ioctl may fail with -EINVAL if it is not supported or if you passed
  * incorrect values, -ENOMEM if the kernel runs out of memory or -EFAULT if the
@@ -109,12 +108,10 @@ struct uinput_abs_setup {
  * UI_ABS_SETUP - Set absolute axis information for the device to setup
  *
  * This ioctl sets one absolute axis information for the input device to be
- * created. It must be issued *before* calling UI_DEV_SETUP and UI_DEV_CREATE
- * for every absolute axis the device exports.
- * This ioctl supersedes the old "struct uinput_user_dev" method, which wrote
+ * created. It supersedes the old "struct uinput_user_dev" method, which wrote
  * part of this data and the content of UI_DEV_SETUP via write().
  *
- * This ioctl takes a "struct uinput_abs_setup" object as argument. The fields
+ * The ioctl takes a "struct uinput_abs_setup" object as argument. The fields
  * of this object are as follows:
  *            code: The corresponding input code associated with this axis
  *                  (ABS_X, ABS_Y, etc...)
@@ -124,9 +121,9 @@ struct uinput_abs_setup {
  *                  UI_SET_ABSBIT, this ioctl will enable it.
  *
  * This ioctl can be called multiple times and will overwrite previous values.
- * If this ioctl fails with -EINVAL, you're recommended to use the old
- * "uinput_user_dev" method via write() as fallback, in case you run on an old
- * kernel that does not support this ioctl.
+ * If this ioctl fails with -EINVAL, it is recommended to use the old
+ * "uinput_user_dev" method via write() as a fallback, in case you run on an
+ * old kernel that does not support this ioctl.
  *
  * This ioctl may fail with -EINVAL if it is not supported or if you passed
  * incorrect values, -ENOMEM if the kernel runs out of memory or -EFAULT if the

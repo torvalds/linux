@@ -256,11 +256,20 @@ static void uinput_destroy_device(struct uinput_device *udev)
 static int uinput_create_device(struct uinput_device *udev)
 {
 	struct input_dev *dev = udev->dev;
-	int error;
+	int error, nslot;
 
 	if (udev->state != UIST_SETUP_COMPLETE) {
 		printk(KERN_DEBUG "%s: write device info first\n", UINPUT_NAME);
 		return -EINVAL;
+	}
+
+	if (test_bit(ABS_MT_SLOT, dev->absbit)) {
+		nslot = input_abs_get_max(dev, ABS_MT_SLOT) + 1;
+		error = input_mt_init_slots(dev, nslot, 0);
+		if (error)
+			goto fail1;
+	} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
+		input_set_events_per_packet(dev, 60);
 	}
 
 	if (udev->ff_effects_max) {
@@ -308,10 +317,35 @@ static int uinput_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int uinput_validate_absinfo(struct input_dev *dev, unsigned int code,
+				   const struct input_absinfo *abs)
+{
+	int min, max;
+
+	min = abs->minimum;
+	max = abs->maximum;
+
+	if ((min != 0 || max != 0) && max <= min) {
+		printk(KERN_DEBUG
+		       "%s: invalid abs[%02x] min:%d max:%d\n",
+		       UINPUT_NAME, code, min, max);
+		return -EINVAL;
+	}
+
+	if (abs->flat > max - min) {
+		printk(KERN_DEBUG
+		       "%s: abs_flat #%02x out of range: %d (min:%d/max:%d)\n",
+		       UINPUT_NAME, code, abs->flat, min, max);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int uinput_validate_absbits(struct input_dev *dev)
 {
 	unsigned int cnt;
-	int nslot;
+	int error;
 
 	if (!test_bit(EV_ABS, dev->evbit))
 		return 0;
@@ -321,38 +355,12 @@ static int uinput_validate_absbits(struct input_dev *dev)
 	 */
 
 	for_each_set_bit(cnt, dev->absbit, ABS_CNT) {
-		int min, max;
-
-		min = input_abs_get_min(dev, cnt);
-		max = input_abs_get_max(dev, cnt);
-
-		if ((min != 0 || max != 0) && max <= min) {
-			printk(KERN_DEBUG
-				"%s: invalid abs[%02x] min:%d max:%d\n",
-				UINPUT_NAME, cnt,
-				input_abs_get_min(dev, cnt),
-				input_abs_get_max(dev, cnt));
+		if (!dev->absinfo)
 			return -EINVAL;
-		}
 
-		if (input_abs_get_flat(dev, cnt) >
-		    input_abs_get_max(dev, cnt) - input_abs_get_min(dev, cnt)) {
-			printk(KERN_DEBUG
-				"%s: abs_flat #%02x out of range: %d "
-				"(min:%d/max:%d)\n",
-				UINPUT_NAME, cnt,
-				input_abs_get_flat(dev, cnt),
-				input_abs_get_min(dev, cnt),
-				input_abs_get_max(dev, cnt));
-			return -EINVAL;
-		}
-	}
-
-	if (test_bit(ABS_MT_SLOT, dev->absbit)) {
-		nslot = input_abs_get_max(dev, ABS_MT_SLOT) + 1;
-		input_mt_init_slots(dev, nslot, 0);
-	} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
-		input_set_events_per_packet(dev, 60);
+		error = uinput_validate_absinfo(dev, cnt, &dev->absinfo[cnt]);
+		if (error)
+			return error;
 	}
 
 	return 0;
@@ -375,7 +383,6 @@ static int uinput_dev_setup(struct uinput_device *udev,
 {
 	struct uinput_setup setup;
 	struct input_dev *dev;
-	int retval;
 
 	if (udev->state == UIST_CREATED)
 		return -EINVAL;
@@ -395,10 +402,6 @@ static int uinput_dev_setup(struct uinput_device *udev,
 	if (!dev->name)
 		return -ENOMEM;
 
-	retval = uinput_validate_absbits(dev);
-	if (retval < 0)
-		return retval;
-
 	udev->state = UIST_SETUP_COMPLETE;
 	return 0;
 }
@@ -408,6 +411,7 @@ static int uinput_abs_setup(struct uinput_device *udev,
 {
 	struct uinput_abs_setup setup = {};
 	struct input_dev *dev;
+	int error;
 
 	if (size > sizeof(setup))
 		return -E2BIG;
@@ -423,19 +427,16 @@ static int uinput_abs_setup(struct uinput_device *udev,
 
 	dev = udev->dev;
 
+	error = uinput_validate_absinfo(dev, setup.code, &setup.absinfo);
+	if (error)
+		return error;
+
 	input_alloc_absinfo(dev);
 	if (!dev->absinfo)
 		return -ENOMEM;
 
 	set_bit(setup.code, dev->absbit);
 	dev->absinfo[setup.code] = setup.absinfo;
-
-	/*
-	 * We restore the state to UIST_NEW_DEVICE because the user has to call
-	 * UI_DEV_SETUP in the last place before UI_DEV_CREATE to check the
-	 * validity of the absbits.
-	 */
-	udev->state = UIST_NEW_DEVICE;
 	return 0;
 }
 
