@@ -180,7 +180,7 @@ int lwtunnel_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b)
 }
 EXPORT_SYMBOL(lwtunnel_cmp_encap);
 
-int lwtunnel_output(struct sock *sk, struct sk_buff *skb)
+int lwtunnel_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	const struct lwtunnel_encap_ops *ops;
@@ -199,7 +199,7 @@ int lwtunnel_output(struct sock *sk, struct sk_buff *skb)
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
 	if (likely(ops && ops->output))
-		ret = ops->output(sk, skb);
+		ret = ops->output(net, sk, skb);
 	rcu_read_unlock();
 
 	if (ret == -EOPNOTSUPP)

@@ -54,7 +54,7 @@ static void ics_opal_unmask_irq(struct irq_data *d)
 	if (hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS)
 		return;
 
-	server = xics_get_irq_server(d->irq, d->affinity, 0);
+	server = xics_get_irq_server(d->irq, irq_data_get_affinity_mask(d), 0);
 	server = ics_opal_mangle_server(server);
 
 	rc = opal_set_xive(hw_irq, server, DEFAULT_PRIORITY);

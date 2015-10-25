@@ -2798,7 +2798,8 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 			      bio_end_io_t end_io_func,
 			      int mirror_num,
 			      unsigned long prev_bio_flags,
-			      unsigned long bio_flags)
+			      unsigned long bio_flags,
+			      bool force_bio_submit)
 {
 	int ret = 0;
 	struct bio *bio;
@@ -2814,6 +2815,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 			contig = bio_end_sector(bio) == sector;
 
 		if (prev_bio_flags != bio_flags || !contig ||
+		    force_bio_submit ||
 		    merge_bio(rw, tree, page, offset, page_size, bio, bio_flags) ||
 		    bio_add_page(bio, page, page_size, offset) < page_size) {
 			ret = submit_one_bio(rw, bio, mirror_num,
@@ -2910,7 +2912,8 @@ static int __do_readpage(struct extent_io_tree *tree,
 			 get_extent_t *get_extent,
 			 struct extent_map **em_cached,
 			 struct bio **bio, int mirror_num,
-			 unsigned long *bio_flags, int rw)
+			 unsigned long *bio_flags, int rw,
+			 u64 *prev_em_start)
 {
 	struct inode *inode = page->mapping->host;
 	u64 start = page_offset(page);
@@ -2958,6 +2961,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 	}
 	while (cur <= end) {
 		unsigned long pnr = (last_byte >> PAGE_CACHE_SHIFT) + 1;
+		bool force_bio_submit = false;
 
 		if (cur >= last_byte) {
 			char *userpage;
@@ -3008,6 +3012,49 @@ static int __do_readpage(struct extent_io_tree *tree,
 		block_start = em->block_start;
 		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
 			block_start = EXTENT_MAP_HOLE;
+
+		/*
+		 * If we have a file range that points to a compressed extent
+		 * and it's followed by a consecutive file range that points to
+		 * to the same compressed extent (possibly with a different
+		 * offset and/or length, so it either points to the whole extent
+		 * or only part of it), we must make sure we do not submit a
+		 * single bio to populate the pages for the 2 ranges because
+		 * this makes the compressed extent read zero out the pages
+		 * belonging to the 2nd range. Imagine the following scenario:
+		 *
+		 *  File layout
+		 *  [0 - 8K]                     [8K - 24K]
+		 *    |                               |
+		 *    |                               |
+		 * points to extent X,         points to extent X,
+		 * offset 4K, length of 8K     offset 0, length 16K
+		 *
+		 * [extent X, compressed length = 4K uncompressed length = 16K]
+		 *
+		 * If the bio to read the compressed extent covers both ranges,
+		 * it will decompress extent X into the pages belonging to the
+		 * first range and then it will stop, zeroing out the remaining
+		 * pages that belong to the other range that points to extent X.
+		 * So here we make sure we submit 2 bios, one for the first
+		 * range and another one for the third range. Both will target
+		 * the same physical extent from disk, but we can't currently
+		 * make the compressed bio endio callback populate the pages
+		 * for both ranges because each compressed bio is tightly
+		 * coupled with a single extent map, and each range can have
+		 * an extent map with a different offset value relative to the
+		 * uncompressed data of our extent and different lengths. This
+		 * is a corner case so we prioritize correctness over
+		 * non-optimal behavior (submitting 2 bios for the same extent).
+		 */
+		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags) &&
+		    prev_em_start && *prev_em_start != (u64)-1 &&
+		    *prev_em_start != em->orig_start)
+			force_bio_submit = true;
+
+		if (prev_em_start)
+			*prev_em_start = em->orig_start;
+
 		free_extent_map(em);
 		em = NULL;
 
@@ -3057,7 +3104,8 @@ static int __do_readpage(struct extent_io_tree *tree,
 					 bdev, bio, pnr,
 					 end_bio_extent_readpage, mirror_num,
 					 *bio_flags,
-					 this_bio_flag);
+					 this_bio_flag,
+					 force_bio_submit);
 		if (!ret) {
 			nr++;
 			*bio_flags = this_bio_flag;
@@ -3089,6 +3137,7 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 	struct inode *inode;
 	struct btrfs_ordered_extent *ordered;
 	int index;
+	u64 prev_em_start = (u64)-1;
 
 	inode = pages[0]->mapping->host;
 	while (1) {
@@ -3104,7 +3153,7 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 
 	for (index = 0; index < nr_pages; index++) {
 		__do_readpage(tree, pages[index], get_extent, em_cached, bio,
-			      mirror_num, bio_flags, rw);
+			      mirror_num, bio_flags, rw, &prev_em_start);
 		page_cache_release(pages[index]);
 	}
 }
@@ -3172,7 +3221,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 	}
 
 	ret = __do_readpage(tree, page, get_extent, NULL, bio, mirror_num,
-			    bio_flags, rw);
+			    bio_flags, rw, NULL);
 	return ret;
 }
 
@@ -3198,7 +3247,7 @@ int extent_read_full_page_nolock(struct extent_io_tree *tree, struct page *page,
 	int ret;
 
 	ret = __do_readpage(tree, page, get_extent, NULL, &bio, mirror_num,
-				      &bio_flags, READ);
+			    &bio_flags, READ, NULL);
 	if (bio)
 		ret = submit_one_bio(READ, bio, mirror_num, bio_flags);
 	return ret;
@@ -3451,7 +3500,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 						 sector, iosize, pg_offset,
 						 bdev, &epd->bio, max_nr,
 						 end_bio_extent_writepage,
-						 0, 0, 0);
+						 0, 0, 0, false);
 			if (ret)
 				SetPageError(page);
 		}
@@ -3754,7 +3803,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 		ret = submit_extent_page(rw, tree, wbc, p, offset >> 9,
 					 PAGE_CACHE_SIZE, 0, bdev, &epd->bio,
 					 -1, end_bio_extent_buffer_writepage,
-					 0, epd->bio_flags, bio_flags);
+					 0, epd->bio_flags, bio_flags, false);
 		epd->bio_flags = bio_flags;
 		if (ret) {
 			set_btree_ioerr(p);

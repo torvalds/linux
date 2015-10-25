@@ -44,6 +44,7 @@
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
+#define KVM_HALT_POLL_NS_DEFAULT 500000
 
 /* These values are internal and can be increased later */
 #define KVM_NR_IRQCHIPS          1
@@ -108,6 +109,7 @@ struct kvm_vcpu_stat {
 	u32 dec_exits;
 	u32 ext_intr_exits;
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 	u32 dbell_exits;
 	u32 gdbell_exits;

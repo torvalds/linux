@@ -762,6 +762,12 @@ enum fm10k_rxdesc_xc {
 #define FM10K_RXD_STATUS_L4E		0x4000 /* L4 csum error */
 #define FM10K_RXD_STATUS_IPE		0x8000 /* IPv4 csum error */
 
+#define FM10K_RXD_ERR_SWITCH_ERROR	0x0001 /* Switch found bad packet */
+#define FM10K_RXD_ERR_NO_DESCRIPTOR	0x0002 /* No descriptor available */
+#define FM10K_RXD_ERR_PP_ERROR		0x0004 /* RAM error during processing */
+#define FM10K_RXD_ERR_SWITCH_READY	0x0008 /* Link transition mid-packet */
+#define FM10K_RXD_ERR_TOO_BIG		0x0010 /* Pkt too big for single buf */
+
 struct fm10k_ftag {
 	__be16 swpri_type_user;
 	__be16 vlan;

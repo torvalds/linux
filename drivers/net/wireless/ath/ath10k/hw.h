@@ -414,16 +414,6 @@ enum ath10k_hw_rate_cck {
 #define CE_COUNT ar->hw_values->ce_count
 
 /*
- * Total number of PCIe MSI interrupts requested for all interrupt sources.
- * PCIe standard forces this to be a power of 2.
- * Some Host OS's limit MSI requests that can be granted to 8
- * so for now we abide by this limit and avoid requesting more
- * than that.
- */
-#define MSI_NUM_REQUEST_LOG2	3
-#define MSI_NUM_REQUEST		(1<<MSI_NUM_REQUEST_LOG2)
-
-/*
  * Granted MSIs are assigned as follows:
  * Firmware uses the first
  * Remaining MSIs, if any, are used by Copy Engines

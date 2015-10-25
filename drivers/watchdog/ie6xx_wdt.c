@@ -267,6 +267,7 @@ static int ie6xx_wdt_probe(struct platform_device *pdev)
 
 	ie6xx_wdt_dev.timeout = timeout;
 	watchdog_set_nowayout(&ie6xx_wdt_dev, nowayout);
+	ie6xx_wdt_dev.parent = &pdev->dev;
 
 	spin_lock_init(&ie6xx_wdt_data.unlock_sequence);
 

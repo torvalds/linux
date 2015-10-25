@@ -203,6 +203,7 @@ sitronix	Sitronix Technology Corporation
 skyworks	Skyworks Solutions, Inc.
 smsc	Standard Microsystems Corporation
 snps	Synopsys, Inc.
+socionext	Socionext Inc.
 solidrun	SolidRun
 solomon        Solomon Systech Limited
 sony	Sony Corporation

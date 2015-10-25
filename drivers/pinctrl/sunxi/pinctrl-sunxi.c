@@ -617,13 +617,11 @@ static int sunxi_pinctrl_irq_set_type(struct irq_data *d, unsigned int type)
 	spin_lock_irqsave(&pctl->lock, flags);
 
 	if (type & IRQ_TYPE_LEVEL_MASK)
-		__irq_set_chip_handler_name_locked(d->irq,
-						   &sunxi_pinctrl_level_irq_chip,
-						   handle_fasteoi_irq, NULL);
+		irq_set_chip_handler_name_locked(d, &sunxi_pinctrl_level_irq_chip,
+						 handle_fasteoi_irq, NULL);
 	else
-		__irq_set_chip_handler_name_locked(d->irq,
-						   &sunxi_pinctrl_edge_irq_chip,
-						   handle_edge_irq, NULL);
+		irq_set_chip_handler_name_locked(d, &sunxi_pinctrl_edge_irq_chip,
+						 handle_edge_irq, NULL);
 
 	regval = readl(pctl->membase + reg);
 	regval &= ~(IRQ_CFG_IRQ_MASK << index);
@@ -742,7 +740,7 @@ static struct irq_domain_ops sunxi_pinctrl_irq_domain_ops = {
 	.xlate		= sunxi_pinctrl_irq_of_xlate,
 };
 
-static void sunxi_pinctrl_irq_handler(unsigned __irq, struct irq_desc *desc)
+static void sunxi_pinctrl_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);

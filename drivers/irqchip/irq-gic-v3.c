@@ -70,11 +70,6 @@ static inline int gic_irq_in_rdist(struct irq_data *d)
 	return gic_irq(d) < 32;
 }
 
-static inline bool forwarded_irq(struct irq_data *d)
-{
-	return d->handler_data != NULL;
-}
-
 static inline void __iomem *gic_dist_base(struct irq_data *d)
 {
 	if (gic_irq_in_rdist(d))	/* SGI+PPI -> SGI_base for this CPU */
@@ -249,7 +244,7 @@ static void gic_eoimode1_mask_irq(struct irq_data *d)
 	 * disabled/masked will not get "stuck", because there is
 	 * noone to deactivate it (guest is being terminated).
 	 */
-	if (forwarded_irq(d))
+	if (irqd_is_forwarded_to_vcpu(d))
 		gic_poke_irq(d, GICD_ICACTIVER);
 }
 
@@ -324,7 +319,7 @@ static void gic_eoimode1_eoi_irq(struct irq_data *d)
 	 * No need to deactivate an LPI, or an interrupt that
 	 * is is getting forwarded to a vcpu.
 	 */
-	if (gic_irq(d) >= 8192 || forwarded_irq(d))
+	if (gic_irq(d) >= 8192 || irqd_is_forwarded_to_vcpu(d))
 		return;
 	gic_write_dir(gic_irq(d));
 }
@@ -357,7 +352,10 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 
 static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
 {
-	d->handler_data = vcpu;
+	if (vcpu)
+		irqd_set_forwarded_to_vcpu(d);
+	else
+		irqd_clr_forwarded_to_vcpu(d);
 	return 0;
 }
 
@@ -754,13 +752,13 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 		irq_set_percpu_devid(irq);
 		irq_domain_set_info(d, irq, hw, chip, d->host_data,
 				    handle_percpu_devid_irq, NULL, NULL);
-		set_irq_flags(irq, IRQF_VALID | IRQF_NOAUTOEN);
+		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 	}
 	/* SPIs */
 	if (hw >= 32 && hw < gic_data.irq_nr) {
 		irq_domain_set_info(d, irq, hw, chip, d->host_data,
 				    handle_fasteoi_irq, NULL, NULL);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_set_probe(irq);
 	}
 	/* LPIs */
 	if (hw >= 8192 && hw < GIC_ID_NR) {
@@ -768,7 +766,6 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 			return -EPERM;
 		irq_domain_set_info(d, irq, hw, chip, d->host_data,
 				    handle_fasteoi_irq, NULL, NULL);
-		set_irq_flags(irq, IRQF_VALID);
 	}
 
 	return 0;

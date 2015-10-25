@@ -682,10 +682,16 @@ static int find_lut_index_for_rate(struct tegra_dfll *td, unsigned long rate)
 	struct dev_pm_opp *opp;
 	int i, uv;
 
+	rcu_read_lock();
+
 	opp = dev_pm_opp_find_freq_ceil(td->soc->dev, &rate);
-	if (IS_ERR(opp))
+	if (IS_ERR(opp)) {
+		rcu_read_unlock();
 		return PTR_ERR(opp);
+	}
 	uv = dev_pm_opp_get_voltage(opp);
+
+	rcu_read_unlock();
 
 	for (i = 0; i < td->i2c_lut_size; i++) {
 		if (regulator_list_voltage(td->vdd_reg, td->i2c_lut[i]) == uv)

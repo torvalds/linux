@@ -4249,6 +4249,10 @@ static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct thin_c *tc = ti->private;
 	struct pool *pool = tc->pool;
+	struct queue_limits *pool_limits = dm_get_queue_limits(pool->pool_md);
+
+	if (!pool_limits->discard_granularity)
+		return; /* pool's discard support is disabled */
 
 	limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
 	limits->max_discard_sectors = 2048 * 1024 * 16; /* 16G */

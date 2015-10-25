@@ -87,6 +87,7 @@ static const struct i40e_stats i40e_gstrings_misc_stats[] = {
 	I40E_VSI_STAT("rx_broadcast", eth_stats.rx_broadcast),
 	I40E_VSI_STAT("tx_broadcast", eth_stats.tx_broadcast),
 	I40E_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
+	I40E_VSI_STAT("tx_linearize", tx_linearize),
 };
 
 static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
@@ -229,10 +230,10 @@ static const char i40e_gstrings_test[][ETH_GSTRING_LEN] = {
 
 static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
 	"NPAR",
+	"LinkPolling",
 };
 
-#define I40E_PRIV_FLAGS_STR_LEN \
-	(sizeof(i40e_priv_flags_strings) / ETH_GSTRING_LEN)
+#define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_priv_flags_strings)
 
 /**
  * i40e_partition_setting_complaint - generic complaint for MFP restriction
@@ -425,6 +426,7 @@ static void i40e_get_settings_link_down(struct i40e_hw *hw,
 		ecmd->advertising = ADVERTISED_10000baseKR_Full;
 		break;
 	case I40E_DEV_ID_10G_BASE_T:
+	case I40E_DEV_ID_10G_BASE_T4:
 		ecmd->supported = SUPPORTED_10000baseT_Full |
 				  SUPPORTED_1000baseT_Full |
 				  SUPPORTED_100baseT_Full;
@@ -437,6 +439,7 @@ static void i40e_get_settings_link_down(struct i40e_hw *hw,
 			ecmd->advertising |= ADVERTISED_100baseT_Full;
 		break;
 	case I40E_DEV_ID_20G_KR2:
+	case I40E_DEV_ID_20G_KR2_A:
 		/* backplane 20G */
 		ecmd->supported = SUPPORTED_20000baseKR2_Full;
 		ecmd->advertising = ADVERTISED_20000baseKR2_Full;
@@ -664,6 +667,13 @@ static int i40e_set_settings(struct net_device *netdev,
 	    advertise & ADVERTISED_40000baseLR4_Full)
 		config.link_speed |= I40E_LINK_SPEED_40GB;
 
+	/* If speed didn't get set, set it to what it currently is.
+	 * This is needed because if advertise is 0 (as it is when autoneg
+	 * is disabled) then speed won't get set.
+	 */
+	if (!config.link_speed)
+		config.link_speed = abilities.link_speed;
+
 	if (change || (abilities.link_speed != config.link_speed)) {
 		/* copy over the rest of the abilities */
 		config.phy_type = abilities.phy_type;
@@ -680,7 +690,7 @@ static int i40e_set_settings(struct net_device *netdev,
 			/* Tell the OS link is going down, the link will go
 			 * back up when fw says it is ready asynchronously
 			 */
-			netdev_info(netdev, "PHY settings change requested, NIC Link is going down.\n");
+			i40e_print_link_message(vsi, false);
 			netif_carrier_off(netdev);
 			netif_tx_stop_all_queues(netdev);
 		}
@@ -824,7 +834,7 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	/* Tell the OS link is going down, the link will go back up when fw
 	 * says it is ready asynchronously
 	 */
-	netdev_info(netdev, "Flow control settings change requested, NIC Link is going down.\n");
+	i40e_print_link_message(vsi, false);
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
 
@@ -1166,6 +1176,11 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			/* clone ring and setup updated count */
 			tx_rings[i] = *vsi->tx_rings[i];
 			tx_rings[i].count = new_tx_count;
+			/* the desc and bi pointers will be reallocated in the
+			 * setup call
+			 */
+			tx_rings[i].desc = NULL;
+			tx_rings[i].rx_bi = NULL;
 			err = i40e_setup_tx_descriptors(&tx_rings[i]);
 			if (err) {
 				while (i) {
@@ -1196,6 +1211,11 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			/* clone ring and setup updated count */
 			rx_rings[i] = *vsi->rx_rings[i];
 			rx_rings[i].count = new_rx_count;
+			/* the desc and bi pointers will be reallocated in the
+			 * setup call
+			 */
+			rx_rings[i].desc = NULL;
+			rx_rings[i].rx_bi = NULL;
 			err = i40e_setup_rx_descriptors(&rx_rings[i]);
 			if (err) {
 				while (i) {
@@ -1263,7 +1283,8 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 		if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1) {
 			int len = I40E_PF_STATS_LEN(netdev);
 
-			if (pf->lan_veb != I40E_NO_VEB)
+			if ((pf->lan_veb != I40E_NO_VEB) &&
+			    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED))
 				len += I40E_VEB_STATS_TOTAL;
 			return len;
 		} else {
@@ -1336,8 +1357,10 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
 		return;
 
-	if (pf->lan_veb != I40E_NO_VEB) {
+	if ((pf->lan_veb != I40E_NO_VEB) &&
+	    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED)) {
 		struct i40e_veb *veb = pf->veb[pf->lan_veb];
+
 		for (j = 0; j < I40E_VEB_STATS_LEN; j++) {
 			p = (char *)veb;
 			p += i40e_gstrings_veb_stats[j].stat_offset;
@@ -1409,7 +1432,8 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 		if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
 			return;
 
-		if (pf->lan_veb != I40E_NO_VEB) {
+		if ((pf->lan_veb != I40E_NO_VEB) &&
+		    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED)) {
 			for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
 				snprintf(p, ETH_GSTRING_LEN, "veb.%s",
 					i40e_gstrings_veb_stats[i].stat_string);
@@ -1504,9 +1528,18 @@ static int i40e_link_test(struct net_device *netdev, u64 *data)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
+	i40e_status status;
+	bool link_up = false;
 
 	netif_info(pf, hw, netdev, "link test\n");
-	if (i40e_get_link_status(&pf->hw))
+	status = i40e_get_link_status(&pf->hw, &link_up);
+	if (status) {
+		netif_err(pf, drv, netdev, "link query timed out, please retry test\n");
+		*data = 1;
+		return *data;
+	}
+
+	if (link_up)
 		*data = 0;
 	else
 		*data = 1;
@@ -1575,7 +1608,7 @@ static inline bool i40e_active_vfs(struct i40e_pf *pf)
 	int i;
 
 	for (i = 0; i < pf->num_alloc_vfs; i++)
-		if (vfs[i].vf_states & I40E_VF_STAT_ACTIVE)
+		if (test_bit(I40E_VF_STAT_ACTIVE, &vfs[i].vf_states))
 			return true;
 	return false;
 }
@@ -2604,8 +2637,29 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 
 	ret_flags |= pf->hw.func_caps.npar_enable ?
 		I40E_PRIV_FLAGS_NPAR_FLAG : 0;
+	ret_flags |= pf->flags & I40E_FLAG_LINK_POLLING_ENABLED ?
+		I40E_PRIV_FLAGS_LINKPOLL_FLAG : 0;
 
 	return ret_flags;
+}
+
+/**
+ * i40e_set_priv_flags - set private flags
+ * @dev: network interface device structure
+ * @flags: bit flags to be set
+ **/
+static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
+{
+	struct i40e_netdev_priv *np = netdev_priv(dev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+
+	if (flags & I40E_PRIV_FLAGS_LINKPOLL_FLAG)
+		pf->flags |= I40E_FLAG_LINK_POLLING_ENABLED;
+	else
+		pf->flags &= ~I40E_FLAG_LINK_POLLING_ENABLED;
+
+	return 0;
 }
 
 static const struct ethtool_ops i40e_ethtool_ops = {
@@ -2644,6 +2698,7 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.set_channels		= i40e_set_channels,
 	.get_ts_info		= i40e_get_ts_info,
 	.get_priv_flags		= i40e_get_priv_flags,
+	.set_priv_flags		= i40e_set_priv_flags,
 };
 
 void i40e_set_ethtool_ops(struct net_device *netdev)

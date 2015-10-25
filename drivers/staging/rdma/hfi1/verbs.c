@@ -749,11 +749,13 @@ static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
 	struct verbs_txreq *tx;
 
 	tx = kmem_cache_alloc(dev->verbs_txreq_cache, GFP_ATOMIC);
-	if (!tx)
+	if (!tx) {
 		/* call slow path to get the lock */
 		tx =  __get_txreq(dev, qp);
-	if (tx)
-		tx->qp = qp;
+		if (IS_ERR(tx))
+			return tx;
+	}
+	tx->qp = qp;
 	return tx;
 }
 

@@ -629,6 +629,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	kfree(mvm->d3_resume_sram);
 	if (mvm->nd_config) {
 		kfree(mvm->nd_config->match_sets);
+		kfree(mvm->nd_config->scan_plans);
 		kfree(mvm->nd_config);
 		mvm->nd_config = NULL;
 	}

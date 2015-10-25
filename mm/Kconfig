@@ -677,3 +677,6 @@ config ZONE_DEVICE
 	  mapping in an O_DIRECT operation, among other things.
 
 	  If FS_DAX is enabled, then say Y.
+
+config FRAME_VECTOR
+	bool

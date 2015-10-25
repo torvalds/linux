@@ -539,6 +539,7 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 	*err = -TIPC_ERR_NO_NAME;
 	if (skb_linearize(skb))
 		return false;
+	msg = buf_msg(skb);
 	if (msg_reroute_cnt(msg))
 		return false;
 	dnode = addr_domain(net, msg_lookup_scope(msg));

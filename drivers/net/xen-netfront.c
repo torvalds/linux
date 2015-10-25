@@ -1819,19 +1819,22 @@ again:
 		goto destroy_ring;
 	}
 
+	if (xenbus_exists(XBT_NIL,
+			  info->xbdev->otherend, "multi-queue-max-queues")) {
+		/* Write the number of queues */
+		err = xenbus_printf(xbt, dev->nodename,
+				    "multi-queue-num-queues", "%u", num_queues);
+		if (err) {
+			message = "writing multi-queue-num-queues";
+			goto abort_transaction_no_dev_fatal;
+		}
+	}
+
 	if (num_queues == 1) {
 		err = write_queue_xenstore_keys(&info->queues[0], &xbt, 0); /* flat */
 		if (err)
 			goto abort_transaction_no_dev_fatal;
 	} else {
-		/* Write the number of queues */
-		err = xenbus_printf(xbt, dev->nodename, "multi-queue-num-queues",
-				    "%u", num_queues);
-		if (err) {
-			message = "writing multi-queue-num-queues";
-			goto abort_transaction_no_dev_fatal;
-		}
-
 		/* Write the keys for each queue */
 		for (i = 0; i < num_queues; ++i) {
 			queue = &info->queues[i];

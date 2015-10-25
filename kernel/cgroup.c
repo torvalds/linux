@@ -46,7 +46,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
-#include <linux/percpu-rwsem.h>
 #include <linux/string.h>
 #include <linux/sort.h>
 #include <linux/kmod.h>
@@ -103,8 +102,6 @@ static DEFINE_SPINLOCK(cgroup_idr_lock);
  * cgroup_mutex.  Reading requires either cgroup_mutex or this spinlock.
  */
 static DEFINE_SPINLOCK(release_agent_path_lock);
-
-struct percpu_rw_semaphore cgroup_threadgroup_rwsem;
 
 #define cgroup_assert_mutex_or_rcu_locked()				\
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&			\
@@ -872,6 +869,48 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	up_write(&css_set_rwsem);
 
 	return cset;
+}
+
+void cgroup_threadgroup_change_begin(struct task_struct *tsk)
+{
+	down_read(&tsk->signal->group_rwsem);
+}
+
+void cgroup_threadgroup_change_end(struct task_struct *tsk)
+{
+	up_read(&tsk->signal->group_rwsem);
+}
+
+/**
+ * threadgroup_lock - lock threadgroup
+ * @tsk: member task of the threadgroup to lock
+ *
+ * Lock the threadgroup @tsk belongs to.  No new task is allowed to enter
+ * and member tasks aren't allowed to exit (as indicated by PF_EXITING) or
+ * change ->group_leader/pid.  This is useful for cases where the threadgroup
+ * needs to stay stable across blockable operations.
+ *
+ * fork and exit explicitly call threadgroup_change_{begin|end}() for
+ * synchronization.  While held, no new task will be added to threadgroup
+ * and no existing live task will have its PF_EXITING set.
+ *
+ * de_thread() does threadgroup_change_{begin|end}() when a non-leader
+ * sub-thread becomes a new leader.
+ */
+static void threadgroup_lock(struct task_struct *tsk)
+{
+	down_write(&tsk->signal->group_rwsem);
+}
+
+/**
+ * threadgroup_unlock - unlock threadgroup
+ * @tsk: member task of the threadgroup to unlock
+ *
+ * Reverse threadgroup_lock().
+ */
+static inline void threadgroup_unlock(struct task_struct *tsk)
+{
+	up_write(&tsk->signal->group_rwsem);
 }
 
 static struct cgroup_root *cgroup_root_from_kf(struct kernfs_root *kf_root)
@@ -2074,9 +2113,9 @@ static void cgroup_task_migrate(struct cgroup *old_cgrp,
 	lockdep_assert_held(&css_set_rwsem);
 
 	/*
-	 * We are synchronized through cgroup_threadgroup_rwsem against
-	 * PF_EXITING setting such that we can't race against cgroup_exit()
-	 * changing the css_set to init_css_set and dropping the old one.
+	 * We are synchronized through threadgroup_lock() against PF_EXITING
+	 * setting such that we can't race against cgroup_exit() changing the
+	 * css_set to init_css_set and dropping the old one.
 	 */
 	WARN_ON_ONCE(tsk->flags & PF_EXITING);
 	old_cset = task_css_set(tsk);
@@ -2133,11 +2172,10 @@ static void cgroup_migrate_finish(struct list_head *preloaded_csets)
  * @src_cset and add it to @preloaded_csets, which should later be cleaned
  * up by cgroup_migrate_finish().
  *
- * This function may be called without holding cgroup_threadgroup_rwsem
- * even if the target is a process.  Threads may be created and destroyed
- * but as long as cgroup_mutex is not dropped, no new css_set can be put
- * into play and the preloaded css_sets are guaranteed to cover all
- * migrations.
+ * This function may be called without holding threadgroup_lock even if the
+ * target is a process.  Threads may be created and destroyed but as long
+ * as cgroup_mutex is not dropped, no new css_set can be put into play and
+ * the preloaded css_sets are guaranteed to cover all migrations.
  */
 static void cgroup_migrate_add_src(struct css_set *src_cset,
 				   struct cgroup *dst_cgrp,
@@ -2240,7 +2278,7 @@ err:
  * @threadgroup: whether @leader points to the whole process or a single task
  *
  * Migrate a process or task denoted by @leader to @cgrp.  If migrating a
- * process, the caller must be holding cgroup_threadgroup_rwsem.  The
+ * process, the caller must be holding threadgroup_lock of @leader.  The
  * caller is also responsible for invoking cgroup_migrate_add_src() and
  * cgroup_migrate_prepare_dst() on the targets before invoking this
  * function and following up with cgroup_migrate_finish().
@@ -2368,7 +2406,7 @@ out_release_tset:
  * @leader: the task or the leader of the threadgroup to be attached
  * @threadgroup: attach the whole threadgroup?
  *
- * Call holding cgroup_mutex and cgroup_threadgroup_rwsem.
+ * Call holding cgroup_mutex and threadgroup_lock of @leader.
  */
 static int cgroup_attach_task(struct cgroup *dst_cgrp,
 			      struct task_struct *leader, bool threadgroup)
@@ -2460,13 +2498,14 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	if (!cgrp)
 		return -ENODEV;
 
-	percpu_down_write(&cgroup_threadgroup_rwsem);
+retry_find_task:
 	rcu_read_lock();
 	if (pid) {
 		tsk = find_task_by_vpid(pid);
 		if (!tsk) {
+			rcu_read_unlock();
 			ret = -ESRCH;
-			goto out_unlock_rcu;
+			goto out_unlock_cgroup;
 		}
 	} else {
 		tsk = current;
@@ -2482,23 +2521,37 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	 */
 	if (tsk == kthreadd_task || (tsk->flags & PF_NO_SETAFFINITY)) {
 		ret = -EINVAL;
-		goto out_unlock_rcu;
+		rcu_read_unlock();
+		goto out_unlock_cgroup;
 	}
 
 	get_task_struct(tsk);
 	rcu_read_unlock();
 
+	threadgroup_lock(tsk);
+	if (threadgroup) {
+		if (!thread_group_leader(tsk)) {
+			/*
+			 * a race with de_thread from another thread's exec()
+			 * may strip us of our leadership, if this happens,
+			 * there is no choice but to throw this task away and
+			 * try again; this is
+			 * "double-double-toil-and-trouble-check locking".
+			 */
+			threadgroup_unlock(tsk);
+			put_task_struct(tsk);
+			goto retry_find_task;
+		}
+	}
+
 	ret = cgroup_procs_write_permission(tsk, cgrp, of);
 	if (!ret)
 		ret = cgroup_attach_task(cgrp, tsk, threadgroup);
 
-	put_task_struct(tsk);
-	goto out_unlock_threadgroup;
+	threadgroup_unlock(tsk);
 
-out_unlock_rcu:
-	rcu_read_unlock();
-out_unlock_threadgroup:
-	percpu_up_write(&cgroup_threadgroup_rwsem);
+	put_task_struct(tsk);
+out_unlock_cgroup:
 	cgroup_kn_unlock(of->kn);
 	return ret ?: nbytes;
 }
@@ -2643,8 +2696,6 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	percpu_down_write(&cgroup_threadgroup_rwsem);
-
 	/* look up all csses currently attached to @cgrp's subtree */
 	down_read(&css_set_rwsem);
 	css_for_each_descendant_pre(css, cgroup_css(cgrp, NULL)) {
@@ -2700,8 +2751,17 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 				goto out_finish;
 			last_task = task;
 
+			threadgroup_lock(task);
+			/* raced against de_thread() from another thread? */
+			if (!thread_group_leader(task)) {
+				threadgroup_unlock(task);
+				put_task_struct(task);
+				continue;
+			}
+
 			ret = cgroup_migrate(src_cset->dfl_cgrp, task, true);
 
+			threadgroup_unlock(task);
 			put_task_struct(task);
 
 			if (WARN(ret, "cgroup: failed to update controllers for the default hierarchy (%d), further operations may crash or hang\n", ret))
@@ -2711,7 +2771,6 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 
 out_finish:
 	cgroup_migrate_finish(&preloaded_csets);
-	percpu_up_write(&cgroup_threadgroup_rwsem);
 	return ret;
 }
 
@@ -5024,7 +5083,6 @@ int __init cgroup_init(void)
 	unsigned long key;
 	int ssid, err;
 
-	BUG_ON(percpu_init_rwsem(&cgroup_threadgroup_rwsem));
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_dfl_base_files));
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_legacy_base_files));
 

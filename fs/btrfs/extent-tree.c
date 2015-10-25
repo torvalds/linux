@@ -3742,10 +3742,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->bytes_reserved = 0;
 	found->bytes_readonly = 0;
 	found->bytes_may_use = 0;
-	if (total_bytes > 0)
-		found->full = 0;
-	else
-		found->full = 1;
+	found->full = 0;
 	found->force_alloc = CHUNK_ALLOC_NO_FORCE;
 	found->chunk_alloc = 0;
 	found->flush = 0;
@@ -8668,7 +8665,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	}
 
 	if (test_bit(BTRFS_ROOT_IN_RADIX, &root->state)) {
-		btrfs_drop_and_free_fs_root(tree_root->fs_info, root);
+		btrfs_add_dropped_root(trans, root);
 	} else {
 		free_extent_buffer(root->node);
 		free_extent_buffer(root->commit_root);

@@ -1,15 +1,15 @@
 /* Extract X.509 certificate in DER form from PKCS#11 or PEM.
  *
- * Copyright © 2014 Red Hat, Inc. All Rights Reserved.
- * Copyright © 2015 Intel Corporation.
+ * Copyright © 2014-2015 Red Hat, Inc. All Rights Reserved.
+ * Copyright © 2015      Intel Corporation.
  *
  * Authors: David Howells <dhowells@redhat.com>
  *          David Woodhouse <dwmw2@infradead.org>
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1
+ * of the licence, or (at your option) any later version.
  */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -17,13 +17,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <getopt.h>
 #include <err.h>
-#include <arpa/inet.h>
 #include <openssl/bio.h>
-#include <openssl/evp.h>
 #include <openssl/pem.h>
-#include <openssl/pkcs7.h>
 #include <openssl/err.h>
 #include <openssl/engine.h>
 
@@ -86,7 +82,7 @@ static void write_cert(X509 *x509)
 		ERR(!wb, "%s", cert_dst);
 	}
 	X509_NAME_oneline(X509_get_subject_name(x509), buf, sizeof(buf));
-	ERR(!i2d_X509_bio(wb, x509), cert_dst);
+	ERR(!i2d_X509_bio(wb, x509), "%s", cert_dst);
 	if (kbuild_verbose)
 		fprintf(stderr, "Extracted cert: %s\n", buf);
 }

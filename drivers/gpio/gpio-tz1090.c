@@ -375,7 +375,7 @@ static int gpio_set_irq_wake(struct irq_data *data, unsigned int on)
 #define gpio_set_irq_wake NULL
 #endif
 
-static void tz1090_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void tz1090_gpio_irq_handler(struct irq_desc *desc)
 {
 	irq_hw_number_t hw;
 	unsigned int irq_stat, irq_no;
@@ -400,7 +400,7 @@ static void tz1090_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 				== IRQ_TYPE_EDGE_BOTH)
 			tz1090_gpio_irq_next_edge(bank, hw);
 
-		generic_handle_irq_desc(irq_no, child_desc);
+		generic_handle_irq_desc(child_desc);
 	}
 }
 

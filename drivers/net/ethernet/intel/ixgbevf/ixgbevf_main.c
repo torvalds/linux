@@ -3896,6 +3896,7 @@ static const struct net_device_ops ixgbevf_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgbevf_netpoll,
 #endif
+	.ndo_features_check	= passthru_features_check,
 };
 
 static void ixgbevf_assign_netdev_ops(struct net_device *dev)

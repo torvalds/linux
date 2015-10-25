@@ -410,16 +410,18 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 {
 	unsigned int config0;
-	int isa;
+	int isa, mt;
 
 	config0 = read_c0_config();
 
 	/*
 	 * Look for Standard TLB or Dual VTLB and FTLB
 	 */
-	if ((((config0 & MIPS_CONF_MT) >> 7) == 1) ||
-	    (((config0 & MIPS_CONF_MT) >> 7) == 4))
+	mt = config0 & MIPS_CONF_MT;
+	if (mt == MIPS_CONF_MT_TLB)
 		c->options |= MIPS_CPU_TLB;
+	else if (mt == MIPS_CONF_MT_FTLB)
+		c->options |= MIPS_CPU_TLB | MIPS_CPU_FTLB;
 
 	isa = (config0 & MIPS_CONF_AT) >> 13;
 	switch (isa) {
@@ -559,15 +561,18 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	if (cpu_has_tlb) {
 		if (((config4 & MIPS_CONF4_IE) >> 29) == 2)
 			c->options |= MIPS_CPU_TLBINV;
+
 		/*
-		 * This is a bit ugly. R6 has dropped that field from
-		 * config4 and the only valid configuration is VTLB+FTLB so
-		 * set a good value for mmuextdef for that case.
+		 * R6 has dropped the MMUExtDef field from config4.
+		 * On R6 the fields always describe the FTLB, and only if it is
+		 * present according to Config.MT.
 		 */
-		if (cpu_has_mips_r6)
+		if (!cpu_has_mips_r6)
+			mmuextdef = config4 & MIPS_CONF4_MMUEXTDEF;
+		else if (cpu_has_ftlb)
 			mmuextdef = MIPS_CONF4_MMUEXTDEF_VTLBSIZEEXT;
 		else
-			mmuextdef = config4 & MIPS_CONF4_MMUEXTDEF;
+			mmuextdef = 0;
 
 		switch (mmuextdef) {
 		case MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT:

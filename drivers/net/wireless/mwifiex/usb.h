@@ -40,6 +40,7 @@
 #define USB8XXX_FW_READY	2
 #define USB8XXX_FW_MAX_RETRY	3
 
+#define MWIFIEX_TX_DATA_PORT	2
 #define MWIFIEX_TX_DATA_URB	6
 #define MWIFIEX_RX_DATA_URB	6
 #define MWIFIEX_USB_TIMEOUT	100
@@ -64,6 +65,14 @@ struct urb_context {
 	u8 ep;
 };
 
+struct usb_tx_data_port {
+	u8 tx_data_ep;
+	u8 block_status;
+	atomic_t tx_data_urb_pending;
+	int tx_data_ix;
+	struct urb_context tx_data_list[MWIFIEX_TX_DATA_URB];
+};
+
 struct usb_card_rec {
 	struct mwifiex_adapter *adapter;
 	struct usb_device *udev;
@@ -75,14 +84,12 @@ struct usb_card_rec {
 	u8 usb_boot_state;
 	u8 rx_data_ep;
 	atomic_t rx_data_urb_pending;
-	u8 tx_data_ep;
 	u8 tx_cmd_ep;
-	atomic_t tx_data_urb_pending;
 	atomic_t tx_cmd_urb_pending;
 	int bulk_out_maxpktsize;
 	struct urb_context tx_cmd;
-	int tx_data_ix;
-	struct urb_context tx_data_list[MWIFIEX_TX_DATA_URB];
+	u8 mc_resync_flag;
+	struct usb_tx_data_port port[MWIFIEX_TX_DATA_PORT];
 };
 
 struct fw_header {

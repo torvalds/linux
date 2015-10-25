@@ -2058,13 +2058,10 @@ no_phy_slave:
 		if (mac_addr) {
 			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
 		} else {
-			if (of_machine_is_compatible("ti,am33xx")) {
-				ret = cpsw_am33xx_cm_get_macid(&pdev->dev,
-							0x630, i,
-							slave_data->mac_addr);
-				if (ret)
-					return ret;
-			}
+			ret = ti_cm_get_macid(&pdev->dev, i,
+					      slave_data->mac_addr);
+			if (ret)
+				return ret;
 		}
 		if (data->dual_emac) {
 			if (of_property_read_u32(slave_node, "dual_emac_res_vlan",

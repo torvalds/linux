@@ -81,7 +81,6 @@ enum i40e_virtchnl_ops {
 	I40E_VIRTCHNL_OP_GET_STATS = 15,
 	I40E_VIRTCHNL_OP_FCOE = 16,
 	I40E_VIRTCHNL_OP_EVENT = 17,
-	I40E_VIRTCHNL_OP_CONFIG_RSS = 18,
 };
 
 /* Virtual channel message descriptor. This overlays the admin queue

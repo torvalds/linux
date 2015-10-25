@@ -80,7 +80,7 @@ static inline void nf_hook_state_init(struct nf_hook_state *p,
 	p->okfn = okfn;
 }
 
-typedef unsigned int nf_hookfn(const struct nf_hook_ops *ops,
+typedef unsigned int nf_hookfn(void *priv,
 			       struct sk_buff *skb,
 			       const struct nf_hook_state *state);
 
@@ -283,7 +283,7 @@ struct nf_afinfo {
 				 struct flowi *fl, bool strict);
 	void		(*saveroute)(const struct sk_buff *skb,
 				     struct nf_queue_entry *entry);
-	int		(*reroute)(struct sk_buff *skb,
+	int		(*reroute)(struct net *net, struct sk_buff *skb,
 				   const struct nf_queue_entry *entry);
 	int		route_key_size;
 };

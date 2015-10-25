@@ -365,8 +365,7 @@ void tcp_wfree(struct sk_buff *skb);
 void tcp_write_timer_handler(struct sock *sk);
 void tcp_delack_timer_handler(struct sock *sk);
 int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg);
-int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
-			  const struct tcphdr *th, unsigned int len);
+int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb);
 void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			 const struct tcphdr *th, unsigned int len);
 void tcp_rcv_space_adjust(struct sock *sk);
@@ -451,19 +450,20 @@ void tcp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 void tcp_v4_mtu_reduced(struct sock *sk);
 void tcp_req_err(struct sock *sk, u32 seq);
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
-struct sock *tcp_create_openreq_child(struct sock *sk,
+struct sock *tcp_create_openreq_child(const struct sock *sk,
 				      struct request_sock *req,
 				      struct sk_buff *skb);
 void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst);
-struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
+struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 				  struct request_sock *req,
 				  struct dst_entry *dst);
 int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
 int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 int tcp_connect(struct sock *sk);
-struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
+struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 				struct request_sock *req,
-				struct tcp_fastopen_cookie *foc);
+				struct tcp_fastopen_cookie *foc,
+				bool attach_req);
 int tcp_disconnect(struct sock *sk, int flags);
 
 void tcp_finish_connect(struct sock *sk, struct sk_buff *skb);
@@ -492,8 +492,9 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb);
 
 /* syncookies: remember time of last synqueue overflow
  * But do not dirty this field too often (once per second is enough)
+ * It is racy as we do not hold a lock, but race is very minor.
  */
-static inline void tcp_synq_overflow(struct sock *sk)
+static inline void tcp_synq_overflow(const struct sock *sk)
 {
 	unsigned long last_overflow = tcp_sk(sk)->rx_opt.ts_recent_stamp;
 	unsigned long now = jiffies;
@@ -520,8 +521,7 @@ static inline u32 tcp_cookie_time(void)
 
 u32 __cookie_v4_init_sequence(const struct iphdr *iph, const struct tcphdr *th,
 			      u16 *mssp);
-__u32 cookie_v4_init_sequence(struct sock *sk, const struct sk_buff *skb,
-			      __u16 *mss);
+__u32 cookie_v4_init_sequence(const struct sk_buff *skb, __u16 *mss);
 __u32 cookie_init_timestamp(struct request_sock *req);
 bool cookie_timestamp_decode(struct tcp_options_received *opt);
 bool cookie_ecn_ok(const struct tcp_options_received *opt,
@@ -534,8 +534,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb);
 
 u32 __cookie_v6_init_sequence(const struct ipv6hdr *iph,
 			      const struct tcphdr *th, u16 *mssp);
-__u32 cookie_v6_init_sequence(struct sock *sk, const struct sk_buff *skb,
-			      __u16 *mss);
+__u32 cookie_v6_init_sequence(const struct sk_buff *skb, __u16 *mss);
 #endif
 /* tcp_output.c */
 
@@ -565,6 +564,7 @@ bool tcp_schedule_loss_probe(struct sock *sk);
 /* tcp_input.c */
 void tcp_resume_early_retransmit(struct sock *sk);
 void tcp_rearm_rto(struct sock *sk);
+void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req);
 void tcp_reset(struct sock *sk);
 
 /* tcp_timer.c */
@@ -1206,7 +1206,8 @@ static inline int tcp_full_space(const struct sock *sk)
 }
 
 extern void tcp_openreq_init_rwin(struct request_sock *req,
-				  struct sock *sk, struct dst_entry *dst);
+				  const struct sock *sk_listener,
+				  const struct dst_entry *dst);
 
 void tcp_enter_memory_pressure(struct sock *sk);
 
@@ -1370,16 +1371,16 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 		   int family, const u8 *newkey, u8 newkeylen, gfp_t gfp);
 int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr,
 		   int family);
-struct tcp_md5sig_key *tcp_v4_md5_lookup(struct sock *sk,
+struct tcp_md5sig_key *tcp_v4_md5_lookup(const struct sock *sk,
 					 const struct sock *addr_sk);
 
 #ifdef CONFIG_TCP_MD5SIG
-struct tcp_md5sig_key *tcp_md5_do_lookup(struct sock *sk,
+struct tcp_md5sig_key *tcp_md5_do_lookup(const struct sock *sk,
 					 const union tcp_md5_addr *addr,
 					 int family);
 #define tcp_twsk_md5_key(twsk)	((twsk)->tw_md5_key)
 #else
-static inline struct tcp_md5sig_key *tcp_md5_do_lookup(struct sock *sk,
+static inline struct tcp_md5sig_key *tcp_md5_do_lookup(const struct sock *sk,
 					 const union tcp_md5_addr *addr,
 					 int family)
 {
@@ -1420,10 +1421,10 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 
 extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
 int tcp_fastopen_reset_cipher(void *key, unsigned int len);
-bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
-		      struct request_sock *req,
-		      struct tcp_fastopen_cookie *foc,
-		      struct dst_entry *dst);
+struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
+			      struct request_sock *req,
+			      struct tcp_fastopen_cookie *foc,
+			      struct dst_entry *dst);
 void tcp_fastopen_init_key_once(bool publish);
 #define TCP_FASTOPEN_KEY_LENGTH 16
 
@@ -1618,7 +1619,6 @@ static inline bool tcp_stream_is_thin(struct tcp_sock *tp)
 /* /proc */
 enum tcp_seq_states {
 	TCP_SEQ_STATE_LISTENING,
-	TCP_SEQ_STATE_OPENREQ,
 	TCP_SEQ_STATE_ESTABLISHED,
 };
 
@@ -1637,7 +1637,6 @@ struct tcp_iter_state {
 	enum tcp_seq_states	state;
 	struct sock		*syn_wait_sk;
 	int			bucket, offset, sbucket, num;
-	kuid_t			uid;
 	loff_t			last_pos;
 };
 
@@ -1674,7 +1673,7 @@ int tcp4_proc_init(void);
 void tcp4_proc_exit(void);
 #endif
 
-int tcp_rtx_synack(struct sock *sk, struct request_sock *req);
+int tcp_rtx_synack(const struct sock *sk, struct request_sock *req);
 int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		     const struct tcp_request_sock_ops *af_ops,
 		     struct sock *sk, struct sk_buff *skb);
@@ -1682,7 +1681,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 /* TCP af-specific functions */
 struct tcp_sock_af_ops {
 #ifdef CONFIG_TCP_MD5SIG
-	struct tcp_md5sig_key	*(*md5_lookup) (struct sock *sk,
+	struct tcp_md5sig_key	*(*md5_lookup) (const struct sock *sk,
 						const struct sock *addr_sk);
 	int		(*calc_md5_hash)(char *location,
 					 const struct tcp_md5sig_key *md5,
@@ -1697,40 +1696,42 @@ struct tcp_sock_af_ops {
 struct tcp_request_sock_ops {
 	u16 mss_clamp;
 #ifdef CONFIG_TCP_MD5SIG
-	struct tcp_md5sig_key *(*req_md5_lookup)(struct sock *sk,
+	struct tcp_md5sig_key *(*req_md5_lookup)(const struct sock *sk,
 						 const struct sock *addr_sk);
 	int		(*calc_md5_hash) (char *location,
 					  const struct tcp_md5sig_key *md5,
 					  const struct sock *sk,
 					  const struct sk_buff *skb);
 #endif
-	void (*init_req)(struct request_sock *req, struct sock *sk,
+	void (*init_req)(struct request_sock *req,
+			 const struct sock *sk_listener,
 			 struct sk_buff *skb);
 #ifdef CONFIG_SYN_COOKIES
-	__u32 (*cookie_init_seq)(struct sock *sk, const struct sk_buff *skb,
+	__u32 (*cookie_init_seq)(const struct sk_buff *skb,
 				 __u16 *mss);
 #endif
-	struct dst_entry *(*route_req)(struct sock *sk, struct flowi *fl,
+	struct dst_entry *(*route_req)(const struct sock *sk, struct flowi *fl,
 				       const struct request_sock *req,
 				       bool *strict);
 	__u32 (*init_seq)(const struct sk_buff *skb);
-	int (*send_synack)(struct sock *sk, struct dst_entry *dst,
+	int (*send_synack)(const struct sock *sk, struct dst_entry *dst,
 			   struct flowi *fl, struct request_sock *req,
-			   u16 queue_mapping, struct tcp_fastopen_cookie *foc);
-	void (*queue_hash_add)(struct sock *sk, struct request_sock *req,
-			       const unsigned long timeout);
+			   u16 queue_mapping, struct tcp_fastopen_cookie *foc,
+			   bool attach_req);
 };
 
 #ifdef CONFIG_SYN_COOKIES
 static inline __u32 cookie_init_sequence(const struct tcp_request_sock_ops *ops,
-					 struct sock *sk, struct sk_buff *skb,
+					 const struct sock *sk, struct sk_buff *skb,
 					 __u16 *mss)
 {
-	return ops->cookie_init_seq(sk, skb, mss);
+	tcp_synq_overflow(sk);
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESSENT);
+	return ops->cookie_init_seq(skb, mss);
 }
 #else
 static inline __u32 cookie_init_sequence(const struct tcp_request_sock_ops *ops,
-					 struct sock *sk, struct sk_buff *skb,
+					 const struct sock *sk, struct sk_buff *skb,
 					 __u16 *mss)
 {
 	return 0;

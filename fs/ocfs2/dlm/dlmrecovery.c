@@ -1694,6 +1694,7 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 	unsigned int hash;
 	int master = DLM_LOCK_RES_OWNER_UNKNOWN;
 	u32 flags = DLM_ASSERT_MASTER_REQUERY;
+	int dispatched = 0;
 
 	if (!dlm_grab(dlm)) {
 		/* since the domain has gone away on this
@@ -1719,8 +1720,10 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 				dlm_put(dlm);
 				/* sender will take care of this and retry */
 				return ret;
-			} else
+			} else {
+				dispatched = 1;
 				__dlm_lockres_grab_inflight_worker(dlm, res);
+			}
 			spin_unlock(&res->spinlock);
 		} else {
 			/* put.. incase we are not the master */
@@ -1730,7 +1733,8 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 	spin_unlock(&dlm->spinlock);
 
-	dlm_put(dlm);
+	if (!dispatched)
+		dlm_put(dlm);
 	return master;
 }
 
@@ -1776,7 +1780,7 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 				     struct dlm_migratable_lockres *mres)
 {
 	struct dlm_migratable_lock *ml;
-	struct list_head *queue;
+	struct list_head *queue, *iter;
 	struct list_head *tmpq = NULL;
 	struct dlm_lock *newlock = NULL;
 	struct dlm_lockstatus *lksb = NULL;
@@ -1821,7 +1825,9 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 			spin_lock(&res->spinlock);
 			for (j = DLM_GRANTED_LIST; j <= DLM_BLOCKED_LIST; j++) {
 				tmpq = dlm_list_idx_to_ptr(res, j);
-				list_for_each_entry(lock, tmpq, list) {
+				list_for_each(iter, tmpq) {
+					lock = list_entry(iter,
+						  struct dlm_lock, list);
 					if (lock->ml.cookie == ml->cookie)
 						break;
 					lock = NULL;

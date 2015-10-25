@@ -201,6 +201,7 @@ struct ethoc {
 	void __iomem *membase;
 	int dma_alloc;
 	resource_size_t io_region_size;
+	bool big_endian;
 
 	unsigned int num_bd;
 	unsigned int num_tx;
@@ -236,12 +237,18 @@ struct ethoc_bd {
 
 static inline u32 ethoc_read(struct ethoc *dev, loff_t offset)
 {
-	return ioread32(dev->iobase + offset);
+	if (dev->big_endian)
+		return ioread32be(dev->iobase + offset);
+	else
+		return ioread32(dev->iobase + offset);
 }
 
 static inline void ethoc_write(struct ethoc *dev, loff_t offset, u32 data)
 {
-	iowrite32(data, dev->iobase + offset);
+	if (dev->big_endian)
+		iowrite32be(data, dev->iobase + offset);
+	else
+		iowrite32(data, dev->iobase + offset);
 }
 
 static inline void ethoc_read_bd(struct ethoc *dev, int index,
@@ -1105,6 +1112,9 @@ static int ethoc_probe(struct platform_device *pdev)
 		netdev->mem_end = netdev->mem_start + buffer_size;
 		priv->dma_alloc = buffer_size;
 	}
+
+	priv->big_endian = pdata ? pdata->big_endian :
+		of_device_is_big_endian(pdev->dev.of_node);
 
 	/* calculate the number of TX/RX buffers, maximum 128 supported */
 	num_bd = min_t(unsigned int,

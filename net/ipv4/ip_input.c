@@ -157,6 +157,7 @@ bool ip_call_ra_chain(struct sk_buff *skb)
 	u8 protocol = ip_hdr(skb)->protocol;
 	struct sock *last = NULL;
 	struct net_device *dev = skb->dev;
+	struct net *net = dev_net(dev);
 
 	for (ra = rcu_dereference(ip_ra_chain); ra; ra = rcu_dereference(ra->next)) {
 		struct sock *sk = ra->sk;
@@ -167,9 +168,9 @@ bool ip_call_ra_chain(struct sk_buff *skb)
 		if (sk && inet_sk(sk)->inet_num == protocol &&
 		    (!sk->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == dev->ifindex) &&
-		    net_eq(sock_net(sk), dev_net(dev))) {
+		    net_eq(sock_net(sk), net)) {
 			if (ip_is_fragment(ip_hdr(skb))) {
-				if (ip_defrag(skb, IP_DEFRAG_CALL_RA_CHAIN))
+				if (ip_defrag(net, skb, IP_DEFRAG_CALL_RA_CHAIN))
 					return true;
 			}
 			if (last) {
@@ -246,14 +247,15 @@ int ip_local_deliver(struct sk_buff *skb)
 	/*
 	 *	Reassemble IP fragments.
 	 */
+	struct net *net = dev_net(skb->dev);
 
 	if (ip_is_fragment(ip_hdr(skb))) {
-		if (ip_defrag(skb, IP_DEFRAG_LOCAL_DELIVER))
+		if (ip_defrag(net, skb, IP_DEFRAG_LOCAL_DELIVER))
 			return 0;
 	}
 
 	return NF_HOOK(NFPROTO_IPV4, NF_INET_LOCAL_IN,
-		       dev_net(skb->dev), NULL, skb, skb->dev, NULL,
+		       net, NULL, skb, skb->dev, NULL,
 		       ip_local_deliver_finish);
 }
 

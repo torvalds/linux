@@ -164,6 +164,7 @@ struct i40e_tx_buffer {
 	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
+
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
 	u32 tx_flags;
@@ -187,6 +188,7 @@ struct i40e_tx_queue_stats {
 	u64 restart_queue;
 	u64 tx_busy;
 	u64 tx_done_old;
+	u64 tx_linearize;
 };
 
 struct i40e_rx_queue_stats {
@@ -198,8 +200,6 @@ struct i40e_rx_queue_stats {
 enum i40e_ring_state_t {
 	__I40E_TX_FDIR_INIT_DONE,
 	__I40E_TX_XPS_INIT_DONE,
-	__I40E_TX_DETECT_HANG,
-	__I40E_HANG_CHECK_ARMED,
 	__I40E_RX_PS_ENABLED,
 	__I40E_RX_16BYTE_DESC_ENABLED,
 };
@@ -210,12 +210,6 @@ enum i40e_ring_state_t {
 	set_bit(__I40E_RX_PS_ENABLED, &(ring)->state)
 #define clear_ring_ps_enabled(ring) \
 	clear_bit(__I40E_RX_PS_ENABLED, &(ring)->state)
-#define check_for_tx_hang(ring) \
-	test_bit(__I40E_TX_DETECT_HANG, &(ring)->state)
-#define set_check_for_tx_hang(ring) \
-	set_bit(__I40E_TX_DETECT_HANG, &(ring)->state)
-#define clear_check_for_tx_hang(ring) \
-	clear_bit(__I40E_TX_DETECT_HANG, &(ring)->state)
 #define ring_is_16byte_desc_enabled(ring) \
 	test_bit(__I40E_RX_16BYTE_DESC_ENABLED, &(ring)->state)
 #define set_ring_16byte_desc_enabled(ring) \

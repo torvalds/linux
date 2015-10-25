@@ -507,7 +507,7 @@ static void arp_print(struct arp_payload *payload)
 #endif
 
 static unsigned int
-arp_mangle(const struct nf_hook_ops *ops,
+arp_mangle(void *priv,
 	   struct sk_buff *skb,
 	   const struct nf_hook_state *state)
 {

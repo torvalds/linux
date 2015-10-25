@@ -249,6 +249,7 @@ static const struct of_device_id regulator_haptic_dt_match[] = {
 	{ .compatible = "regulator-haptic" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, regulator_haptic_dt_match);
 
 static struct platform_driver regulator_haptic_driver = {
 	.probe		= regulator_haptic_probe,

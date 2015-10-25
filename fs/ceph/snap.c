@@ -338,12 +338,6 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 		return 0;
 	}
 
-	if (num == 0 && realm->seq == ceph_empty_snapc->seq) {
-		ceph_get_snap_context(ceph_empty_snapc);
-		snapc = ceph_empty_snapc;
-		goto done;
-	}
-
 	/* alloc new snap context */
 	err = -ENOMEM;
 	if (num > (SIZE_MAX - sizeof(*snapc)) / sizeof(u64))
@@ -381,7 +375,6 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	     realm->ino, realm, snapc, snapc->seq,
 	     (unsigned int) snapc->num_snaps);
 
-done:
 	ceph_put_snap_context(realm->cached_context);
 	realm->cached_context = snapc;
 	return 0;

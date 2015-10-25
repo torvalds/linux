@@ -419,6 +419,7 @@ use_default_name:
 	device_initialize(&rdev->wiphy.dev);
 	rdev->wiphy.dev.class = &ieee80211_class;
 	rdev->wiphy.dev.platform_data = rdev;
+	device_enable_async_suspend(&rdev->wiphy.dev);
 
 	INIT_LIST_HEAD(&rdev->destroy_list);
 	spin_lock_init(&rdev->destroy_list_lock);
@@ -459,6 +460,9 @@ use_default_name:
 	rdev->wiphy.coverage_class = 0;
 
 	rdev->wiphy.max_num_csa_counters = 1;
+
+	rdev->wiphy.max_sched_scan_plans = 1;
+	rdev->wiphy.max_sched_scan_plan_interval = U32_MAX;
 
 	return &rdev->wiphy;
 }
@@ -635,7 +639,7 @@ int wiphy_register(struct wiphy *wiphy)
 		if (WARN_ON(!sband->n_channels))
 			return -EINVAL;
 		/*
-		 * on 60gHz band, there are no legacy rates, so
+		 * on 60GHz band, there are no legacy rates, so
 		 * n_bitrates is 0
 		 */
 		if (WARN_ON(band != IEEE80211_BAND_60GHZ &&

@@ -299,6 +299,7 @@ config NLMON
 config NET_VRF
 	tristate "Virtual Routing and Forwarding (Lite)"
 	depends on IP_MULTIPLE_TABLES && IPV6_MULTIPLE_TABLES
+	depends on NET_L3_MASTER_DEV
 	---help---
 	  This option enables the support for mapping interfaces into VRF's. The
 	  support enables VRF devices.

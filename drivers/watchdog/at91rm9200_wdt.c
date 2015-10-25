@@ -244,7 +244,7 @@ static int at91wdt_probe(struct platform_device *pdev)
 	}
 
 	regmap_st = syscon_node_to_regmap(parent->of_node);
-	if (!regmap_st)
+	if (IS_ERR(regmap_st))
 		return -ENODEV;
 
 	res = misc_register(&at91wdt_miscdev);

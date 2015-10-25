@@ -290,16 +290,17 @@ static int __init tick_nohz_full_setup(char *str)
 __setup("nohz_full=", tick_nohz_full_setup);
 
 static int tick_nohz_cpu_down_callback(struct notifier_block *nfb,
-						 unsigned long action,
-						 void *hcpu)
+				       unsigned long action,
+				       void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DOWN_PREPARE:
 		/*
-		 * If we handle the timekeeping duty for full dynticks CPUs,
-		 * we can't safely shutdown that CPU.
+		 * The boot CPU handles housekeeping duty (unbound timers,
+		 * workqueues, timekeeping, ...) on behalf of full dynticks
+		 * CPUs. It must remain online when nohz full is enabled.
 		 */
 		if (tick_nohz_full_running && tick_do_timer_cpu == cpu)
 			return NOTIFY_BAD;
@@ -370,6 +371,12 @@ void __init tick_nohz_init(void)
 	cpu_notifier(tick_nohz_cpu_down_callback, 0);
 	pr_info("NO_HZ: Full dynticks CPUs: %*pbl.\n",
 		cpumask_pr_args(tick_nohz_full_mask));
+
+	/*
+	 * We need at least one CPU to handle housekeeping work such
+	 * as timekeeping, unbound timers, workqueues, ...
+	 */
+	WARN_ON_ONCE(cpumask_empty(housekeeping_mask));
 }
 #endif
 

@@ -1033,6 +1033,7 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 	perf_evsel__free_config_terms(evsel);
 	close_cgroup(evsel->cgrp);
 	cpu_map__put(evsel->cpus);
+	cpu_map__put(evsel->own_cpus);
 	thread_map__put(evsel->threads);
 	zfree(&evsel->group_name);
 	zfree(&evsel->name);

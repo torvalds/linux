@@ -739,10 +739,8 @@ static int mv_cesa_ahash_update(struct ahash_request *req)
 		return 0;
 
 	ret = mv_cesa_queue_req(&req->base);
-	if (ret && ret != -EINPROGRESS) {
+	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ahash_cleanup(req);
-		return ret;
-	}
 
 	return ret;
 }
@@ -766,7 +764,7 @@ static int mv_cesa_ahash_final(struct ahash_request *req)
 		return 0;
 
 	ret = mv_cesa_queue_req(&req->base);
-	if (ret && ret != -EINPROGRESS)
+	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ahash_cleanup(req);
 
 	return ret;
@@ -791,7 +789,7 @@ static int mv_cesa_ahash_finup(struct ahash_request *req)
 		return 0;
 
 	ret = mv_cesa_queue_req(&req->base);
-	if (ret && ret != -EINPROGRESS)
+	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ahash_cleanup(req);
 
 	return ret;

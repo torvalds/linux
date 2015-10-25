@@ -1717,9 +1717,9 @@ static int __subn_get_opa_psi(struct opa_smp *smp, u32 am, u8 *data,
 	psi->port_states.portphysstate_portstate =
 		(hfi1_ibphys_portstate(ppd) << 4) | (lstate & 0xf);
 	psi->link_width_downgrade_tx_active =
-	  ppd->link_width_downgrade_tx_active;
+		cpu_to_be16(ppd->link_width_downgrade_tx_active);
 	psi->link_width_downgrade_rx_active =
-	  ppd->link_width_downgrade_rx_active;
+		cpu_to_be16(ppd->link_width_downgrade_rx_active);
 	if (resp_len)
 		*resp_len += sizeof(struct opa_port_state_info);
 

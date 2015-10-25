@@ -64,17 +64,9 @@
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
 #include <pthread.h>
-#include "../../../../include/uapi/linux/userfaultfd.h"
+#include <linux/userfaultfd.h>
 
-#ifdef __x86_64__
-#define __NR_userfaultfd 323
-#elif defined(__i386__)
-#define __NR_userfaultfd 374
-#elif defined(__powewrpc__)
-#define __NR_userfaultfd 364
-#else
-#error "missing __NR_userfaultfd definition"
-#endif
+#ifdef __NR_userfaultfd
 
 static unsigned long nr_cpus, nr_pages, nr_pages_per_cpu, page_size;
 
@@ -430,7 +422,7 @@ static int userfaultfd_stress(void)
 	struct uffdio_register uffdio_register;
 	struct uffdio_api uffdio_api;
 	unsigned long cpu;
-	int uffd_flags;
+	int uffd_flags, err;
 	unsigned long userfaults[nr_cpus];
 
 	if (posix_memalign(&area, page_size, nr_pages * page_size)) {
@@ -473,6 +465,14 @@ static int userfaultfd_stress(void)
 		*area_mutex(area_src, nr) = (pthread_mutex_t)
 			PTHREAD_MUTEX_INITIALIZER;
 		count_verify[nr] = *area_count(area_src, nr) = 1;
+		/*
+		 * In the transition between 255 to 256, powerpc will
+		 * read out of order in my_bcmp and see both bytes as
+		 * zero, so leave a placeholder below always non-zero
+		 * after the count, to avoid my_bcmp to trigger false
+		 * positives.
+		 */
+		*(area_count(area_src, nr) + 1) = 1;
 	}
 
 	pipefd = malloc(sizeof(int) * nr_cpus * 2);
@@ -499,6 +499,7 @@ static int userfaultfd_stress(void)
 	pthread_attr_init(&attr);
 	pthread_attr_setstacksize(&attr, 16*1024*1024);
 
+	err = 0;
 	while (bounces--) {
 		unsigned long expected_ioctls;
 
@@ -579,20 +580,13 @@ static int userfaultfd_stress(void)
 		/* verification */
 		if (bounces & BOUNCE_VERIFY) {
 			for (nr = 0; nr < nr_pages; nr++) {
-				if (my_bcmp(area_dst,
-					    area_dst + nr * page_size,
-					    sizeof(pthread_mutex_t))) {
-					fprintf(stderr,
-						"error mutex 2 %lu\n",
-						nr);
-					bounces = 0;
-				}
 				if (*area_count(area_dst, nr) != count_verify[nr]) {
 					fprintf(stderr,
 						"error area_count %Lu %Lu %lu\n",
 						*area_count(area_src, nr),
 						count_verify[nr],
 						nr);
+					err = 1;
 					bounces = 0;
 				}
 			}
@@ -609,7 +603,7 @@ static int userfaultfd_stress(void)
 		printf("\n");
 	}
 
-	return 0;
+	return err;
 }
 
 int main(int argc, char **argv)
@@ -618,8 +612,8 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Usage: <MiB> <bounces>\n"), exit(1);
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	page_size = sysconf(_SC_PAGE_SIZE);
-	if ((unsigned long) area_count(NULL, 0) + sizeof(unsigned long long) >
-	    page_size)
+	if ((unsigned long) area_count(NULL, 0) + sizeof(unsigned long long) * 2
+	    > page_size)
 		fprintf(stderr, "Impossible to run this test\n"), exit(2);
 	nr_pages_per_cpu = atol(argv[1]) * 1024*1024 / page_size /
 		nr_cpus;
@@ -637,3 +631,15 @@ int main(int argc, char **argv)
 	       nr_pages, nr_pages_per_cpu);
 	return userfaultfd_stress();
 }
+
+#else /* __NR_userfaultfd */
+
+#warning "missing __NR_userfaultfd definition"
+
+int main(void)
+{
+	printf("skip: Skipping userfaultfd test (missing __NR_userfaultfd)\n");
+	return 0;
+}
+
+#endif /* __NR_userfaultfd */

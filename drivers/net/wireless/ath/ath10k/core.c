@@ -34,16 +34,19 @@ unsigned int ath10k_debug_mask;
 static unsigned int ath10k_cryptmode_param;
 static bool uart_print;
 static bool skip_otp;
+static bool rawmode;
 
 module_param_named(debug_mask, ath10k_debug_mask, uint, 0644);
 module_param_named(cryptmode, ath10k_cryptmode_param, uint, 0644);
 module_param(uart_print, bool, 0644);
 module_param(skip_otp, bool, 0644);
+module_param(rawmode, bool, 0644);
 
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 MODULE_PARM_DESC(uart_print, "Uart target debugging");
 MODULE_PARM_DESC(skip_otp, "Skip otp failure for calibration in testmode");
 MODULE_PARM_DESC(cryptmode, "Crypto mode: 0-hardware, 1-software");
+MODULE_PARM_DESC(rawmode, "Use raw 802.11 frame datapath");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
@@ -54,6 +57,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.has_shifted_cc_wraparound = true,
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
+		.max_probe_resp_desc_thres = 0,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
 			.fw = QCA988X_HW_2_0_FW_FILE,
@@ -70,6 +74,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.uart_pin = 6,
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
+		.max_probe_resp_desc_thres = 0,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
 			.fw = QCA6174_HW_2_1_FW_FILE,
@@ -86,6 +91,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.uart_pin = 6,
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
+		.max_probe_resp_desc_thres = 0,
 		.fw = {
 			.dir = QCA6174_HW_3_0_FW_DIR,
 			.fw = QCA6174_HW_3_0_FW_FILE,
@@ -102,6 +108,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.uart_pin = 6,
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
+		.max_probe_resp_desc_thres = 0,
 		.fw = {
 			/* uses same binaries as hw3.0 */
 			.dir = QCA6174_HW_3_0_FW_DIR,
@@ -120,6 +127,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0x00000700,
 		.continuous_frag_desc = true,
 		.channel_counters_freq_hz = 150000,
+		.max_probe_resp_desc_thres = 24,
 		.fw = {
 			.dir = QCA99X0_HW_2_0_FW_DIR,
 			.fw = QCA99X0_HW_2_0_FW_FILE,
@@ -142,12 +150,17 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_IGNORE_OTP_RESULT] = "ignore-otp",
 	[ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING] = "no-4addr-pad",
 	[ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT] = "skip-clock-init",
+	[ATH10K_FW_FEATURE_RAW_MODE_SUPPORT] = "raw-mode",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,
 						   size_t buf_len,
 						   enum ath10k_fw_features feat)
 {
+	/* make sure that ath10k_core_fw_feature_str[] gets updated */
+	BUILD_BUG_ON(ARRAY_SIZE(ath10k_core_fw_feature_str) !=
+		     ATH10K_FW_FEATURE_COUNT);
+
 	if (feat >= ARRAY_SIZE(ath10k_core_fw_feature_str) ||
 	    WARN_ON(!ath10k_core_fw_feature_str[feat])) {
 		return scnprintf(buf, buf_len, "bit%d", feat);
@@ -1117,6 +1130,15 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	ar->htt.max_num_amsdu = ATH10K_HTT_MAX_NUM_AMSDU_DEFAULT;
 	ar->htt.max_num_ampdu = ATH10K_HTT_MAX_NUM_AMPDU_DEFAULT;
 
+	if (rawmode) {
+		if (!test_bit(ATH10K_FW_FEATURE_RAW_MODE_SUPPORT,
+			      ar->fw_features)) {
+			ath10k_err(ar, "rawmode = 1 requires support from firmware");
+			return -EINVAL;
+		}
+		set_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags);
+	}
+
 	if (test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags)) {
 		ar->wmi.rx_decap_mode = ATH10K_HW_TXRX_RAW;
 
@@ -1714,6 +1736,7 @@ void ath10k_core_destroy(struct ath10k *ar)
 	destroy_workqueue(ar->workqueue_aux);
 
 	ath10k_debug_destroy(ar);
+	ath10k_wmi_free_host_mem(ar);
 	ath10k_mac_destroy(ar);
 }
 EXPORT_SYMBOL(ath10k_core_destroy);

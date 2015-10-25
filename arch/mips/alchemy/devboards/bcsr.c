@@ -86,7 +86,7 @@ EXPORT_SYMBOL_GPL(bcsr_mod);
 /*
  * DB1200/PB1200 CPLD IRQ muxer
  */
-static void bcsr_csc_handler(unsigned int irq, struct irq_desc *d)
+static void bcsr_csc_handler(struct irq_desc *d)
 {
 	unsigned short bisr = __raw_readw(bcsr_virt + BCSR_REG_INTSTAT);
 	struct irq_chip *chip = irq_desc_get_chip(d);

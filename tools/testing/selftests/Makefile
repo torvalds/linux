@@ -6,6 +6,7 @@ TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
 TARGETS += kcmp
+TARGETS += membarrier
 TARGETS += memfd
 TARGETS += memory-hotplug
 TARGETS += mount
@@ -15,12 +16,12 @@ TARGETS += powerpc
 TARGETS += ptrace
 TARGETS += seccomp
 TARGETS += size
+TARGETS += static_keys
 TARGETS += sysctl
 ifneq (1, $(quicktest))
 TARGETS += timers
 endif
 TARGETS += user
-TARGETS += jumplabel
 TARGETS += vm
 TARGETS += x86
 TARGETS += zram

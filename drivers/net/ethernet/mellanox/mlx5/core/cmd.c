@@ -254,6 +254,10 @@ static void dump_buf(void *buf, int size, int data_only, int offset)
 		pr_debug("\n");
 }
 
+enum {
+	MLX5_DRIVER_STATUS_ABORTED = 0xfe,
+};
+
 const char *mlx5_command_str(int command)
 {
 	switch (command) {
@@ -473,6 +477,7 @@ static void cmd_work_handler(struct work_struct *work)
 	struct mlx5_core_dev *dev = container_of(cmd, struct mlx5_core_dev, cmd);
 	struct mlx5_cmd_layout *lay;
 	struct semaphore *sem;
+	unsigned long flags;
 
 	sem = ent->page_queue ? &cmd->pages_sem : &cmd->sem;
 	down(sem);
@@ -485,6 +490,9 @@ static void cmd_work_handler(struct work_struct *work)
 		}
 	} else {
 		ent->idx = cmd->max_reg_cmds;
+		spin_lock_irqsave(&cmd->alloc_lock, flags);
+		clear_bit(ent->idx, &cmd->bitmask);
+		spin_unlock_irqrestore(&cmd->alloc_lock, flags);
 	}
 
 	ent->token = alloc_token(cmd);
@@ -1081,7 +1089,7 @@ static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg)
 	}
 }
 
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector)
+void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
@@ -1092,7 +1100,10 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector)
 	s64 ds;
 	struct mlx5_cmd_stats *stats;
 	unsigned long flags;
+	unsigned long vector;
 
+	/* there can be at most 32 command queues */
+	vector = vec & 0xffffffff;
 	for (i = 0; i < (1 << cmd->log_sz); i++) {
 		if (test_bit(i, &vector)) {
 			struct semaphore *sem;
@@ -1110,11 +1121,16 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector)
 					ent->ret = verify_signature(ent);
 				else
 					ent->ret = 0;
-				ent->status = ent->lay->status_own >> 1;
+				if (vec & MLX5_TRIGGERED_CMD_COMP)
+					ent->status = MLX5_DRIVER_STATUS_ABORTED;
+				else
+					ent->status = ent->lay->status_own >> 1;
+
 				mlx5_core_dbg(dev, "command completed. ret 0x%x, delivery status %s(0x%x)\n",
 					      ent->ret, deliv_status_to_str(ent->status), ent->status);
 			}
 			free_ent(cmd, ent->idx);
+
 			if (ent->callback) {
 				ds = ent->ts2 - ent->ts1;
 				if (ent->op < ARRAY_SIZE(cmd->stats)) {
@@ -1136,6 +1152,7 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector)
 				mlx5_free_cmd_msg(dev, ent->out);
 				free_msg(dev, ent->in);
 
+				err = err ? err : ent->status;
 				free_cmd(ent);
 				callback(err, context);
 			} else {
@@ -1363,6 +1380,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	int err;
 	int i;
 
+	memset(cmd, 0, sizeof(*cmd));
 	cmd_if_rev = cmdif_rev(dev);
 	if (cmd_if_rev != CMD_IF_REV) {
 		dev_err(&dev->pdev->dev,

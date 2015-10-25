@@ -1277,6 +1277,7 @@ struct efx_nic_type {
 	void (*mcdi_read_response)(struct efx_nic *efx, efx_dword_t *pdu,
 				   size_t pdu_offset, size_t pdu_len);
 	int (*mcdi_poll_reboot)(struct efx_nic *efx);
+	void (*mcdi_reboot_detected)(struct efx_nic *efx);
 	void (*irq_enable_master)(struct efx_nic *efx);
 	void (*irq_test_generate)(struct efx_nic *efx);
 	void (*irq_disable_non_ev)(struct efx_nic *efx);

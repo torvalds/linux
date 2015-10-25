@@ -88,6 +88,10 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	htab->elem_size = sizeof(struct htab_elem) +
 			  round_up(htab->map.key_size, 8) +
 			  htab->map.value_size;
+
+	htab->map.pages = round_up(htab->n_buckets * sizeof(struct hlist_head) +
+				   htab->elem_size * htab->map.max_entries,
+				   PAGE_SIZE) >> PAGE_SHIFT;
 	return &htab->map;
 
 free_htab:

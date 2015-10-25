@@ -2522,6 +2522,7 @@ void __init setup_ioapic_dest(void)
 	int pin, ioapic, irq, irq_entry;
 	const struct cpumask *mask;
 	struct irq_data *idata;
+	struct irq_chip *chip;
 
 	if (skip_ioapic_setup == 1)
 		return;
@@ -2545,9 +2546,9 @@ void __init setup_ioapic_dest(void)
 		else
 			mask = apic->target_cpus();
 
-		irq_set_affinity(irq, mask);
+		chip = irq_data_get_irq_chip(idata);
+		chip->irq_set_affinity(idata, mask, false);
 	}
-
 }
 #endif
 

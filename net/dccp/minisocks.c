@@ -48,8 +48,6 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
-		/* Linkage updates. */
-		__inet_twsk_hashdance(tw, sk, &dccp_hashinfo);
 
 		/* Get the TIME_WAIT timeout firing. */
 		if (timeo < rto)
@@ -60,6 +58,8 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 			timeo = DCCP_TIMEWAIT_LEN;
 
 		inet_twsk_schedule(tw, timeo);
+		/* Linkage updates. */
+		__inet_twsk_hashdance(tw, sk, &dccp_hashinfo);
 		inet_twsk_put(tw);
 	} else {
 		/* Sorry, if we're out of memory, just CLOSE this
@@ -72,7 +72,7 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 	dccp_done(sk);
 }
 
-struct sock *dccp_create_openreq_child(struct sock *sk,
+struct sock *dccp_create_openreq_child(const struct sock *sk,
 				       const struct request_sock *req,
 				       const struct sk_buff *skb)
 {
@@ -236,7 +236,7 @@ int dccp_child_process(struct sock *parent, struct sock *child,
 
 EXPORT_SYMBOL_GPL(dccp_child_process);
 
-void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+void dccp_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 			 struct request_sock *rsk)
 {
 	DCCP_BUG("DCCP-ACK packets are never sent in LISTEN/RESPOND state");

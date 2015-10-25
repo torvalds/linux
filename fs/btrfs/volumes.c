@@ -3585,23 +3585,10 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	} while (read_seqretry(&fs_info->profiles_lock, seq));
 
 	if (bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) {
-		int num_tolerated_disk_barrier_failures;
-		u64 target = bctl->sys.target;
-
-		num_tolerated_disk_barrier_failures =
-			btrfs_calc_num_tolerated_disk_barrier_failures(fs_info);
-		if (num_tolerated_disk_barrier_failures > 0 &&
-		    (target &
-		     (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID0 |
-		      BTRFS_AVAIL_ALLOC_BIT_SINGLE)))
-			num_tolerated_disk_barrier_failures = 0;
-		else if (num_tolerated_disk_barrier_failures > 1 &&
-			 (target &
-			  (BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10)))
-			num_tolerated_disk_barrier_failures = 1;
-
-		fs_info->num_tolerated_disk_barrier_failures =
-			num_tolerated_disk_barrier_failures;
+		fs_info->num_tolerated_disk_barrier_failures = min(
+			btrfs_calc_num_tolerated_disk_barrier_failures(fs_info),
+			btrfs_get_num_tolerated_disk_barrier_failures(
+				bctl->sys.target));
 	}
 
 	ret = insert_balance_item(fs_info->tree_root, bctl);

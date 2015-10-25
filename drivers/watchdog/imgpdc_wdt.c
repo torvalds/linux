@@ -316,6 +316,7 @@ static int pdc_wdt_remove(struct platform_device *pdev)
 {
 	struct pdc_wdt_dev *pdc_wdt = platform_get_drvdata(pdev);
 
+	unregister_restart_handler(&pdc_wdt->restart_handler);
 	pdc_wdt_stop(&pdc_wdt->wdt_dev);
 	watchdog_unregister_device(&pdc_wdt->wdt_dev);
 	clk_disable_unprepare(pdc_wdt->wdt_clk);

@@ -79,7 +79,7 @@ char ixgbe_default_device_descr[] =
 static char ixgbe_default_device_descr[] =
 			      "Intel(R) 10 Gigabit Network Connection";
 #endif
-#define DRV_VERSION "4.0.1-k"
+#define DRV_VERSION "4.2.1-k"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
 				"Copyright (c) 1999-2015 Intel Corporation.";
@@ -137,6 +137,7 @@ static const struct pci_device_id ixgbe_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KX4), board_X550EM_x},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KR), board_X550EM_x},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_10G_T), board_X550EM_x},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_SFP), board_X550EM_x},
 	/* required last entry */
 	{0, }
 };
@@ -1244,8 +1245,11 @@ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 				int cpu)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 txctrl = dca3_get_tag(tx_ring->dev, cpu);
+	u32 txctrl = 0;
 	u16 reg_offset;
+
+	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
+		txctrl = dca3_get_tag(tx_ring->dev, cpu);
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
@@ -1278,9 +1282,11 @@ static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
 				int cpu)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 rxctrl = dca3_get_tag(rx_ring->dev, cpu);
+	u32 rxctrl = 0;
 	u8 reg_idx = rx_ring->reg_idx;
 
+	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
+		rxctrl = dca3_get_tag(rx_ring->dev, cpu);
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
@@ -1297,6 +1303,7 @@ static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
 	 * which will cause the DCA tag to be cleared.
 	 */
 	rxctrl |= IXGBE_DCA_RXCTRL_DESC_RRO_EN |
+		  IXGBE_DCA_RXCTRL_DATA_DCA_EN |
 		  IXGBE_DCA_RXCTRL_DESC_DCA_EN;
 
 	IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(reg_idx), rxctrl);
@@ -1326,11 +1333,13 @@ static void ixgbe_setup_dca(struct ixgbe_adapter *adapter)
 {
 	int i;
 
-	if (!(adapter->flags & IXGBE_FLAG_DCA_ENABLED))
-		return;
-
 	/* always use CB2 mode, difference is masked in the CB driver */
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 2);
+	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL,
+				IXGBE_DCA_CTRL_DCA_MODE_CB2);
+	else
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL,
+				IXGBE_DCA_CTRL_DCA_DISABLE);
 
 	for (i = 0; i < adapter->num_q_vectors; i++) {
 		adapter->q_vector[i]->cpu = -1;
@@ -1353,7 +1362,8 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 			break;
 		if (dca_add_requester(dev) == 0) {
 			adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
-			ixgbe_setup_dca(adapter);
+			IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL,
+					IXGBE_DCA_CTRL_DCA_MODE_CB2);
 			break;
 		}
 		/* Fall Through since DCA is disabled. */
@@ -1361,7 +1371,8 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 		if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
 			dca_remove_requester(dev);
 			adapter->flags &= ~IXGBE_FLAG_DCA_ENABLED;
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 1);
+			IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL,
+					IXGBE_DCA_CTRL_DCA_DISABLE);
 		}
 		break;
 	}
@@ -2509,6 +2520,7 @@ static void ixgbe_check_sfp_event(struct ixgbe_adapter *adapter, u32 eicr)
 		IXGBE_WRITE_REG(hw, IXGBE_EICR, eicr_mask);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
 			adapter->flags2 |= IXGBE_FLAG2_SFP_NEEDS_RESET;
+			adapter->sfp_poll_time = 0;
 			ixgbe_service_event_schedule(adapter);
 		}
 	}
@@ -2631,6 +2643,8 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+		if (adapter->hw.device_id == IXGBE_DEV_ID_X550EM_X_SFP)
+			mask |= IXGBE_EIMS_GPI_SDP0(&adapter->hw);
 		if (adapter->hw.phy.type == ixgbe_phy_x550em_ext_t)
 			mask |= IXGBE_EICR_GPI_SDP0_X540;
 		mask |= IXGBE_EIMS_ECC;
@@ -3786,8 +3800,6 @@ static void ixgbe_setup_rdrxctl(struct ixgbe_adapter *adapter)
 	u32 rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 
 	switch (hw->mac.type) {
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_82598EB:
 		/*
 		 * For VMDq support of different descriptor types or
@@ -3801,6 +3813,11 @@ static void ixgbe_setup_rdrxctl(struct ixgbe_adapter *adapter)
 		 */
 		rdrxctl |= IXGBE_RDRXCTL_MVMEN;
 		break;
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+		if (adapter->num_vfs)
+			rdrxctl |= IXGBE_RDRXCTL_PSP;
+		/* fall through for older HW */
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
 		/* Disable RSC for ACK packets */
@@ -4776,6 +4793,12 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 		break;
 	}
 
+#ifdef CONFIG_IXGBE_DCA
+	/* configure DCA */
+	if (adapter->flags & IXGBE_FLAG_DCA_CAPABLE)
+		ixgbe_setup_dca(adapter);
+#endif /* CONFIG_IXGBE_DCA */
+
 #ifdef IXGBE_FCOE
 	/* configure FCoE L2 filters, redirection table, and Rx control */
 	ixgbe_configure_fcoe(adapter);
@@ -4802,6 +4825,7 @@ static void ixgbe_sfp_link_config(struct ixgbe_adapter *adapter)
 		adapter->flags2 |= IXGBE_FLAG2_SEARCH_FOR_SFP;
 
 	adapter->flags2 |= IXGBE_FLAG2_SFP_NEEDS_RESET;
+	adapter->sfp_poll_time = 0;
 }
 
 /**
@@ -4892,9 +4916,6 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 		case ixgbe_mac_82599EB:
 			gpie |= IXGBE_SDP0_GPIEN_8259X;
 			break;
-		case ixgbe_mac_X540:
-			gpie |= IXGBE_EIMS_TS;
-			break;
 		default:
 			break;
 		}
@@ -4904,9 +4925,15 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
 		gpie |= IXGBE_SDP1_GPIEN(hw);
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
-		gpie |= IXGBE_SDP1_GPIEN_8259X;
-		gpie |= IXGBE_SDP2_GPIEN_8259X;
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+		gpie |= IXGBE_SDP1_GPIEN_8259X | IXGBE_SDP2_GPIEN_8259X;
+		break;
+	case ixgbe_mac_X550EM_x:
+		gpie |= IXGBE_SDP0_GPIEN_X540;
+		break;
+	default:
+		break;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
@@ -5229,11 +5256,6 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	ixgbe_clean_all_tx_rings(adapter);
 	ixgbe_clean_all_rx_rings(adapter);
-
-#ifdef CONFIG_IXGBE_DCA
-	/* since we reset the hardware DCA settings were cleared */
-	ixgbe_setup_dca(adapter);
-#endif
 }
 
 /**
@@ -6701,9 +6723,15 @@ static void ixgbe_sfp_detection_subtask(struct ixgbe_adapter *adapter)
 	    !(adapter->flags2 & IXGBE_FLAG2_SFP_NEEDS_RESET))
 		return;
 
+	if (adapter->sfp_poll_time &&
+	    time_after(adapter->sfp_poll_time, jiffies))
+		return; /* If not yet time to poll for SFP */
+
 	/* someone else is in init, wait until next service event */
 	if (test_and_set_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
 		return;
+
+	adapter->sfp_poll_time = jiffies + IXGBE_SFP_POLL_JIFFIES - 1;
 
 	err = hw->phy.ops.identify_sfp(hw);
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED)
@@ -8704,8 +8732,7 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->phy.reset_if_overtemp = true;
 	err = hw->mac.ops.reset_hw(hw);
 	hw->phy.reset_if_overtemp = false;
-	if (err == IXGBE_ERR_SFP_NOT_PRESENT &&
-	    hw->mac.type == ixgbe_mac_82598EB) {
+	if (err == IXGBE_ERR_SFP_NOT_PRESENT) {
 		err = 0;
 	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
 		e_dev_err("failed to load because an unsupported SFP+ or QSFP module type was detected.\n");
@@ -9017,7 +9044,8 @@ static void ixgbe_remove(struct pci_dev *pdev)
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
 		adapter->flags &= ~IXGBE_FLAG_DCA_ENABLED;
 		dca_remove_requester(&pdev->dev);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 1);
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL,
+				IXGBE_DCA_CTRL_DCA_DISABLE);
 	}
 
 #endif

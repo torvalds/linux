@@ -76,7 +76,7 @@ synproxy_send_tcp(const struct synproxy_net *snet,
 		nf_conntrack_get(nfct);
 	}
 
-	ip6_local_out(nskb);
+	ip6_local_out(net, nskb->sk, nskb);
 	return;
 
 free_nskb:
@@ -275,7 +275,7 @@ static unsigned int
 synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_synproxy_info *info = par->targinfo;
-	struct synproxy_net *snet = synproxy_pernet(dev_net(par->in));
+	struct synproxy_net *snet = synproxy_pernet(par->net);
 	struct synproxy_options opts = {};
 	struct tcphdr *th, _th;
 
@@ -316,7 +316,7 @@ synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	return XT_CONTINUE;
 }
 
-static unsigned int ipv6_synproxy_hook(const struct nf_hook_ops *ops,
+static unsigned int ipv6_synproxy_hook(void *priv,
 				       struct sk_buff *skb,
 				       const struct nf_hook_state *nhs)
 {

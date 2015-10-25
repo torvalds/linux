@@ -612,6 +612,11 @@ struct ath10k {
 
 		u32 channel_counters_freq_hz;
 
+		/* Mgmt tx descriptors threshold for limiting probe response
+		 * frames.
+		 */
+		u32 max_probe_resp_desc_thres;
+
 		struct ath10k_hw_params_fw {
 			const char *dir;
 			const char *fw;

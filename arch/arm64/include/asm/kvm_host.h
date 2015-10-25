@@ -30,18 +30,15 @@
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
-#if defined(CONFIG_KVM_ARM_MAX_VCPUS)
-#define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
-#else
-#define KVM_MAX_VCPUS 0
-#endif
-
 #define KVM_USER_MEM_SLOTS 32
 #define KVM_PRIVATE_MEM_SLOTS 4
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#define KVM_HALT_POLL_NS_DEFAULT 500000
 
 #include <kvm/arm_vgic.h>
 #include <kvm/arm_arch_timer.h>
+
+#define KVM_MAX_VCPUS VGIC_V3_MAX_CPUS
 
 #define KVM_VCPU_MAX_FEATURES 3
 
@@ -195,6 +192,7 @@ struct kvm_vm_stat {
 
 struct kvm_vcpu_stat {
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 };
 

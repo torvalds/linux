@@ -495,7 +495,7 @@ static int smp_ah(struct crypto_blkcipher *tfm, const u8 irk[16],
 	}
 
 	/* The output of the random address function ah is:
-	 *	ah(h, r) = e(k, r') mod 2^24
+	 *	ah(k, r) = e(k, r') mod 2^24
 	 * The output of the security function e is then truncated to 24 bits
 	 * by taking the least significant 24 bits of the output of e as the
 	 * result of ah.
@@ -2311,12 +2311,6 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	if (!conn)
 		return 1;
 
-	chan = conn->smp;
-	if (!chan) {
-		BT_ERR("SMP security requested but not available");
-		return 1;
-	}
-
 	if (!hci_dev_test_flag(hcon->hdev, HCI_LE_ENABLED))
 		return 1;
 
@@ -2329,6 +2323,12 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	if (hcon->role == HCI_ROLE_MASTER)
 		if (smp_ltk_encrypt(conn, hcon->pending_sec_level))
 			return 0;
+
+	chan = conn->smp;
+	if (!chan) {
+		BT_ERR("SMP security requested but not available");
+		return 1;
+	}
 
 	l2cap_chan_lock(chan);
 

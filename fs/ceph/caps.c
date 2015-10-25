@@ -2413,6 +2413,14 @@ again:
 			goto out_unlock;
 		}
 
+		if (!__ceph_is_any_caps(ci) &&
+		    ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
+			dout("get_cap_refs %p forced umount\n", inode);
+			*err = -EIO;
+			ret = 1;
+			goto out_unlock;
+		}
+
 		dout("get_cap_refs %p have %s needed %s\n", inode,
 		     ceph_cap_string(have), ceph_cap_string(need));
 	}

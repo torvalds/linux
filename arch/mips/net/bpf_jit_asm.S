@@ -64,8 +64,20 @@ sk_load_word_positive:
 	PTR_ADDU t1, $r_skb_data, offset
 	lw	$r_A, 0(t1)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 	wsbh	t0, $r_A
 	rotr	$r_A, t0, 16
+# else
+	sll	t0, $r_A, 24
+	srl	t1, $r_A, 24
+	srl	t2, $r_A, 8
+	or	t0, t0, t1
+	andi	t2, t2, 0xff00
+	andi	t1, $r_A, 0xff00
+	or	t0, t0, t2
+	sll	t1, t1, 8
+	or	$r_A, t0, t1
+# endif
 #endif
 	jr	$r_ra
 	 move	$r_ret, zero
@@ -80,8 +92,16 @@ sk_load_half_positive:
 	PTR_ADDU t1, $r_skb_data, offset
 	lh	$r_A, 0(t1)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 	wsbh	t0, $r_A
 	seh	$r_A, t0
+# else
+	sll	t0, $r_A, 24
+	andi	t1, $r_A, 0xff00
+	sra	t0, t0, 16
+	srl	t1, t1, 8
+	or	$r_A, t0, t1
+# endif
 #endif
 	jr	$r_ra
 	 move	$r_ret, zero
@@ -148,23 +168,47 @@ sk_load_byte_positive:
 NESTED(bpf_slow_path_word, (6 * SZREG), $r_sp)
 	bpf_slow_path_common(4)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 	wsbh	t0, $r_s0
 	jr	$r_ra
 	 rotr	$r_A, t0, 16
-#endif
+# else
+	sll	t0, $r_s0, 24
+	srl	t1, $r_s0, 24
+	srl	t2, $r_s0, 8
+	or	t0, t0, t1
+	andi	t2, t2, 0xff00
+	andi	t1, $r_s0, 0xff00
+	or	t0, t0, t2
+	sll	t1, t1, 8
 	jr	$r_ra
-	move	$r_A, $r_s0
+	 or	$r_A, t0, t1
+# endif
+#else
+	jr	$r_ra
+	 move	$r_A, $r_s0
+#endif
 
 	END(bpf_slow_path_word)
 
 NESTED(bpf_slow_path_half, (6 * SZREG), $r_sp)
 	bpf_slow_path_common(2)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 	jr	$r_ra
 	 wsbh	$r_A, $r_s0
-#endif
+# else
+	sll	t0, $r_s0, 8
+	andi	t1, $r_s0, 0xff00
+	andi	t0, t0, 0xff00
+	srl	t1, t1, 8
+	jr	$r_ra
+	 or	$r_A, t0, t1
+# endif
+#else
 	jr	$r_ra
 	 move	$r_A, $r_s0
+#endif
 
 	END(bpf_slow_path_half)
 

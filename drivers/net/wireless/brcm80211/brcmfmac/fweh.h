@@ -230,12 +230,14 @@ typedef int (*brcmf_fweh_handler_t)(struct brcmf_if *ifp,
 /**
  * struct brcmf_fweh_info - firmware event handling information.
  *
+ * @p2pdev_setup_ongoing: P2P device creation in progress.
  * @event_work: event worker.
  * @evt_q_lock: lock for event queue protection.
  * @event_q: event queue.
  * @evt_handler: registered event handlers.
  */
 struct brcmf_fweh_info {
+	bool p2pdev_setup_ongoing;
 	struct work_struct event_work;
 	spinlock_t evt_q_lock;
 	struct list_head event_q;
@@ -255,6 +257,7 @@ void brcmf_fweh_unregister(struct brcmf_pub *drvr,
 int brcmf_fweh_activate_events(struct brcmf_if *ifp);
 void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 			      struct brcmf_event *event_packet);
+void brcmf_fweh_p2pdev_setup(struct brcmf_if *ifp, bool ongoing);
 
 static inline void brcmf_fweh_process_skb(struct brcmf_pub *drvr,
 					  struct sk_buff *skb)

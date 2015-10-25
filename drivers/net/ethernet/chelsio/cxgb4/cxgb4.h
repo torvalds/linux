@@ -47,6 +47,7 @@
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
+#include <linux/net_tstamp.h>
 #include <asm/io.h>
 #include "cxgb4_uld.h"
 
@@ -478,6 +479,8 @@ struct port_info {
 #ifdef CONFIG_CHELSIO_T4_FCOE
 	struct cxgb_fcoe fcoe;
 #endif /* CONFIG_CHELSIO_T4_FCOE */
+	bool rxtstamp;  /* Enable TS */
+	struct hwtstamp_config tstamp_config;
 };
 
 struct dentry;
@@ -517,6 +520,7 @@ struct sge_fl {                     /* SGE free-buffer queue state */
 
 /* A packet gather list */
 struct pkt_gl {
+	u64 sgetstamp;		    /* SGE Time Stamp for Ingress Packet */
 	struct page_frag frags[MAX_SKB_FRAGS];
 	void *va;                         /* virtual address of first byte */
 	unsigned int nfrags;              /* # of fragments */

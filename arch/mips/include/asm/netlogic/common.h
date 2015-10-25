@@ -57,8 +57,8 @@
 #include <asm/mach-netlogic/multi-node.h>
 
 struct irq_desc;
-void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc);
-void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc);
+void nlm_smp_function_ipi_handler(struct irq_desc *desc);
+void nlm_smp_resched_ipi_handler(struct irq_desc *desc);
 void nlm_smp_irq_init(int hwcpuid);
 void nlm_boot_secondary_cpus(void);
 int nlm_wakeup_secondary_cpus(void);

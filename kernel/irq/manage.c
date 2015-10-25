@@ -192,7 +192,7 @@ int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	switch (ret) {
 	case IRQ_SET_MASK_OK:
 	case IRQ_SET_MASK_OK_DONE:
-		cpumask_copy(data->affinity, mask);
+		cpumask_copy(desc->irq_common_data.affinity, mask);
 	case IRQ_SET_MASK_OK_NOCOPY:
 		irq_set_thread_affinity(desc);
 		ret = 0;
@@ -304,7 +304,7 @@ static void irq_affinity_notify(struct work_struct *work)
 	if (irq_move_pending(&desc->irq_data))
 		irq_get_pending(cpumask, desc);
 	else
-		cpumask_copy(cpumask, desc->irq_data.affinity);
+		cpumask_copy(cpumask, desc->irq_common_data.affinity);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	notify->notify(notify, cpumask);
@@ -375,9 +375,9 @@ static int setup_affinity(struct irq_desc *desc, struct cpumask *mask)
 	 * one of the targets is online.
 	 */
 	if (irqd_has_set(&desc->irq_data, IRQD_AFFINITY_SET)) {
-		if (cpumask_intersects(desc->irq_data.affinity,
+		if (cpumask_intersects(desc->irq_common_data.affinity,
 				       cpu_online_mask))
-			set = desc->irq_data.affinity;
+			set = desc->irq_common_data.affinity;
 		else
 			irqd_clear(&desc->irq_data, IRQD_AFFINITY_SET);
 	}
@@ -829,8 +829,8 @@ irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action)
 	 * This code is triggered unconditionally. Check the affinity
 	 * mask pointer. For CPU_MASK_OFFSTACK=n this is optimized out.
 	 */
-	if (desc->irq_data.affinity)
-		cpumask_copy(mask, desc->irq_data.affinity);
+	if (desc->irq_common_data.affinity)
+		cpumask_copy(mask, desc->irq_common_data.affinity);
 	else
 		valid = false;
 	raw_spin_unlock_irq(&desc->lock);
@@ -1761,6 +1761,7 @@ void free_percpu_irq(unsigned int irq, void __percpu *dev_id)
 	kfree(__free_percpu_irq(irq, dev_id));
 	chip_bus_sync_unlock(desc);
 }
+EXPORT_SYMBOL_GPL(free_percpu_irq);
 
 /**
  *	setup_percpu_irq - setup a per-cpu interrupt
@@ -1790,9 +1791,10 @@ int setup_percpu_irq(unsigned int irq, struct irqaction *act)
  *	@devname: An ascii name for the claiming device
  *	@dev_id: A percpu cookie passed back to the handler function
  *
- *	This call allocates interrupt resources, but doesn't
- *	automatically enable the interrupt. It has to be done on each
- *	CPU using enable_percpu_irq().
+ *	This call allocates interrupt resources and enables the
+ *	interrupt on the local CPU. If the interrupt is supposed to be
+ *	enabled on other CPUs, it has to be done on each CPU using
+ *	enable_percpu_irq().
  *
  *	Dev_id must be globally unique. It is a per-cpu variable, and
  *	the handler gets called with the interrupted CPU's instance of
@@ -1831,6 +1833,7 @@ int request_percpu_irq(unsigned int irq, irq_handler_t handler,
 
 	return retval;
 }
+EXPORT_SYMBOL_GPL(request_percpu_irq);
 
 /**
  *	irq_get_irqchip_state - returns the irqchip state of a interrupt.

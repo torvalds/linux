@@ -34,7 +34,7 @@ enum ring_status {
 };
 
 struct brcmf_flowring_ring {
-	u8 hash_id;
+	u16 hash_id;
 	bool blocked;
 	enum ring_status status;
 	struct sk_buff_head skblist;

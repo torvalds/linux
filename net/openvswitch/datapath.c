@@ -91,8 +91,7 @@ static bool ovs_must_notify(struct genl_family *family, struct genl_info *info,
 static void ovs_notify(struct genl_family *family,
 		       struct sk_buff *skb, struct genl_info *info)
 {
-	genl_notify(family, skb, genl_info_net(info), info->snd_portid,
-		    0, info->nlhdr, GFP_KERNEL);
+	genl_notify(family, skb, info, 0, GFP_KERNEL);
 }
 
 /**
@@ -952,7 +951,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	if (error)
 		goto err_kfree_flow;
 
-	ovs_flow_mask_key(&new_flow->key, &key, &mask);
+	ovs_flow_mask_key(&new_flow->key, &key, true, &mask);
 
 	/* Extract flow identifier. */
 	error = ovs_nla_get_identifier(&new_flow->id, a[OVS_FLOW_ATTR_UFID],
@@ -1080,7 +1079,7 @@ static struct sw_flow_actions *get_flow_actions(struct net *net,
 	struct sw_flow_key masked_key;
 	int error;
 
-	ovs_flow_mask_key(&masked_key, key, mask);
+	ovs_flow_mask_key(&masked_key, key, true, mask);
 	error = ovs_nla_copy_actions(net, a, &masked_key, &acts, log);
 	if (error) {
 		OVS_NLERR(log,

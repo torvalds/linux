@@ -71,7 +71,18 @@ static int udp_uncompress(struct sk_buff *skb, size_t needed)
 	 * here, we obtain the hint from the remaining size of the
 	 * frame
 	 */
-	uh.len = htons(skb->len + sizeof(struct udphdr));
+	switch (lowpan_priv(skb->dev)->lltype) {
+	case LOWPAN_LLTYPE_IEEE802154:
+		if (lowpan_802154_cb(skb)->d_size)
+			uh.len = htons(lowpan_802154_cb(skb)->d_size -
+				       sizeof(struct ipv6hdr));
+		else
+			uh.len = htons(skb->len + sizeof(struct udphdr));
+		break;
+	default:
+		uh.len = htons(skb->len + sizeof(struct udphdr));
+		break;
+	}
 	pr_debug("uncompressed UDP length: src = %d", ntohs(uh.len));
 
 	/* replace the compressed UDP head by the uncompressed UDP

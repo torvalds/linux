@@ -41,9 +41,11 @@ static void ieee80211_tdls_add_ext_capab(struct ieee80211_sub_if_data *sdata,
 					 struct sk_buff *skb)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	bool chan_switch = local->hw.wiphy->features &
 			   NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
-	bool wider_band = ieee80211_hw_check(&local->hw, TDLS_WIDER_BW);
+	bool wider_band = ieee80211_hw_check(&local->hw, TDLS_WIDER_BW) &&
+			  !ifmgd->tdls_wider_bw_prohibited;
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
 	bool vht = sband && sband->vht_cap.vht_supported;
@@ -331,8 +333,8 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 
 	/* proceed to downgrade the chandef until usable or the same */
 	while (uc.width > max_width &&
-	       !cfg80211_reg_can_beacon(sdata->local->hw.wiphy,
-					&uc, sdata->wdev.iftype))
+	       !cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &uc,
+					      sdata->wdev.iftype))
 		ieee80211_chandef_downgrade(&uc);
 
 	if (!cfg80211_chandef_identical(&uc, &sta->tdls_chandef)) {

@@ -36,6 +36,7 @@ static inline struct nf_icmp_net *icmpv6_pernet(struct net *net)
 
 static bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
 				unsigned int dataoff,
+				struct net *net,
 				struct nf_conntrack_tuple *tuple)
 {
 	const struct icmp6hdr *hp;
@@ -159,7 +160,7 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 			       skb_network_offset(skb)
 				+ sizeof(struct ipv6hdr)
 				+ sizeof(struct icmp6hdr),
-			       PF_INET6, &origtuple)) {
+			       PF_INET6, net, &origtuple)) {
 		pr_debug("icmpv6_error: Can't get tuple\n");
 		return -NF_ACCEPT;
 	}

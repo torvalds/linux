@@ -196,6 +196,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	struct device *cpu_dev;
 	struct regulator *cpu_reg;
 	struct clk *cpu_clk;
+	struct dev_pm_opp *suspend_opp;
 	unsigned long min_uV = ~0, max_uV = 0;
 	unsigned int transition_latency;
 	bool need_update = false;
@@ -239,6 +240,17 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	 */
 	of_cpumask_init_opp_table(policy->cpus);
 
+	/*
+	 * But we need OPP table to function so if it is not there let's
+	 * give platform code chance to provide it for us.
+	 */
+	ret = dev_pm_opp_get_opp_count(cpu_dev);
+	if (ret <= 0) {
+		pr_debug("OPP table is not ready, deferring probe\n");
+		ret = -EPROBE_DEFER;
+		goto out_free_opp;
+	}
+
 	if (need_update) {
 		struct cpufreq_dt_platform_data *pd = cpufreq_get_driver_data();
 
@@ -249,22 +261,14 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		 * OPP tables are initialized only for policy->cpu, do it for
 		 * others as well.
 		 */
-		set_cpus_sharing_opps(cpu_dev, policy->cpus);
+		ret = set_cpus_sharing_opps(cpu_dev, policy->cpus);
+		if (ret)
+			dev_err(cpu_dev, "%s: failed to mark OPPs as shared: %d\n",
+				__func__, ret);
 
 		of_property_read_u32(np, "clock-latency", &transition_latency);
 	} else {
 		transition_latency = dev_pm_opp_get_max_clock_latency(cpu_dev);
-	}
-
-	/*
-	 * But we need OPP table to function so if it is not there let's
-	 * give platform code chance to provide it for us.
-	 */
-	ret = dev_pm_opp_get_opp_count(cpu_dev);
-	if (ret <= 0) {
-		pr_debug("OPP table is not ready, deferring probe\n");
-		ret = -EPROBE_DEFER;
-		goto out_free_opp;
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -300,7 +304,8 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 			rcu_read_unlock();
 
 			tol_uV = opp_uV * priv->voltage_tolerance / 100;
-			if (regulator_is_supported_voltage(cpu_reg, opp_uV,
+			if (regulator_is_supported_voltage(cpu_reg,
+							   opp_uV - tol_uV,
 							   opp_uV + tol_uV)) {
 				if (opp_uV < min_uV)
 					min_uV = opp_uV;
@@ -329,6 +334,13 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->driver_data = priv;
 
 	policy->clk = cpu_clk;
+
+	rcu_read_lock();
+	suspend_opp = dev_pm_opp_get_suspend_opp(cpu_dev);
+	if (suspend_opp)
+		policy->suspend_freq = dev_pm_opp_get_freq(suspend_opp) / 1000;
+	rcu_read_unlock();
+
 	ret = cpufreq_table_validate_and_show(policy, freq_table);
 	if (ret) {
 		dev_err(cpu_dev, "%s: invalid frequency table: %d\n", __func__,
@@ -419,6 +431,7 @@ static struct cpufreq_driver dt_cpufreq_driver = {
 	.ready = cpufreq_ready,
 	.name = "cpufreq-dt",
 	.attr = cpufreq_dt_attr,
+	.suspend = cpufreq_generic_suspend,
 };
 
 static int dt_cpufreq_probe(struct platform_device *pdev)

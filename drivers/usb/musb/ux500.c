@@ -379,6 +379,8 @@ static const struct of_device_id ux500_match[] = {
         {}
 };
 
+MODULE_DEVICE_TABLE(of, ux500_match);
+
 static struct platform_driver ux500_driver = {
 	.probe		= ux500_probe,
 	.remove		= ux500_remove,

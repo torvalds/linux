@@ -86,7 +86,9 @@ struct rds_connection {
 	struct hlist_node	c_hash_node;
 	__be32			c_laddr;
 	__be32			c_faddr;
-	unsigned int		c_loopback:1;
+	unsigned int		c_loopback:1,
+				c_outgoing:1,
+				c_pad_to_32:30;
 	struct rds_connection	*c_passive;
 
 	struct rds_cong_map	*c_lcong;
@@ -603,6 +605,7 @@ extern wait_queue_head_t rds_poll_waitq;
 int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
 void rds_remove_bound(struct rds_sock *rs);
 struct rds_sock *rds_find_bound(__be32 addr, __be16 port);
+void rds_bind_lock_init(void);
 
 /* cong.c */
 int rds_cong_get_maps(struct rds_connection *conn);

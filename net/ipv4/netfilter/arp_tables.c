@@ -247,10 +247,10 @@ struct arpt_entry *arpt_next_entry(const struct arpt_entry *entry)
 }
 
 unsigned int arpt_do_table(struct sk_buff *skb,
-			   unsigned int hook,
 			   const struct nf_hook_state *state,
 			   struct xt_table *table)
 {
+	unsigned int hook = state->hook;
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	unsigned int verdict = NF_DROP;
 	const struct arphdr *arp;
@@ -285,6 +285,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	 */
 	e = get_entry(table_base, private->hook_entry[hook]);
 
+	acpar.net     = state->net;
 	acpar.in      = state->in;
 	acpar.out     = state->out;
 	acpar.hooknum = hook;

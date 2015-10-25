@@ -199,7 +199,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 
 	if (verdict == NF_ACCEPT) {
 		afinfo = nf_get_afinfo(entry->state.pf);
-		if (!afinfo || afinfo->reroute(skb, entry) < 0)
+		if (!afinfo || afinfo->reroute(entry->state.net, skb, entry) < 0)
 			verdict = NF_DROP;
 	}
 

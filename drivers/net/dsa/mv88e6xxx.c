@@ -23,6 +23,7 @@
 #include <linux/phy.h>
 #include <linux/seq_file.h>
 #include <net/dsa.h>
+#include <net/switchdev.h>
 #include "mv88e6xxx.h"
 
 /* MDIO bus access can be nested in the case of PHYs connected to the
@@ -388,73 +389,6 @@ int mv88e6xxx_phy_write_ppu(struct dsa_switch *ds, int addr,
 }
 #endif
 
-void mv88e6xxx_poll_link(struct dsa_switch *ds)
-{
-	int i;
-
-	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		struct net_device *dev;
-		int uninitialized_var(port_status);
-		int pcs_ctrl;
-		int link;
-		int speed;
-		int duplex;
-		int fc;
-
-		dev = ds->ports[i];
-		if (dev == NULL)
-			continue;
-
-		pcs_ctrl = mv88e6xxx_reg_read(ds, REG_PORT(i), PORT_PCS_CTRL);
-		if (pcs_ctrl < 0 || pcs_ctrl & PORT_PCS_CTRL_FORCE_LINK)
-			continue;
-
-		link = 0;
-		if (dev->flags & IFF_UP) {
-			port_status = mv88e6xxx_reg_read(ds, REG_PORT(i),
-							 PORT_STATUS);
-			if (port_status < 0)
-				continue;
-
-			link = !!(port_status & PORT_STATUS_LINK);
-		}
-
-		if (!link) {
-			if (netif_carrier_ok(dev)) {
-				netdev_info(dev, "link down\n");
-				netif_carrier_off(dev);
-			}
-			continue;
-		}
-
-		switch (port_status & PORT_STATUS_SPEED_MASK) {
-		case PORT_STATUS_SPEED_10:
-			speed = 10;
-			break;
-		case PORT_STATUS_SPEED_100:
-			speed = 100;
-			break;
-		case PORT_STATUS_SPEED_1000:
-			speed = 1000;
-			break;
-		default:
-			speed = -1;
-			break;
-		}
-		duplex = (port_status & PORT_STATUS_DUPLEX) ? 1 : 0;
-		fc = (port_status & PORT_STATUS_PAUSE_EN) ? 1 : 0;
-
-		if (!netif_carrier_ok(dev)) {
-			netdev_info(dev,
-				    "link up, %d Mb/s, %s duplex, flow control %sabled\n",
-				    speed,
-				    duplex ? "full" : "half",
-				    fc ? "en" : "dis");
-			netif_carrier_on(dev);
-		}
-	}
-}
-
 static bool mv88e6xxx_6065_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -574,7 +508,8 @@ void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 			   struct phy_device *phydev)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	u32 ret, reg;
+	u32 reg;
+	int ret;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
 		return;
@@ -1907,30 +1842,41 @@ static int _mv88e6xxx_port_fdb_load(struct dsa_switch *ds, int port,
 	return _mv88e6xxx_atu_load(ds, &entry);
 }
 
-int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_fdb *fdb,
+			       struct switchdev_trans *trans)
 {
-	int state = is_multicast_ether_addr(addr) ?
+	/* We don't need any dynamic resource from the kernel (yet),
+	 * so skip the prepare phase.
+	 */
+	return 0;
+}
+
+int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
+			   const struct switchdev_obj_port_fdb *fdb,
+			   struct switchdev_trans *trans)
+{
+	int state = is_multicast_ether_addr(fdb->addr) ?
 		GLOBAL_ATU_DATA_STATE_MC_STATIC :
 		GLOBAL_ATU_DATA_STATE_UC_STATIC;
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_port_fdb_load(ds, port, addr, vid, state);
+	ret = _mv88e6xxx_port_fdb_load(ds, port, fdb->addr, fdb->vid, state);
 	mutex_unlock(&ps->smi_mutex);
 
 	return ret;
 }
 
 int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+			   const struct switchdev_obj_port_fdb *fdb)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_port_fdb_load(ds, port, addr, vid,
+	ret = _mv88e6xxx_port_fdb_load(ds, port, fdb->addr, fdb->vid,
 				       GLOBAL_ATU_DATA_STATE_UNUSED);
 	mutex_unlock(&ps->smi_mutex);
 
@@ -2074,6 +2020,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 		 */
 		reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_PCS_CTRL);
 		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)) {
+			reg &= ~PORT_PCS_CTRL_UNFORCED;
 			reg |= PORT_PCS_CTRL_FORCE_LINK |
 				PORT_PCS_CTRL_LINK_UP |
 				PORT_PCS_CTRL_DUPLEX_FULL |
@@ -2124,6 +2071,8 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 				reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA;
 			else
 				reg |= PORT_CONTROL_FRAME_MODE_DSA;
+			reg |= PORT_CONTROL_FORWARD_UNKNOWN |
+				PORT_CONTROL_FORWARD_UNKNOWN_MC;
 		}
 
 		if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||

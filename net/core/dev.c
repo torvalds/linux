@@ -2974,6 +2974,7 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 			new_index = skb_tx_hash(dev, skb);
 
 		if (queue_index != new_index && sk &&
+		    sk_fullsock(sk) &&
 		    rcu_access_pointer(sk->sk_dst_cache))
 			sk_tx_queue_set(sk, new_index);
 
@@ -4723,6 +4724,8 @@ void napi_disable(struct napi_struct *n)
 
 	while (test_and_set_bit(NAPI_STATE_SCHED, &n->state))
 		msleep(1);
+	while (test_and_set_bit(NAPI_STATE_NPSVC, &n->state))
+		msleep(1);
 
 	hrtimer_cancel(&n->timer);
 
@@ -4865,8 +4868,7 @@ struct netdev_adjacent {
 	struct rcu_head rcu;
 };
 
-static struct netdev_adjacent *__netdev_find_adj(struct net_device *dev,
-						 struct net_device *adj_dev,
+static struct netdev_adjacent *__netdev_find_adj(struct net_device *adj_dev,
 						 struct list_head *adj_list)
 {
 	struct netdev_adjacent *adj;
@@ -4892,7 +4894,7 @@ bool netdev_has_upper_dev(struct net_device *dev,
 {
 	ASSERT_RTNL();
 
-	return __netdev_find_adj(dev, upper_dev, &dev->all_adj_list.upper);
+	return __netdev_find_adj(upper_dev, &dev->all_adj_list.upper);
 }
 EXPORT_SYMBOL(netdev_has_upper_dev);
 
@@ -5154,7 +5156,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	struct netdev_adjacent *adj;
 	int ret;
 
-	adj = __netdev_find_adj(dev, adj_dev, dev_list);
+	adj = __netdev_find_adj(adj_dev, dev_list);
 
 	if (adj) {
 		adj->ref_nr++;
@@ -5210,7 +5212,7 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 {
 	struct netdev_adjacent *adj;
 
-	adj = __netdev_find_adj(dev, adj_dev, dev_list);
+	adj = __netdev_find_adj(adj_dev, dev_list);
 
 	if (!adj) {
 		pr_err("tried to remove device %s from %s\n",
@@ -5331,10 +5333,10 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 		return -EBUSY;
 
 	/* To prevent loops, check if dev is not upper device to upper_dev. */
-	if (__netdev_find_adj(upper_dev, dev, &upper_dev->all_adj_list.upper))
+	if (__netdev_find_adj(dev, &upper_dev->all_adj_list.upper))
 		return -EBUSY;
 
-	if (__netdev_find_adj(dev, upper_dev, &dev->adj_list.upper))
+	if (__netdev_find_adj(upper_dev, &dev->adj_list.upper))
 		return -EEXIST;
 
 	if (master && netdev_master_upper_dev_get(dev))
@@ -5612,7 +5614,7 @@ void *netdev_lower_dev_get_private(struct net_device *dev,
 
 	if (!lower_dev)
 		return NULL;
-	lower = __netdev_find_adj(dev, lower_dev, &dev->adj_list.lower);
+	lower = __netdev_find_adj(lower_dev, &dev->adj_list.lower);
 	if (!lower)
 		return NULL;
 

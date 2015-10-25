@@ -364,21 +364,6 @@ cyc_thresh	Specifies how frequently CYC packets are produced - see cyc
 
 		CYC packets are not requested by default.
 
-no_force_psb	This is a driver option and is not in the IA32_RTIT_CTL MSR.
-
-		It stops the driver resetting the byte count to zero whenever
-		enabling the trace (for example on context switches) which in
-		turn results in no PSB being forced.  However some processors
-		will produce a PSB anyway.
-
-		In any case, there is still a PSB when the trace is enabled for
-		the first time.
-
-		no_force_psb can be used to slightly decrease the trace size but
-		may make it harder for the decoder to recover from errors.
-
-		no_force_psb is not selected by default.
-
 
 new snapshot option
 -------------------

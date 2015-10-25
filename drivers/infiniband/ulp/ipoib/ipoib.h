@@ -80,7 +80,7 @@ enum {
 	IPOIB_NUM_WC		  = 4,
 
 	IPOIB_MAX_PATH_REC_QUEUE  = 3,
-	IPOIB_MAX_MCAST_QUEUE	  = 3,
+	IPOIB_MAX_MCAST_QUEUE	  = 64,
 
 	IPOIB_FLAG_OPER_UP	  = 0,
 	IPOIB_FLAG_INITIALIZED	  = 1,
@@ -548,6 +548,8 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 
 int ipoib_mcast_attach(struct net_device *dev, u16 mlid,
 		       union ib_gid *mgid, int set_qkey);
+int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast);
+struct ipoib_mcast *__ipoib_mcast_find(struct net_device *dev, void *mgid);
 
 int ipoib_init_qp(struct net_device *dev);
 int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca);

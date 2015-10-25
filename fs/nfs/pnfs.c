@@ -1104,20 +1104,15 @@ bool pnfs_roc(struct inode *ino)
 			mark_lseg_invalid(lseg, &tmp_list);
 			found = true;
 		}
-	/* pnfs_prepare_layoutreturn() grabs lo ref and it will be put
-	 * in pnfs_roc_release(). We don't really send a layoutreturn but
-	 * still want others to view us like we are sending one!
-	 *
-	 * If pnfs_prepare_layoutreturn() fails, it means someone else is doing
-	 * LAYOUTRETURN, so we proceed like there are no layouts to return.
-	 *
-	 * ROC in three conditions:
+	/* ROC in two conditions:
 	 * 1. there are ROC lsegs
 	 * 2. we don't send layoutreturn
-	 * 3. no others are sending layoutreturn
 	 */
-	if (found && !layoutreturn && pnfs_prepare_layoutreturn(lo))
+	if (found && !layoutreturn) {
+		/* lo ref dropped in pnfs_roc_release() */
+		pnfs_get_layout_hdr(lo);
 		roc = true;
+	}
 
 out_noroc:
 	spin_unlock(&ino->i_lock);
@@ -1170,6 +1165,26 @@ void pnfs_roc_get_barrier(struct inode *ino, u32 *barrier)
 	 */
 	*barrier = current_seqid + atomic_read(&lo->plh_outstanding);
 	spin_unlock(&ino->i_lock);
+}
+
+bool pnfs_wait_on_layoutreturn(struct inode *ino, struct rpc_task *task)
+{
+	struct nfs_inode *nfsi = NFS_I(ino);
+        struct pnfs_layout_hdr *lo;
+        bool sleep = false;
+
+	/* we might not have grabbed lo reference. so need to check under
+	 * i_lock */
+        spin_lock(&ino->i_lock);
+        lo = nfsi->layout;
+        if (lo && test_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
+                sleep = true;
+        spin_unlock(&ino->i_lock);
+
+        if (sleep)
+                rpc_sleep_on(&NFS_SERVER(ino)->roc_rpcwaitq, task, NULL);
+
+        return sleep;
 }
 
 /*

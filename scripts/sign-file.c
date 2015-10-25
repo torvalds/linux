@@ -1,12 +1,15 @@
 /* Sign a module file using the given key.
  *
- * Copyright (C) 2014 Red Hat, Inc. All Rights Reserved.
- * Written by David Howells (dhowells@redhat.com)
+ * Copyright © 2014-2015 Red Hat, Inc. All Rights Reserved.
+ * Copyright © 2015      Intel Corporation.
+ *
+ * Authors: David Howells <dhowells@redhat.com>
+ *          David Woodhouse <dwmw2@infradead.org>
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1
+ * of the licence, or (at your option) any later version.
  */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -17,12 +20,33 @@
 #include <getopt.h>
 #include <err.h>
 #include <arpa/inet.h>
+#include <openssl/opensslv.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
-#include <openssl/cms.h>
 #include <openssl/err.h>
 #include <openssl/engine.h>
+
+/*
+ * Use CMS if we have openssl-1.0.0 or newer available - otherwise we have to
+ * assume that it's not available and its header file is missing and that we
+ * should use PKCS#7 instead.  Switching to the older PKCS#7 format restricts
+ * the options we have on specifying the X.509 certificate we want.
+ *
+ * Further, older versions of OpenSSL don't support manually adding signers to
+ * the PKCS#7 message so have to accept that we get a certificate included in
+ * the signature message.  Nor do such older versions of OpenSSL support
+ * signing with anything other than SHA1 - so we're stuck with that if such is
+ * the case.
+ */
+#if OPENSSL_VERSION_NUMBER < 0x10000000L
+#define USE_PKCS7
+#endif
+#ifndef USE_PKCS7
+#include <openssl/cms.h>
+#else
+#include <openssl/pkcs7.h>
+#endif
 
 struct module_signature {
 	uint8_t		algo;		/* Public-key crypto algorithm [0] */
@@ -107,30 +131,42 @@ int main(int argc, char **argv)
 	struct module_signature sig_info = { .id_type = PKEY_ID_PKCS7 };
 	char *hash_algo = NULL;
 	char *private_key_name, *x509_name, *module_name, *dest_name;
-	bool save_cms = false, replace_orig;
+	bool save_sig = false, replace_orig;
 	bool sign_only = false;
 	unsigned char buf[4096];
-	unsigned long module_size, cms_size;
-	unsigned int use_keyid = 0, use_signed_attrs = CMS_NOATTR;
+	unsigned long module_size, sig_size;
+	unsigned int use_signed_attrs;
 	const EVP_MD *digest_algo;
 	EVP_PKEY *private_key;
+#ifndef USE_PKCS7
 	CMS_ContentInfo *cms;
+	unsigned int use_keyid = 0;
+#else
+	PKCS7 *pkcs7;
+#endif
 	X509 *x509;
 	BIO *b, *bd = NULL, *bm;
 	int opt, n;
-
 	OpenSSL_add_all_algorithms();
 	ERR_load_crypto_strings();
 	ERR_clear_error();
 
 	key_pass = getenv("KBUILD_SIGN_PIN");
 
+#ifndef USE_PKCS7
+	use_signed_attrs = CMS_NOATTR;
+#else
+	use_signed_attrs = PKCS7_NOATTR;
+#endif
+
 	do {
 		opt = getopt(argc, argv, "dpk");
 		switch (opt) {
-		case 'p': save_cms = true; break;
-		case 'd': sign_only = true; save_cms = true; break;
+		case 'p': save_sig = true; break;
+		case 'd': sign_only = true; save_sig = true; break;
+#ifndef USE_PKCS7
 		case 'k': use_keyid = CMS_USE_KEYID; break;
+#endif
 		case -1: break;
 		default: format();
 		}
@@ -153,6 +189,14 @@ int main(int argc, char **argv)
 		    "asprintf");
 		replace_orig = true;
 	}
+
+#ifdef USE_PKCS7
+	if (strcmp(hash_algo, "sha1") != 0) {
+		fprintf(stderr, "sign-file: %s only supports SHA1 signing\n",
+			OPENSSL_VERSION_TEXT);
+		exit(3);
+	}
+#endif
 
 	/* Read the private key and the X.509 cert the PKCS#7 message
 	 * will point to.
@@ -210,7 +254,8 @@ int main(int argc, char **argv)
 	bm = BIO_new_file(module_name, "rb");
 	ERR(!bm, "%s", module_name);
 
-	/* Load the CMS message from the digest buffer. */
+#ifndef USE_PKCS7
+	/* Load the signature message from the digest buffer. */
 	cms = CMS_sign(NULL, NULL, NULL, NULL,
 		       CMS_NOCERTS | CMS_PARTIAL | CMS_BINARY | CMS_DETACHED | CMS_STREAM);
 	ERR(!cms, "CMS_sign");
@@ -218,17 +263,31 @@ int main(int argc, char **argv)
 	ERR(!CMS_add1_signer(cms, x509, private_key, digest_algo,
 			     CMS_NOCERTS | CMS_BINARY | CMS_NOSMIMECAP |
 			     use_keyid | use_signed_attrs),
-	    "CMS_sign_add_signer");
+	    "CMS_add1_signer");
 	ERR(CMS_final(cms, bm, NULL, CMS_NOCERTS | CMS_BINARY) < 0,
 	    "CMS_final");
 
-	if (save_cms) {
-		char *cms_name;
+#else
+	pkcs7 = PKCS7_sign(x509, private_key, NULL, bm,
+			   PKCS7_NOCERTS | PKCS7_BINARY |
+			   PKCS7_DETACHED | use_signed_attrs);
+	ERR(!pkcs7, "PKCS7_sign");
+#endif
 
-		ERR(asprintf(&cms_name, "%s.p7s", module_name) < 0, "asprintf");
-		b = BIO_new_file(cms_name, "wb");
-		ERR(!b, "%s", cms_name);
-		ERR(i2d_CMS_bio_stream(b, cms, NULL, 0) < 0, "%s", cms_name);
+	if (save_sig) {
+		char *sig_file_name;
+
+		ERR(asprintf(&sig_file_name, "%s.p7s", module_name) < 0,
+		    "asprintf");
+		b = BIO_new_file(sig_file_name, "wb");
+		ERR(!b, "%s", sig_file_name);
+#ifndef USE_PKCS7
+		ERR(i2d_CMS_bio_stream(b, cms, NULL, 0) < 0,
+		    "%s", sig_file_name);
+#else
+		ERR(i2d_PKCS7_bio(b, pkcs7) < 0,
+			"%s", sig_file_name);
+#endif
 		BIO_free(b);
 	}
 
@@ -244,9 +303,13 @@ int main(int argc, char **argv)
 	ERR(n < 0, "%s", module_name);
 	module_size = BIO_number_written(bd);
 
+#ifndef USE_PKCS7
 	ERR(i2d_CMS_bio_stream(bd, cms, NULL, 0) < 0, "%s", dest_name);
-	cms_size = BIO_number_written(bd) - module_size;
-	sig_info.sig_len = htonl(cms_size);
+#else
+	ERR(i2d_PKCS7_bio(bd, pkcs7) < 0, "%s", dest_name);
+#endif
+	sig_size = BIO_number_written(bd) - module_size;
+	sig_info.sig_len = htonl(sig_size);
 	ERR(BIO_write(bd, &sig_info, sizeof(sig_info)) < 0, "%s", dest_name);
 	ERR(BIO_write(bd, magic_number, sizeof(magic_number) - 1) < 0, "%s", dest_name);
 

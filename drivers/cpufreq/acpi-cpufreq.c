@@ -375,12 +375,11 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 
 	pr_debug("get_cur_freq_on_cpu (%d)\n", cpu);
 
-	policy = cpufreq_cpu_get(cpu);
+	policy = cpufreq_cpu_get_raw(cpu);
 	if (unlikely(!policy))
 		return 0;
 
 	data = policy->driver_data;
-	cpufreq_cpu_put(policy);
 	if (unlikely(!data || !data->freq_table))
 		return 0;
 

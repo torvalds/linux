@@ -1190,7 +1190,7 @@ mtk_eint_debounce_process(struct mtk_pinctrl *pctl, int index)
 	}
 }
 
-static void mtk_eint_irq_handler(unsigned irq, struct irq_desc *desc)
+static void mtk_eint_irq_handler(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct mtk_pinctrl *pctl = irq_desc_get_handler_data(desc);

@@ -530,8 +530,7 @@ static inline void preflow_handler(struct irq_desc *desc)
 static inline void preflow_handler(struct irq_desc *desc) { }
 #endif
 
-static void adi_gpio_handle_pint_irq(unsigned int inta_irq,
-			struct irq_desc *desc)
+static void adi_gpio_handle_pint_irq(struct irq_desc *desc)
 {
 	u32 request;
 	u32 level_mask, hwirq;

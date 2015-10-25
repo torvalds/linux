@@ -100,9 +100,7 @@ static struct irq_chip  bast_pc104_chip = {
 	.irq_ack	= bast_pc104_maskack
 };
 
-static void
-bast_irq_pc104_demux(unsigned int irq,
-		     struct irq_desc *desc)
+static void bast_irq_pc104_demux(struct irq_desc *desc)
 {
 	unsigned int stat;
 	unsigned int irqno;

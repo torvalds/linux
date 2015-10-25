@@ -646,14 +646,14 @@ rx_d_frame(struct hfc4s8s_l1 *l1p, int ech)
 
 		f1 = Read_hfc8_stable(l1p->hw, A_F1);
 		f2 = Read_hfc8(l1p->hw, A_F2);
-		df = f1 - f2;
-		if ((f1 - f2) < 0)
-			df = f1 - f2 + MAX_F_CNT + 1;
 
+		if (f1 < f2)
+			df = MAX_F_CNT + 1 + f1 - f2;
+		else
+			df = f1 - f2;
 
-		if (!df) {
+		if (!df)
 			return;	/* no complete frame in fifo */
-		}
 
 		z1 = Read_hfc16_stable(l1p->hw, A_Z1);
 		z2 = Read_hfc16(l1p->hw, A_Z2);

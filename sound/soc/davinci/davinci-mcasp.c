@@ -663,7 +663,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	u8 rx_ser = 0;
 	u8 slots = mcasp->tdm_slots;
 	u8 max_active_serializers = (channels + slots - 1) / slots;
-	int active_serializers, numevt, n;
+	int active_serializers, numevt;
 	u32 reg;
 	/* Default configuration */
 	if (mcasp->version < MCASP_VERSION_3)
@@ -745,9 +745,8 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	 * The number of words for numevt need to be in steps of active
 	 * serializers.
 	 */
-	n = numevt % active_serializers;
-	if (n)
-		numevt += (active_serializers - n);
+	numevt = (numevt / active_serializers) * active_serializers;
+
 	while (period_words % numevt && numevt > 0)
 		numevt -= active_serializers;
 	if (numevt <= 0)
@@ -1299,6 +1298,7 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 		.ops 		= &davinci_mcasp_dai_ops,
 
 		.symmetric_samplebits	= 1,
+		.symmetric_rates	= 1,
 	},
 	{
 		.name		= "davinci-mcasp.1",
@@ -1685,7 +1685,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "common");
 	if (irq >= 0) {
-		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_common\n",
+		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_common",
 					  dev_name(&pdev->dev));
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						davinci_mcasp_common_irq_handler,
@@ -1702,7 +1702,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "rx");
 	if (irq >= 0) {
-		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_rx\n",
+		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_rx",
 					  dev_name(&pdev->dev));
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						davinci_mcasp_rx_irq_handler,
@@ -1717,7 +1717,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "tx");
 	if (irq >= 0) {
-		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_tx\n",
+		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_tx",
 					  dev_name(&pdev->dev));
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						davinci_mcasp_tx_irq_handler,

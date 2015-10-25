@@ -56,9 +56,6 @@
 
 #define ARMADA_370_XP_MAX_PER_CPU_IRQS		(28)
 
-#define ARMADA_370_XP_TIMER0_PER_CPU_IRQ	(5)
-#define ARMADA_370_XP_FABRIC_IRQ		(3)
-
 #define IPI_DOORBELL_START                      (0)
 #define IPI_DOORBELL_END                        (8)
 #define IPI_DOORBELL_MASK                       0xFF
@@ -81,13 +78,10 @@ static phys_addr_t msi_doorbell_addr;
 
 static inline bool is_percpu_irq(irq_hw_number_t irq)
 {
-	switch (irq) {
-	case ARMADA_370_XP_TIMER0_PER_CPU_IRQ:
-	case ARMADA_370_XP_FABRIC_IRQ:
+	if (irq <= ARMADA_370_XP_MAX_PER_CPU_IRQS)
 		return true;
-	default:
-		return false;
-	}
+
+	return false;
 }
 
 /*
@@ -200,7 +194,6 @@ static int armada_370_xp_msi_map(struct irq_domain *domain, unsigned int virq,
 {
 	irq_set_chip_and_handler(virq, &armada_370_xp_msi_irq_chip,
 				 handle_simple_irq);
-	set_irq_flags(virq, IRQF_VALID);
 
 	return 0;
 }
@@ -317,7 +310,7 @@ static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
 		irq_set_chip_and_handler(virq, &armada_370_xp_irq_chip,
 					handle_level_irq);
 	}
-	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(virq);
 
 	return 0;
 }
@@ -447,8 +440,7 @@ static void armada_370_xp_handle_msi_irq(struct pt_regs *regs, bool is_chained)
 static void armada_370_xp_handle_msi_irq(struct pt_regs *r, bool b) {}
 #endif
 
-static void armada_370_xp_mpic_handle_cascade_irq(unsigned int irq,
-						  struct irq_desc *desc)
+static void armada_370_xp_mpic_handle_cascade_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long irqmap, irqn, irqsrc, cpuid;
@@ -551,7 +543,7 @@ static void armada_370_xp_mpic_resume(void)
 		if (virq == 0)
 			continue;
 
-		if (irq != ARMADA_370_XP_TIMER0_PER_CPU_IRQ)
+		if (!is_percpu_irq(irq))
 			writel(irq, per_cpu_int_base +
 			       ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
 		else

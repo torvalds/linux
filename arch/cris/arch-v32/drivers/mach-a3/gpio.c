@@ -957,7 +957,7 @@ static void __init virtual_gpio_init(void)
 
 static int __init gpio_init(void)
 {
-	int res;
+	int res, res2;
 
 	printk(KERN_INFO "ETRAX FS GPIO driver v2.7, (c) 2003-2008 "
 		"Axis Communications AB\n");
@@ -977,7 +977,7 @@ static int __init gpio_init(void)
 	CRIS_LED_DISK_READ(0);
 	CRIS_LED_DISK_WRITE(0);
 
-	int res2 = request_irq(GIO_INTR_VECT, gpio_interrupt,
+	res2 = request_irq(GIO_INTR_VECT, gpio_interrupt,
 		IRQF_SHARED, "gpio", &alarmlist);
 	if (res2) {
 		printk(KERN_ERR "err: irq for gpio\n");

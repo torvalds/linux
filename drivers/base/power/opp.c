@@ -341,6 +341,34 @@ unsigned long dev_pm_opp_get_max_clock_latency(struct device *dev)
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_max_clock_latency);
 
 /**
+ * dev_pm_opp_get_suspend_opp() - Get suspend opp
+ * @dev:	device for which we do this operation
+ *
+ * Return: This function returns pointer to the suspend opp if it is
+ * defined and available, otherwise it returns NULL.
+ *
+ * Locking: This function must be called under rcu_read_lock(). opp is a rcu
+ * protected pointer. The reason for the same is that the opp pointer which is
+ * returned will remain valid for use with opp_get_{voltage, freq} only while
+ * under the locked area. The pointer returned must be used prior to unlocking
+ * with rcu_read_unlock() to maintain the integrity of the pointer.
+ */
+struct dev_pm_opp *dev_pm_opp_get_suspend_opp(struct device *dev)
+{
+	struct device_opp *dev_opp;
+
+	opp_rcu_lockdep_assert();
+
+	dev_opp = _find_device_opp(dev);
+	if (IS_ERR(dev_opp) || !dev_opp->suspend_opp ||
+	    !dev_opp->suspend_opp->available)
+		return NULL;
+
+	return dev_opp->suspend_opp;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_suspend_opp);
+
+/**
  * dev_pm_opp_get_opp_count() - Get number of opps available in the opp list
  * @dev:	device for which we do this operation
  *
@@ -864,9 +892,16 @@ static int opp_get_microvolt(struct dev_pm_opp *opp, struct device *dev)
 	u32 microvolt[3] = {0};
 	int count, ret;
 
-	count = of_property_count_u32_elems(opp->np, "opp-microvolt");
-	if (!count)
+	/* Missing property isn't a problem, but an invalid entry is */
+	if (!of_find_property(opp->np, "opp-microvolt", NULL))
 		return 0;
+
+	count = of_property_count_u32_elems(opp->np, "opp-microvolt");
+	if (count < 0) {
+		dev_err(dev, "%s: Invalid opp-microvolt property (%d)\n",
+			__func__, count);
+		return count;
+	}
 
 	/* There can be one or three elements here */
 	if (count != 1 && count != 3) {
@@ -1035,7 +1070,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_add);
  * share a common logic which is isolated here.
  *
  * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modifcation was done OR modification was
+ * copy operation, returns 0 if no modification was done OR modification was
  * successful.
  *
  * Locking: The internal device_opp and opp structures are RCU protected.
@@ -1123,7 +1158,7 @@ unlock:
  * mutex locking or synchronize_rcu() blocking calls cannot be used.
  *
  * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modifcation was done OR modification was
+ * copy operation, returns 0 if no modification was done OR modification was
  * successful.
  */
 int dev_pm_opp_enable(struct device *dev, unsigned long freq)
@@ -1149,7 +1184,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_enable);
  * mutex locking or synchronize_rcu() blocking calls cannot be used.
  *
  * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modifcation was done OR modification was
+ * copy operation, returns 0 if no modification was done OR modification was
  * successful.
  */
 int dev_pm_opp_disable(struct device *dev, unsigned long freq)
