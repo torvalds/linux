@@ -215,6 +215,7 @@ static struct irq_chip tegra_ictlr_chip = {
 	.irq_unmask		= tegra_unmask,
 	.irq_retrigger		= tegra_retrigger,
 	.irq_set_wake		= tegra_set_wake,
+	.irq_set_type		= irq_chip_set_type_parent,
 	.flags			= IRQCHIP_MASK_ON_SUSPEND,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
