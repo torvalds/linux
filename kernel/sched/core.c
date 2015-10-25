@@ -2366,8 +2366,15 @@ void wake_up_new_task(struct task_struct *p)
 	trace_sched_wakeup_new(p);
 	check_preempt_curr(rq, p, WF_FORK);
 #ifdef CONFIG_SMP
-	if (p->sched_class->task_woken)
+	if (p->sched_class->task_woken) {
+		/*
+		 * Nothing relies on rq->lock after this, so its fine to
+		 * drop it.
+		 */
+		lockdep_unpin_lock(&rq->lock);
 		p->sched_class->task_woken(rq, p);
+		lockdep_pin_lock(&rq->lock);
+	}
 #endif
 	task_rq_unlock(rq, p, &flags);
 }
@@ -7237,9 +7244,6 @@ void __init sched_init_smp(void)
 
 	alloc_cpumask_var(&non_isolated_cpus, GFP_KERNEL);
 	alloc_cpumask_var(&fallback_doms, GFP_KERNEL);
-
-	/* nohz_full won't take effect without isolating the cpus. */
-	tick_nohz_full_add_cpus_to(cpu_isolated_map);
 
 	sched_init_numa();
 

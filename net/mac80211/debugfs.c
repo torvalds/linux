@@ -149,7 +149,7 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 
 	for (i = 0; i < NUM_IEEE80211_HW_FLAGS; i++) {
 		if (test_bit(i, local->hw.flags))
-			pos += scnprintf(pos, end - pos, "%s",
+			pos += scnprintf(pos, end - pos, "%s\n",
 					 hw_flag_names[i]);
 	}
 

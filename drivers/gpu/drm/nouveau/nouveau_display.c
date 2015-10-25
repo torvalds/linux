@@ -469,9 +469,13 @@ nouveau_display_create(struct drm_device *dev)
 	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		dev->mode_config.max_width = 4096;
 		dev->mode_config.max_height = 4096;
-	} else {
+	} else
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI) {
 		dev->mode_config.max_width = 8192;
 		dev->mode_config.max_height = 8192;
+	} else {
+		dev->mode_config.max_width = 16384;
+		dev->mode_config.max_height = 16384;
 	}
 
 	dev->mode_config.preferred_depth = 24;

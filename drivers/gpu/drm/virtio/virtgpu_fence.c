@@ -61,7 +61,7 @@ static void virtio_timeline_value_str(struct fence *f, char *str, int size)
 {
 	struct virtio_gpu_fence *fence = to_virtio_fence(f);
 
-	snprintf(str, size, "%lu", atomic64_read(&fence->drv->last_seq));
+	snprintf(str, size, "%llu", (u64)atomic64_read(&fence->drv->last_seq));
 }
 
 static const struct fence_ops virtio_fence_ops = {

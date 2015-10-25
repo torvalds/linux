@@ -165,8 +165,8 @@ int ext4_mpage_readpages(struct address_space *mapping,
 		if (pages) {
 			page = list_entry(pages->prev, struct page, lru);
 			list_del(&page->lru);
-			if (add_to_page_cache_lru(page, mapping,
-						  page->index, GFP_KERNEL))
+			if (add_to_page_cache_lru(page, mapping, page->index,
+					GFP_KERNEL & mapping_gfp_mask(mapping)))
 				goto next_page;
 		}
 

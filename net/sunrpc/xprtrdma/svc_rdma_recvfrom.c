@@ -533,7 +533,7 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.page_base = head->arg.page_base;
 
 	/* rq_respages starts after the last arg page */
-	rqstp->rq_respages = &rqstp->rq_arg.pages[page_no];
+	rqstp->rq_respages = &rqstp->rq_pages[page_no];
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* Rebuild rq_arg head and tail. */

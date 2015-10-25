@@ -2995,6 +2995,15 @@ static int kv_dpm_late_init(void *handle)
 {
 	/* powerdown unused blocks for now */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int ret;
+
+	if (!amdgpu_dpm)
+		return 0;
+
+	/* init the sysfs and debugfs files late */
+	ret = amdgpu_pm_sysfs_init(adev);
+	if (ret)
+		return ret;
 
 	kv_dpm_powergate_acp(adev, true);
 	kv_dpm_powergate_samu(adev, true);
@@ -3038,9 +3047,6 @@ static int kv_dpm_sw_init(void *handle)
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
 	if (amdgpu_dpm == 1)
 		amdgpu_pm_print_power_states(adev);
-	ret = amdgpu_pm_sysfs_init(adev);
-	if (ret)
-		goto dpm_failed;
 	mutex_unlock(&adev->pm.mutex);
 	DRM_INFO("amdgpu: dpm initialized\n");
 

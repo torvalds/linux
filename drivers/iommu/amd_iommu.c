@@ -2006,6 +2006,15 @@ static void do_detach(struct iommu_dev_data *dev_data)
 {
 	struct amd_iommu *iommu;
 
+	/*
+	 * First check if the device is still attached. It might already
+	 * be detached from its domain because the generic
+	 * iommu_detach_group code detached it and we try again here in
+	 * our alias handling.
+	 */
+	if (!dev_data->domain)
+		return;
+
 	iommu = amd_iommu_rlookup_table[dev_data->devid];
 
 	/* decrease reference counters */

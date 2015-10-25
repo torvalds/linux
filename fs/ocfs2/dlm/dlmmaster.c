@@ -1658,12 +1658,13 @@ send_response:
 		if (ret < 0) {
 			mlog(ML_ERROR, "failed to dispatch assert master work\n");
 			response = DLM_MASTER_RESP_ERROR;
+			spin_unlock(&res->spinlock);
 			dlm_lockres_put(res);
 		} else {
 			dispatched = 1;
 			__dlm_lockres_grab_inflight_worker(dlm, res);
+			spin_unlock(&res->spinlock);
 		}
-		spin_unlock(&res->spinlock);
 	} else {
 		if (res)
 			dlm_lockres_put(res);

@@ -187,6 +187,7 @@ __mlxsw_item_bit_array_offset(struct mlxsw_item *item, u16 index, u8 *shift)
 {
 	u16 max_index, be_index;
 	u16 offset;		/* byte offset inside the array */
+	u8 in_byte_index;
 
 	BUG_ON(index && !item->element_size);
 	if (item->offset % sizeof(u32) != 0 ||
@@ -199,7 +200,8 @@ __mlxsw_item_bit_array_offset(struct mlxsw_item *item, u16 index, u8 *shift)
 	max_index = (item->size.bytes << 3) / item->element_size - 1;
 	be_index = max_index - index;
 	offset = be_index * item->element_size >> 3;
-	*shift = index % (BITS_PER_BYTE / item->element_size) << 1;
+	in_byte_index  = index % (BITS_PER_BYTE / item->element_size);
+	*shift = in_byte_index * item->element_size;
 
 	return item->offset + offset;
 }
