@@ -47,10 +47,24 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 			 struct machine *machine __maybe_unused)
 {
 	struct thread_map_event *map = &event->thread_map;
+	struct thread_map *threads;
 
 	TEST_ASSERT_VAL("wrong nr",   map->nr == 1);
 	TEST_ASSERT_VAL("wrong pid",  map->entries[0].pid == (u64) getpid());
 	TEST_ASSERT_VAL("wrong comm", !strcmp(map->entries[0].comm, "perf"));
+
+	threads = thread_map__new_event(&event->thread_map);
+	TEST_ASSERT_VAL("failed to alloc map", threads);
+
+	TEST_ASSERT_VAL("wrong nr", threads->nr == 1);
+	TEST_ASSERT_VAL("wrong pid",
+			thread_map__pid(threads, 0) == getpid());
+	TEST_ASSERT_VAL("wrong comm",
+			thread_map__comm(threads, 0) &&
+			!strcmp(thread_map__comm(threads, 0), "perf"));
+	TEST_ASSERT_VAL("wrong refcnt",
+			atomic_read(&threads->refcnt) == 1);
+	thread_map__put(threads);
 	return 0;
 }
 
