@@ -2793,6 +2793,44 @@ perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
 	return err;
 }
 
+size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
+{
+	struct event_update_event *ev = &event->event_update;
+	struct event_update_event_scale *ev_scale;
+	struct event_update_event_cpus *ev_cpus;
+	struct cpu_map *map;
+	size_t ret;
+
+	ret = fprintf(fp, "\n... id:    %" PRIu64 "\n", ev->id);
+
+	switch (ev->type) {
+	case PERF_EVENT_UPDATE__SCALE:
+		ev_scale = (struct event_update_event_scale *) ev->data;
+		ret += fprintf(fp, "... scale: %f\n", ev_scale->scale);
+		break;
+	case PERF_EVENT_UPDATE__UNIT:
+		ret += fprintf(fp, "... unit:  %s\n", ev->data);
+		break;
+	case PERF_EVENT_UPDATE__NAME:
+		ret += fprintf(fp, "... name:  %s\n", ev->data);
+		break;
+	case PERF_EVENT_UPDATE__CPUS:
+		ev_cpus = (struct event_update_event_cpus *) ev->data;
+		ret += fprintf(fp, "... ");
+
+		map = cpu_map__new_data(&ev_cpus->cpus);
+		if (map)
+			ret += cpu_map__fprintf(map, fp);
+		else
+			ret += fprintf(fp, "failed to get cpus\n");
+		break;
+	default:
+		ret += fprintf(fp, "... unknown type\n");
+		break;
+	}
+
+	return ret;
+}
 
 int perf_event__synthesize_attrs(struct perf_tool *tool,
 				   struct perf_session *session,
