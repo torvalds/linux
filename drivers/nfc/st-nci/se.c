@@ -232,13 +232,13 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 		if (j < ARRAY_SIZE(st_nci_gates) &&
 		    st_nci_gates[j].gate == dm_pipe_info->dst_gate_id &&
 		    ST_NCI_DM_IS_PIPE_OPEN(dm_pipe_info->pipe_state)) {
-			st_nci_gates[j].pipe = pipe_info[2];
+			ndev->hci_dev->init_data.gates[j].pipe = pipe_info[2];
 
 			ndev->hci_dev->gate2pipe[st_nci_gates[j].gate] =
-						st_nci_gates[j].pipe;
-			ndev->hci_dev->pipes[st_nci_gates[j].pipe].gate =
+						pipe_info[2];
+			ndev->hci_dev->pipes[pipe_info[2]].gate =
 						st_nci_gates[j].gate;
-			ndev->hci_dev->pipes[st_nci_gates[j].pipe].host =
+			ndev->hci_dev->pipes[pipe_info[2]].host =
 						dm_pipe_info->src_host_id;
 		}
 		kfree_skb(skb_pipe_info);
