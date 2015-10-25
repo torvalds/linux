@@ -1818,6 +1818,8 @@ static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 	return 0;
 }
 
+#ifdef CONFIG_RTL8XXXU_UNTESTED
+
 static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 {
 	int i;
@@ -1884,6 +1886,8 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 	}
 	return 0;
 }
+
+#endif
 
 static int
 rtl8xxxu_read_efuse8(struct rtl8xxxu_priv *priv, u16 offset, u8 *data)
@@ -2217,6 +2221,8 @@ static int rtl8723au_load_firmware(struct rtl8xxxu_priv *priv)
 	return ret;
 }
 
+#ifdef CONFIG_RTL8XXXU_UNTESTED
+
 static int rtl8192cu_load_firmware(struct rtl8xxxu_priv *priv)
 {
 	char *fw_name;
@@ -2233,6 +2239,8 @@ static int rtl8192cu_load_firmware(struct rtl8xxxu_priv *priv)
 
 	return ret;
 }
+
+#endif
 
 static void rtl8xxxu_firmware_self_reset(struct rtl8xxxu_priv *priv)
 {
@@ -3815,6 +3823,8 @@ exit:
 	return ret;
 }
 
+#ifdef CONFIG_RTL8XXXU_UNTESTED
+
 static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
@@ -3917,6 +3927,8 @@ static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 	}
 	return 0;
 }
+
+#endif
 
 static void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv)
 {
@@ -5783,12 +5795,16 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.writeN_block_size = 1024,
 };
 
+#ifdef CONFIG_RTL8XXXU_UNTESTED
+
 static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.parse_efuse = rtl8192cu_parse_efuse,
 	.load_firmware = rtl8192cu_load_firmware,
 	.power_on = rtl8192cu_power_on,
 	.writeN_block_size = 128,
 };
+
+#endif
 
 static struct usb_device_id dev_table[] = {
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8724, 0xff, 0xff, 0xff),
