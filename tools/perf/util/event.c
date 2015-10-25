@@ -10,6 +10,8 @@
 #include "thread.h"
 #include "thread_map.h"
 #include "symbol/kallsyms.h"
+#include "asm/bug.h"
+#include "stat.h"
 
 static const char *perf_event__names[] = {
 	[0]					= "TOTAL",
@@ -862,6 +864,44 @@ int perf_event__synthesize_cpu_map(struct perf_tool *tool,
 	event = cpu_map_event__new(map);
 	if (!event)
 		return -ENOMEM;
+
+	err = process(tool, (union perf_event *) event, NULL, machine);
+
+	free(event);
+	return err;
+}
+
+int perf_event__synthesize_stat_config(struct perf_tool *tool,
+				       struct perf_stat_config *config,
+				       perf_event__handler_t process,
+				       struct machine *machine)
+{
+	struct stat_config_event *event;
+	int size, i = 0, err;
+
+	size  = sizeof(*event);
+	size += (PERF_STAT_CONFIG_TERM__MAX * sizeof(event->data[0]));
+
+	event = zalloc(size);
+	if (!event)
+		return -ENOMEM;
+
+	event->header.type = PERF_RECORD_STAT_CONFIG;
+	event->header.size = size;
+	event->nr          = PERF_STAT_CONFIG_TERM__MAX;
+
+#define ADD(__term, __val)					\
+	event->data[i].tag = PERF_STAT_CONFIG_TERM__##__term;	\
+	event->data[i].val = __val;				\
+	i++;
+
+	ADD(AGGR_MODE,	config->aggr_mode)
+	ADD(INTERVAL,	config->interval)
+	ADD(SCALE,	config->scale)
+
+	WARN_ONCE(i != PERF_STAT_CONFIG_TERM__MAX,
+		  "stat config terms unbalanced\n");
+#undef ADD
 
 	err = process(tool, (union perf_event *) event, NULL, machine);
 

@@ -35,6 +35,7 @@ perf-y += llvm.o llvm-src-base.o llvm-src-kbuild.o llvm-src-prologue.o
 perf-y += bpf.o
 perf-y += topology.o
 perf-y += cpumap.o
+perf-y += stat.o
 
 $(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
 	$(call rule_mkdir)

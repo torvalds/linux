@@ -188,6 +188,10 @@ static struct test generic_tests[] = {
 		.func = test__cpu_map_synthesize,
 	},
 	{
+		.desc = "Test stat config synthesize",
+		.func = test__synthesize_stat_config,
+	},
+	{
 		.func = NULL,
 	},
 };
