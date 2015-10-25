@@ -90,9 +90,9 @@ struct perf_evsel {
 	double			scale;
 	const char		*unit;
 	struct event_format	*tp_format;
+	off_t			id_offset;
 	union {
 		void		*priv;
-		off_t		id_offset;
 		u64		db_id;
 	};
 	struct cgroup_sel	*cgrp;
