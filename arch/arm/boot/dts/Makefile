@@ -359,6 +359,7 @@ dtb-$(CONFIG_SOC_VF610) += \
 	vf610-colibri-eval-v3.dtb \
 	vf610m4-colibri.dtb \
 	vf610-cosmic.dtb \
+	vf610m4-cosmic.dtb \
 	vf610-twr.dtb
 dtb-$(CONFIG_ARCH_MXS) += \
 	imx23-evk.dtb \
