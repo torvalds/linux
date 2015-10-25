@@ -610,14 +610,18 @@ static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 {
 	char prefix[10];
 
-	if (bus->bustype == SSB_BUSTYPE_PCI) {
+	switch (bus->bustype) {
+	case SSB_BUSTYPE_SSB:
+		bcm47xx_fill_sprom(out, NULL, false);
+		return 0;
+	case SSB_BUSTYPE_PCI:
 		memset(out, 0, sizeof(struct ssb_sprom));
 		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
 		bcm47xx_fill_sprom(out, prefix, false);
 		return 0;
-	} else {
+	default:
 		pr_warn("Unable to fill SPROM for given bustype.\n");
 		return -EINVAL;
 	}
