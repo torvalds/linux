@@ -131,6 +131,12 @@ static inline void acpi_initrd_override(void *data, size_t size)
 		(!entry) || (unsigned long)entry + sizeof(*entry) > end ||  \
 		((struct acpi_subtable_header *)entry)->length < sizeof(*entry))
 
+struct acpi_subtable_proc {
+	int id;
+	acpi_tbl_entry_handler handler;
+	int count;
+};
+
 char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
 void __acpi_unmap_table(char *map, unsigned long size);
 int early_acpi_boot_init(void);
@@ -146,9 +152,16 @@ int __init acpi_parse_entries(char *id, unsigned long table_size,
 			      struct acpi_table_header *table_header,
 			      int entry_id, unsigned int max_entries);
 int __init acpi_table_parse_entries(char *id, unsigned long table_size,
-				    int entry_id,
-				    acpi_tbl_entry_handler handler,
-				    unsigned int max_entries);
+			      int entry_id,
+			      acpi_tbl_entry_handler handler,
+			      unsigned int max_entries);
+int __init acpi_table_parse_entries(char *id, unsigned long table_size,
+			      int entry_id,
+			      acpi_tbl_entry_handler handler,
+			      unsigned int max_entries);
+int __init acpi_table_parse_entries_array(char *id, unsigned long table_size,
+			      struct acpi_subtable_proc *proc, int proc_num,
+			      unsigned int max_entries);
 int acpi_table_parse_madt(enum acpi_madt_type id,
 			  acpi_tbl_entry_handler handler,
 			  unsigned int max_entries);
