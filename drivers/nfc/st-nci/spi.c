@@ -59,13 +59,6 @@ struct st_nci_spi_phy {
 	struct st_nci_se_status se_status;
 };
 
-#define SPI_DUMP_SKB(info, skb)					\
-do {								\
-	pr_debug("%s:\n", info);				\
-	print_hex_dump(KERN_DEBUG, "spi: ", DUMP_PREFIX_OFFSET,	\
-		       16, 1, (skb)->data, (skb)->len, 0);	\
-} while (0)
-
 static int st_nci_spi_enable(void *phy_id)
 {
 	struct st_nci_spi_phy *phy = phy_id;
@@ -109,8 +102,6 @@ static int st_nci_spi_write(void *phy_id, struct sk_buff *skb)
 		.rx_buf = buf,
 		.len = skb->len,
 	};
-
-	SPI_DUMP_SKB("st_nci_spi_write", skb);
 
 	if (phy->ndlc->hard_fault != 0)
 		return phy->ndlc->hard_fault;
@@ -187,8 +178,6 @@ static int st_nci_spi_read(struct st_nci_spi_phy *phy,
 
 	skb_put(*skb, len);
 	memcpy((*skb)->data + ST_NCI_SPI_MIN_SIZE, buf, len);
-
-	SPI_DUMP_SKB("spi frame read", *skb);
 
 	return 0;
 }

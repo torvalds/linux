@@ -58,13 +58,6 @@ struct st_nci_i2c_phy {
 	struct st_nci_se_status se_status;
 };
 
-#define I2C_DUMP_SKB(info, skb)					\
-do {								\
-	pr_debug("%s:\n", info);				\
-	print_hex_dump(KERN_DEBUG, "i2c: ", DUMP_PREFIX_OFFSET,	\
-		       16, 1, (skb)->data, (skb)->len, 0);	\
-} while (0)
-
 static int st_nci_i2c_enable(void *phy_id)
 {
 	struct st_nci_i2c_phy *phy = phy_id;
@@ -100,8 +93,6 @@ static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 	int r = -1;
 	struct st_nci_i2c_phy *phy = phy_id;
 	struct i2c_client *client = phy->i2c_dev;
-
-	I2C_DUMP_SKB("st_nci_i2c_write", skb);
 
 	if (phy->ndlc->hard_fault != 0)
 		return phy->ndlc->hard_fault;
@@ -172,8 +163,6 @@ static int st_nci_i2c_read(struct st_nci_i2c_phy *phy,
 
 	skb_put(*skb, len);
 	memcpy((*skb)->data + ST_NCI_I2C_MIN_SIZE, buf, len);
-
-	I2C_DUMP_SKB("i2c frame read", *skb);
 
 	return 0;
 }
