@@ -229,6 +229,7 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_THREAD_MAP			= 73,
 	PERF_RECORD_CPU_MAP			= 74,
 	PERF_RECORD_STAT_CONFIG			= 75,
+	PERF_RECORD_STAT			= 76,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -414,6 +415,23 @@ struct stat_config_event {
 	struct stat_config_event_entry	data[];
 };
 
+struct stat_event {
+	struct perf_event_header	header;
+
+	u64	id;
+	u32	cpu;
+	u32	thread;
+
+	union {
+		struct {
+			u64 val;
+			u64 ena;
+			u64 run;
+		};
+		u64 values[3];
+	};
+};
+
 union perf_event {
 	struct perf_event_header	header;
 	struct mmap_event		mmap;
@@ -439,6 +457,7 @@ union perf_event {
 	struct thread_map_event		thread_map;
 	struct cpu_map_event		cpu_map;
 	struct stat_config_event	stat_config;
+	struct stat_event		stat;
 };
 
 void perf_event__print_totals(void);

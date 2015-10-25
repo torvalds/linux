@@ -324,6 +324,15 @@ int process_event_stat_config_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+static int process_stat_stub(struct perf_tool *tool __maybe_unused,
+			     union perf_event *event __maybe_unused,
+			     struct perf_session *perf_session
+			     __maybe_unused)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 void perf_tool__fill_defaults(struct perf_tool *tool)
 {
 	if (tool->sample == NULL)
@@ -380,6 +389,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->cpu_map = process_event_cpu_map_stub;
 	if (tool->stat_config == NULL)
 		tool->stat_config = process_event_stat_config_stub;
+	if (tool->stat == NULL)
+		tool->stat = process_stat_stub;
 }
 
 static void swap_sample_id_all(union perf_event *event, void *data)
@@ -707,6 +718,17 @@ static void perf_event__stat_config_swap(union perf_event *event,
 	mem_bswap_64(&event->stat_config.nr, size);
 }
 
+static void perf_event__stat_swap(union perf_event *event,
+				  bool sample_id_all __maybe_unused)
+{
+	event->stat.id     = bswap_64(event->stat.id);
+	event->stat.thread = bswap_32(event->stat.thread);
+	event->stat.cpu    = bswap_32(event->stat.cpu);
+	event->stat.val    = bswap_64(event->stat.val);
+	event->stat.ena    = bswap_64(event->stat.ena);
+	event->stat.run    = bswap_64(event->stat.run);
+}
+
 typedef void (*perf_event__swap_op)(union perf_event *event,
 				    bool sample_id_all);
 
@@ -737,6 +759,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_THREAD_MAP]	  = perf_event__thread_map_swap,
 	[PERF_RECORD_CPU_MAP]		  = perf_event__cpu_map_swap,
 	[PERF_RECORD_STAT_CONFIG]	  = perf_event__stat_config_swap,
+	[PERF_RECORD_STAT]		  = perf_event__stat_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
@@ -1279,6 +1302,8 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		return tool->cpu_map(tool, event, session);
 	case PERF_RECORD_STAT_CONFIG:
 		return tool->stat_config(tool, event, session);
+	case PERF_RECORD_STAT:
+		return tool->stat(tool, event, session);
 	default:
 		return -EINVAL;
 	}

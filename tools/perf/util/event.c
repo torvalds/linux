@@ -42,6 +42,7 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_THREAD_MAP]		= "THREAD_MAP",
 	[PERF_RECORD_CPU_MAP]			= "CPU_MAP",
 	[PERF_RECORD_STAT_CONFIG]		= "STAT_CONFIG",
+	[PERF_RECORD_STAT]			= "STAT",
 };
 
 const char *perf_event__name(unsigned int id)
