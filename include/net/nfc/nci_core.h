@@ -309,6 +309,7 @@ int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 		      const u8 *param, size_t param_len);
 int nci_hci_get_param(struct nci_dev *ndev, u8 gate, u8 idx,
 		      struct sk_buff **skb);
+int nci_hci_clear_all_pipes(struct nci_dev *ndev);
 int nci_hci_dev_session_init(struct nci_dev *ndev);
 
 static inline struct sk_buff *nci_skb_alloc(struct nci_dev *ndev,

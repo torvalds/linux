@@ -70,6 +70,7 @@ struct nci_hcp_packet {
 #define NCI_HCI_ANY_SET_PARAMETER  0x01
 #define NCI_HCI_ANY_GET_PARAMETER  0x02
 #define NCI_HCI_ANY_CLOSE_PIPE     0x04
+#define NCI_HCI_ADM_CLEAR_ALL_PIPE 0x14
 
 #define NCI_HFP_NO_CHAINING        0x80
 
@@ -266,6 +267,20 @@ int nci_hci_send_cmd(struct nci_dev *ndev, u8 gate, u8 cmd,
 	return r;
 }
 EXPORT_SYMBOL(nci_hci_send_cmd);
+
+int nci_hci_clear_all_pipes(struct nci_dev *ndev)
+{
+	int r;
+
+	r = nci_hci_send_cmd(ndev, NCI_HCI_ADMIN_GATE,
+			     NCI_HCI_ADM_CLEAR_ALL_PIPE, NULL, 0, NULL);
+	if (r < 0)
+		return r;
+
+	nci_hci_reset_pipes(ndev->hci_dev);
+	return r;
+}
+EXPORT_SYMBOL(nci_hci_clear_all_pipes);
 
 static void nci_hci_event_received(struct nci_dev *ndev, u8 pipe,
 				   u8 event, struct sk_buff *skb)
