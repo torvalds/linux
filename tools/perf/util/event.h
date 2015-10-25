@@ -466,6 +466,7 @@ struct perf_tool;
 struct thread_map;
 struct cpu_map;
 struct perf_stat_config;
+struct perf_counts_values;
 
 typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 				     union perf_event *event,
@@ -498,7 +499,11 @@ int perf_event__synthesize_stat_config(struct perf_tool *tool,
 				       struct machine *machine);
 void perf_event__read_stat_config(struct perf_stat_config *config,
 				  struct stat_config_event *event);
-
+int perf_event__synthesize_stat(struct perf_tool *tool,
+				u32 cpu, u32 thread, u64 id,
+				struct perf_counts_values *count,
+				perf_event__handler_t process,
+				struct machine *machine);
 int perf_event__synthesize_modules(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine);

@@ -82,6 +82,7 @@ int test_session_topology(int subtest);
 int test__thread_map_synthesize(int subtest);
 int test__cpu_map_synthesize(int subtest);
 int test__synthesize_stat_config(int subtest);
+int test__synthesize_stat(int subtest);
 
 #if defined(__arm__) || defined(__aarch64__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT

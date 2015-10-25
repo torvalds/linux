@@ -2,6 +2,7 @@
 #include "event.h"
 #include "tests.h"
 #include "stat.h"
+#include "counts.h"
 #include "debug.h"
 
 static bool has_term(struct stat_config_event *config,
@@ -18,10 +19,10 @@ static bool has_term(struct stat_config_event *config,
 	return false;
 }
 
-static int process_event(struct perf_tool *tool __maybe_unused,
-			 union perf_event *event,
-			 struct perf_sample *sample __maybe_unused,
-			 struct machine *machine __maybe_unused)
+static int process_stat_config_event(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_sample *sample __maybe_unused,
+				     struct machine *machine __maybe_unused)
 {
 	struct stat_config_event *config = &event->stat_config;
 	struct perf_stat_config stat_config;
@@ -53,7 +54,37 @@ int test__synthesize_stat_config(int subtest __maybe_unused)
 	};
 
 	TEST_ASSERT_VAL("failed to synthesize stat_config",
-		!perf_event__synthesize_stat_config(NULL, &stat_config, process_event, NULL));
+		!perf_event__synthesize_stat_config(NULL, &stat_config, process_stat_config_event, NULL));
+
+	return 0;
+}
+
+static int process_stat_event(struct perf_tool *tool __maybe_unused,
+			      union perf_event *event,
+			      struct perf_sample *sample __maybe_unused,
+			      struct machine *machine __maybe_unused)
+{
+	struct stat_event *st = &event->stat;
+
+	TEST_ASSERT_VAL("wrong cpu",    st->cpu    == 1);
+	TEST_ASSERT_VAL("wrong thread", st->thread == 2);
+	TEST_ASSERT_VAL("wrong id",     st->id     == 3);
+	TEST_ASSERT_VAL("wrong val",    st->val    == 100);
+	TEST_ASSERT_VAL("wrong run",    st->ena    == 200);
+	TEST_ASSERT_VAL("wrong ena",    st->run    == 300);
+	return 0;
+}
+
+int test__synthesize_stat(int subtest __maybe_unused)
+{
+	struct perf_counts_values count;
+
+	count.val = 100;
+	count.ena = 200;
+	count.run = 300;
+
+	TEST_ASSERT_VAL("failed to synthesize stat_config",
+		!perf_event__synthesize_stat(NULL, 1, 2, 3, &count, process_stat_event, NULL));
 
 	return 0;
 }

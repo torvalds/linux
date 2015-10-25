@@ -910,6 +910,28 @@ int perf_event__synthesize_stat_config(struct perf_tool *tool,
 	return err;
 }
 
+int perf_event__synthesize_stat(struct perf_tool *tool,
+				u32 cpu, u32 thread, u64 id,
+				struct perf_counts_values *count,
+				perf_event__handler_t process,
+				struct machine *machine)
+{
+	struct stat_event event;
+
+	event.header.type = PERF_RECORD_STAT;
+	event.header.size = sizeof(event);
+	event.header.misc = 0;
+
+	event.id        = id;
+	event.cpu       = cpu;
+	event.thread    = thread;
+	event.val       = count->val;
+	event.ena       = count->ena;
+	event.run       = count->run;
+
+	return process(tool, (union perf_event *) &event, NULL, machine);
+}
+
 void perf_event__read_stat_config(struct perf_stat_config *config,
 				  struct stat_config_event *event)
 {
