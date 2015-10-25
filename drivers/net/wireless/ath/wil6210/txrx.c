@@ -1242,6 +1242,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 	int tcp_hdr_len;
 	int skb_net_hdr_len;
 	int gso_type;
+	int rc = -EINVAL;
 
 	wil_dbg_txrx(wil, "%s() %d bytes to vring %d\n",
 		     __func__, skb->len, vring_index);
@@ -1333,8 +1334,9 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 				     len, rem_data, descs_used);
 
 			if (descs_used == avail)  {
-				wil_err(wil, "TSO: ring overflow\n");
-				goto dma_error;
+				wil_err_ratelimited(wil, "TSO: ring overflow\n");
+				rc = -ENOMEM;
+				goto mem_error;
 			}
 
 			lenmss = min_t(int, rem_data, len);
@@ -1356,8 +1358,10 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 				headlen -= lenmss;
 			}
 
-			if (unlikely(dma_mapping_error(dev, pa)))
-				goto dma_error;
+			if (unlikely(dma_mapping_error(dev, pa))) {
+				wil_err(wil, "TSO: DMA map page error\n");
+				goto mem_error;
+			}
 
 			_desc = &vring->va[i].tx;
 
@@ -1456,8 +1460,8 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 	}
 
 	/* advance swhead */
-	wil_dbg_txrx(wil, "TSO: Tx swhead %d -> %d\n", swhead, vring->swhead);
 	wil_vring_advance_head(vring, descs_used);
+	wil_dbg_txrx(wil, "TSO: Tx swhead %d -> %d\n", swhead, vring->swhead);
 
 	/* make sure all writes to descriptors (shared memory) are done before
 	 * committing them to HW
@@ -1467,8 +1471,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 	wil_w(wil, vring->hwtail, vring->swhead);
 	return 0;
 
-dma_error:
-	wil_err(wil, "TSO: DMA map page error\n");
+mem_error:
 	while (descs_used > 0) {
 		struct wil_ctx *ctx;
 
@@ -1479,14 +1482,11 @@ dma_error:
 		_desc->dma.status = TX_DMA_STATUS_DU;
 		ctx = &vring->ctx[i];
 		wil_txdesc_unmap(dev, d, ctx);
-		if (ctx->skb)
-			dev_kfree_skb_any(ctx->skb);
 		memset(ctx, 0, sizeof(*ctx));
 		descs_used--;
 	}
-
 err_exit:
-	return -EINVAL;
+	return rc;
 }
 
 static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
@@ -1562,8 +1562,11 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 		_d = &vring->va[i].tx;
 		pa = skb_frag_dma_map(dev, frag, 0, skb_frag_size(frag),
 				      DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(dev, pa)))
+		if (unlikely(dma_mapping_error(dev, pa))) {
+			wil_err(wil, "Tx[%2d] failed to map fragment\n",
+				vring_index);
 			goto dma_error;
+		}
 		vring->ctx[i].mapped_as = wil_mapped_as_page;
 		wil_tx_desc_map(d, pa, len, vring_index);
 		/* no need to check return code -
@@ -1622,9 +1625,6 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 		*d = *_d;
 		_d->dma.status = TX_DMA_STATUS_DU;
 		wil_txdesc_unmap(dev, d, ctx);
-
-		if (ctx->skb)
-			dev_kfree_skb_any(ctx->skb);
 
 		memset(ctx, 0, sizeof(*ctx));
 	}
