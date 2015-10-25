@@ -158,11 +158,14 @@ static void slic_mcast_set_bit(struct adapter *adapter, char *address)
 	unsigned char crcpoly;
 
 	/* Get the CRC polynomial for the mac address */
-	/* we use bits 1-8 (lsb), bitwise reversed,
-	 * msb (= lsb bit 0 before bitrev) is automatically discarded */
+	/*
+	 * we use bits 1-8 (lsb), bitwise reversed,
+	 * msb (= lsb bit 0 before bitrev) is automatically discarded
+	 */
 	crcpoly = ether_crc(ETH_ALEN, address) >> 23;
 
-	/* We only have space on the SLIC for 64 entries.  Lop
+	/*
+	 * We only have space on the SLIC for 64 entries.  Lop
 	 * off the top two bits. (2^6 = 64)
 	 */
 	crcpoly &= 0x3F;
@@ -176,7 +179,8 @@ static void slic_mcast_set_mask(struct adapter *adapter)
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 
 	if (adapter->macopts & (MAC_ALLMCAST | MAC_PROMISC)) {
-		/* Turn on all multicast addresses. We have to do this for
+		/*
+		 * Turn on all multicast addresses. We have to do this for
 		 * promiscuous mode as well as ALLMCAST mode.  It saves the
 		 * Microcode from having to keep state about the MAC
 		 * configuration.
@@ -185,7 +189,8 @@ static void slic_mcast_set_mask(struct adapter *adapter)
 		slic_reg32_write(&slic_regs->slic_mcasthigh, 0xFFFFFFFF,
 				 FLUSH);
 	} else {
-		/* Commit our multicast mast to the SLIC by writing to the
+		/*
+		 * Commit our multicast mast to the SLIC by writing to the
 		 * multicast address mask registers
 		 */
 		slic_reg32_write(&slic_regs->slic_mcastlow,
@@ -242,7 +247,8 @@ static void slic_link_config(struct adapter *adapter,
 
 	if ((linkspeed == LINK_AUTOSPEED) || (linkspeed == LINK_1000MB)) {
 		if (adapter->flags & ADAPT_FLAGS_FIBERMEDIA) {
-			/*  We've got a fiber gigabit interface, and register
+			/*
+			 * We've got a fiber gigabit interface, and register
 			 *  4 is different in fiber mode than in copper mode
 			 */
 
@@ -260,16 +266,22 @@ static void slic_link_config(struct adapter *adapter,
 				      PCR_AUTONEG_RST));
 				slic_reg32_write(wphy, phy_config, FLUSH);
 			} else {	/* forced 1000 Mb FD*/
-				/* power down phy to break link
-				   this may not work) */
+				/*
+				 * power down phy to break link
+				 * this may not work)
+				 */
 				phy_config = (MIICR_REG_PCR | PCR_POWERDOWN);
 				slic_reg32_write(wphy, phy_config, FLUSH);
-				/* wait, Marvell says 1 sec,
-				   try to get away with 10 ms  */
+				/*
+				 * wait, Marvell says 1 sec,
+				 * try to get away with 10 ms
+				 */
 				mdelay(10);
 
-				/* disable auto-neg, set speed/duplex,
-				   soft reset phy, powerup */
+				/*
+				 * disable auto-neg, set speed/duplex,
+				 * soft reset phy, powerup
+				 */
 				phy_config =
 				    (MIICR_REG_PCR |
 				     (PCR_RESET | PCR_SPEED_1000 |
@@ -278,7 +290,8 @@ static void slic_link_config(struct adapter *adapter,
 			}
 		} else {	/* copper gigabit */
 
-			/* Auto-Negotiate or 1000 Mb must be auto negotiated
+			/*
+			 * Auto-Negotiate or 1000 Mb must be auto negotiated
 			 * We've got a copper gigabit interface, and
 			 * register 4 is different in copper mode than
 			 * in fiber mode
@@ -290,8 +303,10 @@ static void slic_link_config(struct adapter *adapter,
 				     (PAR_ADV100FD | PAR_ADV100HD | PAR_ADV10FD
 				      | PAR_ADV10HD));
 			} else {
-			/* linkspeed == LINK_1000MB -
-			   don't advertise 10/100 Mb modes  */
+			/*
+			 * linkspeed == LINK_1000MB -
+			 * don't advertise 10/100 Mb modes
+			 */
 				phy_advreg = MIICR_REG_4;
 			}
 			/* enable PAUSE frames  */
@@ -304,8 +319,10 @@ static void slic_link_config(struct adapter *adapter,
 			slic_reg32_write(wphy, phy_gctlreg, FLUSH);
 
 			if (adapter->subsysid != SLIC_1GB_CICADA_SUBSYS_ID) {
-				/* if a Marvell PHY
-				   enable auto crossover */
+				/*
+				 * if a Marvell PHY
+				 * enable auto crossover
+				 */
 				phy_config =
 				    (MIICR_REG_16 | (MRV_REG16_XOVERON));
 				slic_reg32_write(wphy, phy_config, FLUSH);
@@ -336,8 +353,10 @@ static void slic_link_config(struct adapter *adapter,
 			duplex = PCR_DUPLEX_FULL;
 
 		if (adapter->subsysid != SLIC_1GB_CICADA_SUBSYS_ID) {
-			/* if a Marvell PHY
-			   disable auto crossover  */
+			/*
+			 * if a Marvell PHY
+			 * disable auto crossover
+			 */
 			phy_config = (MIICR_REG_16 | (MRV_REG16_XOVEROFF));
 			slic_reg32_write(wphy, phy_config, FLUSH);
 		}
@@ -350,9 +369,11 @@ static void slic_link_config(struct adapter *adapter,
 		mdelay(10);
 
 		if (adapter->subsysid != SLIC_1GB_CICADA_SUBSYS_ID) {
-			/* if a Marvell PHY
-			   disable auto-neg, set speed,
-			   soft reset phy, powerup */
+			/*
+			 * if a Marvell PHY
+			 * disable auto-neg, set speed,
+			 * soft reset phy, powerup
+			 */
 			phy_config =
 			    (MIICR_REG_PCR | (PCR_RESET | speed | duplex));
 			slic_reg32_write(wphy, phy_config, FLUSH);
@@ -529,11 +550,13 @@ static int slic_card_download(struct adapter *adapter)
 			index += 4;
 
 			/* Check SRAM location zero. If it is non-zero. Abort.*/
-/*			failure = readl((u32 __iomem *)&slic_regs->slic_reset);
-			if (failure) {
-				release_firmware(fw);
-				return -EIO;
-			}*/
+		     /*
+		      * failure = readl((u32 __iomem *)&slic_regs->slic_reset);
+		      * if (failure) {
+		      *	release_firmware(fw);
+		      *	return -EIO;
+		      * }
+		      */
 		}
 	}
 	release_firmware(fw);
@@ -541,8 +564,10 @@ static int slic_card_download(struct adapter *adapter)
 	mdelay(10);
 	slic_reg32_write(&slic_regs->slic_wcs, SLIC_WCS_START, FLUSH);
 
-	/* stall for 20 ms, long enough for ucode to init card
-	   and reach mainloop */
+	/*
+	 * stall for 20 ms, long enough for ucode to init card
+	 * and reach mainloop
+	 */
 	mdelay(20);
 
 	return 0;
@@ -602,9 +627,11 @@ static void slic_mac_address_config(struct adapter *adapter)
 	slic_reg32_write(&slic_regs->slic_wraddrah, value2, FLUSH);
 	slic_reg32_write(&slic_regs->slic_wraddrbh, value2, FLUSH);
 
-	/* Write our multicast mask out to the card.  This is done */
-	/* here in addition to the slic_mcast_addr_set routine     */
-	/* because ALL_MCAST may have been enabled or disabled     */
+	/*
+	 * Write our multicast mask out to the card.  This is done
+	 * here in addition to the slic_mcast_addr_set routine
+	 * because ALL_MCAST may have been enabled or disabled
+	 */
 	slic_mcast_set_mask(adapter);
 }
 
@@ -885,10 +912,10 @@ static void slic_upr_start(struct adapter *adapter)
 	struct slic_upr *upr;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 /*
-    char * ptr1;
-    char * ptr2;
-    uint cmdoffset;
-*/
+ *  char * ptr1;
+ *  char * ptr2;
+ *  uint cmdoffset;
+ */
 	upr = adapter->upr_list;
 	if (!upr)
 		return;
@@ -2049,8 +2076,8 @@ static void slic_xmit_complete(struct adapter *adapter)
 		adapter->xmit_completes++;
 		adapter->card->events++;
 		/*
-		 Get the complete host command buffer
-		*/
+		 * Get the complete host command buffer
+		 */
 		slic_handle_word.handle_token = rspbuf->hosthandle;
 		hcmd =
 			adapter->slic_handles[slic_handle_word.handle_index].
@@ -2758,10 +2785,12 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 			oemfruformat = pOeeprom->OemFruFormat;
 			poemfru = &pOeeprom->OemFru;
 			macaddrs = 2;
-			/* Minor kludge for Oasis card
-			     get 2 MAC addresses from the
-			     EEPROM to ensure that function 1
-			     gets the Port 1 MAC address */
+			/*
+			 * Minor kludge for Oasis card
+			 * get 2 MAC addresses from the
+			 * EEPROM to ensure that function 1
+			 * gets the Port 1 MAC address
+			 */
 			break;
 		default:
 			/* extract EEPROM data and pointers to EEPROM data */
@@ -2784,14 +2813,14 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 			ee_chksum =
 			    *(u16 *)((char *)peeprom + (eecodesize - 2));
 			/*
-			    calculate the EEPROM checksum
-			*/
+			 *  calculate the EEPROM checksum
+			 */
 			calc_chksum = slic_eeprom_cksum(peeprom,
 							eecodesize - 2);
 			/*
-			    if the ucdoe chksum flag bit worked,
-			    we wouldn't need this
-			*/
+			 *  if the ucdoe chksum flag bit worked,
+			 *  we wouldn't need this
+			 */
 			if (ee_chksum == calc_chksum)
 				card->config.EepromValid = true;
 		}
@@ -2890,11 +2919,11 @@ static void slic_init_adapter(struct net_device *netdev,
 
 	adapter->card_size = 1;
 	/*
-	  Initialize slic_handle array
-	*/
+	 * Initialize slic_handle array
+	 */
 	/*
-	 Start with 1.  0 is an invalid host handle.
-	*/
+	 * Start with 1.  0 is an invalid host handle.
+	 */
 	for (index = 1, pslic_handle = &adapter->slic_handles[1];
 	     index < SLIC_CMDQ_MAXCMDS; index++, pslic_handle++) {
 

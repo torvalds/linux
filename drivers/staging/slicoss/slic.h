@@ -93,10 +93,10 @@ struct slic_rcvbuf_info {
 	u32     lastid;
 };
 /*
- SLIC Handle structure.  Used to restrict handle values to
- 32 bits by using an index rather than an address.
- Simplifies ucode in 64-bit systems
-*/
+ * SLIC Handle structure.  Used to restrict handle values to
+ * 32 bits by using an index rather than an address.
+ * Simplifies ucode in 64-bit systems
+ */
 struct slic_handle_word {
 	union {
 		struct {
@@ -333,10 +333,11 @@ struct physcard {
 	struct physcard *next;
 	uint                adapters_allocd;
 
-/*  the following is not currently needed
-	u32              bridge_busnum;
-	u32              bridge_cfg[NUM_CFG_SPACES][NUM_CFG_REG_ULONGS];
-*/
+/*
+ * the following is not currently needed
+ *	u32              bridge_busnum;
+ *	u32              bridge_cfg[NUM_CFG_SPACES][NUM_CFG_REG_ULONGS];
+ */
 };
 
 struct base_driver {
