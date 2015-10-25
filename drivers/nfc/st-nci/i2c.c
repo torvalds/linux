@@ -50,6 +50,8 @@ struct st_nci_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct llt_ndlc *ndlc;
 
+	bool irq_active;
+
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
 
@@ -72,8 +74,10 @@ static int st_nci_i2c_enable(void *phy_id)
 	gpio_set_value(phy->gpio_reset, 1);
 	usleep_range(80000, 85000);
 
-	if (phy->ndlc->powered == 0)
+	if (phy->ndlc->powered == 0 && phy->irq_active == 0) {
 		enable_irq(phy->i2c_dev->irq);
+		phy->irq_active = true;
+	}
 
 	return 0;
 }
@@ -83,6 +87,7 @@ static void st_nci_i2c_disable(void *phy_id)
 	struct st_nci_i2c_phy *phy = phy_id;
 
 	disable_irq_nosync(phy->i2c_dev->irq);
+	phy->irq_active = false;
 }
 
 /*
@@ -342,6 +347,7 @@ static int st_nci_i2c_probe(struct i2c_client *client,
 		return r;
 	}
 
+	phy->irq_active = true;
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 				st_nci_irq_thread_fn,
 				phy->irq_polarity | IRQF_ONESHOT,
