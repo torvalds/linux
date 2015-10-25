@@ -463,7 +463,7 @@ static int st_nci_control_se(struct nci_dev *ndev, u8 se_idx,
 	 */
 	if (info->se_info.se_status->is_ese_present &&
 	    info->se_info.se_status->is_uicc_present)
-		usleep_range(3000, 5000);
+		usleep_range(15000, 20000);
 
 	r = nci_hci_get_param(ndev, NCI_HCI_ADMIN_GATE,
 			NCI_HCI_ADMIN_PARAM_HOST_LIST, &sk_host_list);
