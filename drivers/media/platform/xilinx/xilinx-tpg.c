@@ -731,6 +731,7 @@ static int xtpg_parse_of(struct xtpg_device *xtpg)
 		format = xvip_of_get_format(port);
 		if (IS_ERR(format)) {
 			dev_err(dev, "invalid format in DT");
+			of_node_put(port);
 			return PTR_ERR(format);
 		}
 
@@ -739,6 +740,7 @@ static int xtpg_parse_of(struct xtpg_device *xtpg)
 			xtpg->vip_format = format;
 		} else if (xtpg->vip_format != format) {
 			dev_err(dev, "in/out format mismatch in DT");
+			of_node_put(port);
 			return -EINVAL;
 		}
 
