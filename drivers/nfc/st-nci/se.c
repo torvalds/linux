@@ -244,6 +244,14 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 		kfree_skb(skb_pipe_info);
 	}
 
+	/*
+	 * 3 gates have a well known pipe ID. Only NCI_HCI_LINK_MGMT_GATE
+	 * is not yet open at this stage.
+	 */
+	r = nci_hci_connect_gate(ndev, ST_NCI_HOST_CONTROLLER_ID,
+				 NCI_HCI_LINK_MGMT_GATE,
+				 NCI_HCI_LINK_MGMT_PIPE);
+
 	kfree_skb(skb_pipe_list);
 	return r;
 }
