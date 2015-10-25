@@ -8,6 +8,7 @@
 #include <kern_util.h>
 #include <sysdep/ptrace.h>
 #include <sysdep/syscalls.h>
+#include <os.h>
 
 extern int syscall_table_size;
 #define NR_SYSCALLS (syscall_table_size / sizeof(void *))
@@ -23,16 +24,8 @@ void handle_syscall(struct uml_pt_regs *r)
 		goto out;
 	}
 
-	/*
-	 * This should go in the declaration of syscall, but when I do that,
-	 * strace -f -c bash -c 'ls ; ls' breaks, sometimes not tracing
-	 * children at all, sometimes hanging when bash doesn't see the first
-	 * ls exit.
-	 * The assembly looks functionally the same to me.  This is
-	 *     gcc version 4.0.1 20050727 (Red Hat 4.0.1-5)
-	 * in case it's a compiler bug.
-	 */
-	syscall = UPT_SYSCALL_NR(r);
+	syscall = get_syscall(r);
+
 	if ((syscall >= NR_SYSCALLS) || (syscall < 0))
 		result = -ENOSYS;
 	else result = EXECUTE_SYSCALL(syscall, regs);

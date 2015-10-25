@@ -137,9 +137,6 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 	if ((UPT_IP(regs) >= STUB_START) && (UPT_IP(regs) < STUB_END))
 		fatal_sigsegv();
 
-	/* Mark this as a syscall */
-	UPT_SYSCALL_NR(regs) = PT_SYSCALL_NR(regs->gp);
-
 	if (!local_using_sysemu)
 	{
 		err = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_NR_OFFSET,
@@ -172,6 +169,13 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 	}
 
 	handle_syscall(regs);
+}
+
+int get_syscall(struct uml_pt_regs *regs)
+{
+	UPT_SYSCALL_NR(regs) = PT_SYSCALL_NR(regs->gp);
+
+	return UPT_SYSCALL_NR(regs);
 }
 
 extern char __syscall_stub_start[];
