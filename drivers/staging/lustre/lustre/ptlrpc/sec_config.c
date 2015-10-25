@@ -257,7 +257,6 @@ static int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
 	rset->srs_nslot = nslot;
 	return 0;
 }
-EXPORT_SYMBOL(sptlrpc_rule_set_expand);
 
 static inline int rule_spec_dir(struct sptlrpc_rule *rule)
 {
