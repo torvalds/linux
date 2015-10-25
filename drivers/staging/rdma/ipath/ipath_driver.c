@@ -2306,10 +2306,9 @@ void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val)
 	 */
 	if (atomic_inc_return(&dd->ipath_led_override_timer_active) == 1) {
 		/* Need to start timer */
-		init_timer(&dd->ipath_led_override_timer);
-		dd->ipath_led_override_timer.function =
-						 ipath_run_led_override;
-		dd->ipath_led_override_timer.data = (unsigned long) dd;
+		setup_timer(&dd->ipath_led_override_timer,
+				ipath_run_led_override, (unsigned long)dd);
+
 		dd->ipath_led_override_timer.expires = jiffies + 1;
 		add_timer(&dd->ipath_led_override_timer);
 	} else
