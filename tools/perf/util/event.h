@@ -408,6 +408,10 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      perf_event__handler_t process,
 				      struct machine *machine, bool mmap_data,
 				      unsigned int proc_map_timeout);
+int perf_event__synthesize_thread_map2(struct perf_tool *tool,
+				      struct thread_map *threads,
+				      perf_event__handler_t process,
+				      struct machine *machine);
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine, bool mmap_data,

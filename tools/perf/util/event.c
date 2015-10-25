@@ -700,6 +700,42 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	return err;
 }
 
+int perf_event__synthesize_thread_map2(struct perf_tool *tool,
+				      struct thread_map *threads,
+				      perf_event__handler_t process,
+				      struct machine *machine)
+{
+	union perf_event *event;
+	int i, err, size;
+
+	size  = sizeof(event->thread_map);
+	size +=	threads->nr * sizeof(event->thread_map.entries[0]);
+
+	event = zalloc(size);
+	if (!event)
+		return -ENOMEM;
+
+	event->header.type = PERF_RECORD_THREAD_MAP;
+	event->header.size = size;
+	event->thread_map.nr = threads->nr;
+
+	for (i = 0; i < threads->nr; i++) {
+		struct thread_map_event_entry *entry = &event->thread_map.entries[i];
+		char *comm = thread_map__comm(threads, i);
+
+		if (!comm)
+			comm = (char *) "";
+
+		entry->pid = thread_map__pid(threads, i);
+		strncpy((char *) &entry->comm, comm, sizeof(entry->comm));
+	}
+
+	err = process(tool, event, NULL, machine);
+
+	free(event);
+	return err;
+}
+
 size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp)
 {
 	const char *s;

@@ -180,6 +180,10 @@ static struct test generic_tests[] = {
 		},
 	},
 	{
+		.desc = "Test thread map synthesize",
+		.func = test__thread_map_synthesize,
+	},
+	{
 		.func = NULL,
 	},
 };

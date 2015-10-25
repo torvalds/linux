@@ -79,6 +79,7 @@ int test__bpf(int subtest);
 const char *test__bpf_subtest_get_desc(int subtest);
 int test__bpf_subtest_get_nr(void);
 int test_session_topology(int subtest);
+int test__thread_map_synthesize(int subtest);
 
 #if defined(__arm__) || defined(__aarch64__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT

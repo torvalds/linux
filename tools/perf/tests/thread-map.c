@@ -40,3 +40,32 @@ int test__thread_map(int subtest __maybe_unused)
 	thread_map__put(map);
 	return 0;
 }
+
+static int process_event(struct perf_tool *tool __maybe_unused,
+			 union perf_event *event,
+			 struct perf_sample *sample __maybe_unused,
+			 struct machine *machine __maybe_unused)
+{
+	struct thread_map_event *map = &event->thread_map;
+
+	TEST_ASSERT_VAL("wrong nr",   map->nr == 1);
+	TEST_ASSERT_VAL("wrong pid",  map->entries[0].pid == (u64) getpid());
+	TEST_ASSERT_VAL("wrong comm", !strcmp(map->entries[0].comm, "perf"));
+	return 0;
+}
+
+int test__thread_map_synthesize(int subtest __maybe_unused)
+{
+	struct thread_map *threads;
+
+	/* test map on current pid */
+	threads = thread_map__new_by_pid(getpid());
+	TEST_ASSERT_VAL("failed to alloc map", threads);
+
+	thread_map__read_comms(threads);
+
+	TEST_ASSERT_VAL("failed to synthesize map",
+		!perf_event__synthesize_thread_map2(NULL, threads, process_event, NULL));
+
+	return 0;
+}
