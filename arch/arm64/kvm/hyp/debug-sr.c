@@ -135,3 +135,6 @@ u32 __hyp_text __debug_read_mdcr_el2(void)
 {
 	return read_sysreg(mdcr_el2);
 }
+
+__alias(__debug_read_mdcr_el2)
+u32 __weak __kvm_get_mdcr_el2(void);

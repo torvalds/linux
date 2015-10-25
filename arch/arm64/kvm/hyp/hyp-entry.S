@@ -189,6 +189,8 @@ ENDPROC(\label)
 
 	.align 11
 
+	.weak	__kvm_hyp_vector
+ENTRY(__kvm_hyp_vector)
 ENTRY(__hyp_vector)
 	ventry	el2t_sync_invalid		// Synchronous EL2t
 	ventry	el2t_irq_invalid		// IRQ EL2t
@@ -210,3 +212,4 @@ ENTRY(__hyp_vector)
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
 	ventry	el1_error_invalid		// Error 32-bit EL1
 ENDPROC(__hyp_vector)
+ENDPROC(__kvm_hyp_vector)
