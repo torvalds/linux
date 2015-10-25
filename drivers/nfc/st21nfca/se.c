@@ -17,7 +17,6 @@
 #include <net/nfc/hci.h>
 
 #include "st21nfca.h"
-#include "st21nfca_se.h"
 
 #define ST21NFCA_EVT_UICC_ACTIVATE		0x10
 #define ST21NFCA_EVT_UICC_DEACTIVATE	0x13

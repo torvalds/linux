@@ -17,7 +17,6 @@
 #include <net/nfc/hci.h>
 
 #include "st21nfca.h"
-#include "st21nfca_dep.h"
 
 #define ST21NFCA_NFCIP1_INITIATOR 0x00
 #define ST21NFCA_NFCIP1_REQ 0xd4

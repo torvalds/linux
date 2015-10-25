@@ -22,8 +22,6 @@
 #include <net/nfc/llc.h>
 
 #include "st21nfca.h"
-#include "st21nfca_dep.h"
-#include "st21nfca_se.h"
 
 #define DRIVER_DESC "HCI NFC driver for ST21NFCA"
 
