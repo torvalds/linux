@@ -2762,6 +2762,38 @@ perf_event__synthesize_event_update_name(struct perf_tool *tool,
 	return err;
 }
 
+int
+perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
+					struct perf_evsel *evsel,
+					perf_event__handler_t process)
+{
+	size_t size = sizeof(struct event_update_event);
+	struct event_update_event *ev;
+	int max, err;
+	u16 type;
+
+	if (!evsel->own_cpus)
+		return 0;
+
+	ev = cpu_map_data__alloc(evsel->own_cpus, &size, &type, &max);
+	if (!ev)
+		return -ENOMEM;
+
+	ev->header.type = PERF_RECORD_EVENT_UPDATE;
+	ev->header.size = (u16)size;
+	ev->type = PERF_EVENT_UPDATE__CPUS;
+	ev->id   = evsel->id[0];
+
+	cpu_map_data__synthesize((struct cpu_map_data *) ev->data,
+				 evsel->own_cpus,
+				 type, max);
+
+	err = process(tool, (union perf_event*) ev, NULL, NULL);
+	free(ev);
+	return err;
+}
+
+
 int perf_event__synthesize_attrs(struct perf_tool *tool,
 				   struct perf_session *session,
 				   perf_event__handler_t process)
@@ -2827,8 +2859,10 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 {
 	struct event_update_event *ev = &event->event_update;
 	struct event_update_event_scale *ev_scale;
+	struct event_update_event_cpus *ev_cpus;
 	struct perf_evlist *evlist;
 	struct perf_evsel *evsel;
+	struct cpu_map *map;
 
 	if (!pevlist || *pevlist == NULL)
 		return -EINVAL;
@@ -2849,6 +2883,14 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 	case PERF_EVENT_UPDATE__SCALE:
 		ev_scale = (struct event_update_event_scale *) ev->data;
 		evsel->scale = ev_scale->scale;
+	case PERF_EVENT_UPDATE__CPUS:
+		ev_cpus = (struct event_update_event_cpus *) ev->data;
+
+		map = cpu_map__new_data(&ev_cpus->cpus);
+		if (map)
+			evsel->own_cpus = map;
+		else
+			pr_err("failed to get event_update cpus\n");
 	default:
 		break;
 	}

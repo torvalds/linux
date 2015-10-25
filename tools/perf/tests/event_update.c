@@ -53,6 +53,29 @@ static int process_event_name(struct perf_tool *tool,
 	return 0;
 }
 
+static int process_event_cpus(struct perf_tool *tool __maybe_unused,
+			      union perf_event *event,
+			      struct perf_sample *sample __maybe_unused,
+			      struct machine *machine __maybe_unused)
+{
+	struct event_update_event *ev = (struct event_update_event*) event;
+	struct event_update_event_cpus *ev_data;
+	struct cpu_map *map;
+
+	ev_data = (struct event_update_event_cpus*) ev->data;
+
+	map = cpu_map__new_data(&ev_data->cpus);
+
+	TEST_ASSERT_VAL("wrong id", ev->id == 123);
+	TEST_ASSERT_VAL("wrong type", ev->type == PERF_EVENT_UPDATE__CPUS);
+	TEST_ASSERT_VAL("wrong cpus", map->nr == 3);
+	TEST_ASSERT_VAL("wrong cpus", map->map[0] == 1);
+	TEST_ASSERT_VAL("wrong cpus", map->map[1] == 2);
+	TEST_ASSERT_VAL("wrong cpus", map->map[2] == 3);
+	cpu_map__put(map);
+	return 0;
+}
+
 int test__event_update(int subtest __maybe_unused)
 {
 	struct perf_evlist *evlist;
@@ -84,5 +107,11 @@ int test__event_update(int subtest __maybe_unused)
 	TEST_ASSERT_VAL("failed to synthesize attr update name",
 			!perf_event__synthesize_event_update_name(&tmp.tool, evsel, process_event_name));
 
+	evsel->own_cpus = cpu_map__new("1,2,3");
+
+	TEST_ASSERT_VAL("failed to synthesize attr update cpus",
+			!perf_event__synthesize_event_update_cpus(&tmp.tool, evsel, process_event_cpus));
+
+	cpu_map__put(evsel->own_cpus);
 	return 0;
 }
