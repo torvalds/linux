@@ -441,7 +441,7 @@ lst_group_info_ioctl(lstio_group_info_args_t *args)
 	if (args->lstio_grp_dentsp != NULL &&
 	    (copy_to_user(args->lstio_grp_idxp, &index, sizeof(index)) ||
 	     copy_to_user(args->lstio_grp_ndentp, &ndent, sizeof(ndent))))
-		rc = -EFAULT;
+		return -EFAULT;
 
 	return 0;
 }
