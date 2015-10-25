@@ -968,6 +968,22 @@ size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp)
 	return ret;
 }
 
+size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp)
+{
+	struct cpu_map *cpus = cpu_map__new_data(&event->cpu_map.data);
+	size_t ret;
+
+	ret = fprintf(fp, " nr: ");
+
+	if (cpus)
+		ret += cpu_map__fprintf(cpus, fp);
+	else
+		ret += fprintf(fp, "failed to get cpumap from event\n");
+
+	cpu_map__put(cpus);
+	return ret;
+}
+
 int perf_event__process_mmap(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct perf_sample *sample,
