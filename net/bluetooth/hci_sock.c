@@ -1001,7 +1001,7 @@ static int hci_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
-	if (flags & (MSG_OOB))
+	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
 	if (sk->sk_state == BT_CLOSED)
