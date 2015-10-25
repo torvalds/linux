@@ -10,9 +10,6 @@
 #include <sysdep/syscalls.h>
 #include <os.h>
 
-extern int syscall_table_size;
-#define NR_SYSCALLS (syscall_table_size / sizeof(void *))
-
 void handle_syscall(struct uml_pt_regs *r)
 {
 	struct pt_regs *regs = container_of(r, struct pt_regs, regs);
@@ -26,9 +23,10 @@ void handle_syscall(struct uml_pt_regs *r)
 
 	syscall = get_syscall(r);
 
-	if ((syscall >= NR_SYSCALLS) || (syscall < 0))
+	if ((syscall > __NR_syscall_max) || syscall < 0)
 		result = -ENOSYS;
-	else result = EXECUTE_SYSCALL(syscall, regs);
+	else
+		result = EXECUTE_SYSCALL(syscall, regs);
 
 out:
 	PT_REGS_SET_SYSCALL_RETURN(regs, result);
