@@ -141,3 +141,33 @@ int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 
 	return exit_code;
 }
+
+static const char __hyp_panic_string[] = "HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%p\n";
+
+void __hyp_text __noreturn __hyp_panic(void)
+{
+	unsigned long str_va = (unsigned long)__hyp_panic_string;
+	u64 spsr = read_sysreg(spsr_el2);
+	u64 elr = read_sysreg(elr_el2);
+	u64 par = read_sysreg(par_el1);
+
+	if (read_sysreg(vttbr_el2)) {
+		struct kvm_vcpu *vcpu;
+		struct kvm_cpu_context *host_ctxt;
+
+		vcpu = (struct kvm_vcpu *)read_sysreg(tpidr_el2);
+		host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
+		__deactivate_traps(vcpu);
+		__deactivate_vm(vcpu);
+		__sysreg_restore_state(host_ctxt);
+	}
+
+	/* Call panic for real */
+	__hyp_do_panic(hyp_kern_va(str_va),
+		       spsr,  elr,
+		       read_sysreg(esr_el2),   read_sysreg(far_el2),
+		       read_sysreg(hpfar_el2), par,
+		       (void *)read_sysreg(tpidr_el2));
+
+	unreachable();
+}
