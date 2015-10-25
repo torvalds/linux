@@ -100,6 +100,8 @@ static struct target target = {
 	.uid	= UINT_MAX,
 };
 
+typedef int (*aggr_get_id_t)(struct cpu_map *m, int cpu);
+
 static int			run_count			=  1;
 static bool			no_inherit			= false;
 static volatile pid_t		child_pid			= -1;
@@ -119,7 +121,7 @@ static unsigned int		unit_width			= 4; /* strlen("unit") */
 static bool			forever				= false;
 static struct timespec		ref_time;
 static struct cpu_map		*aggr_map;
-static int			(*aggr_get_id)(struct cpu_map *m, int cpu);
+static aggr_get_id_t		aggr_get_id;
 
 static volatile int done = 0;
 
@@ -954,22 +956,63 @@ static int perf_stat__get_core(struct cpu_map *map, int cpu)
 	return cpu_map__get_core(map, cpu, NULL);
 }
 
+static int cpu_map__get_max(struct cpu_map *map)
+{
+	int i, max = -1;
+
+	for (i = 0; i < map->nr; i++) {
+		if (map->map[i] > max)
+			max = map->map[i];
+	}
+
+	return max;
+}
+
+static struct cpu_map *cpus_aggr_map;
+
+static int perf_stat__get_aggr(aggr_get_id_t get_id, struct cpu_map *map, int idx)
+{
+	int cpu;
+
+	if (idx >= map->nr)
+		return -1;
+
+	cpu = map->map[idx];
+
+	if (cpus_aggr_map->map[cpu] == -1)
+		cpus_aggr_map->map[cpu] = get_id(map, idx);
+
+	return cpus_aggr_map->map[cpu];
+}
+
+static int perf_stat__get_socket_cached(struct cpu_map *map, int idx)
+{
+	return perf_stat__get_aggr(perf_stat__get_socket, map, idx);
+}
+
+static int perf_stat__get_core_cached(struct cpu_map *map, int idx)
+{
+	return perf_stat__get_aggr(perf_stat__get_core, map, idx);
+}
+
 static int perf_stat_init_aggr_mode(void)
 {
+	int nr;
+
 	switch (stat_config.aggr_mode) {
 	case AGGR_SOCKET:
 		if (cpu_map__build_socket_map(evsel_list->cpus, &aggr_map)) {
 			perror("cannot build socket map");
 			return -1;
 		}
-		aggr_get_id = perf_stat__get_socket;
+		aggr_get_id = perf_stat__get_socket_cached;
 		break;
 	case AGGR_CORE:
 		if (cpu_map__build_core_map(evsel_list->cpus, &aggr_map)) {
 			perror("cannot build core map");
 			return -1;
 		}
-		aggr_get_id = perf_stat__get_core;
+		aggr_get_id = perf_stat__get_core_cached;
 		break;
 	case AGGR_NONE:
 	case AGGR_GLOBAL:
@@ -978,7 +1021,15 @@ static int perf_stat_init_aggr_mode(void)
 	default:
 		break;
 	}
-	return 0;
+
+	/*
+	 * The evsel_list->cpus is the base we operate on,
+	 * taking the highest cpu number to be the size of
+	 * the aggregation translate cpumap.
+	 */
+	nr = cpu_map__get_max(evsel_list->cpus);
+	cpus_aggr_map = cpu_map__empty_new(nr + 1);
+	return cpus_aggr_map ? 0 : -ENOMEM;
 }
 
 /*
