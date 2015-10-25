@@ -1956,9 +1956,8 @@ static int enable_timer(struct ipath_devdata *dd)
 				 dd->ipath_gpio_mask);
 	}
 
-	init_timer(&dd->verbs_timer);
-	dd->verbs_timer.function = __verbs_timer;
-	dd->verbs_timer.data = (unsigned long)dd;
+	setup_timer(&dd->verbs_timer, __verbs_timer, (unsigned long)dd);
+
 	dd->verbs_timer.expires = jiffies + 1;
 	add_timer(&dd->verbs_timer);
 
