@@ -784,7 +784,6 @@ int of_get_ibm_chip_id(struct device_node *np)
 {
 	of_node_get(np);
 	while (np) {
-		struct device_node *old = np;
 		u32 chip_id;
 
 		/*
@@ -795,8 +794,8 @@ int of_get_ibm_chip_id(struct device_node *np)
 			of_node_put(np);
 			return chip_id;
 		}
-		np = of_get_parent(np);
-		of_node_put(old);
+
+		np = of_get_next_parent(np);
 	}
 	return -1;
 }
