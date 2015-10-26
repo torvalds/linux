@@ -1232,8 +1232,8 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 		err = fm10k_iov_select_vid(vf_info, (u16)vid);
 		if (err < 0)
 			return err;
-		else
-			vid = err;
+
+		vid = err;
 
 		/* update VSI info for VF in regards to VLAN table */
 		err = hw->mac.ops.update_vlan(hw, vid, vf_info->vsi, set);
@@ -1258,8 +1258,8 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 		err = fm10k_iov_select_vid(vf_info, vlan);
 		if (err < 0)
 			return err;
-		else
-			vlan = (u16)err;
+
+		vlan = (u16)err;
 
 		/* notify switch of request for new unicast address */
 		err = hw->mac.ops.update_uc_addr(hw, vf_info->glort,
@@ -1284,8 +1284,8 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 		err = fm10k_iov_select_vid(vf_info, vlan);
 		if (err < 0)
 			return err;
-		else
-			vlan = (u16)err;
+
+		vlan = (u16)err;
 
 		/* notify switch of request for new multicast address */
 		err = hw->mac.ops.update_mc_addr(hw, vf_info->glort,
