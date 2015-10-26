@@ -438,8 +438,6 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
-	rsnd_src_ssiu_start(mod, io, rsnd_ssi_use_busif(io));
-
 	rsnd_ssi_hw_start(ssi, io);
 
 	rsnd_ssi_irq_enable(mod);
@@ -458,8 +456,6 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	rsnd_ssi_record_error(ssi);
 
 	rsnd_ssi_hw_stop(io, ssi);
-
-	rsnd_src_ssiu_stop(mod, io);
 
 	return 0;
 }
@@ -539,13 +535,17 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 /*
  *		SSI PIO
  */
-static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
-			      struct rsnd_dai_stream *io,
-			      struct rsnd_priv *priv)
+static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
+				 struct rsnd_dai_stream *io,
+				 struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	int ret;
+
+	ret = rsnd_ssiu_attach(io, mod);
+	if (ret < 0)
+		return ret;
 
 	ret = devm_request_irq(dev, ssi->info->irq,
 			       rsnd_ssi_interrupt,
@@ -557,7 +557,7 @@ static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
 
 static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.name	= SSI_NAME,
-	.probe	= rsnd_ssi_pio_probe,
+	.probe	= rsnd_ssi_common_probe,
 	.init	= rsnd_ssi_init,
 	.quit	= rsnd_ssi_quit,
 	.start	= rsnd_ssi_start,
@@ -570,14 +570,10 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 			      struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
 	int dma_id = ssi->info->dma_id;
 	int ret;
 
-	ret = devm_request_irq(dev, ssi->info->irq,
-			       rsnd_ssi_interrupt,
-			       IRQF_SHARED,
-			       dev_name(dev), mod);
+	ret = rsnd_ssi_common_probe(mod, io, priv);
 	if (ret)
 		return ret;
 

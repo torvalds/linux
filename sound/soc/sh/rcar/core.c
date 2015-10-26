@@ -1131,6 +1131,7 @@ static int rsnd_probe(struct platform_device *pdev)
 		rsnd_gen_probe,
 		rsnd_dma_probe,
 		rsnd_ssi_probe,
+		rsnd_ssiu_probe,
 		rsnd_src_probe,
 		rsnd_ctu_probe,
 		rsnd_mix_probe,
@@ -1220,6 +1221,7 @@ static int rsnd_remove(struct platform_device *pdev)
 	void (*remove_func[])(struct platform_device *pdev,
 			      struct rsnd_priv *priv) = {
 		rsnd_ssi_remove,
+		rsnd_ssiu_remove,
 		rsnd_src_remove,
 		rsnd_ctu_remove,
 		rsnd_mix_remove,

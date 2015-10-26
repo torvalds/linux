@@ -210,6 +210,7 @@ enum rsnd_mod_type {
 	RSND_MOD_CTU,
 	RSND_MOD_CMD,
 	RSND_MOD_SRC,
+	RSND_MOD_SSIU,
 	RSND_MOD_SSI,
 	RSND_MOD_MAX,
 };
@@ -450,6 +451,12 @@ struct rsnd_priv {
 	int ssi_nr;
 
 	/*
+	 * below value will be filled on rsnd_ssiu_probe()
+	 */
+	void *ssiu;
+	int ssiu_nr;
+
+	/*
 	 * below value will be filled on rsnd_src_probe()
 	 */
 	void *src;
@@ -562,6 +569,17 @@ int rsnd_ssi_use_busif(struct rsnd_dai_stream *io);
 int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 
 /*
+ *	R-Car SSIU
+ */
+int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
+		     struct rsnd_mod *mod);
+int rsnd_ssiu_probe(struct platform_device *pdev,
+		    const struct rsnd_of_data *of_data,
+		    struct rsnd_priv *priv);
+void rsnd_ssiu_remove(struct platform_device *pdev,
+		      struct rsnd_priv *priv);
+
+/*
  *	R-Car SRC
  */
 int rsnd_src_probe(struct platform_device *pdev,
@@ -573,11 +591,6 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
-int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
-			struct rsnd_dai_stream *io,
-			int use_busif);
-int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
-		       struct rsnd_dai_stream *io);
 
 /*
  *	R-Car CTU
