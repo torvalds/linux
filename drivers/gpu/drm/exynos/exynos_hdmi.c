@@ -44,7 +44,6 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
-#include "exynos_mixer.h"
 
 #define HOTPLUG_DEBOUNCE_MS		1100
 
@@ -1016,10 +1015,6 @@ static int hdmi_mode_valid(struct drm_connector *connector,
 		mode->hdisplay, mode->vdisplay, mode->vrefresh,
 		(mode->flags & DRM_MODE_FLAG_INTERLACE) ? true :
 		false, mode->clock * 1000);
-
-	ret = mixer_check_mode(mode);
-	if (ret)
-		return MODE_BAD;
 
 	ret = hdmi_find_phy_conf(hdata, mode->clock * 1000);
 	if (ret < 0)

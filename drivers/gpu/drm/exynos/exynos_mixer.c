@@ -39,7 +39,6 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
-#include "exynos_mixer.h"
 
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2
@@ -1096,8 +1095,10 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 }
 
 /* Only valid for Mixer version 16.0.33.0 */
-int mixer_check_mode(struct drm_display_mode *mode)
+static int mixer_atomic_check(struct exynos_drm_crtc *crtc,
+		       struct drm_crtc_state *state)
 {
+	struct drm_display_mode *mode = &state->adjusted_mode;
 	u32 w, h;
 
 	w = mode->hdisplay;
@@ -1123,6 +1124,7 @@ static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.wait_for_vblank	= mixer_wait_for_vblank,
 	.update_plane		= mixer_update_plane,
 	.disable_plane		= mixer_disable_plane,
+	.atomic_check		= mixer_atomic_check,
 };
 
 static struct mixer_drv_data exynos5420_mxr_drv_data = {
