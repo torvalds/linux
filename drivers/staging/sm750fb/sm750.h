@@ -79,13 +79,6 @@ struct lynx_cursor {
 	volatile char __iomem *mmio;
 	/* the lynx_share of this adaptor */
 	struct lynx_share *share;
-	/* proc_routines */
-	void (*enable)(struct lynx_cursor *);
-	void (*disable)(struct lynx_cursor *);
-	void (*setSize)(struct lynx_cursor *, int, int);
-	void (*setPos)(struct lynx_cursor *, int, int);
-	void (*setColor)(struct lynx_cursor *, u32, u32);
-	void (*setData)(struct lynx_cursor *, u16, const u8*, const u8*);
 };
 
 struct lynxfb_crtc {

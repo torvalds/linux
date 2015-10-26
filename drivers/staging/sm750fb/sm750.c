@@ -129,16 +129,16 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 		return -ENXIO;
 	}
 
-	cursor->disable(cursor);
+	hw_cursor_disable(cursor);
 	if (fbcursor->set & FB_CUR_SETSIZE)
-		cursor->setSize(cursor,
-				fbcursor->image.width,
-				fbcursor->image.height);
+		hw_cursor_setSize(cursor,
+				  fbcursor->image.width,
+				  fbcursor->image.height);
 
 	if (fbcursor->set & FB_CUR_SETPOS)
-		cursor->setPos(cursor,
-			       fbcursor->image.dx - info->var.xoffset,
-			       fbcursor->image.dy - info->var.yoffset);
+		hw_cursor_setPos(cursor,
+				 fbcursor->image.dx - info->var.xoffset,
+				 fbcursor->image.dy - info->var.yoffset);
 
 	if (fbcursor->set & FB_CUR_SETCMAP) {
 		/* get the 16bit color of kernel means */
@@ -152,18 +152,18 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 		      ((info->cmap.green[fbcursor->image.bg_color] & 0xfc00) >> 5) |
 		      ((info->cmap.blue[fbcursor->image.bg_color] & 0xf800) >> 11);
 
-		cursor->setColor(cursor, fg, bg);
+		hw_cursor_setColor(cursor, fg, bg);
 	}
 
 	if (fbcursor->set & (FB_CUR_SETSHAPE | FB_CUR_SETIMAGE)) {
-		cursor->setData(cursor,
-				fbcursor->rop,
-				fbcursor->image.data,
-				fbcursor->mask);
+		hw_cursor_setData(cursor,
+				  fbcursor->rop,
+				  fbcursor->image.data,
+				  fbcursor->mask);
 	}
 
 	if (fbcursor->enable)
-		cursor->enable(cursor);
+		hw_cursor_enable(cursor);
 
 	return 0;
 }
@@ -791,19 +791,13 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	pr_info("crtc->cursor.mmio = %p\n", crtc->cursor.mmio);
 	crtc->cursor.maxH = crtc->cursor.maxW = 64;
 	crtc->cursor.size = crtc->cursor.maxH * crtc->cursor.maxW * 2 / 8;
-	crtc->cursor.disable = hw_cursor_disable;
-	crtc->cursor.enable = hw_cursor_enable;
-	crtc->cursor.setColor = hw_cursor_setColor;
-	crtc->cursor.setPos = hw_cursor_setPos;
-	crtc->cursor.setSize = hw_cursor_setSize;
-	crtc->cursor.setData = hw_cursor_setData;
 	crtc->cursor.vstart = share->pvMem + crtc->cursor.offset;
 
 	crtc->cursor.share = share;
 		memset_io(crtc->cursor.vstart, 0, crtc->cursor.size);
 	if (!g_hwcursor) {
 		lynxfb_ops.fb_cursor = NULL;
-		crtc->cursor.disable(&crtc->cursor);
+		hw_cursor_disable(&crtc->cursor);
 	}
 
 	/* set info->fbops, must be set before fb_find_mode */
