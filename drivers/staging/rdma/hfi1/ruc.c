@@ -695,19 +695,6 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 	return sizeof(struct ib_grh) / sizeof(u32);
 }
 
-/*
- * free_ahg - clear ahg from QP
- */
-void clear_ahg(struct hfi1_qp *qp)
-{
-	qp->s_hdr->ahgcount = 0;
-	qp->s_flags &= ~(HFI1_S_AHG_VALID | HFI1_S_AHG_CLEAR);
-	if (qp->s_sde)
-		sdma_ahg_free(qp->s_sde, qp->s_ahgidx);
-	qp->s_ahgidx = -1;
-	qp->s_sde = NULL;
-}
-
 #define BTH2_OFFSET (offsetof(struct hfi1_pio_header, hdr.u.oth.bth[2]) / 4)
 
 /**
