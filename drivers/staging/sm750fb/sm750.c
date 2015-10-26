@@ -24,8 +24,6 @@
 
 #include "modedb.h"
 
-int smi_indent;
-
 /*
  * #ifdef __BIG_ENDIAN
  * ssize_t lynxfb_ops_write(struct fb_info *info, const char __user *buf,

@@ -6,8 +6,6 @@
 #define FB_ACCEL_SMI 0xab
 
 #define MHZ(x) ((x) * 1000000)
-extern int smi_indent;
-
 
 struct lynx_accel {
 	/* base virtual address of DPR registers */
