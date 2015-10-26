@@ -533,7 +533,7 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 	struct rsnd_mod *mod_start, *mod_end;
 	struct rsnd_priv *priv = rsnd_mod_to_priv(this);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int nr, i;
+	int nr, i, idx;
 
 	if (!ssi)
 		return;
@@ -562,23 +562,24 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 	mod_start	= (is_play) ? NULL : ssi;
 	mod_end		= (is_play) ? ssi  : NULL;
 
-	mod[0] = mod_start;
+	idx = 0;
+	mod[idx++] = mod_start;
 	for (i = 1; i < nr; i++) {
 		if (src) {
-			mod[i] = src;
+			mod[idx++] = src;
 			src = NULL;
 		} else if (ctu) {
-			mod[i] = ctu;
+			mod[idx++] = ctu;
 			ctu = NULL;
 		} else if (mix) {
-			mod[i] = mix;
+			mod[idx++] = mix;
 			mix = NULL;
 		} else if (dvc) {
-			mod[i] = dvc;
+			mod[idx++] = dvc;
 			dvc = NULL;
 		}
 	}
-	mod[i] = mod_end;
+	mod[idx] = mod_end;
 
 	/*
 	 *		| SSI | SRC |
@@ -587,8 +588,8 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 	 * !is_play	|  *  |  o  |
 	 */
 	if ((this == ssi) == (is_play)) {
-		*mod_from	= mod[nr - 1];
-		*mod_to		= mod[nr];
+		*mod_from	= mod[idx - 1];
+		*mod_to		= mod[idx];
 	} else {
 		*mod_from	= mod[0];
 		*mod_to		= mod[1];
@@ -596,7 +597,7 @@ static void rsnd_dma_of_path(struct rsnd_dma *dma,
 
 	dev_dbg(dev, "module connection (this is %s[%d])\n",
 		rsnd_mod_name(this), rsnd_mod_id(this));
-	for (i = 0; i <= nr; i++) {
+	for (i = 0; i <= idx; i++) {
 		dev_dbg(dev, "  %s[%d]%s\n",
 		       rsnd_mod_name(mod[i]), rsnd_mod_id(mod[i]),
 		       (mod[i] == *mod_from) ? " from" :
