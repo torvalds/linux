@@ -25,6 +25,7 @@
 #include <linux/mmc/host.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/dm9000.h>
 #include <linux/gpio_keys.h>
@@ -108,11 +109,14 @@ static struct s3c2410_uartcfg crag6410_uartcfgs[] __initdata = {
 	},
 };
 
+static struct pwm_lookup crag6410_pwm_lookup[] = {
+	PWM_LOOKUP("samsung-pwm", 0, "pwm-backlight", NULL, 100000,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data crag6410_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= 1000,
 	.dft_brightness	= 600,
-	.pwm_period_ns	= 100000,	/* about 1kHz */
 	.enable_gpio	= -1,
 };
 
@@ -843,6 +847,7 @@ static void __init crag6410_machine_init(void)
 	samsung_keypad_set_platdata(&crag6410_keypad_data);
 	s3c64xx_spi0_set_platdata(NULL, 0, 2);
 
+	pwm_add_table(crag6410_pwm_lookup, ARRAY_SIZE(crag6410_pwm_lookup));
 	platform_add_devices(crag6410_devices, ARRAY_SIZE(crag6410_devices));
 
 	gpio_led_register_device(-1, &gpio_leds_pdata);
