@@ -651,6 +651,22 @@ static const struct snd_soc_component_driver fsl_component = {
 	.name           = "fsl-sai",
 };
 
+static struct reg_default fsl_sai_reg_defaults[] = {
+	{FSL_SAI_TCR1, 0},
+	{FSL_SAI_TCR2, 0},
+	{FSL_SAI_TCR3, 0},
+	{FSL_SAI_TCR4, 0},
+	{FSL_SAI_TCR5, 0},
+	{FSL_SAI_TDR,  0},
+	{FSL_SAI_TMR,  0},
+	{FSL_SAI_RCR1, 0},
+	{FSL_SAI_RCR2, 0},
+	{FSL_SAI_RCR3, 0},
+	{FSL_SAI_RCR4, 0},
+	{FSL_SAI_RCR5, 0},
+	{FSL_SAI_RMR,  0},
+};
+
 static bool fsl_sai_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -684,13 +700,11 @@ static bool fsl_sai_volatile_reg(struct device *dev, unsigned int reg)
 	case FSL_SAI_RCSR:
 	case FSL_SAI_TFR:
 	case FSL_SAI_RFR:
-	case FSL_SAI_TDR:
 	case FSL_SAI_RDR:
 		return true;
 	default:
 		return false;
 	}
-
 }
 
 static bool fsl_sai_writeable_reg(struct device *dev, unsigned int reg)
@@ -723,6 +737,8 @@ static const struct regmap_config fsl_sai_regmap_config = {
 	.val_bits = 32,
 
 	.max_register = FSL_SAI_RMR,
+	.reg_defaults = fsl_sai_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(fsl_sai_reg_defaults),
 	.readable_reg = fsl_sai_readable_reg,
 	.volatile_reg = fsl_sai_volatile_reg,
 	.writeable_reg = fsl_sai_writeable_reg,
