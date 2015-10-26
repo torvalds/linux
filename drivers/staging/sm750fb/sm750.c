@@ -395,6 +395,7 @@ static inline unsigned int chan_to_field(unsigned int chan,
 static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	struct fb_info *info;
+	struct sm750_dev *sm750_dev;
 	struct lynx_share *share;
 	int ret;
 
@@ -402,7 +403,8 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 		return 0;
 
 	ret = 0;
-	share = pci_get_drvdata(pdev);
+	sm750_dev = pci_get_drvdata(pdev);
+	share = &sm750_dev->share;
 	switch (mesg.event) {
 	case PM_EVENT_FREEZE:
 	case PM_EVENT_PRETHAW:
@@ -453,8 +455,8 @@ static int lynxfb_resume(struct pci_dev *pdev)
 	int ret;
 
 	ret = 0;
-	share = pci_get_drvdata(pdev);
-	sm750_dev = container_of(share, struct sm750_dev, share);
+	sm750_dev = pci_get_drvdata(pdev);
+	share = &sm750_dev->share;
 
 	console_lock();
 
@@ -1103,7 +1105,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 
 	pr_info("sm%3x mmio address = %p\n", share->devid, share->pvReg);
 
-	pci_set_drvdata(pdev, share);
+	pci_set_drvdata(pdev, sm750_dev);
 
 	/* call chipInit routine */
 	hw_sm750_inithw(sm750_dev, pdev);
@@ -1183,7 +1185,8 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 	int cnt;
 
 	cnt = 2;
-	share = pci_get_drvdata(pdev);
+	sm750_dev = pci_get_drvdata(pdev);
+	share = &sm750_dev->share;
 
 	while (cnt-- > 0) {
 		info = share->fbinfo[cnt];
@@ -1199,7 +1202,6 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 
 	iounmap(share->pvReg);
 	iounmap(share->pvMem);
-	sm750_dev = container_of(share, struct sm750_dev, share);
 	kfree(g_settings);
 	kfree(sm750_dev);
 	pci_set_drvdata(pdev, NULL);
