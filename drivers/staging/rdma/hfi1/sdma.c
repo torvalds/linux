@@ -66,6 +66,7 @@
 
 /* must be a power of 2 >= 64 <= 32768 */
 #define SDMA_DESCQ_CNT 1024
+#define SDMA_DESC_INTR 64
 #define INVALID_TAIL 0xffff
 
 static uint sdma_descq_cnt = SDMA_DESCQ_CNT;
@@ -79,6 +80,10 @@ MODULE_PARM_DESC(sdma_idle_cnt, "sdma interrupt idle delay (ns,default 250)");
 uint mod_num_sdma;
 module_param_named(num_sdma, mod_num_sdma, uint, S_IRUGO);
 MODULE_PARM_DESC(num_sdma, "Set max number SDMA engines to use");
+
+static uint sdma_desct_intr = SDMA_DESC_INTR;
+module_param_named(desct_intr, sdma_desct_intr, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(desct_intr, "Number of SDMA descriptor before interrupt");
 
 #define SDMA_WAIT_BATCH_SIZE 20
 /* max wait time for a SDMA engine to indicate it has halted */
@@ -1046,6 +1051,9 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		return -ENOMEM;
 
 	idle_cnt = ns_to_cclock(dd, idle_cnt);
+	if (!sdma_desct_intr)
+		sdma_desct_intr = SDMA_DESC_INTR;
+
 	/* Allocate memory for SendDMA descriptor FIFOs */
 	for (this_idx = 0; this_idx < num_engines; ++this_idx) {
 		sde = &dd->per_sdma[this_idx];
@@ -1546,7 +1554,7 @@ void sdma_engine_interrupt(struct sdma_engine *sde, u64 status)
 {
 	trace_hfi1_sdma_engine_interrupt(sde, status);
 	write_seqlock(&sde->head_lock);
-	sdma_set_desc_cnt(sde, sde->descq_cnt / 2);
+	sdma_set_desc_cnt(sde, sdma_desct_intr);
 	sdma_make_progress(sde, status);
 	write_sequnlock(&sde->head_lock);
 }
