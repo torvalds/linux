@@ -20,6 +20,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/spi-mt65xx.h>
 #include <linux/pm_runtime.h>
@@ -84,7 +85,8 @@ struct mtk_spi_compatible {
 struct mtk_spi {
 	void __iomem *base;
 	u32 state;
-	u32 pad_sel;
+	int pad_num;
+	u32 *pad_sel;
 	struct clk *parent_clk, *sel_clk, *spi_clk;
 	struct spi_transfer *cur_transfer;
 	u32 xfer_len;
@@ -188,7 +190,8 @@ static int mtk_spi_prepare_message(struct spi_master *master,
 
 	/* pad select */
 	if (mdata->dev_comp->need_pad_sel)
-		writel(mdata->pad_sel, mdata->base + SPI_PAD_SEL_REG);
+		writel(mdata->pad_sel[spi->chip_select],
+		       mdata->base + SPI_PAD_SEL_REG);
 
 	return 0;
 }
@@ -407,6 +410,9 @@ static int mtk_spi_setup(struct spi_device *spi)
 	if (!spi->controller_data)
 		spi->controller_data = (void *)&mtk_default_chip_info;
 
+	if (mdata->dev_comp->need_pad_sel)
+		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
+
 	return 0;
 }
 
@@ -481,7 +487,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	struct mtk_spi *mdata;
 	const struct of_device_id *of_id;
 	struct resource *res;
-	int irq, ret;
+	int i, irq, ret;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*mdata));
 	if (!master) {
@@ -512,20 +518,33 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		master->flags = SPI_MASTER_MUST_TX;
 
 	if (mdata->dev_comp->need_pad_sel) {
-		ret = of_property_read_u32(pdev->dev.of_node,
-					   "mediatek,pad-select",
-					   &mdata->pad_sel);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to read pad select: %d\n",
-				ret);
+		mdata->pad_num = of_property_count_u32_elems(
+			pdev->dev.of_node,
+			"mediatek,pad-select");
+		if (mdata->pad_num < 0) {
+			dev_err(&pdev->dev,
+				"No 'mediatek,pad-select' property\n");
+			ret = -EINVAL;
 			goto err_put_master;
 		}
 
-		if (mdata->pad_sel > MT8173_SPI_MAX_PAD_SEL) {
-			dev_err(&pdev->dev, "wrong pad-select: %u\n",
-				mdata->pad_sel);
-			ret = -EINVAL;
+		mdata->pad_sel = devm_kmalloc_array(&pdev->dev, mdata->pad_num,
+						    sizeof(u32), GFP_KERNEL);
+		if (!mdata->pad_sel) {
+			ret = -ENOMEM;
 			goto err_put_master;
+		}
+
+		for (i = 0; i < mdata->pad_num; i++) {
+			of_property_read_u32_index(pdev->dev.of_node,
+						   "mediatek,pad-select",
+						   i, &mdata->pad_sel[i]);
+			if (mdata->pad_sel[i] > MT8173_SPI_MAX_PAD_SEL) {
+				dev_err(&pdev->dev, "wrong pad-sel[%d]: %u\n",
+					i, mdata->pad_sel[i]);
+				ret = -EINVAL;
+				goto err_put_master;
+			}
 		}
 	}
 
@@ -602,6 +621,26 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register master (%d)\n", ret);
 		goto err_put_master;
+	}
+
+	if (mdata->dev_comp->need_pad_sel) {
+		if (mdata->pad_num != master->num_chipselect) {
+			dev_err(&pdev->dev,
+				"pad_num does not match num_chipselect(%d != %d)\n",
+				mdata->pad_num, master->num_chipselect);
+			ret = -EINVAL;
+			goto err_put_master;
+		}
+
+		for (i = 0; i < master->num_chipselect; i++) {
+			ret = devm_gpio_request(&pdev->dev, master->cs_gpios[i],
+						dev_name(&pdev->dev));
+			if (ret) {
+				dev_err(&pdev->dev,
+					"can't get CS GPIO %i\n", i);
+				goto err_put_master;
+			}
+		}
 	}
 
 	return 0;
