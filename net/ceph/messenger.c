@@ -1205,7 +1205,7 @@ static void prepare_write_message_footer(struct ceph_connection *con)
 	con->out_kvec[v].iov_base = &m->footer;
 	if (con->peer_features & CEPH_FEATURE_MSG_AUTH) {
 		if (con->ops->sign_message)
-			con->ops->sign_message(con, m);
+			con->ops->sign_message(m);
 		else
 			m->footer.sig = 0;
 		con->out_kvec[v].iov_len = sizeof(m->footer);
@@ -2422,7 +2422,7 @@ static int read_partial_message(struct ceph_connection *con)
 	}
 
 	if (need_sign && con->ops->check_message_signature &&
-	    con->ops->check_message_signature(con, m)) {
+	    con->ops->check_message_signature(m)) {
 		pr_err("read_partial_message %p signature check failed\n", m);
 		return -EBADMSG;
 	}

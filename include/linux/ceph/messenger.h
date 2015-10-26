@@ -43,10 +43,9 @@ struct ceph_connection_operations {
 	struct ceph_msg * (*alloc_msg) (struct ceph_connection *con,
 					struct ceph_msg_header *hdr,
 					int *skip);
-	int (*sign_message) (struct ceph_connection *con, struct ceph_msg *msg);
 
-	int (*check_message_signature) (struct ceph_connection *con,
-					struct ceph_msg *msg);
+	int (*sign_message) (struct ceph_msg *msg);
+	int (*check_message_signature) (struct ceph_msg *msg);
 };
 
 /* use format string %s%d */
