@@ -1411,14 +1411,14 @@ static int fm10k_mbx_request_irq_pf(struct fm10k_intfc *interface)
 	}
 
 	/* Enable interrupts w/ no moderation for "other" interrupts */
-	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_PCIeFault), other_itr);
-	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_SwitchUpDown), other_itr);
-	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_SRAM), other_itr);
-	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_MaxHoldTime), other_itr);
-	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_VFLR), other_itr);
+	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_pcie_fault), other_itr);
+	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_switch_up_down), other_itr);
+	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_sram), other_itr);
+	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_max_hold_time), other_itr);
+	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_vflr), other_itr);
 
 	/* Enable interrupts w/ moderation for mailbox */
-	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_Mailbox), mbx_itr);
+	fm10k_write_reg(hw, FM10K_INT_MAP(fm10k_int_mailbox), mbx_itr);
 
 	/* Enable individual interrupt causes */
 	fm10k_write_reg(hw, FM10K_EIMR, FM10K_EIMR_ENABLE(PCA_FAULT) |

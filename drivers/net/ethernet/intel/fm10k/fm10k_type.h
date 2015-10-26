@@ -388,13 +388,13 @@ struct fm10k_hw;
 #define FM10K_SW_SYSTIME_PULSE(_n)	((_n) + 0x02252)
 
 enum fm10k_int_source {
-	fm10k_int_Mailbox	= 0,
-	fm10k_int_PCIeFault	= 1,
-	fm10k_int_SwitchUpDown	= 2,
-	fm10k_int_SwitchEvent	= 3,
-	fm10k_int_SRAM		= 4,
-	fm10k_int_VFLR		= 5,
-	fm10k_int_MaxHoldTime	= 6,
+	fm10k_int_mailbox		= 0,
+	fm10k_int_pcie_fault		= 1,
+	fm10k_int_switch_up_down	= 2,
+	fm10k_int_switch_event		= 3,
+	fm10k_int_sram			= 4,
+	fm10k_int_vflr			= 5,
+	fm10k_int_max_hold_time		= 6,
 	fm10k_int_sources_max_pf
 };
 
