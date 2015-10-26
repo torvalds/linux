@@ -1056,6 +1056,118 @@ static int qede_set_ucast_rx_mac(struct qede_dev *edev,
 	return edev->ops->filter_config(edev->cdev, &filter_cmd);
 }
 
+void qede_fill_by_demand_stats(struct qede_dev *edev)
+{
+	struct qed_eth_stats stats;
+
+	edev->ops->get_vport_stats(edev->cdev, &stats);
+	edev->stats.no_buff_discards = stats.no_buff_discards;
+	edev->stats.rx_ucast_bytes = stats.rx_ucast_bytes;
+	edev->stats.rx_mcast_bytes = stats.rx_mcast_bytes;
+	edev->stats.rx_bcast_bytes = stats.rx_bcast_bytes;
+	edev->stats.rx_ucast_pkts = stats.rx_ucast_pkts;
+	edev->stats.rx_mcast_pkts = stats.rx_mcast_pkts;
+	edev->stats.rx_bcast_pkts = stats.rx_bcast_pkts;
+	edev->stats.mftag_filter_discards = stats.mftag_filter_discards;
+	edev->stats.mac_filter_discards = stats.mac_filter_discards;
+
+	edev->stats.tx_ucast_bytes = stats.tx_ucast_bytes;
+	edev->stats.tx_mcast_bytes = stats.tx_mcast_bytes;
+	edev->stats.tx_bcast_bytes = stats.tx_bcast_bytes;
+	edev->stats.tx_ucast_pkts = stats.tx_ucast_pkts;
+	edev->stats.tx_mcast_pkts = stats.tx_mcast_pkts;
+	edev->stats.tx_bcast_pkts = stats.tx_bcast_pkts;
+	edev->stats.tx_err_drop_pkts = stats.tx_err_drop_pkts;
+	edev->stats.coalesced_pkts = stats.tpa_coalesced_pkts;
+	edev->stats.coalesced_events = stats.tpa_coalesced_events;
+	edev->stats.coalesced_aborts_num = stats.tpa_aborts_num;
+	edev->stats.non_coalesced_pkts = stats.tpa_not_coalesced_pkts;
+	edev->stats.coalesced_bytes = stats.tpa_coalesced_bytes;
+
+	edev->stats.rx_64_byte_packets = stats.rx_64_byte_packets;
+	edev->stats.rx_127_byte_packets = stats.rx_127_byte_packets;
+	edev->stats.rx_255_byte_packets = stats.rx_255_byte_packets;
+	edev->stats.rx_511_byte_packets = stats.rx_511_byte_packets;
+	edev->stats.rx_1023_byte_packets = stats.rx_1023_byte_packets;
+	edev->stats.rx_1518_byte_packets = stats.rx_1518_byte_packets;
+	edev->stats.rx_1522_byte_packets = stats.rx_1522_byte_packets;
+	edev->stats.rx_2047_byte_packets = stats.rx_2047_byte_packets;
+	edev->stats.rx_4095_byte_packets = stats.rx_4095_byte_packets;
+	edev->stats.rx_9216_byte_packets = stats.rx_9216_byte_packets;
+	edev->stats.rx_16383_byte_packets = stats.rx_16383_byte_packets;
+	edev->stats.rx_crc_errors = stats.rx_crc_errors;
+	edev->stats.rx_mac_crtl_frames = stats.rx_mac_crtl_frames;
+	edev->stats.rx_pause_frames = stats.rx_pause_frames;
+	edev->stats.rx_pfc_frames = stats.rx_pfc_frames;
+	edev->stats.rx_align_errors = stats.rx_align_errors;
+	edev->stats.rx_carrier_errors = stats.rx_carrier_errors;
+	edev->stats.rx_oversize_packets = stats.rx_oversize_packets;
+	edev->stats.rx_jabbers = stats.rx_jabbers;
+	edev->stats.rx_undersize_packets = stats.rx_undersize_packets;
+	edev->stats.rx_fragments = stats.rx_fragments;
+	edev->stats.tx_64_byte_packets = stats.tx_64_byte_packets;
+	edev->stats.tx_65_to_127_byte_packets = stats.tx_65_to_127_byte_packets;
+	edev->stats.tx_128_to_255_byte_packets =
+				stats.tx_128_to_255_byte_packets;
+	edev->stats.tx_256_to_511_byte_packets =
+				stats.tx_256_to_511_byte_packets;
+	edev->stats.tx_512_to_1023_byte_packets =
+				stats.tx_512_to_1023_byte_packets;
+	edev->stats.tx_1024_to_1518_byte_packets =
+				stats.tx_1024_to_1518_byte_packets;
+	edev->stats.tx_1519_to_2047_byte_packets =
+				stats.tx_1519_to_2047_byte_packets;
+	edev->stats.tx_2048_to_4095_byte_packets =
+				stats.tx_2048_to_4095_byte_packets;
+	edev->stats.tx_4096_to_9216_byte_packets =
+				stats.tx_4096_to_9216_byte_packets;
+	edev->stats.tx_9217_to_16383_byte_packets =
+				stats.tx_9217_to_16383_byte_packets;
+	edev->stats.tx_pause_frames = stats.tx_pause_frames;
+	edev->stats.tx_pfc_frames = stats.tx_pfc_frames;
+	edev->stats.tx_lpi_entry_count = stats.tx_lpi_entry_count;
+	edev->stats.tx_total_collisions = stats.tx_total_collisions;
+	edev->stats.brb_truncates = stats.brb_truncates;
+	edev->stats.brb_discards = stats.brb_discards;
+	edev->stats.tx_mac_ctrl_frames = stats.tx_mac_ctrl_frames;
+}
+
+static struct rtnl_link_stats64 *qede_get_stats64(
+			    struct net_device *dev,
+			    struct rtnl_link_stats64 *stats)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	qede_fill_by_demand_stats(edev);
+
+	stats->rx_packets = edev->stats.rx_ucast_pkts +
+			    edev->stats.rx_mcast_pkts +
+			    edev->stats.rx_bcast_pkts;
+	stats->tx_packets = edev->stats.tx_ucast_pkts +
+			    edev->stats.tx_mcast_pkts +
+			    edev->stats.tx_bcast_pkts;
+
+	stats->rx_bytes = edev->stats.rx_ucast_bytes +
+			  edev->stats.rx_mcast_bytes +
+			  edev->stats.rx_bcast_bytes;
+
+	stats->tx_bytes = edev->stats.tx_ucast_bytes +
+			  edev->stats.tx_mcast_bytes +
+			  edev->stats.tx_bcast_bytes;
+
+	stats->tx_errors = edev->stats.tx_err_drop_pkts;
+	stats->multicast = edev->stats.rx_mcast_pkts +
+			   edev->stats.rx_bcast_pkts;
+
+	stats->rx_fifo_errors = edev->stats.no_buff_discards;
+
+	stats->collisions = edev->stats.tx_total_collisions;
+	stats->rx_crc_errors = edev->stats.rx_crc_errors;
+	stats->rx_frame_errors = edev->stats.rx_align_errors;
+
+	return stats;
+}
+
 static const struct net_device_ops qede_netdev_ops = {
 	.ndo_open = qede_open,
 	.ndo_stop = qede_close,
@@ -1063,6 +1175,8 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_set_rx_mode = qede_set_rx_mode,
 	.ndo_set_mac_address = qede_set_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
+	.ndo_change_mtu = qede_change_mtu,
+	.ndo_get_stats64 = qede_get_stats64,
 };
 
 /* -------------------------------------------------------------------------
@@ -1101,6 +1215,7 @@ static struct qede_dev *qede_alloc_etherdev(struct qed_dev *cdev,
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
+	memset(&edev->stats, 0, sizeof(edev->stats));
 	memcpy(&edev->dev_info, info, sizeof(*info));
 
 	edev->num_tc = edev->dev_info.num_tc;
@@ -1124,6 +1239,8 @@ static void qede_init_ndev(struct qede_dev *edev)
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
 	ndev->netdev_ops = &qede_netdev_ops;
+
+	qede_set_ethtool_ops(ndev);
 
 	/* user-changeble features */
 	hw_features = NETIF_F_GRO | NETIF_F_SG |
@@ -1153,7 +1270,7 @@ static void qede_init_ndev(struct qede_dev *edev)
  *
  * Notice that the level should be that of the lowest required logs.
  */
-static void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level)
+void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level)
 {
 	*p_dp_level = QED_LEVEL_NOTICE;
 	*p_dp_module = 0;
@@ -2227,6 +2344,24 @@ err1:
 	edev->num_rss = 0;
 err0:
 	return rc;
+}
+
+void qede_reload(struct qede_dev *edev,
+		 void (*func)(struct qede_dev *, union qede_reload_args *),
+		 union qede_reload_args *args)
+{
+	qede_unload(edev, QEDE_UNLOAD_NORMAL);
+	/* Call function handler to update parameters
+	 * needed for function load.
+	 */
+	if (func)
+		func(edev, args);
+
+	qede_load(edev, QEDE_LOAD_NORMAL);
+
+	mutex_lock(&edev->qede_lock);
+	qede_config_rx_mode(edev->ndev);
+	mutex_unlock(&edev->qede_lock);
 }
 
 /* called with rtnl_lock */

@@ -36,6 +36,70 @@
 
 #define DRV_MODULE_SYM		qede
 
+struct qede_stats {
+	u64 no_buff_discards;
+	u64 rx_ucast_bytes;
+	u64 rx_mcast_bytes;
+	u64 rx_bcast_bytes;
+	u64 rx_ucast_pkts;
+	u64 rx_mcast_pkts;
+	u64 rx_bcast_pkts;
+	u64 mftag_filter_discards;
+	u64 mac_filter_discards;
+	u64 tx_ucast_bytes;
+	u64 tx_mcast_bytes;
+	u64 tx_bcast_bytes;
+	u64 tx_ucast_pkts;
+	u64 tx_mcast_pkts;
+	u64 tx_bcast_pkts;
+	u64 tx_err_drop_pkts;
+	u64 coalesced_pkts;
+	u64 coalesced_events;
+	u64 coalesced_aborts_num;
+	u64 non_coalesced_pkts;
+	u64 coalesced_bytes;
+
+	/* port */
+	u64 rx_64_byte_packets;
+	u64 rx_127_byte_packets;
+	u64 rx_255_byte_packets;
+	u64 rx_511_byte_packets;
+	u64 rx_1023_byte_packets;
+	u64 rx_1518_byte_packets;
+	u64 rx_1522_byte_packets;
+	u64 rx_2047_byte_packets;
+	u64 rx_4095_byte_packets;
+	u64 rx_9216_byte_packets;
+	u64 rx_16383_byte_packets;
+	u64 rx_crc_errors;
+	u64 rx_mac_crtl_frames;
+	u64 rx_pause_frames;
+	u64 rx_pfc_frames;
+	u64 rx_align_errors;
+	u64 rx_carrier_errors;
+	u64 rx_oversize_packets;
+	u64 rx_jabbers;
+	u64 rx_undersize_packets;
+	u64 rx_fragments;
+	u64 tx_64_byte_packets;
+	u64 tx_65_to_127_byte_packets;
+	u64 tx_128_to_255_byte_packets;
+	u64 tx_256_to_511_byte_packets;
+	u64 tx_512_to_1023_byte_packets;
+	u64 tx_1024_to_1518_byte_packets;
+	u64 tx_1519_to_2047_byte_packets;
+	u64 tx_2048_to_4095_byte_packets;
+	u64 tx_4096_to_9216_byte_packets;
+	u64 tx_9217_to_16383_byte_packets;
+	u64 tx_pause_frames;
+	u64 tx_pfc_frames;
+	u64 tx_lpi_entry_count;
+	u64 tx_total_collisions;
+	u64 brb_truncates;
+	u64 brb_discards;
+	u64 tx_mac_ctrl_frames;
+};
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -84,6 +148,7 @@ struct qede_dev {
 	max_t(u64, 1UL << QEDE_RX_ALIGN_SHIFT,			\
 	      SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
+	struct qede_stats		stats;
 	struct qed_update_vport_rss_params	rss_params;
 	u16			q_num_rx_buffers; /* Must be a power of two */
 	u16			q_num_tx_buffers; /* Must be a power of two */
@@ -193,6 +258,15 @@ struct qede_fastpath {
 union qede_reload_args {
 	u16 mtu;
 };
+
+void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level);
+void qede_set_ethtool_ops(struct net_device *netdev);
+void qede_reload(struct qede_dev *edev,
+		 void (*func)(struct qede_dev *edev,
+			      union qede_reload_args *args),
+		 union qede_reload_args *args);
+int qede_change_mtu(struct net_device *dev, int new_mtu);
+void qede_fill_by_demand_stats(struct qede_dev *edev);
 
 #define RX_RING_SIZE_POW	13
 #define RX_RING_SIZE		BIT(RX_RING_SIZE_POW)
