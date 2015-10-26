@@ -27,10 +27,10 @@
 int hw_sm750_map(struct lynx_share *share, struct pci_dev *pdev)
 {
 	int ret;
-	struct sm750_share *spec_share;
+	struct sm750_dev *spec_share;
 
 
-	spec_share = container_of(share, struct sm750_share, share);
+	spec_share = container_of(share, struct sm750_dev, share);
 	ret = 0;
 
 	share->vidreg_start  = pci_resource_start(pdev, 1);
@@ -93,10 +93,10 @@ exit:
 
 int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 {
-	struct sm750_share *spec_share;
+	struct sm750_dev *spec_share;
 	struct init_status *parm;
 
-	spec_share = container_of(share, struct sm750_share, share);
+	spec_share = container_of(share, struct sm750_dev, share);
 	parm = &spec_share->state.initParm;
 	if (parm->chip_clk == 0)
 		parm->chip_clk = (getChipType() == SM750LE) ?

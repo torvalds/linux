@@ -108,10 +108,10 @@ struct lynx_share {
 };
 
 /*
- * sm750_share stands for a presentation of two frame buffer
+ * sm750_dev stands for a presentation of two frame buffer
  * that use one sm750 adaptor
  */
-struct sm750_share {
+struct sm750_dev {
 	struct lynx_share share;
 	struct sm750_state state;
 

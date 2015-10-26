@@ -650,14 +650,14 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 {
 	int ret;
 	struct lynx_share *share;
-	struct sm750_share *spec_share;
+	struct sm750_dev *spec_share;
 	struct lynxfb_output *output;
 	struct lynxfb_crtc *crtc;
 
 	ret = 0;
 
 	share = par->share;
-	spec_share = container_of(share, struct sm750_share, share);
+	spec_share = container_of(share, struct sm750_dev, share);
 	output = &par->output;
 	crtc = &par->crtc;
 
@@ -937,14 +937,14 @@ exit:
 /*	chip specific g_option configuration routine */
 static void sm750fb_setup(struct lynx_share *share, char *src)
 {
-	struct sm750_share *spec_share;
+	struct sm750_dev *spec_share;
 	char *opt;
 #ifdef CAP_EXPENSION
 	char *exp_res;
 #endif
 	int swap;
 
-	spec_share = container_of(share, struct sm750_share, share);
+	spec_share = container_of(share, struct sm750_dev, share);
 #ifdef CAP_EXPENSIION
 	exp_res = NULL;
 #endif
@@ -1037,7 +1037,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	struct fb_info *info[] = {NULL, NULL};
 	struct lynx_share *share = NULL;
 
-	struct sm750_share *spec_share = NULL;
+	struct sm750_dev *spec_share = NULL;
 	size_t spec_offset = 0;
 	int fbidx;
 
@@ -1048,10 +1048,10 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	}
 
 	/*
-	 * though offset of share in sm750_share is 0,
+	 * though offset of share in sm750_dev is 0,
 	 * we use this marcro as the same
 	 */
-	spec_offset = offsetof(struct sm750_share, share);
+	spec_offset = offsetof(struct sm750_dev, share);
 
 	spec_share = kzalloc(sizeof(*spec_share), GFP_KERNEL);
 	if (!spec_share) {
@@ -1202,7 +1202,7 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 
 	iounmap(share->pvReg);
 	iounmap(share->pvMem);
-	spec_share = container_of(share, struct sm750_share, share);
+	spec_share = container_of(share, struct sm750_dev, share);
 	kfree(g_settings);
 	kfree(spec_share);
 	pci_set_drvdata(pdev, NULL);
