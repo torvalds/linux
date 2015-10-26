@@ -423,17 +423,17 @@ s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 		 * the beacon/probe response frame          
 		 */
 		pstrNetworkInfo->u8channel = get_current_channel_802_11n(pu8msa,
-							(u16RxLen + FCS_LEN));
+							u16RxLen + FCS_LEN);
 
 		/* Get beacon period */
-		u8index = (MAC_HDR_LEN + TIME_STAMP_LEN);
+		u8index = MAC_HDR_LEN + TIME_STAMP_LEN;
 
 		pstrNetworkInfo->u16BeaconPeriod = get_beacon_period(pu8msa + u8index);
 
 		u8index += BEACON_INTERVAL_LEN + CAP_INFO_LEN;
 
 		/* Get DTIM Period */
-		pu8TimElm = get_tim_elm(pu8msa, (u16RxLen + FCS_LEN), u8index);
+		pu8TimElm = get_tim_elm(pu8msa, u16RxLen + FCS_LEN, u8index);
 		if (pu8TimElm != NULL)
 			pstrNetworkInfo->u8DtimPeriod = pu8TimElm[3];
 		pu8IEs = &pu8msa[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN];
