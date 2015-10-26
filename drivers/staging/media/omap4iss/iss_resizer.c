@@ -496,8 +496,8 @@ resizer_try_format(struct iss_resizer_device *resizer,
  * return -EINVAL or zero on success
  */
 static int resizer_enum_mbus_code(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
-			       struct v4l2_subdev_mbus_code_enum *code)
+				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct iss_resizer_device *resizer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
@@ -541,8 +541,8 @@ static int resizer_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int resizer_enum_frame_size(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
-				struct v4l2_subdev_frame_size_enum *fse)
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct iss_resizer_device *resizer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt format;
@@ -624,7 +624,7 @@ static int resizer_set_format(struct v4l2_subdev *sd,
 					      fmt->which);
 		*format = fmt->format;
 		resizer_try_format(resizer, cfg, RESIZER_PAD_SOURCE_MEM, format,
-				fmt->which);
+				   fmt->which);
 	}
 
 	return 0;
@@ -710,8 +710,8 @@ static const struct v4l2_subdev_internal_ops resizer_v4l2_internal_ops = {
  * return -EINVAL or zero on success
  */
 static int resizer_link_setup(struct media_entity *entity,
-			   const struct media_pad *local,
-			   const struct media_pad *remote, u32 flags)
+			      const struct media_pad *local,
+			      const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct iss_resizer_device *resizer = v4l2_get_subdevdata(sd);
@@ -820,7 +820,7 @@ void omap4iss_resizer_unregister_entities(struct iss_resizer_device *resizer)
 }
 
 int omap4iss_resizer_register_entities(struct iss_resizer_device *resizer,
-	struct v4l2_device *vdev)
+				       struct v4l2_device *vdev)
 {
 	int ret;
 

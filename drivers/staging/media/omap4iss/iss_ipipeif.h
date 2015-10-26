@@ -80,13 +80,13 @@ struct iss_device;
 int omap4iss_ipipeif_init(struct iss_device *iss);
 void omap4iss_ipipeif_cleanup(struct iss_device *iss);
 int omap4iss_ipipeif_register_entities(struct iss_ipipeif_device *ipipeif,
-	struct v4l2_device *vdev);
+				       struct v4l2_device *vdev);
 void omap4iss_ipipeif_unregister_entities(struct iss_ipipeif_device *ipipeif);
 
 int omap4iss_ipipeif_busy(struct iss_ipipeif_device *ipipeif);
 void omap4iss_ipipeif_isr(struct iss_ipipeif_device *ipipeif, u32 events);
 void omap4iss_ipipeif_restore_context(struct iss_device *iss);
 void omap4iss_ipipeif_max_rate(struct iss_ipipeif_device *ipipeif,
-	unsigned int *max_rate);
+			       unsigned int *max_rate);
 
 #endif	/* OMAP4_ISS_IPIPEIF_H */

@@ -541,7 +541,7 @@ static int iss_pipeline_link_notify(struct media_link *link, u32 flags,
 	}
 
 	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
-		(flags & MEDIA_LNK_FL_ENABLED)) {
+	    (flags & MEDIA_LNK_FL_ENABLED)) {
 		ret = iss_pipeline_pm_power(source, sink_use);
 		if (ret < 0)
 			return ret;
@@ -919,7 +919,7 @@ static int __iss_subclk_update(struct iss_device *iss)
 }
 
 int omap4iss_subclk_enable(struct iss_device *iss,
-			    enum iss_subclk_resource res)
+			   enum iss_subclk_resource res)
 {
 	iss->subclk_resources |= res;
 
@@ -927,7 +927,7 @@ int omap4iss_subclk_enable(struct iss_device *iss,
 }
 
 int omap4iss_subclk_disable(struct iss_device *iss,
-			     enum iss_subclk_resource res)
+			    enum iss_subclk_resource res)
 {
 	iss->subclk_resources &= ~res;
 
@@ -1137,7 +1137,7 @@ static void iss_unregister_entities(struct iss_device *iss)
  */
 static struct v4l2_subdev *
 iss_register_subdev_group(struct iss_device *iss,
-		     struct iss_subdev_i2c_board_info *board_info)
+			  struct iss_subdev_i2c_board_info *board_info)
 {
 	struct v4l2_subdev *sensor = NULL;
 	unsigned int first;
