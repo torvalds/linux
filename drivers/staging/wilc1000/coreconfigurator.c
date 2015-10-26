@@ -331,13 +331,6 @@ u8 get_current_channel_802_11n(u8 *pu8msa, u16 u16RxLen)
 	return 0;  /* no MIB here */
 }
 
-u8 get_current_channel(u8 *pu8msa, u16 u16RxLen)
-{
-	/* Extract current channel information from */
-	/* the beacon/probe response frame          */
-	return get_current_channel_802_11n(pu8msa, u16RxLen);
-}
-
 /**
  *  @brief                      parses the received 'N' message
  *  @details
@@ -425,8 +418,12 @@ s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 		/* Get BSSID */
 		get_BSSID(pu8msa, pstrNetworkInfo->au8bssid);
 
-		/* Get the current channel */
-		pstrNetworkInfo->u8channel = get_current_channel(pu8msa, (u16RxLen + FCS_LEN));
+		/* 
+		 * Extract current channel information from
+		 * the beacon/probe response frame          
+		 */
+		pstrNetworkInfo->u8channel = get_current_channel_802_11n(pu8msa,
+							(u16RxLen + FCS_LEN));
 
 		/* Get beacon period */
 		u8index = (MAC_HDR_LEN + TIME_STAMP_LEN);
