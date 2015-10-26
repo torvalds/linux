@@ -1,7 +1,7 @@
 /*
  * Marvell NFC driver: major functions
  *
- * Copyright (C) 2014, Marvell International Ltd.
+ * Copyright (C) 2014-2015 Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -24,8 +24,6 @@
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>
 #include "nfcmrvl.h"
-
-#define VERSION "1.0"
 
 static int nfcmrvl_nci_open(struct nci_dev *ndev)
 {
@@ -252,6 +250,5 @@ int nfcmrvl_parse_dt(struct device_node *node,
 EXPORT_SYMBOL_GPL(nfcmrvl_parse_dt);
 
 MODULE_AUTHOR("Marvell International Ltd.");
-MODULE_DESCRIPTION("Marvell NFC driver ver " VERSION);
-MODULE_VERSION(VERSION);
+MODULE_DESCRIPTION("Marvell NFC driver");
 MODULE_LICENSE("GPL v2");

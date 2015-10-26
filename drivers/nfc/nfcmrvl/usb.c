@@ -23,8 +23,6 @@
 #include <net/nfc/nci_core.h>
 #include "nfcmrvl.h"
 
-#define VERSION "1.0"
-
 static struct usb_device_id nfcmrvl_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1286, 0x2046,
 					USB_CLASS_VENDOR_SPEC, 4, 1) },
@@ -469,6 +467,5 @@ static struct usb_driver nfcmrvl_usb_driver = {
 module_usb_driver(nfcmrvl_usb_driver);
 
 MODULE_AUTHOR("Marvell International Ltd.");
-MODULE_DESCRIPTION("Marvell NFC-over-USB driver ver " VERSION);
-MODULE_VERSION(VERSION);
+MODULE_DESCRIPTION("Marvell NFC-over-USB driver");
 MODULE_LICENSE("GPL v2");
