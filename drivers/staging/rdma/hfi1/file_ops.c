@@ -607,9 +607,9 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * Use the page where this context's flags are. User level
 		 * knows where it's own bitmap is within the page.
 		 */
-		memaddr = ((unsigned long)dd->events +
-			   ((uctxt->ctxt - dd->first_user_ctxt) *
-			    HFI1_MAX_SHARED_CTXTS)) & PAGE_MASK;
+		memaddr = (unsigned long)(dd->events +
+					  ((uctxt->ctxt - dd->first_user_ctxt) *
+					   HFI1_MAX_SHARED_CTXTS)) & PAGE_MASK;
 		memlen = PAGE_SIZE;
 		/*
 		 * v3.7 removes VM_RESERVED but the effect is kept by
