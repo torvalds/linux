@@ -603,27 +603,31 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	struct nvme_iod *iod = ctx;
 	struct request *req = iod_get_private(iod);
 	struct nvme_cmd_info *cmd_rq = blk_mq_rq_to_pdu(req);
-
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
+	bool requeue = false;
+	int error = 0;
 
 	if (unlikely(status)) {
 		if (!(status & NVME_SC_DNR || blk_noretry_request(req))
 		    && (jiffies - req->start_time) < req->timeout) {
 			unsigned long flags;
 
+			requeue = true;
 			blk_mq_requeue_request(req);
 			spin_lock_irqsave(req->q->queue_lock, flags);
 			if (!blk_queue_stopped(req->q))
 				blk_mq_kick_requeue_list(req->q);
 			spin_unlock_irqrestore(req->q->queue_lock, flags);
-			return;
+			goto release_iod;
 		}
 
 		if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
 			if (cmd_rq->ctx == CMD_CTX_CANCELLED)
-				status = -EINTR;
+				error = -EINTR;
+			else
+				error = status;
 		} else {
-			status = nvme_error_status(status);
+			error = nvme_error_status(status);
 		}
 	}
 
@@ -635,8 +639,9 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	if (cmd_rq->aborted)
 		dev_warn(nvmeq->dev->dev,
 			"completing aborted command with status:%04x\n",
-			status);
+			error);
 
+release_iod:
 	if (iod->nents) {
 		dma_unmap_sg(nvmeq->dev->dev, iod->sg, iod->nents,
 			rq_data_dir(req) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
@@ -649,7 +654,8 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	}
 	nvme_free_iod(nvmeq->dev, iod);
 
-	blk_mq_complete_request(req, status);
+	if (likely(!requeue))
+		blk_mq_complete_request(req, error);
 }
 
 /* length is in bytes.  gfp flags indicates whether we may sleep. */
@@ -1804,7 +1810,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 
 	length = (io.nblocks + 1) << ns->lba_shift;
 	meta_len = (io.nblocks + 1) * ns->ms;
-	metadata = (void __user *)(unsigned long)io.metadata;
+	metadata = (void __user *)(uintptr_t)io.metadata;
 	write = io.opcode & 1;
 
 	if (ns->ext) {
@@ -1844,7 +1850,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.metadata = cpu_to_le64(meta_dma);
 
 	status = __nvme_submit_sync_cmd(ns->queue, &c, NULL,
-			(void __user *)io.addr, length, NULL, 0);
+			(void __user *)(uintptr_t)io.addr, length, NULL, 0);
  unmap:
 	if (meta) {
 		if (status == NVME_SC_SUCCESS && !write) {
@@ -1886,7 +1892,7 @@ static int nvme_user_cmd(struct nvme_dev *dev, struct nvme_ns *ns,
 		timeout = msecs_to_jiffies(cmd.timeout_ms);
 
 	status = __nvme_submit_sync_cmd(ns ? ns->queue : dev->admin_q, &c,
-			NULL, (void __user *)cmd.addr, cmd.data_len,
+			NULL, (void __user *)(uintptr_t)cmd.addr, cmd.data_len,
 			&cmd.result, timeout);
 	if (status >= 0) {
 		if (put_user(cmd.result, &ucmd->result))
