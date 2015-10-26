@@ -1295,10 +1295,10 @@ static void i40evf_configure_rss_reg(struct i40evf_adapter *adapter,
 }
 
 /**
- * i40evf_configure_rss - Prepare for RSS
+ * i40evf_init_rss - Prepare for RSS
  * @adapter: board private structure
  **/
-static void i40evf_configure_rss(struct i40evf_adapter *adapter)
+static void i40evf_init_rss(struct i40evf_adapter *adapter)
 {
 	struct i40e_hw *hw = &adapter->hw;
 	u8 seed[I40EVF_HKEY_ARRAY_SIZE];
@@ -1564,7 +1564,7 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		 * PF, so we don't have to set current_op as we will
 		 * not get a response through the ARQ.
 		 */
-		i40evf_configure_rss(adapter);
+		i40evf_init_rss(adapter);
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_CONFIGURE_RSS;
 		goto watchdog_done;
 	}
@@ -2312,7 +2312,7 @@ static void i40evf_init_task(struct work_struct *work)
 		    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
 		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;
 	if (!RSS_AQ(adapter))
-		i40evf_configure_rss(adapter);
+		i40evf_init_rss(adapter);
 	err = i40evf_request_misc_irq(adapter);
 	if (err)
 		goto err_sw_init;
@@ -2342,7 +2342,7 @@ static void i40evf_init_task(struct work_struct *work)
 		adapter->aq_required |= I40EVF_FLAG_AQ_CONFIGURE_RSS;
 		mod_timer_pending(&adapter->watchdog_timer, jiffies + 1);
 	} else {
-		i40evf_configure_rss(adapter);
+		i40evf_init_rss(adapter);
 	}
 	return;
 restart:
