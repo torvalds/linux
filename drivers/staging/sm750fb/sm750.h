@@ -71,10 +71,7 @@ struct lynx_accel {
 
 };
 
-/* lynx_share stands for a presentation of two frame buffer
-   that use one smi adaptor , it is similar to a basic class of C++
-*/
-struct lynx_share {
+struct sm750_dev {
 	/* common members */
 	u16 devid;
 	u8 revid;
@@ -83,10 +80,10 @@ struct lynx_share {
 	struct lynx_accel accel;
 	int accel_off;
 	int dual;
-		int mtrr_off;
-		struct{
-			int vram;
-		} mtrr;
+	int mtrr_off;
+	struct{
+		int vram;
+	} mtrr;
 	/* all smi graphic adaptor got below attributes */
 	unsigned long vidmem_start;
 	unsigned long vidreg_start;
@@ -96,14 +93,6 @@ struct lynx_share {
 	unsigned char __iomem *pvMem;
 	/* locks*/
 	spinlock_t slock;
-};
-
-/*
- * sm750_dev stands for a presentation of two frame buffer
- * that use one sm750 adaptor
- */
-struct sm750_dev {
-	struct lynx_share share;
 
 	struct init_status initParm;
 	enum sm750_pnltype pnltype;

@@ -165,7 +165,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 				const struct fb_fillrect *region)
 {
 	struct lynxfb_par *par;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 	unsigned int base, pitch, Bpp, rop;
 	u32 color;
 
@@ -173,7 +173,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 		return;
 
 	par = info->par;
-	share = &par->dev->share;
+	sm750_dev = par->dev;
 
 	/*
 	 * each time 2d function begin to work,below three variable always need
@@ -191,27 +191,27 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 	 * If not use spin_lock,system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (share->dual)
-		spin_lock(&share->slock);
+	if (sm750_dev->dual)
+		spin_lock(&sm750_dev->slock);
 
-	share->accel.de_fillrect(&share->accel,
-				 base, pitch, Bpp,
-				 region->dx, region->dy,
-				 region->width, region->height,
-				 color, rop);
-	if (share->dual)
-		spin_unlock(&share->slock);
+	sm750_dev->accel.de_fillrect(&sm750_dev->accel,
+				     base, pitch, Bpp,
+				     region->dx, region->dy,
+				     region->width, region->height,
+				     color, rop);
+	if (sm750_dev->dual)
+		spin_unlock(&sm750_dev->slock);
 }
 
 static void lynxfb_ops_copyarea(struct fb_info *info,
 				const struct fb_copyarea *region)
 {
 	struct lynxfb_par *par;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 	unsigned int base, pitch, Bpp;
 
 	par = info->par;
-	share = &par->dev->share;
+	sm750_dev = par->dev;
 
 	/*
 	 * each time 2d function begin to work,below three variable always need
@@ -225,15 +225,16 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (share->dual)
-		spin_lock(&share->slock);
+	if (sm750_dev->dual)
+		spin_lock(&sm750_dev->slock);
 
-	share->accel.de_copyarea(&share->accel,
-				 base, pitch, region->sx, region->sy,
-				 base, pitch, Bpp, region->dx, region->dy,
-				 region->width, region->height, HW_ROP2_COPY);
-	if (share->dual)
-		spin_unlock(&share->slock);
+	sm750_dev->accel.de_copyarea(&sm750_dev->accel,
+				     base, pitch, region->sx, region->sy,
+				     base, pitch, Bpp, region->dx, region->dy,
+				     region->width, region->height,
+				     HW_ROP2_COPY);
+	if (sm750_dev->dual)
+		spin_unlock(&sm750_dev->slock);
 }
 
 static void lynxfb_ops_imageblit(struct fb_info *info,
@@ -242,10 +243,10 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	unsigned int base, pitch, Bpp;
 	unsigned int fgcol, bgcol;
 	struct lynxfb_par *par;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 
 	par = info->par;
-	share = &par->dev->share;
+	sm750_dev = par->dev;
 	/*
 	 * each time 2d function begin to work,below three variable always need
 	 * be set, seems we can put them together in some place
@@ -273,17 +274,17 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (share->dual)
-		spin_lock(&share->slock);
+	if (sm750_dev->dual)
+		spin_lock(&sm750_dev->slock);
 
-	share->accel.de_imageblit(&share->accel,
-				  image->data, image->width >> 3, 0,
-				  base, pitch, Bpp,
-				  image->dx, image->dy,
-				  image->width, image->height,
-				  fgcol, bgcol, HW_ROP2_COPY);
-	if (share->dual)
-		spin_unlock(&share->slock);
+	sm750_dev->accel.de_imageblit(&sm750_dev->accel,
+				      image->data, image->width >> 3, 0,
+				      base, pitch, Bpp,
+				      image->dx, image->dy,
+				      image->width, image->height,
+				      fgcol, bgcol, HW_ROP2_COPY);
+	if (sm750_dev->dual)
+		spin_unlock(&sm750_dev->slock);
 }
 
 static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,
@@ -303,7 +304,6 @@ static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,
 static int lynxfb_ops_set_par(struct fb_info *info)
 {
 	struct lynxfb_par *par;
-	struct lynx_share *share;
 	struct lynxfb_crtc *crtc;
 	struct lynxfb_output *output;
 	struct fb_var_screeninfo *var;
@@ -316,7 +316,6 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 
 	ret = 0;
 	par = info->par;
-	share = &par->dev->share;
 	crtc = &par->crtc;
 	output = &par->output;
 	var = &info->var;
@@ -396,7 +395,6 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	struct fb_info *info;
 	struct sm750_dev *sm750_dev;
-	struct lynx_share *share;
 	int ret;
 
 	if (mesg.event == pdev->dev.power.power_state.event)
@@ -404,7 +402,6 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 	ret = 0;
 	sm750_dev = pci_get_drvdata(pdev);
-	share = &sm750_dev->share;
 	switch (mesg.event) {
 	case PM_EVENT_FREEZE:
 	case PM_EVENT_PRETHAW:
@@ -414,11 +411,11 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 	console_lock();
 	if (mesg.event & PM_EVENT_SLEEP) {
-		info = share->fbinfo[0];
+		info = sm750_dev->fbinfo[0];
 		if (info)
 			/* 1 means do suspend */
 			fb_set_suspend(info, 1);
-		info = share->fbinfo[1];
+		info = sm750_dev->fbinfo[1];
 		if (info)
 			/* 1 means do suspend */
 			fb_set_suspend(info, 1);
@@ -445,7 +442,6 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 static int lynxfb_resume(struct pci_dev *pdev)
 {
 	struct fb_info *info;
-	struct lynx_share *share;
 	struct sm750_dev *sm750_dev;
 
 	struct lynxfb_par *par;
@@ -456,7 +452,6 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	ret = 0;
 	sm750_dev = pci_get_drvdata(pdev);
-	share = &sm750_dev->share;
 
 	console_lock();
 
@@ -478,7 +473,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	hw_sm750_inithw(sm750_dev, pdev);
 
-	info = share->fbinfo[0];
+	info = sm750_dev->fbinfo[0];
 
 	if (info) {
 		par = info->par;
@@ -490,7 +485,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		fb_set_suspend(info, 0);
 	}
 
-	info = share->fbinfo[1];
+	info = sm750_dev->fbinfo[1];
 
 	if (info) {
 		par = info->par;
@@ -514,13 +509,11 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 	struct lynxfb_par *par;
 	struct lynxfb_crtc *crtc;
 	struct lynxfb_output *output;
-	struct lynx_share *share;
 	resource_size_t request;
 
 	par = info->par;
 	crtc = &par->crtc;
 	output = &par->output;
-	share = &par->dev->share;
 
 	pr_debug("check var:%dx%d-%d\n",
 		 var->xres,
@@ -649,7 +642,6 @@ static int lynxfb_ops_blank(int blank, struct fb_info *info)
 static int sm750fb_set_drv(struct lynxfb_par *par)
 {
 	int ret;
-	struct lynx_share *share;
 	struct sm750_dev *sm750_dev;
 	struct lynxfb_output *output;
 	struct lynxfb_crtc *crtc;
@@ -657,12 +649,11 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	ret = 0;
 
 	sm750_dev = par->dev;
-	share = &sm750_dev->share;
 	output = &par->output;
 	crtc = &par->crtc;
 
-	crtc->vidmem_size = (share->dual) ? share->vidmem_size >> 1 :
-			     share->vidmem_size;
+	crtc->vidmem_size = (sm750_dev->dual) ? sm750_dev->vidmem_size >> 1 :
+			     sm750_dev->vidmem_size;
 	/* setup crtc and output member */
 	sm750_dev->hwCursor = g_hwcursor;
 
@@ -671,37 +662,37 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	crtc->ypanstep = 1;
 	crtc->ywrapstep = 0;
 
-	output->proc_setBLANK = (share->revid == SM750LE_REVISION_ID) ?
+	output->proc_setBLANK = (sm750_dev->revid == SM750LE_REVISION_ID) ?
 				 hw_sm750le_setBLANK : hw_sm750_setBLANK;
 	/* chip specific phase */
-	share->accel.de_wait = (share->revid == SM750LE_REVISION_ID) ?
-				hw_sm750le_deWait : hw_sm750_deWait;
+	sm750_dev->accel.de_wait = (sm750_dev->revid == SM750LE_REVISION_ID) ?
+				    hw_sm750le_deWait : hw_sm750_deWait;
 	switch (sm750_dev->dataflow) {
 	case sm750_simul_pri:
 		output->paths = sm750_pnc;
 		crtc->channel = sm750_primary;
 		crtc->oScreen = 0;
-		crtc->vScreen = share->pvMem;
+		crtc->vScreen = sm750_dev->pvMem;
 		pr_info("use simul primary mode\n");
 		break;
 	case sm750_simul_sec:
 		output->paths = sm750_pnc;
 		crtc->channel = sm750_secondary;
 		crtc->oScreen = 0;
-		crtc->vScreen = share->pvMem;
+		crtc->vScreen = sm750_dev->pvMem;
 		break;
 	case sm750_dual_normal:
 		if (par->index == 0) {
 			output->paths = sm750_panel;
 			crtc->channel = sm750_primary;
 			crtc->oScreen = 0;
-			crtc->vScreen = share->pvMem;
+			crtc->vScreen = sm750_dev->pvMem;
 		} else {
 			output->paths = sm750_crt;
 			crtc->channel = sm750_secondary;
 			/* not consider of padding stuffs for oScreen,need fix */
-			crtc->oScreen = (share->vidmem_size >> 1);
-			crtc->vScreen = share->pvMem + crtc->oScreen;
+			crtc->oScreen = (sm750_dev->vidmem_size >> 1);
+			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
 		}
 		break;
 	case sm750_dual_swap:
@@ -709,13 +700,13 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 			output->paths = sm750_panel;
 			crtc->channel = sm750_secondary;
 			crtc->oScreen = 0;
-			crtc->vScreen = share->pvMem;
+			crtc->vScreen = sm750_dev->pvMem;
 		} else {
 			output->paths = sm750_crt;
 			crtc->channel = sm750_primary;
 			/* not consider of padding stuffs for oScreen,need fix */
-			crtc->oScreen = (share->vidmem_size >> 1);
-			crtc->vScreen = share->pvMem + crtc->oScreen;
+			crtc->oScreen = (sm750_dev->vidmem_size >> 1);
+			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
 		}
 		break;
 	default:
@@ -742,7 +733,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 {
 	int i;
 	struct lynxfb_par *par;
-	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 	struct lynxfb_crtc *crtc;
 	struct lynxfb_output *output;
 	struct fb_var_screeninfo *var;
@@ -766,7 +757,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	ret = 0;
 	par = (struct lynxfb_par *)info->par;
-	share = &par->dev->share;
+	sm750_dev = par->dev;
 	crtc = &par->crtc;
 	output = &par->output;
 	var = &info->var;
@@ -783,12 +774,13 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	 * must be set after crtc member initialized
 	 */
 	crtc->cursor.offset = crtc->oScreen + crtc->vidmem_size - 1024;
-	crtc->cursor.mmio = share->pvReg + 0x800f0 + (int)crtc->channel * 0x140;
+	crtc->cursor.mmio = sm750_dev->pvReg +
+		0x800f0 + (int)crtc->channel * 0x140;
 
 	pr_info("crtc->cursor.mmio = %p\n", crtc->cursor.mmio);
 	crtc->cursor.maxH = crtc->cursor.maxW = 64;
 	crtc->cursor.size = crtc->cursor.maxH * crtc->cursor.maxW * 2 / 8;
-	crtc->cursor.vstart = share->pvMem + crtc->cursor.offset;
+	crtc->cursor.vstart = sm750_dev->pvMem + crtc->cursor.offset;
 
 	memset_io(crtc->cursor.vstart, 0, crtc->cursor.size);
 	if (!g_hwcursor) {
@@ -797,7 +789,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	}
 
 	/* set info->fbops, must be set before fb_find_mode */
-	if (!share->accel_off) {
+	if (!sm750_dev->accel_off) {
 		/* use 2d acceleration */
 		lynxfb_ops.fb_fillrect = lynxfb_ops_fillrect;
 		lynxfb_ops.fb_copyarea = lynxfb_ops_copyarea;
@@ -880,7 +872,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	strlcpy(fix->id, fixId[index], sizeof(fix->id));
 
-	fix->smem_start = crtc->oScreen + share->vidmem_start;
+	fix->smem_start = crtc->oScreen + sm750_dev->vidmem_start;
 	pr_info("fix->smem_start = %lx\n", fix->smem_start);
 	/*
 	 * according to mmap experiment from user space application,
@@ -893,9 +885,9 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	pr_info("fix->smem_len = %x\n", fix->smem_len);
 	info->screen_size = fix->smem_len;
 	fix->line_length = line_length;
-	fix->mmio_start = share->vidreg_start;
+	fix->mmio_start = sm750_dev->vidreg_start;
 	pr_info("fix->mmio_start = %lx\n", fix->mmio_start);
-	fix->mmio_len = share->vidreg_size;
+	fix->mmio_len = sm750_dev->vidreg_size;
 	pr_info("fix->mmio_len = %x\n", fix->mmio_len);
 	switch (var->bits_per_pixel) {
 	case 8:
@@ -936,7 +928,6 @@ exit:
 /*	chip specific g_option configuration routine */
 static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 {
-	struct lynx_share *share = &sm750_dev->share;
 	char *opt;
 #ifdef CAP_EXPENSION
 	char *exp_res;
@@ -1009,8 +1000,8 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 #endif
 
 NO_PARAM:
-	if (share->revid != SM750LE_REVISION_ID) {
-		if (share->dual) {
+	if (sm750_dev->revid != SM750LE_REVISION_ID) {
+		if (sm750_dev->dual) {
 			if (swap)
 				sm750_dev->dataflow = sm750_dual_swap;
 			else
@@ -1033,10 +1024,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	struct fb_info *info[] = {NULL, NULL};
-	struct lynx_share *share = NULL;
-
 	struct sm750_dev *sm750_dev = NULL;
-	size_t spec_offset = 0;
 	int fbidx;
 
 	/* enable device */
@@ -1045,43 +1033,35 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 		goto err_enable;
 	}
 
-	/*
-	 * though offset of share in sm750_dev is 0,
-	 * we use this marcro as the same
-	 */
-	spec_offset = offsetof(struct sm750_dev, share);
-
 	sm750_dev = kzalloc(sizeof(*sm750_dev), GFP_KERNEL);
 	if (!sm750_dev) {
 		pr_err("Could not allocate memory for share.\n");
 		goto err_share;
 	}
 
-	/* setting share structure */
-	share = (struct lynx_share *)(&(sm750_dev->share));
-	share->fbinfo[0] = share->fbinfo[1] = NULL;
-	share->devid = pdev->device;
-	share->revid = pdev->revision;
+	sm750_dev->fbinfo[0] = sm750_dev->fbinfo[1] = NULL;
+	sm750_dev->devid = pdev->device;
+	sm750_dev->revid = pdev->revision;
 
-	pr_info("share->revid = %02x\n", share->revid);
-	share->pdev = pdev;
-	share->mtrr_off = g_nomtrr;
-	share->mtrr.vram = 0;
-	share->accel_off = g_noaccel;
-	share->dual = g_dualview;
-	spin_lock_init(&share->slock);
+	pr_info("share->revid = %02x\n", sm750_dev->revid);
+	sm750_dev->pdev = pdev;
+	sm750_dev->mtrr_off = g_nomtrr;
+	sm750_dev->mtrr.vram = 0;
+	sm750_dev->accel_off = g_noaccel;
+	sm750_dev->dual = g_dualview;
+	spin_lock_init(&sm750_dev->slock);
 
-	if (!share->accel_off) {
+	if (!sm750_dev->accel_off) {
 		/*
 		 * hook deInit and 2d routines, notes that below hw_xxx
 		 * routine can work on most of lynx chips
 		 * if some chip need specific function,
 		 * please hook it in smXXX_set_drv routine
 		 */
-		share->accel.de_init = hw_de_init;
-		share->accel.de_fillrect = hw_fillrect;
-		share->accel.de_copyarea = hw_copyarea;
-		share->accel.de_imageblit = hw_imageblit;
+		sm750_dev->accel.de_init = hw_de_init;
+		sm750_dev->accel.de_fillrect = hw_fillrect;
+		sm750_dev->accel.de_copyarea = hw_copyarea;
+		sm750_dev->accel.de_imageblit = hw_imageblit;
 		pr_info("enable 2d acceleration\n");
 	} else {
 		pr_info("disable 2d acceleration\n");
@@ -1096,13 +1076,14 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 		goto err_map;
 	}
 
-	if (!share->mtrr_off)
-		share->mtrr.vram = arch_phys_wc_add(share->vidmem_start,
-						    share->vidmem_size);
+	if (!sm750_dev->mtrr_off)
+		sm750_dev->mtrr.vram = arch_phys_wc_add(sm750_dev->vidmem_start,
+							sm750_dev->vidmem_size);
 
-	memset_io(share->pvMem, 0, share->vidmem_size);
+	memset_io(sm750_dev->pvMem, 0, sm750_dev->vidmem_size);
 
-	pr_info("sm%3x mmio address = %p\n", share->devid, share->pvReg);
+	pr_info("sm%3x mmio address = %p\n", sm750_dev->devid,
+		sm750_dev->pvReg);
 
 	pci_set_drvdata(pdev, sm750_dev);
 
@@ -1124,7 +1105,7 @@ ALLOC_FB:
 		int errno;
 
 		pr_info("framebuffer #%d alloc okay\n", fbidx);
-		share->fbinfo[fbidx] = info[fbidx];
+		sm750_dev->fbinfo[fbidx] = info[fbidx];
 		par = info[fbidx]->par;
 		par->dev = sm750_dev;
 
@@ -1154,7 +1135,7 @@ ALLOC_FB:
 
 	/* no dual view by far */
 	fbidx++;
-	if (share->dual && fbidx < 2)
+	if (sm750_dev->dual && fbidx < 2)
 		goto ALLOC_FB;
 
 	return 0;
@@ -1178,17 +1159,15 @@ err_enable:
 static void lynxfb_pci_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info;
-	struct lynx_share *share;
 	struct sm750_dev *sm750_dev;
 	struct lynxfb_par *par;
 	int cnt;
 
 	cnt = 2;
 	sm750_dev = pci_get_drvdata(pdev);
-	share = &sm750_dev->share;
 
 	while (cnt-- > 0) {
-		info = share->fbinfo[cnt];
+		info = sm750_dev->fbinfo[cnt];
 		if (!info)
 			continue;
 		par = info->par;
@@ -1197,10 +1176,10 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 		/* release frame buffer */
 		framebuffer_release(info);
 	}
-	arch_phys_wc_del(share->mtrr.vram);
+	arch_phys_wc_del(sm750_dev->mtrr.vram);
 
-	iounmap(share->pvReg);
-	iounmap(share->pvMem);
+	iounmap(sm750_dev->pvReg);
+	iounmap(sm750_dev->pvMem);
 	kfree(g_settings);
 	kfree(sm750_dev);
 	pci_set_drvdata(pdev, NULL);
