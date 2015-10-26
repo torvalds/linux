@@ -482,7 +482,6 @@ resizer_try_format(struct iss_resizer_device *resizer,
 		fmt->width &= ~15;
 		fmt->height = clamp_t(u32, height, 32, fmt->height);
 		break;
-
 	}
 
 	fmt->colorspace = V4L2_COLORSPACE_JPEG;
@@ -733,7 +732,6 @@ static int resizer_link_setup(struct media_entity *entity,
 			resizer->input = RESIZER_INPUT_IPIPEIF;
 		else if (remote->entity == &iss->ipipe.subdev.entity)
 			resizer->input = RESIZER_INPUT_IPIPE;
-
 
 		break;
 
