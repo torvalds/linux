@@ -1178,7 +1178,7 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info;
 	struct lynx_share *share;
-	void *sm750_dev;
+	struct sm750_dev *sm750_dev;
 	struct lynxfb_par *par;
 	int cnt;
 
