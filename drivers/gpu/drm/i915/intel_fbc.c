@@ -144,7 +144,7 @@ static void i8xx_fbc_activate(struct intel_crtc *crtc)
 	dev_priv->fbc.active = true;
 
 	/* Note: fbc.threshold == 1 for i8xx */
-	cfb_pitch = dev_priv->fbc.uncompressed_size / FBC_LL_SIZE;
+	cfb_pitch = intel_fbc_calculate_cfb_size(crtc, fb) / FBC_LL_SIZE;
 	if (fb->pitches[0] < cfb_pitch)
 		cfb_pitch = fb->pitches[0];
 
@@ -638,8 +638,6 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 			   dev_priv->mm.stolen_base + compressed_llb->start);
 	}
 
-	dev_priv->fbc.uncompressed_size = size;
-
 	DRM_DEBUG_KMS("reserved %llu bytes of contiguous stolen space for FBC, threshold: %d\n",
 		      dev_priv->fbc.compressed_fb.size,
 		      dev_priv->fbc.threshold);
@@ -656,18 +654,15 @@ err_llb:
 
 static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 {
-	if (dev_priv->fbc.uncompressed_size == 0)
-		return;
-
-	i915_gem_stolen_remove_node(dev_priv, &dev_priv->fbc.compressed_fb);
+	if (drm_mm_node_allocated(&dev_priv->fbc.compressed_fb))
+		i915_gem_stolen_remove_node(dev_priv,
+					    &dev_priv->fbc.compressed_fb);
 
 	if (dev_priv->fbc.compressed_llb) {
 		i915_gem_stolen_remove_node(dev_priv,
 					    dev_priv->fbc.compressed_llb);
 		kfree(dev_priv->fbc.compressed_llb);
 	}
-
-	dev_priv->fbc.uncompressed_size = 0;
 }
 
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
