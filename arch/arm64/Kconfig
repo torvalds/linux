@@ -454,10 +454,7 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu.
 
 source kernel/Kconfig.preempt
-
-config HZ
-	int
-	default 100
+source kernel/Kconfig.hz
 
 config ARCH_HAS_HOLES_MEMORYMODEL
 	def_bool y if SPARSEMEM
