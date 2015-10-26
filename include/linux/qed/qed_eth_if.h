@@ -154,6 +154,9 @@ struct qed_eth_ops {
 	int (*eth_cqe_completion)(struct qed_dev *cdev,
 				  u8 rss_id,
 				  struct eth_slow_path_rx_cqe *cqe);
+
+	void (*get_vport_stats)(struct qed_dev *cdev,
+				struct qed_eth_stats *stats);
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(u32 version);

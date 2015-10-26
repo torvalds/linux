@@ -1298,6 +1298,8 @@ static int qed_start_vport(struct qed_dev *cdev,
 			   vport_id, mtu);
 	}
 
+	qed_reset_vport_stats(cdev);
+
 	return 0;
 }
 
@@ -1680,6 +1682,7 @@ static const struct qed_eth_ops qed_eth_ops_pass = {
 	.filter_config = &qed_configure_filter,
 	.fastpath_stop = &qed_fastpath_stop,
 	.eth_cqe_completion = &qed_fp_cqe_completion,
+	.get_vport_stats = &qed_get_vport_stats,
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(u32 version)

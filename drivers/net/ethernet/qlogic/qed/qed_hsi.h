@@ -355,6 +355,36 @@ struct core_conn_context {
 	struct regpair			ustorm_st_padding[2] /* padding */;
 };
 
+struct eth_mstorm_per_queue_stat {
+	struct regpair  ttl0_discard;
+	struct regpair  packet_too_big_discard;
+	struct regpair  no_buff_discard;
+	struct regpair  not_active_discard;
+	struct regpair  tpa_coalesced_pkts;
+	struct regpair  tpa_coalesced_events;
+	struct regpair  tpa_aborts_num;
+	struct regpair  tpa_coalesced_bytes;
+};
+
+struct eth_pstorm_per_queue_stat {
+	struct regpair  sent_ucast_bytes;
+	struct regpair  sent_mcast_bytes;
+	struct regpair  sent_bcast_bytes;
+	struct regpair  sent_ucast_pkts;
+	struct regpair  sent_mcast_pkts;
+	struct regpair  sent_bcast_pkts;
+	struct regpair  error_drop_pkts;
+};
+
+struct eth_ustorm_per_queue_stat {
+	struct regpair  rcv_ucast_bytes;
+	struct regpair  rcv_mcast_bytes;
+	struct regpair  rcv_bcast_bytes;
+	struct regpair  rcv_ucast_pkts;
+	struct regpair  rcv_mcast_pkts;
+	struct regpair  rcv_bcast_pkts;
+};
+
 /* Event Ring Next Page Address */
 struct event_ring_next_addr {
 	struct regpair	addr /* Next Page Address */;

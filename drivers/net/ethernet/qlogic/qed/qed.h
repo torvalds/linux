@@ -212,7 +212,20 @@ struct qed_qm_info {
 	u32				pf_rl;
 };
 
+struct storm_stats {
+	u32     address;
+	u32     len;
+};
+
+struct qed_storm_stats {
+	struct storm_stats mstats;
+	struct storm_stats pstats;
+	struct storm_stats tstats;
+	struct storm_stats ustats;
+};
+
 struct qed_fw_data {
+	struct fw_ver_info	*fw_ver_info;
 	const u8		*modes_tree_buf;
 	union init_op		*init_ops;
 	const u32		*arr_data;
@@ -296,6 +309,7 @@ struct qed_hwfn {
 
 	/* QM init */
 	struct qed_qm_info		qm_info;
+	struct qed_storm_stats		storm_stats;
 
 	/* Buffer for unzipping firmware data */
 	void				*unzip_buf;
