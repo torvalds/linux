@@ -233,7 +233,7 @@ static void ipipeif_isr_buffer(struct iss_ipipeif_device *ipipeif)
 	ipipeif_write_enable(ipipeif, 0);
 
 	buffer = omap4iss_video_buffer_next(&ipipeif->video_out);
-	if (buffer == NULL)
+	if (!buffer)
 		return;
 
 	ipipeif_set_outaddr(ipipeif, buffer->iss_addr);
@@ -526,7 +526,7 @@ static int ipipeif_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipeif_get_format(ipipeif, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -550,7 +550,7 @@ static int ipipeif_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipeif_get_format(ipipeif, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	ipipeif_try_format(ipipeif, cfg, fmt->pad, &fmt->format, fmt->which);

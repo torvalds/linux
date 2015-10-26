@@ -658,7 +658,7 @@ static void csi2_isr_buffer(struct iss_csi2_device *csi2)
 	 * Let video queue operation restart engine if there is an underrun
 	 * condition.
 	 */
-	if (buffer == NULL)
+	if (!buffer)
 		return;
 
 	csi2_set_outaddr(csi2, buffer->iss_addr);
@@ -979,7 +979,7 @@ static int csi2_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __csi2_get_format(csi2, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -1001,7 +1001,7 @@ static int csi2_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __csi2_get_format(csi2, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	csi2_try_format(csi2, cfg, fmt->pad, &fmt->format, fmt->which);

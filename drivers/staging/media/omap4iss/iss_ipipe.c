@@ -320,7 +320,7 @@ static int ipipe_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipe_get_format(ipipe, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -344,7 +344,7 @@ static int ipipe_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipe_get_format(ipipe, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	ipipe_try_format(ipipe, cfg, fmt->pad, &fmt->format, fmt->which);

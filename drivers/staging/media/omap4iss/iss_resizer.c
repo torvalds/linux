@@ -274,7 +274,7 @@ static void resizer_isr_buffer(struct iss_resizer_device *resizer)
 	resizer_enable(resizer, 0);
 
 	buffer = omap4iss_video_buffer_next(&resizer->video_out);
-	if (buffer == NULL)
+	if (!buffer)
 		return;
 
 	resizer_set_outaddr(resizer, buffer->iss_addr);
@@ -588,7 +588,7 @@ static int resizer_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __resizer_get_format(resizer, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -612,7 +612,7 @@ static int resizer_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __resizer_get_format(resizer, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	resizer_try_format(resizer, cfg, fmt->pad, &fmt->format, fmt->which);
