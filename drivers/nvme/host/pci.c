@@ -174,7 +174,7 @@ struct nvme_iod {
 	int nents;		/* Used in scatterlist */
 	int length;		/* Of data, in bytes */
 	dma_addr_t first_dma;
-	struct scatterlist meta_sg[1]; /* metadata requires single contiguous buffer */
+	struct scatterlist meta_sg; /* metadata requires single contiguous buffer */
 	struct scatterlist sg[0];
 };
 
@@ -594,21 +594,21 @@ static int nvme_map_data(struct nvme_dev *dev, struct nvme_iod *iod,
 		if (blk_rq_count_integrity_sg(q, req->bio) != 1)
 			goto out_unmap;
 
-		sg_init_table(iod->meta_sg, 1);
-		if (blk_rq_map_integrity_sg(q, req->bio, iod->meta_sg) != 1)
+		sg_init_table(&iod->meta_sg, 1);
+		if (blk_rq_map_integrity_sg(q, req->bio, &iod->meta_sg) != 1)
 			goto out_unmap;
 
 		if (rq_data_dir(req))
 			nvme_dif_remap(req, nvme_dif_prep);
 
-		if (!dma_map_sg(dev->dev, iod->meta_sg, 1, dma_dir))
+		if (!dma_map_sg(dev->dev, &iod->meta_sg, 1, dma_dir))
 			goto out_unmap;
 	}
 
 	cmnd->rw.prp1 = cpu_to_le64(sg_dma_address(iod->sg));
 	cmnd->rw.prp2 = cpu_to_le64(iod->first_dma);
 	if (blk_integrity_rq(req))
-		cmnd->rw.metadata = cpu_to_le64(sg_dma_address(iod->meta_sg));
+		cmnd->rw.metadata = cpu_to_le64(sg_dma_address(&iod->meta_sg));
 	return BLK_MQ_RQ_QUEUE_OK;
 
 out_unmap:
@@ -628,7 +628,7 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct nvme_iod *iod)
 		if (blk_integrity_rq(req)) {
 			if (!rq_data_dir(req))
 				nvme_dif_remap(req, nvme_dif_complete);
-			dma_unmap_sg(dev->dev, iod->meta_sg, 1, dma_dir);
+			dma_unmap_sg(dev->dev, &iod->meta_sg, 1, dma_dir);
 		}
 	}
 
