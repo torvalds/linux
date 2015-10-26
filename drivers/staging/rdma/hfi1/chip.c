@@ -4424,7 +4424,7 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 		rcd = dd->rcd[source];
 		if (rcd) {
 			if (source < dd->first_user_ctxt)
-				rcd->do_interrupt(rcd);
+				rcd->do_interrupt(rcd, 0);
 			else
 				handle_user_interrupt(rcd);
 			return;	/* OK */
@@ -4590,23 +4590,106 @@ static irqreturn_t sdma_interrupt(int irq, void *data)
 }
 
 /*
- * NOTE: this routine expects to be on its own MSI-X interrupt.  If
- * multiple receive contexts share the same MSI-X interrupt, then this
- * routine must check for who received it.
+ * Clear the receive interrupt, forcing the write and making sure
+ * we have data from the chip, pushing everything in front of it
+ * back to the host.
+ */
+static inline void clear_recv_intr(struct hfi1_ctxtdata *rcd)
+{
+	struct hfi1_devdata *dd = rcd->dd;
+	u32 addr = CCE_INT_CLEAR + (8 * rcd->ireg);
+
+	mmiowb();	/* make sure everything before is written */
+	write_csr(dd, addr, rcd->imask);
+	/* force the above write on the chip and get a value back */
+	(void)read_csr(dd, addr);
+}
+
+/* force the receive interrupt */
+static inline void force_recv_intr(struct hfi1_ctxtdata *rcd)
+{
+	write_csr(rcd->dd, CCE_INT_FORCE + (8 * rcd->ireg), rcd->imask);
+}
+
+/* return non-zero if a packet is present */
+static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
+{
+	if (!HFI1_CAP_IS_KSET(DMA_RTAIL))
+		return (rcd->seq_cnt ==
+				rhf_rcv_seq(rhf_to_cpu(get_rhf_addr(rcd))));
+
+	/* else is RDMA rtail */
+	return (rcd->head != get_rcvhdrtail(rcd));
+}
+
+/*
+ * Receive packet IRQ handler.  This routine expects to be on its own IRQ.
+ * This routine will try to handle packets immediately (latency), but if
+ * it finds too many, it will invoke the thread handler (bandwitdh).  The
+ * chip receive interupt is *not* cleared down until this or the thread (if
+ * invoked) is finished.  The intent is to avoid extra interrupts while we
+ * are processing packets anyway.
  */
 static irqreturn_t receive_context_interrupt(int irq, void *data)
 {
 	struct hfi1_ctxtdata *rcd = data;
 	struct hfi1_devdata *dd = rcd->dd;
+	int disposition;
+	int present;
 
 	trace_hfi1_receive_interrupt(dd, rcd->ctxt);
 	this_cpu_inc(*dd->int_counter);
 
-	/* clear the interrupt */
-	write_csr(rcd->dd, CCE_INT_CLEAR + (8*rcd->ireg), rcd->imask);
+	/* receive interrupt remains blocked while processing packets */
+	disposition = rcd->do_interrupt(rcd, 0);
 
-	/* handle the interrupt */
-	rcd->do_interrupt(rcd);
+	/*
+	 * Too many packets were seen while processing packets in this
+	 * IRQ handler.  Invoke the handler thread.  The receive interrupt
+	 * remains blocked.
+	 */
+	if (disposition == RCV_PKT_LIMIT)
+		return IRQ_WAKE_THREAD;
+
+	/*
+	 * The packet processor detected no more packets.  Clear the receive
+	 * interrupt and recheck for a packet packet that may have arrived
+	 * after the previous check and interrupt clear.  If a packet arrived,
+	 * force another interrupt.
+	 */
+	clear_recv_intr(rcd);
+	present = check_packet_present(rcd);
+	if (present)
+		force_recv_intr(rcd);
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * Receive packet thread handler.  This expects to be invoked with the
+ * receive interrupt still blocked.
+ */
+static irqreturn_t receive_context_thread(int irq, void *data)
+{
+	struct hfi1_ctxtdata *rcd = data;
+	int present;
+
+	/* receive interrupt is still blocked from the IRQ handler */
+	(void)rcd->do_interrupt(rcd, 1);
+
+	/*
+	 * The packet processor will only return if it detected no more
+	 * packets.  Hold IRQs here so we can safely clear the interrupt and
+	 * recheck for a packet that may have arrived after the previous
+	 * check and the interrupt clear.  If a packet arrived, force another
+	 * interrupt.
+	 */
+	local_irq_disable();
+	clear_recv_intr(rcd);
+	present = check_packet_present(rcd);
+	if (present)
+		force_recv_intr(rcd);
+	local_irq_enable();
 
 	return IRQ_HANDLED;
 }
@@ -8858,6 +8941,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		struct hfi1_msix_entry *me = &dd->msix_entries[i];
 		const char *err_info;
 		irq_handler_t handler;
+		irq_handler_t thread = NULL;
 		void *arg;
 		int idx;
 		struct hfi1_ctxtdata *rcd = NULL;
@@ -8894,6 +8978,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			rcd->imask = ((u64)1) <<
 					((IS_RCVAVAIL_START+idx) % 64);
 			handler = receive_context_interrupt;
+			thread = receive_context_thread;
 			arg = rcd;
 			snprintf(me->name, sizeof(me->name),
 				DRIVER_NAME"_%d kctxt%d", dd->unit, idx);
@@ -8912,7 +8997,8 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		/* make sure the name is terminated */
 		me->name[sizeof(me->name)-1] = 0;
 
-		ret = request_irq(me->msix.vector, handler, 0, me->name, arg);
+		ret = request_threaded_irq(me->msix.vector, handler, thread, 0,
+						me->name, arg);
 		if (ret) {
 			dd_dev_err(dd,
 				"unable to allocate %s interrupt, vector %d, index %d, err %d\n",

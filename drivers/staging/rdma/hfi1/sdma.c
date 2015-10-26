@@ -2096,9 +2096,9 @@ unlock_noconn:
 	tx->sn = sde->tail_sn++;
 	trace_hfi1_sdma_in_sn(sde, tx->sn);
 #endif
-	spin_lock_irqsave(&sde->flushlist_lock, flags);
+	spin_lock(&sde->flushlist_lock);
 	list_add_tail(&tx->list, &sde->flushlist);
-	spin_unlock_irqrestore(&sde->flushlist_lock, flags);
+	spin_unlock(&sde->flushlist_lock);
 	if (wait) {
 		wait->tx_count++;
 		wait->count += tx->num_desc;
