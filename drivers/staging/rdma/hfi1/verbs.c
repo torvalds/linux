@@ -129,6 +129,9 @@ static void verbs_sdma_complete(
 	int status,
 	int drained);
 
+/* Length of buffer to create verbs txreq cache name */
+#define TXREQ_NAME_LEN 24
+
 /*
  * Note that it is OK to post send work requests in the SQE and ERR
  * states; hfi1_do_send() will process them and generate error
@@ -1905,6 +1908,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	int ret;
 	size_t lcpysz = IB_DEVICE_NAME_MAX;
 	u16 descq_cnt;
+	char buf[TXREQ_NAME_LEN];
 
 	ret = hfi1_qp_init(dev);
 	if (ret)
@@ -1958,8 +1962,9 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	descq_cnt = sdma_get_descq_cnt();
 
+	snprintf(buf, sizeof(buf), "hfi1_%u_vtxreq_cache", dd->unit);
 	/* SLAB_HWCACHE_ALIGN for AHG */
-	dev->verbs_txreq_cache = kmem_cache_create("hfi1_vtxreq_cache",
+	dev->verbs_txreq_cache = kmem_cache_create(buf,
 						   sizeof(struct verbs_txreq),
 						   0, SLAB_HWCACHE_ALIGN,
 						   verbs_txreq_kmem_cache_ctor);
