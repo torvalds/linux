@@ -5,7 +5,8 @@ Exynos series of SoCs which transfers the image data from a video memory
 buffer to an external LCD interface.
 
 Required properties:
-- compatible: value should be "samsung,exynos5433-decon";
+- compatible: value should be one of:
+	"samsung,exynos5433-decon", "samsung,exynos5433-decon-tv";
 - reg: physical base address and length of the DECON registers set.
 - interrupts: should contain a list of all DECON IP block interrupts in the
 	      order: VSYNC, LCD_SYSTEM. The interrupt specifier format
