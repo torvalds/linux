@@ -193,13 +193,11 @@ void rsnd_path_parse(struct rsnd_priv *priv,
 /*
  *	R-Car DMA
  */
-struct rsnd_dma;
-
-void rsnd_dma_start(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-void rsnd_dma_stop(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-struct rsnd_dma *rsnd_dma_attach(struct rsnd_dai_stream *io,
+void rsnd_dma_start(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
+void rsnd_dma_stop(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
+struct rsnd_mod *rsnd_dma_attach(struct rsnd_dai_stream *io,
 			       struct rsnd_mod *mod, int id);
-void rsnd_dma_quit(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
+void rsnd_dma_quit(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
 int rsnd_dma_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
@@ -210,7 +208,9 @@ struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
  *	R-Car sound mod
  */
 enum rsnd_mod_type {
-	RSND_MOD_DVC = 0,
+	RSND_MOD_AUDMAPP,
+	RSND_MOD_AUDMA,
+	RSND_MOD_DVC,
 	RSND_MOD_MIX,
 	RSND_MOD_CTU,
 	RSND_MOD_SRC,

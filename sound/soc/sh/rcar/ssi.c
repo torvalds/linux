@@ -63,7 +63,7 @@ struct rsnd_ssi {
 	struct rsnd_ssi_platform_info *info; /* rcar_snd.h */
 	struct rsnd_ssi *parent;
 	struct rsnd_mod mod;
-	struct rsnd_dma *dma;
+	struct rsnd_mod *dma;
 
 	u32 cr_own;
 	u32 cr_clk;
@@ -630,7 +630,7 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 			      struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dma *dma = rsnd_ssi_to_dma(ssi);
+	struct rsnd_mod *dma = rsnd_ssi_to_dma(ssi);
 
 	rsnd_dma_start(io, dma);
 
@@ -644,7 +644,7 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 			     struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dma *dma = rsnd_ssi_to_dma(ssi);
+	struct rsnd_mod *dma = rsnd_ssi_to_dma(ssi);
 
 	rsnd_ssi_stop(mod, io, priv);
 
