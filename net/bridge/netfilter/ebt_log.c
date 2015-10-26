@@ -36,14 +36,12 @@ static int ebt_log_tg_check(const struct xt_tgchk_param *par)
 	return 0;
 }
 
-struct tcpudphdr
-{
+struct tcpudphdr {
 	__be16 src;
 	__be16 dst;
 };
 
-struct arppayload
-{
+struct arppayload {
 	unsigned char mac_src[ETH_ALEN];
 	unsigned char ip_src[4];
 	unsigned char mac_dst[ETH_ALEN];

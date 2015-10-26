@@ -551,8 +551,7 @@ ebt_check_entry_size_and_hooks(const struct ebt_entry *e,
 	return 0;
 }
 
-struct ebt_cl_stack
-{
+struct ebt_cl_stack {
 	struct ebt_chainstack cs;
 	int from;
 	unsigned int hookmask;
