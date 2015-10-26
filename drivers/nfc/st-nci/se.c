@@ -23,7 +23,6 @@
 #include <net/nfc/nci_core.h>
 
 #include "st-nci.h"
-#include "se.h"
 
 struct st_nci_pipe_info {
 	u8 pipe_state;
