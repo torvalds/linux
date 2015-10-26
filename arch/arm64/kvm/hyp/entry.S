@@ -27,6 +27,7 @@
 
 #define CPU_GP_REG_OFFSET(x)	(CPU_GP_REGS + x)
 #define CPU_XREG_OFFSET(x)	CPU_GP_REG_OFFSET(CPU_USER_PT_REGS + 8*x)
+#define CPU_SYSREG_OFFSET(x)	(CPU_SYSREGS + 8*x)
 
 	.text
 	.pushsection	.hyp.text, "ax"
@@ -127,4 +128,33 @@ ENTRY(__guest_exit)
 	ret
 ENDPROC(__guest_exit)
 
-	/* Insert fault handling here */
+ENTRY(__fpsimd_guest_restore)
+	stp	x4, lr, [sp, #-16]!
+
+	mrs	x2, cptr_el2
+	bic	x2, x2, #CPTR_EL2_TFP
+	msr	cptr_el2, x2
+	isb
+
+	mrs	x3, tpidr_el2
+
+	ldr	x0, [x3, #VCPU_HOST_CONTEXT]
+	kern_hyp_va x0
+	add	x0, x0, #CPU_GP_REG_OFFSET(CPU_FP_REGS)
+	bl	__fpsimd_save_state
+
+	add	x2, x3, #VCPU_CONTEXT
+	add	x0, x2, #CPU_GP_REG_OFFSET(CPU_FP_REGS)
+	bl	__fpsimd_restore_state
+
+	mrs	x1, hcr_el2
+	tbnz	x1, #HCR_RW_SHIFT, 1f
+	ldr	x4, [x2, #CPU_SYSREG_OFFSET(FPEXC32_EL2)]
+	msr	fpexc32_el2, x4
+1:
+	ldp	x4, lr, [sp], #16
+	ldp	x2, x3, [sp], #16
+	ldp	x0, x1, [sp], #16
+
+	eret
+ENDPROC(__fpsimd_guest_restore)
