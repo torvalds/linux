@@ -2066,7 +2066,6 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 	struct wacom_features *features = &wacom->features;
 
 	if ((features->type == INTUOSHT2) &&
-	    (wacom->data[0] == WACOM_REPORT_INTUOS_PEN) &&
 	    (features->device_type & WACOM_DEVICETYPE_PEN))
 		return wacom_intuos_irq(wacom);
 	else if (len == WACOM_PKGLEN_BBTOUCH)

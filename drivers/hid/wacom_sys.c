@@ -432,7 +432,7 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 			return wacom_set_device_mode(hdev, 2, 2, 2);
 		}
 	} else if (features->device_type & WACOM_DEVICETYPE_PEN) {
-		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
+		if (features->type <= BAMBOO_PT) {
 			return wacom_set_device_mode(hdev, 2, 2, 2);
 		}
 	}
