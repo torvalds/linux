@@ -270,6 +270,13 @@ struct gfs2_holder {
 /* Number of quota types we support */
 #define GFS2_MAXQUOTAS 2
 
+struct gfs2_qadata { /* quota allocation data */
+	/* Quota stuff */
+	struct gfs2_quota_data *qa_qd[2 * GFS2_MAXQUOTAS];
+	struct gfs2_holder qa_qd_ghs[2 * GFS2_MAXQUOTAS];
+	unsigned int qa_qd_num;
+};
+
 /* Resource group multi-block reservation, in order of appearance:
 
    Step 1. Function prepares to write, allocates a mb, sets the size hint.
@@ -288,11 +295,6 @@ struct gfs2_blkreserv {
 	struct gfs2_rbm rs_rbm;       /* Start of reservation */
 	u32 rs_free;                  /* how many blocks are still free */
 	u64 rs_inum;                  /* Inode number for reservation */
-
-	/* ancillary quota stuff */
-	struct gfs2_quota_data *rs_qa_qd[2 * GFS2_MAXQUOTAS];
-	struct gfs2_holder rs_qa_qd_ghs[2 * GFS2_MAXQUOTAS];
-	unsigned int rs_qa_qd_num;
 };
 
 /*
@@ -391,6 +393,7 @@ struct gfs2_inode {
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
+	struct gfs2_qadata *i_qadata; /* quota allocation data */
 	struct gfs2_blkreserv *i_res; /* rgrp multi-block reservation */
 	struct gfs2_rgrpd *i_rgd;
 	u64 i_goal;	/* goal block for allocations */

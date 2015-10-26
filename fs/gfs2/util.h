@@ -149,6 +149,7 @@ extern struct kmem_cache *gfs2_inode_cachep;
 extern struct kmem_cache *gfs2_bufdata_cachep;
 extern struct kmem_cache *gfs2_rgrpd_cachep;
 extern struct kmem_cache *gfs2_quotad_cachep;
+extern struct kmem_cache *gfs2_qadata_cachep;
 extern struct kmem_cache *gfs2_rsrv_cachep;
 extern mempool_t *gfs2_page_pool;
 

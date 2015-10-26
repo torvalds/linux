@@ -596,10 +596,11 @@ void gfs2_free_clones(struct gfs2_rgrpd *rgd)
 }
 
 /**
- * gfs2_rs_alloc - make sure we have a reservation assigned to the inode
+ * gfs2_rsqa_alloc - make sure we have a reservation assigned to the inode
+ *                 plus a quota allocations data structure, if necessary
  * @ip: the inode for this reservation
  */
-int gfs2_rs_alloc(struct gfs2_inode *ip)
+int gfs2_rsqa_alloc(struct gfs2_inode *ip)
 {
 	int error = 0;
 
@@ -614,6 +615,12 @@ int gfs2_rs_alloc(struct gfs2_inode *ip)
 	}
 
 	RB_CLEAR_NODE(&ip->i_res->rs_node);
+	error = gfs2_qa_alloc(ip);
+	if (error) {
+		kmem_cache_free(gfs2_rsrv_cachep, ip->i_res);
+		ip->i_res = NULL;
+	}
+
 out:
 	up_write(&ip->i_rw_mutex);
 	return error;
@@ -678,12 +685,12 @@ void gfs2_rs_deltree(struct gfs2_blkreserv *rs)
 }
 
 /**
- * gfs2_rs_delete - delete a multi-block reservation
+ * gfs2_rsqa_delete - delete a multi-block reservation and quota allocation
  * @ip: The inode for this reservation
  * @wcount: The inode's write count, or NULL
  *
  */
-void gfs2_rs_delete(struct gfs2_inode *ip, atomic_t *wcount)
+void gfs2_rsqa_delete(struct gfs2_inode *ip, atomic_t *wcount)
 {
 	down_write(&ip->i_rw_mutex);
 	if (ip->i_res && ((wcount == NULL) || (atomic_read(wcount) <= 1))) {
@@ -691,6 +698,8 @@ void gfs2_rs_delete(struct gfs2_inode *ip, atomic_t *wcount)
 		BUG_ON(ip->i_res->rs_free);
 		kmem_cache_free(gfs2_rsrv_cachep, ip->i_res);
 		ip->i_res = NULL;
+
+		gfs2_qa_delete(ip);
 	}
 	up_write(&ip->i_rw_mutex);
 }

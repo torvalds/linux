@@ -1607,7 +1607,7 @@ out_unlock:
 out:
 	/* Case 3 starts here */
 	truncate_inode_pages_final(&inode->i_data);
-	gfs2_rs_delete(ip, NULL);
+	gfs2_rsqa_delete(ip, NULL);
 	gfs2_ordered_del_inode(ip);
 	clear_inode(inode);
 	gfs2_dir_hash_inval(ip);
