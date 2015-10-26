@@ -4687,7 +4687,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 			"on" : "off");
 	/* WaRsUseTimeoutMode */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
-	    IS_BXT_REVID(dev, 0, BXT_REVID_A0)) {
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		I915_WRITE(GEN6_RC6_THRESHOLD, 625); /* 800us */
 		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
 			   GEN7_RC_CTL_TO_MODE |

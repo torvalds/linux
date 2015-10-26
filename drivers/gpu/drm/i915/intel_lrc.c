@@ -285,7 +285,7 @@ static bool disable_lite_restore_wa(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 
 	return (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
-		IS_BXT_REVID(dev, 0, BXT_REVID_A0)) &&
+		IS_BXT_REVID(dev, 0, BXT_REVID_A1)) &&
 	       (ring->id == VCS || ring->id == VCS2);
 }
 
@@ -1313,7 +1313,7 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *ring,
 
 	/* WaDisableCtxRestoreArbitration:skl,bxt */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
-	    IS_BXT_REVID(dev, 0, BXT_REVID_A0))
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A1))
 		wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:skl,bxt */
@@ -1339,7 +1339,7 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *ring,
 
 	/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl,bxt */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
-	    IS_BXT_REVID(dev, 0, BXT_REVID_A0)) {
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
 		wa_ctx_emit(batch, index, GEN9_SLICE_COMMON_ECO_CHICKEN0);
 		wa_ctx_emit(batch, index,
@@ -1349,7 +1349,7 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *ring,
 
 	/* WaDisableCtxRestoreArbitration:skl,bxt */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
-	    IS_BXT_REVID(dev, 0, BXT_REVID_A0))
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A1))
 		wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 
 	wa_ctx_emit(batch, index, MI_BATCH_BUFFER_END);

@@ -1097,11 +1097,11 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 
 	/* WaStoreMultiplePTEenable:bxt */
 	/* This is a requirement according to Hardware specification */
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_A0))
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1))
 		I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
 
 	/* WaSetClckGatingDisableMedia:bxt */
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_A0)) {
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
 					    ~GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE));
 	}
