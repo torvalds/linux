@@ -469,8 +469,8 @@ static int iss_pipeline_pm_power(struct media_entity *entity, int change)
 
 	media_entity_graph_walk_start(&graph, first);
 
-	while ((first = media_entity_graph_walk_next(&graph))
-	       && first != entity)
+	while ((first = media_entity_graph_walk_next(&graph)) &&
+	       first != entity)
 		if (media_entity_type(first) != MEDIA_ENT_T_DEVNODE)
 			iss_pipeline_pm_power_one(first, -change);
 
