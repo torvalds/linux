@@ -44,7 +44,6 @@ for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 	int ret;
 
 	init_subchannel_id(&schid);
-	ret = -ENODEV;
 	do {
 		do {
 			ret = fn(schid, data);
