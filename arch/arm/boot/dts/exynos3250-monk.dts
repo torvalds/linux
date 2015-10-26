@@ -161,6 +161,7 @@
 };
 
 &exynos_usbphy {
+	vbus-supply = <&safeout_reg>;
 	status = "okay";
 };
 

@@ -153,6 +153,7 @@
 
 &exynos_usbphy {
 	status = "okay";
+	vbus-supply = <&safeout_reg>;
 };
 
 &hsotg {

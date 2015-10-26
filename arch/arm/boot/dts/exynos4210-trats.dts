@@ -252,6 +252,7 @@
 
 &exynos_usbphy {
 	status = "okay";
+	vbus-supply = <&safe1_sreg>;
 };
 
 &fimd {
@@ -449,7 +450,6 @@
 
 			safe1_sreg: ESAFEOUT1 {
 			     regulator-name = "SAFEOUT1";
-			     regulator-always-on;
 			};
 
 			safe2_sreg: ESAFEOUT2 {
