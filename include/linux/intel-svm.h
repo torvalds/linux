@@ -16,8 +16,6 @@
 #ifndef __INTEL_SVM_H__
 #define __INTEL_SVM_H__
 
-#ifdef CONFIG_INTEL_IOMMU_SVM
-
 struct device;
 
 struct svm_dev_ops {
@@ -54,6 +52,8 @@ struct svm_dev_ops {
  * do such IOTLB flushes automatically.
  */
 #define SVM_FLAG_SUPERVISOR_MODE	(1<<1)
+
+#ifdef CONFIG_INTEL_IOMMU_SVM
 
 /**
  * intel_svm_bind_mm() - Bind the current process to a PASID
