@@ -1430,6 +1430,13 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 		if ((used | wanted) & CEPH_CAP_ANY_WR)
 			goto out;
 	}
+	/* The inode has cached pages, but it's no longer used.
+	 * we can safely drop it */
+	if (wanted == 0 && used == CEPH_CAP_FILE_CACHE &&
+	    !(oissued & CEPH_CAP_FILE_CACHE)) {
+	  used = 0;
+	  oissued = 0;
+	}
 	if ((used | wanted) & ~oissued & mine)
 		goto out;   /* we need these caps */
 
@@ -1438,7 +1445,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 		/* we aren't the only cap.. just remove us */
 		__ceph_remove_cap(cap, true);
 	} else {
-		/* try to drop referring dentries */
+		/* try dropping referring dentries */
 		spin_unlock(&ci->i_ceph_lock);
 		d_prune_aliases(inode);
 		dout("trim_caps_cb %p cap %p  pruned, count now %d\n",
