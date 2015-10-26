@@ -606,14 +606,17 @@ void rsnd_dma_quit(struct rsnd_dai_stream *io, struct rsnd_dma *dma)
 	dma->ops->quit(io, dma);
 }
 
-int rsnd_dma_init(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id)
+struct rsnd_dma *rsnd_dma_init(struct rsnd_dai_stream *io,
+			       struct rsnd_mod *mod, int id)
 {
 	struct rsnd_mod *mod_from = NULL;
 	struct rsnd_mod *mod_to = NULL;
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
+	struct rsnd_dma *dma;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int is_play = rsnd_io_is_play(io);
+	int ret;
 
 	/*
 	 * DMA failed. try to PIO mode
@@ -622,7 +625,13 @@ int rsnd_dma_init(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id)
 	 *	rsnd_rdai_continuance_probe()
 	 */
 	if (!dmac)
-		return -EAGAIN;
+		return ERR_PTR(-EAGAIN);
+
+	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+	if (!dma)
+		return ERR_PTR(-ENOMEM);
+
+	dma->mod = mod;
 
 	rsnd_dma_of_path(dma, io, is_play, &mod_from, &mod_to);
 
@@ -644,7 +653,11 @@ int rsnd_dma_init(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id)
 		rsnd_mod_name(mod_from), rsnd_mod_id(mod_from),
 		rsnd_mod_name(mod_to),   rsnd_mod_id(mod_to));
 
-	return dma->ops->init(io, dma, id, mod_from, mod_to);
+	ret = dma->ops->init(io, dma, id, mod_from, mod_to);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	return dma;
 }
 
 int rsnd_dma_probe(struct platform_device *pdev,

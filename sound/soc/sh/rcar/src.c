@@ -22,6 +22,7 @@
 struct rsnd_src {
 	struct rsnd_src_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
+	struct rsnd_dma *dma;
 	struct rsnd_kctrl_cfg_s sen;  /* sync convert enable */
 	struct rsnd_kctrl_cfg_s sync; /* sync convert */
 	u32 convert_rate; /* sampling rate convert */
@@ -30,6 +31,7 @@ struct rsnd_src {
 
 #define RSND_SRC_NAME_SIZE 16
 
+#define rsnd_src_to_dma(src) ((src)->dma)
 #define rsnd_src_nr(priv) ((priv)->src_nr)
 #define rsnd_enable_sync_convert(src) ((src)->sen.val)
 #define rsnd_src_of_node(priv) \
@@ -839,9 +841,9 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 			return ret;
 	}
 
-	ret = rsnd_dma_init(io,
-			    rsnd_mod_to_dma(mod),
-			    src->info->dma_id);
+	src->dma = rsnd_dma_init(io, mod, src->info->dma_id);
+	if (IS_ERR(src->dma))
+		return PTR_ERR(src->dma);
 
 	return ret;
 }
@@ -850,7 +852,9 @@ static int rsnd_src_remove_gen2(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io,
 				struct rsnd_priv *priv)
 {
-	rsnd_dma_quit(io, rsnd_mod_to_dma(mod));
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+
+	rsnd_dma_quit(io, rsnd_src_to_dma(src));
 
 	return 0;
 }
@@ -880,7 +884,9 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
-	rsnd_dma_start(io, rsnd_mod_to_dma(mod));
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+
+	rsnd_dma_start(io, rsnd_src_to_dma(src));
 
 	return _rsnd_src_start_gen2(mod, io);
 }
@@ -889,11 +895,12 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai_stream *io,
 			      struct rsnd_priv *priv)
 {
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	int ret;
 
 	ret = _rsnd_src_stop_gen2(mod);
 
-	rsnd_dma_stop(io, rsnd_mod_to_dma(mod));
+	rsnd_dma_stop(io, rsnd_src_to_dma(src));
 
 	return ret;
 }

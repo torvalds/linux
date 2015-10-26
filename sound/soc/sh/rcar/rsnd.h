@@ -206,6 +206,7 @@ struct rsnd_dmapp {
 
 struct rsnd_dma {
 	struct rsnd_dma_ops	*ops;
+	struct rsnd_mod		*mod;
 	dma_addr_t		src_addr;
 	dma_addr_t		dst_addr;
 	union {
@@ -215,11 +216,12 @@ struct rsnd_dma {
 };
 #define rsnd_dma_to_dmaen(dma)	(&(dma)->dma.en)
 #define rsnd_dma_to_dmapp(dma)	(&(dma)->dma.pp)
-#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
+#define rsnd_dma_to_mod(_dma) ((dma)->mod)
 
 void rsnd_dma_start(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 void rsnd_dma_stop(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-int rsnd_dma_init(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id);
+struct rsnd_dma *rsnd_dma_init(struct rsnd_dai_stream *io,
+			       struct rsnd_mod *mod, int id);
 void rsnd_dma_quit(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 int rsnd_dma_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
@@ -278,7 +280,6 @@ struct rsnd_mod {
 	int id;
 	enum rsnd_mod_type type;
 	struct rsnd_mod_ops *ops;
-	struct rsnd_dma dma;
 	struct rsnd_priv *priv;
 	struct clk *clk;
 	u32 status;
@@ -328,7 +329,6 @@ struct rsnd_mod {
 #define __rsnd_mod_call_hw_params	0
 
 #define rsnd_mod_to_priv(mod) ((mod)->priv)
-#define rsnd_mod_to_dma(mod) (&(mod)->dma)
 #define rsnd_mod_id(mod) ((mod) ? (mod)->id : -1)
 #define rsnd_mod_power_on(mod)	clk_enable((mod)->clk)
 #define rsnd_mod_power_off(mod)	clk_disable((mod)->clk)
