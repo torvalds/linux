@@ -95,7 +95,7 @@ static unsigned long *dma_get_page_table_origin(unsigned long *entry)
 	return pto;
 }
 
-static unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr)
+unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr)
 {
 	unsigned long *sto, *pto;
 	unsigned int rtx, sx, px;
@@ -114,17 +114,8 @@ static unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr
 	return &pto[px];
 }
 
-void dma_update_cpu_trans(unsigned long *dma_table, void *page_addr,
-			  dma_addr_t dma_addr, int flags)
+void dma_update_cpu_trans(unsigned long *entry, void *page_addr, int flags)
 {
-	unsigned long *entry;
-
-	entry = dma_walk_cpu_trans(dma_table, dma_addr);
-	if (!entry) {
-		WARN_ON_ONCE(1);
-		return;
-	}
-
 	if (flags & ZPCI_PTE_INVALID) {
 		invalidate_pt_entry(entry);
 	} else {
@@ -145,18 +136,25 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 	u8 *page_addr = (u8 *) (pa & PAGE_MASK);
 	dma_addr_t start_dma_addr = dma_addr;
 	unsigned long irq_flags;
+	unsigned long *entry;
 	int i, rc = 0;
 
 	if (!nr_pages)
 		return -EINVAL;
 
 	spin_lock_irqsave(&zdev->dma_table_lock, irq_flags);
-	if (!zdev->dma_table)
+	if (!zdev->dma_table) {
+		rc = -EINVAL;
 		goto no_refresh;
+	}
 
 	for (i = 0; i < nr_pages; i++) {
-		dma_update_cpu_trans(zdev->dma_table, page_addr, dma_addr,
-				     flags);
+		entry = dma_walk_cpu_trans(zdev->dma_table, dma_addr);
+		if (!entry) {
+			rc = -ENOMEM;
+			goto undo_cpu_trans;
+		}
+		dma_update_cpu_trans(entry, page_addr, flags);
 		page_addr += PAGE_SIZE;
 		dma_addr += PAGE_SIZE;
 	}
@@ -175,6 +173,18 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 
 	rc = zpci_refresh_trans((u64) zdev->fh << 32, start_dma_addr,
 				nr_pages * PAGE_SIZE);
+undo_cpu_trans:
+	if (rc && ((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID)) {
+		flags = ZPCI_PTE_INVALID;
+		while (i-- > 0) {
+			page_addr -= PAGE_SIZE;
+			dma_addr -= PAGE_SIZE;
+			entry = dma_walk_cpu_trans(zdev->dma_table, dma_addr);
+			if (!entry)
+				break;
+			dma_update_cpu_trans(entry, page_addr, flags);
+		}
+	}
 
 no_refresh:
 	spin_unlock_irqrestore(&zdev->dma_table_lock, irq_flags);
