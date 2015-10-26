@@ -25,6 +25,12 @@ expression E;
   debugfs_remove_recursive(E);
 |
   usb_free_urb(E);
+|
+  kmem_cache_destroy(E);
+|
+  mempool_destroy(E);
+|
+  dma_pool_destroy(E);
 )
 
 @r depends on context || report || org @
@@ -33,7 +39,9 @@ position p;
 @@
 
 * if (E != NULL)
-*	\(kfree@p\|debugfs_remove@p\|debugfs_remove_recursive@p\|usb_free_urb@p\)(E);
+*	\(kfree@p\|debugfs_remove@p\|debugfs_remove_recursive@p\|
+*         usb_free_urb@p\|kmem_cache_destroy@p\|mempool_destroy@p\|
+*         dma_pool_destroy@p\)(E);
 
 @script:python depends on org@
 p << r.p;
