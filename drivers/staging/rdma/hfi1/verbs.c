@@ -597,6 +597,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	u32 tlen = packet->tlen;
 	struct hfi1_pportdata *ppd = rcd->ppd;
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
+	unsigned long flags;
 	u32 qp_num;
 	int lnh;
 	u8 opcode;
@@ -639,10 +640,10 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {
 			packet->qp = p->qp;
-			spin_lock(&packet->qp->r_lock);
+			spin_lock_irqsave(&packet->qp->r_lock, flags);
 			if (likely((qp_ok(opcode, packet))))
 				opcode_handler_tbl[opcode](packet);
-			spin_unlock(&packet->qp->r_lock);
+			spin_unlock_irqrestore(&packet->qp->r_lock, flags);
 		}
 		/*
 		 * Notify hfi1_multicast_detach() if it is waiting for us
@@ -657,10 +658,10 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 			rcu_read_unlock();
 			goto drop;
 		}
-		spin_lock(&packet->qp->r_lock);
+		spin_lock_irqsave(&packet->qp->r_lock, flags);
 		if (likely((qp_ok(opcode, packet))))
 			opcode_handler_tbl[opcode](packet);
-		spin_unlock(&packet->qp->r_lock);
+		spin_unlock_irqrestore(&packet->qp->r_lock, flags);
 		rcu_read_unlock();
 	}
 	return;

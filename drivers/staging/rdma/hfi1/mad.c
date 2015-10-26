@@ -3257,7 +3257,7 @@ static int __subn_get_opa_hfi1_cong_log(struct opa_smp *smp, u32 am,
 		return reply((struct ib_mad_hdr *)smp);
 	}
 
-	spin_lock(&ppd->cc_log_lock);
+	spin_lock_irq(&ppd->cc_log_lock);
 
 	cong_log->log_type = OPA_CC_LOG_TYPE_HFI;
 	cong_log->congestion_flags = 0;
@@ -3300,7 +3300,7 @@ static int __subn_get_opa_hfi1_cong_log(struct opa_smp *smp, u32 am,
 	       sizeof(ppd->threshold_cong_event_map));
 	ppd->threshold_event_counter = 0;
 
-	spin_unlock(&ppd->cc_log_lock);
+	spin_unlock_irq(&ppd->cc_log_lock);
 
 	if (resp_len)
 		*resp_len += sizeof(struct opa_hfi1_cong_log);

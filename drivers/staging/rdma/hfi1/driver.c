@@ -302,6 +302,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		qp_num = be32_to_cpu(ohdr->bth[1]) & HFI1_QPN_MASK;
 		if (lid < HFI1_MULTICAST_LID_BASE) {
 			struct hfi1_qp *qp;
+			unsigned long flags;
 
 			rcu_read_lock();
 			qp = hfi1_lookup_qpn(ibp, qp_num);
@@ -314,7 +315,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			 * Handle only RC QPs - for other QP types drop error
 			 * packet.
 			 */
-			spin_lock(&qp->r_lock);
+			spin_lock_irqsave(&qp->r_lock, flags);
 
 			/* Check for valid receive state. */
 			if (!(ib_hfi1_state_ops[qp->state] &
@@ -335,7 +336,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 				break;
 			}
 
-			spin_unlock(&qp->r_lock);
+			spin_unlock_irqrestore(&qp->r_lock, flags);
 			rcu_read_unlock();
 		} /* Unicast QP */
 	} /* Valid packet with TIDErr */

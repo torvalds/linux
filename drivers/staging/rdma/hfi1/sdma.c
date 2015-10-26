@@ -384,16 +384,17 @@ static void sdma_flush(struct sdma_engine *sde)
 {
 	struct sdma_txreq *txp, *txp_next;
 	LIST_HEAD(flushlist);
+	unsigned long flags;
 
 	/* flush from head to tail */
 	sdma_flush_descq(sde);
-	spin_lock(&sde->flushlist_lock);
+	spin_lock_irqsave(&sde->flushlist_lock, flags);
 	/* copy flush list */
 	list_for_each_entry_safe(txp, txp_next, &sde->flushlist, list) {
 		list_del_init(&txp->list);
 		list_add_tail(&txp->list, &flushlist);
 	}
-	spin_unlock(&sde->flushlist_lock);
+	spin_unlock_irqrestore(&sde->flushlist_lock, flags);
 	/* flush from flush list */
 	list_for_each_entry_safe(txp, txp_next, &flushlist, list) {
 		int drained = 0;
@@ -2095,9 +2096,9 @@ unlock_noconn:
 	tx->sn = sde->tail_sn++;
 	trace_hfi1_sdma_in_sn(sde, tx->sn);
 #endif
-	spin_lock(&sde->flushlist_lock);
+	spin_lock_irqsave(&sde->flushlist_lock, flags);
 	list_add_tail(&tx->list, &sde->flushlist);
-	spin_unlock(&sde->flushlist_lock);
+	spin_unlock_irqrestore(&sde->flushlist_lock, flags);
 	if (wait) {
 		wait->tx_count++;
 		wait->count += tx->num_desc;
