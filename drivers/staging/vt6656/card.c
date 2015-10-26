@@ -285,7 +285,6 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 	vnt_get_phy_field(priv, 14,
 		vnt_get_cck_rate(priv, RATE_11M), PK_TYPE_11B, &phy[3]);
 
-
 	/*RSPINF_a_6*/
 	vnt_calculate_ofdm_rate(RATE_6M, bb_type, &tx_rate[0], &rsv_time[0]);
 
