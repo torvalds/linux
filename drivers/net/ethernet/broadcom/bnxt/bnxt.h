@@ -855,7 +855,12 @@ struct bnxt {
 	#define BNXT_FLAG_DCB_ENABLED	0x1
 	#define BNXT_FLAG_VF		0x2
 	#define BNXT_FLAG_LRO		0x4
+#ifdef CONFIG_INET
 	#define BNXT_FLAG_GRO		0x8
+#else
+	/* Cannot support hardware GRO if CONFIG_INET is not set */
+	#define BNXT_FLAG_GRO		0x0
+#endif
 	#define BNXT_FLAG_TPA		(BNXT_FLAG_LRO | BNXT_FLAG_GRO)
 	#define BNXT_FLAG_JUMBO		0x10
 	#define BNXT_FLAG_STRIP_VLAN	0x20

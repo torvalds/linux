@@ -852,6 +852,7 @@ static inline struct sk_buff *bnxt_gro_skb(struct bnxt_tpa_info *tpa_info,
 					   struct rx_tpa_end_cmp_ext *tpa_end1,
 					   struct sk_buff *skb)
 {
+#ifdef CONFIG_INET
 	struct tcphdr *th;
 	int payload_off, tcp_opt_len = 0;
 	int len, nw_off;
@@ -866,7 +867,6 @@ static inline struct sk_buff *bnxt_gro_skb(struct bnxt_tpa_info *tpa_info,
 	if (TPA_END_GRO_TS(tpa_end))
 		tcp_opt_len = 12;
 
-#ifdef CONFIG_INET
 	if (tpa_info->gso_type == SKB_GSO_TCPV4) {
 		struct iphdr *iph;
 
