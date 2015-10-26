@@ -928,7 +928,7 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 			   (long)(req->rq_sent - req->rq_arrival_time.tv_sec),
 			   (long)(req->rq_sent - req->rq_deadline));
 		if (svc->srv_ops.so_req_printer == NULL)
-			seq_printf(s, "\n");
+			seq_putc(s, '\n');
 		else
 			svc->srv_ops.so_req_printer(s, srhi->srhi_req);
 	}
