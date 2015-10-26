@@ -529,8 +529,10 @@ static struct platform_driver *const exynos_drm_kms_drivers[] = {
 #ifdef CONFIG_DRM_EXYNOS_DSI
 	&dsi_driver,
 #endif
-#ifdef CONFIG_DRM_EXYNOS_HDMI
+#ifdef CONFIG_DRM_EXYNOS_MIXER
 	&mixer_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_HDMI
 	&hdmi_driver,
 #endif
 #ifdef CONFIG_DRM_EXYNOS_VIDI

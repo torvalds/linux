@@ -62,9 +62,15 @@ config DRM_EXYNOS_DP
 	help
 	  This enables support for DP device.
 
+config DRM_EXYNOS_MIXER
+	bool "Exynos DRM Mixer"
+	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_TV
+	help
+	  Choose this option if you want to use Exynos Mixer for DRM.
+
 config DRM_EXYNOS_HDMI
 	bool "Exynos DRM HDMI"
-	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_TV
+	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_TV && (DRM_EXYNOS_MIXER || DRM_EXYNOS5433_DECON)
 	help
 	  Choose this option if you want to use Exynos HDMI for DRM.
 
