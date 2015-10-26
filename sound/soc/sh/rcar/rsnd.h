@@ -380,6 +380,9 @@ struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id);
 bool rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
 void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
 int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
+int rsnd_dai_connect(struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io,
+		     enum rsnd_mod_type type);
 
 /*
  *	R-Car Gen1/Gen2
