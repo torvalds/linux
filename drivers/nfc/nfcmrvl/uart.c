@@ -50,10 +50,21 @@ static int nfcmrvl_uart_nci_send(struct nfcmrvl_private *priv,
 	return nu->ops.send(nu, skb);
 }
 
+static void nfcmrvl_uart_nci_update_config(struct nfcmrvl_private *priv,
+					   const void *param)
+{
+	struct nci_uart *nu = priv->drv_data;
+	const struct nfcmrvl_fw_uart_config *config = param;
+
+	nci_uart_set_config(nu, le32_to_cpu(config->baudrate),
+			    config->flow_control);
+}
+
 static struct nfcmrvl_if_ops uart_ops = {
 	.nci_open = nfcmrvl_uart_nci_open,
 	.nci_close = nfcmrvl_uart_nci_close,
 	.nci_send = nfcmrvl_uart_nci_send,
+	.nci_update_config = nfcmrvl_uart_nci_update_config
 };
 
 #ifdef CONFIG_OF
@@ -132,6 +143,7 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 		return PTR_ERR(priv);
 
 	priv->phy = NFCMRVL_PHY_UART;
+	priv->support_fw_dnld = true;
 
 	nu->drv_data = priv;
 	nu->ndev = priv->ndev;
