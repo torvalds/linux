@@ -31,6 +31,13 @@ static void __rsnd_ctu_initialize_lock(struct rsnd_mod *mod, u32 enable)
 	rsnd_mod_write(mod, CTU_CTUIR, enable);
 }
 
+static int rsnd_ctu_probe_(struct rsnd_mod *mod,
+			   struct rsnd_dai_stream *io,
+			   struct rsnd_priv *priv)
+{
+	return rsnd_cmd_attach(io, rsnd_mod_id(mod) / 4);
+}
+
 static int rsnd_ctu_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
@@ -57,6 +64,7 @@ static int rsnd_ctu_quit(struct rsnd_mod *mod,
 
 static struct rsnd_mod_ops rsnd_ctu_ops = {
 	.name		= CTU_NAME,
+	.probe		= rsnd_ctu_probe_,
 	.init		= rsnd_ctu_init,
 	.quit		= rsnd_ctu_quit,
 };

@@ -589,79 +589,6 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	ret;							\
 })
 
-void rsnd_path_parse(struct rsnd_priv *priv,
-		     struct rsnd_dai_stream *io)
-{
-	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
-	struct rsnd_mod *mix = rsnd_io_to_mod_mix(io);
-	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
-	struct rsnd_mod *cmd;
-	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 data;
-
-	/* Gen1 is not supported */
-	if (rsnd_is_gen1(priv))
-		return;
-
-	if (!mix && !dvc)
-		return;
-
-	if (mix) {
-		struct rsnd_dai *rdai;
-		int i;
-		u32 path[] = {
-			[0] = 0,
-			[1] = 1 << 0,
-			[2] = 0,
-			[3] = 0,
-			[4] = 0,
-			[5] = 1 << 8
-		};
-
-		/*
-		 * it is assuming that integrater is well understanding about
-		 * data path. Here doesn't check impossible connection,
-		 * like src2 + src5
-		 */
-		data = 0;
-		for_each_rsnd_dai(rdai, priv, i) {
-			io = &rdai->playback;
-			if (mix == rsnd_io_to_mod_mix(io))
-				data |= path[rsnd_mod_id(src)];
-
-			io = &rdai->capture;
-			if (mix == rsnd_io_to_mod_mix(io))
-				data |= path[rsnd_mod_id(src)];
-		}
-
-		/*
-		 * We can't use ctu = rsnd_io_ctu() here.
-		 * Since, ID of dvc/mix are 0 or 1 (= same as CMD number)
-		 * but ctu IDs are 0 - 7 (= CTU00 - CTU13)
-		 */
-		cmd = mix;
-	} else {
-		u32 path[] = {
-			[0] = 0x30000,
-			[1] = 0x30001,
-			[2] = 0x40000,
-			[3] = 0x10000,
-			[4] = 0x20000,
-			[5] = 0x40100
-		};
-
-		data = path[rsnd_mod_id(src)];
-
-		cmd = dvc;
-	}
-
-	dev_dbg(dev, "ctu/mix path = 0x%08x", data);
-
-	rsnd_mod_write(cmd, CMD_ROUTE_SLCT, data);
-
-	rsnd_mod_write(cmd, CMD_CTRL, 0x10);
-}
-
 static int rsnd_path_init(struct rsnd_priv *priv,
 			  struct rsnd_dai *rdai,
 			  struct rsnd_dai_stream *io)
@@ -1208,6 +1135,7 @@ static int rsnd_probe(struct platform_device *pdev)
 		rsnd_ctu_probe,
 		rsnd_mix_probe,
 		rsnd_dvc_probe,
+		rsnd_cmd_probe,
 		rsnd_adg_probe,
 		rsnd_dai_probe,
 	};
@@ -1296,6 +1224,7 @@ static int rsnd_remove(struct platform_device *pdev)
 		rsnd_ctu_remove,
 		rsnd_mix_remove,
 		rsnd_dvc_remove,
+		rsnd_cmd_remove,
 	};
 	int ret = 0, i;
 

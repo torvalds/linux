@@ -134,9 +134,16 @@ static void rsnd_dvc_volume_update(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, DVC_DVUER, 1);
 }
 
-static int rsnd_dvc_remove_gen2(struct rsnd_mod *mod,
-				struct rsnd_dai_stream *io,
-				struct rsnd_priv *priv)
+static int rsnd_dvc_probe_(struct rsnd_mod *mod,
+			   struct rsnd_dai_stream *io,
+			   struct rsnd_priv *priv)
+{
+	return rsnd_cmd_attach(io, rsnd_mod_id(mod));
+}
+
+static int rsnd_dvc_remove_(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
+			    struct rsnd_priv *priv)
 {
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 
@@ -158,8 +165,6 @@ static int rsnd_dvc_init(struct rsnd_mod *mod,
 	rsnd_dvc_soft_reset(mod);
 
 	rsnd_dvc_initialize_lock(mod);
-
-	rsnd_path_parse(priv, io);
 
 	rsnd_mod_write(mod, DVC_ADINR, rsnd_get_adinr_bit(mod, io));
 
@@ -269,7 +274,8 @@ static struct dma_chan *rsnd_dvc_dma_req(struct rsnd_dai_stream *io,
 static struct rsnd_mod_ops rsnd_dvc_ops = {
 	.name		= DVC_NAME,
 	.dma_req	= rsnd_dvc_dma_req,
-	.remove		= rsnd_dvc_remove_gen2,
+	.probe		= rsnd_dvc_probe_,
+	.remove		= rsnd_dvc_remove_,
 	.init		= rsnd_dvc_init,
 	.quit		= rsnd_dvc_quit,
 	.start		= rsnd_dvc_start,
