@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include "pwm-lpss.h"
 
@@ -36,6 +37,10 @@ static int pwm_lpss_probe_platform(struct platform_device *pdev)
 		return PTR_ERR(lpwm);
 
 	platform_set_drvdata(pdev, lpwm);
+
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
 }
 
@@ -43,6 +48,7 @@ static int pwm_lpss_remove_platform(struct platform_device *pdev)
 {
 	struct pwm_lpss_chip *lpwm = platform_get_drvdata(pdev);
 
+	pm_runtime_disable(&pdev->dev);
 	return pwm_lpss_remove(lpwm);
 }
 

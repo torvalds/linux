@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 
 #include "pwm-lpss.h"
 
@@ -105,6 +106,8 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		duty_ns = 1;
 	on_time_div = 255 - (255 * duty_ns / period_ns);
 
+	pm_runtime_get_sync(chip->dev);
+
 	ctrl = pwm_lpss_read(pwm);
 	ctrl &= ~(PWM_BASE_UNIT_MASK | PWM_ON_TIME_DIV_MASK);
 	ctrl |= (u16) base_unit << PWM_BASE_UNIT_SHIFT;
@@ -113,11 +116,14 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	ctrl |= PWM_SW_UPDATE;
 	pwm_lpss_write(pwm, ctrl);
 
+	pm_runtime_put(chip->dev);
+
 	return 0;
 }
 
 static int pwm_lpss_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
+	pm_runtime_get_sync(chip->dev);
 	pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_ENABLE);
 	return 0;
 }
@@ -125,6 +131,7 @@ static int pwm_lpss_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 static void pwm_lpss_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	pwm_lpss_write(pwm, pwm_lpss_read(pwm) & ~PWM_ENABLE);
+	pm_runtime_put(chip->dev);
 }
 
 static const struct pwm_ops pwm_lpss_ops = {
