@@ -552,7 +552,8 @@ struct iwl_trans_txq_scd_cfg {
  *	If RFkill is asserted in the middle of a SYNC host command, it must
  *	return -ERFKILL straight away.
  *	May sleep only if CMD_ASYNC is not set
- * @tx: send an skb
+ * @tx: send an skb. The transport relies on the op_mode to zero the
+ *	the ieee80211_tx_info->driver_data.
  *	Must be atomic
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  *	Must be atomic

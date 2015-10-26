@@ -346,8 +346,8 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 	iwl_mvm_set_tx_cmd_rate(mvm, tx_cmd, info, sta, hdr->frame_control);
 
 	memset(&info->status, 0, sizeof(info->status));
+	memset(info->driver_data, 0, sizeof(info->driver_data));
 
-	info->driver_data[0] = NULL;
 	info->driver_data[1] = dev_cmd;
 
 	return dev_cmd;

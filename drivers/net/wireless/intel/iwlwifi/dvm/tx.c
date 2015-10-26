@@ -383,6 +383,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	iwlagn_tx_cmd_build_rate(priv, tx_cmd, info, sta, fc);
 
 	memset(&info->status, 0, sizeof(info->status));
+	memset(info->driver_data, 0, sizeof(info->driver_data));
 
 	info->driver_data[0] = ctx;
 	info->driver_data[1] = dev_cmd;
