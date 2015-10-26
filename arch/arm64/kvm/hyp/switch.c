@@ -85,7 +85,7 @@ static void __hyp_text __vgic_restore_state(struct kvm_vcpu *vcpu)
 	__vgic_call_restore_state()(vcpu);
 }
 
-int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
+static int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
 	struct kvm_cpu_context *guest_ctxt;
@@ -142,8 +142,7 @@ int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 	return exit_code;
 }
 
-__alias(__guest_run)
-int __weak __kvm_vcpu_run(struct kvm_vcpu *vcpu);
+__alias(__guest_run) int __kvm_vcpu_run(struct kvm_vcpu *vcpu);
 
 static const char __hyp_panic_string[] = "HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%p\n";
 
