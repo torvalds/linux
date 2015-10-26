@@ -71,4 +71,12 @@ config BCM2835_MBOX
 	  the services of the Videocore. Say Y here if you want to use the
 	  BCM2835 Mailbox.
 
+config HI6220_MBOX
+	tristate "Hi6220 Mailbox"
+	depends on ARCH_HISI
+	help
+	  An implementation of the hi6220 mailbox. It is used to send message
+	  between application processors and MCU. Say Y here if you want to build
+	  the Hi6220 mailbox controller driver.
+
 endif

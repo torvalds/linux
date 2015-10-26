@@ -13,3 +13,5 @@ obj-$(CONFIG_PCC)		+= pcc.o
 obj-$(CONFIG_ALTERA_MBOX)	+= mailbox-altera.o
 
 obj-$(CONFIG_BCM2835_MBOX)	+= bcm2835-mailbox.o
+
+obj-$(CONFIG_HI6220_MBOX)	+= hi6220-mailbox.o
