@@ -326,8 +326,15 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 			return -EINVAL;
 		}
 
+		/* Don't free 'skb' even though it is one of the original
+		 * fragments, as we're going to morph it into the head.
+		 */
+		skb_get(skb);
+		nf_ct_frag6_consume_orig(reasm);
+
 		key->ip.proto = ipv6_hdr(reasm)->nexthdr;
 		skb_morph(skb, reasm);
+		skb->next = reasm->next;
 		consume_skb(reasm);
 		ovs_cb.mru = IP6CB(skb)->frag_max_size;
 #endif
