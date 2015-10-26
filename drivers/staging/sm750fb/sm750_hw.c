@@ -27,10 +27,10 @@
 int hw_sm750_map(struct lynx_share *share, struct pci_dev *pdev)
 {
 	int ret;
-	struct sm750_dev *spec_share;
+	struct sm750_dev *sm750_dev;
 
 
-	spec_share = container_of(share, struct sm750_dev, share);
+	sm750_dev = container_of(share, struct sm750_dev, share);
 	ret = 0;
 
 	share->vidreg_start  = pci_resource_start(pdev, 1);
@@ -93,11 +93,11 @@ exit:
 
 int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 {
-	struct sm750_dev *spec_share;
+	struct sm750_dev *sm750_dev;
 	struct init_status *parm;
 
-	spec_share = container_of(share, struct sm750_dev, share);
-	parm = &spec_share->state.initParm;
+	sm750_dev = container_of(share, struct sm750_dev, share);
+	parm = &sm750_dev->state.initParm;
 	if (parm->chip_clk == 0)
 		parm->chip_clk = (getChipType() == SM750LE) ?
 						DEFAULT_SM750LE_CHIP_CLOCK :
@@ -108,7 +108,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 	if (parm->master_clk == 0)
 		parm->master_clk = parm->chip_clk/3;
 
-	ddk750_initHw((initchip_param_t *)&spec_share->state.initParm);
+	ddk750_initHw((initchip_param_t *)&sm750_dev->state.initParm);
 	/* for sm718,open pci burst */
 	if (share->devid == 0x718) {
 		POKE32(SYSTEM_CTRL,
@@ -117,7 +117,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 
 	if (getChipType() != SM750LE) {
 		/* does user need CRT ?*/
-		if (spec_share->state.nocrt) {
+		if (sm750_dev->state.nocrt) {
 			POKE32(MISC_CTRL,
 					FIELD_SET(PEEK32(MISC_CTRL),
 					MISC_CTRL,
@@ -139,7 +139,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 					DPMS, VPHP));
 		}
 
-		switch (spec_share->state.pnltype) {
+		switch (sm750_dev->state.pnltype) {
 		case sm750_doubleTFT:
 		case sm750_24TFT:
 		case sm750_dualTFT:
@@ -147,7 +147,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 			FIELD_VALUE(PEEK32(PANEL_DISPLAY_CTRL),
 						PANEL_DISPLAY_CTRL,
 						TFT_DISP,
-						spec_share->state.pnltype));
+						sm750_dev->state.pnltype));
 		break;
 		}
 	} else {

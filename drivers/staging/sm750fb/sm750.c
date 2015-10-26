@@ -650,21 +650,21 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 {
 	int ret;
 	struct lynx_share *share;
-	struct sm750_dev *spec_share;
+	struct sm750_dev *sm750_dev;
 	struct lynxfb_output *output;
 	struct lynxfb_crtc *crtc;
 
 	ret = 0;
 
 	share = par->share;
-	spec_share = container_of(share, struct sm750_dev, share);
+	sm750_dev = container_of(share, struct sm750_dev, share);
 	output = &par->output;
 	crtc = &par->crtc;
 
 	crtc->vidmem_size = (share->dual) ? share->vidmem_size >> 1 :
 			     share->vidmem_size;
 	/* setup crtc and output member */
-	spec_share->hwCursor = g_hwcursor;
+	sm750_dev->hwCursor = g_hwcursor;
 
 	crtc->line_pad = 16;
 	crtc->xpanstep = 8;
@@ -676,7 +676,7 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	/* chip specific phase */
 	share->accel.de_wait = (share->revid == SM750LE_REVISION_ID) ?
 				hw_sm750le_deWait : hw_sm750_deWait;
-	switch (spec_share->state.dataflow) {
+	switch (sm750_dev->state.dataflow) {
 	case sm750_simul_pri:
 		output->paths = sm750_pnc;
 		crtc->channel = sm750_primary;
@@ -937,25 +937,25 @@ exit:
 /*	chip specific g_option configuration routine */
 static void sm750fb_setup(struct lynx_share *share, char *src)
 {
-	struct sm750_dev *spec_share;
+	struct sm750_dev *sm750_dev;
 	char *opt;
 #ifdef CAP_EXPENSION
 	char *exp_res;
 #endif
 	int swap;
 
-	spec_share = container_of(share, struct sm750_dev, share);
+	sm750_dev = container_of(share, struct sm750_dev, share);
 #ifdef CAP_EXPENSIION
 	exp_res = NULL;
 #endif
 	swap = 0;
 
-	spec_share->state.initParm.chip_clk = 0;
-	spec_share->state.initParm.mem_clk = 0;
-	spec_share->state.initParm.master_clk = 0;
-	spec_share->state.initParm.powerMode = 0;
-	spec_share->state.initParm.setAllEngOff = 0;
-	spec_share->state.initParm.resetMemory = 1;
+	sm750_dev->state.initParm.chip_clk = 0;
+	sm750_dev->state.initParm.mem_clk = 0;
+	sm750_dev->state.initParm.master_clk = 0;
+	sm750_dev->state.initParm.powerMode = 0;
+	sm750_dev->state.initParm.setAllEngOff = 0;
+	sm750_dev->state.initParm.resetMemory = 1;
 
 	/* defaultly turn g_hwcursor on for both view */
 	g_hwcursor = 3;
@@ -972,13 +972,13 @@ static void sm750fb_setup(struct lynx_share *share, char *src)
 		if (!strncmp(opt, "swap", strlen("swap")))
 			swap = 1;
 		else if (!strncmp(opt, "nocrt", strlen("nocrt")))
-			spec_share->state.nocrt = 1;
+			sm750_dev->state.nocrt = 1;
 		else if (!strncmp(opt, "36bit", strlen("36bit")))
-			spec_share->state.pnltype = sm750_doubleTFT;
+			sm750_dev->state.pnltype = sm750_doubleTFT;
 		else if (!strncmp(opt, "18bit", strlen("18bit")))
-			spec_share->state.pnltype = sm750_dualTFT;
+			sm750_dev->state.pnltype = sm750_dualTFT;
 		else if (!strncmp(opt, "24bit", strlen("24bit")))
-			spec_share->state.pnltype = sm750_24TFT;
+			sm750_dev->state.pnltype = sm750_24TFT;
 #ifdef CAP_EXPANSION
 		else if (!strncmp(opt, "exp:", strlen("exp:")))
 			exp_res = opt + strlen("exp:");
@@ -1003,10 +1003,10 @@ static void sm750fb_setup(struct lynx_share *share, char *src)
 	}
 #ifdef CAP_EXPANSION
 	if (getExpRes(exp_res,
-		      &spec_share->state.xLCD,
-		      &spec_share->state.yLCD)) {
+		      &sm750_dev->state.xLCD,
+		      &sm750_dev->state.yLCD)) {
 		/* seems exp_res is not valid */
-		spec_share->state.xLCD = spec_share->state.yLCD = 0;
+		sm750_dev->state.xLCD = sm750_dev->state.yLCD = 0;
 	}
 #endif
 
@@ -1014,20 +1014,20 @@ NO_PARAM:
 	if (share->revid != SM750LE_REVISION_ID) {
 		if (share->dual) {
 			if (swap)
-				spec_share->state.dataflow = sm750_dual_swap;
+				sm750_dev->state.dataflow = sm750_dual_swap;
 			else
-				spec_share->state.dataflow = sm750_dual_normal;
+				sm750_dev->state.dataflow = sm750_dual_normal;
 		} else {
 			if (swap)
-				spec_share->state.dataflow = sm750_simul_sec;
+				sm750_dev->state.dataflow = sm750_simul_sec;
 			else
-				spec_share->state.dataflow = sm750_simul_pri;
+				sm750_dev->state.dataflow = sm750_simul_pri;
 		}
 	} else {
 		/* SM750LE only have one crt channel */
-		spec_share->state.dataflow = sm750_simul_sec;
+		sm750_dev->state.dataflow = sm750_simul_sec;
 		/* sm750le do not have complex attributes */
-		spec_share->state.nocrt = 0;
+		sm750_dev->state.nocrt = 0;
 	}
 }
 
@@ -1037,7 +1037,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	struct fb_info *info[] = {NULL, NULL};
 	struct lynx_share *share = NULL;
 
-	struct sm750_dev *spec_share = NULL;
+	struct sm750_dev *sm750_dev = NULL;
 	size_t spec_offset = 0;
 	int fbidx;
 
@@ -1053,14 +1053,14 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	 */
 	spec_offset = offsetof(struct sm750_dev, share);
 
-	spec_share = kzalloc(sizeof(*spec_share), GFP_KERNEL);
-	if (!spec_share) {
+	sm750_dev = kzalloc(sizeof(*sm750_dev), GFP_KERNEL);
+	if (!sm750_dev) {
 		pr_err("Could not allocate memory for share.\n");
 		goto err_share;
 	}
 
 	/* setting share structure */
-	share = (struct lynx_share *)(&(spec_share->share));
+	share = (struct lynx_share *)(&(sm750_dev->share));
 	share->fbinfo[0] = share->fbinfo[1] = NULL;
 	share->devid = pdev->device;
 	share->revid = pdev->revision;
@@ -1171,7 +1171,7 @@ err_info0_set:
 	framebuffer_release(info[0]);
 err_info0_alloc:
 err_map:
-	kfree(spec_share);
+	kfree(sm750_dev);
 err_share:
 err_enable:
 	return -ENODEV;
@@ -1181,7 +1181,7 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info;
 	struct lynx_share *share;
-	void *spec_share;
+	void *sm750_dev;
 	struct lynxfb_par *par;
 	int cnt;
 
@@ -1202,9 +1202,9 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 
 	iounmap(share->pvReg);
 	iounmap(share->pvMem);
-	spec_share = container_of(share, struct sm750_dev, share);
+	sm750_dev = container_of(share, struct sm750_dev, share);
 	kfree(g_settings);
-	kfree(spec_share);
+	kfree(sm750_dev);
 	pci_set_drvdata(pdev, NULL);
 }
 
