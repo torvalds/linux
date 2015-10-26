@@ -87,12 +87,19 @@ static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void qede_remove(struct pci_dev *pdev);
 static int qede_alloc_rx_buffer(struct qede_dev *edev,
 				struct qede_rx_queue *rxq);
+static void qede_link_update(void *dev, struct qed_link_output *link);
 
 static struct pci_driver qede_pci_driver = {
 	.name = "qede",
 	.id_table = qede_pci_tbl,
 	.probe = qede_probe,
 	.remove = qede_remove,
+};
+
+static struct qed_eth_cb_ops qede_ll_ops = {
+	{
+		.link_update = qede_link_update,
+	},
 };
 
 static int qede_netdev_event(struct notifier_block *this, unsigned long event,
@@ -1304,6 +1311,8 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	edev->ops->common->set_id(cdev, edev->ndev->name, DRV_MODULE_VERSION);
 
+	edev->ops->register_ops(cdev, &qede_ll_ops, edev);
+
 	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);
 	mutex_init(&edev->qede_lock);
 
@@ -2099,6 +2108,7 @@ enum qede_unload_mode {
 
 static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode)
 {
+	struct qed_link_params link_params;
 	int rc;
 
 	DP_INFO(edev, "Starting qede unload\n");
@@ -2110,6 +2120,10 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode)
 	netif_tx_disable(edev->ndev);
 	netif_carrier_off(edev->ndev);
 
+	/* Reset the link */
+	memset(&link_params, 0, sizeof(link_params));
+	link_params.link_up = false;
+	edev->ops->common->set_link(edev->cdev, &link_params);
 	rc = qede_stop_queues(edev);
 	if (rc) {
 		qede_sync_free_irqs(edev);
@@ -2140,6 +2154,8 @@ enum qede_load_mode {
 
 static int qede_load(struct qede_dev *edev, enum qede_load_mode mode)
 {
+	struct qed_link_params link_params;
+	struct qed_link_output link_output;
 	int rc;
 
 	DP_INFO(edev, "Starting qede load\n");
@@ -2183,6 +2199,17 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode)
 	mutex_lock(&edev->qede_lock);
 	edev->state = QEDE_STATE_OPEN;
 	mutex_unlock(&edev->qede_lock);
+
+	/* Ask for link-up using current configuration */
+	memset(&link_params, 0, sizeof(link_params));
+	link_params.link_up = true;
+	edev->ops->common->set_link(edev->cdev, &link_params);
+
+	/* Query whether link is already-up */
+	memset(&link_output, 0, sizeof(link_output));
+	edev->ops->common->get_link(edev->cdev, &link_output);
+	qede_link_update(edev, &link_output);
+
 	DP_INFO(edev, "Ending successfully qede load\n");
 
 	return 0;
@@ -2221,6 +2248,26 @@ static int qede_close(struct net_device *ndev)
 	qede_unload(edev, QEDE_UNLOAD_NORMAL);
 
 	return 0;
+}
+
+static void qede_link_update(void *dev, struct qed_link_output *link)
+{
+	struct qede_dev *edev = dev;
+
+	if (!netif_running(edev->ndev)) {
+		DP_VERBOSE(edev, NETIF_MSG_LINK, "Interface is not running\n");
+		return;
+	}
+
+	if (link->link_up) {
+		DP_NOTICE(edev, "Link is up\n");
+		netif_tx_start_all_queues(edev->ndev);
+		netif_carrier_on(edev->ndev);
+	} else {
+		DP_NOTICE(edev, "Link is down\n");
+		netif_tx_disable(edev->ndev);
+		netif_carrier_off(edev->ndev);
+	}
 }
 
 static int qede_set_mac_addr(struct net_device *ndev, void *p)
