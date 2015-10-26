@@ -1595,7 +1595,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 		LASSERT(pgp->pg == NULL);      /* for cleanup */
 
 		rc = -ENOMEM;
-		OBD_PAGE_ALLOC(pgp->pg, gfp_mask);
+		pgp->pg = alloc_page(gfp_mask);
 		if (pgp->pg == NULL)
 			goto out;
 
@@ -1631,7 +1631,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 			if (vrc != 0 && rc == 0)
 				rc = vrc;
 		}
-		OBD_PAGE_FREE(pgp->pg);
+		__free_page(pgp->pg);
 	}
 	kfree(pga);
 	kfree(pages);
