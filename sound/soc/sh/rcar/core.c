@@ -300,20 +300,22 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 /*
  *	rsnd_dai functions
  */
-#define rsnd_mod_call(mod, io, func, param...)			\
+#define rsnd_mod_call(idx, io, func, param...)			\
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
+	struct rsnd_mod *mod = (io)->mod[idx];			\
 	struct device *dev = rsnd_priv_to_dev(priv);		\
+	u32 *status = (io)->mod_status + idx;			\
 	u32 mask = 0xF << __rsnd_mod_shift_##func;			\
-	u8 val  = (mod->status >> __rsnd_mod_shift_##func) & 0xF;	\
+	u8 val  = (*status >> __rsnd_mod_shift_##func) & 0xF;		\
 	u8 add  = ((val + __rsnd_mod_add_##func) & 0xF);		\
 	int ret = 0;							\
 	int call = (val == __rsnd_mod_call_##func) && (mod)->ops->func;	\
-	mod->status = (mod->status & ~mask) +				\
+	*status = (*status & ~mask) +					\
 		(add << __rsnd_mod_shift_##func);			\
 	dev_dbg(dev, "%s[%d]\t0x%08x %s\n",				\
 		rsnd_mod_name(mod), rsnd_mod_id(mod),			\
-		mod->status, call ? #func : "");			\
+		*status, call ? #func : "");				\
 	if (call)							\
 		ret = (mod)->ops->func(mod, io, param);			\
 	ret;								\
@@ -327,7 +329,7 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 		mod = (io)->mod[i];				\
 		if (!mod)					\
 			continue;				\
-		ret |= rsnd_mod_call(mod, io, fn, param);	\
+		ret |= rsnd_mod_call(i, io, fn, param);		\
 	}							\
 	ret;							\
 })

@@ -259,7 +259,6 @@ struct rsnd_mod {
 	struct rsnd_mod_ops *ops;
 	struct rsnd_priv *priv;
 	struct clk *clk;
-	u32 status;
 };
 /*
  * status
@@ -335,6 +334,7 @@ struct rsnd_dai_stream {
 	struct rsnd_mod *mod[RSND_MOD_MAX];
 	struct rsnd_dai_path_info *info; /* rcar_snd.h */
 	struct rsnd_dai *rdai;
+	u32 mod_status[RSND_MOD_MAX];
 	int byte_pos;
 	int period_pos;
 	int byte_per_period;
