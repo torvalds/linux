@@ -125,9 +125,6 @@ void ccw_device_verify_done(struct ccw_device *, int);
 void ccw_device_disband_start(struct ccw_device *);
 void ccw_device_disband_done(struct ccw_device *, int);
 
-void ccw_device_stlck_start(struct ccw_device *, void *, void *, void *);
-void ccw_device_stlck_done(struct ccw_device *, void *, int);
-
 int ccw_device_stlck(struct ccw_device *);
 
 /* Helper function for machine check handling. */
