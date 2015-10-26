@@ -32,10 +32,6 @@
  * #endif
  */
 
-typedef void (*PROC_SPEC_SETUP)(struct lynx_share*, char *);
-typedef int (*PROC_SPEC_MAP)(struct lynx_share*, struct pci_dev*);
-typedef int (*PROC_SPEC_INITHW)(struct lynx_share*, struct pci_dev*);
-
 /* common var for all device */
 static int g_hwcursor = 1;
 static int g_noaccel;
