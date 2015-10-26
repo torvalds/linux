@@ -1030,10 +1030,31 @@ static irqreturn_t qede_msix_fp_int(int irq, void *fp_cookie)
 
 static int qede_open(struct net_device *ndev);
 static int qede_close(struct net_device *ndev);
+static int qede_set_mac_addr(struct net_device *ndev, void *p);
+static void qede_set_rx_mode(struct net_device *ndev);
+static void qede_config_rx_mode(struct net_device *ndev);
+
+static int qede_set_ucast_rx_mac(struct qede_dev *edev,
+				 enum qed_filter_xcast_params_type opcode,
+				 unsigned char mac[ETH_ALEN])
+{
+	struct qed_filter_params filter_cmd;
+
+	memset(&filter_cmd, 0, sizeof(filter_cmd));
+	filter_cmd.type = QED_FILTER_TYPE_UCAST;
+	filter_cmd.filter.ucast.type = opcode;
+	filter_cmd.filter.ucast.mac_valid = 1;
+	ether_addr_copy(filter_cmd.filter.ucast.mac, mac);
+
+	return edev->ops->filter_config(edev->cdev, &filter_cmd);
+}
+
 static const struct net_device_ops qede_netdev_ops = {
 	.ndo_open = qede_open,
 	.ndo_stop = qede_close,
 	.ndo_start_xmit = qede_start_xmit,
+	.ndo_set_rx_mode = qede_set_rx_mode,
+	.ndo_set_mac_address = qede_set_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 };
 
@@ -1198,6 +1219,20 @@ err:
 	return -ENOMEM;
 }
 
+static void qede_sp_task(struct work_struct *work)
+{
+	struct qede_dev *edev = container_of(work, struct qede_dev,
+					     sp_task.work);
+	mutex_lock(&edev->qede_lock);
+
+	if (edev->state == QEDE_STATE_OPEN) {
+		if (test_and_clear_bit(QEDE_SP_RX_MODE, &edev->sp_flags))
+			qede_config_rx_mode(edev->ndev);
+	}
+
+	mutex_unlock(&edev->qede_lock);
+}
+
 static void qede_update_pf_params(struct qed_dev *cdev)
 {
 	struct qed_pf_params pf_params;
@@ -1269,6 +1304,9 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	edev->ops->common->set_id(cdev, edev->ndev->name, DRV_MODULE_VERSION);
 
+	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);
+	mutex_init(&edev->qede_lock);
+
 	DP_INFO(edev, "Ending successfully qede probe\n");
 
 	return 0;
@@ -1306,6 +1344,7 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 
 	DP_INFO(edev, "Starting qede_remove\n");
 
+	cancel_delayed_work_sync(&edev->sp_task);
 	unregister_netdev(ndev);
 
 	edev->ops->common->set_power_state(cdev, PCI_D0);
@@ -2036,6 +2075,24 @@ static int qede_start_queues(struct qede_dev *edev)
 	return 0;
 }
 
+static int qede_set_mcast_rx_mac(struct qede_dev *edev,
+				 enum qed_filter_xcast_params_type opcode,
+				 unsigned char *mac, int num_macs)
+{
+	struct qed_filter_params filter_cmd;
+	int i;
+
+	memset(&filter_cmd, 0, sizeof(filter_cmd));
+	filter_cmd.type = QED_FILTER_TYPE_MCAST;
+	filter_cmd.filter.mcast.type = opcode;
+	filter_cmd.filter.mcast.num = num_macs;
+
+	for (i = 0; i < num_macs; i++, mac += ETH_ALEN)
+		ether_addr_copy(filter_cmd.filter.mcast.mac[i], mac);
+
+	return edev->ops->filter_config(edev->cdev, &filter_cmd);
+}
+
 enum qede_unload_mode {
 	QEDE_UNLOAD_NORMAL,
 };
@@ -2045,6 +2102,9 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode)
 	int rc;
 
 	DP_INFO(edev, "Starting qede unload\n");
+
+	mutex_lock(&edev->qede_lock);
+	edev->state = QEDE_STATE_CLOSED;
 
 	/* Close OS Tx */
 	netif_tx_disable(edev->ndev);
@@ -2120,6 +2180,9 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode)
 	/* Add primary mac and set Rx filters */
 	ether_addr_copy(edev->primary_mac, edev->ndev->dev_addr);
 
+	mutex_lock(&edev->qede_lock);
+	edev->state = QEDE_STATE_OPEN;
+	mutex_unlock(&edev->qede_lock);
 	DP_INFO(edev, "Ending successfully qede load\n");
 
 	return 0;
@@ -2158,4 +2221,182 @@ static int qede_close(struct net_device *ndev)
 	qede_unload(edev, QEDE_UNLOAD_NORMAL);
 
 	return 0;
+}
+
+static int qede_set_mac_addr(struct net_device *ndev, void *p)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+	struct sockaddr *addr = p;
+	int rc;
+
+	ASSERT_RTNL(); /* @@@TBD To be removed */
+
+	DP_INFO(edev, "Set_mac_addr called\n");
+
+	if (!is_valid_ether_addr(addr->sa_data)) {
+		DP_NOTICE(edev, "The MAC address is not valid\n");
+		return -EFAULT;
+	}
+
+	ether_addr_copy(ndev->dev_addr, addr->sa_data);
+
+	if (!netif_running(ndev))  {
+		DP_NOTICE(edev, "The device is currently down\n");
+		return 0;
+	}
+
+	/* Remove the previous primary mac */
+	rc = qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_DEL,
+				   edev->primary_mac);
+	if (rc)
+		return rc;
+
+	/* Add MAC filter according to the new unicast HW MAC address */
+	ether_addr_copy(edev->primary_mac, ndev->dev_addr);
+	return qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_ADD,
+				      edev->primary_mac);
+}
+
+static int
+qede_configure_mcast_filtering(struct net_device *ndev,
+			       enum qed_filter_rx_mode_type *accept_flags)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+	unsigned char *mc_macs, *temp;
+	struct netdev_hw_addr *ha;
+	int rc = 0, mc_count;
+	size_t size;
+
+	size = 64 * ETH_ALEN;
+
+	mc_macs = kzalloc(size, GFP_KERNEL);
+	if (!mc_macs) {
+		DP_NOTICE(edev,
+			  "Failed to allocate memory for multicast MACs\n");
+		rc = -ENOMEM;
+		goto exit;
+	}
+
+	temp = mc_macs;
+
+	/* Remove all previously configured MAC filters */
+	rc = qede_set_mcast_rx_mac(edev, QED_FILTER_XCAST_TYPE_DEL,
+				   mc_macs, 1);
+	if (rc)
+		goto exit;
+
+	netif_addr_lock_bh(ndev);
+
+	mc_count = netdev_mc_count(ndev);
+	if (mc_count < 64) {
+		netdev_for_each_mc_addr(ha, ndev) {
+			ether_addr_copy(temp, ha->addr);
+			temp += ETH_ALEN;
+		}
+	}
+
+	netif_addr_unlock_bh(ndev);
+
+	/* Check for all multicast @@@TBD resource allocation */
+	if ((ndev->flags & IFF_ALLMULTI) ||
+	    (mc_count > 64)) {
+		if (*accept_flags == QED_FILTER_RX_MODE_TYPE_REGULAR)
+			*accept_flags = QED_FILTER_RX_MODE_TYPE_MULTI_PROMISC;
+	} else {
+		/* Add all multicast MAC filters */
+		rc = qede_set_mcast_rx_mac(edev, QED_FILTER_XCAST_TYPE_ADD,
+					   mc_macs, mc_count);
+	}
+
+exit:
+	kfree(mc_macs);
+	return rc;
+}
+
+static void qede_set_rx_mode(struct net_device *ndev)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+
+	DP_INFO(edev, "qede_set_rx_mode called\n");
+
+	if (edev->state != QEDE_STATE_OPEN) {
+		DP_INFO(edev,
+			"qede_set_rx_mode called while interface is down\n");
+	} else {
+		set_bit(QEDE_SP_RX_MODE, &edev->sp_flags);
+		schedule_delayed_work(&edev->sp_task, 0);
+	}
+}
+
+/* Must be called with qede_lock held */
+static void qede_config_rx_mode(struct net_device *ndev)
+{
+	enum qed_filter_rx_mode_type accept_flags = QED_FILTER_TYPE_UCAST;
+	struct qede_dev *edev = netdev_priv(ndev);
+	struct qed_filter_params rx_mode;
+	unsigned char *uc_macs, *temp;
+	struct netdev_hw_addr *ha;
+	int rc, uc_count;
+	size_t size;
+
+	netif_addr_lock_bh(ndev);
+
+	uc_count = netdev_uc_count(ndev);
+	size = uc_count * ETH_ALEN;
+
+	uc_macs = kzalloc(size, GFP_ATOMIC);
+	if (!uc_macs) {
+		DP_NOTICE(edev, "Failed to allocate memory for unicast MACs\n");
+		netif_addr_unlock_bh(ndev);
+		return;
+	}
+
+	temp = uc_macs;
+	netdev_for_each_uc_addr(ha, ndev) {
+		ether_addr_copy(temp, ha->addr);
+		temp += ETH_ALEN;
+	}
+
+	netif_addr_unlock_bh(ndev);
+
+	/* Configure the struct for the Rx mode */
+	memset(&rx_mode, 0, sizeof(struct qed_filter_params));
+	rx_mode.type = QED_FILTER_TYPE_RX_MODE;
+
+	/* Remove all previous unicast secondary macs and multicast macs
+	 * (configrue / leave the primary mac)
+	 */
+	rc = qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_REPLACE,
+				   edev->primary_mac);
+	if (rc)
+		goto out;
+
+	/* Check for promiscuous */
+	if ((ndev->flags & IFF_PROMISC) ||
+	    (uc_count > 15)) { /* @@@TBD resource allocation - 1 */
+		accept_flags = QED_FILTER_RX_MODE_TYPE_PROMISC;
+	} else {
+		/* Add MAC filters according to the unicast secondary macs */
+		int i;
+
+		temp = uc_macs;
+		for (i = 0; i < uc_count; i++) {
+			rc = qede_set_ucast_rx_mac(edev,
+						   QED_FILTER_XCAST_TYPE_ADD,
+						   temp);
+			if (rc)
+				goto out;
+
+			temp += ETH_ALEN;
+		}
+
+		rc = qede_configure_mcast_filtering(ndev, &accept_flags);
+		if (rc)
+			goto out;
+	}
+
+	rx_mode.filter.accept_flags = accept_flags;
+	edev->ops->filter_config(edev->cdev, &rx_mode);
+out:
+	kfree(uc_macs);
 }

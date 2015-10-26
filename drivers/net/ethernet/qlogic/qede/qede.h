@@ -87,6 +87,9 @@ struct qede_dev {
 	struct qed_update_vport_rss_params	rss_params;
 	u16			q_num_rx_buffers; /* Must be a power of two */
 	u16			q_num_tx_buffers; /* Must be a power of two */
+
+	struct delayed_work		sp_task;
+	unsigned long			sp_flags;
 };
 
 enum QEDE_STATE {
@@ -184,6 +187,13 @@ struct qede_fastpath {
 
 #define QEDE_CSUM_ERROR			BIT(0)
 #define QEDE_CSUM_UNNECESSARY		BIT(1)
+
+#define QEDE_SP_RX_MODE		1
+
+union qede_reload_args {
+	u16 mtu;
+};
+
 #define RX_RING_SIZE_POW	13
 #define RX_RING_SIZE		BIT(RX_RING_SIZE_POW)
 #define NUM_RX_BDS_MAX		(RX_RING_SIZE - 1)
