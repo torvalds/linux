@@ -452,45 +452,6 @@ bool amdgpu_fence_need_sync(struct amdgpu_fence *fence,
 void amdgpu_fence_note_sync(struct amdgpu_fence *fence,
 			    struct amdgpu_ring *ring);
 
-static inline struct amdgpu_fence *amdgpu_fence_later(struct amdgpu_fence *a,
-						      struct amdgpu_fence *b)
-{
-	if (!a) {
-		return b;
-	}
-
-	if (!b) {
-		return a;
-	}
-
-	BUG_ON(a->ring != b->ring);
-
-	if (a->seq > b->seq) {
-		return a;
-	} else {
-		return b;
-	}
-}
-
-static inline bool amdgpu_fence_is_earlier(struct amdgpu_fence *a,
-					   struct amdgpu_fence *b)
-{
-	if (!a) {
-		return false;
-	}
-
-	if (!b) {
-		return true;
-	}
-
-	BUG_ON(a->ring != b->ring);
-
-	return a->seq < b->seq;
-}
-
-int amdgpu_user_fence_emit(struct amdgpu_ring *ring, struct amdgpu_user_fence *user,
-			   void *owner, struct amdgpu_fence **fence);
-
 /*
  * TTM.
  */
