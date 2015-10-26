@@ -89,6 +89,7 @@ struct exynos_drm_plane {
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  * @wait_for_vblank: wait for vblank interrupt to make sure that
  *	hardware overlay is updated.
+ * @atomic_check: validate state
  * @atomic_begin: prepare a window to receive a update
  * @atomic_flush: mark the end of a window update
  * @update_plane: apply hardware specific overlay data to registers.
@@ -108,6 +109,8 @@ struct exynos_drm_crtc_ops {
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
+	int (*atomic_check)(struct exynos_drm_crtc *crtc,
+			    struct drm_crtc_state *state);
 	void (*atomic_begin)(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane);
 	void (*update_plane)(struct exynos_drm_crtc *crtc,
