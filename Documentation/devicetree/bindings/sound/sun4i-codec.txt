@@ -13,10 +13,6 @@ Required properties:
 - clock-names: should contain followings:
    - "apb": the parent APB clock for this controller
    - "codec": the parent module clock
-- routing : A list of the connections between audio components.  Each
-  entry is a pair of strings, the first being the connection's sink,
-  the second being the connection's source.
-
 
 Example:
 codec: codec@01c22c00 {
@@ -28,6 +24,4 @@ codec: codec@01c22c00 {
 	clock-names = "apb", "codec";
 	dmas = <&dma 0 19>, <&dma 0 19>;
 	dma-names = "rx", "tx";
-	routing = "Headphone Jack", "HP Right",
-		  "Headphone Jack", "HP Left";
 };

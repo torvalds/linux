@@ -58,7 +58,7 @@ static int rsnd_mix_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 
 	rsnd_mix_soft_reset(mod);
 
@@ -83,7 +83,7 @@ static int rsnd_mix_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	return 0;
 }
@@ -151,10 +151,8 @@ int rsnd_mix_probe(struct platform_device *pdev,
 	int i, nr, ret;
 
 	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv)) {
-		dev_warn(dev, "MIX is not supported on Gen1\n");
-		return -EINVAL;
-	}
+	if (rsnd_is_gen1(priv))
+		return 0;
 
 	rsnd_of_parse_mix(pdev, of_data, priv);
 

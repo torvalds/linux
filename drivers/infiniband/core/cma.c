@@ -1067,14 +1067,14 @@ static int cma_save_req_info(const struct ib_cm_event *ib_event,
 		       sizeof(req->local_gid));
 		req->has_gid	= true;
 		req->service_id	= req_param->primary_path->service_id;
-		req->pkey	= req_param->bth_pkey;
+		req->pkey	= be16_to_cpu(req_param->primary_path->pkey);
 		break;
 	case IB_CM_SIDR_REQ_RECEIVED:
 		req->device	= sidr_param->listen_id->device;
 		req->port	= sidr_param->port;
 		req->has_gid	= false;
 		req->service_id	= sidr_param->service_id;
-		req->pkey	= sidr_param->bth_pkey;
+		req->pkey	= sidr_param->pkey;
 		break;
 	default:
 		return -EINVAL;
@@ -1324,7 +1324,7 @@ static struct rdma_id_private *cma_id_from_event(struct ib_cm_id *cm_id,
 	bind_list = cma_ps_find(rdma_ps_from_service_id(req.service_id),
 				cma_port_from_service_id(req.service_id));
 	id_priv = cma_find_listener(bind_list, cm_id, ib_event, &req, *net_dev);
-	if (IS_ERR(id_priv)) {
+	if (IS_ERR(id_priv) && *net_dev) {
 		dev_put(*net_dev);
 		*net_dev = NULL;
 	}

@@ -550,14 +550,14 @@ unsigned long get_wchan(struct task_struct *p)
 	if (sp < bottom || sp > top)
 		return 0;
 
-	fp = READ_ONCE(*(unsigned long *)sp);
+	fp = READ_ONCE_NOCHECK(*(unsigned long *)sp);
 	do {
 		if (fp < bottom || fp > top)
 			return 0;
-		ip = READ_ONCE(*(unsigned long *)(fp + sizeof(unsigned long)));
+		ip = READ_ONCE_NOCHECK(*(unsigned long *)(fp + sizeof(unsigned long)));
 		if (!in_sched_functions(ip))
 			return ip;
-		fp = READ_ONCE(*(unsigned long *)fp);
+		fp = READ_ONCE_NOCHECK(*(unsigned long *)fp);
 	} while (count++ < 16 && p->state != TASK_RUNNING);
 	return 0;
 }

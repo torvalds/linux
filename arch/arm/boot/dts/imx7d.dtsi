@@ -588,10 +588,10 @@
 				status = "disabled";
 			};
 
-			uart2: serial@30870000 {
+			uart2: serial@30890000 {
 				compatible = "fsl,imx7d-uart",
 					     "fsl,imx6q-uart";
-				reg = <0x30870000 0x10000>;
+				reg = <0x30890000 0x10000>;
 				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX7D_UART2_ROOT_CLK>,
 					<&clks IMX7D_UART2_ROOT_CLK>;

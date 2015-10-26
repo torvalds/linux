@@ -143,7 +143,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 }
 
 /**
- * i915_gem_shrink - Shrink buffer object caches completely
+ * i915_gem_shrink_all - Shrink buffer object caches completely
  * @dev_priv: i915 device
  *
  * This is a simple wraper around i915_gem_shrink() to aggressively shrink all

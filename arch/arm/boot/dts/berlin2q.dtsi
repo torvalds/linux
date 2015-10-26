@@ -152,7 +152,7 @@
 		};
 
 		usb_phy2: phy@a2f400 {
-			compatible = "marvell,berlin2-usb-phy";
+			compatible = "marvell,berlin2cd-usb-phy";
 			reg = <0xa2f400 0x128>;
 			#phy-cells = <0>;
 			resets = <&chip_rst 0x104 14>;
@@ -170,7 +170,7 @@
 		};
 
 		usb_phy0: phy@b74000 {
-			compatible = "marvell,berlin2-usb-phy";
+			compatible = "marvell,berlin2cd-usb-phy";
 			reg = <0xb74000 0x128>;
 			#phy-cells = <0>;
 			resets = <&chip_rst 0x104 12>;
@@ -178,7 +178,7 @@
 		};
 
 		usb_phy1: phy@b78000 {
-			compatible = "marvell,berlin2-usb-phy";
+			compatible = "marvell,berlin2cd-usb-phy";
 			reg = <0xb78000 0x128>;
 			#phy-cells = <0>;
 			resets = <&chip_rst 0x104 13>;

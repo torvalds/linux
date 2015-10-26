@@ -1558,7 +1558,7 @@ static int soc_tplg_pcm_dai_elems_load(struct soc_tplg *tplg,
 	pcm_dai = (struct snd_soc_tplg_pcm_dai *)tplg->pos;
 
 	if (soc_tplg_check_elem_count(tplg,
-		sizeof(struct snd_soc_tplg_pcm_dai), count,
+		sizeof(struct snd_soc_tplg_pcm), count,
 		hdr->payload_size, "PCM DAI")) {
 		dev_err(tplg->dev, "ASoC: invalid count %d for PCM DAI elems\n",
 			count);
@@ -1566,7 +1566,7 @@ static int soc_tplg_pcm_dai_elems_load(struct soc_tplg *tplg,
 	}
 
 	dev_dbg(tplg->dev, "ASoC: adding %d PCM DAIs\n", count);
-	tplg->pos += sizeof(struct snd_soc_tplg_pcm_dai) * count;
+	tplg->pos += sizeof(struct snd_soc_tplg_pcm) * count;
 
 	dobj = kzalloc(sizeof(struct snd_soc_dobj), GFP_KERNEL);
 	if (dobj == NULL)

@@ -44,7 +44,7 @@ static void fail_dump(struct fault_attr *attr)
 		printk(KERN_NOTICE "FAULT_INJECTION: forcing a failure.\n"
 		       "name %pd, interval %lu, probability %lu, "
 		       "space %d, times %d\n", attr->dname,
-		       attr->probability, attr->interval,
+		       attr->interval, attr->probability,
 		       atomic_read(&attr->space),
 		       atomic_read(&attr->times));
 		if (attr->verbose > 1)

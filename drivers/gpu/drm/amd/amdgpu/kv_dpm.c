@@ -2997,6 +2997,9 @@ static int kv_dpm_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
 
+	if (!amdgpu_dpm)
+		return 0;
+
 	/* init the sysfs and debugfs files late */
 	ret = amdgpu_pm_sysfs_init(adev);
 	if (ret)

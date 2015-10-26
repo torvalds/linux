@@ -1624,11 +1624,16 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	if (!file)
 		return -ENOMEM;
 
+	file->close_wq = create_singlethread_workqueue("ucma_close_id");
+	if (!file->close_wq) {
+		kfree(file);
+		return -ENOMEM;
+	}
+
 	INIT_LIST_HEAD(&file->event_list);
 	INIT_LIST_HEAD(&file->ctx_list);
 	init_waitqueue_head(&file->poll_wait);
 	mutex_init(&file->mut);
-	file->close_wq = create_singlethread_workqueue("ucma_close_id");
 
 	filp->private_data = file;
 	file->filp = filp;

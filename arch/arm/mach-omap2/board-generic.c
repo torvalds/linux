@@ -106,6 +106,7 @@ DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
 MACHINE_END
 
 static const char *const omap36xx_boards_compat[] __initconst = {
+	"ti,omap3630",
 	"ti,omap36xx",
 	NULL,
 };
@@ -243,6 +244,9 @@ static const char *const omap5_boards_compat[] __initconst = {
 };
 
 DT_MACHINE_START(OMAP5_DT, "Generic OMAP5 (Flattened Device Tree)")
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
+	.dma_zone_size	= SZ_2G,
+#endif
 	.reserve	= omap_reserve,
 	.smp		= smp_ops(omap4_smp_ops),
 	.map_io		= omap5_map_io,
@@ -288,6 +292,9 @@ static const char *const dra74x_boards_compat[] __initconst = {
 };
 
 DT_MACHINE_START(DRA74X_DT, "Generic DRA74X (Flattened Device Tree)")
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
+	.dma_zone_size	= SZ_2G,
+#endif
 	.reserve	= omap_reserve,
 	.smp		= smp_ops(omap4_smp_ops),
 	.map_io		= dra7xx_map_io,
@@ -308,6 +315,9 @@ static const char *const dra72x_boards_compat[] __initconst = {
 };
 
 DT_MACHINE_START(DRA72X_DT, "Generic DRA72X (Flattened Device Tree)")
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
+	.dma_zone_size	= SZ_2G,
+#endif
 	.reserve	= omap_reserve,
 	.map_io		= dra7xx_map_io,
 	.init_early	= dra7xx_init_early,
