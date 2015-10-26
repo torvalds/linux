@@ -927,6 +927,7 @@ static void rc_timeout(unsigned long arg)
 		ibp->n_rc_timeouts++;
 		qp->s_flags &= ~HFI1_S_TIMER;
 		del_timer(&qp->s_timer);
+		trace_hfi1_rc_timeout(qp, qp->s_last_psn + 1);
 		restart_rc(qp, qp->s_last_psn + 1, 1);
 		hfi1_schedule_send(qp);
 	}
@@ -1442,6 +1443,8 @@ static void rc_rcv_resp(struct hfi1_ibport *ibp,
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
+	trace_hfi1_rc_ack(qp, psn);
+
 	/* Ignore invalid responses. */
 	if (cmp_psn(psn, qp->s_next_psn) >= 0)
 		goto ack_done;
@@ -1630,6 +1633,7 @@ static noinline int rc_rcv_error(struct hfi1_other_headers *ohdr, void *data,
 	u8 i, prev;
 	int old_req;
 
+	trace_hfi1_rc_rcv_error(qp, psn);
 	if (diff > 0) {
 		/*
 		 * Packet sequence error.
