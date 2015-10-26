@@ -948,6 +948,7 @@ static int find_shared_ctxt(struct file *fp,
 			/* Skip ctxt if it doesn't match the requested one */
 			if (memcmp(uctxt->uuid, uinfo->uuid,
 				   sizeof(uctxt->uuid)) ||
+			    uctxt->jkey != generate_jkey(current_uid()) ||
 			    uctxt->subctxt_id != uinfo->subctxt_id ||
 			    uctxt->subctxt_cnt != uinfo->subctxt_cnt)
 				continue;
