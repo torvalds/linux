@@ -1033,6 +1033,11 @@ static void sco_conn_ready(struct sco_conn *conn)
 	} else {
 		sco_conn_lock(conn);
 
+		if (!conn->hcon) {
+			sco_conn_unlock(conn);
+			return;
+		}
+
 		parent = sco_get_sock_listen(&conn->hcon->src);
 		if (!parent) {
 			sco_conn_unlock(conn);
