@@ -193,15 +193,6 @@ void rsnd_path_parse(struct rsnd_priv *priv,
 /*
  *	R-Car DMA
  */
-void rsnd_dma_start(struct rsnd_mod *mod,
-		    struct rsnd_dai_stream *io,
-		    struct rsnd_priv *priv);
-void rsnd_dma_stop(struct rsnd_mod *mod,
-		   struct rsnd_dai_stream *io,
-		   struct rsnd_priv *priv);
-void rsnd_dma_quit(struct rsnd_mod *mod,
-		   struct rsnd_dai_stream *io,
-		   struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dma_attach(struct rsnd_dai_stream *io,
 			       struct rsnd_mod *mod, int id);
 int rsnd_dma_probe(struct platform_device *pdev,

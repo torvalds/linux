@@ -596,8 +596,6 @@ static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int irq = ssi->info->irq;
 
-	rsnd_dma_quit(rsnd_ssi_to_dma(ssi), io, priv);
-
 	/* PIO will request IRQ again */
 	devm_free_irq(dev, irq, mod);
 
@@ -625,34 +623,6 @@ static int rsnd_ssi_fallback(struct rsnd_mod *mod,
 	return 0;
 }
 
-static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
-			      struct rsnd_dai_stream *io,
-			      struct rsnd_priv *priv)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_mod *dma = rsnd_ssi_to_dma(ssi);
-
-	rsnd_dma_start(dma, io, priv);
-
-	rsnd_ssi_start(mod, io, priv);
-
-	return 0;
-}
-
-static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
-			     struct rsnd_dai_stream *io,
-			     struct rsnd_priv *priv)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_mod *dma = rsnd_ssi_to_dma(ssi);
-
-	rsnd_ssi_stop(mod, io, priv);
-
-	rsnd_dma_stop(dma, io, priv);
-
-	return 0;
-}
-
 static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
 					 struct rsnd_mod *mod)
 {
@@ -676,8 +646,8 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.remove	= rsnd_ssi_dma_remove,
 	.init	= rsnd_ssi_init,
 	.quit	= rsnd_ssi_quit,
-	.start	= rsnd_ssi_dma_start,
-	.stop	= rsnd_ssi_dma_stop,
+	.start	= rsnd_ssi_start,
+	.stop	= rsnd_ssi_stop,
 	.fallback = rsnd_ssi_fallback,
 	.hw_params = rsnd_ssi_hw_params,
 };

@@ -632,8 +632,9 @@ static bool rsnd_src_error_record_gen2(struct rsnd_mod *mod)
 	return ret;
 }
 
-static int _rsnd_src_start_gen2(struct rsnd_mod *mod,
-				struct rsnd_dai_stream *io)
+static int rsnd_src_start_gen2(struct rsnd_mod *mod,
+			       struct rsnd_dai_stream *io,
+			       struct rsnd_priv *priv)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 val;
@@ -661,7 +662,9 @@ static int _rsnd_src_start_gen2(struct rsnd_mod *mod,
 	return 0;
 }
 
-static int _rsnd_src_stop_gen2(struct rsnd_mod *mod)
+static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
+			      struct rsnd_priv *priv)
 {
 	rsnd_src_irq_disable_gen2(mod);
 
@@ -704,8 +707,8 @@ static void __rsnd_src_interrupt_gen2(struct rsnd_mod *mod,
 		dev_dbg(dev, "%s[%d] restart\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
-		_rsnd_src_stop_gen2(mod);
-		_rsnd_src_start_gen2(mod, io);
+		rsnd_src_stop_gen2(mod, io, priv);
+		rsnd_src_start_gen2(mod, io, priv);
 	}
 
 	if (src->err > 1024) {
@@ -837,17 +840,6 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 	return ret;
 }
 
-static int rsnd_src_remove_gen2(struct rsnd_mod *mod,
-				struct rsnd_dai_stream *io,
-				struct rsnd_priv *priv)
-{
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
-	rsnd_dma_quit(rsnd_src_to_dma(src), io, priv);
-
-	return 0;
-}
-
 static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai_stream *io,
 			      struct rsnd_priv *priv)
@@ -867,31 +859,6 @@ static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 		return ret;
 
 	return 0;
-}
-
-static int rsnd_src_start_gen2(struct rsnd_mod *mod,
-			       struct rsnd_dai_stream *io,
-			       struct rsnd_priv *priv)
-{
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
-	rsnd_dma_start(rsnd_src_to_dma(src), io, priv);
-
-	return _rsnd_src_start_gen2(mod, io);
-}
-
-static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
-			      struct rsnd_dai_stream *io,
-			      struct rsnd_priv *priv)
-{
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	int ret;
-
-	ret = _rsnd_src_stop_gen2(mod);
-
-	rsnd_dma_stop(rsnd_src_to_dma(src), io, priv);
-
-	return ret;
 }
 
 static void rsnd_src_reconvert_update(struct rsnd_dai_stream *io,
@@ -958,7 +925,6 @@ static struct rsnd_mod_ops rsnd_src_gen2_ops = {
 	.name	= SRC_NAME,
 	.dma_req = rsnd_src_dma_req,
 	.probe	= rsnd_src_probe_gen2,
-	.remove	= rsnd_src_remove_gen2,
 	.init	= rsnd_src_init_gen2,
 	.quit	= rsnd_src_quit_gen2,
 	.start	= rsnd_src_start_gen2,
