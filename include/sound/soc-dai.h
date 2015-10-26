@@ -214,7 +214,7 @@ struct snd_soc_dai_driver {
 	int (*suspend)(struct snd_soc_dai *dai);
 	int (*resume)(struct snd_soc_dai *dai);
 	/* compress dai */
-	bool compress_dai;
+	int (*compress_new)(struct snd_soc_pcm_runtime *rtd, int num);
 	/* DAI is also used for the control bus */
 	bool bus_control;
 
