@@ -947,15 +947,16 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	}
 
 retry:
+
 	if (therm) {
-		/* toggle SPICO_ENABLE to get back to the state
-		   just after the firmware load */
+		/*
+		 * toggle SPICO_ENABLE to get back to the state
+		 * just after the firmware load
+		 */
 		sbus_request(dd, SBUS_MASTER_BROADCAST, 0x01,
 			WRITE_SBUS_RECEIVER, 0x00000040);
 		sbus_request(dd, SBUS_MASTER_BROADCAST, 0x01,
 			WRITE_SBUS_RECEIVER, 0x00000140);
-		dd_dev_info(dd, "%s: toggle SPICO_ENABLE to reset the bus\n",
-			    __func__);
 	}
 
 	/* step 3: download SBus Master firmware */
@@ -1198,6 +1199,7 @@ retry:
 
 	/* clear the DC reset */
 	write_csr(dd, CCE_DC_CTRL, 0);
+
 	/* Set the LED off */
 	if (is_a0(dd))
 		setextled(dd, 0);

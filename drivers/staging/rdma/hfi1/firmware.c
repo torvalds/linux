@@ -1236,35 +1236,20 @@ int load_firmware(struct hfi1_devdata *dd)
 {
 	int ret;
 
-	if (fw_sbus_load || fw_fabric_serdes_load) {
+	if (fw_fabric_serdes_load) {
 		ret = acquire_hw_mutex(dd);
 		if (ret)
 			return ret;
 
 		set_sbus_fast_mode(dd);
 
-		/*
-		 * The SBus contains part of the fabric firmware and so must
-		 * also be downloaded.
-		 */
-		if (fw_sbus_load) {
-			turn_off_spicos(dd, SPICO_SBUS);
-			ret = load_sbus_firmware(dd, &fw_sbus);
-			if (ret)
-				goto clear;
-			fw_sbus_load = 0;
-		}
+		set_serdes_broadcast(dd, all_fabric_serdes_broadcast,
+				fabric_serdes_broadcast[dd->hfi1_id],
+				fabric_serdes_addrs[dd->hfi1_id],
+				NUM_FABRIC_SERDES);
+		turn_off_spicos(dd, SPICO_FABRIC);
+		ret = load_fabric_serdes_firmware(dd, &fw_fabric);
 
-		if (fw_fabric_serdes_load) {
-			set_serdes_broadcast(dd, all_fabric_serdes_broadcast,
-					fabric_serdes_broadcast[dd->hfi1_id],
-					fabric_serdes_addrs[dd->hfi1_id],
-					NUM_FABRIC_SERDES);
-			turn_off_spicos(dd, SPICO_FABRIC);
-			ret = load_fabric_serdes_firmware(dd, &fw_fabric);
-		}
-
-clear:
 		clear_sbus_fast_mode(dd);
 		release_hw_mutex(dd);
 		if (ret)
@@ -1583,7 +1568,7 @@ int load_pcie_firmware(struct hfi1_devdata *dd)
 	/* both firmware loads below use the SBus */
 	set_sbus_fast_mode(dd);
 
-	if (fw_sbus_load) {
+	if (fw_sbus_load && (dd->flags & HFI1_DO_INIT_ASIC)) {
 		turn_off_spicos(dd, SPICO_SBUS);
 		ret = load_sbus_firmware(dd, &fw_sbus);
 		if (ret)
