@@ -4,8 +4,6 @@
 
 
 #define FB_ACCEL_SMI 0xab
-/* please use revision id to distinguish sm750le and sm750*/
-#define SPC_SM750 0
 
 #define MHZ(x) ((x) * 1000000)
 /* align should be 2,4,8,16 */
