@@ -87,8 +87,7 @@ static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
 	}
 }
 
-u16
-Efuse_GetCurrentSize23a(struct rtw_adapter *pAdapter, u8 efuseType)
+u16 Efuse_GetCurrentSize23a(struct rtw_adapter *pAdapter, u8 efuseType)
 {
 	u16 ret = 0;
 
@@ -101,8 +100,7 @@ Efuse_GetCurrentSize23a(struct rtw_adapter *pAdapter, u8 efuseType)
 }
 
 /* Get current efuse area enabled word */
-u8
-Efuse_CalculateWordCnts23a(u8 word_en)
+u8 Efuse_CalculateWordCnts23a(u8 word_en)
 {
 	return hweight8((~word_en) & 0xf);
 }
@@ -113,8 +111,7 @@ Efuse_CalculateWordCnts23a(u8 word_en)
  * Assumptions: 1. Boot from E-Fuse and successfully auto-load.
  *              2. PASSIVE_LEVEL (USB interface)
  */
-void
-ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
+void ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 {
 	u32	value32;
 	u8	readbyte;
@@ -151,9 +148,8 @@ ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 	*pbuf = (u8)(value32 & 0xff);
 }
 
-void
-EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
-			    u8 type, void *pOut)
+void EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
+				 u8 type, void *pOut)
 {
 	u8 *pu1Tmp;
 	u16 *pu2Tmp;
@@ -235,8 +231,7 @@ EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
 }
 
 /* Copy from WMAC for EFUSE read 1 byte. */
-u8
-EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
+u8 EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 {
 	u8	data;
 	u8	Bytetemp = {0x00};
@@ -279,10 +274,8 @@ EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 }
 
 /* Copy from WMAC fot EFUSE write 1 byte. */
-void
-EFUSE_Write1Byte(struct rtw_adapter *Adapter, u16 Address, u8 Value);
-void
-EFUSE_Write1Byte(struct rtw_adapter *Adapter, u16 Address, u8 Value)
+void EFUSE_Write1Byte(struct rtw_adapter *Adapter, u16 Address, u8 Value);
+void EFUSE_Write1Byte(struct rtw_adapter *Adapter, u16 Address, u8 Value)
 {
 	u8	Bytetemp = {0x00};
 	u8	temp = {0x00};
@@ -324,8 +317,7 @@ EFUSE_Write1Byte(struct rtw_adapter *Adapter, u16 Address, u8 Value)
 }
 
 /* Read one byte from real Efuse. */
-int
-efuse_OneByteRead23a(struct rtw_adapter *pAdapter, u16 addr, u8 *data)
+int efuse_OneByteRead23a(struct rtw_adapter *pAdapter, u16 addr, u8 *data)
 {
 	u8	tmpidx = 0;
 	int	bResult;
@@ -353,8 +345,7 @@ efuse_OneByteRead23a(struct rtw_adapter *pAdapter, u16 addr, u8 *data)
 }
 
 /* Write one byte to reald Efuse. */
-int
-efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data)
+int efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data)
 {
 	u8	tmpidx = 0;
 	int	bResult;
@@ -385,10 +376,7 @@ efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data)
 }
 
 /* Read allowed word in current efuse section data. */
-void
-efuse_WordEnableDataRead23a(u8	word_en,
-			 u8	*sourdata,
-			 u8	*targetdata)
+void efuse_WordEnableDataRead23a(u8 word_en, u8 *sourdata, u8 *targetdata)
 {
 	if (!(word_en&BIT(0))) {
 		targetdata[0] = sourdata[0];
@@ -514,10 +502,8 @@ int rtw_BT_efuse_map_read23a(struct rtw_adapter *padapter,
 }
 
 /* Read All Efuse content */
-void
-Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType, u8 *Efuse);
-void
-Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType, u8 *Efuse)
+void Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType, u8 *Efuse);
+void Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType, u8 *Efuse)
 {
 	u16	mapLen = 0;
 
@@ -538,16 +524,16 @@ Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType, u8 *Efuse)
  *
  * Read from efuse init map by one/two/four bytes
  */
-static void
-efuse_ShadowRead1Byte(struct rtw_adapter *pAdapter, u16 Offset, u8 *Value)
+static void efuse_ShadowRead1Byte(struct rtw_adapter *pAdapter, u16 Offset,
+				  u8 *Value)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
 
 	*Value = pEEPROM->efuse_eeprom_data[Offset];
 }
 
-static void
-efuse_ShadowRead2Byte(struct rtw_adapter *pAdapter, u16 Offset, u16 *Value)
+static void efuse_ShadowRead2Byte(struct rtw_adapter *pAdapter, u16 Offset,
+				  u16 *Value)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
 
@@ -555,8 +541,8 @@ efuse_ShadowRead2Byte(struct rtw_adapter *pAdapter, u16 Offset, u16 *Value)
 	*Value |= pEEPROM->efuse_eeprom_data[Offset+1]<<8;
 }
 
-static void
-efuse_ShadowRead4Byte(struct rtw_adapter *pAdapter, u16 Offset, u32 *Value)
+static void efuse_ShadowRead4Byte(struct rtw_adapter *pAdapter, u16 Offset,
+				  u32 *Value)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
 
@@ -567,7 +553,6 @@ efuse_ShadowRead4Byte(struct rtw_adapter *pAdapter, u16 Offset, u32 *Value)
 }
 
 /* Transfer current EFUSE content to shadow init and modify map. */
-
 void EFUSE_ShadowMapUpdate23a(struct rtw_adapter *pAdapter, u8 efuseType)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
@@ -584,9 +569,8 @@ void EFUSE_ShadowMapUpdate23a(struct rtw_adapter *pAdapter, u8 efuseType)
 }
 
 /* Read from efuse init map */
-void
-EFUSE_ShadowRead23a(struct rtw_adapter *pAdapter,
-		    u8 Type, u16 Offset, u32 *Value)
+void EFUSE_ShadowRead23a(struct rtw_adapter *pAdapter, u8 Type,
+			 u16 Offset, u32 *Value)
 {
 	if (Type == 1)
 		efuse_ShadowRead1Byte(pAdapter, Offset, (u8 *)Value);
