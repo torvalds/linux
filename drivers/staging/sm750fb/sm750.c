@@ -676,7 +676,7 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	/* chip specific phase */
 	share->accel.de_wait = (share->revid == SM750LE_REVISION_ID) ?
 				hw_sm750le_deWait : hw_sm750_deWait;
-	switch (sm750_dev->state.dataflow) {
+	switch (sm750_dev->dataflow) {
 	case sm750_simul_pri:
 		output->paths = sm750_pnc;
 		crtc->channel = sm750_primary;
@@ -950,12 +950,12 @@ static void sm750fb_setup(struct lynx_share *share, char *src)
 #endif
 	swap = 0;
 
-	sm750_dev->state.initParm.chip_clk = 0;
-	sm750_dev->state.initParm.mem_clk = 0;
-	sm750_dev->state.initParm.master_clk = 0;
-	sm750_dev->state.initParm.powerMode = 0;
-	sm750_dev->state.initParm.setAllEngOff = 0;
-	sm750_dev->state.initParm.resetMemory = 1;
+	sm750_dev->initParm.chip_clk = 0;
+	sm750_dev->initParm.mem_clk = 0;
+	sm750_dev->initParm.master_clk = 0;
+	sm750_dev->initParm.powerMode = 0;
+	sm750_dev->initParm.setAllEngOff = 0;
+	sm750_dev->initParm.resetMemory = 1;
 
 	/* defaultly turn g_hwcursor on for both view */
 	g_hwcursor = 3;
@@ -972,13 +972,13 @@ static void sm750fb_setup(struct lynx_share *share, char *src)
 		if (!strncmp(opt, "swap", strlen("swap")))
 			swap = 1;
 		else if (!strncmp(opt, "nocrt", strlen("nocrt")))
-			sm750_dev->state.nocrt = 1;
+			sm750_dev->nocrt = 1;
 		else if (!strncmp(opt, "36bit", strlen("36bit")))
-			sm750_dev->state.pnltype = sm750_doubleTFT;
+			sm750_dev->pnltype = sm750_doubleTFT;
 		else if (!strncmp(opt, "18bit", strlen("18bit")))
-			sm750_dev->state.pnltype = sm750_dualTFT;
+			sm750_dev->pnltype = sm750_dualTFT;
 		else if (!strncmp(opt, "24bit", strlen("24bit")))
-			sm750_dev->state.pnltype = sm750_24TFT;
+			sm750_dev->pnltype = sm750_24TFT;
 #ifdef CAP_EXPANSION
 		else if (!strncmp(opt, "exp:", strlen("exp:")))
 			exp_res = opt + strlen("exp:");
@@ -1003,10 +1003,10 @@ static void sm750fb_setup(struct lynx_share *share, char *src)
 	}
 #ifdef CAP_EXPANSION
 	if (getExpRes(exp_res,
-		      &sm750_dev->state.xLCD,
-		      &sm750_dev->state.yLCD)) {
+		      &sm750_dev->xLCD,
+		      &sm750_dev->yLCD)) {
 		/* seems exp_res is not valid */
-		sm750_dev->state.xLCD = sm750_dev->state.yLCD = 0;
+		sm750_dev->xLCD = sm750_dev->yLCD = 0;
 	}
 #endif
 
@@ -1014,20 +1014,20 @@ NO_PARAM:
 	if (share->revid != SM750LE_REVISION_ID) {
 		if (share->dual) {
 			if (swap)
-				sm750_dev->state.dataflow = sm750_dual_swap;
+				sm750_dev->dataflow = sm750_dual_swap;
 			else
-				sm750_dev->state.dataflow = sm750_dual_normal;
+				sm750_dev->dataflow = sm750_dual_normal;
 		} else {
 			if (swap)
-				sm750_dev->state.dataflow = sm750_simul_sec;
+				sm750_dev->dataflow = sm750_simul_sec;
 			else
-				sm750_dev->state.dataflow = sm750_simul_pri;
+				sm750_dev->dataflow = sm750_simul_pri;
 		}
 	} else {
 		/* SM750LE only have one crt channel */
-		sm750_dev->state.dataflow = sm750_simul_sec;
+		sm750_dev->dataflow = sm750_simul_sec;
 		/* sm750le do not have complex attributes */
-		sm750_dev->state.nocrt = 0;
+		sm750_dev->nocrt = 0;
 	}
 }
 

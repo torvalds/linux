@@ -97,7 +97,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 	struct init_status *parm;
 
 	sm750_dev = container_of(share, struct sm750_dev, share);
-	parm = &sm750_dev->state.initParm;
+	parm = &sm750_dev->initParm;
 	if (parm->chip_clk == 0)
 		parm->chip_clk = (getChipType() == SM750LE) ?
 						DEFAULT_SM750LE_CHIP_CLOCK :
@@ -108,7 +108,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 	if (parm->master_clk == 0)
 		parm->master_clk = parm->chip_clk/3;
 
-	ddk750_initHw((initchip_param_t *)&sm750_dev->state.initParm);
+	ddk750_initHw((initchip_param_t *)&sm750_dev->initParm);
 	/* for sm718,open pci burst */
 	if (share->devid == 0x718) {
 		POKE32(SYSTEM_CTRL,
@@ -117,7 +117,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 
 	if (getChipType() != SM750LE) {
 		/* does user need CRT ?*/
-		if (sm750_dev->state.nocrt) {
+		if (sm750_dev->nocrt) {
 			POKE32(MISC_CTRL,
 					FIELD_SET(PEEK32(MISC_CTRL),
 					MISC_CTRL,
@@ -139,7 +139,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 					DPMS, VPHP));
 		}
 
-		switch (sm750_dev->state.pnltype) {
+		switch (sm750_dev->pnltype) {
 		case sm750_doubleTFT:
 		case sm750_24TFT:
 		case sm750_dualTFT:
@@ -147,7 +147,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 			FIELD_VALUE(PEEK32(PANEL_DISPLAY_CTRL),
 						PANEL_DISPLAY_CTRL,
 						TFT_DISP,
-						sm750_dev->state.pnltype));
+						sm750_dev->pnltype));
 		break;
 		}
 	} else {

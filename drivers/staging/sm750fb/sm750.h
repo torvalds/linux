@@ -47,15 +47,6 @@ struct init_status {
 	ushort resetMemory;
 };
 
-struct sm750_state {
-	struct init_status initParm;
-	enum sm750_pnltype pnltype;
-	enum sm750_dataflow dataflow;
-	int nocrt;
-	int xLCD;
-	int yLCD;
-};
-
 struct lynx_accel {
 	/* base virtual address of DPR registers */
 	volatile unsigned char __iomem *dprBase;
@@ -113,7 +104,13 @@ struct lynx_share {
  */
 struct sm750_dev {
 	struct lynx_share share;
-	struct sm750_state state;
+
+	struct init_status initParm;
+	enum sm750_pnltype pnltype;
+	enum sm750_dataflow dataflow;
+	int nocrt;
+	int xLCD;
+	int yLCD;
 
 	/*
 	 * 0: no hardware cursor
