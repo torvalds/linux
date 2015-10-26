@@ -412,52 +412,6 @@ int ccw_device_resume(struct ccw_device *cdev)
 	return cio_resume(sch);
 }
 
-/*
- * Pass interrupt to device driver.
- */
-int
-ccw_device_call_handler(struct ccw_device *cdev)
-{
-	unsigned int stctl;
-	int ending_status;
-
-	/*
-	 * we allow for the device action handler if .
-	 *  - we received ending status
-	 *  - the action handler requested to see all interrupts
-	 *  - we received an intermediate status
-	 *  - fast notification was requested (primary status)
-	 *  - unsolicited interrupts
-	 */
-	stctl = scsw_stctl(&cdev->private->irb.scsw);
-	ending_status = (stctl & SCSW_STCTL_SEC_STATUS) ||
-		(stctl == (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND)) ||
-		(stctl == SCSW_STCTL_STATUS_PEND);
-	if (!ending_status &&
-	    !cdev->private->options.repall &&
-	    !(stctl & SCSW_STCTL_INTER_STATUS) &&
-	    !(cdev->private->options.fast &&
-	      (stctl & SCSW_STCTL_PRIM_STATUS)))
-		return 0;
-
-	/* Clear pending timers for device driver initiated I/O. */
-	if (ending_status)
-		ccw_device_set_timeout(cdev, 0);
-	/*
-	 * Now we are ready to call the device driver interrupt handler.
-	 */
-	if (cdev->handler)
-		cdev->handler(cdev, cdev->private->intparm,
-			      &cdev->private->irb);
-
-	/*
-	 * Clear the old and now useless interrupt response block.
-	 */
-	memset(&cdev->private->irb, 0, sizeof(struct irb));
-
-	return 1;
-}
-
 /**
  * ccw_device_get_ciw() - Search for CIW command in extended sense data.
  * @cdev: ccw device to inspect
