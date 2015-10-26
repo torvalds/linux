@@ -938,6 +938,7 @@ static void t_stop(struct seq_file *m, void *p)
 }
 
 static void *p_start(struct seq_file *m, loff_t *pos)
+	__acquires(RCU)
 {
 	struct trace_pid_list *pid_list;
 	struct trace_array *tr = m->private;
@@ -960,6 +961,7 @@ static void *p_start(struct seq_file *m, loff_t *pos)
 }
 
 static void p_stop(struct seq_file *m, void *p)
+	__releases(RCU)
 {
 	rcu_read_unlock_sched();
 	mutex_unlock(&event_mutex);
