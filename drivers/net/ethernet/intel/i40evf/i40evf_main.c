@@ -347,7 +347,7 @@ static irqreturn_t i40evf_msix_clean_rings(int irq, void *data)
 static void
 i40evf_map_vector_to_rxq(struct i40evf_adapter *adapter, int v_idx, int r_idx)
 {
-	struct i40e_q_vector *q_vector = adapter->q_vector[v_idx];
+	struct i40e_q_vector *q_vector = &adapter->q_vectors[v_idx];
 	struct i40e_ring *rx_ring = adapter->rx_rings[r_idx];
 
 	rx_ring->q_vector = q_vector;
@@ -368,7 +368,7 @@ i40evf_map_vector_to_rxq(struct i40evf_adapter *adapter, int v_idx, int r_idx)
 static void
 i40evf_map_vector_to_txq(struct i40evf_adapter *adapter, int v_idx, int t_idx)
 {
-	struct i40e_q_vector *q_vector = adapter->q_vector[v_idx];
+	struct i40e_q_vector *q_vector = &adapter->q_vectors[v_idx];
 	struct i40e_ring *tx_ring = adapter->tx_rings[t_idx];
 
 	tx_ring->q_vector = q_vector;
@@ -464,7 +464,7 @@ static void i40evf_netpoll(struct net_device *netdev)
 		return;
 
 	for (i = 0; i < q_vectors; i++)
-		i40evf_msix_clean_rings(0, adapter->q_vector[i]);
+		i40evf_msix_clean_rings(0, &adapter->q_vectors[i]);
 }
 
 #endif
@@ -486,7 +486,7 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 	q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
 	for (vector = 0; vector < q_vectors; vector++) {
-		struct i40e_q_vector *q_vector = adapter->q_vector[vector];
+		struct i40e_q_vector *q_vector = &adapter->q_vectors[vector];
 
 		if (q_vector->tx.ring && q_vector->rx.ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
@@ -531,7 +531,7 @@ free_queue_irqs:
 			adapter->msix_entries[vector + NONQ_VECS].vector,
 			NULL);
 		free_irq(adapter->msix_entries[vector + NONQ_VECS].vector,
-			 adapter->q_vector[vector]);
+			 &adapter->q_vectors[vector]);
 	}
 	return err;
 }
@@ -581,7 +581,7 @@ static void i40evf_free_traffic_irqs(struct i40evf_adapter *adapter)
 		irq_set_affinity_hint(adapter->msix_entries[i+1].vector,
 				      NULL);
 		free_irq(adapter->msix_entries[i+1].vector,
-			 adapter->q_vector[i]);
+			 &adapter->q_vectors[i]);
 	}
 }
 
@@ -953,7 +953,7 @@ static void i40evf_napi_enable_all(struct i40evf_adapter *adapter)
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
 		struct napi_struct *napi;
 
-		q_vector = adapter->q_vector[q_idx];
+		q_vector = &adapter->q_vectors[q_idx];
 		napi = &q_vector->napi;
 		napi_enable(napi);
 	}
@@ -970,7 +970,7 @@ static void i40evf_napi_disable_all(struct i40evf_adapter *adapter)
 	int q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
-		q_vector = adapter->q_vector[q_idx];
+		q_vector = &adapter->q_vectors[q_idx];
 		napi_disable(&q_vector->napi);
 	}
 }
@@ -1483,21 +1483,22 @@ static int i40evf_init_rss(struct i40evf_adapter *adapter)
  **/
 static int i40evf_alloc_q_vectors(struct i40evf_adapter *adapter)
 {
-	int q_idx, num_q_vectors;
+	int q_idx = 0, num_q_vectors;
 	struct i40e_q_vector *q_vector;
 
 	num_q_vectors = adapter->num_msix_vectors - NONQ_VECS;
+	adapter->q_vectors = kzalloc(sizeof(*q_vector) * num_q_vectors,
+				     GFP_KERNEL);
+	if (!adapter->q_vectors)
+		goto err_out;
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
-		q_vector = kzalloc(sizeof(*q_vector), GFP_KERNEL);
-		if (!q_vector)
-			goto err_out;
+		q_vector = &adapter->q_vectors[q_idx];
 		q_vector->adapter = adapter;
 		q_vector->vsi = &adapter->vsi;
 		q_vector->v_idx = q_idx;
 		netif_napi_add(adapter->netdev, &q_vector->napi,
 			       i40evf_napi_poll, NAPI_POLL_WEIGHT);
-		adapter->q_vector[q_idx] = q_vector;
 	}
 
 	return 0;
@@ -1505,11 +1506,10 @@ static int i40evf_alloc_q_vectors(struct i40evf_adapter *adapter)
 err_out:
 	while (q_idx) {
 		q_idx--;
-		q_vector = adapter->q_vector[q_idx];
+		q_vector = &adapter->q_vectors[q_idx];
 		netif_napi_del(&q_vector->napi);
-		kfree(q_vector);
-		adapter->q_vector[q_idx] = NULL;
 	}
+	kfree(adapter->q_vectors);
 	return -ENOMEM;
 }
 
@@ -1530,13 +1530,11 @@ static void i40evf_free_q_vectors(struct i40evf_adapter *adapter)
 	napi_vectors = adapter->num_active_queues;
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
-		struct i40e_q_vector *q_vector = adapter->q_vector[q_idx];
-
-		adapter->q_vector[q_idx] = NULL;
+		struct i40e_q_vector *q_vector = &adapter->q_vectors[q_idx];
 		if (q_idx < napi_vectors)
 			netif_napi_del(&q_vector->napi);
-		kfree(q_vector);
 	}
+	kfree(adapter->q_vectors);
 }
 
 /**

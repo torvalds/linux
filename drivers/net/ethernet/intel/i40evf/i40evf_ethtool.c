@@ -351,7 +351,7 @@ static int i40evf_set_coalesce(struct net_device *netdev,
 		vsi->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	for (i = 0; i < adapter->num_msix_vectors - NONQ_VECS; i++) {
-		q_vector = adapter->q_vector[i];
+		q_vector = &adapter->q_vectors[i];
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 		wr32(hw, I40E_VFINT_ITRN1(0, i), q_vector->rx.itr);
 		q_vector->tx.itr = ITR_TO_REG(vsi->tx_itr_setting);

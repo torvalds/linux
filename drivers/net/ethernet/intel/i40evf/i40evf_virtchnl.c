@@ -360,7 +360,7 @@ void i40evf_map_queues(struct i40evf_adapter *adapter)
 	vimi->num_vectors = adapter->num_msix_vectors;
 	/* Queue vectors first */
 	for (v_idx = 0; v_idx < q_vectors; v_idx++) {
-		q_vector = adapter->q_vector[v_idx];
+		q_vector = adapter->q_vectors + v_idx;
 		vimi->vecmap[v_idx].vsi_id = adapter->vsi_res->vsi_id;
 		vimi->vecmap[v_idx].vector_id = v_idx + NONQ_VECS;
 		vimi->vecmap[v_idx].txq_map = q_vector->ring_mask;

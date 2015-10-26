@@ -145,9 +145,6 @@ struct i40e_q_vector {
 #define OTHER_VECTOR 1
 #define NONQ_VECS (OTHER_VECTOR)
 
-#define MAX_MSIX_Q_VECTORS 4
-#define MAX_MSIX_COUNT 5
-
 #define MIN_MSIX_Q_VECTORS 1
 #define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + NONQ_VECS)
 
@@ -193,7 +190,7 @@ struct i40evf_adapter {
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
 	struct delayed_work init_task;
-	struct i40e_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
+	struct i40e_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
 	char misc_vector_name[IFNAMSIZ + 9];
 	int num_active_queues;
