@@ -332,13 +332,15 @@ efuse_OneByteRead23a(struct rtw_adapter *pAdapter, u16 addr, u8 *data)
 
 	/*  -----------------e-fuse reg ctrl ---------------------------- */
 	/* address */
-	rtl8723au_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr&0xff));
-	rtl8723au_write8(pAdapter, EFUSE_CTRL+2, ((u8)((addr>>8) &0x03)) |
-	(rtl8723au_read8(pAdapter, EFUSE_CTRL+2)&0xFC));
+	rtl8723au_write8(pAdapter, EFUSE_CTRL + 1, (u8)(addr & 0xff));
+	rtl8723au_write8(pAdapter, EFUSE_CTRL + 2,
+			 ((u8)((addr >> 8) & 0x03)) |
+			 (rtl8723au_read8(pAdapter, EFUSE_CTRL + 2) & 0xFC));
 
-	rtl8723au_write8(pAdapter, EFUSE_CTRL+3,  0x72); /* read cmd */
+	rtl8723au_write8(pAdapter, EFUSE_CTRL + 3, 0x72); /* read cmd */
 
-	while(!(0x80 &rtl8723au_read8(pAdapter, EFUSE_CTRL+3)) && (tmpidx<100))
+	while (!(0x80 & rtl8723au_read8(pAdapter, EFUSE_CTRL + 3)) &&
+	       (tmpidx < 100))
 		tmpidx++;
 	if (tmpidx < 100) {
 		*data = rtl8723au_read8(pAdapter, EFUSE_CTRL);
@@ -361,15 +363,16 @@ efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data)
 
 	/*  -----------------e-fuse reg ctrl ------------------------- */
 	/* address */
-	rtl8723au_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr&0xff));
-	rtl8723au_write8(pAdapter, EFUSE_CTRL+2,
-	(rtl8723au_read8(pAdapter, EFUSE_CTRL+2)&0xFC)|(u8)((addr>>8)&0x03));
+	rtl8723au_write8(pAdapter, EFUSE_CTRL + 1, (u8)(addr & 0xff));
+	rtl8723au_write8(pAdapter, EFUSE_CTRL + 2,
+			 (rtl8723au_read8(pAdapter, EFUSE_CTRL + 2) & 0xFC) |
+			 (u8)((addr >> 8) & 0x03));
 	rtl8723au_write8(pAdapter, EFUSE_CTRL, data); /* data */
 
-	rtl8723au_write8(pAdapter, EFUSE_CTRL+3, 0xF2); /* write cmd */
+	rtl8723au_write8(pAdapter, EFUSE_CTRL + 3, 0xF2); /* write cmd */
 
-	while((0x80 & rtl8723au_read8(pAdapter, EFUSE_CTRL+3)) &&
-	      (tmpidx<100)) {
+	while ((0x80 & rtl8723au_read8(pAdapter, EFUSE_CTRL + 3)) &&
+	       (tmpidx < 100)) {
 		tmpidx++;
 	}
 
@@ -421,7 +424,7 @@ int rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
 {
 	int i = 0;
 	u16 real_content_len = 0, max_available_size = 0;
-	int res = _FAIL ;
+	int res = _FAIL;
 	int (*rw8)(struct rtw_adapter *, u16, u8*);
 
 	EFUSE_GetEfuseDefinition23a(padapter, EFUSE_WIFI,
@@ -463,6 +466,7 @@ int rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
 u16 efuse_GetMaxSize23a(struct rtw_adapter *padapter)
 {
 	u16 max_size;
+
 	EFUSE_GetEfuseDefinition23a(padapter, EFUSE_WIFI,
 				 TYPE_AVAILABLE_EFUSE_BYTES_TOTAL,
 				 (void *)&max_size);
