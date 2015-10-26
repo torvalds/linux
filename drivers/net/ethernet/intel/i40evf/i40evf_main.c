@@ -2435,6 +2435,14 @@ static void i40evf_init_task(struct work_struct *work)
 		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
 			err = i40evf_send_vf_config_msg(adapter);
 			goto err;
+		} else if (err == I40E_ERR_PARAM) {
+			/* We only get ERR_PARAM if the device is in a very bad
+			 * state or if we've been disabled for previous bad
+			 * behavior. Either way, we're done now.
+			 */
+			i40evf_shutdown_adminq(hw);
+			dev_err(&pdev->dev, "Unable to get VF config due to PF error condition, not retrying\n");
+			return;
 		}
 		if (err) {
 			dev_err(&pdev->dev, "Unable to get VF config (%d)\n",
