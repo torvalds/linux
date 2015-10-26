@@ -25,6 +25,7 @@
 			reg = <0x0 0x000>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_0>;
 		};
 		cpu@001 {
 			device_type = "cpu";
@@ -32,6 +33,7 @@
 			reg = <0x0 0x001>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_0>;
 		};
 		cpu@100 {
 			device_type = "cpu";
@@ -39,6 +41,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_1>;
 		};
 		cpu@101 {
 			device_type = "cpu";
@@ -46,6 +49,7 @@
 			reg = <0x0 0x101>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_1>;
 		};
 		cpu@200 {
 			device_type = "cpu";
@@ -53,6 +57,7 @@
 			reg = <0x0 0x200>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_2>;
 		};
 		cpu@201 {
 			device_type = "cpu";
@@ -60,6 +65,7 @@
 			reg = <0x0 0x201>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_2>;
 		};
 		cpu@300 {
 			device_type = "cpu";
@@ -67,6 +73,7 @@
 			reg = <0x0 0x300>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_3>;
 		};
 		cpu@301 {
 			device_type = "cpu";
@@ -74,6 +81,19 @@
 			reg = <0x0 0x301>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_3>;
+		};
+		xgene_L2_0: l2-cache-0 {
+			compatible = "cache";
+		};
+		xgene_L2_1: l2-cache-1 {
+			compatible = "cache";
+		};
+		xgene_L2_2: l2-cache-2 {
+			compatible = "cache";
+		};
+		xgene_L2_3: l2-cache-3 {
+			compatible = "cache";
 		};
 	};
 
