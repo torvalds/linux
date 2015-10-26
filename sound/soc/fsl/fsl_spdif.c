@@ -997,12 +997,14 @@ static const struct snd_soc_component_driver fsl_spdif_component = {
 
 /* FSL SPDIF REGMAP */
 static const struct reg_default fsl_spdif_reg_defaults[] = {
-	{0x0,  0x00000400},
-	{0x4,  0x00000000},
-	{0xc,  0x00000000},
-	{0x34, 0x00000000},
-	{0x38, 0x00000000},
-	{0x50, 0x00020f00},
+	{REG_SPDIF_SCR,    0x00000400},
+	{REG_SPDIF_SRCD,   0x00000000},
+	{REG_SPDIF_SIE,	   0x00000000},
+	{REG_SPDIF_STL,	   0x00000000},
+	{REG_SPDIF_STR,	   0x00000000},
+	{REG_SPDIF_STCSCH, 0x00000000},
+	{REG_SPDIF_STCSCL, 0x00000000},
+	{REG_SPDIF_STC,	   0x00020f00},
 };
 
 static bool fsl_spdif_readable_reg(struct device *dev, unsigned int reg)
@@ -1040,8 +1042,6 @@ static bool fsl_spdif_volatile_reg(struct device *dev, unsigned int reg)
 	case REG_SPDIF_SRCSL:
 	case REG_SPDIF_SRU:
 	case REG_SPDIF_SRQ:
-	case REG_SPDIF_STL:
-	case REG_SPDIF_STR:
 	case REG_SPDIF_SRFM:
 		return true;
 	default:
