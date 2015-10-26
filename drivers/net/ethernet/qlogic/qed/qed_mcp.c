@@ -365,6 +365,252 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt,
+				       bool b_reset)
+{
+	struct qed_mcp_link_state *p_link;
+	u32 status = 0;
+
+	p_link = &p_hwfn->mcp_info->link_output;
+	memset(p_link, 0, sizeof(*p_link));
+	if (!b_reset) {
+		status = qed_rd(p_hwfn, p_ptt,
+				p_hwfn->mcp_info->port_addr +
+				offsetof(struct public_port, link_status));
+		DP_VERBOSE(p_hwfn, (NETIF_MSG_LINK | QED_MSG_SP),
+			   "Received link update [0x%08x] from mfw [Addr 0x%x]\n",
+			   status,
+			   (u32)(p_hwfn->mcp_info->port_addr +
+				 offsetof(struct public_port,
+					  link_status)));
+	} else {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Resetting link indications\n");
+		return;
+	}
+
+	p_link->link_up = !!(status & LINK_STATUS_LINK_UP);
+
+	p_link->full_duplex = true;
+	switch ((status & LINK_STATUS_SPEED_AND_DUPLEX_MASK)) {
+	case LINK_STATUS_SPEED_AND_DUPLEX_100G:
+		p_link->speed = 100000;
+		break;
+	case LINK_STATUS_SPEED_AND_DUPLEX_50G:
+		p_link->speed = 50000;
+		break;
+	case LINK_STATUS_SPEED_AND_DUPLEX_40G:
+		p_link->speed = 40000;
+		break;
+	case LINK_STATUS_SPEED_AND_DUPLEX_25G:
+		p_link->speed = 25000;
+		break;
+	case LINK_STATUS_SPEED_AND_DUPLEX_20G:
+		p_link->speed = 20000;
+		break;
+	case LINK_STATUS_SPEED_AND_DUPLEX_10G:
+		p_link->speed = 10000;
+		break;
+	case LINK_STATUS_SPEED_AND_DUPLEX_1000THD:
+		p_link->full_duplex = false;
+	/* Fall-through */
+	case LINK_STATUS_SPEED_AND_DUPLEX_1000TFD:
+		p_link->speed = 1000;
+		break;
+	default:
+		p_link->speed = 0;
+	}
+
+	/* Correct speed according to bandwidth allocation */
+	if (p_hwfn->mcp_info->func_info.bandwidth_max && p_link->speed) {
+		p_link->speed = p_link->speed *
+				p_hwfn->mcp_info->func_info.bandwidth_max /
+				100;
+		qed_init_pf_rl(p_hwfn, p_ptt, p_hwfn->rel_pf_id,
+			       p_link->speed);
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Configured MAX bandwidth to be %08x Mb/sec\n",
+			   p_link->speed);
+	}
+
+	p_link->an = !!(status & LINK_STATUS_AUTO_NEGOTIATE_ENABLED);
+	p_link->an_complete = !!(status &
+				 LINK_STATUS_AUTO_NEGOTIATE_COMPLETE);
+	p_link->parallel_detection = !!(status &
+					LINK_STATUS_PARALLEL_DETECTION_USED);
+	p_link->pfc_enabled = !!(status & LINK_STATUS_PFC_ENABLED);
+
+	p_link->partner_adv_speed |=
+		(status & LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE) ?
+		QED_LINK_PARTNER_SPEED_1G_FD : 0;
+	p_link->partner_adv_speed |=
+		(status & LINK_STATUS_LINK_PARTNER_1000THD_CAPABLE) ?
+		QED_LINK_PARTNER_SPEED_1G_HD : 0;
+	p_link->partner_adv_speed |=
+		(status & LINK_STATUS_LINK_PARTNER_10G_CAPABLE) ?
+		QED_LINK_PARTNER_SPEED_10G : 0;
+	p_link->partner_adv_speed |=
+		(status & LINK_STATUS_LINK_PARTNER_20G_CAPABLE) ?
+		QED_LINK_PARTNER_SPEED_20G : 0;
+	p_link->partner_adv_speed |=
+		(status & LINK_STATUS_LINK_PARTNER_40G_CAPABLE) ?
+		QED_LINK_PARTNER_SPEED_40G : 0;
+	p_link->partner_adv_speed |=
+		(status & LINK_STATUS_LINK_PARTNER_50G_CAPABLE) ?
+		QED_LINK_PARTNER_SPEED_50G : 0;
+	p_link->partner_adv_speed |=
+		(status & LINK_STATUS_LINK_PARTNER_100G_CAPABLE) ?
+		QED_LINK_PARTNER_SPEED_100G : 0;
+
+	p_link->partner_tx_flow_ctrl_en =
+		!!(status & LINK_STATUS_TX_FLOW_CONTROL_ENABLED);
+	p_link->partner_rx_flow_ctrl_en =
+		!!(status & LINK_STATUS_RX_FLOW_CONTROL_ENABLED);
+
+	switch (status & LINK_STATUS_LINK_PARTNER_FLOW_CONTROL_MASK) {
+	case LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE:
+		p_link->partner_adv_pause = QED_LINK_PARTNER_SYMMETRIC_PAUSE;
+		break;
+	case LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE:
+		p_link->partner_adv_pause = QED_LINK_PARTNER_ASYMMETRIC_PAUSE;
+		break;
+	case LINK_STATUS_LINK_PARTNER_BOTH_PAUSE:
+		p_link->partner_adv_pause = QED_LINK_PARTNER_BOTH_PAUSE;
+		break;
+	default:
+		p_link->partner_adv_pause = 0;
+	}
+
+	p_link->sfp_tx_fault = !!(status & LINK_STATUS_SFP_TX_FAULT);
+
+	qed_link_update(p_hwfn);
+}
+
+int qed_mcp_set_link(struct qed_hwfn *p_hwfn,
+		     struct qed_ptt *p_ptt,
+		     bool b_up)
+{
+	struct qed_mcp_link_params *params = &p_hwfn->mcp_info->link_input;
+	u32 param = 0, reply = 0, cmd;
+	struct pmm_phy_cfg phy_cfg;
+	int rc = 0;
+	u32 i;
+
+	if (!qed_mcp_is_init(p_hwfn)) {
+		DP_NOTICE(p_hwfn, "MFW is not initialized !\n");
+		return -EBUSY;
+	}
+
+	/* Set the shmem configuration according to params */
+	memset(&phy_cfg, 0, sizeof(phy_cfg));
+	cmd = b_up ? DRV_MSG_CODE_INIT_PHY : DRV_MSG_CODE_LINK_RESET;
+	if (!params->speed.autoneg)
+		phy_cfg.speed = params->speed.forced_speed;
+	phy_cfg.pause |= (params->pause.autoneg) ? PMM_PAUSE_AUTONEG : 0;
+	phy_cfg.pause |= (params->pause.forced_rx) ? PMM_PAUSE_RX : 0;
+	phy_cfg.pause |= (params->pause.forced_tx) ? PMM_PAUSE_TX : 0;
+	phy_cfg.adv_speed = params->speed.advertised_speeds;
+	phy_cfg.loopback_mode = params->loopback_mode;
+
+	/* Write the requested configuration to shmem */
+	for (i = 0; i < sizeof(phy_cfg); i += 4)
+		qed_wr(p_hwfn, p_ptt,
+		       p_hwfn->mcp_info->drv_mb_addr +
+		       offsetof(struct public_drv_mb, union_data) + i,
+		       ((u32 *)&phy_cfg)[i >> 2]);
+
+	if (b_up) {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Configuring Link: Speed 0x%08x, Pause 0x%08x, adv_speed 0x%08x, loopback 0x%08x, features 0x%08x\n",
+			   phy_cfg.speed,
+			   phy_cfg.pause,
+			   phy_cfg.adv_speed,
+			   phy_cfg.loopback_mode,
+			   phy_cfg.feature_config_flags);
+	} else {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Resetting link\n");
+	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP, "fw_seq 0x%08x, drv_pulse 0x%x\n",
+		   p_hwfn->mcp_info->drv_mb_seq,
+		   p_hwfn->mcp_info->drv_pulse_seq);
+
+	/* Load Request */
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, cmd, 0, &reply, &param);
+
+	/* if mcp fails to respond we must abort */
+	if (rc) {
+		DP_ERR(p_hwfn, "MCP response failure, aborting\n");
+		return rc;
+	}
+
+	/* Reset the link status if needed */
+	if (!b_up)
+		qed_mcp_handle_link_change(p_hwfn, p_ptt, true);
+
+	return 0;
+}
+
+int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_info *info = p_hwfn->mcp_info;
+	int rc = 0;
+	bool found = false;
+	u16 i;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP, "Received message from MFW\n");
+
+	/* Read Messages from MFW */
+	qed_mcp_read_mb(p_hwfn, p_ptt);
+
+	/* Compare current messages to old ones */
+	for (i = 0; i < info->mfw_mb_length; i++) {
+		if (info->mfw_mb_cur[i] == info->mfw_mb_shadow[i])
+			continue;
+
+		found = true;
+
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Msg [%d] - old CMD 0x%02x, new CMD 0x%02x\n",
+			   i, info->mfw_mb_shadow[i], info->mfw_mb_cur[i]);
+
+		switch (i) {
+		case MFW_DRV_MSG_LINK_CHANGE:
+			qed_mcp_handle_link_change(p_hwfn, p_ptt, false);
+			break;
+		default:
+			DP_NOTICE(p_hwfn, "Unimplemented MFW message %d\n", i);
+			rc = -EINVAL;
+		}
+	}
+
+	/* ACK everything */
+	for (i = 0; i < MFW_DRV_MSG_MAX_DWORDS(info->mfw_mb_length); i++) {
+		__be32 val = cpu_to_be32(((u32 *)info->mfw_mb_cur)[i]);
+
+		/* MFW expect answer in BE, so we force write in that format */
+		qed_wr(p_hwfn, p_ptt,
+		       info->mfw_mb_addr + sizeof(u32) +
+		       MFW_DRV_MSG_MAX_DWORDS(info->mfw_mb_length) *
+		       sizeof(u32) + i * sizeof(u32),
+		       (__force u32)val);
+	}
+
+	if (!found) {
+		DP_NOTICE(p_hwfn,
+			  "Received an MFW message indication but no new message!\n");
+		rc = -EINVAL;
+	}
+
+	/* Copy the new mfw messages into the shadow */
+	memcpy(info->mfw_mb_shadow, info->mfw_mb_cur, info->mfw_mb_length);
+
+	return rc;
+}
+
 int qed_mcp_get_mfw_ver(struct qed_dev *cdev,
 			u32 *p_mfw_ver)
 {
@@ -383,6 +629,31 @@ int qed_mcp_get_mfw_ver(struct qed_dev *cdev,
 	*p_mfw_ver = qed_rd(p_hwfn, p_ptt,
 			    SECTION_ADDR(global_offsize, 0) +
 			    offsetof(struct public_global, mfw_ver));
+
+	qed_ptt_release(p_hwfn, p_ptt);
+
+	return 0;
+}
+
+int qed_mcp_get_media_type(struct qed_dev *cdev,
+			   u32 *p_media_type)
+{
+	struct qed_hwfn *p_hwfn = &cdev->hwfns[0];
+	struct qed_ptt  *p_ptt;
+
+	if (!qed_mcp_is_init(p_hwfn)) {
+		DP_NOTICE(p_hwfn, "MFW is not initialized !\n");
+		return -EBUSY;
+	}
+
+	*p_media_type = MEDIA_UNSPECIFIED;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EBUSY;
+
+	*p_media_type = qed_rd(p_hwfn, p_ptt, p_hwfn->mcp_info->port_addr +
+			       offsetof(struct public_port, media_type));
 
 	qed_ptt_release(p_hwfn, p_ptt);
 
@@ -498,6 +769,30 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 		info->wwn_port, info->wwn_node, info->ovlan);
 
 	return 0;
+}
+
+struct qed_mcp_link_params
+*qed_mcp_get_link_params(struct qed_hwfn *p_hwfn)
+{
+	if (!p_hwfn || !p_hwfn->mcp_info)
+		return NULL;
+	return &p_hwfn->mcp_info->link_input;
+}
+
+struct qed_mcp_link_state
+*qed_mcp_get_link_state(struct qed_hwfn *p_hwfn)
+{
+	if (!p_hwfn || !p_hwfn->mcp_info)
+		return NULL;
+	return &p_hwfn->mcp_info->link_output;
+}
+
+struct qed_mcp_link_capabilities
+*qed_mcp_get_link_capabilities(struct qed_hwfn *p_hwfn)
+{
+	if (!p_hwfn || !p_hwfn->mcp_info)
+		return NULL;
+	return &p_hwfn->mcp_info->link_capabilities;
 }
 
 int qed_mcp_drain(struct qed_hwfn *p_hwfn,

@@ -108,6 +108,18 @@ enum QED_FEATURE {
 	QED_MAX_FEATURES,
 };
 
+enum QED_PORT_MODE {
+	QED_PORT_MODE_DE_2X40G,
+	QED_PORT_MODE_DE_2X50G,
+	QED_PORT_MODE_DE_1X100G,
+	QED_PORT_MODE_DE_4X10G_F,
+	QED_PORT_MODE_DE_4X10G_E,
+	QED_PORT_MODE_DE_4X20G,
+	QED_PORT_MODE_DE_1X40G,
+	QED_PORT_MODE_DE_2X25G,
+	QED_PORT_MODE_DE_1X25G
+};
+
 struct qed_hw_info {
 	/* PCI personality */
 	enum qed_pci_personality	personality;
@@ -404,6 +416,13 @@ struct qed_dev {
 	u8				protocol;
 #define IS_QED_ETH_IF(cdev)     ((cdev)->protocol == QED_PROTOCOL_ETH)
 
+	/* Callbacks to protocol driver */
+	union {
+		struct qed_common_cb_ops	*common;
+		struct qed_eth_cb_ops		*eth;
+	} protocol_ops;
+	void				*ops_cookie;
+
 	const struct firmware		*firmware;
 };
 
@@ -453,6 +472,7 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 /* Prototypes */
 int qed_fill_dev_info(struct qed_dev *cdev,
 		      struct qed_dev_info *dev_info);
+void qed_link_update(struct qed_hwfn *hwfn);
 u32 qed_unzip_data(struct qed_hwfn *p_hwfn,
 		   u32 input_len, u8 *input_buf,
 		   u32 max_size, u8 *unzip_buf);

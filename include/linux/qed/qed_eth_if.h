@@ -111,6 +111,10 @@ struct qed_eth_ops {
 	int (*fill_dev_info)(struct qed_dev *cdev,
 			     struct qed_dev_eth_info *info);
 
+	void (*register_ops)(struct qed_dev *cdev,
+			     struct qed_eth_cb_ops *ops,
+			     void *cookie);
+
 	int (*vport_start)(struct qed_dev *cdev,
 			   u8 vport_id, u16 mtu,
 			   u8 drop_ttl0_flg,

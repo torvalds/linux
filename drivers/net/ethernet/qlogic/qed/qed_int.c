@@ -39,10 +39,214 @@ struct qed_sb_sp_info {
 	struct qed_pi_info	pi_info_arr[PIS_PER_SB];
 };
 
+#define SB_ATTN_ALIGNED_SIZE(p_hwfn) \
+	ALIGNED_TYPE_SIZE(struct atten_status_block, p_hwfn)
+
+#define ATTN_STATE_BITS (0xfff)
+#define ATTN_BITS_MASKABLE      (0x3ff)
+struct qed_sb_attn_info {
+	/* Virtual & Physical address of the SB */
+	struct atten_status_block       *sb_attn;
+	dma_addr_t		      sb_phys;
+
+	/* Last seen running index */
+	u16			     index;
+
+	/* Previously asserted attentions, which are still unasserted */
+	u16			     known_attn;
+
+	/* Cleanup address for the link's general hw attention */
+	u32			     mfw_attn_addr;
+};
+
+static inline u16 qed_attn_update_idx(struct qed_hwfn *p_hwfn,
+				      struct qed_sb_attn_info   *p_sb_desc)
+{
+	u16     rc = 0;
+	u16     index;
+
+	/* Make certain HW write took affect */
+	mmiowb();
+
+	index = le16_to_cpu(p_sb_desc->sb_attn->sb_index);
+	if (p_sb_desc->index != index) {
+		p_sb_desc->index	= index;
+		rc		      = QED_SB_ATT_IDX;
+	}
+
+	/* Make certain we got a consistent view with HW */
+	mmiowb();
+
+	return rc;
+}
+
+/**
+ *  @brief qed_int_assertion - handles asserted attention bits
+ *
+ *  @param p_hwfn
+ *  @param asserted_bits newly asserted bits
+ *  @return int
+ */
+static int qed_int_assertion(struct qed_hwfn *p_hwfn,
+			     u16 asserted_bits)
+{
+	struct qed_sb_attn_info *sb_attn_sw = p_hwfn->p_sb_attn;
+	u32 igu_mask;
+
+	/* Mask the source of the attention in the IGU */
+	igu_mask = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+			  IGU_REG_ATTENTION_ENABLE);
+	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "IGU mask: 0x%08x --> 0x%08x\n",
+		   igu_mask, igu_mask & ~(asserted_bits & ATTN_BITS_MASKABLE));
+	igu_mask &= ~(asserted_bits & ATTN_BITS_MASKABLE);
+	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, IGU_REG_ATTENTION_ENABLE, igu_mask);
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+		   "inner known ATTN state: 0x%04x --> 0x%04x\n",
+		   sb_attn_sw->known_attn,
+		   sb_attn_sw->known_attn | asserted_bits);
+	sb_attn_sw->known_attn |= asserted_bits;
+
+	/* Handle MCP events */
+	if (asserted_bits & 0x100) {
+		qed_mcp_handle_events(p_hwfn, p_hwfn->p_dpc_ptt);
+		/* Clean the MCP attention */
+		qed_wr(p_hwfn, p_hwfn->p_dpc_ptt,
+		       sb_attn_sw->mfw_attn_addr, 0);
+	}
+
+	DIRECT_REG_WR((u8 __iomem *)p_hwfn->regview +
+		      GTT_BAR0_MAP_REG_IGU_CMD +
+		      ((IGU_CMD_ATTN_BIT_SET_UPPER -
+			IGU_CMD_INT_ACK_BASE) << 3),
+		      (u32)asserted_bits);
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "set cmd IGU: 0x%04x\n",
+		   asserted_bits);
+
+	return 0;
+}
+
+/**
+ * @brief - handles deassertion of previously asserted attentions.
+ *
+ * @param p_hwfn
+ * @param deasserted_bits - newly deasserted bits
+ * @return int
+ *
+ */
+static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
+			       u16 deasserted_bits)
+{
+	struct qed_sb_attn_info *sb_attn_sw = p_hwfn->p_sb_attn;
+	u32 aeu_mask;
+
+	if (deasserted_bits != 0x100)
+		DP_ERR(p_hwfn, "Unexpected - non-link deassertion\n");
+
+	/* Clear IGU indication for the deasserted bits */
+	DIRECT_REG_WR((u8 __iomem *)p_hwfn->regview +
+		      GTT_BAR0_MAP_REG_IGU_CMD +
+		      ((IGU_CMD_ATTN_BIT_CLR_UPPER -
+			IGU_CMD_INT_ACK_BASE) << 3),
+		      ~((u32)deasserted_bits));
+
+	/* Unmask deasserted attentions in IGU */
+	aeu_mask = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+			  IGU_REG_ATTENTION_ENABLE);
+	aeu_mask |= (deasserted_bits & ATTN_BITS_MASKABLE);
+	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, IGU_REG_ATTENTION_ENABLE, aeu_mask);
+
+	/* Clear deassertion from inner state */
+	sb_attn_sw->known_attn &= ~deasserted_bits;
+
+	return 0;
+}
+
+static int qed_int_attentions(struct qed_hwfn *p_hwfn)
+{
+	struct qed_sb_attn_info *p_sb_attn_sw = p_hwfn->p_sb_attn;
+	struct atten_status_block *p_sb_attn = p_sb_attn_sw->sb_attn;
+	u32 attn_bits = 0, attn_acks = 0;
+	u16 asserted_bits, deasserted_bits;
+	__le16 index;
+	int rc = 0;
+
+	/* Read current attention bits/acks - safeguard against attentions
+	 * by guaranting work on a synchronized timeframe
+	 */
+	do {
+		index = p_sb_attn->sb_index;
+		attn_bits = le32_to_cpu(p_sb_attn->atten_bits);
+		attn_acks = le32_to_cpu(p_sb_attn->atten_ack);
+	} while (index != p_sb_attn->sb_index);
+	p_sb_attn->sb_index = index;
+
+	/* Attention / Deassertion are meaningful (and in correct state)
+	 * only when they differ and consistent with known state - deassertion
+	 * when previous attention & current ack, and assertion when current
+	 * attention with no previous attention
+	 */
+	asserted_bits = (attn_bits & ~attn_acks & ATTN_STATE_BITS) &
+		~p_sb_attn_sw->known_attn;
+	deasserted_bits = (~attn_bits & attn_acks & ATTN_STATE_BITS) &
+		p_sb_attn_sw->known_attn;
+
+	if ((asserted_bits & ~0x100) || (deasserted_bits & ~0x100)) {
+		DP_INFO(p_hwfn,
+			"Attention: Index: 0x%04x, Bits: 0x%08x, Acks: 0x%08x, asserted: 0x%04x, De-asserted 0x%04x [Prev. known: 0x%04x]\n",
+			index, attn_bits, attn_acks, asserted_bits,
+			deasserted_bits, p_sb_attn_sw->known_attn);
+	} else if (asserted_bits == 0x100) {
+		DP_INFO(p_hwfn,
+			"MFW indication via attention\n");
+	} else {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+			   "MFW indication [deassertion]\n");
+	}
+
+	if (asserted_bits) {
+		rc = qed_int_assertion(p_hwfn, asserted_bits);
+		if (rc)
+			return rc;
+	}
+
+	if (deasserted_bits) {
+		rc = qed_int_deassertion(p_hwfn, deasserted_bits);
+		if (rc)
+			return rc;
+	}
+
+	return rc;
+}
+
+static void qed_sb_ack_attn(struct qed_hwfn *p_hwfn,
+			    void __iomem *igu_addr,
+			    u32 ack_cons)
+{
+	struct igu_prod_cons_update igu_ack = { 0 };
+
+	igu_ack.sb_id_and_flags =
+		((ack_cons << IGU_PROD_CONS_UPDATE_SB_INDEX_SHIFT) |
+		 (1 << IGU_PROD_CONS_UPDATE_UPDATE_FLAG_SHIFT) |
+		 (IGU_INT_NOP << IGU_PROD_CONS_UPDATE_ENABLE_INT_SHIFT) |
+		 (IGU_SEG_ACCESS_ATTN <<
+		  IGU_PROD_CONS_UPDATE_SEGMENT_ACCESS_SHIFT));
+
+	DIRECT_REG_WR(igu_addr, igu_ack.sb_id_and_flags);
+
+	/* Both segments (interrupts & acks) are written to same place address;
+	 * Need to guarantee all commands will be received (in-order) by HW.
+	 */
+	mmiowb();
+	barrier();
+}
+
 void qed_int_sp_dpc(unsigned long hwfn_cookie)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)hwfn_cookie;
 	struct qed_pi_info *pi_info = NULL;
+	struct qed_sb_attn_info *sb_attn;
 	struct qed_sb_info *sb_info;
 	int arr_size;
 	u16 rc = 0;
@@ -64,6 +268,12 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie)
 		       "Status block is NULL - cannot ack interrupts\n");
 		return;
 	}
+
+	if (!p_hwfn->p_sb_attn) {
+		DP_ERR(p_hwfn->cdev, "DPC called - no p_sb_attn");
+		return;
+	}
+	sb_attn = p_hwfn->p_sb_attn;
 
 	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "DPC Called! (hwfn %p %d)\n",
 		   p_hwfn, p_hwfn->my_id);
@@ -87,6 +297,19 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie)
 			   tmp_index, sb_info->sb_ack);
 	}
 
+	if (!sb_attn || !sb_attn->sb_attn) {
+		DP_ERR(
+			p_hwfn->cdev,
+			"Attentions Status block is NULL - cannot check for new attentions!\n");
+	} else {
+		u16 tmp_index = sb_attn->index;
+
+		rc |= qed_attn_update_idx(p_hwfn, sb_attn);
+		DP_VERBOSE(p_hwfn->cdev, NETIF_MSG_INTR,
+			   "Attention indices: 0x%08x --> 0x%08x\n",
+			   tmp_index, sb_attn->index);
+	}
+
 	/* Check if we expect interrupts at this time. if not just ack them */
 	if (!(rc & QED_SB_EVENT_MASK)) {
 		qed_sb_ack(sb_info, IGU_INT_ENABLE, 1);
@@ -100,6 +323,9 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie)
 		return;
 	}
 
+	if (rc & QED_SB_ATT_IDX)
+		qed_int_attentions(p_hwfn);
+
 	if (rc & QED_SB_IDX) {
 		int pi;
 
@@ -111,7 +337,95 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie)
 		}
 	}
 
+	if (sb_attn && (rc & QED_SB_ATT_IDX))
+		/* This should be done before the interrupts are enabled,
+		 * since otherwise a new attention will be generated.
+		 */
+		qed_sb_ack_attn(p_hwfn, sb_info->igu_addr, sb_attn->index);
+
 	qed_sb_ack(sb_info, IGU_INT_ENABLE, 1);
+}
+
+static void qed_int_sb_attn_free(struct qed_hwfn *p_hwfn)
+{
+	struct qed_dev *cdev   = p_hwfn->cdev;
+	struct qed_sb_attn_info *p_sb   = p_hwfn->p_sb_attn;
+
+	if (p_sb) {
+		if (p_sb->sb_attn)
+			dma_free_coherent(&cdev->pdev->dev,
+					  SB_ATTN_ALIGNED_SIZE(p_hwfn),
+					  p_sb->sb_attn,
+					  p_sb->sb_phys);
+		kfree(p_sb);
+	}
+}
+
+static void qed_int_sb_attn_setup(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt)
+{
+	struct qed_sb_attn_info *sb_info = p_hwfn->p_sb_attn;
+
+	memset(sb_info->sb_attn, 0, sizeof(*sb_info->sb_attn));
+
+	sb_info->index = 0;
+	sb_info->known_attn = 0;
+
+	/* Configure Attention Status Block in IGU */
+	qed_wr(p_hwfn, p_ptt, IGU_REG_ATTN_MSG_ADDR_L,
+	       lower_32_bits(p_hwfn->p_sb_attn->sb_phys));
+	qed_wr(p_hwfn, p_ptt, IGU_REG_ATTN_MSG_ADDR_H,
+	       upper_32_bits(p_hwfn->p_sb_attn->sb_phys));
+}
+
+static void qed_int_sb_attn_init(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt,
+				 void *sb_virt_addr,
+				 dma_addr_t sb_phy_addr)
+{
+	struct qed_sb_attn_info *sb_info = p_hwfn->p_sb_attn;
+
+	sb_info->sb_attn = sb_virt_addr;
+	sb_info->sb_phys = sb_phy_addr;
+
+	/* Set the address of cleanup for the mcp attention */
+	sb_info->mfw_attn_addr = (p_hwfn->rel_pf_id << 3) +
+				 MISC_REG_AEU_GENERAL_ATTN_0;
+
+	qed_int_sb_attn_setup(p_hwfn, p_ptt);
+}
+
+static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt)
+{
+	struct qed_dev *cdev = p_hwfn->cdev;
+	struct qed_sb_attn_info *p_sb;
+	void *p_virt;
+	dma_addr_t p_phys = 0;
+
+	/* SB struct */
+	p_sb = kmalloc(sizeof(*p_sb), GFP_ATOMIC);
+	if (!p_sb) {
+		DP_NOTICE(cdev, "Failed to allocate `struct qed_sb_attn_info'\n");
+		return -ENOMEM;
+	}
+
+	/* SB ring  */
+	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
+				    SB_ATTN_ALIGNED_SIZE(p_hwfn),
+				    &p_phys, GFP_KERNEL);
+
+	if (!p_virt) {
+		DP_NOTICE(cdev, "Failed to allocate status block (attentions)\n");
+		kfree(p_sb);
+		return -ENOMEM;
+	}
+
+	/* Attention setup */
+	p_hwfn->p_sb_attn = p_sb;
+	qed_int_sb_attn_init(p_hwfn, p_ptt, p_virt, p_phys);
+
+	return 0;
 }
 
 /* coalescing timeout = timeset << (timer_res + 1) */
@@ -394,6 +708,12 @@ static void qed_int_sp_sb_setup(struct qed_hwfn *p_hwfn,
 	else
 		DP_NOTICE(p_hwfn->cdev,
 			  "Failed to setup Slow path status block - NULL pointer\n");
+
+	if (p_hwfn->p_sb_attn)
+		qed_int_sb_attn_setup(p_hwfn, p_ptt);
+	else
+		DP_NOTICE(p_hwfn->cdev,
+			  "Failed to setup attentions status block - NULL pointer\n");
 }
 
 int qed_int_register_cb(struct qed_hwfn *p_hwfn,
@@ -444,7 +764,7 @@ void qed_int_igu_enable_int(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt,
 			    enum qed_int_mode int_mode)
 {
-	u32 igu_pf_conf = IGU_PF_CONF_FUNC_EN;
+	u32 igu_pf_conf = IGU_PF_CONF_FUNC_EN | IGU_PF_CONF_ATTN_BIT_EN;
 
 	p_hwfn->cdev->int_mode = int_mode;
 	switch (p_hwfn->cdev->int_mode) {
@@ -484,8 +804,15 @@ void qed_int_igu_enable(struct qed_hwfn *p_hwfn,
 	/* Enable interrupt Generation */
 	qed_int_igu_enable_int(p_hwfn, p_ptt, int_mode);
 
+	/* Configure AEU signal change to produce attentions for link */
+	qed_wr(p_hwfn, p_ptt, IGU_REG_LEADING_EDGE_LATCH, 0xfff);
+	qed_wr(p_hwfn, p_ptt, IGU_REG_TRAILING_EDGE_LATCH, 0xfff);
+
 	/* Flush the writes to IGU */
 	mmiowb();
+
+	/* Unmask AEU signals toward IGU */
+	qed_wr(p_hwfn, p_ptt, MISC_REG_AEU_MASK_ATTN_IGU, 0xff);
 }
 
 void qed_int_igu_disable_int(struct qed_hwfn *p_hwfn,
@@ -770,13 +1097,18 @@ int qed_int_alloc(struct qed_hwfn *p_hwfn,
 		DP_ERR(p_hwfn->cdev, "Failed to allocate sp sb mem\n");
 		return rc;
 	}
-
+	rc = qed_int_sb_attn_alloc(p_hwfn, p_ptt);
+	if (rc) {
+		DP_ERR(p_hwfn->cdev, "Failed to allocate sb attn mem\n");
+		return rc;
+	}
 	return rc;
 }
 
 void qed_int_free(struct qed_hwfn *p_hwfn)
 {
 	qed_int_sp_sb_free(p_hwfn);
+	qed_int_sb_attn_free(p_hwfn);
 	qed_int_sp_dpc_free(p_hwfn);
 }
 

@@ -1039,8 +1039,9 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 			       struct qed_ptt *p_ptt)
 {
-	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, nvm_cfg_addr;
-	u32 val;
+	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, core_cfg;
+	u32 port_cfg_addr, link_temp, val, nvm_cfg_addr;
+	struct qed_mcp_link_params *link;
 
 	/* Read global nvm_cfg address */
 	nvm_cfg_addr = qed_rd(p_hwfn, p_ptt, MISC_REG_GEN_PURP_CR0);
@@ -1060,6 +1061,48 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 	       offsetof(struct nvm_cfg1_glob, pci_id);
 	p_hwfn->hw_info.vendor_id = qed_rd(p_hwfn, p_ptt, addr) &
 				    NVM_CFG1_GLOB_VENDOR_ID_MASK;
+
+	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
+	       offsetof(struct nvm_cfg1, glob) +
+	       offsetof(struct nvm_cfg1_glob, core_cfg);
+
+	core_cfg = qed_rd(p_hwfn, p_ptt, addr);
+
+	switch ((core_cfg & NVM_CFG1_GLOB_NETWORK_PORT_MODE_MASK) >>
+		NVM_CFG1_GLOB_NETWORK_PORT_MODE_OFFSET) {
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_2X40G:
+		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X40G;
+		break;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_2X50G:
+		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X50G;
+		break;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_1X100G:
+		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X100G;
+		break;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_4X10G_F:
+		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_F;
+		break;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_4X10G_E:
+		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_E;
+		break;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_4X20G:
+		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X20G;
+		break;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_1X40G:
+		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X40G;
+		break;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_2X25G:
+		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X25G;
+		break;
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_1X25G:
+		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X25G;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n",
+			  core_cfg);
+		break;
+	}
+
 	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
 	       offsetof(struct nvm_cfg1, func[MCP_PF_ID(p_hwfn)]) +
 	       offsetof(struct nvm_cfg1_func, device_id);
@@ -1074,6 +1117,65 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 			(val & NVM_CFG1_FUNC_VENDOR_DEVICE_ID_MASK) >>
 			NVM_CFG1_FUNC_VENDOR_DEVICE_ID_OFFSET;
 	}
+
+	/* Read default link configuration */
+	link = &p_hwfn->mcp_info->link_input;
+	port_cfg_addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
+			offsetof(struct nvm_cfg1, port[MFW_PORT(p_hwfn)]);
+	link_temp = qed_rd(p_hwfn, p_ptt,
+			   port_cfg_addr +
+			   offsetof(struct nvm_cfg1_port, speed_cap_mask));
+	link->speed.advertised_speeds =
+		link_temp & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_MASK;
+
+	p_hwfn->mcp_info->link_capabilities.speed_capabilities =
+						link->speed.advertised_speeds;
+
+	link_temp = qed_rd(p_hwfn, p_ptt,
+			   port_cfg_addr +
+			   offsetof(struct nvm_cfg1_port, link_settings));
+	switch ((link_temp & NVM_CFG1_PORT_DRV_LINK_SPEED_MASK) >>
+		NVM_CFG1_PORT_DRV_LINK_SPEED_OFFSET) {
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_AUTONEG:
+		link->speed.autoneg = true;
+		break;
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_1G:
+		link->speed.forced_speed = 1000;
+		break;
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_10G:
+		link->speed.forced_speed = 10000;
+		break;
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_25G:
+		link->speed.forced_speed = 25000;
+		break;
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_40G:
+		link->speed.forced_speed = 40000;
+		break;
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_50G:
+		link->speed.forced_speed = 50000;
+		break;
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_100G:
+		link->speed.forced_speed = 100000;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Unknown Speed in 0x%08x\n",
+			  link_temp);
+	}
+
+	link_temp &= NVM_CFG1_PORT_DRV_FLOW_CONTROL_MASK;
+	link_temp >>= NVM_CFG1_PORT_DRV_FLOW_CONTROL_OFFSET;
+	link->pause.autoneg = !!(link_temp &
+				 NVM_CFG1_PORT_DRV_FLOW_CONTROL_AUTONEG);
+	link->pause.forced_rx = !!(link_temp &
+				   NVM_CFG1_PORT_DRV_FLOW_CONTROL_RX);
+	link->pause.forced_tx = !!(link_temp &
+				   NVM_CFG1_PORT_DRV_FLOW_CONTROL_TX);
+	link->loopback_mode = 0;
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+		   "Read default link: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, PAUSE AN: 0x%02x\n",
+		   link->speed.forced_speed, link->speed.advertised_speeds,
+		   link->speed.autoneg, link->pause.autoneg);
 
 	/* Read Multi-function information from shmem */
 	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +

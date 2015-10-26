@@ -904,6 +904,215 @@ static u32 qed_sb_release(struct qed_dev *cdev,
 	return rc;
 }
 
+static int qed_set_link(struct qed_dev *cdev,
+			struct qed_link_params *params)
+{
+	struct qed_hwfn *hwfn;
+	struct qed_mcp_link_params *link_params;
+	struct qed_ptt *ptt;
+	int rc;
+
+	if (!cdev)
+		return -ENODEV;
+
+	/* The link should be set only once per PF */
+	hwfn = &cdev->hwfns[0];
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EBUSY;
+
+	link_params = qed_mcp_get_link_params(hwfn);
+	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_AUTONEG)
+		link_params->speed.autoneg = params->autoneg;
+	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS) {
+		link_params->speed.advertised_speeds = 0;
+		if ((params->adv_speeds & SUPPORTED_1000baseT_Half) ||
+		    (params->adv_speeds & SUPPORTED_1000baseT_Full))
+			link_params->speed.advertised_speeds |=
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+		if (params->adv_speeds & SUPPORTED_10000baseKR_Full)
+			link_params->speed.advertised_speeds |=
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+		if (params->adv_speeds & SUPPORTED_40000baseLR4_Full)
+			link_params->speed.advertised_speeds |=
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
+		if (params->adv_speeds & 0)
+			link_params->speed.advertised_speeds |=
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G;
+		if (params->adv_speeds & 0)
+			link_params->speed.advertised_speeds |=
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_100G;
+	}
+	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_FORCED_SPEED)
+		link_params->speed.forced_speed = params->forced_speed;
+
+	rc = qed_mcp_set_link(hwfn, ptt, params->link_up);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return rc;
+}
+
+static int qed_get_port_type(u32 media_type)
+{
+	int port_type;
+
+	switch (media_type) {
+	case MEDIA_SFPP_10G_FIBER:
+	case MEDIA_SFP_1G_FIBER:
+	case MEDIA_XFP_FIBER:
+	case MEDIA_KR:
+		port_type = PORT_FIBRE;
+		break;
+	case MEDIA_DA_TWINAX:
+		port_type = PORT_DA;
+		break;
+	case MEDIA_BASE_T:
+		port_type = PORT_TP;
+		break;
+	case MEDIA_NOT_PRESENT:
+		port_type = PORT_NONE;
+		break;
+	case MEDIA_UNSPECIFIED:
+	default:
+		port_type = PORT_OTHER;
+		break;
+	}
+	return port_type;
+}
+
+static void qed_fill_link(struct qed_hwfn *hwfn,
+			  struct qed_link_output *if_link)
+{
+	struct qed_mcp_link_params params;
+	struct qed_mcp_link_state link;
+	struct qed_mcp_link_capabilities link_caps;
+	u32 media_type;
+
+	memset(if_link, 0, sizeof(*if_link));
+
+	/* Prepare source inputs */
+	memcpy(&params, qed_mcp_get_link_params(hwfn), sizeof(params));
+	memcpy(&link, qed_mcp_get_link_state(hwfn), sizeof(link));
+	memcpy(&link_caps, qed_mcp_get_link_capabilities(hwfn),
+	       sizeof(link_caps));
+
+	/* Set the link parameters to pass to protocol driver */
+	if (link.link_up)
+		if_link->link_up = true;
+
+	/* TODO - at the moment assume supported and advertised speed equal */
+	if_link->supported_caps = SUPPORTED_FIBRE;
+	if (params.speed.autoneg)
+		if_link->supported_caps |= SUPPORTED_Autoneg;
+	if (params.pause.autoneg ||
+	    (params.pause.forced_rx && params.pause.forced_tx))
+		if_link->supported_caps |= SUPPORTED_Asym_Pause;
+	if (params.pause.autoneg || params.pause.forced_rx ||
+	    params.pause.forced_tx)
+		if_link->supported_caps |= SUPPORTED_Pause;
+
+	if_link->advertised_caps = if_link->supported_caps;
+	if (params.speed.advertised_speeds &
+	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
+		if_link->advertised_caps |= SUPPORTED_1000baseT_Half |
+					   SUPPORTED_1000baseT_Full;
+	if (params.speed.advertised_speeds &
+	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
+		if_link->advertised_caps |= SUPPORTED_10000baseKR_Full;
+	if (params.speed.advertised_speeds &
+		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
+		if_link->advertised_caps |= SUPPORTED_40000baseLR4_Full;
+	if (params.speed.advertised_speeds &
+		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
+		if_link->advertised_caps |= 0;
+	if (params.speed.advertised_speeds &
+		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_100G)
+		if_link->advertised_caps |= 0;
+
+	if (link_caps.speed_capabilities &
+	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G)
+		if_link->supported_caps |= SUPPORTED_1000baseT_Half |
+					   SUPPORTED_1000baseT_Full;
+	if (link_caps.speed_capabilities &
+	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
+		if_link->supported_caps |= SUPPORTED_10000baseKR_Full;
+	if (link_caps.speed_capabilities &
+		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G)
+		if_link->supported_caps |= SUPPORTED_40000baseLR4_Full;
+	if (link_caps.speed_capabilities &
+		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
+		if_link->supported_caps |= 0;
+	if (link_caps.speed_capabilities &
+		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_100G)
+		if_link->supported_caps |= 0;
+
+	if (link.link_up)
+		if_link->speed = link.speed;
+
+	/* TODO - fill duplex properly */
+	if_link->duplex = DUPLEX_FULL;
+	qed_mcp_get_media_type(hwfn->cdev, &media_type);
+	if_link->port = qed_get_port_type(media_type);
+
+	if_link->autoneg = params.speed.autoneg;
+
+	if (params.pause.autoneg)
+		if_link->pause_config |= QED_LINK_PAUSE_AUTONEG_ENABLE;
+	if (params.pause.forced_rx)
+		if_link->pause_config |= QED_LINK_PAUSE_RX_ENABLE;
+	if (params.pause.forced_tx)
+		if_link->pause_config |= QED_LINK_PAUSE_TX_ENABLE;
+
+	/* Link partner capabilities */
+	if (link.partner_adv_speed &
+	    QED_LINK_PARTNER_SPEED_1G_HD)
+		if_link->lp_caps |= SUPPORTED_1000baseT_Half;
+	if (link.partner_adv_speed &
+	    QED_LINK_PARTNER_SPEED_1G_FD)
+		if_link->lp_caps |= SUPPORTED_1000baseT_Full;
+	if (link.partner_adv_speed &
+	    QED_LINK_PARTNER_SPEED_10G)
+		if_link->lp_caps |= SUPPORTED_10000baseKR_Full;
+	if (link.partner_adv_speed &
+	    QED_LINK_PARTNER_SPEED_40G)
+		if_link->lp_caps |= SUPPORTED_40000baseLR4_Full;
+	if (link.partner_adv_speed &
+	    QED_LINK_PARTNER_SPEED_50G)
+		if_link->lp_caps |= 0;
+	if (link.partner_adv_speed &
+	    QED_LINK_PARTNER_SPEED_100G)
+		if_link->lp_caps |= 0;
+
+	if (link.an_complete)
+		if_link->lp_caps |= SUPPORTED_Autoneg;
+
+	if (link.partner_adv_pause)
+		if_link->lp_caps |= SUPPORTED_Pause;
+	if (link.partner_adv_pause == QED_LINK_PARTNER_ASYMMETRIC_PAUSE ||
+	    link.partner_adv_pause == QED_LINK_PARTNER_BOTH_PAUSE)
+		if_link->lp_caps |= SUPPORTED_Asym_Pause;
+}
+
+static void qed_get_current_link(struct qed_dev *cdev,
+				 struct qed_link_output *if_link)
+{
+	qed_fill_link(&cdev->hwfns[0], if_link);
+}
+
+void qed_link_update(struct qed_hwfn *hwfn)
+{
+	void *cookie = hwfn->cdev->ops_cookie;
+	struct qed_common_cb_ops *op = hwfn->cdev->protocol_ops.common;
+	struct qed_link_output if_link;
+
+	qed_fill_link(hwfn, &if_link);
+
+	if (IS_LEAD_HWFN(hwfn) && cookie)
+		op->link_update(cookie, &if_link);
+}
+
 static int qed_drain(struct qed_dev *cdev)
 {
 	struct qed_hwfn *hwfn;
@@ -940,6 +1149,8 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.sb_release = &qed_sb_release,
 	.simd_handler_config = &qed_simd_handler_config,
 	.simd_handler_clean = &qed_simd_handler_clean,
+	.set_link = &qed_set_link,
+	.get_link = &qed_get_current_link,
 	.drain = &qed_drain,
 	.update_msglvl = &qed_init_dp,
 	.chain_alloc = &qed_chain_alloc,

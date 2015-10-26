@@ -1259,6 +1259,14 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 	return 0;
 }
 
+static void qed_register_eth_ops(struct qed_dev *cdev,
+				 struct qed_eth_cb_ops *ops,
+				 void *cookie)
+{
+	cdev->protocol_ops.eth	= ops;
+	cdev->ops_cookie	= cookie;
+}
+
 static int qed_start_vport(struct qed_dev *cdev,
 			   u8 vport_id,
 			   u16 mtu,
@@ -1661,6 +1669,7 @@ static int qed_fp_cqe_completion(struct qed_dev *dev,
 static const struct qed_eth_ops qed_eth_ops_pass = {
 	.common = &qed_common_ops_pass,
 	.fill_dev_info = &qed_fill_eth_dev_info,
+	.register_ops = &qed_register_eth_ops,
 	.vport_start = &qed_start_vport,
 	.vport_stop = &qed_stop_vport,
 	.vport_update = &qed_update_vport,

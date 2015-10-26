@@ -15,6 +15,59 @@
 #include <linux/slab.h>
 #include "qed_hsi.h"
 
+struct qed_mcp_link_speed_params {
+	bool    autoneg;
+	u32     advertised_speeds;      /* bitmask of DRV_SPEED_CAPABILITY */
+	u32     forced_speed;	   /* In Mb/s */
+};
+
+struct qed_mcp_link_pause_params {
+	bool    autoneg;
+	bool    forced_rx;
+	bool    forced_tx;
+};
+
+struct qed_mcp_link_params {
+	struct qed_mcp_link_speed_params	speed;
+	struct qed_mcp_link_pause_params	pause;
+	u32				     loopback_mode;
+};
+
+struct qed_mcp_link_capabilities {
+	u32 speed_capabilities;
+};
+
+struct qed_mcp_link_state {
+	bool    link_up;
+
+	u32     speed; /* In Mb/s */
+	bool    full_duplex;
+
+	bool    an;
+	bool    an_complete;
+	bool    parallel_detection;
+	bool    pfc_enabled;
+
+#define QED_LINK_PARTNER_SPEED_1G_HD    BIT(0)
+#define QED_LINK_PARTNER_SPEED_1G_FD    BIT(1)
+#define QED_LINK_PARTNER_SPEED_10G      BIT(2)
+#define QED_LINK_PARTNER_SPEED_20G      BIT(3)
+#define QED_LINK_PARTNER_SPEED_40G      BIT(4)
+#define QED_LINK_PARTNER_SPEED_50G      BIT(5)
+#define QED_LINK_PARTNER_SPEED_100G     BIT(6)
+	u32     partner_adv_speed;
+
+	bool    partner_tx_flow_ctrl_en;
+	bool    partner_rx_flow_ctrl_en;
+
+#define QED_LINK_PARTNER_SYMMETRIC_PAUSE (1)
+#define QED_LINK_PARTNER_ASYMMETRIC_PAUSE (2)
+#define QED_LINK_PARTNER_BOTH_PAUSE (3)
+	u8      partner_adv_pause;
+
+	bool    sfp_tx_fault;
+};
+
 struct qed_mcp_function_info {
 	u8				pause_on_host;
 
@@ -45,6 +98,47 @@ struct qed_mcp_drv_version {
 };
 
 /**
+ * @brief - returns the link params of the hw function
+ *
+ * @param p_hwfn
+ *
+ * @returns pointer to link params
+ */
+struct qed_mcp_link_params *qed_mcp_get_link_params(struct qed_hwfn *);
+
+/**
+ * @brief - return the link state of the hw function
+ *
+ * @param p_hwfn
+ *
+ * @returns pointer to link state
+ */
+struct qed_mcp_link_state *qed_mcp_get_link_state(struct qed_hwfn *);
+
+/**
+ * @brief - return the link capabilities of the hw function
+ *
+ * @param p_hwfn
+ *
+ * @returns pointer to link capabilities
+ */
+struct qed_mcp_link_capabilities
+	*qed_mcp_get_link_capabilities(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief Request the MFW to set the the link according to 'link_input'.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param b_up - raise link if `true'. Reset link if `false'.
+ *
+ * @return int
+ */
+int qed_mcp_set_link(struct qed_hwfn   *p_hwfn,
+		     struct qed_ptt     *p_ptt,
+		     bool               b_up);
+
+/**
  * @brief Get the management firmware version value
  *
  * @param cdev       - qed dev pointer
@@ -54,6 +148,19 @@ struct qed_mcp_drv_version {
  */
 int qed_mcp_get_mfw_ver(struct qed_dev *cdev,
 			u32 *mfw_ver);
+
+/**
+ * @brief Get media type value of the port.
+ *
+ * @param cdev      - qed dev pointer
+ * @param mfw_ver    - media type value
+ *
+ * @return int -
+ *      0 - Operation was successul.
+ *      -EBUSY - Operation failed
+ */
+int qed_mcp_get_media_type(struct qed_dev      *cdev,
+			   u32                  *media_type);
 
 /**
  * @brief General function for sending commands to the MCP
@@ -142,8 +249,10 @@ struct qed_mcp_info {
 	u32					port_addr;
 	u16					drv_mb_seq;
 	u16					drv_pulse_seq;
+	struct qed_mcp_link_params		link_input;
+	struct qed_mcp_link_state		link_output;
+	struct qed_mcp_link_capabilities	link_capabilities;
 	struct qed_mcp_function_info		func_info;
-
 	u8					*mfw_mb_cur;
 	u8					*mfw_mb_shadow;
 	u16					mfw_mb_length;
@@ -180,6 +289,21 @@ void qed_mcp_cmd_port_init(struct qed_hwfn *p_hwfn,
  */
 
 int qed_mcp_free(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief This function is called from the DPC context. After
+ * pointing PTT to the mfw mb, check for events sent by the MCP
+ * to the driver and ack them. In case a critical event
+ * detected, it will be handled here, otherwise the work will be
+ * queued to a sleepable work-queue.
+ *
+ * @param p_hwfn - HW function
+ * @param p_ptt - PTT required for register access
+ * @return int - 0 - operation
+ * was successul.
+ */
+int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt);
 
 /**
  * @brief Sends a LOAD_REQ to the MFW, and in case operation
