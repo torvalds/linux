@@ -929,14 +929,8 @@ exit:
 static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 {
 	char *opt;
-#ifdef CAP_EXPENSION
-	char *exp_res;
-#endif
 	int swap;
 
-#ifdef CAP_EXPENSIION
-	exp_res = NULL;
-#endif
 	swap = 0;
 
 	sm750_dev->initParm.chip_clk = 0;
@@ -968,10 +962,6 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 			sm750_dev->pnltype = sm750_dualTFT;
 		else if (!strncmp(opt, "24bit", strlen("24bit")))
 			sm750_dev->pnltype = sm750_24TFT;
-#ifdef CAP_EXPANSION
-		else if (!strncmp(opt, "exp:", strlen("exp:")))
-			exp_res = opt + strlen("exp:");
-#endif
 		else if (!strncmp(opt, "nohwc0", strlen("nohwc0")))
 			g_hwcursor &= ~0x1;
 		else if (!strncmp(opt, "nohwc1", strlen("nohwc1")))
@@ -990,14 +980,6 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 			}
 		}
 	}
-#ifdef CAP_EXPANSION
-	if (getExpRes(exp_res,
-		      &sm750_dev->xLCD,
-		      &sm750_dev->yLCD)) {
-		/* seems exp_res is not valid */
-		sm750_dev->xLCD = sm750_dev->yLCD = 0;
-	}
-#endif
 
 NO_PARAM:
 	if (sm750_dev->revid != SM750LE_REVISION_ID) {
