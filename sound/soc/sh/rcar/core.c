@@ -590,20 +590,6 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	ret;							\
 })
 
-#define rsnd_path_remove(priv, io, _type)			\
-{								\
-	struct rsnd_mod *mod;					\
-	int id = -1;						\
-								\
-	if (rsnd_is_enable_path(io, _type)) {			\
-		id = rsnd_info_id(priv, io, _type);		\
-		if (id >= 0) {					\
-			mod = rsnd_##_type##_mod_get(priv, id);	\
-			rsnd_dai_disconnect(mod, io, mod->type);\
-		}						\
-	}							\
-}
-
 void rsnd_path_parse(struct rsnd_priv *priv,
 		     struct rsnd_dai_stream *io)
 {
@@ -1163,6 +1149,9 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 
 	ret = rsnd_dai_call(probe, io, priv);
 	if (ret == -EAGAIN) {
+		struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+		int i;
+
 		/*
 		 * Fallback to PIO mode
 		 */
@@ -1177,10 +1166,12 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 		rsnd_dai_call(remove, io, priv);
 
 		/*
-		 * remove SRC/DVC from DAI,
+		 * remove all mod from io
+		 * and, re connect ssi
 		 */
-		rsnd_path_remove(priv, io, src);
-		rsnd_path_remove(priv, io, dvc);
+		for (i = 0; i < RSND_MOD_MAX; i++)
+			rsnd_dai_disconnect((io)->mod[i], io, i);
+		rsnd_dai_connect(ssi_mod, io, RSND_MOD_SSI);
 
 		/*
 		 * fallback
