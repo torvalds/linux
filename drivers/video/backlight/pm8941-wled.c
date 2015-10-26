@@ -401,10 +401,7 @@ static int pm8941_wled_probe(struct platform_device *pdev)
 	bl = devm_backlight_device_register(&pdev->dev, wled->name,
 					    &pdev->dev, wled,
 					    &pm8941_wled_ops, &props);
-	if (IS_ERR(bl))
-		return PTR_ERR(bl);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(bl);
 };
 
 static const struct of_device_id pm8941_wled_match_table[] = {
