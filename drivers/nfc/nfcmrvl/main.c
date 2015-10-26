@@ -97,14 +97,16 @@ static struct nci_ops nfcmrvl_nci_ops = {
 	.fw_download = nfcmrvl_nci_fw_download,
 };
 
-struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
+struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
+				void *drv_data,
 				struct nfcmrvl_if_ops *ops,
 				struct device *dev,
 				struct nfcmrvl_platform_data *pdata)
 {
 	struct nfcmrvl_private *priv;
 	int rc;
-	int headroom = 0;
+	int headroom;
+	int tailroom;
 	u32 protocols;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -114,6 +116,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 	priv->drv_data = drv_data;
 	priv->if_ops = ops;
 	priv->dev = dev;
+	priv->phy = phy;
 
 	memcpy(&priv->config, pdata, sizeof(*pdata));
 
@@ -126,8 +129,10 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 			nfc_err(dev, "failed to request reset_n io\n");
 	}
 
+	headroom = tailroom = 0;
+
 	if (priv->config.hci_muxed)
-		headroom = NFCMRVL_HCI_EVENT_HEADER_SIZE;
+		headroom += NFCMRVL_HCI_EVENT_HEADER_SIZE;
 
 	protocols = NFC_PROTO_JEWEL_MASK
 		| NFC_PROTO_MIFARE_MASK
@@ -138,7 +143,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 		| NFC_PROTO_NFC_DEP_MASK;
 
 	priv->ndev = nci_allocate_device(&nfcmrvl_nci_ops, protocols,
-					 headroom, 0);
+					 headroom, tailroom);
 	if (!priv->ndev) {
 		nfc_err(dev, "nci_allocate_device failed\n");
 		rc = -ENOMEM;

@@ -138,11 +138,11 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 		pdata = &config;
 	}
 
-	priv = nfcmrvl_nci_register_dev(nu, &uart_ops, nu->tty->dev, pdata);
+	priv = nfcmrvl_nci_register_dev(NFCMRVL_PHY_UART, nu, &uart_ops,
+					nu->tty->dev, pdata);
 	if (IS_ERR(priv))
 		return PTR_ERR(priv);
 
-	priv->phy = NFCMRVL_PHY_UART;
 	priv->support_fw_dnld = true;
 
 	nu->drv_data = priv;
