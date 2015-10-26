@@ -1630,7 +1630,8 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 
 			switch (vsi->type) {
 			case I40E_VSI_MAIN:
-				qcount = min_t(int, pf->rss_size, num_tc_qps);
+				qcount = min_t(int, pf->alloc_rss_size,
+					       num_tc_qps);
 				break;
 #ifdef I40E_FCOE
 			case I40E_VSI_FCOE:
@@ -7883,7 +7884,7 @@ static int i40e_vsi_config_rss(struct i40e_vsi *vsi)
 
 	i40e_fill_rss_lut(pf, lut, vsi->rss_table_size, vsi->rss_size);
 	netdev_rss_key_fill((void *)seed, I40E_HKEY_ARRAY_SIZE);
-	vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
+	vsi->rss_size = min_t(int, pf->alloc_rss_size, vsi->num_queue_pairs);
 	ret = i40e_config_rss_aq(vsi, seed, lut, vsi->rss_table_size);
 	kfree(lut);
 
@@ -8042,7 +8043,8 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 
 	/* Determine the RSS size of the VSI */
 	if (!vsi->rss_size)
-		vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
+		vsi->rss_size = min_t(int, pf->alloc_rss_size,
+				      vsi->num_queue_pairs);
 
 	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
 	if (!lut)
@@ -8089,7 +8091,7 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 		vsi->req_queue_pairs = queue_count;
 		i40e_prep_for_reset(pf);
 
-		pf->rss_size = new_rss_size;
+		pf->alloc_rss_size = new_rss_size;
 
 		i40e_reset_and_rebuild(pf, true);
 
@@ -8103,12 +8105,13 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 		}
 
 		/* Reset vsi->rss_size, as number of enabled queues changed */
-		vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
+		vsi->rss_size = min_t(int, pf->alloc_rss_size,
+				      vsi->num_queue_pairs);
 
 		i40e_pf_config_rss(pf);
 	}
-	dev_info(&pf->pdev->dev, "RSS count:  %d\n", pf->rss_size);
-	return pf->rss_size;
+	dev_info(&pf->pdev->dev, "RSS count:  %d\n", pf->alloc_rss_size);
+	return pf->alloc_rss_size;
 }
 
 /**
@@ -8279,13 +8282,14 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	 * maximum might end up larger than the available queues
 	 */
 	pf->rss_size_max = BIT(pf->hw.func_caps.rss_table_entry_width);
-	pf->rss_size = 1;
+	pf->alloc_rss_size = 1;
 	pf->rss_table_size = pf->hw.func_caps.rss_table_size;
 	pf->rss_size_max = min_t(int, pf->rss_size_max,
 				 pf->hw.func_caps.num_tx_qp);
 	if (pf->hw.func_caps.rss) {
 		pf->flags |= I40E_FLAG_RSS_ENABLED;
-		pf->rss_size = min_t(int, pf->rss_size_max, num_online_cpus());
+		pf->alloc_rss_size = min_t(int, pf->rss_size_max,
+					   num_online_cpus());
 	}
 
 	/* MFP mode enabled */
@@ -10152,7 +10156,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 	    !(pf->flags & I40E_FLAG_MSIX_ENABLED)) {
 		/* one qp for PF, no queues for anything else */
 		queues_left = 0;
-		pf->rss_size = pf->num_lan_qps = 1;
+		pf->alloc_rss_size = pf->num_lan_qps = 1;
 
 		/* make sure all the fancies are disabled */
 		pf->flags &= ~(I40E_FLAG_RSS_ENABLED	|
@@ -10169,7 +10173,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 				  I40E_FLAG_FD_ATR_ENABLED |
 				  I40E_FLAG_DCB_CAPABLE))) {
 		/* one qp for PF */
-		pf->rss_size = pf->num_lan_qps = 1;
+		pf->alloc_rss_size = pf->num_lan_qps = 1;
 		queues_left -= pf->num_lan_qps;
 
 		pf->flags &= ~(I40E_FLAG_RSS_ENABLED	|
@@ -10239,8 +10243,9 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 		"qs_avail=%d FD SB=%d lan_qs=%d lan_tc0=%d vf=%d*%d vmdq=%d*%d, remaining=%d\n",
 		pf->hw.func_caps.num_tx_qp,
 		!!(pf->flags & I40E_FLAG_FD_SB_ENABLED),
-		pf->num_lan_qps, pf->rss_size, pf->num_req_vfs, pf->num_vf_qps,
-		pf->num_vmdq_vsis, pf->num_vmdq_qps, queues_left);
+		pf->num_lan_qps, pf->alloc_rss_size, pf->num_req_vfs,
+		pf->num_vf_qps, pf->num_vmdq_vsis, pf->num_vmdq_qps,
+		queues_left);
 #ifdef I40E_FCOE
 	dev_dbg(&pf->pdev->dev, "fcoe queues = %d\n", pf->num_fcoe_qps);
 #endif

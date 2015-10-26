@@ -266,7 +266,7 @@ struct i40e_pf {
 	u16 num_lan_qps;           /* num lan queues this PF has set up */
 	u16 num_lan_msix;          /* num queue vectors for the base PF vsi */
 	int queues_left;           /* queues left unclaimed */
-	u16 rss_size;              /* num queues in the RSS array */
+	u16 alloc_rss_size;        /* allocated RSS queues */
 	u16 rss_size_max;          /* HW defined max RSS queues */
 	u16 fdir_pf_filter_count;  /* num of guaranteed filters for this PF */
 	u16 num_alloc_vsi;         /* num VSIs this driver supports */
@@ -413,7 +413,7 @@ struct i40e_pf {
 	u32 rx_hwtstamp_cleared;
 	bool ptp_tx;
 	bool ptp_rx;
-	u16 rss_table_size;
+	u16 rss_table_size; /* HW RSS table size */
 	/* These are only valid in NPAR modes */
 	u32 npar_max_bw;
 	u32 npar_min_bw;
@@ -506,8 +506,8 @@ struct i40e_vsi {
 	u16 tx_itr_setting;
 	u16 int_rate_limit;  /* value in usecs */
 
-	u16 rss_table_size;
-	u16 rss_size;
+	u16 rss_table_size; /* HW RSS table size */
+	u16 rss_size;       /* Allocated RSS queues */
 	u8  *rss_hkey_user; /* User configured hash keys */
 	u8  *rss_lut_user;  /* User configured lookup table entries */
 
