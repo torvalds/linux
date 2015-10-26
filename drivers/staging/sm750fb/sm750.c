@@ -444,6 +444,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 {
 	struct fb_info *info;
 	struct lynx_share *share;
+	struct sm750_dev *sm750_dev;
 
 	struct lynxfb_par *par;
 	struct lynxfb_crtc *crtc;
@@ -453,6 +454,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	ret = 0;
 	share = pci_get_drvdata(pdev);
+	sm750_dev = container_of(share, struct sm750_dev, share);
 
 	console_lock();
 
@@ -472,7 +474,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		pci_set_master(pdev);
 	}
 
-	hw_sm750_inithw(share, pdev);
+	hw_sm750_inithw(sm750_dev, pdev);
 
 	info = share->fbinfo[0];
 
@@ -931,16 +933,15 @@ exit:
 }
 
 /*	chip specific g_option configuration routine */
-static void sm750fb_setup(struct lynx_share *share, char *src)
+static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 {
-	struct sm750_dev *sm750_dev;
+	struct lynx_share *share = &sm750_dev->share;
 	char *opt;
 #ifdef CAP_EXPENSION
 	char *exp_res;
 #endif
 	int swap;
 
-	sm750_dev = container_of(share, struct sm750_dev, share);
 #ifdef CAP_EXPENSIION
 	exp_res = NULL;
 #endif
@@ -1086,10 +1087,10 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* call chip specific setup routine  */
-	sm750fb_setup(share, g_settings);
+	sm750fb_setup(sm750_dev, g_settings);
 
 	/* call chip specific mmap routine */
-	if (hw_sm750_map(share, pdev)) {
+	if (hw_sm750_map(sm750_dev, pdev)) {
 		pr_err("Memory map failed\n");
 		goto err_map;
 	}
@@ -1105,7 +1106,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, share);
 
 	/* call chipInit routine */
-	hw_sm750_inithw(share, pdev);
+	hw_sm750_inithw(sm750_dev, pdev);
 
 	/* allocate frame buffer info structor according to g_dualview */
 	fbidx = 0;

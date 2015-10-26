@@ -24,13 +24,11 @@
 #include "ddk750.h"
 #include "sm750_accel.h"
 
-int hw_sm750_map(struct lynx_share *share, struct pci_dev *pdev)
+int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 {
 	int ret;
-	struct sm750_dev *sm750_dev;
+	struct lynx_share *share = &sm750_dev->share;
 
-
-	sm750_dev = container_of(share, struct sm750_dev, share);
 	ret = 0;
 
 	share->vidreg_start  = pci_resource_start(pdev, 1);
@@ -91,12 +89,11 @@ exit:
 
 
 
-int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
+int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 {
-	struct sm750_dev *sm750_dev;
+	struct lynx_share *share = &sm750_dev->share;
 	struct init_status *parm;
 
-	sm750_dev = container_of(share, struct sm750_dev, share);
 	parm = &sm750_dev->initParm;
 	if (parm->chip_clk == 0)
 		parm->chip_clk = (getChipType() == SM750LE) ?
@@ -175,7 +172,7 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 
 	/* init 2d engine */
 	if (!share->accel_off)
-		hw_sm750_initAccel(share);
+		hw_sm750_initAccel(sm750_dev);
 
 	return 0;
 }
@@ -464,8 +461,9 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 }
 
 
-void hw_sm750_initAccel(struct lynx_share *share)
+void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 {
+	struct lynx_share *share = &sm750_dev->share;
 	u32 reg;
 
 	enable2DEngine(1);
