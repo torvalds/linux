@@ -251,6 +251,16 @@ static inline enum obd_option exp_flags_from_obd(struct obd_device *obd)
 		0);
 }
 
+static inline int lprocfs_climp_check(struct obd_device *obd)
+{
+	down_read(&(obd)->u.cli.cl_sem);
+	if (!(obd)->u.cli.cl_import) {
+		up_read(&(obd)->u.cli.cl_sem);
+		return -ENODEV;
+	}
+	return 0;
+}
+
 struct inode;
 struct lu_attr;
 struct obdo;

@@ -1192,7 +1192,10 @@ int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 	struct ptlrpc_request *req;
 	int rc;
 
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
 	LPROCFS_CLIMP_EXIT(obd);
 	if (req == NULL)
@@ -1281,8 +1284,12 @@ int lprocfs_rd_pinger_recov(struct seq_file *m, void *n)
 {
 	struct obd_device *obd = m->private;
 	struct obd_import *imp = obd->u.cli.cl_import;
+	int rc;
 
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	seq_printf(m, "%d\n", !imp->imp_no_pinger_recover);
 	LPROCFS_CLIMP_EXIT(obd);
 
@@ -1305,7 +1312,10 @@ int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 	if (val != 0 && val != 1)
 		return -ERANGE;
 
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	spin_lock(&imp->imp_lock);
 	imp->imp_no_pinger_recover = !val;
 	spin_unlock(&imp->imp_lock);

@@ -489,9 +489,13 @@ int lprocfs_rd_server_uuid(struct seq_file *m, void *data)
 	struct obd_device *obd = data;
 	struct obd_import *imp;
 	char *imp_state_name = NULL;
+	int rc;
 
 	LASSERT(obd != NULL);
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	imp = obd->u.cli.cl_import;
 	imp_state_name = ptlrpc_import_state_name(imp->imp_state);
 	seq_printf(m, "%s\t%s%s\n",
@@ -508,10 +512,14 @@ int lprocfs_rd_conn_uuid(struct seq_file *m, void *data)
 {
 	struct obd_device *obd = data;
 	struct ptlrpc_connection *conn;
+	int rc;
 
 	LASSERT(obd != NULL);
 
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	conn = obd->u.cli.cl_import->imp_connection;
 	if (conn && obd->u.cli.cl_import)
 		seq_printf(m, "%s\n", conn->c_remote_uuid.uuid);
@@ -619,9 +627,13 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	int				j;
 	int				k;
 	int				rw	= 0;
+	int				rc;
 
 	LASSERT(obd != NULL);
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	imp = obd->u.cli.cl_import;
 
 	seq_printf(m,
@@ -762,10 +774,13 @@ int lprocfs_rd_state(struct seq_file *m, void *data)
 {
 	struct obd_device *obd = data;
 	struct obd_import *imp;
-	int j, k;
+	int j, k, rc;
 
 	LASSERT(obd != NULL);
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	imp = obd->u.cli.cl_import;
 
 	seq_printf(m, "current_state: %s\n",
@@ -805,10 +820,13 @@ int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 	unsigned int cur, worst;
 	time64_t now, worstt;
 	struct dhms ts;
-	int i;
+	int i, rc;
 
 	LASSERT(obd != NULL);
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	imp = obd->u.cli.cl_import;
 
 	now = ktime_get_real_seconds();
@@ -848,8 +866,12 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data)
 {
 	struct obd_device *obd = data;
 	__u64 flags;
+	int rc;
 
-	LPROCFS_CLIMP_CHECK(obd);
+	rc = lprocfs_climp_check(obd);
+	if (rc)
+		return rc;
+
 	flags = obd->u.cli.cl_import->imp_connect_data.ocd_connect_flags;
 	seq_printf(m, "flags=%#llx\n", flags);
 	obd_connect_seq_flags2str(m, flags, "\n");

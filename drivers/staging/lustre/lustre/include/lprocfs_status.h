@@ -626,16 +626,6 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 int lprocfs_single_release(struct inode *, struct file *);
 int lprocfs_seq_release(struct inode *, struct file *);
 
-/* You must use these macros when you want to refer to
- * the import in a client obd_device for a lprocfs entry */
-#define LPROCFS_CLIMP_CHECK(obd) do {	   \
-	typecheck(struct obd_device *, obd);    \
-	down_read(&(obd)->u.cli.cl_sem);    \
-	if ((obd)->u.cli.cl_import == NULL) {   \
-	     up_read(&(obd)->u.cli.cl_sem); \
-	     return -ENODEV;		    \
-	}				       \
-} while (0)
 #define LPROCFS_CLIMP_EXIT(obd)		 \
 	up_read(&(obd)->u.cli.cl_sem)
 
