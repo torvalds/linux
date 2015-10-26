@@ -919,9 +919,11 @@ struct i915_fbc {
 	bool active;
 
 	struct intel_fbc_work {
-		struct delayed_work work;
+		bool scheduled;
+		struct work_struct work;
 		struct drm_framebuffer *fb;
-	} *fbc_work;
+		unsigned long enable_jiffies;
+	} work;
 
 	const char *no_fbc_reason;
 
