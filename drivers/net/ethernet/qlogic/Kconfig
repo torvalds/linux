@@ -97,4 +97,9 @@ config QED
 	---help---
 	  This enables the support for ...
 
+config QEDE
+	tristate "QLogic QED 25/40/100Gb Ethernet NIC"
+	depends on QED
+	---help---
+	  This enables the support for ...
 endif # NET_VENDOR_QLOGIC
