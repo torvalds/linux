@@ -65,7 +65,7 @@
 #include "trace.h"
 
 /* must be a power of 2 >= 64 <= 32768 */
-#define SDMA_DESCQ_CNT 1024
+#define SDMA_DESCQ_CNT 2048
 #define SDMA_DESC_INTR 64
 #define INVALID_TAIL 0xffff
 
