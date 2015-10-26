@@ -89,6 +89,7 @@ int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
 	struct kvm_cpu_context *guest_ctxt;
+	bool fp_enabled;
 	u64 exit_code;
 
 	vcpu = kern_hyp_va(vcpu);
@@ -118,6 +119,8 @@ int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 	exit_code = __guest_enter(vcpu, host_ctxt);
 	/* And we're baaack! */
 
+	fp_enabled = __fpsimd_enabled();
+
 	__sysreg_save_state(guest_ctxt);
 	__sysreg32_save_state(vcpu);
 	__timer_save_state(vcpu);
@@ -127,6 +130,11 @@ int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 	__deactivate_vm(vcpu);
 
 	__sysreg_restore_state(host_ctxt);
+
+	if (fp_enabled) {
+		__fpsimd_save_state(&guest_ctxt->gp_regs.fp_regs);
+		__fpsimd_restore_state(&host_ctxt->gp_regs.fp_regs);
+	}
 
 	__debug_save_state(vcpu, kern_hyp_va(vcpu->arch.debug_ptr), guest_ctxt);
 	__debug_cond_restore_host_state(vcpu);

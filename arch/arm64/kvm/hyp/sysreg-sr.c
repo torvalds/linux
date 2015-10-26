@@ -107,7 +107,7 @@ void __hyp_text __sysreg32_save_state(struct kvm_vcpu *vcpu)
 	sysreg[DACR32_EL2] = read_sysreg(dacr32_el2);
 	sysreg[IFSR32_EL2] = read_sysreg(ifsr32_el2);
 
-	if (!(read_sysreg(cptr_el2) & CPTR_EL2_TFP))
+	if (__fpsimd_enabled())
 		sysreg[FPEXC32_EL2] = read_sysreg(fpexc32_el2);
 
 	if (vcpu->arch.debug_flags & KVM_ARM64_DEBUG_DIRTY)
