@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Adam Sampson <ats@offog.org>
+ * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -41,14 +41,16 @@
  */
 
 /dts-v1/;
-#include "sun7i-a20.dtsi"
+#include "sun4i-a10.dtsi"
 #include "sunxi-common-regulators.dtsi"
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "LinkSprite pcDuino3 Nano";
-	compatible = "linksprite,pcduino3-nano", "allwinner,sun7i-a20";
+	model = "Point of View Protab2-IPS9";
+	compatible = "pov,protab2-ips9", "allwinner,sun4i-a10";
 
 	aliases {
 		serial0 = &uart0;
@@ -57,29 +59,6 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
-
-	leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_pcduino3_nano>;
-
-		/* Marked "LED3" on the PCB. */
-		usr1 {
-			label = "pcduino3-nano:green:usr1";
-			gpios = <&pio 7 16 GPIO_ACTIVE_LOW>; /* PH16 */
-		};
-
-		/* Marked "LED4" on the PCB. */
-		usr2 {
-			label = "pcduino3-nano:green:usr2";
-			gpios = <&pio 7 15 GPIO_ACTIVE_LOW>; /* PH15 */
-		};
-	};
-};
-
-&ahci {
-	target-supply = <&reg_ahci_5v>;
-	status = "okay";
 };
 
 &cpu0 {
@@ -90,22 +69,6 @@
 	status = "okay";
 };
 
-&ehci1 {
-	status = "okay";
-};
-
-&gmac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>;
-	phy = <&phy1>;
-	phy-mode = "rgmii";
-	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
-};
-
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins_a>;
@@ -113,15 +76,42 @@
 
 	axp209: pmic@34 {
 		reg = <0x34>;
-		interrupt-parent = <&nmi_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <0>;
 	};
 };
 
-&ir0 {
+#include "axp209.dtsi"
+
+&i2c1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&i2c1_pins_a>;
+	/* pull-ups and devices require AXP209 LDO3 */
+	status = "failed";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
+};
+
+&lradc {
+	vref-supply = <&reg_ldo2>;
+	status = "okay";
+
+	button@400 {
+		label = "Volume Up";
+		linux,code = <KEY_VOLUMEUP>;
+		channel = <0>;
+		voltage = <400000>;
+	};
+
+	button@800 {
+		label = "Volume Down";
+		linux,code = <KEY_VOLUMEDOWN>;
+		channel = <0>;
+		voltage = <800000>;
+	};
 };
 
 &mmc0 {
@@ -134,33 +124,11 @@
 	status = "okay";
 };
 
-&ohci0 {
-	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
-};
-
 &otg_sram {
 	status = "okay";
 };
 
 &pio {
-	ahci_pwr_pin_pcduino3_nano: ahci_pwr_pin@0 {
-		allwinner,pins = "PH2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	led_pins_pcduino3_nano: led_pins@0 {
-		allwinner,pins = "PH16", "PH15";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
 		allwinner,pins = "PH4";
 		allwinner,function = "gpio_in";
@@ -168,21 +136,13 @@
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 
-	usb1_vbus_pin_pcduino3_nano: usb1_vbus_pin@0 {
-		allwinner,pins = "PD2";
-		allwinner,function = "gpio_out";
+	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
+		allwinner,pins = "PH5";
+		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_DOWN>;
 	};
 };
-
-&reg_ahci_5v {
-	pinctrl-0 = <&ahci_pwr_pin_pcduino3_nano>;
-	gpio = <&pio 7 2 GPIO_ACTIVE_HIGH>; /* PH2 */
-	status = "okay";
-};
-
-#include "axp209.dtsi"
 
 &reg_dcdc2 {
 	regulator-always-on;
@@ -193,9 +153,9 @@
 
 &reg_dcdc3 {
 	regulator-always-on;
-	regulator-min-microvolt = <1000000>;
-	regulator-max-microvolt = <1400000>;
-	regulator-name = "vdd-int-pll";
+	regulator-min-microvolt = <1250000>;
+	regulator-max-microvolt = <1250000>;
+	regulator-name = "vdd-int-dll";
 };
 
 &reg_ldo1 {
@@ -209,10 +169,11 @@
 	regulator-name = "avcc";
 };
 
-/* A single regulator (U24) powers both USB host ports. */
+&reg_usb0_vbus {
+	status = "okay";
+};
+
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_pcduino3_nano>;
-	gpio = <&pio 3 2 GPIO_ACTIVE_HIGH>; /* PD2 */
 	status = "okay";
 };
 
@@ -229,9 +190,10 @@
 
 &usbphy {
 	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
+	pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
 	usb0_id_det-gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
+	usb0_vbus_det-gpio = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
+	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;
-	usb2_vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";
 };
