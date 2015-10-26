@@ -331,7 +331,7 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 
 	/* fix structur is not so FIX ... */
 	line_length = var->xres_virtual * var->bits_per_pixel / 8;
-	line_length = PADDING(crtc->line_pad, line_length);
+	line_length = ALIGN(line_length, crtc->line_pad);
 	fix->line_length = line_length;
 	pr_info("fix->line_length = %d\n", fix->line_length);
 
@@ -574,7 +574,7 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 	request = var->xres_virtual * (var->bits_per_pixel >> 3);
 	/* defaulty crtc->channel go with par->index */
 
-	request = PADDING(crtc->line_pad, request);
+	request = ALIGN(request, crtc->line_pad);
 	request = request * var->yres_virtual;
 	if (crtc->vidmem_size < request) {
 		pr_err("not enough video memory for mode\n");
@@ -865,8 +865,8 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	par->info = info;
 
 	/* set info */
-	line_length = PADDING(crtc->line_pad,
-			      (var->xres_virtual * var->bits_per_pixel / 8));
+	line_length = ALIGN((var->xres_virtual * var->bits_per_pixel / 8),
+			    crtc->line_pad);
 
 	info->pseudo_palette = &par->pseudo_palette[0];
 	info->screen_base = crtc->vScreen;
