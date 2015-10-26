@@ -923,6 +923,8 @@ static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 							event, skb);
 	case ST21NFCA_APDU_READER_GATE:
 		return st21nfca_apdu_reader_event_received(hdev, event, skb);
+	case NFC_HCI_LOOPBACK_GATE:
+		return st21nfca_hci_loopback_event_received(hdev, event, skb);
 	default:
 		return 1;
 	}
@@ -1024,6 +1026,7 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 	*hdev = info->hdev;
 	st21nfca_dep_init(info->hdev);
 	st21nfca_se_init(info->hdev);
+	st21nfca_vendor_cmds_init(info->hdev);
 
 	return 0;
 

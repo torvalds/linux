@@ -167,6 +167,9 @@ int st21nfca_hci_discover_se(struct nfc_hci_dev *hdev)
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 	int se_count = 0;
 
+	if (test_bit(ST21NFCA_FACTORY_MODE, &hdev->quirks))
+		return 0;
+
 	if (info->se_status->is_uicc_present) {
 		nfc_add_se(hdev->ndev, NFC_HCI_UICC_HOST_ID, NFC_SE_UICC);
 		se_count++;
@@ -191,7 +194,6 @@ int st21nfca_hci_enable_se(struct nfc_hci_dev *hdev, u32 se_idx)
 	 * Same for eSE.
 	 */
 	r = st21nfca_hci_control_se(hdev, se_idx, ST21NFCA_SE_MODE_ON);
-
 	if (r == ST21NFCA_ESE_HOST_ID) {
 		st21nfca_se_get_atr(hdev);
 		r = nfc_hci_send_event(hdev, ST21NFCA_APDU_READER_GATE,
