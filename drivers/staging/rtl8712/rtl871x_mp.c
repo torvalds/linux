@@ -218,12 +218,11 @@ static u32 bitshift(u32 bitmask)
 
 static u32 get_bb_reg(struct _adapter *pAdapter, u16 offset, u32 bitmask)
 {
-	u32 org_value, bit_shift, new_value;
+	u32 org_value, bit_shift;
 
 	org_value = r8712_bb_reg_read(pAdapter, offset);
 	bit_shift = bitshift(bitmask);
-	new_value = (org_value & bitmask) >> bit_shift;
-	return new_value;
+	return (org_value & bitmask) >> bit_shift;
 }
 
 static u8 set_bb_reg(struct _adapter *pAdapter,
@@ -246,12 +245,11 @@ static u8 set_bb_reg(struct _adapter *pAdapter,
 static u32 get_rf_reg(struct _adapter *pAdapter, u8 path, u8 offset,
 		      u32 bitmask)
 {
-	u32 org_value, bit_shift, new_value;
+	u32 org_value, bit_shift;
 
 	org_value = r8712_rf_reg_read(pAdapter, path, offset);
 	bit_shift = bitshift(bitmask);
-	new_value = (org_value & bitmask) >> bit_shift;
-	return new_value;
+	return (org_value & bitmask) >> bit_shift;
 }
 
 static u8 set_rf_reg(struct _adapter *pAdapter, u8 path, u8 offset, u32 bitmask,
