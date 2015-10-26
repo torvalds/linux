@@ -21,9 +21,10 @@
 #include <linux/of_irq.h>
 #include <linux/sh_dma.h>
 #include <linux/workqueue.h>
-#include <sound/rcar_snd.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+
+#include "rcar_snd.h"
 
 /*
  *	pseudo register
@@ -329,8 +330,8 @@ struct rsnd_mod {
 #define rsnd_mod_to_priv(mod) ((mod)->priv)
 #define rsnd_mod_to_dma(mod) (&(mod)->dma)
 #define rsnd_mod_id(mod) ((mod) ? (mod)->id : -1)
-#define rsnd_mod_hw_start(mod)	clk_enable((mod)->clk)
-#define rsnd_mod_hw_stop(mod)	clk_disable((mod)->clk)
+#define rsnd_mod_power_on(mod)	clk_enable((mod)->clk)
+#define rsnd_mod_power_off(mod)	clk_disable((mod)->clk)
 #define rsnd_mod_get(ip)	(&(ip)->mod)
 
 int rsnd_mod_init(struct rsnd_priv *priv,
@@ -571,9 +572,12 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 void rsnd_ssi_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
-int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
-int rsnd_ssi_use_busif(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
+int rsnd_ssi_use_busif(struct rsnd_dai_stream *io);
+
+#define rsnd_ssi_is_pin_sharing(io)	\
+	__rsnd_ssi_is_pin_sharing(rsnd_io_to_mod_ssi(io))
+int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 
 /*
  *	R-Car SRC

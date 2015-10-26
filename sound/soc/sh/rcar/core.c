@@ -300,7 +300,7 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 /*
  *	rsnd_dai functions
  */
-#define __rsnd_mod_call(mod, io, func, param...)		\
+#define rsnd_mod_call(mod, io, func, param...)			\
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
 	struct device *dev = rsnd_priv_to_dev(priv);		\
@@ -308,23 +308,16 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	u8 val  = (mod->status >> __rsnd_mod_shift_##func) & 0xF;	\
 	u8 add  = ((val + __rsnd_mod_add_##func) & 0xF);		\
 	int ret = 0;							\
-	int called = 0;							\
-	if (val == __rsnd_mod_call_##func) {				\
-		called = 1;						\
-		ret = (mod)->ops->func(mod, io, param);			\
-	}								\
+	int call = (val == __rsnd_mod_call_##func) && (mod)->ops->func;	\
 	mod->status = (mod->status & ~mask) +				\
 		(add << __rsnd_mod_shift_##func);			\
-	dev_dbg(dev, "%s[%d] 0x%08x %s\n",				\
-		rsnd_mod_name(mod), rsnd_mod_id(mod), mod->status,	\
-		called ? #func : "");					\
+	dev_dbg(dev, "%s[%d]\t0x%08x %s\n",				\
+		rsnd_mod_name(mod), rsnd_mod_id(mod),			\
+		mod->status, call ? #func : "");			\
+	if (call)							\
+		ret = (mod)->ops->func(mod, io, param);			\
 	ret;								\
 })
-
-#define rsnd_mod_call(mod, io, func, param...)	\
-	(!(mod) ? -ENODEV :			\
-	 !((mod)->ops->func) ? 0 :		\
-	 __rsnd_mod_call(mod, io, func, param))
 
 #define rsnd_dai_call(fn, io, param...)				\
 ({								\
@@ -334,9 +327,7 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 		mod = (io)->mod[i];				\
 		if (!mod)					\
 			continue;				\
-		ret = rsnd_mod_call(mod, io, fn, param);	\
-		if (ret < 0)					\
-			break;					\
+		ret |= rsnd_mod_call(mod, io, fn, param);	\
 	}							\
 	ret;							\
 })
@@ -502,16 +493,10 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		ret = rsnd_dai_call(stop, io, priv);
-		if (ret < 0)
-			goto dai_trigger_end;
 
-		ret = rsnd_dai_call(quit, io, priv);
-		if (ret < 0)
-			goto dai_trigger_end;
+		ret |= rsnd_dai_call(quit, io, priv);
 
-		ret = rsnd_platform_call(priv, dai, stop, ssi_id);
-		if (ret < 0)
-			goto dai_trigger_end;
+		ret |= rsnd_platform_call(priv, dai, stop, ssi_id);
 
 		rsnd_dai_stream_quit(io);
 		break;
@@ -1236,20 +1221,11 @@ static int rsnd_probe(struct platform_device *pdev)
 	};
 	int ret, i;
 
-	info = NULL;
-	of_data = NULL;
-	if (of_id) {
-		info = devm_kzalloc(&pdev->dev,
-				    sizeof(struct rcar_snd_info), GFP_KERNEL);
-		of_data = of_id->data;
-	} else {
-		info = pdev->dev.platform_data;
-	}
-
-	if (!info) {
-		dev_err(dev, "driver needs R-Car sound information\n");
-		return -ENODEV;
-	}
+	info = devm_kzalloc(&pdev->dev, sizeof(struct rcar_snd_info),
+			    GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	of_data = of_id->data;
 
 	/*
 	 *	init priv data

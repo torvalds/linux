@@ -28,7 +28,6 @@
 #include <sound/jack.h>
 #include <linux/workqueue.h>
 #include <sound/rt298.h>
-#include <sound/hda_verbs.h>
 
 #include "rl6347a.h"
 #include "rt298.h"
