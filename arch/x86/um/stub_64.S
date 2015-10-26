@@ -3,10 +3,7 @@
 .section .__syscall_stub, "ax"
 	.globl batch_syscall_stub
 batch_syscall_stub:
-	mov	$(STUB_DATA >> 32), %rbx
-	sal	$32, %rbx
-	mov	$(STUB_DATA & 0xffffffff), %rax
-	or	%rax, %rbx
+	mov	$(STUB_DATA), %rbx
 	/* load pointer to first operation */
 	mov	%rbx, %rsp
 	add	$0x10, %rsp
