@@ -3128,7 +3128,7 @@ int host_int_remove_wep_key(struct host_if_drv *hif_drv, u8 index)
 	return result;
 }
 
-int host_int_set_WEPDefaultKeyID(struct host_if_drv *hif_drv, u8 index)
+int host_int_set_wep_default_key(struct host_if_drv *hif_drv, u8 index)
 {
 	int result = 0;
 	struct host_if_msg msg;

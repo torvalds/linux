@@ -892,7 +892,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			g_key_wep_params.key_idx = sme->key_idx;
 			g_wep_keys_saved = true;
 
-			host_int_set_WEPDefaultKeyID(priv->hWILCWFIDrv, sme->key_idx);
+			host_int_set_wep_default_key(priv->hWILCWFIDrv, sme->key_idx);
 			host_int_add_wep_key_bss_sta(priv->hWILCWFIDrv, sme->key, sme->key_len, sme->key_idx);
 		} else if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_WEP104)   {
 			u8security = ENCRYPT_ENABLED | WEP | WEP_EXTENDED;
@@ -909,7 +909,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			g_key_wep_params.key_idx = sme->key_idx;
 			g_wep_keys_saved = true;
 
-			host_int_set_WEPDefaultKeyID(priv->hWILCWFIDrv, sme->key_idx);
+			host_int_set_wep_default_key(priv->hWILCWFIDrv, sme->key_idx);
 			host_int_add_wep_key_bss_sta(priv->hWILCWFIDrv, sme->key, sme->key_len, sme->key_idx);
 		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_2)   {
 			if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_TKIP)	{
@@ -1502,7 +1502,7 @@ static int set_default_key(struct wiphy *wiphy, struct net_device *netdev, u8 ke
 
 	if (key_index != priv->WILC_WFI_wep_default) {
 
-		host_int_set_WEPDefaultKeyID(priv->hWILCWFIDrv, key_index);
+		host_int_set_wep_default_key(priv->hWILCWFIDrv, key_index);
 	}
 
 	return 0;
@@ -2605,7 +2605,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 			/*Add saved WEP keys, if any*/
 			if (g_wep_keys_saved) {
-				host_int_set_WEPDefaultKeyID(wl->vif[0].hif_drv,
+				host_int_set_wep_default_key(wl->vif[0].hif_drv,
 							     g_key_wep_params.key_idx);
 				host_int_add_wep_key_bss_sta(wl->vif[0].hif_drv,
 							     g_key_wep_params.key,
@@ -2687,7 +2687,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 			/*Add saved WEP keys, if any*/
 			if (g_wep_keys_saved) {
-				host_int_set_WEPDefaultKeyID(wl->vif[0].hif_drv,
+				host_int_set_wep_default_key(wl->vif[0].hif_drv,
 							     g_key_wep_params.key_idx);
 				host_int_add_wep_key_bss_sta(wl->vif[0].hif_drv,
 							     g_key_wep_params.key,
@@ -2803,7 +2803,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		/*Add saved WEP keys, if any*/
 		if (g_wep_keys_saved) {
-			host_int_set_WEPDefaultKeyID(wl->vif[0].hif_drv,
+			host_int_set_wep_default_key(wl->vif[0].hif_drv,
 						     g_key_wep_params.key_idx);
 			host_int_add_wep_key_bss_sta(wl->vif[0].hif_drv,
 						     g_key_wep_params.key,
