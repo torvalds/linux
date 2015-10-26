@@ -55,6 +55,7 @@
 #include <linux/bitops.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
+#include <linux/highmem.h>
 
 #include "hfi.h"
 #include "common.h"
@@ -2704,13 +2705,35 @@ static void __sdma_process_event(struct sdma_engine *sde,
  * of descriptors in the sdma_txreq is exhausted.
  *
  * The code will bump the allocation up to the max
- * of MAX_DESC (64) descriptors.  There doesn't seem
- * much point in an interim step.
+ * of MAX_DESC (64) descriptors. There doesn't seem
+ * much point in an interim step. The last descriptor
+ * is reserved for coalesce buffer in order to support
+ * cases where input packet has >MAX_DESC iovecs.
  *
  */
-int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
+static int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 {
 	int i;
+
+	/* Handle last descriptor */
+	if (unlikely((tx->num_desc == (MAX_DESC - 1)))) {
+		/* if tlen is 0, it is for padding, release last descriptor */
+		if (!tx->tlen) {
+			tx->desc_limit = MAX_DESC;
+		} else if (!tx->coalesce_buf) {
+			/* allocate coalesce buffer with space for padding */
+			tx->coalesce_buf = kmalloc(tx->tlen + sizeof(u32),
+						   GFP_ATOMIC);
+			if (!tx->coalesce_buf)
+				return -ENOMEM;
+
+			tx->coalesce_idx = 0;
+		}
+		return 0;
+	}
+
+	if (unlikely(tx->num_desc == MAX_DESC))
+		return -ENOMEM;
 
 	tx->descp = kmalloc_array(
 			MAX_DESC,
@@ -2718,11 +2741,96 @@ int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 			GFP_ATOMIC);
 	if (!tx->descp)
 		return -ENOMEM;
-	tx->desc_limit = MAX_DESC;
+
+	/* reserve last descriptor for coalescing */
+	tx->desc_limit = MAX_DESC - 1;
 	/* copy ones already built */
 	for (i = 0; i < tx->num_desc; i++)
 		tx->descp[i] = tx->descs[i];
 	return 0;
+}
+
+/*
+ * ext_coal_sdma_tx_descs() - extend or coalesce sdma tx descriptors
+ *
+ * This is called once the initial nominal allocation of descriptors
+ * in the sdma_txreq is exhausted.
+ *
+ * This function calls _extend_sdma_tx_descs to extend or allocate
+ * coalesce buffer. If there is a allocated coalesce buffer, it will
+ * copy the input packet data into the coalesce buffer. It also adds
+ * coalesce buffer descriptor once whe whole packet is received.
+ *
+ * Return:
+ * <0 - error
+ * 0 - coalescing, don't populate descriptor
+ * 1 - continue with populating descriptor
+ */
+int ext_coal_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx,
+			   int type, void *kvaddr, struct page *page,
+			   unsigned long offset, u16 len)
+{
+	int pad_len, rval;
+	dma_addr_t addr;
+
+	rval = _extend_sdma_tx_descs(dd, tx);
+	if (rval) {
+		sdma_txclean(dd, tx);
+		return rval;
+	}
+
+	/* If coalesce buffer is allocated, copy data into it */
+	if (tx->coalesce_buf) {
+		if (type == SDMA_MAP_NONE) {
+			sdma_txclean(dd, tx);
+			return -EINVAL;
+		}
+
+		if (type == SDMA_MAP_PAGE) {
+			kvaddr = kmap(page);
+			kvaddr += offset;
+		} else if (WARN_ON(!kvaddr)) {
+			sdma_txclean(dd, tx);
+			return -EINVAL;
+		}
+
+		memcpy(tx->coalesce_buf + tx->coalesce_idx, kvaddr, len);
+		tx->coalesce_idx += len;
+		if (type == SDMA_MAP_PAGE)
+			kunmap(page);
+
+		/* If there is more data, return */
+		if (tx->tlen - tx->coalesce_idx)
+			return 0;
+
+		/* Whole packet is received; add any padding */
+		pad_len = tx->packet_len & (sizeof(u32) - 1);
+		if (pad_len) {
+			pad_len = sizeof(u32) - pad_len;
+			memset(tx->coalesce_buf + tx->coalesce_idx, 0, pad_len);
+			/* padding is taken care of for coalescing case */
+			tx->packet_len += pad_len;
+			tx->tlen += pad_len;
+		}
+
+		/* dma map the coalesce buffer */
+		addr = dma_map_single(&dd->pcidev->dev,
+				      tx->coalesce_buf,
+				      tx->tlen,
+				      DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
+			sdma_txclean(dd, tx);
+			return -ENOSPC;
+		}
+
+		/* Add descriptor for coalesce buffer */
+		tx->desc_limit = MAX_DESC;
+		return _sdma_txadd_daddr(dd, SDMA_MAP_SINGLE, tx,
+					 addr, tx->tlen);
+	}
+
+	return 1;
 }
 
 /* Update sdes when the lmc changes */
@@ -2750,13 +2858,15 @@ int _pad_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 {
 	int rval = 0;
 
+	tx->num_desc++;
 	if ((unlikely(tx->num_desc == tx->desc_limit))) {
 		rval = _extend_sdma_tx_descs(dd, tx);
-		if (rval)
+		if (rval) {
+			sdma_txclean(dd, tx);
 			return rval;
+		}
 	}
-	/* finish the one just added  */
-	tx->num_desc++;
+	/* finish the one just added */
 	make_tx_sdma_desc(
 		tx,
 		SDMA_MAP_NONE,
