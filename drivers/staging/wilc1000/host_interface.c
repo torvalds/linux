@@ -3128,7 +3128,7 @@ int host_int_remove_wep_key(struct host_if_drv *hif_drv, u8 index)
 	return result;
 }
 
-int host_int_set_WEPDefaultKeyID(struct host_if_drv *hif_drv, u8 u8Index)
+int host_int_set_WEPDefaultKeyID(struct host_if_drv *hif_drv, u8 index)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3147,7 +3147,7 @@ int host_int_set_WEPDefaultKeyID(struct host_if_drv *hif_drv, u8 u8Index)
 	msg.body.key_info.type = WEP;
 	msg.body.key_info.action = DEFAULTKEY;
 	msg.drv = hif_drv;
-	msg.body.key_info.attr.wep.index = u8Index;
+	msg.body.key_info.attr.wep.index = index;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)

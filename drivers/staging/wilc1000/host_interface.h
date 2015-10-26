@@ -384,7 +384,7 @@ int host_int_remove_wep_key(struct host_if_drv *wfi_drv, u8 index);
  *  @date		8 March 2012
  *  @version		1.0
  */
-int host_int_set_WEPDefaultKeyID(struct host_if_drv *hif_drv, u8 u8Index);
+int host_int_set_WEPDefaultKeyID(struct host_if_drv *hif_drv, u8 index);
 
 /**
  *  @brief              sets WEP deafault key
