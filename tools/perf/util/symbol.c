@@ -680,7 +680,7 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 			pos->start -= curr_map->start - curr_map->pgoff;
 			if (pos->end)
 				pos->end -= curr_map->start - curr_map->pgoff;
-			if (curr_map != map) {
+			if (curr_map->dso != map->dso) {
 				rb_erase_init(&pos->rb_node, root);
 				symbols__insert(
 					&curr_map->dso->symbols[curr_map->type],
