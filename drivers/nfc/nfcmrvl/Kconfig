@@ -42,3 +42,13 @@ config NFC_MRVL_I2C
 	  Say Y here to compile support for Marvell NFC-over-I2C driver
 	  into the kernel or say M to compile it as module.
 
+config NFC_MRVL_SPI
+	tristate "Marvell NFC-over-SPI driver"
+	depends on NFC_MRVL && SPI
+	help
+	  Marvell NFC-over-SPI driver.
+
+	  This driver provides support for Marvell NFC-over-SPI devices.
+
+	  Say Y here to compile support for Marvell NFC-over-SPI driver
+	  into the kernel or say M to compile it as module.

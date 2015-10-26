@@ -4,6 +4,7 @@ Required properties:
 - compatible: Should be:
   - "mrvl,nfc-uart" for UART devices
   - "mrvl,nfc-i2c" for I2C devices
+  - "mrvl,nfc-spi" for SPI devices
 
 Optional SoC specific properties:
 - pinctrl-names: Contains only one value - "default".
@@ -57,5 +58,29 @@ Example (for ARM-based BeagleBoard Black with 88W8887 on I2C1):
 
 		/* Reset IO */
 		reset-n-io = <&gpio3 19 0>;
+	};
+};
+
+
+Example (for ARM-based BeagleBoard Black on SPI0):
+
+&spi0 {
+
+	mrvlnfcspi0: spi@0 {
+		compatible = "mrvl,nfc-spi";
+
+		reg = <0>;
+
+		/* SPI Bus configuration */
+		spi-max-frequency = <3000000>;
+		spi-cpha;
+		spi-cpol;
+
+		/* SPI INT configuration */
+		interrupt-parent = <&gpio1>;
+		interrupts = <17 0>;
+
+		/* Reset IO */
+       		reset-n-io = <&gpio3 19 0>;
 	};
 };

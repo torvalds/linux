@@ -132,7 +132,11 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
 			nfc_err(dev, "failed to request reset_n io\n");
 	}
 
-	headroom = tailroom = 0;
+	if (phy == NFCMRVL_PHY_SPI) {
+		headroom = NCI_SPI_HDR_LEN;
+		tailroom = 1;
+	} else
+		headroom = tailroom = 0;
 
 	if (priv->config.hci_muxed)
 		headroom += NFCMRVL_HCI_EVENT_HEADER_SIZE;
