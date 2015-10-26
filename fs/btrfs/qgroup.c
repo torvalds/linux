@@ -2192,10 +2192,10 @@ void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
  */
 static int
 qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
-		   struct btrfs_trans_handle *trans,
-		   struct extent_buffer *scratch_leaf)
+		   struct btrfs_trans_handle *trans)
 {
 	struct btrfs_key found;
+	struct extent_buffer *scratch_leaf = NULL;
 	struct ulist *roots = NULL;
 	struct seq_list tree_mod_seq_elem = SEQ_LIST_INIT(tree_mod_seq_elem);
 	u64 num_bytes;
@@ -2233,7 +2233,15 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	fs_info->qgroup_rescan_progress.objectid = found.objectid + 1;
 
 	btrfs_get_tree_mod_seq(fs_info, &tree_mod_seq_elem);
-	memcpy(scratch_leaf, path->nodes[0], sizeof(*scratch_leaf));
+	scratch_leaf = btrfs_clone_extent_buffer(path->nodes[0]);
+	if (!scratch_leaf) {
+		ret = -ENOMEM;
+		mutex_unlock(&fs_info->qgroup_rescan_lock);
+		goto out;
+	}
+	extent_buffer_get(scratch_leaf);
+	btrfs_tree_read_lock(scratch_leaf);
+	btrfs_set_lock_blocking_rw(scratch_leaf, BTRFS_READ_LOCK);
 	slot = path->slots[0];
 	btrfs_release_path(path);
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
@@ -2259,6 +2267,10 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 			goto out;
 	}
 out:
+	if (scratch_leaf) {
+		btrfs_tree_read_unlock_blocking(scratch_leaf);
+		free_extent_buffer(scratch_leaf);
+	}
 	btrfs_put_tree_mod_seq(fs_info, &tree_mod_seq_elem);
 
 	return ret;
@@ -2270,15 +2282,11 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 						     qgroup_rescan_work);
 	struct btrfs_path *path;
 	struct btrfs_trans_handle *trans = NULL;
-	struct extent_buffer *scratch_leaf = NULL;
 	int err = -ENOMEM;
 	int ret = 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
-		goto out;
-	scratch_leaf = kmalloc(sizeof(*scratch_leaf), GFP_NOFS);
-	if (!scratch_leaf)
 		goto out;
 
 	err = 0;
@@ -2291,8 +2299,7 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 		if (!fs_info->quota_enabled) {
 			err = -EINTR;
 		} else {
-			err = qgroup_rescan_leaf(fs_info, path, trans,
-						 scratch_leaf);
+			err = qgroup_rescan_leaf(fs_info, path, trans);
 		}
 		if (err > 0)
 			btrfs_commit_transaction(trans, fs_info->fs_root);
@@ -2301,7 +2308,6 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 	}
 
 out:
-	kfree(scratch_leaf);
 	btrfs_free_path(path);
 
 	mutex_lock(&fs_info->qgroup_rescan_lock);
