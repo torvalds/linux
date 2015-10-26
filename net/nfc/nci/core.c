@@ -1316,29 +1316,29 @@ static int nci_op_ntf_packet(struct nci_dev *ndev, __u16 ntf_opcode,
 	return op->ntf(ndev, skb);
 }
 
-inline int nci_prop_rsp_packet(struct nci_dev *ndev, __u16 opcode,
-			       struct sk_buff *skb)
+int nci_prop_rsp_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb)
 {
 	return nci_op_rsp_packet(ndev, opcode, skb, ndev->ops->prop_ops,
 				 ndev->ops->n_prop_ops);
 }
 
-inline int nci_prop_ntf_packet(struct nci_dev *ndev, __u16 opcode,
-			       struct sk_buff *skb)
+int nci_prop_ntf_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb)
 {
 	return nci_op_ntf_packet(ndev, opcode, skb, ndev->ops->prop_ops,
 				 ndev->ops->n_prop_ops);
 }
 
-inline int nci_core_rsp_packet(struct nci_dev *ndev, __u16 opcode,
-			       struct sk_buff *skb)
+int nci_core_rsp_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb)
 {
 	return nci_op_rsp_packet(ndev, opcode, skb, ndev->ops->core_ops,
 				  ndev->ops->n_core_ops);
 }
 
-inline int nci_core_ntf_packet(struct nci_dev *ndev, __u16 opcode,
-			       struct sk_buff *skb)
+int nci_core_ntf_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb)
 {
 	return nci_op_ntf_packet(ndev, opcode, skb, ndev->ops->core_ops,
 				 ndev->ops->n_core_ops);
