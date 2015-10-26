@@ -2,9 +2,9 @@
 
 Required properties:
 - compatible: Should be:
-  - "mrvl,nfc-uart" for UART devices
-  - "mrvl,nfc-i2c" for I2C devices
-  - "mrvl,nfc-spi" for SPI devices
+  - "marvell,nfc-uart" or "mrvl,nfc-uart" for UART devices
+  - "marvell,nfc-i2c" for I2C devices
+  - "marvell,nfc-spi" for SPI devices
 
 Optional SoC specific properties:
 - pinctrl-names: Contains only one value - "default".
@@ -28,7 +28,7 @@ Example (for ARM-based BeagleBoard Black with 88W8887 on UART5):
 	status = "okay";
 
 	nfcmrvluart: nfcmrvluart@5 {
-		compatible = "mrvl,nfc-uart";
+		compatible = "marvell,nfc-uart";
 
 		reset-n-io = <&gpio3 16 0>;
 
@@ -45,7 +45,7 @@ Example (for ARM-based BeagleBoard Black with 88W8887 on I2C1):
 	clock-frequency = <400000>;
 
 	nfcmrvli2c0: i2c@1 {
-		compatible = "mrvl,nfc-i2c";
+		compatible = "marvell,nfc-i2c";
 
 		reg = <0x8>;
 
@@ -67,7 +67,7 @@ Example (for ARM-based BeagleBoard Black on SPI0):
 &spi0 {
 
 	mrvlnfcspi0: spi@0 {
-		compatible = "mrvl,nfc-spi";
+		compatible = "marvell,nfc-spi";
 
 		reg = <0>;
 

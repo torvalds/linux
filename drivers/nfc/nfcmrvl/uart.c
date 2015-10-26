@@ -75,9 +75,13 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 	struct device_node *matched_node;
 	int ret;
 
-	matched_node = of_find_compatible_node(node, NULL, "mrvl,nfc-uart");
-	if (!matched_node)
-		return -ENODEV;
+	matched_node = of_find_compatible_node(node, NULL, "marvell,nfc-uart");
+	if (!matched_node) {
+		matched_node = of_find_compatible_node(node, NULL,
+						       "mrvl,nfc-uart");
+		if (!matched_node)
+			return -ENODEV;
+	}
 
 	ret = nfcmrvl_parse_dt(matched_node, pdata);
 	if (ret < 0) {

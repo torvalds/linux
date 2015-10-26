@@ -199,7 +199,7 @@ static int nfcmrvl_spi_remove(struct spi_device *spi)
 }
 
 static const struct of_device_id of_nfcmrvl_spi_match[] = {
-	{ .compatible = "mrvl,nfc-spi", },
+	{ .compatible = "marvell,nfc-spi", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_nfcmrvl_spi_match);
