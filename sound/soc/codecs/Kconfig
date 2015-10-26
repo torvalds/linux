@@ -36,6 +36,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
 	select SND_SOC_AK4554
+	select SND_SOC_AK4613 if I2C
 	select SND_SOC_AK4641 if I2C
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
@@ -79,7 +80,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
-	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM1681 if I2C
 	select SND_SOC_PCM1792A if SPI_MASTER
 	select SND_SOC_PCM3008
@@ -319,6 +319,10 @@ config SND_SOC_AK4535
 config SND_SOC_AK4554
 	tristate "AKM AK4554 CODEC"
 
+config SND_SOC_AK4613
+	tristate "AKM AK4613 CODEC"
+	depends on I2C
+
 config SND_SOC_AK4641
 	tristate
 
@@ -441,9 +445,6 @@ config SND_SOC_BT_SCO
 
 config SND_SOC_DMIC
 	tristate
-
-config SND_SOC_HDMI_CODEC
-       tristate "HDMI stub CODEC"
 
 config SND_SOC_ES8328
 	tristate "Everest Semi ES8328 CODEC"

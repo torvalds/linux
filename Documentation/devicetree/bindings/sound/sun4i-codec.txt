@@ -1,0 +1,33 @@
+* Allwinner A10 Codec
+
+Required properties:
+- compatible: must be either "allwinner,sun4i-a10-codec" or
+  "allwinner,sun7i-a20-codec"
+- reg: must contain the registers location and length
+- interrupts: must contain the codec interrupt
+- dmas: DMA channels for tx and rx dma. See the DMA client binding,
+	Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: should include "tx" and "rx".
+- clocks: a list of phandle + clock-specifer pairs, one for each entry
+  in clock-names.
+- clock-names: should contain followings:
+   - "apb": the parent APB clock for this controller
+   - "codec": the parent module clock
+- routing : A list of the connections between audio components.  Each
+  entry is a pair of strings, the first being the connection's sink,
+  the second being the connection's source.
+
+
+Example:
+codec: codec@01c22c00 {
+	#sound-dai-cells = <0>;
+	compatible = "allwinner,sun7i-a20-codec";
+	reg = <0x01c22c00 0x40>;
+	interrupts = <0 30 4>;
+	clocks = <&apb0_gates 0>, <&codec_clk>;
+	clock-names = "apb", "codec";
+	dmas = <&dma 0 19>, <&dma 0 19>;
+	dma-names = "rx", "tx";
+	routing = "Headphone Jack", "HP Right",
+		  "Headphone Jack", "HP Left";
+};

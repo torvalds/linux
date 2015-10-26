@@ -1,0 +1,11 @@
+menu "Allwinner SoC Audio support"
+
+config SND_SUN4I_CODEC
+	tristate "Allwinner A10 Codec Support"
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Select Y or M to add support for the Codec embedded in the Allwinner
+	  A10 and affiliated SoCs.
+
+endmenu

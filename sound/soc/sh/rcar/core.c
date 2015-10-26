@@ -110,6 +110,7 @@ static const struct rsnd_of_data rsnd_of_data_gen2 = {
 static const struct of_device_id rsnd_of_match[] = {
 	{ .compatible = "renesas,rcar_sound-gen1", .data = &rsnd_of_data_gen1 },
 	{ .compatible = "renesas,rcar_sound-gen2", .data = &rsnd_of_data_gen2 },
+	{ .compatible = "renesas,rcar_sound-gen3", .data = &rsnd_of_data_gen2 }, /* gen2 compatible */
 	{},
 };
 MODULE_DEVICE_TABLE(of, rsnd_of_match);
@@ -125,6 +126,17 @@ MODULE_DEVICE_TABLE(of, rsnd_of_match);
 	((io)->info ? (io)->info->name : NULL)
 #define rsnd_info_id(priv, io, name) \
 	((io)->info->name - priv->info->name##_info)
+
+void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
+{
+	if (mod->type != type) {
+		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+		struct device *dev = rsnd_priv_to_dev(priv);
+
+		dev_warn(dev, "%s[%d] is not your expected module\n",
+			 rsnd_mod_name(mod), rsnd_mod_id(mod));
+	}
+}
 
 /*
  *	rsnd_mod functions

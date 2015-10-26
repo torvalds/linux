@@ -214,6 +214,7 @@ struct rsnd_dma {
 };
 #define rsnd_dma_to_dmaen(dma)	(&(dma)->dma.en)
 #define rsnd_dma_to_dmapp(dma)	(&(dma)->dma.pp)
+#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 
 void rsnd_dma_start(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 void rsnd_dma_stop(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
@@ -224,8 +225,6 @@ int rsnd_dma_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
 					  struct rsnd_mod *mod, char *name);
-
-#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 
 /*
  *	R-Car sound mod
@@ -332,6 +331,7 @@ struct rsnd_mod {
 #define rsnd_mod_id(mod) ((mod) ? (mod)->id : -1)
 #define rsnd_mod_hw_start(mod)	clk_enable((mod)->clk)
 #define rsnd_mod_hw_stop(mod)	clk_disable((mod)->clk)
+#define rsnd_mod_get(ip)	(&(ip)->mod)
 
 int rsnd_mod_init(struct rsnd_priv *priv,
 		  struct rsnd_mod *mod,
@@ -626,5 +626,16 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 void rsnd_dvc_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
+
+#ifdef DEBUG
+void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
+#define rsnd_mod_confirm_ssi(mssi)	rsnd_mod_make_sure(mssi, RSND_MOD_SSI)
+#define rsnd_mod_confirm_src(msrc)	rsnd_mod_make_sure(msrc, RSND_MOD_SRC)
+#define rsnd_mod_confirm_dvc(mdvc)	rsnd_mod_make_sure(mdvc, RSND_MOD_DVC)
+#else
+#define rsnd_mod_confirm_ssi(mssi)
+#define rsnd_mod_confirm_src(msrc)
+#define rsnd_mod_confirm_dvc(mdvc)
+#endif
 
 #endif
