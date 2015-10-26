@@ -46,7 +46,7 @@
 #define SMP_ALIGN(x) (((x) + SMP_CACHE_BYTES-1) & ~(SMP_CACHE_BYTES-1))
 #define COUNTER_OFFSET(n) (SMP_ALIGN(n * sizeof(struct ebt_counter)))
 #define COUNTER_BASE(c, n, cpu) ((struct ebt_counter *)(((char *)c) + \
-   COUNTER_OFFSET(n) * cpu))
+				 COUNTER_OFFSET(n) * cpu))
 
 
 
@@ -126,7 +126,7 @@ ebt_dev_check(const char *entry, const struct net_device *device)
 /* process standard matches */
 static inline int
 ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
-                const struct net_device *in, const struct net_device *out)
+		const struct net_device *in, const struct net_device *out)
 {
 	const struct ethhdr *h = eth_hdr(skb);
 	const struct net_bridge_port *p;
@@ -323,7 +323,7 @@ letscontinue:
 /* If it succeeds, returns element and locks mutex */
 static inline void *
 find_inlist_lock_noload(struct list_head *head, const char *name, int *error,
-   struct mutex *mutex)
+			struct mutex *mutex)
 {
 	struct {
 		struct list_head list;
@@ -342,7 +342,7 @@ find_inlist_lock_noload(struct list_head *head, const char *name, int *error,
 
 static void *
 find_inlist_lock(struct list_head *head, const char *name, const char *prefix,
-   int *error, struct mutex *mutex)
+		 int *error, struct mutex *mutex)
 {
 	return try_then_request_module(
 			find_inlist_lock_noload(head, name, error, mutex),
@@ -493,9 +493,9 @@ static int ebt_verify_pointers(const struct ebt_replace *repl,
  */
 static inline int
 ebt_check_entry_size_and_hooks(const struct ebt_entry *e,
-   const struct ebt_table_info *newinfo,
-   unsigned int *n, unsigned int *cnt,
-   unsigned int *totalcnt, unsigned int *udc_cnt)
+			       const struct ebt_table_info *newinfo,
+			       unsigned int *n, unsigned int *cnt,
+			       unsigned int *totalcnt, unsigned int *udc_cnt)
 {
 	int i;
 
@@ -562,7 +562,7 @@ struct ebt_cl_stack
  */
 static inline int
 ebt_get_udc_positions(struct ebt_entry *e, struct ebt_table_info *newinfo,
-   unsigned int *n, struct ebt_cl_stack *udc)
+		      unsigned int *n, struct ebt_cl_stack *udc)
 {
 	int i;
 
@@ -649,9 +649,9 @@ ebt_cleanup_entry(struct ebt_entry *e, struct net *net, unsigned int *cnt)
 
 static inline int
 ebt_check_entry(struct ebt_entry *e, struct net *net,
-   const struct ebt_table_info *newinfo,
-   const char *name, unsigned int *cnt,
-   struct ebt_cl_stack *cl_s, unsigned int udc_cnt)
+		const struct ebt_table_info *newinfo,
+		const char *name, unsigned int *cnt,
+		struct ebt_cl_stack *cl_s, unsigned int udc_cnt)
 {
 	struct ebt_entry_target *t;
 	struct xt_target *target;
@@ -764,7 +764,7 @@ cleanup_matches:
  * accessed. This mask is a parameter to the check() functions of the extensions
  */
 static int check_chainloops(const struct ebt_entries *chain, struct ebt_cl_stack *cl_s,
-   unsigned int udc_cnt, unsigned int hooknr, char *base)
+			    unsigned int udc_cnt, unsigned int hooknr, char *base)
 {
 	int i, chain_nr = -1, pos = 0, nentries = chain->nentries, verdict;
 	const struct ebt_entry *e = (struct ebt_entry *)chain->data;
@@ -955,7 +955,7 @@ static int translate_table(struct net *net, const char *name,
 
 /* called under write_lock */
 static void get_counters(const struct ebt_counter *oldcounters,
-   struct ebt_counter *counters, unsigned int nentries)
+			 struct ebt_counter *counters, unsigned int nentries)
 {
 	int i, cpu;
 	struct ebt_counter *counter_base;
@@ -1342,7 +1342,7 @@ static int update_counters(struct net *net, const void __user *user,
 }
 
 static inline int ebt_make_matchname(const struct ebt_entry_match *m,
-    const char *base, char __user *ubase)
+				     const char *base, char __user *ubase)
 {
 	char __user *hlp = ubase + ((char *)m - base);
 	char name[EBT_FUNCTION_MAXNAMELEN] = {};
@@ -1356,7 +1356,7 @@ static inline int ebt_make_matchname(const struct ebt_entry_match *m,
 }
 
 static inline int ebt_make_watchername(const struct ebt_entry_watcher *w,
-    const char *base, char __user *ubase)
+				       const char *base, char __user *ubase)
 {
 	char __user *hlp = ubase + ((char *)w - base);
 	char name[EBT_FUNCTION_MAXNAMELEN] = {};
@@ -1367,8 +1367,8 @@ static inline int ebt_make_watchername(const struct ebt_entry_watcher *w,
 	return 0;
 }
 
-static inline int
-ebt_make_names(struct ebt_entry *e, const char *base, char __user *ubase)
+static inline int ebt_make_names(struct ebt_entry *e, const char *base,
+				 char __user *ubase)
 {
 	int ret;
 	char __user *hlp;
@@ -1394,9 +1394,9 @@ ebt_make_names(struct ebt_entry *e, const char *base, char __user *ubase)
 }
 
 static int copy_counters_to_user(struct ebt_table *t,
-				  const struct ebt_counter *oldcounters,
-				  void __user *user, unsigned int num_counters,
-				  unsigned int nentries)
+				 const struct ebt_counter *oldcounters,
+				 void __user *user, unsigned int num_counters,
+				 unsigned int nentries)
 {
 	struct ebt_counter *counterstmp;
 	int ret = 0;
@@ -1427,7 +1427,7 @@ static int copy_counters_to_user(struct ebt_table *t,
 
 /* called with ebt_mutex locked */
 static int copy_everything_to_user(struct ebt_table *t, void __user *user,
-    const int *len, int cmd)
+				   const int *len, int cmd)
 {
 	struct ebt_replace tmp;
 	const struct ebt_counter *oldcounters;
@@ -2305,7 +2305,7 @@ static int compat_do_ebt_set_ctl(struct sock *sk,
 		break;
 	default:
 		ret = -EINVAL;
-  }
+	}
 	return ret;
 }
 
