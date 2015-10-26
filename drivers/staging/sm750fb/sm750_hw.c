@@ -234,9 +234,9 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc, struct fb_var_screeninfo *var)
 {
 	struct lynx_share *share;
+	struct lynxfb_par *par = container_of(crtc, struct lynxfb_par, crtc);
 
-
-	share = container_of(crtc, struct lynxfb_par, crtc)->share;
+	share = &par->dev->share;
 
 	switch (var->bits_per_pixel) {
 	case 8:
@@ -274,7 +274,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 
 	ret = 0;
 	par = container_of(crtc, struct lynxfb_par, crtc);
-	share = par->share;
+	share = &par->dev->share;
 
 	if (!share->accel_off) {
 		/* set 2d engine pixel format according to mode bpp */

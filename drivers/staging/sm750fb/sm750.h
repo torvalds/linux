@@ -185,7 +185,7 @@ struct lynxfb_par {
 	struct lynxfb_crtc crtc;
 	struct lynxfb_output output;
 	struct fb_info *info;
-	struct lynx_share *share;
+	struct sm750_dev *dev;
 };
 
 static inline unsigned long ps_to_hz(unsigned int psvalue)

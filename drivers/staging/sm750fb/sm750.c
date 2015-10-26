@@ -173,7 +173,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 		return;
 
 	par = info->par;
-	share = par->share;
+	share = &par->dev->share;
 
 	/*
 	 * each time 2d function begin to work,below three variable always need
@@ -211,7 +211,7 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 	unsigned int base, pitch, Bpp;
 
 	par = info->par;
-	share = par->share;
+	share = &par->dev->share;
 
 	/*
 	 * each time 2d function begin to work,below three variable always need
@@ -245,7 +245,7 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	struct lynx_share *share;
 
 	par = info->par;
-	share = par->share;
+	share = &par->dev->share;
 	/*
 	 * each time 2d function begin to work,below three variable always need
 	 * be set, seems we can put them together in some place
@@ -316,7 +316,7 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 
 	ret = 0;
 	par = info->par;
-	share = par->share;
+	share = &par->dev->share;
 	crtc = &par->crtc;
 	output = &par->output;
 	var = &info->var;
@@ -516,7 +516,7 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 	par = info->par;
 	crtc = &par->crtc;
 	output = &par->output;
-	share = par->share;
+	share = &par->dev->share;
 
 	pr_debug("check var:%dx%d-%d\n",
 		 var->xres,
@@ -652,8 +652,8 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 
 	ret = 0;
 
-	share = par->share;
-	sm750_dev = container_of(share, struct sm750_dev, share);
+	sm750_dev = par->dev;
+	share = &sm750_dev->share;
 	output = &par->output;
 	crtc = &par->crtc;
 
@@ -762,7 +762,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	ret = 0;
 	par = (struct lynxfb_par *)info->par;
-	share = par->share;
+	share = &par->dev->share;
 	crtc = &par->crtc;
 	output = &par->output;
 	var = &info->var;
@@ -1124,7 +1124,7 @@ ALLOC_FB:
 		pr_info("framebuffer #%d alloc okay\n", fbidx);
 		share->fbinfo[fbidx] = info[fbidx];
 		par = info[fbidx]->par;
-		par->share = share;
+		par->dev = sm750_dev;
 
 		/* set fb_info structure */
 		if (lynxfb_set_fbinfo(info[fbidx], fbidx)) {
