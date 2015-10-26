@@ -1453,9 +1453,21 @@ static int i40evf_init_rss(struct i40evf_adapter *adapter)
 	lut = kzalloc(I40EVF_HLUT_ARRAY_SIZE, GFP_KERNEL);
 	if (!lut)
 		return -ENOMEM;
-	i40evf_fill_rss_lut(lut, I40EVF_HLUT_ARRAY_SIZE,
-			    adapter->num_active_queues);
-	netdev_rss_key_fill((void *)seed, I40EVF_HKEY_ARRAY_SIZE);
+
+	/* Use user configured lut if there is one, otherwise use default */
+	if (vsi->rss_lut_user)
+		memcpy(lut, vsi->rss_lut_user, I40EVF_HLUT_ARRAY_SIZE);
+	else
+		i40evf_fill_rss_lut(lut, I40EVF_HLUT_ARRAY_SIZE,
+				    adapter->num_active_queues);
+
+	/* Use user configured hash key if there is one, otherwise
+	 * user default.
+	 */
+	if (vsi->rss_hkey_user)
+		memcpy(seed, vsi->rss_hkey_user, I40EVF_HKEY_ARRAY_SIZE);
+	else
+		netdev_rss_key_fill((void *)seed, I40EVF_HKEY_ARRAY_SIZE);
 	ret = i40evf_config_rss(vsi, seed, lut, I40EVF_HLUT_ARRAY_SIZE);
 	kfree(lut);
 
@@ -1580,6 +1592,22 @@ err_alloc_q_vectors:
 	i40evf_reset_interrupt_capability(adapter);
 err_set_interrupt:
 	return err;
+}
+
+/**
+ * i40evf_clear_rss_config_user - Clear user configurations of RSS
+ * @vsi: Pointer to VSI structure
+ **/
+static void i40evf_clear_rss_config_user(struct i40e_vsi *vsi)
+{
+	if (!vsi)
+		return;
+
+	kfree(vsi->rss_hkey_user);
+	vsi->rss_hkey_user = NULL;
+
+	kfree(vsi->rss_lut_user);
+	vsi->rss_lut_user = NULL;
 }
 
 /**
@@ -2769,6 +2797,9 @@ static void i40evf_remove(struct pci_dev *pdev)
 		del_timer_sync(&adapter->watchdog_timer);
 
 	flush_scheduled_work();
+
+	/* Clear user configurations for RSS */
+	i40evf_clear_rss_config_user(&adapter->vsi);
 
 	if (hw->aq.asq.count)
 		i40evf_shutdown_adminq(hw);

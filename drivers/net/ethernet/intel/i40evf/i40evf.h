@@ -67,6 +67,8 @@ struct i40e_vsi {
 	u16 rx_itr_setting;
 	u16 tx_itr_setting;
 	u16 qs_handle;
+	u8 *rss_hkey_user; /* User configured hash keys */
+	u8 *rss_lut_user;  /* User configured lookup table entries */
 };
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */

@@ -678,9 +678,7 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_vsi *vsi = &adapter->vsi;
-	u8 seed_def[I40EVF_HKEY_ARRAY_SIZE];
-	u8 *seed = NULL, *lut;
-	int ret;
+	u8 *seed = NULL;
 	u16 i;
 
 	/* We do not allow change in unsupported parameters */
@@ -691,21 +689,28 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 		return 0;
 
 	if (key) {
-		memcpy(seed_def, key, I40EVF_HKEY_ARRAY_SIZE);
-		seed = seed_def;
+		if (!vsi->rss_hkey_user) {
+			vsi->rss_hkey_user = kzalloc(I40EVF_HKEY_ARRAY_SIZE,
+						     GFP_KERNEL);
+			if (!vsi->rss_hkey_user)
+				return -ENOMEM;
+		}
+		memcpy(vsi->rss_hkey_user, key, I40EVF_HKEY_ARRAY_SIZE);
+		seed = vsi->rss_hkey_user;
 	}
-	lut = kzalloc(I40EVF_HLUT_ARRAY_SIZE, GFP_KERNEL);
-	if (!lut)
-		return -ENOMEM;
+	if (!vsi->rss_lut_user) {
+		vsi->rss_lut_user = kzalloc(I40EVF_HLUT_ARRAY_SIZE,
+					    GFP_KERNEL);
+		if (!vsi->rss_lut_user)
+			return -ENOMEM;
+	}
 
 	/* Each 32 bits pointed by 'indir' is stored with a lut entry */
 	for (i = 0; i < I40EVF_HLUT_ARRAY_SIZE; i++)
-		lut[i] = (u8)(indir[i]);
+		vsi->rss_lut_user[i] = (u8)(indir[i]);
 
-	ret = i40evf_config_rss(vsi, seed, lut, I40EVF_HLUT_ARRAY_SIZE);
-	kfree(lut);
-
-	return ret;
+	return i40evf_config_rss(vsi, seed, vsi->rss_lut_user,
+				 I40EVF_HLUT_ARRAY_SIZE);
 }
 
 static const struct ethtool_ops i40evf_ethtool_ops = {
