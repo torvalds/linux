@@ -322,7 +322,7 @@ static int spinand_read_page_to_cache(struct spi_device *spi_nand, u16 page_id)
  *   No tRd delay.
  */
 static int spinand_read_from_cache(struct spi_device *spi_nand, u16 page_id,
-		u16 byte_id, u16 len, u8 *rbuf)
+				   u16 byte_id, u16 len, u8 *rbuf)
 {
 	struct spinand_cmd cmd = {0};
 	u16 column;
@@ -353,7 +353,7 @@ static int spinand_read_from_cache(struct spi_device *spi_nand, u16 page_id,
  *   Poll to read status to wait for tRD time.
  */
 static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
-		u16 offset, u16 len, u8 *rbuf)
+			     u16 offset, u16 len, u8 *rbuf)
 {
 	int ret;
 	u8 status = 0;
@@ -375,14 +375,14 @@ static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
 		ret = spinand_read_status(spi_nand, &status);
 		if (ret < 0) {
 			dev_err(&spi_nand->dev,
-					"err %d read status register\n", ret);
+				"err %d read status register\n", ret);
 			return ret;
 		}
 
 		if ((status & STATUS_OIP_MASK) == STATUS_READY) {
 			if ((status & STATUS_ECC_MASK) == STATUS_ECC_ERROR) {
 				dev_err(&spi_nand->dev, "ecc error, page=%d\n",
-						page_id);
+					page_id);
 				return 0;
 			}
 			break;
@@ -420,7 +420,8 @@ static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
  *   Since it is writing the data to cache, there is no tPROG time.
  */
 static int spinand_program_data_to_cache(struct spi_device *spi_nand,
-		u16 page_id, u16 byte_id, u16 len, u8 *wbuf)
+					 u16 page_id, u16 byte_id,
+					 u16 len, u8 *wbuf)
 {
 	struct spinand_cmd cmd = {0};
 	u16 column;
@@ -474,7 +475,7 @@ static int spinand_program_execute(struct spi_device *spi_nand, u16 page_id)
  *   Poll to wait for the tPROG time to finish the transaction.
  */
 static int spinand_program_page(struct spi_device *spi_nand,
-		u16 page_id, u16 offset, u16 len, u8 *buf)
+				u16 page_id, u16 offset, u16 len, u8 *buf)
 {
 	int retval;
 	u8 status = 0;
@@ -508,7 +509,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 		dev_err(&spi_nand->dev, "wait timedout!!!\n");
 
 	retval = spinand_program_data_to_cache(spi_nand, page_id,
-			offset, len, wbuf);
+					       offset, len, wbuf);
 	if (retval < 0)
 		return retval;
 	retval = spinand_program_execute(spi_nand, page_id);
@@ -518,8 +519,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 		retval = spinand_read_status(spi_nand, &status);
 		if (retval < 0) {
 			dev_err(&spi_nand->dev,
-					"error %d reading status register\n",
-					retval);
+				"error %d reading status register\n", retval);
 			return retval;
 		}
 
@@ -594,8 +594,7 @@ static int spinand_erase_block(struct spi_device *spi_nand, u16 block_id)
 		retval = spinand_read_status(spi_nand, &status);
 		if (retval < 0) {
 			dev_err(&spi_nand->dev,
-					"error %d reading status register\n",
-					retval);
+				"error %d reading status register\n", retval);
 			return retval;
 		}
 
@@ -613,7 +612,8 @@ static int spinand_erase_block(struct spi_device *spi_nand, u16 block_id)
 
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
 static int spinand_write_page_hwecc(struct mtd_info *mtd,
-		struct nand_chip *chip, const u8 *buf, int oob_required)
+				    struct nand_chip *chip,
+				    const u8 *buf, int oob_required)
 {
 	const u8 *p = buf;
 	int eccsize = chip->ecc.size;
@@ -625,7 +625,7 @@ static int spinand_write_page_hwecc(struct mtd_info *mtd,
 }
 
 static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-		u8 *buf, int oob_required, int page)
+				   u8 *buf, int oob_required, int page)
 {
 	int retval;
 	u8 status;
@@ -644,8 +644,7 @@ static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		retval = spinand_read_status(info->spi, &status);
 		if (retval < 0) {
 			dev_err(&mtd->dev,
-					"error %d reading status register\n",
-					retval);
+				"error %d reading status register\n", retval);
 			return retval;
 		}
 
@@ -694,8 +693,7 @@ static int spinand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 		retval = spinand_read_status(info->spi, &status);
 		if (retval < 0) {
 			dev_err(&mtd->dev,
-					"error %d reading status register\n",
-					retval);
+				"error %d reading status register\n", retval);
 			return retval;
 		}
 
@@ -743,7 +741,7 @@ static void spinand_reset(struct spi_device *spi_nand)
 }
 
 static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
-		int column, int page)
+			    int column, int page)
 {
 	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
 	struct spinand_info *info = (struct spinand_info *)chip->priv;
@@ -789,7 +787,7 @@ static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
 	/* PAGEPROG reuses all of the setup from SEQIN and adds the length */
 	case NAND_CMD_PAGEPROG:
 		spinand_program_page(info->spi, state->row, state->col,
-				state->buf_ptr, state->buf);
+				     state->buf_ptr, state->buf);
 		break;
 	case NAND_CMD_STATUS:
 		spinand_get_otp(info->spi, state->buf);
@@ -854,7 +852,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 	struct mtd_part_parser_data ppdata;
 
 	info  = devm_kzalloc(&spi_nand->dev, sizeof(struct spinand_info),
-			GFP_KERNEL);
+			     GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -863,7 +861,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 	spinand_lock_block(spi_nand, BL_ALL_UNLOCKED);
 
 	state = devm_kzalloc(&spi_nand->dev, sizeof(struct spinand_state),
-			GFP_KERNEL);
+			     GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
@@ -874,7 +872,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 		return -ENOMEM;
 
 	chip = devm_kzalloc(&spi_nand->dev, sizeof(struct nand_chip),
-			GFP_KERNEL);
+			    GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
