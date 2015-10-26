@@ -92,6 +92,15 @@ void qed_resc_free(struct qed_dev *cdev)
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
+		kfree(p_hwfn->p_tx_cids);
+		p_hwfn->p_tx_cids = NULL;
+		kfree(p_hwfn->p_rx_cids);
+		p_hwfn->p_rx_cids = NULL;
+	}
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
 		qed_cxt_mngr_free(p_hwfn);
 		qed_qm_info_free(p_hwfn);
 		qed_spq_free(p_hwfn);
@@ -201,6 +210,29 @@ int qed_resc_alloc(struct qed_dev *cdev)
 	cdev->fw_data = kzalloc(sizeof(*cdev->fw_data), GFP_KERNEL);
 	if (!cdev->fw_data)
 		return -ENOMEM;
+
+	/* Allocate Memory for the Queue->CID mapping */
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+		int tx_size = sizeof(struct qed_hw_cid_data) *
+				     RESC_NUM(p_hwfn, QED_L2_QUEUE);
+		int rx_size = sizeof(struct qed_hw_cid_data) *
+				     RESC_NUM(p_hwfn, QED_L2_QUEUE);
+
+		p_hwfn->p_tx_cids = kzalloc(tx_size, GFP_KERNEL);
+		if (!p_hwfn->p_tx_cids) {
+			DP_NOTICE(p_hwfn,
+				  "Failed to allocate memory for Tx Cids\n");
+			goto alloc_err;
+		}
+
+		p_hwfn->p_rx_cids = kzalloc(rx_size, GFP_KERNEL);
+		if (!p_hwfn->p_rx_cids) {
+			DP_NOTICE(p_hwfn,
+				  "Failed to allocate memory for Rx Cids\n");
+			goto alloc_err;
+		}
+	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -881,6 +913,20 @@ static void get_function_id(struct qed_hwfn *p_hwfn)
 				    PXP_CONCRETE_FID_PORT);
 }
 
+static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
+{
+	u32 *feat_num = p_hwfn->hw_info.feat_num;
+	int num_features = 1;
+
+	feat_num[QED_PF_L2_QUE] = min_t(u32, RESC_NUM(p_hwfn, QED_SB) /
+						num_features,
+					RESC_NUM(p_hwfn, QED_L2_QUEUE));
+	DP_VERBOSE(p_hwfn, NETIF_MSG_PROBE,
+		   "#PF_L2_QUEUES=%d #SBS=%d num_features=%d\n",
+		   feat_num[QED_PF_L2_QUE], RESC_NUM(p_hwfn, QED_SB),
+		   num_features);
+}
+
 static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 {
 	u32 *resc_start = p_hwfn->hw_info.resc_start;
@@ -893,29 +939,45 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 	resc_num[QED_SB] = min_t(u32,
 				 (MAX_SB_PER_PATH_BB / num_funcs),
 				 qed_int_get_num_sbs(p_hwfn, NULL));
+	resc_num[QED_L2_QUEUE] = MAX_NUM_L2_QUEUES_BB / num_funcs;
 	resc_num[QED_VPORT] = MAX_NUM_VPORTS_BB / num_funcs;
+	resc_num[QED_RSS_ENG] = ETH_RSS_ENGINE_NUM_BB / num_funcs;
 	resc_num[QED_PQ] = MAX_QM_TX_QUEUES_BB / num_funcs;
 	resc_num[QED_RL] = 8;
+	resc_num[QED_MAC] = ETH_NUM_MAC_FILTERS / num_funcs;
+	resc_num[QED_VLAN] = (ETH_NUM_VLAN_FILTERS - 1 /*For vlan0*/) /
+			     num_funcs;
 	resc_num[QED_ILT] = 950;
 
 	for (i = 0; i < QED_MAX_RESC; i++)
 		resc_start[i] = resc_num[i] * p_hwfn->rel_pf_id;
 
+	qed_hw_set_feat(p_hwfn);
+
 	DP_VERBOSE(p_hwfn, NETIF_MSG_PROBE,
 		   "The numbers for each resource are:\n"
 		   "SB = %d start = %d\n"
+		   "L2_QUEUE = %d start = %d\n"
 		   "VPORT = %d start = %d\n"
 		   "PQ = %d start = %d\n"
 		   "RL = %d start = %d\n"
+		   "MAC = %d start = %d\n"
+		   "VLAN = %d start = %d\n"
 		   "ILT = %d start = %d\n",
 		   p_hwfn->hw_info.resc_num[QED_SB],
 		   p_hwfn->hw_info.resc_start[QED_SB],
+		   p_hwfn->hw_info.resc_num[QED_L2_QUEUE],
+		   p_hwfn->hw_info.resc_start[QED_L2_QUEUE],
 		   p_hwfn->hw_info.resc_num[QED_VPORT],
 		   p_hwfn->hw_info.resc_start[QED_VPORT],
 		   p_hwfn->hw_info.resc_num[QED_PQ],
 		   p_hwfn->hw_info.resc_start[QED_PQ],
 		   p_hwfn->hw_info.resc_num[QED_RL],
 		   p_hwfn->hw_info.resc_start[QED_RL],
+		   p_hwfn->hw_info.resc_num[QED_MAC],
+		   p_hwfn->hw_info.resc_start[QED_MAC],
+		   p_hwfn->hw_info.resc_num[QED_VLAN],
+		   p_hwfn->hw_info.resc_start[QED_VLAN],
 		   p_hwfn->hw_info.resc_num[QED_ILT],
 		   p_hwfn->hw_info.resc_start[QED_ILT]);
 }

@@ -25,6 +25,7 @@
 #include <linux/qed/qed_if.h>
 #include "qed_hsi.h"
 
+extern const struct qed_common_ops qed_common_ops_pass;
 #define DRV_MODULE_VERSION "8.4.0.0"
 
 #define MAX_HWFNS_PER_DEVICE    (4)
@@ -91,11 +92,20 @@ struct qed_qm_iids {
 
 enum QED_RESOURCES {
 	QED_SB,
+	QED_L2_QUEUE,
 	QED_VPORT,
+	QED_RSS_ENG,
 	QED_PQ,
 	QED_RL,
+	QED_MAC,
+	QED_VLAN,
 	QED_ILT,
 	QED_MAX_RESC,
+};
+
+enum QED_FEATURE {
+	QED_PF_L2_QUE,
+	QED_MAX_FEATURES,
 };
 
 struct qed_hw_info {
@@ -105,6 +115,7 @@ struct qed_hw_info {
 	/* Resource Allocation scheme results */
 	u32				resc_start[QED_MAX_RESC];
 	u32				resc_num[QED_MAX_RESC];
+	u32				feat_num[QED_MAX_FEATURES];
 
 #define RESC_START(_p_hwfn, resc) ((_p_hwfn)->hw_info.resc_start[resc])
 #define RESC_NUM(_p_hwfn, resc) ((_p_hwfn)->hw_info.resc_num[resc])
@@ -265,6 +276,9 @@ struct qed_hwfn {
 	bool				b_int_enabled;
 
 	struct qed_mcp_info		*mcp_info;
+
+	struct qed_hw_cid_data		*p_tx_cids;
+	struct qed_hw_cid_data		*p_rx_cids;
 
 	struct qed_dmae_info		dmae_info;
 

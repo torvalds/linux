@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/qed/common_hsi.h>
+#include <linux/qed/eth_common.h>
 
 struct qed_hwfn;
 struct qed_ptt;
