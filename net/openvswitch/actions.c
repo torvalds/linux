@@ -1109,8 +1109,8 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 					     nla_data(a));
 
 			/* Hide stolen IP fragments from user space. */
-			if (err == -EINPROGRESS)
-				return 0;
+			if (err)
+				return err == -EINPROGRESS ? 0 : err;
 			break;
 		}
 

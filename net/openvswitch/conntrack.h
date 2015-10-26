@@ -67,6 +67,7 @@ static inline int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 				 struct sw_flow_key *key,
 				 const struct ovs_conntrack_info *info)
 {
+	kfree_skb(skb);
 	return -ENOTSUPP;
 }
 

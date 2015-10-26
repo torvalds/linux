@@ -293,6 +293,9 @@ static int ovs_ct_helper(struct sk_buff *skb, u16 proto)
 	return helper->help(skb, protoff, ct, ctinfo);
 }
 
+/* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other nonzero
+ * value if 'skb' is freed.
+ */
 static int handle_fragments(struct net *net, struct sw_flow_key *key,
 			    u16 zone, struct sk_buff *skb)
 {
@@ -308,8 +311,8 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 			return err;
 
 		ovs_cb.mru = IPCB(skb)->frag_max_size;
-	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
+	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
 		struct sk_buff *reasm;
 
@@ -318,17 +321,18 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 		if (!reasm)
 			return -EINPROGRESS;
 
-		if (skb == reasm)
+		if (skb == reasm) {
+			kfree_skb(skb);
 			return -EINVAL;
+		}
 
 		key->ip.proto = ipv6_hdr(reasm)->nexthdr;
 		skb_morph(skb, reasm);
 		consume_skb(reasm);
 		ovs_cb.mru = IP6CB(skb)->frag_max_size;
-#else
-		return -EPFNOSUPPORT;
 #endif
 	} else {
+		kfree_skb(skb);
 		return -EPFNOSUPPORT;
 	}
 
@@ -473,6 +477,9 @@ static bool labels_nonzero(const struct ovs_key_ct_labels *labels)
 	return false;
 }
 
+/* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other nonzero
+ * value if 'skb' is freed.
+ */
 int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 		   struct sw_flow_key *key,
 		   const struct ovs_conntrack_info *info)
@@ -508,6 +515,8 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 					&info->labels.mask);
 err:
 	skb_push(skb, nh_ofs);
+	if (err)
+		kfree_skb(skb);
 	return err;
 }
 
