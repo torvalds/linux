@@ -98,8 +98,6 @@ struct sm750_dev {
 	enum sm750_pnltype pnltype;
 	enum sm750_dataflow dataflow;
 	int nocrt;
-	int xLCD;
-	int yLCD;
 
 	/*
 	 * 0: no hardware cursor
