@@ -487,7 +487,7 @@ static inline int arch_elf_pt_proc(struct elfhdr *ehdr,
 }
 
 /**
- * arch_check_elf() - check a PT_LOPROC..PT_HIPROC ELF program header
+ * arch_check_elf() - check an ELF executable
  * @ehdr:	The main ELF header
  * @has_interp:	True if the ELF has an interpreter, else false.
  * @state:	Architecture-specific state preserved throughout the process
