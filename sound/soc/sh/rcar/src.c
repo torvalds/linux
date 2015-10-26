@@ -690,6 +690,8 @@ static void __rsnd_src_interrupt_gen2(struct rsnd_mod *mod,
 				      struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
 
 	spin_lock(&priv->lock);
 
@@ -698,18 +700,19 @@ static void __rsnd_src_interrupt_gen2(struct rsnd_mod *mod,
 		goto rsnd_src_interrupt_gen2_out;
 
 	if (rsnd_src_error_record_gen2(mod)) {
-		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-		struct rsnd_src *src = rsnd_mod_to_src(mod);
-		struct device *dev = rsnd_priv_to_dev(priv);
 
 		dev_dbg(dev, "%s[%d] restart\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 		_rsnd_src_stop_gen2(mod);
-		if (src->err < 1024)
-			_rsnd_src_start_gen2(mod, io);
-		else
-			dev_warn(dev, "no more SRC restart\n");
+		_rsnd_src_start_gen2(mod, io);
+	}
+
+	if (src->err > 1024) {
+		rsnd_src_irq_disable_gen2(mod);
+
+		dev_warn(dev, "no more %s[%d] restart\n",
+			 rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
 
 rsnd_src_interrupt_gen2_out:

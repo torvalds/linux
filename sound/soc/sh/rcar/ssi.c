@@ -456,6 +456,7 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
 	int is_dma = rsnd_ssi_is_dma_mode(mod);
 	u32 status;
 	bool elapsed = false;
@@ -489,8 +490,6 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 
 	/* DMA only */
 	if (is_dma && (status & (UIRQ | OIRQ))) {
-		struct device *dev = rsnd_priv_to_dev(priv);
-
 		/*
 		 * restart SSI
 		 */
@@ -498,13 +497,17 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 		rsnd_ssi_stop(mod, io, priv);
-		if (ssi->err < 1024)
-			rsnd_ssi_start(mod, io, priv);
-		else
-			dev_warn(dev, "no more SSI restart\n");
+		rsnd_ssi_start(mod, io, priv);
 	}
 
 	rsnd_ssi_record_error(ssi, status);
+
+	if (ssi->err > 1024) {
+		rsnd_ssi_irq_disable(mod);
+
+		dev_warn(dev, "no more %s[%d] restart\n",
+			 rsnd_mod_name(mod), rsnd_mod_id(mod));
+	}
 
 rsnd_ssi_interrupt_out:
 	spin_unlock(&priv->lock);
