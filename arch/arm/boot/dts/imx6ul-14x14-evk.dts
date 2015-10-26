@@ -607,7 +607,11 @@
 	assigned-clocks = <&clks IMX6UL_CLK_SIM_SEL>;
 	assigned-clock-parents = <&clks IMX6UL_CLK_SIM_PODF>;
 	assigned-clock-rates = <240000000>;
-	pinctrl-assert-gpios = <&gpio4 23 GPIO_ACTIVE_LOW>;
+	/* GPIO_ACTIVE_HIGH/LOW:sim card voltage control
+	 * NCN8025:Vcc = ACTIVE_HIGH?5V:3V
+	 * TDA8035:Vcc = ACTIVE_HIGH?5V:1.8V
+	 */
+	pinctrl-assert-gpios = <&gpio4 23 GPIO_ACTIVE_HIGH>;
 	port = <1>;
 	sven_low_active;
 	status = "okay";
