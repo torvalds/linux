@@ -394,6 +394,12 @@ struct nci_spi {
 
 	unsigned int		xfer_udelay;	/* microseconds delay between
 						  transactions */
+
+	unsigned int		xfer_speed_hz; /*
+						* SPI clock frequency
+						* 0 => default clock
+						*/
+
 	u8			acknowledge_mode;
 
 	struct completion	req_completion;
