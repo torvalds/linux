@@ -1528,19 +1528,23 @@ int radeon_pm_late_init(struct radeon_device *rdev)
 
 	if (rdev->pm.pm_method == PM_METHOD_DPM) {
 		if (rdev->pm.dpm_enabled) {
-			ret = device_create_file(rdev->dev, &dev_attr_power_dpm_state);
-			if (ret)
-				DRM_ERROR("failed to create device file for dpm state\n");
-			ret = device_create_file(rdev->dev, &dev_attr_power_dpm_force_performance_level);
-			if (ret)
-				DRM_ERROR("failed to create device file for dpm state\n");
-			/* XXX: these are noops for dpm but are here for backwards compat */
-			ret = device_create_file(rdev->dev, &dev_attr_power_profile);
-			if (ret)
-				DRM_ERROR("failed to create device file for power profile\n");
-			ret = device_create_file(rdev->dev, &dev_attr_power_method);
-			if (ret)
-				DRM_ERROR("failed to create device file for power method\n");
+			if (!rdev->pm.sysfs_initialized) {
+				ret = device_create_file(rdev->dev, &dev_attr_power_dpm_state);
+				if (ret)
+					DRM_ERROR("failed to create device file for dpm state\n");
+				ret = device_create_file(rdev->dev, &dev_attr_power_dpm_force_performance_level);
+				if (ret)
+					DRM_ERROR("failed to create device file for dpm state\n");
+				/* XXX: these are noops for dpm but are here for backwards compat */
+				ret = device_create_file(rdev->dev, &dev_attr_power_profile);
+				if (ret)
+					DRM_ERROR("failed to create device file for power profile\n");
+				ret = device_create_file(rdev->dev, &dev_attr_power_method);
+				if (ret)
+					DRM_ERROR("failed to create device file for power method\n");
+				if (!ret)
+					rdev->pm.sysfs_initialized = true;
+			}
 
 			mutex_lock(&rdev->pm.mutex);
 			ret = radeon_dpm_late_enable(rdev);
@@ -1556,7 +1560,8 @@ int radeon_pm_late_init(struct radeon_device *rdev)
 			}
 		}
 	} else {
-		if (rdev->pm.num_power_states > 1) {
+		if ((rdev->pm.num_power_states > 1) &&
+		    (!rdev->pm.sysfs_initialized)) {
 			/* where's the best place to put these? */
 			ret = device_create_file(rdev->dev, &dev_attr_power_profile);
 			if (ret)
@@ -1564,6 +1569,8 @@ int radeon_pm_late_init(struct radeon_device *rdev)
 			ret = device_create_file(rdev->dev, &dev_attr_power_method);
 			if (ret)
 				DRM_ERROR("failed to create device file for power method\n");
+			if (!ret)
+				rdev->pm.sysfs_initialized = true;
 		}
 	}
 	return ret;
