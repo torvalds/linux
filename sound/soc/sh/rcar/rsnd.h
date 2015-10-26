@@ -197,7 +197,7 @@ struct rsnd_dma;
 
 void rsnd_dma_start(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 void rsnd_dma_stop(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-struct rsnd_dma *rsnd_dma_init(struct rsnd_dai_stream *io,
+struct rsnd_dma *rsnd_dma_attach(struct rsnd_dai_stream *io,
 			       struct rsnd_mod *mod, int id);
 void rsnd_dma_quit(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 int rsnd_dma_probe(struct platform_device *pdev,

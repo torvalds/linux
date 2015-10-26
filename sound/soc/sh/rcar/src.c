@@ -841,7 +841,7 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 			return ret;
 	}
 
-	src->dma = rsnd_dma_init(io, mod, src->info->dma_id);
+	src->dma = rsnd_dma_attach(io, mod, src->info->dma_id);
 	if (IS_ERR(src->dma))
 		return PTR_ERR(src->dma);
 

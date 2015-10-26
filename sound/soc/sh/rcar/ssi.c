@@ -539,7 +539,7 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 	if (ret)
 		return ret;
 
-	ssi->dma = rsnd_dma_init(io, mod, dma_id);
+	ssi->dma = rsnd_dma_attach(io, mod, dma_id);
 	if (IS_ERR(ssi->dma))
 		return PTR_ERR(ssi->dma);
 
