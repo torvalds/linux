@@ -22,7 +22,7 @@ enum resizer_input_entity {
 	RESIZER_INPUT_IPIPEIF
 };
 
-#define RESIZER_OUTPUT_MEMORY		(1 << 0)
+#define RESIZER_OUTPUT_MEMORY			BIT(0)
 
 /* Sink and source RESIZER pads */
 #define RESIZER_PAD_SINK			0

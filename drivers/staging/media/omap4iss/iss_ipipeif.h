@@ -22,8 +22,8 @@ enum ipipeif_input_entity {
 	IPIPEIF_INPUT_CSI2B
 };
 
-#define IPIPEIF_OUTPUT_MEMORY		(1 << 0)
-#define IPIPEIF_OUTPUT_VP		(1 << 1)
+#define IPIPEIF_OUTPUT_MEMORY			BIT(0)
+#define IPIPEIF_OUTPUT_VP			BIT(1)
 
 /* Sink and source IPIPEIF pads */
 #define IPIPEIF_PAD_SINK			0

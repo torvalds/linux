@@ -21,7 +21,7 @@ enum ipipe_input_entity {
 	IPIPE_INPUT_IPIPEIF,
 };
 
-#define IPIPE_OUTPUT_VP		(1 << 0)
+#define IPIPE_OUTPUT_VP				BIT(0)
 
 /* Sink and source IPIPE pads */
 #define IPIPE_PAD_SINK				0
