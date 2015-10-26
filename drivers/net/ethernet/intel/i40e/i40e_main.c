@@ -7301,6 +7301,23 @@ static void i40e_vsi_free_arrays(struct i40e_vsi *vsi, bool free_qvectors)
 }
 
 /**
+ * i40e_clear_rss_config_user - clear the user configured RSS hash keys
+ * and lookup table
+ * @vsi: Pointer to VSI structure
+ */
+static void i40e_clear_rss_config_user(struct i40e_vsi *vsi)
+{
+	if (!vsi)
+		return;
+
+	kfree(vsi->rss_hkey_user);
+	vsi->rss_hkey_user = NULL;
+
+	kfree(vsi->rss_lut_user);
+	vsi->rss_lut_user = NULL;
+}
+
+/**
  * i40e_vsi_clear - Deallocate the VSI provided
  * @vsi: the VSI being un-configured
  **/
@@ -7337,6 +7354,7 @@ static int i40e_vsi_clear(struct i40e_vsi *vsi)
 	i40e_put_lump(pf->irq_pile, vsi->base_vector, vsi->idx);
 
 	i40e_vsi_free_arrays(vsi, true);
+	i40e_clear_rss_config_user(vsi);
 
 	pf->vsi[vsi->idx] = NULL;
 	if (vsi->idx < pf->next_vsi)
@@ -8015,8 +8033,6 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 	wr32(hw, I40E_PFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
 
-	vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
-
 	/* Determine the RSS table size based on the hardware capabilities */
 	reg_val = rd32(hw, I40E_PFQF_CTL_0);
 	reg_val = (pf->rss_table_size == 512) ?
@@ -8024,15 +8040,28 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 			(reg_val & ~I40E_PFQF_CTL_0_HASHLUTSIZE_512);
 	wr32(hw, I40E_PFQF_CTL_0, reg_val);
 
+	/* Determine the RSS size of the VSI */
+	if (!vsi->rss_size)
+		vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
+
 	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
 	if (!lut)
 		return -ENOMEM;
 
-	i40e_fill_rss_lut(pf, lut, vsi->rss_table_size, vsi->rss_size);
+	/* Use user configured lut if there is one, otherwise use default */
+	if (vsi->rss_lut_user)
+		memcpy(lut, vsi->rss_lut_user, vsi->rss_table_size);
+	else
+		i40e_fill_rss_lut(pf, lut, vsi->rss_table_size, vsi->rss_size);
 
-	netdev_rss_key_fill((void *)seed, I40E_HKEY_ARRAY_SIZE);
+	/* Use user configured hash key if there is one, otherwise
+	 * use default.
+	 */
+	if (vsi->rss_hkey_user)
+		memcpy(seed, vsi->rss_hkey_user, I40E_HKEY_ARRAY_SIZE);
+	else
+		netdev_rss_key_fill((void *)seed, I40E_HKEY_ARRAY_SIZE);
 	ret = i40e_config_rss(vsi, seed, lut, vsi->rss_table_size);
-
 	kfree(lut);
 
 	return ret;
@@ -8063,6 +8092,19 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 		pf->rss_size = new_rss_size;
 
 		i40e_reset_and_rebuild(pf, true);
+
+		/* Discard the user configured hash keys and lut, if less
+		 * queues are enabled.
+		 */
+		if (queue_count < vsi->rss_size) {
+			i40e_clear_rss_config_user(vsi);
+			dev_dbg(&pf->pdev->dev,
+				"discard user configured hash keys and lut\n");
+		}
+
+		/* Reset vsi->rss_size, as number of enabled queues changed */
+		vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
+
 		i40e_pf_config_rss(pf);
 	}
 	dev_info(&pf->pdev->dev, "RSS count:  %d\n", pf->rss_size);
