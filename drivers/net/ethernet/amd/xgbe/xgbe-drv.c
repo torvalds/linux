@@ -1816,6 +1816,10 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 		return 0;
 
 	cur = ring->cur;
+
+	/* Be sure we get ring->cur before accessing descriptor data */
+	smp_rmb();
+
 	txq = netdev_get_tx_queue(netdev, channel->queue_index);
 
 	while ((processed < XGBE_TX_DESC_MAX_PROC) &&
