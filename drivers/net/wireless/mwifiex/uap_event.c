@@ -179,19 +179,12 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 	case EVENT_UAP_BSS_IDLE:
 		priv->media_connected = false;
 		priv->port_open = false;
-		if (netif_carrier_ok(priv->netdev))
-			netif_carrier_off(priv->netdev);
-		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
-
 		mwifiex_clean_txrx(priv);
 		mwifiex_del_all_sta_list(priv);
 		break;
 	case EVENT_UAP_BSS_ACTIVE:
 		priv->media_connected = true;
 		priv->port_open = true;
-		if (!netif_carrier_ok(priv->netdev))
-			netif_carrier_on(priv->netdev);
-		mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
 		break;
 	case EVENT_UAP_BSS_START:
 		mwifiex_dbg(adapter, EVENT,
