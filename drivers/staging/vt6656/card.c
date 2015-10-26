@@ -82,7 +82,7 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 					connection_channel, 0, 0, NULL);
 
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
-		(u8)(connection_channel|0x80));
+		(u8)(connection_channel | 0x80));
 }
 
 /*
