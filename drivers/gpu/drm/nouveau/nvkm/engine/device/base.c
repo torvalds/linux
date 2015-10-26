@@ -2494,7 +2494,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		device->pri = ioremap(mmio_base, mmio_size);
 		if (!device->pri) {
 			nvdev_error(device, "unable to map PRI\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto done;
 		}
 	}
 
