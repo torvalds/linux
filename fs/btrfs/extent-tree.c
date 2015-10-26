@@ -2087,8 +2087,8 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 					BTRFS_ADD_DELAYED_REF, NULL);
 	} else {
 		ret = btrfs_add_delayed_data_ref(fs_info, trans, bytenr,
-					num_bytes,
-					parent, root_objectid, owner, offset,
+					num_bytes, parent, root_objectid,
+					owner, offset, 0,
 					BTRFS_ADD_DELAYED_REF, NULL);
 	}
 	return ret;
@@ -6832,8 +6832,8 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		ret = btrfs_add_delayed_data_ref(fs_info, trans, bytenr,
 						num_bytes,
 						parent, root_objectid, owner,
-						offset, BTRFS_DROP_DELAYED_REF,
-						NULL);
+						offset, 0,
+						BTRFS_DROP_DELAYED_REF, NULL);
 	}
 	return ret;
 }
@@ -7759,7 +7759,8 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
 				     u64 root_objectid, u64 owner,
-				     u64 offset, struct btrfs_key *ins)
+				     u64 offset, u64 ram_bytes,
+				     struct btrfs_key *ins)
 {
 	int ret;
 
@@ -7768,7 +7769,8 @@ int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_add_delayed_data_ref(root->fs_info, trans, ins->objectid,
 					 ins->offset, 0,
 					 root_objectid, owner, offset,
-					 BTRFS_ADD_DELAYED_EXTENT, NULL);
+					 ram_bytes, BTRFS_ADD_DELAYED_EXTENT,
+					 NULL);
 	return ret;
 }
 
