@@ -115,7 +115,7 @@ static int sun4i_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		 * is not an integer so round it half up instead of
 		 * truncating to get less surprising values.
 		 */
-		div = clk_rate * period_ns + NSEC_PER_SEC/2;
+		div = clk_rate * period_ns + NSEC_PER_SEC / 2;
 		do_div(div, NSEC_PER_SEC);
 		if (div - 1 > PWM_PRD_MASK)
 			prescaler = 0;
