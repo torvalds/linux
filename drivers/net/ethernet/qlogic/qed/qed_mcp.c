@@ -516,6 +516,22 @@ int qed_mcp_drain(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+int qed_mcp_get_flash_size(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt,
+			   u32 *p_flash_size)
+{
+	u32 flash_size;
+
+	flash_size = qed_rd(p_hwfn, p_ptt, MCP_REG_NVM_CFG4);
+	flash_size = (flash_size & MCP_REG_NVM_CFG4_FLASH_SIZE) >>
+		      MCP_REG_NVM_CFG4_FLASH_SIZE_SHIFT;
+	flash_size = (1 << (flash_size + MCP_BYTES_PER_MBIT_SHIFT));
+
+	*p_flash_size = flash_size;
+
+	return 0;
+}
+
 int
 qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,

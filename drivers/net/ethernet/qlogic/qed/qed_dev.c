@@ -799,6 +799,60 @@ int qed_hw_stop(struct qed_dev *cdev)
 	return rc;
 }
 
+void qed_hw_stop_fastpath(struct qed_dev *cdev)
+{
+	int i, j;
+
+	for_each_hwfn(cdev, j) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
+		struct qed_ptt *p_ptt   = p_hwfn->p_main_ptt;
+
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_IFDOWN,
+			   "Shutting down the fastpath\n");
+
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x1);
+
+		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_TCP, 0x0);
+		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_UDP, 0x0);
+		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_FCOE, 0x0);
+		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_ROCE, 0x0);
+		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_OPENFLOW, 0x0);
+
+		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
+		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
+		for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
+			if ((!qed_rd(p_hwfn, p_ptt,
+				     TM_REG_PF_SCAN_ACTIVE_CONN)) &&
+			    (!qed_rd(p_hwfn, p_ptt,
+				     TM_REG_PF_SCAN_ACTIVE_TASK)))
+				break;
+
+			usleep_range(1000, 2000);
+		}
+		if (i == QED_HW_STOP_RETRY_LIMIT)
+			DP_NOTICE(p_hwfn,
+				  "Timers linear scans are not over [Connection %02x Tasks %02x]\n",
+				  (u8)qed_rd(p_hwfn, p_ptt,
+					     TM_REG_PF_SCAN_ACTIVE_CONN),
+				  (u8)qed_rd(p_hwfn, p_ptt,
+					     TM_REG_PF_SCAN_ACTIVE_TASK));
+
+		qed_int_igu_init_pure_rt(p_hwfn, p_ptt, false, false);
+
+		/* Need to wait 1ms to guarantee SBs are cleared */
+		usleep_range(1000, 2000);
+	}
+}
+
+void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
+{
+	/* Re-open incoming traffic */
+	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
+	       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x0);
+}
+
 static int qed_reg_assert(struct qed_hwfn *hwfn,
 			  struct qed_ptt *ptt, u32 reg,
 			  bool expected)
@@ -1336,4 +1390,64 @@ void qed_chain_free(struct qed_dev *cdev,
 	dma_free_coherent(&cdev->pdev->dev, size,
 			  p_chain->p_virt_addr,
 			  p_chain->p_phys_addr);
+}
+
+int qed_fw_l2_queue(struct qed_hwfn *p_hwfn,
+		    u16 src_id, u16 *dst_id)
+{
+	if (src_id >= RESC_NUM(p_hwfn, QED_L2_QUEUE)) {
+		u16 min, max;
+
+		min = (u16)RESC_START(p_hwfn, QED_L2_QUEUE);
+		max = min + RESC_NUM(p_hwfn, QED_L2_QUEUE);
+		DP_NOTICE(p_hwfn,
+			  "l2_queue id [%d] is not valid, available indices [%d - %d]\n",
+			  src_id, min, max);
+
+		return -EINVAL;
+	}
+
+	*dst_id = RESC_START(p_hwfn, QED_L2_QUEUE) + src_id;
+
+	return 0;
+}
+
+int qed_fw_vport(struct qed_hwfn *p_hwfn,
+		 u8 src_id, u8 *dst_id)
+{
+	if (src_id >= RESC_NUM(p_hwfn, QED_VPORT)) {
+		u8 min, max;
+
+		min = (u8)RESC_START(p_hwfn, QED_VPORT);
+		max = min + RESC_NUM(p_hwfn, QED_VPORT);
+		DP_NOTICE(p_hwfn,
+			  "vport id [%d] is not valid, available indices [%d - %d]\n",
+			  src_id, min, max);
+
+		return -EINVAL;
+	}
+
+	*dst_id = RESC_START(p_hwfn, QED_VPORT) + src_id;
+
+	return 0;
+}
+
+int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
+		   u8 src_id, u8 *dst_id)
+{
+	if (src_id >= RESC_NUM(p_hwfn, QED_RSS_ENG)) {
+		u8 min, max;
+
+		min = (u8)RESC_START(p_hwfn, QED_RSS_ENG);
+		max = min + RESC_NUM(p_hwfn, QED_RSS_ENG);
+		DP_NOTICE(p_hwfn,
+			  "rss_eng id [%d] is not valid, available indices [%d - %d]\n",
+			  src_id, min, max);
+
+		return -EINVAL;
+	}
+
+	*dst_id = RESC_START(p_hwfn, QED_RSS_ENG) + src_id;
+
+	return 0;
 }

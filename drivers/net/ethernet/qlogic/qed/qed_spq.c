@@ -374,6 +374,35 @@ void qed_eq_free(struct qed_hwfn *p_hwfn,
 }
 
 /***************************************************************************
+* CQE API - manipulate EQ functionality
+***************************************************************************/
+static int qed_cqe_completion(
+	struct qed_hwfn *p_hwfn,
+	struct eth_slow_path_rx_cqe *cqe,
+	enum protocol_type protocol)
+{
+	/* @@@tmp - it's possible we'll eventually want to handle some
+	 * actual commands that can arrive here, but for now this is only
+	 * used to complete the ramrod using the echo value on the cqe
+	 */
+	return qed_spq_completion(p_hwfn, cqe->echo, 0, NULL);
+}
+
+int qed_eth_cqe_completion(struct qed_hwfn *p_hwfn,
+			   struct eth_slow_path_rx_cqe *cqe)
+{
+	int rc;
+
+	rc = qed_cqe_completion(p_hwfn, cqe, PROTOCOLID_ETH);
+	if (rc)
+		DP_NOTICE(p_hwfn,
+			  "Failed to handle RXQ CQE [cmd 0x%02x]\n",
+			  cqe->ramrod_cmd_id);
+
+	return rc;
+}
+
+/***************************************************************************
 * Slow hwfn Queue (spq)
 ***************************************************************************/
 void qed_spq_setup(struct qed_hwfn *p_hwfn)

@@ -87,6 +87,25 @@ int qed_hw_init(struct qed_dev *cdev,
 int qed_hw_stop(struct qed_dev *cdev);
 
 /**
+ * @brief qed_hw_stop_fastpath -should be called incase
+ *		slowpath is still required for the device,
+ *		but fastpath is not.
+ *
+ * @param cdev
+ *
+ */
+void qed_hw_stop_fastpath(struct qed_dev *cdev);
+
+/**
+ * @brief qed_hw_start_fastpath -restart fastpath traffic,
+ *		only if hw_stop_fastpath was called
+ *
+ * @param cdev
+ *
+ */
+void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn);
+
+/**
  * @brief qed_hw_reset -
  *
  * @param cdev
@@ -205,6 +224,45 @@ qed_chain_alloc(struct qed_dev *cdev,
  */
 void qed_chain_free(struct qed_dev *cdev,
 		    struct qed_chain *p_chain);
+
+/**
+ * @@brief qed_fw_l2_queue - Get absolute L2 queue ID
+ *
+ *  @param p_hwfn
+ *  @param src_id - relative to p_hwfn
+ *  @param dst_id - absolute per engine
+ *
+ *  @return int
+ */
+int qed_fw_l2_queue(struct qed_hwfn *p_hwfn,
+		    u16 src_id,
+		    u16 *dst_id);
+
+/**
+ * @@brief qed_fw_vport - Get absolute vport ID
+ *
+ *  @param p_hwfn
+ *  @param src_id - relative to p_hwfn
+ *  @param dst_id - absolute per engine
+ *
+ *  @return int
+ */
+int qed_fw_vport(struct qed_hwfn *p_hwfn,
+		 u8 src_id,
+		 u8 *dst_id);
+
+/**
+ * @@brief qed_fw_rss_eng - Get absolute RSS engine ID
+ *
+ *  @param p_hwfn
+ *  @param src_id - relative to p_hwfn
+ *  @param dst_id - absolute per engine
+ *
+ *  @return int
+ */
+int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
+		   u8 src_id,
+		   u8 *dst_id);
 
 /**
  * *@brief Cleanup of previous driver remains prior to load

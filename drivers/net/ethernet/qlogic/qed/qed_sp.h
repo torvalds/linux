@@ -32,8 +32,35 @@ struct qed_spq_comp_cb {
 	void	*cookie;
 };
 
+/**
+ * @brief qed_eth_cqe_completion - handles the completion of a
+ *        ramrod on the cqe ring
+ *
+ * @param p_hwfn
+ * @param cqe
+ *
+ * @return int
+ */
+int qed_eth_cqe_completion(struct qed_hwfn *p_hwfn,
+			   struct eth_slow_path_rx_cqe *cqe);
+
+/**
+ *  @file
+ *
+ *  QED Slow-hwfn queue interface
+ */
+
 union ramrod_data {
 	struct pf_start_ramrod_data pf_start;
+	struct rx_queue_start_ramrod_data rx_queue_start;
+	struct rx_queue_update_ramrod_data rx_queue_update;
+	struct rx_queue_stop_ramrod_data rx_queue_stop;
+	struct tx_queue_start_ramrod_data tx_queue_start;
+	struct tx_queue_stop_ramrod_data tx_queue_stop;
+	struct vport_start_ramrod_data vport_start;
+	struct vport_stop_ramrod_data vport_stop;
+	struct vport_update_ramrod_data vport_update;
+	struct vport_filter_update_ramrod_data vport_filter_update;
 };
 
 #define EQ_MAX_CREDIT   0xffffffff

@@ -90,6 +90,19 @@ int qed_mcp_drain(struct qed_hwfn *p_hwfn,
 		  struct qed_ptt *p_ptt);
 
 /**
+ * @brief Get the flash size value
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_flash_size  - flash size in bytes to be filled.
+ *
+ * @return int - 0 - operation was successul.
+ */
+int qed_mcp_get_flash_size(struct qed_hwfn     *p_hwfn,
+			   struct qed_ptt       *p_ptt,
+			   u32 *p_flash_size);
+
+/**
  * @brief Send driver version to MFW
  *
  * @param p_hwfn

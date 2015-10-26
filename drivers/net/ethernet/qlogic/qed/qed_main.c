@@ -182,6 +182,8 @@ err0:
 int qed_fill_dev_info(struct qed_dev *cdev,
 		      struct qed_dev_info *dev_info)
 {
+	struct qed_ptt  *ptt;
+
 	memset(dev_info, 0, sizeof(struct qed_dev_info));
 
 	dev_info->num_hwfns = cdev->num_hwfns;
@@ -198,6 +200,14 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	dev_info->mf_mode = cdev->mf_mode;
 
 	qed_mcp_get_mfw_ver(cdev, &dev_info->mfw_rev);
+
+	ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
+	if (ptt) {
+		qed_mcp_get_flash_size(QED_LEADING_HWFN(cdev), ptt,
+				       &dev_info->flash_size);
+
+		qed_ptt_release(QED_LEADING_HWFN(cdev), ptt);
+	}
 
 	return 0;
 }

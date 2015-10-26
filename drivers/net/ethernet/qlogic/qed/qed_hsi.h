@@ -2561,6 +2561,300 @@ struct eth_conn_context {
 	struct ustorm_eth_conn_st_ctx	ustorm_st_context;
 };
 
+enum eth_filter_action {
+	ETH_FILTER_ACTION_REMOVE,
+	ETH_FILTER_ACTION_ADD,
+	ETH_FILTER_ACTION_REPLACE,
+	MAX_ETH_FILTER_ACTION
+};
+
+struct eth_filter_cmd {
+	u8      type /* Filter Type (MAC/VLAN/Pair/VNI) */;
+	u8      vport_id /* the vport id */;
+	u8      action /* filter command action: add/remove/replace */;
+	u8      reserved0;
+	__le32  vni;
+	__le16  mac_lsb;
+	__le16  mac_mid;
+	__le16  mac_msb;
+	__le16  vlan_id;
+};
+
+struct eth_filter_cmd_header {
+	u8      rx;
+	u8      tx;
+	u8      cmd_cnt;
+	u8      assert_on_error;
+	u8      reserved1[4];
+};
+
+enum eth_filter_type {
+	ETH_FILTER_TYPE_MAC,
+	ETH_FILTER_TYPE_VLAN,
+	ETH_FILTER_TYPE_PAIR,
+	ETH_FILTER_TYPE_INNER_MAC,
+	ETH_FILTER_TYPE_INNER_VLAN,
+	ETH_FILTER_TYPE_INNER_PAIR,
+	ETH_FILTER_TYPE_INNER_MAC_VNI_PAIR,
+	ETH_FILTER_TYPE_MAC_VNI_PAIR,
+	ETH_FILTER_TYPE_VNI,
+	MAX_ETH_FILTER_TYPE
+};
+
+enum eth_ramrod_cmd_id {
+	ETH_RAMROD_UNUSED,
+	ETH_RAMROD_VPORT_START /* VPort Start Ramrod */,
+	ETH_RAMROD_VPORT_UPDATE /* VPort Update Ramrod */,
+	ETH_RAMROD_VPORT_STOP /* VPort Stop Ramrod */,
+	ETH_RAMROD_RX_QUEUE_START /* RX Queue Start Ramrod */,
+	ETH_RAMROD_RX_QUEUE_STOP /* RX Queue Stop Ramrod */,
+	ETH_RAMROD_TX_QUEUE_START /* TX Queue Start Ramrod */,
+	ETH_RAMROD_TX_QUEUE_STOP /* TX Queue Stop Ramrod */,
+	ETH_RAMROD_FILTERS_UPDATE /* Add or Remove Mac/Vlan/Pair filters */,
+	ETH_RAMROD_RX_QUEUE_UPDATE /* RX Queue Update Ramrod */,
+	ETH_RAMROD_RESERVED,
+	ETH_RAMROD_RESERVED2,
+	ETH_RAMROD_RESERVED3,
+	ETH_RAMROD_RESERVED4,
+	ETH_RAMROD_RESERVED5,
+	ETH_RAMROD_RESERVED6,
+	ETH_RAMROD_RESERVED7,
+	ETH_RAMROD_RESERVED8,
+	MAX_ETH_RAMROD_CMD_ID
+};
+
+struct eth_vport_rss_config {
+	__le16 capabilities;
+#define ETH_VPORT_RSS_CONFIG_IPV4_CAPABILITY_MASK	0x1
+#define ETH_VPORT_RSS_CONFIG_IPV4_CAPABILITY_SHIFT       0
+#define ETH_VPORT_RSS_CONFIG_IPV6_CAPABILITY_MASK	0x1
+#define ETH_VPORT_RSS_CONFIG_IPV6_CAPABILITY_SHIFT       1
+#define ETH_VPORT_RSS_CONFIG_IPV4_TCP_CAPABILITY_MASK    0x1
+#define ETH_VPORT_RSS_CONFIG_IPV4_TCP_CAPABILITY_SHIFT   2
+#define ETH_VPORT_RSS_CONFIG_IPV6_TCP_CAPABILITY_MASK    0x1
+#define ETH_VPORT_RSS_CONFIG_IPV6_TCP_CAPABILITY_SHIFT   3
+#define ETH_VPORT_RSS_CONFIG_IPV4_UDP_CAPABILITY_MASK    0x1
+#define ETH_VPORT_RSS_CONFIG_IPV4_UDP_CAPABILITY_SHIFT   4
+#define ETH_VPORT_RSS_CONFIG_IPV6_UDP_CAPABILITY_MASK    0x1
+#define ETH_VPORT_RSS_CONFIG_IPV6_UDP_CAPABILITY_SHIFT   5
+#define ETH_VPORT_RSS_CONFIG_EN_5_TUPLE_CAPABILITY_MASK  0x1
+#define ETH_VPORT_RSS_CONFIG_EN_5_TUPLE_CAPABILITY_SHIFT 6
+#define ETH_VPORT_RSS_CONFIG_CALC_4TUP_TCP_FRAG_MASK     0x1
+#define ETH_VPORT_RSS_CONFIG_CALC_4TUP_TCP_FRAG_SHIFT    7
+#define ETH_VPORT_RSS_CONFIG_CALC_4TUP_UDP_FRAG_MASK     0x1
+#define ETH_VPORT_RSS_CONFIG_CALC_4TUP_UDP_FRAG_SHIFT    8
+#define ETH_VPORT_RSS_CONFIG_RESERVED0_MASK	      0x7F
+#define ETH_VPORT_RSS_CONFIG_RESERVED0_SHIFT	     9
+	u8      rss_id;
+	u8      rss_mode;
+	u8      update_rss_key;
+	u8      update_rss_ind_table;
+	u8      update_rss_capabilities;
+	u8      tbl_size;
+	__le32  reserved2[2];
+	__le16  indirection_table[ETH_RSS_IND_TABLE_ENTRIES_NUM];
+	__le32  rss_key[ETH_RSS_KEY_SIZE_REGS];
+	__le32  reserved3[2];
+};
+
+enum eth_vport_rss_mode {
+	ETH_VPORT_RSS_MODE_DISABLED,
+	ETH_VPORT_RSS_MODE_REGULAR,
+	MAX_ETH_VPORT_RSS_MODE
+};
+
+struct eth_vport_rx_mode {
+	__le16 state;
+#define ETH_VPORT_RX_MODE_UCAST_DROP_ALL_MASK	  0x1
+#define ETH_VPORT_RX_MODE_UCAST_DROP_ALL_SHIFT	 0
+#define ETH_VPORT_RX_MODE_UCAST_ACCEPT_ALL_MASK	0x1
+#define ETH_VPORT_RX_MODE_UCAST_ACCEPT_ALL_SHIFT       1
+#define ETH_VPORT_RX_MODE_UCAST_ACCEPT_UNMATCHED_MASK  0x1
+#define ETH_VPORT_RX_MODE_UCAST_ACCEPT_UNMATCHED_SHIFT 2
+#define ETH_VPORT_RX_MODE_MCAST_DROP_ALL_MASK	  0x1
+#define ETH_VPORT_RX_MODE_MCAST_DROP_ALL_SHIFT	 3
+#define ETH_VPORT_RX_MODE_MCAST_ACCEPT_ALL_MASK	0x1
+#define ETH_VPORT_RX_MODE_MCAST_ACCEPT_ALL_SHIFT       4
+#define ETH_VPORT_RX_MODE_BCAST_ACCEPT_ALL_MASK	0x1
+#define ETH_VPORT_RX_MODE_BCAST_ACCEPT_ALL_SHIFT       5
+#define ETH_VPORT_RX_MODE_RESERVED1_MASK	       0x3FF
+#define ETH_VPORT_RX_MODE_RESERVED1_SHIFT	      6
+	__le16 reserved2[3];
+};
+
+struct eth_vport_tpa_param {
+	u64     reserved[2];
+};
+
+struct eth_vport_tx_mode {
+	__le16 state;
+#define ETH_VPORT_TX_MODE_UCAST_DROP_ALL_MASK    0x1
+#define ETH_VPORT_TX_MODE_UCAST_DROP_ALL_SHIFT   0
+#define ETH_VPORT_TX_MODE_UCAST_ACCEPT_ALL_MASK  0x1
+#define ETH_VPORT_TX_MODE_UCAST_ACCEPT_ALL_SHIFT 1
+#define ETH_VPORT_TX_MODE_MCAST_DROP_ALL_MASK    0x1
+#define ETH_VPORT_TX_MODE_MCAST_DROP_ALL_SHIFT   2
+#define ETH_VPORT_TX_MODE_MCAST_ACCEPT_ALL_MASK  0x1
+#define ETH_VPORT_TX_MODE_MCAST_ACCEPT_ALL_SHIFT 3
+#define ETH_VPORT_TX_MODE_BCAST_ACCEPT_ALL_MASK  0x1
+#define ETH_VPORT_TX_MODE_BCAST_ACCEPT_ALL_SHIFT 4
+#define ETH_VPORT_TX_MODE_RESERVED1_MASK	 0x7FF
+#define ETH_VPORT_TX_MODE_RESERVED1_SHIFT	5
+	__le16 reserved2[3];
+};
+
+struct rx_queue_start_ramrod_data {
+	__le16	  rx_queue_id;
+	__le16	  num_of_pbl_pages;
+	__le16	  bd_max_bytes;
+	__le16	  sb_id;
+	u8	      sb_index;
+	u8	      vport_id;
+	u8	      default_rss_queue_flg;
+	u8	      complete_cqe_flg;
+	u8	      complete_event_flg;
+	u8	      stats_counter_id;
+	u8	      pin_context;
+	u8	      pxp_tph_valid_bd;
+	u8	      pxp_tph_valid_pkt;
+	u8	      pxp_st_hint;
+	__le16	  pxp_st_index;
+	u8	      reserved[4];
+	struct regpair  cqe_pbl_addr;
+	struct regpair  bd_base;
+	struct regpair  sge_base;
+};
+
+struct rx_queue_stop_ramrod_data {
+	__le16  rx_queue_id;
+	u8      complete_cqe_flg;
+	u8      complete_event_flg;
+	u8      vport_id;
+	u8      reserved[3];
+};
+
+struct rx_queue_update_ramrod_data {
+	__le16	  rx_queue_id;
+	u8	      complete_cqe_flg;
+	u8	      complete_event_flg;
+	u8	      init_sge_ring_flg;
+	u8	      vport_id;
+	u8	      pxp_tph_valid_sge;
+	u8	      pxp_st_hint;
+	__le16	  pxp_st_index;
+	u8	      reserved[6];
+	struct regpair  sge_base;
+};
+
+struct tx_queue_start_ramrod_data {
+	__le16  sb_id;
+	u8      sb_index;
+	u8      vport_id;
+	u8      tc;
+	u8      stats_counter_id;
+	__le16  qm_pq_id;
+	u8      flags;
+#define TX_QUEUE_START_RAMROD_DATA_DISABLE_OPPORTUNISTIC_MASK  0x1
+#define TX_QUEUE_START_RAMROD_DATA_DISABLE_OPPORTUNISTIC_SHIFT 0
+#define TX_QUEUE_START_RAMROD_DATA_TEST_MODE_PKT_DUP_MASK      0x1
+#define TX_QUEUE_START_RAMROD_DATA_TEST_MODE_PKT_DUP_SHIFT     1
+#define TX_QUEUE_START_RAMROD_DATA_TEST_MODE_TX_DEST_MASK      0x1
+#define TX_QUEUE_START_RAMROD_DATA_TEST_MODE_TX_DEST_SHIFT     2
+#define TX_QUEUE_START_RAMROD_DATA_RESERVED0_MASK	      0x1F
+#define TX_QUEUE_START_RAMROD_DATA_RESERVED0_SHIFT	     3
+	u8	      pin_context;
+	u8	      pxp_tph_valid_bd;
+	u8	      pxp_tph_valid_pkt;
+	__le16	  pxp_st_index;
+	u8	      pxp_st_hint;
+	u8	      reserved1[3];
+	__le16	  queue_zone_id;
+	__le16	  test_dup_count;
+	__le16	  pbl_size;
+	struct regpair  pbl_base_addr;
+};
+
+struct tx_queue_stop_ramrod_data {
+	__le16 reserved[4];
+};
+
+struct vport_filter_update_ramrod_data {
+	struct eth_filter_cmd_header    filter_cmd_hdr;
+	struct eth_filter_cmd	   filter_cmds[ETH_FILTER_RULES_COUNT];
+};
+
+struct vport_start_ramrod_data {
+	u8			      vport_id;
+	u8			      sw_fid;
+	__le16			  mtu;
+	u8			      drop_ttl0_en;
+	u8			      inner_vlan_removal_en;
+	struct eth_vport_rx_mode	rx_mode;
+	struct eth_vport_tx_mode	tx_mode;
+	struct eth_vport_tpa_param      tpa_param;
+	__le16			  sge_buff_size;
+	u8			      max_sges_num;
+	u8			      tx_switching_en;
+	u8			      anti_spoofing_en;
+	u8			      default_vlan_en;
+	u8			      handle_ptp_pkts;
+	u8			      silent_vlan_removal_en;
+	__le16			  default_vlan;
+	u8			      untagged;
+	u8			      reserved[7];
+};
+
+struct vport_stop_ramrod_data {
+	u8      vport_id;
+	u8      reserved[7];
+};
+
+struct vport_update_ramrod_data_cmn {
+	u8      vport_id;
+	u8      update_rx_active_flg;
+	u8      rx_active_flg;
+	u8      update_tx_active_flg;
+	u8      tx_active_flg;
+	u8      update_rx_mode_flg;
+	u8      update_tx_mode_flg;
+	u8      update_approx_mcast_flg;
+	u8      update_rss_flg;
+	u8      update_inner_vlan_removal_en_flg;
+	u8      inner_vlan_removal_en;
+	u8      update_tpa_param_flg;
+	u8      update_tpa_en_flg;
+	u8      update_sge_param_flg;
+	__le16  sge_buff_size;
+	u8      max_sges_num;
+	u8      update_tx_switching_en_flg;
+	u8      tx_switching_en;
+	u8      update_anti_spoofing_en_flg;
+	u8      anti_spoofing_en;
+	u8      update_handle_ptp_pkts;
+	u8      handle_ptp_pkts;
+	u8      update_default_vlan_en_flg;
+	u8      default_vlan_en;
+	u8      update_default_vlan_flg;
+	__le16  default_vlan;
+	u8      update_accept_any_vlan_flg;
+	u8      accept_any_vlan;
+	u8      silent_vlan_removal_en;
+	u8      reserved;
+};
+
+struct vport_update_ramrod_mcast {
+	__le32 bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
+};
+
+struct vport_update_ramrod_data {
+	struct vport_update_ramrod_data_cmn     common;
+	struct eth_vport_rx_mode		rx_mode;
+	struct eth_vport_tx_mode		tx_mode;
+	struct eth_vport_tpa_param	      tpa_param;
+	struct vport_update_ramrod_mcast	approx_mcast;
+	struct eth_vport_rss_config	     rss_config;
+};
+
 struct mstorm_eth_conn_ag_ctx {
 	u8	byte0 /* cdu_validation */;
 	u8	byte1 /* state */;
