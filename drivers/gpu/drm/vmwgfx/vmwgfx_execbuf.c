@@ -1236,7 +1236,8 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 	struct vmw_relocation *reloc;
 	int ret;
 
-	ret = vmw_user_dmabuf_lookup(sw_context->fp->tfile, handle, &vmw_bo);
+	ret = vmw_user_dmabuf_lookup(sw_context->fp->tfile, handle, &vmw_bo,
+				     NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not find or use MOB buffer.\n");
 		ret = -EINVAL;
@@ -1296,7 +1297,8 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	struct vmw_relocation *reloc;
 	int ret;
 
-	ret = vmw_user_dmabuf_lookup(sw_context->fp->tfile, handle, &vmw_bo);
+	ret = vmw_user_dmabuf_lookup(sw_context->fp->tfile, handle, &vmw_bo,
+				     NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not find or use GMR region.\n");
 		ret = -EINVAL;

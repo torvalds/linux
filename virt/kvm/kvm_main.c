@@ -66,8 +66,8 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
-/* halt polling only reduces halt latency by 5-7 us, 500us is enough */
-static unsigned int halt_poll_ns = 500000;
+/* Architectures should define their poll value according to the halt latency */
+static unsigned int halt_poll_ns = KVM_HALT_POLL_NS_DEFAULT;
 module_param(halt_poll_ns, uint, S_IRUGO | S_IWUSR);
 
 /* Default doubles per-vcpu halt_poll_ns. */

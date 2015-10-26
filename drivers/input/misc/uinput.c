@@ -414,7 +414,7 @@ static int uinput_setup_device(struct uinput_device *udev,
 	dev->id.product	= user_dev->id.product;
 	dev->id.version	= user_dev->id.version;
 
-	for_each_set_bit(i, dev->absbit, ABS_CNT) {
+	for (i = 0; i < ABS_CNT; i++) {
 		input_abs_set_max(dev, i, user_dev->absmax[i]);
 		input_abs_set_min(dev, i, user_dev->absmin[i]);
 		input_abs_set_fuzz(dev, i, user_dev->absfuzz[i]);

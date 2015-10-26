@@ -887,6 +887,13 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 	/* take the lock before we start messing with the ring */
 	mutex_lock(&hw->aq.arq_mutex);
 
+	if (hw->aq.arq.count == 0) {
+		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+			   "AQRX: Admin queue not initialized.\n");
+		ret_code = I40E_ERR_QUEUE_EMPTY;
+		goto clean_arq_element_err;
+	}
+
 	/* set next_to_use to head */
 	ntu = (rd32(hw, hw->aq.arq.head) & I40E_VF_ARQH1_ARQH_MASK);
 	if (ntu == ntc) {
@@ -948,6 +955,8 @@ clean_arq_element_out:
 	/* Set pending if needed, unlock and return */
 	if (pending != NULL)
 		*pending = (ntc > ntu ? hw->aq.arq.count : 0) + (ntu - ntc);
+
+clean_arq_element_err:
 	mutex_unlock(&hw->aq.arq_mutex);
 
 	return ret_code;

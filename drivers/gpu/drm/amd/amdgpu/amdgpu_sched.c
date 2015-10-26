@@ -27,63 +27,48 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 
-static struct fence *amdgpu_sched_dependency(struct amd_sched_job *job)
+static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 {
-	struct amdgpu_job *sched_job = (struct amdgpu_job *)job;
-	return amdgpu_sync_get_fence(&sched_job->ibs->sync);
+	struct amdgpu_job *job = to_amdgpu_job(sched_job);
+	return amdgpu_sync_get_fence(&job->ibs->sync);
 }
 
-static struct fence *amdgpu_sched_run_job(struct amd_sched_job *job)
+static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
 {
-	struct amdgpu_job *sched_job;
-	struct amdgpu_fence *fence;
+	struct amdgpu_fence *fence = NULL;
+	struct amdgpu_job *job;
 	int r;
 
-	if (!job) {
+	if (!sched_job) {
 		DRM_ERROR("job is null\n");
 		return NULL;
 	}
-	sched_job = (struct amdgpu_job *)job;
-	mutex_lock(&sched_job->job_lock);
-	r = amdgpu_ib_schedule(sched_job->adev,
-			       sched_job->num_ibs,
-			       sched_job->ibs,
-			       sched_job->base.owner);
-	if (r)
+	job = to_amdgpu_job(sched_job);
+	mutex_lock(&job->job_lock);
+	r = amdgpu_ib_schedule(job->adev,
+			       job->num_ibs,
+			       job->ibs,
+			       job->base.owner);
+	if (r) {
+		DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		goto err;
-	fence = amdgpu_fence_ref(sched_job->ibs[sched_job->num_ibs - 1].fence);
+	}
 
-	if (sched_job->free_job)
-		sched_job->free_job(sched_job);
-
-	mutex_unlock(&sched_job->job_lock);
-	return &fence->base;
+	fence = amdgpu_fence_ref(job->ibs[job->num_ibs - 1].fence);
 
 err:
-	DRM_ERROR("Run job error\n");
-	mutex_unlock(&sched_job->job_lock);
-	job->sched->ops->process_job(job);
-	return NULL;
-}
+	if (job->free_job)
+		job->free_job(job);
 
-static void amdgpu_sched_process_job(struct amd_sched_job *job)
-{
-	struct amdgpu_job *sched_job;
-
-	if (!job) {
-		DRM_ERROR("job is null\n");
-		return;
-	}
-	sched_job = (struct amdgpu_job *)job;
-	/* after processing job, free memory */
-	fence_put(&sched_job->base.s_fence->base);
-	kfree(sched_job);
+	mutex_unlock(&job->job_lock);
+	fence_put(&job->base.s_fence->base);
+	kfree(job);
+	return fence ? &fence->base : NULL;
 }
 
 struct amd_sched_backend_ops amdgpu_sched_ops = {
 	.dependency = amdgpu_sched_dependency,
 	.run_job = amdgpu_sched_run_job,
-	.process_job = amdgpu_sched_process_job
 };
 
 int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
@@ -100,7 +85,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 			kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
 		if (!job)
 			return -ENOMEM;
-		job->base.sched = ring->scheduler;
+		job->base.sched = &ring->sched;
 		job->base.s_entity = &adev->kernel_ctx.rings[ring->idx].entity;
 		job->adev = adev;
 		job->ibs = ibs;
@@ -109,7 +94,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 		mutex_init(&job->job_lock);
 		job->free_job = free_job;
 		mutex_lock(&job->job_lock);
-		r = amd_sched_entity_push_job((struct amd_sched_job *)job);
+		r = amd_sched_entity_push_job(&job->base);
 		if (r) {
 			mutex_unlock(&job->job_lock);
 			kfree(job);

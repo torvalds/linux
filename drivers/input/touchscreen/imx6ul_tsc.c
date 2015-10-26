@@ -94,7 +94,7 @@ struct imx6ul_tsc {
  * TSC module need ADC to get the measure value. So
  * before config TSC, we should initialize ADC module.
  */
-static void imx6ul_adc_init(struct imx6ul_tsc *tsc)
+static int imx6ul_adc_init(struct imx6ul_tsc *tsc)
 {
 	int adc_hc = 0;
 	int adc_gc;
@@ -122,17 +122,23 @@ static void imx6ul_adc_init(struct imx6ul_tsc *tsc)
 
 	timeout = wait_for_completion_timeout
 			(&tsc->completion, ADC_TIMEOUT);
-	if (timeout == 0)
+	if (timeout == 0) {
 		dev_err(tsc->dev, "Timeout for adc calibration\n");
+		return -ETIMEDOUT;
+	}
 
 	adc_gs = readl(tsc->adc_regs + REG_ADC_GS);
-	if (adc_gs & ADC_CALF)
+	if (adc_gs & ADC_CALF) {
 		dev_err(tsc->dev, "ADC calibration failed\n");
+		return -EINVAL;
+	}
 
 	/* TSC need the ADC work in hardware trigger */
 	adc_cfg = readl(tsc->adc_regs + REG_ADC_CFG);
 	adc_cfg |= ADC_HARDWARE_TRIGGER;
 	writel(adc_cfg, tsc->adc_regs + REG_ADC_CFG);
+
+	return 0;
 }
 
 /*
@@ -188,11 +194,17 @@ static void imx6ul_tsc_set(struct imx6ul_tsc *tsc)
 	writel(start, tsc->tsc_regs + REG_TSC_FLOW_CONTROL);
 }
 
-static void imx6ul_tsc_init(struct imx6ul_tsc *tsc)
+static int imx6ul_tsc_init(struct imx6ul_tsc *tsc)
 {
-	imx6ul_adc_init(tsc);
+	int err;
+
+	err = imx6ul_adc_init(tsc);
+	if (err)
+		return err;
 	imx6ul_tsc_channel_config(tsc);
 	imx6ul_tsc_set(tsc);
+
+	return 0;
 }
 
 static void imx6ul_tsc_disable(struct imx6ul_tsc *tsc)
@@ -311,9 +323,7 @@ static int imx6ul_tsc_open(struct input_dev *input_dev)
 		return err;
 	}
 
-	imx6ul_tsc_init(tsc);
-
-	return 0;
+	return imx6ul_tsc_init(tsc);
 }
 
 static void imx6ul_tsc_close(struct input_dev *input_dev)
@@ -337,7 +347,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	int tsc_irq;
 	int adc_irq;
 
-	tsc = devm_kzalloc(&pdev->dev, sizeof(struct imx6ul_tsc), GFP_KERNEL);
+	tsc = devm_kzalloc(&pdev->dev, sizeof(*tsc), GFP_KERNEL);
 	if (!tsc)
 		return -ENOMEM;
 
@@ -345,7 +355,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	if (!input_dev)
 		return -ENOMEM;
 
-	input_dev->name = "iMX6UL TouchScreen Controller";
+	input_dev->name = "iMX6UL Touchscreen Controller";
 	input_dev->id.bustype = BUS_HOST;
 
 	input_dev->open = imx6ul_tsc_open;
@@ -406,7 +416,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	}
 
 	adc_irq = platform_get_irq(pdev, 1);
-	if (adc_irq <= 0) {
+	if (adc_irq < 0) {
 		dev_err(&pdev->dev, "no adc irq resource?\n");
 		return adc_irq;
 	}
@@ -491,7 +501,7 @@ static int __maybe_unused imx6ul_tsc_resume(struct device *dev)
 			goto out;
 		}
 
-		imx6ul_tsc_init(tsc);
+		retval = imx6ul_tsc_init(tsc);
 	}
 
 out:

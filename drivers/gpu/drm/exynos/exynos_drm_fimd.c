@@ -41,7 +41,6 @@
  * CPU Interface.
  */
 
-#define FIMD_DEFAULT_FRAMERATE 60
 #define MIN_FB_WIDTH_FOR_16WORD_BURST 128
 
 /* position control register for hardware window 0, 2 ~ 4.*/
@@ -375,16 +374,6 @@ static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 	clkdiv = DIV_ROUND_UP(clk_get_rate(ctx->lcd_clk), ideal_clk);
 
 	return (clkdiv < 0x100) ? clkdiv : 0xff;
-}
-
-static bool fimd_mode_fixup(struct exynos_drm_crtc *crtc,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	if (adjusted_mode->vrefresh == 0)
-		adjusted_mode->vrefresh = FIMD_DEFAULT_FRAMERATE;
-
-	return true;
 }
 
 static void fimd_commit(struct exynos_drm_crtc *crtc)
@@ -882,13 +871,12 @@ static void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
 		return;
 
 	val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
-	writel(DP_MIE_CLK_DP_ENABLE, ctx->regs + DP_MIE_CLKCON);
+	writel(val, ctx->regs + DP_MIE_CLKCON);
 }
 
 static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.enable = fimd_enable,
 	.disable = fimd_disable,
-	.mode_fixup = fimd_mode_fixup,
 	.commit = fimd_commit,
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,

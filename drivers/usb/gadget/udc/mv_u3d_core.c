@@ -1767,8 +1767,7 @@ static int mv_u3d_remove(struct platform_device *dev)
 	usb_del_gadget_udc(&u3d->gadget);
 
 	/* free memory allocated in probe */
-	if (u3d->trb_pool)
-		dma_pool_destroy(u3d->trb_pool);
+	dma_pool_destroy(u3d->trb_pool);
 
 	if (u3d->ep_context)
 		dma_free_coherent(&dev->dev, u3d->ep_context_size,

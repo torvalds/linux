@@ -583,4 +583,15 @@ config USB_VL600
 
 	  http://ubuntuforums.org/showpost.php?p=10589647&postcount=17
 
+config USB_NET_CH9200
+	tristate "QingHeng CH9200 USB ethernet support"
+	depends on USB_USBNET
+	select MII
+	help
+	  Choose this option if you have a USB ethernet adapter with a QinHeng
+	  CH9200 chipset.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ch9200.
+
 endif # USB_NET_DRIVERS

@@ -210,6 +210,10 @@ subsys_initcall(pcibios_init);
 
 void pcibios_fixup_bus(struct pci_bus *bus)
 {
+	if (bus->parent) {
+		/* This is a subordinate bridge */
+		pci_read_bridge_bases(bus);
+	}
 }
 
 void pcibios_set_master(struct pci_dev *dev)

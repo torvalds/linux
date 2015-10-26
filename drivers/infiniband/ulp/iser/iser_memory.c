@@ -803,11 +803,12 @@ static int
 iser_reg_prot_sg(struct iscsi_iser_task *task,
 		 struct iser_data_buf *mem,
 		 struct iser_fr_desc *desc,
+		 bool use_dma_key,
 		 struct iser_mem_reg *reg)
 {
 	struct iser_device *device = task->iser_conn->ib_conn.device;
 
-	if (mem->dma_nents == 1)
+	if (use_dma_key)
 		return iser_reg_dma(device, mem, reg);
 
 	return device->reg_ops->reg_mem(task, mem, &desc->pi_ctx->rsc, reg);
@@ -817,11 +818,12 @@ static int
 iser_reg_data_sg(struct iscsi_iser_task *task,
 		 struct iser_data_buf *mem,
 		 struct iser_fr_desc *desc,
+		 bool use_dma_key,
 		 struct iser_mem_reg *reg)
 {
 	struct iser_device *device = task->iser_conn->ib_conn.device;
 
-	if (mem->dma_nents == 1)
+	if (use_dma_key)
 		return iser_reg_dma(device, mem, reg);
 
 	return device->reg_ops->reg_mem(task, mem, &desc->rsc, reg);
@@ -836,14 +838,17 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 	struct iser_mem_reg *reg = &task->rdma_reg[dir];
 	struct iser_mem_reg *data_reg;
 	struct iser_fr_desc *desc = NULL;
+	bool use_dma_key;
 	int err;
 
 	err = iser_handle_unaligned_buf(task, mem, dir);
 	if (unlikely(err))
 		return err;
 
-	if (mem->dma_nents != 1 ||
-	    scsi_get_prot_op(task->sc) != SCSI_PROT_NORMAL) {
+	use_dma_key = (mem->dma_nents == 1 && !iser_always_reg &&
+		       scsi_get_prot_op(task->sc) == SCSI_PROT_NORMAL);
+
+	if (!use_dma_key) {
 		desc = device->reg_ops->reg_desc_get(ib_conn);
 		reg->mem_h = desc;
 	}
@@ -853,7 +858,7 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 	else
 		data_reg = &task->desc.data_reg;
 
-	err = iser_reg_data_sg(task, mem, desc, data_reg);
+	err = iser_reg_data_sg(task, mem, desc, use_dma_key, data_reg);
 	if (unlikely(err))
 		goto err_reg;
 
@@ -866,7 +871,8 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 			if (unlikely(err))
 				goto err_reg;
 
-			err = iser_reg_prot_sg(task, mem, desc, prot_reg);
+			err = iser_reg_prot_sg(task, mem, desc,
+					       use_dma_key, prot_reg);
 			if (unlikely(err))
 				goto err_reg;
 		}

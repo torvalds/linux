@@ -1348,6 +1348,7 @@ static int transfer(struct dummy_hcd *dum_hcd, struct urb *urb,
 {
 	struct dummy		*dum = dum_hcd->dum;
 	struct dummy_request	*req;
+	int			sent = 0;
 
 top:
 	/* if there's no request queued, the device is NAKing; return */
@@ -1385,12 +1386,15 @@ top:
 			if (len == 0)
 				break;
 
-			/* use an extra pass for the final short packet */
-			if (len > ep->ep.maxpacket) {
-				rescan = 1;
-				len -= (len % ep->ep.maxpacket);
+			/* send multiple of maxpacket first, then remainder */
+			if (len >= ep->ep.maxpacket) {
+				is_short = 0;
+				if (len % ep->ep.maxpacket)
+					rescan = 1;
+				len -= len % ep->ep.maxpacket;
+			} else {
+				is_short = 1;
 			}
-			is_short = (len % ep->ep.maxpacket) != 0;
 
 			len = dummy_perform_transfer(urb, req, len);
 
@@ -1399,6 +1403,7 @@ top:
 				req->req.status = len;
 			} else {
 				limit -= len;
+				sent += len;
 				urb->actual_length += len;
 				req->req.actual += len;
 			}
@@ -1421,7 +1426,7 @@ top:
 					*status = -EOVERFLOW;
 				else
 					*status = 0;
-			} else if (!to_host) {
+			} else {
 				*status = 0;
 				if (host_len > dev_len)
 					req->req.status = -EOVERFLOW;
@@ -1429,15 +1434,24 @@ top:
 					req->req.status = 0;
 			}
 
-		/* many requests terminate without a short packet */
+		/*
+		 * many requests terminate without a short packet.
+		 * send a zlp if demanded by flags.
+		 */
 		} else {
-			if (req->req.length == req->req.actual
-					&& !req->req.zero)
-				req->req.status = 0;
-			if (urb->transfer_buffer_length == urb->actual_length
-					&& !(urb->transfer_flags
-						& URB_ZERO_PACKET))
-				*status = 0;
+			if (req->req.length == req->req.actual) {
+				if (req->req.zero && to_host)
+					rescan = 1;
+				else
+					req->req.status = 0;
+			}
+			if (urb->transfer_buffer_length == urb->actual_length) {
+				if (urb->transfer_flags & URB_ZERO_PACKET &&
+				    !to_host)
+					rescan = 1;
+				else
+					*status = 0;
+			}
 		}
 
 		/* device side completion --> continuable */
@@ -1460,7 +1474,7 @@ top:
 		if (rescan)
 			goto top;
 	}
-	return limit;
+	return sent;
 }
 
 static int periodic_bytes(struct dummy *dum, struct dummy_ep *ep)
@@ -1890,7 +1904,7 @@ restart:
 		default:
 treat_control_like_bulk:
 			ep->last_io = jiffies;
-			total = transfer(dum_hcd, urb, ep, limit, &status);
+			total -= transfer(dum_hcd, urb, ep, limit, &status);
 			break;
 		}
 

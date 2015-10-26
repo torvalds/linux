@@ -3322,7 +3322,7 @@ walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 			break;
 
 		reserved |= is_shadow_zero_bits_set(&vcpu->arch.mmu, spte,
-						    leaf);
+						    iterator.level);
 	}
 
 	walk_shadow_page_lockless_end(vcpu);
@@ -3614,7 +3614,7 @@ static void
 __reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 			struct rsvd_bits_validate *rsvd_check,
 			int maxphyaddr, int level, bool nx, bool gbpages,
-			bool pse)
+			bool pse, bool amd)
 {
 	u64 exb_bit_rsvd = 0;
 	u64 gbpages_bit_rsvd = 0;
@@ -3631,7 +3631,7 @@ __reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 	 * Non-leaf PML4Es and PDPEs reserve bit 8 (which would be the G bit for
 	 * leaf entries) on AMD CPUs only.
 	 */
-	if (guest_cpuid_is_amd(vcpu))
+	if (amd)
 		nonleaf_bit8_rsvd = rsvd_bits(8, 8);
 
 	switch (level) {
@@ -3699,7 +3699,7 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 	__reset_rsvds_bits_mask(vcpu, &context->guest_rsvd_check,
 				cpuid_maxphyaddr(vcpu), context->root_level,
 				context->nx, guest_cpuid_has_gbpages(vcpu),
-				is_pse(vcpu));
+				is_pse(vcpu), guest_cpuid_is_amd(vcpu));
 }
 
 static void
@@ -3749,12 +3749,23 @@ static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
 void
 reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
 {
+	/*
+	 * Passing "true" to the last argument is okay; it adds a check
+	 * on bit 8 of the SPTEs which KVM doesn't use anyway.
+	 */
 	__reset_rsvds_bits_mask(vcpu, &context->shadow_zero_check,
 				boot_cpu_data.x86_phys_bits,
 				context->shadow_root_level, context->nx,
-				guest_cpuid_has_gbpages(vcpu), is_pse(vcpu));
+				guest_cpuid_has_gbpages(vcpu), is_pse(vcpu),
+				true);
 }
 EXPORT_SYMBOL_GPL(reset_shadow_zero_bits_mask);
+
+static inline bool boot_cpu_is_amd(void)
+{
+	WARN_ON_ONCE(!tdp_enabled);
+	return shadow_x_mask == 0;
+}
 
 /*
  * the direct page table on host, use as much mmu features as
@@ -3764,11 +3775,11 @@ static void
 reset_tdp_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 				struct kvm_mmu *context)
 {
-	if (guest_cpuid_is_amd(vcpu))
+	if (boot_cpu_is_amd())
 		__reset_rsvds_bits_mask(vcpu, &context->shadow_zero_check,
 					boot_cpu_data.x86_phys_bits,
 					context->shadow_root_level, false,
-					cpu_has_gbpages, true);
+					cpu_has_gbpages, true, true);
 	else
 		__reset_rsvds_bits_mask_ept(&context->shadow_zero_check,
 					    boot_cpu_data.x86_phys_bits,

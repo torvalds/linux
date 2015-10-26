@@ -10,12 +10,12 @@ enum perf_msr_id {
 	PERF_MSR_EVENT_MAX,
 };
 
-bool test_aperfmperf(int idx)
+static bool test_aperfmperf(int idx)
 {
 	return boot_cpu_has(X86_FEATURE_APERFMPERF);
 }
 
-bool test_intel(int idx)
+static bool test_intel(int idx)
 {
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
 	    boot_cpu_data.x86 != 6)

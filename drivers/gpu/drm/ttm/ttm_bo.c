@@ -882,6 +882,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 		man = &bdev->man[mem_type];
+		if (!man->has_type || !man->use_type)
+			continue;
 
 		type_ok = ttm_bo_mt_compatible(man, mem_type, place,
 						&cur_flags);
@@ -889,6 +891,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (!type_ok)
 			continue;
 
+		type_found = true;
 		cur_flags = ttm_bo_select_caching(man, bo->mem.placement,
 						  cur_flags);
 		/*
@@ -901,12 +904,10 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (mem_type == TTM_PL_SYSTEM)
 			break;
 
-		if (man->has_type && man->use_type) {
-			type_found = true;
-			ret = (*man->func->get_node)(man, bo, place, mem);
-			if (unlikely(ret))
-				return ret;
-		}
+		ret = (*man->func->get_node)(man, bo, place, mem);
+		if (unlikely(ret))
+			return ret;
+		
 		if (mem->mm_node)
 			break;
 	}
@@ -917,9 +918,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		return 0;
 	}
 
-	if (!type_found)
-		return -EINVAL;
-
 	for (i = 0; i < placement->num_busy_placement; ++i) {
 		const struct ttm_place *place = &placement->busy_placement[i];
 
@@ -927,11 +925,12 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 		man = &bdev->man[mem_type];
-		if (!man->has_type)
+		if (!man->has_type || !man->use_type)
 			continue;
 		if (!ttm_bo_mt_compatible(man, mem_type, place, &cur_flags))
 			continue;
 
+		type_found = true;
 		cur_flags = ttm_bo_select_caching(man, bo->mem.placement,
 						  cur_flags);
 		/*
@@ -957,8 +956,13 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (ret == -ERESTARTSYS)
 			has_erestartsys = true;
 	}
-	ret = (has_erestartsys) ? -ERESTARTSYS : -ENOMEM;
-	return ret;
+
+	if (!type_found) {
+		printk(KERN_ERR TTM_PFX "No compatible memory type found.\n");
+		return -EINVAL;
+	}
+
+	return (has_erestartsys) ? -ERESTARTSYS : -ENOMEM;
 }
 EXPORT_SYMBOL(ttm_bo_mem_space);
 

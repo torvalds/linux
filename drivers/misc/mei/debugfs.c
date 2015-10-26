@@ -204,6 +204,8 @@ int mei_dbgfs_register(struct mei_device *dev, const char *name)
 	if (!dir)
 		return -ENOMEM;
 
+	dev->dbgfs_dir = dir;
+
 	f = debugfs_create_file("meclients", S_IRUSR, dir,
 				dev, &mei_dbgfs_fops_meclients);
 	if (!f) {
@@ -228,7 +230,6 @@ int mei_dbgfs_register(struct mei_device *dev, const char *name)
 		dev_err(dev->dev, "allow_fixed_address: registration failed\n");
 		goto err;
 	}
-	dev->dbgfs_dir = dir;
 	return 0;
 err:
 	mei_dbgfs_deregister(dev);

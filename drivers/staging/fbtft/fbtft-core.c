@@ -1436,15 +1436,11 @@ int fbtft_probe_common(struct fbtft_display *display,
 
 	/* 9-bit SPI setup */
 	if (par->spi && display->buswidth == 9) {
-		par->spi->bits_per_word = 9;
-		ret = par->spi->master->setup(par->spi);
-		if (ret) {
+		if (par->spi->master->bits_per_word_mask & SPI_BPW_MASK(9)) {
+			par->spi->bits_per_word = 9;
+		} else {
 			dev_warn(&par->spi->dev,
 				"9-bit SPI not available, emulating using 8-bit.\n");
-			par->spi->bits_per_word = 8;
-			ret = par->spi->master->setup(par->spi);
-			if (ret)
-				goto out_release;
 			/* allocate buffer with room for dc bits */
 			par->extra = devm_kzalloc(par->info->device,
 				par->txbuf.len + (par->txbuf.len / 8) + 8,

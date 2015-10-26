@@ -73,6 +73,7 @@ struct hda_tegra {
 	struct clk *hda2codec_2x_clk;
 	struct clk *hda2hdmi_clk;
 	void __iomem *regs;
+	struct work_struct probe_work;
 };
 
 #ifdef CONFIG_PM
@@ -294,7 +295,9 @@ static int hda_tegra_dev_disconnect(struct snd_device *device)
 static int hda_tegra_dev_free(struct snd_device *device)
 {
 	struct azx *chip = device->device_data;
+	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
 
+	cancel_work_sync(&hda->probe_work);
 	if (azx_bus(chip)->chip_init) {
 		azx_stop_all_streams(chip);
 		azx_stop_chip(chip);
@@ -426,6 +429,9 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 /*
  * constructor
  */
+
+static void hda_tegra_probe_work(struct work_struct *work);
+
 static int hda_tegra_create(struct snd_card *card,
 			    unsigned int driver_caps,
 			    struct hda_tegra *hda)
@@ -451,6 +457,8 @@ static int hda_tegra_create(struct snd_card *card,
 
 	chip->single_cmd = false;
 	chip->snoop = true;
+
+	INIT_WORK(&hda->probe_work, hda_tegra_probe_work);
 
 	err = azx_bus_init(chip, NULL, &hda_tegra_io_ops);
 	if (err < 0)
@@ -499,6 +507,21 @@ static int hda_tegra_probe(struct platform_device *pdev)
 	card->private_data = chip;
 
 	dev_set_drvdata(&pdev->dev, card);
+	schedule_work(&hda->probe_work);
+
+	return 0;
+
+out_free:
+	snd_card_free(card);
+	return err;
+}
+
+static void hda_tegra_probe_work(struct work_struct *work)
+{
+	struct hda_tegra *hda = container_of(work, struct hda_tegra, probe_work);
+	struct azx *chip = &hda->chip;
+	struct platform_device *pdev = to_platform_device(hda->dev);
+	int err;
 
 	err = hda_tegra_first_init(chip, pdev);
 	if (err < 0)
@@ -520,11 +543,8 @@ static int hda_tegra_probe(struct platform_device *pdev)
 	chip->running = 1;
 	snd_hda_set_power_save(&chip->bus, power_save * 1000);
 
-	return 0;
-
-out_free:
-	snd_card_free(card);
-	return err;
+ out_free:
+	return; /* no error return from async probe */
 }
 
 static int hda_tegra_remove(struct platform_device *pdev)

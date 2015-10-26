@@ -95,8 +95,7 @@ static struct kmem_cache *ccid_kmem_cache_create(int obj_size, char *slab_name_f
 
 static void ccid_kmem_cache_destroy(struct kmem_cache *slab)
 {
-	if (slab != NULL)
-		kmem_cache_destroy(slab);
+	kmem_cache_destroy(slab);
 }
 
 static int __init ccid_activate(struct ccid_operations *ccid_ops)

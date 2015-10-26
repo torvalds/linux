@@ -43,7 +43,7 @@ o  udev                   081                     # udevd --version
 o  grub                   0.93                    # grub --version || grub-install --version
 o  mcelog                 0.6                     # mcelog --version
 o  iptables               1.4.2                   # iptables -V
-o  openssl & libcrypto    1.0.1k                  # openssl version
+o  openssl & libcrypto    1.0.0                   # openssl version
 
 
 Kernel compilation

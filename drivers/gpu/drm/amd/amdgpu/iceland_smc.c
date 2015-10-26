@@ -625,7 +625,7 @@ int iceland_smu_init(struct amdgpu_device *adev)
 	ret = amdgpu_bo_create(adev, image_size, PAGE_SIZE,
 			       true, AMDGPU_GEM_DOMAIN_VRAM,
 			       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-			       NULL, toc_buf);
+			       NULL, NULL, toc_buf);
 	if (ret) {
 		DRM_ERROR("Failed to allocate memory for TOC buffer\n");
 		return -ENOMEM;

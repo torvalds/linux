@@ -86,7 +86,7 @@ static int amdgpu_cgs_gmap_kmem(void *cgs_device, void *kmem,
 
 	struct sg_table *sg = drm_prime_pages_to_sg(&kmem_page, npages);
 	ret = amdgpu_bo_create(adev, size, PAGE_SIZE, false,
-			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, &bo);
+			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, NULL, &bo);
 	if (ret)
 		return ret;
 	ret = amdgpu_bo_reserve(bo, false);
@@ -197,7 +197,8 @@ static int amdgpu_cgs_alloc_gpu_mem(void *cgs_device,
 
 	ret = amdgpu_bo_create_restricted(adev, size, PAGE_SIZE,
 					  true, domain, flags,
-					  NULL, &placement, &obj);
+					  NULL, &placement, NULL,
+					  &obj);
 	if (ret) {
 		DRM_ERROR("(%d) bo create failed\n", ret);
 		return ret;
@@ -205,44 +206,6 @@ static int amdgpu_cgs_alloc_gpu_mem(void *cgs_device,
 	*handle = (cgs_handle_t)obj;
 
 	return ret;
-}
-
-static int amdgpu_cgs_import_gpu_mem(void *cgs_device, int dmabuf_fd,
-				     cgs_handle_t *handle)
-{
-	CGS_FUNC_ADEV;
-	int r;
-	uint32_t dma_handle;
-	struct drm_gem_object *obj;
-	struct amdgpu_bo *bo;
-	struct drm_device *dev = adev->ddev;
-	struct drm_file *file_priv = NULL, *priv;
-
-	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(priv, &dev->filelist, lhead) {
-		rcu_read_lock();
-		if (priv->pid == get_pid(task_pid(current)))
-			file_priv = priv;
-		rcu_read_unlock();
-		if (file_priv)
-			break;
-	}
-	mutex_unlock(&dev->struct_mutex);
-	r = dev->driver->prime_fd_to_handle(dev,
-					    file_priv, dmabuf_fd,
-					    &dma_handle);
-	spin_lock(&file_priv->table_lock);
-
-	/* Check if we currently have a reference on the object */
-	obj = idr_find(&file_priv->object_idr, dma_handle);
-	if (obj == NULL) {
-		spin_unlock(&file_priv->table_lock);
-		return -EINVAL;
-	}
-	spin_unlock(&file_priv->table_lock);
-	bo = gem_to_amdgpu_bo(obj);
-	*handle = (cgs_handle_t)bo;
-	return 0;
 }
 
 static int amdgpu_cgs_free_gpu_mem(void *cgs_device, cgs_handle_t handle)
@@ -809,7 +772,6 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {
-	amdgpu_cgs_import_gpu_mem,
 	amdgpu_cgs_add_irq_source,
 	amdgpu_cgs_irq_get,
 	amdgpu_cgs_irq_put

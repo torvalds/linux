@@ -43,10 +43,10 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
 		for (i = 0; i < adev->num_rings; i++) {
 			struct amd_sched_rq *rq;
 			if (kernel)
-				rq = &adev->rings[i]->scheduler->kernel_rq;
+				rq = &adev->rings[i]->sched.kernel_rq;
 			else
-				rq = &adev->rings[i]->scheduler->sched_rq;
-			r = amd_sched_entity_init(adev->rings[i]->scheduler,
+				rq = &adev->rings[i]->sched.sched_rq;
+			r = amd_sched_entity_init(&adev->rings[i]->sched,
 						  &ctx->rings[i].entity,
 						  rq, amdgpu_sched_jobs);
 			if (r)
@@ -55,7 +55,7 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
 
 		if (i < adev->num_rings) {
 			for (j = 0; j < i; j++)
-				amd_sched_entity_fini(adev->rings[j]->scheduler,
+				amd_sched_entity_fini(&adev->rings[j]->sched,
 						      &ctx->rings[j].entity);
 			kfree(ctx);
 			return r;
@@ -75,7 +75,7 @@ void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 
 	if (amdgpu_enable_scheduler) {
 		for (i = 0; i < adev->num_rings; i++)
-			amd_sched_entity_fini(adev->rings[i]->scheduler,
+			amd_sched_entity_fini(&adev->rings[i]->sched,
 					      &ctx->rings[i].entity);
 	}
 }

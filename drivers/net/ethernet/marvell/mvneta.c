@@ -1479,6 +1479,7 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 		struct mvneta_rx_desc *rx_desc = mvneta_rxq_next_desc_get(rxq);
 		struct sk_buff *skb;
 		unsigned char *data;
+		dma_addr_t phys_addr;
 		u32 rx_status;
 		int rx_bytes, err;
 
@@ -1486,6 +1487,7 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 		rx_status = rx_desc->status;
 		rx_bytes = rx_desc->data_size - (ETH_FCS_LEN + MVNETA_MH_SIZE);
 		data = (unsigned char *)rx_desc->buf_cookie;
+		phys_addr = rx_desc->buf_phys_addr;
 
 		if (!mvneta_rxq_desc_is_first_last(rx_status) ||
 		    (rx_status & MVNETA_RXD_ERR_SUMMARY)) {
@@ -1534,7 +1536,7 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 		if (!skb)
 			goto err_drop_frame;
 
-		dma_unmap_single(dev->dev.parent, rx_desc->buf_phys_addr,
+		dma_unmap_single(dev->dev.parent, phys_addr,
 				 MVNETA_RX_BUF_SIZE(pp->pkt_size), DMA_FROM_DEVICE);
 
 		rcvd_pkts++;
@@ -3173,6 +3175,8 @@ static int mvneta_probe(struct platform_device *pdev)
 		struct phy_device *phy = of_phy_find_device(dn);
 
 		mvneta_fixed_link_update(pp, phy);
+
+		put_device(&phy->dev);
 	}
 
 	return 0;

@@ -1580,7 +1580,10 @@ static int __perf_session__process_events(struct perf_session *session,
 	file_offset = page_offset;
 	head = data_offset - page_offset;
 
-	if (data_size && (data_offset + data_size < file_size))
+	if (data_size == 0)
+		goto out;
+
+	if (data_offset + data_size < file_size)
 		file_size = data_offset + data_size;
 
 	ui_progress__init(&prog, file_size, "Processing events...");

@@ -687,6 +687,33 @@ static inline u32 mv_cesa_get_int_mask(struct mv_cesa_engine *engine)
 
 int mv_cesa_queue_req(struct crypto_async_request *req);
 
+/*
+ * Helper function that indicates whether a crypto request needs to be
+ * cleaned up or not after being enqueued using mv_cesa_queue_req().
+ */
+static inline int mv_cesa_req_needs_cleanup(struct crypto_async_request *req,
+					    int ret)
+{
+	/*
+	 * The queue still had some space, the request was queued
+	 * normally, so there's no need to clean it up.
+	 */
+	if (ret == -EINPROGRESS)
+		return false;
+
+	/*
+	 * The queue had not space left, but since the request is
+	 * flagged with CRYPTO_TFM_REQ_MAY_BACKLOG, it was added to
+	 * the backlog and will be processed later. There's no need to
+	 * clean it up.
+	 */
+	if (ret == -EBUSY && req->flags & CRYPTO_TFM_REQ_MAY_BACKLOG)
+		return false;
+
+	/* Request wasn't queued, we need to clean it up */
+	return true;
+}
+
 /* TDMA functions */
 
 static inline void mv_cesa_req_dma_iter_init(struct mv_cesa_dma_iter *iter,

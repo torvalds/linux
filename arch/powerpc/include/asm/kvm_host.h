@@ -44,6 +44,7 @@
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
+#define KVM_HALT_POLL_NS_DEFAULT 500000
 
 /* These values are internal and can be increased later */
 #define KVM_NR_IRQCHIPS          1

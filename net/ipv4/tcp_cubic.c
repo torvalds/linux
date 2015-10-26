@@ -154,14 +154,20 @@ static void bictcp_init(struct sock *sk)
 static void bictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
 	if (event == CA_EVENT_TX_START) {
-		s32 delta = tcp_time_stamp - tcp_sk(sk)->lsndtime;
 		struct bictcp *ca = inet_csk_ca(sk);
+		u32 now = tcp_time_stamp;
+		s32 delta;
+
+		delta = now - tcp_sk(sk)->lsndtime;
 
 		/* We were application limited (idle) for a while.
 		 * Shift epoch_start to keep cwnd growth to cubic curve.
 		 */
-		if (ca->epoch_start && delta > 0)
+		if (ca->epoch_start && delta > 0) {
 			ca->epoch_start += delta;
+			if (after(ca->epoch_start, now))
+				ca->epoch_start = now;
+		}
 		return;
 	}
 }

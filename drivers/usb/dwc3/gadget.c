@@ -2665,8 +2665,6 @@ static irqreturn_t dwc3_interrupt(int irq, void *_dwc)
 	int				i;
 	irqreturn_t			ret = IRQ_NONE;
 
-	spin_lock(&dwc->lock);
-
 	for (i = 0; i < dwc->num_event_buffers; i++) {
 		irqreturn_t status;
 
@@ -2674,8 +2672,6 @@ static irqreturn_t dwc3_interrupt(int irq, void *_dwc)
 		if (status == IRQ_WAKE_THREAD)
 			ret = status;
 	}
-
-	spin_unlock(&dwc->lock);
 
 	return ret;
 }

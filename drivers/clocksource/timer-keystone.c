@@ -152,7 +152,7 @@ static void __init keystone_timer_init(struct device_node *np)
 	int irq, error;
 
 	irq  = irq_of_parse_and_map(np, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		pr_err("%s: failed to map interrupts\n", __func__);
 		return;
 	}

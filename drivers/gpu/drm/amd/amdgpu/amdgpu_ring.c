@@ -357,10 +357,10 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		ring->adev = adev;
 		ring->idx = adev->num_rings++;
 		adev->rings[ring->idx] = ring;
-		amdgpu_fence_driver_init_ring(ring);
+		r = amdgpu_fence_driver_init_ring(ring);
+		if (r)
+			return r;
 	}
-
-	init_waitqueue_head(&ring->fence_drv.fence_queue);
 
 	r = amdgpu_wb_get(adev, &ring->rptr_offs);
 	if (r) {
@@ -407,7 +407,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	if (ring->ring_obj == NULL) {
 		r = amdgpu_bo_create(adev, ring->ring_size, PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0,
-				     NULL, &ring->ring_obj);
+				     NULL, NULL, &ring->ring_obj);
 		if (r) {
 			dev_err(adev->dev, "(%d) ring create failed\n", r);
 			return r;

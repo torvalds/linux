@@ -618,16 +618,15 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 			spin_unlock_irqrestore(req->q->queue_lock, flags);
 			return;
 		}
+
 		if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
 			if (cmd_rq->ctx == CMD_CTX_CANCELLED)
-				req->errors = -EINTR;
-			else
-				req->errors = status;
+				status = -EINTR;
 		} else {
-			req->errors = nvme_error_status(status);
+			status = nvme_error_status(status);
 		}
-	} else
-		req->errors = 0;
+	}
+
 	if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
 		u32 result = le32_to_cpup(&cqe->result);
 		req->special = (void *)(uintptr_t)result;
@@ -650,7 +649,7 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	}
 	nvme_free_iod(nvmeq->dev, iod);
 
-	blk_mq_complete_request(req);
+	blk_mq_complete_request(req, status);
 }
 
 /* length is in bytes.  gfp flags indicates whether we may sleep. */
@@ -863,8 +862,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ns && ns->ms && !blk_integrity_rq(req)) {
 		if (!(ns->pi_type && ns->ms == 8) &&
 					req->cmd_type != REQ_TYPE_DRV_PRIV) {
-			req->errors = -EFAULT;
-			blk_mq_complete_request(req);
+			blk_mq_complete_request(req, -EFAULT);
 			return BLK_MQ_RQ_QUEUE_OK;
 		}
 	}
@@ -2439,6 +2437,22 @@ static void nvme_scan_namespaces(struct nvme_dev *dev, unsigned nn)
 	list_sort(NULL, &dev->namespaces, ns_cmp);
 }
 
+static void nvme_set_irq_hints(struct nvme_dev *dev)
+{
+	struct nvme_queue *nvmeq;
+	int i;
+
+	for (i = 0; i < dev->online_queues; i++) {
+		nvmeq = dev->queues[i];
+
+		if (!nvmeq->tags || !(*nvmeq->tags))
+			continue;
+
+		irq_set_affinity_hint(dev->entry[nvmeq->cq_vector].vector,
+					blk_mq_tags_cpumask(*nvmeq->tags));
+	}
+}
+
 static void nvme_dev_scan(struct work_struct *work)
 {
 	struct nvme_dev *dev = container_of(work, struct nvme_dev, scan_work);
@@ -2450,6 +2464,7 @@ static void nvme_dev_scan(struct work_struct *work)
 		return;
 	nvme_scan_namespaces(dev, le32_to_cpup(&ctrl->nn));
 	kfree(ctrl);
+	nvme_set_irq_hints(dev);
 }
 
 /*
@@ -2953,22 +2968,6 @@ static const struct file_operations nvme_dev_fops = {
 	.compat_ioctl	= nvme_dev_ioctl,
 };
 
-static void nvme_set_irq_hints(struct nvme_dev *dev)
-{
-	struct nvme_queue *nvmeq;
-	int i;
-
-	for (i = 0; i < dev->online_queues; i++) {
-		nvmeq = dev->queues[i];
-
-		if (!nvmeq->tags || !(*nvmeq->tags))
-			continue;
-
-		irq_set_affinity_hint(dev->entry[nvmeq->cq_vector].vector,
-					blk_mq_tags_cpumask(*nvmeq->tags));
-	}
-}
-
 static int nvme_dev_start(struct nvme_dev *dev)
 {
 	int result;
@@ -3009,8 +3008,6 @@ static int nvme_dev_start(struct nvme_dev *dev)
 	result = nvme_setup_io_queues(dev);
 	if (result)
 		goto free_tags;
-
-	nvme_set_irq_hints(dev);
 
 	dev->event_limit = 1;
 	return result;
@@ -3062,7 +3059,6 @@ static int nvme_dev_resume(struct nvme_dev *dev)
 	} else {
 		nvme_unfreeze_queues(dev);
 		nvme_dev_add(dev);
-		nvme_set_irq_hints(dev);
 	}
 	return 0;
 }

@@ -1044,8 +1044,10 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 		goto err_exit;
 
 	mutex_lock(&ec->mutex);
+	result = -ENODATA;
 	list_for_each_entry(handler, &ec->list, node) {
 		if (value == handler->query_bit) {
+			result = 0;
 			q->handler = acpi_ec_get_query_handler(handler);
 			ec_dbg_evt("Query(0x%02x) scheduled",
 				   q->handler->query_bit);

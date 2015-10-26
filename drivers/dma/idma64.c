@@ -355,23 +355,23 @@ static size_t idma64_active_desc_size(struct idma64_chan *idma64c)
 	struct idma64_desc *desc = idma64c->desc;
 	struct idma64_hw_desc *hw;
 	size_t bytes = desc->length;
-	u64 llp;
-	u32 ctlhi;
+	u64 llp = channel_readq(idma64c, LLP);
+	u32 ctlhi = channel_readl(idma64c, CTL_HI);
 	unsigned int i = 0;
 
-	llp = channel_readq(idma64c, LLP);
 	do {
 		hw = &desc->hw[i];
-	} while ((hw->llp != llp) && (++i < desc->ndesc));
+		if (hw->llp == llp)
+			break;
+		bytes -= hw->len;
+	} while (++i < desc->ndesc);
 
 	if (!i)
 		return bytes;
 
-	do {
-		bytes -= desc->hw[--i].len;
-	} while (i);
+	/* The current chunk is not fully transfered yet */
+	bytes += desc->hw[--i].len;
 
-	ctlhi = channel_readl(idma64c, CTL_HI);
 	return bytes - IDMA64C_CTLH_BLOCK_TS(ctlhi);
 }
 

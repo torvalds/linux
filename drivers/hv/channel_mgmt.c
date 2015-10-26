@@ -204,6 +204,8 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 		list_del(&channel->listentry);
 		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+
+		primary_channel = channel;
 	} else {
 		primary_channel = channel->primary_channel;
 		spin_lock_irqsave(&primary_channel->lock, flags);
@@ -211,6 +213,14 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 		primary_channel->num_sc--;
 		spin_unlock_irqrestore(&primary_channel->lock, flags);
 	}
+
+	/*
+	 * We need to free the bit for init_vp_index() to work in the case
+	 * of sub-channel, when we reload drivers like hv_netvsc.
+	 */
+	cpumask_clear_cpu(channel->target_cpu,
+			  &primary_channel->alloced_cpus_in_node);
+
 	free_channel(channel);
 }
 
@@ -458,6 +468,13 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 			continue;
 		}
 
+		/*
+		 * NOTE: in the case of sub-channel, we clear the sub-channel
+		 * related bit(s) in primary->alloced_cpus_in_node in
+		 * hv_process_channel_removal(), so when we reload drivers
+		 * like hv_netvsc in SMP guest, here we're able to re-allocate
+		 * bit from primary->alloced_cpus_in_node.
+		 */
 		if (!cpumask_test_cpu(cur_cpu,
 				&primary->alloced_cpus_in_node)) {
 			cpumask_set_cpu(cur_cpu,

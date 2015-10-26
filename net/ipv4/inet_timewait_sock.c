@@ -123,13 +123,15 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	/*
 	 * Step 2: Hash TW into tcp ehash chain.
 	 * Notes :
-	 * - tw_refcnt is set to 3 because :
+	 * - tw_refcnt is set to 4 because :
 	 * - We have one reference from bhash chain.
 	 * - We have one reference from ehash chain.
+	 * - We have one reference from timer.
+	 * - One reference for ourself (our caller will release it).
 	 * We can use atomic_set() because prior spin_lock()/spin_unlock()
 	 * committed into memory all tw fields.
 	 */
-	atomic_set(&tw->tw_refcnt, 1 + 1 + 1);
+	atomic_set(&tw->tw_refcnt, 4);
 	inet_twsk_add_node_rcu(tw, &ehead->chain);
 
 	/* Step 3: Remove SK from hash chain */
@@ -217,7 +219,7 @@ void inet_twsk_deschedule_put(struct inet_timewait_sock *tw)
 }
 EXPORT_SYMBOL(inet_twsk_deschedule_put);
 
-void inet_twsk_schedule(struct inet_timewait_sock *tw, const int timeo)
+void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo, bool rearm)
 {
 	/* timeout := RTO * 3.5
 	 *
@@ -245,12 +247,14 @@ void inet_twsk_schedule(struct inet_timewait_sock *tw, const int timeo)
 	 */
 
 	tw->tw_kill = timeo <= 4*HZ;
-	if (!mod_timer_pinned(&tw->tw_timer, jiffies + timeo)) {
-		atomic_inc(&tw->tw_refcnt);
+	if (!rearm) {
+		BUG_ON(mod_timer_pinned(&tw->tw_timer, jiffies + timeo));
 		atomic_inc(&tw->tw_dr->tw_count);
+	} else {
+		mod_timer_pending(&tw->tw_timer, jiffies + timeo);
 	}
 }
-EXPORT_SYMBOL_GPL(inet_twsk_schedule);
+EXPORT_SYMBOL_GPL(__inet_twsk_schedule);
 
 void inet_twsk_purge(struct inet_hashinfo *hashinfo,
 		     struct inet_timewait_death_row *twdr, int family)

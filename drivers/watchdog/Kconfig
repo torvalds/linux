@@ -817,8 +817,9 @@ config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
 	depends on (X86 || IA64) && PCI
 	select WATCHDOG_CORE
+	depends on I2C || I2C=n
 	select LPC_ICH if !EXPERT
-	select I2C_I801 if !EXPERT
+	select I2C_I801 if !EXPERT && I2C
 	---help---
 	  Hardware driver for the intel TCO timer based watchdog devices.
 	  These drivers are included in the Intel 82801 I/O Controller

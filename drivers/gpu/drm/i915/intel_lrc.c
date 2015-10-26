@@ -484,18 +484,18 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 	status_pointer = I915_READ(RING_CONTEXT_STATUS_PTR(ring));
 
 	read_pointer = ring->next_context_status_buffer;
-	write_pointer = status_pointer & 0x07;
+	write_pointer = status_pointer & GEN8_CSB_PTR_MASK;
 	if (read_pointer > write_pointer)
-		write_pointer += 6;
+		write_pointer += GEN8_CSB_ENTRIES;
 
 	spin_lock(&ring->execlist_lock);
 
 	while (read_pointer < write_pointer) {
 		read_pointer++;
 		status = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
-				(read_pointer % 6) * 8);
+				(read_pointer % GEN8_CSB_ENTRIES) * 8);
 		status_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
-				(read_pointer % 6) * 8 + 4);
+				(read_pointer % GEN8_CSB_ENTRIES) * 8 + 4);
 
 		if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
 			continue;
@@ -521,10 +521,12 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 	spin_unlock(&ring->execlist_lock);
 
 	WARN(submit_contexts > 2, "More than two context complete events?\n");
-	ring->next_context_status_buffer = write_pointer % 6;
+	ring->next_context_status_buffer = write_pointer % GEN8_CSB_ENTRIES;
 
 	I915_WRITE(RING_CONTEXT_STATUS_PTR(ring),
-		   _MASKED_FIELD(0x07 << 8, ((u32)ring->next_context_status_buffer & 0x07) << 8));
+		   _MASKED_FIELD(GEN8_CSB_PTR_MASK << 8,
+				 ((u32)ring->next_context_status_buffer &
+				  GEN8_CSB_PTR_MASK) << 8));
 }
 
 static int execlists_context_queue(struct drm_i915_gem_request *request)
@@ -1422,6 +1424,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u8 next_context_status_buffer_hw;
 
 	I915_WRITE_IMR(ring, ~(ring->irq_enable_mask | ring->irq_keep_mask));
 	I915_WRITE(RING_HWSTAM(ring->mmio_base), 0xffffffff);
@@ -1436,7 +1439,29 @@ static int gen8_init_common_ring(struct intel_engine_cs *ring)
 		   _MASKED_BIT_DISABLE(GFX_REPLAY_MODE) |
 		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
 	POSTING_READ(RING_MODE_GEN7(ring));
-	ring->next_context_status_buffer = 0;
+
+	/*
+	 * Instead of resetting the Context Status Buffer (CSB) read pointer to
+	 * zero, we need to read the write pointer from hardware and use its
+	 * value because "this register is power context save restored".
+	 * Effectively, these states have been observed:
+	 *
+	 *      | Suspend-to-idle (freeze) | Suspend-to-RAM (mem) |
+	 * BDW  | CSB regs not reset       | CSB regs reset       |
+	 * CHT  | CSB regs not reset       | CSB regs not reset   |
+	 */
+	next_context_status_buffer_hw = (I915_READ(RING_CONTEXT_STATUS_PTR(ring))
+						   & GEN8_CSB_PTR_MASK);
+
+	/*
+	 * When the CSB registers are reset (also after power-up / gpu reset),
+	 * CSB write pointer is set to all 1's, which is not valid, use '5' in
+	 * this special case, so the first element read is CSB[0].
+	 */
+	if (next_context_status_buffer_hw == GEN8_CSB_PTR_MASK)
+		next_context_status_buffer_hw = (GEN8_CSB_ENTRIES - 1);
+
+	ring->next_context_status_buffer = next_context_status_buffer_hw;
 	DRM_DEBUG_DRIVER("Execlists enabled for %s\n", ring->name);
 
 	memset(&ring->hangcheck, 0, sizeof(ring->hangcheck));

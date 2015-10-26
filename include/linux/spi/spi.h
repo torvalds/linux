@@ -34,7 +34,7 @@ extern struct bus_type spi_bus_type;
 
 /**
  * struct spi_statistics - statistics for spi transfers
- * @clock:         lock protecting this structure
+ * @lock:          lock protecting this structure
  *
  * @messages:      number of spi-messages handled
  * @transfers:     number of spi_transfers handled

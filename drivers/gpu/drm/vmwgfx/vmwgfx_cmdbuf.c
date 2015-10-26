@@ -681,6 +681,14 @@ static bool vmw_cmdbuf_try_alloc(struct vmw_cmdbuf_man *man,
 					 0, 0,
 					 DRM_MM_SEARCH_DEFAULT,
 					 DRM_MM_CREATE_DEFAULT);
+	if (ret) {
+		(void) vmw_cmdbuf_man_process(man);
+		ret = drm_mm_insert_node_generic(&man->mm, info->node,
+						 info->page_size, 0, 0,
+						 DRM_MM_SEARCH_DEFAULT,
+						 DRM_MM_CREATE_DEFAULT);
+	}
+
 	spin_unlock_bh(&man->lock);
 	info->done = !ret;
 

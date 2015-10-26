@@ -1591,7 +1591,6 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	INIT_LIST_HEAD(&dw->dma.channels);
 	for (i = 0; i < nr_channels; i++) {
 		struct dw_dma_chan	*dwc = &dw->chan[i];
-		int			r = nr_channels - i - 1;
 
 		dwc->chan.device = &dw->dma;
 		dma_cookie_init(&dwc->chan);
@@ -1603,7 +1602,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 		/* 7 is highest priority & 0 is lowest. */
 		if (pdata->chan_priority == CHAN_PRIORITY_ASCENDING)
-			dwc->priority = r;
+			dwc->priority = nr_channels - i - 1;
 		else
 			dwc->priority = i;
 
@@ -1622,6 +1621,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 		/* Hardware configuration */
 		if (autocfg) {
 			unsigned int dwc_params;
+			unsigned int r = DW_DMA_MAX_NR_CHANNELS - i - 1;
 			void __iomem *addr = chip->regs + r * sizeof(u32);
 
 			dwc_params = dma_read_byaddr(addr, DWC_PARAMS);

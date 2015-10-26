@@ -97,6 +97,11 @@ unsigned int iser_max_sectors = ISER_DEF_MAX_SECTORS;
 module_param_named(max_sectors, iser_max_sectors, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_sectors, "Max number of sectors in a single scsi command (default:1024");
 
+bool iser_always_reg = true;
+module_param_named(always_register, iser_always_reg, bool, S_IRUGO);
+MODULE_PARM_DESC(always_register,
+		 "Always register memory, even for continuous memory regions (default:true)");
+
 bool iser_pi_enable = false;
 module_param_named(pi_enable, iser_pi_enable, bool, S_IRUGO);
 MODULE_PARM_DESC(pi_enable, "Enable T10-PI offload support (default:disabled)");
