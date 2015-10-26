@@ -33,7 +33,7 @@ unsigned long *dma_alloc_cpu_table(void)
 		return NULL;
 
 	for (entry = table; entry < table + ZPCI_TABLE_ENTRIES; entry++)
-		*entry = ZPCI_TABLE_INVALID | ZPCI_TABLE_PROTECTED;
+		*entry = ZPCI_TABLE_INVALID;
 	return table;
 }
 
@@ -51,7 +51,7 @@ static unsigned long *dma_alloc_page_table(void)
 		return NULL;
 
 	for (entry = table; entry < table + ZPCI_PT_ENTRIES; entry++)
-		*entry = ZPCI_PTE_INVALID | ZPCI_TABLE_PROTECTED;
+		*entry = ZPCI_PTE_INVALID;
 	return table;
 }
 
@@ -127,7 +127,6 @@ void dma_update_cpu_trans(unsigned long *dma_table, void *page_addr,
 
 	if (flags & ZPCI_PTE_INVALID) {
 		invalidate_pt_entry(entry);
-		return;
 	} else {
 		set_pt_pfaa(entry, page_addr);
 		validate_pt_entry(entry);
@@ -311,7 +310,7 @@ static void s390_dma_unmap_pages(struct device *dev, dma_addr_t dma_addr,
 	npages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
 	dma_addr = dma_addr & PAGE_MASK;
 	if (dma_update_trans(zdev, 0, dma_addr, npages * PAGE_SIZE,
-			     ZPCI_TABLE_PROTECTED | ZPCI_PTE_INVALID)) {
+			     ZPCI_PTE_INVALID)) {
 		zpci_err("unmap error:\n");
 		zpci_err_hex(&dma_addr, sizeof(dma_addr));
 	}
