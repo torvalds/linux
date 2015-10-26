@@ -843,7 +843,7 @@ static int rsnd_src_remove_gen2(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
-	rsnd_dma_quit(io, rsnd_src_to_dma(src));
+	rsnd_dma_quit(rsnd_src_to_dma(src), io, priv);
 
 	return 0;
 }
@@ -875,7 +875,7 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
-	rsnd_dma_start(io, rsnd_src_to_dma(src));
+	rsnd_dma_start(rsnd_src_to_dma(src), io, priv);
 
 	return _rsnd_src_start_gen2(mod, io);
 }
@@ -889,7 +889,7 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 
 	ret = _rsnd_src_stop_gen2(mod);
 
-	rsnd_dma_stop(io, rsnd_src_to_dma(src));
+	rsnd_dma_stop(rsnd_src_to_dma(src), io, priv);
 
 	return ret;
 }

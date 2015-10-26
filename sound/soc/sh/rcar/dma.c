@@ -52,9 +52,15 @@ struct rsnd_dma_ctrl {
 
 struct rsnd_dma_ops {
 	char *name;
-	void (*start)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-	void (*stop)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-	void (*quit)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
+	void (*start)(struct rsnd_mod *mod,
+		      struct rsnd_dai_stream *io,
+		      struct rsnd_priv *priv);
+	void (*stop)(struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io,
+		     struct rsnd_priv *priv);
+	void (*quit)(struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io,
+		     struct rsnd_priv *priv);
 };
 
 #define rsnd_priv_to_dmac(p)	((struct rsnd_dma_ctrl *)(p)->dma)
@@ -101,18 +107,23 @@ static void rsnd_dmaen_complete(void *data)
 	rsnd_mod_interrupt(mod, __rsnd_dmaen_complete);
 }
 
-static void rsnd_dmaen_stop(struct rsnd_dai_stream *io, struct rsnd_dma *dma)
+static void rsnd_dmaen_stop(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
+			    struct rsnd_priv *priv)
 {
+	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 
 	dmaengine_terminate_all(dmaen->chan);
 }
 
-static void rsnd_dmaen_start(struct rsnd_dai_stream *io, struct rsnd_dma *dma)
+static void rsnd_dmaen_start(struct rsnd_mod *mod,
+			     struct rsnd_dai_stream *io,
+			     struct rsnd_priv *priv)
 {
+	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 	struct rsnd_mod *user_mod = dma->user_mod;
-	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct snd_pcm_substream *substream = io->substream;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_async_tx_descriptor *desc;
@@ -229,7 +240,7 @@ static int rsnd_dmaen_attach(struct rsnd_dai_stream *io,
 	return 0;
 
 rsnd_dma_attach_err:
-	rsnd_dma_quit(io, rsnd_mod_get(dma));
+	rsnd_dma_quit(rsnd_mod_get(dma), io, priv);
 rsnd_dma_channel_err:
 
 	/*
@@ -241,8 +252,11 @@ rsnd_dma_channel_err:
 	return -EAGAIN;
 }
 
-static void rsnd_dmaen_quit(struct rsnd_dai_stream *io, struct rsnd_dma *dma)
+static void rsnd_dmaen_quit(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
+			    struct rsnd_priv *priv)
 {
+	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 
 	if (dmaen->chan)
@@ -352,8 +366,11 @@ static u32 rsnd_dmapp_read(struct rsnd_dma *dma, u32 reg)
 	return ioread32(rsnd_dmapp_addr(dmac, dma, reg));
 }
 
-static void rsnd_dmapp_stop(struct rsnd_dai_stream *io, struct rsnd_dma *dma)
+static void rsnd_dmapp_stop(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
+			    struct rsnd_priv *priv)
 {
+	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 	int i;
 
 	rsnd_dmapp_write(dma, 0, PDMACHCR);
@@ -365,8 +382,11 @@ static void rsnd_dmapp_stop(struct rsnd_dai_stream *io, struct rsnd_dma *dma)
 	}
 }
 
-static void rsnd_dmapp_start(struct rsnd_dai_stream *io, struct rsnd_dma *dma)
+static void rsnd_dmapp_start(struct rsnd_mod *mod,
+			     struct rsnd_dai_stream *io,
+			     struct rsnd_priv *priv)
 {
+	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 	struct rsnd_dmapp *dmapp = rsnd_dma_to_dmapp(dma);
 
 	rsnd_dmapp_write(dma, dma->src_addr,	PDMASAR);
@@ -387,8 +407,6 @@ static int rsnd_dmapp_attach(struct rsnd_dai_stream *io,
 	dmapp->chcr = rsnd_dmapp_get_chcr(io, mod_from, mod_to) | PDMACHCR_DE;
 
 	dmac->dmapp_num++;
-
-	rsnd_dmapp_stop(io, dma);
 
 	dev_dbg(dev, "id/src/dst/chcr = %d/%pad/%pad/%08x\n",
 		dmapp->dmapp_id, &dma->src_addr, &dma->dst_addr, dmapp->chcr);
@@ -609,30 +627,36 @@ static void rsnd_dma_of_path(struct rsnd_mod *this,
 	}
 }
 
-void rsnd_dma_stop(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
+void rsnd_dma_stop(struct rsnd_mod *mod,
+		   struct rsnd_dai_stream *io,
+		   struct rsnd_priv *priv)
+
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
-	dma->ops->stop(io, dma);
+	dma->ops->stop(mod, io, priv);
 }
 
-void rsnd_dma_start(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
+void rsnd_dma_start(struct rsnd_mod *mod,
+		    struct rsnd_dai_stream *io,
+		    struct rsnd_priv *priv)
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
-	dma->ops->start(io, dma);
+	dma->ops->start(mod, io, priv);
 }
 
-void rsnd_dma_quit(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
+void rsnd_dma_quit(struct rsnd_mod *mod,
+		   struct rsnd_dai_stream *io,
+		   struct rsnd_priv *priv)
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
 
 	if (!dmac)
 		return;
 
-	dma->ops->quit(io, dma);
+	dma->ops->quit(mod, io, priv);
 }
 
 static struct rsnd_mod_ops rsnd_dma_ops = {
