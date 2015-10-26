@@ -134,8 +134,6 @@ struct lynx_cursor {
 	int offset;
 	/* mmio addr of hw cursor */
 	volatile char __iomem *mmio;
-	/* the lynx_share of this adaptor */
-	struct lynx_share *share;
 };
 
 struct lynxfb_crtc {
