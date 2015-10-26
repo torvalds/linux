@@ -922,10 +922,12 @@ void sc_disable(struct send_context *sc)
 static void sc_wait_for_packet_egress(struct send_context *sc, int pause)
 {
 	struct hfi1_devdata *dd = sc->dd;
-	u64 reg;
+	u64 reg = 0;
+	u64 reg_prev;
 	u32 loop = 0;
 
 	while (1) {
+		reg_prev = reg;
 		reg = read_csr(dd, sc->hw_context * 8 +
 			       SEND_EGRESS_CTXT_STATUS);
 		/* done if egress is stopped */
@@ -934,11 +936,17 @@ static void sc_wait_for_packet_egress(struct send_context *sc, int pause)
 		reg = packet_occupancy(reg);
 		if (reg == 0)
 			break;
-		if (loop > 100) {
+		/* counter is reset if occupancy count changes */
+		if (reg != reg_prev)
+			loop = 0;
+		if (loop > 500) {
+			/* timed out - bounce the link */
 			dd_dev_err(dd,
-				"%s: context %u(%u) timeout waiting for packets to egress, remaining count %u\n",
+				"%s: context %u(%u) timeout waiting for packets to egress, remaining count %u, bouncing link\n",
 				__func__, sc->sw_index,
 				sc->hw_context, (u32)reg);
+			queue_work(dd->pport->hfi1_wq,
+				&dd->pport->link_bounce_work);
 			break;
 		}
 		loop++;
