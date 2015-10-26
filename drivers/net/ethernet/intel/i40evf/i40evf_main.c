@@ -1300,6 +1300,84 @@ static int i40evf_config_rss_reg(struct i40e_vsi *vsi, const u8 *seed,
 }
 
 /**
+ *  * i40evf_get_rss_aq - Get RSS keys and lut by using AQ commands
+ *  @vsi: Pointer to vsi structure
+ *  @seed: RSS hash seed
+ *  @lut: Lookup table
+ *  @lut_size: Lookup table size
+ *
+ *  Return 0 on success, negative on failure
+ **/
+static int i40evf_get_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
+			     u8 *lut, u16 lut_size)
+{
+	struct i40evf_adapter *adapter = vsi->back;
+	struct i40e_hw *hw = &adapter->hw;
+	int ret = 0;
+
+	if (seed) {
+		ret = i40evf_aq_get_rss_key(hw, vsi->id,
+			(struct i40e_aqc_get_set_rss_key_data *)seed);
+		if (ret) {
+			dev_err(&adapter->pdev->dev,
+				"Cannot get RSS key, err %s aq_err %s\n",
+				i40evf_stat_str(hw, ret),
+				i40evf_aq_str(hw, hw->aq.asq_last_status));
+			return ret;
+		}
+	}
+
+	if (lut) {
+		ret = i40evf_aq_get_rss_lut(hw, vsi->id, seed, lut, lut_size);
+		if (ret) {
+			dev_err(&adapter->pdev->dev,
+				"Cannot get RSS lut, err %s aq_err %s\n",
+				i40evf_stat_str(hw, ret),
+				i40evf_aq_str(hw, hw->aq.asq_last_status));
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+/**
+ *  * i40evf_get_rss_reg - Get RSS keys and lut by reading registers
+ *  @vsi: Pointer to vsi structure
+ *  @seed: RSS hash seed
+ *  @lut: Lookup table
+ *  @lut_size: Lookup table size
+ *
+ *  Returns 0 on success, negative on failure
+ **/
+static int i40evf_get_rss_reg(struct i40e_vsi *vsi, const u8 *seed,
+			      const u8 *lut, u16 lut_size)
+{
+	struct i40evf_adapter *adapter = vsi->back;
+	struct i40e_hw *hw = &adapter->hw;
+	u16 i;
+
+	if (seed) {
+		u32 *seed_dw = (u32 *)seed;
+
+		for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
+			seed_dw[i] = rd32(hw, I40E_VFQF_HKEY(i));
+	}
+
+	if (lut) {
+		u32 *lut_dw = (u32 *)lut;
+
+		if (lut_size != I40EVF_HLUT_ARRAY_SIZE)
+			return -EINVAL;
+
+		for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++)
+			lut_dw[i] = rd32(hw, I40E_VFQF_HLUT(i));
+	}
+
+	return 0;
+}
+
+/**
  * i40evf_config_rss - Configure RSS keys and lut
  * @vsi: Pointer to vsi structure
  * @seed: RSS hash seed
@@ -1317,6 +1395,25 @@ int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed,
 		return i40evf_config_rss_aq(vsi, seed, lut, lut_size);
 	else
 		return i40evf_config_rss_reg(vsi, seed, lut, lut_size);
+}
+
+/**
+ * i40evf_get_rss - Get RSS keys and lut
+ * @vsi: Pointer to vsi structure
+ * @seed: RSS hash seed
+ * @lut: Lookup table
+ * @lut_size: Lookup table size
+ *
+ * Returns 0 on success, negative on failure
+ **/
+int i40evf_get_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut, u16 lut_size)
+{
+	struct i40evf_adapter *adapter = vsi->back;
+
+	if (RSS_AQ(adapter))
+		return i40evf_get_rss_aq(vsi, seed, lut, lut_size);
+	else
+		return i40evf_get_rss_reg(vsi, seed, lut, lut_size);
 }
 
 /**

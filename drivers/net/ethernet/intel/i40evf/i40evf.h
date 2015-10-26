@@ -316,4 +316,6 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				i40e_status v_retval, u8 *msg, u16 msglen);
 int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
 		      u16 lut_size);
+int i40evf_get_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
+		   u16 lut_size);
 #endif /* _I40EVF_H_ */
