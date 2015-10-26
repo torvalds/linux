@@ -269,6 +269,16 @@ out:
 	spin_unlock_irqrestore(&zdev->iommu_bitmap_lock, flags);
 }
 
+static inline void zpci_err_dma(unsigned long rc, unsigned long addr)
+{
+	struct {
+		unsigned long rc;
+		unsigned long addr;
+	} __packed data = {rc, addr};
+
+	zpci_err_hex(&data, sizeof(data));
+}
+
 static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 				     unsigned long offset, size_t size,
 				     enum dma_data_direction direction,
@@ -279,33 +289,40 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 	unsigned long pa = page_to_phys(page) + offset;
 	int flags = ZPCI_PTE_VALID;
 	dma_addr_t dma_addr;
+	int ret;
 
 	/* This rounds up number of pages based on size and offset */
 	nr_pages = iommu_num_pages(pa, size, PAGE_SIZE);
 	iommu_page_index = dma_alloc_iommu(zdev, nr_pages);
-	if (iommu_page_index == -1)
+	if (iommu_page_index == -1) {
+		ret = -ENOSPC;
 		goto out_err;
+	}
 
 	/* Use rounded up size */
 	size = nr_pages * PAGE_SIZE;
 
 	dma_addr = zdev->start_dma + iommu_page_index * PAGE_SIZE;
-	if (dma_addr + size > zdev->end_dma)
+	if (dma_addr + size > zdev->end_dma) {
+		ret = -ERANGE;
 		goto out_free;
+	}
 
 	if (direction == DMA_NONE || direction == DMA_TO_DEVICE)
 		flags |= ZPCI_TABLE_PROTECTED;
 
-	if (!dma_update_trans(zdev, pa, dma_addr, size, flags)) {
-		atomic64_add(nr_pages, &zdev->mapped_pages);
-		return dma_addr + (offset & ~PAGE_MASK);
-	}
+	ret = dma_update_trans(zdev, pa, dma_addr, size, flags);
+	if (ret)
+		goto out_free;
+
+	atomic64_add(nr_pages, &zdev->mapped_pages);
+	return dma_addr + (offset & ~PAGE_MASK);
 
 out_free:
 	dma_free_iommu(zdev, iommu_page_index, nr_pages);
 out_err:
 	zpci_err("map error:\n");
-	zpci_err_hex(&pa, sizeof(pa));
+	zpci_err_dma(ret, pa);
 	return DMA_ERROR_CODE;
 }
 
@@ -315,14 +332,16 @@ static void s390_dma_unmap_pages(struct device *dev, dma_addr_t dma_addr,
 {
 	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 	unsigned long iommu_page_index;
-	int npages;
+	int npages, ret;
 
 	npages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
 	dma_addr = dma_addr & PAGE_MASK;
-	if (dma_update_trans(zdev, 0, dma_addr, npages * PAGE_SIZE,
-			     ZPCI_PTE_INVALID)) {
+	ret = dma_update_trans(zdev, 0, dma_addr, npages * PAGE_SIZE,
+			       ZPCI_PTE_INVALID);
+	if (ret) {
 		zpci_err("unmap error:\n");
-		zpci_err_hex(&dma_addr, sizeof(dma_addr));
+		zpci_err_dma(ret, dma_addr);
+		return;
 	}
 
 	atomic64_add(npages, &zdev->unmapped_pages);
