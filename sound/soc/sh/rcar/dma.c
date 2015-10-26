@@ -22,6 +22,27 @@
 /* PDMACHCR */
 #define PDMACHCR_DE		(1 << 0)
 
+
+struct rsnd_dmaen {
+	struct dma_chan		*chan;
+};
+
+struct rsnd_dmapp {
+	int			dmapp_id;
+	u32			chcr;
+};
+
+struct rsnd_dma {
+	struct rsnd_dma_ops	*ops;
+	struct rsnd_mod		*mod;
+	dma_addr_t		src_addr;
+	dma_addr_t		dst_addr;
+	union {
+		struct rsnd_dmaen en;
+		struct rsnd_dmapp pp;
+	} dma;
+};
+
 struct rsnd_dma_ctrl {
 	void __iomem *base;
 	int dmapp_num;
@@ -37,6 +58,9 @@ struct rsnd_dma_ops {
 };
 
 #define rsnd_priv_to_dmac(p)	((struct rsnd_dma_ctrl *)(p)->dma)
+#define rsnd_dma_to_dmaen(dma)	(&(dma)->dma.en)
+#define rsnd_dma_to_dmapp(dma)	(&(dma)->dma.pp)
+#define rsnd_dma_to_mod(_dma) ((dma)->mod)
 
 /*
  *		Audio DMAC
