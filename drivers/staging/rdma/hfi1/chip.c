@@ -5415,6 +5415,8 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 		if (ppd->link_speed_enabled & OPA_LINK_SPEED_12_5G)
 			ppd->local_tx_rate |= 1;
 	}
+
+	enable_lane_tx = 0xF; /* enable all four lanes */
 	ret = write_tx_settings(dd, enable_lane_tx, tx_polarity_inversion,
 		     rx_polarity_inversion, ppd->local_tx_rate);
 	if (ret != HCMD_SUCCESS)
