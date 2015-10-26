@@ -21,7 +21,6 @@
 #include <linux/sizes.h>
 
 #include "sm750.h"
-#include "sm750_hw.h"
 #include "ddk750.h"
 #include "sm750_accel.h"
 

@@ -18,7 +18,6 @@
 #include <linux/console.h>
 #include <asm/fb.h>
 #include "sm750.h"
-#include "sm750_hw.h"
 #include "sm750_accel.h"
 #include "sm750_cursor.h"
 
