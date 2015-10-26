@@ -576,8 +576,6 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 			int use_busif);
 int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
 		       struct rsnd_dai_stream *io);
-int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod);
-int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod);
 
 /*
  *	R-Car CTU

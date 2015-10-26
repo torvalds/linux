@@ -124,6 +124,34 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 	dev_warn(dev, "status check failed\n");
 }
 
+static int rsnd_ssi_irq_enable(struct rsnd_mod *ssi_mod)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
+
+	if (rsnd_is_gen1(priv))
+		return 0;
+
+	/* enable SSI interrupt if Gen2 */
+	rsnd_mod_write(ssi_mod, SSI_INT_ENABLE,
+		       rsnd_ssi_is_dma_mode(ssi_mod) ?
+		       0x0e000000 : 0x0f000000);
+
+	return 0;
+}
+
+static int rsnd_ssi_irq_disable(struct rsnd_mod *ssi_mod)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
+
+	if (rsnd_is_gen1(priv))
+		return 0;
+
+	/* disable SSI interrupt if Gen2 */
+	rsnd_mod_write(ssi_mod, SSI_INT_ENABLE, 0x00000000);
+
+	return 0;
+}
+
 static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 				     struct rsnd_dai_stream *io)
 {
@@ -401,7 +429,7 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 
 	rsnd_ssi_hw_start(ssi, io);
 
-	rsnd_src_ssi_irq_enable(mod);
+	rsnd_ssi_irq_enable(mod);
 
 	return 0;
 }
@@ -412,7 +440,7 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
-	rsnd_src_ssi_irq_disable(mod);
+	rsnd_ssi_irq_disable(mod);
 
 	rsnd_ssi_record_error(ssi, rsnd_mod_read(mod, SSISR));
 
