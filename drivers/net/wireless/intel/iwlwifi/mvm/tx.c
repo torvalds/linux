@@ -438,18 +438,25 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 			  struct ieee80211_sta *sta,
 			  struct sk_buff_head *mpdus_skb)
 {
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
 	struct sk_buff *tmp, *next;
 	char cb[sizeof(skb->cb)];
-	unsigned int num_subframes, tcp_payload_len, subf_len;
+	unsigned int num_subframes, tcp_payload_len, subf_len, max_amsdu_len;
 	bool ipv4 = (skb->protocol == htons(ETH_P_IP));
 	u16 ip_base_id = ipv4 ? ntohs(ip_hdr(skb)->id) : 0;
 	u16 amsdu_add, snap_ip_tcp, pad, i = 0;
+	u8 *qc, tid;
 
 	snap_ip_tcp = 8 + skb_transport_header(skb) - skb_network_header(skb) +
 		tcp_hdrlen(skb);
+
+	qc = ieee80211_get_qos_ctl(hdr);
+	tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
+	if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
+		return -EINVAL;
 
 	if (!sta->max_amsdu_len ||
 	    !ieee80211_is_data_qos(hdr->frame_control)) {
@@ -458,12 +465,27 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 		goto segment;
 	}
 
-	/* TODO: for now, disable A-MSDU inside AMPDU */
-	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
+	/*
+	 * No need to lock amsdu_in_ampdu_allowed since it can't be modified
+	 * during an BA session.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_AMPDU &&
+	    !mvmsta->tid_data[tid].amsdu_in_ampdu_allowed) {
 		num_subframes = 1;
 		pad = 0;
 		goto segment;
 	}
+
+	max_amsdu_len = sta->max_amsdu_len;
+
+	/*
+	 * Limit A-MSDU in A-MPDU to 4095 bytes when VHT is not
+	 * supported. This is a spec requirement (IEEE 802.11-2015
+	 * section 8.7.3 NOTE 3).
+	 */
+	if (info->flags & IEEE80211_TX_CTL_AMPDU &&
+	    !sta->vht_cap.vht_supported)
+		max_amsdu_len = min_t(unsigned int, max_amsdu_len, 4095);
 
 	/* Sub frame header + SNAP + IP header + TCP header + MSS */
 	subf_len = sizeof(struct ethhdr) + snap_ip_tcp + mss;
@@ -473,12 +495,9 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * If we have N subframes in the A-MSDU, then the A-MSDU's size is
 	 * N * subf_len + (N - 1) * pad.
 	 */
-	num_subframes = (sta->max_amsdu_len + pad) / (subf_len + pad);
-	if (num_subframes > 1) {
-		u8 *qc = ieee80211_get_qos_ctl((void *)skb->data);
-
+	num_subframes = (max_amsdu_len + pad) / (subf_len + pad);
+	if (num_subframes > 1)
 		*qc |= IEEE80211_QOS_CTL_A_MSDU_PRESENT;
-	}
 
 	tcp_payload_len = skb_tail_pointer(skb) - skb_transport_header(skb) -
 		tcp_hdrlen(skb) + skb->data_len;
@@ -555,7 +574,7 @@ segment:
 			info->driver_data[0] = (void *)(uintptr_t)amsdu_add;
 			skb_shinfo(tmp)->gso_size = mss;
 		} else {
-			u8 *qc = ieee80211_get_qos_ctl((void *)tmp->data);
+			qc = ieee80211_get_qos_ctl((void *)tmp->data);
 
 			if (ipv4)
 				ip_send_check(ip_hdr(tmp));
