@@ -517,34 +517,4 @@ do {									      \
 #define KEY_IS(str) \
 	(keylen >= (sizeof(str)-1) && memcmp(key, str, (sizeof(str)-1)) == 0)
 
-/* Wrapper for contiguous page frame allocation */
-#define __OBD_PAGE_ALLOC_VERBOSE(ptr, cptab, cpt, gfp_mask)		      \
-do {									      \
-	(ptr) = (cptab) == NULL ?					      \
-		alloc_page(gfp_mask) :				      \
-		alloc_pages_node(cfs_cpt_spread_node(cptab, cpt), gfp_mask, 0);\
-	if (ptr) {					\
-		CDEBUG(D_MALLOC, "alloc_pages '" #ptr "': %d page(s) / "      \
-		       "%llu bytes at %p.\n",				\
-		       (int)1,						\
-		       (__u64)(1 << PAGE_CACHE_SHIFT), ptr);		    \
-	}								     \
-} while (0)
-
-#define OBD_PAGE_ALLOC(ptr, gfp_mask)					      \
-	__OBD_PAGE_ALLOC_VERBOSE(ptr, NULL, 0, gfp_mask)
-#define OBD_PAGE_CPT_ALLOC(ptr, cptab, cpt, gfp_mask)			      \
-	__OBD_PAGE_ALLOC_VERBOSE(ptr, cptab, cpt, gfp_mask)
-
-#define OBD_PAGE_FREE(ptr)						    \
-do {									  \
-	LASSERT(ptr);							 \
-	CDEBUG(D_MALLOC, "free_pages '" #ptr "': %d page(s) / %llu bytes " \
-	       "at %p.\n",						    \
-	       (int)1, (__u64)(1 << PAGE_CACHE_SHIFT),			  \
-	       ptr);							  \
-	__free_page(ptr);						   \
-	(ptr) = (void *)0xdeadbeef;					   \
-} while (0)
-
 #endif
