@@ -121,12 +121,12 @@ static void i40evf_get_ethtool_stats(struct net_device *netdev,
 		data[i] =  *(u64 *)p;
 	}
 	for (j = 0; j < adapter->num_active_queues; j++) {
-		data[i++] = adapter->tx_rings[j]->stats.packets;
-		data[i++] = adapter->tx_rings[j]->stats.bytes;
+		data[i++] = adapter->tx_rings[j].stats.packets;
+		data[i++] = adapter->tx_rings[j].stats.bytes;
 	}
 	for (j = 0; j < adapter->num_active_queues; j++) {
-		data[i++] = adapter->rx_rings[j]->stats.packets;
-		data[i++] = adapter->rx_rings[j]->stats.bytes;
+		data[i++] = adapter->rx_rings[j].stats.packets;
+		data[i++] = adapter->rx_rings[j].stats.bytes;
 	}
 }
 

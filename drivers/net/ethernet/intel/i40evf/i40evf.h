@@ -196,13 +196,13 @@ struct i40evf_adapter {
 	int num_active_queues;
 
 	/* TX */
-	struct i40e_ring *tx_rings[I40E_MAX_VSI_QP];
+	struct i40e_ring *tx_rings;
 	u32 tx_timeout_count;
 	struct list_head mac_filter_list;
 	u32 tx_desc_count;
 
 	/* RX */
-	struct i40e_ring *rx_rings[I40E_MAX_VSI_QP];
+	struct i40e_ring *rx_rings;
 	u64 hw_csum_rx_error;
 	u32 rx_desc_count;
 	int num_msix_vectors;

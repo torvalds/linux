@@ -255,19 +255,19 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 	for (i = 0; i < pairs; i++) {
 		vqpi->txq.vsi_id = vqci->vsi_id;
 		vqpi->txq.queue_id = i;
-		vqpi->txq.ring_len = adapter->tx_rings[i]->count;
-		vqpi->txq.dma_ring_addr = adapter->tx_rings[i]->dma;
+		vqpi->txq.ring_len = adapter->tx_rings[i].count;
+		vqpi->txq.dma_ring_addr = adapter->tx_rings[i].dma;
 		vqpi->txq.headwb_enabled = 1;
 		vqpi->txq.dma_headwb_addr = vqpi->txq.dma_ring_addr +
 		    (vqpi->txq.ring_len * sizeof(struct i40e_tx_desc));
 
 		vqpi->rxq.vsi_id = vqci->vsi_id;
 		vqpi->rxq.queue_id = i;
-		vqpi->rxq.ring_len = adapter->rx_rings[i]->count;
-		vqpi->rxq.dma_ring_addr = adapter->rx_rings[i]->dma;
+		vqpi->rxq.ring_len = adapter->rx_rings[i].count;
+		vqpi->rxq.dma_ring_addr = adapter->rx_rings[i].dma;
 		vqpi->rxq.max_pkt_size = adapter->netdev->mtu
 					+ ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
-		vqpi->rxq.databuffer_size = adapter->rx_rings[i]->rx_buf_len;
+		vqpi->rxq.databuffer_size = adapter->rx_rings[i].rx_buf_len;
 		vqpi++;
 	}
 
