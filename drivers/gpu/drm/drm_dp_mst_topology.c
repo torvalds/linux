@@ -1194,17 +1194,18 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 
 		list_for_each_entry(port, &mstb->ports, next) {
 			if (port->port_num == port_num) {
-				if (!port->mstb) {
+				mstb = port->mstb;
+				if (!mstb) {
 					DRM_ERROR("failed to lookup MSTB with lct %d, rad %02x\n", lct, rad[0]);
-					return NULL;
+					goto out;
 				}
 
-				mstb = port->mstb;
 				break;
 			}
 		}
 	}
 	kref_get(&mstb->kref);
+out:
 	mutex_unlock(&mgr->lock);
 	return mstb;
 }

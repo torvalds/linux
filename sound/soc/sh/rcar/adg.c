@@ -69,11 +69,10 @@ static u32 rsnd_adg_calculate_rbgx(unsigned long div)
 static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	int id = rsnd_mod_id(mod);
 	int ws = id;
 
-	if (rsnd_ssi_is_pin_sharing(rsnd_ssi_mod_get(priv, id))) {
+	if (rsnd_ssi_is_pin_sharing(io)) {
 		switch (id) {
 		case 1:
 		case 2:

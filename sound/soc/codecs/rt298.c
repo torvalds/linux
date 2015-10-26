@@ -28,7 +28,6 @@
 #include <sound/jack.h>
 #include <linux/workqueue.h>
 #include <sound/rt298.h>
-#include <sound/hda_verbs.h>
 
 #include "rl6347a.h"
 #include "rt298.h"
@@ -49,25 +48,25 @@ struct rt298_priv {
 	int is_hp_in;
 };
 
-static struct reg_default rt298_index_def[] = {
-	{ 0x01, 0xaaaa },
-	{ 0x02, 0x8aaa },
+static const struct reg_default rt298_index_def[] = {
+	{ 0x01, 0xa5a8 },
+	{ 0x02, 0x8e95 },
 	{ 0x03, 0x0002 },
-	{ 0x04, 0xaf01 },
-	{ 0x08, 0x000d },
-	{ 0x09, 0xd810 },
-	{ 0x0a, 0x0120 },
+	{ 0x04, 0xaf67 },
+	{ 0x08, 0x200f },
+	{ 0x09, 0xd010 },
+	{ 0x0a, 0x0100 },
 	{ 0x0b, 0x0000 },
 	{ 0x0d, 0x2800 },
-	{ 0x0f, 0x0000 },
-	{ 0x19, 0x0a17 },
+	{ 0x0f, 0x0022 },
+	{ 0x19, 0x0217 },
 	{ 0x20, 0x0020 },
 	{ 0x33, 0x0208 },
 	{ 0x46, 0x0300 },
-	{ 0x49, 0x0004 },
-	{ 0x4f, 0x50e9 },
-	{ 0x50, 0x2000 },
-	{ 0x63, 0x2902 },
+	{ 0x49, 0x4004 },
+	{ 0x4f, 0x50c9 },
+	{ 0x50, 0x3000 },
+	{ 0x63, 0x1b02 },
 	{ 0x67, 0x1111 },
 	{ 0x68, 0x1016 },
 	{ 0x69, 0x273f },
@@ -129,7 +128,7 @@ static bool rt298_volatile_register(struct device *dev, unsigned int reg)
 	case VERB_CMD(AC_VERB_GET_EAPD_BTLENABLE, RT298_HP_OUT, 0):
 		return true;
 	default:
-		return true;
+		return false;
 	}
 
 
@@ -1165,7 +1164,11 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
-	rt298->index_cache = rt298_index_def;
+	rt298->index_cache = devm_kmemdup(&i2c->dev, rt298_index_def,
+					  sizeof(rt298_index_def), GFP_KERNEL);
+	if (!rt298->index_cache)
+		return -ENOMEM;
+
 	rt298->index_cache_size = INDEX_CACHE_SIZE;
 	rt298->i2c = i2c;
 	i2c_set_clientdata(i2c, rt298);
@@ -1214,7 +1217,7 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 	mdelay(10);
 
 	if (!rt298->pdata.gpio2_en)
-		regmap_write(rt298->regmap, RT298_SET_DMIC2_DEFAULT, 0x4000);
+		regmap_write(rt298->regmap, RT298_SET_DMIC2_DEFAULT, 0x40);
 	else
 		regmap_write(rt298->regmap, RT298_SET_DMIC2_DEFAULT, 0);
 

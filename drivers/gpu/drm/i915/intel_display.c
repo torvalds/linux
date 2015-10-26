@@ -1724,6 +1724,15 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 			   I915_READ(DPLL(!crtc->pipe)) | DPLL_DVO_2X_MODE);
 	}
 
+	/*
+	 * Apparently we need to have VGA mode enabled prior to changing
+	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
+	 * dividers, even though the register value does change.
+	 */
+	I915_WRITE(reg, 0);
+
+	I915_WRITE(reg, dpll);
+
 	/* Wait for the clocks to stabilize. */
 	POSTING_READ(reg);
 	udelay(150);
@@ -14107,6 +14116,11 @@ static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 
+	if (obj->userptr.mm) {
+		DRM_DEBUG("attempting to use a userptr for a framebuffer, denied\n");
+		return -EINVAL;
+	}
+
 	return drm_gem_handle_create(file, &obj->base, handle);
 }
 
@@ -14897,9 +14911,19 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	/* restore vblank interrupts to correct state */
 	drm_crtc_vblank_reset(&crtc->base);
 	if (crtc->active) {
+		struct intel_plane *plane;
+
 		drm_calc_timestamping_constants(&crtc->base, &crtc->base.hwmode);
 		update_scanline_offset(crtc);
 		drm_crtc_vblank_on(&crtc->base);
+
+		/* Disable everything but the primary plane */
+		for_each_intel_plane_on_crtc(dev, crtc, plane) {
+			if (plane->base.type == DRM_PLANE_TYPE_PRIMARY)
+				continue;
+
+			plane->disable_plane(&plane->base, &crtc->base);
+		}
 	}
 
 	/* We need to sanitize the plane -> pipe mapping first because this will
@@ -15067,38 +15091,25 @@ void i915_redisable_vga(struct drm_device *dev)
 	i915_redisable_vga_power_on(dev);
 }
 
-static bool primary_get_hw_state(struct intel_crtc *crtc)
+static bool primary_get_hw_state(struct intel_plane *plane)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 
-	return !!(I915_READ(DSPCNTR(crtc->plane)) & DISPLAY_PLANE_ENABLE);
+	return I915_READ(DSPCNTR(plane->plane)) & DISPLAY_PLANE_ENABLE;
 }
 
-static void readout_plane_state(struct intel_crtc *crtc,
-				struct intel_crtc_state *crtc_state)
+/* FIXME read out full plane state for all planes */
+static void readout_plane_state(struct intel_crtc *crtc)
 {
-	struct intel_plane *p;
-	struct intel_plane_state *plane_state;
-	bool active = crtc_state->base.active;
+	struct drm_plane *primary = crtc->base.primary;
+	struct intel_plane_state *plane_state =
+		to_intel_plane_state(primary->state);
 
-	for_each_intel_plane(crtc->base.dev, p) {
-		if (crtc->pipe != p->pipe)
-			continue;
+	plane_state->visible =
+		primary_get_hw_state(to_intel_plane(primary));
 
-		plane_state = to_intel_plane_state(p->base.state);
-
-		if (p->base.type == DRM_PLANE_TYPE_PRIMARY) {
-			plane_state->visible = primary_get_hw_state(crtc);
-			if (plane_state->visible)
-				crtc->base.state->plane_mask |=
-					1 << drm_plane_index(&p->base);
-		} else {
-			if (active)
-				p->disable_plane(&p->base, &crtc->base);
-
-			plane_state->visible = false;
-		}
-	}
+	if (plane_state->visible)
+		crtc->base.state->plane_mask |= 1 << drm_plane_index(primary);
 }
 
 static void intel_modeset_readout_hw_state(struct drm_device *dev)
@@ -15121,34 +15132,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
 
-		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
-		if (crtc->base.state->active) {
-			intel_mode_from_pipe_config(&crtc->base.mode, crtc->config);
-			intel_mode_from_pipe_config(&crtc->base.state->adjusted_mode, crtc->config);
-			WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, &crtc->base.mode));
-
-			/*
-			 * The initial mode needs to be set in order to keep
-			 * the atomic core happy. It wants a valid mode if the
-			 * crtc's enabled, so we do the above call.
-			 *
-			 * At this point some state updated by the connectors
-			 * in their ->detect() callback has not run yet, so
-			 * no recalculation can be done yet.
-			 *
-			 * Even if we could do a recalculation and modeset
-			 * right now it would cause a double modeset if
-			 * fbdev or userspace chooses a different initial mode.
-			 *
-			 * If that happens, someone indicated they wanted a
-			 * mode change, which means it's safe to do a full
-			 * recalculation.
-			 */
-			crtc->base.state->mode.private_flags = I915_MODE_FLAG_INHERITED;
-		}
-
-		crtc->base.hwmode = crtc->config->base.adjusted_mode;
-		readout_plane_state(crtc, to_intel_crtc_state(crtc->base.state));
+		readout_plane_state(crtc);
 
 		DRM_DEBUG_KMS("[CRTC:%d] hw state readout: %s\n",
 			      crtc->base.base.id,
@@ -15206,6 +15190,36 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			      connector->base.base.id,
 			      connector->base.name,
 			      connector->base.encoder ? "enabled" : "disabled");
+	}
+
+	for_each_intel_crtc(dev, crtc) {
+		crtc->base.hwmode = crtc->config->base.adjusted_mode;
+
+		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
+		if (crtc->base.state->active) {
+			intel_mode_from_pipe_config(&crtc->base.mode, crtc->config);
+			intel_mode_from_pipe_config(&crtc->base.state->adjusted_mode, crtc->config);
+			WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, &crtc->base.mode));
+
+			/*
+			 * The initial mode needs to be set in order to keep
+			 * the atomic core happy. It wants a valid mode if the
+			 * crtc's enabled, so we do the above call.
+			 *
+			 * At this point some state updated by the connectors
+			 * in their ->detect() callback has not run yet, so
+			 * no recalculation can be done yet.
+			 *
+			 * Even if we could do a recalculation and modeset
+			 * right now it would cause a double modeset if
+			 * fbdev or userspace chooses a different initial mode.
+			 *
+			 * If that happens, someone indicated they wanted a
+			 * mode change, which means it's safe to do a full
+			 * recalculation.
+			 */
+			crtc->base.state->mode.private_flags = I915_MODE_FLAG_INHERITED;
+		}
 	}
 }
 

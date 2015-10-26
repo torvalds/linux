@@ -159,7 +159,7 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 	/*
 	 * SSI_MODE1
 	 */
-	if (rsnd_ssi_is_pin_sharing(ssi_mod)) {
+	if (rsnd_ssi_is_pin_sharing(io)) {
 		int shift = -1;
 		switch (ssi_id) {
 		case 1:
@@ -352,7 +352,7 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 
 	rsnd_src_soft_reset(mod);
 
@@ -373,7 +373,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	if (src->err)
 		dev_warn(dev, "%s[%d] under/over flow err = %d\n",
@@ -1036,8 +1036,10 @@ int rsnd_src_probe(struct platform_device *pdev,
 	int i, nr, ret;
 
 	ops = NULL;
-	if (rsnd_is_gen1(priv))
+	if (rsnd_is_gen1(priv)) {
 		ops = &rsnd_src_gen1_ops;
+		dev_warn(dev, "Gen1 support will be removed soon\n");
+	}
 	if (rsnd_is_gen2(priv))
 		ops = &rsnd_src_gen2_ops;
 	if (!ops) {

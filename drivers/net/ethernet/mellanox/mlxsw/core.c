@@ -374,26 +374,31 @@ static int __mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
 	int err;
 	int ret;
 
+	mlxsw_core->emad.trans_active = true;
+
 	err = mlxsw_core_skb_transmit(mlxsw_core->driver_priv, skb, tx_info);
 	if (err) {
 		dev_err(mlxsw_core->bus_info->dev, "Failed to transmit EMAD (tid=%llx)\n",
 			mlxsw_core->emad.tid);
 		dev_kfree_skb(skb);
-		return err;
+		goto trans_inactive_out;
 	}
 
-	mlxsw_core->emad.trans_active = true;
 	ret = wait_event_timeout(mlxsw_core->emad.wait,
 				 !(mlxsw_core->emad.trans_active),
 				 msecs_to_jiffies(MLXSW_EMAD_TIMEOUT_MS));
 	if (!ret) {
 		dev_warn(mlxsw_core->bus_info->dev, "EMAD timed-out (tid=%llx)\n",
 			 mlxsw_core->emad.tid);
-		mlxsw_core->emad.trans_active = false;
-		return -EIO;
+		err = -EIO;
+		goto trans_inactive_out;
 	}
 
 	return 0;
+
+trans_inactive_out:
+	mlxsw_core->emad.trans_active = false;
+	return err;
 }
 
 static int mlxsw_emad_process_status(struct mlxsw_core *mlxsw_core,

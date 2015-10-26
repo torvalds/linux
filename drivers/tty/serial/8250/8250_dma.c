@@ -80,10 +80,6 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 		return 0;
 
 	dma->tx_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
-	if (dma->tx_size < p->port.fifosize) {
-		ret = -EINVAL;
-		goto err;
-	}
 
 	desc = dmaengine_prep_slave_single(dma->txchan,
 					   dma->tx_addr + xmit->tail,

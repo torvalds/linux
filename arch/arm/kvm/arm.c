@@ -1080,7 +1080,7 @@ static int init_hyp_mode(void)
 	 */
 	err = kvm_timer_hyp_init();
 	if (err)
-		goto out_free_mappings;
+		goto out_free_context;
 
 #ifndef CONFIG_HOTPLUG_CPU
 	free_boot_hyp_pgd();
