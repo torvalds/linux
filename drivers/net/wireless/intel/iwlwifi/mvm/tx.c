@@ -448,6 +448,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	bool ipv4 = (skb->protocol == htons(ETH_P_IP));
 	u16 ip_base_id = ipv4 ? ntohs(ip_hdr(skb)->id) : 0;
 	u16 amsdu_add, snap_ip_tcp, pad, i = 0;
+	unsigned int dbg_max_amsdu_len;
 	u8 *qc, tid;
 
 	snap_ip_tcp = 8 + skb_transport_header(skb) - skb_network_header(skb) +
@@ -477,6 +478,10 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	}
 
 	max_amsdu_len = sta->max_amsdu_len;
+	dbg_max_amsdu_len = ACCESS_ONCE(mvm->max_amsdu_len);
+	if (dbg_max_amsdu_len)
+		max_amsdu_len = min_t(unsigned int, max_amsdu_len,
+				      dbg_max_amsdu_len);
 
 	/*
 	 * Limit A-MSDU in A-MPDU to 4095 bytes when VHT is not
