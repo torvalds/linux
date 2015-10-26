@@ -143,7 +143,7 @@ static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
 	informat = &resizer->formats[RESIZER_PAD_SINK];
 	outformat = &resizer->formats[RESIZER_PAD_SOURCE_MEM];
 
-	/* Save address splitted in Base Address H & L */
+	/* Save address split in Base Address H & L */
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_SDR_Y_BAD_H,
 		      (addr >> 16) & 0xffff);
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_SDR_Y_BAD_L,
@@ -168,7 +168,7 @@ static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
 			c_addr |= addr & 0x7f;
 		}
 
-		/* Save address splitted in Base Address H & L */
+		/* Save address split in Base Address H & L */
 		iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_SDR_C_BAD_H,
 			      (c_addr >> 16) & 0xffff);
 		iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_SDR_C_BAD_L,
