@@ -18,6 +18,8 @@
 
 #define pr_fmt(fmt) "nci_spi: %s: " fmt, __func__
 
+#include <linux/module.h>
+
 #include <linux/export.h>
 #include <linux/spi/spi.h>
 #include <linux/crc-ccitt.h>
@@ -320,3 +322,5 @@ done:
 	return skb;
 }
 EXPORT_SYMBOL_GPL(nci_spi_read);
+
+MODULE_LICENSE("GPL");
