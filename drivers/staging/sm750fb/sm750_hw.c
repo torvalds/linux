@@ -69,9 +69,9 @@ int hw_sm750_map(struct lynx_share *share, struct pci_dev *pdev)
 	/* don't use pdev_resource[x].end - resource[x].start to
 	 * calculate the resource size,its only the maximum available
 	 * size but not the actual size,use
-	 * @hw_sm750_getVMSize function can be safe.
+	 * @ddk750_getVMSize function can be safe.
 	 * */
-	share->vidmem_size = hw_sm750_getVMSize(share);
+	share->vidmem_size = ddk750_getVMSize();
 	pr_info("video memory phyAddr = %lx, size = %u bytes\n",
 	share->vidmem_start, share->vidmem_size);
 
@@ -178,15 +178,6 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 		hw_sm750_initAccel(share);
 
 	return 0;
-}
-
-
-resource_size_t hw_sm750_getVMSize(struct lynx_share *share)
-{
-	resource_size_t ret;
-
-	ret = ddk750_getVMSize();
-	return ret;
 }
 
 int hw_sm750_output_setMode(struct lynxfb_output *output,
