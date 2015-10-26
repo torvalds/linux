@@ -161,7 +161,7 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 		for (i = 0; i < 6; i++)
 			verdict |= (h->h_source[i] ^ e->sourcemac[i]) &
 			   e->sourcemsk[i];
-		if (FWINV2(verdict != 0, EBT_ISOURCE) )
+		if (FWINV2(verdict != 0, EBT_ISOURCE))
 			return 1;
 	}
 	if (e->bitmask & EBT_DESTMAC) {
@@ -169,7 +169,7 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 		for (i = 0; i < 6; i++)
 			verdict |= (h->h_dest[i] ^ e->destmac[i]) &
 			   e->destmsk[i];
-		if (FWINV2(verdict != 0, EBT_IDEST) )
+		if (FWINV2(verdict != 0, EBT_IDEST))
 			return 1;
 	}
 	return 0;
@@ -673,7 +673,7 @@ ebt_check_entry(struct ebt_entry *e, struct net *net,
 		BUGPRINT("Unknown flag for inv bitmask\n");
 		return -EINVAL;
 	}
-	if ( (e->bitmask & EBT_NOPROTO) && (e->bitmask & EBT_802_3) ) {
+	if ((e->bitmask & EBT_NOPROTO) && (e->bitmask & EBT_802_3)) {
 		BUGPRINT("NOPROTO & 802_3 not allowed\n");
 		return -EINVAL;
 	}
@@ -1370,7 +1370,7 @@ static inline int ebt_make_watchername(const struct ebt_entry_watcher *w,
 	char name[EBT_FUNCTION_MAXNAMELEN] = {};
 
 	strlcpy(name, w->u.watcher->name, sizeof(name));
-	if (copy_to_user(hlp , name, EBT_FUNCTION_MAXNAMELEN))
+	if (copy_to_user(hlp, name, EBT_FUNCTION_MAXNAMELEN))
 		return -EFAULT;
 	return 0;
 }
