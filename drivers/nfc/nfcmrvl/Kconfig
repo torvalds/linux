@@ -30,3 +30,15 @@ config NFC_MRVL_UART
 
 	  Say Y here to compile support for Marvell NFC-over-UART driver
 	  into the kernel or say M to compile it as module.
+
+config NFC_MRVL_I2C
+	tristate "Marvell NFC-over-I2C driver"
+	depends on NFC_MRVL && I2C
+	help
+	  Marvell NFC-over-I2C driver.
+
+	  This driver provides support for Marvell NFC-over-I2C devices.
+
+	  Say Y here to compile support for Marvell NFC-over-I2C driver
+	  into the kernel or say M to compile it as module.
+

@@ -33,6 +33,9 @@ static int nfcmrvl_nci_open(struct nci_dev *ndev)
 	if (test_and_set_bit(NFCMRVL_NCI_RUNNING, &priv->flags))
 		return 0;
 
+	/* Reset possible fault of previous session */
+	clear_bit(NFCMRVL_PHY_ERROR, &priv->flags);
+
 	err = priv->if_ops->nci_open(priv);
 
 	if (err)
@@ -226,10 +229,8 @@ EXPORT_SYMBOL_GPL(nfcmrvl_nci_recv_frame);
 
 void nfcmrvl_chip_reset(struct nfcmrvl_private *priv)
 {
-	/*
-	 * This function does not take care if someone is using the device.
-	 * To be improved.
-	 */
+	/* Reset possible fault of previous session */
+	clear_bit(NFCMRVL_PHY_ERROR, &priv->flags);
 
 	if (priv->config.reset_n_io) {
 		nfc_info(priv->dev, "reset the chip\n");

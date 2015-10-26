@@ -25,6 +25,7 @@
 
 /* Define private flags: */
 #define NFCMRVL_NCI_RUNNING			1
+#define NFCMRVL_PHY_ERROR			2
 
 #define NFCMRVL_EXT_COEX_ID			0xE0
 #define NFCMRVL_NOT_ALLOWED_ID			0xE1

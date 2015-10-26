@@ -10,3 +10,6 @@ obj-$(CONFIG_NFC_MRVL_USB) += nfcmrvl_usb.o
 
 nfcmrvl_uart-y += uart.o
 obj-$(CONFIG_NFC_MRVL_UART) += nfcmrvl_uart.o
+
+nfcmrvl_i2c-y += i2c.o
+obj-$(CONFIG_NFC_MRVL_I2C) += nfcmrvl_i2c.o
