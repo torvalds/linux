@@ -2216,7 +2216,7 @@ static struct uart_ops sci_uart_ops = {
 static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
 {
 	/* Get the SCI functional clock. It's called "fck" on ARM. */
-	sci_port->fclk = clk_get(dev, "fck");
+	sci_port->fclk = devm_clk_get(dev, "fck");
 	if (PTR_ERR(sci_port->fclk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	if (!IS_ERR(sci_port->fclk))
@@ -2226,14 +2226,14 @@ static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
 	 * But it used to be called "sci_ick", and we need to maintain DT
 	 * backward compatibility.
 	 */
-	sci_port->fclk = clk_get(dev, "sci_ick");
+	sci_port->fclk = devm_clk_get(dev, "sci_ick");
 	if (PTR_ERR(sci_port->fclk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	if (!IS_ERR(sci_port->fclk))
 		return 0;
 
 	/* SH has historically named the clock "sci_fck". */
-	sci_port->fclk = clk_get(dev, "sci_fck");
+	sci_port->fclk = devm_clk_get(dev, "sci_fck");
 	if (!IS_ERR(sci_port->fclk))
 		return 0;
 
@@ -2241,7 +2241,7 @@ static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
 	 * Not all SH platforms declare a clock lookup entry for SCI devices,
 	 * in which case we need to get the global "peripheral_clk" clock.
 	 */
-	sci_port->fclk = clk_get(dev, "peripheral_clk");
+	sci_port->fclk = devm_clk_get(dev, "peripheral_clk");
 	if (!IS_ERR(sci_port->fclk))
 		return 0;
 
@@ -2400,8 +2400,6 @@ static int sci_init_single(struct platform_device *dev,
 
 static void sci_cleanup_single(struct sci_port *port)
 {
-	clk_put(port->fclk);
-
 	pm_runtime_disable(port->port.dev);
 }
 
