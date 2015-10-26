@@ -914,14 +914,12 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 
 		obd_str2uuid(&obd_uuid,  lustre_cfg_buf(lcfg, 1));
 
-		if (sscanf(lustre_cfg_buf(lcfg, 2), "%d", indexp) != 1) {
-			rc = -EINVAL;
+		rc = kstrtoint(lustre_cfg_buf(lcfg, 2), 10, indexp);
+		if (rc < 0)
 			goto out;
-		}
-		if (sscanf(lustre_cfg_buf(lcfg, 3), "%d", genp) != 1) {
-			rc = -EINVAL;
+		rc = kstrtoint(lustre_cfg_buf(lcfg, 3), 10, genp);
+		if (rc < 0)
 			goto out;
-		}
 		index = *indexp;
 		gen = *genp;
 		if (cmd == LCFG_LOV_ADD_OBD)
