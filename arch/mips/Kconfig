@@ -404,6 +404,28 @@ config MACH_PISTACHIO
 	help
 	  This enables support for the IMG Pistachio SoC platform.
 
+config MACH_XILFPGA
+	bool "MIPSfpga Xilinx based boards"
+	select ARCH_REQUIRE_GPIOLIB
+	select BOOT_ELF32
+	select BOOT_RAW
+	select BUILTIN_DTB
+	select CEVT_R4K
+	select COMMON_CLK
+	select CSRC_R4K
+	select IRQ_MIPS_CPU
+	select LIBFDT
+	select MIPS_CPU_SCACHE
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_ZBOOT_UART16550
+	select USE_OF
+	select USE_GENERIC_EARLY_PRINTK_8250
+	help
+	  This enables support for the IMG University Program MIPSfpga platform.
+
 config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
@@ -970,6 +992,7 @@ source "arch/mips/loongson32/Kconfig"
 source "arch/mips/loongson64/Kconfig"
 source "arch/mips/netlogic/Kconfig"
 source "arch/mips/paravirt/Kconfig"
+source "arch/mips/xilfpga/Kconfig"
 
 endmenu
 
