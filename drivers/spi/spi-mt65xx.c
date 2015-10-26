@@ -136,18 +136,12 @@ static int mtk_spi_prepare_message(struct spi_master *master,
 {
 	u16 cpha, cpol;
 	u32 reg_val;
-	struct mtk_chip_config *chip_config;
 	struct spi_device *spi = msg->spi;
+	struct mtk_chip_config *chip_config = spi->controller_data;
 	struct mtk_spi *mdata = spi_master_get_devdata(master);
 
 	cpha = spi->mode & SPI_CPHA ? 1 : 0;
 	cpol = spi->mode & SPI_CPOL ? 1 : 0;
-
-	chip_config = spi->controller_data;
-	if (!chip_config) {
-		chip_config = (void *)&mtk_default_chip_info;
-		spi->controller_data = chip_config;
-	}
 
 	reg_val = readl(mdata->base + SPI_CMD_REG);
 	if (cpha)
@@ -406,6 +400,16 @@ static bool mtk_spi_can_dma(struct spi_master *master,
 	return xfer->len > MTK_SPI_MAX_FIFO_SIZE;
 }
 
+static int mtk_spi_setup(struct spi_device *spi)
+{
+	struct mtk_spi *mdata = spi_master_get_devdata(spi->master);
+
+	if (!spi->controller_data)
+		spi->controller_data = (void *)&mtk_default_chip_info;
+
+	return 0;
+}
+
 static irqreturn_t mtk_spi_interrupt(int irq, void *dev_id)
 {
 	u32 cmd, reg_val, cnt;
@@ -493,6 +497,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	master->prepare_message = mtk_spi_prepare_message;
 	master->transfer_one = mtk_spi_transfer_one;
 	master->can_dma = mtk_spi_can_dma;
+	master->setup = mtk_spi_setup;
 
 	of_id = of_match_node(mtk_spi_of_match, pdev->dev.of_node);
 	if (!of_id) {
