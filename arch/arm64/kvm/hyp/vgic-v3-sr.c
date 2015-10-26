@@ -220,10 +220,9 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 	}
 }
 
-u64 __hyp_text __vgic_v3_read_ich_vtr_el2(void)
+static u64 __hyp_text __vgic_v3_read_ich_vtr_el2(void)
 {
 	return read_gicreg(ICH_VTR_EL2);
 }
 
-__alias(__vgic_v3_read_ich_vtr_el2)
-u64 __weak __vgic_v3_get_ich_vtr_el2(void);
+__alias(__vgic_v3_read_ich_vtr_el2) u64 __vgic_v3_get_ich_vtr_el2(void);

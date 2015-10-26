@@ -17,7 +17,7 @@
 
 #include "hyp.h"
 
-void __hyp_text __tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
+static void __hyp_text __tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
 	dsb(ishst);
 
@@ -48,10 +48,10 @@ void __hyp_text __tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 	write_sysreg(0, vttbr_el2);
 }
 
-__alias(__tlb_flush_vmid_ipa)
-void __weak __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa);
+__alias(__tlb_flush_vmid_ipa) void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm,
+							    phys_addr_t ipa);
 
-void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
+static void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
 {
 	dsb(ishst);
 
@@ -67,10 +67,9 @@ void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
 	write_sysreg(0, vttbr_el2);
 }
 
-__alias(__tlb_flush_vmid)
-void __weak __kvm_tlb_flush_vmid(struct kvm *kvm);
+__alias(__tlb_flush_vmid) void __kvm_tlb_flush_vmid(struct kvm *kvm);
 
-void __hyp_text __tlb_flush_vm_context(void)
+static void __hyp_text __tlb_flush_vm_context(void)
 {
 	dsb(ishst);
 	asm volatile("tlbi alle1is	\n"
@@ -78,5 +77,4 @@ void __hyp_text __tlb_flush_vm_context(void)
 	dsb(ish);
 }
 
-__alias(__tlb_flush_vm_context)
-void __weak __kvm_flush_vm_context(void);
+__alias(__tlb_flush_vm_context) void __kvm_flush_vm_context(void);

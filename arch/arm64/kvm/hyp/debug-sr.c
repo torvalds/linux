@@ -132,10 +132,9 @@ void __hyp_text __debug_cond_restore_host_state(struct kvm_vcpu *vcpu)
 		vcpu->arch.debug_flags &= ~KVM_ARM64_DEBUG_DIRTY;
 }
 
-u32 __hyp_text __debug_read_mdcr_el2(void)
+static u32 __hyp_text __debug_read_mdcr_el2(void)
 {
 	return read_sysreg(mdcr_el2);
 }
 
-__alias(__debug_read_mdcr_el2)
-u32 __weak __kvm_get_mdcr_el2(void);
+__alias(__debug_read_mdcr_el2) u32 __kvm_get_mdcr_el2(void);
