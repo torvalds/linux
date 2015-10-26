@@ -754,6 +754,7 @@ struct hfi1_ibdev {
 	u64 n_piowait;
 	u64 n_txwait;
 	u64 n_kmem_wait;
+	u64 n_send_schedule;
 
 	u32 n_pds_allocated;    /* number of PDs allocated for device */
 	spinlock_t n_pds_lock;

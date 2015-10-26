@@ -820,6 +820,9 @@ void hfi1_make_ruc_header(struct hfi1_qp *qp, struct hfi1_other_headers *ohdr,
 	ohdr->bth[2] = cpu_to_be32(bth2);
 }
 
+/* when sending, force a reschedule every one of these periods */
+#define SEND_RESCHED_TIMEOUT (5 * HZ)  /* 5s in jiffies */
+
 /**
  * hfi1_do_send - perform a send on a QP
  * @work: contains a pointer to the QP
@@ -836,6 +839,7 @@ void hfi1_do_send(struct work_struct *work)
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	int (*make_req)(struct hfi1_qp *qp);
 	unsigned long flags;
+	unsigned long timeout;
 
 	if ((qp->ibqp.qp_type == IB_QPT_RC ||
 	     qp->ibqp.qp_type == IB_QPT_UC) &&
@@ -864,6 +868,7 @@ void hfi1_do_send(struct work_struct *work)
 
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 
+	timeout = jiffies + SEND_RESCHED_TIMEOUT;
 	do {
 		/* Check for a constructed packet to be sent. */
 		if (qp->s_hdrwords != 0) {
@@ -876,6 +881,13 @@ void hfi1_do_send(struct work_struct *work)
 				break;
 			/* Record that s_hdr is empty. */
 			qp->s_hdrwords = 0;
+		}
+
+		/* allow other tasks to run */
+		if (unlikely(time_after(jiffies, timeout))) {
+			cond_resched();
+			ppd->dd->verbs_dev.n_send_schedule++;
+			timeout = jiffies + SEND_RESCHED_TIMEOUT;
 		}
 	} while (make_req(qp));
 }

@@ -787,6 +787,7 @@ enum {
 	C_SW_VTX_WAIT,
 	C_SW_PIO_WAIT,
 	C_SW_KMEM_WAIT,
+	C_SW_SEND_SCHED,
 	DEV_CNTR_LAST  /* Must be kept last */
 };
 
