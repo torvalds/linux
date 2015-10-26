@@ -364,8 +364,7 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 				ret = IIO_VAL_INT_PLUS_MICRO;
 				break;
 			case 1:
-				/* all differential adc channels ->
-				 * 0.000001344 */
+				/* all differential adc -> 0.000001344 */
 				*val = 0;
 				*val2 = 1344;
 				ret = IIO_VAL_INT_PLUS_NANO;
