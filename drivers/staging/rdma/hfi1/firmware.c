@@ -924,9 +924,6 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 	return 0;
 }
 
-/* SBus Master broadcast address */
-#define SBUS_MASTER_BROADCAST 0xfd
-
 /*
  * Write the SBus request register
  *
@@ -1255,6 +1252,7 @@ int load_firmware(struct hfi1_devdata *dd)
 			ret = load_sbus_firmware(dd, &fw_sbus);
 			if (ret)
 				goto clear;
+			fw_sbus_load = 0;
 		}
 
 		if (fw_fabric_serdes_load) {

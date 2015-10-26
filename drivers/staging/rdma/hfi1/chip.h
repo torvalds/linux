@@ -609,6 +609,7 @@ static inline void write_uctxt_csr(struct hfi1_devdata *dd, int ctxt,
 u64 create_pbc(struct hfi1_pportdata *ppd, u64, int, u32, u32);
 
 /* firmware.c */
+#define SBUS_MASTER_BROADCAST 0xfd
 #define NUM_PCIE_SERDES 16	/* number of PCIe serdes on the SBus */
 extern const u8 pcie_serdes_broadcast[];
 extern const u8 pcie_pcs_addrs[2][NUM_PCIE_SERDES];
