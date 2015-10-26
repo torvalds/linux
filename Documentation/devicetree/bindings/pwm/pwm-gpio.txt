@@ -1,0 +1,18 @@
+Generic GPIO bit-banged PWM driver
+
+Required properties:
+  - compatible: should be "pwm-gpio"
+  - #pwm-cells: should be 3, see pwm.txt in this directory for a general
+    description of the cells format.
+  - pwm-gpios: one or more gpios describing the used gpio, see the gpio
+    bindings for the used gpio driver.
+
+Example:
+#include <dt-bindings/gpio/gpio.h>
+
+	pwm: pwm@0 {
+		compatible = "pwm-gpio";
+		#pwm-cells = 3;
+		pwm-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>;
+		pwm-gpios = <&pio 7 2 GPIO_ACTIVE_LOW>;
+	};

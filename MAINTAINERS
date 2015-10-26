@@ -4685,6 +4685,11 @@ F:	drivers/i2c/muxes/i2c-mux-gpio.c
 F:	include/linux/i2c-mux-gpio.h
 F:	Documentation/i2c/muxes/i2c-mux-gpio
 
+GENERIC GPIO PWM DRIVER
+M:	Olliver Schinagl <oliver@schinagl.nl>
+S:	Maintained
+F:	drivers/pwm/pwm-gpio.c
+
 GENERIC HDLC (WAN) DRIVERS
 M:	Krzysztof Halasa <khc@pm.waw.pl>
 W:	http://www.kernel.org/pub/linux/utils/net/hdlc/
