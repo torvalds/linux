@@ -95,7 +95,7 @@ static struct notifier_block g_dev_notifier = {
  */
 static struct semaphore close_exit_sync;
 
-static int wlan_deinit_locks(struct wilc *nic);
+static int wlan_deinit_locks(struct net_device *dev);
 static void wlan_deinitialize_threads(struct wilc *nic);
 extern void WILC_WFI_monitor_rx(u8 *buff, u32 size);
 extern void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size);
@@ -940,7 +940,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 
 		/*De-Initialize locks*/
 		PRINT_D(INIT_DBG, "Deinitializing Locks\n");
-		wlan_deinit_locks(wl);
+		wlan_deinit_locks(dev);
 
 		/* announce that wilc1000 is not initialized */
 		wl->initialized = false;
@@ -978,15 +978,21 @@ int wlan_init_locks(struct net_device *dev)
 	return 0;
 }
 
-static int wlan_deinit_locks(struct wilc *nic)
+static int wlan_deinit_locks(struct net_device *dev)
 {
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
+
 	PRINT_D(INIT_DBG, "De-Initializing Locks\n");
 
-	if (&g_linux_wlan->hif_cs != NULL)
-		mutex_destroy(&g_linux_wlan->hif_cs);
+	if (&wilc->hif_cs != NULL)
+		mutex_destroy(&wilc->hif_cs);
 
-	if (&g_linux_wlan->rxq_cs != NULL)
-		mutex_destroy(&g_linux_wlan->rxq_cs);
+	if (&wilc->rxq_cs != NULL)
+		mutex_destroy(&wilc->rxq_cs);
 
 	return 0;
 }
@@ -1169,7 +1175,7 @@ _fail_irq_init_:
 _fail_wilc_wlan_:
 		wilc_wlan_cleanup();
 _fail_locks_:
-		wlan_deinit_locks(wl);
+		wlan_deinit_locks(dev);
 		PRINT_ER("WLAN Iinitialization FAILED\n");
 	} else {
 		PRINT_D(INIT_DBG, "wilc1000 already initialized\n");
