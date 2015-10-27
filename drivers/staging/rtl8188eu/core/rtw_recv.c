@@ -1277,7 +1277,7 @@ static int validate_recv_frame(struct adapter *adapter,
 		int i;
 		DBG_88E("#############################\n");
 
-		for (i = 0; i < 64; i = i+8)
+		for (i = 0; i < 64; i += 8)
 			DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
 				*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
 		DBG_88E("#############################\n");
@@ -1286,7 +1286,7 @@ static int validate_recv_frame(struct adapter *adapter,
 			int i;
 			DBG_88E("#############################\n");
 
-			for (i = 0; i < 64; i = i+8)
+			for (i = 0; i < 64; i += 8)
 				DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
 					*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
 			DBG_88E("#############################\n");
@@ -1296,7 +1296,7 @@ static int validate_recv_frame(struct adapter *adapter,
 			int i;
 			DBG_88E("#############################\n");
 
-			for (i = 0; i < 64; i = i+8)
+			for (i = 0; i < 64; i += 8)
 				DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
 					*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
 			DBG_88E("#############################\n");
