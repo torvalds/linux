@@ -17,13 +17,16 @@ struct device_node *pseries_of_derive_parent(const char *path)
 {
 	struct device_node *parent;
 	char *parent_path = "/";
-	const char *tail = kbasename(path);
+	const char *tail;
+
+	/* We do not want the trailing '/' character */
+	tail = kbasename(path) - 1;
 
 	/* reject if path is "/" */
 	if (!strcmp(path, "/"))
 		return ERR_PTR(-EINVAL);
 
-	if (tail > path + 1) {
+	if (tail > path) {
 		parent_path = kstrndup(path, tail - path, GFP_KERNEL);
 		if (!parent_path)
 			return ERR_PTR(-ENOMEM);
