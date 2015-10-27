@@ -104,8 +104,8 @@ define rule_docproc
 endef
 
 %.xml: %.tmpl $(KERNELDOC) $(DOCPROC) $(KERNELDOCXMLREF) FORCE
-	@(which pandoc > /dev/null 2>&1) || \
-	(echo "*** To get propper documentation you need to install pandoc ***";)
+	@(which asciidoc > /dev/null 2>&1) || \
+	(echo "*** To get propper documentation you need to install asciidoc ***";)
 	$(call if_changed_rule,docproc)
 
 # Tell kbuild to always build the programs
@@ -116,7 +116,7 @@ notfoundtemplate = echo "*** You have to install docbook-utils or xmlto ***"; \
 db2xtemplate = db2TYPE -o $(dir $@) $<
 xmltotemplate = xmlto TYPE $(XMLTOFLAGS) -o $(dir $@) $<
 
-ifneq ($(shell which pandoc >/dev/null 2>&1 && echo found),found)
+ifneq ($(shell which asciidoc >/dev/null 2>&1 && echo found),found)
 	MARKDOWNREADY := "";
 endif
 

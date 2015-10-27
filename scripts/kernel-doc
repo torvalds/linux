@@ -524,7 +524,7 @@ sub dump_doc_section {
 sub markdown_to_docbook {
 	my $orig_content = $_[0];
 
-	my $pid = open3( \*CHLD_IN, \*CHLD_OUT, \*CHLD_ERR, "pandoc  --columns=80 -f markdown -t docbook" );
+	my $pid = open3( \*CHLD_IN, \*CHLD_OUT, \*CHLD_ERR, "asciidoc  -a 'newline=\\n' --no-header-footer --backend=docbook45 -" );
 
 	print CHLD_IN "$orig_content";
 	close(CHLD_IN);
@@ -540,9 +540,9 @@ sub markdown_to_docbook {
 	close(CHLD_ERR);
 
 	if ($output_markdown_nopara) {
-		# pandoc insists in adding Main <para></para>, sometimes we
-		# want to remove them.
-		$content =~ s:\A\s*<para>\s*\n(.*)\n</para>\Z$:$1:egsm;
+		# asciidoc insists in adding Main <simpara></simpara>, sometimes
+		# we want to remove them.
+		$content =~ s:\A\s*<simpara>(.*)</simpara>\Z:$1:egsm;
 	}
 
 	return $content;
@@ -550,6 +550,7 @@ sub markdown_to_docbook {
 
 # Markdown->Docbook conversion by pandoc requires unescaped text
 # Kernel-doc converts every & to "&amp;", we need to convert it back.
+# This essentially does the inverse of xml_escape()
 sub markdown_unescape
 {
 	my $text = shift;
@@ -558,7 +559,9 @@ sub markdown_unescape
 	my @result;
 	foreach my $line (@lines) {
 		if ( $line =~ m /^    /s ) {
-			$line =~ s:\&amp;:\&:gs
+			$line =~ s:\&amp;:\&:gs;
+			$line =~ s:\&lt;:\<:gs;
+			$line =~ s:\&gt;:\>:gs;
 		}
 		push @result, $line;
 	}
@@ -605,6 +608,16 @@ sub output_highlight {
 #   print STDERR "contents af:$contents\n";
     if ($use_markdown) {
         $contents = markdown_to_docbook($contents);
+
+	# Compared to markdown asciidoc doesn't let through arbitrary xml
+	# markup. We need to un-escape the kerneldoc markup for functions,
+	# structures, ...
+	$contents =~ s/&lt;quote&gt;(\S*)&lt;\/quote&gt;/<quote>$1<\/quote>/g;
+	$contents =~ s/&lt;constant&gt;(\S*)&lt;\/constant&gt;/<constant>$1<\/constant>/g;
+	$contents =~ s/&lt;structname&gt;(\S*)&lt;\/structname&gt;/<structname>$1<\/structname>/g;
+	$contents =~ s/&lt;parameter&gt;(\S*)&lt;\/parameter&gt;/<parameter>$1<\/parameter>/g;
+	$contents =~ s/&lt;function&gt;(\S*)&lt;\/function&gt;/<function>$1<\/function>/g;
+	$contents =~ s/&lt;envar&gt;(\S*)&lt;\/envar&gt;/<envar>$1<\/envar>/g;
     }
 
 #   strip whitespaces when generating html5
