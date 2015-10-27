@@ -1646,6 +1646,199 @@ static int f2fs_ioc_write_checkpoint(struct file *filp, unsigned long arg)
 	return 0;
 }
 
+static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
+					struct file *filp,
+					struct f2fs_defragment *range)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_map_blocks map;
+	struct extent_info ei;
+	pgoff_t pg_start, pg_end;
+	unsigned int blk_per_seg = 1 << sbi->log_blocks_per_seg;
+	unsigned int total = 0, sec_num;
+	unsigned int pages_per_sec = sbi->segs_per_sec *
+					(1 << sbi->log_blocks_per_seg);
+	block_t blk_end = 0;
+	bool fragmented = false;
+	int err;
+
+	/* if in-place-update policy is enabled, don't waste time here */
+	if (need_inplace_update(inode))
+		return -EINVAL;
+
+	pg_start = range->start >> PAGE_CACHE_SHIFT;
+	pg_end = (range->start + range->len) >> PAGE_CACHE_SHIFT;
+
+	f2fs_balance_fs(sbi);
+
+	mutex_lock(&inode->i_mutex);
+
+	/* writeback all dirty pages in the range */
+	err = filemap_write_and_wait_range(inode->i_mapping, range->start,
+						range->start + range->len);
+	if (err)
+		goto out;
+
+	/*
+	 * lookup mapping info in extent cache, skip defragmenting if physical
+	 * block addresses are continuous.
+	 */
+	if (f2fs_lookup_extent_cache(inode, pg_start, &ei)) {
+		if (ei.fofs + ei.len >= pg_end)
+			goto out;
+	}
+
+	map.m_lblk = pg_start;
+	map.m_len = pg_end - pg_start;
+
+	/*
+	 * lookup mapping info in dnode page cache, skip defragmenting if all
+	 * physical block addresses are continuous even if there are hole(s)
+	 * in logical blocks.
+	 */
+	while (map.m_lblk < pg_end) {
+		map.m_flags = 0;
+		err = f2fs_map_blocks(inode, &map, 0, F2FS_GET_BLOCK_READ);
+		if (err)
+			goto out;
+
+		if (!(map.m_flags & F2FS_MAP_FLAGS)) {
+			map.m_lblk++;
+			map.m_len--;
+			continue;
+		}
+
+		if (blk_end && blk_end != map.m_pblk) {
+			fragmented = true;
+			break;
+		}
+		blk_end = map.m_pblk + map.m_len;
+
+		map.m_lblk += map.m_len;
+		map.m_len = pg_end - map.m_lblk;
+	}
+
+	if (!fragmented)
+		goto out;
+
+	map.m_lblk = pg_start;
+	map.m_len = pg_end - pg_start;
+
+	sec_num = (map.m_len + pages_per_sec - 1) / pages_per_sec;
+
+	/*
+	 * make sure there are enough free section for LFS allocation, this can
+	 * avoid defragment running in SSR mode when free section are allocated
+	 * intensively
+	 */
+	if (has_not_enough_free_secs(sbi, sec_num)) {
+		err = -EAGAIN;
+		goto out;
+	}
+
+	while (map.m_lblk < pg_end) {
+		pgoff_t idx;
+		int cnt = 0;
+
+do_map:
+		map.m_flags = 0;
+		err = f2fs_map_blocks(inode, &map, 0, F2FS_GET_BLOCK_READ);
+		if (err)
+			goto clear_out;
+
+		if (!(map.m_flags & F2FS_MAP_FLAGS)) {
+			map.m_lblk++;
+			continue;
+		}
+
+		set_inode_flag(F2FS_I(inode), FI_DO_DEFRAG);
+
+		idx = map.m_lblk;
+		while (idx < map.m_lblk + map.m_len && cnt < blk_per_seg) {
+			struct page *page;
+
+			page = get_lock_data_page(inode, idx, true);
+			if (IS_ERR(page)) {
+				err = PTR_ERR(page);
+				goto clear_out;
+			}
+
+			set_page_dirty(page);
+			f2fs_put_page(page, 1);
+
+			idx++;
+			cnt++;
+			total++;
+		}
+
+		map.m_lblk = idx;
+		map.m_len = pg_end - idx;
+
+		if (idx < pg_end && cnt < blk_per_seg)
+			goto do_map;
+
+		clear_inode_flag(F2FS_I(inode), FI_DO_DEFRAG);
+
+		err = filemap_fdatawrite(inode->i_mapping);
+		if (err)
+			goto out;
+	}
+clear_out:
+	clear_inode_flag(F2FS_I(inode), FI_DO_DEFRAG);
+out:
+	mutex_unlock(&inode->i_mutex);
+	if (!err)
+		range->len = (u64)total << PAGE_CACHE_SHIFT;
+	return err;
+}
+
+static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_defragment range;
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+
+	err = mnt_want_write_file(filp);
+	if (err)
+		return err;
+
+	if (f2fs_readonly(sbi->sb)) {
+		err = -EROFS;
+		goto out;
+	}
+
+	if (copy_from_user(&range, (struct f2fs_defragment __user *)arg,
+							sizeof(range))) {
+		err = -EFAULT;
+		goto out;
+	}
+
+	/* verify alignment of offset & size */
+	if (range.start & (F2FS_BLKSIZE - 1) ||
+		range.len & (F2FS_BLKSIZE - 1)) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = f2fs_defragment_range(sbi, filp, &range);
+	if (err < 0)
+		goto out;
+
+	if (copy_to_user((struct f2fs_defragment __user *)arg, &range,
+							sizeof(range)))
+		err = -EFAULT;
+out:
+	mnt_drop_write_file(filp);
+	return err;
+}
+
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
@@ -1679,6 +1872,8 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_gc(filp, arg);
 	case F2FS_IOC_WRITE_CHECKPOINT:
 		return f2fs_ioc_write_checkpoint(filp, arg);
+	case F2FS_IOC_DEFRAGMENT:
+		return f2fs_ioc_defragment(filp, arg);
 	default:
 		return -ENOTTY;
 	}
