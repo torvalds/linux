@@ -668,9 +668,11 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 			   const u8 *key, const u8 hfunc)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	struct i40e_hw *hw = &adapter->hw;
-	u32 hlut_val;
-	int i, j;
+	struct i40e_vsi *vsi = &adapter->vsi;
+	u8 seed_def[I40EVF_HKEY_ARRAY_SIZE];
+	u8 *seed = NULL, *lut;
+	int ret;
+	u16 i;
 
 	/* We do not allow change in unsupported parameters */
 	if (key ||
@@ -679,15 +681,22 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 	if (!indir)
 		return 0;
 
-	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
-		hlut_val = indir[j++];
-		hlut_val |= indir[j++] << 8;
-		hlut_val |= indir[j++] << 16;
-		hlut_val |= indir[j++] << 24;
-		wr32(hw, I40E_VFQF_HLUT(i), hlut_val);
+	if (key) {
+		memcpy(seed_def, key, I40EVF_HKEY_ARRAY_SIZE);
+		seed = seed_def;
 	}
+	lut = kzalloc(I40EVF_HLUT_ARRAY_SIZE, GFP_KERNEL);
+	if (!lut)
+		return -ENOMEM;
 
-	return 0;
+	/* Each 32 bits pointed by 'indir' is stored with a lut entry */
+	for (i = 0; i < I40EVF_HLUT_ARRAY_SIZE; i++)
+		lut[i] = (u8)(indir[i]);
+
+	ret = i40evf_config_rss(vsi, seed, lut, I40EVF_HLUT_ARRAY_SIZE);
+	kfree(lut);
+
+	return ret;
 }
 
 static const struct ethtool_ops i40evf_ethtool_ops = {

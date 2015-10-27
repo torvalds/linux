@@ -99,6 +99,7 @@ struct i40e_vsi {
 #define MAX_TX_QUEUES MAX_RX_QUEUES
 
 #define I40EVF_HKEY_ARRAY_SIZE ((I40E_VFQF_HKEY_MAX_INDEX + 1) * 4)
+#define I40EVF_HLUT_ARRAY_SIZE ((I40E_VFQF_HLUT_MAX_INDEX + 1) * 4)
 
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
@@ -313,4 +314,6 @@ void i40evf_request_reset(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum i40e_virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);
+int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
+		      u16 lut_size);
 #endif /* _I40EVF_H_ */

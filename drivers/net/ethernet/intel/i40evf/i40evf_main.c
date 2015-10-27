@@ -1211,110 +1211,158 @@ out:
 }
 
 /**
- * i40e_configure_rss_aq - Prepare for RSS using AQ commands
+ * i40e_config_rss_aq - Prepare for RSS using AQ commands
  * @vsi: vsi structure
  * @seed: RSS hash seed
+ * @lut: Lookup table
+ * @lut_size: Lookup table size
+ *
+ * Return 0 on success, negative on failure
  **/
-static void i40evf_configure_rss_aq(struct i40e_vsi *vsi, const u8 *seed)
+static int i40evf_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
+				u8 *lut, u16 lut_size)
 {
-	struct i40e_aqc_get_set_rss_key_data rss_key;
 	struct i40evf_adapter *adapter = vsi->back;
 	struct i40e_hw *hw = &adapter->hw;
-	int ret = 0, i;
-	u8 *rss_lut;
+	int ret = 0;
 
 	if (!vsi->id)
-		return;
+		return -EINVAL;
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
 		dev_err(&adapter->pdev->dev, "Cannot confiure RSS, command %d pending\n",
 			adapter->current_op);
-		return;
+		return -EBUSY;
 	}
 
-	memset(&rss_key, 0, sizeof(rss_key));
-	memcpy(&rss_key, seed, sizeof(rss_key));
-
-	rss_lut = kzalloc(((I40E_VFQF_HLUT_MAX_INDEX + 1) * 4), GFP_KERNEL);
-	if (!rss_lut)
-		return;
-
-	/* Populate the LUT with max no. PF queues in round robin fashion */
-	for (i = 0; i <= (I40E_VFQF_HLUT_MAX_INDEX * 4); i++)
-		rss_lut[i] = i % adapter->num_active_queues;
-
-	ret = i40evf_aq_set_rss_key(hw, vsi->id, &rss_key);
-	if (ret) {
-		dev_err(&adapter->pdev->dev,
-			"Cannot set RSS key, err %s aq_err %s\n",
-			i40evf_stat_str(hw, ret),
-			i40evf_aq_str(hw, hw->aq.asq_last_status));
-		return;
+	if (seed) {
+		struct i40e_aqc_get_set_rss_key_data *rss_key =
+			(struct i40e_aqc_get_set_rss_key_data *)seed;
+		ret = i40evf_aq_set_rss_key(hw, vsi->id, rss_key);
+		if (ret) {
+			dev_err(&adapter->pdev->dev, "Cannot set RSS key, err %s aq_err %s\n",
+				i40evf_stat_str(hw, ret),
+				i40evf_aq_str(hw, hw->aq.asq_last_status));
+			return ret;
+		}
 	}
 
-	ret = i40evf_aq_set_rss_lut(hw, vsi->id, false, rss_lut,
-				    (I40E_VFQF_HLUT_MAX_INDEX + 1) * 4);
-	if (ret)
-		dev_err(&adapter->pdev->dev,
-			"Cannot set RSS lut, err %s aq_err %s\n",
-			i40evf_stat_str(hw, ret),
-			i40evf_aq_str(hw, hw->aq.asq_last_status));
+	if (lut) {
+		ret = i40evf_aq_set_rss_lut(hw, vsi->id, false, lut, lut_size);
+		if (ret) {
+			dev_err(&adapter->pdev->dev,
+				"Cannot set RSS lut, err %s aq_err %s\n",
+				i40evf_stat_str(hw, ret),
+				i40evf_aq_str(hw, hw->aq.asq_last_status));
+			return ret;
+		}
+	}
+
+	return ret;
 }
 
 /**
- * i40e_configure_rss_reg - Prepare for RSS if used
- * @adapter: board private structure
+ * i40evf_config_rss_reg - Configure RSS keys and lut by writing registers
+ * @vsi: Pointer to vsi structure
  * @seed: RSS hash seed
+ * @lut: Lookup table
+ * @lut_size: Lookup table size
+ *
+ * Returns 0 on success, negative on failure
  **/
-static void i40evf_configure_rss_reg(struct i40evf_adapter *adapter,
-				     const u8 *seed)
+static int i40evf_config_rss_reg(struct i40e_vsi *vsi, const u8 *seed,
+				 const u8 *lut, u16 lut_size)
 {
+	struct i40evf_adapter *adapter = vsi->back;
 	struct i40e_hw *hw = &adapter->hw;
-	u32 *seed_dw = (u32 *)seed;
-	u32 cqueue = 0;
-	u32 lut = 0;
-	int i, j;
+	u16 i;
 
-	/* Fill out hash function seed */
-	for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
-		wr32(hw, I40E_VFQF_HKEY(i), seed_dw[i]);
+	if (seed) {
+		u32 *seed_dw = (u32 *)seed;
 
-	/* Populate the LUT with max no. PF queues in round robin fashion */
-	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
-		lut = 0;
-		for (j = 0; j < 4; j++) {
-			if (cqueue == adapter->num_active_queues)
-				cqueue = 0;
-			lut |= ((cqueue) << (8 * j));
-			cqueue++;
-		}
-		wr32(hw, I40E_VFQF_HLUT(i), lut);
+		for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
+			wr32(hw, I40E_VFQF_HKEY(i), seed_dw[i]);
+	}
+
+	if (lut) {
+		u32 *lut_dw = (u32 *)lut;
+
+		if (lut_size != I40EVF_HLUT_ARRAY_SIZE)
+			return -EINVAL;
+
+		for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++)
+			wr32(hw, I40E_VFQF_HLUT(i), lut_dw[i]);
 	}
 	i40e_flush(hw);
+
+	return 0;
+}
+
+/**
+ * i40evf_config_rss - Configure RSS keys and lut
+ * @vsi: Pointer to vsi structure
+ * @seed: RSS hash seed
+ * @lut: Lookup table
+ * @lut_size: Lookup table size
+ *
+ * Returns 0 on success, negative on failure
+ **/
+int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed,
+		      u8 *lut, u16 lut_size)
+{
+	struct i40evf_adapter *adapter = vsi->back;
+
+	if (RSS_AQ(adapter))
+		return i40evf_config_rss_aq(vsi, seed, lut, lut_size);
+	else
+		return i40evf_config_rss_reg(vsi, seed, lut, lut_size);
+}
+
+/**
+ * i40evf_fill_rss_lut - Fill the lut with default values
+ * @lut: Lookup table to be filled with
+ * @rss_table_size: Lookup table size
+ * @rss_size: Range of queue number for hashing
+ **/
+static void i40evf_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size)
+{
+	u16 i;
+
+	for (i = 0; i < rss_table_size; i++)
+		lut[i] = i % rss_size;
 }
 
 /**
  * i40evf_init_rss - Prepare for RSS
  * @adapter: board private structure
+ *
+ * Return 0 on success, negative on failure
  **/
-static void i40evf_init_rss(struct i40evf_adapter *adapter)
+static int i40evf_init_rss(struct i40evf_adapter *adapter)
 {
+	struct i40e_vsi *vsi = &adapter->vsi;
 	struct i40e_hw *hw = &adapter->hw;
 	u8 seed[I40EVF_HKEY_ARRAY_SIZE];
 	u64 hena;
-
-	netdev_rss_key_fill((void *)seed, I40EVF_HKEY_ARRAY_SIZE);
+	u8 *lut;
+	int ret;
 
 	/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
 	hena = I40E_DEFAULT_RSS_HENA;
 	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
-	if (RSS_AQ(adapter))
-		i40evf_configure_rss_aq(&adapter->vsi, seed);
-	else
-		i40evf_configure_rss_reg(adapter, seed);
+	lut = kzalloc(I40EVF_HLUT_ARRAY_SIZE, GFP_KERNEL);
+	if (!lut)
+		return -ENOMEM;
+	i40evf_fill_rss_lut(lut, I40EVF_HLUT_ARRAY_SIZE,
+			    adapter->num_active_queues);
+	netdev_rss_key_fill((void *)seed, I40EVF_HKEY_ARRAY_SIZE);
+	ret = i40evf_config_rss(vsi, seed, lut, I40EVF_HLUT_ARRAY_SIZE);
+	kfree(lut);
+
+	return ret;
 }
 
 /**
