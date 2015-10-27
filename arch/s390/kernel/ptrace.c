@@ -244,7 +244,7 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 			       ((addr_t) child->thread.fpu.vxrs + 2*offset);
 		else
 			tmp = *(addr_t *)
-			       ((addr_t) &child->thread.fpu.fprs + offset);
+			       ((addr_t) child->thread.fpu.fprs + offset);
 
 	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
@@ -388,7 +388,7 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 				child->thread.fpu.vxrs + 2*offset) = data;
 		else
 			*(addr_t *)((addr_t)
-				&child->thread.fpu.fprs + offset) = data;
+				child->thread.fpu.fprs + offset) = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
@@ -622,7 +622,7 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 			       ((addr_t) child->thread.fpu.vxrs + 2*offset);
 		else
 			tmp = *(__u32 *)
-			       ((addr_t) &child->thread.fpu.fprs + offset);
+			       ((addr_t) child->thread.fpu.fprs + offset);
 
 	} else if (addr < (addr_t) (&dummy32->regs.per_info + 1)) {
 		/*
@@ -747,7 +747,7 @@ static int __poke_user_compat(struct task_struct *child,
 				child->thread.fpu.vxrs + 2*offset) = tmp;
 		else
 			*(__u32 *)((addr_t)
-				&child->thread.fpu.fprs + offset) = tmp;
+				child->thread.fpu.fprs + offset) = tmp;
 
 	} else if (addr < (addr_t) (&dummy32->regs.per_info + 1)) {
 		/*
