@@ -229,10 +229,16 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 #if (defined WILC_SPI) || (defined WILC_SDIO_IRQ_GPIO)
 static irqreturn_t isr_uh_routine(int irq, void *user_data)
 {
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
+	struct net_device *dev = (struct net_device *)user_data;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
 	PRINT_D(INT_DBG, "Interrupt received UH\n");
 
 	/*While mac is closing cacncel the handling of any interrupts received*/
-	if (g_linux_wlan->close) {
+	if (wilc->close) {
 		PRINT_ER("Driver is CLOSING: Can't handle UH interrupt\n");
 		return IRQ_HANDLED;
 	}
@@ -284,7 +290,7 @@ static int init_irq(struct net_device *dev)
 
 	if ((ret != -1) && (request_threaded_irq(wl->dev_irq_num, isr_uh_routine, isr_bh_routine,
 						  IRQF_TRIGGER_LOW | IRQF_ONESHOT,               /*Without IRQF_ONESHOT the uh will remain kicked in and dont gave a chance to bh*/
-						  "WILC_IRQ", wl)) < 0) {
+						  "WILC_IRQ", dev)) < 0) {
 
 		PRINT_ER("Failed to request IRQ for GPIO: %d\n", GPIO_NUM);
 		ret = -1;
