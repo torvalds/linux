@@ -406,14 +406,18 @@ static inline int tcp_process(struct txq_entry_t *tqe)
 }
 
 
-static int wilc_wlan_txq_filter_dup_tcp_ack(void)
+static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 {
-
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
 	u32 i = 0;
 	u32 Dropped = 0;
 	wilc_wlan_dev_t *p = &g_wlan;
 
-	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, p->txq_spinlock_flags);
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
+
+	spin_lock_irqsave(&wilc->txq_spinlock, p->txq_spinlock_flags);
 	for (i = PendingAcks_arrBase; i < (PendingAcks_arrBase + Pending_Acks); i++) {
 		if (Pending_Acks_info[i].ack_num < Acks_keep_track_info[Pending_Acks_info[i].Session_index].Bigger_Ack_num) {
 			struct txq_entry_t *tqe;
@@ -440,12 +444,11 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 		PendingAcks_arrBase = 0;
 
 
-	spin_unlock_irqrestore(&g_linux_wlan->txq_spinlock,
-			       p->txq_spinlock_flags);
+	spin_unlock_irqrestore(&wilc->txq_spinlock, p->txq_spinlock_flags);
 
 	while (Dropped > 0) {
 		/*consume the semaphore count of the removed packet*/
-		linux_wlan_lock_timeout(&g_linux_wlan->txq_event, 1);
+		linux_wlan_lock_timeout(&wilc->txq_event, 1);
 		Dropped--;
 	}
 
@@ -842,7 +845,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *pu32TxqCount)
 		linux_wlan_lock_timeout(&wilc->txq_add_to_head_cs,
 					CFG_PKTS_TIMEOUT);
 #ifdef	TCP_ACK_FILTER
-		wilc_wlan_txq_filter_dup_tcp_ack();
+		wilc_wlan_txq_filter_dup_tcp_ack(dev);
 #endif
 		/**
 		 *      build the vmm list
