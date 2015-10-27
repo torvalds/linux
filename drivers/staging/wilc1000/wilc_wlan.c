@@ -1260,7 +1260,7 @@ static void wilc_sleeptimer_isr_ext(u32 int_stats1)
 #endif
 }
 
-static void wilc_wlan_handle_isr_ext(u32 int_status)
+static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 #ifdef MEMORY_STATIC
@@ -1364,7 +1364,7 @@ void wilc_handle_isr(void *wilc)
 		wilc_pllupdate_isr_ext(int_status);
 
 	if (int_status & DATA_INT_EXT) {
-		wilc_wlan_handle_isr_ext(int_status);
+		wilc_wlan_handle_isr_ext(wilc, int_status);
 	#ifndef WILC_OPTIMIZE_SLEEP_INT
 		/* Chip is up and talking*/
 		genuChipPSstate = CHIP_WAKEDUP;
