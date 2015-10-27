@@ -321,6 +321,9 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 			(css_header->header_len * 4));
 		goto out;
 	}
+
+	csr->version = css_header->version;
+
 	readcount += sizeof(struct intel_css_header);
 
 	/* Extract Package Header information*/
@@ -402,7 +405,11 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	intel_csr_load_program(dev);
 	fw_loaded = true;
 
-	DRM_DEBUG_KMS("Finished loading %s\n", dev_priv->csr.fw_path);
+	DRM_INFO("Finished loading %s (v%u.%u)\n",
+		 dev_priv->csr.fw_path,
+		 CSR_VERSION_MAJOR(csr->version),
+		 CSR_VERSION_MINOR(csr->version));
+
 out:
 	if (fw_loaded)
 		intel_runtime_pm_put(dev_priv);

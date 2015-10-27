@@ -734,6 +734,10 @@ struct intel_uncore {
 #define for_each_fw_domain(domain__, dev_priv__, i__) \
 	for_each_fw_domain_mask(domain__, FORCEWAKE_ALL, dev_priv__, i__)
 
+#define CSR_VERSION(major, minor)	((major) << 16 | (minor))
+#define CSR_VERSION_MAJOR(version)	((version) >> 16)
+#define CSR_VERSION_MINOR(version)	((version) & 0xffff)
+
 enum csr_state {
 	FW_UNINITIALIZED = 0,
 	FW_LOADED,
@@ -744,6 +748,7 @@ struct intel_csr {
 	const char *fw_path;
 	uint32_t *dmc_payload;
 	uint32_t dmc_fw_size;
+	uint32_t version;
 	uint32_t mmio_count;
 	uint32_t mmioaddr[8];
 	uint32_t mmiodata[8];
