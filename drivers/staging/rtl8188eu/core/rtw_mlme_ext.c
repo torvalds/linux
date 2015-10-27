@@ -1181,7 +1181,7 @@ static void issue_assocreq(struct adapter *padapter)
 	}
 
 	/* vendor specific IE, such as WPA, WMM, WPS */
-	for (i = sizeof(struct ndis_802_11_fixed_ie); i < pmlmeinfo->network.IELength;) {
+	for (i = sizeof(struct ndis_802_11_fixed_ie); i < pmlmeinfo->network.IELength; i += (pIE->Length + 2)) {
 		pIE = (struct ndis_802_11_var_ie *)(pmlmeinfo->network.IEs + i);
 
 		switch (pIE->ElementID) {
@@ -1202,7 +1202,6 @@ static void issue_assocreq(struct adapter *padapter)
 		default:
 			break;
 		}
-		i += (pIE->Length + 2);
 	}
 
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_REALTEK)
