@@ -557,5 +557,9 @@ int fm10k_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
 int fm10k_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
 
 /* DCB */
+#ifdef CONFIG_DCB
 void fm10k_dcbnl_set_ops(struct net_device *dev);
+#else
+static inline void fm10k_dcbnl_set_ops(struct net_device *dev) {}
+#endif
 #endif /* _FM10K_H_ */
