@@ -531,8 +531,18 @@
 		      <0x12030000 0x10000>;
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_gates14 6>, <&clk_gates3 7>, <&clk_hdmi_cec>;
-		clock-names = "pclk_hdmi", "hdcp_clk_hdmi", "cec_clk_hdmi";
+		clocks = <&clk_gates3 7>,
+			 <&clk_gates14 6>,
+			 <&clk_gates10 7>,
+			 <&clk_hdmi_cec>;
+		clock-names = "hdcp_clk_hdmi",
+			      "pclk_hdmi",
+			      "pclk_hdmi_phy",
+			      "cec_clk_hdmi";
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&hdmi_cec &hdmii2c_xfer>;
+		pinctrl-1 = <&i2c3_gpio>;
+		rockchip,hotplug = <&gpio0 GPIO_B7 GPIO_ACTIVE_LOW>;
 		rockchip,hdmi_audio_source = <0>;
 		rockchip,hdcp_enable = <0>;
 		rockchip,cec_enable = <0>;
