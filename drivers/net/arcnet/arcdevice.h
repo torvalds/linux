@@ -237,6 +237,8 @@ struct Outgoing {
 		numsegs;	/* number of segments */
 };
 
+#define ARCNET_LED_NAME_SZ (IFNAMSIZ + 6)
+
 struct arcnet_local {
 	uint8_t config,		/* current value of CONFIG register */
 		timeout,	/* Extended timeout for COM20020 */
@@ -259,6 +261,13 @@ struct arcnet_local {
 
 	/* On preemtive and SMB a lock is needed */
 	spinlock_t lock;
+
+	struct led_trigger *tx_led_trig;
+	char tx_led_trig_name[ARCNET_LED_NAME_SZ];
+	struct led_trigger *recon_led_trig;
+	char recon_led_trig_name[ARCNET_LED_NAME_SZ];
+
+	struct timer_list	timer;
 
 	/*
 	 * Buffer management: an ARCnet card has 4 x 512-byte buffers, each of
@@ -309,6 +318,8 @@ struct arcnet_local {
 		int (*reset)(struct net_device *dev, int really_reset);
 		void (*open)(struct net_device *dev);
 		void (*close)(struct net_device *dev);
+		void (*datatrigger) (struct net_device * dev, int enable);
+		void (*recontrigger) (struct net_device * dev, int enable);
 
 		void (*copy_to_card)(struct net_device *dev, int bufnum,
 				     int offset, void *buf, int count);
@@ -318,6 +329,16 @@ struct arcnet_local {
 
 	void __iomem *mem_start;	/* pointer to ioremap'ed MMIO */
 };
+
+enum arcnet_led_event {
+	ARCNET_LED_EVENT_RECON,
+	ARCNET_LED_EVENT_OPEN,
+	ARCNET_LED_EVENT_STOP,
+	ARCNET_LED_EVENT_TX,
+};
+
+void arcnet_led_event(struct net_device *netdev, enum arcnet_led_event event);
+void devm_arcnet_led_init(struct net_device *netdev, int index, int subid);
 
 #if ARCNET_DEBUG_MAX & D_SKB
 void arcnet_dump_skb(struct net_device *dev, struct sk_buff *skb, char *desc);

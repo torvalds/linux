@@ -118,7 +118,7 @@ int com20020_check(struct net_device *dev)
 		arcnet_outb(STARTIOcmd, ioaddr, COM20020_REG_W_COMMAND);
 	}
 
-	lp->config = TXENcfg | (lp->timeout << 3) | (lp->backplane << 2) | SUB_NODE;
+	lp->config = (lp->timeout << 3) | (lp->backplane << 2) | SUB_NODE;
 	/* set node ID to 0x42 (but transmitter is disabled, so it's okay) */
 	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arcnet_outb(0x42, ioaddr, COM20020_REG_W_XREG);
@@ -130,11 +130,6 @@ int com20020_check(struct net_device *dev)
 		return -ENODEV;
 	}
 	arc_printk(D_INIT_REASONS, dev, "status after reset: %X\n", status);
-
-	/* Enable TX */
-	lp->config |= TXENcfg;
-	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
-	arcnet_outb(arcnet_inb(ioaddr, 8), ioaddr, COM20020_REG_W_XREG);
 
 	arcnet_outb(CFLAGScmd | RESETclear | CONFIGclear,
 		    ioaddr, COM20020_REG_W_COMMAND);
@@ -169,9 +164,33 @@ static int com20020_set_hwaddr(struct net_device *dev, void *addr)
 	return 0;
 }
 
+static int com20020_netdev_open(struct net_device *dev)
+{
+	int ioaddr = dev->base_addr;
+	struct arcnet_local *lp = netdev_priv(dev);
+
+	lp->config |= TXENcfg;
+	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
+
+	return arcnet_open(dev);
+}
+
+static int com20020_netdev_close(struct net_device *dev)
+{
+	int ioaddr = dev->base_addr;
+	struct arcnet_local *lp = netdev_priv(dev);
+
+	arcnet_close(dev);
+
+	/* disable transmitter */
+	lp->config &= ~TXENcfg;
+	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
+	return 0;
+}
+
 const struct net_device_ops com20020_netdev_ops = {
-	.ndo_open	= arcnet_open,
-	.ndo_stop	= arcnet_close,
+	.ndo_open	= com20020_netdev_open,
+	.ndo_stop	= com20020_netdev_close,
 	.ndo_start_xmit = arcnet_send_packet,
 	.ndo_tx_timeout = arcnet_timeout,
 	.ndo_set_mac_address = com20020_set_hwaddr,
@@ -215,7 +234,7 @@ int com20020_found(struct net_device *dev, int shared)
 		arcnet_outb(STARTIOcmd, ioaddr, COM20020_REG_W_COMMAND);
 	}
 
-	lp->config = TXENcfg | (lp->timeout << 3) | (lp->backplane << 2) | SUB_NODE;
+	lp->config = (lp->timeout << 3) | (lp->backplane << 2) | SUB_NODE;
 	/* Default 0x38 + register: Node ID */
 	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arcnet_outb(dev->dev_addr[0], ioaddr, COM20020_REG_W_XREG);
@@ -274,7 +293,7 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 		   dev->name, arcnet_inb(ioaddr, COM20020_REG_R_STATUS));
 
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
-	lp->config = TXENcfg | (lp->timeout << 3) | (lp->backplane << 2);
+	lp->config |= (lp->timeout << 3) | (lp->backplane << 2);
 	/* power-up defaults */
 	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
