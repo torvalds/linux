@@ -353,7 +353,10 @@ static void msdc_reset_hw(struct msdc_host *host)
 static void msdc_cmd_next(struct msdc_host *host,
 		struct mmc_request *mrq, struct mmc_command *cmd);
 
-static u32 data_ints_mask = MSDC_INTEN_XFER_COMPL | MSDC_INTEN_DATTMO |
+static const u32 cmd_ints_mask = MSDC_INTEN_CMDRDY | MSDC_INTEN_RSPCRCERR |
+			MSDC_INTEN_CMDTMO | MSDC_INTEN_ACMDRDY |
+			MSDC_INTEN_ACMDCRCERR | MSDC_INTEN_ACMDTMO;
+static const u32 data_ints_mask = MSDC_INTEN_XFER_COMPL | MSDC_INTEN_DATTMO |
 			MSDC_INTEN_DATCRCERR | MSDC_INTEN_DMA_BDCSERR |
 			MSDC_INTEN_DMA_GPDCSERR | MSDC_INTEN_DMA_PROTECT;
 
@@ -725,10 +728,7 @@ static bool msdc_cmd_done(struct msdc_host *host, int events,
 	if (done)
 		return true;
 
-	sdr_clr_bits(host->base + MSDC_INTEN, MSDC_INTEN_CMDRDY |
-			MSDC_INTEN_RSPCRCERR | MSDC_INTEN_CMDTMO |
-			MSDC_INTEN_ACMDRDY | MSDC_INTEN_ACMDCRCERR |
-			MSDC_INTEN_ACMDTMO);
+	sdr_clr_bits(host->base + MSDC_INTEN, cmd_ints_mask);
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136) {
@@ -818,10 +818,7 @@ static void msdc_start_command(struct msdc_host *host,
 	rawcmd = msdc_cmd_prepare_raw_cmd(host, mrq, cmd);
 	mod_delayed_work(system_wq, &host->req_timeout, DAT_TIMEOUT);
 
-	sdr_set_bits(host->base + MSDC_INTEN, MSDC_INTEN_CMDRDY |
-			MSDC_INTEN_RSPCRCERR | MSDC_INTEN_CMDTMO |
-			MSDC_INTEN_ACMDRDY | MSDC_INTEN_ACMDCRCERR |
-			MSDC_INTEN_ACMDTMO);
+	sdr_set_bits(host->base + MSDC_INTEN, cmd_ints_mask);
 	writel(cmd->arg, host->base + SDC_ARG);
 	writel(rawcmd, host->base + SDC_CMD);
 }
