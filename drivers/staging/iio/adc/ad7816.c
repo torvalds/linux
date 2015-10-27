@@ -59,6 +59,7 @@ static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 {
 	struct spi_device *spi_dev = chip->spi_dev;
 	int ret = 0;
+	__be16 buf;
 
 	gpio_set_value(chip->rdwr_pin, 1);
 	gpio_set_value(chip->rdwr_pin, 0);
@@ -82,13 +83,13 @@ static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 
 	gpio_set_value(chip->rdwr_pin, 0);
 	gpio_set_value(chip->rdwr_pin, 1);
-	ret = spi_read(spi_dev, (u8 *)data, sizeof(*data));
+	ret = spi_read(spi_dev, &buf, sizeof(*data));
 	if (ret < 0) {
 		dev_err(&spi_dev->dev, "SPI data read error\n");
 		return ret;
 	}
 
-	*data = be16_to_cpu(*data);
+	*data = be16_to_cpu(buf);
 
 	return ret;
 }
