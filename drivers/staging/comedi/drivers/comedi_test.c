@@ -63,9 +63,9 @@ enum waveform_state_bits {
 struct waveform_private {
 	struct timer_list ai_timer;	/* timer for AI commands */
 	u64 ai_last_scan_time;		/* time of last AI scan in usec */
-	unsigned int uvolt_amplitude;	/* waveform amplitude in microvolts */
-	unsigned int usec_period;	/* waveform period in microseconds */
-	unsigned int usec_current;	/* current time (mod waveform period) */
+	unsigned int wf_amplitude;	/* waveform amplitude in microvolts */
+	unsigned int wf_period;		/* waveform period in microseconds */
+	unsigned int wf_current;	/* current time in waveform period */
 	unsigned long state_bits;
 	unsigned int ai_scan_period;	/* AI scan period in usec */
 	unsigned int ai_convert_period;	/* AI conversion period in usec */
@@ -93,12 +93,12 @@ static unsigned short fake_sawtooth(struct comedi_device *dev,
 	u64 binary_amplitude;
 
 	binary_amplitude = s->maxdata;
-	binary_amplitude *= devpriv->uvolt_amplitude;
+	binary_amplitude *= devpriv->wf_amplitude;
 	do_div(binary_amplitude, krange->max - krange->min);
 
 	value = current_time;
 	value *= binary_amplitude * 2;
-	do_div(value, devpriv->usec_period);
+	do_div(value, devpriv->wf_period);
 	value += offset;
 	/* get rid of sawtooth's dc offset and clamp value */
 	if (value < binary_amplitude) {
@@ -124,11 +124,11 @@ static unsigned short fake_squarewave(struct comedi_device *dev,
 	    &s->range_table->range[range_index];
 
 	value = s->maxdata;
-	value *= devpriv->uvolt_amplitude;
+	value *= devpriv->wf_amplitude;
 	do_div(value, krange->max - krange->min);
 
 	/* get one of two values for square-wave and clamp */
-	if (current_time < devpriv->usec_period / 2) {
+	if (current_time < devpriv->wf_period / 2) {
 		if (offset < value)
 			value = 0;		/* negative saturation */
 		else
@@ -200,20 +200,20 @@ static void waveform_ai_interrupt(unsigned long arg)
 		for (j = 0; j < cmd->chanlist_len; j++) {
 			unsigned short sample;
 
-			if (devpriv->usec_current >= devpriv->usec_period)
-				devpriv->usec_current %= devpriv->usec_period;
+			if (devpriv->wf_current >= devpriv->wf_period)
+				devpriv->wf_current %= devpriv->wf_period;
 			sample = fake_waveform(dev, CR_CHAN(cmd->chanlist[j]),
 					       CR_RANGE(cmd->chanlist[j]),
-					       devpriv->usec_current);
+					       devpriv->wf_current);
 			comedi_buf_write_samples(s, &sample, 1);
-			devpriv->usec_current += devpriv->ai_convert_period;
+			devpriv->wf_current += devpriv->ai_convert_period;
 			scan_remain_period -= devpriv->ai_convert_period;
 		}
-		devpriv->usec_current += scan_remain_period;
+		devpriv->wf_current += scan_remain_period;
 		devpriv->ai_last_scan_time += devpriv->ai_scan_period;
 	}
-	if (devpriv->usec_current >= devpriv->usec_period)
-		devpriv->usec_current %= devpriv->usec_period;
+	if (devpriv->wf_current >= devpriv->wf_period)
+		devpriv->wf_current %= devpriv->wf_period;
 
 	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
 		async->events |= COMEDI_CB_EOA;
@@ -329,7 +329,7 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 {
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	u64 usec_current;
+	u64 wf_current;
 
 	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
@@ -351,8 +351,8 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 
 	devpriv->ai_last_scan_time = ktime_to_us(ktime_get());
 	/* Determine time within waveform period. */
-	usec_current = devpriv->ai_last_scan_time;
-	devpriv->usec_current = do_div(usec_current, devpriv->usec_period);
+	wf_current = devpriv->ai_last_scan_time;
+	devpriv->wf_current = do_div(wf_current, devpriv->wf_period);
 
 	devpriv->ai_timer.expires = jiffies + 1;
 	/* mark command as active */
@@ -422,8 +422,8 @@ static int waveform_attach(struct comedi_device *dev,
 	if (period <= 0)
 		period = 100000;	/* 0.1 sec */
 
-	devpriv->uvolt_amplitude = amplitude;
-	devpriv->usec_period = period;
+	devpriv->wf_amplitude = amplitude;
+	devpriv->wf_period = period;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -463,7 +463,7 @@ static int waveform_attach(struct comedi_device *dev,
 	dev_info(dev->class_dev,
 		 "%s: %u microvolt, %u microsecond waveform attached\n",
 		 dev->board_name,
-		 devpriv->uvolt_amplitude, devpriv->usec_period);
+		 devpriv->wf_amplitude, devpriv->wf_period);
 
 	return 0;
 }
