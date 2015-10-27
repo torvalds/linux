@@ -98,7 +98,7 @@ retry:
 			clock_setting | phase,
 			SDHCI_CLK_DELAY_SETTING);
 
-		if (!mmc_send_tuning(mmc)) {
+		if (!mmc_send_tuning(mmc, opcode, NULL)) {
 			/* Tuning is successful at this tuning point */
 			tuned_phase_cnt++;
 			dev_dbg(mmc_dev(mmc), "%s: Found good phase = %d\n",

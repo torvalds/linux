@@ -83,7 +83,7 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 #define NUM_PHASES			360
 #define TUNING_ITERATION_TO_PHASE(i)	(DIV_ROUND_UP((i) * 360, NUM_PHASES))
 
-static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot)
+static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 {
 	struct dw_mci *host = slot->host;
 	struct dw_mci_rockchip_priv_data *priv = host->priv;
@@ -114,7 +114,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot)
 	for (i = 0; i < NUM_PHASES; ) {
 		clk_set_phase(priv->sample_clk, TUNING_ITERATION_TO_PHASE(i));
 
-		v = !mmc_send_tuning(mmc);
+		v = !mmc_send_tuning(mmc, opcode, NULL);
 
 		if (i == 0)
 			first_v = v;
