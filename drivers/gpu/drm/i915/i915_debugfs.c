@@ -2788,6 +2788,32 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_dmc_info(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_csr *csr;
+
+	if (!HAS_CSR(dev)) {
+		seq_puts(m, "not supported\n");
+		return 0;
+	}
+
+	csr = &dev_priv->csr;
+
+	seq_printf(m, "fw loaded: %s\n", yesno(csr->dmc_payload != NULL));
+	seq_printf(m, "path: %s\n", csr->fw_path);
+
+	if (!csr->dmc_payload)
+		return 0;
+
+	seq_printf(m, "version: %d.%d\n", CSR_VERSION_MAJOR(csr->version),
+		   CSR_VERSION_MINOR(csr->version));
+
+	return 0;
+}
+
 static void intel_seq_print_mode(struct seq_file *m, int tabs,
 				 struct drm_display_mode *mode)
 {
@@ -5352,6 +5378,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_energy_uJ", i915_energy_uJ, 0},
 	{"i915_runtime_pm_status", i915_runtime_pm_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
+	{"i915_dmc_info", i915_dmc_info, 0},
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_semaphore_status", i915_semaphore_status, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
