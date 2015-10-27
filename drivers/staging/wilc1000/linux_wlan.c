@@ -374,7 +374,7 @@ void linux_wlan_mac_indicate(struct wilc *wilc, int flag)
 
 }
 
-struct net_device *GetIfHandler(u8 *pMacHeader)
+struct net_device *GetIfHandler(struct wilc *wilc, u8 *pMacHeader)
 {
 	u8 *Bssid, *Bssid1;
 	int i = 0;
@@ -382,20 +382,20 @@ struct net_device *GetIfHandler(u8 *pMacHeader)
 	Bssid  = pMacHeader + 10;
 	Bssid1 = pMacHeader + 4;
 
-	for (i = 0; i < g_linux_wlan->vif_num; i++)
-		if (!memcmp(Bssid1, g_linux_wlan->vif[i].bssid, ETH_ALEN) ||
-		    !memcmp(Bssid, g_linux_wlan->vif[i].bssid, ETH_ALEN))
-			return g_linux_wlan->vif[i].ndev;
+	for (i = 0; i < wilc->vif_num; i++)
+		if (!memcmp(Bssid1, wilc->vif[i].bssid, ETH_ALEN) ||
+		    !memcmp(Bssid, wilc->vif[i].bssid, ETH_ALEN))
+			return wilc->vif[i].ndev;
 
 	PRINT_INFO(INIT_DBG, "Invalide handle\n");
 	for (i = 0; i < 25; i++)
 		PRINT_D(INIT_DBG, "%02x ", pMacHeader[i]);
 	Bssid  = pMacHeader + 18;
 	Bssid1 = pMacHeader + 12;
-	for (i = 0; i < g_linux_wlan->vif_num; i++)
-		if (!memcmp(Bssid1, g_linux_wlan->vif[i].bssid, ETH_ALEN) ||
-		    !memcmp(Bssid, g_linux_wlan->vif[i].bssid, ETH_ALEN))
-			return g_linux_wlan->vif[i].ndev;
+	for (i = 0; i < wilc->vif_num; i++)
+		if (!memcmp(Bssid1, wilc->vif[i].bssid, ETH_ALEN) ||
+		    !memcmp(Bssid, wilc->vif[i].bssid, ETH_ALEN))
+			return wilc->vif[i].ndev;
 
 	PRINT_INFO(INIT_DBG, "\n");
 	return NULL;
@@ -1567,7 +1567,7 @@ void frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 	struct net_device *wilc_netdev;
 	perInterface_wlan_t *nic;
 
-	wilc_netdev = GetIfHandler(buff);
+	wilc_netdev = GetIfHandler(wilc, buff);
 	if (wilc_netdev == NULL)
 		return;
 
