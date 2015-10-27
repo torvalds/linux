@@ -809,6 +809,7 @@ int skl_tplg_update_pipe_params(struct device *dev,
 		break;
 
 	case SKL_DEPTH_24BIT:
+	case SKL_DEPTH_32BIT:
 		format->bit_depth = SKL_DEPTH_32BIT;
 		break;
 
