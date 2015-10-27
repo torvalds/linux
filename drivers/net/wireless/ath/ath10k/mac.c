@@ -6984,7 +6984,7 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 
 	mcs_map = 0;
 	for (i = 0; i < 8; i++) {
-		if (i < ar->num_rf_chains)
+		if ((i < ar->num_rf_chains) && (ar->cfg_tx_chainmask & BIT(i)))
 			mcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << (i*2);
 		else
 			mcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << (i*2);
@@ -7051,8 +7051,10 @@ static struct ieee80211_sta_ht_cap ath10k_get_ht_cap(struct ath10k *ar)
 	if (ar->vht_cap_info & WMI_VHT_CAP_MAX_MPDU_LEN_MASK)
 		ht_cap.cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 
-	for (i = 0; i < ar->num_rf_chains; i++)
-		ht_cap.mcs.rx_mask[i] = 0xFF;
+	for (i = 0; i < ar->num_rf_chains; i++) {
+		if (ar->cfg_rx_chainmask & BIT(i))
+			ht_cap.mcs.rx_mask[i] = 0xFF;
+	}
 
 	ht_cap.mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
 
