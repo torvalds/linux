@@ -191,8 +191,8 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 			 * for other VM updates and moves.
 			 */
 			fence_owner = amdgpu_sync_get_owner(f);
-			if ((owner != AMDGPU_FENCE_OWNER_MOVE) &&
-			    (fence_owner != AMDGPU_FENCE_OWNER_MOVE) &&
+			if ((owner != AMDGPU_FENCE_OWNER_UNDEFINED) &&
+			    (fence_owner != AMDGPU_FENCE_OWNER_UNDEFINED) &&
 			    ((owner == AMDGPU_FENCE_OWNER_VM) !=
 			     (fence_owner == AMDGPU_FENCE_OWNER_VM)))
 				continue;
