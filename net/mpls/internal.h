@@ -25,7 +25,8 @@ struct sk_buff;
 #define MAX_NEW_LABELS 2
 
 /* This maximum ha length copied from the definition of struct neighbour */
-#define MAX_VIA_ALEN (ALIGN(MAX_ADDR_LEN, sizeof(unsigned long)))
+#define VIA_ALEN_ALIGN sizeof(unsigned long)
+#define MAX_VIA_ALEN (ALIGN(MAX_ADDR_LEN, VIA_ALEN_ALIGN))
 
 enum mpls_payload_type {
 	MPT_UNSPEC, /* IPv4 or IPv6 */
@@ -44,14 +45,35 @@ struct mpls_nh { /* next hop label forwarding entry */
 	u8			nh_labels;
 	u8			nh_via_alen;
 	u8			nh_via_table;
-	u8			nh_via[MAX_VIA_ALEN];
 };
 
+/* The route, nexthops and vias are stored together in the same memory
+ * block:
+ *
+ * +----------------------+
+ * | mpls_route           |
+ * +----------------------+
+ * | mpls_nh 0            |
+ * +----------------------+
+ * | ...                  |
+ * +----------------------+
+ * | mpls_nh n-1          |
+ * +----------------------+
+ * | alignment padding    |
+ * +----------------------+
+ * | via[rt_max_alen] 0   |
+ * +----------------------+
+ * | ...                  |
+ * +----------------------+
+ * | via[rt_max_alen] n-1 |
+ * +----------------------+
+ */
 struct mpls_route { /* next hop label forwarding entry */
 	struct rcu_head		rt_rcu;
 	u8			rt_protocol;
 	u8			rt_payload_type;
-	int			rt_nhn;
+	u8			rt_max_alen;
+	unsigned int		rt_nhn;
 	struct mpls_nh		rt_nh[0];
 };
 
