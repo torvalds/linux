@@ -1611,25 +1611,25 @@ void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset)
 	}
 }
 
-void WILC_WFI_mgmt_rx(u8 *buff, u32 size)
+void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 {
 	int i = 0;
 	perInterface_wlan_t *nic;
 
 	/*Pass the frame on the monitor interface, if any.*/
 	/*Otherwise, pass it on p2p0 netdev, if registered on it*/
-	for (i = 0; i < g_linux_wlan->vif_num; i++) {
-		nic = netdev_priv(g_linux_wlan->vif[i].ndev);
+	for (i = 0; i < wilc->vif_num; i++) {
+		nic = netdev_priv(wilc->vif[i].ndev);
 		if (nic->monitor_flag) {
 			WILC_WFI_monitor_rx(buff, size);
 			return;
 		}
 	}
 
-	nic = netdev_priv(g_linux_wlan->vif[1].ndev); /* p2p0 */
+	nic = netdev_priv(wilc->vif[1].ndev); /* p2p0 */
 	if ((buff[0] == nic->g_struct_frame_reg[0].frame_type && nic->g_struct_frame_reg[0].reg) ||
 	    (buff[0] == nic->g_struct_frame_reg[1].frame_type && nic->g_struct_frame_reg[1].reg))
-		WILC_WFI_p2p_rx(g_linux_wlan->vif[1].ndev, buff, size);
+		WILC_WFI_p2p_rx(wilc->vif[1].ndev, buff, size);
 }
 
 void wl_wlan_cleanup(void)

@@ -18,7 +18,6 @@
  ********************************************/
 extern wilc_hif_func_t hif_sdio;
 extern wilc_hif_func_t hif_spi;
-extern void WILC_WFI_mgmt_rx(u8 *buff, u32 size);
 u32 wilc_get_chipid(u8 update);
 u16 Set_machw_change_vir_if(bool bValue);
 
@@ -1178,7 +1177,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 				/* reset mgmt indicator bit, to use pkt_offeset in furthur calculations */
 				pkt_offset &= ~(IS_MANAGMEMENT | IS_MANAGMEMENT_CALLBACK | IS_MGMT_STATUS_SUCCES);
 
-				WILC_WFI_mgmt_rx(&buffer[offset + HOST_HDR_OFFSET], pkt_len);
+				WILC_WFI_mgmt_rx(wilc, &buffer[offset + HOST_HDR_OFFSET], pkt_len);
 			}
 			else
 			{

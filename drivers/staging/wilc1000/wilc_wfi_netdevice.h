@@ -216,4 +216,5 @@ int linux_wlan_lock_timeout(void *vp, u32 timeout);
 void wl_wlan_cleanup(void);
 int wilc_netdev_init(struct wilc **wilc);
 void wilc1000_wlan_deinit(struct net_device *dev);
+void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
 #endif
