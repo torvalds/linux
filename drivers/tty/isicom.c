@@ -280,7 +280,7 @@ static void raise_dtr(struct isi_port *port)
 }
 
 /* card->lock HAS to be held */
-static inline void drop_dtr(struct isi_port *port)
+static void drop_dtr(struct isi_port *port)
 {
 	struct isi_board *card = port->card;
 	unsigned long base = card->base;
