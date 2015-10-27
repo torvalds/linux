@@ -97,7 +97,6 @@ static unsigned short fake_sawtooth(struct comedi_device *dev,
 	binary_amplitude *= devpriv->uvolt_amplitude;
 	do_div(binary_amplitude, krange->max - krange->min);
 
-	current_time %= devpriv->usec_period;
 	value = current_time;
 	value *= binary_amplitude * 2;
 	do_div(value, devpriv->usec_period);
@@ -125,7 +124,6 @@ static unsigned short fake_squarewave(struct comedi_device *dev,
 	const struct comedi_krange *krange =
 	    &s->range_table->range[range_index];
 
-	current_time %= devpriv->usec_period;
 	value = s->maxdata;
 	value *= devpriv->uvolt_amplitude;
 	do_div(value, krange->max - krange->min);
@@ -206,20 +204,24 @@ static void waveform_ai_interrupt(unsigned long arg)
 
 	num_scans = comedi_nscans_left(s, num_scans);
 	for (i = 0; i < num_scans; i++) {
+		unsigned long scan_remain_period = devpriv->scan_period;
+
 		for (j = 0; j < cmd->chanlist_len; j++) {
 			unsigned short sample;
 
+			if (devpriv->usec_current >= devpriv->usec_period)
+				devpriv->usec_current %= devpriv->usec_period;
 			sample = fake_waveform(dev, CR_CHAN(cmd->chanlist[j]),
 					       CR_RANGE(cmd->chanlist[j]),
-					       devpriv->usec_current +
-						   i * devpriv->scan_period +
-						   j * devpriv->convert_period);
+					       devpriv->usec_current);
 			comedi_buf_write_samples(s, &sample, 1);
+			devpriv->usec_current += devpriv->convert_period;
+			scan_remain_period -= devpriv->convert_period;
 		}
+		devpriv->usec_current += scan_remain_period;
 	}
-
-	devpriv->usec_current += elapsed_time;
-	devpriv->usec_current %= devpriv->usec_period;
+	if (devpriv->usec_current >= devpriv->usec_period)
+		devpriv->usec_current %= devpriv->usec_period;
 
 	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
 		async->events |= COMEDI_CB_EOA;
