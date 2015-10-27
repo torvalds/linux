@@ -128,8 +128,6 @@ static void i8xx_fbc_deactivate(struct drm_i915_private *dev_priv)
 		DRM_DEBUG_KMS("FBC idle timed out\n");
 		return;
 	}
-
-	DRM_DEBUG_KMS("deactivated FBC\n");
 }
 
 static void i8xx_fbc_activate(struct intel_crtc *crtc)
@@ -177,9 +175,6 @@ static void i8xx_fbc_activate(struct intel_crtc *crtc)
 	fbc_ctl |= (cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
 	fbc_ctl |= obj->fence_reg;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
-
-	DRM_DEBUG_KMS("activated FBC, pitch %d, yoff %d, plane %c\n",
-		      cfb_pitch, crtc->base.y, plane_name(crtc->plane));
 }
 
 static bool i8xx_fbc_is_active(struct drm_i915_private *dev_priv)
@@ -207,8 +202,6 @@ static void g4x_fbc_activate(struct intel_crtc *crtc)
 
 	/* enable it... */
 	I915_WRITE(DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
-
-	DRM_DEBUG_KMS("activated fbc on plane %c\n", plane_name(crtc->plane));
 }
 
 static void g4x_fbc_deactivate(struct drm_i915_private *dev_priv)
@@ -222,8 +215,6 @@ static void g4x_fbc_deactivate(struct drm_i915_private *dev_priv)
 	if (dpfc_ctl & DPFC_CTL_EN) {
 		dpfc_ctl &= ~DPFC_CTL_EN;
 		I915_WRITE(DPFC_CONTROL, dpfc_ctl);
-
-		DRM_DEBUG_KMS("deactivated FBC\n");
 	}
 }
 
@@ -283,8 +274,6 @@ static void ilk_fbc_activate(struct intel_crtc *crtc)
 	}
 
 	intel_fbc_recompress(dev_priv);
-
-	DRM_DEBUG_KMS("activated fbc on plane %c\n", plane_name(crtc->plane));
 }
 
 static void ilk_fbc_deactivate(struct drm_i915_private *dev_priv)
@@ -298,8 +287,6 @@ static void ilk_fbc_deactivate(struct drm_i915_private *dev_priv)
 	if (dpfc_ctl & DPFC_CTL_EN) {
 		dpfc_ctl &= ~DPFC_CTL_EN;
 		I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
-
-		DRM_DEBUG_KMS("deactivated FBC\n");
 	}
 }
 
@@ -362,8 +349,6 @@ static void gen7_fbc_activate(struct intel_crtc *crtc)
 	I915_WRITE(DPFC_CPU_FENCE_OFFSET, get_crtc_fence_y_offset(crtc));
 
 	intel_fbc_recompress(dev_priv);
-
-	DRM_DEBUG_KMS("activated fbc on plane %c\n", plane_name(crtc->plane));
 }
 
 /**
