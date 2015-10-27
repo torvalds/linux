@@ -695,6 +695,9 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 {
 	int ret;
 
+	if (adev->pm.sysfs_initialized)
+		return 0;
+
 	if (adev->pm.funcs->get_temperature == NULL)
 		return 0;
 	adev->pm.int_hwmon_dev = hwmon_device_register_with_groups(adev->dev,
@@ -722,6 +725,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("Failed to register debugfs file for dpm!\n");
 		return ret;
 	}
+
+	adev->pm.sysfs_initialized = true;
 
 	return 0;
 }
