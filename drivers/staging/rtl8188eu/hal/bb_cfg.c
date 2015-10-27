@@ -504,9 +504,8 @@ static void store_pwrindex_offset(struct adapter *adapter,
 				  u32 regaddr, u32 bitmask, u32 data)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapter);
-	 u8 pwrGrpCnt = hal_data->pwrGroupCnt;
 	u32 * const power_level_offset =
-		hal_data->MCSTxPowerLevelOriginalOffset[pwrGrpCnt];
+		hal_data->MCSTxPowerLevelOriginalOffset[hal_data->pwrGroupCnt];
 
 	if (regaddr == rTxAGC_A_Rate18_06)
 		power_level_offset[0] = data;
