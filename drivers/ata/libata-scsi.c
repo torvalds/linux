@@ -2947,6 +2947,9 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	if ((tf->protocol = ata_scsi_map_proto(cdb[1])) == ATA_PROT_UNKNOWN)
 		goto invalid_fld;
 
+	/* enable LBA */
+	tf->flags |= ATA_TFLAG_LBA;
+
 	/*
 	 * 12 and 16 byte CDBs use different offsets to
 	 * provide the various register values.
