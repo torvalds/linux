@@ -1011,31 +1011,34 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, struct wilc *nic)
 #endif
 }
 
-int wlan_initialize_threads(perInterface_wlan_t *nic)
+int wlan_initialize_threads(struct net_device *dev)
 {
-
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
 	int ret = 0;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
 
 	PRINT_D(INIT_DBG, "Initializing Threads ...\n");
 
 	/* create tx task */
 	PRINT_D(INIT_DBG, "Creating kthread for transmission\n");
-	g_linux_wlan->txq_thread = kthread_run(linux_wlan_txq_task, (void *)g_linux_wlan, "K_TXQ_TASK");
-	if (g_linux_wlan->txq_thread == NULL) {
+	wilc->txq_thread = kthread_run(linux_wlan_txq_task, (void *)wilc,
+				     "K_TXQ_TASK");
+	if (!wilc->txq_thread) {
 		PRINT_ER("couldn't create TXQ thread\n");
 		ret = -ENOBUFS;
 		goto _fail_2;
 	}
 	/* wait for TXQ task to start. */
-	down(&g_linux_wlan->txq_thread_started);
+	down(&wilc->txq_thread_started);
 
 	return 0;
 
 _fail_2:
 	/*De-Initialize 2nd thread*/
-	g_linux_wlan->close = 1;
-
-	g_linux_wlan->close = 0;
+	wilc->close = 0;
 	return ret;
 }
 
@@ -1084,7 +1087,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 #endif
 
-		ret = wlan_initialize_threads(nic);
+		ret = wlan_initialize_threads(dev);
 		if (ret < 0) {
 			PRINT_ER("Initializing Threads FAILED\n");
 			ret = -EIO;
