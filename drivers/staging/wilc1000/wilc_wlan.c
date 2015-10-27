@@ -1107,7 +1107,7 @@ _end_:
 	return ret;
 }
 
-static void wilc_wlan_handle_rxq(void)
+static void wilc_wlan_handle_rxq(struct wilc *wilc)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 	int offset = 0, size, has_packet = 0;
@@ -1122,7 +1122,7 @@ static void wilc_wlan_handle_rxq(void)
 	do {
 		if (p->quit) {
 			PRINT_D(RX_DBG, "exit 1st do-while due to Clean_UP function\n");
-			up(&g_linux_wlan->cfg_event);
+			up(&wilc->cfg_event);
 			break;
 		}
 		rqe = wilc_wlan_rxq_remove();
@@ -1194,7 +1194,7 @@ static void wilc_wlan_handle_rxq(void)
 						 **/
 						PRINT_D(RX_DBG, "p->cfg_seq_no = %d - rsp.seq_no = %d\n", p->cfg_seq_no, rsp.seq_no);
 						if (p->cfg_seq_no == rsp.seq_no)
-							up(&g_linux_wlan->cfg_event);
+							up(&wilc->cfg_event);
 					} else if (rsp.type == WILC_CFG_RSP_STATUS) {
 						/**
 						 *      Call back to indicate status...
@@ -1350,7 +1350,7 @@ _end_:
 #endif
 		}
 	}
-	wilc_wlan_handle_rxq();
+	wilc_wlan_handle_rxq(wilc);
 }
 
 void wilc_handle_isr(void *wilc)
