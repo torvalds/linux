@@ -62,11 +62,10 @@ enum waveform_state_bits {
 /* Data unique to this driver */
 struct waveform_private {
 	struct timer_list timer;
-	ktime_t last;	/* time last timer interrupt occurred */
+	u64 ai_last_scan_time;		/* time of last AI scan in usec */
 	unsigned int uvolt_amplitude;	/* waveform amplitude in microvolts */
 	unsigned int usec_period;	/* waveform period in microseconds */
 	unsigned int usec_current;	/* current time (mod waveform period) */
-	unsigned long usec_remainder;	/* usec since last scan */
 	unsigned long state_bits;
 	unsigned int scan_period;	/* scan period in usec */
 	unsigned int convert_period;	/* conversion period in usec */
@@ -184,27 +183,19 @@ static void waveform_ai_interrupt(unsigned long arg)
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int i, j;
-	/* all times in microsec */
 	unsigned long elapsed_time;
 	unsigned int num_scans;
-	ktime_t now;
 
 	/* check command is still active */
 	if (!test_bit(WAVEFORM_AI_RUNNING, &devpriv->state_bits))
 		return;
 
-	now = ktime_get();
-
-	elapsed_time = ktime_to_us(ktime_sub(now, devpriv->last));
-	devpriv->last = now;
-	num_scans =
-	    (devpriv->usec_remainder + elapsed_time) / devpriv->scan_period;
-	devpriv->usec_remainder =
-	    (devpriv->usec_remainder + elapsed_time) % devpriv->scan_period;
+	elapsed_time = ktime_to_us(ktime_get()) - devpriv->ai_last_scan_time;
+	num_scans = elapsed_time / devpriv->scan_period;
 
 	num_scans = comedi_nscans_left(s, num_scans);
 	for (i = 0; i < num_scans; i++) {
-		unsigned long scan_remain_period = devpriv->scan_period;
+		unsigned int scan_remain_period = devpriv->scan_period;
 
 		for (j = 0; j < cmd->chanlist_len; j++) {
 			unsigned short sample;
@@ -219,6 +210,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 			scan_remain_period -= devpriv->convert_period;
 		}
 		devpriv->usec_current += scan_remain_period;
+		devpriv->ai_last_scan_time += devpriv->scan_period;
 	}
 	if (devpriv->usec_current >= devpriv->usec_period)
 		devpriv->usec_current %= devpriv->usec_period;
@@ -337,6 +329,7 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 {
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	u64 usec_current;
 
 	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
@@ -356,10 +349,10 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 		devpriv->scan_period = cmd->scan_begin_arg / NSEC_PER_USEC;
 	}
 
-	devpriv->last = ktime_get();
-	devpriv->usec_current =
-		((u32)ktime_to_us(devpriv->last)) % devpriv->usec_period;
-	devpriv->usec_remainder = 0;
+	devpriv->ai_last_scan_time = ktime_to_us(ktime_get());
+	/* Determine time within waveform period. */
+	usec_current = devpriv->ai_last_scan_time;
+	devpriv->usec_current = do_div(usec_current, devpriv->usec_period);
 
 	devpriv->timer.expires = jiffies + 1;
 	/* mark command as active */
