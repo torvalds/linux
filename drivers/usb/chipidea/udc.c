@@ -435,19 +435,28 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	if (hwreq->req.dma % PAGE_SIZE)
 		pages--;
 
-	if (rest == 0)
-		add_td_to_list(hwep, hwreq, 0);
+	if (rest == 0) {
+		ret = add_td_to_list(hwep, hwreq, 0);
+		if (ret < 0)
+			goto done;
+	}
 
 	while (rest > 0) {
 		unsigned count = min(hwreq->req.length - hwreq->req.actual,
 					(unsigned)(pages * CI_HDRC_PAGE_SIZE));
-		add_td_to_list(hwep, hwreq, count);
+		ret = add_td_to_list(hwep, hwreq, count);
+		if (ret < 0)
+			goto done;
+
 		rest -= count;
 	}
 
 	if (hwreq->req.zero && hwreq->req.length && hwep->dir == TX
-	    && (hwreq->req.length % hwep->ep.maxpacket == 0))
-		add_td_to_list(hwep, hwreq, 0);
+	    && (hwreq->req.length % hwep->ep.maxpacket == 0)) {
+		ret = add_td_to_list(hwep, hwreq, 0);
+		if (ret < 0)
+			goto done;
+	}
 
 	firstnode = list_first_entry(&hwreq->tds, struct td_node, td);
 
