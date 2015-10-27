@@ -1051,8 +1051,12 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2870_BOARD_TERRATEC_XS_MT2060] = {
 		.name         = "Terratec Cinergy T XS (MT2060)",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.xclk         = EM28XX_XCLK_IR_RC5_MODE |
+				EM28XX_XCLK_FREQUENCY_12MHZ,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE,
 		.tuner_type   = TUNER_ABSENT, /* MT2060 */
+		.has_dvb      = 1,
+		.tuner_gpio   = default_tuner_gpio,
 	},
 	[EM2870_BOARD_KWORLD_350U] = {
 		.name         = "Kworld 350 U DVB-T",
@@ -2368,7 +2372,7 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0x0ccd, 0x0042),
 			.driver_info = EM2882_BOARD_TERRATEC_HYBRID_XS },
 	{ USB_DEVICE(0x0ccd, 0x0043),
-			.driver_info = EM2870_BOARD_TERRATEC_XS },
+			.driver_info = EM2870_BOARD_TERRATEC_XS_MT2060 },
 	{ USB_DEVICE(0x0ccd, 0x008e),	/* Cinergy HTC USB XS Rev. 1 */
 			.driver_info = EM2884_BOARD_TERRATEC_HTC_USB_XS },
 	{ USB_DEVICE(0x0ccd, 0x00ac),	/* Cinergy HTC USB XS Rev. 2 */
