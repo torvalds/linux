@@ -180,16 +180,24 @@ struct skl_module_fmt {
 	u32 ch_cfg;
 };
 
+struct skl_module_cfg;
+
 struct skl_module_inst_id {
 	u32 module_id;
 	u32 instance_id;
 };
 
+enum skl_module_pin_state {
+	SKL_PIN_UNBIND = 0,
+	SKL_PIN_BIND_DONE = 1,
+};
+
 struct skl_module_pin {
 	struct skl_module_inst_id id;
-	u8 pin_index;
 	bool is_dynamic;
 	bool in_use;
+	enum skl_module_pin_state pin_state;
+	struct skl_module_cfg *tgt_mcfg;
 };
 
 struct skl_specific_cfg {

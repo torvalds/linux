@@ -1049,6 +1049,7 @@ static void skl_fill_module_pin_info(struct skl_dfw_module_pin *dfw_pin,
 		m_pin[i].id.instance_id = dfw_pin[i].instance_id;
 		m_pin[i].in_use = false;
 		m_pin[i].is_dynamic = is_dynamic;
+		m_pin[i].pin_state = SKL_PIN_UNBIND;
 	}
 }
 

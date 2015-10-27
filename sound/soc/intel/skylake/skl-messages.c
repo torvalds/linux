@@ -571,10 +571,10 @@ static int skl_get_queue_index(struct skl_module_pin *mpin,
  * In static, the pin_index is fixed based on module_id and instance id
  */
 static int skl_alloc_queue(struct skl_module_pin *mpin,
-			struct skl_module_inst_id id, int max)
+			struct skl_module_cfg *tgt_cfg, int max)
 {
 	int i;
-
+	struct skl_module_inst_id id = tgt_cfg->id;
 	/*
 	 * if pin in dynamic, find first free pin
 	 * otherwise find match module and instance id pin as topology will
@@ -583,16 +583,23 @@ static int skl_alloc_queue(struct skl_module_pin *mpin,
 	 */
 	for (i = 0; i < max; i++)  {
 		if (mpin[i].is_dynamic) {
-			if (!mpin[i].in_use) {
+			if (!mpin[i].in_use &&
+				mpin[i].pin_state == SKL_PIN_UNBIND) {
+
 				mpin[i].in_use = true;
 				mpin[i].id.module_id = id.module_id;
 				mpin[i].id.instance_id = id.instance_id;
+				mpin[i].tgt_mcfg = tgt_cfg;
 				return i;
 			}
 		} else {
 			if (mpin[i].id.module_id == id.module_id &&
-				mpin[i].id.instance_id == id.instance_id)
+				mpin[i].id.instance_id == id.instance_id &&
+				mpin[i].pin_state == SKL_PIN_UNBIND) {
+
+				mpin[i].tgt_mcfg = tgt_cfg;
 				return i;
+			}
 		}
 	}
 
@@ -606,6 +613,28 @@ static void skl_free_queue(struct skl_module_pin *mpin, int q_index)
 		mpin[q_index].id.module_id = 0;
 		mpin[q_index].id.instance_id = 0;
 	}
+	mpin[q_index].pin_state = SKL_PIN_UNBIND;
+	mpin[q_index].tgt_mcfg = NULL;
+}
+
+/* Module state will be set to unint, if all the out pin state is UNBIND */
+
+static void skl_clear_module_state(struct skl_module_pin *mpin, int max,
+						struct skl_module_cfg *mcfg)
+{
+	int i;
+	bool found = false;
+
+	for (i = 0; i < max; i++)  {
+		if (mpin[i].pin_state == SKL_PIN_UNBIND)
+			continue;
+		found = true;
+		break;
+	}
+
+	if (!found)
+		mcfg->m_state = SKL_MODULE_UNINIT;
+	return;
 }
 
 /*
@@ -682,37 +711,30 @@ int skl_unbind_modules(struct skl_sst *ctx,
 	struct skl_module_inst_id dst_id = dst_mcfg->id;
 	int in_max = dst_mcfg->max_in_queue;
 	int out_max = src_mcfg->max_out_queue;
-	int src_index, dst_index;
+	int src_index, dst_index, src_pin_state, dst_pin_state;
 
 	skl_dump_bind_info(ctx, src_mcfg, dst_mcfg);
-
-	if (src_mcfg->m_state != SKL_MODULE_BIND_DONE)
-		return 0;
-
-	/*
-	 * if intra module unbind, check if both modules are BIND,
-	 * then send unbind
-	 */
-	if ((src_mcfg->pipe->ppl_id != dst_mcfg->pipe->ppl_id) &&
-				dst_mcfg->m_state != SKL_MODULE_BIND_DONE)
-		return 0;
-	else if (src_mcfg->m_state < SKL_MODULE_INIT_DONE &&
-				 dst_mcfg->m_state < SKL_MODULE_INIT_DONE)
-		return 0;
 
 	/* get src queue index */
 	src_index = skl_get_queue_index(src_mcfg->m_out_pin, dst_id, out_max);
 	if (src_index < 0)
 		return -EINVAL;
 
-	msg.src_queue = src_mcfg->m_out_pin[src_index].pin_index;
+	msg.src_queue = src_index;
 
 	/* get dst queue index */
 	dst_index  = skl_get_queue_index(dst_mcfg->m_in_pin, src_id, in_max);
 	if (dst_index < 0)
 		return -EINVAL;
 
-	msg.dst_queue = dst_mcfg->m_in_pin[dst_index].pin_index;
+	msg.dst_queue = dst_index;
+
+	src_pin_state = src_mcfg->m_out_pin[src_index].pin_state;
+	dst_pin_state = dst_mcfg->m_in_pin[dst_index].pin_state;
+
+	if (src_pin_state != SKL_PIN_BIND_DONE ||
+		dst_pin_state != SKL_PIN_BIND_DONE)
+		return 0;
 
 	msg.module_id = src_mcfg->id.module_id;
 	msg.instance_id = src_mcfg->id.instance_id;
@@ -722,10 +744,15 @@ int skl_unbind_modules(struct skl_sst *ctx,
 
 	ret = skl_ipc_bind_unbind(&ctx->ipc, &msg);
 	if (!ret) {
-		src_mcfg->m_state = SKL_MODULE_UNINIT;
 		/* free queue only if unbind is success */
 		skl_free_queue(src_mcfg->m_out_pin, src_index);
 		skl_free_queue(dst_mcfg->m_in_pin, dst_index);
+
+		/*
+		 * check only if src module bind state, bind is
+		 * always from src -> sink
+		 */
+		skl_clear_module_state(src_mcfg->m_out_pin, out_max, src_mcfg);
 	}
 
 	return ret;
@@ -744,8 +771,6 @@ int skl_bind_modules(struct skl_sst *ctx,
 {
 	int ret;
 	struct skl_ipc_bind_unbind_msg msg;
-	struct skl_module_inst_id src_id = src_mcfg->id;
-	struct skl_module_inst_id dst_id = dst_mcfg->id;
 	int in_max = dst_mcfg->max_in_queue;
 	int out_max = src_mcfg->max_out_queue;
 	int src_index, dst_index;
@@ -756,18 +781,18 @@ int skl_bind_modules(struct skl_sst *ctx,
 		dst_mcfg->m_state < SKL_MODULE_INIT_DONE)
 		return 0;
 
-	src_index = skl_alloc_queue(src_mcfg->m_out_pin, dst_id, out_max);
+	src_index = skl_alloc_queue(src_mcfg->m_out_pin, dst_mcfg, out_max);
 	if (src_index < 0)
 		return -EINVAL;
 
-	msg.src_queue = src_mcfg->m_out_pin[src_index].pin_index;
-	dst_index = skl_alloc_queue(dst_mcfg->m_in_pin, src_id, in_max);
+	msg.src_queue = src_index;
+	dst_index = skl_alloc_queue(dst_mcfg->m_in_pin, src_mcfg, in_max);
 	if (dst_index < 0) {
 		skl_free_queue(src_mcfg->m_out_pin, src_index);
 		return -EINVAL;
 	}
 
-	msg.dst_queue = dst_mcfg->m_in_pin[dst_index].pin_index;
+	msg.dst_queue = dst_index;
 
 	dev_dbg(ctx->dev, "src queue = %d dst queue =%d\n",
 			 msg.src_queue, msg.dst_queue);
@@ -782,6 +807,8 @@ int skl_bind_modules(struct skl_sst *ctx,
 
 	if (!ret) {
 		src_mcfg->m_state = SKL_MODULE_BIND_DONE;
+		src_mcfg->m_out_pin[src_index].pin_state = SKL_PIN_BIND_DONE;
+		dst_mcfg->m_in_pin[dst_index].pin_state = SKL_PIN_BIND_DONE;
 	} else {
 		/* error case , if IPC fails, clear the queue index */
 		skl_free_queue(src_mcfg->m_out_pin, src_index);
