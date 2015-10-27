@@ -23,7 +23,7 @@ config AD7606_IFACE_PARALLEL
 	  ADC driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ad7606_iface_parallel.
+	  module will be called ad7606_parallel.
 
 config AD7606_IFACE_SPI
 	tristate "spi interface support"
@@ -34,7 +34,7 @@ config AD7606_IFACE_SPI
 	  ADC driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ad7606_iface_spi.
+	  module will be called ad7606_spi.
 
 config AD7780
 	tristate "Analog Devices AD7780 and similar ADCs driver"
