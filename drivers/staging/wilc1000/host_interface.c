@@ -3108,7 +3108,7 @@ int host_int_set_wep_default_key(struct host_if_drv *hif_drv, u8 index)
 int host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
 				 const u8 *key,
 				 u8 len,
-				 u8 u8Keyidx)
+				 u8 index)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3127,7 +3127,7 @@ int host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
 	msg.body.key_info.attr.wep.key = kmalloc(len, GFP_KERNEL);
 	memcpy(msg.body.key_info.attr.wep.key, key, len);
 	msg.body.key_info.attr.wep.key_len = len;
-	msg.body.key_info.attr.wep.index = u8Keyidx;
+	msg.body.key_info.attr.wep.index = index;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
