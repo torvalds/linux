@@ -1124,6 +1124,10 @@ void fm10k_mbx_free_irq(struct fm10k_intfc *interface)
 	struct fm10k_hw *hw = &interface->hw;
 	int itr_reg;
 
+	/* no mailbox IRQ to free if MSI-X is not enabled */
+	if (!interface->msix_entries)
+		return;
+
 	/* disconnect the mailbox */
 	hw->mbx.ops.disconnect(hw, &hw->mbx);
 
@@ -1446,10 +1450,15 @@ int fm10k_mbx_request_irq(struct fm10k_intfc *interface)
 		err = fm10k_mbx_request_irq_pf(interface);
 	else
 		err = fm10k_mbx_request_irq_vf(interface);
+	if (err)
+		return err;
 
 	/* connect mailbox */
-	if (!err)
-		err = hw->mbx.ops.connect(hw, &hw->mbx);
+	err = hw->mbx.ops.connect(hw, &hw->mbx);
+
+	/* if the mailbox failed to connect, then free IRQ */
+	if (err)
+		fm10k_mbx_free_irq(interface);
 
 	return err;
 }
