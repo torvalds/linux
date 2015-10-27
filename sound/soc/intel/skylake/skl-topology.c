@@ -921,6 +921,9 @@ static int skl_tplg_be_fill_pipe_params(struct snd_soc_dai *dai,
 
 	memcpy(pipe->p_params, params, sizeof(*params));
 
+	if (link_type == NHLT_LINK_HDA)
+		return 0;
+
 	/* update the blob based on virtual bus_id*/
 	cfg = skl_get_ep_blob(skl, mconfig->vbus_id, link_type,
 					params->s_fmt, params->ch,
