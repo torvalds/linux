@@ -397,40 +397,24 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-/*
- * A PGA represents a module in a pipeline. So in the Pre-PMU event of PGA
- * we need to do following:
- *   - Bind to sink pipeline
- *      Since the sink pipes can be running and we don't get mixer event on
- *      connect for already running mixer, we need to find the sink pipes
- *      here and bind to them. This way dynamic connect works.
- *   - Start sink pipeline, if not running
- *   - Then run current pipe
- */
-static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
-							struct skl *skl)
+static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
+				struct skl *skl,
+				struct skl_module_cfg *src_mconfig)
 {
 	struct snd_soc_dapm_path *p;
-	struct snd_soc_dapm_widget *source, *sink;
-	struct skl_module_cfg *src_mconfig, *sink_mconfig;
+	struct snd_soc_dapm_widget *sink = NULL;
+	struct skl_module_cfg *sink_mconfig;
 	struct skl_sst *ctx = skl->skl_sst;
-	int ret = 0;
+	int ret;
 
-	source = w;
-	src_mconfig = source->priv;
-
-	/*
-	 * find which sink it is connected to, bind with the sink,
-	 * if sink is not started, start sink pipe first, then start
-	 * this pipe
-	 */
-	snd_soc_dapm_widget_for_each_source_path(w, p) {
+	snd_soc_dapm_widget_for_each_sink_path(w, p) {
 		if (!p->connect)
 			continue;
 
 		dev_dbg(ctx->dev, "%s: src widget=%s\n", __func__, w->name);
 		dev_dbg(ctx->dev, "%s: sink widget=%s\n", __func__, p->sink->name);
 
+		sink = p->sink;
 		/*
 		 * here we will check widgets in sink pipelines, so that
 		 * can be any widgets type and we are only interested if
@@ -440,7 +424,6 @@ static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 					is_skl_dsp_widget_type(p->sink)) {
 
 			sink = p->sink;
-			src_mconfig = source->priv;
 			sink_mconfig = sink->priv;
 
 			/* Bind source to sink, mixin is always source */
@@ -454,9 +437,42 @@ static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 				if (ret)
 					return ret;
 			}
-			break;
 		}
 	}
+
+	if (!sink)
+		return skl_tplg_bind_sinks(sink, skl, src_mconfig);
+
+	return 0;
+}
+
+/*
+ * A PGA represents a module in a pipeline. So in the Pre-PMU event of PGA
+ * we need to do following:
+ *   - Bind to sink pipeline
+ *      Since the sink pipes can be running and we don't get mixer event on
+ *      connect for already running mixer, we need to find the sink pipes
+ *      here and bind to them. This way dynamic connect works.
+ *   - Start sink pipeline, if not running
+ *   - Then run current pipe
+ */
+static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
+								struct skl *skl)
+{
+	struct skl_module_cfg *src_mconfig;
+	struct skl_sst *ctx = skl->skl_sst;
+	int ret = 0;
+
+	src_mconfig = w->priv;
+
+	/*
+	 * find which sink it is connected to, bind with the sink,
+	 * if sink is not started, start sink pipe first, then start
+	 * this pipe
+	 */
+	ret = skl_tplg_bind_sinks(w, skl, src_mconfig);
+	if (ret)
+		return ret;
 
 	/* Start source pipe last after starting all sinks */
 	ret = skl_run_pipe(ctx, src_mconfig->pipe);
@@ -464,6 +480,38 @@ static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 		return ret;
 
 	return 0;
+}
+
+static struct snd_soc_dapm_widget *skl_get_src_dsp_widget(
+		struct snd_soc_dapm_widget *w, struct skl *skl)
+{
+	struct snd_soc_dapm_path *p;
+	struct snd_soc_dapm_widget *src_w = NULL;
+	struct skl_sst *ctx = skl->skl_sst;
+
+	snd_soc_dapm_widget_for_each_source_path(w, p) {
+		src_w = p->source;
+		if (!p->connect)
+			continue;
+
+		dev_dbg(ctx->dev, "sink widget=%s\n", w->name);
+		dev_dbg(ctx->dev, "src widget=%s\n", p->source->name);
+
+		/*
+		 * here we will check widgets in sink pipelines, so that can
+		 * be any widgets type and we are only interested if they are
+		 * ones used for SKL so check that first
+		 */
+		if ((p->source->priv != NULL) &&
+					is_skl_dsp_widget_type(p->source)) {
+			return p->source;
+		}
+	}
+
+	if (src_w != NULL)
+		return skl_get_src_dsp_widget(src_w, skl);
+
+	return NULL;
 }
 
 /*
@@ -479,7 +527,6 @@ static int skl_tplg_mixer_dapm_post_pmu_event(struct snd_soc_dapm_widget *w,
 							struct skl *skl)
 {
 	int ret = 0;
-	struct snd_soc_dapm_path *p;
 	struct snd_soc_dapm_widget *source, *sink;
 	struct skl_module_cfg *src_mconfig, *sink_mconfig;
 	struct skl_sst *ctx = skl->skl_sst;
@@ -493,32 +540,18 @@ static int skl_tplg_mixer_dapm_post_pmu_event(struct snd_soc_dapm_widget *w,
 	 * one more sink before this sink got connected, Since source is
 	 * started, bind this sink to source and start this pipe.
 	 */
-	snd_soc_dapm_widget_for_each_sink_path(w, p) {
-		if (!p->connect)
-			continue;
-
-		dev_dbg(ctx->dev, "sink widget=%s\n", w->name);
-		dev_dbg(ctx->dev, "src widget=%s\n", p->source->name);
+	source = skl_get_src_dsp_widget(w, skl);
+	if (source != NULL) {
+		src_mconfig = source->priv;
+		sink_mconfig = sink->priv;
+		src_pipe_started = 1;
 
 		/*
-		 * here we will check widgets in sink pipelines, so that
-		 * can be any widgets type and we are only interested if
-		 * they are ones used for SKL so check that first
+		 * check pipe state, then no need to bind or start the
+		 * pipe
 		 */
-		if ((p->source->priv != NULL) &&
-					is_skl_dsp_widget_type(p->source)) {
-			source = p->source;
-			src_mconfig = source->priv;
-			sink_mconfig = sink->priv;
-			src_pipe_started = 1;
-
-			/*
-			 * check pipe state, then no need to bind or start
-			 * the pipe
-			 */
-			if (src_mconfig->pipe->state != SKL_PIPE_STARTED)
-				src_pipe_started = 0;
-		}
+		if (src_mconfig->pipe->state != SKL_PIPE_STARTED)
+			src_pipe_started = 0;
 	}
 
 	if (src_pipe_started) {
