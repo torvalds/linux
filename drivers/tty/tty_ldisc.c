@@ -185,7 +185,7 @@ static struct tty_ldisc *tty_ldisc_get(struct tty_struct *tty, int disc)
  *
  *	Complement of tty_ldisc_get().
  */
-static inline void tty_ldisc_put(struct tty_ldisc *ld)
+static void tty_ldisc_put(struct tty_ldisc *ld)
 {
 	if (WARN_ON_ONCE(!ld))
 		return;
