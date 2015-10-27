@@ -3897,6 +3897,29 @@ static struct ieee80211_sta_ht_cap ath10k_get_ht_cap(struct ath10k *ar)
 	return ht_cap;
 }
 
+static void ath10k_mac_setup_ht_vht_cap(struct ath10k *ar)
+{
+	struct ieee80211_supported_band *band;
+	struct ieee80211_sta_vht_cap vht_cap;
+	struct ieee80211_sta_ht_cap ht_cap;
+
+	ht_cap = ath10k_get_ht_cap(ar);
+	vht_cap = ath10k_create_vht_cap(ar);
+
+	if (ar->phy_capability & WHAL_WLAN_11G_CAPABILITY) {
+		band = &ar->mac.sbands[IEEE80211_BAND_2GHZ];
+		band->ht_cap = ht_cap;
+
+		/* Enable the VHT support at 2.4 GHz */
+		band->vht_cap = vht_cap;
+	}
+	if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY) {
+		band = &ar->mac.sbands[IEEE80211_BAND_5GHZ];
+		band->ht_cap = ht_cap;
+		band->vht_cap = vht_cap;
+	}
+}
+
 static int __ath10k_set_antenna(struct ath10k *ar, u32 tx_ant, u32 rx_ant)
 {
 	int ret;
@@ -3928,6 +3951,9 @@ static int __ath10k_set_antenna(struct ath10k *ar, u32 tx_ant, u32 rx_ant)
 			    ret, rx_ant);
 		return ret;
 	}
+
+	/* Reload HT/VHT capability */
+	ath10k_mac_setup_ht_vht_cap(ar);
 
 	return 0;
 }
@@ -7102,17 +7128,12 @@ int ath10k_mac_register(struct ath10k *ar)
 		WLAN_CIPHER_SUITE_AES_CMAC,
 	};
 	struct ieee80211_supported_band *band;
-	struct ieee80211_sta_vht_cap vht_cap;
-	struct ieee80211_sta_ht_cap ht_cap;
 	void *channels;
 	int ret;
 
 	SET_IEEE80211_PERM_ADDR(ar->hw, ar->mac_addr);
 
 	SET_IEEE80211_DEV(ar->hw, ar->dev);
-
-	ht_cap = ath10k_get_ht_cap(ar);
-	vht_cap = ath10k_create_vht_cap(ar);
 
 	BUILD_BUG_ON((ARRAY_SIZE(ath10k_2ghz_channels) +
 		      ARRAY_SIZE(ath10k_5ghz_channels)) !=
@@ -7132,10 +7153,6 @@ int ath10k_mac_register(struct ath10k *ar)
 		band->channels = channels;
 		band->n_bitrates = ath10k_g_rates_size;
 		band->bitrates = ath10k_g_rates;
-		band->ht_cap = ht_cap;
-
-		/* Enable the VHT support at 2.4 GHz */
-		band->vht_cap = vht_cap;
 
 		ar->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = band;
 	}
@@ -7154,10 +7171,10 @@ int ath10k_mac_register(struct ath10k *ar)
 		band->channels = channels;
 		band->n_bitrates = ath10k_a_rates_size;
 		band->bitrates = ath10k_a_rates;
-		band->ht_cap = ht_cap;
-		band->vht_cap = vht_cap;
 		ar->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = band;
 	}
+
+	ath10k_mac_setup_ht_vht_cap(ar);
 
 	ar->hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
