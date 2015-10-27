@@ -291,9 +291,8 @@ static int skl_be_hw_params(struct snd_pcm_substream *substream,
 	p_params.ch = params_channels(params);
 	p_params.s_freq = params_rate(params);
 	p_params.stream = substream->stream;
-	skl_tplg_be_update_params(dai, &p_params);
 
-	return 0;
+	return skl_tplg_be_update_params(dai, &p_params);
 }
 
 static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -352,9 +351,7 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 	p_params.stream = substream->stream;
 	p_params.link_dma_id = hdac_stream(link_dev)->stream_tag - 1;
 
-	skl_tplg_be_update_params(dai, &p_params);
-
-	return 0;
+	return skl_tplg_be_update_params(dai, &p_params);
 }
 
 static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
