@@ -5700,6 +5700,7 @@ enum skl_disp_power_wells {
 /* DMC/CSR */
 #define SKL_CSR_DC3_DC5_COUNT	0x80030
 #define SKL_CSR_DC5_DC6_COUNT	0x8002C
+#define BXT_CSR_DC3_DC5_COUNT	0x80038
 
 /* interrupts */
 #define DE_MASTER_IRQ_CONTROL   (1 << 31)

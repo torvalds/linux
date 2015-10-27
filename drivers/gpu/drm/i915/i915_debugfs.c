@@ -2818,6 +2818,9 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 			   I915_READ(SKL_CSR_DC3_DC5_COUNT));
 		seq_printf(m, "DC5 -> DC6 count: %d\n",
 			   I915_READ(SKL_CSR_DC5_DC6_COUNT));
+	} else if (IS_BROXTON(dev) && csr->version >= CSR_VERSION(1, 4)) {
+		seq_printf(m, "DC3 -> DC5 count: %d\n",
+			   I915_READ(BXT_CSR_DC3_DC5_COUNT));
 	}
 
 	intel_runtime_pm_put(dev_priv);
