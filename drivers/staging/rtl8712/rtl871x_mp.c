@@ -491,12 +491,6 @@ void r8712_SwitchAntenna(struct _adapter *pAdapter)
 	set_bb_reg(pAdapter, rCCK0_AFESetting, bMaskByte3, cck_ant_sel_val);
 }
 
-void r8712_SetCrystalCap(struct _adapter *pAdapter)
-{
-	set_bb_reg(pAdapter, rFPGA0_AnalogParameter1, bXtalCap,
-		   pAdapter->mppriv.curr_crystalcap);
-}
-
 static void TriggerRFThermalMeter(struct _adapter *pAdapter)
 {
 	/* 0x24: RF Reg[6:5] */
