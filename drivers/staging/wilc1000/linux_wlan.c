@@ -96,7 +96,7 @@ static struct notifier_block g_dev_notifier = {
 static struct semaphore close_exit_sync;
 
 static int wlan_deinit_locks(struct net_device *dev);
-static void wlan_deinitialize_threads(struct wilc *nic);
+static void wlan_deinitialize_threads(struct net_device *dev);
 extern void WILC_WFI_monitor_rx(u8 *buff, u32 size);
 extern void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size);
 
@@ -919,7 +919,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 			up(&wl->txq_event);
 
 		PRINT_D(INIT_DBG, "Deinitializing Threads\n");
-		wlan_deinitialize_threads(wl);
+		wlan_deinitialize_threads(dev);
 
 		PRINT_D(INIT_DBG, "Deinitializing IRQ\n");
 		deinit_irq(dev);
@@ -1053,18 +1053,23 @@ _fail_2:
 	return ret;
 }
 
-static void wlan_deinitialize_threads(struct wilc *nic)
+static void wlan_deinitialize_threads(struct net_device *dev)
 {
+	perInterface_wlan_t *nic;
+	struct wilc *wl;
 
-	g_linux_wlan->close = 1;
+	nic = netdev_priv(dev);
+	wl = nic->wilc;
+
+	wl->close = 1;
 	PRINT_D(INIT_DBG, "Deinitializing Threads\n");
 
-	if (&g_linux_wlan->txq_event != NULL)
-		up(&g_linux_wlan->txq_event);
+	if (&wl->txq_event != NULL)
+		up(&wl->txq_event);
 
-	if (g_linux_wlan->txq_thread != NULL) {
-		kthread_stop(g_linux_wlan->txq_thread);
-		g_linux_wlan->txq_thread = NULL;
+	if (wl->txq_thread != NULL) {
+		kthread_stop(wl->txq_thread);
+		wl->txq_thread = NULL;
 	}
 }
 
@@ -1171,7 +1176,7 @@ _fail_irq_init_:
 		deinit_irq(dev);
 
 #endif
-		wlan_deinitialize_threads(wl);
+		wlan_deinitialize_threads(dev);
 _fail_wilc_wlan_:
 		wilc_wlan_cleanup();
 _fail_locks_:
