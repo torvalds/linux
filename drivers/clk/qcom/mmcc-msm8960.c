@@ -2104,7 +2104,7 @@ static struct clk_rcg dsi1_src = {
 
 static struct clk_branch dsi1_clk = {
 	.halt_reg = 0x01d0,
-	.halt_bit = 1,
+	.halt_bit = 2,
 	.clkr = {
 		.enable_reg = 0x004c,
 		.enable_mask = BIT(0),
@@ -2152,7 +2152,7 @@ static struct clk_rcg dsi2_src = {
 
 static struct clk_branch dsi2_clk = {
 	.halt_reg = 0x01d0,
-	.halt_bit = 2,
+	.halt_bit = 20,
 	.clkr = {
 		.enable_reg = 0x003c,
 		.enable_mask = BIT(0),
