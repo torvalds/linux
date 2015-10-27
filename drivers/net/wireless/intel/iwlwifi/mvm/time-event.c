@@ -73,6 +73,7 @@
 #include "mvm.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
+#include "fw-dbg.h"
 
 /*
  * For the high priority TE use a time event type that has similar priority to

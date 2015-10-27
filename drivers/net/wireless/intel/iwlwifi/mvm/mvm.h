@@ -1480,69 +1480,10 @@ void iwl_mvm_tdls_ch_switch_work(struct work_struct *work);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
-void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
-
-int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 id);
-int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
-			   const char *str, size_t len,
-			   struct iwl_fw_dbg_trigger_tlv *trigger);
-int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
-				struct iwl_mvm_dump_desc *desc,
-				struct iwl_fw_dbg_trigger_tlv *trigger);
-void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm);
-int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
-				struct iwl_fw_dbg_trigger_tlv *trigger,
-				const char *fmt, ...) __printf(3, 4);
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    bool tdls, bool cmd_q);
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     const char *errmsg);
-static inline bool
-iwl_fw_dbg_trigger_vif_match(struct iwl_fw_dbg_trigger_tlv *trig,
-			     struct ieee80211_vif *vif)
-{
-	u32 trig_vif = le32_to_cpu(trig->vif_type);
-
-	return trig_vif == IWL_FW_DBG_CONF_VIF_ANY || vif->type == trig_vif;
-}
-
-static inline bool
-iwl_fw_dbg_trigger_stop_conf_match(struct iwl_mvm *mvm,
-				   struct iwl_fw_dbg_trigger_tlv *trig)
-{
-	return ((trig->mode & IWL_FW_DBG_TRIGGER_STOP) &&
-		(mvm->fw_dbg_conf == FW_DBG_INVALID ||
-		(BIT(mvm->fw_dbg_conf) & le32_to_cpu(trig->stop_conf_ids))));
-}
-
-static inline bool
-iwl_fw_dbg_trigger_check_stop(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif,
-			      struct iwl_fw_dbg_trigger_tlv *trig)
-{
-	if (vif && !iwl_fw_dbg_trigger_vif_match(trig, vif))
-		return false;
-
-	return iwl_fw_dbg_trigger_stop_conf_match(mvm, trig);
-}
-
-static inline void
-_iwl_fw_dbg_trigger_simple_stop(struct iwl_mvm *mvm,
-				struct ieee80211_vif *vif,
-				struct iwl_fw_dbg_trigger_tlv *trigger)
-{
-	if (!trigger)
-		return;
-
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trigger))
-		return;
-
-	iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL);
-}
-#define iwl_fw_dbg_trigger_simple_stop(mvm, vif, trig)	\
-	_iwl_fw_dbg_trigger_simple_stop((mvm), (vif),	\
-					iwl_fw_dbg_get_trigger((mvm)->fw,\
-							       (trig)))
 
 #endif /* __IWL_MVM_H__ */

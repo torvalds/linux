@@ -65,6 +65,7 @@
 #include <linux/vmalloc.h>
 
 #include "mvm.h"
+#include "fw-dbg.h"
 #include "sta.h"
 #include "iwl-io.h"
 #include "debugfs.h"

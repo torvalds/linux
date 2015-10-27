@@ -65,6 +65,7 @@
 #include "iwl-trans.h"
 #include "mvm.h"
 #include "fw-api.h"
+#include "fw-dbg.h"
 
 /*
  * iwl_mvm_rx_rx_phy_cmd - REPLY_RX_PHY_CMD handler

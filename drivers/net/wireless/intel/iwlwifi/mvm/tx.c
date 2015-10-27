@@ -69,6 +69,7 @@
 #include "iwl-eeprom-parse.h"
 #include "mvm.h"
 #include "sta.h"
+#include "fw-dbg.h"
 
 static void
 iwl_mvm_bar_check_trigger(struct iwl_mvm *mvm, const u8 *addr,

@@ -305,21 +305,4 @@ iwl_fw_dbg_conf_usniffer(const struct iwl_fw *fw, u8 id)
 	return conf_tlv->usniffer;
 }
 
-#define iwl_fw_dbg_trigger_enabled(fw, id) ({			\
-	void *__dbg_trigger = (fw)->dbg_trigger_tlv[(id)];	\
-	unlikely(__dbg_trigger);				\
-})
-
-static inline struct iwl_fw_dbg_trigger_tlv*
-_iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, enum iwl_fw_dbg_trigger id)
-{
-	return fw->dbg_trigger_tlv[id];
-}
-
-#define iwl_fw_dbg_get_trigger(fw, id) ({			\
-	BUILD_BUG_ON(!__builtin_constant_p(id));		\
-	BUILD_BUG_ON((id) >= FW_DBG_TRIGGER_MAX);		\
-	_iwl_fw_dbg_get_trigger((fw), (id));			\
-})
-
 #endif  /* __iwl_fw_h__ */
