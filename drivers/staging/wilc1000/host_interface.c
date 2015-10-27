@@ -3142,7 +3142,7 @@ int host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
 int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 				const u8 *key,
 				u8 len,
-				u8 u8Keyidx,
+				u8 index,
 				u8 u8mode,
 				enum AUTHTYPE tenuAuth_type)
 {
@@ -3168,7 +3168,7 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 	msg.body.key_info.attr.wep.key = kmalloc(len, GFP_KERNEL);
 	memcpy(msg.body.key_info.attr.wep.key, key, len);
 	msg.body.key_info.attr.wep.key_len = len;
-	msg.body.key_info.attr.wep.index = u8Keyidx;
+	msg.body.key_info.attr.wep.index = index;
 	msg.body.key_info.attr.wep.mode = u8mode;
 	msg.body.key_info.attr.wep.auth_type = tenuAuth_type;
 
