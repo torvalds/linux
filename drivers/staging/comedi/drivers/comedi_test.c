@@ -239,7 +239,8 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_FOLLOW | TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_NOW | TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
@@ -255,6 +256,9 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
+	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_NOW)
+		err |= -EINVAL;		/* scan period would be 0 */
+
 	if (err)
 		return 2;
 
@@ -262,11 +266,21 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->convert_src == TRIG_NOW)
+	if (cmd->convert_src == TRIG_NOW) {
 		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	} else {	/* cmd->convert_src == TRIG_TIMER */
+		if (cmd->scan_begin_src == TRIG_FOLLOW) {
+			err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+							    NSEC_PER_USEC);
+		}
+	}
 
-	err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
-					    NSEC_PER_USEC);
+	if (cmd->scan_begin_src == TRIG_FOLLOW) {
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	} else {	/* cmd->scan_begin_src == TRIG_TIMER */
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    NSEC_PER_USEC);
+	}
 
 	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
@@ -274,7 +288,7 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* cmd->stop_src == TRIG_NONE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -288,22 +302,27 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 		arg = min(arg,
 			  rounddown(UINT_MAX, (unsigned int)NSEC_PER_USEC));
 		arg = NSEC_PER_USEC * DIV_ROUND_CLOSEST(arg, NSEC_PER_USEC);
-		/* limit convert_arg to keep scan_begin_arg in range */
-		limit = UINT_MAX / cmd->scan_end_arg;
-		limit = rounddown(limit, (unsigned int)NSEC_PER_SEC);
-		arg = min(arg, limit);
+		if (cmd->scan_begin_arg == TRIG_TIMER) {
+			/* limit convert_arg to keep scan_begin_arg in range */
+			limit = UINT_MAX / cmd->scan_end_arg;
+			limit = rounddown(limit, (unsigned int)NSEC_PER_SEC);
+			arg = min(arg, limit);
+		}
 		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
-	/* round scan_begin_arg to nearest microsecond */
-	arg = cmd->scan_begin_arg;
-	arg = min(arg, rounddown(UINT_MAX, (unsigned int)NSEC_PER_USEC));
-	arg = NSEC_PER_USEC * DIV_ROUND_CLOSEST(arg, NSEC_PER_USEC);
-	if (cmd->convert_src == TRIG_TIMER) {
-		/* but ensure scan_begin_arg is large enough */
-		arg = max(arg, cmd->convert_arg * cmd->scan_end_arg);
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* round scan_begin_arg to nearest microsecond */
+		arg = cmd->scan_begin_arg;
+		arg = min(arg,
+			  rounddown(UINT_MAX, (unsigned int)NSEC_PER_USEC));
+		arg = NSEC_PER_USEC * DIV_ROUND_CLOSEST(arg, NSEC_PER_USEC);
+		if (cmd->convert_src == TRIG_TIMER) {
+			/* but ensure scan_begin_arg is large enough */
+			arg = max(arg, cmd->convert_arg * cmd->scan_end_arg);
+		}
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
-	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 
 	if (err)
 		return 4;
@@ -323,12 +342,17 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 		return -1;
 	}
 
-	devpriv->scan_period = cmd->scan_begin_arg / NSEC_PER_USEC;
-
 	if (cmd->convert_src == TRIG_NOW)
 		devpriv->convert_period = 0;
-	else	/* TRIG_TIMER */
+	else		/* cmd->convert_src == TRIG_TIMER */
 		devpriv->convert_period = cmd->convert_arg / NSEC_PER_USEC;
+
+	if (cmd->scan_begin_src == TRIG_FOLLOW) {
+		devpriv->scan_period = devpriv->convert_period *
+				       cmd->scan_end_arg;
+	} else {	/* cmd->scan_begin_src == TRIG_TIMER */
+		devpriv->scan_period = cmd->scan_begin_arg / NSEC_PER_USEC;
+	}
 
 	devpriv->last = ktime_get();
 	devpriv->usec_current =
