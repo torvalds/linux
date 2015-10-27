@@ -4146,7 +4146,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 
 }
 
-int e1000e_up(struct e1000_adapter *adapter)
+void e1000e_up(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
@@ -4166,8 +4166,6 @@ int e1000e_up(struct e1000_adapter *adapter)
 		ew32(ICS, E1000_ICS_LSC | E1000_ICR_OTHER);
 	else
 		ew32(ICS, E1000_ICS_LSC);
-
-	return 0;
 }
 
 static void e1000e_flush_descriptors(struct e1000_adapter *adapter)
@@ -6633,7 +6631,7 @@ static int e1000e_pm_runtime_resume(struct device *dev)
 		return rc;
 
 	if (netdev->flags & IFF_UP)
-		rc = e1000e_up(adapter);
+		e1000e_up(adapter);
 
 	return rc;
 }
@@ -6824,13 +6822,8 @@ static void e1000_io_resume(struct pci_dev *pdev)
 
 	e1000_init_manageability_pt(adapter);
 
-	if (netif_running(netdev)) {
-		if (e1000e_up(adapter)) {
-			dev_err(&pdev->dev,
-				"can't bring device back up after reset\n");
-			return;
-		}
-	}
+	if (netif_running(netdev))
+		e1000e_up(adapter);
 
 	netif_device_attach(netdev);
 
