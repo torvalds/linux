@@ -198,7 +198,7 @@ static void rtl8188e_config_rf_reg(struct adapter *adapt,
 static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 {
 	u32 i;
-	u32 array_len = sizeof(Array_RadioA_1T_8188E)/sizeof(u32);
+	u32 array_len = ARRAY_SIZE(Array_RadioA_1T_8188E);
 	u32 *array = Array_RadioA_1T_8188E;
 
 	for (i = 0; i < array_len; i += 2) {

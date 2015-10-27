@@ -3091,7 +3091,7 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 
 struct iw_handler_def rtw_handlers_def = {
 	.standard = rtw_handlers,
-	.num_standard = sizeof(rtw_handlers) / sizeof(iw_handler),
+	.num_standard = ARRAY_SIZE(rtw_handlers),
 	.get_wireless_stats = rtw_get_wireless_stats,
 };
 

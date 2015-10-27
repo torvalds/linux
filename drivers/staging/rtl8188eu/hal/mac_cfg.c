@@ -123,7 +123,7 @@ bool rtl88eu_phy_mac_config(struct adapter *adapt)
 	u32 arraylength;
 	u32 *ptrarray;
 
-	arraylength = sizeof(array_MAC_REG_8188E)/sizeof(u32);
+	arraylength = ARRAY_SIZE(array_MAC_REG_8188E);
 	ptrarray = array_MAC_REG_8188E;
 
 	for (i = 0; i < arraylength; i = i + 2)
