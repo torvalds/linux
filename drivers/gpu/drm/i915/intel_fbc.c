@@ -471,55 +471,14 @@ void intel_fbc_disable_crtc(struct intel_crtc *crtc)
 	mutex_unlock(&dev_priv->fbc.lock);
 }
 
-const char *intel_no_fbc_reason_str(enum no_fbc_reason reason)
-{
-	switch (reason) {
-	case FBC_OK:
-		return "FBC enabled but currently disabled in hardware";
-	case FBC_UNSUPPORTED:
-		return "unsupported by this chipset";
-	case FBC_NO_OUTPUT:
-		return "no output";
-	case FBC_STOLEN_TOO_SMALL:
-		return "not enough stolen memory";
-	case FBC_UNSUPPORTED_MODE:
-		return "mode incompatible with compression";
-	case FBC_MODE_TOO_LARGE:
-		return "mode too large for compression";
-	case FBC_BAD_PLANE:
-		return "FBC unsupported on plane";
-	case FBC_NOT_TILED:
-		return "framebuffer not tiled or fenced";
-	case FBC_MULTIPLE_PIPES:
-		return "more than one pipe active";
-	case FBC_MODULE_PARAM:
-		return "disabled per module param";
-	case FBC_CHIP_DEFAULT:
-		return "disabled per chip default";
-	case FBC_ROTATION:
-		return "rotation unsupported";
-	case FBC_IN_DBG_MASTER:
-		return "Kernel debugger is active";
-	case FBC_BAD_STRIDE:
-		return "framebuffer stride not supported";
-	case FBC_PIXEL_RATE:
-		return "pixel rate is too big";
-	case FBC_PIXEL_FORMAT:
-		return "pixel format is invalid";
-	default:
-		MISSING_CASE(reason);
-		return "unknown reason";
-	}
-}
-
 static void set_no_fbc_reason(struct drm_i915_private *dev_priv,
-			      enum no_fbc_reason reason)
+			      const char *reason)
 {
 	if (dev_priv->fbc.no_fbc_reason == reason)
 		return;
 
 	dev_priv->fbc.no_fbc_reason = reason;
-	DRM_DEBUG_KMS("Disabling FBC: %s\n", intel_no_fbc_reason_str(reason));
+	DRM_DEBUG_KMS("Disabling FBC: %s\n", reason);
 }
 
 static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
@@ -863,12 +822,12 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		i915.enable_fbc = 0;
 
 	if (i915.enable_fbc < 0) {
-		set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT);
+		set_no_fbc_reason(dev_priv, "disabled per chip default");
 		goto out_disable;
 	}
 
 	if (!i915.enable_fbc) {
-		set_no_fbc_reason(dev_priv, FBC_MODULE_PARAM);
+		set_no_fbc_reason(dev_priv, "disabled per module param");
 		goto out_disable;
 	}
 
@@ -883,12 +842,12 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	 */
 	crtc = intel_fbc_find_crtc(dev_priv);
 	if (!crtc) {
-		set_no_fbc_reason(dev_priv, FBC_NO_OUTPUT);
+		set_no_fbc_reason(dev_priv, "no output");
 		goto out_disable;
 	}
 
 	if (!multiple_pipes_ok(dev_priv)) {
-		set_no_fbc_reason(dev_priv, FBC_MULTIPLE_PIPES);
+		set_no_fbc_reason(dev_priv, "more than one pipe active");
 		goto out_disable;
 	}
 
@@ -899,18 +858,18 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 
 	if ((adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
-		set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED_MODE);
+		set_no_fbc_reason(dev_priv, "incompatible mode");
 		goto out_disable;
 	}
 
 	if (!intel_fbc_hw_tracking_covers_screen(intel_crtc)) {
-		set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE);
+		set_no_fbc_reason(dev_priv, "mode too large for compression");
 		goto out_disable;
 	}
 
 	if ((INTEL_INFO(dev_priv)->gen < 4 || HAS_DDI(dev_priv)) &&
 	    intel_crtc->plane != PLANE_A) {
-		set_no_fbc_reason(dev_priv, FBC_BAD_PLANE);
+		set_no_fbc_reason(dev_priv, "FBC unsupported on plane");
 		goto out_disable;
 	}
 
@@ -919,28 +878,28 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	 */
 	if (obj->tiling_mode != I915_TILING_X ||
 	    obj->fence_reg == I915_FENCE_REG_NONE) {
-		set_no_fbc_reason(dev_priv, FBC_NOT_TILED);
+		set_no_fbc_reason(dev_priv, "framebuffer not tiled or fenced");
 		goto out_disable;
 	}
 	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_G4X(dev_priv) &&
 	    crtc->primary->state->rotation != BIT(DRM_ROTATE_0)) {
-		set_no_fbc_reason(dev_priv, FBC_ROTATION);
+		set_no_fbc_reason(dev_priv, "rotation unsupported");
 		goto out_disable;
 	}
 
 	if (!stride_is_valid(dev_priv, fb->pitches[0])) {
-		set_no_fbc_reason(dev_priv, FBC_BAD_STRIDE);
+		set_no_fbc_reason(dev_priv, "framebuffer stride not supported");
 		goto out_disable;
 	}
 
 	if (!pixel_format_is_valid(fb)) {
-		set_no_fbc_reason(dev_priv, FBC_PIXEL_FORMAT);
+		set_no_fbc_reason(dev_priv, "pixel format is invalid");
 		goto out_disable;
 	}
 
 	/* If the kernel debugger is active, always disable compression */
 	if (in_dbg_master()) {
-		set_no_fbc_reason(dev_priv, FBC_IN_DBG_MASTER);
+		set_no_fbc_reason(dev_priv, "Kernel debugger is active");
 		goto out_disable;
 	}
 
@@ -948,12 +907,12 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	if ((IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) &&
 	    ilk_pipe_pixel_rate(intel_crtc->config) >=
 	    dev_priv->cdclk_freq * 95 / 100) {
-		set_no_fbc_reason(dev_priv, FBC_PIXEL_RATE);
+		set_no_fbc_reason(dev_priv, "pixel rate is too big");
 		goto out_disable;
 	}
 
 	if (intel_fbc_setup_cfb(intel_crtc)) {
-		set_no_fbc_reason(dev_priv, FBC_STOLEN_TOO_SMALL);
+		set_no_fbc_reason(dev_priv, "not enough stolen memory");
 		goto out_disable;
 	}
 
@@ -996,7 +955,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	}
 
 	intel_fbc_schedule_enable(intel_crtc);
-	dev_priv->fbc.no_fbc_reason = FBC_OK;
+	dev_priv->fbc.no_fbc_reason = "FBC enabled (not necessarily active)\n";
 	return;
 
 out_disable:
@@ -1089,7 +1048,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 
 	if (!HAS_FBC(dev_priv)) {
 		dev_priv->fbc.enabled = false;
-		dev_priv->fbc.no_fbc_reason = FBC_UNSUPPORTED;
+		dev_priv->fbc.no_fbc_reason = "unsupported by this chipset";
 		return;
 	}
 

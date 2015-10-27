@@ -925,24 +925,7 @@ struct i915_fbc {
 		struct drm_framebuffer *fb;
 	} *fbc_work;
 
-	enum no_fbc_reason {
-		FBC_OK, /* FBC is enabled */
-		FBC_UNSUPPORTED, /* FBC is not supported by this chipset */
-		FBC_NO_OUTPUT, /* no outputs enabled to compress */
-		FBC_STOLEN_TOO_SMALL, /* not enough space for buffers */
-		FBC_UNSUPPORTED_MODE, /* interlace or doublescanned mode */
-		FBC_MODE_TOO_LARGE, /* mode too large for compression */
-		FBC_BAD_PLANE, /* fbc not supported on plane */
-		FBC_NOT_TILED, /* buffer not tiled */
-		FBC_MULTIPLE_PIPES, /* more than one pipe active */
-		FBC_MODULE_PARAM,
-		FBC_CHIP_DEFAULT, /* disabled by default on this chip */
-		FBC_ROTATION, /* rotation is not supported */
-		FBC_IN_DBG_MASTER, /* kernel debugger is active */
-		FBC_BAD_STRIDE, /* stride is not supported */
-		FBC_PIXEL_RATE, /* pixel rate is too big */
-		FBC_PIXEL_FORMAT /* pixel format is invalid */
-	} no_fbc_reason;
+	const char *no_fbc_reason;
 
 	bool (*fbc_enabled)(struct drm_i915_private *dev_priv);
 	void (*enable_fbc)(struct intel_crtc *crtc);

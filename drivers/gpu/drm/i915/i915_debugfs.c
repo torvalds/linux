@@ -1644,7 +1644,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		seq_puts(m, "FBC enabled\n");
 	else
 		seq_printf(m, "FBC disabled: %s\n",
-			  intel_no_fbc_reason_str(dev_priv->fbc.no_fbc_reason));
+			   dev_priv->fbc.no_fbc_reason);
 
 	if (INTEL_INFO(dev_priv)->gen >= 7)
 		seq_printf(m, "Compressing: %s\n",
