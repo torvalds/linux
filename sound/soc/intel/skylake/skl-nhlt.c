@@ -115,7 +115,7 @@ struct nhlt_specific_cfg
 	struct device *dev = bus->dev;
 	struct nhlt_specific_cfg *sp_config;
 	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
-	u16 bps = num_ch * s_fmt;
+	u16 bps = (s_fmt == 16) ? 16 : 32;
 	u8 j;
 
 	dump_config(dev, instance, link_type, s_fmt, num_ch, s_rate, dirn, bps);
