@@ -695,8 +695,21 @@ static bool option__in_argv(const struct option *opt, const struct parse_opt_ctx
 	for (i = 1; i < ctx->argc; ++i) {
 		const char *arg = ctx->argv[i];
 
-		if (arg[0] != '-')
+		if (arg[0] != '-') {
+			if (arg[1] == '\0') {
+				if (arg[0] == opt->short_name)
+					return true;
+				continue;
+			}
+
+			if (opt->long_name && strcmp(opt->long_name, arg) == 0)
+				return true;
+
+			if (opt->help && strcasestr(opt->help, arg) != NULL)
+				return true;
+
 			continue;
+		}
 
 		if (arg[1] == opt->short_name ||
 		    (arg[1] == '-' && opt->long_name && strcmp(opt->long_name, arg + 2) == 0))
