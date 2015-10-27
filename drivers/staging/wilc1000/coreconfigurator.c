@@ -418,9 +418,9 @@ s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 		/* Get BSSID */
 		get_BSSID(pu8msa, pstrNetworkInfo->au8bssid);
 
-		/* 
+		/*
 		 * Extract current channel information from
-		 * the beacon/probe response frame          
+		 * the beacon/probe response frame
 		 */
 		pstrNetworkInfo->u8channel = get_current_channel_802_11n(pu8msa,
 							u16RxLen + FCS_LEN);
