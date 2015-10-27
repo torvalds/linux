@@ -405,10 +405,15 @@ int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID)
 {
 	int i = 0;
 	int ret = -1;
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
 
-	for (i = 0; i < g_linux_wlan->vif_num; i++)
-		if (g_linux_wlan->vif[i].ndev == wilc_netdev) {
-			memcpy(g_linux_wlan->vif[i].bssid, pBSSID, 6);
+	nic = netdev_priv(wilc_netdev);
+	wilc = nic->wilc;
+
+	for (i = 0; i < wilc->vif_num; i++)
+		if (wilc->vif[i].ndev == wilc_netdev) {
+			memcpy(wilc->vif[i].bssid, pBSSID, 6);
 			ret = 0;
 			break;
 		}
