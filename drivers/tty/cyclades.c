@@ -292,7 +292,7 @@ static void cyz_rx_restart(unsigned long);
 static struct timer_list cyz_rx_full_timer[NR_PORTS];
 #endif				/* CONFIG_CYZ_INTR */
 
-static inline void cyy_writeb(struct cyclades_port *port, u32 reg, u8 val)
+static void cyy_writeb(struct cyclades_port *port, u32 reg, u8 val)
 {
 	struct cyclades_card *card = port->card;
 
