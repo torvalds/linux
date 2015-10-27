@@ -69,6 +69,7 @@ lookup_exec_domain(unsigned int personality)
 	}
 
 #ifdef CONFIG_MODULES
+#ifndef CONFIG_ARCH_ROCKCHIP
 	read_unlock(&exec_domains_lock);
 	request_module("personality-%d", pers);
 	read_lock(&exec_domains_lock);
@@ -78,6 +79,7 @@ lookup_exec_domain(unsigned int personality)
 			if (try_module_get(ep->module))
 				goto out;
 	}
+#endif
 #endif
 
 	ep = &default_exec_domain;
