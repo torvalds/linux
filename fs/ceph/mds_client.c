@@ -666,6 +666,12 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 		list_del_init(&req->r_unsafe_dir_item);
 		spin_unlock(&ci->i_unsafe_lock);
 	}
+	if (req->r_target_inode && req->r_got_unsafe) {
+		struct ceph_inode_info *ci = ceph_inode(req->r_target_inode);
+		spin_lock(&ci->i_unsafe_lock);
+		list_del_init(&req->r_unsafe_target_item);
+		spin_unlock(&ci->i_unsafe_lock);
+	}
 
 	if (req->r_unsafe_dir) {
 		iput(req->r_unsafe_dir);
@@ -1707,6 +1713,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	req->r_started = jiffies;
 	req->r_resend_mds = -1;
 	INIT_LIST_HEAD(&req->r_unsafe_dir_item);
+	INIT_LIST_HEAD(&req->r_unsafe_target_item);
 	req->r_fmode = -1;
 	kref_init(&req->r_kref);
 	INIT_LIST_HEAD(&req->r_wait);
@@ -2529,6 +2536,13 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	up_read(&mdsc->snap_rwsem);
 	if (realm)
 		ceph_put_snap_realm(mdsc, realm);
+
+	if (err == 0 && req->r_got_unsafe && req->r_target_inode) {
+		struct ceph_inode_info *ci = ceph_inode(req->r_target_inode);
+		spin_lock(&ci->i_unsafe_lock);
+		list_add_tail(&req->r_unsafe_target_item, &ci->i_unsafe_iops);
+		spin_unlock(&ci->i_unsafe_lock);
+	}
 out_err:
 	mutex_lock(&mdsc->mutex);
 	if (!req->r_aborted) {
