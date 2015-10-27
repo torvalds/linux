@@ -142,12 +142,6 @@
 		};
 	};
 
-	edp {
-		edp_hpd: edp_hpd {
-			rockchip,pins = <7 11 RK_FUNC_2 &pcfg_pull_down>;
-		};
-	};
-
 	hdmi {
 		vcc50_hdmi_en: vcc50-hdmi-en {
 			rockchip,pins = <5 19 RK_FUNC_GPIO &pcfg_pull_none>;
