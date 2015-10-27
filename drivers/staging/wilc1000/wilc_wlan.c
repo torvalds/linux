@@ -1647,7 +1647,7 @@ int wilc_wlan_stop(void)
 	return ret;
 }
 
-void wilc_wlan_cleanup(void)
+void wilc_wlan_cleanup(struct net_device *dev)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 	struct txq_entry_t *tqe;

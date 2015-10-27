@@ -927,7 +927,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 		wilc_wlan_stop();
 
 		PRINT_D(INIT_DBG, "Deinitializing WILC Wlan\n");
-		wilc_wlan_cleanup();
+		wilc_wlan_cleanup(dev);
 #if (defined WILC_SDIO) && (!defined WILC_SDIO_IRQ_GPIO)
   #if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
 		PRINT_D(INIT_DBG, "Disabling IRQ 2\n");
@@ -1178,7 +1178,7 @@ _fail_irq_init_:
 #endif
 		wlan_deinitialize_threads(dev);
 _fail_wilc_wlan_:
-		wilc_wlan_cleanup();
+		wilc_wlan_cleanup(dev);
 _fail_locks_:
 		wlan_deinit_locks(dev);
 		PRINT_ER("WLAN Iinitialization FAILED\n");
