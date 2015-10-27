@@ -574,13 +574,14 @@ static struct txq_entry_t *wilc_wlan_txq_get_first(void)
 	return tqe;
 }
 
-static struct txq_entry_t *wilc_wlan_txq_get_next(struct txq_entry_t *tqe)
+static struct txq_entry_t *wilc_wlan_txq_get_next(struct wilc *wilc,
+						  struct txq_entry_t *tqe)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
+	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
 	tqe = tqe->next;
-	spin_unlock_irqrestore(&g_linux_wlan->txq_spinlock, flags);
+	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 
 
 	return tqe;
@@ -887,7 +888,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *pu32TxqCount)
 				i++;
 				sum += vmm_sz;
 				PRINT_D(TX_DBG, "sum = %d\n", sum);
-				tqe = wilc_wlan_txq_get_next(tqe);
+				tqe = wilc_wlan_txq_get_next(wilc, tqe);
 			} else {
 				break;
 			}
