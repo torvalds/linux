@@ -222,6 +222,12 @@ amd_sched_entity_pop_job(struct amd_sched_entity *entity)
 
 	while ((entity->dependency = sched->ops->dependency(sched_job))) {
 
+		if (entity->dependency->context == entity->fence_context) {
+			/* We can ignore fences from ourself */
+			fence_put(entity->dependency);
+			continue;
+		}
+
 		if (fence_add_callback(entity->dependency, &entity->cb,
 				       amd_sched_entity_wakeup))
 			fence_put(entity->dependency);
