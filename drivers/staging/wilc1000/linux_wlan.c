@@ -1496,11 +1496,13 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	perInterface_wlan_t *nic;
 	struct wilc_priv *priv;
 	s32 s32Error = 0;
+	struct wilc *wilc;
 
 	/* struct iwreq *wrq = (struct iwreq *) req;	// tony moved to case SIOCSIWPRIV */
 	nic = netdev_priv(ndev);
+	wilc = nic->wilc;
 
-	if (!g_linux_wlan->initialized)
+	if (!wilc->initialized)
 		return 0;
 
 	switch (cmd) {
