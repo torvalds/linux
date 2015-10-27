@@ -176,7 +176,7 @@ static unsigned short fake_waveform(struct comedi_device *dev,
  * It should run in the background; therefore it is scheduled by
  * a timer mechanism.
  */
-static void waveform_ai_interrupt(unsigned long arg)
+static void waveform_ai_timer(unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
 	struct waveform_private *devpriv = dev->private;
@@ -486,8 +486,7 @@ static int waveform_attach(struct comedi_device *dev,
 	for (i = 0; i < s->n_chan; i++)
 		devpriv->ao_loopbacks[i] = s->maxdata / 2;
 
-	setup_timer(&devpriv->ai_timer, waveform_ai_interrupt,
-		    (unsigned long)dev);
+	setup_timer(&devpriv->ai_timer, waveform_ai_timer, (unsigned long)dev);
 
 	dev_info(dev->class_dev,
 		 "%s: %u microvolt, %u microsecond waveform attached\n",
