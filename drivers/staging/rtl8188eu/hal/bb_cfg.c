@@ -500,10 +500,10 @@ static u32 array_phy_reg_pg_8188e[] = {
 
 };
 
-static void store_pwrindex_offset(struct adapter *Adapter,
+static void store_pwrindex_offset(struct adapter *adapter,
 				  u32 regaddr, u32 bitmask, u32 data)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapter);
 	 u8 pwrGrpCnt = hal_data->pwrGroupCnt;
 
 	if (regaddr == rTxAGC_A_Rate18_06)
@@ -590,9 +590,9 @@ static bool config_bb_with_pgheader(struct adapter *adapt)
 	return true;
 }
 
-static void rtl88e_phy_init_bb_rf_register_definition(struct adapter *Adapter)
+static void rtl88e_phy_init_bb_rf_register_definition(struct adapter *adapter)
 {
-	struct hal_data_8188e		*hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e		*hal_data = GET_HAL_DATA(adapter);
 	struct bb_reg_def               *reg[4];
 
 	reg[RF_PATH_A] = &hal_data->PHYRegDef[RF_PATH_A];
@@ -681,13 +681,13 @@ static void rtl88e_phy_init_bb_rf_register_definition(struct adapter *Adapter)
 
 static bool config_parafile(struct adapter *adapt)
 {
-	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(adapt);
+	struct eeprom_priv *eeprom = GET_EEPROM_EFUSE_PRIV(adapt);
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 
 	set_baseband_phy_config(adapt);
 
 	/* If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt */
-	if (!pEEPROM->bautoload_fail_flag) {
+	if (!eeprom->bautoload_fail_flag) {
 		hal_data->pwrGroupCnt = 0;
 		config_bb_with_pgheader(adapt);
 	}
