@@ -1321,11 +1321,15 @@ struct ieee80211_channel_switch {
  *	interface. This flag should be set during interface addition,
  *	but may be set/cleared as late as authentication to an AP. It is
  *	only valid for managed/station mode interfaces.
+ * @IEEE80211_VIF_GET_NOA_UPDATE: request to handle NOA attributes
+ *	and send P2P_PS notification to the driver if NOA changed, even
+ *	this is not pure P2P vif.
  */
 enum ieee80211_vif_flags {
 	IEEE80211_VIF_BEACON_FILTER		= BIT(0),
 	IEEE80211_VIF_SUPPORTS_CQM_RSSI		= BIT(1),
 	IEEE80211_VIF_SUPPORTS_UAPSD		= BIT(2),
+	IEEE80211_VIF_GET_NOA_UPDATE		= BIT(3),
 };
 
 /**
