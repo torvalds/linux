@@ -3140,7 +3140,7 @@ int host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
 }
 
 int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
-				const u8 *pu8WepKey,
+				const u8 *key,
 				u8 u8WepKeylen,
 				u8 u8Keyidx,
 				u8 u8mode,
@@ -3159,14 +3159,14 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 
 	if (INFO) {
 		for (i = 0; i < u8WepKeylen; i++)
-			PRINT_INFO(HOSTAPD_DBG, "KEY is %x\n", pu8WepKey[i]);
+			PRINT_INFO(HOSTAPD_DBG, "KEY is %x\n", key[i]);
 	}
 	msg.id = HOST_IF_MSG_KEY;
 	msg.body.key_info.type = WEP;
 	msg.body.key_info.action = ADDKEY_AP;
 	msg.drv = hif_drv;
 	msg.body.key_info.attr.wep.key = kmalloc(u8WepKeylen, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wep.key, pu8WepKey, (u8WepKeylen));
+	memcpy(msg.body.key_info.attr.wep.key, key, (u8WepKeylen));
 	msg.body.key_info.attr.wep.key_len = (u8WepKeylen);
 	msg.body.key_info.attr.wep.index = u8Keyidx;
 	msg.body.key_info.attr.wep.mode = u8mode;
