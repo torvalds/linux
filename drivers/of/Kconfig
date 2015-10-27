@@ -23,6 +23,16 @@ config OF_UNITTEST
 
 	  If unsure, say N here, but this option is safe to enable.
 
+config OF_ALL_DTBS
+	bool "Build all Device Tree Blobs"
+	depends on COMPILE_TEST
+	select DTC
+	help
+	  This option builds all possible Device Tree Blobs (DTBs) for the
+	  current architecture.
+
+	  If unsure, say N here, but this option is safe to enable.
+
 config OF_FLATTREE
 	bool
 	select DTC

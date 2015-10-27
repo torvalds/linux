@@ -101,6 +101,10 @@ zImage: vmlinux
 %.dtb:
 	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
+dtbs: scripts
+	$(Q)$(MAKE) $(build)=$(boot)/dts
+
 define archhelp
   @echo '* zImage      - Compressed kernel image (arch/xtensa/boot/images/zImage.*)'
+  @echo '  dtbs        - Build device tree blobs for enabled boards'
 endef
