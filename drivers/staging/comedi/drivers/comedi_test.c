@@ -104,9 +104,17 @@ static unsigned short fake_sawtooth(struct comedi_device *dev,
 	value = current_time;
 	value *= binary_amplitude * 2;
 	do_div(value, devpriv->usec_period);
-	value -= binary_amplitude;	/* get rid of sawtooth's dc offset */
+	value += offset;
+	/* get rid of sawtooth's dc offset and clamp value */
+	if (value < binary_amplitude) {
+		value = 0;			/* negative saturation */
+	} else {
+		value -= binary_amplitude;
+		if (value > s->maxdata)
+			value = s->maxdata;	/* positive saturation */
+	}
 
-	return offset + value;
+	return value;
 }
 
 static unsigned short fake_squarewave(struct comedi_device *dev,
@@ -119,16 +127,25 @@ static unsigned short fake_squarewave(struct comedi_device *dev,
 	u64 value;
 	const struct comedi_krange *krange =
 	    &s->range_table->range[range_index];
-	current_time %= devpriv->usec_period;
 
+	current_time %= devpriv->usec_period;
 	value = s->maxdata;
 	value *= devpriv->uvolt_amplitude;
 	do_div(value, krange->max - krange->min);
 
-	if (current_time < devpriv->usec_period / 2)
-		value *= -1;
+	/* get one of two values for square-wave and clamp */
+	if (current_time < devpriv->usec_period / 2) {
+		if (offset < value)
+			value = 0;		/* negative saturation */
+		else
+			value = offset - value;
+	} else {
+		value += offset;
+		if (value > s->maxdata)
+			value = s->maxdata;	/* positive saturation */
+	}
 
-	return offset + value;
+	return value;
 }
 
 static unsigned short fake_flatline(struct comedi_device *dev,
