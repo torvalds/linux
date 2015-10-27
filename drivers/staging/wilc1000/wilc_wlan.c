@@ -341,7 +341,7 @@ static inline int remove_TCP_related(void)
 	return 0;
 }
 
-static inline int tcp_process(struct txq_entry_t *tqe)
+static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 {
 	int ret;
 	u8 *eth_hdr_ptr;
@@ -350,8 +350,13 @@ static inline int tcp_process(struct txq_entry_t *tqe)
 	int i;
 	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
 
-	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
+
+	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
 	eth_hdr_ptr = &buffer[0];
 	h_proto = ntohs(*((unsigned short *)&eth_hdr_ptr[12]));
@@ -399,7 +404,7 @@ static inline int tcp_process(struct txq_entry_t *tqe)
 	} else {
 		ret = 0;
 	}
-	spin_unlock_irqrestore(&g_linux_wlan->txq_spinlock, flags);
+	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 	return ret;
 }
 
@@ -525,7 +530,7 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 #ifdef TCP_ACK_FILTER
 	tqe->tcp_PendingAck_index = NOT_TCP_ACK;
 	if (is_TCP_ACK_Filter_Enabled())
-		tcp_process(tqe);
+		tcp_process(dev, tqe);
 #endif
 	wilc_wlan_txq_add_to_tail(tqe);
 	/*return number of itemes in the queue*/
