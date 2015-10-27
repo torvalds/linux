@@ -12,9 +12,10 @@
  * option) any later version.
  */
 
-#ifndef __ASM_POWERPC_FSL_GUTS_H__
-#define __ASM_POWERPC_FSL_GUTS_H__
-#ifdef __KERNEL__
+#ifndef __FSL_GUTS_H__
+#define __FSL_GUTS_H__
+
+#include <linux/types.h>
 
 /**
  * Global Utility Registers.
@@ -188,5 +189,4 @@ static inline void guts_set_pmuxcr_dma(struct ccsr_guts __iomem *guts,
 
 #endif
 
-#endif
 #endif
