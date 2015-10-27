@@ -434,8 +434,7 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 
 	/* codec detection */
 	if (!bus->codec_mask) {
-		dev_err(bus->dev, "no codecs found!\n");
-		return -ENODEV;
+		dev_info(bus->dev, "no hda codecs found!\n");
 	}
 
 	return 0;
