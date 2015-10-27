@@ -814,7 +814,7 @@ void chip_sleep_manually(u32 u32SleepTime)
  *      Tx, Rx queue handle functions
  *
  ********************************************/
-int wilc_wlan_handle_txq(u32 *pu32TxqCount)
+int wilc_wlan_handle_txq(struct net_device *dev, u32 *pu32TxqCount)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	int i, entries = 0;
@@ -828,13 +828,18 @@ int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 	int counter;
 	int timeout;
 	u32 vmm_table[WILC_VMM_TBL_SIZE];
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
 
 	p->txq_exit = 0;
 	do {
 		if (p->quit)
 			break;
 
-		linux_wlan_lock_timeout(&g_linux_wlan->txq_add_to_head_cs,
+		linux_wlan_lock_timeout(&wilc->txq_add_to_head_cs,
 					CFG_PKTS_TIMEOUT);
 #ifdef	TCP_ACK_FILTER
 		wilc_wlan_txq_filter_dup_tcp_ack();
@@ -1098,7 +1103,7 @@ _end_:
 		if (ret != 1)
 			break;
 	} while (0);
-	up(&g_linux_wlan->txq_add_to_head_cs);
+	up(&wilc->txq_add_to_head_cs);
 
 	p->txq_exit = 1;
 	PRINT_D(TX_DBG, "THREAD: Exiting txq\n");

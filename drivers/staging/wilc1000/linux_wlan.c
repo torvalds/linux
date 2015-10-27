@@ -476,10 +476,10 @@ static int linux_wlan_txq_task(void *vp)
 		}
 		PRINT_D(TX_DBG, "txq_task handle the sending packet and let me go to sleep.\n");
 #if !defined USE_TX_BACKOFF_DELAY_IF_NO_BUFFERS
-		ret = wilc_wlan_handle_txq(&txq_count);
+		ret = wilc_wlan_handle_txq(dev, &txq_count);
 #else
 		do {
-			ret = wilc_wlan_handle_txq(&txq_count);
+			ret = wilc_wlan_handle_txq(dev, &txq_count);
 			if (txq_count < FLOW_CONTROL_LOWER_THRESHOLD /* && netif_queue_stopped(pd->wilc_netdev)*/) {
 				PRINT_D(TX_DBG, "Waking up queue\n");
 				/* netif_wake_queue(pd->wilc_netdev); */
