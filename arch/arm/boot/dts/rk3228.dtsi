@@ -339,6 +339,23 @@
 		status = "disabled";
 	};
 
+	tsadc: tsadc@11150000 {
+		compatible = "rockchip,rk3228-tsadc";
+		reg = <0x11150000 0x100>;
+		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <32768>;
+		clocks = <&clk_tsadc>, <&clk_gates9 15>;
+		resets = <&reset RK3228_RST_TSADC>;
+		reset-names = "tsadc-apb";
+		#thermal-sensor-cells = <1>;
+		hw-shut-temp = <120000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsadc_gpio>;
+		tsadc-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+		tsadc-tshut-polarity = <0>;/* tshut polarity 0:LOW 1:HIGH */
+		status = "okay";
+	};
+
 	gpu {
 		compatible = "arm,mali400";
 		reg = <0x20001000 0x200>,
