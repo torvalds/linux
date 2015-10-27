@@ -263,7 +263,7 @@ static int give_skb_to_upper(struct sk_buff *skb, struct net_device *dev)
 	if (!skb_cp)
 		return NET_RX_DROP;
 
-	return netif_rx(skb_cp);
+	return netif_rx_ni(skb_cp);
 }
 
 static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
