@@ -299,7 +299,7 @@ static inline void cyy_writeb(struct cyclades_port *port, u32 reg, u8 val)
 	cy_writeb(port->u.cyy.base_addr + (reg << card->bus_index), val);
 }
 
-static inline u8 cyy_readb(struct cyclades_port *port, u32 reg)
+static u8 cyy_readb(struct cyclades_port *port, u32 reg)
 {
 	struct cyclades_card *card = port->card;
 
