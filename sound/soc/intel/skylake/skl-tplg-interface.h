@@ -32,6 +32,7 @@
 #define MAX_IN_QUEUE 8
 #define MAX_OUT_QUEUE 8
 
+#define SKL_UUID_STR_SZ 40
 /* Event types goes here */
 /* Reserve event type 0 for no event handlers */
 enum skl_event_types {
@@ -174,6 +175,8 @@ struct skl_dfw_pipe {
 } __packed;
 
 struct skl_dfw_module {
+	char uuid[SKL_UUID_STR_SZ];
+
 	u16 module_id;
 	u16 instance_id;
 	u32 max_mcps;
