@@ -80,37 +80,6 @@ struct cat_handle_data {
 	struct llog_handle	*chd_next_log; /* llog to be used next */
 };
 
-static inline void logid_to_fid(struct llog_logid *id, struct lu_fid *fid)
-{
-	/* For compatibility purposes we identify pre-OSD (~< 2.3.51 MDS)
-	 * logid's by non-zero ogen (inode generation) and convert them
-	 * into IGIF */
-	if (id->lgl_ogen == 0) {
-		fid->f_seq = id->lgl_oi.oi.oi_seq;
-		fid->f_oid = id->lgl_oi.oi.oi_id;
-		fid->f_ver = 0;
-	} else {
-		lu_igif_build(fid, id->lgl_oi.oi.oi_id, id->lgl_ogen);
-	}
-}
-
-static inline void fid_to_logid(struct lu_fid *fid, struct llog_logid *id)
-{
-	id->lgl_oi.oi.oi_seq = fid->f_seq;
-	id->lgl_oi.oi.oi_id = fid->f_oid;
-	id->lgl_ogen = 0;
-}
-
-static inline void logid_set_id(struct llog_logid *log_id, __u64 id)
-{
-	log_id->lgl_oi.oi.oi_id = id;
-}
-
-static inline __u64 logid_id(struct llog_logid *log_id)
-{
-	return log_id->lgl_oi.oi.oi_id;
-}
-
 struct llog_handle;
 
 /* llog.c  -  general API */
@@ -286,19 +255,6 @@ struct llog_ctxt {
 #define LLOG_PROC_BREAK 0x0001
 #define LLOG_DEL_RECORD 0x0002
 
-static inline int llog_obd2ops(struct llog_ctxt *ctxt,
-			       struct llog_operations **lop)
-{
-	if (ctxt == NULL)
-		return -ENOTCONN;
-
-	*lop = ctxt->loc_logops;
-	if (*lop == NULL)
-		return -EOPNOTSUPP;
-
-	return 0;
-}
-
 static inline int llog_handle2ops(struct llog_handle *loghandle,
 				  struct llog_operations **lop)
 {
@@ -306,18 +262,6 @@ static inline int llog_handle2ops(struct llog_handle *loghandle,
 		return -EINVAL;
 
 	*lop = loghandle->lgh_logops;
-	return 0;
-}
-
-static inline int llog_data_len(int len)
-{
-	return cfs_size_round(len);
-}
-
-static inline int llog_get_size(struct llog_handle *loghandle)
-{
-	if (loghandle && loghandle->lgh_hdr)
-		return loghandle->lgh_hdr->llh_count;
 	return 0;
 }
 
@@ -418,40 +362,6 @@ static inline int llog_next_block(const struct lu_env *env,
 
 	rc = lop->lop_next_block(env, loghandle, cur_idx, next_idx,
 				 cur_offset, buf, len);
-	return rc;
-}
-
-static inline int llog_prev_block(const struct lu_env *env,
-				  struct llog_handle *loghandle,
-				  int prev_idx, void *buf, int len)
-{
-	struct llog_operations *lop;
-	int rc;
-
-	rc = llog_handle2ops(loghandle, &lop);
-	if (rc)
-		return rc;
-	if (lop->lop_prev_block == NULL)
-		return -EOPNOTSUPP;
-
-	rc = lop->lop_prev_block(env, loghandle, prev_idx, buf, len);
-	return rc;
-}
-
-static inline int llog_connect(struct llog_ctxt *ctxt,
-			       struct llog_logid *logid, struct llog_gen *gen,
-			       struct obd_uuid *uuid)
-{
-	struct llog_operations	*lop;
-	int			 rc;
-
-	rc = llog_obd2ops(ctxt, &lop);
-	if (rc)
-		return rc;
-	if (lop->lop_connect == NULL)
-		return -EOPNOTSUPP;
-
-	rc = lop->lop_connect(ctxt, logid, gen, uuid);
 	return rc;
 }
 
