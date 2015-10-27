@@ -63,7 +63,7 @@ enum waveform_state_bits {
 /* Data unique to this driver */
 struct waveform_private {
 	struct timer_list ai_timer;	/* timer for AI commands */
-	u64 ai_last_scan_time;		/* time of last AI scan in usec */
+	u64 ai_convert_time;		/* time of next AI conversion in usec */
 	unsigned int wf_amplitude;	/* waveform amplitude in microvolts */
 	unsigned int wf_period;		/* waveform period in microseconds */
 	unsigned int wf_current;	/* current time in waveform period */
@@ -183,46 +183,51 @@ static void waveform_ai_interrupt(unsigned long arg)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int i, j;
-	unsigned long elapsed_time;
-	unsigned int num_scans;
+	u64 now;
+	unsigned int nsamples;
+	unsigned int time_increment;
 
 	/* check command is still active */
 	if (!test_bit(WAVEFORM_AI_RUNNING, &devpriv->state_bits))
 		return;
 
-	elapsed_time = ktime_to_us(ktime_get()) - devpriv->ai_last_scan_time;
-	num_scans = elapsed_time / devpriv->ai_scan_period;
+	now = ktime_to_us(ktime_get());
+	nsamples = comedi_nsamples_left(s, UINT_MAX);
 
-	num_scans = comedi_nscans_left(s, num_scans);
-	for (i = 0; i < num_scans; i++) {
-		unsigned int scan_remain_period = devpriv->ai_scan_period;
+	while (nsamples && devpriv->ai_convert_time < now) {
+		unsigned int chanspec = cmd->chanlist[async->cur_chan];
+		unsigned short sample;
 
-		for (j = 0; j < cmd->chanlist_len; j++) {
-			unsigned short sample;
-
-			if (devpriv->wf_current >= devpriv->wf_period)
-				devpriv->wf_current %= devpriv->wf_period;
-			sample = fake_waveform(dev, CR_CHAN(cmd->chanlist[j]),
-					       CR_RANGE(cmd->chanlist[j]),
-					       devpriv->wf_current);
-			comedi_buf_write_samples(s, &sample, 1);
-			devpriv->wf_current += devpriv->ai_convert_period;
-			scan_remain_period -= devpriv->ai_convert_period;
+		sample = fake_waveform(dev, CR_CHAN(chanspec),
+				       CR_RANGE(chanspec), devpriv->wf_current);
+		if (comedi_buf_write_samples(s, &sample, 1) == 0)
+			goto overrun;
+		time_increment = devpriv->ai_convert_period;
+		if (async->scan_progress == 0) {
+			/* done last conversion in scan, so add dead time */
+			time_increment += devpriv->ai_scan_period -
+					  devpriv->ai_convert_period *
+					  cmd->scan_end_arg;
 		}
-		devpriv->wf_current += scan_remain_period;
-		devpriv->ai_last_scan_time += devpriv->ai_scan_period;
+		devpriv->wf_current += time_increment;
+		if (devpriv->wf_current >= devpriv->wf_period)
+			devpriv->wf_current %= devpriv->wf_period;
+		devpriv->ai_convert_time += time_increment;
+		nsamples--;
 	}
-	if (devpriv->wf_current >= devpriv->wf_period)
-		devpriv->wf_current %= devpriv->wf_period;
 
 	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
 		async->events |= COMEDI_CB_EOA;
 	} else {
+		if (devpriv->ai_convert_time > now)
+			time_increment = devpriv->ai_convert_time - now;
+		else
+			time_increment = 1;
 		mod_timer(&devpriv->ai_timer,
-			  jiffies + usecs_to_jiffies(devpriv->ai_scan_period));
+			  jiffies + usecs_to_jiffies(time_increment));
 	}
 
+overrun:
 	comedi_handle_events(dev, s);
 }
 
@@ -332,6 +337,7 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 {
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int first_convert_time;
 	u64 wf_current;
 
 	if (cmd->flags & CMDF_PRIORITY) {
@@ -352,13 +358,30 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 		devpriv->ai_scan_period = cmd->scan_begin_arg / NSEC_PER_USEC;
 	}
 
-	devpriv->ai_last_scan_time = ktime_to_us(ktime_get());
-	/* Determine time within waveform period. */
-	wf_current = devpriv->ai_last_scan_time;
+	/*
+	 * Simulate first conversion to occur at convert period after
+	 * conversion timer starts.  If scan_begin_src is TRIG_FOLLOW, assume
+	 * the conversion timer starts immediately.  If scan_begin_src is
+	 * TRIG_TIMER, assume the conversion timer starts after the scan
+	 * period.
+	 */
+	first_convert_time = devpriv->ai_convert_period;
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		first_convert_time += devpriv->ai_scan_period;
+	devpriv->ai_convert_time = ktime_to_us(ktime_get()) +
+				   first_convert_time;
+
+	/* Determine time within waveform period at time of conversion. */
+	wf_current = devpriv->ai_convert_time;
 	devpriv->wf_current = do_div(wf_current, devpriv->wf_period);
 
+	/*
+	 * Schedule timer to expire just after first conversion time.
+	 * Seem to need an extra jiffy here, otherwise timer expires slightly
+	 * early!
+	 */
 	devpriv->ai_timer.expires =
-		jiffies + usecs_to_jiffies(devpriv->ai_scan_period);
+		jiffies + usecs_to_jiffies(devpriv->ai_convert_period) + 1;
 
 	/* mark command as active */
 	smp_mb__before_atomic();
