@@ -234,7 +234,7 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 			       struct comedi_cmd *cmd)
 {
 	int err = 0;
-	unsigned int arg;
+	unsigned int arg, limit;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -265,16 +265,8 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_NOW)
 		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
-						    NSEC_PER_USEC);
-		if (cmd->convert_src == TRIG_TIMER) {
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    cmd->convert_arg *
-							    cmd->chanlist_len);
-		}
-	}
+	err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+					    NSEC_PER_USEC);
 
 	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
@@ -290,20 +282,28 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		arg = cmd->scan_begin_arg;
-		/* round to nearest microsec */
-		arg = NSEC_PER_USEC *
-		      ((arg + (NSEC_PER_USEC / 2)) / NSEC_PER_USEC);
-		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
-	}
 	if (cmd->convert_src == TRIG_TIMER) {
+		/* round convert_arg to nearest microsecond */
 		arg = cmd->convert_arg;
-		/* round to nearest microsec */
-		arg = NSEC_PER_USEC *
-		      ((arg + (NSEC_PER_USEC / 2)) / NSEC_PER_USEC);
+		arg = min(arg,
+			  rounddown(UINT_MAX, (unsigned int)NSEC_PER_USEC));
+		arg = NSEC_PER_USEC * DIV_ROUND_CLOSEST(arg, NSEC_PER_USEC);
+		/* limit convert_arg to keep scan_begin_arg in range */
+		limit = UINT_MAX / cmd->scan_end_arg;
+		limit = rounddown(limit, (unsigned int)NSEC_PER_SEC);
+		arg = min(arg, limit);
 		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
+
+	/* round scan_begin_arg to nearest microsecond */
+	arg = cmd->scan_begin_arg;
+	arg = min(arg, rounddown(UINT_MAX, (unsigned int)NSEC_PER_USEC));
+	arg = NSEC_PER_USEC * DIV_ROUND_CLOSEST(arg, NSEC_PER_USEC);
+	if (cmd->convert_src == TRIG_TIMER) {
+		/* but ensure scan_begin_arg is large enough */
+		arg = max(arg, cmd->convert_arg * cmd->scan_end_arg);
+	}
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 
 	if (err)
 		return 4;
