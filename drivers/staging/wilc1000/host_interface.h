@@ -419,7 +419,9 @@ int host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
  *  @date		28 Feb 2013
  *  @version		1.0
  */
-int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv, const u8 *key, u8 len, u8 index, u8 mode, enum AUTHTYPE auth_type);
+int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
+				const u8 *key, u8 len, u8 index, u8 mode,
+				enum AUTHTYPE auth_type);
 
 /**
  *  @brief              adds ptk Key
