@@ -2093,6 +2093,7 @@ nv12b_chipset = {
 	.secboot = gm20b_secboot_new,
 	.timer = gk20a_timer_new,
 	.ce[2] = gm200_ce_new,
+	.volt = gm20b_volt_new,
 	.dma = gf119_dma_new,
 	.fifo = gm20b_fifo_new,
 	.gr = gm20b_gr_new,
