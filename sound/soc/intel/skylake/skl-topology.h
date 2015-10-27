@@ -58,12 +58,6 @@ enum skl_bitdepth {
 	SKL_DEPTH_INVALID
 };
 
-enum skl_interleaving {
-	/* [s1_ch1...s1_chN,...,sM_ch1...sM_chN] */
-	SKL_INTERLEAVING_PER_CHANNEL = 0,
-	/* [s1_ch1...sM_ch1,...,s1_chN...sM_chN] */
-	SKL_INTERLEAVING_PER_SAMPLE = 1,
-};
 
 enum skl_s_freq {
 	SKL_FS_8000 = 8000,
@@ -253,6 +247,7 @@ enum skl_module_state {
 
 struct skl_module_cfg {
 	struct skl_module_inst_id id;
+	u8 domain;
 	bool homogenous_inputs;
 	bool homogenous_outputs;
 	struct skl_module_fmt in_fmt[MODULE_MAX_IN_PINS];
