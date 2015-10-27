@@ -280,7 +280,7 @@ static void skl_set_base_module_format(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig,
 			struct skl_base_cfg *base_cfg)
 {
-	struct skl_module_fmt *format = &mconfig->in_fmt;
+	struct skl_module_fmt *format = &mconfig->in_fmt[0];
 
 	base_cfg->audio_fmt.number_of_channels = (u8)format->channels;
 
@@ -399,7 +399,7 @@ static void skl_setup_out_format(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig,
 			struct skl_audio_data_format *out_fmt)
 {
-	struct skl_module_fmt *format = &mconfig->out_fmt;
+	struct skl_module_fmt *format = &mconfig->out_fmt[0];
 
 	out_fmt->number_of_channels = (u8)format->channels;
 	out_fmt->s_freq = format->s_freq;
@@ -423,7 +423,7 @@ static void skl_set_src_format(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig,
 			struct skl_src_module_cfg *src_mconfig)
 {
-	struct skl_module_fmt *fmt = &mconfig->out_fmt;
+	struct skl_module_fmt *fmt = &mconfig->out_fmt[0];
 
 	skl_set_base_module_format(ctx, mconfig,
 		(struct skl_base_cfg *)src_mconfig);
@@ -440,7 +440,7 @@ static void skl_set_updown_mixer_format(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig,
 			struct skl_up_down_mixer_cfg *mixer_mconfig)
 {
-	struct skl_module_fmt *fmt = &mconfig->out_fmt;
+	struct skl_module_fmt *fmt = &mconfig->out_fmt[0];
 	int i = 0;
 
 	skl_set_base_module_format(ctx,	mconfig,

@@ -129,17 +129,15 @@ static void skl_dump_mconfig(struct skl_sst *ctx,
 {
 	dev_dbg(ctx->dev, "Dumping config\n");
 	dev_dbg(ctx->dev, "Input Format:\n");
-	dev_dbg(ctx->dev, "channels = %d\n", mcfg->in_fmt.channels);
-	dev_dbg(ctx->dev, "s_freq = %d\n", mcfg->in_fmt.s_freq);
-	dev_dbg(ctx->dev, "ch_cfg = %d\n", mcfg->in_fmt.ch_cfg);
-	dev_dbg(ctx->dev, "valid bit depth = %d\n",
-			mcfg->in_fmt.valid_bit_depth);
+	dev_dbg(ctx->dev, "channels = %d\n", mcfg->in_fmt[0].channels);
+	dev_dbg(ctx->dev, "s_freq = %d\n", mcfg->in_fmt[0].s_freq);
+	dev_dbg(ctx->dev, "ch_cfg = %d\n", mcfg->in_fmt[0].ch_cfg);
+	dev_dbg(ctx->dev, "valid bit depth = %d\n", mcfg->in_fmt[0].valid_bit_depth);
 	dev_dbg(ctx->dev, "Output Format:\n");
-	dev_dbg(ctx->dev, "channels = %d\n", mcfg->out_fmt.channels);
-	dev_dbg(ctx->dev, "s_freq = %d\n", mcfg->out_fmt.s_freq);
-	dev_dbg(ctx->dev, "valid bit depth = %d\n",
-			mcfg->out_fmt.valid_bit_depth);
-	dev_dbg(ctx->dev, "ch_cfg = %d\n", mcfg->out_fmt.ch_cfg);
+	dev_dbg(ctx->dev, "channels = %d\n", mcfg->out_fmt[0].channels);
+	dev_dbg(ctx->dev, "s_freq = %d\n", mcfg->out_fmt[0].s_freq);
+	dev_dbg(ctx->dev, "valid bit depth = %d\n", mcfg->out_fmt[0].valid_bit_depth);
+	dev_dbg(ctx->dev, "ch_cfg = %d\n", mcfg->out_fmt[0].ch_cfg);
 }
 
 static void skl_tplg_update_params(struct skl_module_fmt *fmt,
@@ -171,8 +169,9 @@ static void skl_tplg_update_params_fixup(struct skl_module_cfg *m_cfg,
 	int in_fixup, out_fixup;
 	struct skl_module_fmt *in_fmt, *out_fmt;
 
-	in_fmt = &m_cfg->in_fmt;
-	out_fmt = &m_cfg->out_fmt;
+	/* Fixups will be applied to pin 0 only */
+	in_fmt = &m_cfg->in_fmt[0];
+	out_fmt = &m_cfg->out_fmt[0];
 
 	if (params->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (is_fe) {
@@ -209,18 +208,25 @@ static void skl_tplg_update_buffer_size(struct skl_sst *ctx,
 				struct skl_module_cfg *mcfg)
 {
 	int multiplier = 1;
+	struct skl_module_fmt *in_fmt, *out_fmt;
+
+
+	/* Since fixups is applied to pin 0 only, ibs, obs needs
+	 * change for pin 0 only
+	 */
+	in_fmt = &mcfg->in_fmt[0];
+	out_fmt = &mcfg->out_fmt[0];
 
 	if (mcfg->m_type == SKL_MODULE_TYPE_SRCINT)
 		multiplier = 5;
-
-	mcfg->ibs = (mcfg->in_fmt.s_freq / 1000) *
-				(mcfg->in_fmt.channels) *
-				(mcfg->in_fmt.bit_depth >> 3) *
+	mcfg->ibs = (in_fmt->s_freq / 1000) *
+				(mcfg->in_fmt->channels) *
+				(mcfg->in_fmt->bit_depth >> 3) *
 				multiplier;
 
-	mcfg->obs = (mcfg->out_fmt.s_freq / 1000) *
-				(mcfg->out_fmt.channels) *
-				(mcfg->out_fmt.bit_depth >> 3) *
+	mcfg->obs = (mcfg->out_fmt->s_freq / 1000) *
+				(mcfg->out_fmt->channels) *
+				(mcfg->out_fmt->bit_depth >> 3) *
 				multiplier;
 }
 
@@ -786,9 +792,9 @@ int skl_tplg_update_pipe_params(struct device *dev,
 	memcpy(pipe->p_params, params, sizeof(*params));
 
 	if (params->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		format = &mconfig->in_fmt;
+		format = &mconfig->in_fmt[0];
 	else
-		format = &mconfig->out_fmt;
+		format = &mconfig->out_fmt[0];
 
 	/* set the hw_params */
 	format->s_freq = params->s_freq;
@@ -1083,6 +1089,24 @@ static struct skl_pipe *skl_tplg_add_pipe(struct device *dev,
 	return ppl->pipe;
 }
 
+static void skl_tplg_fill_fmt(struct skl_module_fmt *dst_fmt,
+				struct skl_dfw_module_fmt *src_fmt,
+				int pins)
+{
+	int i;
+
+	for (i = 0; i < pins; i++) {
+		dst_fmt[i].channels  = src_fmt[i].channels;
+		dst_fmt[i].s_freq = src_fmt[i].freq;
+		dst_fmt[i].bit_depth = src_fmt[i].bit_depth;
+		dst_fmt[i].valid_bit_depth = src_fmt[i].valid_bit_depth;
+		dst_fmt[i].ch_cfg = src_fmt[i].ch_cfg;
+		dst_fmt[i].ch_map = src_fmt[i].ch_map;
+		dst_fmt[i].interleaving_style = src_fmt[i].interleaving_style;
+		dst_fmt[i].sample_type = src_fmt[i].sample_type;
+	}
+}
+
 /*
  * Topology core widget load callback
  *
@@ -1121,18 +1145,11 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->max_in_queue = dfw_config->max_in_queue;
 	mconfig->max_out_queue = dfw_config->max_out_queue;
 	mconfig->is_loadable = dfw_config->is_loadable;
-	mconfig->in_fmt.channels = dfw_config->in_fmt.channels;
-	mconfig->in_fmt.s_freq = dfw_config->in_fmt.freq;
-	mconfig->in_fmt.bit_depth = dfw_config->in_fmt.bit_depth;
-	mconfig->in_fmt.valid_bit_depth =
-				dfw_config->in_fmt.valid_bit_depth;
-	mconfig->in_fmt.ch_cfg = dfw_config->in_fmt.ch_cfg;
-	mconfig->out_fmt.channels = dfw_config->out_fmt.channels;
-	mconfig->out_fmt.s_freq = dfw_config->out_fmt.freq;
-	mconfig->out_fmt.bit_depth = dfw_config->out_fmt.bit_depth;
-	mconfig->out_fmt.valid_bit_depth =
-				dfw_config->out_fmt.valid_bit_depth;
-	mconfig->out_fmt.ch_cfg = dfw_config->out_fmt.ch_cfg;
+	skl_tplg_fill_fmt(mconfig->in_fmt, dfw_config->in_fmt,
+						MODULE_MAX_IN_PINS);
+	skl_tplg_fill_fmt(mconfig->out_fmt, dfw_config->out_fmt,
+						MODULE_MAX_OUT_PINS);
+
 	mconfig->params_fixup = dfw_config->params_fixup;
 	mconfig->converter = dfw_config->converter;
 	mconfig->m_type = dfw_config->module_type;
@@ -1147,10 +1164,9 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->time_slot = dfw_config->time_slot;
 	mconfig->formats_config.caps_size = dfw_config->caps.caps_size;
 
-	mconfig->m_in_pin = devm_kzalloc(bus->dev,
-				(mconfig->max_in_queue) *
-					sizeof(*mconfig->m_in_pin),
-				GFP_KERNEL);
+	mconfig->m_in_pin = devm_kzalloc(bus->dev, (mconfig->max_in_queue) *
+						sizeof(*mconfig->m_in_pin),
+						GFP_KERNEL);
 	if (!mconfig->m_in_pin)
 		return -ENOMEM;
 

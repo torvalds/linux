@@ -110,6 +110,17 @@ enum skl_dev_type {
 	SKL_DEVICE_NONE
 };
 
+enum module_pin_type {
+	/* All pins of the module takes same PCM inputs or outputs
+	* e.g. mixout
+	*/
+	SKL_PIN_TYPE_HOMOGENEOUS,
+	/* All pins of the module takes different PCM inputs or outputs
+	* e.g mux
+	*/
+	SKL_PIN_TYPE_HETEROGENEOUS,
+};
+
 struct skl_dfw_module_pin {
 	u16 module_id;
 	u16 instance_id;
@@ -121,6 +132,9 @@ struct skl_dfw_module_fmt {
 	u32 bit_depth;
 	u32 valid_bit_depth;
 	u32 ch_cfg;
+	u32 interleaving_style;
+	u32 sample_type;
+	u32 ch_map;
 } __packed;
 
 struct skl_dfw_module_caps {
@@ -156,8 +170,8 @@ struct skl_dfw_module {
 	u8 is_dynamic_in_pin;
 	u8 is_dynamic_out_pin;
 	struct skl_dfw_pipe pipe;
-	struct skl_dfw_module_fmt in_fmt;
-	struct skl_dfw_module_fmt out_fmt;
+	struct skl_dfw_module_fmt in_fmt[MAX_IN_QUEUE];
+	struct skl_dfw_module_fmt out_fmt[MAX_OUT_QUEUE];
 	struct skl_dfw_module_pin in_pin[MAX_IN_QUEUE];
 	struct skl_dfw_module_pin out_pin[MAX_OUT_QUEUE];
 	struct skl_dfw_module_caps caps;

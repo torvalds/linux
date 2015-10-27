@@ -36,6 +36,9 @@
 /* Maximum number of coefficients up down mixer module */
 #define UP_DOWN_MIXER_MAX_COEFF		6
 
+#define MODULE_MAX_IN_PINS	8
+#define MODULE_MAX_OUT_PINS	8
+
 enum skl_channel_index {
 	SKL_CHANNEL_LEFT = 0,
 	SKL_CHANNEL_RIGHT = 1,
@@ -178,6 +181,9 @@ struct skl_module_fmt {
 	u32 bit_depth;
 	u32 valid_bit_depth;
 	u32 ch_cfg;
+	u32 interleaving_style;
+	u32 sample_type;
+	u32 ch_map;
 };
 
 struct skl_module_cfg;
@@ -247,8 +253,10 @@ enum skl_module_state {
 
 struct skl_module_cfg {
 	struct skl_module_inst_id id;
-	struct skl_module_fmt in_fmt;
-	struct skl_module_fmt out_fmt;
+	bool homogenous_inputs;
+	bool homogenous_outputs;
+	struct skl_module_fmt in_fmt[MODULE_MAX_IN_PINS];
+	struct skl_module_fmt out_fmt[MODULE_MAX_OUT_PINS];
 	u8 max_in_queue;
 	u8 max_out_queue;
 	u8 in_queue_mask;
