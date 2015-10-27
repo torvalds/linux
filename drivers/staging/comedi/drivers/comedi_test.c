@@ -457,6 +457,7 @@ static int waveform_attach(struct comedi_device *dev,
 	s->maxdata = 0xffff;
 	s->range_table = &waveform_ai_ranges;
 	s->insn_write = waveform_ao_insn_write;
+	s->insn_read = waveform_ai_insn_read;	/* do same as AI insn_read */
 
 	/* Our default loopback value is just a 0V flatline */
 	for (i = 0; i < s->n_chan; i++)
