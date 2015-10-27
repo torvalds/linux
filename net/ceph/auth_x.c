@@ -697,8 +697,7 @@ static int ceph_x_sign_message(struct ceph_auth_handshake *auth,
 			       struct ceph_msg *msg)
 {
 	int ret;
-	if (!auth->authorizer)
-		return 0;
+
 	ret = calcu_signature((struct ceph_x_authorizer *)auth->authorizer,
 			      msg, &msg->footer.sig);
 	if (ret < 0)
@@ -713,8 +712,6 @@ static int ceph_x_check_message_signature(struct ceph_auth_handshake *auth,
 	__le64 sig_check;
 	int ret;
 
-	if (!auth->authorizer)
-		return 0;
 	ret = calcu_signature((struct ceph_x_authorizer *)auth->authorizer,
 			      msg, &sig_check);
 	if (ret < 0)
