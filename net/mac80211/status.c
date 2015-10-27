@@ -101,6 +101,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 * when it wakes up for the next time.
 	 */
 	set_sta_flag(sta, WLAN_STA_CLEAR_PS_FILT);
+	ieee80211_clear_fast_xmit(sta);
 
 	/*
 	 * This code races in the following way:

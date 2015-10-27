@@ -860,6 +860,11 @@ static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
 	       test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status);
 }
 
+static inline bool iwl_mvm_is_radio_hw_killed(struct iwl_mvm *mvm)
+{
+	return test_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
+}
+
 /* Must be called with rcu_read_lock() held and it can only be
  * released when mvmsta is not needed anymore.
  */

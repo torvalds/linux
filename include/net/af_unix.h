@@ -64,7 +64,7 @@ struct unix_sock {
 	struct socket_wq	peer_wq;
 };
 
-static inline struct unix_sock *unix_sk(struct sock *sk)
+static inline struct unix_sock *unix_sk(const struct sock *sk)
 {
 	return (struct unix_sock *)sk;
 }

@@ -56,7 +56,7 @@
 					/* VMMCI level-shifter enable */
 					default_hrefv60_cfg2 {
 						pins = "GPIO169_D22";
-						ste,config = <&gpio_out_lo>;
+						ste,config = <&gpio_out_hi>;
 					};
 					/* VMMCI level-shifter voltage select */
 					default_hrefv60_cfg3 {

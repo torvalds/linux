@@ -312,7 +312,7 @@ static void arp_send_dst(int type, int ptype, __be32 dest_ip,
 	if (!skb)
 		return;
 
-	skb_dst_set(skb, dst);
+	skb_dst_set(skb, dst_clone(dst));
 	arp_xmit(skb);
 }
 
@@ -384,7 +384,7 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	}
 
 	if (skb && !(dev->priv_flags & IFF_XMIT_DST_RELEASE))
-		dst = dst_clone(skb_dst(skb));
+		dst = skb_dst(skb);
 	arp_send_dst(ARPOP_REQUEST, ETH_P_ARP, target, dev, saddr,
 		     dst_hw, dev->dev_addr, NULL, dst);
 }
@@ -811,7 +811,7 @@ static int arp_process(struct sock *sk, struct sk_buff *skb)
 				} else {
 					pneigh_enqueue(&arp_tbl,
 						       in_dev->arp_parms, skb);
-					return 0;
+					goto out_free_dst;
 				}
 				goto out;
 			}
@@ -865,6 +865,8 @@ static int arp_process(struct sock *sk, struct sk_buff *skb)
 
 out:
 	consume_skb(skb);
+out_free_dst:
+	dst_release(reply_dst);
 	return 0;
 }
 

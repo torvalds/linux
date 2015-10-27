@@ -1116,7 +1116,7 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 	}
 
 	/* Ignore duplicate packets */
-	if (less(oseqno, rcv_nxt))
+	if ((usr != LINK_PROTOCOL) && less(oseqno, rcv_nxt))
 		return true;
 
 	/* Initiate or update failover mode if applicable */
@@ -1146,8 +1146,8 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 	if (!pl || !tipc_link_is_up(pl))
 		return true;
 
-	/* Initiate or update synch mode if applicable */
-	if ((usr == TUNNEL_PROTOCOL) && (mtyp == SYNCH_MSG)) {
+	/* Initiate synch mode if applicable */
+	if ((usr == TUNNEL_PROTOCOL) && (mtyp == SYNCH_MSG) && (oseqno == 1)) {
 		syncpt = iseqno + exp_pkts - 1;
 		if (!tipc_link_is_up(l)) {
 			tipc_link_fsm_evt(l, LINK_ESTABLISH_EVT);

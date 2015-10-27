@@ -2418,7 +2418,7 @@ static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt, u64 smbase)
 	u64 val, cr0, cr4;
 	u32 base3;
 	u16 selector;
-	int i;
+	int i, r;
 
 	for (i = 0; i < 16; i++)
 		*reg_write(ctxt, i) = GET_SMSTATE(u64, smbase, 0x7ff8 - i * 8);
@@ -2460,13 +2460,17 @@ static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt, u64 smbase)
 	dt.address =                GET_SMSTATE(u64, smbase, 0x7e68);
 	ctxt->ops->set_gdt(ctxt, &dt);
 
+	r = rsm_enter_protected_mode(ctxt, cr0, cr4);
+	if (r != X86EMUL_CONTINUE)
+		return r;
+
 	for (i = 0; i < 6; i++) {
-		int r = rsm_load_seg_64(ctxt, smbase, i);
+		r = rsm_load_seg_64(ctxt, smbase, i);
 		if (r != X86EMUL_CONTINUE)
 			return r;
 	}
 
-	return rsm_enter_protected_mode(ctxt, cr0, cr4);
+	return X86EMUL_CONTINUE;
 }
 
 static int em_rsm(struct x86_emulate_ctxt *ctxt)

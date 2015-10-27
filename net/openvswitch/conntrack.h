@@ -34,6 +34,13 @@ int ovs_ct_execute(struct net *, struct sk_buff *, struct sw_flow_key *,
 void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key);
 int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb);
 void ovs_ct_free_action(const struct nlattr *a);
+
+static inline bool ovs_ct_state_supported(u32 state)
+{
+	return !(state & ~(OVS_CS_F_NEW | OVS_CS_F_ESTABLISHED |
+			 OVS_CS_F_RELATED | OVS_CS_F_REPLY_DIR |
+			 OVS_CS_F_INVALID | OVS_CS_F_TRACKED));
+}
 #else
 #include <linux/errno.h>
 
@@ -42,6 +49,11 @@ static inline void ovs_ct_init(struct net *net) { }
 static inline void ovs_ct_exit(struct net *net) { }
 
 static inline bool ovs_ct_verify(struct net *net, int attr)
+{
+	return false;
+}
+
+static inline bool ovs_ct_state_supported(u32 state)
 {
 	return false;
 }
@@ -72,7 +84,7 @@ static inline void ovs_ct_fill_key(const struct sk_buff *skb,
 	key->ct.state = 0;
 	key->ct.zone = 0;
 	key->ct.mark = 0;
-	memset(&key->ct.label, 0, sizeof(key->ct.label));
+	memset(&key->ct.labels, 0, sizeof(key->ct.labels));
 }
 
 static inline int ovs_ct_put_key(const struct sw_flow_key *key,

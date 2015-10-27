@@ -3201,7 +3201,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 						metadata_low_callback,
 						pool);
 	if (r)
-		goto out_free_pt;
+		goto out_flags_changed;
 
 	pt->callbacks.congested_fn = pool_is_congested;
 	dm_table_add_target_callbacks(ti->table, &pt->callbacks);

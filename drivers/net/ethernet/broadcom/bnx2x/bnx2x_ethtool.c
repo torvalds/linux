@@ -3351,6 +3351,13 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 			udp_rss_requested = 0;
 		else
 			return -EINVAL;
+
+		if (CHIP_IS_E1x(bp) && udp_rss_requested) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "57710, 57711 boards don't support RSS according to UDP 4-tuple\n");
+			return -EINVAL;
+		}
+
 		if ((info->flow_type == UDP_V4_FLOW) &&
 		    (bp->rss_conf_obj.udp_rss_v4 != udp_rss_requested)) {
 			bp->rss_conf_obj.udp_rss_v4 = udp_rss_requested;

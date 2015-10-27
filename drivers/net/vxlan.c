@@ -2745,11 +2745,10 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	struct vxlan_config conf;
 	int err;
 
-	if (!data[IFLA_VXLAN_ID])
-		return -EINVAL;
-
 	memset(&conf, 0, sizeof(conf));
-	conf.vni = nla_get_u32(data[IFLA_VXLAN_ID]);
+
+	if (data[IFLA_VXLAN_ID])
+		conf.vni = nla_get_u32(data[IFLA_VXLAN_ID]);
 
 	if (data[IFLA_VXLAN_GROUP]) {
 		conf.remote_ip.sin.sin_addr.s_addr = nla_get_in_addr(data[IFLA_VXLAN_GROUP]);

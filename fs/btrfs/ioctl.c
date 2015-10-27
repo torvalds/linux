@@ -4639,6 +4639,11 @@ locked:
 		bctl->flags |= BTRFS_BALANCE_TYPE_MASK;
 	}
 
+	if (bctl->flags & ~(BTRFS_BALANCE_ARGS_MASK | BTRFS_BALANCE_TYPE_MASK)) {
+		ret = -EINVAL;
+		goto out_bctl;
+	}
+
 do_balance:
 	/*
 	 * Ownership of bctl and mutually_exclusive_operation_running
@@ -4650,12 +4655,15 @@ do_balance:
 	need_unlock = false;
 
 	ret = btrfs_balance(bctl, bargs);
+	bctl = NULL;
 
 	if (arg) {
 		if (copy_to_user(arg, bargs, sizeof(*bargs)))
 			ret = -EFAULT;
 	}
 
+out_bctl:
+	kfree(bctl);
 out_bargs:
 	kfree(bargs);
 out_unlock:
