@@ -110,7 +110,7 @@ static void uart_start(struct tty_struct *tty)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static inline void
+static void
 uart_update_mctrl(struct uart_port *port, unsigned int set, unsigned int clear)
 {
 	unsigned long flags;
