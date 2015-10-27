@@ -295,9 +295,6 @@ struct vgic_v3_cpu_if {
 };
 
 struct vgic_cpu {
-	/* per IRQ to LR mapping */
-	u8		*vgic_irq_lr_map;
-
 	/* Pending/active/both interrupts on this VCPU */
 	DECLARE_BITMAP(pending_percpu, VGIC_NR_PRIVATE_IRQS);
 	DECLARE_BITMAP(active_percpu, VGIC_NR_PRIVATE_IRQS);
@@ -307,9 +304,6 @@ struct vgic_cpu {
 	unsigned long	*pending_shared;
 	unsigned long   *active_shared;
 	unsigned long   *pend_act_shared;
-
-	/* Bitmap of used/free list registers */
-	DECLARE_BITMAP(lr_used, VGIC_V2_MAX_LRS);
 
 	/* Number of list registers on this CPU */
 	int		nr_lr;
