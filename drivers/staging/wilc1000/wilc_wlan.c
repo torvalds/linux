@@ -1184,7 +1184,8 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 
 				if (!is_cfg_packet) {
 					if (pkt_len > 0) {
-						frmw_to_linux(&buffer[offset],
+						frmw_to_linux(wilc,
+							      &buffer[offset],
 							      pkt_len,
 							      pkt_offset);
 						has_packet = 1;

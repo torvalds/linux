@@ -1557,7 +1557,7 @@ done:
 	return s32Error;
 }
 
-void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset)
+void frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 {
 
 	unsigned int frame_len = 0;
@@ -1586,8 +1586,8 @@ void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset)
 			return;
 		}
 
-		if (g_linux_wlan == NULL || wilc_netdev == NULL)
-			PRINT_ER("wilc_netdev in g_linux_wlan is NULL");
+		if (wilc == NULL || wilc_netdev == NULL)
+			PRINT_ER("wilc_netdev in wilc is NULL");
 		skb->dev = wilc_netdev;
 
 		if (skb->dev == NULL)
