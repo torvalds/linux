@@ -500,7 +500,8 @@ static u32 array_phy_reg_pg_8188e[] = {
 
 };
 
-static void store_pwrindex_offset(struct adapter *Adapter, u32 regaddr, u32 bitmask, u32 data)
+static void store_pwrindex_offset(struct adapter *Adapter,
+				  u32 regaddr, u32 bitmask, u32 data)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
 	 u8 pwrGrpCnt = hal_data->pwrGroupCnt;
@@ -705,18 +706,21 @@ bool rtl88eu_phy_bb_config(struct adapter *adapt)
 
 	/*  Enable BB and RF */
 	regval = usb_read16(adapt, REG_SYS_FUNC_EN);
-	usb_write16(adapt, REG_SYS_FUNC_EN, (u16)(regval | BIT(13) | BIT(0) | BIT(1)));
+	usb_write16(adapt, REG_SYS_FUNC_EN,
+		    (u16)(regval | BIT(13) | BIT(0) | BIT(1)));
 
 	usb_write8(adapt, REG_RF_CTRL, RF_EN | RF_RSTB | RF_SDMRSTB);
 
-	usb_write8(adapt, REG_SYS_FUNC_EN, FEN_USBA | FEN_USBD | FEN_BB_GLB_RSTn | FEN_BBRSTB);
+	usb_write8(adapt, REG_SYS_FUNC_EN, FEN_USBA |
+		   FEN_USBD | FEN_BB_GLB_RSTn | FEN_BBRSTB);
 
 	/*  Config BB and AGC */
 	rtstatus = config_parafile(adapt);
 
 	/*  write 0x24[16:11] = 0x24[22:17] = crystal_cap */
 	crystal_cap = hal_data->CrystalCap & 0x3F;
-	phy_set_bb_reg(adapt, REG_AFE_XTAL_CTRL, 0x7ff800, (crystal_cap | (crystal_cap << 6)));
+	phy_set_bb_reg(adapt, REG_AFE_XTAL_CTRL, 0x7ff800,
+		       (crystal_cap | (crystal_cap << 6)));
 
 	return rtstatus;
 }
