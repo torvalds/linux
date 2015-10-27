@@ -2301,6 +2301,9 @@ static void mxt_regulator_enable(struct mxt_data *data)
 {
 	int error;
 
+	if (!data->reg_vdd || !data->reg_avdd)
+		return;
+
 	gpio_set_value(data->pdata->gpio_reset, 0);
 
 	error = regulator_enable(data->reg_vdd);
@@ -2333,6 +2336,9 @@ retry_wait:
 
 static void mxt_regulator_disable(struct mxt_data *data)
 {
+	if (!data->reg_vdd || !data->reg_avdd)
+		return;
+
 	regulator_disable(data->reg_vdd);
 	regulator_disable(data->reg_avdd);
 }
