@@ -19,7 +19,6 @@
 extern wilc_hif_func_t hif_sdio;
 extern wilc_hif_func_t hif_spi;
 u32 wilc_get_chipid(u8 update);
-u16 Set_machw_change_vir_if(bool bValue);
 
 
 
@@ -2033,13 +2032,18 @@ _fail_:
 
 }
 
-u16 Set_machw_change_vir_if(bool bValue)
+u16 Set_machw_change_vir_if(struct net_device *dev, bool bValue)
 {
 	u16 ret;
 	u32 reg;
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
 
 	/*Reset WILC_CHANGING_VIR_IF register to allow adding futrue keys to CE H/W*/
-	mutex_lock(&g_linux_wlan->hif_cs);
+	mutex_lock(&wilc->hif_cs);
 	ret = (&g_wlan)->hif_func.hif_read_reg(WILC_CHANGING_VIR_IF, &reg);
 	if (!ret)
 		PRINT_ER("Error while Reading reg WILC_CHANGING_VIR_IF\n");
@@ -2054,7 +2058,7 @@ u16 Set_machw_change_vir_if(bool bValue)
 	if (!ret)
 		PRINT_ER("Error while writing reg WILC_CHANGING_VIR_IF\n");
 
-	mutex_unlock(&g_linux_wlan->hif_cs);
+	mutex_unlock(&wilc->hif_cs);
 
 	return ret;
 }
