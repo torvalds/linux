@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
+#include <linux/hardirq.h>
 
 #include <asm/fpsimd.h>
 #include <asm/cputype.h>
