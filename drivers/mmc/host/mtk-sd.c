@@ -1145,11 +1145,14 @@ static void msdc_init_gpd_bd(struct msdc_host *host, struct msdc_dma *dma)
 	struct mt_bdma_desc *bd = dma->bd;
 	int i;
 
-	memset(gpd, 0, sizeof(struct mt_gpdma_desc));
+	memset(gpd, 0, sizeof(struct mt_gpdma_desc) * 2);
 
 	gpd->gpd_info = GPDMA_DESC_BDP; /* hwo, cs, bd pointer */
 	gpd->ptr = (u32)dma->bd_addr; /* physical address */
-
+	/* gpd->next is must set for desc DMA
+	 * That's why must alloc 2 gpd structure.
+	 */
+	gpd->next = (u32)dma->gpd_addr + sizeof(struct mt_gpdma_desc);
 	memset(bd, 0, sizeof(struct mt_bdma_desc) * MAX_BD_NUM);
 	for (i = 0; i < (MAX_BD_NUM - 1); i++)
 		bd[i].next = (u32)dma->bd_addr + sizeof(*bd) * (i + 1);
@@ -1306,7 +1309,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 
 	host->timeout_clks = 3 * 1048576;
 	host->dma.gpd = dma_alloc_coherent(&pdev->dev,
-				sizeof(struct mt_gpdma_desc),
+				2 * sizeof(struct mt_gpdma_desc),
 				&host->dma.gpd_addr, GFP_KERNEL);
 	host->dma.bd = dma_alloc_coherent(&pdev->dev,
 				MAX_BD_NUM * sizeof(struct mt_bdma_desc),
@@ -1347,7 +1350,7 @@ release:
 release_mem:
 	if (host->dma.gpd)
 		dma_free_coherent(&pdev->dev,
-			sizeof(struct mt_gpdma_desc),
+			2 * sizeof(struct mt_gpdma_desc),
 			host->dma.gpd, host->dma.gpd_addr);
 	if (host->dma.bd)
 		dma_free_coherent(&pdev->dev,
