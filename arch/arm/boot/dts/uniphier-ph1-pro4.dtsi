@@ -232,10 +232,9 @@
 			clock-frequency = <400000>;
 		};
 
-		system-bus-controller-misc@59800000 {
-			compatible = "socionext,uniphier-system-bus-controller-misc",
-				     "syscon";
-			reg = <0x59800000 0x2000>;
+		system-bus-controller@58c00000 {
+			compatible = "socionext,uniphier-system-bus-controller";
+			reg = <0x58c00000 0x400>, <0x59800000 0x2000>;
 		};
 
 		usb2: usb@5a800100 {
