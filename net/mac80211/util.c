@@ -2984,6 +2984,13 @@ ieee80211_extend_noa_desc(struct ieee80211_noa_data *data, u32 tsf, int i)
 	if (end > 0)
 		return false;
 
+	/* One shot NOA  */
+	if (data->count[i] == 1)
+		return false;
+
+	if (data->desc[i].interval == 0)
+		return false;
+
 	/* End time is in the past, check for repetitions */
 	skip = DIV_ROUND_UP(-end, data->desc[i].interval);
 	if (data->count[i] < 255) {
