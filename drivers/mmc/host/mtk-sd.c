@@ -64,6 +64,7 @@
 #define SDC_RESP2        0x48
 #define SDC_RESP3        0x4c
 #define SDC_BLK_NUM      0x50
+#define EMMC_IOCON       0x7c
 #define SDC_ACMD_RESP    0x80
 #define MSDC_DMA_SA      0x90
 #define MSDC_DMA_CTRL    0x98
@@ -1209,6 +1210,15 @@ end:
 	pm_runtime_put_autosuspend(host->dev);
 }
 
+static void msdc_hw_reset(struct mmc_host *mmc)
+{
+	struct msdc_host *host = mmc_priv(mmc);
+
+	sdr_set_bits(host->base + EMMC_IOCON, 1);
+	udelay(10); /* 10us is enough */
+	sdr_clr_bits(host->base + EMMC_IOCON, 1);
+}
+
 static struct mmc_host_ops mt_msdc_ops = {
 	.post_req = msdc_post_req,
 	.pre_req = msdc_pre_req,
@@ -1216,6 +1226,7 @@ static struct mmc_host_ops mt_msdc_ops = {
 	.set_ios = msdc_ops_set_ios,
 	.start_signal_voltage_switch = msdc_ops_switch_volt,
 	.card_busy = msdc_card_busy,
+	.hw_reset = msdc_hw_reset,
 };
 
 static int msdc_drv_probe(struct platform_device *pdev)
