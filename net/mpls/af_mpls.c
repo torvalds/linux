@@ -1345,6 +1345,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 		rt0->rt_protocol = RTPROT_KERNEL;
 		rt0->rt_payload_type = MPT_IPV4;
 		rt0->rt_nh->nh_via_table = NEIGH_LINK_TABLE;
+		rt0->rt_nh->nh_via_alen = lo->addr_len;
 		memcpy(rt0->rt_nh->nh_via, lo->dev_addr, lo->addr_len);
 	}
 	if (limit > MPLS_LABEL_IPV6NULL) {
@@ -1356,6 +1357,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 		rt2->rt_protocol = RTPROT_KERNEL;
 		rt2->rt_payload_type = MPT_IPV6;
 		rt2->rt_nh->nh_via_table = NEIGH_LINK_TABLE;
+		rt2->rt_nh->nh_via_alen = lo->addr_len;
 		memcpy(rt2->rt_nh->nh_via, lo->dev_addr, lo->addr_len);
 	}
 
