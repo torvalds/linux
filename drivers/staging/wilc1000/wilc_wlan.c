@@ -1353,7 +1353,7 @@ _end_:
 	wilc_wlan_handle_rxq();
 }
 
-void wilc_handle_isr(void)
+void wilc_handle_isr(void *wilc)
 {
 	u32 int_status;
 

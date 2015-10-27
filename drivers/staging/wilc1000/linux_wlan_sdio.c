@@ -27,7 +27,6 @@ struct wilc_sdio {
 };
 
 struct sdio_func *local_sdio_func;
-extern void wilc_handle_isr(void);
 
 static unsigned int sdio_default_speed;
 
@@ -42,9 +41,13 @@ static const struct sdio_device_id wilc_sdio_ids[] = {
 
 static void wilc_sdio_interrupt(struct sdio_func *func)
 {
+	struct wilc_sdio *wl_sdio;
+
+	wl_sdio = sdio_get_drvdata(func);
+
 #ifndef WILC_SDIO_IRQ_GPIO
 	sdio_release_host(func);
-	wilc_handle_isr();
+	wilc_handle_isr(wl_sdio->wilc);
 	sdio_claim_host(func);
 #endif
 }

@@ -261,7 +261,7 @@ irqreturn_t isr_bh_routine(int irq, void *userdata)
 	}
 
 	PRINT_D(INT_DBG, "Interrupt received BH\n");
-	wilc_handle_isr();
+	wilc_handle_isr(wilc);
 
 	return IRQ_HANDLED;
 }
