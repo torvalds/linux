@@ -70,7 +70,7 @@ struct waveform_private {
 	unsigned long state_bits;
 	unsigned int ai_scan_period;	/* AI scan period in usec */
 	unsigned int ai_convert_period;	/* AI conversion period in usec */
-	unsigned int ao_loopbacks[N_CHANS];
+	unsigned short ao_loopbacks[N_CHANS];
 };
 
 /* fake analog input ranges */
