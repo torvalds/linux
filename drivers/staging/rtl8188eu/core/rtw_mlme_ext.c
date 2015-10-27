@@ -418,7 +418,7 @@ static void issue_beacon(struct adapter *padapter, int timeout_ms)
 
 	/*  supported rates... */
 	rate_len = rtw_get_rateset_len(cur_network->SupportedRates);
-	pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, ((rate_len > 8) ? 8 : rate_len), cur_network->SupportedRates, &pattrib->pktlen);
+	pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, min_t(unsigned int, rate_len, 8), cur_network->SupportedRates, &pattrib->pktlen);
 
 	/*  DS parameter set */
 	pframe = rtw_set_ie(pframe, _DSSET_IE_, 1, (unsigned char *)&(cur_network->Configuration.DSConfig), &pattrib->pktlen);
@@ -578,7 +578,7 @@ static void issue_probersp(struct adapter *padapter, unsigned char *da)
 
 		/*  supported rates... */
 		rate_len = rtw_get_rateset_len(cur_network->SupportedRates);
-		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, ((rate_len > 8) ? 8 : rate_len), cur_network->SupportedRates, &pattrib->pktlen);
+		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, min_t(unsigned int, rate_len, 8), cur_network->SupportedRates, &pattrib->pktlen);
 
 		/*  DS parameter set */
 		pframe = rtw_set_ie(pframe, _DSSET_IE_, 1, (unsigned char *)&(cur_network->Configuration.DSConfig), &pattrib->pktlen);

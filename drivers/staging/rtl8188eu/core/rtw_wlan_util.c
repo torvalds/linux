@@ -1227,7 +1227,7 @@ unsigned int update_basic_rate(unsigned char *ptn, unsigned int ptn_sz)
 	unsigned int i, num_of_rate;
 	unsigned int mask = 0;
 
-	num_of_rate = (ptn_sz > NumRates) ? NumRates : ptn_sz;
+	num_of_rate = min_t(unsigned int, ptn_sz, NumRates);
 
 	for (i = 0; i < num_of_rate; i++) {
 		if ((*(ptn + i)) & 0x80)
@@ -1241,7 +1241,7 @@ unsigned int update_supported_rate(unsigned char *ptn, unsigned int ptn_sz)
 	unsigned int i, num_of_rate;
 	unsigned int mask = 0;
 
-	num_of_rate = (ptn_sz > NumRates) ? NumRates : ptn_sz;
+	num_of_rate = min_t(unsigned int, ptn_sz, NumRates);
 
 	for (i = 0; i < num_of_rate; i++)
 		mask |= 0x1 << wifirate2_ratetbl_inx(*(ptn + i));

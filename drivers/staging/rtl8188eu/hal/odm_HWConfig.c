@@ -394,7 +394,7 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 			OFDM_pkt += (u8)(pEntry->rssi_stat.PacketMap>>i) & BIT(0);
 
 		if (pEntry->rssi_stat.ValidBit == 64) {
-			Weighting = ((OFDM_pkt<<4) > 64) ? 64 : (OFDM_pkt<<4);
+			Weighting = min_t(u32, OFDM_pkt << 4, 64);
 			UndecoratedSmoothedPWDB = (Weighting*UndecoratedSmoothedOFDM+(64-Weighting)*UndecoratedSmoothedCCK)>>6;
 		} else {
 			if (pEntry->rssi_stat.ValidBit != 0)

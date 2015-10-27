@@ -1392,6 +1392,6 @@ static const char *_action_public_str[] = {
 
 const char *action_public_str(u8 action)
 {
-	action = (action >= ACT_PUBLIC_MAX) ? ACT_PUBLIC_MAX : action;
+	action = min_t(u8, action, ACT_PUBLIC_MAX);
 	return _action_public_str[action];
 }

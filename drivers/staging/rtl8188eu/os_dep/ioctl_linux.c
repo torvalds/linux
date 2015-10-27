@@ -457,7 +457,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 					psta->dot118021XPrivacy = padapter->securitypriv.dot11PrivacyAlgrthm;
 
 				if (param->u.crypt.set_tx == 1) { /* pairwise key */
-					memcpy(psta->dot118021x_UncstKey.skey,  param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
+					memcpy(psta->dot118021x_UncstKey.skey,  param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 
 					if (strcmp(param->u.crypt.alg, "TKIP") == 0) { /* set mic key */
 						memcpy(psta->dot11tkiptxmickey.skey, &(param->u.crypt.key[16]), 8);
@@ -469,7 +469,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 					rtw_setstakey_cmd(padapter, (unsigned char *)psta, true);
 				} else { /* group key */
-					memcpy(padapter->securitypriv.dot118021XGrpKey[param->u.crypt.idx].skey,  param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
+					memcpy(padapter->securitypriv.dot118021XGrpKey[param->u.crypt.idx].skey,  param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16 ));
 					memcpy(padapter->securitypriv.dot118021XGrptxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[16]), 8);
 					memcpy(padapter->securitypriv.dot118021XGrprxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[24]), 8);
 					padapter->securitypriv.binstallGrpkey = true;
@@ -1321,7 +1321,7 @@ static int rtw_wx_set_essid(struct net_device *dev,
 	authmode = padapter->securitypriv.ndisauthtype;
 	DBG_88E("=>%s\n", __func__);
 	if (wrqu->essid.flags && wrqu->essid.length) {
-		len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? wrqu->essid.length : IW_ESSID_MAX_SIZE;
+		len = min_t(uint, wrqu->essid.length, IW_ESSID_MAX_SIZE);
 
 		if (wrqu->essid.length != 33)
 			DBG_88E("ssid =%s, len =%d\n", extra, wrqu->essid.length);
@@ -2335,7 +2335,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				DBG_88E("%s, set group_key, WEP\n", __func__);
 
 				memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-					    param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
+					    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 
 				psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
 				if (param->u.crypt.key_len == 13)
@@ -2344,7 +2344,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				DBG_88E("%s, set group_key, TKIP\n", __func__);
 				psecuritypriv->dot118021XGrpPrivacy = _TKIP_;
 				memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-					    param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
+					    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 				/* set mic key */
 				memcpy(psecuritypriv->dot118021XGrptxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[16]), 8);
 				memcpy(psecuritypriv->dot118021XGrprxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[24]), 8);
@@ -2354,7 +2354,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				DBG_88E("%s, set group_key, CCMP\n", __func__);
 				psecuritypriv->dot118021XGrpPrivacy = _AES_;
 				memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-					    param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
+					    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 			} else {
 				DBG_88E("%s, set group_key, none\n", __func__);
 				psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
@@ -2375,7 +2375,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	if (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X && psta) { /*  psk/802_1x */
 		if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 			if (param->u.crypt.set_tx == 1) {
-				memcpy(psta->dot118021x_UncstKey.skey,  param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
+				memcpy(psta->dot118021x_UncstKey.skey,  param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 
 				if (strcmp(param->u.crypt.alg, "WEP") == 0) {
 					DBG_88E("%s, set pairwise key, WEP\n", __func__);
@@ -2409,7 +2409,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			} else { /* group key??? */
 				if (strcmp(param->u.crypt.alg, "WEP") == 0) {
 					memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-						    param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
+						    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 					psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
 					if (param->u.crypt.key_len == 13)
 						psecuritypriv->dot118021XGrpPrivacy = _WEP104_;
@@ -2417,7 +2417,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 					psecuritypriv->dot118021XGrpPrivacy = _TKIP_;
 
 					memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-						    param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
+						    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 
 					/* set mic key */
 					memcpy(psecuritypriv->dot118021XGrptxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[16]), 8);
@@ -2428,7 +2428,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 					psecuritypriv->dot118021XGrpPrivacy = _AES_;
 
 					memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,
-						    param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
+						    param->u.crypt.key, min_t(u16, param->u.crypt.key_len, 16));
 				} else {
 					psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
 				}
