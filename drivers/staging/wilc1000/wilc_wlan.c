@@ -586,14 +586,14 @@ static struct txq_entry_t *wilc_wlan_txq_get_next(struct txq_entry_t *tqe)
 	return tqe;
 }
 
-static int wilc_wlan_rxq_add(struct rxq_entry_t *rqe)
+static int wilc_wlan_rxq_add(struct wilc *wilc, struct rxq_entry_t *rqe)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 
 	if (p->quit)
 		return 0;
 
-	mutex_lock(&g_linux_wlan->rxq_cs);
+	mutex_lock(&wilc->rxq_cs);
 	if (p->rxq_head == NULL) {
 		PRINT_D(RX_DBG, "Add to Queue head\n");
 		rqe->next = NULL;
@@ -607,7 +607,7 @@ static int wilc_wlan_rxq_add(struct rxq_entry_t *rqe)
 	}
 	p->rxq_entries += 1;
 	PRINT_D(RX_DBG, "Number of queue entries: %d\n", p->rxq_entries);
-	mutex_unlock(&g_linux_wlan->rxq_cs);
+	mutex_unlock(&wilc->rxq_cs);
 	return p->rxq_entries;
 }
 
@@ -1349,7 +1349,7 @@ _end_:
 				rqe->buffer = buffer;
 				rqe->buffer_size = size;
 				PRINT_D(RX_DBG, "rxq entery Size= %d - Address = %p\n", rqe->buffer_size, rqe->buffer);
-				wilc_wlan_rxq_add(rqe);
+				wilc_wlan_rxq_add(wilc, rqe);
 			}
 		} else {
 #ifndef MEMORY_STATIC
