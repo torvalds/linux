@@ -1736,6 +1736,10 @@ int wilc_netdev_init(struct wilc **wilc)
 /*The 1st function called after module inserted*/
 static int __init init_wilc_driver(void)
 {
+#ifdef WILC_SPI
+	struct wilc *wilc;
+#endif
+
 #if defined(WILC_DEBUGFS)
 	if (wilc_debugfs_init() < 0) {
 		PRINT_D(GENERIC_DBG, "fail to create debugfs for wilc driver\n");
@@ -1762,7 +1766,7 @@ static int __init init_wilc_driver(void)
 	}
 #else
 	PRINT_D(INIT_DBG, "Initializing netdev\n");
-	if (wilc_netdev_init())
+	if (wilc_netdev_init(&wilc))
 		PRINT_ER("Couldn't initialize netdev\n");
 	return 0;
 #endif
