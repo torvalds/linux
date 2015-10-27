@@ -433,7 +433,10 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 
 			/* Start sinks pipe first */
 			if (sink_mconfig->pipe->state != SKL_PIPE_STARTED) {
-				ret = skl_run_pipe(ctx, sink_mconfig->pipe);
+				if (sink_mconfig->pipe->conn_type !=
+							SKL_PIPE_CONN_TYPE_FE)
+					ret = skl_run_pipe(ctx,
+							sink_mconfig->pipe);
 				if (ret)
 					return ret;
 			}
@@ -475,9 +478,8 @@ static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 		return ret;
 
 	/* Start source pipe last after starting all sinks */
-	ret = skl_run_pipe(ctx, src_mconfig->pipe);
-	if (ret)
-		return ret;
+	if (src_mconfig->pipe->conn_type != SKL_PIPE_CONN_TYPE_FE)
+		return skl_run_pipe(ctx, src_mconfig->pipe);
 
 	return 0;
 }
@@ -559,7 +561,8 @@ static int skl_tplg_mixer_dapm_post_pmu_event(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
-		ret = skl_run_pipe(ctx, sink_mconfig->pipe);
+		if (sink_mconfig->pipe->conn_type != SKL_PIPE_CONN_TYPE_FE)
+			ret = skl_run_pipe(ctx, sink_mconfig->pipe);
 	}
 
 	return ret;
