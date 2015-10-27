@@ -1467,27 +1467,22 @@ extern struct mutex qib_mutex;
  * first to avoid possible serial port delays from printk.
  */
 #define qib_early_err(dev, fmt, ...) \
-	do { \
-		dev_err(dev, fmt, ##__VA_ARGS__); \
-	} while (0)
+	dev_err(dev, fmt, ##__VA_ARGS__)
 
 #define qib_dev_err(dd, fmt, ...) \
-	do { \
-		dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
-			qib_get_unit_name((dd)->unit), ##__VA_ARGS__); \
-	} while (0)
+	dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
+		qib_get_unit_name((dd)->unit), ##__VA_ARGS__)
+
+#define qib_dev_warn(dd, fmt, ...) \
+	dev_warn(&(dd)->pcidev->dev, "%s: " fmt, \
+		qib_get_unit_name((dd)->unit), ##__VA_ARGS__)
 
 #define qib_dev_porterr(dd, port, fmt, ...) \
-	do { \
-		dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
-			qib_get_unit_name((dd)->unit), (dd)->unit, (port), \
-			##__VA_ARGS__); \
-	} while (0)
-
+	dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
+		qib_get_unit_name((dd)->unit), (dd)->unit, (port), \
+		##__VA_ARGS__)
 #define qib_devinfo(pcidev, fmt, ...) \
-	do { \
-		dev_info(&(pcidev)->dev, fmt, ##__VA_ARGS__); \
-	} while (0)
+	dev_info(&(pcidev)->dev, fmt, ##__VA_ARGS__)
 
 /*
  * this is used for formatting hw error messages...

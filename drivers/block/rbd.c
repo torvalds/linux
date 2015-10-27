@@ -4860,7 +4860,6 @@ static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
 out_err:
 	if (parent) {
 		rbd_dev_unparent(rbd_dev);
-		kfree(rbd_dev->header_name);
 		rbd_dev_destroy(parent);
 	} else {
 		rbd_put_client(rbdc);
