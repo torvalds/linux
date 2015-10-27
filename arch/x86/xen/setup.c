@@ -212,7 +212,7 @@ static unsigned long __init xen_find_pfn_range(unsigned long *min_pfn)
 		e_pfn = PFN_DOWN(entry->addr + entry->size);
 
 		/* We only care about E820 after this */
-		if (e_pfn < *min_pfn)
+		if (e_pfn <= *min_pfn)
 			continue;
 
 		s_pfn = PFN_UP(entry->addr);
