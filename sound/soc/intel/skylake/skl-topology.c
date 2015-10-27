@@ -411,7 +411,6 @@ static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 							struct skl *skl)
 {
 	struct snd_soc_dapm_path *p;
-	struct skl_dapm_path_list *path_list;
 	struct snd_soc_dapm_widget *source, *sink;
 	struct skl_module_cfg *src_mconfig, *sink_mconfig;
 	struct skl_sst *ctx = skl->skl_sst;
@@ -455,16 +454,6 @@ static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 				if (ret)
 					return ret;
 			}
-
-			path_list = kzalloc(
-					sizeof(struct skl_dapm_path_list),
-					GFP_KERNEL);
-			if (path_list == NULL)
-				return -ENOMEM;
-
-			/* Add connected path to one global list */
-			path_list->dapm_path = p;
-			list_add_tail(&path_list->node, &skl->dapm_path_list);
 			break;
 		}
 	}
@@ -552,52 +541,35 @@ static int skl_tplg_mixer_dapm_post_pmu_event(struct snd_soc_dapm_widget *w,
 static int skl_tplg_mixer_dapm_pre_pmd_event(struct snd_soc_dapm_widget *w,
 							struct skl *skl)
 {
-	struct snd_soc_dapm_widget *source, *sink;
 	struct skl_module_cfg *src_mconfig, *sink_mconfig;
-	int ret = 0, path_found = 0;
-	struct skl_dapm_path_list *path_list, *tmp_list;
+	int ret = 0, i;
 	struct skl_sst *ctx = skl->skl_sst;
 
-	sink = w;
-	sink_mconfig = sink->priv;
+	sink_mconfig = w->priv;
 
 	/* Stop the pipe */
 	ret = skl_stop_pipe(ctx, sink_mconfig->pipe);
 	if (ret)
 		return ret;
 
-	/*
-	 * This list, dapm_path_list handling here does not need any locks
-	 * as we are under dapm lock while handling widget events.
-	 * List can be manipulated safely only under dapm widgets handler
-	 * routines
-	 */
-	list_for_each_entry_safe(path_list, tmp_list,
-				&skl->dapm_path_list, node) {
-		if (path_list->dapm_path->sink == sink) {
-			dev_dbg(ctx->dev, "Path found = %s\n",
-					path_list->dapm_path->name);
-			source = path_list->dapm_path->source;
-			src_mconfig = source->priv;
-			path_found = 1;
+	for (i = 0; i < sink_mconfig->max_in_queue; i++) {
+		if (sink_mconfig->m_in_pin[i].pin_state == SKL_PIN_BIND_DONE) {
+			src_mconfig = sink_mconfig->m_in_pin[i].tgt_mcfg;
+			if (!src_mconfig)
+				continue;
+			/*
+			 * If path_found == 1, that means pmd for source
+			 * pipe has not occurred, source is connected to
+			 * some other sink. so its responsibility of sink
+			 * to unbind itself from source.
+			 */
+			ret = skl_stop_pipe(ctx, src_mconfig->pipe);
+			if (ret < 0)
+				return ret;
 
-			list_del(&path_list->node);
-			kfree(path_list);
-			break;
+			ret = skl_unbind_modules(ctx,
+						src_mconfig, sink_mconfig);
 		}
-	}
-
-	/*
-	 * If path_found == 1, that means pmd for source pipe has
-	 * not occurred, source is connected to some other sink.
-	 * so its responsibility of sink to unbind itself from source.
-	 */
-	if (path_found) {
-		ret = skl_stop_pipe(ctx, src_mconfig->pipe);
-		if (ret < 0)
-			return ret;
-
-		ret = skl_unbind_modules(ctx, src_mconfig, sink_mconfig);
 	}
 
 	return ret;
@@ -653,14 +625,11 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 								struct skl *skl)
 {
-	struct snd_soc_dapm_widget *source, *sink;
 	struct skl_module_cfg *src_mconfig, *sink_mconfig;
-	int ret = 0, path_found = 0;
-	struct skl_dapm_path_list *path_list, *tmp_path_list;
+	int ret = 0, i;
 	struct skl_sst *ctx = skl->skl_sst;
 
-	source = w;
-	src_mconfig = source->priv;
+	src_mconfig = w->priv;
 
 	skl_tplg_free_pipe_mcps(skl, src_mconfig);
 	/* Stop the pipe since this is a mixin module */
@@ -668,30 +637,21 @@ static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	if (ret)
 		return ret;
 
-	list_for_each_entry_safe(path_list, tmp_path_list, &skl->dapm_path_list, node) {
-		if (path_list->dapm_path->source == source) {
-			dev_dbg(ctx->dev, "Path found = %s\n",
-					path_list->dapm_path->name);
-			sink = path_list->dapm_path->sink;
-			sink_mconfig = sink->priv;
-			path_found = 1;
-
-			list_del(&path_list->node);
-			kfree(path_list);
-			break;
+	for (i = 0; i < src_mconfig->max_out_queue; i++) {
+		if (src_mconfig->m_out_pin[i].pin_state == SKL_PIN_BIND_DONE) {
+			sink_mconfig = src_mconfig->m_out_pin[i].tgt_mcfg;
+			if (!sink_mconfig)
+				continue;
+			/*
+			 * This is a connecter and if path is found that means
+			 * unbind between source and sink has not happened yet
+			 */
+			ret = skl_stop_pipe(ctx, sink_mconfig->pipe);
+			if (ret < 0)
+				return ret;
+			ret = skl_unbind_modules(ctx, src_mconfig,
+							sink_mconfig);
 		}
-	}
-
-	/*
-	 * This is a connector and if path is found that means
-	 * unbind between source and sink has not happened yet
-	 */
-	if (path_found) {
-		ret = skl_stop_pipe(ctx, src_mconfig->pipe);
-		if (ret < 0)
-			return ret;
-
-		ret = skl_unbind_modules(ctx, src_mconfig, sink_mconfig);
 	}
 
 	return ret;

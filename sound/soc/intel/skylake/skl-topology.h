@@ -280,11 +280,6 @@ struct skl_pipeline {
 	struct list_head node;
 };
 
-struct skl_dapm_path_list {
-	struct snd_soc_dapm_path *dapm_path;
-	struct list_head node;
-};
-
 static inline struct skl *get_skl_ctx(struct device *dev)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
