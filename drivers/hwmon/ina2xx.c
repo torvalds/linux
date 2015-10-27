@@ -420,7 +420,6 @@ static const struct attribute_group ina226_group = {
 static int ina2xx_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct ina2xx_platform_data *pdata;
 	struct device *dev = &client->dev;
 	struct ina2xx_data *data;
 	struct device *hwmon_dev;
@@ -431,23 +430,23 @@ static int ina2xx_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
-	if (dev_get_platdata(dev)) {
-		pdata = dev_get_platdata(dev);
-		data->rshunt = pdata->shunt_uohms;
-	} else if (!of_property_read_u32(dev->of_node,
-					 "shunt-resistor", &val)) {
-		data->rshunt = val;
-	} else {
-		data->rshunt = INA2XX_RSHUNT_DEFAULT;
-	}
-
 	/* set the device type */
 	data->kind = id->driver_data;
 	data->config = &ina2xx_config[data->kind];
 
-	if (data->rshunt <= 0 ||
-	    data->rshunt > data->config->calibration_factor)
+	if (of_property_read_u32(dev->of_node, "shunt-resistor", &val) < 0) {
+		struct ina2xx_platform_data *pdata = dev_get_platdata(dev);
+
+		if (pdata)
+			val = pdata->shunt_uohms;
+		else
+			val = INA2XX_RSHUNT_DEFAULT;
+	}
+
+	if (val <= 0 || val > data->config->calibration_factor)
 		return -ENODEV;
+
+	data->rshunt = val;
 
 	ina2xx_regmap_config.max_register = data->config->registers;
 
