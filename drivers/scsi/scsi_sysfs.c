@@ -921,7 +921,7 @@ sdev_store_queue_ramp_up_period(struct device *dev,
 		return -EINVAL;
 
 	sdev->queue_ramp_up_period = msecs_to_jiffies(period);
-	return period;
+	return count;
 }
 
 static DEVICE_ATTR(queue_ramp_up_period, S_IRUGO | S_IWUSR,
