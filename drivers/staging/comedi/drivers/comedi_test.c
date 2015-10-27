@@ -1,49 +1,49 @@
 /*
-    comedi/drivers/comedi_test.c
+ * comedi/drivers/comedi_test.c
+ *
+ * Generates fake waveform signals that can be read through
+ * the command interface.  It does _not_ read from any board;
+ * it just generates deterministic waveforms.
+ * Useful for various testing purposes.
+ *
+ * Copyright (C) 2002 Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>
+ * Copyright (C) 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    Generates fake waveform signals that can be read through
-    the command interface.  It does _not_ read from any board;
-    it just generates deterministic waveforms.
-    Useful for various testing purposes.
-
-    Copyright (C) 2002 Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>
-    Copyright (C) 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: comedi_test
-Description: generates fake waveforms
-Author: Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>, Frank Mori Hess
-  <fmhess@users.sourceforge.net>, ds
-Devices:
-Status: works
-Updated: Sat, 16 Mar 2002 17:34:48 -0800
-
-This driver is mainly for testing purposes, but can also be used to
-generate sample waveforms on systems that don't have data acquisition
-hardware.
-
-Configuration options:
-  [0] - Amplitude in microvolts for fake waveforms (default 1 volt)
-  [1] - Period in microseconds for fake waveforms (default 0.1 sec)
-
-Generates a sawtooth wave on channel 0, square wave on channel 1, additional
-waveforms could be added to other channels (currently they return flatline
-zero volts).
-
-*/
+ * Driver: comedi_test
+ * Description: generates fake waveforms
+ * Author: Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>, Frank Mori Hess
+ *   <fmhess@users.sourceforge.net>, ds
+ * Devices:
+ * Status: works
+ * Updated: Sat, 16 Mar 2002 17:34:48 -0800
+ *
+ * This driver is mainly for testing purposes, but can also be used to
+ * generate sample waveforms on systems that don't have data acquisition
+ * hardware.
+ *
+ * Configuration options:
+ *   [0] - Amplitude in microvolts for fake waveforms (default 1 volt)
+ *   [1] - Period in microseconds for fake waveforms (default 0.1 sec)
+ *
+ * Generates a sawtooth wave on channel 0, square wave on channel 1, additional
+ * waveforms could be added to other channels (currently they return flatline
+ * zero volts).
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
@@ -160,10 +160,10 @@ static unsigned short fake_waveform(struct comedi_device *dev,
 }
 
 /*
-   This is the background routine used to generate arbitrary data.
-   It should run in the background; therefore it is scheduled by
-   a timer mechanism.
-*/
+ * This is the background routine used to generate arbitrary data.
+ * It should run in the background; therefore it is scheduled by
+ * a timer mechanism.
+ */
 static void waveform_ai_interrupt(unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
