@@ -57,7 +57,8 @@
 #define N_CHANS 8
 
 enum waveform_state_bits {
-	WAVEFORM_AI_RUNNING = 0
+	WAVEFORM_AI_RUNNING,
+	WAVEFORM_AO_RUNNING
 };
 
 /* Data unique to this driver */
@@ -70,6 +71,9 @@ struct waveform_private {
 	unsigned long state_bits;
 	unsigned int ai_scan_period;	/* AI scan period in usec */
 	unsigned int ai_convert_period;	/* AI conversion period in usec */
+	struct timer_list ao_timer;	/* timer for AO commands */
+	u64 ao_last_scan_time;		/* time of previous AO scan in usec */
+	unsigned int ao_scan_period;	/* AO scan period in usec */
 	unsigned short ao_loopbacks[N_CHANS];
 };
 
@@ -417,6 +421,201 @@ static int waveform_ai_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
+/*
+ * This is the background routine to handle AO commands, scheduled by
+ * a timer mechanism.
+ */
+static void waveform_ao_timer(unsigned long arg)
+{
+	struct comedi_device *dev = (struct comedi_device *)arg;
+	struct waveform_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->write_subdev;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	u64 now;
+	u64 scans_since;
+	unsigned int scans_avail = 0;
+
+	/* check command is still active */
+	if (!test_bit(WAVEFORM_AO_RUNNING, &devpriv->state_bits))
+		return;
+
+	/* determine number of scan periods since last time */
+	now = ktime_to_us(ktime_get());
+	scans_since = now - devpriv->ao_last_scan_time;
+	do_div(scans_since, devpriv->ao_scan_period);
+	if (scans_since) {
+		unsigned int i;
+
+		/* determine scans in buffer, limit to scans to do this time */
+		scans_avail = comedi_nscans_left(s, 0);
+		if (scans_avail > scans_since)
+			scans_avail = scans_since;
+		if (scans_avail) {
+			/* skip all but the last scan to save processing time */
+			if (scans_avail > 1) {
+				unsigned int skip_bytes, nbytes;
+
+				skip_bytes =
+				comedi_samples_to_bytes(s, cmd->scan_end_arg *
+							   (scans_avail - 1));
+				nbytes = comedi_buf_read_alloc(s, skip_bytes);
+				comedi_buf_read_free(s, nbytes);
+				comedi_inc_scan_progress(s, nbytes);
+				if (nbytes < skip_bytes) {
+					/* unexpected underrun! (cancelled?) */
+					async->events |= COMEDI_CB_OVERFLOW;
+					goto underrun;
+				}
+			}
+			/* output the last scan */
+			for (i = 0; i < cmd->scan_end_arg; i++) {
+				unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+				if (comedi_buf_read_samples(s,
+							    &devpriv->
+							     ao_loopbacks[chan],
+							    1) == 0) {
+					/* unexpected underrun! (cancelled?) */
+					async->events |= COMEDI_CB_OVERFLOW;
+					goto underrun;
+				}
+			}
+			/* advance time of last scan */
+			devpriv->ao_last_scan_time +=
+				(u64)scans_avail * devpriv->ao_scan_period;
+		}
+	}
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
+		async->events |= COMEDI_CB_EOA;
+	} else if (scans_avail < scans_since) {
+		async->events |= COMEDI_CB_OVERFLOW;
+	} else {
+		unsigned int time_inc = devpriv->ao_last_scan_time +
+					devpriv->ao_scan_period - now;
+
+		mod_timer(&devpriv->ao_timer,
+			  jiffies + usecs_to_jiffies(time_inc));
+	}
+
+underrun:
+	comedi_handle_events(dev, s);
+}
+
+static int waveform_ao_inttrig_start(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     unsigned int trig_num)
+{
+	struct waveform_private *devpriv = dev->private;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+
+	if (trig_num != cmd->start_arg)
+		return -EINVAL;
+
+	async->inttrig = NULL;
+
+	devpriv->ao_last_scan_time = ktime_to_us(ktime_get());
+	devpriv->ao_timer.expires =
+		jiffies + usecs_to_jiffies(devpriv->ao_scan_period);
+
+	/* mark command as active */
+	smp_mb__before_atomic();
+	set_bit(WAVEFORM_AO_RUNNING, &devpriv->state_bits);
+	smp_mb__after_atomic();
+	add_timer(&devpriv->ao_timer);
+
+	return 1;
+}
+
+static int waveform_ao_cmdtest(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_cmd *cmd)
+{
+	int err = 0;
+	unsigned int arg;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+					    NSEC_PER_USEC);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* cmd->stop_src == TRIG_NONE */
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	/* round scan_begin_arg to nearest microsecond */
+	arg = cmd->scan_begin_arg;
+	arg = min(arg, rounddown(UINT_MAX, (unsigned int)NSEC_PER_USEC));
+	arg = NSEC_PER_USEC * DIV_ROUND_CLOSEST(arg, NSEC_PER_USEC);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+
+	if (err)
+		return 4;
+
+	return 0;
+}
+
+static int waveform_ao_cmd(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
+{
+	struct waveform_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (cmd->flags & CMDF_PRIORITY) {
+		dev_err(dev->class_dev,
+			"commands at RT priority not supported in this driver\n");
+		return -1;
+	}
+
+	devpriv->ao_scan_period = cmd->scan_begin_arg / NSEC_PER_USEC;
+	s->async->inttrig = waveform_ao_inttrig_start;
+	return 0;
+}
+
+static int waveform_ao_cancel(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
+{
+	struct waveform_private *devpriv = dev->private;
+
+	s->async->inttrig = NULL;
+	/* mark command as no longer active */
+	clear_bit(WAVEFORM_AO_RUNNING, &devpriv->state_bits);
+	smp_mb__after_atomic();
+	/* cannot call del_timer_sync() as may be called from timer routine */
+	del_timer(&devpriv->ao_timer);
+	return 0;
+}
+
 static int waveform_ao_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
@@ -475,18 +674,23 @@ static int waveform_attach(struct comedi_device *dev,
 	dev->write_subdev = s;
 	/* analog output subdevice (loopback) */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
+	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
 	s->n_chan = N_CHANS;
 	s->maxdata = 0xffff;
 	s->range_table = &waveform_ai_ranges;
+	s->len_chanlist = s->n_chan;
 	s->insn_write = waveform_ao_insn_write;
 	s->insn_read = waveform_ai_insn_read;	/* do same as AI insn_read */
+	s->do_cmd = waveform_ao_cmd;
+	s->do_cmdtest = waveform_ao_cmdtest;
+	s->cancel = waveform_ao_cancel;
 
 	/* Our default loopback value is just a 0V flatline */
 	for (i = 0; i < s->n_chan; i++)
 		devpriv->ao_loopbacks[i] = s->maxdata / 2;
 
 	setup_timer(&devpriv->ai_timer, waveform_ai_timer, (unsigned long)dev);
+	setup_timer(&devpriv->ao_timer, waveform_ao_timer, (unsigned long)dev);
 
 	dev_info(dev->class_dev,
 		 "%s: %u microvolt, %u microsecond waveform attached\n",
@@ -500,8 +704,10 @@ static void waveform_detach(struct comedi_device *dev)
 {
 	struct waveform_private *devpriv = dev->private;
 
-	if (devpriv)
+	if (devpriv) {
 		del_timer_sync(&devpriv->ai_timer);
+		del_timer_sync(&devpriv->ao_timer);
+	}
 }
 
 static struct comedi_driver waveform_driver = {
