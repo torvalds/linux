@@ -594,10 +594,10 @@ static void rtl88e_phy_init_bb_rf_register_definition(struct adapter *Adapter)
 	struct hal_data_8188e		*hal_data = GET_HAL_DATA(Adapter);
 	struct bb_reg_def               *reg[4];
 
-	reg[RF_PATH_A] = &(hal_data->PHYRegDef[RF_PATH_A]);
-	reg[RF_PATH_B] = &(hal_data->PHYRegDef[RF_PATH_B]);
-	reg[RF_PATH_C] = &(hal_data->PHYRegDef[RF_PATH_C]);
-	reg[RF_PATH_D] = &(hal_data->PHYRegDef[RF_PATH_D]);
+	reg[RF_PATH_A] = &hal_data->PHYRegDef[RF_PATH_A];
+	reg[RF_PATH_B] = &hal_data->PHYRegDef[RF_PATH_B];
+	reg[RF_PATH_C] = &hal_data->PHYRegDef[RF_PATH_C];
+	reg[RF_PATH_D] = &hal_data->PHYRegDef[RF_PATH_D];
 
 	reg[RF_PATH_A]->rfintfs = rFPGA0_XAB_RFInterfaceSW;
 	reg[RF_PATH_B]->rfintfs = rFPGA0_XAB_RFInterfaceSW;
