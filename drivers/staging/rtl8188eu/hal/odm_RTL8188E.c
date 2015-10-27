@@ -292,8 +292,7 @@ static void rtl88eu_dm_hw_ant_div(struct odm_dm_struct *dm_odm)
 				    (dm_fat_tbl->AuxAnt_Sum[i]/dm_fat_tbl->AuxAnt_Cnt[i]) : 0;
 			target_ant = (main_rssi >= aux_rssi) ? MAIN_ANT : AUX_ANT;
 			/* 2 Select max_rssi for DIG */
-			local_max_rssi = (main_rssi > aux_rssi) ?
-					  main_rssi : aux_rssi;
+			local_max_rssi = max(main_rssi, aux_rssi);
 			if ((local_max_rssi > ant_div_max_rssi) &&
 			    (local_max_rssi < 40))
 				ant_div_max_rssi = local_max_rssi;
@@ -308,8 +307,7 @@ static void rtl88eu_dm_hw_ant_div(struct odm_dm_struct *dm_odm)
 				 (aux_rssi == 0))
 				aux_rssi = main_rssi;
 
-			local_min_rssi = (main_rssi > aux_rssi) ?
-					  aux_rssi : main_rssi;
+			local_min_rssi = min(main_rssi, aux_rssi);
 			if (local_min_rssi < min_rssi) {
 				min_rssi = local_min_rssi;
 				RxIdleAnt = target_ant;
