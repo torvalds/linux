@@ -268,7 +268,7 @@ static void efuse_read_phymap_from_txpktbuf(
 			aaa = le16_to_cpup((__le16 *)&lo32);
 			len = le16_to_cpu(*((__le16 *)&lo32));
 
-			limit = (len-2 < limit) ? len-2 : limit;
+			limit = min_t(u16, len-2, limit);
 
 			DBG_88E("%s len:%u, lenbak:%u, aaa:%u, aaabak:%u\n", __func__, len, lenbak, aaa, aaabak);
 

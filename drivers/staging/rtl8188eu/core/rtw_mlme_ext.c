@@ -3239,7 +3239,7 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 			pstat->flags |= WLAN_STA_WPS;
 			copy_len = 0;
 		} else {
-			copy_len = ((wpa_ie_len+2) > sizeof(pstat->wpa_ie)) ? (sizeof(pstat->wpa_ie)) : (wpa_ie_len+2);
+			copy_len = min_t(int, wpa_ie_len + 2, sizeof(pstat->wpa_ie));
 		}
 		if (copy_len > 0)
 			memcpy(pstat->wpa_ie, wpa_ie-2, copy_len);

@@ -2669,7 +2669,7 @@ static int rtw_get_sta_wpaie(struct net_device *dev, struct ieee_param *param)
 			int copy_len;
 
 			wpa_ie_len = psta->wpa_ie[1];
-			copy_len = ((wpa_ie_len+2) > sizeof(psta->wpa_ie)) ? (sizeof(psta->wpa_ie)) : (wpa_ie_len+2);
+			copy_len = min_t(int, wpa_ie_len + 2, sizeof(psta->wpa_ie));
 			param->u.wpa_ie.len = copy_len;
 			memcpy(param->u.wpa_ie.reserved, psta->wpa_ie, copy_len);
 		} else {
