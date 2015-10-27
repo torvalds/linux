@@ -310,12 +310,18 @@ static int init_irq(struct net_device *dev)
 }
 #endif
 
-static void deinit_irq(struct wilc *nic)
+static void deinit_irq(struct net_device *dev)
 {
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
+
 #if (defined WILC_SPI) || (defined WILC_SDIO_IRQ_GPIO)
 	/* Deintialize IRQ */
-	if (&nic->dev_irq_num != 0) {
-		free_irq(nic->dev_irq_num, g_linux_wlan);
+	if (&wilc->dev_irq_num != 0) {
+		free_irq(wilc->dev_irq_num, wilc);
 
 		gpio_free(GPIO_NUM);
 	}
@@ -907,7 +913,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 		wlan_deinitialize_threads(wl);
 
 		PRINT_D(INIT_DBG, "Deinitializing IRQ\n");
-		deinit_irq(wl);
+		deinit_irq(dev);
 
 		wilc_wlan_stop();
 
@@ -1144,7 +1150,7 @@ _fail_irq_enable_:
 _fail_irq_init_:
 #endif
 #if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
-		deinit_irq(wl);
+		deinit_irq(dev);
 
 #endif
 		wlan_deinitialize_threads(wl);
