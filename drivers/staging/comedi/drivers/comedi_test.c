@@ -52,6 +52,7 @@
 
 #include <linux/timer.h>
 #include <linux/ktime.h>
+#include <linux/jiffies.h>
 
 #define N_CHANS 8
 
@@ -215,10 +216,12 @@ static void waveform_ai_interrupt(unsigned long arg)
 	if (devpriv->wf_current >= devpriv->wf_period)
 		devpriv->wf_current %= devpriv->wf_period;
 
-	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
 		async->events |= COMEDI_CB_EOA;
-	else
-		mod_timer(&devpriv->ai_timer, jiffies + 1);
+	} else {
+		mod_timer(&devpriv->ai_timer,
+			  jiffies + usecs_to_jiffies(devpriv->ai_scan_period));
+	}
 
 	comedi_handle_events(dev, s);
 }
@@ -354,7 +357,9 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 	wf_current = devpriv->ai_last_scan_time;
 	devpriv->wf_current = do_div(wf_current, devpriv->wf_period);
 
-	devpriv->ai_timer.expires = jiffies + 1;
+	devpriv->ai_timer.expires =
+		jiffies + usecs_to_jiffies(devpriv->ai_scan_period);
+
 	/* mark command as active */
 	smp_mb__before_atomic();
 	set_bit(WAVEFORM_AI_RUNNING, &devpriv->state_bits);
