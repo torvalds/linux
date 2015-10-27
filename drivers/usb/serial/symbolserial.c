@@ -97,7 +97,7 @@ exit:
 
 static int symbol_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	struct symbol_private *priv = usb_get_serial_data(port->serial);
+	struct symbol_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int result = 0;
 
@@ -123,7 +123,7 @@ static void symbol_close(struct usb_serial_port *port)
 static void symbol_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct symbol_private *priv = usb_get_serial_data(port->serial);
+	struct symbol_private *priv = usb_get_serial_port_data(port);
 
 	spin_lock_irq(&priv->lock);
 	priv->throttled = true;
@@ -133,7 +133,7 @@ static void symbol_throttle(struct tty_struct *tty)
 static void symbol_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct symbol_private *priv = usb_get_serial_data(port->serial);
+	struct symbol_private *priv = usb_get_serial_port_data(port);
 	int result;
 	bool was_throttled;
 
