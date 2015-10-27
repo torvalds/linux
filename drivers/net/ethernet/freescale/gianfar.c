@@ -107,7 +107,7 @@
 
 #include "gianfar.h"
 
-#define TX_TIMEOUT      (1*HZ)
+#define TX_TIMEOUT      (5*HZ)
 
 const char gfar_driver_version[] = "2.0";
 
