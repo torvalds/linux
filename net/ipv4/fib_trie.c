@@ -1547,7 +1547,7 @@ static struct key_vector *leaf_walk_rcu(struct key_vector **tn, t_key key)
 	do {
 		/* record parent and next child index */
 		pn = n;
-		cindex = key ? get_index(key, pn) : 0;
+		cindex = (key > pn->key) ? get_index(key, pn) : 0;
 
 		if (cindex >> pn->bits)
 			break;
