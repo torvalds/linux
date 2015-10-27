@@ -1154,11 +1154,6 @@ int rtw_acl_remove_sta23a(struct rtw_adapter *padapter, u8 *addr)
 	return 0;
 }
 
-static void update_bcn_fixed_ie(struct rtw_adapter *padapter)
-{
-	DBG_8723A("%s\n", __func__);
-}
-
 static void update_bcn_erpinfo_ie(struct rtw_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1190,21 +1185,6 @@ static void update_bcn_erpinfo_ie(struct rtw_adapter *padapter)
 
 		ERP_IE_handler23a(padapter, p);
 	}
-}
-
-static void update_bcn_htcap_ie(struct rtw_adapter *padapter)
-{
-	DBG_8723A("%s\n", __func__);
-}
-
-static void update_bcn_htinfo_ie(struct rtw_adapter *padapter)
-{
-	DBG_8723A("%s\n", __func__);
-}
-
-static void update_bcn_rsn_ie(struct rtw_adapter *padapter)
-{
-	DBG_8723A("%s\n", __func__);
 }
 
 static void update_bcn_wpa_ie(struct rtw_adapter *padapter)
@@ -1263,29 +1243,12 @@ void update_beacon23a(struct rtw_adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 	spin_lock_bh(&pmlmepriv->bcn_update_lock);
 
 	switch (ie_id) {
-	case 0xFF:
-		/* 8: TimeStamp, 2: Beacon Interval 2:Capability */
-		update_bcn_fixed_ie(padapter);
-		break;
-
 	case WLAN_EID_TIM:
 		update_BCNTIM(padapter);
 		break;
 
 	case WLAN_EID_ERP_INFO:
 		update_bcn_erpinfo_ie(padapter);
-		break;
-
-	case WLAN_EID_HT_CAPABILITY:
-		update_bcn_htcap_ie(padapter);
-		break;
-
-	case WLAN_EID_RSN:
-		update_bcn_rsn_ie(padapter);
-		break;
-
-	case WLAN_EID_HT_OPERATION:
-		update_bcn_htinfo_ie(padapter);
 		break;
 
 	case WLAN_EID_VENDOR_SPECIFIC:
