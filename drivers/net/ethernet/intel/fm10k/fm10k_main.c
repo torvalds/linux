@@ -1998,8 +1998,10 @@ int fm10k_init_queueing_scheme(struct fm10k_intfc *interface)
 
 	/* Allocate memory for queues */
 	err = fm10k_alloc_q_vectors(interface);
-	if (err)
+	if (err) {
+		fm10k_reset_msix_capability(interface);
 		return err;
+	}
 
 	/* Map rings to devices, and map devices to physical queues */
 	fm10k_assign_rings(interface);
