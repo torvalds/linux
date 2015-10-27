@@ -7,6 +7,7 @@
 #include "wilc_wlan_if.h"
 #include "wilc_msgqueue.h"
 #include <linux/etherdevice.h>
+#include "wilc_wfi_netdevice.h"
 
 extern u8 connecting;
 
@@ -4131,11 +4132,16 @@ void host_int_send_network_info_to_host
 {
 }
 
-s32 host_int_init(struct host_if_drv **hif_drv_handler)
+s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 {
 	s32 result = 0;
 	struct host_if_drv *hif_drv;
 	int err;
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
 
 	PRINT_D(HOSTINF_DBG, "Initializing host interface for client %d\n", clients_count + 1);
 
@@ -4181,7 +4187,8 @@ s32 host_int_init(struct host_if_drv **hif_drv_handler)
 			goto _fail_;
 		}
 
-		hif_thread_handler = kthread_run(hostIFthread, NULL, "WILC_kthread");
+		hif_thread_handler = kthread_run(hostIFthread, wilc,
+						 "WILC_kthread");
 
 		if (IS_ERR(hif_thread_handler)) {
 			PRINT_ER("Failed to creat Thread\n");

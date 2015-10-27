@@ -911,7 +911,7 @@ void host_int_send_network_info_to_host
  *  @date		8 March 2012
  *  @version		1.0
  */
-s32 host_int_init(struct host_if_drv **phWFIDrv);
+s32 host_int_init(struct net_device *dev, struct host_if_drv **phWFIDrv);
 
 /**
  *  @brief              host interface initialization function
