@@ -348,24 +348,23 @@ int linux_wlan_lock_timeout(void *vp, u32 timeout)
 	return error;
 }
 
-void linux_wlan_mac_indicate(int flag)
+void linux_wlan_mac_indicate(struct wilc *wilc, int flag)
 {
 	/*I have to do it that way becuase there is no mean to encapsulate device pointer
 	 * as a parameter
 	 */
-	struct wilc *pd = g_linux_wlan;
 	int status;
 
 	if (flag == WILC_MAC_INDICATE_STATUS) {
 		wilc_wlan_cfg_get_val(WID_STATUS, (unsigned char *)&status, 4);
-		if (pd->mac_status == WILC_MAC_STATUS_INIT) {
-			pd->mac_status = status;
-			up(&pd->sync_event);
+		if (wilc->mac_status == WILC_MAC_STATUS_INIT) {
+			wilc->mac_status = status;
+			up(&wilc->sync_event);
 		} else {
-			pd->mac_status = status;
+			wilc->mac_status = status;
 		}
 
-		if (pd->mac_status == WILC_MAC_STATUS_CONNECT) {        /* Connect */
+		if (wilc->mac_status == WILC_MAC_STATUS_CONNECT) {        /* Connect */
 		}
 
 	} else if (flag == WILC_MAC_INDICATE_SCAN) {

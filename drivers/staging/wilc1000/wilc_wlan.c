@@ -1199,10 +1199,10 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 						/**
 						 *      Call back to indicate status...
 						 **/
-						linux_wlan_mac_indicate(WILC_MAC_INDICATE_STATUS);
+						linux_wlan_mac_indicate(wilc, WILC_MAC_INDICATE_STATUS);
 
 					} else if (rsp.type == WILC_CFG_RSP_SCAN) {
-						linux_wlan_mac_indicate(WILC_MAC_INDICATE_SCAN);
+						linux_wlan_mac_indicate(wilc, WILC_MAC_INDICATE_SCAN);
 					}
 				}
 			}
