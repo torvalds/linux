@@ -1060,6 +1060,18 @@ static void __init l2x0_of_parse(const struct device_node *np,
 		val |= (dirty - 1) << L2X0_AUX_CTRL_DIRTY_LATENCY_SHIFT;
 	}
 
+	if (of_property_read_bool(np, "arm,parity-enable")) {
+		mask &= ~L2C_AUX_CTRL_PARITY_ENABLE;
+		val |= L2C_AUX_CTRL_PARITY_ENABLE;
+	} else if (of_property_read_bool(np, "arm,parity-disable")) {
+		mask &= ~L2C_AUX_CTRL_PARITY_ENABLE;
+	}
+
+	if (of_property_read_bool(np, "arm,shared-override")) {
+		mask &= ~L2C_AUX_CTRL_SHARED_OVERRIDE;
+		val |= L2C_AUX_CTRL_SHARED_OVERRIDE;
+	}
+
 	ret = l2x0_cache_size_of_parse(np, aux_val, aux_mask, &assoc, SZ_256K);
 	if (ret)
 		return;
@@ -1174,6 +1186,14 @@ static void __init l2c310_of_parse(const struct device_node *np,
 	if (of_property_read_bool(np, "arm,shared-override")) {
 		*aux_val |= L2C_AUX_CTRL_SHARED_OVERRIDE;
 		*aux_mask &= ~L2C_AUX_CTRL_SHARED_OVERRIDE;
+	}
+
+	if (of_property_read_bool(np, "arm,parity-enable")) {
+		*aux_val |= L2C_AUX_CTRL_PARITY_ENABLE;
+		*aux_mask &= ~L2C_AUX_CTRL_PARITY_ENABLE;
+	} else if (of_property_read_bool(np, "arm,parity-disable")) {
+		*aux_val &= ~L2C_AUX_CTRL_PARITY_ENABLE;
+		*aux_mask &= ~L2C_AUX_CTRL_PARITY_ENABLE;
 	}
 
 	prefetch = l2x0_saved_regs.prefetch_ctrl;
