@@ -224,6 +224,8 @@ struct ixgbe_rx_queue_stats {
 	u64 csum_err;
 };
 
+#define IXGBE_TS_HDR_LEN 8
+
 enum ixgbe_ring_state_t {
 	__IXGBE_TX_FDIR_INIT_DONE,
 	__IXGBE_TX_XPS_INIT_DONE,
@@ -281,6 +283,8 @@ struct ixgbe_ring {
 					 */
 	u16 next_to_use;
 	u16 next_to_clean;
+
+	unsigned long last_rx_timestamp;
 
 	union {
 		u16 next_to_alloc;
@@ -640,6 +644,8 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_SRIOV_CAPABLE                (u32)(1 << 22)
 #define IXGBE_FLAG_SRIOV_ENABLED                (u32)(1 << 23)
 #define IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE	BIT(24)
+#define IXGBE_FLAG_RX_HWTSTAMP_ENABLED		BIT(25)
+#define IXGBE_FLAG_RX_HWTSTAMP_IN_REGISTER	BIT(26)
 
 	u32 flags2;
 #define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1 << 0)
@@ -756,9 +762,12 @@ struct ixgbe_adapter {
 	unsigned long last_rx_ptp_check;
 	unsigned long last_rx_timestamp;
 	spinlock_t tmreg_lock;
-	struct cyclecounter cc;
-	struct timecounter tc;
+	struct cyclecounter hw_cc;
+	struct timecounter hw_tc;
 	u32 base_incval;
+	u32 tx_hwtstamp_timeouts;
+	u32 rx_hwtstamp_cleared;
+	void (*ptp_setup_sdp)(struct ixgbe_adapter *);
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
@@ -969,12 +978,33 @@ void ixgbe_ptp_suspend(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_stop(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_rx_hang(struct ixgbe_adapter *adapter);
-void ixgbe_ptp_rx_hwtstamp(struct ixgbe_adapter *adapter, struct sk_buff *skb);
+void ixgbe_ptp_rx_pktstamp(struct ixgbe_q_vector *, struct sk_buff *);
+void ixgbe_ptp_rx_rgtstamp(struct ixgbe_q_vector *, struct sk_buff *skb);
+static inline void ixgbe_ptp_rx_hwtstamp(struct ixgbe_ring *rx_ring,
+					 union ixgbe_adv_rx_desc *rx_desc,
+					 struct sk_buff *skb)
+{
+	if (unlikely(ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_TSIP))) {
+		ixgbe_ptp_rx_pktstamp(rx_ring->q_vector, skb);
+		return;
+	}
+
+	if (unlikely(!ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS)))
+		return;
+
+	ixgbe_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
+
+	/* Update the last_rx_timestamp timer in order to enable watchdog check
+	 * for error case of latched timestamp on a dropped packet.
+	 */
+	rx_ring->last_rx_timestamp = jiffies;
+}
+
 int ixgbe_ptp_set_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr);
 int ixgbe_ptp_get_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr);
 void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_reset(struct ixgbe_adapter *adapter);
-void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr);
+void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter);
 #ifdef CONFIG_PCI_IOV
 void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter);
 #endif

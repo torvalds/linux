@@ -1634,6 +1634,7 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 				     struct sk_buff *skb)
 {
 	struct net_device *dev = rx_ring->netdev;
+	u32 flags = rx_ring->q_vector->adapter->flags;
 
 	ixgbe_update_rsc_stats(rx_ring, skb);
 
@@ -1641,8 +1642,8 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 
 	ixgbe_rx_checksum(rx_ring, rx_desc, skb);
 
-	if (unlikely(ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS)))
-		ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector->adapter, skb);
+	if (unlikely(flags & IXGBE_FLAG_RX_HWTSTAMP_ENABLED))
+		ixgbe_ptp_rx_hwtstamp(rx_ring, rx_desc, skb);
 
 	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
@@ -2740,7 +2741,7 @@ static irqreturn_t ixgbe_msix_other(int irq, void *data)
 	ixgbe_check_fan_failure(adapter, eicr);
 
 	if (unlikely(eicr & IXGBE_EICR_TIMESYNC))
-		ixgbe_ptp_check_pps_event(adapter, eicr);
+		ixgbe_ptp_check_pps_event(adapter);
 
 	/* re-enable the original interrupt state, no lsc, no queues */
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
@@ -2947,7 +2948,7 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 
 	ixgbe_check_fan_failure(adapter, eicr);
 	if (unlikely(eicr & IXGBE_EICR_TIMESYNC))
-		ixgbe_ptp_check_pps_event(adapter, eicr);
+		ixgbe_ptp_check_pps_event(adapter);
 
 	/* would disable interrupts here but EIAM disabled it */
 	napi_schedule_irqoff(&q_vector->napi);
