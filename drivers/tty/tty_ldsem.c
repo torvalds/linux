@@ -319,7 +319,7 @@ down_write_failed(struct ld_semaphore *sem, long count, long timeout)
 
 
 
-static inline int __ldsem_down_read_nested(struct ld_semaphore *sem,
+static int __ldsem_down_read_nested(struct ld_semaphore *sem,
 					   int subclass, long timeout)
 {
 	long count;
