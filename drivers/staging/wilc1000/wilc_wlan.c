@@ -502,8 +502,8 @@ static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 	return 1;
 }
 
-int wilc_wlan_txq_add_net_pkt(void *priv, u8 *buffer, u32 buffer_size,
-			      wilc_tx_complete_func_t func)
+int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
+			      u32 buffer_size, wilc_tx_complete_func_t func)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 	struct txq_entry_t *tqe;
