@@ -3165,8 +3165,10 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 	msg.body.key_info.type = WEP;
 	msg.body.key_info.action = ADDKEY_AP;
 	msg.drv = hif_drv;
-	msg.body.key_info.attr.wep.key = kmalloc(len, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wep.key, key, len);
+	msg.body.key_info.attr.wep.key = kmemdup(key, len, GFP_KERNEL);
+	if (!msg.body.key_info.attr.wep.key)
+		return -ENOMEM;
+
 	msg.body.key_info.attr.wep.key_len = len;
 	msg.body.key_info.attr.wep.index = index;
 	msg.body.key_info.attr.wep.mode = mode;
