@@ -12,7 +12,7 @@ Example:
          mdio@803c0000 {
                    #address-cells = <1>;
                    #size-cells = <0>;
-                   compatible = "hisilicon,mdio","hisilicon,hns-mdio";
+                   compatible = "hisilicon,hns-mdio","hisilicon,mdio";
                    reg = <0x0 0x803c0000 0x0 0x10000>;
 
                    ethernet-phy@0 {

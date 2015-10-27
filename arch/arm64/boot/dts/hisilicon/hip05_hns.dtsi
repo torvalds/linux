@@ -13,14 +13,12 @@ soc0: soc@000000000 {
 		reg = <0x0 0x803c0000 0x0 0x10000
 		       0x0 0x80000000 0x0 0x10000>;
 
-		soc0_phy4: ethernet-phy@4 {
+		soc0_phy0: ethernet-phy@0 {
 			reg = <0x0>;
-			device_type = "ethernet-phy";
 			compatible = "ethernet-phy-ieee802.3-c22";
 		};
-		soc0_phy5: ethernet-phy@5 {
+		soc0_phy1: ethernet-phy@1 {
 			reg = <0x1>;
-			device_type = "ethernet-phy";
 			compatible = "ethernet-phy-ieee802.3-c22";
 		};
 	};
@@ -37,7 +35,7 @@ soc0: soc@000000000 {
 		       0x0 0xc7000000 0x0 0x60000
 		       >;
 
-		phy-handle = <0 0 0 0 &soc0_phy4 &soc0_phy5 0 0>;
+		phy-handle = <0 0 0 0 &soc0_phy0 &soc0_phy1 0 0>;
 		interrupts = <
 			/* [14] ge fifo err 8 / xge 6**/
 			149 0x4 150 0x4 151 0x4 152 0x4
