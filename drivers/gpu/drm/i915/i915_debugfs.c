@@ -2955,6 +2955,107 @@ static bool cursor_position(struct drm_device *dev, int pipe, int *x, int *y)
 	return cursor_active(dev, pipe);
 }
 
+static const char *plane_type(enum drm_plane_type type)
+{
+	switch (type) {
+	case DRM_PLANE_TYPE_OVERLAY:
+		return "OVL";
+	case DRM_PLANE_TYPE_PRIMARY:
+		return "PRI";
+	case DRM_PLANE_TYPE_CURSOR:
+		return "CUR";
+	/*
+	 * Deliberately omitting default: to generate compiler warnings
+	 * when a new drm_plane_type gets added.
+	 */
+	}
+
+	return "unknown";
+}
+
+static const char *plane_rotation(unsigned int rotation)
+{
+	static char buf[48];
+	/*
+	 * According to doc only one DRM_ROTATE_ is allowed but this
+	 * will print them all to visualize if the values are misused
+	 */
+	snprintf(buf, sizeof(buf),
+		 "%s%s%s%s%s%s(0x%08x)",
+		 (rotation & BIT(DRM_ROTATE_0)) ? "0 " : "",
+		 (rotation & BIT(DRM_ROTATE_90)) ? "90 " : "",
+		 (rotation & BIT(DRM_ROTATE_180)) ? "180 " : "",
+		 (rotation & BIT(DRM_ROTATE_270)) ? "270 " : "",
+		 (rotation & BIT(DRM_REFLECT_X)) ? "FLIPX " : "",
+		 (rotation & BIT(DRM_REFLECT_Y)) ? "FLIPY " : "",
+		 rotation);
+
+	return buf;
+}
+
+static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct intel_plane *intel_plane;
+
+	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
+		struct drm_plane_state *state;
+		struct drm_plane *plane = &intel_plane->base;
+
+		if (!plane->state) {
+			seq_puts(m, "plane->state is NULL!\n");
+			continue;
+		}
+
+		state = plane->state;
+
+		seq_printf(m, "\t--Plane id %d: type=%s, crtc_pos=%4dx%4d, crtc_size=%4dx%4d, src_pos=%d.%04ux%d.%04u, src_size=%d.%04ux%d.%04u, format=%s, rotation=%s\n",
+			   plane->base.id,
+			   plane_type(intel_plane->base.type),
+			   state->crtc_x, state->crtc_y,
+			   state->crtc_w, state->crtc_h,
+			   (state->src_x >> 16),
+			   ((state->src_x & 0xffff) * 15625) >> 10,
+			   (state->src_y >> 16),
+			   ((state->src_y & 0xffff) * 15625) >> 10,
+			   (state->src_w >> 16),
+			   ((state->src_w & 0xffff) * 15625) >> 10,
+			   (state->src_h >> 16),
+			   ((state->src_h & 0xffff) * 15625) >> 10,
+			   state->fb ? drm_get_format_name(state->fb->pixel_format) : "N/A",
+			   plane_rotation(state->rotation));
+	}
+}
+
+static void intel_scaler_info(struct seq_file *m, struct intel_crtc *intel_crtc)
+{
+	struct intel_crtc_state *pipe_config;
+	int num_scalers = intel_crtc->num_scalers;
+	int i;
+
+	pipe_config = to_intel_crtc_state(intel_crtc->base.state);
+
+	/* Not all platformas have a scaler */
+	if (num_scalers) {
+		seq_printf(m, "\tnum_scalers=%d, scaler_users=%x scaler_id=%d",
+			   num_scalers,
+			   pipe_config->scaler_state.scaler_users,
+			   pipe_config->scaler_state.scaler_id);
+
+		for (i = 0; i < SKL_NUM_SCALERS; i++) {
+			struct intel_scaler *sc =
+					&pipe_config->scaler_state.scalers[i];
+
+			seq_printf(m, ", scalers[%d]: use=%s, mode=%x",
+				   i, yesno(sc->in_use), sc->mode);
+		}
+		seq_puts(m, "\n");
+	} else {
+		seq_puts(m, "\tNo scalers available on this platform\n");
+	}
+}
+
 static int i915_display_info(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
@@ -2974,10 +3075,12 @@ static int i915_display_info(struct seq_file *m, void *unused)
 
 		pipe_config = to_intel_crtc_state(crtc->base.state);
 
-		seq_printf(m, "CRTC %d: pipe: %c, active=%s (size=%dx%d)\n",
+		seq_printf(m, "CRTC %d: pipe: %c, active=%s, (size=%dx%d), dither=%s, bpp=%d\n",
 			   crtc->base.base.id, pipe_name(crtc->pipe),
 			   yesno(pipe_config->base.active),
-			   pipe_config->pipe_src_w, pipe_config->pipe_src_h);
+			   pipe_config->pipe_src_w, pipe_config->pipe_src_h,
+			   yesno(pipe_config->dither), pipe_config->pipe_bpp);
+
 		if (pipe_config->base.active) {
 			intel_crtc_info(m, crtc);
 
@@ -2987,6 +3090,8 @@ static int i915_display_info(struct seq_file *m, void *unused)
 				   x, y, crtc->base.cursor->state->crtc_w,
 				   crtc->base.cursor->state->crtc_h,
 				   crtc->cursor_addr, yesno(active));
+			intel_scaler_info(m, crtc);
+			intel_plane_info(m, crtc);
 		}
 
 		seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s \n",
