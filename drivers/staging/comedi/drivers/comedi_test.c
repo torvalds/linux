@@ -73,9 +73,6 @@ struct waveform_private {
 	unsigned int ao_loopbacks[N_CHANS];
 };
 
-/* 1000 nanosec in a microsec */
-static const int nano_per_micro = 1000;
-
 /* fake analog input ranges */
 static const struct comedi_lrange waveform_ai_ranges = {
 	2, {
@@ -270,7 +267,7 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
-						    nano_per_micro);
+						    NSEC_PER_USEC);
 		if (cmd->convert_src == TRIG_TIMER) {
 			err |= comedi_check_trigger_arg_min(&cmd->
 							    scan_begin_arg,
@@ -296,15 +293,15 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
 		/* round to nearest microsec */
-		arg = nano_per_micro *
-		      ((arg + (nano_per_micro / 2)) / nano_per_micro);
+		arg = NSEC_PER_USEC *
+		      ((arg + (NSEC_PER_USEC / 2)) / NSEC_PER_USEC);
 		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
 		/* round to nearest microsec */
-		arg = nano_per_micro *
-		      ((arg + (nano_per_micro / 2)) / nano_per_micro);
+		arg = NSEC_PER_USEC *
+		      ((arg + (NSEC_PER_USEC / 2)) / NSEC_PER_USEC);
 		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
@@ -326,12 +323,12 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 		return -1;
 	}
 
-	devpriv->scan_period = cmd->scan_begin_arg / nano_per_micro;
+	devpriv->scan_period = cmd->scan_begin_arg / NSEC_PER_USEC;
 
 	if (cmd->convert_src == TRIG_NOW)
 		devpriv->convert_period = 0;
 	else	/* TRIG_TIMER */
-		devpriv->convert_period = cmd->convert_arg / nano_per_micro;
+		devpriv->convert_period = cmd->convert_arg / NSEC_PER_USEC;
 
 	devpriv->last = ktime_get();
 	devpriv->usec_current =
