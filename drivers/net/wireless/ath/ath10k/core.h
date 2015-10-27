@@ -745,8 +745,6 @@ struct ath10k {
 	int num_started_vdevs;
 
 	/* Protected by conf-mutex */
-	u8 supp_tx_chainmask;
-	u8 supp_rx_chainmask;
 	u8 cfg_tx_chainmask;
 	u8 cfg_rx_chainmask;
 

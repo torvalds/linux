@@ -4460,8 +4460,10 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 		ar->num_rf_chains = ar->max_spatial_stream;
 	}
 
-	ar->supp_tx_chainmask = (1 << ar->num_rf_chains) - 1;
-	ar->supp_rx_chainmask = (1 << ar->num_rf_chains) - 1;
+	if (!ar->cfg_tx_chainmask) {
+		ar->cfg_tx_chainmask = (1 << ar->num_rf_chains) - 1;
+		ar->cfg_rx_chainmask = (1 << ar->num_rf_chains) - 1;
+	}
 
 	if (strlen(ar->hw->wiphy->fw_version) == 0) {
 		snprintf(ar->hw->wiphy->fw_version,
