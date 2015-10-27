@@ -3144,7 +3144,7 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 				u8 len,
 				u8 index,
 				u8 mode,
-				enum AUTHTYPE tenuAuth_type)
+				enum AUTHTYPE auth_type)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3170,7 +3170,7 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 	msg.body.key_info.attr.wep.key_len = len;
 	msg.body.key_info.attr.wep.index = index;
 	msg.body.key_info.attr.wep.mode = mode;
-	msg.body.key_info.attr.wep.auth_type = tenuAuth_type;
+	msg.body.key_info.attr.wep.auth_type = auth_type;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 
