@@ -27,9 +27,6 @@ typedef void (*proc_t)(void *);
 
 #define FIELD_OFFSET(s, field)	((ssize_t)&((s *)(0))->field)
 
-#define MEM_ALIGNMENT_OFFSET	(sizeof(size_t))
-#define MEM_ALIGNMENT_PADDING	(sizeof(size_t) - 1)
-
 /* port from fw */
 /*  TODO: Macros Below are Sync from SD7-Driver. It is necessary
  * to check correctness */
