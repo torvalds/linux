@@ -612,7 +612,7 @@ static int wilc_wlan_rxq_add(struct rxq_entry_t *rqe)
 	return p->rxq_entries;
 }
 
-static struct rxq_entry_t *wilc_wlan_rxq_remove(void)
+static struct rxq_entry_t *wilc_wlan_rxq_remove(struct wilc *wilc)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 
@@ -620,12 +620,12 @@ static struct rxq_entry_t *wilc_wlan_rxq_remove(void)
 	if (p->rxq_head) {
 		struct rxq_entry_t *rqe;
 
-		mutex_lock(&g_linux_wlan->rxq_cs);
+		mutex_lock(&wilc->rxq_cs);
 		rqe = p->rxq_head;
 		p->rxq_head = p->rxq_head->next;
 		p->rxq_entries -= 1;
 		PRINT_D(RX_DBG, "RXQ entries decreased\n");
-		mutex_unlock(&g_linux_wlan->rxq_cs);
+		mutex_unlock(&wilc->rxq_cs);
 		return rqe;
 	}
 	PRINT_D(RX_DBG, "Nothing to get from Q\n");
@@ -1132,7 +1132,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 			up(&wilc->cfg_event);
 			break;
 		}
-		rqe = wilc_wlan_rxq_remove();
+		rqe = wilc_wlan_rxq_remove(wilc);
 		if (rqe == NULL) {
 			PRINT_D(RX_DBG, "nothing in the queue - exit 1st do-while\n");
 			break;
@@ -1654,6 +1654,11 @@ void wilc_wlan_cleanup(struct net_device *dev)
 	struct rxq_entry_t *rqe;
 	u32 reg = 0;
 	int ret;
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
 
 	p->quit = 1;
 	do {
@@ -1666,7 +1671,7 @@ void wilc_wlan_cleanup(struct net_device *dev)
 	} while (1);
 
 	do {
-		rqe = wilc_wlan_rxq_remove();
+		rqe = wilc_wlan_rxq_remove(wilc);
 		if (rqe == NULL)
 			break;
 #ifndef MEMORY_STATIC
