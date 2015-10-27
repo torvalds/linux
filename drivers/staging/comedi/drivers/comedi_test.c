@@ -64,8 +64,8 @@ struct waveform_private {
 	struct timer_list timer;
 	ktime_t last;	/* time last timer interrupt occurred */
 	unsigned int uvolt_amplitude;	/* waveform amplitude in microvolts */
-	unsigned long usec_period;	/* waveform period in microseconds */
-	unsigned long usec_current;	/* current time (mod waveform period) */
+	unsigned int usec_period;	/* waveform period in microseconds */
+	unsigned int usec_current;	/* current time (mod waveform period) */
 	unsigned long usec_remainder;	/* usec since last scan */
 	unsigned long state_bits;
 	unsigned int scan_period;	/* scan period in usec */
@@ -83,7 +83,7 @@ static const struct comedi_lrange waveform_ai_ranges = {
 
 static unsigned short fake_sawtooth(struct comedi_device *dev,
 				    unsigned int range_index,
-				    unsigned long current_time)
+				    unsigned int current_time)
 {
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -115,7 +115,7 @@ static unsigned short fake_sawtooth(struct comedi_device *dev,
 
 static unsigned short fake_squarewave(struct comedi_device *dev,
 				      unsigned int range_index,
-				      unsigned long current_time)
+				      unsigned int current_time)
 {
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -145,7 +145,7 @@ static unsigned short fake_squarewave(struct comedi_device *dev,
 
 static unsigned short fake_flatline(struct comedi_device *dev,
 				    unsigned int range_index,
-				    unsigned long current_time)
+				    unsigned int current_time)
 {
 	return dev->read_subdev->maxdata / 2;
 }
@@ -153,7 +153,7 @@ static unsigned short fake_flatline(struct comedi_device *dev,
 /* generates a different waveform depending on what channel is read */
 static unsigned short fake_waveform(struct comedi_device *dev,
 				    unsigned int channel, unsigned int range,
-				    unsigned long current_time)
+				    unsigned int current_time)
 {
 	enum {
 		SAWTOOTH_CHAN,
@@ -468,7 +468,7 @@ static int waveform_attach(struct comedi_device *dev,
 		    (unsigned long)dev);
 
 	dev_info(dev->class_dev,
-		 "%s: %i microvolt, %li microsecond waveform attached\n",
+		 "%s: %u microvolt, %u microsecond waveform attached\n",
 		 dev->board_name,
 		 devpriv->uvolt_amplitude, devpriv->usec_period);
 
