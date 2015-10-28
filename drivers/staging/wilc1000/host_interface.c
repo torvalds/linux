@@ -228,7 +228,7 @@ struct join_bss_param {
 	u8 idx;
 	u8 duration[4];
 	u8 interval[4];
-	u8 au8StartTime[4];
+	u8 start_time[4];
 };
 
 static struct host_if_drv *wfidrv_list[NUM_CONCURRENT_IFC + 1];
@@ -1184,10 +1184,8 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		memcpy(pu8CurrByte, ptstrJoinBssParam->interval, sizeof(ptstrJoinBssParam->interval));
 		pu8CurrByte += sizeof(ptstrJoinBssParam->interval);
 
-		memcpy(pu8CurrByte, ptstrJoinBssParam->au8StartTime, sizeof(ptstrJoinBssParam->au8StartTime));
-
-		pu8CurrByte += sizeof(ptstrJoinBssParam->au8StartTime);
-
+		memcpy(pu8CurrByte, ptstrJoinBssParam->start_time, sizeof(ptstrJoinBssParam->start_time));
+		pu8CurrByte += sizeof(ptstrJoinBssParam->start_time);
 	} else
 		PRINT_D(HOSTINF_DBG, "NOA not present\n");
 
@@ -4827,7 +4825,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 				memcpy(pNewJoinBssParam->interval, pu8IEs + u16P2P_count, 4);
 				u16P2P_count += 4;
 
-				memcpy(pNewJoinBssParam->au8StartTime, pu8IEs + u16P2P_count, 4);
+				memcpy(pNewJoinBssParam->start_time, pu8IEs + u16P2P_count, 4);
 
 				index += pu8IEs[index + 1] + 2;
 				continue;
