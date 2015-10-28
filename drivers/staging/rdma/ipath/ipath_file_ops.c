@@ -2046,7 +2046,6 @@ static void unlock_expected_tids(struct ipath_portdata *pd)
 
 static int ipath_close(struct inode *in, struct file *fp)
 {
-	int ret = 0;
 	struct ipath_filedata *fd;
 	struct ipath_portdata *pd;
 	struct ipath_devdata *dd;
@@ -2158,7 +2157,7 @@ static int ipath_close(struct inode *in, struct file *fp)
 
 bail:
 	kfree(fd);
-	return ret;
+	return 0;
 }
 
 static int ipath_port_info(struct ipath_portdata *pd, u16 subport,
