@@ -244,7 +244,7 @@ struct drv_handler {
 };
 
 struct op_mode {
-	u32 u32Mode;
+	u32 mode;
 };
 
 struct set_mac_addr {

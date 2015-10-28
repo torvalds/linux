@@ -381,13 +381,13 @@ static s32 Handle_SetOperationMode(struct host_if_drv *hif_drv,
 
 	wid.id = (u16)WID_SET_OPERATION_MODE;
 	wid.type = WID_INT;
-	wid.val = (s8 *)&pstrHostIfSetOperationMode->u32Mode;
+	wid.val = (s8 *)&pstrHostIfSetOperationMode->mode;
 	wid.size = sizeof(u32);
 
 	result = send_config_pkt(SET_CFG, &wid, 1,
 				 get_id_from_handler(hif_drv));
 
-	if ((pstrHostIfSetOperationMode->u32Mode) == IDLE_MODE)
+	if ((pstrHostIfSetOperationMode->mode) == IDLE_MODE)
 		up(&hif_sema_driver);
 
 	if (result) {
@@ -3700,7 +3700,7 @@ int host_int_set_operation_mode(struct host_if_drv *hif_drv, u32 mode)
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_OPERATION_MODE;
-	msg.body.mode.u32Mode = mode;
+	msg.body.mode.mode = mode;
 	msg.drv = hif_drv;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
