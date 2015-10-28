@@ -208,19 +208,33 @@ static int del_gid(struct ib_device *ib_dev, u8 port,
 /* rwlock should be read locked */
 static int find_gid(struct ib_gid_table *table, const union ib_gid *gid,
 		    const struct ib_gid_attr *val, bool default_gid,
-		    unsigned long mask)
+		    unsigned long mask, int *pempty)
 {
-	int i;
+	int i = 0;
+	int found = -1;
+	int empty = pempty ? -1 : 0;
 
-	for (i = 0; i < table->sz; i++) {
-		struct ib_gid_attr *attr = &table->data_vec[i].attr;
+	while (i < table->sz && (found < 0 || empty < 0)) {
+		struct ib_gid_table_entry *data = &table->data_vec[i];
+		struct ib_gid_attr *attr = &data->attr;
+		int curr_index = i;
 
+		i++;
 
-		if (table->data_vec[i].props & GID_TABLE_ENTRY_INVALID)
+		if (data->props & GID_TABLE_ENTRY_INVALID)
+			continue;
+
+		if (empty < 0)
+			if (!memcmp(&data->gid, &zgid, sizeof(*gid)) &&
+			    !memcmp(attr, &zattr, sizeof(*attr)) &&
+			    !data->props)
+				empty = curr_index;
+
+		if (found >= 0)
 			continue;
 
 		if (mask & GID_ATTR_FIND_MASK_GID &&
-		    memcmp(gid, &table->data_vec[i].gid, sizeof(*gid)))
+		    memcmp(gid, &data->gid, sizeof(*gid)))
 			continue;
 
 		if (mask & GID_ATTR_FIND_MASK_NETDEV &&
@@ -228,14 +242,17 @@ static int find_gid(struct ib_gid_table *table, const union ib_gid *gid,
 			continue;
 
 		if (mask & GID_ATTR_FIND_MASK_DEFAULT &&
-		    !!(table->data_vec[i].props & GID_TABLE_ENTRY_DEFAULT) !=
+		    !!(data->props & GID_TABLE_ENTRY_DEFAULT) !=
 		    default_gid)
 			continue;
 
-		break;
+		found = curr_index;
 	}
 
-	return i == table->sz ? -1 : i;
+	if (pempty)
+		*pempty = empty;
+
+	return found;
 }
 
 static void make_default_gid(struct  net_device *dev, union ib_gid *gid)
@@ -252,6 +269,7 @@ int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 	int ix;
 	int ret = 0;
 	struct net_device *idev;
+	int empty;
 
 	table = ports_table[port - rdma_start_port(ib_dev)];
 
@@ -278,18 +296,16 @@ int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 	write_lock_irq(&table->rwlock);
 
 	ix = find_gid(table, gid, attr, false, GID_ATTR_FIND_MASK_GID |
-		      GID_ATTR_FIND_MASK_NETDEV);
+		      GID_ATTR_FIND_MASK_NETDEV, &empty);
 	if (ix >= 0)
 		goto out_unlock;
 
-	ix = find_gid(table, &zgid, NULL, false, GID_ATTR_FIND_MASK_GID |
-		      GID_ATTR_FIND_MASK_DEFAULT);
-	if (ix < 0) {
+	if (empty < 0) {
 		ret = -ENOSPC;
 		goto out_unlock;
 	}
 
-	ret = add_gid(ib_dev, port, table, ix, gid, attr, false);
+	ret = add_gid(ib_dev, port, table, empty, gid, attr, false);
 	if (!ret)
 		dispatch_gid_change_event(ib_dev, port);
 
@@ -314,7 +330,8 @@ int ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
 	ix = find_gid(table, gid, attr, false,
 		      GID_ATTR_FIND_MASK_GID	  |
 		      GID_ATTR_FIND_MASK_NETDEV	  |
-		      GID_ATTR_FIND_MASK_DEFAULT);
+		      GID_ATTR_FIND_MASK_DEFAULT,
+		      NULL);
 	if (ix < 0)
 		goto out_unlock;
 
@@ -393,7 +410,7 @@ static int _ib_cache_gid_table_find(struct ib_device *ib_dev,
 	for (p = 0; p < ib_dev->phys_port_cnt; p++) {
 		table = ports_table[p];
 		read_lock_irqsave(&table->rwlock, flags);
-		local_index = find_gid(table, gid, val, false, mask);
+		local_index = find_gid(table, gid, val, false, mask, NULL);
 		if (local_index >= 0) {
 			if (index)
 				*index = local_index;
@@ -445,7 +462,7 @@ int ib_find_cached_gid_by_port(struct ib_device *ib_dev,
 		mask |= GID_ATTR_FIND_MASK_NETDEV;
 
 	read_lock_irqsave(&table->rwlock, flags);
-	local_index = find_gid(table, gid, &val, false, mask);
+	local_index = find_gid(table, gid, &val, false, mask, NULL);
 	if (local_index >= 0) {
 		if (index)
 			*index = local_index;
@@ -608,7 +625,7 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 
 	mutex_lock(&table->lock);
 	write_lock_irq(&table->rwlock);
-	ix = find_gid(table, NULL, NULL, true, GID_ATTR_FIND_MASK_DEFAULT);
+	ix = find_gid(table, NULL, NULL, true, GID_ATTR_FIND_MASK_DEFAULT, NULL);
 
 	/* Coudn't find default GID location */
 	WARN_ON(ix < 0);
