@@ -301,6 +301,14 @@ static struct usb_serial_driver * const serial_drivers[] = {
 #define CONTROL_WRITE_RTS	0x0200
 
 /*
+ * CP210X_PURGE - 16 bits passed in wValue of USB request.
+ * SiLabs app note AN571 gives a strange description of the 4 bits:
+ * bit 0 or bit 2 clears the transmit queue and 1 or 3 receive.
+ * writing 1 to all, however, purges cp2108 well enough to avoid the hang.
+ */
+#define PURGE_ALL		0x000f
+
+/*
  * cp210x_get_config
  * Reads from the CP210x configuration registers
  * 'size' is specified in bytes.
@@ -475,7 +483,14 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void cp210x_close(struct usb_serial_port *port)
 {
+	unsigned int purge_ctl;
+
 	usb_serial_generic_close(port);
+
+	/* Clear both queues; cp2108 needs this to avoid an occasional hang */
+	purge_ctl = PURGE_ALL;
+	cp210x_set_config(port, CP210X_PURGE, &purge_ctl, 2);
+
 	cp210x_set_config_single(port, CP210X_IFC_ENABLE, UART_DISABLE);
 }
 
