@@ -99,11 +99,11 @@ static int alloc_region_table(struct dm_target *ti, unsigned nr_paths)
 	if (sector_div(nr_regions, sctx->region_size))
 		nr_regions++;
 
-	sctx->nr_regions = nr_regions;
-	if (sctx->nr_regions != nr_regions || sctx->nr_regions >= ULONG_MAX) {
+	if (nr_regions >= ULONG_MAX) {
 		ti->error = "Region table too large";
 		return -EINVAL;
 	}
+	sctx->nr_regions = nr_regions;
 
 	nr_slots = nr_regions;
 	if (sector_div(nr_slots, sctx->region_entries_per_slot))
