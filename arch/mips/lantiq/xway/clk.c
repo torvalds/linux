@@ -175,15 +175,18 @@ unsigned long ltq_vr9_fpi_hz(void)
 
 unsigned long ltq_vr9_pp32_hz(void)
 {
-	unsigned int clksys = (ltq_cgu_r32(CGU_SYS) >> 16) & 3;
+	unsigned int clksys = (ltq_cgu_r32(CGU_SYS) >> 16) & 0x7;
 	unsigned long clk;
 
 	switch (clksys) {
+	case 0:
+		clk = CLOCK_500M;
+		break;
 	case 1:
-		clk = CLOCK_450M;
+		clk = CLOCK_432M;
 		break;
 	case 2:
-		clk = CLOCK_300M;
+		clk = CLOCK_288M;
 		break;
 	default:
 		clk = CLOCK_500M;
