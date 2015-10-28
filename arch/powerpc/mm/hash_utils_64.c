@@ -882,7 +882,8 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 	slice_set_range_psize(mm, addr, 1, MMU_PAGE_4K);
 	copro_flush_all_slbs(mm);
 	if ((get_paca_psize(addr) != MMU_PAGE_4K) && (current->mm == mm)) {
-		get_paca()->context = mm->context;
+
+		copy_mm_to_paca(&mm->context);
 		slb_flush_and_rebolt();
 	}
 }
@@ -949,7 +950,7 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
 {
 	if (user_region) {
 		if (psize != get_paca_psize(ea)) {
-			get_paca()->context = mm->context;
+			copy_mm_to_paca(&mm->context);
 			slb_flush_and_rebolt();
 		}
 	} else if (get_paca()->vmalloc_sllp !=

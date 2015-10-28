@@ -131,7 +131,9 @@ struct paca_struct {
 	struct tlb_core_data tcd;
 #endif /* CONFIG_PPC_BOOK3E */
 
+#ifdef CONFIG_PPC_BOOK3S
 	mm_context_t context;
+#endif
 
 	/*
 	 * then miscellaneous read-write fields
@@ -193,6 +195,15 @@ struct paca_struct {
 	struct kvmppc_host_state kvm_hstate;
 #endif
 };
+
+#ifdef CONFIG_PPC_BOOK3S
+static inline void copy_mm_to_paca(mm_context_t *context)
+{
+	get_paca()->context = *context;
+}
+#else
+static inline void copy_mm_to_paca(mm_context_t *context){}
+#endif
 
 extern struct paca_struct *paca;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
