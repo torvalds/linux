@@ -148,7 +148,7 @@ void parport_bus_exit(void)
 /*
  * iterates through all the drivers registered with the bus and sends the port
  * details to the match_port callback of the driver, so that the driver can
- * know about the new port that just regsitered with the bus and decide if it
+ * know about the new port that just registered with the bus and decide if it
  * wants to use this new port.
  */
 static int driver_check(struct device_driver *dev_drv, void *_port)
