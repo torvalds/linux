@@ -199,6 +199,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 struct cp210x_port_private {
 	__u8			bInterfaceNumber;
+	bool			has_swapped_line_ctl;
 };
 
 static struct usb_serial_driver cp210x_device = {
@@ -419,6 +420,60 @@ static inline int cp210x_set_config_single(struct usb_serial_port *port,
 }
 
 /*
+ * Detect CP2108 GET_LINE_CTL bug and activate workaround.
+ * Write a known good value 0x800, read it back.
+ * If it comes back swapped the bug is detected.
+ * Preserve the original register value.
+ */
+static int cp210x_detect_swapped_line_ctl(struct usb_serial_port *port)
+{
+	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
+	unsigned int line_ctl_save;
+	unsigned int line_ctl_test;
+	int err;
+
+	err = cp210x_get_config(port, CP210X_GET_LINE_CTL, &line_ctl_save, 2);
+	if (err)
+		return err;
+
+	line_ctl_test = 0x800;
+	err = cp210x_set_config(port, CP210X_SET_LINE_CTL, &line_ctl_test, 2);
+	if (err)
+		return err;
+
+	err = cp210x_get_config(port, CP210X_GET_LINE_CTL, &line_ctl_test, 2);
+	if (err)
+		return err;
+
+	if (line_ctl_test == 8) {
+		port_priv->has_swapped_line_ctl = true;
+		line_ctl_save = swab16((u16)line_ctl_save);
+	}
+
+	return cp210x_set_config(port, CP210X_SET_LINE_CTL, &line_ctl_save, 2);
+}
+
+/*
+ * Must always be called instead of cp210x_get_config(CP210X_GET_LINE_CTL)
+ * to workaround cp2108 bug and get correct value.
+ */
+static int cp210x_get_line_ctl(struct usb_serial_port *port, unsigned int *ctl)
+{
+	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
+	int err;
+
+	err = cp210x_get_config(port, CP210X_GET_LINE_CTL, ctl, 2);
+	if (err)
+		return err;
+
+	/* Workaround swapped bytes in 16-bit value from CP210X_GET_LINE_CTL */
+	if (port_priv->has_swapped_line_ctl)
+		*ctl = swab16((u16)(*ctl));
+
+	return 0;
+}
+
+/*
  * cp210x_quantise_baudrate
  * Quantises the baud rate as per AN205 Table 1
  */
@@ -535,7 +590,7 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 
 	cflag = *cflagp;
 
-	cp210x_get_config(port, CP210X_GET_LINE_CTL, &bits, 2);
+	cp210x_get_line_ctl(port, &bits);
 	cflag &= ~CSIZE;
 	switch (bits & BITS_DATA_MASK) {
 	case BITS_DATA_5:
@@ -703,7 +758,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 
 	/* If the number of data bits is to be updated */
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
-		cp210x_get_config(port, CP210X_GET_LINE_CTL, &bits, 2);
+		cp210x_get_line_ctl(port, &bits);
 		bits &= ~BITS_DATA_MASK;
 		switch (cflag & CSIZE) {
 		case CS5:
@@ -737,7 +792,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 
 	if ((cflag     & (PARENB|PARODD|CMSPAR)) !=
 	    (old_cflag & (PARENB|PARODD|CMSPAR))) {
-		cp210x_get_config(port, CP210X_GET_LINE_CTL, &bits, 2);
+		cp210x_get_line_ctl(port, &bits);
 		bits &= ~BITS_PARITY_MASK;
 		if (cflag & PARENB) {
 			if (cflag & CMSPAR) {
@@ -763,7 +818,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	}
 
 	if ((cflag & CSTOPB) != (old_cflag & CSTOPB)) {
-		cp210x_get_config(port, CP210X_GET_LINE_CTL, &bits, 2);
+		cp210x_get_line_ctl(port, &bits);
 		bits &= ~BITS_STOP_MASK;
 		if (cflag & CSTOPB) {
 			bits |= BITS_STOP_2;
@@ -883,6 +938,7 @@ static int cp210x_port_probe(struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	struct usb_host_interface *cur_altsetting;
 	struct cp210x_port_private *port_priv;
+	int ret;
 
 	port_priv = kzalloc(sizeof(*port_priv), GFP_KERNEL);
 	if (!port_priv)
@@ -892,6 +948,12 @@ static int cp210x_port_probe(struct usb_serial_port *port)
 	port_priv->bInterfaceNumber = cur_altsetting->desc.bInterfaceNumber;
 
 	usb_set_serial_port_data(port, port_priv);
+
+	ret = cp210x_detect_swapped_line_ctl(port);
+	if (ret) {
+		kfree(port_priv);
+		return ret;
+	}
 
 	return 0;
 }
