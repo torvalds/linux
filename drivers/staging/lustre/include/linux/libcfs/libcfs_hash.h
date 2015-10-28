@@ -283,7 +283,7 @@ struct cfs_hash_lock_ops {
 	void    (*hs_bkt_unlock)(union cfs_hash_lock *lock, int exclusive);
 };
 
-typedef struct cfs_hash_hlist_ops {
+struct cfs_hash_hlist_ops {
 	/** return hlist_head of hash-head of @bd */
 	struct hlist_head *(*hop_hhead)(struct cfs_hash *hs, struct cfs_hash_bd *bd);
 	/** return hash-head size */
@@ -294,7 +294,7 @@ typedef struct cfs_hash_hlist_ops {
 	/** remove @hnode from hash-head of @bd */
 	int (*hop_hnode_del)(struct cfs_hash *hs,
 			     struct cfs_hash_bd *bd, struct hlist_node *hnode);
-} cfs_hash_hlist_ops_t;
+};
 
 typedef struct cfs_hash_ops {
 	/** return hashed value from @key */
