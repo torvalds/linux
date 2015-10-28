@@ -157,16 +157,9 @@ isert_create_qp(struct isert_conn *isert_conn,
 	attr.recv_cq = comp->cq;
 	attr.cap.max_send_wr = ISERT_QP_MAX_REQ_DTOS;
 	attr.cap.max_recv_wr = ISERT_QP_MAX_RECV_DTOS + 1;
-	/*
-	 * FIXME: Use devattr.max_sge - 2 for max_send_sge as
-	 * work-around for RDMA_READs with ConnectX-2.
-	 *
-	 * Also, still make sure to have at least two SGEs for
-	 * outgoing control PDU responses.
-	 */
-	attr.cap.max_send_sge = max(2, device->dev_attr.max_sge - 2);
-	isert_conn->max_sge = attr.cap.max_send_sge;
-
+	attr.cap.max_send_sge = device->dev_attr.max_sge;
+	isert_conn->max_sge = min(device->dev_attr.max_sge,
+				  device->dev_attr.max_sge_rd);
 	attr.cap.max_recv_sge = 1;
 	attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	attr.qp_type = IB_QPT_RC;
