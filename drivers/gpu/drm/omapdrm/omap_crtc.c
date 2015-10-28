@@ -433,8 +433,8 @@ static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,
 	 */
 
 	plane_state = drm_atomic_get_plane_state(state->state, plane);
-	if (!plane_state)
-		return -EINVAL;
+	if (IS_ERR(plane_state))
+		return PTR_ERR(plane_state);
 
 	return drm_atomic_plane_set_property(plane, plane_state, property, val);
 }
