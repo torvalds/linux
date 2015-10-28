@@ -315,9 +315,16 @@
 	INTEL_VGA_DEVICE(0x592B, info), /* Halo GT3 */ \
 	INTEL_VGA_DEVICE(0x592A, info) /* SRV GT3 */
 
+#define INTEL_KBL_GT4_IDS(info) \
+	INTEL_VGA_DEVICE(0x5932, info), /* DT  GT4 */ \
+	INTEL_VGA_DEVICE(0x593B, info), /* Halo GT4 */ \
+	INTEL_VGA_DEVICE(0x593A, info), /* SRV GT4 */ \
+	INTEL_VGA_DEVICE(0x593D, info)  /* WKS GT4 */
+
 #define INTEL_KBL_IDS(info) \
 	INTEL_KBL_GT1_IDS(info), \
 	INTEL_KBL_GT2_IDS(info), \
-	INTEL_KBL_GT3_IDS(info)
+	INTEL_KBL_GT3_IDS(info), \
+	INTEL_KBL_GT4_IDS(info)
 
 #endif /* _I915_PCIIDS_H */
