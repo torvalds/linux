@@ -1597,7 +1597,7 @@ void tracing_reset_all_online_cpus(void)
 
 #define SAVED_CMDLINES_DEFAULT 128
 #define NO_CMDLINE_MAP UINT_MAX
-static unsigned saved_tgids[SAVED_CMDLINES];
+static unsigned saved_tgids[SAVED_CMDLINES_DEFAULT];
 static arch_spinlock_t trace_cmdline_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 struct saved_cmdlines_buffer {
 	unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];
@@ -1886,7 +1886,7 @@ int trace_find_tgid(int pid)
 
 	preempt_disable();
 	arch_spin_lock(&trace_cmdline_lock);
-	map = map_pid_to_cmdline[pid];
+	map = savedcmd->map_pid_to_cmdline[pid];
 	if (map != NO_CMDLINE_MAP)
 		tgid = saved_tgids[map];
 	else
@@ -4636,17 +4636,17 @@ tracing_saved_tgids_read(struct file *file, char __user *ubuf,
 	int pid;
 	int i;
 
-	file_buf = kmalloc(SAVED_CMDLINES*(16+1+16), GFP_KERNEL);
+	file_buf = kmalloc(SAVED_CMDLINES_DEFAULT*(16+1+16), GFP_KERNEL);
 	if (!file_buf)
 		return -ENOMEM;
 
 	buf = file_buf;
 
-	for (i = 0; i < SAVED_CMDLINES; i++) {
+	for (i = 0; i < SAVED_CMDLINES_DEFAULT; i++) {
 		int tgid;
 		int r;
 
-		pid = map_cmdline_to_pid[i];
+		pid = savedcmd->map_cmdline_to_pid[i];
 		if (pid == -1 || pid == NO_CMDLINE_MAP)
 			continue;
 
