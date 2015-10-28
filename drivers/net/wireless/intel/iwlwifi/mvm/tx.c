@@ -460,7 +460,8 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return -EINVAL;
 
 	if (!sta->max_amsdu_len ||
-	    !ieee80211_is_data_qos(hdr->frame_control)) {
+	    !ieee80211_is_data_qos(hdr->frame_control) ||
+	    !mvmsta->tlc_amsdu) {
 		num_subframes = 1;
 		pad = 0;
 		goto segment;

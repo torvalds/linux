@@ -313,6 +313,7 @@ struct iwl_mvm_key_pn {
  * @tx_protection: reference counter for controlling the Tx protection.
  * @tt_tx_protection: is thermal throttling enable Tx protection?
  * @disable_tx: is tx to this STA disabled?
+ * @tlc_amsdu: true if A-MSDU is allowed
  * @agg_tids: bitmap of tids whose status is operational aggregated (IWL_AGG_ON)
  * @sleep_tx_count: the number of frames that we told the firmware to let out
  *	even when that station is asleep. This is useful in case the queue
@@ -347,6 +348,7 @@ struct iwl_mvm_sta {
 	bool tt_tx_protection;
 
 	bool disable_tx;
+	bool tlc_amsdu;
 	u8 agg_tids;
 	u8 sleep_tx_count;
 };
