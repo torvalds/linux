@@ -102,7 +102,7 @@ static int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 	host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
 	guest_ctxt = &vcpu->arch.ctxt;
 
-	__sysreg_save_state(host_ctxt);
+	__sysreg_save_host_state(host_ctxt);
 	__debug_cond_save_host_state(vcpu);
 
 	__activate_traps(vcpu);
@@ -116,7 +116,7 @@ static int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 	 * to Cortex-A57 erratum #852523.
 	 */
 	__sysreg32_restore_state(vcpu);
-	__sysreg_restore_state(guest_ctxt);
+	__sysreg_restore_guest_state(guest_ctxt);
 	__debug_restore_state(vcpu, kern_hyp_va(vcpu->arch.debug_ptr), guest_ctxt);
 
 	/* Jump in the fire! */
@@ -125,7 +125,7 @@ static int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 
 	fp_enabled = __fpsimd_enabled();
 
-	__sysreg_save_state(guest_ctxt);
+	__sysreg_save_guest_state(guest_ctxt);
 	__sysreg32_save_state(vcpu);
 	__timer_save_state(vcpu);
 	__vgic_save_state(vcpu);
@@ -133,7 +133,7 @@ static int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 	__deactivate_traps(vcpu);
 	__deactivate_vm(vcpu);
 
-	__sysreg_restore_state(host_ctxt);
+	__sysreg_restore_host_state(host_ctxt);
 
 	if (fp_enabled) {
 		__fpsimd_save_state(&guest_ctxt->gp_regs.fp_regs);
@@ -165,7 +165,7 @@ void __hyp_text __noreturn __hyp_panic(void)
 		host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
 		__deactivate_traps(vcpu);
 		__deactivate_vm(vcpu);
-		__sysreg_restore_state(host_ctxt);
+		__sysreg_restore_host_state(host_ctxt);
 	}
 
 	/* Call panic for real */

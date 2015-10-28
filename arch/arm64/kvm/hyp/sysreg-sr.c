@@ -24,7 +24,7 @@
 #include "hyp.h"
 
 /* ctxt is already in the HYP VA space */
-void __hyp_text __sysreg_save_state(struct kvm_cpu_context *ctxt)
+static void __hyp_text __sysreg_save_state(struct kvm_cpu_context *ctxt)
 {
 	ctxt->sys_regs[MPIDR_EL1]	= read_sysreg(vmpidr_el2);
 	ctxt->sys_regs[CSSELR_EL1]	= read_sysreg(csselr_el1);
@@ -57,7 +57,17 @@ void __hyp_text __sysreg_save_state(struct kvm_cpu_context *ctxt)
 	ctxt->gp_regs.spsr[KVM_SPSR_EL1]= read_sysreg(spsr_el1);
 }
 
-void __hyp_text __sysreg_restore_state(struct kvm_cpu_context *ctxt)
+void __hyp_text __sysreg_save_host_state(struct kvm_cpu_context *ctxt)
+{
+	__sysreg_save_state(ctxt);
+}
+
+void __hyp_text __sysreg_save_guest_state(struct kvm_cpu_context *ctxt)
+{
+	__sysreg_save_state(ctxt);
+}
+
+static void __hyp_text __sysreg_restore_state(struct kvm_cpu_context *ctxt)
 {
 	write_sysreg(ctxt->sys_regs[MPIDR_EL1],	  vmpidr_el2);
 	write_sysreg(ctxt->sys_regs[CSSELR_EL1],  csselr_el1);
@@ -88,6 +98,16 @@ void __hyp_text __sysreg_restore_state(struct kvm_cpu_context *ctxt)
 	write_sysreg(ctxt->gp_regs.sp_el1,	sp_el1);
 	write_sysreg(ctxt->gp_regs.elr_el1,	elr_el1);
 	write_sysreg(ctxt->gp_regs.spsr[KVM_SPSR_EL1], spsr_el1);
+}
+
+void __hyp_text __sysreg_restore_host_state(struct kvm_cpu_context *ctxt)
+{
+	__sysreg_restore_state(ctxt);
+}
+
+void __hyp_text __sysreg_restore_guest_state(struct kvm_cpu_context *ctxt)
+{
+	__sysreg_restore_state(ctxt);
 }
 
 void __hyp_text __sysreg32_save_state(struct kvm_vcpu *vcpu)
