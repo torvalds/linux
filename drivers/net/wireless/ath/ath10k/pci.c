@@ -61,12 +61,14 @@ MODULE_PARM_DESC(reset_mode, "0: auto, 1: warm only (default: 0)");
 #define QCA6164_2_1_DEVICE_ID	(0x0041)
 #define QCA6174_2_1_DEVICE_ID	(0x003e)
 #define QCA99X0_2_0_DEVICE_ID	(0x0040)
+#define QCA9377_1_0_DEVICE_ID	(0x0042)
 
 static const struct pci_device_id ath10k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, QCA988X_2_0_DEVICE_ID) }, /* PCI-E QCA988X V2 */
 	{ PCI_VDEVICE(ATHEROS, QCA6164_2_1_DEVICE_ID) }, /* PCI-E QCA6164 V2.1 */
 	{ PCI_VDEVICE(ATHEROS, QCA6174_2_1_DEVICE_ID) }, /* PCI-E QCA6174 V2.1 */
 	{ PCI_VDEVICE(ATHEROS, QCA99X0_2_0_DEVICE_ID) }, /* PCI-E QCA99X0 V2 */
+	{ PCI_VDEVICE(ATHEROS, QCA9377_1_0_DEVICE_ID) }, /* PCI-E QCA9377 V1 */
 	{0}
 };
 
@@ -90,6 +92,7 @@ static const struct ath10k_pci_supp_chip ath10k_pci_supp_chips[] = {
 	{ QCA6174_2_1_DEVICE_ID, QCA6174_HW_3_2_CHIP_ID_REV },
 
 	{ QCA99X0_2_0_DEVICE_ID, QCA99X0_HW_2_0_CHIP_ID_REV },
+	{ QCA9377_1_0_DEVICE_ID, QCA9377_HW_1_0_CHIP_ID_REV },
 };
 
 static void ath10k_pci_buffer_cleanup(struct ath10k *ar);
@@ -827,6 +830,7 @@ static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 	switch (ar->hw_rev) {
 	case ATH10K_HW_QCA988X:
 	case ATH10K_HW_QCA6174:
+	case ATH10K_HW_QCA9377:
 		val = (ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
 					  CORE_CTRL_ADDRESS) &
 		       0x7ff) << 21;
@@ -1483,6 +1487,7 @@ static void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
 	switch (ar->hw_rev) {
 	case ATH10K_HW_QCA988X:
 	case ATH10K_HW_QCA6174:
+	case ATH10K_HW_QCA9377:
 		val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
 					CORE_CTRL_ADDRESS);
 		val &= ~CORE_CTRL_PCIE_REG_31_MASK;
@@ -1504,6 +1509,7 @@ static void ath10k_pci_irq_msi_fw_unmask(struct ath10k *ar)
 	switch (ar->hw_rev) {
 	case ATH10K_HW_QCA988X:
 	case ATH10K_HW_QCA6174:
+	case ATH10K_HW_QCA9377:
 		val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
 					CORE_CTRL_ADDRESS);
 		val |= CORE_CTRL_PCIE_REG_31_MASK;
@@ -1872,6 +1878,8 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 			return 9;
 		}
 		break;
+	case QCA9377_1_0_DEVICE_ID:
+		return 2;
 	}
 
 	ath10k_warn(ar, "unknown number of banks, assuming 1\n");
@@ -2331,6 +2339,8 @@ static int ath10k_pci_chip_reset(struct ath10k *ar)
 	if (QCA_REV_988X(ar))
 		return ath10k_pci_qca988x_chip_reset(ar);
 	else if (QCA_REV_6174(ar))
+		return ath10k_pci_qca6174_chip_reset(ar);
+	else if (QCA_REV_9377(ar))
 		return ath10k_pci_qca6174_chip_reset(ar);
 	else if (QCA_REV_99X0(ar))
 		return ath10k_pci_qca99x0_chip_reset(ar);
@@ -2964,6 +2974,10 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		hw_rev = ATH10K_HW_QCA99X0;
 		pci_ps = false;
 		break;
+	case QCA9377_1_0_DEVICE_ID:
+		hw_rev = ATH10K_HW_QCA9377;
+		pci_ps = true;
+		break;
 	default:
 		WARN_ON(1);
 		return -ENOTSUPP;
@@ -3165,3 +3179,7 @@ MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_FW_API4_FILE);
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_FW_API5_FILE);
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" QCA6174_HW_3_0_BOARD_DATA_FILE);
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_BOARD_API2_FILE);
+
+/* QCA9377 1.0 firmware files */
+MODULE_FIRMWARE(QCA9377_HW_1_0_FW_DIR "/" ATH10K_FW_API5_FILE);
+MODULE_FIRMWARE(QCA9377_HW_1_0_FW_DIR "/" QCA9377_HW_1_0_BOARD_DATA_FILE);
