@@ -2688,7 +2688,6 @@ extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
-void i915_firmware_load_error_print(const char *fw_path, int err);
 
 /* intel_hotplug.c */
 void intel_hpd_irq_handler(struct drm_device *dev, u32 pin_mask, u32 long_mask);

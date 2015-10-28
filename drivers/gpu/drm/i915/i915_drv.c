@@ -604,26 +604,6 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	return true;
 }
 
-void i915_firmware_load_error_print(const char *fw_path, int err)
-{
-	DRM_ERROR("failed to load firmware %s (%d)\n", fw_path, err);
-
-	/*
-	 * If the reason is not known assume -ENOENT since that's the most
-	 * usual failure mode.
-	 */
-	if (!err)
-		err = -ENOENT;
-
-	if (!(IS_BUILTIN(CONFIG_DRM_I915) && err == -ENOENT))
-		return;
-
-	DRM_ERROR(
-	  "The driver is built-in, so to load the firmware you need to\n"
-	  "include it either in the kernel (see CONFIG_EXTRA_FIRMWARE) or\n"
-	  "in your initrd/initramfs image.\n");
-}
-
 static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
