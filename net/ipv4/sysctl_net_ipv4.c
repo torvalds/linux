@@ -152,7 +152,7 @@ static int ipv4_ping_group_range(struct ctl_table *table, int write,
 }
 
 /* Validate changes from /proc interface. */
-static int proc_tcp_default_init_rwnd(ctl_table *ctl, int write,
+static int proc_tcp_default_init_rwnd(struct ctl_table *ctl, int write,
 				      void __user *buffer,
 				      size_t *lenp, loff_t *ppos)
 {
