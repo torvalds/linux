@@ -746,7 +746,7 @@ int switchdev_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 		.id = SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS,
 	};
 	u16 mode = BRIDGE_MODE_UNDEF;
-	u32 mask = BR_LEARNING | BR_LEARNING_SYNC;
+	u32 mask = BR_LEARNING | BR_LEARNING_SYNC | BR_FLOOD;
 	int err;
 
 	err = switchdev_port_attr_get(dev, &attr);
@@ -816,6 +816,9 @@ static int switchdev_port_br_setlink_protinfo(struct net_device *dev,
 		case IFLA_BRPORT_LEARNING_SYNC:
 			err = switchdev_port_br_setflag(dev, attr,
 							BR_LEARNING_SYNC);
+			break;
+		case IFLA_BRPORT_UNICAST_FLOOD:
+			err = switchdev_port_br_setflag(dev, attr, BR_FLOOD);
 			break;
 		default:
 			err = -EOPNOTSUPP;

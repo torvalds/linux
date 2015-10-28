@@ -298,6 +298,9 @@ packets up to the bridge driver for flooding.  This is not ideal as the number
 of ports scale in the L2 domain as the device is much more efficient at
 flooding packets that software.
 
+If supported by the device, flood control can be offloaded to it, preventing
+certain netdevs from flooding unicast traffic for which there is no FDB entry.
+
 IGMP Snooping
 ^^^^^^^^^^^^^
 
