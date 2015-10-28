@@ -174,8 +174,6 @@ struct property_set {
 
 void device_add_property_set(struct device *dev, struct property_set *pset);
 
-bool device_dma_is_coherent(struct device *dev);
-
 bool device_dma_supported(struct device *dev);
 
 enum dev_dma_attr device_get_dma_attr(struct device *dev);

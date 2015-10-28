@@ -574,11 +574,6 @@ static inline int acpi_device_modalias(struct device *dev,
 	return -ENODEV;
 }
 
-static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
-{
-	return false;
-}
-
 static inline bool acpi_dma_supported(struct acpi_device *adev)
 {
 	return false;
