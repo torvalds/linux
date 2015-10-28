@@ -849,9 +849,9 @@ static int sca3000_read_event_config(struct iio_dev *indio_dev,
 	if (ret)
 		goto error_ret;
 
-	if ((st->rx[0] & protect_mask) != SCA3000_MEAS_MODE_MOT_DET)
+	if ((st->rx[0] & protect_mask) != SCA3000_MEAS_MODE_MOT_DET) {
 		ret = 0;
-	else {
+	} else {
 		ret = sca3000_read_ctrl_reg(st, SCA3000_REG_CTRL_SEL_MD_CTRL);
 		if (ret < 0)
 			goto error_ret;
