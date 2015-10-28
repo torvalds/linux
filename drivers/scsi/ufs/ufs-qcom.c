@@ -917,12 +917,15 @@ out:
 
 #define	ANDROID_BOOT_DEV_MAX	30
 static char android_boot_dev[ANDROID_BOOT_DEV_MAX];
-static int get_android_boot_dev(char *str)
+
+#ifndef MODULE
+static int __init get_android_boot_dev(char *str)
 {
 	strlcpy(android_boot_dev, str, ANDROID_BOOT_DEV_MAX);
 	return 1;
 }
 __setup("androidboot.bootdevice=", get_android_boot_dev);
+#endif
 
 /**
  * ufs_qcom_init - bind phy with controller
@@ -1047,3 +1050,5 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
 	.resume			= ufs_qcom_resume,
 };
 EXPORT_SYMBOL(ufs_hba_qcom_vops);
+
+MODULE_LICENSE("GPL v2");
