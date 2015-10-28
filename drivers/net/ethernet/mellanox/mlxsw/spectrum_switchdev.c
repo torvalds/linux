@@ -248,9 +248,11 @@ static int mlxsw_sp_port_fid_unmap(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid)
 }
 
 static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				     u16 fid, bool set, bool only_uc)
+				     u16 fid_begin, u16 fid_end, bool set,
+				     bool only_uc)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u16 range = fid_end - fid_begin + 1;
 	char *sftr_pl;
 	int err;
 
@@ -258,8 +260,8 @@ static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!sftr_pl)
 		return -ENOMEM;
 
-	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_UC, fid,
-			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, 0,
+	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_UC, fid_begin,
+			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, range,
 			    mlxsw_sp_port->local_port, set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 	if (err)
@@ -271,8 +273,8 @@ static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (only_uc)
 		goto buffer_out;
 
-	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, fid,
-			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, 0,
+	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, fid_begin,
+			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, range,
 			    mlxsw_sp_port->local_port, set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 
@@ -345,14 +347,13 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			netdev_err(dev, "Failed to map FID=%d", vid);
 			return err;
 		}
+	}
 
-		err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, vid, true,
-						false);
-		if (err) {
-			netdev_err(dev, "Failed to set flooding for FID=%d",
-				   vid);
-			return err;
-		}
+	err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, vid_begin, vid_end,
+					true, false);
+	if (err) {
+		netdev_err(dev, "Failed to configure flooding\n");
+		return err;
 	}
 
 	for (vid = vid_begin; vid <= vid_end;
@@ -530,15 +531,14 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (init)
 		goto out;
 
-	for (vid = vid_begin; vid <= vid_end; vid++) {
-		err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, vid, false,
-						false);
-		if (err) {
-			netdev_err(dev, "Failed to clear flooding for FID=%d",
-				   vid);
-			return err;
-		}
+	err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, vid_begin, vid_end,
+					false, false);
+	if (err) {
+		netdev_err(dev, "Failed to clear flooding\n");
+		return err;
+	}
 
+	for (vid = vid_begin; vid <= vid_end; vid++) {
 		/* Remove FID mapping in case of Virtual mode */
 		err = mlxsw_sp_port_fid_unmap(mlxsw_sp_port, vid);
 		if (err) {
