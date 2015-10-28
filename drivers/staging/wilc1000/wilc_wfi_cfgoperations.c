@@ -2179,20 +2179,6 @@ static int cancel_remain_on_channel(struct wiphy *wiphy,
 	return s32Error;
 }
 /**
- *  @brief       WILC_WFI_add_wilcvendorspec
- *  @details    Adding WILC information elemet to allow two WILC devices to
- *                              identify each other and connect
- *  @param[in]   u8 * buf
- *  @return     void
- *  @author	mdaftedar
- *  @date	01 JAN 2014
- *  @version	1.0
- */
-void WILC_WFI_add_wilcvendorspec(u8 *buff)
-{
-	memcpy(buff, u8P2P_vendorspec, sizeof(u8P2P_vendorspec));
-}
-/**
  *  @brief      WILC_WFI_mgmt_tx_frame
  *  @details
  *
@@ -2315,7 +2301,11 @@ static int mgmt_tx(struct wiphy *wiphy,
 								}
 
 								if (buf[P2P_PUB_ACTION_SUBTYPE] != P2P_INV_REQ && buf[P2P_PUB_ACTION_SUBTYPE] != P2P_INV_RSP) {
-									WILC_WFI_add_wilcvendorspec(&mgmt_tx->buff[len]);
+									/*
+									 * Adding WILC information element to allow two WILC devices to
+									 * identify each other and connect
+									 */
+									memcpy(&mgmt_tx->buff[len], u8P2P_vendorspec, sizeof(u8P2P_vendorspec));
 									mgmt_tx->buff[len + sizeof(u8P2P_vendorspec)] = u8P2Plocalrandom;
 									mgmt_tx->size = buf_len;
 								}
