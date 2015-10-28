@@ -22,6 +22,7 @@
 #define SOC_AR9		"AR9"
 #define SOC_GR9		"GRX200"
 #define SOC_VR9		"xRX200"
+#define SOC_VRX220	"xRX220"
 #define SOC_AR10	"xRX300"
 #define SOC_GRX390	"xRX330"
 
@@ -103,6 +104,12 @@ void __init ltq_soc_detect(struct ltq_soc_info *i)
 	case SOC_ID_VRX288_2:
 		i->name = SOC_VR9;
 		i->type = SOC_TYPE_VR9_2;
+		i->compatible = COMP_VR9;
+		break;
+
+	case SOC_ID_VRX220:
+		i->name = SOC_VRX220;
+		i->type = SOC_TYPE_VRX220;
 		i->compatible = COMP_VR9;
 		break;
 

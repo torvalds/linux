@@ -35,6 +35,7 @@
 #define SOC_ID_VRX268_2		0x00C /* v1.2 */
 #define SOC_ID_GRX288_2		0x00D /* v1.2 */
 #define SOC_ID_GRX282_2		0x00E /* v1.2 */
+#define SOC_ID_VRX220		0x000
 
 #define SOC_ID_ARX362		0x004
 #define SOC_ID_ARX368		0x005
@@ -55,6 +56,7 @@
 #define SOC_TYPE_AMAZON_SE	0x06
 #define SOC_TYPE_AR10		0x07
 #define SOC_TYPE_GRX390		0x08
+#define SOC_TYPE_VRX220		0x09
 
 /* BOOT_SEL - find what boot media we have */
 #define BS_EXT_ROM		0x0
