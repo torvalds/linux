@@ -29,8 +29,6 @@ static const struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 #define APB1_LOG_SIZE		SZ_16K
-static struct dentry *apb1_log_dentry;
-static struct dentry *apb1_log_enable_dentry;
 
 /* Number of bulk in and bulk out couple */
 #define NUM_BULKS		7
@@ -97,6 +95,8 @@ struct es2_cport_out {
  * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
  *
  * @apb1_log_task: task pointer for logging thread
+ * @apb1_log_dentry: file system entry for the log file interface
+ * @apb1_log_enable_dentry: file system entry for enabling logging
  * @apb1_log_fifo: kernel FIFO to carry logged data
  */
 struct es2_ap_dev {
@@ -114,6 +114,8 @@ struct es2_ap_dev {
 	int *cport_to_ep;
 
 	struct task_struct *apb1_log_task;
+	struct dentry *apb1_log_dentry;
+	struct dentry *apb1_log_enable_dentry;
 	DECLARE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 };
 
@@ -689,7 +691,7 @@ static void usb_log_enable(struct es2_ap_dev *es2)
 	es2->apb1_log_task = kthread_run(apb1_log_poll, es2, "apb1_log");
 	if (IS_ERR(es2->apb1_log_task))
 		return;
-	apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
+	es2->apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
 						gb_debugfs_get(), NULL,
 						&apb1_log_fops);
 }
@@ -699,8 +701,8 @@ static void usb_log_disable(struct es2_ap_dev *es2)
 	if (IS_ERR_OR_NULL(es2->apb1_log_task))
 		return;
 
-	debugfs_remove(apb1_log_dentry);
-	apb1_log_dentry = NULL;
+	debugfs_remove(es2->apb1_log_dentry);
+	es2->apb1_log_dentry = NULL;
 
 	kthread_stop(es2->apb1_log_task);
 	es2->apb1_log_task = NULL;
@@ -890,7 +892,7 @@ static int ap_probe(struct usb_interface *interface,
 		es2->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
 
-	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
+	es2->apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
 							(S_IWUSR | S_IRUGO),
 							gb_debugfs_get(), es2,
 							&apb1_log_enable_fops);
