@@ -259,6 +259,7 @@ struct ufs_pwr_mode_info {
  *			to be set.
  * @suspend: called during host controller PM callback
  * @resume: called during host controller PM callback
+ * @dbg_register_dump: used to dump controller debug information
  */
 struct ufs_hba_variant_ops {
 	const char *name;
@@ -275,6 +276,7 @@ struct ufs_hba_variant_ops {
 					struct ufs_pa_layer_attr *);
 	int     (*suspend)(struct ufs_hba *, enum ufs_pm_op);
 	int     (*resume)(struct ufs_hba *, enum ufs_pm_op);
+	void	(*dbg_register_dump)(struct ufs_hba *hba);
 };
 
 /* clock gating state  */
@@ -771,6 +773,12 @@ static inline int ufshcd_vops_resume(struct ufs_hba *hba, enum ufs_pm_op op)
 		return hba->vops->resume(hba, op);
 
 	return 0;
+}
+
+static inline void ufshcd_vops_dbg_register_dump(struct ufs_hba *hba)
+{
+	if (hba->vops && hba->vops->dbg_register_dump)
+		hba->vops->dbg_register_dump(hba);
 }
 
 #endif /* End of Header */
