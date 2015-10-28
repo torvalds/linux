@@ -32,4 +32,11 @@ config NVM_GENNVM
 	functionality to device, while keeping data placement and garbage
 	collection decisions on the host.
 
+config NVM_RRPC
+	tristate "Round-robin Hybrid Open-Channel SSD target"
+	---help---
+	Allows an open-channel SSD to be exposed as a block device to the
+	host. The target is implemented using a linear mapping table and
+	cost-based garbage collection. It is optimized for 4K IO sizes.
+
 endif # NVM
