@@ -550,6 +550,7 @@ static ssize_t sca3000_read_av_freq(struct device *dev,
 error_ret:
 	return ret;
 }
+
 /**
  * __sca3000_get_base_freq() obtain mode specific base frequency
  *
@@ -864,6 +865,7 @@ error_ret:
 
 	return ret;
 }
+
 /**
  * sca3000_query_free_fall_mode() is free fall mode enabled
  **/

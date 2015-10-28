@@ -307,6 +307,7 @@ error_ret:
 
 	return ret;
 }
+
 /**
  * sca3000_hw_ring_preenable() hw ring buffer preenable function
  *
