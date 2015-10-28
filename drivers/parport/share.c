@@ -444,10 +444,8 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	int ret;
 
 	tmp = kzalloc(sizeof(struct parport), GFP_KERNEL);
-	if (!tmp) {
-		printk(KERN_WARNING "parport: memory squeeze\n");
+	if (!tmp)
 		return NULL;
-	}
 
 	/* Init our structure */
 	tmp->base = base;
@@ -473,7 +471,6 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 
 	name = kmalloc(15, GFP_KERNEL);
 	if (!name) {
-		printk(KERN_ERR "parport: memory squeeze\n");
 		kfree(tmp);
 		return NULL;
 	}
@@ -741,16 +738,12 @@ parport_register_device(struct parport *port, const char *name,
 	parport_get_port (port);
 
 	tmp = kmalloc(sizeof(struct pardevice), GFP_KERNEL);
-	if (tmp == NULL) {
-		printk(KERN_WARNING "%s: memory squeeze, couldn't register %s.\n", port->name, name);
+	if (tmp == NULL)
 		goto out;
-	}
 
 	tmp->state = kmalloc(sizeof(struct parport_state), GFP_KERNEL);
-	if (tmp->state == NULL) {
-		printk(KERN_WARNING "%s: memory squeeze, couldn't register %s.\n", port->name, name);
+	if (tmp->state == NULL)
 		goto out_free_pardevice;
-	}
 
 	tmp->name = name;
 	tmp->port = port;
