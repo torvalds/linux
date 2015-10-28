@@ -368,11 +368,11 @@ static int rsnd_dmapp_stop(struct rsnd_mod *mod,
 
 	for (i = 0; i < 1024; i++) {
 		if (0 == rsnd_dmapp_read(dma, PDMACHCR))
-			return -EIO;
+			return 0;
 		udelay(1);
 	}
 
-	return 0;
+	return -EIO;
 }
 
 static int rsnd_dmapp_start(struct rsnd_mod *mod,
