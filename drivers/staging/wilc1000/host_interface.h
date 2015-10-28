@@ -252,7 +252,7 @@ struct set_mac_addr {
 };
 
 struct get_mac_addr {
-	u8 *u8MacAddress;
+	u8 *mac_addr;
 };
 
 struct ba_session_info {

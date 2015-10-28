@@ -503,7 +503,7 @@ static s32 Handle_GetMacAddress(struct host_if_drv *hif_drv,
 
 	wid.id = (u16)WID_MAC_ADDR;
 	wid.type = WID_STR;
-	wid.val = pstrHostIfGetMacAddress->u8MacAddress;
+	wid.val = pstrHostIfGetMacAddress->mac_addr;
 	wid.size = ETH_ALEN;
 
 	result = send_config_pkt(GET_CFG, &wid, 1,
@@ -3377,7 +3377,7 @@ s32 host_int_get_MacAddress(struct host_if_drv *hif_drv, u8 *pu8MacAddress)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	msg.id = HOST_IF_MSG_GET_MAC_ADDRESS;
-	msg.body.get_mac_info.u8MacAddress = pu8MacAddress;
+	msg.body.get_mac_info.mac_addr = pu8MacAddress;
 	msg.drv = hif_drv;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
