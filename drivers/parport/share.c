@@ -738,11 +738,11 @@ parport_register_device(struct parport *port, const char *name,
 	parport_get_port (port);
 
 	tmp = kmalloc(sizeof(struct pardevice), GFP_KERNEL);
-	if (tmp == NULL)
+	if (!tmp)
 		goto out;
 
 	tmp->state = kmalloc(sizeof(struct parport_state), GFP_KERNEL);
-	if (tmp->state == NULL)
+	if (!tmp->state)
 		goto out_free_pardevice;
 
 	tmp->name = name;
@@ -971,7 +971,7 @@ void parport_unregister_device(struct pardevice *dev)
 	struct parport *port;
 
 #ifdef PARPORT_PARANOID
-	if (dev == NULL) {
+	if (!dev) {
 		printk(KERN_ERR "parport_unregister_device: passed NULL\n");
 		return;
 	}
@@ -1345,7 +1345,7 @@ void parport_release(struct pardevice *dev)
 	 * interested in being woken up. (Note: no locking required)
 	 */
 	/* !!! LOCKING IS NEEDED HERE */
-	for (pd = port->devices; (port->cad == NULL) && pd; pd = pd->next) {
+	for (pd = port->devices; !port->cad && pd; pd = pd->next) {
 		if (pd->wakeup && pd != dev)
 			pd->wakeup(pd->private);
 	}
