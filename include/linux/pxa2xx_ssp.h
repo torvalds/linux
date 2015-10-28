@@ -198,6 +198,7 @@ enum pxa_ssp_type {
 	LPSS_LPT_SSP, /* Keep LPSS types sorted with lpss_platforms[] */
 	LPSS_BYT_SSP,
 	LPSS_SPT_SSP,
+	LPSS_BXT_SSP,
 };
 
 struct ssp_device {

@@ -116,6 +116,16 @@ static const struct lpss_config lpss_platforms[] = {
 		.tx_threshold_lo = 32,
 		.tx_threshold_hi = 56,
 	},
+	{	/* LPSS_BXT_SSP */
+		.offset = 0x200,
+		.reg_general = -1,
+		.reg_ssp = 0x20,
+		.reg_cs_ctrl = 0x24,
+		.reg_capabilities = 0xfc,
+		.rx_threshold = 1,
+		.tx_threshold_lo = 16,
+		.tx_threshold_hi = 48,
+	},
 };
 
 static inline const struct lpss_config
@@ -130,6 +140,7 @@ static bool is_lpss_ssp(const struct driver_data *drv_data)
 	case LPSS_LPT_SSP:
 	case LPSS_BYT_SSP:
 	case LPSS_SPT_SSP:
+	case LPSS_BXT_SSP:
 		return true;
 	default:
 		return false;
@@ -1152,6 +1163,7 @@ static int setup(struct spi_device *spi)
 	case LPSS_LPT_SSP:
 	case LPSS_BYT_SSP:
 	case LPSS_SPT_SSP:
+	case LPSS_BXT_SSP:
 		config = lpss_get_config(drv_data);
 		tx_thres = config->tx_threshold_lo;
 		tx_hi_thres = config->tx_threshold_hi;
@@ -1313,6 +1325,14 @@ static const struct pci_device_id pxa2xx_spi_pci_compound_match[] = {
 	/* SPT-H */
 	{ PCI_VDEVICE(INTEL, 0xa129), LPSS_SPT_SSP },
 	{ PCI_VDEVICE(INTEL, 0xa12a), LPSS_SPT_SSP },
+	/* BXT */
+	{ PCI_VDEVICE(INTEL, 0x0ac2), LPSS_BXT_SSP },
+	{ PCI_VDEVICE(INTEL, 0x0ac4), LPSS_BXT_SSP },
+	{ PCI_VDEVICE(INTEL, 0x0ac6), LPSS_BXT_SSP },
+	/* APL */
+	{ PCI_VDEVICE(INTEL, 0x5ac2), LPSS_BXT_SSP },
+	{ PCI_VDEVICE(INTEL, 0x5ac4), LPSS_BXT_SSP },
+	{ PCI_VDEVICE(INTEL, 0x5ac6), LPSS_BXT_SSP },
 	{ },
 };
 
