@@ -8389,6 +8389,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 
 	netdev->hw_enc_features |= NETIF_F_IP_CSUM	 |
 				  NETIF_F_GSO_UDP_TUNNEL |
+				  NETIF_F_GSO_GRE	 |
 				  NETIF_F_TSO;
 
 	netdev->features = NETIF_F_SG		       |
@@ -8396,6 +8397,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 			   NETIF_F_SCTP_CSUM	       |
 			   NETIF_F_HIGHDMA	       |
 			   NETIF_F_GSO_UDP_TUNNEL      |
+			   NETIF_F_GSO_GRE	       |
 			   NETIF_F_HW_VLAN_CTAG_TX     |
 			   NETIF_F_HW_VLAN_CTAG_RX     |
 			   NETIF_F_HW_VLAN_CTAG_FILTER |

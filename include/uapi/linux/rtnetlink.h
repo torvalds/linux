@@ -160,7 +160,7 @@ struct rtattr {
 
 /* Macros to handle rtattributes */
 
-#define RTA_ALIGNTO	4
+#define RTA_ALIGNTO	4U
 #define RTA_ALIGN(len) ( ((len)+RTA_ALIGNTO-1) & ~(RTA_ALIGNTO-1) )
 #define RTA_OK(rta,len) ((len) >= (int)sizeof(struct rtattr) && \
 			 (rta)->rta_len >= sizeof(struct rtattr) && \

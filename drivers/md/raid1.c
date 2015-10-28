@@ -2195,7 +2195,7 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 		bio_trim(wbio, sector - r1_bio->sector, sectors);
 		wbio->bi_iter.bi_sector += rdev->data_offset;
 		wbio->bi_bdev = rdev->bdev;
-		if (submit_bio_wait(WRITE, wbio) == 0)
+		if (submit_bio_wait(WRITE, wbio) < 0)
 			/* failure! */
 			ok = rdev_set_badblocks(rdev, sector,
 						sectors, 0)
@@ -2258,15 +2258,16 @@ static void handle_write_finished(struct r1conf *conf, struct r1bio *r1_bio)
 			rdev_dec_pending(conf->mirrors[m].rdev,
 					 conf->mddev);
 		}
-	if (test_bit(R1BIO_WriteError, &r1_bio->state))
-		close_write(r1_bio);
 	if (fail) {
 		spin_lock_irq(&conf->device_lock);
 		list_add(&r1_bio->retry_list, &conf->bio_end_io_list);
 		spin_unlock_irq(&conf->device_lock);
 		md_wakeup_thread(conf->mddev->thread);
-	} else
+	} else {
+		if (test_bit(R1BIO_WriteError, &r1_bio->state))
+			close_write(r1_bio);
 		raid_end_bio_io(r1_bio);
+	}
 }
 
 static void handle_read_error(struct r1conf *conf, struct r1bio *r1_bio)
@@ -2385,6 +2386,10 @@ static void raid1d(struct md_thread *thread)
 			r1_bio = list_first_entry(&tmp, struct r1bio,
 						  retry_list);
 			list_del(&r1_bio->retry_list);
+			if (mddev->degraded)
+				set_bit(R1BIO_Degraded, &r1_bio->state);
+			if (test_bit(R1BIO_WriteError, &r1_bio->state))
+				close_write(r1_bio);
 			raid_end_bio_io(r1_bio);
 		}
 	}

@@ -614,6 +614,7 @@ load_common:
 		case BPF_LD | BPF_B | BPF_IND:
 			load_order = 0;
 load_ind:
+			update_on_xread(ctx);
 			OP_IMM3(ARM_ADD, r_off, r_X, k, ctx);
 			goto load_common;
 		case BPF_LDX | BPF_IMM:

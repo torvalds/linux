@@ -414,6 +414,11 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x095A, 0x5590, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x5290, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5490, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5F10, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5212, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x520A, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9000, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9400, iwl7265_2ac_cfg)},
 
 /* 8000 Series */
 	{IWL_PCI_DEVICE(0x24F3, 0x0010, iwl8260_2ac_cfg)},

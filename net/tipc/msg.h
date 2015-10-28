@@ -357,7 +357,7 @@ static inline u32 msg_importance(struct tipc_msg *m)
 	if (likely((usr <= TIPC_CRITICAL_IMPORTANCE) && !msg_errcode(m)))
 		return usr;
 	if ((usr == MSG_FRAGMENTER) || (usr == MSG_BUNDLER))
-		return msg_bits(m, 5, 13, 0x7);
+		return msg_bits(m, 9, 0, 0x7);
 	return TIPC_SYSTEM_IMPORTANCE;
 }
 
@@ -366,7 +366,7 @@ static inline void msg_set_importance(struct tipc_msg *m, u32 i)
 	int usr = msg_user(m);
 
 	if (likely((usr == MSG_FRAGMENTER) || (usr == MSG_BUNDLER)))
-		msg_set_bits(m, 5, 13, 0x7, i);
+		msg_set_bits(m, 9, 0, 0x7, i);
 	else if (i < TIPC_SYSTEM_IMPORTANCE)
 		msg_set_user(m, i);
 	else

@@ -1043,6 +1043,9 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
+	if (!rtas.entry)
+		return -EINVAL;
+
 	if (copy_from_user(&args, uargs, 3 * sizeof(u32)) != 0)
 		return -EFAULT;
 
