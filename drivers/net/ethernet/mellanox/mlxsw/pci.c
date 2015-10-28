@@ -1662,8 +1662,9 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 							   CIR_OUT_PARAM_LO));
 			memcpy(out_mbox + sizeof(tmp), &tmp, sizeof(tmp));
 		}
-	} else if (!err && out_mbox)
+	} else if (!err && out_mbox) {
 		memcpy(out_mbox, mlxsw_pci->cmd.out_mbox.buf, out_mbox_size);
+	}
 
 	mutex_unlock(&mlxsw_pci->cmd.lock);
 
