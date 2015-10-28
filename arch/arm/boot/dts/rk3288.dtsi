@@ -830,6 +830,12 @@
 				reg = <0>;
 				remote-endpoint = <&hdmi_in_vopb>;
 			};
+
+			vopb_out_edp: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&edp_in_vopb>;
+			};
+
 			vopb_out_mipi: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&mipi_in_vopb>;
@@ -867,6 +873,12 @@
 				reg = <0>;
 				remote-endpoint = <&hdmi_in_vopl>;
 			};
+
+			vopl_out_edp: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&edp_in_vopl>;
+			};
+
 			vopl_out_mipi: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&mipi_in_vopl>;
@@ -907,6 +919,38 @@
 				mipi_in_vopl: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vopl_out_mipi>;
+				};
+			};
+		};
+	};
+
+	edp: dp@ff970000 {
+		compatible = "rockchip,rk3288-dp";
+		reg = <0xff970000 0x4000>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_EDP>, <&cru PCLK_EDP_CTRL>;
+		clock-names = "dp", "pclk";
+		phys = <&edp_phy>;
+		phy-names = "dp";
+		resets = <&cru SRST_EDP>;
+		reset-names = "dp";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			edp_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				edp_in_vopb: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vopb_out_edp>;
+				};
+				edp_in_vopl: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_edp>;
 				};
 			};
 		};
