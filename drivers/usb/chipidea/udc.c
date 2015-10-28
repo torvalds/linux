@@ -349,14 +349,13 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 	if (node == NULL)
 		return -ENOMEM;
 
-	node->ptr = dma_pool_alloc(hwep->td_pool, GFP_ATOMIC,
+	node->ptr = dma_pool_zalloc(hwep->td_pool, GFP_ATOMIC,
 				   &node->dma);
 	if (node->ptr == NULL) {
 		kfree(node);
 		return -ENOMEM;
 	}
 
-	memset(node->ptr, 0, sizeof(struct ci_hw_td));
 	node->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
 	node->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
 	node->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);

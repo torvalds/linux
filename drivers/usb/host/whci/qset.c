@@ -30,10 +30,9 @@ struct whc_qset *qset_alloc(struct whc *whc, gfp_t mem_flags)
 	struct whc_qset *qset;
 	dma_addr_t dma;
 
-	qset = dma_pool_alloc(whc->qset_pool, mem_flags, &dma);
+	qset = dma_pool_zalloc(whc->qset_pool, mem_flags, &dma);
 	if (qset == NULL)
 		return NULL;
-	memset(qset, 0, sizeof(struct whc_qset));
 
 	qset->qset_dma = dma;
 	qset->whc = whc;
