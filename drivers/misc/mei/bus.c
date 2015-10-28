@@ -742,6 +742,19 @@ static struct device_type mei_cl_device_type = {
 };
 
 /**
+ * mei_cl_bus_set_name - set device name for me client device
+ *
+ * @cldev: me client device
+ */
+static inline void mei_cl_bus_set_name(struct mei_cl_device *cldev)
+{
+	dev_set_name(&cldev->dev, "mei:%s:%pUl:%02X",
+		     cldev->name,
+		     mei_me_cl_uuid(cldev->me_cl),
+		     mei_me_cl_ver(cldev->me_cl));
+}
+
+/**
  * mei_cl_bus_dev_alloc - initialize and allocate mei client device
  *
  * @bus: mei device
@@ -764,6 +777,7 @@ static struct mei_cl_device *mei_cl_bus_dev_alloc(struct mei_device *bus,
 	cldev->dev.type   = &mei_cl_device_type;
 	cldev->bus        = mei_dev_bus_get(bus);
 	cldev->me_cl      = mei_me_cl_get(me_cl);
+	mei_cl_bus_set_name(cldev);
 	cldev->is_added   = 0;
 	INIT_LIST_HEAD(&cldev->bus_list);
 
@@ -785,11 +799,9 @@ static bool mei_cl_bus_dev_setup(struct mei_device *bus,
 	cldev->do_match = 1;
 	mei_cl_bus_dev_fixup(cldev);
 
+	/* the device name can change during fix up */
 	if (cldev->do_match)
-		dev_set_name(&cldev->dev, "mei:%s:%pUl:%02X",
-			     cldev->name,
-			     mei_me_cl_uuid(cldev->me_cl),
-			     mei_me_cl_ver(cldev->me_cl));
+		mei_cl_bus_set_name(cldev);
 
 	return cldev->do_match == 1;
 }
