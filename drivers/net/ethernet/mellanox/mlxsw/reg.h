@@ -397,10 +397,9 @@ static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_uc_system_port_set(payload, rec_index, local_port);
 }
 
-static inline void
-mlxsw_reg_sfd_uc_unpack(char *payload, int rec_index,
-			char *mac, u16 *p_vid,
-			u8 *p_local_port)
+static inline void mlxsw_reg_sfd_uc_unpack(char *payload, int rec_index,
+					   char *mac, u16 *p_vid,
+					   u8 *p_local_port)
 {
 	mlxsw_reg_sfd_rec_mac_memcpy_from(payload, rec_index, mac);
 	*p_vid = mlxsw_reg_sfd_uc_fid_vid_get(payload, rec_index);
