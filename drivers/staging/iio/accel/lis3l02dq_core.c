@@ -406,8 +406,10 @@ static int lis3l02dq_initial_setup(struct iio_dev *indio_dev)
 		goto err_ret;
 	}
 
-	/* Read back to check this has worked acts as loose test of correct
-	 * chip */
+	/*
+	 * Read back to check this has worked acts as loose test of correct
+	 * chip
+	 */
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       &valtest);
