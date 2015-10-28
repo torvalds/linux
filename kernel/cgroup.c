@@ -2671,7 +2671,7 @@ int subsys_cgroup_allow_attach(struct cgroup_subsys_state *css, struct cgroup_ta
 	if (capable(CAP_SYS_NICE))
 		return 0;
 
-	cgroup_taskset_for_each(task, css, tset) {
+	cgroup_taskset_for_each(task, tset) {
 		tcred = __task_cred(task);
 
 		if (current != task && !uid_eq(cred->euid, tcred->uid) &&
