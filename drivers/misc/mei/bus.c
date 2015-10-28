@@ -830,17 +830,20 @@ static void mei_cl_bus_dev_stop(struct mei_cl_device *cldev)
  * mei_cl_bus_dev_destroy - destroy me client devices object
  *
  * @cldev: me client device
+ *
+ * Locking: called under "dev->cl_bus_lock" lock
  */
 static void mei_cl_bus_dev_destroy(struct mei_cl_device *cldev)
 {
+
+	WARN_ON(!mutex_is_locked(&cldev->bus->cl_bus_lock));
+
 	if (!cldev->is_added)
 		return;
 
 	device_del(&cldev->dev);
 
-	mutex_lock(&cldev->bus->cl_bus_lock);
 	list_del_init(&cldev->bus_list);
-	mutex_unlock(&cldev->bus->cl_bus_lock);
 
 	cldev->is_added = 0;
 	put_device(&cldev->dev);
@@ -866,8 +869,10 @@ void mei_cl_bus_remove_devices(struct mei_device *bus)
 {
 	struct mei_cl_device *cldev, *next;
 
+	mutex_lock(&bus->cl_bus_lock);
 	list_for_each_entry_safe(cldev, next, &bus->device_list, bus_list)
 		mei_cl_bus_remove_device(cldev);
+	mutex_unlock(&bus->cl_bus_lock);
 }
 
 
@@ -877,11 +882,15 @@ void mei_cl_bus_remove_devices(struct mei_device *bus)
  *
  * @bus: mei device
  * @me_cl: me client
+ *
+ * Locking: called under "dev->cl_bus_lock" lock
  */
 static void mei_cl_bus_dev_init(struct mei_device *bus,
 				struct mei_me_client *me_cl)
 {
 	struct mei_cl_device *cldev;
+
+	WARN_ON(!mutex_is_locked(&bus->cl_bus_lock));
 
 	dev_dbg(bus->dev, "initializing %pUl", mei_me_cl_uuid(me_cl));
 
@@ -892,10 +901,8 @@ static void mei_cl_bus_dev_init(struct mei_device *bus,
 	if (!cldev)
 		return;
 
-	mutex_lock(&cldev->bus->cl_bus_lock);
 	me_cl->bus_added = true;
 	list_add_tail(&cldev->bus_list, &bus->device_list);
-	mutex_unlock(&cldev->bus->cl_bus_lock);
 
 }
 
@@ -910,12 +917,13 @@ void mei_cl_bus_rescan(struct mei_device *bus)
 	struct mei_cl_device *cldev, *n;
 	struct mei_me_client *me_cl;
 
+	mutex_lock(&bus->cl_bus_lock);
+
 	down_read(&bus->me_clients_rwsem);
 	list_for_each_entry(me_cl, &bus->me_clients, list)
 		mei_cl_bus_dev_init(bus, me_cl);
 	up_read(&bus->me_clients_rwsem);
 
-	mutex_lock(&bus->cl_bus_lock);
 	list_for_each_entry_safe(cldev, n, &bus->device_list, bus_list) {
 
 		if (!mei_me_cl_is_active(cldev->me_cl)) {
