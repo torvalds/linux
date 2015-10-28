@@ -94,10 +94,10 @@ struct es2_cport_out {
  *			corresponding @cport_out_urb is being cancelled
  * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
  *
- * @apb1_log_task: task pointer for logging thread
- * @apb1_log_dentry: file system entry for the log file interface
- * @apb1_log_enable_dentry: file system entry for enabling logging
- * @apb1_log_fifo: kernel FIFO to carry logged data
+ * @apb_log_task: task pointer for logging thread
+ * @apb_log_dentry: file system entry for the log file interface
+ * @apb_log_enable_dentry: file system entry for enabling logging
+ * @apb_log_fifo: kernel FIFO to carry logged data
  */
 struct es2_ap_dev {
 	struct usb_device *usb_dev;
@@ -113,10 +113,10 @@ struct es2_ap_dev {
 
 	int *cport_to_ep;
 
-	struct task_struct *apb1_log_task;
-	struct dentry *apb1_log_dentry;
-	struct dentry *apb1_log_enable_dentry;
-	DECLARE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
+	struct task_struct *apb_log_task;
+	struct dentry *apb_log_dentry;
+	struct dentry *apb_log_enable_dentry;
+	DECLARE_KFIFO(apb_log_fifo, char, APB1_LOG_SIZE);
 };
 
 /**
@@ -617,7 +617,7 @@ static void cport_out_callback(struct urb *urb)
 }
 
 #define APB1_LOG_MSG_SIZE	64
-static void apb1_log_get(struct es2_ap_dev *es2, char *buf)
+static void apb_log_get(struct es2_ap_dev *es2, char *buf)
 {
 	int retval;
 
@@ -632,11 +632,11 @@ static void apb1_log_get(struct es2_ap_dev *es2, char *buf)
 					APB1_LOG_MSG_SIZE,
 					ES2_TIMEOUT);
 		if (retval > 0)
-			kfifo_in(&es2->apb1_log_fifo, buf, retval);
+			kfifo_in(&es2->apb_log_fifo, buf, retval);
 	} while (retval > 0);
 }
 
-static int apb1_log_poll(void *data)
+static int apb_log_poll(void *data)
 {
 	struct es2_ap_dev *es2 = data;
 	char *buf;
@@ -647,7 +647,7 @@ static int apb1_log_poll(void *data)
 
 	while (!kthread_should_stop()) {
 		msleep(1000);
-		apb1_log_get(es2, buf);
+		apb_log_get(es2, buf);
 	}
 
 	kfree(buf);
@@ -655,7 +655,7 @@ static int apb1_log_poll(void *data)
 	return 0;
 }
 
-static ssize_t apb1_log_read(struct file *f, char __user *buf,
+static ssize_t apb_log_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	struct es2_ap_dev *es2 = f->f_inode->i_private;
@@ -670,7 +670,7 @@ static ssize_t apb1_log_read(struct file *f, char __user *buf,
 	if (!tmp_buf)
 		return -ENOMEM;
 
-	copied = kfifo_out(&es2->apb1_log_fifo, tmp_buf, count);
+	copied = kfifo_out(&es2->apb_log_fifo, tmp_buf, count);
 	ret = simple_read_from_buffer(buf, count, ppos, tmp_buf, copied);
 
 	kfree(tmp_buf);
@@ -678,48 +678,49 @@ static ssize_t apb1_log_read(struct file *f, char __user *buf,
 	return ret;
 }
 
-static const struct file_operations apb1_log_fops = {
-	.read	= apb1_log_read,
+static const struct file_operations apb_log_fops = {
+	.read	= apb_log_read,
 };
 
 static void usb_log_enable(struct es2_ap_dev *es2)
 {
-	if (!IS_ERR_OR_NULL(es2->apb1_log_task))
+	if (!IS_ERR_OR_NULL(es2->apb_log_task))
 		return;
 
 	/* get log from APB1 */
-	es2->apb1_log_task = kthread_run(apb1_log_poll, es2, "apb1_log");
-	if (IS_ERR(es2->apb1_log_task))
+	es2->apb_log_task = kthread_run(apb_log_poll, es2, "apb_log");
+	if (IS_ERR(es2->apb_log_task))
 		return;
-	es2->apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
+	/* XXX We will need to rename this per APB */
+	es2->apb_log_dentry = debugfs_create_file("apb_log", S_IRUGO,
 						gb_debugfs_get(), NULL,
-						&apb1_log_fops);
+						&apb_log_fops);
 }
 
 static void usb_log_disable(struct es2_ap_dev *es2)
 {
-	if (IS_ERR_OR_NULL(es2->apb1_log_task))
+	if (IS_ERR_OR_NULL(es2->apb_log_task))
 		return;
 
-	debugfs_remove(es2->apb1_log_dentry);
-	es2->apb1_log_dentry = NULL;
+	debugfs_remove(es2->apb_log_dentry);
+	es2->apb_log_dentry = NULL;
 
-	kthread_stop(es2->apb1_log_task);
-	es2->apb1_log_task = NULL;
+	kthread_stop(es2->apb_log_task);
+	es2->apb_log_task = NULL;
 }
 
-static ssize_t apb1_log_enable_read(struct file *f, char __user *buf,
+static ssize_t apb_log_enable_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	struct es2_ap_dev *es2 = f->f_inode->i_private;
-	int enable = !IS_ERR_OR_NULL(es2->apb1_log_task);
+	int enable = !IS_ERR_OR_NULL(es2->apb_log_task);
 	char tmp_buf[3];
 
 	sprintf(tmp_buf, "%d\n", enable);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 3);
 }
 
-static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
+static ssize_t apb_log_enable_write(struct file *f, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	int enable;
@@ -738,12 +739,12 @@ static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations apb1_log_enable_fops = {
-	.read	= apb1_log_enable_read,
-	.write	= apb1_log_enable_write,
+static const struct file_operations apb_log_enable_fops = {
+	.read	= apb_log_enable_read,
+	.write	= apb_log_enable_write,
 };
 
-static int apb1_get_cport_count(struct usb_device *udev)
+static int apb_get_cport_count(struct usb_device *udev)
 {
 	int retval;
 	__le16 *cport_count;
@@ -799,7 +800,7 @@ static int ap_probe(struct usb_interface *interface,
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
-	num_cports = apb1_get_cport_count(udev);
+	num_cports = apb_get_cport_count(udev);
 	if (num_cports < 0) {
 		usb_put_dev(udev);
 		dev_err(&udev->dev, "Cannot retrieve CPort count: %d\n",
@@ -819,7 +820,7 @@ static int ap_probe(struct usb_interface *interface,
 	es2->usb_intf = interface;
 	es2->usb_dev = udev;
 	spin_lock_init(&es2->cport_out_urb_lock);
-	INIT_KFIFO(es2->apb1_log_fifo);
+	INIT_KFIFO(es2->apb_log_fifo);
 	usb_set_intfdata(interface, es2);
 
 	es2->cport_to_ep = kcalloc(hd->num_cports, sizeof(*es2->cport_to_ep),
@@ -892,10 +893,11 @@ static int ap_probe(struct usb_interface *interface,
 		es2->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
 
-	es2->apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
+	/* XXX We will need to rename this per APB */
+	es2->apb_log_enable_dentry = debugfs_create_file("apb_log_enable",
 							(S_IWUSR | S_IRUGO),
 							gb_debugfs_get(), es2,
-							&apb1_log_enable_fops);
+							&apb_log_enable_fops);
 	return 0;
 error:
 	ap_disconnect(interface);
