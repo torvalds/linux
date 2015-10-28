@@ -1067,8 +1067,6 @@ static int i915_pm_resume(struct device *dev)
 
 static int skl_suspend_complete(struct drm_i915_private *dev_priv)
 {
-	/* Enabling DC6 is not a hard requirement to enter runtime D3 */
-
 	skl_uninit_cdclk(dev_priv);
 
 	if (dev_priv->csr.dmc_payload)

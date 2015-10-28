@@ -446,5 +446,7 @@ void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
+	flush_work(&dev_priv->csr.work);
+
 	kfree(dev_priv->csr.dmc_payload);
 }
