@@ -86,6 +86,7 @@ struct mlxsw_sp_port {
 	u8 stp_state;
 	u8 learning:1,
 	   learning_sync:1,
+	   uc_flood:1,
 	   bridged:1;
 	u16 pvid;
 	/* 802.1Q bridge VLANs */

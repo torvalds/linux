@@ -1227,6 +1227,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port->local_port = local_port;
 	mlxsw_sp_port->learning = 1;
 	mlxsw_sp_port->learning_sync = 1;
+	mlxsw_sp_port->uc_flood = 1;
 	mlxsw_sp_port->pvid = 1;
 
 	mlxsw_sp_port->pcpu_stats =

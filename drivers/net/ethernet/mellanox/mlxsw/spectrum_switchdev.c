@@ -66,7 +66,8 @@ static int mlxsw_sp_port_attr_get(struct net_device *dev,
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		attr->u.brport_flags =
 			(mlxsw_sp_port->learning ? BR_LEARNING : 0) |
-			(mlxsw_sp_port->learning_sync ? BR_LEARNING_SYNC : 0);
+			(mlxsw_sp_port->learning_sync ? BR_LEARNING_SYNC : 0) |
+			(mlxsw_sp_port->uc_flood ? BR_FLOOD : 0);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -123,15 +124,89 @@ static int mlxsw_sp_port_attr_stp_state_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_sp_port_stp_state_set(mlxsw_sp_port, state);
 }
 
+static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				     u16 fid_begin, u16 fid_end, bool set,
+				     bool only_uc)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u16 range = fid_end - fid_begin + 1;
+	char *sftr_pl;
+	int err;
+
+	sftr_pl = kmalloc(MLXSW_REG_SFTR_LEN, GFP_KERNEL);
+	if (!sftr_pl)
+		return -ENOMEM;
+
+	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_UC, fid_begin,
+			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, range,
+			    mlxsw_sp_port->local_port, set);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
+	if (err)
+		goto buffer_out;
+
+	/* Flooding control allows one to decide whether a given port will
+	 * flood unicast traffic for which there is no FDB entry.
+	 */
+	if (only_uc)
+		goto buffer_out;
+
+	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, fid_begin,
+			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, range,
+			    mlxsw_sp_port->local_port, set);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
+
+buffer_out:
+	kfree(sftr_pl);
+	return err;
+}
+
+static int mlxsw_sp_port_uc_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				      bool set)
+{
+	struct net_device *dev = mlxsw_sp_port->dev;
+	u16 vid, last_visited_vid;
+	int err;
+
+	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, VLAN_N_VID) {
+		err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, vid, vid, set,
+						true);
+		if (err) {
+			last_visited_vid = vid;
+			goto err_port_flood_set;
+		}
+	}
+
+	return 0;
+
+err_port_flood_set:
+	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, last_visited_vid)
+		__mlxsw_sp_port_flood_set(mlxsw_sp_port, vid, vid, !set, true);
+	netdev_err(dev, "Failed to configure unicast flooding\n");
+	return err;
+}
+
 static int mlxsw_sp_port_attr_br_flags_set(struct mlxsw_sp_port *mlxsw_sp_port,
 					   struct switchdev_trans *trans,
 					   unsigned long brport_flags)
 {
+	unsigned long uc_flood = mlxsw_sp_port->uc_flood ? BR_FLOOD : 0;
+	bool set;
+	int err;
+
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
+	if ((uc_flood ^ brport_flags) & BR_FLOOD) {
+		set = mlxsw_sp_port->uc_flood ? false : true;
+		err = mlxsw_sp_port_uc_flood_set(mlxsw_sp_port, set);
+		if (err)
+			return err;
+	}
+
+	mlxsw_sp_port->uc_flood = brport_flags & BR_FLOOD ? 1 : 0;
 	mlxsw_sp_port->learning = brport_flags & BR_LEARNING ? 1 : 0;
 	mlxsw_sp_port->learning_sync = brport_flags & BR_LEARNING_SYNC ? 1 : 0;
+
 	return 0;
 }
 
@@ -245,42 +320,6 @@ static int mlxsw_sp_port_fid_unmap(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid)
 
 	mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
 	return mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_port, mt, false, fid, fid);
-}
-
-static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				     u16 fid_begin, u16 fid_end, bool set,
-				     bool only_uc)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u16 range = fid_end - fid_begin + 1;
-	char *sftr_pl;
-	int err;
-
-	sftr_pl = kmalloc(MLXSW_REG_SFTR_LEN, GFP_KERNEL);
-	if (!sftr_pl)
-		return -ENOMEM;
-
-	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_UC, fid_begin,
-			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, range,
-			    mlxsw_sp_port->local_port, set);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
-	if (err)
-		goto buffer_out;
-
-	/* Flooding control allows one to decide whether a given port will
-	 * flood unicast traffic for which there is no FDB entry.
-	 */
-	if (only_uc)
-		goto buffer_out;
-
-	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, fid_begin,
-			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, range,
-			    mlxsw_sp_port->local_port, set);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
-
-buffer_out:
-	kfree(sftr_pl);
-	return err;
 }
 
 static int mlxsw_sp_port_add_vids(struct net_device *dev, u16 vid_begin,
