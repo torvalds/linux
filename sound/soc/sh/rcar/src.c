@@ -621,7 +621,7 @@ static int rsnd_src_quit_gen2(struct rsnd_mod *mod,
 	/* stop both out/in */
 	rsnd_mod_write(mod, SRC_CTRL, 0);
 
-	return 0;
+	return rsnd_src_quit(mod, io, priv);
 }
 
 static void __rsnd_src_interrupt_gen2(struct rsnd_mod *mod,
