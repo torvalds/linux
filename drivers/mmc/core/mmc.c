@@ -1040,6 +1040,19 @@ static int mmc_select_hs_ddr(struct mmc_card *card)
 	return err;
 }
 
+/* Caller must hold re-tuning */
+static int mmc_switch_status(struct mmc_card *card)
+{
+	u32 status;
+	int err;
+
+	err = mmc_send_status(card, &status);
+	if (err)
+		return err;
+
+	return mmc_switch_status_error(card->host, status);
+}
+
 static int mmc_select_hs400(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
@@ -1105,19 +1118,6 @@ static int mmc_select_hs400(struct mmc_card *card)
 int mmc_hs200_to_hs400(struct mmc_card *card)
 {
 	return mmc_select_hs400(card);
-}
-
-/* Caller must hold re-tuning */
-static int mmc_switch_status(struct mmc_card *card)
-{
-	u32 status;
-	int err;
-
-	err = mmc_send_status(card, &status);
-	if (err)
-		return err;
-
-	return mmc_switch_status_error(card->host, status);
 }
 
 int mmc_hs400_to_hs200(struct mmc_card *card)
