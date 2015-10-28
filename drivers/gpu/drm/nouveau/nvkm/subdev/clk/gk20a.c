@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2014-2016, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,7 +28,8 @@
 #include <core/tegra.h>
 #include <subdev/timer.h>
 
-#define MHZ (1000 * 1000)
+#define KHZ (1000)
+#define MHZ (KHZ * 1000)
 
 #define MASK(w)	((1 << w) - 1)
 
@@ -97,7 +98,7 @@ static const u8 pl_to_div[] = {
 /* p: */ 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 12, 16, 20, 24, 32,
 };
 
-/* All frequencies in Mhz */
+/* All frequencies in Khz */
 struct gk20a_clk_pllg_params {
 	u32 min_vco, max_vco;
 	u32 min_u, max_u;
@@ -107,8 +108,8 @@ struct gk20a_clk_pllg_params {
 };
 
 static const struct gk20a_clk_pllg_params gk20a_pllg_params = {
-	.min_vco = 1000, .max_vco = 2064,
-	.min_u = 12, .max_u = 38,
+	.min_vco = 1000000, .max_vco = 2064000,
+	.min_u = 12000, .max_u = 38000,
 	.min_m = 1, .max_m = 255,
 	.min_n = 8, .max_n = 255,
 	.min_pl = 1, .max_pl = 32,
@@ -159,8 +160,8 @@ gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
 	u32 delta, lwv, best_delta = ~0;
 	u32 pl;
 
-	target_clk_f = rate * 2 / MHZ;
-	ref_clk_f = clk->parent_rate / MHZ;
+	target_clk_f = rate * 2 / KHZ;
+	ref_clk_f = clk->parent_rate / KHZ;
 
 	max_vco_f = clk->params->max_vco;
 	min_vco_f = clk->params->min_vco;
@@ -249,17 +250,18 @@ found_match:
 	if (best_delta != 0)
 		nvkm_debug(subdev,
 			   "no best match for target @ %dMHz on gpc_pll",
-			   target_clk_f);
+			   target_clk_f / KHZ);
 
 	clk->m = best_m;
 	clk->n = best_n;
 	clk->pl = best_pl;
 
-	target_freq = gk20a_pllg_calc_rate(clk) / MHZ;
+	target_freq = gk20a_pllg_calc_rate(clk);
 
 	nvkm_debug(subdev,
 		   "actual target freq %d MHz, M %d, N %d, PL %d(div%d)\n",
-		   target_freq, clk->m, clk->n, clk->pl, pl_to_div[clk->pl]);
+		   target_freq / MHZ, clk->m, clk->n, clk->pl,
+		   pl_to_div[clk->pl]);
 	return 0;
 }
 
@@ -360,7 +362,7 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 
 	/* slide down to NDIV_LO */
 	n_lo = DIV_ROUND_UP(m_old * clk->params->min_vco,
-			    clk->parent_rate / MHZ);
+			    clk->parent_rate / KHZ);
 	if (allow_slide && (cfg & GPCPLL_CFG_ENABLE)) {
 		int ret = gk20a_pllg_slide(clk, n_lo);
 
@@ -393,7 +395,7 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 		   clk->m, clk->n, clk->pl);
 
 	n_lo = DIV_ROUND_UP(clk->m * clk->params->min_vco,
-			    clk->parent_rate / MHZ);
+			    clk->parent_rate / KHZ);
 	val = clk->m << GPCPLL_COEFF_M_SHIFT;
 	val |= (allow_slide ? n_lo : clk->n) << GPCPLL_COEFF_N_SHIFT;
 	val |= clk->pl << GPCPLL_COEFF_P_SHIFT;
@@ -452,7 +454,7 @@ gk20a_pllg_disable(struct gk20a_clk *clk)
 		coeff = nvkm_rd32(device, GPCPLL_COEFF);
 		m = (coeff >> GPCPLL_COEFF_M_SHIFT) & MASK(GPCPLL_COEFF_M_WIDTH);
 		n_lo = DIV_ROUND_UP(m * clk->params->min_vco,
-				    clk->parent_rate / MHZ);
+				    clk->parent_rate / KHZ);
 		gk20a_pllg_slide(clk, n_lo);
 	}
 
@@ -663,7 +665,7 @@ gk20a_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 	clk->parent_rate = clk_get_rate(tdev->clk);
 
 	ret = nvkm_clk_ctor(&gk20a_clk, device, index, true, &clk->base);
-	nvkm_info(&clk->base.subdev, "parent clock rate: %d Mhz\n",
-		  clk->parent_rate / MHZ);
+	nvkm_info(&clk->base.subdev, "parent clock rate: %d Khz\n",
+		  clk->parent_rate / KHZ);
 	return ret;
 }
