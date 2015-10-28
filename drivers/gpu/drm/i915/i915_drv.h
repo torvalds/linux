@@ -739,6 +739,7 @@ struct intel_uncore {
 #define CSR_VERSION_MINOR(version)	((version) & 0xffff)
 
 struct intel_csr {
+	struct work_struct work;
 	const char *fw_path;
 	uint32_t *dmc_payload;
 	uint32_t dmc_fw_size;
