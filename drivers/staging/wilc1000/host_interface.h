@@ -869,40 +869,6 @@ s32 hif_get_cfg(struct host_if_drv *hWFIDrv, u16 u16WID, u16 *pu16WID_Value);
 /*							Notification Functions							 */
 /*****************************************************************************/
 /**
- *  @brief              notifies host with join and leave requests
- *  @details    This function prepares an Information frame having the
- *                              information about a joining/leaving station.
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]	6 byte Sta Adress
- *                              Join or leave flag:
- *                              Join = 1,
- *                              Leave =0
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-void host_int_send_join_leave_info_to_host
-	(u16 assocId, u8 *stationAddr, bool joining);
-
-/**
- *  @brief              notifies host with stations found in scan
- *  @details    sends the beacon/probe response from scan
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]	Sta Address,
- *                              Frame length,
- *                              Rssi of the Station found
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-void host_int_send_network_info_to_host
-	(u8 *macStartAddress, u16 u16RxFrameLen, s8 s8Rssi);
-
-/**
  *  @brief              host interface initialization function
  *  @details
  *  @param[in,out] handle to the wifi driver,

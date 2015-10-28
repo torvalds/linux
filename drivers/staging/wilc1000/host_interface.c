@@ -4037,11 +4037,6 @@ s32 hif_get_cfg(struct host_if_drv *hif_drv, u16 u16WID, u16 *pu16WID_Value)
 	return result;
 }
 
-void host_int_send_join_leave_info_to_host
-	(u16 assocId, u8 *stationAddr, bool joining)
-{
-}
-
 static void GetPeriodicRSSI(unsigned long arg)
 {
 	struct host_if_drv *hif_drv = (struct host_if_drv *)arg;
@@ -4068,12 +4063,6 @@ static void GetPeriodicRSSI(unsigned long arg)
 	}
 	periodic_rssi.data = (unsigned long)hif_drv;
 	mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
-}
-
-
-void host_int_send_network_info_to_host
-	(u8 *macStartAddress, u16 u16RxFrameLen, s8 s8Rssi)
-{
 }
 
 s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
