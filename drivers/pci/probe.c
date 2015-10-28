@@ -6,6 +6,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/of_device.h>
 #include <linux/of_pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/slab.h>
@@ -1633,6 +1634,25 @@ static void pci_set_msi_domain(struct pci_dev *dev)
 				   dev_get_msi_domain(&dev->bus->dev));
 }
 
+/**
+ * pci_dma_configure - Setup DMA configuration
+ * @dev: ptr to pci_dev struct of the PCI device
+ *
+ * Function to update PCI devices's DMA configuration using the same
+ * info from the OF node of host bridge's parent (if any).
+ */
+static void pci_dma_configure(struct pci_dev *dev)
+{
+	struct device *bridge = pci_get_host_bridge_device(dev);
+
+	if (IS_ENABLED(CONFIG_OF) && dev->dev.of_node) {
+		if (bridge->parent)
+			of_dma_configure(&dev->dev, bridge->parent->of_node);
+	}
+
+	pci_put_host_bridge_device(bridge);
+}
+
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 {
 	int ret;
@@ -1646,7 +1666,7 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	dev->dev.dma_mask = &dev->dma_mask;
 	dev->dev.dma_parms = &dev->dma_parms;
 	dev->dev.coherent_dma_mask = 0xffffffffull;
-	of_pci_dma_configure(dev);
+	pci_dma_configure(dev);
 
 	pci_set_dma_max_seg_size(dev, 65536);
 	pci_set_dma_seg_boundary(dev, 0xffffffff);
