@@ -537,9 +537,8 @@ void parport_announce_port (struct parport *port)
 #endif
 
 	if (!port->dev)
-		printk(KERN_WARNING "%s: fix this legacy "
-				"no-device port driver!\n",
-				port->name);
+		printk(KERN_WARNING "%s: fix this legacy no-device port driver!\n",
+		       port->name);
 
 	parport_proc_register(port);
 	mutex_lock(&registration_lock);
@@ -778,8 +777,8 @@ parport_register_device(struct parport *port, const char *name,
 		if (port->physport->devices) {
 			spin_unlock (&port->physport->pardevice_lock);
 			printk (KERN_DEBUG
-				"%s: cannot grant exclusive access for "
-				"device %s\n", port->name, name);
+				"%s: cannot grant exclusive access for device %s\n",
+				port->name, name);
 			goto out_free_all;
 		}
 		port->flags |= PARPORT_FLAG_EXCL;
@@ -1276,9 +1275,8 @@ int parport_claim_or_block(struct pardevice *dev)
 
 #ifdef PARPORT_DEBUG_SHARING
 		if (dev->port->physport->cad != dev)
-			printk(KERN_DEBUG "%s: exiting parport_claim_or_block "
-			       "but %s owns port!\n", dev->name,
-			       dev->port->physport->cad ?
+			printk(KERN_DEBUG "%s: exiting parport_claim_or_block but %s owns port!\n",
+			       dev->name, dev->port->physport->cad ?
 			       dev->port->physport->cad->name:"nobody");
 #endif
 	}
@@ -1306,8 +1304,8 @@ void parport_release(struct pardevice *dev)
 	write_lock_irqsave(&port->cad_lock, flags);
 	if (port->cad != dev) {
 		write_unlock_irqrestore (&port->cad_lock, flags);
-		printk(KERN_WARNING "%s: %s tried to release parport "
-		       "when not owner\n", port->name, dev->name);
+		printk(KERN_WARNING "%s: %s tried to release parport when not owner\n",
+		       port->name, dev->name);
 		return;
 	}
 
