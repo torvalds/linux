@@ -1,6 +1,6 @@
 /*
  * Parallel-port resource manager code.
- * 
+ *
  * Authors: David Campbell <campbell@tirian.che.curtin.edu.au>
  *          Tim Waugh <tim@cyberelk.demon.co.uk>
  *          Jose Renau <renau@acm.org>
@@ -93,7 +93,7 @@ static struct parport_operations dead_ops = {
 	.ecp_write_data	= dead_write,		/* ecp */
 	.ecp_read_data	= dead_read,
 	.ecp_write_addr	= dead_write,
- 
+
 	.compat_write_data	= dead_write,	/* compat */
 	.nibble_read_data	= dead_read,	/* nibble */
 	.byte_read_data		= dead_read,	/* byte */
@@ -689,7 +689,7 @@ void parport_remove_port(struct parport *port)
 struct pardevice *
 parport_register_device(struct parport *port, const char *name,
 			int (*pf)(void *), void (*kf)(void *),
-			void (*irq_func)(void *), 
+			void (*irq_func)(void *),
 			int flags, void *handle)
 {
 	struct pardevice *tmp;
@@ -730,7 +730,7 @@ parport_register_device(struct parport *port, const char *name,
 	if (!try_module_get(port->ops->owner)) {
 		return NULL;
 	}
-		
+
 	parport_get_port (port);
 
 	tmp = kmalloc(sizeof(struct pardevice), GFP_KERNEL);
