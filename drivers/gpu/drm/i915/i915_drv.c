@@ -693,6 +693,9 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_display_set_init_power(dev_priv, false);
 
+	if (HAS_CSR(dev_priv))
+		flush_work(&dev_priv->csr.work);
+
 	return 0;
 }
 
