@@ -345,6 +345,7 @@ do_file(char const *const fname)
 		break;
 	case EM_386:
 		reltype = R_386_32;
+		rel_type_nop = R_386_NONE;
 		make_nop = make_nop_x86;
 		ideal_nop = ideal_nop5_x86_32;
 		mcount_adjust_32 = -1;
@@ -371,6 +372,7 @@ do_file(char const *const fname)
 		make_nop = make_nop_x86;
 		ideal_nop = ideal_nop5_x86_64;
 		reltype = R_X86_64_64;
+		rel_type_nop = R_X86_64_NONE;
 		mcount_adjust_64 = -1;
 		break;
 	}  /* end switch */
