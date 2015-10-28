@@ -159,7 +159,7 @@ cfs_hash_rw_unlock(union cfs_hash_lock *lock, int exclusive)
 }
 
 /** No lock hash */
-static cfs_hash_lock_ops_t cfs_hash_nl_lops = {
+static struct cfs_hash_lock_ops cfs_hash_nl_lops = {
 	.hs_lock	= cfs_hash_nl_lock,
 	.hs_unlock      = cfs_hash_nl_unlock,
 	.hs_bkt_lock    = cfs_hash_nl_lock,
@@ -167,7 +167,7 @@ static cfs_hash_lock_ops_t cfs_hash_nl_lops = {
 };
 
 /** no bucket lock, one spinlock to protect everything */
-static cfs_hash_lock_ops_t cfs_hash_nbl_lops = {
+static struct cfs_hash_lock_ops cfs_hash_nbl_lops = {
 	.hs_lock	= cfs_hash_spin_lock,
 	.hs_unlock      = cfs_hash_spin_unlock,
 	.hs_bkt_lock    = cfs_hash_nl_lock,
@@ -175,7 +175,7 @@ static cfs_hash_lock_ops_t cfs_hash_nbl_lops = {
 };
 
 /** spin bucket lock, rehash is enabled */
-static cfs_hash_lock_ops_t cfs_hash_bkt_spin_lops = {
+static struct cfs_hash_lock_ops cfs_hash_bkt_spin_lops = {
 	.hs_lock	= cfs_hash_rw_lock,
 	.hs_unlock      = cfs_hash_rw_unlock,
 	.hs_bkt_lock    = cfs_hash_spin_lock,
@@ -183,7 +183,7 @@ static cfs_hash_lock_ops_t cfs_hash_bkt_spin_lops = {
 };
 
 /** rw bucket lock, rehash is enabled */
-static cfs_hash_lock_ops_t cfs_hash_bkt_rw_lops = {
+static struct cfs_hash_lock_ops cfs_hash_bkt_rw_lops = {
 	.hs_lock	= cfs_hash_rw_lock,
 	.hs_unlock      = cfs_hash_rw_unlock,
 	.hs_bkt_lock    = cfs_hash_rw_lock,
@@ -191,7 +191,7 @@ static cfs_hash_lock_ops_t cfs_hash_bkt_rw_lops = {
 };
 
 /** spin bucket lock, rehash is disabled */
-static cfs_hash_lock_ops_t cfs_hash_nr_bkt_spin_lops = {
+static struct cfs_hash_lock_ops cfs_hash_nr_bkt_spin_lops = {
 	.hs_lock	= cfs_hash_nl_lock,
 	.hs_unlock      = cfs_hash_nl_unlock,
 	.hs_bkt_lock    = cfs_hash_spin_lock,
@@ -199,7 +199,7 @@ static cfs_hash_lock_ops_t cfs_hash_nr_bkt_spin_lops = {
 };
 
 /** rw bucket lock, rehash is disabled */
-static cfs_hash_lock_ops_t cfs_hash_nr_bkt_rw_lops = {
+static struct cfs_hash_lock_ops cfs_hash_nr_bkt_rw_lops = {
 	.hs_lock	= cfs_hash_nl_lock,
 	.hs_unlock      = cfs_hash_nl_unlock,
 	.hs_bkt_lock    = cfs_hash_rw_lock,

@@ -272,7 +272,7 @@ struct cfs_hash {
 	char			hs_name[0];
 };
 
-typedef struct cfs_hash_lock_ops {
+struct cfs_hash_lock_ops {
 	/** lock the hash table */
 	void    (*hs_lock)(union cfs_hash_lock *lock, int exclusive);
 	/** unlock the hash table */
@@ -281,7 +281,7 @@ typedef struct cfs_hash_lock_ops {
 	void    (*hs_bkt_lock)(union cfs_hash_lock *lock, int exclusive);
 	/** unlock the hash bucket */
 	void    (*hs_bkt_unlock)(union cfs_hash_lock *lock, int exclusive);
-} cfs_hash_lock_ops_t;
+};
 
 typedef struct cfs_hash_hlist_ops {
 	/** return hlist_head of hash-head of @bd */
