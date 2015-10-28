@@ -88,11 +88,13 @@ static u32 pmu_clk_cr_b[] = {
 
 /* clock gates that we can en/disable */
 #define PMU_USB0_P	BIT(0)
+#define PMU_ASE_SDIO	BIT(2) /* ASE special */
 #define PMU_PCI		BIT(4)
 #define PMU_DMA		BIT(5)
 #define PMU_USB0	BIT(6)
 #define PMU_ASC0	BIT(7)
 #define PMU_EPHY	BIT(7)	/* ase */
+#define PMU_USIF	BIT(7) /* from vr9 until grx390 */
 #define PMU_SPI		BIT(8)
 #define PMU_DFE		BIT(9)
 #define PMU_EBU		BIT(10)
@@ -101,6 +103,7 @@ static u32 pmu_clk_cr_b[] = {
 #define PMU_AHBS	BIT(13) /* vr9 */
 #define PMU_FPI		BIT(14)
 #define PMU_AHBM	BIT(15)
+#define PMU_SDIO	BIT(16) /* danube, ar9, vr9 */
 #define PMU_ASC1	BIT(17)
 #define PMU_PPE_QSB	BIT(18)
 #define PMU_PPE_SLL01	BIT(19)
@@ -452,28 +455,47 @@ void __init ltq_soc_init(void)
 		else
 			clkdev_add_static(CLOCK_133M, CLOCK_133M,
 						CLOCK_133M, CLOCK_133M);
-		clkdev_add_cgu("1e180000.etop", "ephycgu", CGU_EPHY),
+		clkdev_add_pmu("1e101000.usb", "ctl", 1, 0, PMU_USB0);
+		clkdev_add_pmu("1e101000.usb", "phy", 1, 0, PMU_USB0_P);
+		clkdev_add_pmu("1e180000.etop", "ppe", 1, 0, PMU_PPE);
+		clkdev_add_cgu("1e180000.etop", "ephycgu", CGU_EPHY);
 		clkdev_add_pmu("1e180000.etop", "ephy", 1, 0, PMU_EPHY);
+		clkdev_add_pmu("1e103000.sdio", NULL, 1, 0, PMU_ASE_SDIO);
 	} else if (of_machine_is_compatible("lantiq,vr9")) {
 		clkdev_add_static(ltq_vr9_cpu_hz(), ltq_vr9_fpi_hz(),
 				ltq_vr9_fpi_hz(), ltq_vr9_pp32_hz());
+		clkdev_add_pmu("1e101000.usb", "phy", 1, 0, PMU_USB0_P);
+		clkdev_add_pmu("1e101000.usb", "ctl", 1, 0, PMU_USB0 | PMU_AHBM);
+		clkdev_add_pmu("1e106000.usb", "phy", 1, 0, PMU_USB1_P);
+		clkdev_add_pmu("1e106000.usb", "ctl", 1, 0, PMU_USB1 | PMU_AHBM);
 		clkdev_add_pmu("1d900000.pcie", "phy", 1, 1, PMU1_PCIE_PHY);
 		clkdev_add_pmu("1d900000.pcie", "bus", 1, 0, PMU_PCIE_CLK);
 		clkdev_add_pmu("1d900000.pcie", "msi", 1, 1, PMU1_PCIE_MSI);
 		clkdev_add_pmu("1d900000.pcie", "pdi", 1, 1, PMU1_PCIE_PDI);
 		clkdev_add_pmu("1d900000.pcie", "ctl", 1, 1, PMU1_PCIE_CTL);
 		clkdev_add_pmu("1d900000.pcie", "ahb", 1, 0, PMU_AHBM | PMU_AHBS);
+
+		clkdev_add_pmu("1da00000.usif", "NULL", 1, 0, PMU_USIF);
 		clkdev_add_pmu("1e108000.eth", NULL, 1, 0,
 				PMU_SWITCH | PMU_PPE_DPLUS | PMU_PPE_DPLUM |
 				PMU_PPE_EMA | PMU_PPE_TC | PMU_PPE_SLL01 |
 				PMU_PPE_QSB | PMU_PPE_TOP);
 		clkdev_add_pmu("1f203000.rcu", "gphy", 1, 0, PMU_GPHY);
+		clkdev_add_pmu("1e103000.sdio", NULL, 1, 0, PMU_SDIO);
 	} else if (of_machine_is_compatible("lantiq,ar9")) {
 		clkdev_add_static(ltq_ar9_cpu_hz(), ltq_ar9_fpi_hz(),
 				ltq_ar9_fpi_hz(), CLOCK_250M);
+		clkdev_add_pmu("1e101000.usb", "ctl", 1, 0, PMU_USB0);
+		clkdev_add_pmu("1e101000.usb", "phy", 1, 0, PMU_USB0_P);
+		clkdev_add_pmu("1e106000.usb", "ctl", 1, 0, PMU_USB1);
+		clkdev_add_pmu("1e106000.usb", "phy", 1, 0, PMU_USB1_P);
 		clkdev_add_pmu("1e180000.etop", "switch", 1, 0, PMU_SWITCH);
+		clkdev_add_pmu("1e103000.sdio", NULL, 1, 0, PMU_SDIO);
 	} else {
 		clkdev_add_static(ltq_danube_cpu_hz(), ltq_danube_fpi_hz(),
 				ltq_danube_fpi_hz(), ltq_danube_pp32_hz());
+		clkdev_add_pmu("1e101000.usb", "ctl", 1, 0, PMU_USB0);
+		clkdev_add_pmu("1e101000.usb", "phy", 1, 0, PMU_USB0_P);
+		clkdev_add_pmu("1e103000.sdio", NULL, 1, 0, PMU_SDIO);
 	}
 }
