@@ -476,7 +476,8 @@ static int sca3000_read_raw(struct iio_dev *indio_dev,
 		} else {
 			/* get the temperature when available */
 			ret = sca3000_read_data_short(st,
-				SCA3000_REG_ADDR_TEMP_MSB, 2);
+						      SCA3000_REG_ADDR_TEMP_MSB,
+						      2);
 			if (ret < 0) {
 				mutex_unlock(&st->lock);
 				return ret;
@@ -511,8 +512,8 @@ static int sca3000_read_raw(struct iio_dev *indio_dev,
  * at all.
  **/
 static ssize_t sca3000_read_av_freq(struct device *dev,
-			     struct device_attribute *attr,
-			     char *buf)
+				    struct device_attribute *attr,
+				    char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
@@ -582,8 +583,8 @@ error_ret:
  * sca3000_read_frequency() sysfs interface to get the current frequency
  **/
 static ssize_t sca3000_read_frequency(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
@@ -623,9 +624,9 @@ error_ret:
  * sca3000_set_frequency() sysfs interface to set the current frequency
  **/
 static ssize_t sca3000_set_frequency(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf,
-			      size_t len)
+				     struct device_attribute *attr,
+				     const char *buf,
+				     size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);

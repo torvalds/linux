@@ -160,9 +160,9 @@ static ssize_t sca3000_query_ring_int(struct device *dev,
  * sca3000_set_ring_int() set state of ring status interrupt
  **/
 static ssize_t sca3000_set_ring_int(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf,
-				      size_t len)
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
