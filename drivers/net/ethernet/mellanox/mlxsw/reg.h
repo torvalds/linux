@@ -475,7 +475,7 @@ MLXSW_ITEM32_INDEXED(reg, sfn, rec_type, MLXSW_REG_SFN_BASE_LEN, 20, 4,
 MLXSW_ITEM_BUF_INDEXED(reg, sfn, rec_mac, MLXSW_REG_SFN_BASE_LEN, 6,
 		       MLXSW_REG_SFN_REC_LEN, 0x02);
 
-/* reg_sfd_mac_sub_port
+/* reg_sfn_mac_sub_port
  * VEPA channel on the local port.
  * 0 if multichannel VEPA is not enabled.
  * Access: RO
@@ -483,14 +483,14 @@ MLXSW_ITEM_BUF_INDEXED(reg, sfn, rec_mac, MLXSW_REG_SFN_BASE_LEN, 6,
 MLXSW_ITEM32_INDEXED(reg, sfn, mac_sub_port, MLXSW_REG_SFN_BASE_LEN, 16, 8,
 		     MLXSW_REG_SFN_REC_LEN, 0x08, false);
 
-/* reg_sfd_mac_fid
+/* reg_sfn_mac_fid
  * Filtering identifier.
  * Access: RO
  */
 MLXSW_ITEM32_INDEXED(reg, sfn, mac_fid, MLXSW_REG_SFN_BASE_LEN, 0, 16,
 		     MLXSW_REG_SFN_REC_LEN, 0x08, false);
 
-/* reg_sfd_mac_system_port
+/* reg_sfn_mac_system_port
  * Unique port identifier for the final destination of the packet.
  * Access: RO
  */
