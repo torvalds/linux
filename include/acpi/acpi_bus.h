@@ -407,7 +407,7 @@ static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
 	 * case 1. Do not support and disable DMA.
 	 * case 2. Support but rely on arch-specific cache maintenance for
 	 *         non-coherence DMA operations.
-	 * Currently, we implement case 1 above.
+	 * Currently, we implement case 2 above.
 	 *
 	 * For the case when _CCA is missing (i.e. cca_seen=0) and
 	 * platform specifies ACPI_CCA_REQUIRED, we do not support DMA,
@@ -415,7 +415,8 @@ static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
 	 *
 	 * See acpi_init_coherency() for more info.
 	 */
-	if (adev->flags.coherent_dma) {
+	if (adev->flags.coherent_dma ||
+	    (adev->flags.cca_seen && IS_ENABLED(CONFIG_ARM64))) {
 		ret = true;
 		if (coherent)
 			*coherent = adev->flags.coherent_dma;
