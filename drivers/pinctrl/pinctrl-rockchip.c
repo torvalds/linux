@@ -3079,7 +3079,6 @@ static int rockchip_pinctrl_suspend(void)
 		bank++;
 	}
 
-	
 	return 0;
 }
 
@@ -3116,6 +3115,10 @@ static void rockchip_pinctrl_resume(void)
               
 }
 
+static struct syscore_ops rockchip_gpio_syscore_ops = {
+	.suspend        = rockchip_pinctrl_suspend,
+	.resume         = rockchip_pinctrl_resume,
+};
 #endif
 
 
@@ -3300,8 +3303,11 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	pinctrl_debugfs_init(info);
 
 	platform_set_drvdata(pdev, info);
-
+#ifdef CONFIG_PM
+	register_syscore_ops(&rockchip_gpio_syscore_ops);
+#endif
 	printk("%s:init ok\n",__func__);
+
 	return 0;
 }
 
@@ -3470,18 +3476,8 @@ static struct platform_driver rockchip_pinctrl_driver = {
 	},
 };
 
-#ifdef CONFIG_PM
-static struct syscore_ops rockchip_gpio_syscore_ops = {
-        .suspend        = rockchip_pinctrl_suspend,
-        .resume         = rockchip_pinctrl_resume,
-};
-#endif
-
 static int __init rockchip_pinctrl_drv_register(void)
 {
-#ifdef CONFIG_PM
-	register_syscore_ops(&rockchip_gpio_syscore_ops);
-#endif
 	return platform_driver_register(&rockchip_pinctrl_driver);
 }
 postcore_initcall(rockchip_pinctrl_drv_register);

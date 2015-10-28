@@ -1934,6 +1934,53 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 	return ctrl;
 }
 
+#ifdef CONFIG_PM
+static int rockchip_pinctrl_suspend(void)
+{
+	struct rockchip_pinctrl *info = g_info;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct rockchip_pin_bank *bank = ctrl->pin_banks;
+	int n;
+
+	for (n = 0; n < ctrl->nr_banks; n++) {
+		bank->saved_wakeup = __raw_readl(bank->reg_base + GPIO_INTEN);
+		__raw_writel(bank->suspend_wakeup, bank->reg_base + GPIO_INTEN);
+
+		if (!bank->suspend_wakeup)
+			clk_disable_unprepare(bank->clk);
+		bank++;
+	}
+
+	return 0;
+}
+
+static void rockchip_pinctrl_resume(void)
+{
+	struct rockchip_pinctrl *info = g_info;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct rockchip_pin_bank *bank = ctrl->pin_banks;
+	int n;
+	u32 isr;
+
+	for (n = 0; n < ctrl->nr_banks; n++) {
+		if (!bank->suspend_wakeup)
+			clk_prepare_enable(bank->clk);
+
+		/* keep enable for resume irq */
+		 isr = __raw_readl(bank->reg_base + GPIO_INT_STATUS);
+			__raw_writel(bank->saved_wakeup
+				| (bank->suspend_wakeup & isr)
+					, bank->reg_base + GPIO_INTEN);
+		bank++;
+	}
+}
+
+static struct syscore_ops rockchip_gpio_syscore_ops = {
+	.suspend        = rockchip_pinctrl_suspend,
+	.resume         = rockchip_pinctrl_resume,
+};
+#endif
+
 static int rockchip_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rockchip_pinctrl *info;
@@ -2017,51 +2064,12 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
-static int rockchip_pinctrl_suspend(void)
-{
-	struct rockchip_pinctrl *info = g_info;
-	struct rockchip_pin_ctrl *ctrl = info->ctrl;
-	struct rockchip_pin_bank *bank = ctrl->pin_banks;
-	int n;
-
-	for (n = 0; n < ctrl->nr_banks; n++) {
-		bank->saved_wakeup = __raw_readl(bank->reg_base + GPIO_INTEN);
-		__raw_writel(bank->suspend_wakeup, bank->reg_base + GPIO_INTEN);
-
-		if (!bank->suspend_wakeup)
-			clk_disable_unprepare(bank->clk);
-		bank++;
-	}
+	register_syscore_ops(&rockchip_gpio_syscore_ops);
+#endif
 
 	return 0;
 }
-
-static void rockchip_pinctrl_resume(void)
-{
-	struct rockchip_pinctrl *info = g_info;
-	struct rockchip_pin_ctrl *ctrl = info->ctrl;
-	struct rockchip_pin_bank *bank = ctrl->pin_banks;
-	int n;
-	u32 isr;
-
-	for (n = 0; n < ctrl->nr_banks; n++) {
-		if (!bank->suspend_wakeup)
-			clk_prepare_enable(bank->clk);
-
-		/* keep enable for resume irq */
-		 isr = __raw_readl(bank->reg_base + GPIO_INT_STATUS);
-			__raw_writel(bank->saved_wakeup
-				| (bank->suspend_wakeup & isr)
-					, bank->reg_base + GPIO_INTEN);
-		bank++;
-	}
-}
-#endif
 
 static struct rockchip_pin_bank rk3228_pin_banks[] = {
 	PIN_BANK_IOMUX_FLAGS(0, 32, "gpio0", 0, 0, 0, 0),
@@ -2117,18 +2125,8 @@ static struct platform_driver rockchip_pinctrl_driver = {
 	},
 };
 
-#ifdef CONFIG_PM
-static struct syscore_ops rockchip_gpio_syscore_ops = {
-	.suspend        = rockchip_pinctrl_suspend,
-	.resume         = rockchip_pinctrl_resume,
-};
-#endif
-
 static int __init rockchip_pinctrl_drv_register(void)
 {
-#ifdef CONFIG_PM
-		register_syscore_ops(&rockchip_gpio_syscore_ops);
-#endif
 	return platform_driver_register(&rockchip_pinctrl_driver);
 }
 postcore_initcall(rockchip_pinctrl_drv_register);
