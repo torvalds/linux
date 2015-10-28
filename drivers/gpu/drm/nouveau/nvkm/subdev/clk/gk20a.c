@@ -115,23 +115,29 @@ static const struct gk20a_clk_pllg_params gk20a_pllg_params = {
 	.min_pl = 1, .max_pl = 32,
 };
 
+struct gk20a_pll {
+	u32 m;
+	u32 n;
+	u32 pl;
+};
+
 struct gk20a_clk {
 	struct nvkm_clk base;
 	const struct gk20a_clk_pllg_params *params;
-	u32 m, n, pl;
+	struct gk20a_pll pll;
 	u32 parent_rate;
 };
 
 static void
-gk20a_pllg_read_mnp(struct gk20a_clk *clk)
+gk20a_pllg_read_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
 	u32 val;
 
 	val = nvkm_rd32(device, GPCPLL_COEFF);
-	clk->m = (val >> GPCPLL_COEFF_M_SHIFT) & MASK(GPCPLL_COEFF_M_WIDTH);
-	clk->n = (val >> GPCPLL_COEFF_N_SHIFT) & MASK(GPCPLL_COEFF_N_WIDTH);
-	clk->pl = (val >> GPCPLL_COEFF_P_SHIFT) & MASK(GPCPLL_COEFF_P_WIDTH);
+	pll->m = (val >> GPCPLL_COEFF_M_SHIFT) & MASK(GPCPLL_COEFF_M_WIDTH);
+	pll->n = (val >> GPCPLL_COEFF_N_SHIFT) & MASK(GPCPLL_COEFF_N_WIDTH);
+	pll->pl = (val >> GPCPLL_COEFF_P_SHIFT) & MASK(GPCPLL_COEFF_P_WIDTH);
 }
 
 static u32
@@ -140,8 +146,8 @@ gk20a_pllg_calc_rate(struct gk20a_clk *clk)
 	u32 rate;
 	u32 divider;
 
-	rate = clk->parent_rate * clk->n;
-	divider = clk->m * pl_to_div[clk->pl];
+	rate = clk->parent_rate * clk->pll.n;
+	divider = clk->pll.m * pl_to_div[clk->pll.pl];
 
 	return rate / divider / 2;
 }
@@ -256,16 +262,16 @@ found_match:
 			   "no best match for target @ %dMHz on gpc_pll",
 			   target_clk_f / KHZ);
 
-	clk->m = best_m;
-	clk->n = best_n;
-	clk->pl = best_pl;
+	clk->pll.m = best_m;
+	clk->pll.n = best_n;
+	clk->pll.pl = best_pl;
 
 	target_freq = gk20a_pllg_calc_rate(clk);
 
 	nvkm_debug(subdev,
 		   "actual target freq %d MHz, M %d, N %d, PL %d(div%d)\n",
-		   target_freq / MHZ, clk->m, clk->n, clk->pl,
-		   pl_to_div[clk->pl]);
+		   target_freq / MHZ, clk->pll.m, clk->pll.n, clk->pll.pl,
+		   pl_to_div[clk->pll.pl]);
 	return 0;
 }
 
@@ -352,25 +358,24 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 val, cfg;
-	u32 m_old, pl_old, n_lo;
+	struct gk20a_pll old_pll;
+	u32 n_lo;
 
 	/* get old coefficients */
-	val = nvkm_rd32(device, GPCPLL_COEFF);
-	m_old = (val >> GPCPLL_COEFF_M_SHIFT) & MASK(GPCPLL_COEFF_M_WIDTH);
-	pl_old = (val >> GPCPLL_COEFF_P_SHIFT) & MASK(GPCPLL_COEFF_P_WIDTH);
+	gk20a_pllg_read_mnp(clk, &old_pll);
 
 	/* do NDIV slide if there is no change in M and PL */
 	cfg = nvkm_rd32(device, GPCPLL_CFG);
-	if (allow_slide && clk->m == m_old && clk->pl == pl_old &&
-	    (cfg & GPCPLL_CFG_ENABLE)) {
-		return gk20a_pllg_slide(clk, clk->n);
+	if (allow_slide && clk->pll.m == old_pll.m &&
+	    clk->pll.pl == old_pll.pl && (cfg & GPCPLL_CFG_ENABLE)) {
+		return gk20a_pllg_slide(clk, clk->pll.n);
 	}
 
 	/* slide down to NDIV_LO */
 	if (allow_slide && (cfg & GPCPLL_CFG_ENABLE)) {
 		int ret;
 
-		n_lo = DIV_ROUND_UP(m_old * clk->params->min_vco,
+		n_lo = DIV_ROUND_UP(old_pll.m * clk->params->min_vco,
 				    clk->parent_rate / KHZ);
 		ret = gk20a_pllg_slide(clk, n_lo);
 
@@ -400,13 +405,13 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 	gk20a_pllg_disable(clk);
 
 	nvkm_debug(subdev, "%s: m=%d n=%d pl=%d\n", __func__,
-		   clk->m, clk->n, clk->pl);
+		   clk->pll.m, clk->pll.n, clk->pll.pl);
 
-	n_lo = DIV_ROUND_UP(clk->m * clk->params->min_vco,
+	n_lo = DIV_ROUND_UP(clk->pll.m * clk->params->min_vco,
 			    clk->parent_rate / KHZ);
-	val = clk->m << GPCPLL_COEFF_M_SHIFT;
-	val |= (allow_slide ? n_lo : clk->n) << GPCPLL_COEFF_N_SHIFT;
-	val |= clk->pl << GPCPLL_COEFF_P_SHIFT;
+	val = clk->pll.m << GPCPLL_COEFF_M_SHIFT;
+	val |= (allow_slide ? n_lo : clk->pll.n) << GPCPLL_COEFF_N_SHIFT;
+	val |= clk->pll.pl << GPCPLL_COEFF_P_SHIFT;
 	nvkm_wr32(device, GPCPLL_COEFF, val);
 
 	gk20a_pllg_enable(clk);
@@ -441,7 +446,7 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 	}
 
 	/* slide up to new NDIV */
-	return allow_slide ? gk20a_pllg_slide(clk, clk->n) : 0;
+	return allow_slide ? gk20a_pllg_slide(clk, clk->pll.n) : 0;
 }
 
 static int
@@ -563,7 +568,7 @@ gk20a_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 	case nv_clk_src_crystal:
 		return device->crystal;
 	case nv_clk_src_gpc:
-		gk20a_pllg_read_mnp(clk);
+		gk20a_pllg_read_mnp(clk, &clk->pll);
 		return gk20a_pllg_calc_rate(clk) / GK20A_CLK_GPC_MDIV;
 	default:
 		nvkm_error(subdev, "invalid clock source %d\n", src);
@@ -603,11 +608,11 @@ gk20a_clk_fini(struct nvkm_clk *base)
 	/* slide to VCO min */
 	val = nvkm_rd32(device, GPCPLL_CFG);
 	if (val & GPCPLL_CFG_ENABLE) {
-		u32 coef, m, n_lo;
+		struct gk20a_pll pll;
+		u32 n_lo;
 
-		coef = nvkm_rd32(device, GPCPLL_COEFF);
-		m = (coef >> GPCPLL_COEFF_M_SHIFT) & MASK(GPCPLL_COEFF_M_WIDTH);
-		n_lo = DIV_ROUND_UP(m * clk->params->min_vco,
+		gk20a_pllg_read_mnp(clk, &pll);
+		n_lo = DIV_ROUND_UP(pll.m * clk->params->min_vco,
 				    clk->parent_rate / KHZ);
 		gk20a_pllg_slide(clk, n_lo);
 	}
