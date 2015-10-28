@@ -232,7 +232,7 @@ void intel_csr_load_program(struct drm_device *dev)
 
 	for (i = 0; i < dev_priv->csr.mmio_count; i++) {
 		I915_WRITE(dev_priv->csr.mmioaddr[i],
-			dev_priv->csr.mmiodata[i]);
+			   dev_priv->csr.mmiodata[i]);
 	}
 }
 
@@ -265,9 +265,9 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	/* Extract CSS Header information*/
 	css_header = (struct intel_css_header *)fw->data;
 	if (sizeof(struct intel_css_header) !=
-		(css_header->header_len * 4)) {
+	    (css_header->header_len * 4)) {
 		DRM_ERROR("Firmware has wrong CSS header length %u bytes\n",
-			(css_header->header_len * 4));
+			  (css_header->header_len * 4));
 		goto out;
 	}
 
@@ -288,11 +288,11 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 
 	/* Extract Package Header information*/
 	package_header = (struct intel_package_header *)
-					&fw->data[readcount];
+		&fw->data[readcount];
 	if (sizeof(struct intel_package_header) !=
-		(package_header->header_len * 4)) {
+	    (package_header->header_len * 4)) {
 		DRM_ERROR("Firmware has wrong package header length %u bytes\n",
-			(package_header->header_len * 4));
+			  (package_header->header_len * 4));
 		goto out;
 	}
 	readcount += sizeof(struct intel_package_header);
@@ -300,7 +300,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	/* Search for dmc_offset to find firware binary. */
 	for (i = 0; i < package_header->num_entries; i++) {
 		if (package_header->fw_info[i].substepping == '*' &&
-			stepping == package_header->fw_info[i].stepping) {
+		    stepping == package_header->fw_info[i].stepping) {
 			dmc_offset = package_header->fw_info[i].offset;
 			break;
 		} else if (stepping == package_header->fw_info[i].stepping &&
@@ -308,7 +308,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 			dmc_offset = package_header->fw_info[i].offset;
 			break;
 		} else if (package_header->fw_info[i].stepping == '*' &&
-			package_header->fw_info[i].substepping == '*')
+			   package_header->fw_info[i].substepping == '*')
 			dmc_offset = package_header->fw_info[i].offset;
 	}
 	if (dmc_offset == CSR_DEFAULT_FW_OFFSET) {
@@ -321,7 +321,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	dmc_header = (struct intel_dmc_header *)&fw->data[readcount];
 	if (sizeof(struct intel_dmc_header) != (dmc_header->header_len)) {
 		DRM_ERROR("Firmware has wrong dmc header length %u bytes\n",
-				(dmc_header->header_len));
+			  (dmc_header->header_len));
 		goto out;
 	}
 	readcount += sizeof(struct intel_dmc_header);
@@ -329,15 +329,15 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	/* Cache the dmc header info. */
 	if (dmc_header->mmio_count > ARRAY_SIZE(csr->mmioaddr)) {
 		DRM_ERROR("Firmware has wrong mmio count %u\n",
-						dmc_header->mmio_count);
+			  dmc_header->mmio_count);
 		goto out;
 	}
 	csr->mmio_count = dmc_header->mmio_count;
 	for (i = 0; i < dmc_header->mmio_count; i++) {
 		if (dmc_header->mmioaddr[i] < CSR_MMIO_START_RANGE ||
-			dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
+		    dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
 			DRM_ERROR(" Firmware has wrong mmio address 0x%x\n",
-						dmc_header->mmioaddr[i]);
+				  dmc_header->mmioaddr[i]);
 			goto out;
 		}
 		csr->mmioaddr[i] = dmc_header->mmioaddr[i];
@@ -415,9 +415,9 @@ void intel_csr_ucode_init(struct drm_device *dev)
 
 	/* CSR supported for platform, load firmware */
 	ret = request_firmware_nowait(THIS_MODULE, true, csr->fw_path,
-				&dev_priv->dev->pdev->dev,
-				GFP_KERNEL, dev_priv,
-				finish_csr_load);
+				      &dev_priv->dev->pdev->dev,
+				      GFP_KERNEL, dev_priv,
+				      finish_csr_load);
 	if (ret)
 		i915_firmware_load_error_print(csr->fw_path, ret);
 }
