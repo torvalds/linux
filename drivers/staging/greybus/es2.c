@@ -31,7 +31,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define APB1_LOG_SIZE		SZ_16K
 static struct dentry *apb1_log_dentry;
 static struct dentry *apb1_log_enable_dentry;
-static struct task_struct *apb1_log_task;
 static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 
 /* Number of bulk in and bulk out couple */
@@ -97,6 +96,8 @@ struct es2_cport_out {
  * @cport_out_urb_cancelled: array of flags indicating whether the
  *			corresponding @cport_out_urb is being cancelled
  * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
+ *
+ * @apb1_log_task: task pointer for logging thread
  */
 struct es2_ap_dev {
 	struct usb_device *usb_dev;
@@ -111,6 +112,8 @@ struct es2_ap_dev {
 	spinlock_t cport_out_urb_lock;
 
 	int *cport_to_ep;
+
+	struct task_struct *apb1_log_task;
 };
 
 /**
@@ -677,12 +680,12 @@ static const struct file_operations apb1_log_fops = {
 
 static void usb_log_enable(struct es2_ap_dev *es2)
 {
-	if (!IS_ERR_OR_NULL(apb1_log_task))
+	if (!IS_ERR_OR_NULL(es2->apb1_log_task))
 		return;
 
 	/* get log from APB1 */
-	apb1_log_task = kthread_run(apb1_log_poll, es2, "apb1_log");
-	if (IS_ERR(apb1_log_task))
+	es2->apb1_log_task = kthread_run(apb1_log_poll, es2, "apb1_log");
+	if (IS_ERR(es2->apb1_log_task))
 		return;
 	apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
 						gb_debugfs_get(), NULL,
@@ -691,20 +694,21 @@ static void usb_log_enable(struct es2_ap_dev *es2)
 
 static void usb_log_disable(struct es2_ap_dev *es2)
 {
-	if (IS_ERR_OR_NULL(apb1_log_task))
+	if (IS_ERR_OR_NULL(es2->apb1_log_task))
 		return;
 
 	debugfs_remove(apb1_log_dentry);
 	apb1_log_dentry = NULL;
 
-	kthread_stop(apb1_log_task);
-	apb1_log_task = NULL;
+	kthread_stop(es2->apb1_log_task);
+	es2->apb1_log_task = NULL;
 }
 
 static ssize_t apb1_log_enable_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	int enable = !IS_ERR_OR_NULL(apb1_log_task);
+	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	int enable = !IS_ERR_OR_NULL(es2->apb1_log_task);
 	char tmp_buf[3];
 
 	sprintf(tmp_buf, "%d\n", enable);
@@ -716,7 +720,7 @@ static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
 {
 	int enable;
 	ssize_t retval;
-	struct es2_ap_dev *es2 = (struct es2_ap_dev *)f->f_inode->i_private;
+	struct es2_ap_dev *es2 = f->f_inode->i_private;
 
 	retval = kstrtoint_from_user(buf, count, 10, &enable);
 	if (retval)
