@@ -326,8 +326,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			tkey->tx_phase1_done = 1;
 		}
 		tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
-	}
-	else
+	} else
 	tkey->tx_phase1_done = 1;
 
 
@@ -340,8 +339,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		*pos++ = Hi8(tkey->tx_iv16);
 		*pos++ = (Hi8(tkey->tx_iv16) | 0x20) & 0x7F;
 		*pos++ = Lo8(tkey->tx_iv16);
-	}
-	else {
+	} else {
 		*pos++ = rc4key[0];
 		*pos++ = rc4key[1];
 		*pos++ = rc4key[2];
