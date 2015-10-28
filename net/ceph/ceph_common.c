@@ -245,6 +245,8 @@ enum {
 	Opt_nocrc,
 	Opt_cephx_require_signatures,
 	Opt_nocephx_require_signatures,
+	Opt_cephx_sign_messages,
+	Opt_nocephx_sign_messages,
 	Opt_tcp_nodelay,
 	Opt_notcp_nodelay,
 };
@@ -267,6 +269,8 @@ static match_table_t opt_tokens = {
 	{Opt_nocrc, "nocrc"},
 	{Opt_cephx_require_signatures, "cephx_require_signatures"},
 	{Opt_nocephx_require_signatures, "nocephx_require_signatures"},
+	{Opt_cephx_sign_messages, "cephx_sign_messages"},
+	{Opt_nocephx_sign_messages, "nocephx_sign_messages"},
 	{Opt_tcp_nodelay, "tcp_nodelay"},
 	{Opt_notcp_nodelay, "notcp_nodelay"},
 	{-1, NULL}
@@ -491,6 +495,12 @@ ceph_parse_options(char *options, const char *dev_name,
 		case Opt_nocephx_require_signatures:
 			opt->flags |= CEPH_OPT_NOMSGAUTH;
 			break;
+		case Opt_cephx_sign_messages:
+			opt->flags &= ~CEPH_OPT_NOMSGSIGN;
+			break;
+		case Opt_nocephx_sign_messages:
+			opt->flags |= CEPH_OPT_NOMSGSIGN;
+			break;
 
 		case Opt_tcp_nodelay:
 			opt->flags |= CEPH_OPT_TCP_NODELAY;
@@ -534,6 +544,8 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
 		seq_puts(m, "nocrc,");
 	if (opt->flags & CEPH_OPT_NOMSGAUTH)
 		seq_puts(m, "nocephx_require_signatures,");
+	if (opt->flags & CEPH_OPT_NOMSGSIGN)
+		seq_puts(m, "nocephx_sign_messages,");
 	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
 		seq_puts(m, "notcp_nodelay,");
 
