@@ -2476,7 +2476,7 @@ static int Handle_RemainOnChan(struct host_if_drv *hif_drv,
 	u8 u8remain_on_chan_flag;
 	struct wid wid;
 
-	if (!hif_drv->u8RemainOnChan_pendingreq) {
+	if (!hif_drv->remain_on_ch_pending) {
 		hif_drv->remain_on_ch.pVoid = pstrHostIfRemainOnChan->pVoid;
 		hif_drv->remain_on_ch.pRemainOnChanExpired = pstrHostIfRemainOnChan->pRemainOnChanExpired;
 		hif_drv->remain_on_ch.pRemainOnChanReady = pstrHostIfRemainOnChan->pRemainOnChanReady;
@@ -2488,7 +2488,7 @@ static int Handle_RemainOnChan(struct host_if_drv *hif_drv,
 
 	if (hif_drv->usr_scan_req.pfUserScanResult) {
 		PRINT_INFO(GENERIC_DBG, "Required to remain on chan while scanning return\n");
-		hif_drv->u8RemainOnChan_pendingreq = 1;
+		hif_drv->remain_on_ch_pending = 1;
 		result = -EBUSY;
 		goto ERRORHANDLER;
 	}
@@ -2535,8 +2535,8 @@ ERRORHANDLER:
 		if (hif_drv->remain_on_ch.pRemainOnChanReady)
 			hif_drv->remain_on_ch.pRemainOnChanReady(hif_drv->remain_on_ch.pVoid);
 
-		if (hif_drv->u8RemainOnChan_pendingreq)
-			hif_drv->u8RemainOnChan_pendingreq = 0;
+		if (hif_drv->remain_on_ch_pending)
+			hif_drv->remain_on_ch_pending = 0;
 	}
 
 	return result;
@@ -2886,7 +2886,7 @@ static int hostIFthread(void *pvArg)
 
 			Handle_ScanDone(msg.drv, SCAN_EVENT_DONE);
 
-			if (hif_drv->u8RemainOnChan_pendingreq)
+			if (hif_drv->remain_on_ch_pending)
 				Handle_RemainOnChan(msg.drv, &msg.body.remain_on_ch);
 
 			break;

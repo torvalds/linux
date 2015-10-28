@@ -295,7 +295,7 @@ struct host_if_drv {
 	struct user_scan_req usr_scan_req;
 	struct user_conn_req usr_conn_req;
 	struct remain_ch remain_on_ch;
-	u8 u8RemainOnChan_pendingreq;
+	u8 remain_on_ch_pending;
 	u64 u64P2p_MgmtTimeout;
 	u8 u8P2PConnect;
 
