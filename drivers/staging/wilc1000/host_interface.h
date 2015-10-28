@@ -293,7 +293,7 @@ enum p2p_listen_state {
 
 struct host_if_drv {
 	struct user_scan_req usr_scan_req;
-	struct user_conn_req strWILC_UsrConnReq;
+	struct user_conn_req usr_conn_req;
 
 	/*Remain on channel struvture*/
 	struct remain_ch strHostIfRemainOnChan;
