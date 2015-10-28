@@ -35,7 +35,6 @@ struct save_area {
 struct save_area_ext {
 	struct save_area	sa;
 	__vector128		vx_regs[32];
-	u64			vx_sa_addr;
 };
 
 struct _lowcore {
