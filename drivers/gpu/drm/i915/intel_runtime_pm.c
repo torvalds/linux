@@ -457,6 +457,14 @@ static void gen9_set_dc_state_debugmask_memory_up(
 	}
 }
 
+static void assert_csr_loaded(struct drm_i915_private *dev_priv)
+{
+	WARN_ONCE(!I915_READ(CSR_PROGRAM(0)),
+		  "CSR program storage start is NULL\n");
+	WARN_ONCE(!I915_READ(CSR_SSP_BASE), "CSR SSP Base Not fine\n");
+	WARN_ONCE(!I915_READ(CSR_HTP_SKL), "CSR HTP Not fine\n");
+}
+
 static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;

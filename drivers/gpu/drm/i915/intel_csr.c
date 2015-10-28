@@ -482,13 +482,3 @@ void intel_csr_ucode_fini(struct drm_device *dev)
 	intel_csr_load_status_set(dev_priv, FW_FAILED);
 	kfree(dev_priv->csr.dmc_payload);
 }
-
-void assert_csr_loaded(struct drm_i915_private *dev_priv)
-{
-	WARN_ONCE(intel_csr_load_status_get(dev_priv) != FW_LOADED,
-		  "CSR is not loaded.\n");
-	WARN_ONCE(!I915_READ(CSR_PROGRAM(0)),
-		  "CSR program storage start is NULL\n");
-	WARN_ONCE(!I915_READ(CSR_SSP_BASE), "CSR SSP Base Not fine\n");
-	WARN_ONCE(!I915_READ(CSR_HTP_SKL), "CSR HTP Not fine\n");
-}
