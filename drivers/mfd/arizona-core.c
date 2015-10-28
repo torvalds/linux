@@ -238,7 +238,7 @@ static int arizona_poll_reg(struct arizona *arizona,
 		if ((val & mask) == target)
 			return 0;
 
-		msleep(1);
+		usleep_range(1000, 5000);
 	}
 
 	dev_err(arizona->dev, "Polling reg %u timed out: %x\n", reg, val);
@@ -279,14 +279,14 @@ static void arizona_disable_reset(struct arizona *arizona)
 		case WM5110:
 		case WM8280:
 			/* Meet requirements for minimum reset duration */
-			msleep(5);
+			usleep_range(5000, 10000);
 			break;
 		default:
 			break;
 		}
 
 		gpio_set_value_cansleep(arizona->pdata.reset, 1);
-		msleep(1);
+		usleep_range(1000, 5000);
 	}
 }
 
@@ -1132,7 +1132,7 @@ int arizona_dev_init(struct arizona *arizona)
 			goto err_reset;
 		}
 
-		msleep(1);
+		usleep_range(1000, 5000);
 	}
 
 	/* Ensure device startup is complete */
