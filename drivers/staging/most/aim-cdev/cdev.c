@@ -32,7 +32,6 @@ static struct most_aim cdev_aim;
 
 struct aim_channel {
 	wait_queue_head_t wq;
-	wait_queue_head_t poll_wq;
 	struct cdev cdev;
 	struct device *dev;
 	struct mutex io_mutex;
@@ -283,7 +282,7 @@ static unsigned int aim_poll(struct file *filp, poll_table *wait)
 	struct aim_channel *c = filp->private_data;
 	unsigned int mask = 0;
 
-	poll_wait(filp, &c->poll_wq, wait);
+	poll_wait(filp, &c->wq, wait);
 
 	if (c->cfg->direction == MOST_CH_RX) {
 		if (!kfifo_is_empty(&c->fifo))
@@ -459,7 +458,6 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 		goto error_alloc_kfifo;
 	}
 	init_waitqueue_head(&channel->wq);
-	init_waitqueue_head(&channel->poll_wq);
 	mutex_init(&channel->io_mutex);
 	spin_lock_irqsave(&ch_list_lock, cl_flags);
 	list_add_tail(&channel->list, &channel_list);
