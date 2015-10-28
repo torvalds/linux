@@ -61,9 +61,9 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 				| QUARK_X1000_SSCR1_TFT		\
 				| SSCR1_SPH | SSCR1_SPO | SSCR1_LBM)
 
-#define GENERAL_REG_RXTO_HOLDOFF_DISABLE	BIT(24)
-#define SPI_CS_CONTROL_SW_MODE			BIT(0)
-#define SPI_CS_CONTROL_CS_HIGH			BIT(1)
+#define LPSS_GENERAL_REG_RXTO_HOLDOFF_DISABLE	BIT(24)
+#define LPSS_CS_CONTROL_SW_MODE			BIT(0)
+#define LPSS_CS_CONTROL_CS_HIGH			BIT(1)
 
 struct lpss_config {
 	/* LPSS offset from drv_data->ioaddr */
@@ -250,8 +250,8 @@ static void lpss_ssp_setup(struct driver_data *drv_data)
 
 	/* Enable software chip select control */
 	value = __lpss_ssp_read_priv(drv_data, config->reg_cs_ctrl);
-	value &= ~(SPI_CS_CONTROL_SW_MODE | SPI_CS_CONTROL_CS_HIGH);
-	value |= SPI_CS_CONTROL_SW_MODE | SPI_CS_CONTROL_CS_HIGH;
+	value &= ~(LPSS_CS_CONTROL_SW_MODE | LPSS_CS_CONTROL_CS_HIGH);
+	value |= LPSS_CS_CONTROL_SW_MODE | LPSS_CS_CONTROL_CS_HIGH;
 	__lpss_ssp_write_priv(drv_data, config->reg_cs_ctrl, value);
 
 	/* Enable multiblock DMA transfers */
@@ -261,7 +261,7 @@ static void lpss_ssp_setup(struct driver_data *drv_data)
 		if (config->reg_general >= 0) {
 			value = __lpss_ssp_read_priv(drv_data,
 						     config->reg_general);
-			value |= GENERAL_REG_RXTO_HOLDOFF_DISABLE;
+			value |= LPSS_GENERAL_REG_RXTO_HOLDOFF_DISABLE;
 			__lpss_ssp_write_priv(drv_data,
 					      config->reg_general, value);
 		}
@@ -277,9 +277,9 @@ static void lpss_ssp_cs_control(struct driver_data *drv_data, bool enable)
 
 	value = __lpss_ssp_read_priv(drv_data, config->reg_cs_ctrl);
 	if (enable)
-		value &= ~SPI_CS_CONTROL_CS_HIGH;
+		value &= ~LPSS_CS_CONTROL_CS_HIGH;
 	else
-		value |= SPI_CS_CONTROL_CS_HIGH;
+		value |= LPSS_CS_CONTROL_CS_HIGH;
 	__lpss_ssp_write_priv(drv_data, config->reg_cs_ctrl, value);
 }
 
