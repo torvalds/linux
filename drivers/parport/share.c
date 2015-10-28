@@ -54,16 +54,16 @@ static LIST_HEAD(drivers);
 static DEFINE_MUTEX(registration_lock);
 
 /* What you can do to a port that's gone away.. */
-static void dead_write_lines (struct parport *p, unsigned char b){}
-static unsigned char dead_read_lines (struct parport *p) { return 0; }
-static unsigned char dead_frob_lines (struct parport *p, unsigned char b,
+static void dead_write_lines(struct parport *p, unsigned char b){}
+static unsigned char dead_read_lines(struct parport *p) { return 0; }
+static unsigned char dead_frob_lines(struct parport *p, unsigned char b,
 			     unsigned char c) { return 0; }
-static void dead_onearg (struct parport *p){}
-static void dead_initstate (struct pardevice *d, struct parport_state *s) { }
-static void dead_state (struct parport *p, struct parport_state *s) { }
-static size_t dead_write (struct parport *p, const void *b, size_t l, int f)
+static void dead_onearg(struct parport *p){}
+static void dead_initstate(struct pardevice *d, struct parport_state *s) { }
+static void dead_state(struct parport *p, struct parport_state *s) { }
+static size_t dead_write(struct parport *p, const void *b, size_t l, int f)
 { return 0; }
-static size_t dead_read (struct parport *p, void *b, size_t l, int f)
+static size_t dead_read(struct parport *p, void *b, size_t l, int f)
 { return 0; }
 static struct parport_operations dead_ops = {
 	.write_data	= dead_write_lines,	/* data */
@@ -194,7 +194,7 @@ static void detach_driver_chain(struct parport *port)
 	struct parport_driver *drv;
 	/* caller has exclusive registration_lock */
 	list_for_each_entry(drv, &drivers, list)
-		drv->detach (port);
+		drv->detach(port);
 
 	/*
 	 * call the detach function of the drivers registered in
@@ -205,13 +205,13 @@ static void detach_driver_chain(struct parport *port)
 }
 
 /* Ask kmod for some lowlevel drivers. */
-static void get_lowlevel_driver (void)
+static void get_lowlevel_driver(void)
 {
 	/*
 	 * There is no actual module called this: you should set
 	 * up an alias for modutils.
 	 */
-	request_module ("parport_lowlevel");
+	request_module("parport_lowlevel");
 }
 
 /*
@@ -267,7 +267,7 @@ int __parport_register_driver(struct parport_driver *drv, struct module *owner,
 			      const char *mod_name)
 {
 	if (list_empty(&portlist))
-		get_lowlevel_driver ();
+		get_lowlevel_driver();
 
 	if (drv->devmodel) {
 		/* using device model */
@@ -330,7 +330,7 @@ static int port_detach(struct device *dev, void *_drv)
  *	finished by the time this function returns.
  **/
 
-void parport_unregister_driver (struct parport_driver *drv)
+void parport_unregister_driver(struct parport_driver *drv)
 {
 	struct parport *port;
 
@@ -375,7 +375,7 @@ static void free_port(struct device *dev)
  *	until the matching parport_put_port() call.
  **/
 
-struct parport *parport_get_port (struct parport *port)
+struct parport *parport_get_port(struct parport *port)
 {
 	struct device *dev = get_device(&port->bus_dev);
 
@@ -398,7 +398,7 @@ EXPORT_SYMBOL(parport_del_port);
  *	zero (port is no longer used), free_port is called.
  **/
 
-void parport_put_port (struct parport *port)
+void parport_put_port(struct parport *port)
 {
 	put_device(&port->bus_dev);
 }
@@ -458,7 +458,7 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	tmp->flags = 0;
 	tmp->ops = ops;
 	tmp->physport = tmp;
-	memset (tmp->probe_info, 0, 5 * sizeof (struct parport_device_info));
+	memset(tmp->probe_info, 0, 5 * sizeof(struct parport_device_info));
 	rwlock_init(&tmp->cad_lock);
 	spin_lock_init(&tmp->waitlist_lock);
 	spin_lock_init(&tmp->pardevice_lock);
@@ -466,7 +466,7 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	tmp->ieee1284.phase = IEEE1284_PH_FWD_IDLE;
 	sema_init(&tmp->ieee1284.irq, 0);
 	tmp->spintime = parport_default_spintime;
-	atomic_set (&tmp->ref_count, 1);
+	atomic_set(&tmp->ref_count, 1);
 	INIT_LIST_HEAD(&tmp->full_list);
 
 	name = kmalloc(15, GFP_KERNEL);
@@ -524,7 +524,7 @@ EXPORT_SYMBOL(parport_register_port);
  *	functions will be called, with @port as the parameter.
  **/
 
-void parport_announce_port (struct parport *port)
+void parport_announce_port(struct parport *port)
 {
 	int i;
 
@@ -549,7 +549,7 @@ void parport_announce_port (struct parport *port)
 	spin_unlock_irq(&parportlist_lock);
 
 	/* Let drivers know that new port(s) has arrived. */
-	attach_driver_chain (port);
+	attach_driver_chain(port);
 	for (i = 1; i < 3; i++) {
 		struct parport *slave = port->slaves[i-1];
 		if (slave)
@@ -585,7 +585,7 @@ void parport_remove_port(struct parport *port)
 	mutex_lock(&registration_lock);
 
 	/* Spread the word. */
-	detach_driver_chain (port);
+	detach_driver_chain(port);
 
 #ifdef CONFIG_PARPORT_1284
 	/* Forget the IEEE1284.3 topology of the port. */
@@ -700,7 +700,7 @@ parport_register_device(struct parport *port, const char *name,
 
 	if (port->physport->flags & PARPORT_FLAG_EXCL) {
 		/* An exclusive device is registered. */
-		printk (KERN_DEBUG "%s: no more devices allowed\n",
+		printk(KERN_DEBUG "%s: no more devices allowed\n",
 			port->name);
 		return NULL;
 	}
@@ -735,7 +735,7 @@ parport_register_device(struct parport *port, const char *name,
 	if (!try_module_get(port->ops->owner))
 		return NULL;
 
-	parport_get_port (port);
+	parport_get_port(port);
 
 	tmp = kmalloc(sizeof(struct pardevice), GFP_KERNEL);
 	if (!tmp)
@@ -767,8 +767,8 @@ parport_register_device(struct parport *port, const char *name,
 
 	if (flags & PARPORT_DEV_EXCL) {
 		if (port->physport->devices) {
-			spin_unlock (&port->physport->pardevice_lock);
-			printk (KERN_DEBUG
+			spin_unlock(&port->physport->pardevice_lock);
+			printk(KERN_DEBUG
 				"%s: cannot grant exclusive access for device %s\n",
 				port->name, name);
 			goto out_free_all;
@@ -807,7 +807,7 @@ parport_register_device(struct parport *port, const char *name,
  out_free_pardevice:
 	kfree(tmp);
  out:
-	parport_put_port (port);
+	parport_put_port(port);
 	module_put(port->ops->owner);
 
 	return NULL;
@@ -988,7 +988,7 @@ void parport_unregister_device(struct pardevice *dev)
 	if (port->cad == dev) {
 		printk(KERN_DEBUG "%s: %s forgot to release port\n",
 		       port->name, dev->name);
-		parport_release (dev);
+		parport_release(dev);
 	}
 
 	spin_lock(&port->pardevice_lock);
@@ -1028,7 +1028,7 @@ void parport_unregister_device(struct pardevice *dev)
 		kfree(dev);
 
 	module_put(port->ops->owner);
-	parport_put_port (port);
+	parport_put_port(port);
 }
 EXPORT_SYMBOL(parport_unregister_device);
 
@@ -1044,21 +1044,21 @@ EXPORT_SYMBOL(parport_unregister_device);
  *	gives you, use parport_put_port().
  */
 
-struct parport *parport_find_number (int number)
+struct parport *parport_find_number(int number)
 {
 	struct parport *port, *result = NULL;
 
 	if (list_empty(&portlist))
-		get_lowlevel_driver ();
+		get_lowlevel_driver();
 
-	spin_lock (&parportlist_lock);
+	spin_lock(&parportlist_lock);
 	list_for_each_entry(port, &portlist, list) {
 		if (port->number == number) {
-			result = parport_get_port (port);
+			result = parport_get_port(port);
 			break;
 		}
 	}
-	spin_unlock (&parportlist_lock);
+	spin_unlock(&parportlist_lock);
 	return result;
 }
 EXPORT_SYMBOL(parport_find_number);
@@ -1075,21 +1075,21 @@ EXPORT_SYMBOL(parport_find_number);
  *	gives you, use parport_put_port().
  */
 
-struct parport *parport_find_base (unsigned long base)
+struct parport *parport_find_base(unsigned long base)
 {
 	struct parport *port, *result = NULL;
 
 	if (list_empty(&portlist))
-		get_lowlevel_driver ();
+		get_lowlevel_driver();
 
-	spin_lock (&parportlist_lock);
+	spin_lock(&parportlist_lock);
 	list_for_each_entry(port, &portlist, list) {
 		if (port->base == base) {
-			result = parport_get_port (port);
+			result = parport_get_port(port);
 			break;
 		}
 	}
-	spin_unlock (&parportlist_lock);
+	spin_unlock(&parportlist_lock);
 	return result;
 }
 EXPORT_SYMBOL(parport_find_base);
@@ -1119,7 +1119,7 @@ int parport_claim(struct pardevice *dev)
 	}
 
 	/* Preempt any current device */
-	write_lock_irqsave (&port->cad_lock, flags);
+	write_lock_irqsave(&port->cad_lock, flags);
 	if ((oldcad = port->cad) != NULL) {
 		if (oldcad->preempt) {
 			if (oldcad->preempt(oldcad->private))
@@ -1146,7 +1146,7 @@ int parport_claim(struct pardevice *dev)
 		dev->waiting = 0;
 
 		/* Take ourselves out of the wait list again.  */
-		spin_lock_irq (&port->waitlist_lock);
+		spin_lock_irq(&port->waitlist_lock);
 		if (dev->waitprev)
 			dev->waitprev->waitnext = dev->waitnext;
 		else
@@ -1155,7 +1155,7 @@ int parport_claim(struct pardevice *dev)
 			dev->waitnext->waitprev = dev->waitprev;
 		else
 			port->waittail = dev->waitprev;
-		spin_unlock_irq (&port->waitlist_lock);
+		spin_unlock_irq(&port->waitlist_lock);
 		dev->waitprev = dev->waitnext = NULL;
 	}
 
@@ -1172,7 +1172,7 @@ int parport_claim(struct pardevice *dev)
 	/* If it's a daisy chain device, select it. */
 	if (dev->daisy >= 0) {
 		/* This could be lazier. */
-		if (!parport_daisy_select (port, dev->daisy,
+		if (!parport_daisy_select(port, dev->daisy,
 					   IEEE1284_MODE_COMPAT))
 			port->daisy = dev->daisy;
 	}
@@ -1193,7 +1193,7 @@ blocked:
 
 	/* The cad_lock is still held for writing here */
 	if (dev->waiting & 2 || dev->wakeup) {
-		spin_lock (&port->waitlist_lock);
+		spin_lock(&port->waitlist_lock);
 		if (test_and_set_bit(0, &dev->waiting) == 0) {
 			/* First add ourselves to the end of the wait list. */
 			dev->waitnext = NULL;
@@ -1204,9 +1204,9 @@ blocked:
 			} else
 				port->waithead = port->waittail = dev;
 		}
-		spin_unlock (&port->waitlist_lock);
+		spin_unlock(&port->waitlist_lock);
 	}
-	write_unlock_irqrestore (&port->cad_lock, flags);
+	write_unlock_irqrestore(&port->cad_lock, flags);
 	return -EAGAIN;
 }
 EXPORT_SYMBOL(parport_claim);
@@ -1253,7 +1253,7 @@ int parport_claim_or_block(struct pardevice *dev)
 		if (dev->waiting) {
 			wait_event_interruptible(dev->wait_q,
 						 !dev->waiting);
-			if (signal_pending (current))
+			if (signal_pending(current))
 				return -EINTR;
 			r = 1;
 		} else {
@@ -1294,7 +1294,7 @@ void parport_release(struct pardevice *dev)
 	/* Make sure that dev is the current device */
 	write_lock_irqsave(&port->cad_lock, flags);
 	if (port->cad != dev) {
-		write_unlock_irqrestore (&port->cad_lock, flags);
+		write_unlock_irqrestore(&port->cad_lock, flags);
 		printk(KERN_WARNING "%s: %s tried to release parport when not owner\n",
 		       port->name, dev->name);
 		return;
@@ -1309,7 +1309,7 @@ void parport_release(struct pardevice *dev)
 
 	/* If this is a daisy device, deselect it. */
 	if (dev->daisy >= 0) {
-		parport_daisy_deselect_all (port);
+		parport_daisy_deselect_all(port);
 		port->daisy = -1;
 	}
 #endif
