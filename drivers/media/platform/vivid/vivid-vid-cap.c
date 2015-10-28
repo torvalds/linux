@@ -95,11 +95,10 @@ static const struct v4l2_discrete_probe webcam_probe = {
 	VIVID_WEBCAM_SIZES
 };
 
-static int vid_cap_queue_setup(struct vb2_queue *vq, const void *parg,
+static int vid_cap_queue_setup(struct vb2_queue *vq,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
 	unsigned buffers = tpg_g_buffers(&dev->tpg);
 	unsigned h = dev->fmt_cap_rect.height;
@@ -122,27 +121,16 @@ static int vid_cap_queue_setup(struct vb2_queue *vq, const void *parg,
 		dev->queue_setup_error = false;
 		return -EINVAL;
 	}
-	if (fmt) {
-		const struct v4l2_pix_format_mplane *mp;
-		struct v4l2_format mp_fmt;
-		const struct vivid_fmt *vfmt;
-
-		if (!V4L2_TYPE_IS_MULTIPLANAR(fmt->type)) {
-			fmt_sp2mp(fmt, &mp_fmt);
-			fmt = &mp_fmt;
-		}
-		mp = &fmt->fmt.pix_mp;
+	if (*nplanes) {
 		/*
-		 * Check if the number of planes in the specified format match
+		 * Check if the number of requested planes match
 		 * the number of buffers in the current format. You can't mix that.
 		 */
-		if (mp->num_planes != buffers)
+		if (*nplanes != buffers)
 			return -EINVAL;
-		vfmt = vivid_get_format(dev, mp->pixelformat);
 		for (p = 0; p < buffers; p++) {
-			sizes[p] = mp->plane_fmt[p].sizeimage;
 			if (sizes[p] < tpg_g_line_width(&dev->tpg, p) * h +
-							vfmt->data_offset[p])
+						dev->fmt_cap->data_offset[p])
 				return -EINVAL;
 		}
 	} else {

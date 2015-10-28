@@ -621,7 +621,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	 * Ask the driver how many buffers and planes per buffer it requires.
 	 * Driver also sets the size and allocator context for each plane.
 	 */
-	ret = call_qop(q, queue_setup, q, NULL, &num_buffers, &num_planes,
+	ret = call_qop(q, queue_setup, q, &num_buffers, &num_planes,
 		       q->plane_sizes, q->alloc_ctx);
 	if (ret)
 		return ret;
@@ -646,8 +646,15 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	 */
 	if (!ret && allocated_buffers < num_buffers) {
 		num_buffers = allocated_buffers;
+		/*
+		 * num_planes is set by the previous queue_setup(), but since it
+		 * signals to queue_setup() whether it is called from create_bufs()
+		 * vs reqbufs() we zero it here to signal that queue_setup() is
+		 * called for the reqbufs() case.
+		 */
+		num_planes = 0;
 
-		ret = call_qop(q, queue_setup, q, NULL, &num_buffers,
+		ret = call_qop(q, queue_setup, q, &num_buffers,
 			       &num_planes, q->plane_sizes, q->alloc_ctx);
 
 		if (!ret && allocated_buffers < num_buffers)
@@ -701,7 +708,8 @@ EXPORT_SYMBOL_GPL(vb2_core_reqbufs);
  * from vidioc_create_bufs handler in driver.
  */
 int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
-		unsigned int *count, const void *parg)
+		unsigned int *count, unsigned requested_planes,
+		const unsigned requested_sizes[])
 {
 	unsigned int num_planes = 0, num_buffers, allocated_buffers;
 	int ret;
@@ -720,11 +728,16 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 
 	num_buffers = min(*count, VB2_MAX_FRAME - q->num_buffers);
 
+	if (requested_planes && requested_sizes) {
+		num_planes = requested_planes;
+		memcpy(q->plane_sizes, requested_sizes, sizeof(q->plane_sizes));
+	}
+
 	/*
 	 * Ask the driver, whether the requested number of buffers, planes per
 	 * buffer and their sizes are acceptable
 	 */
-	ret = call_qop(q, queue_setup, q, parg, &num_buffers,
+	ret = call_qop(q, queue_setup, q, &num_buffers,
 		       &num_planes, q->plane_sizes, q->alloc_ctx);
 	if (ret)
 		return ret;
@@ -747,7 +760,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 		 * q->num_buffers contains the total number of buffers, that the
 		 * queue driver has set up
 		 */
-		ret = call_qop(q, queue_setup, q, parg, &num_buffers,
+		ret = call_qop(q, queue_setup, q, &num_buffers,
 			       &num_planes, q->plane_sizes, q->alloc_ctx);
 
 		if (!ret && allocated_buffers < num_buffers)

@@ -268,21 +268,26 @@ struct vb2_buffer {
  * struct vb2_ops - driver-specific callbacks
  *
  * @queue_setup:	called from VIDIOC_REQBUFS and VIDIOC_CREATE_BUFS
- *			handlers before memory allocation, or, if
- *			*num_planes != 0, after the allocation to verify a
- *			smaller number of buffers. Driver should return
- *			the required number of buffers in *num_buffers, the
- *			required number of planes per buffer in *num_planes; the
- *			size of each plane should be set in the sizes[] array
- *			and optional per-plane allocator specific context in the
- *			alloc_ctxs[] array. When called from VIDIOC_REQBUFS,
- *			fmt == NULL, the driver has to use the currently
- *			configured format and *num_buffers is the total number
- *			of buffers, that are being allocated. When called from
- *			VIDIOC_CREATE_BUFS, fmt != NULL and it describes the
- *			target frame format (if the format isn't valid the
- *			callback must return -EINVAL). In this case *num_buffers
- *			are being allocated additionally to q->num_buffers.
+ *			handlers before memory allocation. It can be called
+ *			twice: if the original number of requested buffers
+ *			could not be allocated, then it will be called a
+ *			second time with the actually allocated number of
+ *			buffers to verify if that is OK.
+ *			The driver should return the required number of buffers
+ *			in *num_buffers, the required number of planes per
+ *			buffer in *num_planes, the size of each plane should be
+ *			set in the sizes[] array and optional per-plane
+ *			allocator specific context in the alloc_ctxs[] array.
+ *			When called from VIDIOC_REQBUFS, *num_planes == 0, the
+ *			driver has to use the currently configured format to
+ *			determine the plane sizes and *num_buffers is the total
+ *			number of buffers that are being allocated. When called
+ *			from VIDIOC_CREATE_BUFS, *num_planes != 0 and it
+ *			describes the requested number of planes and sizes[]
+ *			contains the requested plane sizes. If either
+ *			*num_planes or the requested sizes are invalid callback
+ *			must return -EINVAL. In this case *num_buffers are
+ *			being allocated additionally to q->num_buffers.
  * @wait_prepare:	release any locks taken while calling vb2 functions;
  *			it is called before an ioctl needs to wait for a new
  *			buffer to arrive; required to avoid a deadlock in
@@ -344,7 +349,7 @@ struct vb2_buffer {
  *			pre-queued buffers before calling STREAMON.
  */
 struct vb2_ops {
-	int (*queue_setup)(struct vb2_queue *q, const void *parg,
+	int (*queue_setup)(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[]);
 
@@ -507,7 +512,8 @@ int vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
 int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		unsigned int *count);
 int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
-		unsigned int *count, const void *parg);
+		unsigned int *count, unsigned requested_planes,
+		const unsigned int requested_sizes[]);
 int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb);
 int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb);
 int vb2_core_dqbuf(struct vb2_queue *q, void *pb, bool nonblocking);

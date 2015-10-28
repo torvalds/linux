@@ -435,38 +435,27 @@ static void stop_streaming(struct vb2_queue *vq)
 	camif_stop_capture(vp);
 }
 
-static int queue_setup(struct vb2_queue *vq, const void *parg,
+static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *num_buffers, unsigned int *num_planes,
 		       unsigned int sizes[], void *allocators[])
 {
-	const struct v4l2_format *pfmt = parg;
-	const struct v4l2_pix_format *pix = NULL;
 	struct camif_vp *vp = vb2_get_drv_priv(vq);
 	struct camif_dev *camif = vp->camif;
 	struct camif_frame *frame = &vp->out_frame;
-	const struct camif_fmt *fmt;
+	const struct camif_fmt *fmt = vp->out_fmt;
 	unsigned int size;
 
-	if (pfmt) {
-		pix = &pfmt->fmt.pix;
-		fmt = s3c_camif_find_format(vp, &pix->pixelformat, -1);
-		if (fmt == NULL)
-			return -EINVAL;
-		size = (pix->width * pix->height * fmt->depth) / 8;
-	} else {
-		fmt = vp->out_fmt;
-		if (fmt == NULL)
-			return -EINVAL;
-		size = (frame->f_width * frame->f_height * fmt->depth) / 8;
-	}
+	if (fmt == NULL)
+		return -EINVAL;
+
+	size = (frame->f_width * frame->f_height * fmt->depth) / 8;
+	allocators[0] = camif->alloc_ctx;
+
+	if (*num_planes)
+		return sizes[0] < size ? -EINVAL : 0;
 
 	*num_planes = 1;
-
-	if (pix)
-		sizes[0] = max(size, pix->sizeimage);
-	else
-		sizes[0] = size;
-	allocators[0] = camif->alloc_ctx;
+	sizes[0] = size;
 
 	pr_debug("size: %u\n", sizes[0]);
 	return 0;

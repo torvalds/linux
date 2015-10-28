@@ -638,19 +638,15 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 	return rc;
 }
 
-static int queue_setup(struct vb2_queue *vq, const void *parg,
+static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
 		       unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct au0828_dev *dev = vb2_get_drv_priv(vq);
-	unsigned long img_size = dev->height * dev->bytesperline;
-	unsigned long size;
+	unsigned long size = dev->height * dev->bytesperline;
 
-	size = fmt ? fmt->fmt.pix.sizeimage : img_size;
-	if (size < img_size)
-		return -EINVAL;
-
+	if (*nplanes)
+		return sizes[0] < size ? -EINVAL : 0;
 	*nplanes = 1;
 	sizes[0] = size;
 

@@ -141,20 +141,20 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 	return handled;
 }
 
-static int cx25821_queue_setup(struct vb2_queue *q, const void *parg,
+static int cx25821_queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct cx25821_channel *chan = q->drv_priv;
 	unsigned size = (chan->fmt->depth * chan->width * chan->height) >> 3;
 
-	if (fmt && fmt->fmt.pix.sizeimage < size)
-		return -EINVAL;
+	alloc_ctxs[0] = chan->dev->alloc_ctx;
+
+	if (*num_planes)
+		return sizes[0] < size ? -EINVAL : 0;
 
 	*num_planes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : size;
-	alloc_ctxs[0] = chan->dev->alloc_ctx;
+	sizes[0] = size;
 	return 0;
 }
 

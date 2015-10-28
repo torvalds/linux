@@ -1049,24 +1049,25 @@ static int mcam_read_setup(struct mcam_camera *cam)
  */
 
 static int mcam_vb_queue_setup(struct vb2_queue *vq,
-		const void *parg, unsigned int *nbufs,
+		unsigned int *nbufs,
 		unsigned int *num_planes, unsigned int sizes[],
 		void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
 	int minbufs = (cam->buffer_mode == B_DMA_contig) ? 3 : 2;
+	unsigned size = cam->pix_format.sizeimage;
 
-	if (fmt && fmt->fmt.pix.sizeimage < cam->pix_format.sizeimage)
-		return -EINVAL;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : cam->pix_format.sizeimage;
-	*num_planes = 1; /* Someday we have to support planar formats... */
 	if (*nbufs < minbufs)
 		*nbufs = minbufs;
 	if (cam->buffer_mode == B_DMA_contig)
 		alloc_ctxs[0] = cam->vb_alloc_ctx;
 	else if (cam->buffer_mode == B_DMA_sg)
 		alloc_ctxs[0] = cam->vb_alloc_ctx_sg;
+
+	if (*num_planes)
+		return sizes[0] < size ? -EINVAL : 0;
+	sizes[0] = size;
+	*num_planes = 1; /* Someday we have to support planar formats... */
 	return 0;
 }
 

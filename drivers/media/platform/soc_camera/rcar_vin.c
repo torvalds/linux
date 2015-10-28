@@ -531,45 +531,13 @@ struct rcar_vin_cam {
  * required
  */
 static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
-				   const void *parg,
 				   unsigned int *count,
 				   unsigned int *num_planes,
 				   unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
-
-	if (fmt) {
-		const struct soc_camera_format_xlate *xlate;
-		unsigned int bytes_per_line;
-		int ret;
-
-		if (fmt->fmt.pix.sizeimage < icd->sizeimage)
-			return -EINVAL;
-
-		xlate = soc_camera_xlate_by_fourcc(icd,
-						   fmt->fmt.pix.pixelformat);
-		if (!xlate)
-			return -EINVAL;
-		ret = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
-					      xlate->host_fmt);
-		if (ret < 0)
-			return ret;
-
-		bytes_per_line = max_t(u32, fmt->fmt.pix.bytesperline, ret);
-
-		ret = soc_mbus_image_size(xlate->host_fmt, bytes_per_line,
-					  fmt->fmt.pix.height);
-		if (ret < 0)
-			return ret;
-
-		sizes[0] = max_t(u32, fmt->fmt.pix.sizeimage, ret);
-	} else {
-		/* Called from VIDIOC_REQBUFS or in compatibility mode */
-		sizes[0] = icd->sizeimage;
-	}
 
 	alloc_ctxs[0] = priv->alloc_ctx;
 
@@ -580,13 +548,17 @@ static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
 		*count = 2;
 	priv->vb_count = *count;
 
-	*num_planes = 1;
-
 	/* Number of hardware slots */
 	if (is_continuous_transfer(priv))
 		priv->nr_hw_slots = MAX_BUFFER_NUM;
 	else
 		priv->nr_hw_slots = 1;
+
+	if (*num_planes)
+		return sizes[0] < icd->sizeimage ? -EINVAL : 0;
+
+	sizes[0] = icd->sizeimage;
+	*num_planes = 1;
 
 	dev_dbg(icd->parent, "count=%d, size=%u\n", *count, sizes[0]);
 

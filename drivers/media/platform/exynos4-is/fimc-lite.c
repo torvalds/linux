@@ -355,37 +355,34 @@ static void stop_streaming(struct vb2_queue *q)
 	fimc_lite_stop_capture(fimc, false);
 }
 
-static int queue_setup(struct vb2_queue *vq, const void *parg,
+static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *num_buffers, unsigned int *num_planes,
 		       unsigned int sizes[], void *allocators[])
 {
-	const struct v4l2_format *pfmt = parg;
-	const struct v4l2_pix_format_mplane *pixm = NULL;
 	struct fimc_lite *fimc = vq->drv_priv;
 	struct flite_frame *frame = &fimc->out_frame;
 	const struct fimc_fmt *fmt = frame->fmt;
-	unsigned long wh;
+	unsigned long wh = frame->f_width * frame->f_height;
 	int i;
-
-	if (pfmt) {
-		pixm = &pfmt->fmt.pix_mp;
-		fmt = fimc_lite_find_format(&pixm->pixelformat, NULL, 0, -1);
-		wh = pixm->width * pixm->height;
-	} else {
-		wh = frame->f_width * frame->f_height;
-	}
 
 	if (fmt == NULL)
 		return -EINVAL;
 
+	if (*num_planes) {
+		if (*num_planes != fmt->memplanes)
+			return -EINVAL;
+		for (i = 0; i < *num_planes; i++) {
+			if (sizes[i] < (wh * fmt->depth[i]) / 8)
+				return -EINVAL;
+			allocators[i] = fimc->alloc_ctx;
+		}
+		return 0;
+	}
+
 	*num_planes = fmt->memplanes;
 
 	for (i = 0; i < fmt->memplanes; i++) {
-		unsigned int size = (wh * fmt->depth[i]) / 8;
-		if (pixm)
-			sizes[i] = max(size, pixm->plane_fmt[i].sizeimage);
-		else
-			sizes[i] = size;
+		sizes[i] = (wh * fmt->depth[i]) / 8;
 		allocators[i] = fimc->alloc_ctx;
 	}
 
