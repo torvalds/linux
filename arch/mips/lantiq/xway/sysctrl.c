@@ -10,6 +10,7 @@
 #include <linux/ioport.h>
 #include <linux/export.h>
 #include <linux/clkdev.h>
+#include <linux/spinlock.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
@@ -19,16 +20,18 @@
 #include "../clk.h"
 #include "../prom.h"
 
-/* clock control register */
+/* clock control register for legacy */
 #define CGU_IFCCR	0x0018
 #define CGU_IFCCR_VR9	0x0024
-/* system clock register */
+/* system clock register for legacy */
 #define CGU_SYS		0x0010
 /* pci control register */
 #define CGU_PCICR	0x0034
 #define CGU_PCICR_VR9	0x0038
 /* ephy configuration register */
 #define CGU_EPHY	0x10
+
+/* Legacy PMU register for ar9, ase, danube */
 /* power control register */
 #define PMU_PWDCR	0x1C
 /* power status register */
@@ -41,6 +44,47 @@
 #define PWDCR(x) ((x) ? (PMU_PWDCR1) : (PMU_PWDCR))
 /* power status register */
 #define PWDSR(x) ((x) ? (PMU_PWDSR1) : (PMU_PWDSR))
+
+
+/* PMU register for ar10 and grx390 */
+
+/* First register set */
+#define PMU_CLK_SR	0x20 /* status */
+#define PMU_CLK_CR_A	0x24 /* Enable */
+#define PMU_CLK_CR_B	0x28 /* Disable */
+/* Second register set */
+#define PMU_CLK_SR1	0x30 /* status */
+#define PMU_CLK_CR1_A	0x34 /* Enable */
+#define PMU_CLK_CR1_B	0x38 /* Disable */
+/* Third register set */
+#define PMU_ANA_SR	0x40 /* status */
+#define PMU_ANA_CR_A	0x44 /* Enable */
+#define PMU_ANA_CR_B	0x48 /* Disable */
+
+/* Status */
+static u32 pmu_clk_sr[] = {
+	PMU_CLK_SR,
+	PMU_CLK_SR1,
+	PMU_ANA_SR,
+};
+
+/* Enable */
+static u32 pmu_clk_cr_a[] = {
+	PMU_CLK_CR_A,
+	PMU_CLK_CR1_A,
+	PMU_ANA_CR_A,
+};
+
+/* Disable */
+static u32 pmu_clk_cr_b[] = {
+	PMU_CLK_CR_B,
+	PMU_CLK_CR1_B,
+	PMU_ANA_CR_B,
+};
+
+#define PWDCR_EN_XRX(x)		(pmu_clk_cr_a[(x)])
+#define PWDCR_DIS_XRX(x)	(pmu_clk_cr_b[(x)])
+#define PWDSR_XRX(x)		(pmu_clk_sr[(x)])
 
 /* clock gates that we can en/disable */
 #define PMU_USB0_P	BIT(0)
@@ -136,11 +180,20 @@ static int pmu_enable(struct clk *clk)
 {
 	int retry = 1000000;
 
-	spin_lock(&g_pmu_lock);
-	pmu_w32(pmu_r32(PWDCR(clk->module)) & ~clk->bits,
-		PWDCR(clk->module));
-	do {} while (--retry && (pmu_r32(PWDSR(clk->module)) & clk->bits));
-	spin_unlock(&g_pmu_lock);
+	if (of_machine_is_compatible("lantiq,ar10")
+	    || of_machine_is_compatible("lantiq,grx390")) {
+		pmu_w32(clk->bits, PWDCR_EN_XRX(clk->module));
+		do {} while (--retry &&
+			     (!(pmu_r32(PWDSR_XRX(clk->module)) & clk->bits)));
+
+	} else {
+		spin_lock(&g_pmu_lock);
+		pmu_w32(pmu_r32(PWDCR(clk->module)) & ~clk->bits,
+				PWDCR(clk->module));
+		do {} while (--retry &&
+			     (pmu_r32(PWDSR(clk->module)) & clk->bits));
+		spin_unlock(&g_pmu_lock);
+	}
 
 	if (!retry)
 		panic("activating PMU module failed!");
@@ -153,10 +206,19 @@ static void pmu_disable(struct clk *clk)
 {
 	int retry = 1000000;
 
-	spin_lock(&g_pmu_lock);
-	pmu_w32(pmu_r32(PWDCR(clk->module)) | clk->bits, PWDCR(clk->module));
-	do {} while (--retry && (!(pmu_r32(PWDSR(clk->module)) & clk->bits)));
-	spin_unlock(&g_pmu_lock);
+	if (of_machine_is_compatible("lantiq,ar10")
+	    || of_machine_is_compatible("lantiq,grx390")) {
+		pmu_w32(clk->bits, PWDCR_DIS_XRX(clk->module));
+		do {} while (--retry &&
+			     (pmu_r32(PWDSR_XRX(clk->module)) & clk->bits));
+	} else {
+		spin_lock(&g_pmu_lock);
+		pmu_w32(pmu_r32(PWDCR(clk->module)) | clk->bits,
+				PWDCR(clk->module));
+		do {} while (--retry &&
+			     (!(pmu_r32(PWDSR(clk->module)) & clk->bits)));
+		spin_unlock(&g_pmu_lock);
+	}
 
 	if (!retry)
 		pr_warn("deactivating PMU module failed!");
