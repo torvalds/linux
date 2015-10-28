@@ -303,7 +303,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
-		int len;
+	int len;
 	u8 *pos;
 	struct rtl_80211_hdr_4addr *hdr;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
@@ -322,12 +322,12 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!tcb_desc->bHwSec) {
 		if (!tkey->tx_phase1_done) {
 			tkip_mixing_phase1(tkey->tx_ttak, tkey->key, hdr->addr2,
-					tkey->tx_iv32);
+					   tkey->tx_iv32);
 			tkey->tx_phase1_done = 1;
 		}
 		tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
 	} else
-	tkey->tx_phase1_done = 1;
+		tkey->tx_phase1_done = 1;
 
 
 	len = skb->len - hdr_len;
@@ -598,7 +598,7 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 }
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
-				     int hdr_len, void *priv)
+					int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 mic[8];
@@ -618,7 +618,7 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	// }
 
 	if (michael_mic(tkey->rx_tfm_michael, &tkey->key[24], tkey->rx_hdr,
-				skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
+			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
 		return -1;
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct rtl_80211_hdr_4addr *hdr;
