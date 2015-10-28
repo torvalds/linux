@@ -980,14 +980,14 @@ static int sca3000_write_event_config(struct iio_dev *indio_dev,
 	if (ret)
 		goto exit_point;
 	/* if off and should be on */
-	if ((st->mo_det_use_count)
-	    && ((st->rx[0] & protect_mask) != SCA3000_MEAS_MODE_MOT_DET))
+	if ((st->mo_det_use_count) &&
+	    ((st->rx[0] & protect_mask) != SCA3000_MEAS_MODE_MOT_DET))
 		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
 					(st->rx[0] & ~protect_mask)
 					| SCA3000_MEAS_MODE_MOT_DET);
 	/* if on and should be off */
-	else if (!(st->mo_det_use_count)
-		 && ((st->rx[0] & protect_mask) == SCA3000_MEAS_MODE_MOT_DET))
+	else if (!(st->mo_det_use_count) &&
+		 ((st->rx[0] & protect_mask) == SCA3000_MEAS_MODE_MOT_DET))
 		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
 					(st->rx[0] & ~protect_mask));
 exit_point:
