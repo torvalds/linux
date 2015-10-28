@@ -4571,7 +4571,7 @@ s32 host_int_del_station(struct host_if_drv *hif_drv, const u8 *pu8MacAddr)
 	msg.drv = hif_drv;
 
 	if (!pu8MacAddr)
-		memset(pstrDelStationMsg->mac_addr, 255, ETH_ALEN);
+		eth_broadcast_addr(pstrDelStationMsg->mac_addr);
 	else
 		memcpy(pstrDelStationMsg->mac_addr, pu8MacAddr, ETH_ALEN);
 
