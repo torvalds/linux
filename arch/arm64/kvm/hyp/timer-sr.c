@@ -31,12 +31,12 @@ void __hyp_text __timer_save_state(struct kvm_vcpu *vcpu)
 	u64 val;
 
 	if (kvm->arch.timer.enabled) {
-		timer->cntv_ctl = read_sysreg(cntv_ctl_el0);
-		timer->cntv_cval = read_sysreg(cntv_cval_el0);
+		timer->cntv_ctl = read_sysreg_el0(cntv_ctl);
+		timer->cntv_cval = read_sysreg_el0(cntv_cval);
 	}
 
 	/* Disable the virtual timer */
-	write_sysreg(0, cntv_ctl_el0);
+	write_sysreg_el0(0, cntv_ctl);
 
 	/* Allow physical timer/counter access for the host */
 	val = read_sysreg(cnthctl_el2);
@@ -64,8 +64,8 @@ void __hyp_text __timer_restore_state(struct kvm_vcpu *vcpu)
 
 	if (kvm->arch.timer.enabled) {
 		write_sysreg(kvm->arch.timer.cntvoff, cntvoff_el2);
-		write_sysreg(timer->cntv_cval, cntv_cval_el0);
+		write_sysreg_el0(timer->cntv_cval, cntv_cval);
 		isb();
-		write_sysreg(timer->cntv_ctl, cntv_ctl_el0);
+		write_sysreg_el0(timer->cntv_ctl, cntv_ctl);
 	}
 }
