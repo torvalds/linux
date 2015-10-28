@@ -584,6 +584,8 @@ int ip6_fragment(struct sock *sk, struct sk_buff *skb,
 		if (np->frag_size)
 			mtu = np->frag_size;
 	}
+	if (mtu < hlen + sizeof(struct frag_hdr) + 8)
+		goto fail_toobig;
 	mtu -= hlen + sizeof(struct frag_hdr);
 
 	frag_id = ipv6_select_ident(net, &ipv6_hdr(skb)->daddr,
