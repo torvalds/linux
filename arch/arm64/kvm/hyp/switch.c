@@ -17,6 +17,25 @@
 
 #include "hyp.h"
 
+static bool __hyp_text __fpsimd_enabled_nvhe(void)
+{
+	return !(read_sysreg(cptr_el2) & CPTR_EL2_TFP);
+}
+
+static bool __hyp_text __fpsimd_enabled_vhe(void)
+{
+	return !!(read_sysreg(cpacr_el1) & CPACR_EL1_FPEN);
+}
+
+static hyp_alternate_select(__fpsimd_is_enabled,
+			    __fpsimd_enabled_nvhe, __fpsimd_enabled_vhe,
+			    ARM64_HAS_VIRT_HOST_EXTN);
+
+bool __hyp_text __fpsimd_enabled(void)
+{
+	return __fpsimd_is_enabled()();
+}
+
 static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu)
 {
 	u64 val;
