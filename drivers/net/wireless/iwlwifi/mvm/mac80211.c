@@ -572,6 +572,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	/* we create the 802.11 header and zero length SSID IE. */
 	hw->wiphy->max_sched_scan_ie_len =
 		SCAN_OFFLOAD_PROBE_REQ_SIZE - 24 - 2;
+	hw->wiphy->max_sched_scan_plans = IWL_MAX_SCHED_SCAN_PLANS;
+	hw->wiphy->max_sched_scan_plan_interval = U16_MAX;
+
+	/*
+	 * the firmware uses u8 for num of iterations, but 0xff is saved for
+	 * infinite loop, so the maximum number of iterations is actually 254.
+	 */
+	hw->wiphy->max_sched_scan_plan_iterations = 254;
 
 	hw->wiphy->features |= NL80211_FEATURE_P2P_GO_CTWIN |
 			       NL80211_FEATURE_LOW_PRIORITY_SCAN |
@@ -1129,6 +1137,12 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	/* there's no point in fw dump if the bus is dead */
+	if (test_bit(STATUS_TRANS_DEAD, &mvm->trans->status)) {
+		IWL_ERR(mvm, "Skip fw error dump since bus is dead\n");
+		return;
+	}
+
 	if (mvm->fw_dump_trig &&
 	    mvm->fw_dump_trig->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY)
 		monitor_dump_only = true;
@@ -1191,6 +1205,13 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	/* Make room for the secondary SRAM, if it exists */
 	if (sram2_len)
 		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + sram2_len;
+
+	/* Make room for fw's virtual image pages, if it exists */
+	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size)
+		file_len += mvm->num_of_paging_blk *
+			(sizeof(*dump_data) +
+			 sizeof(struct iwl_fw_error_dump_paging) +
+			 PAGING_BLOCK_SIZE);
 
 	/* If we only want a monitor dump, reset the file length */
 	if (monitor_dump_only) {
@@ -1300,6 +1321,26 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		dump_mem->offset = cpu_to_le32(IWL8260_ICCM_OFFSET);
 		iwl_trans_read_mem_bytes(mvm->trans, IWL8260_ICCM_OFFSET,
 					 dump_mem->data, IWL8260_ICCM_LEN);
+	}
+
+	/* Dump fw's virtual image */
+	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size) {
+		u32 i;
+
+		for (i = 1; i < mvm->num_of_paging_blk + 1; i++) {
+			struct iwl_fw_error_dump_paging *paging;
+			struct page *pages =
+				mvm->fw_paging_db[i].fw_paging_block;
+
+			dump_data = iwl_fw_error_next_data(dump_data);
+			dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PAGING);
+			dump_data->len = cpu_to_le32(sizeof(*paging) +
+						     PAGING_BLOCK_SIZE);
+			paging = (void *)dump_data->data;
+			paging->index = cpu_to_le32(i);
+			memcpy(paging->data, page_address(pages),
+			       PAGING_BLOCK_SIZE);
+		}
 	}
 
 dump_trans_data:
@@ -1754,7 +1795,7 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * Flush them here.
 		 */
 		mutex_lock(&mvm->mutex);
-		iwl_mvm_flush_tx_path(mvm, tfd_msk, true);
+		iwl_mvm_flush_tx_path(mvm, tfd_msk, 0);
 		mutex_unlock(&mvm->mutex);
 
 		/*
@@ -1953,6 +1994,27 @@ static void iwl_mvm_configure_filter(struct ieee80211_hw *hw,
 out:
 	mutex_unlock(&mvm->mutex);
 	*total_flags = 0;
+}
+
+static void iwl_mvm_config_iface_filter(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					unsigned int filter_flags,
+					unsigned int changed_flags)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	/* We support only filter for probe requests */
+	if (!(changed_flags & FIF_PROBE_REQ))
+		return;
+
+	/* Supported only for p2p client interfaces */
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc ||
+	    !vif->p2p)
+		return;
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+	mutex_unlock(&mvm->mutex);
 }
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
@@ -3898,7 +3960,7 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	}
 
 	if (drop) {
-		if (iwl_mvm_flush_tx_path(mvm, msk, true))
+		if (iwl_mvm_flush_tx_path(mvm, msk, 0))
 			IWL_ERR(mvm, "flush request fail\n");
 		mutex_unlock(&mvm->mutex);
 	} else {
@@ -4135,6 +4197,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.config = iwl_mvm_mac_config,
 	.prepare_multicast = iwl_mvm_prepare_multicast,
 	.configure_filter = iwl_mvm_configure_filter,
+	.config_iface_filter = iwl_mvm_config_iface_filter,
 	.bss_info_changed = iwl_mvm_bss_info_changed,
 	.hw_scan = iwl_mvm_mac_hw_scan,
 	.cancel_hw_scan = iwl_mvm_mac_cancel_hw_scan,

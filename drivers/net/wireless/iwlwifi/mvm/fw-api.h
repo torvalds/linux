@@ -1524,6 +1524,69 @@ struct iwl_dts_measurement_cmd {
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_CMD_S */
 
 /**
+* enum iwl_dts_control_measurement_mode - DTS measurement type
+* @DTS_AUTOMATIC: Automatic mode (full SW control). Provide temperature read
+*                 back (latest value. Not waiting for new value). Use automatic
+*                 SW DTS configuration.
+* @DTS_REQUEST_READ: Request DTS read. Configure DTS with manual settings,
+*                    trigger DTS reading and provide read back temperature read
+*                    when available.
+* @DTS_OVER_WRITE: over-write the DTS temperatures in the SW until next read
+* @DTS_DIRECT_WITHOUT_MEASURE: DTS returns its latest temperature result,
+*                              without measurement trigger.
+*/
+enum iwl_dts_control_measurement_mode {
+	DTS_AUTOMATIC			= 0,
+	DTS_REQUEST_READ		= 1,
+	DTS_OVER_WRITE			= 2,
+	DTS_DIRECT_WITHOUT_MEASURE	= 3,
+};
+
+/**
+* enum iwl_dts_used - DTS to use or used for measurement in the DTS request
+* @DTS_USE_TOP: Top
+* @DTS_USE_CHAIN_A: chain A
+* @DTS_USE_CHAIN_B: chain B
+* @DTS_USE_CHAIN_C: chain C
+* @XTAL_TEMPERATURE - read temperature from xtal
+*/
+enum iwl_dts_used {
+	DTS_USE_TOP		= 0,
+	DTS_USE_CHAIN_A		= 1,
+	DTS_USE_CHAIN_B		= 2,
+	DTS_USE_CHAIN_C		= 3,
+	XTAL_TEMPERATURE	= 4,
+};
+
+/**
+* enum iwl_dts_bit_mode - bit-mode to use in DTS request read mode
+* @DTS_BIT6_MODE: bit 6 mode
+* @DTS_BIT8_MODE: bit 8 mode
+*/
+enum iwl_dts_bit_mode {
+	DTS_BIT6_MODE	= 0,
+	DTS_BIT8_MODE	= 1,
+};
+
+/**
+ * iwl_ext_dts_measurement_cmd - request extended DTS temperature measurements
+ * @control_mode: see &enum iwl_dts_control_measurement_mode
+ * @temperature: used when over write DTS mode is selected
+ * @sensor: set temperature sensor to use. See &enum iwl_dts_used
+ * @avg_factor: average factor to DTS in request DTS read mode
+ * @bit_mode: value defines the DTS bit mode to use. See &enum iwl_dts_bit_mode
+ * @step_duration: step duration for the DTS
+ */
+struct iwl_ext_dts_measurement_cmd {
+	__le32 control_mode;
+	__le32 temperature;
+	__le32 sensor;
+	__le32 avg_factor;
+	__le32 bit_mode;
+	__le32 step_duration;
+} __packed; /* XVT_FW_DTS_CONTROL_MEASUREMENT_REQUEST_API_S */
+
+/**
  * iwl_dts_measurement_notif - notification received with the measurements
  *
  * @temp: the measured temperature
