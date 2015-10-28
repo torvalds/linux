@@ -586,12 +586,12 @@ static void cl_env_hops_noop(struct cfs_hash *hs, struct hlist_node *hn)
 	LASSERT(cle->ce_magic == &cl_env_init0);
 }
 
-static cfs_hash_ops_t cl_env_hops = {
+static struct cfs_hash_ops cl_env_hops = {
 	.hs_hash	= cl_env_hops_hash,
-	.hs_key	 = cl_env_hops_obj,
+	.hs_key		= cl_env_hops_obj,
 	.hs_keycmp      = cl_env_hops_keycmp,
 	.hs_object      = cl_env_hops_obj,
-	.hs_get	 = cl_env_hops_noop,
+	.hs_get		= cl_env_hops_noop,
 	.hs_put_locked  = cl_env_hops_noop,
 };
 

@@ -42,7 +42,7 @@
 #include "ptlrpc_internal.h"
 
 static struct cfs_hash *conn_hash;
-static cfs_hash_ops_t conn_hash_ops;
+static struct cfs_hash_ops conn_hash_ops;
 
 struct ptlrpc_connection *
 ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
@@ -230,12 +230,12 @@ conn_exit(struct cfs_hash *hs, struct hlist_node *hnode)
 	kfree(conn);
 }
 
-static cfs_hash_ops_t conn_hash_ops = {
+static struct cfs_hash_ops conn_hash_ops = {
 	.hs_hash	= conn_hashfn,
 	.hs_keycmp      = conn_keycmp,
-	.hs_key	 = conn_key,
+	.hs_key		= conn_key,
 	.hs_object      = conn_object,
-	.hs_get	 = conn_get,
+	.hs_get		= conn_get,
 	.hs_put_locked  = conn_put_locked,
 	.hs_exit	= conn_exit,
 };

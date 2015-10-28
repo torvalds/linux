@@ -916,12 +916,12 @@ static void lu_obj_hop_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 	LBUG(); /* we should never called it */
 }
 
-cfs_hash_ops_t lu_site_hash_ops = {
+struct cfs_hash_ops lu_site_hash_ops = {
 	.hs_hash	= lu_obj_hop_hash,
-	.hs_key	 = lu_obj_hop_key,
+	.hs_key		= lu_obj_hop_key,
 	.hs_keycmp      = lu_obj_hop_keycmp,
 	.hs_object      = lu_obj_hop_object,
-	.hs_get	 = lu_obj_hop_get,
+	.hs_get		= lu_obj_hop_get,
 	.hs_put_locked  = lu_obj_hop_put_locked,
 };
 

@@ -531,26 +531,26 @@ static void ldlm_res_hop_put(struct cfs_hash *hs, struct hlist_node *hnode)
 	ldlm_resource_putref(res);
 }
 
-static cfs_hash_ops_t ldlm_ns_hash_ops = {
+static struct cfs_hash_ops ldlm_ns_hash_ops = {
 	.hs_hash	= ldlm_res_hop_hash,
-	.hs_key	 = ldlm_res_hop_key,
+	.hs_key		= ldlm_res_hop_key,
 	.hs_keycmp      = ldlm_res_hop_keycmp,
 	.hs_keycpy      = NULL,
 	.hs_object      = ldlm_res_hop_object,
-	.hs_get	 = ldlm_res_hop_get_locked,
+	.hs_get		= ldlm_res_hop_get_locked,
 	.hs_put_locked  = ldlm_res_hop_put_locked,
-	.hs_put	 = ldlm_res_hop_put
+	.hs_put		= ldlm_res_hop_put
 };
 
-static cfs_hash_ops_t ldlm_ns_fid_hash_ops = {
+static struct cfs_hash_ops ldlm_ns_fid_hash_ops = {
 	.hs_hash	= ldlm_res_hop_fid_hash,
-	.hs_key	 = ldlm_res_hop_key,
+	.hs_key		= ldlm_res_hop_key,
 	.hs_keycmp      = ldlm_res_hop_keycmp,
 	.hs_keycpy      = NULL,
 	.hs_object      = ldlm_res_hop_object,
-	.hs_get	 = ldlm_res_hop_get_locked,
+	.hs_get		= ldlm_res_hop_get_locked,
 	.hs_put_locked  = ldlm_res_hop_put_locked,
-	.hs_put	 = ldlm_res_hop_put
+	.hs_put		= ldlm_res_hop_put
 };
 
 struct ldlm_ns_hash_def {
@@ -560,7 +560,7 @@ struct ldlm_ns_hash_def {
 	/** hash bits */
 	unsigned	nsd_all_bits;
 	/** hash operations */
-	cfs_hash_ops_t *nsd_hops;
+	struct cfs_hash_ops *nsd_hops;
 };
 
 static struct ldlm_ns_hash_def ldlm_ns_hash_defs[] = {

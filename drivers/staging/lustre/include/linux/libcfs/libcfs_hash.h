@@ -211,13 +211,13 @@ enum cfs_hash_tag {
 struct cfs_hash {
 	/** serialize with rehash, or serialize all operations if
 	 * the hash-table has CFS_HASH_NO_BKTLOCK */
-	union cfs_hash_lock	     hs_lock;
+	union cfs_hash_lock		 hs_lock;
 	/** hash operations */
-	struct cfs_hash_ops	*hs_ops;
+	struct cfs_hash_ops		*hs_ops;
 	/** hash lock operations */
-	struct cfs_hash_lock_ops   *hs_lops;
+	struct cfs_hash_lock_ops	*hs_lops;
 	/** hash list operations */
-	struct cfs_hash_hlist_ops  *hs_hops;
+	struct cfs_hash_hlist_ops	*hs_hops;
 	/** hash buckets-table */
 	struct cfs_hash_bucket	 **hs_buckets;
 	/** total number of items on this hash-table */
@@ -296,7 +296,7 @@ struct cfs_hash_hlist_ops {
 			     struct cfs_hash_bd *bd, struct hlist_node *hnode);
 };
 
-typedef struct cfs_hash_ops {
+struct cfs_hash_ops {
 	/** return hashed value from @key */
 	unsigned (*hs_hash)(struct cfs_hash *hs, const void *key, unsigned mask);
 	/** return key address of @hnode */
@@ -318,7 +318,7 @@ typedef struct cfs_hash_ops {
 	void     (*hs_put_locked)(struct cfs_hash *hs, struct hlist_node *hnode);
 	/** it's called before removing of @hnode */
 	void     (*hs_exit)(struct cfs_hash *hs, struct hlist_node *hnode);
-} cfs_hash_ops_t;
+};
 
 /** total number of buckets in @hs */
 #define CFS_HASH_NBKT(hs)       \
@@ -668,10 +668,11 @@ struct hlist_node *cfs_hash_dual_bd_finddel_locked(struct cfs_hash *hs,
 						  struct hlist_node *hnode);
 
 /* Hash init/cleanup functions */
-struct cfs_hash *cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
-				 unsigned bkt_bits, unsigned extra_bytes,
-			    unsigned min_theta, unsigned max_theta,
-			    cfs_hash_ops_t *ops, unsigned flags);
+struct cfs_hash *cfs_hash_create(char *name, unsigned cur_bits,
+				 unsigned max_bits, unsigned bkt_bits,
+				 unsigned extra_bytes, unsigned min_theta,
+				 unsigned max_theta, struct cfs_hash_ops *ops,
+				 unsigned flags);
 
 struct cfs_hash *cfs_hash_getref(struct cfs_hash *hs);
 void cfs_hash_putref(struct cfs_hash *hs);

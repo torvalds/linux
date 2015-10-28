@@ -1019,7 +1019,7 @@ struct cfs_hash *
 cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
 		unsigned bkt_bits, unsigned extra_bytes,
 		unsigned min_theta, unsigned max_theta,
-		cfs_hash_ops_t *ops, unsigned flags)
+		struct cfs_hash_ops *ops, unsigned flags)
 {
 	struct cfs_hash *hs;
 	int	 len;

@@ -234,7 +234,7 @@ void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars);
 extern struct lu_device_type lov_device_type;
 
 /* pools */
-extern cfs_hash_ops_t pool_hash_operations;
+extern struct cfs_hash_ops pool_hash_operations;
 /* ost_pool methods */
 int lov_ost_pool_init(struct ost_pool *op, unsigned int count);
 int lov_ost_pool_extend(struct ost_pool *op, unsigned int min_count);

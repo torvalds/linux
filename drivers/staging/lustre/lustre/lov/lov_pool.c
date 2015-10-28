@@ -142,12 +142,12 @@ static void pool_hashrefcount_put_locked(struct cfs_hash *hs,
 	lov_pool_putref_locked(pool);
 }
 
-cfs_hash_ops_t pool_hash_operations = {
+struct cfs_hash_ops pool_hash_operations = {
 	.hs_hash	= pool_hashfn,
-	.hs_key	 = pool_key,
+	.hs_key		= pool_key,
 	.hs_keycmp      = pool_hashkey_keycmp,
 	.hs_object      = pool_hashobject,
-	.hs_get	 = pool_hashrefcount_get,
+	.hs_get		= pool_hashrefcount_get,
 	.hs_put_locked  = pool_hashrefcount_put_locked,
 
 };

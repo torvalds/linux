@@ -47,7 +47,7 @@
 
 #include "llog_internal.h"
 
-static cfs_hash_ops_t uuid_hash_ops;
+static struct cfs_hash_ops uuid_hash_ops;
 
 /*********** string parsing utils *********/
 
@@ -1473,11 +1473,11 @@ uuid_export_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 	class_export_put(exp);
 }
 
-static cfs_hash_ops_t uuid_hash_ops = {
+static struct cfs_hash_ops uuid_hash_ops = {
 	.hs_hash	= uuid_hash,
-	.hs_key	 = uuid_key,
+	.hs_key		= uuid_key,
 	.hs_keycmp      = uuid_keycmp,
 	.hs_object      = uuid_export_object,
-	.hs_get	 = uuid_export_get,
+	.hs_get		= uuid_export_get,
 	.hs_put_locked  = uuid_export_put_locked,
 };
