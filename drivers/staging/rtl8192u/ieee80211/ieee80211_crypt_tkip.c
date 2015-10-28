@@ -297,6 +297,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 #ifdef __BIG_ENDIAN
 	{
 		int i;
+
 		for (i = 0; i < 6; i++)
 			PPK[i] = (PPK[i] << 8) | (PPK[i] >> 8);
 	}
@@ -395,6 +396,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 crc;
 	struct scatterlist sg;
 	int plen;
+
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
@@ -630,6 +632,7 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct rtl_80211_hdr_4addr *hdr;
 		hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from %pM keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
@@ -703,6 +706,7 @@ static int ieee80211_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 		/* Return the sequence number of the last transmitted frame. */
 		u16 iv16 = tkey->tx_iv16;
 		u32 iv32 = tkey->tx_iv32;
+
 		if (iv16 == 0)
 			iv32--;
 		iv16--;
@@ -721,6 +725,7 @@ static int ieee80211_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 static char *ieee80211_tkip_print_stats(char *p, void *priv)
 {
 	struct ieee80211_tkip_data *tkip = priv;
+
 	p += sprintf(p, "key[%d] alg=TKIP key_set=%d "
 		     "tx_pn=%02x%02x%02x%02x%02x%02x "
 		     "rx_pn=%02x%02x%02x%02x%02x%02x "
