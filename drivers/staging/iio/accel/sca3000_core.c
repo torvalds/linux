@@ -168,7 +168,6 @@ static int sca3000_write_ctrl_reg(struct sca3000_state *st,
 				  u8 sel,
 				  uint8_t val)
 {
-
 	int ret;
 
 	ret = sca3000_reg_lock_on(st);
@@ -373,7 +372,6 @@ error_ret:
 
 	return ret;
 }
-
 
 /*
  * Not even vaguely standard attributes so defined here rather than
