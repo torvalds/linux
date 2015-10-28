@@ -356,11 +356,11 @@ static s32 Handle_SetWfiDrvHandler(struct host_if_drv *hif_drv,
 
 	wid.id = (u16)WID_SET_DRV_HANDLER;
 	wid.type = WID_INT;
-	wid.val = (s8 *)&pstrHostIfSetDrvHandler->u32Address;
+	wid.val = (s8 *)&pstrHostIfSetDrvHandler->handler;
 	wid.size = sizeof(u32);
 
 	result = send_config_pkt(SET_CFG, &wid, 1,
-				 pstrHostIfSetDrvHandler->u32Address);
+				 pstrHostIfSetDrvHandler->handler);
 
 	if (!hif_drv)
 		up(&hif_sema_driver);
@@ -3681,7 +3681,7 @@ int host_int_set_wfi_drv_handler(struct host_if_drv *hif_drv)
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_WFIDRV_HANDLER;
-	msg.body.drv.u32Address = get_id_from_handler(hif_drv);
+	msg.body.drv.handler = get_id_from_handler(hif_drv);
 	msg.drv = hif_drv;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));

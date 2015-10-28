@@ -240,7 +240,7 @@ struct user_conn_req {
 };
 
 struct drv_handler {
-	u32 u32Address;
+	u32 handler;
 };
 
 struct op_mode {
