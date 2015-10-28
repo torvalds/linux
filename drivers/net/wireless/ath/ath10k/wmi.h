@@ -3866,6 +3866,111 @@ struct wmi_pdev_stats_tx {
 	__le32 txop_ovf;
 } __packed;
 
+struct wmi_10_4_pdev_stats_tx {
+	/* Num HTT cookies queued to dispatch list */
+	__le32 comp_queued;
+
+	/* Num HTT cookies dispatched */
+	__le32 comp_delivered;
+
+	/* Num MSDU queued to WAL */
+	__le32 msdu_enqued;
+
+	/* Num MPDU queue to WAL */
+	__le32 mpdu_enqued;
+
+	/* Num MSDUs dropped by WMM limit */
+	__le32 wmm_drop;
+
+	/* Num Local frames queued */
+	__le32 local_enqued;
+
+	/* Num Local frames done */
+	__le32 local_freed;
+
+	/* Num queued to HW */
+	__le32 hw_queued;
+
+	/* Num PPDU reaped from HW */
+	__le32 hw_reaped;
+
+	/* Num underruns */
+	__le32 underrun;
+
+	/* HW Paused. */
+	__le32  hw_paused;
+
+	/* Num PPDUs cleaned up in TX abort */
+	__le32 tx_abort;
+
+	/* Num MPDUs requed by SW */
+	__le32 mpdus_requed;
+
+	/* excessive retries */
+	__le32 tx_ko;
+
+	/* data hw rate code */
+	__le32 data_rc;
+
+	/* Scheduler self triggers */
+	__le32 self_triggers;
+
+	/* frames dropped due to excessive sw retries */
+	__le32 sw_retry_failure;
+
+	/* illegal rate phy errors  */
+	__le32 illgl_rate_phy_err;
+
+	/* wal pdev continuous xretry */
+	__le32 pdev_cont_xretry;
+
+	/* wal pdev tx timeouts */
+	__le32 pdev_tx_timeout;
+
+	/* wal pdev resets  */
+	__le32 pdev_resets;
+
+	/* frames dropped due to non-availability of stateless TIDs */
+	__le32 stateless_tid_alloc_failure;
+
+	__le32 phy_underrun;
+
+	/* MPDU is more than txop limit */
+	__le32 txop_ovf;
+
+	/* Number of Sequences posted */
+	__le32 seq_posted;
+
+	/* Number of Sequences failed queueing */
+	__le32 seq_failed_queueing;
+
+	/* Number of Sequences completed */
+	__le32 seq_completed;
+
+	/* Number of Sequences restarted */
+	__le32 seq_restarted;
+
+	/* Number of MU Sequences posted */
+	__le32 mu_seq_posted;
+
+	/* Num MPDUs flushed by SW, HWPAUSED,SW TXABORT(Reset,channel change) */
+	__le32 mpdus_sw_flush;
+
+	/* Num MPDUs filtered by HW, all filter condition (TTL expired) */
+	__le32 mpdus_hw_filter;
+
+	/* Num MPDUs truncated by PDG
+	 * (TXOP, TBTT, PPDU_duration based on rate, dyn_bw)
+	 */
+	__le32 mpdus_truncated;
+
+	/* Num MPDUs that was tried but didn't receive ACK or BA */
+	__le32 mpdus_ack_failed;
+
+	/* Num MPDUs that was dropped due to expiry. */
+	__le32 mpdus_expired;
+} __packed;
+
 struct wmi_pdev_stats_rx {
 	/* Cnts any change in ring routing mid-ppdu */
 	__le32 mid_ppdu_route_change;
@@ -4039,6 +4144,16 @@ struct wmi_10_2_pdev_stats {
 	struct wmi_pdev_stats_extra extra;
 } __packed;
 
+struct wmi_10_4_pdev_stats {
+	struct wmi_pdev_stats_base base;
+	struct wmi_10_4_pdev_stats_tx tx;
+	struct wmi_pdev_stats_rx rx;
+	__le32 rx_ovfl_errs;
+	struct wmi_pdev_stats_mem mem;
+	__le32 sram_free_size;
+	struct wmi_pdev_stats_extra extra;
+} __packed;
+
 /*
  * VDEV statistics
  * TODO: add all VDEV stats here
@@ -4078,6 +4193,23 @@ struct wmi_10_2_peer_stats {
 struct wmi_10_2_4_peer_stats {
 	struct wmi_10_2_peer_stats common;
 	__le32 unknown_value; /* FIXME: what is this word? */
+} __packed;
+
+struct wmi_10_4_peer_stats {
+	struct wmi_mac_addr peer_macaddr;
+	__le32 peer_rssi;
+	__le32 peer_rssi_seq_num;
+	__le32 peer_tx_rate;
+	__le32 peer_rx_rate;
+	__le32 current_per;
+	__le32 retries;
+	__le32 tx_rate_count;
+	__le32 max_4ms_frame_len;
+	__le32 total_sub_frames;
+	__le32 tx_bytes;
+	__le32 num_pkt_loss_overflow[4];
+	__le32 num_pkt_loss_excess_retry[4];
+	__le32 peer_rssi_changed;
 } __packed;
 
 struct wmi_10_2_pdev_ext_stats {
@@ -6201,5 +6333,8 @@ void ath10k_wmi_10x_op_fw_stats_fill(struct ath10k *ar,
 				     char *buf);
 size_t ath10k_wmi_fw_stats_num_peers(struct list_head *head);
 size_t ath10k_wmi_fw_stats_num_vdevs(struct list_head *head);
+void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
+				      struct ath10k_fw_stats *fw_stats,
+				      char *buf);
 
 #endif /* _WMI_H_ */

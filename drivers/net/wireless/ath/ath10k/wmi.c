@@ -2479,6 +2479,47 @@ void ath10k_wmi_pull_pdev_stats_tx(const struct wmi_pdev_stats_tx *src,
 	dst->txop_ovf = __le32_to_cpu(src->txop_ovf);
 }
 
+static void
+ath10k_wmi_10_4_pull_pdev_stats_tx(const struct wmi_10_4_pdev_stats_tx *src,
+				   struct ath10k_fw_stats_pdev *dst)
+{
+	dst->comp_queued = __le32_to_cpu(src->comp_queued);
+	dst->comp_delivered = __le32_to_cpu(src->comp_delivered);
+	dst->msdu_enqued = __le32_to_cpu(src->msdu_enqued);
+	dst->mpdu_enqued = __le32_to_cpu(src->mpdu_enqued);
+	dst->wmm_drop = __le32_to_cpu(src->wmm_drop);
+	dst->local_enqued = __le32_to_cpu(src->local_enqued);
+	dst->local_freed = __le32_to_cpu(src->local_freed);
+	dst->hw_queued = __le32_to_cpu(src->hw_queued);
+	dst->hw_reaped = __le32_to_cpu(src->hw_reaped);
+	dst->underrun = __le32_to_cpu(src->underrun);
+	dst->tx_abort = __le32_to_cpu(src->tx_abort);
+	dst->mpdus_requed = __le32_to_cpu(src->mpdus_requed);
+	dst->tx_ko = __le32_to_cpu(src->tx_ko);
+	dst->data_rc = __le32_to_cpu(src->data_rc);
+	dst->self_triggers = __le32_to_cpu(src->self_triggers);
+	dst->sw_retry_failure = __le32_to_cpu(src->sw_retry_failure);
+	dst->illgl_rate_phy_err = __le32_to_cpu(src->illgl_rate_phy_err);
+	dst->pdev_cont_xretry = __le32_to_cpu(src->pdev_cont_xretry);
+	dst->pdev_tx_timeout = __le32_to_cpu(src->pdev_tx_timeout);
+	dst->pdev_resets = __le32_to_cpu(src->pdev_resets);
+	dst->phy_underrun = __le32_to_cpu(src->phy_underrun);
+	dst->txop_ovf = __le32_to_cpu(src->txop_ovf);
+	dst->hw_paused = __le32_to_cpu(src->hw_paused);
+	dst->seq_posted = __le32_to_cpu(src->seq_posted);
+	dst->seq_failed_queueing =
+		__le32_to_cpu(src->seq_failed_queueing);
+	dst->seq_completed = __le32_to_cpu(src->seq_completed);
+	dst->seq_restarted = __le32_to_cpu(src->seq_restarted);
+	dst->mu_seq_posted = __le32_to_cpu(src->mu_seq_posted);
+	dst->mpdus_sw_flush = __le32_to_cpu(src->mpdus_sw_flush);
+	dst->mpdus_hw_filter = __le32_to_cpu(src->mpdus_hw_filter);
+	dst->mpdus_truncated = __le32_to_cpu(src->mpdus_truncated);
+	dst->mpdus_ack_failed = __le32_to_cpu(src->mpdus_ack_failed);
+	dst->mpdus_hw_filter = __le32_to_cpu(src->mpdus_hw_filter);
+	dst->mpdus_expired = __le32_to_cpu(src->mpdus_expired);
+}
+
 void ath10k_wmi_pull_pdev_stats_rx(const struct wmi_pdev_stats_rx *src,
 				   struct ath10k_fw_stats_pdev *dst)
 {
@@ -2782,6 +2823,86 @@ static int ath10k_wmi_10_2_4_op_pull_fw_stats(struct ath10k *ar,
 
 		dst->peer_rx_rate = __le32_to_cpu(src->common.peer_rx_rate);
 		/* FIXME: expose 10.2 specific values */
+
+		list_add_tail(&dst->list, &stats->peers);
+	}
+
+	return 0;
+}
+
+static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
+					    struct sk_buff *skb,
+					    struct ath10k_fw_stats *stats)
+{
+	const struct wmi_10_2_stats_event *ev = (void *)skb->data;
+	u32 num_pdev_stats;
+	u32 num_pdev_ext_stats;
+	u32 num_vdev_stats;
+	u32 num_peer_stats;
+	int i;
+
+	if (!skb_pull(skb, sizeof(*ev)))
+		return -EPROTO;
+
+	num_pdev_stats = __le32_to_cpu(ev->num_pdev_stats);
+	num_pdev_ext_stats = __le32_to_cpu(ev->num_pdev_ext_stats);
+	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
+	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
+
+	for (i = 0; i < num_pdev_stats; i++) {
+		const struct wmi_10_4_pdev_stats *src;
+		struct ath10k_fw_stats_pdev *dst;
+
+		src = (void *)skb->data;
+		if (!skb_pull(skb, sizeof(*src)))
+			return -EPROTO;
+
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ath10k_wmi_pull_pdev_stats_base(&src->base, dst);
+		ath10k_wmi_10_4_pull_pdev_stats_tx(&src->tx, dst);
+		ath10k_wmi_pull_pdev_stats_rx(&src->rx, dst);
+		dst->rx_ovfl_errs = __le32_to_cpu(src->rx_ovfl_errs);
+		ath10k_wmi_pull_pdev_stats_extra(&src->extra, dst);
+
+		list_add_tail(&dst->list, &stats->pdevs);
+	}
+
+	for (i = 0; i < num_pdev_ext_stats; i++) {
+		const struct wmi_10_2_pdev_ext_stats *src;
+
+		src = (void *)skb->data;
+		if (!skb_pull(skb, sizeof(*src)))
+			return -EPROTO;
+
+		/* FIXME: expose values to userspace
+		 *
+		 * Note: Even though this loop seems to do nothing it is
+		 * required to parse following sub-structures properly.
+		 */
+	}
+
+	/* fw doesn't implement vdev stats */
+
+	for (i = 0; i < num_peer_stats; i++) {
+		const struct wmi_10_4_peer_stats *src;
+		struct ath10k_fw_stats_peer *dst;
+
+		src = (void *)skb->data;
+		if (!skb_pull(skb, sizeof(*src)))
+			return -EPROTO;
+
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ether_addr_copy(dst->peer_macaddr, src->peer_macaddr.addr);
+		dst->peer_rssi = __le32_to_cpu(src->peer_rssi);
+		dst->peer_tx_rate = __le32_to_cpu(src->peer_tx_rate);
+		dst->peer_rx_rate = __le32_to_cpu(src->peer_rx_rate);
+		/* FIXME: expose 10.4 specific values */
 
 		list_add_tail(&dst->list, &stats->peers);
 	}
@@ -4935,6 +5056,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_dbg(ar, ATH10K_DBG_WMI,
 			   "received event id %d not implemented\n", id);
 		break;
+	case WMI_10_4_UPDATE_STATS_EVENTID:
+		ath10k_wmi_event_update_stats(ar, skb);
+		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
 		break;
@@ -7022,6 +7146,90 @@ ath10k_wmi_op_gen_pdev_enable_adaptive_cca(struct ath10k *ar, u8 enable,
 	return skb;
 }
 
+void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
+				      struct ath10k_fw_stats *fw_stats,
+				      char *buf)
+{
+	u32 len = 0;
+	u32 buf_len = ATH10K_FW_STATS_BUF_SIZE;
+	const struct ath10k_fw_stats_pdev *pdev;
+	const struct ath10k_fw_stats_vdev *vdev;
+	const struct ath10k_fw_stats_peer *peer;
+	size_t num_peers;
+	size_t num_vdevs;
+
+	spin_lock_bh(&ar->data_lock);
+
+	pdev = list_first_entry_or_null(&fw_stats->pdevs,
+					struct ath10k_fw_stats_pdev, list);
+	if (!pdev) {
+		ath10k_warn(ar, "failed to get pdev stats\n");
+		goto unlock;
+	}
+
+	num_peers = ath10k_wmi_fw_stats_num_peers(&fw_stats->peers);
+	num_vdevs = ath10k_wmi_fw_stats_num_vdevs(&fw_stats->vdevs);
+
+	ath10k_wmi_fw_pdev_base_stats_fill(pdev, buf, &len);
+	ath10k_wmi_fw_pdev_extra_stats_fill(pdev, buf, &len);
+	ath10k_wmi_fw_pdev_tx_stats_fill(pdev, buf, &len);
+
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"HW paused", pdev->hw_paused);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"Seqs posted", pdev->seq_posted);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"Seqs failed queueing", pdev->seq_failed_queueing);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"Seqs completed", pdev->seq_completed);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"Seqs restarted", pdev->seq_restarted);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"MU Seqs posted", pdev->mu_seq_posted);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"MPDUs SW flushed", pdev->mpdus_sw_flush);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"MPDUs HW filtered", pdev->mpdus_hw_filter);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"MPDUs truncated", pdev->mpdus_truncated);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"MPDUs receive no ACK", pdev->mpdus_ack_failed);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"MPDUs expired", pdev->mpdus_expired);
+
+	ath10k_wmi_fw_pdev_rx_stats_fill(pdev, buf, &len);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
+			"Num Rx Overflow errors", pdev->rx_ovfl_errs);
+
+	len += scnprintf(buf + len, buf_len - len, "\n");
+	len += scnprintf(buf + len, buf_len - len, "%30s (%zu)\n",
+			"ath10k VDEV stats", num_vdevs);
+	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
+				"=================");
+
+	list_for_each_entry(vdev, &fw_stats->vdevs, list) {
+		ath10k_wmi_fw_vdev_stats_fill(vdev, buf, &len);
+	}
+
+	len += scnprintf(buf + len, buf_len - len, "\n");
+	len += scnprintf(buf + len, buf_len - len, "%30s (%zu)\n",
+			"ath10k PEER stats", num_peers);
+	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
+				"=================");
+
+	list_for_each_entry(peer, &fw_stats->peers, list) {
+		ath10k_wmi_fw_peer_stats_fill(peer, buf, &len);
+	}
+
+unlock:
+	spin_unlock_bh(&ar->data_lock);
+
+	if (len >= buf_len)
+		buf[len - 1] = 0;
+	else
+		buf[len] = 0;
+}
+
 static const struct wmi_ops wmi_ops = {
 	.rx = ath10k_wmi_op_rx,
 	.map_svc = wmi_main_svc_map,
@@ -7292,6 +7500,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.rx = ath10k_wmi_10_4_op_rx,
 	.map_svc = wmi_10_4_svc_map,
 
+	.pull_fw_stats = ath10k_wmi_10_4_op_pull_fw_stats,
 	.pull_scan = ath10k_wmi_op_pull_scan_ev,
 	.pull_mgmt_rx = ath10k_wmi_10_4_op_pull_mgmt_rx_ev,
 	.pull_ch_info = ath10k_wmi_10_4_op_pull_ch_info_ev,
@@ -7341,9 +7550,11 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.gen_addba_send = ath10k_wmi_op_gen_addba_send,
 	.gen_addba_set_resp = ath10k_wmi_op_gen_addba_set_resp,
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
+	.fw_stats_fill = ath10k_wmi_10_4_op_fw_stats_fill,
 
 	/* shared with 10.2 */
 	.gen_peer_assoc = ath10k_wmi_10_2_op_gen_peer_assoc,
+	.gen_request_stats = ath10k_wmi_op_gen_request_stats,
 };
 
 int ath10k_wmi_attach(struct ath10k *ar)

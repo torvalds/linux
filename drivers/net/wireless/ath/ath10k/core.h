@@ -214,6 +214,7 @@ struct ath10k_fw_stats_pdev {
 	s32 hw_queued;
 	s32 hw_reaped;
 	s32 underrun;
+	u32 hw_paused;
 	s32 tx_abort;
 	s32 mpdus_requed;
 	u32 tx_ko;
@@ -226,6 +227,16 @@ struct ath10k_fw_stats_pdev {
 	u32 pdev_resets;
 	u32 phy_underrun;
 	u32 txop_ovf;
+	u32 seq_posted;
+	u32 seq_failed_queueing;
+	u32 seq_completed;
+	u32 seq_restarted;
+	u32 mu_seq_posted;
+	u32 mpdus_sw_flush;
+	u32 mpdus_hw_filter;
+	u32 mpdus_truncated;
+	u32 mpdus_ack_failed;
+	u32 mpdus_expired;
 
 	/* PDEV RX stats */
 	s32 mid_ppdu_route_change;
@@ -242,6 +253,7 @@ struct ath10k_fw_stats_pdev {
 	s32 phy_errs;
 	s32 phy_err_drop;
 	s32 mpdu_errs;
+	s32 rx_ovfl_errs;
 };
 
 struct ath10k_fw_stats {
