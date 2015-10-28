@@ -201,6 +201,15 @@
 		#clock-cells = <0>;
 	};
 
+	edp_phy: edp-phy {
+		compatible = "rockchip,rk3288-dp-phy";
+		clocks = <&cru SCLK_EDP_24M>;
+		clock-names = "24m";
+		rockchip,grf = <&grf>;
+		#phy-cells = <0>;
+		status = "disabled";
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		arm,cpu-registers-not-fw-configured;
