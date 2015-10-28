@@ -23,6 +23,9 @@
 
 #include "hyp.h"
 
+/* Yes, this does nothing, on purpose */
+static void __hyp_text __sysreg_do_nothing(struct kvm_cpu_context *ctxt) { }
+
 /*
  * Non-VHE: Both host and guest must save everything.
  *
@@ -67,9 +70,13 @@ static void __hyp_text __sysreg_save_state(struct kvm_cpu_context *ctxt)
 	ctxt->gp_regs.spsr[KVM_SPSR_EL1]= read_sysreg_el1(spsr);
 }
 
+static hyp_alternate_select(__sysreg_call_save_host_state,
+			    __sysreg_save_state, __sysreg_do_nothing,
+			    ARM64_HAS_VIRT_HOST_EXTN);
+
 void __hyp_text __sysreg_save_host_state(struct kvm_cpu_context *ctxt)
 {
-	__sysreg_save_state(ctxt);
+	__sysreg_call_save_host_state()(ctxt);
 	__sysreg_save_common_state(ctxt);
 }
 
@@ -116,9 +123,13 @@ static void __hyp_text __sysreg_restore_state(struct kvm_cpu_context *ctxt)
 	write_sysreg_el1(ctxt->gp_regs.spsr[KVM_SPSR_EL1],spsr);
 }
 
+static hyp_alternate_select(__sysreg_call_restore_host_state,
+			    __sysreg_restore_state, __sysreg_do_nothing,
+			    ARM64_HAS_VIRT_HOST_EXTN);
+
 void __hyp_text __sysreg_restore_host_state(struct kvm_cpu_context *ctxt)
 {
-	__sysreg_restore_state(ctxt);
+	__sysreg_call_restore_host_state()(ctxt);
 	__sysreg_restore_common_state(ctxt);
 }
 
