@@ -213,7 +213,8 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 				   is_p2pdev, emsg->ifname, emsg->addr);
 		if (IS_ERR(ifp))
 			return;
-		brcmf_fws_add_interface(ifp);
+		if (!is_p2pdev)
+			brcmf_fws_add_interface(ifp);
 		if (!drvr->fweh.evt_handler[BRCMF_E_IF])
 			if (brcmf_net_attach(ifp, false) < 0)
 				return;

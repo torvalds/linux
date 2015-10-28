@@ -840,7 +840,6 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 			err = brcmf_p2p_ifchange(cfg, BRCMF_FIL_P2P_IF_GO);
 		}
 		if (!err) {
-			set_bit(BRCMF_VIF_STATUS_AP_CREATING, &vif->sme_state);
 			brcmf_dbg(INFO, "IF Type = AP\n");
 		}
 	} else {
@@ -2432,6 +2431,9 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_sta_info_le sta_info_le;
 	u32 sta_flags;
 	u32 is_tdls_peer;
+	s32 total_rssi;
+	s32 count_rssi;
+	u32 i;
 
 	brcmf_dbg(TRACE, "Enter, MAC %pM\n", mac);
 	if (!check_vif_up(ifp->vif))
@@ -2478,13 +2480,13 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 		sinfo->rx_packets += le32_to_cpu(sta_info_le.rx_mcast_pkts);
 		if (sinfo->tx_packets) {
 			sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
-			sinfo->txrate.legacy = le32_to_cpu(sta_info_le.tx_rate);
-			sinfo->txrate.legacy /= 100;
+			sinfo->txrate.legacy =
+				le32_to_cpu(sta_info_le.tx_rate) / 100;
 		}
 		if (sinfo->rx_packets) {
 			sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
-			sinfo->rxrate.legacy = le32_to_cpu(sta_info_le.rx_rate);
-			sinfo->rxrate.legacy /= 100;
+			sinfo->rxrate.legacy =
+				le32_to_cpu(sta_info_le.rx_rate) / 100;
 		}
 		if (le16_to_cpu(sta_info_le.ver) >= 4) {
 			sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES);
@@ -2492,10 +2494,59 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 			sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES);
 			sinfo->rx_bytes = le64_to_cpu(sta_info_le.rx_tot_bytes);
 		}
+		total_rssi = 0;
+		count_rssi = 0;
+		for (i = 0; i < BRCMF_ANT_MAX; i++) {
+			if (sta_info_le.rssi[i]) {
+				sinfo->chain_signal_avg[count_rssi] =
+					sta_info_le.rssi[i];
+				sinfo->chain_signal[count_rssi] =
+					sta_info_le.rssi[i];
+				total_rssi += sta_info_le.rssi[i];
+				count_rssi++;
+			}
+		}
+		if (count_rssi) {
+			sinfo->filled |= BIT(NL80211_STA_INFO_CHAIN_SIGNAL);
+			sinfo->chains = count_rssi;
+
+			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+			total_rssi /= count_rssi;
+			sinfo->signal = total_rssi;
+		}
 	}
 done:
 	brcmf_dbg(TRACE, "Exit\n");
 	return err;
+}
+
+static int
+brcmf_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *ndev,
+			    int idx, u8 *mac, struct station_info *sinfo)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	s32 err;
+
+	brcmf_dbg(TRACE, "Enter, idx %d\n", idx);
+
+	if (idx == 0) {
+		cfg->assoclist.count = cpu_to_le32(BRCMF_MAX_ASSOCLIST);
+		err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_ASSOCLIST,
+					     &cfg->assoclist,
+					     sizeof(cfg->assoclist));
+		if (err) {
+			brcmf_err("BRCMF_C_GET_ASSOCLIST unsupported, err=%d\n",
+				  err);
+			cfg->assoclist.count = 0;
+			return -EOPNOTSUPP;
+		}
+	}
+	if (idx < le32_to_cpu(cfg->assoclist.count)) {
+		memcpy(mac, cfg->assoclist.mac[idx], ETH_ALEN);
+		return brcmf_cfg80211_get_station(wiphy, ndev, mac, sinfo);
+	}
+	return -ENOENT;
 }
 
 static s32
@@ -4199,8 +4250,8 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 		brcmf_dbg(TRACE, "GO mode configuration complete\n");
 	}
-	clear_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state);
 	set_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
+	brcmf_net_setcarrier(ifp, true);
 
 exit:
 	if ((err) && (!mbss)) {
@@ -4264,8 +4315,8 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 	}
 	brcmf_set_mpc(ifp, 1);
 	brcmf_configure_arp_offload(ifp, true);
-	set_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state);
 	clear_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
+	brcmf_net_setcarrier(ifp, false);
 
 	return err;
 }
@@ -4597,6 +4648,7 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.join_ibss = brcmf_cfg80211_join_ibss,
 	.leave_ibss = brcmf_cfg80211_leave_ibss,
 	.get_station = brcmf_cfg80211_get_station,
+	.dump_station = brcmf_cfg80211_dump_station,
 	.set_tx_power = brcmf_cfg80211_set_tx_power,
 	.get_tx_power = brcmf_cfg80211_get_tx_power,
 	.add_key = brcmf_cfg80211_add_key,
@@ -4974,6 +5026,7 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 				&ifp->vif->sme_state);
 		} else
 			brcmf_bss_connect_done(cfg, ndev, e, true);
+		brcmf_net_setcarrier(ifp, true);
 	} else if (brcmf_is_linkdown(e)) {
 		brcmf_dbg(CONN, "Linkdown\n");
 		if (!brcmf_is_ibssmode(ifp->vif)) {
@@ -4983,6 +5036,7 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 		brcmf_init_prof(ndev_to_prof(ndev));
 		if (ndev != cfg_to_ndev(cfg))
 			complete(&cfg->vif_disabled);
+		brcmf_net_setcarrier(ifp, false);
 	} else if (brcmf_is_nonetwork(cfg, e)) {
 		if (brcmf_is_ibssmode(ifp->vif))
 			clear_bit(BRCMF_VIF_STATUS_CONNECTING,
@@ -6238,6 +6292,17 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		else
 			*cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	}
+	/* p2p might require that "if-events" get processed by fweh. So
+	 * activate the already registered event handlers now and activate
+	 * the rest when initialization has completed. drvr->config needs to
+	 * be assigned before activating events.
+	 */
+	drvr->config = cfg;
+	err = brcmf_fweh_activate_events(ifp);
+	if (err) {
+		brcmf_err("FWEH activation failed (%d)\n", err);
+		goto wiphy_unreg_out;
+	}
 
 	err = brcmf_p2p_attach(cfg, p2pdev_forced);
 	if (err) {
@@ -6258,6 +6323,13 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	} else {
 		brcmf_fweh_register(cfg->pub, BRCMF_E_TDLS_PEER_EVENT,
 				    brcmf_notify_tdls_peer_event);
+	}
+
+	/* (re-) activate FWEH event handling */
+	err = brcmf_fweh_activate_events(ifp);
+	if (err) {
+		brcmf_err("FWEH activation failed (%d)\n", err);
+		goto wiphy_unreg_out;
 	}
 
 	return cfg;

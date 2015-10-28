@@ -28,11 +28,9 @@
 #define USB8766_PID_2		0x2042
 #define USB8797_PID_1		0x2043
 #define USB8797_PID_2		0x2044
-#define USB8897_PID_1		0x2045
-#define USB8897_PID_2		0x2046
 #define USB8801_PID_1		0x2049
 #define USB8801_PID_2		0x204a
-#define USB8997_PID_1		0x204d
+#define USB8997_PID_1		0x2052
 #define USB8997_PID_2		0x204e
 
 
@@ -48,7 +46,6 @@
 #define USB8766_DEFAULT_FW_NAME	"mrvl/usb8766_uapsta.bin"
 #define USB8797_DEFAULT_FW_NAME	"mrvl/usb8797_uapsta.bin"
 #define USB8801_DEFAULT_FW_NAME	"mrvl/usb8801_uapsta.bin"
-#define USB8897_DEFAULT_FW_NAME	"mrvl/usb8897_uapsta.bin"
 #define USB8997_DEFAULT_FW_NAME	"mrvl/usb8997_uapsta.bin"
 
 #define FW_DNLD_TX_BUF_SIZE	620

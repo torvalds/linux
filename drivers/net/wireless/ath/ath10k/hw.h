@@ -97,6 +97,9 @@ enum qca6174_chip_id_rev {
 
 /* includes also the null byte */
 #define ATH10K_FIRMWARE_MAGIC               "QCA-ATH10K"
+#define ATH10K_BOARD_MAGIC                  "QCA-ATH10K-BOARD"
+
+#define ATH10K_BOARD_API2_FILE         "board-2.bin"
 
 #define REG_DUMP_COUNT_QCA988X 60
 
@@ -157,6 +160,16 @@ enum ath10k_fw_htt_op_version {
 
 	/* keep last */
 	ATH10K_FW_HTT_OP_VERSION_MAX,
+};
+
+enum ath10k_bd_ie_type {
+	/* contains sub IEs of enum ath10k_bd_ie_board_type */
+	ATH10K_BD_IE_BOARD = 0,
+};
+
+enum ath10k_bd_ie_board_type {
+	ATH10K_BD_IE_BOARD_NAME = 0,
+	ATH10K_BD_IE_BOARD_DATA = 1,
 };
 
 enum ath10k_hw_rev {

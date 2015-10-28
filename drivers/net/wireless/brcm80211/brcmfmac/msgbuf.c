@@ -873,9 +873,6 @@ brcmf_msgbuf_process_txstatus(struct brcmf_msgbuf *msgbuf, void *buf)
 	commonring = msgbuf->flowrings[flowid];
 	atomic_dec(&commonring->outstanding_tx);
 
-	/* Hante: i believe this was a bug as tx_status->msg.ifidx was used
-	 * in brcmf_txfinalize as index in drvr->iflist. Can you confirm/deny?
-	 */
 	brcmf_txfinalize(brcmf_get_ifp(msgbuf->drvr, tx_status->msg.ifidx),
 			 skb, true);
 }

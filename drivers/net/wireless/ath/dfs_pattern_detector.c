@@ -284,10 +284,10 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 	if (cd == NULL)
 		return false;
 
-	dpd->last_pulse_ts = event->ts;
 	/* reset detector on time stamp wraparound, caused by TSF reset */
 	if (event->ts < dpd->last_pulse_ts)
 		dpd_reset(dpd);
+	dpd->last_pulse_ts = event->ts;
 
 	/* do type individual pattern matching */
 	for (i = 0; i < dpd->num_radar_types; i++) {

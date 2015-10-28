@@ -59,6 +59,8 @@ enum brcmf_pcie_state {
 #define BRCMF_PCIE_4365_NVRAM_NAME		"brcm/brcmfmac4365b-pcie.txt"
 #define BRCMF_PCIE_4366_FW_NAME			"brcm/brcmfmac4366b-pcie.bin"
 #define BRCMF_PCIE_4366_NVRAM_NAME		"brcm/brcmfmac4366b-pcie.txt"
+#define BRCMF_PCIE_4371_FW_NAME			"brcm/brcmfmac4371-pcie.bin"
+#define BRCMF_PCIE_4371_NVRAM_NAME		"brcm/brcmfmac4371-pcie.txt"
 
 #define BRCMF_PCIE_FW_UP_TIMEOUT		2000 /* msec */
 
@@ -212,6 +214,8 @@ MODULE_FIRMWARE(BRCMF_PCIE_4365_FW_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_4365_NVRAM_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_4366_FW_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_4366_NVRAM_NAME);
+MODULE_FIRMWARE(BRCMF_PCIE_4371_FW_NAME);
+MODULE_FIRMWARE(BRCMF_PCIE_4371_NVRAM_NAME);
 
 
 struct brcmf_pcie_console {
@@ -442,6 +446,47 @@ brcmf_pcie_copy_mem_todev(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 			iowrite32(le32_to_cpu(*src32), address);
 			address += 4;
 			src32++;
+			len--;
+		}
+	}
+}
+
+
+static void
+brcmf_pcie_copy_dev_tomem(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
+			  void *dstaddr, u32 len)
+{
+	void __iomem *address = devinfo->tcm + mem_offset;
+	__le32 *dst32;
+	__le16 *dst16;
+	u8 *dst8;
+
+	if (((ulong)address & 4) || ((ulong)dstaddr & 4) || (len & 4)) {
+		if (((ulong)address & 2) || ((ulong)dstaddr & 2) || (len & 2)) {
+			dst8 = (u8 *)dstaddr;
+			while (len) {
+				*dst8 = ioread8(address);
+				address++;
+				dst8++;
+				len--;
+			}
+		} else {
+			len = len / 2;
+			dst16 = (__le16 *)dstaddr;
+			while (len) {
+				*dst16 = cpu_to_le16(ioread16(address));
+				address += 2;
+				dst16++;
+				len--;
+			}
+		}
+	} else {
+		len = len / 4;
+		dst32 = (__le32 *)dstaddr;
+		while (len) {
+			*dst32 = cpu_to_le32(ioread32(address));
+			address += 4;
+			dst32++;
 			len--;
 		}
 	}
@@ -1352,12 +1397,36 @@ static void brcmf_pcie_wowl_config(struct device *dev, bool enabled)
 }
 
 
+static size_t brcmf_pcie_get_ramsize(struct device *dev)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pciedev *buspub = bus_if->bus_priv.pcie;
+	struct brcmf_pciedev_info *devinfo = buspub->devinfo;
+
+	return devinfo->ci->ramsize - devinfo->ci->srsize;
+}
+
+
+static int brcmf_pcie_get_memdump(struct device *dev, void *data, size_t len)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pciedev *buspub = bus_if->bus_priv.pcie;
+	struct brcmf_pciedev_info *devinfo = buspub->devinfo;
+
+	brcmf_dbg(PCIE, "dump at 0x%08X: len=%zu\n", devinfo->ci->rambase, len);
+	brcmf_pcie_copy_dev_tomem(devinfo, devinfo->ci->rambase, data, len);
+	return 0;
+}
+
+
 static struct brcmf_bus_ops brcmf_pcie_bus_ops = {
 	.txdata = brcmf_pcie_tx,
 	.stop = brcmf_pcie_down,
 	.txctl = brcmf_pcie_tx_ctlpkt,
 	.rxctl = brcmf_pcie_rx_ctlpkt,
 	.wowl_config = brcmf_pcie_wowl_config,
+	.get_ramsize = brcmf_pcie_get_ramsize,
+	.get_memdump = brcmf_pcie_get_memdump,
 };
 
 
@@ -1455,6 +1524,10 @@ static int brcmf_pcie_get_fwnames(struct brcmf_pciedev_info *devinfo)
 	case BRCM_CC_4366_CHIP_ID:
 		fw_name = BRCMF_PCIE_4366_FW_NAME;
 		nvram_name = BRCMF_PCIE_4366_NVRAM_NAME;
+		break;
+	case BRCM_CC_4371_CHIP_ID:
+		fw_name = BRCMF_PCIE_4371_FW_NAME;
+		nvram_name = BRCMF_PCIE_4371_NVRAM_NAME;
 		break;
 	default:
 		brcmf_err("Unsupported chip 0x%04x\n", devinfo->ci->chip);
@@ -1995,6 +2068,7 @@ static struct pci_device_id brcmf_pcie_devid_table[] = {
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4366_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4366_2G_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4366_5G_DEVICE_ID),
+	BRCMF_PCIE_DEVICE(BRCM_PCIE_4371_DEVICE_ID),
 	{ /* end: all zeroes */ }
 };
 
