@@ -239,21 +239,22 @@ cfs_hash_lock_setup(struct cfs_hash *hs)
  * Simple hash head without depth tracking
  * new element is always added to head of hlist
  */
-typedef struct {
+struct cfs_hash_head {
 	struct hlist_head	hh_head;	/**< entries list */
-} cfs_hash_head_t;
+};
 
 static int
 cfs_hash_hh_hhead_size(struct cfs_hash *hs)
 {
-	return sizeof(cfs_hash_head_t);
+	return sizeof(struct cfs_hash_head);
 }
 
 static struct hlist_head *
 cfs_hash_hh_hhead(struct cfs_hash *hs, struct cfs_hash_bd *bd)
 {
-	cfs_hash_head_t *head = (cfs_hash_head_t *)&bd->bd_bucket->hsb_head[0];
+	struct cfs_hash_head *head;
 
+	head = (struct cfs_hash_head *)&bd->bd_bucket->hsb_head[0];
 	return &head[bd->bd_offset].hh_head;
 }
 
@@ -277,23 +278,23 @@ cfs_hash_hh_hnode_del(struct cfs_hash *hs, struct cfs_hash_bd *bd,
  * Simple hash head with depth tracking
  * new element is always added to head of hlist
  */
-typedef struct {
+struct cfs_hash_head_dep {
 	struct hlist_head	hd_head;	/**< entries list */
-	unsigned int	    hd_depth;       /**< list length */
-} cfs_hash_head_dep_t;
+	unsigned int		hd_depth;       /**< list length */
+};
 
 static int
 cfs_hash_hd_hhead_size(struct cfs_hash *hs)
 {
-	return sizeof(cfs_hash_head_dep_t);
+	return sizeof(struct cfs_hash_head_dep);
 }
 
 static struct hlist_head *
 cfs_hash_hd_hhead(struct cfs_hash *hs, struct cfs_hash_bd *bd)
 {
-	cfs_hash_head_dep_t   *head;
+	struct cfs_hash_head_dep   *head;
 
-	head = (cfs_hash_head_dep_t *)&bd->bd_bucket->hsb_head[0];
+	head = (struct cfs_hash_head_dep *)&bd->bd_bucket->hsb_head[0];
 	return &head[bd->bd_offset].hd_head;
 }
 
@@ -301,8 +302,10 @@ static int
 cfs_hash_hd_hnode_add(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 		      struct hlist_node *hnode)
 {
-	cfs_hash_head_dep_t *hh = container_of(cfs_hash_hd_hhead(hs, bd),
-					       cfs_hash_head_dep_t, hd_head);
+	struct cfs_hash_head_dep *hh;
+
+	hh = container_of(cfs_hash_hd_hhead(hs, bd),
+			  struct cfs_hash_head_dep, hd_head);
 	hlist_add_head(hnode, &hh->hd_head);
 	return ++hh->hd_depth;
 }
@@ -311,8 +314,10 @@ static int
 cfs_hash_hd_hnode_del(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 		      struct hlist_node *hnode)
 {
-	cfs_hash_head_dep_t *hh = container_of(cfs_hash_hd_hhead(hs, bd),
-					       cfs_hash_head_dep_t, hd_head);
+	struct cfs_hash_head_dep *hh;
+
+	hh = container_of(cfs_hash_hd_hhead(hs, bd),
+			  struct cfs_hash_head_dep, hd_head);
 	hlist_del_init(hnode);
 	return --hh->hd_depth;
 }

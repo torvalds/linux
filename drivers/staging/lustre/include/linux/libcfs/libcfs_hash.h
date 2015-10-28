@@ -88,8 +88,8 @@ union cfs_hash_lock {
  * cfs_hash_bucket is a container of:
  * - lock, counter ...
  * - array of hash-head starting from hsb_head[0], hash-head can be one of
- *   . cfs_hash_head_t
- *   . cfs_hash_head_dep_t
+ *   . struct cfs_hash_head
+ *   . struct cfs_hash_head_dep
  *   . struct cfs_hash_dhead
  *   . struct cfs_hash_dhead_dep
  *   which depends on requirement of user
