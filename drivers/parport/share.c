@@ -1120,7 +1120,8 @@ int parport_claim(struct pardevice *dev)
 
 	/* Preempt any current device */
 	write_lock_irqsave(&port->cad_lock, flags);
-	if ((oldcad = port->cad) != NULL) {
+	oldcad = port->cad;
+	if (oldcad) {
 		if (oldcad->preempt) {
 			if (oldcad->preempt(oldcad->private))
 				goto blocked;
