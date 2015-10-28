@@ -64,7 +64,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case DRM_VMW_PARAM_FIFO_HW_VERSION:
 	{
-		u32 __iomem *fifo_mem = dev_priv->mmio_virt;
+		u32 *fifo_mem = dev_priv->mmio_virt;
 		const struct vmw_fifo_state *fifo = &dev_priv->fifo;
 
 		if ((dev_priv->capabilities & SVGA_CAP_GBOBJECTS)) {
@@ -73,11 +73,11 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		}
 
 		param->value =
-			ioread32(fifo_mem +
-				 ((fifo->capabilities &
-				   SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
-				  SVGA_FIFO_3D_HWVERSION_REVISED :
-				  SVGA_FIFO_3D_HWVERSION));
+			vmw_mmio_read(fifo_mem +
+				      ((fifo->capabilities &
+					SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
+				       SVGA_FIFO_3D_HWVERSION_REVISED :
+				       SVGA_FIFO_3D_HWVERSION));
 		break;
 	}
 	case DRM_VMW_PARAM_MAX_SURF_MEMORY:
@@ -179,7 +179,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_get_3d_cap_arg *) data;
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t size;
-	u32 __iomem *fifo_mem;
+	u32 *fifo_mem;
 	void __user *buffer = (void __user *)((unsigned long)(arg->buffer));
 	void *bounce;
 	int ret;
@@ -229,7 +229,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 			goto out_err;
 	} else {
 		fifo_mem = dev_priv->mmio_virt;
-		memcpy_fromio(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
+		memcpy(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
 	}
 
 	ret = copy_to_user(buffer, bounce, size);
