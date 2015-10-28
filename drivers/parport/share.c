@@ -207,8 +207,10 @@ static void detach_driver_chain(struct parport *port)
 /* Ask kmod for some lowlevel drivers. */
 static void get_lowlevel_driver (void)
 {
-	/* There is no actual module called this: you should set
-	 * up an alias for modutils. */
+	/*
+	 * There is no actual module called this: you should set
+	 * up an alias for modutils.
+	 */
 	request_module ("parport_lowlevel");
 }
 
@@ -728,11 +730,12 @@ parport_register_device(struct parport *port, const char *name,
 		}
 	}
 
-	/* We up our own module reference count, and that of the port
-           on which a device is to be registered, to ensure that
-           neither of us gets unloaded while we sleep in (e.g.)
-           kmalloc.
-         */
+	/*
+	 * We up our own module reference count, and that of the port
+	 * on which a device is to be registered, to ensure that
+	 * neither of us gets unloaded while we sleep in (e.g.)
+	 * kmalloc.
+	 */
 	if (!try_module_get(port->ops->owner)) {
 		return NULL;
 	}
@@ -783,9 +786,11 @@ parport_register_device(struct parport *port, const char *name,
 	}
 
 	tmp->next = port->physport->devices;
-	wmb(); /* Make sure that tmp->next is written before it's
-                  added to the list; see comments marked 'no locking
-                  required' */
+	wmb(); /*
+		* Make sure that tmp->next is written before it's
+		* added to the list; see comments marked 'no locking
+		* required'
+		*/
 	if (port->physport->devices)
 		port->physport->devices->prev = tmp;
 	port->physport->devices = tmp;
@@ -1008,8 +1013,10 @@ void parport_unregister_device(struct pardevice *dev)
 
 	spin_unlock(&port->pardevice_lock);
 
-	/* Make sure we haven't left any pointers around in the wait
-	 * list. */
+	/*
+	 * Make sure we haven't left any pointers around in the wait
+	 * list.
+	 */
 	spin_lock_irq(&port->waitlist_lock);
 	if (dev->waitprev || dev->waitnext || port->waithead == dev) {
 		if (dev->waitprev)
@@ -1131,8 +1138,10 @@ int parport_claim(struct pardevice *dev)
 			goto blocked;
 
 		if (port->cad != oldcad) {
-			/* I think we'll actually deadlock rather than
-                           get here, but just in case.. */
+			/*
+			 * I think we'll actually deadlock rather than
+			 * get here, but just in case..
+			 */
 			printk(KERN_WARNING
 			       "%s: %s released port when preempted!\n",
 			       port->name, oldcad->name);
@@ -1185,9 +1194,11 @@ int parport_claim(struct pardevice *dev)
 	return 0;
 
 blocked:
-	/* If this is the first time we tried to claim the port, register an
-	   interest.  This is only allowed for devices sleeping in
-	   parport_claim_or_block(), or those with a wakeup function.  */
+	/*
+	 * If this is the first time we tried to claim the port, register an
+	 * interest.  This is only allowed for devices sleeping in
+	 * parport_claim_or_block(), or those with a wakeup function.
+	 */
 
 	/* The cad_lock is still held for writing here */
 	if (dev->waiting & 2 || dev->wakeup) {
@@ -1223,8 +1234,10 @@ int parport_claim_or_block(struct pardevice *dev)
 {
 	int r;
 
-	/* Signal to parport_claim() that we can wait even without a
-	   wakeup function.  */
+	/*
+	 * Signal to parport_claim() that we can wait even without a
+	 * wakeup function.
+	 */
 	dev->waiting = 2;
 
 	/* Try to claim the port.  If this fails, we need to sleep.  */
@@ -1242,8 +1255,10 @@ int parport_claim_or_block(struct pardevice *dev)
 		 * See also parport_release()
 		 */
 
-		/* If dev->waiting is clear now, an interrupt
-		   gave us the port and we would deadlock if we slept.  */
+		/*
+		 * If dev->waiting is clear now, an interrupt
+		 * gave us the port and we would deadlock if we slept.
+		 */
 		if (dev->waiting) {
 			wait_event_interruptible(dev->wait_q,
 						 !dev->waiting);
@@ -1316,8 +1331,10 @@ void parport_release(struct pardevice *dev)
 	/* Save control registers */
 	port->ops->save_state(port, dev->state);
 
-	/* If anybody is waiting, find out who's been there longest and
-	   then wake them up. (Note: no locking required) */
+	/*
+	 * If anybody is waiting, find out who's been there longest and
+	 * then wake them up. (Note: no locking required)
+	 */
 	/* !!! LOCKING IS NEEDED HERE */
 	for (pd = port->waithead; pd; pd = pd->waitnext) {
 		if (pd->waiting & 2) { /* sleeping in claim_or_block */
@@ -1334,8 +1351,10 @@ void parport_release(struct pardevice *dev)
 		}
 	}
 
-	/* Nobody was waiting, so walk the list to see if anyone is
-	   interested in being woken up. (Note: no locking required) */
+	/*
+	 * Nobody was waiting, so walk the list to see if anyone is
+	 * interested in being woken up. (Note: no locking required)
+	 */
 	/* !!! LOCKING IS NEEDED HERE */
 	for (pd = port->devices; (port->cad == NULL) && pd; pd = pd->next) {
 		if (pd->wakeup && pd != dev)
