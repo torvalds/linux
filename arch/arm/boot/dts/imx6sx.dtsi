@@ -89,6 +89,20 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x14000000>;
+			linux,cma-default;
+		};
+	};
+
 	intc: interrupt-controller@00a01000 {
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
@@ -214,6 +228,22 @@
 			#dma-cells = <1>;
 			dma-channels = <4>;
 			clocks = <&clks IMX6SX_CLK_APBH_DMA>;
+		};
+
+		gpu: gpu@01800000 {
+			compatible = "fsl,imx6sx-gpu", "fsl,imx6q-gpu";
+			reg = <0x01800000 0x4000>, <0x80000000 0x0>,
+				<0x0 0x8000000>;
+			reg-names = "iobase_3d", "phys_baseaddr", "contiguous_mem";
+			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_3d";
+			clocks = <&clks IMX6SX_CLK_GPU_AXI_PODF>, <&clks IMX6SX_CLK_GPU>,
+				<&clks 0>;
+			clock-names = "gpu3d_axi_clk", "gpu3d_clk",
+				"gpu3d_shader_clk";
+			resets = <&src 0>;
+			reset-names = "gpu3d";
+			power-domains = <&gpc 1>;
 		};
 
 		gpmi: gpmi-nand@01806000{

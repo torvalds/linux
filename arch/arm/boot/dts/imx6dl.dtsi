@@ -63,6 +63,20 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x14000000>;
+			linux,cma-default;
+		};
+	};
+
 	soc {
 		busfreq {
 			compatible = "fsl,imx_busfreq";
@@ -78,6 +92,26 @@
 			interrupts = <0 107 0x04>, <0 112 0x4>;
 			interrupt-names = "irq_busfreq_0", "irq_busfreq_1";
 			fsl,max_ddr_freq = <400000000>;
+		};
+
+		gpu@00130000 {
+			compatible = "fsl,imx6dl-gpu", "fsl,imx6q-gpu";
+			reg = <0x00130000 0x4000>, <0x00134000 0x4000>,
+			      <0x0 0x0>, <0x0 0x8000000>;
+			reg-names = "iobase_3d", "iobase_2d",
+				    "phys_baseaddr", "contiguous_mem";
+			interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 10 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "irq_3d", "irq_2d";
+			clocks = <&clks IMX6QDL_CLK_OPENVG_AXI>, <&clks IMX6QDL_CLK_GPU3D_AXI>,
+				 <&clks IMX6QDL_CLK_GPU2D_CORE>, <&clks IMX6QDL_CLK_GPU3D_CORE>,
+				 <&clks IMX6QDL_CLK_DUMMY>;
+			clock-names = "gpu2d_axi_clk", "gpu3d_axi_clk",
+				      "gpu2d_clk", "gpu3d_clk",
+				      "gpu3d_shader_clk";
+			resets = <&src 0>, <&src 3>;
+			reset-names = "gpu3d", "gpu2d";
+			power-domains = <&gpc 1>;
 		};
 
 		ocram: sram@00905000 {

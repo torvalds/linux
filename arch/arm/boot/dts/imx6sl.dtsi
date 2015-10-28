@@ -8,6 +8,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "skeleton.dtsi"
 #include "imx6sl-pinfunc.h"
 #include <dt-bindings/clock/imx6sl-clock.h>
@@ -69,6 +70,20 @@
 			arm-supply = <&reg_arm>;
 			pu-supply = <&reg_pu>;
 			soc-supply = <&reg_soc>;
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x14000000>;
+			linux,cma-default;
 		};
 	};
 
@@ -928,6 +943,24 @@
 				compatible = "fsl,imx6sl-audmux", "fsl,imx31-audmux";
 				reg = <0x021d8000 0x4000>;
 				status = "disabled";
+			};
+
+			gpu: gpu@02200000 {
+				compatible = "fsl,imx6sl-gpu", "fsl,imx6q-gpu";
+				reg = <0x02200000 0x4000>, <0x02204000 0x4000>,
+					  <0x80000000 0x0>, <0x0 0x8000000>;
+				reg-names = "iobase_2d", "iobase_vg",
+						"phys_baseaddr", "contiguous_mem";
+				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "irq_2d", "irq_vg";
+				clocks = <&clks IMX6SL_CLK_MMDC_ROOT>,
+						<&clks IMX6SL_CLK_MMDC_ROOT>,
+						<&clks IMX6SL_CLK_GPU2D_OVG>;
+				clock-names = "gpu2d_axi_clk", "openvg_axi_clk",
+						  "gpu2d_clk";
+				resets = <&src 3>, <&src 3>;
+				reset-names = "gpu2d", "gpuvg";
+				power-domains = <&gpc 1>;
 			};
 		};
 	};
