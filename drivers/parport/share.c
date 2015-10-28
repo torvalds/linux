@@ -343,6 +343,7 @@ void parport_unregister_driver (struct parport_driver *drv)
 	}
 	mutex_unlock(&registration_lock);
 }
+EXPORT_SYMBOL(parport_unregister_driver);
 
 static void free_port(struct device *dev)
 {
@@ -378,6 +379,7 @@ struct parport *parport_get_port (struct parport *port)
 
 	return to_parport_dev(dev);
 }
+EXPORT_SYMBOL(parport_get_port);
 
 void parport_del_port(struct parport *port)
 {
@@ -398,6 +400,7 @@ void parport_put_port (struct parport *port)
 {
 	put_device(&port->bus_dev);
 }
+EXPORT_SYMBOL(parport_put_port);
 
 /**
  *	parport_register_port - register a parallel port
@@ -508,6 +511,7 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 
 	return tmp;
 }
+EXPORT_SYMBOL(parport_register_port);
 
 /**
  *	parport_announce_port - tell device drivers about a parallel port
@@ -555,6 +559,7 @@ void parport_announce_port (struct parport *port)
 	}
 	mutex_unlock(&registration_lock);
 }
+EXPORT_SYMBOL(parport_announce_port);
 
 /**
  *	parport_remove_port - deregister a parallel port
@@ -616,6 +621,7 @@ void parport_remove_port(struct parport *port)
 			parport_put_port(slave);
 	}
 }
+EXPORT_SYMBOL(parport_remove_port);
 
 /**
  *	parport_register_device - register a device on a parallel port
@@ -810,6 +816,7 @@ parport_register_device(struct parport *port, const char *name,
 
 	return NULL;
 }
+EXPORT_SYMBOL(parport_register_device);
 
 static void free_pardevice(struct device *dev)
 {
@@ -1025,6 +1032,7 @@ void parport_unregister_device(struct pardevice *dev)
 	module_put(port->ops->owner);
 	parport_put_port (port);
 }
+EXPORT_SYMBOL(parport_unregister_device);
 
 /**
  *	parport_find_number - find a parallel port by number
@@ -1055,6 +1063,7 @@ struct parport *parport_find_number (int number)
 	spin_unlock (&parportlist_lock);
 	return result;
 }
+EXPORT_SYMBOL(parport_find_number);
 
 /**
  *	parport_find_base - find a parallel port by base address
@@ -1085,6 +1094,7 @@ struct parport *parport_find_base (unsigned long base)
 	spin_unlock (&parportlist_lock);
 	return result;
 }
+EXPORT_SYMBOL(parport_find_base);
 
 /**
  *	parport_claim - claim access to a parallel port device
@@ -1197,6 +1207,7 @@ blocked:
 	write_unlock_irqrestore (&port->cad_lock, flags);
 	return -EAGAIN;
 }
+EXPORT_SYMBOL(parport_claim);
 
 /**
  *	parport_claim_or_block - claim access to a parallel port device
@@ -1259,6 +1270,7 @@ int parport_claim_or_block(struct pardevice *dev)
 	dev->waiting = 0;
 	return r;
 }
+EXPORT_SYMBOL(parport_claim_or_block);
 
 /**
  *	parport_release - give up access to a parallel port device
@@ -1330,6 +1342,7 @@ void parport_release(struct pardevice *dev)
 			pd->wakeup(pd->private);
 	}
 }
+EXPORT_SYMBOL(parport_release);
 
 irqreturn_t parport_irq_handler(int irq, void *dev_id)
 {
@@ -1339,22 +1352,6 @@ irqreturn_t parport_irq_handler(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-
-/* Exported symbols for modules. */
-
-EXPORT_SYMBOL(parport_claim);
-EXPORT_SYMBOL(parport_claim_or_block);
-EXPORT_SYMBOL(parport_release);
-EXPORT_SYMBOL(parport_register_port);
-EXPORT_SYMBOL(parport_announce_port);
-EXPORT_SYMBOL(parport_remove_port);
-EXPORT_SYMBOL(parport_unregister_driver);
-EXPORT_SYMBOL(parport_register_device);
-EXPORT_SYMBOL(parport_unregister_device);
-EXPORT_SYMBOL(parport_get_port);
-EXPORT_SYMBOL(parport_put_port);
-EXPORT_SYMBOL(parport_find_number);
-EXPORT_SYMBOL(parport_find_base);
 EXPORT_SYMBOL(parport_irq_handler);
 
 MODULE_LICENSE("GPL");
