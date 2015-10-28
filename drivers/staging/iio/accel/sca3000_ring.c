@@ -34,9 +34,9 @@
  */
 
 static int sca3000_read_data(struct sca3000_state *st,
-			    uint8_t reg_address_high,
-			    u8 **rx_p,
-			    int len)
+			     u8 reg_address_high,
+			     u8 **rx_p,
+			     int len)
 {
 	int ret;
 	struct spi_transfer xfer[2] = {

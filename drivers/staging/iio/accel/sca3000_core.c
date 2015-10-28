@@ -88,7 +88,7 @@ int sca3000_write_reg(struct sca3000_state *st, u8 address, u8 val)
 }
 
 int sca3000_read_data_short(struct sca3000_state *st,
-			    uint8_t reg_address_high,
+			    u8 reg_address_high,
 			    int len)
 {
 	struct spi_transfer xfer[2] = {
@@ -165,7 +165,7 @@ static int __sca3000_unlock_reg_lock(struct sca3000_state *st)
  * Lock must be held.
  **/
 static int sca3000_write_ctrl_reg(struct sca3000_state *st,
-				  uint8_t sel,
+				  u8 sel,
 				  uint8_t val)
 {
 
