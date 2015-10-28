@@ -24,16 +24,16 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD] __aligned(PAGE_SIZE);
 char empty_zero_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(empty_zero_page);
 
-/* Default tot mem from .config */
-static unsigned long arc_mem_sz = 0x20000000;  /* some default */
+static const unsigned long low_mem_start = CONFIG_LINUX_LINK_BASE;
+static unsigned long low_mem_sz;
 
 /* User can over-ride above with "mem=nnn[KkMm]" in cmdline */
 static int __init setup_mem_sz(char *str)
 {
-	arc_mem_sz = memparse(str, NULL) & PAGE_MASK;
+	low_mem_sz = memparse(str, NULL) & PAGE_MASK;
 
 	/* early console might not be setup yet - it will show up later */
-	pr_info("\"mem=%s\": mem sz set to %ldM\n", str, TO_MB(arc_mem_sz));
+	pr_info("\"mem=%s\": mem sz set to %ldM\n", str, TO_MB(low_mem_sz));
 
 	return 0;
 }
@@ -41,10 +41,10 @@ early_param("mem", setup_mem_sz);
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-	arc_mem_sz = size & PAGE_MASK;
-	pr_info("Memory size set via devicetree %ldM\n", TO_MB(arc_mem_sz));
+	low_mem_sz = size;
+	BUG_ON(base != low_mem_start);
 
-	BUG_ON(base != CONFIG_LINUX_LINK_BASE);
+	pr_info("Memory @ %llx of %ldM\n", base, TO_MB(size));
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -74,46 +74,34 @@ early_param("initrd", early_initrd);
 void __init setup_arch_memory(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES];
-	unsigned long end_mem = CONFIG_LINUX_LINK_BASE + arc_mem_sz;
 
 	init_mm.start_code = (unsigned long)_text;
 	init_mm.end_code = (unsigned long)_etext;
 	init_mm.end_data = (unsigned long)_edata;
 	init_mm.brk = (unsigned long)_end;
 
-	/*
-	 * We do it here, so that memory is correctly instantiated
-	 * even if "mem=xxx" cmline over-ride is given and/or
-	 * DT has memory node. Each causes an update to @arc_mem_sz
-	 * and we finally add memory one here
-	 */
-	memblock_add(CONFIG_LINUX_LINK_BASE, arc_mem_sz);
-
-	/*------------- externs in mm need setting up ---------------*/
-
 	/* first page of system - kernel .vector starts here */
 	min_low_pfn = ARCH_PFN_OFFSET;
 
-	/* Last usable page of low mem (no HIGHMEM yet for ARC port) */
-	max_low_pfn = max_pfn = PFN_DOWN(end_mem);
+	/* Last usable page of low mem */
+	max_low_pfn = max_pfn = PFN_DOWN(low_mem_start + low_mem_sz);
 
 	max_mapnr = max_low_pfn - min_low_pfn;
 
-	/*------------- reserve kernel image -----------------------*/
-	memblock_reserve(CONFIG_LINUX_LINK_BASE,
-			 __pa(_end) - CONFIG_LINUX_LINK_BASE);
+	/*------------- bootmem allocator setup -----------------------*/
+	memblock_add(low_mem_start, low_mem_sz);
+	memblock_reserve(low_mem_start, __pa(_end) - low_mem_start);
 
 #ifdef CONFIG_BLK_DEV_INITRD
-	/*------------- reserve initrd image -----------------------*/
 	if (initrd_start)
 		memblock_reserve(__pa(initrd_start), initrd_end - initrd_start);
 #endif
 
 	memblock_dump_all();
 
-	/*-------------- node setup --------------------------------*/
+	/*----------------- node/zones setup --------------------------*/
 	memset(zones_size, 0, sizeof(zones_size));
-	zones_size[ZONE_NORMAL] = max_mapnr;
+	zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
 
 	/*
 	 * We can't use the helper free_area_init(zones[]) because it uses
