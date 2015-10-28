@@ -137,6 +137,7 @@ struct ceph_client {
 #endif
 };
 
+#define from_msgr(ms)	container_of(ms, struct ceph_client, msgr)
 
 
 /*

@@ -509,7 +509,7 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 		return ret;
 	}
 
-	if (con->msgr->tcp_nodelay) {
+	if (ceph_test_opt(from_msgr(con->msgr), TCP_NODELAY)) {
 		int optval = 1;
 
 		ret = kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
@@ -1432,7 +1432,8 @@ static int prepare_write_connect(struct ceph_connection *con)
 	dout("prepare_write_connect %p cseq=%d gseq=%d proto=%d\n", con,
 	     con->connect_seq, global_seq, proto);
 
-	con->out_connect.features = cpu_to_le64(con->msgr->supported_features);
+	con->out_connect.features =
+	    cpu_to_le64(from_msgr(con->msgr)->supported_features);
 	con->out_connect.host_type = cpu_to_le32(CEPH_ENTITY_TYPE_CLIENT);
 	con->out_connect.connect_seq = cpu_to_le32(con->connect_seq);
 	con->out_connect.global_seq = cpu_to_le32(global_seq);
@@ -1527,7 +1528,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 {
 	struct ceph_msg *msg = con->out_msg;
 	struct ceph_msg_data_cursor *cursor = &msg->cursor;
-	bool do_datacrc = !con->msgr->nocrc;
+	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
 	u32 crc;
 
 	dout("%s %p msg %p\n", __func__, con, msg);
@@ -2005,8 +2006,8 @@ static int process_banner(struct ceph_connection *con)
 
 static int process_connect(struct ceph_connection *con)
 {
-	u64 sup_feat = con->msgr->supported_features;
-	u64 req_feat = con->msgr->required_features;
+	u64 sup_feat = from_msgr(con->msgr)->supported_features;
+	u64 req_feat = from_msgr(con->msgr)->required_features;
 	u64 server_feat = ceph_sanitize_features(
 				le64_to_cpu(con->in_reply.features));
 	int ret;
@@ -2232,7 +2233,7 @@ static int read_partial_msg_data(struct ceph_connection *con)
 {
 	struct ceph_msg *msg = con->in_msg;
 	struct ceph_msg_data_cursor *cursor = &msg->cursor;
-	const bool do_datacrc = !con->msgr->nocrc;
+	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
 	struct page *page;
 	size_t page_offset;
 	size_t length;
@@ -2277,7 +2278,7 @@ static int read_partial_message(struct ceph_connection *con)
 	int end;
 	int ret;
 	unsigned int front_len, middle_len, data_len;
-	bool do_datacrc = !con->msgr->nocrc;
+	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
 	bool need_sign = (con->peer_features & CEPH_FEATURE_MSG_AUTH);
 	u64 seq;
 	u32 crc;
@@ -2951,15 +2952,8 @@ static void con_fault(struct ceph_connection *con)
  * initialize a new messenger instance
  */
 void ceph_messenger_init(struct ceph_messenger *msgr,
-			struct ceph_entity_addr *myaddr,
-			u64 supported_features,
-			u64 required_features,
-			bool nocrc,
-			bool tcp_nodelay)
+			 struct ceph_entity_addr *myaddr)
 {
-	msgr->supported_features = supported_features;
-	msgr->required_features = required_features;
-
 	spin_lock_init(&msgr->global_seq_lock);
 
 	if (myaddr)
@@ -2969,8 +2963,6 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 	msgr->inst.addr.type = 0;
 	get_random_bytes(&msgr->inst.addr.nonce, sizeof(msgr->inst.addr.nonce));
 	encode_my_addr(msgr);
-	msgr->nocrc = nocrc;
-	msgr->tcp_nodelay = tcp_nodelay;
 
 	atomic_set(&msgr->stopping, 0);
 	write_pnet(&msgr->net, get_net(current->nsproxy->net_ns));

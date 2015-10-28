@@ -596,11 +596,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
 	if (ceph_test_opt(client, MYIP))
 		myaddr = &client->options->my_addr;
 
-	ceph_messenger_init(&client->msgr, myaddr,
-		client->supported_features,
-		client->required_features,
-		ceph_test_opt(client, NOCRC),
-		ceph_test_opt(client, TCP_NODELAY));
+	ceph_messenger_init(&client->msgr, myaddr);
 
 	/* subsystems */
 	err = ceph_monc_init(&client->monc, client);
