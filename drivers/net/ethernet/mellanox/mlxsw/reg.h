@@ -348,8 +348,9 @@ MLXSW_ITEM32_INDEXED(reg, sfd, rec_action, MLXSW_REG_SFD_BASE_LEN, 28, 4,
 		     MLXSW_REG_SFD_REC_LEN, 0x0C, false);
 
 /* reg_sfd_uc_sub_port
- * LAG sub port.
- * Must be 0 if multichannel VEPA is not enabled.
+ * VEPA channel on local port.
+ * Valid only if local port is a non-stacking port. Must be 0 if multichannel
+ * VEPA is not enabled.
  * Access: RW
  */
 MLXSW_ITEM32_INDEXED(reg, sfd, uc_sub_port, MLXSW_REG_SFD_BASE_LEN, 16, 8,
