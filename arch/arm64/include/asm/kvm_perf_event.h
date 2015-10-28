@@ -29,9 +29,11 @@
 #define ARMV8_PMU_PMCR_D	(1 << 3) /* CCNT counts every 64th cpu cycle */
 #define ARMV8_PMU_PMCR_X	(1 << 4) /* Export to ETM */
 #define ARMV8_PMU_PMCR_DP	(1 << 5) /* Disable CCNT if non-invasive debug*/
+/* Determines which bit of PMCCNTR_EL0 generates an overflow */
+#define ARMV8_PMU_PMCR_LC	(1 << 6)
 #define	ARMV8_PMU_PMCR_N_SHIFT	11	 /* Number of counters supported */
 #define	ARMV8_PMU_PMCR_N_MASK	0x1f
-#define	ARMV8_PMU_PMCR_MASK	0x3f	 /* Mask for writable bits */
+#define	ARMV8_PMU_PMCR_MASK	0x7f	 /* Mask for writable bits */
 
 /*
  * PMOVSR: counters overflow flag status reg
