@@ -360,7 +360,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		icv[3] = crc >> 24;
 		crypto_blkcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
 		sg_init_one(&sg, pos, len+4);
-		ret= crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
+		ret = crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
 	}
 
 	tkey->tx_iv16++;
