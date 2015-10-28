@@ -426,7 +426,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_power_domains_init_hw(dev_priv);
 
-	intel_csr_ucode_init(dev);
+	intel_csr_ucode_init(dev_priv);
 
 	ret = intel_irq_install(dev_priv);
 	if (ret)
@@ -1145,7 +1145,7 @@ out_mtrrfree:
 out_gtt:
 	i915_global_gtt_cleanup(dev);
 out_freecsr:
-	intel_csr_ucode_fini(dev);
+	intel_csr_ucode_fini(dev_priv);
 	intel_uncore_fini(dev);
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
@@ -1228,7 +1228,7 @@ int i915_driver_unload(struct drm_device *dev)
 	intel_fbc_cleanup_cfb(dev_priv);
 	i915_gem_cleanup_stolen(dev);
 
-	intel_csr_ucode_fini(dev);
+	intel_csr_ucode_fini(dev_priv);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);

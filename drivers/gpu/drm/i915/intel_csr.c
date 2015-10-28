@@ -200,19 +200,18 @@ static const struct stepping_info *intel_get_stepping_info(struct drm_device *de
 
 /**
  * intel_csr_load_program() - write the firmware from memory to register.
- * @dev: drm device.
+ * @dev_priv: i915 drm device.
  *
  * CSR firmware is read from a .bin file and kept in internal memory one time.
  * Everytime display comes back from low power state this function is called to
  * copy the firmware from internal memory to registers.
  */
-void intel_csr_load_program(struct drm_device *dev)
+void intel_csr_load_program(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 *payload = dev_priv->csr.dmc_payload;
 	uint32_t i, fw_size;
 
-	if (!IS_GEN9(dev)) {
+	if (!IS_GEN9(dev_priv)) {
 		DRM_ERROR("No CSR support available for this platform\n");
 		return;
 	}
@@ -362,7 +361,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	memcpy(dmc_payload, &fw->data[readcount], nbytes);
 
 	/* load csr program during system boot, as needed for DC states */
-	intel_csr_load_program(dev);
+	intel_csr_load_program(dev_priv);
 	fw_loaded = true;
 
 out:
@@ -382,21 +381,20 @@ out:
 
 /**
  * intel_csr_ucode_init() - initialize the firmware loading.
- * @dev: drm device.
+ * @dev_priv: i915 drm device.
  *
  * This function is called at the time of loading the display driver to read
  * firmware from a .bin file and copied into a internal memory.
  */
-void intel_csr_ucode_init(struct drm_device *dev)
+void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_csr *csr = &dev_priv->csr;
 	int ret;
 
-	if (!HAS_CSR(dev))
+	if (!HAS_CSR(dev_priv))
 		return;
 
-	if (IS_SKYLAKE(dev))
+	if (IS_SKYLAKE(dev_priv))
 		csr->fw_path = I915_CSR_SKL;
 	else if (IS_BROXTON(dev_priv))
 		csr->fw_path = I915_CSR_BXT;
@@ -426,16 +424,14 @@ void intel_csr_ucode_init(struct drm_device *dev)
 
 /**
  * intel_csr_ucode_fini() - unload the CSR firmware.
- * @dev: drm device.
+ * @dev_priv: i915 drm device.
  *
  * Firmmware unloading includes freeing the internal momory and reset the
  * firmware loading status.
  */
-void intel_csr_ucode_fini(struct drm_device *dev)
+void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!HAS_CSR(dev))
+	if (!HAS_CSR(dev_priv))
 		return;
 
 	kfree(dev_priv->csr.dmc_payload);

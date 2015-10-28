@@ -1118,13 +1118,11 @@ static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
 
 static int skl_resume_prepare(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
-
 	if (dev_priv->csr.dmc_payload)
 		skl_disable_dc6(dev_priv);
 
 	skl_init_cdclk(dev_priv);
-	intel_csr_load_program(dev);
+	intel_csr_load_program(dev_priv);
 
 	return 0;
 }
