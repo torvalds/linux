@@ -175,7 +175,7 @@ static int cros_ec_spi_receive_packet(struct cros_ec_device *ec_dev,
 	unsigned long deadline;
 	int todo;
 
-	BUG_ON(EC_MSG_PREAMBLE_COUNT > ec_dev->din_size);
+	BUG_ON(ec_dev->din_size < EC_MSG_PREAMBLE_COUNT);
 
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
@@ -283,7 +283,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 	unsigned long deadline;
 	int todo;
 
-	BUG_ON(EC_MSG_PREAMBLE_COUNT > ec_dev->din_size);
+	BUG_ON(ec_dev->din_size < EC_MSG_PREAMBLE_COUNT);
 
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
