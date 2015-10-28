@@ -4,6 +4,7 @@
  *  by the Free Software Foundation.
  *
  *  Copyright (C) 2011-2012 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2013-2015 Lantiq Beteiligungs-GmbH & Co.KG
  */
 
 #include <linux/ioport.h>
@@ -85,15 +86,19 @@ void __iomem *ltq_ebu_membase;
 static u32 ifccr = CGU_IFCCR;
 static u32 pcicr = CGU_PCICR;
 
+static DEFINE_SPINLOCK(g_pmu_lock);
+
 /* legacy function kept alive to ease clkdev transition */
 void ltq_pmu_enable(unsigned int module)
 {
-	int err = 1000000;
+	int retry = 1000000;
 
+	spin_lock(&g_pmu_lock);
 	pmu_w32(pmu_r32(PMU_PWDCR) & ~module, PMU_PWDCR);
-	do {} while (--err && (pmu_r32(PMU_PWDSR) & module));
+	do {} while (--retry && (pmu_r32(PMU_PWDSR) & module));
+	spin_unlock(&g_pmu_lock);
 
-	if (!err)
+	if (!retry)
 		panic("activating PMU module failed!");
 }
 EXPORT_SYMBOL(ltq_pmu_enable);
@@ -101,7 +106,15 @@ EXPORT_SYMBOL(ltq_pmu_enable);
 /* legacy function kept alive to ease clkdev transition */
 void ltq_pmu_disable(unsigned int module)
 {
+	int retry = 1000000;
+
+	spin_lock(&g_pmu_lock);
 	pmu_w32(pmu_r32(PMU_PWDCR) | module, PMU_PWDCR);
+	do {} while (--retry && (!(pmu_r32(PMU_PWDSR) & module)));
+	spin_unlock(&g_pmu_lock);
+
+	if (!retry)
+		pr_warn("deactivating PMU module failed!");
 }
 EXPORT_SYMBOL(ltq_pmu_disable);
 
@@ -123,9 +136,11 @@ static int pmu_enable(struct clk *clk)
 {
 	int retry = 1000000;
 
+	spin_lock(&g_pmu_lock);
 	pmu_w32(pmu_r32(PWDCR(clk->module)) & ~clk->bits,
 		PWDCR(clk->module));
 	do {} while (--retry && (pmu_r32(PWDSR(clk->module)) & clk->bits));
+	spin_unlock(&g_pmu_lock);
 
 	if (!retry)
 		panic("activating PMU module failed!");
@@ -136,8 +151,15 @@ static int pmu_enable(struct clk *clk)
 /* disable a clock gate */
 static void pmu_disable(struct clk *clk)
 {
-	pmu_w32(pmu_r32(PWDCR(clk->module)) | clk->bits,
-		PWDCR(clk->module));
+	int retry = 1000000;
+
+	spin_lock(&g_pmu_lock);
+	pmu_w32(pmu_r32(PWDCR(clk->module)) | clk->bits, PWDCR(clk->module));
+	do {} while (--retry && (!(pmu_r32(PWDSR(clk->module)) & clk->bits)));
+	spin_unlock(&g_pmu_lock);
+
+	if (!retry)
+		pr_warn("deactivating PMU module failed!");
 }
 
 /* the pci enable helper */
