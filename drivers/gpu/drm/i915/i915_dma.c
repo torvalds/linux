@@ -426,6 +426,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_power_domains_init_hw(dev_priv);
 
+	intel_csr_ucode_init(dev);
+
 	ret = intel_irq_install(dev_priv);
 	if (ret)
 		goto cleanup_gem_stolen;
@@ -970,9 +972,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_detect_pch(dev);
 
 	intel_uncore_init(dev);
-
-	/* Load CSR Firmware for SKL */
-	intel_csr_ucode_init(dev);
 
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
