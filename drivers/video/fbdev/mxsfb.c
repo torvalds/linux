@@ -662,6 +662,15 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 	if (host->cur_blank != FB_BLANK_UNBLANK)
 		return 0;
 
+	line_size =  fb_info->var.xres * (fb_info->var.bits_per_pixel >> 3);
+	fb_info->fix.line_length = line_size;
+	fb_size = fb_info->var.yres_virtual * line_size;
+
+	if (fb_size > fb_info->fix.smem_len) {
+		dev_err(&host->pdev->dev, "exceeds the fb buffer size limit!\n");
+		return -ENOMEM;
+	}
+
 	/*
 	 * It seems, you can't re-program the controller if it is still running.
 	 * This may lead into shifted pictures (FIFO issue?).
@@ -674,19 +683,6 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 
 	/* clear the FIFOs */
 	writel(CTRL1_FIFO_CLEAR, host->base + LCDC_CTRL1 + REG_SET);
-
-	line_size =  fb_info->var.xres * (fb_info->var.bits_per_pixel >> 3);
-	fb_info->fix.line_length = line_size;
-	fb_size = fb_info->var.yres_virtual * line_size;
-
-	/* Reallocate memory */
-	if (!fb_info->fix.smem_start || (fb_size > fb_info->fix.smem_len)) {
-		if (fb_info->fix.smem_start)
-			mxsfb_unmap_videomem(fb_info);
-
-		if (mxsfb_map_videomem(fb_info) < 0)
-			return -ENOMEM;
-	}
 
 	ctrl = CTRL_BYPASS_COUNT | CTRL_MASTER |
 		CTRL_SET_BUS_WIDTH(host->ld_intf_width);
@@ -1248,6 +1244,7 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 
 	fb_info->fix.line_length =
 		fb_info->var.xres * (fb_info->var.bits_per_pixel >> 3);
+	fb_info->fix.smem_len = SZ_32M;
 
 	/* Memory allocation for framebuffer */
 	if (mxsfb_map_videomem(fb_info) < 0)
