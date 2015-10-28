@@ -563,7 +563,7 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 
 	// { david, 2006.9.1
 	// fix the wpa process with wmm enabled.
-	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
+	if (IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
 		tkey->tx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
 	}
 	// }
@@ -612,7 +612,7 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	michael_mic_hdr(skb, tkey->rx_hdr);
 	// { david, 2006.9.1
 	// fix the wpa process with wmm enabled.
-	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
+	if (IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
 		tkey->rx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
 	}
 	// }
