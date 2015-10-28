@@ -732,7 +732,7 @@ static int mlxsw_sp_port_obj_dump(struct net_device *dev,
 	return err;
 }
 
-const struct switchdev_ops mlxsw_sp_port_switchdev_ops = {
+static const struct switchdev_ops mlxsw_sp_port_switchdev_ops = {
 	.switchdev_port_attr_get	= mlxsw_sp_port_attr_get,
 	.switchdev_port_attr_set	= mlxsw_sp_port_attr_set,
 	.switchdev_port_obj_add		= mlxsw_sp_port_obj_add,
