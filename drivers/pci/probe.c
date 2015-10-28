@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/cpumask.h>
 #include <linux/pci-aspm.h>
+#include <linux/acpi.h>
 #include <asm-generic/pci-bridge.h>
 #include "pci.h"
 
@@ -1639,7 +1640,7 @@ static void pci_set_msi_domain(struct pci_dev *dev)
  * @dev: ptr to pci_dev struct of the PCI device
  *
  * Function to update PCI devices's DMA configuration using the same
- * info from the OF node of host bridge's parent (if any).
+ * info from the OF node or ACPI node of host bridge's parent (if any).
  */
 static void pci_dma_configure(struct pci_dev *dev)
 {
@@ -1648,6 +1649,15 @@ static void pci_dma_configure(struct pci_dev *dev)
 	if (IS_ENABLED(CONFIG_OF) && dev->dev.of_node) {
 		if (bridge->parent)
 			of_dma_configure(&dev->dev, bridge->parent->of_node);
+	} else if (has_acpi_companion(bridge)) {
+		struct acpi_device *adev = to_acpi_device_node(bridge->fwnode);
+		enum dev_dma_attr attr = acpi_get_dma_attr(adev);
+
+		if (attr == DEV_DMA_NOT_SUPPORTED)
+			dev_warn(&dev->dev, "DMA not supported.\n");
+		else
+			arch_setup_dma_ops(&dev->dev, 0, 0, NULL,
+					   attr == DEV_DMA_COHERENT);
 	}
 
 	pci_put_host_bridge_device(bridge);
