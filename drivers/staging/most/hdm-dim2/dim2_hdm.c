@@ -385,7 +385,8 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 					(u32)data[0] * 256 + data[1] + 2;
 
 				mbo->processed_length =
-					min(data_size, (u32)mbo->buffer_length);
+					min_t(u32, data_size,
+					      mbo->buffer_length);
 			} else {
 				mbo->processed_length = mbo->buffer_length;
 			}
