@@ -425,12 +425,12 @@ void __init ltq_soc_init(void)
 			of_address_to_resource(np_ebu, 0, &res_ebu))
 		panic("Failed to get core resources");
 
-	if ((request_mem_region(res_pmu.start, resource_size(&res_pmu),
-				res_pmu.name) < 0) ||
-		(request_mem_region(res_cgu.start, resource_size(&res_cgu),
-				res_cgu.name) < 0) ||
-		(request_mem_region(res_ebu.start, resource_size(&res_ebu),
-				res_ebu.name) < 0))
+	if (!request_mem_region(res_pmu.start, resource_size(&res_pmu),
+				res_pmu.name) ||
+		!request_mem_region(res_cgu.start, resource_size(&res_cgu),
+				res_cgu.name) ||
+		!request_mem_region(res_ebu.start, resource_size(&res_ebu),
+				res_ebu.name))
 		pr_err("Failed to request core resources");
 
 	pmu_membase = ioremap_nocache(res_pmu.start, resource_size(&res_pmu));

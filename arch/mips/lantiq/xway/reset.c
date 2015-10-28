@@ -288,7 +288,7 @@ static int __init mips_reboot_setup(void)
 	if (of_address_to_resource(ltq_rcu_np, 0, &res))
 		panic("Failed to get rcu memory range");
 
-	if (request_mem_region(res.start, resource_size(&res), res.name) < 0)
+	if (!request_mem_region(res.start, resource_size(&res), res.name))
 		pr_err("Failed to request rcu memory");
 
 	ltq_rcu_membase = ioremap_nocache(res.start, resource_size(&res));
