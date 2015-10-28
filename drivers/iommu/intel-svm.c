@@ -564,7 +564,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 
 		if (sdev && sdev->ops && sdev->ops->fault_cb) {
 			int rwxp = (req->rd_req << 3) | (req->wr_req << 2) |
-				(req->wr_req << 1) | (req->exe_req);
+				(req->exe_req << 1) | (req->priv_req);
 			sdev->ops->fault_cb(sdev->dev, req->pasid, req->addr, req->private, rwxp, result);
 		}
 		/* We get here in the error case where the PASID lookup failed,
