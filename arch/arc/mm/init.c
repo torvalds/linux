@@ -15,6 +15,7 @@
 #endif
 #include <linux/swap.h>
 #include <linux/module.h>
+#include <linux/highmem.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
@@ -26,6 +27,12 @@ EXPORT_SYMBOL(empty_zero_page);
 
 static const unsigned long low_mem_start = CONFIG_LINUX_LINK_BASE;
 static unsigned long low_mem_sz;
+
+#ifdef CONFIG_HIGHMEM
+static unsigned long min_high_pfn;
+static u64 high_mem_start;
+static u64 high_mem_sz;
+#endif
 
 /* User can over-ride above with "mem=nnn[KkMm]" in cmdline */
 static int __init setup_mem_sz(char *str)
@@ -41,10 +48,22 @@ early_param("mem", setup_mem_sz);
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-	low_mem_sz = size;
-	BUG_ON(base != low_mem_start);
+	int in_use = 0;
 
-	pr_info("Memory @ %llx of %ldM\n", base, TO_MB(size));
+	if (!low_mem_sz) {
+		BUG_ON(base != low_mem_start);
+		low_mem_sz = size;
+		in_use = 1;
+	} else {
+#ifdef CONFIG_HIGHMEM
+		high_mem_start = base;
+		high_mem_sz = size;
+		in_use = 1;
+#endif
+	}
+
+	pr_info("Memory @ %llx [%lldM] %s\n",
+		base, TO_MB(size), !in_use ? "Not used":"");
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -74,6 +93,7 @@ early_param("initrd", early_initrd);
 void __init setup_arch_memory(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES];
+	unsigned long zones_holes[MAX_NR_ZONES];
 
 	init_mm.start_code = (unsigned long)_text;
 	init_mm.end_code = (unsigned long)_etext;
@@ -86,9 +106,26 @@ void __init setup_arch_memory(void)
 	/* Last usable page of low mem */
 	max_low_pfn = max_pfn = PFN_DOWN(low_mem_start + low_mem_sz);
 
-	max_mapnr = max_low_pfn - min_low_pfn;
+#ifdef CONFIG_HIGHMEM
+	min_high_pfn = PFN_DOWN(high_mem_start);
+	max_pfn = PFN_DOWN(high_mem_start + high_mem_sz);
+#endif
+
+	max_mapnr = max_pfn - min_low_pfn;
 
 	/*------------- bootmem allocator setup -----------------------*/
+
+	/*
+	 * seed the bootmem allocator after any DT memory node parsing or
+	 * "mem=xxx" cmdline overrides have potentially updated @arc_mem_sz
+	 *
+	 * Only low mem is added, otherwise we have crashes when allocating
+	 * mem_map[] itself. NO_BOOTMEM allocates mem_map[] at the end of
+	 * avail memory, ending in highmem with a > 32-bit address. However
+	 * it then tries to memset it with a truncaed 32-bit handle, causing
+	 * the crash
+	 */
+
 	memblock_add(low_mem_start, low_mem_sz);
 	memblock_reserve(low_mem_start, __pa(_end) - low_mem_start);
 
@@ -101,7 +138,17 @@ void __init setup_arch_memory(void)
 
 	/*----------------- node/zones setup --------------------------*/
 	memset(zones_size, 0, sizeof(zones_size));
+	memset(zones_holes, 0, sizeof(zones_holes));
+
 	zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
+	zones_holes[ZONE_NORMAL] = 0;
+
+#ifdef CONFIG_HIGHMEM
+	zones_size[ZONE_HIGHMEM] = max_pfn - max_low_pfn;
+
+	/* This handles the peripheral address space hole */
+	zones_holes[ZONE_HIGHMEM] = min_high_pfn - max_low_pfn;
+#endif
 
 	/*
 	 * We can't use the helper free_area_init(zones[]) because it uses
@@ -112,9 +159,12 @@ void __init setup_arch_memory(void)
 	free_area_init_node(0,			/* node-id */
 			    zones_size,		/* num pages per zone */
 			    min_low_pfn,	/* first pfn of node */
-			    NULL);		/* NO holes */
+			    zones_holes);	/* holes */
 
-	high_memory = (void *)end_mem;
+#ifdef CONFIG_HIGHMEM
+	high_memory = (void *)(min_high_pfn << PAGE_SHIFT);
+	kmap_init();
+#endif
 }
 
 /*
@@ -125,6 +175,14 @@ void __init setup_arch_memory(void)
  */
 void __init mem_init(void)
 {
+#ifdef CONFIG_HIGHMEM
+	unsigned long tmp;
+
+	reset_all_zones_managed_pages();
+	for (tmp = min_high_pfn; tmp < max_pfn; tmp++)
+		free_highmem_page(pfn_to_page(tmp));
+#endif
+
 	free_all_bootmem();
 	mem_init_print_info(NULL);
 }
