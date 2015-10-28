@@ -1678,8 +1678,8 @@ static int soc_of_bind(struct soc_camera_host *ici,
 		v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
 				  client->adapter->nr, client->addr);
 	else
-		snprintf(clk_name, sizeof(clk_name), "of-%s",
-			 of_node_full_name(remote));
+		v4l2_clk_name_of(clk_name, sizeof(clk_name),
+				 of_node_full_name(remote));
 
 	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, icd);
 	if (IS_ERR(icd->clk)) {
