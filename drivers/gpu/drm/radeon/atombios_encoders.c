@@ -237,6 +237,7 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 	backlight_update_status(bd);
 
 	DRM_INFO("radeon atom DIG backlight initialized\n");
+	rdev->mode_info.bl_encoder = radeon_encoder;
 
 	return;
 

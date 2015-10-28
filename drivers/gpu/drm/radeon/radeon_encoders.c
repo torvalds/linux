@@ -194,7 +194,6 @@ static void radeon_encoder_add_backlight(struct radeon_encoder *radeon_encoder,
 			radeon_atom_backlight_init(radeon_encoder, connector);
 		else
 			radeon_legacy_backlight_init(radeon_encoder, connector);
-		rdev->mode_info.bl_encoder = radeon_encoder;
 	}
 }
 
