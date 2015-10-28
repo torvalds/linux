@@ -476,7 +476,7 @@ static s32 Handle_SetMacAddress(struct host_if_drv *hif_drv,
 		PRINT_ER("No buffer to send mac address\n");
 		return -EFAULT;
 	}
-	memcpy(mac_buf, pstrHostIfSetMacAddress->u8MacAddress, ETH_ALEN);
+	memcpy(mac_buf, pstrHostIfSetMacAddress->mac_addr, ETH_ALEN);
 
 	wid.id = (u16)WID_MAC_ADDR;
 	wid.type = WID_STR;
@@ -3399,7 +3399,7 @@ s32 host_int_set_MacAddress(struct host_if_drv *hif_drv, u8 *pu8MacAddress)
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_MAC_ADDRESS;
-	memcpy(msg.body.set_mac_info.u8MacAddress, pu8MacAddress, ETH_ALEN);
+	memcpy(msg.body.set_mac_info.mac_addr, pu8MacAddress, ETH_ALEN);
 	msg.drv = hif_drv;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
