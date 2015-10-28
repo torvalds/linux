@@ -2477,13 +2477,13 @@ static int Handle_RemainOnChan(struct host_if_drv *hif_drv,
 	struct wid wid;
 
 	if (!hif_drv->u8RemainOnChan_pendingreq) {
-		hif_drv->strHostIfRemainOnChan.pVoid = pstrHostIfRemainOnChan->pVoid;
-		hif_drv->strHostIfRemainOnChan.pRemainOnChanExpired = pstrHostIfRemainOnChan->pRemainOnChanExpired;
-		hif_drv->strHostIfRemainOnChan.pRemainOnChanReady = pstrHostIfRemainOnChan->pRemainOnChanReady;
-		hif_drv->strHostIfRemainOnChan.u16Channel = pstrHostIfRemainOnChan->u16Channel;
-		hif_drv->strHostIfRemainOnChan.u32ListenSessionID = pstrHostIfRemainOnChan->u32ListenSessionID;
+		hif_drv->remain_on_ch.pVoid = pstrHostIfRemainOnChan->pVoid;
+		hif_drv->remain_on_ch.pRemainOnChanExpired = pstrHostIfRemainOnChan->pRemainOnChanExpired;
+		hif_drv->remain_on_ch.pRemainOnChanReady = pstrHostIfRemainOnChan->pRemainOnChanReady;
+		hif_drv->remain_on_ch.u16Channel = pstrHostIfRemainOnChan->u16Channel;
+		hif_drv->remain_on_ch.u32ListenSessionID = pstrHostIfRemainOnChan->u32ListenSessionID;
 	} else {
-		pstrHostIfRemainOnChan->u16Channel = hif_drv->strHostIfRemainOnChan.u16Channel;
+		pstrHostIfRemainOnChan->u16Channel = hif_drv->remain_on_ch.u16Channel;
 	}
 
 	if (hif_drv->usr_scan_req.pfUserScanResult) {
@@ -2532,8 +2532,8 @@ ERRORHANDLER:
 			  jiffies +
 			  msecs_to_jiffies(pstrHostIfRemainOnChan->u32duration));
 
-		if (hif_drv->strHostIfRemainOnChan.pRemainOnChanReady)
-			hif_drv->strHostIfRemainOnChan.pRemainOnChanReady(hif_drv->strHostIfRemainOnChan.pVoid);
+		if (hif_drv->remain_on_ch.pRemainOnChanReady)
+			hif_drv->remain_on_ch.pRemainOnChanReady(hif_drv->remain_on_ch.pVoid);
 
 		if (hif_drv->u8RemainOnChan_pendingreq)
 			hif_drv->u8RemainOnChan_pendingreq = 0;
@@ -2605,9 +2605,9 @@ static u32 Handle_ListenStateExpired(struct host_if_drv *hif_drv,
 			goto _done_;
 		}
 
-		if (hif_drv->strHostIfRemainOnChan.pRemainOnChanExpired) {
-			hif_drv->strHostIfRemainOnChan.pRemainOnChanExpired(hif_drv->strHostIfRemainOnChan.pVoid
-									       , pstrHostIfRemainOnChan->u32ListenSessionID);
+		if (hif_drv->remain_on_ch.pRemainOnChanExpired) {
+			hif_drv->remain_on_ch.pRemainOnChanExpired(hif_drv->remain_on_ch.pVoid,
+								   pstrHostIfRemainOnChan->u32ListenSessionID);
 		}
 		P2P_LISTEN_STATE = 0;
 	} else {
@@ -2630,7 +2630,7 @@ static void ListenTimerCB(unsigned long arg)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_LISTEN_TIMER_FIRED;
 	msg.drv = hif_drv;
-	msg.body.remain_on_ch.u32ListenSessionID = hif_drv->strHostIfRemainOnChan.u32ListenSessionID;
+	msg.body.remain_on_ch.u32ListenSessionID = hif_drv->remain_on_ch.u32ListenSessionID;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
