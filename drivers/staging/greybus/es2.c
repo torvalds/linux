@@ -31,7 +31,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define APB1_LOG_SIZE		SZ_16K
 static struct dentry *apb1_log_dentry;
 static struct dentry *apb1_log_enable_dentry;
-static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 
 /* Number of bulk in and bulk out couple */
 #define NUM_BULKS		7
@@ -98,6 +97,7 @@ struct es2_cport_out {
  * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
  *
  * @apb1_log_task: task pointer for logging thread
+ * @apb1_log_fifo: kernel FIFO to carry logged data
  */
 struct es2_ap_dev {
 	struct usb_device *usb_dev;
@@ -114,6 +114,7 @@ struct es2_ap_dev {
 	int *cport_to_ep;
 
 	struct task_struct *apb1_log_task;
+	DECLARE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 };
 
 /**
@@ -629,7 +630,7 @@ static void apb1_log_get(struct es2_ap_dev *es2, char *buf)
 					APB1_LOG_MSG_SIZE,
 					ES2_TIMEOUT);
 		if (retval > 0)
-			kfifo_in(&apb1_log_fifo, buf, retval);
+			kfifo_in(&es2->apb1_log_fifo, buf, retval);
 	} while (retval > 0);
 }
 
@@ -655,6 +656,7 @@ static int apb1_log_poll(void *data)
 static ssize_t apb1_log_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
+	struct es2_ap_dev *es2 = f->f_inode->i_private;
 	ssize_t ret;
 	size_t copied;
 	char *tmp_buf;
@@ -666,7 +668,7 @@ static ssize_t apb1_log_read(struct file *f, char __user *buf,
 	if (!tmp_buf)
 		return -ENOMEM;
 
-	copied = kfifo_out(&apb1_log_fifo, tmp_buf, count);
+	copied = kfifo_out(&es2->apb1_log_fifo, tmp_buf, count);
 	ret = simple_read_from_buffer(buf, count, ppos, tmp_buf, copied);
 
 	kfree(tmp_buf);
@@ -815,6 +817,7 @@ static int ap_probe(struct usb_interface *interface,
 	es2->usb_intf = interface;
 	es2->usb_dev = udev;
 	spin_lock_init(&es2->cport_out_urb_lock);
+	INIT_KFIFO(es2->apb1_log_fifo);
 	usb_set_intfdata(interface, es2);
 
 	es2->cport_to_ep = kcalloc(hd->num_cports, sizeof(*es2->cport_to_ep),
