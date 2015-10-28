@@ -18,8 +18,8 @@
 #include "connection.h"
 #include "greybus_trace.h"
 
-/* Memory sizes for the buffers sent to/from the ES1 controller */
-#define ES1_GBUF_MSG_SIZE_MAX	2048
+/* Memory sizes for the buffers sent to/from the ES2 controller */
+#define ES2_GBUF_MSG_SIZE_MAX	2048
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0xffff, 0x0002) },	/* Made up number, delete once firmware is fixed to use real number */
@@ -70,7 +70,7 @@ static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
  * @urb: array of urbs for the CPort in messages
  * @buffer: array of buffers for the @cport_in_urb urbs
  */
-struct es1_cport_in {
+struct es2_cport_in {
 	__u8 endpoint;
 	struct urb *urb[NUM_CPORT_IN_URB];
 	u8 *buffer[NUM_CPORT_IN_URB];
@@ -79,12 +79,12 @@ struct es1_cport_in {
 /*
  * @endpoint: bulk out endpoint for CPort data
  */
-struct es1_cport_out {
+struct es2_cport_out {
 	__u8 endpoint;
 };
 
 /**
- * es1_ap_dev - ES1 USB Bridge to AP structure
+ * es2_ap_dev - ES2 USB Bridge to AP structure
  * @usb_dev: pointer to the USB device we are.
  * @usb_intf: pointer to the USB interface we are bound to.
  * @hd: pointer to our greybus_host_device structure
@@ -98,13 +98,13 @@ struct es1_cport_out {
  *			corresponding @cport_out_urb is being cancelled
  * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
  */
-struct es1_ap_dev {
+struct es2_ap_dev {
 	struct usb_device *usb_dev;
 	struct usb_interface *usb_intf;
 	struct greybus_host_device *hd;
 
-	struct es1_cport_in cport_in[NUM_BULKS];
-	struct es1_cport_out cport_out[NUM_BULKS];
+	struct es2_cport_in cport_in[NUM_BULKS];
+	struct es2_cport_out cport_out[NUM_BULKS];
 	struct urb *cport_out_urb[NUM_CPORT_OUT_URB];
 	bool cport_out_urb_busy[NUM_CPORT_OUT_URB];
 	bool cport_out_urb_cancelled[NUM_CPORT_OUT_URB];
@@ -125,41 +125,41 @@ struct cport_to_ep {
 	__u8 endpoint_out;
 };
 
-static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
+static inline struct es2_ap_dev *hd_to_es2(struct greybus_host_device *hd)
 {
-	return (struct es1_ap_dev *)&hd->hd_priv;
+	return (struct es2_ap_dev *)&hd->hd_priv;
 }
 
 static void cport_out_callback(struct urb *urb);
-static void usb_log_enable(struct es1_ap_dev *es1);
-static void usb_log_disable(struct es1_ap_dev *es1);
+static void usb_log_enable(struct es2_ap_dev *es2);
+static void usb_log_disable(struct es2_ap_dev *es2);
 
 /* Get the endpoints pair mapped to the cport */
-static int cport_to_ep_pair(struct es1_ap_dev *es1, u16 cport_id)
+static int cport_to_ep_pair(struct es2_ap_dev *es2, u16 cport_id)
 {
-	if (cport_id >= es1->hd->num_cports)
+	if (cport_id >= es2->hd->num_cports)
 		return 0;
-	return es1->cport_to_ep[cport_id];
+	return es2->cport_to_ep[cport_id];
 }
 
-#define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
+#define ES2_TIMEOUT	500	/* 500 ms for the SVC to do something */
 
 /* Disable for now until we work all of this out to keep a warning-free build */
 #if 0
 /* Test if the endpoints pair is already mapped to a cport */
-static int ep_pair_in_use(struct es1_ap_dev *es1, int ep_pair)
+static int ep_pair_in_use(struct es2_ap_dev *es2, int ep_pair)
 {
 	int i;
 
-	for (i = 0; i < es1->hd->num_cports; i++) {
-		if (es1->cport_to_ep[i] == ep_pair)
+	for (i = 0; i < es2->hd->num_cports; i++) {
+		if (es2->cport_to_ep[i] == ep_pair)
 			return 1;
 	}
 	return 0;
 }
 
 /* Configure the endpoint mapping and send the request to APBridge */
-static int map_cport_to_ep(struct es1_ap_dev *es1,
+static int map_cport_to_ep(struct es2_ap_dev *es2,
 				u16 cport_id, int ep_pair)
 {
 	int retval;
@@ -167,28 +167,28 @@ static int map_cport_to_ep(struct es1_ap_dev *es1,
 
 	if (ep_pair < 0 || ep_pair >= NUM_BULKS)
 		return -EINVAL;
-	if (cport_id >= es1->hd->num_cports)
+	if (cport_id >= es2->hd->num_cports)
 		return -EINVAL;
-	if (ep_pair && ep_pair_in_use(es1, ep_pair))
+	if (ep_pair && ep_pair_in_use(es2, ep_pair))
 		return -EINVAL;
 
 	cport_to_ep = kmalloc(sizeof(*cport_to_ep), GFP_KERNEL);
 	if (!cport_to_ep)
 		return -ENOMEM;
 
-	es1->cport_to_ep[cport_id] = ep_pair;
+	es2->cport_to_ep[cport_id] = ep_pair;
 	cport_to_ep->cport_id = cpu_to_le16(cport_id);
-	cport_to_ep->endpoint_in = es1->cport_in[ep_pair].endpoint;
-	cport_to_ep->endpoint_out = es1->cport_out[ep_pair].endpoint;
+	cport_to_ep->endpoint_in = es2->cport_in[ep_pair].endpoint;
+	cport_to_ep->endpoint_out = es2->cport_out[ep_pair].endpoint;
 
-	retval = usb_control_msg(es1->usb_dev,
-				 usb_sndctrlpipe(es1->usb_dev, 0),
+	retval = usb_control_msg(es2->usb_dev,
+				 usb_sndctrlpipe(es2->usb_dev, 0),
 				 REQUEST_EP_MAPPING,
 				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				 0x00, 0x00,
 				 (char *)cport_to_ep,
 				 sizeof(*cport_to_ep),
-				 ES1_TIMEOUT);
+				 ES2_TIMEOUT);
 	if (retval == sizeof(*cport_to_ep))
 		retval = 0;
 	kfree(cport_to_ep);
@@ -197,30 +197,30 @@ static int map_cport_to_ep(struct es1_ap_dev *es1,
 }
 
 /* Unmap a cport: use the muxed endpoints pair */
-static int unmap_cport(struct es1_ap_dev *es1, u16 cport_id)
+static int unmap_cport(struct es2_ap_dev *es2, u16 cport_id)
 {
-	return map_cport_to_ep(es1, cport_id, 0);
+	return map_cport_to_ep(es2, cport_id, 0);
 }
 #endif
 
-static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
+static struct urb *next_free_urb(struct es2_ap_dev *es2, gfp_t gfp_mask)
 {
 	struct urb *urb = NULL;
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+	spin_lock_irqsave(&es2->cport_out_urb_lock, flags);
 
 	/* Look in our pool of allocated urbs first, as that's the "fastest" */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		if (es1->cport_out_urb_busy[i] == false &&
-				es1->cport_out_urb_cancelled[i] == false) {
-			es1->cport_out_urb_busy[i] = true;
-			urb = es1->cport_out_urb[i];
+		if (es2->cport_out_urb_busy[i] == false &&
+				es2->cport_out_urb_cancelled[i] == false) {
+			es2->cport_out_urb_busy[i] = true;
+			urb = es2->cport_out_urb[i];
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+	spin_unlock_irqrestore(&es2->cport_out_urb_lock, flags);
 	if (urb)
 		return urb;
 
@@ -228,12 +228,12 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 	 * Crap, pool is empty, complain to the syslog and go allocate one
 	 * dynamically as we have to succeed.
 	 */
-	dev_err(&es1->usb_dev->dev,
+	dev_err(&es2->usb_dev->dev,
 		"No free CPort OUT urbs, having to dynamically allocate one!\n");
 	return usb_alloc_urb(0, gfp_mask);
 }
 
-static void free_urb(struct es1_ap_dev *es1, struct urb *urb)
+static void free_urb(struct es2_ap_dev *es2, struct urb *urb)
 {
 	unsigned long flags;
 	int i;
@@ -241,15 +241,15 @@ static void free_urb(struct es1_ap_dev *es1, struct urb *urb)
 	 * See if this was an urb in our pool, if so mark it "free", otherwise
 	 * we need to free it ourselves.
 	 */
-	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+	spin_lock_irqsave(&es2->cport_out_urb_lock, flags);
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		if (urb == es1->cport_out_urb[i]) {
-			es1->cport_out_urb_busy[i] = false;
+		if (urb == es2->cport_out_urb[i]) {
+			es2->cport_out_urb_busy[i] = false;
 			urb = NULL;
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+	spin_unlock_irqrestore(&es2->cport_out_urb_lock, flags);
 
 	/* If urb is not NULL, then we need to free this urb */
 	usb_free_urb(urb);
@@ -288,8 +288,8 @@ static u16 gb_message_cport_unpack(struct gb_operation_msg_hdr *header)
 static int message_send(struct greybus_host_device *hd, u16 cport_id,
 			struct gb_message *message, gfp_t gfp_mask)
 {
-	struct es1_ap_dev *es1 = hd_to_es1(hd);
-	struct usb_device *udev = es1->usb_dev;
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct usb_device *udev = es2->usb_dev;
 	size_t buffer_size;
 	int retval;
 	struct urb *urb;
@@ -308,23 +308,23 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 	}
 
 	/* Find a free urb */
-	urb = next_free_urb(es1, gfp_mask);
+	urb = next_free_urb(es2, gfp_mask);
 	if (!urb)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+	spin_lock_irqsave(&es2->cport_out_urb_lock, flags);
 	message->hcpriv = urb;
-	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+	spin_unlock_irqrestore(&es2->cport_out_urb_lock, flags);
 
 	/* Pack the cport id into the message header */
 	gb_message_cport_pack(message->header, cport_id);
 
 	buffer_size = sizeof(*message->header) + message->payload_size;
 
-	ep_pair = cport_to_ep_pair(es1, cport_id);
+	ep_pair = cport_to_ep_pair(es2, cport_id);
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev,
-					  es1->cport_out[ep_pair].endpoint),
+					  es2->cport_out[ep_pair].endpoint),
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	urb->transfer_flags |= URB_ZERO_PACKET;
@@ -333,11 +333,11 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 	if (retval) {
 		dev_err(&udev->dev, "failed to submit out-urb: %d\n", retval);
 
-		spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+		spin_lock_irqsave(&es2->cport_out_urb_lock, flags);
 		message->hcpriv = NULL;
-		spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+		spin_unlock_irqrestore(&es2->cport_out_urb_lock, flags);
 
-		free_urb(es1, urb);
+		free_urb(es2, urb);
 		gb_message_cport_clear(message->header);
 
 		return retval;
@@ -352,13 +352,13 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 static void message_cancel(struct gb_message *message)
 {
 	struct greybus_host_device *hd = message->operation->connection->hd;
-	struct es1_ap_dev *es1 = hd_to_es1(hd);
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct urb *urb;
 	int i;
 
 	might_sleep();
 
-	spin_lock_irq(&es1->cport_out_urb_lock);
+	spin_lock_irq(&es2->cport_out_urb_lock);
 	urb = message->hcpriv;
 
 	/* Prevent dynamically allocated urb from being deallocated. */
@@ -366,19 +366,19 @@ static void message_cancel(struct gb_message *message)
 
 	/* Prevent pre-allocated urb from being reused. */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		if (urb == es1->cport_out_urb[i]) {
-			es1->cport_out_urb_cancelled[i] = true;
+		if (urb == es2->cport_out_urb[i]) {
+			es2->cport_out_urb_cancelled[i] = true;
 			break;
 		}
 	}
-	spin_unlock_irq(&es1->cport_out_urb_lock);
+	spin_unlock_irq(&es2->cport_out_urb_lock);
 
 	usb_kill_urb(urb);
 
 	if (i < NUM_CPORT_OUT_URB) {
-		spin_lock_irq(&es1->cport_out_urb_lock);
-		es1->cport_out_urb_cancelled[i] = false;
-		spin_unlock_irq(&es1->cport_out_urb_lock);
+		spin_lock_irq(&es2->cport_out_urb_lock);
+		es2->cport_out_urb_cancelled[i] = false;
+		spin_unlock_irq(&es2->cport_out_urb_lock);
 	}
 
 	usb_free_urb(urb);
@@ -386,15 +386,15 @@ static void message_cancel(struct gb_message *message)
 
 static int cport_reset(struct greybus_host_device *hd, u16 cport_id)
 {
-	struct es1_ap_dev *es1 = hd_to_es1(hd);
-	struct usb_device *udev = es1->usb_dev;
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct usb_device *udev = es2->usb_dev;
 	int retval;
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 REQUEST_RESET_CPORT,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, cport_id,
-				 NULL, 0, ES1_TIMEOUT);
+				 NULL, 0, ES2_TIMEOUT);
 	if (retval < 0) {
 		dev_err(&udev->dev, "failed to reset cport %hu: %d\n", cport_id,
 			retval);
@@ -420,8 +420,8 @@ static int cport_enable(struct greybus_host_device *hd, u16 cport_id)
 static int latency_tag_enable(struct greybus_host_device *hd, u16 cport_id)
 {
 	int retval;
-	struct es1_ap_dev *es1 = hd_to_es1(hd);
-	struct usb_device *udev = es1->usb_dev;
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct usb_device *udev = es2->usb_dev;
 
 	if (!cport_id_valid(hd, cport_id)) {
 		dev_err(&udev->dev, "invalid destination cport 0x%02x\n",
@@ -433,7 +433,7 @@ static int latency_tag_enable(struct greybus_host_device *hd, u16 cport_id)
 				 REQUEST_LATENCY_TAG_EN,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
-				 0, ES1_TIMEOUT);
+				 0, ES2_TIMEOUT);
 
 	if (retval < 0)
 		dev_err(&udev->dev, "Cannot enable latency tag for cport %d\n",
@@ -444,8 +444,8 @@ static int latency_tag_enable(struct greybus_host_device *hd, u16 cport_id)
 static int latency_tag_disable(struct greybus_host_device *hd, u16 cport_id)
 {
 	int retval;
-	struct es1_ap_dev *es1 = hd_to_es1(hd);
-	struct usb_device *udev = es1->usb_dev;
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct usb_device *udev = es2->usb_dev;
 
 	if (!cport_id_valid(hd, cport_id)) {
 		dev_err(&udev->dev, "invalid destination cport 0x%02x\n",
@@ -457,7 +457,7 @@ static int latency_tag_disable(struct greybus_host_device *hd, u16 cport_id)
 				 REQUEST_LATENCY_TAG_DIS,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
-				 0, ES1_TIMEOUT);
+				 0, ES2_TIMEOUT);
 
 	if (retval < 0)
 		dev_err(&udev->dev, "Cannot disable latency tag for cport %d\n",
@@ -465,8 +465,8 @@ static int latency_tag_disable(struct greybus_host_device *hd, u16 cport_id)
 	return retval;
 }
 
-static struct greybus_host_driver es1_driver = {
-	.hd_priv_size		= sizeof(struct es1_ap_dev),
+static struct greybus_host_driver es2_driver = {
+	.hd_priv_size		= sizeof(struct es2_ap_dev),
 	.message_send		= message_send,
 	.message_cancel		= message_cancel,
 	.cport_enable		= cport_enable,
@@ -502,31 +502,32 @@ static int check_urb_status(struct urb *urb)
 
 static void ap_disconnect(struct usb_interface *interface)
 {
-	struct es1_ap_dev *es1;
+	struct es2_ap_dev *es2;
 	struct usb_device *udev;
 	int bulk_in;
 	int i;
 
-	es1 = usb_get_intfdata(interface);
-	if (!es1)
+	es2 = usb_get_intfdata(interface);
+	if (!es2)
 		return;
 
-	usb_log_disable(es1);
+	usb_log_disable(es2);
 
 	/* Tear down everything! */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		struct urb *urb = es1->cport_out_urb[i];
+		struct urb *urb = es2->cport_out_urb[i];
 
 		if (!urb)
 			break;
 		usb_kill_urb(urb);
 		usb_free_urb(urb);
-		es1->cport_out_urb[i] = NULL;
-		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
+		es2->cport_out_urb[i] = NULL;
+		es2->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
 
 	for (bulk_in = 0; bulk_in < NUM_BULKS; bulk_in++) {
-		struct es1_cport_in *cport_in = &es1->cport_in[bulk_in];
+		struct es2_cport_in *cport_in = &es2->cport_in[bulk_in];
+
 		for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
 			struct urb *urb = cport_in->urb[i];
 
@@ -540,9 +541,9 @@ static void ap_disconnect(struct usb_interface *interface)
 	}
 
 	usb_set_intfdata(interface, NULL);
-	udev = es1->usb_dev;
-	greybus_remove_hd(es1->hd);
-	kfree(es1->cport_to_ep);
+	udev = es2->usb_dev;
+	greybus_remove_hd(es2->hd);
+	kfree(es2->cport_to_ep);
 
 	usb_put_dev(udev);
 }
@@ -590,15 +591,15 @@ static void cport_out_callback(struct urb *urb)
 {
 	struct gb_message *message = urb->context;
 	struct greybus_host_device *hd = message->operation->connection->hd;
-	struct es1_ap_dev *es1 = hd_to_es1(hd);
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	int status = check_urb_status(urb);
 	unsigned long flags;
 
 	gb_message_cport_clear(message->header);
 
-	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+	spin_lock_irqsave(&es2->cport_out_urb_lock, flags);
 	message->hcpriv = NULL;
-	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+	spin_unlock_irqrestore(&es2->cport_out_urb_lock, flags);
 
 	/*
 	 * Tell the submitter that the message send (attempt) is
@@ -606,24 +607,24 @@ static void cport_out_callback(struct urb *urb)
 	 */
 	greybus_message_sent(hd, message, status);
 
-	free_urb(es1, urb);
+	free_urb(es2, urb);
 }
 
 #define APB1_LOG_MSG_SIZE	64
-static void apb1_log_get(struct es1_ap_dev *es1, char *buf)
+static void apb1_log_get(struct es2_ap_dev *es2, char *buf)
 {
 	int retval;
 
 	/* SVC messages go down our control pipe */
 	do {
-		retval = usb_control_msg(es1->usb_dev,
-					usb_rcvctrlpipe(es1->usb_dev, 0),
+		retval = usb_control_msg(es2->usb_dev,
+					usb_rcvctrlpipe(es2->usb_dev, 0),
 					REQUEST_LOG,
 					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 					0x00, 0x00,
 					buf,
 					APB1_LOG_MSG_SIZE,
-					ES1_TIMEOUT);
+					ES2_TIMEOUT);
 		if (retval > 0)
 			kfifo_in(&apb1_log_fifo, buf, retval);
 	} while (retval > 0);
@@ -631,7 +632,7 @@ static void apb1_log_get(struct es1_ap_dev *es1, char *buf)
 
 static int apb1_log_poll(void *data)
 {
-	struct es1_ap_dev *es1 = data;
+	struct es2_ap_dev *es2 = data;
 	char *buf;
 
 	buf = kmalloc(APB1_LOG_MSG_SIZE, GFP_KERNEL);
@@ -640,7 +641,7 @@ static int apb1_log_poll(void *data)
 
 	while (!kthread_should_stop()) {
 		msleep(1000);
-		apb1_log_get(es1, buf);
+		apb1_log_get(es2, buf);
 	}
 
 	kfree(buf);
@@ -674,13 +675,13 @@ static const struct file_operations apb1_log_fops = {
 	.read	= apb1_log_read,
 };
 
-static void usb_log_enable(struct es1_ap_dev *es1)
+static void usb_log_enable(struct es2_ap_dev *es2)
 {
 	if (!IS_ERR_OR_NULL(apb1_log_task))
 		return;
 
 	/* get log from APB1 */
-	apb1_log_task = kthread_run(apb1_log_poll, es1, "apb1_log");
+	apb1_log_task = kthread_run(apb1_log_poll, es2, "apb1_log");
 	if (IS_ERR(apb1_log_task))
 		return;
 	apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
@@ -688,7 +689,7 @@ static void usb_log_enable(struct es1_ap_dev *es1)
 						&apb1_log_fops);
 }
 
-static void usb_log_disable(struct es1_ap_dev *es1)
+static void usb_log_disable(struct es2_ap_dev *es2)
 {
 	if (IS_ERR_OR_NULL(apb1_log_task))
 		return;
@@ -703,8 +704,8 @@ static void usb_log_disable(struct es1_ap_dev *es1)
 static ssize_t apb1_log_enable_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	char tmp_buf[3];
 	int enable = !IS_ERR_OR_NULL(apb1_log_task);
+	char tmp_buf[3];
 
 	sprintf(tmp_buf, "%d\n", enable);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 3);
@@ -715,16 +716,16 @@ static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
 {
 	int enable;
 	ssize_t retval;
-	struct es1_ap_dev *es1 = (struct es1_ap_dev *)f->f_inode->i_private;
+	struct es2_ap_dev *es2 = (struct es2_ap_dev *)f->f_inode->i_private;
 
 	retval = kstrtoint_from_user(buf, count, 10, &enable);
 	if (retval)
 		return retval;
 
 	if (enable)
-		usb_log_enable(es1);
+		usb_log_enable(es2);
 	else
-		usb_log_disable(es1);
+		usb_log_disable(es2);
 
 	return count;
 }
@@ -747,7 +748,7 @@ static int apb1_get_cport_count(struct usb_device *udev)
 				 REQUEST_CPORT_COUNT,
 				 USB_DIR_IN | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, cport_count,
-				 sizeof(*cport_count), ES1_TIMEOUT);
+				 sizeof(*cport_count), ES2_TIMEOUT);
 	if (retval < 0) {
 		dev_err(&udev->dev, "Cannot retrieve CPort count: %d\n",
 			retval);
@@ -768,7 +769,7 @@ out:
 }
 
 /*
- * The ES1 USB Bridge device contains 4 endpoints
+ * The ES2 USB Bridge device contains 4 endpoints
  * 1 Control - usual USB stuff + AP -> SVC messages
  * 1 Interrupt IN - SVC -> AP messages
  * 1 Bulk IN - CPort data in
@@ -777,7 +778,7 @@ out:
 static int ap_probe(struct usb_interface *interface,
 		    const struct usb_device_id *id)
 {
-	struct es1_ap_dev *es1;
+	struct es2_ap_dev *es2;
 	struct greybus_host_device *hd;
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
@@ -798,23 +799,23 @@ static int ap_probe(struct usb_interface *interface,
 		return num_cports;
 	}
 
-	hd = greybus_create_hd(&es1_driver, &udev->dev, ES1_GBUF_MSG_SIZE_MAX,
+	hd = greybus_create_hd(&es2_driver, &udev->dev, ES2_GBUF_MSG_SIZE_MAX,
 			       num_cports);
 	if (IS_ERR(hd)) {
 		usb_put_dev(udev);
 		return PTR_ERR(hd);
 	}
 
-	es1 = hd_to_es1(hd);
-	es1->hd = hd;
-	es1->usb_intf = interface;
-	es1->usb_dev = udev;
-	spin_lock_init(&es1->cport_out_urb_lock);
-	usb_set_intfdata(interface, es1);
+	es2 = hd_to_es2(hd);
+	es2->hd = hd;
+	es2->usb_intf = interface;
+	es2->usb_dev = udev;
+	spin_lock_init(&es2->cport_out_urb_lock);
+	usb_set_intfdata(interface, es2);
 
-	es1->cport_to_ep = kcalloc(hd->num_cports, sizeof(*es1->cport_to_ep),
+	es2->cport_to_ep = kcalloc(hd->num_cports, sizeof(*es2->cport_to_ep),
 				   GFP_KERNEL);
-	if (!es1->cport_to_ep) {
+	if (!es2->cport_to_ep) {
 		retval = -ENOMEM;
 		goto error;
 	}
@@ -825,10 +826,10 @@ static int ap_probe(struct usb_interface *interface,
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		if (usb_endpoint_is_bulk_in(endpoint)) {
-			es1->cport_in[bulk_in++].endpoint =
+			es2->cport_in[bulk_in++].endpoint =
 				endpoint->bEndpointAddress;
 		} else if (usb_endpoint_is_bulk_out(endpoint)) {
-			es1->cport_out[bulk_out++].endpoint =
+			es2->cport_out[bulk_out++].endpoint =
 				endpoint->bEndpointAddress;
 		} else {
 			dev_err(&udev->dev,
@@ -844,7 +845,8 @@ static int ap_probe(struct usb_interface *interface,
 
 	/* Allocate buffers for our cport in messages and start them up */
 	for (bulk_in = 0; bulk_in < NUM_BULKS; bulk_in++) {
-		struct es1_cport_in *cport_in = &es1->cport_in[bulk_in];
+		struct es2_cport_in *cport_in = &es2->cport_in[bulk_in];
+
 		for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
 			struct urb *urb;
 			u8 *buffer;
@@ -852,14 +854,14 @@ static int ap_probe(struct usb_interface *interface,
 			urb = usb_alloc_urb(0, GFP_KERNEL);
 			if (!urb)
 				goto error;
-			buffer = kmalloc(ES1_GBUF_MSG_SIZE_MAX, GFP_KERNEL);
+			buffer = kmalloc(ES2_GBUF_MSG_SIZE_MAX, GFP_KERNEL);
 			if (!buffer)
 				goto error;
 
 			usb_fill_bulk_urb(urb, udev,
 					  usb_rcvbulkpipe(udev,
 							  cport_in->endpoint),
-					  buffer, ES1_GBUF_MSG_SIZE_MAX,
+					  buffer, ES2_GBUF_MSG_SIZE_MAX,
 					  cport_in_callback, hd);
 			cport_in->urb[i] = urb;
 			cport_in->buffer[i] = buffer;
@@ -877,13 +879,13 @@ static int ap_probe(struct usb_interface *interface,
 		if (!urb)
 			goto error;
 
-		es1->cport_out_urb[i] = urb;
-		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
+		es2->cport_out_urb[i] = urb;
+		es2->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
 
 	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
 							(S_IWUSR | S_IRUGO),
-							gb_debugfs_get(), es1,
+							gb_debugfs_get(), es2,
 							&apb1_log_enable_fops);
 	return 0;
 error:
@@ -892,14 +894,14 @@ error:
 	return retval;
 }
 
-static struct usb_driver es1_ap_driver = {
+static struct usb_driver es2_ap_driver = {
 	.name =		"es2_ap_driver",
 	.probe =	ap_probe,
 	.disconnect =	ap_disconnect,
 	.id_table =	id_table,
 };
 
-module_usb_driver(es1_ap_driver);
+module_usb_driver(es2_ap_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
