@@ -448,7 +448,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		bxt_ddi_vswing_sequence(dev, hdmi_level, port,
 					INTEL_OUTPUT_HDMI);
 		return;
-	} else if (IS_SKYLAKE(dev)) {
+	} else if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		ddi_translations_fdi = NULL;
 		ddi_translations_dp =
 				skl_get_buf_trans_dp(dev, &n_dp_entries);
@@ -1184,7 +1184,7 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 
 	if (INTEL_INFO(dev)->gen <= 8)
 		hsw_ddi_clock_get(encoder, pipe_config);
-	else if (IS_SKYLAKE(dev))
+	else if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 		skl_ddi_clock_get(encoder, pipe_config);
 	else if (IS_BROXTON(dev))
 		bxt_ddi_clock_get(encoder, pipe_config);
@@ -1768,7 +1768,7 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc,
 	struct intel_encoder *intel_encoder =
 		intel_ddi_get_crtc_new_encoder(crtc_state);
 
-	if (IS_SKYLAKE(dev))
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 		return skl_ddi_pll_select(intel_crtc, crtc_state,
 					  intel_encoder);
 	else if (IS_BROXTON(dev))
@@ -2251,7 +2251,7 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 
 	level = translate_signal_level(signal_levels);
 
-	if (IS_SKYLAKE(dev))
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 		skl_ddi_set_iboost(dev, level, port, encoder->type);
 	else if (IS_BROXTON(dev))
 		bxt_ddi_vswing_sequence(dev, level, port, encoder->type);
@@ -2274,7 +2274,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 		intel_edp_panel_on(intel_dp);
 	}
 
-	if (IS_SKYLAKE(dev)) {
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		uint32_t dpll = crtc->config->ddi_pll_sel;
 		uint32_t val;
 
@@ -2369,7 +2369,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 		intel_edp_panel_off(intel_dp);
 	}
 
-	if (IS_SKYLAKE(dev))
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 		I915_WRITE(DPLL_CTRL2, (I915_READ(DPLL_CTRL2) |
 					DPLL_CTRL2_DDI_CLK_OFF(port)));
 	else if (INTEL_INFO(dev)->gen < 9)
@@ -2937,14 +2937,14 @@ void intel_ddi_pll_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t val = I915_READ(LCPLL_CTL);
 
-	if (IS_SKYLAKE(dev))
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 		skl_shared_dplls_init(dev_priv);
 	else if (IS_BROXTON(dev))
 		bxt_shared_dplls_init(dev_priv);
 	else
 		hsw_shared_dplls_init(dev_priv);
 
-	if (IS_SKYLAKE(dev)) {
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		int cdclk_freq;
 
 		cdclk_freq = dev_priv->display.get_display_clock_speed(dev);

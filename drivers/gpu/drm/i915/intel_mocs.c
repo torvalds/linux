@@ -143,7 +143,7 @@ static bool get_mocs_settings(struct drm_device *dev,
 {
 	bool result = false;
 
-	if (IS_SKYLAKE(dev)) {
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
 		table->table = skylake_mocs_table;
 		result = true;

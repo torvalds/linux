@@ -591,7 +591,7 @@ static void i915_audio_component_codec_wake_override(struct device *dev,
 	struct drm_i915_private *dev_priv = dev_to_i915(dev);
 	u32 tmp;
 
-	if (!IS_SKYLAKE(dev_priv))
+	if (!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv))
 		return;
 
 	/*
@@ -642,10 +642,11 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 	u32 tmp;
 	int n;
 
-	/* HSW, BDW SKL need this fix */
+	/* HSW, BDW, SKL, KBL need this fix */
 	if (!IS_SKYLAKE(dev_priv) &&
-		!IS_BROADWELL(dev_priv) &&
-		!IS_HASWELL(dev_priv))
+	    !IS_KABYLAKE(dev_priv) &&
+	    !IS_BROADWELL(dev_priv) &&
+	    !IS_HASWELL(dev_priv))
 		return 0;
 
 	mutex_lock(&dev_priv->av_mutex);

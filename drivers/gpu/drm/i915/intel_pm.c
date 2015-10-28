@@ -4567,7 +4567,8 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 	dev_priv->rps.max_freq		= dev_priv->rps.rp0_freq;
 
 	dev_priv->rps.efficient_freq = dev_priv->rps.rp1_freq;
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev) || IS_SKYLAKE(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev) ||
+	    IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		ret = sandybridge_pcode_read(dev_priv,
 					HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL,
 					&ddcc_status);
@@ -4579,7 +4580,7 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 					dev_priv->rps.max_freq);
 	}
 
-	if (IS_SKYLAKE(dev)) {
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		/* Store the frequency values in 16.66 MHZ units, which is
 		   the natural hardware unit for SKL */
 		dev_priv->rps.rp0_freq *= GEN9_FREQ_SCALER;
@@ -4935,7 +4936,7 @@ static void __gen6_update_ring_freq(struct drm_device *dev)
 	/* convert DDR frequency from units of 266.6MHz to bandwidth */
 	min_ring_freq = mult_frac(min_ring_freq, 8, 3);
 
-	if (IS_SKYLAKE(dev)) {
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		/* Convert GT frequency to 50 HZ units */
 		min_gpu_freq = dev_priv->rps.min_freq / GEN9_FREQ_SCALER;
 		max_gpu_freq = dev_priv->rps.max_freq / GEN9_FREQ_SCALER;
@@ -4953,7 +4954,7 @@ static void __gen6_update_ring_freq(struct drm_device *dev)
 		int diff = max_gpu_freq - gpu_freq;
 		unsigned int ia_freq = 0, ring_freq = 0;
 
-		if (IS_SKYLAKE(dev)) {
+		if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 			/*
 			 * ring_freq = 2 * GT. ring_freq is in 100MHz units
 			 * No floor required for ring frequency on SKL.
@@ -6081,7 +6082,7 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 	} else if (INTEL_INFO(dev)->gen >= 9) {
 		gen9_enable_rc6(dev);
 		gen9_enable_rps(dev);
-		if (IS_SKYLAKE(dev))
+		if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 			__gen6_update_ring_freq(dev);
 	} else if (IS_BROADWELL(dev)) {
 		gen8_enable_rps(dev);

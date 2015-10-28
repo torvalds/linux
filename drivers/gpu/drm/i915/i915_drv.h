@@ -766,6 +766,7 @@ struct intel_csr {
 	func(is_haswell) sep \
 	func(is_skylake) sep \
 	func(is_broxton) sep \
+	func(is_kabylake) sep \
 	func(is_preliminary) sep \
 	func(has_fbc) sep \
 	func(has_pipe_cxsr) sep \
@@ -2478,6 +2479,7 @@ struct drm_i915_cmd_table {
 #define IS_BROADWELL(dev)	(!INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_SKYLAKE(dev)	(INTEL_INFO(dev)->is_skylake)
 #define IS_BROXTON(dev)		(INTEL_INFO(dev)->is_broxton)
+#define IS_KABYLAKE(dev)	(INTEL_INFO(dev)->is_kabylake)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
 				 (INTEL_DEVID(dev) & 0xFF00) == 0x0C00)
@@ -2598,10 +2600,10 @@ struct drm_i915_cmd_table {
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev) || \
 				 IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev) || \
-				 IS_SKYLAKE(dev))
+				 IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 #define HAS_RUNTIME_PM(dev)	(IS_GEN6(dev) || IS_HASWELL(dev) || \
 				 IS_BROADWELL(dev) || IS_VALLEYVIEW(dev) || \
-				 IS_SKYLAKE(dev))
+				 IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
 #define HAS_RC6p(dev)		(INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
 
