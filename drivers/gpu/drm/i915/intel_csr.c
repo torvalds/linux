@@ -405,7 +405,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 
 out:
 	if (fw_loaded) {
-		intel_runtime_pm_put(dev_priv);
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
 		DRM_INFO("Finished loading %s (v%u.%u)\n",
 			 dev_priv->csr.fw_path,
@@ -452,7 +452,7 @@ void intel_csr_ucode_init(struct drm_device *dev)
 	 * Obtain a runtime pm reference, until CSR is loaded,
 	 * to avoid entering runtime-suspend.
 	 */
-	intel_runtime_pm_get(dev_priv);
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
 	/* CSR supported for platform, load firmware */
 	ret = request_firmware_nowait(THIS_MODULE, true, csr->fw_path,
