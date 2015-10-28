@@ -18,13 +18,13 @@ extern void context_tracking_user_exit(void);
 static inline void user_enter(void)
 {
 	if (context_tracking_is_enabled())
-		context_tracking_user_enter();
+		context_tracking_enter(CONTEXT_USER);
 
 }
 static inline void user_exit(void)
 {
 	if (context_tracking_is_enabled())
-		context_tracking_user_exit();
+		context_tracking_exit(CONTEXT_USER);
 }
 
 static inline enum ctx_state exception_enter(void)

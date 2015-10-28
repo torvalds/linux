@@ -63,15 +63,6 @@ void context_tracking_enter(enum ctx_state state)
 	unsigned long flags;
 
 	/*
-	 * Repeat the user_enter() check here because some archs may be calling
-	 * this from asm and if no CPU needs context tracking, they shouldn't
-	 * go further. Repeat the check here until they support the inline static
-	 * key check.
-	 */
-	if (!context_tracking_is_enabled())
-		return;
-
-	/*
 	 * Some contexts may involve an exception occuring in an irq,
 	 * leading to that nesting:
 	 * rcu_irq_enter() rcu_user_exit() rcu_user_exit() rcu_irq_exit()
@@ -128,7 +119,7 @@ EXPORT_SYMBOL_GPL(context_tracking_enter);
 
 void context_tracking_user_enter(void)
 {
-	context_tracking_enter(CONTEXT_USER);
+	user_enter();
 }
 NOKPROBE_SYMBOL(context_tracking_user_enter);
 
@@ -147,9 +138,6 @@ NOKPROBE_SYMBOL(context_tracking_user_enter);
 void context_tracking_exit(enum ctx_state state)
 {
 	unsigned long flags;
-
-	if (!context_tracking_is_enabled())
-		return;
 
 	if (in_interrupt())
 		return;
@@ -181,7 +169,7 @@ EXPORT_SYMBOL_GPL(context_tracking_exit);
 
 void context_tracking_user_exit(void)
 {
-	context_tracking_exit(CONTEXT_USER);
+	user_exit();
 }
 NOKPROBE_SYMBOL(context_tracking_user_exit);
 
