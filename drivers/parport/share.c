@@ -735,9 +735,8 @@ parport_register_device(struct parport *port, const char *name,
 	 * neither of us gets unloaded while we sleep in (e.g.)
 	 * kmalloc.
 	 */
-	if (!try_module_get(port->ops->owner)) {
+	if (!try_module_get(port->ops->owner))
 		return NULL;
-	}
 
 	parport_get_port (port);
 
@@ -1261,9 +1260,8 @@ int parport_claim_or_block(struct pardevice *dev)
 		if (dev->waiting) {
 			wait_event_interruptible(dev->wait_q,
 						 !dev->waiting);
-			if (signal_pending (current)) {
+			if (signal_pending (current))
 				return -EINTR;
-			}
 			r = 1;
 		} else {
 			r = 0;
