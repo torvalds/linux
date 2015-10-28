@@ -471,8 +471,8 @@ static int sca3000_read_raw(struct iio_dev *indio_dev,
 				return ret;
 			}
 			*val = (be16_to_cpup((__be16 *)st->rx) >> 3) & 0x1FFF;
-			*val = ((*val) << (sizeof(*val)*8 - 13)) >>
-				(sizeof(*val)*8 - 13);
+			*val = ((*val) << (sizeof(*val) * 8 - 13)) >>
+				(sizeof(*val) * 8 - 13);
 		} else {
 			/* get the temperature when available */
 			ret = sca3000_read_data_short(st,
@@ -529,20 +529,20 @@ static ssize_t sca3000_read_av_freq(struct device *dev,
 	case SCA3000_MEAS_MODE_NORMAL:
 		len += sprintf(buf + len, "%d %d %d\n",
 			       st->info->measurement_mode_freq,
-			       st->info->measurement_mode_freq/2,
-			       st->info->measurement_mode_freq/4);
+			       st->info->measurement_mode_freq / 2,
+			       st->info->measurement_mode_freq / 4);
 		break;
 	case SCA3000_MEAS_MODE_OP_1:
 		len += sprintf(buf + len, "%d %d %d\n",
 			       st->info->option_mode_1_freq,
-			       st->info->option_mode_1_freq/2,
-			       st->info->option_mode_1_freq/4);
+			       st->info->option_mode_1_freq / 2,
+			       st->info->option_mode_1_freq / 4);
 		break;
 	case SCA3000_MEAS_MODE_OP_2:
 		len += sprintf(buf + len, "%d %d %d\n",
 			       st->info->option_mode_2_freq,
-			       st->info->option_mode_2_freq/2,
-			       st->info->option_mode_2_freq/4);
+			       st->info->option_mode_2_freq / 2,
+			       st->info->option_mode_2_freq / 4);
 		break;
 	}
 	return len;
@@ -605,10 +605,10 @@ static ssize_t sca3000_read_frequency(struct device *dev,
 			len = sprintf(buf, "%d\n", base_freq);
 			break;
 		case 0x01:
-			len = sprintf(buf, "%d\n", base_freq/2);
+			len = sprintf(buf, "%d\n", base_freq / 2);
 			break;
 		case 0x02:
-			len = sprintf(buf, "%d\n", base_freq/4);
+			len = sprintf(buf, "%d\n", base_freq / 4);
 			break;
 	}
 
@@ -650,9 +650,9 @@ static ssize_t sca3000_set_frequency(struct device *dev,
 	/* clear the bits */
 	ctrlval &= ~0x03;
 
-	if (val == base_freq/2) {
+	if (val == base_freq / 2) {
 		ctrlval |= SCA3000_OUT_CTRL_BUF_DIV_2;
-	} else if (val == base_freq/4) {
+	} else if (val == base_freq / 4) {
 		ctrlval |= SCA3000_OUT_CTRL_BUF_DIV_4;
 	} else if (val != base_freq) {
 		ret = -EINVAL;
@@ -997,14 +997,14 @@ exit_point:
 
 /* Free fall detector related event attribute */
 static IIO_DEVICE_ATTR_NAMED(accel_xayaz_mag_falling_en,
-			     in_accel_x&y&z_mag_falling_en,
+			     in_accel_x & y & z_mag_falling_en,
 			     S_IRUGO | S_IWUSR,
 			     sca3000_query_free_fall_mode,
 			     sca3000_set_free_fall_mode,
 			     0);
 
 static IIO_CONST_ATTR_NAMED(accel_xayaz_mag_falling_period,
-			    in_accel_x&y&z_mag_falling_period,
+			    in_accel_x & y & z_mag_falling_period,
 			    "0.226");
 
 static struct attribute *sca3000_event_attributes[] = {

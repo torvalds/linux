@@ -106,7 +106,7 @@ static int sca3000_read_first_n_hw_rb(struct iio_buffer *r,
 	 * i.e. number of time points * number of channels.
 	 */
 	if (count > num_available * bytes_per_sample)
-		num_read = num_available*bytes_per_sample;
+		num_read = num_available * bytes_per_sample;
 	else
 		num_read = count;
 
@@ -208,7 +208,7 @@ static ssize_t sca3000_show_buffer_scale(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "0.%06d\n", 4*st->info->scale);
+	return sprintf(buf, "0.%06d\n", 4 * st->info->scale);
 }
 
 static IIO_DEVICE_ATTR(in_accel_scale,
