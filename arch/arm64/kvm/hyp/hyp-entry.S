@@ -19,7 +19,6 @@
 
 #include <asm/alternative.h>
 #include <asm/assembler.h>
-#include <asm/asm-offsets.h>
 #include <asm/cpufeature.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
@@ -69,7 +68,11 @@ ENDPROC(__vhe_hyp_call)
 el1_sync:				// Guest trapped into EL2
 	save_x0_to_x3
 
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	mrs	x1, esr_el2
+alternative_else
+	mrs	x1, esr_el1
+alternative_endif
 	lsr	x2, x1, #ESR_ELx_EC_SHIFT
 
 	cmp	x2, #ESR_ELx_EC_HVC64
@@ -105,71 +108,9 @@ el1_trap:
 	cmp	x2, #ESR_ELx_EC_FP_ASIMD
 	b.eq	__fpsimd_guest_restore
 
-	cmp	x2, #ESR_ELx_EC_DABT_LOW
-	mov	x0, #ESR_ELx_EC_IABT_LOW
-	ccmp	x2, x0, #4, ne
-	b.ne	1f		// Not an abort we care about
-
-	/* This is an abort. Check for permission fault */
-alternative_if_not ARM64_WORKAROUND_834220
-	and	x2, x1, #ESR_ELx_FSC_TYPE
-	cmp	x2, #FSC_PERM
-	b.ne	1f		// Not a permission fault
-alternative_else
-	nop			// Use the permission fault path to
-	nop			// check for a valid S1 translation,
-	nop			// regardless of the ESR value.
-alternative_endif
-
-	/*
-	 * Check for Stage-1 page table walk, which is guaranteed
-	 * to give a valid HPFAR_EL2.
-	 */
-	tbnz	x1, #7, 1f	// S1PTW is set
-
-	/* Preserve PAR_EL1 */
-	mrs	x3, par_el1
-	stp	x3, xzr, [sp, #-16]!
-
-	/*
-	 * Permission fault, HPFAR_EL2 is invalid.
-	 * Resolve the IPA the hard way using the guest VA.
-	 * Stage-1 translation already validated the memory access rights.
-	 * As such, we can use the EL1 translation regime, and don't have
-	 * to distinguish between EL0 and EL1 access.
-	 */
-	mrs	x2, far_el2
-	at	s1e1r, x2
-	isb
-
-	/* Read result */
-	mrs	x3, par_el1
-	ldp	x0, xzr, [sp], #16	// Restore PAR_EL1 from the stack
-	msr	par_el1, x0
-	tbnz	x3, #0, 3f		// Bail out if we failed the translation
-	ubfx	x3, x3, #12, #36	// Extract IPA
-	lsl	x3, x3, #4		// and present it like HPFAR
-	b	2f
-
-1:	mrs	x3, hpfar_el2
-	mrs	x2, far_el2
-
-2:	mrs	x0, tpidr_el2
-	str	w1, [x0, #VCPU_ESR_EL2]
-	str	x2, [x0, #VCPU_FAR_EL2]
-	str	x3, [x0, #VCPU_HPFAR_EL2]
-
+	mrs	x0, tpidr_el2
 	mov	x1, #ARM_EXCEPTION_TRAP
 	b	__guest_exit
-
-	/*
-	 * Translation failed. Just return to the guest and
-	 * let it fault again. Another CPU is probably playing
-	 * behind our back.
-	 */
-3:	restore_x0_to_x3
-
-	eret
 
 el1_irq:
 	save_x0_to_x3
