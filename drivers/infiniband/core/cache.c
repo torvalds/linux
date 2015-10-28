@@ -112,6 +112,19 @@ struct ib_gid_table {
 	struct ib_gid_table_entry *data_vec;
 };
 
+static void dispatch_gid_change_event(struct ib_device *ib_dev, u8 port)
+{
+	if (rdma_cap_roce_gid_table(ib_dev, port)) {
+		struct ib_event event;
+
+		event.device		= ib_dev;
+		event.element.port_num	= port;
+		event.event		= IB_EVENT_GID_CHANGE;
+
+		ib_dispatch_event(&event);
+	}
+}
+
 static int write_gid(struct ib_device *ib_dev, u8 port,
 		     struct ib_gid_table *table, int ix,
 		     const union ib_gid *gid,
@@ -164,15 +177,9 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 
 	write_unlock_irqrestore(&table->data_vec[ix].lock, flags);
 
-	if (!ret && rdma_cap_roce_gid_table(ib_dev, port)) {
-		struct ib_event event;
+	if (!ret)
+		dispatch_gid_change_event(ib_dev, port);
 
-		event.device		= ib_dev;
-		event.element.port_num	= port;
-		event.event		= IB_EVENT_GID_CHANGE;
-
-		ib_dispatch_event(&event);
-	}
 	return ret;
 }
 
