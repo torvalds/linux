@@ -4,6 +4,7 @@
  *  by the Free Software Foundation.
  *
  *  Copyright (C) 2010 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2013-2015 Lantiq Beteiligungs-GmbH & Co.KG
  */
 
 #include <linux/io.h>
@@ -25,8 +26,8 @@ static unsigned int ram_clocks[] = {
 /* legacy xway clock */
 #define CGU_SYS			0x10
 
-/* vr9 clock */
-#define CGU_SYS_VR9		0x0c
+/* vr9, ar10/grx390 clock */
+#define CGU_SYS_XRX		0x0c
 #define CGU_IF_CLK_VR9		0x24
 
 unsigned long ltq_danube_fpi_hz(void)
@@ -104,7 +105,7 @@ unsigned long ltq_vr9_cpu_hz(void)
 	unsigned int cpu_sel;
 	unsigned long clk;
 
-	cpu_sel = (ltq_cgu_r32(CGU_SYS_VR9) >> 4) & 0xf;
+	cpu_sel = (ltq_cgu_r32(CGU_SYS_XRX) >> 4) & 0xf;
 
 	switch (cpu_sel) {
 	case 0:
@@ -145,7 +146,7 @@ unsigned long ltq_vr9_fpi_hz(void)
 	unsigned long clk;
 
 	cpu_clk = ltq_vr9_cpu_hz();
-	ocp_sel = ltq_cgu_r32(CGU_SYS_VR9) & 0x3;
+	ocp_sel = ltq_cgu_r32(CGU_SYS_XRX) & 0x3;
 
 	switch (ocp_sel) {
 	case 0:
