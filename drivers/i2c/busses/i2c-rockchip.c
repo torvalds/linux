@@ -627,12 +627,6 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 	int msleep_time = 400 * 1000 / i2c->scl_rate;	// ms
 	int can_sleep = !(in_atomic() || irqs_disabled());
 
-	mutex_lock(&i2c->suspend_lock);
-	if (i2c->suspended) {
-		dev_err(i2c->dev, "i2c is suspended\n");
-		return -EIO;
-	}
-
 	spin_lock_irqsave(&i2c->lock, flags);
 	i2c->addr = msgs[0].addr;
 	if (msgs[0].flags & I2C_M_TEN) {
@@ -724,7 +718,6 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 	if (error == -EAGAIN)
 		i2c_dbg(i2c->dev, "No ack(complete_what: 0x%x), Maybe slave(addr: 0x%04x) not exist or abnormal power-on\n",
 			i2c->complete_what, i2c->addr);
-	mutex_unlock(&i2c->suspend_lock);
 
 	return error;
 }
@@ -741,6 +734,16 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	int ret;
 	struct rockchip_i2c *i2c = i2c_get_adapdata(adap);
 	unsigned long scl_rate = i2c->scl_rate;
+	int can_sleep = !(in_atomic() || irqs_disabled());
+
+	if (can_sleep) {
+		mutex_lock(&i2c->suspend_lock);
+		if (i2c->suspended) {
+			dev_err(i2c->dev, "i2c is suspended\n");
+			mutex_unlock(&i2c->suspend_lock);
+			return -EIO;
+		}
+	}
 
 	clk_enable(i2c->clk);
 	if (i2c->check_idle) {
@@ -749,15 +752,16 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 			state = rockchip_i2c_check_idle(i2c);
 			if (state == I2C_IDLE)
 				break;
-			if (in_atomic() || irqs_disabled())
-				mdelay(10);
-			else
+			if (can_sleep)
 				msleep(10);
+			else
+				mdelay(10);
 			retry--;
 		}
 		if (retry == 0) {
 			dev_err(i2c->dev, "i2c is not in idle(state = %d)\n", state);
-			return -EIO;
+			ret = -EIO;
+			goto out;
 		}
 	}
 
@@ -781,7 +785,11 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	ret = rockchip_i2c_doxfer(i2c, msgs, num);
 	i2c_dbg(i2c->dev, "i2c transfer stop: addr: 0x%04x, state: %d, ret: %d\n", msgs[0].addr, ret, i2c->state);
 
+out:
 	clk_disable(i2c->clk);
+	if (can_sleep)
+		mutex_unlock(&i2c->suspend_lock);
+
 	return (ret < 0) ? ret : num;
 }
 
