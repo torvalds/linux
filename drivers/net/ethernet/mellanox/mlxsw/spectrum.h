@@ -84,10 +84,10 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp *mlxsw_sp;
 	u8 local_port;
 	u8 stp_state;
-	u8 learning:1;
-	u8 learning_sync:1;
+	u8 learning:1,
+	   learning_sync:1,
+	   bridged:1;
 	u16 pvid;
-	bool bridged;
 	/* 802.1Q bridge VLANs */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	/* VLAN interfaces */
