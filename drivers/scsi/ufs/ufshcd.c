@@ -5420,6 +5420,10 @@ static int ufshcd_scale_clks(struct ufs_hba *hba, bool scale_up)
 	if (!head || list_empty(head))
 		goto out;
 
+	ret = ufshcd_vops_clk_scale_notify(hba, scale_up, PRE_CHANGE);
+	if (ret)
+		return ret;
+
 	list_for_each_entry(clki, head, list) {
 		if (!IS_ERR_OR_NULL(clki->clk)) {
 			if (scale_up && clki->max_freq) {
@@ -5450,7 +5454,9 @@ static int ufshcd_scale_clks(struct ufs_hba *hba, bool scale_up)
 		dev_dbg(hba->dev, "%s: clk: %s, rate: %lu\n", __func__,
 				clki->name, clk_get_rate(clki->clk));
 	}
-	ufshcd_vops_clk_scale_notify(hba);
+
+	ret = ufshcd_vops_clk_scale_notify(hba, scale_up, POST_CHANGE);
+
 out:
 	return ret;
 }
