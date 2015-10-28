@@ -1300,6 +1300,7 @@ static void cleanup(struct spi_device *spi)
 	kfree(chip);
 }
 
+#ifdef CONFIG_PCI
 #ifdef CONFIG_ACPI
 
 static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {
@@ -1312,6 +1313,23 @@ static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pxa2xx_spi_acpi_match);
+
+static int pxa2xx_spi_get_port_id(struct acpi_device *adev)
+{
+	unsigned int devid;
+	int port_id = -1;
+
+	if (adev && adev->pnp.unique_id &&
+	    !kstrtouint(adev->pnp.unique_id, 0, &devid))
+		port_id = devid;
+	return port_id;
+}
+#else /* !CONFIG_ACPI */
+static int pxa2xx_spi_get_port_id(struct acpi_device *adev)
+{
+	return -1;
+}
+#endif
 
 /*
  * PCI IDs of compound devices that integrate both host controller and private
@@ -1347,7 +1365,7 @@ static bool pxa2xx_spi_idma_filter(struct dma_chan *chan, void *param)
 }
 
 static struct pxa2xx_spi_master *
-pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
+pxa2xx_spi_init_pdata(struct platform_device *pdev)
 {
 	struct pxa2xx_spi_master *pdata;
 	struct acpi_device *adev;
@@ -1355,19 +1373,18 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	struct resource *res;
 	const struct acpi_device_id *adev_id = NULL;
 	const struct pci_device_id *pcidev_id = NULL;
-	unsigned int devid;
 	int type;
 
 	adev = ACPI_COMPANION(&pdev->dev);
-	if (!adev)
-		return NULL;
 
 	if (dev_is_pci(pdev->dev.parent))
 		pcidev_id = pci_match_id(pxa2xx_spi_pci_compound_match,
 					 to_pci_dev(pdev->dev.parent));
-	else
+	else if (adev)
 		adev_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
 					    &pdev->dev);
+	else
+		return NULL;
 
 	if (adev_id)
 		type = (int)adev_id->driver_data;
@@ -1401,10 +1418,7 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	ssp->irq = platform_get_irq(pdev, 0);
 	ssp->type = type;
 	ssp->pdev = pdev;
-
-	ssp->port_id = -1;
-	if (adev->pnp.unique_id && !kstrtouint(adev->pnp.unique_id, 0, &devid))
-		ssp->port_id = devid;
+	ssp->port_id = pxa2xx_spi_get_port_id(adev);
 
 	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
@@ -1412,9 +1426,9 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	return pdata;
 }
 
-#else
+#else /* !CONFIG_PCI */
 static inline struct pxa2xx_spi_master *
-pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
+pxa2xx_spi_init_pdata(struct platform_device *pdev)
 {
 	return NULL;
 }
@@ -1433,7 +1447,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 
 	platform_info = dev_get_platdata(dev);
 	if (!platform_info) {
-		platform_info = pxa2xx_spi_acpi_get_pdata(pdev);
+		platform_info = pxa2xx_spi_init_pdata(pdev);
 		if (!platform_info) {
 			dev_err(&pdev->dev, "missing platform data\n");
 			return -ENODEV;
