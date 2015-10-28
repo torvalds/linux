@@ -569,8 +569,8 @@ static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		}
 		break;
 	case ATH10K_FIRMWARE_MODE_UTF:
-		data = ar->testmode.utf->data;
-		data_len = ar->testmode.utf->size;
+		data = ar->testmode.utf_firmware_data;
+		data_len = ar->testmode.utf_firmware_len;
 		mode_name = "utf";
 		break;
 	default:

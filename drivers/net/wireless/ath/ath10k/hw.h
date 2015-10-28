@@ -94,6 +94,7 @@ enum qca6174_chip_id_rev {
 #define ATH10K_FW_API5_FILE		"firmware-5.bin"
 
 #define ATH10K_FW_UTF_FILE		"utf.bin"
+#define ATH10K_FW_UTF_API2_FILE		"utf-2.bin"
 
 /* includes also the null byte */
 #define ATH10K_FIRMWARE_MAGIC               "QCA-ATH10K"

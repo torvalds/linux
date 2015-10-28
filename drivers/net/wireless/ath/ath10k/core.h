@@ -817,9 +817,12 @@ struct ath10k {
 	struct {
 		/* protected by conf_mutex */
 		const struct firmware *utf;
+		char utf_version[32];
+		const void *utf_firmware_data;
+		size_t utf_firmware_len;
 		DECLARE_BITMAP(orig_fw_features, ATH10K_FW_FEATURE_COUNT);
 		enum ath10k_fw_wmi_op_version orig_wmi_op_version;
-
+		enum ath10k_fw_wmi_op_version op_version;
 		/* protected by data_lock */
 		bool utf_monitor;
 	} testmode;
