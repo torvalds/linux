@@ -142,40 +142,6 @@ int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 		return -EWOULDBLOCK;
 }
 
-/*
- * Deliver an IRQ in an atomic context if we can, or return a failure,
- * user can retry in a process context.
- * Return value:
- *  -EWOULDBLOCK - Can't deliver in atomic context: retry in a process context.
- *  Other values - No need to retry.
- */
-int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level)
-{
-	struct kvm_kernel_irq_routing_entry entries[KVM_NR_IRQCHIPS];
-	struct kvm_kernel_irq_routing_entry *e;
-	int ret = -EINVAL;
-	int idx;
-
-	trace_kvm_set_irq(irq, level, irq_source_id);
-
-	/*
-	 * Injection into either PIC or IOAPIC might need to scan all CPUs,
-	 * which would need to be retried from thread context;  when same GSI
-	 * is connected to both PIC and IOAPIC, we'd have to report a
-	 * partial failure here.
-	 * Since there's no easy way to do this, we only support injecting MSI
-	 * which is limited to 1:1 GSI mapping.
-	 */
-	idx = srcu_read_lock(&kvm->irq_srcu);
-	if (kvm_irq_map_gsi(kvm, entries, irq) > 0) {
-		e = &entries[0];
-		ret = kvm_arch_set_irq_inatomic(e, kvm, irq_source_id,
-						irq, level);
-	}
-	srcu_read_unlock(&kvm->irq_srcu, idx);
-	return ret;
-}
-
 int kvm_request_irq_source_id(struct kvm *kvm)
 {
 	unsigned long *bitmap = &kvm->arch.irq_sources_bitmap;
