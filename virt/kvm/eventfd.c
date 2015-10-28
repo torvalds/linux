@@ -171,7 +171,7 @@ irqfd_deactivate(struct kvm_kernel_irqfd *irqfd)
 	queue_work(irqfd_cleanup_wq, &irqfd->shutdown);
 }
 
-int __attribute__((weak)) kvm_arch_set_irq(
+int __attribute__((weak)) kvm_arch_set_irq_inatomic(
 				struct kvm_kernel_irq_routing_entry *irq,
 				struct kvm *kvm, int irq_source_id,
 				int level,
@@ -201,12 +201,9 @@ irqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 			irq = irqfd->irq_entry;
 		} while (read_seqcount_retry(&irqfd->irq_entry_sc, seq));
 		/* An event has been signaled, inject an interrupt */
-		if (irq.type == KVM_IRQ_ROUTING_MSI)
-			kvm_set_msi(&irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
-					false);
-		else if (kvm_arch_set_irq(&irq, kvm,
-					  KVM_USERSPACE_IRQ_SOURCE_ID, 1,
-					  false) == -EWOULDBLOCK)
+		if (kvm_arch_set_irq_inatomic(&irq, kvm,
+					      KVM_USERSPACE_IRQ_SOURCE_ID, 1,
+					      false) == -EWOULDBLOCK)
 			schedule_work(&irqfd->inject);
 		srcu_read_unlock(&kvm->irq_srcu, idx);
 	}

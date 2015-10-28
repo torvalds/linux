@@ -124,11 +124,15 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 }
 
 
-static int kvm_set_msi_inatomic(struct kvm_kernel_irq_routing_entry *e,
-			 struct kvm *kvm)
+int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
+			      struct kvm *kvm, int irq_source_id, int level,
+			      bool line_status)
 {
 	struct kvm_lapic_irq irq;
 	int r;
+
+	if (unlikely(e->type != KVM_IRQ_ROUTING_MSI))
+		return -EWOULDBLOCK;
 
 	kvm_set_msi_irq(e, &irq);
 
@@ -165,10 +169,8 @@ int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	if (kvm_irq_map_gsi(kvm, entries, irq) > 0) {
 		e = &entries[0];
-		if (likely(e->type == KVM_IRQ_ROUTING_MSI))
-			ret = kvm_set_msi_inatomic(e, kvm);
-		else
-			ret = -EWOULDBLOCK;
+		ret = kvm_arch_set_irq_inatomic(e, kvm, irq_source_id,
+						irq, level);
 	}
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 	return ret;
