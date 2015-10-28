@@ -2673,13 +2673,13 @@ static bool dspload_wait_loaded(struct hda_codec *codec)
 
 	do {
 		if (dspload_is_loaded(codec)) {
-			pr_info("ca0132 DOWNLOAD OK :-) DSP IS RUNNING.\n");
+			codec_info(codec, "ca0132 DSP downloaded and running\n");
 			return true;
 		}
 		msleep(20);
 	} while (time_before(jiffies, timeout));
 
-	pr_err("ca0132 DOWNLOAD FAILED!!! DSP IS NOT RUNNING.\n");
+	codec_err(codec, "ca0132 failed to download DSP\n");
 	return false;
 }
 
@@ -4375,7 +4375,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 
 	dsp_os_image = (struct dsp_image_seg *)(fw_entry->data);
 	if (dspload_image(codec, dsp_os_image, 0, 0, true, 0)) {
-		pr_err("ca0132 dspload_image failed.\n");
+		codec_err(codec, "ca0132 DSP load image failed\n");
 		goto exit_download;
 	}
 

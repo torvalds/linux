@@ -265,12 +265,12 @@ struct snd_ratden {
 
 struct snd_pcm_hw_constraint_ratnums {
 	int nrats;
-	struct snd_ratnum *rats;
+	const struct snd_ratnum *rats;
 };
 
 struct snd_pcm_hw_constraint_ratdens {
 	int nrats;
-	struct snd_ratden *rats;
+	const struct snd_ratden *rats;
 };
 
 struct snd_pcm_hw_constraint_list {
@@ -970,7 +970,7 @@ int snd_interval_list(struct snd_interval *i, unsigned int count,
 int snd_interval_ranges(struct snd_interval *i, unsigned int count,
 			const struct snd_interval *list, unsigned int mask);
 int snd_interval_ratnum(struct snd_interval *i,
-			unsigned int rats_count, struct snd_ratnum *rats,
+			unsigned int rats_count, const struct snd_ratnum *rats,
 			unsigned int *nump, unsigned int *denp);
 
 void _snd_pcm_hw_params_any(struct snd_pcm_hw_params *params);
@@ -1000,11 +1000,11 @@ int snd_pcm_hw_constraint_ranges(struct snd_pcm_runtime *runtime,
 int snd_pcm_hw_constraint_ratnums(struct snd_pcm_runtime *runtime, 
 				  unsigned int cond,
 				  snd_pcm_hw_param_t var,
-				  struct snd_pcm_hw_constraint_ratnums *r);
+				  const struct snd_pcm_hw_constraint_ratnums *r);
 int snd_pcm_hw_constraint_ratdens(struct snd_pcm_runtime *runtime, 
 				  unsigned int cond,
 				  snd_pcm_hw_param_t var,
-				  struct snd_pcm_hw_constraint_ratdens *r);
+				  const struct snd_pcm_hw_constraint_ratdens *r);
 int snd_pcm_hw_constraint_msbits(struct snd_pcm_runtime *runtime, 
 				 unsigned int cond,
 				 unsigned int width,
