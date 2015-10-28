@@ -348,6 +348,14 @@
 			#interrupt-cells = <2>;
 		};
 
+		elm: elm@48078000 {
+			compatible = "ti,am3352-elm";
+			reg = <0x48078000 0x2000>;
+			interrupts = <4>;
+			ti,hwmods = "elm";
+			status = "disabled";
+		};
+
 		gpmc: gpmc@50000000 {
 			compatible = "ti,omap4430-gpmc";
 			reg = <0x50000000 0x1000>;
