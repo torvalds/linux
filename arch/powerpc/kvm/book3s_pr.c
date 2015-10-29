@@ -751,6 +751,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 		preempt_disable();
 		enable_kernel_fp();
 		load_fp_state(&vcpu->arch.fp);
+		disable_kernel_fp();
 		t->fp_save_area = &vcpu->arch.fp;
 		preempt_enable();
 	}
@@ -760,6 +761,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 		preempt_disable();
 		enable_kernel_altivec();
 		load_vr_state(&vcpu->arch.vr);
+		disable_kernel_altivec();
 		t->vr_save_area = &vcpu->arch.vr;
 		preempt_enable();
 #endif
@@ -788,6 +790,7 @@ static void kvmppc_handle_lost_ext(struct kvm_vcpu *vcpu)
 		preempt_disable();
 		enable_kernel_fp();
 		load_fp_state(&vcpu->arch.fp);
+		disable_kernel_fp();
 		preempt_enable();
 	}
 #ifdef CONFIG_ALTIVEC
@@ -795,6 +798,7 @@ static void kvmppc_handle_lost_ext(struct kvm_vcpu *vcpu)
 		preempt_disable();
 		enable_kernel_altivec();
 		load_vr_state(&vcpu->arch.vr);
+		disable_kernel_altivec();
 		preempt_enable();
 	}
 #endif

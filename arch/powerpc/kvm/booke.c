@@ -98,6 +98,7 @@ void kvmppc_vcpu_disable_spe(struct kvm_vcpu *vcpu)
 	preempt_disable();
 	enable_kernel_spe();
 	kvmppc_save_guest_spe(vcpu);
+	disable_kernel_spe();
 	vcpu->arch.shadow_msr &= ~MSR_SPE;
 	preempt_enable();
 }
@@ -107,6 +108,7 @@ static void kvmppc_vcpu_enable_spe(struct kvm_vcpu *vcpu)
 	preempt_disable();
 	enable_kernel_spe();
 	kvmppc_load_guest_spe(vcpu);
+	disable_kernel_spe();
 	vcpu->arch.shadow_msr |= MSR_SPE;
 	preempt_enable();
 }
@@ -141,6 +143,7 @@ static inline void kvmppc_load_guest_fp(struct kvm_vcpu *vcpu)
 	if (!(current->thread.regs->msr & MSR_FP)) {
 		enable_kernel_fp();
 		load_fp_state(&vcpu->arch.fp);
+		disable_kernel_fp();
 		current->thread.fp_save_area = &vcpu->arch.fp;
 		current->thread.regs->msr |= MSR_FP;
 	}
@@ -182,6 +185,7 @@ static inline void kvmppc_load_guest_altivec(struct kvm_vcpu *vcpu)
 		if (!(current->thread.regs->msr & MSR_VEC)) {
 			enable_kernel_altivec();
 			load_vr_state(&vcpu->arch.vr);
+			disable_kernel_altivec();
 			current->thread.vr_save_area = &vcpu->arch.vr;
 			current->thread.regs->msr |= MSR_VEC;
 		}

@@ -26,6 +26,11 @@ extern void enable_kernel_spe(void);
 extern void load_up_spe(struct task_struct *);
 extern void switch_booke_debug_regs(struct debug_reg *new_debug);
 
+static inline void disable_kernel_fp(void) { }
+static inline void disable_kernel_altivec(void) { }
+static inline void disable_kernel_spe(void) { }
+static inline void disable_kernel_vsx(void) { }
+
 #ifdef CONFIG_PPC_FPU
 extern void flush_fp_to_thread(struct task_struct *);
 extern void giveup_fpu(struct task_struct *);

@@ -83,6 +83,7 @@ static int p8_aes_ctr_setkey(struct crypto_tfm *tfm, const u8 *key,
 	pagefault_disable();
 	enable_kernel_vsx();
 	ret = aes_p8_set_encrypt_key(key, keylen * 8, &ctx->enc_key);
+	disable_kernel_vsx();
 	pagefault_enable();
 
 	ret += crypto_blkcipher_setkey(ctx->fallback, key, keylen);
@@ -101,6 +102,7 @@ static void p8_aes_ctr_final(struct p8_aes_ctr_ctx *ctx,
 	pagefault_disable();
 	enable_kernel_vsx();
 	aes_p8_encrypt(ctrblk, keystream, &ctx->enc_key);
+	disable_kernel_vsx();
 	pagefault_enable();
 
 	crypto_xor(keystream, src, nbytes);
@@ -139,6 +141,7 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
 						    AES_BLOCK_SIZE,
 						    &ctx->enc_key,
 						    walk.iv);
+			disable_kernel_vsx();
 			pagefault_enable();
 
 			/* We need to update IV mostly for last bytes/round */
