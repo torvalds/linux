@@ -161,6 +161,8 @@ struct sun4i_tcon {
 
 	/* Platform adjustments */
 	bool				has_mux;
+
+	struct drm_panel		*panel;
 };
 
 /* Global Control */

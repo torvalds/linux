@@ -222,6 +222,11 @@ static bool sun4i_drv_node_is_frontend(struct device_node *node)
 				       "allwinner,sun5i-a13-display-frontend");
 }
 
+static bool sun4i_drv_node_is_tcon(struct device_node *node)
+{
+	return of_device_is_compatible(node, "allwinner,sun5i-a13-tcon");
+}
+
 static int compare_of(struct device *dev, void *data)
 {
 	DRM_DEBUG_DRIVER("Comparing of node %s with %s\n",
@@ -268,6 +273,25 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 			DRM_DEBUG_DRIVER("Error retrieving the output node\n");
 			of_node_put(remote);
 			continue;
+		}
+
+		/*
+		 * If the node is our TCON, the first port is used for our
+		 * panel, and will not be part of the
+		 * component framework.
+		 */
+		if (sun4i_drv_node_is_tcon(node)) {
+			struct of_endpoint endpoint;
+
+			if (of_graph_parse_endpoint(ep, &endpoint)) {
+				DRM_DEBUG_DRIVER("Couldn't parse endpoint\n");
+				continue;
+			}
+
+			if (!endpoint.id) {
+				DRM_DEBUG_DRIVER("Endpoint is our panel... skipping\n");
+				continue;
+			}
 		}
 
 		/* Walk down our tree */
