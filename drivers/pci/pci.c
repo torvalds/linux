@@ -2195,7 +2195,7 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 	int ent_size, ent_offset = offset;
 	resource_size_t start, end;
 	unsigned long flags;
-	u32 dw0, base, max_offset;
+	u32 dw0, bei, base, max_offset;
 	u8 prop;
 	bool support_64 = (sizeof(resource_size_t) >= 8);
 
@@ -2208,20 +2208,21 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 	if (!(dw0 & PCI_EA_ENABLE)) /* Entry not enabled */
 		goto out;
 
-	prop = PCI_EA_PP(dw0);
+	bei = (dw0 & PCI_EA_BEI) >> 4;
+	prop = (dw0 & PCI_EA_PP) >> 8;
+
 	/*
 	 * If the Property is in the reserved range, try the Secondary
 	 * Property instead.
 	 */
 	if (prop > PCI_EA_P_BRIDGE_IO && prop < PCI_EA_P_MEM_RESERVED)
-		prop = PCI_EA_SP(dw0);
+		prop = (dw0 & PCI_EA_SP) >> 16;
 	if (prop > PCI_EA_P_BRIDGE_IO)
 		goto out;
 
-	res = pci_ea_get_resource(dev, PCI_EA_BEI(dw0), prop);
+	res = pci_ea_get_resource(dev, bei, prop);
 	if (!res) {
-		dev_err(&dev->dev, "Unsupported EA entry BEI: %u\n",
-			PCI_EA_BEI(dw0));
+		dev_err(&dev->dev, "Unsupported EA entry BEI: %u\n", bei);
 		goto out;
 	}
 
@@ -2293,7 +2294,7 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 	res->end = end;
 	res->flags = flags;
 	dev_printk(KERN_DEBUG, &dev->dev, "EA - BEI %2u, Prop 0x%02x: %pR\n",
-		   PCI_EA_BEI(dw0), prop, res);
+		   bei, prop, res);
 out:
 	return offset + ent_size;
 }

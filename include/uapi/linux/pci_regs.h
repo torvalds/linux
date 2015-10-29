@@ -361,7 +361,7 @@
 #define PCI_EA_FIRST_ENT	4	/* First EA Entry in List */
 #define PCI_EA_FIRST_ENT_BRIDGE	8	/* First EA Entry for Bridges */
 #define  PCI_EA_ES		0x00000007 /* Entry Size */
-#define  PCI_EA_BEI(x)	(((x) >> 4) & 0xf) /* BAR Equivalent Indicator */
+#define  PCI_EA_BEI		0x000000f0 /* BAR Equivalent Indicator */
 /* 0-5 map to BARs 0-5 respectively */
 #define   PCI_EA_BEI_BAR0		0
 #define   PCI_EA_BEI_BAR5		5
@@ -372,8 +372,8 @@
 #define   PCI_EA_BEI_VF_BAR0		9
 #define   PCI_EA_BEI_VF_BAR5		14
 #define   PCI_EA_BEI_RESERVED		15	/* Reserved - Treat like ENI */
-#define  PCI_EA_PP(x)	(((x) >>  8) & 0xff)	/* Primary Properties */
-#define  PCI_EA_SP(x)	(((x) >> 16) & 0xff)	/* Secondary Properties */
+#define  PCI_EA_PP		0x0000ff00	/* Primary Properties */
+#define  PCI_EA_SP		0x00ff0000	/* Secondary Properties */
 #define   PCI_EA_P_MEM			0x00	/* Non-Prefetch Memory */
 #define   PCI_EA_P_MEM_PREFETCH		0x01	/* Prefetchable Memory */
 #define   PCI_EA_P_IO			0x02	/* I/O Space */
