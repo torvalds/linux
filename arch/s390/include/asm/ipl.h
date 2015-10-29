@@ -87,7 +87,6 @@ struct ipl_parameter_block {
  * IPL validity flags
  */
 extern u32 ipl_flags;
-extern u32 dump_prefix_page;
 
 struct dump_save_areas {
 	struct save_area_ext **areas;
@@ -176,7 +175,7 @@ enum diag308_rc {
 
 extern int diag308(unsigned long subcode, void *addr);
 extern void diag308_reset(void);
-extern void store_status(void);
+extern void store_status(void (*fn)(void *), void *data);
 extern void lgr_info_log(void);
 
 #endif /* _ASM_S390_IPL_H */

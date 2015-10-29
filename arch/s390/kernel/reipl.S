@@ -9,12 +9,11 @@
 #include <asm/sigp.h>
 
 #
-# store_status
+# Issue "store status" for the current CPU to its prefix page
+# and call passed function afterwards
 #
-# Prerequisites to run this function:
-# - Prefix register is set to zero
-# - Original prefix register is stored in "dump_prefix_page"
-# - Lowcore protection is off
+# r2 = Function to be called after store status
+# r3 = Parameter for function
 #
 ENTRY(store_status)
 	/* Save register one and load save area base */
@@ -53,23 +52,23 @@ ENTRY(store_status)
 	/* CPU timer */
 	lghi	%r1,__LC_CPU_TIMER_SAVE_AREA
 	stpt	0(%r1)
-	/* Saved prefix register */
+	/* Store prefix register */
 	lghi	%r1,__LC_PREFIX_SAVE_AREA
-	larl	%r2,dump_prefix_page
-	mvc	0(4,%r1),0(%r2)
+	stpx	0(%r1)
 	/* Clock comparator - seven bytes */
 	lghi	%r1,__LC_CLOCK_COMP_SAVE_AREA
-	larl	%r2,.Lclkcmp
-	stckc	0(%r2)
-	mvc	1(7,%r1),1(%r2)
+	larl	%r4,.Lclkcmp
+	stckc	0(%r4)
+	mvc	1(7,%r1),1(%r4)
 	/* Program status word */
 	lghi	%r1,__LC_PSW_SAVE_AREA
-	epsw	%r2,%r3
-	st	%r2,0(%r1)
-	st	%r3,4(%r1)
-	larl	%r2,store_status
+	epsw	%r4,%r5
+	st	%r4,0(%r1)
+	st	%r5,4(%r1)
 	stg	%r2,8(%r1)
-	br	%r14
+	lgr	%r1,%r2
+	lgr	%r2,%r3
+	br	%r1
 
 	.section .bss
 	.align	8
@@ -84,9 +83,11 @@ ENTRY(store_status)
 ENTRY(do_reipl_asm)
 		basr	%r13,0
 .Lpg0:		lpswe	.Lnewpsw-.Lpg0(%r13)
-.Lpg1:		brasl	%r14,store_status
+.Lpg1:		lgr	%r3,%r2
+		larl	%r2,.Lstatus
+		brasl	%r14,store_status
 
-		lctlg	%c6,%c6,.Lall-.Lpg0(%r13)
+.Lstatus:	lctlg	%c6,%c6,.Lall-.Lpg0(%r13)
 		lgr	%r1,%r2
 		mvc	__LC_PGM_NEW_PSW(16),.Lpcnew-.Lpg0(%r13)
 		stsch	.Lschib-.Lpg0(%r13)

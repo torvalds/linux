@@ -129,8 +129,6 @@ static int __init init_cpu_info(void)
 		TRACE("could not copy from HSA\n");
 		return -EIO;
 	}
-	if (MACHINE_HAS_VX)
-		save_vx_regs_safe(sa_ext->vx_regs);
 	return 0;
 }
 

@@ -865,11 +865,13 @@ void __init setup_arch(char **cmdline_p)
 
 	check_initrd();
 	reserve_crashkernel();
+#ifdef CONFIG_CRASH_DUMP
 	/*
 	 * Be aware that smp_save_dump_cpus() triggers a system reset.
 	 * Therefore CPU and device initialization should be done afterwards.
 	 */
 	smp_save_dump_cpus();
+#endif
 
 	setup_resources();
 	setup_vmcoreinfo();
