@@ -1651,39 +1651,39 @@ void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 		WILC_WFI_p2p_rx(wilc->vif[1].ndev, buff, size);
 }
 
-void wl_wlan_cleanup(void)
+void wl_wlan_cleanup(struct wilc *wilc)
 {
 	int i = 0;
 	perInterface_wlan_t *nic[NUM_CONCURRENT_IFC];
 
-	if (g_linux_wlan &&
-	   (g_linux_wlan->vif[0].ndev || g_linux_wlan->vif[1].ndev)) {
+	if (wilc &&
+	   (wilc->vif[0].ndev || wilc->vif[1].ndev)) {
 		unregister_inetaddr_notifier(&g_dev_notifier);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
-			nic[i] = netdev_priv(g_linux_wlan->vif[i].ndev);
+			nic[i] = netdev_priv(wilc->vif[i].ndev);
 	}
 
-	if (g_linux_wlan && g_linux_wlan->firmware)
-		release_firmware(g_linux_wlan->firmware);
+	if (wilc && wilc->firmware)
+		release_firmware(wilc->firmware);
 
-	if (g_linux_wlan &&
-	   (g_linux_wlan->vif[0].ndev || g_linux_wlan->vif[1].ndev)) {
+	if (wilc&&
+	   (wilc->vif[0].ndev || wilc->vif[1].ndev)) {
 		linux_wlan_lock_timeout(&close_exit_sync, 12 * 1000);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
-			if (g_linux_wlan->vif[i].ndev)
+			if (wilc->vif[i].ndev)
 				if (nic[i]->mac_opened)
-					mac_close(g_linux_wlan->vif[i].ndev);
+					mac_close(wilc->vif[i].ndev);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
-			unregister_netdev(g_linux_wlan->vif[i].ndev);
-			wilc_free_wiphy(g_linux_wlan->vif[i].ndev);
-			free_netdev(g_linux_wlan->vif[i].ndev);
+			unregister_netdev(wilc->vif[i].ndev);
+			wilc_free_wiphy(wilc->vif[i].ndev);
+			free_netdev(wilc->vif[i].ndev);
 		}
 	}
 
-	kfree(g_linux_wlan);
+	kfree(wilc);
 
 #if defined(WILC_DEBUGFS)
 	wilc_debugfs_remove();
