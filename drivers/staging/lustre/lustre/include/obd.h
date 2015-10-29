@@ -1124,89 +1124,89 @@ struct md_open_data {
 struct lookup_intent;
 
 struct md_ops {
-	int (*m_getstatus)(struct obd_export *, struct lu_fid *);
-	int (*m_null_inode)(struct obd_export *, const struct lu_fid *);
-	int (*m_find_cbdata)(struct obd_export *, const struct lu_fid *,
-			     ldlm_iterator_t, void *);
-	int (*m_close)(struct obd_export *, struct md_op_data *,
-		       struct md_open_data *, struct ptlrpc_request **);
-	int (*m_create)(struct obd_export *, struct md_op_data *,
-			const void *, int, int, __u32, __u32, cfs_cap_t,
-			__u64, struct ptlrpc_request **);
-	int (*m_done_writing)(struct obd_export *, struct md_op_data  *,
-			      struct md_open_data *);
-	int (*m_enqueue)(struct obd_export *, struct ldlm_enqueue_info *,
-			 struct lookup_intent *, struct md_op_data *,
-			 struct lustre_handle *, void *, int,
-			 struct ptlrpc_request **, __u64);
-	int (*m_getattr)(struct obd_export *, struct md_op_data *,
-			 struct ptlrpc_request **);
-	int (*m_getattr_name)(struct obd_export *, struct md_op_data *,
-			      struct ptlrpc_request **);
-	int (*m_intent_lock)(struct obd_export *, struct md_op_data *,
-			     void *, int, struct lookup_intent *, int,
-			     struct ptlrpc_request **,
-			     ldlm_blocking_callback, __u64);
-	int (*m_link)(struct obd_export *, struct md_op_data *,
+	int (*getstatus)(struct obd_export *, struct lu_fid *);
+	int (*null_inode)(struct obd_export *, const struct lu_fid *);
+	int (*find_cbdata)(struct obd_export *, const struct lu_fid *,
+			   ldlm_iterator_t, void *);
+	int (*close)(struct obd_export *, struct md_op_data *,
+		     struct md_open_data *, struct ptlrpc_request **);
+	int (*create)(struct obd_export *, struct md_op_data *,
+		      const void *, int, int, __u32, __u32, cfs_cap_t,
+		      __u64, struct ptlrpc_request **);
+	int (*done_writing)(struct obd_export *, struct md_op_data  *,
+			    struct md_open_data *);
+	int (*enqueue)(struct obd_export *, struct ldlm_enqueue_info *,
+		       struct lookup_intent *, struct md_op_data *,
+		       struct lustre_handle *, void *, int,
+		       struct ptlrpc_request **, __u64);
+	int (*getattr)(struct obd_export *, struct md_op_data *,
+		       struct ptlrpc_request **);
+	int (*getattr_name)(struct obd_export *, struct md_op_data *,
+			    struct ptlrpc_request **);
+	int (*intent_lock)(struct obd_export *, struct md_op_data *,
+			   void *, int, struct lookup_intent *, int,
+			   struct ptlrpc_request **,
+			   ldlm_blocking_callback, __u64);
+	int (*link)(struct obd_export *, struct md_op_data *,
+		    struct ptlrpc_request **);
+	int (*rename)(struct obd_export *, struct md_op_data *,
+		      const char *, int, const char *, int,
 		      struct ptlrpc_request **);
-	int (*m_rename)(struct obd_export *, struct md_op_data *,
-			const char *, int, const char *, int,
-			struct ptlrpc_request **);
-	int (*m_is_subdir)(struct obd_export *, const struct lu_fid *,
-			   const struct lu_fid *,
+	int (*is_subdir)(struct obd_export *, const struct lu_fid *,
+			 const struct lu_fid *,
 			   struct ptlrpc_request **);
-	int (*m_setattr)(struct obd_export *, struct md_op_data *, void *,
-			 int, void *, int, struct ptlrpc_request **,
+	int (*setattr)(struct obd_export *, struct md_op_data *, void *,
+		       int, void *, int, struct ptlrpc_request **,
 			 struct md_open_data **mod);
-	int (*m_sync)(struct obd_export *, const struct lu_fid *,
-		      struct ptlrpc_request **);
-	int (*m_readpage)(struct obd_export *, struct md_op_data *,
-			  struct page **, struct ptlrpc_request **);
+	int (*sync)(struct obd_export *, const struct lu_fid *,
+		    struct ptlrpc_request **);
+	int (*readpage)(struct obd_export *, struct md_op_data *,
+			struct page **, struct ptlrpc_request **);
 
-	int (*m_unlink)(struct obd_export *, struct md_op_data *,
+	int (*unlink)(struct obd_export *, struct md_op_data *,
+		      struct ptlrpc_request **);
+
+	int (*setxattr)(struct obd_export *, const struct lu_fid *,
+			u64, const char *, const char *, int, int, int, __u32,
 			struct ptlrpc_request **);
 
-	int (*m_setxattr)(struct obd_export *, const struct lu_fid *,
-			  u64, const char *, const char *, int, int, int, __u32,
-			  struct ptlrpc_request **);
+	int (*getxattr)(struct obd_export *, const struct lu_fid *,
+			u64, const char *, const char *, int, int, int,
+			struct ptlrpc_request **);
 
-	int (*m_getxattr)(struct obd_export *, const struct lu_fid *,
-			  u64, const char *, const char *, int, int, int,
-			  struct ptlrpc_request **);
+	int (*init_ea_size)(struct obd_export *, int, int, int, int);
 
-	int (*m_init_ea_size)(struct obd_export *, int, int, int, int);
+	int (*get_lustre_md)(struct obd_export *, struct ptlrpc_request *,
+			     struct obd_export *, struct obd_export *,
+			     struct lustre_md *);
 
-	int (*m_get_lustre_md)(struct obd_export *, struct ptlrpc_request *,
-			       struct obd_export *, struct obd_export *,
-			       struct lustre_md *);
+	int (*free_lustre_md)(struct obd_export *, struct lustre_md *);
 
-	int (*m_free_lustre_md)(struct obd_export *, struct lustre_md *);
+	int (*set_open_replay_data)(struct obd_export *,
+				    struct obd_client_handle *,
+				    struct lookup_intent *);
+	int (*clear_open_replay_data)(struct obd_export *,
+				      struct obd_client_handle *);
+	int (*set_lock_data)(struct obd_export *, __u64 *, void *, __u64 *);
 
-	int (*m_set_open_replay_data)(struct obd_export *,
-				      struct obd_client_handle *,
-				      struct lookup_intent *);
-	int (*m_clear_open_replay_data)(struct obd_export *,
-					struct obd_client_handle *);
-	int (*m_set_lock_data)(struct obd_export *, __u64 *, void *, __u64 *);
+	ldlm_mode_t (*lock_match)(struct obd_export *, __u64,
+				  const struct lu_fid *, ldlm_type_t,
+				  ldlm_policy_data_t *, ldlm_mode_t,
+				  struct lustre_handle *);
 
-	ldlm_mode_t (*m_lock_match)(struct obd_export *, __u64,
-				    const struct lu_fid *, ldlm_type_t,
-				    ldlm_policy_data_t *, ldlm_mode_t,
-				    struct lustre_handle *);
+	int (*cancel_unused)(struct obd_export *, const struct lu_fid *,
+			     ldlm_policy_data_t *, ldlm_mode_t,
+			     ldlm_cancel_flags_t flags, void *opaque);
 
-	int (*m_cancel_unused)(struct obd_export *, const struct lu_fid *,
-			       ldlm_policy_data_t *, ldlm_mode_t,
-			       ldlm_cancel_flags_t flags, void *opaque);
+	int (*get_remote_perm)(struct obd_export *, const struct lu_fid *,
+			       __u32, struct ptlrpc_request **);
 
-	int (*m_get_remote_perm)(struct obd_export *, const struct lu_fid *,
-				 __u32, struct ptlrpc_request **);
+	int (*intent_getattr_async)(struct obd_export *,
+				    struct md_enqueue_info *,
+				    struct ldlm_enqueue_info *);
 
-	int (*m_intent_getattr_async)(struct obd_export *,
-				      struct md_enqueue_info *,
-				      struct ldlm_enqueue_info *);
-
-	int (*m_revalidate_lock)(struct obd_export *, struct lookup_intent *,
-				 struct lu_fid *, __u64 *bits);
+	int (*revalidate_lock)(struct obd_export *, struct lookup_intent *,
+			       struct lu_fid *, __u64 *bits);
 
 	/*
 	 * NOTE: If adding ops, add another LPROCFS_MD_OP_INIT() line to
