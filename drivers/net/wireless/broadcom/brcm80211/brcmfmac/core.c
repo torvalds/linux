@@ -66,20 +66,13 @@ static int brcmf_p2p_enable;
 module_param_named(p2pon, brcmf_p2p_enable, int, 0);
 MODULE_PARM_DESC(p2pon, "enable legacy p2p management functionality");
 
-char *brcmf_ifname(struct brcmf_pub *drvr, int ifidx)
+char *brcmf_ifname(struct brcmf_if *ifp)
 {
-	if (ifidx < 0 || ifidx >= BRCMF_MAX_IFS) {
-		brcmf_err("ifidx %d out of range\n", ifidx);
-		return "<if_bad>";
-	}
-
-	if (drvr->iflist[ifidx] == NULL) {
-		brcmf_err("null i/f %d\n", ifidx);
+	if (!ifp)
 		return "<if_null>";
-	}
 
-	if (drvr->iflist[ifidx]->ndev)
-		return drvr->iflist[ifidx]->ndev->name;
+	if (ifp->ndev)
+		return ifp->ndev->name;
 
 	return "<if_none>";
 }
@@ -237,14 +230,14 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		struct sk_buff *skb2;
 
 		brcmf_dbg(INFO, "%s: insufficient headroom\n",
-			  brcmf_ifname(drvr, ifp->bssidx));
+			  brcmf_ifname(ifp));
 		drvr->bus_if->tx_realloc++;
 		skb2 = skb_realloc_headroom(skb, drvr->hdrlen);
 		dev_kfree_skb(skb);
 		skb = skb2;
 		if (skb == NULL) {
 			brcmf_err("%s: skb_realloc_headroom failed\n",
-				  brcmf_ifname(drvr, ifp->bssidx));
+				  brcmf_ifname(ifp));
 			ret = -ENOMEM;
 			goto done;
 		}
