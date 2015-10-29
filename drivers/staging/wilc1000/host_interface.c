@@ -2530,8 +2530,8 @@ static int Handle_RemainOnChan(struct host_if_drv *hif_drv,
 ERRORHANDLER:
 	{
 		P2P_LISTEN_STATE = 1;
-		hif_drv->hRemainOnChannel.data = (unsigned long)hif_drv;
-		mod_timer(&hif_drv->hRemainOnChannel,
+		hif_drv->remain_on_ch_timer.data = (unsigned long)hif_drv;
+		mod_timer(&hif_drv->remain_on_ch_timer,
 			  jiffies +
 			  msecs_to_jiffies(pstrHostIfRemainOnChan->u32duration));
 
@@ -2628,7 +2628,7 @@ static void ListenTimerCB(unsigned long arg)
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = (struct host_if_drv *)arg;
 
-	del_timer(&hif_drv->hRemainOnChannel);
+	del_timer(&hif_drv->remain_on_ch_timer);
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_LISTEN_TIMER_FIRED;
@@ -4139,7 +4139,7 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	setup_timer(&hif_drv->scan_timer, TimerCB_Scan, 0);
 	setup_timer(&hif_drv->connect_timer, TimerCB_Connect, 0);
-	setup_timer(&hif_drv->hRemainOnChannel, ListenTimerCB, 0);
+	setup_timer(&hif_drv->remain_on_ch_timer, ListenTimerCB, 0);
 
 	sema_init(&hif_drv->sem_cfg_values, 1);
 	down(&hif_drv->sem_cfg_values);
@@ -4202,7 +4202,7 @@ s32 host_int_deinit(struct host_if_drv *hif_drv)
 	if (del_timer_sync(&periodic_rssi))
 		PRINT_D(HOSTINF_DBG, ">> Connect timer is active\n");
 
-	del_timer_sync(&hif_drv->hRemainOnChannel);
+	del_timer_sync(&hif_drv->remain_on_ch_timer);
 
 	host_int_set_wfi_drv_handler(NULL);
 	down(&hif_sema_driver);
@@ -4391,7 +4391,7 @@ s32 host_int_ListenStateExpired(struct host_if_drv *hif_drv, u32 u32SessionID)
 		return -EFAULT;
 	}
 
-	del_timer(&hif_drv->hRemainOnChannel);
+	del_timer(&hif_drv->remain_on_ch_timer);
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_LISTEN_TIMER_FIRED;

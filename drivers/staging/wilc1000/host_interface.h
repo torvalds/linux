@@ -314,7 +314,7 @@ struct host_if_drv {
 
 	struct timer_list scan_timer;
 	struct timer_list connect_timer;
-	struct timer_list hRemainOnChannel;
+	struct timer_list remain_on_ch_timer;
 
 	bool IFC_UP;
 };
