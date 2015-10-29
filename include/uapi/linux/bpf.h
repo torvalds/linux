@@ -63,50 +63,16 @@ struct bpf_insn {
 	__s32	imm;		/* signed immediate constant */
 };
 
-/* BPF syscall commands */
+/* BPF syscall commands, see bpf(2) man-page for details. */
 enum bpf_cmd {
-	/* create a map with given type and attributes
-	 * fd = bpf(BPF_MAP_CREATE, union bpf_attr *, u32 size)
-	 * returns fd or negative error
-	 * map is deleted when fd is closed
-	 */
 	BPF_MAP_CREATE,
-
-	/* lookup key in a given map
-	 * err = bpf(BPF_MAP_LOOKUP_ELEM, union bpf_attr *attr, u32 size)
-	 * Using attr->map_fd, attr->key, attr->value
-	 * returns zero and stores found elem into value
-	 * or negative error
-	 */
 	BPF_MAP_LOOKUP_ELEM,
-
-	/* create or update key/value pair in a given map
-	 * err = bpf(BPF_MAP_UPDATE_ELEM, union bpf_attr *attr, u32 size)
-	 * Using attr->map_fd, attr->key, attr->value, attr->flags
-	 * returns zero or negative error
-	 */
 	BPF_MAP_UPDATE_ELEM,
-
-	/* find and delete elem by key in a given map
-	 * err = bpf(BPF_MAP_DELETE_ELEM, union bpf_attr *attr, u32 size)
-	 * Using attr->map_fd, attr->key
-	 * returns zero or negative error
-	 */
 	BPF_MAP_DELETE_ELEM,
-
-	/* lookup key in a given map and return next key
-	 * err = bpf(BPF_MAP_GET_NEXT_KEY, union bpf_attr *attr, u32 size)
-	 * Using attr->map_fd, attr->key, attr->next_key
-	 * returns zero and stores next key or negative error
-	 */
 	BPF_MAP_GET_NEXT_KEY,
-
-	/* verify and load eBPF program
-	 * prog_fd = bpf(BPF_PROG_LOAD, union bpf_attr *attr, u32 size)
-	 * Using attr->prog_type, attr->insns, attr->license
-	 * returns fd or negative error
-	 */
 	BPF_PROG_LOAD,
+	BPF_OBJ_PIN,
+	BPF_OBJ_GET,
 };
 
 enum bpf_map_type {
@@ -159,6 +125,11 @@ union bpf_attr {
 		__u32		log_size;	/* size of user buffer */
 		__aligned_u64	log_buf;	/* user supplied buffer */
 		__u32		kern_version;	/* checked when prog_type=kprobe */
+	};
+
+	struct { /* anonymous struct used by BPF_OBJ_* commands */
+		__aligned_u64	pathname;
+		__u32		bpf_fd;
 	};
 } __attribute__((aligned(8)));
 

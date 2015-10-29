@@ -111,7 +111,7 @@ static const struct file_operations bpf_map_fops = {
 	.release = bpf_map_release,
 };
 
-static int bpf_map_new_fd(struct bpf_map *map)
+int bpf_map_new_fd(struct bpf_map *map)
 {
 	return anon_inode_getfd("bpf-map", &bpf_map_fops, map,
 				O_RDWR | O_CLOEXEC);
@@ -174,7 +174,7 @@ struct bpf_map *__bpf_map_get(struct fd f)
 	return f.file->private_data;
 }
 
-static struct bpf_map *bpf_map_get(u32 ufd)
+struct bpf_map *bpf_map_get(u32 ufd)
 {
 	struct fd f = fdget(ufd);
 	struct bpf_map *map;
@@ -548,7 +548,7 @@ static const struct file_operations bpf_prog_fops = {
         .release = bpf_prog_release,
 };
 
-static int bpf_prog_new_fd(struct bpf_prog *prog)
+int bpf_prog_new_fd(struct bpf_prog *prog)
 {
 	return anon_inode_getfd("bpf-prog", &bpf_prog_fops, prog,
 				O_RDWR | O_CLOEXEC);
@@ -674,6 +674,24 @@ free_prog_nouncharge:
 	return err;
 }
 
+#define BPF_OBJ_LAST_FIELD bpf_fd
+
+static int bpf_obj_pin(const union bpf_attr *attr)
+{
+	if (CHECK_ATTR(BPF_OBJ))
+		return -EINVAL;
+
+	return bpf_obj_pin_user(attr->bpf_fd, u64_to_ptr(attr->pathname));
+}
+
+static int bpf_obj_get(const union bpf_attr *attr)
+{
+	if (CHECK_ATTR(BPF_OBJ) || attr->bpf_fd != 0)
+		return -EINVAL;
+
+	return bpf_obj_get_user(u64_to_ptr(attr->pathname));
+}
+
 SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, size)
 {
 	union bpf_attr attr = {};
@@ -733,6 +751,12 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		break;
 	case BPF_PROG_LOAD:
 		err = bpf_prog_load(&attr);
+		break;
+	case BPF_OBJ_PIN:
+		err = bpf_obj_pin(&attr);
+		break;
+	case BPF_OBJ_GET:
+		err = bpf_obj_get(&attr);
 		break;
 	default:
 		err = -EINVAL;

@@ -167,10 +167,17 @@ struct bpf_prog *bpf_prog_get(u32 ufd);
 void bpf_prog_put(struct bpf_prog *prog);
 void bpf_prog_put_rcu(struct bpf_prog *prog);
 
+struct bpf_map *bpf_map_get(u32 ufd);
 struct bpf_map *__bpf_map_get(struct fd f);
 void bpf_map_put(struct bpf_map *map);
 
 extern int sysctl_unprivileged_bpf_disabled;
+
+int bpf_map_new_fd(struct bpf_map *map);
+int bpf_prog_new_fd(struct bpf_prog *prog);
+
+int bpf_obj_pin_user(u32 ufd, const char __user *pathname);
+int bpf_obj_get_user(const char __user *pathname);
 
 /* verify correctness of eBPF program */
 int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
