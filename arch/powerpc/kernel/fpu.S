@@ -132,31 +132,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	SYNC
 	MTMSRD(r5)			/* enable use of fpu now */
 	isync
-/*
- * For SMP, we don't do lazy FPU switching because it just gets too
- * horrendously complex, especially when a task switches from one CPU
- * to another.  Instead we call giveup_fpu in switch_to.
- */
-#ifndef CONFIG_SMP
-	LOAD_REG_ADDRBASE(r3, last_task_used_math)
-	toreal(r3)
-	PPC_LL	r4,ADDROFF(last_task_used_math)(r3)
-	PPC_LCMPI	0,r4,0
-	beq	1f
-	toreal(r4)
-	addi	r4,r4,THREAD		/* want last_task_used_math->thread */
-	addi	r10,r4,THREAD_FPSTATE
-	SAVE_32FPVSRS(0, R5, R10)
-	mffs	fr0
-	stfd	fr0,FPSTATE_FPSCR(r10)
-	PPC_LL	r5,PT_REGS(r4)
-	toreal(r5)
-	PPC_LL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	li	r10,MSR_FP|MSR_FE0|MSR_FE1
-	andc	r4,r4,r10		/* disable FP for previous task */
-	PPC_STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#endif /* CONFIG_SMP */
 	/* enable use of FP after return */
 #ifdef CONFIG_PPC32
 	mfspr	r5,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
@@ -175,11 +150,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	lfd	fr0,FPSTATE_FPSCR(r10)
 	MTFSF_L(fr0)
 	REST_32FPVSRS(0, R4, R10)
-#ifndef CONFIG_SMP
-	subi	r4,r5,THREAD
-	fromreal(r4)
-	PPC_STL	r4,ADDROFF(last_task_used_math)(r3)
-#endif /* CONFIG_SMP */
 	/* restore registers and return */
 	/* we haven't used ctr or xer or lr */
 	blr
@@ -226,11 +196,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	andc	r4,r4,r3		/* disable FP for previous task */
 	PPC_STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 1:
-#ifndef CONFIG_SMP
-	li	r5,0
-	LOAD_REG_ADDRBASE(r4,last_task_used_math)
-	PPC_STL	r5,ADDROFF(last_task_used_math)(r4)
-#endif /* CONFIG_SMP */
 	blr
 
 /*

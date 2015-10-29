@@ -88,12 +88,6 @@ struct task_struct;
 void start_thread(struct pt_regs *regs, unsigned long fdptr, unsigned long sp);
 void release_thread(struct task_struct *);
 
-/* Lazy FPU handling on uni-processor */
-extern struct task_struct *last_task_used_math;
-extern struct task_struct *last_task_used_altivec;
-extern struct task_struct *last_task_used_vsx;
-extern struct task_struct *last_task_used_spe;
-
 #ifdef CONFIG_PPC32
 
 #if CONFIG_TASK_SIZE > CONFIG_KERNEL_START

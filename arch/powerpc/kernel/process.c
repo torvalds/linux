@@ -67,13 +67,6 @@
 
 extern unsigned long _get_SP(void);
 
-#ifndef CONFIG_SMP
-struct task_struct *last_task_used_math = NULL;
-struct task_struct *last_task_used_altivec = NULL;
-struct task_struct *last_task_used_vsx = NULL;
-struct task_struct *last_task_used_spe = NULL;
-#endif
-
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 void giveup_fpu_maybe_transactional(struct task_struct *tsk)
 {
@@ -134,16 +127,14 @@ void flush_fp_to_thread(struct task_struct *tsk)
 		 */
 		preempt_disable();
 		if (tsk->thread.regs->msr & MSR_FP) {
-#ifdef CONFIG_SMP
 			/*
 			 * This should only ever be called for current or
 			 * for a stopped child process.  Since we save away
-			 * the FP register state on context switch on SMP,
+			 * the FP register state on context switch,
 			 * there is something wrong if a stopped child appears
 			 * to still have its FP state in the CPU registers.
 			 */
 			BUG_ON(tsk != current);
-#endif
 			giveup_fpu_maybe_transactional(tsk);
 		}
 		preempt_enable();
@@ -156,14 +147,10 @@ void enable_kernel_fp(void)
 {
 	WARN_ON(preemptible());
 
-#ifdef CONFIG_SMP
 	if (current->thread.regs && (current->thread.regs->msr & MSR_FP))
 		giveup_fpu_maybe_transactional(current);
 	else
 		giveup_fpu(NULL);	/* just enables FP for kernel */
-#else
-	giveup_fpu_maybe_transactional(last_task_used_math);
-#endif /* CONFIG_SMP */
 }
 EXPORT_SYMBOL(enable_kernel_fp);
 
@@ -172,14 +159,10 @@ void enable_kernel_altivec(void)
 {
 	WARN_ON(preemptible());
 
-#ifdef CONFIG_SMP
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC))
 		giveup_altivec_maybe_transactional(current);
 	else
 		giveup_altivec_notask();
-#else
-	giveup_altivec_maybe_transactional(last_task_used_altivec);
-#endif /* CONFIG_SMP */
 }
 EXPORT_SYMBOL(enable_kernel_altivec);
 
@@ -192,9 +175,7 @@ void flush_altivec_to_thread(struct task_struct *tsk)
 	if (tsk->thread.regs) {
 		preempt_disable();
 		if (tsk->thread.regs->msr & MSR_VEC) {
-#ifdef CONFIG_SMP
 			BUG_ON(tsk != current);
-#endif
 			giveup_altivec_maybe_transactional(tsk);
 		}
 		preempt_enable();
@@ -208,14 +189,10 @@ void enable_kernel_vsx(void)
 {
 	WARN_ON(preemptible());
 
-#ifdef CONFIG_SMP
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VSX))
 		giveup_vsx(current);
 	else
 		giveup_vsx(NULL);	/* just enable vsx for kernel - force */
-#else
-	giveup_vsx(last_task_used_vsx);
-#endif /* CONFIG_SMP */
 }
 EXPORT_SYMBOL(enable_kernel_vsx);
 
@@ -232,9 +209,7 @@ void flush_vsx_to_thread(struct task_struct *tsk)
 	if (tsk->thread.regs) {
 		preempt_disable();
 		if (tsk->thread.regs->msr & MSR_VSX) {
-#ifdef CONFIG_SMP
 			BUG_ON(tsk != current);
-#endif
 			giveup_vsx(tsk);
 		}
 		preempt_enable();
@@ -249,14 +224,10 @@ void enable_kernel_spe(void)
 {
 	WARN_ON(preemptible());
 
-#ifdef CONFIG_SMP
 	if (current->thread.regs && (current->thread.regs->msr & MSR_SPE))
 		giveup_spe(current);
 	else
 		giveup_spe(NULL);	/* just enable SPE for kernel - force */
-#else
-	giveup_spe(last_task_used_spe);
-#endif /* __SMP __ */
 }
 EXPORT_SYMBOL(enable_kernel_spe);
 
@@ -265,9 +236,7 @@ void flush_spe_to_thread(struct task_struct *tsk)
 	if (tsk->thread.regs) {
 		preempt_disable();
 		if (tsk->thread.regs->msr & MSR_SPE) {
-#ifdef CONFIG_SMP
 			BUG_ON(tsk != current);
-#endif
 			tsk->thread.spefscr = mfspr(SPRN_SPEFSCR);
 			giveup_spe(tsk);
 		}
@@ -275,32 +244,6 @@ void flush_spe_to_thread(struct task_struct *tsk)
 	}
 }
 #endif /* CONFIG_SPE */
-
-#ifndef CONFIG_SMP
-/*
- * If we are doing lazy switching of CPU state (FP, altivec or SPE),
- * and the current task has some state, discard it.
- */
-void discard_lazy_cpu_state(void)
-{
-	preempt_disable();
-	if (last_task_used_math == current)
-		last_task_used_math = NULL;
-#ifdef CONFIG_ALTIVEC
-	if (last_task_used_altivec == current)
-		last_task_used_altivec = NULL;
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_VSX
-	if (last_task_used_vsx == current)
-		last_task_used_vsx = NULL;
-#endif /* CONFIG_VSX */
-#ifdef CONFIG_SPE
-	if (last_task_used_spe == current)
-		last_task_used_spe = NULL;
-#endif
-	preempt_enable();
-}
-#endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 void do_send_trap(struct pt_regs *regs, unsigned long address,
@@ -831,30 +774,9 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	__switch_to_tm(prev);
 
-#ifdef CONFIG_SMP
-	/* avoid complexity of lazy save/restore of fpu
-	 * by just saving it every time we switch out if
-	 * this task used the fpu during the last quantum.
-	 *
-	 * If it tries to use the fpu again, it'll trap and
-	 * reload its fp regs.  So we don't have to do a restore
-	 * every switch, just a save.
-	 *  -- Cort
-	 */
 	if (prev->thread.regs && (prev->thread.regs->msr & MSR_FP))
 		giveup_fpu(prev);
 #ifdef CONFIG_ALTIVEC
-	/*
-	 * If the previous thread used altivec in the last quantum
-	 * (thus changing altivec regs) then save them.
-	 * We used to check the VRSAVE register but not all apps
-	 * set it, so we don't rely on it now (and in fact we need
-	 * to save & restore VSCR even if VRSAVE == 0).  -- paulus
-	 *
-	 * On SMP we always save/restore altivec regs just to avoid the
-	 * complexity of changing processors.
-	 *  -- Cort
-	 */
 	if (prev->thread.regs && (prev->thread.regs->msr & MSR_VEC))
 		giveup_altivec(prev);
 #endif /* CONFIG_ALTIVEC */
@@ -864,38 +786,9 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		__giveup_vsx(prev);
 #endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
-	/*
-	 * If the previous thread used spe in the last quantum
-	 * (thus changing spe regs) then save them.
-	 *
-	 * On SMP we always save/restore spe regs just to avoid the
-	 * complexity of changing processors.
-	 */
 	if ((prev->thread.regs && (prev->thread.regs->msr & MSR_SPE)))
 		giveup_spe(prev);
 #endif /* CONFIG_SPE */
-
-#else  /* CONFIG_SMP */
-#ifdef CONFIG_ALTIVEC
-	/* Avoid the trap.  On smp this this never happens since
-	 * we don't set last_task_used_altivec -- Cort
-	 */
-	if (new->thread.regs && last_task_used_altivec == new)
-		new->thread.regs->msr |= MSR_VEC;
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_VSX
-	if (new->thread.regs && last_task_used_vsx == new)
-		new->thread.regs->msr |= MSR_VSX;
-#endif /* CONFIG_VSX */
-#ifdef CONFIG_SPE
-	/* Avoid the trap.  On smp this this never happens since
-	 * we don't set last_task_used_spe
-	 */
-	if (new->thread.regs && last_task_used_spe == new)
-		new->thread.regs->msr |= MSR_SPE;
-#endif /* CONFIG_SPE */
-
-#endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	switch_booke_debug_regs(&new->thread.debug);
@@ -1111,13 +1004,10 @@ void show_regs(struct pt_regs * regs)
 
 void exit_thread(void)
 {
-	discard_lazy_cpu_state();
 }
 
 void flush_thread(void)
 {
-	discard_lazy_cpu_state();
-
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	flush_ptrace_hw_breakpoint(current);
 #else /* CONFIG_HAVE_HW_BREAKPOINT */
@@ -1355,7 +1245,6 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 		regs->msr = MSR_USER32;
 	}
 #endif
-	discard_lazy_cpu_state();
 #ifdef CONFIG_VSX
 	current->thread.used_vsr = 0;
 #endif

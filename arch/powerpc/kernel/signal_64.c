@@ -350,15 +350,6 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 		err |=  __get_user(set->sig[0], &sc->oldmask);
 
 	/*
-	 * Do this before updating the thread state in
-	 * current->thread.fpr/vr.  That way, if we get preempted
-	 * and another task grabs the FPU/Altivec, it won't be
-	 * tempted to save the current CPU state into the thread_struct
-	 * and corrupt what we are writing there.
-	 */
-	discard_lazy_cpu_state();
-
-	/*
 	 * Force reload of FP/VEC.
 	 * This has to be done before copying stuff into current->thread.fpr/vr
 	 * for the reasons explained in the previous comment.
@@ -463,15 +454,6 @@ static long restore_tm_sigcontexts(struct pt_regs *regs,
 	err |= __get_user(regs->dar, &sc->gp_regs[PT_DAR]);
 	err |= __get_user(regs->dsisr, &sc->gp_regs[PT_DSISR]);
 	err |= __get_user(regs->result, &sc->gp_regs[PT_RESULT]);
-
-	/*
-	 * Do this before updating the thread state in
-	 * current->thread.fpr/vr.  That way, if we get preempted
-	 * and another task grabs the FPU/Altivec, it won't be
-	 * tempted to save the current CPU state into the thread_struct
-	 * and corrupt what we are writing there.
-	 */
-	discard_lazy_cpu_state();
 
 	/*
 	 * Force reload of FP/VEC.
