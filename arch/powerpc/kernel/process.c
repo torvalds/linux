@@ -732,13 +732,15 @@ void restore_tm_state(struct pt_regs *regs)
 	msr_diff = current->thread.ckpt_regs.msr & ~regs->msr;
 	msr_diff &= MSR_FP | MSR_VEC | MSR_VSX;
 	if (msr_diff & MSR_FP) {
-		fp_enable();
+		msr_check_and_set(MSR_FP);
 		load_fp_state(&current->thread.fp_state);
+		msr_check_and_clear(MSR_FP);
 		regs->msr |= current->thread.fpexc_mode;
 	}
 	if (msr_diff & MSR_VEC) {
-		vec_enable();
+		msr_check_and_set(MSR_VEC);
 		load_vr_state(&current->thread.vr_state);
+		msr_check_and_clear(MSR_VEC);
 	}
 	regs->msr |= msr_diff;
 }
