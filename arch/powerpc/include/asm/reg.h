@@ -1214,6 +1214,15 @@ static inline void mtmsr_isync(unsigned long val)
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
 
+extern void msr_check_and_set(unsigned long bits);
+extern bool strict_msr_control;
+extern void __msr_check_and_clear(unsigned long bits);
+static inline void msr_check_and_clear(unsigned long bits)
+{
+	if (strict_msr_control)
+		__msr_check_and_clear(bits);
+}
+
 static inline unsigned long mfvtb (void)
 {
 #ifdef CONFIG_PPC_BOOK3S_64

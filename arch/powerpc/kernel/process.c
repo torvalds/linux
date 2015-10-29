@@ -87,7 +87,19 @@ static void check_if_tm_restore_required(struct task_struct *tsk)
 static inline void check_if_tm_restore_required(struct task_struct *tsk) { }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
-static void msr_check_and_set(unsigned long bits)
+bool strict_msr_control;
+EXPORT_SYMBOL(strict_msr_control);
+
+static int __init enable_strict_msr_control(char *str)
+{
+	strict_msr_control = true;
+	pr_info("Enabling strict facility control\n");
+
+	return 0;
+}
+early_param("ppc_strict_facility_enable", enable_strict_msr_control);
+
+void msr_check_and_set(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -103,7 +115,7 @@ static void msr_check_and_set(unsigned long bits)
 		mtmsr_isync(newmsr);
 }
 
-static void msr_check_and_clear(unsigned long bits)
+void __msr_check_and_clear(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -118,6 +130,7 @@ static void msr_check_and_clear(unsigned long bits)
 	if (oldmsr != newmsr)
 		mtmsr_isync(newmsr);
 }
+EXPORT_SYMBOL(__msr_check_and_clear);
 
 #ifdef CONFIG_PPC_FPU
 void giveup_fpu(struct task_struct *tsk)

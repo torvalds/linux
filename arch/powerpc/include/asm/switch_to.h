@@ -4,6 +4,8 @@
 #ifndef _ASM_POWERPC_SWITCH_TO_H
 #define _ASM_POWERPC_SWITCH_TO_H
 
+#include <asm/reg.h>
+
 struct thread_struct;
 struct task_struct;
 struct pt_regs;
@@ -26,15 +28,15 @@ extern void enable_kernel_spe(void);
 extern void load_up_spe(struct task_struct *);
 extern void switch_booke_debug_regs(struct debug_reg *new_debug);
 
-static inline void disable_kernel_fp(void) { }
-static inline void disable_kernel_altivec(void) { }
-static inline void disable_kernel_spe(void) { }
-static inline void disable_kernel_vsx(void) { }
-
 #ifdef CONFIG_PPC_FPU
 extern void flush_fp_to_thread(struct task_struct *);
 extern void giveup_fpu(struct task_struct *);
 extern void __giveup_fpu(struct task_struct *);
+static inline void disable_kernel_fp(void)
+{
+	msr_check_and_clear(MSR_FP);
+}
+
 #else
 static inline void flush_fp_to_thread(struct task_struct *t) { }
 static inline void giveup_fpu(struct task_struct *t) { }
@@ -45,6 +47,10 @@ static inline void __giveup_fpu(struct task_struct *t) { }
 extern void flush_altivec_to_thread(struct task_struct *);
 extern void giveup_altivec(struct task_struct *);
 extern void __giveup_altivec(struct task_struct *);
+static inline void disable_kernel_altivec(void)
+{
+	msr_check_and_clear(MSR_VEC);
+}
 #else
 static inline void flush_altivec_to_thread(struct task_struct *t) { }
 static inline void giveup_altivec(struct task_struct *t) { }
@@ -53,6 +59,10 @@ static inline void __giveup_altivec(struct task_struct *t) { }
 
 #ifdef CONFIG_VSX
 extern void flush_vsx_to_thread(struct task_struct *);
+static inline void disable_kernel_vsx(void)
+{
+	msr_check_and_clear(MSR_FP|MSR_VEC|MSR_VSX);
+}
 #else
 static inline void flush_vsx_to_thread(struct task_struct *t)
 {
@@ -63,6 +73,10 @@ static inline void flush_vsx_to_thread(struct task_struct *t)
 extern void flush_spe_to_thread(struct task_struct *);
 extern void giveup_spe(struct task_struct *);
 extern void __giveup_spe(struct task_struct *);
+static inline void disable_kernel_spe(void)
+{
+	msr_check_and_clear(MSR_SPE);
+}
 #else
 static inline void flush_spe_to_thread(struct task_struct *t) { }
 static inline void giveup_spe(struct task_struct *t) { }
