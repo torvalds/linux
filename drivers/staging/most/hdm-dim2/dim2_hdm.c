@@ -371,7 +371,6 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 		if (hdm_ch->data_type == MOST_CH_ASYNC &&
 		    hdm_ch->direction == MOST_CH_RX &&
 		    PACKET_IS_NET_INFO(data)) {
-
 			retrieve_netinfo(dev, mbo);
 
 			spin_lock_irqsave(&dim_lock, flags);
@@ -380,7 +379,6 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 		} else {
 			if (hdm_ch->data_type == MOST_CH_CONTROL ||
 			    hdm_ch->data_type == MOST_CH_ASYNC) {
-
 				u32 const data_size =
 					(u32)data[0] * 256 + data[1] + 2;
 
