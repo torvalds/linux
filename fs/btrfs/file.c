@@ -1604,12 +1604,17 @@ again:
 				BTRFS_I(inode)->outstanding_extents++;
 				spin_unlock(&BTRFS_I(inode)->lock);
 			}
-			if (only_release_metadata)
+			if (only_release_metadata) {
 				btrfs_delalloc_release_metadata(inode,
 								release_bytes);
-			else
-				btrfs_delalloc_release_space(inode, pos,
+			} else {
+				u64 __pos;
+
+				__pos = round_down(pos, root->sectorsize) +
+					(dirty_pages << PAGE_CACHE_SHIFT);
+				btrfs_delalloc_release_space(inode, __pos,
 							     release_bytes);
+			}
 		}
 
 		release_bytes = dirty_pages << PAGE_CACHE_SHIFT;
