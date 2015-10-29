@@ -650,7 +650,7 @@ int skl_ipc_set_dx(struct sst_generic_ipc *ipc, u8 instance_id,
 	dev_dbg(ipc->dev, "In %s primary =%x ext=%x\n", __func__,
 			 header.primary, header.extension);
 	ret = sst_ipc_tx_message_wait(ipc, *ipc_header,
-				dx, sizeof(dx), NULL, 0);
+				dx, sizeof(*dx), NULL, 0);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: set dx failed, err %d\n", ret);
 		return ret;
