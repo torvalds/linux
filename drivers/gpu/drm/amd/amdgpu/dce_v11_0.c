@@ -132,6 +132,22 @@ static const u32 stoney_golden_settings_a11[] =
 	mmFBC_MISC, 0x1f311fff, 0x14302000,
 };
 
+static const u32 baffin_golden_settings_a11[] =
+{
+	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
+	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_DEBUG1, 0xffffffff, 0x00000008,
+	mmFBC_MISC, 0x9f313fff, 0x14300008,
+	mmHDMI_CONTROL, 0x313f031f, 0x00000011,
+};
+
+static const u32 ellesmere_golden_settings_a11[] =
+{
+	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
+	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_MISC, 0x9f313fff, 0x14300008,
+	mmHDMI_CONTROL, 0x313f031f, 0x00000011,
+};
 
 static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -148,6 +164,16 @@ static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 stoney_golden_settings_a11,
 						 (const u32)ARRAY_SIZE(stoney_golden_settings_a11));
+		break;
+	case CHIP_BAFFIN:
+		amdgpu_program_register_sequence(adev,
+						 baffin_golden_settings_a11,
+						 (const u32)ARRAY_SIZE(baffin_golden_settings_a11));
+		break;
+	case CHIP_ELLESMERE:
+		amdgpu_program_register_sequence(adev,
+						 ellesmere_golden_settings_a11,
+						 (const u32)ARRAY_SIZE(ellesmere_golden_settings_a11));
 		break;
 	default:
 		break;
