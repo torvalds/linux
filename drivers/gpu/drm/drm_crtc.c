@@ -1533,6 +1533,9 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 					  "select subconnector",
 					  drm_tv_select_enum_list,
 					  ARRAY_SIZE(drm_tv_select_enum_list));
+	if (!tv_selector)
+		goto nomem;
+
 	dev->mode_config.tv_select_subconnector_property = tv_selector;
 
 	tv_subconnector =
@@ -1540,6 +1543,8 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 				    "subconnector",
 				    drm_tv_subconnector_enum_list,
 				    ARRAY_SIZE(drm_tv_subconnector_enum_list));
+	if (!tv_subconnector)
+		goto nomem;
 	dev->mode_config.tv_subconnector_property = tv_subconnector;
 
 	/*
@@ -1547,42 +1552,67 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 	 */
 	dev->mode_config.tv_left_margin_property =
 		drm_property_create_range(dev, 0, "left margin", 0, 100);
+	if (!dev->mode_config.tv_left_margin_property)
+		goto nomem;
 
 	dev->mode_config.tv_right_margin_property =
 		drm_property_create_range(dev, 0, "right margin", 0, 100);
+	if (!dev->mode_config.tv_right_margin_property)
+		goto nomem;
 
 	dev->mode_config.tv_top_margin_property =
 		drm_property_create_range(dev, 0, "top margin", 0, 100);
+	if (!dev->mode_config.tv_top_margin_property)
+		goto nomem;
 
 	dev->mode_config.tv_bottom_margin_property =
 		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
+	if (!dev->mode_config.tv_bottom_margin_property)
+		goto nomem;
 
 	dev->mode_config.tv_mode_property =
 		drm_property_create(dev, DRM_MODE_PROP_ENUM,
 				    "mode", num_modes);
+	if (!dev->mode_config.tv_mode_property)
+		goto nomem;
+
 	for (i = 0; i < num_modes; i++)
 		drm_property_add_enum(dev->mode_config.tv_mode_property, i,
 				      i, modes[i]);
 
 	dev->mode_config.tv_brightness_property =
 		drm_property_create_range(dev, 0, "brightness", 0, 100);
+	if (!dev->mode_config.tv_brightness_property)
+		goto nomem;
 
 	dev->mode_config.tv_contrast_property =
 		drm_property_create_range(dev, 0, "contrast", 0, 100);
+	if (!dev->mode_config.tv_contrast_property)
+		goto nomem;
 
 	dev->mode_config.tv_flicker_reduction_property =
 		drm_property_create_range(dev, 0, "flicker reduction", 0, 100);
+	if (!dev->mode_config.tv_flicker_reduction_property)
+		goto nomem;
 
 	dev->mode_config.tv_overscan_property =
 		drm_property_create_range(dev, 0, "overscan", 0, 100);
+	if (!dev->mode_config.tv_overscan_property)
+		goto nomem;
 
 	dev->mode_config.tv_saturation_property =
 		drm_property_create_range(dev, 0, "saturation", 0, 100);
+	if (!dev->mode_config.tv_saturation_property)
+		goto nomem;
 
 	dev->mode_config.tv_hue_property =
 		drm_property_create_range(dev, 0, "hue", 0, 100);
+	if (!dev->mode_config.tv_hue_property)
+		goto nomem;
 
 	return 0;
+nomem:
+	return -ENOMEM;
 }
 EXPORT_SYMBOL(drm_mode_create_tv_properties);
 

@@ -140,7 +140,7 @@ struct vgasr_priv {
 	int registered_clients;
 	struct list_head clients;
 
-	struct vga_switcheroo_handler *handler;
+	const struct vga_switcheroo_handler *handler;
 };
 
 #define ID_BIT_AUDIO		0x100
@@ -195,7 +195,7 @@ static void vga_switcheroo_enable(void)
  *
  * Return: 0 on success, -EINVAL if a handler was already registered.
  */
-int vga_switcheroo_register_handler(struct vga_switcheroo_handler *handler)
+int vga_switcheroo_register_handler(const struct vga_switcheroo_handler *handler)
 {
 	mutex_lock(&vgasr_mutex);
 	if (vgasr_priv.handler) {
