@@ -45,7 +45,7 @@
 enum ahci_qoriq_type {
 	AHCI_LS1021A,
 	AHCI_LS1043A,
-	AHCI_LS2085A,
+	AHCI_LS2080A,
 };
 
 struct ahci_qoriq_priv {
@@ -57,7 +57,7 @@ struct ahci_qoriq_priv {
 static const struct of_device_id ahci_qoriq_of_match[] = {
 	{ .compatible = "fsl,ls1021a-ahci", .data = (void *)AHCI_LS1021A},
 	{ .compatible = "fsl,ls1043a-ahci", .data = (void *)AHCI_LS1043A},
-	{ .compatible = "fsl,ls2085a-ahci", .data = (void *)AHCI_LS2085A},
+	{ .compatible = "fsl,ls2080a-ahci", .data = (void *)AHCI_LS2080A},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ahci_qoriq_of_match);
@@ -159,7 +159,7 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 		break;
 
 	case AHCI_LS1043A:
-	case AHCI_LS2085A:
+	case AHCI_LS2080A:
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
 		break;
 	}
