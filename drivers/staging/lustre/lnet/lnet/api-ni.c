@@ -356,15 +356,6 @@ lnet_counters_reset(void)
 }
 EXPORT_SYMBOL(lnet_counters_reset);
 
-static __u64
-lnet_create_interface_cookie(void)
-{
-	/* NB the interface cookie in wire handles guards against delayed
-	 * replies and ACKs appearing valid after reboot.
-	 */
-	return ktime_get_ns();
-}
-
 static char *
 lnet_res_type2str(int type)
 {
@@ -553,8 +544,11 @@ lnet_prepare(lnet_pid_t requested_pid)
 	rc = lnet_create_remote_nets_table();
 	if (rc != 0)
 		goto failed;
-
-	the_lnet.ln_interface_cookie = lnet_create_interface_cookie();
+	/*
+	 * NB the interface cookie in wire handles guards against delayed
+	 * replies and ACKs appearing valid after reboot.
+	 */
+	the_lnet.ln_interface_cookie = ktime_get_ns();
 
 	the_lnet.ln_counters = cfs_percpt_alloc(lnet_cpt_table(),
 						sizeof(lnet_counters_t));
