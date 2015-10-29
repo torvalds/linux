@@ -293,7 +293,7 @@ struct add_sta_param {
 	u8 rates_len;
 	const u8 *rates;
 	bool ht_supported;
-	u16 u16HTCapInfo;
+	u16 ht_capa_info;
 	u8 u8AmpduParams;
 	u8 au8SuppMCsSet[16];
 	u16 u16HTExtParams;
