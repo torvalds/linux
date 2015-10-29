@@ -641,6 +641,18 @@ static void nbd_bdev_reset(struct block_device *bdev)
 	}
 }
 
+static void nbd_parse_flags(struct nbd_device *nbd, struct block_device *bdev)
+{
+	if (nbd->flags & NBD_FLAG_READ_ONLY)
+		set_device_ro(bdev, true);
+	if (nbd->flags & NBD_FLAG_SEND_TRIM)
+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
+	if (nbd->flags & NBD_FLAG_SEND_FLUSH)
+		blk_queue_flush(nbd->disk->queue, REQ_FLUSH);
+	else
+		blk_queue_flush(nbd->disk->queue, 0);
+}
+
 static int nbd_dev_dbg_init(struct nbd_device *nbd);
 static void nbd_dev_dbg_close(struct nbd_device *nbd);
 
@@ -742,15 +754,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 
 		mutex_unlock(&nbd->tx_lock);
 
-		if (nbd->flags & NBD_FLAG_READ_ONLY)
-			set_device_ro(bdev, true);
-		if (nbd->flags & NBD_FLAG_SEND_TRIM)
-			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD,
-				nbd->disk->queue);
-		if (nbd->flags & NBD_FLAG_SEND_FLUSH)
-			blk_queue_flush(nbd->disk->queue, REQ_FLUSH);
-		else
-			blk_queue_flush(nbd->disk->queue, 0);
+		nbd_parse_flags(nbd, bdev);
 
 		thread = kthread_run(nbd_thread_send, nbd, "%s",
 				     nbd_name(nbd));
