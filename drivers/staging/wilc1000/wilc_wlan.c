@@ -190,11 +190,18 @@ wilc_wlan_txq_remove_from_head(struct net_device *dev)
 	return tqe;
 }
 
-static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
+static void wilc_wlan_txq_add_to_tail(struct net_device *dev,
+				      struct txq_entry_t *tqe)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
-	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
+
+	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
 	if (p->txq_head == NULL) {
 		tqe->next = NULL;
@@ -210,14 +217,14 @@ static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
 	p->txq_entries += 1;
 	PRINT_D(TX_DBG, "Number of entries in TxQ = %d\n", p->txq_entries);
 
-	spin_unlock_irqrestore(&g_linux_wlan->txq_spinlock, flags);
+	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 
 	/**
 	 *      wake up TX queue
 	 **/
 	PRINT_D(TX_DBG, "Wake the txq_handling\n");
 
-	up(&g_linux_wlan->txq_event);
+	up(&wilc->txq_event);
 }
 
 static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
@@ -538,7 +545,7 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	if (is_TCP_ACK_Filter_Enabled())
 		tcp_process(dev, tqe);
 #endif
-	wilc_wlan_txq_add_to_tail(tqe);
+	wilc_wlan_txq_add_to_tail(dev, tqe);
 	/*return number of itemes in the queue*/
 	return p->txq_entries;
 }
@@ -566,7 +573,7 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	tqe->tcp_PendingAck_index = NOT_TCP_ACK;
 #endif
 	PRINT_D(TX_DBG, "Adding Network packet at the Queue tail\n");
-	wilc_wlan_txq_add_to_tail(tqe);
+	wilc_wlan_txq_add_to_tail(dev, tqe);
 	return 1;
 }
 
