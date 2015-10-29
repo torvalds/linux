@@ -111,16 +111,6 @@ _GLOBAL(load_up_altivec)
 	/* restore registers and return */
 	blr
 
-_GLOBAL(giveup_altivec_notask)
-	mfmsr	r3
-	andis.	r4,r3,MSR_VEC@h
-	bnelr				/* Already enabled? */
-	oris	r3,r3,MSR_VEC@h
-	SYNC
-	MTMSRD(r3)			/* enable use of VMX now */
-	isync
-	blr
-
 /*
  * giveup_altivec(tsk)
  * Disable VMX for the task given as the argument,
@@ -133,8 +123,6 @@ _GLOBAL(giveup_altivec)
 	SYNC
 	MTMSRD(r5)			/* enable use of VMX now */
 	isync
-	PPC_LCMPI	0,r3,0
-	beqlr				/* if no previous owner, done */
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	PPC_LL	r7,THREAD_VRSAVEAREA(r3)
 	PPC_LL	r5,PT_REGS(r3)
@@ -203,8 +191,6 @@ _GLOBAL(__giveup_vsx)
 	mtmsrd	r5			/* enable use of VSX now */
 	isync
 
-	cmpdi	0,r3,0
-	beqlr-				/* if no previous owner, done */
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	ld	r5,PT_REGS(r3)
 	cmpdi	0,r5,0

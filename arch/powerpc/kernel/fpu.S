@@ -173,8 +173,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	MTMSRD(r5)			/* enable use of fpu now */
 	SYNC_601
 	isync
-	PPC_LCMPI	0,r3,0
-	beqlr-				/* if no previous owner, done */
 	addi	r3,r3,THREAD	        /* want THREAD of task */
 	PPC_LL	r6,THREAD_FPSAVEAREA(r3)
 	PPC_LL	r5,PT_REGS(r3)

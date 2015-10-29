@@ -38,7 +38,6 @@ static inline void giveup_fpu(struct task_struct *t) { }
 #ifdef CONFIG_ALTIVEC
 extern void flush_altivec_to_thread(struct task_struct *);
 extern void giveup_altivec(struct task_struct *);
-extern void giveup_altivec_notask(void);
 #else
 static inline void flush_altivec_to_thread(struct task_struct *t)
 {
