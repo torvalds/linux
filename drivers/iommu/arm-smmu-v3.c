@@ -378,7 +378,6 @@
 #define PRIQ_0_SID_MASK			0xffffffffUL
 #define PRIQ_0_SSID_SHIFT		32
 #define PRIQ_0_SSID_MASK		0xfffffUL
-#define PRIQ_0_OF			(1UL << 57)
 #define PRIQ_0_PERM_PRIV		(1UL << 58)
 #define PRIQ_0_PERM_EXEC		(1UL << 59)
 #define PRIQ_0_PERM_READ		(1UL << 60)
