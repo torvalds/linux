@@ -132,7 +132,7 @@ int qcom_rpm_smd_write(struct qcom_smd_rpm *rpm,
 	pkt->req.data_len = cpu_to_le32(count);
 	memcpy(pkt->payload, buf, count);
 
-	ret = qcom_smd_send(rpm->rpm_channel, pkt, sizeof(*pkt));
+	ret = qcom_smd_send(rpm->rpm_channel, pkt, size);
 	if (ret)
 		goto out;
 
