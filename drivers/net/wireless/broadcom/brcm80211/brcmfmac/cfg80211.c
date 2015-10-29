@@ -3062,6 +3062,67 @@ static s32 brcmf_config_wowl_pattern(struct brcmf_if *ifp, u8 cmd[4],
 	return ret;
 }
 
+#ifdef CONFIG_PM
+
+static void brcmf_report_wowl_wakeind(struct wiphy *wiphy, struct brcmf_if *ifp)
+{
+	struct brcmf_wowl_wakeind_le wake_ind_le;
+	struct cfg80211_wowlan_wakeup wakeup_data;
+	struct cfg80211_wowlan_wakeup *wakeup;
+	u32 wakeind;
+	s32 err;
+
+	err = brcmf_fil_iovar_data_get(ifp, "wowl_wakeind", &wake_ind_le,
+				       sizeof(wake_ind_le));
+	if (!err) {
+		brcmf_err("Get wowl_wakeind failed, err = %d\n", err);
+		return;
+	}
+
+	wakeind = le32_to_cpu(wake_ind_le.ucode_wakeind);
+	if (wakeind & (BRCMF_WOWL_MAGIC | BRCMF_WOWL_DIS | BRCMF_WOWL_BCN |
+		       BRCMF_WOWL_RETR | BRCMF_WOWL_NET)) {
+		wakeup = &wakeup_data;
+		memset(&wakeup_data, 0, sizeof(wakeup_data));
+		wakeup_data.pattern_idx = -1;
+
+		if (wakeind & BRCMF_WOWL_MAGIC) {
+			brcmf_dbg(INFO, "WOWL Wake indicator: BRCMF_WOWL_MAGIC\n");
+			wakeup_data.magic_pkt = true;
+		}
+		if (wakeind & BRCMF_WOWL_DIS) {
+			brcmf_dbg(INFO, "WOWL Wake indicator: BRCMF_WOWL_DIS\n");
+			wakeup_data.disconnect = true;
+		}
+		if (wakeind & BRCMF_WOWL_BCN) {
+			brcmf_dbg(INFO, "WOWL Wake indicator: BRCMF_WOWL_BCN\n");
+			wakeup_data.disconnect = true;
+		}
+		if (wakeind & BRCMF_WOWL_RETR) {
+			brcmf_dbg(INFO, "WOWL Wake indicator: BRCMF_WOWL_RETR\n");
+			wakeup_data.disconnect = true;
+		}
+		if (wakeind & BRCMF_WOWL_NET) {
+			brcmf_dbg(INFO, "WOWL Wake indicator: BRCMF_WOWL_NET\n");
+			/* For now always map to pattern 0, no API to get
+			 * correct information available at the moment.
+			 */
+			wakeup_data.pattern_idx = 0;
+		}
+	} else {
+		wakeup = NULL;
+	}
+	cfg80211_report_wowlan_wakeup(&ifp->vif->wdev, wakeup, GFP_KERNEL);
+}
+
+#else
+
+static void brcmf_report_wowl_wakeind(struct wiphy *wiphy, struct brcmf_if *ifp)
+{
+}
+
+#endif /* CONFIG_PM */
+
 static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
@@ -3071,11 +3132,12 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (cfg->wowl_enabled) {
+		brcmf_report_wowl_wakeind(wiphy, ifp);
+		brcmf_fil_iovar_int_set(ifp, "wowl_clear", 0);
+		brcmf_config_wowl_pattern(ifp, "clr", NULL, 0, NULL, 0);
 		brcmf_configure_arp_offload(ifp, true);
 		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM,
 				      cfg->pre_wowl_pmmode);
-		brcmf_fil_iovar_int_set(ifp, "wowl_clear", 0);
-		brcmf_config_wowl_pattern(ifp, "clr", NULL, 0, NULL, 0);
 		cfg->wowl_enabled = false;
 	}
 	return 0;
@@ -3109,6 +3171,7 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 				wowl->patterns[i].pkt_offset);
 		}
 	}
+	brcmf_fil_iovar_data_set(ifp, "wowl_wakeind", "clear", strlen("clear"));
 	brcmf_fil_iovar_int_set(ifp, "wowl", wowl_config);
 	brcmf_fil_iovar_int_set(ifp, "wowl_activate", 1);
 	brcmf_bus_wowl_config(cfg->pub->bus_if, true);

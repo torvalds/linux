@@ -634,4 +634,16 @@ struct brcmf_assoclist_le {
 	u8 mac[BRCMF_MAX_ASSOCLIST][ETH_ALEN];
 };
 
+/**
+ * struct brcmf_wowl_wakeind_le - Wakeup indicators
+ *	Note: note both fields contain same information.
+ *
+ * @pci_wakeind: Whether PCI PMECSR PMEStatus bit was set.
+ * @ucode_wakeind: What wakeup-event indication was set by ucode
+ */
+struct brcmf_wowl_wakeind_le {
+	__le32 pci_wakeind;
+	__le32 ucode_wakeind;
+};
+
 #endif /* FWIL_TYPES_H_ */
