@@ -15,7 +15,6 @@ config ARCH_BCM_IPROC
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select ARM_GLOBAL_TIMER
-	select COMMON_CLK_IPROC
 	select CLKSRC_MMIO
 	select GPIOLIB
 	select ARM_AMBA
