@@ -227,7 +227,12 @@ static void virtfn_remove(struct pci_dev *dev, int id, int reset)
 
 int __weak pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 {
-       return 0;
+	return 0;
+}
+
+int __weak pcibios_sriov_disable(struct pci_dev *pdev)
+{
+	return 0;
 }
 
 static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
@@ -342,11 +347,6 @@ failed:
 		sysfs_remove_link(&dev->dev.kobj, "dep_link");
 
 	return rc;
-}
-
-int __weak pcibios_sriov_disable(struct pci_dev *pdev)
-{
-       return 0;
 }
 
 static void sriov_disable(struct pci_dev *dev)
