@@ -178,7 +178,49 @@ struct sun4i_tv {
 	struct sun4i_drv	*drv;
 };
 
+struct video_levels pal_video_levels = {
+	.black = 252,	.blank = 252,
+};
+
+struct burst_levels pal_burst_levels = {
+	.cb = 40,	.cr = 40,
+};
+
+struct color_gains pal_color_gains = {
+	.cb = 224,	.cr = 224,
+};
+
+struct resync_parameters pal_resync_parameters = {
+	.field = true,	.line = 13,	.pixel = 12,
+};
+
 struct tv_mode tv_modes[] = {
+	{
+		.name		= "PAL",
+		.mode		= SUN4I_TVE_CFG0_RES_576i,
+		.chroma_freq	= 0x2a098acb,
+
+		.back_porch	= 138,
+		.front_porch	= 24,
+		.line_number	= 625,
+
+		.hdisplay	= 720,
+		.hfront_porch	= 3,
+		.hsync_len	= 2,
+		.hback_porch	= 139,
+
+		.vdisplay	= 576,
+		.vfront_porch	= 28,
+		.vsync_len	= 2,
+		.vback_porch	= 19,
+
+		.vblank_level	= 252,
+
+		.color_gains	= &pal_color_gains,
+		.burst_levels	= &pal_burst_levels,
+		.video_levels	= &pal_video_levels,
+		.resync_params	= &pal_resync_parameters,
+	},
 };
 
 static inline struct sun4i_tv *
