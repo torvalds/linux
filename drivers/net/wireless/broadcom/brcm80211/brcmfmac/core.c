@@ -217,14 +217,6 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		goto done;
 	}
 
-	if (!drvr->iflist[ifp->bssidx]) {
-		brcmf_err("bad ifidx %d\n", ifp->bssidx);
-		netif_stop_queue(ndev);
-		dev_kfree_skb(skb);
-		ret = -ENODEV;
-		goto done;
-	}
-
 	/* Make sure there's enough room for any header */
 	if (skb_headroom(skb) < drvr->hdrlen) {
 		struct sk_buff *skb2;
