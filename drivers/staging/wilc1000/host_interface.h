@@ -193,8 +193,7 @@ struct hidden_network {
 
 struct user_scan_req {
 	wilc_scan_result scan_result;
-	void *u32UserScanPvoid;
-
+	void *arg;
 	u32 u32RcvdChCount;
 	struct found_net_info astrFoundNetworkInfo[MAX_NUM_SCANNED_NETWORKS];
 };

@@ -823,7 +823,7 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 	PRINT_D(HOSTINF_DBG, "Scanning: In [%d] state\n", hif_drv->hif_state);
 
 	hif_drv->usr_scan_req.scan_result = pstrHostIFscanAttr->result;
-	hif_drv->usr_scan_req.u32UserScanPvoid = pstrHostIFscanAttr->arg;
+	hif_drv->usr_scan_req.arg = pstrHostIFscanAttr->arg;
 
 	if ((hif_drv->hif_state >= HOST_IF_SCANNING) &&
 	    (hif_drv->hif_state < HOST_IF_CONNECTED)) {
@@ -971,7 +971,7 @@ static s32 Handle_ScanDone(struct host_if_drv *hif_drv,
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(enuEvent, NULL,
-						  hif_drv->usr_scan_req.u32UserScanPvoid, NULL);
+						  hif_drv->usr_scan_req.arg, NULL);
 		hif_drv->usr_scan_req.scan_result = NULL;
 	}
 
@@ -1448,7 +1448,7 @@ static s32 Handle_RcvdNtwrkInfo(struct host_if_drv *hif_drv,
 					pJoinParams = host_int_ParseJoinBssParam(pstrNetworkInfo);
 
 					hif_drv->usr_scan_req.scan_result(SCAN_EVENT_NETWORK_FOUND, pstrNetworkInfo,
-									  hif_drv->usr_scan_req.u32UserScanPvoid,
+									  hif_drv->usr_scan_req.arg,
 									  pJoinParams);
 				}
 			} else {
@@ -1457,7 +1457,7 @@ static s32 Handle_RcvdNtwrkInfo(struct host_if_drv *hif_drv,
 		} else {
 			pstrNetworkInfo->bNewNetwork = false;
 			hif_drv->usr_scan_req.scan_result(SCAN_EVENT_NETWORK_FOUND, pstrNetworkInfo,
-							  hif_drv->usr_scan_req.u32UserScanPvoid, NULL);
+							  hif_drv->usr_scan_req.arg, NULL);
 		}
 	}
 
@@ -2001,7 +2001,7 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 		if (hif_drv->usr_scan_req.scan_result) {
 			del_timer(&hif_drv->scan_timer);
 			hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,
-							  hif_drv->usr_scan_req.u32UserScanPvoid, NULL);
+							  hif_drv->usr_scan_req.arg, NULL);
 			hif_drv->usr_scan_req.scan_result = NULL;
 		}
 
@@ -4210,7 +4210,7 @@ s32 host_int_deinit(struct host_if_drv *hif_drv)
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,
-						  hif_drv->usr_scan_req.u32UserScanPvoid, NULL);
+						  hif_drv->usr_scan_req.arg, NULL);
 		hif_drv->usr_scan_req.scan_result = NULL;
 	}
 
