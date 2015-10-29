@@ -207,7 +207,7 @@ struct user_conn_req {
 	u8 *ies;
 	size_t ies_len;
 	wilc_connect_result conn_result;
-	bool IsHTCapable;
+	bool ht_capable;
 	void *u32UserConnectPvoid;
 };
 
