@@ -3930,18 +3930,19 @@ void css_task_iter_start(struct cgroup_subsys_state *css,
  */
 struct task_struct *css_task_iter_next(struct css_task_iter *it)
 {
-	if (!it->cset_pos)
-		return NULL;
-
-	if (it->cur_task)
+	if (it->cur_task) {
 		put_task_struct(it->cur_task);
+		it->cur_task = NULL;
+	}
 
 	spin_lock_bh(&css_set_lock);
 
-	it->cur_task = list_entry(it->task_pos, struct task_struct, cg_list);
-	get_task_struct(it->cur_task);
-
-	css_task_iter_advance(it);
+	if (it->task_pos) {
+		it->cur_task = list_entry(it->task_pos, struct task_struct,
+					  cg_list);
+		get_task_struct(it->cur_task);
+		css_task_iter_advance(it);
+	}
 
 	spin_unlock_bh(&css_set_lock);
 
