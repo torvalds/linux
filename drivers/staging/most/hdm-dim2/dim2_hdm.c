@@ -212,9 +212,9 @@ static int startup_dim(struct platform_device *pdev)
 			return ret;
 	}
 
-	hal_ret = DIM_Startup(dev->io_base, dev->clk_speed);
+	hal_ret = dim_startup(dev->io_base, dev->clk_speed);
 	if (hal_ret != DIM_NO_ERROR) {
-		pr_err("DIM_Startup failed: %d\n", hal_ret);
+		pr_err("dim_startup failed: %d\n", hal_ret);
 		if (pdata && pdata->destroy)
 			pdata->destroy(pdata);
 		return -ENODEV;

@@ -650,7 +650,7 @@ static bool channel_detach_buffers(struct dim_channel *ch, u16 buffers_number)
 /* -------------------------------------------------------------------------- */
 /* API */
 
-u8 DIM_Startup(void *dim_base_address, u32 mlb_clock)
+u8 dim_startup(void *dim_base_address, u32 mlb_clock)
 {
 	g.dim_is_initialized = false;
 

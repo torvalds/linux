@@ -65,7 +65,7 @@ struct dim_channel {
 	u16 done_sw_buffers_number; /*< Done software buffers number. */
 };
 
-u8 DIM_Startup(void *dim_base_address, u32 mlb_clock);
+u8 dim_startup(void *dim_base_address, u32 mlb_clock);
 
 void DIM_Shutdown(void);
 
