@@ -131,7 +131,7 @@ static struct ata_port_operations ahci_qoriq_ops = {
 	.hardreset	= ahci_qoriq_hardreset,
 };
 
-static const struct ata_port_info ahci_qoriq_port_info = {
+static struct ata_port_info ahci_qoriq_port_info = {
 	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NCQ,
 	.pio_mask	= ATA_PIO4,
 	.udma_mask	= ATA_UDMA6,
@@ -207,6 +207,12 @@ static int ahci_qoriq_probe(struct platform_device *pdev)
 	rc = ahci_qoriq_phy_init(hpriv);
 	if (rc)
 		goto disable_resources;
+
+	/* Workaround for ls2080a */
+	if (qoriq_priv->type == AHCI_LS2080A) {
+		hpriv->flags |= AHCI_HFLAG_NO_NCQ;
+		ahci_qoriq_port_info.flags &= ~ATA_FLAG_NCQ;
+	}
 
 	rc = ahci_platform_init_host(pdev, hpriv, &ahci_qoriq_port_info,
 				     &ahci_qoriq_sht);
