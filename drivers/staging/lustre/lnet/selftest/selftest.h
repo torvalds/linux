@@ -585,7 +585,7 @@ swi_state2str (int state)
 do {									\
 	int __I = 2;							\
 	while (!(cond)) {						\
-		CDEBUG(IS_PO2(++__I) ? D_WARNING : D_NET,		\
+		CDEBUG(is_power_of_2(++__I) ? D_WARNING : D_NET,	\
 		       fmt, ## __VA_ARGS__);				\
 		spin_unlock(&(lock));					\
 									\
