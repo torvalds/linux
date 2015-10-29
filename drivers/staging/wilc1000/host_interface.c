@@ -349,18 +349,17 @@ static s32 Handle_SetChannel(struct host_if_drv *hif_drv,
 }
 
 static s32 Handle_SetWfiDrvHandler(struct host_if_drv *hif_drv,
-				   struct drv_handler *pstrHostIfSetDrvHandler)
+				    struct drv_handler *hif_drv_handler)
 {
 	s32 result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_SET_DRV_HANDLER;
 	wid.type = WID_INT;
-	wid.val = (s8 *)&pstrHostIfSetDrvHandler->handler;
+	wid.val = (s8 *)&hif_drv_handler->handler;
 	wid.size = sizeof(u32);
 
-	result = send_config_pkt(SET_CFG, &wid, 1,
-				 pstrHostIfSetDrvHandler->handler);
+	result = send_config_pkt(SET_CFG, &wid, 1, hif_drv_handler->handler);
 
 	if (!hif_drv)
 		up(&hif_sema_driver);
