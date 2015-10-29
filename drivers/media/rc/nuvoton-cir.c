@@ -274,9 +274,9 @@ static void nvt_hw_detect(struct nvt_dev *nvt)
 
 	/* warn, but still let the driver load, if we don't know this chip */
 	if (!chip_name)
-		nvt_pr(KERN_WARNING,
-		       "unknown chip, id: 0x%02x 0x%02x, it may not work...",
-		       nvt->chip_major, nvt->chip_minor);
+		dev_warn(&nvt->pdev->dev,
+			 "unknown chip, id: 0x%02x 0x%02x, it may not work...",
+			 nvt->chip_major, nvt->chip_minor);
 	else
 		dev_info(&nvt->pdev->dev,
 			 "found %s or compatible: chip id: 0x%02x 0x%02x",
@@ -483,8 +483,9 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 	duration *= SAMPLE_PERIOD;
 
 	if (!count || !duration) {
-		nvt_pr(KERN_NOTICE, "Unable to determine carrier! (c:%u, d:%u)",
-		       count, duration);
+		dev_notice(&nvt->pdev->dev,
+			   "Unable to determine carrier! (c:%u, d:%u)",
+			   count, duration);
 		return 0;
 	}
 
@@ -659,7 +660,7 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 
 static void nvt_handle_rx_fifo_overrun(struct nvt_dev *nvt)
 {
-	nvt_pr(KERN_WARNING, "RX FIFO overrun detected, flushing data!");
+	dev_warn(&nvt->pdev->dev, "RX FIFO overrun detected, flushing data!");
 
 	nvt->pkts = 0;
 	nvt_clear_cir_fifo(nvt);
@@ -1088,7 +1089,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	device_init_wakeup(&pdev->dev, true);
 
-	nvt_pr(KERN_NOTICE, "driver has been successfully loaded\n");
+	dev_notice(&pdev->dev, "driver has been successfully loaded\n");
 	if (debug) {
 		cir_dump_regs(nvt);
 		cir_wake_dump_regs(nvt);

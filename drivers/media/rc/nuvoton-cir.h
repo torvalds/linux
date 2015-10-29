@@ -35,9 +35,6 @@
 static int debug;
 
 
-#define nvt_pr(level, text, ...) \
-	printk(level KBUILD_MODNAME ": " text, ## __VA_ARGS__)
-
 #define nvt_dbg(text, ...) \
 	if (debug) \
 		printk(KERN_DEBUG \
