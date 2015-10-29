@@ -130,7 +130,10 @@ void enable_kernel_fp(void)
 		check_if_tm_restore_required(current);
 		giveup_fpu(current);
 	} else {
-		giveup_fpu(NULL);	/* just enables FP for kernel */
+		u64 oldmsr = mfmsr();
+
+		if (!(oldmsr & MSR_FP))
+			mtmsr_isync(oldmsr | MSR_FP);
 	}
 }
 EXPORT_SYMBOL(enable_kernel_fp);
@@ -144,7 +147,10 @@ void enable_kernel_altivec(void)
 		check_if_tm_restore_required(current);
 		giveup_altivec(current);
 	} else {
-		giveup_altivec_notask();
+		u64 oldmsr = mfmsr();
+
+		if (!(oldmsr & MSR_VEC))
+			mtmsr_isync(oldmsr | MSR_VEC);
 	}
 }
 EXPORT_SYMBOL(enable_kernel_altivec);
@@ -173,10 +179,14 @@ void enable_kernel_vsx(void)
 {
 	WARN_ON(preemptible());
 
-	if (current->thread.regs && (current->thread.regs->msr & MSR_VSX))
+	if (current->thread.regs && (current->thread.regs->msr & MSR_VSX)) {
 		giveup_vsx(current);
-	else
-		giveup_vsx(NULL);	/* just enable vsx for kernel - force */
+	} else {
+		u64 oldmsr = mfmsr();
+
+		if (!(oldmsr & MSR_VSX))
+			mtmsr_isync(oldmsr | MSR_VSX);
+	}
 }
 EXPORT_SYMBOL(enable_kernel_vsx);
 
@@ -209,10 +219,14 @@ void enable_kernel_spe(void)
 {
 	WARN_ON(preemptible());
 
-	if (current->thread.regs && (current->thread.regs->msr & MSR_SPE))
+	if (current->thread.regs && (current->thread.regs->msr & MSR_SPE)) {
 		giveup_spe(current);
-	else
-		giveup_spe(NULL);	/* just enable SPE for kernel - force */
+	} else {
+		u64 oldmsr = mfmsr();
+
+		if (!(oldmsr & MSR_SPE))
+			mtmsr_isync(oldmsr | MSR_SPE);
+	}
 }
 EXPORT_SYMBOL(enable_kernel_spe);
 

@@ -1193,11 +1193,19 @@
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
 				     : : "r" (v) : "memory")
 #define mtmsr(v)	__mtmsrd((v), 0)
+#define __MTMSR		"mtmsrd"
 #else
 #define mtmsr(v)	asm volatile("mtmsr %0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+#define __MTMSR		"mtmsr"
 #endif
+
+static inline void mtmsr_isync(unsigned long val)
+{
+	asm volatile(__MTMSR " %0; " ASM_FTR_IFCLR("isync", "nop", %1) : :
+			"r" (val), "i" (CPU_FTR_ARCH_206) : "memory");
+}
 
 #define mfspr(rn)	({unsigned long rval; \
 			asm volatile("mfspr %0," __stringify(rn) \
