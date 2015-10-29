@@ -398,6 +398,8 @@ config USB_CONFIGFS_F_ACC
 config USB_CONFIGFS_F_AUDIO_SRC
 	boolean "Audio Source gadget"
 	depends on USB_CONFIGFS && USB_CONFIGFS_F_ACC
+	depends on SND
+	select SND_PCM
 	select USB_F_AUDIO_SRC
 	help
 	  USB gadget Audio Source support
