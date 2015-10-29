@@ -629,8 +629,10 @@ int snd_hdac_power_down_pm(struct hdac_device *codec)
 EXPORT_SYMBOL_GPL(snd_hdac_power_down_pm);
 #endif
 
-/*
- * Enable/disable the link power for a codec.
+/**
+ * snd_hdac_link_power - Enable/disable the link power for a codec
+ * @codec: the codec object
+ * @bool: enable or disable the link power
  */
 int snd_hdac_link_power(struct hdac_device *codec, bool enable)
 {
@@ -1048,8 +1050,8 @@ int snd_hdac_codec_write(struct hdac_device *hdac, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_codec_write);
 
-/*
- * snd_hdac_check_power_state: check whether the actual power state matches
+/**
+ * snd_hdac_check_power_state - check whether the actual power state matches
  * with the target state
  *
  * @hdac: the HDAC device
