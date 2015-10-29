@@ -303,8 +303,11 @@ config CLKSRC_MIPS_GIC
 	select CLKSRC_OF
 
 config CLKSRC_TANGO_XTAL
-	bool
+	bool "Clocksource for Tango SoC" if COMPILE_TEST
+	depends on ARM
 	select CLKSRC_OF
+	help
+	  This enables the clocksource for Tango SoC
 
 config CLKSRC_PXA
 	bool "Clocksource for PXA or SA-11x0 platform" if COMPILE_TEST
