@@ -3019,7 +3019,7 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 			       &params->ht_capa->mcs,
 			       WILC_SUPP_MCS_SET_SIZE);
 			strStaParams.ht_ext_params = params->ht_capa->extended_ht_cap_info;
-			strStaParams.u32TxBeamformingCap = params->ht_capa->tx_BF_cap_info;
+			strStaParams.ht_tx_bf_cap = params->ht_capa->tx_BF_cap_info;
 			strStaParams.u8ASELCap = params->ht_capa->antenna_selection_info;
 		}
 
@@ -3034,7 +3034,8 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.ht_ampdu_params);
 		PRINT_D(HOSTAPD_DBG, "HT Extended params = %d\n",
 			strStaParams.ht_ext_params);
-		PRINT_D(HOSTAPD_DBG, "Tx Beamforming Cap = %d\n", strStaParams.u32TxBeamformingCap);
+		PRINT_D(HOSTAPD_DBG, "Tx Beamforming Cap = %d\n",
+			strStaParams.ht_tx_bf_cap);
 		PRINT_D(HOSTAPD_DBG, "Antenna selection info = %d\n", strStaParams.u8ASELCap);
 		PRINT_D(HOSTAPD_DBG, "Flag Mask = %d\n", strStaParams.u16FlagsMask);
 		PRINT_D(HOSTAPD_DBG, "Flag Set = %d\n", strStaParams.u16FlagsSet);
@@ -3139,7 +3140,7 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			       &params->ht_capa->mcs,
 			       WILC_SUPP_MCS_SET_SIZE);
 			strStaParams.ht_ext_params = params->ht_capa->extended_ht_cap_info;
-			strStaParams.u32TxBeamformingCap = params->ht_capa->tx_BF_cap_info;
+			strStaParams.ht_tx_bf_cap = params->ht_capa->tx_BF_cap_info;
 			strStaParams.u8ASELCap = params->ht_capa->antenna_selection_info;
 
 		}
@@ -3155,7 +3156,8 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.ht_ampdu_params);
 		PRINT_D(HOSTAPD_DBG, "HT Extended params = %d\n",
 			strStaParams.ht_ext_params);
-		PRINT_D(HOSTAPD_DBG, "Tx Beamforming Cap = %d\n", strStaParams.u32TxBeamformingCap);
+		PRINT_D(HOSTAPD_DBG, "Tx Beamforming Cap = %d\n",
+			strStaParams.ht_tx_bf_cap);
 		PRINT_D(HOSTAPD_DBG, "Antenna selection info = %d\n", strStaParams.u8ASELCap);
 		PRINT_D(HOSTAPD_DBG, "Flag Mask = %d\n", strStaParams.u16FlagsMask);
 		PRINT_D(HOSTAPD_DBG, "Flag Set = %d\n", strStaParams.u16FlagsSet);

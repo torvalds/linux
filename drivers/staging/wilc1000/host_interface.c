@@ -2332,10 +2332,10 @@ static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer,
 	*pu8CurrByte++ = pstrStationParam->ht_ext_params & 0xFF;
 	*pu8CurrByte++ = (pstrStationParam->ht_ext_params >> 8) & 0xFF;
 
-	*pu8CurrByte++ = pstrStationParam->u32TxBeamformingCap & 0xFF;
-	*pu8CurrByte++ = (pstrStationParam->u32TxBeamformingCap >> 8) & 0xFF;
-	*pu8CurrByte++ = (pstrStationParam->u32TxBeamformingCap >> 16) & 0xFF;
-	*pu8CurrByte++ = (pstrStationParam->u32TxBeamformingCap >> 24) & 0xFF;
+	*pu8CurrByte++ = pstrStationParam->ht_tx_bf_cap & 0xFF;
+	*pu8CurrByte++ = (pstrStationParam->ht_tx_bf_cap >> 8) & 0xFF;
+	*pu8CurrByte++ = (pstrStationParam->ht_tx_bf_cap >> 16) & 0xFF;
+	*pu8CurrByte++ = (pstrStationParam->ht_tx_bf_cap >> 24) & 0xFF;
 
 	*pu8CurrByte++ = pstrStationParam->u8ASELCap;
 

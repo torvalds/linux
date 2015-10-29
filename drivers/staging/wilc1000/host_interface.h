@@ -297,7 +297,7 @@ struct add_sta_param {
 	u8 ht_ampdu_params;
 	u8 ht_supp_mcs_set[16];
 	u16 ht_ext_params;
-	u32 u32TxBeamformingCap;
+	u32 ht_tx_bf_cap;
 	u8 u8ASELCap;
 	u16 u16FlagsMask;
 	u16 u16FlagsSet;
