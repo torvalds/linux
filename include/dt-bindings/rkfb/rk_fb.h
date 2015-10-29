@@ -57,11 +57,13 @@
 #define ROTATE_270	12
 
 #define COLOR_RGB		0
+#define COLOR_RGB_BT2020	1
 /* default colorspace is bt601 */
-#define COLOR_YCBCR		1
+#define COLOR_YCBCR		2
+#define COLOR_YCBCR_BT709	3
+#define COLOR_YCBCR_BT2020	4
 
-#define COLOR_YCBCR_BT709	2
-#define COLOR_YCBCR_BT2020	3
+#define IS_YUV_COLOR(x)                ((x) >= COLOR_YCBCR)
 
 /* fb win map */
 #define FB_DEFAULT_ORDER		0
