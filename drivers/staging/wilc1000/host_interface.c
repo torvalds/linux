@@ -325,14 +325,14 @@ static struct host_if_drv *get_handler_from_id(int id)
 }
 
 static s32 Handle_SetChannel(struct host_if_drv *hif_drv,
-			     struct channel_attr *pstrHostIFSetChan)
+			      struct channel_attr *hif_set_ch)
 {
 	s32 result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_CURRENT_CHANNEL;
 	wid.type = WID_CHAR;
-	wid.val = (char *)&pstrHostIFSetChan->set_ch;
+	wid.val = (char *)&hif_set_ch->set_ch;
 	wid.size = sizeof(char);
 
 	PRINT_D(HOSTINF_DBG, "Setting channel\n");
