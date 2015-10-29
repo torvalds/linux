@@ -57,6 +57,7 @@ struct nbd_device {
 	int blksize;
 	loff_t bytesize;
 	int xmit_timeout;
+	bool timedout;
 	bool disconnect; /* a disconnect has been requested by user */
 
 	struct timer_list timeout_timer;
@@ -154,10 +155,9 @@ static void nbd_xmit_timeout(unsigned long arg)
 	if (list_empty(&nbd->queue_head))
 		return;
 
-	nbd->disconnect = true;
-
 	spin_lock_irqsave(&nbd->sock_lock, flags);
 
+	nbd->timedout = true;
 
 	if (nbd->sock)
 		kernel_sock_shutdown(nbd->sock, SHUT_RDWR);
@@ -754,7 +754,10 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		if (max_part > 0)
 			blkdev_reread_part(bdev);
 		if (nbd->disconnect) /* user requested, ignore socket errors */
-			return 0;
+			error = 0;
+		if (nbd->timedout)
+			error = -ETIMEDOUT;
+
 		return error;
 	}
 
