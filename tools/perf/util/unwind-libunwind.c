@@ -360,12 +360,15 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		int fd = dso__data_get_fd(map->dso, ui->machine);
 		int is_exec = elf_is_exec(fd, map->dso->name);
 		unw_word_t base = is_exec ? 0 : map->start;
+		const char *symfile;
 
 		if (fd >= 0)
 			dso__data_put_fd(map->dso);
 
+		symfile = map->dso->symsrc_filename ?: map->dso->name;
+
 		memset(&di, 0, sizeof(di));
-		if (dwarf_find_debug_frame(0, &di, ip, base, map->dso->name,
+		if (dwarf_find_debug_frame(0, &di, ip, base, symfile,
 					   map->start, map->end))
 			return dwarf_search_unwind_table(as, ip, &di, pi,
 							 need_unwind_info, arg);
