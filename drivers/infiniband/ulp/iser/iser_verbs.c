@@ -1135,7 +1135,7 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 	wr->opcode = IB_WR_SEND;
 	wr->send_flags = signal ? IB_SEND_SIGNALED : 0;
 
-	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0], &bad_wr);
+	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0].send, &bad_wr);
 	if (ib_ret)
 		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
 			 ib_ret, bad_wr->opcode);

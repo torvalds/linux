@@ -77,7 +77,11 @@ struct rds_iw_send_work {
 	struct ib_fast_reg_page_list *s_page_list;
 	unsigned char		s_remap_count;
 
-	struct ib_send_wr	s_wr;
+	union {
+		struct ib_send_wr	s_send_wr;
+		struct ib_rdma_wr	s_rdma_wr;
+		struct ib_fast_reg_wr	s_fast_reg_wr;
+	};
 	struct ib_sge		s_sge[RDS_IW_MAX_SGE];
 	unsigned long		s_queued;
 };

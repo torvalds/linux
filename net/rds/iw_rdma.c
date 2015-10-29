@@ -696,7 +696,8 @@ static int rds_iw_init_fastreg(struct rds_iw_mr_pool *pool,
 static int rds_iw_rdma_build_fastreg(struct rds_iw_mapping *mapping)
 {
 	struct rds_iw_mr *ibmr = mapping->m_mr;
-	struct ib_send_wr f_wr, *failed_wr;
+	struct ib_fast_reg_wr f_wr;
+	struct ib_send_wr *failed_wr;
 	int ret;
 
 	/*
@@ -709,22 +710,22 @@ static int rds_iw_rdma_build_fastreg(struct rds_iw_mapping *mapping)
 	mapping->m_rkey = ibmr->mr->rkey;
 
 	memset(&f_wr, 0, sizeof(f_wr));
-	f_wr.wr_id = RDS_IW_FAST_REG_WR_ID;
-	f_wr.opcode = IB_WR_FAST_REG_MR;
-	f_wr.wr.fast_reg.length = mapping->m_sg.bytes;
-	f_wr.wr.fast_reg.rkey = mapping->m_rkey;
-	f_wr.wr.fast_reg.page_list = ibmr->page_list;
-	f_wr.wr.fast_reg.page_list_len = mapping->m_sg.dma_len;
-	f_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
-	f_wr.wr.fast_reg.access_flags = IB_ACCESS_LOCAL_WRITE |
+	f_wr.wr.wr_id = RDS_IW_FAST_REG_WR_ID;
+	f_wr.wr.opcode = IB_WR_FAST_REG_MR;
+	f_wr.length = mapping->m_sg.bytes;
+	f_wr.rkey = mapping->m_rkey;
+	f_wr.page_list = ibmr->page_list;
+	f_wr.page_list_len = mapping->m_sg.dma_len;
+	f_wr.page_shift = PAGE_SHIFT;
+	f_wr.access_flags = IB_ACCESS_LOCAL_WRITE |
 				IB_ACCESS_REMOTE_READ |
 				IB_ACCESS_REMOTE_WRITE;
-	f_wr.wr.fast_reg.iova_start = 0;
-	f_wr.send_flags = IB_SEND_SIGNALED;
+	f_wr.iova_start = 0;
+	f_wr.wr.send_flags = IB_SEND_SIGNALED;
 
-	failed_wr = &f_wr;
-	ret = ib_post_send(ibmr->cm_id->qp, &f_wr, &failed_wr);
-	BUG_ON(failed_wr != &f_wr);
+	failed_wr = &f_wr.wr;
+	ret = ib_post_send(ibmr->cm_id->qp, &f_wr.wr, &failed_wr);
+	BUG_ON(failed_wr != &f_wr.wr);
 	if (ret)
 		printk_ratelimited(KERN_WARNING "RDS/IW: %s:%d ib_post_send returned %d\n",
 			__func__, __LINE__, ret);

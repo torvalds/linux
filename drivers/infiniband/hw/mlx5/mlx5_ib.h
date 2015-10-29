@@ -245,6 +245,7 @@ enum mlx5_ib_qp_flags {
 };
 
 struct mlx5_umr_wr {
+	struct ib_send_wr		wr;
 	union {
 		u64			virt_addr;
 		u64			offset;
@@ -256,6 +257,11 @@ struct mlx5_umr_wr {
 	int				access_flags;
 	u32				mkey;
 };
+
+static inline struct mlx5_umr_wr *umr_wr(struct ib_send_wr *wr)
+{
+	return container_of(wr, struct mlx5_umr_wr, wr);
+}
 
 struct mlx5_shared_mr_info {
 	int mr_id;

@@ -461,7 +461,7 @@ int ipoib_set_mode(struct net_device *dev, const char *buf)
 		netdev_update_features(dev);
 		dev_set_mtu(dev, ipoib_cm_max_mtu(dev));
 		rtnl_unlock();
-		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
+		priv->tx_wr.wr.send_flags &= ~IB_SEND_IP_CSUM;
 
 		ipoib_flush_paths(dev);
 		rtnl_lock();

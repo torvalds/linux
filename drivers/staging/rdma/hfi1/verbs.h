@@ -348,7 +348,13 @@ struct hfi1_mr {
  * in qp->s_max_sge.
  */
 struct hfi1_swqe {
-	struct ib_send_wr wr;   /* don't use wr.sg_list */
+	union {
+		struct ib_send_wr wr;   /* don't use wr.sg_list */
+		struct ib_rdma_wr rdma_wr;
+		struct ib_atomic_wr atomic_wr;
+		struct ib_ud_wr ud_wr;
+		struct ib_fast_reg_wr fast_reg_wr;
+	};
 	u32 psn;                /* first packet sequence number */
 	u32 lpsn;               /* last packet sequence number */
 	u32 ssn;                /* send sequence number */
@@ -1025,7 +1031,7 @@ struct ib_fast_reg_page_list *hfi1_alloc_fast_reg_page_list(
 
 void hfi1_free_fast_reg_page_list(struct ib_fast_reg_page_list *pl);
 
-int hfi1_fast_reg_mr(struct hfi1_qp *qp, struct ib_send_wr *wr);
+int hfi1_fast_reg_mr(struct hfi1_qp *qp, struct ib_fast_reg_wr *wr);
 
 struct ib_fmr *hfi1_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 			      struct ib_fmr_attr *fmr_attr);

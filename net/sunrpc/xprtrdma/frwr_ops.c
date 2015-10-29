@@ -312,7 +312,8 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	struct rpcrdma_mw *mw;
 	struct rpcrdma_frmr *frmr;
 	struct ib_mr *mr;
-	struct ib_send_wr fastreg_wr, *bad_wr;
+	struct ib_fast_reg_wr fastreg_wr;
+	struct ib_send_wr *bad_wr;
 	u8 key;
 	int len, pageoff;
 	int i, rc;
@@ -358,23 +359,23 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		__func__, mw, i, len);
 
 	memset(&fastreg_wr, 0, sizeof(fastreg_wr));
-	fastreg_wr.wr_id = (unsigned long)(void *)mw;
-	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
-	fastreg_wr.wr.fast_reg.iova_start = seg1->mr_dma + pageoff;
-	fastreg_wr.wr.fast_reg.page_list = frmr->fr_pgl;
-	fastreg_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
-	fastreg_wr.wr.fast_reg.page_list_len = page_no;
-	fastreg_wr.wr.fast_reg.length = len;
-	fastreg_wr.wr.fast_reg.access_flags = writing ?
+	fastreg_wr.wr.wr_id = (unsigned long)(void *)mw;
+	fastreg_wr.wr.opcode = IB_WR_FAST_REG_MR;
+	fastreg_wr.iova_start = seg1->mr_dma + pageoff;
+	fastreg_wr.page_list = frmr->fr_pgl;
+	fastreg_wr.page_shift = PAGE_SHIFT;
+	fastreg_wr.page_list_len = page_no;
+	fastreg_wr.length = len;
+	fastreg_wr.access_flags = writing ?
 				IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
 				IB_ACCESS_REMOTE_READ;
 	mr = frmr->fr_mr;
 	key = (u8)(mr->rkey & 0x000000FF);
 	ib_update_fast_reg_key(mr, ++key);
-	fastreg_wr.wr.fast_reg.rkey = mr->rkey;
+	fastreg_wr.rkey = mr->rkey;
 
 	DECR_CQCOUNT(&r_xprt->rx_ep);
-	rc = ib_post_send(ia->ri_id->qp, &fastreg_wr, &bad_wr);
+	rc = ib_post_send(ia->ri_id->qp, &fastreg_wr.wr, &bad_wr);
 	if (rc)
 		goto out_senderr;
 
