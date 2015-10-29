@@ -983,6 +983,22 @@ static int uvc_ioctl_g_ext_ctrls(struct file *file, void *fh,
 	unsigned int i;
 	int ret;
 
+	if (ctrls->which == V4L2_CTRL_WHICH_DEF_VAL) {
+		for (i = 0; i < ctrls->count; ++ctrl, ++i) {
+			struct v4l2_queryctrl qc = { .id = ctrl->id };
+
+			ret = uvc_query_v4l2_ctrl(chain, &qc);
+			if (ret < 0) {
+				ctrls->error_idx = i;
+				return ret;
+			}
+
+			ctrl->value = qc.default_value;
+		}
+
+		return 0;
+	}
+
 	ret = uvc_ctrl_begin(chain);
 	if (ret < 0)
 		return ret;
@@ -1009,6 +1025,10 @@ static int uvc_ioctl_s_try_ext_ctrls(struct uvc_fh *handle,
 	struct uvc_video_chain *chain = handle->chain;
 	unsigned int i;
 	int ret;
+
+	/* Default value cannot be changed */
+	if (ctrls->which == V4L2_CTRL_WHICH_DEF_VAL)
+		return -EINVAL;
 
 	ret = uvc_ctrl_begin(chain);
 	if (ret < 0)
