@@ -1340,11 +1340,13 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	v4l2_ctrl_handler_init(hdl_vid_cap, 55);
 	v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_vid_out, 26);
-	v4l2_ctrl_new_custom(hdl_vid_out, &vivid_ctrl_class, NULL);
+	if (!no_error_inj)
+		v4l2_ctrl_new_custom(hdl_vid_out, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_vbi_cap, 21);
 	v4l2_ctrl_new_custom(hdl_vbi_cap, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_vbi_out, 19);
-	v4l2_ctrl_new_custom(hdl_vbi_out, &vivid_ctrl_class, NULL);
+	if (!no_error_inj)
+		v4l2_ctrl_new_custom(hdl_vbi_out, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_radio_rx, 17);
 	v4l2_ctrl_new_custom(hdl_radio_rx, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_radio_tx, 17);
