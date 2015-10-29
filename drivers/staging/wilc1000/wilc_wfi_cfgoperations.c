@@ -2998,7 +2998,7 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 		memcpy(strStaParams.bssid, mac, ETH_ALEN);
 		memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
 		strStaParams.aid = params->aid;
-		strStaParams.u8NumRates = params->supported_rates_len;
+		strStaParams.rates_len = params->supported_rates_len;
 		strStaParams.pu8Rates = params->supported_rates;
 
 		PRINT_D(CFG80211_DBG, "Adding station parameters %d\n", params->aid);
@@ -3006,7 +3006,8 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(CFG80211_DBG, "BSSID = %x%x%x%x%x%x\n", priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][0], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][1], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][2], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][3], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][4],
 			priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][5]);
 		PRINT_D(HOSTAPD_DBG, "ASSOC ID = %d\n", strStaParams.aid);
-		PRINT_D(HOSTAPD_DBG, "Number of supported rates = %d\n", strStaParams.u8NumRates);
+		PRINT_D(HOSTAPD_DBG, "Number of supported rates = %d\n",
+			strStaParams.rates_len);
 
 		if (params->ht_capa == NULL) {
 			strStaParams.bIsHTSupported = false;
@@ -3111,7 +3112,7 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 	if (nic->iftype == AP_MODE || nic->iftype == GO_MODE) {
 		memcpy(strStaParams.bssid, mac, ETH_ALEN);
 		strStaParams.aid = params->aid;
-		strStaParams.u8NumRates = params->supported_rates_len;
+		strStaParams.rates_len = params->supported_rates_len;
 		strStaParams.pu8Rates = params->supported_rates;
 
 		PRINT_D(HOSTAPD_DBG, "BSSID = %x%x%x%x%x%x\n",
@@ -3119,7 +3120,8 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.bssid[2], strStaParams.bssid[3],
 			strStaParams.bssid[4], strStaParams.bssid[5]);
 		PRINT_D(HOSTAPD_DBG, "ASSOC ID = %d\n", strStaParams.aid);
-		PRINT_D(HOSTAPD_DBG, "Number of supported rates = %d\n", strStaParams.u8NumRates);
+		PRINT_D(HOSTAPD_DBG, "Number of supported rates = %d\n",
+			strStaParams.rates_len);
 
 		if (params->ht_capa == NULL) {
 			strStaParams.bIsHTSupported = false;

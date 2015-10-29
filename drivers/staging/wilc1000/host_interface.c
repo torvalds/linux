@@ -2314,10 +2314,11 @@ static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer,
 	*pu8CurrByte++ = pstrStationParam->aid & 0xFF;
 	*pu8CurrByte++ = (pstrStationParam->aid >> 8) & 0xFF;
 
-	*pu8CurrByte++ = pstrStationParam->u8NumRates;
-	if (pstrStationParam->u8NumRates > 0)
-		memcpy(pu8CurrByte, pstrStationParam->pu8Rates, pstrStationParam->u8NumRates);
-	pu8CurrByte += pstrStationParam->u8NumRates;
+	*pu8CurrByte++ = pstrStationParam->rates_len;
+	if (pstrStationParam->rates_len > 0)
+		memcpy(pu8CurrByte, pstrStationParam->pu8Rates,
+		       pstrStationParam->rates_len);
+	pu8CurrByte += pstrStationParam->rates_len;
 
 	*pu8CurrByte++ = pstrStationParam->bIsHTSupported;
 	*pu8CurrByte++ = pstrStationParam->u16HTCapInfo & 0xFF;
@@ -2356,7 +2357,7 @@ static void Handle_AddStation(struct host_if_drv *hif_drv,
 	PRINT_D(HOSTINF_DBG, "Handling add station\n");
 	wid.id = (u16)WID_ADD_STA;
 	wid.type = WID_BIN;
-	wid.size = WILC_ADD_STA_LENGTH + pstrStationParam->u8NumRates;
+	wid.size = WILC_ADD_STA_LENGTH + pstrStationParam->rates_len;
 
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
@@ -2457,7 +2458,7 @@ static void Handle_EditStation(struct host_if_drv *hif_drv,
 
 	wid.id = (u16)WID_EDIT_STA;
 	wid.type = WID_BIN;
-	wid.size = WILC_ADD_STA_LENGTH + pstrStationParam->u8NumRates;
+	wid.size = WILC_ADD_STA_LENGTH + pstrStationParam->rates_len;
 
 	PRINT_D(HOSTINF_DBG, "Handling edit station\n");
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
@@ -4545,13 +4546,14 @@ s32 host_int_add_station(struct host_if_drv *hif_drv,
 	msg.drv = hif_drv;
 
 	memcpy(pstrAddStationMsg, pstrStaParams, sizeof(struct add_sta_param));
-	if (pstrAddStationMsg->u8NumRates > 0) {
-		u8 *rates = kmalloc(pstrAddStationMsg->u8NumRates, GFP_KERNEL);
+	if (pstrAddStationMsg->rates_len > 0) {
+		u8 *rates = kmalloc(pstrAddStationMsg->rates_len, GFP_KERNEL);
 
 		if (!rates)
 			return -ENOMEM;
 
-		memcpy(rates, pstrStaParams->pu8Rates, pstrAddStationMsg->u8NumRates);
+		memcpy(rates, pstrStaParams->pu8Rates,
+		       pstrAddStationMsg->rates_len);
 		pstrAddStationMsg->pu8Rates = rates;
 	}
 
@@ -4661,13 +4663,14 @@ s32 host_int_edit_station(struct host_if_drv *hif_drv,
 	msg.drv = hif_drv;
 
 	memcpy(pstrAddStationMsg, pstrStaParams, sizeof(struct add_sta_param));
-	if (pstrAddStationMsg->u8NumRates > 0) {
-		u8 *rates = kmalloc(pstrAddStationMsg->u8NumRates, GFP_KERNEL);
+	if (pstrAddStationMsg->rates_len > 0) {
+		u8 *rates = kmalloc(pstrAddStationMsg->rates_len, GFP_KERNEL);
 
 		if (!rates)
 			return -ENOMEM;
 
-		memcpy(rates, pstrStaParams->pu8Rates, pstrAddStationMsg->u8NumRates);
+		memcpy(rates, pstrStaParams->pu8Rates,
+		       pstrAddStationMsg->rates_len);
 		pstrAddStationMsg->pu8Rates = rates;
 	}
 

@@ -290,7 +290,7 @@ struct host_if_drv {
 struct add_sta_param {
 	u8 bssid[ETH_ALEN];
 	u16 aid;
-	u8 u8NumRates;
+	u8 rates_len;
 	const u8 *pu8Rates;
 	bool bIsHTSupported;
 	u16 u16HTCapInfo;
