@@ -103,7 +103,6 @@ static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibuconte
 struct mlx5_ib_pd {
 	struct ib_pd		ibpd;
 	u32			pdn;
-	u32			pa_lkey;
 };
 
 /* Use macros here so that don't have to duplicate
@@ -213,7 +212,6 @@ struct mlx5_ib_qp {
 	int			uuarn;
 
 	int			create_type;
-	u32			pa_lkey;
 
 	/* Store signature errors */
 	bool			signature_en;
@@ -247,6 +245,7 @@ enum mlx5_ib_qp_flags {
 };
 
 struct mlx5_umr_wr {
+	struct ib_send_wr		wr;
 	union {
 		u64			virt_addr;
 		u64			offset;
@@ -258,6 +257,11 @@ struct mlx5_umr_wr {
 	int				access_flags;
 	u32				mkey;
 };
+
+static inline struct mlx5_umr_wr *umr_wr(struct ib_send_wr *wr)
+{
+	return container_of(wr, struct mlx5_umr_wr, wr);
+}
 
 struct mlx5_shared_mr_info {
 	int mr_id;

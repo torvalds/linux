@@ -133,11 +133,15 @@ static int iser_create_device_ib_res(struct iser_device *device)
 			     (unsigned long)comp);
 	}
 
-	device->mr = ib_get_dma_mr(device->pd, IB_ACCESS_LOCAL_WRITE |
-				   IB_ACCESS_REMOTE_WRITE |
-				   IB_ACCESS_REMOTE_READ);
-	if (IS_ERR(device->mr))
-		goto dma_mr_err;
+	if (!iser_always_reg) {
+		int access = IB_ACCESS_LOCAL_WRITE |
+			     IB_ACCESS_REMOTE_WRITE |
+			     IB_ACCESS_REMOTE_READ;
+
+		device->mr = ib_get_dma_mr(device->pd, access);
+		if (IS_ERR(device->mr))
+			goto dma_mr_err;
+	}
 
 	INIT_IB_EVENT_HANDLER(&device->event_handler, device->ib_device,
 				iser_event_handler);
@@ -147,7 +151,8 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	return 0;
 
 handler_err:
-	ib_dereg_mr(device->mr);
+	if (device->mr)
+		ib_dereg_mr(device->mr);
 dma_mr_err:
 	for (i = 0; i < device->comps_used; i++)
 		tasklet_kill(&device->comps[i].tasklet);
@@ -173,7 +178,6 @@ comps_err:
 static void iser_free_device_ib_res(struct iser_device *device)
 {
 	int i;
-	BUG_ON(device->mr == NULL);
 
 	for (i = 0; i < device->comps_used; i++) {
 		struct iser_comp *comp = &device->comps[i];
@@ -184,7 +188,8 @@ static void iser_free_device_ib_res(struct iser_device *device)
 	}
 
 	(void)ib_unregister_event_handler(&device->event_handler);
-	(void)ib_dereg_mr(device->mr);
+	if (device->mr)
+		(void)ib_dereg_mr(device->mr);
 	ib_dealloc_pd(device->pd);
 
 	kfree(device->comps);
@@ -1130,7 +1135,7 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 	wr->opcode = IB_WR_SEND;
 	wr->send_flags = signal ? IB_SEND_SIGNALED : 0;
 
-	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0], &bad_wr);
+	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0].send, &bad_wr);
 	if (ib_ret)
 		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
 			 ib_ret, bad_wr->opcode);

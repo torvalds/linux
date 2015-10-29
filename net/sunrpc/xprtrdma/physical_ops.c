@@ -23,7 +23,6 @@ static int
 physical_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 		 struct rpcrdma_create_data_internal *cdata)
 {
-	struct ib_device_attr *devattr = &ia->ri_devattr;
 	struct ib_mr *mr;
 
 	/* Obtain an rkey to use for RPC data payloads.
@@ -37,15 +36,8 @@ physical_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 		       __func__, PTR_ERR(mr));
 		return -ENOMEM;
 	}
+
 	ia->ri_dma_mr = mr;
-
-	/* Obtain an lkey to use for regbufs.
-	 */
-	if (devattr->device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
-		ia->ri_dma_lkey = ia->ri_device->local_dma_lkey;
-	else
-		ia->ri_dma_lkey = ia->ri_dma_mr->lkey;
-
 	return 0;
 }
 

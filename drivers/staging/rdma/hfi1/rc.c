@@ -404,9 +404,9 @@ int hfi1_make_rc_req(struct hfi1_qp *qp)
 				goto bail;
 			}
 			ohdr->u.rc.reth.vaddr =
-				cpu_to_be64(wqe->wr.wr.rdma.remote_addr);
+				cpu_to_be64(wqe->rdma_wr.remote_addr);
 			ohdr->u.rc.reth.rkey =
-				cpu_to_be32(wqe->wr.wr.rdma.rkey);
+				cpu_to_be32(wqe->rdma_wr.rkey);
 			ohdr->u.rc.reth.length = cpu_to_be32(len);
 			hwords += sizeof(struct ib_reth) / sizeof(u32);
 			wqe->lpsn = wqe->psn;
@@ -455,9 +455,9 @@ int hfi1_make_rc_req(struct hfi1_qp *qp)
 				wqe->lpsn = qp->s_next_psn++;
 			}
 			ohdr->u.rc.reth.vaddr =
-				cpu_to_be64(wqe->wr.wr.rdma.remote_addr);
+				cpu_to_be64(wqe->rdma_wr.remote_addr);
 			ohdr->u.rc.reth.rkey =
-				cpu_to_be32(wqe->wr.wr.rdma.rkey);
+				cpu_to_be32(wqe->rdma_wr.rkey);
 			ohdr->u.rc.reth.length = cpu_to_be32(len);
 			qp->s_state = OP(RDMA_READ_REQUEST);
 			hwords += sizeof(ohdr->u.rc.reth) / sizeof(u32);
@@ -488,21 +488,21 @@ int hfi1_make_rc_req(struct hfi1_qp *qp)
 			if (wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
 				qp->s_state = OP(COMPARE_SWAP);
 				ohdr->u.atomic_eth.swap_data = cpu_to_be64(
-					wqe->wr.wr.atomic.swap);
+					wqe->atomic_wr.swap);
 				ohdr->u.atomic_eth.compare_data = cpu_to_be64(
-					wqe->wr.wr.atomic.compare_add);
+					wqe->atomic_wr.compare_add);
 			} else {
 				qp->s_state = OP(FETCH_ADD);
 				ohdr->u.atomic_eth.swap_data = cpu_to_be64(
-					wqe->wr.wr.atomic.compare_add);
+					wqe->atomic_wr.compare_add);
 				ohdr->u.atomic_eth.compare_data = 0;
 			}
 			ohdr->u.atomic_eth.vaddr[0] = cpu_to_be32(
-				wqe->wr.wr.atomic.remote_addr >> 32);
+				wqe->atomic_wr.remote_addr >> 32);
 			ohdr->u.atomic_eth.vaddr[1] = cpu_to_be32(
-				wqe->wr.wr.atomic.remote_addr);
+				wqe->atomic_wr.remote_addr);
 			ohdr->u.atomic_eth.rkey = cpu_to_be32(
-				wqe->wr.wr.atomic.rkey);
+				wqe->atomic_wr.rkey);
 			hwords += sizeof(struct ib_atomic_eth) / sizeof(u32);
 			ss = NULL;
 			len = 0;
@@ -629,9 +629,9 @@ int hfi1_make_rc_req(struct hfi1_qp *qp)
 		 */
 		len = (delta_psn(qp->s_psn, wqe->psn)) * pmtu;
 		ohdr->u.rc.reth.vaddr =
-			cpu_to_be64(wqe->wr.wr.rdma.remote_addr + len);
+			cpu_to_be64(wqe->rdma_wr.remote_addr + len);
 		ohdr->u.rc.reth.rkey =
-			cpu_to_be32(wqe->wr.wr.rdma.rkey);
+			cpu_to_be32(wqe->rdma_wr.rkey);
 		ohdr->u.rc.reth.length = cpu_to_be32(wqe->length - len);
 		qp->s_state = OP(RDMA_READ_REQUEST);
 		hwords += sizeof(ohdr->u.rc.reth) / sizeof(u32);

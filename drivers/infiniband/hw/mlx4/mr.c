@@ -321,21 +321,21 @@ err_free:
 int mlx4_ib_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
 		    struct ib_mw_bind *mw_bind)
 {
-	struct ib_send_wr  wr;
+	struct ib_bind_mw_wr  wr;
 	struct ib_send_wr *bad_wr;
 	int ret;
 
 	memset(&wr, 0, sizeof(wr));
-	wr.opcode               = IB_WR_BIND_MW;
-	wr.wr_id                = mw_bind->wr_id;
-	wr.send_flags           = mw_bind->send_flags;
-	wr.wr.bind_mw.mw        = mw;
-	wr.wr.bind_mw.bind_info = mw_bind->bind_info;
-	wr.wr.bind_mw.rkey      = ib_inc_rkey(mw->rkey);
+	wr.wr.opcode		= IB_WR_BIND_MW;
+	wr.wr.wr_id		= mw_bind->wr_id;
+	wr.wr.send_flags	= mw_bind->send_flags;
+	wr.mw			= mw;
+	wr.bind_info		= mw_bind->bind_info;
+	wr.rkey			= ib_inc_rkey(mw->rkey);
 
-	ret = mlx4_ib_post_send(qp, &wr, &bad_wr);
+	ret = mlx4_ib_post_send(qp, &wr.wr, &bad_wr);
 	if (!ret)
-		mw->rkey = wr.wr.bind_mw.rkey;
+		mw->rkey = wr.rkey;
 
 	return ret;
 }

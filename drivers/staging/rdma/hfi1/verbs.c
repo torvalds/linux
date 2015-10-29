@@ -391,7 +391,7 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 		    wr->opcode != IB_WR_SEND_WITH_IMM)
 			return -EINVAL;
 		/* Check UD destination address PD */
-		if (qp->ibqp.pd != wr->wr.ud.ah->pd)
+		if (qp->ibqp.pd != ud_wr(wr)->ah->pd)
 			return -EINVAL;
 	} else if ((unsigned) wr->opcode > IB_WR_ATOMIC_FETCH_AND_ADD)
 		return -EINVAL;
@@ -412,7 +412,24 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 	rkt = &to_idev(qp->ibqp.device)->lk_table;
 	pd = to_ipd(qp->ibqp.pd);
 	wqe = get_swqe_ptr(qp, qp->s_head);
-	wqe->wr = *wr;
+
+
+	if (qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_RC)
+		memcpy(&wqe->ud_wr, ud_wr(wr), sizeof(wqe->ud_wr));
+	else if (wr->opcode == IB_WR_FAST_REG_MR)
+		memcpy(&wqe->fast_reg_wr, fast_reg_wr(wr),
+			sizeof(wqe->fast_reg_wr));
+	else if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
+		 wr->opcode == IB_WR_RDMA_WRITE ||
+		 wr->opcode == IB_WR_RDMA_READ)
+		memcpy(&wqe->rdma_wr, rdma_wr(wr), sizeof(wqe->rdma_wr));
+	else if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
+		 wr->opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
+		memcpy(&wqe->atomic_wr, atomic_wr(wr), sizeof(wqe->atomic_wr));
+	else
+		memcpy(&wqe->wr, wr, sizeof(wqe->wr));
+
 	wqe->length = 0;
 	j = 0;
 	if (wr->num_sge) {
@@ -438,7 +455,7 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 		if (wqe->length > 0x80000000U)
 			goto bail_inval_free;
 	} else {
-		struct hfi1_ah *ah = to_iah(wr->wr.ud.ah);
+		struct hfi1_ah *ah = to_iah(ud_wr(wr)->ah);
 
 		atomic_inc(&ah->refcount);
 	}

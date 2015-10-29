@@ -1232,14 +1232,32 @@ static bool cma_match_private_data(struct rdma_id_private *id_priv,
 	return true;
 }
 
+static bool cma_protocol_roce_dev_port(struct ib_device *device, int port_num)
+{
+	enum rdma_link_layer ll = rdma_port_get_link_layer(device, port_num);
+	enum rdma_transport_type transport =
+		rdma_node_get_transport(device->node_type);
+
+	return ll == IB_LINK_LAYER_ETHERNET && transport == RDMA_TRANSPORT_IB;
+}
+
+static bool cma_protocol_roce(const struct rdma_cm_id *id)
+{
+	struct ib_device *device = id->device;
+	const int port_num = id->port_num ?: rdma_start_port(device);
+
+	return cma_protocol_roce_dev_port(device, port_num);
+}
+
 static bool cma_match_net_dev(const struct rdma_id_private *id_priv,
 			      const struct net_device *net_dev)
 {
 	const struct rdma_addr *addr = &id_priv->id.route.addr;
 
 	if (!net_dev)
-		/* This request is an AF_IB request */
-		return addr->src_addr.ss_family == AF_IB;
+		/* This request is an AF_IB request or a RoCE request */
+		return addr->src_addr.ss_family == AF_IB ||
+		       cma_protocol_roce(&id_priv->id);
 
 	return !addr->dev_addr.bound_dev_if ||
 	       (net_eq(dev_net(net_dev), &init_net) &&
@@ -1293,6 +1311,10 @@ static struct rdma_id_private *cma_id_from_event(struct ib_cm_id *cm_id,
 	if (IS_ERR(*net_dev)) {
 		if (PTR_ERR(*net_dev) == -EAFNOSUPPORT) {
 			/* Assuming the protocol is AF_IB */
+			*net_dev = NULL;
+		} else if (cma_protocol_roce_dev_port(req.device, req.port)) {
+			/* TODO find the net dev matching the request parameters
+			 * through the RoCE GID table */
 			*net_dev = NULL;
 		} else {
 			return ERR_CAST(*net_dev);
@@ -1593,11 +1615,16 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 		if (ret)
 			goto err;
 	} else {
-		/* An AF_IB connection */
-		WARN_ON_ONCE(ss_family != AF_IB);
-
-		cma_translate_ib((struct sockaddr_ib *)cma_src_addr(id_priv),
-				 &rt->addr.dev_addr);
+		if (!cma_protocol_roce(listen_id) &&
+		    cma_any_addr(cma_src_addr(id_priv))) {
+			rt->addr.dev_addr.dev_type = ARPHRD_INFINIBAND;
+			rdma_addr_set_sgid(&rt->addr.dev_addr, &rt->path_rec[0].sgid);
+			ib_addr_set_pkey(&rt->addr.dev_addr, be16_to_cpu(rt->path_rec[0].pkey));
+		} else if (!cma_any_addr(cma_src_addr(id_priv))) {
+			ret = cma_translate_addr(cma_src_addr(id_priv), &rt->addr.dev_addr);
+			if (ret)
+				goto err;
+		}
 	}
 	rdma_addr_set_dgid(&rt->addr.dev_addr, &rt->path_rec[0].dgid);
 
@@ -1635,13 +1662,12 @@ static struct rdma_id_private *cma_new_udp_id(struct rdma_cm_id *listen_id,
 		if (ret)
 			goto err;
 	} else {
-		/* An AF_IB connection */
-		WARN_ON_ONCE(ss_family != AF_IB);
-
-		if (!cma_any_addr(cma_src_addr(id_priv)))
-			cma_translate_ib((struct sockaddr_ib *)
-						cma_src_addr(id_priv),
-					 &id->route.addr.dev_addr);
+		if (!cma_any_addr(cma_src_addr(id_priv))) {
+			ret = cma_translate_addr(cma_src_addr(id_priv),
+						 &id->route.addr.dev_addr);
+			if (ret)
+				goto err;
+		}
 	}
 
 	id_priv->state = RDMA_CM_CONNECT;

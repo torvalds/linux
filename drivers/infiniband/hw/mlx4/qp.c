@@ -2036,14 +2036,14 @@ static int vf_get_qp0_qkey(struct mlx4_dev *dev, int qpn, u32 *qkey)
 }
 
 static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
-				  struct ib_send_wr *wr,
+				  struct ib_ud_wr *wr,
 				  void *wqe, unsigned *mlx_seg_len)
 {
 	struct mlx4_ib_dev *mdev = to_mdev(sqp->qp.ibqp.device);
 	struct ib_device *ib_dev = &mdev->ib_dev;
 	struct mlx4_wqe_mlx_seg *mlx = wqe;
 	struct mlx4_wqe_inline_seg *inl = wqe + sizeof *mlx;
-	struct mlx4_ib_ah *ah = to_mah(wr->wr.ud.ah);
+	struct mlx4_ib_ah *ah = to_mah(wr->ah);
 	u16 pkey;
 	u32 qkey;
 	int send_size;
@@ -2051,13 +2051,13 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 	int spc;
 	int i;
 
-	if (wr->opcode != IB_WR_SEND)
+	if (wr->wr.opcode != IB_WR_SEND)
 		return -EINVAL;
 
 	send_size = 0;
 
-	for (i = 0; i < wr->num_sge; ++i)
-		send_size += wr->sg_list[i].length;
+	for (i = 0; i < wr->wr.num_sge; ++i)
+		send_size += wr->wr.sg_list[i].length;
 
 	/* for proxy-qp0 sends, need to add in size of tunnel header */
 	/* for tunnel-qp0 sends, tunnel header is already in s/g list */
@@ -2082,11 +2082,11 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 	mlx->rlid = sqp->ud_header.lrh.destination_lid;
 
 	sqp->ud_header.lrh.virtual_lane    = 0;
-	sqp->ud_header.bth.solicited_event = !!(wr->send_flags & IB_SEND_SOLICITED);
+	sqp->ud_header.bth.solicited_event = !!(wr->wr.send_flags & IB_SEND_SOLICITED);
 	ib_get_cached_pkey(ib_dev, sqp->qp.port, 0, &pkey);
 	sqp->ud_header.bth.pkey = cpu_to_be16(pkey);
 	if (sqp->qp.mlx4_ib_qp_type == MLX4_IB_QPT_TUN_SMI_OWNER)
-		sqp->ud_header.bth.destination_qpn = cpu_to_be32(wr->wr.ud.remote_qpn);
+		sqp->ud_header.bth.destination_qpn = cpu_to_be32(wr->remote_qpn);
 	else
 		sqp->ud_header.bth.destination_qpn =
 			cpu_to_be32(mdev->dev->caps.qp0_tunnel[sqp->qp.port - 1]);
@@ -2158,14 +2158,14 @@ static void mlx4_u64_to_smac(u8 *dst_mac, u64 src_mac)
 	}
 }
 
-static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
+static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 			    void *wqe, unsigned *mlx_seg_len)
 {
 	struct ib_device *ib_dev = sqp->qp.ibqp.device;
 	struct mlx4_wqe_mlx_seg *mlx = wqe;
 	struct mlx4_wqe_ctrl_seg *ctrl = wqe;
 	struct mlx4_wqe_inline_seg *inl = wqe + sizeof *mlx;
-	struct mlx4_ib_ah *ah = to_mah(wr->wr.ud.ah);
+	struct mlx4_ib_ah *ah = to_mah(wr->ah);
 	union ib_gid sgid;
 	u16 pkey;
 	int send_size;
@@ -2179,8 +2179,8 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	bool is_grh;
 
 	send_size = 0;
-	for (i = 0; i < wr->num_sge; ++i)
-		send_size += wr->sg_list[i].length;
+	for (i = 0; i < wr->wr.num_sge; ++i)
+		send_size += wr->wr.sg_list[i].length;
 
 	is_eth = rdma_port_get_link_layer(sqp->qp.ibqp.device, sqp->qp.port) == IB_LINK_LAYER_ETHERNET;
 	is_grh = mlx4_ib_ah_grh_present(ah);
@@ -2257,7 +2257,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		mlx->rlid = sqp->ud_header.lrh.destination_lid;
 	}
 
-	switch (wr->opcode) {
+	switch (wr->wr.opcode) {
 	case IB_WR_SEND:
 		sqp->ud_header.bth.opcode	 = IB_OPCODE_UD_SEND_ONLY;
 		sqp->ud_header.immediate_present = 0;
@@ -2265,7 +2265,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	case IB_WR_SEND_WITH_IMM:
 		sqp->ud_header.bth.opcode	 = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE;
 		sqp->ud_header.immediate_present = 1;
-		sqp->ud_header.immediate_data    = wr->ex.imm_data;
+		sqp->ud_header.immediate_data    = wr->wr.ex.imm_data;
 		break;
 	default:
 		return -EINVAL;
@@ -2308,16 +2308,16 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		if (sqp->ud_header.lrh.destination_lid == IB_LID_PERMISSIVE)
 			sqp->ud_header.lrh.source_lid = IB_LID_PERMISSIVE;
 	}
-	sqp->ud_header.bth.solicited_event = !!(wr->send_flags & IB_SEND_SOLICITED);
+	sqp->ud_header.bth.solicited_event = !!(wr->wr.send_flags & IB_SEND_SOLICITED);
 	if (!sqp->qp.ibqp.qp_num)
 		ib_get_cached_pkey(ib_dev, sqp->qp.port, sqp->pkey_index, &pkey);
 	else
-		ib_get_cached_pkey(ib_dev, sqp->qp.port, wr->wr.ud.pkey_index, &pkey);
+		ib_get_cached_pkey(ib_dev, sqp->qp.port, wr->pkey_index, &pkey);
 	sqp->ud_header.bth.pkey = cpu_to_be16(pkey);
-	sqp->ud_header.bth.destination_qpn = cpu_to_be32(wr->wr.ud.remote_qpn);
+	sqp->ud_header.bth.destination_qpn = cpu_to_be32(wr->remote_qpn);
 	sqp->ud_header.bth.psn = cpu_to_be32((sqp->send_psn++) & ((1 << 24) - 1));
-	sqp->ud_header.deth.qkey = cpu_to_be32(wr->wr.ud.remote_qkey & 0x80000000 ?
-					       sqp->qkey : wr->wr.ud.remote_qkey);
+	sqp->ud_header.deth.qkey = cpu_to_be32(wr->remote_qkey & 0x80000000 ?
+					       sqp->qkey : wr->remote_qkey);
 	sqp->ud_header.deth.source_qpn = cpu_to_be32(sqp->qp.ibqp.qp_num);
 
 	header_size = ib_ud_header_pack(&sqp->ud_header, sqp->header_buf);
@@ -2405,43 +2405,45 @@ static __be32 convert_access(int acc)
 		cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_READ);
 }
 
-static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg, struct ib_send_wr *wr)
+static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg,
+		struct ib_fast_reg_wr *wr)
 {
-	struct mlx4_ib_fast_reg_page_list *mfrpl = to_mfrpl(wr->wr.fast_reg.page_list);
+	struct mlx4_ib_fast_reg_page_list *mfrpl = to_mfrpl(wr->page_list);
 	int i;
 
-	for (i = 0; i < wr->wr.fast_reg.page_list_len; ++i)
+	for (i = 0; i < wr->page_list_len; ++i)
 		mfrpl->mapped_page_list[i] =
-			cpu_to_be64(wr->wr.fast_reg.page_list->page_list[i] |
+			cpu_to_be64(wr->page_list->page_list[i] |
 				    MLX4_MTT_FLAG_PRESENT);
 
-	fseg->flags		= convert_access(wr->wr.fast_reg.access_flags);
-	fseg->mem_key		= cpu_to_be32(wr->wr.fast_reg.rkey);
+	fseg->flags		= convert_access(wr->access_flags);
+	fseg->mem_key		= cpu_to_be32(wr->rkey);
 	fseg->buf_list		= cpu_to_be64(mfrpl->map);
-	fseg->start_addr	= cpu_to_be64(wr->wr.fast_reg.iova_start);
-	fseg->reg_len		= cpu_to_be64(wr->wr.fast_reg.length);
+	fseg->start_addr	= cpu_to_be64(wr->iova_start);
+	fseg->reg_len		= cpu_to_be64(wr->length);
 	fseg->offset		= 0; /* XXX -- is this just for ZBVA? */
-	fseg->page_size		= cpu_to_be32(wr->wr.fast_reg.page_shift);
+	fseg->page_size		= cpu_to_be32(wr->page_shift);
 	fseg->reserved[0]	= 0;
 	fseg->reserved[1]	= 0;
 }
 
-static void set_bind_seg(struct mlx4_wqe_bind_seg *bseg, struct ib_send_wr *wr)
+static void set_bind_seg(struct mlx4_wqe_bind_seg *bseg,
+		struct ib_bind_mw_wr *wr)
 {
 	bseg->flags1 =
-		convert_access(wr->wr.bind_mw.bind_info.mw_access_flags) &
+		convert_access(wr->bind_info.mw_access_flags) &
 		cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_READ  |
 			    MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_WRITE |
 			    MLX4_WQE_FMR_AND_BIND_PERM_ATOMIC);
 	bseg->flags2 = 0;
-	if (wr->wr.bind_mw.mw->type == IB_MW_TYPE_2)
+	if (wr->mw->type == IB_MW_TYPE_2)
 		bseg->flags2 |= cpu_to_be32(MLX4_WQE_BIND_TYPE_2);
-	if (wr->wr.bind_mw.bind_info.mw_access_flags & IB_ZERO_BASED)
+	if (wr->bind_info.mw_access_flags & IB_ZERO_BASED)
 		bseg->flags2 |= cpu_to_be32(MLX4_WQE_BIND_ZERO_BASED);
-	bseg->new_rkey = cpu_to_be32(wr->wr.bind_mw.rkey);
-	bseg->lkey = cpu_to_be32(wr->wr.bind_mw.bind_info.mr->lkey);
-	bseg->addr = cpu_to_be64(wr->wr.bind_mw.bind_info.addr);
-	bseg->length = cpu_to_be64(wr->wr.bind_mw.bind_info.length);
+	bseg->new_rkey = cpu_to_be32(wr->rkey);
+	bseg->lkey = cpu_to_be32(wr->bind_info.mr->lkey);
+	bseg->addr = cpu_to_be64(wr->bind_info.addr);
+	bseg->length = cpu_to_be64(wr->bind_info.length);
 }
 
 static void set_local_inv_seg(struct mlx4_wqe_local_inval_seg *iseg, u32 rkey)
@@ -2458,46 +2460,47 @@ static __always_inline void set_raddr_seg(struct mlx4_wqe_raddr_seg *rseg,
 	rseg->reserved = 0;
 }
 
-static void set_atomic_seg(struct mlx4_wqe_atomic_seg *aseg, struct ib_send_wr *wr)
+static void set_atomic_seg(struct mlx4_wqe_atomic_seg *aseg,
+		struct ib_atomic_wr *wr)
 {
-	if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
-		aseg->swap_add = cpu_to_be64(wr->wr.atomic.swap);
-		aseg->compare  = cpu_to_be64(wr->wr.atomic.compare_add);
-	} else if (wr->opcode == IB_WR_MASKED_ATOMIC_FETCH_AND_ADD) {
-		aseg->swap_add = cpu_to_be64(wr->wr.atomic.compare_add);
-		aseg->compare  = cpu_to_be64(wr->wr.atomic.compare_add_mask);
+	if (wr->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
+		aseg->swap_add = cpu_to_be64(wr->swap);
+		aseg->compare  = cpu_to_be64(wr->compare_add);
+	} else if (wr->wr.opcode == IB_WR_MASKED_ATOMIC_FETCH_AND_ADD) {
+		aseg->swap_add = cpu_to_be64(wr->compare_add);
+		aseg->compare  = cpu_to_be64(wr->compare_add_mask);
 	} else {
-		aseg->swap_add = cpu_to_be64(wr->wr.atomic.compare_add);
+		aseg->swap_add = cpu_to_be64(wr->compare_add);
 		aseg->compare  = 0;
 	}
 
 }
 
 static void set_masked_atomic_seg(struct mlx4_wqe_masked_atomic_seg *aseg,
-				  struct ib_send_wr *wr)
+				  struct ib_atomic_wr *wr)
 {
-	aseg->swap_add		= cpu_to_be64(wr->wr.atomic.swap);
-	aseg->swap_add_mask	= cpu_to_be64(wr->wr.atomic.swap_mask);
-	aseg->compare		= cpu_to_be64(wr->wr.atomic.compare_add);
-	aseg->compare_mask	= cpu_to_be64(wr->wr.atomic.compare_add_mask);
+	aseg->swap_add		= cpu_to_be64(wr->swap);
+	aseg->swap_add_mask	= cpu_to_be64(wr->swap_mask);
+	aseg->compare		= cpu_to_be64(wr->compare_add);
+	aseg->compare_mask	= cpu_to_be64(wr->compare_add_mask);
 }
 
 static void set_datagram_seg(struct mlx4_wqe_datagram_seg *dseg,
-			     struct ib_send_wr *wr)
+			     struct ib_ud_wr *wr)
 {
-	memcpy(dseg->av, &to_mah(wr->wr.ud.ah)->av, sizeof (struct mlx4_av));
-	dseg->dqpn = cpu_to_be32(wr->wr.ud.remote_qpn);
-	dseg->qkey = cpu_to_be32(wr->wr.ud.remote_qkey);
-	dseg->vlan = to_mah(wr->wr.ud.ah)->av.eth.vlan;
-	memcpy(dseg->mac, to_mah(wr->wr.ud.ah)->av.eth.mac, 6);
+	memcpy(dseg->av, &to_mah(wr->ah)->av, sizeof (struct mlx4_av));
+	dseg->dqpn = cpu_to_be32(wr->remote_qpn);
+	dseg->qkey = cpu_to_be32(wr->remote_qkey);
+	dseg->vlan = to_mah(wr->ah)->av.eth.vlan;
+	memcpy(dseg->mac, to_mah(wr->ah)->av.eth.mac, 6);
 }
 
 static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 				    struct mlx4_wqe_datagram_seg *dseg,
-				    struct ib_send_wr *wr,
+				    struct ib_ud_wr *wr,
 				    enum mlx4_ib_qp_type qpt)
 {
-	union mlx4_ext_av *av = &to_mah(wr->wr.ud.ah)->av;
+	union mlx4_ext_av *av = &to_mah(wr->ah)->av;
 	struct mlx4_av sqp_av = {0};
 	int port = *((u8 *) &av->ib.port_pd) & 0x3;
 
@@ -2516,18 +2519,18 @@ static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 	dseg->qkey = cpu_to_be32(IB_QP_SET_QKEY);
 }
 
-static void build_tunnel_header(struct ib_send_wr *wr, void *wqe, unsigned *mlx_seg_len)
+static void build_tunnel_header(struct ib_ud_wr *wr, void *wqe, unsigned *mlx_seg_len)
 {
 	struct mlx4_wqe_inline_seg *inl = wqe;
 	struct mlx4_ib_tunnel_header hdr;
-	struct mlx4_ib_ah *ah = to_mah(wr->wr.ud.ah);
+	struct mlx4_ib_ah *ah = to_mah(wr->ah);
 	int spc;
 	int i;
 
 	memcpy(&hdr.av, &ah->av, sizeof hdr.av);
-	hdr.remote_qpn = cpu_to_be32(wr->wr.ud.remote_qpn);
-	hdr.pkey_index = cpu_to_be16(wr->wr.ud.pkey_index);
-	hdr.qkey = cpu_to_be32(wr->wr.ud.remote_qkey);
+	hdr.remote_qpn = cpu_to_be32(wr->remote_qpn);
+	hdr.pkey_index = cpu_to_be16(wr->pkey_index);
+	hdr.qkey = cpu_to_be32(wr->remote_qkey);
 	memcpy(hdr.mac, ah->av.eth.mac, 6);
 	hdr.vlan = ah->av.eth.vlan;
 
@@ -2599,22 +2602,22 @@ static void __set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ib_sge *sg)
 	dseg->addr       = cpu_to_be64(sg->addr);
 }
 
-static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, struct ib_send_wr *wr,
+static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, struct ib_ud_wr *wr,
 			 struct mlx4_ib_qp *qp, unsigned *lso_seg_len,
 			 __be32 *lso_hdr_sz, __be32 *blh)
 {
-	unsigned halign = ALIGN(sizeof *wqe + wr->wr.ud.hlen, 16);
+	unsigned halign = ALIGN(sizeof *wqe + wr->hlen, 16);
 
 	if (unlikely(halign > MLX4_IB_CACHE_LINE_SIZE))
 		*blh = cpu_to_be32(1 << 6);
 
 	if (unlikely(!(qp->flags & MLX4_IB_QP_LSO) &&
-		     wr->num_sge > qp->sq.max_gs - (halign >> 4)))
+		     wr->wr.num_sge > qp->sq.max_gs - (halign >> 4)))
 		return -EINVAL;
 
-	memcpy(wqe->header, wr->wr.ud.header, wr->wr.ud.hlen);
+	memcpy(wqe->header, wr->header, wr->hlen);
 
-	*lso_hdr_sz  = cpu_to_be32(wr->wr.ud.mss << 16 | wr->wr.ud.hlen);
+	*lso_hdr_sz  = cpu_to_be32(wr->mss << 16 | wr->hlen);
 	*lso_seg_len = halign;
 	return 0;
 }
@@ -2713,11 +2716,11 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			case IB_WR_ATOMIC_CMP_AND_SWP:
 			case IB_WR_ATOMIC_FETCH_AND_ADD:
 			case IB_WR_MASKED_ATOMIC_FETCH_AND_ADD:
-				set_raddr_seg(wqe, wr->wr.atomic.remote_addr,
-					      wr->wr.atomic.rkey);
+				set_raddr_seg(wqe, atomic_wr(wr)->remote_addr,
+					      atomic_wr(wr)->rkey);
 				wqe  += sizeof (struct mlx4_wqe_raddr_seg);
 
-				set_atomic_seg(wqe, wr);
+				set_atomic_seg(wqe, atomic_wr(wr));
 				wqe  += sizeof (struct mlx4_wqe_atomic_seg);
 
 				size += (sizeof (struct mlx4_wqe_raddr_seg) +
@@ -2726,11 +2729,11 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				break;
 
 			case IB_WR_MASKED_ATOMIC_CMP_AND_SWP:
-				set_raddr_seg(wqe, wr->wr.atomic.remote_addr,
-					      wr->wr.atomic.rkey);
+				set_raddr_seg(wqe, atomic_wr(wr)->remote_addr,
+					      atomic_wr(wr)->rkey);
 				wqe  += sizeof (struct mlx4_wqe_raddr_seg);
 
-				set_masked_atomic_seg(wqe, wr);
+				set_masked_atomic_seg(wqe, atomic_wr(wr));
 				wqe  += sizeof (struct mlx4_wqe_masked_atomic_seg);
 
 				size += (sizeof (struct mlx4_wqe_raddr_seg) +
@@ -2741,8 +2744,8 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			case IB_WR_RDMA_READ:
 			case IB_WR_RDMA_WRITE:
 			case IB_WR_RDMA_WRITE_WITH_IMM:
-				set_raddr_seg(wqe, wr->wr.rdma.remote_addr,
-					      wr->wr.rdma.rkey);
+				set_raddr_seg(wqe, rdma_wr(wr)->remote_addr,
+					      rdma_wr(wr)->rkey);
 				wqe  += sizeof (struct mlx4_wqe_raddr_seg);
 				size += sizeof (struct mlx4_wqe_raddr_seg) / 16;
 				break;
@@ -2758,7 +2761,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			case IB_WR_FAST_REG_MR:
 				ctrl->srcrb_flags |=
 					cpu_to_be32(MLX4_WQE_CTRL_STRONG_ORDER);
-				set_fmr_seg(wqe, wr);
+				set_fmr_seg(wqe, fast_reg_wr(wr));
 				wqe  += sizeof (struct mlx4_wqe_fmr_seg);
 				size += sizeof (struct mlx4_wqe_fmr_seg) / 16;
 				break;
@@ -2766,7 +2769,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			case IB_WR_BIND_MW:
 				ctrl->srcrb_flags |=
 					cpu_to_be32(MLX4_WQE_CTRL_STRONG_ORDER);
-				set_bind_seg(wqe, wr);
+				set_bind_seg(wqe, bind_mw_wr(wr));
 				wqe  += sizeof(struct mlx4_wqe_bind_seg);
 				size += sizeof(struct mlx4_wqe_bind_seg) / 16;
 				break;
@@ -2777,7 +2780,8 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 
 		case MLX4_IB_QPT_TUN_SMI_OWNER:
-			err =  build_sriov_qp0_header(to_msqp(qp), wr, ctrl, &seglen);
+			err =  build_sriov_qp0_header(to_msqp(qp), ud_wr(wr),
+					ctrl, &seglen);
 			if (unlikely(err)) {
 				*bad_wr = wr;
 				goto out;
@@ -2788,19 +2792,20 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		case MLX4_IB_QPT_TUN_SMI:
 		case MLX4_IB_QPT_TUN_GSI:
 			/* this is a UD qp used in MAD responses to slaves. */
-			set_datagram_seg(wqe, wr);
+			set_datagram_seg(wqe, ud_wr(wr));
 			/* set the forced-loopback bit in the data seg av */
 			*(__be32 *) wqe |= cpu_to_be32(0x80000000);
 			wqe  += sizeof (struct mlx4_wqe_datagram_seg);
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
 			break;
 		case MLX4_IB_QPT_UD:
-			set_datagram_seg(wqe, wr);
+			set_datagram_seg(wqe, ud_wr(wr));
 			wqe  += sizeof (struct mlx4_wqe_datagram_seg);
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
 
 			if (wr->opcode == IB_WR_LSO) {
-				err = build_lso_seg(wqe, wr, qp, &seglen, &lso_hdr_sz, &blh);
+				err = build_lso_seg(wqe, ud_wr(wr), qp, &seglen,
+						&lso_hdr_sz, &blh);
 				if (unlikely(err)) {
 					*bad_wr = wr;
 					goto out;
@@ -2812,7 +2817,8 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 
 		case MLX4_IB_QPT_PROXY_SMI_OWNER:
-			err = build_sriov_qp0_header(to_msqp(qp), wr, ctrl, &seglen);
+			err = build_sriov_qp0_header(to_msqp(qp), ud_wr(wr),
+					ctrl, &seglen);
 			if (unlikely(err)) {
 				*bad_wr = wr;
 				goto out;
@@ -2823,7 +2829,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			add_zero_len_inline(wqe);
 			wqe += 16;
 			size++;
-			build_tunnel_header(wr, wqe, &seglen);
+			build_tunnel_header(ud_wr(wr), wqe, &seglen);
 			wqe  += seglen;
 			size += seglen / 16;
 			break;
@@ -2833,18 +2839,20 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			 * In this case we first add a UD segment targeting
 			 * the tunnel qp, and then add a header with address
 			 * information */
-			set_tunnel_datagram_seg(to_mdev(ibqp->device), wqe, wr,
+			set_tunnel_datagram_seg(to_mdev(ibqp->device), wqe,
+						ud_wr(wr),
 						qp->mlx4_ib_qp_type);
 			wqe  += sizeof (struct mlx4_wqe_datagram_seg);
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
-			build_tunnel_header(wr, wqe, &seglen);
+			build_tunnel_header(ud_wr(wr), wqe, &seglen);
 			wqe  += seglen;
 			size += seglen / 16;
 			break;
 
 		case MLX4_IB_QPT_SMI:
 		case MLX4_IB_QPT_GSI:
-			err = build_mlx_header(to_msqp(qp), wr, ctrl, &seglen);
+			err = build_mlx_header(to_msqp(qp), ud_wr(wr), ctrl,
+					&seglen);
 			if (unlikely(err)) {
 				*bad_wr = wr;
 				goto out;
