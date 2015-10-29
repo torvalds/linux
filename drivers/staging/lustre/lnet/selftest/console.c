@@ -318,8 +318,6 @@ lstcon_group_ndlink_move(lstcon_group_t *old,
 	list_add_tail(&ndl->ndl_hlink, &new->grp_ndl_hash[idx]);
 	list_add_tail(&ndl->ndl_link, &new->grp_ndl_list);
 	new->grp_nnode++;
-
-	return;
 }
 
 static void
