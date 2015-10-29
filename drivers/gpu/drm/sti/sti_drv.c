@@ -123,8 +123,8 @@ static void sti_mode_config_init(struct drm_device *dev)
 	 * this value would be used to check framebuffer size limitation
 	 * at drm_mode_addfb().
 	 */
-	dev->mode_config.max_width = STI_MAX_FB_HEIGHT;
-	dev->mode_config.max_height = STI_MAX_FB_WIDTH;
+	dev->mode_config.max_width = STI_MAX_FB_WIDTH;
+	dev->mode_config.max_height = STI_MAX_FB_HEIGHT;
 
 	dev->mode_config.funcs = &sti_mode_config_funcs;
 }
