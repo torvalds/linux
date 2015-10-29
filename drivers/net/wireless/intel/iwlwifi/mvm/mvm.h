@@ -976,6 +976,13 @@ static inline bool iwl_mvm_is_csum_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_CSUM_SUPPORT);
 }
 
+static inline bool iwl_mvm_is_mplut_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT) &&
+		IWL_MVM_BT_COEX_MPLUT;
+}
+
 static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
 {
 	/* firmware flag isn't defined yet */

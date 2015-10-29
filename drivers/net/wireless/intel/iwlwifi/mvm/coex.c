@@ -443,11 +443,8 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	if (iwl_mvm_bt_is_plcr_supported(mvm))
 		bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_CORUN_ENABLED);
 
-	if (IWL_MVM_BT_COEX_MPLUT) {
+	if (iwl_mvm_is_mplut_supported(mvm))
 		bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_MPLUT_ENABLED);
-		bt_cmd.enabled_modules |=
-			cpu_to_le32(BT_COEX_MPLUT_BOOST_ENABLED);
-	}
 
 	bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_HIGH_BAND_RET);
 
