@@ -278,8 +278,9 @@ static void nvt_hw_detect(struct nvt_dev *nvt)
 		       "unknown chip, id: 0x%02x 0x%02x, it may not work...",
 		       nvt->chip_major, nvt->chip_minor);
 	else
-		nvt_dbg("found %s or compatible: chip id: 0x%02x 0x%02x",
-			chip_name, nvt->chip_major, nvt->chip_minor);
+		dev_info(&nvt->pdev->dev,
+			 "found %s or compatible: chip id: 0x%02x 0x%02x",
+			 chip_name, nvt->chip_major, nvt->chip_minor);
 
 	nvt_efm_disable(nvt);
 }
