@@ -366,6 +366,17 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
+
+	if (HAS_CSR(dev)) {
+		struct intel_csr *csr = &dev_priv->csr;
+
+		err_printf(m, "DMC loaded: %s\n",
+			   yesno(csr->dmc_payload != NULL));
+		err_printf(m, "DMC fw version: %d.%d\n",
+			   CSR_VERSION_MAJOR(csr->version),
+			   CSR_VERSION_MINOR(csr->version));
+	}
+
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
 	if (INTEL_INFO(dev)->gen >= 8) {
