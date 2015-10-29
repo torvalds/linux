@@ -453,26 +453,13 @@ _GLOBAL(_switch)
 	SAVE_8GPRS(14, r1)
 	SAVE_10GPRS(22, r1)
 	mflr	r20		/* Return to switch caller */
-	mfmsr	r22
-	li	r0, MSR_FP
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	oris	r0,r0,MSR_VSX@h	/* Disable VSX */
-END_FTR_SECTION_IFSET(CPU_FTR_VSX)
-#endif /* CONFIG_VSX */
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
-	oris	r0,r0,MSR_VEC@h	/* Disable altivec */
 	mfspr	r24,SPRN_VRSAVE	/* save vrsave register value */
 	std	r24,THREAD_VRSAVE(r3)
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif /* CONFIG_ALTIVEC */
-	and.	r0,r0,r22
-	beq+	1f
-	andc	r22,r22,r0
-	MTMSRD(r22)
-	isync
-1:	std	r20,_NIP(r1)
+	std	r20,_NIP(r1)
 	mfcr	r23
 	std	r23,_CCR(r1)
 	std	r1,KSP(r3)	/* Set old stack pointer */
