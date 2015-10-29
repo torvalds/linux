@@ -313,7 +313,7 @@ struct host_if_drv {
 	struct semaphore sem_inactive_time;
 
 	struct timer_list scan_timer;
-	struct timer_list hConnectTimer;
+	struct timer_list connect_timer;
 	struct timer_list hRemainOnChannel;
 
 	bool IFC_UP;
