@@ -1564,7 +1564,8 @@ void fib_select_path(struct net *net, struct fib_result *res,
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res->fi->fib_nhs > 1 && fl4->flowi4_oif == 0) {
 		if (mp_hash < 0)
-			mp_hash = fib_multipath_hash(fl4->saddr, fl4->daddr);
+			mp_hash = get_hash_from_flowi4(fl4) >> 1;
+
 		fib_select_multipath(res, mp_hash);
 	}
 	else
