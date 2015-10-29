@@ -1490,21 +1490,8 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		goto out;
 	/* interrupts now hard-disabled */
 
-	/* Save FPU state in thread_struct */
-	if (current->thread.regs->msr & MSR_FP)
-		giveup_fpu(current);
-
-#ifdef CONFIG_ALTIVEC
-	/* Save Altivec state in thread_struct */
-	if (current->thread.regs->msr & MSR_VEC)
-		giveup_altivec(current);
-#endif
-
-#ifdef CONFIG_VSX
-	/* Save VSX state in thread_struct */
-	if (current->thread.regs->msr & MSR_VSX)
-		__giveup_vsx(current);
-#endif
+	/* Save FPU, Altivec and VSX state */
+	giveup_all(current);
 
 	/* Preload FPU if it's enabled */
 	if (kvmppc_get_msr(vcpu) & MSR_FP)

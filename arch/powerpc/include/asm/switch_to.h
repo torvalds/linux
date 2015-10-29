@@ -26,6 +26,7 @@ extern void __giveup_vsx(struct task_struct *);
 extern void giveup_vsx(struct task_struct *);
 extern void enable_kernel_spe(void);
 extern void load_up_spe(struct task_struct *);
+extern void giveup_all(struct task_struct *);
 extern void switch_booke_debug_regs(struct debug_reg *new_debug);
 
 #ifdef CONFIG_PPC_FPU

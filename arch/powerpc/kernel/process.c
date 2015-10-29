@@ -308,6 +308,65 @@ void flush_spe_to_thread(struct task_struct *tsk)
 }
 #endif /* CONFIG_SPE */
 
+static unsigned long msr_all_available;
+
+static int __init init_msr_all_available(void)
+{
+#ifdef CONFIG_PPC_FPU
+	msr_all_available |= MSR_FP;
+#endif
+#ifdef CONFIG_ALTIVEC
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+		msr_all_available |= MSR_VEC;
+#endif
+#ifdef CONFIG_VSX
+	if (cpu_has_feature(CPU_FTR_VSX))
+		msr_all_available |= MSR_VSX;
+#endif
+#ifdef CONFIG_SPE
+	if (cpu_has_feature(CPU_FTR_SPE))
+		msr_all_available |= MSR_SPE;
+#endif
+
+	return 0;
+}
+early_initcall(init_msr_all_available);
+
+void giveup_all(struct task_struct *tsk)
+{
+	unsigned long usermsr;
+
+	if (!tsk->thread.regs)
+		return;
+
+	usermsr = tsk->thread.regs->msr;
+
+	if ((usermsr & msr_all_available) == 0)
+		return;
+
+	msr_check_and_set(msr_all_available);
+
+#ifdef CONFIG_PPC_FPU
+	if (usermsr & MSR_FP)
+		__giveup_fpu(tsk);
+#endif
+#ifdef CONFIG_ALTIVEC
+	if (usermsr & MSR_VEC)
+		__giveup_altivec(tsk);
+#endif
+#ifdef CONFIG_VSX
+	if (usermsr & MSR_VSX)
+		__giveup_vsx(tsk);
+#endif
+#ifdef CONFIG_SPE
+	if (usermsr & MSR_SPE)
+		__giveup_spe(tsk);
+#endif
+
+	msr_check_and_clear(msr_all_available);
+}
+EXPORT_SYMBOL(giveup_all);
+
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 void do_send_trap(struct pt_regs *regs, unsigned long address,
 		  unsigned long error_code, int signal_code, int breakpt)
@@ -839,21 +898,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	__switch_to_tm(prev);
 
-	if (prev->thread.regs && (prev->thread.regs->msr & MSR_FP))
-		giveup_fpu(prev);
-#ifdef CONFIG_ALTIVEC
-	if (prev->thread.regs && (prev->thread.regs->msr & MSR_VEC))
-		giveup_altivec(prev);
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_VSX
-	if (prev->thread.regs && (prev->thread.regs->msr & MSR_VSX))
-		/* VMX and FPU registers are already save here */
-		__giveup_vsx(prev);
-#endif /* CONFIG_VSX */
-#ifdef CONFIG_SPE
-	if ((prev->thread.regs && (prev->thread.regs->msr & MSR_SPE)))
-		giveup_spe(prev);
-#endif /* CONFIG_SPE */
+	/* Save FPU, Altivec, VSX and SPE state */
+	giveup_all(prev);
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	switch_booke_debug_regs(&new->thread.debug);
