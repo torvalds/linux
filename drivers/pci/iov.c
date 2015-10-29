@@ -233,7 +233,7 @@ int __weak pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 {
 	int rc;
-	int i, j;
+	int i;
 	int nres;
 	u16 initial;
 	struct resource *res;
@@ -328,8 +328,8 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 	return 0;
 
 failed:
-	for (j = 0; j < i; j++)
-		virtfn_remove(dev, j, 0);
+	while (i--)
+		virtfn_remove(dev, i, 0);
 
 	iov->ctrl &= ~(PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE);
 	pci_cfg_access_lock(dev);
