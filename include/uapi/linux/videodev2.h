@@ -1477,7 +1477,9 @@ struct v4l2_ext_control {
 
 struct v4l2_ext_controls {
 	union {
+#ifndef __KERNEL__
 		__u32 ctrl_class;
+#endif
 		__u32 which;
 	};
 	__u32 count;
@@ -1487,7 +1489,10 @@ struct v4l2_ext_controls {
 };
 
 #define V4L2_CTRL_ID_MASK      	  (0x0fffffff)
+#ifndef __KERNEL__
 #define V4L2_CTRL_ID2CLASS(id)    ((id) & 0x0fff0000UL)
+#endif
+#define V4L2_CTRL_ID2WHICH(id)    ((id) & 0x0fff0000UL)
 #define V4L2_CTRL_DRIVER_PRIV(id) (((id) & 0xffff) >= 0x1000)
 #define V4L2_CTRL_MAX_DIMS	  (4)
 #define V4L2_CTRL_WHICH_CUR_VAL   0
