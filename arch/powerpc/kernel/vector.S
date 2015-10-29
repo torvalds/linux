@@ -29,10 +29,6 @@ _GLOBAL(do_load_up_transact_altivec)
 	addi	r10,r3,THREAD_TRANSACT_VRSTATE
 	REST_32VRS(0,r4,r10)
 
-	/* Disable VEC again. */
-	MTMSRD(r6)
-	isync
-
 	blr
 #endif
 
