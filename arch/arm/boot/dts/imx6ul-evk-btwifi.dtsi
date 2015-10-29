@@ -21,7 +21,6 @@
 			regulator-name = "wlreg_on";
 			gpio = <&gpio5 1 0>;
 			startup-delay-us = <100>;
-			regulator-always-on;
 			enable-active-high;
 		};
 	};
@@ -40,6 +39,10 @@
 			>;
 		};
 	};
+};
+
+&reg_sd1_vmmc {
+	regulator-always-on;
 };
 
 &usdhc1 {

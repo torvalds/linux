@@ -24,7 +24,6 @@
 			regulator-name = "wlreg_on";
 			gpio = <&gpio6 10 0>;
 			startup-delay-us = <100>;
-			regulator-always-on;
 			enable-active-high;
 		};
 	};
@@ -91,6 +90,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2_1>;
 	bus-width = <1>;
+};
+
+&vcc_sd3 {
+	regulator-always-on;
 };
 
 &usdhc3 {
