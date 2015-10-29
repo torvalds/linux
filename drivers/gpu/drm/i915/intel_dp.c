@@ -2145,21 +2145,48 @@ static void intel_edp_backlight_power(struct intel_connector *connector,
 		_intel_edp_backlight_off(intel_dp);
 }
 
+static const char *state_string(bool enabled)
+{
+	return enabled ? "on" : "off";
+}
+
+static void assert_dp_port(struct intel_dp *intel_dp, bool state)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	bool cur_state = I915_READ(intel_dp->output_reg) & DP_PORT_EN;
+
+	I915_STATE_WARN(cur_state != state,
+			"DP port %c state assertion failure (expected %s, current %s)\n",
+			port_name(dig_port->port),
+			state_string(state), state_string(cur_state));
+}
+#define assert_dp_port_disabled(d) assert_dp_port((d), false)
+
+static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
+{
+	bool cur_state = I915_READ(DP_A) & DP_PLL_ENABLE;
+
+	I915_STATE_WARN(cur_state != state,
+			"eDP PLL state assertion failure (expected %s, current %s)\n",
+			state_string(state), state_string(cur_state));
+}
+#define assert_edp_pll_enabled(d) assert_edp_pll((d), true)
+#define assert_edp_pll_disabled(d) assert_edp_pll((d), false)
+
 static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_crtc *crtc = intel_dig_port->base.base.crtc;
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dpa_ctl;
 
-	assert_pipe_disabled(dev_priv,
-			     to_intel_crtc(crtc)->pipe);
+	assert_pipe_disabled(dev_priv, crtc->pipe);
+	assert_dp_port_disabled(intel_dp);
+	assert_edp_pll_disabled(dev_priv);
 
 	DRM_DEBUG_KMS("\n");
 	dpa_ctl = I915_READ(DP_A);
-	WARN(dpa_ctl & DP_PLL_ENABLE, "dp pll on, should be off\n");
-	WARN(dpa_ctl & DP_PORT_EN, "dp port still on, should be off\n");
 
 	/* We don't adjust intel_dp->DP while tearing down the link, to
 	 * facilitate link retraining (e.g. after hotplug). Hence clear all
@@ -2174,18 +2201,15 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 static void ironlake_edp_pll_off(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_crtc *crtc = intel_dig_port->base.base.crtc;
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dpa_ctl;
 
-	assert_pipe_disabled(dev_priv,
-			     to_intel_crtc(crtc)->pipe);
+	assert_pipe_disabled(dev_priv, crtc->pipe);
+	assert_dp_port_disabled(intel_dp);
+	assert_edp_pll_enabled(dev_priv);
 
 	dpa_ctl = I915_READ(DP_A);
-	WARN((dpa_ctl & DP_PLL_ENABLE) == 0,
-	     "dp pll off, should be on\n");
-	WARN(dpa_ctl & DP_PORT_EN, "dp port still on, should be off\n");
 
 	/* We can't rely on the value tracked for the DP register in
 	 * intel_dp->DP because link_down must not change that (otherwise link
