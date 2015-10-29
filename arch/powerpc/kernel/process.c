@@ -907,30 +907,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	WARN_ON(!irqs_disabled());
 
-	/*
-	 * We need to save SPRs before treclaim/trecheckpoint as these will
-	 * change a number of them.
-	 */
-	save_sprs(&prev->thread);
-
-	__switch_to_tm(prev);
-
-	/* Save FPU, Altivec, VSX and SPE state */
-	giveup_all(prev);
-
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-	switch_booke_debug_regs(&new->thread.debug);
-#else
-/*
- * For PPC_BOOK3S_64, we use the hw-breakpoint interfaces that would
- * schedule DABR
- */
-#ifndef CONFIG_HAVE_HW_BREAKPOINT
-	if (unlikely(!hw_brk_match(this_cpu_ptr(&current_brk), &new->thread.hw_brk)))
-		__set_breakpoint(&new->thread.hw_brk);
-#endif /* CONFIG_HAVE_HW_BREAKPOINT */
-#endif
-
 #ifdef CONFIG_PPC64
 	/*
 	 * Collect processor utilization data per process
@@ -955,6 +931,30 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+	switch_booke_debug_regs(&new->thread.debug);
+#else
+/*
+ * For PPC_BOOK3S_64, we use the hw-breakpoint interfaces that would
+ * schedule DABR
+ */
+#ifndef CONFIG_HAVE_HW_BREAKPOINT
+	if (unlikely(!hw_brk_match(this_cpu_ptr(&current_brk), &new->thread.hw_brk)))
+		__set_breakpoint(&new->thread.hw_brk);
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
+#endif
+
+	/*
+	 * We need to save SPRs before treclaim/trecheckpoint as these will
+	 * change a number of them.
+	 */
+	save_sprs(&prev->thread);
+
+	__switch_to_tm(prev);
+
+	/* Save FPU, Altivec, VSX and SPE state */
+	giveup_all(prev);
+
 	/*
 	 * We can't take a PMU exception inside _switch() since there is a
 	 * window where the kernel stack SLB and the kernel stack are out
@@ -970,6 +970,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	old_thread = &last->thread;
 	new_thread = &current->thread;
 
+	restore_sprs(old_thread, new_thread);
+
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (current_thread_info()->local_flags & _TLF_LAZY_MMU) {
 		current_thread_info()->local_flags &= ~_TLF_LAZY_MMU;
@@ -977,8 +979,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		batch->active = 1;
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
-
-	restore_sprs(old_thread, new_thread);
 
 	return last;
 }
