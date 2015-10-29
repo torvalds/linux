@@ -1792,7 +1792,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			result = send_config_pkt(SET_CFG, &wid, 1,
 						 get_id_from_handler(hif_drv));
 		}
-		up(&hif_drv->hSemTestKeyBlock);
+		up(&hif_drv->sem_test_key_block);
 		break;
 
 	case WPARxGtk:
@@ -1826,7 +1826,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 						 get_id_from_handler(hif_drv));
 
 			kfree(pu8keybuf);
-			up(&hif_drv->hSemTestKeyBlock);
+			up(&hif_drv->sem_test_key_block);
 		}
 
 		if (pstrHostIFkeyAttr->action & ADDKEY) {
@@ -1859,7 +1859,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 						 get_id_from_handler(hif_drv));
 
 			kfree(pu8keybuf);
-			up(&hif_drv->hSemTestKeyBlock);
+			up(&hif_drv->sem_test_key_block);
 		}
 _WPARxGtk_end_case_:
 		kfree(pstrHostIFkeyAttr->attr.wpa.key);
@@ -1897,7 +1897,7 @@ _WPARxGtk_end_case_:
 			result = send_config_pkt(SET_CFG, strWIDList, 2,
 						 get_id_from_handler(hif_drv));
 			kfree(pu8keybuf);
-			up(&hif_drv->hSemTestKeyBlock);
+			up(&hif_drv->sem_test_key_block);
 		}
 		if (pstrHostIFkeyAttr->action & ADDKEY) {
 			pu8keybuf = kmalloc(PTK_KEY_MSG_LEN, GFP_KERNEL);
@@ -1920,7 +1920,7 @@ _WPARxGtk_end_case_:
 			result = send_config_pkt(SET_CFG, &wid, 1,
 						 get_id_from_handler(hif_drv));
 			kfree(pu8keybuf);
-			up(&hif_drv->hSemTestKeyBlock);
+			up(&hif_drv->sem_test_key_block);
 		}
 
 _WPAPtk_end_case_:
@@ -3076,7 +3076,7 @@ int host_int_remove_wep_key(struct host_if_drv *hif_drv, u8 index)
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		PRINT_ER("Error in sending message queue : Request to remove WEP key\n");
-	down(&hif_drv->hSemTestKeyBlock);
+	down(&hif_drv->sem_test_key_block);
 
 	return result;
 }
@@ -3103,7 +3103,7 @@ int host_int_set_wep_default_key(struct host_if_drv *hif_drv, u8 index)
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		PRINT_ER("Error in sending message queue : Default key index\n");
-	down(&hif_drv->hSemTestKeyBlock);
+	down(&hif_drv->sem_test_key_block);
 
 	return result;
 }
@@ -3137,7 +3137,7 @@ int host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		PRINT_ER("Error in sending message queue :WEP Key\n");
-	down(&hif_drv->hSemTestKeyBlock);
+	down(&hif_drv->sem_test_key_block);
 
 	return result;
 }
@@ -3181,7 +3181,7 @@ int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 
 	if (result)
 		PRINT_ER("Error in sending message queue :WEP Key\n");
-	down(&hif_drv->hSemTestKeyBlock);
+	down(&hif_drv->sem_test_key_block);
 
 	return result;
 }
@@ -3246,7 +3246,7 @@ s32 host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
 	if (result)
 		PRINT_ER("Error in sending message queue:  PTK Key\n");
 
-	down(&hif_drv->hSemTestKeyBlock);
+	down(&hif_drv->sem_test_key_block);
 
 	return result;
 }
@@ -3308,7 +3308,7 @@ s32 host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 	if (result)
 		PRINT_ER("Error in sending message queue:  RX GTK\n");
 
-	down(&hif_drv->hSemTestKeyBlock);
+	down(&hif_drv->sem_test_key_block);
 
 	return result;
 }
@@ -4107,7 +4107,7 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		sema_init(&hif_sema_deinit, 1);
 	}
 
-	sema_init(&hif_drv->hSemTestKeyBlock, 0);
+	sema_init(&hif_drv->sem_test_key_block, 0);
 	sema_init(&hif_drv->hSemTestDisconnectBlock, 0);
 	sema_init(&hif_drv->hSemGetRSSI, 0);
 	sema_init(&hif_drv->hSemGetLINKSPEED, 0);

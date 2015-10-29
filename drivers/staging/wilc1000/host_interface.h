@@ -305,8 +305,7 @@ struct host_if_drv {
 	struct cfg_param_val cfg_values;
 
 	struct semaphore sem_cfg_values;
-	struct semaphore hSemTestKeyBlock;
-
+	struct semaphore sem_test_key_block;
 	struct semaphore hSemTestDisconnectBlock;
 	struct semaphore hSemGetRSSI;
 	struct semaphore hSemGetLINKSPEED;
