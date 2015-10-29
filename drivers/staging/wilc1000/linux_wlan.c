@@ -569,10 +569,15 @@ _fail_:
 
 }
 
-static int linux_wlan_start_firmware(perInterface_wlan_t *nic)
+static int linux_wlan_start_firmware(struct net_device *dev)
 {
-
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
 	int ret = 0;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
+
 	/* start firmware */
 	PRINT_D(INIT_DBG, "Starting Firmware ...\n");
 	ret = wilc_wlan_start();
@@ -583,7 +588,7 @@ static int linux_wlan_start_firmware(perInterface_wlan_t *nic)
 
 	/* wait for mac ready */
 	PRINT_D(INIT_DBG, "Waiting for Firmware to get ready ...\n");
-	ret = linux_wlan_lock_timeout(&g_linux_wlan->sync_event, 5000);
+	ret = linux_wlan_lock_timeout(&wilc->sync_event, 5000);
 	if (ret) {
 		PRINT_D(INIT_DBG, "Firmware start timed out");
 		goto _fail_;
@@ -1135,7 +1140,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 
 		/* Start firmware*/
-		ret = linux_wlan_start_firmware(nic);
+		ret = linux_wlan_start_firmware(dev);
 		if (ret < 0) {
 			PRINT_ER("Failed to start firmware\n");
 			ret = -EIO;
