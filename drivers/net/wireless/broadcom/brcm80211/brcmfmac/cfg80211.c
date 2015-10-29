@@ -776,7 +776,8 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 	s32 ap = 0;
 	s32 err = 0;
 
-	brcmf_dbg(TRACE, "Enter, idx=%d, type=%d\n", ifp->bssidx, type);
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d, type=%d\n", ifp->bsscfgidx,
+		  type);
 
 	/* WAR: There are a number of p2p interface related problems which
 	 * need to be handled initially (before doing the validate).
@@ -2921,7 +2922,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 	status = e->status;
 
 	if (!test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
-		brcmf_err("scan not ready, bssidx=%d\n", ifp->bssidx);
+		brcmf_err("scan not ready, bsscfgidx=%d\n", ifp->bsscfgidx);
 		return -EPERM;
 	}
 
@@ -3877,7 +3878,8 @@ s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 	ifp = vif->ifp;
 	saved_ie = &vif->saved_ie;
 
-	brcmf_dbg(TRACE, "bssidx %d, pktflag : 0x%02X\n", ifp->bssidx, pktflag);
+	brcmf_dbg(TRACE, "bsscfgidx %d, pktflag : 0x%02X\n", ifp->bsscfgidx,
+		  pktflag);
 	iovar_ie_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
 	if (!iovar_ie_buf)
 		return -ENOMEM;
@@ -4241,7 +4243,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			brcmf_err("setting ssid failed %d\n", err);
 			goto exit;
 		}
-		bss_enable.bsscfg_idx = cpu_to_le32(ifp->bssidx);
+		bss_enable.bsscfgidx = cpu_to_le32(ifp->bsscfgidx);
 		bss_enable.enable = cpu_to_le32(1);
 		err = brcmf_fil_iovar_data_set(ifp, "bss", &bss_enable,
 					       sizeof(bss_enable));
@@ -4308,7 +4310,7 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 		if (err < 0)
 			brcmf_err("BRCMF_C_UP error %d\n", err);
 	} else {
-		bss_enable.bsscfg_idx = cpu_to_le32(ifp->bssidx);
+		bss_enable.bsscfgidx = cpu_to_le32(ifp->bsscfgidx);
 		bss_enable.enable = cpu_to_le32(0);
 		err = brcmf_fil_iovar_data_set(ifp, "bss", &bss_enable,
 					       sizeof(bss_enable));
@@ -5094,9 +5096,9 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 	struct brcmf_cfg80211_vif_event *event = &cfg->vif_event;
 	struct brcmf_cfg80211_vif *vif;
 
-	brcmf_dbg(TRACE, "Enter: action %u flags %u ifidx %u bsscfg %u\n",
+	brcmf_dbg(TRACE, "Enter: action %u flags %u ifidx %u bsscfgidx %u\n",
 		  ifevent->action, ifevent->flags, ifevent->ifidx,
-		  ifevent->bssidx);
+		  ifevent->bsscfgidx);
 
 	mutex_lock(&event->vif_event_lock);
 	event->action = ifevent->action;

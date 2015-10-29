@@ -2067,7 +2067,7 @@ static struct wireless_dev *brcmf_p2p_create_p2pdev(struct brcmf_p2p_info *p2p,
 	struct brcmf_if *p2p_ifp;
 	struct brcmf_if *pri_ifp;
 	int err;
-	u32 bssidx;
+	u32 bsscfgidx;
 
 	if (p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif)
 		return ERR_PTR(-ENOSPC);
@@ -2113,13 +2113,13 @@ static struct wireless_dev *brcmf_p2p_create_p2pdev(struct brcmf_p2p_info *p2p,
 	memcpy(&p2p_vif->wdev.address, p2p->dev_addr, sizeof(p2p->dev_addr));
 
 	/* verify bsscfg index for P2P discovery */
-	err = brcmf_fil_iovar_int_get(pri_ifp, "p2p_dev", &bssidx);
+	err = brcmf_fil_iovar_int_get(pri_ifp, "p2p_dev", &bsscfgidx);
 	if (err < 0) {
 		brcmf_err("retrieving discover bsscfg index failed\n");
 		goto fail;
 	}
 
-	WARN_ON(p2p_ifp->bssidx != bssidx);
+	WARN_ON(p2p_ifp->bsscfgidx != bsscfgidx);
 
 	init_completion(&p2p->send_af_done);
 	INIT_WORK(&p2p->afx_hdl.afx_work, brcmf_p2p_afx_handler);

@@ -293,22 +293,22 @@ brcmf_fil_iovar_int_get(struct brcmf_if *ifp, char *name, u32 *data)
 }
 
 static u32
-brcmf_create_bsscfg(s32 bssidx, char *name, char *data, u32 datalen, char *buf,
-		    u32 buflen)
+brcmf_create_bsscfg(s32 bsscfgidx, char *name, char *data, u32 datalen,
+		    char *buf, u32 buflen)
 {
 	const s8 *prefix = "bsscfg:";
 	s8 *p;
 	u32 prefixlen;
 	u32 namelen;
 	u32 iolen;
-	__le32 bssidx_le;
+	__le32 bsscfgidx_le;
 
-	if (bssidx == 0)
+	if (bsscfgidx == 0)
 		return brcmf_create_iovar(name, data, datalen, buf, buflen);
 
 	prefixlen = strlen(prefix);
 	namelen = strlen(name) + 1; /* lengh of iovar  name + null */
-	iolen = prefixlen + namelen + sizeof(bssidx_le) + datalen;
+	iolen = prefixlen + namelen + sizeof(bsscfgidx_le) + datalen;
 
 	if (buflen < iolen) {
 		brcmf_err("buffer is too short\n");
@@ -326,9 +326,9 @@ brcmf_create_bsscfg(s32 bssidx, char *name, char *data, u32 datalen, char *buf,
 	p += namelen;
 
 	/* bss config index as first data */
-	bssidx_le = cpu_to_le32(bssidx);
-	memcpy(p, &bssidx_le, sizeof(bssidx_le));
-	p += sizeof(bssidx_le);
+	bsscfgidx_le = cpu_to_le32(bsscfgidx);
+	memcpy(p, &bsscfgidx_le, sizeof(bsscfgidx_le));
+	p += sizeof(bsscfgidx_le);
 
 	/* parameter buffer follows */
 	if (datalen)
@@ -347,12 +347,12 @@ brcmf_fil_bsscfg_data_set(struct brcmf_if *ifp, char *name,
 
 	mutex_lock(&drvr->proto_block);
 
-	brcmf_dbg(FIL, "ifidx=%d, bssidx=%d, name=%s, len=%d\n", ifp->ifidx,
-		  ifp->bssidx, name, len);
+	brcmf_dbg(FIL, "ifidx=%d, bsscfgidx=%d, name=%s, len=%d\n", ifp->ifidx,
+		  ifp->bsscfgidx, name, len);
 	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data,
 			   min_t(uint, len, MAX_HEX_DUMP_LEN), "data\n");
 
-	buflen = brcmf_create_bsscfg(ifp->bssidx, name, data, len,
+	buflen = brcmf_create_bsscfg(ifp->bsscfgidx, name, data, len,
 				     drvr->proto_buf, sizeof(drvr->proto_buf));
 	if (buflen) {
 		err = brcmf_fil_cmd_data(ifp, BRCMF_C_SET_VAR, drvr->proto_buf,
@@ -376,7 +376,7 @@ brcmf_fil_bsscfg_data_get(struct brcmf_if *ifp, char *name,
 
 	mutex_lock(&drvr->proto_block);
 
-	buflen = brcmf_create_bsscfg(ifp->bssidx, name, data, len,
+	buflen = brcmf_create_bsscfg(ifp->bsscfgidx, name, data, len,
 				     drvr->proto_buf, sizeof(drvr->proto_buf));
 	if (buflen) {
 		err = brcmf_fil_cmd_data(ifp, BRCMF_C_GET_VAR, drvr->proto_buf,
@@ -387,8 +387,8 @@ brcmf_fil_bsscfg_data_get(struct brcmf_if *ifp, char *name,
 		err = -EPERM;
 		brcmf_err("Creating bsscfg failed\n");
 	}
-	brcmf_dbg(FIL, "ifidx=%d, bssidx=%d, name=%s, len=%d\n", ifp->ifidx,
-		  ifp->bssidx, name, len);
+	brcmf_dbg(FIL, "ifidx=%d, bsscfgidx=%d, name=%s, len=%d\n", ifp->ifidx,
+		  ifp->bsscfgidx, name, len);
 	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data,
 			   min_t(uint, len, MAX_HEX_DUMP_LEN), "data\n");
 

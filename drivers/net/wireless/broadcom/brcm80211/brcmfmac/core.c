@@ -80,7 +80,7 @@ char *brcmf_ifname(struct brcmf_if *ifp)
 struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx)
 {
 	struct brcmf_if *ifp;
-	s32 bssidx;
+	s32 bsscfgidx;
 
 	if (ifidx < 0 || ifidx >= BRCMF_MAX_IFS) {
 		brcmf_err("ifidx %d out of range\n", ifidx);
@@ -88,9 +88,9 @@ struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx)
 	}
 
 	ifp = NULL;
-	bssidx = drvr->if2bss[ifidx];
-	if (bssidx >= 0)
-		ifp = drvr->iflist[bssidx];
+	bsscfgidx = drvr->if2bss[ifidx];
+	if (bsscfgidx >= 0)
+		ifp = drvr->iflist[bsscfgidx];
 
 	return ifp;
 }
@@ -108,7 +108,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 
 	ifp = container_of(work, struct brcmf_if, multicast_work);
 
-	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
 	ndev = ifp->ndev;
 
@@ -168,7 +168,7 @@ _brcmf_set_mac_address(struct work_struct *work)
 
 	ifp = container_of(work, struct brcmf_if, setmacaddr_work);
 
-	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
 	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", ifp->mac_addr,
 				       ETH_ALEN);
@@ -206,7 +206,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct ethhdr *eh = (struct ethhdr *)(skb->data);
 
-	brcmf_dbg(DATA, "Enter, idx=%d\n", ifp->bssidx);
+	brcmf_dbg(DATA, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
 	/* Can the device send data? */
 	if (drvr->bus_if->state != BRCMF_BUS_UP) {
@@ -267,8 +267,8 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 	if (!ifp || !ifp->ndev)
 		return;
 
-	brcmf_dbg(TRACE, "enter: idx=%d stop=0x%X reason=%d state=%d\n",
-		  ifp->bssidx, ifp->netif_stop, reason, state);
+	brcmf_dbg(TRACE, "enter: bsscfgidx=%d stop=0x%X reason=%d state=%d\n",
+		  ifp->bsscfgidx, ifp->netif_stop, reason, state);
 
 	spin_lock_irqsave(&ifp->netif_stop_lock, flags);
 	if (state) {
@@ -587,7 +587,7 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 
-	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
 	return &ifp->stats;
 }
@@ -616,7 +616,7 @@ static int brcmf_netdev_stop(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 
-	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
 	brcmf_cfg80211_down(ndev);
 
@@ -632,7 +632,7 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	struct brcmf_bus *bus_if = drvr->bus_if;
 	u32 toe_ol;
 
-	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
 	/* If bus is not ready, can't continue */
 	if (bus_if->state != BRCMF_BUS_UP) {
@@ -674,7 +674,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	struct net_device *ndev;
 	s32 err;
 
-	brcmf_dbg(TRACE, "Enter, idx=%d mac=%pM\n", ifp->bssidx,
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d mac=%pM\n", ifp->bsscfgidx,
 		  ifp->mac_addr);
 	ndev = ifp->ndev;
 
@@ -706,7 +706,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	return 0;
 
 fail:
-	drvr->iflist[ifp->bssidx] = NULL;
+	drvr->iflist[ifp->bsscfgidx] = NULL;
 	ndev->netdev_ops = NULL;
 	free_netdev(ndev);
 	return -EBADE;
@@ -724,7 +724,8 @@ void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on)
 {
 	struct net_device *ndev;
 
-	brcmf_dbg(TRACE, "Enter, idx=%d carrier=%d\n", ifp->bssidx, on);
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d carrier=%d\n", ifp->bsscfgidx,
+		  on);
 
 	ndev = ifp->ndev;
 	brcmf_txflowblock_if(ifp, BRCMF_NETIF_STOP_REASON_DISCONNECTED, !on);
@@ -771,7 +772,7 @@ static int brcmf_net_p2p_attach(struct brcmf_if *ifp)
 {
 	struct net_device *ndev;
 
-	brcmf_dbg(TRACE, "Enter, idx=%d mac=%pM\n", ifp->bssidx,
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d mac=%pM\n", ifp->bsscfgidx,
 		  ifp->mac_addr);
 	ndev = ifp->ndev;
 
@@ -790,21 +791,21 @@ static int brcmf_net_p2p_attach(struct brcmf_if *ifp)
 	return 0;
 
 fail:
-	ifp->drvr->iflist[ifp->bssidx] = NULL;
+	ifp->drvr->iflist[ifp->bsscfgidx] = NULL;
 	ndev->netdev_ops = NULL;
 	free_netdev(ndev);
 	return -EBADE;
 }
 
-struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
+struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			      bool is_p2pdev, char *name, u8 *mac_addr)
 {
 	struct brcmf_if *ifp;
 	struct net_device *ndev;
 
-	brcmf_dbg(TRACE, "Enter, idx=%d, ifidx=%d\n", bssidx, ifidx);
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d, ifidx=%d\n", bsscfgidx, ifidx);
 
-	ifp = drvr->iflist[bssidx];
+	ifp = drvr->iflist[bsscfgidx];
 	/*
 	 * Delete the existing interface before overwriting it
 	 * in case we missed the BRCMF_E_IF_DEL event.
@@ -815,7 +816,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 		if (ifidx) {
 			netif_stop_queue(ifp->ndev);
 			brcmf_net_detach(ifp->ndev);
-			drvr->iflist[bssidx] = NULL;
+			drvr->iflist[bsscfgidx] = NULL;
 		} else {
 			brcmf_err("ignore IF event\n");
 			return ERR_PTR(-EINVAL);
@@ -839,15 +840,15 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 		ndev->destructor = brcmf_cfg80211_free_netdev;
 		ifp = netdev_priv(ndev);
 		ifp->ndev = ndev;
-		/* store mapping ifidx to bssidx */
+		/* store mapping ifidx to bsscfgidx */
 		if (drvr->if2bss[ifidx] == BRCMF_BSSIDX_INVALID)
-			drvr->if2bss[ifidx] = bssidx;
+			drvr->if2bss[ifidx] = bsscfgidx;
 	}
 
 	ifp->drvr = drvr;
-	drvr->iflist[bssidx] = ifp;
+	drvr->iflist[bsscfgidx] = ifp;
 	ifp->ifidx = ifidx;
-	ifp->bssidx = bssidx;
+	ifp->bsscfgidx = bsscfgidx;
 
 	init_waitqueue_head(&ifp->pend_8021x_wait);
 	spin_lock_init(&ifp->netif_stop_lock);
@@ -861,21 +862,22 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	return ifp;
 }
 
-static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
+static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
 {
 	struct brcmf_if *ifp;
 
-	ifp = drvr->iflist[bssidx];
-	drvr->iflist[bssidx] = NULL;
+	ifp = drvr->iflist[bsscfgidx];
+	drvr->iflist[bsscfgidx] = NULL;
 	if (!ifp) {
-		brcmf_err("Null interface, idx=%d\n", bssidx);
+		brcmf_err("Null interface, bsscfgidx=%d\n", bsscfgidx);
 		return;
 	}
-	brcmf_dbg(TRACE, "Enter, idx=%d, ifidx=%d\n", bssidx, ifp->ifidx);
-	if (drvr->if2bss[ifp->ifidx] == bssidx)
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d, ifidx=%d\n", bsscfgidx,
+		  ifp->ifidx);
+	if (drvr->if2bss[ifp->ifidx] == bsscfgidx)
 		drvr->if2bss[ifp->ifidx] = BRCMF_BSSIDX_INVALID;
 	if (ifp->ndev) {
-		if (bssidx == 0) {
+		if (bsscfgidx == 0) {
 			if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
 				rtnl_lock();
 				brcmf_netdev_stop(ifp->ndev);
@@ -905,12 +907,12 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 
 void brcmf_remove_interface(struct brcmf_if *ifp)
 {
-	if (!ifp || WARN_ON(ifp->drvr->iflist[ifp->bssidx] != ifp))
+	if (!ifp || WARN_ON(ifp->drvr->iflist[ifp->bsscfgidx] != ifp))
 		return;
-	brcmf_dbg(TRACE, "Enter, bssidx=%d, ifidx=%d\n", ifp->bssidx,
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d, ifidx=%d\n", ifp->bsscfgidx,
 		  ifp->ifidx);
 	brcmf_fws_del_interface(ifp);
-	brcmf_del_if(ifp->drvr, ifp->bssidx);
+	brcmf_del_if(ifp->drvr, ifp->bsscfgidx);
 }
 
 int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
@@ -925,10 +927,10 @@ int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
 	highest = 2;
 	for (ifidx = 0; ifidx < BRCMF_MAX_IFS; ifidx++) {
 		if (drvr->iflist[ifidx]) {
-			if (drvr->iflist[ifidx]->bssidx == bsscfgidx)
+			if (drvr->iflist[ifidx]->bsscfgidx == bsscfgidx)
 				bsscfgidx = highest + 1;
-			else if (drvr->iflist[ifidx]->bssidx > highest)
-				highest = drvr->iflist[ifidx]->bssidx;
+			else if (drvr->iflist[ifidx]->bsscfgidx > highest)
+				highest = drvr->iflist[ifidx]->bsscfgidx;
 		} else {
 			available = true;
 		}

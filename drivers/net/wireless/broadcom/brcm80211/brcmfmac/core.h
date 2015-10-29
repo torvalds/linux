@@ -174,7 +174,7 @@ enum brcmf_netif_stop_reason {
  * @multicast_work: worker object for multicast provisioning.
  * @fws_desc: interface specific firmware-signalling descriptor.
  * @ifidx: interface index in device firmware.
- * @bssidx: index of bss associated with this interface.
+ * @bsscfgidx: index of bss associated with this interface.
  * @mac_addr: assigned mac address.
  * @netif_stop: bitmap indicates reason why netif queues are stopped.
  * @netif_stop_lock: spinlock for update netif_stop from multiple sources.
@@ -190,7 +190,7 @@ struct brcmf_if {
 	struct work_struct multicast_work;
 	struct brcmf_fws_mac_descriptor *fws_desc;
 	int ifidx;
-	s32 bssidx;
+	s32 bsscfgidx;
 	u8 mac_addr[ETH_ALEN];
 	u8 netif_stop;
 	spinlock_t netif_stop_lock;
@@ -208,7 +208,7 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);
 char *brcmf_ifname(struct brcmf_if *ifp);
 struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx);
 int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
-struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
+struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			      bool is_p2pdev, char *name, u8 *mac_addr);
 void brcmf_remove_interface(struct brcmf_if *ifp);
 int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr);

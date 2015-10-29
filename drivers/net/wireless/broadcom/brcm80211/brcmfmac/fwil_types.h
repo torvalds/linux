@@ -170,7 +170,7 @@ struct brcmf_fil_af_params_le {
 };
 
 struct brcmf_fil_bss_enable_le {
-	__le32 bsscfg_idx;
+	__le32 bsscfgidx;
 	__le32 enable;
 };
 
