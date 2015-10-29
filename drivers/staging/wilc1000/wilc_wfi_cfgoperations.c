@@ -1567,7 +1567,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 						BIT(NL80211_STA_INFO_TX_BITRATE);
 
 		sinfo->signal = strStatistics.rssi;
-		sinfo->rx_packets   =  strStatistics.u32RxCount;
+		sinfo->rx_packets = strStatistics.rx_cnt;
 		sinfo->tx_packets = strStatistics.tx_cnt + strStatistics.u32TxFailureCount;
 		sinfo->tx_failed	=  strStatistics.u32TxFailureCount;
 		sinfo->txrate.legacy = strStatistics.link_speed * 10;
