@@ -227,7 +227,6 @@ static void cir_wake_dump_regs(struct nvt_dev *nvt)
 /* detect hardware features */
 static int nvt_hw_detect(struct nvt_dev *nvt)
 {
-	unsigned long flags;
 	u8 chip_major, chip_minor;
 	char chip_id[12];
 	bool chip_unknown = false;
@@ -279,10 +278,8 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 
 	nvt_efm_disable(nvt);
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
 	nvt->chip_major = chip_major;
 	nvt->chip_minor = chip_minor;
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
 	return 0;
 }
