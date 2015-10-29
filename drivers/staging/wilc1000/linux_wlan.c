@@ -597,12 +597,16 @@ static int linux_wlan_start_firmware(perInterface_wlan_t *nic)
 _fail_:
 	return ret;
 }
-static int linux_wlan_firmware_download(struct wilc *p_nic)
+static int linux_wlan_firmware_download(struct net_device *dev)
 {
-
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
 	int ret = 0;
 
-	if (!g_linux_wlan->firmware) {
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
+
+	if (!wilc->firmware) {
 		PRINT_ER("Firmware buffer is NULL\n");
 		ret = -ENOBUFS;
 		goto _FAIL_;
@@ -611,15 +615,15 @@ static int linux_wlan_firmware_download(struct wilc *p_nic)
 	 *      do the firmware download
 	 **/
 	PRINT_D(INIT_DBG, "Downloading Firmware ...\n");
-	ret = wilc_wlan_firmware_download(g_linux_wlan->firmware->data,
-					  g_linux_wlan->firmware->size);
+	ret = wilc_wlan_firmware_download(wilc->firmware->data,
+					  wilc->firmware->size);
 	if (ret < 0)
 		goto _FAIL_;
 
 	/* Freeing FW buffer */
 	PRINT_D(INIT_DBG, "Freeing FW buffer ...\n");
 	PRINT_D(INIT_DBG, "Releasing firmware\n");
-	release_firmware(g_linux_wlan->firmware);
+	release_firmware(wilc->firmware);
 
 	PRINT_D(INIT_DBG, "Download Succeeded\n");
 
@@ -1123,7 +1127,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 
 		/*Download firmware*/
-		ret = linux_wlan_firmware_download(wl);
+		ret = linux_wlan_firmware_download(dev);
 		if (ret < 0) {
 			PRINT_ER("Failed to download firmware\n");
 			ret = -EIO;
