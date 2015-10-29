@@ -609,7 +609,7 @@ static void issue_probersp(struct adapter *padapter, unsigned char *da)
 	return;
 }
 
-static int _issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da, int wait_ack)
+static int issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da, int wait_ack)
 {
 	int ret = _FAIL;
 	struct xmit_frame		*pmgntframe;
@@ -702,12 +702,6 @@ exit:
 	return ret;
 }
 
-static inline void issue_probereq(struct adapter *padapter,
-				  struct ndis_802_11_ssid *pssid, u8 *da)
-{
-	_issue_probereq(padapter, pssid, da, false);
-}
-
 static int issue_probereq_ex(struct adapter *padapter,
 			     struct ndis_802_11_ssid *pssid, u8 *da,
 			     int try_cnt, int wait_ms)
@@ -717,7 +711,7 @@ static int issue_probereq_ex(struct adapter *padapter,
 	u32 start = jiffies;
 
 	do {
-		ret = _issue_probereq(padapter, pssid, da, wait_ms > 0 ? true : false);
+		ret = issue_probereq(padapter, pssid, da, wait_ms > 0 ? true : false);
 
 		i++;
 
@@ -2029,24 +2023,28 @@ static void site_survey(struct adapter *padapter)
 			for (i = 0; i < RTW_SSID_SCAN_AMOUNT; i++) {
 				if (pmlmeext->sitesurvey_res.ssid[i].SsidLength) {
 					/* todo: to issue two probe req??? */
-					issue_probereq(padapter, &(pmlmeext->sitesurvey_res.ssid[i]), NULL);
+					issue_probereq(padapter,
+					&(pmlmeext->sitesurvey_res.ssid[i]),
+								NULL, false);
 					/* msleep(SURVEY_TO>>1); */
-					issue_probereq(padapter, &(pmlmeext->sitesurvey_res.ssid[i]), NULL);
+					issue_probereq(padapter,
+					&(pmlmeext->sitesurvey_res.ssid[i]),
+								NULL, false);
 				}
 			}
 
 			if (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE) {
 				/* todo: to issue two probe req??? */
-				issue_probereq(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL, false);
 				/* msleep(SURVEY_TO>>1); */
-				issue_probereq(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL, false);
 			}
 
 			if (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE) {
 				/* todo: to issue two probe req??? */
-				issue_probereq(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL, false);
 				/* msleep(SURVEY_TO>>1); */
-				issue_probereq(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL, false);
 			}
 		}
 
@@ -4820,9 +4818,18 @@ void linked_status_chk(struct adapter *padapter)
 			} else {
 				if (rx_chk != _SUCCESS) {
 					if (pmlmeext->retry == 0) {
-						issue_probereq(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
-						issue_probereq(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
-						issue_probereq(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
+						issue_probereq(padapter,
+						&pmlmeinfo->network.Ssid,
+						pmlmeinfo->network.MacAddress,
+									false);
+						issue_probereq(padapter,
+						&pmlmeinfo->network.Ssid,
+						pmlmeinfo->network.MacAddress,
+									false);
+						issue_probereq(padapter,
+						&pmlmeinfo->network.Ssid,
+						pmlmeinfo->network.MacAddress,
+									false);
 					}
 				}
 
