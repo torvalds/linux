@@ -292,10 +292,9 @@ static const struct kparam_array __param_arr_adj = {
  */
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
 #ifdef CONFIG_ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
-__module_param_call(MODULE_PARAM_PREFIX, adj,
-		    &lowmem_adj_array_ops,
-		    .arr = &__param_arr_adj,
-		    S_IRUGO | S_IWUSR, -1);
+module_param_cb(adj, &lowmem_adj_array_ops,
+		.arr = &__param_arr_adj,
+		S_IRUGO | S_IWUSR);
 __MODULE_PARM_TYPE(adj, "array of short");
 #else
 module_param_array_named(adj, lowmem_adj, short, &lowmem_adj_size,
