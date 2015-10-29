@@ -2097,8 +2097,7 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = crtc->pipe;
-	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
-								      pipe);
+	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
 	enum pipe pch_transcoder;
 	int reg;
 	u32 val;
@@ -5174,12 +5173,10 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	unsigned long mask;
-	enum transcoder transcoder;
+	enum transcoder transcoder = intel_crtc->config->cpu_transcoder;
 
 	if (!crtc->state->active)
 		return 0;
-
-	transcoder = intel_pipe_to_cpu_transcoder(dev->dev_private, pipe);
 
 	mask = BIT(POWER_DOMAIN_PIPE(pipe));
 	mask |= BIT(POWER_DOMAIN_TRANSCODER(transcoder));
