@@ -779,7 +779,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	if (!status) {
 		nvt_dbg_verbose("%s exiting, IRSTS 0x0", __func__);
 		nvt_cir_reg_write(nvt, 0xff, CIR_IRSTS);
-		return IRQ_RETVAL(IRQ_NONE);
+		return IRQ_NONE;
 	}
 
 	/* ack/clear all irq flags we've got */
@@ -790,7 +790,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	iren = nvt_cir_reg_read(nvt, CIR_IREN);
 	if (!iren) {
 		nvt_dbg_verbose("%s exiting, CIR not enabled", __func__);
-		return IRQ_RETVAL(IRQ_NONE);
+		return IRQ_NONE;
 	}
 
 	if (debug)
@@ -853,7 +853,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	}
 
 	nvt_dbg_verbose("%s done", __func__);
-	return IRQ_RETVAL(IRQ_HANDLED);
+	return IRQ_HANDLED;
 }
 
 /* Interrupt service routine for CIR Wake */
@@ -867,7 +867,7 @@ static irqreturn_t nvt_cir_wake_isr(int irq, void *data)
 
 	status = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRSTS);
 	if (!status)
-		return IRQ_RETVAL(IRQ_NONE);
+		return IRQ_NONE;
 
 	if (status & CIR_WAKE_IRSTS_IR_PENDING)
 		nvt_clear_cir_wake_fifo(nvt);
@@ -879,7 +879,7 @@ static irqreturn_t nvt_cir_wake_isr(int irq, void *data)
 	iren = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IREN);
 	if (!iren) {
 		nvt_dbg_wake("%s exiting, wake not enabled", __func__);
-		return IRQ_RETVAL(IRQ_HANDLED);
+		return IRQ_HANDLED;
 	}
 
 	if ((status & CIR_WAKE_IRSTS_PE) &&
@@ -896,7 +896,7 @@ static irqreturn_t nvt_cir_wake_isr(int irq, void *data)
 	}
 
 	nvt_dbg_wake("%s done", __func__);
-	return IRQ_RETVAL(IRQ_HANDLED);
+	return IRQ_HANDLED;
 }
 
 static void nvt_enable_cir(struct nvt_dev *nvt)
