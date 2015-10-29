@@ -422,7 +422,7 @@ static void wil_connect_worker(struct work_struct *work)
 		wil->sta[cid].status = wil_sta_connected;
 		netif_tx_wake_all_queues(ndev);
 	} else {
-		wil->sta[cid].status = wil_sta_unused;
+		wil_disconnect_cid(wil, cid, WLAN_REASON_UNSPECIFIED, true);
 	}
 }
 

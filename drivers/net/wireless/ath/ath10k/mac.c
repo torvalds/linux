@@ -3736,13 +3736,8 @@ static int ath10k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 
 	mutex_lock(&ar->conf_mutex);
 
-	if (ar->cfg_tx_chainmask) {
-		*tx_ant = ar->cfg_tx_chainmask;
-		*rx_ant = ar->cfg_rx_chainmask;
-	} else {
-		*tx_ant = ar->supp_tx_chainmask;
-		*rx_ant = ar->supp_rx_chainmask;
-	}
+	*tx_ant = ar->cfg_tx_chainmask;
+	*rx_ant = ar->cfg_rx_chainmask;
 
 	mutex_unlock(&ar->conf_mutex);
 
@@ -3760,6 +3755,169 @@ static void ath10k_check_chain_mask(struct ath10k *ar, u32 cm, const char *dbg)
 
 	ath10k_warn(ar, "mac %s antenna chainmask may be invalid: 0x%x.  Suggested values: 15, 7, 3, 1 or 0.\n",
 		    dbg, cm);
+}
+
+static int ath10k_mac_get_vht_cap_bf_sts(struct ath10k *ar)
+{
+	int nsts = ar->vht_cap_info;
+
+	nsts &= IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
+	nsts >>= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
+
+	/* If firmware does not deliver to host number of space-time
+	 * streams supported, assume it support up to 4 BF STS and return
+	 * the value for VHT CAP: nsts-1)
+	 */
+	if (nsts == 0)
+		return 3;
+
+	return nsts;
+}
+
+static int ath10k_mac_get_vht_cap_bf_sound_dim(struct ath10k *ar)
+{
+	int sound_dim = ar->vht_cap_info;
+
+	sound_dim &= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
+	sound_dim >>= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
+
+	/* If the sounding dimension is not advertised by the firmware,
+	 * let's use a default value of 1
+	 */
+	if (sound_dim == 0)
+		return 1;
+
+	return sound_dim;
+}
+
+static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
+{
+	struct ieee80211_sta_vht_cap vht_cap = {0};
+	u16 mcs_map;
+	u32 val;
+	int i;
+
+	vht_cap.vht_supported = 1;
+	vht_cap.cap = ar->vht_cap_info;
+
+	if (ar->vht_cap_info & (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+				IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE)) {
+		val = ath10k_mac_get_vht_cap_bf_sts(ar);
+		val <<= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
+		val &= IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
+
+		vht_cap.cap |= val;
+	}
+
+	if (ar->vht_cap_info & (IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+				IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)) {
+		val = ath10k_mac_get_vht_cap_bf_sound_dim(ar);
+		val <<= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
+		val &= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
+
+		vht_cap.cap |= val;
+	}
+
+	mcs_map = 0;
+	for (i = 0; i < 8; i++) {
+		if ((i < ar->num_rf_chains) && (ar->cfg_tx_chainmask & BIT(i)))
+			mcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << (i * 2);
+		else
+			mcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << (i * 2);
+	}
+
+	vht_cap.vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
+	vht_cap.vht_mcs.tx_mcs_map = cpu_to_le16(mcs_map);
+
+	return vht_cap;
+}
+
+static struct ieee80211_sta_ht_cap ath10k_get_ht_cap(struct ath10k *ar)
+{
+	int i;
+	struct ieee80211_sta_ht_cap ht_cap = {0};
+
+	if (!(ar->ht_cap_info & WMI_HT_CAP_ENABLED))
+		return ht_cap;
+
+	ht_cap.ht_supported = 1;
+	ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
+	ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
+	ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+	ht_cap.cap |= IEEE80211_HT_CAP_DSSSCCK40;
+	ht_cap.cap |= WLAN_HT_CAP_SM_PS_STATIC << IEEE80211_HT_CAP_SM_PS_SHIFT;
+
+	if (ar->ht_cap_info & WMI_HT_CAP_HT20_SGI)
+		ht_cap.cap |= IEEE80211_HT_CAP_SGI_20;
+
+	if (ar->ht_cap_info & WMI_HT_CAP_HT40_SGI)
+		ht_cap.cap |= IEEE80211_HT_CAP_SGI_40;
+
+	if (ar->ht_cap_info & WMI_HT_CAP_DYNAMIC_SMPS) {
+		u32 smps;
+
+		smps   = WLAN_HT_CAP_SM_PS_DYNAMIC;
+		smps <<= IEEE80211_HT_CAP_SM_PS_SHIFT;
+
+		ht_cap.cap |= smps;
+	}
+
+	if (ar->ht_cap_info & WMI_HT_CAP_TX_STBC)
+		ht_cap.cap |= IEEE80211_HT_CAP_TX_STBC;
+
+	if (ar->ht_cap_info & WMI_HT_CAP_RX_STBC) {
+		u32 stbc;
+
+		stbc   = ar->ht_cap_info;
+		stbc  &= WMI_HT_CAP_RX_STBC;
+		stbc >>= WMI_HT_CAP_RX_STBC_MASK_SHIFT;
+		stbc <<= IEEE80211_HT_CAP_RX_STBC_SHIFT;
+		stbc  &= IEEE80211_HT_CAP_RX_STBC;
+
+		ht_cap.cap |= stbc;
+	}
+
+	if (ar->ht_cap_info & WMI_HT_CAP_LDPC)
+		ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
+
+	if (ar->ht_cap_info & WMI_HT_CAP_L_SIG_TXOP_PROT)
+		ht_cap.cap |= IEEE80211_HT_CAP_LSIG_TXOP_PROT;
+
+	/* max AMSDU is implicitly taken from vht_cap_info */
+	if (ar->vht_cap_info & WMI_VHT_CAP_MAX_MPDU_LEN_MASK)
+		ht_cap.cap |= IEEE80211_HT_CAP_MAX_AMSDU;
+
+	for (i = 0; i < ar->num_rf_chains; i++) {
+		if (ar->cfg_rx_chainmask & BIT(i))
+			ht_cap.mcs.rx_mask[i] = 0xFF;
+	}
+
+	ht_cap.mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
+
+	return ht_cap;
+}
+
+static void ath10k_mac_setup_ht_vht_cap(struct ath10k *ar)
+{
+	struct ieee80211_supported_band *band;
+	struct ieee80211_sta_vht_cap vht_cap;
+	struct ieee80211_sta_ht_cap ht_cap;
+
+	ht_cap = ath10k_get_ht_cap(ar);
+	vht_cap = ath10k_create_vht_cap(ar);
+
+	if (ar->phy_capability & WHAL_WLAN_11G_CAPABILITY) {
+		band = &ar->mac.sbands[IEEE80211_BAND_2GHZ];
+		band->ht_cap = ht_cap;
+
+		/* Enable the VHT support at 2.4 GHz */
+		band->vht_cap = vht_cap;
+	}
+	if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY) {
+		band = &ar->mac.sbands[IEEE80211_BAND_5GHZ];
+		band->ht_cap = ht_cap;
+		band->vht_cap = vht_cap;
+	}
 }
 
 static int __ath10k_set_antenna(struct ath10k *ar, u32 tx_ant, u32 rx_ant)
@@ -3793,6 +3951,9 @@ static int __ath10k_set_antenna(struct ath10k *ar, u32 tx_ant, u32 rx_ant)
 			    ret, rx_ant);
 		return ret;
 	}
+
+	/* Reload HT/VHT capability */
+	ath10k_mac_setup_ht_vht_cap(ar);
 
 	return 0;
 }
@@ -3884,9 +4045,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		}
 	}
 
-	if (ar->cfg_tx_chainmask)
-		__ath10k_set_antenna(ar, ar->cfg_tx_chainmask,
-				     ar->cfg_rx_chainmask);
+	__ath10k_set_antenna(ar, ar->cfg_tx_chainmask, ar->cfg_rx_chainmask);
 
 	/*
 	 * By default FW set ARP frames ac to voice (6). In that case ARP
@@ -3903,6 +4062,18 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		ath10k_warn(ar, "failed to set arp ac override parameter: %d\n",
 			    ret);
 		goto err_core_stop;
+	}
+
+	if (test_bit(ATH10K_FW_FEATURE_SUPPORTS_ADAPTIVE_CCA,
+		     ar->fw_features)) {
+		ret = ath10k_wmi_pdev_enable_adaptive_cca(ar, 1,
+							  WMI_CCA_DETECT_LEVEL_AUTO,
+							  WMI_CCA_DETECT_MARGIN_AUTO);
+		if (ret) {
+			ath10k_warn(ar, "failed to enable adaptive cca: %d\n",
+				    ret);
+			goto err_core_stop;
+		}
 	}
 
 	ret = ath10k_wmi_pdev_set_param(ar,
@@ -4061,39 +4232,6 @@ static u32 get_nss_from_chainmask(u16 chain_mask)
 	else if ((chain_mask & 0x3) == 0x3)
 		return 2;
 	return 1;
-}
-
-static int ath10k_mac_get_vht_cap_bf_sts(struct ath10k *ar)
-{
-	int nsts = ar->vht_cap_info;
-
-	nsts &= IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
-	nsts >>= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
-
-	/* If firmware does not deliver to host number of space-time
-	 * streams supported, assume it support up to 4 BF STS and return
-	 * the value for VHT CAP: nsts-1)
-	 * */
-	if (nsts == 0)
-		return 3;
-
-	return nsts;
-}
-
-static int ath10k_mac_get_vht_cap_bf_sound_dim(struct ath10k *ar)
-{
-	int sound_dim = ar->vht_cap_info;
-
-	sound_dim &= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
-	sound_dim >>= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
-
-	/* If the sounding dimension is not advertised by the firmware,
-	 * let's use a default value of 1
-	 */
-	if (sound_dim == 0)
-		return 1;
-
-	return sound_dim;
 }
 
 static int ath10k_mac_set_txbf_conf(struct ath10k_vif *arvif)
@@ -6949,111 +7087,6 @@ static const struct ieee80211_iface_combination ath10k_10_4_if_comb[] = {
 	},
 };
 
-static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
-{
-	struct ieee80211_sta_vht_cap vht_cap = {0};
-	u16 mcs_map;
-	u32 val;
-	int i;
-
-	vht_cap.vht_supported = 1;
-	vht_cap.cap = ar->vht_cap_info;
-
-	if (ar->vht_cap_info & (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
-				IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE)) {
-		val = ath10k_mac_get_vht_cap_bf_sts(ar);
-		val <<= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
-		val &= IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
-
-		vht_cap.cap |= val;
-	}
-
-	if (ar->vht_cap_info & (IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
-				IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)) {
-		val = ath10k_mac_get_vht_cap_bf_sound_dim(ar);
-		val <<= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
-		val &= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
-
-		vht_cap.cap |= val;
-	}
-
-	mcs_map = 0;
-	for (i = 0; i < 8; i++) {
-		if (i < ar->num_rf_chains)
-			mcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << (i*2);
-		else
-			mcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << (i*2);
-	}
-
-	vht_cap.vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
-	vht_cap.vht_mcs.tx_mcs_map = cpu_to_le16(mcs_map);
-
-	return vht_cap;
-}
-
-static struct ieee80211_sta_ht_cap ath10k_get_ht_cap(struct ath10k *ar)
-{
-	int i;
-	struct ieee80211_sta_ht_cap ht_cap = {0};
-
-	if (!(ar->ht_cap_info & WMI_HT_CAP_ENABLED))
-		return ht_cap;
-
-	ht_cap.ht_supported = 1;
-	ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
-	ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-	ht_cap.cap |= IEEE80211_HT_CAP_DSSSCCK40;
-	ht_cap.cap |= WLAN_HT_CAP_SM_PS_STATIC << IEEE80211_HT_CAP_SM_PS_SHIFT;
-
-	if (ar->ht_cap_info & WMI_HT_CAP_HT20_SGI)
-		ht_cap.cap |= IEEE80211_HT_CAP_SGI_20;
-
-	if (ar->ht_cap_info & WMI_HT_CAP_HT40_SGI)
-		ht_cap.cap |= IEEE80211_HT_CAP_SGI_40;
-
-	if (ar->ht_cap_info & WMI_HT_CAP_DYNAMIC_SMPS) {
-		u32 smps;
-
-		smps   = WLAN_HT_CAP_SM_PS_DYNAMIC;
-		smps <<= IEEE80211_HT_CAP_SM_PS_SHIFT;
-
-		ht_cap.cap |= smps;
-	}
-
-	if (ar->ht_cap_info & WMI_HT_CAP_TX_STBC)
-		ht_cap.cap |= IEEE80211_HT_CAP_TX_STBC;
-
-	if (ar->ht_cap_info & WMI_HT_CAP_RX_STBC) {
-		u32 stbc;
-
-		stbc   = ar->ht_cap_info;
-		stbc  &= WMI_HT_CAP_RX_STBC;
-		stbc >>= WMI_HT_CAP_RX_STBC_MASK_SHIFT;
-		stbc <<= IEEE80211_HT_CAP_RX_STBC_SHIFT;
-		stbc  &= IEEE80211_HT_CAP_RX_STBC;
-
-		ht_cap.cap |= stbc;
-	}
-
-	if (ar->ht_cap_info & WMI_HT_CAP_LDPC)
-		ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
-
-	if (ar->ht_cap_info & WMI_HT_CAP_L_SIG_TXOP_PROT)
-		ht_cap.cap |= IEEE80211_HT_CAP_LSIG_TXOP_PROT;
-
-	/* max AMSDU is implicitly taken from vht_cap_info */
-	if (ar->vht_cap_info & WMI_VHT_CAP_MAX_MPDU_LEN_MASK)
-		ht_cap.cap |= IEEE80211_HT_CAP_MAX_AMSDU;
-
-	for (i = 0; i < ar->num_rf_chains; i++)
-		ht_cap.mcs.rx_mask[i] = 0xFF;
-
-	ht_cap.mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
-
-	return ht_cap;
-}
-
 static void ath10k_get_arvif_iter(void *data, u8 *mac,
 				  struct ieee80211_vif *vif)
 {
@@ -7095,17 +7128,12 @@ int ath10k_mac_register(struct ath10k *ar)
 		WLAN_CIPHER_SUITE_AES_CMAC,
 	};
 	struct ieee80211_supported_band *band;
-	struct ieee80211_sta_vht_cap vht_cap;
-	struct ieee80211_sta_ht_cap ht_cap;
 	void *channels;
 	int ret;
 
 	SET_IEEE80211_PERM_ADDR(ar->hw, ar->mac_addr);
 
 	SET_IEEE80211_DEV(ar->hw, ar->dev);
-
-	ht_cap = ath10k_get_ht_cap(ar);
-	vht_cap = ath10k_create_vht_cap(ar);
 
 	BUILD_BUG_ON((ARRAY_SIZE(ath10k_2ghz_channels) +
 		      ARRAY_SIZE(ath10k_5ghz_channels)) !=
@@ -7125,10 +7153,6 @@ int ath10k_mac_register(struct ath10k *ar)
 		band->channels = channels;
 		band->n_bitrates = ath10k_g_rates_size;
 		band->bitrates = ath10k_g_rates;
-		band->ht_cap = ht_cap;
-
-		/* Enable the VHT support at 2.4 GHz */
-		band->vht_cap = vht_cap;
 
 		ar->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = band;
 	}
@@ -7147,18 +7171,18 @@ int ath10k_mac_register(struct ath10k *ar)
 		band->channels = channels;
 		band->n_bitrates = ath10k_a_rates_size;
 		band->bitrates = ath10k_a_rates;
-		band->ht_cap = ht_cap;
-		band->vht_cap = vht_cap;
 		ar->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = band;
 	}
+
+	ath10k_mac_setup_ht_vht_cap(ar);
 
 	ar->hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_MESH_POINT);
 
-	ar->hw->wiphy->available_antennas_rx = ar->supp_rx_chainmask;
-	ar->hw->wiphy->available_antennas_tx = ar->supp_tx_chainmask;
+	ar->hw->wiphy->available_antennas_rx = ar->cfg_rx_chainmask;
+	ar->hw->wiphy->available_antennas_tx = ar->cfg_tx_chainmask;
 
 	if (!test_bit(ATH10K_FW_FEATURE_NO_P2P, ar->fw_features))
 		ar->hw->wiphy->interface_modes |=

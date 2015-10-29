@@ -100,12 +100,6 @@ struct ath10k_ce_ring {
 
 	/* CE address space */
 	u32 base_addr_ce_space;
-	/*
-	 * Start of shadow copy of descriptors, within regular memory.
-	 * Aligned to descriptor-size boundary.
-	 */
-	void *shadow_base_unaligned;
-	struct ce_desc *shadow_base;
 
 	/* keep last */
 	void *per_transfer_context[0];
@@ -192,16 +186,10 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
  * Pops 1 completed send buffer from Source ring.
  */
 int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
-				  void **per_transfer_contextp,
-				  u32 *bufferp,
-				  unsigned int *nbytesp,
-				  unsigned int *transfer_idp);
+				  void **per_transfer_contextp);
 
 int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
-					 void **per_transfer_contextp,
-					 u32 *bufferp,
-					 unsigned int *nbytesp,
-					 unsigned int *transfer_idp);
+					 void **per_transfer_contextp);
 
 /*==================CE Engine Initialization=======================*/
 
