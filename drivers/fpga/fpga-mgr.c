@@ -256,7 +256,6 @@ int fpga_mgr_register(struct device *dev, const char *name,
 		      void *priv)
 {
 	struct fpga_manager *mgr;
-	const char *dt_label;
 	int id, ret;
 
 	if (!mops || !mops->write_init || !mops->write ||
@@ -300,11 +299,9 @@ int fpga_mgr_register(struct device *dev, const char *name,
 	mgr->dev.id = id;
 	dev_set_drvdata(dev, mgr);
 
-	dt_label = of_get_property(mgr->dev.of_node, "label", NULL);
-	if (dt_label)
-		ret = dev_set_name(&mgr->dev, "%s", dt_label);
-	else
-		ret = dev_set_name(&mgr->dev, "fpga%d", id);
+	ret = dev_set_name(&mgr->dev, "fpga%d", id);
+	if (ret)
+		goto error_device;
 
 	ret = device_add(&mgr->dev);
 	if (ret)
