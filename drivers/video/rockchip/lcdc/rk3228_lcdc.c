@@ -1450,6 +1450,10 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		    V_DSP_BLANK_EN(0) | V_DSP_BLACK_EN(0) |
 		    V_DSP_X_MIR_EN(screen->x_mirror) |
 		    V_DSP_Y_MIR_EN(screen->y_mirror);
+		if (screen->pixelrepeat)
+			val |= V_SW_CORE_DCLK_SEL(1);
+		if (screen->mode.vmode & FB_VMODE_INTERLACED)
+			val |= V_SW_HDMI_CLK_I_SEL(1);
 		vop_msk_reg(vop_dev, DSP_CTRL0, val);
 		/* BG color */
 		if (dev_drv->overlay_mode == VOP_YUV_DOMAIN)
@@ -2117,7 +2121,6 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 	} else if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		pos = area->ypos / 2 + screen->mode.upper_margin +
 			screen->mode.vsync_len;
-		area->ysize /= 2;
 	}
 
 	return pos;
