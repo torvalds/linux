@@ -559,40 +559,47 @@ static void vop_post_csc_cfg(struct rk_lcdc_driver *dev_drv)
 		}
 	}
 
+	if (win_csc == COLOR_RGB && overlay_mode == VOP_YUV_DOMAIN)
+		win_csc = COLOR_YCBCR;
+	else if (IS_YUV_COLOR(win_csc) && overlay_mode == VOP_RGB_DOMAIN)
+		win_csc = COLOR_RGB;
+
 	val = V_YUV2YUV_POST_Y2R_EN(0) | V_YUV2YUV_POST_EN(0) |
 		V_YUV2YUV_POST_R2Y_EN(0);
 	/* Y2R */
 	if (win_csc == COLOR_YCBCR && output_color == COLOR_YCBCR_BT2020) {
+		win_csc = COLOR_RGB;
 		val |= V_YUV2YUV_POST_Y2R_EN(1);
 		vop_load_csc_table(vop_dev, POST_YUV2YUV_Y2R_COE,
 				   csc_y2r_bt709_full);
 	}
 	if (win_csc == COLOR_YCBCR_BT2020 &&
 	    output_color != COLOR_YCBCR_BT2020) {
+		win_csc = COLOR_RGB_BT2020;
 		val |= V_YUV2YUV_POST_Y2R_EN(1);
 		vop_load_csc_table(vop_dev, POST_YUV2YUV_Y2R_COE,
 				   csc_y2r_bt2020);
 	}
 
 	/* R2R */
-	if ((win_csc == COLOR_YCBCR ||
-	     win_csc == COLOR_YCBCR_BT709 ||
-	     win_csc == COLOR_RGB) && output_color == COLOR_YCBCR_BT2020) {
+	if (win_csc == COLOR_RGB && output_color == COLOR_YCBCR_BT2020) {
+		win_csc = COLOR_RGB_BT2020;
 		val |= V_YUV2YUV_POST_EN(1);
 		vop_load_csc_table(vop_dev, POST_YUV2YUV_3x3_COE,
 				   csc_r2r_bt709to2020);
 	}
-	if (win_csc == COLOR_YCBCR_BT2020 &&
+	if (win_csc == COLOR_RGB_BT2020 &&
 	    (output_color == COLOR_YCBCR ||
 	     output_color == COLOR_YCBCR_BT709 ||
 	     output_color == COLOR_RGB)) {
+		win_csc = COLOR_RGB;
 		val |= V_YUV2YUV_POST_EN(1);
 		vop_load_csc_table(vop_dev, POST_YUV2YUV_3x3_COE,
 				   csc_r2r_bt2020to709);
 	}
 
-	/* Y2R */
-	if (output_color != COLOR_RGB) {
+	/* R2Y */
+	if (!IS_YUV_COLOR(win_csc) && IS_YUV_COLOR(output_color)) {
 		val |= V_YUV2YUV_POST_R2Y_EN(1);
 
 		if (output_color == COLOR_YCBCR_BT2020)
