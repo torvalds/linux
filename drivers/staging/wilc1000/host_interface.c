@@ -2041,7 +2041,7 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 		}
 	}
 
-	up(&hif_drv->hSemTestDisconnectBlock);
+	up(&hif_drv->sem_test_disconn_block);
 }
 
 void resolve_disconnect_aberration(struct host_if_drv *hif_drv)
@@ -3563,7 +3563,7 @@ s32 host_int_disconnect(struct host_if_drv *hif_drv, u16 u16ReasonCode)
 	if (result)
 		PRINT_ER("Failed to send message queue: disconnect\n");
 
-	down(&hif_drv->hSemTestDisconnectBlock);
+	down(&hif_drv->sem_test_disconn_block);
 
 	return result;
 }
@@ -4108,7 +4108,7 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	}
 
 	sema_init(&hif_drv->sem_test_key_block, 0);
-	sema_init(&hif_drv->hSemTestDisconnectBlock, 0);
+	sema_init(&hif_drv->sem_test_disconn_block, 0);
 	sema_init(&hif_drv->hSemGetRSSI, 0);
 	sema_init(&hif_drv->hSemGetLINKSPEED, 0);
 	sema_init(&hif_drv->hSemGetCHNL, 0);
