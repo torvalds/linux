@@ -1795,7 +1795,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 		up(&hif_drv->sem_test_key_block);
 		break;
 
-	case WPARxGtk:
+	case WPA_RX_GTK:
 		if (pstrHostIFkeyAttr->action & ADDKEY_AP) {
 			pu8keybuf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!pu8keybuf) {
@@ -3285,7 +3285,7 @@ s32 host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 	}
 
 	msg.id = HOST_IF_MSG_KEY;
-	msg.body.key_info.type = WPARxGtk;
+	msg.body.key_info.type = WPA_RX_GTK;
 	msg.drv = hif_drv;
 
 	if (mode == AP_MODE) {
