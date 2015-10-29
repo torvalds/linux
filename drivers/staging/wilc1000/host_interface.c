@@ -2483,10 +2483,10 @@ static int Handle_RemainOnChan(struct host_if_drv *hif_drv,
 		hif_drv->remain_on_ch.pVoid = pstrHostIfRemainOnChan->pVoid;
 		hif_drv->remain_on_ch.pRemainOnChanExpired = pstrHostIfRemainOnChan->pRemainOnChanExpired;
 		hif_drv->remain_on_ch.pRemainOnChanReady = pstrHostIfRemainOnChan->pRemainOnChanReady;
-		hif_drv->remain_on_ch.u16Channel = pstrHostIfRemainOnChan->u16Channel;
+		hif_drv->remain_on_ch.ch = pstrHostIfRemainOnChan->ch;
 		hif_drv->remain_on_ch.u32ListenSessionID = pstrHostIfRemainOnChan->u32ListenSessionID;
 	} else {
-		pstrHostIfRemainOnChan->u16Channel = hif_drv->remain_on_ch.u16Channel;
+		pstrHostIfRemainOnChan->ch = hif_drv->remain_on_ch.ch;
 	}
 
 	if (hif_drv->usr_scan_req.pfUserScanResult) {
@@ -2507,7 +2507,8 @@ static int Handle_RemainOnChan(struct host_if_drv *hif_drv,
 		goto ERRORHANDLER;
 	}
 
-	PRINT_D(HOSTINF_DBG, "Setting channel :%d\n", pstrHostIfRemainOnChan->u16Channel);
+	PRINT_D(HOSTINF_DBG, "Setting channel :%d\n",
+		pstrHostIfRemainOnChan->ch);
 
 	u8remain_on_chan_flag = true;
 	wid.id = (u16)WID_REMAIN_ON_CHAN;
@@ -2520,7 +2521,7 @@ static int Handle_RemainOnChan(struct host_if_drv *hif_drv,
 	}
 
 	wid.val[0] = u8remain_on_chan_flag;
-	wid.val[1] = (s8)pstrHostIfRemainOnChan->u16Channel;
+	wid.val[1] = (s8)pstrHostIfRemainOnChan->ch;
 
 	result = send_config_pkt(SET_CFG, &wid, 1,
 				 get_id_from_handler(hif_drv));
@@ -4367,7 +4368,7 @@ s32 host_int_remain_on_channel(struct host_if_drv *hif_drv, u32 u32SessionID,
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	msg.id = HOST_IF_MSG_REMAIN_ON_CHAN;
-	msg.body.remain_on_ch.u16Channel = chan;
+	msg.body.remain_on_ch.ch = chan;
 	msg.body.remain_on_ch.pRemainOnChanExpired = RemainOnChanExpired;
 	msg.body.remain_on_ch.pRemainOnChanReady = RemainOnChanReady;
 	msg.body.remain_on_ch.pVoid = pvUserArg;

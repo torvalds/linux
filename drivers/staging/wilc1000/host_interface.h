@@ -236,7 +236,7 @@ struct ba_session_info {
 };
 
 struct remain_ch {
-	u16 u16Channel;
+	u16 ch;
 	u32 u32duration;
 	wilc_remain_on_chan_expired pRemainOnChanExpired;
 	wilc_remain_on_chan_ready pRemainOnChanReady;
