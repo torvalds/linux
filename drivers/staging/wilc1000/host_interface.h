@@ -303,8 +303,8 @@ struct host_if_drv {
 
 	u8 assoc_bssid[ETH_ALEN];
 	struct cfg_param_val cfg_values;
-/* semaphores */
-	struct semaphore gtOsCfgValuesSem;
+
+	struct semaphore sem_cfg_values;
 	struct semaphore hSemTestKeyBlock;
 
 	struct semaphore hSemTestDisconnectBlock;

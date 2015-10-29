@@ -525,7 +525,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 	struct wid strWIDList[32];
 	u8 u8WidCnt = 0;
 
-	down(&hif_drv->gtOsCfgValuesSem);
+	down(&hif_drv->sem_cfg_values);
 
 	PRINT_D(HOSTINF_DBG, "Setting CFG params\n");
 
@@ -797,7 +797,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		PRINT_ER("Error in setting CFG params\n");
 
 ERRORHANDLER:
-	up(&hif_drv->gtOsCfgValuesSem);
+	up(&hif_drv->sem_cfg_values);
 	return result;
 }
 
@@ -3952,7 +3952,7 @@ s32 hif_get_cfg(struct host_if_drv *hif_drv, u16 u16WID, u16 *pu16WID_Value)
 {
 	s32 result = 0;
 
-	down(&hif_drv->gtOsCfgValuesSem);
+	down(&hif_drv->sem_cfg_values);
 
 	if (!hif_drv) {
 		PRINT_ER("hif_drv NULL\n");
@@ -4036,7 +4036,7 @@ s32 hif_get_cfg(struct host_if_drv *hif_drv, u16 u16WID, u16 *pu16WID_Value)
 		break;
 	}
 
-	up(&hif_drv->gtOsCfgValuesSem);
+	up(&hif_drv->sem_cfg_values);
 
 	return result;
 }
@@ -4143,8 +4143,8 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	setup_timer(&hif_drv->hRemainOnChannel, ListenTimerCB, 0);
 
-	sema_init(&hif_drv->gtOsCfgValuesSem, 1);
-	down(&hif_drv->gtOsCfgValuesSem);
+	sema_init(&hif_drv->sem_cfg_values, 1);
+	down(&hif_drv->sem_cfg_values);
 
 	hif_drv->hif_state = HOST_IF_IDLE;
 	hif_drv->cfg_values.site_survey_enabled = SITE_SURVEY_OFF;
@@ -4162,14 +4162,14 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		   hif_drv->cfg_values.passive_scan_time,
 		   hif_drv->cfg_values.curr_tx_rate);
 
-	up(&hif_drv->gtOsCfgValuesSem);
+	up(&hif_drv->sem_cfg_values);
 
 	clients_count++;
 
 	return result;
 
 _fail_timer_2:
-	up(&hif_drv->gtOsCfgValuesSem);
+	up(&hif_drv->sem_cfg_values);
 	del_timer_sync(&hif_drv->hConnectTimer);
 	del_timer_sync(&hif_drv->hScanTimer);
 	kthread_stop(hif_thread_handler);
@@ -4238,7 +4238,7 @@ s32 host_int_deinit(struct host_if_drv *hif_drv)
 		wilc_mq_destroy(&hif_msg_q);
 	}
 
-	down(&hif_drv->gtOsCfgValuesSem);
+	down(&hif_drv->sem_cfg_values);
 
 	ret = remove_handler_in_list(hif_drv);
 	if (ret)
