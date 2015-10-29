@@ -617,6 +617,30 @@ out:
 	return ret;
 }
 
+/* Reset all properties of an NBD device */
+static void nbd_reset(struct nbd_device *nbd)
+{
+	nbd->disconnect = false;
+	nbd->timedout = false;
+	nbd->blksize = 1024;
+	nbd->bytesize = 0;
+	set_capacity(nbd->disk, 0);
+	nbd->flags = 0;
+	nbd->xmit_timeout = 0;
+	queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
+	del_timer_sync(&nbd->timeout_timer);
+}
+
+static void nbd_bdev_reset(struct block_device *bdev)
+{
+	set_device_ro(bdev, false);
+	bdev->bd_inode->i_size = 0;
+	if (max_part > 0) {
+		blkdev_reread_part(bdev);
+		bdev->bd_invalidated = 1;
+	}
+}
+
 static int nbd_dev_dbg_init(struct nbd_device *nbd);
 static void nbd_dev_dbg_close(struct nbd_device *nbd);
 
@@ -745,18 +769,14 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		sock_shutdown(nbd);
 		nbd_clear_que(nbd);
 		kill_bdev(bdev);
-		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
-		set_device_ro(bdev, false);
-		nbd->flags = 0;
-		nbd->bytesize = 0;
-		bdev->bd_inode->i_size = 0;
-		set_capacity(nbd->disk, 0);
-		if (max_part > 0)
-			blkdev_reread_part(bdev);
+		nbd_bdev_reset(bdev);
+
 		if (nbd->disconnect) /* user requested, ignore socket errors */
 			error = 0;
 		if (nbd->timedout)
 			error = -ETIMEDOUT;
+
+		nbd_reset(nbd);
 
 		return error;
 	}
@@ -1023,14 +1043,12 @@ static int __init nbd_init(void)
 		nbd_dev[i].timeout_timer.data = (unsigned long)&nbd_dev[i];
 		init_waitqueue_head(&nbd_dev[i].active_wq);
 		init_waitqueue_head(&nbd_dev[i].waiting_wq);
-		nbd_dev[i].blksize = 1024;
-		nbd_dev[i].bytesize = 0;
 		disk->major = NBD_MAJOR;
 		disk->first_minor = i << part_shift;
 		disk->fops = &nbd_fops;
 		disk->private_data = &nbd_dev[i];
 		sprintf(disk->disk_name, "nbd%d", i);
-		set_capacity(disk, 0);
+		nbd_reset(&nbd_dev[i]);
 		add_disk(disk);
 	}
 
