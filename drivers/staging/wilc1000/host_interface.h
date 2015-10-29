@@ -192,7 +192,7 @@ struct hidden_network {
 };
 
 struct user_scan_req {
-	wilc_scan_result pfUserScanResult;
+	wilc_scan_result scan_result;
 	void *u32UserScanPvoid;
 
 	u32 u32RcvdChCount;
