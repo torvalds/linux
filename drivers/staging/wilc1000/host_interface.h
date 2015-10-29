@@ -294,7 +294,7 @@ struct add_sta_param {
 	const u8 *rates;
 	bool ht_supported;
 	u16 ht_capa_info;
-	u8 u8AmpduParams;
+	u8 ht_ampdu_params;
 	u8 au8SuppMCsSet[16];
 	u16 u16HTExtParams;
 	u32 u32TxBeamformingCap;
