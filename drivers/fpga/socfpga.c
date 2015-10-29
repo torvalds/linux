@@ -577,7 +577,7 @@ static int socfpga_fpga_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, priv->irq, socfpga_fpga_isr, 0,
 			       dev_name(dev), priv);
-	if (IS_ERR_VALUE(ret))
+	if (ret)
 		return ret;
 
 	return fpga_mgr_register(dev, "Altera SOCFPGA FPGA Manager",
