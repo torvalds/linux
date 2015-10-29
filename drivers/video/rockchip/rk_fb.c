@@ -467,6 +467,8 @@ int rk_fb_video_mode_from_timing(const struct display_timing *dt,
 	screen->cabc_lut = dt->cabc_lut;
 	screen->cabc_gamma_base = dt->cabc_gamma_base;
 
+	if (dt->flags & DISPLAY_FLAGS_INTERLACED)
+		screen->mode.vmode |= FB_VMODE_INTERLACED;
 	if (dt->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
 		screen->pin_dclk = 1;
 	else
