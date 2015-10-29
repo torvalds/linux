@@ -843,7 +843,7 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 
 	PRINT_D(HOSTINF_DBG, "Setting SCAN params\n");
 
-	hif_drv->usr_scan_req.u32RcvdChCount = 0;
+	hif_drv->usr_scan_req.rcvd_ch_cnt = 0;
 
 	strWIDList[u32WidsCount].id = (u16)WID_SSID_PROBE_REQ;
 	strWIDList[u32WidsCount].type = WID_STR;
@@ -1414,7 +1414,7 @@ static s32 Handle_RcvdNtwrkInfo(struct host_if_drv *hif_drv,
 			goto done;
 		}
 
-		for (i = 0; i < hif_drv->usr_scan_req.u32RcvdChCount; i++) {
+		for (i = 0; i < hif_drv->usr_scan_req.rcvd_ch_cnt; i++) {
 			if ((hif_drv->usr_scan_req.net_info[i].au8bssid) &&
 			    (pstrNetworkInfo->au8bssid)) {
 				if (memcmp(hif_drv->usr_scan_req.net_info[i].au8bssid,
@@ -1434,15 +1434,15 @@ static s32 Handle_RcvdNtwrkInfo(struct host_if_drv *hif_drv,
 		if (bNewNtwrkFound) {
 			PRINT_D(HOSTINF_DBG, "New network found\n");
 
-			if (hif_drv->usr_scan_req.u32RcvdChCount < MAX_NUM_SCANNED_NETWORKS) {
-				hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.u32RcvdChCount].s8rssi = pstrNetworkInfo->s8rssi;
+			if (hif_drv->usr_scan_req.rcvd_ch_cnt < MAX_NUM_SCANNED_NETWORKS) {
+				hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].s8rssi = pstrNetworkInfo->s8rssi;
 
-				if (hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.u32RcvdChCount].au8bssid &&
+				if (hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].au8bssid &&
 				    pstrNetworkInfo->au8bssid) {
-					memcpy(hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.u32RcvdChCount].au8bssid,
+					memcpy(hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].au8bssid,
 					       pstrNetworkInfo->au8bssid, 6);
 
-					hif_drv->usr_scan_req.u32RcvdChCount++;
+					hif_drv->usr_scan_req.rcvd_ch_cnt++;
 
 					pstrNetworkInfo->bNewNetwork = true;
 					pJoinParams = host_int_ParseJoinBssParam(pstrNetworkInfo);
