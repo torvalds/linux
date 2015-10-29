@@ -2342,8 +2342,8 @@ static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer,
 	*pu8CurrByte++ = pstrStationParam->flags_mask & 0xFF;
 	*pu8CurrByte++ = (pstrStationParam->flags_mask >> 8) & 0xFF;
 
-	*pu8CurrByte++ = pstrStationParam->u16FlagsSet & 0xFF;
-	*pu8CurrByte++ = (pstrStationParam->u16FlagsSet >> 8) & 0xFF;
+	*pu8CurrByte++ = pstrStationParam->flags_set & 0xFF;
+	*pu8CurrByte++ = (pstrStationParam->flags_set >> 8) & 0xFF;
 
 	return pu8CurrByte - pu8Buffer;
 }

@@ -300,7 +300,7 @@ struct add_sta_param {
 	u32 ht_tx_bf_cap;
 	u8 ht_ante_sel;
 	u16 flags_mask;
-	u16 u16FlagsSet;
+	u16 flags_set;
 };
 
 s32 host_int_remove_key(struct host_if_drv *hWFIDrv, const u8 *pu8StaAddress);
