@@ -53,7 +53,7 @@
 #define NUM_CONCURRENT_IFC			2
 
 struct rf_info {
-	u8 u8LinkSpeed;
+	u8 link_speed;
 	s8 s8RSSI;
 	u32 u32TxCount;
 	u32 u32RxCount;
