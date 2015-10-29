@@ -414,6 +414,7 @@ static s32 fm10k_update_xcast_mode_pf(struct fm10k_hw *hw, u16 glort, u8 mode)
 
 	if (mode > FM10K_XCAST_MODE_NONE)
 		return FM10K_ERR_PARAM;
+
 	/* if glort is not valid return error */
 	if (!fm10k_glort_valid_pf(hw, glort))
 		return FM10K_ERR_PARAM;

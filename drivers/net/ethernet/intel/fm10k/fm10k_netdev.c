@@ -608,7 +608,7 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	unsigned int r_idx = skb->queue_mapping;
 	int err;
 
-	if ((skb->protocol ==  htons(ETH_P_8021Q)) &&
+	if ((skb->protocol == htons(ETH_P_8021Q)) &&
 	    !skb_vlan_tag_present(skb)) {
 		/* FM10K only supports hardware tagging, any tags in frame
 		 * are considered 2nd level or "outer" tags
@@ -705,7 +705,7 @@ static void fm10k_tx_timeout(struct net_device *netdev)
 	} else {
 		netif_info(interface, drv, netdev,
 			   "Fake Tx hang detected with timeout of %d seconds\n",
-			   netdev->watchdog_timeo/HZ);
+			   netdev->watchdog_timeo / HZ);
 
 		/* fake Tx hang - increase the kernel timeout */
 		if (netdev->watchdog_timeo < TX_TIMEO_LIMIT)

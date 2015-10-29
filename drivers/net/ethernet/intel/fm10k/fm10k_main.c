@@ -917,7 +917,7 @@ static u8 fm10k_tx_desc_flags(struct sk_buff *skb, u32 tx_flags)
 	/* set timestamping bits */
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
 	    likely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS))
-			desc_flags |= FM10K_TXD_FLAG_TIME;
+		desc_flags |= FM10K_TXD_FLAG_TIME;
 
 	/* set checksum offload bits */
 	desc_flags |= FM10K_SET_FLAG(tx_flags, FM10K_TX_FLAGS_CSUM,
@@ -1462,7 +1462,7 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 	 * allow the budget to go below 1 because we'll exit polling
 	 */
 	if (q_vector->rx.count > 1)
-		per_ring_budget = max(budget/q_vector->rx.count, 1);
+		per_ring_budget = max(budget / q_vector->rx.count, 1);
 	else
 		per_ring_budget = budget;
 

@@ -2140,6 +2140,7 @@ s32 fm10k_sm_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
 {
 	mbx->mbx_reg = FM10K_GMBX;
 	mbx->mbmem_reg = FM10K_MBMEM_PF(0);
+
 	/* start out in closed state */
 	mbx->state = FM10K_STATE_CLOSED;
 

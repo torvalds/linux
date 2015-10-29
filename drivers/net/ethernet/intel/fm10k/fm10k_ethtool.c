@@ -127,7 +127,7 @@ static const struct fm10k_stats fm10k_gstrings_mbx_stats[] = {
 #define FM10K_MBX_STATS_LEN ARRAY_SIZE(fm10k_gstrings_mbx_stats)
 
 #define FM10K_QUEUE_STATS_LEN(_n) \
-	( (_n) * 2 * (sizeof(struct fm10k_queue_stats) / sizeof(u64)))
+	((_n) * 2 * (sizeof(struct fm10k_queue_stats) / sizeof(u64)))
 
 #define FM10K_STATIC_STATS_LEN (FM10K_GLOBAL_STATS_LEN + \
 				FM10K_NETDEV_STATS_LEN + \
@@ -322,6 +322,7 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 	if ((interface->flags & FM10K_FLAG_DEBUG_STATS) && iov_data) {
 		for (i = 0; i < iov_data->num_vfs; i++) {
 			struct fm10k_vf_info *vf_info;
+
 			vf_info = &iov_data->vf_info[i];
 
 			/* skip stats if we don't have a vf info */
@@ -1019,7 +1020,6 @@ static int fm10k_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 
 	return 0;
 }
-
 
 static u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
 {

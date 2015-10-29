@@ -442,6 +442,7 @@ static s32 fm10k_update_xcast_mode_vf(struct fm10k_hw *hw, u16 glort, u8 mode)
 
 	if (mode > FM10K_XCAST_MODE_NONE)
 		return FM10K_ERR_PARAM;
+
 	/* generate message requesting to change xcast mode */
 	fm10k_tlv_msg_init(msg, FM10K_VF_MSG_ID_LPORT_STATE);
 	fm10k_tlv_attr_put_u8(msg, FM10K_LPORT_STATE_MSG_XCAST_MODE, mode);

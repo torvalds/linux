@@ -919,7 +919,7 @@ void fm10k_netpoll(struct net_device *netdev)
 #endif
 #define FM10K_ERR_MSG(type) case (type): error = #type; break
 static void fm10k_handle_fault(struct fm10k_intfc *interface, int type,
-			      struct fm10k_fault *fault)
+			       struct fm10k_fault *fault)
 {
 	struct pci_dev *pdev = interface->pdev;
 	struct fm10k_hw *hw = &interface->hw;
@@ -1890,8 +1890,7 @@ static void fm10k_slot_warn(struct fm10k_intfc *interface)
  * The OS initialization, configuring of the interface private structure,
  * and a hardware reset occur.
  **/
-static int fm10k_probe(struct pci_dev *pdev,
-		       const struct pci_device_id *ent)
+static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct fm10k_intfc *interface;
