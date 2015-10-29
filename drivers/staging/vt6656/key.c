@@ -163,7 +163,6 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 	}
 
-
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
 		vnt_set_keymode(hw, mac_addr, key, VNT_KEY_PAIRWISE,
 					key_dec_mode, true);
