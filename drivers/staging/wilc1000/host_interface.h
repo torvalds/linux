@@ -195,7 +195,7 @@ struct user_scan_req {
 	wilc_scan_result scan_result;
 	void *arg;
 	u32 u32RcvdChCount;
-	struct found_net_info astrFoundNetworkInfo[MAX_NUM_SCANNED_NETWORKS];
+	struct found_net_info net_info[MAX_NUM_SCANNED_NETWORKS];
 };
 
 struct user_conn_req {
