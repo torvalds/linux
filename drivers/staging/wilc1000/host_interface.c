@@ -1028,7 +1028,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	}
 
 	hif_drv->usr_conn_req.u8security = pstrHostIFconnectAttr->security;
-	hif_drv->usr_conn_req.tenuAuth_type = pstrHostIFconnectAttr->auth_type;
+	hif_drv->usr_conn_req.auth_type = pstrHostIFconnectAttr->auth_type;
 	hif_drv->usr_conn_req.conn_result = pstrHostIFconnectAttr->result;
 	hif_drv->usr_conn_req.arg = pstrHostIFconnectAttr->arg;
 
@@ -1078,13 +1078,14 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	strWIDList[u32WidsCount].id = (u16)WID_AUTH_TYPE;
 	strWIDList[u32WidsCount].type = WID_CHAR;
 	strWIDList[u32WidsCount].size = sizeof(char);
-	strWIDList[u32WidsCount].val = (s8 *)(&hif_drv->usr_conn_req.tenuAuth_type);
+	strWIDList[u32WidsCount].val = (s8 *)&hif_drv->usr_conn_req.auth_type;
 	u32WidsCount++;
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7))
-		auth_type = (u8)hif_drv->usr_conn_req.tenuAuth_type;
+		auth_type = (u8)hif_drv->usr_conn_req.auth_type;
 
-	PRINT_INFO(HOSTINF_DBG, "Authentication Type = %x\n", hif_drv->usr_conn_req.tenuAuth_type);
+	PRINT_INFO(HOSTINF_DBG, "Authentication Type = %x\n",
+		   hif_drv->usr_conn_req.auth_type);
 	PRINT_D(HOSTINF_DBG, "Connecting to network of SSID %s on channel %d\n",
 		hif_drv->usr_conn_req.pu8ssid, pstrHostIFconnectAttr->ch);
 

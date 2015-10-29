@@ -206,7 +206,7 @@ struct user_conn_req {
 	u8 *pu8bssid;
 	u8 *pu8ssid;
 	u8 u8security;
-	enum AUTHTYPE tenuAuth_type;
+	enum AUTHTYPE auth_type;
 	size_t ssid_len;
 	u8 *ies;
 	size_t ies_len;
