@@ -2554,7 +2554,7 @@ static int Handle_RegisterFrame(struct host_if_drv *hif_drv,
 
 	PRINT_D(HOSTINF_DBG, "Handling frame register : %d FrameType: %d\n",
 		pstrHostIfRegisterFrame->reg,
-		pstrHostIfRegisterFrame->u16FrameType);
+		pstrHostIfRegisterFrame->frame_type);
 
 	wid.id = (u16)WID_REGISTER_FRAME;
 	wid.type = WID_STR;
@@ -2566,8 +2566,7 @@ static int Handle_RegisterFrame(struct host_if_drv *hif_drv,
 
 	*pu8CurrByte++ = pstrHostIfRegisterFrame->reg;
 	*pu8CurrByte++ = pstrHostIfRegisterFrame->u8Regid;
-	memcpy(pu8CurrByte, &pstrHostIfRegisterFrame->u16FrameType,
-	       sizeof(u16));
+	memcpy(pu8CurrByte, &pstrHostIfRegisterFrame->frame_type, sizeof(u16));
 
 	wid.size = sizeof(u16) + 2;
 
@@ -4435,7 +4434,7 @@ s32 host_int_frame_register(struct host_if_drv *hif_drv, u16 u16FrameType, bool 
 		PRINT_D(HOSTINF_DBG, "Not valid frame type\n");
 		break;
 	}
-	msg.body.reg_frame.u16FrameType = u16FrameType;
+	msg.body.reg_frame.frame_type = u16FrameType;
 	msg.body.reg_frame.reg = bReg;
 	msg.drv = hif_drv;
 
