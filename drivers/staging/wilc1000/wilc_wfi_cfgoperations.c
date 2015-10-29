@@ -2337,8 +2337,8 @@ static int mgmt_tx(struct wiphy *wiphy,
 				jiffies, pstrWFIDrv->p2p_timeout);
 		}
 
-		wilc_wlan_txq_add_mgmt_pkt(mgmt_tx, mgmt_tx->buff,
-					   mgmt_tx->size,
+		wilc_wlan_txq_add_mgmt_pkt(wdev->netdev, mgmt_tx,
+					   mgmt_tx->buff, mgmt_tx->size,
 					   WILC_WFI_mgmt_tx_complete);
 	} else {
 		PRINT_D(GENERIC_DBG, "This function transmits only management frames\n");
