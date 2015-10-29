@@ -244,7 +244,7 @@ struct remain_ch {
 	wilc_remain_on_chan_expired expired;
 	wilc_remain_on_chan_ready ready;
 	void *arg;
-	u32 u32ListenSessionID;
+	u32 id;
 };
 
 struct reg_frame {
