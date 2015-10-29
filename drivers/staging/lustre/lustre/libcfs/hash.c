@@ -106,9 +106,9 @@
  *   Now we support both locked iteration & lockless iteration of hash
  *   table. Also, user can break the iteration by return 1 in callback.
  */
+#include <linux/seq_file.h>
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include <linux/seq_file.h>
 
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1
 static unsigned int warn_on_depth = 8;
