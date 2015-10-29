@@ -1870,7 +1870,7 @@ void wilc_bus_set_default_speed(void)
 	/* Restore bus speed to default.  */
 	g_wlan.hif_func.hif_set_default_bus_speed();
 }
-u32 init_chip(void)
+u32 init_chip(struct net_device *dev)
 {
 	u32 chipid;
 	u32 reg, ret = 0;
@@ -2028,7 +2028,7 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 	}
 #endif
 
-	if (!init_chip()) {
+	if (!init_chip(dev)) {
 		/* EIO	5 */
 		ret = -5;
 		goto _fail_;
