@@ -21,7 +21,6 @@
 extern "C" {
 #endif
 
-
 struct dim2_regs {
 	/* 0x00 */ u32 MLBC0;
 	/* 0x01 */ u32 rsvd0[1];
@@ -66,7 +65,6 @@ struct dim2_regs {
 	/* 0xF6 */ u32 ACMR0;
 	/* 0xF7 */ u32 ACMR1;
 };
-
 
 #define DIM2_MASK(n)  (~((~(u32)0)<<(n)))
 
@@ -167,7 +165,6 @@ enum {
 	CAT_CL_SHIFT = 0,
 	CAT_CL_MASK = DIM2_MASK(6)
 };
-
 
 #ifdef	__cplusplus
 }
