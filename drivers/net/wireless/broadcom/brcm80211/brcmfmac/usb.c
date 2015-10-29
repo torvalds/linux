@@ -1504,7 +1504,6 @@ static struct usb_driver brcmf_usbdrvr = {
 	.suspend = brcmf_usb_suspend,
 	.resume = brcmf_usb_resume,
 	.reset_resume = brcmf_usb_reset_resume,
-	.supports_autosuspend = 1,
 	.disable_hub_initiated_lpm = 1,
 };
 
