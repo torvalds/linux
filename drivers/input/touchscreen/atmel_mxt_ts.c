@@ -2728,6 +2728,8 @@ err_free_mem:
 	return error;
 }
 
+static int mxt_sysfs_init(struct mxt_data *data);
+static void mxt_sysfs_remove(struct mxt_data *data);
 static int mxt_configure_objects(struct mxt_data *data,
 				 const struct firmware *cfg);
 
@@ -2780,6 +2782,10 @@ static int mxt_initialize(struct mxt_data *data)
 		goto err_free_object_table;
 
 	error = mxt_acquire_irq(data);
+	if (error)
+		goto err_free_object_table;
+
+	error = mxt_sysfs_init(data);
 	if (error)
 		goto err_free_object_table;
 
@@ -2911,9 +2917,6 @@ static ssize_t mxt_fw_version_show(struct device *dev,
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
 
-	if (!data->object_table)
-		return -EINVAL;
-
 	return scnprintf(buf, PAGE_SIZE, "%u.%u.%02X\n",
 			 data->info->version >> 4, data->info->version & 0xf,
 			 data->info->build);
@@ -2924,9 +2927,6 @@ static ssize_t mxt_hw_version_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
-
-	if (!data->object_table)
-		return -EINVAL;
 
 	return scnprintf(buf, PAGE_SIZE, "%u.%u\n",
 			data->info->family_id, data->info->variant_id);
@@ -2959,9 +2959,6 @@ static ssize_t mxt_object_show(struct device *dev,
 	int i, j;
 	int error;
 	u8 *obuf;
-
-	if (!data->object_table)
-		return -EINVAL;
 
 	/* Pre-allocate buffer large enough to hold max sized object. */
 	obuf = kmalloc(256, GFP_KERNEL);
@@ -3045,6 +3042,7 @@ static int mxt_enter_bootloader(struct mxt_data *data)
 			return ret;
 
 		data->in_bootloader = true;
+		mxt_sysfs_remove(data);
 		mxt_free_input_device(data);
 		mxt_free_object_table(data);
 	}
@@ -3179,11 +3177,6 @@ static ssize_t mxt_update_cfg_store(struct device *dev,
 	const struct firmware *cfg;
 	int ret;
 
-	if (data->in_bootloader) {
-		dev_err(dev, "Not in appmode\n");
-		return -EINVAL;
-	}
-
 	ret = mxt_update_file_name(dev, &data->cfg_name, buf, count);
 	if (ret)
 		return ret;
@@ -3286,9 +3279,6 @@ static ssize_t mxt_debug_enable_store(struct device *dev,
 static int mxt_check_mem_access_params(struct mxt_data *data, loff_t off,
 				       size_t *count)
 {
-	if (data->in_bootloader)
-		return -EINVAL;
-
 	if (off >= data->mem_size)
 		return -EIO;
 
@@ -3336,10 +3326,20 @@ static ssize_t mxt_mem_access_write(struct file *filp, struct kobject *kobj,
 	return ret == 0 ? count : ret;
 }
 
+static DEVICE_ATTR(update_fw, S_IWUSR, NULL, mxt_update_fw_store);
+
+static struct attribute *mxt_fw_attrs[] = {
+	&dev_attr_update_fw.attr,
+	NULL
+};
+
+static const struct attribute_group mxt_fw_attr_group = {
+	.attrs = mxt_fw_attrs,
+};
+
 static DEVICE_ATTR(fw_version, S_IRUGO, mxt_fw_version_show, NULL);
 static DEVICE_ATTR(hw_version, S_IRUGO, mxt_hw_version_show, NULL);
 static DEVICE_ATTR(object, S_IRUGO, mxt_object_show, NULL);
-static DEVICE_ATTR(update_fw, S_IWUSR, NULL, mxt_update_fw_store);
 static DEVICE_ATTR(update_cfg, S_IWUSR, NULL, mxt_update_cfg_store);
 static DEVICE_ATTR(config_crc, S_IRUGO, mxt_config_crc_show, NULL);
 static DEVICE_ATTR(debug_enable, S_IWUSR | S_IRUSR, mxt_debug_enable_show,
@@ -3352,7 +3352,6 @@ static struct attribute *mxt_attrs[] = {
 	&dev_attr_fw_version.attr,
 	&dev_attr_hw_version.attr,
 	&dev_attr_object.attr,
-	&dev_attr_update_fw.attr,
 	&dev_attr_update_cfg.attr,
 	&dev_attr_config_crc.attr,
 	&dev_attr_debug_enable.attr,
@@ -3364,6 +3363,51 @@ static struct attribute *mxt_attrs[] = {
 static const struct attribute_group mxt_attr_group = {
 	.attrs = mxt_attrs,
 };
+
+static int mxt_sysfs_init(struct mxt_data *data)
+{
+	struct i2c_client *client = data->client;
+	int error;
+
+	error = sysfs_create_group(&client->dev.kobj, &mxt_attr_group);
+	if (error) {
+		dev_err(&client->dev, "Failure %d creating sysfs group\n",
+			error);
+		return error;
+	}
+
+	sysfs_bin_attr_init(&data->mem_access_attr);
+	data->mem_access_attr.attr.name = "mem_access";
+	data->mem_access_attr.attr.mode = S_IRUGO | S_IWUSR;
+	data->mem_access_attr.read = mxt_mem_access_read;
+	data->mem_access_attr.write = mxt_mem_access_write;
+	data->mem_access_attr.size = data->mem_size;
+
+	error = sysfs_create_bin_file(&client->dev.kobj,
+				  &data->mem_access_attr);
+	if (error) {
+		dev_err(&client->dev, "Failed to create %s\n",
+			data->mem_access_attr.attr.name);
+		goto err_remove_sysfs_group;
+	}
+
+	return 0;
+
+err_remove_sysfs_group:
+	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
+	return error;
+}
+
+static void mxt_sysfs_remove(struct mxt_data *data)
+{
+	struct i2c_client *client = data->client;
+
+	if (data->mem_access_attr.attr.name)
+		sysfs_remove_bin_file(&client->dev.kobj,
+				      &data->mem_access_attr);
+
+	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
+}
 
 static void mxt_reset_slots(struct mxt_data *data)
 {
@@ -3722,38 +3766,19 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		disable_irq(data->irq);
 	}
 
-	error = sysfs_create_group(&client->dev.kobj, &mxt_attr_group);
-	if (error) {
-		dev_err(&client->dev, "Failure %d creating sysfs group\n",
-			error);
-		goto err_free_irq;
-	}
-
-	sysfs_bin_attr_init(&data->mem_access_attr);
-	data->mem_access_attr.attr.name = "mem_access";
-	data->mem_access_attr.attr.mode = S_IRUGO | S_IWUSR;
-	data->mem_access_attr.read = mxt_mem_access_read;
-	data->mem_access_attr.write = mxt_mem_access_write;
-	data->mem_access_attr.size = data->mem_size;
-
-	if (sysfs_create_bin_file(&client->dev.kobj,
-				  &data->mem_access_attr) < 0) {
-		dev_err(&client->dev, "Failed to create %s\n",
-			data->mem_access_attr.attr.name);
-		goto err_remove_sysfs_group;
-	}
-
 	error = mxt_initialize(data);
 	if (error)
-		goto err_remove_mem_access;
+		goto err_free_irq;
+
+	error = sysfs_create_group(&client->dev.kobj, &mxt_fw_attr_group);
+	if (error) {
+		dev_err(&client->dev, "Failure %d creating fw sysfs group\n",
+			error);
+		return error;
+	}
 
 	return 0;
 
-err_remove_mem_access:
-	sysfs_remove_bin_file(&client->dev.kobj, &data->mem_access_attr);
-	data->mem_access_attr.attr.name = NULL;
-err_remove_sysfs_group:
-	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
 err_free_irq:
 	if (data->irq)
 		free_irq(data->irq, data);
@@ -3766,11 +3791,8 @@ static int mxt_remove(struct i2c_client *client)
 {
 	struct mxt_data *data = i2c_get_clientdata(client);
 
-	if (data->mem_access_attr.attr.name)
-		sysfs_remove_bin_file(&client->dev.kobj,
-				      &data->mem_access_attr);
-
-	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
+	sysfs_remove_group(&client->dev.kobj, &mxt_fw_attr_group);
+	mxt_sysfs_remove(data);
 
 	if (data->irq)
 		free_irq(data->irq, data);
