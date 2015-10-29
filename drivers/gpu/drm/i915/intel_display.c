@@ -4139,6 +4139,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) && intel_crtc->config->has_dp_encoder) {
+		const struct drm_display_mode *adjusted_mode =
+			&intel_crtc->config->base.adjusted_mode;
 		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) >> 5;
 		reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
@@ -4148,9 +4150,9 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 		temp |= TRANS_DP_OUTPUT_ENABLE;
 		temp |= bpc << 9; /* same format but at 11:9 */
 
-		if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
+		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 			temp |= TRANS_DP_HSYNC_ACTIVE_HIGH;
-		if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
+		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 			temp |= TRANS_DP_VSYNC_ACTIVE_HIGH;
 
 		switch (intel_trans_dp_port_sel(crtc)) {
