@@ -115,6 +115,7 @@ do {							\
 group		[^,{}/]*[{][^}]*[}][^,{}/]*
 event_pmu	[^,{}/]+[/][^/]*[/][^,{}/]*
 event		[^,{}/]+
+bpf_object	.*\.(o|bpf)
 
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]+
@@ -159,6 +160,7 @@ modifier_bp	[rwx]{1,3}
 		}
 
 {event_pmu}	|
+{bpf_object}	|
 {event}		{
 			BEGIN(INITIAL);
 			REWIND(1);
@@ -266,6 +268,7 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 {num_hex}		{ return value(yyscanner, 16); }
 
 {modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
+{bpf_object}		{ return str(yyscanner, PE_BPF_OBJECT); }
 {name}			{ return pmu_str_check(yyscanner); }
 "/"			{ BEGIN(config); return '/'; }
 -			{ return '-'; }

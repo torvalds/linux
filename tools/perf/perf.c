@@ -15,6 +15,7 @@
 #include "util/run-command.h"
 #include "util/parse-events.h"
 #include "util/parse-options.h"
+#include "util/bpf-loader.h"
 #include "util/debug.h"
 #include <api/fs/tracing_path.h>
 #include <pthread.h>
@@ -385,6 +386,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	status = p->fn(argc, argv, prefix);
 	exit_browser(status);
 	perf_env__exit(&perf_env);
+	bpf__clear();
 
 	if (status)
 		return status & 0xff;

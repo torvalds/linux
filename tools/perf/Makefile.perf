@@ -75,6 +75,8 @@ include config/utilities.mak
 # Define NO_LZMA if you do not want to support compressed (xz) kernel modules
 #
 # Define NO_AUXTRACE if you do not want AUX area tracing support
+#
+# Define NO_LIBBPF if you do not want BPF support
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -145,6 +147,7 @@ AWK     = awk
 
 LIB_DIR          = $(srctree)/tools/lib/api/
 TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
+BPF_DIR = $(srctree)/tools/lib/bpf/
 
 # include config/Makefile by default and rule out
 # non-config cases
@@ -180,6 +183,7 @@ strip-libs = $(filter-out -l%,$(1))
 
 ifneq ($(OUTPUT),)
   TE_PATH=$(OUTPUT)
+  BPF_PATH=$(OUTPUT)
 ifneq ($(subdir),)
   LIB_PATH=$(OUTPUT)/../lib/api/
 else
@@ -188,6 +192,7 @@ endif
 else
   TE_PATH=$(TRACE_EVENT_DIR)
   LIB_PATH=$(LIB_DIR)
+  BPF_PATH=$(BPF_DIR)
 endif
 
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
@@ -198,6 +203,8 @@ LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS = -Xlinker --dynamic-list=$(LIBTRACEEVENT_DYN
 
 LIBAPI = $(LIB_PATH)libapi.a
 export LIBAPI
+
+LIBBPF = $(BPF_PATH)libbpf.a
 
 # python extension build directories
 PYTHON_EXTBUILD     := $(OUTPUT)python_ext_build/
@@ -251,6 +258,9 @@ export PERL_PATH
 LIB_FILE=$(OUTPUT)libperf.a
 
 PERFLIBS = $(LIB_FILE) $(LIBAPI) $(LIBTRACEEVENT)
+ifndef NO_LIBBPF
+  PERFLIBS += $(LIBBPF)
+endif
 
 # We choose to avoid "if .. else if .. else .. endif endif"
 # because maintaining the nesting to match is a pain.  If
@@ -420,6 +430,13 @@ $(LIBAPI)-clean:
 	$(call QUIET_CLEAN, libapi)
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
 
+$(LIBBPF): FORCE
+	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a
+
+$(LIBBPF)-clean:
+	$(call QUIET_CLEAN, libbpf)
+	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) clean >/dev/null
+
 help:
 	@echo 'Perf make targets:'
 	@echo '  doc		- make *all* documentation (see below)'
@@ -459,7 +476,7 @@ INSTALL_DOC_TARGETS += quick-install-doc quick-install-man quick-install-html
 $(DOC_TARGETS):
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) $(@:doc=all)
 
-TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol ../include
+TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol ../include ../lib/bpf
 TAG_FILES= ../../include/uapi/linux/perf_event.h
 
 TAGS:
@@ -567,7 +584,7 @@ config-clean:
 	$(call QUIET_CLEAN, config)
 	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
 
-clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean config-clean
+clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	$(Q)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected

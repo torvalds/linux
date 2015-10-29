@@ -11,6 +11,7 @@
 #include "symbol.h"
 #include "cache.h"
 #include "header.h"
+#include "bpf-loader.h"
 #include "debug.h"
 #include <api/fs/tracing_path.h>
 #include "parse-events-bison.h"
@@ -527,6 +528,123 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 
 	closedir(events_dir);
 	return ret;
+}
+
+struct __add_bpf_event_param {
+	struct parse_events_evlist *data;
+	struct list_head *list;
+};
+
+static int add_bpf_event(struct probe_trace_event *tev, int fd,
+			 void *_param)
+{
+	LIST_HEAD(new_evsels);
+	struct __add_bpf_event_param *param = _param;
+	struct parse_events_evlist *evlist = param->data;
+	struct list_head *list = param->list;
+	int err;
+
+	pr_debug("add bpf event %s:%s and attach bpf program %d\n",
+		 tev->group, tev->event, fd);
+
+	err = parse_events_add_tracepoint(&new_evsels, &evlist->idx, tev->group,
+					  tev->event, evlist->error, NULL);
+	if (err) {
+		struct perf_evsel *evsel, *tmp;
+
+		pr_debug("Failed to add BPF event %s:%s\n",
+			 tev->group, tev->event);
+		list_for_each_entry_safe(evsel, tmp, &new_evsels, node) {
+			list_del(&evsel->node);
+			perf_evsel__delete(evsel);
+		}
+		return err;
+	}
+	pr_debug("adding %s:%s\n", tev->group, tev->event);
+
+	list_splice(&new_evsels, list);
+	return 0;
+}
+
+int parse_events_load_bpf_obj(struct parse_events_evlist *data,
+			      struct list_head *list,
+			      struct bpf_object *obj)
+{
+	int err;
+	char errbuf[BUFSIZ];
+	struct __add_bpf_event_param param = {data, list};
+	static bool registered_unprobe_atexit = false;
+
+	if (IS_ERR(obj) || !obj) {
+		snprintf(errbuf, sizeof(errbuf),
+			 "Internal error: load bpf obj with NULL");
+		err = -EINVAL;
+		goto errout;
+	}
+
+	/*
+	 * Register atexit handler before calling bpf__probe() so
+	 * bpf__probe() don't need to unprobe probe points its already
+	 * created when failure.
+	 */
+	if (!registered_unprobe_atexit) {
+		atexit(bpf__clear);
+		registered_unprobe_atexit = true;
+	}
+
+	err = bpf__probe(obj);
+	if (err) {
+		bpf__strerror_probe(obj, err, errbuf, sizeof(errbuf));
+		goto errout;
+	}
+
+	err = bpf__load(obj);
+	if (err) {
+		bpf__strerror_load(obj, err, errbuf, sizeof(errbuf));
+		goto errout;
+	}
+
+	err = bpf__foreach_tev(obj, add_bpf_event, &param);
+	if (err) {
+		snprintf(errbuf, sizeof(errbuf),
+			 "Attach events in BPF object failed");
+		goto errout;
+	}
+
+	return 0;
+errout:
+	data->error->help = strdup("(add -v to see detail)");
+	data->error->str = strdup(errbuf);
+	return err;
+}
+
+int parse_events_load_bpf(struct parse_events_evlist *data,
+			  struct list_head *list,
+			  char *bpf_file_name)
+{
+	struct bpf_object *obj;
+
+	obj = bpf__prepare_load(bpf_file_name);
+	if (IS_ERR(obj) || !obj) {
+		char errbuf[BUFSIZ];
+		int err;
+
+		err = obj ? PTR_ERR(obj) : -EINVAL;
+
+		if (err == -ENOTSUP)
+			snprintf(errbuf, sizeof(errbuf),
+				 "BPF support is not compiled");
+		else
+			snprintf(errbuf, sizeof(errbuf),
+				 "BPF object file '%s' is invalid",
+				 bpf_file_name);
+
+		data->error->help = strdup("(add -v to see detail)");
+		data->error->str = strdup(errbuf);
+		return err;
+	}
+
+	return parse_events_load_bpf_obj(data, list, obj);
 }
 
 static int
