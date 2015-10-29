@@ -307,17 +307,17 @@ static long vfio_platform_ioctl(void *device_data,
 	return -ENOTTY;
 }
 
-static ssize_t vfio_platform_read_mmio(struct vfio_platform_region reg,
+static ssize_t vfio_platform_read_mmio(struct vfio_platform_region *reg,
 				       char __user *buf, size_t count,
 				       loff_t off)
 {
 	unsigned int done = 0;
 
-	if (!reg.ioaddr) {
-		reg.ioaddr =
-			ioremap_nocache(reg.addr, reg.size);
+	if (!reg->ioaddr) {
+		reg->ioaddr =
+			ioremap_nocache(reg->addr, reg->size);
 
-		if (!reg.ioaddr)
+		if (!reg->ioaddr)
 			return -ENOMEM;
 	}
 
@@ -327,7 +327,7 @@ static ssize_t vfio_platform_read_mmio(struct vfio_platform_region reg,
 		if (count >= 4 && !(off % 4)) {
 			u32 val;
 
-			val = ioread32(reg.ioaddr + off);
+			val = ioread32(reg->ioaddr + off);
 			if (copy_to_user(buf, &val, 4))
 				goto err;
 
@@ -335,7 +335,7 @@ static ssize_t vfio_platform_read_mmio(struct vfio_platform_region reg,
 		} else if (count >= 2 && !(off % 2)) {
 			u16 val;
 
-			val = ioread16(reg.ioaddr + off);
+			val = ioread16(reg->ioaddr + off);
 			if (copy_to_user(buf, &val, 2))
 				goto err;
 
@@ -343,7 +343,7 @@ static ssize_t vfio_platform_read_mmio(struct vfio_platform_region reg,
 		} else {
 			u8 val;
 
-			val = ioread8(reg.ioaddr + off);
+			val = ioread8(reg->ioaddr + off);
 			if (copy_to_user(buf, &val, 1))
 				goto err;
 
@@ -376,7 +376,7 @@ static ssize_t vfio_platform_read(void *device_data, char __user *buf,
 		return -EINVAL;
 
 	if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_MMIO)
-		return vfio_platform_read_mmio(vdev->regions[index],
+		return vfio_platform_read_mmio(&vdev->regions[index],
 							buf, count, off);
 	else if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_PIO)
 		return -EINVAL; /* not implemented */
@@ -384,17 +384,17 @@ static ssize_t vfio_platform_read(void *device_data, char __user *buf,
 	return -EINVAL;
 }
 
-static ssize_t vfio_platform_write_mmio(struct vfio_platform_region reg,
+static ssize_t vfio_platform_write_mmio(struct vfio_platform_region *reg,
 					const char __user *buf, size_t count,
 					loff_t off)
 {
 	unsigned int done = 0;
 
-	if (!reg.ioaddr) {
-		reg.ioaddr =
-			ioremap_nocache(reg.addr, reg.size);
+	if (!reg->ioaddr) {
+		reg->ioaddr =
+			ioremap_nocache(reg->addr, reg->size);
 
-		if (!reg.ioaddr)
+		if (!reg->ioaddr)
 			return -ENOMEM;
 	}
 
@@ -406,7 +406,7 @@ static ssize_t vfio_platform_write_mmio(struct vfio_platform_region reg,
 
 			if (copy_from_user(&val, buf, 4))
 				goto err;
-			iowrite32(val, reg.ioaddr + off);
+			iowrite32(val, reg->ioaddr + off);
 
 			filled = 4;
 		} else if (count >= 2 && !(off % 2)) {
@@ -414,7 +414,7 @@ static ssize_t vfio_platform_write_mmio(struct vfio_platform_region reg,
 
 			if (copy_from_user(&val, buf, 2))
 				goto err;
-			iowrite16(val, reg.ioaddr + off);
+			iowrite16(val, reg->ioaddr + off);
 
 			filled = 2;
 		} else {
@@ -422,7 +422,7 @@ static ssize_t vfio_platform_write_mmio(struct vfio_platform_region reg,
 
 			if (copy_from_user(&val, buf, 1))
 				goto err;
-			iowrite8(val, reg.ioaddr + off);
+			iowrite8(val, reg->ioaddr + off);
 
 			filled = 1;
 		}
@@ -452,7 +452,7 @@ static ssize_t vfio_platform_write(void *device_data, const char __user *buf,
 		return -EINVAL;
 
 	if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_MMIO)
-		return vfio_platform_write_mmio(vdev->regions[index],
+		return vfio_platform_write_mmio(&vdev->regions[index],
 							buf, count, off);
 	else if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_PIO)
 		return -EINVAL; /* not implemented */
