@@ -2715,9 +2715,9 @@ static s32 Handle_AddBASession(struct host_if_drv *hif_drv,
 	char *ptr = NULL;
 
 	PRINT_D(HOSTINF_DBG, "Opening Block Ack session with\nBSSID = %.2x:%.2x:%.2x\nTID=%d\nBufferSize == %d\nSessionTimeOut = %d\n",
-		strHostIfBASessionInfo->au8Bssid[0],
-		strHostIfBASessionInfo->au8Bssid[1],
-		strHostIfBASessionInfo->au8Bssid[2],
+		strHostIfBASessionInfo->bssid[0],
+		strHostIfBASessionInfo->bssid[1],
+		strHostIfBASessionInfo->bssid[2],
 		strHostIfBASessionInfo->u16BufferSize,
 		strHostIfBASessionInfo->u16SessionTimeout,
 		strHostIfBASessionInfo->u8Ted);
@@ -2730,7 +2730,7 @@ static s32 Handle_AddBASession(struct host_if_drv *hif_drv,
 	*ptr++ = 0x14;
 	*ptr++ = 0x3;
 	*ptr++ = 0x0;
-	memcpy(ptr, strHostIfBASessionInfo->au8Bssid, ETH_ALEN);
+	memcpy(ptr, strHostIfBASessionInfo->bssid, ETH_ALEN);
 	ptr += ETH_ALEN;
 	*ptr++ = strHostIfBASessionInfo->u8Ted;
 	*ptr++ = 1;
@@ -2755,7 +2755,7 @@ static s32 Handle_AddBASession(struct host_if_drv *hif_drv,
 	*ptr++ = 15;
 	*ptr++ = 7;
 	*ptr++ = 0x2;
-	memcpy(ptr, strHostIfBASessionInfo->au8Bssid, ETH_ALEN);
+	memcpy(ptr, strHostIfBASessionInfo->bssid, ETH_ALEN);
 	ptr += ETH_ALEN;
 	*ptr++ = strHostIfBASessionInfo->u8Ted;
 	*ptr++ = 8;
@@ -2778,9 +2778,9 @@ static s32 Handle_DelAllRxBASessions(struct host_if_drv *hif_drv,
 	char *ptr = NULL;
 
 	PRINT_D(GENERIC_DBG, "Delete Block Ack session with\nBSSID = %.2x:%.2x:%.2x\nTID=%d\n",
-		strHostIfBASessionInfo->au8Bssid[0],
-		strHostIfBASessionInfo->au8Bssid[1],
-		strHostIfBASessionInfo->au8Bssid[2],
+		strHostIfBASessionInfo->bssid[0],
+		strHostIfBASessionInfo->bssid[1],
+		strHostIfBASessionInfo->bssid[2],
 		strHostIfBASessionInfo->u8Ted);
 
 	wid.id = (u16)WID_DEL_ALL_RX_BA;
@@ -2791,7 +2791,7 @@ static s32 Handle_DelAllRxBASessions(struct host_if_drv *hif_drv,
 	*ptr++ = 0x14;
 	*ptr++ = 0x3;
 	*ptr++ = 0x2;
-	memcpy(ptr, strHostIfBASessionInfo->au8Bssid, ETH_ALEN);
+	memcpy(ptr, strHostIfBASessionInfo->bssid, ETH_ALEN);
 	ptr += ETH_ALEN;
 	*ptr++ = strHostIfBASessionInfo->u8Ted;
 	*ptr++ = 0;
@@ -4914,7 +4914,7 @@ s32 host_int_delBASession(struct host_if_drv *hif_drv, char *pBSSID, char TID)
 
 	msg.id = HOST_IF_MSG_DEL_BA_SESSION;
 
-	memcpy(pBASessionInfo->au8Bssid, pBSSID, ETH_ALEN);
+	memcpy(pBASessionInfo->bssid, pBSSID, ETH_ALEN);
 	pBASessionInfo->u8Ted = TID;
 	msg.drv = hif_drv;
 
@@ -4944,7 +4944,7 @@ s32 host_int_del_All_Rx_BASession(struct host_if_drv *hif_drv,
 
 	msg.id = HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS;
 
-	memcpy(pBASessionInfo->au8Bssid, pBSSID, ETH_ALEN);
+	memcpy(pBASessionInfo->bssid, pBSSID, ETH_ALEN);
 	pBASessionInfo->u8Ted = TID;
 	msg.drv = hif_drv;
 
