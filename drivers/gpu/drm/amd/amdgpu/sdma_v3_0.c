@@ -56,6 +56,11 @@ MODULE_FIRMWARE("amdgpu/carrizo_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/fiji_sdma.bin");
 MODULE_FIRMWARE("amdgpu/fiji_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/stoney_sdma.bin");
+MODULE_FIRMWARE("amdgpu/ellesmere_sdma.bin");
+MODULE_FIRMWARE("amdgpu/ellesmere_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/baffin_sdma.bin");
+MODULE_FIRMWARE("amdgpu/baffin_sdma1.bin");
+
 
 static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
 {
@@ -99,6 +104,32 @@ static const u32 fiji_mgcg_cgcg_init[] =
 {
 	mmSDMA0_CLK_CTRL, 0xff000ff0, 0x00000100,
 	mmSDMA1_CLK_CTRL, 0xff000ff0, 0x00000100
+};
+
+static const u32 golden_settings_baffin_a11[] =
+{
+	mmSDMA0_CHICKEN_BITS, 0xfc910007, 0x00810007,
+	mmSDMA0_GFX_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA0_RLC0_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA0_RLC1_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_CHICKEN_BITS, 0xfc910007, 0x00810007,
+	mmSDMA1_GFX_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_RLC0_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_RLC1_IB_CNTL, 0x800f0111, 0x00000100,
+};
+
+static const u32 golden_settings_ellesmere_a11[] =
+{
+	mmSDMA0_CHICKEN_BITS, 0xfc910007, 0x00810007,
+	mmSDMA0_CLK_CTRL, 0xff000fff, 0x00000000,
+	mmSDMA0_GFX_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA0_RLC0_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA0_RLC1_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_CHICKEN_BITS, 0xfc910007, 0x00810007,
+	mmSDMA1_CLK_CTRL, 0xff000fff, 0x00000000,
+	mmSDMA1_GFX_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_RLC0_IB_CNTL, 0x800f0111, 0x00000100,
+	mmSDMA1_RLC1_IB_CNTL, 0x800f0111, 0x00000100,
 };
 
 static const u32 cz_golden_settings_a11[] =
@@ -172,6 +203,16 @@ static void sdma_v3_0_init_golden_registers(struct amdgpu_device *adev)
 						 golden_settings_tonga_a11,
 						 (const u32)ARRAY_SIZE(golden_settings_tonga_a11));
 		break;
+	case CHIP_BAFFIN:
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_baffin_a11,
+						 (const u32)ARRAY_SIZE(golden_settings_baffin_a11));
+		break;
+	case CHIP_ELLESMERE:
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_ellesmere_a11,
+						 (const u32)ARRAY_SIZE(golden_settings_ellesmere_a11));
+		break;
 	case CHIP_CARRIZO:
 		amdgpu_program_register_sequence(adev,
 						 cz_mgcg_cgcg_init,
@@ -219,6 +260,12 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_FIJI:
 		chip_name = "fiji";
+		break;
+	case CHIP_BAFFIN:
+		chip_name = "baffin";
+		break;
+	case CHIP_ELLESMERE:
+		chip_name = "ellesmere";
 		break;
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";
