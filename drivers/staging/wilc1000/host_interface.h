@@ -245,7 +245,7 @@ struct remain_ch {
 };
 
 struct reg_frame {
-	bool bReg;
+	bool reg;
 	u16 u16FrameType;
 	u8 u8Regid;
 };

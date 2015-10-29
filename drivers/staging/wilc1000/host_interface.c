@@ -2552,7 +2552,9 @@ static int Handle_RegisterFrame(struct host_if_drv *hif_drv,
 	struct wid wid;
 	u8 *pu8CurrByte;
 
-	PRINT_D(HOSTINF_DBG, "Handling frame register Flag : %d FrameType: %d\n", pstrHostIfRegisterFrame->bReg, pstrHostIfRegisterFrame->u16FrameType);
+	PRINT_D(HOSTINF_DBG, "Handling frame register : %d FrameType: %d\n",
+		pstrHostIfRegisterFrame->reg,
+		pstrHostIfRegisterFrame->u16FrameType);
 
 	wid.id = (u16)WID_REGISTER_FRAME;
 	wid.type = WID_STR;
@@ -2562,7 +2564,7 @@ static int Handle_RegisterFrame(struct host_if_drv *hif_drv,
 
 	pu8CurrByte = wid.val;
 
-	*pu8CurrByte++ = pstrHostIfRegisterFrame->bReg;
+	*pu8CurrByte++ = pstrHostIfRegisterFrame->reg;
 	*pu8CurrByte++ = pstrHostIfRegisterFrame->u8Regid;
 	memcpy(pu8CurrByte, &pstrHostIfRegisterFrame->u16FrameType,
 	       sizeof(u16));
@@ -4434,7 +4436,7 @@ s32 host_int_frame_register(struct host_if_drv *hif_drv, u16 u16FrameType, bool 
 		break;
 	}
 	msg.body.reg_frame.u16FrameType = u16FrameType;
-	msg.body.reg_frame.bReg = bReg;
+	msg.body.reg_frame.reg = bReg;
 	msg.drv = hif_drv;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
