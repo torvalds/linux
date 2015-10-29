@@ -88,12 +88,11 @@ struct ipl_parameter_block {
  */
 extern u32 ipl_flags;
 
-struct dump_save_areas {
-	struct save_area_ext **areas;
-	int count;
-};
-
-extern struct dump_save_areas dump_save_areas;
+struct save_area;
+struct save_area * __init save_area_alloc(bool is_boot_cpu);
+struct save_area * __init save_area_boot_cpu(void);
+void __init save_area_add_regs(struct save_area *, void *regs);
+void __init save_area_add_vxrs(struct save_area *, __vector128 *vxrs);
 
 extern void do_reipl(void);
 extern void do_halt(void);

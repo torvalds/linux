@@ -16,27 +16,6 @@
 #define LC_ORDER 1
 #define LC_PAGES 2
 
-struct save_area {
-	u64	fp_regs[16];
-	u64	gp_regs[16];
-	u8	psw[16];
-	u8	pad1[8];
-	u32	pref_reg;
-	u32	fp_ctrl_reg;
-	u8	pad2[4];
-	u32	tod_reg;
-	u64	timer;
-	u64	clk_cmp;
-	u8	pad3[8];
-	u32	acc_regs[16];
-	u64	ctrl_regs[16];
-} __packed;
-
-struct save_area_ext {
-	struct save_area	sa;
-	__vector128		vx_regs[32];
-};
-
 struct _lowcore {
 	__u8	pad_0x0000[0x0014-0x0000];	/* 0x0000 */
 	__u32	ipl_parmblock_ptr;		/* 0x0014 */

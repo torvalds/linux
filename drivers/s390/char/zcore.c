@@ -117,18 +117,17 @@ int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count)
 
 static int __init init_cpu_info(void)
 {
-	struct save_area_ext *sa_ext;
+	struct save_area *sa;
 
 	/* get info for boot cpu from lowcore, stored in the HSA */
-
-	sa_ext = dump_save_areas.areas[0];
-	if (!sa_ext)
+	sa = save_area_boot_cpu();
+	if (!sa)
 		return -ENOMEM;
-	if (memcpy_hsa_kernel(&sa_ext->sa, __LC_FPREGS_SAVE_AREA,
-			      sizeof(struct save_area)) < 0) {
+	if (memcpy_hsa_kernel(hsa_buf, __LC_FPREGS_SAVE_AREA, 512) < 0) {
 		TRACE("could not copy from HSA\n");
 		return -EIO;
 	}
+	save_area_add_regs(sa, hsa_buf); /* vx registers are saved in smp.c */
 	return 0;
 }
 

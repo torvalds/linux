@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 #include <linux/elf.h>
+#include <asm/asm-offsets.h>
 #include <linux/memblock.h>
 #include <asm/os_info.h>
 #include <asm/elf.h>
@@ -32,7 +33,84 @@ static struct memblock_type oldmem_type = {
 	.regions = &oldmem_region,
 };
 
-struct dump_save_areas dump_save_areas;
+struct save_area {
+	struct list_head list;
+	u64 psw[2];
+	u64 ctrs[16];
+	u64 gprs[16];
+	u32 acrs[16];
+	u64 fprs[16];
+	u32 fpc;
+	u32 prefix;
+	u64 todpreg;
+	u64 timer;
+	u64 todcmp;
+	u64 vxrs_low[16];
+	__vector128 vxrs_high[16];
+};
+
+static LIST_HEAD(dump_save_areas);
+
+/*
+ * Allocate a save area
+ */
+struct save_area * __init save_area_alloc(bool is_boot_cpu)
+{
+	struct save_area *sa;
+
+	sa = (void *) memblock_alloc(sizeof(*sa), 8);
+	if (!sa)
+		return NULL;
+	if (is_boot_cpu)
+		list_add(&sa->list, &dump_save_areas);
+	else
+		list_add_tail(&sa->list, &dump_save_areas);
+	return sa;
+}
+
+/*
+ * Return the address of the save area for the boot CPU
+ */
+struct save_area * __init save_area_boot_cpu(void)
+{
+	if (list_empty(&dump_save_areas))
+		return NULL;
+	return list_first_entry(&dump_save_areas, struct save_area, list);
+}
+
+/*
+ * Copy CPU registers into the save area
+ */
+void __init save_area_add_regs(struct save_area *sa, void *regs)
+{
+	struct _lowcore *lc;
+
+	lc = (struct _lowcore *)(regs - __LC_FPREGS_SAVE_AREA);
+	memcpy(&sa->psw, &lc->psw_save_area, sizeof(sa->psw));
+	memcpy(&sa->ctrs, &lc->cregs_save_area, sizeof(sa->ctrs));
+	memcpy(&sa->gprs, &lc->gpregs_save_area, sizeof(sa->gprs));
+	memcpy(&sa->acrs, &lc->access_regs_save_area, sizeof(sa->acrs));
+	memcpy(&sa->fprs, &lc->floating_pt_save_area, sizeof(sa->fprs));
+	memcpy(&sa->fpc, &lc->fpt_creg_save_area, sizeof(sa->fpc));
+	memcpy(&sa->prefix, &lc->prefixreg_save_area, sizeof(sa->prefix));
+	memcpy(&sa->todpreg, &lc->tod_progreg_save_area, sizeof(sa->todpreg));
+	memcpy(&sa->timer, &lc->cpu_timer_save_area, sizeof(sa->timer));
+	memcpy(&sa->todcmp, &lc->clock_comp_save_area, sizeof(sa->todcmp));
+}
+
+/*
+ * Copy vector registers into the save area
+ */
+void __init save_area_add_vxrs(struct save_area *sa, __vector128 *vxrs)
+{
+	int i;
+
+	/* Copy lower halves of vector registers 0-15 */
+	for (i = 0; i < 16; i++)
+		memcpy(&sa->vxrs_low[i], &vxrs[i].u[2], 8);
+	/* Copy vector registers 16-31 */
+	memcpy(sa->vxrs_high, vxrs + 16, 16 * sizeof(__vector128));
+}
 
 /*
  * Return physical address for virtual address
@@ -232,8 +310,8 @@ static void *kzalloc_panic(int len)
 /*
  * Initialize ELF note
  */
-static void *nt_init(void *buf, Elf64_Word type, void *desc, int d_len,
-		     const char *name)
+static void *nt_init_name(void *buf, Elf64_Word type, void *desc, int d_len,
+			  const char *name)
 {
 	Elf64_Nhdr *note;
 	u64 len;
@@ -253,137 +331,42 @@ static void *nt_init(void *buf, Elf64_Word type, void *desc, int d_len,
 	return PTR_ADD(buf, len);
 }
 
-/*
- * Initialize prstatus note
- */
-static void *nt_prstatus(void *ptr, struct save_area *sa)
+static inline void *nt_init(void *buf, Elf64_Word type, void *desc, int d_len)
 {
-	struct elf_prstatus nt_prstatus;
-	static int cpu_nr = 1;
-
-	memset(&nt_prstatus, 0, sizeof(nt_prstatus));
-	memcpy(&nt_prstatus.pr_reg.gprs, sa->gp_regs, sizeof(sa->gp_regs));
-	memcpy(&nt_prstatus.pr_reg.psw, sa->psw, sizeof(sa->psw));
-	memcpy(&nt_prstatus.pr_reg.acrs, sa->acc_regs, sizeof(sa->acc_regs));
-	nt_prstatus.pr_pid = cpu_nr;
-	cpu_nr++;
-
-	return nt_init(ptr, NT_PRSTATUS, &nt_prstatus, sizeof(nt_prstatus),
-			 "CORE");
-}
-
-/*
- * Initialize fpregset (floating point) note
- */
-static void *nt_fpregset(void *ptr, struct save_area *sa)
-{
-	elf_fpregset_t nt_fpregset;
-
-	memset(&nt_fpregset, 0, sizeof(nt_fpregset));
-	memcpy(&nt_fpregset.fpc, &sa->fp_ctrl_reg, sizeof(sa->fp_ctrl_reg));
-	memcpy(&nt_fpregset.fprs, &sa->fp_regs, sizeof(sa->fp_regs));
-
-	return nt_init(ptr, NT_PRFPREG, &nt_fpregset, sizeof(nt_fpregset),
-		       "CORE");
-}
-
-/*
- * Initialize timer note
- */
-static void *nt_s390_timer(void *ptr, struct save_area *sa)
-{
-	return nt_init(ptr, NT_S390_TIMER, &sa->timer, sizeof(sa->timer),
-			 KEXEC_CORE_NOTE_NAME);
-}
-
-/*
- * Initialize TOD clock comparator note
- */
-static void *nt_s390_tod_cmp(void *ptr, struct save_area *sa)
-{
-	return nt_init(ptr, NT_S390_TODCMP, &sa->clk_cmp,
-		       sizeof(sa->clk_cmp), KEXEC_CORE_NOTE_NAME);
-}
-
-/*
- * Initialize TOD programmable register note
- */
-static void *nt_s390_tod_preg(void *ptr, struct save_area *sa)
-{
-	return nt_init(ptr, NT_S390_TODPREG, &sa->tod_reg,
-		       sizeof(sa->tod_reg), KEXEC_CORE_NOTE_NAME);
-}
-
-/*
- * Initialize control register note
- */
-static void *nt_s390_ctrs(void *ptr, struct save_area *sa)
-{
-	return nt_init(ptr, NT_S390_CTRS, &sa->ctrl_regs,
-		       sizeof(sa->ctrl_regs), KEXEC_CORE_NOTE_NAME);
-}
-
-/*
- * Initialize prefix register note
- */
-static void *nt_s390_prefix(void *ptr, struct save_area *sa)
-{
-	return nt_init(ptr, NT_S390_PREFIX, &sa->pref_reg,
-			 sizeof(sa->pref_reg), KEXEC_CORE_NOTE_NAME);
-}
-
-/*
- * Initialize vxrs high note (full 128 bit VX registers 16-31)
- */
-static void *nt_s390_vx_high(void *ptr, __vector128 *vx_regs)
-{
-	return nt_init(ptr, NT_S390_VXRS_HIGH, &vx_regs[16],
-		       16 * sizeof(__vector128), KEXEC_CORE_NOTE_NAME);
-}
-
-/*
- * Initialize vxrs low note (lower halves of VX registers 0-15)
- */
-static void *nt_s390_vx_low(void *ptr, __vector128 *vx_regs)
-{
-	Elf64_Nhdr *note;
-	u64 len;
-	int i;
-
-	note = (Elf64_Nhdr *)ptr;
-	note->n_namesz = strlen(KEXEC_CORE_NOTE_NAME) + 1;
-	note->n_descsz = 16 * 8;
-	note->n_type = NT_S390_VXRS_LOW;
-	len = sizeof(Elf64_Nhdr);
-
-	memcpy(ptr + len, KEXEC_CORE_NOTE_NAME, note->n_namesz);
-	len = roundup(len + note->n_namesz, 4);
-
-	ptr += len;
-	/* Copy lower halves of SIMD registers 0-15 */
-	for (i = 0; i < 16; i++) {
-		memcpy(ptr, &vx_regs[i].u[2], 8);
-		ptr += 8;
-	}
-	return ptr;
+	return nt_init_name(buf, type, desc, d_len, KEXEC_CORE_NOTE_NAME);
 }
 
 /*
  * Fill ELF notes for one CPU with save area registers
  */
-static void *fill_cpu_elf_notes(void *ptr, struct save_area *sa,
-				__vector128 *vx_regs)
+static void *fill_cpu_elf_notes(void *ptr, int cpu, struct save_area *sa)
 {
-	ptr = nt_prstatus(ptr, sa);
-	ptr = nt_fpregset(ptr, sa);
-	ptr = nt_s390_timer(ptr, sa);
-	ptr = nt_s390_tod_cmp(ptr, sa);
-	ptr = nt_s390_tod_preg(ptr, sa);
-	ptr = nt_s390_ctrs(ptr, sa);
-	ptr = nt_s390_prefix(ptr, sa);
-	if (MACHINE_HAS_VX && vx_regs) {
-		ptr = nt_s390_vx_low(ptr, vx_regs);
-		ptr = nt_s390_vx_high(ptr, vx_regs);
+	struct elf_prstatus nt_prstatus;
+	elf_fpregset_t nt_fpregset;
+
+	/* Prepare prstatus note */
+	memset(&nt_prstatus, 0, sizeof(nt_prstatus));
+	memcpy(&nt_prstatus.pr_reg.gprs, sa->gprs, sizeof(sa->gprs));
+	memcpy(&nt_prstatus.pr_reg.psw, sa->psw, sizeof(sa->psw));
+	memcpy(&nt_prstatus.pr_reg.acrs, sa->acrs, sizeof(sa->acrs));
+	nt_prstatus.pr_pid = cpu;
+	/* Prepare fpregset (floating point) note */
+	memset(&nt_fpregset, 0, sizeof(nt_fpregset));
+	memcpy(&nt_fpregset.fpc, &sa->fpc, sizeof(sa->fpc));
+	memcpy(&nt_fpregset.fprs, &sa->fprs, sizeof(sa->fprs));
+	/* Create ELF notes for the CPU */
+	ptr = nt_init(ptr, NT_PRSTATUS, &nt_prstatus, sizeof(nt_prstatus));
+	ptr = nt_init(ptr, NT_PRFPREG, &nt_fpregset, sizeof(nt_fpregset));
+	ptr = nt_init(ptr, NT_S390_TIMER, &sa->timer, sizeof(sa->timer));
+	ptr = nt_init(ptr, NT_S390_TODCMP, &sa->todcmp, sizeof(sa->todcmp));
+	ptr = nt_init(ptr, NT_S390_TODPREG, &sa->todpreg, sizeof(sa->todpreg));
+	ptr = nt_init(ptr, NT_S390_CTRS, &sa->ctrs, sizeof(sa->ctrs));
+	ptr = nt_init(ptr, NT_S390_PREFIX, &sa->prefix, sizeof(sa->prefix));
+	if (MACHINE_HAS_VX) {
+		ptr = nt_init(ptr, NT_S390_VXRS_HIGH,
+			      &sa->vxrs_high, sizeof(sa->vxrs_high));
+		ptr = nt_init(ptr, NT_S390_VXRS_LOW,
+			      &sa->vxrs_low, sizeof(sa->vxrs_low));
 	}
 	return ptr;
 }
@@ -398,8 +381,7 @@ static void *nt_prpsinfo(void *ptr)
 	memset(&prpsinfo, 0, sizeof(prpsinfo));
 	prpsinfo.pr_sname = 'R';
 	strcpy(prpsinfo.pr_fname, "vmlinux");
-	return nt_init(ptr, NT_PRPSINFO, &prpsinfo, sizeof(prpsinfo),
-		       KEXEC_CORE_NOTE_NAME);
+	return nt_init(ptr, NT_PRPSINFO, &prpsinfo, sizeof(prpsinfo));
 }
 
 /*
@@ -441,7 +423,7 @@ static void *nt_vmcoreinfo(void *ptr)
 		vmcoreinfo = get_vmcoreinfo_old(&size);
 	if (!vmcoreinfo)
 		return ptr;
-	return nt_init(ptr, 0, vmcoreinfo, size, "VMCOREINFO");
+	return nt_init_name(ptr, 0, vmcoreinfo, size, "VMCOREINFO");
 }
 
 /*
@@ -470,13 +452,12 @@ static void *ehdr_init(Elf64_Ehdr *ehdr, int mem_chunk_cnt)
  */
 static int get_cpu_cnt(void)
 {
-	int i, cpus = 0;
+	struct save_area *sa;
+	int cpus = 0;
 
-	for (i = 0; i < dump_save_areas.count; i++) {
-		if (dump_save_areas.areas[i]->sa.pref_reg == 0)
-			continue;
-		cpus++;
-	}
+	list_for_each_entry(sa, &dump_save_areas, list)
+		if (sa->prefix != 0)
+			cpus++;
 	return cpus;
 }
 
@@ -521,18 +502,16 @@ static void loads_init(Elf64_Phdr *phdr, u64 loads_offset)
  */
 static void *notes_init(Elf64_Phdr *phdr, void *ptr, u64 notes_offset)
 {
-	struct save_area_ext *sa_ext;
+	struct save_area *sa;
 	void *ptr_start = ptr;
-	int i;
+	int cpu;
 
 	ptr = nt_prpsinfo(ptr);
 
-	for (i = 0; i < dump_save_areas.count; i++) {
-		sa_ext = dump_save_areas.areas[i];
-		if (sa_ext->sa.pref_reg == 0)
-			continue;
-		ptr = fill_cpu_elf_notes(ptr, &sa_ext->sa, sa_ext->vx_regs);
-	}
+	cpu = 1;
+	list_for_each_entry(sa, &dump_save_areas, list)
+		if (sa->prefix != 0)
+			ptr = fill_cpu_elf_notes(ptr, cpu++, sa);
 	ptr = nt_vmcoreinfo(ptr);
 	memset(phdr, 0, sizeof(*phdr));
 	phdr->p_type = PT_NOTE;

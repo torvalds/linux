@@ -585,7 +585,7 @@ int smp_store_status(int cpu)
  *    This case does not exist for s390 anymore, setup_arch explicitly
  *    deactivates the elfcorehdr= kernel parameter
  */
-static __init void smp_save_cpu_vxrs(struct save_area_ext *sa_ext, u16 addr,
+static __init void smp_save_cpu_vxrs(struct save_area *sa, u16 addr,
 				     bool is_boot_cpu, unsigned long page)
 {
 	__vector128 *vxrs = (__vector128 *) page;
@@ -594,10 +594,10 @@ static __init void smp_save_cpu_vxrs(struct save_area_ext *sa_ext, u16 addr,
 		vxrs = boot_cpu_vector_save_area;
 	else
 		__pcpu_sigp_relax(addr, SIGP_STORE_ADDITIONAL_STATUS, page);
-	memcpy(&sa_ext->vx_regs, vxrs, sizeof(sa_ext->vx_regs));
+	save_area_add_vxrs(sa, vxrs);
 }
 
-static __init void smp_save_cpu_regs(struct save_area_ext *sa_ext, u16 addr,
+static __init void smp_save_cpu_regs(struct save_area *sa, u16 addr,
 				     bool is_boot_cpu, unsigned long page)
 {
 	void *regs = (void *) page;
@@ -606,13 +606,13 @@ static __init void smp_save_cpu_regs(struct save_area_ext *sa_ext, u16 addr,
 		copy_oldmem_kernel(regs, (void *) __LC_FPREGS_SAVE_AREA, 512);
 	else
 		__pcpu_sigp_relax(addr, SIGP_STORE_STATUS_AT_ADDRESS, page);
-	memcpy(&sa_ext->sa, regs, sizeof(sa_ext->sa));
+	save_area_add_regs(sa, regs);
 }
 
 void __init smp_save_dump_cpus(void)
 {
-	int addr, cpu, boot_cpu_addr, max_cpu_addr;
-	struct save_area_ext *sa_ext;
+	int addr, boot_cpu_addr, max_cpu_addr;
+	struct save_area *sa;
 	unsigned long page;
 	bool is_boot_cpu;
 
@@ -625,29 +625,20 @@ void __init smp_save_dump_cpus(void)
 		panic("could not allocate memory for save area\n");
 	/* Set multi-threading state to the previous system. */
 	pcpu_set_smt(sclp.mtid_prev);
-	max_cpu_addr = SCLP_MAX_CORES << sclp.mtid_prev;
-	for (cpu = 0, addr = 0; addr <= max_cpu_addr; addr++) {
-		if (__pcpu_sigp_relax(addr, SIGP_SENSE, 0) ==
-		    SIGP_CC_NOT_OPERATIONAL)
-			continue;
-		cpu += 1;
-	}
-	dump_save_areas.areas = (void *)memblock_alloc(sizeof(void *) * cpu, 8);
-	dump_save_areas.count = cpu;
 	boot_cpu_addr = stap();
-	for (cpu = 0, addr = 0; addr <= max_cpu_addr; addr++) {
+	max_cpu_addr = SCLP_MAX_CORES << sclp.mtid_prev;
+	for (addr = 0; addr <= max_cpu_addr; addr++) {
 		if (__pcpu_sigp_relax(addr, SIGP_SENSE, 0) ==
 		    SIGP_CC_NOT_OPERATIONAL)
 			continue;
-		sa_ext = (void *) memblock_alloc(sizeof(*sa_ext), 8);
-		dump_save_areas.areas[cpu] = sa_ext;
-		if (!sa_ext)
-			panic("could not allocate memory for save area\n");
 		is_boot_cpu = (addr == boot_cpu_addr);
-		cpu += 1;
+		/* Allocate save area */
+		sa = save_area_alloc(is_boot_cpu);
+		if (!sa)
+			panic("could not allocate memory for save area\n");
 		if (MACHINE_HAS_VX)
 			/* Get the vector registers */
-			smp_save_cpu_vxrs(sa_ext, addr, is_boot_cpu, page);
+			smp_save_cpu_vxrs(sa, addr, is_boot_cpu, page);
 		/*
 		 * For a zfcp dump OLDMEM_BASE == NULL and the registers
 		 * of the boot CPU are stored in the HSA. To retrieve
@@ -656,7 +647,7 @@ void __init smp_save_dump_cpus(void)
 		 */
 		if (!is_boot_cpu || OLDMEM_BASE)
 			/* Get the CPU registers */
-			smp_save_cpu_regs(sa_ext, addr, is_boot_cpu, page);
+			smp_save_cpu_regs(sa, addr, is_boot_cpu, page);
 	}
 	memblock_free(page, PAGE_SIZE);
 	diag308_reset();
