@@ -240,7 +240,7 @@ struct remain_ch {
 	u32 u32duration;
 	wilc_remain_on_chan_expired expired;
 	wilc_remain_on_chan_ready ready;
-	void *pVoid;
+	void *arg;
 	u32 u32ListenSessionID;
 };
 
