@@ -1598,6 +1598,9 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 
 static void pci_init_capabilities(struct pci_dev *dev)
 {
+	/* Enhanced Allocation */
+	pci_ea_init(dev);
+
 	/* MSI/MSI-X list */
 	pci_msi_init_pci_dev(dev);
 
