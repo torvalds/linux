@@ -151,6 +151,7 @@ struct ath10k_wmi {
 	struct wmi_vdev_param_map *vdev_param;
 	struct wmi_pdev_param_map *pdev_param;
 	const struct wmi_ops *ops;
+	const struct wmi_peer_flags_map *peer_flags;
 
 	u32 num_mem_chunks;
 	u32 rx_decap_mode;

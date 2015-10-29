@@ -1546,6 +1546,61 @@ static struct wmi_pdev_param_map wmi_10_4_pdev_param_map = {
 	.arp_dstaddr = WMI_10_4_PDEV_PARAM_ARP_DSTADDR,
 };
 
+static const struct wmi_peer_flags_map wmi_peer_flags_map = {
+	.auth = WMI_PEER_AUTH,
+	.qos = WMI_PEER_QOS,
+	.need_ptk_4_way = WMI_PEER_NEED_PTK_4_WAY,
+	.need_gtk_2_way = WMI_PEER_NEED_GTK_2_WAY,
+	.apsd = WMI_PEER_APSD,
+	.ht = WMI_PEER_HT,
+	.bw40 = WMI_PEER_40MHZ,
+	.stbc = WMI_PEER_STBC,
+	.ldbc = WMI_PEER_LDPC,
+	.dyn_mimops = WMI_PEER_DYN_MIMOPS,
+	.static_mimops = WMI_PEER_STATIC_MIMOPS,
+	.spatial_mux = WMI_PEER_SPATIAL_MUX,
+	.vht = WMI_PEER_VHT,
+	.bw80 = WMI_PEER_80MHZ,
+	.vht_2g = WMI_PEER_VHT_2G,
+	.pmf = WMI_PEER_PMF,
+};
+
+static const struct wmi_peer_flags_map wmi_10x_peer_flags_map = {
+	.auth = WMI_10X_PEER_AUTH,
+	.qos = WMI_10X_PEER_QOS,
+	.need_ptk_4_way = WMI_10X_PEER_NEED_PTK_4_WAY,
+	.need_gtk_2_way = WMI_10X_PEER_NEED_GTK_2_WAY,
+	.apsd = WMI_10X_PEER_APSD,
+	.ht = WMI_10X_PEER_HT,
+	.bw40 = WMI_10X_PEER_40MHZ,
+	.stbc = WMI_10X_PEER_STBC,
+	.ldbc = WMI_10X_PEER_LDPC,
+	.dyn_mimops = WMI_10X_PEER_DYN_MIMOPS,
+	.static_mimops = WMI_10X_PEER_STATIC_MIMOPS,
+	.spatial_mux = WMI_10X_PEER_SPATIAL_MUX,
+	.vht = WMI_10X_PEER_VHT,
+	.bw80 = WMI_10X_PEER_80MHZ,
+};
+
+static const struct wmi_peer_flags_map wmi_10_2_peer_flags_map = {
+	.auth = WMI_10_2_PEER_AUTH,
+	.qos = WMI_10_2_PEER_QOS,
+	.need_ptk_4_way = WMI_10_2_PEER_NEED_PTK_4_WAY,
+	.need_gtk_2_way = WMI_10_2_PEER_NEED_GTK_2_WAY,
+	.apsd = WMI_10_2_PEER_APSD,
+	.ht = WMI_10_2_PEER_HT,
+	.bw40 = WMI_10_2_PEER_40MHZ,
+	.stbc = WMI_10_2_PEER_STBC,
+	.ldbc = WMI_10_2_PEER_LDPC,
+	.dyn_mimops = WMI_10_2_PEER_DYN_MIMOPS,
+	.static_mimops = WMI_10_2_PEER_STATIC_MIMOPS,
+	.spatial_mux = WMI_10_2_PEER_SPATIAL_MUX,
+	.vht = WMI_10_2_PEER_VHT,
+	.bw80 = WMI_10_2_PEER_80MHZ,
+	.vht_2g = WMI_10_2_PEER_VHT_2G,
+	.pmf = WMI_10_2_PEER_PMF,
+};
+
 void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
 				const struct wmi_channel_arg *arg)
 {
@@ -7554,30 +7609,35 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.cmd = &wmi_10_4_cmd_map;
 		ar->wmi.vdev_param = &wmi_10_4_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10_4_pdev_param_map;
+		ar->wmi.peer_flags = &wmi_10_2_peer_flags_map;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_2_4:
 		ar->wmi.cmd = &wmi_10_2_4_cmd_map;
 		ar->wmi.ops = &wmi_10_2_4_ops;
 		ar->wmi.vdev_param = &wmi_10_2_4_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10_2_4_pdev_param_map;
+		ar->wmi.peer_flags = &wmi_10_2_peer_flags_map;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_2:
 		ar->wmi.cmd = &wmi_10_2_cmd_map;
 		ar->wmi.ops = &wmi_10_2_ops;
 		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10x_pdev_param_map;
+		ar->wmi.peer_flags = &wmi_10_2_peer_flags_map;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_1:
 		ar->wmi.cmd = &wmi_10x_cmd_map;
 		ar->wmi.ops = &wmi_10_1_ops;
 		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10x_pdev_param_map;
+		ar->wmi.peer_flags = &wmi_10x_peer_flags_map;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_MAIN:
 		ar->wmi.cmd = &wmi_cmd_map;
 		ar->wmi.ops = &wmi_ops;
 		ar->wmi.vdev_param = &wmi_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_pdev_param_map;
+		ar->wmi.peer_flags = &wmi_peer_flags_map;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_TLV:
 		ath10k_wmi_tlv_attach(ar);
