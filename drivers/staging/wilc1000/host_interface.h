@@ -291,7 +291,7 @@ struct add_sta_param {
 	u8 bssid[ETH_ALEN];
 	u16 aid;
 	u8 rates_len;
-	const u8 *pu8Rates;
+	const u8 *rates;
 	bool bIsHTSupported;
 	u16 u16HTCapInfo;
 	u8 u8AmpduParams;

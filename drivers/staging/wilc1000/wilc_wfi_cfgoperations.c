@@ -2999,7 +2999,7 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 		memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
 		strStaParams.aid = params->aid;
 		strStaParams.rates_len = params->supported_rates_len;
-		strStaParams.pu8Rates = params->supported_rates;
+		strStaParams.rates = params->supported_rates;
 
 		PRINT_D(CFG80211_DBG, "Adding station parameters %d\n", params->aid);
 
@@ -3113,7 +3113,7 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 		memcpy(strStaParams.bssid, mac, ETH_ALEN);
 		strStaParams.aid = params->aid;
 		strStaParams.rates_len = params->supported_rates_len;
-		strStaParams.pu8Rates = params->supported_rates;
+		strStaParams.rates = params->supported_rates;
 
 		PRINT_D(HOSTAPD_DBG, "BSSID = %x%x%x%x%x%x\n",
 			strStaParams.bssid[0], strStaParams.bssid[1],

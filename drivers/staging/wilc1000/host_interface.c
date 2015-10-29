@@ -2316,7 +2316,7 @@ static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer,
 
 	*pu8CurrByte++ = pstrStationParam->rates_len;
 	if (pstrStationParam->rates_len > 0)
-		memcpy(pu8CurrByte, pstrStationParam->pu8Rates,
+		memcpy(pu8CurrByte, pstrStationParam->rates,
 		       pstrStationParam->rates_len);
 	pu8CurrByte += pstrStationParam->rates_len;
 
@@ -2372,7 +2372,7 @@ static void Handle_AddStation(struct host_if_drv *hif_drv,
 		PRINT_ER("Failed to send add station config packet\n");
 
 ERRORHANDLER:
-	kfree(pstrStationParam->pu8Rates);
+	kfree(pstrStationParam->rates);
 	kfree(wid.val);
 }
 
@@ -2474,7 +2474,7 @@ static void Handle_EditStation(struct host_if_drv *hif_drv,
 		PRINT_ER("Failed to send edit station config packet\n");
 
 ERRORHANDLER:
-	kfree(pstrStationParam->pu8Rates);
+	kfree(pstrStationParam->rates);
 	kfree(wid.val);
 }
 
@@ -4552,9 +4552,9 @@ s32 host_int_add_station(struct host_if_drv *hif_drv,
 		if (!rates)
 			return -ENOMEM;
 
-		memcpy(rates, pstrStaParams->pu8Rates,
+		memcpy(rates, pstrStaParams->rates,
 		       pstrAddStationMsg->rates_len);
-		pstrAddStationMsg->pu8Rates = rates;
+		pstrAddStationMsg->rates = rates;
 	}
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
@@ -4669,9 +4669,9 @@ s32 host_int_edit_station(struct host_if_drv *hif_drv,
 		if (!rates)
 			return -ENOMEM;
 
-		memcpy(rates, pstrStaParams->pu8Rates,
+		memcpy(rates, pstrStaParams->rates,
 		       pstrAddStationMsg->rates_len);
-		pstrAddStationMsg->pu8Rates = rates;
+		pstrAddStationMsg->rates = rates;
 	}
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
