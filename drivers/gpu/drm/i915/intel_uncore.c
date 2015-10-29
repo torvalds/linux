@@ -525,7 +525,7 @@ void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 }
 
 /* We give fast paths for the really cool registers */
-#define NEEDS_FORCE_WAKE(dev_priv, reg) \
+#define NEEDS_FORCE_WAKE(reg) \
 	 ((reg) < 0x40000 && (reg) != FORCEWAKE)
 
 #define REG_RANGE(reg, start, end) ((reg) >= (start) && (reg) < (end))
@@ -727,7 +727,7 @@ static u##x \
 gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	GEN6_READ_HEADER(x); \
 	hsw_unclaimed_reg_debug(dev_priv, reg, true, true); \
-	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) \
+	if (NEEDS_FORCE_WAKE(reg)) \
 		__force_wake_get(dev_priv, FORCEWAKE_RENDER); \
 	val = __raw_i915_read##x(dev_priv, reg); \
 	hsw_unclaimed_reg_debug(dev_priv, reg, true, false); \
@@ -761,7 +761,7 @@ chv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	GEN6_READ_FOOTER; \
 }
 
-#define SKL_NEEDS_FORCE_WAKE(dev_priv, reg)	\
+#define SKL_NEEDS_FORCE_WAKE(reg) \
 	 ((reg) < 0x40000 && !FORCEWAKE_GEN9_UNCORE_RANGE_OFFSET(reg))
 
 #define __gen9_read(x) \
@@ -770,9 +770,9 @@ gen9_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_READ_HEADER(x); \
 	hsw_unclaimed_reg_debug(dev_priv, reg, true, true); \
-	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg)))	\
+	if (!SKL_NEEDS_FORCE_WAKE(reg)) \
 		fw_engine = 0; \
-	else if (FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(reg))	\
+	else if (FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(reg)) \
 		fw_engine = FORCEWAKE_RENDER; \
 	else if (FORCEWAKE_GEN9_MEDIA_RANGE_OFFSET(reg)) \
 		fw_engine = FORCEWAKE_MEDIA; \
@@ -868,7 +868,7 @@ static void \
 gen6_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	u32 __fifo_ret = 0; \
 	GEN6_WRITE_HEADER; \
-	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+	if (NEEDS_FORCE_WAKE(reg)) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
 	__raw_i915_write##x(dev_priv, reg, val); \
@@ -883,7 +883,7 @@ static void \
 hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	u32 __fifo_ret = 0; \
 	GEN6_WRITE_HEADER; \
-	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+	if (NEEDS_FORCE_WAKE(reg)) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
@@ -985,7 +985,7 @@ gen9_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, \
 	enum forcewake_domains fw_engine; \
 	GEN6_WRITE_HEADER; \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
-	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg)) ||	\
+	if (!SKL_NEEDS_FORCE_WAKE(reg) || \
 	    is_gen9_shadowed(dev_priv, reg)) \
 		fw_engine = 0; \
 	else if (FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(reg)) \

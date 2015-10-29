@@ -139,27 +139,30 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
  */
-#define GEN5_ASSERT_IIR_IS_ZERO(reg) do { \
-	u32 val = I915_READ(reg); \
-	if (val) { \
-		WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n", \
-		     (reg), val); \
-		I915_WRITE((reg), 0xffffffff); \
-		POSTING_READ(reg); \
-		I915_WRITE((reg), 0xffffffff); \
-		POSTING_READ(reg); \
-	} \
-} while (0)
+static void gen5_assert_iir_is_zero(struct drm_i915_private *dev_priv, u32 reg)
+{
+	u32 val = I915_READ(reg);
+
+	if (val == 0)
+		return;
+
+	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
+	     reg, val);
+	I915_WRITE(reg, 0xffffffff);
+	POSTING_READ(reg);
+	I915_WRITE(reg, 0xffffffff);
+	POSTING_READ(reg);
+}
 
 #define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) do { \
-	GEN5_ASSERT_IIR_IS_ZERO(GEN8_##type##_IIR(which)); \
+	gen5_assert_iir_is_zero(dev_priv, GEN8_##type##_IIR(which)); \
 	I915_WRITE(GEN8_##type##_IER(which), (ier_val)); \
 	I915_WRITE(GEN8_##type##_IMR(which), (imr_val)); \
 	POSTING_READ(GEN8_##type##_IMR(which)); \
 } while (0)
 
 #define GEN5_IRQ_INIT(type, imr_val, ier_val) do { \
-	GEN5_ASSERT_IIR_IS_ZERO(type##IIR); \
+	gen5_assert_iir_is_zero(dev_priv, type##IIR); \
 	I915_WRITE(type##IER, (ier_val)); \
 	I915_WRITE(type##IMR, (imr_val)); \
 	POSTING_READ(type##IMR); \
@@ -707,12 +710,11 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	return (((high1 << 8) | low) + (pixel >= vbl_start)) & 0xffffff;
 }
 
-static u32 gm45_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
+static u32 g4x_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int reg = PIPE_FRMCOUNT_GM45(pipe);
 
-	return I915_READ(reg);
+	return I915_READ(PIPE_FRMCOUNT_G4X(pipe));
 }
 
 /* raw reads, only for fast reads of display block, no need for forcewake etc. */
@@ -3365,7 +3367,7 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 	else
 		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT;
 
-	GEN5_ASSERT_IIR_IS_ZERO(SDEIIR);
+	gen5_assert_iir_is_zero(dev_priv, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
 }
 
@@ -4397,7 +4399,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->get_vblank_counter = i8xx_get_vblank_counter;
 	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
-		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
+		dev->driver->get_vblank_counter = g4x_get_vblank_counter;
 	} else {
 		dev->driver->get_vblank_counter = i915_get_vblank_counter;
 		dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */

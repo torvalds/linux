@@ -906,6 +906,14 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
+	/* WaEnableLbsSlaRetryTimerDecrement:skl */
+	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
+		   GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
+
+	/* WaDisableKillLogic:bxt,skl */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+		   ECOCHK_DIS_TLB);
+
 	/* WaDisablePartialInstShootdown:skl,bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
@@ -1018,7 +1026,6 @@ static int skl_tune_iz_hashing(struct intel_engine_cs *ring)
 	return 0;
 }
 
-
 static int skl_init_workarounds(struct intel_engine_cs *ring)
 {
 	int ret;
@@ -1028,6 +1035,30 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 	ret = gen9_init_workarounds(ring);
 	if (ret)
 		return ret;
+
+	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
+		/* WaDisableHDCInvalidation:skl */
+		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+			   BDW_DISABLE_HDC_INVALIDATION);
+
+		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
+		I915_WRITE(FF_SLICE_CS_CHICKEN2,
+			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
+	}
+
+	/* GEN8_L3SQCREG4 has a dependency with WA batch so any new changes
+	 * involving this register should also be added to WA batch as required.
+	 */
+	if (INTEL_REVID(dev) <= SKL_REVID_E0)
+		/* WaDisableLSQCROPERFforOCL:skl */
+		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
+			   GEN8_LQSC_RO_PERF_DIS);
+
+	/* WaEnableGapsTsvCreditFix:skl */
+	if (IS_SKYLAKE(dev) && (INTEL_REVID(dev) >= SKL_REVID_C0)) {
+		I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
+					   GEN9_GAPS_TSV_CREDIT_DISABLE));
+	}
 
 	/* WaDisablePowerCompilerClockGating:skl */
 	if (INTEL_REVID(dev) == SKL_REVID_B0)
@@ -1071,6 +1102,17 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 	ret = gen9_init_workarounds(ring);
 	if (ret)
 		return ret;
+
+	/* WaStoreMultiplePTEenable:bxt */
+	/* This is a requirement according to Hardware specification */
+	if (INTEL_REVID(dev) == BXT_REVID_A0)
+		I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
+
+	/* WaSetClckGatingDisableMedia:bxt */
+	if (INTEL_REVID(dev) == BXT_REVID_A0) {
+		I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
+					    ~GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE));
+	}
 
 	/* WaDisableThreadStallDopClockGating:bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,

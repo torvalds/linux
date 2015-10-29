@@ -113,17 +113,18 @@ static u32 hsw_infoframe_enable(enum hdmi_infoframe_type type)
 	}
 }
 
-static u32 hsw_infoframe_data_reg(enum hdmi_infoframe_type type,
-				  enum transcoder cpu_transcoder,
-				  struct drm_i915_private *dev_priv)
+static u32 hsw_dip_data_reg(struct drm_i915_private *dev_priv,
+			    enum transcoder cpu_transcoder,
+			    enum hdmi_infoframe_type type,
+			    int i)
 {
 	switch (type) {
 	case HDMI_INFOFRAME_TYPE_AVI:
-		return HSW_TVIDEO_DIP_AVI_DATA(cpu_transcoder);
+		return HSW_TVIDEO_DIP_AVI_DATA(cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_SPD:
-		return HSW_TVIDEO_DIP_SPD_DATA(cpu_transcoder);
+		return HSW_TVIDEO_DIP_SPD_DATA(cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_VENDOR:
-		return HSW_TVIDEO_DIP_VS_DATA(cpu_transcoder);
+		return HSW_TVIDEO_DIP_VS_DATA(cpu_transcoder, i);
 	default:
 		DRM_DEBUG_DRIVER("unknown info frame type %d\n", type);
 		return 0;
@@ -365,14 +366,13 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(intel_crtc->config->cpu_transcoder);
+	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
+	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(cpu_transcoder);
 	u32 data_reg;
 	int i;
 	u32 val = I915_READ(ctl_reg);
 
-	data_reg = hsw_infoframe_data_reg(type,
-					  intel_crtc->config->cpu_transcoder,
-					  dev_priv);
+	data_reg = hsw_dip_data_reg(dev_priv, cpu_transcoder, type, 0);
 	if (data_reg == 0)
 		return;
 
@@ -381,12 +381,14 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 
 	mmiowb();
 	for (i = 0; i < len; i += 4) {
-		I915_WRITE(data_reg + i, *data);
+		I915_WRITE(hsw_dip_data_reg(dev_priv, cpu_transcoder,
+					    type, i >> 2), *data);
 		data++;
 	}
 	/* Write every possible data byte to force correct ECC calculation. */
 	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
-		I915_WRITE(data_reg + i, 0);
+		I915_WRITE(hsw_dip_data_reg(dev_priv, cpu_transcoder,
+					    type, i >> 2), 0);
 	mmiowb();
 
 	val |= hsw_infoframe_enable(type);
