@@ -555,16 +555,7 @@ free_master:
 
 static int ti_qspi_remove(struct platform_device *pdev)
 {
-	struct ti_qspi *qspi = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = pm_runtime_get_sync(qspi->dev);
-	if (ret < 0) {
-		dev_err(qspi->dev, "pm_runtime_get_sync() failed\n");
-		return ret;
-	}
-
-	pm_runtime_put(qspi->dev);
+	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
