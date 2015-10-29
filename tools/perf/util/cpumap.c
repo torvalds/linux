@@ -203,6 +203,23 @@ struct cpu_map *cpu_map__dummy_new(void)
 	return cpus;
 }
 
+struct cpu_map *cpu_map__empty_new(int nr)
+{
+	struct cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int) * nr);
+
+	if (cpus != NULL) {
+		int i;
+
+		cpus->nr = nr;
+		for (i = 0; i < nr; i++)
+			cpus->map[i] = -1;
+
+		atomic_set(&cpus->refcnt, 1);
+	}
+
+	return cpus;
+}
+
 static void cpu_map__delete(struct cpu_map *map)
 {
 	if (map) {

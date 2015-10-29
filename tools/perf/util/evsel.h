@@ -43,6 +43,7 @@ enum {
 	PERF_EVSEL__CONFIG_TERM_TIME,
 	PERF_EVSEL__CONFIG_TERM_CALLGRAPH,
 	PERF_EVSEL__CONFIG_TERM_STACK_USER,
+	PERF_EVSEL__CONFIG_TERM_INHERIT,
 	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
@@ -55,6 +56,7 @@ struct perf_evsel_config_term {
 		bool	time;
 		char	*callgraph;
 		u64	stack_user;
+		bool	inherit;
 	} val;
 };
 
@@ -90,9 +92,9 @@ struct perf_evsel {
 	double			scale;
 	const char		*unit;
 	struct event_format	*tp_format;
+	off_t			id_offset;
 	union {
 		void		*priv;
-		off_t		id_offset;
 		u64		db_id;
 	};
 	struct cgroup_sel	*cgrp;

@@ -528,12 +528,12 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc > 0) {
 		if (strcmp(argv[0], "-") == 0) {
-			pr_warning("  Error: '-' is not supported.\n");
-			usage_with_options(probe_usage, options);
+			usage_with_options_msg(probe_usage, options,
+				"'-' is not supported.\n");
 		}
 		if (params.command && params.command != 'a') {
-			pr_warning("  Error: another command except --add is set.\n");
-			usage_with_options(probe_usage, options);
+			usage_with_options_msg(probe_usage, options,
+				"another command except --add is set.\n");
 		}
 		ret = parse_probe_event_argv(argc, argv);
 		if (ret < 0) {
@@ -562,8 +562,10 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	switch (params.command) {
 	case 'l':
 		if (params.uprobes) {
-			pr_warning("  Error: Don't use --list with --exec.\n");
-			usage_with_options(probe_usage, options);
+			pr_err("  Error: Don't use --list with --exec.\n");
+			parse_options_usage(probe_usage, options, "l", true);
+			parse_options_usage(NULL, options, "x", true);
+			return -EINVAL;
 		}
 		ret = show_perf_probe_events(params.filter);
 		if (ret < 0)
@@ -603,8 +605,10 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	case 'a':
 		/* Ensure the last given target is used */
 		if (params.target && !params.target_used) {
-			pr_warning("  Error: -x/-m must follow the probe definitions.\n");
-			usage_with_options(probe_usage, options);
+			pr_err("  Error: -x/-m must follow the probe definitions.\n");
+			parse_options_usage(probe_usage, options, "m", true);
+			parse_options_usage(NULL, options, "x", true);
+			return -EINVAL;
 		}
 
 		ret = perf_add_probe_events(params.events, params.nevents);

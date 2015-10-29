@@ -7,6 +7,8 @@
 #define OPT_SHORT 1
 #define OPT_UNSET 2
 
+static struct strbuf error_buf = STRBUF_INIT;
+
 static int opterror(const struct option *opt, const char *reason, int flags)
 {
 	if (flags & OPT_SHORT)
@@ -540,9 +542,11 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 		exit(130);
 	default: /* PARSE_OPT_UNKNOWN */
 		if (ctx.argv[0][1] == '-') {
-			error("unknown option `%s'", ctx.argv[0] + 2);
+			strbuf_addf(&error_buf, "unknown option `%s'",
+				    ctx.argv[0] + 2);
 		} else {
-			error("unknown switch `%c'", *ctx.opt);
+			strbuf_addf(&error_buf, "unknown switch `%c'",
+				    *ctx.opt);
 		}
 		usage_with_options(usagestr, options);
 	}
@@ -691,8 +695,21 @@ static bool option__in_argv(const struct option *opt, const struct parse_opt_ctx
 	for (i = 1; i < ctx->argc; ++i) {
 		const char *arg = ctx->argv[i];
 
-		if (arg[0] != '-')
+		if (arg[0] != '-') {
+			if (arg[1] == '\0') {
+				if (arg[0] == opt->short_name)
+					return true;
+				continue;
+			}
+
+			if (opt->long_name && strcmp(opt->long_name, arg) == 0)
+				return true;
+
+			if (opt->help && strcasestr(opt->help, arg) != NULL)
+				return true;
+
 			continue;
+		}
 
 		if (arg[1] == opt->short_name ||
 		    (arg[1] == '-' && opt->long_name && strcmp(opt->long_name, arg + 2) == 0))
@@ -710,6 +727,13 @@ int usage_with_options_internal(const char * const *usagestr,
 
 	if (!usagestr)
 		return PARSE_OPT_HELP;
+
+	setup_pager();
+
+	if (strbuf_avail(&error_buf)) {
+		fprintf(stderr, "  Error: %s\n", error_buf.buf);
+		strbuf_release(&error_buf);
+	}
 
 	fprintf(stderr, "\n Usage: %s\n", *usagestr++);
 	while (*usagestr && **usagestr)
@@ -749,6 +773,21 @@ void usage_with_options(const char * const *usagestr,
 	exit(129);
 }
 
+void usage_with_options_msg(const char * const *usagestr,
+			    const struct option *opts, const char *fmt, ...)
+{
+	va_list ap;
+
+	exit_browser(false);
+
+	va_start(ap, fmt);
+	strbuf_addv(&error_buf, fmt, ap);
+	va_end(ap);
+
+	usage_with_options_internal(usagestr, opts, 0, NULL);
+	exit(129);
+}
+
 int parse_options_usage(const char * const *usagestr,
 			const struct option *opts,
 			const char *optstr, bool short_opt)
@@ -770,23 +809,22 @@ int parse_options_usage(const char * const *usagestr,
 opt:
 	for (  ; opts->type != OPTION_END; opts++) {
 		if (short_opt) {
-			if (opts->short_name == *optstr)
+			if (opts->short_name == *optstr) {
+				print_option_help(opts, 0);
 				break;
+			}
 			continue;
 		}
 
 		if (opts->long_name == NULL)
 			continue;
 
-		if (!prefixcmp(optstr, opts->long_name))
-			break;
-		if (!prefixcmp(optstr, "no-") &&
-		    !prefixcmp(optstr + 3, opts->long_name))
-			break;
+		if (!prefixcmp(opts->long_name, optstr))
+			print_option_help(opts, 0);
+		if (!prefixcmp("no-", optstr) &&
+		    !prefixcmp(opts->long_name, optstr + 3))
+			print_option_help(opts, 0);
 	}
-
-	if (opts->type != OPTION_END)
-		print_option_help(opts, 0);
 
 	return PARSE_OPT_HELP;
 }
