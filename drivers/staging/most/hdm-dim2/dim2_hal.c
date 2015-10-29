@@ -883,7 +883,7 @@ bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr, u16 buffer_size)
 	return channel_start(ch, buffer_addr, buffer_size);
 }
 
-bool DIM_DetachBuffers(struct dim_channel *ch, u16 buffers_number)
+bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number)
 {
 	if (!ch)
 		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,

@@ -101,7 +101,7 @@ struct dim_ch_state_t *DIM_GetChannelState(struct dim_channel *ch,
 bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr,
 		       u16 buffer_size);
 
-bool DIM_DetachBuffers(struct dim_channel *ch, u16 buffers_number);
+bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number);
 
 u32 DIMCB_IoRead(u32 *ptr32);
 

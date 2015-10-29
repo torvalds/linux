@@ -346,7 +346,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 		return;
 	}
 
-	if (!DIM_DetachBuffers(&hdm_ch->ch, done_buffers)) {
+	if (!dim_detach_buffers(&hdm_ch->ch, done_buffers)) {
 		spin_unlock_irqrestore(&dim_lock, flags);
 		return;
 	}
