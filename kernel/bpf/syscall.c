@@ -513,7 +513,7 @@ static void bpf_prog_uncharge_memlock(struct bpf_prog *prog)
 	free_uid(user);
 }
 
-static void __prog_put_rcu(struct rcu_head *rcu)
+static void __prog_put_common(struct rcu_head *rcu)
 {
 	struct bpf_prog_aux *aux = container_of(rcu, struct bpf_prog_aux, rcu);
 
@@ -525,19 +525,14 @@ static void __prog_put_rcu(struct rcu_head *rcu)
 /* version of bpf_prog_put() that is called after a grace period */
 void bpf_prog_put_rcu(struct bpf_prog *prog)
 {
-	if (atomic_dec_and_test(&prog->aux->refcnt)) {
-		prog->aux->prog = prog;
-		call_rcu(&prog->aux->rcu, __prog_put_rcu);
-	}
+	if (atomic_dec_and_test(&prog->aux->refcnt))
+		call_rcu(&prog->aux->rcu, __prog_put_common);
 }
 
 void bpf_prog_put(struct bpf_prog *prog)
 {
-	if (atomic_dec_and_test(&prog->aux->refcnt)) {
-		free_used_maps(prog->aux);
-		bpf_prog_uncharge_memlock(prog);
-		bpf_prog_free(prog);
-	}
+	if (atomic_dec_and_test(&prog->aux->refcnt))
+		__prog_put_common(&prog->aux->rcu);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_put);
 
