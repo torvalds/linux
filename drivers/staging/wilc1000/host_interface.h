@@ -311,8 +311,8 @@ struct host_if_drv {
 	struct semaphore sem_get_link_speed;
 	struct semaphore sem_get_chnl;
 	struct semaphore sem_inactive_time;
-/* timer handlers */
-	struct timer_list hScanTimer;
+
+	struct timer_list scan_timer;
 	struct timer_list hConnectTimer;
 	struct timer_list hRemainOnChannel;
 

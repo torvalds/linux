@@ -921,7 +921,7 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 
 ERRORHANDLER:
 	if (result) {
-		del_timer(&hif_drv->hScanTimer);
+		del_timer(&hif_drv->scan_timer);
 		Handle_ScanDone(hif_drv, SCAN_EVENT_ABORTED);
 	}
 
@@ -1636,7 +1636,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 
 			if (hif_drv->usr_scan_req.pfUserScanResult) {
 				PRINT_D(HOSTINF_DBG, "\n\n<< Abort the running OBSS Scan >>\n\n");
-				del_timer(&hif_drv->hScanTimer);
+				del_timer(&hif_drv->scan_timer);
 				Handle_ScanDone((void *)hif_drv, SCAN_EVENT_ABORTED);
 			}
 
@@ -1683,7 +1683,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			PRINT_D(HOSTINF_DBG, "Received MAC_DISCONNECTED from the FW while scanning\n");
 			PRINT_D(HOSTINF_DBG, "\n\n<< Abort the running Scan >>\n\n");
 
-			del_timer(&hif_drv->hScanTimer);
+			del_timer(&hif_drv->scan_timer);
 			if (hif_drv->usr_scan_req.pfUserScanResult)
 				Handle_ScanDone(hif_drv, SCAN_EVENT_ABORTED);
 		}
@@ -1999,7 +1999,7 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 		strDisconnectNotifInfo.ie_len = 0;
 
 		if (hif_drv->usr_scan_req.pfUserScanResult) {
-			del_timer(&hif_drv->hScanTimer);
+			del_timer(&hif_drv->scan_timer);
 			hif_drv->usr_scan_req.pfUserScanResult(SCAN_EVENT_ABORTED, NULL,
 							       hif_drv->usr_scan_req.u32UserScanPvoid, NULL);
 
@@ -2881,7 +2881,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_RCVD_SCAN_COMPLETE:
-			del_timer(&hif_drv->hScanTimer);
+			del_timer(&hif_drv->scan_timer);
 			PRINT_D(HOSTINF_DBG, "scan completed successfully\n");
 
 			if (!linux_wlan_get_num_conn_ifcs())
@@ -3920,8 +3920,8 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 	}
 
 	PRINT_D(HOSTINF_DBG, ">> Starting the SCAN timer\n");
-	hif_drv->hScanTimer.data = (unsigned long)hif_drv;
-	mod_timer(&hif_drv->hScanTimer,
+	hif_drv->scan_timer.data = (unsigned long)hif_drv;
+	mod_timer(&hif_drv->scan_timer,
 		  jiffies + msecs_to_jiffies(HOST_IF_SCAN_TIMEOUT));
 
 	return result;
@@ -4137,8 +4137,7 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
 	}
 
-	setup_timer(&hif_drv->hScanTimer, TimerCB_Scan, 0);
-
+	setup_timer(&hif_drv->scan_timer, TimerCB_Scan, 0);
 	setup_timer(&hif_drv->hConnectTimer, TimerCB_Connect, 0);
 
 	setup_timer(&hif_drv->hRemainOnChannel, ListenTimerCB, 0);
@@ -4171,7 +4170,7 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 _fail_timer_2:
 	up(&hif_drv->sem_cfg_values);
 	del_timer_sync(&hif_drv->hConnectTimer);
-	del_timer_sync(&hif_drv->hScanTimer);
+	del_timer_sync(&hif_drv->scan_timer);
 	kthread_stop(hif_thread_handler);
 _fail_mq_:
 	wilc_mq_destroy(&hif_msg_q);
@@ -4195,7 +4194,7 @@ s32 host_int_deinit(struct host_if_drv *hif_drv)
 	terminated_handle = hif_drv;
 	PRINT_D(HOSTINF_DBG, "De-initializing host interface for client %d\n", clients_count);
 
-	if (del_timer_sync(&hif_drv->hScanTimer))
+	if (del_timer_sync(&hif_drv->scan_timer))
 		PRINT_D(HOSTINF_DBG, ">> Scan timer is active\n");
 
 	if (del_timer_sync(&hif_drv->hConnectTimer))
