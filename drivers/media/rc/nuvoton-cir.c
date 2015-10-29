@@ -716,7 +716,7 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 
 static void nvt_cir_log_irqs(u8 status, u8 iren)
 {
-	nvt_pr(KERN_INFO, "IRQ 0x%02x (IREN 0x%02x) :%s%s%s%s%s%s%s%s%s",
+	nvt_dbg("IRQ 0x%02x (IREN 0x%02x) :%s%s%s%s%s%s%s%s%s",
 		status, iren,
 		status & CIR_IRSTS_RDR	? " RDR"	: "",
 		status & CIR_IRSTS_RTR	? " RTR"	: "",
@@ -790,8 +790,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	if (debug)
-		nvt_cir_log_irqs(status, iren);
+	nvt_cir_log_irqs(status, iren);
 
 	if (status & CIR_IRSTS_RTR) {
 		/* FIXME: add code for study/learn mode */
