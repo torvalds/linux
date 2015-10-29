@@ -3407,12 +3407,6 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 				     wdev->iftype))
 		return -EINVAL;
 
-	if (info->attrs[NL80211_ATTR_ACL_POLICY]) {
-		params.acl = parse_acl_data(&rdev->wiphy, info);
-		if (IS_ERR(params.acl))
-			return PTR_ERR(params.acl);
-	}
-
 	if (info->attrs[NL80211_ATTR_SMPS_MODE]) {
 		params.smps_mode =
 			nla_get_u8(info->attrs[NL80211_ATTR_SMPS_MODE]);
@@ -3434,6 +3428,12 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		}
 	} else {
 		params.smps_mode = NL80211_SMPS_OFF;
+	}
+
+	if (info->attrs[NL80211_ATTR_ACL_POLICY]) {
+		params.acl = parse_acl_data(&rdev->wiphy, info);
+		if (IS_ERR(params.acl))
+			return PTR_ERR(params.acl);
 	}
 
 	wdev_lock(wdev);
