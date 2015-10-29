@@ -715,8 +715,7 @@ static inline int of_clk_add_provider(struct device_node *np,
 {
 	return 0;
 }
-#define of_clk_del_provider(np) \
-	{ while (0); }
+static inline void of_clk_del_provider(struct device_node *np) {}
 static inline struct clk *of_clk_src_simple_get(
 	struct of_phandle_args *clkspec, void *data)
 {
@@ -741,8 +740,7 @@ static inline const char *of_clk_get_parent_name(struct device_node *np,
 {
 	return NULL;
 }
-#define of_clk_init(matches) \
-	{ while (0); }
+static inline void of_clk_init(const struct of_device_id *matches) {}
 #endif /* CONFIG_OF */
 
 /*
