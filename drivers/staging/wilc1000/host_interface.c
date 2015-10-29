@@ -2311,8 +2311,8 @@ static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer,
 	memcpy(pu8CurrByte, pstrStationParam->bssid, ETH_ALEN);
 	pu8CurrByte +=  ETH_ALEN;
 
-	*pu8CurrByte++ = pstrStationParam->u16AssocID & 0xFF;
-	*pu8CurrByte++ = (pstrStationParam->u16AssocID >> 8) & 0xFF;
+	*pu8CurrByte++ = pstrStationParam->aid & 0xFF;
+	*pu8CurrByte++ = (pstrStationParam->aid >> 8) & 0xFF;
 
 	*pu8CurrByte++ = pstrStationParam->u8NumRates;
 	if (pstrStationParam->u8NumRates > 0)
