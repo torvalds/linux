@@ -95,7 +95,7 @@ int reset_control_reset(struct reset_control *rstc)
 	if (rstc->rcdev->ops->reset)
 		return rstc->rcdev->ops->reset(rstc->rcdev, rstc->id);
 
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(reset_control_reset);
 
@@ -108,7 +108,7 @@ int reset_control_assert(struct reset_control *rstc)
 	if (rstc->rcdev->ops->assert)
 		return rstc->rcdev->ops->assert(rstc->rcdev, rstc->id);
 
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(reset_control_assert);
 
@@ -121,7 +121,7 @@ int reset_control_deassert(struct reset_control *rstc)
 	if (rstc->rcdev->ops->deassert)
 		return rstc->rcdev->ops->deassert(rstc->rcdev, rstc->id);
 
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(reset_control_deassert);
 
@@ -136,7 +136,7 @@ int reset_control_status(struct reset_control *rstc)
 	if (rstc->rcdev->ops->status)
 		return rstc->rcdev->ops->status(rstc->rcdev, rstc->id);
 
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(reset_control_status);
 
