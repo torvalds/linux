@@ -118,7 +118,9 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 		if (data->count == SHARP_NBITS) {
 			/* exp,chk bits should be 1,0 */
-			if ((data->bits & 0x3) != 0x2)
+			if ((data->bits & 0x3) != 0x2 &&
+			/* DENON variant, both chk bits 0 */
+			    (data->bits & 0x3) != 0x0)
 				break;
 			data->state = STATE_ECHO_SPACE;
 		} else {
