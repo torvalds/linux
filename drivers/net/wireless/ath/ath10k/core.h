@@ -513,6 +513,9 @@ enum ath10k_fw_features {
 	/* Firmware Supports Adaptive CCA*/
 	ATH10K_FW_FEATURE_SUPPORTS_ADAPTIVE_CCA = 11,
 
+	/* Firmware supports management frame protection */
+	ATH10K_FW_FEATURE_MFP_SUPPORT = 12,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
