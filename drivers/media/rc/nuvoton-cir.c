@@ -39,6 +39,17 @@
 
 #include "nuvoton-cir.h"
 
+static const struct nvt_chip nvt_chips[] = {
+	{ "w83667hg", NVT_W83667HG },
+	{ "NCT6775F", NVT_6775F },
+	{ "NCT6776F", NVT_6776F },
+};
+
+static inline bool is_w83667hg(struct nvt_dev *nvt)
+{
+	return nvt->chip_ver == NVT_W83667HG;
+}
+
 /* write val to config reg */
 static inline void nvt_cr_write(struct nvt_dev *nvt, u8 val, u8 reg)
 {
@@ -224,62 +235,52 @@ static void cir_wake_dump_regs(struct nvt_dev *nvt)
 	pr_cont("\n");
 }
 
+static inline const char *nvt_find_chip(struct nvt_dev *nvt, int id)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nvt_chips); i++)
+		if ((id & SIO_ID_MASK) == nvt_chips[i].chip_ver) {
+			nvt->chip_ver = nvt_chips[i].chip_ver;
+			return nvt_chips[i].name;
+		}
+
+	return NULL;
+}
+
+
 /* detect hardware features */
 static int nvt_hw_detect(struct nvt_dev *nvt)
 {
-	u8 chip_major, chip_minor;
-	char chip_id[12];
-	bool chip_unknown = false;
+	const char *chip_name;
+	int chip_id;
 
 	nvt_efm_enable(nvt);
 
 	/* Check if we're wired for the alternate EFER setup */
-	chip_major = nvt_cr_read(nvt, CR_CHIP_ID_HI);
-	if (chip_major == 0xff) {
+	nvt->chip_major = nvt_cr_read(nvt, CR_CHIP_ID_HI);
+	if (nvt->chip_major == 0xff) {
 		nvt->cr_efir = CR_EFIR2;
 		nvt->cr_efdr = CR_EFDR2;
 		nvt_efm_enable(nvt);
-		chip_major = nvt_cr_read(nvt, CR_CHIP_ID_HI);
+		nvt->chip_major = nvt_cr_read(nvt, CR_CHIP_ID_HI);
 	}
 
-	chip_minor = nvt_cr_read(nvt, CR_CHIP_ID_LO);
+	nvt->chip_minor = nvt_cr_read(nvt, CR_CHIP_ID_LO);
 
-	/* these are the known working chip revisions... */
-	switch (chip_major) {
-	case CHIP_ID_HIGH_667:
-		strcpy(chip_id, "w83667hg\0");
-		if (chip_minor != CHIP_ID_LOW_667)
-			chip_unknown = true;
-		break;
-	case CHIP_ID_HIGH_677B:
-		strcpy(chip_id, "w83677hg\0");
-		if (chip_minor != CHIP_ID_LOW_677B2 &&
-		    chip_minor != CHIP_ID_LOW_677B3)
-			chip_unknown = true;
-		break;
-	case CHIP_ID_HIGH_677C:
-		strcpy(chip_id, "w83677hg-c\0");
-		if (chip_minor != CHIP_ID_LOW_677C)
-			chip_unknown = true;
-		break;
-	default:
-		strcpy(chip_id, "w836x7hg\0");
-		chip_unknown = true;
-		break;
-	}
+	chip_id = nvt->chip_major << 8 | nvt->chip_minor;
+	chip_name = nvt_find_chip(nvt, chip_id);
 
 	/* warn, but still let the driver load, if we don't know this chip */
-	if (chip_unknown)
-		nvt_pr(KERN_WARNING, "%s: unknown chip, id: 0x%02x 0x%02x, "
-		       "it may not work...", chip_id, chip_major, chip_minor);
+	if (!chip_name)
+		nvt_pr(KERN_WARNING,
+		       "unknown chip, id: 0x%02x 0x%02x, it may not work...",
+		       nvt->chip_major, nvt->chip_minor);
 	else
-		nvt_dbg("%s: chip id: 0x%02x 0x%02x",
-			chip_id, chip_major, chip_minor);
+		nvt_dbg("found %s or compatible: chip id: 0x%02x 0x%02x",
+			chip_name, nvt->chip_major, nvt->chip_minor);
 
 	nvt_efm_disable(nvt);
-
-	nvt->chip_major = chip_major;
-	nvt->chip_minor = chip_minor;
 
 	return 0;
 }
@@ -288,7 +289,7 @@ static void nvt_cir_ldev_init(struct nvt_dev *nvt)
 {
 	u8 val, psreg, psmask, psval;
 
-	if (nvt->chip_major == CHIP_ID_HIGH_667) {
+	if (is_w83667hg(nvt)) {
 		psreg = CR_MULTIFUNC_PIN_SEL;
 		psmask = MULTIFUNC_PIN_SEL_MASK;
 		psval = MULTIFUNC_ENABLE_CIR | MULTIFUNC_ENABLE_CIRWB;
