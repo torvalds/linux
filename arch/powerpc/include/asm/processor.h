@@ -294,6 +294,7 @@ struct thread_struct {
 #endif
 #ifdef CONFIG_PPC64
 	unsigned long	dscr;
+	unsigned long	fscr;
 	/*
 	 * This member element dscr_inherit indicates that the process
 	 * has explicitly attempted and changed the DSCR register value

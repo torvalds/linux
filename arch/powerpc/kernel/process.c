@@ -742,6 +742,73 @@ void restore_tm_state(struct pt_regs *regs)
 #define __switch_to_tm(prev)
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
+static inline void save_sprs(struct thread_struct *t)
+{
+#ifdef CONFIG_ALTIVEC
+	if (cpu_has_feature(cpu_has_feature(CPU_FTR_ALTIVEC)))
+		t->vrsave = mfspr(SPRN_VRSAVE);
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_DSCR))
+		t->dscr = mfspr(SPRN_DSCR);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		t->bescr = mfspr(SPRN_BESCR);
+		t->ebbhr = mfspr(SPRN_EBBHR);
+		t->ebbrr = mfspr(SPRN_EBBRR);
+
+		t->fscr = mfspr(SPRN_FSCR);
+
+		/*
+		 * Note that the TAR is not available for use in the kernel.
+		 * (To provide this, the TAR should be backed up/restored on
+		 * exception entry/exit instead, and be in pt_regs.  FIXME,
+		 * this should be in pt_regs anyway (for debug).)
+		 */
+		t->tar = mfspr(SPRN_TAR);
+	}
+#endif
+}
+
+static inline void restore_sprs(struct thread_struct *old_thread,
+				struct thread_struct *new_thread)
+{
+#ifdef CONFIG_ALTIVEC
+	if (cpu_has_feature(CPU_FTR_ALTIVEC) &&
+	    old_thread->vrsave != new_thread->vrsave)
+		mtspr(SPRN_VRSAVE, new_thread->vrsave);
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_DSCR)) {
+		u64 dscr = get_paca()->dscr_default;
+		u64 fscr = old_thread->fscr & ~FSCR_DSCR;
+
+		if (new_thread->dscr_inherit) {
+			dscr = new_thread->dscr;
+			fscr |= FSCR_DSCR;
+		}
+
+		if (old_thread->dscr != dscr)
+			mtspr(SPRN_DSCR, dscr);
+
+		if (old_thread->fscr != fscr)
+			mtspr(SPRN_FSCR, fscr);
+	}
+
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		if (old_thread->bescr != new_thread->bescr)
+			mtspr(SPRN_BESCR, new_thread->bescr);
+		if (old_thread->ebbhr != new_thread->ebbhr)
+			mtspr(SPRN_EBBHR, new_thread->ebbhr);
+		if (old_thread->ebbrr != new_thread->ebbrr)
+			mtspr(SPRN_EBBRR, new_thread->ebbrr);
+
+		if (old_thread->tar != new_thread->tar)
+			mtspr(SPRN_TAR, new_thread->tar);
+	}
+#endif
+}
+
 struct task_struct *__switch_to(struct task_struct *prev,
 	struct task_struct *new)
 {
@@ -751,17 +818,16 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	struct ppc64_tlb_batch *batch;
 #endif
 
+	new_thread = &new->thread;
+	old_thread = &current->thread;
+
 	WARN_ON(!irqs_disabled());
 
-	/* Back up the TAR and DSCR across context switches.
-	 * Note that the TAR is not available for use in the kernel.  (To
-	 * provide this, the TAR should be backed up/restored on exception
-	 * entry/exit instead, and be in pt_regs.  FIXME, this should be in
-	 * pt_regs anyway (for debug).)
-	 * Save the TAR and DSCR here before we do treclaim/trecheckpoint as
-	 * these will change them.
+	/*
+	 * We need to save SPRs before treclaim/trecheckpoint as these will
+	 * change a number of them.
 	 */
-	save_early_sprs(&prev->thread);
+	save_sprs(&prev->thread);
 
 	__switch_to_tm(prev);
 
@@ -844,10 +910,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 
-
-	new_thread = &new->thread;
-	old_thread = &current->thread;
-
 #ifdef CONFIG_PPC64
 	/*
 	 * Collect processor utilization data per process
@@ -883,6 +945,10 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	last = _switch(old_thread, new_thread);
 
+	/* Need to recalculate these after calling _switch() */
+	old_thread = &last->thread;
+	new_thread = &current->thread;
+
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (current_thread_info()->local_flags & _TLF_LAZY_MMU) {
 		current_thread_info()->local_flags &= ~_TLF_LAZY_MMU;
@@ -890,6 +956,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		batch->active = 1;
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
+
+	restore_sprs(old_thread, new_thread);
 
 	return last;
 }
