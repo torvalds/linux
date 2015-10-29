@@ -1864,7 +1864,7 @@ int snd_cs46xx_pcm_iec958(struct snd_cs46xx *chip, int device)
 	/* global setup */
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "CS46xx - IEC958");
-	chip->pcm_rear = pcm;
+	chip->pcm_iec958 = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
@@ -3780,6 +3780,11 @@ static int snd_cs46xx_suspend(struct device *dev)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	chip->in_suspend = 1;
 	snd_pcm_suspend_all(chip->pcm);
+#ifdef CONFIG_SND_CS46XX_NEW_DSP
+	snd_pcm_suspend_all(chip->pcm_rear);
+	snd_pcm_suspend_all(chip->pcm_center_lfe);
+	snd_pcm_suspend_all(chip->pcm_iec958);
+#endif
 	// chip->ac97_powerdown = snd_cs46xx_codec_read(chip, AC97_POWER_CONTROL);
 	// chip->ac97_general_purpose = snd_cs46xx_codec_read(chip, BA0_AC97_GENERAL_PURPOSE);
 
