@@ -380,9 +380,7 @@ ENTRY(EV_TLBMissD)
 
 	;----------------------------------------------------------------
 	; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
-	lr      r3, [ecr]
 	or      r0, r0, _PAGE_ACCESSED        ; Accessed bit always
-	btst_s  r3,  ECR_C_BIT_DTLB_ST_MISS   ; See if it was a Write Access ?
 	or.nz   r0, r0, _PAGE_DIRTY           ; if Write, set Dirty bit as well
 	st_s    r0, [r1]                      ; Write back PTE
 
