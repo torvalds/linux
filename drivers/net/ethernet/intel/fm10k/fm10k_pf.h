@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -107,8 +107,6 @@ extern const struct fm10k_tlv_attr fm10k_lport_map_msg_attr[];
 #define FM10K_PF_MSG_LPORT_MAP_HANDLER(func) \
 	FM10K_MSG_HANDLER(FM10K_PF_MSG_ID_LPORT_MAP, \
 			  fm10k_lport_map_msg_attr, func)
-s32 fm10k_msg_update_pvid_pf(struct fm10k_hw *, u32 **,
-			     struct fm10k_mbx_info *);
 extern const struct fm10k_tlv_attr fm10k_update_pvid_msg_attr[];
 #define FM10K_PF_MSG_UPDATE_PVID_HANDLER(func) \
 	FM10K_MSG_HANDLER(FM10K_PF_MSG_ID_UPDATE_PVID, \

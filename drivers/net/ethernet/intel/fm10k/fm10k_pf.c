@@ -1688,8 +1688,8 @@ const struct fm10k_tlv_attr fm10k_update_pvid_msg_attr[] = {
  *
  *  This handler configures the default VLAN for the PF
  **/
-s32 fm10k_msg_update_pvid_pf(struct fm10k_hw *hw, u32 **results,
-			     struct fm10k_mbx_info *mbx)
+static s32 fm10k_msg_update_pvid_pf(struct fm10k_hw *hw, u32 **results,
+				    struct fm10k_mbx_info *mbx)
 {
 	u16 glort, pvid;
 	u32 pvid_update;
