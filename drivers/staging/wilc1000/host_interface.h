@@ -54,7 +54,7 @@
 
 struct rf_info {
 	u8 link_speed;
-	s8 s8RSSI;
+	s8 rssi;
 	u32 u32TxCount;
 	u32 u32RxCount;
 	u32 u32TxFailureCount;
