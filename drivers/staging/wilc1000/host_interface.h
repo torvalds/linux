@@ -295,7 +295,7 @@ struct add_sta_param {
 	bool ht_supported;
 	u16 ht_capa_info;
 	u8 ht_ampdu_params;
-	u8 au8SuppMCsSet[16];
+	u8 ht_supp_mcs_set[16];
 	u16 u16HTExtParams;
 	u32 u32TxBeamformingCap;
 	u8 u8ASELCap;

@@ -2325,7 +2325,8 @@ static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer,
 	*pu8CurrByte++ = (pstrStationParam->ht_capa_info >> 8) & 0xFF;
 
 	*pu8CurrByte++ = pstrStationParam->ht_ampdu_params;
-	memcpy(pu8CurrByte, pstrStationParam->au8SuppMCsSet, WILC_SUPP_MCS_SET_SIZE);
+	memcpy(pu8CurrByte, pstrStationParam->ht_supp_mcs_set,
+	       WILC_SUPP_MCS_SET_SIZE);
 	pu8CurrByte += WILC_SUPP_MCS_SET_SIZE;
 
 	*pu8CurrByte++ = pstrStationParam->u16HTExtParams & 0xFF;
