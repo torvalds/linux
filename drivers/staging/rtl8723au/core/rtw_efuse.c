@@ -459,7 +459,8 @@ int rtw_BT_efuse_map_read23a(struct rtw_adapter *padapter,
 }
 
 /* Read All Efuse content */
-void Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType, u8 *Efuse)
+static void Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType,
+			     u8 *Efuse)
 {
 	u16	mapLen = 0;
 
