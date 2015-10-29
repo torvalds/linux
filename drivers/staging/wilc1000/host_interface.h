@@ -57,7 +57,7 @@ struct rf_info {
 	s8 rssi;
 	u32 tx_cnt;
 	u32 rx_cnt;
-	u32 u32TxFailureCount;
+	u32 tx_fail_cnt;
 };
 
 enum host_if_state {

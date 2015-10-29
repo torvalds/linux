@@ -1568,8 +1568,8 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 
 		sinfo->signal = strStatistics.rssi;
 		sinfo->rx_packets = strStatistics.rx_cnt;
-		sinfo->tx_packets = strStatistics.tx_cnt + strStatistics.u32TxFailureCount;
-		sinfo->tx_failed	=  strStatistics.u32TxFailureCount;
+		sinfo->tx_packets = strStatistics.tx_cnt + strStatistics.tx_fail_cnt;
+		sinfo->tx_failed = strStatistics.tx_fail_cnt;
 		sinfo->txrate.legacy = strStatistics.link_speed * 10;
 
 		if ((strStatistics.link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH) &&
