@@ -1019,7 +1019,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		hif_drv->usr_conn_req.pu8ssid[pstrHostIFconnectAttr->ssid_len] = '\0';
 	}
 
-	hif_drv->usr_conn_req.ConnReqIEsLen = pstrHostIFconnectAttr->ies_len;
+	hif_drv->usr_conn_req.ies_len = pstrHostIFconnectAttr->ies_len;
 	if (pstrHostIFconnectAttr->ies) {
 		hif_drv->usr_conn_req.ies = kmalloc(pstrHostIFconnectAttr->ies_len, GFP_KERNEL);
 		memcpy(hif_drv->usr_conn_req.ies,
@@ -1054,11 +1054,11 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		strWIDList[u32WidsCount].id = WID_INFO_ELEMENT_ASSOCIATE;
 		strWIDList[u32WidsCount].type = WID_BIN_DATA;
 		strWIDList[u32WidsCount].val = hif_drv->usr_conn_req.ies;
-		strWIDList[u32WidsCount].size = hif_drv->usr_conn_req.ConnReqIEsLen;
+		strWIDList[u32WidsCount].size = hif_drv->usr_conn_req.ies_len;
 		u32WidsCount++;
 
 		if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
-			info_element_size = hif_drv->usr_conn_req.ConnReqIEsLen;
+			info_element_size = hif_drv->usr_conn_req.ies_len;
 			info_element = kmalloc(info_element_size, GFP_KERNEL);
 			memcpy(info_element, hif_drv->usr_conn_req.ies,
 			       info_element_size);
@@ -1340,11 +1340,11 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 		}
 
 		if (hif_drv->usr_conn_req.ies) {
-			strConnectInfo.ReqIEsLen = hif_drv->usr_conn_req.ConnReqIEsLen;
-			strConnectInfo.pu8ReqIEs = kmalloc(hif_drv->usr_conn_req.ConnReqIEsLen, GFP_KERNEL);
+			strConnectInfo.ReqIEsLen = hif_drv->usr_conn_req.ies_len;
+			strConnectInfo.pu8ReqIEs = kmalloc(hif_drv->usr_conn_req.ies_len, GFP_KERNEL);
 			memcpy(strConnectInfo.pu8ReqIEs,
 			       hif_drv->usr_conn_req.ies,
-			       hif_drv->usr_conn_req.ConnReqIEsLen);
+			       hif_drv->usr_conn_req.ies_len);
 		}
 
 		hif_drv->usr_conn_req.pfUserConnectResult(CONN_DISCONN_EVENT_CONN_RESP,
@@ -1374,7 +1374,7 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 	hif_drv->usr_conn_req.ssid_len = 0;
 	kfree(hif_drv->usr_conn_req.pu8ssid);
 	kfree(hif_drv->usr_conn_req.pu8bssid);
-	hif_drv->usr_conn_req.ConnReqIEsLen = 0;
+	hif_drv->usr_conn_req.ies_len = 0;
 	kfree(hif_drv->usr_conn_req.ies);
 
 	eth_zero_addr(u8ConnectedSSID);
@@ -1587,11 +1587,11 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			}
 
 			if (hif_drv->usr_conn_req.ies) {
-				strConnectInfo.ReqIEsLen = hif_drv->usr_conn_req.ConnReqIEsLen;
-				strConnectInfo.pu8ReqIEs = kmalloc(hif_drv->usr_conn_req.ConnReqIEsLen, GFP_KERNEL);
+				strConnectInfo.ReqIEsLen = hif_drv->usr_conn_req.ies_len;
+				strConnectInfo.pu8ReqIEs = kmalloc(hif_drv->usr_conn_req.ies_len, GFP_KERNEL);
 				memcpy(strConnectInfo.pu8ReqIEs,
 				       hif_drv->usr_conn_req.ies,
-				       hif_drv->usr_conn_req.ConnReqIEsLen);
+				       hif_drv->usr_conn_req.ies_len);
 			}
 
 			del_timer(&hif_drv->connect_timer);
@@ -1626,7 +1626,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			hif_drv->usr_conn_req.ssid_len = 0;
 			kfree(hif_drv->usr_conn_req.pu8ssid);
 			kfree(hif_drv->usr_conn_req.pu8bssid);
-			hif_drv->usr_conn_req.ConnReqIEsLen = 0;
+			hif_drv->usr_conn_req.ies_len = 0;
 			kfree(hif_drv->usr_conn_req.ies);
 		} else if ((u8MacStatus == MAC_DISCONNECTED) &&
 			   (hif_drv->hif_state == HOST_IF_CONNECTED)) {
@@ -1662,7 +1662,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			hif_drv->usr_conn_req.ssid_len = 0;
 			kfree(hif_drv->usr_conn_req.pu8ssid);
 			kfree(hif_drv->usr_conn_req.pu8bssid);
-			hif_drv->usr_conn_req.ConnReqIEsLen = 0;
+			hif_drv->usr_conn_req.ies_len = 0;
 			kfree(hif_drv->usr_conn_req.ies);
 
 			if (join_req && join_req_drv == hif_drv) {
@@ -2026,7 +2026,7 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 		hif_drv->usr_conn_req.ssid_len = 0;
 		kfree(hif_drv->usr_conn_req.pu8ssid);
 		kfree(hif_drv->usr_conn_req.pu8bssid);
-		hif_drv->usr_conn_req.ConnReqIEsLen = 0;
+		hif_drv->usr_conn_req.ies_len = 0;
 		kfree(hif_drv->usr_conn_req.ies);
 
 		if (join_req && join_req_drv == hif_drv) {

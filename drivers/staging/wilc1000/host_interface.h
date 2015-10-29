@@ -205,7 +205,7 @@ struct user_conn_req {
 	enum AUTHTYPE tenuAuth_type;
 	size_t ssid_len;
 	u8 *ies;
-	size_t ConnReqIEsLen;
+	size_t ies_len;
 	wilc_connect_result pfUserConnectResult;
 	bool IsHTCapable;
 	void *u32UserConnectPvoid;
