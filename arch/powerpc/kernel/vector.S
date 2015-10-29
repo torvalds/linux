@@ -177,14 +177,8 @@ _GLOBAL(load_up_vsx)
  * __giveup_vsx(tsk)
  * Disable VSX for the task given as the argument.
  * Does NOT save vsx registers.
- * Enables the VSX for use in the kernel on return.
  */
 _GLOBAL(__giveup_vsx)
-	mfmsr	r5
-	oris	r5,r5,MSR_VSX@h
-	mtmsrd	r5			/* enable use of VSX now */
-	isync
-
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	ld	r5,PT_REGS(r3)
 	cmpdi	0,r5,0

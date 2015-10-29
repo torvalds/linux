@@ -147,7 +147,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	 * VMX data.
 	 */
 	if (current->thread.used_vsr && ctx_has_vsx_region) {
-		__giveup_vsx(current);
+		flush_vsx_to_thread(current);
 		v_regs += ELF_NVRREG;
 		err |= copy_vsx_to_user(v_regs, current);
 		/* set MSR_VSX in the MSR value in the frame to
@@ -270,7 +270,7 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	 * VMX data.
 	 */
 	if (current->thread.used_vsr) {
-		__giveup_vsx(current);
+		flush_vsx_to_thread(current);
 		v_regs += ELF_NVRREG;
 		tm_v_regs += ELF_NVRREG;
 

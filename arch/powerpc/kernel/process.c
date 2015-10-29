@@ -205,6 +205,25 @@ EXPORT_SYMBOL_GPL(flush_altivec_to_thread);
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_VSX
+void giveup_vsx(struct task_struct *tsk)
+{
+	u64 oldmsr = mfmsr();
+	u64 newmsr;
+
+	check_if_tm_restore_required(tsk);
+
+	newmsr = oldmsr | (MSR_FP|MSR_VEC|MSR_VSX);
+	if (oldmsr != newmsr)
+		mtmsr_isync(newmsr);
+
+	if (tsk->thread.regs->msr & MSR_FP)
+		__giveup_fpu(tsk);
+	if (tsk->thread.regs->msr & MSR_VEC)
+		__giveup_altivec(tsk);
+	__giveup_vsx(tsk);
+}
+EXPORT_SYMBOL(giveup_vsx);
+
 void enable_kernel_vsx(void)
 {
 	WARN_ON(preemptible());
@@ -219,15 +238,6 @@ void enable_kernel_vsx(void)
 	}
 }
 EXPORT_SYMBOL(enable_kernel_vsx);
-
-void giveup_vsx(struct task_struct *tsk)
-{
-	check_if_tm_restore_required(tsk);
-	giveup_fpu(tsk);
-	giveup_altivec(tsk);
-	__giveup_vsx(tsk);
-}
-EXPORT_SYMBOL(giveup_vsx);
 
 void flush_vsx_to_thread(struct task_struct *tsk)
 {
