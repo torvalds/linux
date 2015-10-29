@@ -3010,9 +3010,9 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.rates_len);
 
 		if (params->ht_capa == NULL) {
-			strStaParams.bIsHTSupported = false;
+			strStaParams.ht_supported = false;
 		} else {
-			strStaParams.bIsHTSupported = true;
+			strStaParams.ht_supported = true;
 			strStaParams.u16HTCapInfo = params->ht_capa->cap_info;
 			strStaParams.u8AmpduParams = params->ht_capa->ampdu_params_info;
 			memcpy(strStaParams.au8SuppMCsSet, &params->ht_capa->mcs, WILC_SUPP_MCS_SET_SIZE);
@@ -3024,7 +3024,8 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 		strStaParams.u16FlagsMask = params->sta_flags_mask;
 		strStaParams.u16FlagsSet = params->sta_flags_set;
 
-		PRINT_D(HOSTAPD_DBG, "IS HT supported = %d\n", strStaParams.bIsHTSupported);
+		PRINT_D(HOSTAPD_DBG, "IS HT supported = %d\n",
+			strStaParams.ht_supported);
 		PRINT_D(HOSTAPD_DBG, "Capability Info = %d\n", strStaParams.u16HTCapInfo);
 		PRINT_D(HOSTAPD_DBG, "AMPDU Params = %d\n", strStaParams.u8AmpduParams);
 		PRINT_D(HOSTAPD_DBG, "HT Extended params = %d\n", strStaParams.u16HTExtParams);
@@ -3124,9 +3125,9 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.rates_len);
 
 		if (params->ht_capa == NULL) {
-			strStaParams.bIsHTSupported = false;
+			strStaParams.ht_supported = false;
 		} else {
-			strStaParams.bIsHTSupported = true;
+			strStaParams.ht_supported = true;
 			strStaParams.u16HTCapInfo = params->ht_capa->cap_info;
 			strStaParams.u8AmpduParams = params->ht_capa->ampdu_params_info;
 			memcpy(strStaParams.au8SuppMCsSet, &params->ht_capa->mcs, WILC_SUPP_MCS_SET_SIZE);
@@ -3139,7 +3140,8 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 		strStaParams.u16FlagsMask = params->sta_flags_mask;
 		strStaParams.u16FlagsSet = params->sta_flags_set;
 
-		PRINT_D(HOSTAPD_DBG, "IS HT supported = %d\n", strStaParams.bIsHTSupported);
+		PRINT_D(HOSTAPD_DBG, "IS HT supported = %d\n",
+			strStaParams.ht_supported);
 		PRINT_D(HOSTAPD_DBG, "Capability Info = %d\n", strStaParams.u16HTCapInfo);
 		PRINT_D(HOSTAPD_DBG, "AMPDU Params = %d\n", strStaParams.u8AmpduParams);
 		PRINT_D(HOSTAPD_DBG, "HT Extended params = %d\n", strStaParams.u16HTExtParams);

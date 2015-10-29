@@ -2320,7 +2320,7 @@ static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer,
 		       pstrStationParam->rates_len);
 	pu8CurrByte += pstrStationParam->rates_len;
 
-	*pu8CurrByte++ = pstrStationParam->bIsHTSupported;
+	*pu8CurrByte++ = pstrStationParam->ht_supported;
 	*pu8CurrByte++ = pstrStationParam->u16HTCapInfo & 0xFF;
 	*pu8CurrByte++ = (pstrStationParam->u16HTCapInfo >> 8) & 0xFF;
 
