@@ -467,8 +467,8 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 	/* Validate major/minor number */
 	if (header->version_major > GREYBUS_VERSION_MAJOR) {
 		pr_err("manifest version too new (%hhu.%hhu > %hhu.%hhu)\n",
-			header->version_major, header->version_minor,
-			GREYBUS_VERSION_MAJOR, GREYBUS_VERSION_MINOR);
+		       header->version_major, header->version_minor,
+		       GREYBUS_VERSION_MAJOR, GREYBUS_VERSION_MINOR);
 		return false;
 	}
 
