@@ -4,8 +4,8 @@ Renesas Sampling Rate Convert Sound Card specifies audio DAI connections of SoC 
 
 Required properties:
 
-- compatible				: "renesas,rsrc-card,<board>"
-					  Examples with soctypes are:
+- compatible				: "renesas,rsrc-card{,<board>}"
+					  Examples with boards are:
 					    - "renesas,rsrc-card"
 					    - "renesas,rsrc-card,lager"
 					    - "renesas,rsrc-card,koelsch"
