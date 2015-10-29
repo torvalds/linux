@@ -137,9 +137,13 @@
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl",
-				  "sdhi0_cd";
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl";
 		renesas,function = "sdhi0";
+	};
+	sdhi0_pup_pins: sd0_pup {
+		renesas,groups = "sdhi0_cd", "sdhi0_wp";
+		renesas,function = "sdhi0";
+		bias-pull-up;
 	};
 
 	hspi0_pins: hspi0 {
@@ -169,7 +173,7 @@
 };
 
 &sdhi0 {
-	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-0 = <&sdhi0_pins>, <&sdhi0_pup_pins>;
 	pinctrl-names = "default";
 
 	vmmc-supply = <&fixedregulator3v3>;
