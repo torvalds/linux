@@ -2059,7 +2059,7 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 	if (wait_for((I915_READ(reg) & TRANS_STATE_ENABLE) == 0, 50))
 		DRM_ERROR("failed to disable transcoder %c\n", pipe_name(pipe));
 
-	if (!HAS_PCH_IBX(dev)) {
+	if (HAS_PCH_CPT(dev)) {
 		/* Workaround: Clear the timing override chicken bit again. */
 		reg = TRANS_CHICKEN2(pipe);
 		val = I915_READ(reg);
