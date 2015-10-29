@@ -103,7 +103,9 @@ static int syscfg_reset_deassert(struct reset_controller_dev *rcdev,
 static int syscfg_reset_dev(struct reset_controller_dev *rcdev,
 			    unsigned long idx)
 {
-	int err = syscfg_reset_assert(rcdev, idx);
+	int err;
+
+	err = syscfg_reset_assert(rcdev, idx);
 	if (err)
 		return err;
 
