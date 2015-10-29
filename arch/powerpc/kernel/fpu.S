@@ -155,24 +155,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	blr
 
 /*
- * giveup_fpu(tsk)
+ * __giveup_fpu(tsk)
  * Disable FP for the task given as the argument,
  * and save the floating-point registers in its thread_struct.
  * Enables the FPU for use in the kernel on return.
  */
-_GLOBAL(giveup_fpu)
-	mfmsr	r5
-	ori	r5,r5,MSR_FP
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	oris	r5,r5,MSR_VSX@h
-END_FTR_SECTION_IFSET(CPU_FTR_VSX)
-#endif
-	SYNC_601
-	ISYNC_601
-	MTMSRD(r5)			/* enable use of fpu now */
-	SYNC_601
-	isync
+_GLOBAL(__giveup_fpu)
 	addi	r3,r3,THREAD	        /* want THREAD of task */
 	PPC_LL	r6,THREAD_FPSAVEAREA(r3)
 	PPC_LL	r5,PT_REGS(r3)

@@ -112,17 +112,11 @@ _GLOBAL(load_up_altivec)
 	blr
 
 /*
- * giveup_altivec(tsk)
+ * __giveup_altivec(tsk)
  * Disable VMX for the task given as the argument,
  * and save the vector registers in its thread_struct.
- * Enables the VMX for use in the kernel on return.
  */
-_GLOBAL(giveup_altivec)
-	mfmsr	r5
-	oris	r5,r5,MSR_VEC@h
-	SYNC
-	MTMSRD(r5)			/* enable use of VMX now */
-	isync
+_GLOBAL(__giveup_altivec)
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	PPC_LL	r7,THREAD_VRSAVEAREA(r3)
 	PPC_LL	r5,PT_REGS(r3)

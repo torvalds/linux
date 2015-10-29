@@ -23,28 +23,27 @@ extern int emulate_altivec(struct pt_regs *);
 extern void __giveup_vsx(struct task_struct *);
 extern void giveup_vsx(struct task_struct *);
 extern void enable_kernel_spe(void);
-extern void giveup_spe(struct task_struct *);
 extern void load_up_spe(struct task_struct *);
 extern void switch_booke_debug_regs(struct debug_reg *new_debug);
 
 #ifdef CONFIG_PPC_FPU
 extern void flush_fp_to_thread(struct task_struct *);
 extern void giveup_fpu(struct task_struct *);
+extern void __giveup_fpu(struct task_struct *);
 #else
 static inline void flush_fp_to_thread(struct task_struct *t) { }
 static inline void giveup_fpu(struct task_struct *t) { }
+static inline void __giveup_fpu(struct task_struct *t) { }
 #endif
 
 #ifdef CONFIG_ALTIVEC
 extern void flush_altivec_to_thread(struct task_struct *);
 extern void giveup_altivec(struct task_struct *);
+extern void __giveup_altivec(struct task_struct *);
 #else
-static inline void flush_altivec_to_thread(struct task_struct *t)
-{
-}
-static inline void giveup_altivec(struct task_struct *t)
-{
-}
+static inline void flush_altivec_to_thread(struct task_struct *t) { }
+static inline void giveup_altivec(struct task_struct *t) { }
+static inline void __giveup_altivec(struct task_struct *t) { }
 #endif
 
 #ifdef CONFIG_VSX
@@ -57,10 +56,12 @@ static inline void flush_vsx_to_thread(struct task_struct *t)
 
 #ifdef CONFIG_SPE
 extern void flush_spe_to_thread(struct task_struct *);
+extern void giveup_spe(struct task_struct *);
+extern void __giveup_spe(struct task_struct *);
 #else
-static inline void flush_spe_to_thread(struct task_struct *t)
-{
-}
+static inline void flush_spe_to_thread(struct task_struct *t) { }
+static inline void giveup_spe(struct task_struct *t) { }
+static inline void __giveup_spe(struct task_struct *t) { }
 #endif
 
 static inline void clear_task_ebb(struct task_struct *t)

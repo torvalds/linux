@@ -88,6 +88,25 @@ static inline void check_if_tm_restore_required(struct task_struct *tsk) { }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 #ifdef CONFIG_PPC_FPU
+void giveup_fpu(struct task_struct *tsk)
+{
+	u64 oldmsr = mfmsr();
+	u64 newmsr;
+
+	check_if_tm_restore_required(tsk);
+
+	newmsr = oldmsr | MSR_FP;
+#ifdef CONFIG_VSX
+	if (cpu_has_feature(CPU_FTR_VSX))
+		newmsr |= MSR_VSX;
+#endif
+	if (oldmsr != newmsr)
+		mtmsr_isync(newmsr);
+
+	__giveup_fpu(tsk);
+}
+EXPORT_SYMBOL(giveup_fpu);
+
 /*
  * Make sure the floating-point register state in the
  * the thread_struct is up to date for task tsk.
@@ -113,7 +132,6 @@ void flush_fp_to_thread(struct task_struct *tsk)
 			 * to still have its FP state in the CPU registers.
 			 */
 			BUG_ON(tsk != current);
-			check_if_tm_restore_required(tsk);
 			giveup_fpu(tsk);
 		}
 		preempt_enable();
@@ -127,7 +145,6 @@ void enable_kernel_fp(void)
 	WARN_ON(preemptible());
 
 	if (current->thread.regs && (current->thread.regs->msr & MSR_FP)) {
-		check_if_tm_restore_required(current);
 		giveup_fpu(current);
 	} else {
 		u64 oldmsr = mfmsr();
@@ -139,12 +156,26 @@ void enable_kernel_fp(void)
 EXPORT_SYMBOL(enable_kernel_fp);
 
 #ifdef CONFIG_ALTIVEC
+void giveup_altivec(struct task_struct *tsk)
+{
+	u64 oldmsr = mfmsr();
+	u64 newmsr;
+
+	check_if_tm_restore_required(tsk);
+
+	newmsr = oldmsr | MSR_VEC;
+	if (oldmsr != newmsr)
+		mtmsr_isync(newmsr);
+
+	__giveup_altivec(tsk);
+}
+EXPORT_SYMBOL(giveup_altivec);
+
 void enable_kernel_altivec(void)
 {
 	WARN_ON(preemptible());
 
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC)) {
-		check_if_tm_restore_required(current);
 		giveup_altivec(current);
 	} else {
 		u64 oldmsr = mfmsr();
@@ -165,7 +196,6 @@ void flush_altivec_to_thread(struct task_struct *tsk)
 		preempt_disable();
 		if (tsk->thread.regs->msr & MSR_VEC) {
 			BUG_ON(tsk != current);
-			check_if_tm_restore_required(tsk);
 			giveup_altivec(tsk);
 		}
 		preempt_enable();
@@ -214,6 +244,20 @@ EXPORT_SYMBOL_GPL(flush_vsx_to_thread);
 #endif /* CONFIG_VSX */
 
 #ifdef CONFIG_SPE
+void giveup_spe(struct task_struct *tsk)
+{
+	u64 oldmsr = mfmsr();
+	u64 newmsr;
+
+	check_if_tm_restore_required(tsk);
+
+	newmsr = oldmsr | MSR_SPE;
+	if (oldmsr != newmsr)
+		mtmsr_isync(newmsr);
+
+	__giveup_spe(tsk);
+}
+EXPORT_SYMBOL(giveup_spe);
 
 void enable_kernel_spe(void)
 {

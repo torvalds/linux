@@ -984,14 +984,10 @@ _GLOBAL(__setup_ehv_ivors)
 
 #ifdef CONFIG_SPE
 /*
- * extern void giveup_spe(struct task_struct *prev)
+ * extern void __giveup_spe(struct task_struct *prev)
  *
  */
-_GLOBAL(giveup_spe)
-	mfmsr	r5
-	oris	r5,r5,MSR_SPE@h
-	mtmsr	r5			/* enable use of SPE now */
-	isync
+_GLOBAL(__giveup_spe)
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	lwz	r5,PT_REGS(r3)
 	cmpi	0,r5,0
