@@ -1420,10 +1420,8 @@ int rc_register_device(struct rc_dev *dev)
 	dev->input_dev->rep[REP_PERIOD] = 125;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
-	printk(KERN_INFO "%s: %s as %s\n",
-		dev_name(&dev->dev),
-		dev->input_name ? dev->input_name : "Unspecified device",
-		path ? path : "N/A");
+	dev_info(&dev->dev, "%s as %s\n",
+		dev->input_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
 	if (dev->driver_type == RC_DRIVER_IR_RAW) {
