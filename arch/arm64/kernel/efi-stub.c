@@ -25,10 +25,20 @@ efi_status_t __init handle_kernel_image(efi_system_table_t *sys_table_arg,
 	unsigned long kernel_size, kernel_memsize = 0;
 	unsigned long nr_pages;
 	void *old_image_addr = (void *)*image_addr;
+	unsigned long preferred_offset;
+
+	/*
+	 * The preferred offset of the kernel Image is TEXT_OFFSET bytes beyond
+	 * a 2 MB aligned base, which itself may be lower than dram_base, as
+	 * long as the resulting offset equals or exceeds it.
+	 */
+	preferred_offset = round_down(dram_base, SZ_2M) + TEXT_OFFSET;
+	if (preferred_offset < dram_base)
+		preferred_offset += SZ_2M;
 
 	/* Relocate the image, if required. */
 	kernel_size = _edata - _text;
-	if (*image_addr != (dram_base + TEXT_OFFSET)) {
+	if (*image_addr != preferred_offset) {
 		kernel_memsize = kernel_size + (_end - _edata);
 
 		/*
@@ -42,7 +52,7 @@ efi_status_t __init handle_kernel_image(efi_system_table_t *sys_table_arg,
 		 * Mustang), we can still place the kernel at the address
 		 * 'dram_base + TEXT_OFFSET'.
 		 */
-		*image_addr = *reserve_addr = dram_base + TEXT_OFFSET;
+		*image_addr = *reserve_addr = preferred_offset;
 		nr_pages = round_up(kernel_memsize, EFI_ALLOC_ALIGN) /
 			   EFI_PAGE_SIZE;
 		status = efi_call_early(allocate_pages, EFI_ALLOCATE_ADDRESS,
