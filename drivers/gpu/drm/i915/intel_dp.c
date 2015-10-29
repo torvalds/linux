@@ -2578,6 +2578,8 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
+	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum pipe pipe = crtc->pipe;
 
 	if (WARN_ON(dp_reg & DP_PORT_EN))
 		return;
@@ -2588,6 +2590,17 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 		vlv_init_panel_power_sequencer(intel_dp);
 
 	intel_dp_enable_port(intel_dp);
+
+	if (port == PORT_A && IS_GEN5(dev_priv)) {
+		/*
+		 * Underrun reporting for the other pipe was disabled in
+		 * g4x_pre_enable_dp(). The eDP PLL and port have now been
+		 * enabled, so it's now safe to re-enable underrun reporting.
+		 */
+		intel_wait_for_vblank_if_active(dev_priv->dev, !pipe);
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, !pipe, true);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, !pipe, true);
+	}
 
 	edp_panel_vdd_on(intel_dp);
 	edp_panel_on(intel_dp);
@@ -2611,7 +2624,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 
 	if (crtc->config->has_audio) {
 		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
-				 pipe_name(crtc->pipe));
+				 pipe_name(pipe));
 		intel_audio_codec_enable(encoder);
 	}
 }
@@ -2634,13 +2647,28 @@ static void vlv_enable_dp(struct intel_encoder *encoder)
 
 static void g4x_pre_enable_dp(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
+	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum pipe pipe = to_intel_crtc(encoder->base.crtc)->pipe;
 
 	intel_dp_prepare(encoder);
 
+	if (port == PORT_A && IS_GEN5(dev_priv)) {
+		/*
+		 * We get FIFO underruns on the other pipe when
+		 * enabling the CPU eDP PLL, and when enabling CPU
+		 * eDP port. We could potentially avoid the PLL
+		 * underrun with a vblank wait just prior to enabling
+		 * the PLL, but that doesn't appear to help the port
+		 * enable case. Just sweep it all under the rug.
+		 */
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, !pipe, false);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, !pipe, false);
+	}
+
 	/* Only ilk+ has port A */
-	if (dport->port == PORT_A) {
+	if (port == PORT_A) {
 		ironlake_set_pll_cpu_edp(intel_dp);
 		ironlake_edp_pll_on(intel_dp);
 	}
