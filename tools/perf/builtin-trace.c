@@ -585,6 +585,12 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct sysc
 
 #define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
 
+static const char *bpf_cmd[] = {
+	"MAP_CREATE", "MAP_LOOKUP_ELEM", "MAP_UPDATE_ELEM", "MAP_DELETE_ELEM",
+	"MAP_GET_NEXT_KEY", "PROG_LOAD",
+};
+static DEFINE_STRARRAY(bpf_cmd);
+
 static const char *epoll_ctl_ops[] = { "ADD", "DEL", "MOD", };
 static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, 1);
 
@@ -1011,6 +1017,7 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */
 			     [1] = SCA_ACCMODE,  /* mode */ }, },
 	{ .name	    = "arch_prctl", .errmsg = true, .alias = "prctl", },
+	{ .name	    = "bpf",	    .errmsg = true, STRARRAY(0, cmd, bpf_cmd), },
 	{ .name	    = "brk",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* brk */ }, },
 	{ .name	    = "chdir",	    .errmsg = true,
