@@ -218,4 +218,5 @@ int wilc_netdev_init(struct wilc **wilc);
 void wilc1000_wlan_deinit(struct net_device *dev);
 void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
 u16 Set_machw_change_vir_if(struct net_device *dev, bool bValue);
+int linux_wlan_get_firmware(struct net_device *dev);
 #endif

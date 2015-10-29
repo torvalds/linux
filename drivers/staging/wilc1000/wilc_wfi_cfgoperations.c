@@ -21,8 +21,6 @@
 #define IS_MGMT_STATUS_SUCCES			0x040
 #define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
 
-extern int linux_wlan_get_firmware(perInterface_wlan_t *p_nic);
-
 extern int mac_open(struct net_device *ndev);
 extern int mac_close(struct net_device *ndev);
 
@@ -2737,7 +2735,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(CORECONFIG_DBG, "priv->hWILCWFIDrv[%p]\n", priv->hWILCWFIDrv);
 
 		PRINT_D(HOSTAPD_DBG, "Downloading AP firmware\n");
-		linux_wlan_get_firmware(nic);
+		linux_wlan_get_firmware(dev);
 		/*If wilc is running, then close-open to actually get new firmware running (serves P2P)*/
 		if (wl->initialized)	{
 			nic->iftype = AP_MODE;

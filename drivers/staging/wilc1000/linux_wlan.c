@@ -517,13 +517,16 @@ void linux_wlan_rx_complete(void)
 	PRINT_D(RX_DBG, "RX completed\n");
 }
 
-int linux_wlan_get_firmware(perInterface_wlan_t *p_nic)
+int linux_wlan_get_firmware(struct net_device *dev)
 {
-
-	perInterface_wlan_t *nic = p_nic;
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
 	int ret = 0;
 	const struct firmware *wilc_firmware;
 	char *firmware;
+
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
 
 	if (nic->iftype == AP_MODE)
 		firmware = AP_FIRMWARE;
@@ -549,19 +552,19 @@ int linux_wlan_get_firmware(perInterface_wlan_t *p_nic)
 	 *      root file system with the name specified above */
 
 #ifdef WILC_SDIO
-	if (request_firmware(&wilc_firmware, firmware, &g_linux_wlan->wilc_sdio_func->dev) != 0) {
+	if (request_firmware(&wilc_firmware, firmware, &wilc->wilc_sdio_func->dev) != 0) {
 		PRINT_ER("%s - firmare not available\n", firmware);
 		ret = -1;
 		goto _fail_;
 	}
 #else
-	if (request_firmware(&wilc_firmware, firmware, &g_linux_wlan->wilc_spidev->dev) != 0) {
+	if (request_firmware(&wilc_firmware, firmware, &wilc->wilc_spidev->dev) != 0) {
 		PRINT_ER("%s - firmare not available\n", firmware);
 		ret = -1;
 		goto _fail_;
 	}
 #endif
-	g_linux_wlan->firmware = wilc_firmware;
+	wilc->firmware = wilc_firmware;
 
 _fail_:
 
@@ -1125,7 +1128,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 #endif
 
-		if (linux_wlan_get_firmware(nic)) {
+		if (linux_wlan_get_firmware(dev)) {
 			PRINT_ER("Can't get firmware\n");
 			ret = -EIO;
 			goto _fail_irq_enable_;
