@@ -445,15 +445,6 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 }
 
 static int
-srpc_post_active_rqtbuf(lnet_process_id_t peer, int service, void *buf,
-			int len, lnet_handle_md_t *mdh, srpc_event_t *ev)
-{
-	return srpc_post_active_rdma(srpc_serv_portal(service), service,
-				     buf, len, LNET_MD_OP_PUT, peer,
-				     LNET_NID_ANY, mdh, ev);
-}
-
-static int
 srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
 			 lnet_handle_md_t *mdh, srpc_event_t *ev)
 {
@@ -798,9 +789,11 @@ srpc_send_request(srpc_client_rpc_t *rpc)
 	ev->ev_data  = rpc;
 	ev->ev_type  = SRPC_REQUEST_SENT;
 
-	rc = srpc_post_active_rqtbuf(rpc->crpc_dest, rpc->crpc_service,
-				     &rpc->crpc_reqstmsg, sizeof(srpc_msg_t),
-				     &rpc->crpc_reqstmdh, ev);
+	 rc = srpc_post_active_rdma(srpc_serv_portal(rpc->crpc_service),
+				    rpc->crpc_service, &rpc->crpc_reqstmsg,
+				    sizeof(srpc_msg_t), LNET_MD_OP_PUT,
+				    rpc->crpc_dest, LNET_NID_ANY,
+				    &rpc->crpc_reqstmdh, ev);
 	if (rc != 0) {
 		LASSERT(rc == -ENOMEM);
 		ev->ev_fired = 1;  /* no more event expected */
