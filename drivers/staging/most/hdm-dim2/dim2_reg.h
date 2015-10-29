@@ -66,7 +66,7 @@ struct dim2_regs {
 	/* 0xF7 */ u32 ACMR1;
 };
 
-#define DIM2_MASK(n)  (~((~(u32)0)<<(n)))
+#define DIM2_MASK(n)  (~((~(u32)0) << (n)))
 
 enum {
 	MLBC0_MLBLK_BIT = 7,
