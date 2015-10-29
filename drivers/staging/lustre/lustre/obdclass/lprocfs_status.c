@@ -502,7 +502,7 @@ int lprocfs_rd_server_uuid(struct seq_file *m, void *data)
 		   obd2cli_tgt(obd), imp_state_name,
 		   imp->imp_deactive ? "\tDEACTIVATED" : "");
 
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 
 	return 0;
 }
@@ -526,7 +526,7 @@ int lprocfs_rd_conn_uuid(struct seq_file *m, void *data)
 	else
 		seq_puts(m, "<none>\n");
 
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 
 	return 0;
 }
@@ -765,7 +765,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	}
 
 out_climp:
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_import);
@@ -796,7 +796,7 @@ int lprocfs_rd_state(struct seq_file *m, void *data)
 			   ptlrpc_import_state_name(ish->ish_state));
 	}
 
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_state);
@@ -857,7 +857,7 @@ int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 		lprocfs_at_hist_helper(m, &imp->imp_at.iat_service_estimate[i]);
 	}
 
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_timeouts);
@@ -876,7 +876,7 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data)
 	seq_printf(m, "flags=%#llx\n", flags);
 	obd_connect_seq_flags2str(m, flags, "\n");
 	seq_printf(m, "\n");
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_connect_flags);
