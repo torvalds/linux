@@ -70,7 +70,8 @@ enum nvt_chip_ver {
 	NVT_UNKNOWN	= 0,
 	NVT_W83667HG	= 0xa510,
 	NVT_6775F	= 0xb470,
-	NVT_6776F	= 0xc330
+	NVT_6776F	= 0xc330,
+	NVT_6779D	= 0xc560
 };
 
 struct nvt_chip {

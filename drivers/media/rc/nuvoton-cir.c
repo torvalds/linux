@@ -43,6 +43,7 @@ static const struct nvt_chip nvt_chips[] = {
 	{ "w83667hg", NVT_W83667HG },
 	{ "NCT6775F", NVT_6775F },
 	{ "NCT6776F", NVT_6776F },
+	{ "NCT6779D", NVT_6779D },
 };
 
 static inline bool is_w83667hg(struct nvt_dev *nvt)
