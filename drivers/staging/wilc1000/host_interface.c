@@ -2099,7 +2099,7 @@ static void Handle_GetRssi(struct host_if_drv *hif_drv)
 		result = -EFAULT;
 	}
 
-	up(&hif_drv->hSemGetRSSI);
+	up(&hif_drv->sem_get_rssi);
 }
 
 static void Handle_GetLinkspeed(struct host_if_drv *hif_drv)
@@ -3815,7 +3815,7 @@ s32 host_int_get_rssi(struct host_if_drv *hif_drv, s8 *ps8Rssi)
 		return -EFAULT;
 	}
 
-	down(&hif_drv->hSemGetRSSI);
+	down(&hif_drv->sem_get_rssi);
 
 	if (!ps8Rssi) {
 		PRINT_ER("RSS pointer value is null");
@@ -4109,7 +4109,7 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	sema_init(&hif_drv->sem_test_key_block, 0);
 	sema_init(&hif_drv->sem_test_disconn_block, 0);
-	sema_init(&hif_drv->hSemGetRSSI, 0);
+	sema_init(&hif_drv->sem_get_rssi, 0);
 	sema_init(&hif_drv->hSemGetLINKSPEED, 0);
 	sema_init(&hif_drv->hSemGetCHNL, 0);
 	sema_init(&hif_drv->hSemInactiveTime, 0);
