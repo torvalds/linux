@@ -3020,7 +3020,7 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 			       WILC_SUPP_MCS_SET_SIZE);
 			strStaParams.ht_ext_params = params->ht_capa->extended_ht_cap_info;
 			strStaParams.ht_tx_bf_cap = params->ht_capa->tx_BF_cap_info;
-			strStaParams.u8ASELCap = params->ht_capa->antenna_selection_info;
+			strStaParams.ht_ante_sel = params->ht_capa->antenna_selection_info;
 		}
 
 		strStaParams.u16FlagsMask = params->sta_flags_mask;
@@ -3036,7 +3036,8 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.ht_ext_params);
 		PRINT_D(HOSTAPD_DBG, "Tx Beamforming Cap = %d\n",
 			strStaParams.ht_tx_bf_cap);
-		PRINT_D(HOSTAPD_DBG, "Antenna selection info = %d\n", strStaParams.u8ASELCap);
+		PRINT_D(HOSTAPD_DBG, "Antenna selection info = %d\n",
+			strStaParams.ht_ante_sel);
 		PRINT_D(HOSTAPD_DBG, "Flag Mask = %d\n", strStaParams.u16FlagsMask);
 		PRINT_D(HOSTAPD_DBG, "Flag Set = %d\n", strStaParams.u16FlagsSet);
 
@@ -3141,8 +3142,7 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			       WILC_SUPP_MCS_SET_SIZE);
 			strStaParams.ht_ext_params = params->ht_capa->extended_ht_cap_info;
 			strStaParams.ht_tx_bf_cap = params->ht_capa->tx_BF_cap_info;
-			strStaParams.u8ASELCap = params->ht_capa->antenna_selection_info;
-
+			strStaParams.ht_ante_sel = params->ht_capa->antenna_selection_info;
 		}
 
 		strStaParams.u16FlagsMask = params->sta_flags_mask;
@@ -3158,7 +3158,8 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.ht_ext_params);
 		PRINT_D(HOSTAPD_DBG, "Tx Beamforming Cap = %d\n",
 			strStaParams.ht_tx_bf_cap);
-		PRINT_D(HOSTAPD_DBG, "Antenna selection info = %d\n", strStaParams.u8ASELCap);
+		PRINT_D(HOSTAPD_DBG, "Antenna selection info = %d\n",
+			strStaParams.ht_ante_sel);
 		PRINT_D(HOSTAPD_DBG, "Flag Mask = %d\n", strStaParams.u16FlagsMask);
 		PRINT_D(HOSTAPD_DBG, "Flag Set = %d\n", strStaParams.u16FlagsSet);
 

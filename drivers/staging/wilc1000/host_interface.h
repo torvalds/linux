@@ -298,7 +298,7 @@ struct add_sta_param {
 	u8 ht_supp_mcs_set[16];
 	u16 ht_ext_params;
 	u32 ht_tx_bf_cap;
-	u8 u8ASELCap;
+	u8 ht_ante_sel;
 	u16 u16FlagsMask;
 	u16 u16FlagsSet;
 };
