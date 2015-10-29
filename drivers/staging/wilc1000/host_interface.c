@@ -2211,7 +2211,7 @@ static s32 Handle_Get_InActiveTime(struct host_if_drv *hif_drv,
 
 	PRINT_D(CFG80211_DBG, "Getting inactive time : %d\n", inactive_time);
 
-	up(&hif_drv->hSemInactiveTime);
+	up(&hif_drv->sem_inactive_time);
 
 	return result;
 }
@@ -3765,7 +3765,7 @@ s32 host_int_get_inactive_time(struct host_if_drv *hif_drv,
 	if (result)
 		PRINT_ER("Failed to send get host channel param's message queue ");
 
-	down(&hif_drv->hSemInactiveTime);
+	down(&hif_drv->sem_inactive_time);
 
 	*pu32InactiveTime = inactive_time;
 
@@ -4112,7 +4112,7 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	sema_init(&hif_drv->sem_get_rssi, 0);
 	sema_init(&hif_drv->sem_get_link_speed, 0);
 	sema_init(&hif_drv->sem_get_chnl, 0);
-	sema_init(&hif_drv->hSemInactiveTime, 0);
+	sema_init(&hif_drv->sem_inactive_time, 0);
 
 	PRINT_D(HOSTINF_DBG, "INIT: CLIENT COUNT %d\n", clients_count);
 
