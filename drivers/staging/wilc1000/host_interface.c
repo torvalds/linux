@@ -1030,7 +1030,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	hif_drv->usr_conn_req.u8security = pstrHostIFconnectAttr->security;
 	hif_drv->usr_conn_req.tenuAuth_type = pstrHostIFconnectAttr->auth_type;
 	hif_drv->usr_conn_req.conn_result = pstrHostIFconnectAttr->result;
-	hif_drv->usr_conn_req.u32UserConnectPvoid = pstrHostIFconnectAttr->arg;
+	hif_drv->usr_conn_req.arg = pstrHostIFconnectAttr->arg;
 
 	strWIDList[u32WidsCount].id = WID_SUCCESS_FRAME_COUNT;
 	strWIDList[u32WidsCount].type = WID_INT;
@@ -1351,7 +1351,7 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 						  &strConnectInfo,
 						  MAC_DISCONNECTED,
 						  NULL,
-						  hif_drv->usr_conn_req.u32UserConnectPvoid);
+						  hif_drv->usr_conn_req.arg);
 
 		kfree(strConnectInfo.pu8ReqIEs);
 		strConnectInfo.pu8ReqIEs = NULL;
@@ -1599,7 +1599,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 							  &strConnectInfo,
 							  u8MacStatus,
 							  NULL,
-							  hif_drv->usr_conn_req.u32UserConnectPvoid);
+							  hif_drv->usr_conn_req.arg);
 
 			if ((u8MacStatus == MAC_CONNECTED) &&
 			    (strConnectInfo.u16ConnectStatus == SUCCESSFUL_STATUSCODE))	{
@@ -1652,7 +1652,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 								  NULL,
 								  0,
 								  &strDisconnectNotifInfo,
-								  hif_drv->usr_conn_req.u32UserConnectPvoid);
+								  hif_drv->usr_conn_req.arg);
 			} else {
 				PRINT_ER("Connect result callback function is NULL\n");
 			}
@@ -2017,7 +2017,7 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 							  NULL,
 							  0,
 							  &strDisconnectNotifInfo,
-							  hif_drv->usr_conn_req.u32UserConnectPvoid);
+							  hif_drv->usr_conn_req.arg);
 		} else {
 			PRINT_ER("usr_conn_req.conn_result = NULL\n");
 		}

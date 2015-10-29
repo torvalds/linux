@@ -208,7 +208,7 @@ struct user_conn_req {
 	size_t ies_len;
 	wilc_connect_result conn_result;
 	bool ht_capable;
-	void *u32UserConnectPvoid;
+	void *arg;
 };
 
 struct drv_handler {
