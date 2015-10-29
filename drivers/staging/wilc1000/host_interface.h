@@ -10,8 +10,12 @@
 #define STATION_MODE	0x02
 #define GO_MODE		0x03
 #define CLIENT_MODE	0x04
+#define ACTION		0xD0
+#define PROBE_REQ	0x40
+#define PROBE_RESP	0x50
 
-
+#define ACTION_FRM_IDX				0
+#define PROBE_REQ_IDX				1
 #define MAX_NUM_STA				9
 #define ACTIVE_SCAN_TIME			10
 #define PASSIVE_SCAN_TIME			1200
@@ -248,14 +252,6 @@ struct reg_frame {
 	u16 frame_type;
 	u8 reg_id;
 };
-
-
-#define ACTION			0xD0
-#define PROBE_REQ		0x40
-#define PROBE_RESP		0x50
-#define ACTION_FRM_IDX		0
-#define PROBE_REQ_IDX		1
-
 
 enum p2p_listen_state {
 	P2P_IDLE,
