@@ -2565,7 +2565,7 @@ static int Handle_RegisterFrame(struct host_if_drv *hif_drv,
 	pu8CurrByte = wid.val;
 
 	*pu8CurrByte++ = pstrHostIfRegisterFrame->reg;
-	*pu8CurrByte++ = pstrHostIfRegisterFrame->u8Regid;
+	*pu8CurrByte++ = pstrHostIfRegisterFrame->reg_id;
 	memcpy(pu8CurrByte, &pstrHostIfRegisterFrame->frame_type, sizeof(u16));
 
 	wid.size = sizeof(u16) + 2;
@@ -4422,12 +4422,12 @@ s32 host_int_frame_register(struct host_if_drv *hif_drv, u16 u16FrameType, bool 
 	switch (u16FrameType) {
 	case ACTION:
 		PRINT_D(HOSTINF_DBG, "ACTION\n");
-		msg.body.reg_frame.u8Regid = ACTION_FRM_IDX;
+		msg.body.reg_frame.reg_id = ACTION_FRM_IDX;
 		break;
 
 	case PROBE_REQ:
 		PRINT_D(HOSTINF_DBG, "PROBE REQ\n");
-		msg.body.reg_frame.u8Regid = PROBE_REQ_IDX;
+		msg.body.reg_frame.reg_id = PROBE_REQ_IDX;
 		break;
 
 	default:
