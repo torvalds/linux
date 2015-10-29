@@ -2995,7 +2995,7 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 	nic = netdev_priv(dev);
 
 	if (nic->iftype == AP_MODE || nic->iftype == GO_MODE) {
-		memcpy(strStaParams.au8BSSID, mac, ETH_ALEN);
+		memcpy(strStaParams.bssid, mac, ETH_ALEN);
 		memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
 		strStaParams.u16AssocID = params->aid;
 		strStaParams.u8NumRates = params->supported_rates_len;
@@ -3109,13 +3109,15 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 	nic = netdev_priv(dev);
 
 	if (nic->iftype == AP_MODE || nic->iftype == GO_MODE) {
-		memcpy(strStaParams.au8BSSID, mac, ETH_ALEN);
+		memcpy(strStaParams.bssid, mac, ETH_ALEN);
 		strStaParams.u16AssocID = params->aid;
 		strStaParams.u8NumRates = params->supported_rates_len;
 		strStaParams.pu8Rates = params->supported_rates;
 
-		PRINT_D(HOSTAPD_DBG, "BSSID = %x%x%x%x%x%x\n", strStaParams.au8BSSID[0], strStaParams.au8BSSID[1], strStaParams.au8BSSID[2], strStaParams.au8BSSID[3], strStaParams.au8BSSID[4],
-			strStaParams.au8BSSID[5]);
+		PRINT_D(HOSTAPD_DBG, "BSSID = %x%x%x%x%x%x\n",
+			strStaParams.bssid[0], strStaParams.bssid[1],
+			strStaParams.bssid[2], strStaParams.bssid[3],
+			strStaParams.bssid[4], strStaParams.bssid[5]);
 		PRINT_D(HOSTAPD_DBG, "ASSOC ID = %d\n", strStaParams.u16AssocID);
 		PRINT_D(HOSTAPD_DBG, "Number of supported rates = %d\n", strStaParams.u8NumRates);
 

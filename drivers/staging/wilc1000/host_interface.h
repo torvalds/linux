@@ -288,7 +288,7 @@ struct host_if_drv {
 };
 
 struct add_sta_param {
-	u8 au8BSSID[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 	u16 u16AssocID;
 	u8 u8NumRates;
 	const u8 *pu8Rates;
