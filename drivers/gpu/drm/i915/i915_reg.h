@@ -4199,7 +4199,7 @@ enum skl_disp_power_wells {
 
 /* eDP */
 #define   DP_PLL_FREQ_270MHZ		(0 << 16)
-#define   DP_PLL_FREQ_160MHZ		(1 << 16)
+#define   DP_PLL_FREQ_162MHZ		(1 << 16)
 #define   DP_PLL_FREQ_MASK		(3 << 16)
 
 /* locked once port is enabled */
