@@ -843,12 +843,21 @@ static int acquire_gmap_shadow(struct kvm_vcpu *vcpu,
 static void register_shadow_scb(struct kvm_vcpu *vcpu,
 				struct vsie_page *vsie_page)
 {
+	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
+
 	WRITE_ONCE(vcpu->arch.vsie_block, &vsie_page->scb_s);
 	/*
 	 * External calls have to lead to a kick of the vcpu and
 	 * therefore the vsie -> Simulate Wait state.
 	 */
 	atomic_or(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
+	/*
+	 * We have to adjust the g3 epoch by the g2 epoch. The epoch will
+	 * automatically be adjusted on tod clock changes via kvm_sync_clock.
+	 */
+	preempt_disable();
+	scb_s->epoch += vcpu->kvm->arch.epoch;
+	preempt_enable();
 }
 
 /*

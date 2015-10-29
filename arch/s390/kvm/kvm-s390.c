@@ -176,6 +176,8 @@ static int kvm_clock_sync(struct notifier_block *notifier, unsigned long val,
 			vcpu->arch.sie_block->epoch -= *delta;
 			if (vcpu->arch.cputm_enabled)
 				vcpu->arch.cputm_start += *delta;
+			if (vcpu->arch.vsie_block)
+				vcpu->arch.vsie_block->epoch -= *delta;
 		}
 	}
 	return NOTIFY_OK;
