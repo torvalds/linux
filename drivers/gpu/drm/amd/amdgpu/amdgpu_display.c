@@ -47,11 +47,8 @@ static void amdgpu_flip_wait_fence(struct amdgpu_device *adev,
 	fence = to_amdgpu_fence(*f);
 	if (fence) {
 		r = fence_wait(&fence->base, false);
-		if (r == -EDEADLK) {
-			up_read(&adev->exclusive_lock);
+		if (r == -EDEADLK)
 			r = amdgpu_gpu_reset(adev);
-			down_read(&adev->exclusive_lock);
-		}
 	} else
 		r = fence_wait(*f, false);
 
@@ -77,7 +74,6 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	unsigned long flags;
 	unsigned i;
 
-	down_read(&adev->exclusive_lock);
 	amdgpu_flip_wait_fence(adev, &work->excl);
 	for (i = 0; i < work->shared_count; ++i)
 		amdgpu_flip_wait_fence(adev, &work->shared[i]);
@@ -93,7 +89,6 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	amdgpuCrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	up_read(&adev->exclusive_lock);
 }
 
 /*

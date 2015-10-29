@@ -57,6 +57,7 @@ static const char *amdgpu_asic_name[] = {
 	"TONGA",
 	"FIJI",
 	"CARRIZO",
+	"STONEY",
 	"LAST",
 };
 
@@ -1165,7 +1166,8 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	case CHIP_TONGA:
 	case CHIP_FIJI:
 	case CHIP_CARRIZO:
-		if (adev->asic_type == CHIP_CARRIZO)
+	case CHIP_STONEY:
+		if (adev->asic_type == CHIP_CARRIZO || adev->asic_type == CHIP_STONEY)
 			adev->family = AMDGPU_FAMILY_CZ;
 		else
 			adev->family = AMDGPU_FAMILY_VI;
@@ -1418,7 +1420,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->gfx.gpu_clock_mutex);
 	mutex_init(&adev->srbm_mutex);
 	mutex_init(&adev->grbm_idx_mutex);
-	init_rwsem(&adev->exclusive_lock);
 	mutex_init(&adev->mn_lock);
 	hash_init(adev->mn_hash);
 
@@ -1814,14 +1815,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	int i, r;
 	int resched;
 
-	down_write(&adev->exclusive_lock);
-
-	if (!adev->needs_reset) {
-		up_write(&adev->exclusive_lock);
-		return 0;
-	}
-
-	adev->needs_reset = false;
 	atomic_inc(&adev->gpu_reset_counter);
 
 	/* block TTM */
@@ -1885,7 +1878,6 @@ retry:
 		dev_info(adev->dev, "GPU reset failed\n");
 	}
 
-	up_write(&adev->exclusive_lock);
 	return r;
 }
 

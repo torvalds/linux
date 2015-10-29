@@ -1290,24 +1290,6 @@ const struct amd_ip_funcs cik_sdma_ip_funcs = {
 	.set_powergating_state = cik_sdma_set_powergating_state,
 };
 
-/**
- * cik_sdma_ring_is_lockup - Check if the DMA engine is locked up
- *
- * @ring: amdgpu_ring structure holding ring information
- *
- * Check if the async DMA engine is locked up (CIK).
- * Returns true if the engine appears to be locked up, false if not.
- */
-static bool cik_sdma_ring_is_lockup(struct amdgpu_ring *ring)
-{
-
-	if (cik_sdma_is_idle(ring->adev)) {
-		amdgpu_ring_lockup_update(ring);
-		return false;
-	}
-	return amdgpu_ring_test_lockup(ring);
-}
-
 static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.get_rptr = cik_sdma_ring_get_rptr,
 	.get_wptr = cik_sdma_ring_get_wptr,
@@ -1320,7 +1302,6 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.emit_hdp_flush = cik_sdma_ring_emit_hdp_flush,
 	.test_ring = cik_sdma_ring_test_ring,
 	.test_ib = cik_sdma_ring_test_ib,
-	.is_lockup = cik_sdma_ring_is_lockup,
 	.insert_nop = cik_sdma_ring_insert_nop,
 };
 

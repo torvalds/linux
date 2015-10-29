@@ -67,8 +67,6 @@ void amdgpu_ring_free_size(struct amdgpu_ring *ring)
 	if (!ring->ring_free_dw) {
 		/* this is an empty ring */
 		ring->ring_free_dw = ring->ring_size / 4;
-		/*  update lockup info to avoid false positive */
-		amdgpu_ring_lockup_update(ring);
 	}
 }
 
@@ -206,46 +204,6 @@ void amdgpu_ring_unlock_undo(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_undo(ring);
 	mutex_unlock(ring->ring_lock);
-}
-
-/**
- * amdgpu_ring_lockup_update - update lockup variables
- *
- * @ring: amdgpu_ring structure holding ring information
- *
- * Update the last rptr value and timestamp (all asics).
- */
-void amdgpu_ring_lockup_update(struct amdgpu_ring *ring)
-{
-	atomic_set(&ring->last_rptr, amdgpu_ring_get_rptr(ring));
-	atomic64_set(&ring->last_activity, jiffies_64);
-}
-
-/**
- * amdgpu_ring_test_lockup() - check if ring is lockedup by recording information
- * @ring:       amdgpu_ring structure holding ring information
- *
- */
-bool amdgpu_ring_test_lockup(struct amdgpu_ring *ring)
-{
-	uint32_t rptr = amdgpu_ring_get_rptr(ring);
-	uint64_t last = atomic64_read(&ring->last_activity);
-	uint64_t elapsed;
-
-	if (rptr != atomic_read(&ring->last_rptr)) {
-		/* ring is still working, no lockup */
-		amdgpu_ring_lockup_update(ring);
-		return false;
-	}
-
-	elapsed = jiffies_to_msecs(jiffies_64 - last);
-	if (amdgpu_lockup_timeout && elapsed >= amdgpu_lockup_timeout) {
-		dev_err(ring->adev->dev, "ring %d stalled for more than %llumsec\n",
-			ring->idx, elapsed);
-		return true;
-	}
-	/* give a chance to the GPU ... */
-	return false;
 }
 
 /**
@@ -436,7 +394,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
-	amdgpu_ring_lockup_update(ring);
 	return 0;
 }
 
