@@ -4183,7 +4183,9 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			}
 		}
 
-		if (dev_role == NL80211_IFTYPE_AP) {
+		if ((dev_role == NL80211_IFTYPE_AP) &&
+		    ((ifp->ifidx == 0) ||
+		     !brcmf_feat_is_enabled(ifp, BRCMF_FEAT_RSDB))) {
 			err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_DOWN, 1);
 			if (err < 0) {
 				brcmf_err("BRCMF_C_DOWN error %d\n", err);
