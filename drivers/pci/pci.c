@@ -2176,6 +2176,12 @@ static struct resource *pci_ea_get_resource(struct pci_dev *dev, u8 bei,
 {
 	if (bei <= PCI_EA_BEI_BAR5 && prop <= PCI_EA_P_IO)
 		return &dev->resource[bei];
+#ifdef CONFIG_PCI_IOV
+	else if (bei >= PCI_EA_BEI_VF_BAR0 && bei <= PCI_EA_BEI_VF_BAR5 &&
+		 (prop == PCI_EA_P_VF_MEM || prop == PCI_EA_P_VF_MEM_PREFETCH))
+		return &dev->resource[PCI_IOV_RESOURCES +
+				      bei - PCI_EA_BEI_VF_BAR0];
+#endif
 	else if (bei == PCI_EA_BEI_ROM)
 		return &dev->resource[PCI_ROM_RESOURCE];
 	else
