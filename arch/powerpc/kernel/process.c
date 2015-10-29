@@ -68,7 +68,7 @@
 extern unsigned long _get_SP(void);
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-void giveup_fpu_maybe_transactional(struct task_struct *tsk)
+static void check_if_tm_restore_required(struct task_struct *tsk)
 {
 	/*
 	 * If we are saving the current thread's registers, and the
@@ -82,31 +82,9 @@ void giveup_fpu_maybe_transactional(struct task_struct *tsk)
 		tsk->thread.ckpt_regs.msr = tsk->thread.regs->msr;
 		set_thread_flag(TIF_RESTORE_TM);
 	}
-
-	giveup_fpu(tsk);
 }
-
-void giveup_altivec_maybe_transactional(struct task_struct *tsk)
-{
-	/*
-	 * If we are saving the current thread's registers, and the
-	 * thread is in a transactional state, set the TIF_RESTORE_TM
-	 * bit so that we know to restore the registers before
-	 * returning to userspace.
-	 */
-	if (tsk == current && tsk->thread.regs &&
-	    MSR_TM_ACTIVE(tsk->thread.regs->msr) &&
-	    !test_thread_flag(TIF_RESTORE_TM)) {
-		tsk->thread.ckpt_regs.msr = tsk->thread.regs->msr;
-		set_thread_flag(TIF_RESTORE_TM);
-	}
-
-	giveup_altivec(tsk);
-}
-
 #else
-#define giveup_fpu_maybe_transactional(tsk)	giveup_fpu(tsk)
-#define giveup_altivec_maybe_transactional(tsk)	giveup_altivec(tsk)
+static inline void check_if_tm_restore_required(struct task_struct *tsk) { }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 #ifdef CONFIG_PPC_FPU
@@ -135,7 +113,8 @@ void flush_fp_to_thread(struct task_struct *tsk)
 			 * to still have its FP state in the CPU registers.
 			 */
 			BUG_ON(tsk != current);
-			giveup_fpu_maybe_transactional(tsk);
+			check_if_tm_restore_required(tsk);
+			giveup_fpu(tsk);
 		}
 		preempt_enable();
 	}
@@ -147,10 +126,12 @@ void enable_kernel_fp(void)
 {
 	WARN_ON(preemptible());
 
-	if (current->thread.regs && (current->thread.regs->msr & MSR_FP))
-		giveup_fpu_maybe_transactional(current);
-	else
+	if (current->thread.regs && (current->thread.regs->msr & MSR_FP)) {
+		check_if_tm_restore_required(current);
+		giveup_fpu(current);
+	} else {
 		giveup_fpu(NULL);	/* just enables FP for kernel */
+	}
 }
 EXPORT_SYMBOL(enable_kernel_fp);
 
@@ -159,10 +140,12 @@ void enable_kernel_altivec(void)
 {
 	WARN_ON(preemptible());
 
-	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC))
-		giveup_altivec_maybe_transactional(current);
-	else
+	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC)) {
+		check_if_tm_restore_required(current);
+		giveup_altivec(current);
+	} else {
 		giveup_altivec_notask();
+	}
 }
 EXPORT_SYMBOL(enable_kernel_altivec);
 
@@ -176,7 +159,8 @@ void flush_altivec_to_thread(struct task_struct *tsk)
 		preempt_disable();
 		if (tsk->thread.regs->msr & MSR_VEC) {
 			BUG_ON(tsk != current);
-			giveup_altivec_maybe_transactional(tsk);
+			check_if_tm_restore_required(tsk);
+			giveup_altivec(tsk);
 		}
 		preempt_enable();
 	}
@@ -198,8 +182,9 @@ EXPORT_SYMBOL(enable_kernel_vsx);
 
 void giveup_vsx(struct task_struct *tsk)
 {
-	giveup_fpu_maybe_transactional(tsk);
-	giveup_altivec_maybe_transactional(tsk);
+	check_if_tm_restore_required(tsk);
+	giveup_fpu(tsk);
+	giveup_altivec(tsk);
 	__giveup_vsx(tsk);
 }
 EXPORT_SYMBOL(giveup_vsx);
