@@ -207,24 +207,21 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
 	uint64_t pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
 	struct amdgpu_vm_id *vm_id = &vm->ids[ring->idx];
 	struct fence *flushed_updates = vm_id->flushed_updates;
-	bool is_earlier = false;
+	bool is_later;
 
-	if (flushed_updates && updates) {
-		BUG_ON(flushed_updates->context != updates->context);
-		is_earlier = (updates->seqno - flushed_updates->seqno <=
-			      INT_MAX) ? true : false;
-	}
+	if (!flushed_updates)
+		is_later = true;
+	else if (!updates)
+		is_later = false;
+	else
+		is_later = fence_is_later(updates, flushed_updates);
 
-	if (pd_addr != vm_id->pd_gpu_addr || !flushed_updates ||
-	    is_earlier) {
-
+	if (pd_addr != vm_id->pd_gpu_addr || is_later) {
 		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id->id);
-		if (is_earlier) {
+		if (is_later) {
 			vm_id->flushed_updates = fence_get(updates);
 			fence_put(flushed_updates);
 		}
-		if (!flushed_updates)
-			vm_id->flushed_updates = fence_get(updates);
 		vm_id->pd_gpu_addr = pd_addr;
 		amdgpu_ring_emit_vm_flush(ring, vm_id->id, vm_id->pd_gpu_addr);
 	}
