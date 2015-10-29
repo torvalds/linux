@@ -8,8 +8,8 @@ Required properties:
   - interrupts: Interrupt specifier. Refer to interrupt binding.
 
 Optional properties:
-  - dma-coherent: Enable ACHI coherency DMA operation.
-  - reg-names: register area names when there are more then 1 regster area.
+  - dma-coherent: Enable AHCI coherent DMA operation.
+  - reg-names: register area names when there are more than 1 register area.
 
 Examples:
 	sata@3200000 {
