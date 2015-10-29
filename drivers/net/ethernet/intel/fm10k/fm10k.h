@@ -164,7 +164,7 @@ struct fm10k_ring_container {
 	unsigned int total_packets;	/* total packets processed this int */
 	u16 work_limit;			/* total work allowed per interrupt */
 	u16 itr;			/* interrupt throttle rate value */
-	u8 itr_scale;			/* ITR adjustment scaler based on PCI speed */
+	u8 itr_scale;			/* ITR adjustment based on PCI speed */
 	u8 count;			/* total number of rings in vector */
 };
 

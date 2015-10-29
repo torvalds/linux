@@ -1441,9 +1441,10 @@ static void fm10k_update_hw_stats_pf(struct fm10k_hw *hw,
 		xec = fm10k_read_hw_stats_32b(hw, FM10K_STATS_XEC, &stats->xec);
 		vlan_drop = fm10k_read_hw_stats_32b(hw, FM10K_STATS_VLAN_DROP,
 						    &stats->vlan_drop);
-		loopback_drop = fm10k_read_hw_stats_32b(hw,
-							FM10K_STATS_LOOPBACK_DROP,
-							&stats->loopback_drop);
+		loopback_drop =
+			fm10k_read_hw_stats_32b(hw,
+						FM10K_STATS_LOOPBACK_DROP,
+						&stats->loopback_drop);
 		nodesc_drop = fm10k_read_hw_stats_32b(hw,
 						      FM10K_STATS_NODESC_DROP,
 						      &stats->nodesc_drop);

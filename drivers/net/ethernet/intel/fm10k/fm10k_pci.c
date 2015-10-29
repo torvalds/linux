@@ -180,7 +180,8 @@ static void fm10k_reinit(struct fm10k_intfc *interface)
 
 	err = fm10k_init_queueing_scheme(interface);
 	if (err) {
-		dev_err(&interface->pdev->dev, "init_queueing_scheme failed: %d\n", err);
+		dev_err(&interface->pdev->dev,
+			"init_queueing_scheme failed: %d\n", err);
 		goto reinit_err;
 	}
 
@@ -1866,17 +1867,18 @@ static void fm10k_slot_warn(struct fm10k_intfc *interface)
 		return;
 	}
 
-	if (max_gts < expected_gts) {
-		dev_warn(&interface->pdev->dev,
-			 "This device requires %dGT/s of bandwidth for optimal performance.\n",
-			 expected_gts);
-		dev_warn(&interface->pdev->dev,
-			 "A %sslot with x%d lanes is suggested.\n",
-			 (hw->bus_caps.speed == fm10k_bus_speed_2500 ? "2.5GT/s " :
-			  hw->bus_caps.speed == fm10k_bus_speed_5000 ? "5.0GT/s " :
-			  hw->bus_caps.speed == fm10k_bus_speed_8000 ? "8.0GT/s " : ""),
-			 hw->bus_caps.width);
-	}
+	if (max_gts >= expected_gts)
+		return;
+
+	dev_warn(&interface->pdev->dev,
+		 "This device requires %dGT/s of bandwidth for optimal performance.\n",
+		 expected_gts);
+	dev_warn(&interface->pdev->dev,
+		 "A %sslot with x%d lanes is suggested.\n",
+		 (hw->bus_caps.speed == fm10k_bus_speed_2500 ? "2.5GT/s " :
+		  hw->bus_caps.speed == fm10k_bus_speed_5000 ? "5.0GT/s " :
+		  hw->bus_caps.speed == fm10k_bus_speed_8000 ? "8.0GT/s " : ""),
+		 hw->bus_caps.width);
 }
 
 /**
@@ -2294,7 +2296,8 @@ static void fm10k_io_resume(struct pci_dev *pdev)
 
 	err = fm10k_init_queueing_scheme(interface);
 	if (err) {
-		dev_err(&interface->pdev->dev, "init_queueing_scheme failed: %d\n", err);
+		dev_err(&interface->pdev->dev,
+			"init_queueing_scheme failed: %d\n", err);
 		return;
 	}
 

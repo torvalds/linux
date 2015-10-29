@@ -259,7 +259,8 @@ static int fm10k_get_sset_count(struct net_device *dev, int sset)
 			stats_len += FM10K_DEBUG_STATS_LEN;
 
 			if (iov_data)
-				stats_len += FM10K_MBX_STATS_LEN * iov_data->num_vfs;
+				stats_len += FM10K_MBX_STATS_LEN *
+					iov_data->num_vfs;
 		}
 
 		return stats_len;
@@ -298,14 +299,16 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 
 	if (interface->flags & FM10K_FLAG_DEBUG_STATS) {
 		for (i = 0; i < FM10K_DEBUG_STATS_LEN; i++) {
-			p = (char *)interface + fm10k_gstrings_debug_stats[i].stat_offset;
+			p = (char *)interface +
+				fm10k_gstrings_debug_stats[i].stat_offset;
 			*(data++) = (fm10k_gstrings_debug_stats[i].sizeof_stat ==
 				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 		}
 	}
 
 	for (i = 0; i < FM10K_MBX_STATS_LEN; i++) {
-		p = (char *)&interface->hw.mbx + fm10k_gstrings_mbx_stats[i].stat_offset;
+		p = (char *)&interface->hw.mbx +
+			fm10k_gstrings_mbx_stats[i].stat_offset;
 		*(data++) = (fm10k_gstrings_mbx_stats[i].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
@@ -332,7 +335,8 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 			}
 
 			for (j = 0; j < FM10K_MBX_STATS_LEN; j++) {
-				p = (char *)&vf_info->mbx + fm10k_gstrings_mbx_stats[j].stat_offset;
+				p = (char *)&vf_info->mbx +
+					fm10k_gstrings_mbx_stats[j].stat_offset;
 				*(data++) = (fm10k_gstrings_mbx_stats[j].sizeof_stat ==
 					     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 			}

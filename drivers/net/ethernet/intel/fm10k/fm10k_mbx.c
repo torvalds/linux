@@ -903,7 +903,7 @@ static void fm10k_mbx_create_disconnect_hdr(struct fm10k_mbx_info *mbx)
 }
 
 /**
- *  fm10k_mbx_create_fake_disconnect_hdr - Generate a false disconnect mailbox header
+ *  fm10k_mbx_create_fake_disconnect_hdr - Generate a false disconnect mbox hdr
  *  @mbx: pointer to mailbox
  *
  *  This function creates a fake disconnect header for loading into remote

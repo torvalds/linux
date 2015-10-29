@@ -789,7 +789,9 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 			rx_ring->vid &= ~FM10K_VLAN_CLEAR;
 	}
 
-	/* Do not remove default VLAN ID related entries from VLAN and MAC tables */
+	/* Do not remove default VLAN ID related entries from VLAN and MAC
+	 * tables
+	 */
 	if (!set && vid == hw->mac.default_vid)
 		return 0;
 
