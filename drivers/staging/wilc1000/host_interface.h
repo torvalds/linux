@@ -299,7 +299,7 @@ struct host_if_drv {
 	u64 u64P2p_MgmtTimeout;
 	u8 u8P2PConnect;
 
-	enum host_if_state enuHostIFstate;
+	enum host_if_state hif_state;
 
 	u8 au8AssociatedBSSID[ETH_ALEN];
 	struct cfg_param_val strCfgValues;
