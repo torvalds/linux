@@ -1559,10 +1559,6 @@ static void ironlake_set_pll_cpu_edp(struct intel_dp *intel_dp)
 	dpa_ctl &= ~DP_PLL_FREQ_MASK;
 
 	if (crtc->config->port_clock == 162000) {
-		/* For a long time we've carried around a ILK-DevA w/a for the
-		 * 162MHz clock. If we're really unlucky, it's still required.
-		 */
-		DRM_DEBUG_KMS("162MHz cpu eDP clock, might need ilk devA w/a\n");
 		dpa_ctl |= DP_PLL_FREQ_162MHZ;
 		intel_dp->DP |= DP_PLL_FREQ_162MHZ;
 	} else {
