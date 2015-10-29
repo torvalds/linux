@@ -174,7 +174,6 @@ void flush_fp_to_thread(struct task_struct *tsk)
 	}
 }
 EXPORT_SYMBOL_GPL(flush_fp_to_thread);
-#endif /* CONFIG_PPC_FPU */
 
 void enable_kernel_fp(void)
 {
@@ -186,6 +185,7 @@ void enable_kernel_fp(void)
 		__giveup_fpu(current);
 }
 EXPORT_SYMBOL(enable_kernel_fp);
+#endif /* CONFIG_PPC_FPU */
 
 #ifdef CONFIG_ALTIVEC
 void giveup_altivec(struct task_struct *tsk)
