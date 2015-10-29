@@ -1095,7 +1095,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 
 		linux_to_wlan(&nwi, wl);
 
-		ret = wilc_wlan_init(&nwi);
+		ret = wilc_wlan_init(dev, &nwi);
 		if (ret < 0) {
 			PRINT_ER("Initializing WILC_Wlan FAILED\n");
 			ret = -EIO;

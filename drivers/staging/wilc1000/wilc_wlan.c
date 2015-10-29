@@ -1951,7 +1951,7 @@ _fail_:
 	return chipid;
 }
 
-int wilc_wlan_init(wilc_wlan_inp_t *inp)
+int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 {
 
 	int ret = 0;
