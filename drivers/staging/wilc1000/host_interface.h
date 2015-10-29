@@ -164,7 +164,7 @@ enum conn_event {
 enum KEY_TYPE {
 	WEP,
 	WPA_RX_GTK,
-	WPAPtk,
+	WPA_PTK,
 	PMKSA,
 };
 
