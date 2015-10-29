@@ -564,7 +564,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 			eth_zero_addr(u8ConnectedSSID);
 
 			/*Invalidate u8WLANChannel value on wlan0 disconnect*/
-			if (!pstrWFIDrv->u8P2PConnect)
+			if (!pstrWFIDrv->p2p_connect)
 				u8WLANChannel = INVALID_CHANNEL;
 
 			PRINT_ER("Unspecified failure: Connection status %d : MAC status = %d\n", u16ConnectStatus, u8MacStatus);
@@ -623,7 +623,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 		eth_zero_addr(u8ConnectedSSID);
 
 		/*Invalidate u8WLANChannel value on wlan0 disconnect*/
-		if (!pstrWFIDrv->u8P2PConnect)
+		if (!pstrWFIDrv->p2p_connect)
 			u8WLANChannel = INVALID_CHANNEL;
 		/*Incase "P2P CLIENT Connected" send deauthentication reason by 3 to force the WPA_SUPPLICANT to directly change
 		 *      virtual interface to station*/
@@ -804,9 +804,10 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	PRINT_D(CFG80211_DBG, "Connecting to SSID [%s] on netdev [%p] host if [%p]\n", sme->ssid, dev, priv->hWILCWFIDrv);
 	if (!(strncmp(sme->ssid, "DIRECT-", 7))) {
 		PRINT_D(CFG80211_DBG, "Connected to Direct network,OBSS disabled\n");
-		pstrWFIDrv->u8P2PConnect = 1;
-	} else
-		pstrWFIDrv->u8P2PConnect = 0;
+		pstrWFIDrv->p2p_connect = 1;
+	} else {
+		pstrWFIDrv->p2p_connect = 0;
+	}
 	PRINT_INFO(CFG80211_DBG, "Required SSID = %s\n , AuthType = %d\n", sme->ssid, sme->auth_type);
 
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
@@ -997,9 +998,8 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 	curr_channel = pstrNetworkInfo->u8channel;
 
-	if (!pstrWFIDrv->u8P2PConnect) {
+	if (!pstrWFIDrv->p2p_connect)
 		u8WLANChannel = pstrNetworkInfo->u8channel;
-	}
 
 	linux_wlan_set_bssid(dev, pstrNetworkInfo->au8bssid);
 
@@ -1041,7 +1041,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 
 	/*Invalidate u8WLANChannel value on wlan0 disconnect*/
 	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
-	if (!pstrWFIDrv->u8P2PConnect)
+	if (!pstrWFIDrv->p2p_connect)
 		u8WLANChannel = INVALID_CHANNEL;
 	linux_wlan_set_bssid(priv->dev, NullBssid);
 
