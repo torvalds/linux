@@ -159,13 +159,19 @@ static void wilc_wlan_txq_remove(struct txq_entry_t *tqe)
 
 }
 
-static struct txq_entry_t *wilc_wlan_txq_remove_from_head(void)
+static struct txq_entry_t *
+wilc_wlan_txq_remove_from_head(struct net_device *dev)
 {
 	struct txq_entry_t *tqe;
 	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
+	perInterface_wlan_t *nic;
+	struct wilc *wilc;
 
-	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
+	nic = netdev_priv(dev);
+	wilc = nic->wilc;
+
+	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 	if (p->txq_head) {
 		tqe = p->txq_head;
 		p->txq_head = tqe->next;
@@ -180,7 +186,7 @@ static struct txq_entry_t *wilc_wlan_txq_remove_from_head(void)
 	} else {
 		tqe = NULL;
 	}
-	spin_unlock_irqrestore(&g_linux_wlan->txq_spinlock, flags);
+	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 	return tqe;
 }
 
@@ -1035,7 +1041,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *pu32TxqCount)
 		offset = 0;
 		i = 0;
 		do {
-			tqe = wilc_wlan_txq_remove_from_head();
+			tqe = wilc_wlan_txq_remove_from_head(dev);
 			if (tqe != NULL && (vmm_table[i] != 0)) {
 				u32 header, buffer_offset;
 
@@ -1668,7 +1674,7 @@ void wilc_wlan_cleanup(struct net_device *dev)
 
 	p->quit = 1;
 	do {
-		tqe = wilc_wlan_txq_remove_from_head();
+		tqe = wilc_wlan_txq_remove_from_head(dev);
 		if (tqe == NULL)
 			break;
 		if (tqe->tx_complete_func)
