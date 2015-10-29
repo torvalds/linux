@@ -1419,20 +1419,39 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		}
 
 		vop_msk_reg(vop_dev, DSP_CTRL1, val);
+		switch (screen->type) {
+		case SCREEN_TVOUT:
+			val = V_SW_UV_OFFSET_EN(1) | V_SW_IMD_TVE_DCLK_EN(1) |
+				V_SW_IMD_TVE_DCLK_EN(1) |
+				V_SW_IMD_TVE_DCLK_POL(1) |
+				V_SW_GENLOCK(1) | V_SW_DAC_SEL(1);
+			if (screen->mode.xres == 720 &&
+			    screen->mode.yres == 576)
+				val |= V_SW_TVE_MODE(1);
+			else
+				val |= V_SW_TVE_MODE(0);
+			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			break;
+		case SCREEN_HDMI:
+			val = V_HDMI_OUT_EN(1) | V_SW_UV_OFFSET_EN(0);
+			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			break;
+		default:
+			dev_err(vop_dev->dev, "un supported interface!\n");
+			break;
+		}
+		val = V_HDMI_HSYNC_POL(screen->pin_hsync) |
+			V_HDMI_VSYNC_POL(screen->pin_vsync) |
+			V_HDMI_DEN_POL(screen->pin_den) |
+			V_HDMI_DCLK_POL(screen->pin_dclk);
+		/*hsync vsync den dclk polo,dither */
+		vop_msk_reg(vop_dev, DSP_CTRL1, val);
 
 		if (screen->color_mode == COLOR_RGB)
 			dev_drv->overlay_mode = VOP_RGB_DOMAIN;
 		else
 			dev_drv->overlay_mode = VOP_YUV_DOMAIN;
-		val = V_HDMI_OUT_EN(1);
-		vop_msk_reg(vop_dev, SYS_CTRL, val);
-		val = V_HDMI_HSYNC_POL(screen->pin_hsync) |
-			V_HDMI_VSYNC_POL(screen->pin_vsync) |
-			V_HDMI_DEN_POL(screen->pin_den) |
-			V_HDMI_DCLK_POL(screen->pin_dclk);
 
-		/*hsync vsync den dclk polo,dither */
-		vop_msk_reg(vop_dev, DSP_CTRL1, val);
 #ifndef CONFIG_RK_FPGA
 		/*
 		 * Todo:
