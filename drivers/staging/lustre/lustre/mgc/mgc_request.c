@@ -1698,20 +1698,20 @@ out:
 }
 
 static struct obd_ops mgc_obd_ops = {
-	.o_owner	= THIS_MODULE,
-	.o_setup	= mgc_setup,
-	.o_precleanup   = mgc_precleanup,
-	.o_cleanup      = mgc_cleanup,
-	.o_add_conn     = client_import_add_conn,
-	.o_del_conn     = client_import_del_conn,
-	.o_connect      = client_connect_import,
-	.o_disconnect   = client_disconnect_export,
-	/* .o_enqueue      = mgc_enqueue, */
-	/* .o_iocontrol    = mgc_iocontrol, */
-	.o_set_info_async = mgc_set_info_async,
-	.o_get_info       = mgc_get_info,
-	.o_import_event = mgc_import_event,
-	.o_process_config = mgc_process_config,
+	.owner          = THIS_MODULE,
+	.setup          = mgc_setup,
+	.precleanup     = mgc_precleanup,
+	.cleanup        = mgc_cleanup,
+	.add_conn       = client_import_add_conn,
+	.del_conn       = client_import_del_conn,
+	.connect        = client_connect_import,
+	.disconnect     = client_disconnect_export,
+	/* .enqueue     = mgc_enqueue, */
+	/* .iocontrol   = mgc_iocontrol, */
+	.set_info_async = mgc_set_info_async,
+	.get_info       = mgc_get_info,
+	.import_event   = mgc_import_event,
+	.process_config = mgc_process_config,
 };
 
 static int __init mgc_init(void)

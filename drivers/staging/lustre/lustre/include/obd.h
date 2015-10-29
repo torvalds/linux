@@ -963,123 +963,123 @@ struct md_enqueue_info {
 };
 
 struct obd_ops {
-	struct module *o_owner;
-	int (*o_iocontrol)(unsigned int cmd, struct obd_export *exp, int len,
-			   void *karg, void *uarg);
-	int (*o_get_info)(const struct lu_env *env, struct obd_export *,
-			  __u32 keylen, void *key, __u32 *vallen, void *val,
-			  struct lov_stripe_md *lsm);
-	int (*o_set_info_async)(const struct lu_env *, struct obd_export *,
-				__u32 keylen, void *key,
-				__u32 vallen, void *val,
-				struct ptlrpc_request_set *set);
-	int (*o_attach)(struct obd_device *dev, u32 len, void *data);
-	int (*o_detach)(struct obd_device *dev);
-	int (*o_setup)(struct obd_device *dev, struct lustre_cfg *cfg);
-	int (*o_precleanup)(struct obd_device *dev,
-			    enum obd_cleanup_stage cleanup_stage);
-	int (*o_cleanup)(struct obd_device *dev);
-	int (*o_process_config)(struct obd_device *dev, u32 len, void *data);
-	int (*o_postrecov)(struct obd_device *dev);
-	int (*o_add_conn)(struct obd_import *imp, struct obd_uuid *uuid,
-			  int priority);
-	int (*o_del_conn)(struct obd_import *imp, struct obd_uuid *uuid);
+	struct module *owner;
+	int (*iocontrol)(unsigned int cmd, struct obd_export *exp, int len,
+			 void *karg, void *uarg);
+	int (*get_info)(const struct lu_env *env, struct obd_export *,
+			__u32 keylen, void *key, __u32 *vallen, void *val,
+			struct lov_stripe_md *lsm);
+	int (*set_info_async)(const struct lu_env *, struct obd_export *,
+			      __u32 keylen, void *key,
+			      __u32 vallen, void *val,
+			      struct ptlrpc_request_set *set);
+	int (*attach)(struct obd_device *dev, u32 len, void *data);
+	int (*detach)(struct obd_device *dev);
+	int (*setup)(struct obd_device *dev, struct lustre_cfg *cfg);
+	int (*precleanup)(struct obd_device *dev,
+			  enum obd_cleanup_stage cleanup_stage);
+	int (*cleanup)(struct obd_device *dev);
+	int (*process_config)(struct obd_device *dev, u32 len, void *data);
+	int (*postrecov)(struct obd_device *dev);
+	int (*add_conn)(struct obd_import *imp, struct obd_uuid *uuid,
+			int priority);
+	int (*del_conn)(struct obd_import *imp, struct obd_uuid *uuid);
 	/* connect to the target device with given connection
 	 * data. @ocd->ocd_connect_flags is modified to reflect flags actually
 	 * granted by the target, which are guaranteed to be a subset of flags
 	 * asked for. If @ocd == NULL, use default parameters. */
-	int (*o_connect)(const struct lu_env *env,
-			 struct obd_export **exp, struct obd_device *src,
-			 struct obd_uuid *cluuid, struct obd_connect_data *ocd,
+	int (*connect)(const struct lu_env *env,
+		       struct obd_export **exp, struct obd_device *src,
+		       struct obd_uuid *cluuid, struct obd_connect_data *ocd,
+		       void *localdata);
+	int (*reconnect)(const struct lu_env *env,
+			 struct obd_export *exp, struct obd_device *src,
+			 struct obd_uuid *cluuid,
+			 struct obd_connect_data *ocd,
 			 void *localdata);
-	int (*o_reconnect)(const struct lu_env *env,
-			   struct obd_export *exp, struct obd_device *src,
-			   struct obd_uuid *cluuid,
-			   struct obd_connect_data *ocd,
-			   void *localdata);
-	int (*o_disconnect)(struct obd_export *exp);
+	int (*disconnect)(struct obd_export *exp);
 
 	/* Initialize/finalize fids infrastructure. */
-	int (*o_fid_init)(struct obd_device *obd,
-			  struct obd_export *exp, enum lu_cli_type type);
-	int (*o_fid_fini)(struct obd_device *obd);
+	int (*fid_init)(struct obd_device *obd,
+			struct obd_export *exp, enum lu_cli_type type);
+	int (*fid_fini)(struct obd_device *obd);
 
 	/* Allocate new fid according to passed @hint. */
-	int (*o_fid_alloc)(struct obd_export *exp, struct lu_fid *fid,
-			   struct md_op_data *op_data);
+	int (*fid_alloc)(struct obd_export *exp, struct lu_fid *fid,
+			 struct md_op_data *op_data);
 
 	/*
 	 * Object with @fid is getting deleted, we may want to do something
 	 * about this.
 	 */
-	int (*o_statfs)(const struct lu_env *, struct obd_export *exp,
-			struct obd_statfs *osfs, __u64 max_age, __u32 flags);
-	int (*o_statfs_async)(struct obd_export *exp, struct obd_info *oinfo,
-			      __u64 max_age, struct ptlrpc_request_set *set);
-	int (*o_packmd)(struct obd_export *exp, struct lov_mds_md **disk_tgt,
-			struct lov_stripe_md *mem_src);
-	int (*o_unpackmd)(struct obd_export *exp,
-			  struct lov_stripe_md **mem_tgt,
-			  struct lov_mds_md *disk_src, int disk_len);
-	int (*o_preallocate)(struct lustre_handle *, u32 *req, u64 *ids);
-	int (*o_create)(const struct lu_env *env, struct obd_export *exp,
-			struct obdo *oa, struct lov_stripe_md **ea,
-			struct obd_trans_info *oti);
-	int (*o_destroy)(const struct lu_env *env, struct obd_export *exp,
-			 struct obdo *oa, struct lov_stripe_md *ea,
-			 struct obd_trans_info *oti, struct obd_export *md_exp);
-	int (*o_setattr)(const struct lu_env *, struct obd_export *exp,
-			 struct obd_info *oinfo, struct obd_trans_info *oti);
-	int (*o_setattr_async)(struct obd_export *exp, struct obd_info *oinfo,
-			       struct obd_trans_info *oti,
-			       struct ptlrpc_request_set *rqset);
-	int (*o_getattr)(const struct lu_env *env, struct obd_export *exp,
-			 struct obd_info *oinfo);
-	int (*o_getattr_async)(struct obd_export *exp, struct obd_info *oinfo,
-			       struct ptlrpc_request_set *set);
-	int (*o_adjust_kms)(struct obd_export *exp, struct lov_stripe_md *lsm,
-			    u64 size, int shrink);
-	int (*o_preprw)(const struct lu_env *env, int cmd,
-			struct obd_export *exp, struct obdo *oa, int objcount,
-			struct obd_ioobj *obj, struct niobuf_remote *remote,
-			int *nr_pages, struct niobuf_local *local,
-			struct obd_trans_info *oti);
-	int (*o_commitrw)(const struct lu_env *env, int cmd,
-			  struct obd_export *exp, struct obdo *oa,
-			  int objcount, struct obd_ioobj *obj,
-			  struct niobuf_remote *remote, int pages,
-			  struct niobuf_local *local,
-			  struct obd_trans_info *oti, int rc);
-	int (*o_find_cbdata)(struct obd_export *, struct lov_stripe_md *,
-			     ldlm_iterator_t it, void *data);
-	int (*o_init_export)(struct obd_export *exp);
-	int (*o_destroy_export)(struct obd_export *exp);
+	int (*statfs)(const struct lu_env *, struct obd_export *exp,
+		      struct obd_statfs *osfs, __u64 max_age, __u32 flags);
+	int (*statfs_async)(struct obd_export *exp, struct obd_info *oinfo,
+			    __u64 max_age, struct ptlrpc_request_set *set);
+	int (*packmd)(struct obd_export *exp, struct lov_mds_md **disk_tgt,
+		      struct lov_stripe_md *mem_src);
+	int (*unpackmd)(struct obd_export *exp,
+			struct lov_stripe_md **mem_tgt,
+			struct lov_mds_md *disk_src, int disk_len);
+	int (*preallocate)(struct lustre_handle *, u32 *req, u64 *ids);
+	int (*create)(const struct lu_env *env, struct obd_export *exp,
+		      struct obdo *oa, struct lov_stripe_md **ea,
+		      struct obd_trans_info *oti);
+	int (*destroy)(const struct lu_env *env, struct obd_export *exp,
+		       struct obdo *oa, struct lov_stripe_md *ea,
+		       struct obd_trans_info *oti, struct obd_export *md_exp);
+	int (*setattr)(const struct lu_env *, struct obd_export *exp,
+		       struct obd_info *oinfo, struct obd_trans_info *oti);
+	int (*setattr_async)(struct obd_export *exp, struct obd_info *oinfo,
+			     struct obd_trans_info *oti,
+			     struct ptlrpc_request_set *rqset);
+	int (*getattr)(const struct lu_env *env, struct obd_export *exp,
+		       struct obd_info *oinfo);
+	int (*getattr_async)(struct obd_export *exp, struct obd_info *oinfo,
+			     struct ptlrpc_request_set *set);
+	int (*adjust_kms)(struct obd_export *exp, struct lov_stripe_md *lsm,
+			  u64 size, int shrink);
+	int (*preprw)(const struct lu_env *env, int cmd,
+		      struct obd_export *exp, struct obdo *oa, int objcount,
+		      struct obd_ioobj *obj, struct niobuf_remote *remote,
+		      int *nr_pages, struct niobuf_local *local,
+		      struct obd_trans_info *oti);
+	int (*commitrw)(const struct lu_env *env, int cmd,
+			struct obd_export *exp, struct obdo *oa,
+			int objcount, struct obd_ioobj *obj,
+			struct niobuf_remote *remote, int pages,
+			struct niobuf_local *local,
+			struct obd_trans_info *oti, int rc);
+	int (*find_cbdata)(struct obd_export *, struct lov_stripe_md *,
+			   ldlm_iterator_t it, void *data);
+	int (*init_export)(struct obd_export *exp);
+	int (*destroy_export)(struct obd_export *exp);
 
 	/* metadata-only methods */
-	int (*o_import_event)(struct obd_device *, struct obd_import *,
-			      enum obd_import_event);
+	int (*import_event)(struct obd_device *, struct obd_import *,
+			    enum obd_import_event);
 
-	int (*o_notify)(struct obd_device *obd, struct obd_device *watched,
-			enum obd_notify_event ev, void *data);
+	int (*notify)(struct obd_device *obd, struct obd_device *watched,
+		      enum obd_notify_event ev, void *data);
 
-	int (*o_health_check)(const struct lu_env *env, struct obd_device *);
-	struct obd_uuid *(*o_get_uuid)(struct obd_export *exp);
+	int (*health_check)(const struct lu_env *env, struct obd_device *);
+	struct obd_uuid *(*get_uuid)(struct obd_export *exp);
 
 	/* quota methods */
-	int (*o_quotacheck)(struct obd_device *, struct obd_export *,
-			    struct obd_quotactl *);
-	int (*o_quotactl)(struct obd_device *, struct obd_export *,
+	int (*quotacheck)(struct obd_device *, struct obd_export *,
 			  struct obd_quotactl *);
+	int (*quotactl)(struct obd_device *, struct obd_export *,
+			struct obd_quotactl *);
 
 	/* pools methods */
-	int (*o_pool_new)(struct obd_device *obd, char *poolname);
-	int (*o_pool_del)(struct obd_device *obd, char *poolname);
-	int (*o_pool_add)(struct obd_device *obd, char *poolname,
-			  char *ostname);
-	int (*o_pool_rem)(struct obd_device *obd, char *poolname,
-			  char *ostname);
-	void (*o_getref)(struct obd_device *obd);
-	void (*o_putref)(struct obd_device *obd);
+	int (*pool_new)(struct obd_device *obd, char *poolname);
+	int (*pool_del)(struct obd_device *obd, char *poolname);
+	int (*pool_add)(struct obd_device *obd, char *poolname,
+			char *ostname);
+	int (*pool_rem)(struct obd_device *obd, char *poolname,
+			char *ostname);
+	void (*getref)(struct obd_device *obd);
+	void (*putref)(struct obd_device *obd);
 	/*
 	 * NOTE: If adding ops, add another LPROCFS_OBD_OP_INIT() line
 	 * to lprocfs_alloc_obd_stats() in obdclass/lprocfs_status.c.

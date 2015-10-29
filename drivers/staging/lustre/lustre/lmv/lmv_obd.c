@@ -2744,23 +2744,23 @@ static int lmv_quotacheck(struct obd_device *unused, struct obd_export *exp,
 }
 
 static struct obd_ops lmv_obd_ops = {
-	.o_owner		= THIS_MODULE,
-	.o_setup		= lmv_setup,
-	.o_cleanup	      = lmv_cleanup,
-	.o_precleanup	   = lmv_precleanup,
-	.o_process_config       = lmv_process_config,
-	.o_connect	      = lmv_connect,
-	.o_disconnect	   = lmv_disconnect,
-	.o_statfs	       = lmv_statfs,
-	.o_get_info	     = lmv_get_info,
-	.o_set_info_async       = lmv_set_info_async,
-	.o_packmd	       = lmv_packmd,
-	.o_unpackmd	     = lmv_unpackmd,
-	.o_notify	       = lmv_notify,
-	.o_get_uuid	     = lmv_get_uuid,
-	.o_iocontrol	    = lmv_iocontrol,
-	.o_quotacheck	   = lmv_quotacheck,
-	.o_quotactl	     = lmv_quotactl
+	.owner		= THIS_MODULE,
+	.setup		= lmv_setup,
+	.cleanup	= lmv_cleanup,
+	.precleanup	= lmv_precleanup,
+	.process_config	= lmv_process_config,
+	.connect	= lmv_connect,
+	.disconnect	= lmv_disconnect,
+	.statfs		= lmv_statfs,
+	.get_info	= lmv_get_info,
+	.set_info_async	= lmv_set_info_async,
+	.packmd		= lmv_packmd,
+	.unpackmd	= lmv_unpackmd,
+	.notify		= lmv_notify,
+	.get_uuid	= lmv_get_uuid,
+	.iocontrol	= lmv_iocontrol,
+	.quotacheck	= lmv_quotacheck,
+	.quotactl	= lmv_quotactl
 };
 
 static struct md_ops lmv_md_ops = {

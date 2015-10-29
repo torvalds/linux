@@ -270,7 +270,7 @@ void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj);
 void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid);
 
 #define OBT(dev)	(dev)->obd_type
-#define OBP(dev, op)    (dev)->obd_type->typ_dt_ops->o_ ## op
+#define OBP(dev, op)    (dev)->obd_type->typ_dt_ops->op
 #define MDP(dev, op)    (dev)->obd_type->typ_md_ops->m_ ## op
 #define CTXTP(ctxt, op) (ctxt)->loc_logops->lop_##op
 
@@ -301,9 +301,9 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 }
 
 #define OBD_COUNTER_OFFSET(op)				  \
-	((offsetof(struct obd_ops, o_ ## op) -		  \
-	  offsetof(struct obd_ops, o_iocontrol))		\
-	 / sizeof(((struct obd_ops *)(0))->o_iocontrol))
+	((offsetof(struct obd_ops, op) -		  \
+	  offsetof(struct obd_ops, iocontrol))		\
+	 / sizeof(((struct obd_ops *)(0))->iocontrol))
 
 #define OBD_COUNTER_INCREMENT(obdx, op)			   \
 	if ((obdx)->obd_stats != NULL) {			  \
