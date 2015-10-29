@@ -91,6 +91,7 @@ static void gb_pcm_work(struct work_struct *work)
 
 	frames = (len + (oldptr % stride)) / stride;
 
+	period_elapsed = 0;
 	snd_dev->transfer_done += frames;
 	if (snd_dev->transfer_done >= runtime->period_size) {
 		snd_dev->transfer_done -= runtime->period_size;
