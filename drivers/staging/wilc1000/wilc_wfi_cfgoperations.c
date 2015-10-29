@@ -3023,7 +3023,7 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.ht_ante_sel = params->ht_capa->antenna_selection_info;
 		}
 
-		strStaParams.u16FlagsMask = params->sta_flags_mask;
+		strStaParams.flags_mask = params->sta_flags_mask;
 		strStaParams.u16FlagsSet = params->sta_flags_set;
 
 		PRINT_D(HOSTAPD_DBG, "IS HT supported = %d\n",
@@ -3038,7 +3038,8 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.ht_tx_bf_cap);
 		PRINT_D(HOSTAPD_DBG, "Antenna selection info = %d\n",
 			strStaParams.ht_ante_sel);
-		PRINT_D(HOSTAPD_DBG, "Flag Mask = %d\n", strStaParams.u16FlagsMask);
+		PRINT_D(HOSTAPD_DBG, "Flag Mask = %d\n",
+			strStaParams.flags_mask);
 		PRINT_D(HOSTAPD_DBG, "Flag Set = %d\n", strStaParams.u16FlagsSet);
 
 		s32Error = host_int_add_station(priv->hWILCWFIDrv, &strStaParams);
@@ -3145,7 +3146,7 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.ht_ante_sel = params->ht_capa->antenna_selection_info;
 		}
 
-		strStaParams.u16FlagsMask = params->sta_flags_mask;
+		strStaParams.flags_mask = params->sta_flags_mask;
 		strStaParams.u16FlagsSet = params->sta_flags_set;
 
 		PRINT_D(HOSTAPD_DBG, "IS HT supported = %d\n",
@@ -3160,7 +3161,8 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.ht_tx_bf_cap);
 		PRINT_D(HOSTAPD_DBG, "Antenna selection info = %d\n",
 			strStaParams.ht_ante_sel);
-		PRINT_D(HOSTAPD_DBG, "Flag Mask = %d\n", strStaParams.u16FlagsMask);
+		PRINT_D(HOSTAPD_DBG, "Flag Mask = %d\n",
+			strStaParams.flags_mask);
 		PRINT_D(HOSTAPD_DBG, "Flag Set = %d\n", strStaParams.u16FlagsSet);
 
 		s32Error = host_int_edit_station(priv->hWILCWFIDrv, &strStaParams);
