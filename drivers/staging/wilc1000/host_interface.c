@@ -2123,7 +2123,7 @@ static void Handle_GetLinkspeed(struct host_if_drv *hif_drv)
 		result = -EFAULT;
 	}
 
-	up(&hif_drv->hSemGetLINKSPEED);
+	up(&hif_drv->sem_get_link_speed);
 }
 
 s32 Handle_GetStatistics(struct host_if_drv *hif_drv, struct rf_info *pstrStatistics)
@@ -3842,7 +3842,7 @@ s32 host_int_get_link_speed(struct host_if_drv *hif_drv, s8 *ps8lnkspd)
 		return -EFAULT;
 	}
 
-	down(&hif_drv->hSemGetLINKSPEED);
+	down(&hif_drv->sem_get_link_speed);
 
 	if (!ps8lnkspd) {
 		PRINT_ER("LINKSPEED pointer value is null");
@@ -4110,7 +4110,7 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	sema_init(&hif_drv->sem_test_key_block, 0);
 	sema_init(&hif_drv->sem_test_disconn_block, 0);
 	sema_init(&hif_drv->sem_get_rssi, 0);
-	sema_init(&hif_drv->hSemGetLINKSPEED, 0);
+	sema_init(&hif_drv->sem_get_link_speed, 0);
 	sema_init(&hif_drv->hSemGetCHNL, 0);
 	sema_init(&hif_drv->hSemInactiveTime, 0);
 

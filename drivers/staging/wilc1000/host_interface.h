@@ -308,7 +308,7 @@ struct host_if_drv {
 	struct semaphore sem_test_key_block;
 	struct semaphore sem_test_disconn_block;
 	struct semaphore sem_get_rssi;
-	struct semaphore hSemGetLINKSPEED;
+	struct semaphore sem_get_link_speed;
 	struct semaphore hSemGetCHNL;
 	struct semaphore hSemInactiveTime;
 /* timer handlers */
