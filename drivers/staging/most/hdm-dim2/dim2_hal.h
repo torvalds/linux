@@ -67,7 +67,7 @@ struct dim_channel {
 
 u8 dim_startup(void *dim_base_address, u32 mlb_clock);
 
-void DIM_Shutdown(void);
+void dim_shutdown(void);
 
 bool DIM_GetLockState(void);
 

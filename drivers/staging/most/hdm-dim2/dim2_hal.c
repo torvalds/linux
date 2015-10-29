@@ -673,7 +673,7 @@ u8 dim_startup(void *dim_base_address, u32 mlb_clock)
 	return DIM_NO_ERROR;
 }
 
-void DIM_Shutdown(void)
+void dim_shutdown(void)
 {
 	g.dim_is_initialized = false;
 	dim2_cleanup();

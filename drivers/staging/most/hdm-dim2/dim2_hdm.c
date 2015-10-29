@@ -883,7 +883,7 @@ static int dim2_remove(struct platform_device *pdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dim_lock, flags);
-	DIM_Shutdown();
+	dim_shutdown();
 	spin_unlock_irqrestore(&dim_lock, flags);
 
 	if (pdata && pdata->destroy)
