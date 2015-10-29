@@ -280,7 +280,6 @@ struct ipath_swqe {
 	union {
 		struct ib_send_wr wr;   /* don't use wr.sg_list */
 		struct ib_ud_wr ud_wr;
-		struct ib_fast_reg_wr fast_reg_wr;
 		struct ib_rdma_wr rdma_wr;
 		struct ib_atomic_wr atomic_wr;
 	};
