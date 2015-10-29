@@ -41,6 +41,9 @@
 
 #ifndef __LIBCFS_HASH_H__
 #define __LIBCFS_HASH_H__
+
+#include <linux/hash.h>
+
 /*
  * Knuth recommends primes in approximately golden ratio to the maximum
  * integer representable by a machine word for multiplicative hashing.
@@ -55,8 +58,6 @@
 #define CFS_GOLDEN_RATIO_PRIME_32 0x9e370001UL
 /*  2^63 + 2^61 - 2^57 + 2^54 - 2^51 - 2^18 + 1 */
 #define CFS_GOLDEN_RATIO_PRIME_64 0x9e37fffffffc0001ULL
-
-#include <linux/hash.h>
 
 /** disable debug */
 #define CFS_HASH_DEBUG_NONE	0
