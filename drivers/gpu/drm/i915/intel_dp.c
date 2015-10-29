@@ -1545,28 +1545,6 @@ found:
 	return true;
 }
 
-static void ironlake_set_pll_cpu_edp(struct intel_dp *intel_dp)
-{
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct intel_crtc *crtc = to_intel_crtc(dig_port->base.base.crtc);
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n",
-		      crtc->config->port_clock);
-
-	intel_dp->DP &= ~DP_PLL_FREQ_MASK;
-
-	if (crtc->config->port_clock == 162000)
-		intel_dp->DP |= DP_PLL_FREQ_162MHZ;
-	else
-		intel_dp->DP |= DP_PLL_FREQ_270MHZ;
-
-	I915_WRITE(DP_A, intel_dp->DP);
-	POSTING_READ(DP_A);
-	udelay(500);
-}
-
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
 			      const struct intel_crtc_state *pipe_config)
 {
@@ -2176,7 +2154,20 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_disabled(dev_priv);
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DEBUG_KMS("enabling eDP PLL for clock %d\n",
+		      crtc->config->port_clock);
+
+	intel_dp->DP &= ~DP_PLL_FREQ_MASK;
+
+	if (crtc->config->port_clock == 162000)
+		intel_dp->DP |= DP_PLL_FREQ_162MHZ;
+	else
+		intel_dp->DP |= DP_PLL_FREQ_270MHZ;
+
+	I915_WRITE(DP_A, intel_dp->DP);
+	POSTING_READ(DP_A);
+	udelay(500);
+
 	intel_dp->DP |= DP_PLL_ENABLE;
 
 	I915_WRITE(DP_A, intel_dp->DP);
@@ -2193,6 +2184,8 @@ static void ironlake_edp_pll_off(struct intel_dp *intel_dp)
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_enabled(dev_priv);
+
+	DRM_DEBUG_KMS("disabling eDP PLL\n");
 
 	intel_dp->DP &= ~DP_PLL_ENABLE;
 
@@ -2393,6 +2386,8 @@ static void ilk_post_disable_dp(struct intel_encoder *encoder)
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
 	intel_dp_link_down(intel_dp);
+
+	/* Only ilk+ has port A */
 	if (port == PORT_A)
 		ironlake_edp_pll_off(intel_dp);
 }
@@ -2673,10 +2668,8 @@ static void g4x_pre_enable_dp(struct intel_encoder *encoder)
 	}
 
 	/* Only ilk+ has port A */
-	if (port == PORT_A) {
-		ironlake_set_pll_cpu_edp(intel_dp);
+	if (port == PORT_A)
 		ironlake_edp_pll_on(intel_dp);
-	}
 }
 
 static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
