@@ -264,7 +264,7 @@ struct host_if_drv {
 	struct user_conn_req usr_conn_req;
 	struct remain_ch remain_on_ch;
 	u8 remain_on_ch_pending;
-	u64 u64P2p_MgmtTimeout;
+	u64 p2p_timeout;
 	u8 u8P2PConnect;
 
 	enum host_if_state hif_state;

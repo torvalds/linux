@@ -4158,7 +4158,7 @@ s32 host_int_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	hif_drv->cfg_values.passive_scan_time = PASSIVE_SCAN_TIME;
 	hif_drv->cfg_values.curr_tx_rate = AUTORATE;
 
-	hif_drv->u64P2p_MgmtTimeout = 0;
+	hif_drv->p2p_timeout = 0;
 
 	PRINT_INFO(HOSTINF_DBG, "Initialization values, Site survey value: %d\n Scan source: %d\n Active scan time: %d\n Passive scan time: %d\nCurrent tx Rate = %d\n",
 		   hif_drv->cfg_values.site_survey_enabled,

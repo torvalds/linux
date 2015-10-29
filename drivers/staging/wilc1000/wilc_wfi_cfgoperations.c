@@ -1050,7 +1050,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 	u8P2Plocalrandom = 0x01;
 	u8P2Precvrandom = 0x00;
 	bWilc_ie = false;
-	pstrWFIDrv->u64P2p_MgmtTimeout = 0;
+	pstrWFIDrv->p2p_timeout = 0;
 
 	s32Error = host_int_disconnect(priv->hWILCWFIDrv, reason_code);
 	if (s32Error != 0) {
@@ -1958,7 +1958,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 		if (ieee80211_is_action(buff[FRAME_TYPE_ID])) {
 			PRINT_D(GENERIC_DBG, "Rx Action Frame Type: %x %x\n", buff[ACTION_SUBTYPE_ID], buff[P2P_PUB_ACTION_SUBTYPE]);
 
-			if (priv->bCfgScanning && time_after_eq(jiffies, (unsigned long)pstrWFIDrv->u64P2p_MgmtTimeout)) {
+			if (priv->bCfgScanning && time_after_eq(jiffies, (unsigned long)pstrWFIDrv->p2p_timeout)) {
 				PRINT_D(GENERIC_DBG, "Receiving action frames from wrong channels\n");
 				return;
 			}
@@ -2331,10 +2331,10 @@ static int mgmt_tx(struct wiphy *wiphy,
 			}
 
 			PRINT_D(GENERIC_DBG, "TX: ACTION FRAME Type:%x : Chan:%d\n", buf[ACTION_SUBTYPE_ID], chan->hw_value);
-			pstrWFIDrv->u64P2p_MgmtTimeout = (jiffies + msecs_to_jiffies(wait));
+			pstrWFIDrv->p2p_timeout = (jiffies + msecs_to_jiffies(wait));
 
-			PRINT_D(GENERIC_DBG, "Current Jiffies: %lu Timeout:%llu\n", jiffies, pstrWFIDrv->u64P2p_MgmtTimeout);
-
+			PRINT_D(GENERIC_DBG, "Current Jiffies: %lu Timeout:%llu\n",
+				jiffies, pstrWFIDrv->p2p_timeout);
 		}
 
 		wilc_wlan_txq_add_mgmt_pkt(mgmt_tx, mgmt_tx->buff,
@@ -2358,7 +2358,7 @@ static int mgmt_tx_cancel_wait(struct wiphy *wiphy,
 
 
 	PRINT_D(GENERIC_DBG, "Tx Cancel wait :%lu\n", jiffies);
-	pstrWFIDrv->u64P2p_MgmtTimeout = jiffies;
+	pstrWFIDrv->p2p_timeout = jiffies;
 
 	if (!priv->bInP2PlistenState) {
 		cfg80211_remain_on_channel_expired(priv->wdev,
