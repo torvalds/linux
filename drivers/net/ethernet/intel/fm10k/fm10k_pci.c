@@ -601,6 +601,13 @@ static void fm10k_configure_tx_ring(struct fm10k_intfc *interface,
 	fm10k_write_reg(hw, FM10K_PFVTCTL(reg_idx),
 			FM10K_PFVTCTL_FTAG_DESC_ENABLE);
 
+	/* Initialize XPS */
+	if (!test_and_set_bit(__FM10K_TX_XPS_INIT_DONE, &ring->state) &&
+	    ring->q_vector)
+		netif_set_xps_queue(ring->netdev,
+				    &ring->q_vector->affinity_mask,
+				    ring->queue_index);
+
 	/* enable queue */
 	fm10k_write_reg(hw, FM10K_TXDCTL(reg_idx), txdctl);
 }
@@ -1488,8 +1495,10 @@ void fm10k_qv_free_irq(struct fm10k_intfc *interface)
 		if (!q_vector->tx.count && !q_vector->rx.count)
 			continue;
 
-		/* disable interrupts */
+		/* clear the affinity_mask in the IRQ descriptor */
+		irq_set_affinity_hint(entry->vector, NULL);
 
+		/* disable interrupts */
 		writel(FM10K_ITR_MASK_SET, q_vector->itr);
 
 		free_irq(entry->vector, q_vector);
@@ -1547,6 +1556,9 @@ int fm10k_qv_request_irq(struct fm10k_intfc *interface)
 			goto err_out;
 		}
 
+		/* assign the mask for this irq */
+		irq_set_affinity_hint(entry->vector, &q_vector->affinity_mask);
+
 		/* Enable q_vector */
 		writel(FM10K_ITR_ENABLE, q_vector->itr);
 
@@ -1567,8 +1579,10 @@ err_out:
 		if (!q_vector->tx.count && !q_vector->rx.count)
 			continue;
 
-		/* disable interrupts */
+		/* clear the affinity_mask in the IRQ descriptor */
+		irq_set_affinity_hint(entry->vector, NULL);
 
+		/* disable interrupts */
 		writel(FM10K_ITR_MASK_SET, q_vector->itr);
 
 		free_irq(entry->vector, q_vector);

@@ -23,6 +23,7 @@
 
 #include <linux/types.h>
 #include <linux/etherdevice.h>
+#include <linux/cpumask.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
 #include <linux/pci.h>
@@ -66,6 +67,7 @@ struct fm10k_l2_accel {
 enum fm10k_ring_state_t {
 	__FM10K_TX_DETECT_HANG,
 	__FM10K_HANG_CHECK_ARMED,
+	__FM10K_TX_XPS_INIT_DONE,
 };
 
 #define check_for_tx_hang(ring) \
@@ -209,6 +211,7 @@ struct fm10k_q_vector {
 	struct fm10k_ring_container rx, tx;
 
 	struct napi_struct napi;
+	cpumask_t affinity_mask;
 	char name[IFNAMSIZ + 9];
 
 #ifdef CONFIG_DEBUG_FS
