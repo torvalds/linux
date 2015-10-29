@@ -373,20 +373,20 @@ static s32 Handle_SetWfiDrvHandler(struct host_if_drv *hif_drv,
 }
 
 static s32 Handle_SetOperationMode(struct host_if_drv *hif_drv,
-				   struct op_mode *pstrHostIfSetOperationMode)
+				    struct op_mode *hif_op_mode)
 {
 	s32 result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_SET_OPERATION_MODE;
 	wid.type = WID_INT;
-	wid.val = (s8 *)&pstrHostIfSetOperationMode->mode;
+	wid.val = (s8 *)&hif_op_mode->mode;
 	wid.size = sizeof(u32);
 
 	result = send_config_pkt(SET_CFG, &wid, 1,
 				 get_id_from_handler(hif_drv));
 
-	if ((pstrHostIfSetOperationMode->mode) == IDLE_MODE)
+	if ((hif_op_mode->mode) == IDLE_MODE)
 		up(&hif_sema_driver);
 
 	if (result) {
