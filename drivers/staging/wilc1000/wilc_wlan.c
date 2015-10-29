@@ -563,17 +563,17 @@ int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, u32 buffer_size, wilc_tx_
 	return 1;
 }
 
-static struct txq_entry_t *wilc_wlan_txq_get_first(void)
+static struct txq_entry_t *wilc_wlan_txq_get_first(struct wilc *wilc)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 	struct txq_entry_t *tqe;
 	unsigned long flags;
 
-	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
+	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
 	tqe = p->txq_head;
 
-	spin_unlock_irqrestore(&g_linux_wlan->txq_spinlock, flags);
+	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 
 
 	return tqe;
@@ -855,7 +855,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *pu32TxqCount)
 		 *      build the vmm list
 		 **/
 		PRINT_D(TX_DBG, "Getting the head of the TxQ\n");
-		tqe = wilc_wlan_txq_get_first();
+		tqe = wilc_wlan_txq_get_first(wilc);
 		i = 0;
 		sum = 0;
 		do {
