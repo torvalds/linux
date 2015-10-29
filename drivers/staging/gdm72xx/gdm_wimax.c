@@ -84,11 +84,6 @@ static inline struct evt_entry *alloc_event_entry(void)
 	return kmalloc(sizeof(struct evt_entry), GFP_ATOMIC);
 }
 
-static inline void free_event_entry(struct evt_entry *e)
-{
-	kfree(e);
-}
-
 static struct evt_entry *get_event_entry(void)
 {
 	struct evt_entry *e;
@@ -180,11 +175,11 @@ static void gdm_wimax_event_exit(void)
 
 		list_for_each_entry_safe(e, temp, &wm_event.evtq, list) {
 			list_del(&e->list);
-			free_event_entry(e);
+			kfree(e);
 		}
 		list_for_each_entry_safe(e, temp, &wm_event.freeq, list) {
 			list_del(&e->list);
-			free_event_entry(e);
+			kfree(e);
 		}
 
 		spin_unlock_irqrestore(&wm_event.evt_lock, flags);
