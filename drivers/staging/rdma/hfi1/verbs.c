@@ -380,9 +380,7 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 	 * undefined operations.
 	 * Make sure buffer is large enough to hold the result for atomics.
 	 */
-	if (wr->opcode == IB_WR_FAST_REG_MR) {
-		return -EINVAL;
-	} else if (qp->ibqp.qp_type == IB_QPT_UC) {
+	if (qp->ibqp.qp_type == IB_QPT_UC) {
 		if ((unsigned) wr->opcode >= IB_WR_RDMA_READ)
 			return -EINVAL;
 	} else if (qp->ibqp.qp_type != IB_QPT_RC) {
@@ -417,9 +415,6 @@ static int post_one_send(struct hfi1_qp *qp, struct ib_send_wr *wr)
 	if (qp->ibqp.qp_type != IB_QPT_UC &&
 	    qp->ibqp.qp_type != IB_QPT_RC)
 		memcpy(&wqe->ud_wr, ud_wr(wr), sizeof(wqe->ud_wr));
-	else if (wr->opcode == IB_WR_FAST_REG_MR)
-		memcpy(&wqe->fast_reg_wr, fast_reg_wr(wr),
-			sizeof(wqe->fast_reg_wr));
 	else if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
 		 wr->opcode == IB_WR_RDMA_WRITE ||
 		 wr->opcode == IB_WR_RDMA_READ)
@@ -2065,8 +2060,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->reg_user_mr = hfi1_reg_user_mr;
 	ibdev->dereg_mr = hfi1_dereg_mr;
 	ibdev->alloc_mr = hfi1_alloc_mr;
-	ibdev->alloc_fast_reg_page_list = hfi1_alloc_fast_reg_page_list;
-	ibdev->free_fast_reg_page_list = hfi1_free_fast_reg_page_list;
 	ibdev->alloc_fmr = hfi1_alloc_fmr;
 	ibdev->map_phys_fmr = hfi1_map_phys_fmr;
 	ibdev->unmap_fmr = hfi1_unmap_fmr;
