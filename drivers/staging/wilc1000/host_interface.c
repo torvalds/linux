@@ -2719,7 +2719,7 @@ static s32 Handle_AddBASession(struct host_if_drv *hif_drv,
 		strHostIfBASessionInfo->bssid[1],
 		strHostIfBASessionInfo->bssid[2],
 		strHostIfBASessionInfo->buf_size,
-		strHostIfBASessionInfo->u16SessionTimeout,
+		strHostIfBASessionInfo->time_out,
 		strHostIfBASessionInfo->tid);
 
 	wid.id = (u16)WID_11E_P_ACTION_REQ;
@@ -2736,8 +2736,8 @@ static s32 Handle_AddBASession(struct host_if_drv *hif_drv,
 	*ptr++ = 1;
 	*ptr++ = (strHostIfBASessionInfo->buf_size & 0xFF);
 	*ptr++ = ((strHostIfBASessionInfo->buf_size >> 16) & 0xFF);
-	*ptr++ = (strHostIfBASessionInfo->u16SessionTimeout & 0xFF);
-	*ptr++ = ((strHostIfBASessionInfo->u16SessionTimeout >> 16) & 0xFF);
+	*ptr++ = (strHostIfBASessionInfo->time_out & 0xFF);
+	*ptr++ = ((strHostIfBASessionInfo->time_out >> 16) & 0xFF);
 	*ptr++ = (AddbaTimeout & 0xFF);
 	*ptr++ = ((AddbaTimeout >> 16) & 0xFF);
 	*ptr++ = 8;
@@ -2760,7 +2760,7 @@ static s32 Handle_AddBASession(struct host_if_drv *hif_drv,
 	*ptr++ = strHostIfBASessionInfo->tid;
 	*ptr++ = 8;
 	*ptr++ = (strHostIfBASessionInfo->buf_size & 0xFF);
-	*ptr++ = ((strHostIfBASessionInfo->u16SessionTimeout >> 16) & 0xFF);
+	*ptr++ = ((strHostIfBASessionInfo->time_out >> 16) & 0xFF);
 	*ptr++ = 3;
 	result = send_config_pkt(SET_CFG, &wid, 1,
 				 get_id_from_handler(hif_drv));
