@@ -257,7 +257,6 @@ struct brcmf_pcie_core_info {
 struct brcmf_pciedev_info {
 	enum brcmf_pcie_state state;
 	bool in_irq;
-	bool irq_requested;
 	struct pci_dev *pdev;
 	char fw_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
 	char nvram_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
@@ -889,7 +888,6 @@ static int brcmf_pcie_request_irq(struct brcmf_pciedev_info *devinfo)
 
 	brcmf_dbg(PCIE, "Enter\n");
 	/* is it a v1 or v2 implementation */
-	devinfo->irq_requested = false;
 	pci_enable_msi(pdev);
 	if (devinfo->generic_corerev == BRCMF_PCIE_GENREV1) {
 		if (request_threaded_irq(pdev->irq,
@@ -912,7 +910,6 @@ static int brcmf_pcie_request_irq(struct brcmf_pciedev_info *devinfo)
 			return -EIO;
 		}
 	}
-	devinfo->irq_requested = true;
 	devinfo->irq_allocated = true;
 	return 0;
 }
@@ -930,9 +927,6 @@ static void brcmf_pcie_release_irq(struct brcmf_pciedev_info *devinfo)
 	pdev = devinfo->pdev;
 
 	brcmf_pcie_intr_disable(devinfo);
-	if (!devinfo->irq_requested)
-		return;
-	devinfo->irq_requested = false;
 	free_irq(pdev->irq, devinfo);
 	pci_disable_msi(pdev);
 
