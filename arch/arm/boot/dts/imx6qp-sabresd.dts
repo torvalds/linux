@@ -13,6 +13,10 @@
 	model = "Freescale i.MX6 Quad Plus SABRE Smart Device Board";
 };
 
+&cpu0 {
+	arm-supply = <&sw2_reg>;
+};
+
 &iomuxc {
 	imx6qdl-sabresd {
 		pinctrl_usdhc2: usdhc2grp {
