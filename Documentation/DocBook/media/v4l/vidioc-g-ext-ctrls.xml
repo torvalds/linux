@@ -61,7 +61,7 @@ must belong to the same control class.</para>
 
     <para>Applications must always fill in the
 <structfield>count</structfield>,
-<structfield>ctrl_class</structfield>,
+<structfield>which</structfield>,
 <structfield>controls</structfield> and
 <structfield>reserved</structfield> fields of &v4l2-ext-controls;, and
 initialize the &v4l2-ext-control; array pointed to by the
@@ -109,7 +109,7 @@ the driver whether wrong values are automatically adjusted to a valid
 value or if an error is returned.</para>
 
     <para>When the <structfield>id</structfield> or
-<structfield>ctrl_class</structfield> is invalid drivers return an
+<structfield>which</structfield> is invalid drivers return an
 &EINVAL;. When the value is out of bounds drivers can choose to take
 the closest valid value or return an &ERANGE;, whatever seems more
 appropriate. In the first case the new value is set in
@@ -390,7 +390,7 @@ These controls are described in <xref linkend="rf-tuner-controls" />.</entry>
 	<listitem>
 	  <para>The &v4l2-ext-control; <structfield>id</structfield>
 is invalid, the &v4l2-ext-controls;
-<structfield>ctrl_class</structfield> is invalid, or the &v4l2-ext-control;
+<structfield>which</structfield> is invalid, or the &v4l2-ext-control;
 <structfield>value</structfield> was inappropriate (e.g. the given menu
 index is not supported by the driver). This error code is
 also returned by the <constant>VIDIOC_S_EXT_CTRLS</constant> and
