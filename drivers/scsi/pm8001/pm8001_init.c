@@ -58,6 +58,8 @@ static const struct pm8001_chip_info pm8001_chips[] = {
 	[chip_8076] = {0,  16, &pm8001_80xx_dispatch,},
 	[chip_8077] = {0,  16, &pm8001_80xx_dispatch,},
 	[chip_8006] = {0,  16, &pm8001_80xx_dispatch,},
+	[chip_8070] = {0,  8, &pm8001_80xx_dispatch,},
+	[chip_8072] = {0,  16, &pm8001_80xx_dispatch,},
 };
 static int pm8001_id;
 
@@ -1234,7 +1236,7 @@ MODULE_AUTHOR("Anand Kumar Santhanam <AnandKumar.Santhanam@pmcs.com>");
 MODULE_AUTHOR("Sangeetha Gnanasekaran <Sangeetha.Gnanasekaran@pmcs.com>");
 MODULE_AUTHOR("Nikith Ganigarakoppal <Nikith.Ganigarakoppal@pmcs.com>");
 MODULE_DESCRIPTION(
-		"PMC-Sierra PM8001/8006/8081/8088/8089/8074/8076/8077 "
+		"PMC-Sierra PM8001/8006/8081/8088/8089/8074/8076/8077/8070/8072 "
 		"SAS/SATA controller driver");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
