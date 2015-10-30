@@ -23,7 +23,6 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 
-#include <linux/version.h>
 #include <linux/semaphore.h>
 
 #ifdef WILC_SDIO
