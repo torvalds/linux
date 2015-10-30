@@ -121,8 +121,8 @@ void fld_cache_fini(struct fld_cache *cache)
 /**
  * delete given node from list.
  */
-void fld_cache_entry_delete(struct fld_cache *cache,
-			    struct fld_cache_entry *node)
+static void fld_cache_entry_delete(struct fld_cache *cache,
+				   struct fld_cache_entry *node)
 {
 	list_del(&node->fce_list);
 	list_del(&node->fce_lru);
@@ -377,8 +377,8 @@ struct fld_cache_entry
  * This function handles all cases of merging and breaking up of
  * ranges.
  */
-int fld_cache_insert_nolock(struct fld_cache *cache,
-			    struct fld_cache_entry *f_new)
+static int fld_cache_insert_nolock(struct fld_cache *cache,
+				   struct fld_cache_entry *f_new)
 {
 	struct fld_cache_entry *f_curr;
 	struct fld_cache_entry *n;
