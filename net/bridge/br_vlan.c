@@ -914,6 +914,8 @@ out:
 	return ret;
 
 err_vlan_add:
+	RCU_INIT_POINTER(p->vlgrp, NULL);
+	synchronize_rcu();
 	rhashtable_destroy(&vg->vlan_hash);
 err_rhtbl:
 	kfree(vg);
