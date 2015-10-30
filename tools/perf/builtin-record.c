@@ -31,6 +31,7 @@
 #include "util/auxtrace.h"
 #include "util/parse-branch-options.h"
 #include "util/parse-regs-options.h"
+#include "util/llvm-utils.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -1112,6 +1113,12 @@ struct option __record_options[] = {
 			"per thread proc mmap processing timeout in ms"),
 	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
 		    "Record context switch events"),
+#ifdef HAVE_LIBBPF_SUPPORT
+	OPT_STRING(0, "clang-path", &llvm_param.clang_path, "clang path",
+		   "clang binary to use for compiling BPF scriptlets"),
+	OPT_STRING(0, "clang-opt", &llvm_param.clang_opt, "clang options",
+		   "options passed to clang when compiling BPF scriptlets"),
+#endif
 	OPT_END()
 };
 

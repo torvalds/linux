@@ -542,6 +542,7 @@ static int add_bpf_event(struct probe_trace_event *tev, int fd,
 	struct __add_bpf_event_param *param = _param;
 	struct parse_events_evlist *evlist = param->data;
 	struct list_head *list = param->list;
+	struct perf_evsel *pos;
 	int err;
 
 	pr_debug("add bpf event %s:%s and attach bpf program %d\n",
@@ -562,6 +563,11 @@ static int add_bpf_event(struct probe_trace_event *tev, int fd,
 	}
 	pr_debug("adding %s:%s\n", tev->group, tev->event);
 
+	list_for_each_entry(pos, &new_evsels, node) {
+		pr_debug("adding %s:%s to %p\n",
+			 tev->group, tev->event, pos);
+		pos->bpf_fd = fd;
+	}
 	list_splice(&new_evsels, list);
 	return 0;
 }
@@ -620,11 +626,12 @@ errout:
 
 int parse_events_load_bpf(struct parse_events_evlist *data,
 			  struct list_head *list,
-			  char *bpf_file_name)
+			  char *bpf_file_name,
+			  bool source)
 {
 	struct bpf_object *obj;
 
-	obj = bpf__prepare_load(bpf_file_name);
+	obj = bpf__prepare_load(bpf_file_name, source);
 	if (IS_ERR(obj) || !obj) {
 		char errbuf[BUFSIZ];
 		int err;

@@ -123,6 +123,7 @@ struct perf_evsel {
 	char			*group_name;
 	bool			cmdline_group_boundary;
 	struct list_head	config_terms;
+	int			bpf_fd;
 };
 
 union u64_swap {

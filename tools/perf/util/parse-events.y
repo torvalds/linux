@@ -42,7 +42,7 @@ static inc_group_count(struct list_head *list,
 %token PE_VALUE PE_VALUE_SYM_HW PE_VALUE_SYM_SW PE_RAW PE_TERM
 %token PE_EVENT_NAME
 %token PE_NAME
-%token PE_BPF_OBJECT
+%token PE_BPF_OBJECT PE_BPF_SOURCE
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP
 %token PE_NAME_CACHE_TYPE PE_NAME_CACHE_OP_RESULT
 %token PE_PREFIX_MEM PE_PREFIX_RAW PE_PREFIX_GROUP
@@ -55,6 +55,7 @@ static inc_group_count(struct list_head *list,
 %type <num> PE_TERM
 %type <str> PE_NAME
 %type <str> PE_BPF_OBJECT
+%type <str> PE_BPF_SOURCE
 %type <str> PE_NAME_CACHE_TYPE
 %type <str> PE_NAME_CACHE_OP_RESULT
 %type <str> PE_MODIFIER_EVENT
@@ -461,7 +462,17 @@ PE_BPF_OBJECT
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_load_bpf(data, list, $1));
+	ABORT_ON(parse_events_load_bpf(data, list, $1, false));
+	$$ = list;
+}
+|
+PE_BPF_SOURCE
+{
+	struct parse_events_evlist *data = _data;
+	struct list_head *list;
+
+	ALLOC_LIST(list);
+	ABORT_ON(parse_events_load_bpf(data, list, $1, true));
 	$$ = list;
 }
 
