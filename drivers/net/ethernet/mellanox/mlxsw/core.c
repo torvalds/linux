@@ -287,7 +287,7 @@ static void mlxsw_emad_pack_op_tlv(char *op_tlv,
 	mlxsw_emad_op_tlv_status_set(op_tlv, 0);
 	mlxsw_emad_op_tlv_register_id_set(op_tlv, reg->id);
 	mlxsw_emad_op_tlv_r_set(op_tlv, MLXSW_EMAD_OP_TLV_REQUEST);
-	if (MLXSW_CORE_REG_ACCESS_TYPE_QUERY == type)
+	if (type == MLXSW_CORE_REG_ACCESS_TYPE_QUERY)
 		mlxsw_emad_op_tlv_method_set(op_tlv,
 					     MLXSW_EMAD_OP_TLV_METHOD_QUERY);
 	else
@@ -362,7 +362,7 @@ static bool mlxsw_emad_is_resp(const struct sk_buff *skb)
 	char *op_tlv;
 
 	op_tlv = mlxsw_emad_op_tlv(skb);
-	return (MLXSW_EMAD_OP_TLV_RESPONSE == mlxsw_emad_op_tlv_r_get(op_tlv));
+	return (mlxsw_emad_op_tlv_r_get(op_tlv) == MLXSW_EMAD_OP_TLV_RESPONSE);
 }
 
 #define MLXSW_EMAD_TIMEOUT_MS 200

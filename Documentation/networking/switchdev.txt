@@ -278,8 +278,8 @@ Flooding L2 domain
 For a given L2 VLAN domain, the switch device should flood multicast/broadcast
 and unknown unicast packets to all ports in domain, if allowed by port's
 current STP state.  The switch driver, knowing which ports are within which
-vlan L2 domain, can program the switch device for flooding.  The packet should
-also be sent to the port netdev for processing by the bridge driver.  The
+vlan L2 domain, can program the switch device for flooding.  The packet may
+be sent to the port netdev for processing by the bridge driver.  The
 bridge should not reflood the packet to the same ports the device flooded,
 otherwise there will be duplicate packets on the wire.
 
@@ -297,6 +297,9 @@ It is possible for the switch device to not handle flooding and push the
 packets up to the bridge driver for flooding.  This is not ideal as the number
 of ports scale in the L2 domain as the device is much more efficient at
 flooding packets that software.
+
+If supported by the device, flood control can be offloaded to it, preventing
+certain netdevs from flooding unicast traffic for which there is no FDB entry.
 
 IGMP Snooping
 ^^^^^^^^^^^^^

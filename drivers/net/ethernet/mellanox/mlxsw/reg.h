@@ -348,8 +348,9 @@ MLXSW_ITEM32_INDEXED(reg, sfd, rec_action, MLXSW_REG_SFD_BASE_LEN, 28, 4,
 		     MLXSW_REG_SFD_REC_LEN, 0x0C, false);
 
 /* reg_sfd_uc_sub_port
- * LAG sub port.
- * Must be 0 if multichannel VEPA is not enabled.
+ * VEPA channel on local port.
+ * Valid only if local port is a non-stacking port. Must be 0 if multichannel
+ * VEPA is not enabled.
  * Access: RW
  */
 MLXSW_ITEM32_INDEXED(reg, sfd, uc_sub_port, MLXSW_REG_SFD_BASE_LEN, 16, 8,
@@ -396,10 +397,9 @@ static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_uc_system_port_set(payload, rec_index, local_port);
 }
 
-static inline void
-mlxsw_reg_sfd_uc_unpack(char *payload, int rec_index,
-			char *mac, u16 *p_vid,
-			u8 *p_local_port)
+static inline void mlxsw_reg_sfd_uc_unpack(char *payload, int rec_index,
+					   char *mac, u16 *p_vid,
+					   u8 *p_local_port)
 {
 	mlxsw_reg_sfd_rec_mac_memcpy_from(payload, rec_index, mac);
 	*p_vid = mlxsw_reg_sfd_uc_fid_vid_get(payload, rec_index);
@@ -474,7 +474,7 @@ MLXSW_ITEM32_INDEXED(reg, sfn, rec_type, MLXSW_REG_SFN_BASE_LEN, 20, 4,
 MLXSW_ITEM_BUF_INDEXED(reg, sfn, rec_mac, MLXSW_REG_SFN_BASE_LEN, 6,
 		       MLXSW_REG_SFN_REC_LEN, 0x02);
 
-/* reg_sfd_mac_sub_port
+/* reg_sfn_mac_sub_port
  * VEPA channel on the local port.
  * 0 if multichannel VEPA is not enabled.
  * Access: RO
@@ -482,14 +482,14 @@ MLXSW_ITEM_BUF_INDEXED(reg, sfn, rec_mac, MLXSW_REG_SFN_BASE_LEN, 6,
 MLXSW_ITEM32_INDEXED(reg, sfn, mac_sub_port, MLXSW_REG_SFN_BASE_LEN, 16, 8,
 		     MLXSW_REG_SFN_REC_LEN, 0x08, false);
 
-/* reg_sfd_mac_fid
+/* reg_sfn_mac_fid
  * Filtering identifier.
  * Access: RO
  */
 MLXSW_ITEM32_INDEXED(reg, sfn, mac_fid, MLXSW_REG_SFN_BASE_LEN, 0, 16,
 		     MLXSW_REG_SFN_REC_LEN, 0x08, false);
 
-/* reg_sfd_mac_system_port
+/* reg_sfn_mac_system_port
  * Unique port identifier for the final destination of the packet.
  * Access: RO
  */

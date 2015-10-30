@@ -1227,6 +1227,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port->local_port = local_port;
 	mlxsw_sp_port->learning = 1;
 	mlxsw_sp_port->learning_sync = 1;
+	mlxsw_sp_port->uc_flood = 1;
 	mlxsw_sp_port->pvid = 1;
 
 	mlxsw_sp_port->pcpu_stats =
@@ -1899,12 +1900,12 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 				if (err)
 					netdev_err(dev, "Failed to join bridge\n");
 				mlxsw_sp_master_bridge_inc(mlxsw_sp, upper_dev);
-				mlxsw_sp_port->bridged = true;
+				mlxsw_sp_port->bridged = 1;
 			} else {
 				err = mlxsw_sp_port_bridge_leave(mlxsw_sp_port);
 				if (err)
 					netdev_err(dev, "Failed to leave bridge\n");
-				mlxsw_sp_port->bridged = false;
+				mlxsw_sp_port->bridged = 0;
 				mlxsw_sp_master_bridge_dec(mlxsw_sp, upper_dev);
 			}
 		}
