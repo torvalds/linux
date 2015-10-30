@@ -194,7 +194,7 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	u32 plane_ctl, stride_div, stride;
 	const struct drm_intel_sprite_colorkey *key =
 		&to_intel_plane_state(drm_plane->state)->ckey;
-	unsigned long surf_addr;
+	u32 surf_addr;
 	u32 tile_height, plane_offset, plane_size;
 	unsigned int rotation;
 	int x_offset, y_offset;
