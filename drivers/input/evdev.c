@@ -56,7 +56,7 @@ struct evdev_client {
 	struct fasync_struct *fasync;
 	struct evdev *evdev;
 	struct list_head node;
-	int clk_type;
+	unsigned int clk_type;
 	bool revoked;
 	unsigned long *evmasks[EV_CNT];
 	unsigned int bufsize;
@@ -191,37 +191,39 @@ static void evdev_queue_syn_dropped(struct evdev_client *client)
 static int evdev_set_clk_type(struct evdev_client *client, unsigned int clkid)
 {
 	unsigned long flags;
-
-	if (client->clk_type == clkid)
-		return 0;
+	unsigned int clk_type;
 
 	switch (clkid) {
 
 	case CLOCK_REALTIME:
-		client->clk_type = EV_CLK_REAL;
+		clk_type = EV_CLK_REAL;
 		break;
 	case CLOCK_MONOTONIC:
-		client->clk_type = EV_CLK_MONO;
+		clk_type = EV_CLK_MONO;
 		break;
 	case CLOCK_BOOTTIME:
-		client->clk_type = EV_CLK_BOOT;
+		clk_type = EV_CLK_BOOT;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	/*
-	 * Flush pending events and queue SYN_DROPPED event,
-	 * but only if the queue is not empty.
-	 */
-	spin_lock_irqsave(&client->buffer_lock, flags);
+	if (client->clk_type != clk_type) {
+		client->clk_type = clk_type;
 
-	if (client->head != client->tail) {
-		client->packet_head = client->head = client->tail;
-		__evdev_queue_syn_dropped(client);
+		/*
+		 * Flush pending events and queue SYN_DROPPED event,
+		 * but only if the queue is not empty.
+		 */
+		spin_lock_irqsave(&client->buffer_lock, flags);
+
+		if (client->head != client->tail) {
+			client->packet_head = client->head = client->tail;
+			__evdev_queue_syn_dropped(client);
+		}
+
+		spin_unlock_irqrestore(&client->buffer_lock, flags);
 	}
-
-	spin_unlock_irqrestore(&client->buffer_lock, flags);
 
 	return 0;
 }
