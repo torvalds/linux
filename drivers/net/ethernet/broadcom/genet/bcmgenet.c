@@ -907,8 +907,10 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 	}
 
 	bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
-	if (mode == GENET_POWER_PASSIVE)
+	if (mode == GENET_POWER_PASSIVE) {
 		bcmgenet_phy_power_set(priv->dev, true);
+		bcmgenet_mii_reset(priv->dev);
+	}
 }
 
 /* ioctl handle special commands that are not present in ethtool. */
