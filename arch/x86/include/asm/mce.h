@@ -123,19 +123,27 @@ struct mca_config {
 };
 
 struct mce_vendor_flags {
-			/*
-			 * overflow recovery cpuid bit indicates that overflow
-			 * conditions are not fatal
-			 */
-	__u64		overflow_recov	: 1,
+	/*
+	 * Indicates that overflow conditions are not fatal, when set.
+	 */
+	__u64 overflow_recov	: 1,
 
-			/*
-			 * SUCCOR stands for S/W UnCorrectable error COntainment
-			 * and Recovery. It indicates support for data poisoning
-			 * in HW and deferred error interrupts.
-			 */
-			succor		: 1,
-			__reserved_0	: 62;
+	/*
+	 * (AMD) SUCCOR stands for S/W UnCorrectable error COntainment and
+	 * Recovery. It indicates support for data poisoning in HW and deferred
+	 * error interrupts.
+	 */
+	      succor		: 1,
+
+	/*
+	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
+	 * the register space for each MCA bank and also increases number of
+	 * banks. Also, to accommodate the new banks and registers, the MCA
+	 * register space is moved to a new MSR range.
+	 */
+	      smca		: 1,
+
+	      __reserved_0	: 61;
 };
 extern struct mce_vendor_flags mce_flags;
 
