@@ -161,7 +161,6 @@ int fld_cache_lookup(struct fld_cache *cache,
 
 struct fld_cache_entry*
 fld_cache_entry_lookup(struct fld_cache *cache, struct lu_seq_range *range);
-void fld_dump_cache_entries(struct fld_cache *cache);
 
 struct fld_cache_entry
 *fld_cache_entry_lookup_nolock(struct fld_cache *cache,
