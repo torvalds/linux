@@ -417,14 +417,10 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
 	struct resource *cfg_res;
-	u32 val, na, ns;
+	u32 val, ns;
 	const __be32 *addrp;
 	int i, index, ret;
 
-	/* Find the address cell size and the number of cells in order to get
-	 * the untranslated address.
-	 */
-	of_property_read_u32(np, "#address-cells", &na);
 	ns = of_n_size_cells(np);
 
 	cfg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
@@ -467,8 +463,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 			pp->io_base = range.cpu_addr;
 
 			/* Find the untranslated IO space address */
-			pp->io_mod_base = of_read_number(parser.range -
-							 parser.np + na, ns);
+			pp->io_mod_base = range.cpu_addr;
 		}
 		if (restype == IORESOURCE_MEM) {
 			of_pci_range_to_resource(&range, np, &pp->mem);
@@ -477,8 +472,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 			pp->mem_bus_addr = range.pci_addr;
 
 			/* Find the untranslated MEM space address */
-			pp->mem_mod_base = of_read_number(parser.range -
-							  parser.np + na, ns);
+			pp->mem_mod_base = range.cpu_addr;
 		}
 		if (restype == 0) {
 			of_pci_range_to_resource(&range, np, &pp->cfg);
@@ -488,8 +482,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 			pp->cfg1_base = pp->cfg.start + pp->cfg0_size;
 
 			/* Find the untranslated configuration space address */
-			pp->cfg0_mod_base = of_read_number(parser.range -
-							   parser.np + na, ns);
+			pp->cfg0_mod_base = range.cpu_addr;
 			pp->cfg1_mod_base = pp->cfg0_mod_base +
 					    pp->cfg0_size;
 		}
