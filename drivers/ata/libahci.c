@@ -2493,7 +2493,7 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host, int irq,
 
 		rc = devm_request_threaded_irq(host->dev, irq + i,
 					       ahci_multi_irqs_intr,
-					       ahci_port_thread_fn, IRQF_SHARED,
+					       ahci_port_thread_fn, 0,
 					       pp->irq_desc, host->ports[i]);
 		if (rc)
 			goto out_free_irqs;
