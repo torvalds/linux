@@ -14695,6 +14695,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Dell Chromebook 11 */
 	{ 0x0a06, 0x1028, 0x0a35, quirk_backlight_present },
+
+	/* Dell Chromebook 11 (2015 version) */
+	{ 0x0a16, 0x1028, 0x0a35, quirk_backlight_present },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
