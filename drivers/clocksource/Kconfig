@@ -33,7 +33,9 @@ config DIGICOLOR_TIMER
 	  Enables the support for the digicolor timer driver.
 
 config DW_APB_TIMER
-	bool
+	bool "DW APB timer driver" if COMPILE_TEST
+	help
+	  Enables the support for the dw_apb timer.
 
 config DW_APB_TIMER_OF
 	bool
