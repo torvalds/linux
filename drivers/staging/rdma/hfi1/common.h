@@ -132,13 +132,14 @@
  * HFI1_CAP_RESERVED_MASK bits.
  */
 #define HFI1_CAP_WRITABLE_MASK   (HFI1_CAP_SDMA_AHG |			\
-				 HFI1_CAP_HDRSUPP |			\
-				 HFI1_CAP_MULTI_PKT_EGR |		\
-				 HFI1_CAP_NODROP_RHQ_FULL |		\
-				 HFI1_CAP_NODROP_EGR_FULL |		\
-				 HFI1_CAP_ALLOW_PERM_JKEY |		\
-				 HFI1_CAP_STATIC_RATE_CTRL |		\
-				 HFI1_CAP_PRINT_UNIMPL)
+				  HFI1_CAP_HDRSUPP |			\
+				  HFI1_CAP_MULTI_PKT_EGR |		\
+				  HFI1_CAP_NODROP_RHQ_FULL |		\
+				  HFI1_CAP_NODROP_EGR_FULL |		\
+				  HFI1_CAP_ALLOW_PERM_JKEY |		\
+				  HFI1_CAP_STATIC_RATE_CTRL |		\
+				  HFI1_CAP_PRINT_UNIMPL |		\
+				  HFI1_CAP_TID_UNMAP)
 /*
  * A set of capability bits that are "global" and are not allowed to be
  * set in the user bitmask.

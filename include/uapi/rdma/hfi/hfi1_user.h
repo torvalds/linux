@@ -127,13 +127,13 @@
 #define HFI1_CMD_TID_UPDATE      4	/* update expected TID entries */
 #define HFI1_CMD_TID_FREE        5	/* free expected TID entries */
 #define HFI1_CMD_CREDIT_UPD      6	/* force an update of PIO credit */
-#define HFI1_CMD_SDMA_STATUS_UPD 7       /* force update of SDMA status ring */
+#define HFI1_CMD_SDMA_STATUS_UPD 7      /* force update of SDMA status ring */
 
 #define HFI1_CMD_RECV_CTRL       8	/* control receipt of packets */
 #define HFI1_CMD_POLL_TYPE       9	/* set the kind of polling we want */
 #define HFI1_CMD_ACK_EVENT       10	/* ack & clear user status bits */
-#define HFI1_CMD_SET_PKEY        11      /* set context's pkey */
-#define HFI1_CMD_CTXT_RESET      12      /* reset context's HW send context */
+#define HFI1_CMD_SET_PKEY        11     /* set context's pkey */
+#define HFI1_CMD_CTXT_RESET      12     /* reset context's HW send context */
 /* separate EPROM commands from normal PSM commands */
 #define HFI1_CMD_EP_INFO         64      /* read EPROM device ID */
 #define HFI1_CMD_EP_ERASE_CHIP   65      /* erase whole EPROM */
@@ -144,18 +144,18 @@
 #define HFI1_CMD_EP_WRITE_P0     70      /* write EPROM partition 0 */
 #define HFI1_CMD_EP_WRITE_P1     71      /* write EPROM partition 1 */
 
-#define _HFI1_EVENT_FROZEN_BIT       0
-#define _HFI1_EVENT_LINKDOWN_BIT     1
-#define _HFI1_EVENT_LID_CHANGE_BIT   2
-#define _HFI1_EVENT_LMC_CHANGE_BIT   3
-#define _HFI1_EVENT_SL2VL_CHANGE_BIT 4
+#define _HFI1_EVENT_FROZEN_BIT         0
+#define _HFI1_EVENT_LINKDOWN_BIT       1
+#define _HFI1_EVENT_LID_CHANGE_BIT     2
+#define _HFI1_EVENT_LMC_CHANGE_BIT     3
+#define _HFI1_EVENT_SL2VL_CHANGE_BIT   4
 #define _HFI1_MAX_EVENT_BIT _HFI1_EVENT_SL2VL_CHANGE_BIT
 
-#define HFI1_EVENT_FROZEN                (1UL << _HFI1_EVENT_FROZEN_BIT)
-#define HFI1_EVENT_LINKDOWN_BIT		(1UL << _HFI1_EVENT_LINKDOWN_BIT)
-#define HFI1_EVENT_LID_CHANGE_BIT	(1UL << _HFI1_EVENT_LID_CHANGE_BIT)
-#define HFI1_EVENT_LMC_CHANGE_BIT	(1UL << _HFI1_EVENT_LMC_CHANGE_BIT)
-#define HFI1_EVENT_SL2VL_CHANGE_BIT	(1UL << _HFI1_EVENT_SL2VL_CHANGE_BIT)
+#define HFI1_EVENT_FROZEN            (1UL << _HFI1_EVENT_FROZEN_BIT)
+#define HFI1_EVENT_LINKDOWN          (1UL << _HFI1_EVENT_LINKDOWN_BIT)
+#define HFI1_EVENT_LID_CHANGE        (1UL << _HFI1_EVENT_LID_CHANGE_BIT)
+#define HFI1_EVENT_LMC_CHANGE        (1UL << _HFI1_EVENT_LMC_CHANGE_BIT)
+#define HFI1_EVENT_SL2VL_CHANGE      (1UL << _HFI1_EVENT_SL2VL_CHANGE_BIT)
 
 /*
  * These are the status bits readable (in ASCII form, 64bit value)
