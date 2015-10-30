@@ -710,6 +710,8 @@ int pm80xx_set_thermal_config(struct pm8001_hba_info *pm8001_ha);
 int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
 void pm8001_set_phy_profile(struct pm8001_hba_info *pm8001_ha,
 	u32 length, u8 *buf);
+void pm8001_set_phy_profile_single(struct pm8001_hba_info *pm8001_ha,
+		u32 phy, u32 length, u32 *buf);
 int pm80xx_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
 ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 		struct device_attribute *attr, char *buf);

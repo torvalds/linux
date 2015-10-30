@@ -732,6 +732,131 @@ static int pm8001_get_phy_settings_info(struct pm8001_hba_info *pm8001_ha)
 	return 0;
 }
 
+struct pm8001_mpi3_phy_pg_trx_config {
+	u32 LaneLosCfg;
+	u32 LanePgaCfg1;
+	u32 LanePisoCfg1;
+	u32 LanePisoCfg2;
+	u32 LanePisoCfg3;
+	u32 LanePisoCfg4;
+	u32 LanePisoCfg5;
+	u32 LanePisoCfg6;
+	u32 LaneBctCtrl;
+};
+
+/**
+ * pm8001_get_internal_phy_settings : Retrieves the internal PHY settings
+ * @pm8001_ha : our adapter
+ * @phycfg : PHY config page to populate
+ */
+static
+void pm8001_get_internal_phy_settings(struct pm8001_hba_info *pm8001_ha,
+		struct pm8001_mpi3_phy_pg_trx_config *phycfg)
+{
+	phycfg->LaneLosCfg   = 0x00000132;
+	phycfg->LanePgaCfg1  = 0x00203949;
+	phycfg->LanePisoCfg1 = 0x000000FF;
+	phycfg->LanePisoCfg2 = 0xFF000001;
+	phycfg->LanePisoCfg3 = 0xE7011300;
+	phycfg->LanePisoCfg4 = 0x631C40C0;
+	phycfg->LanePisoCfg5 = 0xF8102036;
+	phycfg->LanePisoCfg6 = 0xF74A1000;
+	phycfg->LaneBctCtrl  = 0x00FB33F8;
+}
+
+/**
+ * pm8001_get_external_phy_settings : Retrieves the external PHY settings
+ * @pm8001_ha : our adapter
+ * @phycfg : PHY config page to populate
+ */
+static
+void pm8001_get_external_phy_settings(struct pm8001_hba_info *pm8001_ha,
+		struct pm8001_mpi3_phy_pg_trx_config *phycfg)
+{
+	phycfg->LaneLosCfg   = 0x00000132;
+	phycfg->LanePgaCfg1  = 0x00203949;
+	phycfg->LanePisoCfg1 = 0x000000FF;
+	phycfg->LanePisoCfg2 = 0xFF000001;
+	phycfg->LanePisoCfg3 = 0xE7011300;
+	phycfg->LanePisoCfg4 = 0x63349140;
+	phycfg->LanePisoCfg5 = 0xF8102036;
+	phycfg->LanePisoCfg6 = 0xF80D9300;
+	phycfg->LaneBctCtrl  = 0x00FB33F8;
+}
+
+/**
+ * pm8001_get_phy_mask : Retrieves the mask that denotes if a PHY is int/ext
+ * @pm8001_ha : our adapter
+ * @phymask : The PHY mask
+ */
+static
+void pm8001_get_phy_mask(struct pm8001_hba_info *pm8001_ha, int *phymask)
+{
+	switch (pm8001_ha->pdev->subsystem_device) {
+	case 0x0070: /* H1280 - 8 external 0 internal */
+	case 0x0072: /* H12F0 - 16 external 0 internal */
+		*phymask = 0x0000;
+		break;
+
+	case 0x0071: /* H1208 - 0 external 8 internal */
+	case 0x0073: /* H120F - 0 external 16 internal */
+		*phymask = 0xFFFF;
+		break;
+
+	case 0x0080: /* H1244 - 4 external 4 internal */
+		*phymask = 0x00F0;
+		break;
+
+	case 0x0081: /* H1248 - 4 external 8 internal */
+		*phymask = 0x0FF0;
+		break;
+
+	case 0x0082: /* H1288 - 8 external 8 internal */
+		*phymask = 0xFF00;
+		break;
+
+	default:
+		PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("Unknown subsystem device=0x%.04x",
+				pm8001_ha->pdev->subsystem_device));
+	}
+}
+
+/**
+ * pm8001_set_phy_settings_ven_117c_12Gb : Configure ATTO 12Gb PHY settings
+ * @pm8001_ha : our adapter
+ */
+static
+int pm8001_set_phy_settings_ven_117c_12G(struct pm8001_hba_info *pm8001_ha)
+{
+	struct pm8001_mpi3_phy_pg_trx_config phycfg_int;
+	struct pm8001_mpi3_phy_pg_trx_config phycfg_ext;
+	int phymask = 0;
+	int i = 0;
+
+	memset(&phycfg_int, 0, sizeof(phycfg_int));
+	memset(&phycfg_ext, 0, sizeof(phycfg_ext));
+
+	pm8001_get_internal_phy_settings(pm8001_ha, &phycfg_int);
+	pm8001_get_external_phy_settings(pm8001_ha, &phycfg_ext);
+	pm8001_get_phy_mask(pm8001_ha, &phymask);
+
+	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
+		if (phymask & (1 << i)) {/* Internal PHY */
+			pm8001_set_phy_profile_single(pm8001_ha, i,
+					sizeof(phycfg_int) / sizeof(u32),
+					(u32 *)&phycfg_int);
+
+		} else { /* External PHY */
+			pm8001_set_phy_profile_single(pm8001_ha, i,
+					sizeof(phycfg_ext) / sizeof(u32),
+					(u32 *)&phycfg_ext);
+		}
+	}
+
+	return 0;
+}
+
 /**
  * pm8001_configure_phy_settings : Configures PHY settings based on vendor ID.
  * @pm8001_ha : our hba.
@@ -740,6 +865,11 @@ static int pm8001_configure_phy_settings(struct pm8001_hba_info *pm8001_ha)
 {
 	switch (pm8001_ha->pdev->subsystem_vendor) {
 	case PCI_VENDOR_ID_ATTO:
+		if (pm8001_ha->pdev->device == 0x0042) /* 6Gb */
+			return 0;
+		else
+			return pm8001_set_phy_settings_ven_117c_12G(pm8001_ha);
+
 	case PCI_VENDOR_ID_ADAPTEC2:
 	case 0:
 		return 0;
