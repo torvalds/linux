@@ -447,9 +447,11 @@ static int mdc_unpack_acl(struct ptlrpc_request *req, struct lustre_md *md)
 #define mdc_unpack_acl(req, md) 0
 #endif
 
-int mdc_get_lustre_md(struct obd_export *exp, struct ptlrpc_request *req,
-		      struct obd_export *dt_exp, struct obd_export *md_exp,
-		      struct lustre_md *md)
+static int mdc_get_lustre_md(struct obd_export *exp,
+			     struct ptlrpc_request *req,
+			     struct obd_export *dt_exp,
+			     struct obd_export *md_exp,
+			     struct lustre_md *md)
 {
 	struct req_capsule *pill = &req->rq_pill;
 	int rc;
@@ -573,7 +575,7 @@ out:
 	return rc;
 }
 
-int mdc_free_lustre_md(struct obd_export *exp, struct lustre_md *md)
+static int mdc_free_lustre_md(struct obd_export *exp, struct lustre_md *md)
 {
 	return 0;
 }
@@ -737,8 +739,8 @@ static void mdc_free_open(struct md_open_data *mod)
 		ptlrpc_request_committed(mod->mod_close_req, committed);
 }
 
-int mdc_clear_open_replay_data(struct obd_export *exp,
-			       struct obd_client_handle *och)
+static int mdc_clear_open_replay_data(struct obd_export *exp,
+				      struct obd_client_handle *och)
 {
 	struct md_open_data *mod = och->och_mod;
 

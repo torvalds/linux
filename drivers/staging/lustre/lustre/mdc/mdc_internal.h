@@ -104,18 +104,10 @@ int mdc_open(struct obd_export *exp, u64 ino, int type, int flags,
 
 struct obd_client_handle;
 
-int mdc_get_lustre_md(struct obd_export *md_exp, struct ptlrpc_request *req,
-		      struct obd_export *dt_exp, struct obd_export *lmv_exp,
-		      struct lustre_md *md);
-
-int mdc_free_lustre_md(struct obd_export *exp, struct lustre_md *md);
-
 int mdc_set_open_replay_data(struct obd_export *exp,
 			     struct obd_client_handle *och,
 			     struct lookup_intent *it);
 
-int mdc_clear_open_replay_data(struct obd_export *exp,
-			       struct obd_client_handle *och);
 void mdc_commit_open(struct ptlrpc_request *req);
 void mdc_replay_open(struct ptlrpc_request *req);
 
