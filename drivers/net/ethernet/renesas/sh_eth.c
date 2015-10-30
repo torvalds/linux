@@ -1232,7 +1232,7 @@ static int sh_eth_ring_init(struct net_device *ndev)
 					  GFP_KERNEL);
 	if (!mdp->rx_ring) {
 		ret = -ENOMEM;
-		goto desc_ring_free;
+		goto skb_ring_free;
 	}
 
 	mdp->dirty_rx = 0;
