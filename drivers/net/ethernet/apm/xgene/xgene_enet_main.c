@@ -1118,6 +1118,47 @@ static int xgene_get_port_id_dt(struct device *dev, struct xgene_enet_pdata *pda
 	return ret;
 }
 
+static int xgene_get_tx_delay(struct xgene_enet_pdata *pdata)
+{
+	struct device *dev = &pdata->pdev->dev;
+	int delay, ret;
+
+	ret = of_property_read_u32(dev->of_node, "tx-delay", &delay);
+	if (ret) {
+		pdata->tx_delay = 4;
+		return 0;
+	}
+
+	if (delay < 0 || delay > 7) {
+		dev_err(dev, "Invalid tx-delay specified\n");
+		return -EINVAL;
+	}
+
+	pdata->tx_delay = delay;
+
+	return 0;
+}
+
+static int xgene_get_rx_delay(struct xgene_enet_pdata *pdata)
+{
+	struct device *dev = &pdata->pdev->dev;
+	int delay, ret;
+
+	ret = of_property_read_u32(dev->of_node, "rx-delay", &delay);
+	if (ret) {
+		pdata->rx_delay = 2;
+		return 0;
+	}
+
+	if (delay < 0 || delay > 7) {
+		dev_err(dev, "Invalid rx-delay specified\n");
+		return -EINVAL;
+	}
+
+	pdata->rx_delay = delay;
+
+	return 0;
+}
 
 static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 {
@@ -1193,6 +1234,14 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		dev_err(dev, "Incorrect phy-connection-type specified\n");
 		return -ENODEV;
 	}
+
+	ret = xgene_get_tx_delay(pdata);
+	if (ret)
+		return ret;
+
+	ret = xgene_get_rx_delay(pdata);
+	if (ret)
+		return ret;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {

@@ -184,6 +184,8 @@ struct xgene_enet_pdata {
 	u8 bp_bufnum;
 	u16 ring_num;
 	u32 mss;
+	u8 tx_delay;
+	u8 rx_delay;
 };
 
 struct xgene_indirect_ctl {

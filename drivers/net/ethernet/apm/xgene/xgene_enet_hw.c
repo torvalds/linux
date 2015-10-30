@@ -461,6 +461,7 @@ static void xgene_gmac_reset(struct xgene_enet_pdata *pdata)
 
 static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 {
+	struct device *dev = &pdata->pdev->dev;
 	u32 value, mc2;
 	u32 intf_ctl, rgmii;
 	u32 icm0, icm2;
@@ -490,7 +491,12 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 	default:
 		ENET_INTERFACE_MODE2_SET(&mc2, 2);
 		intf_ctl |= ENET_GHD_MODE;
-		CFG_TXCLK_MUXSEL0_SET(&rgmii, 4);
+
+		if (dev->of_node) {
+			CFG_TXCLK_MUXSEL0_SET(&rgmii, pdata->tx_delay);
+			CFG_RXCLK_MUXSEL0_SET(&rgmii, pdata->rx_delay);
+		}
+
 		xgene_enet_rd_csr(pdata, DEBUG_REG_ADDR, &value);
 		value |= CFG_BYPASS_UNISEC_TX | CFG_BYPASS_UNISEC_RX;
 		xgene_enet_wr_csr(pdata, DEBUG_REG_ADDR, value);
