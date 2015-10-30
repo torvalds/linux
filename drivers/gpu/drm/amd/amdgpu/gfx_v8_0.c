@@ -2971,9 +2971,12 @@ static int gfx_v8_0_cp_gfx_start(struct amdgpu_device *adev)
 	amdgpu_ring_write(ring, mmPA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START);
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
-	case CHIP_FIJI:
 		amdgpu_ring_write(ring, 0x16000012);
 		amdgpu_ring_write(ring, 0x0000002A);
+		break;
+	case CHIP_FIJI:
+		amdgpu_ring_write(ring, 0x3a00161a);
+		amdgpu_ring_write(ring, 0x0000002e);
 		break;
 	case CHIP_TOPAZ:
 	case CHIP_CARRIZO:
