@@ -1445,6 +1445,13 @@ int fib_sync_up(struct net_device *dev, unsigned int nh_flags)
 	if (!(dev->flags & IFF_UP))
 		return 0;
 
+	if (nh_flags & RTNH_F_DEAD) {
+		unsigned int flags = dev_get_flags(dev);
+
+		if (flags & (IFF_RUNNING | IFF_LOWER_UP))
+			nh_flags |= RTNH_F_LINKDOWN;
+	}
+
 	prev_fi = NULL;
 	hash = fib_devindex_hashfn(dev->ifindex);
 	head = &fib_info_devhash[hash];
