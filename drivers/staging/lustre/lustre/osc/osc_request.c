@@ -104,7 +104,7 @@ struct osc_enqueue_args {
 static void osc_release_ppga(struct brw_page **ppga, u32 count);
 static int brw_interpret(const struct lu_env *env,
 			 struct ptlrpc_request *req, void *data, int rc);
-int osc_cleanup(struct obd_device *obd);
+static int osc_cleanup(struct obd_device *obd);
 
 /* Pack OSC object metadata for disk storage (LE byte order). */
 static int osc_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
@@ -431,8 +431,9 @@ static int osc_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 				      oinfo->oi_cb_up, oinfo, rqset);
 }
 
-int osc_real_create(struct obd_export *exp, struct obdo *oa,
-		    struct lov_stripe_md **ea, struct obd_trans_info *oti)
+static int osc_real_create(struct obd_export *exp, struct obdo *oa,
+			   struct lov_stripe_md **ea,
+			   struct obd_trans_info *oti)
 {
 	struct ptlrpc_request *req;
 	struct ost_body *body;
@@ -689,9 +690,9 @@ static int osc_can_send_destroy(struct client_obd *cli)
 	return 0;
 }
 
-int osc_create(const struct lu_env *env, struct obd_export *exp,
-	       struct obdo *oa, struct lov_stripe_md **ea,
-	       struct obd_trans_info *oti)
+static int osc_create(const struct lu_env *env, struct obd_export *exp,
+		      struct obdo *oa, struct lov_stripe_md **ea,
+		      struct obd_trans_info *oti)
 {
 	int rc = 0;
 
