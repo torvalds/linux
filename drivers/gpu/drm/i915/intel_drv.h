@@ -965,7 +965,8 @@ void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 					 enum pipe pipe);
 void intel_pch_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 					 enum transcoder pch_transcoder);
-void i9xx_check_fifo_underruns(struct drm_i915_private *dev_priv);
+void intel_check_cpu_fifo_underruns(struct drm_i915_private *dev_priv);
+void intel_check_pch_fifo_underruns(struct drm_i915_private *dev_priv);
 
 /* i915_irq.c */
 void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);

@@ -4688,9 +4688,9 @@ intel_post_enable_primary(struct drm_crtc *crtc)
 	if (IS_GEN2(dev))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
-	/* Underruns don't raise interrupts, so check manually. */
-	if (HAS_GMCH_DISPLAY(dev))
-		i9xx_check_fifo_underruns(dev_priv);
+	/* Underruns don't always raise interrupts, so check manually. */
+	intel_check_cpu_fifo_underruns(dev_priv);
+	intel_check_pch_fifo_underruns(dev_priv);
 }
 
 /**

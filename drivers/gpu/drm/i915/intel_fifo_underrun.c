@@ -84,38 +84,21 @@ static bool cpt_can_enable_serr_int(struct drm_device *dev)
 	return true;
 }
 
-/**
- * i9xx_check_fifo_underruns - check for fifo underruns
- * @dev_priv: i915 device instance
- *
- * This function checks for fifo underruns on GMCH platforms. This needs to be
- * done manually on modeset to make sure that we catch all underruns since they
- * do not generate an interrupt by themselves on these platforms.
- */
-void i9xx_check_fifo_underruns(struct drm_i915_private *dev_priv)
+static void i9xx_check_fifo_underruns(struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 reg = PIPESTAT(crtc->pipe);
+	u32 pipestat = I915_READ(reg) & 0xffff0000;
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	assert_spin_locked(&dev_priv->irq_lock);
 
-	for_each_intel_crtc(dev_priv->dev, crtc) {
-		u32 reg = PIPESTAT(crtc->pipe);
-		u32 pipestat;
+	if ((pipestat & PIPE_FIFO_UNDERRUN_STATUS) == 0)
+		return;
 
-		if (crtc->cpu_fifo_underrun_disabled)
-			continue;
+	I915_WRITE(reg, pipestat | PIPE_FIFO_UNDERRUN_STATUS);
+	POSTING_READ(reg);
 
-		pipestat = I915_READ(reg) & 0xffff0000;
-		if ((pipestat & PIPE_FIFO_UNDERRUN_STATUS) == 0)
-			continue;
-
-		I915_WRITE(reg, pipestat | PIPE_FIFO_UNDERRUN_STATUS);
-		POSTING_READ(reg);
-
-		DRM_ERROR("pipe %c underrun\n", pipe_name(crtc->pipe));
-	}
-
-	spin_unlock_irq(&dev_priv->irq_lock);
+	DRM_ERROR("pipe %c underrun\n", pipe_name(crtc->pipe));
 }
 
 static void i9xx_set_fifo_underrun_reporting(struct drm_device *dev,
@@ -148,6 +131,23 @@ static void ironlake_set_fifo_underrun_reporting(struct drm_device *dev,
 		ironlake_enable_display_irq(dev_priv, bit);
 	else
 		ironlake_disable_display_irq(dev_priv, bit);
+}
+
+static void ivybridge_check_fifo_underruns(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	uint32_t err_int = I915_READ(GEN7_ERR_INT);
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	if ((err_int & ERR_INT_FIFO_UNDERRUN(pipe)) == 0)
+		return;
+
+	I915_WRITE(GEN7_ERR_INT, ERR_INT_FIFO_UNDERRUN(pipe));
+	POSTING_READ(GEN7_ERR_INT);
+
+	DRM_ERROR("fifo underrun on pipe %c\n", pipe_name(pipe));
 }
 
 static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
@@ -200,6 +200,24 @@ static void ibx_set_fifo_underrun_reporting(struct drm_device *dev,
 		ibx_enable_display_interrupt(dev_priv, bit);
 	else
 		ibx_disable_display_interrupt(dev_priv, bit);
+}
+
+static void cpt_check_pch_fifo_underruns(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder pch_transcoder = (enum transcoder) crtc->pipe;
+	uint32_t serr_int = I915_READ(SERR_INT);
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	if ((serr_int & SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder)) == 0)
+		return;
+
+	I915_WRITE(SERR_INT, SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder));
+	POSTING_READ(SERR_INT);
+
+	DRM_ERROR("pch fifo underrun on pch transcoder %c\n",
+		  transcoder_name(pch_transcoder));
 }
 
 static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
@@ -374,4 +392,57 @@ void intel_pch_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 						  false))
 		DRM_ERROR("PCH transcoder %c FIFO underrun\n",
 			  transcoder_name(pch_transcoder));
+}
+
+/**
+ * intel_check_cpu_fifo_underruns - check for CPU fifo underruns immediately
+ * @dev_priv: i915 device instance
+ *
+ * Check for CPU fifo underruns immediately. Useful on IVB/HSW where the shared
+ * error interrupt may have been disabled, and so CPU fifo underruns won't
+ * necessarily raise an interrupt, and on GMCH platforms where underruns never
+ * raise an interrupt.
+ */
+void intel_check_cpu_fifo_underruns(struct drm_i915_private *dev_priv)
+{
+	struct intel_crtc *crtc;
+
+	spin_lock_irq(&dev_priv->irq_lock);
+
+	for_each_intel_crtc(dev_priv->dev, crtc) {
+		if (crtc->cpu_fifo_underrun_disabled)
+			continue;
+
+		if (HAS_GMCH_DISPLAY(dev_priv))
+			i9xx_check_fifo_underruns(crtc);
+		else if (IS_GEN7(dev_priv))
+			ivybridge_check_fifo_underruns(crtc);
+	}
+
+	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
+/**
+ * intel_check_pch_fifo_underruns - check for PCH fifo underruns immediately
+ * @dev_priv: i915 device instance
+ *
+ * Check for PCH fifo underruns immediately. Useful on CPT/PPT where the shared
+ * error interrupt may have been disabled, and so PCH fifo underruns won't
+ * necessarily raise an interrupt.
+ */
+void intel_check_pch_fifo_underruns(struct drm_i915_private *dev_priv)
+{
+	struct intel_crtc *crtc;
+
+	spin_lock_irq(&dev_priv->irq_lock);
+
+	for_each_intel_crtc(dev_priv->dev, crtc) {
+		if (crtc->pch_fifo_underrun_disabled)
+			continue;
+
+		if (HAS_PCH_CPT(dev_priv))
+			cpt_check_pch_fifo_underruns(crtc);
+	}
+
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
