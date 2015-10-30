@@ -236,6 +236,8 @@ int drv_switch_vif_chanctx(struct ieee80211_local *local,
 	int ret = 0;
 	int i;
 
+	might_sleep();
+
 	if (!local->ops->switch_vif_chanctx)
 		return -EOPNOTSUPP;
 
