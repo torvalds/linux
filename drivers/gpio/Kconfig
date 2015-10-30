@@ -183,16 +183,6 @@ config GPIO_ETRAXFS
 	help
 	  Say yes here to support the GPIO controller on Axis ETRAX FS SoCs.
 
-config GPIO_F7188X
-	tristate "F71869, F71869A, F71882FG and F71889F GPIO support"
-	depends on X86
-	help
-	  This option enables support for GPIOs found on Fintek Super-I/O
-	  chips F71869, F71869A, F71882FG and F71889F.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called f7188x-gpio.
-
 config GPIO_GE_FPGA
 	bool "GE FPGA based GPIO"
 	depends on GE_FPGA
@@ -241,18 +231,6 @@ config GPIO_IOP
 	  IOP32X or IOP33X.
 
 	  If unsure, say N.
-
-config GPIO_IT87
-	tristate "IT87xx GPIO support"
-	depends on X86 # unconditional access to IO space.
-	help
-	  Say yes here to support GPIO functionality of IT87xx Super I/O chips.
-
-	  This driver is tested with ITE IT8728 and IT8732 Super I/O chips, and
-	  supports the IT8761E Super I/O chip as well.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called gpio_it87
 
 config GPIO_LOONGSON
 	bool "Loongson-2/3 GPIO support"
@@ -373,42 +351,6 @@ config GPIO_SAMSUNG
 	  Legacy GPIO support. Use only for platforms without support for
 	  pinctrl.
 
-config GPIO_SCH
-	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
-	depends on PCI && X86
-	select MFD_CORE
-	select LPC_SCH
-	help
-	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
-	  Intel Tunnel Creek processor, Intel Centerton processor or
-	  Intel Quark X1000 SoC.
-
-	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
-	  powered by the core power rail and are turned off during sleep
-	  modes (S3 and higher). The remaining four GPIOs are powered by
-	  the Intel SCH suspend power supply. These GPIOs remain
-	  active during S3. The suspend powered GPIOs can be used to wake the
-	  system from the Suspend-to-RAM state.
-
-	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
-	  core power rail and 9 from suspend power supply.
-
-	  The Intel Centerton processor has a total of 30 GPIO pins.
-	  Twenty-one are powered by the core power rail and 9 from the
-	  suspend power supply.
-
-	  The Intel Quark X1000 SoC has 2 GPIOs powered by the core
-	  power well and 6 from the suspend power well.
-
-config GPIO_SCH311X
-	tristate "SMSC SCH311x SuperI/O GPIO"
-	help
-	  Driver to enable the GPIOs found on SMSC SMSC SCH3112, SCH3114 and
-	  SCH3116 "Super I/O" chipsets.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called gpio-sch311x.
-
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
@@ -444,15 +386,6 @@ config GPIO_TB10X
 	bool
 	select GENERIC_IRQ_CHIP
 	select OF_GPIO
-
-config GPIO_TS5500
-	tristate "TS-5500 DIO blocks and compatibles"
-	depends on TS5500 || COMPILE_TEST
-	help
-	  This driver supports Digital I/O exposed by pin blocks found on some
-	  Technologic Systems platforms. It includes, but is not limited to, 3
-	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
-	  LCD port.
 
 config GPIO_TZ1090
 	bool "Toumaz Xenif TZ1090 GPIO support"
@@ -549,6 +482,84 @@ config GPIO_ZYNQ
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support Xilinx Zynq GPIO controller.
+
+endmenu
+
+menu "Port-mapped I/O GPIO drivers"
+	depends on X86
+
+config GPIO_104_IDIO_16
+	tristate "ACCES 104-IDIO-16 GPIO support"
+	depends on X86
+	help
+	  Enables GPIO support for the ACCES 104-IDIO-16 family.
+
+config GPIO_F7188X
+	tristate "F71869, F71869A, F71882FG and F71889F GPIO support"
+	depends on X86
+	help
+	  This option enables support for GPIOs found on Fintek Super-I/O
+	  chips F71869, F71869A, F71882FG and F71889F.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called f7188x-gpio.
+
+config GPIO_IT87
+	tristate "IT87xx GPIO support"
+	depends on X86 # unconditional access to IO space.
+	help
+	  Say yes here to support GPIO functionality of IT87xx Super I/O chips.
+
+	  This driver is tested with ITE IT8728 and IT8732 Super I/O chips, and
+	  supports the IT8761E Super I/O chip as well.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio_it87
+
+config GPIO_SCH
+	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
+	depends on PCI && X86
+	select MFD_CORE
+	select LPC_SCH
+	help
+	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
+	  Intel Tunnel Creek processor, Intel Centerton processor or
+	  Intel Quark X1000 SoC.
+
+	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
+	  powered by the core power rail and are turned off during sleep
+	  modes (S3 and higher). The remaining four GPIOs are powered by
+	  the Intel SCH suspend power supply. These GPIOs remain
+	  active during S3. The suspend powered GPIOs can be used to wake the
+	  system from the Suspend-to-RAM state.
+
+	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
+	  core power rail and 9 from suspend power supply.
+
+	  The Intel Centerton processor has a total of 30 GPIO pins.
+	  Twenty-one are powered by the core power rail and 9 from the
+	  suspend power supply.
+
+	  The Intel Quark X1000 SoC has 2 GPIOs powered by the core
+	  power well and 6 from the suspend power well.
+
+config GPIO_SCH311X
+	tristate "SMSC SCH311x SuperI/O GPIO"
+	help
+	  Driver to enable the GPIOs found on SMSC SMSC SCH3112, SCH3114 and
+	  SCH3116 "Super I/O" chipsets.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-sch311x.
+
+config GPIO_TS5500
+	tristate "TS-5500 DIO blocks and compatibles"
+	depends on TS5500 || COMPILE_TEST
+	help
+	  This driver supports Digital I/O exposed by pin blocks found on some
+	  Technologic Systems platforms. It includes, but is not limited to, 3
+	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
+	  LCD port.
 
 endmenu
 
@@ -686,16 +697,6 @@ config GPIO_SX150X
 
 	  8 bits:  sx1508q
 	  16 bits: sx1509q
-
-endmenu
-
-menu "ISA GPIO drivers"
-
-config GPIO_104_IDIO_16
-	tristate "ACCES 104-IDIO-16 GPIO support"
-	depends on X86
-	help
-	  Enables GPIO support for the ACCES 104-IDIO-16 family.
 
 endmenu
 
