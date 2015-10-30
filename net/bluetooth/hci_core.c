@@ -65,13 +65,6 @@ static DEFINE_IDA(hci_index_ida);
 #define hci_req_lock(d)		mutex_lock(&d->req_lock)
 #define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
 
-/* ---- HCI notifications ---- */
-
-static void hci_notify(struct hci_dev *hdev, int event)
-{
-	hci_sock_dev_event(hdev, event);
-}
-
 /* ---- HCI debugfs entries ---- */
 
 static ssize_t dut_mode_read(struct file *file, char __user *user_buf,
@@ -1455,7 +1448,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	}
 
 	set_bit(HCI_RUNNING, &hdev->flags);
-	hci_notify(hdev, HCI_DEV_OPEN);
+	hci_sock_dev_event(hdev, HCI_DEV_OPEN);
 
 	atomic_set(&hdev->cmd_cnt, 1);
 	set_bit(HCI_INIT, &hdev->flags);
@@ -1524,7 +1517,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		hci_dev_hold(hdev);
 		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
 		set_bit(HCI_UP, &hdev->flags);
-		hci_notify(hdev, HCI_DEV_UP);
+		hci_sock_dev_event(hdev, HCI_DEV_UP);
 		if (!hci_dev_test_flag(hdev, HCI_SETUP) &&
 		    !hci_dev_test_flag(hdev, HCI_CONFIG) &&
 		    !hci_dev_test_flag(hdev, HCI_UNCONFIGURED) &&
@@ -1552,7 +1545,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		}
 
 		clear_bit(HCI_RUNNING, &hdev->flags);
-		hci_notify(hdev, HCI_DEV_CLOSE);
+		hci_sock_dev_event(hdev, HCI_DEV_CLOSE);
 
 		hdev->close(hdev);
 		hdev->flags &= BIT(HCI_RAW);
@@ -1708,7 +1701,7 @@ int hci_dev_do_close(struct hci_dev *hdev)
 
 	smp_unregister(hdev);
 
-	hci_notify(hdev, HCI_DEV_DOWN);
+	hci_sock_dev_event(hdev, HCI_DEV_DOWN);
 
 	if (hdev->flush)
 		hdev->flush(hdev);
@@ -1739,7 +1732,7 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	}
 
 	clear_bit(HCI_RUNNING, &hdev->flags);
-	hci_notify(hdev, HCI_DEV_CLOSE);
+	hci_sock_dev_event(hdev, HCI_DEV_CLOSE);
 
 	/* After this point our queues are empty
 	 * and no tasks are scheduled. */
@@ -3414,7 +3407,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		hci_dev_set_flag(hdev, HCI_UNCONFIGURED);
 
-	hci_notify(hdev, HCI_DEV_REG);
+	hci_sock_dev_event(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
 
 	queue_work(hdev->req_workqueue, &hdev->power_on);
@@ -3462,7 +3455,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	 * pending list */
 	BUG_ON(!list_empty(&hdev->mgmt_pending));
 
-	hci_notify(hdev, HCI_DEV_UNREG);
+	hci_sock_dev_event(hdev, HCI_DEV_UNREG);
 
 	if (hdev->rfkill) {
 		rfkill_unregister(hdev->rfkill);
@@ -3499,7 +3492,7 @@ EXPORT_SYMBOL(hci_unregister_dev);
 /* Suspend HCI device */
 int hci_suspend_dev(struct hci_dev *hdev)
 {
-	hci_notify(hdev, HCI_DEV_SUSPEND);
+	hci_sock_dev_event(hdev, HCI_DEV_SUSPEND);
 	return 0;
 }
 EXPORT_SYMBOL(hci_suspend_dev);
@@ -3507,7 +3500,7 @@ EXPORT_SYMBOL(hci_suspend_dev);
 /* Resume HCI device */
 int hci_resume_dev(struct hci_dev *hdev)
 {
-	hci_notify(hdev, HCI_DEV_RESUME);
+	hci_sock_dev_event(hdev, HCI_DEV_RESUME);
 	return 0;
 }
 EXPORT_SYMBOL(hci_resume_dev);
@@ -3650,7 +3643,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
 	/* Stand-alone HCI commands must be flagged as
 	 * single-command requests.
 	 */
-	bt_cb(skb)->req.start = true;
+	bt_cb(skb)->hci.req_start = true;
 
 	skb_queue_tail(&hdev->cmd_q, skb);
 	queue_work(hdev->workqueue, &hdev->cmd_work);
@@ -4347,7 +4340,7 @@ static bool hci_req_is_complete(struct hci_dev *hdev)
 	if (!skb)
 		return true;
 
-	return bt_cb(skb)->req.start;
+	return bt_cb(skb)->hci.req_start;
 }
 
 static void hci_resend_last(struct hci_dev *hdev)
@@ -4407,26 +4400,26 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status,
 	 * callback would be found in hdev->sent_cmd instead of the
 	 * command queue (hdev->cmd_q).
 	 */
-	if (bt_cb(hdev->sent_cmd)->req.complete) {
-		*req_complete = bt_cb(hdev->sent_cmd)->req.complete;
+	if (bt_cb(hdev->sent_cmd)->hci.req_complete) {
+		*req_complete = bt_cb(hdev->sent_cmd)->hci.req_complete;
 		return;
 	}
 
-	if (bt_cb(hdev->sent_cmd)->req.complete_skb) {
-		*req_complete_skb = bt_cb(hdev->sent_cmd)->req.complete_skb;
+	if (bt_cb(hdev->sent_cmd)->hci.req_complete_skb) {
+		*req_complete_skb = bt_cb(hdev->sent_cmd)->hci.req_complete_skb;
 		return;
 	}
 
 	/* Remove all pending commands belonging to this request */
 	spin_lock_irqsave(&hdev->cmd_q.lock, flags);
 	while ((skb = __skb_dequeue(&hdev->cmd_q))) {
-		if (bt_cb(skb)->req.start) {
+		if (bt_cb(skb)->hci.req_start) {
 			__skb_queue_head(&hdev->cmd_q, skb);
 			break;
 		}
 
-		*req_complete = bt_cb(skb)->req.complete;
-		*req_complete_skb = bt_cb(skb)->req.complete_skb;
+		*req_complete = bt_cb(skb)->hci.req_complete;
+		*req_complete_skb = bt_cb(skb)->hci.req_complete_skb;
 		kfree_skb(skb);
 	}
 	spin_unlock_irqrestore(&hdev->cmd_q.lock, flags);
