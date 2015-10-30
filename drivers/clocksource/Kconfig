@@ -121,8 +121,10 @@ config CLKSRC_LPC32XX
 	select CLKSRC_OF
 
 config CLKSRC_PISTACHIO
-	bool
+	bool "Clocksource for Pistachio SoC" if COMPILE_TEST
 	select CLKSRC_OF
+	help
+	  Enables the clocksource for the Pistachio SoC.
 
 config CLKSRC_TI_32K
 	bool "Texas Instruments 32.768 Hz Clocksource" if COMPILE_TEST
