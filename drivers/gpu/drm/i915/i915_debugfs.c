@@ -2802,16 +2802,16 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 
 	csr = &dev_priv->csr;
 
+	intel_runtime_pm_get(dev_priv);
+
 	seq_printf(m, "fw loaded: %s\n", yesno(csr->dmc_payload != NULL));
 	seq_printf(m, "path: %s\n", csr->fw_path);
 
 	if (!csr->dmc_payload)
-		return 0;
+		goto out;
 
 	seq_printf(m, "version: %d.%d\n", CSR_VERSION_MAJOR(csr->version),
 		   CSR_VERSION_MINOR(csr->version));
-
-	intel_runtime_pm_get(dev_priv);
 
 	if (IS_SKYLAKE(dev) && csr->version >= CSR_VERSION(1, 6)) {
 		seq_printf(m, "DC3 -> DC5 count: %d\n",
@@ -2822,6 +2822,11 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 		seq_printf(m, "DC3 -> DC5 count: %d\n",
 			   I915_READ(BXT_CSR_DC3_DC5_COUNT));
 	}
+
+out:
+	seq_printf(m, "program base: 0x%08x\n", I915_READ(CSR_PROGRAM(0)));
+	seq_printf(m, "ssp base: 0x%08x\n", I915_READ(CSR_SSP_BASE));
+	seq_printf(m, "htp: 0x%08x\n", I915_READ(CSR_HTP_SKL));
 
 	intel_runtime_pm_put(dev_priv);
 
