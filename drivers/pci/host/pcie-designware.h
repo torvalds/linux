@@ -33,7 +33,6 @@ struct pcie_port {
 	void __iomem		*va_cfg1_base;
 	u32			cfg1_size;
 	resource_size_t		io_base;
-	resource_size_t		io_base_tmp;
 	phys_addr_t		io_bus_addr;
 	u32			io_size;
 	u64			mem_base;
