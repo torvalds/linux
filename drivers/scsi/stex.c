@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/ktime.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
@@ -361,14 +362,6 @@ MODULE_AUTHOR("Ed Lin");
 MODULE_DESCRIPTION("Promise Technology SuperTrak EX Controllers");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ST_DRIVER_VERSION);
-
-static void stex_gettime(__le64 *time)
-{
-	struct timeval tv;
-
-	do_gettimeofday(&tv);
-	*time = cpu_to_le64(tv.tv_sec);
-}
 
 static struct status_msg *stex_get_status(struct st_hba *hba)
 {
@@ -1002,7 +995,7 @@ static int stex_common_handshake(struct st_hba *hba)
 	h->req_cnt = cpu_to_le16(hba->rq_count+1);
 	h->status_sz = cpu_to_le16(sizeof(struct status_msg));
 	h->status_cnt = cpu_to_le16(hba->sts_count+1);
-	stex_gettime(&h->hosttime);
+	h->hosttime = cpu_to_le64(ktime_get_real_seconds());
 	h->partner_type = HMU_PARTNER_TYPE;
 	if (hba->extra_offset) {
 		h->extra_offset = cpu_to_le32(hba->extra_offset);
@@ -1076,7 +1069,7 @@ static int stex_ss_handshake(struct st_hba *hba)
 	h->req_cnt = cpu_to_le16(hba->rq_count+1);
 	h->status_sz = cpu_to_le16(sizeof(struct status_msg));
 	h->status_cnt = cpu_to_le16(hba->sts_count+1);
-	stex_gettime(&h->hosttime);
+	h->hosttime = cpu_to_le64(ktime_get_real_seconds());
 	h->partner_type = HMU_PARTNER_TYPE;
 	h->extra_offset = h->extra_size = 0;
 	scratch_size = (hba->sts_count+1)*sizeof(u32);
