@@ -9,6 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/busfreq-imx.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -112,6 +113,11 @@
 #define GPIO_IMR		0x14
 #define GPIO_EDGE		0x1c
 
+#define M4RCR			0x0C
+#define M4_SP_OFF		0x00
+#define M4_PC_OFF		0x04
+#define M4_RCR_HALT		0xAB
+#define M4_RCR_GO		0xAA
 extern unsigned long iram_tlb_base_addr;
 extern unsigned long iram_tlb_phys_addr;
 
@@ -120,6 +126,11 @@ static void __iomem *ocram_base;
 static unsigned int ocram_size;
 static unsigned int *lpm_ocram_saved_in_ddr;
 static void __iomem *lpm_ocram_base;
+
+static unsigned int *lpm_m4tcm_saved_in_ddr;
+static void __iomem *lpm_m4tcm_base;
+static void __iomem *m4_bootrom_base;
+
 static unsigned int lpm_ocram_size;
 static void __iomem *ccm_base;
 static void __iomem *lpsr_base;
@@ -695,6 +706,10 @@ static int imx7_pm_enter(suspend_state_t state)
 		imx_anatop_pre_suspend();
 		imx_gpcv2_pre_suspend(true);
 		if (imx_gpcv2_is_mf_mix_off()) {
+			/* stop m4 if mix will also be shutdown */
+			if (imx_src_is_m4_enabled() && imx_mu_is_m4_in_stop())
+				writel(M4_RCR_HALT,
+					pm_info->src_base.vbase + M4RCR);
 			imx7_console_save(console_saved_reg);
 			memcpy(ocram_saved_in_ddr, ocram_base, ocram_size);
 			if (lpsr_enabled) {
@@ -728,6 +743,24 @@ static int imx7_pm_enter(suspend_state_t state)
 			imx7_pm_is_resume_from_lpsr()) {
 			memcpy(ocram_base, ocram_saved_in_ddr, ocram_size);
 			imx7_console_restore(console_saved_reg);
+			if (imx_src_is_m4_enabled() && imx_mu_is_m4_in_stop()) {
+				/* restore M4 image */
+				memcpy(lpm_m4tcm_base,
+				    lpm_m4tcm_saved_in_ddr, SZ_32K);
+				/* set sp from word in the image */
+				writel(*(lpm_m4tcm_saved_in_ddr),
+				    m4_bootrom_base + M4_SP_OFF);
+				/* set PC from next word */
+				writel(*(lpm_m4tcm_saved_in_ddr+1),
+				    m4_bootrom_base + M4_PC_OFF);
+				/* kick m4 to enable */
+				writel(M4_RCR_GO,
+					pm_info->src_base.vbase + M4RCR);
+				/* offset high bus count for m4 image */
+				request_bus_freq(BUS_FREQ_HIGH);
+				/* gpc wakeup */
+				imx_mu_lpm_ready(true);
+			}
 		}
 		/* clear LPSR resume address */
 		imx7_pm_set_lpsr_resume_addr(0);
@@ -998,7 +1031,27 @@ void __init imx7d_pm_init(void)
 {
 	struct device_node *np;
 	struct resource res;
+	if (imx_src_is_m4_enabled()) {
+		/* map the 32K of M4 TCM */
+		np = of_find_node_by_path(
+			"/tcml@007f8000");
+		if (np)
+			lpm_m4tcm_base = of_iomap(np, 0);
+		WARN_ON(!lpm_m4tcm_base);
 
+		/* map the m4 bootrom from dtb */
+		np = of_find_node_by_path(
+			"/soc/sram@00180000");
+		if (np)
+			m4_bootrom_base = of_iomap(np, 0);
+		WARN_ON(!m4_bootrom_base);
+
+		lpm_m4tcm_saved_in_ddr = kzalloc(SZ_32K, GFP_KERNEL);
+		WARN_ON(!lpm_m4tcm_saved_in_ddr);
+
+		/* save M4 Image to DDR */
+		memcpy(lpm_m4tcm_saved_in_ddr, lpm_m4tcm_base, SZ_32K);
+	}
 	np = of_find_compatible_node(NULL, NULL, "fsl,lpm-sram");
 	if (of_get_property(np, "fsl,enable-lpsr", NULL))
 		lpsr_enabled = true;
