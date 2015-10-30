@@ -807,7 +807,7 @@ static unsigned int skl_get_position(struct hdac_ext_stream *hstream,
 {
 	struct hdac_stream *hstr = hdac_stream(hstream);
 	struct snd_pcm_substream *substream = hstr->substream;
-	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_ext_bus *ebus;
 	unsigned int pos;
 	int delay;
 
@@ -818,6 +818,7 @@ static unsigned int skl_get_position(struct hdac_ext_stream *hstream,
 		pos = 0;
 
 	if (substream->runtime) {
+		ebus = get_bus_ctx(substream);
 		delay = skl_get_delay_from_lpib(ebus, hstream, pos)
 						 + codec_delay;
 		substream->runtime->delay += delay;
