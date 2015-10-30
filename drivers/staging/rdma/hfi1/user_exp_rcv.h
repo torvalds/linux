@@ -1,3 +1,5 @@
+#ifndef _HFI1_USER_EXP_RCV_H
+#define _HFI1_USER_EXP_RCV_H
 /*
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
@@ -47,35 +49,26 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <linux/device.h>
-#include <linux/wait.h>
 
-#include "common.h"
-#include "iowait.h"
-#include "user_exp_rcv.h"
+#define EXP_TID_TIDLEN_MASK   0x7FFULL
+#define EXP_TID_TIDLEN_SHIFT  0
+#define EXP_TID_TIDCTRL_MASK  0x3ULL
+#define EXP_TID_TIDCTRL_SHIFT 20
+#define EXP_TID_TIDIDX_MASK   0x3FFULL
+#define EXP_TID_TIDIDX_SHIFT  22
+#define EXP_TID_GET(tid, field)	\
+	(((tid) >> EXP_TID_TID##field##_SHIFT) & EXP_TID_TID##field##_MASK)
 
-extern uint extended_psn;
+#define EXP_TID_SET(field, value)			\
+	(((value) & EXP_TID_TID##field##_MASK) <<	\
+	 EXP_TID_TID##field##_SHIFT)
+#define EXP_TID_CLEAR(tid, field) ({					\
+		(tid) &= ~(EXP_TID_TID##field##_MASK <<			\
+			   EXP_TID_TID##field##_SHIFT);			\
+		})
+#define EXP_TID_RESET(tid, field, value) do {				\
+		EXP_TID_CLEAR(tid, field);				\
+		(tid) |= EXP_TID_SET(field, (value));			\
+	} while (0)
 
-struct hfi1_user_sdma_pkt_q {
-	struct list_head list;
-	unsigned ctxt;
-	unsigned subctxt;
-	u16 n_max_reqs;
-	atomic_t n_reqs;
-	u16 reqidx;
-	struct hfi1_devdata *dd;
-	struct kmem_cache *txreq_cache;
-	struct user_sdma_request *reqs;
-	struct iowait busy;
-	unsigned state;
-};
-
-struct hfi1_user_sdma_comp_q {
-	u16 nentries;
-	struct hfi1_sdma_comp_entry *comps;
-};
-
-int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *, struct file *);
-int hfi1_user_sdma_free_queues(struct hfi1_filedata *);
-int hfi1_user_sdma_process_request(struct file *, struct iovec *, unsigned long,
-				   unsigned long *);
+#endif /* _HFI1_USER_EXP_RCV_H */

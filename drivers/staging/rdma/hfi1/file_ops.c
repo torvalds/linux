@@ -58,6 +58,7 @@
 #include "common.h"
 #include "trace.h"
 #include "user_sdma.h"
+#include "user_exp_rcv.h"
 #include "eprom.h"
 
 #undef pr_fmt
@@ -159,18 +160,6 @@ enum mmap_types {
 	HFI1_MMAP_TOKEN_SET(CTXT, ctxt) | \
 	HFI1_MMAP_TOKEN_SET(SUBCTXT, subctxt) | \
 	HFI1_MMAP_TOKEN_SET(OFFSET, (offset_in_page(addr))))
-
-#define EXP_TID_SET(field, value)			\
-	(((value) & EXP_TID_TID##field##_MASK) <<	\
-	 EXP_TID_TID##field##_SHIFT)
-#define EXP_TID_CLEAR(tid, field) {					\
-		(tid) &= ~(EXP_TID_TID##field##_MASK <<			\
-			   EXP_TID_TID##field##_SHIFT);			\
-			}
-#define EXP_TID_RESET(tid, field, value) do {				\
-		EXP_TID_CLEAR(tid, field);				\
-		(tid) |= EXP_TID_SET(field, value);			\
-	} while (0)
 
 #define dbg(fmt, ...)				\
 	pr_info(fmt, ##__VA_ARGS__)
