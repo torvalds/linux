@@ -456,6 +456,8 @@
 	pwm0: pwm@110b0000 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0x110b0000 0x10>;
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm0_pin>;
@@ -467,6 +469,8 @@
 	pwm1: pwm@110b0010 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0x110b0010 0x10>;
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm1_pin>;
@@ -478,6 +482,8 @@
 	pwm2: pwm@110b0020 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0x110b0020 0x10>;
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm2_pin>;
@@ -489,6 +495,8 @@
 	pwm3: pwm@110b0030 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0x110b0030 0x10>;
+		/* used by driver on remotectl'pwm */
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwmir_pin>;
