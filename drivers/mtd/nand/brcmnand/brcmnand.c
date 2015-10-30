@@ -1913,6 +1913,7 @@ static int brcmnand_init_cs(struct brcmnand_host *host)
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
 	int ret;
+	u16 cfg_offs;
 	struct mtd_part_parser_data ppdata = { .of_node = dn };
 
 	ret = of_property_read_u32(dn, "reg", &host->cs);
@@ -1954,6 +1955,15 @@ static int brcmnand_init_cs(struct brcmnand_host *host)
 	chip->ecc.write_oob = brcmnand_write_oob;
 
 	chip->controller = &ctrl->controller;
+
+	/*
+	 * The bootloader might have configured 16bit mode but
+	 * NAND READID command only works in 8bit mode. We force
+	 * 8bit mode here to ensure that NAND READID commands works.
+	 */
+	cfg_offs = brcmnand_cs_offset(ctrl, host->cs, BRCMNAND_CS_CFG);
+	nand_writereg(ctrl, cfg_offs,
+		      nand_readreg(ctrl, cfg_offs) & ~CFG_BUS_WIDTH);
 
 	if (nand_scan_ident(mtd, 1, NULL))
 		return -ENXIO;
