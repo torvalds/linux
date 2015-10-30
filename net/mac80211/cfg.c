@@ -1994,6 +1994,11 @@ static int ieee80211_scan(struct wiphy *wiphy,
 	return ieee80211_request_scan(sdata, req);
 }
 
+static void ieee80211_abort_scan(struct wiphy *wiphy, struct wireless_dev *wdev)
+{
+	ieee80211_scan_cancel(wiphy_priv(wiphy));
+}
+
 static int
 ieee80211_sched_scan_start(struct wiphy *wiphy,
 			   struct net_device *dev,
@@ -3842,6 +3847,7 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.suspend = ieee80211_suspend,
 	.resume = ieee80211_resume,
 	.scan = ieee80211_scan,
+	.abort_scan = ieee80211_abort_scan,
 	.sched_scan_start = ieee80211_sched_scan_start,
 	.sched_scan_stop = ieee80211_sched_scan_stop,
 	.auth = ieee80211_auth,
