@@ -1151,6 +1151,9 @@ static int busfreq_probe(struct platform_device *pdev)
 			high_bus_count++;
 	}
 
+	if (cpu_is_imx7d() && imx_src_is_m4_enabled())
+		high_bus_count++;
+
 	if (err) {
 		dev_err(busfreq_dev, "Busfreq init of ddr controller failed\n");
 		return err;
