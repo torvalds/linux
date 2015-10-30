@@ -1079,6 +1079,15 @@ intel_wait_for_vblank(struct drm_device *dev, int pipe)
 {
 	drm_wait_one_vblank(dev, pipe);
 }
+static inline void
+intel_wait_for_vblank_if_active(struct drm_device *dev, int pipe)
+{
+	const struct intel_crtc *crtc =
+		to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
+
+	if (crtc->active)
+		intel_wait_for_vblank(dev, pipe);
+}
 int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 			 struct intel_digital_port *dport,

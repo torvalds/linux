@@ -3655,6 +3655,13 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	 * matching HDMI port to be enabled on transcoder A.
 	 */
 	if (HAS_PCH_IBX(dev) && crtc->pipe == PIPE_B && port != PORT_A) {
+		/*
+		 * We get CPU/PCH FIFO underruns on the other pipe when
+		 * doing the workaround. Sweep them under the rug.
+		 */
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+
 		/* always enable with pattern 1 (as per spec) */
 		DP &= ~(DP_PIPEB_SELECT | DP_LINK_TRAIN_MASK);
 		DP |= DP_PORT_EN | DP_LINK_TRAIN_PAT_1;
@@ -3664,6 +3671,10 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		DP &= ~DP_PORT_EN;
 		I915_WRITE(intel_dp->output_reg, DP);
 		POSTING_READ(intel_dp->output_reg);
+
+		intel_wait_for_vblank_if_active(dev_priv->dev, PIPE_A);
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}
 
 	msleep(intel_dp->panel_power_down_delay);

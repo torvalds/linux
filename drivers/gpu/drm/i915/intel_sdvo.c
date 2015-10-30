@@ -1464,12 +1464,23 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 	 * matching DP port to be enabled on transcoder A.
 	 */
 	if (HAS_PCH_IBX(dev_priv) && crtc->pipe == PIPE_B) {
+		/*
+		 * We get CPU/PCH FIFO underruns on the other pipe when
+		 * doing the workaround. Sweep them under the rug.
+		 */
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+
 		temp &= ~SDVO_PIPE_B_SELECT;
 		temp |= SDVO_ENABLE;
 		intel_sdvo_write_sdvox(intel_sdvo, temp);
 
 		temp &= ~SDVO_ENABLE;
 		intel_sdvo_write_sdvox(intel_sdvo, temp);
+
+		intel_wait_for_vblank_if_active(dev_priv->dev, PIPE_A);
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}
 }
 
