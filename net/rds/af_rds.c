@@ -573,6 +573,7 @@ static void rds_exit(void)
 	rds_threads_exit();
 	rds_stats_exit();
 	rds_page_exit();
+	rds_bind_lock_destroy();
 	rds_info_deregister_func(RDS_INFO_SOCKETS, rds_sock_info);
 	rds_info_deregister_func(RDS_INFO_RECV_MESSAGES, rds_sock_inc_info);
 }
@@ -582,11 +583,14 @@ static int rds_init(void)
 {
 	int ret;
 
-	rds_bind_lock_init();
+	ret = rds_bind_lock_init();
+	if (ret)
+		goto out;
 
 	ret = rds_conn_init();
 	if (ret)
-		goto out;
+		goto out_bind;
+
 	ret = rds_threads_init();
 	if (ret)
 		goto out_conn;
@@ -620,6 +624,8 @@ out_conn:
 	rds_conn_exit();
 	rds_cong_exit();
 	rds_page_exit();
+out_bind:
+	rds_bind_lock_destroy();
 out:
 	return ret;
 }
