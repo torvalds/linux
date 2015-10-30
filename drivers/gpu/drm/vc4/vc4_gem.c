@@ -40,6 +40,186 @@ vc4_queue_hangcheck(struct drm_device *dev)
 		  round_jiffies_up(jiffies + msecs_to_jiffies(100)));
 }
 
+struct vc4_hang_state {
+	struct drm_vc4_get_hang_state user_state;
+
+	u32 bo_count;
+	struct drm_gem_object **bo;
+};
+
+static void
+vc4_free_hang_state(struct drm_device *dev, struct vc4_hang_state *state)
+{
+	unsigned int i;
+
+	mutex_lock(&dev->struct_mutex);
+	for (i = 0; i < state->user_state.bo_count; i++)
+		drm_gem_object_unreference(state->bo[i]);
+	mutex_unlock(&dev->struct_mutex);
+
+	kfree(state);
+}
+
+int
+vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	struct drm_vc4_get_hang_state *get_state = data;
+	struct drm_vc4_get_hang_state_bo *bo_state;
+	struct vc4_hang_state *kernel_state;
+	struct drm_vc4_get_hang_state *state;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	unsigned long irqflags;
+	u32 i;
+	int ret;
+
+	spin_lock_irqsave(&vc4->job_lock, irqflags);
+	kernel_state = vc4->hang_state;
+	if (!kernel_state) {
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+		return -ENOENT;
+	}
+	state = &kernel_state->user_state;
+
+	/* If the user's array isn't big enough, just return the
+	 * required array size.
+	 */
+	if (get_state->bo_count < state->bo_count) {
+		get_state->bo_count = state->bo_count;
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+		return 0;
+	}
+
+	vc4->hang_state = NULL;
+	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+
+	/* Save the user's BO pointer, so we don't stomp it with the memcpy. */
+	state->bo = get_state->bo;
+	memcpy(get_state, state, sizeof(*state));
+
+	bo_state = kcalloc(state->bo_count, sizeof(*bo_state), GFP_KERNEL);
+	if (!bo_state) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	for (i = 0; i < state->bo_count; i++) {
+		struct vc4_bo *vc4_bo = to_vc4_bo(kernel_state->bo[i]);
+		u32 handle;
+
+		ret = drm_gem_handle_create(file_priv, kernel_state->bo[i],
+					    &handle);
+
+		if (ret) {
+			state->bo_count = i - 1;
+			goto err;
+		}
+		bo_state[i].handle = handle;
+		bo_state[i].paddr = vc4_bo->base.paddr;
+		bo_state[i].size = vc4_bo->base.base.size;
+	}
+
+	ret = copy_to_user((void __user *)(uintptr_t)get_state->bo,
+			   bo_state,
+			   state->bo_count * sizeof(*bo_state));
+	kfree(bo_state);
+
+err_free:
+
+	vc4_free_hang_state(dev, kernel_state);
+
+err:
+	return ret;
+}
+
+static void
+vc4_save_hang_state(struct drm_device *dev)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_vc4_get_hang_state *state;
+	struct vc4_hang_state *kernel_state;
+	struct vc4_exec_info *exec;
+	struct vc4_bo *bo;
+	unsigned long irqflags;
+	unsigned int i, unref_list_count;
+
+	kernel_state = kcalloc(1, sizeof(*state), GFP_KERNEL);
+	if (!kernel_state)
+		return;
+
+	state = &kernel_state->user_state;
+
+	spin_lock_irqsave(&vc4->job_lock, irqflags);
+	exec = vc4_first_job(vc4);
+	if (!exec) {
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+		return;
+	}
+
+	unref_list_count = 0;
+	list_for_each_entry(bo, &exec->unref_list, unref_head)
+		unref_list_count++;
+
+	state->bo_count = exec->bo_count + unref_list_count;
+	kernel_state->bo = kcalloc(state->bo_count, sizeof(*kernel_state->bo),
+				   GFP_ATOMIC);
+	if (!kernel_state->bo) {
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+		return;
+	}
+
+	for (i = 0; i < exec->bo_count; i++) {
+		drm_gem_object_reference(&exec->bo[i]->base);
+		kernel_state->bo[i] = &exec->bo[i]->base;
+	}
+
+	list_for_each_entry(bo, &exec->unref_list, unref_head) {
+		drm_gem_object_reference(&bo->base.base);
+		kernel_state->bo[i] = &bo->base.base;
+		i++;
+	}
+
+	state->start_bin = exec->ct0ca;
+	state->start_render = exec->ct1ca;
+
+	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+
+	state->ct0ca = V3D_READ(V3D_CTNCA(0));
+	state->ct0ea = V3D_READ(V3D_CTNEA(0));
+
+	state->ct1ca = V3D_READ(V3D_CTNCA(1));
+	state->ct1ea = V3D_READ(V3D_CTNEA(1));
+
+	state->ct0cs = V3D_READ(V3D_CTNCS(0));
+	state->ct1cs = V3D_READ(V3D_CTNCS(1));
+
+	state->ct0ra0 = V3D_READ(V3D_CT00RA0);
+	state->ct1ra0 = V3D_READ(V3D_CT01RA0);
+
+	state->bpca = V3D_READ(V3D_BPCA);
+	state->bpcs = V3D_READ(V3D_BPCS);
+	state->bpoa = V3D_READ(V3D_BPOA);
+	state->bpos = V3D_READ(V3D_BPOS);
+
+	state->vpmbase = V3D_READ(V3D_VPMBASE);
+
+	state->dbge = V3D_READ(V3D_DBGE);
+	state->fdbgo = V3D_READ(V3D_FDBGO);
+	state->fdbgb = V3D_READ(V3D_FDBGB);
+	state->fdbgr = V3D_READ(V3D_FDBGR);
+	state->fdbgs = V3D_READ(V3D_FDBGS);
+	state->errstat = V3D_READ(V3D_ERRSTAT);
+
+	spin_lock_irqsave(&vc4->job_lock, irqflags);
+	if (vc4->hang_state) {
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+		vc4_free_hang_state(dev, kernel_state);
+	} else {
+		vc4->hang_state = kernel_state;
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+	}
+}
+
 static void
 vc4_reset(struct drm_device *dev)
 {
@@ -63,6 +243,8 @@ vc4_reset_work(struct work_struct *work)
 {
 	struct vc4_dev *vc4 =
 		container_of(work, struct vc4_dev, hangcheck.reset_work);
+
+	vc4_save_hang_state(vc4->dev);
 
 	vc4_reset(vc4->dev);
 }
@@ -679,4 +861,7 @@ vc4_gem_destroy(struct drm_device *dev)
 	}
 
 	vc4_bo_cache_destroy(dev);
+
+	if (vc4->hang_state)
+		vc4_free_hang_state(dev, vc4->hang_state);
 }

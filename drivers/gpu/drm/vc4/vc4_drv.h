@@ -19,6 +19,8 @@ struct vc4_dev {
 
 	struct drm_fbdev_cma *fbdev;
 
+	struct vc4_hang_state *hang_state;
+
 	/* The kernel-space BO cache.  Tracks buffers that have been
 	 * unreferenced by all other users (refcounts of 0!) but not
 	 * yet freed, so we can do cheap allocations.
@@ -361,6 +363,8 @@ int vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);
 int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
+int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 void *vc4_prime_vmap(struct drm_gem_object *obj);
