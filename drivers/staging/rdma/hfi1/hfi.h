@@ -1423,18 +1423,6 @@ int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ibhdr,
 void snoop_inline_pio_send(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 			   u64 pbc, const void *from, size_t count);
 
-/* for use in system calls, where we want to know device type, etc. */
-#define ctxt_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->uctxt)
-#define subctxt_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->subctxt)
-#define tidcursor_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->tidcursor)
-#define user_sdma_pkt_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->pq)
-#define user_sdma_comp_fp(fp) \
-	(((struct hfi1_filedata *)(fp)->private_data)->cq)
-
 static inline struct hfi1_devdata *dd_from_ppd(struct hfi1_pportdata *ppd)
 {
 	return ppd->dd;
