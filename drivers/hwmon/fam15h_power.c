@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/bitops.h>
 #include <asm/processor.h>
+#include <asm/msr.h>
 
 MODULE_DESCRIPTION("AMD Family 15h CPU processor power monitor");
 MODULE_AUTHOR("Andreas Herrmann <herrmann.der.user@googlemail.com>");
@@ -44,6 +45,8 @@ MODULE_LICENSE("GPL");
 #define FAM15H_MIN_NUM_ATTRS		2
 #define FAM15H_NUM_GROUPS		2
 
+#define MSR_F15H_CU_MAX_PWR_ACCUMULATOR	0xc001007b
+
 struct fam15h_power_data {
 	struct pci_dev *pdev;
 	unsigned int tdp_to_watts;
@@ -52,6 +55,8 @@ struct fam15h_power_data {
 	unsigned int cpu_pwr_sample_ratio;
 	const struct attribute_group *groups[FAM15H_NUM_GROUPS];
 	struct attribute_group group;
+	/* maximum accumulated power of a compute unit */
+	u64 max_cu_acc_power;
 };
 
 static ssize_t show_power(struct device *dev,
@@ -240,6 +245,13 @@ static int fam15h_power_init_data(struct pci_dev *f4,
 	 * Fn8000_0007:ECX
 	 */
 	data->cpu_pwr_sample_ratio = ecx;
+
+	if (rdmsrl_safe(MSR_F15H_CU_MAX_PWR_ACCUMULATOR, &tmp)) {
+		pr_err("Failed to read max compute unit power accumulator MSR\n");
+		return -ENODEV;
+	}
+
+	data->max_cu_acc_power = tmp;
 
 	return 0;
 }
