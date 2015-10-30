@@ -2917,6 +2917,10 @@ TRACE_EVENT(rdev_set_coalesce,
 		  WIPHY_PR_ARG, __entry->n_rules)
 );
 
+DEFINE_EVENT(wiphy_wdev_evt, rdev_abort_scan,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
+	TP_ARGS(wiphy, wdev)
+);
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH
