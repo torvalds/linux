@@ -91,6 +91,25 @@ ENTRY(EV_DCError)
 	flag 1
 END(EV_DCError)
 
+; ---------------------------------------------
+; Memory Error Exception Handler
+;   - Unlike ARCompact, handles Bus errors for both User/Kernel mode,
+;     Instruction fetch or Data access, under a single Exception Vector
+; ---------------------------------------------
+
+ENTRY(mem_service)
+
+	EXCEPTION_PROLOGUE
+
+	lr  r0, [efa]
+	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN
+
+	bl  do_memory_error
+	b   ret_from_exception
+END(mem_service)
+
 ENTRY(EV_Misaligned)
 
 	EXCEPTION_PROLOGUE
