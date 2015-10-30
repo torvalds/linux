@@ -113,6 +113,69 @@ static struct snd_rawmidi_ops midi_phys_playback_ops = {
 	.trigger	= midi_phys_playback_trigger,
 };
 
+static int midi_ctl_open(struct snd_rawmidi_substream *substream)
+{
+	/* Do nothing. */
+	return 0;
+}
+
+static int midi_ctl_capture_close(struct snd_rawmidi_substream *substream)
+{
+	/* Do nothing. */
+	return 0;
+}
+
+static int midi_ctl_playback_close(struct snd_rawmidi_substream *substream)
+{
+	struct snd_dg00x *dg00x = substream->rmidi->private_data;
+
+	snd_fw_async_midi_port_finish(&dg00x->out_control);
+
+	return 0;
+}
+
+static void midi_ctl_capture_trigger(struct snd_rawmidi_substream *substream,
+				     int up)
+{
+	struct snd_dg00x *dg00x = substream->rmidi->private_data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dg00x->lock, flags);
+
+	if (up)
+		dg00x->in_control = substream;
+	else
+		dg00x->in_control = NULL;
+
+	spin_unlock_irqrestore(&dg00x->lock, flags);
+}
+
+static void midi_ctl_playback_trigger(struct snd_rawmidi_substream *substream,
+				      int up)
+{
+	struct snd_dg00x *dg00x = substream->rmidi->private_data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dg00x->lock, flags);
+
+	if (up)
+		snd_fw_async_midi_port_run(&dg00x->out_control, substream);
+
+	spin_unlock_irqrestore(&dg00x->lock, flags);
+}
+
+static struct snd_rawmidi_ops midi_ctl_capture_ops = {
+	.open		= midi_ctl_open,
+	.close		= midi_ctl_capture_close,
+	.trigger	= midi_ctl_capture_trigger,
+};
+
+static struct snd_rawmidi_ops midi_ctl_playback_ops = {
+	.open		= midi_ctl_open,
+	.close		= midi_ctl_playback_close,
+	.trigger	= midi_ctl_playback_trigger,
+};
+
 static void set_midi_substream_names(struct snd_dg00x *dg00x,
 				     struct snd_rawmidi_str *str)
 {
