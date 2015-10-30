@@ -565,6 +565,76 @@ static const u16 NCT6792_REG_TEMP_MON[] = {
 static const u16 NCT6792_REG_BEEP[NUM_REG_BEEP] = {
 	0xb2, 0xb3, 0xb4, 0xb5, 0xbf };
 
+static const char *const nct6792_temp_label[] = {
+	"",
+	"SYSTIN",
+	"CPUTIN",
+	"AUXTIN0",
+	"AUXTIN1",
+	"AUXTIN2",
+	"AUXTIN3",
+	"",
+	"SMBUSMASTER 0",
+	"SMBUSMASTER 1",
+	"SMBUSMASTER 2",
+	"SMBUSMASTER 3",
+	"SMBUSMASTER 4",
+	"SMBUSMASTER 5",
+	"SMBUSMASTER 6",
+	"SMBUSMASTER 7",
+	"PECI Agent 0",
+	"PECI Agent 1",
+	"PCH_CHIP_CPU_MAX_TEMP",
+	"PCH_CHIP_TEMP",
+	"PCH_CPU_TEMP",
+	"PCH_MCH_TEMP",
+	"PCH_DIM0_TEMP",
+	"PCH_DIM1_TEMP",
+	"PCH_DIM2_TEMP",
+	"PCH_DIM3_TEMP",
+	"BYTE_TEMP",
+	"PECI Agent 0 Calibration",
+	"PECI Agent 1 Calibration",
+	"",
+	"",
+	"Virtual_TEMP"
+};
+
+static const char *const nct6793_temp_label[] = {
+	"",
+	"SYSTIN",
+	"CPUTIN",
+	"AUXTIN0",
+	"AUXTIN1",
+	"AUXTIN2",
+	"AUXTIN3",
+	"",
+	"SMBUSMASTER 0",
+	"SMBUSMASTER 1",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"PECI Agent 0",
+	"PECI Agent 1",
+	"PCH_CHIP_CPU_MAX_TEMP",
+	"PCH_CHIP_TEMP",
+	"PCH_CPU_TEMP",
+	"PCH_MCH_TEMP",
+	"Agent0 Dimm0 ",
+	"Agent0 Dimm1",
+	"Agent1 Dimm0",
+	"Agent1 Dimm1",
+	"BYTE_TEMP0",
+	"BYTE_TEMP1",
+	"PECI Agent 0 Calibration",
+	"PECI Agent 1 Calibration",
+	"",
+	"Virtual_TEMP"
+};
+
 /* NCT6102D/NCT6106D specific data */
 
 #define NCT6106_REG_VBAT	0x318
@@ -3690,7 +3760,18 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->tolerance_mask = 0x07;
 		data->speed_tolerance_limit = 63;
 
-		data->temp_label = nct6779_temp_label;
+		switch (data->kind) {
+		default:
+		case nct6791:
+			data->temp_label = nct6779_temp_label;
+			break;
+		case nct6792:
+			data->temp_label = nct6792_temp_label;
+			break;
+		case nct6793:
+			data->temp_label = nct6793_temp_label;
+			break;
+		}
 		data->temp_label_num = NCT6791_NUM_LABELS;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
