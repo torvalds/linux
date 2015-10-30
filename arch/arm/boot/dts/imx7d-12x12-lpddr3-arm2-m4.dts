@@ -7,6 +7,10 @@
 				<0xa0000000 0x1ff00000>,
 				<0xc0000000 0x40000000>;
 	};
+
+	gpio-keys {
+		status = "disabled";
+	};
 };
 
 &adc1 {
@@ -30,17 +34,6 @@
 	status = "disabled";
 };
 
-&iomuxc {
-	imx7d-12x12-lpddr3-arm2 {
-		pinctrl_uart2_1: uart2grp-1 {
-			fsl,pins = <
-				MX7D_PAD_UART2_RX_DATA__UART2_DCE_RX 	0x79
-				MX7D_PAD_UART2_TX_DATA__UART2_DCE_TX 	0x79
-			>;
-		};
-	};
-};
-
 &gpt3 {
 	status = "disabled";
 };
@@ -58,11 +51,7 @@
 };
 
 &uart2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart2_1>;
-	assigned-clocks = <&clks IMX7D_UART2_ROOT_SRC>;
-	assigned-clock-parents = <&clks IMX7D_OSC_24M_CLK>;
-	status = "okay";
+	status = "disabled";
 };
 
 &wdog3{
