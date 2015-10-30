@@ -2496,25 +2496,10 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host, int irq,
 					       ahci_port_thread_fn, 0,
 					       pp->irq_desc, host->ports[i]);
 		if (rc)
-			goto out_free_irqs;
-	}
-
-	for (i = 0; i < host->n_ports; i++)
+			return rc;
 		ata_port_desc(host->ports[i], "irq %d", irq + i);
-
-	rc = ata_host_register(host, sht);
-	if (rc)
-		goto out_free_all_irqs;
-
-	return 0;
-
-out_free_all_irqs:
-	i = host->n_ports;
-out_free_irqs:
-	for (i--; i >= 0; i--)
-		devm_free_irq(host->dev, irq + i, host->ports[i]);
-
-	return rc;
+	}
+	return ata_host_register(host, sht);
 }
 
 /**
