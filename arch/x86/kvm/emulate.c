@@ -2272,8 +2272,8 @@ static int emulator_has_longmode(struct x86_emulate_ctxt *ctxt)
 #define GET_SMSTATE(type, smbase, offset)				  \
 	({								  \
 	 type __val;							  \
-	 int r = ctxt->ops->read_std(ctxt, smbase + offset, &__val,       \
-				     sizeof(__val), NULL);		  \
+	 int r = ctxt->ops->read_phys(ctxt, smbase + offset, &__val,      \
+				      sizeof(__val));			  \
 	 if (r != X86EMUL_CONTINUE)					  \
 		 return X86EMUL_UNHANDLEABLE;				  \
 	 __val;								  \
@@ -2484,8 +2484,7 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 
 	/*
 	 * Get back to real mode, to prepare a safe state in which to load
-	 * CR0/CR3/CR4/EFER.  Also this will ensure that addresses passed
-	 * to read_std/write_std are not virtual.
+	 * CR0/CR3/CR4/EFER.
 	 *
 	 * CR4.PCIDE must be zero, because it is a 64-bit mode only feature.
 	 */
