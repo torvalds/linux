@@ -184,7 +184,9 @@ struct cec_device {
 #define HDMI_IOCTL_CECREAD   _IOR(HDMI_CEC_MAGIC, 4, struct cec_framedata)
 #define HDMI_IOCTL_CECSETLA  _IOW(HDMI_CEC_MAGIC, 5, int)
 #define HDMI_IOCTL_CECCLEARLA  _IOW(HDMI_CEC_MAGIC, 6, int)
+#define HDMI_IOCTL_CECWAKESTATE  _IOR(HDMI_CEC_MAGIC, 7, int)
 /*for HAL ioctl end*/
+
 int rockchip_hdmi_cec_init(struct hdmi *hdmi,
 			   int (*sendframe)(struct hdmi *,
 					    struct cec_framedata *),

@@ -226,6 +226,9 @@ static long cec_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case HDMI_IOCTL_CECCLEARLA:
 		break;
+	case HDMI_IOCTL_CECWAKESTATE:
+		ret = copy_to_user(argp, &(cec_dev->hdmi->sleep), sizeof(int));
+		break;
 
 	default:
 		break;
