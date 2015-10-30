@@ -59,9 +59,12 @@ config MESON6_TIMER
 	  Enables the support for the Meson6 timer driver.
 
 config ORION_TIMER
+	bool "Orion timer driver" if COMPILE_TEST
+	depends on ARM
 	select CLKSRC_OF
 	select CLKSRC_MMIO
-	bool
+	help
+	  Enables the support for the Orion timer driver
 
 config SUN4I_TIMER
 	select CLKSRC_MMIO
