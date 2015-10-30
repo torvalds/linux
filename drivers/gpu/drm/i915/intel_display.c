@@ -6552,6 +6552,15 @@ static void hsw_compute_ips_config(struct intel_crtc *crtc,
 		pipe_config_supports_ips(dev_priv, pipe_config);
 }
 
+static bool intel_crtc_supports_double_wide(const struct intel_crtc *crtc)
+{
+	const struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	/* GDG double wide on either pipe, otherwise pipe A only */
+	return INTEL_INFO(dev_priv)->gen < 4 &&
+		(crtc->pipe == PIPE_A || IS_I915G(dev_priv));
+}
+
 static int intel_crtc_compute_config(struct intel_crtc *crtc,
 				     struct intel_crtc_state *pipe_config)
 {
@@ -6561,23 +6570,24 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 
 	/* FIXME should check pixel clock limits on all platforms */
 	if (INTEL_INFO(dev)->gen < 4) {
-		int clock_limit = dev_priv->max_cdclk_freq;
+		int clock_limit = dev_priv->max_cdclk_freq * 9 / 10;
 
 		/*
-		 * Enable pixel doubling when the dot clock
+		 * Enable double wide mode when the dot clock
 		 * is > 90% of the (display) core speed.
-		 *
-		 * GDG double wide on either pipe,
-		 * otherwise pipe A only.
 		 */
-		if ((crtc->pipe == PIPE_A || IS_I915G(dev)) &&
-		    adjusted_mode->crtc_clock > clock_limit * 9 / 10) {
+		if (intel_crtc_supports_double_wide(crtc) &&
+		    adjusted_mode->crtc_clock > clock_limit) {
 			clock_limit *= 2;
 			pipe_config->double_wide = true;
 		}
 
-		if (adjusted_mode->crtc_clock > clock_limit * 9 / 10)
+		if (adjusted_mode->crtc_clock > clock_limit) {
+			DRM_DEBUG_KMS("requested pixel clock (%d kHz) too high (max: %d kHz, double wide: %s)\n",
+				      adjusted_mode->crtc_clock, clock_limit,
+				      yesno(pipe_config->double_wide));
 			return -EINVAL;
+		}
 	}
 
 	/*
