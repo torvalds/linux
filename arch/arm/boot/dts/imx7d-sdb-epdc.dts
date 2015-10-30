@@ -20,6 +20,10 @@
 	status = "disabled";
 };
 
+&flexcan2 {
+	status = "disabled";
+};
+
 &max17135 {
         status = "okay";
 };
