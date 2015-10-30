@@ -259,15 +259,16 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	ret = sst->fw_ops.load_fw(sst);
 	if (ret < 0) {
 		dev_err(dev, "Load base fw failed : %d", ret);
-		return ret;
+		goto cleanup;
 	}
 
 	if (dsp)
 		*dsp = skl;
 
-	return 0;
+	return ret;
 
-	skl_ipc_free(&skl->ipc);
+cleanup:
+	skl_sst_dsp_cleanup(dev, skl);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_init);
