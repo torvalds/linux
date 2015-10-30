@@ -1267,6 +1267,8 @@ pm80xx_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 		/* check iButton feature support for motherboard controller */
 		if (pm8001_ha->pdev->subsystem_vendor !=
 			PCI_VENDOR_ID_ADAPTEC2 &&
+			pm8001_ha->pdev->subsystem_vendor !=
+			PCI_VENDOR_ID_ATTO &&
 			pm8001_ha->pdev->subsystem_vendor != 0) {
 			ibutton0 = pm8001_cr32(pm8001_ha, 0,
 					MSGU_HOST_SCRATCH_PAD_6);
