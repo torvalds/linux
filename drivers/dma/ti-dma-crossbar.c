@@ -278,6 +278,10 @@ static const struct of_device_id ti_dra7_master_match[] = {
 		.compatible = "ti,edma3",
 		.data = (void *)TI_XBAR_EDMA_OFFSET,
 	},
+	{
+		.compatible = "ti,edma3-tpcc",
+		.data = (void *)TI_XBAR_EDMA_OFFSET,
+	},
 	{},
 };
 
