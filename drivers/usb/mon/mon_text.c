@@ -9,6 +9,7 @@
 #include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/ktime.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
@@ -176,12 +177,12 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 
 static inline unsigned int mon_get_timestamp(void)
 {
-	struct timeval tval;
+	struct timespec64 now;
 	unsigned int stamp;
 
-	do_gettimeofday(&tval);
-	stamp = tval.tv_sec & 0xFFF;	/* 2^32 = 4294967296. Limit to 4096s. */
-	stamp = stamp * 1000000 + tval.tv_usec;
+	ktime_get_ts64(&now);
+	stamp = now.tv_sec & 0xFFF;  /* 2^32 = 4294967296. Limit to 4096s. */
+	stamp = stamp * USEC_PER_SEC + now.tv_nsec / NSEC_PER_USEC;
 	return stamp;
 }
 
