@@ -11,8 +11,9 @@
  * Driver: adv_pci1710
  * Description: Comedi driver for Advantech PCI-1710 series boards
  * Devices: [Advantech] PCI-1710 (adv_pci1710), PCI-1710HG, PCI-1711,
- *   PCI-1713, PCI-1720, PCI-1731
+ *   PCI-1713, PCI-1731
  * Author: Michal Dobes <dobes@tesnet.cz>
+ * Updated: Fri, 29 Oct 2015 17:19:35 -0700
  * Status: works
  *
  * Configuration options: not applicable, uses PCI auto config
@@ -61,16 +62,6 @@
 #define PCI171X_DI_REG		0x10	/* R:   digital inputs */
 #define PCI171X_DO_REG		0x10	/* W:   digital outputs */
 #define PCI171X_TIMER_BASE	0x18	/* R/W: 8254 timer */
-
-/*
- * PCI-1720 only has analog outputs and has a different
- * register map (dev->iobase)
- */
-#define PCI1720_DA_REG(x)	(0x00 + ((x) * 2)) /* W:   D/A registers */
-#define PCI1720_RANGE_REG	0x08	/* R/W: D/A range register */
-#define PCI1720_SYNC_REG	0x09	/* W:   D/A synchronized output */
-#define PCI1720_SYNC_CTRL_REG	0x0f	/* R/W: D/A synchronized control */
-#define PCI1720_SYNC_CTRL_SC0	BIT(0)	/* set synchronous output mode */
 
 static const struct comedi_lrange range_pci1710_3 = {
 	9, {
@@ -122,15 +113,6 @@ static const struct comedi_lrange range_pci17x1 = {
 
 static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
-static const struct comedi_lrange pci1720_ao_range = {
-	4, {
-		UNI_RANGE(5),
-		UNI_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(10)
-	}
-};
-
 static const struct comedi_lrange pci171x_ao_range = {
 	2, {
 		UNI_RANGE(5),
@@ -143,7 +125,6 @@ enum pci1710_boardid {
 	BOARD_PCI1710HG,
 	BOARD_PCI1711,
 	BOARD_PCI1713,
-	BOARD_PCI1720,
 	BOARD_PCI1731,
 };
 
@@ -153,7 +134,6 @@ struct boardtype {
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode_ai;	/*  range codes for programming */
 	unsigned int is_pci1713:1;
-	unsigned int is_pci1720:1;
 	unsigned int has_irq:1;
 	unsigned int has_large_fifo:1;	/* 4K or 1K FIFO */
 	unsigned int has_diff_ai:1;
@@ -206,11 +186,6 @@ static const struct boardtype boardtypes[] = {
 		.has_irq	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
-	},
-	[BOARD_PCI1720] = {
-		.name		= "pci1720",
-		.is_pci1720	= 1,
-		.has_ao		= 1,
 	},
 	[BOARD_PCI1731] = {
 		.name		= "pci1731",
@@ -461,36 +436,6 @@ static int pci171x_do_insn_bits(struct comedi_device *dev,
 		outw(s->state, dev->iobase + PCI171X_DO_REG);
 
 	data[1] = s->state;
-
-	return insn->n;
-}
-
-static int pci1720_ao_insn_write(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct pci1710_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val;
-	int i;
-
-	val = devpriv->da_ranges & (~(0x03 << (chan << 1)));
-	val |= (range << (chan << 1));
-	if (val != devpriv->da_ranges) {
-		outb(val, dev->iobase + PCI1720_RANGE_REG);
-		devpriv->da_ranges = val;
-	}
-
-	val = s->readback[chan];
-	for (i = 0; i < insn->n; i++) {
-		val = data[i];
-		outw(val, dev->iobase + PCI1720_DA_REG(chan));
-		outb(0, dev->iobase + PCI1720_SYNC_REG); /* update outputs */
-	}
-
-	s->readback[chan] = val;
 
 	return insn->n;
 }
@@ -790,7 +735,7 @@ static int pci171x_insn_counter_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci171x_reset(struct comedi_device *dev)
+static int pci1710_reset(struct comedi_device *dev)
 {
 	const struct boardtype *board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
@@ -813,33 +758,6 @@ static int pci171x_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
 	return 0;
-}
-
-static int pci1720_reset(struct comedi_device *dev)
-{
-	struct pci1710_private *devpriv = dev->private;
-	/* set synchronous output mode */
-	outb(PCI1720_SYNC_CTRL_SC0, dev->iobase + PCI1720_SYNC_CTRL_REG);
-	devpriv->da_ranges = 0xAA;
-	/* set all ranges to +/-5V and outputs to 0V */
-	outb(devpriv->da_ranges, dev->iobase + PCI1720_RANGE_REG);
-	outw(0x0800, dev->iobase + PCI1720_DA_REG(0));
-	outw(0x0800, dev->iobase + PCI1720_DA_REG(1));
-	outw(0x0800, dev->iobase + PCI1720_DA_REG(2));
-	outw(0x0800, dev->iobase + PCI1720_DA_REG(3));
-	outb(0, dev->iobase + PCI1720_SYNC_REG);	/* update outputs */
-
-	return 0;
-}
-
-static int pci1710_reset(struct comedi_device *dev)
-{
-	const struct boardtype *board = dev->board_ptr;
-
-	if (board->is_pci1720)
-		return pci1720_reset(dev);
-
-	return pci171x_reset(dev);
 }
 
 static int pci1710_auto_attach(struct comedi_device *dev,
@@ -922,28 +840,14 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan	= 2;
 		s->maxdata	= 0x0fff;
-		if (board->is_pci1720) {
-			s->n_chan	= 4;
-			s->range_table	= &pci1720_ao_range;
-			s->insn_write	= pci1720_ao_insn_write;
-		} else {
-			s->n_chan	= 2;
-			s->range_table	= &pci171x_ao_range;
-			s->insn_write	= pci171x_ao_insn_write;
-		}
+		s->range_table	= &pci171x_ao_range;
+		s->insn_write	= pci171x_ao_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
 			return ret;
-
-		/* initialize the readback values to match the board reset */
-		if (board->is_pci1720) {
-			int i;
-
-			for (i = 0; i < s->n_chan; i++)
-				s->readback[i] = 0x0800;
-		}
 
 		subdev++;
 	}
@@ -1063,7 +967,6 @@ static const struct pci_device_id adv_pci1710_pci_table[] = {
 	},
 	{ PCI_VDEVICE(ADVANTECH, 0x1711), BOARD_PCI1711 },
 	{ PCI_VDEVICE(ADVANTECH, 0x1713), BOARD_PCI1713 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1720), BOARD_PCI1720 },
 	{ PCI_VDEVICE(ADVANTECH, 0x1731), BOARD_PCI1731 },
 	{ 0 }
 };

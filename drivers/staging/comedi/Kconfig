@@ -737,14 +737,22 @@ config COMEDI_ADL_PCI9118
 	  called adl_pci9118.
 
 config COMEDI_ADV_PCI1710
-	tristate "Advantech PCI-171x, PCI-1720 and PCI-1731 support"
+	tristate "Advantech PCI-171x and PCI-1731 support"
 	select COMEDI_8254
 	---help---
 	  Enable support for Advantech PCI-1710, PCI-1710HG, PCI-1711,
-	  PCI-1713, PCI-1720 and PCI-1731
+	  PCI-1713 and PCI-1731
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci1710.
+
+config COMEDI_ADV_PCI1720
+	tristate "Advantech PCI-1720 support"
+	---help---
+	  Enable support for Advantech PCI-1720 Analog Output board.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adv_pci1720.
 
 config COMEDI_ADV_PCI1723
 	tristate "Advantech PCI-1723 support"
