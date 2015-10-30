@@ -60,6 +60,8 @@
 #define PORT_PCS_CTRL_UNFORCED		0x03
 #define PORT_PAUSE_CTRL		0x02
 #define PORT_SWITCH_ID		0x03
+#define PORT_SWITCH_ID_PROD_NUM_MASK	0xfff0
+#define PORT_SWITCH_ID_REV_MASK		0x000f
 #define PORT_SWITCH_ID_6031	0x0310
 #define PORT_SWITCH_ID_6035	0x0350
 #define PORT_SWITCH_ID_6046	0x0480
@@ -347,6 +349,11 @@
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
 
+struct mv88e6xxx_switch_id {
+	u16 id;
+	char *name;
+};
+
 struct mv88e6xxx_atu_entry {
 	u16	fid;
 	u8	state;
@@ -415,13 +422,13 @@ struct mv88e6xxx_hw_stat {
 };
 
 int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active);
+char *mv88e6xxx_lookup_name(struct device *host_dev, int sw_addr,
+			    const struct mv88e6xxx_switch_id *table,
+			    unsigned int num);
 int mv88e6xxx_setup_ports(struct dsa_switch *ds);
 int mv88e6xxx_setup_common(struct dsa_switch *ds);
 int mv88e6xxx_setup_global(struct dsa_switch *ds);
-int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr, int reg);
 int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg);
-int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
-			  int reg, u16 val);
 int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val);
 int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr);
 int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr);

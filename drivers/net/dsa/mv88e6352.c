@@ -22,41 +22,24 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
+static const struct mv88e6xxx_switch_id mv88e6352_table[] = {
+	{ PORT_SWITCH_ID_6172, "Marvell 88E6172" },
+	{ PORT_SWITCH_ID_6176, "Marvell 88E6176" },
+	{ PORT_SWITCH_ID_6320, "Marvell 88E6320" },
+	{ PORT_SWITCH_ID_6320_A1, "Marvell 88E6320 (A1)" },
+	{ PORT_SWITCH_ID_6320_A2, "Marvell 88e6320 (A2)" },
+	{ PORT_SWITCH_ID_6321, "Marvell 88E6321" },
+	{ PORT_SWITCH_ID_6321_A1, "Marvell 88E6321 (A1)" },
+	{ PORT_SWITCH_ID_6321_A2, "Marvell 88e6321 (A2)" },
+	{ PORT_SWITCH_ID_6352, "Marvell 88E6352" },
+	{ PORT_SWITCH_ID_6352_A0, "Marvell 88E6352 (A0)" },
+	{ PORT_SWITCH_ID_6352_A1, "Marvell 88E6352 (A1)" },
+};
+
 static char *mv88e6352_probe(struct device *host_dev, int sw_addr)
 {
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
-	int ret;
-
-	if (bus == NULL)
-		return NULL;
-
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
-	if (ret >= 0) {
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6172)
-			return "Marvell 88E6172";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6176)
-			return "Marvell 88E6176";
-		if (ret == PORT_SWITCH_ID_6320_A1)
-			return "Marvell 88E6320 (A1)";
-		if (ret == PORT_SWITCH_ID_6320_A2)
-			return "Marvell 88e6320 (A2)";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6320)
-			return "Marvell 88E6320";
-		if (ret == PORT_SWITCH_ID_6321_A1)
-			return "Marvell 88E6321 (A1)";
-		if (ret == PORT_SWITCH_ID_6321_A2)
-			return "Marvell 88e6321 (A2)";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6321)
-			return "Marvell 88E6321";
-		if (ret == PORT_SWITCH_ID_6352_A0)
-			return "Marvell 88E6352 (A0)";
-		if (ret == PORT_SWITCH_ID_6352_A1)
-			return "Marvell 88E6352 (A1)";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6352)
-			return "Marvell 88E6352";
-	}
-
-	return NULL;
+	return mv88e6xxx_lookup_name(host_dev, sw_addr, mv88e6352_table,
+				     ARRAY_SIZE(mv88e6352_table));
 }
 
 static int mv88e6352_setup_global(struct dsa_switch *ds)

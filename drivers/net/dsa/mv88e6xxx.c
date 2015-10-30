@@ -59,7 +59,8 @@ static int mv88e6xxx_reg_wait_ready(struct mii_bus *bus, int sw_addr)
 	return -ETIMEDOUT;
 }
 
-int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr, int reg)
+static int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr,
+				int reg)
 {
 	int ret;
 
@@ -122,8 +123,8 @@ int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg)
 	return ret;
 }
 
-int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
-			  int reg, u16 val)
+static int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
+				 int reg, u16 val)
 {
 	int ret;
 
@@ -2545,6 +2546,38 @@ int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
 	return 0;
 }
 #endif /* CONFIG_NET_DSA_HWMON */
+
+char *mv88e6xxx_lookup_name(struct device *host_dev, int sw_addr,
+			    const struct mv88e6xxx_switch_id *table,
+			    unsigned int num)
+{
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
+	int i, ret;
+
+	if (!bus)
+		return NULL;
+
+	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
+	if (ret < 0)
+		return NULL;
+
+	/* Look up the exact switch ID */
+	for (i = 0; i < num; ++i)
+		if (table[i].id == ret)
+			return table[i].name;
+
+	/* Look up only the product number */
+	for (i = 0; i < num; ++i) {
+		if (table[i].id == (ret & PORT_SWITCH_ID_PROD_NUM_MASK)) {
+			dev_warn(host_dev, "unknown revision %d, using base switch 0x%x\n",
+				 ret & PORT_SWITCH_ID_REV_MASK,
+				 ret & PORT_SWITCH_ID_PROD_NUM_MASK);
+			return table[i].name;
+		}
+	}
+
+	return NULL;
+}
 
 static int __init mv88e6xxx_init(void)
 {
