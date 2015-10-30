@@ -71,8 +71,10 @@ config ORION_TIMER
 	  Enables the support for the Orion timer driver
 
 config SUN4I_TIMER
+	bool "Sun4i timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
-	bool
+	help
+	  Enables support for the Sun4i timer.
 
 config SUN5I_HSTIMER
 	select CLKSRC_MMIO
