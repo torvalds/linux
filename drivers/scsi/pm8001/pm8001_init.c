@@ -720,6 +720,23 @@ static int pm8001_get_phy_settings_info(struct pm8001_hba_info *pm8001_ha)
 	return 0;
 }
 
+/**
+ * pm8001_configure_phy_settings : Configures PHY settings based on vendor ID.
+ * @pm8001_ha : our hba.
+ */
+static int pm8001_configure_phy_settings(struct pm8001_hba_info *pm8001_ha)
+{
+	switch (pm8001_ha->pdev->subsystem_vendor) {
+	case PCI_VENDOR_ID_ATTO:
+	case PCI_VENDOR_ID_ADAPTEC2:
+	case 0:
+		return 0;
+
+	default:
+		return pm8001_get_phy_settings_info(pm8001_ha);
+	}
+}
+
 #ifdef PM8001_USE_MSIX
 /**
  * pm8001_setup_msix - enable MSI-X interrupt
@@ -902,12 +919,9 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 
 	pm8001_init_sas_add(pm8001_ha);
 	/* phy setting support for motherboard controller */
-	if (pdev->subsystem_vendor != PCI_VENDOR_ID_ADAPTEC2 &&
-		pdev->subsystem_vendor != 0) {
-		rc = pm8001_get_phy_settings_info(pm8001_ha);
-		if (rc)
-			goto err_out_shost;
-	}
+	if (pm8001_configure_phy_settings(pm8001_ha))
+		goto err_out_shost;
+
 	pm8001_post_sas_ha_init(shost, chip);
 	rc = sas_register_ha(SHOST_TO_SAS_HA(shost));
 	if (rc)
