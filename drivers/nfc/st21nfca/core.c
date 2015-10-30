@@ -22,8 +22,6 @@
 #include <net/nfc/llc.h>
 
 #include "st21nfca.h"
-#include "st21nfca_dep.h"
-#include "st21nfca_se.h"
 
 #define DRIVER_DESC "HCI NFC driver for ST21NFCA"
 
@@ -87,12 +85,13 @@ static DECLARE_BITMAP(dev_mask, ST21NFCA_NUM_DEVICES);
 
 static struct nfc_hci_gate st21nfca_gates[] = {
 	{NFC_HCI_ADMIN_GATE, NFC_HCI_ADMIN_PIPE},
+	{NFC_HCI_LINK_MGMT_GATE, NFC_HCI_LINK_MGMT_PIPE},
+	{ST21NFCA_DEVICE_MGNT_GATE, ST21NFCA_DEVICE_MGNT_PIPE},
+
 	{NFC_HCI_LOOPBACK_GATE, NFC_HCI_INVALID_PIPE},
 	{NFC_HCI_ID_MGMT_GATE, NFC_HCI_INVALID_PIPE},
-	{NFC_HCI_LINK_MGMT_GATE, NFC_HCI_LINK_MGMT_PIPE},
 	{NFC_HCI_RF_READER_B_GATE, NFC_HCI_INVALID_PIPE},
 	{NFC_HCI_RF_READER_A_GATE, NFC_HCI_INVALID_PIPE},
-	{ST21NFCA_DEVICE_MGNT_GATE, ST21NFCA_DEVICE_MGNT_PIPE},
 	{ST21NFCA_RF_READER_F_GATE, NFC_HCI_INVALID_PIPE},
 	{ST21NFCA_RF_READER_14443_3_A_GATE, NFC_HCI_INVALID_PIPE},
 	{ST21NFCA_RF_READER_ISO15693_GATE, NFC_HCI_INVALID_PIPE},
@@ -163,7 +162,6 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 		r = nfc_hci_send_cmd(hdev, ST21NFCA_DEVICE_MGNT_GATE,
 					ST21NFCA_DM_GETINFO, pipe_info,
 					sizeof(pipe_info), &skb_pipe_info);
-
 		if (r)
 			continue;
 
@@ -185,43 +183,33 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 			continue;
 		}
 
-		for (j = 0; (j < ARRAY_SIZE(st21nfca_gates)) &&
+		for (j = 3; (j < ARRAY_SIZE(st21nfca_gates)) &&
 			(st21nfca_gates[j].gate != info->dst_gate_id) ; j++)
 			;
 
 		if (j < ARRAY_SIZE(st21nfca_gates) &&
 			st21nfca_gates[j].gate == info->dst_gate_id &&
 			ST21NFCA_DM_IS_PIPE_OPEN(info->pipe_state)) {
-			st21nfca_gates[j].pipe = pipe_info[2];
+			hdev->init_data.gates[j].pipe = pipe_info[2];
 
 			hdev->gate2pipe[st21nfca_gates[j].gate] =
-							st21nfca_gates[j].pipe;
-			hdev->pipes[st21nfca_gates[j].pipe].gate =
-							st21nfca_gates[j].gate;
-			hdev->pipes[st21nfca_gates[j].pipe].dest_host =
-							info->src_host_id;
+						pipe_info[2];
+			hdev->pipes[pipe_info[2]].gate =
+						st21nfca_gates[j].gate;
+			hdev->pipes[pipe_info[2]].dest_host =
+						info->src_host_id;
 		}
 		kfree_skb(skb_pipe_info);
 	}
 
 	/*
-	 * 3 gates have a well known pipe ID.
-	 * They will never appear in the pipe list
+	 * 3 gates have a well known pipe ID. Only NFC_HCI_LINK_MGMT_GATE
+	 * is not yet open at this stage.
 	 */
-	if (skb_pipe_list->len + 3 < ARRAY_SIZE(st21nfca_gates)) {
-		for (i = skb_pipe_list->len + 3;
-				i < ARRAY_SIZE(st21nfca_gates) - 2; i++) {
-			r = nfc_hci_connect_gate(hdev,
-					NFC_HCI_HOST_CONTROLLER_ID,
-					st21nfca_gates[i].gate,
-					st21nfca_gates[i].pipe);
-			if (r < 0)
-				goto free_list;
-		}
-	}
+	r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID,
+				 NFC_HCI_LINK_MGMT_GATE,
+				 NFC_HCI_LINK_MGMT_PIPE);
 
-	memcpy(hdev->init_data.gates, st21nfca_gates, sizeof(st21nfca_gates));
-free_list:
 	kfree_skb(skb_pipe_list);
 	return r;
 }
@@ -905,6 +893,8 @@ static int st21nfca_admin_event_received(struct nfc_hci_dev *hdev, u8 event,
 			}
 		}
 	break;
+	default:
+		nfc_err(&hdev->ndev->dev, "Unexpected event on admin gate\n");
 	}
 	kfree_skb(skb);
 	return 0;
@@ -933,6 +923,8 @@ static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 							event, skb);
 	case ST21NFCA_APDU_READER_GATE:
 		return st21nfca_apdu_reader_event_received(hdev, event, skb);
+	case NFC_HCI_LOOPBACK_GATE:
+		return st21nfca_hci_loopback_event_received(hdev, event, skb);
 	default:
 		return 1;
 	}
@@ -993,7 +985,6 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 	 * persistent info to discriminate 2 identical chips
 	 */
 	dev_num = find_first_zero_bit(dev_mask, ST21NFCA_NUM_DEVICES);
-
 	if (dev_num >= ST21NFCA_NUM_DEVICES)
 		return -ENODEV;
 
@@ -1035,6 +1026,7 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 	*hdev = info->hdev;
 	st21nfca_dep_init(info->hdev);
 	st21nfca_se_init(info->hdev);
+	st21nfca_vendor_cmds_init(info->hdev);
 
 	return 0;
 

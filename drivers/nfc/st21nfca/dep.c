@@ -17,7 +17,6 @@
 #include <net/nfc/hci.h>
 
 #include "st21nfca.h"
-#include "st21nfca_dep.h"
 
 #define ST21NFCA_NFCIP1_INITIATOR 0x00
 #define ST21NFCA_NFCIP1_REQ 0xd4
@@ -436,6 +435,7 @@ int st21nfca_dep_event_received(struct nfc_hci_dev *hdev,
 			return r;
 		return 0;
 	default:
+		nfc_err(&hdev->ndev->dev, "Unexpected event on card f gate\n");
 		return 1;
 	}
 	kfree_skb(skb);

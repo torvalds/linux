@@ -17,10 +17,9 @@
 #include <net/nfc/hci.h>
 
 #include "st21nfca.h"
-#include "st21nfca_se.h"
 
 #define ST21NFCA_EVT_UICC_ACTIVATE		0x10
-#define ST21NFCA_EVT_UICC_DEACTIVATE	0x13
+#define ST21NFCA_EVT_UICC_DEACTIVATE		0x13
 #define ST21NFCA_EVT_SE_HARD_RESET		0x20
 #define ST21NFCA_EVT_SE_SOFT_RESET		0x11
 #define ST21NFCA_EVT_SE_END_OF_APDU_TRANSFER	0x21
@@ -101,7 +100,7 @@ static int st21nfca_hci_control_se(struct nfc_hci_dev *hdev, u32 se_idx,
 				u8 state)
 {
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
-	int r;
+	int r, i;
 	struct sk_buff *sk_host_list;
 	u8 se_event, host_id;
 
@@ -149,7 +148,10 @@ static int st21nfca_hci_control_se(struct nfc_hci_dev *hdev, u32 se_idx,
 	if (r < 0)
 		return r;
 
-	host_id = sk_host_list->data[sk_host_list->len - 1];
+	for (i = 0; i < sk_host_list->len &&
+		sk_host_list->data[i] != se_idx; i++)
+		;
+	host_id = sk_host_list->data[i];
 	kfree_skb(sk_host_list);
 
 	if (state == ST21NFCA_SE_MODE_ON && host_id == se_idx)
@@ -164,6 +166,9 @@ int st21nfca_hci_discover_se(struct nfc_hci_dev *hdev)
 {
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 	int se_count = 0;
+
+	if (test_bit(ST21NFCA_FACTORY_MODE, &hdev->quirks))
+		return 0;
 
 	if (info->se_status->is_uicc_present) {
 		nfc_add_se(hdev->ndev, NFC_HCI_UICC_HOST_ID, NFC_SE_UICC);
@@ -189,7 +194,6 @@ int st21nfca_hci_enable_se(struct nfc_hci_dev *hdev, u32 se_idx)
 	 * Same for eSE.
 	 */
 	r = st21nfca_hci_control_se(hdev, se_idx, ST21NFCA_SE_MODE_ON);
-
 	if (r == ST21NFCA_ESE_HOST_ID) {
 		st21nfca_se_get_atr(hdev);
 		r = nfc_hci_send_event(hdev, ST21NFCA_APDU_READER_GATE,
@@ -340,6 +344,7 @@ int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 		r = nfc_se_transaction(hdev->ndev, host, transaction);
 		break;
 	default:
+		nfc_err(&hdev->ndev->dev, "Unexpected event on connectivity gate\n");
 		return 1;
 	}
 	kfree_skb(skb);
@@ -371,6 +376,9 @@ int st21nfca_apdu_reader_event_received(struct nfc_hci_dev *hdev,
 		mod_timer(&info->se_info.bwi_timer, jiffies +
 				msecs_to_jiffies(info->se_info.wt_timeout));
 		break;
+	default:
+		nfc_err(&hdev->ndev->dev, "Unexpected event on apdu reader gate\n");
+		return 1;
 	}
 
 exit:

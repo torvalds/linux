@@ -83,7 +83,7 @@ struct nci_prop_fw_cfg_rsp {
 
 #define NCI_PROP_WR_RESET	0x2f
 
-void s3fwrn5_nci_get_prop_ops(struct nci_prop_ops **ops, size_t *n);
+void s3fwrn5_nci_get_prop_ops(struct nci_driver_ops **ops, size_t *n);
 int s3fwrn5_nci_rf_configure(struct s3fwrn5_info *info, const char *fw_name);
 
 #endif /* __LOCAL_S3FWRN5_NCI_H_ */
