@@ -53,8 +53,10 @@ config ARMADA_370_XP_TIMER
 	  Enables the support for the Armada 370 and XP timer driver.
 
 config MESON6_TIMER
-	bool
+	bool "Meson6 timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
+	help
+	  Enables the support for the Meson6 timer driver.
 
 config ORION_TIMER
 	select CLKSRC_OF
