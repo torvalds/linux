@@ -28,7 +28,9 @@ config CLKSRC_MMIO
 	bool
 
 config DIGICOLOR_TIMER
-	bool
+	bool "Digicolor timer driver" if COMPILE_TEST
+	help
+	  Enables the support for the digicolor timer driver.
 
 config DW_APB_TIMER
 	bool
