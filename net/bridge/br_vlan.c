@@ -180,11 +180,11 @@ static void br_vlan_put_master(struct net_bridge_vlan *masterv)
  * devices. There are four possible calls to this function in terms of the
  * vlan entry type:
  * 1. vlan is being added on a port (no master flags, global entry exists)
- * 2. vlan is being added on a bridge (both master and brvlan flags)
+ * 2. vlan is being added on a bridge (both master and brentry flags)
  * 3. vlan is being added on a port, but a global entry didn't exist which
- *    is being created right now (master flag set, brvlan flag unset), the
+ *    is being created right now (master flag set, brentry flag unset), the
  *    global entry is used for global per-vlan features, but not for filtering
- * 4. same as 3 but with both master and brvlan flags set so the entry
+ * 4. same as 3 but with both master and brentry flags set so the entry
  *    will be used for filtering in both the port and the bridge
  */
 static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
