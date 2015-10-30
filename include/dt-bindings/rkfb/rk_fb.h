@@ -76,7 +76,6 @@
 
 #define DISPLAY_POLICY_SDK	0
 #define DISPLAY_POLICY_BOX	1
-#define DISPLAY_POLICY_BOX_TEMP	2
 
 /*      	lvds connect config       
  *                                        
