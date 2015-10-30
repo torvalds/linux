@@ -139,6 +139,7 @@ enum ixgbe_tx_flags {
 #define IXGBE_X540_VF_DEVICE_ID         0x1515
 
 struct vf_data_storage {
+	struct pci_dev *vfdev;
 	unsigned char vf_mac_addresses[ETH_ALEN];
 	u16 vf_mc_hashes[IXGBE_MAX_VF_MC_ENTRIES];
 	u16 num_vf_mc_hashes;

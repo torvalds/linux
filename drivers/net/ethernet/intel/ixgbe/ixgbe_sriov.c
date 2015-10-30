@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
+  Copyright(c) 1999 - 2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -130,6 +130,38 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 	return -ENOMEM;
 }
 
+/**
+ * ixgbe_get_vfs - Find and take references to all vf devices
+ * @adapter: Pointer to adapter struct
+ */
+static void ixgbe_get_vfs(struct ixgbe_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	u16 vendor = pdev->vendor;
+	struct pci_dev *vfdev;
+	int vf = 0;
+	u16 vf_id;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+	if (!pos)
+		return;
+	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_DID, &vf_id);
+
+	vfdev = pci_get_device(vendor, vf_id, NULL);
+	for (; vfdev; vfdev = pci_get_device(vendor, vf_id, vfdev)) {
+		if (!vfdev->is_virtfn)
+			continue;
+		if (vfdev->physfn != pdev)
+			continue;
+		if (vf >= adapter->num_vfs)
+			continue;
+		pci_dev_get(vfdev);
+		adapter->vfinfo[vf].vfdev = vfdev;
+		++vf;
+	}
+}
+
 /* Note this function is called when the user wants to enable SR-IOV
  * VFs using the now deprecated module parameter
  */
@@ -170,8 +202,10 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 		}
 	}
 
-	if (!__ixgbe_enable_sriov(adapter))
+	if (!__ixgbe_enable_sriov(adapter)) {
+		ixgbe_get_vfs(adapter);
 		return;
+	}
 
 	/* If we have gotten to this point then there is no memory available
 	 * to manage the VF devices - print message and bail.
@@ -184,6 +218,7 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 #endif /* #ifdef CONFIG_PCI_IOV */
 int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 {
+	unsigned int num_vfs = adapter->num_vfs, vf;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 gpie;
 	u32 vmdctl;
@@ -191,6 +226,16 @@ int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 
 	/* set num VFs to 0 to prevent access to vfinfo */
 	adapter->num_vfs = 0;
+
+	/* put the reference to all of the vf devices */
+	for (vf = 0; vf < num_vfs; ++vf) {
+		struct pci_dev *vfdev = adapter->vfinfo[vf].vfdev;
+
+		if (!vfdev)
+			continue;
+		adapter->vfinfo[vf].vfdev = NULL;
+		pci_dev_put(vfdev);
+	}
 
 	/* free VF control structures */
 	kfree(adapter->vfinfo);
@@ -289,6 +334,7 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 		e_dev_warn("Failed to enable PCI sriov: %d\n", err);
 		return err;
 	}
+	ixgbe_get_vfs(adapter);
 	ixgbe_sriov_reinit(adapter);
 
 	return num_vfs;
