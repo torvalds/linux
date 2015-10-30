@@ -2811,6 +2811,17 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 	seq_printf(m, "version: %d.%d\n", CSR_VERSION_MAJOR(csr->version),
 		   CSR_VERSION_MINOR(csr->version));
 
+	intel_runtime_pm_get(dev_priv);
+
+	if (IS_SKYLAKE(dev) && csr->version >= CSR_VERSION(1, 6)) {
+		seq_printf(m, "DC3 -> DC5 count: %d\n",
+			   I915_READ(SKL_CSR_DC3_DC5_COUNT));
+		seq_printf(m, "DC5 -> DC6 count: %d\n",
+			   I915_READ(SKL_CSR_DC5_DC6_COUNT));
+	}
+
+	intel_runtime_pm_put(dev_priv);
+
 	return 0;
 }
 

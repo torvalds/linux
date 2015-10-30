@@ -5697,6 +5697,10 @@ enum skl_disp_power_wells {
 #define GAMMA_MODE_MODE_12BIT	(2 << 0)
 #define GAMMA_MODE_MODE_SPLIT	(3 << 0)
 
+/* DMC/CSR */
+#define SKL_CSR_DC3_DC5_COUNT	0x80030
+#define SKL_CSR_DC5_DC6_COUNT	0x8002C
+
 /* interrupts */
 #define DE_MASTER_IRQ_CONTROL   (1 << 31)
 #define DE_SPRITEB_FLIP_DONE    (1 << 29)
