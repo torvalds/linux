@@ -1098,6 +1098,7 @@ static const struct spi_device_id encx24j600_spi_id_table[] = {
 	{ .name = "encx24j600" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(spi, encx24j600_spi_id_table);
 
 static struct spi_driver encx24j600_spi_net_driver = {
 	.driver = {
