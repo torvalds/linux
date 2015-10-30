@@ -103,12 +103,9 @@ static const struct mfd_cell s2mpa01_devs[] = {
 };
 
 static const struct mfd_cell s2mpu02_devs[] = {
-	{ .name = "s2mpu02-pmic", },
-	{ .name = "s2mpu02-rtc", },
 	{
-		.name = "s2mpu02-clk",
-		.of_compatible = "samsung,s2mpu02-clk",
-	}
+		.name = "s2mpu02-pmic",
+	},
 };
 
 #ifdef CONFIG_OF
