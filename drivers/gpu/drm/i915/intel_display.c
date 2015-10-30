@@ -4840,7 +4840,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -4878,6 +4877,11 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	if (HAS_PCH_CPT(dev))
 		cpt_verify_modeset(dev, intel_crtc->pipe);
+
+	/* Must wait for vblank to avoid spurious PCH FIFO underruns */
+	if (intel_crtc->config->has_pch_encoder)
+		intel_wait_for_vblank(dev, pipe);
+	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 }
 
 /* IPS only exists on ULT machines and is tied to pipe A. */
@@ -5006,14 +5010,14 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	u32 reg, temp;
 
+	if (intel_crtc->config->has_pch_encoder)
+		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
+
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->disable(encoder);
 
 	drm_crtc_vblank_off(crtc);
 	assert_vblank_disabled(crtc);
-
-	if (intel_crtc->config->has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	intel_disable_pipe(intel_crtc);
 
