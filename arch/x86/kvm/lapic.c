@@ -1918,6 +1918,8 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	if (ioapic_in_kernel(vcpu->kvm))
 		kvm_rtc_eoi_tracking_restore_one(vcpu);
+
+	vcpu->arch.apic_arb_prio = 0;
 }
 
 void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
