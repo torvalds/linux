@@ -512,7 +512,7 @@ static int ib_nl_get_path_rec_attrs_len(ib_sa_comp_mask comp_mask)
 	return len;
 }
 
-static int ib_nl_send_msg(struct ib_sa_query *query)
+static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 {
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
@@ -526,7 +526,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query)
 	if (len <= 0)
 		return -EMSGSIZE;
 
-	skb = nlmsg_new(len, GFP_KERNEL);
+	skb = nlmsg_new(len, gfp_mask);
 	if (!skb)
 		return -ENOMEM;
 
@@ -544,7 +544,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query)
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
 
-	ret = ibnl_multicast(skb, nlh, RDMA_NL_GROUP_LS, GFP_KERNEL);
+	ret = ibnl_multicast(skb, nlh, RDMA_NL_GROUP_LS, gfp_mask);
 	if (!ret)
 		ret = len;
 	else
@@ -553,7 +553,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query)
 	return ret;
 }
 
-static int ib_nl_make_request(struct ib_sa_query *query)
+static int ib_nl_make_request(struct ib_sa_query *query, gfp_t gfp_mask)
 {
 	unsigned long flags;
 	unsigned long delay;
@@ -562,24 +562,26 @@ static int ib_nl_make_request(struct ib_sa_query *query)
 	INIT_LIST_HEAD(&query->list);
 	query->seq = (u32)atomic_inc_return(&ib_nl_sa_request_seq);
 
+	/* Put the request on the list first.*/
 	spin_lock_irqsave(&ib_nl_request_lock, flags);
-	ret = ib_nl_send_msg(query);
-	if (ret <= 0) {
-		ret = -EIO;
-		goto request_out;
-	} else {
-		ret = 0;
-	}
-
 	delay = msecs_to_jiffies(sa_local_svc_timeout_ms);
 	query->timeout = delay + jiffies;
 	list_add_tail(&query->list, &ib_nl_request_list);
 	/* Start the timeout if this is the only request */
 	if (ib_nl_request_list.next == &query->list)
 		queue_delayed_work(ib_nl_wq, &ib_nl_timed_work, delay);
-
-request_out:
 	spin_unlock_irqrestore(&ib_nl_request_lock, flags);
+
+	ret = ib_nl_send_msg(query, gfp_mask);
+	if (ret <= 0) {
+		ret = -EIO;
+		/* Remove the request */
+		spin_lock_irqsave(&ib_nl_request_lock, flags);
+		list_del(&query->list);
+		spin_unlock_irqrestore(&ib_nl_request_lock, flags);
+	} else {
+		ret = 0;
+	}
 
 	return ret;
 }
@@ -1108,7 +1110,7 @@ static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 
 	if (query->flags & IB_SA_ENABLE_LOCAL_SERVICE) {
 		if (!ibnl_chk_listeners(RDMA_NL_GROUP_LS)) {
-			if (!ib_nl_make_request(query))
+			if (!ib_nl_make_request(query, gfp_mask))
 				return id;
 		}
 		ib_sa_disable_local_svc(query);
