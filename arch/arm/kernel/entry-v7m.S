@@ -88,7 +88,7 @@ __pendsv_entry:
 	@ execute the pending work, including reschedule
 	get_thread_info tsk
 	mov	why, #0
-	b	ret_to_user
+	b	ret_to_user_from_irq
 ENDPROC(__pendsv_entry)
 
 /*
