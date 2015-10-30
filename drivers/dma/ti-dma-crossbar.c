@@ -296,14 +296,22 @@ static const struct of_device_id ti_dra7_master_match[] = {
 	{},
 };
 
+static inline void ti_dra7_xbar_reserve(int offset, int len, unsigned long *p)
+{
+	for (; len > 0; len--)
+		clear_bit(offset + (len - 1), p);
+}
+
 static int ti_dra7_xbar_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct device_node *dma_node;
 	struct ti_dra7_xbar_data *xbar;
+	struct property *prop;
 	struct resource *res;
 	u32 safe_val;
+	size_t sz;
 	void __iomem *iomem;
 	int i, ret;
 
@@ -351,6 +359,33 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(node, "ti,dma-safe-map", &safe_val))
 		xbar->safe_val = (u16)safe_val;
 
+
+	prop = of_find_property(node, "ti,reserved-dma-request-ranges", &sz);
+	if (prop) {
+		const char pname[] = "ti,reserved-dma-request-ranges";
+		u32 (*rsv_events)[2];
+		size_t nelm = sz / sizeof(*rsv_events);
+		int i;
+
+		if (!nelm)
+			return -EINVAL;
+
+		rsv_events = kcalloc(nelm, sizeof(*rsv_events), GFP_KERNEL);
+		if (!rsv_events)
+			return -ENOMEM;
+
+		ret = of_property_read_u32_array(node, pname, (u32 *)rsv_events,
+						 nelm * 2);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < nelm; i++) {
+			ti_dra7_xbar_reserve(rsv_events[i][0], rsv_events[i][1],
+					     xbar->dma_inuse);
+		}
+		kfree(rsv_events);
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iomem = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(iomem))
@@ -366,15 +401,19 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, xbar);
 
 	/* Reset the crossbar */
-	for (i = 0; i < xbar->dma_requests; i++)
-		ti_dra7_xbar_write(xbar->iomem, i, xbar->safe_val);
+	for (i = 0; i < xbar->dma_requests; i++) {
+		if (!test_bit(i, xbar->dma_inuse))
+			ti_dra7_xbar_write(xbar->iomem, i, xbar->safe_val);
+	}
 
 	ret = of_dma_router_register(node, ti_dra7_xbar_route_allocate,
 				     &xbar->dmarouter);
 	if (ret) {
 		/* Restore the defaults for the crossbar */
-		for (i = 0; i < xbar->dma_requests; i++)
-			ti_dra7_xbar_write(xbar->iomem, i, i);
+		for (i = 0; i < xbar->dma_requests; i++) {
+			if (!test_bit(i, xbar->dma_inuse))
+				ti_dra7_xbar_write(xbar->iomem, i, i);
+		}
 	}
 
 	return ret;
