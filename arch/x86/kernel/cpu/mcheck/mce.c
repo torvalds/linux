@@ -1586,6 +1586,8 @@ static int __mcheck_cpu_ancient_init(struct cpuinfo_x86 *c)
 		winchip_mcheck_init(c);
 		return 1;
 		break;
+	default:
+		return 0;
 	}
 
 	return 0;
