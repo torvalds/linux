@@ -228,9 +228,11 @@ config SYS_SUPPORTS_SH_CMT
         bool
 
 config MTK_TIMER
+	bool "Mediatek timer driver" if COMPILE_TEST
 	select CLKSRC_OF
 	select CLKSRC_MMIO
-	bool
+	help
+	  Support for Mediatek timer driver.
 
 config SYS_SUPPORTS_SH_MTU2
         bool
