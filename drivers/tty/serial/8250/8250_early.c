@@ -87,8 +87,8 @@ static void __init wait_for_xmitr(struct uart_port *port)
 
 static void __init serial_putc(struct uart_port *port, int c)
 {
-	wait_for_xmitr(port);
 	serial8250_early_out(port, UART_TX, c);
+	wait_for_xmitr(port);
 }
 
 static void __init early_serial8250_write(struct console *console,
@@ -98,9 +98,6 @@ static void __init early_serial8250_write(struct console *console,
 	struct uart_port *port = &device->port;
 
 	uart_console_write(port, s, count, serial_putc);
-
-	/* Wait for transmitter to become empty */
-	wait_for_xmitr(port);
 }
 
 static void __init init_port(struct earlycon_device *device)
