@@ -47,20 +47,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <linux/pci.h>
 #include <linux/poll.h>
 #include <linux/cdev.h>
-#include <linux/swap.h>
 #include <linux/vmalloc.h>
-#include <linux/highmem.h>
 #include <linux/io.h>
-#include <linux/jiffies.h>
-#include <asm/pgtable.h>
-#include <linux/delay.h>
-#include <linux/export.h>
-#include <linux/module.h>
-#include <linux/cred.h>
-#include <linux/uio.h>
 
 #include "hfi.h"
 #include "pio.h"
