@@ -482,7 +482,8 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 
 #ifdef PM8001_USE_TASKLET
 	/* Tasklet for non msi-x interrupt handler */
-	if ((!pdev->msix_cap) || (pm8001_ha->chip_id == chip_8001))
+	if ((!pdev->msix_cap || !pci_msi_enabled())
+	    || (pm8001_ha->chip_id == chip_8001))
 		tasklet_init(&pm8001_ha->tasklet[0], pm8001_tasklet,
 			(unsigned long)&(pm8001_ha->irq_vector[0]));
 	else
@@ -951,7 +952,7 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 	pdev = pm8001_ha->pdev;
 
 #ifdef PM8001_USE_MSIX
-	if (pdev->msix_cap)
+	if (pdev->msix_cap && pci_msi_enabled())
 		return pm8001_setup_msix(pm8001_ha);
 	else {
 		PM8001_INIT_DBG(pm8001_ha,
@@ -962,6 +963,8 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 
 intx:
 	/* initialize the INT-X interrupt */
+	pm8001_ha->irq_vector[0].irq_id = 0;
+	pm8001_ha->irq_vector[0].drv_inst = pm8001_ha;
 	rc = request_irq(pdev->irq, pm8001_interrupt_handler_intx, IRQF_SHARED,
 		DRV_NAME, SHOST_TO_SAS_HA(pm8001_ha->shost));
 	return rc;
@@ -1112,7 +1115,8 @@ static void pm8001_pci_remove(struct pci_dev *pdev)
 #endif
 #ifdef PM8001_USE_TASKLET
 	/* For non-msix and msix interrupts */
-	if ((!pdev->msix_cap) || (pm8001_ha->chip_id == chip_8001))
+	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
+	    (pm8001_ha->chip_id == chip_8001))
 		tasklet_kill(&pm8001_ha->tasklet[0]);
 	else
 		for (j = 0; j < PM8001_MAX_MSIX_VEC; j++)
@@ -1161,7 +1165,8 @@ static int pm8001_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 #endif
 #ifdef PM8001_USE_TASKLET
 	/* For non-msix and msix interrupts */
-	if ((!pdev->msix_cap) || (pm8001_ha->chip_id == chip_8001))
+	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
+	    (pm8001_ha->chip_id == chip_8001))
 		tasklet_kill(&pm8001_ha->tasklet[0]);
 	else
 		for (j = 0; j < PM8001_MAX_MSIX_VEC; j++)
@@ -1230,7 +1235,8 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 		goto err_out_disable;
 #ifdef PM8001_USE_TASKLET
 	/*  Tasklet for non msi-x interrupt handler */
-	if ((!pdev->msix_cap) || (pm8001_ha->chip_id == chip_8001))
+	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
+	    (pm8001_ha->chip_id == chip_8001))
 		tasklet_init(&pm8001_ha->tasklet[0], pm8001_tasklet,
 			(unsigned long)&(pm8001_ha->irq_vector[0]));
 	else
