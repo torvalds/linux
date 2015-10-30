@@ -1628,7 +1628,6 @@ MODULE_DEVICE_TABLE(of, hns_enet_of_match);
 static struct platform_driver hns_nic_dev_driver = {
 	.driver = {
 		.name = "hns-nic",
-		.owner = THIS_MODULE,
 		.of_match_table = hns_enet_of_match,
 	},
 	.probe = hns_nic_dev_probe,
