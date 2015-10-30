@@ -39,8 +39,11 @@ config DW_APB_TIMER_OF
 	select CLKSRC_OF
 
 config ROCKCHIP_TIMER
-	bool
+	bool "Rockchip timer driver" if COMPILE_TEST
+	depends on ARM || ARM64
 	select CLKSRC_OF
+	help
+	  Enables the support for the rockchip timer driver.
 
 config ARMADA_370_XP_TIMER
 	bool
