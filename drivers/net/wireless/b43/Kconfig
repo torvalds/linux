@@ -71,26 +71,6 @@ config B43_PCICORE_AUTOSELECT
 	select SSB_DRIVER_PCICORE
 	default y
 
-config B43_PCMCIA
-	bool "Broadcom 43xx PCMCIA device support"
-	depends on B43 && B43_SSB && SSB_PCMCIAHOST_POSSIBLE
-	select SSB_PCMCIAHOST
-	---help---
-	  Broadcom 43xx PCMCIA device support.
-
-	  Support for 16bit PCMCIA devices.
-	  Please note that most PC-CARD devices are _NOT_ 16bit PCMCIA
-	  devices, but 32bit CardBUS devices. CardBUS devices are supported
-	  out of the box by b43.
-
-	  With this config option you can drive b43 cards in
-	  CompactFlash formfactor in a PCMCIA adaptor.
-	  CF b43 cards can sometimes be found in handheld PCs.
-
-	  It's safe to select Y here, even if you don't have a B43 PCMCIA device.
-
-	  If unsure, say N.
-
 config B43_SDIO
 	bool "Broadcom 43xx SDIO device support"
 	depends on B43 && B43_SSB && SSB_SDIOHOST_POSSIBLE

@@ -176,6 +176,9 @@ static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 	struct iwl_dts_measurement_cmd cmd = {
 		.flags = cpu_to_le32(DTS_TRIGGER_CMD_FLAGS_TEMP),
 	};
+	struct iwl_ext_dts_measurement_cmd extcmd = {
+		.control_mode = cpu_to_le32(DTS_AUTOMATIC),
+	};
 	u32 cmdid;
 
 	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_WIDE_CMD_HDR))
@@ -183,8 +186,12 @@ static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 				   PHY_OPS_GROUP, 0);
 	else
 		cmdid = CMD_DTS_MEASUREMENT_TRIGGER;
-	return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0,
-				    sizeof(cmd), &cmd);
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE))
+		return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0, sizeof(cmd), &cmd);
+
+	return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0, sizeof(extcmd), &extcmd);
 }
 
 int iwl_mvm_get_temp(struct iwl_mvm *mvm)

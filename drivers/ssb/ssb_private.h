@@ -94,6 +94,8 @@ extern int ssb_pcmcia_get_invariants(struct ssb_bus *bus,
 extern int ssb_pcmcia_hardware_setup(struct ssb_bus *bus);
 extern void ssb_pcmcia_exit(struct ssb_bus *bus);
 extern int ssb_pcmcia_init(struct ssb_bus *bus);
+extern int ssb_host_pcmcia_init(void);
+extern void ssb_host_pcmcia_exit(void);
 extern const struct ssb_bus_ops ssb_pcmcia_ops;
 #else /* CONFIG_SSB_PCMCIAHOST */
 static inline int ssb_pcmcia_switch_coreidx(struct ssb_bus *bus,
@@ -116,6 +118,13 @@ static inline void ssb_pcmcia_exit(struct ssb_bus *bus)
 static inline int ssb_pcmcia_init(struct ssb_bus *bus)
 {
 	return 0;
+}
+static inline int ssb_host_pcmcia_init(void)
+{
+	return 0;
+}
+static inline void ssb_host_pcmcia_exit(void)
+{
 }
 #endif /* CONFIG_SSB_PCMCIAHOST */
 
@@ -148,6 +157,13 @@ static inline int ssb_sdio_init(struct ssb_bus *bus)
 }
 #endif /* CONFIG_SSB_SDIOHOST */
 
+/**************************************************
+ * host_soc.c
+ **************************************************/
+
+#ifdef CONFIG_SSB_HOST_SOC
+extern const struct ssb_bus_ops ssb_host_soc_ops;
+#endif
 
 /* scan.c */
 extern const char *ssb_core_name(u16 coreid);

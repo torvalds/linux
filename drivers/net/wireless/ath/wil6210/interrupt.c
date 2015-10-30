@@ -236,7 +236,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 
 		isr &= ~(BIT_DMA_EP_RX_ICR_RX_DONE |
 			 BIT_DMA_EP_RX_ICR_RX_HTRSH);
-		if (likely(test_bit(wil_status_reset_done, wil->status))) {
+		if (likely(test_bit(wil_status_fwready, wil->status))) {
 			if (likely(test_bit(wil_status_napi_en, wil->status))) {
 				wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
 				need_unmask = false;
@@ -286,7 +286,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 		isr &= ~BIT_DMA_EP_TX_ICR_TX_DONE;
 		/* clear also all VRING interrupts */
 		isr &= ~(BIT(25) - 1UL);
-		if (likely(test_bit(wil_status_reset_done, wil->status))) {
+		if (likely(test_bit(wil_status_fwready, wil->status))) {
 			wil_dbg_txrx(wil, "NAPI(Tx) schedule\n");
 			need_unmask = false;
 			napi_schedule(&wil->napi_tx);
@@ -364,7 +364,7 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 	if (isr & ISR_MISC_FW_READY) {
 		wil_dbg_irq(wil, "IRQ: FW ready\n");
 		wil_cache_mbox_regs(wil);
-		set_bit(wil_status_reset_done, wil->status);
+		set_bit(wil_status_mbox_ready, wil->status);
 		/**
 		 * Actual FW ready indicated by the
 		 * WMI_FW_READY_EVENTID

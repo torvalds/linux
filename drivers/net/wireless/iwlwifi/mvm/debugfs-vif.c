@@ -715,11 +715,30 @@ static ssize_t iwl_dbgfs_tof_responder_params_write(struct ieee80211_vif *vif,
 		goto out;
 	}
 
-	data = iwl_dbgfs_is_match("ctrl_ch_position=", buf);
+	data = iwl_dbgfs_is_match("center_freq=", buf);
 	if (data) {
+		struct iwl_tof_responder_config_cmd *cmd =
+			&mvm->tof_data.responder_cfg;
+
 		ret = kstrtou32(data, 10, &value);
-		if (ret == 0)
-			mvm->tof_data.responder_cfg.ctrl_ch_position = value;
+		if (ret == 0 && value) {
+			enum ieee80211_band band = (cmd->channel_num <= 14) ?
+						   IEEE80211_BAND_2GHZ :
+						   IEEE80211_BAND_5GHZ;
+			struct ieee80211_channel chn = {
+				.band = band,
+				.center_freq = ieee80211_channel_to_frequency(
+					cmd->channel_num, band),
+				};
+			struct cfg80211_chan_def chandef = {
+				.chan =  &chn,
+				.center_freq1 =
+					ieee80211_channel_to_frequency(value,
+								       band),
+			};
+
+			cmd->ctrl_ch_position = iwl_mvm_get_ctrl_pos(&chandef);
+		}
 		goto out;
 	}
 

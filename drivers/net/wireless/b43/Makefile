@@ -21,7 +21,6 @@ b43-y				+= pio.o
 b43-y				+= rfkill.o
 b43-y				+= ppr.o
 b43-$(CONFIG_B43_LEDS)		+= leds.o
-b43-$(CONFIG_B43_PCMCIA)	+= pcmcia.o
 b43-$(CONFIG_B43_SDIO)		+= sdio.o
 b43-$(CONFIG_B43_DEBUG)		+= debugfs.o
 
