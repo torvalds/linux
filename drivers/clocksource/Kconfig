@@ -46,8 +46,11 @@ config ROCKCHIP_TIMER
 	  Enables the support for the rockchip timer driver.
 
 config ARMADA_370_XP_TIMER
-	bool
+	bool "Armada 370 and XP timer driver" if COMPILE_TEST
+	depends on ARM
 	select CLKSRC_OF
+	help
+	  Enables the support for the Armada 370 and XP timer driver.
 
 config MESON6_TIMER
 	bool
