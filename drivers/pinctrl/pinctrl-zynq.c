@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2014 Xilinx
  *
- *  SÃ¶ren Brinkmann <soren.brinkmann@xilinx.com>
+ *  Sören Brinkmann <soren.brinkmann@xilinx.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1242,6 +1242,6 @@ static void __exit zynq_pinctrl_exit(void)
 }
 module_exit(zynq_pinctrl_exit);
 
-MODULE_AUTHOR("SÃ¶ren Brinkmann <soren.brinkmann@xilinx.com>");
+MODULE_AUTHOR("Sören Brinkmann <soren.brinkmann@xilinx.com>");
 MODULE_DESCRIPTION("Xilinx Zynq pinctrl driver");
 MODULE_LICENSE("GPL");
