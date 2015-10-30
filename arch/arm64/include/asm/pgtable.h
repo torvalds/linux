@@ -167,6 +167,16 @@ extern struct page *empty_zero_page;
 	((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER))
 #define pte_valid_not_user(pte) \
 	((pte_val(pte) & (PTE_VALID | PTE_USER)) == PTE_VALID)
+#define pte_valid_young(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_AF)) == (PTE_VALID | PTE_AF))
+
+/*
+ * Could the pte be present in the TLB? We must check mm_tlb_flush_pending
+ * so that we don't erroneously return false for pages that have been
+ * remapped as PROT_NONE but are yet to be flushed from the TLB.
+ */
+#define pte_accessible(mm, pte)	\
+	(mm_tlb_flush_pending(mm) ? pte_present(pte) : pte_valid_young(pte))
 
 static inline pte_t clear_pte_bit(pte_t pte, pgprot_t prot)
 {
