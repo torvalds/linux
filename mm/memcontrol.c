@@ -3741,44 +3741,43 @@ struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
 /**
  * mem_cgroup_wb_stats - retrieve writeback related stats from its memcg
  * @wb: bdi_writeback in question
- * @pavail: out parameter for number of available pages
+ * @pfilepages: out parameter for number of file pages
+ * @pheadroom: out parameter for number of allocatable pages according to memcg
  * @pdirty: out parameter for number of dirty pages
  * @pwriteback: out parameter for number of pages under writeback
  *
- * Determine the numbers of available, dirty, and writeback pages in @wb's
- * memcg.  Dirty and writeback are self-explanatory.  Available is a bit
- * more involved.
+ * Determine the numbers of file, headroom, dirty, and writeback pages in
+ * @wb's memcg.  File, dirty and writeback are self-explanatory.  Headroom
+ * is a bit more involved.
  *
- * A memcg's headroom is "min(max, high) - used".  The available memory is
- * calculated as the lowest headroom of itself and the ancestors plus the
- * number of pages already being used for file pages.  Note that this
- * doesn't consider the actual amount of available memory in the system.
- * The caller should further cap *@pavail accordingly.
+ * A memcg's headroom is "min(max, high) - used".  In the hierarchy, the
+ * headroom is calculated as the lowest headroom of itself and the
+ * ancestors.  Note that this doesn't consider the actual amount of
+ * available memory in the system.  The caller should further cap
+ * *@pheadroom accordingly.
  */
-void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pavail,
-			 unsigned long *pdirty, unsigned long *pwriteback)
+void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
+			 unsigned long *pheadroom, unsigned long *pdirty,
+			 unsigned long *pwriteback)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
 	struct mem_cgroup *parent;
-	unsigned long head_room = PAGE_COUNTER_MAX;
-	unsigned long file_pages;
 
 	*pdirty = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 
 	/* this should eventually include NR_UNSTABLE_NFS */
 	*pwriteback = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
+	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
+						     (1 << LRU_ACTIVE_FILE));
+	*pheadroom = PAGE_COUNTER_MAX;
 
-	file_pages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
-						    (1 << LRU_ACTIVE_FILE));
 	while ((parent = parent_mem_cgroup(memcg))) {
 		unsigned long ceiling = min(memcg->memory.limit, memcg->high);
 		unsigned long used = page_counter_read(&memcg->memory);
 
-		head_room = min(head_room, ceiling - min(ceiling, used));
+		*pheadroom = min(*pheadroom, ceiling - min(ceiling, used));
 		memcg = parent;
 	}
-
-	*pavail = file_pages + head_room;
 }
 
 #else	/* CONFIG_CGROUP_WRITEBACK */

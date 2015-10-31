@@ -1924,7 +1924,6 @@ EXPORT_SYMBOL(mmc_can_reset);
 static int mmc_reset(struct mmc_host *host)
 {
 	struct mmc_card *card = host->card;
-	u32 status;
 
 	if (!(host->caps & MMC_CAP_HW_RESET) || !host->ops->hw_reset)
 		return -EOPNOTSUPP;
@@ -1936,12 +1935,6 @@ static int mmc_reset(struct mmc_host *host)
 	mmc_set_clock(host, host->f_init);
 
 	host->ops->hw_reset(host);
-
-	/* If the reset has happened, then a status command will fail */
-	if (!mmc_send_status(card, &status)) {
-		mmc_host_clk_release(host);
-		return -ENOSYS;
-	}
 
 	/* Set initial state and call mmc_set_ios */
 	mmc_set_initial_state(host);

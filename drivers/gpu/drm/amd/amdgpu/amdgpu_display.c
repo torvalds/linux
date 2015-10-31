@@ -184,10 +184,6 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	fence_get(work->excl);
-	for (i = 0; i < work->shared_count; ++i)
-		fence_get(work->shared[i]);
-
 	amdgpu_bo_get_tiling_flags(new_rbo, &tiling_flags);
 	amdgpu_bo_unreserve(new_rbo);
 

@@ -1654,6 +1654,7 @@ struct amdgpu_pm {
 	u8                      fan_max_rpm;
 	/* dpm */
 	bool                    dpm_enabled;
+	bool                    sysfs_initialized;
 	struct amdgpu_dpm       dpm;
 	const struct firmware	*fw;	/* SMC firmware */
 	uint32_t                fw_version;
