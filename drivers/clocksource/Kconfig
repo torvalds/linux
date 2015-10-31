@@ -95,7 +95,10 @@ config VT8500_TIMER
 	  Enables support for the VT8500 driver.
 
 config CADENCE_TTC_TIMER
-	bool
+	bool "Cadence TTC timer driver" if COMPILE_TEST
+	depends on COMMON_CLK
+	help
+	  Enables support for the cadence ttc driver.
 
 config ASM9260_TIMER
 	bool
