@@ -25,7 +25,11 @@
 #include <linux/types.h>
 
 /**
- * batadv_test_bit
+ * batadv_test_bit - check if bit is set in the current window
+ *
+ * @seq_bits: pointer to the sequence number receive packet
+ * @last_seqno: latest sequence number in seq_bits
+ * @curr_seqno: sequence number to test for
  *
  * Return: 1 if the corresponding bit in the given seq_bits indicates true
  * and curr_seqno is within range of last_seqno. Otherwise returns 0.
@@ -51,11 +55,6 @@ static inline void batadv_set_bit(unsigned long *seq_bits, s32 n)
 	set_bit(n, seq_bits); /* turn the position on */
 }
 
-/**
- * batadv_bit_get_packet - receive and process one packet
- *
- * Return: 1 if received seq_num is considered new, 0 if old
- */
 int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 			  int set_mark);
 

@@ -209,6 +209,11 @@ struct batadv_bla_claim_dst {
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header
  * @flags: contains routing relevant flags - see enum batadv_iv_flags
+ * @seqno: sequence identification
+ * @orig: address of the source node
+ * @prev_sender: address of the previous sender
+ * @reserved: reserved byte for alignment
+ * @tq: transmission quality
  * @tvlv_len: length of tvlv data following the ogm header
  */
 struct batadv_ogm_packet {
@@ -345,6 +350,7 @@ struct batadv_unicast_packet {
  * @u: common unicast packet header
  * @src: address of the source
  * @subtype: packet subtype
+ * @reserved: reserved byte for alignment
  */
 struct batadv_unicast_4addr_packet {
 	struct batadv_unicast_packet u;

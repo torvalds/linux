@@ -141,8 +141,13 @@ out:
 }
 
 /**
- * batadv_window_protected checks whether the host restarted and is in the
+ * batadv_window_protected - checks whether the host restarted and is in the
  *  protection time.
+ * @bat_priv: the bat priv with all the soft interface information
+ * @seq_num_diff: difference between the current/received sequence number and
+ *  the last sequence number
+ * @last_reset: jiffies timestamp of the last reset, will be updated when reset
+ *  is detected
  *
  * Return:
  *  0 if the packet is to be accepted.

@@ -48,7 +48,9 @@ static struct lock_class_key batadv_orig_hash_lock_class_key;
 static void batadv_purge_orig(struct work_struct *work);
 
 /**
- * batadv_compare_orig
+ * batadv_compare_orig - comparing function used in the originator hash table
+ * @node: node in the local table
+ * @data2: second object to compare the node to
  *
  * Return: 1 if they are the same originator
  */

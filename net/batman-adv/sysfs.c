@@ -82,6 +82,7 @@ static struct batadv_priv *batadv_vlan_kobj_to_batpriv(struct kobject *obj)
 
 /**
  * batadv_kobj_to_vlan - convert a kobj in the associated softif_vlan struct
+ * @bat_priv: the bat priv with all the soft interface information
  * @obj: kobject to covert
  *
  * Return: the associated softif_vlan struct if found, NULL otherwise.

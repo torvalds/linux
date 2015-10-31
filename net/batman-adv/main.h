@@ -275,6 +275,8 @@ static inline void _batadv_dbg(int type __always_unused,
 
 /**
  * batadv_compare_eth - Compare two not u16 aligned Ethernet addresses
+ * @data1: Pointer to a six-byte array containing the Ethernet address
+ * @data2: Pointer other six-byte array containing the Ethernet address
  *
  * note: can't use ether_addr_equal() as it requires aligned memory
  *
@@ -331,6 +333,8 @@ static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 
 /**
  * batadv_sum_counter - Sum the cpu-local counters for index 'idx'
+ * @bat_priv: the bat priv with all the soft interface information
+ * @idx: index of counter to sum up
  *
  * Return: sum of all cpu-local counters
  */

@@ -431,7 +431,10 @@ _batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_add_bcast_packet_to_list
+ * batadv_add_bcast_packet_to_list - queue broadcast packet for multiple sends
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: broadcast packet to add
+ * @delay: number of jiffies to wait before sending
  *
  * add a broadcast packet to the queue and setup timers. broadcast packets
  * are sent multiple times to increase probability for being received.
