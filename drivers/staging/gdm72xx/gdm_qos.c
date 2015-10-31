@@ -101,7 +101,7 @@ void gdm_qos_init(void *nic_ptr)
 	}
 
 	qcb->qos_list_cnt = 0;
-	qcb->qos_null_idx = QOS_MAX-1;
+	qcb->qos_null_idx = QOS_MAX - 1;
 	qcb->qos_limit_size = 255;
 
 	spin_lock_init(&qcb->qos_lock);
@@ -128,7 +128,7 @@ void gdm_qos_release_list(void *nic_ptr)
 	}
 
 	qcb->qos_list_cnt = 0;
-	qcb->qos_null_idx = QOS_MAX-1;
+	qcb->qos_null_idx = QOS_MAX - 1;
 
 	for (i = 0; i < QOS_MAX; i++) {
 		list_for_each_entry_safe(entry, n, &qcb->qos_list[i], list) {
