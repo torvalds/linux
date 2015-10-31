@@ -759,11 +759,23 @@ txq_put_data_tso(struct net_device *dev, struct tx_queue *txq,
 
 	desc->l4i_chk = 0;
 	desc->byte_cnt = length;
-	desc->buf_ptr = dma_map_single(dev->dev.parent, data,
-				       length, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(dev->dev.parent, desc->buf_ptr))) {
-		WARN(1, "dma_map_single failed!\n");
-		return -ENOMEM;
+
+	if (length <= 8 && (uintptr_t)data & 0x7) {
+		/* Copy unaligned small data fragment to TSO header data area */
+		memcpy(txq->tso_hdrs + txq->tx_curr_desc * TSO_HEADER_SIZE,
+		       data, length);
+		desc->buf_ptr = txq->tso_hdrs_dma
+			+ txq->tx_curr_desc * TSO_HEADER_SIZE;
+	} else {
+		/* Alignment is okay, map buffer and hand off to hardware */
+		txq->tx_desc_mapping[tx_index] = DESC_DMA_MAP_SINGLE;
+		desc->buf_ptr = dma_map_single(dev->dev.parent, data,
+			length, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(dev->dev.parent,
+					       desc->buf_ptr))) {
+			WARN(1, "dma_map_single failed!\n");
+			return -ENOMEM;
+		}
 	}
 
 	cmd_sts = BUFFER_OWNED_BY_DMA;
@@ -779,7 +791,8 @@ txq_put_data_tso(struct net_device *dev, struct tx_queue *txq,
 }
 
 static inline void
-txq_put_hdr_tso(struct sk_buff *skb, struct tx_queue *txq, int length)
+txq_put_hdr_tso(struct sk_buff *skb, struct tx_queue *txq, int length,
+		u32 *first_cmd_sts, bool first_desc)
 {
 	struct mv643xx_eth_private *mp = txq_to_mp(txq);
 	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
@@ -788,6 +801,7 @@ txq_put_hdr_tso(struct sk_buff *skb, struct tx_queue *txq, int length)
 	int ret;
 	u32 cmd_csum = 0;
 	u16 l4i_chk = 0;
+	u32 cmd_sts;
 
 	tx_index = txq->tx_curr_desc;
 	desc = &txq->tx_desc_area[tx_index];
@@ -803,8 +817,16 @@ txq_put_hdr_tso(struct sk_buff *skb, struct tx_queue *txq, int length)
 	desc->byte_cnt = hdr_len;
 	desc->buf_ptr = txq->tso_hdrs_dma +
 			txq->tx_curr_desc * TSO_HEADER_SIZE;
-	desc->cmd_sts = cmd_csum | BUFFER_OWNED_BY_DMA  | TX_FIRST_DESC |
+	cmd_sts = cmd_csum | BUFFER_OWNED_BY_DMA  | TX_FIRST_DESC |
 				   GEN_CRC;
+
+	/* Defer updating the first command descriptor until all
+	 * following descriptors have been written.
+	 */
+	if (first_desc)
+		*first_cmd_sts = cmd_sts;
+	else
+		desc->cmd_sts = cmd_sts;
 
 	txq->tx_curr_desc++;
 	if (txq->tx_curr_desc == txq->tx_ring_size)
@@ -819,6 +841,8 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 	int desc_count = 0;
 	struct tso_t tso;
 	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	struct tx_desc *first_tx_desc;
+	u32 first_cmd_sts = 0;
 
 	/* Count needed descriptors */
 	if ((txq->tx_desc_count + tso_count_descs(skb)) >= txq->tx_ring_size) {
@@ -826,11 +850,14 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 		return -EBUSY;
 	}
 
+	first_tx_desc = &txq->tx_desc_area[txq->tx_curr_desc];
+
 	/* Initialize the TSO handler, and prepare the first payload */
 	tso_start(skb, &tso);
 
 	total_len = skb->len - hdr_len;
 	while (total_len > 0) {
+		bool first_desc = (desc_count == 0);
 		char *hdr;
 
 		data_left = min_t(int, skb_shinfo(skb)->gso_size, total_len);
@@ -840,7 +867,8 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 		/* prepare packet headers: MAC + IP + TCP */
 		hdr = txq->tso_hdrs + txq->tx_curr_desc * TSO_HEADER_SIZE;
 		tso_build_hdr(skb, hdr, &tso, data_left, total_len == 0);
-		txq_put_hdr_tso(skb, txq, data_left);
+		txq_put_hdr_tso(skb, txq, data_left, &first_cmd_sts,
+				first_desc);
 
 		while (data_left > 0) {
 			int size;
@@ -859,6 +887,10 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 
 	__skb_queue_tail(&txq->tx_skb, skb);
 	skb_tx_timestamp(skb);
+
+	/* ensure all other descriptors are written before first cmd_sts */
+	wmb();
+	first_tx_desc->cmd_sts = first_cmd_sts;
 
 	/* clear TX_END status */
 	mp->work_tx_end &= ~(1 << txq->index);
@@ -2785,8 +2817,10 @@ static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 
 	for_each_available_child_of_node(np, pnp) {
 		ret = mv643xx_eth_shared_of_add_port(pdev, pnp);
-		if (ret)
+		if (ret) {
+			of_node_put(pnp);
 			return ret;
+		}
 	}
 	return 0;
 }

@@ -60,6 +60,38 @@ static inline struct metadata_dst *tun_rx_dst(int md_size)
 	return tun_dst;
 }
 
+static inline struct metadata_dst *tun_dst_unclone(struct sk_buff *skb)
+{
+	struct metadata_dst *md_dst = skb_metadata_dst(skb);
+	int md_size = md_dst->u.tun_info.options_len;
+	struct metadata_dst *new_md;
+
+	if (!md_dst)
+		return ERR_PTR(-EINVAL);
+
+	new_md = metadata_dst_alloc(md_size, GFP_ATOMIC);
+	if (!new_md)
+		return ERR_PTR(-ENOMEM);
+
+	memcpy(&new_md->u.tun_info, &md_dst->u.tun_info,
+	       sizeof(struct ip_tunnel_info) + md_size);
+	skb_dst_drop(skb);
+	dst_hold(&new_md->dst);
+	skb_dst_set(skb, &new_md->dst);
+	return new_md;
+}
+
+static inline struct ip_tunnel_info *skb_tunnel_info_unclone(struct sk_buff *skb)
+{
+	struct metadata_dst *dst;
+
+	dst = tun_dst_unclone(skb);
+	if (IS_ERR(dst))
+		return NULL;
+
+	return &dst->u.tun_info;
+}
+
 static inline struct metadata_dst *ip_tun_rx_dst(struct sk_buff *skb,
 						 __be16 flags,
 						 __be64 tunnel_id,

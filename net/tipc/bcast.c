@@ -42,7 +42,8 @@
 #include "core.h"
 
 #define	MAX_PKT_DEFAULT_MCAST	1500	/* bcast link max packet size (fixed) */
-#define	BCLINK_WIN_DEFAULT	20	/* bcast link window size (default) */
+#define	BCLINK_WIN_DEFAULT	50	/* bcast link window size (default) */
+#define	BCLINK_WIN_MIN	        32	/* bcast minimum link window size */
 
 const char tipc_bclink_name[] = "broadcast-link";
 
@@ -908,9 +909,10 @@ int tipc_bclink_set_queue_limits(struct net *net, u32 limit)
 
 	if (!bcl)
 		return -ENOPROTOOPT;
-	if ((limit < TIPC_MIN_LINK_WIN) || (limit > TIPC_MAX_LINK_WIN))
+	if (limit < BCLINK_WIN_MIN)
+		limit = BCLINK_WIN_MIN;
+	if (limit > TIPC_MAX_LINK_WIN)
 		return -EINVAL;
-
 	tipc_bclink_lock(net);
 	tipc_link_set_queue_limits(bcl, limit);
 	tipc_bclink_unlock(net);
