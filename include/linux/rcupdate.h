@@ -379,9 +379,9 @@ static inline void rcu_init_nohz(void)
  */
 #define RCU_NONIDLE(a) \
 	do { \
-		rcu_irq_enter(); \
+		rcu_irq_enter_irqson(); \
 		do { a; } while (0); \
-		rcu_irq_exit(); \
+		rcu_irq_exit_irqson(); \
 	} while (0)
 
 /*

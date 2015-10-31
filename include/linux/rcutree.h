@@ -97,6 +97,8 @@ void rcu_idle_enter(void);
 void rcu_idle_exit(void);
 void rcu_irq_enter(void);
 void rcu_irq_exit(void);
+void rcu_irq_enter_irqson(void);
+void rcu_irq_exit_irqson(void);
 
 void exit_rcu(void);
 
