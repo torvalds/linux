@@ -86,6 +86,10 @@
 	status = "okay";
 };
 
+&codec {
+	status = "okay";
+};
+
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_pins_rgmii_a>;
