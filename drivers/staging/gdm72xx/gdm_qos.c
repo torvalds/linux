@@ -193,7 +193,7 @@ static int get_qos_index(struct nic *nic, u8 *iph, u8 *tcpudph)
 	if (!iph || !tcpudph)
 		return -1;
 
-	ip_ver = (iph[0]>>4) & 0xf;
+	ip_ver = (iph[0] >> 4) & 0xf;
 
 	if (ip_ver != 4)
 		return -1;
