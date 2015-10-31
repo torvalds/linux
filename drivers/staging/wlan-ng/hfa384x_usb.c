@@ -3504,7 +3504,7 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 		rxmeta->signal = usbin->rxfrm.desc.signal - hw->dbmadjust;
 		rxmeta->noise = usbin->rxfrm.desc.silence - hw->dbmadjust;
 
-		prism2sta_ev_rx(wlandev, skb);
+		p80211netdev_rx(wlandev, skb);
 
 		break;
 
@@ -3628,7 +3628,7 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 	}
 
 	/* pass it back up */
-	prism2sta_ev_rx(wlandev, skb);
+	p80211netdev_rx(wlandev, skb);
 }
 
 /*----------------------------------------------------------------
