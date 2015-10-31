@@ -44,7 +44,6 @@ void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars);
 
 void mdc_pack_body(struct ptlrpc_request *req, const struct lu_fid *fid,
 		   __u64 valid, int ea_size, __u32 suppgid, int flags);
-int mdc_pack_req(struct ptlrpc_request *req, int version, int opc);
 void mdc_is_subdir_pack(struct ptlrpc_request *req, const struct lu_fid *pfid,
 			const struct lu_fid *cfid, int flags);
 void mdc_swap_layouts_pack(struct ptlrpc_request *req,
@@ -62,7 +61,6 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		   __u32 mode, __u64 rdev, __u64 flags, const void *data,
 		   int datalen);
 void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
-void mdc_getxattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
 void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
 void mdc_rename_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		     const char *old, int oldlen, const char *new, int newlen);
