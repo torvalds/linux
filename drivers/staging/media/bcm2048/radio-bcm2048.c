@@ -1596,7 +1596,7 @@ static void bcm2048_parse_rds_rt(struct bcm2048_device *bdev)
 			crc = bcm2048_rds_block_crc(bdev, i);
 			if (crc == BCM2048_RDS_CRC_UNRECOVARABLE)
 				continue;
-			/* Syncronize to a good RDS PI */
+			/* Synchronize to a good RDS PI */
 			if (((bdev->rds_info.radio_text[i + 1] << 8) +
 			    bdev->rds_info.radio_text[i + 2]) ==
 			    bdev->rds_info.rds_pi)
@@ -1732,7 +1732,7 @@ static void bcm2048_parse_rds_ps(struct bcm2048_device *bdev)
 			crc = bcm2048_rds_block_crc(bdev, i);
 			if (crc == BCM2048_RDS_CRC_UNRECOVARABLE)
 				continue;
-			/* Syncronize to a good RDS PI */
+			/* Synchronize to a good RDS PI */
 			if (((bdev->rds_info.radio_text[i + 1] << 8) +
 			    bdev->rds_info.radio_text[i + 2]) ==
 			    bdev->rds_info.rds_pi)
