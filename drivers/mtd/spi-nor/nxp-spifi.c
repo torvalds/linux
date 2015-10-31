@@ -330,7 +330,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 	writel(ctrl, spifi->io_base + SPIFI_CTRL);
 
 	spifi->nor.dev   = spifi->dev;
-	spifi->nor.flash_node = np;
+	spi_nor_set_flash_node(&spifi->nor, np);
 	spifi->nor.priv  = spifi;
 	spifi->nor.read  = nxp_spifi_read;
 	spifi->nor.write = nxp_spifi_write;

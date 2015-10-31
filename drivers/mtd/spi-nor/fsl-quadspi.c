@@ -1013,7 +1013,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		mtd = &nor->mtd;
 
 		nor->dev = dev;
-		nor->flash_node = np;
+		spi_nor_set_flash_node(nor, np);
 		nor->priv = q;
 
 		/* fill the hooks */
