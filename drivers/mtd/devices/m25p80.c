@@ -175,7 +175,6 @@ static int m25p80_erase(struct spi_nor *nor, loff_t offset)
  */
 static int m25p_probe(struct spi_device *spi)
 {
-	struct mtd_part_parser_data	ppdata;
 	struct flash_platform_data	*data;
 	struct m25p *flash;
 	struct spi_nor *nor;
@@ -227,11 +226,8 @@ static int m25p_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ppdata.of_node = spi->dev.of_node;
-
-	return mtd_device_parse_register(&nor->mtd, NULL, &ppdata,
-			data ? data->parts : NULL,
-			data ? data->nr_parts : 0);
+	return mtd_device_register(&nor->mtd, data ? data->parts : NULL,
+				   data ? data->nr_parts : 0);
 }
 
 

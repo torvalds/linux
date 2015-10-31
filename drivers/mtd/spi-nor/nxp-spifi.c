@@ -271,7 +271,6 @@ static void nxp_spifi_dummy_id_read(struct spi_nor *nor)
 static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 				 struct device_node *np)
 {
-	struct mtd_part_parser_data ppdata;
 	enum read_mode flash_read;
 	u32 ctrl, property;
 	u16 mode = 0;
@@ -361,8 +360,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 		return ret;
 	}
 
-	ppdata.of_node = np;
-	ret = mtd_device_parse_register(&spifi->nor.mtd, NULL, &ppdata, NULL, 0);
+	ret = mtd_device_register(&spifi->nor.mtd, NULL, 0);
 	if (ret) {
 		dev_err(spifi->dev, "mtd device parse failed\n");
 		return ret;

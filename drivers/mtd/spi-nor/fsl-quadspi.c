@@ -927,7 +927,6 @@ static void fsl_qspi_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
 static int fsl_qspi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct mtd_part_parser_data ppdata;
 	struct device *dev = &pdev->dev;
 	struct fsl_qspi *q;
 	struct resource *res;
@@ -1038,8 +1037,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		if (ret)
 			goto mutex_failed;
 
-		ppdata.of_node = np;
-		ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
+		ret = mtd_device_register(mtd, NULL, 0);
 		if (ret)
 			goto mutex_failed;
 
