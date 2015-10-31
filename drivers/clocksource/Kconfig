@@ -84,7 +84,10 @@ config SUN5I_HSTIMER
 	  Enables support the Sun5i timer.
 
 config TEGRA_TIMER
-	bool
+	bool "Tegra timer driver" if COMPILE_TEST
+	depends on ARM
+	help
+	  Enables support for the Tegra driver.
 
 config VT8500_TIMER
 	bool
