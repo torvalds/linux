@@ -361,6 +361,9 @@ static struct kmsg_dumper pstore_dumper = {
 	.dump = pstore_dump,
 };
 
+/*
+ * Register with kmsg_dump to save last part of console log on panic.
+ */
 static void pstore_register_kmsg(void)
 {
 	kmsg_dump_register(&pstore_dumper);
@@ -434,8 +437,6 @@ static int pstore_write_compat(enum pstore_type_id type,
  * read function right away to populate the file system. If not
  * then the pstore mount code will call us later to fill out
  * the file system.
- *
- * Register with kmsg_dump to save last part of console log on panic.
  */
 int pstore_register(struct pstore_info *psi)
 {
