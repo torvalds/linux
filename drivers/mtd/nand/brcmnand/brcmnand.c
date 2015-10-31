@@ -1925,7 +1925,7 @@ static int brcmnand_init_cs(struct brcmnand_host *host)
 	mtd = &host->mtd;
 	chip = &host->chip;
 
-	chip->flash_node = dn;
+	nand_set_flash_node(chip, dn);
 	chip->priv = host;
 	mtd->priv = chip;
 	mtd->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "brcmnand.%d",

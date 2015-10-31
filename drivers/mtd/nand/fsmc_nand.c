@@ -1033,7 +1033,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand->options = pdata->options;
 	nand->select_chip = fsmc_select_chip;
 	nand->badblockbits = 7;
-	nand->flash_node = np;
+	nand_set_flash_node(nand, np);
 
 	if (pdata->width == FSMC_NAND_BW16)
 		nand->options |= NAND_BUSWIDTH_16;

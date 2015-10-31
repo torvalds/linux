@@ -714,7 +714,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 				goto error;
 			}
 
-			chip->flash_node = child;
+			nand_set_flash_node(chip, child);
 		}
 	}
 
