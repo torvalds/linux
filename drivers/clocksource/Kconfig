@@ -77,8 +77,11 @@ config SUN4I_TIMER
 	  Enables support for the Sun4i timer.
 
 config SUN5I_HSTIMER
+	bool "Sun5i timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
-	bool
+	depends on COMMON_CLK
+	help
+	  Enables support the Sun5i timer.
 
 config TEGRA_TIMER
 	bool
