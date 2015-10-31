@@ -926,7 +926,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 {
 	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node __maybe_unused *np = pdev->dev.of_node;
-	struct mtd_part_parser_data ppdata = {};
 	struct fsmc_nand_data *host;
 	struct mtd_info *mtd;
 	struct nand_chip *nand;
@@ -1016,6 +1015,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand = &host->nand;
 	mtd->priv = nand;
 	nand->priv = host;
+	nand_set_flash_node(nand, np);
 
 	host->mtd.dev.parent = &pdev->dev;
 	nand->IO_ADDR_R = host->data_va;
@@ -1175,9 +1175,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	 * Check for partition info passed
 	 */
 	host->mtd.name = "nand";
-	ppdata.of_node = np;
-	ret = mtd_device_parse_register(&host->mtd, NULL, &ppdata,
-					host->partitions, host->nr_partitions);
+	ret = mtd_device_register(&host->mtd, host->partitions,
+				  host->nr_partitions);
 	if (ret)
 		goto err_probe;
 

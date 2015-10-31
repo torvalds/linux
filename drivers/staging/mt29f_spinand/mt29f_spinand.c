@@ -853,7 +853,6 @@ static int spinand_probe(struct spi_device *spi_nand)
 	struct nand_chip *chip;
 	struct spinand_info *info;
 	struct spinand_state *state;
-	struct mtd_part_parser_data ppdata;
 
 	info  = devm_kzalloc(&spi_nand->dev, sizeof(struct spinand_info),
 			GFP_KERNEL);
@@ -897,6 +896,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 		pr_info("%s: disable ecc failed!\n", __func__);
 #endif
 
+	nand_set_flash_node(chip, spi_nand->dev.of_node);
 	chip->priv	= info;
 	chip->read_buf	= spinand_read_buf;
 	chip->write_buf	= spinand_write_buf;
@@ -919,8 +919,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 	if (nand_scan(mtd, 1))
 		return -ENXIO;
 
-	ppdata.of_node = spi_nand->dev.of_node;
-	return mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
+	return mtd_device_register(mtd, NULL, 0);
 }
 
 /*

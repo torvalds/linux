@@ -2093,7 +2093,6 @@ static int atmel_nand_probe(struct platform_device *pdev)
 	struct mtd_info *mtd;
 	struct nand_chip *nand_chip;
 	struct resource *mem;
-	struct mtd_part_parser_data ppdata = {};
 	int res, irq;
 
 	/* Allocate memory for the device structure (and zero it) */
@@ -2117,6 +2116,7 @@ static int atmel_nand_probe(struct platform_device *pdev)
 	nand_chip = &host->nand_chip;
 	host->dev = &pdev->dev;
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+		nand_set_flash_node(nand_chip, pdev->dev.of_node);
 		/* Only when CONFIG_OF is enabled of_node can be parsed */
 		res = atmel_of_init_port(host, pdev->dev.of_node);
 		if (res)
@@ -2259,9 +2259,8 @@ static int atmel_nand_probe(struct platform_device *pdev)
 	}
 
 	mtd->name = "atmel_nand";
-	ppdata.of_node = pdev->dev.of_node;
-	res = mtd_device_parse_register(mtd, NULL, &ppdata,
-			host->board.parts, host->board.num_parts);
+	res = mtd_device_register(mtd, host->board.parts,
+				  host->board.num_parts);
 	if (!res)
 		return res;
 

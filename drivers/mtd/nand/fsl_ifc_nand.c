@@ -883,6 +883,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	/* Fill in fsl_ifc_mtd structure */
 	priv->mtd.priv = chip;
 	priv->mtd.dev.parent = priv->dev;
+	nand_set_flash_node(chip, priv->dev->of_node);
 
 	/* fill in nand_chip structure */
 	/* set up function call table */
@@ -1030,9 +1031,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	int ret;
 	int bank;
 	struct device_node *node = dev->dev.of_node;
-	struct mtd_part_parser_data ppdata;
 
-	ppdata.of_node = dev->dev.of_node;
 	if (!fsl_ifc_ctrl_dev || !fsl_ifc_ctrl_dev->regs)
 		return -ENODEV;
 	ifc = fsl_ifc_ctrl_dev->regs;
@@ -1128,7 +1127,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 
 	/* First look for RedBoot table or partitions on the command
 	 * line, these take precedence over device tree information */
-	mtd_device_parse_register(&priv->mtd, part_probe_types, &ppdata,
+	mtd_device_parse_register(&priv->mtd, part_probe_types, NULL,
 						NULL, 0);
 
 	dev_info(priv->dev, "IFC NAND device at 0x%llx, bank %d\n",

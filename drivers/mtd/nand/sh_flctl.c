@@ -1086,7 +1086,6 @@ static int flctl_probe(struct platform_device *pdev)
 	struct sh_flctl_platform_data *pdata;
 	int ret;
 	int irq;
-	struct mtd_part_parser_data ppdata = {};
 
 	flctl = devm_kzalloc(&pdev->dev, sizeof(struct sh_flctl), GFP_KERNEL);
 	if (!flctl)
@@ -1123,6 +1122,7 @@ static int flctl_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, flctl);
 	flctl_mtd = &flctl->mtd;
 	nand = &flctl->chip;
+	nand_set_flash_node(nand, pdev->dev.of_node);
 	flctl_mtd->priv = nand;
 	flctl_mtd->dev.parent = &pdev->dev;
 	flctl->pdev = pdev;
@@ -1163,9 +1163,7 @@ static int flctl_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_chip;
 
-	ppdata.of_node = pdev->dev.of_node;
-	ret = mtd_device_parse_register(flctl_mtd, NULL, &ppdata, pdata->parts,
-			pdata->nr_parts);
+	ret = mtd_device_register(flctl_mtd, pdata->parts, pdata->nr_parts);
 
 	return 0;
 

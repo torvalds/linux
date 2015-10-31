@@ -763,7 +763,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
 	struct resource *rc;
-	struct mtd_part_parser_data ppdata = {};
 	int res;
 
 	rc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -803,6 +802,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	mtd = &host->mtd;
 	chip = &host->nand_chip;
 	chip->priv = host;
+	nand_set_flash_node(chip, pdev->dev.of_node);
 	mtd->priv = chip;
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
@@ -908,9 +908,8 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 
 	mtd->name = "nxp_lpc3220_slc";
-	ppdata.of_node = pdev->dev.of_node;
-	res = mtd_device_parse_register(mtd, NULL, &ppdata, host->ncfg->parts,
-					host->ncfg->num_parts);
+	res = mtd_device_register(mtd, host->ncfg->parts,
+				  host->ncfg->num_parts);
 	if (!res)
 		return res;
 

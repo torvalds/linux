@@ -647,7 +647,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	struct nand_chip *nand_chip;
 	struct resource *rc;
 	int res;
-	struct mtd_part_parser_data ppdata = {};
 
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
@@ -682,6 +681,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	host->pdata = dev_get_platdata(&pdev->dev);
 
 	nand_chip->priv = host;		/* link the private data structures */
+	nand_set_flash_node(nand_chip, pdev->dev.of_node);
 	mtd->priv = nand_chip;
 	mtd->dev.parent = &pdev->dev;
 
@@ -786,9 +786,8 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	mtd->name = DRV_NAME;
 
-	ppdata.of_node = pdev->dev.of_node;
-	res = mtd_device_parse_register(mtd, NULL, &ppdata, host->ncfg->parts,
-					host->ncfg->num_parts);
+	res = mtd_device_register(mtd, host->ncfg->parts,
+				  host->ncfg->num_parts);
 	if (!res)
 		return res;
 

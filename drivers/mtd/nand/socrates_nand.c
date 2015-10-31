@@ -147,7 +147,6 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	struct mtd_info *mtd;
 	struct nand_chip *nand_chip;
 	int res;
-	struct mtd_part_parser_data ppdata;
 
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&ofdev->dev, sizeof(*host), GFP_KERNEL);
@@ -165,10 +164,10 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	host->dev = &ofdev->dev;
 
 	nand_chip->priv = host;		/* link the private data structures */
+	nand_set_flash_node(nand_chip, ofdev->dev.of_node);
 	mtd->priv = nand_chip;
 	mtd->name = "socrates_nand";
 	mtd->dev.parent = &ofdev->dev;
-	ppdata.of_node = ofdev->dev.of_node;
 
 	/*should never be accessed directly */
 	nand_chip->IO_ADDR_R = (void *)0xdeadbeef;
@@ -200,7 +199,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 		goto out;
 	}
 
-	res = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
+	res = mtd_device_register(mtd, NULL, 0);
 	if (!res)
 		return res;
 

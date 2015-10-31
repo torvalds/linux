@@ -1663,7 +1663,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 	unsigned			sig;
 	unsigned			oob_index;
 	struct resource			*res;
-	struct mtd_part_parser_data	ppdata = {};
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata == NULL) {
@@ -1688,6 +1687,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	mtd->dev.parent		= &pdev->dev;
 	nand_chip		= &info->nand;
 	nand_chip->ecc.priv	= NULL;
+	nand_set_flash_node(nand_chip, pdata->of_node);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	nand_chip->IO_ADDR_R = devm_ioremap_resource(&pdev->dev, res);
@@ -2037,9 +2037,7 @@ scan_tail:
 		goto return_error;
 	}
 
-	ppdata.of_node = pdata->of_node;
-	mtd_device_parse_register(mtd, NULL, &ppdata, pdata->parts,
-				  pdata->nr_parts);
+	mtd_device_register(mtd, pdata->parts, pdata->nr_parts);
 
 	platform_set_drvdata(pdev, mtd);
 

@@ -811,11 +811,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mtd);
 
 	/* Register device in MTD */
-	return mtd_device_parse_register(mtd, NULL,
-		&(struct mtd_part_parser_data){
-			.of_node = chip->flash_node,
-		},
-		NULL, 0);
+	return mtd_device_register(mtd, NULL, 0);
 
 error:
 	of_node_put(chip->flash_node);

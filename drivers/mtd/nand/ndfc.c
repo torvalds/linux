@@ -147,7 +147,6 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 {
 	struct device_node *flash_np;
 	struct nand_chip *chip = &ndfc->chip;
-	struct mtd_part_parser_data ppdata;
 	int ret;
 
 	chip->IO_ADDR_R = ndfc->ndfcbase + NDFC_DATA;
@@ -174,8 +173,8 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	flash_np = of_get_next_child(node, NULL);
 	if (!flash_np)
 		return -ENODEV;
+	nand_set_flash_node(chip, flash_np);
 
-	ppdata.of_node = flash_np;
 	ndfc->mtd.name = kasprintf(GFP_KERNEL, "%s.%s",
 			dev_name(&ndfc->ofdev->dev), flash_np->name);
 	if (!ndfc->mtd.name) {
@@ -187,7 +186,7 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	if (ret)
 		goto err;
 
-	ret = mtd_device_parse_register(&ndfc->mtd, NULL, &ppdata, NULL, 0);
+	ret = mtd_device_register(&ndfc->mtd, NULL, 0);
 
 err:
 	of_node_put(flash_np);

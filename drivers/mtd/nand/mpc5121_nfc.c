@@ -639,7 +639,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	int resettime = 0;
 	int retval = 0;
 	int rev, len;
-	struct mtd_part_parser_data ppdata;
 
 	/*
 	 * Check SoC revision. This driver supports only NFC
@@ -661,6 +660,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	mtd->priv = chip;
 	mtd->dev.parent = dev;
 	chip->priv = prv;
+	nand_set_flash_node(chip, dn);
 	prv->dev = dev;
 
 	/* Read NFC configuration from Reset Config Word */
@@ -703,7 +703,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	}
 
 	mtd->name = "MPC5121 NAND";
-	ppdata.of_node = dn;
 	chip->dev_ready = mpc5121_nfc_dev_ready;
 	chip->cmdfunc = mpc5121_nfc_command;
 	chip->read_byte = mpc5121_nfc_read_byte;
@@ -815,7 +814,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	dev_set_drvdata(dev, mtd);
 
 	/* Register device in MTD */
-	retval = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
+	retval = mtd_device_register(mtd, NULL, 0);
 	if (retval) {
 		dev_err(dev, "Error adding MTD device!\n");
 		goto error;

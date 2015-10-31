@@ -684,6 +684,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 
 	info->mtd.priv		= &info->chip;
 	info->mtd.dev.parent	= &pdev->dev;
+	nand_set_flash_node(&info->chip, pdev->dev.of_node);
 
 	info->chip.IO_ADDR_R	= vaddr;
 	info->chip.IO_ADDR_W	= vaddr;
@@ -839,13 +840,8 @@ syndrome_done:
 	if (pdata->parts)
 		ret = mtd_device_parse_register(&info->mtd, NULL, NULL,
 					pdata->parts, pdata->nr_parts);
-	else {
-		struct mtd_part_parser_data	ppdata;
-
-		ppdata.of_node = pdev->dev.of_node;
-		ret = mtd_device_parse_register(&info->mtd, NULL, &ppdata,
-						NULL, 0);
-	}
+	else
+		ret = mtd_device_register(&info->mtd, NULL, 0);
 	if (ret < 0)
 		goto err;
 

@@ -704,7 +704,6 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	struct mtd_info   *mtd;
 	struct resource	  *res;
 	struct device_node *np = dev->of_node;
-	struct mtd_part_parser_data ppdata;
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
@@ -742,6 +741,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	mtd->dev.parent         = &pdev->dev;
 
 	chip->priv		= host;
+	nand_set_flash_node(chip, np);
 	chip->cmdfunc		= hisi_nfc_cmdfunc;
 	chip->select_chip	= hisi_nfc_select_chip;
 	chip->read_byte		= hisi_nfc_read_byte;
@@ -805,8 +805,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 		goto err_res;
 	}
 
-	ppdata.of_node = np;
-	ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
+	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(dev, "Err MTD partition=%d\n", ret);
 		goto err_mtd;

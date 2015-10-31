@@ -209,7 +209,6 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	struct gpiomtd *gpiomtd;
 	struct nand_chip *chip;
 	struct resource *res;
-	struct mtd_part_parser_data ppdata = {};
 	int ret = 0;
 
 	if (!pdev->dev.of_node && !dev_get_platdata(&pdev->dev))
@@ -268,6 +267,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		chip->dev_ready = gpio_nand_devready;
 	}
 
+	nand_set_flash_node(chip, pdev->dev.of_node);
 	chip->IO_ADDR_W		= chip->IO_ADDR_R;
 	chip->ecc.mode		= NAND_ECC_SOFT;
 	chip->options		= gpiomtd->plat.options;
@@ -291,10 +291,8 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		gpiomtd->plat.adjust_parts(&gpiomtd->plat,
 					   gpiomtd->mtd_info.size);
 
-	ppdata.of_node = pdev->dev.of_node;
-	ret = mtd_device_parse_register(&gpiomtd->mtd_info, NULL, &ppdata,
-					gpiomtd->plat.parts,
-					gpiomtd->plat.num_parts);
+	ret = mtd_device_register(&gpiomtd->mtd_info, gpiomtd->plat.parts,
+				  gpiomtd->plat.num_parts);
 	if (!ret)
 		return 0;
 
