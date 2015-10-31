@@ -1516,13 +1516,17 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned short *array = data;
 	unsigned int *larray = data;
 	unsigned int i;
+#ifdef PCIDMA
+	__le16 *barray = data;
+	__le32 *blarray = data;
+#endif
 
 	for (i = 0; i < nsamples; i++) {
 #ifdef PCIDMA
 		if (s->subdev_flags & SDF_LSAMPL)
-			larray[i] = le32_to_cpu(larray[i]);
+			larray[i] = le32_to_cpu(blarray[i]);
 		else
-			array[i] = le16_to_cpu(array[i]);
+			array[i] = le16_to_cpu(barray[i]);
 #endif
 		if (s->subdev_flags & SDF_LSAMPL)
 			larray[i] += devpriv->ai_offset[chan_index];
@@ -2574,6 +2578,9 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int nsamples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned short *array = data;
 	unsigned int i;
+#ifdef PCIDMA
+	__le16 buf, *barray = data;
+#endif
 
 	for (i = 0; i < nsamples; i++) {
 		unsigned int range = CR_RANGE(cmd->chanlist[chan_index]);
@@ -2586,10 +2593,11 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (comedi_range_is_bipolar(s, range))
 			val = comedi_offset_munge(s, val);
 #ifdef PCIDMA
-		val = cpu_to_le16(val);
-#endif
+		buf = cpu_to_le16(val);
+		barray[i] = buf;
+#else
 		array[i] = val;
-
+#endif
 		chan_index++;
 		chan_index %= cmd->chanlist_len;
 	}
