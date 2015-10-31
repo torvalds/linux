@@ -309,6 +309,7 @@ static int of_flash_probe(struct platform_device *dev)
 	if (err)
 		goto err_out;
 
+	info->cmtd->dev.parent = &dev->dev;
 	mtd_set_of_node(info->cmtd, dp);
 	part_probe_types = of_get_probes(dp);
 	if (!part_probe_types) {
