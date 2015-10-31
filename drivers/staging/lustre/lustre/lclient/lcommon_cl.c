@@ -427,7 +427,7 @@ static void ccc_object_size_lock(struct cl_object *obj)
 {
 	struct inode *inode = ccc_object_inode(obj);
 
-	cl_isize_lock(inode);
+	ll_inode_size_lock(inode);
 	cl_object_attr_lock(obj);
 }
 
@@ -436,7 +436,7 @@ static void ccc_object_size_unlock(struct cl_object *obj)
 	struct inode *inode = ccc_object_inode(obj);
 
 	cl_object_attr_unlock(obj);
-	cl_isize_unlock(inode);
+	ll_inode_size_unlock(inode);
 }
 
 /*****************************************************************************

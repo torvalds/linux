@@ -1285,16 +1285,6 @@ static inline struct ll_file_data *cl_iattr2fd(struct inode *inode,
 	return LUSTRE_FPRIVATE(attr->ia_file);
 }
 
-static inline void cl_isize_lock(struct inode *inode)
-{
-	ll_inode_size_lock(inode);
-}
-
-static inline void cl_isize_unlock(struct inode *inode)
-{
-	ll_inode_size_unlock(inode);
-}
-
 static inline void cl_isize_write_nolock(struct inode *inode, loff_t kms)
 {
 	LASSERT(mutex_is_locked(&ll_i2info(inode)->lli_size_mutex));
