@@ -415,7 +415,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		qcb->csr[index].dstport_hi = ((buf[pos++]<<8) & 0xff00);
 		qcb->csr[index].dstport_hi += buf[pos++];
 
-		qcb->qos_limit_size = 254/qcb->qos_list_cnt;
+		qcb->qos_limit_size = 254 / qcb->qos_list_cnt;
 		spin_unlock_irqrestore(&qcb->qos_lock, flags);
 	} else if (sub_cmd_evt == QOS_CHANGE_DEL) {
 		netdev_dbg(nic->netdev, "QOS_CHANGE_DEL SFID = 0x%x, index=%d\n",
@@ -426,7 +426,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		spin_lock_irqsave(&qcb->qos_lock, flags);
 		qcb->csr[index].enabled = false;
 		qcb->qos_list_cnt--;
-		qcb->qos_limit_size = 254/qcb->qos_list_cnt;
+		qcb->qos_limit_size = 254 / qcb->qos_list_cnt;
 
 		list_for_each_entry_safe(entry, n, &qcb->qos_list[index],
 					 list) {
