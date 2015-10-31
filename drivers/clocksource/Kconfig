@@ -146,9 +146,11 @@ config CLKSRC_EFM32
 	  event device.
 
 config CLKSRC_LPC32XX
-	bool
+	bool "Clocksource for LPC32XX" if COMPILE_TEST
 	select CLKSRC_MMIO
 	select CLKSRC_OF
+	help
+	  Support for the LPC32XX clocksource.
 
 config CLKSRC_PISTACHIO
 	bool "Clocksource for Pistachio SoC" if COMPILE_TEST
