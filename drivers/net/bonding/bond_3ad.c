@@ -2348,12 +2348,14 @@ static void ad_update_actor_keys(struct port *port, bool reset)
 }
 
 /**
- * bond_3ad_adapter_speed_changed - handle a slave's speed change indication
+ * bond_3ad_adapter_speed_duplex_changed - handle a slave's speed / duplex
+ * change indication
+ *
  * @slave: slave struct to work on
  *
  * Handle reselection of aggregator (if needed) for this port.
  */
-void bond_3ad_adapter_speed_changed(struct slave *slave)
+void bond_3ad_adapter_speed_duplex_changed(struct slave *slave)
 {
 	struct port *port;
 
@@ -2361,44 +2363,16 @@ void bond_3ad_adapter_speed_changed(struct slave *slave)
 
 	/* if slave is null, the whole port is not initialized */
 	if (!port->slave) {
-		netdev_warn(slave->bond->dev, "speed changed for uninitialized port on %s\n",
+		netdev_warn(slave->bond->dev,
+			    "speed/duplex changed for uninitialized port %s\n",
 			    slave->dev->name);
 		return;
 	}
 
 	spin_lock_bh(&slave->bond->mode_lock);
-
 	ad_update_actor_keys(port, false);
-	netdev_dbg(slave->bond->dev, "Port %d changed speed\n", port->actor_port_number);
-
-	spin_unlock_bh(&slave->bond->mode_lock);
-}
-
-/**
- * bond_3ad_adapter_duplex_changed - handle a slave's duplex change indication
- * @slave: slave struct to work on
- *
- * Handle reselection of aggregator (if needed) for this port.
- */
-void bond_3ad_adapter_duplex_changed(struct slave *slave)
-{
-	struct port *port;
-
-	port = &(SLAVE_AD_INFO(slave)->port);
-
-	/* if slave is null, the whole port is not initialized */
-	if (!port->slave) {
-		netdev_warn(slave->bond->dev, "duplex changed for uninitialized port on %s\n",
-			    slave->dev->name);
-		return;
-	}
-
-	spin_lock_bh(&slave->bond->mode_lock);
-
-	ad_update_actor_keys(port, false);
-	netdev_dbg(slave->bond->dev, "Port %d slave %s changed duplex\n",
+	netdev_dbg(slave->bond->dev, "Port %d slave %s changed speed/duplex\n",
 		   port->actor_port_number, slave->dev->name);
-
 	spin_unlock_bh(&slave->bond->mode_lock);
 }
 
