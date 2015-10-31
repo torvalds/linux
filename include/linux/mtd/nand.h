@@ -719,6 +719,17 @@ struct nand_chip {
 	void *priv;
 };
 
+static inline void nand_set_flash_node(struct nand_chip *chip,
+				       struct device_node *np)
+{
+	chip->flash_node = np;
+}
+
+static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
+{
+	return chip->flash_node;
+}
+
 /*
  * NAND Flash Manufacturer ID Codes
  */
