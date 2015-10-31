@@ -90,7 +90,9 @@ config TEGRA_TIMER
 	  Enables support for the Tegra driver.
 
 config VT8500_TIMER
-	bool
+	bool "VT8500 timer driver" if COMPILE_TEST
+	help
+	  Enables support for the VT8500 driver.
 
 config CADENCE_TTC_TIMER
 	bool
