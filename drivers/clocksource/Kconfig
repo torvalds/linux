@@ -101,9 +101,11 @@ config CADENCE_TTC_TIMER
 	  Enables support for the cadence ttc driver.
 
 config ASM9260_TIMER
-	bool
+	bool "ASM9260 timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
 	select CLKSRC_OF
+	help
+	  Enables support for the ASM9260 timer.
 
 config CLKSRC_NOMADIK_MTU
 	bool
