@@ -736,7 +736,6 @@ config ARCH_DAVINCI
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select HAVE_IDE
-	select TI_PRIV_EDMA
 	select USE_OF
 	select ZONE_DMA
 	help
