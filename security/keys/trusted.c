@@ -713,6 +713,8 @@ enum {
 	Opt_keyhandle, Opt_keyauth, Opt_blobauth,
 	Opt_pcrinfo, Opt_pcrlock, Opt_migratable,
 	Opt_hash,
+	Opt_policydigest,
+	Opt_policyhandle,
 };
 
 static const match_table_t key_tokens = {
@@ -726,6 +728,8 @@ static const match_table_t key_tokens = {
 	{Opt_pcrlock, "pcrlock=%s"},
 	{Opt_migratable, "migratable=%s"},
 	{Opt_hash, "hash=%s"},
+	{Opt_policydigest, "policydigest=%s"},
+	{Opt_policyhandle, "policyhandle=%s"},
 	{Opt_err, NULL}
 };
 
@@ -748,6 +752,7 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 		return tpm2;
 
 	opt->hash = tpm2 ? HASH_ALGO_SHA256 : HASH_ALGO_SHA1;
+	opt->digest_len = hash_digest_size[opt->hash];
 
 	while ((p = strsep(&c, " \t"))) {
 		if (*p == '\0' || *p == ' ' || *p == '\t')
@@ -802,9 +807,13 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 			opt->pcrlock = lock;
 			break;
 		case Opt_hash:
+			if (test_bit(Opt_policydigest, &token_mask))
+				return -EINVAL;
 			for (i = 0; i < HASH_ALGO__LAST; i++) {
 				if (!strcmp(args[0].from, hash_algo_name[i])) {
 					opt->hash = i;
+					opt->digest_len =
+						hash_digest_size[opt->hash];
 					break;
 				}
 			}
@@ -814,6 +823,23 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 				pr_info("trusted_key: TPM 1.x only supports SHA-1.\n");
 				return -EINVAL;
 			}
+			break;
+		case Opt_policydigest:
+			if (!tpm2 ||
+			    strlen(args[0].from) != (2 * opt->digest_len))
+				return -EINVAL;
+			res = hex2bin(opt->policydigest, args[0].from,
+				      opt->digest_len);
+			if (res < 0)
+				return -EINVAL;
+			break;
+		case Opt_policyhandle:
+			if (!tpm2)
+				return -EINVAL;
+			res = kstrtoul(args[0].from, 16, &handle);
+			if (res < 0)
+				return -EINVAL;
+			opt->policyhandle = handle;
 			break;
 		default:
 			return -EINVAL;

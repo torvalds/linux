@@ -478,12 +478,26 @@ int tpm2_seal_trusted(struct tpm_chip *chip,
 	tpm_buf_append_u8(&buf, payload->migratable);
 
 	/* public */
-	tpm_buf_append_u16(&buf, 14);
+	if (options->policydigest)
+		tpm_buf_append_u16(&buf, 14 + options->digest_len);
+	else
+		tpm_buf_append_u16(&buf, 14);
 
 	tpm_buf_append_u16(&buf, TPM2_ALG_KEYEDHASH);
 	tpm_buf_append_u16(&buf, hash);
-	tpm_buf_append_u32(&buf, TPM2_ATTR_USER_WITH_AUTH);
-	tpm_buf_append_u16(&buf, 0); /* policy digest size */
+
+	/* policy */
+	if (options->policydigest) {
+		tpm_buf_append_u32(&buf, 0);
+		tpm_buf_append_u16(&buf, options->digest_len);
+		tpm_buf_append(&buf, options->policydigest,
+			       options->digest_len);
+	} else {
+		tpm_buf_append_u32(&buf, TPM2_ATTR_USER_WITH_AUTH);
+		tpm_buf_append_u16(&buf, 0);
+	}
+
+	/* public parameters */
 	tpm_buf_append_u16(&buf, TPM2_ALG_NULL);
 	tpm_buf_append_u16(&buf, 0);
 
@@ -613,7 +627,9 @@ static int tpm2_unseal(struct tpm_chip *chip,
 		return rc;
 
 	tpm_buf_append_u32(&buf, blob_handle);
-	tpm2_buf_append_auth(&buf, TPM2_RS_PW,
+	tpm2_buf_append_auth(&buf,
+			     options->policyhandle ?
+			     options->policyhandle : TPM2_RS_PW,
 			     NULL /* nonce */, 0,
 			     0 /* session_attributes */,
 			     options->blobauth /* hmac */,
