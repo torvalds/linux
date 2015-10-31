@@ -56,18 +56,6 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 		    ldlm_blocking_callback cb_blocking,
 		    __u64 extra_lock_flags);
 
-int lmv_intent_lookup(struct obd_export *exp, struct md_op_data *op_data,
-		      void *lmm, int lmmsize, struct lookup_intent *it,
-		      int flags, struct ptlrpc_request **reqp,
-		      ldlm_blocking_callback cb_blocking,
-		      __u64 extra_lock_flags);
-
-int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
-		    void *lmm, int lmmsize, struct lookup_intent *it,
-		    int flags, struct ptlrpc_request **reqp,
-		    ldlm_blocking_callback cb_blocking,
-		    __u64 extra_lock_flags);
-
 int lmv_fld_lookup(struct lmv_obd *lmv, const struct lu_fid *fid, u32 *mds);
 int __lmv_fid_alloc(struct lmv_obd *lmv, struct lu_fid *fid, u32 mds);
 int lmv_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
