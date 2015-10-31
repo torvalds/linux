@@ -2074,6 +2074,68 @@ static const struct file_operations fops_quiet_period = {
 	.open = simple_open
 };
 
+static ssize_t ath10k_write_btcoex(struct file *file,
+				   const char __user *ubuf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	char buf[32];
+	size_t buf_size;
+	bool val;
+
+	buf_size = min(count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, ubuf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+
+	if (strtobool(buf, &val) != 0)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (!(test_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags) ^ val))
+		goto exit;
+
+	if (val)
+		set_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
+	else
+		clear_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
+
+	if (ar->state != ATH10K_STATE_ON)
+		goto exit;
+
+	ath10k_info(ar, "restarting firmware due to btcoex change");
+
+	queue_work(ar->workqueue, &ar->restart_work);
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return count;
+}
+
+static ssize_t ath10k_read_btcoex(struct file *file, char __user *ubuf,
+				  size_t count, loff_t *ppos)
+{
+	char buf[32];
+	struct ath10k *ar = file->private_data;
+	int len = 0;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len, "%d\n",
+			test_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags));
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_btcoex = {
+	.read = ath10k_read_btcoex,
+	.write = ath10k_write_btcoex,
+	.open = simple_open
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.fw_crash_data = vzalloc(sizeof(*ar->debug.fw_crash_data));
@@ -2182,6 +2244,10 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("tpc_stats", S_IRUSR,
 			    ar->debug.debugfs_phy, ar, &fops_tpc_stats);
+
+	if (test_bit(WMI_SERVICE_COEX_GPIO, ar->wmi.svc_map))
+		debugfs_create_file("btcoex", S_IRUGO | S_IWUSR,
+				    ar->debug.debugfs_phy, ar, &fops_btcoex);
 
 	return 0;
 }

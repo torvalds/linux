@@ -538,6 +538,9 @@ enum ath10k_dev_flags {
 
 	/* Disable HW crypto engine */
 	ATH10K_FLAG_HW_CRYPTO_DISABLED,
+
+	/* Bluetooth coexistance enabled */
+	ATH10K_FLAG_BTCOEX,
 };
 
 enum ath10k_cal_mode {
