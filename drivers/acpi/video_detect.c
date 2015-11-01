@@ -244,6 +244,15 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 
 	/* Non win8 machines which need native backlight nevertheless */
 	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1201530 */
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo Ideapad S405",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_BOARD_NAME, "Lenovo IdeaPad S405"),
+		},
+	},
+	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
 	 .callback = video_detect_force_native,
 	 .ident = "Lenovo Ideapad Z570",

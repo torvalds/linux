@@ -206,6 +206,12 @@ int acpi_ioapic_registered(acpi_handle handle, u32 gsi_base);
 void acpi_irq_stats_init(void);
 extern u32 acpi_irq_handled;
 extern u32 acpi_irq_not_handled;
+extern unsigned int acpi_sci_irq;
+#define INVALID_ACPI_IRQ	((unsigned)-1)
+static inline bool acpi_sci_irq_valid(void)
+{
+	return acpi_sci_irq != INVALID_ACPI_IRQ;
+}
 
 extern int sbf_port;
 extern unsigned long acpi_realmode_flags;
