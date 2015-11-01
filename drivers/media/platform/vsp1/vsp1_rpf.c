@@ -69,24 +69,19 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	pstride = format->plane_fmt[0].bytesperline
 		<< VI6_RPF_SRCM_PSTRIDE_Y_SHIFT;
 
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
-		       rpf->buf_addr[0] + rpf->offsets[0]);
-
 	if (format->num_planes > 1) {
 		rpf->offsets[1] = crop->top * format->plane_fmt[1].bytesperline
 				+ crop->left * fmtinfo->bpp[1] / 8;
 		pstride |= format->plane_fmt[1].bytesperline
 			<< VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
-
-		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
-			       rpf->buf_addr[1] + rpf->offsets[1]);
-
-		if (format->num_planes > 2)
-			vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
-				       rpf->buf_addr[2] + rpf->offsets[1]);
+	} else {
+		rpf->offsets[1] = 0;
 	}
 
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_PSTRIDE, pstride);
+
+	/* Now that the offsets have been computed program the DMA addresses. */
+	rpf->ops->set_memory(rpf);
 
 	/* Format */
 	infmt = VI6_RPF_INFMT_CIPM
@@ -154,24 +149,14 @@ static struct v4l2_subdev_ops rpf_ops = {
  * Video Device Operations
  */
 
-static void rpf_set_memory(struct vsp1_rwpf *rpf, struct vsp1_rwpf_memory *mem)
+static void rpf_set_memory(struct vsp1_rwpf *rpf)
 {
-	unsigned int i;
-
-	for (i = 0; i < 3; ++i)
-		rpf->buf_addr[i] = mem->addr[i];
-
-	if (!vsp1_entity_is_streaming(&rpf->entity))
-		return;
-
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
-		       mem->addr[0] + rpf->offsets[0]);
-	if (mem->num_planes > 1)
-		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
-			       mem->addr[1] + rpf->offsets[1]);
-	if (mem->num_planes > 2)
-		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
-			       mem->addr[2] + rpf->offsets[1]);
+		       rpf->buf_addr[0] + rpf->offsets[0]);
+	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
+		       rpf->buf_addr[1] + rpf->offsets[1]);
+	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
+		       rpf->buf_addr[2] + rpf->offsets[1]);
 }
 
 static const struct vsp1_rwpf_operations rpf_vdev_ops = {

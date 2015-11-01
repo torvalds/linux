@@ -34,9 +34,13 @@ struct vsp1_rwpf_memory {
 	unsigned int length[3];
 };
 
+/**
+ * struct vsp1_rwpf_operations - RPF and WPF operations
+ * @set_memory: Setup memory buffer access. This operation applies the settings
+ *		stored in the rwpf buf_addr field to the hardware.
+ */
 struct vsp1_rwpf_operations {
-	void (*set_memory)(struct vsp1_rwpf *rwpf,
-			   struct vsp1_rwpf_memory *mem);
+	void (*set_memory)(struct vsp1_rwpf *rwpf);
 };
 
 struct vsp1_rwpf {
@@ -92,5 +96,8 @@ int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
 int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_pad_config *cfg,
 			    struct v4l2_subdev_selection *sel);
+
+void vsp1_rwpf_set_memory(struct vsp1_rwpf *rwpf, struct vsp1_rwpf_memory *mem,
+			  bool apply);
 
 #endif /* __VSP1_RWPF_H__ */

@@ -420,12 +420,15 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 	rpf->location.left = dst->left;
 	rpf->location.top = dst->top;
 
-	/* Set the memory buffer address. */
+	/* Set the memory buffer address but don't apply the values to the
+	 * hardware as the crop offsets haven't been computed yet.
+	 */
 	memory.num_planes = fmtinfo->planes;
 	memory.addr[0] = mem[0];
 	memory.addr[1] = mem[1];
+	memory.addr[2] = 0;
 
-	rpf->ops->set_memory(rpf, &memory);
+	vsp1_rwpf_set_memory(rpf, &memory, false);
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 

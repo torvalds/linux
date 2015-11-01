@@ -443,7 +443,7 @@ static void vsp1_video_frame_end(struct vsp1_pipeline *pipe,
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
-	video->rwpf->ops->set_memory(video->rwpf, &buf->mem);
+	vsp1_rwpf_set_memory(video->rwpf, &buf->mem, true);
 	pipe->buffers_ready |= 1 << video->pipe_index;
 
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
@@ -522,6 +522,11 @@ static int vsp1_video_buffer_prepare(struct vb2_buffer *vb)
 			return -EINVAL;
 	}
 
+	for ( ; i < 3; ++i) {
+		buf->mem.addr[i] = 0;
+		buf->mem.length[i] = 0;
+	}
+
 	return 0;
 }
 
@@ -544,7 +549,7 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
-	video->rwpf->ops->set_memory(video->rwpf, &buf->mem);
+	vsp1_rwpf_set_memory(video->rwpf, &buf->mem, true);
 	pipe->buffers_ready |= 1 << video->pipe_index;
 
 	if (vb2_is_streaming(&video->queue) &&
