@@ -349,7 +349,7 @@ fail_tx:
 	dma_release_channel(dma->chan_tx);
 fail_al:
 	devm_kfree(dev, dma);
-	dev_info(dev, "can't use DMA\n");
+	dev_info(dev, "can't use DMA, using PIO instead.\n");
 }
 
 static void i2c_imx_dma_callback(void *arg)
