@@ -31,8 +31,8 @@
 
 static inline void vsp1_uds_write(struct vsp1_uds *uds, u32 reg, u32 data)
 {
-	vsp1_write(uds->entity.vsp1,
-		   reg + uds->entity.index * VI6_UDS_OFFSET, data);
+	vsp1_mod_write(&uds->entity, reg + uds->entity.index * VI6_UDS_OFFSET,
+		       data);
 }
 
 /* -----------------------------------------------------------------------------

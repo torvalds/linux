@@ -29,7 +29,7 @@
 
 static inline void vsp1_lut_write(struct vsp1_lut *lut, u32 reg, u32 data)
 {
-	vsp1_write(lut->entity.vsp1, reg, data);
+	vsp1_mod_write(&lut->entity, reg, data);
 }
 
 /* -----------------------------------------------------------------------------

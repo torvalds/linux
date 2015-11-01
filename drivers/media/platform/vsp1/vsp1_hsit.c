@@ -28,7 +28,7 @@
 
 static inline void vsp1_hsit_write(struct vsp1_hsit *hsit, u32 reg, u32 data)
 {
-	vsp1_write(hsit->entity.vsp1, reg, data);
+	vsp1_mod_write(&hsit->entity, reg, data);
 }
 
 /* -----------------------------------------------------------------------------

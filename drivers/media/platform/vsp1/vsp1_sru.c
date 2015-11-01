@@ -28,7 +28,7 @@
 
 static inline void vsp1_sru_write(struct vsp1_sru *sru, u32 reg, u32 data)
 {
-	vsp1_write(sru->entity.vsp1, reg, data);
+	vsp1_mod_write(&sru->entity, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
