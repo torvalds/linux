@@ -640,13 +640,6 @@ cfs_hash_bd_lookup_locked(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 struct hlist_node *
 cfs_hash_bd_peek_locked(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			const void *key);
-struct hlist_node *
-cfs_hash_bd_findadd_locked(struct cfs_hash *hs, struct cfs_hash_bd *bd,
-			   const void *key, struct hlist_node *hnode,
-			   int insist_add);
-struct hlist_node *
-cfs_hash_bd_finddel_locked(struct cfs_hash *hs, struct cfs_hash_bd *bd,
-			   const void *key, struct hlist_node *hnode);
 
 /**
  * operations on cfs_hash bucket (bd: bucket descriptor),

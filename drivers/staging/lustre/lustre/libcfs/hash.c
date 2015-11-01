@@ -682,27 +682,6 @@ cfs_hash_bd_peek_locked(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 }
 EXPORT_SYMBOL(cfs_hash_bd_peek_locked);
 
-struct hlist_node *
-cfs_hash_bd_findadd_locked(struct cfs_hash *hs, struct cfs_hash_bd *bd,
-			   const void *key, struct hlist_node *hnode,
-			   int noref)
-{
-	return cfs_hash_bd_lookup_intent(hs, bd, key, hnode,
-					 (!noref * CFS_HS_LOOKUP_MASK_REF) |
-					 CFS_HS_LOOKUP_IT_ADD);
-}
-EXPORT_SYMBOL(cfs_hash_bd_findadd_locked);
-
-struct hlist_node *
-cfs_hash_bd_finddel_locked(struct cfs_hash *hs, struct cfs_hash_bd *bd,
-			   const void *key, struct hlist_node *hnode)
-{
-	/* hnode can be NULL, we find the first item with @key */
-	return cfs_hash_bd_lookup_intent(hs, bd, key, hnode,
-					 CFS_HS_LOOKUP_IT_FINDDEL);
-}
-EXPORT_SYMBOL(cfs_hash_bd_finddel_locked);
-
 static void
 cfs_hash_multi_bd_lock(struct cfs_hash *hs, struct cfs_hash_bd *bds,
 		       unsigned n, int excl)
