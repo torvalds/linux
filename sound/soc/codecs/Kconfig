@@ -891,6 +891,7 @@ config SND_SOC_WM9712
 
 config SND_SOC_WM9713
 	tristate
+	select REGMAP_AC97
 
 # Amp
 config SND_SOC_LM4857
