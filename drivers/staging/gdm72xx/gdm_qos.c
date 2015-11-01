@@ -171,13 +171,13 @@ static int chk_ipv4_rule(struct gdm_wimax_csr_s *csr, u8 *stream, u8 *port)
 	}
 
 	if (csr->classifier_rule_en & PROTOCOLSRCPORTRANGE) {
-		i = ((port[0]<<8) & 0xff00) + port[1];
+		i = ((port[0] << 8) & 0xff00) + port[1];
 		if ((i < csr->srcport_lo) || (i > csr->srcport_hi))
 			return 1;
 	}
 
 	if (csr->classifier_rule_en & PROTOCOLDSTPORTRANGE) {
-		i = ((port[2]<<8) & 0xff00) + port[3];
+		i = ((port[2] << 8) & 0xff00) + port[3];
 		if ((i < csr->dstport_lo) || (i > csr->dstport_hi))
 			return 1;
 	}
@@ -342,9 +342,9 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 	if (sub_cmd_evt == QOS_REPORT) {
 		spin_lock_irqsave(&qcb->qos_lock, flags);
 		for (i = 0; i < qcb->qos_list_cnt; i++) {
-			sfid = ((buf[(i*5) + 6]<<24) & 0xff000000);
-			sfid += ((buf[(i*5) + 7]<<16) & 0xff0000);
-			sfid += ((buf[(i*5) + 8]<<8) & 0xff00);
+			sfid = ((buf[(i*5) + 6] << 24) & 0xff000000);
+			sfid += ((buf[(i*5) + 7] << 16) & 0xff0000);
+			sfid += ((buf[(i*5) + 8] << 8) & 0xff00);
 			sfid += (buf[(i*5) + 9]);
 			index = get_csr(qcb, sfid, 0);
 			if (index == -1) {
@@ -363,9 +363,9 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 
 	/* sub_cmd_evt == QOS_ADD || sub_cmd_evt == QOS_CHANG_DEL */
 	pos = 6;
-	sfid = ((buf[pos++]<<24) & 0xff000000);
-	sfid += ((buf[pos++]<<16) & 0xff0000);
-	sfid += ((buf[pos++]<<8) & 0xff00);
+	sfid = ((buf[pos++] << 24) & 0xff000000);
+	sfid += ((buf[pos++] << 16) & 0xff0000);
+	sfid += ((buf[pos++] << 8) & 0xff00);
 	sfid += (buf[pos++]);
 
 	index = get_csr(qcb, sfid, 1);
@@ -382,7 +382,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 
 		spin_lock_irqsave(&qcb->qos_lock, flags);
 		qcb->csr[index].sfid = sfid;
-		qcb->csr[index].classifier_rule_en = ((buf[pos++]<<8) & 0xff00);
+		qcb->csr[index].classifier_rule_en = ((buf[pos++] << 8) & 0xff00);
 		qcb->csr[index].classifier_rule_en += buf[pos++];
 		if (qcb->csr[index].classifier_rule_en == 0)
 			qcb->qos_null_idx = index;
@@ -406,13 +406,13 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		qcb->csr[index].ipdst_addr[1] = buf[pos++];
 		qcb->csr[index].ipdst_addr[2] = buf[pos++];
 		qcb->csr[index].ipdst_addr[3] = buf[pos++];
-		qcb->csr[index].srcport_lo = ((buf[pos++]<<8) & 0xff00);
+		qcb->csr[index].srcport_lo = ((buf[pos++] << 8) & 0xff00);
 		qcb->csr[index].srcport_lo += buf[pos++];
-		qcb->csr[index].srcport_hi = ((buf[pos++]<<8) & 0xff00);
+		qcb->csr[index].srcport_hi = ((buf[pos++] << 8) & 0xff00);
 		qcb->csr[index].srcport_hi += buf[pos++];
-		qcb->csr[index].dstport_lo = ((buf[pos++]<<8) & 0xff00);
+		qcb->csr[index].dstport_lo = ((buf[pos++] << 8) & 0xff00);
 		qcb->csr[index].dstport_lo += buf[pos++];
-		qcb->csr[index].dstport_hi = ((buf[pos++]<<8) & 0xff00);
+		qcb->csr[index].dstport_hi = ((buf[pos++] << 8) & 0xff00);
 		qcb->csr[index].dstport_hi += buf[pos++];
 
 		qcb->qos_limit_size = 254 / qcb->qos_list_cnt;
