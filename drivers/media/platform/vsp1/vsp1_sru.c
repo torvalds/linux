@@ -209,7 +209,8 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int sru_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+static int sru_get_format(struct v4l2_subdev *subdev,
+			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_sru *sru = to_sru(subdev);
@@ -220,7 +221,8 @@ static int sru_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_con
 	return 0;
 }
 
-static void sru_try_format(struct vsp1_sru *sru, struct v4l2_subdev_pad_config *cfg,
+static void sru_try_format(struct vsp1_sru *sru,
+			   struct v4l2_subdev_pad_config *cfg,
 			   unsigned int pad, struct v4l2_mbus_framefmt *fmt,
 			   enum v4l2_subdev_format_whence which)
 {
@@ -271,7 +273,8 @@ static void sru_try_format(struct vsp1_sru *sru, struct v4l2_subdev_pad_config *
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 }
 
-static int sru_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+static int sru_set_format(struct v4l2_subdev *subdev,
+			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_sru *sru = to_sru(subdev);

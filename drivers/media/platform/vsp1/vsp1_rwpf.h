@@ -86,9 +86,11 @@ int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
 int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
 			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_frame_size_enum *fse);
-int vsp1_rwpf_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+int vsp1_rwpf_get_format(struct v4l2_subdev *subdev,
+			 struct v4l2_subdev_pad_config *cfg,
 			 struct v4l2_subdev_format *fmt);
-int vsp1_rwpf_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
+			 struct v4l2_subdev_pad_config *cfg,
 			 struct v4l2_subdev_format *fmt);
 int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_pad_config *cfg,

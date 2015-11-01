@@ -195,7 +195,8 @@ static int bru_enum_mbus_code(struct v4l2_subdev *subdev,
 			return -EINVAL;
 
 		format = vsp1_entity_get_pad_format(&bru->entity, cfg,
-						    BRU_PAD_SINK(0), code->which);
+						    BRU_PAD_SINK(0),
+						    code->which);
 		code->code = format->code;
 	}
 
@@ -235,7 +236,8 @@ static struct v4l2_rect *bru_get_compose(struct vsp1_bru *bru,
 	}
 }
 
-static int bru_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+static int bru_get_format(struct v4l2_subdev *subdev,
+			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_bru *bru = to_bru(subdev);
@@ -246,7 +248,8 @@ static int bru_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_con
 	return 0;
 }
 
-static void bru_try_format(struct vsp1_bru *bru, struct v4l2_subdev_pad_config *cfg,
+static void bru_try_format(struct vsp1_bru *bru,
+			   struct v4l2_subdev_pad_config *cfg,
 			   unsigned int pad, struct v4l2_mbus_framefmt *fmt,
 			   enum v4l2_subdev_format_whence which)
 {
@@ -274,7 +277,8 @@ static void bru_try_format(struct vsp1_bru *bru, struct v4l2_subdev_pad_config *
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 }
 
-static int bru_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+static int bru_set_format(struct v4l2_subdev *subdev,
+			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_bru *bru = to_bru(subdev);

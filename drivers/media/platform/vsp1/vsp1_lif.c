@@ -128,7 +128,8 @@ static int lif_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int lif_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+static int lif_get_format(struct v4l2_subdev *subdev,
+			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lif *lif = to_lif(subdev);
@@ -139,7 +140,8 @@ static int lif_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_con
 	return 0;
 }
 
-static int lif_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+static int lif_set_format(struct v4l2_subdev *subdev,
+			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lif *lif = to_lif(subdev);

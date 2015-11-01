@@ -73,11 +73,13 @@ int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static struct v4l2_rect *
-vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf, struct v4l2_subdev_pad_config *cfg, u32 which)
+vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf, struct v4l2_subdev_pad_config *cfg,
+		   u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&rwpf->entity.subdev, cfg, RWPF_PAD_SINK);
+		return v4l2_subdev_get_try_crop(&rwpf->entity.subdev, cfg,
+						RWPF_PAD_SINK);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &rwpf->crop;
 	default:
@@ -85,7 +87,8 @@ vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf, struct v4l2_subdev_pad_config *cfg, u
 	}
 }
 
-int vsp1_rwpf_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+int vsp1_rwpf_get_format(struct v4l2_subdev *subdev,
+			 struct v4l2_subdev_pad_config *cfg,
 			 struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
@@ -96,7 +99,8 @@ int vsp1_rwpf_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_conf
 	return 0;
 }
 
-int vsp1_rwpf_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
+			 struct v4l2_subdev_pad_config *cfg,
 			 struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
