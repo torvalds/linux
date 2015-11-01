@@ -426,14 +426,6 @@ void request_msix(struct hfi1_devdata *dd, u32 *nent,
 	tune_pcie_caps(dd);
 }
 
-/*
- * Disable MSI-X.
- */
-void hfi1_nomsix(struct hfi1_devdata *dd)
-{
-	pci_disable_msix(dd->pcidev);
-}
-
 void hfi1_enable_intx(struct pci_dev *pdev)
 {
 	/* first, turn on INTx */
