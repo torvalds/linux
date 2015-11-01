@@ -33,27 +33,6 @@ void vsp1_mod_write(struct vsp1_entity *e, u32 reg, u32 data)
 		vsp1_write(e->vsp1, reg, data);
 }
 
-bool vsp1_entity_is_streaming(struct vsp1_entity *entity)
-{
-	unsigned long flags;
-	bool streaming;
-
-	spin_lock_irqsave(&entity->lock, flags);
-	streaming = entity->streaming;
-	spin_unlock_irqrestore(&entity->lock, flags);
-
-	return streaming;
-}
-
-void vsp1_entity_set_streaming(struct vsp1_entity *entity, bool streaming)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&entity->lock, flags);
-	entity->streaming = streaming;
-	spin_unlock_irqrestore(&entity->lock, flags);
-}
-
 void vsp1_entity_route_setup(struct vsp1_entity *source)
 {
 	struct vsp1_entity *sink;
@@ -197,8 +176,6 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 	if (i == ARRAY_SIZE(vsp1_routes))
 		return -EINVAL;
-
-	spin_lock_init(&entity->lock);
 
 	entity->vsp1 = vsp1;
 	entity->source_pad = num_pads - 1;

@@ -67,8 +67,6 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 	unsigned int flags;
 	unsigned int i;
 
-	vsp1_entity_set_streaming(&bru->entity, enable);
-
 	if (!enable)
 		return 0;
 

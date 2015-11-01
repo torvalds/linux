@@ -46,8 +46,6 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	u32 pstride;
 	u32 infmt;
 
-	vsp1_entity_set_streaming(&rpf->entity, enable);
-
 	if (!enable)
 		return 0;
 
