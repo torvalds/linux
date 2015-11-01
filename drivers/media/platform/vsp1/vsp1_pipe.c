@@ -273,42 +273,13 @@ bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe)
 
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
-	enum vsp1_pipeline_state state;
-	unsigned long flags;
-
 	if (pipe == NULL)
 		return;
 
-	/* Signal frame end to the pipeline handler. */
+	vsp1_dlm_irq_frame_end(pipe->output->dlm);
+
 	if (pipe->frame_end)
 		pipe->frame_end(pipe);
-
-	spin_lock_irqsave(&pipe->irqlock, flags);
-
-	state = pipe->state;
-
-	/* When using display lists in continuous frame mode the pipeline is
-	 * automatically restarted by the hardware.
-	 */
-	if (pipe->lif)
-		goto done;
-
-	pipe->state = VSP1_PIPELINE_STOPPED;
-
-	/* If a stop has been requested, mark the pipeline as stopped and
-	 * return.
-	 */
-	if (state == VSP1_PIPELINE_STOPPING) {
-		wake_up(&pipe->wq);
-		goto done;
-	}
-
-	/* Restart the pipeline if ready. */
-	if (vsp1_pipeline_ready(pipe))
-		vsp1_pipeline_run(pipe);
-
-done:
-	spin_unlock_irqrestore(&pipe->irqlock, flags);
 }
 
 /*

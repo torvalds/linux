@@ -78,9 +78,6 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_PSTRIDE, pstride);
 
-	/* Now that the offsets have been computed program the DMA addresses. */
-	rpf->ops->set_memory(rpf);
-
 	/* Format */
 	infmt = VI6_RPF_INFMT_CIPM
 	      | (fmtinfo->hwfmt << VI6_RPF_INFMT_RDFMT_SHIFT);
@@ -150,11 +147,11 @@ static struct v4l2_subdev_ops rpf_ops = {
 static void rpf_set_memory(struct vsp1_rwpf *rpf)
 {
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
-		       rpf->buf_addr[0] + rpf->offsets[0]);
+		       rpf->mem.addr[0] + rpf->offsets[0]);
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
-		       rpf->buf_addr[1] + rpf->offsets[1]);
+		       rpf->mem.addr[1] + rpf->offsets[1]);
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
-		       rpf->buf_addr[2] + rpf->offsets[1]);
+		       rpf->mem.addr[2] + rpf->offsets[1]);
 }
 
 static const struct vsp1_rwpf_operations rpf_vdev_ops = {

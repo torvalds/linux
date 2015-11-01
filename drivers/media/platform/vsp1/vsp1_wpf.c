@@ -157,9 +157,9 @@ static struct v4l2_subdev_ops wpf_ops = {
 
 static void wpf_set_memory(struct vsp1_rwpf *wpf)
 {
-	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, wpf->buf_addr[0]);
-	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C0, wpf->buf_addr[1]);
-	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C1, wpf->buf_addr[2]);
+	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, wpf->mem.addr[0]);
+	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C0, wpf->mem.addr[1]);
+	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C1, wpf->mem.addr[2]);
 }
 
 static const struct vsp1_rwpf_operations wpf_vdev_ops = {
@@ -200,13 +200,11 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	/* Initialize the display list manager if the WPF is used for display */
-	if ((vsp1->info->features & VSP1_HAS_LIF) && index == 0) {
-		wpf->dlm = vsp1_dlm_create(vsp1, index, 4);
-		if (!wpf->dlm) {
-			ret = -ENOMEM;
-			goto error;
-		}
+	/* Initialize the display list manager. */
+	wpf->dlm = vsp1_dlm_create(vsp1, index, 4);
+	if (!wpf->dlm) {
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	/* Initialize the V4L2 subdev. */

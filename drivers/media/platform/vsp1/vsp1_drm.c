@@ -36,11 +36,6 @@ void vsp1_drm_display_start(struct vsp1_device *vsp1)
 	vsp1_dlm_irq_display_start(vsp1->drm->pipe.output->dlm);
 }
 
-static void vsp1_drm_frame_end(struct vsp1_pipeline *pipe)
-{
-	vsp1_dlm_irq_frame_end(pipe->output->dlm);
-}
-
 /* -----------------------------------------------------------------------------
  * DU Driver API
  */
@@ -280,7 +275,6 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 	const struct vsp1_format_info *fmtinfo;
 	struct v4l2_subdev_selection sel;
 	struct v4l2_subdev_format format;
-	struct vsp1_rwpf_memory memory;
 	struct vsp1_rwpf *rpf;
 	unsigned long flags;
 	int ret;
@@ -420,15 +414,12 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 	rpf->location.left = dst->left;
 	rpf->location.top = dst->top;
 
-	/* Set the memory buffer address but don't apply the values to the
+	/* Cache the memory buffer address but don't apply the values to the
 	 * hardware as the crop offsets haven't been computed yet.
 	 */
-	memory.num_planes = fmtinfo->planes;
-	memory.addr[0] = mem[0];
-	memory.addr[1] = mem[1];
-	memory.addr[2] = 0;
-
-	vsp1_rwpf_set_memory(rpf, &memory, false);
+	rpf->mem.addr[0] = mem[0];
+	rpf->mem.addr[1] = mem[1];
+	rpf->mem.addr[2] = 0;
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
@@ -482,14 +473,17 @@ void vsp1_du_atomic_flush(struct device *dev)
 				entity->subdev.name);
 			return;
 		}
+
+		if (entity->type == VSP1_ENTITY_RPF)
+			vsp1_rwpf_set_memory(to_rwpf(&entity->subdev));
 	}
 
 	vsp1_dl_list_commit(pipe->dl);
 	pipe->dl = NULL;
 
+	/* Start or stop the pipeline if needed. */
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
-	/* Start or stop the pipeline if needed. */
 	if (!vsp1->drm->num_inputs && pipe->num_inputs) {
 		vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
 		vsp1_write(vsp1, VI6_DISP_IRQ_ENB, VI6_DISP_IRQ_ENB_DSTE);
@@ -569,7 +563,6 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	pipe = &vsp1->drm->pipe;
 
 	vsp1_pipeline_init(pipe);
-	pipe->frame_end = vsp1_drm_frame_end;
 
 	/* The DRM pipeline is static, add entities manually. */
 	for (i = 0; i < vsp1->info->rpf_count; ++i) {

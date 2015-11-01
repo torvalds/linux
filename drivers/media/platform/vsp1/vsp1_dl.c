@@ -311,14 +311,15 @@ done:
 /* Hardware Setup */
 void vsp1_dlm_setup(struct vsp1_device *vsp1)
 {
-	u32 ctrl = (256 << VI6_DL_CTRL_AR_WAIT_SHIFT);
+	u32 ctrl = (256 << VI6_DL_CTRL_AR_WAIT_SHIFT)
+		 | VI6_DL_CTRL_DC2 | VI6_DL_CTRL_DC1 | VI6_DL_CTRL_DC0
+		 | VI6_DL_CTRL_DLE;
 
-	/* The DRM pipeline operates with header-less display lists in
-	 * Continuous Frame Mode.
+	/* The DRM pipeline operates with display lists in Continuous Frame
+	 * Mode, all other pipelines use manual start.
 	 */
 	if (vsp1->drm)
-		ctrl |= VI6_DL_CTRL_DC2 | VI6_DL_CTRL_DC1 | VI6_DL_CTRL_DC0
-		     |  VI6_DL_CTRL_DLE | VI6_DL_CTRL_CFM0 | VI6_DL_CTRL_NH0;
+		ctrl |= VI6_DL_CTRL_CFM0 | VI6_DL_CTRL_NH0;
 
 	vsp1_write(vsp1, VI6_DL_CTRL, ctrl);
 	vsp1_write(vsp1, VI6_DL_SWAP, VI6_DL_SWAP_LWS);

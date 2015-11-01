@@ -269,29 +269,3 @@ int vsp1_rwpf_init_ctrls(struct vsp1_rwpf *rwpf)
 
 	return rwpf->ctrls.error;
 }
-
-/* -----------------------------------------------------------------------------
- * Buffers
- */
-
-/**
- * vsp1_rwpf_set_memory - Configure DMA addresses for a [RW]PF
- * @rwpf: the [RW]PF instance
- * @mem: DMA memory addresses
- * @apply: whether to apply the configuration to the hardware
- *
- * This function stores the DMA addresses for all planes in the rwpf instance
- * and optionally applies the configuration to hardware registers if the apply
- * argument is set to true.
- */
-void vsp1_rwpf_set_memory(struct vsp1_rwpf *rwpf, struct vsp1_rwpf_memory *mem,
-			  bool apply)
-{
-	unsigned int i;
-
-	for (i = 0; i < 3; ++i)
-		rwpf->buf_addr[i] = mem->addr[i];
-
-	if (apply)
-		rwpf->ops->set_memory(rwpf);
-}

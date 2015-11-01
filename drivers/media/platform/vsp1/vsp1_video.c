@@ -29,6 +29,7 @@
 
 #include "vsp1.h"
 #include "vsp1_bru.h"
+#include "vsp1_dl.h"
 #include "vsp1_entity.h"
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
@@ -424,7 +425,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 	done->buf.vb2_buf.timestamp = ktime_get_ns();
 	for (i = 0; i < done->buf.vb2_buf.num_planes; ++i)
 		vb2_set_plane_payload(&done->buf.vb2_buf, i,
-				      done->mem.length[i]);
+				      vb2_plane_size(&done->buf.vb2_buf, i));
 	vb2_buffer_done(&done->buf.vb2_buf, VB2_BUF_STATE_DONE);
 
 	return next;
@@ -443,15 +444,41 @@ static void vsp1_video_frame_end(struct vsp1_pipeline *pipe,
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
-	vsp1_rwpf_set_memory(video->rwpf, &buf->mem, true);
+	video->rwpf->mem = buf->mem;
 	pipe->buffers_ready |= 1 << video->pipe_index;
 
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 }
 
+static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
+{
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+	unsigned int i;
+
+	if (!pipe->dl)
+		pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
+
+	for (i = 0; i < vsp1->info->rpf_count; ++i) {
+		struct vsp1_rwpf *rwpf = pipe->inputs[i];
+
+		if (rwpf)
+			vsp1_rwpf_set_memory(rwpf);
+	}
+
+	if (!pipe->lif)
+		vsp1_rwpf_set_memory(pipe->output);
+
+	vsp1_dl_list_commit(pipe->dl);
+	pipe->dl = NULL;
+
+	vsp1_pipeline_run(pipe);
+}
+
 static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+	enum vsp1_pipeline_state state;
+	unsigned long flags;
 	unsigned int i;
 
 	/* Complete buffers on all video nodes. */
@@ -462,8 +489,22 @@ static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe)
 		vsp1_video_frame_end(pipe, pipe->inputs[i]);
 	}
 
-	if (!pipe->lif)
-		vsp1_video_frame_end(pipe, pipe->output);
+	vsp1_video_frame_end(pipe, pipe->output);
+
+	spin_lock_irqsave(&pipe->irqlock, flags);
+
+	state = pipe->state;
+	pipe->state = VSP1_PIPELINE_STOPPED;
+
+	/* If a stop has been requested, mark the pipeline as stopped and
+	 * return. Otherwise restart the pipeline if ready.
+	 */
+	if (state == VSP1_PIPELINE_STOPPING)
+		wake_up(&pipe->wq);
+	else if (vsp1_pipeline_ready(pipe))
+		vsp1_video_pipeline_run(pipe);
+
+	spin_unlock_irqrestore(&pipe->irqlock, flags);
 }
 
 /* -----------------------------------------------------------------------------
@@ -512,20 +553,15 @@ static int vsp1_video_buffer_prepare(struct vb2_buffer *vb)
 	if (vb->num_planes < format->num_planes)
 		return -EINVAL;
 
-	buf->mem.num_planes = vb->num_planes;
-
 	for (i = 0; i < vb->num_planes; ++i) {
 		buf->mem.addr[i] = vb2_dma_contig_plane_dma_addr(vb, i);
-		buf->mem.length[i] = vb2_plane_size(vb, i);
 
-		if (buf->mem.length[i] < format->plane_fmt[i].sizeimage)
+		if (vb2_plane_size(vb, i) < format->plane_fmt[i].sizeimage)
 			return -EINVAL;
 	}
 
-	for ( ; i < 3; ++i) {
+	for ( ; i < 3; ++i)
 		buf->mem.addr[i] = 0;
-		buf->mem.length[i] = 0;
-	}
 
 	return 0;
 }
@@ -549,54 +585,74 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
-	vsp1_rwpf_set_memory(video->rwpf, &buf->mem, true);
+	video->rwpf->mem = buf->mem;
 	pipe->buffers_ready |= 1 << video->pipe_index;
 
 	if (vb2_is_streaming(&video->queue) &&
 	    vsp1_pipeline_ready(pipe))
-		vsp1_pipeline_run(pipe);
+		vsp1_video_pipeline_run(pipe);
 
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
+}
+
+static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
+{
+	struct vsp1_entity *entity;
+	int ret;
+
+	/* Prepare the display list. */
+	pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
+	if (!pipe->dl)
+		return -ENOMEM;
+
+	if (pipe->uds) {
+		struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
+
+		/* If a BRU is present in the pipeline before the UDS, the alpha
+		 * component doesn't need to be scaled as the BRU output alpha
+		 * value is fixed to 255. Otherwise we need to scale the alpha
+		 * component only when available at the input RPF.
+		 */
+		if (pipe->uds_input->type == VSP1_ENTITY_BRU) {
+			uds->scale_alpha = false;
+		} else {
+			struct vsp1_rwpf *rpf =
+				to_rwpf(&pipe->uds_input->subdev);
+
+			uds->scale_alpha = rpf->fmtinfo->alpha;
+		}
+	}
+
+	list_for_each_entry(entity, &pipe->entities, list_pipe) {
+		vsp1_entity_route_setup(entity);
+
+		ret = v4l2_subdev_call(&entity->subdev, video, s_stream, 1);
+		if (ret < 0)
+			goto error;
+	}
+
+	return 0;
+
+error:
+	vsp1_dl_list_put(pipe->dl);
+	pipe->dl = NULL;
+
+	return ret;
 }
 
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
-	struct vsp1_entity *entity;
 	unsigned long flags;
 	int ret;
 
 	mutex_lock(&pipe->lock);
 	if (pipe->stream_count == pipe->num_inputs) {
-		if (pipe->uds) {
-			struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
-
-			/* If a BRU is present in the pipeline before the UDS,
-			 * the alpha component doesn't need to be scaled as the
-			 * BRU output alpha value is fixed to 255. Otherwise we
-			 * need to scale the alpha component only when available
-			 * at the input RPF.
-			 */
-			if (pipe->uds_input->type == VSP1_ENTITY_BRU) {
-				uds->scale_alpha = false;
-			} else {
-				struct vsp1_rwpf *rpf =
-					to_rwpf(&pipe->uds_input->subdev);
-
-				uds->scale_alpha = rpf->fmtinfo->alpha;
-			}
-		}
-
-		list_for_each_entry(entity, &pipe->entities, list_pipe) {
-			vsp1_entity_route_setup(entity);
-
-			ret = v4l2_subdev_call(&entity->subdev, video,
-					       s_stream, 1);
-			if (ret < 0) {
-				mutex_unlock(&pipe->lock);
-				return ret;
-			}
+		ret = vsp1_video_setup_pipeline(pipe);
+		if (ret < 0) {
+			mutex_unlock(&pipe->lock);
+			return ret;
 		}
 	}
 
@@ -605,7 +661,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 	if (vsp1_pipeline_ready(pipe))
-		vsp1_pipeline_run(pipe);
+		vsp1_video_pipeline_run(pipe);
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
 	return 0;
@@ -625,6 +681,9 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 		ret = vsp1_pipeline_stop(pipe);
 		if (ret == -ETIMEDOUT)
 			dev_err(video->vsp1->dev, "pipeline stop timeout\n");
+
+		vsp1_dl_list_put(pipe->dl);
+		pipe->dl = NULL;
 	}
 	mutex_unlock(&pipe->lock);
 
