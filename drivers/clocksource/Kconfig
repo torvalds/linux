@@ -123,9 +123,7 @@ config CLKSRC_NOMADIK_MTU_SCHED_CLOCK
 	  Use the Multi Timer Unit as the sched_clock.
 
 config CLKSRC_DBX500_PRCMU
-	bool "Clocksource PRCMU Timer"
-	depends on UX500_SOC_DB8500
-	default y
+	bool "Clocksource PRCMU Timer" if COMPILE_TEST
 	help
 	  Use the always on PRCMU Timer as clocksource
 
