@@ -1929,6 +1929,16 @@ snd_m3_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
 		return;
 	snd_m3_outw(chip, val, CODEC_DATA);
 	snd_m3_outb(chip, reg & 0x7f, CODEC_COMMAND);
+	/*
+	 * Workaround for buggy ES1988 integrated AC'97 codec. It remains silent
+	 * until the MASTER volume or mute is touched (alsactl restore does not
+	 * work).
+	 */
+	if (ac97->id == 0x45838308 && reg == AC97_MASTER) {
+		snd_m3_ac97_wait(chip);
+		snd_m3_outw(chip, val, CODEC_DATA);
+		snd_m3_outb(chip, reg & 0x7f, CODEC_COMMAND);
+	}
 }
 
 
