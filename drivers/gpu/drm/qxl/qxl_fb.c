@@ -40,7 +40,6 @@
 struct qxl_fbdev {
 	struct drm_fb_helper helper;
 	struct qxl_framebuffer	qfb;
-	struct list_head	fbdev_list;
 	struct qxl_device	*qdev;
 
 	spinlock_t delayed_ops_lock;

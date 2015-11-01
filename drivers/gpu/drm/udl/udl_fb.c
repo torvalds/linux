@@ -33,7 +33,6 @@ module_param(fb_defio, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 struct udl_fbdev {
 	struct drm_fb_helper helper;
 	struct udl_framebuffer ufb;
-	struct list_head fbdev_list;
 	int fb_count;
 };
 

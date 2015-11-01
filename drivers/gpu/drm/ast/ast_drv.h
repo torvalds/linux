@@ -256,7 +256,6 @@ struct ast_framebuffer {
 struct ast_fbdev {
 	struct drm_fb_helper helper;
 	struct ast_framebuffer afb;
-	struct list_head fbdev_list;
 	void *sysram;
 	int size;
 	struct ttm_bo_kmap_obj mapping;
