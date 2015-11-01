@@ -26,11 +26,6 @@
  * Device Access
  */
 
-static inline u32 vsp1_sru_read(struct vsp1_sru *sru, u32 reg)
-{
-	return vsp1_read(sru->entity.vsp1, reg);
-}
-
 static inline void vsp1_sru_write(struct vsp1_sru *sru, u32 reg, u32 data)
 {
 	vsp1_write(sru->entity.vsp1, reg, data);
@@ -82,20 +77,10 @@ static int sru_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vsp1_sru *sru =
 		container_of(ctrl->handler, struct vsp1_sru, ctrls);
-	const struct vsp1_sru_param *param;
-	u32 value;
 
 	switch (ctrl->id) {
 	case V4L2_CID_VSP1_SRU_INTENSITY:
-		param = &vsp1_sru_params[ctrl->val - 1];
-
-		value = vsp1_sru_read(sru, VI6_SRU_CTRL0);
-		value &= ~(VI6_SRU_CTRL0_PARAM0_MASK |
-			   VI6_SRU_CTRL0_PARAM1_MASK);
-		value |= param->ctrl0;
-		vsp1_sru_write(sru, VI6_SRU_CTRL0, value);
-
-		vsp1_sru_write(sru, VI6_SRU_CTRL2, param->ctrl2);
+		sru->intensity = ctrl->val;
 		break;
 	}
 
@@ -123,6 +108,7 @@ static const struct v4l2_ctrl_config sru_intensity_control = {
 
 static int sru_s_stream(struct v4l2_subdev *subdev, int enable)
 {
+	const struct vsp1_sru_param *param;
 	struct vsp1_sru *sru = to_sru(subdev);
 	struct v4l2_mbus_framefmt *input;
 	struct v4l2_mbus_framefmt *output;
@@ -148,18 +134,13 @@ static int sru_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (input->width != output->width)
 		ctrl0 |= VI6_SRU_CTRL0_MODE_UPSCALE;
 
-	/* Take the control handler lock to ensure that the CTRL0 value won't be
-	 * changed behind our back by a set control operation.
-	 */
-	if (sru->entity.vsp1->info->uapi)
-		mutex_lock(sru->ctrls.lock);
-	ctrl0 |= vsp1_sru_read(sru, VI6_SRU_CTRL0)
-	       & (VI6_SRU_CTRL0_PARAM0_MASK | VI6_SRU_CTRL0_PARAM1_MASK);
-	vsp1_sru_write(sru, VI6_SRU_CTRL0, ctrl0);
-	if (sru->entity.vsp1->info->uapi)
-		mutex_unlock(sru->ctrls.lock);
+	param = &vsp1_sru_params[sru->intensity - 1];
 
+	ctrl0 |= param->ctrl0;
+
+	vsp1_sru_write(sru, VI6_SRU_CTRL0, ctrl0);
 	vsp1_sru_write(sru, VI6_SRU_CTRL1, VI6_SRU_CTRL1_PARAM5);
+	vsp1_sru_write(sru, VI6_SRU_CTRL2, param->ctrl2);
 
 	return 0;
 }
@@ -375,6 +356,8 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&sru->ctrls, 1);
 	v4l2_ctrl_new_custom(&sru->ctrls, &sru_intensity_control, NULL);
+
+	sru->intensity = 1;
 
 	sru->entity.subdev.ctrl_handler = &sru->ctrls;
 
