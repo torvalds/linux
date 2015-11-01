@@ -2817,8 +2817,10 @@ static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 
 	for_each_available_child_of_node(np, pnp) {
 		ret = mv643xx_eth_shared_of_add_port(pdev, pnp);
-		if (ret)
+		if (ret) {
+			of_node_put(pnp);
 			return ret;
+		}
 	}
 	return 0;
 }
