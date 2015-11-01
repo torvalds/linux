@@ -77,10 +77,8 @@ static bool default_stop_ok(struct device *dev)
 				      dev_update_qos_constraint);
 
 	if (constraint_ns > 0) {
-		constraint_ns -= td->save_state_latency_ns +
-				td->stop_latency_ns +
-				td->start_latency_ns +
-				td->restore_state_latency_ns;
+		constraint_ns -= td->suspend_latency_ns +
+				td->resume_latency_ns;
 		if (constraint_ns == 0)
 			return false;
 	}
