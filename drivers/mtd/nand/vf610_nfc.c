@@ -707,7 +707,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(nfc->dev->of_node, child) {
 		if (of_device_is_compatible(child, "fsl,vf610-nfc-nandcs")) {
 
-			if (chip->flash_node) {
+			if (nand_get_flash_node(chip)) {
 				dev_err(nfc->dev,
 					"Only one NAND chip supported!\n");
 				err = -EINVAL;
@@ -718,7 +718,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (!chip->flash_node) {
+	if (!nand_get_flash_node(chip)) {
 		dev_err(nfc->dev, "NAND chip sub-node missing!\n");
 		err = -ENODEV;
 		goto err_clk;
@@ -814,7 +814,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	return mtd_device_register(mtd, NULL, 0);
 
 error:
-	of_node_put(chip->flash_node);
+	of_node_put(nand_get_flash_node(chip));
 err_clk:
 	clk_disable_unprepare(nfc->clk);
 	return err;
