@@ -486,17 +486,15 @@ config GPIO_ZYNQ
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
-	depends on X86
+	depends on X86 # Unconditional I/O space access
 
 config GPIO_104_IDIO_16
 	tristate "ACCES 104-IDIO-16 GPIO support"
-	depends on X86
 	help
 	  Enables GPIO support for the ACCES 104-IDIO-16 family.
 
 config GPIO_F7188X
 	tristate "F71869, F71869A, F71882FG and F71889F GPIO support"
-	depends on X86
 	help
 	  This option enables support for GPIOs found on Fintek Super-I/O
 	  chips F71869, F71869A, F71882FG and F71889F.
@@ -506,7 +504,6 @@ config GPIO_F7188X
 
 config GPIO_IT87
 	tristate "IT87xx GPIO support"
-	depends on X86 # unconditional access to IO space.
 	help
 	  Say yes here to support GPIO functionality of IT87xx Super I/O chips.
 
@@ -518,7 +515,7 @@ config GPIO_IT87
 
 config GPIO_SCH
 	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
-	depends on PCI && X86
+	depends on PCI
 	select MFD_CORE
 	select LPC_SCH
 	help
