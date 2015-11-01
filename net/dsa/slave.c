@@ -247,11 +247,10 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
-	u16 vid;
 	int err;
 
 	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->drv->port_vlan_add || !ds->drv->port_pvid_set)
+		if (!ds->drv->port_vlan_prepare || !ds->drv->port_vlan_add)
 			return -EOPNOTSUPP;
 
 		/* If the requested port doesn't belong to the same bridge as
@@ -262,16 +261,14 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 						  vlan->vid_end);
 		if (err)
 			return err;
+
+		err = ds->drv->port_vlan_prepare(ds, p->port, vlan, trans);
+		if (err)
+			return err;
 	} else {
-		for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-			err = ds->drv->port_vlan_add(ds, p->port, vid,
-						     vlan->flags &
-						     BRIDGE_VLAN_INFO_UNTAGGED);
-			if (!err && vlan->flags & BRIDGE_VLAN_INFO_PVID)
-				err = ds->drv->port_pvid_set(ds, p->port, vid);
-			if (err)
-				return err;
-		}
+		err = ds->drv->port_vlan_add(ds, p->port, vlan, trans);
+		if (err)
+			return err;
 	}
 
 	return 0;
@@ -282,19 +279,11 @@ static int dsa_slave_port_vlan_del(struct net_device *dev,
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
-	u16 vid;
-	int err;
 
 	if (!ds->drv->port_vlan_del)
 		return -EOPNOTSUPP;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		err = ds->drv->port_vlan_del(ds, p->port, vid);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return ds->drv->port_vlan_del(ds, p->port, vlan);
 }
 
 static int dsa_slave_port_vlan_dump(struct net_device *dev,

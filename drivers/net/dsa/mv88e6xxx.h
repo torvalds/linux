@@ -457,11 +457,15 @@ int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
 int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 		      struct phy_device *phydev, struct ethtool_eee *e);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
+int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_vlan *vlan,
+				struct switchdev_trans *trans);
+int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_vlan *vlan,
+			    struct switchdev_trans *trans);
+int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_vlan *vlan);
 int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *vid);
-int mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 vid);
-int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
-			    bool untagged);
-int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid);
 int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
 			   unsigned long *ports, unsigned long *untagged);
 int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,

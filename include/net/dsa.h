@@ -200,6 +200,7 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 struct switchdev_trans;
 struct switchdev_obj;
 struct switchdev_obj_port_fdb;
+struct switchdev_obj_port_vlan;
 
 struct dsa_switch_driver {
 	struct list_head	list;
@@ -309,11 +310,15 @@ struct dsa_switch_driver {
 	/*
 	 * VLAN support
 	 */
+	int	(*port_vlan_prepare)(struct dsa_switch *ds, int port,
+				     const struct switchdev_obj_port_vlan *vlan,
+				     struct switchdev_trans *trans);
+	int	(*port_vlan_add)(struct dsa_switch *ds, int port,
+				 const struct switchdev_obj_port_vlan *vlan,
+				 struct switchdev_trans *trans);
+	int	(*port_vlan_del)(struct dsa_switch *ds, int port,
+				 const struct switchdev_obj_port_vlan *vlan);
 	int	(*port_pvid_get)(struct dsa_switch *ds, int port, u16 *pvid);
-	int	(*port_pvid_set)(struct dsa_switch *ds, int port, u16 pvid);
-	int	(*port_vlan_add)(struct dsa_switch *ds, int port, u16 vid,
-				 bool untagged);
-	int	(*port_vlan_del)(struct dsa_switch *ds, int port, u16 vid);
 	int	(*vlan_getnext)(struct dsa_switch *ds, u16 *vid,
 				unsigned long *ports, unsigned long *untagged);
 

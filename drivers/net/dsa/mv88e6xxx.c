@@ -1121,6 +1121,19 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 	return 0;
 }
 
+static int _mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *pvid)
+{
+	int ret;
+
+	ret = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_DEFAULT_VLAN);
+	if (ret < 0)
+		return ret;
+
+	*pvid = ret & PORT_DEFAULT_VLAN_MASK;
+
+	return 0;
+}
+
 int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *pvid)
 {
 	int ret;
@@ -1134,9 +1147,9 @@ int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *pvid)
 	return 0;
 }
 
-int mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 pvid)
+static int _mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 pvid)
 {
-	return mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_DEFAULT_VLAN,
+	return _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_DEFAULT_VLAN,
 				   pvid & PORT_DEFAULT_VLAN_MASK);
 }
 
@@ -1441,61 +1454,87 @@ static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
 	return 0;
 }
 
-int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
-			    bool untagged)
+int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_vlan *vlan,
+				struct switchdev_trans *trans)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	/* We don't need any dynamic resource from the kernel (yet),
+	 * so skip the prepare phase.
+	 */
+	return 0;
+}
+
+static int _mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
+				    bool untagged)
+{
 	struct mv88e6xxx_vtu_stu_entry vlan;
 	int err;
 
-	mutex_lock(&ps->smi_mutex);
-
 	err = _mv88e6xxx_vtu_vid_write(ds, vid - 1);
 	if (err)
-		goto unlock;
+		return err;
 
 	err = _mv88e6xxx_vtu_getnext(ds, &vlan);
 	if (err)
-		goto unlock;
+		return err;
 
 	if (vlan.vid != vid || !vlan.valid) {
 		err = _mv88e6xxx_vlan_init(ds, vid, &vlan);
 		if (err)
-			goto unlock;
+			return err;
 	}
 
 	vlan.data[port] = untagged ?
 		GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED :
 		GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED;
 
-	err = _mv88e6xxx_vtu_loadpurge(ds, &vlan);
+	return _mv88e6xxx_vtu_loadpurge(ds, &vlan);
+}
+
+int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_vlan *vlan,
+			    struct switchdev_trans *trans)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+	u16 vid;
+	int err = 0;
+
+	mutex_lock(&ps->smi_mutex);
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
+		err = _mv88e6xxx_port_vlan_add(ds, port, vid, untagged);
+		if (err)
+			goto unlock;
+	}
+
+	/* no PVID with ranges, otherwise it's a bug */
+	if (pvid)
+		err = _mv88e6xxx_port_pvid_set(ds, port, vid);
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	return err;
 }
 
-int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
+static int _mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mv88e6xxx_vtu_stu_entry vlan;
 	int i, err;
 
-	mutex_lock(&ps->smi_mutex);
-
 	err = _mv88e6xxx_vtu_vid_write(ds, vid - 1);
 	if (err)
-		goto unlock;
+		return err;
 
 	err = _mv88e6xxx_vtu_getnext(ds, &vlan);
 	if (err)
-		goto unlock;
+		return err;
 
 	if (vlan.vid != vid || !vlan.valid ||
-	    vlan.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER) {
-		err = -ENOENT;
-		goto unlock;
-	}
+	    vlan.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+		return -ENOENT;
 
 	vlan.data[port] = GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 
@@ -1513,9 +1552,36 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 
 	err = _mv88e6xxx_vtu_loadpurge(ds, &vlan);
 	if (err)
+		return err;
+
+	return _mv88e6xxx_atu_remove(ds, vlan.fid, port, false);
+}
+
+int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_vlan *vlan)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u16 pvid, vid;
+	int err = 0;
+
+	mutex_lock(&ps->smi_mutex);
+
+	err = _mv88e6xxx_port_pvid_get(ds, port, &pvid);
+	if (err)
 		goto unlock;
 
-	err = _mv88e6xxx_atu_remove(ds, vlan.fid, port, false);
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
+		err = _mv88e6xxx_port_vlan_del(ds, port, vid);
+		if (err)
+			goto unlock;
+
+		if (vid == pvid) {
+			err = _mv88e6xxx_port_pvid_set(ds, port, 0);
+			if (err)
+				goto unlock;
+		}
+	}
+
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 
