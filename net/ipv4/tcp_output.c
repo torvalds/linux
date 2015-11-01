@@ -2963,9 +2963,7 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 	skb_reserve(skb, MAX_TCP_HEADER);
 
 	if (attach_req) {
-		skb->destructor = sock_edemux;
-		sock_hold(req_to_sk(req));
-		skb->sk = req_to_sk(req);
+		skb_set_owner_w(skb, req_to_sk(req));
 	} else {
 		/* sk is a const pointer, because we want to express multiple
 		 * cpu might call us concurrently.
