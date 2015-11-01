@@ -19,7 +19,19 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_entity.h"
+#include "vsp1_pipe.h"
+
+void vsp1_mod_write(struct vsp1_entity *e, u32 reg, u32 data)
+{
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&e->subdev.entity);
+
+	if (pipe->dl)
+		vsp1_dl_add(pipe->dl, reg, data);
+	else
+		vsp1_write(e->vsp1, reg, data);
+}
 
 bool vsp1_entity_is_streaming(struct vsp1_entity *entity)
 {

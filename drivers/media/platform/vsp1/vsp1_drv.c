@@ -387,13 +387,10 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	/* Register subdev nodes if the userspace API is enabled or initialize
 	 * the DRM pipeline otherwise.
 	 */
-	if (vsp1->info->uapi) {
-		vsp1->use_dl = false;
+	if (vsp1->info->uapi)
 		ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
-	} else {
-		vsp1->use_dl = true;
+	else
 		ret = vsp1_drm_init(vsp1);
-	}
 	if (ret < 0)
 		goto done;
 
@@ -465,7 +462,7 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 	vsp1_write(vsp1, VI6_DPR_HGT_SMPPT, (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
 		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 
-	if (vsp1->use_dl)
+	if (!vsp1->info->uapi)
 		vsp1_dl_setup(vsp1);
 
 	return 0;

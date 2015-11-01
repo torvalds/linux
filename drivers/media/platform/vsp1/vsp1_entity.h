@@ -103,4 +103,6 @@ int vsp1_entity_set_streaming(struct vsp1_entity *entity, bool streaming);
 
 void vsp1_entity_route_setup(struct vsp1_entity *source);
 
+void vsp1_mod_write(struct vsp1_entity *e, u32 reg, u32 data);
+
 #endif /* __VSP1_ENTITY_H__ */
