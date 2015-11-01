@@ -231,8 +231,8 @@ config CLKSRC_METAG_GENERIC
 	  This option enables support for the Meta per-thread timers.
 
 config CLKSRC_EXYNOS_MCT
-	def_bool y if ARCH_EXYNOS
-	depends on !ARM64
+	bool "Exynos multi core timer driver" if COMPILE_TEST
+	depends on ARM
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
