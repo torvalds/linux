@@ -2547,7 +2547,9 @@ void __init setup_ioapic_dest(void)
 			mask = apic->target_cpus();
 
 		chip = irq_data_get_irq_chip(idata);
-		chip->irq_set_affinity(idata, mask, false);
+		/* Might be lapic_chip for irq 0 */
+		if (chip->irq_set_affinity)
+			chip->irq_set_affinity(idata, mask, false);
 	}
 }
 #endif
