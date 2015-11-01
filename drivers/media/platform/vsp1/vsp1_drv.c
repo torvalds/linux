@@ -462,8 +462,7 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 	vsp1_write(vsp1, VI6_DPR_HGT_SMPPT, (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
 		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 
-	if (!vsp1->info->uapi)
-		vsp1_dl_setup(vsp1);
+	vsp1_dl_setup(vsp1);
 
 	return 0;
 }
