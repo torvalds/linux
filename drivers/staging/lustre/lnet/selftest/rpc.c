@@ -859,7 +859,7 @@ srpc_prepare_bulk(srpc_client_rpc_t *rpc)
 }
 
 static int
-srpc_do_bulk(srpc_server_rpc_t *rpc)
+srpc_do_bulk(struct srpc_server_rpc *rpc)
 {
 	srpc_event_t *ev = &rpc->srpc_ev;
 	srpc_bulk_t *bk = rpc->srpc_bulk;
@@ -887,7 +887,7 @@ srpc_do_bulk(srpc_server_rpc_t *rpc)
 
 /* only called from srpc_handle_rpc */
 static void
-srpc_server_rpc_done(srpc_server_rpc_t *rpc, int status)
+srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 {
 	struct srpc_service_cd *scd = rpc->srpc_scd;
 	struct srpc_service *sv  = scd->scd_svc;
@@ -1397,7 +1397,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 	struct srpc_service_cd *scd;
 	srpc_event_t *rpcev = ev->md.user_ptr;
 	srpc_client_rpc_t *crpc;
-	srpc_server_rpc_t *srpc;
+	struct srpc_server_rpc *srpc;
 	srpc_buffer_t *buffer;
 	srpc_service_t *sv;
 	srpc_msg_t *msg;

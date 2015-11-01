@@ -1883,7 +1883,7 @@ lstcon_session_feats_check(unsigned feats)
 }
 
 static int
-lstcon_acceptor_handle(srpc_server_rpc_t *rpc)
+lstcon_acceptor_handle(struct srpc_server_rpc *rpc)
 {
 	srpc_msg_t *rep  = &rpc->srpc_replymsg;
 	srpc_msg_t *req  = &rpc->srpc_reqstbuf->buf_msg;
