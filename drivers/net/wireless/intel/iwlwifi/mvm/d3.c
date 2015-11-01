@@ -1406,7 +1406,7 @@ struct iwl_mvm_d3_gtk_iter_data {
 	int num_keys;
 };
 
-static void iwl_mvm_d3_update_gtks(struct ieee80211_hw *hw,
+static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta,
 				   struct ieee80211_key_conf *key,
@@ -1494,7 +1494,7 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	/* find last GTK that we used initially, if any */
 	gtkdata.find_phase = true;
 	ieee80211_iter_keys(mvm->hw, vif,
-			    iwl_mvm_d3_update_gtks, &gtkdata);
+			    iwl_mvm_d3_update_keys, &gtkdata);
 	/* not trying to keep connections with MFP/unhandled ciphers */
 	if (gtkdata.unhandled_cipher)
 		return false;
@@ -1509,7 +1509,7 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	 */
 	gtkdata.find_phase = false;
 	ieee80211_iter_keys(mvm->hw, vif,
-			    iwl_mvm_d3_update_gtks, &gtkdata);
+			    iwl_mvm_d3_update_keys, &gtkdata);
 
 	if (status->num_of_gtk_rekeys) {
 		struct ieee80211_key_conf *key;
