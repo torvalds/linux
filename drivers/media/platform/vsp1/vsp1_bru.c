@@ -42,13 +42,9 @@ static int bru_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct vsp1_bru *bru =
 		container_of(ctrl->handler, struct vsp1_bru, ctrls);
 
-	if (!vsp1_entity_is_streaming(&bru->entity))
-		return 0;
-
 	switch (ctrl->id) {
 	case V4L2_CID_BG_COLOR:
-		vsp1_bru_write(bru, VI6_BRU_VIRRPF_COL, ctrl->val |
-			       (0xff << VI6_BRU_VIRRPF_COL_A_SHIFT));
+		bru->bgcolor = ctrl->val;
 		break;
 	}
 
@@ -95,11 +91,16 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 		       flags & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA ?
 		       0 : VI6_BRU_INCTRL_NRM);
 
-	/* Set the background position to cover the whole output image. */
+	/* Set the background position to cover the whole output image and
+	 * configure its color.
+	 */
 	vsp1_bru_write(bru, VI6_BRU_VIRRPF_SIZE,
 		       (format->width << VI6_BRU_VIRRPF_SIZE_HSIZE_SHIFT) |
 		       (format->height << VI6_BRU_VIRRPF_SIZE_VSIZE_SHIFT));
 	vsp1_bru_write(bru, VI6_BRU_VIRRPF_LOC, 0);
+
+	vsp1_bru_write(bru, VI6_BRU_VIRRPF_COL, bru->bgcolor |
+		       (0xff << VI6_BRU_VIRRPF_COL_A_SHIFT));
 
 	/* Route BRU input 1 as SRC input to the ROP unit and configure the ROP
 	 * unit with a NOP operation to make BRU input 1 available as the
@@ -437,6 +438,8 @@ struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1)
 	v4l2_ctrl_handler_init(&bru->ctrls, 1);
 	v4l2_ctrl_new_std(&bru->ctrls, &bru_ctrl_ops, V4L2_CID_BG_COLOR,
 			  0, 0xffffff, 1, 0);
+
+	bru->bgcolor = 0;
 
 	bru->entity.subdev.ctrl_handler = &bru->ctrls;
 
