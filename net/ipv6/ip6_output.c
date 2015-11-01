@@ -603,6 +603,10 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	frag_id = ipv6_select_ident(net, &ipv6_hdr(skb)->daddr,
 				    &ipv6_hdr(skb)->saddr);
 
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    (err = skb_checksum_help(skb)))
+		goto fail;
+
 	hroom = LL_RESERVED_SPACE(rt->dst.dev);
 	if (skb_has_frag_list(skb)) {
 		int first_len = skb_pagelen(skb);
@@ -731,10 +735,6 @@ slow_path_clean:
 	}
 
 slow_path:
-	if ((skb->ip_summed == CHECKSUM_PARTIAL) &&
-	    skb_checksum_help(skb))
-		goto fail;
-
 	left = skb->len - hlen;		/* Space per frame */
 	ptr = hlen;			/* Where to start from */
 
@@ -1270,6 +1270,7 @@ static int __ip6_append_data(struct sock *sk,
 	struct rt6_info *rt = (struct rt6_info *)cork->dst;
 	struct ipv6_txoptions *opt = v6_cork->opt;
 	int csummode = CHECKSUM_NONE;
+	unsigned int maxnonfragsize, headersize;
 
 	skb = skb_peek_tail(queue);
 	if (!skb) {
@@ -1287,37 +1288,42 @@ static int __ip6_append_data(struct sock *sk,
 	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen -
 		     sizeof(struct frag_hdr);
 
-	if (mtu <= sizeof(struct ipv6hdr) + IPV6_MAXPLEN) {
-		unsigned int maxnonfragsize, headersize;
+	headersize = sizeof(struct ipv6hdr) +
+		     (opt ? opt->opt_flen + opt->opt_nflen : 0) +
+		     (dst_allfrag(&rt->dst) ?
+		      sizeof(struct frag_hdr) : 0) +
+		     rt->rt6i_nfheader_len;
 
-		headersize = sizeof(struct ipv6hdr) +
-			     (opt ? opt->opt_flen + opt->opt_nflen : 0) +
-			     (dst_allfrag(&rt->dst) ?
-			      sizeof(struct frag_hdr) : 0) +
-			     rt->rt6i_nfheader_len;
-
-		if (ip6_sk_ignore_df(sk))
-			maxnonfragsize = sizeof(struct ipv6hdr) + IPV6_MAXPLEN;
-		else
-			maxnonfragsize = mtu;
-
-		/* dontfrag active */
-		if ((cork->length + length > mtu - headersize) && dontfrag &&
-		    (sk->sk_protocol == IPPROTO_UDP ||
-		     sk->sk_protocol == IPPROTO_RAW)) {
-			ipv6_local_rxpmtu(sk, fl6, mtu - headersize +
-						   sizeof(struct ipv6hdr));
-			goto emsgsize;
-		}
-
-		if (cork->length + length > maxnonfragsize - headersize) {
-emsgsize:
-			ipv6_local_error(sk, EMSGSIZE, fl6,
-					 mtu - headersize +
-					 sizeof(struct ipv6hdr));
-			return -EMSGSIZE;
-		}
+	if (cork->length + length > mtu - headersize && dontfrag &&
+	    (sk->sk_protocol == IPPROTO_UDP ||
+	     sk->sk_protocol == IPPROTO_RAW)) {
+		ipv6_local_rxpmtu(sk, fl6, mtu - headersize +
+				sizeof(struct ipv6hdr));
+		goto emsgsize;
 	}
+
+	if (ip6_sk_ignore_df(sk))
+		maxnonfragsize = sizeof(struct ipv6hdr) + IPV6_MAXPLEN;
+	else
+		maxnonfragsize = mtu;
+
+	if (cork->length + length > maxnonfragsize - headersize) {
+emsgsize:
+		ipv6_local_error(sk, EMSGSIZE, fl6,
+				 mtu - headersize +
+				 sizeof(struct ipv6hdr));
+		return -EMSGSIZE;
+	}
+
+	/* CHECKSUM_PARTIAL only with no extension headers and when
+	 * we are not going to fragment
+	 */
+	if (transhdrlen && sk->sk_protocol == IPPROTO_UDP &&
+	    headersize == sizeof(struct ipv6hdr) &&
+	    length < mtu - headersize &&
+	    !(flags & MSG_MORE) &&
+	    rt->dst.dev->features & NETIF_F_V6_CSUM)
+		csummode = CHECKSUM_PARTIAL;
 
 	if (sk->sk_type == SOCK_DGRAM || sk->sk_type == SOCK_RAW) {
 		sock_tx_timestamp(sk, &tx_flags);
@@ -1326,16 +1332,6 @@ emsgsize:
 			tskey = sk->sk_tskey++;
 	}
 
-	/* If this is the first and only packet and device
-	 * supports checksum offloading, let's use it.
-	 * Use transhdrlen, same as IPv4, because partial
-	 * sums only work when transhdrlen is set.
-	 */
-	if (transhdrlen && sk->sk_protocol == IPPROTO_UDP &&
-	    length + fragheaderlen < mtu &&
-	    rt->dst.dev->features & NETIF_F_V6_CSUM &&
-	    !exthdrlen)
-		csummode = CHECKSUM_PARTIAL;
 	/*
 	 * Let's try using as much space as possible.
 	 * Use MTU if total length of the message fits into the MTU.
