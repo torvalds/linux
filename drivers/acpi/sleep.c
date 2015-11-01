@@ -487,6 +487,8 @@ static int acpi_suspend_begin(suspend_state_t pm_state)
 		pr_err("ACPI does not support sleep state S%u\n", acpi_state);
 		return -ENOSYS;
 	}
+	if (acpi_state > ACPI_STATE_S1)
+		pm_set_suspend_via_firmware();
 
 	acpi_pm_start(acpi_state);
 	return 0;
@@ -522,6 +524,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 		if (error)
 			return error;
 		pr_info(PREFIX "Low-level resume complete\n");
+		pm_set_resume_via_firmware();
 		break;
 	}
 	trace_suspend_resume(TPS("acpi_suspend"), acpi_state, false);
