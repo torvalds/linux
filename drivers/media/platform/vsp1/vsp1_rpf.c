@@ -33,36 +33,6 @@ static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf, u32 reg, u32 data)
 }
 
 /* -----------------------------------------------------------------------------
- * Controls
- */
-
-static int rpf_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct vsp1_rwpf *rpf =
-		container_of(ctrl->handler, struct vsp1_rwpf, ctrls);
-	struct vsp1_pipeline *pipe;
-
-	if (!vsp1_entity_is_streaming(&rpf->entity))
-		return 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_ALPHA_COMPONENT:
-		vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
-			       ctrl->val << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
-
-		pipe = to_vsp1_pipeline(&rpf->entity.subdev.entity);
-		vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, ctrl->val);
-		break;
-	}
-
-	return 0;
-}
-
-static const struct v4l2_ctrl_ops rpf_ctrl_ops = {
-	.s_ctrl = rpf_s_ctrl,
-};
-
-/* -----------------------------------------------------------------------------
  * V4L2 Subdevice Core Operations
  */
 
@@ -70,7 +40,6 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
 	struct vsp1_rwpf *rpf = to_rwpf(subdev);
-	struct vsp1_device *vsp1 = rpf->entity.vsp1;
 	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
 	const struct v4l2_pix_format_mplane *format = &rpf->format;
 	const struct v4l2_rect *crop = &rpf->crop;
@@ -151,13 +120,10 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
 				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
 
-	if (vsp1->info->uapi)
-		mutex_lock(rpf->ctrls.lock);
 	vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
-		       rpf->alpha->cur.val << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
-	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, rpf->alpha->cur.val);
-	if (vsp1->info->uapi)
-		mutex_unlock(rpf->ctrls.lock);
+		       rpf->alpha << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
+
+	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, rpf->alpha);
 
 	vsp1_rpf_write(rpf, VI6_RPF_MSK_CTRL, 0);
 	vsp1_rpf_write(rpf, VI6_RPF_CKEY_CTRL, 0);
@@ -255,17 +221,10 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 	vsp1_entity_init_formats(subdev, NULL);
 
 	/* Initialize the control handler. */
-	v4l2_ctrl_handler_init(&rpf->ctrls, 1);
-	rpf->alpha = v4l2_ctrl_new_std(&rpf->ctrls, &rpf_ctrl_ops,
-				       V4L2_CID_ALPHA_COMPONENT,
-				       0, 255, 1, 255);
-
-	rpf->entity.subdev.ctrl_handler = &rpf->ctrls;
-
-	if (rpf->ctrls.error) {
+	ret = vsp1_rwpf_init_ctrls(rpf);
+	if (ret < 0) {
 		dev_err(vsp1->dev, "rpf%u: failed to initialize controls\n",
 			index);
-		ret = rpf->ctrls.error;
 		goto error;
 	}
 

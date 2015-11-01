@@ -27,46 +27,11 @@
  * Device Access
  */
 
-static inline u32 vsp1_wpf_read(struct vsp1_rwpf *wpf, u32 reg)
-{
-	return vsp1_read(wpf->entity.vsp1,
-			 reg + wpf->entity.index * VI6_WPF_OFFSET);
-}
-
 static inline void vsp1_wpf_write(struct vsp1_rwpf *wpf, u32 reg, u32 data)
 {
 	vsp1_mod_write(&wpf->entity,
 		       reg + wpf->entity.index * VI6_WPF_OFFSET, data);
 }
-
-/* -----------------------------------------------------------------------------
- * Controls
- */
-
-static int wpf_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct vsp1_rwpf *wpf =
-		container_of(ctrl->handler, struct vsp1_rwpf, ctrls);
-	u32 value;
-
-	if (!vsp1_entity_is_streaming(&wpf->entity))
-		return 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_ALPHA_COMPONENT:
-		value = vsp1_wpf_read(wpf, VI6_WPF_OUTFMT);
-		value &= ~VI6_WPF_OUTFMT_PDV_MASK;
-		value |= ctrl->val << VI6_WPF_OUTFMT_PDV_SHIFT;
-		vsp1_wpf_write(wpf, VI6_WPF_OUTFMT, value);
-		break;
-	}
-
-	return 0;
-}
-
-static const struct v4l2_ctrl_ops wpf_ctrl_ops = {
-	.s_ctrl = wpf_s_ctrl,
-};
 
 /* -----------------------------------------------------------------------------
  * V4L2 Subdevice Core Operations
@@ -153,15 +118,8 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	    wpf->entity.formats[RWPF_PAD_SOURCE].code)
 		outfmt |= VI6_WPF_OUTFMT_CSC;
 
-	/* Take the control handler lock to ensure that the PDV value won't be
-	 * changed behind our back by a set control operation.
-	 */
-	if (vsp1->info->uapi)
-		mutex_lock(wpf->ctrls.lock);
-	outfmt |= wpf->alpha->cur.val << VI6_WPF_OUTFMT_PDV_SHIFT;
+	outfmt |= wpf->alpha << VI6_WPF_OUTFMT_PDV_SHIFT;
 	vsp1_wpf_write(wpf, VI6_WPF_OUTFMT, outfmt);
-	if (vsp1->info->uapi)
-		mutex_unlock(wpf->ctrls.lock);
 
 	vsp1_mod_write(&wpf->entity, VI6_DPR_WPF_FPORCH(wpf->entity.index),
 		       VI6_DPR_WPF_FPORCH_FP_WPFN);
@@ -272,17 +230,10 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	vsp1_entity_init_formats(subdev, NULL);
 
 	/* Initialize the control handler. */
-	v4l2_ctrl_handler_init(&wpf->ctrls, 1);
-	wpf->alpha = v4l2_ctrl_new_std(&wpf->ctrls, &wpf_ctrl_ops,
-				       V4L2_CID_ALPHA_COMPONENT,
-				       0, 255, 1, 255);
-
-	wpf->entity.subdev.ctrl_handler = &wpf->ctrls;
-
-	if (wpf->ctrls.error) {
+	ret = vsp1_rwpf_init_ctrls(wpf);
+	if (ret < 0) {
 		dev_err(vsp1->dev, "wpf%u: failed to initialize controls\n",
 			index);
-		ret = wpf->ctrls.error;
 		goto error;
 	}
 

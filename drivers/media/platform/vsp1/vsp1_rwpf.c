@@ -230,3 +230,38 @@ int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 
 	return 0;
 }
+
+/* -----------------------------------------------------------------------------
+ * Controls
+ */
+
+static int vsp1_rwpf_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vsp1_rwpf *rwpf =
+		container_of(ctrl->handler, struct vsp1_rwpf, ctrls);
+
+	switch (ctrl->id) {
+	case V4L2_CID_ALPHA_COMPONENT:
+		rwpf->alpha = ctrl->val;
+		break;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops vsp1_rwpf_ctrl_ops = {
+	.s_ctrl = vsp1_rwpf_s_ctrl,
+};
+
+int vsp1_rwpf_init_ctrls(struct vsp1_rwpf *rwpf)
+{
+	rwpf->alpha = 255;
+
+	v4l2_ctrl_handler_init(&rwpf->ctrls, 1);
+	v4l2_ctrl_new_std(&rwpf->ctrls, &vsp1_rwpf_ctrl_ops,
+			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
+
+	rwpf->entity.subdev.ctrl_handler = &rwpf->ctrls;
+
+	return rwpf->ctrls.error;
+}
