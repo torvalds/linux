@@ -45,11 +45,8 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	const struct v4l2_rect *crop = &rpf->crop;
 	u32 pstride;
 	u32 infmt;
-	int ret;
 
-	ret = vsp1_entity_set_streaming(&rpf->entity, enable);
-	if (ret < 0)
-		return ret;
+	vsp1_entity_set_streaming(&rpf->entity, enable);
 
 	if (!enable)
 		return 0;

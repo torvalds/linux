@@ -113,11 +113,8 @@ static int sru_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct v4l2_mbus_framefmt *input;
 	struct v4l2_mbus_framefmt *output;
 	u32 ctrl0;
-	int ret;
 
-	ret = vsp1_entity_set_streaming(&sru->entity, enable);
-	if (ret < 0)
-		return ret;
+	vsp1_entity_set_streaming(&sru->entity, enable);
 
 	if (!enable)
 		return 0;

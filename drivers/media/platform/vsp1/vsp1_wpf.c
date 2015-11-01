@@ -46,11 +46,8 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	unsigned int i;
 	u32 srcrpf = 0;
 	u32 outfmt = 0;
-	int ret;
 
-	ret = vsp1_entity_set_streaming(&wpf->entity, enable);
-	if (ret < 0)
-		return ret;
+	vsp1_entity_set_streaming(&wpf->entity, enable);
 
 	if (!enable) {
 		vsp1_write(vsp1, VI6_WPF_IRQ_ENB(wpf->entity.index), 0);
