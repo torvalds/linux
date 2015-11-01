@@ -531,7 +531,6 @@ config ARCH_LPC32XX
 	select COMMON_CLK
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
-	select HAVE_IDE
 	select USE_OF
 	help
 	  Support for the NXP LPC32XX family of processors
