@@ -482,7 +482,7 @@ bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid)
 	if (!br->vlan_enabled)
 		return true;
 
-	vg = nbp_vlan_group(p);
+	vg = nbp_vlan_group_rcu(p);
 	if (!vg || !vg->num_vlans)
 		return false;
 
