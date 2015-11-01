@@ -108,8 +108,8 @@ config ASM9260_TIMER
 	  Enables support for the ASM9260 timer.
 
 config CLKSRC_NOMADIK_MTU
-	bool
-	depends on (ARCH_NOMADIK || ARCH_U8500)
+	bool "Nomakdik clocksource driver" if COMPILE_TEST
+	depends on ARM
 	select CLKSRC_MMIO
 	help
 	  Support for Multi Timer Unit. MTU provides access
