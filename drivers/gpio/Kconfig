@@ -483,6 +483,12 @@ config GPIO_ZYNQ
 	help
 	  Say yes here to support Xilinx Zynq GPIO controller.
 
+config GPIO_ZX
+	bool "ZTE ZX GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the GPIO device on ZTE ZX SoCs.
+
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
@@ -984,7 +990,7 @@ menu "SPI GPIO expanders"
 
 config GPIO_74X164
 	tristate "74x164 serial-in/parallel-out 8-bits shift register"
-	depends on SPI_MASTER && OF
+	depends on OF
 	help
 	  Driver for 74x164 compatible serial-in/parallel-out 8-outputs
 	  shift registers. This driver can be used to provide access
@@ -992,32 +998,28 @@ config GPIO_74X164
 
 config GPIO_MAX7301
 	tristate "Maxim MAX7301 GPIO expander"
-	depends on SPI_MASTER
 	select GPIO_MAX730X
 	help
 	  GPIO driver for Maxim MAX7301 SPI-based GPIO expander.
 
+config GPIO_MC33880
+	tristate "Freescale MC33880 high-side/low-side switch"
+	help
+	  SPI driver for Freescale MC33880 high-side/low-side switch.
+	  This provides GPIO interface supporting inputs and outputs.
+
+endmenu
+
+menu "SPI or I2C GPIO expanders"
+	depends on (SPI_MASTER && !I2C) || I2C
+
 config GPIO_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
-	depends on (SPI_MASTER && !I2C) || I2C
 	help
 	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
 	  I/O expanders.
 	  This provides a GPIO interface supporting inputs and outputs.
 	  The I2C versions of the chips can be used as interrupt-controller.
-
-config GPIO_MC33880
-	tristate "Freescale MC33880 high-side/low-side switch"
-	depends on SPI_MASTER
-	help
-	  SPI driver for Freescale MC33880 high-side/low-side switch.
-	  This provides GPIO interface supporting inputs and outputs.
-
-config GPIO_ZX
-	bool "ZTE ZX GPIO support"
-	select GPIOLIB_IRQCHIP
-	help
-	  Say yes here to support the GPIO device on ZTE ZX SoCs.
 
 endmenu
 
