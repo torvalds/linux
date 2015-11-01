@@ -43,7 +43,7 @@ struct sync_timeline *sync_timeline_create(const struct sync_timeline_ops *ops,
 		return NULL;
 
 	obj = kzalloc(size, GFP_KERNEL);
-	if (obj == NULL)
+	if (!obj)
 		return NULL;
 
 	kref_init(&obj->kref);
@@ -130,7 +130,7 @@ struct sync_pt *sync_pt_create(struct sync_timeline *obj, int size)
 		return NULL;
 
 	pt = kzalloc(size, GFP_KERNEL);
-	if (pt == NULL)
+	if (!pt)
 		return NULL;
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
@@ -155,7 +155,7 @@ static struct sync_fence *sync_fence_alloc(int size, const char *name)
 	struct sync_fence *fence;
 
 	fence = kzalloc(size, GFP_KERNEL);
-	if (fence == NULL)
+	if (!fence)
 		return NULL;
 
 	fence->file = anon_inode_getfile("sync_fence", &sync_fence_fops,
@@ -193,7 +193,7 @@ struct sync_fence *sync_fence_create(const char *name, struct sync_pt *pt)
 	struct sync_fence *fence;
 
 	fence = sync_fence_alloc(offsetof(struct sync_fence, cbs[1]), name);
-	if (fence == NULL)
+	if (!fence)
 		return NULL;
 
 	fence->num_fences = 1;
@@ -215,7 +215,7 @@ struct sync_fence *sync_fence_fdget(int fd)
 {
 	struct file *file = fget(fd);
 
-	if (file == NULL)
+	if (!file)
 		return NULL;
 
 	if (file->f_op != &sync_fence_fops)
@@ -262,7 +262,7 @@ struct sync_fence *sync_fence_merge(const char *name,
 	unsigned long size = offsetof(struct sync_fence, cbs[num_fences]);
 
 	fence = sync_fence_alloc(size, name);
-	if (fence == NULL)
+	if (!fence)
 		return NULL;
 
 	atomic_set(&fence->status, num_fences);
@@ -583,14 +583,14 @@ static long sync_fence_ioctl_merge(struct sync_fence *fence, unsigned long arg)
 	}
 
 	fence2 = sync_fence_fdget(data.fd2);
-	if (fence2 == NULL) {
+	if (!fence2) {
 		err = -ENOENT;
 		goto err_put_fd;
 	}
 
 	data.name[sizeof(data.name) - 1] = '\0';
 	fence3 = sync_fence_merge(data.name, fence, fence2);
-	if (fence3 == NULL) {
+	if (!fence3) {
 		err = -ENOMEM;
 		goto err_put_fence2;
 	}
@@ -666,7 +666,7 @@ static long sync_fence_ioctl_fence_info(struct sync_fence *fence,
 		size = 4096;
 
 	data = kzalloc(size, GFP_KERNEL);
-	if (data == NULL)
+	if (!data)
 		return -ENOMEM;
 
 	strlcpy(data->name, fence->name, sizeof(data->name));
