@@ -313,7 +313,7 @@ struct sync_fence *sync_fence_merge(const char *name,
 EXPORT_SYMBOL(sync_fence_merge);
 
 int sync_fence_wake_up_wq(wait_queue_t *curr, unsigned mode,
-				 int wake_flags, void *key)
+			  int wake_flags, void *key)
 {
 	struct sync_fence_waiter *wait;
 
@@ -353,7 +353,7 @@ int sync_fence_wait_async(struct sync_fence *fence,
 EXPORT_SYMBOL(sync_fence_wait_async);
 
 int sync_fence_cancel_async(struct sync_fence *fence,
-			     struct sync_fence_waiter *waiter)
+			    struct sync_fence_waiter *waiter)
 {
 	unsigned long flags;
 	int ret = 0;
