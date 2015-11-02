@@ -1243,6 +1243,19 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 		for (i = 1; i < pm8001_ha->number_of_intr; i++)
 			PM8001_CHIP_DISP->interrupt_enable(pm8001_ha, i);
 	}
+
+	/* Chip documentation for the 8070 and 8072 SPCv    */
+	/* states that a 500ms minimum delay is required    */
+	/* before issuing commands.  Otherwise, the firmare */
+	/* will enter an unrecoverable state.               */
+
+	if (pm8001_ha->chip_id == chip_8070 ||
+		pm8001_ha->chip_id == chip_8072) {
+		mdelay(500);
+	}
+
+	/* Spin up the PHYs */
+
 	pm8001_ha->flags = PM8001F_RUN_TIME;
 	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
 		pm8001_ha->phy[i].enable_completion = &completion;
