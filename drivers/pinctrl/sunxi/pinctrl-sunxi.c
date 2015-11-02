@@ -446,16 +446,6 @@ static const struct pinmux_ops sunxi_pmx_ops = {
 	.gpio_set_direction	= sunxi_pmx_gpio_set_direction,
 };
 
-static int sunxi_pinctrl_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void sunxi_pinctrl_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int sunxi_pinctrl_gpio_direction_input(struct gpio_chip *chip,
 					unsigned offset)
 {
@@ -956,8 +946,8 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 
 	last_pin = pctl->desc->pins[pctl->desc->npins - 1].pin.number;
 	pctl->chip->owner = THIS_MODULE;
-	pctl->chip->request = sunxi_pinctrl_gpio_request,
-	pctl->chip->free = sunxi_pinctrl_gpio_free,
+	pctl->chip->request = gpiochip_generic_request,
+	pctl->chip->free = gpiochip_generic_free,
 	pctl->chip->direction_input = sunxi_pinctrl_gpio_direction_input,
 	pctl->chip->direction_output = sunxi_pinctrl_gpio_direction_output,
 	pctl->chip->get = sunxi_pinctrl_gpio_get,
