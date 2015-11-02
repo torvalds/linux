@@ -778,11 +778,10 @@ out:
 }
 
 /*
- * The ES2 USB Bridge device contains 4 endpoints
- * 1 Control - usual USB stuff + AP -> SVC messages
- * 1 Interrupt IN - SVC -> AP messages
- * 1 Bulk IN - CPort data in
- * 1 Bulk OUT - CPort data out
+ * The ES2 USB Bridge device has 15 endpoints
+ * 1 Control - usual USB stuff + AP -> APBridgeA messages
+ * 7 Bulk IN - CPort data in
+ * 7 Bulk OUT - CPort data out
  */
 static int ap_probe(struct usb_interface *interface,
 		    const struct usb_device_id *id)
@@ -830,7 +829,7 @@ static int ap_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	/* find all 3 of our endpoints */
+	/* find all bulk endpoints */
 	iface_desc = interface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
