@@ -20,11 +20,11 @@
 
 #include "fsl_pamu.h"
 
+#include <linux/fsl/guts.h>
 #include <linux/interrupt.h>
 #include <linux/genalloc.h>
 
 #include <asm/mpc85xx.h>
-#include <asm/fsl_guts.h>
 
 /* define indexes for each operation mapping scenario */
 #define OMI_QMAN        0x00
