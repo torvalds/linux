@@ -1432,20 +1432,12 @@ static void hdmi_v13_mode_apply(struct hdmi_context *hdata)
 		hdmi_reg_writev(hdata, HDMI_TG_VACT_ST_L, 2,
 				m->vtotal - m->vdisplay);
 		hdmi_reg_writev(hdata, HDMI_TG_VACT_SZ_L, 2, m->vdisplay);
-		hdmi_reg_writev(hdata, HDMI_TG_VACT_ST2_L, 2, 0x248);
 	}
 
 	hdmi_reg_writev(hdata, HDMI_TG_H_FSZ_L, 2, m->htotal);
 	hdmi_reg_writev(hdata, HDMI_TG_HACT_ST_L, 2, m->htotal - m->hdisplay);
 	hdmi_reg_writev(hdata, HDMI_TG_HACT_SZ_L, 2, m->hdisplay);
 	hdmi_reg_writev(hdata, HDMI_TG_V_FSZ_L, 2, m->vtotal);
-	hdmi_reg_writev(hdata, HDMI_TG_VSYNC_L, 2, 0x1);
-	hdmi_reg_writev(hdata, HDMI_TG_VSYNC2_L, 2, 0x233);
-	hdmi_reg_writev(hdata, HDMI_TG_FIELD_CHG_L, 2, 0x233);
-	hdmi_reg_writev(hdata, HDMI_TG_VSYNC_TOP_HDMI_L, 2, 0x1);
-	hdmi_reg_writev(hdata, HDMI_TG_VSYNC_BOT_HDMI_L, 2, 0x233);
-	hdmi_reg_writev(hdata, HDMI_TG_FIELD_TOP_HDMI_L, 2, 0x1);
-	hdmi_reg_writev(hdata, HDMI_TG_FIELD_BOT_HDMI_L, 2, 0x233);
 }
 
 static void hdmi_v14_mode_apply(struct hdmi_context *hdata)
@@ -1518,12 +1510,6 @@ static void hdmi_v14_mode_apply(struct hdmi_context *hdata)
 		hdmi_reg_writev(hdata, HDMI_TG_VACT_ST_L, 2,
 				m->vtotal - m->vdisplay);
 		hdmi_reg_writev(hdata, HDMI_TG_VACT_SZ_L, 2, m->vdisplay);
-		hdmi_reg_writev(hdata, HDMI_TG_VACT_ST2_L, 2, 0x248);
-		hdmi_reg_writev(hdata, HDMI_TG_VACT_ST3_L, 2, 0x47b);
-		hdmi_reg_writev(hdata, HDMI_TG_VACT_ST4_L, 2, 0x6ae);
-		hdmi_reg_writev(hdata, HDMI_TG_VSYNC2_L, 2, 0x233);
-		hdmi_reg_writev(hdata, HDMI_TG_VSYNC_BOT_HDMI_L, 2, 0x233);
-		hdmi_reg_writev(hdata, HDMI_TG_FIELD_BOT_HDMI_L, 2, 0x233);
 	}
 
 	hdmi_reg_writev(hdata, HDMI_H_SYNC_START_0, 2,
@@ -1553,11 +1539,6 @@ static void hdmi_v14_mode_apply(struct hdmi_context *hdata)
 	hdmi_reg_writev(hdata, HDMI_TG_HACT_ST_L, 2, m->htotal - m->hdisplay);
 	hdmi_reg_writev(hdata, HDMI_TG_HACT_SZ_L, 2, m->hdisplay);
 	hdmi_reg_writev(hdata, HDMI_TG_V_FSZ_L, 2, m->vtotal);
-	hdmi_reg_writev(hdata, HDMI_TG_VSYNC_L, 2, 0x1);
-	hdmi_reg_writev(hdata, HDMI_TG_FIELD_CHG_L, 2, 0x233);
-	hdmi_reg_writev(hdata, HDMI_TG_VSYNC_TOP_HDMI_L, 2, 0x1);
-	hdmi_reg_writev(hdata, HDMI_TG_FIELD_TOP_HDMI_L, 2, 0x1);
-	hdmi_reg_writev(hdata, HDMI_TG_3D, 1, 0x0);
 }
 
 static void hdmi_mode_apply(struct hdmi_context *hdata)
