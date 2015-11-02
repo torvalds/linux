@@ -134,26 +134,26 @@ struct ppa_addr {
 	union {
 		/* Channel-based PPA format in nand 4x2x2x2x8x10 */
 		struct {
-			sector_t ch		: 4;
-			sector_t sec		: 2; /* 4 sectors per page */
-			sector_t pl		: 2; /* 4 planes per LUN */
-			sector_t lun		: 2; /* 4 LUNs per channel */
-			sector_t pg		: 8; /* 256 pages per block */
-			sector_t blk		: 10;/* 1024 blocks per plane */
-			sector_t resved		: 36;
+			u64 ch		: 4;
+			u64 sec		: 2; /* 4 sectors per page */
+			u64 pl		: 2; /* 4 planes per LUN */
+			u64 lun		: 2; /* 4 LUNs per channel */
+			u64 pg		: 8; /* 256 pages per block */
+			u64 blk		: 10;/* 1024 blocks per plane */
+			u64 resved		: 36;
 		} chnl;
 
 		/* Generic structure for all addresses */
 		struct {
-			sector_t sec		: NVM_SEC_BITS;
-			sector_t pl		: NVM_PL_BITS;
-			sector_t pg		: NVM_PG_BITS;
-			sector_t blk		: NVM_BLK_BITS;
-			sector_t lun		: NVM_LUN_BITS;
-			sector_t ch		: NVM_CH_BITS;
+			u64 sec		: NVM_SEC_BITS;
+			u64 pl		: NVM_PL_BITS;
+			u64 pg		: NVM_PG_BITS;
+			u64 blk		: NVM_BLK_BITS;
+			u64 lun		: NVM_LUN_BITS;
+			u64 ch		: NVM_CH_BITS;
 		} g;
 
-		sector_t ppa;
+		u64 ppa;
 	};
 } __packed;
 

@@ -86,7 +86,7 @@ struct rrpc {
 	struct nvm_dev *dev;
 	struct gendisk *disk;
 
-	sector_t poffset; /* physical page offset */
+	u64 poffset; /* physical page offset */
 	int lun_offset;
 
 	int nr_luns;
@@ -136,13 +136,13 @@ struct rrpc_block_gc {
 
 /* Logical to physical mapping */
 struct rrpc_addr {
-	sector_t addr;
+	u64 addr;
 	struct rrpc_block *rblk;
 };
 
 /* Physical to logical mapping */
 struct rrpc_rev_addr {
-	sector_t addr;
+	u64 addr;
 };
 
 static inline sector_t rrpc_get_laddr(struct bio *bio)
