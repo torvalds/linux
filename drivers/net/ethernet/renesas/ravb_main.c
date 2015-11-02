@@ -1765,7 +1765,7 @@ static int ravb_probe(struct platform_device *pdev)
 	priv->desc_bat = dma_alloc_coherent(ndev->dev.parent, priv->desc_bat_size,
 					    &priv->desc_bat_dma, GFP_KERNEL);
 	if (!priv->desc_bat) {
-		dev_err(&ndev->dev,
+		dev_err(&pdev->dev,
 			"Cannot allocate desc base address table (size %d bytes)\n",
 			priv->desc_bat_size);
 		error = -ENOMEM;
@@ -1792,7 +1792,7 @@ static int ravb_probe(struct platform_device *pdev)
 	/* MDIO bus init */
 	error = ravb_mdio_init(priv);
 	if (error) {
-		dev_err(&ndev->dev, "failed to initialize MDIO\n");
+		dev_err(&pdev->dev, "failed to initialize MDIO\n");
 		goto out_dma_free;
 	}
 
