@@ -5250,7 +5250,9 @@ static int l2cap_le_connect_rsp(struct l2cap_conn *conn,
 	credits = __le16_to_cpu(rsp->credits);
 	result  = __le16_to_cpu(rsp->result);
 
-	if (result == L2CAP_CR_SUCCESS && (mtu < 23 || mps < 23))
+	if (result == L2CAP_CR_SUCCESS && (mtu < 23 || mps < 23 ||
+					   dcid < L2CAP_CID_DYN_START ||
+					   dcid > L2CAP_CID_LE_DYN_END))
 		return -EPROTO;
 
 	BT_DBG("dcid 0x%4.4x mtu %u mps %u credits %u result 0x%2.2x",
@@ -5270,6 +5272,11 @@ static int l2cap_le_connect_rsp(struct l2cap_conn *conn,
 
 	switch (result) {
 	case L2CAP_CR_SUCCESS:
+		if (__l2cap_get_chan_by_dcid(conn, dcid)) {
+			err = -EBADSLT;
+			break;
+		}
+
 		chan->ident = 0;
 		chan->dcid = dcid;
 		chan->omtu = mtu;
