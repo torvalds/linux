@@ -104,13 +104,35 @@ static int iwl_nvm_write_chunk(struct iwl_mvm *mvm, u16 section,
 	struct iwl_host_cmd cmd = {
 		.id = NVM_ACCESS_CMD,
 		.len = { sizeof(struct iwl_nvm_access_cmd), length },
-		.flags = CMD_SEND_IN_RFKILL,
+		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
 		.data = { &nvm_access_cmd, data },
 		/* data may come from vmalloc, so use _DUP */
 		.dataflags = { 0, IWL_HCMD_DFL_DUP },
 	};
+	struct iwl_rx_packet *pkt;
+	struct iwl_nvm_access_resp *nvm_resp;
+	int ret;
 
-	return iwl_mvm_send_cmd(mvm, &cmd);
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret)
+		return ret;
+
+	pkt = cmd.resp_pkt;
+	if (!pkt) {
+		IWL_ERR(mvm, "Error in NVM_ACCESS response\n");
+		return -EINVAL;
+	}
+	/* Extract & check NVM write response */
+	nvm_resp = (void *)pkt->data;
+	if (le16_to_cpu(nvm_resp->status) != READ_NVM_CHUNK_SUCCEED) {
+		IWL_ERR(mvm,
+			"NVM access write command failed for section %u (status = 0x%x)\n",
+			section, le16_to_cpu(nvm_resp->status));
+		ret = -EIO;
+	}
+
+	iwl_free_resp(&cmd);
+	return ret;
 }
 
 static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
