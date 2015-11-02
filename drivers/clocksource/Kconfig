@@ -245,7 +245,7 @@ config CLKSRC_SAMSUNG_PWM
 	  needed only on systems that do not have the Exynos MCT available.
 
 config FSL_FTM_TIMER
-	bool
+	bool "Freescale FlexTimer Module driver" if COMPILE_TEST
 	help
 	  Support for Freescale FlexTimer Module (FTM) timer.
 
