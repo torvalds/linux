@@ -11,10 +11,6 @@
 
 #include "greybus.h"
 
-#define GB_CONNECTION_TS_KFIFO_ELEMENTS	2
-#define GB_CONNECTION_TS_KFIFO_LEN \
-	(GB_CONNECTION_TS_KFIFO_ELEMENTS * sizeof(struct timeval))
-
 static DEFINE_SPINLOCK(gb_connections_lock);
 
 /* This is only used at initialization time; no locking is required. */
