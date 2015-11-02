@@ -184,10 +184,11 @@ extern void syscall_unregfunc(void);
  * structure. Force alignment to the same alignment as the section start.
  *
  * When lockdep is enabled, we make sure to always do the RCU portions of
- * the tracepoint code, regardless of whether tracing is on or we match the
- * condition.  This lets us find RCU issues triggered with tracepoints even
- * when this tracepoint is off.  This code has no purpose other than poking
- * RCU a bit.
+ * the tracepoint code, regardless of whether tracing is on. However,
+ * don't check if the condition is false, due to interaction with idle
+ * instrumentation. This lets us find RCU issues triggered with tracepoints
+ * even when this tracepoint is off. This code has no purpose other than
+ * poking RCU a bit.
  */
 #define __DECLARE_TRACE(name, proto, args, cond, data_proto, data_args) \
 	extern struct tracepoint __tracepoint_##name;			\
