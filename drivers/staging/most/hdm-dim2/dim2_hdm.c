@@ -246,7 +246,7 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
 		return -EAGAIN;
 	}
 
-	if (!DIM_GetChannelState(&hdm_ch->ch, &st)->ready) {
+	if (!dim_get_channel_state(&hdm_ch->ch, &st)->ready) {
 		spin_unlock_irqrestore(&dim_lock, flags);
 		return -EAGAIN;
 	}
@@ -340,7 +340,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 
 	spin_lock_irqsave(&dim_lock, flags);
 
-	done_buffers = DIM_GetChannelState(&hdm_ch->ch, &st)->done_buffers;
+	done_buffers = dim_get_channel_state(&hdm_ch->ch, &st)->done_buffers;
 	if (!done_buffers) {
 		spin_unlock_irqrestore(&dim_lock, flags);
 		return;
