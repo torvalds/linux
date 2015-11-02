@@ -870,11 +870,11 @@ static int usblp_wwait(struct usblp *usblp, int nonblock)
 
 	add_wait_queue(&usblp->wwait, &waita);
 	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
 		if (mutex_lock_interruptible(&usblp->mut)) {
 			rc = -EINTR;
 			break;
 		}
+		set_current_state(TASK_INTERRUPTIBLE);
 		rc = usblp_wtest(usblp, nonblock);
 		mutex_unlock(&usblp->mut);
 		if (rc <= 0)
