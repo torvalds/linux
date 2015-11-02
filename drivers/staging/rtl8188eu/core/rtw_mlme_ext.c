@@ -708,7 +708,7 @@ static int issue_probereq_ex(struct adapter *padapter,
 {
 	int ret;
 	int i = 0;
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 
 	do {
 		ret = issue_probereq(padapter, pssid, da, wait_ms > 0 ? true : false);
@@ -732,11 +732,13 @@ static int issue_probereq_ex(struct adapter *padapter,
 		if (da)
 			DBG_88E(FUNC_ADPT_FMT" to %pM, ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), da, rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 		else
 			DBG_88E(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 	}
 exit:
 	return ret;
@@ -1293,7 +1295,7 @@ int issue_nulldata(struct adapter *padapter, unsigned char *da, unsigned int pow
 {
 	int ret;
 	int i = 0;
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex    *pnetwork = &(pmlmeinfo->network);
@@ -1323,11 +1325,13 @@ int issue_nulldata(struct adapter *padapter, unsigned char *da, unsigned int pow
 		if (da)
 			DBG_88E(FUNC_ADPT_FMT" to %pM, ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), da, rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 		else
 			DBG_88E(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 	}
 exit:
 	return ret;
@@ -1418,7 +1422,7 @@ int issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 tid, int
 {
 	int ret;
 	int i = 0;
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex    *pnetwork = &(pmlmeinfo->network);
@@ -1448,11 +1452,13 @@ int issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 tid, int
 		if (da)
 			DBG_88E(FUNC_ADPT_FMT" to %pM, ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), da, rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 		else
 			DBG_88E(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 	}
 exit:
 	return ret;
@@ -1530,7 +1536,7 @@ static int issue_deauth_ex(struct adapter *padapter, u8 *da,
 {
 	int ret;
 	int i = 0;
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 
 	do {
 		ret = _issue_deauth(padapter, da, reason, wait_ms > 0 ? true : false);
@@ -1553,11 +1559,13 @@ static int issue_deauth_ex(struct adapter *padapter, u8 *da,
 		if (da)
 			DBG_88E(FUNC_ADPT_FMT" to %pM, ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), da, rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 		else
 			DBG_88E(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 	}
 exit:
 	return ret;
@@ -1959,7 +1967,7 @@ unsigned int send_beacon(struct adapter *padapter)
 	int	issue = 0;
 	int poll = 0;
 
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_BCN_VALID, NULL);
 	do {
@@ -1975,13 +1983,16 @@ unsigned int send_beacon(struct adapter *padapter)
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return _FAIL;
 	if (!bxmitok) {
-		DBG_88E("%s fail! %u ms\n", __func__, rtw_get_passing_time_ms(start));
+		DBG_88E("%s fail! %u ms\n", __func__,
+			jiffies_to_msecs(jiffies - start));
 		return _FAIL;
 	} else {
-		u32 passing_time = rtw_get_passing_time_ms(start);
+		u32 passing_time = jiffies_to_msecs(jiffies - start);
 
 		if (passing_time > 100 || issue > 3)
-			DBG_88E("%s success, issue:%d, poll:%d, %u ms\n", __func__, issue, poll, rtw_get_passing_time_ms(start));
+			DBG_88E("%s success, issue:%d, poll:%d, %u ms\n",
+				__func__, issue, poll,
+				jiffies_to_msecs(jiffies - start));
 		return _SUCCESS;
 	}
 }

@@ -163,7 +163,8 @@ exit:
 
 static void _rtw_free_network(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwork, u8 isfreeall)
 {
-	u32 curr_time, delta_time;
+	unsigned long curr_time;
+	u32 delta_time;
 	u32 lifetime = SCANQUEUE_LIFETIME;
 	struct __queue *free_queue = &(pmlmepriv->free_bss_pool);
 
@@ -272,7 +273,7 @@ int rtw_if_up(struct adapter *padapter)
 
 void rtw_generate_random_ibss(u8 *pibss)
 {
-	u32	curtime = jiffies;
+	unsigned long curtime = jiffies;
 
 	pibss[0] = 0x02;  /* in ad-hoc mode bit1 must set to 1 */
 	pibss[1] = 0x11;
@@ -878,14 +879,14 @@ inline void rtw_indicate_scan_done(struct adapter *padapter, bool aborted)
 
 void rtw_scan_abort(struct adapter *adapter)
 {
-	u32 start;
+	unsigned long start;
 	struct mlme_priv	*pmlmepriv = &(adapter->mlmepriv);
 	struct mlme_ext_priv	*pmlmeext = &(adapter->mlmeextpriv);
 
 	start = jiffies;
 	pmlmeext->scan_abort = true;
 	while (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) &&
-	       rtw_get_passing_time_ms(start) <= 200) {
+	       jiffies_to_msecs(jiffies - start) <= 200) {
 		if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 			break;
 		DBG_88E(FUNC_NDEV_FMT"fw_state=_FW_UNDER_SURVEY!\n", FUNC_NDEV_ARG(adapter->pnetdev));
@@ -1474,6 +1475,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 	, struct wlan_network **candidate, struct wlan_network *competitor)
 {
 	int updated = false;
+	unsigned long since_scan;
 	struct adapter *adapter = container_of(pmlmepriv, struct adapter, mlmepriv);
 
 
@@ -1494,7 +1496,8 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 		goto exit;
 
 	if (pmlmepriv->to_roaming) {
-		if (rtw_get_passing_time_ms((u32)competitor->last_scanned) >= RTW_SCAN_RESULT_EXPIRE ||
+		since_scan = jiffies - competitor->last_scanned;
+		if (jiffies_to_msecs(since_scan) >= RTW_SCAN_RESULT_EXPIRE ||
 		    is_same_ess(&competitor->network, &pmlmepriv->cur_network.network) == false)
 			goto exit;
 	}
