@@ -85,7 +85,11 @@ static inline uint64_t I642U64(int64_t val)
 	return (uint64_t)*((uint64_t *)&val);
 }
 
-/* rotation property bits */
+/*
+ * Rotation property bits. DRM_ROTATE_<degrees> rotates the image by the
+ * specified amount in degrees in counter clockwise direction. DRM_REFLECT_X and
+ * DRM_REFLECT_Y reflects the image along the specified axis prior to rotation
+ */
 #define DRM_ROTATE_MASK 0x0f
 #define DRM_ROTATE_0	0
 #define DRM_ROTATE_90	1
