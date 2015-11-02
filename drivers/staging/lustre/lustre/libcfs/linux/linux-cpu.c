@@ -78,12 +78,6 @@ struct cfs_cpt_data {
 
 static struct cfs_cpt_data	cpt_data;
 
-static void cfs_cpu_core_siblings(int cpu, cpumask_t *mask)
-{
-	/* return cpumask of cores in the same socket */
-	cpumask_copy(mask, topology_core_cpumask(cpu));
-}
-
 /* return cpumask of HTs in the same core */
 static void cfs_cpu_ht_siblings(int cpu, cpumask_t *mask)
 {
@@ -643,7 +637,7 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 		cpu = cpumask_first(node);
 
 		/* get cpumask for cores in the same socket */
-		cfs_cpu_core_siblings(cpu, socket);
+		cpumask_copy(socket, topology_core_cpumask(cpu));
 		cpumask_and(socket, socket, node);
 
 		LASSERT(!cpumask_empty(socket));
