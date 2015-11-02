@@ -706,7 +706,7 @@ static int poison_channel(struct most_interface *most_iface, int ch_idx)
 		return -EPERM;
 
 	spin_lock_irqsave(&dim_lock, flags);
-	hal_ret = DIM_DestroyChannel(&hdm_ch->ch);
+	hal_ret = dim_destroy_channel(&hdm_ch->ch);
 	hdm_ch->is_initialized = false;
 	if (ch_idx == dev->atx_idx)
 		dev->atx_idx = -1;
