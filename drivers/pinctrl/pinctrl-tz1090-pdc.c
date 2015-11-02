@@ -668,7 +668,7 @@ static int tz1090_pdc_pinconf_reg(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	/* Only input bias parameters supported */
 	*reg = REG_GPIO_CONTROL2;
@@ -801,7 +801,7 @@ static int tz1090_pdc_pinconf_group_reg(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	/* Calculate field information */
 	*mask = (BIT(*width) - 1) << *shift;
