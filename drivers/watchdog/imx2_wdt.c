@@ -181,6 +181,9 @@ static int imx2_wdt_set_timeout(struct watchdog_device *wdog,
 
 	regmap_update_bits(wdev->regmap, IMX2_WDT_WCR, IMX2_WDT_WCR_WT,
 			   WDOG_SEC_TO_COUNT(new_timeout));
+
+	wdog->timeout = new_timeout;
+
 	return 0;
 }
 
@@ -240,6 +243,8 @@ static int imx2_wdt_set_pretimeout(struct watchdog_device *wdog, unsigned int ne
 		val |= IMX2_WDT_WICR_WIE;	/*enable*/
 
 	regmap_write(wdev->regmap, IMX2_WDT_WICR, val);
+
+	wdog->pretimeout = new_timeout;
 
 	return 0;
 }
