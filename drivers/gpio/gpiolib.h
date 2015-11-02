@@ -42,6 +42,9 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 					  const char *propname, int index,
 					  struct acpi_gpio_info *info);
+struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
+				      const char *propname, int index,
+				      struct acpi_gpio_info *info);
 
 int acpi_gpio_count(struct device *dev, const char *con_id);
 #else
@@ -60,7 +63,12 @@ acpi_get_gpiod_by_index(struct acpi_device *adev, const char *propname,
 {
 	return ERR_PTR(-ENOSYS);
 }
-
+static inline struct gpio_desc *
+acpi_node_get_gpiod(struct fwnode_handle *fwnode, const char *propname,
+		    int index, struct acpi_gpio_info *info)
+{
+	return ERR_PTR(-ENXIO);
+}
 static inline int acpi_gpio_count(struct device *dev, const char *con_id)
 {
 	return -ENODEV;
