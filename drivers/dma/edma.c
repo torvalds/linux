@@ -269,6 +269,11 @@ static const struct of_device_id edma_of_ids[] = {
 	{}
 };
 
+static const struct of_device_id edma_tptc_of_ids[] = {
+	{ .compatible = "ti,edma3-tptc", },
+	{}
+};
+
 static inline unsigned int edma_read(struct edma_cc *ecc, int offset)
 {
 	return (unsigned int)__raw_readl(ecc->base + offset);
@@ -2399,6 +2404,13 @@ static struct platform_driver edma_driver = {
 	},
 };
 
+static struct platform_driver edma_tptc_driver = {
+	.driver = {
+		.name	= "edma3-tptc",
+		.of_match_table = edma_tptc_of_ids,
+	},
+};
+
 bool edma_filter_fn(struct dma_chan *chan, void *param)
 {
 	bool match = false;
@@ -2418,6 +2430,12 @@ EXPORT_SYMBOL(edma_filter_fn);
 
 static int edma_init(void)
 {
+	int ret;
+
+	ret = platform_driver_register(&edma_tptc_driver);
+	if (ret)
+		return ret;
+
 	return platform_driver_register(&edma_driver);
 }
 subsys_initcall(edma_init);
@@ -2425,6 +2443,7 @@ subsys_initcall(edma_init);
 static void __exit edma_exit(void)
 {
 	platform_driver_unregister(&edma_driver);
+	platform_driver_unregister(&edma_tptc_driver);
 }
 module_exit(edma_exit);
 
