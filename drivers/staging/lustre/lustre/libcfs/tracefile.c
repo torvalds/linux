@@ -451,7 +451,7 @@ console:
 		cfs_print_to_console(&header, mask,
 				     string_buf, needed, file, msgdata->msg_fn);
 
-		cfs_trace_put_console_buffer(string_buf);
+		put_cpu();
 	}
 
 	if (cdls != NULL && cdls->cdls_count != 0) {
@@ -465,7 +465,7 @@ console:
 		cfs_print_to_console(&header, mask,
 				     string_buf, needed, file, msgdata->msg_fn);
 
-		cfs_trace_put_console_buffer(string_buf);
+		put_cpu();
 		cdls->cdls_count = 0;
 	}
 
