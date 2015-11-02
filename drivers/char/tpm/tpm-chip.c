@@ -236,7 +236,7 @@ int tpm_chip_register(struct tpm_chip *chip)
 
 	/* Make the chip available. */
 	spin_lock(&driver_lock);
-	list_add_rcu(&chip->list, &tpm_chip_list);
+	list_add_tail_rcu(&chip->list, &tpm_chip_list);
 	spin_unlock(&driver_lock);
 
 	chip->flags |= TPM_CHIP_FLAG_REGISTERED;
