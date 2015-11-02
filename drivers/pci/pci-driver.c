@@ -172,7 +172,7 @@ static ssize_t store_remove_id(struct device_driver *driver, const char *buf,
 	__u32 vendor, device, subvendor = PCI_ANY_ID,
 		subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
 	int fields = 0;
-	int retval = -ENODEV;
+	size_t retval = -ENODEV;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x",
 			&vendor, &device, &subvendor, &subdevice,
@@ -190,15 +190,13 @@ static ssize_t store_remove_id(struct device_driver *driver, const char *buf,
 		    !((id->class ^ class) & class_mask)) {
 			list_del(&dynid->node);
 			kfree(dynid);
-			retval = 0;
+			retval = count;
 			break;
 		}
 	}
 	spin_unlock(&pdrv->dynids.lock);
 
-	if (retval)
-		return retval;
-	return count;
+	return retval;
 }
 static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
 
