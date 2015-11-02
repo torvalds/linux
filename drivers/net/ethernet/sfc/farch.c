@@ -319,7 +319,9 @@ void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 	unsigned write_ptr;
 	unsigned old_write_count = tx_queue->write_count;
 
-	BUG_ON(tx_queue->write_count == tx_queue->insert_count);
+	tx_queue->xmit_more_available = false;
+	if (unlikely(tx_queue->write_count == tx_queue->insert_count))
+		return;
 
 	do {
 		write_ptr = tx_queue->write_count & tx_queue->ptr_mask;
