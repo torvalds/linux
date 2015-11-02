@@ -62,9 +62,11 @@ static struct uverbs_lock_class rule_lock_class = { .name = "RULE-uobj" };
  * The ib_uobject locking scheme is as follows:
  *
  * - ib_uverbs_idr_lock protects the uverbs idrs themselves, so it
- *   needs to be held during all idr operations.  When an object is
+ *   needs to be held during all idr write operations.  When an object is
  *   looked up, a reference must be taken on the object's kref before
- *   dropping this lock.
+ *   dropping this lock.  For read operations, the rcu_read_lock()
+ *   and rcu_write_lock() but similarly the kref reference is grabbed
+ *   before the rcu_read_unlock().
  *
  * - Each object also has an rwsem.  This rwsem must be held for
  *   reading while an operation that uses the object is performed.
@@ -96,7 +98,7 @@ static void init_uobj(struct ib_uobject *uobj, u64 user_handle,
 
 static void release_uobj(struct kref *kref)
 {
-	kfree(container_of(kref, struct ib_uobject, ref));
+	kfree_rcu(container_of(kref, struct ib_uobject, ref), rcu);
 }
 
 static void put_uobj(struct ib_uobject *uobj)
@@ -145,7 +147,7 @@ static struct ib_uobject *__idr_get_uobj(struct idr *idr, int id,
 {
 	struct ib_uobject *uobj;
 
-	spin_lock(&ib_uverbs_idr_lock);
+	rcu_read_lock();
 	uobj = idr_find(idr, id);
 	if (uobj) {
 		if (uobj->context == context)
@@ -153,7 +155,7 @@ static struct ib_uobject *__idr_get_uobj(struct idr *idr, int id,
 		else
 			uobj = NULL;
 	}
-	spin_unlock(&ib_uverbs_idr_lock);
+	rcu_read_unlock();
 
 	return uobj;
 }
