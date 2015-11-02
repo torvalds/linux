@@ -91,7 +91,7 @@ u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 
 u8 dim_destroy_channel(struct dim_channel *ch);
 
-void DIM_ServiceIrq(struct dim_channel *const *channels);
+void dim_service_irq(struct dim_channel *const *channels);
 
 u8 DIM_ServiceChannel(struct dim_channel *ch);
 

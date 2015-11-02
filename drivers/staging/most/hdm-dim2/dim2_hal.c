@@ -816,7 +816,7 @@ u8 dim_destroy_channel(struct dim_channel *ch)
 	return DIM_NO_ERROR;
 }
 
-void DIM_ServiceIrq(struct dim_channel *const *channels)
+void dim_service_irq(struct dim_channel *const *channels)
 {
 	bool state_changed;
 
