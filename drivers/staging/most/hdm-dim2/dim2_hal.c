@@ -739,8 +739,8 @@ u16 dim_norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
 	return norm_sync_buffer_size(buf_size, bytes_per_frame);
 }
 
-u8 DIM_InitControl(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		   u16 max_buffer_size)
+u8 dim_init_control(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		    u16 max_buffer_size)
 {
 	return init_ctrl_async(ch, CAT_CT_VAL_CONTROL, is_tx, ch_address,
 			       max_buffer_size);

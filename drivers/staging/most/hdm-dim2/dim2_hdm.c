@@ -544,8 +544,8 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 			pr_warn("%s: fixed buffer size (%d -> %d)\n",
 				hdm_ch->name, buf_size, new_size);
 		spin_lock_irqsave(&dim_lock, flags);
-		hal_ret = DIM_InitControl(&hdm_ch->ch, is_tx, ch_addr,
-					  buf_size);
+		hal_ret = dim_init_control(&hdm_ch->ch, is_tx, ch_addr,
+					   buf_size);
 		break;
 	case MOST_CH_ASYNC:
 		new_size = dim_norm_ctrl_async_buffer_size(buf_size);
