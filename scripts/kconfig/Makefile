@@ -227,35 +227,24 @@ $(obj)/.tmp_qtcheck: $(src)/Makefile
 # Qt needs some extra effort...
 $(obj)/.tmp_qtcheck:
 	@set -e; $(kecho) "  CHECK   qt"; \
-	qtver=`qmake -query QT_VERSION` || { \
+	if pkg-config --exists Qt5Core; then \
+	    cflags="-std=c++11 -fPIC `pkg-config --cflags Qt5Core Qt5Gui Qt5Widgets`"; \
+	    libs=`pkg-config --libs Qt5Core Qt5Gui Qt5Widgets`; \
+	    moc=`pkg-config --variable=host_bins Qt5Core`/moc; \
+	elif pkg-config --exists QtCore; then \
+	    cflags=`pkg-config --cflags QtCore QtGui`; \
+	    libs=`pkg-config --libs QtCore QtGui`; \
+	    moc=`pkg-config --variable=moc_location QtCore`; \
+	else \
 	    echo >&2 "*"; \
-	    echo >&2 "* qmake failed."; \
-	    echo >&2 "*"; \
-	    exit 1; \
-	}; \
-	qtlibdir=`qmake -query QT_INSTALL_LIBS`; \
-	qthdrdir=`qmake -query QT_INSTALL_HEADERS`; \
-	qtbindir=`qmake -query QT_INSTALL_BINS`; \
-	cflags="-I$$qthdrdir -I$$qthdrdir/QtCore -I$$qthdrdir/QtGui"; \
-	case "$$qtver" in \
-	5.*) \
-	    cflags="$$cflags -I$$qthdrdir/QtWidgets -std=c++11 -fPIC"; \
-	    libs="-L$$qtlibdir -lQt5Widgets -lQt5Gui -lQt5Core "; \
-	    ;; \
-	4.*) \
-	    libs="-L$$qtlibdir -lQtGui -lQtCore"; \
-	    ;; \
-	*) \
-	    echo >&2 "*"; \
-	    echo >&2 "* Found qmake but it is for Qt version $$qtver, which is not supported."; \
-	    echo >&2 "* Please install either Qt 4.8 or 5.x."; \
+	    echo >&2 "* Could not find Qt via pkg-config."; \
+	    echo >&2 "* Please install either Qt 4.8 or 5.x. and make sure it's in PKG_CONFIG_PATH"; \
 	    echo >&2 "*"; \
 	    exit 1; \
-	    ;; \
-	esac; \
+	fi; \
 	echo "KC_QT_CFLAGS=$$cflags" > $@; \
 	echo "KC_QT_LIBS=$$libs" >> $@; \
-	echo "KC_QT_MOC=$$qtbindir/moc" >> $@
+	echo "KC_QT_MOC=$$moc" >> $@
 endif
 
 $(obj)/gconf.o: $(obj)/.tmp_gtkcheck
