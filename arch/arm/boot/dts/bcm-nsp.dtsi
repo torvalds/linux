@@ -80,6 +80,22 @@
 			interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&periph_clk>;
 		};
+
+		twd-timer@19020600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x0600 0x20>;
+			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
+						  IRQ_TYPE_LEVEL_HIGH)>;
+			clocks = <&periph_clk>;
+		};
+
+		twd-watchdog@19020620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0x0620 0x20>;
+			interrupts = <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) |
+						  IRQ_TYPE_LEVEL_HIGH)>;
+			clocks = <&periph_clk>;
+		};
 	};
 
 	clocks {
