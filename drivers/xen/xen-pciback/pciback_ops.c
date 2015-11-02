@@ -206,8 +206,15 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 	if (unlikely(verbose_request))
 		printk(KERN_DEBUG DRV_NAME ": %s: enable MSI-X\n",
 		       pci_name(dev));
+
 	if (op->value > SH_INFO_MAX_VEC)
 		return -EINVAL;
+
+	if (dev->msix_enabled)
+		return -EALREADY;
+
+	if (dev->msi_enabled)
+		return -ENXIO;
 
 	entries = kmalloc(op->value * sizeof(*entries), GFP_KERNEL);
 	if (entries == NULL)
