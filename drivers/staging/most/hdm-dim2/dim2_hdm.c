@@ -128,7 +128,7 @@ bool dim2_sysfs_get_state_cb(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dim_lock, flags);
-	state = DIM_GetLockState();
+	state = dim_get_lock_state();
 	spin_unlock_irqrestore(&dim_lock, flags);
 
 	return state;

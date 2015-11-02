@@ -679,7 +679,7 @@ void dim_shutdown(void)
 	dim2_cleanup();
 }
 
-bool DIM_GetLockState(void)
+bool dim_get_lock_state(void)
 {
 	return dim2_is_mlb_locked();
 }

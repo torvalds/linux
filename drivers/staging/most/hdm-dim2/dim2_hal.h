@@ -69,7 +69,7 @@ u8 dim_startup(void *dim_base_address, u32 mlb_clock);
 
 void dim_shutdown(void);
 
-bool DIM_GetLockState(void);
+bool dim_get_lock_state(void);
 
 u16 DIM_NormCtrlAsyncBufferSize(u16 buf_size);
 
