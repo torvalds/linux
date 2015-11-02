@@ -171,7 +171,6 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 
 	/* Don't copy runtime instrumentation info */
 	p->thread.ri_cb = NULL;
-	p->thread.ri_signum = 0;
 	frame->childregs.psw.mask &= ~PSW_MASK_RI;
 
 	/* Set a new TLS ?  */

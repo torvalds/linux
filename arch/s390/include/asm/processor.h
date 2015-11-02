@@ -107,7 +107,6 @@ struct thread_struct {
 	struct list_head list;
 	/* cpu runtime instrumentation */
 	struct runtime_instr_cb *ri_cb;
-	int ri_signum;
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
 };
 

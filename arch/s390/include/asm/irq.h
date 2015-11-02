@@ -47,7 +47,6 @@ enum interruption_class {
 	IRQEXT_IUC,
 	IRQEXT_CMS,
 	IRQEXT_CMC,
-	IRQEXT_CMR,
 	IRQEXT_FTP,
 	IRQIO_CIO,
 	IRQIO_QAI,
