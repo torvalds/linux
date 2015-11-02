@@ -96,7 +96,7 @@
 
 	axi {
 		compatible = "simple-bus";
-		ranges = <0x00000000 0x18000000 0x00015000>;
+		ranges = <0x00000000 0x18000000 0x0011ba08>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -186,6 +186,20 @@
 			ranges = <0x82000000 0 0x48000000 0x48000000 0 0x8000000>;
 
 			status = "disabled";
+		};
+
+		nand: nand@18026000 {
+			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
+			reg = <0x026000 0x600>,
+			      <0x11b408 0x600>,
+			      <0x026f00 0x20>;
+			reg-names = "nand", "iproc-idm", "iproc-ext";
+			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			brcm,nand-has-wp;
 		};
 	};
 };
