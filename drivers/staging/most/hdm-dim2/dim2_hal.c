@@ -706,7 +706,7 @@ static u8 init_ctrl_async(struct dim_channel *ch, u8 type, u8 is_tx,
 	return DIM_NO_ERROR;
 }
 
-u16 DIM_NormCtrlAsyncBufferSize(u16 buf_size)
+u16 dim_norm_ctrl_async_buffer_size(u16 buf_size)
 {
 	return norm_ctrl_async_buffer_size(buf_size);
 }

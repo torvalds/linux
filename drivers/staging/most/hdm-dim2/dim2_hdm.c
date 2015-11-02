@@ -534,7 +534,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 
 	switch (ccfg->data_type) {
 	case MOST_CH_CONTROL:
-		new_size = DIM_NormCtrlAsyncBufferSize(buf_size);
+		new_size = dim_norm_ctrl_async_buffer_size(buf_size);
 		if (new_size == 0) {
 			pr_err("%s: too small buffer size\n", hdm_ch->name);
 			return -EINVAL;
@@ -548,7 +548,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 					  buf_size);
 		break;
 	case MOST_CH_ASYNC:
-		new_size = DIM_NormCtrlAsyncBufferSize(buf_size);
+		new_size = dim_norm_ctrl_async_buffer_size(buf_size);
 		if (new_size == 0) {
 			pr_err("%s: too small buffer size\n", hdm_ch->name);
 			return -EINVAL;
