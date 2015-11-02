@@ -70,6 +70,13 @@ static void xen_pcibk_control_isr(struct pci_dev *dev, int reset)
 		enable ? "enable" : "disable");
 
 	if (enable) {
+		/*
+		 * The MSI or MSI-X should not have an IRQ handler. Otherwise
+		 * if the guest terminates we BUG_ON in free_msi_irqs.
+		 */
+		if (dev->msi_enabled || dev->msix_enabled)
+			goto out;
+
 		rc = request_irq(dev_data->irq,
 				xen_pcibk_guest_interrupt, IRQF_SHARED,
 				dev_data->irq_name, dev);
