@@ -98,8 +98,8 @@ u8 dim_service_channel(struct dim_channel *ch);
 struct dim_ch_state_t *dim_get_channel_state(struct dim_channel *ch,
 					     struct dim_ch_state_t *state_ptr);
 
-bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr,
-		       u16 buffer_size);
+bool dim_enqueue_buffer(struct dim_channel *ch, u32 buffer_addr,
+			u16 buffer_size);
 
 bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number);
 

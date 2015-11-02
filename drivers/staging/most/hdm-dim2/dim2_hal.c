@@ -874,7 +874,8 @@ struct dim_ch_state_t *dim_get_channel_state(struct dim_channel *ch,
 	return state_ptr;
 }
 
-bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr, u16 buffer_size)
+bool dim_enqueue_buffer(struct dim_channel *ch, u32 buffer_addr,
+			u16 buffer_size)
 {
 	if (!ch)
 		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,

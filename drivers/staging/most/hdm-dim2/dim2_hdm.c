@@ -73,8 +73,8 @@ struct hdm_channel {
 	char name[sizeof "caNNN"];
 	bool is_initialized;
 	struct dim_channel ch;
-	struct list_head pending_list;	/* before DIM_EnqueueBuffer() */
-	struct list_head started_list;	/* after DIM_EnqueueBuffer() */
+	struct list_head pending_list;	/* before dim_enqueue_buffer() */
+	struct list_head started_list;	/* after dim_enqueue_buffer() */
 	enum most_channel_direction direction;
 	enum most_channel_data_type data_type;
 };
@@ -255,7 +255,7 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
 	buf_size = mbo->buffer_length;
 
 	BUG_ON(mbo->bus_address == 0);
-	if (!DIM_EnqueueBuffer(&hdm_ch->ch, mbo->bus_address, buf_size)) {
+	if (!dim_enqueue_buffer(&hdm_ch->ch, mbo->bus_address, buf_size)) {
 		list_del(head->next);
 		spin_unlock_irqrestore(&dim_lock, flags);
 		mbo->processed_length = 0;
