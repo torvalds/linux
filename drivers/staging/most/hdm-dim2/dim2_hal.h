@@ -93,7 +93,7 @@ u8 dim_destroy_channel(struct dim_channel *ch);
 
 void dim_service_irq(struct dim_channel *const *channels);
 
-u8 DIM_ServiceChannel(struct dim_channel *ch);
+u8 dim_service_channel(struct dim_channel *ch);
 
 struct dim_ch_state_t *DIM_GetChannelState(struct dim_channel *ch,
 		struct dim_ch_state_t *dim_ch_state_ptr);

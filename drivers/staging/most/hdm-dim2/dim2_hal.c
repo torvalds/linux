@@ -854,7 +854,7 @@ void dim_service_irq(struct dim_channel *const *channels)
 	dimcb_io_write(&g.dim2->MS1, 0);
 }
 
-u8 DIM_ServiceChannel(struct dim_channel *ch)
+u8 dim_service_channel(struct dim_channel *ch)
 {
 	if (!g.dim_is_initialized || !ch)
 		return DIM_ERR_DRIVER_NOT_INITIALIZED;
