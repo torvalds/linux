@@ -257,7 +257,7 @@ static unsigned long
 get_dynamic_power(struct devfreq_cooling_device *dfc, unsigned long freq,
 		  unsigned long voltage)
 {
-	unsigned long power;
+	u64 power;
 	u32 freq_mhz;
 	struct devfreq_cooling_power *dfc_power = dfc->power_ops;
 
