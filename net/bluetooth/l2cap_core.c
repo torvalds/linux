@@ -239,7 +239,7 @@ static u16 l2cap_alloc_cid(struct l2cap_conn *conn)
 	else
 		dyn_end = L2CAP_CID_DYN_END;
 
-	for (cid = L2CAP_CID_DYN_START; cid < dyn_end; cid++) {
+	for (cid = L2CAP_CID_DYN_START; cid <= dyn_end; cid++) {
 		if (!__l2cap_get_chan_by_scid(conn, cid))
 			return cid;
 	}
