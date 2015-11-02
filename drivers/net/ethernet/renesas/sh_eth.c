@@ -1173,7 +1173,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	mdp->dirty_rx = (u32) (i - mdp->num_rx_ring);
 
 	/* Mark the last entry as wrapping the ring. */
-	rxdesc->status |= cpu_to_edmac(mdp, RD_RDEL);
+	rxdesc->status |= cpu_to_edmac(mdp, RD_RDLE);
 
 	memset(mdp->tx_ring, 0, tx_ringsize);
 
@@ -1547,7 +1547,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		wmb(); /* RACT bit must be set after all the above writes */
 		if (entry >= mdp->num_rx_ring - 1)
 			rxdesc->status |=
-				cpu_to_edmac(mdp, RD_RACT | RD_RFP | RD_RDEL);
+				cpu_to_edmac(mdp, RD_RACT | RD_RFP | RD_RDLE);
 		else
 			rxdesc->status |=
 				cpu_to_edmac(mdp, RD_RACT | RD_RFP);
