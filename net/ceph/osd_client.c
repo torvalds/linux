@@ -2850,9 +2850,6 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		goto out;
 	}
 
-	if (req->r_reply->con)
-		dout("%s revoking msg %p from old con %p\n", __func__,
-		     req->r_reply, req->r_reply->con);
 	ceph_msg_revoke_incoming(req->r_reply);
 
 	if (front_len > req->r_reply->front_alloc_len) {
