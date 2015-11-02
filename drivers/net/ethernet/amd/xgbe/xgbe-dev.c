@@ -1595,7 +1595,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 				  packet->rdesc_count, 1);
 
 	/* Make sure ownership is written to the descriptor */
-	dma_wmb();
+	smp_wmb();
 
 	ring->cur = cur_index + 1;
 	if (!packet->skb->xmit_more ||

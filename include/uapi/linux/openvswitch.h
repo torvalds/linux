@@ -620,7 +620,8 @@ struct ovs_action_hash {
  * enum ovs_ct_attr - Attributes for %OVS_ACTION_ATTR_CT action.
  * @OVS_CT_ATTR_COMMIT: If present, commits the connection to the conntrack
  * table. This allows future packets for the same connection to be identified
- * as 'established' or 'related'.
+ * as 'established' or 'related'. The flow key for the current packet will
+ * retain the pre-commit connection state.
  * @OVS_CT_ATTR_ZONE: u16 connection tracking zone.
  * @OVS_CT_ATTR_MARK: u32 value followed by u32 mask. For each bit set in the
  * mask, the corresponding bit in the value is copied to the connection

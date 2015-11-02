@@ -2637,8 +2637,10 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 			mac_phy_link = true;
 
 		slave->open = true;
-		if (gbe_dev->num_slaves >= gbe_dev->max_num_slaves)
+		if (gbe_dev->num_slaves >= gbe_dev->max_num_slaves) {
+			of_node_put(port);
 			break;
+		}
 	}
 
 	/* of_phy_connect() is needed only for MAC-PHY interface */
@@ -3137,8 +3139,10 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 			continue;
 		}
 		gbe_dev->num_slaves++;
-		if (gbe_dev->num_slaves >= gbe_dev->max_num_slaves)
+		if (gbe_dev->num_slaves >= gbe_dev->max_num_slaves) {
+			of_node_put(interface);
 			break;
+		}
 	}
 	of_node_put(interfaces);
 

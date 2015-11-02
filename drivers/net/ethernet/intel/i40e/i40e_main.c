@@ -7911,6 +7911,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	if (pf->hw.func_caps.vmdq) {
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
 		pf->flags |= I40E_FLAG_VMDQ_ENABLED;
+		pf->num_vmdq_qps = i40e_default_queues_per_vmdq(pf);
 	}
 
 #ifdef I40E_FCOE

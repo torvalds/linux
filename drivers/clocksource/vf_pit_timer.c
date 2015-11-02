@@ -52,7 +52,7 @@ static inline void pit_irq_acknowledge(void)
 	__raw_writel(PITTFLG_TIF, clkevt_base + PITTFLG);
 }
 
-static u64 pit_read_sched_clock(void)
+static u64 notrace pit_read_sched_clock(void)
 {
 	return ~__raw_readl(clksrc_base + PITCVAL);
 }

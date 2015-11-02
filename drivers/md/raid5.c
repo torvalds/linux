@@ -3499,6 +3499,7 @@ returnbi:
 		}
 	if (!discard_pending &&
 	    test_bit(R5_Discard, &sh->dev[sh->pd_idx].flags)) {
+		int hash;
 		clear_bit(R5_Discard, &sh->dev[sh->pd_idx].flags);
 		clear_bit(R5_UPTODATE, &sh->dev[sh->pd_idx].flags);
 		if (sh->qd_idx >= 0) {
@@ -3512,16 +3513,17 @@ returnbi:
 		 * no updated data, so remove it from hash list and the stripe
 		 * will be reinitialized
 		 */
-		spin_lock_irq(&conf->device_lock);
 unhash:
+		hash = sh->hash_lock_index;
+		spin_lock_irq(conf->hash_locks + hash);
 		remove_hash(sh);
+		spin_unlock_irq(conf->hash_locks + hash);
 		if (head_sh->batch_head) {
 			sh = list_first_entry(&sh->batch_list,
 					      struct stripe_head, batch_list);
 			if (sh != head_sh)
 					goto unhash;
 		}
-		spin_unlock_irq(&conf->device_lock);
 		sh = head_sh;
 
 		if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state))

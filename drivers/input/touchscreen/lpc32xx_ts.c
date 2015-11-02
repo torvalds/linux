@@ -139,14 +139,14 @@ static void lpc32xx_stop_tsc(struct lpc32xx_tsc *tsc)
 		   tsc_readl(tsc, LPC32XX_TSC_CON) &
 			     ~LPC32XX_TSC_ADCCON_AUTO_EN);
 
-	clk_disable(tsc->clk);
+	clk_disable_unprepare(tsc->clk);
 }
 
 static void lpc32xx_setup_tsc(struct lpc32xx_tsc *tsc)
 {
 	u32 tmp;
 
-	clk_enable(tsc->clk);
+	clk_prepare_enable(tsc->clk);
 
 	tmp = tsc_readl(tsc, LPC32XX_TSC_CON) & ~LPC32XX_TSC_ADCCON_POWER_UP;
 

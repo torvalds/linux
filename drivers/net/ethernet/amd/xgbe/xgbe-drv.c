@@ -1807,6 +1807,7 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	struct netdev_queue *txq;
 	int processed = 0;
 	unsigned int tx_packets = 0, tx_bytes = 0;
+	unsigned int cur;
 
 	DBGPR("-->xgbe_tx_poll\n");
 
@@ -1814,10 +1815,15 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	if (!ring)
 		return 0;
 
+	cur = ring->cur;
+
+	/* Be sure we get ring->cur before accessing descriptor data */
+	smp_rmb();
+
 	txq = netdev_get_tx_queue(netdev, channel->queue_index);
 
 	while ((processed < XGBE_TX_DESC_MAX_PROC) &&
-	       (ring->dirty != ring->cur)) {
+	       (ring->dirty != cur)) {
 		rdata = XGBE_GET_DESC_DATA(ring, ring->dirty);
 		rdesc = rdata->rdesc;
 

@@ -594,14 +594,12 @@ static struct rtable *geneve_get_rt(struct sk_buff *skb,
 	rt = ip_route_output_key(geneve->net, fl4);
 	if (IS_ERR(rt)) {
 		netdev_dbg(dev, "no route to %pI4\n", &fl4->daddr);
-		dev->stats.tx_carrier_errors++;
-		return rt;
+		return ERR_PTR(-ENETUNREACH);
 	}
 	if (rt->dst.dev == dev) { /* is this necessary? */
 		netdev_dbg(dev, "circular route to %pI4\n", &fl4->daddr);
-		dev->stats.collisions++;
 		ip_rt_put(rt);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ELOOP);
 	}
 	return rt;
 }
@@ -627,12 +625,12 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip_tunnel_info *info = NULL;
 	struct rtable *rt = NULL;
 	const struct iphdr *iip; /* interior IP header */
+	int err = -EINVAL;
 	struct flowi4 fl4;
 	__u8 tos, ttl;
 	__be16 sport;
 	bool udp_csum;
 	__be16 df;
-	int err;
 
 	if (geneve->collect_md) {
 		info = skb_tunnel_info(skb);
@@ -647,7 +645,7 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	rt = geneve_get_rt(skb, dev, &fl4, info);
 	if (IS_ERR(rt)) {
 		netdev_dbg(dev, "no route to %pI4\n", &fl4.daddr);
-		dev->stats.tx_carrier_errors++;
+		err = PTR_ERR(rt);
 		goto tx_error;
 	}
 
@@ -699,8 +697,35 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 tx_error:
 	dev_kfree_skb(skb);
 err:
-	dev->stats.tx_errors++;
+	if (err == -ELOOP)
+		dev->stats.collisions++;
+	else if (err == -ENETUNREACH)
+		dev->stats.tx_carrier_errors++;
+	else
+		dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
+}
+
+static int geneve_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
+{
+	struct ip_tunnel_info *info = skb_tunnel_info(skb);
+	struct geneve_dev *geneve = netdev_priv(dev);
+	struct rtable *rt;
+	struct flowi4 fl4;
+
+	if (ip_tunnel_info_af(info) != AF_INET)
+		return -EINVAL;
+
+	rt = geneve_get_rt(skb, dev, &fl4, info);
+	if (IS_ERR(rt))
+		return PTR_ERR(rt);
+
+	ip_rt_put(rt);
+	info->key.u.ipv4.src = fl4.saddr;
+	info->key.tp_src = udp_flow_src_port(geneve->net, skb,
+					     1, USHRT_MAX, true);
+	info->key.tp_dst = geneve->dst_port;
+	return 0;
 }
 
 static const struct net_device_ops geneve_netdev_ops = {
@@ -713,6 +738,7 @@ static const struct net_device_ops geneve_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_fill_metadata_dst	= geneve_fill_metadata_dst,
 };
 
 static void geneve_get_drvinfo(struct net_device *dev,

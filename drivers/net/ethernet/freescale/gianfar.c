@@ -341,7 +341,7 @@ static void gfar_rx_offload_en(struct gfar_private *priv)
 	if (priv->ndev->features & (NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX))
 		priv->uses_rxfcb = 1;
 
-	if (priv->hwts_rx_en)
+	if (priv->hwts_rx_en || priv->rx_filer_enable)
 		priv->uses_rxfcb = 1;
 }
 
@@ -351,7 +351,7 @@ static void gfar_mac_rx_config(struct gfar_private *priv)
 	u32 rctrl = 0;
 
 	if (priv->rx_filer_enable) {
-		rctrl |= RCTRL_FILREN;
+		rctrl |= RCTRL_FILREN | RCTRL_PRSDEP_INIT;
 		/* Program the RIR0 reg with the required distribution */
 		if (priv->poll_mode == GFAR_SQ_POLLING)
 			gfar_write(&regs->rir0, DEFAULT_2RXQ_RIR0);
@@ -3462,10 +3462,8 @@ static irqreturn_t gfar_error(int irq, void *grp_id)
 		netif_dbg(priv, tx_err, dev, "Transmit Error\n");
 	}
 	if (events & IEVENT_BSY) {
-		dev->stats.rx_errors++;
+		dev->stats.rx_over_errors++;
 		atomic64_inc(&priv->extra_stats.rx_bsy);
-
-		gfar_receive(irq, grp_id);
 
 		netif_dbg(priv, rx_err, dev, "busy error (rstat: %x)\n",
 			  gfar_read(&regs->rstat));

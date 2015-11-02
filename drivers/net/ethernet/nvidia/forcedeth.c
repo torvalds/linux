@@ -4076,6 +4076,8 @@ static void nv_do_nic_poll(unsigned long data)
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 	u32 mask = 0;
+	unsigned long flags;
+	unsigned int irq = 0;
 
 	/*
 	 * First disable irq(s) and then
@@ -4085,25 +4087,27 @@ static void nv_do_nic_poll(unsigned long data)
 
 	if (!using_multi_irqs(dev)) {
 		if (np->msi_flags & NV_MSI_X_ENABLED)
-			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
+			irq = np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector;
 		else
-			disable_irq_lockdep(np->pci_dev->irq);
+			irq = np->pci_dev->irq;
 		mask = np->irqmask;
 	} else {
 		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
-			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+			irq = np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector;
 			mask |= NVREG_IRQ_RX_ALL;
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_TX_ALL) {
-			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
+			irq = np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector;
 			mask |= NVREG_IRQ_TX_ALL;
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_OTHER) {
-			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
+			irq = np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector;
 			mask |= NVREG_IRQ_OTHER;
 		}
 	}
-	/* disable_irq() contains synchronize_irq, thus no irq handler can run now */
+
+	disable_irq_nosync_lockdep_irqsave(irq, &flags);
+	synchronize_irq(irq);
 
 	if (np->recover_error) {
 		np->recover_error = 0;
@@ -4156,28 +4160,22 @@ static void nv_do_nic_poll(unsigned long data)
 			nv_nic_irq_optimized(0, dev);
 		else
 			nv_nic_irq(0, dev);
-		if (np->msi_flags & NV_MSI_X_ENABLED)
-			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
-		else
-			enable_irq_lockdep(np->pci_dev->irq);
 	} else {
 		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
 			np->nic_poll_irq &= ~NVREG_IRQ_RX_ALL;
 			nv_nic_irq_rx(0, dev);
-			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_TX_ALL) {
 			np->nic_poll_irq &= ~NVREG_IRQ_TX_ALL;
 			nv_nic_irq_tx(0, dev);
-			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_OTHER) {
 			np->nic_poll_irq &= ~NVREG_IRQ_OTHER;
 			nv_nic_irq_other(0, dev);
-			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
 		}
 	}
 
+	enable_irq_lockdep_irqrestore(irq, &flags);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
