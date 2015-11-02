@@ -366,20 +366,13 @@ struct	wlan_network	*rtw_get_oldest_wlan_network(struct __queue *scanned_queue)
 
 	phead = get_list_head(scanned_queue);
 
-	plist = phead->next;
-
-	while (1) {
-		if (phead == plist)
-			break;
-
+	for (plist = phead->next; plist != phead; plist = plist->next) {
 		pwlan = container_of(plist, struct wlan_network, list);
 
 		if (!pwlan->fixed) {
 			if (oldest == NULL || time_after(oldest->last_scanned, pwlan->last_scanned))
 				oldest = pwlan;
 		}
-
-		plist = plist->next;
 	}
 	return oldest;
 }
