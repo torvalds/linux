@@ -536,21 +536,11 @@ static int as3722_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return as3722_irq_get_virq(as_pci->as3722, offset);
 }
 
-static int as3722_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void as3722_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static const struct gpio_chip as3722_gpio_chip = {
 	.label			= "as3722-gpio",
 	.owner			= THIS_MODULE,
-	.request		= as3722_gpio_request,
-	.free			= as3722_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.get			= as3722_gpio_get,
 	.set			= as3722_gpio_set,
 	.direction_input	= as3722_gpio_direction_input,

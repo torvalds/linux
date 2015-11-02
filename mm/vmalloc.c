@@ -2688,52 +2688,5 @@ static int __init proc_vmalloc_init(void)
 }
 module_init(proc_vmalloc_init);
 
-void get_vmalloc_info(struct vmalloc_info *vmi)
-{
-	struct vmap_area *va;
-	unsigned long free_area_size;
-	unsigned long prev_end;
-
-	vmi->used = 0;
-	vmi->largest_chunk = 0;
-
-	prev_end = VMALLOC_START;
-
-	rcu_read_lock();
-
-	if (list_empty(&vmap_area_list)) {
-		vmi->largest_chunk = VMALLOC_TOTAL;
-		goto out;
-	}
-
-	list_for_each_entry_rcu(va, &vmap_area_list, list) {
-		unsigned long addr = va->va_start;
-
-		/*
-		 * Some archs keep another range for modules in vmalloc space
-		 */
-		if (addr < VMALLOC_START)
-			continue;
-		if (addr >= VMALLOC_END)
-			break;
-
-		if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
-			continue;
-
-		vmi->used += (va->va_end - va->va_start);
-
-		free_area_size = addr - prev_end;
-		if (vmi->largest_chunk < free_area_size)
-			vmi->largest_chunk = free_area_size;
-
-		prev_end = va->va_end;
-	}
-
-	if (VMALLOC_END - prev_end > vmi->largest_chunk)
-		vmi->largest_chunk = VMALLOC_END - prev_end;
-
-out:
-	rcu_read_unlock();
-}
 #endif
 

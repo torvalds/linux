@@ -477,6 +477,16 @@
 				reg = <0x0 0x7c600000 0x0 0x200000>;
 				pmd-controller = <3>;
 			};
+
+			edacl3@7e600000 {
+				compatible = "apm,xgene-edac-l3";
+				reg = <0x0 0x7e600000 0x0 0x1000>;
+			};
+
+			edacsoc@7e930000 {
+				compatible = "apm,xgene-edac-soc-v1";
+				reg = <0x0 0x7e930000 0x0 0x1000>;
+			};
 		};
 
 		pcie0: pcie@1f2b0000 {
