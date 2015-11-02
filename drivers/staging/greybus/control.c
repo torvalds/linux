@@ -60,40 +60,6 @@ int gb_control_disconnected_operation(struct gb_control *control, u16 cport_id)
 				 sizeof(request), NULL, 0);
 }
 
-static int gb_control_request_recv(u8 type, struct gb_operation *op)
-{
-	struct gb_connection *connection = op->connection;
-	struct gb_protocol_version_response *version;
-
-	switch (type) {
-	case GB_CONTROL_TYPE_PROBE_AP:
-		// TODO
-		// Send authenticated block of data, confirming this module is
-		// an AP.
-		break;
-	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
-		if (!gb_operation_response_alloc(op, sizeof(*version),
-						 GFP_KERNEL)) {
-			dev_err(&connection->bundle->dev,
-				"%s: error allocating response\n", __func__);
-			return -ENOMEM;
-		}
-
-		version = op->response->payload;
-		version->major = GB_CONTROL_VERSION_MAJOR;
-		version->minor = GB_CONTROL_VERSION_MINOR;
-		break;
-	case GB_CONTROL_TYPE_CONNECTED:
-	case GB_CONTROL_TYPE_DISCONNECTED:
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
-
-	return 0;
-}
-
 static int gb_control_connection_init(struct gb_connection *connection)
 {
 	struct gb_control *control;
@@ -129,7 +95,6 @@ static struct gb_protocol control_protocol = {
 	.minor			= 1,
 	.connection_init	= gb_control_connection_init,
 	.connection_exit	= gb_control_connection_exit,
-	.request_recv		= gb_control_request_recv,
 	.flags			= GB_PROTOCOL_SKIP_CONTROL_CONNECTED |
 				  GB_PROTOCOL_SKIP_CONTROL_DISCONNECTED,
 };
