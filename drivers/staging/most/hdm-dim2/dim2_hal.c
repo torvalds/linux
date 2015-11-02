@@ -778,8 +778,8 @@ u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 	return DIM_NO_ERROR;
 }
 
-u8 DIM_InitSync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		u16 bytes_per_frame)
+u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		 u16 bytes_per_frame)
 {
 	if (!g.dim_is_initialized || !ch)
 		return DIM_ERR_DRIVER_NOT_INITIALIZED;

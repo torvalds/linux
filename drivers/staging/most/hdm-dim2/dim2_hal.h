@@ -86,8 +86,8 @@ u8 dim_init_async(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 		 u16 packet_length);
 
-u8 DIM_InitSync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		u16 bytes_per_frame);
+u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		 u16 bytes_per_frame);
 
 u8 DIM_DestroyChannel(struct dim_channel *ch);
 

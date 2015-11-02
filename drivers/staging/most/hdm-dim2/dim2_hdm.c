@@ -586,7 +586,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 			pr_warn("%s: fixed buffer size (%d -> %d)\n",
 				hdm_ch->name, buf_size, new_size);
 		spin_lock_irqsave(&dim_lock, flags);
-		hal_ret = DIM_InitSync(&hdm_ch->ch, is_tx, ch_addr, sub_size);
+		hal_ret = dim_init_sync(&hdm_ch->ch, is_tx, ch_addr, sub_size);
 		break;
 	default:
 		pr_err("%s: configure failed, bad channel type: %d\n",
