@@ -47,6 +47,14 @@
 		};
 	};
 
+	psci {
+		compatible      = "arm,psci";
+		method          = "smc";
+		cpu_suspend     = <0x84000001>;
+		cpu_off         = <0x84000002>;
+		cpu_on          = <0x84000003>;
+	};
+
 	gic: interrupt-controller@32010000 {
 		compatible = "arm,cortex-a15-gic";
 		interrupt-controller;
