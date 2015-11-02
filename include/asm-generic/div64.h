@@ -194,7 +194,9 @@ static inline uint64_t __arch_xprod_64(const uint64_t m, uint64_t n, bool bias)
 }
 #endif
 
+#ifndef __div64_32
 extern uint32_t __div64_32(uint64_t *dividend, uint32_t divisor);
+#endif
 
 /* The unnecessary pointer compare is there
  * to check for type safety (n must be 64bit)
