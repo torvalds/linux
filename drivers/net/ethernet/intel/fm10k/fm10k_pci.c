@@ -715,7 +715,7 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	/* assign default VLAN to queue */
 	ring->vid = hw->mac.default_vid;
 
-	/* if we have an active VLAN, disable default VID */
+	/* if we have an active VLAN, disable default VLAN ID */
 	if (test_bit(hw->mac.default_vid, interface->active_vlans))
 		ring->vid |= FM10K_VLAN_CLEAR;
 
@@ -1292,7 +1292,7 @@ static s32 fm10k_update_pvid(struct fm10k_hw *hw, u32 **results,
 	if (!fm10k_glort_valid_pf(hw, glort))
 		return FM10K_ERR_PARAM;
 
-	/* verify VID is valid */
+	/* verify VLAN ID is valid */
 	if (pvid >= FM10K_VLAN_TABLE_VID_MAX)
 		return FM10K_ERR_PARAM;
 

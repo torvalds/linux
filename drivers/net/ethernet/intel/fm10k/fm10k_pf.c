@@ -329,7 +329,7 @@ static s32 fm10k_update_xc_addr_pf(struct fm10k_hw *hw, u16 glort,
 	/* clear set bit from VLAN ID */
 	vid &= ~FM10K_VLAN_CLEAR;
 
-	/* if glort or vlan are not valid return error */
+	/* if glort or VLAN are not valid return error */
 	if (!fm10k_glort_valid_pf(hw, glort) || vid >= FM10K_VLAN_TABLE_VID_MAX)
 		return FM10K_ERR_PARAM;
 
@@ -921,7 +921,7 @@ err_out:
 	txqctl |= (vf_idx << FM10K_TXQCTL_TC_SHIFT) |
 		  FM10K_TXQCTL_VF | vf_idx;
 
-	/* assign VID */
+	/* assign VLAN ID */
 	for (i = 0; i < queues_per_pool; i++)
 		fm10k_write_reg(hw, FM10K_TXQCTL(vf_q_idx + i), txqctl);
 
@@ -1172,12 +1172,12 @@ s32 fm10k_iov_msg_msix_pf(struct fm10k_hw *hw, u32 **results,
 }
 
 /**
- * fm10k_iov_select_vid - Select correct default VID
+ * fm10k_iov_select_vid - Select correct default VLAN ID
  * @hw: Pointer to hardware structure
- * @vid: VID to correct
+ * @vid: VLAN ID to correct
  *
- * Will report an error if VID is out of range. For VID = 0, it will return
- * either the pf_vid or sw_vid depending on which one is set.
+ * Will report an error if the VLAN ID is out of range. For VID = 0, it will
+ * return either the pf_vid or sw_vid depending on which one is set.
  */
 static inline s32 fm10k_iov_select_vid(struct fm10k_vf_info *vf_info, u16 vid)
 {
@@ -1707,7 +1707,7 @@ s32 fm10k_msg_update_pvid_pf(struct fm10k_hw *hw, u32 **results,
 	if (!fm10k_glort_valid_pf(hw, glort))
 		return FM10K_ERR_PARAM;
 
-	/* verify VID is valid */
+	/* verify VLAN ID is valid */
 	if (pvid >= FM10K_VLAN_TABLE_VID_MAX)
 		return FM10K_ERR_PARAM;
 

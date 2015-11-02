@@ -138,7 +138,7 @@ struct fm10k_ring {
 					 * different for DCB and RSS modes
 					 */
 	u8 qos_pc;			/* priority class of queue */
-	u16 vid;			/* default vlan ID of queue */
+	u16 vid;			/* default VLAN ID of queue */
 	u16 count;			/* amount of descriptors */
 
 	u16 next_to_alloc;
@@ -440,7 +440,7 @@ union fm10k_ftag_info {
 	struct {
 		/* dglort and sglort combined into a single 32bit desc read */
 		__le32 glort;
-		/* upper 16 bits of vlan are reserved 0 for swpri_type_user */
+		/* upper 16 bits of VLAN are reserved 0 for swpri_type_user */
 		__le32 vlan;
 	} d;
 	struct {

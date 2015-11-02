@@ -632,7 +632,7 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		}
 
-		/* locate vlan header */
+		/* locate VLAN header */
 		vhdr = (struct vlan_hdr *)(skb->data + ETH_HLEN);
 
 		/* pull the 2 key pieces of data out of it */
@@ -778,7 +778,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (!set)
 		clear_bit(vid, interface->active_vlans);
 
-	/* disable the default VID on ring if we have an active VLAN */
+	/* disable the default VLAN ID on ring if we have an active VLAN */
 	for (i = 0; i < interface->num_rx_queues; i++) {
 		struct fm10k_ring *rx_ring = interface->rx_ring[i];
 		u16 rx_vid = rx_ring->vid & (VLAN_N_VID - 1);
@@ -789,7 +789,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 			rx_ring->vid &= ~FM10K_VLAN_CLEAR;
 	}
 
-	/* Do not remove default VID related entries from VLAN and MAC tables */
+	/* Do not remove default VLAN ID related entries from VLAN and MAC tables */
 	if (!set && vid == hw->mac.default_vid)
 		return 0;
 
@@ -814,7 +814,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (err)
 		goto err_out;
 
-	/* set vid prior to syncing/unsyncing the VLAN */
+	/* set VLAN ID prior to syncing/unsyncing the VLAN */
 	interface->vid = vid + (set ? VLAN_N_VID : 0);
 
 	/* Update the unicast and multicast address list to add/drop VLAN */
