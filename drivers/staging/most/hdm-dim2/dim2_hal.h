@@ -75,7 +75,7 @@ u16 dim_norm_ctrl_async_buffer_size(u16 buf_size);
 
 u16 dim_norm_isoc_buffer_size(u16 buf_size, u16 packet_length);
 
-u16 DIM_NormSyncBufferSize(u16 buf_size, u16 bytes_per_frame);
+u16 dim_norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame);
 
 u8 DIM_InitControl(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 		   u16 max_buffer_size);

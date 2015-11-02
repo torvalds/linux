@@ -731,7 +731,7 @@ u16 dim_norm_isoc_buffer_size(u16 buf_size, u16 packet_length)
  *
  * Returns non-zero correct buffer size or zero by error.
  */
-u16 DIM_NormSyncBufferSize(u16 buf_size, u16 bytes_per_frame)
+u16 dim_norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
 {
 	if (!check_bytes_per_frame(bytes_per_frame))
 		return 0;

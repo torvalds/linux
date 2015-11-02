@@ -575,7 +575,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 		hal_ret = DIM_InitIsoc(&hdm_ch->ch, is_tx, ch_addr, sub_size);
 		break;
 	case MOST_CH_SYNC:
-		new_size = DIM_NormSyncBufferSize(buf_size, sub_size);
+		new_size = dim_norm_sync_buffer_size(buf_size, sub_size);
 		if (new_size == 0) {
 			pr_err("%s: invalid sub-buffer size or too small buffer size\n",
 			       hdm_ch->name);
