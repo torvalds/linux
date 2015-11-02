@@ -222,7 +222,7 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
 		}
 	}
 
-	if (unlikely(!clk->enable_reg)) {
+	if (unlikely(IS_ERR(clk->enable_reg))) {
 		pr_err("%s: %s missing enable_reg\n", __func__,
 		       clk_hw_get_name(hw));
 		ret = -EINVAL;
@@ -264,7 +264,7 @@ void omap2_dflt_clk_disable(struct clk_hw *hw)
 	u32 v;
 
 	clk = to_clk_hw_omap(hw);
-	if (!clk->enable_reg) {
+	if (IS_ERR(clk->enable_reg)) {
 		/*
 		 * 'independent' here refers to a clock which is not
 		 * controlled by its parent.

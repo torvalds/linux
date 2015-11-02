@@ -1436,8 +1436,10 @@ static void cpufreq_offline_finish(unsigned int cpu)
 	 * since this is a core component, and is essential for the
 	 * subsequent light-weight ->init() to succeed.
 	 */
-	if (cpufreq_driver->exit)
+	if (cpufreq_driver->exit) {
 		cpufreq_driver->exit(policy);
+		policy->freq_table = NULL;
+	}
 }
 
 /**

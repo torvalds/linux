@@ -1005,6 +1005,9 @@ static void vi_pcie_gen3_enable(struct amdgpu_device *adev)
 	u32 mask;
 	int ret;
 
+	if (pci_is_root_bus(adev->pdev->bus))
+		return;
+
 	if (amdgpu_pcie_gen2 == 0)
 		return;
 

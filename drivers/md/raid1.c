@@ -2382,8 +2382,8 @@ static void raid1d(struct md_thread *thread)
 		}
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 		while (!list_empty(&tmp)) {
-			r1_bio = list_first_entry(&conf->bio_end_io_list,
-						  struct r1bio, retry_list);
+			r1_bio = list_first_entry(&tmp, struct r1bio,
+						  retry_list);
 			list_del(&r1_bio->retry_list);
 			raid_end_bio_io(r1_bio);
 		}
