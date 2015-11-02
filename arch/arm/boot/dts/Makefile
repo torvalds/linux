@@ -75,7 +75,10 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm4709-asus-rt-ac87u.dtb \
 	bcm4709-buffalo-wxr-1900dhp.dtb \
 	bcm4709-netgear-r7000.dtb \
-	bcm4709-netgear-r8000.dtb
+	bcm4709-netgear-r8000.dtb \
+	bcm94708.dtb \
+	bcm94709.dtb \
+	bcm953012k.dtb
 dtb-$(CONFIG_ARCH_BCM_63XX) += \
 	bcm963138dvt.dtb
 dtb-$(CONFIG_ARCH_BCM_CYGNUS) += \
