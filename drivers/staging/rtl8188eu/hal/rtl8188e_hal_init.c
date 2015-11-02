@@ -62,7 +62,7 @@ s32 iol_execute(struct adapter *padapter, u8 control)
 	start = jiffies;
 	while ((reg_0x88 = usb_read8(padapter, REG_HMEBOX_E0)) & control &&
 	       jiffies_to_msecs(jiffies - start) < 1000) {
-		;
+		udelay(5);
 	}
 
 	reg_0x88 = usb_read8(padapter, REG_HMEBOX_E0);
@@ -242,6 +242,7 @@ static s32 _LLTWrite(struct adapter *padapter, u32 address, u32 data)
 			status = _FAIL;
 			break;
 		}
+		udelay(5);
 	} while (count++);
 
 	return status;
