@@ -17,6 +17,8 @@
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/of_device.h>
+#include <linux/clk.h>
 
 /* XLR I2C REGISTERS */
 #define XLR_I2C_CFG		0x00
@@ -63,10 +65,22 @@ static inline u32 xlr_i2c_rdreg(u32 __iomem *base, unsigned int reg)
 	return __raw_readl(base + reg);
 }
 
+struct xlr_i2c_config {
+	u32 status_busy;	/* value of STATUS[0] when busy */
+	u32 cfg_extra;		/* extra CFG bits to set */
+};
+
 struct xlr_i2c_private {
 	struct i2c_adapter adap;
 	u32 __iomem *iobase;
+	const struct xlr_i2c_config *cfg;
+	struct clk *clk;
 };
+
+static int xlr_i2c_busy(struct xlr_i2c_private *priv, u32 status)
+{
+	return (status & XLR_I2C_BUS_BUSY) == priv->cfg->status_busy;
+}
 
 static int xlr_i2c_tx(struct xlr_i2c_private *priv,  u16 len,
 	u8 *buf, u16 addr)
@@ -80,7 +94,8 @@ static int xlr_i2c_tx(struct xlr_i2c_private *priv,  u16 len,
 	offset = buf[0];
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_ADDR, offset);
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_DEVADDR, addr);
-	xlr_i2c_wreg(priv->iobase, XLR_I2C_CFG, XLR_I2C_CFG_ADDR);
+	xlr_i2c_wreg(priv->iobase, XLR_I2C_CFG,
+			XLR_I2C_CFG_ADDR | priv->cfg->cfg_extra);
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_BYTECNT, len - 1);
 
 	timeout = msecs_to_jiffies(XLR_I2C_TIMEOUT);
@@ -121,7 +136,7 @@ retry:
 		if (i2c_status & XLR_I2C_ACK_ERR)
 			return -EIO;
 
-		if ((i2c_status & XLR_I2C_BUS_BUSY) == 0 && pos >= len)
+		if (!xlr_i2c_busy(priv, i2c_status) && pos >= len)
 			return 0;
 	}
 	dev_err(&adap->dev, "I2C transmit timeout\n");
@@ -136,7 +151,8 @@ static int xlr_i2c_rx(struct xlr_i2c_private *priv, u16 len, u8 *buf, u16 addr)
 	int nbytes, timedout;
 	u8 byte;
 
-	xlr_i2c_wreg(priv->iobase, XLR_I2C_CFG, XLR_I2C_CFG_NOADDR);
+	xlr_i2c_wreg(priv->iobase, XLR_I2C_CFG,
+			XLR_I2C_CFG_NOADDR | priv->cfg->cfg_extra);
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_BYTECNT, len);
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_DEVADDR, addr);
 
@@ -174,7 +190,7 @@ retry:
 		if (i2c_status & XLR_I2C_ACK_ERR)
 			return -EIO;
 
-		if ((i2c_status & XLR_I2C_BUS_BUSY) == 0)
+		if (!xlr_i2c_busy(priv, i2c_status))
 			return 0;
 	}
 
@@ -190,6 +206,10 @@ static int xlr_i2c_xfer(struct i2c_adapter *adap,
 	int ret = 0;
 	struct xlr_i2c_private *priv = i2c_get_adapdata(adap);
 
+	ret = clk_enable(priv->clk);
+	if (ret)
+		return ret;
+
 	for (i = 0; ret == 0 && i < num; i++) {
 		msg = &msgs[i];
 		if (msg->flags & I2C_M_RD)
@@ -199,6 +219,8 @@ static int xlr_i2c_xfer(struct i2c_adapter *adap,
 			ret = xlr_i2c_tx(priv, msg->len, &msg->buf[0],
 					msg->addr);
 	}
+
+	clk_disable(priv->clk);
 
 	return (ret != 0) ? ret : num;
 }
@@ -214,22 +236,70 @@ static struct i2c_algorithm xlr_i2c_algo = {
 	.functionality	= xlr_func,
 };
 
+static const struct xlr_i2c_config xlr_i2c_config_default = {
+	.status_busy	= XLR_I2C_BUS_BUSY,
+	.cfg_extra	= 0,
+};
+
+static const struct xlr_i2c_config xlr_i2c_config_tangox = {
+	.status_busy	= 0,
+	.cfg_extra	= 1 << 8,
+};
+
+static const struct of_device_id xlr_i2c_dt_ids[] = {
+	{
+		.compatible	= "sigma,smp8642-i2c",
+		.data		= &xlr_i2c_config_tangox,
+	},
+	{ }
+};
+
 static int xlr_i2c_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
 	struct xlr_i2c_private  *priv;
 	struct resource *res;
+	struct clk *clk;
+	unsigned long clk_rate;
+	unsigned long clk_div;
+	u32 busfreq;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
+	match = of_match_device(xlr_i2c_dt_ids, &pdev->dev);
+	if (match)
+		priv->cfg = match->data;
+	else
+		priv->cfg = &xlr_i2c_config_default;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->iobase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->iobase))
 		return PTR_ERR(priv->iobase);
 
+	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+				 &busfreq))
+		busfreq = 100000;
+
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		ret = clk_prepare_enable(clk);
+		if (ret)
+			return ret;
+
+		clk_rate = clk_get_rate(clk);
+		clk_div = DIV_ROUND_UP(clk_rate, 2 * busfreq);
+		xlr_i2c_wreg(priv->iobase, XLR_I2C_CLKDIV, clk_div);
+
+		clk_disable(clk);
+		priv->clk = clk;
+	}
+
 	priv->adap.dev.parent = &pdev->dev;
+	priv->adap.dev.of_node	= pdev->dev.of_node;
 	priv->adap.owner	= THIS_MODULE;
 	priv->adap.algo_data	= priv;
 	priv->adap.algo		= &xlr_i2c_algo;
@@ -255,6 +325,8 @@ static int xlr_i2c_remove(struct platform_device *pdev)
 
 	priv = platform_get_drvdata(pdev);
 	i2c_del_adapter(&priv->adap);
+	clk_unprepare(priv->clk);
+
 	return 0;
 }
 
@@ -263,6 +335,7 @@ static struct platform_driver xlr_i2c_driver = {
 	.remove = xlr_i2c_remove,
 	.driver = {
 		.name   = "xlr-i2cbus",
+		.of_match_table	= xlr_i2c_dt_ids,
 	},
 };
 
