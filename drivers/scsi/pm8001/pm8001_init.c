@@ -636,6 +636,11 @@ static void pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 			payload.minor_function = 0;
 			payload.length = 128;
 		}
+	} else if ((pm8001_ha->chip_id == chip_8070 ||
+			pm8001_ha->chip_id == chip_8072) &&
+			pm8001_ha->pdev->subsystem_vendor == PCI_VENDOR_ID_ATTO) {
+		payload.minor_function = 4;
+		payload.length = 4096;
 	} else {
 		payload.minor_function = 1;
 		payload.length = 4096;
@@ -661,6 +666,11 @@ static void pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 					payload.func_specific[0x704 + i];
 			else if (deviceid == 0x0042)
 				pm8001_ha->sas_addr[j] =
+					payload.func_specific[0x010 + i];
+		} else if ((pm8001_ha->chip_id == chip_8070 ||
+				pm8001_ha->chip_id == chip_8072) &&
+				pm8001_ha->pdev->subsystem_vendor == PCI_VENDOR_ID_ATTO) {
+			pm8001_ha->sas_addr[j] =
 					payload.func_specific[0x010 + i];
 		} else
 			pm8001_ha->sas_addr[j] =
