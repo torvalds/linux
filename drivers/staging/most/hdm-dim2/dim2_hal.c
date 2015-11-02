@@ -753,8 +753,8 @@ u8 dim_init_async(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 			       max_buffer_size);
 }
 
-u8 DIM_InitIsoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		u16 packet_length)
+u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		 u16 packet_length)
 {
 	if (!g.dim_is_initialized || !ch)
 		return DIM_ERR_DRIVER_NOT_INITIALIZED;
