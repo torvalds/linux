@@ -385,12 +385,6 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	pm_runtime_get_sync(ctx->dev);
 
-	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++) {
-		ret = clk_prepare_enable(ctx->clks[i]);
-		if (ret < 0)
-			goto err;
-	}
-
 	set_bit(BIT_CLKS_ENABLED, &ctx->flags);
 
 	/* if vblank was enabled status, enable it again. */
@@ -398,11 +392,6 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 		decon_enable_vblank(ctx->crtc);
 
 	decon_commit(ctx->crtc);
-
-	return;
-err:
-	while (--i >= 0)
-		clk_disable_unprepare(ctx->clks[i]);
 
 	set_bit(BIT_SUSPENDED, &ctx->flags);
 }
@@ -424,9 +413,6 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 		decon_disable_plane(crtc, &ctx->planes[i]);
 
 	decon_swreset(ctx);
-
-	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++)
-		clk_disable_unprepare(ctx->clks[i]);
 
 	clear_bit(BIT_CLKS_ENABLED, &ctx->flags);
 
@@ -478,7 +464,6 @@ err:
 static struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable			= decon_enable,
 	.disable		= decon_disable,
-	.commit			= decon_commit,
 	.enable_vblank		= decon_enable_vblank,
 	.disable_vblank		= decon_disable_vblank,
 	.atomic_begin		= decon_atomic_begin,
@@ -580,6 +565,44 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 out:
 	return IRQ_HANDLED;
 }
+
+#ifdef CONFIG_PM
+static int exynos5433_decon_suspend(struct device *dev)
+{
+	struct decon_context *ctx = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++)
+		clk_disable_unprepare(ctx->clks[i]);
+
+	return 0;
+}
+
+static int exynos5433_decon_resume(struct device *dev)
+{
+	struct decon_context *ctx = dev_get_drvdata(dev);
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++) {
+		ret = clk_prepare_enable(ctx->clks[i]);
+		if (ret < 0)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	while (--i >= 0)
+		clk_disable_unprepare(ctx->clks[i]);
+
+	return ret;
+}
+#endif
+
+static const struct dev_pm_ops exynos5433_decon_pm_ops = {
+	SET_RUNTIME_PM_OPS(exynos5433_decon_suspend, exynos5433_decon_resume,
+			   NULL)
+};
 
 static const struct of_device_id exynos5433_decon_driver_dt_match[] = {
 	{
@@ -684,6 +707,7 @@ struct platform_driver exynos5433_decon_driver = {
 	.remove		= exynos5433_decon_remove,
 	.driver		= {
 		.name	= "exynos5433-decon",
+		.pm	= &exynos5433_decon_pm_ops,
 		.of_match_table = exynos5433_decon_driver_dt_match,
 	},
 };
