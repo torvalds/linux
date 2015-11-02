@@ -719,14 +719,8 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	key = HKEY(value, h->initval, t->htable_bits);
 	n = __ipset_dereference_protected(hbucket(t, key), 1);
 	if (!n) {
-		if (forceadd) {
-			if (net_ratelimit())
-				pr_warn("Set %s is full, maxelem %u reached\n",
-					set->name, h->maxelem);
-			return -IPSET_ERR_HASH_FULL;
-		} else if (set->elements >= h->maxelem) {
+		if (forceadd || set->elements >= h->maxelem)
 			goto set_full;
-		}
 		old = NULL;
 		n = kzalloc(sizeof(*n) + AHASH_INIT_SIZE * set->dsize,
 			    GFP_ATOMIC);
