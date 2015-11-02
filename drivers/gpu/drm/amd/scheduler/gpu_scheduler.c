@@ -338,7 +338,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	atomic_dec(&sched->hw_rq_count);
 	amd_sched_fence_signal(s_fence);
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT) {
-		cancel_delayed_work_sync(&s_fence->dwork);
+		cancel_delayed_work(&s_fence->dwork);
 		spin_lock_irqsave(&sched->fence_list_lock, flags);
 		list_del_init(&s_fence->list);
 		spin_unlock_irqrestore(&sched->fence_list_lock, flags);
