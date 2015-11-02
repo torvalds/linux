@@ -7029,6 +7029,7 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	bool failed_alloc = false;
 	bool use_cluster = true;
 	bool have_caching_bg = false;
+	bool orig_have_caching_bg = false;
 	bool full_search = false;
 
 	WARN_ON(num_bytes < root->sectorsize);
@@ -7378,6 +7379,10 @@ loop:
 	}
 	up_read(&space_info->groups_sem);
 
+	if ((loop == LOOP_CACHING_NOWAIT) && have_caching_bg
+		&& !orig_have_caching_bg)
+		orig_have_caching_bg = true;
+
 	if (!ins->objectid && loop >= LOOP_CACHING_WAIT && have_caching_bg)
 		goto search;
 
@@ -7400,7 +7405,7 @@ loop:
 			 * don't have any unached bgs and we've alrelady done a
 			 * full search through.
 			 */
-			if (have_caching_bg || !full_search)
+			if (orig_have_caching_bg || !full_search)
 				loop = LOOP_CACHING_WAIT;
 			else
 				loop = LOOP_ALLOC_CHUNK;
