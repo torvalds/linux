@@ -752,8 +752,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	ttm_lock_set_kill(&dev_priv->fbdev_master.lock, false, SIGTERM);
 	dev_priv->active_master = &dev_priv->fbdev_master;
 
-	dev_priv->mmio_virt = ioremap_cache(dev_priv->mmio_start,
-					    dev_priv->mmio_size);
+	dev_priv->mmio_virt = memremap(dev_priv->mmio_start,
+				       dev_priv->mmio_size, MEMREMAP_WB);
 
 	if (unlikely(dev_priv->mmio_virt == NULL)) {
 		ret = -ENOMEM;
@@ -907,7 +907,7 @@ out_no_irq:
 out_no_device:
 	ttm_object_device_release(&dev_priv->tdev);
 out_err4:
-	iounmap(dev_priv->mmio_virt);
+	memunmap(dev_priv->mmio_virt);
 out_err3:
 	vmw_ttm_global_release(dev_priv);
 out_err0:
@@ -958,7 +958,7 @@ static int vmw_driver_unload(struct drm_device *dev)
 		pci_release_regions(dev->pdev);
 
 	ttm_object_device_release(&dev_priv->tdev);
-	iounmap(dev_priv->mmio_virt);
+	memunmap(dev_priv->mmio_virt);
 	if (dev_priv->ctx.staged_bindings)
 		vmw_binding_state_free(dev_priv->ctx.staged_bindings);
 	vmw_ttm_global_release(dev_priv);
