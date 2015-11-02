@@ -7,7 +7,7 @@
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/rockchip/common.h>
-
+#include <asm/psci.h>
 #include <asm/io.h>
 #include "pm.h"
 
@@ -403,6 +403,18 @@ void  rkpm_ddr_printhex(unsigned int hex)
 	}
 }
 
+#ifdef CONFIG_ARM_PSCI
+static bool psci_suspend_available(void)
+{
+	return (psci_ops.cpu_suspend != NULL);
+}
+#else
+static inline bool psci_suspend_available(void)
+{
+	return false;
+}
+#endif
+
 #ifdef CONFIG_ARM
 void rk_sram_suspend(void)
 {
@@ -411,9 +423,17 @@ void rk_sram_suspend(void)
 	call_with_stack(p_suspend_pie_cb
 		, &rkpm_jdg_sram_ctrbits, rockchip_sram_stack);
 }
+
 static int rk_lpmode_enter(unsigned long arg)
 {
+#ifdef CONFIG_ARM_PSCI
+	const struct psci_power_state ps = {
+		.type = PSCI_POWER_STATE_TYPE_POWER_DOWN,
+	};
 
+	if (psci_suspend_available())
+		return psci_ops.cpu_suspend(ps, virt_to_phys(cpu_resume));
+#endif
         //RKPM_DDR_PFUN(slp_setting(rkpm_jdg_sram_ctrbits),slp_setting); 
     
         RKPM_DDR_FUN(slp_setting); 
@@ -447,7 +467,13 @@ static int rkpm_enter(suspend_state_t state)
         // printk(KERN_DEBUG"pm: ");
         printk("%s:\n",__FUNCTION__);
         //printk("pm test times=%d\n",++test_count);
-       
+
+#ifdef CONFIG_ARM_PSCI
+	if (psci_suspend_available()) {
+		cpu_suspend(0, rk_lpmode_enter);
+		return 0;
+	}
+#endif
         RKPM_DDR_FUN(prepare);   
         
         rkpm_ctrbits_prepare();
