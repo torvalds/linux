@@ -1729,13 +1729,14 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 						 tr, INT_MAX);
 		register_trace_prio_sched_wakeup(event_filter_pid_sched_wakeup_probe_post,
 						 tr, 0);
-
-		/*
-		 * Ignoring of pids is done at task switch. But we have to
-		 * check for those tasks that are currently running.
-		 */
-		on_each_cpu(ignore_task_cpu, tr, 1);
 	}
+
+	/*
+	 * Ignoring of pids is done at task switch. But we have to
+	 * check for those tasks that are currently running.
+	 * Always do this in case a pid was appended or removed.
+	 */
+	on_each_cpu(ignore_task_cpu, tr, 1);
 
 	mutex_unlock(&event_mutex);
 
