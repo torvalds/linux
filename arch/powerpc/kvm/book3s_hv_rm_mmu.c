@@ -470,6 +470,8 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	note_hpte_modification(kvm, rev);
 	unlock_hpte(hpte, 0);
 
+	if (v & HPTE_V_ABSENT)
+		v = (v & ~HPTE_V_ABSENT) | HPTE_V_VALID;
 	hpret[0] = v;
 	hpret[1] = r;
 	return H_SUCCESS;

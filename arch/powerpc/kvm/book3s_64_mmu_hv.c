@@ -70,7 +70,8 @@ long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 	}
 
 	/* Lastly try successively smaller sizes from the page allocator */
-	while (!hpt && order > PPC_MIN_HPT_ORDER) {
+	/* Only do this if userspace didn't specify a size via ioctl */
+	while (!hpt && order > PPC_MIN_HPT_ORDER && !htab_orderp) {
 		hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT|
 				       __GFP_NOWARN, order - PAGE_SHIFT);
 		if (!hpt)
