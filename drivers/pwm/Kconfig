@@ -265,6 +265,15 @@ config PWM_MXS
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-mxs.
 
+config PWM_OMAP_DMTIMER
+	tristate "OMAP Dual-Mode Timer PWM support"
+	depends on OF && ARCH_OMAP && OMAP_DM_TIMER
+	help
+	  Generic PWM framework driver for OMAP Dual-Mode Timer PWM output
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-omap-dmtimer
+
 config PWM_PCA9685
 	tristate "NXP PCA9685 PWM driver"
 	depends on I2C
