@@ -135,10 +135,10 @@ bool dim2_sysfs_get_state_cb(void)
 }
 
 /**
- * DIMCB_IoRead - callback from HAL to read an I/O register
+ * dimcb_io_read - callback from HAL to read an I/O register
  * @ptr32: register address
  */
-u32 DIMCB_IoRead(u32 *ptr32)
+u32 dimcb_io_read(u32 *ptr32)
 {
 	return __raw_readl(ptr32);
 }

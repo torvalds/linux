@@ -154,12 +154,12 @@ static u32 dim2_read_ctr(u32 ctr_addr, u16 mdat_idx)
 	dimcb_io_write(&g.dim2->MADR, ctr_addr);
 
 	/* wait till transfer is completed */
-	while ((DIMCB_IoRead(&g.dim2->MCTL) & 1) != 1)
+	while ((dimcb_io_read(&g.dim2->MCTL) & 1) != 1)
 		continue;
 
 	dimcb_io_write(&g.dim2->MCTL, 0);   /* clear transfer complete */
 
-	return DIMCB_IoRead((&g.dim2->MDAT0) + mdat_idx);
+	return dimcb_io_read((&g.dim2->MDAT0) + mdat_idx);
 }
 
 static void dim2_write_ctr_mask(u32 ctr_addr, const u32 *mask, const u32 *value)
@@ -185,7 +185,7 @@ static void dim2_write_ctr_mask(u32 ctr_addr, const u32 *mask, const u32 *value)
 	dimcb_io_write(&g.dim2->MADR, bit_mask(MADR_WNR_BIT) | ctr_addr);
 
 	/* wait till transfer is completed */
-	while ((DIMCB_IoRead(&g.dim2->MCTL) & 1) != 1)
+	while ((dimcb_io_read(&g.dim2->MCTL) & 1) != 1)
 		continue;
 
 	dimcb_io_write(&g.dim2->MCTL, 0);   /* clear transfer complete */
@@ -342,14 +342,14 @@ static void dim2_configure_channel(
 
 	/* unmask interrupt for used channel, enable mlb_sys_int[0] interrupt */
 	dimcb_io_write(&g.dim2->ACMR0,
-		       DIMCB_IoRead(&g.dim2->ACMR0) | bit_mask(ch_addr));
+		       dimcb_io_read(&g.dim2->ACMR0) | bit_mask(ch_addr));
 }
 
 static void dim2_clear_channel(u8 ch_addr)
 {
 	/* mask interrupt for used channel, disable mlb_sys_int[0] interrupt */
 	dimcb_io_write(&g.dim2->ACMR0,
-		       DIMCB_IoRead(&g.dim2->ACMR0) & ~bit_mask(ch_addr));
+		       dimcb_io_read(&g.dim2->ACMR0) & ~bit_mask(ch_addr));
 
 	dim2_clear_cat(AHB_CAT, ch_addr);
 	dim2_clear_adt(ch_addr);
@@ -500,12 +500,12 @@ static bool dim2_is_mlb_locked(void)
 	u32 const mask0 = bit_mask(MLBC0_MLBLK_BIT);
 	u32 const mask1 = bit_mask(MLBC1_CLKMERR_BIT) |
 			  bit_mask(MLBC1_LOCKERR_BIT);
-	u32 const c1 = DIMCB_IoRead(&g.dim2->MLBC1);
+	u32 const c1 = dimcb_io_read(&g.dim2->MLBC1);
 	u32 const nda_mask = (u32)MLBC1_NDA_MASK << MLBC1_NDA_SHIFT;
 
 	dimcb_io_write(&g.dim2->MLBC1, c1 & nda_mask);
-	return (DIMCB_IoRead(&g.dim2->MLBC1) & mask1) == 0 &&
-	       (DIMCB_IoRead(&g.dim2->MLBC0) & mask0) != 0;
+	return (dimcb_io_read(&g.dim2->MLBC1) & mask1) == 0 &&
+	       (dimcb_io_read(&g.dim2->MLBC0) & mask0) != 0;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -103,7 +103,7 @@ bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr,
 
 bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number);
 
-u32 DIMCB_IoRead(u32 *ptr32);
+u32 dimcb_io_read(u32 *ptr32);
 
 void dimcb_io_write(u32 *ptr32, u32 value);
 
