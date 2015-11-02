@@ -235,11 +235,13 @@ static const u32 fiji_golden_common_all[] =
 	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
 	mmPA_SC_RASTER_CONFIG, 0xffffffff, 0x3a00161a,
 	mmPA_SC_RASTER_CONFIG_1, 0xffffffff, 0x0000002e,
-	mmGB_ADDR_CONFIG, 0xffffffff, 0x12011003,
+	mmGB_ADDR_CONFIG, 0xffffffff, 0x22011003,
 	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
-	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF,
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmSPI_CONFIG_CNTL_1, 0x0000000f, 0x00000009,
 };
 
 static const u32 golden_settings_fiji_a10[] =
@@ -247,24 +249,26 @@ static const u32 golden_settings_fiji_a10[] =
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
 	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
-	mmPA_SC_FIFO_DEPTH_CNTL, 0x000003ff, 0x00000100,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
+	mmRLC_CGCG_CGLS_CTRL, 0x00000003, 0x0001003c,
+	mmSQ_RANDOM_WAVE_PRI, 0x001fffff, 0x000006fd,
 	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
-	mmTCC_CTRL, 0x00100000, 0xf30fff7f,
+	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
+	mmTCC_EXE_DISABLE, 0x00000002, 0x00000002,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000ff,
-	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x7d6cf5e4,
-	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x3928b1a0,
+	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
 };
 
 static const u32 fiji_mgcg_cgcg_init[] =
 {
-	mmRLC_CGTT_MGCG_OVERRIDE, 0xffffffff, 0xffffffc0,
+	mmRLC_CGTT_MGCG_OVERRIDE, 0xffffffff, 0xffffffff,
 	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
 	mmCB_CGTT_SCLK_CTRL, 0xffffffff, 0x00000100,
 	mmCGTT_BCI_CLK_CTRL, 0xffffffff, 0x00000100,
 	mmCGTT_CP_CLK_CTRL, 0xffffffff, 0x00000100,
 	mmCGTT_CPC_CLK_CTRL, 0xffffffff, 0x00000100,
 	mmCGTT_CPF_CLK_CTRL, 0xffffffff, 0x40000100,
+	mmCGTT_DRM_CLK_CTRL0, 0xffffffff, 0x00600100,
 	mmCGTT_GDS_CLK_CTRL, 0xffffffff, 0x00000100,
 	mmCGTT_IA_CLK_CTRL, 0xffffffff, 0x06000100,
 	mmCGTT_PA_CLK_CTRL, 0xffffffff, 0x00000100,
@@ -292,6 +296,10 @@ static const u32 fiji_mgcg_cgcg_init[] =
 	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96e00200,
 	mmCP_RB_WPTR_POLL_CNTL, 0xffffffff, 0x00900100,
 	mmRLC_CGCG_CGLS_CTRL, 0xffffffff, 0x0020003c,
+	mmPCIE_INDEX, 0xffffffff, 0x0140001c,
+	mmPCIE_DATA, 0x000f0000, 0x00000000,
+	mmCGTT_DRM_CLK_CTRL0, 0xff000fff, 0x00000100,
+	mmHDP_XDP_CGTT_BLK_CTRL, 0xc0000fff, 0x00000104,
 	mmCP_MEM_SLP_CNTL, 0x00000001, 0x00000001,
 };
 
