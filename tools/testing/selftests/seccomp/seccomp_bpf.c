@@ -29,6 +29,9 @@
 #include <linux/elf.h>
 #include <sys/uio.h>
 #include <sys/utsname.h>
+#include <sys/fcntl.h>
+#include <sys/mman.h>
+#include <sys/times.h>
 
 #define _GNU_SOURCE
 #include <unistd.h>
@@ -429,14 +432,16 @@ TEST_SIGNAL(KILL_one, SIGSYS)
 
 TEST_SIGNAL(KILL_one_arg_one, SIGSYS)
 {
+	void *fatal_address;
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
 			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_getpid, 1, 0),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_times, 1, 0),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 		/* Only both with lower 32-bit for now. */
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS, syscall_arg(0)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, 0x0C0FFEE, 0, 1),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,
+			(unsigned long)&fatal_address, 0, 1),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 	};
@@ -446,7 +451,8 @@ TEST_SIGNAL(KILL_one_arg_one, SIGSYS)
 	};
 	long ret;
 	pid_t parent = getppid();
-	pid_t pid = getpid();
+	struct tms timebuf;
+	clock_t clock = times(&timebuf);
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
@@ -455,17 +461,22 @@ TEST_SIGNAL(KILL_one_arg_one, SIGSYS)
 	ASSERT_EQ(0, ret);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
-	EXPECT_EQ(pid, syscall(__NR_getpid));
-	/* getpid() should never return. */
-	EXPECT_EQ(0, syscall(__NR_getpid, 0x0C0FFEE));
+	EXPECT_LE(clock, syscall(__NR_times, &timebuf));
+	/* times() should never return. */
+	EXPECT_EQ(0, syscall(__NR_times, &fatal_address));
 }
 
 TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 {
+#ifndef __NR_mmap2
+	int sysno = __NR_mmap;
+#else
+	int sysno = __NR_mmap2;
+#endif
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
 			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_getpid, 1, 0),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, sysno, 1, 0),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 		/* Only both with lower 32-bit for now. */
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS, syscall_arg(5)),
@@ -479,7 +490,8 @@ TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 	};
 	long ret;
 	pid_t parent = getppid();
-	pid_t pid = getpid();
+	int fd;
+	void *map1, *map2;
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
@@ -487,10 +499,22 @@ TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
 	ASSERT_EQ(0, ret);
 
+	fd = open("/dev/zero", O_RDONLY);
+	ASSERT_NE(-1, fd);
+
 	EXPECT_EQ(parent, syscall(__NR_getppid));
-	EXPECT_EQ(pid, syscall(__NR_getpid));
-	/* getpid() should never return. */
-	EXPECT_EQ(0, syscall(__NR_getpid, 1, 2, 3, 4, 5, 0x0C0FFEE));
+	map1 = (void *)syscall(sysno,
+		NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE, fd, PAGE_SIZE);
+	EXPECT_NE(MAP_FAILED, map1);
+	/* mmap2() should never return. */
+	map2 = (void *)syscall(sysno,
+		 NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE, fd, 0x0C0FFEE);
+	EXPECT_EQ(MAP_FAILED, map2);
+
+	/* The test failed, so clean up the resources. */
+	munmap(map1, PAGE_SIZE);
+	munmap(map2, PAGE_SIZE);
+	close(fd);
 }
 
 /* TODO(wad) add 64-bit versus 32-bit arg tests. */
