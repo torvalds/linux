@@ -279,12 +279,6 @@ cfs_trace_get_console_buffer(void)
 	return cfs_trace_console_buffers[i][j];
 }
 
-static inline void
-cfs_trace_put_console_buffer(char *buffer)
-{
-	put_cpu();
-}
-
 static inline struct cfs_trace_cpu_data *
 cfs_trace_get_tcd(void)
 {
