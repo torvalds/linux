@@ -227,7 +227,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_link_stream_setup);
 void snd_hdac_ext_link_set_stream_id(struct hdac_ext_link *link,
 				 int stream)
 {
-	snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV, (1 << stream), 0);
+	snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV, (1 << stream), 1 << stream);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_link_set_stream_id);
 
@@ -385,14 +385,13 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *stream, int type)
 		break;
 
 	case HDAC_EXT_STREAM_TYPE_HOST:
-		if (stream->decoupled) {
+		if (stream->decoupled && !stream->link_locked)
 			snd_hdac_ext_stream_decouple(ebus, stream, false);
-			snd_hdac_stream_release(&stream->hstream);
-		}
+		snd_hdac_stream_release(&stream->hstream);
 		break;
 
 	case HDAC_EXT_STREAM_TYPE_LINK:
-		if (stream->decoupled)
+		if (stream->decoupled && !stream->hstream.opened)
 			snd_hdac_ext_stream_decouple(ebus, stream, false);
 		spin_lock_irq(&bus->reg_lock);
 		stream->link_locked = 0;

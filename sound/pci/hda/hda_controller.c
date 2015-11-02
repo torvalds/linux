@@ -1045,6 +1045,7 @@ int azx_bus_init(struct azx *chip, const char *model,
 	mutex_init(&bus->prepare_mutex);
 	bus->pci = chip->pci;
 	bus->modelname = model;
+	bus->mixer_assigned = -1;
 	bus->core.snoop = azx_snoop(chip);
 	if (chip->get_position[0] != azx_get_pos_lpib ||
 	    chip->get_position[1] != azx_get_pos_lpib)

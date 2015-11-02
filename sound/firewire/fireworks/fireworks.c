@@ -138,12 +138,12 @@ get_hardware_info(struct snd_efw *efw)
 	efw->midi_out_ports = hwinfo->midi_out_ports;
 	efw->midi_in_ports = hwinfo->midi_in_ports;
 
-	if (hwinfo->amdtp_tx_pcm_channels    > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_tx_pcm_channels_2x > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_tx_pcm_channels_4x > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_rx_pcm_channels    > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_rx_pcm_channels_2x > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_rx_pcm_channels_4x > AMDTP_MAX_CHANNELS_FOR_PCM) {
+	if (hwinfo->amdtp_tx_pcm_channels    > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_tx_pcm_channels_2x > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_tx_pcm_channels_4x > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels    > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels_2x > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels_4x > AM824_MAX_CHANNELS_FOR_PCM) {
 		err = -ENOSYS;
 		goto end;
 	}

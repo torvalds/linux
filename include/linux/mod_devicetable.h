@@ -219,6 +219,14 @@ struct serio_device_id {
 	__u8 proto;
 };
 
+struct hda_device_id {
+	__u32 vendor_id;
+	__u32 rev_id;
+	__u8 api_version;
+	const char *name;
+	unsigned long driver_data;
+};
+
 /*
  * Struct used for matching a device
  */

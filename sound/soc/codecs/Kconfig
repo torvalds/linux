@@ -36,6 +36,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
 	select SND_SOC_AK4554
+	select SND_SOC_AK4613 if I2C
 	select SND_SOC_AK4641 if I2C
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
@@ -57,6 +58,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
+	select SND_SOC_DA7219 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
 	select SND_SOC_DMIC
@@ -79,7 +81,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
-	select SND_SOC_HDMI_CODEC
+	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_PCM1681 if I2C
 	select SND_SOC_PCM1792A if SPI_MASTER
 	select SND_SOC_PCM3008
@@ -171,6 +173,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8995 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8996 if I2C
 	select SND_SOC_WM8997 if MFD_WM8997
+	select SND_SOC_WM8998 if MFD_WM8998
 	select SND_SOC_WM9081 if I2C
 	select SND_SOC_WM9090 if I2C
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
@@ -195,9 +198,11 @@ config SND_SOC_ARIZONA
 	default y if SND_SOC_WM5102=y
 	default y if SND_SOC_WM5110=y
 	default y if SND_SOC_WM8997=y
+	default y if SND_SOC_WM8998=y
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
 	default m if SND_SOC_WM8997=m
+	default m if SND_SOC_WM8998=m
 
 config SND_SOC_WM_HUBS
 	tristate
@@ -319,6 +324,10 @@ config SND_SOC_AK4535
 config SND_SOC_AK4554
 	tristate "AKM AK4554 CODEC"
 
+config SND_SOC_AK4613
+	tristate "AKM AK4613 CODEC"
+	depends on I2C
+
 config SND_SOC_AK4641
 	tristate
 
@@ -430,6 +439,9 @@ config SND_SOC_DA7210
 config SND_SOC_DA7213
         tristate
 
+config SND_SOC_DA7219
+        tristate
+
 config SND_SOC_DA732X
         tristate
 
@@ -441,9 +453,6 @@ config SND_SOC_BT_SCO
 
 config SND_SOC_DMIC
 	tristate
-
-config SND_SOC_HDMI_CODEC
-       tristate "HDMI stub CODEC"
 
 config SND_SOC_ES8328
 	tristate "Everest Semi ES8328 CODEC"
@@ -865,6 +874,9 @@ config SND_SOC_WM8996
 config SND_SOC_WM8997
 	tristate
 
+config SND_SOC_WM8998
+	tristate
+
 config SND_SOC_WM9081
 	tristate
 
@@ -894,6 +906,9 @@ config SND_SOC_MC13783
 	tristate
 
 config SND_SOC_ML26124
+	tristate
+
+config SND_SOC_NAU8825
 	tristate
 
 config SND_SOC_TPA6130A2

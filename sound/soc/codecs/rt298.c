@@ -28,7 +28,6 @@
 #include <sound/jack.h>
 #include <linux/workqueue.h>
 #include <sound/rt298.h>
-#include <sound/hda_verbs.h>
 
 #include "rl6347a.h"
 #include "rt298.h"
@@ -49,7 +48,7 @@ struct rt298_priv {
 	int is_hp_in;
 };
 
-static struct reg_default rt298_index_def[] = {
+static const struct reg_default rt298_index_def[] = {
 	{ 0x01, 0xa5a8 },
 	{ 0x02, 0x8e95 },
 	{ 0x03, 0x0002 },
@@ -129,7 +128,7 @@ static bool rt298_volatile_register(struct device *dev, unsigned int reg)
 	case VERB_CMD(AC_VERB_GET_EAPD_BTLENABLE, RT298_HP_OUT, 0):
 		return true;
 	default:
-		return true;
+		return false;
 	}
 
 
@@ -1165,7 +1164,11 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
-	rt298->index_cache = rt298_index_def;
+	rt298->index_cache = devm_kmemdup(&i2c->dev, rt298_index_def,
+					  sizeof(rt298_index_def), GFP_KERNEL);
+	if (!rt298->index_cache)
+		return -ENOMEM;
+
 	rt298->index_cache_size = INDEX_CACHE_SIZE;
 	rt298->i2c = i2c;
 	i2c_set_clientdata(i2c, rt298);

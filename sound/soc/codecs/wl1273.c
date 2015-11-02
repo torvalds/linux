@@ -307,11 +307,10 @@ static int wl1273_startup(struct snd_pcm_substream *substream,
 
 	switch (wl1273->mode) {
 	case WL1273_MODE_BT:
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_RATE,
-					     8000, 8000);
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_CHANNELS, 1, 1);
+		snd_pcm_hw_constraint_single(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_RATE, 8000);
+		snd_pcm_hw_constraint_single(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_CHANNELS, 1);
 		break;
 	case WL1273_MODE_FM_RX:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
