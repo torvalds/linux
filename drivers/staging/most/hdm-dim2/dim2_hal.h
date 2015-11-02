@@ -105,7 +105,7 @@ bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number);
 
 u32 DIMCB_IoRead(u32 *ptr32);
 
-void DIMCB_IoWrite(u32 *ptr32, u32 value);
+void dimcb_io_write(u32 *ptr32, u32 value);
 
 void dimcb_on_error(u8 error_id, const char *error_message);
 

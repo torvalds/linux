@@ -144,11 +144,11 @@ u32 DIMCB_IoRead(u32 *ptr32)
 }
 
 /**
- * DIMCB_IoWrite - callback from HAL to write value to an I/O register
+ * dimcb_io_write - callback from HAL to write value to an I/O register
  * @ptr32: register address
  * @value: value to write
  */
-void DIMCB_IoWrite(u32 *ptr32, u32 value)
+void dimcb_io_write(u32 *ptr32, u32 value)
 {
 	__raw_writel(value, ptr32);
 }
