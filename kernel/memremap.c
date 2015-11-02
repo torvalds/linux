@@ -24,6 +24,16 @@ __weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
 }
 #endif
 
+static void *try_ram_remap(resource_size_t offset, size_t size)
+{
+	struct page *page = pfn_to_page(offset >> PAGE_SHIFT);
+
+	/* In the simple case just return the existing linear address */
+	if (!PageHighMem(page))
+		return __va(offset);
+	return NULL; /* fallback to ioremap_cache */
+}
+
 /**
  * memremap() - remap an iomem_resource as cacheable memory
  * @offset: iomem resource start address
@@ -66,8 +76,8 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
 		 * the requested range is potentially in "System RAM"
 		 */
 		if (is_ram == REGION_INTERSECTS)
-			addr = __va(offset);
-		else
+			addr = try_ram_remap(offset, size);
+		if (!addr)
 			addr = ioremap_cache(offset, size);
 	}
 

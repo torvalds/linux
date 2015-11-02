@@ -2371,7 +2371,7 @@ static int netlink_getsockopt(struct socket *sock, int level, int optname,
 		int pos, idx, shift;
 
 		err = 0;
-		netlink_table_grab();
+		netlink_lock_table();
 		for (pos = 0; pos * 8 < nlk->ngroups; pos += sizeof(u32)) {
 			if (len - pos < sizeof(u32))
 				break;
@@ -2386,7 +2386,7 @@ static int netlink_getsockopt(struct socket *sock, int level, int optname,
 		}
 		if (put_user(ALIGN(nlk->ngroups / 8, sizeof(u32)), optlen))
 			err = -EFAULT;
-		netlink_table_ungrab();
+		netlink_unlock_table();
 		break;
 	}
 	case NETLINK_CAP_ACK:

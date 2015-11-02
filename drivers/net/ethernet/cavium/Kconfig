@@ -3,7 +3,7 @@
 #
 
 config NET_VENDOR_CAVIUM
-	tristate "Cavium ethernet drivers"
+	bool "Cavium ethernet drivers"
 	depends on PCI
 	default y
 	---help---

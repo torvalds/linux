@@ -4105,7 +4105,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	struct drm_property_blob *blob;
 	int ret;
 
-	if (!length)
+	if (!length || length > ULONG_MAX - sizeof(struct drm_property_blob))
 		return ERR_PTR(-EINVAL);
 
 	blob = kzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
@@ -4454,7 +4454,7 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 	 * not associated with any file_priv. */
 	mutex_lock(&dev->mode_config.blob_lock);
 	out_resp->blob_id = blob->base.id;
-	list_add_tail(&file_priv->blobs, &blob->head_file);
+	list_add_tail(&blob->head_file, &file_priv->blobs);
 	mutex_unlock(&dev->mode_config.blob_lock);
 
 	return 0;

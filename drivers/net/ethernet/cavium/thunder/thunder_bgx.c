@@ -977,8 +977,10 @@ static int bgx_init_of_phy(struct bgx *bgx)
 		SET_NETDEV_DEV(&bgx->lmac[lmac].netdev, &bgx->pdev->dev);
 		bgx->lmac[lmac].lmacid = lmac;
 		lmac++;
-		if (lmac == MAX_LMAC_PER_BGX)
+		if (lmac == MAX_LMAC_PER_BGX) {
+			of_node_put(np_child);
 			break;
+		}
 	}
 	return 0;
 }

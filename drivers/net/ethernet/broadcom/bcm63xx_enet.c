@@ -2049,7 +2049,7 @@ static void swphy_poll_timer(unsigned long data)
 
 	for (i = 0; i < priv->num_ports; i++) {
 		struct bcm63xx_enetsw_port *port;
-		int val, j, up, advertise, lpa, lpa2, speed, duplex, media;
+		int val, j, up, advertise, lpa, speed, duplex, media;
 		int external_phy = bcm_enet_port_is_rgmii(i);
 		u8 override;
 
@@ -2092,22 +2092,27 @@ static void swphy_poll_timer(unsigned long data)
 		lpa = bcmenet_sw_mdio_read(priv, external_phy, port->phy_id,
 					   MII_LPA);
 
-		lpa2 = bcmenet_sw_mdio_read(priv, external_phy, port->phy_id,
-					    MII_STAT1000);
-
 		/* figure out media and duplex from advertise and LPA values */
 		media = mii_nway_result(lpa & advertise);
 		duplex = (media & ADVERTISE_FULL) ? 1 : 0;
-		if (lpa2 & LPA_1000FULL)
-			duplex = 1;
 
-		if (lpa2 & (LPA_1000FULL | LPA_1000HALF))
-			speed = 1000;
-		else {
-			if (media & (ADVERTISE_100FULL | ADVERTISE_100HALF))
-				speed = 100;
-			else
-				speed = 10;
+		if (media & (ADVERTISE_100FULL | ADVERTISE_100HALF))
+			speed = 100;
+		else
+			speed = 10;
+
+		if (val & BMSR_ESTATEN) {
+			advertise = bcmenet_sw_mdio_read(priv, external_phy,
+						port->phy_id, MII_CTRL1000);
+
+			lpa = bcmenet_sw_mdio_read(priv, external_phy,
+						port->phy_id, MII_STAT1000);
+
+			if (advertise & (ADVERTISE_1000FULL | ADVERTISE_1000HALF)
+					&& lpa & (LPA_1000FULL | LPA_1000HALF)) {
+				speed = 1000;
+				duplex = (lpa & LPA_1000FULL);
+			}
 		}
 
 		dev_info(&priv->pdev->dev,

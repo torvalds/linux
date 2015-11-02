@@ -317,6 +317,7 @@ static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
 					handle_level_irq);
 	}
 	irq_set_probe(virq);
+	irq_clear_status_flags(virq, IRQ_NOAUTOEN);
 
 	return 0;
 }

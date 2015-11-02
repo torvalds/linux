@@ -60,7 +60,7 @@ static struct clock_event_device __percpu *gt_evt;
  *  different to the 32-bit upper value read previously, go back to step 2.
  *  Otherwise the 64-bit timer counter value is correct.
  */
-static u64 gt_counter_read(void)
+static u64 notrace _gt_counter_read(void)
 {
 	u64 counter;
 	u32 lower;
@@ -77,6 +77,11 @@ static u64 gt_counter_read(void)
 	counter <<= 32;
 	counter |= lower;
 	return counter;
+}
+
+static u64 gt_counter_read(void)
+{
+	return _gt_counter_read();
 }
 
 /**
@@ -201,7 +206,7 @@ static struct clocksource gt_clocksource = {
 #ifdef CONFIG_CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 static u64 notrace gt_sched_clock_read(void)
 {
-	return gt_counter_read();
+	return _gt_counter_read();
 }
 #endif
 

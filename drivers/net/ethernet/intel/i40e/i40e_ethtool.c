@@ -1344,6 +1344,12 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 			data[i++] = (i40e_gstrings_veb_stats[j].sizeof_stat ==
 				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 		}
+		for (j = 0; j < I40E_MAX_TRAFFIC_CLASS; j++) {
+			data[i++] = veb->tc_stats.tc_tx_packets[j];
+			data[i++] = veb->tc_stats.tc_tx_bytes[j];
+			data[i++] = veb->tc_stats.tc_rx_packets[j];
+			data[i++] = veb->tc_stats.tc_rx_bytes[j];
+		}
 	}
 	for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
 		p = (char *)pf + i40e_gstrings_stats[j].stat_offset;

@@ -52,6 +52,8 @@
 /* IANA assigned UDP port */
 #define UDP_PORT_DEFAULT	6118
 
+#define UDP_MIN_HEADROOM        28
+
 static const struct nla_policy tipc_nl_udp_policy[TIPC_NLA_UDP_MAX + 1] = {
 	[TIPC_NLA_UDP_UNSPEC]	= {.type = NLA_UNSPEC},
 	[TIPC_NLA_UDP_LOCAL]	= {.type = NLA_BINARY,
@@ -155,6 +157,9 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 	struct udp_media_addr *src = (struct udp_media_addr *)&b->addr.value;
 	struct sk_buff *clone;
 	struct rtable *rt;
+
+	if (skb_headroom(skb) < UDP_MIN_HEADROOM)
+		pskb_expand_head(skb, UDP_MIN_HEADROOM, 0, GFP_ATOMIC);
 
 	clone = skb_clone(skb, GFP_ATOMIC);
 	skb_set_inner_protocol(clone, htons(ETH_P_TIPC));
