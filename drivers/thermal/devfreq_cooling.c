@@ -467,7 +467,7 @@ free_power_table:
  * devfreq should use the simple_ondemand governor, other governors
  * are not currently supported.
  */
-struct devfreq_cooling_device *
+struct thermal_cooling_device *
 of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 				  struct devfreq_cooling_power *dfc_power)
 {
@@ -513,7 +513,7 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 
 	dfc->cdev = cdev;
 
-	return dfc;
+	return cdev;
 
 release_idr:
 	release_idr(&devfreq_idr, dfc->id);
@@ -533,7 +533,7 @@ EXPORT_SYMBOL_GPL(of_devfreq_cooling_register_power);
  * @np: Pointer to OF device_node.
  * @df: Pointer to devfreq device.
  */
-struct devfreq_cooling_device *
+struct thermal_cooling_device *
 of_devfreq_cooling_register(struct device_node *np, struct devfreq *df)
 {
 	return of_devfreq_cooling_register_power(np, df, NULL);
@@ -544,7 +544,7 @@ EXPORT_SYMBOL_GPL(of_devfreq_cooling_register);
  * devfreq_cooling_register() - Register devfreq cooling device.
  * @df: Pointer to devfreq device.
  */
-struct devfreq_cooling_device *devfreq_cooling_register(struct devfreq *df)
+struct thermal_cooling_device *devfreq_cooling_register(struct devfreq *df)
 {
 	return of_devfreq_cooling_register(NULL, df);
 }
@@ -554,10 +554,14 @@ EXPORT_SYMBOL_GPL(devfreq_cooling_register);
  * devfreq_cooling_unregister() - Unregister devfreq cooling device.
  * @dfc: Pointer to devfreq cooling device to unregister.
  */
-void devfreq_cooling_unregister(struct devfreq_cooling_device *dfc)
+void devfreq_cooling_unregister(struct thermal_cooling_device *cdev)
 {
-	if (!dfc)
+	struct devfreq_cooling_device *dfc;
+
+	if (!cdev)
 		return;
+
+	dfc = cdev->devdata;
 
 	thermal_cooling_device_unregister(dfc->cdev);
 	release_idr(&devfreq_idr, dfc->id);
