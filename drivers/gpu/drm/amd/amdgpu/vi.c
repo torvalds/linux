@@ -1412,6 +1412,11 @@ static int vi_common_early_init(void *handle)
 		adev->external_rev_id = 0x1;
 		break;
 	case CHIP_FIJI:
+		adev->has_uvd = true;
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x3c;
+		break;
 	case CHIP_TONGA:
 		adev->has_uvd = true;
 		adev->cg_flags = 0;
