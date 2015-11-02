@@ -154,14 +154,14 @@ void DIMCB_IoWrite(u32 *ptr32, u32 value)
 }
 
 /**
- * DIMCB_OnError - callback from HAL to report miscommunication between
+ * dimcb_on_error - callback from HAL to report miscommunication between
  * HDM and HAL
  * @error_id: Error ID
  * @error_message: Error message. Some text in a free format
  */
-void DIMCB_OnError(u8 error_id, const char *error_message)
+void dimcb_on_error(u8 error_id, const char *error_message)
 {
-	pr_err("DIMCB_OnError: error_id - %d, error_message - %s\n", error_id,
+	pr_err("dimcb_on_error: error_id - %d, error_message - %s\n", error_id,
 	       error_message);
 }
 

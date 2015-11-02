@@ -107,7 +107,7 @@ u32 DIMCB_IoRead(u32 *ptr32);
 
 void DIMCB_IoWrite(u32 *ptr32, u32 value);
 
-void DIMCB_OnError(u8 error_id, const char *error_message);
+void dimcb_on_error(u8 error_id, const char *error_message);
 
 #ifdef __cplusplus
 }

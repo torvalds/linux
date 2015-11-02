@@ -74,7 +74,7 @@ static inline u32 bit_mask(u8 position)
 
 static inline bool dim_on_error(u8 error_id, const char *error_message)
 {
-	DIMCB_OnError(error_id, error_message);
+	dimcb_on_error(error_id, error_message);
 	return false;
 }
 
