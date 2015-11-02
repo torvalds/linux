@@ -242,15 +242,11 @@ post_process:
 	pcmdpriv->cmdthd_running = false;
 
 	/*  free all cmd_obj resources */
-	do {
-		pcmd = rtw_dequeue_cmd(&pcmdpriv->cmd_queue);
-		if (pcmd == NULL)
-			break;
-
+	while ((pcmd = rtw_dequeue_cmd(&pcmdpriv->cmd_queue))) {
 		/* DBG_88E("%s: leaving... drop cmdcode:%u\n", __func__, pcmd->cmdcode); */
 
 		rtw_free_cmd_obj(pcmd);
-	} while (1);
+	}
 
 	up(&pcmdpriv->terminate_cmdthread_sema);
 
