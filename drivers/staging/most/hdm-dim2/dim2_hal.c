@@ -717,7 +717,7 @@ u16 dim_norm_ctrl_async_buffer_size(u16 buf_size)
  *
  * Returns non-zero correct buffer size or zero by error.
  */
-u16 DIM_NormIsocBufferSize(u16 buf_size, u16 packet_length)
+u16 dim_norm_isoc_buffer_size(u16 buf_size, u16 packet_length)
 {
 	if (!check_packet_length(packet_length))
 		return 0;
