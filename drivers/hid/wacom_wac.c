@@ -966,7 +966,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			input_report_key(input, BTN_A, (data[2] & 0x80));  /* Down   */
 			input_report_key(input, BTN_0, (data[1] & 0x01));  /* Center */
 
-			if (data[4] | (data[3] & 0x01)) {
+			if (data[2] | (data[1] & 0x07)) {
 				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
 			} else {
 				input_report_abs(input, ABS_MISC, 0);
