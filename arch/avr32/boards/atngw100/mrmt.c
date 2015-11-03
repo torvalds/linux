@@ -21,7 +21,6 @@
 #include <linux/leds_pwm.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
-#include <linux/atmel_serial.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
