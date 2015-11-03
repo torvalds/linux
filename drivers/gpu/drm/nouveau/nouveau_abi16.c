@@ -25,6 +25,7 @@
 #include <nvif/driver.h>
 #include <nvif/ioctl.h>
 #include <nvif/class.h>
+#include <nvif/unpack.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -344,6 +345,44 @@ nouveau_abi16_chan(struct nouveau_abi16 *abi16, int channel)
 	}
 
 	return NULL;
+}
+
+int
+nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
+{
+	union {
+		struct nvif_ioctl_v0 v0;
+	} *args = data;
+	struct nouveau_abi16_chan *chan;
+	struct nouveau_abi16 *abi16;
+	int ret;
+
+	if (nvif_unpack(args->v0, 0, 0, true)) {
+		switch (args->v0.type) {
+		case NVIF_IOCTL_V0_NEW:
+		case NVIF_IOCTL_V0_MTHD:
+		case NVIF_IOCTL_V0_SCLASS:
+			break;
+		default:
+			return -EACCES;
+		}
+	} else
+		return ret;
+
+	if (!(abi16 = nouveau_abi16(file_priv)))
+		return -ENOMEM;
+
+	if (args->v0.token != ~0ULL) {
+		if (!(chan = nouveau_abi16_chan(abi16, args->v0.token)))
+			return -EINVAL;
+		args->v0.object = nvif_handle(&chan->chan->user);
+		args->v0.owner  = NVIF_IOCTL_V0_OWNER_ANY;
+		return 0;
+	}
+
+	args->v0.object = nvif_handle(&abi16->device.object);
+	args->v0.owner  = NVIF_IOCTL_V0_OWNER_ANY;
+	return 0;
 }
 
 int
