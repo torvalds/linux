@@ -16,30 +16,30 @@
 
 	soc {
 		compatible = "simple-bus";
-		model = "etraxfs";
+		model = "artpec3";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
 		intc: interrupt-controller {
 			compatible = "axis,crisv32-intc";
-			reg = <0xb001c000 0x1000>;
+			reg = <0xb002a000 0x1000>;
 			interrupt-controller;
 			#interrupt-cells = <1>;
 		};
 
-		gio: gpio@b001a000 {
-			compatible = "axis,etraxfs-gio";
-			reg = <0xb001a000 0x1000>;
-			interrupts = <50>;
+		gio: gpio@b0020000 {
+			compatible = "axis,artpec3-gio";
+			reg = <0xb0020000 0x1000>;
+			interrupts = <61>;
 			gpio-controller;
 			#gpio-cells = <3>;
 		};
 
-		serial@b00260000 {
+		serial@b003e000 {
 			compatible = "axis,etraxfs-uart";
-			reg = <0xb0026000 0x1000>;
-			interrupts = <68>;
+			reg = <0xb003e000 0x1000>;
+			interrupts = <64>;
 			status = "disabled";
 		};
 	};
