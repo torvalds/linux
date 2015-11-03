@@ -60,19 +60,19 @@ static void _rtl88e_fw_block_write(struct adapter *adapt,
 	u32 blk_sz = sizeof(u32);
 	const u8 *byte_buffer;
 	const u32 *dword_buffer = (u32 *)buffer;
-	u32 i, offset, blk_cnt, remain;
+	u32 i, write_address, blk_cnt, remain;
 
 	blk_cnt = size / blk_sz;
 	remain = size % blk_sz;
 
-	offset = FW_8192C_START_ADDRESS;
+	write_address = FW_8192C_START_ADDRESS;
 
-	for (i = 0; i < blk_cnt; i++, offset += blk_sz)
-		usb_write32(adapt, offset, dword_buffer[i]);
+	for (i = 0; i < blk_cnt; i++, write_address += blk_sz)
+		usb_write32(adapt, write_address, dword_buffer[i]);
 
 	byte_buffer = buffer + blk_cnt * blk_sz;
-	for (i = 0; i < remain; i++, offset++)
-		usb_write8(adapt, offset, byte_buffer[i]);
+	for (i = 0; i < remain; i++, write_address++)
+		usb_write8(adapt, write_address, byte_buffer[i]);
 }
 
 static void _rtl88e_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
