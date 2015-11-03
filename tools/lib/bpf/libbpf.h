@@ -63,7 +63,7 @@ int bpf_program__set_private(struct bpf_program *prog, void *priv,
 int bpf_program__get_private(struct bpf_program *prog,
 			     void **ppriv);
 
-const char *bpf_program__title(struct bpf_program *prog, bool dup);
+const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
 int bpf_program__fd(struct bpf_program *prog);
 

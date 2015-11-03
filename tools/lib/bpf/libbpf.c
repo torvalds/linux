@@ -1034,12 +1034,12 @@ int bpf_program__get_private(struct bpf_program *prog, void **ppriv)
 	return 0;
 }
 
-const char *bpf_program__title(struct bpf_program *prog, bool dup)
+const char *bpf_program__title(struct bpf_program *prog, bool needs_copy)
 {
 	const char *title;
 
 	title = prog->section_name;
-	if (dup) {
+	if (needs_copy) {
 		title = strdup(title);
 		if (!title) {
 			pr_warning("failed to strdup program title\n");
