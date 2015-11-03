@@ -59,20 +59,20 @@ static inline void xgmac_mac_disable(void __iomem *ioaddr)
 
 int vfio_platform_calxedaxgmac_reset(struct vfio_platform_device *vdev)
 {
-	struct vfio_platform_region reg = vdev->regions[0];
+	struct vfio_platform_region *reg = &vdev->regions[0];
 
-	if (!reg.ioaddr) {
-		reg.ioaddr =
-			ioremap_nocache(reg.addr, reg.size);
-		if (!reg.ioaddr)
+	if (!reg->ioaddr) {
+		reg->ioaddr =
+			ioremap_nocache(reg->addr, reg->size);
+		if (!reg->ioaddr)
 			return -ENOMEM;
 	}
 
 	/* disable IRQ */
-	writel(0, reg.ioaddr + XGMAC_DMA_INTR_ENA);
+	writel(0, reg->ioaddr + XGMAC_DMA_INTR_ENA);
 
 	/* Disable the MAC core */
-	xgmac_mac_disable(reg.ioaddr);
+	xgmac_mac_disable(reg->ioaddr);
 
 	return 0;
 }
