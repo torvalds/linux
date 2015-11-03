@@ -493,6 +493,7 @@ static void nsec_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 	double msecs = avg / 1e6;
 	const char *fmt_v, *fmt_n;
 	char name[25];
+	int cpu = cpu_map__id_to_cpu(id);
 
 	fmt_v = csv_output ? "%.6f%s" : "%18.6f%s";
 	fmt_n = csv_output ? "%s" : "%-25s";
@@ -517,11 +518,8 @@ static void nsec_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 	if (csv_output || stat_config.interval)
 		return;
 
-	if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
-		fprintf(output, " # %8.3f CPUs utilized          ",
-			avg / avg_stats(&walltime_nsecs_stats));
-	else
-		fprintf(output, "                                   ");
+	perf_stat__print_shadow_stats(output, evsel, avg, cpu,
+				      stat_config.aggr_mode);
 }
 
 static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
