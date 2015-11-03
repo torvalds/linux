@@ -768,6 +768,8 @@ posix_acl_xattr_get(struct dentry *dentry, const char *name,
 	struct posix_acl *acl;
 	int error;
 
+	if (strcmp(name, "") != 0)
+		return -EINVAL;
 	if (!IS_POSIXACL(d_backing_inode(dentry)))
 		return -EOPNOTSUPP;
 	if (d_is_symlink(dentry))
@@ -793,6 +795,8 @@ posix_acl_xattr_set(struct dentry *dentry, const char *name,
 	struct posix_acl *acl = NULL;
 	int ret;
 
+	if (strcmp(name, "") != 0)
+		return -EINVAL;
 	if (!IS_POSIXACL(inode))
 		return -EOPNOTSUPP;
 	if (!inode->i_op->set_acl)
