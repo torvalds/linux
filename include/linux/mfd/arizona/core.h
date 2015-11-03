@@ -27,6 +27,8 @@ enum arizona_type {
 	WM8280 = 4,
 	WM8998 = 5,
 	WM1814 = 6,
+	WM1831 = 7,
+	CS47L24 = 8,
 };
 
 #define ARIZONA_IRQ_GP1                    0
@@ -166,6 +168,7 @@ static inline int wm5102_patch(struct arizona *arizona)
 #endif
 
 int wm5110_patch(struct arizona *arizona);
+int cs47l24_patch(struct arizona *arizona);
 int wm8997_patch(struct arizona *arizona);
 int wm8998_patch(struct arizona *arizona);
 
