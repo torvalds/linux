@@ -4,6 +4,10 @@ KBUILD_CFLAGS += -fno-builtin
 
 ifeq ($(OUTPUT_FORMAT),elf64-x86-64)
 KBUILD_CFLAGS += -fPIC
+else ifeq ($(OUTPUT_FORMAT),pe-i386)
+prefix=_
+# workaround for #include_next<stdarg.h> errors
+LINUXINCLUDE := -isystem arch/lkl/include/system $(LINUXINCLUDE)
 endif
 
 LDFLAGS_vmlinux += -r

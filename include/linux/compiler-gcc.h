@@ -116,7 +116,11 @@
  */
 #define __pure			__attribute__((pure))
 #define __aligned(x)		__attribute__((aligned(x)))
+#ifdef __MINGW32__
+#define __printf(a, b)		__attribute__((format(gnu_printf, a, b)))
+#else
 #define __printf(a, b)		__attribute__((format(printf, a, b)))
+#endif
 #define __scanf(a, b)		__attribute__((format(scanf, a, b)))
 #define __attribute_const__	__attribute__((__const__))
 #define __maybe_unused		__attribute__((unused))

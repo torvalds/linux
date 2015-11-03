@@ -161,12 +161,14 @@ case "${KCONFIG_CONFIG}" in
 	. "./${KCONFIG_CONFIG}"
 esac
 
-#link vmlinux.o
-info LD vmlinux.o
-modpost_link vmlinux.o
+if [ -e scripts/mod/modpost ]; then
+    #link vmlinux.o
+    info LD vmlinux.o
+    modpost_link vmlinux.o
 
-# modpost vmlinux.o to check for section mismatches
-${MAKE} -f "${srctree}/scripts/Makefile.modpost" vmlinux.o
+    # modpost vmlinux.o to check for section mismatches
+    ${MAKE} -f "${srctree}/scripts/Makefile.modpost" vmlinux.o
+fi
 
 # Update version
 info GEN .version

@@ -37,7 +37,9 @@ build_docproc: $(obj)/docproc
 	@:
 
 subdir-$(CONFIG_MODVERSIONS) += genksyms
+ifeq ($(findstring elf,$(if $(CONFIG_OUTPUT_FORMAT),$(CONFIG_OUTPUT_FORMAT),elf)),elf)
 subdir-y                     += mod
+endif
 subdir-$(CONFIG_SECURITY_SELINUX) += selinux
 subdir-$(CONFIG_DTC)         += dtc
 subdir-$(CONFIG_GDB_SCRIPTS) += gdb

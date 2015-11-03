@@ -18,6 +18,7 @@ config LKL
        select ARCH_WANT_FRAME_POINTERS
        select PHYS_ADDR_T_64BIT if 64BIT
        select 64BIT if OUTPUT_FORMAT = "elf64-x86-64"
+       select HAVE_UNDERSCORE_SYMBOL_PREFIX if OUTPUT_FORMAT = "pe-i386"
 
 config OUTPUTFORMAT
        string
