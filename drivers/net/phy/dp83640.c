@@ -37,8 +37,6 @@
 
 #define DP83640_PHY_ID	0x20005ce1
 #define PAGESEL		0x13
-#define LAYER4		0x02
-#define LAYER2		0x01
 #define MAX_RXTS	64
 #define N_EXT_TS	6
 #define N_PER_OUT	7
@@ -1296,29 +1294,29 @@ static int dp83640_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		dp83640->hwts_rx_en = 1;
-		dp83640->layer = LAYER4;
-		dp83640->version = 1;
+		dp83640->layer = PTP_CLASS_L4;
+		dp83640->version = PTP_CLASS_V1;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		dp83640->hwts_rx_en = 1;
-		dp83640->layer = LAYER4;
-		dp83640->version = 2;
+		dp83640->layer = PTP_CLASS_L4;
+		dp83640->version = PTP_CLASS_V2;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 		dp83640->hwts_rx_en = 1;
-		dp83640->layer = LAYER2;
-		dp83640->version = 2;
+		dp83640->layer = PTP_CLASS_L2;
+		dp83640->version = PTP_CLASS_V2;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		dp83640->hwts_rx_en = 1;
-		dp83640->layer = LAYER4|LAYER2;
-		dp83640->version = 2;
+		dp83640->layer = PTP_CLASS_L4 | PTP_CLASS_L2;
+		dp83640->version = PTP_CLASS_V2;
 		break;
 	default:
 		return -ERANGE;
@@ -1327,11 +1325,11 @@ static int dp83640_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 	txcfg0 = (dp83640->version & TX_PTP_VER_MASK) << TX_PTP_VER_SHIFT;
 	rxcfg0 = (dp83640->version & TX_PTP_VER_MASK) << TX_PTP_VER_SHIFT;
 
-	if (dp83640->layer & LAYER2) {
+	if (dp83640->layer & PTP_CLASS_L2) {
 		txcfg0 |= TX_L2_EN;
 		rxcfg0 |= RX_L2_EN;
 	}
-	if (dp83640->layer & LAYER4) {
+	if (dp83640->layer & PTP_CLASS_L4) {
 		txcfg0 |= TX_IPV6_EN | TX_IPV4_EN;
 		rxcfg0 |= RX_IPV6_EN | RX_IPV4_EN;
 	}
@@ -1395,6 +1393,9 @@ static bool dp83640_rxtstamp(struct phy_device *phydev,
 	}
 
 	if (!dp83640->hwts_rx_en)
+		return false;
+
+	if ((type & dp83640->version) == 0 || (type & dp83640->layer) == 0)
 		return false;
 
 	spin_lock_irqsave(&dp83640->rx_lock, flags);
