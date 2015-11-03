@@ -13,10 +13,7 @@
 struct gb_host_device;
 struct gb_message;
 
-/* Greybus "Host driver" structure, needed by a host controller driver to be
- * able to handle both SVC control as well as "real" greybus messages
- */
-struct greybus_host_driver {
+struct gb_hd_driver {
 	size_t	hd_priv_size;
 
 	int (*cport_enable)(struct gb_host_device *hd, u16 cport_id);
@@ -31,7 +28,7 @@ struct greybus_host_driver {
 struct gb_host_device {
 	struct kref kref;
 	struct device *parent;
-	const struct greybus_host_driver *driver;
+	const struct gb_hd_driver *driver;
 
 	struct list_head interfaces;
 	struct list_head connections;
@@ -51,7 +48,7 @@ struct gb_host_device {
 	unsigned long hd_priv[0] __aligned(sizeof(s64));
 };
 
-struct gb_host_device *greybus_create_hd(struct greybus_host_driver *hd,
+struct gb_host_device *greybus_create_hd(struct gb_hd_driver *driver,
 					      struct device *parent,
 					      size_t buffer_size_max,
 					      size_t num_cports);

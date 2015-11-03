@@ -325,7 +325,7 @@ static int latency_tag_disable(struct gb_host_device *hd, u16 cport_id)
 	return retval;
 }
 
-static struct greybus_host_driver es1_driver = {
+static struct gb_hd_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
 	.message_send		= message_send,
 	.message_cancel		= message_cancel,

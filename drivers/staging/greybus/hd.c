@@ -28,7 +28,7 @@ static void free_hd(struct kref *kref)
 	mutex_unlock(&hd_mutex);
 }
 
-struct gb_host_device *greybus_create_hd(struct greybus_host_driver *driver,
+struct gb_host_device *greybus_create_hd(struct gb_hd_driver *driver,
 					      struct device *parent,
 					      size_t buffer_size_max,
 					      size_t num_cports)
@@ -40,7 +40,7 @@ struct gb_host_device *greybus_create_hd(struct greybus_host_driver *driver,
 	 * so that we don't have to every time we make them.
 	 */
 	if ((!driver->message_send) || (!driver->message_cancel)) {
-		pr_err("Must implement all greybus_host_driver callbacks!\n");
+		pr_err("Must implement all gb_hd_driver callbacks!\n");
 		return ERR_PTR(-EINVAL);
 	}
 
