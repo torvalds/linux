@@ -468,5 +468,6 @@ int amd_sched_init(struct amd_gpu_scheduler *sched,
  */
 void amd_sched_fini(struct amd_gpu_scheduler *sched)
 {
-	kthread_stop(sched->thread);
+	if (sched->thread)
+		kthread_stop(sched->thread);
 }
