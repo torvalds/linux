@@ -664,6 +664,7 @@ struct ixgbe_adapter {
 #ifdef CONFIG_IXGBE_VXLAN
 #define IXGBE_FLAG2_VXLAN_REREG_NEEDED		BIT(12)
 #endif
+#define IXGBE_FLAG2_VLAN_PROMISC		BIT(13)
 
 	/* Tx fast path data */
 	int num_tx_queues;
