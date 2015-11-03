@@ -23,23 +23,29 @@
  */
 #include "priv.h"
 
-static void
-gf100_pci_msi_rearm(struct nvkm_pci *pci)
+#include <core/pci.h>
+
+/* MSI re-arm through the PRI appears to be broken on NV46/NV50/G84/G86/G92,
+ * so we access it via alternate PCI config space mechanisms.
+ */
+void
+nv46_pci_msi_rearm(struct nvkm_pci *pci)
 {
-	nvkm_pci_wr08(pci, 0x0704, 0xff);
+	struct nvkm_device *device = pci->subdev.device;
+	struct pci_dev *pdev = device->func->pci(device)->pdev;
+	pci_write_config_byte(pdev, 0x68, 0xff);
 }
 
 static const struct nvkm_pci_func
-gf100_pci_func = {
-	.init = g84_pci_init,
+nv46_pci_func = {
 	.rd32 = nv40_pci_rd32,
 	.wr08 = nv40_pci_wr08,
 	.wr32 = nv40_pci_wr32,
-	.msi_rearm = gf100_pci_msi_rearm,
+	.msi_rearm = nv46_pci_msi_rearm,
 };
 
 int
-gf100_pci_new(struct nvkm_device *device, int index, struct nvkm_pci **ppci)
+nv46_pci_new(struct nvkm_device *device, int index, struct nvkm_pci **ppci)
 {
-	return nvkm_pci_new_(&gf100_pci_func, device, index, ppci);
+	return nvkm_pci_new_(&nv46_pci_func, device, index, ppci);
 }

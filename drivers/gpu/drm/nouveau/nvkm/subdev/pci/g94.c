@@ -23,23 +23,17 @@
  */
 #include "priv.h"
 
-static void
-gf100_pci_msi_rearm(struct nvkm_pci *pci)
-{
-	nvkm_pci_wr08(pci, 0x0704, 0xff);
-}
-
 static const struct nvkm_pci_func
-gf100_pci_func = {
+g94_pci_func = {
 	.init = g84_pci_init,
 	.rd32 = nv40_pci_rd32,
 	.wr08 = nv40_pci_wr08,
 	.wr32 = nv40_pci_wr32,
-	.msi_rearm = gf100_pci_msi_rearm,
+	.msi_rearm = nv40_pci_msi_rearm,
 };
 
 int
-gf100_pci_new(struct nvkm_device *device, int index, struct nvkm_pci **ppci)
+g94_pci_new(struct nvkm_device *device, int index, struct nvkm_pci **ppci)
 {
-	return nvkm_pci_new_(&gf100_pci_func, device, index, ppci);
+	return nvkm_pci_new_(&g94_pci_func, device, index, ppci);
 }

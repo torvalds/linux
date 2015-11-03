@@ -85,6 +85,9 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 	unsigned long pgsize_bitmap;
 	int ret;
 
+	if (!tdev->func->iommu_bit)
+		return;
+
 	mutex_init(&tdev->iommu.mutex);
 
 	if (iommu_present(&platform_bus_type)) {
@@ -114,7 +117,8 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 			goto free_domain;
 
 		ret = nvkm_mm_init(&tdev->iommu.mm, 0,
-				   (1ULL << 40) >> tdev->iommu.pgshift, 1);
+				   (1ULL << tdev->func->iommu_bit) >>
+				   tdev->iommu.pgshift, 1);
 		if (ret)
 			goto detach_device;
 	}
@@ -237,7 +241,8 @@ nvkm_device_tegra_func = {
 };
 
 int
-nvkm_device_tegra_new(struct platform_device *pdev,
+nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
+		      struct platform_device *pdev,
 		      const char *cfg, const char *dbg,
 		      bool detect, bool mmio, u64 subdev_mask,
 		      struct nvkm_device **pdevice)
@@ -248,6 +253,7 @@ nvkm_device_tegra_new(struct platform_device *pdev,
 	if (!(tdev = kzalloc(sizeof(*tdev), GFP_KERNEL)))
 		return -ENOMEM;
 	*pdevice = &tdev->device;
+	tdev->func = func;
 	tdev->pdev = pdev;
 	tdev->irq = -1;
 
@@ -285,7 +291,8 @@ nvkm_device_tegra_new(struct platform_device *pdev,
 }
 #else
 int
-nvkm_device_tegra_new(struct platform_device *pdev,
+nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
+		      struct platform_device *pdev,
 		      const char *cfg, const char *dbg,
 		      bool detect, bool mmio, u64 subdev_mask,
 		      struct nvkm_device **pdevice)

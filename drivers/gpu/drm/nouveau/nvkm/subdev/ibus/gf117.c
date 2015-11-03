@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2015 Samuel Pitosiet
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,27 +19,33 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
+ * Authors: Samuel Pitoiset
  */
 #include "priv.h"
 
-static void
-gf100_pci_msi_rearm(struct nvkm_pci *pci)
+static int
+gf117_ibus_init(struct nvkm_subdev *ibus)
 {
-	nvkm_pci_wr08(pci, 0x0704, 0xff);
+	struct nvkm_device *device = ibus->device;
+	nvkm_mask(device, 0x122310, 0x0003ffff, 0x00000800);
+	nvkm_mask(device, 0x122348, 0x0003ffff, 0x00000100);
+	nvkm_mask(device, 0x1223b0, 0x0003ffff, 0x00000fff);
+	return 0;
 }
 
-static const struct nvkm_pci_func
-gf100_pci_func = {
-	.init = g84_pci_init,
-	.rd32 = nv40_pci_rd32,
-	.wr08 = nv40_pci_wr08,
-	.wr32 = nv40_pci_wr32,
-	.msi_rearm = gf100_pci_msi_rearm,
+static const struct nvkm_subdev_func
+gf117_ibus = {
+	.init = gf117_ibus_init,
+	.intr = gf100_ibus_intr,
 };
 
 int
-gf100_pci_new(struct nvkm_device *device, int index, struct nvkm_pci **ppci)
+gf117_ibus_new(struct nvkm_device *device, int index,
+	       struct nvkm_subdev **pibus)
 {
-	return nvkm_pci_new_(&gf100_pci_func, device, index, ppci);
+	struct nvkm_subdev *ibus;
+	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(&gf117_ibus, device, index, 0, ibus);
+	return 0;
 }
