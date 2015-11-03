@@ -2227,22 +2227,6 @@ struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_int_menu);
 
-/* Add a control from another handler to this handler */
-struct v4l2_ctrl *v4l2_ctrl_add_ctrl(struct v4l2_ctrl_handler *hdl,
-					  struct v4l2_ctrl *ctrl)
-{
-	if (hdl == NULL || hdl->error)
-		return NULL;
-	if (ctrl == NULL) {
-		handler_set_err(hdl, -EINVAL);
-		return NULL;
-	}
-	if (ctrl->handler == hdl)
-		return ctrl;
-	return handler_new_ref(hdl, ctrl) ? NULL : ctrl;
-}
-EXPORT_SYMBOL(v4l2_ctrl_add_ctrl);
-
 /* Add the controls from another handler to our own. */
 int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 			  struct v4l2_ctrl_handler *add,

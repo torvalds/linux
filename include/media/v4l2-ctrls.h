@@ -535,18 +535,6 @@ struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 			u32 id, u8 max, u8 def, const s64 *qmenu_int);
 
 /**
- * v4l2_ctrl_add_ctrl() - Add a control from another handler to this handler.
- * @hdl:	The control handler.
- * @ctrl:	The control to add.
- *
- * It will return NULL if it was unable to add the control reference.
- * If the control already belonged to the handler, then it will do
- * nothing and just return @ctrl.
- */
-struct v4l2_ctrl *v4l2_ctrl_add_ctrl(struct v4l2_ctrl_handler *hdl,
-					  struct v4l2_ctrl *ctrl);
-
-/**
  * v4l2_ctrl_add_handler() - Add all controls from handler @add to
  * handler @hdl.
  * @hdl:	The control handler.
