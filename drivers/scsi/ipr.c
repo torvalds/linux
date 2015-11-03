@@ -8277,6 +8277,42 @@ static int ipr_reset_get_unit_check_job(struct ipr_cmnd *ipr_cmd)
 	return IPR_RC_JOB_RETURN;
 }
 
+static int ipr_dump_mailbox_wait(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+
+	ENTER;
+
+	if (ioa_cfg->sdt_state != GET_DUMP)
+		return IPR_RC_JOB_RETURN;
+
+	if (!ioa_cfg->sis64 || !ipr_cmd->u.time_left ||
+	    (readl(ioa_cfg->regs.sense_interrupt_reg) &
+	     IPR_PCII_MAILBOX_STABLE)) {
+
+		if (!ipr_cmd->u.time_left)
+			dev_err(&ioa_cfg->pdev->dev,
+				"Timed out waiting for Mailbox register.\n");
+
+		ioa_cfg->sdt_state = READ_DUMP;
+		ioa_cfg->dump_timeout = 0;
+		if (ioa_cfg->sis64)
+			ipr_reset_start_timer(ipr_cmd, IPR_SIS64_DUMP_TIMEOUT);
+		else
+			ipr_reset_start_timer(ipr_cmd, IPR_SIS32_DUMP_TIMEOUT);
+		ipr_cmd->job_step = ipr_reset_wait_for_dump;
+		schedule_work(&ioa_cfg->work_q);
+
+	} else {
+		ipr_cmd->u.time_left -= IPR_CHECK_FOR_RESET_TIMEOUT;
+		ipr_reset_start_timer(ipr_cmd,
+				      IPR_CHECK_FOR_RESET_TIMEOUT);
+	}
+
+	LEAVE;
+	return IPR_RC_JOB_RETURN;
+}
+
 /**
  * ipr_reset_restore_cfg_space - Restore PCI config space.
  * @ipr_cmd:	ipr command struct
@@ -8326,20 +8362,11 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 
 	if (ioa_cfg->in_ioa_bringdown) {
 		ipr_cmd->job_step = ipr_ioa_bringdown_done;
+	} else if (ioa_cfg->sdt_state == GET_DUMP) {
+		ipr_cmd->job_step = ipr_dump_mailbox_wait;
+		ipr_cmd->u.time_left = IPR_WAIT_FOR_MAILBOX;
 	} else {
 		ipr_cmd->job_step = ipr_reset_enable_ioa;
-
-		if (GET_DUMP == ioa_cfg->sdt_state) {
-			ioa_cfg->sdt_state = READ_DUMP;
-			ioa_cfg->dump_timeout = 0;
-			if (ioa_cfg->sis64)
-				ipr_reset_start_timer(ipr_cmd, IPR_SIS64_DUMP_TIMEOUT);
-			else
-				ipr_reset_start_timer(ipr_cmd, IPR_SIS32_DUMP_TIMEOUT);
-			ipr_cmd->job_step = ipr_reset_wait_for_dump;
-			schedule_work(&ioa_cfg->work_q);
-			return IPR_RC_JOB_RETURN;
-		}
 	}
 
 	LEAVE;
