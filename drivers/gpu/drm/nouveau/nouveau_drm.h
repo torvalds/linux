@@ -10,7 +10,7 @@
 
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		3
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_PATCHLEVEL	1
 
 /*
  * 1.1.1:
@@ -33,6 +33,8 @@
  * 1.3.0:
  *      - NVIF ABI modified, safe because only (current) users are test
  *        programs that get directly linked with NVKM.
+ * 1.3.1:
+ *      - implemented limited ABI16/NVIF interop
  */
 
 #include <nvif/client.h>
