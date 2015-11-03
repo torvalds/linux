@@ -216,6 +216,10 @@
 #define IPR_SET_ALL_SUPPORTED_DEVICES			0x80
 #define IPR_IOA_SHUTDOWN				0xF7
 #define	IPR_WR_BUF_DOWNLOAD_AND_SAVE			0x05
+#define IPR_IOA_SERVICE_ACTION				0xD2
+
+/* IOA Service Actions */
+#define IPR_IOA_SA_CHANGE_CACHE_PARAMS			0x14
 
 /*
  * Timeouts

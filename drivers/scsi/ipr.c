@@ -7675,6 +7675,63 @@ static int ipr_ioafp_query_ioa_cfg(struct ipr_cmnd *ipr_cmd)
 	return IPR_RC_JOB_RETURN;
 }
 
+static int ipr_ioa_service_action_failed(struct ipr_cmnd *ipr_cmd)
+{
+	u32 ioasc = be32_to_cpu(ipr_cmd->s.ioasa.hdr.ioasc);
+
+	if (ioasc == IPR_IOASC_IR_INVALID_REQ_TYPE_OR_PKT)
+		return IPR_RC_JOB_CONTINUE;
+
+	return ipr_reset_cmd_failed(ipr_cmd);
+}
+
+static void ipr_build_ioa_service_action(struct ipr_cmnd *ipr_cmd,
+					 __be32 res_handle, u8 sa_code)
+{
+	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
+
+	ioarcb->res_handle = res_handle;
+	ioarcb->cmd_pkt.cdb[0] = IPR_IOA_SERVICE_ACTION;
+	ioarcb->cmd_pkt.cdb[1] = sa_code;
+	ioarcb->cmd_pkt.request_type = IPR_RQTYPE_IOACMD;
+}
+
+/**
+ * ipr_ioafp_set_caching_parameters - Issue Set Cache parameters service
+ * action
+ *
+ * Return value:
+ *	none
+ **/
+static int ipr_ioafp_set_caching_parameters(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	struct ipr_inquiry_pageC4 *pageC4 = &ioa_cfg->vpd_cbs->pageC4_data;
+
+	ENTER;
+
+	ipr_cmd->job_step = ipr_ioafp_query_ioa_cfg;
+
+	if (pageC4->cache_cap[0] & IPR_CAP_SYNC_CACHE) {
+		ipr_build_ioa_service_action(ipr_cmd,
+					     cpu_to_be32(IPR_IOA_RES_HANDLE),
+					     IPR_IOA_SA_CHANGE_CACHE_PARAMS);
+
+		ioarcb->cmd_pkt.cdb[2] = 0x40;
+
+		ipr_cmd->job_step_failed = ipr_ioa_service_action_failed;
+		ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout,
+			   IPR_SET_SUP_DEVICE_TIMEOUT);
+
+		LEAVE;
+		return IPR_RC_JOB_RETURN;
+	}
+
+	LEAVE;
+	return IPR_RC_JOB_CONTINUE;
+}
+
 /**
  * ipr_ioafp_inquiry - Send an Inquiry to the adapter.
  * @ipr_cmd:	ipr command struct
@@ -7742,7 +7799,7 @@ static int ipr_ioafp_pageC4_inquiry(struct ipr_cmnd *ipr_cmd)
 	struct ipr_inquiry_pageC4 *pageC4 = &ioa_cfg->vpd_cbs->pageC4_data;
 
 	ENTER;
-	ipr_cmd->job_step = ipr_ioafp_query_ioa_cfg;
+	ipr_cmd->job_step = ipr_ioafp_set_caching_parameters;
 	memset(pageC4, 0, sizeof(*pageC4));
 
 	if (ipr_inquiry_page_supported(page0, 0xC4)) {
