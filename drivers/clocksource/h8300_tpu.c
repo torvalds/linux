@@ -123,7 +123,6 @@ static int __init tpu_setup(struct tpu_priv *p, struct platform_device *pdev)
 {
 	struct resource *res[2];
 
-	memset(p, 0, sizeof(*p));
 	p->pdev = pdev;
 
 	res[CH_L] = platform_get_resource(p->pdev, IORESOURCE_MEM, CH_L);

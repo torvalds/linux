@@ -461,10 +461,17 @@ void __timer_stats_timer_set_start_info(struct timer_list *timer, void *addr)
 
 static void timer_stats_account_timer(struct timer_list *timer)
 {
-	if (likely(!timer->start_site))
+	void *site;
+
+	/*
+	 * start_site can be concurrently reset by
+	 * timer_stats_timer_clear_start_info()
+	 */
+	site = READ_ONCE(timer->start_site);
+	if (likely(!site))
 		return;
 
-	timer_stats_update_stats(timer, timer->start_pid, timer->start_site,
+	timer_stats_update_stats(timer, timer->start_pid, site,
 				 timer->function, timer->start_comm,
 				 timer->flags);
 }
@@ -867,7 +874,7 @@ unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
 	if (mask == 0)
 		return expires;
 
-	bit = find_last_bit(&mask, BITS_PER_LONG);
+	bit = __fls(mask);
 
 	mask = (1UL << bit) - 1;
 
