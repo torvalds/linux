@@ -28,7 +28,6 @@
  * @vb2_buf:	video buffer 2
  * @flags:	buffer informational flags
  * @field:	enum v4l2_field; field order of the image in the buffer
- * @timestamp:	frame timestamp
  * @timecode:	frame timecode
  * @sequence:	sequence count of this frame
  * Should contain enough information to be able to cover all the fields
@@ -39,7 +38,6 @@ struct vb2_v4l2_buffer {
 
 	__u32			flags;
 	__u32			field;
-	struct timeval		timestamp;
 	struct v4l2_timecode	timecode;
 	__u32			sequence;
 };

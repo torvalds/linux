@@ -130,7 +130,7 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 			buf = list_entry(dmaq->active.next,
 					 struct cx25821_buffer, queue);
 
-			v4l2_get_timestamp(&buf->vb.timestamp);
+			buf->vb.vb2_buf.timestamp = ktime_get_ns();
 			buf->vb.sequence = dmaq->count++;
 			list_del(&buf->queue);
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);

@@ -316,8 +316,7 @@ static void pwc_isoc_handler(struct urb *urb)
 			struct pwc_frame_buf *fbuf = pdev->fill_buf;
 
 			if (pdev->vsync == 1) {
-				v4l2_get_timestamp(
-					&fbuf->vb.timestamp);
+				fbuf->vb.vb2_buf.timestamp = ktime_get_ns();
 				pdev->vsync = 2;
 			}
 

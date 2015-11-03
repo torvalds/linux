@@ -954,7 +954,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_has_scaler_out = {
 static int vivid_streaming_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_streaming);
-	struct timeval tv;
+	u64 rem;
 
 	switch (ctrl->id) {
 	case VIVID_CID_DQBUF_ERROR:
@@ -993,8 +993,16 @@ static int vivid_streaming_s_ctrl(struct v4l2_ctrl *ctrl)
 			dev->time_wrap_offset = 0;
 			break;
 		}
-		v4l2_get_timestamp(&tv);
-		dev->time_wrap_offset = -tv.tv_sec - 16;
+		/*
+		 * We want to set the time 16 seconds before the 32 bit tv_sec
+		 * value of struct timeval would wrap around. So first we
+		 * calculate ktime_get_ns() % ((1 << 32) * NSEC_PER_SEC), and
+		 * then we set the offset to ((1 << 32) - 16) * NSEC_PER_SEC).
+		 */
+		div64_u64_rem(ktime_get_ns(),
+			0x100000000ULL * NSEC_PER_SEC, &rem);
+		dev->time_wrap_offset =
+			(0x100000000ULL - 16) * NSEC_PER_SEC - rem;
 		break;
 	}
 	return 0;

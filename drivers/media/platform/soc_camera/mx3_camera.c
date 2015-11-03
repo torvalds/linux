@@ -155,7 +155,7 @@ static void mx3_cam_dma_done(void *arg)
 		struct mx3_camera_buffer *buf = to_mx3_vb(vb);
 
 		list_del_init(&buf->queue);
-		v4l2_get_timestamp(&vb->timestamp);
+		vb->vb2_buf.timestamp = ktime_get_ns();
 		vb->field = mx3_cam->field;
 		vb->sequence = mx3_cam->sequence++;
 		vb2_buffer_done(&vb->vb2_buf, VB2_BUF_STATE_DONE);

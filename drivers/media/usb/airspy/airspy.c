@@ -316,7 +316,7 @@ static void airspy_urb_complete(struct urb *urb)
 		len = airspy_convert_stream(s, ptr, urb->transfer_buffer,
 				urb->actual_length);
 		vb2_set_plane_payload(&fbuf->vb.vb2_buf, 0, len);
-		v4l2_get_timestamp(&fbuf->vb.timestamp);
+		fbuf->vb.vb2_buf.timestamp = ktime_get_ns();
 		fbuf->vb.sequence = s->sequence++;
 		vb2_buffer_done(&fbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}

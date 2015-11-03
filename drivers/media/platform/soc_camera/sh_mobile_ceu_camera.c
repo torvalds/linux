@@ -510,7 +510,7 @@ static irqreturn_t sh_mobile_ceu_irq(int irq, void *data)
 		pcdev->active = NULL;
 
 	ret = sh_mobile_ceu_capture(pcdev);
-	v4l2_get_timestamp(&vbuf->timestamp);
+	vbuf->vb2_buf.timestamp = ktime_get_ns();
 	if (!ret) {
 		vbuf->field = pcdev->field;
 		vbuf->sequence = pcdev->sequence++;

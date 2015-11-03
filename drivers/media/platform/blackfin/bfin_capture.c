@@ -404,7 +404,7 @@ static irqreturn_t bcap_isr(int irq, void *dev_id)
 	spin_lock(&bcap_dev->lock);
 
 	if (!list_empty(&bcap_dev->dma_queue)) {
-		v4l2_get_timestamp(&vbuf->timestamp);
+		vb->timestamp = ktime_get_ns();
 		if (ppi->err) {
 			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 			ppi->err = false;

@@ -105,7 +105,7 @@ void cx23885_video_wakeup(struct cx23885_dev *dev,
 			struct cx23885_buffer, queue);
 
 	buf->vb.sequence = q->count++;
-	v4l2_get_timestamp(&buf->vb.timestamp);
+	buf->vb.vb2_buf.timestamp = ktime_get_ns();
 	dprintk(2, "[%p/%d] wakeup reg=%d buf=%d\n", buf,
 			buf->vb.vb2_buf.index, count, q->count);
 	list_del(&buf->queue);

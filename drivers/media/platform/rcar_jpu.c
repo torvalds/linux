@@ -1565,7 +1565,7 @@ static irqreturn_t jpu_irq_handler(int irq, void *dev_id)
 		}
 
 		dst_buf->field = src_buf->field;
-		dst_buf->timestamp = src_buf->timestamp;
+		dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
 		if (src_buf->flags & V4L2_BUF_FLAG_TIMECODE)
 			dst_buf->timecode = src_buf->timecode;
 		dst_buf->flags = src_buf->flags &

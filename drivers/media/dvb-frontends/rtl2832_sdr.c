@@ -310,7 +310,7 @@ static void rtl2832_sdr_urb_complete(struct urb *urb)
 		len = rtl2832_sdr_convert_stream(dev, ptr, urb->transfer_buffer,
 				urb->actual_length);
 		vb2_set_plane_payload(&fbuf->vb.vb2_buf, 0, len);
-		v4l2_get_timestamp(&fbuf->vb.timestamp);
+		fbuf->vb.vb2_buf.timestamp = ktime_get_ns();
 		fbuf->vb.sequence = dev->sequence++;
 		vb2_buffer_done(&fbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}

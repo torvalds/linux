@@ -1016,7 +1016,7 @@ void tw68_irq_video_done(struct tw68_dev *dev, unsigned long status)
 		buf = list_entry(dev->active.next, struct tw68_buf, list);
 		list_del(&buf->list);
 		spin_unlock(&dev->slock);
-		v4l2_get_timestamp(&buf->vb.timestamp);
+		buf->vb.vb2_buf.timestamp = ktime_get_ns();
 		buf->vb.field = dev->field;
 		buf->vb.sequence = dev->seqnr++;
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);

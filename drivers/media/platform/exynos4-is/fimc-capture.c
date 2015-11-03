@@ -193,7 +193,7 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 	    test_bit(ST_CAPT_RUN, &fimc->state) && deq_buf) {
 		v_buf = fimc_active_queue_pop(cap);
 
-		v4l2_get_timestamp(&v_buf->vb.timestamp);
+		v_buf->vb.vb2_buf.timestamp = ktime_get_ns();
 		v_buf->vb.sequence = cap->frame_count++;
 
 		vb2_buffer_done(&v_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);

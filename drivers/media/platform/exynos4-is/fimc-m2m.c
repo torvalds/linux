@@ -132,7 +132,7 @@ static void fimc_device_run(void *priv)
 	if (ret)
 		goto dma_unlock;
 
-	dst_vb->timestamp = src_vb->timestamp;
+	dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
 	dst_vb->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 	dst_vb->flags |=
 		src_vb->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;

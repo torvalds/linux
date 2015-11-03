@@ -314,7 +314,7 @@ static inline void buffer_filled(struct au0828_dev *dev,
 		vb->sequence = dev->vbi_frame_count++;
 
 	vb->field = V4L2_FIELD_INTERLACED;
-	v4l2_get_timestamp(&vb->timestamp);
+	vb->vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&vb->vb2_buf, VB2_BUF_STATE_DONE);
 }
 

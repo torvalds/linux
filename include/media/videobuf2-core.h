@@ -211,6 +211,7 @@ struct vb2_queue;
  * @num_planes:		number of planes in the buffer
  *			on an internal driver queue
  * @planes:		private per-plane information; do not change
+ * @timestamp:		frame timestamp in ns
  */
 struct vb2_buffer {
 	struct vb2_queue	*vb2_queue;
@@ -219,6 +220,7 @@ struct vb2_buffer {
 	unsigned int		memory;
 	unsigned int		num_planes;
 	struct vb2_plane	planes[VB2_MAX_PLANES];
+	u64			timestamp;
 
 	/* private: internal use only
 	 *

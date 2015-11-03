@@ -117,8 +117,8 @@ static void vivid_thread_sdr_cap_tick(struct vivid_dev *dev)
 	if (sdr_cap_buf) {
 		sdr_cap_buf->vb.sequence = dev->sdr_cap_seq_count;
 		vivid_sdr_cap_process(dev, sdr_cap_buf);
-		v4l2_get_timestamp(&sdr_cap_buf->vb.timestamp);
-		sdr_cap_buf->vb.timestamp.tv_sec += dev->time_wrap_offset;
+		sdr_cap_buf->vb.vb2_buf.timestamp =
+			ktime_get_ns() + dev->time_wrap_offset;
 		vb2_buffer_done(&sdr_cap_buf->vb.vb2_buf, dev->dqbuf_error ?
 				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 		dev->dqbuf_error = false;

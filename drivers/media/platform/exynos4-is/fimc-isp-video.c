@@ -251,7 +251,7 @@ void fimc_isp_video_irq_handler(struct fimc_is *is)
 	buf_index = (is->i2h_cmd.args[1] - 1) % video->buf_count;
 	vbuf = &video->buffers[buf_index]->vb;
 
-	v4l2_get_timestamp(&vbuf->timestamp);
+	vbuf->vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_DONE);
 
 	video->buf_mask &= ~BIT(buf_index);

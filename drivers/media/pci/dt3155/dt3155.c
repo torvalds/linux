@@ -270,7 +270,7 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 
 	spin_lock(&ipd->lock);
 	if (ipd->curr_buf && !list_empty(&ipd->dmaq)) {
-		v4l2_get_timestamp(&ipd->curr_buf->timestamp);
+		ipd->curr_buf->vb2_buf.timestamp = ktime_get_ns();
 		ipd->curr_buf->sequence = ipd->sequence++;
 		ipd->curr_buf->field = V4L2_FIELD_NONE;
 		vb2_buffer_done(&ipd->curr_buf->vb2_buf, VB2_BUF_STATE_DONE);

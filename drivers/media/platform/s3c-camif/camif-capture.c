@@ -338,7 +338,7 @@ irqreturn_t s3c_camif_irq_handler(int irq, void *priv)
 
 		if (!WARN_ON(vbuf == NULL)) {
 			/* Dequeue a filled buffer */
-			v4l2_get_timestamp(&vbuf->vb.timestamp);
+			vbuf->vb.vb2_buf.timestamp = ktime_get_ns();
 			vbuf->vb.sequence = vp->frame_sequence++;
 			vb2_buffer_done(&vbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 

@@ -888,7 +888,7 @@ static irqreturn_t rcar_vin_irq(int irq, void *data)
 
 		priv->queue_buf[slot]->field = priv->field;
 		priv->queue_buf[slot]->sequence = priv->sequence++;
-		v4l2_get_timestamp(&priv->queue_buf[slot]->timestamp);
+		priv->queue_buf[slot]->vb2_buf.timestamp = ktime_get_ns();
 		vb2_buffer_done(&priv->queue_buf[slot]->vb2_buf,
 				VB2_BUF_STATE_DONE);
 		priv->queue_buf[slot] = NULL;

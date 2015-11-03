@@ -438,7 +438,7 @@ static inline void finish_buffer(struct em28xx *dev,
 		buf->vb.field = V4L2_FIELD_NONE;
 	else
 		buf->vb.field = V4L2_FIELD_INTERLACED;
-	v4l2_get_timestamp(&buf->vb.timestamp);
+	buf->vb.vb2_buf.timestamp = ktime_get_ns();
 
 	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }

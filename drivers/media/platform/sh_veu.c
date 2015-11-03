@@ -1094,7 +1094,7 @@ static irqreturn_t sh_veu_isr(int irq, void *dev_id)
 	if (!src || !dst)
 		return IRQ_NONE;
 
-	dst->timestamp = src->timestamp;
+	dst->vb2_buf.timestamp = src->vb2_buf.timestamp;
 	dst->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 	dst->flags |=
 		src->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;

@@ -1070,7 +1070,7 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 
 	list_del(&vb->list);
 
-	v4l2_get_timestamp(&vb->vb.timestamp);
+	vb->vb.vb2_buf.timestamp = ktime_get_ns();
 	vb->vb.sequence = vou_dev->sequence++;
 	vb->vb.field = V4L2_FIELD_INTERLACED;
 	vb2_buffer_done(&vb->vb.vb2_buf, VB2_BUF_STATE_DONE);
