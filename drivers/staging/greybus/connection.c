@@ -170,7 +170,7 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	retval = gb_connection_bind_protocol(connection);
 	if (retval) {
-		dev_err(&bundle->dev, "%d: failed to bind protocol: %d\n",
+		dev_err(parent, "%d: failed to bind protocol: %d\n",
 			cport_id, retval);
 		gb_connection_destroy(connection);
 		return NULL;
