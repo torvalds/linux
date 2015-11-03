@@ -191,7 +191,7 @@ static bool single_cross_rib(u8 left_ribs, u8 right_ribs)
  * - Bit 1: 2nd rib location from top, i.e. between interface 2 and 3.
  * - Bit 2: 3rd rib location from top, i.e. between interface 3 and 4.
  */
-static bool validate_front_ribs(struct greybus_host_device *hd,
+static bool validate_front_ribs(struct gb_host_device *hd,
 				struct endo_layout *layout, bool mini,
 				u16 endo_id)
 {
@@ -254,7 +254,7 @@ static bool validate_front_ribs(struct greybus_host_device *hd,
  * its rotational orientation.  We define one canonical id to represent a
  * particular endo configuration.
  */
-static bool validate_back_ribs(struct greybus_host_device *hd,
+static bool validate_back_ribs(struct gb_host_device *hd,
 			       struct endo_layout *layout, u16 endo_id)
 {
 	u8 max_ribs = layout->max_ribs;
@@ -320,7 +320,7 @@ static bool validate_back_ribs(struct greybus_host_device *hd,
  * Validate the endo-id passed from SVC. Error out if its not a valid Endo,
  * else return structure representing ribs positions on front and back of Endo.
  */
-static int gb_endo_validate_id(struct greybus_host_device *hd,
+static int gb_endo_validate_id(struct gb_host_device *hd,
 			       struct endo_layout *layout, u16 endo_id)
 {
 	/* Validate Endo Size */
@@ -435,7 +435,7 @@ static int create_modules(struct gb_endo *endo)
 	return 0;
 }
 
-static int gb_endo_register(struct greybus_host_device *hd,
+static int gb_endo_register(struct gb_host_device *hd,
 			    struct gb_endo *endo)
 {
 	int dev_id;
@@ -471,7 +471,7 @@ static int gb_endo_register(struct greybus_host_device *hd,
 	return retval;
 }
 
-struct gb_endo *gb_endo_create(struct greybus_host_device *hd, u16 endo_id,
+struct gb_endo *gb_endo_create(struct gb_host_device *hd, u16 endo_id,
 				u8 ap_intf_id)
 {
 	struct gb_endo *endo;
@@ -524,7 +524,7 @@ void gb_endo_remove(struct gb_endo *endo)
 	device_unregister(&endo->dev);
 }
 
-int greybus_endo_setup(struct greybus_host_device *hd, u16 endo_id,
+int greybus_endo_setup(struct gb_host_device *hd, u16 endo_id,
 		       u8 ap_intf_id)
 {
 	struct gb_endo *endo;

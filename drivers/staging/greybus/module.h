@@ -16,10 +16,10 @@ struct gb_module {
 };
 #define to_gb_module(d) container_of(d, struct gb_module, dev)
 
-struct greybus_host_device;
+struct gb_host_device;
 
 /* Greybus "private" definitions */
-struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id);
+struct gb_module *gb_module_find(struct gb_host_device *hd, u8 module_id);
 struct gb_module *gb_module_create(struct device *parent, u8 module_id);
 void gb_module_remove_all(struct gb_endo *endo);
 

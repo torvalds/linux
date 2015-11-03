@@ -42,7 +42,7 @@ struct svc_hotplug {
  * This is a temporary connection, used only at initial bootup.
  */
 struct gb_connection *
-gb_ap_svc_connection_create(struct greybus_host_device *hd)
+gb_ap_svc_connection_create(struct gb_host_device *hd)
 {
 	struct gb_connection *connection;
 
@@ -61,7 +61,7 @@ gb_ap_svc_connection_create(struct greybus_host_device *hd)
  * 'partially' initialized one svc connection.
  */
 static struct gb_interface *
-gb_ap_interface_create(struct greybus_host_device *hd,
+gb_ap_interface_create(struct gb_host_device *hd,
 		       struct gb_connection *connection, u8 interface_id)
 {
 	struct gb_interface *intf;
@@ -183,7 +183,7 @@ EXPORT_SYMBOL_GPL(gb_svc_dme_peer_set);
  */
 static int gb_svc_read_and_clear_module_boot_status(struct gb_interface *intf)
 {
-	struct greybus_host_device *hd = intf->hd;
+	struct gb_host_device *hd = intf->hd;
 	int ret;
 	u32 value;
 
@@ -338,7 +338,7 @@ static int gb_svc_version_request(struct gb_operation *op)
 static int gb_svc_hello(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 	struct gb_svc_hello_request *hello_request;
 	struct gb_interface *intf;
 	u16 endo_id;
@@ -381,7 +381,7 @@ static int gb_svc_hello(struct gb_operation *op)
 static void svc_intf_remove(struct gb_connection *connection,
 			    struct gb_interface *intf)
 {
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 	struct gb_svc *svc = connection->private;
 	u8 intf_id = intf->interface_id;
 	u8 device_id;
@@ -408,7 +408,7 @@ static void svc_process_hotplug(struct work_struct *work)
 	struct gb_svc_intf_hotplug_request *hotplug = &svc_hotplug->data;
 	struct gb_connection *connection = svc_hotplug->connection;
 	struct gb_svc *svc = connection->private;
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 	struct gb_interface *intf;
 	u8 intf_id, device_id;
 	int ret;
@@ -552,7 +552,7 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 {
 	struct gb_message *request = op->request;
 	struct gb_svc_intf_hot_unplug_request *hot_unplug = request->payload;
-	struct greybus_host_device *hd = op->connection->hd;
+	struct gb_host_device *hd = op->connection->hd;
 	struct gb_interface *intf;
 	u8 intf_id;
 

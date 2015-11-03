@@ -47,15 +47,15 @@ struct gb_endo {
 #define to_gb_endo(d) container_of(d, struct gb_endo, dev)
 
 /* Greybus "private" definitions */
-struct greybus_host_device;
+struct gb_host_device;
 
 int gb_endo_init(void);
 void gb_endo_exit(void);
 
-struct gb_endo *gb_endo_create(struct greybus_host_device *hd,
+struct gb_endo *gb_endo_create(struct gb_host_device *hd,
 				u16 endo_id, u8 ap_intf_id);
 void gb_endo_remove(struct gb_endo *endo);
-int greybus_endo_setup(struct greybus_host_device *hd, u16 endo_id,
+int greybus_endo_setup(struct gb_host_device *hd, u16 endo_id,
 		       u8 ap_intf_id);
 
 u8 endo_get_module_id(struct gb_endo *endo, u8 interface_id);

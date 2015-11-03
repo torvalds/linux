@@ -16,7 +16,7 @@ struct gb_interface {
 	struct gb_control *control;
 
 	struct list_head bundles;
-	struct list_head links;	/* greybus_host_device->interfaces */
+	struct list_head links;	/* gb_host_device->interfaces */
 	struct list_head manifest_descs;
 	u8 interface_id;	/* Physical location within the Endo */
 	u8 device_id;		/* Device id allocated for the interface block by the SVC */
@@ -35,7 +35,7 @@ struct gb_interface {
 	u32 ara_prod_id;
 
 	struct gb_module *module;
-	struct greybus_host_device *hd;
+	struct gb_host_device *hd;
 
 	/* The interface needs to boot over unipro */
 	bool boot_over_unipro;
@@ -55,15 +55,15 @@ static inline void *gb_interface_get_drvdata(struct gb_interface *intf)
 
 /* Greybus "private" definitions */
 
-struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
+struct gb_interface *gb_interface_find(struct gb_host_device *hd,
 				       u8 interface_id);
 
-struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
+struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 					 u8 interface_id);
 void gb_interface_destroy(struct gb_interface *intf);
 int gb_interface_init(struct gb_interface *intf, u8 device_id);
 void gb_interface_remove(struct gb_interface *intf);
-void gb_interfaces_remove(struct greybus_host_device *hd);
+void gb_interfaces_remove(struct gb_host_device *hd);
 
 int gb_create_bundle_connection(struct gb_interface *intf, u8 class);
 #endif /* __INTERFACE_H */

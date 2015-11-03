@@ -44,7 +44,7 @@ static DEFINE_SPINLOCK(gb_interfaces_lock);
 
 // FIXME, odds are you don't want to call this function, rework the caller to
 // not need it please.
-struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
+struct gb_interface *gb_interface_find(struct gb_host_device *hd,
 				       u8 interface_id)
 {
 	struct gb_interface *intf;
@@ -120,7 +120,7 @@ int gb_create_bundle_connection(struct gb_interface *intf, u8 class)
  * Returns a pointer to the new interfce or a null pointer if a
  * failure occurs due to memory exhaustion.
  */
-struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
+struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 					 u8 interface_id)
 {
 	struct gb_module *module;
@@ -199,7 +199,7 @@ void gb_interface_remove(struct gb_interface *intf)
 	put_device(&module->dev);
 }
 
-void gb_interfaces_remove(struct greybus_host_device *hd)
+void gb_interfaces_remove(struct gb_host_device *hd)
 {
 	struct gb_interface *intf, *temp;
 

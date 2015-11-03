@@ -83,7 +83,7 @@ struct es2_cport_out {
  * es2_ap_dev - ES2 USB Bridge to AP structure
  * @usb_dev: pointer to the USB device we are.
  * @usb_intf: pointer to the USB interface we are bound to.
- * @hd: pointer to our greybus_host_device structure
+ * @hd: pointer to our gb_host_device structure
 
  * @cport_in: endpoint, urbs and buffer for cport in messages
  * @cport_out: endpoint for for cport out messages
@@ -102,7 +102,7 @@ struct es2_cport_out {
 struct es2_ap_dev {
 	struct usb_device *usb_dev;
 	struct usb_interface *usb_intf;
-	struct greybus_host_device *hd;
+	struct gb_host_device *hd;
 
 	struct es2_cport_in cport_in[NUM_BULKS];
 	struct es2_cport_out cport_out[NUM_BULKS];
@@ -131,7 +131,7 @@ struct cport_to_ep {
 	__u8 endpoint_out;
 };
 
-static inline struct es2_ap_dev *hd_to_es2(struct greybus_host_device *hd)
+static inline struct es2_ap_dev *hd_to_es2(struct gb_host_device *hd)
 {
 	return (struct es2_ap_dev *)&hd->hd_priv;
 }
@@ -291,7 +291,7 @@ static u16 gb_message_cport_unpack(struct gb_operation_msg_hdr *header)
  * Returns zero if the message was successfully queued, or a negative errno
  * otherwise.
  */
-static int message_send(struct greybus_host_device *hd, u16 cport_id,
+static int message_send(struct gb_host_device *hd, u16 cport_id,
 			struct gb_message *message, gfp_t gfp_mask)
 {
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
@@ -357,7 +357,7 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
  */
 static void message_cancel(struct gb_message *message)
 {
-	struct greybus_host_device *hd = message->operation->connection->hd;
+	struct gb_host_device *hd = message->operation->connection->hd;
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct urb *urb;
 	int i;
@@ -390,7 +390,7 @@ static void message_cancel(struct gb_message *message)
 	usb_free_urb(urb);
 }
 
-static int cport_reset(struct greybus_host_device *hd, u16 cport_id)
+static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 {
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct usb_device *udev = es2->usb_dev;
@@ -410,7 +410,7 @@ static int cport_reset(struct greybus_host_device *hd, u16 cport_id)
 	return 0;
 }
 
-static int cport_enable(struct greybus_host_device *hd, u16 cport_id)
+static int cport_enable(struct gb_host_device *hd, u16 cport_id)
 {
 	int retval;
 
@@ -423,7 +423,7 @@ static int cport_enable(struct greybus_host_device *hd, u16 cport_id)
 	return 0;
 }
 
-static int latency_tag_enable(struct greybus_host_device *hd, u16 cport_id)
+static int latency_tag_enable(struct gb_host_device *hd, u16 cport_id)
 {
 	int retval;
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
@@ -447,7 +447,7 @@ static int latency_tag_enable(struct greybus_host_device *hd, u16 cport_id)
 	return retval;
 }
 
-static int latency_tag_disable(struct greybus_host_device *hd, u16 cport_id)
+static int latency_tag_disable(struct gb_host_device *hd, u16 cport_id)
 {
 	int retval;
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
@@ -556,7 +556,7 @@ static void ap_disconnect(struct usb_interface *interface)
 
 static void cport_in_callback(struct urb *urb)
 {
-	struct greybus_host_device *hd = urb->context;
+	struct gb_host_device *hd = urb->context;
 	struct device *dev = &urb->dev->dev;
 	struct gb_operation_msg_hdr *header;
 	int status = check_urb_status(urb);
@@ -596,7 +596,7 @@ exit:
 static void cport_out_callback(struct urb *urb)
 {
 	struct gb_message *message = urb->context;
-	struct greybus_host_device *hd = message->operation->connection->hd;
+	struct gb_host_device *hd = message->operation->connection->hd;
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	int status = check_urb_status(urb);
 	unsigned long flags;
@@ -787,7 +787,7 @@ static int ap_probe(struct usb_interface *interface,
 		    const struct usb_device_id *id)
 {
 	struct es2_ap_dev *es2;
-	struct greybus_host_device *hd;
+	struct gb_host_device *hd;
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;

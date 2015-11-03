@@ -210,7 +210,7 @@ static int gb_message_send(struct gb_message *message, gfp_t gfp)
  */
 static void gb_message_cancel(struct gb_message *message)
 {
-	struct greybus_host_device *hd = message->operation->connection->hd;
+	struct gb_host_device *hd = message->operation->connection->hd;
 
 	hd->driver->message_cancel(message);
 }
@@ -269,7 +269,7 @@ static void gb_operation_work(struct work_struct *work)
 	gb_operation_put(operation);
 }
 
-static void gb_operation_message_init(struct greybus_host_device *hd,
+static void gb_operation_message_init(struct gb_host_device *hd,
 				struct gb_message *message, u16 operation_id,
 				size_t payload_size, u8 type)
 {
@@ -320,7 +320,7 @@ static void gb_operation_message_init(struct greybus_host_device *hd,
  *	message payload /  the message size
  */
 static struct gb_message *
-gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
+gb_operation_message_alloc(struct gb_host_device *hd, u8 type,
 				size_t payload_size, gfp_t gfp_flags)
 {
 	struct gb_message *message;
@@ -430,7 +430,7 @@ static u8 gb_operation_errno_map(int errno)
 bool gb_operation_response_alloc(struct gb_operation *operation,
 					size_t response_size, gfp_t gfp)
 {
-	struct greybus_host_device *hd = operation->connection->hd;
+	struct gb_host_device *hd = operation->connection->hd;
 	struct gb_operation_msg_hdr *request_header;
 	struct gb_message *response;
 	u8 type;
@@ -482,7 +482,7 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 				size_t request_size, size_t response_size,
 				unsigned long op_flags, gfp_t gfp_flags)
 {
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 	struct gb_operation *operation;
 
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
@@ -548,7 +548,7 @@ EXPORT_SYMBOL_GPL(gb_operation_create);
 
 size_t gb_operation_get_payload_size_max(struct gb_connection *connection)
 {
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 
 	return hd->buffer_size_max - sizeof(struct gb_operation_msg_hdr);
 }
@@ -777,7 +777,7 @@ err_put:
 /*
  * This function is called when a message send request has completed.
  */
-void greybus_message_sent(struct greybus_host_device *hd,
+void greybus_message_sent(struct gb_host_device *hd,
 					struct gb_message *message, int status)
 {
 	struct gb_operation *operation = message->operation;

@@ -25,6 +25,6 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 int gb_svc_protocol_init(void);
 void gb_svc_protocol_exit(void);
 
-struct gb_connection *
-gb_ap_svc_connection_create(struct greybus_host_device *hd);
+struct gb_connection *gb_ap_svc_connection_create(struct gb_host_device *hd);
+
 #endif /* __SVC_H */

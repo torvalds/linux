@@ -19,21 +19,21 @@ static DEFINE_MUTEX(hd_mutex);
 
 static void free_hd(struct kref *kref)
 {
-	struct greybus_host_device *hd;
+	struct gb_host_device *hd;
 
-	hd = container_of(kref, struct greybus_host_device, kref);
+	hd = container_of(kref, struct gb_host_device, kref);
 
 	ida_destroy(&hd->cport_id_map);
 	kfree(hd);
 	mutex_unlock(&hd_mutex);
 }
 
-struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver,
+struct gb_host_device *greybus_create_hd(struct greybus_host_driver *driver,
 					      struct device *parent,
 					      size_t buffer_size_max,
 					      size_t num_cports)
 {
-	struct greybus_host_device *hd;
+	struct gb_host_device *hd;
 
 	/*
 	 * Validate that the driver implements all of the callbacks
@@ -96,7 +96,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 }
 EXPORT_SYMBOL_GPL(greybus_create_hd);
 
-void greybus_remove_hd(struct greybus_host_device *hd)
+void greybus_remove_hd(struct gb_host_device *hd)
 {
 	/*
 	 * Tear down all interfaces, modules, and the endo that is associated

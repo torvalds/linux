@@ -108,7 +108,7 @@ static int module_find(struct device *dev, void *data)
  * Search the list of modules in the system.  If one is found, return it, with
  * the reference count incremented.
  */
-struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id)
+struct gb_module *gb_module_find(struct gb_host_device *hd, u8 module_id)
 {
 	struct device *dev;
 	struct gb_module *module = NULL;

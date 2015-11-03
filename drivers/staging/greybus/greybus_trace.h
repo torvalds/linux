@@ -15,7 +15,7 @@
 #include <linux/tracepoint.h>
 
 struct gb_message;
-struct greybus_host_device;
+struct gb_host_device;
 
 DECLARE_EVENT_CLASS(gb_message,
 
@@ -108,7 +108,7 @@ DEFINE_EVENT(gb_message, gb_message_cancel_incoming,
 
 DECLARE_EVENT_CLASS(gb_host_device,
 
-	TP_PROTO(struct greybus_host_device *hd, u16 intf_cport_id,
+	TP_PROTO(struct gb_host_device *hd, u16 intf_cport_id,
 		 size_t payload_size),
 
 	TP_ARGS(hd, intf_cport_id, payload_size),
@@ -136,7 +136,7 @@ DECLARE_EVENT_CLASS(gb_host_device,
  */
 DEFINE_EVENT(gb_host_device, gb_host_device_send,
 
-	TP_PROTO(struct greybus_host_device *hd, u16 intf_cport_id,
+	TP_PROTO(struct gb_host_device *hd, u16 intf_cport_id,
 		 size_t payload_size),
 
 	TP_ARGS(hd, intf_cport_id, payload_size)
@@ -149,7 +149,7 @@ DEFINE_EVENT(gb_host_device, gb_host_device_send,
  */
 DEFINE_EVENT(gb_host_device, gb_host_device_recv,
 
-	TP_PROTO(struct greybus_host_device *hd, u16 intf_cport_id,
+	TP_PROTO(struct gb_host_device *hd, u16 intf_cport_id,
 		 size_t payload_size),
 
 	TP_ARGS(hd, intf_cport_id, payload_size)

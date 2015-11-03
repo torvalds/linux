@@ -17,7 +17,7 @@ static DEFINE_SPINLOCK(gb_connections_lock);
 static struct gb_connection *
 gb_connection_intf_find(struct gb_interface *intf, u16 cport_id)
 {
-	struct greybus_host_device *hd = intf->hd;
+	struct gb_host_device *hd = intf->hd;
 	struct gb_connection *connection;
 
 	list_for_each_entry(connection, &hd->connections, hd_links)
@@ -28,7 +28,7 @@ gb_connection_intf_find(struct gb_interface *intf, u16 cport_id)
 }
 
 static struct gb_connection *
-gb_connection_hd_find(struct greybus_host_device *hd, u16 cport_id)
+gb_connection_hd_find(struct gb_host_device *hd, u16 cport_id)
 {
 	struct gb_connection *connection;
 	unsigned long flags;
@@ -48,7 +48,7 @@ found:
  * Callback from the host driver to let us know that data has been
  * received on the bundle.
  */
-void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
+void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
 			u8 *data, size_t length)
 {
 	struct gb_connection *connection;
@@ -105,7 +105,7 @@ int svc_update_connection(struct gb_interface *intf,
  * pointer otherwise.
  */
 struct gb_connection *
-gb_connection_create_range(struct greybus_host_device *hd,
+gb_connection_create_range(struct gb_host_device *hd,
 			   struct gb_bundle *bundle, struct device *parent,
 			   u16 cport_id, u8 protocol_id, u32 ida_start,
 			   u32 ida_end)
@@ -188,7 +188,7 @@ err_remove_ida:
 
 static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 {
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 	int ret;
 
 	if (!hd->driver->cport_enable)
@@ -206,7 +206,7 @@ static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 
 static void gb_connection_hd_cport_disable(struct gb_connection *connection)
 {
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 
 	if (!hd->driver->cport_disable)
 		return;
@@ -258,7 +258,7 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 static int
 gb_connection_svc_connection_create(struct gb_connection *connection)
 {
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 	struct gb_protocol *protocol = connection->protocol;
 	struct gb_interface *intf;
 	int ret;
@@ -459,7 +459,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 void gb_connection_latency_tag_enable(struct gb_connection *connection)
 {
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 	int ret;
 
 	if (!hd->driver->latency_tag_enable)
@@ -475,7 +475,7 @@ EXPORT_SYMBOL_GPL(gb_connection_latency_tag_enable);
 
 void gb_connection_latency_tag_disable(struct gb_connection *connection)
 {
-	struct greybus_host_device *hd = connection->hd;
+	struct gb_host_device *hd = connection->hd;
 	int ret;
 
 	if (!hd->driver->latency_tag_disable)
