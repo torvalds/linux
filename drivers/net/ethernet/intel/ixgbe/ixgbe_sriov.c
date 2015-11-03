@@ -887,10 +887,10 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 			bits = IXGBE_READ_REG(hw, IXGBE_VLVFB(reg_ndx * 2));
 			bits &= ~(1 << VMDQ_P(0));
 			bits |= IXGBE_READ_REG(hw,
-					       IXGBE_VLVFB(reg_ndx * 2) + 1);
+					       IXGBE_VLVFB(reg_ndx * 2 + 1));
 		} else {
 			bits = IXGBE_READ_REG(hw,
-					      IXGBE_VLVFB(reg_ndx * 2) + 1);
+					      IXGBE_VLVFB(reg_ndx * 2 + 1));
 			bits &= ~(1 << (VMDQ_P(0) - 32));
 			bits |= IXGBE_READ_REG(hw, IXGBE_VLVFB(reg_ndx * 2));
 		}
