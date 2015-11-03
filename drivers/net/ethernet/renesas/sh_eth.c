@@ -1199,7 +1199,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 static int sh_eth_ring_init(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int rx_ringsize, tx_ringsize, ret = 0;
+	int rx_ringsize, tx_ringsize;
 
 	/* +26 gets the maximum ethernet encapsulation, +7 & ~7 because the
 	 * card needs room to do 8 byte alignment, +2 so we can reserve
@@ -1214,26 +1214,20 @@ static int sh_eth_ring_init(struct net_device *ndev)
 	/* Allocate RX and TX skb rings */
 	mdp->rx_skbuff = kcalloc(mdp->num_rx_ring, sizeof(*mdp->rx_skbuff),
 				 GFP_KERNEL);
-	if (!mdp->rx_skbuff) {
-		ret = -ENOMEM;
-		return ret;
-	}
+	if (!mdp->rx_skbuff)
+		return -ENOMEM;
 
 	mdp->tx_skbuff = kcalloc(mdp->num_tx_ring, sizeof(*mdp->tx_skbuff),
 				 GFP_KERNEL);
-	if (!mdp->tx_skbuff) {
-		ret = -ENOMEM;
+	if (!mdp->tx_skbuff)
 		goto skb_ring_free;
-	}
 
 	/* Allocate all Rx descriptors. */
 	rx_ringsize = sizeof(struct sh_eth_rxdesc) * mdp->num_rx_ring;
 	mdp->rx_ring = dma_alloc_coherent(NULL, rx_ringsize, &mdp->rx_desc_dma,
 					  GFP_KERNEL);
-	if (!mdp->rx_ring) {
-		ret = -ENOMEM;
+	if (!mdp->rx_ring)
 		goto skb_ring_free;
-	}
 
 	mdp->dirty_rx = 0;
 
@@ -1241,11 +1235,9 @@ static int sh_eth_ring_init(struct net_device *ndev)
 	tx_ringsize = sizeof(struct sh_eth_txdesc) * mdp->num_tx_ring;
 	mdp->tx_ring = dma_alloc_coherent(NULL, tx_ringsize, &mdp->tx_desc_dma,
 					  GFP_KERNEL);
-	if (!mdp->tx_ring) {
-		ret = -ENOMEM;
+	if (!mdp->tx_ring)
 		goto desc_ring_free;
-	}
-	return ret;
+	return 0;
 
 desc_ring_free:
 	/* free DMA buffer */
@@ -1257,7 +1249,7 @@ skb_ring_free:
 	mdp->tx_ring = NULL;
 	mdp->rx_ring = NULL;
 
-	return ret;
+	return -ENOMEM;
 }
 
 static void sh_eth_free_dma_buffer(struct sh_eth_private *mdp)
