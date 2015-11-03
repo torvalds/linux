@@ -23,6 +23,10 @@
 
 #include "vfio_platform_private.h"
 
+#define DRIVER_VERSION  "0.10"
+#define DRIVER_AUTHOR   "Antonios Motakis <a.motakis@virtualopensystems.com>"
+#define DRIVER_DESC     "VFIO platform base module"
+
 static DEFINE_MUTEX(driver_lock);
 
 static const struct vfio_platform_reset_combo reset_lookup_table[] = {
@@ -146,7 +150,7 @@ static void vfio_platform_release(void *device_data)
 
 	mutex_unlock(&driver_lock);
 
-	module_put(THIS_MODULE);
+	module_put(vdev->parent_module);
 }
 
 static int vfio_platform_open(void *device_data)
@@ -154,7 +158,7 @@ static int vfio_platform_open(void *device_data)
 	struct vfio_platform_device *vdev = device_data;
 	int ret;
 
-	if (!try_module_get(THIS_MODULE))
+	if (!try_module_get(vdev->parent_module))
 		return -ENODEV;
 
 	mutex_lock(&driver_lock);
@@ -573,3 +577,8 @@ struct vfio_platform_device *vfio_platform_remove_common(struct device *dev)
 	return vdev;
 }
 EXPORT_SYMBOL_GPL(vfio_platform_remove_common);
+
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);

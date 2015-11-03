@@ -56,6 +56,7 @@ struct vfio_platform_device {
 	u32				num_irqs;
 	int				refcnt;
 	struct mutex			igate;
+	struct module			*parent_module;
 
 	/*
 	 * These fields should be filled by the bus specific binder
