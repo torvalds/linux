@@ -282,7 +282,7 @@ static int nvme_nvm_get_l2p_tbl(struct request_queue *q, u64 slba, u32 nlb,
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
 	u32 len = queue_max_hw_sectors(q) << 9;
-	u64 nlb_pr_rq = len / sizeof(u64);
+	u32 nlb_pr_rq = len / sizeof(u64);
 	u64 cmd_slba = slba;
 	void *entries;
 	int ret = 0;
@@ -294,7 +294,7 @@ static int nvme_nvm_get_l2p_tbl(struct request_queue *q, u64 slba, u32 nlb,
 		return -ENOMEM;
 
 	while (nlb) {
-		u32 cmd_nlb = min_t(u32, nlb_pr_rq, nlb);
+		u32 cmd_nlb = min(nlb_pr_rq, nlb);
 
 		c.l2p.slba = cpu_to_le64(cmd_slba);
 		c.l2p.nlb = cpu_to_le32(cmd_nlb);
