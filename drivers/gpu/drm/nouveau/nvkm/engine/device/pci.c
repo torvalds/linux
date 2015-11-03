@@ -689,6 +689,12 @@ nvkm_device_pci_10de_1199[] = {
 };
 
 static const struct nvkm_device_pci_vendor
+nvkm_device_pci_10de_11e0[] = {
+	{ 0x1558, 0x5106, NULL, { .War00C800_0 = true } },
+	{}
+};
+
+static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_11e3[] = {
 	{ 0x17aa, 0x3683, "GeForce GTX 760A" },
 	{}
@@ -1485,7 +1491,7 @@ nvkm_device_pci_10de[] = {
 	{ 0x11c6, "GeForce GTX 650 Ti" },
 	{ 0x11c8, "GeForce GTX 650" },
 	{ 0x11cb, "GeForce GT 740" },
-	{ 0x11e0, "GeForce GTX 770M" },
+	{ 0x11e0, "GeForce GTX 770M", nvkm_device_pci_10de_11e0 },
 	{ 0x11e1, "GeForce GTX 765M" },
 	{ 0x11e2, "GeForce GTX 765M" },
 	{ 0x11e3, "GeForce GTX 760M", nvkm_device_pci_10de_11e3 },
