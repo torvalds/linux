@@ -92,6 +92,7 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 
 	fp->pages = size / PAGE_SIZE;
 	fp->aux = aux;
+	fp->aux->prog = fp;
 
 	return fp;
 }
@@ -116,6 +117,7 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 
 		memcpy(fp, fp_old, fp_old->pages * PAGE_SIZE);
 		fp->pages = size / PAGE_SIZE;
+		fp->aux->prog = fp;
 
 		/* We keep fp->aux from fp_old around in the new
 		 * reallocated structure.
@@ -726,7 +728,6 @@ void bpf_prog_free(struct bpf_prog *fp)
 	struct bpf_prog_aux *aux = fp->aux;
 
 	INIT_WORK(&aux->work, bpf_prog_free_deferred);
-	aux->prog = fp;
 	schedule_work(&aux->work);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);
