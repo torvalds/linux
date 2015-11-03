@@ -1418,11 +1418,11 @@ static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
 	};
 	int i;
 
-	/* exclude all ports except the CPU */
+	/* exclude all ports except the CPU and DSA ports */
 	for (i = 0; i < ps->num_ports; ++i)
-		vlan.data[i] = dsa_is_cpu_port(ds, i) ?
-			GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED :
-			GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
+		vlan.data[i] = dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i)
+			? GLOBAL_VTU_DATA_MEMBER_TAG_UNMODIFIED
+			: GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 
 	if (mv88e6xxx_6097_family(ds) || mv88e6xxx_6165_family(ds) ||
 	    mv88e6xxx_6351_family(ds) || mv88e6xxx_6352_family(ds)) {
@@ -1545,7 +1545,7 @@ static int _mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 	/* keep the VLAN unless all ports are excluded */
 	vlan.valid = false;
 	for (i = 0; i < ps->num_ports; ++i) {
-		if (dsa_is_cpu_port(ds, i))
+		if (dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i))
 			continue;
 
 		if (vlan.data[i] != GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER) {
@@ -1624,7 +1624,7 @@ unlock:
 		clear_bit(port, ports);
 		clear_bit(port, untagged);
 
-		if (dsa_is_cpu_port(ds, port))
+		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
 			continue;
 
 		if (next.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED ||
