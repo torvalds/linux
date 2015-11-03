@@ -58,7 +58,7 @@ static void _rtl88e_fw_block_write(struct adapter *adapt,
 				   const u8 *buffer, u32 size)
 {
 	u32 blk_sz = sizeof(u32);
-	const u8 *buf_ptr = (u8 *)buffer;
+	const u8 *buf_ptr;
 	const u32 *pu4BytePtr = (u32 *)buffer;
 	u32 i, offset, blk_cnt, remain;
 
