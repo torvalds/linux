@@ -1404,6 +1404,12 @@ int mlx5e_close_locked(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
+	/* May already be CLOSED in case a previous configuration operation
+	 * (e.g RX/TX queue size change) that involves close&open failed.
+	 */
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		return 0;
+
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
 	mlx5e_redirect_rqts(priv);
