@@ -1925,6 +1925,7 @@ exit_xfs_fs(void)
 	xfs_mru_cache_uninit();
 	xfs_destroy_workqueues();
 	xfs_destroy_zones();
+	xfs_uuid_table_free();
 }
 
 module_init(init_xfs_fs);

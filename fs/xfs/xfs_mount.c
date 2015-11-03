@@ -47,6 +47,16 @@ static DEFINE_MUTEX(xfs_uuid_table_mutex);
 static int xfs_uuid_table_size;
 static uuid_t *xfs_uuid_table;
 
+void
+xfs_uuid_table_free(void)
+{
+	if (xfs_uuid_table_size == 0)
+		return;
+	kmem_free(xfs_uuid_table);
+	xfs_uuid_table = NULL;
+	xfs_uuid_table_size = 0;
+}
+
 /*
  * See if the UUID is unique among mounted XFS filesystems.
  * Mount fails if UUID is nil or a FS with the same UUID is already mounted.

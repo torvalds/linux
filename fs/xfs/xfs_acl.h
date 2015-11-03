@@ -36,4 +36,7 @@ static inline struct posix_acl *xfs_get_acl(struct inode *inode, int type)
 # define posix_acl_access_exists(inode)			0
 # define posix_acl_default_exists(inode)		0
 #endif /* CONFIG_XFS_POSIX_ACL */
+
+extern void xfs_forget_acl(struct inode *inode, const char *name, int xflags);
+
 #endif	/* __XFS_ACL_H__ */
