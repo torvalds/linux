@@ -58,6 +58,7 @@ struct vfio_platform_device {
 	struct mutex			igate;
 	struct module			*parent_module;
 	const char			*compat;
+	struct module			*reset_module;
 
 	/*
 	 * These fields should be filled by the bus specific binder
@@ -79,12 +80,6 @@ struct vfio_platform_reset_node {
 	char *compat;
 	struct module *owner;
 	vfio_platform_reset_fn_t reset;
-};
-
-struct vfio_platform_reset_combo {
-	const char *compat;
-	const char *reset_function_name;
-	const char *module_name;
 };
 
 extern int vfio_platform_probe_common(struct vfio_platform_device *vdev,
