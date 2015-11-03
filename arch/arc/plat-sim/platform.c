@@ -30,8 +30,4 @@ static const char *simulation_compat[] __initconst = {
 
 MACHINE_START(SIMULATION, "simulation")
 	.dt_compat	= simulation_compat,
-#ifdef CONFIG_ARC_MCIP
-	.init_early	= mcip_init_early_smp,
-	.init_smp	= mcip_init_smp,
-#endif
 MACHINE_END

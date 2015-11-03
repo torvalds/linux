@@ -10121,6 +10121,7 @@ F:	include/net/switchdev.h
 
 SYNOPSYS ARC ARCHITECTURE
 M:	Vineet Gupta <vgupta@synopsys.com>
+L:	linux-snps-arc@lists.infraded.org
 S:	Supported
 F:	arch/arc/
 F:	Documentation/devicetree/bindings/arc/*

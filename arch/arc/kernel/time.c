@@ -285,7 +285,4 @@ void __init time_init(void)
 
 	/* sets up the periodic event timer */
 	arc_local_timer_setup();
-
-	if (machine_desc->init_time)
-		machine_desc->init_time();
 }

@@ -160,10 +160,6 @@ static const struct cpuinfo_data arc_cpu_tbl[] = {
 	{ {0x00, NULL		} }
 };
 
-#define IS_AVAIL1(v, s)		((v) ? s : "")
-#define IS_USED_RUN(v)		((v) ? "" : "(not used) ")
-#define IS_USED_CFG(cfg)	IS_USED_RUN(IS_ENABLED(cfg))
-#define IS_AVAIL2(v, s, cfg)	IS_AVAIL1(v, s), IS_AVAIL1(v, IS_USED_CFG(cfg))
 
 static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 {
@@ -415,8 +411,9 @@ void __init setup_arch(char **cmdline_p)
 	if (machine_desc->init_early)
 		machine_desc->init_early();
 
-	setup_processor();
 	smp_init_cpus();
+
+	setup_processor();
 	setup_arch_memory();
 
 	/* copy flat DT out of .init and then unflatten it */

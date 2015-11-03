@@ -24,7 +24,7 @@
 	.align 4
 
 # Initial 16 slots are Exception Vectors
-VECTOR	stext			; Restart Vector (jump to entry point)
+VECTOR	res_service		; Reset Vector
 VECTOR	mem_service		; Mem exception
 VECTOR	instr_service		; Instrn Error
 VECTOR	EV_MachineCheck		; Fatal Machine check
