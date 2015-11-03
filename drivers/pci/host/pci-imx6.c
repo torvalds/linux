@@ -74,6 +74,7 @@ struct imx6_pcie {
 
 /* PHY registers (not memory-mapped) */
 #define PCIE_PHY_RX_ASIC_OUT 0x100D
+#define PCIE_PHY_RX_ASIC_OUT_VALID	(1 << 0)
 
 #define PHY_RX_OVRD_IN_LO 0x1005
 #define PHY_RX_OVRD_IN_LO_RX_DATA_EN (1 << 5)
@@ -503,7 +504,7 @@ static int imx6_pcie_link_up(struct pcie_port *pp)
 	pcie_phy_read(pp->dbi_base, PCIE_PHY_RX_ASIC_OUT, &rx_valid);
 	debug_r0 = readl(pp->dbi_base + PCIE_PHY_DEBUG_R0);
 
-	if (rx_valid & 0x01)
+	if (rx_valid & PCIE_PHY_RX_ASIC_OUT_VALID)
 		return 0;
 
 	if ((debug_r0 & 0x3f) != 0x0d)
@@ -539,7 +540,7 @@ static int __init imx6_add_pcie_port(struct pcie_port *pp,
 				       IRQF_SHARED, "mx6-pcie-msi", pp);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to request MSI irq\n");
-			return -ENODEV;
+			return ret;
 		}
 	}
 
