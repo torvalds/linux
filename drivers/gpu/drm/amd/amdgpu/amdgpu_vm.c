@@ -241,16 +241,16 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
  */
 void amdgpu_vm_fence(struct amdgpu_device *adev,
 		     struct amdgpu_vm *vm,
-		     struct amdgpu_fence *fence)
+		     struct fence *fence)
 {
-	unsigned ridx = fence->ring->idx;
-	unsigned vm_id = vm->ids[ridx].id;
+	struct amdgpu_ring *ring = amdgpu_ring_from_fence(fence);
+	unsigned vm_id = vm->ids[ring->idx].id;
 
 	fence_put(adev->vm_manager.active[vm_id]);
-	adev->vm_manager.active[vm_id] = fence_get(&fence->base);
+	adev->vm_manager.active[vm_id] = fence_get(fence);
 
-	fence_put(vm->ids[ridx].last_id_use);
-	vm->ids[ridx].last_id_use = fence_get(&fence->base);
+	fence_put(vm->ids[ring->idx].last_id_use);
+	vm->ids[ring->idx].last_id_use = fence_get(fence);
 }
 
 /**

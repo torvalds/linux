@@ -216,7 +216,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	}
 
 	if (ib->vm)
-		amdgpu_vm_fence(adev, ib->vm, ib->fence);
+		amdgpu_vm_fence(adev, ib->vm, &ib->fence->base);
 
 	amdgpu_ring_unlock_commit(ring);
 	return 0;

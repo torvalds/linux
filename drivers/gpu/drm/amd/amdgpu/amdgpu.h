@@ -2332,7 +2332,7 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		     struct fence *updates);
 void amdgpu_vm_fence(struct amdgpu_device *adev,
 		     struct amdgpu_vm *vm,
-		     struct amdgpu_fence *fence);
+		     struct fence *fence);
 uint64_t amdgpu_vm_map_gart(struct amdgpu_device *adev, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm);
