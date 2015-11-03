@@ -927,7 +927,10 @@
 
 /* Intel i347-AT4 Registers */
 
-#define I347AT4_PCDL                   0x10 /* PHY Cable Diagnostics Length */
+#define I347AT4_PCDL0                  0x10 /* Pair 0 PHY Cable Diagnostics Length */
+#define I347AT4_PCDL1                  0x11 /* Pair 1 PHY Cable Diagnostics Length */
+#define I347AT4_PCDL2                  0x12 /* Pair 2 PHY Cable Diagnostics Length */
+#define I347AT4_PCDL3                  0x13 /* Pair 3 PHY Cable Diagnostics Length */
 #define I347AT4_PCDC                   0x15 /* PHY Cable Diagnostics Control */
 #define I347AT4_PAGE_SELECT            0x16
 

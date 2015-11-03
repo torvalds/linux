@@ -1717,6 +1717,9 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 	u16 phy_data, phy_data2, index, default_page, is_cm;
+	int len_tot = 0;
+	u16 len_min;
+	u16 len_max;
 
 	switch (hw->phy.id) {
 	case M88E1543_E_PHY_ID:
@@ -1733,11 +1736,6 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		/* Get cable length from PHY Cable Diagnostics Control Reg */
-		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL, &phy_data);
-		if (ret_val)
-			goto out;
-
 		/* Check if the unit of cable length is meters or cm */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PCDC, &phy_data2);
 		if (ret_val)
@@ -1745,10 +1743,50 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 
 		is_cm = !(phy_data2 & I347AT4_PCDC_CABLE_LENGTH_UNIT);
 
+		/* Get cable length from Pair 0 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL0, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[0] = phy_data / (is_cm ? 100 : 1);
+		len_tot = phy->pair_length[0];
+		len_min = phy->pair_length[0];
+		len_max = phy->pair_length[0];
+
+		/* Get cable length from Pair 1 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL1, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[1] = phy_data / (is_cm ? 100 : 1);
+		len_tot += phy->pair_length[1];
+		len_min = min(len_min, phy->pair_length[1]);
+		len_max = max(len_max, phy->pair_length[1]);
+
+		/* Get cable length from Pair 2 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL2, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[2] = phy_data / (is_cm ? 100 : 1);
+		len_tot += phy->pair_length[2];
+		len_min = min(len_min, phy->pair_length[2]);
+		len_max = max(len_max, phy->pair_length[2]);
+
+		/* Get cable length from Pair 3 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL3, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[3] = phy_data / (is_cm ? 100 : 1);
+		len_tot += phy->pair_length[3];
+		len_min = min(len_min, phy->pair_length[3]);
+		len_max = max(len_max, phy->pair_length[3]);
+
 		/* Populate the phy structure with cable length in meters */
-		phy->min_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->max_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->cable_length = phy_data / (is_cm ? 100 : 1);
+		phy->min_cable_length = len_min;
+		phy->max_cable_length = len_max;
+		phy->cable_length = len_tot / 4;
 
 		/* Reset the page selec to its original value */
 		ret_val = phy->ops.write_reg(hw, I347AT4_PAGE_SELECT,
