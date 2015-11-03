@@ -24,8 +24,8 @@ struct watchdog_device;
  * @stop:	The routine for stopping the watchdog device.
  * @ping:	The routine that sends a keepalive ping to the watchdog device.
  * @status:	The routine that shows the status of the watchdog device.
- * @set_timeout:The routine for setting the watchdog devices timeout value.
- * @get_timeleft:The routine that gets the time left before a reset.
+ * @set_timeout:The routine for setting the watchdog devices timeout value (in seconds).
+ * @get_timeleft:The routine that gets the time left before a reset (in seconds).
  * @ref:	The ref operation for dyn. allocated watchdog_device structs
  * @unref:	The unref operation for dyn. allocated watchdog_device structs
  * @ioctl:	The routines that handles extra ioctl calls.
@@ -59,9 +59,9 @@ struct watchdog_ops {
  * @info:	Pointer to a watchdog_info structure.
  * @ops:	Pointer to the list of watchdog operations.
  * @bootstatus:	Status of the watchdog device at boot.
- * @timeout:	The watchdog devices timeout value.
- * @min_timeout:The watchdog devices minimum timeout value.
- * @max_timeout:The watchdog devices maximum timeout value.
+ * @timeout:	The watchdog devices timeout value (in seconds).
+ * @min_timeout:The watchdog devices minimum timeout value (in seconds).
+ * @max_timeout:The watchdog devices maximum timeout value (in seconds).
  * @driver-data:Pointer to the drivers private data.
  * @lock:	Lock for watchdog core internal use only.
  * @status:	Field that contains the devices internal status bits.
