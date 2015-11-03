@@ -69,6 +69,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 			  ext4_fsblk_t mmp_block)
 {
 	struct mmp_struct *mmp;
+	int ret;
 
 	if (*bh)
 		clear_buffer_uptodate(*bh);
@@ -76,33 +77,36 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 	/* This would be sb_bread(sb, mmp_block), except we need to be sure
 	 * that the MD RAID device cache has been bypassed, and that the read
 	 * is not blocked in the elevator. */
-	if (!*bh)
+	if (!*bh) {
 		*bh = sb_getblk(sb, mmp_block);
-	if (!*bh)
-		return -ENOMEM;
-	if (*bh) {
-		get_bh(*bh);
-		lock_buffer(*bh);
-		(*bh)->b_end_io = end_buffer_read_sync;
-		submit_bh(READ_SYNC | REQ_META | REQ_PRIO, *bh);
-		wait_on_buffer(*bh);
-		if (!buffer_uptodate(*bh)) {
-			brelse(*bh);
-			*bh = NULL;
+		if (!*bh) {
+			ret = -ENOMEM;
+			goto warn_exit;
 		}
 	}
-	if (unlikely(!*bh)) {
-		ext4_warning(sb, "Error while reading MMP block %llu",
-			     mmp_block);
-		return -EIO;
+
+	get_bh(*bh);
+	lock_buffer(*bh);
+	(*bh)->b_end_io = end_buffer_read_sync;
+	submit_bh(READ_SYNC | REQ_META | REQ_PRIO, *bh);
+	wait_on_buffer(*bh);
+	if (!buffer_uptodate(*bh)) {
+		brelse(*bh);
+		*bh = NULL;
+		ret = -EIO;
+		goto warn_exit;
 	}
 
 	mmp = (struct mmp_struct *)((*bh)->b_data);
-	if (le32_to_cpu(mmp->mmp_magic) != EXT4_MMP_MAGIC ||
-	    !ext4_mmp_csum_verify(sb, mmp))
-		return -EINVAL;
+	if (le32_to_cpu(mmp->mmp_magic) == EXT4_MMP_MAGIC &&
+	    ext4_mmp_csum_verify(sb, mmp))
+		return 0;
+	ret = -EINVAL;
 
-	return 0;
+warn_exit:
+	ext4_warning(sb, "Error %d while reading MMP block %llu",
+		     ret, mmp_block);
+	return ret;
 }
 
 /*
@@ -111,7 +115,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 void __dump_mmp_msg(struct super_block *sb, struct mmp_struct *mmp,
 		    const char *function, unsigned int line, const char *msg)
 {
-	__ext4_warning(sb, function, line, msg);
+	__ext4_warning(sb, function, line, "%s", msg);
 	__ext4_warning(sb, function, line,
 		       "MMP failure info: last update time: %llu, last update "
 		       "node: %s, last update device: %s\n",

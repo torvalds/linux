@@ -186,7 +186,6 @@ struct qfq_sched {
 
 	u64			oldV, V;	/* Precise virtual times. */
 	struct qfq_aggregate	*in_serv_agg;   /* Aggregate being served. */
-	u32			num_active_agg; /* Num. of active aggregates */
 	u32			wsum;		/* weight sum */
 	u32			iwsum;		/* inverse weight sum */
 
@@ -718,7 +717,7 @@ static struct qfq_class *qfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	fl = rcu_dereference_bh(q->filter_list);
-	result = tc_classify(skb, fl, &res);
+	result = tc_classify(skb, fl, &res, false);
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {

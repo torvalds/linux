@@ -22,121 +22,66 @@
  * Authors: Ben Skeggs
  */
 #include "outp.h"
-#include "priv.h"
 
 #include <subdev/bios.h>
-#include <subdev/bios/conn.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/i2c.h>
 
-int
-_nvkm_output_fini(struct nvkm_object *object, bool suspend)
+void
+nvkm_output_fini(struct nvkm_output *outp)
 {
-	struct nvkm_output *outp = (void *)object;
-	nv_ofuncs(outp->conn)->fini(nv_object(outp->conn), suspend);
-	return nvkm_object_fini(&outp->base, suspend);
-}
-
-int
-_nvkm_output_init(struct nvkm_object *object)
-{
-	struct nvkm_output *outp = (void *)object;
-	int ret = nvkm_object_init(&outp->base);
-	if (ret == 0)
-		nv_ofuncs(outp->conn)->init(nv_object(outp->conn));
-	return 0;
+	if (outp->func->fini)
+		outp->func->fini(outp);
 }
 
 void
-_nvkm_output_dtor(struct nvkm_object *object)
+nvkm_output_init(struct nvkm_output *outp)
 {
-	struct nvkm_output *outp = (void *)object;
-	list_del(&outp->head);
-	nvkm_object_ref(NULL, (void *)&outp->conn);
-	nvkm_object_destroy(&outp->base);
+	if (outp->func->init)
+		outp->func->init(outp);
 }
 
-int
-nvkm_output_create_(struct nvkm_object *parent,
-		    struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass,
-		    struct dcb_output *dcbE, int index,
-		    int length, void **pobject)
+void
+nvkm_output_del(struct nvkm_output **poutp)
 {
-	struct nvkm_disp *disp = nvkm_disp(parent);
-	struct nvkm_bios *bios = nvkm_bios(parent);
-	struct nvkm_i2c *i2c = nvkm_i2c(parent);
-	struct nvbios_connE connE;
-	struct nvkm_output *outp;
-	u8  ver, hdr;
-	u32 data;
-	int ret;
+	struct nvkm_output *outp = *poutp;
+	if (outp && !WARN_ON(!outp->func)) {
+		if (outp->func->dtor)
+			*poutp = outp->func->dtor(outp);
+		kfree(*poutp);
+		*poutp = NULL;
+	}
+}
 
-	ret = nvkm_object_create_(parent, engine, oclass, 0, length, pobject);
-	outp = *pobject;
-	if (ret)
-		return ret;
+void
+nvkm_output_ctor(const struct nvkm_output_func *func, struct nvkm_disp *disp,
+		 int index, struct dcb_output *dcbE, struct nvkm_output *outp)
+{
+	struct nvkm_i2c *i2c = disp->engine.subdev.device->i2c;
 
-	outp->info = *dcbE;
+	outp->func = func;
+	outp->disp = disp;
 	outp->index = index;
+	outp->info = *dcbE;
+	outp->i2c = nvkm_i2c_bus_find(i2c, dcbE->i2c_index);
 	outp->or = ffs(outp->info.or) - 1;
 
-	DBG("type %02x loc %d or %d link %d con %x edid %x bus %d head %x\n",
-	    dcbE->type, dcbE->location, dcbE->or, dcbE->type >= 2 ?
-	    dcbE->sorconf.link : 0, dcbE->connector, dcbE->i2c_index,
-	    dcbE->bus, dcbE->heads);
-
-	if (outp->info.type != DCB_OUTPUT_DP)
-		outp->port = i2c->find(i2c, NV_I2C_PORT(outp->info.i2c_index));
-	else
-		outp->port = i2c->find(i2c, NV_I2C_AUX(outp->info.i2c_index));
-	outp->edid = outp->port;
-
-	data = nvbios_connEp(bios, outp->info.connector, &ver, &hdr, &connE);
-	if (!data) {
-		DBG("vbios connector data not found\n");
-		memset(&connE, 0x00, sizeof(connE));
-		connE.type = DCB_CONNECTOR_NONE;
-	}
-
-	ret = nvkm_object_ctor(parent, NULL, nvkm_connector_oclass,
-			       &connE, outp->info.connector,
-			       (struct nvkm_object **)&outp->conn);
-	if (ret < 0) {
-		ERR("error %d creating connector, disabling\n", ret);
-		return ret;
-	}
-
-	list_add_tail(&outp->head, &disp->outp);
-	return 0;
+	OUTP_DBG(outp, "type %02x loc %d or %d link %d con %x "
+		       "edid %x bus %d head %x",
+		 outp->info.type, outp->info.location, outp->info.or,
+		 outp->info.type >= 2 ? outp->info.sorconf.link : 0,
+		 outp->info.connector, outp->info.i2c_index,
+		 outp->info.bus, outp->info.heads);
 }
 
 int
-_nvkm_output_ctor(struct nvkm_object *parent,
-		  struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *dcbE, u32 index,
-		  struct nvkm_object **pobject)
+nvkm_output_new_(const struct nvkm_output_func *func,
+		 struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
+		 struct nvkm_output **poutp)
 {
-	struct nvkm_output *outp;
-	int ret;
+	if (!(*poutp = kzalloc(sizeof(**poutp), GFP_KERNEL)))
+		return -ENOMEM;
 
-	ret = nvkm_output_create(parent, engine, oclass, dcbE, index, &outp);
-	*pobject = nv_object(outp);
-	if (ret)
-		return ret;
-
+	nvkm_output_ctor(func, disp, index, dcbE, *poutp);
 	return 0;
 }
-
-struct nvkm_oclass *
-nvkm_output_oclass = &(struct nvkm_output_impl) {
-	.base = {
-		.handle = 0,
-		.ofuncs = &(struct nvkm_ofuncs) {
-			.ctor = _nvkm_output_ctor,
-			.dtor = _nvkm_output_dtor,
-			.init = _nvkm_output_init,
-			.fini = _nvkm_output_fini,
-		},
-	},
-}.base;

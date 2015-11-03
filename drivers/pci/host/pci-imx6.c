@@ -117,11 +117,7 @@ static int pcie_phy_wait_ack(void __iomem *dbi_base, int addr)
 	val = addr << PCIE_PHY_CTRL_DATA_LOC;
 	writel(val, dbi_base + PCIE_PHY_CTRL);
 
-	ret = pcie_phy_poll_ack(dbi_base, 0);
-	if (ret)
-		return ret;
-
-	return 0;
+	return pcie_phy_poll_ack(dbi_base, 0);
 }
 
 /* Read from the 16-bit PCIe PHY control registers (not memory-mapped) */
@@ -148,11 +144,7 @@ static int pcie_phy_read(void __iomem *dbi_base, int addr , int *data)
 	/* deassert Read signal */
 	writel(0x00, dbi_base + PCIE_PHY_CTRL);
 
-	ret = pcie_phy_poll_ack(dbi_base, 0);
-	if (ret)
-		return ret;
-
-	return 0;
+	return pcie_phy_poll_ack(dbi_base, 0);
 }
 
 static int pcie_phy_write(void __iomem *dbi_base, int addr, int data)

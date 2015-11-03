@@ -60,6 +60,19 @@ void i40e_idle_aq(struct i40e_hw *hw);
 void i40evf_resume_aq(struct i40e_hw *hw);
 bool i40evf_check_asq_alive(struct i40e_hw *hw);
 i40e_status i40evf_aq_queue_shutdown(struct i40e_hw *hw, bool unloading);
+char *i40evf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err);
+char *i40evf_stat_str(struct i40e_hw *hw, i40e_status stat_err);
+
+i40e_status i40evf_aq_get_rss_lut(struct i40e_hw *hw, u16 seid,
+				  bool pf_lut, u8 *lut, u16 lut_size);
+i40e_status i40evf_aq_set_rss_lut(struct i40e_hw *hw, u16 seid,
+				  bool pf_lut, u8 *lut, u16 lut_size);
+i40e_status i40evf_aq_get_rss_key(struct i40e_hw *hw,
+				  u16 seid,
+				  struct i40e_aqc_get_set_rss_key_data *key);
+i40e_status i40evf_aq_set_rss_key(struct i40e_hw *hw,
+				  u16 seid,
+				  struct i40e_aqc_get_set_rss_key_data *key);
 
 i40e_status i40e_set_mac_type(struct i40e_hw *hw);
 

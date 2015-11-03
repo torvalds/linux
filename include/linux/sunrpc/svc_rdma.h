@@ -132,6 +132,7 @@ struct svcxprt_rdma {
 	struct list_head     sc_accept_q;	/* Conn. waiting accept */
 	int		     sc_ord;		/* RDMA read limit */
 	int                  sc_max_sge;
+	int                  sc_max_sge_rd;	/* max sge for read target */
 
 	int                  sc_sq_depth;	/* Depth of SQ */
 	atomic_t             sc_sq_count;	/* Number of SQ WR on queue */
@@ -172,13 +173,6 @@ struct svcxprt_rdma {
 #define RDMAXPRT_SQ_PENDING	2
 #define RDMAXPRT_CONN_PENDING	3
 
-#define RPCRDMA_MAX_SVC_SEGS	(64)	/* server max scatter/gather */
-#if RPCSVC_MAXPAYLOAD < (RPCRDMA_MAX_SVC_SEGS << PAGE_SHIFT)
-#define RPCRDMA_MAXPAYLOAD	RPCSVC_MAXPAYLOAD
-#else
-#define RPCRDMA_MAXPAYLOAD	(RPCRDMA_MAX_SVC_SEGS << PAGE_SHIFT)
-#endif
-
 #define RPCRDMA_LISTEN_BACKLOG  10
 /* The default ORD value is based on two outstanding full-size writes with a
  * page size of 4k, or 32k * 2 ops / 4k = 16 outstanding RDMA_READ.  */
@@ -186,6 +180,8 @@ struct svcxprt_rdma {
 #define RPCRDMA_SQ_DEPTH_MULT   8
 #define RPCRDMA_MAX_REQUESTS    32
 #define RPCRDMA_MAX_REQ_SIZE    4096
+
+#define RPCSVC_MAXPAYLOAD_RDMA	RPCSVC_MAXPAYLOAD
 
 /* svc_rdma_marshal.c */
 extern int svc_rdma_xdr_decode_req(struct rpcrdma_msg **, struct svc_rqst *);
@@ -213,6 +209,8 @@ extern int rdma_read_chunk_frmr(struct svcxprt_rdma *, struct svc_rqst *,
 
 /* svc_rdma_sendto.c */
 extern int svc_rdma_sendto(struct svc_rqst *);
+extern struct rpcrdma_read_chunk *
+	svc_rdma_get_read_chunk(struct rpcrdma_msg *);
 
 /* svc_rdma_transport.c */
 extern int svc_rdma_send(struct svcxprt_rdma *, struct ib_send_wr *);
@@ -225,7 +223,6 @@ extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);
 extern void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt);
 extern struct svc_rdma_req_map *svc_rdma_get_req_map(void);
 extern void svc_rdma_put_req_map(struct svc_rdma_req_map *);
-extern int svc_rdma_fastreg(struct svcxprt_rdma *, struct svc_rdma_fastreg_mr *);
 extern struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *);
 extern void svc_rdma_put_frmr(struct svcxprt_rdma *,
 			      struct svc_rdma_fastreg_mr *);
@@ -238,83 +235,4 @@ extern void svc_rdma_prep_reply_hdr(struct svc_rqst *);
 extern int svc_rdma_init(void);
 extern void svc_rdma_cleanup(void);
 
-/*
- * Returns the address of the first read chunk or <nul> if no read chunk is
- * present
- */
-static inline struct rpcrdma_read_chunk *
-svc_rdma_get_read_chunk(struct rpcrdma_msg *rmsgp)
-{
-	struct rpcrdma_read_chunk *ch =
-		(struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
-
-	if (ch->rc_discrim == 0)
-		return NULL;
-
-	return ch;
-}
-
-/*
- * Returns the address of the first read write array element or <nul> if no
- * write array list is present
- */
-static inline struct rpcrdma_write_array *
-svc_rdma_get_write_array(struct rpcrdma_msg *rmsgp)
-{
-	if (rmsgp->rm_body.rm_chunks[0] != 0
-	    || rmsgp->rm_body.rm_chunks[1] == 0)
-		return NULL;
-
-	return (struct rpcrdma_write_array *)&rmsgp->rm_body.rm_chunks[1];
-}
-
-/*
- * Returns the address of the first reply array element or <nul> if no
- * reply array is present
- */
-static inline struct rpcrdma_write_array *
-svc_rdma_get_reply_array(struct rpcrdma_msg *rmsgp)
-{
-	struct rpcrdma_read_chunk *rch;
-	struct rpcrdma_write_array *wr_ary;
-	struct rpcrdma_write_array *rp_ary;
-
-	/* XXX: Need to fix when reply list may occur with read-list and/or
-	 * write list */
-	if (rmsgp->rm_body.rm_chunks[0] != 0 ||
-	    rmsgp->rm_body.rm_chunks[1] != 0)
-		return NULL;
-
-	rch = svc_rdma_get_read_chunk(rmsgp);
-	if (rch) {
-		while (rch->rc_discrim)
-			rch++;
-
-		/* The reply list follows an empty write array located
-		 * at 'rc_position' here. The reply array is at rc_target.
-		 */
-		rp_ary = (struct rpcrdma_write_array *)&rch->rc_target;
-
-		goto found_it;
-	}
-
-	wr_ary = svc_rdma_get_write_array(rmsgp);
-	if (wr_ary) {
-		rp_ary = (struct rpcrdma_write_array *)
-			&wr_ary->
-			wc_array[ntohl(wr_ary->wc_nchunks)].wc_target.rs_length;
-
-		goto found_it;
-	}
-
-	/* No read list, no write list */
-	rp_ary = (struct rpcrdma_write_array *)
-		&rmsgp->rm_body.rm_chunks[2];
-
- found_it:
-	if (rp_ary->wc_discrim == 0)
-		return NULL;
-
-	return rp_ary;
-}
 #endif

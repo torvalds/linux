@@ -22,16 +22,6 @@
 MODULE_FIRMWARE(WIL_FW_NAME);
 MODULE_FIRMWARE(WIL_FW2_NAME);
 
-/* target operations */
-/* register read */
-#define R(a) ioread32(wil->csr + HOSTADDR(a))
-/* register write. wmb() to make sure it is completed */
-#define W(a, v) do { iowrite32(v, wil->csr + HOSTADDR(a)); wmb(); } while (0)
-/* register set = read, OR, write */
-#define S(a, v) W(a, R(a) | v)
-/* register clear = read, AND with inverted, write */
-#define C(a, v) W(a, R(a) & ~v)
-
 static
 void wil_memset_toio_32(volatile void __iomem *dst, u32 val,
 			size_t count)

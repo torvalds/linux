@@ -44,23 +44,14 @@ enum exynos_drm_output_type {
  *	- the unit is screen coordinates.
  * @src_y: offset y on a framebuffer to be displayed.
  *	- the unit is screen coordinates.
- * @src_width: width of a partial image to be displayed from framebuffer.
- * @src_height: height of a partial image to be displayed from framebuffer.
- * @fb_width: width of a framebuffer.
- * @fb_height: height of a framebuffer.
+ * @src_w: width of a partial image to be displayed from framebuffer.
+ * @src_h: height of a partial image to be displayed from framebuffer.
  * @crtc_x: offset x on hardware screen.
  * @crtc_y: offset y on hardware screen.
- * @crtc_width: window width to be displayed (hardware screen).
- * @crtc_height: window height to be displayed (hardware screen).
- * @mode_width: width of screen mode.
- * @mode_height: height of screen mode.
+ * @crtc_w: window width to be displayed (hardware screen).
+ * @crtc_h: window height to be displayed (hardware screen).
  * @h_ratio: horizontal scaling ratio, 16.16 fixed point
  * @v_ratio: vertical scaling ratio, 16.16 fixed point
- * @refresh: refresh rate.
- * @scan_flag: interlace or progressive way.
- *	(it could be DRM_MODE_FLAG_*)
- * @bpp: pixel size.(in bit)
- * @pixel_format: fourcc pixel format of this overlay
  * @dma_addr: array of bus(accessed by dma) address to the memory region
  *	      allocated for a overlay.
  * @zpos: order of overlay layer(z position).
@@ -73,73 +64,17 @@ struct exynos_drm_plane {
 	struct drm_plane base;
 	unsigned int src_x;
 	unsigned int src_y;
-	unsigned int src_width;
-	unsigned int src_height;
-	unsigned int fb_width;
-	unsigned int fb_height;
+	unsigned int src_w;
+	unsigned int src_h;
 	unsigned int crtc_x;
 	unsigned int crtc_y;
-	unsigned int crtc_width;
-	unsigned int crtc_height;
-	unsigned int mode_width;
-	unsigned int mode_height;
+	unsigned int crtc_w;
+	unsigned int crtc_h;
 	unsigned int h_ratio;
 	unsigned int v_ratio;
-	unsigned int refresh;
-	unsigned int scan_flag;
-	unsigned int bpp;
-	unsigned int pitch;
-	uint32_t pixel_format;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
 	unsigned int zpos;
-};
-
-/*
- * Exynos DRM Display Structure.
- *	- this structure is common to analog tv, digital tv and lcd panel.
- *
- * @create_connector: initialize and register a new connector
- * @remove: cleans up the display for removal
- * @mode_fixup: fix mode data comparing to hw specific display mode.
- * @mode_set: convert drm_display_mode to hw specific display mode and
- *	      would be called by encoder->mode_set().
- * @check_mode: check if mode is valid or not.
- * @dpms: display device on or off.
- * @commit: apply changes to hw
- */
-struct exynos_drm_display;
-struct exynos_drm_display_ops {
-	int (*create_connector)(struct exynos_drm_display *display,
-				struct drm_encoder *encoder);
-	void (*remove)(struct exynos_drm_display *display);
-	void (*mode_fixup)(struct exynos_drm_display *display,
-				struct drm_connector *connector,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode);
-	void (*mode_set)(struct exynos_drm_display *display,
-				struct drm_display_mode *mode);
-	int (*check_mode)(struct exynos_drm_display *display,
-				struct drm_display_mode *mode);
-	void (*dpms)(struct exynos_drm_display *display, int mode);
-	void (*commit)(struct exynos_drm_display *display);
-};
-
-/*
- * Exynos drm display structure, maps 1:1 with an encoder/connector
- *
- * @list: the list entry for this manager
- * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
- * @encoder: encoder object this display maps to
- * @connector: connector object this display maps to
- * @ops: pointer to callbacks for exynos drm specific functionality
- * @ctx: A pointer to the display's implementation specific context
- */
-struct exynos_drm_display {
-	struct list_head list;
-	enum exynos_drm_output_type type;
-	struct drm_encoder *encoder;
-	struct drm_connector *connector;
-	struct exynos_drm_display_ops *ops;
+	struct drm_framebuffer *pending_fb;
 };
 
 /*
@@ -147,14 +82,15 @@ struct exynos_drm_display {
  *
  * @enable: enable the device
  * @disable: disable the device
- * @mode_fixup: fix mode data before applying it
  * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  * @wait_for_vblank: wait for vblank interrupt to make sure that
  *	hardware overlay is updated.
- * @win_commit: apply hardware specific overlay data to registers.
- * @win_disable: disable hardware specific overlay.
+ * @atomic_begin: prepare a window to receive a update
+ * @atomic_flush: mark the end of a window update
+ * @update_plane: apply hardware specific overlay data to registers.
+ * @disable_plane: disable hardware specific overlay.
  * @te_handler: trigger to transfer video image at the tearing effect
  *	synchronization signal if there is a page flip request.
  * @clock_enable: optional function enabling/disabling display domain clock,
@@ -166,18 +102,20 @@ struct exynos_drm_crtc;
 struct exynos_drm_crtc_ops {
 	void (*enable)(struct exynos_drm_crtc *crtc);
 	void (*disable)(struct exynos_drm_crtc *crtc);
-	bool (*mode_fixup)(struct exynos_drm_crtc *crtc,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode);
 	void (*commit)(struct exynos_drm_crtc *crtc);
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
-	void (*win_commit)(struct exynos_drm_crtc *crtc, unsigned int zpos);
-	void (*win_disable)(struct exynos_drm_crtc *crtc, unsigned int zpos);
+	void (*atomic_begin)(struct exynos_drm_crtc *crtc,
+			      struct exynos_drm_plane *plane);
+	void (*update_plane)(struct exynos_drm_crtc *crtc,
+			     struct exynos_drm_plane *plane);
+	void (*disable_plane)(struct exynos_drm_crtc *crtc,
+			      struct exynos_drm_plane *plane);
+	void (*atomic_flush)(struct exynos_drm_crtc *crtc,
+			      struct exynos_drm_plane *plane);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
-	void (*clear_channels)(struct exynos_drm_crtc *crtc);
 };
 
 /*
@@ -194,6 +132,8 @@ struct exynos_drm_crtc_ops {
  *	this pipe value.
  * @enabled: if the crtc is enabled or not
  * @event: vblank event that is currently queued for flip
+ * @wait_update: wait all pending planes updates to finish
+ * @pending_update: number of pending plane updates in this crtc
  * @ops: pointer to callbacks for exynos drm specific functionality
  * @ctx: A pointer to the crtc's implementation specific context
  */
@@ -201,9 +141,9 @@ struct exynos_drm_crtc {
 	struct drm_crtc			base;
 	enum exynos_drm_output_type	type;
 	unsigned int			pipe;
-	bool				enabled;
-	wait_queue_head_t		pending_flip_queue;
 	struct drm_pending_vblank_event	*event;
+	wait_queue_head_t		wait_update;
+	atomic_t			pending_update;
 	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 };
@@ -229,6 +169,9 @@ struct drm_exynos_file_private {
  * @da_space_size: size of device address space.
  *	if 0 then default value is used for it.
  * @pipe: the pipe number for this crtc/manager.
+ * @pending: the crtcs that have pending updates to finish
+ * @lock: protect access to @pending
+ * @wait: wait an atomic commit to finish
  */
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
@@ -244,6 +187,11 @@ struct exynos_drm_private {
 	unsigned long da_space_size;
 
 	unsigned int pipe;
+
+	/* for atomic commit */
+	u32			pending;
+	spinlock_t		lock;
+	wait_queue_head_t	wait;
 };
 
 /*
@@ -285,20 +233,26 @@ int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
 void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
 #ifdef CONFIG_DRM_EXYNOS_DPI
-struct exynos_drm_display * exynos_dpi_probe(struct device *dev);
-int exynos_dpi_remove(struct exynos_drm_display *display);
+struct drm_encoder *exynos_dpi_probe(struct device *dev);
+int exynos_dpi_remove(struct drm_encoder *encoder);
+int exynos_dpi_bind(struct drm_device *dev, struct drm_encoder *encoder);
 #else
-static inline struct exynos_drm_display *
+static inline struct drm_encoder *
 exynos_dpi_probe(struct device *dev) { return NULL; }
-static inline int exynos_dpi_remove(struct exynos_drm_display *display)
+static inline int exynos_dpi_remove(struct drm_encoder *encoder)
+{
+	return 0;
+}
+static inline int exynos_dpi_bind(struct drm_device *dev,
+				  struct drm_encoder *encoder)
 {
 	return 0;
 }
 #endif
 
-/* This function creates a encoder and a connector, and initializes them. */
-int exynos_drm_create_enc_conn(struct drm_device *dev,
-				struct exynos_drm_display *display);
+int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
+			 bool async);
+
 
 extern struct platform_driver fimd_driver;
 extern struct platform_driver exynos5433_decon_driver;

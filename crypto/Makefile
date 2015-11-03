@@ -17,6 +17,7 @@ obj-$(CONFIG_CRYPTO_AEAD2) += aead.o
 
 crypto_blkcipher-y := ablkcipher.o
 crypto_blkcipher-y += blkcipher.o
+crypto_blkcipher-y += skcipher.o
 obj-$(CONFIG_CRYPTO_BLKCIPHER2) += crypto_blkcipher.o
 obj-$(CONFIG_CRYPTO_BLKCIPHER2) += chainiv.o
 obj-$(CONFIG_CRYPTO_BLKCIPHER2) += eseqiv.o
@@ -46,7 +47,7 @@ obj-$(CONFIG_CRYPTO_CMAC) += cmac.o
 obj-$(CONFIG_CRYPTO_HMAC) += hmac.o
 obj-$(CONFIG_CRYPTO_VMAC) += vmac.o
 obj-$(CONFIG_CRYPTO_XCBC) += xcbc.o
-obj-$(CONFIG_CRYPTO_NULL) += crypto_null.o
+obj-$(CONFIG_CRYPTO_NULL2) += crypto_null.o
 obj-$(CONFIG_CRYPTO_MD4) += md4.o
 obj-$(CONFIG_CRYPTO_MD5) += md5.o
 obj-$(CONFIG_CRYPTO_RMD128) += rmd128.o

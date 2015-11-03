@@ -2957,14 +2957,14 @@ sector_t generic_block_bmap(struct address_space *mapping, sector_t block,
 }
 EXPORT_SYMBOL(generic_block_bmap);
 
-static void end_bio_bh_io_sync(struct bio *bio, int err)
+static void end_bio_bh_io_sync(struct bio *bio)
 {
 	struct buffer_head *bh = bio->bi_private;
 
-	if (unlikely (test_bit(BIO_QUIET,&bio->bi_flags)))
+	if (unlikely(bio_flagged(bio, BIO_QUIET)))
 		set_bit(BH_Quiet, &bh->b_state);
 
-	bh->b_end_io(bh, test_bit(BIO_UPTODATE, &bio->bi_flags));
+	bh->b_end_io(bh, !bio->bi_error);
 	bio_put(bio);
 }
 
@@ -3046,12 +3046,9 @@ static int submit_bh_wbc(int rw, struct buffer_head *bh,
 
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_bdev = bh->b_bdev;
-	bio->bi_io_vec[0].bv_page = bh->b_page;
-	bio->bi_io_vec[0].bv_len = bh->b_size;
-	bio->bi_io_vec[0].bv_offset = bh_offset(bh);
 
-	bio->bi_vcnt = 1;
-	bio->bi_iter.bi_size = bh->b_size;
+	bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
+	BUG_ON(bio->bi_iter.bi_size != bh->b_size);
 
 	bio->bi_end_io = end_bio_bh_io_sync;
 	bio->bi_private = bh;

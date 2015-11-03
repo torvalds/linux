@@ -166,6 +166,7 @@ struct st_sensor_transfer_function {
 /**
  * struct st_sensor_settings - ST specific sensor settings
  * @wai: Contents of WhoAmI register.
+ * @wai_addr: The address of WhoAmI register.
  * @sensors_supported: List of supported sensors by struct itself.
  * @ch: IIO channels for the sensor.
  * @odr: Output data rate register and ODR list available.
@@ -179,6 +180,7 @@ struct st_sensor_transfer_function {
  */
 struct st_sensor_settings {
 	u8 wai;
+	u8 wai_addr;
 	char sensors_supported[ST_SENSORS_MAX_4WAI][ST_SENSORS_MAX_NAME];
 	struct iio_chan_spec *ch;
 	int num_ch;

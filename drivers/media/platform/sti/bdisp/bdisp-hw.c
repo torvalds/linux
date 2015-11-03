@@ -336,8 +336,8 @@ static int bdisp_hw_get_hv_inc(struct bdisp_ctx *ctx, u16 *h_inc, u16 *v_inc)
 
 	src_w = ctx->src.crop.width;
 	src_h = ctx->src.crop.height;
-	dst_w = ctx->dst.width;
-	dst_h = ctx->dst.height;
+	dst_w = ctx->dst.crop.width;
+	dst_h = ctx->dst.crop.height;
 
 	if (bdisp_hw_get_inc(src_w, dst_w, h_inc) ||
 	    bdisp_hw_get_inc(src_h, dst_h, v_inc)) {
@@ -483,9 +483,9 @@ static void bdisp_hw_build_node(struct bdisp_ctx *ctx,
 	src_rect.width -= src_x_offset;
 	src_rect.width = min_t(__s32, MAX_SRC_WIDTH, src_rect.width);
 
-	dst_x_offset = (src_x_offset * dst->width) / ctx->src.crop.width;
+	dst_x_offset = (src_x_offset * dst_width) / ctx->src.crop.width;
 	dst_rect.left += dst_x_offset;
-	dst_rect.width = (src_rect.width * dst->width) / ctx->src.crop.width;
+	dst_rect.width = (src_rect.width * dst_width) / ctx->src.crop.width;
 
 	/* General */
 	src_fmt = src->fmt->pixelformat;
@@ -768,12 +768,12 @@ static void bdisp_hw_save_request(struct bdisp_ctx *ctx)
 		/* Allocate memory if not done yet */
 		if (!copy_node[i]) {
 			copy_node[i] = devm_kzalloc(ctx->bdisp_dev->dev,
-						    sizeof(*copy_node),
+						    sizeof(*copy_node[i]),
 						    GFP_KERNEL);
 			if (!copy_node[i])
 				return;
 		}
-		copy_node[i] = node[i];
+		*copy_node[i] = *node[i];
 	}
 }
 

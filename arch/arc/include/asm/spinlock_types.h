@@ -26,7 +26,9 @@ typedef struct {
  */
 typedef struct {
 	volatile unsigned int	counter;
+#ifndef CONFIG_ARC_HAS_LLSC
 	arch_spinlock_t		lock_mutex;
+#endif
 } arch_rwlock_t;
 
 #define __ARCH_RW_LOCK_UNLOCKED__	0x01000000

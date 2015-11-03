@@ -126,6 +126,10 @@ static __inline__ int atomic_##op##_return(int i, atomic_t *v)		\
 ATOMIC_OPS(add, +=)
 ATOMIC_OPS(sub, -=)
 
+ATOMIC_OP(and, &=)
+ATOMIC_OP(or, |=)
+ATOMIC_OP(xor, ^=)
+
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
@@ -185,6 +189,9 @@ static __inline__ s64 atomic64_##op##_return(s64 i, atomic64_t *v)	\
 
 ATOMIC64_OPS(add, +=)
 ATOMIC64_OPS(sub, -=)
+ATOMIC64_OP(and, &=)
+ATOMIC64_OP(or, |=)
+ATOMIC64_OP(xor, ^=)
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_OP_RETURN

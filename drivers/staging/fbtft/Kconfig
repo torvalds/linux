@@ -1,6 +1,7 @@
 menuconfig FB_TFT
 	tristate "Support for small TFT LCD display modules"
-	depends on FB && SPI && GPIOLIB
+	depends on FB && SPI
+	depends on GPIOLIB || COMPILE_TEST
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
@@ -151,6 +152,12 @@ config FB_TFT_TLS8204
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for TLS8204
+
+config FB_TFT_UC1611
+	tristate "FB driver for the UC1611 LCD controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for UC1611
 
 config FB_TFT_UC1701
 	tristate "FB driver for the UC1701 LCD Controller"

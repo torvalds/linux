@@ -20,11 +20,10 @@ userspace GPIO can be used to determine system configuration data that
 standard kernels won't know about. And for some tasks, simple userspace
 GPIO drivers could be all that the system really needs.
 
-Note that standard kernel drivers exist for common "LEDs and Buttons"
-GPIO tasks:  "leds-gpio" and "gpio_keys", respectively. Use those
-instead of talking directly to the GPIOs; they integrate with kernel
-frameworks better than your userspace code could.
-
+DO NOT ABUSE SYFS TO CONTROL HARDWARE THAT HAS PROPER KERNEL DRIVERS.
+PLEASE READ THE DOCUMENT NAMED "drivers-on-gpio.txt" IN THIS DOCUMENTATION
+DIRECTORY TO AVOID REINVENTING KERNEL WHEELS IN USERSPACE. I MEAN IT.
+REALLY.
 
 Paths in Sysfs
 --------------

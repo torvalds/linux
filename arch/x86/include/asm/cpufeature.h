@@ -119,6 +119,7 @@
 #define X86_FEATURE_TM2		( 4*32+ 8) /* Thermal Monitor 2 */
 #define X86_FEATURE_SSSE3	( 4*32+ 9) /* Supplemental SSE-3 */
 #define X86_FEATURE_CID		( 4*32+10) /* Context ID */
+#define X86_FEATURE_SDBG	( 4*32+11) /* Silicon Debug */
 #define X86_FEATURE_FMA		( 4*32+12) /* Fused multiply-add */
 #define X86_FEATURE_CX16	( 4*32+13) /* CMPXCHG16B */
 #define X86_FEATURE_XTPR	( 4*32+14) /* Send Task Priority Messages */
@@ -176,6 +177,7 @@
 #define X86_FEATURE_PERFCTR_NB  ( 6*32+24) /* NB performance counter extensions */
 #define X86_FEATURE_BPEXT	(6*32+26) /* data breakpoint extension */
 #define X86_FEATURE_PERFCTR_L2	( 6*32+28) /* L2 performance counter extensions */
+#define X86_FEATURE_MWAITX	( 6*32+29) /* MWAIT extension (MONITORX/MWAITX) */
 
 /*
  * Auxiliary flags: Linux defined - For features scattered in various
@@ -191,7 +193,7 @@
 #define X86_FEATURE_HW_PSTATE	( 7*32+ 8) /* AMD HW-PState */
 #define X86_FEATURE_PROC_FEEDBACK ( 7*32+ 9) /* AMD ProcFeedbackInterface */
 #define X86_FEATURE_HWP		( 7*32+ 10) /* "hwp" Intel HWP */
-#define X86_FEATURE_HWP_NOITFY	( 7*32+ 11) /* Intel HWP_NOTIFY */
+#define X86_FEATURE_HWP_NOTIFY	( 7*32+ 11) /* Intel HWP_NOTIFY */
 #define X86_FEATURE_HWP_ACT_WINDOW ( 7*32+ 12) /* Intel HWP_ACT_WINDOW */
 #define X86_FEATURE_HWP_EPP	( 7*32+13) /* Intel HWP_EPP */
 #define X86_FEATURE_HWP_PKG_REQ ( 7*32+14) /* Intel HWP_PKG_REQ */
@@ -239,6 +241,7 @@
 #define X86_FEATURE_AVX512PF	( 9*32+26) /* AVX-512 Prefetch */
 #define X86_FEATURE_AVX512ER	( 9*32+27) /* AVX-512 Exponential and Reciprocal */
 #define X86_FEATURE_AVX512CD	( 9*32+28) /* AVX-512 Conflict Detection */
+#define X86_FEATURE_SHA_NI	( 9*32+29) /* SHA1/SHA256 Instruction Extensions */
 
 /* Extended state features, CPUID level 0x0000000d:1 (eax), word 10 */
 #define X86_FEATURE_XSAVEOPT	(10*32+ 0) /* XSAVEOPT */

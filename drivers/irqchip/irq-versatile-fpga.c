@@ -4,6 +4,7 @@
 #include <linux/bitops.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/versatile-fpga.h>
 #include <linux/irqdomain.h>
 #include <linux/module.h>
@@ -13,8 +14,6 @@
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
-
-#include "irqchip.h"
 
 #define IRQ_STATUS		0x00
 #define IRQ_RAW_STATUS		0x04
@@ -66,18 +65,19 @@ static void fpga_irq_unmask(struct irq_data *d)
 	writel(mask, f->base + IRQ_ENABLE_SET);
 }
 
-static void fpga_irq_handle(unsigned int irq, struct irq_desc *desc)
+static void fpga_irq_handle(struct irq_desc *desc)
 {
 	struct fpga_irq_data *f = irq_desc_get_handler_data(desc);
 	u32 status = readl(f->base + IRQ_STATUS);
 
 	if (status == 0) {
-		do_bad_IRQ(irq, desc);
+		do_bad_IRQ(desc);
 		return;
 	}
 
 	do {
-		irq = ffs(status) - 1;
+		unsigned int irq = ffs(status) - 1;
+
 		status &= ~(1 << irq);
 		generic_handle_irq(irq_find_mapping(f->domain, irq));
 	} while (status);
@@ -128,7 +128,7 @@ static int fpga_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, f);
 	irq_set_chip_and_handler(irq, &f->chip,
 				handle_level_irq);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(irq);
 	return 0;
 }
 
@@ -156,8 +156,8 @@ void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
 	f->valid = valid;
 
 	if (parent_irq != -1) {
-		irq_set_handler_data(parent_irq, f);
-		irq_set_chained_handler(parent_irq, fpga_irq_handle);
+		irq_set_chained_handler_and_data(parent_irq, fpga_irq_handle,
+						 f);
 	}
 
 	/* This will also allocate irq descriptors */

@@ -81,12 +81,6 @@
 #define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET + PAGE_OFFSET))
 
 /*
- * Convert a physical address to a Page Frame Number and back
- */
-#define	__phys_to_pfn(paddr)	((unsigned long)((paddr) >> PAGE_SHIFT))
-#define	__pfn_to_phys(pfn)	((phys_addr_t)(pfn) << PAGE_SHIFT)
-
-/*
  * Convert a page to/from a physical address
  */
 #define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
@@ -112,6 +106,14 @@
 extern phys_addr_t		memstart_addr;
 /* PHYS_OFFSET - the physical address of the start of memory. */
 #define PHYS_OFFSET		({ memstart_addr; })
+
+/*
+ * The maximum physical address that the linear direct mapping
+ * of system RAM can cover. (PAGE_OFFSET can be interpreted as
+ * a 2's complement signed quantity and negated to derive the
+ * maximum size of the linear mapping.)
+ */
+#define MAX_MEMBLOCK_ADDR	({ memstart_addr - PAGE_OFFSET - 1; })
 
 /*
  * PFNs are used to describe any physical page; this means

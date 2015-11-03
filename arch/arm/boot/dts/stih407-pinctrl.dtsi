@@ -439,6 +439,194 @@
 					};
 				};
 			};
+
+			tsin0 {
+				pinctrl_tsin0_parallel: tsin0_parallel {
+					st,pins {
+						DATA7 = <&pio10 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA6 = <&pio10 5 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA5 = <&pio10 6 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA4 = <&pio10 7 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA3 = <&pio11 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA2 = <&pio11 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA1 = <&pio11 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA0 = <&pio11 3 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio10 3 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio10 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio10 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio10 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+				pinctrl_tsin0_serial: tsin0_serial {
+					st,pins {
+						DATA7 = <&pio10 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio10 3 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio10 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio10 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio10 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
+
+			tsin1 {
+				pinctrl_tsin1_parallel: tsin1_parallel {
+					st,pins {
+						DATA7 = <&pio12 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA6 = <&pio12 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA5 = <&pio12 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA4 = <&pio12 3 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA3 = <&pio12 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA2 = <&pio12 5 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA1 = <&pio12 6 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA0 = <&pio12 7 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio11 7 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio11 5 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio11 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio11 6 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+				pinctrl_tsin1_serial: tsin1_serial {
+					st,pins {
+						DATA7 = <&pio12 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio11 7 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio11 5 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio11 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio11 6 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
+
+			tsin2 {
+				pinctrl_tsin2_parallel: tsin2_parallel {
+					st,pins {
+						DATA7 = <&pio13 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						DATA6 = <&pio13 5 ALT2 IN SE_NICLK_IO 0 CLK_B>;
+						DATA5 = <&pio13 6 ALT2 IN SE_NICLK_IO 0 CLK_B>;
+						DATA4 = <&pio13 7 ALT2 IN SE_NICLK_IO 0 CLK_B>;
+						DATA3 = <&pio14 0 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+						DATA2 = <&pio14 1 ALT2 IN SE_NICLK_IO 0 CLK_B>;
+						DATA1 = <&pio14 2 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+						DATA0 = <&pio14 3 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio13 3 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio13 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio13 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio13 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+				pinctrl_tsin2_serial: tsin2_serial {
+					st,pins {
+						DATA7 = <&pio13 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio13 3 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio13 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio13 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio13 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
+
+			tsin3 {
+				pinctrl_tsin3_serial: tsin3_serial {
+					st,pins {
+						DATA7 = <&pio14 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio14 0 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio13 6 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio13 5 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio13 7 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
+
+			tsin4 {
+				pinctrl_tsin4_serial_alt3: tsin4_serial_alt3 {
+					st,pins {
+						DATA7 = <&pio14 6 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio14 5 ALT3 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio14 3 ALT3 IN SE_NICLK_IO 0 CLK_B>;
+						ERROR = <&pio14 2 ALT3 IN SE_NICLK_IO 0 CLK_B>;
+						PKCLK = <&pio14 4 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
+
+			tsin5 {
+				pinctrl_tsin5_serial_alt1: tsin5_serial_alt1 {
+					st,pins {
+						DATA7 = <&pio18 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio18 3 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio18 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio18 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio18 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+				pinctrl_tsin5_serial_alt2: tsin5_serial_alt2 {
+					st,pins {
+						DATA7 = <&pio19 4 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio19 3 ALT2 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio19 1 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio19 0 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio19 2 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
+
+			tsout0 {
+				pinctrl_tsout0_parallel: tsout0_parallel {
+					st,pins {
+						DATA7 = <&pio12 0 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA6 = <&pio12 1 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA5 = <&pio12 2 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA4 = <&pio12 3 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA3 = <&pio12 4 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA2 = <&pio12 5 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA1 = <&pio12 6 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA0 = <&pio12 7 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio11 7 ALT3 OUT NICLK 0 CLK_A>;
+						VALID = <&pio11 5 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio11 4 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio11 6 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+				pinctrl_tsout0_serial: tsout0_serial {
+					st,pins {
+						DATA7 = <&pio12 0 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio11 7 ALT3 OUT NICLK 0 CLK_A>;
+						VALID = <&pio11 5 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio11 4 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio11 6 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
+
+			tsout1 {
+				pinctrl_tsout1_serial: tsout1_serial {
+					st,pins {
+						DATA7 = <&pio19 4 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio19 3 ALT1 OUT NICLK 0 CLK_A>;
+						VALID = <&pio19 1 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio19 0 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio19 2 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
+
+			mtsin0 {
+				pinctrl_mtsin0_parallel: mtsin0_parallel {
+					st,pins {
+						DATA7 = <&pio10 4 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA6 = <&pio10 5 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA5 = <&pio10 6 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA4 = <&pio10 7 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA3 = <&pio11 0 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA2 = <&pio11 1 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA1 = <&pio11 2 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA0 = <&pio11 3 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio10 3 ALT3 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio10 1 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio10 0 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio10 2 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front1 {
@@ -451,6 +639,18 @@
 			interrupts = <GIC_SPI 190 IRQ_TYPE_NONE>;
 			interrupts-names = "irqmux";
 			ranges = <0 0x09210000 0x10000>;
+
+			tsin4 {
+				pinctrl_tsin4_serial_alt1: tsin4_serial_alt1 {
+					st,pins {
+						DATA7 = <&pio20 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio20 3 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio20 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio20 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio20 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
 
 			pio20: pio@09210000 {
 				gpio-controller;

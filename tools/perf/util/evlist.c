@@ -98,6 +98,7 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 
 	evlist__for_each_safe(evlist, n, pos) {
 		list_del_init(&pos->node);
+		pos->evlist = NULL;
 		perf_evsel__delete(pos);
 	}
 
@@ -123,26 +124,55 @@ void perf_evlist__delete(struct perf_evlist *evlist)
 	free(evlist);
 }
 
+static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
+					  struct perf_evsel *evsel)
+{
+	/*
+	 * We already have cpus for evsel (via PMU sysfs) so
+	 * keep it, if there's no target cpu list defined.
+	 */
+	if (!evsel->own_cpus || evlist->has_user_cpus) {
+		cpu_map__put(evsel->cpus);
+		evsel->cpus = cpu_map__get(evlist->cpus);
+	} else if (evsel->cpus != evsel->own_cpus) {
+		cpu_map__put(evsel->cpus);
+		evsel->cpus = cpu_map__get(evsel->own_cpus);
+	}
+
+	thread_map__put(evsel->threads);
+	evsel->threads = thread_map__get(evlist->threads);
+}
+
+static void perf_evlist__propagate_maps(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel)
+		__perf_evlist__propagate_maps(evlist, evsel);
+}
+
 void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 {
+	entry->evlist = evlist;
 	list_add_tail(&entry->node, &evlist->entries);
 	entry->idx = evlist->nr_entries;
 	entry->tracking = !entry->idx;
 
 	if (!evlist->nr_entries++)
 		perf_evlist__set_id_pos(evlist);
+
+	__perf_evlist__propagate_maps(evlist, entry);
 }
 
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
-				   struct list_head *list,
-				   int nr_entries)
+				   struct list_head *list)
 {
-	bool set_id_pos = !evlist->nr_entries;
+	struct perf_evsel *evsel, *temp;
 
-	list_splice_tail(list, &evlist->entries);
-	evlist->nr_entries += nr_entries;
-	if (set_id_pos)
-		perf_evlist__set_id_pos(evlist);
+	__evlist__for_each_safe(list, temp, evsel) {
+		list_del_init(&evsel->node);
+		perf_evlist__add(evlist, evsel);
+	}
 }
 
 void __perf_evlist__set_leader(struct list_head *list)
@@ -208,7 +238,7 @@ static int perf_evlist__add_attrs(struct perf_evlist *evlist,
 		list_add_tail(&evsel->node, &head);
 	}
 
-	perf_evlist__splice_list_tail(evlist, &head, nr_attrs);
+	perf_evlist__splice_list_tail(evlist, &head);
 
 	return 0;
 
@@ -573,7 +603,7 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 {
 	struct perf_sample_id *sid;
 
-	if (evlist->nr_entries == 1)
+	if (evlist->nr_entries == 1 || !id)
 		return perf_evlist__first(evlist);
 
 	sid = perf_evlist__id2sid(evlist, id);
@@ -1101,53 +1131,56 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	return perf_evlist__mmap_ex(evlist, pages, overwrite, 0, false);
 }
 
-static int perf_evlist__propagate_maps(struct perf_evlist *evlist,
-				       struct target *target)
-{
-	struct perf_evsel *evsel;
-
-	evlist__for_each(evlist, evsel) {
-		/*
-		 * We already have cpus for evsel (via PMU sysfs) so
-		 * keep it, if there's no target cpu list defined.
-		 */
-		if (evsel->cpus && target->cpu_list)
-			cpu_map__put(evsel->cpus);
-
-		if (!evsel->cpus || target->cpu_list)
-			evsel->cpus = cpu_map__get(evlist->cpus);
-
-		evsel->threads = thread_map__get(evlist->threads);
-
-		if (!evsel->cpus || !evsel->threads)
-			return -ENOMEM;
-	}
-
-	return 0;
-}
-
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 {
-	evlist->threads = thread_map__new_str(target->pid, target->tid,
-					      target->uid);
+	struct cpu_map *cpus;
+	struct thread_map *threads;
 
-	if (evlist->threads == NULL)
+	threads = thread_map__new_str(target->pid, target->tid, target->uid);
+
+	if (!threads)
 		return -1;
 
 	if (target__uses_dummy_map(target))
-		evlist->cpus = cpu_map__dummy_new();
+		cpus = cpu_map__dummy_new();
 	else
-		evlist->cpus = cpu_map__new(target->cpu_list);
+		cpus = cpu_map__new(target->cpu_list);
 
-	if (evlist->cpus == NULL)
+	if (!cpus)
 		goto out_delete_threads;
 
-	return perf_evlist__propagate_maps(evlist, target);
+	evlist->has_user_cpus = !!target->cpu_list;
+
+	perf_evlist__set_maps(evlist, cpus, threads);
+
+	return 0;
 
 out_delete_threads:
-	thread_map__put(evlist->threads);
-	evlist->threads = NULL;
+	thread_map__put(threads);
 	return -1;
+}
+
+void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
+			   struct thread_map *threads)
+{
+	/*
+	 * Allow for the possibility that one or another of the maps isn't being
+	 * changed i.e. don't put it.  Note we are assuming the maps that are
+	 * being applied are brand new and evlist is taking ownership of the
+	 * original reference count of 1.  If that is not the case it is up to
+	 * the caller to increase the reference count.
+	 */
+	if (cpus != evlist->cpus) {
+		cpu_map__put(evlist->cpus);
+		evlist->cpus = cpus;
+	}
+
+	if (threads != evlist->threads) {
+		thread_map__put(evlist->threads);
+		evlist->threads = threads;
+	}
+
+	perf_evlist__propagate_maps(evlist);
 }
 
 int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel)
@@ -1161,7 +1194,11 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **e
 		if (evsel->filter == NULL)
 			continue;
 
-		err = perf_evsel__set_filter(evsel, ncpus, nthreads, evsel->filter);
+		/*
+		 * filters only work for tracepoint event, which doesn't have cpu limit.
+		 * So evlist and evsel should always be same.
+		 */
+		err = perf_evsel__apply_filter(evsel, ncpus, nthreads, evsel->filter);
 		if (err) {
 			*err_evsel = evsel;
 			break;
@@ -1175,11 +1212,9 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 {
 	struct perf_evsel *evsel;
 	int err = 0;
-	const int ncpus = cpu_map__nr(evlist->cpus),
-		  nthreads = thread_map__nr(evlist->threads);
 
 	evlist__for_each(evlist, evsel) {
-		err = perf_evsel__set_filter(evsel, ncpus, nthreads, filter);
+		err = perf_evsel__set_filter(evsel, filter);
 		if (err)
 			break;
 	}
@@ -1255,6 +1290,16 @@ u64 perf_evlist__combined_sample_type(struct perf_evlist *evlist)
 {
 	evlist->combined_sample_type = 0;
 	return __perf_evlist__combined_sample_type(evlist);
+}
+
+u64 perf_evlist__combined_branch_type(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+	u64 branch_type = 0;
+
+	evlist__for_each(evlist, evsel)
+		branch_type |= evsel->attr.branch_sample_type;
+	return branch_type;
 }
 
 bool perf_evlist__valid_read_format(struct perf_evlist *evlist)
@@ -1355,6 +1400,8 @@ void perf_evlist__close(struct perf_evlist *evlist)
 
 static int perf_evlist__create_syswide_maps(struct perf_evlist *evlist)
 {
+	struct cpu_map	  *cpus;
+	struct thread_map *threads;
 	int err = -ENOMEM;
 
 	/*
@@ -1366,20 +1413,19 @@ static int perf_evlist__create_syswide_maps(struct perf_evlist *evlist)
 	 * error, and we may not want to do that fallback to a
 	 * default cpu identity map :-\
 	 */
-	evlist->cpus = cpu_map__new(NULL);
-	if (evlist->cpus == NULL)
+	cpus = cpu_map__new(NULL);
+	if (!cpus)
 		goto out;
 
-	evlist->threads = thread_map__new_dummy();
-	if (evlist->threads == NULL)
-		goto out_free_cpus;
+	threads = thread_map__new_dummy();
+	if (!threads)
+		goto out_put;
 
-	err = 0;
+	perf_evlist__set_maps(evlist, cpus, threads);
 out:
 	return err;
-out_free_cpus:
-	cpu_map__put(evlist->cpus);
-	evlist->cpus = NULL;
+out_put:
+	cpu_map__put(cpus);
 	goto out;
 }
 

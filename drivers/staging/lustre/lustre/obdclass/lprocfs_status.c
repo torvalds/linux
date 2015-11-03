@@ -275,7 +275,7 @@ struct dentry *ldebugfs_add_symlink(const char *name, struct dentry *parent,
 		return NULL;
 
 	dest = kzalloc(MAX_STRING_SIZE + 1, GFP_KERNEL);
-	if (dest == NULL)
+	if (!dest)
 		return NULL;
 
 	va_start(ap, format);
@@ -329,7 +329,7 @@ EXPORT_SYMBOL(ldebugfs_add_vars);
 
 void ldebugfs_remove(struct dentry **entryp)
 {
-	debugfs_remove(*entryp);
+	debugfs_remove_recursive(*entryp);
 	*entryp = NULL;
 }
 EXPORT_SYMBOL(ldebugfs_remove);

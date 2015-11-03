@@ -16,9 +16,220 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
+/*
+ * DPLL5_FREQ_FOR_USBHOST: USBHOST and USBTLL are the only clocks
+ * that are sourced by DPLL5, and both of these require this clock
+ * to be at 120 MHz for proper operation.
+ */
+#define DPLL5_FREQ_FOR_USBHOST		120000000
+
+#define OMAP3430ES2_ST_DSS_IDLE_SHIFT			1
+#define OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT		5
+#define OMAP3430ES2_ST_SSI_IDLE_SHIFT			8
+
+#define OMAP34XX_CM_IDLEST_VAL				1
+
+/*
+ * In AM35xx IPSS, the {ICK,FCK} enable bits for modules are exported
+ * in the same register at a bit offset of 0x8. The EN_ACK for ICK is
+ * at an offset of 4 from ICK enable bit.
+ */
+#define AM35XX_IPSS_ICK_MASK			0xF
+#define AM35XX_IPSS_ICK_EN_ACK_OFFSET		0x4
+#define AM35XX_IPSS_ICK_FCK_OFFSET		0x8
+#define AM35XX_IPSS_CLK_IDLEST_VAL		0
+
+#define AM35XX_ST_IPSS_SHIFT			5
+
+/**
+ * omap3430es2_clk_ssi_find_idlest - return CM_IDLEST info for SSI
+ * @clk: struct clk * being enabled
+ * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
+ * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
+ *
+ * The OMAP3430ES2 SSI target CM_IDLEST bit is at a different shift
+ * from the CM_{I,F}CLKEN bit.  Pass back the correct info via
+ * @idlest_reg and @idlest_bit.  No return value.
+ */
+static void omap3430es2_clk_ssi_find_idlest(struct clk_hw_omap *clk,
+					    void __iomem **idlest_reg,
+					    u8 *idlest_bit,
+					    u8 *idlest_val)
+{
+	u32 r;
+
+	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
+	*idlest_reg = (__force void __iomem *)r;
+	*idlest_bit = OMAP3430ES2_ST_SSI_IDLE_SHIFT;
+	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
+}
+
+const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_ssi_wait = {
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
+	.find_idlest	= omap3430es2_clk_ssi_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
+
+/**
+ * omap3430es2_clk_dss_usbhost_find_idlest - CM_IDLEST info for DSS, USBHOST
+ * @clk: struct clk * being enabled
+ * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
+ * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
+ *
+ * Some OMAP modules on OMAP3 ES2+ chips have both initiator and
+ * target IDLEST bits.  For our purposes, we are concerned with the
+ * target IDLEST bits, which exist at a different bit position than
+ * the *CLKEN bit position for these modules (DSS and USBHOST) (The
+ * default find_idlest code assumes that they are at the same
+ * position.)  No return value.
+ */
+static void omap3430es2_clk_dss_usbhost_find_idlest(struct clk_hw_omap *clk,
+						    void __iomem **idlest_reg,
+						    u8 *idlest_bit,
+						    u8 *idlest_val)
+{
+	u32 r;
+
+	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
+	*idlest_reg = (__force void __iomem *)r;
+	/* USBHOST_IDLE has same shift */
+	*idlest_bit = OMAP3430ES2_ST_DSS_IDLE_SHIFT;
+	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
+}
+
+const struct clk_hw_omap_ops clkhwops_omap3430es2_dss_usbhost_wait = {
+	.find_idlest	= omap3430es2_clk_dss_usbhost_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
+
+const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_dss_usbhost_wait = {
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
+	.find_idlest	= omap3430es2_clk_dss_usbhost_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
+
+/**
+ * omap3430es2_clk_hsotgusb_find_idlest - return CM_IDLEST info for HSOTGUSB
+ * @clk: struct clk * being enabled
+ * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
+ * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
+ *
+ * The OMAP3430ES2 HSOTGUSB target CM_IDLEST bit is at a different
+ * shift from the CM_{I,F}CLKEN bit.  Pass back the correct info via
+ * @idlest_reg and @idlest_bit.  No return value.
+ */
+static void omap3430es2_clk_hsotgusb_find_idlest(struct clk_hw_omap *clk,
+						 void __iomem **idlest_reg,
+						 u8 *idlest_bit,
+						 u8 *idlest_val)
+{
+	u32 r;
+
+	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
+	*idlest_reg = (__force void __iomem *)r;
+	*idlest_bit = OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT;
+	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
+}
+
+const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_hsotgusb_wait = {
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
+	.find_idlest	= omap3430es2_clk_hsotgusb_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
+
+/**
+ * am35xx_clk_find_idlest - return clock ACK info for AM35XX IPSS
+ * @clk: struct clk * being enabled
+ * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
+ * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
+ *
+ * The interface clocks on AM35xx IPSS reflects the clock idle status
+ * in the enable register itsel at a bit offset of 4 from the enable
+ * bit. A value of 1 indicates that clock is enabled.
+ */
+static void am35xx_clk_find_idlest(struct clk_hw_omap *clk,
+				   void __iomem **idlest_reg,
+				   u8 *idlest_bit,
+				   u8 *idlest_val)
+{
+	*idlest_reg = (__force void __iomem *)(clk->enable_reg);
+	*idlest_bit = clk->enable_bit + AM35XX_IPSS_ICK_EN_ACK_OFFSET;
+	*idlest_val = AM35XX_IPSS_CLK_IDLEST_VAL;
+}
+
+/**
+ * am35xx_clk_find_companion - find companion clock to @clk
+ * @clk: struct clk * to find the companion clock of
+ * @other_reg: void __iomem ** to return the companion clock CM_*CLKEN va in
+ * @other_bit: u8 ** to return the companion clock bit shift in
+ *
+ * Some clocks don't have companion clocks.  For example, modules with
+ * only an interface clock (such as HECC) don't have a companion
+ * clock.  Right now, this code relies on the hardware exporting a bit
+ * in the correct companion register that indicates that the
+ * nonexistent 'companion clock' is active.  Future patches will
+ * associate this type of code with per-module data structures to
+ * avoid this issue, and remove the casts.  No return value.
+ */
+static void am35xx_clk_find_companion(struct clk_hw_omap *clk,
+				      void __iomem **other_reg,
+				      u8 *other_bit)
+{
+	*other_reg = (__force void __iomem *)(clk->enable_reg);
+	if (clk->enable_bit & AM35XX_IPSS_ICK_MASK)
+		*other_bit = clk->enable_bit + AM35XX_IPSS_ICK_FCK_OFFSET;
+	else
+	*other_bit = clk->enable_bit - AM35XX_IPSS_ICK_FCK_OFFSET;
+}
+
+const struct clk_hw_omap_ops clkhwops_am35xx_ipss_module_wait = {
+	.find_idlest	= am35xx_clk_find_idlest,
+	.find_companion	= am35xx_clk_find_companion,
+};
+
+/**
+ * am35xx_clk_ipss_find_idlest - return CM_IDLEST info for IPSS
+ * @clk: struct clk * being enabled
+ * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
+ * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
+ *
+ * The IPSS target CM_IDLEST bit is at a different shift from the
+ * CM_{I,F}CLKEN bit.  Pass back the correct info via @idlest_reg
+ * and @idlest_bit.  No return value.
+ */
+static void am35xx_clk_ipss_find_idlest(struct clk_hw_omap *clk,
+					void __iomem **idlest_reg,
+					u8 *idlest_bit,
+					u8 *idlest_val)
+{
+	u32 r;
+
+	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
+	*idlest_reg = (__force void __iomem *)r;
+	*idlest_bit = AM35XX_ST_IPSS_SHIFT;
+	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
+}
+
+const struct clk_hw_omap_ops clkhwops_am35xx_ipss_wait = {
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
+	.find_idlest	= am35xx_clk_ipss_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
 
 static struct ti_dt_clk omap3xxx_clks[] = {
 	DT_CLK(NULL, "apb_pclk", "dummy_apb_pclk"),
@@ -323,6 +534,30 @@ enum {
 	OMAP3_SOC_OMAP3430_ES2_PLUS,
 	OMAP3_SOC_OMAP3630,
 };
+
+/**
+ * omap3_clk_lock_dpll5 - locks DPLL5
+ *
+ * Locks DPLL5 to a pre-defined frequency. This is required for proper
+ * operation of USB.
+ */
+void __init omap3_clk_lock_dpll5(void)
+{
+	struct clk *dpll5_clk;
+	struct clk *dpll5_m2_clk;
+
+	dpll5_clk = clk_get(NULL, "dpll5_ck");
+	clk_set_rate(dpll5_clk, DPLL5_FREQ_FOR_USBHOST);
+	clk_prepare_enable(dpll5_clk);
+
+	/* Program dpll5_m2_clk divider for no division */
+	dpll5_m2_clk = clk_get(NULL, "dpll5_m2_ck");
+	clk_prepare_enable(dpll5_m2_clk);
+	clk_set_rate(dpll5_m2_clk, DPLL5_FREQ_FOR_USBHOST);
+
+	clk_disable_unprepare(dpll5_m2_clk);
+	clk_disable_unprepare(dpll5_clk);
+}
 
 static int __init omap3xxx_dt_clk_init(int soc_type)
 {

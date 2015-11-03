@@ -16,7 +16,6 @@
 #include <linux/of_platform.h>
 #include <linux/cpu.h>
 #include <linux/mbus.h>
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <asm/system_misc.h>
 #include <asm/mach/arch.h>

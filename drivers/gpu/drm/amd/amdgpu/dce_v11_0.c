@@ -801,11 +801,11 @@ static u32 dce_v11_0_line_buffer_adjust(struct amdgpu_device *adev,
 			buffer_alloc = 2;
 		} else if (mode->crtc_hdisplay < 4096) {
 			mem_cfg = 0;
-			buffer_alloc = (adev->flags & AMDGPU_IS_APU) ? 2 : 4;
+			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		} else {
 			DRM_DEBUG_KMS("Mode too big for LB!\n");
 			mem_cfg = 0;
-			buffer_alloc = (adev->flags & AMDGPU_IS_APU) ? 2 : 4;
+			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		}
 	} else {
 		mem_cfg = 1;
@@ -1329,7 +1329,7 @@ static void dce_v11_0_program_watermarks(struct amdgpu_device *adev,
 	tmp = REG_SET_FIELD(wm_mask, DPG_WATERMARK_MASK_CONTROL, URGENCY_WATERMARK_MASK, 2);
 	WREG32(mmDPG_WATERMARK_MASK_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 	tmp = RREG32(mmDPG_PIPE_URGENCY_CONTROL + amdgpu_crtc->crtc_offset);
-	tmp = REG_SET_FIELD(tmp, DPG_PIPE_URGENCY_CONTROL, URGENCY_LOW_WATERMARK, latency_watermark_a);
+	tmp = REG_SET_FIELD(tmp, DPG_PIPE_URGENCY_CONTROL, URGENCY_LOW_WATERMARK, latency_watermark_b);
 	tmp = REG_SET_FIELD(tmp, DPG_PIPE_URGENCY_CONTROL, URGENCY_HIGH_WATERMARK, line_time);
 	WREG32(mmDPG_PIPE_URGENCY_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 	/* restore original selection */
@@ -2631,6 +2631,7 @@ static void dce_v11_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	unsigned type;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -2639,6 +2640,9 @@ static void dce_v11_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		dce_v11_0_vga_enable(crtc, true);
 		amdgpu_atombios_crtc_blank(crtc, ATOM_DISABLE);
 		dce_v11_0_vga_enable(crtc, false);
+		/* Make sure VBLANK interrupt is still enabled */
+		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
+		amdgpu_irq_update(adev, &adev->crtc_irq, type);
 		drm_vblank_post_modeset(dev, amdgpu_crtc->crtc_id);
 		dce_v11_0_crtc_load_lut(crtc);
 		break;

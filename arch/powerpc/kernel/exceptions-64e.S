@@ -1313,11 +1313,14 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	sync
 	isync
 
-/* The mapping only needs to be cache-coherent on SMP */
-#ifdef CONFIG_SMP
-#define M_IF_SMP	MAS2_M
+/*
+ * The mapping only needs to be cache-coherent on SMP, except on
+ * Freescale e500mc derivatives where it's also needed for coherent DMA.
+ */
+#if defined(CONFIG_SMP) || defined(CONFIG_PPC_E500MC)
+#define M_IF_NEEDED	MAS2_M
 #else
-#define M_IF_SMP	0
+#define M_IF_NEEDED	0
 #endif
 
 /* 6. Setup KERNELBASE mapping in TLB[0]
@@ -1332,7 +1335,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	ori	r6,r6,(MAS1_TSIZE(BOOK3E_PAGESZ_1GB))@l
 	mtspr	SPRN_MAS1,r6
 
-	LOAD_REG_IMMEDIATE(r6, PAGE_OFFSET | M_IF_SMP)
+	LOAD_REG_IMMEDIATE(r6, PAGE_OFFSET | M_IF_NEEDED)
 	mtspr	SPRN_MAS2,r6
 
 	rlwinm	r5,r5,0,0,25

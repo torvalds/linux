@@ -2920,7 +2920,8 @@ static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x148a,
 		      "HP Mini", STAC_92HD83XXX_HP_LED),
 	SND_PCI_QUIRK_VENDOR(PCI_VENDOR_ID_HP, "HP", STAC_92HD83XXX_HP),
-	SND_PCI_QUIRK(PCI_VENDOR_ID_TOSHIBA, 0xfa91,
+	/* match both for 0xfa91 and 0xfa93 */
+	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_TOSHIBA, 0xfffd, 0xfa91,
 		      "Toshiba Satellite S50D", STAC_92HD83XXX_GPIO10_EAPD),
 	{} /* terminator */
 };

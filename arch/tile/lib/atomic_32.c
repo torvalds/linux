@@ -94,6 +94,12 @@ unsigned long _atomic_or(volatile unsigned long *p, unsigned long mask)
 }
 EXPORT_SYMBOL(_atomic_or);
 
+unsigned long _atomic_and(volatile unsigned long *p, unsigned long mask)
+{
+	return __atomic_and((int *)p, __atomic_setup(p), mask).val;
+}
+EXPORT_SYMBOL(_atomic_and);
+
 unsigned long _atomic_andn(volatile unsigned long *p, unsigned long mask)
 {
 	return __atomic_andn((int *)p, __atomic_setup(p), mask).val;
@@ -136,6 +142,23 @@ long long _atomic64_cmpxchg(long long *v, long long o, long long n)
 }
 EXPORT_SYMBOL(_atomic64_cmpxchg);
 
+long long _atomic64_and(long long *v, long long n)
+{
+	return __atomic64_and(v, __atomic_setup(v), n);
+}
+EXPORT_SYMBOL(_atomic64_and);
+
+long long _atomic64_or(long long *v, long long n)
+{
+	return __atomic64_or(v, __atomic_setup(v), n);
+}
+EXPORT_SYMBOL(_atomic64_or);
+
+long long _atomic64_xor(long long *v, long long n)
+{
+	return __atomic64_xor(v, __atomic_setup(v), n);
+}
+EXPORT_SYMBOL(_atomic64_xor);
 
 /*
  * If any of the atomic or futex routines hit a bad address (not in

@@ -37,6 +37,7 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 	struct nf_conntrack_tuple tuple;
 	enum ip_conntrack_info ctinfo;
 	struct tcf_connmark_info *ca = a->priv;
+	struct nf_conntrack_zone zone;
 	struct nf_conn *c;
 	int proto;
 
@@ -70,7 +71,10 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 			       proto, &tuple))
 		goto out;
 
-	thash = nf_conntrack_find_get(dev_net(skb->dev), ca->zone, &tuple);
+	zone.id = ca->zone;
+	zone.dir = NF_CT_DEFAULT_ZONE_DIR;
+
+	thash = nf_conntrack_find_get(dev_net(skb->dev), &zone, &tuple);
 	if (!thash)
 		goto out;
 
@@ -108,7 +112,8 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_CONNMARK_PARMS]);
 
 	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*ci), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*ci),
+				      bind, false);
 		if (ret)
 			return ret;
 

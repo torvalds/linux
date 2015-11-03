@@ -60,6 +60,8 @@ struct vf610_gpio_port {
 #define PORT_INT_EITHER_EDGE	0xb
 #define PORT_INT_LOGIC_ONE	0xc
 
+static struct irq_chip vf610_gpio_irq_chip;
+
 static const struct of_device_id vf610_gpio_dt_ids[] = {
 	{ .compatible = "fsl,vf610-gpio" },
 	{ /* sentinel */ }
@@ -118,9 +120,9 @@ static int vf610_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 	return pinctrl_gpio_direction_output(chip->base + gpio);
 }
 
-static void vf610_gpio_irq_handler(u32 irq, struct irq_desc *desc)
+static void vf610_gpio_irq_handler(struct irq_desc *desc)
 {
-	struct vf610_gpio_port *port = irq_get_handler_data(irq);
+	struct vf610_gpio_port *port = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int pin;
 	unsigned long irq_isfr;
@@ -172,6 +174,11 @@ static int vf610_gpio_irq_set_type(struct irq_data *d, u32 type)
 	}
 
 	port->irqc[d->hwirq] = irqc;
+
+	if (type & IRQ_TYPE_LEVEL_MASK)
+		irq_set_handler_locked(d, handle_level_irq);
+	else
+		irq_set_handler_locked(d, handle_edge_irq);
 
 	return 0;
 }
@@ -263,7 +270,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	vf610_gpio_writel(~0, port->base + PORT_ISFR);
 
 	ret = gpiochip_irqchip_add(gc, &vf610_gpio_irq_chip, 0,
-				   handle_simple_irq, IRQ_TYPE_NONE);
+				   handle_edge_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(dev, "failed to add irqchip\n");
 		gpiochip_remove(gc);

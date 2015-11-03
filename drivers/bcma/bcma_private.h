@@ -34,6 +34,7 @@ int __init bcma_bus_early_register(struct bcma_bus *bus);
 int bcma_bus_suspend(struct bcma_bus *bus);
 int bcma_bus_resume(struct bcma_bus *bus);
 #endif
+struct device *bcma_bus_get_host_dev(struct bcma_bus *bus);
 
 /* scan.c */
 void bcma_detect_chip(struct bcma_bus *bus);

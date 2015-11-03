@@ -226,12 +226,14 @@ static const struct iio_chan_spec st_accel_16bit_channels[] = {
 static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	{
 		.wai = ST_ACCEL_1_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS3DH_ACCEL_DEV_NAME,
 			[1] = LSM303DLHC_ACCEL_DEV_NAME,
 			[2] = LSM330D_ACCEL_DEV_NAME,
 			[3] = LSM330DL_ACCEL_DEV_NAME,
 			[4] = LSM330DLC_ACCEL_DEV_NAME,
+			[5] = LSM303AGR_ACCEL_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_accel_12bit_channels,
 		.odr = {
@@ -297,6 +299,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	},
 	{
 		.wai = ST_ACCEL_2_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS331DLH_ACCEL_DEV_NAME,
 			[1] = LSM303DL_ACCEL_DEV_NAME,
@@ -359,6 +362,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	},
 	{
 		.wai = ST_ACCEL_3_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LSM330_ACCEL_DEV_NAME,
 		},
@@ -437,6 +441,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	},
 	{
 		.wai = ST_ACCEL_4_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS3LV02DL_ACCEL_DEV_NAME,
 		},
@@ -494,6 +499,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	},
 	{
 		.wai = ST_ACCEL_5_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS331DL_ACCEL_DEV_NAME,
 		},

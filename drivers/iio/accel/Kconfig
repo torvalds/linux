@@ -86,18 +86,6 @@ config KXSD9
 	  To compile this driver as a module, choose M here: the module
 	  will be called kxsd9.
 
-config MMA8452
-	tristate "Freescale MMA8452Q Accelerometer Driver"
-	depends on I2C
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  Say yes here to build support for the Freescale MMA8452Q 3-axis
-	  accelerometer.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called mma8452.
-
 config KXCJK1013
 	tristate "Kionix 3-Axis Accelerometer Driver"
 	depends on I2C
@@ -110,6 +98,18 @@ config KXCJK1013
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called kxcjk-1013.
+
+config MMA8452
+	tristate "Freescale MMA8452Q Accelerometer Driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the Freescale MMA8452Q 3-axis
+	  accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mma8452.
 
 config MMA9551_CORE
 	tristate
@@ -140,6 +140,8 @@ config MMA9553
 config STK8312
 	tristate "Sensortek STK8312 3-Axis Accelerometer Driver"
 	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to get support for the Sensortek STK8312 3-axis
 	  accelerometer.

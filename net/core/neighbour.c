@@ -274,8 +274,12 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl, struct net_device 
 	    (entries >= tbl->gc_thresh2 &&
 	     time_after(now, tbl->last_flush + 5 * HZ))) {
 		if (!neigh_forced_gc(tbl) &&
-		    entries >= tbl->gc_thresh3)
+		    entries >= tbl->gc_thresh3) {
+			net_info_ratelimited("%s: neighbor table overflow!\n",
+					     tbl->id);
+			NEIGH_CACHE_STAT_INC(tbl, table_fulls);
 			goto out_entries;
+		}
 	}
 
 	n = kzalloc(tbl->entry_size + dev->neigh_priv_len, GFP_ATOMIC);
@@ -1849,6 +1853,7 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 			ndst.ndts_rcv_probes_ucast	+= st->rcv_probes_ucast;
 			ndst.ndts_periodic_gc_runs	+= st->periodic_gc_runs;
 			ndst.ndts_forced_gc_runs	+= st->forced_gc_runs;
+			ndst.ndts_table_fulls		+= st->table_fulls;
 		}
 
 		if (nla_put(skb, NDTA_STATS, sizeof(ndst), &ndst))
@@ -2717,12 +2722,12 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 	struct neigh_statistics *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards\n");
+		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards table_fulls\n");
 		return 0;
 	}
 
 	seq_printf(seq, "%08x  %08lx %08lx %08lx  %08lx %08lx  %08lx  "
-			"%08lx %08lx  %08lx %08lx %08lx\n",
+			"%08lx %08lx  %08lx %08lx %08lx %08lx\n",
 		   atomic_read(&tbl->entries),
 
 		   st->allocs,
@@ -2739,7 +2744,8 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 
 		   st->periodic_gc_runs,
 		   st->forced_gc_runs,
-		   st->unres_discards
+		   st->unres_discards,
+		   st->table_fulls
 		   );
 
 	return 0;

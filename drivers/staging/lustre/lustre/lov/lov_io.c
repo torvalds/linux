@@ -181,7 +181,7 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 			} else {
 				sub->sub_io = kzalloc(sizeof(*sub->sub_io),
 						      GFP_NOFS);
-				if (sub->sub_io == NULL)
+				if (!sub->sub_io)
 					result = -ENOMEM;
 			}
 		}

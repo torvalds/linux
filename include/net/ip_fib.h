@@ -44,7 +44,9 @@ struct fib_config {
 	u32			fc_flow;
 	u32			fc_nlflags;
 	struct nl_info		fc_nlinfo;
- };
+	struct nlattr		*fc_encap;
+	u16			fc_encap_type;
+};
 
 struct fib_info;
 struct rtable;
@@ -89,6 +91,7 @@ struct fib_nh {
 	struct rtable __rcu * __percpu *nh_pcpu_rth_output;
 	struct rtable __rcu	*nh_rth_input;
 	struct fnhe_hash_bucket	__rcu *nh_exceptions;
+	struct lwtunnel_state	*nh_lwtstate;
 };
 
 /*
@@ -183,7 +186,6 @@ __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
 struct fib_table {
 	struct hlist_node	tb_hlist;
 	u32			tb_id;
-	int			tb_default;
 	int			tb_num_default;
 	struct rcu_head		rcu;
 	unsigned long 		*tb_data;
@@ -234,8 +236,11 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 	rcu_read_lock();
 
 	tb = fib_get_table(net, RT_TABLE_MAIN);
-	if (tb && !fib_table_lookup(tb, flp, res, flags | FIB_LOOKUP_NOREF))
-		err = 0;
+	if (tb)
+		err = fib_table_lookup(tb, flp, res, flags | FIB_LOOKUP_NOREF);
+
+	if (err == -EAGAIN)
+		err = -ENETUNREACH;
 
 	rcu_read_unlock();
 
@@ -256,7 +261,7 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 			     struct fib_result *res, unsigned int flags)
 {
 	struct fib_table *tb;
-	int err;
+	int err = -ENETUNREACH;
 
 	flags |= FIB_LOOKUP_NOREF;
 	if (net->ipv4.fib_has_custom_rules)
@@ -266,15 +271,20 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 
 	res->tclassid = 0;
 
-	for (err = 0; !err; err = -ENETUNREACH) {
-		tb = rcu_dereference_rtnl(net->ipv4.fib_main);
-		if (tb && !fib_table_lookup(tb, flp, res, flags))
-			break;
+	tb = rcu_dereference_rtnl(net->ipv4.fib_main);
+	if (tb)
+		err = fib_table_lookup(tb, flp, res, flags);
 
-		tb = rcu_dereference_rtnl(net->ipv4.fib_default);
-		if (tb && !fib_table_lookup(tb, flp, res, flags))
-			break;
-	}
+	if (!err)
+		goto out;
+
+	tb = rcu_dereference_rtnl(net->ipv4.fib_default);
+	if (tb)
+		err = fib_table_lookup(tb, flp, res, flags);
+
+out:
+	if (err == -EAGAIN)
+		err = -ENETUNREACH;
 
 	rcu_read_unlock();
 
@@ -290,7 +300,7 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb);
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 			u8 tos, int oif, struct net_device *dev,
 			struct in_device *idev, u32 *itag);
-void fib_select_default(struct fib_result *res);
+void fib_select_default(const struct flowi4 *flp, struct fib_result *res);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 static inline int fib_num_tclassid_users(struct net *net)
 {

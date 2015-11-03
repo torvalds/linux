@@ -107,6 +107,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&buck2_reg>;
+};
+
 /* RSTN signal for eMMC */
 &sd1_cd {
 	samsung,pin-pud = <0>;

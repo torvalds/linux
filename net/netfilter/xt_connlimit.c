@@ -134,7 +134,7 @@ static bool add_hlist(struct hlist_head *head,
 static unsigned int check_hlist(struct net *net,
 				struct hlist_head *head,
 				const struct nf_conntrack_tuple *tuple,
-				u16 zone,
+				const struct nf_conntrack_zone *zone,
 				bool *addit)
 {
 	const struct nf_conntrack_tuple_hash *found;
@@ -201,7 +201,7 @@ static unsigned int
 count_tree(struct net *net, struct rb_root *root,
 	   const struct nf_conntrack_tuple *tuple,
 	   const union nf_inet_addr *addr, const union nf_inet_addr *mask,
-	   u8 family, u16 zone)
+	   u8 family, const struct nf_conntrack_zone *zone)
 {
 	struct xt_connlimit_rb *gc_nodes[CONNLIMIT_GC_MAX_NODES];
 	struct rb_node **rbnode, *parent;
@@ -290,7 +290,8 @@ static int count_them(struct net *net,
 		      const struct nf_conntrack_tuple *tuple,
 		      const union nf_inet_addr *addr,
 		      const union nf_inet_addr *mask,
-		      u_int8_t family, u16 zone)
+		      u_int8_t family,
+		      const struct nf_conntrack_zone *zone)
 {
 	struct rb_root *root;
 	int count;
@@ -321,10 +322,10 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	union nf_inet_addr addr;
 	struct nf_conntrack_tuple tuple;
 	const struct nf_conntrack_tuple *tuple_ptr = &tuple;
+	const struct nf_conntrack_zone *zone = &nf_ct_zone_dflt;
 	enum ip_conntrack_info ctinfo;
 	const struct nf_conn *ct;
 	unsigned int connections;
-	u16 zone = NF_CT_DEFAULT_ZONE;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (ct != NULL) {

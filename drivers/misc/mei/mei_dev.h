@@ -89,6 +89,7 @@ enum file_state {
 	MEI_FILE_CONNECTED,
 	MEI_FILE_DISCONNECTING,
 	MEI_FILE_DISCONNECT_REPLY,
+	MEI_FILE_DISCONNECT_REQUIRED,
 	MEI_FILE_DISCONNECTED,
 };
 
@@ -135,6 +136,8 @@ enum mei_wd_states {
  * @MEI_FOP_CONNECT:    connect
  * @MEI_FOP_DISCONNECT: disconnect
  * @MEI_FOP_DISCONNECT_RSP: disconnect response
+ * @MEI_FOP_NOTIFY_START:   start notification
+ * @MEI_FOP_NOTIFY_STOP:    stop notification
  */
 enum mei_cb_file_ops {
 	MEI_FOP_READ = 0,
@@ -142,6 +145,8 @@ enum mei_cb_file_ops {
 	MEI_FOP_CONNECT,
 	MEI_FOP_DISCONNECT,
 	MEI_FOP_DISCONNECT_RSP,
+	MEI_FOP_NOTIFY_START,
+	MEI_FOP_NOTIFY_STOP,
 };
 
 /*
@@ -178,7 +183,7 @@ struct mei_fw_status {
  * @client_id: me client id
  * @mei_flow_ctrl_creds: flow control credits
  * @connect_count: number connections to this client
- * @reserved: reserved
+ * @bus_added: added to bus
  */
 struct mei_me_client {
 	struct list_head list;
@@ -187,7 +192,7 @@ struct mei_me_client {
 	u8 client_id;
 	u8 mei_flow_ctrl_creds;
 	u8 connect_count;
-	u8 reserved;
+	u8 bus_added;
 };
 
 
@@ -230,18 +235,21 @@ struct mei_cl_cb {
  * @tx_wait: wait queue for tx completion
  * @rx_wait: wait queue for rx completion
  * @wait:  wait queue for management operation
+ * @ev_wait: notification wait queue
+ * @ev_async: event async notification
  * @status: connection status
  * @me_cl: fw client connected
  * @host_client_id: host id
  * @mei_flow_ctrl_creds: transmit flow credentials
  * @timer_count:  watchdog timer for operation completion
  * @reserved: reserved for alignment
+ * @notify_en: notification - enabled/disabled
+ * @notify_ev: pending notification event
  * @writing_state: state of the tx
  * @rd_pending: pending read credits
  * @rd_completed: completed read
  *
- * @device: device on the mei client bus
- * @device_link:  link to bus clients
+ * @cldev: device on the mei client bus
  */
 struct mei_cl {
 	struct list_head link;
@@ -250,19 +258,21 @@ struct mei_cl {
 	wait_queue_head_t tx_wait;
 	wait_queue_head_t rx_wait;
 	wait_queue_head_t wait;
+	wait_queue_head_t ev_wait;
+	struct fasync_struct *ev_async;
 	int status;
 	struct mei_me_client *me_cl;
 	u8 host_client_id;
 	u8 mei_flow_ctrl_creds;
 	u8 timer_count;
 	u8 reserved;
+	u8 notify_en;
+	u8 notify_ev;
 	enum mei_file_transaction_states writing_state;
 	struct list_head rd_pending;
 	struct list_head rd_completed;
 
-	/* MEI CL bus data */
-	struct mei_cl_device *device;
-	struct list_head device_link;
+	struct mei_cl_device *cldev;
 };
 
 /** struct mei_hw_ops
@@ -329,21 +339,16 @@ struct mei_hw_ops {
 };
 
 /* MEI bus API*/
-
-struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
-					struct mei_me_client *me_cl,
-					struct mei_cl *cl,
-					char *name);
-void mei_cl_remove_device(struct mei_cl_device *device);
-
+void mei_cl_bus_rescan(struct mei_device *bus);
+void mei_cl_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking);
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
 void mei_cl_bus_rx_event(struct mei_cl *cl);
-void mei_cl_bus_remove_devices(struct mei_device *dev);
+void mei_cl_bus_notify_event(struct mei_cl *cl);
+void mei_cl_bus_remove_devices(struct mei_device *bus);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
-struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev, uuid_le uuid);
 
 /**
  * enum mei_pg_event - power gating transition events
@@ -416,7 +421,10 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @wr_msg      : the buffer for hbm control messages
  *
  * @version     : HBM protocol version in use
- * @hbm_f_pg_supported : hbm feature pgi protocol
+ * @hbm_f_pg_supported  : hbm feature pgi protocol
+ * @hbm_f_dc_supported  : hbm feature dynamic clients
+ * @hbm_f_dot_supported : hbm feature disconnect on timeout
+ * @hbm_f_ev_supported  : hbm feature event notification
  *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
@@ -447,6 +455,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @reset_work  : work item for the device reset
  *
  * @device_list : mei client bus list
+ * @cl_bus_lock : client bus list lock
  *
  * @dbgfs_dir   : debugfs mei root directory
  *
@@ -509,6 +518,9 @@ struct mei_device {
 
 	struct hbm_version version;
 	unsigned int hbm_f_pg_supported:1;
+	unsigned int hbm_f_dc_supported:1;
+	unsigned int hbm_f_dot_supported:1;
+	unsigned int hbm_f_ev_supported:1;
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;
@@ -543,6 +555,7 @@ struct mei_device {
 
 	/* List of bus devices */
 	struct list_head device_list;
+	struct mutex cl_bus_lock;
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;

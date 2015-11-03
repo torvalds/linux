@@ -42,7 +42,7 @@ __exception_irq_entry orion5x_legacy_handle_irq(struct pt_regs *regs)
 	stat = readl_relaxed(MAIN_IRQ_CAUSE);
 	stat &= readl_relaxed(MAIN_IRQ_MASK);
 	if (stat) {
-		unsigned int hwirq = __fls(stat);
+		unsigned int hwirq = 1 + __fls(stat);
 		handle_IRQ(hwirq, regs);
 		return;
 	}
@@ -51,7 +51,7 @@ __exception_irq_entry orion5x_legacy_handle_irq(struct pt_regs *regs)
 
 void __init orion5x_init_irq(void)
 {
-	orion_irq_init(0, MAIN_IRQ_MASK);
+	orion_irq_init(1, MAIN_IRQ_MASK);
 
 #ifdef CONFIG_MULTI_IRQ_HANDLER
 	set_handle_irq(orion5x_legacy_handle_irq);

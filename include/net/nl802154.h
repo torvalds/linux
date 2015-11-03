@@ -52,6 +52,8 @@ enum nl802154_commands {
 
 	NL802154_CMD_SET_LBT_MODE,
 
+	NL802154_CMD_SET_ACKREQ_DEFAULT,
+
 	/* add new commands above here */
 
 	/* used to define NL802154_CMD_MAX below */
@@ -103,6 +105,8 @@ enum nl802154_attrs {
 	NL802154_ATTR_WPAN_PHY_CAPS,
 
 	NL802154_ATTR_SUPPORTED_COMMANDS,
+
+	NL802154_ATTR_ACKREQ_DEFAULT,
 
 	/* add attributes here, update the policy in nl802154.c */
 

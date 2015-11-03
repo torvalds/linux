@@ -6,6 +6,7 @@ iwlmvm-y += power.o coex.o coex_legacy.o
 iwlmvm-y += tt.o offloading.o tdls.o
 iwlmvm-$(CONFIG_IWLWIFI_DEBUGFS) += debugfs.o debugfs-vif.o
 iwlmvm-$(CONFIG_IWLWIFI_LEDS) += led.o
+iwlmvm-y += tof.o
 iwlmvm-$(CONFIG_PM_SLEEP) += d3.o
 
 ccflags-y += -D__CHECK_ENDIAN__ -I$(src)/../

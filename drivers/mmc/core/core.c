@@ -134,9 +134,11 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 	int err = cmd->error;
 
 	/* Flag re-tuning needed on CRC errors */
-	if (err == -EILSEQ || (mrq->sbc && mrq->sbc->error == -EILSEQ) ||
+	if ((cmd->opcode != MMC_SEND_TUNING_BLOCK &&
+	    cmd->opcode != MMC_SEND_TUNING_BLOCK_HS200) &&
+	    (err == -EILSEQ || (mrq->sbc && mrq->sbc->error == -EILSEQ) ||
 	    (mrq->data && mrq->data->error == -EILSEQ) ||
-	    (mrq->stop && mrq->stop->error == -EILSEQ))
+	    (mrq->stop && mrq->stop->error == -EILSEQ)))
 		mmc_retune_needed(host);
 
 	if (err && cmd->retries && mmc_host_is_spi(host)) {
@@ -358,8 +360,10 @@ EXPORT_SYMBOL(mmc_start_bkops);
  */
 static void mmc_wait_data_done(struct mmc_request *mrq)
 {
-	mrq->host->context_info.is_done_rcv = true;
-	wake_up_interruptible(&mrq->host->context_info.wait);
+	struct mmc_context_info *context_info = &mrq->host->context_info;
+
+	context_info->is_done_rcv = true;
+	wake_up_interruptible(&context_info->wait);
 }
 
 static void mmc_wait_done(struct mmc_request *mrq)
@@ -2168,6 +2172,7 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	      unsigned int arg)
 {
 	unsigned int rem, to = from + nr;
+	int err;
 
 	if (!(card->host->caps & MMC_CAP_ERASE) ||
 	    !(card->csd.cmdclass & CCC_ERASE))
@@ -2218,6 +2223,22 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	/* 'from' and 'to' are inclusive */
 	to -= 1;
 
+	/*
+	 * Special case where only one erase-group fits in the timeout budget:
+	 * If the region crosses an erase-group boundary on this particular
+	 * case, we will be trimming more than one erase-group which, does not
+	 * fit in the timeout budget of the controller, so we need to split it
+	 * and call mmc_do_erase() twice if necessary. This special case is
+	 * identified by the card->eg_boundary flag.
+	 */
+	rem = card->erase_size - (from % card->erase_size);
+	if ((arg & MMC_TRIM_ARGS) && (card->eg_boundary) && (nr > rem)) {
+		err = mmc_do_erase(card, from, from + rem - 1, arg);
+		from += rem;
+		if ((err) || (to <= from))
+			return err;
+	}
+
 	return mmc_do_erase(card, from, to, arg);
 }
 EXPORT_SYMBOL(mmc_erase);
@@ -2233,7 +2254,8 @@ EXPORT_SYMBOL(mmc_can_erase);
 
 int mmc_can_trim(struct mmc_card *card)
 {
-	if (card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN)
+	if ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN) &&
+	    (!(card->quirks & MMC_QUIRK_TRIM_BROKEN)))
 		return 1;
 	return 0;
 }
@@ -2313,16 +2335,28 @@ static unsigned int mmc_do_calc_max_discard(struct mmc_card *card,
 	if (!qty)
 		return 0;
 
+	/*
+	 * When specifying a sector range to trim, chances are we might cross
+	 * an erase-group boundary even if the amount of sectors is less than
+	 * one erase-group.
+	 * If we can only fit one erase-group in the controller timeout budget,
+	 * we have to care that erase-group boundaries are not crossed by a
+	 * single trim operation. We flag that special case with "eg_boundary".
+	 * In all other cases we can just decrement qty and pretend that we
+	 * always touch (qty + 1) erase-groups as a simple optimization.
+	 */
 	if (qty == 1)
-		return 1;
+		card->eg_boundary = 1;
+	else
+		qty--;
 
 	/* Convert qty to sectors */
 	if (card->erase_shift)
-		max_discard = --qty << card->erase_shift;
+		max_discard = qty << card->erase_shift;
 	else if (mmc_card_sd(card))
-		max_discard = qty;
+		max_discard = qty + 1;
 	else
-		max_discard = --qty * card->erase_size;
+		max_discard = qty * card->erase_size;
 
 	return max_discard;
 }

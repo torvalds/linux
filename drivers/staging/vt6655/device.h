@@ -252,11 +252,11 @@ struct vnt_private {
 	int                         nTxQueues;
 	volatile int                iTDUsed[TYPE_MAXTD];
 
-	volatile PSTxDesc           apCurrTD[TYPE_MAXTD];
-	volatile PSTxDesc           apTailTD[TYPE_MAXTD];
+	struct vnt_tx_desc *apCurrTD[TYPE_MAXTD];
+	struct vnt_tx_desc *apTailTD[TYPE_MAXTD];
 
-	volatile PSTxDesc           apTD0Rings;
-	volatile PSTxDesc           apTD1Rings;
+	struct vnt_tx_desc *apTD0Rings;
+	struct vnt_tx_desc *apTD1Rings;
 
 	volatile PSRxDesc           aRD0Ring;
 	volatile PSRxDesc           aRD1Ring;
@@ -403,6 +403,7 @@ struct vnt_private {
 	unsigned char abyEEPROM[EEP_MAX_CONTEXT_SIZE]; /* unsigned long alignment */
 
 	unsigned short wBeaconInterval;
+	u16 wake_up_count;
 
 	struct work_struct interrupt_work;
 
@@ -414,8 +415,8 @@ static inline PDEVICE_RD_INFO alloc_rd_info(void)
 	return kzalloc(sizeof(DEVICE_RD_INFO), GFP_ATOMIC);
 }
 
-static inline PDEVICE_TD_INFO alloc_td_info(void)
+static inline struct vnt_td_info *alloc_td_info(void)
 {
-	return kzalloc(sizeof(DEVICE_TD_INFO), GFP_ATOMIC);
+	return kzalloc(sizeof(struct vnt_td_info), GFP_ATOMIC);
 }
 #endif

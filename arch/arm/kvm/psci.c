@@ -126,7 +126,7 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 
 static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 {
-	int i;
+	int i, matching_cpus = 0;
 	unsigned long mpidr;
 	unsigned long target_affinity;
 	unsigned long target_affinity_mask;
@@ -151,11 +151,15 @@ static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 	 */
 	kvm_for_each_vcpu(i, tmp, kvm) {
 		mpidr = kvm_vcpu_get_mpidr_aff(tmp);
-		if (((mpidr & target_affinity_mask) == target_affinity) &&
-		    !tmp->arch.pause) {
-			return PSCI_0_2_AFFINITY_LEVEL_ON;
+		if ((mpidr & target_affinity_mask) == target_affinity) {
+			matching_cpus++;
+			if (!tmp->arch.pause)
+				return PSCI_0_2_AFFINITY_LEVEL_ON;
 		}
 	}
+
+	if (!matching_cpus)
+		return PSCI_RET_INVALID_PARAMS;
 
 	return PSCI_0_2_AFFINITY_LEVEL_OFF;
 }

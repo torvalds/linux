@@ -602,7 +602,7 @@ static struct lu_object *lu_object_new(const struct lu_env *env,
 	struct lu_site_bkt_data *bkt;
 
 	o = lu_object_alloc(env, dev, f, conf);
-	if (unlikely(IS_ERR(o)))
+	if (IS_ERR(o))
 		return o;
 
 	hs = dev->ld_site->ls_obj_hash;
@@ -666,7 +666,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 	 * operations, including fld queries, inode loading, etc.
 	 */
 	o = lu_object_alloc(env, dev, f, conf);
-	if (unlikely(IS_ERR(o)))
+	if (IS_ERR(o))
 		return o;
 
 	LASSERT(lu_fid_eq(lu_object_fid(o), f));
@@ -674,7 +674,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 	cfs_hash_bd_lock(hs, &bd, 1);
 
 	shadow = htable_lookup(s, &bd, f, waiter, &version);
-	if (likely(IS_ERR(shadow) && PTR_ERR(shadow) == -ENOENT)) {
+	if (likely(PTR_ERR(shadow) == -ENOENT)) {
 		struct lu_site_bkt_data *bkt;
 
 		bkt = cfs_hash_bd_extra_get(hs, &bd);
@@ -1558,7 +1558,7 @@ static int keys_fill(struct lu_context *ctx)
 			LINVRNT(key->lct_index == i);
 
 			value = key->lct_init(ctx, key);
-			if (unlikely(IS_ERR(value)))
+			if (IS_ERR(value))
 				return PTR_ERR(value);
 
 			if (!(ctx->lc_tags & LCT_NOREF))

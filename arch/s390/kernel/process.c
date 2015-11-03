@@ -81,8 +81,38 @@ void release_thread(struct task_struct *dead_task)
 
 void arch_release_task_struct(struct task_struct *tsk)
 {
-	if (tsk->thread.vxrs)
-		kfree(tsk->thread.vxrs);
+	/* Free either the floating-point or the vector register save area */
+	kfree(tsk->thread.fpu.regs);
+}
+
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
+{
+	*dst = *src;
+
+	/* Set up a new floating-point register save area */
+	dst->thread.fpu.fpc = 0;
+	dst->thread.fpu.flags = 0;	/* Always start with VX disabled */
+	dst->thread.fpu.fprs = kzalloc(sizeof(freg_t) * __NUM_FPRS,
+				       GFP_KERNEL|__GFP_REPEAT);
+	if (!dst->thread.fpu.fprs)
+		return -ENOMEM;
+
+	/*
+	 * Save the floating-point or vector register state of the current
+	 * task.  The state is not saved for early kernel threads, for example,
+	 * the init_task, which do not have an allocated save area.
+	 * The CIF_FPU flag is set in any case to lazy clear or restore a saved
+	 * state when switching to a different task or returning to user space.
+	 */
+	save_fpu_regs();
+	dst->thread.fpu.fpc = current->thread.fpu.fpc;
+	if (is_vx_task(current))
+		convert_vx_to_fp(dst->thread.fpu.fprs,
+				 current->thread.fpu.vxrs);
+	else
+		memcpy(dst->thread.fpu.fprs, current->thread.fpu.fprs,
+		       sizeof(freg_t) * __NUM_FPRS);
+	return 0;
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
@@ -142,11 +172,6 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	p->thread.ri_signum = 0;
 	frame->childregs.psw.mask &= ~PSW_MASK_RI;
 
-	/* Save the fpu registers to new thread structure. */
-	save_fp_ctl(&p->thread.fp_regs.fpc);
-	save_fp_regs(p->thread.fp_regs.fprs);
-	p->thread.fp_regs.pad = 0;
-	p->thread.vxrs = NULL;
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
 		unsigned long tls = frame->childregs.gprs[6];
@@ -162,7 +187,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 
 asmlinkage void execve_tail(void)
 {
-	current->thread.fp_regs.fpc = 0;
+	current->thread.fpu.fpc = 0;
 	asm volatile("sfpc %0" : : "d" (0));
 }
 
@@ -171,8 +196,15 @@ asmlinkage void execve_tail(void)
  */
 int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 {
-	save_fp_ctl(&fpregs->fpc);
-	save_fp_regs(fpregs->fprs);
+	save_fpu_regs();
+	fpregs->fpc = current->thread.fpu.fpc;
+	fpregs->pad = 0;
+	if (is_vx_task(current))
+		convert_vx_to_fp((freg_t *)&fpregs->fprs,
+				 current->thread.fpu.vxrs);
+	else
+		memcpy(&fpregs->fprs, current->thread.fpu.fprs,
+		       sizeof(fpregs->fprs));
 	return 1;
 }
 EXPORT_SYMBOL(dump_fpu);

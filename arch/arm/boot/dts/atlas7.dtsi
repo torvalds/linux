@@ -21,6 +21,10 @@
 		serial5 = &uart5;
 		serial6 = &uart6;
 		serial9 = &usp2;
+		spi1 = &spi1;
+		spi2 = &usp1;
+		spi3 = &usp2;
+		spi4 = &usp3;
 	};
 	cpus {
 		#address-cells = <1>;
@@ -51,6 +55,11 @@
 			clock-frequency = <26000000>;
 			clock-output-names = "xin";
 		};
+	};
+
+	arm-pmu {
+		compatible = "arm,cortex-a7-pmu";
+		interrupts = <0 29 4>, <0 82 4>;
 	};
 
 	noc {
@@ -1205,7 +1214,8 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x18641000 0x18641000 0x3000>,
-					 <0x18620000 0x18620000 0x1000>;
+					 <0x18620000 0x18620000 0x1000>,
+					<0x18630000 0x18630000 0x10000>;
 
 			cgum@18641000 {
 				compatible = "sirf,nocfw-cgum";
@@ -1217,6 +1227,15 @@
 				reg = <0x18620000 0x1000>;
 				#clock-cells = <1>;
 				#reset-cells = <1>;
+			};
+			pwm: pwm@18630000 {
+				compatible = "sirf,prima2-pwm";
+				#pwm-cells = <2>;
+				reg = <0x18630000 0x10000>;
+				clocks = <&car 138>, <&car 139>, <&car 237>,
+					<&car 240>,  <&car 140>, <&car 246>;
+				clock-names = "pwmc", "sigsrc0", "sigsrc1",
+					"sigsrc2", "sigsrc3", "sigsrc4";
 			};
 		};
 
@@ -1231,6 +1250,7 @@
 				<0x18040000 0x18040000 0x1000>,
 				<0x18050000 0x18050000 0x1000>,
 				<0x18060000 0x18060000 0x1000>,
+				<0x180b0000 0x180b0000 0x4000>,
 				<0x18100000 0x18100000 0x3000>,
 				<0x18250000 0x18250000 0x10000>,
 				<0x18200000 0x18200000 0x1000>;
@@ -1314,6 +1334,18 @@
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
+			gmac: eth@180b0000 {
+				compatible = "snps, dwc-eth-qos";
+				reg = <0x180b0000 0x4000>;
+				interrupts = <0 59 0>, <0 70 0>;
+				interrupt-names = "macirq", "macpmt";
+				clocks = <&car 39>, <&car 45>,
+				       <&car 86>, <&car 87>;
+				clock-names = "gnssm_rgmii", "gnssm_gmac",
+					"rgmii", "gmac";
+				local-mac-address = [00 00 00 00 00 00];
+				phy-mode = "rgmii";
+			};
 			dspub@18250000 {
 				compatible = "dx,cc44p";
 				reg = <0x18250000 0x10000>;
@@ -1338,10 +1370,41 @@
 			compatible = "arteris, flexnoc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x13000000 0x13000000 0x3000>;
+			ranges = <0x13000000 0x13000000 0x3000>,
+				<0x13010000 0x13010000 0x1400>,
+				<0x13010800 0x13010800 0x100>,
+				<0x13011000 0x13011000 0x100>;
 			gpum@0x13000000 {
 				compatible = "sirf,nocfw-gpum";
 				reg = <0x13000000 0x3000>;
+			};
+			dmacsdrr: dma-controller@13010800 {
+				cell-index = <5>;
+				compatible = "sirf,atlas7-dmac-v2";
+				reg = <0x13010800 0x100>;
+				interrupts = <0 8 0>;
+				clocks = <&car 127>;
+				#dma-cells = <1>;
+				#dma-channels = <1>;
+			};
+			dmacsdrw: dma-controller@13011000 {
+				cell-index = <6>;
+				compatible = "sirf,atlas7-dmac-v2";
+				reg = <0x13011000 0x100>;
+				interrupts = <0 9 0>;
+				clocks = <&car 127>;
+				#dma-cells = <1>;
+				#dma-channels = <1>;
+			};
+			sdr@0x13010000 {
+				compatible = "sirf,atlas7-sdr";
+				reg = <0x13010000 0x1400>;
+				interrupts = <0 7 0>,
+					   <0 8 0>,
+					   <0 9 0>;
+				clocks = <&car 127>;
+				dmas = <&dmacsdrr 0>, <&dmacsdrw 0>;
+				dma-names = "tx", "rx";
 			};
 		};
 
@@ -1349,7 +1412,9 @@
 			compatible = "arteris, flexnoc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x16000000 0x16000000 0x00200000>,
+			ranges = <0x15000000 0x15000000 0x00600000>,
+				<0x16000000 0x16000000 0x00200000>,
+				<0x17000000 0x17000000 0x10000>,
 				<0x17020000 0x17020000 0x1000>,
 				<0x17030000 0x17030000 0x1000>,
 				<0x17040000 0x17040000 0x1000>,
@@ -1359,6 +1424,13 @@
 				<0x17070000 0x17070000 0x200>,
 				<0x17070200 0x17070200 0x100>,
 				<0x170A0000 0x170A0000 0x3000>;
+
+			multimedia@15000000 {
+				compatible = "sirf,atlas7-video-codec";
+				reg = <0x15000000 0x10000>;
+				interrupts = <0 5 0>;
+				clocks = <&car 102>;
+			};
 
 			mediam@170A0000 {
 				compatible = "sirf,nocfw-mediam";
@@ -1386,6 +1458,8 @@
 			nand@17050000 {
 				compatible = "sirf,atlas7-nand";
 				reg = <0x17050000 0x10000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&nd_df_pmx>;
 				interrupts = <0 41 0>;
 				clocks = <&car 108>, <&car 112>;
 				clock-names = "nand_io", "nand_nand";
@@ -1414,6 +1488,14 @@
 				non-removable;
 				status = "disabled";
 				bus-width = <8>;
+			};
+
+			jpeg@17000000 {
+				compatible = "sirf,atlas7-jpeg";
+				reg = <0x17000000 0x10000>;
+				interrupts = <0 72 0>,
+					<0 73 0>;
+				clocks = <&car 103>;
 			};
 
 			usb0: usb@17060000 {
@@ -1826,7 +1908,8 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x13100000 0x13100000 0x20000>,
-				 <0x10e10000 0x10e10000 0x10000>;
+				<0x10e10000 0x10e10000 0x10000>,
+				<0x17010000 0x17010000 0x10000>;
 
 			lcd@13100000 {
 				compatible = "sirf,atlas7-lcdc";
@@ -1847,6 +1930,12 @@
 				interrupts = <0 64 0>;
 				clocks = <&car 54>;
 				resets = <&car 29>;
+			};
+			g2d@17010000 {
+				compatible = "sirf, atlas7-g2d";
+				reg = <0x17010000 0x10000>;
+				interrupts = <0 61 0>;
+				clocks = <&car 104>;
 			};
 
 		};

@@ -586,6 +586,21 @@ tcp_min_tso_segs - INTEGER
 	if available window is too small.
 	Default: 2
 
+tcp_pacing_ss_ratio - INTEGER
+	sk->sk_pacing_rate is set by TCP stack using a ratio applied
+	to current rate. (current_rate = cwnd * mss / srtt)
+	If TCP is in slow start, tcp_pacing_ss_ratio is applied
+	to let TCP probe for bigger speeds, assuming cwnd can be
+	doubled every other RTT.
+	Default: 200
+
+tcp_pacing_ca_ratio - INTEGER
+	sk->sk_pacing_rate is set by TCP stack using a ratio applied
+	to current rate. (current_rate = cwnd * mss / srtt)
+	If TCP is in congestion avoidance phase, tcp_pacing_ca_ratio
+	is applied to conservatively probe for bigger throughput.
+	Default: 120
+
 tcp_tso_win_divisor - INTEGER
 	This allows control over what percentage of the congestion window
 	can be consumed by a single TSO frame.
@@ -1181,6 +1196,16 @@ tag - INTEGER
 	Allows you to write a number, which can be used as required.
 	Default value is 0.
 
+xfrm4_gc_thresh - INTEGER
+	The threshold at which we will start garbage collecting for IPv4
+	destination cache entries.  At twice this value the system will
+	refuse new allocations.
+
+igmp_link_local_mcast_reports - BOOLEAN
+	Enable IGMP reports for link local multicast groups in the
+	224.0.0.X range.
+	Default TRUE
+
 Alexey Kuznetsov.
 kuznet@ms2.inr.ac.ru
 
@@ -1215,14 +1240,20 @@ flowlabel_consistency - BOOLEAN
 	FALSE: disabled
 	Default: TRUE
 
-auto_flowlabels - BOOLEAN
-	Automatically generate flow labels based based on a flow hash
-	of the packet. This allows intermediate devices, such as routers,
-	to idenfify packet flows for mechanisms like Equal Cost Multipath
+auto_flowlabels - INTEGER
+	Automatically generate flow labels based on a flow hash of the
+	packet. This allows intermediate devices, such as routers, to
+	identify packet flows for mechanisms like Equal Cost Multipath
 	Routing (see RFC 6438).
-	TRUE: enabled
-	FALSE: disabled
-	Default: false
+	0: automatic flow labels are completely disabled
+	1: automatic flow labels are enabled by default, they can be
+	   disabled on a per socket basis using the IPV6_AUTOFLOWLABEL
+	   socket option
+	2: automatic flow labels are allowed, they may be enabled on a
+	   per socket basis using the IPV6_AUTOFLOWLABEL socket option
+	3: automatic flow labels are enabled and enforced, they cannot
+	   be disabled by the socket option
+	Default: 1
 
 flowlabel_state_ranges - BOOLEAN
 	Split the flow label number space into two ranges. 0-0x7FFFF is
@@ -1340,6 +1371,14 @@ accept_ra_from_local - BOOLEAN
 	   disabled if accept_ra_from_local is disabled
                on a specific interface.
 
+accept_ra_min_hop_limit - INTEGER
+	Minimum hop limit Information in Router Advertisement.
+
+	Hop limit Information in Router Advertisement less than this
+	variable shall be ignored.
+
+	Default: 1
+
 accept_ra_pinfo - BOOLEAN
 	Learn Prefix Information in Router Advertisement.
 
@@ -1435,6 +1474,11 @@ mtu - INTEGER
 	Default Maximum Transfer Unit
 	Default: 1280 (IPv6 required minimum)
 
+ip_nonlocal_bind - BOOLEAN
+	If set, allows processes to bind() to non-local IPv6 addresses,
+	which can be quite useful - but may break some applications.
+	Default: 0
+
 router_probe_interval - INTEGER
 	Minimum interval (in seconds) between Router Probing described
 	in RFC4191.
@@ -1454,6 +1498,13 @@ router_solicitations - INTEGER
 	Number of Router Solicitations to send until assuming no
 	routers are present.
 	Default: 3
+
+use_oif_addrs_only - BOOLEAN
+	When enabled, the candidate source addresses for destinations
+	routed via this interface are restricted to the set of addresses
+	configured on this interface (vis. RFC 6724, section 4).
+
+	Default: false
 
 use_tempaddr - INTEGER
 	Preference for Privacy Extensions (RFC3041).
@@ -1590,6 +1641,11 @@ ratelimit - INTEGER
 	0 to disable any limiting,
 	otherwise the minimal space between responses in milliseconds.
 	Default: 1000
+
+xfrm6_gc_thresh - INTEGER
+	The threshold at which we will start garbage collecting for IPv6
+	destination cache entries.  At twice this value the system will
+	refuse new allocations.
 
 
 IPv6 Update by:

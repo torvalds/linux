@@ -25,6 +25,12 @@ Optional properties:
 -maxim,enable-frequency-shift: boolean, enable 9% frequency shift.
 -maxim,enable-bias-control: boolean, enable bias control. By enabling this
 		startup delay can be reduce to 20us from 220us.
+-maxim,enable-etr: boolean, enable Enhanced Transient Response.
+-maxim,enable-high-etr-sensitivity: boolean, Enhanced transient response
+		circuit is enabled and set for high sensitivity. If this
+		property is available then etr will be enable default.
+
+Enhanced transient response (ETR) will affect the configuration of CKADV.
 
 Example:
 

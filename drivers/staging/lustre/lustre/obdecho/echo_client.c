@@ -480,11 +480,11 @@ static int echo_alloc_memmd(struct echo_device *ed,
 
 	LASSERT(*lsmp == NULL);
 	*lsmp = kzalloc(lsm_size, GFP_NOFS);
-	if (*lsmp == NULL)
+	if (!*lsmp)
 		return -ENOMEM;
 
 	(*lsmp)->lsm_oinfo[0] = kzalloc(sizeof(struct lov_oinfo), GFP_NOFS);
-	if ((*lsmp)->lsm_oinfo[0] == NULL) {
+	if (!(*lsmp)->lsm_oinfo[0]) {
 		kfree(*lsmp);
 		return -ENOMEM;
 	}
@@ -701,7 +701,7 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 	int cleanup = 0;
 
 	ed = kzalloc(sizeof(*ed), GFP_NOFS);
-	if (ed == NULL) {
+	if (!ed) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -1878,7 +1878,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		return rc;
 
 	env = kzalloc(sizeof(*env), GFP_NOFS);
-	if (env == NULL)
+	if (!env)
 		return -ENOMEM;
 
 	rc = lu_env_init(env, LCT_DT_THREAD);
@@ -2049,7 +2049,7 @@ static int echo_client_setup(const struct lu_env *env,
 	ec->ec_nstripes = 0;
 
 	ocd = kzalloc(sizeof(*ocd), GFP_NOFS);
-	if (ocd == NULL) {
+	if (!ocd) {
 		CERROR("Can't alloc ocd connecting to %s\n",
 		       lustre_cfg_string(lcfg, 1));
 		return -ENOMEM;
@@ -2139,7 +2139,7 @@ static struct obd_ops echo_client_obd_ops = {
 	.o_disconnect  = echo_client_disconnect
 };
 
-int echo_client_init(void)
+static int echo_client_init(void)
 {
 	int rc;
 
@@ -2154,7 +2154,7 @@ int echo_client_init(void)
 	return rc;
 }
 
-void echo_client_exit(void)
+static void echo_client_exit(void)
 {
 	class_unregister_type(LUSTRE_ECHO_CLIENT_NAME);
 	lu_kmem_fini(echo_caches);

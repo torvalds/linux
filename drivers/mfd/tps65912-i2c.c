@@ -109,7 +109,6 @@ MODULE_DEVICE_TABLE(i2c, tps65912_i2c_id);
 static struct i2c_driver tps65912_i2c_driver = {
 	.driver = {
 		   .name = "tps65912",
-		   .owner = THIS_MODULE,
 	},
 	.probe = tps65912_i2c_probe,
 	.remove = tps65912_i2c_remove,

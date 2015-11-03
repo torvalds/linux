@@ -147,9 +147,9 @@ static u32 dwapb_do_irq(struct dwapb_gpio *gpio)
 	return ret;
 }
 
-static void dwapb_irq_handler(u32 irq, struct irq_desc *desc)
+static void dwapb_irq_handler(struct irq_desc *desc)
 {
-	struct dwapb_gpio *gpio = irq_get_handler_data(irq);
+	struct dwapb_gpio *gpio = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
 	dwapb_do_irq(gpio);

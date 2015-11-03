@@ -49,7 +49,7 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 	hdr = (struct libcfs_ioctl_hdr *)buf;
 	data = (struct libcfs_ioctl_data *)buf;
 
-	if (copy_from_user(buf, (void *)arg, sizeof(*hdr)))
+	if (copy_from_user(buf, arg, sizeof(*hdr)))
 		return -EFAULT;
 
 	if (hdr->ioc_version != LIBCFS_IOCTL_VERSION) {
@@ -69,7 +69,7 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 	}
 
 	orig_len = hdr->ioc_len;
-	if (copy_from_user(buf, (void *)arg, hdr->ioc_len))
+	if (copy_from_user(buf, arg, hdr->ioc_len))
 		return -EFAULT;
 	if (orig_len != data->ioc_len)
 		return -EINVAL;
@@ -95,8 +95,6 @@ int libcfs_ioctl_popdata(void *arg, void *data, int size)
 		return -EFAULT;
 	return 0;
 }
-
-extern struct cfs_psdev_ops	  libcfs_psdev_ops;
 
 static int
 libcfs_psdev_open(struct inode *inode, struct file *file)

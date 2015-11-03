@@ -3,7 +3,7 @@
 #
 menuconfig UNISYSSPAR
 	bool "Unisys SPAR driver support"
-	depends on X86_64
+	depends on X86_64 && !UML
 	select PCI
 	select ACPI
 	---help---

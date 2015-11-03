@@ -15,9 +15,8 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
-
-#include "irqchip.h"
 
 unsigned int cached_irq_mask;
 

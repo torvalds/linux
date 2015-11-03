@@ -31,6 +31,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_mipi_dsi.h>
 #include <linux/slab.h>
+#include <linux/gpio/consumer.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
@@ -261,11 +262,6 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 	return intel_dsi->operation_mode == INTEL_DSI_COMMAND_MODE;
 }
 
-static void intel_dsi_hot_plug(struct intel_encoder *encoder)
-{
-	DRM_DEBUG_KMS("\n");
-}
-
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *config)
 {
@@ -401,6 +397,8 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 
 		intel_dsi_port_enable(encoder);
 	}
+
+	intel_panel_enable_backlight(intel_dsi->attached_connector);
 }
 
 static void intel_dsi_pre_enable(struct intel_encoder *encoder)
@@ -415,15 +413,21 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
+	/* Panel Enable over CRC PMIC */
+	if (intel_dsi->gpio_panel)
+		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 1);
+
+	msleep(intel_dsi->panel_on_delay);
+
 	/* Disable DPOunit clock gating, can stall pipe
 	 * and we need DPLL REFA always enabled */
 	tmp = I915_READ(DPLL(pipe));
-	tmp |= DPLL_REFA_CLK_ENABLE_VLV;
+	tmp |= DPLL_REF_CLK_ENABLE_VLV;
 	I915_WRITE(DPLL(pipe), tmp);
 
 	/* update the hw state for DPLL */
-	intel_crtc->config->dpll_hw_state.dpll = DPLL_INTEGRATED_CLOCK_VLV |
-		DPLL_REFA_CLK_ENABLE_VLV;
+	intel_crtc->config->dpll_hw_state.dpll = DPLL_INTEGRATED_REF_CLK_VLV |
+		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
 
 	tmp = I915_READ(DSPCLK_GATE_D);
 	tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
@@ -431,8 +435,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	/* put device in ready state */
 	intel_dsi_device_ready(encoder);
-
-	msleep(intel_dsi->panel_on_delay);
 
 	drm_panel_prepare(intel_dsi->panel);
 
@@ -460,6 +462,8 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder)
 	enum port port;
 
 	DRM_DEBUG_KMS("\n");
+
+	intel_panel_disable_backlight(intel_dsi->attached_connector);
 
 	if (is_vid_mode(intel_dsi)) {
 		/* Send Shutdown command to the panel in LP mode */
@@ -576,6 +580,10 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 
 	msleep(intel_dsi->panel_off_delay);
 	msleep(intel_dsi->panel_pwr_cycle_delay);
+
+	/* Panel Disable over CRC PMIC */
+	if (intel_dsi->gpio_panel)
+		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 0);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
@@ -955,6 +963,11 @@ static void intel_dsi_encoder_destroy(struct drm_encoder *encoder)
 		/* XXX: Logically this call belongs in the panel driver. */
 		drm_panel_remove(intel_dsi->panel);
 	}
+
+	/* dispose of the gpios */
+	if (intel_dsi->gpio_panel)
+		gpiod_put(intel_dsi->gpio_panel);
+
 	intel_encoder_destroy(encoder);
 }
 
@@ -969,7 +982,7 @@ static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs 
 };
 
 static const struct drm_connector_funcs intel_dsi_connector_funcs = {
-	.dpms = intel_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_dsi_detect,
 	.destroy = intel_dsi_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -1022,7 +1035,6 @@ void intel_dsi_init(struct drm_device *dev)
 	drm_encoder_init(dev, encoder, &intel_dsi_funcs, DRM_MODE_ENCODER_DSI);
 
 	/* XXX: very likely not all of these are needed */
-	intel_encoder->hot_plug = intel_dsi_hot_plug;
 	intel_encoder->compute_config = intel_dsi_compute_config;
 	intel_encoder->pre_pll_enable = intel_dsi_pre_pll_enable;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
@@ -1036,17 +1048,16 @@ void intel_dsi_init(struct drm_device *dev)
 	intel_connector->unregister = intel_connector_unregister;
 
 	/* Pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI port C */
-	if (dev_priv->vbt.dsi.config->dual_link) {
-		/* XXX: does dual link work on either pipe? */
-		intel_encoder->crtc_mask = (1 << PIPE_A);
-		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
-	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
+	if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
 		intel_encoder->crtc_mask = (1 << PIPE_A);
 		intel_dsi->ports = (1 << PORT_A);
 	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIC) {
 		intel_encoder->crtc_mask = (1 << PIPE_B);
 		intel_dsi->ports = (1 << PORT_C);
 	}
+
+	if (dev_priv->vbt.dsi.config->dual_link)
+		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -1069,6 +1080,20 @@ void intel_dsi_init(struct drm_device *dev)
 	if (!intel_dsi->panel) {
 		DRM_DEBUG_KMS("no device found\n");
 		goto err;
+	}
+
+	/*
+	 * In case of BYT with CRC PMIC, we need to use GPIO for
+	 * Panel control.
+	 */
+	if (dev_priv->vbt.dsi.config->pwm_blc == PPS_BLC_PMIC) {
+		intel_dsi->gpio_panel =
+			gpiod_get(dev->dev, "panel", GPIOD_OUT_HIGH);
+
+		if (IS_ERR(intel_dsi->gpio_panel)) {
+			DRM_ERROR("Failed to own gpio for panel control\n");
+			intel_dsi->gpio_panel = NULL;
+		}
 	}
 
 	intel_encoder->type = INTEL_OUTPUT_DSI;
@@ -1104,6 +1129,7 @@ void intel_dsi_init(struct drm_device *dev)
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	return;
 

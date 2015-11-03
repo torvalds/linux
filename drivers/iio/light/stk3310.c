@@ -200,7 +200,7 @@ static int stk3310_read_event(struct iio_dev *indio_dev,
 			      int *val, int *val2)
 {
 	u8 reg;
-	u16 buf;
+	__be16 buf;
 	int ret;
 	struct stk3310_data *data = iio_priv(indio_dev);
 
@@ -222,7 +222,7 @@ static int stk3310_read_event(struct iio_dev *indio_dev,
 		dev_err(&data->client->dev, "register read failed\n");
 		return ret;
 	}
-	*val = swab16(buf);
+	*val = be16_to_cpu(buf);
 
 	return IIO_VAL_INT;
 }
@@ -235,7 +235,7 @@ static int stk3310_write_event(struct iio_dev *indio_dev,
 			       int val, int val2)
 {
 	u8 reg;
-	u16 buf;
+	__be16 buf;
 	int ret;
 	unsigned int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
@@ -252,7 +252,7 @@ static int stk3310_write_event(struct iio_dev *indio_dev,
 	else
 		return -EINVAL;
 
-	buf = swab16(val);
+	buf = cpu_to_be16(val);
 	ret = regmap_bulk_write(data->regmap, reg, &buf, 2);
 	if (ret < 0)
 		dev_err(&client->dev, "failed to set PS threshold!\n");
@@ -301,7 +301,7 @@ static int stk3310_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	u8 reg;
-	u16 buf;
+	__be16 buf;
 	int ret;
 	unsigned int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
@@ -322,7 +322,7 @@ static int stk3310_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&data->lock);
 			return ret;
 		}
-		*val = swab16(buf);
+		*val = be16_to_cpu(buf);
 		mutex_unlock(&data->lock);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
@@ -469,15 +469,11 @@ static int stk3310_gpio_probe(struct i2c_client *client)
 	dev = &client->dev;
 
 	/* gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, STK3310_GPIO, 0);
+	gpio = devm_gpiod_get_index(dev, STK3310_GPIO, 0, GPIOD_IN);
 	if (IS_ERR(gpio)) {
 		dev_err(dev, "acpi gpio get index failed\n");
 		return PTR_ERR(gpio);
 	}
-
-	ret = gpiod_direction_input(gpio);
-	if (ret)
-		return ret;
 
 	ret = gpiod_to_irq(gpio);
 	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
@@ -608,13 +604,7 @@ static int stk3310_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "device_register failed\n");
-		stk3310_set_state(data, STK3310_STATE_STANDBY);
-	}
-
-	if (client->irq <= 0)
+	if (client->irq < 0)
 		client->irq = stk3310_gpio_probe(client);
 
 	if (client->irq >= 0) {
@@ -627,6 +617,12 @@ static int stk3310_probe(struct i2c_client *client,
 		if (ret < 0)
 			dev_err(&client->dev, "request irq %d failed\n",
 					client->irq);
+	}
+
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(&client->dev, "device_register failed\n");
+		stk3310_set_state(data, STK3310_STATE_STANDBY);
 	}
 
 	return ret;
@@ -676,6 +672,7 @@ static const struct i2c_device_id stk3310_i2c_id[] = {
 	{"STK3311", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, stk3310_i2c_id);
 
 static const struct acpi_device_id stk3310_acpi_id[] = {
 	{"STK3310", 0},

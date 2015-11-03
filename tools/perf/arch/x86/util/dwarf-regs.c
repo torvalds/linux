@@ -71,5 +71,5 @@ const char *x86_64_regs_table[X86_64_MAX_REGS] = {
 /* Return architecture dependent register string (for kprobe-tracer) */
 const char *get_arch_regstr(unsigned int n)
 {
-	return (n <= ARCH_MAX_REGS) ? arch_regs_table[n] : NULL;
+	return (n < ARCH_MAX_REGS) ? arch_regs_table[n] : NULL;
 }

@@ -1509,7 +1509,7 @@ out:
 }
 
 static const struct drm_connector_funcs intel_tv_connector_funcs = {
-	.dpms = intel_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_tv_detect,
 	.destroy = intel_tv_destroy,
 	.set_property = intel_tv_set_property,

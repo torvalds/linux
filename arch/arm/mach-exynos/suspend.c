@@ -32,13 +32,11 @@
 #include <asm/suspend.h>
 
 #include <plat/pm-common.h>
-#include <plat/regs-srom.h>
 
 #include "common.h"
-#include "regs-pmu.h"
 #include "exynos-pmu.h"
-
-#define S5P_CHECK_SLEEP 0x00000BAD
+#include "regs-pmu.h"
+#include "regs-srom.h"
 
 #define REG_TABLE_END (-1U)
 
@@ -331,7 +329,7 @@ static void exynos_pm_enter_sleep_mode(void)
 {
 	/* Set value of power down register for sleep mode */
 	exynos_sys_powerdown_conf(SYS_SLEEP);
-	pmu_raw_writel(S5P_CHECK_SLEEP, S5P_INFORM1);
+	pmu_raw_writel(EXYNOS_SLEEP_MAGIC, S5P_INFORM1);
 }
 
 static void exynos_pm_prepare(void)

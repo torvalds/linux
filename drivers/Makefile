@@ -11,7 +11,7 @@ obj-y				+= bus/
 obj-$(CONFIG_GENERIC_PHY)	+= phy/
 
 # GPIO must come after pinctrl as gpios may need to mux pins etc
-obj-y				+= pinctrl/
+obj-$(CONFIG_PINCTRL)		+= pinctrl/
 obj-y				+= gpio/
 obj-y				+= pwm/
 obj-$(CONFIG_PCI)		+= pci/
@@ -161,7 +161,9 @@ obj-$(CONFIG_NTB)		+= ntb/
 obj-$(CONFIG_FMC)		+= fmc/
 obj-$(CONFIG_POWERCAP)		+= powercap/
 obj-$(CONFIG_MCB)		+= mcb/
+obj-$(CONFIG_PERF_EVENTS)	+= perf/
 obj-$(CONFIG_RAS)		+= ras/
 obj-$(CONFIG_THUNDERBOLT)	+= thunderbolt/
 obj-$(CONFIG_CORESIGHT)		+= hwtracing/coresight/
 obj-$(CONFIG_ANDROID)		+= android/
+obj-$(CONFIG_NVMEM)		+= nvmem/

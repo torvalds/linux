@@ -96,6 +96,7 @@ config MACH_DOVE
 	select MACH_MVEBU_ANY
 	select ORION_IRQCHIP
 	select ORION_TIMER
+	select PM_GENERIC_DOMAINS if PM
 	select PINCTRL_DOVE
 	help
 	  Say 'Y' here if you want your kernel to support the

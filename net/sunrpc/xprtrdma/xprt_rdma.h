@@ -51,7 +51,6 @@
 #include <linux/sunrpc/clnt.h> 		/* rpc_xprt */
 #include <linux/sunrpc/rpc_rdma.h> 	/* RPC/RDMA protocol */
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
-#include <linux/sunrpc/svc.h>		/* RPCSVC_MAXPAYLOAD */
 
 #define RDMA_RESOLVE_TIMEOUT	(5000)	/* 5 seconds */
 #define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if no listener backlog */
@@ -65,9 +64,7 @@ struct rpcrdma_ia {
 	struct ib_device	*ri_device;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
-	struct ib_mr		*ri_bind_mem;
-	u32			ri_dma_lkey;
-	int			ri_have_dma_lkey;
+	struct ib_mr		*ri_dma_mr;
 	struct completion	ri_done;
 	int			ri_async_rc;
 	unsigned int		ri_max_frmr_depth;
@@ -89,7 +86,6 @@ struct rpcrdma_ep {
 	int			rep_connected;
 	struct ib_qp_init_attr	rep_attr;
 	wait_queue_head_t 	rep_connect_wait;
-	struct rpcrdma_regbuf	*rep_padbuf;
 	struct rdma_conn_param	rep_remote_cma;
 	struct sockaddr_storage	rep_remote_addr;
 	struct delayed_work	rep_connect_worker;
@@ -119,7 +115,6 @@ struct rpcrdma_ep {
 struct rpcrdma_regbuf {
 	size_t			rg_size;
 	struct rpcrdma_req	*rg_owner;
-	struct ib_mr		*rg_mr;
 	struct ib_sge		rg_iov;
 	__be32			rg_base[0] __attribute__ ((aligned(256)));
 };
@@ -165,8 +160,7 @@ rdmab_to_msg(struct rpcrdma_regbuf *rb)
  * struct rpcrdma_buffer. N is the max number of outstanding requests.
  */
 
-/* temporary static scatter/gather max */
-#define RPCRDMA_MAX_DATA_SEGS	(64)	/* max scatter/gather */
+#define RPCRDMA_MAX_DATA_SEGS	((1 * 1024 * 1024) / PAGE_SIZE)
 #define RPCRDMA_MAX_SEGS 	(RPCRDMA_MAX_DATA_SEGS + 2) /* head+tail = 2 */
 
 struct rpcrdma_buffer;
@@ -258,16 +252,18 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 	char		*mr_offset;	/* kva if no page, else offset */
 };
 
+#define RPCRDMA_MAX_IOVS	(2)
+
 struct rpcrdma_req {
-	unsigned int	rl_niovs;	/* 0, 2 or 4 */
-	unsigned int	rl_nchunks;	/* non-zero if chunks */
-	unsigned int	rl_connect_cookie;	/* retry detection */
-	struct rpcrdma_buffer *rl_buffer; /* home base for this structure */
+	unsigned int		rl_niovs;
+	unsigned int		rl_nchunks;
+	unsigned int		rl_connect_cookie;
+	struct rpcrdma_buffer	*rl_buffer;
 	struct rpcrdma_rep	*rl_reply;/* holder for reply buffer */
-	struct ib_sge	rl_send_iov[4];	/* for active requests */
-	struct rpcrdma_regbuf *rl_rdmabuf;
-	struct rpcrdma_regbuf *rl_sendbuf;
-	struct rpcrdma_mr_seg rl_segments[RPCRDMA_MAX_SEGS];
+	struct ib_sge		rl_send_iov[RPCRDMA_MAX_IOVS];
+	struct rpcrdma_regbuf	*rl_rdmabuf;
+	struct rpcrdma_regbuf	*rl_sendbuf;
+	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
 };
 
 static inline struct rpcrdma_req *
@@ -342,6 +338,7 @@ struct rpcrdma_stats {
 	unsigned long		hardway_register_count;
 	unsigned long		failed_marshal_count;
 	unsigned long		bad_reply_count;
+	unsigned long		nomsg_call_count;
 };
 
 /*

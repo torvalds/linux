@@ -99,11 +99,12 @@ static void iic_ioexc_eoi(struct irq_data *d)
 {
 }
 
-static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc)
+static void iic_ioexc_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct cbe_iic_regs __iomem *node_iic =
 		(void __iomem *)irq_desc_get_handler_data(desc);
+	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned int base = (irq & 0xffffff00) | IIC_IRQ_TYPE_IOEXC;
 	unsigned long bits, ack;
 	int cascade;
@@ -222,7 +223,8 @@ void iic_request_IPIs(void)
 #endif /* CONFIG_SMP */
 
 
-static int iic_host_match(struct irq_domain *h, struct device_node *node)
+static int iic_host_match(struct irq_domain *h, struct device_node *node,
+			  enum irq_domain_bus_token bus_token)
 {
 	return of_device_is_compatible(node,
 				    "IBM,CBEA-Internal-Interrupt-Controller");

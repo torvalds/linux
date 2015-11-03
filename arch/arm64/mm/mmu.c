@@ -267,7 +267,7 @@ static void *late_alloc(unsigned long size)
 	return ptr;
 }
 
-static void __ref create_mapping(phys_addr_t phys, unsigned long virt,
+static void __init create_mapping(phys_addr_t phys, unsigned long virt,
 				  phys_addr_t size, pgprot_t prot)
 {
 	if (virt < VMALLOC_START) {
@@ -458,17 +458,6 @@ void __init paging_init(void)
 	cpu_set_reserved_ttbr0();
 	flush_tlb_all();
 	cpu_set_default_tcr_t0sz();
-}
-
-/*
- * Enable the identity mapping to allow the MMU disabling.
- */
-void setup_mm_for_reboot(void)
-{
-	cpu_set_reserved_ttbr0();
-	flush_tlb_all();
-	cpu_set_idmap_tcr_t0sz();
-	cpu_switch_mm(idmap_pg_dir, &init_mm);
 }
 
 /*

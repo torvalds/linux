@@ -15,6 +15,7 @@
  */
 
 #include <linux/extcon.h>
+#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

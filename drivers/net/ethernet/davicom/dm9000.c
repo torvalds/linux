@@ -1226,7 +1226,7 @@ static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
 	if (int_status & ISR_PRS)
 		dm9000_rx(dev);
 
-	/* Trnasmit Interrupt check */
+	/* Transmit Interrupt check */
 	if (int_status & ISR_PTS)
 		dm9000_tx_done(dev, db);
 

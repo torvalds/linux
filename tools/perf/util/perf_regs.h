@@ -5,6 +5,15 @@
 
 struct regs_dump;
 
+struct sample_reg {
+	const char *name;
+	uint64_t mask;
+};
+#define SMPL_REG(n, b) { .name = #n, .mask = 1ULL << (b) }
+#define SMPL_REG_END { .name = NULL }
+
+extern const struct sample_reg sample_reg_masks[];
+
 #ifdef HAVE_PERF_REGS_SUPPORT
 #include <perf_regs.h>
 

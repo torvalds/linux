@@ -15,11 +15,12 @@
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
+#include <net/vrf.h>
 
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
 
 static struct dst_entry *__xfrm4_dst_lookup(struct net *net, struct flowi4 *fl4,
-					    int tos,
+					    int tos, int oif,
 					    const xfrm_address_t *saddr,
 					    const xfrm_address_t *daddr)
 {
@@ -28,8 +29,11 @@ static struct dst_entry *__xfrm4_dst_lookup(struct net *net, struct flowi4 *fl4,
 	memset(fl4, 0, sizeof(*fl4));
 	fl4->daddr = daddr->a4;
 	fl4->flowi4_tos = tos;
+	fl4->flowi4_oif = oif;
 	if (saddr)
 		fl4->saddr = saddr->a4;
+
+	fl4->flowi4_flags = FLOWI_FLAG_SKIP_NH_OIF;
 
 	rt = __ip_route_output_key(net, fl4);
 	if (!IS_ERR(rt))
@@ -38,22 +42,22 @@ static struct dst_entry *__xfrm4_dst_lookup(struct net *net, struct flowi4 *fl4,
 	return ERR_CAST(rt);
 }
 
-static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
+static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos, int oif,
 					  const xfrm_address_t *saddr,
 					  const xfrm_address_t *daddr)
 {
 	struct flowi4 fl4;
 
-	return __xfrm4_dst_lookup(net, &fl4, tos, saddr, daddr);
+	return __xfrm4_dst_lookup(net, &fl4, tos, oif, saddr, daddr);
 }
 
-static int xfrm4_get_saddr(struct net *net,
+static int xfrm4_get_saddr(struct net *net, int oif,
 			   xfrm_address_t *saddr, xfrm_address_t *daddr)
 {
 	struct dst_entry *dst;
 	struct flowi4 fl4;
 
-	dst = __xfrm4_dst_lookup(net, &fl4, 0, NULL, daddr);
+	dst = __xfrm4_dst_lookup(net, &fl4, 0, oif, NULL, daddr);
 	if (IS_ERR(dst))
 		return -EHOSTUNREACH;
 
@@ -106,8 +110,10 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	struct flowi4 *fl4 = &fl->u.ip4;
 	int oif = 0;
 
-	if (skb_dst(skb))
-		oif = skb_dst(skb)->dev->ifindex;
+	if (skb_dst(skb)) {
+		oif = vrf_master_ifindex(skb_dst(skb)->dev) ?
+			: skb_dst(skb)->dev->ifindex;
+	}
 
 	memset(fl4, 0, sizeof(struct flowi4));
 	fl4->flowi4_mark = skb->mark;

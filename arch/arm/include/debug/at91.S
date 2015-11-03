@@ -13,9 +13,12 @@
 #define AT91_DBGU 0xfffff200 /* AT91_BASE_DBGU0 */
 #elif defined(CONFIG_AT91_DEBUG_LL_DBGU1)
 #define AT91_DBGU 0xffffee00 /* AT91_BASE_DBGU1 */
-#else
+#elif defined(CONFIG_AT91_DEBUG_LL_DBGU2)
 /* On sama5d4, use USART3 as low level serial console */
 #define AT91_DBGU 0xfc00c000 /* SAMA5D4_BASE_USART3 */
+#else
+/* On sama5d2, use UART1 as low level serial console */
+#define AT91_DBGU 0xf8020000
 #endif
 
 #ifdef CONFIG_MMU

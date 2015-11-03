@@ -101,7 +101,7 @@ struct spinand_cmd {
 	u8		*rx_buf;	/* Rx buf */
 };
 
-extern int spinand_mtd(struct mtd_info *mtd);
-extern void spinand_mtd_release(struct mtd_info *mtd);
+int spinand_mtd(struct mtd_info *mtd);
+void spinand_mtd_release(struct mtd_info *mtd);
 
 #endif /* __LINUX_MTD_SPI_NAND_H */

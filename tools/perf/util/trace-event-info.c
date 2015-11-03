@@ -341,20 +341,14 @@ out:
 
 static int record_proc_kallsyms(void)
 {
-	unsigned int size;
-	const char *path = "/proc/kallsyms";
-	struct stat st;
-	int ret, err = 0;
-
-	ret = stat(path, &st);
-	if (ret < 0) {
-		/* not found */
-		size = 0;
-		if (write(output_fd, &size, 4) != 4)
-			err = -EIO;
-		return err;
-	}
-	return record_file(path, 4);
+	unsigned long long size = 0;
+	/*
+	 * Just to keep older perf.data file parsers happy, record a zero
+	 * sized kallsyms file, i.e. do the same thing that was done when
+	 * /proc/kallsyms (or something specified via --kallsyms, in a
+	 * different path) couldn't be read.
+	 */
+	return write(output_fd, &size, 4) != 4 ? -EIO : 0;
 }
 
 static int record_ftrace_printk(void)

@@ -1,5 +1,5 @@
-#ifndef __WILC_platfrom_H__
-#define __WILC_platfrom_H__
+#ifndef __WILC_platform_H__
+#define __WILC_platform_H__
 
 #include <linux/kthread.h>
 #include <linux/semaphore.h>
@@ -15,10 +15,6 @@
 /******************************************************************
  *      OS specific types
  *******************************************************************/
-
-typedef struct timer_list WILC_TimerHandle;
-
-
 
 /* Message Queue type is a structure */
 typedef struct __Message_struct {

@@ -39,6 +39,8 @@ struct events_stats;
 
 enum auxtrace_type {
 	PERF_AUXTRACE_UNKNOWN,
+	PERF_AUXTRACE_INTEL_PT,
+	PERF_AUXTRACE_INTEL_BTS,
 };
 
 enum itrace_period_type {

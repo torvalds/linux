@@ -25,4 +25,5 @@ generic-y += preempt.h
 generic-y += switch_to.h
 generic-y += topology.h
 generic-y += trace_clock.h
+generic-y += word-at-a-time.h
 generic-y += xor.h

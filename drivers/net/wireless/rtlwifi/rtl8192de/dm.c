@@ -420,7 +420,7 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 		 "dm_DIG() Before: Recover_cnt=%d, rx_gain_min=%x\n",
 		 de_digtable->recover_cnt, de_digtable->rx_gain_min);
 
-	/* deal with abnorally large false alarm */
+	/* deal with abnormally large false alarm */
 	if (falsealm_cnt->cnt_all > 10000) {
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
 			 "dm_DIG(): Abnormally false alarm case\n");

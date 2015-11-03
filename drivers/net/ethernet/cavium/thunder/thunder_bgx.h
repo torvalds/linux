@@ -72,6 +72,7 @@
 
 #define BGX_SPUX_CONTROL1		0x10000
 #define  SPU_CTL_LOW_POWER			BIT_ULL(11)
+#define  SPU_CTL_LOOPBACK			BIT_ULL(14)
 #define  SPU_CTL_RESET				BIT_ULL(15)
 #define BGX_SPUX_STATUS1		0x10008
 #define  SPU_STATUS1_RCV_LNK			BIT_ULL(2)
@@ -126,6 +127,7 @@
 #define	 PCS_MRX_CTL_RST_AN			BIT_ULL(9)
 #define	 PCS_MRX_CTL_PWR_DN			BIT_ULL(11)
 #define	 PCS_MRX_CTL_AN_EN			BIT_ULL(12)
+#define	 PCS_MRX_CTL_LOOPBACK1			BIT_ULL(14)
 #define	 PCS_MRX_CTL_RESET			BIT_ULL(15)
 #define BGX_GMP_PCS_MRX_STATUS		0x30008
 #define	 PCS_MRX_STATUS_AN_CPT			BIT_ULL(5)
@@ -186,6 +188,8 @@ int bgx_get_lmac_count(int node, int bgx);
 const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid);
 void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac);
 void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status);
+void bgx_lmac_internal_loopback(int node, int bgx_idx,
+				int lmac_idx, bool enable);
 u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx);
 u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx);
 #define BGX_RX_STATS_COUNT 11

@@ -96,7 +96,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
+
+	axp152: pmic@30 {
+		reg = <0x30>;
+		interrupts = <0>;
+	};
 };
+
+#include "axp152.dtsi"
 
 &i2c1 {
 	pinctrl-names = "default";
@@ -189,6 +196,10 @@
 	status = "okay";
 };
 
+&otg_sram {
+	status = "okay";
+};
+
 &pio {
 	mmc0_cd_pin_olinuxino_micro: mmc0_cd_pin@0 {
 		allwinner,pins = "PG1";
@@ -217,6 +228,18 @@
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
+
+	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+		allwinner,pins = "PG12";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
+};
+
+&reg_usb0_vbus {
+	gpio = <&pio 6 11 GPIO_ACTIVE_HIGH>; /* PG11 */
+	status = "okay";
 };
 
 &reg_usb1_vbus {
@@ -243,8 +266,20 @@
 	status = "okay";
 };
 
-&usbphy {
-	usb1_vbus-supply = <&reg_usb1_vbus>;
+&usb_otg {
+	dr_mode = "otg";
 	status = "okay";
 };
 
+&usb0_vbus_pin_a {
+	allwinner,pins = "PG11";
+};
+
+&usbphy {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_id_detect_pin>;
+	usb0_id_det-gpio = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+	usb0_vbus-supply = <&reg_usb0_vbus>;
+	usb1_vbus-supply = <&reg_usb1_vbus>;
+	status = "okay";
+};

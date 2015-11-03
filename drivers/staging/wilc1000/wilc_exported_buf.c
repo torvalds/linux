@@ -8,9 +8,6 @@
 #define LINUX_TX_SIZE	(64 * 1024)
 #define WILC1000_FW_SIZE (4 * 1024)
 
-#define DECLARE_WILC_BUFFER(name)	\
-	void *exported_ ## name = NULL;
-
 #define MALLOC_WILC_BUFFER(name, size)	\
 	exported_ ## name = kmalloc(size, GFP_KERNEL);	  \
 	if (!exported_ ## name) {   \
@@ -24,9 +21,9 @@
 /*
  * Add necessary buffer pointers
  */
-DECLARE_WILC_BUFFER(g_tx_buf)
-DECLARE_WILC_BUFFER(g_rx_buf)
-DECLARE_WILC_BUFFER(g_fw_buf)
+void *exported_g_tx_buf;
+void *exported_g_rx_buf;
+void *exported_g_fw_buf;
 
 void *get_tx_buffer(void)
 {
@@ -65,8 +62,6 @@ static void __exit wilc_module_deinit(void)
 	FREE_WILC_BUFFER(g_tx_buf)
 	FREE_WILC_BUFFER(g_rx_buf)
 	FREE_WILC_BUFFER(g_fw_buf)
-
-	return;
 }
 
 MODULE_LICENSE("Dual BSD/GPL");

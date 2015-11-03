@@ -138,15 +138,82 @@ static DECLARE_TASKLET(disconnect_tasklet, udc_tasklet_disconnect,
 
 /* endpoint names used for print */
 static const char ep0_string[] = "ep0in";
-static const char *const ep_string[] = {
-	ep0_string,
-	"ep1in-int", "ep2in-bulk", "ep3in-bulk", "ep4in-bulk", "ep5in-bulk",
-	"ep6in-bulk", "ep7in-bulk", "ep8in-bulk", "ep9in-bulk", "ep10in-bulk",
-	"ep11in-bulk", "ep12in-bulk", "ep13in-bulk", "ep14in-bulk",
-	"ep15in-bulk", "ep0out", "ep1out-bulk", "ep2out-bulk", "ep3out-bulk",
-	"ep4out-bulk", "ep5out-bulk", "ep6out-bulk", "ep7out-bulk",
-	"ep8out-bulk", "ep9out-bulk", "ep10out-bulk", "ep11out-bulk",
-	"ep12out-bulk", "ep13out-bulk", "ep14out-bulk", "ep15out-bulk"
+static const struct {
+	const char *name;
+	const struct usb_ep_caps caps;
+} ep_info[] = {
+#define EP_INFO(_name, _caps) \
+	{ \
+		.name = _name, \
+		.caps = _caps, \
+	}
+
+	EP_INFO(ep0_string,
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep1in-int",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep2in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep3in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep4in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep5in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep6in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep7in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep8in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep9in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep10in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep11in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep12in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep13in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep14in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep15in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep0out",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep1out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep2out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep3out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep4out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep5out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep6out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep7out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep8out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep9out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep10out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep11out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep12out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep13out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep14out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep15out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+
+#undef EP_INFO
 };
 
 /* DMA usage flag */
@@ -1517,7 +1584,8 @@ static void udc_setup_endpoints(struct udc *dev)
 	for (tmp = 0; tmp < UDC_EP_NUM; tmp++) {
 		ep = &dev->ep[tmp];
 		ep->dev = dev;
-		ep->ep.name = ep_string[tmp];
+		ep->ep.name = ep_info[tmp].name;
+		ep->ep.caps = ep_info[tmp].caps;
 		ep->num = tmp;
 		/* txfifo size is calculated at enable time */
 		ep->txfifo = dev->txfifo;
@@ -3070,8 +3138,8 @@ static void udc_pci_remove(struct pci_dev *pdev)
 	writel(AMD_BIT(UDC_DEVCFG_SOFTRESET), &dev->regs->cfg);
 	if (dev->irq_registered)
 		free_irq(pdev->irq, dev);
-	if (dev->regs)
-		iounmap(dev->regs);
+	if (dev->virt_addr)
+		iounmap(dev->virt_addr);
 	if (dev->mem_region)
 		release_mem_region(pci_resource_start(pdev, 0),
 				pci_resource_len(pdev, 0));
@@ -3158,17 +3226,13 @@ static int udc_pci_probe(
 
 	/* init */
 	dev = kzalloc(sizeof(struct udc), GFP_KERNEL);
-	if (!dev) {
-		retval = -ENOMEM;
-		goto finished;
-	}
+	if (!dev)
+		return -ENOMEM;
 
 	/* pci setup */
 	if (pci_enable_device(pdev) < 0) {
-		kfree(dev);
-		dev = NULL;
 		retval = -ENODEV;
-		goto finished;
+		goto err_pcidev;
 	}
 	dev->active = 1;
 
@@ -3178,28 +3242,22 @@ static int udc_pci_probe(
 
 	if (!request_mem_region(resource, len, name)) {
 		dev_dbg(&pdev->dev, "pci device used already\n");
-		kfree(dev);
-		dev = NULL;
 		retval = -EBUSY;
-		goto finished;
+		goto err_memreg;
 	}
 	dev->mem_region = 1;
 
 	dev->virt_addr = ioremap_nocache(resource, len);
 	if (dev->virt_addr == NULL) {
 		dev_dbg(&pdev->dev, "start address cannot be mapped\n");
-		kfree(dev);
-		dev = NULL;
 		retval = -EFAULT;
-		goto finished;
+		goto err_ioremap;
 	}
 
 	if (!pdev->irq) {
 		dev_err(&pdev->dev, "irq not set\n");
-		kfree(dev);
-		dev = NULL;
 		retval = -ENODEV;
-		goto finished;
+		goto err_irq;
 	}
 
 	spin_lock_init(&dev->lock);
@@ -3215,10 +3273,8 @@ static int udc_pci_probe(
 
 	if (request_irq(pdev->irq, udc_irq, IRQF_SHARED, name, dev) != 0) {
 		dev_dbg(&pdev->dev, "request_irq(%d) fail\n", pdev->irq);
-		kfree(dev);
-		dev = NULL;
 		retval = -EBUSY;
-		goto finished;
+		goto err_irq;
 	}
 	dev->irq_registered = 1;
 
@@ -3246,8 +3302,17 @@ static int udc_pci_probe(
 		return 0;
 
 finished:
-	if (dev)
-		udc_pci_remove(pdev);
+	udc_pci_remove(pdev);
+	return retval;
+
+err_irq:
+	iounmap(dev->virt_addr);
+err_ioremap:
+	release_mem_region(resource, len);
+err_memreg:
+	pci_disable_device(pdev);
+err_pcidev:
+	kfree(dev);
 	return retval;
 }
 

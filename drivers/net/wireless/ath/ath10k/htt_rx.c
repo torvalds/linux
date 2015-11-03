@@ -368,7 +368,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		msdu_len_invalid = !!(__le32_to_cpu(rx_desc->attention.flags)
 					& (RX_ATTENTION_FLAGS_MPDU_LENGTH_ERR |
 					   RX_ATTENTION_FLAGS_MSDU_LENGTH_ERR));
-		msdu_len = MS(__le32_to_cpu(rx_desc->msdu_start.info0),
+		msdu_len = MS(__le32_to_cpu(rx_desc->msdu_start.common.info0),
 			      RX_MSDU_START_INFO0_MSDU_LENGTH);
 		msdu_chained = rx_desc->frag_info.ring2_more_count;
 
@@ -394,7 +394,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 			msdu_chaining = 1;
 		}
 
-		last_msdu = __le32_to_cpu(rx_desc->msdu_end.info0) &
+		last_msdu = __le32_to_cpu(rx_desc->msdu_end.common.info0) &
 				RX_MSDU_END_INFO0_LAST_MSDU;
 
 		trace_ath10k_htt_rx_desc(ar, &rx_desc->attention,
@@ -740,7 +740,7 @@ ath10k_htt_rx_h_peer_channel(struct ath10k *ar, struct htt_rx_desc *rxd)
 	    __cpu_to_le32(RX_ATTENTION_FLAGS_PEER_IDX_INVALID))
 		return NULL;
 
-	if (!(rxd->msdu_end.info0 &
+	if (!(rxd->msdu_end.common.info0 &
 	      __cpu_to_le32(RX_MSDU_END_INFO0_FIRST_MSDU)))
 		return NULL;
 
@@ -991,9 +991,9 @@ static void ath10k_htt_rx_h_undecap_raw(struct ath10k *ar,
 	bool is_last;
 
 	rxd = (void *)msdu->data - sizeof(*rxd);
-	is_first = !!(rxd->msdu_end.info0 &
+	is_first = !!(rxd->msdu_end.common.info0 &
 		      __cpu_to_le32(RX_MSDU_END_INFO0_FIRST_MSDU));
-	is_last = !!(rxd->msdu_end.info0 &
+	is_last = !!(rxd->msdu_end.common.info0 &
 		     __cpu_to_le32(RX_MSDU_END_INFO0_LAST_MSDU));
 
 	/* Delivered decapped frame:
@@ -1017,9 +1017,8 @@ static void ath10k_htt_rx_h_undecap_raw(struct ath10k *ar,
 	skb_trim(msdu, msdu->len - FCS_LEN);
 
 	/* In most cases this will be true for sniffed frames. It makes sense
-	 * to deliver them as-is without stripping the crypto param. This would
-	 * also make sense for software based decryption (which is not
-	 * implemented in ath10k).
+	 * to deliver them as-is without stripping the crypto param. This is
+	 * necessary for software based decryption.
 	 *
 	 * If there's no error then the frame is decrypted. At least that is
 	 * the case for frames that come in via fragmented rx indication.
@@ -1104,9 +1103,9 @@ static void *ath10k_htt_rx_h_find_rfc1042(struct ath10k *ar,
 	rxd = (void *)msdu->data - sizeof(*rxd);
 	hdr = (void *)rxd->rx_hdr_status;
 
-	is_first = !!(rxd->msdu_end.info0 &
+	is_first = !!(rxd->msdu_end.common.info0 &
 		      __cpu_to_le32(RX_MSDU_END_INFO0_FIRST_MSDU));
-	is_last = !!(rxd->msdu_end.info0 &
+	is_last = !!(rxd->msdu_end.common.info0 &
 		     __cpu_to_le32(RX_MSDU_END_INFO0_LAST_MSDU));
 	is_amsdu = !(is_first && is_last);
 
@@ -1201,7 +1200,6 @@ static void ath10k_htt_rx_h_undecap(struct ath10k *ar,
 {
 	struct htt_rx_desc *rxd;
 	enum rx_msdu_decap_format decap;
-	struct ieee80211_hdr *hdr;
 
 	/* First msdu's decapped header:
 	 * [802.11 header] <-- padded to 4 bytes long
@@ -1215,8 +1213,7 @@ static void ath10k_htt_rx_h_undecap(struct ath10k *ar,
 	 */
 
 	rxd = (void *)msdu->data - sizeof(*rxd);
-	hdr = (void *)rxd->rx_hdr_status;
-	decap = MS(__le32_to_cpu(rxd->msdu_start.info1),
+	decap = MS(__le32_to_cpu(rxd->msdu_start.common.info1),
 		   RX_MSDU_START_INFO1_DECAP_FORMAT);
 
 	switch (decap) {
@@ -1246,7 +1243,7 @@ static int ath10k_htt_rx_get_csum_state(struct sk_buff *skb)
 
 	rxd = (void *)skb->data - sizeof(*rxd);
 	flags = __le32_to_cpu(rxd->attention.flags);
-	info = __le32_to_cpu(rxd->msdu_start.info1);
+	info = __le32_to_cpu(rxd->msdu_start.common.info1);
 
 	is_ip4 = !!(info & RX_MSDU_START_INFO1_IPV4_PROTO);
 	is_ip6 = !!(info & RX_MSDU_START_INFO1_IPV6_PROTO);
@@ -1439,7 +1436,7 @@ static void ath10k_htt_rx_h_unchain(struct ath10k *ar,
 
 	first = skb_peek(amsdu);
 	rxd = (void *)first->data - sizeof(*rxd);
-	decap = MS(__le32_to_cpu(rxd->msdu_start.info1),
+	decap = MS(__le32_to_cpu(rxd->msdu_start.common.info1),
 		   RX_MSDU_START_INFO1_DECAP_FORMAT);
 
 	if (!chained)
@@ -1633,8 +1630,6 @@ static void ath10k_htt_rx_frm_tx_compl(struct ath10k *ar,
 	__le16 msdu_id;
 	int i;
 
-	lockdep_assert_held(&htt->tx_lock);
-
 	switch (status) {
 	case HTT_DATA_TX_STATUS_NO_ACK:
 		tx_done.no_ack = true;
@@ -1759,14 +1754,14 @@ static int ath10k_htt_rx_extract_amsdu(struct sk_buff_head *list,
 		__skb_queue_tail(amsdu, msdu);
 
 		rxd = (void *)msdu->data - sizeof(*rxd);
-		if (rxd->msdu_end.info0 &
+		if (rxd->msdu_end.common.info0 &
 		    __cpu_to_le32(RX_MSDU_END_INFO0_LAST_MSDU))
 			break;
 	}
 
 	msdu = skb_peek_tail(amsdu);
 	rxd = (void *)msdu->data - sizeof(*rxd);
-	if (!(rxd->msdu_end.info0 &
+	if (!(rxd->msdu_end.common.info0 &
 	      __cpu_to_le32(RX_MSDU_END_INFO0_LAST_MSDU))) {
 		skb_queue_splice_init(amsdu, list);
 		return -EAGAIN;
@@ -2000,15 +1995,11 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 			break;
 		}
 
-		spin_lock_bh(&htt->tx_lock);
 		ath10k_txrx_tx_unref(htt, &tx_done);
-		spin_unlock_bh(&htt->tx_lock);
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_TX_COMPL_IND:
-		spin_lock_bh(&htt->tx_lock);
-		__skb_queue_tail(&htt->tx_compl_q, skb);
-		spin_unlock_bh(&htt->tx_lock);
+		skb_queue_tail(&htt->tx_compl_q, skb);
 		tasklet_schedule(&htt->txrx_compl_task);
 		return;
 	case HTT_T2H_MSG_TYPE_SEC_IND: {
@@ -2074,6 +2065,12 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case HTT_T2H_MSG_TYPE_CHAN_CHANGE:
 		break;
+	case HTT_T2H_MSG_TYPE_AGGR_CONF:
+		break;
+	case HTT_T2H_MSG_TYPE_EN_STATS:
+	case HTT_T2H_MSG_TYPE_TX_FETCH_IND:
+	case HTT_T2H_MSG_TYPE_TX_FETCH_CONF:
+	case HTT_T2H_MSG_TYPE_TX_LOW_LATENCY_IND:
 	default:
 		ath10k_warn(ar, "htt event (%d) not handled\n",
 			    resp->hdr.msg_type);
@@ -2093,12 +2090,10 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	struct htt_resp *resp;
 	struct sk_buff *skb;
 
-	spin_lock_bh(&htt->tx_lock);
-	while ((skb = __skb_dequeue(&htt->tx_compl_q))) {
+	while ((skb = skb_dequeue(&htt->tx_compl_q))) {
 		ath10k_htt_rx_frm_tx_compl(htt->ar, skb);
 		dev_kfree_skb_any(skb);
 	}
-	spin_unlock_bh(&htt->tx_lock);
 
 	spin_lock_bh(&htt->rx_ring.lock);
 	while ((skb = __skb_dequeue(&htt->rx_compl_q))) {

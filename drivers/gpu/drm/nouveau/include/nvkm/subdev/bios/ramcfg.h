@@ -7,6 +7,11 @@ struct nvbios_ramcfg {
 	unsigned rammap_max;
 	union {
 		struct {
+			unsigned rammap_00_16_20:1;
+			unsigned rammap_00_16_40:1;
+			unsigned rammap_00_17_02:1;
+		};
+		struct {
 			unsigned rammap_10_04_02:1;
 			unsigned rammap_10_04_08:1;
 		};
@@ -32,7 +37,25 @@ struct nvbios_ramcfg {
 	unsigned ramcfg_ver;
 	unsigned ramcfg_hdr;
 	unsigned ramcfg_timing;
+	unsigned ramcfg_DLLoff;
+	unsigned ramcfg_RON;
 	union {
+		struct {
+			unsigned ramcfg_00_03_01:1;
+			unsigned ramcfg_00_03_02:1;
+			unsigned ramcfg_00_03_08:1;
+			unsigned ramcfg_00_03_10:1;
+			unsigned ramcfg_00_04_02:1;
+			unsigned ramcfg_00_04_04:1;
+			unsigned ramcfg_00_04_20:1;
+			unsigned ramcfg_00_05:8;
+			unsigned ramcfg_00_06:8;
+			unsigned ramcfg_00_07:8;
+			unsigned ramcfg_00_08:8;
+			unsigned ramcfg_00_09:8;
+			unsigned ramcfg_00_0a_0f:4;
+			unsigned ramcfg_00_0a_f0:4;
+		};
 		struct {
 			unsigned ramcfg_10_02_01:1;
 			unsigned ramcfg_10_02_02:1;
@@ -40,7 +63,6 @@ struct nvbios_ramcfg {
 			unsigned ramcfg_10_02_08:1;
 			unsigned ramcfg_10_02_10:1;
 			unsigned ramcfg_10_02_20:1;
-			unsigned ramcfg_10_DLLoff:1;
 			unsigned ramcfg_10_03_0f:4;
 			unsigned ramcfg_10_04_01:1;
 			unsigned ramcfg_10_05:8;

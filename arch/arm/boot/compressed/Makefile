@@ -51,10 +51,6 @@ else
 endif
 endif
 
-ifeq ($(CONFIG_ARCH_SHMOBILE_LEGACY),y)
-OBJS		+= head-shmobile.o
-endif
-
 #
 # We now have a PIC decompressor implementation.  Decompressors running
 # from RAM should not define ZTEXTADDR.  Decompressors running directly

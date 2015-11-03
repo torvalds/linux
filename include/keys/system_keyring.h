@@ -15,6 +15,7 @@
 #ifdef CONFIG_SYSTEM_TRUSTED_KEYRING
 
 #include <linux/key.h>
+#include <crypto/public_key.h>
 
 extern struct key *system_trusted_keyring;
 static inline struct key *get_system_trusted_keyring(void)
@@ -26,6 +27,12 @@ static inline struct key *get_system_trusted_keyring(void)
 {
 	return NULL;
 }
+#endif
+
+#ifdef CONFIG_SYSTEM_DATA_VERIFICATION
+extern int system_verify_data(const void *data, unsigned long len,
+			      const void *raw_pkcs7, size_t pkcs7_len,
+			      enum key_being_used_for usage);
 #endif
 
 #endif /* _KEYS_SYSTEM_KEYRING_H */

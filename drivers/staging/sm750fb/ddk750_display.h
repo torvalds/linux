@@ -8,7 +8,7 @@
 #define PNL_2_OFFSET 0
 #define PNL_2_MASK (3 << PNL_2_OFFSET)
 #define PNL_2_USAGE	(PNL_2_MASK << 16)
-#define PNL_2_PRI 	((0 << PNL_2_OFFSET)|PNL_2_USAGE)
+#define PNL_2_PRI	((0 << PNL_2_OFFSET)|PNL_2_USAGE)
 #define PNL_2_SEC	((2 << PNL_2_OFFSET)|PNL_2_USAGE)
 
 
@@ -46,7 +46,7 @@
 	0: both off
 */
 #define SEC_TP_OFFSET 5
-#define SEC_TP_MASK (1<< SEC_TP_OFFSET)
+#define SEC_TP_MASK (1 << SEC_TP_OFFSET)
 #define SEC_TP_USAGE (SEC_TP_MASK << 16)
 #define SEC_TP_ON  ((0x1 << SEC_TP_OFFSET)|SEC_TP_USAGE)
 #define SEC_TP_OFF ((0x0 << SEC_TP_OFFSET)|SEC_TP_USAGE)
@@ -67,7 +67,7 @@
 #define DAC_OFFSET 7
 #define DAC_MASK (1 << DAC_OFFSET)
 #define DAC_USAGE (DAC_MASK << 16)
-#define DAC_ON ((0x0<< DAC_OFFSET)|DAC_USAGE)
+#define DAC_ON ((0x0 << DAC_OFFSET)|DAC_USAGE)
 #define DAC_OFF ((0x1 << DAC_OFFSET)|DAC_USAGE)
 
 /* DPMS only affect D-SUB head
@@ -86,8 +86,7 @@
 	CRT means crt path DSUB
 */
 #if 0
-typedef enum _disp_output_t
-{
+typedef enum _disp_output_t {
 	NO_DISPLAY = DPMS_OFF,
 
 	LCD1_PRI = PNL_2_PRI|PRI_TP_ON|PNL_SEQ_ON|DPMS_OFF|DAC_ON,
@@ -129,7 +128,7 @@ typedef enum _disp_output_t
 }
 disp_output_t;
 #else
-typedef enum _disp_output_t{
+typedef enum _disp_output_t {
 	do_LCD1_PRI = PNL_2_PRI|PRI_TP_ON|PNL_SEQ_ON|DAC_ON,
 	do_LCD1_SEC = PNL_2_SEC|SEC_TP_ON|PNL_SEQ_ON|DAC_ON,
 #if 0

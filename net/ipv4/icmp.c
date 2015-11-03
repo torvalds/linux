@@ -96,6 +96,7 @@
 #include <net/xfrm.h>
 #include <net/inet_common.h>
 #include <net/ip_fib.h>
+#include <net/vrf.h>
 
 /*
  *	Build xmit assembly blocks
@@ -308,9 +309,10 @@ static bool icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
 
 	rc = false;
 	if (icmp_global_allow()) {
+		int vif = vrf_master_ifindex(dst->dev);
 		struct inet_peer *peer;
 
-		peer = inet_getpeer_v4(net->ipv4.peers, fl4->daddr, 1);
+		peer = inet_getpeer_v4(net->ipv4.peers, fl4->daddr, vif, 1);
 		rc = inet_peer_xrlim_allow(peer,
 					   net->ipv4.sysctl_icmp_ratelimit);
 		if (peer)
@@ -425,6 +427,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	fl4.flowi4_mark = mark;
 	fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);
 	fl4.flowi4_proto = IPPROTO_ICMP;
+	fl4.flowi4_oif = vrf_master_ifindex(skb->dev);
 	security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt))
@@ -458,6 +461,8 @@ static struct rtable *icmp_route_lookup(struct net *net,
 	fl4->flowi4_proto = IPPROTO_ICMP;
 	fl4->fl4_icmp_type = type;
 	fl4->fl4_icmp_code = code;
+	fl4->flowi4_oif = vrf_master_ifindex(skb_in->dev);
+
 	security_skb_classify_flow(skb_in, flowi4_to_flowi(fl4));
 	rt = __ip_route_output_key(net, fl4);
 	if (IS_ERR(rt))
@@ -480,7 +485,8 @@ static struct rtable *icmp_route_lookup(struct net *net,
 	if (err)
 		goto relookup_failed;
 
-	if (inet_addr_type(net, fl4_dec.saddr) == RTN_LOCAL) {
+	if (inet_addr_type_dev_table(net, skb_in->dev,
+				     fl4_dec.saddr) == RTN_LOCAL) {
 		rt2 = __ip_route_output_key(net, &fl4_dec);
 		if (IS_ERR(rt2))
 			err = PTR_ERR(rt2);
@@ -496,6 +502,7 @@ static struct rtable *icmp_route_lookup(struct net *net,
 		}
 		/* Ugh! */
 		orefdst = skb_in->_skb_refdst; /* save old refdst */
+		skb_dst_set(skb_in, NULL);
 		err = ip_route_input(skb_in, fl4_dec.daddr, fl4_dec.saddr,
 				     RT_TOS(tos), rt2->dst.dev);
 
@@ -828,7 +835,7 @@ static bool icmp_unreach(struct sk_buff *skb)
 	 */
 
 	if (!net->ipv4.sysctl_icmp_ignore_bogus_error_responses &&
-	    inet_addr_type(net, iph->daddr) == RTN_BROADCAST) {
+	    inet_addr_type_dev_table(net, skb->dev, iph->daddr) == RTN_BROADCAST) {
 		net_warn_ratelimited("%pI4 sent an invalid ICMP type %u, code %u error to a broadcast: %pI4 on %s\n",
 				     &ip_hdr(skb)->saddr,
 				     icmph->type, icmph->code,

@@ -62,7 +62,7 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 	seq_printf(s, "  swhead = %d\n", vring->swhead);
 	seq_printf(s, "  hwtail = [0x%08x] -> ", vring->hwtail);
 	if (x) {
-		v = ioread32(x);
+		v = readl(x);
 		seq_printf(s, "0x%08x = %d\n", v, v);
 	} else {
 		seq_puts(s, "???\n");
@@ -156,6 +156,12 @@ static const struct file_operations fops_vring = {
 	.llseek		= seq_lseek,
 };
 
+static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
+			    const char *prefix)
+{
+	seq_hex_dump(s, prefix, DUMP_PREFIX_NONE, 16, 1, p, len, false);
+}
+
 static void wil_print_ring(struct seq_file *s, const char *prefix,
 			   void __iomem *off)
 {
@@ -212,8 +218,6 @@ static void wil_print_ring(struct seq_file *s, const char *prefix,
 				   le16_to_cpu(hdr.seq), len,
 				   le16_to_cpu(hdr.type), hdr.flags);
 			if (len <= MAX_MBOXITEM_SIZE) {
-				int n = 0;
-				char printbuf[16 * 3 + 2];
 				unsigned char databuf[MAX_MBOXITEM_SIZE];
 				void __iomem *src = wmi_buffer(wil, d.addr) +
 					sizeof(struct wil6210_mbox_hdr);
@@ -223,16 +227,7 @@ static void wil_print_ring(struct seq_file *s, const char *prefix,
 				 * reading header
 				 */
 				wil_memcpy_fromio_32(databuf, src, len);
-				while (n < len) {
-					int l = min(len - n, 16);
-
-					hex_dump_to_buffer(databuf + n, l,
-							   16, 1, printbuf,
-							   sizeof(printbuf),
-							   false);
-					seq_printf(s, "      : %s\n", printbuf);
-					n += l;
-				}
+				wil_seq_hexdump(s, databuf, len, "      : ");
 			}
 		} else {
 			seq_puts(s, "\n");
@@ -268,7 +263,7 @@ static const struct file_operations fops_mbox = {
 
 static int wil_debugfs_iomem_x32_set(void *data, u64 val)
 {
-	iowrite32(val, (void __iomem *)data);
+	writel(val, (void __iomem *)data);
 	wmb(); /* make sure write propagated to HW */
 
 	return 0;
@@ -276,7 +271,7 @@ static int wil_debugfs_iomem_x32_set(void *data, u64 val)
 
 static int wil_debugfs_iomem_x32_get(void *data, u64 *val)
 {
-	*val = ioread32((void __iomem *)data);
+	*val = readl((void __iomem *)data);
 
 	return 0;
 }
@@ -306,7 +301,7 @@ static int wil_debugfs_ulong_get(void *data, u64 *val)
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(wil_fops_ulong, wil_debugfs_ulong_get,
-			wil_debugfs_ulong_set, "%llu\n");
+			wil_debugfs_ulong_set, "0x%llx\n");
 
 static struct dentry *wil_debugfs_create_ulong(const char *name, umode_t mode,
 					       struct dentry *parent,
@@ -477,7 +472,7 @@ static int wil_memread_debugfs_show(struct seq_file *s, void *data)
 	void __iomem *a = wmi_buffer(wil, cpu_to_le32(mem_addr));
 
 	if (a)
-		seq_printf(s, "[0x%08x] = 0x%08x\n", mem_addr, ioread32(a));
+		seq_printf(s, "[0x%08x] = 0x%08x\n", mem_addr, readl(a));
 	else
 		seq_printf(s, "[0x%08x] = INVALID\n", mem_addr);
 
@@ -866,22 +861,6 @@ static const struct file_operations fops_wmi = {
 	.write = wil_write_file_wmi,
 	.open  = simple_open,
 };
-
-static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
-			    const char *prefix)
-{
-	char printbuf[16 * 3 + 2];
-	int i = 0;
-
-	while (i < len) {
-		int l = min(len - i, 16);
-
-		hex_dump_to_buffer(p + i, l, 16, 1, printbuf,
-				   sizeof(printbuf), false);
-		seq_printf(s, "%s%s\n", prefix, printbuf);
-		i += l;
-	}
-}
 
 static void wil_seq_print_skb(struct seq_file *s, struct sk_buff *skb)
 {
@@ -1344,6 +1323,7 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 {
 	int i;
 	u16 index = ((r->head_seq_num - r->ssn) & 0xfff) % r->buf_size;
+	unsigned long long drop_dup = r->drop_dup, drop_old = r->drop_old;
 
 	seq_printf(s, "([%2d] %3d TU) 0x%03x [", r->buf_size, r->timeout,
 		   r->head_seq_num);
@@ -1353,7 +1333,10 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 		else
 			seq_printf(s, "%c", r->reorder_buf[i] ? '*' : '_');
 	}
-	seq_printf(s, "] last drop 0x%03x\n", r->ssn_last_drop);
+	seq_printf(s,
+		   "] total %llu drop %llu (dup %llu + old %llu) last 0x%03x\n",
+		   r->total, drop_dup + drop_old, drop_dup, drop_old,
+		   r->ssn_last_drop);
 }
 
 static int wil_sta_debugfs_show(struct seq_file *s, void *data)

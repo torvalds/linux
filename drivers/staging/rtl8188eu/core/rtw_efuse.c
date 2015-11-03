@@ -551,7 +551,7 @@ int Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data)
 				bContinual = false;
 			}
 		} else if (ReadState & PG_STATE_DATA) {
-		/*   Data section Read ------------- */
+			/*   Data section Read ------------- */
 			efuse_WordEnableDataRead(hworden, tmpdata, data);
 			efuse_addr = efuse_addr + (word_cnts*2)+1;
 			ReadState = PG_STATE_HEADER;

@@ -319,7 +319,11 @@ enum zone_type {
 	ZONE_HIGHMEM,
 #endif
 	ZONE_MOVABLE,
+#ifdef CONFIG_ZONE_DEVICE
+	ZONE_DEVICE,
+#endif
 	__MAX_NR_ZONES
+
 };
 
 #ifndef __GENERATING_BOUNDS_H
@@ -690,14 +694,6 @@ struct zonelist {
 #endif
 };
 
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-struct node_active_region {
-	unsigned long start_pfn;
-	unsigned long end_pfn;
-	int nid;
-};
-#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-
 #ifndef CONFIG_DISCONTIGMEM
 /* The array of struct pages - for discontigmem use pgdat->lmem_map */
 extern struct page *mem_map;
@@ -793,6 +789,25 @@ static inline bool pgdat_is_empty(pg_data_t *pgdat)
 {
 	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
 }
+
+static inline int zone_id(const struct zone *zone)
+{
+	struct pglist_data *pgdat = zone->zone_pgdat;
+
+	return zone - pgdat->node_zones;
+}
+
+#ifdef CONFIG_ZONE_DEVICE
+static inline bool is_dev_zone(const struct zone *zone)
+{
+	return zone_id(zone) == ZONE_DEVICE;
+}
+#else
+static inline bool is_dev_zone(const struct zone *zone)
+{
+	return false;
+}
+#endif
 
 #include <linux/memory_hotplug.h>
 

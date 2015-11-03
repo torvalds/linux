@@ -70,7 +70,7 @@ static int rtw_hw_suspend(struct adapter *padapter)
 		}
 	}
 	/* s2-3. */
-	rtw_free_assoc_resources(padapter, 1);
+	rtw_free_assoc_resources(padapter);
 
 	/* s2-4. */
 	rtw_free_network_queue(padapter, true);
@@ -547,12 +547,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	setup_timer(&pwrctrlpriv->pwr_state_check_timer,
 		    pwr_state_check_handler,
 		    (unsigned long)padapter);
-}
-
-inline void rtw_set_ips_deny(struct adapter *padapter, u32 ms)
-{
-	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	pwrpriv->ips_deny_time = jiffies + msecs_to_jiffies(ms);
 }
 
 /*

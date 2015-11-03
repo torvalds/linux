@@ -24,9 +24,9 @@
  */
 
 #ifdef GT215
-.section #gt215_pce_data
+.section #gt215_ce_data
 #else
-.section #gf100_pce_data
+.section #gf100_ce_data
 #endif
 
 ctx_object:                   .b32 0
@@ -128,9 +128,9 @@ dispatch_dma:
 .b16 0x800 0
 
 #ifdef GT215
-.section #gt215_pce_code
+.section #gt215_ce_code
 #else
-.section #gf100_pce_code
+.section #gf100_ce_code
 #endif
 
 main:

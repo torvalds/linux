@@ -198,4 +198,92 @@ enum factor_mode {
 	ALPHA_SRC_GLOBAL,
 };
 
+enum scale_mode {
+	SCALE_NONE = 0x0,
+	SCALE_UP   = 0x1,
+	SCALE_DOWN = 0x2
+};
+
+enum lb_mode {
+	LB_YUV_3840X5 = 0x0,
+	LB_YUV_2560X8 = 0x1,
+	LB_RGB_3840X2 = 0x2,
+	LB_RGB_2560X4 = 0x3,
+	LB_RGB_1920X5 = 0x4,
+	LB_RGB_1280X8 = 0x5
+};
+
+enum sacle_up_mode {
+	SCALE_UP_BIL = 0x0,
+	SCALE_UP_BIC = 0x1
+};
+
+enum scale_down_mode {
+	SCALE_DOWN_BIL = 0x0,
+	SCALE_DOWN_AVG = 0x1
+};
+
+#define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
+#define SCL_FT_DEFAULT_FIXPOINT_SHIFT	12
+#define SCL_MAX_VSKIPLINES		4
+#define MIN_SCL_FT_AFTER_VSKIP		1
+
+static inline uint16_t scl_cal_scale(int src, int dst, int shift)
+{
+	return ((src * 2 - 3) << (shift - 1)) / (dst - 1);
+}
+
+#define GET_SCL_FT_BILI_DN(src, dst)	scl_cal_scale(src, dst, 12)
+#define GET_SCL_FT_BILI_UP(src, dst)	scl_cal_scale(src, dst, 16)
+#define GET_SCL_FT_BIC(src, dst)	scl_cal_scale(src, dst, 16)
+
+static inline uint16_t scl_get_bili_dn_vskip(int src_h, int dst_h,
+					     int vskiplines)
+{
+	int act_height;
+
+	act_height = (src_h + vskiplines - 1) / vskiplines;
+
+	return GET_SCL_FT_BILI_DN(act_height, dst_h);
+}
+
+static inline enum scale_mode scl_get_scl_mode(int src, int dst)
+{
+	if (src < dst)
+		return SCALE_UP;
+	else if (src > dst)
+		return SCALE_DOWN;
+
+	return SCALE_NONE;
+}
+
+static inline int scl_get_vskiplines(uint32_t srch, uint32_t dsth)
+{
+	uint32_t vskiplines;
+
+	for (vskiplines = SCL_MAX_VSKIPLINES; vskiplines > 1; vskiplines /= 2)
+		if (srch >= vskiplines * dsth * MIN_SCL_FT_AFTER_VSKIP)
+			break;
+
+	return vskiplines;
+}
+
+static inline int scl_vop_cal_lb_mode(int width, bool is_yuv)
+{
+	int lb_mode;
+
+	if (width > 2560)
+		lb_mode = LB_RGB_3840X2;
+	else if (width > 1920)
+		lb_mode = LB_RGB_2560X4;
+	else if (!is_yuv)
+		lb_mode = LB_RGB_1920X5;
+	else if (width > 1280)
+		lb_mode = LB_YUV_3840X5;
+	else
+		lb_mode = LB_YUV_2560X8;
+
+	return lb_mode;
+}
+
 #endif /* _ROCKCHIP_DRM_VOP_H */

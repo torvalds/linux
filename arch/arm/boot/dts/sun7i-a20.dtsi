@@ -267,6 +267,19 @@
 			compatible = "allwinner,sun7i-a20-ahb-gates-clk";
 			reg = <0x01c20060 0x8>;
 			clocks = <&ahb>;
+			clock-indices = <0>, <1>,
+					<2>, <3>, <4>,
+					<5>, <6>, <7>, <8>,
+					<9>, <10>, <11>, <12>,
+					<13>, <14>, <16>,
+					<17>, <18>, <20>, <21>,
+					<22>, <23>, <25>,
+					<28>, <32>, <33>, <34>,
+					<35>, <36>, <37>, <40>,
+					<41>, <42>, <43>,
+					<44>, <45>, <46>,
+					<47>, <49>, <50>,
+					<52>;
 			clock-output-names = "ahb_usb0", "ahb_ehci0",
 				"ahb_ohci0", "ahb_ehci1", "ahb_ohci1",
 				"ahb_ss", "ahb_dma", "ahb_bist", "ahb_mmc0",
@@ -295,6 +308,10 @@
 			compatible = "allwinner,sun7i-a20-apb0-gates-clk";
 			reg = <0x01c20068 0x4>;
 			clocks = <&apb0>;
+			clock-indices = <0>, <1>,
+					<2>, <3>, <4>,
+					<5>, <6>, <7>,
+					<8>, <10>;
 			clock-output-names = "apb0_codec", "apb0_spdif",
 				"apb0_ac97", "apb0_iis0", "apb0_iis1",
 				"apb0_pio", "apb0_ir0", "apb0_ir1",
@@ -314,6 +331,12 @@
 			compatible = "allwinner,sun7i-a20-apb1-gates-clk";
 			reg = <0x01c2006c 0x4>;
 			clocks = <&apb1>;
+			clock-indices = <0>, <1>,
+					<2>, <3>, <4>,
+					<5>, <6>, <7>,
+					<15>, <16>, <17>,
+					<18>, <19>, <20>,
+					<21>, <22>, <23>;
 			clock-output-names = "apb1_i2c0", "apb1_i2c1",
 				"apb1_i2c2", "apb1_i2c3", "apb1_can",
 				"apb1_scr", "apb1_ps20", "apb1_ps21",
@@ -699,6 +722,19 @@
 			#size-cells = <0>;
 		};
 
+		usb_otg: usb@01c13000 {
+			compatible = "allwinner,sun4i-a10-musb";
+			reg = <0x01c13000 0x0400>;
+			clocks = <&ahb_gates 0>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mc";
+			phys = <&usbphy 0>;
+			phy-names = "usb";
+			extcon = <&usbphy 0>;
+			allwinner,sram = <&otg_sram 1>;
+			status = "disabled";
+		};
+
 		usbphy: phy@01c13400 {
 			#phy-cells = <1>;
 			compatible = "allwinner,sun7i-a20-usb-phy";
@@ -729,6 +765,14 @@
 			phys = <&usbphy 1>;
 			phy-names = "usb";
 			status = "disabled";
+		};
+
+		crypto: crypto-engine@01c15000 {
+			compatible = "allwinner,sun4i-a10-crypto";
+			reg = <0x01c15000 0x1000>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ahb_gates 5>, <&ss_clk>;
+			clock-names = "ahb", "mod";
 		};
 
 		spi2: spi@01c17000 {
@@ -794,8 +838,7 @@
 			clocks = <&apb0_gates 5>;
 			gpio-controller;
 			interrupt-controller;
-			#interrupt-cells = <2>;
-			#size-cells = <0>;
+			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
 			pwm0_pins_a: pwm0@0 {

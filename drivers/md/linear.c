@@ -52,48 +52,6 @@ static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
 	return conf->disks + lo;
 }
 
-/**
- *	linear_mergeable_bvec -- tell bio layer if two requests can be merged
- *	@q: request queue
- *	@bvm: properties of new bio
- *	@biovec: the request that could be merged to it.
- *
- *	Return amount of bytes we can take at this offset
- */
-static int linear_mergeable_bvec(struct mddev *mddev,
-				 struct bvec_merge_data *bvm,
-				 struct bio_vec *biovec)
-{
-	struct dev_info *dev0;
-	unsigned long maxsectors, bio_sectors = bvm->bi_size >> 9;
-	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
-	int maxbytes = biovec->bv_len;
-	struct request_queue *subq;
-
-	dev0 = which_dev(mddev, sector);
-	maxsectors = dev0->end_sector - sector;
-	subq = bdev_get_queue(dev0->rdev->bdev);
-	if (subq->merge_bvec_fn) {
-		bvm->bi_bdev = dev0->rdev->bdev;
-		bvm->bi_sector -= dev0->end_sector - dev0->rdev->sectors;
-		maxbytes = min(maxbytes, subq->merge_bvec_fn(subq, bvm,
-							     biovec));
-	}
-
-	if (maxsectors < bio_sectors)
-		maxsectors = 0;
-	else
-		maxsectors -= bio_sectors;
-
-	if (maxsectors <= (PAGE_SIZE >> 9 ) && bio_sectors == 0)
-		return maxbytes;
-
-	if (maxsectors > (maxbytes >> 9))
-		return maxbytes;
-	else
-		return maxsectors << 9;
-}
-
 static int linear_congested(struct mddev *mddev, int bits)
 {
 	struct linear_conf *conf;
@@ -297,7 +255,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 		if (unlikely((split->bi_rw & REQ_DISCARD) &&
 			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
 			/* Just ignore it */
-			bio_endio(split, 0);
+			bio_endio(split);
 		} else
 			generic_make_request(split);
 	} while (split != bio);
@@ -338,7 +296,6 @@ static struct md_personality linear_personality =
 	.size		= linear_size,
 	.quiesce	= linear_quiesce,
 	.congested	= linear_congested,
-	.mergeable_bvec	= linear_mergeable_bvec,
 };
 
 static int __init linear_init (void)

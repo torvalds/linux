@@ -53,6 +53,7 @@ struct report {
 	bool			mem_mode;
 	bool			header;
 	bool			header_only;
+	bool			nonany_branch_mode;
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
 	const char		*pretty_printing_style;
@@ -101,6 +102,9 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 
 	if (!ui__has_annotation())
 		return 0;
+
+	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
+			     rep->nonany_branch_mode);
 
 	if (sort__mode == SORT_MODE__BRANCH) {
 		bi = he->branch_info;
@@ -258,6 +262,12 @@ static int report__setup_sample_type(struct report *rep)
 		else
 			callchain_param.record_mode = CALLCHAIN_FP;
 	}
+
+	/* ??? handle more cases than just ANY? */
+	if (!(perf_evlist__combined_branch_type(session->evlist) &
+				PERF_SAMPLE_BRANCH_ANY))
+		rep->nonany_branch_mode = true;
+
 	return 0;
 }
 
@@ -305,6 +315,11 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	ret = fprintf(fp, "# Samples: %lu%c", nr_samples, unit);
 	if (evname != NULL)
 		ret += fprintf(fp, " of event '%s'", evname);
+
+	if (symbol_conf.show_ref_callgraph &&
+	    strstr(evname, "call-graph=no")) {
+		ret += fprintf(fp, ", show reference callgraph");
+	}
 
 	if (rep->mem_mode) {
 		ret += fprintf(fp, "\n# Total weight : %" PRIu64, nr_events);
@@ -728,6 +743,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options",
 			    itrace_parse_synth_opts),
+	OPT_BOOLEAN(0, "full-source-path", &srcline_full_filename,
+			"Show full source file name path for source lines"),
+	OPT_BOOLEAN(0, "show-ref-call-graph", &symbol_conf.show_ref_callgraph,
+		    "Show callgraph from reference event"),
 	OPT_END()
 	};
 	struct perf_data_file file = {

@@ -22,7 +22,6 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/atmel_usba_udc.h>
 #include <linux/delay.h>
-#include <linux/platform_data/atmel.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 
@@ -1989,6 +1988,10 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		ep->can_isoc = of_property_read_bool(pp, "atmel,can-isoc");
 
 		ret = of_property_read_string(pp, "name", &name);
+		if (ret) {
+			dev_err(&pdev->dev, "of_probe: name error(%d)\n", ret);
+			goto err;
+		}
 		ep->ep.name = name;
 
 		ep->ep_regs = udc->regs + USBA_EPT_BASE(i);
@@ -1998,6 +2001,17 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		usb_ep_set_maxpacket_limit(&ep->ep, ep->fifo_size);
 		ep->udc = udc;
 		INIT_LIST_HEAD(&ep->queue);
+
+		if (ep->index == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = ep->can_isoc;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
 
 		if (i)
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
@@ -2062,6 +2076,17 @@ static struct usba_ep * usba_udc_pdata(struct platform_device *pdev,
 		ep->index = pdata->ep[i].index;
 		ep->can_dma = pdata->ep[i].can_dma;
 		ep->can_isoc = pdata->ep[i].can_isoc;
+
+		if (i == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = ep->can_isoc;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
 
 		if (i)
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);

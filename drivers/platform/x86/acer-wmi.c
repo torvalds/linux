@@ -807,6 +807,7 @@ static const struct acpi_device_id norfkill_ids[] __initconst = {
 	{ "IBM0068", 0},
 	{ "LEN0068", 0},
 	{ "SNY5001", 0},	/* sony-laptop in charge */
+	{ "HPQ6601", 0},
 	{ "", 0},
 };
 

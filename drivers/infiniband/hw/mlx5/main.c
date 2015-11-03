@@ -212,6 +212,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	int err = -ENOMEM;
 	int max_rq_sg;
 	int max_sq_sg;
+	u64 min_page_size = 1ull << MLX5_CAP_GEN(mdev, log_pg_sz);
 
 	if (uhw->inlen || uhw->outlen)
 		return -EINVAL;
@@ -244,7 +245,6 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_BAD_QKEY_CNTR;
 	if (MLX5_CAP_GEN(mdev, apm))
 		props->device_cap_flags |= IB_DEVICE_AUTO_PATH_MIG;
-	props->device_cap_flags |= IB_DEVICE_LOCAL_DMA_LKEY;
 	if (MLX5_CAP_GEN(mdev, xrc))
 		props->device_cap_flags |= IB_DEVICE_XRC;
 	props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
@@ -264,7 +264,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->hw_ver		   = mdev->pdev->revision;
 
 	props->max_mr_size	   = ~0ull;
-	props->page_size_cap	   = 1ull << MLX5_CAP_GEN(mdev, log_pg_sz);
+	props->page_size_cap	   = ~(min_page_size - 1);
 	props->max_qp		   = 1 << MLX5_CAP_GEN(mdev, log_max_qp);
 	props->max_qp_wr	   = 1 << MLX5_CAP_GEN(mdev, log_max_qp_sz);
 	max_rq_sg =  MLX5_CAP_GEN(mdev, max_wqe_sz_rq) /
@@ -273,6 +273,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		     sizeof(struct mlx5_wqe_ctrl_seg)) /
 		     sizeof(struct mlx5_wqe_data_seg);
 	props->max_sge = min(max_rq_sg, max_sq_sg);
+	props->max_sge_rd = props->max_sge;
 	props->max_cq		   = 1 << MLX5_CAP_GEN(mdev, log_max_cq);
 	props->max_cqe = (1 << MLX5_CAP_GEN(mdev, log_max_eq_sz)) - 1;
 	props->max_mr		   = 1 << MLX5_CAP_GEN(mdev, log_max_mkey);
@@ -793,53 +794,6 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 	return 0;
 }
 
-static int alloc_pa_mkey(struct mlx5_ib_dev *dev, u32 *key, u32 pdn)
-{
-	struct mlx5_create_mkey_mbox_in *in;
-	struct mlx5_mkey_seg *seg;
-	struct mlx5_core_mr mr;
-	int err;
-
-	in = kzalloc(sizeof(*in), GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
-	seg = &in->seg;
-	seg->flags = MLX5_PERM_LOCAL_READ | MLX5_ACCESS_MODE_PA;
-	seg->flags_pd = cpu_to_be32(pdn | MLX5_MKEY_LEN64);
-	seg->qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
-	seg->start_addr = 0;
-
-	err = mlx5_core_create_mkey(dev->mdev, &mr, in, sizeof(*in),
-				    NULL, NULL, NULL);
-	if (err) {
-		mlx5_ib_warn(dev, "failed to create mkey, %d\n", err);
-		goto err_in;
-	}
-
-	kfree(in);
-	*key = mr.key;
-
-	return 0;
-
-err_in:
-	kfree(in);
-
-	return err;
-}
-
-static void free_pa_mkey(struct mlx5_ib_dev *dev, u32 key)
-{
-	struct mlx5_core_mr mr;
-	int err;
-
-	memset(&mr, 0, sizeof(mr));
-	mr.key = key;
-	err = mlx5_core_destroy_mkey(dev->mdev, &mr);
-	if (err)
-		mlx5_ib_warn(dev, "failed to destroy mkey 0x%x\n", key);
-}
-
 static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 				      struct ib_ucontext *context,
 				      struct ib_udata *udata)
@@ -865,13 +819,6 @@ static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 			kfree(pd);
 			return ERR_PTR(-EFAULT);
 		}
-	} else {
-		err = alloc_pa_mkey(to_mdev(ibdev), &pd->pa_lkey, pd->pdn);
-		if (err) {
-			mlx5_core_dealloc_pd(to_mdev(ibdev)->mdev, pd->pdn);
-			kfree(pd);
-			return ERR_PTR(err);
-		}
 	}
 
 	return &pd->ibpd;
@@ -881,9 +828,6 @@ static int mlx5_ib_dealloc_pd(struct ib_pd *pd)
 {
 	struct mlx5_ib_dev *mdev = to_mdev(pd->device);
 	struct mlx5_ib_pd *mpd = to_mpd(pd);
-
-	if (!pd->uobject)
-		free_pa_mkey(mdev, mpd->pa_lkey);
 
 	mlx5_core_dealloc_pd(mdev->mdev, mpd->pdn);
 	kfree(mpd);
@@ -1121,7 +1065,6 @@ static void destroy_umrc_res(struct mlx5_ib_dev *dev)
 
 	mlx5_ib_destroy_qp(dev->umrc.qp);
 	ib_destroy_cq(dev->umrc.cq);
-	ib_dereg_mr(dev->umrc.mr);
 	ib_dealloc_pd(dev->umrc.pd);
 }
 
@@ -1136,7 +1079,6 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 	struct ib_pd *pd;
 	struct ib_cq *cq;
 	struct ib_qp *qp;
-	struct ib_mr *mr;
 	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
@@ -1152,13 +1094,6 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 		mlx5_ib_dbg(dev, "Couldn't create PD for sync UMR QP\n");
 		ret = PTR_ERR(pd);
 		goto error_0;
-	}
-
-	mr = ib_get_dma_mr(pd,  IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(mr)) {
-		mlx5_ib_dbg(dev, "Couldn't create DMA MR for sync UMR QP\n");
-		ret = PTR_ERR(mr);
-		goto error_1;
 	}
 
 	cq_attr.cqe = 128;
@@ -1218,7 +1153,6 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 
 	dev->umrc.qp = qp;
 	dev->umrc.cq = cq;
-	dev->umrc.mr = mr;
 	dev->umrc.pd = pd;
 
 	sema_init(&dev->umrc.sem, MAX_UMR_WR);
@@ -1240,9 +1174,6 @@ error_3:
 	ib_destroy_cq(cq);
 
 error_2:
-	ib_dereg_mr(mr);
-
-error_1:
 	ib_dealloc_pd(pd);
 
 error_0:
@@ -1490,12 +1421,10 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.get_dma_mr		= mlx5_ib_get_dma_mr;
 	dev->ib_dev.reg_user_mr		= mlx5_ib_reg_user_mr;
 	dev->ib_dev.dereg_mr		= mlx5_ib_dereg_mr;
-	dev->ib_dev.destroy_mr		= mlx5_ib_destroy_mr;
 	dev->ib_dev.attach_mcast	= mlx5_ib_mcg_attach;
 	dev->ib_dev.detach_mcast	= mlx5_ib_mcg_detach;
 	dev->ib_dev.process_mad		= mlx5_ib_process_mad;
-	dev->ib_dev.create_mr		= mlx5_ib_create_mr;
-	dev->ib_dev.alloc_fast_reg_mr	= mlx5_ib_alloc_fast_reg_mr;
+	dev->ib_dev.alloc_mr		= mlx5_ib_alloc_mr;
 	dev->ib_dev.alloc_fast_reg_page_list = mlx5_ib_alloc_fast_reg_page_list;
 	dev->ib_dev.free_fast_reg_page_list  = mlx5_ib_free_fast_reg_page_list;
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;

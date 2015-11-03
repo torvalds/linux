@@ -29,6 +29,7 @@
 static int zero;
 static int one = 1;
 static int four = 4;
+static int thousand = 1000;
 static int gso_max_segs = GSO_MAX_SEGS;
 static int tcp_retr1_max = 255;
 static int ip_local_port_range_min[] = { 1, 1 };
@@ -41,8 +42,6 @@ static int tcp_syn_retries_min = 1;
 static int tcp_syn_retries_max = MAX_TCP_SYNCNT;
 static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
-static int min_sndbuf = SOCK_MIN_SNDBUF;
-static int min_rcvbuf = SOCK_MIN_RCVBUF;
 
 /* Update system visible IP port range */
 static void set_local_port_range(struct net *net, int range[2])
@@ -530,7 +529,7 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(sysctl_tcp_wmem),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_sndbuf,
+		.extra1		= &one,
 	},
 	{
 		.procname	= "tcp_notsent_lowat",
@@ -545,7 +544,7 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(sysctl_tcp_rmem),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_rcvbuf,
+		.extra1		= &one,
 	},
 	{
 		.procname	= "tcp_app_win",
@@ -714,6 +713,24 @@ static struct ctl_table ipv4_table[] = {
 		.extra2		= &gso_max_segs,
 	},
 	{
+		.procname	= "tcp_pacing_ss_ratio",
+		.data		= &sysctl_tcp_pacing_ss_ratio,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &thousand,
+	},
+	{
+		.procname	= "tcp_pacing_ca_ratio",
+		.data		= &sysctl_tcp_pacing_ca_ratio,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &thousand,
+	},
+	{
 		.procname	= "tcp_autocorking",
 		.data		= &sysctl_tcp_autocorking,
 		.maxlen		= sizeof(int),
@@ -758,7 +775,7 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(sysctl_udp_rmem_min),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_rcvbuf,
+		.extra1		= &one
 	},
 	{
 		.procname	= "udp_wmem_min",
@@ -766,7 +783,7 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(sysctl_udp_wmem_min),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_sndbuf,
+		.extra1		= &one
 	},
 	{ }
 };
@@ -911,6 +928,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "igmp_link_local_mcast_reports",
+		.data		= &sysctl_igmp_llm_reports,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
 	},
 	{ }
 };

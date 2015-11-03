@@ -244,7 +244,8 @@ static struct irq_chip qe_ic_irq_chip = {
 	.irq_mask_ack = qe_ic_mask_irq,
 };
 
-static int qe_ic_host_match(struct irq_domain *h, struct device_node *node)
+static int qe_ic_host_match(struct irq_domain *h, struct device_node *node,
+			    enum irq_domain_bus_token bus_token)
 {
 	/* Exact match, unless qe_ic node is NULL */
 	return h->of_node == NULL || h->of_node == node;
@@ -310,8 +311,8 @@ unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 }
 
 void __init qe_ic_init(struct device_node *node, unsigned int flags,
-		void (*low_handler)(unsigned int irq, struct irq_desc *desc),
-		void (*high_handler)(unsigned int irq, struct irq_desc *desc))
+		       void (*low_handler)(struct irq_desc *desc),
+		       void (*high_handler)(struct irq_desc *desc))
 {
 	struct qe_ic *qe_ic;
 	struct resource res;

@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2011 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2011-2014 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -142,7 +142,7 @@ static bool vmw_fence_enable_signaling(struct fence *f)
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
 	struct vmw_private *dev_priv = fman->dev_priv;
 
-	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+	u32 __iomem *fifo_mem = dev_priv->mmio_virt;
 	u32 seqno = ioread32(fifo_mem + SVGA_FIFO_FENCE);
 	if (seqno - fence->base.seqno < VMW_FENCE_WRAP)
 		return false;
@@ -386,7 +386,7 @@ static bool vmw_fence_goal_new_locked(struct vmw_fence_manager *fman,
 				      u32 passed_seqno)
 {
 	u32 goal_seqno;
-	__le32 __iomem *fifo_mem;
+	u32 __iomem *fifo_mem;
 	struct vmw_fence_obj *fence;
 
 	if (likely(!fman->seqno_valid))
@@ -430,7 +430,7 @@ static bool vmw_fence_goal_check_locked(struct vmw_fence_obj *fence)
 {
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
 	u32 goal_seqno;
-	__le32 __iomem *fifo_mem;
+	u32 __iomem *fifo_mem;
 
 	if (fence_is_signaled_locked(&fence->base))
 		return false;
@@ -453,7 +453,7 @@ static void __vmw_fences_update(struct vmw_fence_manager *fman)
 	struct list_head action_list;
 	bool needs_rerun;
 	uint32_t seqno, new_seqno;
-	__le32 __iomem *fifo_mem = fman->dev_priv->mmio_virt;
+	u32 __iomem *fifo_mem = fman->dev_priv->mmio_virt;
 
 	seqno = ioread32(fifo_mem + SVGA_FIFO_FENCE);
 rerun:

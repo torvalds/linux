@@ -30,23 +30,11 @@
 #include "ieee802154_i.h"
 #include "driver-ops.h"
 
-/* IEEE 802.15.4 transceivers can sleep during the xmit session, so process
- * packets through the workqueue.
- */
-struct ieee802154_xmit_cb {
-	struct sk_buff *skb;
-	struct work_struct work;
-	struct ieee802154_local *local;
-};
-
-static struct ieee802154_xmit_cb ieee802154_xmit_cb;
-
-static void ieee802154_xmit_worker(struct work_struct *work)
+void ieee802154_xmit_worker(struct work_struct *work)
 {
-	struct ieee802154_xmit_cb *cb =
-		container_of(work, struct ieee802154_xmit_cb, work);
-	struct ieee802154_local *local = cb->local;
-	struct sk_buff *skb = cb->skb;
+	struct ieee802154_local *local =
+		container_of(work, struct ieee802154_local, tx_work);
+	struct sk_buff *skb = local->tx_skb;
 	struct net_device *dev = skb->dev;
 	int res;
 
@@ -106,11 +94,8 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += skb->len;
 	} else {
-		INIT_WORK(&ieee802154_xmit_cb.work, ieee802154_xmit_worker);
-		ieee802154_xmit_cb.skb = skb;
-		ieee802154_xmit_cb.local = local;
-
-		queue_work(local->workqueue, &ieee802154_xmit_cb.work);
+		local->tx_skb = skb;
+		queue_work(local->workqueue, &local->tx_work);
 	}
 
 	return NETDEV_TX_OK;

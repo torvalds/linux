@@ -1171,6 +1171,11 @@ static void __init l2c310_of_parse(const struct device_node *np,
 		}
 	}
 
+	if (of_property_read_bool(np, "arm,shared-override")) {
+		*aux_val |= L2C_AUX_CTRL_SHARED_OVERRIDE;
+		*aux_mask &= ~L2C_AUX_CTRL_SHARED_OVERRIDE;
+	}
+
 	prefetch = l2x0_saved_regs.prefetch_ctrl;
 
 	ret = of_property_read_u32(np, "arm,double-linefill", &val);

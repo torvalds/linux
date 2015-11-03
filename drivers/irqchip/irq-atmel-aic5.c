@@ -19,6 +19,7 @@
 #include <linux/bitmap.h>
 #include <linux/types.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -31,7 +32,6 @@
 #include <asm/mach/irq.h>
 
 #include "irq-atmel-aic-common.h"
-#include "irqchip.h"
 
 /* Number of irq lines managed by AIC */
 #define NR_AIC5_IRQS	128
@@ -88,28 +88,36 @@ static void aic5_mask(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
 	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *gc = dgc->gc[0];
+	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 
-	/* Disable interrupt on AIC5 */
-	irq_gc_lock(gc);
+	/*
+	 * Disable interrupt on AIC5. We always take the lock of the
+	 * first irq chip as all chips share the same registers.
+	 */
+	irq_gc_lock(bgc);
 	irq_reg_writel(gc, d->hwirq, AT91_AIC5_SSR);
 	irq_reg_writel(gc, 1, AT91_AIC5_IDCR);
 	gc->mask_cache &= ~d->mask;
-	irq_gc_unlock(gc);
+	irq_gc_unlock(bgc);
 }
 
 static void aic5_unmask(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
 	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *gc = dgc->gc[0];
+	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 
-	/* Enable interrupt on AIC5 */
-	irq_gc_lock(gc);
+	/*
+	 * Enable interrupt on AIC5. We always take the lock of the
+	 * first irq chip as all chips share the same registers.
+	 */
+	irq_gc_lock(bgc);
 	irq_reg_writel(gc, d->hwirq, AT91_AIC5_SSR);
 	irq_reg_writel(gc, 1, AT91_AIC5_IECR);
 	gc->mask_cache |= d->mask;
-	irq_gc_unlock(gc);
+	irq_gc_unlock(bgc);
 }
 
 static int aic5_retrigger(struct irq_data *d)
@@ -290,7 +298,7 @@ static void __init sama5d3_aic_irq_fixup(struct device_node *root)
 	aic_common_rtc_irq_fixup(root);
 }
 
-static const struct of_device_id __initdata aic5_irq_fixups[] = {
+static const struct of_device_id aic5_irq_fixups[] __initconst = {
 	{ .compatible = "atmel,sama5d3", .data = sama5d3_aic_irq_fixup },
 	{ .compatible = "atmel,sama5d4", .data = sama5d3_aic_irq_fixup },
 	{ /* sentinel */ },

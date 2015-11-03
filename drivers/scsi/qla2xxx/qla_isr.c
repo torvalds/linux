@@ -116,7 +116,7 @@ bool
 qla2x00_check_reg32_for_disconnect(scsi_qla_host_t *vha, uint32_t reg)
 {
 	/* Check for PCI disconnection */
-	if (reg == 0xffffffff) {
+	if (reg == 0xffffffff && !pci_channel_offline(vha->hw->pdev)) {
 		if (!test_and_set_bit(PFLG_DISCONNECTED, &vha->pci_flags) &&
 		    !test_bit(PFLG_DRIVER_REMOVING, &vha->pci_flags) &&
 		    !test_bit(PFLG_DRIVER_PROBING, &vha->pci_flags)) {
@@ -560,6 +560,17 @@ qla2x00_is_a_vp_did(scsi_qla_host_t *vha, uint32_t rscn_entry)
 	return ret;
 }
 
+static inline fc_port_t *
+qla2x00_find_fcport_by_loopid(scsi_qla_host_t *vha, uint16_t loop_id)
+{
+	fc_port_t *fcport;
+
+	list_for_each_entry(fcport, &vha->vp_fcports, list)
+		if (fcport->loop_id == loop_id)
+			return fcport;
+	return NULL;
+}
+
 /**
  * qla2x00_async_event() - Process aynchronous events.
  * @ha: SCSI driver HA context
@@ -575,7 +586,7 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	struct device_reg_24xx __iomem *reg24 = &ha->iobase->isp24;
 	struct device_reg_82xx __iomem *reg82 = &ha->iobase->isp82;
-	uint32_t	rscn_entry, host_pid, tmp_pid;
+	uint32_t	rscn_entry, host_pid;
 	unsigned long	flags;
 	fc_port_t	*fcport = NULL;
 
@@ -897,11 +908,29 @@ skip_rio:
 			(mb[1] != 0xffff)) && vha->vp_idx != (mb[3] & 0xff))
 			break;
 
-		/* Global event -- port logout or port unavailable. */
-		if (mb[1] == 0xffff && mb[2] == 0x7) {
+		if (mb[2] == 0x7) {
 			ql_dbg(ql_dbg_async, vha, 0x5010,
-			    "Port unavailable %04x %04x %04x.\n",
+			    "Port %s %04x %04x %04x.\n",
+			    mb[1] == 0xffff ? "unavailable" : "logout",
 			    mb[1], mb[2], mb[3]);
+
+			if (mb[1] == 0xffff)
+				goto global_port_update;
+
+			/* Port logout */
+			fcport = qla2x00_find_fcport_by_loopid(vha, mb[1]);
+			if (!fcport)
+				break;
+			if (atomic_read(&fcport->state) != FCS_ONLINE)
+				break;
+			ql_dbg(ql_dbg_async, vha, 0x508a,
+			    "Marking port lost loopid=%04x portid=%06x.\n",
+			    fcport->loop_id, fcport->d_id.b24);
+			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
+			break;
+
+global_port_update:
+			/* Port unavailable. */
 			ql_log(ql_log_warn, vha, 0x505e,
 			    "Link is offline.\n");
 
@@ -998,7 +1027,6 @@ skip_rio:
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
 			if (atomic_read(&fcport->state) != FCS_ONLINE)
 				continue;
-			tmp_pid = fcport->d_id.b24;
 			if (fcport->d_id.b24 == rscn_entry) {
 				qla2x00_mark_device_lost(vha, fcport, 0, 0);
 				break;
@@ -1565,7 +1593,7 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 		    "Async-%s error - hdl=%x entry-status(%x).\n",
 		    type, sp->handle, sts->entry_status);
 		iocb->u.tmf.data = QLA_FUNCTION_FAILED;
-	} else if (sts->comp_status != __constant_cpu_to_le16(CS_COMPLETE)) {
+	} else if (sts->comp_status != cpu_to_le16(CS_COMPLETE)) {
 		ql_log(ql_log_warn, fcport->vha, 0x5039,
 		    "Async-%s error - hdl=%x completion status(%x).\n",
 		    type, sp->handle, sts->comp_status);
@@ -2045,14 +2073,18 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	}
 
 	/* Validate handle. */
-	if (handle < req->num_outstanding_cmds)
+	if (handle < req->num_outstanding_cmds) {
 		sp = req->outstanding_cmds[handle];
-	else
-		sp = NULL;
-
-	if (sp == NULL) {
+		if (!sp) {
+			ql_dbg(ql_dbg_io, vha, 0x3075,
+			    "%s(%ld): Already returned command for status handle (0x%x).\n",
+			    __func__, vha->host_no, sts->handle);
+			return;
+		}
+	} else {
 		ql_dbg(ql_dbg_io, vha, 0x3017,
-		    "Invalid status handle (0x%x).\n", sts->handle);
+		    "Invalid status handle, out of range (0x%x).\n",
+		    sts->handle);
 
 		if (!test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags)) {
 			if (IS_P3P_TYPE(ha))
@@ -2339,12 +2371,12 @@ out:
 		ql_dbg(ql_dbg_io, fcport->vha, 0x3022,
 		    "FCP command status: 0x%x-0x%x (0x%x) nexus=%ld:%d:%llu "
 		    "portid=%02x%02x%02x oxid=0x%x cdb=%10phN len=0x%x "
-		    "rsp_info=0x%x resid=0x%x fw_resid=0x%x.\n",
+		    "rsp_info=0x%x resid=0x%x fw_resid=0x%x sp=%p cp=%p.\n",
 		    comp_status, scsi_status, res, vha->host_no,
 		    cp->device->id, cp->device->lun, fcport->d_id.b.domain,
 		    fcport->d_id.b.area, fcport->d_id.b.al_pa, ox_id,
 		    cp->cmnd, scsi_bufflen(cp), rsp_info_len,
-		    resid_len, fw_resid_len);
+		    resid_len, fw_resid_len, sp, cp);
 
 	if (rsp->status_srb == NULL)
 		sp->done(ha, sp, res);
@@ -2441,13 +2473,7 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 	}
 fatal:
 	ql_log(ql_log_warn, vha, 0x5030,
-	    "Error entry - invalid handle/queue.\n");
-
-	if (IS_P3P_TYPE(ha))
-		set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
-	else
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-	qla2xxx_wake_dpc(vha);
+	    "Error entry - invalid handle/queue (%04x).\n", que);
 }
 
 /**

@@ -145,7 +145,7 @@ out:
  *  0 if the packet is to be accepted
  *  1 if the packet is to be ignored.
  */
-int batadv_window_protected(struct batadv_priv *bat_priv, int32_t seq_num_diff,
+int batadv_window_protected(struct batadv_priv *bat_priv, s32 seq_num_diff,
 			    unsigned long *last_reset)
 {
 	if (seq_num_diff <= -BATADV_TQ_LOCAL_WINDOW_SIZE ||
@@ -653,19 +653,19 @@ out:
 static bool
 batadv_reroute_unicast_packet(struct batadv_priv *bat_priv,
 			      struct batadv_unicast_packet *unicast_packet,
-			      uint8_t *dst_addr, unsigned short vid)
+			      u8 *dst_addr, unsigned short vid)
 {
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_hard_iface *primary_if = NULL;
 	bool ret = false;
-	uint8_t *orig_addr, orig_ttvn;
+	u8 *orig_addr, orig_ttvn;
 
 	if (batadv_is_my_client(bat_priv, dst_addr, vid)) {
 		primary_if = batadv_primary_if_get_selected(bat_priv);
 		if (!primary_if)
 			goto out;
 		orig_addr = primary_if->net_dev->dev_addr;
-		orig_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
+		orig_ttvn = (u8)atomic_read(&bat_priv->tt.vn);
 	} else {
 		orig_node = batadv_transtable_search(bat_priv, NULL, dst_addr,
 						     vid);
@@ -676,7 +676,7 @@ batadv_reroute_unicast_packet(struct batadv_priv *bat_priv,
 			goto out;
 
 		orig_addr = orig_node->orig;
-		orig_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
+		orig_ttvn = (u8)atomic_read(&orig_node->last_ttvn);
 	}
 
 	/* update the packet header */
@@ -698,7 +698,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	struct batadv_unicast_packet *unicast_packet;
 	struct batadv_hard_iface *primary_if;
 	struct batadv_orig_node *orig_node;
-	uint8_t curr_ttvn, old_ttvn;
+	u8 curr_ttvn, old_ttvn;
 	struct ethhdr *ethhdr;
 	unsigned short vid;
 	int is_old_ttvn;
@@ -740,7 +740,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	 * value is used later to check if the node which sent (or re-routed
 	 * last time) the packet had an updated information or not
 	 */
-	curr_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
+	curr_ttvn = (u8)atomic_read(&bat_priv->tt.vn);
 	if (!batadv_is_my_mac(bat_priv, unicast_packet->dest)) {
 		orig_node = batadv_orig_hash_find(bat_priv,
 						  unicast_packet->dest);
@@ -751,7 +751,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 		if (!orig_node)
 			return 0;
 
-		curr_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
+		curr_ttvn = (u8)atomic_read(&orig_node->last_ttvn);
 		batadv_orig_node_free_ref(orig_node);
 	}
 
@@ -833,7 +833,7 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct batadv_unicast_packet *unicast_packet;
 	struct batadv_unicast_4addr_packet *unicast_4addr_packet;
-	uint8_t *orig_addr;
+	u8 *orig_addr;
 	struct batadv_orig_node *orig_node = NULL;
 	int check, hdr_size = sizeof(*unicast_packet);
 	bool is4addr;
@@ -904,7 +904,7 @@ int batadv_recv_unicast_tvlv(struct sk_buff *skb,
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct batadv_unicast_tvlv_packet *unicast_tvlv_packet;
 	unsigned char *tvlv_buff;
-	uint16_t tvlv_buff_len;
+	u16 tvlv_buff_len;
 	int hdr_size = sizeof(*unicast_tvlv_packet);
 	int ret = NET_RX_DROP;
 
@@ -1007,8 +1007,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	struct ethhdr *ethhdr;
 	int hdr_size = sizeof(*bcast_packet);
 	int ret = NET_RX_DROP;
-	int32_t seq_diff;
-	uint32_t seqno;
+	s32 seq_diff;
+	u32 seqno;
 
 	/* drop packet if it has not necessary minimum size */
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))

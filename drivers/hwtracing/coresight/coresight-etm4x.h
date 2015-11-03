@@ -265,7 +265,9 @@
  * @addr_type:	Current status of the comparator register.
  * @ctxid_idx:	Context ID index selector.
  * @ctxid_size:	Size of the context ID field to consider.
- * @ctxid_val:	Value of the context ID comparator.
+ * @ctxid_pid:	Value of the context ID comparator.
+ * @ctxid_vpid:	Virtual PID seen by users if PID namespace is enabled, otherwise
+ *		the same value of ctxid_pid.
  * @ctxid_mask0:Context ID comparator mask for comparator 0-3.
  * @ctxid_mask1:Context ID comparator mask for comparator 4-7.
  * @vmid_idx:	VM ID index selector.
@@ -352,7 +354,8 @@ struct etmv4_drvdata {
 	u8				addr_type[ETM_MAX_SINGLE_ADDR_CMP];
 	u8				ctxid_idx;
 	u8				ctxid_size;
-	u64				ctxid_val[ETMv4_MAX_CTXID_CMP];
+	u64				ctxid_pid[ETMv4_MAX_CTXID_CMP];
+	u64				ctxid_vpid[ETMv4_MAX_CTXID_CMP];
 	u32				ctxid_mask0;
 	u32				ctxid_mask1;
 	u8				vmid_idx;

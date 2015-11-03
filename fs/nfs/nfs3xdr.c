@@ -1103,6 +1103,7 @@ static void nfs3_xdr_enc_symlink3args(struct rpc_rqst *req,
 {
 	encode_diropargs3(xdr, args->fromfh, args->fromname, args->fromlen);
 	encode_symlinkdata3(xdr, args);
+	xdr->buf->flags |= XDRBUF_WRITE;
 }
 
 /*

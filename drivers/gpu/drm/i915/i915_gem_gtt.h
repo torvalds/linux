@@ -126,6 +126,8 @@ struct intel_rotation_info {
 	unsigned int pitch;
 	uint32_t pixel_format;
 	uint64_t fb_modifier;
+	unsigned int width_pages, height_pages;
+	uint64_t size;
 };
 
 struct i915_ggtt_view {
@@ -205,19 +207,34 @@ struct i915_vma {
 #define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 };
 
-struct i915_page_table {
+struct i915_page_dma {
 	struct page *page;
-	dma_addr_t daddr;
+	union {
+		dma_addr_t daddr;
+
+		/* For gen6/gen7 only. This is the offset in the GGTT
+		 * where the page directory entries for PPGTT begin
+		 */
+		uint32_t ggtt_offset;
+	};
+};
+
+#define px_base(px) (&(px)->base)
+#define px_page(px) (px_base(px)->page)
+#define px_dma(px) (px_base(px)->daddr)
+
+struct i915_page_scratch {
+	struct i915_page_dma base;
+};
+
+struct i915_page_table {
+	struct i915_page_dma base;
 
 	unsigned long *used_ptes;
 };
 
 struct i915_page_directory {
-	struct page *page; /* NULL for GEN6-GEN7 */
-	union {
-		uint32_t pd_offset;
-		dma_addr_t daddr;
-	};
+	struct i915_page_dma base;
 
 	unsigned long *used_pdes;
 	struct i915_page_table *page_table[I915_PDES]; /* PDEs */
@@ -233,13 +250,12 @@ struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_device *dev;
 	struct list_head global_link;
-	unsigned long start;		/* Start offset always 0 for dri2 */
-	size_t total;		/* size addr space maps (ex. 2GB for ggtt) */
+	u64 start;		/* Start offset always 0 for dri2 */
+	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 
-	struct {
-		dma_addr_t addr;
-		struct page *page;
-	} scratch;
+	struct i915_page_scratch *scratch_page;
+	struct i915_page_table *scratch_pt;
+	struct i915_page_directory *scratch_pd;
 
 	/**
 	 * List of objects currently involved in rendering.
@@ -300,9 +316,9 @@ struct i915_address_space {
  */
 struct i915_gtt {
 	struct i915_address_space base;
-	size_t stolen_size;		/* Total size of stolen memory */
 
-	unsigned long mappable_end;	/* End offset that we can CPU map */
+	size_t stolen_size;		/* Total size of stolen memory */
+	u64 mappable_end;		/* End offset that we can CPU map */
 	struct io_mapping *mappable;	/* Mapping to our CPU mappable region */
 	phys_addr_t mappable_base;	/* PA of our GMADR */
 
@@ -314,9 +330,9 @@ struct i915_gtt {
 	int mtrr;
 
 	/* global gtt ops */
-	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
+	int (*gtt_probe)(struct drm_device *dev, u64 *gtt_total,
 			  size_t *stolen, phys_addr_t *mappable_base,
-			  unsigned long *mappable_end);
+			  u64 *mappable_end);
 };
 
 struct i915_hw_ppgtt {
@@ -329,16 +345,13 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory pd;
 	};
 
-	struct i915_page_table *scratch_pt;
-	struct i915_page_directory *scratch_pd;
-
 	struct drm_i915_file_private *file_priv;
 
 	gen6_pte_t __iomem *pd_addr;
 
 	int (*enable)(struct i915_hw_ppgtt *ppgtt);
 	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
-			 struct intel_engine_cs *ring);
+			 struct drm_i915_gem_request *req);
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 
@@ -468,6 +481,14 @@ static inline size_t gen8_pte_count(uint64_t address, uint64_t length)
 	return i915_pte_count(address, length, GEN8_PDE_SHIFT);
 }
 
+static inline dma_addr_t
+i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
+{
+	return test_bit(n, ppgtt->pdp.used_pdpes) ?
+		px_dma(ppgtt->pdp.page_directory[n]) :
+		px_dma(ppgtt->base.scratch_pd);
+}
+
 int i915_gem_gtt_init(struct drm_device *dev);
 void i915_gem_init_global_gtt(struct drm_device *dev);
 void i915_global_gtt_cleanup(struct drm_device *dev);
@@ -475,6 +496,7 @@ void i915_global_gtt_cleanup(struct drm_device *dev);
 
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
 int i915_ppgtt_init_hw(struct drm_device *dev);
+int i915_ppgtt_init_ring(struct drm_i915_gem_request *req);
 void i915_ppgtt_release(struct kref *kref);
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_device *dev,
 					struct drm_i915_file_private *fpriv);

@@ -225,8 +225,11 @@ static void dsps_musb_enable(struct musb *musb)
 
 	dsps_writel(reg_base, wrp->epintr_set, epmask);
 	dsps_writel(reg_base, wrp->coreintr_set, coremask);
-	/* start polling for ID change. */
-	mod_timer(&glue->timer, jiffies + msecs_to_jiffies(wrp->poll_timeout));
+	/* start polling for ID change in dual-role idle mode */
+	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
+			musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
+		mod_timer(&glue->timer, jiffies +
+				msecs_to_jiffies(wrp->poll_timeout));
 	dsps_musb_try_idle(musb, 0);
 }
 
@@ -482,11 +485,7 @@ static int dsps_musb_init(struct musb *musb)
 		dsps_writeb(musb->mregs, MUSB_BABBLE_CTL, val);
 	}
 
-	ret = dsps_musb_dbg_init(musb, glue);
-	if (ret)
-		return ret;
-
-	return 0;
+	return dsps_musb_dbg_init(musb, glue);
 }
 
 static int dsps_musb_exit(struct musb *musb)

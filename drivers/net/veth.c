@@ -290,6 +290,7 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_poll_controller	= veth_poll_controller,
 #endif
 	.ndo_get_iflink		= veth_get_iflink,
+	.ndo_features_check	= passthru_features_check,
 };
 
 #define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |    \
@@ -305,6 +306,7 @@ static void veth_setup(struct net_device *dev)
 
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+	dev->priv_flags |= IFF_NO_QUEUE;
 
 	dev->netdev_ops = &veth_netdev_ops;
 	dev->ethtool_ops = &veth_ethtool_ops;

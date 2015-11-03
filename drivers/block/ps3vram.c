@@ -593,7 +593,8 @@ out:
 	next = bio_list_peek(&priv->list);
 	spin_unlock_irq(&priv->lock);
 
-	bio_endio(bio, error);
+	bio->bi_error = error;
+	bio_endio(bio);
 	return next;
 }
 
@@ -604,6 +605,8 @@ static void ps3vram_make_request(struct request_queue *q, struct bio *bio)
 	int busy;
 
 	dev_dbg(&dev->core, "%s\n", __func__);
+
+	blk_queue_split(q, &bio, q->bio_split);
 
 	spin_lock_irq(&priv->lock);
 	busy = !bio_list_empty(&priv->list);

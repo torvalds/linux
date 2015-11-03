@@ -60,7 +60,7 @@ static inline int enable_irq_for_cpu(int cpu, struct irq_data *d,
 	if (m)
 		enable &= cpumask_test_cpu(cpu, m);
 	else if (irqd_affinity_was_set(d))
-		enable &= cpumask_test_cpu(cpu, d->affinity);
+		enable &= cpumask_test_cpu(cpu, irq_data_get_affinity_mask(d));
 #endif
 	return enable;
 }
@@ -365,9 +365,9 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 
 	irqd_set_trigger_type(d, flow_type);
 	if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	else
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 
 	return IRQ_SET_MASK_OK_NOCOPY;
 }

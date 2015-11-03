@@ -102,6 +102,7 @@ static const struct of_device_id dataflash_dt_ids[] = {
 	{ .compatible = "atmel,dataflash", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, dataflash_dt_ids);
 #endif
 
 /* ......................................................................... */

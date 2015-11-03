@@ -526,7 +526,6 @@ MODULE_DEVICE_TABLE(i2c, tea5764_id);
 static struct i2c_driver tea5764_i2c_driver = {
 	.driver = {
 		.name = "radio-tea5764",
-		.owner = THIS_MODULE,
 	},
 	.probe = tea5764_i2c_probe,
 	.remove = tea5764_i2c_remove,

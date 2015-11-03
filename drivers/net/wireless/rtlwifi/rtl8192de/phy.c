@@ -3515,14 +3515,14 @@ void rtl92d_update_bbrf_configuration(struct ieee80211_hw *hw)
 	for (rfpath = RF90_PATH_A; rfpath < rtlphy->num_total_rfpath;
 	     rfpath++) {
 		if (rtlhal->current_bandtype == BAND_ON_2_4G) {
-			/* MOD_AG for RF paht_A 0x18 BIT8,BIT16 */
+			/* MOD_AG for RF path_A 0x18 BIT8,BIT16 */
 			rtl_set_rfreg(hw, rfpath, RF_CHNLBW, BIT(8) | BIT(16) |
 				      BIT(18), 0);
 			/* RF0x0b[16:14] =3b'111 */
 			rtl_set_rfreg(hw, (enum radio_path)rfpath, 0x0B,
 				      0x1c000, 0x07);
 		} else {
-			/* MOD_AG for RF paht_A 0x18 BIT8,BIT16 */
+			/* MOD_AG for RF path_A 0x18 BIT8,BIT16 */
 			rtl_set_rfreg(hw, rfpath, RF_CHNLBW, BIT(8) |
 				      BIT(16) | BIT(18),
 				      (BIT(16) | BIT(8)) >> 8);

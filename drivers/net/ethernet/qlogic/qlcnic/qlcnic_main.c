@@ -7,11 +7,6 @@
 
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
-
-#include "qlcnic.h"
-#include "qlcnic_sriov.h"
-#include "qlcnic_hw.h"
-
 #include <linux/swab.h>
 #include <linux/dma-mapping.h>
 #include <linux/if_vlan.h>
@@ -24,6 +19,10 @@
 #ifdef CONFIG_QLCNIC_VXLAN
 #include <net/vxlan.h>
 #endif
+
+#include "qlcnic.h"
+#include "qlcnic_sriov.h"
+#include "qlcnic_hw.h"
 
 MODULE_DESCRIPTION("QLogic 1/10 GbE Converged/Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
@@ -111,8 +110,9 @@ static u32 qlcnic_vlan_tx_check(struct qlcnic_adapter *adapter)
 static const struct pci_device_id qlcnic_pci_tbl[] = {
 	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE824X),
 	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE834X),
-	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE8830),
 	ENTRY(PCI_DEVICE_ID_QLOGIC_VF_QLE834X),
+	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE8830),
+	ENTRY(PCI_DEVICE_ID_QLOGIC_VF_QLE8C30),
 	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE844X),
 	ENTRY(PCI_DEVICE_ID_QLOGIC_VF_QLE844X),
 	{0,}
@@ -483,11 +483,17 @@ static void qlcnic_add_vxlan_port(struct net_device *netdev,
 	/* Adapter supports only one VXLAN port. Use very first port
 	 * for enabling offload
 	 */
-	if (!qlcnic_encap_rx_offload(adapter) || ahw->vxlan_port)
+	if (!qlcnic_encap_rx_offload(adapter))
 		return;
+	if (!ahw->vxlan_port_count) {
+		ahw->vxlan_port_count = 1;
+		ahw->vxlan_port = ntohs(port);
+		adapter->flags |= QLCNIC_ADD_VXLAN_PORT;
+		return;
+	}
+	if (ahw->vxlan_port == ntohs(port))
+		ahw->vxlan_port_count++;
 
-	ahw->vxlan_port = ntohs(port);
-	adapter->flags |= QLCNIC_ADD_VXLAN_PORT;
 }
 
 static void qlcnic_del_vxlan_port(struct net_device *netdev,
@@ -496,11 +502,13 @@ static void qlcnic_del_vxlan_port(struct net_device *netdev,
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
-	if (!qlcnic_encap_rx_offload(adapter) || !ahw->vxlan_port ||
+	if (!qlcnic_encap_rx_offload(adapter) || !ahw->vxlan_port_count ||
 	    (ahw->vxlan_port != ntohs(port)))
 		return;
 
-	adapter->flags |= QLCNIC_DEL_VXLAN_PORT;
+	ahw->vxlan_port_count--;
+	if (!ahw->vxlan_port_count)
+		adapter->flags |= QLCNIC_DEL_VXLAN_PORT;
 }
 
 static netdev_features_t qlcnic_features_check(struct sk_buff *skb,
@@ -1149,6 +1157,7 @@ static void qlcnic_get_bar_length(u32 dev_id, ulong *bar)
 	case PCI_DEVICE_ID_QLOGIC_QLE844X:
 	case PCI_DEVICE_ID_QLOGIC_VF_QLE834X:
 	case PCI_DEVICE_ID_QLOGIC_VF_QLE844X:
+	case PCI_DEVICE_ID_QLOGIC_VF_QLE8C30:
 		*bar = QLCNIC_83XX_BAR0_LENGTH;
 		break;
 	default:
@@ -2403,7 +2412,6 @@ int qlcnic_alloc_tx_rings(struct qlcnic_adapter *adapter,
 			qlcnic_free_tx_rings(adapter);
 			return -ENOMEM;
 		}
-		memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(tx_ring));
 		tx_ring->cmd_buf_arr = cmd_buf_arr;
 		spin_lock_init(&tx_ring->tx_clean_lock);
 	}
@@ -2492,6 +2500,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		qlcnic_83xx_register_map(ahw);
 		break;
 	case PCI_DEVICE_ID_QLOGIC_VF_QLE834X:
+	case PCI_DEVICE_ID_QLOGIC_VF_QLE8C30:
 	case PCI_DEVICE_ID_QLOGIC_VF_QLE844X:
 		qlcnic_sriov_vf_register_map(ahw);
 		break;

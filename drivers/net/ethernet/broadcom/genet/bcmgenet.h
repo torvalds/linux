@@ -593,6 +593,7 @@ struct bcmgenet_priv {
 	/* MDIO bus variables */
 	wait_queue_head_t wq;
 	struct phy_device *phydev;
+	bool internal_phy;
 	struct device_node *phy_dn;
 	struct device_node *mdio_dn;
 	struct mii_bus *mii_bus;
@@ -670,9 +671,9 @@ GENET_IO_MACRO(rbuf, GENET_RBUF_OFF);
 
 /* MDIO routines */
 int bcmgenet_mii_init(struct net_device *dev);
-int bcmgenet_mii_config(struct net_device *dev, bool init);
+int bcmgenet_mii_config(struct net_device *dev);
+int bcmgenet_mii_probe(struct net_device *dev);
 void bcmgenet_mii_exit(struct net_device *dev);
-void bcmgenet_mii_reset(struct net_device *dev);
 void bcmgenet_phy_power_set(struct net_device *dev, bool enable);
 void bcmgenet_mii_setup(struct net_device *dev);
 

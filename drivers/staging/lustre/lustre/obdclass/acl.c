@@ -104,11 +104,10 @@ static int lustre_posix_acl_xattr_reduce_space(posix_acl_xattr_header **header,
 	if (unlikely(old_count <= new_count))
 		return old_size;
 
-	new = kzalloc(new_size, GFP_NOFS);
+	new = kmemdup(*header, new_size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return -ENOMEM;
 
-	memcpy(new, *header, new_size);
 	kfree(*header);
 	*header = new;
 	return new_size;
@@ -125,11 +124,10 @@ static int lustre_ext_acl_xattr_reduce_space(ext_acl_xattr_header **header,
 	if (unlikely(old_count <= ext_count))
 		return 0;
 
-	new = kzalloc(ext_size, GFP_NOFS);
+	new = kmemdup(*header, ext_size, GFP_NOFS);
 	if (unlikely(new == NULL))
 		return -ENOMEM;
 
-	memcpy(new, *header, ext_size);
 	kfree(*header);
 	*header = new;
 	return 0;

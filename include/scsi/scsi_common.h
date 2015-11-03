@@ -61,4 +61,9 @@ static inline bool scsi_sense_valid(const struct scsi_sense_hdr *sshdr)
 extern bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
 				 struct scsi_sense_hdr *sshdr);
 
+extern void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq);
+int scsi_set_sense_information(u8 *buf, int buf_len, u64 info);
+extern const u8 * scsi_sense_desc_find(const u8 * sense_buffer, int sb_len,
+				       int desc_type);
+
 #endif /* _SCSI_COMMON_H_ */

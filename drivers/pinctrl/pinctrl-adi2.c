@@ -427,10 +427,10 @@ static int adi_gpio_irq_type(struct irq_data *d, unsigned int type)
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
 		writel(pintmask, &pint_regs->edge_set);
-		__irq_set_handler_locked(irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	} else {
 		writel(pintmask, &pint_regs->edge_clear);
-		__irq_set_handler_locked(irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	}
 
 out:
@@ -530,8 +530,7 @@ static inline void preflow_handler(struct irq_desc *desc)
 static inline void preflow_handler(struct irq_desc *desc) { }
 #endif
 
-static void adi_gpio_handle_pint_irq(unsigned int inta_irq,
-			struct irq_desc *desc)
+static void adi_gpio_handle_pint_irq(struct irq_desc *desc)
 {
 	u32 request;
 	u32 level_mask, hwirq;

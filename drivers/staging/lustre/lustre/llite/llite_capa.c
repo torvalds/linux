@@ -70,7 +70,8 @@ static unsigned long long ll_capa_renewal_retries;
 
 static int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa);
 
-static inline void update_capa_timer(struct obd_capa *ocapa, unsigned long expiry)
+static inline void update_capa_timer(struct obd_capa *ocapa,
+				     unsigned long expiry)
 {
 	if (time_before(expiry, ll_capa_timer.expires) ||
 	    !timer_pending(&ll_capa_timer)) {
@@ -102,13 +103,13 @@ static inline int have_expired_capa(void)
 	spin_lock(&capa_lock);
 	if (!list_empty(ll_capa_list)) {
 		ocapa = list_entry(ll_capa_list->next, struct obd_capa,
-				       c_list);
+				   c_list);
 		expired = capa_is_to_expire(ocapa);
 		if (!expired)
 			update_capa_timer(ocapa, capa_renewal_time(ocapa));
 	} else if (!list_empty(&ll_idle_capas)) {
 		ocapa = list_entry(ll_idle_capas.next, struct obd_capa,
-				       c_list);
+				   c_list);
 		expired = capa_is_expired(ocapa);
 		if (!expired)
 			update_capa_timer(ocapa, ocapa->c_expiry);
@@ -165,7 +166,8 @@ static void ll_delete_capa(struct obd_capa *ocapa)
 /* three places where client capa is deleted:
  * 1. capa_thread_main(), main place to delete expired capa.
  * 2. ll_clear_inode_capas() in ll_clear_inode().
- * 3. ll_truncate_free_capa() delete truncate capa explicitly in ll_setattr_ost().
+ * 3. ll_truncate_free_capa() delete truncate capa explicitly in
+ *    ll_setattr_ost().
  */
 static int capa_thread_main(void *unused)
 {
@@ -206,7 +208,8 @@ static int capa_thread_main(void *unused)
 			 * lock.
 			 */
 			/* ibits may be changed by ll_have_md_lock() so we have
-			 * to set it each time */
+			 * to set it each time
+			 */
 			ibits = MDS_INODELOCK_LOOKUP;
 			if (capa_for_mds(&ocapa->c_capa) &&
 			    !S_ISDIR(ocapa->u.cli.inode->i_mode) &&
@@ -225,14 +228,15 @@ static int capa_thread_main(void *unused)
 			if (capa_for_oss(&ocapa->c_capa) &&
 			    obd_capa_open_count(ocapa) == 0) {
 				/* oss capa with open count == 0 won't renew,
-				 * move to idle list */
+				 * move to idle list
+				 */
 				sort_add_capa(ocapa, &ll_idle_capas);
 				continue;
 			}
 
 			/* NB iput() is in ll_update_capa() */
 			inode = igrab(ocapa->u.cli.inode);
-			if (inode == NULL) {
+			if (!inode) {
 				DEBUG_CAPA(D_ERROR, &ocapa->c_capa,
 					   "igrab failed for");
 				continue;
@@ -255,7 +259,7 @@ static int capa_thread_main(void *unused)
 			update_capa_timer(next, capa_renewal_time(next));
 
 		list_for_each_entry_safe(ocapa, tmp, &ll_idle_capas,
-					     c_list) {
+					 c_list) {
 			if (!capa_is_expired(ocapa)) {
 				if (!next)
 					update_capa_timer(ocapa,
@@ -299,11 +303,11 @@ int ll_capa_thread_start(void)
 	task = kthread_run(capa_thread_main, NULL, "ll_capa");
 	if (IS_ERR(task)) {
 		CERROR("cannot start expired capa thread: rc %ld\n",
-			PTR_ERR(task));
+		       PTR_ERR(task));
 		return PTR_ERR(task);
 	}
 	wait_event(ll_capa_thread.t_ctl_waitq,
-		       thread_is_running(&ll_capa_thread));
+		   thread_is_running(&ll_capa_thread));
 
 	return 0;
 }
@@ -313,7 +317,7 @@ void ll_capa_thread_stop(void)
 	thread_set_flags(&ll_capa_thread, SVC_STOPPING);
 	wake_up(&ll_capa_thread.t_ctl_waitq);
 	wait_event(ll_capa_thread.t_ctl_waitq,
-		       thread_is_stopped(&ll_capa_thread));
+		   thread_is_stopped(&ll_capa_thread));
 }
 
 struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc)
@@ -360,7 +364,7 @@ struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc)
 		ocapa = NULL;
 
 		if (atomic_read(&ll_capa_debug)) {
-			CERROR("no capability for "DFID" opc %#llx\n",
+			CERROR("no capability for " DFID " opc %#llx\n",
 			       PFID(&lli->lli_fid), opc);
 			atomic_set(&ll_capa_debug, 0);
 		}
@@ -376,7 +380,7 @@ struct obd_capa *ll_mdscapa_get(struct inode *inode)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct obd_capa *ocapa;
 
-	LASSERT(inode != NULL);
+	LASSERT(inode);
 
 	if ((ll_i2sbi(inode)->ll_flags & LL_SBI_MDS_CAPA) == 0)
 		return NULL;
@@ -385,7 +389,7 @@ struct obd_capa *ll_mdscapa_get(struct inode *inode)
 	ocapa = capa_get(lli->lli_mds_capa);
 	spin_unlock(&capa_lock);
 	if (!ocapa && atomic_read(&ll_capa_debug)) {
-		CERROR("no mds capability for "DFID"\n", PFID(&lli->lli_fid));
+		CERROR("no mds capability for " DFID "\n", PFID(&lli->lli_fid));
 		atomic_set(&ll_capa_debug, 0);
 	}
 
@@ -447,7 +451,8 @@ static inline void inode_add_oss_capa(struct inode *inode,
 	struct list_head *next = NULL;
 
 	/* capa is sorted in lli_oss_capas so lookup can always find the
-	 * latest one */
+	 * latest one
+	 */
 	list_for_each_entry(tmp, &lli->lli_oss_capas, u.cli.lli_list) {
 		if (cfs_time_after(ocapa->c_expiry, tmp->c_expiry)) {
 			next = &tmp->u.cli.lli_list;
@@ -537,7 +542,8 @@ static int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa)
 			ll_capa_renewal_failed++;
 
 			/* failed capa won't be renewed any longer, but if -EIO,
-			 * client might be doing recovery, retry in 2 min. */
+			 * client might be doing recovery, retry in 2 min.
+			 */
 			if (rc == -EIO && !capa_is_expired(ocapa)) {
 				delay_capa_renew(ocapa, 120);
 				DEBUG_CAPA(D_ERROR, &ocapa->c_capa,
@@ -638,7 +644,7 @@ void ll_clear_inode_capas(struct inode *inode)
 		ll_delete_capa(ocapa);
 
 	list_for_each_entry_safe(ocapa, tmp, &lli->lli_oss_capas,
-				     u.cli.lli_list)
+				 u.cli.lli_list)
 		ll_delete_capa(ocapa);
 	spin_unlock(&capa_lock);
 }

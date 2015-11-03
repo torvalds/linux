@@ -6,6 +6,7 @@ Required properties:
 	"lsi,zevio-usb"
 	"qcom,ci-hdrc"
 	"chipidea,usb2"
+	"xlnx,zynq-usb-2.20a"
 - reg: base address and length of the registers
 - interrupts: interrupt for the USB controller
 
@@ -30,6 +31,21 @@ Optional properties:
   argument that indicate usb controller index
 - disable-over-current: (FSL only) disable over current detect
 - external-vbus-divider: (FSL only) enables off-chip resistor divider for Vbus
+- itc-setting: interrupt threshold control register control, the setting
+  should be aligned with ITC bits at register USBCMD.
+- ahb-burst-config: it is vendor dependent, the required value should be
+  aligned with AHBBRST at SBUSCFG, the range is from 0x0 to 0x7. This
+  property is used to change AHB burst configuration, check the chipidea
+  spec for meaning of each value. If this property is not existed, it
+  will use the reset value.
+- tx-burst-size-dword: it is vendor dependent, the tx burst size in dword
+  (4 bytes), This register represents the maximum length of a the burst
+  in 32-bit words while moving data from system memory to the USB
+  bus, changing this value takes effect only the SBUSCFG.AHBBRST is 0.
+- rx-burst-size-dword: it is vendor dependent, the rx burst size in dword
+  (4 bytes), This register represents the maximum length of a the burst
+  in 32-bit words while moving data from the USB bus to system memory,
+  changing this value takes effect only the SBUSCFG.AHBBRST is 0.
 
 Example:
 
@@ -41,4 +57,9 @@ Example:
 		phys = <&usb_phy0>;
 		phy-names = "usb-phy";
 		vbus-supply = <&reg_usb0_vbus>;
+		gadget-itc-setting = <0x4>; /* 4 micro-frames */
+		 /* Incremental burst of unspecified length */
+		ahb-burst-config = <0x0>;
+		tx-burst-size-dword = <0x10>; /* 64 bytes */
+		rx-burst-size-dword = <0x10>;
 	};

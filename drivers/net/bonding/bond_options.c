@@ -420,6 +420,13 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.flags = BOND_OPTFLAG_IFDOWN,
 		.values = bond_ad_user_port_key_tbl,
 		.set = bond_option_ad_user_port_key_set,
+	},
+	[BOND_OPT_NUM_PEER_NOTIF_ALIAS] = {
+		.id = BOND_OPT_NUM_PEER_NOTIF_ALIAS,
+		.name = "num_grat_arp",
+		.desc = "Number of peer notifications to send on failover event",
+		.values = bond_num_peer_notif_tbl,
+		.set = bond_option_num_peer_notif_set
 	}
 };
 
@@ -728,19 +735,6 @@ static int bond_option_mode_set(struct bonding *bond,
 	bond->params.mode = newval->value;
 
 	return 0;
-}
-
-static struct net_device *__bond_option_active_slave_get(struct bonding *bond,
-							 struct slave *slave)
-{
-	return bond_uses_primary(bond) && slave ? slave->dev : NULL;
-}
-
-struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond)
-{
-	struct slave *slave = rcu_dereference(bond->curr_active_slave);
-
-	return __bond_option_active_slave_get(bond, slave);
 }
 
 static int bond_option_active_slave_set(struct bonding *bond,

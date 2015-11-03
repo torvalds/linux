@@ -69,25 +69,6 @@
 	((GET_CVID_CUT_VERSION(version) == \
 		CHIP_VENDOR_UMC_B_CUT) ? true : false) : false)
 
-struct rtl92c_firmware_header {
-	__le16 signature;
-	u8 category;
-	u8 function;
-	__le16 version;
-	u8 subversion;
-	u8 rsvd1;
-	u8 month;
-	u8 date;
-	u8 hour;
-	u8 minute;
-	__le16 ramcodeSize;
-	__le16 rsvd2;
-	__le32 svnindex;
-	__le32 rsvd3;
-	__le32 rsvd4;
-	__le32 rsvd5;
-};
-
 #define pagenum_128(_len)	(u32)(((_len)>>7) + ((_len)&0x7F ? 1 : 0))
 
 #define SET_H2CCMD_PWRMODE_PARM_MODE(__ph2ccmd, __val)			\

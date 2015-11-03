@@ -4953,9 +4953,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
-		rc = put_user(C_CLOCAL(tty) ? 1 : 0,
+		return put_user(C_CLOCAL(tty) ? 1 : 0,
 				(unsigned long __user *) arg);
-		return rc;
 
 	case TIOCSSOFTCAR:
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
@@ -7004,25 +7003,29 @@ static void dgap_cleanup_board(struct board_t *brd)
 	kfree(brd);
 }
 
-static void dgap_remove_one(struct pci_dev *dev)
+static void dgap_stop(bool removesys, struct pci_driver *drv)
 {
-	unsigned int i;
-	ulong lock_flags;
-	struct pci_driver *drv = to_pci_driver(dev->dev.driver);
+	unsigned long lock_flags;
 
 	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
 	dgap_poll_stop = 1;
 	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
 
-	/* Turn off poller right away. */
 	del_timer_sync(&dgap_poll_timer);
-
-	dgap_remove_driver_sysfiles(drv);
+	if (removesys)
+		dgap_remove_driver_sysfiles(drv);
 
 	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
 	class_destroy(dgap_class);
 	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
+}
 
+static void dgap_remove_one(struct pci_dev *dev)
+{
+	unsigned int i;
+	struct pci_driver *drv = to_pci_driver(dev->dev.driver);
+
+	dgap_stop(true, drv);
 	for (i = 0; i < dgap_numboards; ++i) {
 		dgap_remove_ports_sysfiles(dgap_board[i]);
 		dgap_cleanup_tty(dgap_board[i]);
@@ -7096,21 +7099,6 @@ failed_class:
 	return rc;
 }
 
-static void dgap_stop(void)
-{
-	unsigned long lock_flags;
-
-	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
-	dgap_poll_stop = 1;
-	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
-
-	del_timer_sync(&dgap_poll_timer);
-
-	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
-	class_destroy(dgap_class);
-	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
-}
-
 /************************************************************************
  *
  * Driver load/unload functions
@@ -7133,8 +7121,10 @@ static int dgap_init_module(void)
 		return rc;
 
 	rc = pci_register_driver(&dgap_driver);
-	if (rc)
-		goto err_stop;
+	if (rc) {
+		dgap_stop(false, NULL);
+		return rc;
+	}
 
 	rc = dgap_create_driver_sysfiles(&dgap_driver);
 	if (rc)
@@ -7146,9 +7136,6 @@ static int dgap_init_module(void)
 
 err_unregister:
 	pci_unregister_driver(&dgap_driver);
-err_stop:
-	dgap_stop();
-
 	return rc;
 }
 

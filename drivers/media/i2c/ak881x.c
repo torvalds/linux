@@ -156,12 +156,12 @@ static int ak881x_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 	} else if (std == V4L2_STD_PAL_60) {
 		vp1 = 7;
 		ak881x->lines = 480;
-	} else if (std && !(std & ~V4L2_STD_PAL)) {
-		vp1 = 0xf;
-		ak881x->lines = 576;
-	} else if (std && !(std & ~V4L2_STD_NTSC)) {
+	} else if (std & V4L2_STD_NTSC) {
 		vp1 = 0;
 		ak881x->lines = 480;
+	} else if (std & V4L2_STD_PAL) {
+		vp1 = 0xf;
+		ak881x->lines = 576;
 	} else {
 		/* No SECAM or PAL_N/Nc supported */
 		return -EINVAL;

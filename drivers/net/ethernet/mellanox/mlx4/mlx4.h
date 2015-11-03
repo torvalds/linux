@@ -787,6 +787,9 @@ struct mlx4_set_port_general_context {
 	u8 pprx;
 	u8 pfcrx;
 	u16 reserved4;
+	u32 reserved5;
+	u8 phv_en;
+	u8 reserved6[3];
 };
 
 struct mlx4_set_port_rqp_calc_context {

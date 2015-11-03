@@ -420,7 +420,7 @@
 
 #define DP_TEST_SINK_MISC		    0x246
 # define DP_TEST_CRC_SUPPORTED		    (1 << 5)
-# define DP_TEST_COUNT_MASK		    0x7
+# define DP_TEST_COUNT_MASK		    0xf
 
 #define DP_TEST_RESPONSE		    0x260
 # define DP_TEST_ACK			    (1 << 0)
@@ -568,6 +568,10 @@
 #define MODE_I2C_READ	4
 #define MODE_I2C_STOP	8
 
+/* DP 1.2 MST PORTs - Section 2.5.1 v1.2a spec */
+#define DP_MST_PHYSICAL_PORT_0 0
+#define DP_MST_LOGICAL_PORT_0 8
+
 #define DP_LINK_STATUS_SIZE	   6
 bool drm_dp_channel_eq_ok(const u8 link_status[DP_LINK_STATUS_SIZE],
 			  int lane_count);
@@ -578,6 +582,7 @@ u8 drm_dp_get_adjust_request_voltage(const u8 link_status[DP_LINK_STATUS_SIZE],
 u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SIZE],
 					  int lane);
 
+#define DP_BRANCH_OUI_HEADER_SIZE	0xc
 #define DP_RECEIVER_CAP_SIZE		0xf
 #define EDP_PSR_RECEIVER_CAP_SIZE	2
 

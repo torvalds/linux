@@ -18,16 +18,15 @@
 #define __SOCFPGA_CLK_H
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 
 /* Clock Manager offsets */
 #define CLKMGR_CTRL		0x0
 #define CLKMGR_BYPASS		0x4
+#define CLKMGR_DBCTRL		0x10
 #define CLKMGR_L4SRC		0x70
 #define CLKMGR_PERPLL_SRC	0xAC
 
 #define SOCFPGA_MAX_PARENTS		5
-#define div_mask(width) ((1 << (width)) - 1)
 
 #define streq(a, b) (strcmp((a), (b)) == 0)
 #define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel) \

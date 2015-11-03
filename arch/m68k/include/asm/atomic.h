@@ -77,6 +77,10 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 ATOMIC_OPS(add, +=, add)
 ATOMIC_OPS(sub, -=, sub)
 
+ATOMIC_OP(and, &=, and)
+ATOMIC_OP(or, |=, or)
+ATOMIC_OP(xor, ^=, eor)
+
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
@@ -168,16 +172,6 @@ static inline int atomic_add_negative(int i, atomic_t *v)
 			     : "=d" (c), "+m" (*v)
 			     : ASM_DI (i));
 	return c != 0;
-}
-
-static inline void atomic_clear_mask(unsigned long mask, unsigned long *v)
-{
-	__asm__ __volatile__("andl %1,%0" : "+m" (*v) : ASM_DI (~(mask)));
-}
-
-static inline void atomic_set_mask(unsigned long mask, unsigned long *v)
-{
-	__asm__ __volatile__("orl %1,%0" : "+m" (*v) : ASM_DI (mask));
 }
 
 static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)

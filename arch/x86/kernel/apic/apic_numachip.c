@@ -92,7 +92,6 @@ static int numachip_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 
 	write_lcsr(CSR_G3_EXT_IRQ_GEN, int_gen.v);
 
-	atomic_set(&init_deasserted, 1);
 	return 0;
 }
 
@@ -235,7 +234,6 @@ static const struct apic apic_numachip __refconst = {
 	.send_IPI_self			= numachip_send_IPI_self,
 
 	.wakeup_secondary_cpu		= numachip_wakeup_secondary,
-	.wait_for_init_deassert		= false,
 	.inquire_remote_apic		= NULL, /* REMRD not supported */
 
 	.read				= native_apic_mem_read,

@@ -98,7 +98,7 @@ static struct tmp102 *tmp102_update_device(struct device *dev)
 	return tmp102;
 }
 
-static int tmp102_read_temp(void *dev, long *temp)
+static int tmp102_read_temp(void *dev, int *temp)
 {
 	struct tmp102 *tmp102 = tmp102_update_device(dev);
 

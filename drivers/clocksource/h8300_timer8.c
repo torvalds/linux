@@ -81,7 +81,7 @@ static irqreturn_t timer8_interrupt(int irq, void *dev_id)
 	p->flags |= FLAG_IRQCONTEXT;
 	ctrl_outw(p->tcora, p->mapbase + TCORA);
 	if (!(p->flags & FLAG_SKIPEVENT)) {
-		if (p->ced.mode == CLOCK_EVT_MODE_ONESHOT)
+		if (clockevent_state_oneshot(&p->ced))
 			ctrl_outw(0x0000, p->mapbase + _8TCR);
 		p->ced.event_handler(&p->ced);
 	}
@@ -169,29 +169,32 @@ static void timer8_clock_event_start(struct timer8_priv *p, int periodic)
 	timer8_set_next(p, periodic?(p->rate + HZ/2) / HZ:0x10000);
 }
 
-static void timer8_clock_event_mode(enum clock_event_mode mode,
-				    struct clock_event_device *ced)
+static int timer8_clock_event_shutdown(struct clock_event_device *ced)
+{
+	timer8_stop(ced_to_priv(ced));
+	return 0;
+}
+
+static int timer8_clock_event_periodic(struct clock_event_device *ced)
 {
 	struct timer8_priv *p = ced_to_priv(ced);
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		dev_info(&p->pdev->dev, "used for periodic clock events\n");
-		timer8_stop(p);
-		timer8_clock_event_start(p, PERIODIC);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		dev_info(&p->pdev->dev, "used for oneshot clock events\n");
-		timer8_stop(p);
-		timer8_clock_event_start(p, ONESHOT);
-		break;
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-		timer8_stop(p);
-		break;
-	default:
-		break;
-	}
+	dev_info(&p->pdev->dev, "used for periodic clock events\n");
+	timer8_stop(p);
+	timer8_clock_event_start(p, PERIODIC);
+
+	return 0;
+}
+
+static int timer8_clock_event_oneshot(struct clock_event_device *ced)
+{
+	struct timer8_priv *p = ced_to_priv(ced);
+
+	dev_info(&p->pdev->dev, "used for oneshot clock events\n");
+	timer8_stop(p);
+	timer8_clock_event_start(p, ONESHOT);
+
+	return 0;
 }
 
 static int timer8_clock_event_next(unsigned long delta,
@@ -199,7 +202,7 @@ static int timer8_clock_event_next(unsigned long delta,
 {
 	struct timer8_priv *p = ced_to_priv(ced);
 
-	BUG_ON(ced->mode != CLOCK_EVT_MODE_ONESHOT);
+	BUG_ON(!clockevent_state_oneshot(ced));
 	timer8_set_next(p, delta - 1);
 
 	return 0;
@@ -246,7 +249,9 @@ static int timer8_setup(struct timer8_priv *p,
 	p->ced.rating = 200;
 	p->ced.cpumask = cpumask_of(0);
 	p->ced.set_next_event = timer8_clock_event_next;
-	p->ced.set_mode = timer8_clock_event_mode;
+	p->ced.set_state_shutdown = timer8_clock_event_shutdown;
+	p->ced.set_state_periodic = timer8_clock_event_periodic;
+	p->ced.set_state_oneshot = timer8_clock_event_oneshot;
 
 	ret = setup_irq(irq, &p->irqaction);
 	if (ret < 0) {

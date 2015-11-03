@@ -585,7 +585,7 @@ kernel crypto API                                |   IPSEC Layer
 +-----------+                                    |
 |           |            (1)
 |   aead    | <-----------------------------------  esp_output
-| (seqniv)  | ---+
+|  (seqiv)  | ---+
 +-----------+    |
                  | (2)
 +-----------+    |
@@ -1101,7 +1101,7 @@ kernel crypto API            |       Caller
     </para>
 
     <para>
-     [1] http://www.chronox.de/libkcapi.html
+     [1] <ulink url="http://www.chronox.de/libkcapi.html">http://www.chronox.de/libkcapi.html</ulink>
     </para>
 
    </sect1>
@@ -1661,7 +1661,7 @@ read(opfd, out, outlen);
     </para>
 
     <para>
-     [1] http://www.chronox.de/libkcapi.html
+     [1] <ulink url="http://www.chronox.de/libkcapi.html">http://www.chronox.de/libkcapi.html</ulink>
     </para>
 
    </sect1>
@@ -1687,7 +1687,7 @@ read(opfd, out, outlen);
 !Pinclude/linux/crypto.h Block Cipher Algorithm Definitions
 !Finclude/linux/crypto.h crypto_alg
 !Finclude/linux/crypto.h ablkcipher_alg
-!Finclude/linux/crypto.h aead_alg
+!Finclude/crypto/aead.h aead_alg
 !Finclude/linux/crypto.h blkcipher_alg
 !Finclude/linux/crypto.h cipher_alg
 !Finclude/crypto/rng.h rng_alg

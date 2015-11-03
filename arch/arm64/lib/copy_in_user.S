@@ -17,7 +17,11 @@
  */
 
 #include <linux/linkage.h>
+
+#include <asm/alternative.h>
 #include <asm/assembler.h>
+#include <asm/cpufeature.h>
+#include <asm/sysreg.h>
 
 /*
  * Copy from user space to user space (alignment handled by the hardware)
@@ -30,14 +34,21 @@
  *	x0 - bytes not copied
  */
 ENTRY(__copy_in_user)
-	add	x4, x0, x2			// upper user buffer boundary
-	subs	x2, x2, #8
+ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_HAS_PAN, \
+	    CONFIG_ARM64_PAN)
+	add	x5, x0, x2			// upper user buffer boundary
+	subs	x2, x2, #16
+	b.mi	1f
+0:
+USER(9f, ldp	x3, x4, [x1], #16)
+	subs	x2, x2, #16
+USER(9f, stp	x3, x4, [x0], #16)
+	b.pl	0b
+1:	adds	x2, x2, #8
 	b.mi	2f
-1:
 USER(9f, ldr	x3, [x1], #8	)
-	subs	x2, x2, #8
+	sub	x2, x2, #8
 USER(9f, str	x3, [x0], #8	)
-	b.pl	1b
 2:	adds	x2, x2, #4
 	b.mi	3f
 USER(9f, ldr	w3, [x1], #4	)
@@ -53,11 +64,13 @@ USER(9f, strh	w3, [x0], #2	)
 USER(9f, ldrb	w3, [x1]	)
 USER(9f, strb	w3, [x0]	)
 5:	mov	x0, #0
+ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_HAS_PAN, \
+	    CONFIG_ARM64_PAN)
 	ret
 ENDPROC(__copy_in_user)
 
 	.section .fixup,"ax"
 	.align	2
-9:	sub	x0, x4, x0			// bytes not copied
+9:	sub	x0, x5, x0			// bytes not copied
 	ret
 	.previous

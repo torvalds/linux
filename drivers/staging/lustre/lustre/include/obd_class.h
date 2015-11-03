@@ -64,10 +64,10 @@ extern struct obd_device *obd_devs[MAX_OBD_DEVICES];
 extern rwlock_t obd_dev_lock;
 
 /* OBD Operations Declarations */
-extern struct obd_device *class_conn2obd(struct lustre_handle *);
-extern struct obd_device *class_exp2obd(struct obd_export *);
-extern int class_handle_ioctl(unsigned int cmd, unsigned long arg);
-extern int lustre_get_jobid(char *jobid);
+struct obd_device *class_conn2obd(struct lustre_handle *);
+struct obd_device *class_exp2obd(struct obd_export *);
+int class_handle_ioctl(unsigned int cmd, unsigned long arg);
+int lustre_get_jobid(char *jobid);
 
 struct lu_device_type;
 
@@ -139,7 +139,7 @@ int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg);
 int class_add_uuid(const char *uuid, __u64 nid);
 
 /*obdecho*/
-extern void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars);
+void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars);
 
 #define CFG_F_START     0x01   /* Set when we start updating from a log */
 #define CFG_F_MARKER    0x02   /* We are within a maker */
@@ -1823,8 +1823,8 @@ static inline int md_revalidate_lock(struct obd_export *exp,
 
 /* OBD Metadata Support */
 
-extern int obd_init_caches(void);
-extern void obd_cleanup_caches(void);
+int obd_init_caches(void);
+void obd_cleanup_caches(void);
 
 /* support routines */
 extern struct kmem_cache *obdo_cachep;
@@ -1869,8 +1869,7 @@ extern int (*ptlrpc_put_connection_superhack)(struct ptlrpc_connection *c);
 /* obd_mount.c */
 
 /* sysctl.c */
-extern void obd_sysctl_init (void);
-extern void obd_sysctl_clean (void);
+int obd_sysctl_init(void);
 
 /* uuid.c  */
 typedef __u8 class_uuid_t[16];

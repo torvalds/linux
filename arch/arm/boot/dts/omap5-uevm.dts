@@ -174,8 +174,8 @@
 
 	i2c5_pins: pinmux_i2c5_pins {
 		pinctrl-single,pins = <
-			0x184 (PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
-			0x186 (PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
+			0x186 (PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
+			0x188 (PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
 		>;
 	};
 
@@ -509,6 +509,13 @@
 					regulator-boot-on;
 				};
 			};
+		};
+
+		palmas_power_button: palmas_power_button {
+			compatible = "ti,palmas-pwrbutton";
+			interrupt-parent = <&palmas>;
+			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+			wakeup-source;
 		};
 	};
 

@@ -130,21 +130,20 @@ err:
 
 int mantis_dma_init(struct mantis_pci *mantis)
 {
-	int err = 0;
+	int err;
 
 	dprintk(MANTIS_DEBUG, 1, "Mantis DMA init");
-	if (mantis_alloc_buffers(mantis) < 0) {
+	err = mantis_alloc_buffers(mantis);
+	if (err < 0) {
 		dprintk(MANTIS_ERROR, 1, "Error allocating DMA buffer");
 
 		/* Stop RISC Engine */
 		mmwrite(0, MANTIS_DMA_CTL);
 
-		goto err;
+		return err;
 	}
 
 	return 0;
-err:
-	return err;
 }
 EXPORT_SYMBOL_GPL(mantis_dma_init);
 

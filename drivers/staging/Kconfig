@@ -56,8 +56,6 @@ source "drivers/staging/vt6656/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
-source "drivers/staging/sm7xxfb/Kconfig"
-
 source "drivers/staging/sm750fb/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"
@@ -74,11 +72,11 @@ source "drivers/staging/nvec/Kconfig"
 
 source "drivers/staging/media/Kconfig"
 
+source "drivers/staging/rdma/Kconfig"
+
 source "drivers/staging/android/Kconfig"
 
 source "drivers/staging/board/Kconfig"
-
-source "drivers/staging/ozwpan/Kconfig"
 
 source "drivers/staging/gdm72xx/Kconfig"
 
@@ -111,5 +109,7 @@ source "drivers/staging/fbtft/Kconfig"
 source "drivers/staging/fsl-mc/Kconfig"
 
 source "drivers/staging/wilc1000/Kconfig"
+
+source "drivers/staging/most/Kconfig"
 
 endif # STAGING

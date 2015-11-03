@@ -480,7 +480,7 @@ static struct omap_hwmod am43xx_dss_core_hwmod = {
 
 /* dispc */
 
-struct omap_dss_dispc_dev_attr am43xx_dss_dispc_dev_attr = {
+static struct omap_dss_dispc_dev_attr am43xx_dss_dispc_dev_attr = {
 	.manager_count		= 1,
 	.has_framedonetv_irq	= 0
 };

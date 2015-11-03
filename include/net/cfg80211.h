@@ -2369,8 +2369,7 @@ struct cfg80211_qos_map {
  *	method returns 0.)
  *
  * @mgmt_frame_register: Notify driver that a management frame type was
- *	registered. Note that this callback may not sleep, and cannot run
- *	concurrently with itself.
+ *	registered. The callback is allowed to sleep.
  *
  * @set_antenna: Set antenna configuration (tx_ant, rx_ant) on the device.
  *	Parameters are bitmaps of allowed antennas to use for TX/RX. Drivers may
@@ -4867,6 +4866,23 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
 			     struct cfg80211_chan_def *chandef,
 			     enum nl80211_iftype iftype);
+
+/**
+ * cfg80211_reg_can_beacon_relax - check if beaconing is allowed with relaxation
+ * @wiphy: the wiphy
+ * @chandef: the channel definition
+ * @iftype: interface type
+ *
+ * Return: %true if there is no secondary channel or the secondary channel(s)
+ * can be used for beaconing (i.e. is not a radar channel etc.). This version
+ * also checks if IR-relaxation conditions apply, to allow beaconing under
+ * more permissive conditions.
+ *
+ * Requires the RTNL to be held.
+ */
+bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
+				   struct cfg80211_chan_def *chandef,
+				   enum nl80211_iftype iftype);
 
 /*
  * cfg80211_ch_switch_notify - update wdev channel and notify userspace

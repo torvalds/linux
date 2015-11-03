@@ -149,6 +149,7 @@ static const struct qcom_rpm_resource apq8064_rpm_resource_table[] = {
 	[QCOM_RPM_USB_OTG_SWITCH] =		{ 210, 125, 82, 1 },
 	[QCOM_RPM_HDMI_SWITCH] =		{ 211, 126, 83, 1 },
 	[QCOM_RPM_DDR_DMM] =			{ 212, 127, 84, 2 },
+	[QCOM_RPM_QDSS_CLK] =			{ 214, ~0, 7, 1 },
 	[QCOM_RPM_VDDMIN_GPIO] =		{ 215, 131, 89, 1 },
 };
 

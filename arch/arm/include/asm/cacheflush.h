@@ -140,8 +140,6 @@ extern struct cpu_cache_fns cpu_cache;
  * is visible to DMA, or data written by DMA to system memory is
  * visible to the CPU.
  */
-#define dmac_map_area			cpu_cache.dma_map_area
-#define dmac_unmap_area			cpu_cache.dma_unmap_area
 #define dmac_flush_range		cpu_cache.dma_flush_range
 
 #else
@@ -161,8 +159,6 @@ extern void __cpuc_flush_dcache_area(void *, size_t);
  * is visible to DMA, or data written by DMA to system memory is
  * visible to the CPU.
  */
-extern void dmac_map_area(const void *, size_t, int);
-extern void dmac_unmap_area(const void *, size_t, int);
 extern void dmac_flush_range(const void *, const void *);
 
 #endif
@@ -505,5 +501,22 @@ static inline void set_kernel_text_ro(void) { }
 
 void flush_uprobe_xol_access(struct page *page, unsigned long uaddr,
 			     void *kaddr, unsigned long len);
+
+/**
+ * secure_flush_area - ensure coherency across the secure boundary
+ * @addr: virtual address
+ * @size: size of region
+ *
+ * Ensure that the specified area of memory is coherent across the secure
+ * boundary from the non-secure side.  This is used when calling secure
+ * firmware where the secure firmware does not ensure coherency.
+ */
+static inline void secure_flush_area(const void *addr, size_t size)
+{
+	phys_addr_t phys = __pa(addr);
+
+	__cpuc_flush_dcache_area((void *)addr, size);
+	outer_flush_range(phys, phys + size);
+}
 
 #endif

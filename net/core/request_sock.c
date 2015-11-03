@@ -103,10 +103,16 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
 			spin_lock_bh(&queue->syn_wait_lock);
 			while ((req = lopt->syn_table[i]) != NULL) {
 				lopt->syn_table[i] = req->dl_next;
+				/* Because of following del_timer_sync(),
+				 * we must release the spinlock here
+				 * or risk a dead lock.
+				 */
+				spin_unlock_bh(&queue->syn_wait_lock);
 				atomic_inc(&lopt->qlen_dec);
-				if (del_timer(&req->rsk_timer))
+				if (del_timer_sync(&req->rsk_timer))
 					reqsk_put(req);
 				reqsk_put(req);
+				spin_lock_bh(&queue->syn_wait_lock);
 			}
 			spin_unlock_bh(&queue->syn_wait_lock);
 		}

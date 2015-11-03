@@ -47,6 +47,18 @@ enum rsnd_reg {
 	RSND_REG_SCU_SYS_STATUS0,
 	RSND_REG_SCU_SYS_INT_EN0,
 	RSND_REG_CMD_ROUTE_SLCT,
+	RSND_REG_CTU_CTUIR,
+	RSND_REG_CTU_ADINR,
+	RSND_REG_MIX_SWRSR,
+	RSND_REG_MIX_MIXIR,
+	RSND_REG_MIX_ADINR,
+	RSND_REG_MIX_MIXMR,
+	RSND_REG_MIX_MVPDR,
+	RSND_REG_MIX_MDBAR,
+	RSND_REG_MIX_MDBBR,
+	RSND_REG_MIX_MDBCR,
+	RSND_REG_MIX_MDBDR,
+	RSND_REG_MIX_MDBER,
 	RSND_REG_DVC_SWRSR,
 	RSND_REG_DVC_DVUIR,
 	RSND_REG_DVC_ADINR,
@@ -99,6 +111,7 @@ enum rsnd_reg {
 	RSND_REG_SHARE26,
 	RSND_REG_SHARE27,
 	RSND_REG_SHARE28,
+	RSND_REG_SHARE29,
 
 	RSND_REG_MAX,
 };
@@ -119,7 +132,7 @@ enum rsnd_reg {
 #define RSND_REG_SSI_CTRL		RSND_REG_SHARE02
 #define RSND_REG_SSI_BUSIF_MODE		RSND_REG_SHARE03
 #define RSND_REG_SSI_BUSIF_ADINR	RSND_REG_SHARE04
-#define RSND_REG_INT_ENABLE		RSND_REG_SHARE05
+#define RSND_REG_SSI_INT_ENABLE		RSND_REG_SHARE05
 #define RSND_REG_SRC_BSDSR		RSND_REG_SHARE06
 #define RSND_REG_SRC_BSISR		RSND_REG_SHARE07
 #define RSND_REG_DIV_EN			RSND_REG_SHARE08
@@ -136,13 +149,14 @@ enum rsnd_reg {
 #define RSND_REG_AUDIO_CLK_SEL2		RSND_REG_SHARE19
 #define RSND_REG_CMD_CTRL		RSND_REG_SHARE20
 #define RSND_REG_CMDOUT_TIMSEL		RSND_REG_SHARE21
-#define RSND_REG_BUSIF_DALIGN		RSND_REG_SHARE22
+#define RSND_REG_SSI_BUSIF_DALIGN	RSND_REG_SHARE22
 #define RSND_REG_DVC_VRCTR		RSND_REG_SHARE23
 #define RSND_REG_DVC_VRPDR		RSND_REG_SHARE24
 #define RSND_REG_DVC_VRDBR		RSND_REG_SHARE25
 #define RSND_REG_SCU_SYS_STATUS1	RSND_REG_SHARE26
 #define RSND_REG_SCU_SYS_INT_EN1	RSND_REG_SHARE27
 #define RSND_REG_SRC_INT_ENABLE0	RSND_REG_SHARE28
+#define RSND_REG_SRC_BUSIF_DALIGN	RSND_REG_SHARE29
 
 struct rsnd_of_data;
 struct rsnd_priv;
@@ -157,27 +171,28 @@ struct rsnd_dai_stream;
 	rsnd_read(rsnd_mod_to_priv(m), m, RSND_REG_##r)
 #define rsnd_mod_write(m, r, d) \
 	rsnd_write(rsnd_mod_to_priv(m), m, RSND_REG_##r, d)
+#define rsnd_mod_force_write(m, r, d) \
+	rsnd_force_write(rsnd_mod_to_priv(m), m, RSND_REG_##r, d)
 #define rsnd_mod_bset(m, r, s, d) \
 	rsnd_bset(rsnd_mod_to_priv(m), m, RSND_REG_##r, s, d)
 
 u32 rsnd_read(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg);
 void rsnd_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
 		enum rsnd_reg reg, u32 data);
+void rsnd_force_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
+		enum rsnd_reg reg, u32 data);
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
 		    u32 mask, u32 data);
-u32 rsnd_get_adinr(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
+u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
+u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
+u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
+void rsnd_path_parse(struct rsnd_priv *priv,
+		     struct rsnd_dai_stream *io);
 
 /*
  *	R-Car DMA
  */
 struct rsnd_dma;
-struct rsnd_dma_ops {
-	void (*start)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-	void (*stop)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-	int (*init)(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id,
-		    struct rsnd_mod *mod_from, struct rsnd_mod *mod_to);
-	void (*quit)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
-};
 
 struct rsnd_dmaen {
 	struct dma_chan		*chan;
@@ -217,6 +232,8 @@ struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
  */
 enum rsnd_mod_type {
 	RSND_MOD_DVC = 0,
+	RSND_MOD_MIX,
+	RSND_MOD_CTU,
 	RSND_MOD_SRC,
 	RSND_MOD_SSI,
 	RSND_MOD_MAX,
@@ -312,7 +329,7 @@ struct rsnd_mod {
 
 #define rsnd_mod_to_priv(mod) ((mod)->priv)
 #define rsnd_mod_to_dma(mod) (&(mod)->dma)
-#define rsnd_mod_id(mod) ((mod)->id)
+#define rsnd_mod_id(mod) ((mod) ? (mod)->id : -1)
 #define rsnd_mod_hw_start(mod)	clk_enable((mod)->clk)
 #define rsnd_mod_hw_stop(mod)	clk_disable((mod)->clk)
 
@@ -345,9 +362,12 @@ struct rsnd_dai_stream {
 	int byte_per_period;
 	int next_period_byte;
 };
-#define rsnd_io_to_mod_ssi(io)	((io)->mod[RSND_MOD_SSI])
-#define rsnd_io_to_mod_src(io)	((io)->mod[RSND_MOD_SRC])
-#define rsnd_io_to_mod_dvc(io)	((io)->mod[RSND_MOD_DVC])
+#define rsnd_io_to_mod(io, i)	((i) < RSND_MOD_MAX ? (io)->mod[(i)] : NULL)
+#define rsnd_io_to_mod_ssi(io)	rsnd_io_to_mod((io), RSND_MOD_SSI)
+#define rsnd_io_to_mod_src(io)	rsnd_io_to_mod((io), RSND_MOD_SRC)
+#define rsnd_io_to_mod_ctu(io)	rsnd_io_to_mod((io), RSND_MOD_CTU)
+#define rsnd_io_to_mod_mix(io)	rsnd_io_to_mod((io), RSND_MOD_MIX)
+#define rsnd_io_to_mod_dvc(io)	rsnd_io_to_mod((io), RSND_MOD_DVC)
 #define rsnd_io_to_rdai(io)	((io)->rdai)
 #define rsnd_io_to_priv(io)	(rsnd_rdai_to_priv(rsnd_io_to_rdai(io)))
 #define rsnd_io_is_play(io)	(&rsnd_io_to_rdai(io)->playback == io)
@@ -437,12 +457,6 @@ struct rsnd_priv {
 	void *gen;
 
 	/*
-	 * below value will be filled on rsnd_src_probe()
-	 */
-	void *src;
-	int src_nr;
-
-	/*
 	 * below value will be filled on rsnd_adg_probe()
 	 */
 	void *adg;
@@ -457,6 +471,24 @@ struct rsnd_priv {
 	 */
 	void *ssi;
 	int ssi_nr;
+
+	/*
+	 * below value will be filled on rsnd_src_probe()
+	 */
+	void *src;
+	int src_nr;
+
+	/*
+	 * below value will be filled on rsnd_ctu_probe()
+	 */
+	void *ctu;
+	int ctu_nr;
+
+	/*
+	 * below value will be filled on rsnd_mix_probe()
+	 */
+	void *mix;
+	int mix_nr;
 
 	/*
 	 * below value will be filled on rsnd_dvc_probe()
@@ -531,6 +563,19 @@ int rsnd_kctrl_new_e(struct rsnd_mod *mod,
 		     u32 max);
 
 /*
+ *	R-Car SSI
+ */
+int rsnd_ssi_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
+		   struct rsnd_priv *priv);
+void rsnd_ssi_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
+struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
+int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
+int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
+int rsnd_ssi_use_busif(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
+
+/*
  *	R-Car SRC
  */
 int rsnd_src_probe(struct platform_device *pdev,
@@ -550,20 +595,27 @@ int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
 int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod);
 int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod);
 
-#define rsnd_src_nr(priv) ((priv)->src_nr)
-
 /*
- *	R-Car SSI
+ *	R-Car CTU
  */
-int rsnd_ssi_probe(struct platform_device *pdev,
+int rsnd_ctu_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
-void rsnd_ssi_remove(struct platform_device *pdev,
+
+void rsnd_ctu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
-struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
-int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
-int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
-int rsnd_ssi_use_busif(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
+struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
+
+/*
+ *	R-Car MIX
+ */
+int rsnd_mix_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
+		   struct rsnd_priv *priv);
+
+void rsnd_mix_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
+struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
 
 /*
  *	R-Car DVC
@@ -574,8 +626,5 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 void rsnd_dvc_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
-
-#define rsnd_dvc_nr(priv) ((priv)->dvc_nr)
-
 
 #endif

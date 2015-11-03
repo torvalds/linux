@@ -22,7 +22,7 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
+#include <core/pci.h>
 
 struct priv {
 	struct pci_dev *pdev;
@@ -53,9 +53,15 @@ pcirom_fini(void *data)
 static void *
 pcirom_init(struct nvkm_bios *bios, const char *name)
 {
-	struct pci_dev *pdev = nv_device(bios)->pdev;
+	struct nvkm_device *device = bios->subdev.device;
 	struct priv *priv = NULL;
+	struct pci_dev *pdev;
 	int ret;
+
+	if (device->func->pci)
+		pdev = device->func->pci(device)->pdev;
+	else
+		return ERR_PTR(-ENODEV);
 
 	if (!(ret = pci_enable_rom(pdev))) {
 		if (ret = -ENOMEM,
@@ -85,9 +91,15 @@ nvbios_pcirom = {
 static void *
 platform_init(struct nvkm_bios *bios, const char *name)
 {
-	struct pci_dev *pdev = nv_device(bios)->pdev;
+	struct nvkm_device *device = bios->subdev.device;
+	struct pci_dev *pdev;
 	struct priv *priv;
 	int ret = -ENOMEM;
+
+	if (device->func->pci)
+		pdev = device->func->pci(device)->pdev;
+	else
+		return ERR_PTR(-ENODEV);
 
 	if ((priv = kmalloc(sizeof(*priv), GFP_KERNEL))) {
 		if (ret = -ENODEV,

@@ -144,27 +144,6 @@ static int ctr3686_aes_nx_crypt(struct blkcipher_desc *desc,
 	return ctr_aes_nx_crypt(desc, dst, src, nbytes);
 }
 
-struct crypto_alg nx_ctr_aes_alg = {
-	.cra_name        = "ctr(aes)",
-	.cra_driver_name = "ctr-aes-nx",
-	.cra_priority    = 300,
-	.cra_flags       = CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize   = 1,
-	.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
-	.cra_type        = &crypto_blkcipher_type,
-	.cra_module      = THIS_MODULE,
-	.cra_init        = nx_crypto_ctx_aes_ctr_init,
-	.cra_exit        = nx_crypto_ctx_exit,
-	.cra_blkcipher = {
-		.min_keysize = AES_MIN_KEY_SIZE,
-		.max_keysize = AES_MAX_KEY_SIZE,
-		.ivsize      = AES_BLOCK_SIZE,
-		.setkey      = ctr_aes_nx_set_key,
-		.encrypt     = ctr_aes_nx_crypt,
-		.decrypt     = ctr_aes_nx_crypt,
-	}
-};
-
 struct crypto_alg nx_ctr3686_aes_alg = {
 	.cra_name        = "rfc3686(ctr(aes))",
 	.cra_driver_name = "rfc3686-ctr-aes-nx",

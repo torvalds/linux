@@ -78,12 +78,6 @@
 		>;
 	};
 
-	smsc9221_pins: pinmux_smsc9221_pins {
-		pinctrl-single,pins = <
-			0x1a2 (PIN_INPUT | MUX_MODE4)		/* mcspi1_cs2.gpio_176 */
-		>;
-	};
-
 	i2c1_pins: pinmux_i2c1_pins {
 		pinctrl-single,pins = <
 			0x18a (PIN_INPUT | MUX_MODE0)   /* i2c1_scl.i2c1_scl */

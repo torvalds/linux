@@ -166,9 +166,7 @@ enum {
 /* Note: can't set VIRTIO_F_VERSION_1 yet, since that implies ANY_LAYOUT. */
 enum {
 	VHOST_SCSI_FEATURES = VHOST_FEATURES | (1ULL << VIRTIO_SCSI_F_HOTPLUG) |
-					       (1ULL << VIRTIO_SCSI_F_T10_PI) |
-					       (1ULL << VIRTIO_F_ANY_LAYOUT) |
-					       (1ULL << VIRTIO_F_VERSION_1)
+					       (1ULL << VIRTIO_SCSI_F_T10_PI)
 };
 
 #define VHOST_SCSI_MAX_TARGET	256
@@ -1573,9 +1571,9 @@ static int __init vhost_scsi_register(void)
 	return misc_register(&vhost_scsi_misc);
 }
 
-static int vhost_scsi_deregister(void)
+static void vhost_scsi_deregister(void)
 {
-	return misc_deregister(&vhost_scsi_misc);
+	misc_deregister(&vhost_scsi_misc);
 }
 
 static char *vhost_scsi_dump_proto_id(struct vhost_scsi_tport *tport)

@@ -130,7 +130,6 @@ struct drm_crtc;
 struct drm_plane;
 
 void drm_modeset_lock_all(struct drm_device *dev);
-int __drm_modeset_lock_all(struct drm_device *dev, bool trylock);
 void drm_modeset_unlock_all(struct drm_device *dev);
 void drm_modeset_lock_crtc(struct drm_crtc *crtc,
 			   struct drm_plane *plane);

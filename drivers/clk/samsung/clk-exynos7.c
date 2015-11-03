@@ -8,8 +8,6 @@
  *
 */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 

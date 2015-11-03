@@ -641,6 +641,15 @@ static void __init early_cmdline_parse(void)
 #define W(x)	((x) >> 24) & 0xff, ((x) >> 16) & 0xff, \
 		((x) >> 8) & 0xff, (x) & 0xff
 
+/* Firmware expects the value to be n - 1, where n is the # of vectors */
+#define NUM_VECTORS(n)		((n) - 1)
+
+/*
+ * Firmware expects 1 + n - 2, where n is the length of the option vector in
+ * bytes. The 1 accounts for the length byte itself, the - 2 .. ?
+ */
+#define VECTOR_LENGTH(n)	(1 + (n) - 2)
+
 unsigned char ibm_architecture_vec[] = {
 	W(0xfffe0000), W(0x003a0000),	/* POWER5/POWER5+ */
 	W(0xffff0000), W(0x003e0000),	/* POWER6 */
@@ -651,16 +660,16 @@ unsigned char ibm_architecture_vec[] = {
 	W(0xffffffff), W(0x0f000003),	/* all 2.06-compliant */
 	W(0xffffffff), W(0x0f000002),	/* all 2.05-compliant */
 	W(0xfffffffe), W(0x0f000001),	/* all 2.04-compliant and earlier */
-	6 - 1,				/* 6 option vectors */
+	NUM_VECTORS(6),			/* 6 option vectors */
 
 	/* option vector 1: processor architectures supported */
-	3 - 2,				/* length */
+	VECTOR_LENGTH(2),		/* length */
 	0,				/* don't ignore, don't halt */
 	OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
 	OV1_PPC_2_04 | OV1_PPC_2_05 | OV1_PPC_2_06 | OV1_PPC_2_07,
 
 	/* option vector 2: Open Firmware options supported */
-	34 - 2,				/* length */
+	VECTOR_LENGTH(33),		/* length */
 	OV2_REAL_MODE,
 	0, 0,
 	W(0xffffffff),			/* real_base */
@@ -674,17 +683,17 @@ unsigned char ibm_architecture_vec[] = {
 	48,				/* max log_2(hash table size) */
 
 	/* option vector 3: processor options supported */
-	3 - 2,				/* length */
+	VECTOR_LENGTH(2),		/* length */
 	0,				/* don't ignore, don't halt */
 	OV3_FP | OV3_VMX | OV3_DFP,
 
 	/* option vector 4: IBM PAPR implementation */
-	3 - 2,				/* length */
+	VECTOR_LENGTH(2),		/* length */
 	0,				/* don't halt */
 	OV4_MIN_ENT_CAP,		/* minimum VP entitled capacity */
 
 	/* option vector 5: PAPR/OF options */
-	19 - 2,				/* length */
+	VECTOR_LENGTH(18),		/* length */
 	0,				/* don't ignore, don't halt */
 	OV5_FEAT(OV5_LPAR) | OV5_FEAT(OV5_SPLPAR) | OV5_FEAT(OV5_LARGE_PAGES) |
 	OV5_FEAT(OV5_DRCONF_MEMORY) | OV5_FEAT(OV5_DONATE_DEDICATE_CPU) |
@@ -717,12 +726,12 @@ unsigned char ibm_architecture_vec[] = {
 	OV5_FEAT(OV5_PFO_HW_RNG) | OV5_FEAT(OV5_PFO_HW_ENCR) |
 	OV5_FEAT(OV5_PFO_HW_842),
 	OV5_FEAT(OV5_SUB_PROCESSORS),
+
 	/* option vector 6: IBM PAPR hints */
-	4 - 2,				/* length */
+	VECTOR_LENGTH(3),		/* length */
 	0,
 	0,
 	OV6_LINUX,
-
 };
 
 /* Old method - ELF header with PT_NOTE sections only works on BE */

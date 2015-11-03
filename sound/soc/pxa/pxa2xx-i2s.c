@@ -367,19 +367,12 @@ static const struct snd_soc_component_driver pxa_i2s_component = {
 
 static int pxa2xx_i2s_drv_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_component(&pdev->dev, &pxa_i2s_component,
-					  &pxa_i2s_dai, 1);
-}
-
-static int pxa2xx_i2s_drv_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_component(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev, &pxa_i2s_component,
+					       &pxa_i2s_dai, 1);
 }
 
 static struct platform_driver pxa2xx_i2s_driver = {
 	.probe = pxa2xx_i2s_drv_probe,
-	.remove = pxa2xx_i2s_drv_remove,
 
 	.driver = {
 		.name = "pxa2xx-i2s",

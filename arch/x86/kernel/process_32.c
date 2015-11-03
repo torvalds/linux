@@ -53,6 +53,7 @@
 #include <asm/syscalls.h>
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
+#include <asm/vm86.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 asmlinkage void ret_from_kernel_thread(void) __asm__("ret_from_kernel_thread");
@@ -323,31 +324,3 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	return prev_p;
 }
-
-#define top_esp                (THREAD_SIZE - sizeof(unsigned long))
-#define top_ebp                (THREAD_SIZE - 2*sizeof(unsigned long))
-
-unsigned long get_wchan(struct task_struct *p)
-{
-	unsigned long bp, sp, ip;
-	unsigned long stack_page;
-	int count = 0;
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
-	stack_page = (unsigned long)task_stack_page(p);
-	sp = p->thread.sp;
-	if (!stack_page || sp < stack_page || sp > top_esp+stack_page)
-		return 0;
-	/* include/asm-i386/system.h:switch_to() pushes bp last. */
-	bp = *(unsigned long *) sp;
-	do {
-		if (bp < stack_page || bp > top_ebp+stack_page)
-			return 0;
-		ip = *(unsigned long *) (bp+4);
-		if (!in_sched_functions(ip))
-			return ip;
-		bp = *(unsigned long *) bp;
-	} while (count++ < 16);
-	return 0;
-}
-

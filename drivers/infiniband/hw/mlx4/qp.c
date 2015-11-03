@@ -1292,14 +1292,18 @@ static int _mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah,
 		path->static_rate = 0;
 
 	if (ah->ah_flags & IB_AH_GRH) {
-		if (ah->grh.sgid_index >= dev->dev->caps.gid_table_len[port]) {
+		int real_sgid_index = mlx4_ib_gid_index_to_real_index(dev,
+								      port,
+								      ah->grh.sgid_index);
+
+		if (real_sgid_index >= dev->dev->caps.gid_table_len[port]) {
 			pr_err("sgid_index (%u) too large. max is %d\n",
-			       ah->grh.sgid_index, dev->dev->caps.gid_table_len[port] - 1);
+			       real_sgid_index, dev->dev->caps.gid_table_len[port] - 1);
 			return -1;
 		}
 
 		path->grh_mylmc |= 1 << 7;
-		path->mgid_index = ah->grh.sgid_index;
+		path->mgid_index = real_sgid_index;
 		path->hop_limit  = ah->grh.hop_limit;
 		path->tclass_flowlabel =
 			cpu_to_be32((ah->grh.traffic_class << 20) |

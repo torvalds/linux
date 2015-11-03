@@ -1108,18 +1108,28 @@ static void eraser(unsigned char c, struct tty_struct *tty)
  *	Locking: ctrl_lock
  */
 
-static void isig(int sig, struct tty_struct *tty)
+static void __isig(int sig, struct tty_struct *tty)
 {
-	struct n_tty_data *ldata = tty->disc_data;
 	struct pid *tty_pgrp = tty_get_pgrp(tty);
 	if (tty_pgrp) {
 		kill_pgrp(tty_pgrp, sig, 1);
 		put_pid(tty_pgrp);
 	}
+}
 
-	if (!L_NOFLSH(tty)) {
+static void isig(int sig, struct tty_struct *tty)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+
+	if (L_NOFLSH(tty)) {
+		/* signal only */
+		__isig(sig, tty);
+
+	} else { /* signal and flush */
 		up_read(&tty->termios_rwsem);
 		down_write(&tty->termios_rwsem);
+
+		__isig(sig, tty);
 
 		/* clear echo buffer */
 		mutex_lock(&ldata->output_lock);
@@ -2137,6 +2147,8 @@ extern ssize_t redirected_tty_write(struct file *, const char __user *,
 
 static int job_control(struct tty_struct *tty, struct file *file)
 {
+	struct pid *pgrp;
+
 	/* Job control check -- must be done at start and after
 	   every sleep (POSIX.1 7.1.1.4). */
 	/* NOTE: not yet done after every sleep pending a thorough
@@ -2146,18 +2158,25 @@ static int job_control(struct tty_struct *tty, struct file *file)
 	    current->signal->tty != tty)
 		return 0;
 
+	rcu_read_lock();
+	pgrp = task_pgrp(current);
+
 	spin_lock_irq(&tty->ctrl_lock);
 	if (!tty->pgrp)
 		printk(KERN_ERR "n_tty_read: no tty->pgrp!\n");
-	else if (task_pgrp(current) != tty->pgrp) {
+	else if (pgrp != tty->pgrp) {
 		spin_unlock_irq(&tty->ctrl_lock);
-		if (is_ignored(SIGTTIN) || is_current_pgrp_orphaned())
+		if (is_ignored(SIGTTIN) || is_current_pgrp_orphaned()) {
+			rcu_read_unlock();
 			return -EIO;
-		kill_pgrp(task_pgrp(current), SIGTTIN, 1);
+		}
+		kill_pgrp(pgrp, SIGTTIN, 1);
+		rcu_read_unlock();
 		set_thread_flag(TIF_SIGPENDING);
 		return -ERESTARTSYS;
 	}
 	spin_unlock_irq(&tty->ctrl_lock);
+	rcu_read_unlock();
 	return 0;
 }
 

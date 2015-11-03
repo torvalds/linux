@@ -270,7 +270,7 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	dst_fpu->fpregs_active = 0;
 	dst_fpu->last_cpu = -1;
 
-	if (src_fpu->fpstate_active)
+	if (src_fpu->fpstate_active && cpu_has_fpu)
 		fpu_copy(dst_fpu, src_fpu);
 
 	return 0;

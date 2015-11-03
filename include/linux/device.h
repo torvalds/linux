@@ -341,7 +341,7 @@ struct subsys_interface {
 	struct bus_type *subsys;
 	struct list_head node;
 	int (*add_dev)(struct device *dev, struct subsys_interface *sif);
-	int (*remove_dev)(struct device *dev, struct subsys_interface *sif);
+	void (*remove_dev)(struct device *dev, struct subsys_interface *sif);
 };
 
 int subsys_interface_register(struct subsys_interface *sif);
@@ -714,6 +714,8 @@ struct device_dma_parameters {
  * 		along with subsystem-level and driver-level callbacks.
  * @pins:	For device pin management.
  *		See Documentation/pinctrl.txt for details.
+ * @msi_list:	Hosts MSI descriptors
+ * @msi_domain: The generic MSI domain this device is using.
  * @numa_node:	NUMA node this device is close to.
  * @dma_mask:	Dma mask (if dma'ble device).
  * @coherent_dma_mask: Like dma_mask, but for alloc_coherent mapping as not all
@@ -774,8 +776,14 @@ struct device {
 	struct dev_pm_info	power;
 	struct dev_pm_domain	*pm_domain;
 
+#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
+	struct irq_domain	*msi_domain;
+#endif
 #ifdef CONFIG_PINCTRL
 	struct dev_pin_info	*pins;
+#endif
+#ifdef CONFIG_GENERIC_MSI_IRQ
+	struct list_head	msi_list;
 #endif
 
 #ifdef CONFIG_NUMA
@@ -860,6 +868,22 @@ static inline void set_dev_node(struct device *dev, int node)
 {
 }
 #endif
+
+static inline struct irq_domain *dev_get_msi_domain(const struct device *dev)
+{
+#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
+	return dev->msi_domain;
+#else
+	return NULL;
+#endif
+}
+
+static inline void dev_set_msi_domain(struct device *dev, struct irq_domain *d)
+{
+#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
+	dev->msi_domain = d;
+#endif
+}
 
 static inline void *dev_get_drvdata(const struct device *dev)
 {
@@ -958,6 +982,8 @@ extern void device_initialize(struct device *dev);
 extern int __must_check device_add(struct device *dev);
 extern void device_del(struct device *dev);
 extern int device_for_each_child(struct device *dev, void *data,
+		     int (*fn)(struct device *dev, void *data));
+extern int device_for_each_child_reverse(struct device *dev, void *data,
 		     int (*fn)(struct device *dev, void *data));
 extern struct device *device_find_child(struct device *dev, void *data,
 				int (*match)(struct device *dev, void *data));

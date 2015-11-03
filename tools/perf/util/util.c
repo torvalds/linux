@@ -34,6 +34,7 @@ bool test_attr__enabled;
 bool perf_host  = true;
 bool perf_guest = false;
 
+char tracing_path[PATH_MAX + 1]        = "/sys/kernel/debug/tracing";
 char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
 
 void event_attr_init(struct perf_event_attr *attr)
@@ -391,6 +392,8 @@ void set_term_quiet_input(struct termios *old)
 
 static void set_tracing_events_path(const char *tracing, const char *mountpoint)
 {
+	snprintf(tracing_path, sizeof(tracing_path), "%s/%s",
+		 mountpoint, tracing);
 	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s%s",
 		 mountpoint, tracing, "events");
 }
@@ -436,66 +439,14 @@ const char *perf_debugfs_mount(const char *mountpoint)
 
 void perf_debugfs_set_path(const char *mntpt)
 {
-	snprintf(debugfs_mountpoint, strlen(debugfs_mountpoint), "%s", mntpt);
 	set_tracing_events_path("tracing/", mntpt);
-}
-
-static const char *find_tracefs(void)
-{
-	const char *path = __perf_tracefs_mount(NULL);
-
-	return path;
-}
-
-static const char *find_debugfs(void)
-{
-	const char *path = __perf_debugfs_mount(NULL);
-
-	if (!path)
-		fprintf(stderr, "Your kernel does not support the debugfs filesystem");
-
-	return path;
-}
-
-/*
- * Finds the path to the debugfs/tracing
- * Allocates the string and stores it.
- */
-const char *find_tracing_dir(void)
-{
-	const char *tracing_dir = "";
-	static char *tracing;
-	static int tracing_found;
-	const char *debugfs;
-
-	if (tracing_found)
-		return tracing;
-
-	debugfs = find_tracefs();
-	if (!debugfs) {
-		tracing_dir = "/tracing";
-		debugfs = find_debugfs();
-		if (!debugfs)
-			return NULL;
-	}
-
-	if (asprintf(&tracing, "%s%s", debugfs, tracing_dir) < 0)
-		return NULL;
-
-	tracing_found = 1;
-	return tracing;
 }
 
 char *get_tracing_file(const char *name)
 {
-	const char *tracing;
 	char *file;
 
-	tracing = find_tracing_dir();
-	if (!tracing)
-		return NULL;
-
-	if (asprintf(&file, "%s/%s", tracing, name) < 0)
+	if (asprintf(&file, "%s/%s", tracing_path, name) < 0)
 		return NULL;
 
 	return file;
@@ -564,6 +515,96 @@ unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
 	}
 
 	return (unsigned long) -1;
+}
+
+int get_stack_size(const char *str, unsigned long *_size)
+{
+	char *endptr;
+	unsigned long size;
+	unsigned long max_size = round_down(USHRT_MAX, sizeof(u64));
+
+	size = strtoul(str, &endptr, 0);
+
+	do {
+		if (*endptr)
+			break;
+
+		size = round_up(size, sizeof(u64));
+		if (!size || size > max_size)
+			break;
+
+		*_size = size;
+		return 0;
+
+	} while (0);
+
+	pr_err("callchain: Incorrect stack dump size (max %ld): %s\n",
+	       max_size, str);
+	return -1;
+}
+
+int parse_callchain_record(const char *arg, struct callchain_param *param)
+{
+	char *tok, *name, *saveptr = NULL;
+	char *buf;
+	int ret = -1;
+
+	/* We need buffer that we know we can write to. */
+	buf = malloc(strlen(arg) + 1);
+	if (!buf)
+		return -ENOMEM;
+
+	strcpy(buf, arg);
+
+	tok = strtok_r((char *)buf, ",", &saveptr);
+	name = tok ? : (char *)buf;
+
+	do {
+		/* Framepointer style */
+		if (!strncmp(name, "fp", sizeof("fp"))) {
+			if (!strtok_r(NULL, ",", &saveptr)) {
+				param->record_mode = CALLCHAIN_FP;
+				ret = 0;
+			} else
+				pr_err("callchain: No more arguments "
+				       "needed for --call-graph fp\n");
+			break;
+
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+		/* Dwarf style */
+		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
+			const unsigned long default_stack_dump_size = 8192;
+
+			ret = 0;
+			param->record_mode = CALLCHAIN_DWARF;
+			param->dump_size = default_stack_dump_size;
+
+			tok = strtok_r(NULL, ",", &saveptr);
+			if (tok) {
+				unsigned long size = 0;
+
+				ret = get_stack_size(tok, &size);
+				param->dump_size = size;
+			}
+#endif /* HAVE_DWARF_UNWIND_SUPPORT */
+		} else if (!strncmp(name, "lbr", sizeof("lbr"))) {
+			if (!strtok_r(NULL, ",", &saveptr)) {
+				param->record_mode = CALLCHAIN_LBR;
+				ret = 0;
+			} else
+				pr_err("callchain: No more arguments "
+					"needed for --call-graph lbr\n");
+			break;
+		} else {
+			pr_err("callchain: Unknown --call-graph option "
+			       "value: %s\n", arg);
+			break;
+		}
+
+	} while (0);
+
+	free(buf);
+	return ret;
 }
 
 int filename__read_str(const char *filename, char **buf, size_t *sizep)
@@ -668,7 +709,7 @@ bool find_process(const char *name)
 
 	dir = opendir(procfs__mountpoint());
 	if (!dir)
-		return -1;
+		return false;
 
 	/* Walk through the directory. */
 	while (ret && (d = readdir(dir)) != NULL) {

@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <asm/mach-types.h>
+#include <asm/outercache.h>
 #include <mach/hardware.h>
 #include <mach/cputype.h>
 #include <mach/addr-map.h>

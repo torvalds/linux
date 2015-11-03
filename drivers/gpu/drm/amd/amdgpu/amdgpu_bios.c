@@ -48,7 +48,7 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 	resource_size_t vram_base;
 	resource_size_t size = 256 * 1024; /* ??? */
 
-	if (!(adev->flags & AMDGPU_IS_APU))
+	if (!(adev->flags & AMD_IS_APU))
 		if (!amdgpu_card_posted(adev))
 			return false;
 
@@ -184,7 +184,7 @@ static bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 	bool found = false;
 
 	/* ATRM is for the discrete card only */
-	if (adev->flags & AMDGPU_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return false;
 
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
@@ -246,7 +246,7 @@ static inline bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 
 static bool amdgpu_read_disabled_bios(struct amdgpu_device *adev)
 {
-	if (adev->flags & AMDGPU_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return igp_read_bios_from_vram(adev);
 	else
 		return amdgpu_asic_read_disabled_bios(adev);

@@ -74,7 +74,6 @@ extern void secondary_startup_arm(void);
 extern int __cpu_disable(void);
 
 extern void __cpu_die(unsigned int cpu);
-extern void cpu_die(void);
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
@@ -105,6 +104,7 @@ struct smp_operations {
 #ifdef CONFIG_HOTPLUG_CPU
 	int  (*cpu_kill)(unsigned int cpu);
 	void (*cpu_die)(unsigned int cpu);
+	bool  (*cpu_can_disable)(unsigned int cpu);
 	int  (*cpu_disable)(unsigned int cpu);
 #endif
 #endif

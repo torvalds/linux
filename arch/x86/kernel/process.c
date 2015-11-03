@@ -29,6 +29,8 @@
 #include <asm/debugreg.h>
 #include <asm/nmi.h>
 #include <asm/tlbflush.h>
+#include <asm/mce.h>
+#include <asm/vm86.h>
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
@@ -109,6 +111,8 @@ void exit_thread(void)
 		put_cpu();
 		kfree(bp);
 	}
+
+	free_vm86(t);
 
 	fpu__drop(fpu);
 }
@@ -319,6 +323,7 @@ void stop_this_cpu(void *dummy)
 	 */
 	set_cpu_online(smp_processor_id(), false);
 	disable_local_APIC();
+	mcheck_cpu_clear(this_cpu_ptr(&cpu_info));
 
 	for (;;)
 		halt();
@@ -408,6 +413,7 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 static void mwait_idle(void)
 {
 	if (!current_set_polling_and_test()) {
+		trace_cpu_idle_rcuidle(1, smp_processor_id());
 		if (this_cpu_has(X86_BUG_CLFLUSH_MONITOR)) {
 			smp_mb(); /* quirk */
 			clflush((void *)&current_thread_info()->flags);
@@ -419,6 +425,7 @@ static void mwait_idle(void)
 			__sti_mwait(0, 0);
 		else
 			local_irq_enable();
+		trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, smp_processor_id());
 	} else {
 		local_irq_enable();
 	}
@@ -499,3 +506,58 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
 }
 
+/*
+ * Called from fs/proc with a reference on @p to find the function
+ * which called into schedule(). This needs to be done carefully
+ * because the task might wake up and we might look at a stack
+ * changing under us.
+ */
+unsigned long get_wchan(struct task_struct *p)
+{
+	unsigned long start, bottom, top, sp, fp, ip;
+	int count = 0;
+
+	if (!p || p == current || p->state == TASK_RUNNING)
+		return 0;
+
+	start = (unsigned long)task_stack_page(p);
+	if (!start)
+		return 0;
+
+	/*
+	 * Layout of the stack page:
+	 *
+	 * ----------- topmax = start + THREAD_SIZE - sizeof(unsigned long)
+	 * PADDING
+	 * ----------- top = topmax - TOP_OF_KERNEL_STACK_PADDING
+	 * stack
+	 * ----------- bottom = start + sizeof(thread_info)
+	 * thread_info
+	 * ----------- start
+	 *
+	 * The tasks stack pointer points at the location where the
+	 * framepointer is stored. The data on the stack is:
+	 * ... IP FP ... IP FP
+	 *
+	 * We need to read FP and IP, so we need to adjust the upper
+	 * bound by another unsigned long.
+	 */
+	top = start + THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;
+	top -= 2 * sizeof(unsigned long);
+	bottom = start + sizeof(struct thread_info);
+
+	sp = READ_ONCE(p->thread.sp);
+	if (sp < bottom || sp > top)
+		return 0;
+
+	fp = READ_ONCE(*(unsigned long *)sp);
+	do {
+		if (fp < bottom || fp > top)
+			return 0;
+		ip = READ_ONCE(*(unsigned long *)(fp + sizeof(unsigned long)));
+		if (!in_sched_functions(ip))
+			return ip;
+		fp = READ_ONCE(*(unsigned long *)fp);
+	} while (count++ < 16 && p->state != TASK_RUNNING);
+	return 0;
+}

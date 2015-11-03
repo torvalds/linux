@@ -743,19 +743,16 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	if (Adapter->registrypriv.mp_mode == 1) {
 		_InitRxSetting(Adapter);
 		Adapter->bFWReady = false;
-		haldata->fw_ractrl = false;
 	} else {
 		status = rtl88eu_download_fw(Adapter);
 
 		if (status) {
 			DBG_88E("%s: Download Firmware failed!!\n", __func__);
 			Adapter->bFWReady = false;
-			haldata->fw_ractrl = false;
 			return status;
 		} else {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializeadapt8192CSdio(): Download Firmware Success!!\n"));
 			Adapter->bFWReady = true;
-			haldata->fw_ractrl = false;
 		}
 	}
 	rtl8188e_InitializeFirmwareVars(Adapter);
@@ -1703,7 +1700,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			/*  Forece leave RF low power mode for 1T1R to prevent conficting setting in Fw power */
 			/*  saving sequence. 2010.06.07. Added by tynli. Suggested by SD3 yschang. */
-			if ((psmode != PS_MODE_ACTIVE) && (!IS_92C_SERIAL(haldata->VersionID)))
+			if (psmode != PS_MODE_ACTIVE)
 				ODM_RF_Saving(podmpriv, true);
 			rtl8188e_set_FwPwrMode_cmd(Adapter, psmode);
 		}
@@ -1961,75 +1958,6 @@ GetHalDefVar8188EUsb(
 	return bResult;
 }
 
-/*  */
-/*	Description: */
-/*		Change default setting of specified variable. */
-/*  */
-static u8 SetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariable, void *pValue)
-{
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
-	u8 bResult = _SUCCESS;
-
-	switch (eVariable) {
-	case HAL_DEF_DBG_DM_FUNC:
-		{
-			u8 dm_func = *((u8 *)pValue);
-			struct odm_dm_struct *podmpriv = &haldata->odmpriv;
-
-			if (dm_func == 0) { /* disable all dynamic func */
-				podmpriv->SupportAbility = DYNAMIC_FUNC_DISABLE;
-				DBG_88E("==> Disable all dynamic function...\n");
-			} else if (dm_func == 1) {/* disable DIG */
-				podmpriv->SupportAbility  &= (~DYNAMIC_BB_DIG);
-				DBG_88E("==> Disable DIG...\n");
-			} else if (dm_func == 2) {/* disable High power */
-				podmpriv->SupportAbility  &= (~DYNAMIC_BB_DYNAMIC_TXPWR);
-			} else if (dm_func == 3) {/* disable tx power tracking */
-				podmpriv->SupportAbility  &= (~DYNAMIC_RF_CALIBRATION);
-				DBG_88E("==> Disable tx power tracking...\n");
-			} else if (dm_func == 5) {/* disable antenna diversity */
-				podmpriv->SupportAbility  &= (~DYNAMIC_BB_ANT_DIV);
-			} else if (dm_func == 6) {/* turn on all dynamic func */
-				if (!(podmpriv->SupportAbility  & DYNAMIC_BB_DIG)) {
-					struct rtw_dig *pDigTable = &podmpriv->DM_DigTable;
-					pDigTable->CurIGValue = usb_read8(Adapter, 0xc50);
-				}
-				podmpriv->SupportAbility = DYNAMIC_ALL_FUNC_ENABLE;
-				DBG_88E("==> Turn on all dynamic function...\n");
-			}
-		}
-		break;
-	case HAL_DEF_DBG_DUMP_RXPKT:
-		haldata->bDumpRxPkt = *((u8 *)pValue);
-		break;
-	case HAL_DEF_DBG_DUMP_TXPKT:
-		haldata->bDumpTxPkt = *((u8 *)pValue);
-		break;
-	case HW_DEF_FA_CNT_DUMP:
-		{
-			u8 bRSSIDump = *((u8 *)pValue);
-			struct odm_dm_struct *dm_ocm = &(haldata->odmpriv);
-			if (bRSSIDump)
-				dm_ocm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT;
-			else
-				dm_ocm->DebugComponents	= 0;
-		}
-		break;
-	case HW_DEF_ODM_DBG_FLAG:
-		{
-			u64	DebugComponents = *((u64 *)pValue);
-			struct odm_dm_struct *dm_ocm = &(haldata->odmpriv);
-			dm_ocm->DebugComponents = DebugComponents;
-		}
-		break;
-	default:
-		bResult = _FAIL;
-		break;
-	}
-
-	return bResult;
-}
-
 static void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 {
 	u8 init_rate = 0;
@@ -2085,28 +2013,9 @@ static void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_l
 
 	init_rate = get_highest_rate_idx(mask)&0x3f;
 
-	if (haldata->fw_ractrl) {
-		u8 arg;
+	ODM_RA_UpdateRateInfo_8188E(&haldata->odmpriv, mac_id,
+				    raid, mask, shortGIrate);
 
-		arg = mac_id & 0x1f;/* MACID */
-		arg |= BIT(7);
-		if (shortGIrate)
-			arg |= BIT(5);
-		mask |= ((raid << 28) & 0xf0000000);
-		DBG_88E("update raid entry, mask=0x%x, arg=0x%x\n", mask, arg);
-		psta->ra_mask = mask;
-		mask |= ((raid << 28) & 0xf0000000);
-
-		/* to do ,for 8188E-SMIC */
-		rtl8188e_set_raid_cmd(adapt, mask);
-	} else {
-		ODM_RA_UpdateRateInfo_8188E(&(haldata->odmpriv),
-				mac_id,
-				raid,
-				mask,
-				shortGIrate
-				);
-	}
 	/* set ra_id */
 	psta->raid = raid;
 	psta->init_rate = init_rate;
@@ -2156,7 +2065,6 @@ static void rtl8188eu_init_default_value(struct adapter *adapt)
 	pwrctrlpriv = &adapt->pwrctrlpriv;
 
 	/* init default value */
-	haldata->fw_ractrl = false;
 	if (!pwrctrlpriv->bkeepfwalive)
 		haldata->LastHMEBoxNum = 0;
 
@@ -2200,7 +2108,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->SetHwRegHandler = &SetHwReg8188EU;
 	halfunc->GetHwRegHandler = &GetHwReg8188EU;
 	halfunc->GetHalDefVarHandler = &GetHalDefVar8188EUsb;
-	halfunc->SetHalDefVarHandler = &SetHalDefVar8188EUsb;
 
 	halfunc->UpdateRAMaskHandler = &UpdateHalRAMask8188EUsb;
 	halfunc->SetBeaconRelatedRegistersHandler = &SetBeaconRelatedRegisters8188EUsb;

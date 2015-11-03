@@ -85,6 +85,17 @@
 			compatible = "allwinner,sun5i-a10s-ahb-gates-clk";
 			reg = <0x01c20060 0x8>;
 			clocks = <&ahb>;
+			clock-indices = <0>, <1>,
+					<2>, <5>, <6>,
+					<7>, <8>, <9>,
+					<10>, <13>,
+					<14>, <17>, <18>,
+					<20>, <21>, <22>,
+					<26>, <28>, <32>,
+					<34>, <36>, <40>,
+					<43>, <44>,
+					<46>, <51>,
+					<52>;
 			clock-output-names = "ahb_usbotg", "ahb_ehci",
 					     "ahb_ohci", "ahb_ss", "ahb_dma",
 					     "ahb_bist", "ahb_mmc0", "ahb_mmc1",
@@ -103,6 +114,9 @@
 			compatible = "allwinner,sun5i-a10s-apb0-gates-clk";
 			reg = <0x01c20068 0x4>;
 			clocks = <&apb0>;
+			clock-indices = <0>, <3>,
+					<5>, <6>,
+					<10>;
 			clock-output-names = "apb0_codec", "apb0_iis",
 					     "apb0_pio", "apb0_ir",
 					     "apb0_keypad";
@@ -113,9 +127,14 @@
 			compatible = "allwinner,sun5i-a10s-apb1-gates-clk";
 			reg = <0x01c2006c 0x4>;
 			clocks = <&apb1>;
+			clock-indices = <0>, <1>,
+					<2>, <16>,
+					<17>, <18>,
+					<19>;
 			clock-output-names = "apb1_i2c0", "apb1_i2c1",
-				"apb1_i2c2", "apb1_uart0", "apb1_uart1",
-				"apb1_uart2", "apb1_uart3";
+					     "apb1_i2c2", "apb1_uart0",
+					     "apb1_uart1", "apb1_uart2",
+					     "apb1_uart3";
 		};
 	};
 

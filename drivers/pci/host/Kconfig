@@ -53,7 +53,7 @@ config PCI_RCAR_GEN2_PCIE
 
 config PCI_HOST_GENERIC
 	bool "Generic PCI host controller"
-	depends on ARM && OF
+	depends on (ARM || ARM64) && OF
 	help
 	  Say Y here if you want to support a simple generic PCI host
 	  controller, such as the one emulated by kvmtool.
@@ -117,7 +117,7 @@ config PCI_VERSATILE
 
 config PCIE_IPROC
 	tristate "Broadcom iProc PCIe controller"
-	depends on OF && ARM
+	depends on OF && (ARM || ARM64)
 	default n
 	help
 	  This enables the iProc PCIe core controller support for Broadcom's
@@ -135,8 +135,8 @@ config PCIE_IPROC_PLATFORM
 	  through the generic platform bus interface
 
 config PCIE_IPROC_BCMA
-	bool "Broadcom iProc PCIe BCMA bus driver"
-	depends on ARCH_BCM_IPROC || (ARM && COMPILE_TEST)
+	tristate "Broadcom iProc PCIe BCMA bus driver"
+	depends on ARM && (ARCH_BCM_IPROC || COMPILE_TEST)
 	select PCIE_IPROC
 	select BCMA
 	select PCI_DOMAINS

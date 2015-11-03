@@ -188,6 +188,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&varm_breg>;
+};
+
 &dsi_0 {
 	vddcore-supply = <&vusb_reg>;
 	vddio-supply = <&vmipi_reg>;

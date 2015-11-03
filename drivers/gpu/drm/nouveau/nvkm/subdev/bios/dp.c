@@ -32,17 +32,17 @@ nvbios_dp_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 
 	if (!bit_entry(bios, 'd', &d)) {
 		if (d.version == 1 && d.length >= 2) {
-			u16 data = nv_ro16(bios, d.offset);
+			u16 data = nvbios_rd16(bios, d.offset);
 			if (data) {
-				*ver = nv_ro08(bios, data + 0x00);
+				*ver = nvbios_rd08(bios, data + 0x00);
 				switch (*ver) {
 				case 0x21:
 				case 0x30:
 				case 0x40:
 				case 0x41:
-					*hdr = nv_ro08(bios, data + 0x01);
-					*len = nv_ro08(bios, data + 0x02);
-					*cnt = nv_ro08(bios, data + 0x03);
+					*hdr = nvbios_rd08(bios, data + 0x01);
+					*len = nvbios_rd08(bios, data + 0x02);
+					*cnt = nvbios_rd08(bios, data + 0x03);
 					return data;
 				default:
 					break;
@@ -60,17 +60,17 @@ nvbios_dpout_entry(struct nvkm_bios *bios, u8 idx,
 {
 	u16 data = nvbios_dp_table(bios, ver, hdr, cnt, len);
 	if (data && idx < *cnt) {
-		u16 outp = nv_ro16(bios, data + *hdr + idx * *len);
+		u16 outp = nvbios_rd16(bios, data + *hdr + idx * *len);
 		switch (*ver * !!outp) {
 		case 0x21:
 		case 0x30:
-			*hdr = nv_ro08(bios, data + 0x04);
-			*len = nv_ro08(bios, data + 0x05);
-			*cnt = nv_ro08(bios, outp + 0x04);
+			*hdr = nvbios_rd08(bios, data + 0x04);
+			*len = nvbios_rd08(bios, data + 0x05);
+			*cnt = nvbios_rd08(bios, outp + 0x04);
 			break;
 		case 0x40:
 		case 0x41:
-			*hdr = nv_ro08(bios, data + 0x04);
+			*hdr = nvbios_rd08(bios, data + 0x04);
 			*cnt = 0;
 			*len = 0;
 			break;
@@ -91,31 +91,31 @@ nvbios_dpout_parse(struct nvkm_bios *bios, u8 idx,
 	u16 data = nvbios_dpout_entry(bios, idx, ver, hdr, cnt, len);
 	memset(info, 0x00, sizeof(*info));
 	if (data && *ver) {
-		info->type = nv_ro16(bios, data + 0x00);
-		info->mask = nv_ro16(bios, data + 0x02);
+		info->type = nvbios_rd16(bios, data + 0x00);
+		info->mask = nvbios_rd16(bios, data + 0x02);
 		switch (*ver) {
 		case 0x21:
 		case 0x30:
-			info->flags     = nv_ro08(bios, data + 0x05);
-			info->script[0] = nv_ro16(bios, data + 0x06);
-			info->script[1] = nv_ro16(bios, data + 0x08);
-			info->lnkcmp    = nv_ro16(bios, data + 0x0a);
+			info->flags     = nvbios_rd08(bios, data + 0x05);
+			info->script[0] = nvbios_rd16(bios, data + 0x06);
+			info->script[1] = nvbios_rd16(bios, data + 0x08);
+			info->lnkcmp    = nvbios_rd16(bios, data + 0x0a);
 			if (*len >= 0x0f) {
-				info->script[2] = nv_ro16(bios, data + 0x0c);
-				info->script[3] = nv_ro16(bios, data + 0x0e);
+				info->script[2] = nvbios_rd16(bios, data + 0x0c);
+				info->script[3] = nvbios_rd16(bios, data + 0x0e);
 			}
 			if (*len >= 0x11)
-				info->script[4] = nv_ro16(bios, data + 0x10);
+				info->script[4] = nvbios_rd16(bios, data + 0x10);
 			break;
 		case 0x40:
 		case 0x41:
-			info->flags     = nv_ro08(bios, data + 0x04);
-			info->script[0] = nv_ro16(bios, data + 0x05);
-			info->script[1] = nv_ro16(bios, data + 0x07);
-			info->lnkcmp    = nv_ro16(bios, data + 0x09);
-			info->script[2] = nv_ro16(bios, data + 0x0b);
-			info->script[3] = nv_ro16(bios, data + 0x0d);
-			info->script[4] = nv_ro16(bios, data + 0x0f);
+			info->flags     = nvbios_rd08(bios, data + 0x04);
+			info->script[0] = nvbios_rd16(bios, data + 0x05);
+			info->script[1] = nvbios_rd16(bios, data + 0x07);
+			info->lnkcmp    = nvbios_rd16(bios, data + 0x09);
+			info->script[2] = nvbios_rd16(bios, data + 0x0b);
+			info->script[3] = nvbios_rd16(bios, data + 0x0d);
+			info->script[4] = nvbios_rd16(bios, data + 0x0f);
 			break;
 		default:
 			data = 0x0000;
@@ -147,8 +147,9 @@ nvbios_dpcfg_entry(struct nvkm_bios *bios, u16 outp, u8 idx,
 	if (*ver >= 0x40) {
 		outp = nvbios_dp_table(bios, ver, hdr, cnt, len);
 		*hdr = *hdr + (*len * * cnt);
-		*len = nv_ro08(bios, outp + 0x06);
-		*cnt = nv_ro08(bios, outp + 0x07);
+		*len = nvbios_rd08(bios, outp + 0x06);
+		*cnt = nvbios_rd08(bios, outp + 0x07) *
+		       nvbios_rd08(bios, outp + 0x05);
 	}
 
 	if (idx < *cnt)
@@ -167,17 +168,17 @@ nvbios_dpcfg_parse(struct nvkm_bios *bios, u16 outp, u8 idx,
 	if (data) {
 		switch (*ver) {
 		case 0x21:
-			info->dc    = nv_ro08(bios, data + 0x02);
-			info->pe    = nv_ro08(bios, data + 0x03);
-			info->tx_pu = nv_ro08(bios, data + 0x04);
+			info->dc    = nvbios_rd08(bios, data + 0x02);
+			info->pe    = nvbios_rd08(bios, data + 0x03);
+			info->tx_pu = nvbios_rd08(bios, data + 0x04);
 			break;
 		case 0x30:
 		case 0x40:
 		case 0x41:
-			info->pc    = nv_ro08(bios, data + 0x00);
-			info->dc    = nv_ro08(bios, data + 0x01);
-			info->pe    = nv_ro08(bios, data + 0x02);
-			info->tx_pu = nv_ro08(bios, data + 0x03) & 0x0f;
+			info->pc    = nvbios_rd08(bios, data + 0x00);
+			info->dc    = nvbios_rd08(bios, data + 0x01);
+			info->pe    = nvbios_rd08(bios, data + 0x02);
+			info->tx_pu = nvbios_rd08(bios, data + 0x03);
 			break;
 		default:
 			data = 0x0000;
@@ -196,17 +197,15 @@ nvbios_dpcfg_match(struct nvkm_bios *bios, u16 outp, u8 pc, u8 vs, u8 pe,
 	u16 data;
 
 	if (*ver >= 0x30) {
-		/*XXX: there's a second set of these on at least 4.1, that
-		 *     i've witnessed nvidia using instead of the first
-		 *     on gm204.  figure out what/why
-		 */
 		const u8 vsoff[] = { 0, 4, 7, 9 };
 		idx = (pc * 10) + vsoff[vs] + pe;
+		if (*ver >= 0x40 && *hdr >= 0x12)
+			idx += nvbios_rd08(bios, outp + 0x11) * 40;
 	} else {
 		while ((data = nvbios_dpcfg_entry(bios, outp, ++idx,
 						  ver, hdr, cnt, len))) {
-			if (nv_ro08(bios, data + 0x00) == vs &&
-			    nv_ro08(bios, data + 0x01) == pe)
+			if (nvbios_rd08(bios, data + 0x00) == vs &&
+			    nvbios_rd08(bios, data + 0x01) == pe)
 				break;
 		}
 	}

@@ -124,6 +124,11 @@ config S3C24XX_PLL
 	  This also means that the PLL tables for the selected CPU(s) will
 	  be built which may increase the size of the kernel image.
 
+config S3C_SETUP_CAMIF
+	bool
+	help
+	  Compile in common setup code for S3C CAMIF devices
+
 # cpu frequency items common between s3c2410 and s3c2440/s3c2442
 
 config S3C2410_IOTIMING

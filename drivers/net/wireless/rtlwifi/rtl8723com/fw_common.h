@@ -50,25 +50,6 @@ enum version_8723e {
 	VERSION_UNKNOWN = 0xFF,
 };
 
-struct rtl8723e_firmware_header {
-	u16 signature;
-	u8 category;
-	u8 function;
-	u16 version;
-	u8 subversion;
-	u8 rsvd1;
-	u8 month;
-	u8 date;
-	u8 hour;
-	u8 minute;
-	u16 ramcodesize;
-	u16 rsvd2;
-	u32 svnindex;
-	u32 rsvd3;
-	u32 rsvd4;
-	u32 rsvd5;
-};
-
 enum rtl8723be_cmd {
 	H2C_8723BE_RSVDPAGE = 0,
 	H2C_8723BE_JOINBSSRPT = 1,

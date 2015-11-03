@@ -25,7 +25,7 @@
 /* clears the hash */
 static void batadv_hash_init(struct batadv_hashtable *hash)
 {
-	uint32_t i;
+	u32 i;
 
 	for (i = 0; i < hash->size; i++) {
 		INIT_HLIST_HEAD(&hash->table[i]);
@@ -42,7 +42,7 @@ void batadv_hash_destroy(struct batadv_hashtable *hash)
 }
 
 /* allocates and clears the hash */
-struct batadv_hashtable *batadv_hash_new(uint32_t size)
+struct batadv_hashtable *batadv_hash_new(u32 size)
 {
 	struct batadv_hashtable *hash;
 
@@ -73,7 +73,7 @@ free_hash:
 void batadv_hash_set_lock_class(struct batadv_hashtable *hash,
 				struct lock_class_key *key)
 {
-	uint32_t i;
+	u32 i;
 
 	for (i = 0; i < hash->size; i++)
 		lockdep_set_class(&hash->list_locks[i], key);

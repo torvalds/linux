@@ -933,6 +933,21 @@ static irqreturn_t bcm_sysport_wol_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void bcm_sysport_poll_controller(struct net_device *dev)
+{
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
+
+	disable_irq(priv->irq0);
+	bcm_sysport_rx_isr(priv->irq0, priv);
+	enable_irq(priv->irq0);
+
+	disable_irq(priv->irq1);
+	bcm_sysport_tx_isr(priv->irq1, priv);
+	enable_irq(priv->irq1);
+}
+#endif
+
 static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 					      struct net_device *dev)
 {
@@ -1723,6 +1738,9 @@ static const struct net_device_ops bcm_sysport_netdev_ops = {
 	.ndo_set_features	= bcm_sysport_set_features,
 	.ndo_set_rx_mode	= bcm_sysport_set_rx_mode,
 	.ndo_set_mac_address	= bcm_sysport_change_mac,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= bcm_sysport_poll_controller,
+#endif
 };
 
 #define REV_FMT	"v%2x.%02x"
@@ -2061,6 +2079,7 @@ static const struct of_device_id bcm_sysport_of_match[] = {
 	{ .compatible = "brcm,systemport" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, bcm_sysport_of_match);
 
 static struct platform_driver bcm_sysport_driver = {
 	.probe	= bcm_sysport_probe,

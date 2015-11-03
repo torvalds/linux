@@ -1,0 +1,10 @@
+config INFINIBAND_EHCA
+	tristate "eHCA support"
+	depends on IBMEBUS
+	---help---
+	This driver supports the deprecated IBM pSeries eHCA InfiniBand
+	adapter.
+
+	To compile the driver as a module, choose M here. The module
+	will be called ib_ehca.
+

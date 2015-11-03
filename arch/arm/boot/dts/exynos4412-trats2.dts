@@ -190,6 +190,9 @@
 			interrupt-parent = <&gpx2>;
 			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 			reg = <0x36>;
+
+			maxim,over-heat-temp = <700>;
+			maxim,over-volt = <4500>;
 		};
 	};
 
@@ -283,6 +286,10 @@
 &adc {
 	vdd-supply = <&ldo3_reg>;
 	status = "okay";
+};
+
+&cpu0 {
+	cpu0-supply = <&buck2_reg>;
 };
 
 &csis_0 {

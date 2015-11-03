@@ -377,17 +377,16 @@ static int mc_device_add(struct device *dev, struct subsys_interface *sif)
 	return err;
 }
 
-static int mc_device_remove(struct device *dev, struct subsys_interface *sif)
+static void mc_device_remove(struct device *dev, struct subsys_interface *sif)
 {
 	int cpu = dev->id;
 
 	if (!cpu_online(cpu))
-		return 0;
+		return;
 
 	pr_debug("CPU%d removed\n", cpu);
 	microcode_fini_cpu(cpu);
 	sysfs_remove_group(&dev->kobj, &mc_attr_group);
-	return 0;
 }
 
 static struct subsys_interface mc_cpu_interface = {
@@ -460,7 +459,7 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __refdata mc_cpu_notifier = {
+static struct notifier_block mc_cpu_notifier = {
 	.notifier_call	= mc_cpu_callback,
 };
 

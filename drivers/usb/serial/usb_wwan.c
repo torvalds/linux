@@ -282,7 +282,7 @@ static void usb_wwan_indat_callback(struct urb *urb)
 	/* Resubmit urb so we continue receiving */
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err) {
-		if (err != -EPERM) {
+		if (err != -EPERM && err != -ENODEV) {
 			dev_err(dev, "%s: resubmit read urb failed. (%d)\n",
 				__func__, err);
 			/* busy also in error unless we are killed */

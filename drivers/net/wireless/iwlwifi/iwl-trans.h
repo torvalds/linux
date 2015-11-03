@@ -122,6 +122,40 @@
 #define INDEX_TO_SEQ(i)	((i) & 0xff)
 #define SEQ_RX_FRAME	cpu_to_le16(0x8000)
 
+/*
+ * those functions retrieve specific information from
+ * the id field in the iwl_host_cmd struct which contains
+ * the command id, the group id and the version of the command
+ * and vice versa
+*/
+static inline u8 iwl_cmd_opcode(u32 cmdid)
+{
+	return cmdid & 0xFF;
+}
+
+static inline u8 iwl_cmd_groupid(u32 cmdid)
+{
+	return ((cmdid & 0xFF00) >> 8);
+}
+
+static inline u8 iwl_cmd_version(u32 cmdid)
+{
+	return ((cmdid & 0xFF0000) >> 16);
+}
+
+static inline u32 iwl_cmd_id(u8 opcode, u8 groupid, u8 version)
+{
+	return opcode + (groupid << 8) + (version << 16);
+}
+
+/* make u16 wide id out of u8 group and opcode */
+#define WIDE_ID(grp, opcode) ((grp << 8) | opcode)
+
+/* due to the conversion, this group is special; new groups
+ * should be defined in the appropriate fw-api header files
+ */
+#define IWL_ALWAYS_LONG_GROUP	1
+
 /**
  * struct iwl_cmd_header
  *
@@ -130,7 +164,7 @@
  */
 struct iwl_cmd_header {
 	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
-	u8 flags;	/* 0:5 reserved, 6 abort, 7 internal */
+	u8 group_id;
 	/*
 	 * The driver sets up the sequence number to values of its choosing.
 	 * uCode does not use this value, but passes it back to the driver
@@ -154,9 +188,22 @@ struct iwl_cmd_header {
 	__le16 sequence;
 } __packed;
 
-/* iwl_cmd_header flags value */
-#define IWL_CMD_FAILED_MSK 0x40
-
+/**
+ * struct iwl_cmd_header_wide
+ *
+ * This header format appears in the beginning of each command sent from the
+ * driver, and each response/notification received from uCode.
+ * this is the wide version that contains more information about the command
+ * like length, version and command type
+ */
+struct iwl_cmd_header_wide {
+	u8 cmd;
+	u8 group_id;
+	__le16 sequence;
+	__le16 length;
+	u8 reserved;
+	u8 version;
+} __packed;
 
 #define FH_RSCSR_FRAME_SIZE_MSK		0x00003FFF	/* bits 0-13 */
 #define FH_RSCSR_FRAME_INVALID		0x55550000
@@ -201,6 +248,8 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_MAKE_TRANS_IDLE: The command response should mark the trans as idle.
  * @CMD_WAKE_UP_TRANS: The command response should wake up the trans
  *	(i.e. mark it as non-idle).
+ * @CMD_TB_BITMAP_POS: Position of the first bit for the TB bitmap. We need to
+ *	check that we leave enough room for the TBs bitmap which needs 20 bits.
  */
 enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
@@ -210,6 +259,8 @@ enum CMD_MODE {
 	CMD_SEND_IN_IDLE	= BIT(4),
 	CMD_MAKE_TRANS_IDLE	= BIT(5),
 	CMD_WAKE_UP_TRANS	= BIT(6),
+
+	CMD_TB_BITMAP_POS	= 11,
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -222,8 +273,18 @@ enum CMD_MODE {
  * aren't fully copied and use other TFD space.
  */
 struct iwl_device_cmd {
-	struct iwl_cmd_header hdr;	/* uCode API */
-	u8 payload[DEF_CMD_PAYLOAD_SIZE];
+	union {
+		struct {
+			struct iwl_cmd_header hdr;	/* uCode API */
+			u8 payload[DEF_CMD_PAYLOAD_SIZE];
+		};
+		struct {
+			struct iwl_cmd_header_wide hdr_wide;
+			u8 payload_wide[DEF_CMD_PAYLOAD_SIZE -
+					sizeof(struct iwl_cmd_header_wide) +
+					sizeof(struct iwl_cmd_header)];
+		};
+	};
 } __packed;
 
 #define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
@@ -261,24 +322,22 @@ enum iwl_hcmd_dataflag {
  * @resp_pkt: response packet, if %CMD_WANT_SKB was set
  * @_rx_page_order: (internally used to free response packet)
  * @_rx_page_addr: (internally used to free response packet)
- * @handler_status: return value of the handler of the command
- *	(put in setup_rx_handlers) - valid for SYNC mode only
  * @flags: can be CMD_*
  * @len: array of the lengths of the chunks in data
  * @dataflags: IWL_HCMD_DFL_*
- * @id: id of the host command
+ * @id: command id of the host command, for wide commands encoding the
+ *	version and group as well
  */
 struct iwl_host_cmd {
 	const void *data[IWL_MAX_CMD_TBS_PER_TFD];
 	struct iwl_rx_packet *resp_pkt;
 	unsigned long _rx_page_addr;
 	u32 _rx_page_order;
-	int handler_status;
 
 	u32 flags;
+	u32 id;
 	u16 len[IWL_MAX_CMD_TBS_PER_TFD];
 	u8 dataflags[IWL_MAX_CMD_TBS_PER_TFD];
-	u8 id;
 };
 
 static inline void iwl_free_resp(struct iwl_host_cmd *cmd)
@@ -379,6 +438,7 @@ enum iwl_trans_status {
  * @bc_table_dword: set to true if the BC table expects the byte count to be
  *	in DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
+ * @wide_cmd_header: firmware supports wide host command header
  * @command_names: array of command names, must be 256 entries
  *	(one for each command); for debugging only
  * @sdio_adma_addr: the default address to set for the ADMA in SDIO mode until
@@ -396,6 +456,7 @@ struct iwl_trans_config {
 	bool rx_buf_size_8k;
 	bool bc_table_dword;
 	bool scd_set_active;
+	bool wide_cmd_header;
 	const char *const *command_names;
 
 	u32 sdio_adma_addr;
@@ -544,10 +605,12 @@ struct iwl_trans_ops {
 			      u32 value);
 	void (*ref)(struct iwl_trans *trans);
 	void (*unref)(struct iwl_trans *trans);
-	void (*suspend)(struct iwl_trans *trans);
+	int  (*suspend)(struct iwl_trans *trans);
 	void (*resume)(struct iwl_trans *trans);
 
-	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans);
+	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
+						 struct iwl_fw_dbg_trigger_tlv
+						 *trigger);
 };
 
 /**
@@ -584,6 +647,8 @@ enum iwl_d0i3_mode {
  * @cfg - pointer to the configuration
  * @status: a bit-mask of transport status flags
  * @dev - pointer to struct device * that represents the device
+ * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
+ *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
@@ -603,6 +668,12 @@ enum iwl_d0i3_mode {
  * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
  * @dbg_trigger_tlv: array of pointers to triggers TLVs for debug
  * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
+ * @paging_req_addr: The location were the FW will upload / download the pages
+ *	from. The address is set by the opmode
+ * @paging_db: Pointer to the opmode paging data base, the pointer is set by
+ *	the opmode.
+ * @paging_download_buf: Buffer used for copying all of the pages before
+ *	downloading them to the FW. The buffer is allocated in the opmode
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -612,6 +683,7 @@ struct iwl_trans {
 	unsigned long status;
 
 	struct device *dev;
+	u32 max_skb_frags;
 	u32 hw_rev;
 	u32 hw_id;
 	char hw_id_str[52];
@@ -638,6 +710,14 @@ struct iwl_trans {
 	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv * const *dbg_trigger_tlv;
 	u8 dbg_dest_reg_num;
+
+	/*
+	 * Paging parameters - All of the parameters should be set by the
+	 * opmode when paging is enabled
+	 */
+	u32 paging_req_addr;
+	struct iwl_fw_paging *paging_db;
+	void *paging_download_buf;
 
 	enum iwl_d0i3_mode d0i3_mode;
 
@@ -730,7 +810,8 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 static inline void iwl_trans_d3_suspend(struct iwl_trans *trans, bool test)
 {
 	might_sleep();
-	trans->ops->d3_suspend(trans, test);
+	if (trans->ops->d3_suspend)
+		trans->ops->d3_suspend(trans, test);
 }
 
 static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
@@ -738,6 +819,9 @@ static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
 				      bool test)
 {
 	might_sleep();
+	if (!trans->ops->d3_resume)
+		return 0;
+
 	return trans->ops->d3_resume(trans, status, test);
 }
 
@@ -753,10 +837,12 @@ static inline void iwl_trans_unref(struct iwl_trans *trans)
 		trans->ops->unref(trans);
 }
 
-static inline void iwl_trans_suspend(struct iwl_trans *trans)
+static inline int iwl_trans_suspend(struct iwl_trans *trans)
 {
-	if (trans->ops->suspend)
-		trans->ops->suspend(trans);
+	if (!trans->ops->suspend)
+		return 0;
+
+	return trans->ops->suspend(trans);
 }
 
 static inline void iwl_trans_resume(struct iwl_trans *trans)
@@ -766,11 +852,12 @@ static inline void iwl_trans_resume(struct iwl_trans *trans)
 }
 
 static inline struct iwl_trans_dump_data *
-iwl_trans_dump_data(struct iwl_trans *trans)
+iwl_trans_dump_data(struct iwl_trans *trans,
+		    struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	if (!trans->ops->dump_data)
 		return NULL;
-	return trans->ops->dump_data(trans);
+	return trans->ops->dump_data(trans, trigger);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,

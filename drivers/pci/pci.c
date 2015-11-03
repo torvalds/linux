@@ -81,7 +81,7 @@ unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 unsigned long pci_hotplug_io_size  = DEFAULT_HOTPLUG_IO_SIZE;
 unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
 
-enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_TUNE_OFF;
+enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_DEFAULT;
 
 /*
  * The default CLS is used if arch didn't set CLS explicitly and not
@@ -138,9 +138,22 @@ void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar)
 	return ioremap_nocache(res->start, resource_size(res));
 }
 EXPORT_SYMBOL_GPL(pci_ioremap_bar);
+
+void __iomem *pci_ioremap_wc_bar(struct pci_dev *pdev, int bar)
+{
+	/*
+	 * Make sure the BAR is actually a memory resource, not an IO resource
+	 */
+	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
+		WARN_ON(1);
+		return NULL;
+	}
+	return ioremap_wc(pci_resource_start(pdev, bar),
+			  pci_resource_len(pdev, bar));
+}
+EXPORT_SYMBOL_GPL(pci_ioremap_wc_bar);
 #endif
 
-#define PCI_FIND_CAP_TTL	48
 
 static int __pci_find_next_cap_ttl(struct pci_bus *bus, unsigned int devfn,
 				   u8 pos, int cap, int *ttl)
@@ -196,8 +209,6 @@ static int __pci_bus_find_cap_start(struct pci_bus *bus,
 		return PCI_CAPABILITY_LIST;
 	case PCI_HEADER_TYPE_CARDBUS:
 		return PCI_CB_CAPABILITY_LIST;
-	default:
-		return 0;
 	}
 
 	return 0;
@@ -972,7 +983,7 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	struct pci_cap_saved_state *save_state;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
-	if (pos <= 0)
+	if (!pos)
 		return 0;
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
@@ -995,7 +1006,7 @@ static void pci_restore_pcix_state(struct pci_dev *dev)
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
-	if (!save_state || pos <= 0)
+	if (!save_state || !pos)
 		return;
 	cap = (u16 *)&save_state->cap.data[0];
 
@@ -1092,6 +1103,9 @@ void pci_restore_state(struct pci_dev *dev)
 
 	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
+
+	/* Restore ACS and IOV configuration state */
+	pci_enable_acs(dev);
 	pci_restore_iov_state(dev);
 
 	dev->state_saved = false;
@@ -2159,7 +2173,7 @@ static int _pci_add_cap_save_buffer(struct pci_dev *dev, u16 cap,
 	else
 		pos = pci_find_capability(dev, cap);
 
-	if (pos <= 0)
+	if (!pos)
 		return 0;
 
 	save_state = kzalloc(sizeof(*save_state) + size, GFP_KERNEL);

@@ -32,6 +32,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/io-mapping.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
@@ -246,6 +247,10 @@ int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar)
 		goto err_free_uar;
 	}
 
+	if (mdev->priv.bf_mapping)
+		uar->bf_map = io_mapping_map_wc(mdev->priv.bf_mapping,
+						uar->index << PAGE_SHIFT);
+
 	return 0;
 
 err_free_uar:
@@ -257,6 +262,7 @@ EXPORT_SYMBOL(mlx5_alloc_map_uar);
 
 void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar)
 {
+	io_mapping_unmap(uar->bf_map);
 	iounmap(uar->map);
 	mlx5_cmd_free_uar(mdev, uar->index);
 }

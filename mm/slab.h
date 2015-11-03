@@ -163,6 +163,15 @@ void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s);
 ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 		       size_t count, loff_t *ppos);
 
+/*
+ * Generic implementation of bulk operations
+ * These are useful for situations in which the allocator cannot
+ * perform optimizations. In that case segments of the objecct listed
+ * may be allocated or freed using these operations.
+ */
+void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
+bool __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
+
 #ifdef CONFIG_MEMCG_KMEM
 /*
  * Iterate over all memcg caches of the given root cache. The caller must hold
@@ -321,7 +330,7 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 		return cachep;
 
 	pr_err("%s: Wrong slab cache. %s but object is from %s\n",
-	       __func__, cachep->name, s->name);
+	       __func__, s->name, cachep->name);
 	WARN_ON_ONCE(1);
 	return s;
 }

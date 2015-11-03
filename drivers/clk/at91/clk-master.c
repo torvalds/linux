@@ -222,7 +222,6 @@ of_at91_clk_master_setup(struct device_node *np, struct at91_pmc *pmc,
 {
 	struct clk *clk;
 	int num_parents;
-	int i;
 	unsigned int irq;
 	const char *parent_names[MASTER_SOURCE_MAX];
 	const char *name = np->name;
@@ -232,11 +231,7 @@ of_at91_clk_master_setup(struct device_node *np, struct at91_pmc *pmc,
 	if (num_parents <= 0 || num_parents > MASTER_SOURCE_MAX)
 		return;
 
-	for (i = 0; i < num_parents; ++i) {
-		parent_names[i] = of_clk_get_parent_name(np, i);
-		if (!parent_names[i])
-			return;
-	}
+	of_clk_parent_fill(np, parent_names, num_parents);
 
 	of_property_read_string(np, "clock-output-names", &name);
 

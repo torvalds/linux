@@ -11,13 +11,13 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/clk/shmobile.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 struct rcar_gen2_cpg {
@@ -415,6 +415,8 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 	}
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &cpg->data);
+
+	cpg_mstp_add_clk_domain(np);
 }
 CLK_OF_DECLARE(rcar_gen2_cpg_clks, "renesas,rcar-gen2-cpg-clocks",
 	       rcar_gen2_cpg_clocks_init);

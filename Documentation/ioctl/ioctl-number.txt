@@ -124,6 +124,8 @@ Code  Seq#(hex)	Include File		Comments
 'H'	00-7F	linux/hiddev.h		conflict!
 'H'	00-0F	linux/hidraw.h		conflict!
 'H'	01	linux/mei.h		conflict!
+'H'	02	linux/mei.h		conflict!
+'H'	03	linux/mei.h		conflict!
 'H'	00-0F	sound/asound.h		conflict!
 'H'	20-40	sound/asound_fm.h	conflict!
 'H'	80-8F	sound/sfnt_info.h	conflict!
@@ -263,7 +265,7 @@ Code  Seq#(hex)	Include File		Comments
 's'	all	linux/cdk.h
 't'	00-7F	linux/ppp-ioctl.h
 't'	80-8F	linux/isdn_ppp.h
-'t'	90	linux/toshiba.h
+'t'	90-91	linux/toshiba.h		toshiba and toshiba_acpi SMM
 'u'	00-1F	linux/smb_fs.h		gone
 'u'	20-3F	linux/uvcvideo.h	USB video class host driver
 'v'	00-1F	linux/ext2_fs.h		conflict!
@@ -301,6 +303,7 @@ Code  Seq#(hex)	Include File		Comments
 0xA3	80-8F	Port ACL		in development:
 					<mailto:tlewis@mindspring.com>
 0xA3	90-9F	linux/dtlk.h
+0xAA	00-3F	linux/uapi/linux/userfaultfd.h
 0xAB	00-1F	linux/nbd.h
 0xAC	00-1F	linux/raw.h
 0xAD	00	Netfilter device	in development:
@@ -314,6 +317,7 @@ Code  Seq#(hex)	Include File		Comments
 0xB3	00	linux/mmc/ioctl.h
 0xC0	00-0F	linux/usb/iowarrior.h
 0xCA	00-0F	uapi/misc/cxl.h
+0xCA	80-8F	uapi/scsi/cxlflash_ioctl.h
 0xCB	00-1F	CBM serial IEC bus	in development:
 					<mailto:michael.klein@puffin.lb.shuttle.de>
 0xCD	01	linux/reiserfs_fs.h

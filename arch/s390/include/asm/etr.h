@@ -214,6 +214,9 @@ static inline int etr_ptff(void *ptff_block, unsigned int func)
 void etr_switch_to_local(void);
 void etr_sync_check(void);
 
+/* notifier for syncs */
+extern struct atomic_notifier_head s390_epoch_delta_notifier;
+
 /* STP interruption parameter */
 struct stp_irq_parm {
 	unsigned int _pad0	: 14;

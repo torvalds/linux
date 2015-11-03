@@ -554,10 +554,18 @@ struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
 	mutex_lock(&dma_list_mutex);
 
 	if (chan->client_count == 0) {
+		struct dma_device *device = chan->device;
+
+		dma_cap_set(DMA_PRIVATE, device->cap_mask);
+		device->privatecnt++;
 		err = dma_chan_get(chan);
-		if (err)
+		if (err) {
 			pr_debug("%s: failed to get %s: (%d)\n",
 				__func__, dma_chan_name(chan), err);
+			chan = NULL;
+			if (--device->privatecnt == 0)
+				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
+		}
 	} else
 		chan = NULL;
 
@@ -689,6 +697,10 @@ struct dma_chan *dma_request_slave_channel(struct device *dev,
 	struct dma_chan *ch = dma_request_slave_channel_reason(dev, name);
 	if (IS_ERR(ch))
 		return NULL;
+
+	dma_cap_set(DMA_PRIVATE, ch->device->cap_mask);
+	ch->device->privatecnt++;
+
 	return ch;
 }
 EXPORT_SYMBOL_GPL(dma_request_slave_channel);

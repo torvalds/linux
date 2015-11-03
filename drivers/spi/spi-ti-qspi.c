@@ -99,6 +99,8 @@ struct ti_qspi {
 #define QSPI_INVAL			(4 << 16)
 #define QSPI_WC_CMD_INT_EN			(1 << 14)
 #define QSPI_FLEN(n)			((n - 1) << 0)
+#define QSPI_WLEN_MAX_BITS		128
+#define QSPI_WLEN_MAX_BYTES		16
 
 /* STATUS REGISTER */
 #define BUSY				0x01
@@ -217,14 +219,16 @@ static inline u32 qspi_is_busy(struct ti_qspi *qspi)
 
 static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 {
-	int wlen, count;
+	int wlen, count, xfer_len;
 	unsigned int cmd;
 	const u8 *txbuf;
+	u32 data;
 
 	txbuf = t->tx_buf;
 	cmd = qspi->cmd | QSPI_WR_SNGL;
 	count = t->len;
 	wlen = t->bits_per_word >> 3;	/* in bytes */
+	xfer_len = wlen;
 
 	while (count) {
 		if (qspi_is_busy(qspi))
@@ -234,7 +238,29 @@ static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 		case 1:
 			dev_dbg(qspi->dev, "tx cmd %08x dc %08x data %02x\n",
 					cmd, qspi->dc, *txbuf);
-			writeb(*txbuf, qspi->base + QSPI_SPI_DATA_REG);
+			if (count >= QSPI_WLEN_MAX_BYTES) {
+				u32 *txp = (u32 *)txbuf;
+
+				data = cpu_to_be32(*txp++);
+				writel(data, qspi->base +
+				       QSPI_SPI_DATA_REG_3);
+				data = cpu_to_be32(*txp++);
+				writel(data, qspi->base +
+				       QSPI_SPI_DATA_REG_2);
+				data = cpu_to_be32(*txp++);
+				writel(data, qspi->base +
+				       QSPI_SPI_DATA_REG_1);
+				data = cpu_to_be32(*txp++);
+				writel(data, qspi->base +
+				       QSPI_SPI_DATA_REG);
+				xfer_len = QSPI_WLEN_MAX_BYTES;
+				cmd |= QSPI_WLEN(QSPI_WLEN_MAX_BITS);
+			} else {
+				writeb(*txbuf, qspi->base + QSPI_SPI_DATA_REG);
+				cmd = qspi->cmd | QSPI_WR_SNGL;
+				xfer_len = wlen;
+				cmd |= QSPI_WLEN(wlen);
+			}
 			break;
 		case 2:
 			dev_dbg(qspi->dev, "tx cmd %08x dc %08x data %04x\n",
@@ -254,8 +280,8 @@ static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 			dev_err(qspi->dev, "write timed out\n");
 			return -ETIMEDOUT;
 		}
-		txbuf += wlen;
-		count -= wlen;
+		txbuf += xfer_len;
+		count -= xfer_len;
 	}
 
 	return 0;

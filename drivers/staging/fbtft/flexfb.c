@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -29,7 +25,6 @@
 #include "fbtft.h"
 
 #define DRVNAME	    "flexfb"
-
 
 static char *chip;
 module_param(chip, charp, 0);
@@ -67,7 +62,6 @@ MODULE_PARM_DESC(nobacklight, "Turn off backlight functionality.");
 static bool latched;
 module_param(latched, bool, 0);
 MODULE_PARM_DESC(latched, "Use with latched 16-bit databus");
-
 
 static int *initp;
 static int initp_num;
@@ -132,14 +126,115 @@ static int ssd1351_init[] = { -1, 0xfd, 0x12, -1, 0xfd, 0xb1, -1, 0xae, -1, 0xb3
 			      -1, 0xab, 0x01, -1, 0xb1, 0x32, -1, 0xb4, 0xa0, 0xb5, 0x55, -1, 0xbb, 0x17, -1, 0xbe, 0x05,
 			      -1, 0xc1, 0xc8, 0x80, 0xc8, -1, 0xc7, 0x0f, -1, 0xb6, 0x01, -1, 0xa6, -1, 0xaf, -3 };
 
+/**
+ * struct flexfb_lcd_controller - Describes the LCD controller properties
+ * @name: Model name of the chip
+ * @width: Width of display in pixels
+ * @height: Height of display in pixels
+ * @setaddrwin: Which set_addr_win() implementation to use
+ * @regwidth: LCD Controller Register width in bits
+ * @init_seq: LCD initialization sequence
+ * @init_seq_sz: Size of LCD initialization sequence
+ */
+struct flexfb_lcd_controller {
+	const char *name;
+	unsigned int width;
+	unsigned int height;
+	unsigned int setaddrwin;
+	unsigned int regwidth;
+	int *init_seq;
+	int init_seq_sz;
+};
+
+static const struct flexfb_lcd_controller flexfb_chip_table[] = {
+	{
+		.name = "st7735r",
+		.width = 120,
+		.height = 160,
+		.init_seq = st7735r_init,
+		.init_seq_sz = ARRAY_SIZE(st7735r_init),
+	},
+	{
+		.name = "hx8340bn",
+		.width = 176,
+		.height = 220,
+		.init_seq = hx8340bn_init,
+		.init_seq_sz = ARRAY_SIZE(hx8340bn_init),
+	},
+	{
+		.name = "ili9225",
+		.width = 176,
+		.height = 220,
+		.regwidth = 16,
+		.init_seq = ili9225_init,
+		.init_seq_sz = ARRAY_SIZE(ili9225_init),
+	},
+	{
+		.name = "ili9225",
+		.width = 176,
+		.height = 220,
+		.regwidth = 16,
+		.init_seq = ili9225_init,
+		.init_seq_sz = ARRAY_SIZE(ili9225_init),
+	},
+	{
+		.name = "ili9225",
+		.width = 176,
+		.height = 220,
+		.regwidth = 16,
+		.init_seq = ili9225_init,
+		.init_seq_sz = ARRAY_SIZE(ili9225_init),
+	},
+	{
+		.name = "ili9320",
+		.width = 240,
+		.height = 320,
+		.setaddrwin = 1,
+		.regwidth = 16,
+		.init_seq = ili9320_init,
+		.init_seq_sz = ARRAY_SIZE(ili9320_init),
+	},
+	{
+		.name = "ili9325",
+		.width = 240,
+		.height = 320,
+		.setaddrwin = 1,
+		.regwidth = 16,
+		.init_seq = ili9325_init,
+		.init_seq_sz = ARRAY_SIZE(ili9325_init),
+	},
+	{
+		.name = "ili9341",
+		.width = 240,
+		.height = 320,
+		.init_seq = ili9341_init,
+		.init_seq_sz = ARRAY_SIZE(ili9341_init),
+	},
+	{
+		.name = "ssd1289",
+		.width = 240,
+		.height = 320,
+		.setaddrwin = 2,
+		.regwidth = 16,
+		.init_seq = ssd1289_init,
+		.init_seq_sz = ARRAY_SIZE(ssd1289_init),
+	},
+	{
+		.name = "ssd1351",
+		.width = 128,
+		.height = 128,
+		.setaddrwin = 3,
+		.init_seq = ssd1351_init,
+		.init_seq_sz = ARRAY_SIZE(ssd1351_init),
+	},
+};
 
 /* ili9320, ili9325 */
 static void flexfb_set_addr_win_1(struct fbtft_par *par,
 				  int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		     "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n",
-		     __func__, xs, ys, xe, ye);
+	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par, "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n",
+		      __func__, xs, ys, xe, ye);
 	switch (par->info->var.rotate) {
 	/* R20h = Horizontal GRAM Start Address */
 	/* R21h = Vertical GRAM Start Address */
@@ -242,7 +337,7 @@ static int flexfb_verify_gpios_db(struct fbtft_par *par)
 		return -EINVAL;
 	}
 	if (latched)
-		num_db = buswidth/2;
+		num_db = buswidth / 2;
 	for (i = 0; i < num_db; i++) {
 		if (par->gpio.db[i] < 0) {
 			dev_err(par->info->device,
@@ -255,7 +350,37 @@ static int flexfb_verify_gpios_db(struct fbtft_par *par)
 	return 0;
 }
 
+static void flexfb_chip_load_param(const struct flexfb_lcd_controller *chip)
+{
+	if (!width)
+		width = chip->width;
+	if (!height)
+		height = chip->height;
+	setaddrwin = chip->setaddrwin;
+	if (chip->regwidth)
+		regwidth = chip->regwidth;
+	if (!init_num) {
+		initp = chip->init_seq;
+		initp_num = chip->init_seq_sz;
+	}
+}
+
 static struct fbtft_display flex_display = { };
+
+static int flexfb_chip_init(const struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(flexfb_chip_table); i++)
+		if (!strcmp(chip, flexfb_chip_table[i].name)) {
+			flexfb_chip_load_param(&flexfb_chip_table[i]);
+			return 0;
+		}
+
+	dev_err(dev, "chip=%s is not supported\n", chip);
+
+	return -EINVAL;
+}
 
 static int flexfb_probe_common(struct spi_device *sdev,
 			       struct platform_device *pdev)
@@ -277,110 +402,9 @@ static int flexfb_probe_common(struct spi_device *sdev,
 		       sdev ? "'SPI device'" : "'Platform device'");
 
 	if (chip) {
-
-		if (!strcmp(chip, "st7735r")) {
-			if (!width)
-				width = 128;
-			if (!height)
-				height = 160;
-			if (init_num == 0) {
-				initp = st7735r_init;
-				initp_num = ARRAY_SIZE(st7735r_init);
-			}
-
-
-		} else if (!strcmp(chip, "hx8340bn")) {
-			if (!width)
-				width = 176;
-			if (!height)
-				height = 220;
-			setaddrwin = 0;
-			if (init_num == 0) {
-				initp = hx8340bn_init;
-				initp_num = ARRAY_SIZE(hx8340bn_init);
-			}
-
-
-		} else if (!strcmp(chip, "ili9225")) {
-			if (!width)
-				width = 176;
-			if (!height)
-				height = 220;
-			setaddrwin = 0;
-			regwidth = 16;
-			if (init_num == 0) {
-				initp = ili9225_init;
-				initp_num = ARRAY_SIZE(ili9225_init);
-			}
-
-
-
-		} else if (!strcmp(chip, "ili9320")) {
-			if (!width)
-				width = 240;
-			if (!height)
-				height = 320;
-			setaddrwin = 1;
-			regwidth = 16;
-			if (init_num == 0) {
-				initp = ili9320_init;
-				initp_num = ARRAY_SIZE(ili9320_init);
-			}
-
-
-		} else if (!strcmp(chip, "ili9325")) {
-			if (!width)
-				width = 240;
-			if (!height)
-				height = 320;
-			setaddrwin = 1;
-			regwidth = 16;
-			if (init_num == 0) {
-				initp = ili9325_init;
-				initp_num = ARRAY_SIZE(ili9325_init);
-			}
-
-		} else if (!strcmp(chip, "ili9341")) {
-			if (!width)
-				width = 240;
-			if (!height)
-				height = 320;
-			setaddrwin = 0;
-			regwidth = 8;
-			if (init_num == 0) {
-				initp = ili9341_init;
-				initp_num = ARRAY_SIZE(ili9341_init);
-			}
-
-
-		} else if (!strcmp(chip, "ssd1289")) {
-			if (!width)
-				width = 240;
-			if (!height)
-				height = 320;
-			setaddrwin = 2;
-			regwidth = 16;
-			if (init_num == 0) {
-				initp = ssd1289_init;
-				initp_num = ARRAY_SIZE(ssd1289_init);
-			}
-
-
-
-		} else if (!strcmp(chip, "ssd1351")) {
-			if (!width)
-				width = 128;
-			if (!height)
-				height = 128;
-			setaddrwin = 3;
-			if (init_num == 0) {
-				initp = ssd1351_init;
-				initp_num = ARRAY_SIZE(ssd1351_init);
-			}
-		} else {
-			dev_err(dev, "chip=%s is not supported\n", chip);
-			return -EINVAL;
-		}
+		ret = flexfb_chip_init(dev);
+		if (ret)
+			return ret;
 	}
 
 	if (width == 0 || height == 0) {
@@ -395,7 +419,7 @@ static int flexfb_probe_common(struct spi_device *sdev,
 	fbtft_init_dbg(dev, "regwidth = %d\n", regwidth);
 	fbtft_init_dbg(dev, "buswidth = %d\n", buswidth);
 
-	info = fbtft_framebuffer_alloc(&flex_display, dev);
+	info = fbtft_framebuffer_alloc(&flex_display, dev, dev->platform_data);
 	if (!info)
 		return -ENOMEM;
 
@@ -439,15 +463,12 @@ static int flexfb_probe_common(struct spi_device *sdev,
 			}
 			par->fbtftops.write_register = fbtft_write_reg8_bus9;
 			par->fbtftops.write_vmem = fbtft_write_vmem16_bus9;
-			sdev->bits_per_word = 9;
-			ret = sdev->master->setup(sdev);
-			if (ret) {
+			if (par->spi->master->bits_per_word_mask
+			    & SPI_BPW_MASK(9)) {
+				par->spi->bits_per_word = 9;
+			} else {
 				dev_warn(dev,
 					"9-bit SPI not available, emulating using 8-bit.\n");
-				sdev->bits_per_word = 8;
-				ret = sdev->master->setup(sdev);
-				if (ret)
-					goto out_release;
 				/* allocate buffer with room for dc bits */
 				par->extra = devm_kzalloc(par->info->device,
 						par->txbuf.len + (par->txbuf.len / 8) + 8,
@@ -527,8 +548,8 @@ static int flexfb_remove_common(struct device *dev, struct fb_info *info)
 		return -EINVAL;
 	par = info->par;
 	if (par)
-		fbtft_par_dbg(DEBUG_DRIVER_INIT_FUNCTIONS, par,
-			"%s()\n", __func__);
+		fbtft_par_dbg(DEBUG_DRIVER_INIT_FUNCTIONS, par, "%s()\n",
+			      __func__);
 	fbtft_unregister_framebuffer(info);
 	fbtft_framebuffer_release(info);
 

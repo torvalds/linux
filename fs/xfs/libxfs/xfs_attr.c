@@ -139,6 +139,8 @@ xfs_attr_get(
 
 	args.value = value;
 	args.valuelen = *valuelenp;
+	/* Entirely possible to look up a name which doesn't exist */
+	args.op_flags = XFS_DA_OP_OKNOENT;
 
 	lock_mode = xfs_ilock_attr_map_shared(ip);
 	if (!xfs_inode_hasattr(ip))

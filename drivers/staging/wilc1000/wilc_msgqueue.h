@@ -13,20 +13,6 @@
 #include "wilc_platform.h"
 #include "wilc_errorsupport.h"
 #include "wilc_memory.h"
-#include "wilc_strutils.h"
-
-/*!
- *  @struct             tstrWILC_MsgQueueAttrs
- *  @brief		Message Queue API options
- *  @author		syounan
- *  @date		30 Aug 2010
- *  @version		1.0
- */
-typedef struct {
-	/* a dummy member to avoid compiler errors*/
-	u8 dummy;
-
-} tstrWILC_MsgQueueAttrs;
 
 /*!
  *  @brief		Creates a new Message queue
@@ -37,14 +23,11 @@ typedef struct {
  *  @param[in,out]	pHandle handle to the message queue object
  *  @param[in]	pstrAttrs Optional attributes, NULL for default
  *  @return		Error code indicating sucess/failure
- *  @sa			tstrWILC_MsgQueueAttrs
  *  @author		syounan
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle,
-			       tstrWILC_MsgQueueAttrs *pstrAttrs);
-
+WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle);
 
 /*!
  *  @brief		Sends a message
@@ -57,15 +40,12 @@ WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle,
  *  @param[in]	u32SendBufferSize the size of the data to send
  *  @param[in]	pstrAttrs Optional attributes, NULL for default
  *  @return		Error code indicating sucess/failure
- *  @sa			tstrWILC_MsgQueueAttrs
  *  @author		syounan
  *  @date		30 Aug 2010
  *  @version		1.0
  */
 WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
-			     const void *pvSendBuffer, u32 u32SendBufferSize,
-			     tstrWILC_MsgQueueAttrs *pstrAttrs);
-
+			     const void *pvSendBuffer, u32 u32SendBufferSize);
 
 /*!
  *  @brief		Receives a message
@@ -79,30 +59,23 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
  *  @param[out]	pu32ReceivedLength the length of received data
  *  @param[in]	pstrAttrs Optional attributes, NULL for default
  *  @return		Error code indicating sucess/failure
- *  @sa			tstrWILC_MsgQueueAttrs
  *  @author		syounan
  *  @date		30 Aug 2010
  *  @version		1.0
  */
 WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 			     void *pvRecvBuffer, u32 u32RecvBufferSize,
-			     u32 *pu32ReceivedLength,
-			     tstrWILC_MsgQueueAttrs *pstrAttrs);
-
+			     u32 *pu32ReceivedLength);
 
 /*!
  *  @brief		Destroys an existing  Message queue
  *  @param[in]	pHandle handle to the message queue object
  *  @param[in]	pstrAttrs Optional attributes, NULL for default
  *  @return		Error code indicating sucess/failure
- *  @sa			tstrWILC_MsgQueueAttrs
  *  @author		syounan
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle,
-				tstrWILC_MsgQueueAttrs *pstrAttrs);
-
-
+WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle);
 
 #endif

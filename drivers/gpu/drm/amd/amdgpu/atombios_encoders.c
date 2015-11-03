@@ -812,7 +812,7 @@ amdgpu_atombios_encoder_setup_dig_transmitter(struct drm_encoder *encoder, int a
 			else
 				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
 
-			if ((adev->flags & AMDGPU_IS_APU) &&
+			if ((adev->flags & AMD_IS_APU) &&
 			    (amdgpu_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_UNIPHY)) {
 				if (is_dp ||
 				    !amdgpu_dig_monitor_is_duallink(encoder, amdgpu_encoder->pixel_clock)) {
@@ -1279,8 +1279,7 @@ amdgpu_atombios_encoder_setup_dig(struct drm_encoder *encoder, int action)
 			amdgpu_atombios_encoder_setup_dig_encoder(encoder, ATOM_ENCODER_CMD_DP_VIDEO_ON, 0);
 		}
 		if (amdgpu_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
-			amdgpu_atombios_encoder_setup_dig_transmitter(encoder,
-							       ATOM_TRANSMITTER_ACTION_LCD_BLON, 0, 0);
+			amdgpu_atombios_encoder_set_backlight_level(amdgpu_encoder, dig->backlight_level);
 		if (ext_encoder)
 			amdgpu_atombios_encoder_setup_external_encoder(encoder, ext_encoder, ATOM_ENABLE);
 	} else {

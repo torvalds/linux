@@ -583,33 +583,6 @@ static void free_arenas(struct btt *btt)
 }
 
 /*
- * This function checks if the metadata layout is valid and error free
- */
-static int arena_is_valid(struct arena_info *arena, struct btt_sb *super,
-				u8 *uuid, u32 lbasize)
-{
-	u64 checksum;
-
-	if (memcmp(super->uuid, uuid, 16))
-		return 0;
-
-	checksum = le64_to_cpu(super->checksum);
-	super->checksum = 0;
-	if (checksum != nd_btt_sb_checksum(super))
-		return 0;
-	super->checksum = cpu_to_le64(checksum);
-
-	if (lbasize != le32_to_cpu(super->external_lbasize))
-		return 0;
-
-	/* TODO: figure out action for this */
-	if ((le32_to_cpu(super->flags) & IB_FLAG_ERROR_MASK) != 0)
-		dev_info(to_dev(arena), "Found arena with an error flag\n");
-
-	return 1;
-}
-
-/*
  * This function reads an existing valid btt superblock and
  * populates the corresponding arena_info struct
  */
@@ -632,8 +605,9 @@ static void parse_arena_meta(struct arena_info *arena, struct btt_sb *super,
 	arena->logoff = arena_off + le64_to_cpu(super->logoff);
 	arena->info2off = arena_off + le64_to_cpu(super->info2off);
 
-	arena->size = (super->nextoff > 0) ? (le64_to_cpu(super->nextoff)) :
-			(arena->info2off - arena->infooff + BTT_PG_SIZE);
+	arena->size = (le64_to_cpu(super->nextoff) > 0)
+		? (le64_to_cpu(super->nextoff))
+		: (arena->info2off - arena->infooff + BTT_PG_SIZE);
 
 	arena->flags = le32_to_cpu(super->flags);
 }
@@ -665,8 +639,7 @@ static int discover_arenas(struct btt *btt)
 		if (ret)
 			goto out;
 
-		if (!arena_is_valid(arena, super, btt->nd_btt->uuid,
-				btt->lbasize)) {
+		if (!nd_btt_arena_is_valid(btt->nd_btt, super)) {
 			if (remaining == btt->rawsize) {
 				btt->init_state = INIT_NOTFOUND;
 				dev_info(to_dev(arena), "No existing arenas\n");
@@ -755,10 +728,13 @@ static int create_arenas(struct btt *btt)
  * It is only called for an uninitialized arena when a write
  * to that arena occurs for the first time.
  */
-static int btt_arena_write_layout(struct arena_info *arena, u8 *uuid)
+static int btt_arena_write_layout(struct arena_info *arena)
 {
 	int ret;
+	u64 sum;
 	struct btt_sb *super;
+	struct nd_btt *nd_btt = arena->nd_btt;
+	const u8 *parent_uuid = nd_dev_to_uuid(&nd_btt->ndns->dev);
 
 	ret = btt_map_init(arena);
 	if (ret)
@@ -773,7 +749,8 @@ static int btt_arena_write_layout(struct arena_info *arena, u8 *uuid)
 		return -ENOMEM;
 
 	strncpy(super->signature, BTT_SIG, BTT_SIG_LEN);
-	memcpy(super->uuid, uuid, 16);
+	memcpy(super->uuid, nd_btt->uuid, 16);
+	memcpy(super->parent_uuid, parent_uuid, 16);
 	super->flags = cpu_to_le32(arena->flags);
 	super->version_major = cpu_to_le16(arena->version_major);
 	super->version_minor = cpu_to_le16(arena->version_minor);
@@ -794,7 +771,8 @@ static int btt_arena_write_layout(struct arena_info *arena, u8 *uuid)
 	super->info2off = cpu_to_le64(arena->info2off - arena->infooff);
 
 	super->flags = 0;
-	super->checksum = cpu_to_le64(nd_btt_sb_checksum(super));
+	sum = nd_sb_checksum((struct nd_gen_sb *) super);
+	super->checksum = cpu_to_le64(sum);
 
 	ret = btt_info_write(arena, super);
 
@@ -813,7 +791,7 @@ static int btt_meta_init(struct btt *btt)
 
 	mutex_lock(&btt->init_lock);
 	list_for_each_entry(arena, &btt->arena_list, list) {
-		ret = btt_arena_write_layout(arena, btt->nd_btt->uuid);
+		ret = btt_arena_write_layout(arena);
 		if (ret)
 			goto unlock;
 
@@ -1189,7 +1167,7 @@ static void btt_make_request(struct request_queue *q, struct bio *bio)
 	 * another kernel subsystem, and we just pass it through.
 	 */
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		err = -EIO;
+		bio->bi_error = -EIO;
 		goto out;
 	}
 
@@ -1211,6 +1189,7 @@ static void btt_make_request(struct request_queue *q, struct bio *bio)
 					"io error in %s sector %lld, len %d,\n",
 					(rw == READ) ? "READ" : "WRITE",
 					(unsigned long long) iter.bi_sector, len);
+			bio->bi_error = err;
 			break;
 		}
 	}
@@ -1218,7 +1197,7 @@ static void btt_make_request(struct request_queue *q, struct bio *bio)
 		nd_iostat_end(bio, start);
 
 out:
-	bio_endio(bio, err);
+	bio_endio(bio);
 }
 
 static int btt_rw_page(struct block_device *bdev, sector_t sector,
@@ -1445,8 +1424,6 @@ EXPORT_SYMBOL(nvdimm_namespace_detach_btt);
 static int __init nd_btt_init(void)
 {
 	int rc;
-
-	BUILD_BUG_ON(sizeof(struct btt_sb) != SZ_4K);
 
 	btt_major = register_blkdev(0, "btt");
 	if (btt_major < 0)

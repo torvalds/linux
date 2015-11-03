@@ -54,8 +54,8 @@
 #include "../include/lustre_param.h"
 #include "llite_internal.h"
 
-struct kmem_cache *ll_remote_perm_cachep = NULL;
-struct kmem_cache *ll_rmtperm_hash_cachep = NULL;
+struct kmem_cache *ll_remote_perm_cachep;
+struct kmem_cache *ll_rmtperm_hash_cachep;
 
 static inline struct ll_remote_perm *alloc_ll_remote_perm(void)
 {
@@ -104,8 +104,7 @@ void free_rmtperm_hash(struct hlist_head *hash)
 		return;
 
 	for (i = 0; i < REMOTE_PERM_HASHSIZE; i++)
-		hlist_for_each_entry_safe(lrp, next, hash + i,
-					      lrp_list)
+		hlist_for_each_entry_safe(lrp, next, hash + i, lrp_list)
 			free_ll_remote_perm(lrp);
 	OBD_SLAB_FREE(hash, ll_rmtperm_hash_cachep,
 		      REMOTE_PERM_HASHSIZE * sizeof(*hash));
@@ -117,7 +116,8 @@ static inline int remote_perm_hashfunc(uid_t uid)
 }
 
 /* NB: setxid permission is not checked here, instead it's done on
- * MDT when client get remote permission. */
+ * MDT when client get remote permission.
+ */
 static int do_check_remote_perm(struct ll_inode_info *lli, int mask)
 {
 	struct hlist_head *head;
@@ -184,7 +184,7 @@ int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm)
 
 	if (!lli->lli_remote_perms) {
 		perm_hash = alloc_rmtperm_hash();
-		if (perm_hash == NULL) {
+		if (!perm_hash) {
 			CERROR("alloc lli_remote_perms failed!\n");
 			return -ENOMEM;
 		}
@@ -287,7 +287,7 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 
 		perm = req_capsule_server_swab_get(&req->rq_pill, &RMF_ACL,
 						   lustre_swab_mdt_remote_perm);
-		if (unlikely(perm == NULL)) {
+		if (unlikely(!perm)) {
 			mutex_unlock(&lli->lli_rmtperm_mutex);
 			rc = -EPROTO;
 			break;
@@ -321,8 +321,7 @@ void ll_free_remote_perms(struct inode *inode)
 	spin_lock(&lli->lli_lock);
 
 	for (i = 0; i < REMOTE_PERM_HASHSIZE; i++) {
-		hlist_for_each_entry_safe(lrp, node, next, hash + i,
-					      lrp_list)
+		hlist_for_each_entry_safe(lrp, node, next, hash + i, lrp_list)
 			free_ll_remote_perm(lrp);
 	}
 

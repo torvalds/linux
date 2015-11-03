@@ -521,7 +521,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	const struct tegra30_ahub_soc_data *soc_data;
 	struct reset_control *rst;
 	int i;
-	struct resource *res0, *res1, *region;
+	struct resource *res0, *res1;
 	void __iomem *regs_apbif, *regs_ahub;
 	int ret = 0;
 
@@ -549,103 +549,67 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Can't get reset %s\n",
 				configlink_mods[i].rst_name);
 			ret = PTR_ERR(rst);
-			goto err;
+			return ret;
 		}
 
 		ret = reset_control_deassert(rst);
 		reset_control_put(rst);
 		if (ret)
-			goto err;
+			return ret;
 	}
 
 	ahub = devm_kzalloc(&pdev->dev, sizeof(struct tegra30_ahub),
 			    GFP_KERNEL);
 	if (!ahub) {
 		dev_err(&pdev->dev, "Can't allocate tegra30_ahub\n");
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 	dev_set_drvdata(&pdev->dev, ahub);
 
 	ahub->soc_data = soc_data;
 	ahub->dev = &pdev->dev;
 
-	ahub->clk_d_audio = clk_get(&pdev->dev, "d_audio");
+	ahub->clk_d_audio = devm_clk_get(&pdev->dev, "d_audio");
 	if (IS_ERR(ahub->clk_d_audio)) {
 		dev_err(&pdev->dev, "Can't retrieve ahub d_audio clock\n");
 		ret = PTR_ERR(ahub->clk_d_audio);
-		goto err;
+		return ret;
 	}
 
-	ahub->clk_apbif = clk_get(&pdev->dev, "apbif");
+	ahub->clk_apbif = devm_clk_get(&pdev->dev, "apbif");
 	if (IS_ERR(ahub->clk_apbif)) {
 		dev_err(&pdev->dev, "Can't retrieve ahub apbif clock\n");
 		ret = PTR_ERR(ahub->clk_apbif);
-		goto err_clk_put_d_audio;
+		return ret;
 	}
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res0) {
-		dev_err(&pdev->dev, "No apbif memory resource\n");
-		ret = -ENODEV;
-		goto err_clk_put_apbif;
-	}
+	regs_apbif = devm_ioremap_resource(&pdev->dev, res0);
+	if (IS_ERR(regs_apbif))
+		return PTR_ERR(regs_apbif);
 
-	region = devm_request_mem_region(&pdev->dev, res0->start,
-					 resource_size(res0), DRV_NAME);
-	if (!region) {
-		dev_err(&pdev->dev, "request region apbif failed\n");
-		ret = -EBUSY;
-		goto err_clk_put_apbif;
-	}
 	ahub->apbif_addr = res0->start;
-
-	regs_apbif = devm_ioremap(&pdev->dev, res0->start,
-				  resource_size(res0));
-	if (!regs_apbif) {
-		dev_err(&pdev->dev, "ioremap apbif failed\n");
-		ret = -ENOMEM;
-		goto err_clk_put_apbif;
-	}
 
 	ahub->regmap_apbif = devm_regmap_init_mmio(&pdev->dev, regs_apbif,
 					&tegra30_ahub_apbif_regmap_config);
 	if (IS_ERR(ahub->regmap_apbif)) {
 		dev_err(&pdev->dev, "apbif regmap init failed\n");
 		ret = PTR_ERR(ahub->regmap_apbif);
-		goto err_clk_put_apbif;
+		return ret;
 	}
 	regcache_cache_only(ahub->regmap_apbif, true);
 
 	res1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res1) {
-		dev_err(&pdev->dev, "No ahub memory resource\n");
-		ret = -ENODEV;
-		goto err_clk_put_apbif;
-	}
-
-	region = devm_request_mem_region(&pdev->dev, res1->start,
-					 resource_size(res1), DRV_NAME);
-	if (!region) {
-		dev_err(&pdev->dev, "request region ahub failed\n");
-		ret = -EBUSY;
-		goto err_clk_put_apbif;
-	}
-
-	regs_ahub = devm_ioremap(&pdev->dev, res1->start,
-				 resource_size(res1));
-	if (!regs_ahub) {
-		dev_err(&pdev->dev, "ioremap ahub failed\n");
-		ret = -ENOMEM;
-		goto err_clk_put_apbif;
-	}
+	regs_ahub = devm_ioremap_resource(&pdev->dev, res1);
+	if (IS_ERR(regs_ahub))
+		return PTR_ERR(regs_ahub);
 
 	ahub->regmap_ahub = devm_regmap_init_mmio(&pdev->dev, regs_ahub,
 					&tegra30_ahub_ahub_regmap_config);
 	if (IS_ERR(ahub->regmap_ahub)) {
 		dev_err(&pdev->dev, "ahub regmap init failed\n");
 		ret = PTR_ERR(ahub->regmap_ahub);
-		goto err_clk_put_apbif;
+		return ret;
 	}
 	regcache_cache_only(ahub->regmap_ahub, true);
 
@@ -662,12 +626,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-err_clk_put_apbif:
-	clk_put(ahub->clk_apbif);
-err_clk_put_d_audio:
-	clk_put(ahub->clk_d_audio);
-	ahub = NULL;
-err:
+
 	return ret;
 }
 
@@ -679,11 +638,6 @@ static int tegra30_ahub_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra30_ahub_runtime_suspend(&pdev->dev);
-
-	clk_put(ahub->clk_apbif);
-	clk_put(ahub->clk_d_audio);
-
-	ahub = NULL;
 
 	return 0;
 }

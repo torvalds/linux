@@ -63,7 +63,8 @@ int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb)
 
 	lockdep_assert_held(&htt->tx_lock);
 
-	ret = idr_alloc(&htt->pending_tx, skb, 0, 0x10000, GFP_ATOMIC);
+	ret = idr_alloc(&htt->pending_tx, skb, 0,
+			htt->max_num_pending_tx, GFP_ATOMIC);
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx alloc msdu_id %d\n", ret);
 
@@ -84,6 +85,7 @@ void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id)
 int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
+	int ret, size;
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "htt tx max num pending tx %d\n",
 		   htt->max_num_pending_tx);
@@ -94,11 +96,31 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 	htt->tx_pool = dma_pool_create("ath10k htt tx pool", htt->ar->dev,
 				       sizeof(struct ath10k_htt_txbuf), 4, 0);
 	if (!htt->tx_pool) {
-		idr_destroy(&htt->pending_tx);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto free_idr_pending_tx;
 	}
 
+	if (!ar->hw_params.continuous_frag_desc)
+		goto skip_frag_desc_alloc;
+
+	size = htt->max_num_pending_tx * sizeof(struct htt_msdu_ext_desc);
+	htt->frag_desc.vaddr = dma_alloc_coherent(ar->dev, size,
+						  &htt->frag_desc.paddr,
+						  GFP_DMA);
+	if (!htt->frag_desc.vaddr) {
+		ath10k_warn(ar, "failed to alloc fragment desc memory\n");
+		ret = -ENOMEM;
+		goto free_tx_pool;
+	}
+
+skip_frag_desc_alloc:
 	return 0;
+
+free_tx_pool:
+	dma_pool_destroy(htt->tx_pool);
+free_idr_pending_tx:
+	idr_destroy(&htt->pending_tx);
+	return ret;
 }
 
 static int ath10k_htt_tx_clean_up_pending(int msdu_id, void *skb, void *ctx)
@@ -112,18 +134,25 @@ static int ath10k_htt_tx_clean_up_pending(int msdu_id, void *skb, void *ctx)
 	tx_done.discard = 1;
 	tx_done.msdu_id = msdu_id;
 
-	spin_lock_bh(&htt->tx_lock);
 	ath10k_txrx_tx_unref(htt, &tx_done);
-	spin_unlock_bh(&htt->tx_lock);
 
 	return 0;
 }
 
 void ath10k_htt_tx_free(struct ath10k_htt *htt)
 {
+	int size;
+
 	idr_for_each(&htt->pending_tx, ath10k_htt_tx_clean_up_pending, htt->ar);
 	idr_destroy(&htt->pending_tx);
 	dma_pool_destroy(htt->tx_pool);
+
+	if (htt->frag_desc.vaddr) {
+		size = htt->max_num_pending_tx *
+				  sizeof(struct htt_msdu_ext_desc);
+		dma_free_coherent(htt->ar->dev, size, htt->frag_desc.vaddr,
+				  htt->frag_desc.paddr);
+	}
 }
 
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
@@ -193,6 +222,49 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
 		ath10k_warn(ar, "failed to send htt type stats request: %d",
+			    ret);
+		dev_kfree_skb_any(skb);
+		return ret;
+	}
+
+	return 0;
+}
+
+int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+	struct sk_buff *skb;
+	struct htt_cmd *cmd;
+	int ret, size;
+
+	if (!ar->hw_params.continuous_frag_desc)
+		return 0;
+
+	if (!htt->frag_desc.paddr) {
+		ath10k_warn(ar, "invalid frag desc memory\n");
+		return -EINVAL;
+	}
+
+	size = sizeof(cmd->hdr) + sizeof(cmd->frag_desc_bank_cfg);
+	skb = ath10k_htc_alloc_skb(ar, size);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, size);
+	cmd = (struct htt_cmd *)skb->data;
+	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_FRAG_DESC_BANK_CFG;
+	cmd->frag_desc_bank_cfg.info = 0;
+	cmd->frag_desc_bank_cfg.num_banks = 1;
+	cmd->frag_desc_bank_cfg.desc_size = sizeof(struct htt_msdu_ext_desc);
+	cmd->frag_desc_bank_cfg.bank_base_addrs[0] =
+				__cpu_to_le32(htt->frag_desc.paddr);
+	cmd->frag_desc_bank_cfg.bank_id[0].bank_min_id = 0;
+	cmd->frag_desc_bank_cfg.bank_id[0].bank_max_id =
+				__cpu_to_le16(htt->max_num_pending_tx - 1);
+
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
+	if (ret) {
+		ath10k_warn(ar, "failed to send frag desc bank cfg request: %d\n",
 			    ret);
 		dev_kfree_skb_any(skb);
 		return ret;
@@ -355,12 +427,11 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 
 	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
+	spin_unlock_bh(&htt->tx_lock);
 	if (res < 0) {
-		spin_unlock_bh(&htt->tx_lock);
 		goto err_tx_dec;
 	}
 	msdu_id = res;
-	spin_unlock_bh(&htt->tx_lock);
 
 	txdesc = ath10k_htc_alloc_skb(ar, len);
 	if (!txdesc) {
@@ -371,11 +442,15 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	skb_cb->paddr = dma_map_single(dev, msdu->data, msdu->len,
 				       DMA_TO_DEVICE);
 	res = dma_mapping_error(dev, skb_cb->paddr);
-	if (res)
+	if (res) {
+		res = -EIO;
 		goto err_free_txdesc;
+	}
 
 	skb_put(txdesc, len);
 	cmd = (struct htt_cmd *)txdesc->data;
+	memset(cmd, 0, len);
+
 	cmd->hdr.msg_type         = HTT_H2T_MSG_TYPE_MGMT_TX;
 	cmd->mgmt_tx.msdu_paddr = __cpu_to_le32(ATH10K_SKB_CB(msdu)->paddr);
 	cmd->mgmt_tx.len        = __cpu_to_le32(msdu->len);
@@ -422,6 +497,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	u16 msdu_id, flags1 = 0;
 	dma_addr_t paddr = 0;
 	u32 frags_paddr = 0;
+	struct htt_msdu_ext_desc *ext_desc = NULL;
 
 	res = ath10k_htt_tx_inc_pending(htt);
 	if (res)
@@ -429,12 +505,11 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 
 	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
+	spin_unlock_bh(&htt->tx_lock);
 	if (res < 0) {
-		spin_unlock_bh(&htt->tx_lock);
 		goto err_tx_dec;
 	}
 	msdu_id = res;
-	spin_unlock_bh(&htt->tx_lock);
 
 	prefetch_len = min(htt->prefetch_len, msdu->len);
 	prefetch_len = roundup(prefetch_len, 4);
@@ -450,14 +525,20 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	if ((ieee80211_is_action(hdr->frame_control) ||
 	     ieee80211_is_deauth(hdr->frame_control) ||
 	     ieee80211_is_disassoc(hdr->frame_control)) &&
-	     ieee80211_has_protected(hdr->frame_control))
+	     ieee80211_has_protected(hdr->frame_control)) {
 		skb_put(msdu, IEEE80211_CCMP_MIC_LEN);
+	} else if (!skb_cb->htt.nohwcrypt &&
+		   skb_cb->txmode == ATH10K_HW_TXRX_RAW) {
+		skb_put(msdu, IEEE80211_CCMP_MIC_LEN);
+	}
 
 	skb_cb->paddr = dma_map_single(dev, msdu->data, msdu->len,
 				       DMA_TO_DEVICE);
 	res = dma_mapping_error(dev, skb_cb->paddr);
-	if (res)
+	if (res) {
+		res = -EIO;
 		goto err_free_txbuf;
+	}
 
 	switch (skb_cb->txmode) {
 	case ATH10K_HW_TXRX_RAW:
@@ -465,16 +546,30 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
 		/* pass through */
 	case ATH10K_HW_TXRX_ETHERNET:
-		frags = skb_cb->htt.txbuf->frags;
+		if (ar->hw_params.continuous_frag_desc) {
+			memset(&htt->frag_desc.vaddr[msdu_id], 0,
+			       sizeof(struct htt_msdu_ext_desc));
+			frags = (struct htt_data_tx_desc_frag *)
+				&htt->frag_desc.vaddr[msdu_id].frags;
+			ext_desc = &htt->frag_desc.vaddr[msdu_id];
+			frags[0].tword_addr.paddr_lo =
+				__cpu_to_le32(skb_cb->paddr);
+			frags[0].tword_addr.paddr_hi = 0;
+			frags[0].tword_addr.len_16 = __cpu_to_le16(msdu->len);
 
-		frags[0].paddr = __cpu_to_le32(skb_cb->paddr);
-		frags[0].len = __cpu_to_le32(msdu->len);
-		frags[1].paddr = 0;
-		frags[1].len = 0;
+			frags_paddr =  htt->frag_desc.paddr +
+				(sizeof(struct htt_msdu_ext_desc) * msdu_id);
+		} else {
+			frags = skb_cb->htt.txbuf->frags;
+			frags[0].dword_addr.paddr =
+				__cpu_to_le32(skb_cb->paddr);
+			frags[0].dword_addr.len = __cpu_to_le32(msdu->len);
+			frags[1].dword_addr.paddr = 0;
+			frags[1].dword_addr.len = 0;
 
+			frags_paddr = skb_cb->htt.txbuf_paddr;
+		}
 		flags0 |= SM(skb_cb->txmode, HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
-
-		frags_paddr = skb_cb->htt.txbuf_paddr;
 		break;
 	case ATH10K_HW_TXRX_MGMT:
 		flags0 |= SM(ATH10K_HW_TXRX_MGMT,
@@ -508,14 +603,20 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 			prefetch_len);
 	skb_cb->htt.txbuf->htc_hdr.flags = 0;
 
+	if (skb_cb->htt.nohwcrypt)
+		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
+
 	if (!skb_cb->is_protected)
 		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
 
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);
 	flags1 |= SM((u16)tid, HTT_DATA_TX_DESC_FLAGS1_EXT_TID);
-	if (msdu->ip_summed == CHECKSUM_PARTIAL) {
+	if (msdu->ip_summed == CHECKSUM_PARTIAL &&
+	    !test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags)) {
 		flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L3_OFFLOAD;
 		flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L4_OFFLOAD;
+		if (ar->hw_params.continuous_frag_desc)
+			ext_desc->flags |= HTT_MSDU_CHECKSUM_ENABLE;
 	}
 
 	/* Prevent firmware from sending up tx inspection requests. There's

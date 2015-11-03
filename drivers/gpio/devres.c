@@ -59,13 +59,13 @@ static int devm_gpiod_match_array(struct device *dev, void *res, void *data)
  * automatically disposed on driver detach. See gpiod_get() for detailed
  * information about behavior and return values.
  */
-struct gpio_desc *__must_check __devm_gpiod_get(struct device *dev,
+struct gpio_desc *__must_check devm_gpiod_get(struct device *dev,
 					      const char *con_id,
 					      enum gpiod_flags flags)
 {
 	return devm_gpiod_get_index(dev, con_id, 0, flags);
 }
-EXPORT_SYMBOL(__devm_gpiod_get);
+EXPORT_SYMBOL(devm_gpiod_get);
 
 /**
  * devm_gpiod_get_optional - Resource-managed gpiod_get_optional()
@@ -77,13 +77,13 @@ EXPORT_SYMBOL(__devm_gpiod_get);
  * are automatically disposed on driver detach. See gpiod_get_optional() for
  * detailed information about behavior and return values.
  */
-struct gpio_desc *__must_check __devm_gpiod_get_optional(struct device *dev,
+struct gpio_desc *__must_check devm_gpiod_get_optional(struct device *dev,
 						       const char *con_id,
 						       enum gpiod_flags flags)
 {
 	return devm_gpiod_get_index_optional(dev, con_id, 0, flags);
 }
-EXPORT_SYMBOL(__devm_gpiod_get_optional);
+EXPORT_SYMBOL(devm_gpiod_get_optional);
 
 /**
  * devm_gpiod_get_index - Resource-managed gpiod_get_index()
@@ -96,7 +96,7 @@ EXPORT_SYMBOL(__devm_gpiod_get_optional);
  * automatically disposed on driver detach. See gpiod_get_index() for detailed
  * information about behavior and return values.
  */
-struct gpio_desc *__must_check __devm_gpiod_get_index(struct device *dev,
+struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 						    const char *con_id,
 						    unsigned int idx,
 						    enum gpiod_flags flags)
@@ -120,7 +120,7 @@ struct gpio_desc *__must_check __devm_gpiod_get_index(struct device *dev,
 
 	return desc;
 }
-EXPORT_SYMBOL(__devm_gpiod_get_index);
+EXPORT_SYMBOL(devm_gpiod_get_index);
 
 /**
  * devm_get_gpiod_from_child - get a GPIO descriptor from a device's child node
@@ -182,10 +182,10 @@ EXPORT_SYMBOL(devm_get_gpiod_from_child);
  * gpiod_get_index_optional() for detailed information about behavior and
  * return values.
  */
-struct gpio_desc *__must_check __devm_gpiod_get_index_optional(struct device *dev,
+struct gpio_desc *__must_check devm_gpiod_get_index_optional(struct device *dev,
 							     const char *con_id,
 							     unsigned int index,
-							 enum gpiod_flags flags)
+							     enum gpiod_flags flags)
 {
 	struct gpio_desc *desc;
 
@@ -197,7 +197,7 @@ struct gpio_desc *__must_check __devm_gpiod_get_index_optional(struct device *de
 
 	return desc;
 }
-EXPORT_SYMBOL(__devm_gpiod_get_index_optional);
+EXPORT_SYMBOL(devm_gpiod_get_index_optional);
 
 /**
  * devm_gpiod_get_array - Resource-managed gpiod_get_array()

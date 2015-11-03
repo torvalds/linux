@@ -15,7 +15,6 @@ static inline void dma_to_sec4_sg_one(struct sec4_sg_entry *sec4_sg_ptr,
 {
 	sec4_sg_ptr->ptr = dma;
 	sec4_sg_ptr->len = len;
-	sec4_sg_ptr->reserved = 0;
 	sec4_sg_ptr->buf_pool_id = 0;
 	sec4_sg_ptr->offset = offset;
 #ifdef DEBUG
@@ -106,9 +105,15 @@ static inline void dma_unmap_sg_chained(
 {
 	if (unlikely(chained)) {
 		int i;
+		struct scatterlist *tsg = sg;
+
+		/*
+		 * Use a local copy of the sg pointer to avoid moving the
+		 * head of the list pointed to by sg as we walk the list.
+		 */
 		for (i = 0; i < nents; i++) {
-			dma_unmap_sg(dev, sg, 1, dir);
-			sg = sg_next(sg);
+			dma_unmap_sg(dev, tsg, 1, dir);
+			tsg = sg_next(tsg);
 		}
 	} else if (nents) {
 		dma_unmap_sg(dev, sg, nents, dir);
@@ -119,19 +124,23 @@ static inline int dma_map_sg_chained(
 	struct device *dev, struct scatterlist *sg, unsigned int nents,
 	enum dma_data_direction dir, bool chained)
 {
-	struct scatterlist *first = sg;
-
 	if (unlikely(chained)) {
 		int i;
+		struct scatterlist *tsg = sg;
+
+		/*
+		 * Use a local copy of the sg pointer to avoid moving the
+		 * head of the list pointed to by sg as we walk the list.
+		 */
 		for (i = 0; i < nents; i++) {
-			if (!dma_map_sg(dev, sg, 1, dir)) {
-				dma_unmap_sg_chained(dev, first, i, dir,
+			if (!dma_map_sg(dev, tsg, 1, dir)) {
+				dma_unmap_sg_chained(dev, sg, i, dir,
 						     chained);
 				nents = 0;
 				break;
 			}
 
-			sg = sg_next(sg);
+			tsg = sg_next(tsg);
 		}
 	} else
 		nents = dma_map_sg(dev, sg, nents, dir);

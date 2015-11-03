@@ -386,9 +386,7 @@ int rc5t583_irq_init(struct rc5t583 *rc5t583, int irq, int irq_base)
 		irq_set_chip_and_handler(__irq, &rc5t583_irq_chip,
 					 handle_simple_irq);
 		irq_set_nested_thread(__irq, 1);
-#ifdef CONFIG_ARM
-		set_irq_flags(__irq, IRQF_VALID);
-#endif
+		irq_clear_status_flags(__irq, IRQ_NOREQUEST);
 	}
 
 	ret = request_threaded_irq(irq, NULL, rc5t583_irq, IRQF_ONESHOT,

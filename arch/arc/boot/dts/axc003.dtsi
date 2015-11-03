@@ -72,12 +72,13 @@
 	};
 
 	/*
-	 * This INTC is actually connected to DW APB GPIO
-	 * which acts as a wire between MB INTC and CPU INTC.
-	 * GPIO INTC is configured in platform init code
-	 * and here we mimic direct connection from MB INTC to
-	 * CPU INTC, thus we set "interrupts = <7>" instead of
-	 * "interrupts = <12>"
+	 * The DW APB ICTL intc on MB is connected to CPU intc via a
+	 * DT "invisible" DW APB GPIO block, configured to simply pass thru
+	 * interrupts - setup accordinly in platform init (plat-axs10x/ax10x.c)
+	 *
+	 * So here we mimic a direct connection betwen them, ignoring the
+	 * ABPG GPIO. Thus set "interrupts = <24>" (DW APB GPIO to core)
+	 * instead of "interrupts = <12>" (DW APB ICTL to DW APB GPIO)
 	 *
 	 * This intc actually resides on MB, but we move it here to
 	 * avoid duplicating the MB dtsi file given that IRQ from

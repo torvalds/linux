@@ -20,6 +20,9 @@ config AD7266
 	  Say yes here to build support for Analog Devices AD7265 and AD7266
 	  ADCs.
 
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7266.
+
 config AD7291
 	tristate "Analog Devices AD7291 ADC driver"
 	depends on I2C
@@ -52,8 +55,6 @@ config AD7476
 	  AD7277, AD7278, AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468,
 	  AD7495, AD7910, AD7920, AD7920 SPI analog to digital converters (ADC).
 
-	  If unsure, say N (but it's safe to say "Y").
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7476.
 
@@ -63,8 +64,7 @@ config AD7791
 	select AD_SIGMA_DELTA
 	help
 	  Say yes here to build support for Analog Devices AD7787, AD7788, AD7789,
-	  AD7790 and AD7791 SPI analog to digital converters (ADC). If unsure, say
-	  N (but it is safe to say "Y").
+	  AD7790 and AD7791 SPI analog to digital converters (ADC).
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad7791.
@@ -76,7 +76,6 @@ config AD7793
 	help
 	  Say yes here to build support for Analog Devices AD7785, AD7792, AD7793,
 	  AD7794 and AD7795 SPI analog to digital converters (ADC).
-	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called AD7793.
@@ -89,7 +88,6 @@ config AD7887
 	help
 	  Say yes here to build support for Analog Devices
 	  AD7887 SPI analog to digital converter (ADC).
-	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7887.
@@ -117,6 +115,9 @@ config AD799X
 	  i2c analog to digital converters (ADC). Provides direct access
 	  via sysfs.
 
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad799x.
+
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
@@ -127,6 +128,9 @@ config AT91_ADC
 	help
 	  Say yes here to build support for Atmel AT91 ADC.
 
+	  To compile this driver as a module, choose M here: the module will be
+	  called at91_adc.
+
 config AXP288_ADC
 	tristate "X-Powers AXP288 ADC driver"
 	depends on MFD_AXP20X
@@ -134,6 +138,9 @@ config AXP288_ADC
 	  Say yes here to have support for X-Powers power management IC (PMIC) ADC
 	  device. Depending on platform configuration, this general purpose ADC can
 	  be used for sampling sensors such as thermal resistors.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called axp288_adc.
 
 config BERLIN2_ADC
 	tristate "Marvell Berlin2 ADC driver"
@@ -150,6 +157,9 @@ config DA9150_GPADC
 
 	  This driver can also be built as a module. If chosen, the module name
 	  will be da9150-gpadc.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called berlin2-adc.
 
 config CC10001_ADC
 	tristate "Cosmic Circuits 10001 ADC driver"
@@ -170,11 +180,17 @@ config EXYNOS_ADC
 	  of SoCs for drivers such as the touchscreen and hwmon to use to share
 	  this resource.
 
+	  To compile this driver as a module, choose M here: the module will be
+	  called exynos_adc.
+
 config LP8788_ADC
 	tristate "LP8788 ADC driver"
 	depends on MFD_LP8788
 	help
 	  Say yes here to build support for TI LP8788 ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called lp8788_adc.
 
 config MAX1027
 	tristate "Maxim max1027 ADC driver"
@@ -184,6 +200,9 @@ config MAX1027
 	help
 	  Say yes here to build support for Maxim SPI ADC models
 	  max1027, max1029 and max1031.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max1027.
 
 config MAX1363
 	tristate "Maxim max1363 ADC driver"
@@ -201,13 +220,16 @@ config MAX1363
 	  max11646, max11647) Provides direct access via sysfs and buffered
 	  data via the iio dev interface.
 
+	  To compile this driver as a module, choose M here: the module will be
+	  called max1363.
+
 config MCP320X
 	tristate "Microchip Technology MCP3x01/02/04/08"
 	depends on SPI
 	help
 	  Say yes here to build support for Microchip Technology's
-	  MCP3001, MCP3002, MCP3004, MCP3008, MCP3201, MCP3202, MCP3204 or
-	  MCP3208 analog to digital converter.
+	  MCP3001, MCP3002, MCP3004, MCP3008, MCP3201, MCP3202, MCP3204,
+	  MCP3208 or MCP3301 analog to digital converter.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp320x.
@@ -309,15 +331,18 @@ config TI_AM335X_ADC
 	  Say yes here to build support for Texas Instruments ADC
 	  driver which is also a MFD client.
 
+	  To compile this driver as a module, choose M here: the module will be
+	  called ti_am335x_adc.
+
 config TWL4030_MADC
 	tristate "TWL4030 MADC (Monitoring A/D Converter)"
 	depends on TWL4030_CORE
 	help
-	This driver provides support for Triton TWL4030-MADC. The
-	driver supports both RT and SW conversion methods.
+	  This driver provides support for Triton TWL4030-MADC. The
+	  driver supports both RT and SW conversion methods.
 
-	This driver can also be built as a module. If so, the module will be
-	called twl4030-madc.
+	  This driver can also be built as a module. If so, the module will be
+	  called twl4030-madc.
 
 config TWL6030_GPADC
 	tristate "TWL6030 GPADC (General Purpose A/D Converter) Support"
@@ -349,6 +374,9 @@ config VIPERBOARD_ADC
 	help
 	  Say yes here to access the ADC part of the Nano River
 	  Technologies Viperboard.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called viperboard_adc.
 
 config XILINX_XADC
 	tristate "Xilinx XADC driver"

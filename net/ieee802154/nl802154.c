@@ -230,6 +230,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_WPAN_PHY_CAPS] = { .type = NLA_NESTED },
 
 	[NL802154_ATTR_SUPPORTED_COMMANDS] = { .type = NLA_NESTED },
+
+	[NL802154_ATTR_ACKREQ_DEFAULT] = { .type = NLA_U8 },
 };
 
 /* message building helper */
@@ -458,6 +460,7 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 	CMD(set_max_csma_backoffs, SET_MAX_CSMA_BACKOFFS);
 	CMD(set_max_frame_retries, SET_MAX_FRAME_RETRIES);
 	CMD(set_lbt_mode, SET_LBT_MODE);
+	CMD(set_ackreq_default, SET_ACKREQ_DEFAULT);
 
 	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER)
 		CMD(set_tx_power, SET_TX_POWER);
@@ -654,6 +657,10 @@ nl802154_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flags,
 
 	/* listen before transmit */
 	if (nla_put_u8(msg, NL802154_ATTR_LBT_MODE, wpan_dev->lbt))
+		goto nla_put_failure;
+
+	/* ackreq default behaviour */
+	if (nla_put_u8(msg, NL802154_ATTR_ACKREQ_DEFAULT, wpan_dev->ackreq))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
@@ -1027,7 +1034,7 @@ static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
-	bool mode;
+	int mode;
 
 	if (netif_running(dev))
 		return -EBUSY;
@@ -1035,11 +1042,37 @@ static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL802154_ATTR_LBT_MODE])
 		return -EINVAL;
 
-	mode = !!nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
+	mode = nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
+
+	if (mode != 0 && mode != 1)
+		return -EINVAL;
+
 	if (!wpan_phy_supported_bool(mode, rdev->wpan_phy.supported.lbt))
 		return -EINVAL;
 
 	return rdev_set_lbt_mode(rdev, wpan_dev, mode);
+}
+
+static int
+nl802154_set_ackreq_default(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	int ackreq;
+
+	if (netif_running(dev))
+		return -EBUSY;
+
+	if (!info->attrs[NL802154_ATTR_ACKREQ_DEFAULT])
+		return -EINVAL;
+
+	ackreq = nla_get_u8(info->attrs[NL802154_ATTR_ACKREQ_DEFAULT]);
+
+	if (ackreq != 0 && ackreq != 1)
+		return -EINVAL;
+
+	return rdev_set_ackreq_default(rdev, wpan_dev, ackreq);
 }
 
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
@@ -1243,6 +1276,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_LBT_MODE,
 		.doit = nl802154_set_lbt_mode,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_ACKREQ_DEFAULT,
+		.doit = nl802154_set_ackreq_default,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |

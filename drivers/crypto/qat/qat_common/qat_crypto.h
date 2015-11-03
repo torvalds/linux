@@ -57,8 +57,6 @@ struct qat_crypto_instance {
 	struct adf_etr_ring_data *sym_rx;
 	struct adf_etr_ring_data *pke_tx;
 	struct adf_etr_ring_data *pke_rx;
-	struct adf_etr_ring_data *rnd_tx;
-	struct adf_etr_ring_data *rnd_rx;
 	struct adf_accel_dev *accel_dev;
 	struct list_head list;
 	unsigned long state;

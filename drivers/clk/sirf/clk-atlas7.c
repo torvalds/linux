@@ -358,6 +358,7 @@ static unsigned long pll_clk_recalc_rate(struct clk_hw *hw,
 	if (regctrl0 & SIRFSOC_ABPLL_CTRL0_SSEN) {
 		rate = fin;
 		rate *= 1 << 24;
+		do_div(rate, nr);
 		do_div(rate, (256 * ((ssdiv >> ssdepth) << ssdepth)
 			+ (ssmod << ssdepth)));
 	} else {
@@ -465,6 +466,9 @@ static struct clk_pll clk_sys3pll = {
  *  double resolution mode:fout = fin * finc / 2^29
  *  normal mode:fout = fin * finc / 2^28
  */
+#define DTO_RESL_DOUBLE	(1ULL << 29)
+#define DTO_RESL_NORMAL	(1ULL << 28)
+
 static int dto_clk_is_enabled(struct clk_hw *hw)
 {
 	struct clk_dto *clk = to_dtoclk(hw);
@@ -509,9 +513,9 @@ static unsigned long dto_clk_recalc_rate(struct clk_hw *hw,
 	rate *= finc;
 	if (droff & BIT(0))
 		/* Double resolution off */
-		do_div(rate, 1 << 28);
+		do_div(rate, DTO_RESL_NORMAL);
 	else
-		do_div(rate, 1 << 29);
+		do_div(rate, DTO_RESL_DOUBLE);
 
 	return rate;
 }
@@ -519,11 +523,11 @@ static unsigned long dto_clk_recalc_rate(struct clk_hw *hw,
 static long dto_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long *parent_rate)
 {
-	u64 dividend = rate * (1 << 29);
+	u64 dividend = rate * DTO_RESL_DOUBLE;
 
 	do_div(dividend, *parent_rate);
 	dividend *= *parent_rate;
-	do_div(dividend, 1 << 29);
+	do_div(dividend, DTO_RESL_DOUBLE);
 
 	return dividend;
 }
@@ -531,7 +535,7 @@ static long dto_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 static int dto_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long parent_rate)
 {
-	u64 dividend = rate * (1 << 29);
+	u64 dividend = rate * DTO_RESL_DOUBLE;
 	struct clk_dto *clk = to_dtoclk(hw);
 
 	do_div(dividend, parent_rate);
@@ -1161,7 +1165,7 @@ static struct atlas7_unit_init_data unit_list[] __initdata = {
 	{ 122, "spram1_cpudiv2", "cpum_cpu", 0, SIRFSOC_CLKC_LEAF_CLK_EN6_SET, 0, &leaf6_gate_lock },
 	{ 123, "spram2_cpudiv2", "cpum_cpu", 0, SIRFSOC_CLKC_LEAF_CLK_EN6_SET, 1, &leaf6_gate_lock },
 	{ 124, "coresight_cpudiv2", "cpum_cpu", 0, SIRFSOC_CLKC_LEAF_CLK_EN6_SET, 2, &leaf6_gate_lock },
-	{ 125, "thcpum_cpudiv4", "cpum_cpu", 0, SIRFSOC_CLKC_LEAF_CLK_EN6_SET, 3, &leaf6_gate_lock },
+	{ 125, "coresight_tpiu", "cpum_tpiu", 0, SIRFSOC_CLKC_LEAF_CLK_EN6_SET, 3, &leaf6_gate_lock },
 	{ 126, "graphic_gpu", "gpum_gpu", 0, SIRFSOC_CLKC_LEAF_CLK_EN7_SET, 0, &leaf7_gate_lock },
 	{ 127, "vss_sdr", "gpum_sdr", 0, SIRFSOC_CLKC_LEAF_CLK_EN7_SET, 1, &leaf7_gate_lock },
 	{ 128, "thgpum_nocr", "gpum_nocr", 0, SIRFSOC_CLKC_LEAF_CLK_EN7_SET, 2, &leaf7_gate_lock },
@@ -1174,9 +1178,13 @@ static struct atlas7_unit_init_data unit_list[] __initdata = {
 	{ 135, "thbtm_io", "btm_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 7, &leaf8_gate_lock },
 	{ 136, "btslow", "xinw_fixdiv_btslow", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 25, &root1_gate_lock },
 	{ 137, "a7ca_btslow", "btslow", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 0, &leaf8_gate_lock },
+	{ 138, "pwm_io", "io_mux", 0, SIRFSOC_CLKC_LEAF_CLK_EN0_SET, 0, &leaf0_gate_lock },
+	{ 139, "pwm_xin", "xin", 0, SIRFSOC_CLKC_LEAF_CLK_EN0_SET, 1, &leaf0_gate_lock },
+	{ 140, "pwm_xinw", "xinw", 0, SIRFSOC_CLKC_LEAF_CLK_EN0_SET, 2, &leaf0_gate_lock },
+	{ 141, "thcgum_sys", "sys_mux", 0, SIRFSOC_CLKC_LEAF_CLK_EN0_SET, 3, &leaf0_gate_lock },
 };
 
-static struct clk *atlas7_clks[ARRAY_SIZE(unit_list)];
+static struct clk *atlas7_clks[ARRAY_SIZE(unit_list) + ARRAY_SIZE(mux_list)];
 
 static int unit_clk_is_enabled(struct clk_hw *hw)
 {
@@ -1609,6 +1617,7 @@ static void __init atlas7_clk_init(struct device_node *np)
 			       sirfsoc_clk_vbase + mux->mux_offset,
 			       mux->shift, mux->width,
 			       mux->mux_flags, NULL);
+		atlas7_clks[ARRAY_SIZE(unit_list) + i] = clk;
 		BUG_ON(!clk);
 	}
 
@@ -1620,7 +1629,7 @@ static void __init atlas7_clk_init(struct device_node *np)
 	}
 
 	clk_data.clks = atlas7_clks;
-	clk_data.clk_num = ARRAY_SIZE(unit_list);
+	clk_data.clk_num = ARRAY_SIZE(unit_list) + ARRAY_SIZE(mux_list);
 
 	ret = of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 	BUG_ON(ret);

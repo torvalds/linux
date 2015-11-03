@@ -13,9 +13,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef _ACPI_INTERNAL_H_
@@ -70,7 +67,7 @@ void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val);
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *acpi_debugfs_dir;
-int acpi_debugfs_init(void);
+void acpi_debugfs_init(void);
 #else
 static inline void acpi_debugfs_init(void) { return; }
 #endif
@@ -93,10 +90,21 @@ int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *));
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta);
+int acpi_device_setup_files(struct acpi_device *dev);
+void acpi_device_remove_files(struct acpi_device *dev);
 void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 bool acpi_device_is_present(struct acpi_device *adev);
 bool acpi_device_is_battery(struct acpi_device *adev);
+bool acpi_device_is_first_physical_node(struct acpi_device *adev,
+					const struct device *dev);
+
+/* --------------------------------------------------------------------------
+                     Device Matching and Notification
+   -------------------------------------------------------------------------- */
+struct acpi_device *acpi_companion_match(const struct device *dev);
+int __acpi_device_uevent_modalias(struct acpi_device *adev,
+				  struct kobj_uevent_env *env);
 
 /* --------------------------------------------------------------------------
                                   Power Resource

@@ -127,7 +127,7 @@ static int bcm63138_smp_boot_secondary(unsigned int cpu,
 	}
 
 	/* Locate the secondary CPU node */
-	dn = of_get_cpu_node(cpu_logical_map(cpu), NULL);
+	dn = of_get_cpu_node(cpu, NULL);
 	if (!dn) {
 		pr_err("SMP: failed to locate secondary CPU%d node\n", cpu);
 		ret = -ENODEV;
@@ -135,7 +135,7 @@ static int bcm63138_smp_boot_secondary(unsigned int cpu,
 	}
 
 	/* Write the secondary init routine to the BootLUT reset vector */
-	val = virt_to_phys(bcm63138_secondary_startup);
+	val = virt_to_phys(secondary_startup);
 	writel_relaxed(val, bootlut_base + BOOTLUT_RESET_VECT);
 
 	/* Power up the core, will jump straight to its reset vector when we

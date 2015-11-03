@@ -20,6 +20,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/composite.h>
+#include <linux/usb/otg.h>
 
 /**
  * usb_descriptor_fillbuf - fill buffer with descriptors
@@ -195,3 +196,58 @@ void usb_free_all_descriptors(struct usb_function *f)
 	usb_free_descriptors(f->ss_descriptors);
 }
 EXPORT_SYMBOL_GPL(usb_free_all_descriptors);
+
+struct usb_descriptor_header *usb_otg_descriptor_alloc(
+				struct usb_gadget *gadget)
+{
+	struct usb_descriptor_header *otg_desc;
+	unsigned length = 0;
+
+	if (gadget->otg_caps && (gadget->otg_caps->otg_rev >= 0x0200))
+		length = sizeof(struct usb_otg20_descriptor);
+	else
+		length = sizeof(struct usb_otg_descriptor);
+
+	otg_desc = kzalloc(length, GFP_KERNEL);
+	return otg_desc;
+}
+EXPORT_SYMBOL_GPL(usb_otg_descriptor_alloc);
+
+int usb_otg_descriptor_init(struct usb_gadget *gadget,
+		struct usb_descriptor_header *otg_desc)
+{
+	struct usb_otg_descriptor *otg1x_desc;
+	struct usb_otg20_descriptor *otg20_desc;
+	struct usb_otg_caps *otg_caps = gadget->otg_caps;
+	u8 otg_attributes = 0;
+
+	if (!otg_desc)
+		return -EINVAL;
+
+	if (otg_caps && otg_caps->otg_rev) {
+		if (otg_caps->hnp_support)
+			otg_attributes |= USB_OTG_HNP;
+		if (otg_caps->srp_support)
+			otg_attributes |= USB_OTG_SRP;
+		if (otg_caps->adp_support && (otg_caps->otg_rev >= 0x0200))
+			otg_attributes |= USB_OTG_ADP;
+	} else {
+		otg_attributes = USB_OTG_SRP | USB_OTG_HNP;
+	}
+
+	if (otg_caps && (otg_caps->otg_rev >= 0x0200)) {
+		otg20_desc = (struct usb_otg20_descriptor *)otg_desc;
+		otg20_desc->bLength = sizeof(struct usb_otg20_descriptor);
+		otg20_desc->bDescriptorType = USB_DT_OTG;
+		otg20_desc->bmAttributes = otg_attributes;
+		otg20_desc->bcdOTG = cpu_to_le16(otg_caps->otg_rev);
+	} else {
+		otg1x_desc = (struct usb_otg_descriptor *)otg_desc;
+		otg1x_desc->bLength = sizeof(struct usb_otg_descriptor);
+		otg1x_desc->bDescriptorType = USB_DT_OTG;
+		otg1x_desc->bmAttributes = otg_attributes;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_otg_descriptor_init);

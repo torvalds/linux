@@ -24,9 +24,9 @@
 
 #define read_next_pair(array, v1, v2, i)		\
 	 do {						\
-		 i += 2;				\
-		 v1 = array[i];				\
-		 v2 = array[i+1];			\
+		i += 2;					\
+		v1 = array[i];				\
+		v2 = array[i+1];			\
 	 } while (0)
 
 

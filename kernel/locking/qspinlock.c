@@ -239,8 +239,8 @@ static __always_inline void set_locked(struct qspinlock *lock)
 
 static __always_inline void __pv_init_node(struct mcs_spinlock *node) { }
 static __always_inline void __pv_wait_node(struct mcs_spinlock *node) { }
-static __always_inline void __pv_kick_node(struct mcs_spinlock *node) { }
-
+static __always_inline void __pv_kick_node(struct qspinlock *lock,
+					   struct mcs_spinlock *node) { }
 static __always_inline void __pv_wait_head(struct qspinlock *lock,
 					   struct mcs_spinlock *node) { }
 
@@ -289,7 +289,7 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	if (pv_enabled())
 		goto queue;
 
-	if (virt_queued_spin_lock(lock))
+	if (virt_spin_lock(lock))
 		return;
 
 	/*
@@ -440,7 +440,7 @@ queue:
 		cpu_relax();
 
 	arch_mcs_spin_unlock_contended(&next->locked);
-	pv_kick_node(next);
+	pv_kick_node(lock, next);
 
 release:
 	/*

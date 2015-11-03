@@ -19,7 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/platform_data/atmel.h>
 #include <linux/platform_data/dma-atmel.h>
 #include <linux/of.h>
 
@@ -1721,6 +1720,7 @@ static int atmel_spi_runtime_resume(struct device *dev)
 	return clk_prepare_enable(as->clk);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int atmel_spi_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -1757,6 +1757,7 @@ static int atmel_spi_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
 static const struct dev_pm_ops atmel_spi_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(atmel_spi_suspend, atmel_spi_resume)

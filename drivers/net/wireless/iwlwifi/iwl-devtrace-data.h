@@ -35,8 +35,8 @@
 TRACE_EVENT(iwlwifi_dev_tx_data,
 	TP_PROTO(const struct device *dev,
 		 struct sk_buff *skb,
-		 void *data, size_t data_len),
-	TP_ARGS(dev, skb, data, data_len),
+		 u8 hdr_len, size_t data_len),
+	TP_ARGS(dev, skb, hdr_len, data_len),
 	TP_STRUCT__entry(
 		DEV_ENTRY
 
@@ -45,7 +45,8 @@ TRACE_EVENT(iwlwifi_dev_tx_data,
 	TP_fast_assign(
 		DEV_ASSIGN;
 		if (iwl_trace_data(skb))
-			memcpy(__get_dynamic_array(data), data, data_len);
+			skb_copy_bits(skb, hdr_len,
+				      __get_dynamic_array(data), data_len);
 	),
 	TP_printk("[%s] TX frame data", __get_str(dev))
 );

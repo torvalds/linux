@@ -21,16 +21,17 @@
  *
  * Authors: Ben Skeggs
  */
-#define gf110_pmu_code gk110_pmu_code
-#define gf110_pmu_data gk110_pmu_data
+#define gf119_pmu_code gk110_pmu_code
+#define gf119_pmu_data gk110_pmu_data
 #include "priv.h"
-#include "fuc/gf110.fuc4.h"
+#include "fuc/gf119.fuc4.h"
 
 #include <subdev/timer.h>
 
 void
 gk110_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
+	struct nvkm_device *device = pmu->subdev.device;
 	static const struct {
 		u32 addr;
 		u32 data;
@@ -54,42 +55,44 @@ gk110_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 	};
 	int i;
 
-	nv_mask(pmu, 0x000200, 0x00001000, 0x00000000);
-	nv_rd32(pmu, 0x000200);
-	nv_mask(pmu, 0x000200, 0x08000000, 0x08000000);
+	nvkm_mask(device, 0x000200, 0x00001000, 0x00000000);
+	nvkm_rd32(device, 0x000200);
+	nvkm_mask(device, 0x000200, 0x08000000, 0x08000000);
 	msleep(50);
 
-	nv_mask(pmu, 0x10a78c, 0x00000002, 0x00000002);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000001);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x10a78c, 0x00000002, 0x00000002);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000000);
 
-	nv_mask(pmu, 0x0206b4, 0x00000000, 0x00000000);
+	nvkm_mask(device, 0x0206b4, 0x00000000, 0x00000000);
 	for (i = 0; i < ARRAY_SIZE(magic); i++) {
-		nv_wr32(pmu, magic[i].addr, magic[i].data);
-		nv_wait(pmu, magic[i].addr, 0x80000000, 0x00000000);
+		nvkm_wr32(device, magic[i].addr, magic[i].data);
+		nvkm_msec(device, 2000,
+			if (!(nvkm_rd32(device, magic[i].addr) & 0x80000000))
+				break;
+		);
 	}
 
-	nv_mask(pmu, 0x10a78c, 0x00000002, 0x00000000);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000001);
-	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x10a78c, 0x00000002, 0x00000000);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x10a78c, 0x00000001, 0x00000000);
 
-	nv_mask(pmu, 0x000200, 0x08000000, 0x00000000);
-	nv_mask(pmu, 0x000200, 0x00001000, 0x00001000);
-	nv_rd32(pmu, 0x000200);
+	nvkm_mask(device, 0x000200, 0x08000000, 0x00000000);
+	nvkm_mask(device, 0x000200, 0x00001000, 0x00001000);
+	nvkm_rd32(device, 0x000200);
 }
 
-struct nvkm_oclass *
-gk110_pmu_oclass = &(struct nvkm_pmu_impl) {
-	.base.handle = NV_SUBDEV(PMU, 0xf0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_pmu_ctor,
-		.dtor = _nvkm_pmu_dtor,
-		.init = _nvkm_pmu_init,
-		.fini = _nvkm_pmu_fini,
-	},
+static const struct nvkm_pmu_func
+gk110_pmu = {
 	.code.data = gk110_pmu_code,
 	.code.size = sizeof(gk110_pmu_code),
 	.data.data = gk110_pmu_data,
 	.data.size = sizeof(gk110_pmu_data),
 	.pgob = gk110_pmu_pgob,
-}.base;
+};
+
+int
+gk110_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+{
+	return nvkm_pmu_new_(&gk110_pmu, device, index, ppmu);
+}

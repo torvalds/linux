@@ -133,6 +133,30 @@ use strict;
 #
 # All descriptions can be multiline, except the short function description.
 #
+# For really longs structs, you can also describe arguments inside the
+# body of the struct.
+# eg.
+# /**
+#  * struct my_struct - short description
+#  * @a: first member
+#  * @b: second member
+#  *
+#  * Longer description
+#  */
+# struct my_struct {
+#     int a;
+#     int b;
+#     /**
+#      * @c: This is longer description of C
+#      *
+#      * You can use paragraphs to describe arguments
+#      * using this method.
+#      */
+#     int c;
+# };
+#
+# This should be use only for struct/enum members.
+#
 # You can also add additional sections. When documenting kernel functions you
 # should document the "Context:" of the function, e.g. whether the functions
 # can be called form interrupts. Unlike other sections you can end it with an
@@ -253,11 +277,20 @@ my %highlights = %highlights_man;
 my $blankline = $blankline_man;
 my $modulename = "Kernel API";
 my $function_only = 0;
+my $show_not_found = 0;
+
+my @build_time;
+if (defined($ENV{'KBUILD_BUILD_TIMESTAMP'}) &&
+    (my $seconds = `date -d"${ENV{'KBUILD_BUILD_TIMESTAMP'}}" +%s`) ne '') {
+    @build_time = gmtime($seconds);
+} else {
+    @build_time = localtime;
+}
+
 my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 		'July', 'August', 'September', 'October',
-		'November', 'December')[(localtime)[4]] .
-  " " . ((localtime)[5]+1900);
-my $show_not_found = 0;
+		'November', 'December')[$build_time[4]] .
+  " " . ($build_time[5]+1900);
 
 # Essentially these are globals.
 # They probably want to be tidied up, made more localised or something.
@@ -287,8 +320,18 @@ my $lineprefix="";
 # 2 - scanning field start.
 # 3 - scanning prototype.
 # 4 - documentation block
+# 5 - gathering documentation outside main block
 my $state;
 my $in_doc_sect;
+
+# Split Doc State
+# 0 - Invalid (Before start or after finish)
+# 1 - Is started (the /** was found inside a struct)
+# 2 - The @parameter header was found, start accepting multi paragraph text.
+# 3 - Finished (the */ was found)
+# 4 - Error - Comment without header was found. Spit a warning as it's not
+#     proper kernel-doc and ignore the rest.
+my $split_doc_state;
 
 #declaration types: can be
 # 'function', 'struct', 'union', 'enum', 'typedef'
@@ -304,6 +347,9 @@ my $doc_decl = $doc_com . '(\w+)';
 my $doc_sect = $doc_com . '([' . $doc_special . ']?[\w\s]+):(.*)';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
+my $doc_split_start = '^\s*/\*\*\s*$';
+my $doc_split_sect = '\s*\*\s*(@[\w\s]+):(.*)';
+my $doc_split_end = '^\s*\*/\s*$';
 
 my %constants;
 my %parameterdescs;
@@ -423,7 +469,7 @@ sub dump_section {
     } else {
 #	print STDERR "other section '$name' = '$contents'\n";
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
-		print STDERR "Error(${file}:$.): duplicate section name '$name'\n";
+		print STDERR "${file}:$.: error: duplicate section name '$name'\n";
 		++$errors;
 	}
 	$sections{$name} = $contents;
@@ -1753,7 +1799,9 @@ sub dump_struct($$) {
 	# strip kmemcheck_bitfield_{begin,end}.*;
 	$members =~ s/kmemcheck_bitfield_.*?;//gos;
 	# strip attributes
+	$members =~ s/__attribute__\s*\(\([a-z,_\*\s\(\)]*\)\)//i;
 	$members =~ s/__aligned\s*\([^;]*\)//gos;
+	$members =~ s/\s*CRYPTO_MINALIGN_ATTR//gos;
 
 	create_parameterlist($members, ';', $file);
 	check_sections($file, $declaration_name, "struct", $sectcheck, $struct_actual, $nested);
@@ -1772,7 +1820,7 @@ sub dump_struct($$) {
 			   });
     }
     else {
-	print STDERR "Error(${file}:$.): Cannot parse struct or union!\n";
+	print STDERR "${file}:$.: error: Cannot parse struct or union!\n";
 	++$errors;
     }
 }
@@ -1793,7 +1841,7 @@ sub dump_enum($$) {
 	    push @parameterlist, $arg;
 	    if (!$parameterdescs{$arg}) {
 		$parameterdescs{$arg} = $undescribed;
-		print STDERR "Warning(${file}:$.): Enum value '$arg' ".
+		print STDERR "${file}:$.: warning: Enum value '$arg' ".
 		    "not described in enum '$declaration_name'\n";
 	    }
 
@@ -1811,7 +1859,7 @@ sub dump_enum($$) {
 			   });
     }
     else {
-	print STDERR "Error(${file}:$.): Cannot parse enum!\n";
+	print STDERR "${file}:$.: error: Cannot parse enum!\n";
 	++$errors;
     }
 }
@@ -1839,7 +1887,7 @@ sub dump_typedef($$) {
 			   });
     }
     else {
-	print STDERR "Error(${file}:$.): Cannot parse typedef!\n";
+	print STDERR "${file}:$.: error: Cannot parse typedef!\n";
 	++$errors;
     }
 }
@@ -1971,11 +2019,11 @@ sub push_parameter($$$) {
 	    $parameterdescs{$param_name} = $undescribed;
 
 	    if (($type eq 'function') || ($type eq 'enum')) {
-		print STDERR "Warning(${file}:$.): Function parameter ".
+		print STDERR "${file}:$.: warning: Function parameter ".
 		    "or member '$param' not " .
 		    "described in '$declaration_name'\n";
 	    }
-	    print STDERR "Warning(${file}:$.):" .
+	    print STDERR "${file}:$.: warning:" .
 			 " No description found for parameter '$param'\n";
 	    ++$warnings;
 	}
@@ -2026,14 +2074,14 @@ sub check_sections($$$$$$) {
 		}
 		if ($err) {
 			if ($decl_type eq "function") {
-				print STDERR "Warning(${file}:$.): " .
+				print STDERR "${file}:$.: warning: " .
 					"Excess function parameter " .
 					"'$sects[$sx]' " .
 					"description in '$decl_name'\n";
 				++$warnings;
 			} else {
 				if ($nested !~ m/\Q$sects[$sx]\E/) {
-				    print STDERR "Warning(${file}:$.): " .
+				    print STDERR "${file}:$.: warning: " .
 					"Excess struct/union/enum/typedef member " .
 					"'$sects[$sx]' " .
 					"description in '$decl_name'\n";
@@ -2059,7 +2107,7 @@ sub check_return_section {
 
         if (!defined($sections{$section_return}) ||
             $sections{$section_return} eq "") {
-                print STDERR "Warning(${file}:$.): " .
+                print STDERR "${file}:$.: warning: " .
                         "No description found for return value of " .
                         "'$declaration_name'\n";
                 ++$warnings;
@@ -2138,7 +2186,7 @@ sub dump_function($$) {
 
 	create_parameterlist($args, ',', $file);
     } else {
-	print STDERR "Warning(${file}:$.): cannot understand function prototype: '$prototype'\n";
+	print STDERR "${file}:$.: warning: cannot understand function prototype: '$prototype'\n";
 	return;
     }
 
@@ -2181,6 +2229,7 @@ sub reset_state {
     $prototype = "";
 
     $state = 0;
+    $split_doc_state = 0;
 }
 
 sub tracepoint_munge($) {
@@ -2202,7 +2251,7 @@ sub tracepoint_munge($) {
 		$tracepointargs = $1;
 	}
 	if (($tracepointname eq 0) || ($tracepointargs eq 0)) {
-		print STDERR "Warning(${file}:$.): Unrecognized tracepoint format: \n".
+		print STDERR "${file}:$.: warning: Unrecognized tracepoint format: \n".
 			     "$prototype\n";
 	} else {
 		$prototype = "static inline void trace_$tracepointname($tracepointargs)";
@@ -2401,7 +2450,7 @@ sub process_file($) {
 		}
 
 		if (($declaration_purpose eq "") && $verbose) {
-			print STDERR "Warning(${file}:$.): missing initial short description on line:\n";
+			print STDERR "${file}:$.: warning: missing initial short description on line:\n";
 			print STDERR $_;
 			++$warnings;
 		}
@@ -2419,10 +2468,10 @@ sub process_file($) {
 		}
 
 		if ($verbose) {
-		    print STDERR "Info(${file}:$.): Scanning doc for $identifier\n";
+		    print STDERR "${file}:$.: info: Scanning doc for $identifier\n";
 		}
 	    } else {
-		print STDERR "Warning(${file}:$.): Cannot understand $_ on line $.",
+		print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
 		" - I thought it was a doc line\n";
 		++$warnings;
 		$state = 0;
@@ -2434,7 +2483,7 @@ sub process_file($) {
 
 		if (($contents ne "") && ($contents ne "\n")) {
 		    if (!$in_doc_sect && $verbose) {
-			print STDERR "Warning(${file}:$.): contents before sections\n";
+			print STDERR "${file}:$.: warning: contents before sections\n";
 			++$warnings;
 		    }
 		    dump_section($file, $section, xml_escape($contents));
@@ -2453,7 +2502,6 @@ sub process_file($) {
 		}
 		$section = $newsection;
 	    } elsif (/$doc_end/) {
-
 		if (($contents ne "") && ($contents ne "\n")) {
 		    dump_section($file, $section, xml_escape($contents));
 		    $section = $section_default;
@@ -2461,7 +2509,7 @@ sub process_file($) {
 		}
 		# look for doc_com + <text> + doc_end:
 		if ($_ =~ m'\s*\*\s*[a-zA-Z_0-9:\.]+\*/') {
-		    print STDERR "Warning(${file}:$.): suspicious ending line: $_";
+		    print STDERR "${file}:$.: warning: suspicious ending line: $_";
 		    ++$warnings;
 		}
 
@@ -2491,11 +2539,47 @@ sub process_file($) {
 		}
 	    } else {
 		# i dont know - bad line?  ignore.
-		print STDERR "Warning(${file}:$.): bad line: $_";
+		print STDERR "${file}:$.: warning: bad line: $_";
 		++$warnings;
 	    }
+	} elsif ($state == 5) { # scanning for split parameters
+	    # First line (state 1) needs to be a @parameter
+	    if ($split_doc_state == 1 && /$doc_split_sect/o) {
+		$section = $1;
+		$contents = $2;
+		if ($contents ne "") {
+		    while ((substr($contents, 0, 1) eq " ") ||
+		           substr($contents, 0, 1) eq "\t") {
+			$contents = substr($contents, 1);
+		    }
+		$contents .= "\n";
+		}
+		$split_doc_state = 2;
+	    # Documentation block end */
+	    } elsif (/$doc_split_end/) {
+		if (($contents ne "") && ($contents ne "\n")) {
+		    dump_section($file, $section, xml_escape($contents));
+		    $section = $section_default;
+		    $contents = "";
+		}
+		$state = 3;
+		$split_doc_state = 0;
+	    # Regular text
+	    } elsif (/$doc_content/) {
+		if ($split_doc_state == 2) {
+		    $contents .= $1 . "\n";
+		} elsif ($split_doc_state == 1) {
+		    $split_doc_state = 4;
+		    print STDERR "Warning(${file}:$.): ";
+		    print STDERR "Incorrect use of kernel-doc format: $_";
+		    ++$warnings;
+		}
+	    }
 	} elsif ($state == 3) {	# scanning for function '{' (end of prototype)
-	    if ($decl_type eq 'function') {
+	    if (/$doc_split_start/) {
+		$state = 5;
+		$split_doc_state = 1;
+	    } elsif ($decl_type eq 'function') {
 		process_state3_function($_, $file);
 	    } else {
 		process_state3_type($_, $file);
@@ -2547,7 +2631,7 @@ sub process_file($) {
 	}
     }
     if ($initial_section_counter == $section_counter) {
-	print STDERR "Warning(${file}): no structured comments found\n";
+	print STDERR "${file}:1: warning: no structured comments found\n";
 	if (($function_only == 1) && ($show_not_found == 1)) {
 	    print STDERR "    Was looking for '$_'.\n" for keys %function_table;
 	}
@@ -2587,7 +2671,7 @@ $kernelversion = get_kernel_version();
 
 # generate a sequence of code that will splice in highlighting information
 # using the s// operator.
-foreach my $pattern (keys %highlights) {
+foreach my $pattern (sort keys %highlights) {
 #   print STDERR "scanning pattern:$pattern, highlight:($highlights{$pattern})\n";
     $dohighlight .=  "\$contents =~ s:$pattern:$highlights{$pattern}:gs;\n";
 }

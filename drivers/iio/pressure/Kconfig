@@ -53,10 +53,10 @@ config MPL3115
           will be called mpl3115.
 
 config MS5611
-	tristate "Measurement Specialities MS5611 pressure sensor driver"
+	tristate "Measurement Specialties MS5611 pressure sensor driver"
 	help
-	  Say Y here to build support for the Measurement Specialities
-	  MS5611 pressure and temperature sensor.
+	  Say Y here to build support for the Measurement Specialties
+	  MS5611, MS5607 pressure and temperature sensors.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called ms5611_core.

@@ -96,9 +96,7 @@ void stk1160_buffer_done(struct stk1160 *dev)
 {
 	struct stk1160_buffer *buf = dev->isoc_ctl.buf;
 
-	dev->field_count++;
-
-	buf->vb.v4l2_buf.sequence = dev->field_count >> 1;
+	buf->vb.v4l2_buf.sequence = dev->sequence++;
 	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 	buf->vb.v4l2_buf.bytesused = buf->bytesused;
 	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);

@@ -66,6 +66,7 @@
 !Ekernel/time/hrtimer.c
      </sect1>
      <sect1><title>Workqueues and Kevents</title>
+!Iinclude/linux/workqueue.h
 !Ekernel/workqueue.c
      </sect1>
      <sect1><title>Internal Functions</title>
@@ -214,6 +215,40 @@ X!Edrivers/pnp/system.c
 <!-- FIXME: Removed for now since no structured comments in source
 X!Isound/sound_firmware.c
 -->
+  </chapter>
+
+  <chapter id="mediadev">
+     <title>Media Devices</title>
+
+     <sect1><title>Video2Linux devices</title>
+!Iinclude/media/v4l2-async.h
+!Iinclude/media/v4l2-ctrls.h
+!Iinclude/media/v4l2-dv-timings.h
+!Iinclude/media/v4l2-event.h
+!Iinclude/media/v4l2-flash-led-class.h
+!Iinclude/media/v4l2-mediabus.h
+!Iinclude/media/v4l2-mem2mem.h
+!Iinclude/media/v4l2-of.h
+!Iinclude/media/v4l2-subdev.h
+!Iinclude/media/videobuf2-core.h
+!Iinclude/media/videobuf2-memops.h
+     </sect1>
+     <sect1><title>Digital TV (DVB) devices</title>
+!Idrivers/media/dvb-core/dvb_ca_en50221.h
+!Idrivers/media/dvb-core/dvb_frontend.h
+!Idrivers/media/dvb-core/dvb_math.h
+!Idrivers/media/dvb-core/dvb_ringbuffer.h
+!Idrivers/media/dvb-core/dvbdev.h
+     </sect1>
+     <sect1><title>Remote Controller devices</title>
+!Iinclude/media/rc-core.h
+     </sect1>
+     <sect1><title>Media Controller devices</title>
+!Iinclude/media/media-device.h
+!Iinclude/media/media-devnode.h
+!Iinclude/media/media-entity.h
+     </sect1>
+
   </chapter>
 
   <chapter id="uart16x50">
@@ -453,6 +488,33 @@ X!Ilib/fonts/fonts.c
 
 !Iinclude/linux/hsi/hsi.h
 !Edrivers/hsi/hsi.c
+  </chapter>
+
+  <chapter id="pwm">
+    <title>Pulse-Width Modulation (PWM)</title>
+    <para>
+      Pulse-width modulation is a modulation technique primarily used to
+      control power supplied to electrical devices.
+    </para>
+    <para>
+      The PWM framework provides an abstraction for providers and consumers
+      of PWM signals. A controller that provides one or more PWM signals is
+      registered as <structname>struct pwm_chip</structname>. Providers are
+      expected to embed this structure in a driver-specific structure. This
+      structure contains fields that describe a particular chip.
+    </para>
+    <para>
+      A chip exposes one or more PWM signal sources, each of which exposed
+      as a <structname>struct pwm_device</structname>. Operations can be
+      performed on PWM devices to control the period, duty cycle, polarity
+      and active state of the signal.
+    </para>
+    <para>
+      Note that PWM devices are exclusive resources: they can always only be
+      used by one consumer at a time.
+    </para>
+!Iinclude/linux/pwm.h
+!Edrivers/pwm/core.c
   </chapter>
 
 </book>

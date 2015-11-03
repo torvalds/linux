@@ -16,7 +16,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
-#include "sti_drm_crtc.h"
+#include "sti_crtc.h"
 
 /* glue registers */
 #define TVO_CSC_MAIN_M0                  0x000
@@ -473,7 +473,7 @@ static void sti_dvo_encoder_commit(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 
-	tvout_dvo_start(tvout, sti_drm_crtc_is_main(encoder->crtc));
+	tvout_dvo_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
 
 static void sti_dvo_encoder_disable(struct drm_encoder *encoder)
@@ -523,7 +523,7 @@ static void sti_hda_encoder_commit(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 
-	tvout_hda_start(tvout, sti_drm_crtc_is_main(encoder->crtc));
+	tvout_hda_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
 
 static void sti_hda_encoder_disable(struct drm_encoder *encoder)
@@ -575,7 +575,7 @@ static void sti_hdmi_encoder_commit(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 
-	tvout_hdmi_start(tvout, sti_drm_crtc_is_main(encoder->crtc));
+	tvout_hdmi_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
 
 static void sti_hdmi_encoder_disable(struct drm_encoder *encoder)
@@ -644,7 +644,6 @@ static int sti_tvout_bind(struct device *dev, struct device *master, void *data)
 	struct sti_tvout *tvout = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	unsigned int i;
-	int ret;
 
 	tvout->drm_dev = drm_dev;
 
@@ -658,42 +657,20 @@ static int sti_tvout_bind(struct device *dev, struct device *master, void *data)
 
 	sti_tvout_create_encoders(drm_dev, tvout);
 
-	ret = component_bind_all(dev, drm_dev);
-	if (ret)
-		sti_tvout_destroy_encoders(tvout);
-
-	return ret;
+	return 0;
 }
 
 static void sti_tvout_unbind(struct device *dev, struct device *master,
 	void *data)
 {
-	/* do nothing */
+	struct sti_tvout *tvout = dev_get_drvdata(dev);
+
+	sti_tvout_destroy_encoders(tvout);
 }
 
 static const struct component_ops sti_tvout_ops = {
 	.bind	= sti_tvout_bind,
 	.unbind	= sti_tvout_unbind,
-};
-
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
-static int sti_tvout_master_bind(struct device *dev)
-{
-	return 0;
-}
-
-static void sti_tvout_master_unbind(struct device *dev)
-{
-	/* do nothing */
-}
-
-static const struct component_master_ops sti_tvout_master_ops = {
-	.bind = sti_tvout_master_bind,
-	.unbind = sti_tvout_master_unbind,
 };
 
 static int sti_tvout_probe(struct platform_device *pdev)
@@ -702,8 +679,6 @@ static int sti_tvout_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct sti_tvout *tvout;
 	struct resource *res;
-	struct device_node *child_np;
-	struct component_match *match = NULL;
 
 	DRM_INFO("%s\n", __func__);
 
@@ -734,24 +709,11 @@ static int sti_tvout_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tvout);
 
-	of_platform_populate(node, NULL, NULL, dev);
-
-	child_np = of_get_next_available_child(node, NULL);
-
-	while (child_np) {
-		component_match_add(dev, &match, compare_of, child_np);
-		of_node_put(child_np);
-		child_np = of_get_next_available_child(node, child_np);
-	}
-
-	component_master_add_with_match(dev, &sti_tvout_master_ops, match);
-
 	return component_add(dev, &sti_tvout_ops);
 }
 
 static int sti_tvout_remove(struct platform_device *pdev)
 {
-	component_master_del(&pdev->dev, &sti_tvout_master_ops);
 	component_del(&pdev->dev, &sti_tvout_ops);
 	return 0;
 }

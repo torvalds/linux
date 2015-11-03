@@ -36,7 +36,6 @@ static int adav803_remove(struct i2c_client *client)
 static struct i2c_driver adav803_driver = {
 	.driver = {
 		.name = "adav803",
-		.owner = THIS_MODULE,
 	},
 	.probe = adav803_probe,
 	.remove = adav803_remove,

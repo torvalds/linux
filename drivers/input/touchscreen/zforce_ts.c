@@ -599,13 +599,8 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 static int zforce_input_open(struct input_dev *dev)
 {
 	struct zforce_ts *ts = input_get_drvdata(dev);
-	int ret;
 
-	ret = zforce_start(ts);
-	if (ret)
-		return ret;
-
-	return 0;
+	return zforce_start(ts);
 }
 
 static void zforce_input_close(struct input_dev *dev)

@@ -226,7 +226,10 @@
 				interrupts = <53 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_ADC0>;
 				clock-names = "adc";
+				#io-channel-cells = <1>;
 				status = "disabled";
+				fsl,adck-max-frequency = <30000000>, <40000000>,
+							<20000000>;
 			};
 
 			wdoga5: wdog@4003e000 {
@@ -242,7 +245,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,vf610-qspi";
-				reg = <0x40044000 0x1000>;
+				reg = <0x40044000 0x1000>, <0x20000000 0x10000000>;
+				reg-names = "QuadSPI", "QuadSPI-memory";
 				interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_QSPI0_EN>,
 					<&clks VF610_CLK_QSPI0>;
@@ -347,6 +351,20 @@
 				status = "disabled";
 			};
 
+			i2c1: i2c@40067000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-i2c";
+				reg = <0x40067000 0x1000>;
+				interrupts = <72 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_I2C1>;
+				clock-names = "ipg";
+				dmas = <&edma0 0 52>,
+					<&edma0 0 53>;
+				dma-names = "rx","tx";
+				status = "disabled";
+			};
+
 			clks: ccm@4006b000 {
 				compatible = "fsl,vf610-ccm";
 				reg = <0x4006b000 0x1000>;
@@ -404,14 +422,13 @@
 			};
 
 			snvs0: snvs@400a7000 {
-			    compatible = "fsl,sec-v4.0-mon", "simple-bus";
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x400a7000 0x2000>;
+			    compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
+				reg = <0x400a7000 0x2000>;
 
-				snvsrtc: snvs-rtc-lp@34 {
+				snvsrtc: snvs-rtc-lp {
 					compatible = "fsl,sec-v4.0-mon-rtc-lp";
-					reg = <0x34 0x58>;
+					regmap = <&snvs0>;
+					offset = <0x34>;
 					interrupts = <100 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks VF610_CLK_SNVS>;
 					clock-names = "snvs-rtc";
@@ -442,7 +459,21 @@
 				interrupts = <54 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_ADC1>;
 				clock-names = "adc";
+				#io-channel-cells = <1>;
 				status = "disabled";
+			};
+
+			esdhc0: esdhc@400b1000 {
+				compatible = "fsl,imx53-esdhc";
+				reg = <0x400b1000 0x1000>;
+				interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_IPG_BUS>,
+					<&clks VF610_CLK_PLATFORM_BUS>,
+					<&clks VF610_CLK_ESDHC0>;
+				clock-names = "ipg", "ahb", "per";
+				status = "disabled";
+				fsl,adck-max-frequency = <30000000>, <40000000>,
+							<20000000>;
 			};
 
 			esdhc1: esdhc@400b2000 {
@@ -488,6 +519,19 @@
 				status = "disabled";
 			};
 
+			qspi1: quadspi@400c4000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-qspi";
+				reg = <0x400c4000 0x1000>, <0x50000000 0x10000000>;
+				reg-names = "QuadSPI", "QuadSPI-memory";
+				interrupts = <25 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_QSPI1_EN>,
+					<&clks VF610_CLK_QSPI1>;
+				clock-names = "qspi_en", "qspi";
+				status = "disabled";
+			};
+
 			fec0: ethernet@400d0000 {
 				compatible = "fsl,mvf600-fec";
 				reg = <0x400d0000 0x1000>;
@@ -520,6 +564,33 @@
 				status = "disabled";
 			};
 
+			i2c2: i2c@400e6000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-i2c";
+				reg = <0x400e6000 0x1000>;
+				interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_I2C2>;
+				clock-names = "ipg";
+				dmas = <&edma0 1 36>,
+					<&edma0 1 37>;
+				dma-names = "rx","tx";
+				status = "disabled";
+			};
+
+			i2c3: i2c@400e7000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-i2c";
+				reg = <0x400e7000 0x1000>;
+				interrupts = <74 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_I2C3>;
+				clock-names = "ipg";
+				dmas = <&edma0 1 38>,
+					<&edma0 1 39>;
+				dma-names = "rx","tx";
+				status = "disabled";
+			};
 		};
 	};
 };

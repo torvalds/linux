@@ -868,7 +868,7 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 			/* check if enable ampdu */
 			if (pattrib->ht_en && psta->htpriv.ampdu_enable) {
 				if (psta->htpriv.agg_enable_bitmap & BIT(pattrib->priority))
-				pattrib->ampdu_en = true;
+					pattrib->ampdu_en = true;
 			}
 
 			/* re-check if enable ampdu by BA_starting_seqctrl */
@@ -1026,22 +1026,22 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 		/* adding icv, if necessary... */
 		if (pattrib->iv_len) {
 			switch (pattrib->encrypt) {
-				case _WEP40_:
-				case _WEP104_:
-					WEP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
-					break;
-				case _TKIP_:
-					if (bmcst)
-						TKIP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
-					else
-						TKIP_IV(pattrib->iv, psta->dot11txpn, 0);
-					break;
-				case _AES_:
-					if (bmcst)
-						AES_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
-					else
-						AES_IV(pattrib->iv, psta->dot11txpn, 0);
-					break;
+			case _WEP40_:
+			case _WEP104_:
+				WEP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+				break;
+			case _TKIP_:
+				if (bmcst)
+					TKIP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+				else
+					TKIP_IV(pattrib->iv, psta->dot11txpn, 0);
+				break;
+			case _AES_:
+				if (bmcst)
+					AES_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+				else
+					AES_IV(pattrib->iv, psta->dot11txpn, 0);
+				break;
 			}
 
 			memcpy(pframe, pattrib->iv, pattrib->iv_len);
@@ -1769,7 +1769,7 @@ int xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fra
 	int bmcst = IS_MCAST(pattrib->ra);
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == false)
-	    return ret;
+		return ret;
 
 	if (pattrib->psta)
 		psta = pattrib->psta;

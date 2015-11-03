@@ -10,12 +10,39 @@
 #include <linux/blkdev.h>
 #include "hpfs_fn.h"
 
+secno hpfs_search_hotfix_map(struct super_block *s, secno sec)
+{
+	unsigned i;
+	struct hpfs_sb_info *sbi = hpfs_sb(s);
+	for (i = 0; unlikely(i < sbi->n_hotfixes); i++) {
+		if (sbi->hotfix_from[i] == sec) {
+			return sbi->hotfix_to[i];
+		}
+	}
+	return sec;
+}
+
+unsigned hpfs_search_hotfix_map_for_range(struct super_block *s, secno sec, unsigned n)
+{
+	unsigned i;
+	struct hpfs_sb_info *sbi = hpfs_sb(s);
+	for (i = 0; unlikely(i < sbi->n_hotfixes); i++) {
+		if (sbi->hotfix_from[i] >= sec && sbi->hotfix_from[i] < sec + n) {
+			n = sbi->hotfix_from[i] - sec;
+		}
+	}
+	return n;
+}
+
 void hpfs_prefetch_sectors(struct super_block *s, unsigned secno, int n)
 {
 	struct buffer_head *bh;
 	struct blk_plug plug;
 
 	if (n <= 0 || unlikely(secno >= hpfs_sb(s)->sb_fs_size))
+		return;
+
+	if (unlikely(hpfs_search_hotfix_map_for_range(s, secno, n) != n))
 		return;
 
 	bh = sb_find_get_block(s, secno);
@@ -51,7 +78,7 @@ void *hpfs_map_sector(struct super_block *s, unsigned secno, struct buffer_head 
 
 	cond_resched();
 
-	*bhp = bh = sb_bread(s, secno);
+	*bhp = bh = sb_bread(s, hpfs_search_hotfix_map(s, secno));
 	if (bh != NULL)
 		return bh->b_data;
 	else {
@@ -71,7 +98,7 @@ void *hpfs_get_sector(struct super_block *s, unsigned secno, struct buffer_head 
 
 	cond_resched();
 
-	if ((*bhp = bh = sb_getblk(s, secno)) != NULL) {
+	if ((*bhp = bh = sb_getblk(s, hpfs_search_hotfix_map(s, secno))) != NULL) {
 		if (!buffer_uptodate(bh)) wait_on_buffer(bh);
 		set_buffer_uptodate(bh);
 		return bh->b_data;
@@ -99,10 +126,10 @@ void *hpfs_map_4sectors(struct super_block *s, unsigned secno, struct quad_buffe
 
 	hpfs_prefetch_sectors(s, secno, 4 + ahead);
 
-	if (!(qbh->bh[0] = sb_bread(s, secno + 0))) goto bail0;
-	if (!(qbh->bh[1] = sb_bread(s, secno + 1))) goto bail1;
-	if (!(qbh->bh[2] = sb_bread(s, secno + 2))) goto bail2;
-	if (!(qbh->bh[3] = sb_bread(s, secno + 3))) goto bail3;
+	if (!hpfs_map_sector(s, secno + 0, &qbh->bh[0], 0)) goto bail0;
+	if (!hpfs_map_sector(s, secno + 1, &qbh->bh[1], 0)) goto bail1;
+	if (!hpfs_map_sector(s, secno + 2, &qbh->bh[2], 0)) goto bail2;
+	if (!hpfs_map_sector(s, secno + 3, &qbh->bh[3], 0)) goto bail3;
 
 	if (likely(qbh->bh[1]->b_data == qbh->bh[0]->b_data + 1 * 512) &&
 	    likely(qbh->bh[2]->b_data == qbh->bh[0]->b_data + 2 * 512) &&

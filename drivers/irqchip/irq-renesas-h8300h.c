@@ -11,8 +11,6 @@
 #include <linux/of_irq.h>
 #include <asm/io.h>
 
-#include "irqchip.h"
-
 static const char ipr_bit[] = {
 	 7,  6,  5,  5,
 	 4,  4,  4,  4,  3,  3,  3,  3,

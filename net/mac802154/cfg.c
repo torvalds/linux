@@ -44,6 +44,49 @@ static void ieee802154_del_iface_deprecated(struct wpan_phy *wpan_phy,
 	ieee802154_if_remove(sdata);
 }
 
+#ifdef CONFIG_PM
+static int ieee802154_suspend(struct wpan_phy *wpan_phy)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+
+	if (!local->open_count)
+		goto suspend;
+
+	ieee802154_stop_queue(&local->hw);
+	synchronize_net();
+
+	/* stop hardware - this must stop RX */
+	ieee802154_stop_device(local);
+
+suspend:
+	local->suspended = true;
+	return 0;
+}
+
+static int ieee802154_resume(struct wpan_phy *wpan_phy)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	int ret;
+
+	/* nothing to do if HW shouldn't run */
+	if (!local->open_count)
+		goto wake_up;
+
+	/* restart hardware */
+	ret = drv_start(local);
+	if (ret)
+		return ret;
+
+wake_up:
+	ieee802154_wake_queue(&local->hw);
+	local->suspended = false;
+	return 0;
+}
+#else
+#define ieee802154_suspend NULL
+#define ieee802154_resume NULL
+#endif
+
 static int
 ieee802154_add_iface(struct wpan_phy *phy, const char *name,
 		     unsigned char name_assign_type,
@@ -145,13 +188,18 @@ static int
 ieee802154_set_pan_id(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 		      __le16 pan_id)
 {
+	int ret;
+
 	ASSERT_RTNL();
 
 	if (wpan_dev->pan_id == pan_id)
 		return 0;
 
-	wpan_dev->pan_id = pan_id;
-	return 0;
+	ret = mac802154_wpan_update_llsec(wpan_dev->netdev);
+	if (!ret)
+		wpan_dev->pan_id = pan_id;
+
+	return ret;
 }
 
 static int
@@ -160,10 +208,6 @@ ieee802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
 				u8 min_be, u8 max_be)
 {
 	ASSERT_RTNL();
-
-	if (wpan_dev->min_be == min_be &&
-	    wpan_dev->max_be == max_be)
-		return 0;
 
 	wpan_dev->min_be = min_be;
 	wpan_dev->max_be = max_be;
@@ -176,9 +220,6 @@ ieee802154_set_short_addr(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 {
 	ASSERT_RTNL();
 
-	if (wpan_dev->short_addr == short_addr)
-		return 0;
-
 	wpan_dev->short_addr = short_addr;
 	return 0;
 }
@@ -189,9 +230,6 @@ ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
 				 u8 max_csma_backoffs)
 {
 	ASSERT_RTNL();
-
-	if (wpan_dev->csma_retries == max_csma_backoffs)
-		return 0;
 
 	wpan_dev->csma_retries = max_csma_backoffs;
 	return 0;
@@ -204,9 +242,6 @@ ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
 {
 	ASSERT_RTNL();
 
-	if (wpan_dev->frame_retries == max_frame_retries)
-		return 0;
-
 	wpan_dev->frame_retries = max_frame_retries;
 	return 0;
 }
@@ -217,16 +252,25 @@ ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 {
 	ASSERT_RTNL();
 
-	if (wpan_dev->lbt == mode)
-		return 0;
-
 	wpan_dev->lbt = mode;
+	return 0;
+}
+
+static int
+ieee802154_set_ackreq_default(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev, bool ackreq)
+{
+	ASSERT_RTNL();
+
+	wpan_dev->ackreq = ackreq;
 	return 0;
 }
 
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf_deprecated = ieee802154_add_iface_deprecated,
 	.del_virtual_intf_deprecated = ieee802154_del_iface_deprecated,
+	.suspend = ieee802154_suspend,
+	.resume = ieee802154_resume,
 	.add_virtual_intf = ieee802154_add_iface,
 	.del_virtual_intf = ieee802154_del_iface,
 	.set_channel = ieee802154_set_channel,
@@ -239,4 +283,5 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_max_csma_backoffs = ieee802154_set_max_csma_backoffs,
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 	.set_lbt_mode = ieee802154_set_lbt_mode,
+	.set_ackreq_default = ieee802154_set_ackreq_default,
 };

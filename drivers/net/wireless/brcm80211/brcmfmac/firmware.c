@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/bcm47xx_nvram.h>
 
 #include "debug.h"
 #include "firmware.h"
@@ -426,18 +427,32 @@ static void brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 	struct brcmf_fw *fwctx = ctx;
 	u32 nvram_length = 0;
 	void *nvram = NULL;
+	u8 *data = NULL;
+	size_t data_len;
+	bool raw_nvram;
 
 	brcmf_dbg(TRACE, "enter: dev=%s\n", dev_name(fwctx->dev));
-	if (!fw && !(fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL))
-		goto fail;
-
-	if (fw) {
-		nvram = brcmf_fw_nvram_strip(fw->data, fw->size, &nvram_length,
-					     fwctx->domain_nr, fwctx->bus_nr);
-		release_firmware(fw);
-		if (!nvram && !(fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL))
+	if (fw && fw->data) {
+		data = (u8 *)fw->data;
+		data_len = fw->size;
+		raw_nvram = false;
+	} else {
+		data = bcm47xx_nvram_get_contents(&data_len);
+		if (!data && !(fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL))
 			goto fail;
+		raw_nvram = true;
 	}
+
+	if (data)
+		nvram = brcmf_fw_nvram_strip(data, data_len, &nvram_length,
+					     fwctx->domain_nr, fwctx->bus_nr);
+
+	if (raw_nvram)
+		bcm47xx_nvram_release_contents(data);
+	if (fw)
+		release_firmware(fw);
+	if (!nvram && !(fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL))
+		goto fail;
 
 	fwctx->done(fwctx->dev, fwctx->code, nvram, nvram_length);
 	kfree(fwctx);
@@ -473,15 +488,9 @@ static void brcmf_fw_request_code_done(const struct firmware *fw, void *ctx)
 	if (!ret)
 		return;
 
-	/* when nvram is optional call .done() callback here */
-	if (fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL) {
-		fwctx->done(fwctx->dev, fw, NULL, 0);
-		kfree(fwctx);
-		return;
-	}
+	brcmf_fw_request_nvram_done(NULL, fwctx);
+	return;
 
-	/* failed nvram request */
-	release_firmware(fw);
 fail:
 	brcmf_dbg(TRACE, "failed: dev=%s\n", dev_name(fwctx->dev));
 	device_release_driver(fwctx->dev);

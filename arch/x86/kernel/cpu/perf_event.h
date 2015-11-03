@@ -47,6 +47,7 @@ enum extra_reg_type {
 	EXTRA_REG_RSP_1 = 1,	/* offcore_response_1 */
 	EXTRA_REG_LBR   = 2,	/* lbr_select */
 	EXTRA_REG_LDLAT = 3,	/* ld_lat_threshold */
+	EXTRA_REG_FE    = 4,    /* fe_* */
 
 	EXTRA_REG_MAX		/* number of entries needed */
 };
@@ -165,7 +166,7 @@ struct intel_excl_cntrs {
 	unsigned	core_id;	/* per-core: core id */
 };
 
-#define MAX_LBR_ENTRIES		16
+#define MAX_LBR_ENTRIES		32
 
 enum {
 	X86_PERF_KFREE_SHARED = 0,
@@ -594,6 +595,7 @@ struct x86_pmu {
 	struct event_constraint *pebs_constraints;
 	void		(*pebs_aliases)(struct perf_event *event);
 	int 		max_pebs_events;
+	unsigned long	free_running_flags;
 
 	/*
 	 * Intel LBR
@@ -624,6 +626,7 @@ struct x86_pmu {
 struct x86_perf_task_context {
 	u64 lbr_from[MAX_LBR_ENTRIES];
 	u64 lbr_to[MAX_LBR_ENTRIES];
+	u64 lbr_info[MAX_LBR_ENTRIES];
 	int lbr_callstack_users;
 	int lbr_stack_state;
 };
@@ -793,6 +796,8 @@ static inline void set_linear_ip(struct pt_regs *regs, unsigned long ip)
 ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event);
 ssize_t intel_event_sysfs_show(char *page, u64 config);
 
+struct attribute **merge_attr(struct attribute **a, struct attribute **b);
+
 #ifdef CONFIG_CPU_SUP_AMD
 
 int amd_pmu_init(void);
@@ -807,20 +812,6 @@ static inline int amd_pmu_init(void)
 #endif /* CONFIG_CPU_SUP_AMD */
 
 #ifdef CONFIG_CPU_SUP_INTEL
-
-static inline bool intel_pmu_needs_lbr_smpl(struct perf_event *event)
-{
-	/* user explicitly requested branch sampling */
-	if (has_branch_stack(event))
-		return true;
-
-	/* implicit branch sampling to correct PEBS skid */
-	if (x86_pmu.intel_cap.pebs_trap && event->attr.precise_ip > 1 &&
-	    x86_pmu.intel_cap.pebs_format < 2)
-		return true;
-
-	return false;
-}
 
 static inline bool intel_pmu_has_bts(struct perf_event *event)
 {
@@ -873,6 +864,8 @@ extern struct event_constraint intel_ivb_pebs_event_constraints[];
 
 extern struct event_constraint intel_hsw_pebs_event_constraints[];
 
+extern struct event_constraint intel_skl_pebs_event_constraints[];
+
 struct event_constraint *intel_pebs_constraints(struct perf_event *event);
 
 void intel_pmu_pebs_enable(struct perf_event *event);
@@ -911,6 +904,8 @@ void intel_pmu_lbr_init_snb(void);
 
 void intel_pmu_lbr_init_hsw(void);
 
+void intel_pmu_lbr_init_skl(void);
+
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 
 void intel_pt_interrupt(void);
@@ -934,6 +929,7 @@ static inline int is_ht_workaround_enabled(void)
 {
 	return !!(x86_pmu.flags & PMU_FL_EXCL_ENABLED);
 }
+
 #else /* CONFIG_CPU_SUP_INTEL */
 
 static inline void reserve_ds_buffers(void)

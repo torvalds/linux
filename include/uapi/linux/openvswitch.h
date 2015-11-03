@@ -164,6 +164,9 @@ enum ovs_packet_cmd {
  * %OVS_USERSPACE_ATTR_EGRESS_TUN_PORT attribute, which is sent only if the
  * output port is actually a tunnel port. Contains the output tunnel key
  * extracted from the packet as nested %OVS_TUNNEL_KEY_ATTR_* attributes.
+ * @OVS_PACKET_ATTR_MRU: Present for an %OVS_PACKET_CMD_ACTION and
+ * %OVS_PACKET_ATTR_USERSPACE action specify the Maximum received fragment
+ * size.
  *
  * These attributes follow the &struct ovs_header within the Generic Netlink
  * payload for %OVS_PACKET_* commands.
@@ -180,6 +183,7 @@ enum ovs_packet_attr {
 	OVS_PACKET_ATTR_UNUSED2,
 	OVS_PACKET_ATTR_PROBE,      /* Packet operation is a feature probe,
 				       error logging should be suppressed. */
+	OVS_PACKET_ATTR_MRU,	    /* Maximum received IP fragment size. */
 	__OVS_PACKET_ATTR_MAX
 };
 
@@ -319,9 +323,13 @@ enum ovs_key_attr {
 	OVS_KEY_ATTR_MPLS,      /* array of struct ovs_key_mpls.
 				 * The implementation may restrict
 				 * the accepted length of the array. */
+	OVS_KEY_ATTR_CT_STATE,	/* u8 bitmask of OVS_CS_F_* */
+	OVS_KEY_ATTR_CT_ZONE,	/* u16 connection tracking zone. */
+	OVS_KEY_ATTR_CT_MARK,	/* u32 connection tracking mark */
+	OVS_KEY_ATTR_CT_LABEL,	/* 16-octet connection tracking label */
 
 #ifdef __KERNEL__
-	OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ovs_tunnel_info */
+	OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ip_tunnel_info */
 #endif
 	__OVS_KEY_ATTR_MAX
 };
@@ -430,6 +438,20 @@ struct ovs_key_nd {
 	__u8	nd_sll[ETH_ALEN];
 	__u8	nd_tll[ETH_ALEN];
 };
+
+#define OVS_CT_LABEL_LEN	16
+struct ovs_key_ct_label {
+	__u8	ct_label[OVS_CT_LABEL_LEN];
+};
+
+/* OVS_KEY_ATTR_CT_STATE flags */
+#define OVS_CS_F_NEW               0x01 /* Beginning of a new connection. */
+#define OVS_CS_F_ESTABLISHED       0x02 /* Part of an existing connection. */
+#define OVS_CS_F_RELATED           0x04 /* Related to an established
+					 * connection. */
+#define OVS_CS_F_INVALID           0x20 /* Could not track connection. */
+#define OVS_CS_F_REPLY_DIR         0x40 /* Flow is in the reply direction. */
+#define OVS_CS_F_TRACKED           0x80 /* Conntrack has occurred. */
 
 /**
  * enum ovs_flow_attr - attributes for %OVS_FLOW_* commands.
@@ -595,6 +617,39 @@ struct ovs_action_hash {
 };
 
 /**
+ * enum ovs_ct_attr - Attributes for %OVS_ACTION_ATTR_CT action.
+ * @OVS_CT_ATTR_FLAGS: u32 connection tracking flags.
+ * @OVS_CT_ATTR_ZONE: u16 connection tracking zone.
+ * @OVS_CT_ATTR_MARK: u32 value followed by u32 mask. For each bit set in the
+ * mask, the corresponding bit in the value is copied to the connection
+ * tracking mark field in the connection.
+ * @OVS_CT_ATTR_LABEL: %OVS_CT_LABEL_LEN value followed by %OVS_CT_LABEL_LEN
+ * mask. For each bit set in the mask, the corresponding bit in the value is
+ * copied to the connection tracking label field in the connection.
+ * @OVS_CT_ATTR_HELPER: variable length string defining conntrack ALG.
+ */
+enum ovs_ct_attr {
+	OVS_CT_ATTR_UNSPEC,
+	OVS_CT_ATTR_FLAGS,      /* u8 bitmask of OVS_CT_F_*. */
+	OVS_CT_ATTR_ZONE,       /* u16 zone id. */
+	OVS_CT_ATTR_MARK,       /* mark to associate with this connection. */
+	OVS_CT_ATTR_LABEL,      /* label to associate with this connection. */
+	OVS_CT_ATTR_HELPER,     /* netlink helper to assist detection of
+				   related connections. */
+	__OVS_CT_ATTR_MAX
+};
+
+#define OVS_CT_ATTR_MAX (__OVS_CT_ATTR_MAX - 1)
+
+/*
+ * OVS_CT_ATTR_FLAGS flags - bitmask of %OVS_CT_F_*
+ * @OVS_CT_F_COMMIT: Commits the flow to the conntrack table. This allows
+ * future packets for the same connection to be identified as 'established'
+ * or 'related'.
+ */
+#define OVS_CT_F_COMMIT		0x01
+
+/**
  * enum ovs_action_attr - Action types.
  *
  * @OVS_ACTION_ATTR_OUTPUT: Output packet to port.
@@ -623,6 +678,8 @@ struct ovs_action_hash {
  * indicate the new packet contents. This could potentially still be
  * %ETH_P_MPLS if the resulting MPLS label stack is not empty.  If there
  * is no MPLS label stack, as determined by ethertype, no action is taken.
+ * @OVS_ACTION_ATTR_CT: Track the connection. Populate the conntrack-related
+ * entries in the flow key.
  *
  * Only a single header can be set with a single %OVS_ACTION_ATTR_SET.  Not all
  * fields within a header are modifiable, e.g. the IPv4 protocol and fragment
@@ -648,6 +705,7 @@ enum ovs_action_attr {
 				       * data immediately followed by a mask.
 				       * The data must be zero for the unmasked
 				       * bits. */
+	OVS_ACTION_ATTR_CT,           /* One nested OVS_CT_ATTR_* . */
 
 	__OVS_ACTION_ATTR_MAX,	      /* Nothing past this will be accepted
 				       * from userspace. */

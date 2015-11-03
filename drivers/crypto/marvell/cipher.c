@@ -189,7 +189,6 @@ static inline void mv_cesa_ablkcipher_prepare(struct crypto_async_request *req,
 {
 	struct ablkcipher_request *ablkreq = ablkcipher_request_cast(req);
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(ablkreq);
-
 	creq->req.base.engine = engine;
 
 	if (creq->req.base.type == CESA_DMA_REQ)
@@ -431,7 +430,7 @@ static int mv_cesa_des_op(struct ablkcipher_request *req,
 		return ret;
 
 	ret = mv_cesa_queue_req(&req->base);
-	if (ret && ret != -EINPROGRESS)
+	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ablkcipher_cleanup(req);
 
 	return ret;
@@ -551,7 +550,7 @@ static int mv_cesa_des3_op(struct ablkcipher_request *req,
 		return ret;
 
 	ret = mv_cesa_queue_req(&req->base);
-	if (ret && ret != -EINPROGRESS)
+	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ablkcipher_cleanup(req);
 
 	return ret;
@@ -693,7 +692,7 @@ static int mv_cesa_aes_op(struct ablkcipher_request *req,
 		return ret;
 
 	ret = mv_cesa_queue_req(&req->base);
-	if (ret && ret != -EINPROGRESS)
+	if (mv_cesa_req_needs_cleanup(&req->base, ret))
 		mv_cesa_ablkcipher_cleanup(req);
 
 	return ret;

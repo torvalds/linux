@@ -338,20 +338,20 @@ static void workqueue_sysfs_unregister(struct workqueue_struct *wq);
 #include <trace/events/workqueue.h>
 
 #define assert_rcu_or_pool_mutex()					\
-	rcu_lockdep_assert(rcu_read_lock_sched_held() ||		\
-			   lockdep_is_held(&wq_pool_mutex),		\
-			   "sched RCU or wq_pool_mutex should be held")
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held() &&			\
+			 !lockdep_is_held(&wq_pool_mutex),		\
+			 "sched RCU or wq_pool_mutex should be held")
 
 #define assert_rcu_or_wq_mutex(wq)					\
-	rcu_lockdep_assert(rcu_read_lock_sched_held() ||		\
-			   lockdep_is_held(&wq->mutex),			\
-			   "sched RCU or wq->mutex should be held")
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held() &&			\
+			 !lockdep_is_held(&wq->mutex),			\
+			 "sched RCU or wq->mutex should be held")
 
 #define assert_rcu_or_wq_mutex_or_pool_mutex(wq)			\
-	rcu_lockdep_assert(rcu_read_lock_sched_held() ||		\
-			   lockdep_is_held(&wq->mutex) ||		\
-			   lockdep_is_held(&wq_pool_mutex),		\
-			   "sched RCU, wq->mutex or wq_pool_mutex should be held")
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held() &&			\
+			 !lockdep_is_held(&wq->mutex) &&		\
+			 !lockdep_is_held(&wq_pool_mutex),		\
+			 "sched RCU, wq->mutex or wq_pool_mutex should be held")
 
 #define for_each_cpu_worker_pool(pool, cpu)				\
 	for ((pool) = &per_cpu(cpu_worker_pools, cpu)[0];		\
@@ -1714,9 +1714,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 		goto fail;
 
 	set_user_nice(worker->task, pool->attrs->nice);
-
-	/* prevent userland from meddling with cpumask of workqueue workers */
-	worker->task->flags |= PF_NO_SETAFFINITY;
+	kthread_bind_mask(worker->task, pool->attrs->cpumask);
 
 	/* successful, attach the worker to the pool */
 	worker_attach_to_pool(worker, pool);
@@ -2614,7 +2612,7 @@ void flush_workqueue(struct workqueue_struct *wq)
 out_unlock:
 	mutex_unlock(&wq->mutex);
 }
-EXPORT_SYMBOL_GPL(flush_workqueue);
+EXPORT_SYMBOL(flush_workqueue);
 
 /**
  * drain_workqueue - drain a workqueue
@@ -3856,7 +3854,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 		}
 
 		wq->rescuer = rescuer;
-		rescuer->task->flags |= PF_NO_SETAFFINITY;
+		kthread_bind_mask(rescuer->task, cpu_possible_mask);
 		wake_up_process(rescuer->task);
 	}
 

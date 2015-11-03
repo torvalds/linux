@@ -2,6 +2,10 @@
 #include "perf_regs.h"
 #include "event.h"
 
+const struct sample_reg __weak sample_reg_masks[] = {
+	SMPL_REG_END
+};
+
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id)
 {
 	int i, idx = 0;

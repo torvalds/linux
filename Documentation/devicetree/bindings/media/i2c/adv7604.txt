@@ -1,15 +1,17 @@
-* Analog Devices ADV7604/11 video decoder with HDMI receiver
+* Analog Devices ADV7604/11/12 video decoder with HDMI receiver
 
-The ADV7604 and ADV7611 are multiformat video decoders with an integrated HDMI
-receiver. The ADV7604 has four multiplexed HDMI inputs and one analog input,
-and the ADV7611 has one HDMI input and no analog input.
+The ADV7604 and ADV7611/12 are multiformat video decoders with an integrated
+HDMI receiver. The ADV7604 has four multiplexed HDMI inputs and one analog
+input, and the ADV7611 has one HDMI input and no analog input. The 7612 is
+similar to the 7611 but has 2 HDMI inputs.
 
-These device tree bindings support the ADV7611 only at the moment.
+These device tree bindings support the ADV7611/12 only at the moment.
 
 Required Properties:
 
   - compatible: Must contain one of the following
     - "adi,adv7611" for the ADV7611
+    - "adi,adv7612" for the ADV7612
 
   - reg: I2C slave address
 
@@ -22,10 +24,10 @@ port, in accordance with the video interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt. The port nodes
 are numbered as follows.
 
-  Port			ADV7611
+  Port			ADV7611    ADV7612
 ------------------------------------------------------------
-  HDMI			0
-  Digital output	1
+  HDMI			0             0, 1
+  Digital output	1                2
 
 The digital output port node must contain at least one endpoint.
 
@@ -45,6 +47,7 @@ Optional Endpoint Properties:
   If none of hsync-active, vsync-active and pclk-sample is specified the
   endpoint will use embedded BT.656 synchronization.
 
+  - default-input: Select which input is selected after reset.
 
 Example:
 
@@ -57,6 +60,8 @@ Example:
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		default-input = <0>;
 
 		port@0 {
 			reg = <0>;

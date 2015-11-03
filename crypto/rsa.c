@@ -267,12 +267,36 @@ err_free_m:
 	return ret;
 }
 
+static int rsa_check_key_length(unsigned int len)
+{
+	switch (len) {
+	case 512:
+	case 1024:
+	case 1536:
+	case 2048:
+	case 3072:
+	case 4096:
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 		      unsigned int keylen)
 {
 	struct rsa_key *pkey = akcipher_tfm_ctx(tfm);
+	int ret;
 
-	return rsa_parse_key(pkey, key, keylen);
+	ret = rsa_parse_key(pkey, key, keylen);
+	if (ret)
+		return ret;
+
+	if (rsa_check_key_length(mpi_get_size(pkey->n) << 3)) {
+		rsa_free_key(pkey);
+		ret = -EINVAL;
+	}
+	return ret;
 }
 
 static void rsa_exit_tfm(struct crypto_akcipher *tfm)

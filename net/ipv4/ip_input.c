@@ -146,6 +146,7 @@
 #include <net/xfrm.h>
 #include <linux/mroute.h>
 #include <linux/netlink.h>
+#include <net/dst_metadata.h>
 
 /*
  *	Process Router Attention IP option (RFC 2113)
@@ -331,7 +332,7 @@ static int ip_rcv_finish(struct sock *sk, struct sk_buff *skb)
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */
-	if (!skb_dst(skb)) {
+	if (!skb_valid_dst(skb)) {
 		int err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
 					       iph->tos, skb->dev);
 		if (unlikely(err)) {

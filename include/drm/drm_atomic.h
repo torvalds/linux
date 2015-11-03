@@ -166,7 +166,8 @@ int __must_check drm_atomic_async_commit(struct drm_atomic_state *state);
 static inline bool
 drm_atomic_crtc_needs_modeset(struct drm_crtc_state *state)
 {
-	return state->mode_changed || state->active_changed;
+	return state->mode_changed || state->active_changed ||
+	       state->connectors_changed;
 }
 
 

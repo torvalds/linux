@@ -100,6 +100,10 @@ cat $INITFILE > $TMP_FILE
 # Merge files, printing warnings on overridden values
 for MERGE_FILE in $MERGE_LIST ; do
 	echo "Merging $MERGE_FILE"
+	if [ ! -r "$MERGE_FILE" ]; then
+		echo "The merge file '$MERGE_FILE' does not exist.  Exit." >&2
+		exit 1
+	fi
 	CFG_LIST=$(sed -n "$SED_CONFIG_EXP" $MERGE_FILE)
 
 	for CFG in $CFG_LIST ; do

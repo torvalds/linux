@@ -984,8 +984,15 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	struct netvsc_device *nvscdev;
 	u16 chn_index = new_sc->offermsg.offer.sub_channel_index;
 	int ret;
+	unsigned long flags;
 
 	nvscdev = hv_get_drvdata(new_sc->primary_channel->device_obj);
+
+	spin_lock_irqsave(&nvscdev->sc_lock, flags);
+	nvscdev->num_sc_offered--;
+	spin_unlock_irqrestore(&nvscdev->sc_lock, flags);
+	if (nvscdev->num_sc_offered == 0)
+		complete(&nvscdev->channel_init_wait);
 
 	if (chn_index >= nvscdev->num_chn)
 		return;
@@ -1015,8 +1022,10 @@ int rndis_filter_device_add(struct hv_device *dev,
 	u32 rsscap_size = sizeof(struct ndis_recv_scale_cap);
 	u32 mtu, size;
 	u32 num_rss_qs;
+	u32 sc_delta;
 	const struct cpumask *node_cpu_mask;
 	u32 num_possible_rss_qs;
+	unsigned long flags;
 
 	rndis_device = get_rndis_device();
 	if (!rndis_device)
@@ -1039,6 +1048,8 @@ int rndis_filter_device_add(struct hv_device *dev,
 	net_device->max_chn = 1;
 	net_device->num_chn = 1;
 
+	spin_lock_init(&net_device->sc_lock);
+
 	net_device->extension = rndis_device;
 	rndis_device->net_dev = net_device;
 
@@ -1054,7 +1065,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 	ret = rndis_filter_query_device(rndis_device,
 					RNDIS_OID_GEN_MAXIMUM_FRAME_SIZE,
 					&mtu, &size);
-	if (ret == 0 && size == sizeof(u32))
+	if (ret == 0 && size == sizeof(u32) && mtu < net_device->ndev->mtu)
 		net_device->ndev->mtu = mtu;
 
 	/* Get the mac address */
@@ -1114,7 +1125,15 @@ int rndis_filter_device_add(struct hv_device *dev,
 	 */
 	node_cpu_mask = cpumask_of_node(cpu_to_node(dev->channel->target_cpu));
 	num_possible_rss_qs = cpumask_weight(node_cpu_mask);
-	net_device->num_chn = min(num_possible_rss_qs, num_rss_qs);
+
+	/* We will use the given number of channels if available. */
+	if (device_info->num_chn && device_info->num_chn < net_device->max_chn)
+		net_device->num_chn = device_info->num_chn;
+	else
+		net_device->num_chn = min(num_possible_rss_qs, num_rss_qs);
+
+	num_rss_qs = net_device->num_chn - 1;
+	net_device->num_sc_offered = num_rss_qs;
 
 	if (net_device->num_chn == 1)
 		goto out;
@@ -1157,11 +1176,25 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	ret = rndis_filter_set_rss_param(rndis_device, net_device->num_chn);
 
+	/*
+	 * Wait for the host to send us the sub-channel offers.
+	 */
+	spin_lock_irqsave(&net_device->sc_lock, flags);
+	sc_delta = num_rss_qs - (net_device->num_chn - 1);
+	net_device->num_sc_offered -= sc_delta;
+	spin_unlock_irqrestore(&net_device->sc_lock, flags);
+
+	while (net_device->num_sc_offered != 0) {
+		t = wait_for_completion_timeout(&net_device->channel_init_wait, 10*HZ);
+		if (t == 0)
+			WARN(1, "Netvsc: Waiting for sub-channel processing");
+	}
 out:
 	if (ret) {
 		net_device->max_chn = 1;
 		net_device->num_chn = 1;
 	}
+
 	return 0; /* return 0 because primary channel can be used alone */
 
 err_dev_remv:

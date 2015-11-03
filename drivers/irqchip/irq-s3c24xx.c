@@ -25,6 +25,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -39,8 +40,6 @@
 #include <plat/cpu.h>
 #include <plat/regs-irqtype.h>
 #include <plat/pm.h>
-
-#include "irqchip.h"
 
 #define S3C_IRQTYPE_NONE	0
 #define S3C_IRQTYPE_EINT	1
@@ -299,16 +298,14 @@ static struct irq_chip s3c_irq_eint0t4 = {
 	.irq_set_type	= s3c_irqext0_type,
 };
 
-static void s3c_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct s3c_irq_data *irq_data = irq_desc_get_chip_data(desc);
 	struct s3c_irq_intc *intc = irq_data->intc;
 	struct s3c_irq_intc *sub_intc = irq_data->sub_intc;
-	unsigned long src;
-	unsigned long msk;
-	unsigned int n;
-	unsigned int offset;
+	unsigned int n, offset, irq;
+	unsigned long src, msk;
 
 	/* we're using individual domains for the non-dt case
 	 * and one big domain for the dt case where the subintc
@@ -469,13 +466,11 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 
 	irq_set_chip_data(virq, irq_data);
 
-	set_irq_flags(virq, IRQF_VALID);
-
 	if (parent_intc && irq_data->type != S3C_IRQTYPE_NONE) {
 		if (irq_data->parent_irq > 31) {
 			pr_err("irq-s3c24xx: parent irq %lu is out of range\n",
 			       irq_data->parent_irq);
-			goto err;
+			return -EINVAL;
 		}
 
 		parent_irq_data = &parent_intc->irqs[irq_data->parent_irq];
@@ -488,18 +483,12 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 		if (!irqno) {
 			pr_err("irq-s3c24xx: could not find mapping for parent irq %lu\n",
 			       irq_data->parent_irq);
-			goto err;
+			return -EINVAL;
 		}
 		irq_set_chained_handler(irqno, s3c_irq_demux);
 	}
 
 	return 0;
-
-err:
-	set_irq_flags(virq, 0);
-
-	/* the only error can result from bad mapping data*/
-	return -EINVAL;
 }
 
 static const struct irq_domain_ops s3c24xx_irq_ops = {
@@ -1176,8 +1165,6 @@ static int s3c24xx_irq_map_of(struct irq_domain *h, unsigned int virq,
 					 handle_edge_irq);
 
 	irq_set_chip_data(virq, irq_data);
-
-	set_irq_flags(virq, IRQF_VALID);
 
 	return 0;
 }

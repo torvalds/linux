@@ -29,7 +29,7 @@
  *
  * Locking interrupts looks like this:
  *
- *    rsil a15, LOCKLEVEL
+ *    rsil a15, TOPLEVEL
  *    <code>
  *    wsr  a15, PS
  *    rsync
@@ -106,7 +106,7 @@ static inline void atomic_##op(int i, atomic_t * v)			\
 	unsigned int vval;						\
 									\
 	__asm__ __volatile__(						\
-			"       rsil    a15, "__stringify(LOCKLEVEL)"\n"\
+			"       rsil    a15, "__stringify(TOPLEVEL)"\n"\
 			"       l32i    %0, %2, 0\n"			\
 			"       " #op " %0, %0, %1\n"			\
 			"       s32i    %0, %2, 0\n"			\
@@ -124,7 +124,7 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 	unsigned int vval;						\
 									\
 	__asm__ __volatile__(						\
-			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"	\
+			"       rsil    a15,"__stringify(TOPLEVEL)"\n"	\
 			"       l32i    %0, %2, 0\n"			\
 			"       " #op " %0, %0, %1\n"			\
 			"       s32i    %0, %2, 0\n"			\
@@ -144,6 +144,10 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
+
+ATOMIC_OP(and)
+ATOMIC_OP(or)
+ATOMIC_OP(xor)
 
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
@@ -248,75 +252,6 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 		c = old;
 	}
 	return c;
-}
-
-
-static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-#if XCHAL_HAVE_S32C1I
-	unsigned long tmp;
-	int result;
-
-	__asm__ __volatile__(
-			"1:     l32i    %1, %3, 0\n"
-			"       wsr     %1, scompare1\n"
-			"       and     %0, %1, %2\n"
-			"       s32c1i  %0, %3, 0\n"
-			"       bne     %0, %1, 1b\n"
-			: "=&a" (result), "=&a" (tmp)
-			: "a" (~mask), "a" (v)
-			: "memory"
-			);
-#else
-	unsigned int all_f = -1;
-	unsigned int vval;
-
-	__asm__ __volatile__(
-			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"
-			"       l32i    %0, %2, 0\n"
-			"       xor     %1, %4, %3\n"
-			"       and     %0, %0, %4\n"
-			"       s32i    %0, %2, 0\n"
-			"       wsr     a15, ps\n"
-			"       rsync\n"
-			: "=&a" (vval), "=a" (mask)
-			: "a" (v), "a" (all_f), "1" (mask)
-			: "a15", "memory"
-			);
-#endif
-}
-
-static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-#if XCHAL_HAVE_S32C1I
-	unsigned long tmp;
-	int result;
-
-	__asm__ __volatile__(
-			"1:     l32i    %1, %3, 0\n"
-			"       wsr     %1, scompare1\n"
-			"       or      %0, %1, %2\n"
-			"       s32c1i  %0, %3, 0\n"
-			"       bne     %0, %1, 1b\n"
-			: "=&a" (result), "=&a" (tmp)
-			: "a" (mask), "a" (v)
-			: "memory"
-			);
-#else
-	unsigned int vval;
-
-	__asm__ __volatile__(
-			"       rsil    a15,"__stringify(LOCKLEVEL)"\n"
-			"       l32i    %0, %2, 0\n"
-			"       or      %0, %0, %1\n"
-			"       s32i    %0, %2, 0\n"
-			"       wsr     a15, ps\n"
-			"       rsync\n"
-			: "=&a" (vval)
-			: "a" (mask), "a" (v)
-			: "a15", "memory"
-			);
-#endif
 }
 
 #endif /* __KERNEL__ */

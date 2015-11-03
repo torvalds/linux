@@ -762,8 +762,6 @@ enum fw_ldst_func_mod_index {
 
 struct fw_ldst_cmd {
 	__be32 op_to_addrspace;
-#define FW_LDST_CMD_ADDRSPACE_S		0
-#define FW_LDST_CMD_ADDRSPACE_V(x)	((x) << FW_LDST_CMD_ADDRSPACE_S)
 	__be32 cycles_to_len16;
 	union fw_ldst {
 		struct fw_ldst_addrval {
@@ -788,6 +786,13 @@ struct fw_ldst_cmd {
 			__be16 vctl;
 			__be16 rval;
 		} mdio;
+		struct fw_ldst_cim_rq {
+			u8 req_first64[8];
+			u8 req_second64[8];
+			u8 resp_first64[8];
+			u8 resp_second64[8];
+			__be32 r3[2];
+		} cim_rq;
 		union fw_ldst_mps {
 			struct fw_ldst_mps_rplc {
 				__be16 fid_idx;
@@ -828,8 +833,32 @@ struct fw_ldst_cmd {
 			__be16 nset_pkd;
 			__be32 data[12];
 		} pcie;
+		struct fw_ldst_i2c_deprecated {
+			u8 pid_pkd;
+			u8 base;
+			u8 boffset;
+			u8 data;
+			__be32 r9;
+		} i2c_deprecated;
+		struct fw_ldst_i2c {
+			u8 pid;
+			u8 did;
+			u8 boffset;
+			u8 blen;
+			__be32 r9;
+			__u8   data[48];
+		} i2c;
+		struct fw_ldst_le {
+			__be32 index;
+			__be32 r9;
+			u8 val[33];
+			u8 r11[7];
+		} le;
 	} u;
 };
+
+#define FW_LDST_CMD_ADDRSPACE_S		0
+#define FW_LDST_CMD_ADDRSPACE_V(x)	((x) << FW_LDST_CMD_ADDRSPACE_S)
 
 #define FW_LDST_CMD_MSG_S       31
 #define FW_LDST_CMD_MSG_V(x)	((x) << FW_LDST_CMD_MSG_S)

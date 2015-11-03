@@ -6,6 +6,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
 #include <linux/percpu_ida.h>
+#include <linux/t10-pi.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
@@ -426,12 +427,6 @@ enum target_core_dif_check {
 	TARGET_DIF_CHECK_REFTAG = 0x1 << 2,
 };
 
-struct se_dif_v1_tuple {
-	__be16			guard_tag;
-	__be16			app_tag;
-	__be32			ref_tag;
-};
-
 /* for sam_task_attr */
 #define TCM_SIMPLE_TAG	0x20
 #define TCM_HEAD_TAG	0x21
@@ -444,6 +439,9 @@ struct se_cmd {
 	u8			scsi_asc;
 	u8			scsi_ascq;
 	u16			scsi_sense_length;
+	unsigned		cmd_wait_set:1;
+	unsigned		unknown_data_length:1;
+	bool			state_active:1;
 	u64			tag; /* SAM command identifier aka task tag */
 	/* Delay for ALUA Active/NonOptimized state access in milliseconds */
 	int			alua_nonop_delay;
@@ -455,11 +453,8 @@ struct se_cmd {
 	unsigned int		map_tag;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
-	unsigned		cmd_wait_set:1;
-	unsigned		unknown_data_length:1;
 	/* See se_cmd_flags_table */
 	u32			se_cmd_flags;
-	u32			se_ordered_id;
 	/* Total size in bytes associated with command */
 	u32			data_length;
 	u32			residual_count;
@@ -477,7 +472,6 @@ struct se_cmd {
 	struct se_tmr_req	*se_tmr_req;
 	struct list_head	se_cmd_list;
 	struct completion	cmd_wait_comp;
-	struct kref		cmd_kref;
 	const struct target_core_fabric_ops *se_tfo;
 	sense_reason_t		(*execute_cmd)(struct se_cmd *);
 	sense_reason_t (*transport_complete_callback)(struct se_cmd *, bool);
@@ -497,6 +491,7 @@ struct se_cmd {
 #define CMD_T_REQUEST_STOP	(1 << 8)
 #define CMD_T_BUSY		(1 << 9)
 	spinlock_t		t_state_lock;
+	struct kref		cmd_kref;
 	struct completion	t_transport_stop_comp;
 
 	struct work_struct	work;
@@ -509,8 +504,10 @@ struct se_cmd {
 	struct scatterlist	*t_bidi_data_sg;
 	unsigned int		t_bidi_data_nents;
 
+	/* Used for lun->lun_ref counting */
+	int			lun_ref_active;
+
 	struct list_head	state_list;
-	bool			state_active;
 
 	/* old task stop completion, consider merging with some of the above */
 	struct completion	task_stop_comp;
@@ -518,20 +515,17 @@ struct se_cmd {
 	/* backend private data */
 	void			*priv;
 
-	/* Used for lun->lun_ref counting */
-	int			lun_ref_active;
-
 	/* DIF related members */
 	enum target_prot_op	prot_op;
 	enum target_prot_type	prot_type;
 	u8			prot_checks;
+	bool			prot_pto;
 	u32			prot_length;
 	u32			reftag_seed;
 	struct scatterlist	*t_prot_sg;
 	unsigned int		t_prot_nents;
 	sense_reason_t		pi_err;
 	sector_t		bad_sector;
-	bool			prot_pto;
 };
 
 struct se_ua {
@@ -598,7 +592,6 @@ struct se_ml_stat_grps {
 };
 
 struct se_lun_acl {
-	char			initiatorname[TRANSPORT_IQN_LEN];
 	u64			mapped_lun;
 	struct se_node_acl	*se_lun_nacl;
 	struct se_lun		*se_lun;
@@ -685,7 +678,6 @@ struct se_lun {
 #define SE_LUN_LINK_MAGIC			0xffff7771
 	u32			lun_link_magic;
 	u32			lun_access;
-	u32			lun_flags;
 	u32			lun_index;
 
 	/* RELATIVE TARGET PORT IDENTIFER */
@@ -738,6 +730,7 @@ struct se_device {
 #define DF_EMULATED_VPD_UNIT_SERIAL		0x00000004
 #define DF_USING_UDEV_PATH			0x00000008
 #define DF_USING_ALIAS				0x00000010
+#define DF_READ_ONLY				0x00000020
 	/* Physical device queue depth */
 	u32			queue_depth;
 	/* Used for SPC-2 reservations enforce of ISIDs */
@@ -751,7 +744,6 @@ struct se_device {
 	atomic_long_t		write_bytes;
 	/* Active commands on this virtual SE device */
 	atomic_t		simple_cmds;
-	atomic_t		dev_ordered_id;
 	atomic_t		dev_ordered_sync;
 	atomic_t		dev_qf_count;
 	u32			export_count;

@@ -396,10 +396,12 @@ dont_put_skbuff_in_hw:
 
 	/* Check if we can use the hardware checksumming */
 	if ((skb->protocol == htons(ETH_P_IP)) &&
-	    (ip_hdr(skb)->version == 4) && (ip_hdr(skb)->ihl == 5) &&
-	    ((ip_hdr(skb)->frag_off == 0) || (ip_hdr(skb)->frag_off == htons(1 << 14)))
-	    && ((ip_hdr(skb)->protocol == IPPROTO_TCP)
-		|| (ip_hdr(skb)->protocol == IPPROTO_UDP))) {
+	    (ip_hdr(skb)->version == 4) &&
+	    (ip_hdr(skb)->ihl == 5) &&
+	    ((ip_hdr(skb)->frag_off == 0) ||
+	     (ip_hdr(skb)->frag_off == htons(1 << 14))) &&
+	    ((ip_hdr(skb)->protocol == IPPROTO_TCP) ||
+	     (ip_hdr(skb)->protocol == IPPROTO_UDP))) {
 		/* Use hardware checksum calc */
 		pko_command.s.ipoffp1 = sizeof(struct ethhdr) + 1;
 	}
@@ -589,13 +591,14 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	 * Fill in some of the work queue fields. We may need to add
 	 * more if the software at the other end needs them.
 	 */
-	work->hw_chksum = skb->csum;
-	work->len = skb->len;
-	work->ipprt = priv->port;
-	work->qos = priv->port & 0x7;
-	work->grp = pow_send_group;
-	work->tag_type = CVMX_HELPER_INPUT_TAG_TYPE;
-	work->tag = pow_send_group;	/* FIXME */
+	if (!OCTEON_IS_MODEL(OCTEON_CN68XX))
+		work->word0.pip.cn38xx.hw_chksum = skb->csum;
+	work->word1.len = skb->len;
+	cvmx_wqe_set_port(work, priv->port);
+	cvmx_wqe_set_qos(work, priv->port & 0x7);
+	cvmx_wqe_set_grp(work, pow_send_group);
+	work->word1.tag_type = CVMX_HELPER_INPUT_TAG_TYPE;
+	work->word1.tag = pow_send_group;	/* FIXME */
 	/* Default to zero. Sets of zero later are commented out */
 	work->word2.u64 = 0;
 	work->word2.s.bufs = 1;
@@ -675,8 +678,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Submit the packet to the POW */
-	cvmx_pow_work_submit(work, work->tag, work->tag_type, work->qos,
-			     work->grp);
+	cvmx_pow_work_submit(work, work->word1.tag, work->word1.tag_type,
+			     cvmx_wqe_get_qos(work), cvmx_wqe_get_grp(work));
 	priv->stats.tx_packets++;
 	priv->stats.tx_bytes += skb->len;
 	dev_consume_skb_any(skb);

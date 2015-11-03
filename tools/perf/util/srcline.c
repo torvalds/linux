@@ -10,6 +10,8 @@
 
 #include "symbol.h"
 
+bool srcline_full_filename;
+
 #ifdef HAVE_LIBBFD_SUPPORT
 
 /*
@@ -277,7 +279,9 @@ char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 	if (!addr2line(dso_name, addr, &file, &line, dso))
 		goto out;
 
-	if (asprintf(&srcline, "%s:%u", basename(file), line) < 0) {
+	if (asprintf(&srcline, "%s:%u",
+				srcline_full_filename ? file : basename(file),
+				line) < 0) {
 		free(file);
 		goto out;
 	}

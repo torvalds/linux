@@ -37,6 +37,7 @@ asmlinkage long sys_get_thread_area(struct user_desc __user *);
 asmlinkage unsigned long sys_sigreturn(void);
 
 /* kernel/vm86_32.c */
+struct vm86_struct;
 asmlinkage long sys_vm86old(struct vm86_struct __user *);
 asmlinkage long sys_vm86(unsigned long, unsigned long);
 

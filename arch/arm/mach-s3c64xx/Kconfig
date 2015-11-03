@@ -34,6 +34,12 @@ config S3C64XX_DEV_ONENAND1
 	help
 	  Compile in platform device definition for OneNAND1 controller
 
+config SAMSUNG_DEV_BACKLIGHT
+	bool
+	depends on SAMSUNG_DEV_PWM
+	help
+	  Compile in platform device definition LCD backlight with PWM Timer
+
 # platform specific device setup
 
 config S3C64XX_SETUP_I2C0

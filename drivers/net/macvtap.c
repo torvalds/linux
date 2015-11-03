@@ -719,6 +719,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	struct virtio_net_hdr vnet_hdr = { 0 };
 	int vnet_hdr_len = 0;
 	int copylen = 0;
+	int depth;
 	bool zerocopy = false;
 	size_t linear;
 	ssize_t n;
@@ -803,6 +804,12 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	}
 
 	skb_probe_transport_header(skb, ETH_HLEN);
+
+	/* Move network header to the right position for VLAN tagged packets */
+	if ((skb->protocol == htons(ETH_P_8021Q) ||
+	     skb->protocol == htons(ETH_P_8021AD)) &&
+	    __vlan_get_protocol(skb, skb->protocol, &depth) != 0)
+		skb_set_network_header(skb, depth);
 
 	rcu_read_lock();
 	vlan = rcu_dereference(q->vlan);
@@ -1104,10 +1111,10 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		return 0;
 
 	case TUNSETSNDBUF:
-		if (get_user(u, up))
+		if (get_user(s, sp))
 			return -EFAULT;
 
-		q->sk.sk_sndbuf = u;
+		q->sk.sk_sndbuf = s;
 		return 0;
 
 	case TUNGETVNETHDRSZ:

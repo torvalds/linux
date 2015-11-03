@@ -342,14 +342,6 @@ static struct region_info region_configs[] = {
 		.deemphasis		= 50,
 		.region			= 3,
 	},
-	/* Japan wide band */
-	{
-		.channel_spacing	= 10,
-		.bottom_frequency	= 76000,
-		.top_frequency		= 108000,
-		.deemphasis		= 50,
-		.region			= 4,
-	},
 };
 
 /*
@@ -741,6 +733,18 @@ static int bcm2048_set_region(struct bcm2048_device *bdev, u8 region)
 
 	mutex_lock(&bdev->mutex);
 	bdev->region_info = region_configs[region];
+
+	if (region_configs[region].bottom_frequency < 87500)
+		bdev->cache_fm_ctrl |= BCM2048_BAND_SELECT;
+	else
+		bdev->cache_fm_ctrl &= ~BCM2048_BAND_SELECT;
+
+	err = bcm2048_send_command(bdev, BCM2048_I2C_FM_CTRL,
+					bdev->cache_fm_ctrl);
+	if (err) {
+		mutex_unlock(&bdev->mutex);
+		goto done;
+	}
 	mutex_unlock(&bdev->mutex);
 
 	if (bdev->frequency < region_configs[region].bottom_frequency ||

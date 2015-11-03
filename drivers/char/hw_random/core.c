@@ -429,7 +429,7 @@ static int hwrng_fillfn(void *unused)
 static void start_khwrngd(void)
 {
 	hwrng_fill = kthread_run(hwrng_fillfn, NULL, "hwrng");
-	if (hwrng_fill == ERR_PTR(-ENOMEM)) {
+	if (IS_ERR(hwrng_fill)) {
 		pr_err("hwrng_fill thread creation failed");
 		hwrng_fill = NULL;
 	}

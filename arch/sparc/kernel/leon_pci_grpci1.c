@@ -357,7 +357,7 @@ static struct irq_chip grpci1_irq = {
 };
 
 /* Handle one or multiple IRQs from the PCI core */
-static void grpci1_pci_flow_irq(unsigned int irq, struct irq_desc *desc)
+static void grpci1_pci_flow_irq(struct irq_desc *desc)
 {
 	struct grpci1_priv *priv = grpci1priv;
 	int i, ack = 0;

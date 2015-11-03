@@ -74,6 +74,7 @@ static inline int of_irq_to_resource_table(struct device_node *dev,
  */
 extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
 extern struct device_node *of_irq_find_parent(struct device_node *child);
+extern void of_msi_configure(struct device *dev, struct device_node *np);
 
 #else /* !CONFIG_OF */
 static inline unsigned int irq_of_parse_and_map(struct device_node *dev,

@@ -16,6 +16,8 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #define RTC_INPUT_CLK_32768HZ	(0x00 << 5)
 #define RTC_INPUT_CLK_32000HZ	(0x01 << 5)
@@ -79,7 +81,8 @@ struct rtc_plat_data {
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;
 	int irq;
-	struct clk *clk;
+	struct clk *clk_ref;
+	struct clk *clk_ipg;
 	struct rtc_time g_rtc_alarm;
 	enum imx_rtc_type devtype;
 };
@@ -96,6 +99,15 @@ static const struct platform_device_id imx_rtc_devtype[] = {
 	}
 };
 MODULE_DEVICE_TABLE(platform, imx_rtc_devtype);
+
+#ifdef CONFIG_OF
+static const struct of_device_id imx_rtc_dt_ids[] = {
+	{ .compatible = "fsl,imx1-rtc", .data = (const void *)IMX1_RTC },
+	{ .compatible = "fsl,imx21-rtc", .data = (const void *)IMX21_RTC },
+	{}
+};
+MODULE_DEVICE_TABLE(of, imx_rtc_dt_ids);
+#endif
 
 static inline int is_imx1_rtc(struct rtc_plat_data *data)
 {
@@ -361,29 +373,45 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	u32 reg;
 	unsigned long rate;
 	int ret;
+	const struct of_device_id *of_id;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	pdata->devtype = pdev->id_entry->driver_data;
+	of_id = of_match_device(imx_rtc_dt_ids, &pdev->dev);
+	if (of_id)
+		pdata->devtype = (enum imx_rtc_type)of_id->data;
+	else
+		pdata->devtype = pdev->id_entry->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
 
-	pdata->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pdata->clk)) {
-		dev_err(&pdev->dev, "unable to get clock!\n");
-		return PTR_ERR(pdata->clk);
+	pdata->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
+	if (IS_ERR(pdata->clk_ipg)) {
+		dev_err(&pdev->dev, "unable to get ipg clock!\n");
+		return PTR_ERR(pdata->clk_ipg);
 	}
 
-	ret = clk_prepare_enable(pdata->clk);
+	ret = clk_prepare_enable(pdata->clk_ipg);
 	if (ret)
 		return ret;
 
-	rate = clk_get_rate(pdata->clk);
+	pdata->clk_ref = devm_clk_get(&pdev->dev, "ref");
+	if (IS_ERR(pdata->clk_ref)) {
+		dev_err(&pdev->dev, "unable to get ref clock!\n");
+		ret = PTR_ERR(pdata->clk_ref);
+		goto exit_put_clk_ipg;
+	}
+
+	ret = clk_prepare_enable(pdata->clk_ref);
+	if (ret)
+		goto exit_put_clk_ipg;
+
+	rate = clk_get_rate(pdata->clk_ref);
 
 	if (rate == 32768)
 		reg = RTC_INPUT_CLK_32768HZ;
@@ -394,7 +422,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	else {
 		dev_err(&pdev->dev, "rtc clock is not valid (%lu)\n", rate);
 		ret = -EINVAL;
-		goto exit_put_clk;
+		goto exit_put_clk_ref;
 	}
 
 	reg |= RTC_ENABLE_BIT;
@@ -402,7 +430,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (((readw(pdata->ioaddr + RTC_RTCCTL)) & RTC_ENABLE_BIT) == 0) {
 		dev_err(&pdev->dev, "hardware module can't be enabled!\n");
 		ret = -EIO;
-		goto exit_put_clk;
+		goto exit_put_clk_ref;
 	}
 
 	platform_set_drvdata(pdev, pdata);
@@ -424,15 +452,17 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 				  THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		ret = PTR_ERR(rtc);
-		goto exit_put_clk;
+		goto exit_put_clk_ref;
 	}
 
 	pdata->rtc = rtc;
 
 	return 0;
 
-exit_put_clk:
-	clk_disable_unprepare(pdata->clk);
+exit_put_clk_ref:
+	clk_disable_unprepare(pdata->clk_ref);
+exit_put_clk_ipg:
+	clk_disable_unprepare(pdata->clk_ipg);
 
 	return ret;
 }
@@ -441,7 +471,8 @@ static int mxc_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(pdata->clk);
+	clk_disable_unprepare(pdata->clk_ref);
+	clk_disable_unprepare(pdata->clk_ipg);
 
 	return 0;
 }
@@ -473,6 +504,7 @@ static SIMPLE_DEV_PM_OPS(mxc_rtc_pm_ops, mxc_rtc_suspend, mxc_rtc_resume);
 static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		   .name	= "mxc_rtc",
+		   .of_match_table = of_match_ptr(imx_rtc_dt_ids),
 		   .pm		= &mxc_rtc_pm_ops,
 	},
 	.id_table = imx_rtc_devtype,

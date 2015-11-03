@@ -34,11 +34,16 @@ struct seq_file;
 
 /* define the enumeration of all cgroup subsystems */
 #define SUBSYS(_x) _x ## _cgrp_id,
+#define SUBSYS_TAG(_t) CGROUP_ ## _t, \
+	__unused_tag_ ## _t = CGROUP_ ## _t - 1,
 enum cgroup_subsys_id {
 #include <linux/cgroup_subsys.h>
 	CGROUP_SUBSYS_COUNT,
 };
+#undef SUBSYS_TAG
 #undef SUBSYS
+
+#define CGROUP_CANFORK_COUNT (CGROUP_CANFORK_END - CGROUP_CANFORK_START)
 
 /* bits in struct cgroup_subsys_state flags field */
 enum {
@@ -318,7 +323,7 @@ struct cftype {
 	 * end of cftype array.
 	 */
 	char name[MAX_CFTYPE_NAME];
-	int private;
+	unsigned long private;
 	/*
 	 * If not 0, file mode is set to this value, otherwise it will
 	 * be figured out automatically
@@ -406,7 +411,9 @@ struct cgroup_subsys {
 			      struct cgroup_taskset *tset);
 	void (*attach)(struct cgroup_subsys_state *css,
 		       struct cgroup_taskset *tset);
-	void (*fork)(struct task_struct *task);
+	int (*can_fork)(struct task_struct *task, void **priv_p);
+	void (*cancel_fork)(struct task_struct *task, void *priv);
+	void (*fork)(struct task_struct *task, void *priv);
 	void (*exit)(struct cgroup_subsys_state *css,
 		     struct cgroup_subsys_state *old_css,
 		     struct task_struct *task);
@@ -433,6 +440,9 @@ struct cgroup_subsys {
 	/* the following two fields are initialized automtically during boot */
 	int id;
 	const char *name;
+
+	/* optional, initialized automatically during boot if not set */
+	const char *legacy_name;
 
 	/* link to parent, protected by cgroup_lock() */
 	struct cgroup_root *root;
@@ -463,34 +473,12 @@ struct cgroup_subsys {
 	unsigned int depends_on;
 };
 
-extern struct percpu_rw_semaphore cgroup_threadgroup_rwsem;
-
-/**
- * cgroup_threadgroup_change_begin - threadgroup exclusion for cgroups
- * @tsk: target task
- *
- * Called from threadgroup_change_begin() and allows cgroup operations to
- * synchronize against threadgroup changes using a percpu_rw_semaphore.
- */
-static inline void cgroup_threadgroup_change_begin(struct task_struct *tsk)
-{
-	percpu_down_read(&cgroup_threadgroup_rwsem);
-}
-
-/**
- * cgroup_threadgroup_change_end - threadgroup exclusion for cgroups
- * @tsk: target task
- *
- * Called from threadgroup_change_end().  Counterpart of
- * cgroup_threadcgroup_change_begin().
- */
-static inline void cgroup_threadgroup_change_end(struct task_struct *tsk)
-{
-	percpu_up_read(&cgroup_threadgroup_rwsem);
-}
+void cgroup_threadgroup_change_begin(struct task_struct *tsk);
+void cgroup_threadgroup_change_end(struct task_struct *tsk);
 
 #else	/* CONFIG_CGROUPS */
 
+#define CGROUP_CANFORK_COUNT 0
 #define CGROUP_SUBSYS_COUNT 0
 
 static inline void cgroup_threadgroup_change_begin(struct task_struct *tsk) {}

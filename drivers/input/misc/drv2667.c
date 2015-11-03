@@ -262,14 +262,14 @@ static void drv2667_close(struct input_dev *input)
 			"Failed to enter standby mode: %d\n", error);
 }
 
-static const struct reg_default drv2667_init_regs[] = {
+static const struct reg_sequence drv2667_init_regs[] = {
 	{ DRV2667_CTRL_2, 0 },
 	{ DRV2667_CTRL_1, DRV2667_25_VPP_GAIN },
 	{ DRV2667_WV_SEQ_0, 1 },
 	{ DRV2667_WV_SEQ_1, 0 }
 };
 
-static const struct reg_default drv2667_page1_init[] = {
+static const struct reg_sequence drv2667_page1_init[] = {
 	{ DRV2667_RAM_HDR_SZ, 0x05 },
 	{ DRV2667_RAM_START_HI, 0x80 },
 	{ DRV2667_RAM_START_LO, 0x06 },

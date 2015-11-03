@@ -25,109 +25,30 @@
 
 #include <asm-generic/bitops/ffz.h>
 
-#ifndef CONFIG_FRV_OUTOFLINE_ATOMIC_OPS
-static inline
-unsigned long atomic_test_and_ANDNOT_mask(unsigned long mask, volatile unsigned long *v)
-{
-	unsigned long old, tmp;
-
-	asm volatile(
-		"0:						\n"
-		"	orcc		gr0,gr0,gr0,icc3	\n"	/* set ICC3.Z */
-		"	ckeq		icc3,cc7		\n"
-		"	ld.p		%M0,%1			\n"	/* LD.P/ORCR are atomic */
-		"	orcr		cc7,cc7,cc3		\n"	/* set CC3 to true */
-		"	and%I3		%1,%3,%2		\n"
-		"	cst.p		%2,%M0		,cc3,#1	\n"	/* if store happens... */
-		"	corcc		gr29,gr29,gr0	,cc3,#1	\n"	/* ... clear ICC3.Z */
-		"	beq		icc3,#0,0b		\n"
-		: "+U"(*v), "=&r"(old), "=r"(tmp)
-		: "NPr"(~mask)
-		: "memory", "cc7", "cc3", "icc3"
-		);
-
-	return old;
-}
-
-static inline
-unsigned long atomic_test_and_OR_mask(unsigned long mask, volatile unsigned long *v)
-{
-	unsigned long old, tmp;
-
-	asm volatile(
-		"0:						\n"
-		"	orcc		gr0,gr0,gr0,icc3	\n"	/* set ICC3.Z */
-		"	ckeq		icc3,cc7		\n"
-		"	ld.p		%M0,%1			\n"	/* LD.P/ORCR are atomic */
-		"	orcr		cc7,cc7,cc3		\n"	/* set CC3 to true */
-		"	or%I3		%1,%3,%2		\n"
-		"	cst.p		%2,%M0		,cc3,#1	\n"	/* if store happens... */
-		"	corcc		gr29,gr29,gr0	,cc3,#1	\n"	/* ... clear ICC3.Z */
-		"	beq		icc3,#0,0b		\n"
-		: "+U"(*v), "=&r"(old), "=r"(tmp)
-		: "NPr"(mask)
-		: "memory", "cc7", "cc3", "icc3"
-		);
-
-	return old;
-}
-
-static inline
-unsigned long atomic_test_and_XOR_mask(unsigned long mask, volatile unsigned long *v)
-{
-	unsigned long old, tmp;
-
-	asm volatile(
-		"0:						\n"
-		"	orcc		gr0,gr0,gr0,icc3	\n"	/* set ICC3.Z */
-		"	ckeq		icc3,cc7		\n"
-		"	ld.p		%M0,%1			\n"	/* LD.P/ORCR are atomic */
-		"	orcr		cc7,cc7,cc3		\n"	/* set CC3 to true */
-		"	xor%I3		%1,%3,%2		\n"
-		"	cst.p		%2,%M0		,cc3,#1	\n"	/* if store happens... */
-		"	corcc		gr29,gr29,gr0	,cc3,#1	\n"	/* ... clear ICC3.Z */
-		"	beq		icc3,#0,0b		\n"
-		: "+U"(*v), "=&r"(old), "=r"(tmp)
-		: "NPr"(mask)
-		: "memory", "cc7", "cc3", "icc3"
-		);
-
-	return old;
-}
-
-#else
-
-extern unsigned long atomic_test_and_ANDNOT_mask(unsigned long mask, volatile unsigned long *v);
-extern unsigned long atomic_test_and_OR_mask(unsigned long mask, volatile unsigned long *v);
-extern unsigned long atomic_test_and_XOR_mask(unsigned long mask, volatile unsigned long *v);
-
-#endif
-
-#define atomic_clear_mask(mask, v)	atomic_test_and_ANDNOT_mask((mask), (v))
-#define atomic_set_mask(mask, v)	atomic_test_and_OR_mask((mask), (v))
+#include <asm/atomic.h>
 
 static inline int test_and_clear_bit(unsigned long nr, volatile void *addr)
 {
-	volatile unsigned long *ptr = addr;
-	unsigned long mask = 1UL << (nr & 31);
+	unsigned int *ptr = (void *)addr;
+	unsigned int mask = 1UL << (nr & 31);
 	ptr += nr >> 5;
-	return (atomic_test_and_ANDNOT_mask(mask, ptr) & mask) != 0;
+	return (__atomic32_fetch_and(~mask, ptr) & mask) != 0;
 }
 
 static inline int test_and_set_bit(unsigned long nr, volatile void *addr)
 {
-	volatile unsigned long *ptr = addr;
-	unsigned long mask = 1UL << (nr & 31);
+	unsigned int *ptr = (void *)addr;
+	unsigned int mask = 1UL << (nr & 31);
 	ptr += nr >> 5;
-	return (atomic_test_and_OR_mask(mask, ptr) & mask) != 0;
+	return (__atomic32_fetch_or(mask, ptr) & mask) != 0;
 }
 
 static inline int test_and_change_bit(unsigned long nr, volatile void *addr)
 {
-	volatile unsigned long *ptr = addr;
-	unsigned long mask = 1UL << (nr & 31);
+	unsigned int *ptr = (void *)addr;
+	unsigned int mask = 1UL << (nr & 31);
 	ptr += nr >> 5;
-	return (atomic_test_and_XOR_mask(mask, ptr) & mask) != 0;
+	return (__atomic32_fetch_xor(mask, ptr) & mask) != 0;
 }
 
 static inline void clear_bit(unsigned long nr, volatile void *addr)

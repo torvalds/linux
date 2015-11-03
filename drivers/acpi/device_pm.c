@@ -15,10 +15,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *  General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
@@ -231,7 +227,7 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		dev_warn(&device->dev, "Failed to change power state to %s\n",
 			 acpi_power_state_string(state));
 	} else {
-		device->power.state = state;
+		device->power.state = target_state;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Device [%s] transitioned to %s\n",
 				  device->pnp.bus_id,
@@ -1122,6 +1118,14 @@ int acpi_dev_pm_attach(struct device *dev, bool power_on)
 
 	if (dev->pm_domain)
 		return -EEXIST;
+
+	/*
+	 * Only attach the power domain to the first device if the
+	 * companion is shared by multiple. This is to prevent doing power
+	 * management twice.
+	 */
+	if (!acpi_device_is_first_physical_node(adev, dev))
+		return -EBUSY;
 
 	acpi_add_pm_notifier(adev, dev, acpi_pm_notify_work_func);
 	dev->pm_domain = &acpi_general_pm_domain;

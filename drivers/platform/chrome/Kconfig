@@ -4,7 +4,6 @@
 
 menuconfig CHROME_PLATFORMS
 	bool "Platform support for Chrome hardware"
-	depends on X86 || ARM
 	---help---
 	  Say Y here to get to see options for platform support for
 	  various Chromebooks and Chromeboxes. This option alone does

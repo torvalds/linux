@@ -127,6 +127,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&buck1_reg>;
+};
+
 &fimd {
 	pinctrl-0 = <&lcd_en &lcd_clk &lcd_data24 &pwm0_out>;
 	pinctrl-names = "default";

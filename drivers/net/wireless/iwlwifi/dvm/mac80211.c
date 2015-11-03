@@ -250,9 +250,21 @@ static int __iwl_up(struct iwl_priv *priv)
 		}
 	}
 
+	ret = iwl_trans_start_hw(priv->trans);
+	if (ret) {
+		IWL_ERR(priv, "Failed to start HW: %d\n", ret);
+		goto error;
+	}
+
 	ret = iwl_run_init_ucode(priv);
 	if (ret) {
 		IWL_ERR(priv, "Failed to run INIT ucode: %d\n", ret);
+		goto error;
+	}
+
+	ret = iwl_trans_start_hw(priv->trans);
+	if (ret) {
+		IWL_ERR(priv, "Failed to start HW: %d\n", ret);
 		goto error;
 	}
 
@@ -432,7 +444,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		u32 error_id;
 	} err_info;
 	struct iwl_notification_wait status_wait;
-	static const u8 status_cmd[] = {
+	static const u16 status_cmd[] = {
 		REPLY_WOWLAN_GET_STATUS,
 	};
 	struct iwlagn_wowlan_status status_data = {};

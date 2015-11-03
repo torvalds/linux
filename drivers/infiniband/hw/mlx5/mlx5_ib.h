@@ -103,7 +103,6 @@ static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibuconte
 struct mlx5_ib_pd {
 	struct ib_pd		ibpd;
 	u32			pdn;
-	u32			pa_lkey;
 };
 
 /* Use macros here so that don't have to duplicate
@@ -213,7 +212,6 @@ struct mlx5_ib_qp {
 	int			uuarn;
 
 	int			create_type;
-	u32			pa_lkey;
 
 	/* Store signature errors */
 	bool			signature_en;
@@ -349,7 +347,6 @@ struct umr_common {
 	struct ib_pd	*pd;
 	struct ib_cq	*cq;
 	struct ib_qp	*qp;
-	struct ib_mr	*mr;
 	/* control access to UMR QP
 	 */
 	struct semaphore	sem;
@@ -573,11 +570,9 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index,
 		       int npages, int zap);
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr);
-int mlx5_ib_destroy_mr(struct ib_mr *ibmr);
-struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
-				struct ib_mr_init_attr *mr_init_attr);
-struct ib_mr *mlx5_ib_alloc_fast_reg_mr(struct ib_pd *pd,
-					int max_page_list_len);
+struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
+			       enum ib_mr_type mr_type,
+			       u32 max_num_sg);
 struct ib_fast_reg_page_list *mlx5_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
 							       int page_list_len);
 void mlx5_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list);
@@ -681,6 +676,11 @@ static inline u8 convert_access(int acc)
 	       (acc & IB_ACCESS_REMOTE_READ   ? MLX5_PERM_REMOTE_READ  : 0) |
 	       (acc & IB_ACCESS_LOCAL_WRITE   ? MLX5_PERM_LOCAL_WRITE  : 0) |
 	       MLX5_PERM_LOCAL_READ;
+}
+
+static inline int is_qp1(enum ib_qp_type qp_type)
+{
+	return qp_type == IB_QPT_GSI;
 }
 
 #define MLX5_MAX_UMR_SHIFT 16

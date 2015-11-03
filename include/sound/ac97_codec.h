@@ -584,6 +584,8 @@ static inline int snd_ac97_update_power(struct snd_ac97 *ac97, int reg,
 void snd_ac97_suspend(struct snd_ac97 *ac97);
 void snd_ac97_resume(struct snd_ac97 *ac97);
 #endif
+int snd_ac97_reset(struct snd_ac97 *ac97, bool try_warm, unsigned int id,
+	unsigned int id_mask);
 
 /* quirk types */
 enum {

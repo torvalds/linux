@@ -48,7 +48,7 @@ static const struct parent_map gcc_xo_gpll0_map[] = {
 	{ P_GPLL0, 1 }
 };
 
-static const char *gcc_xo_gpll0[] = {
+static const char * const gcc_xo_gpll0[] = {
 	"xo",
 	"gpll0_vote",
 };
@@ -59,7 +59,7 @@ static const struct parent_map gcc_xo_gpll0_gpll4_map[] = {
 	{ P_GPLL4, 5 }
 };
 
-static const char *gcc_xo_gpll0_gpll4[] = {
+static const char * const gcc_xo_gpll0_gpll4[] = {
 	"xo",
 	"gpll0_vote",
 	"gpll4_vote",
@@ -70,7 +70,7 @@ static const struct parent_map gcc_xo_sata_asic0_map[] = {
 	{ P_SATA_ASIC0_CLK, 2 }
 };
 
-static const char *gcc_xo_sata_asic0[] = {
+static const char * const gcc_xo_sata_asic0[] = {
 	"xo",
 	"sata_asic0_clk",
 };
@@ -80,7 +80,7 @@ static const struct parent_map gcc_xo_sata_rx_map[] = {
 	{ P_SATA_RX_CLK, 2}
 };
 
-static const char *gcc_xo_sata_rx[] = {
+static const char * const gcc_xo_sata_rx[] = {
 	"xo",
 	"sata_rx_clk",
 };
@@ -90,7 +90,7 @@ static const struct parent_map gcc_xo_pcie_map[] = {
 	{ P_PCIE_0_1_PIPE_CLK, 2 }
 };
 
-static const char *gcc_xo_pcie[] = {
+static const char * const gcc_xo_pcie[] = {
 	"xo",
 	"pcie_pipe",
 };
@@ -100,7 +100,7 @@ static const struct parent_map gcc_xo_pcie_sleep_map[] = {
 	{ P_SLEEP_CLK, 6 }
 };
 
-static const char *gcc_xo_pcie_sleep[] = {
+static const char * const gcc_xo_pcie_sleep[] = {
 	"xo",
 	"sleep_clk_src",
 };
@@ -2105,6 +2105,7 @@ static struct clk_branch gcc_ce1_clk = {
 				"ce1_clk_src",
 			},
 			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},

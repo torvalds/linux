@@ -95,7 +95,6 @@ struct dsp_file_hdr {
 	long              nDspImages;          /* Number of DSP images in file. */
 };
 
-#pragma pack(1)
 struct dsp_image_info {
 	long              coff_date;           /* Date/time when DSP Coff image was built. */
 	long              begin_offset;        /* Offset in file where image begins. */
@@ -105,7 +104,7 @@ struct dsp_image_info {
 	long              version;             /* Embedded version # of DSP code. */
 	unsigned short    checksum;            /* DSP File checksum */
 	unsigned short    pad1;
-};
+} __packed;
 
 
 /* checks if the doorbell register is cleared */
@@ -180,7 +179,8 @@ static u16 get_handshake(struct ft1000_usb *ft1000dev, u16 expected_value)
 		}
 
 		status = ft1000_read_dpram16(ft1000dev,
-					     DWNLD_MAG1_HANDSHAKE_LOC, (u8 *)&handshake, 1);
+					     DWNLD_MAG1_HANDSHAKE_LOC,
+					     (u8 *)&handshake, 1);
 		handshake = ntohs(handshake);
 
 		if (status)
@@ -281,12 +281,14 @@ static u16 get_request_type(struct ft1000_usb *ft1000dev)
 
 	if (ft1000dev->bootmode == 1) {
 		status = fix_ft1000_read_dpram32(ft1000dev,
-						 DWNLD_MAG1_TYPE_LOC, (u8 *)&tempx);
+						 DWNLD_MAG1_TYPE_LOC,
+						 (u8 *)&tempx);
 		tempx = ntohl(tempx);
 	} else {
 		tempx = 0;
 		status = ft1000_read_dpram16(ft1000dev,
-					     DWNLD_MAG1_TYPE_LOC, (u8 *)&tempword, 1);
+					     DWNLD_MAG1_TYPE_LOC,
+					     (u8 *)&tempword, 1);
 		tempx |= (tempword << 16);
 		tempx = ntohl(tempx);
 	}
@@ -304,7 +306,8 @@ static u16 get_request_type_usb(struct ft1000_usb *ft1000dev)
 
 	if (ft1000dev->bootmode == 1) {
 		status = fix_ft1000_read_dpram32(ft1000dev,
-						 DWNLD_MAG1_TYPE_LOC, (u8 *)&tempx);
+						 DWNLD_MAG1_TYPE_LOC,
+						 (u8 *)&tempx);
 		tempx = ntohl(tempx);
 	} else {
 		if (ft1000dev->usbboot == 2) {
@@ -332,14 +335,17 @@ static long get_request_value(struct ft1000_usb *ft1000dev)
 
 	if (ft1000dev->bootmode == 1) {
 		status = fix_ft1000_read_dpram32(ft1000dev,
-						 DWNLD_MAG1_SIZE_LOC, (u8 *)&value);
+						 DWNLD_MAG1_SIZE_LOC,
+						 (u8 *)&value);
 		value = ntohl(value);
 	} else	{
 		status = ft1000_read_dpram16(ft1000dev,
-					     DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 0);
+					     DWNLD_MAG1_SIZE_LOC,
+					     (u8 *)&tempword, 0);
 		value = tempword;
 		status = ft1000_read_dpram16(ft1000dev,
-					     DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 1);
+					     DWNLD_MAG1_SIZE_LOC,
+					     (u8 *)&tempword, 1);
 		value |= (tempword << 16);
 		value = ntohl(value);
 	}

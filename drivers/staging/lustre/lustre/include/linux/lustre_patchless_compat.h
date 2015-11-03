@@ -60,18 +60,6 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	ll_delete_from_page_cache(page);
 }
 
-#ifdef ATTR_OPEN
-# define ATTR_FROM_OPEN ATTR_OPEN
-#else
-# ifndef ATTR_FROM_OPEN
-#  define ATTR_FROM_OPEN 0
-# endif
-#endif /* ATTR_OPEN */
-
-#ifndef ATTR_RAW
-#define ATTR_RAW 0
-#endif
-
 #ifndef ATTR_CTIME_SET
 /*
  * set ATTR_CTIME_SET to a high value to avoid any risk of collision with other

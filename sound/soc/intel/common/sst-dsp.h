@@ -230,6 +230,8 @@ void sst_dsp_shim_write64(struct sst_dsp *sst, u32 offset, u64 value);
 u64 sst_dsp_shim_read64(struct sst_dsp *sst, u32 offset);
 int sst_dsp_shim_update_bits64(struct sst_dsp *sst, u32 offset,
 				u64 mask, u64 value);
+void sst_dsp_shim_update_bits_forced(struct sst_dsp *sst, u32 offset,
+				u32 mask, u32 value);
 
 /* SHIM Read / Write Unlocked for callers already holding sst lock */
 void sst_dsp_shim_write_unlocked(struct sst_dsp *sst, u32 offset, u32 value);
@@ -240,6 +242,8 @@ void sst_dsp_shim_write64_unlocked(struct sst_dsp *sst, u32 offset, u64 value);
 u64 sst_dsp_shim_read64_unlocked(struct sst_dsp *sst, u32 offset);
 int sst_dsp_shim_update_bits64_unlocked(struct sst_dsp *sst, u32 offset,
 					u64 mask, u64 value);
+void sst_dsp_shim_update_bits_forced_unlocked(struct sst_dsp *sst, u32 offset,
+				u32 mask, u32 value);
 
 /* Internal generic low-level SST IO functions - can be overidden */
 void sst_shim32_write(void __iomem *addr, u32 offset, u32 value);
@@ -278,6 +282,8 @@ void sst_dsp_inbox_read(struct sst_dsp *dsp, void *message, size_t bytes);
 void sst_dsp_outbox_write(struct sst_dsp *dsp, void *message, size_t bytes);
 void sst_dsp_outbox_read(struct sst_dsp *dsp, void *message, size_t bytes);
 void sst_dsp_mailbox_dump(struct sst_dsp *dsp, size_t bytes);
+int sst_dsp_register_poll(struct sst_dsp  *dsp, u32 offset, u32 mask,
+		 u32 expected_value, u32 timeout, char *operation);
 
 /* Debug */
 void sst_dsp_dump(struct sst_dsp *sst);

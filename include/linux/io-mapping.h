@@ -21,7 +21,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/bug.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/page.h>
 
 /*

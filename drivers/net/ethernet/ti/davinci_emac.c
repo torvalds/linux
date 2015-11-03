@@ -2004,8 +2004,10 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	if (res_ctrl) {
 		priv->ctrl_base =
 			devm_ioremap_resource(&pdev->dev, res_ctrl);
-		if (IS_ERR(priv->ctrl_base))
+		if (IS_ERR(priv->ctrl_base)) {
+			rc = PTR_ERR(priv->ctrl_base);
 			goto no_pdata;
+		}
 	} else {
 		priv->ctrl_base = priv->remap_addr + pdata->ctrl_mod_reg_offset;
 	}

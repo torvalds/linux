@@ -10,12 +10,6 @@
 
 #undef PREALLOC_NOT_AVAIL
 
-#ifdef PREALLOC_NOT_AVAIL
-#define PREWRITE(A,B)	prefetchw [(A),(B)]
-#else
-#define PREWRITE(A,B)	prealloc [(A),(B)]
-#endif
-
 ENTRY(memset)
 	prefetchw [r0]		; Prefetch the write location
 	mov.f	0, r2
@@ -51,9 +45,15 @@ ENTRY(memset)
 
 ;;; Convert len to Dwords, unfold x8
 	lsr.f	lp_count, lp_count, 6
+
 	lpnz	@.Lset64bytes
 	;; LOOP START
-	PREWRITE(r3, 64)	;Prefetch the next write location
+#ifdef PREALLOC_NOT_AVAIL
+	prefetchw [r3, 64]	;Prefetch the next write location
+#else
+	prealloc  [r3, 64]
+#endif
+#ifdef CONFIG_ARC_HAS_LL64
 	std.ab	r4, [r3, 8]
 	std.ab	r4, [r3, 8]
 	std.ab	r4, [r3, 8]
@@ -62,16 +62,45 @@ ENTRY(memset)
 	std.ab	r4, [r3, 8]
 	std.ab	r4, [r3, 8]
 	std.ab	r4, [r3, 8]
+#else
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+#endif
 .Lset64bytes:
 
 	lsr.f	lp_count, r2, 5 ;Last remaining  max 124 bytes
 	lpnz	.Lset32bytes
 	;; LOOP START
 	prefetchw   [r3, 32]	;Prefetch the next write location
+#ifdef CONFIG_ARC_HAS_LL64
 	std.ab	r4, [r3, 8]
 	std.ab	r4, [r3, 8]
 	std.ab	r4, [r3, 8]
 	std.ab	r4, [r3, 8]
+#else
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+	st.ab	r4, [r3, 4]
+#endif
 .Lset32bytes:
 
 	and.f	lp_count, r2, 0x1F ;Last remaining 31 bytes

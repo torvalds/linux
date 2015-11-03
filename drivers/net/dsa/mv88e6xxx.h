@@ -11,6 +11,8 @@
 #ifndef __MV88E6XXX_H
 #define __MV88E6XXX_H
 
+#include <linux/if_vlan.h>
+
 #ifndef UINT64_MAX
 #define UINT64_MAX		(u64)(~((u64)0))
 #endif
@@ -44,6 +46,8 @@
 #define PORT_STATUS_TX_PAUSED	BIT(5)
 #define PORT_STATUS_FLOW_CTRL	BIT(4)
 #define PORT_PCS_CTRL		0x01
+#define PORT_PCS_CTRL_RGMII_DELAY_RXCLK	BIT(15)
+#define PORT_PCS_CTRL_RGMII_DELAY_TXCLK	BIT(14)
 #define PORT_PCS_CTRL_FC		BIT(7)
 #define PORT_PCS_CTRL_FORCE_FC		BIT(6)
 #define PORT_PCS_CTRL_LINK_UP		BIT(5)
@@ -89,7 +93,12 @@
 #define PORT_SWITCH_ID_6182	0x1a60
 #define PORT_SWITCH_ID_6185	0x1a70
 #define PORT_SWITCH_ID_6240	0x2400
-#define PORT_SWITCH_ID_6320	0x1250
+#define PORT_SWITCH_ID_6320	0x1150
+#define PORT_SWITCH_ID_6320_A1	0x1151
+#define PORT_SWITCH_ID_6320_A2	0x1152
+#define PORT_SWITCH_ID_6321	0x3100
+#define PORT_SWITCH_ID_6321_A1	0x3101
+#define PORT_SWITCH_ID_6321_A2	0x3102
 #define PORT_SWITCH_ID_6350	0x3710
 #define PORT_SWITCH_ID_6351	0x3750
 #define PORT_SWITCH_ID_6352	0x3520
@@ -124,6 +133,7 @@
 #define PORT_CONTROL_1		0x05
 #define PORT_BASE_VLAN		0x06
 #define PORT_DEFAULT_VLAN	0x07
+#define PORT_DEFAULT_VLAN_MASK	0xfff
 #define PORT_CONTROL_2		0x08
 #define PORT_CONTROL_2_IGNORE_FCS	BIT(15)
 #define PORT_CONTROL_2_VTU_PRI_OVERRIDE	BIT(14)
@@ -132,6 +142,11 @@
 #define PORT_CONTROL_2_JUMBO_1522	(0x00 << 12)
 #define PORT_CONTROL_2_JUMBO_2048	(0x01 << 12)
 #define PORT_CONTROL_2_JUMBO_10240	(0x02 << 12)
+#define PORT_CONTROL_2_8021Q_MASK	(0x03 << 10)
+#define PORT_CONTROL_2_8021Q_DISABLED	(0x00 << 10)
+#define PORT_CONTROL_2_8021Q_FALLBACK	(0x01 << 10)
+#define PORT_CONTROL_2_8021Q_CHECK	(0x02 << 10)
+#define PORT_CONTROL_2_8021Q_SECURE	(0x03 << 10)
 #define PORT_CONTROL_2_DISCARD_TAGGED	BIT(9)
 #define PORT_CONTROL_2_DISCARD_UNTAGGED	BIT(8)
 #define PORT_CONTROL_2_MAP_DA		BIT(7)
@@ -164,6 +179,11 @@
 #define GLOBAL_MAC_01		0x01
 #define GLOBAL_MAC_23		0x02
 #define GLOBAL_MAC_45		0x03
+#define GLOBAL_ATU_FID		0x01	/* 6097 6165 6351 6352 */
+#define GLOBAL_VTU_FID		0x02	/* 6097 6165 6351 6352 */
+#define GLOBAL_VTU_FID_MASK	0xfff
+#define GLOBAL_VTU_SID		0x03	/* 6097 6165 6351 6352 */
+#define GLOBAL_VTU_SID_MASK	0x3f
 #define GLOBAL_CONTROL		0x04
 #define GLOBAL_CONTROL_SW_RESET		BIT(15)
 #define GLOBAL_CONTROL_PPU_ENABLE	BIT(14)
@@ -180,10 +200,27 @@
 #define GLOBAL_CONTROL_TCAM_EN		BIT(1)
 #define GLOBAL_CONTROL_EEPROM_DONE_EN	BIT(0)
 #define GLOBAL_VTU_OP		0x05
+#define GLOBAL_VTU_OP_BUSY	BIT(15)
+#define GLOBAL_VTU_OP_FLUSH_ALL		((0x01 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_VTU_LOAD_PURGE	((0x03 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_VTU_GET_NEXT	((0x04 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_STU_LOAD_PURGE	((0x05 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_STU_GET_NEXT	((0x06 << 12) | GLOBAL_VTU_OP_BUSY)
 #define GLOBAL_VTU_VID		0x06
+#define GLOBAL_VTU_VID_MASK	0xfff
+#define GLOBAL_VTU_VID_VALID	BIT(12)
 #define GLOBAL_VTU_DATA_0_3	0x07
 #define GLOBAL_VTU_DATA_4_7	0x08
 #define GLOBAL_VTU_DATA_8_11	0x09
+#define GLOBAL_VTU_STU_DATA_MASK		0x03
+#define GLOBAL_VTU_DATA_MEMBER_TAG_UNMODIFIED	0x00
+#define GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED	0x01
+#define GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED	0x02
+#define GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER	0x03
+#define GLOBAL_STU_DATA_PORT_STATE_DISABLED	0x00
+#define GLOBAL_STU_DATA_PORT_STATE_BLOCKING	0x01
+#define GLOBAL_STU_DATA_PORT_STATE_LEARNING	0x02
+#define GLOBAL_STU_DATA_PORT_STATE_FORWARDING	0x03
 #define GLOBAL_ATU_CONTROL	0x0a
 #define GLOBAL_ATU_CONTROL_LEARN2ALL	BIT(3)
 #define GLOBAL_ATU_OP		0x0b
@@ -198,6 +235,8 @@
 #define GLOBAL_ATU_OP_GET_CLR_VIOLATION	  ((7 << 12) | GLOBAL_ATU_OP_BUSY)
 #define GLOBAL_ATU_DATA		0x0c
 #define GLOBAL_ATU_DATA_TRUNK			BIT(15)
+#define GLOBAL_ATU_DATA_TRUNK_ID_MASK		0x00f0
+#define GLOBAL_ATU_DATA_TRUNK_ID_SHIFT		4
 #define GLOBAL_ATU_DATA_PORT_VECTOR_MASK	0x3ff0
 #define GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT	4
 #define GLOBAL_ATU_DATA_STATE_MASK		0x0f
@@ -280,8 +319,12 @@
 #define GLOBAL2_PRIO_OVERRIDE_FORCE_ARP		BIT(3)
 #define GLOBAL2_PRIO_OVERRIDE_ARP_SHIFT		0
 #define GLOBAL2_EEPROM_OP	0x14
-#define GLOBAL2_EEPROM_OP_BUSY	BIT(15)
-#define GLOBAL2_EEPROM_OP_LOAD	BIT(11)
+#define GLOBAL2_EEPROM_OP_BUSY		BIT(15)
+#define GLOBAL2_EEPROM_OP_WRITE		((3 << 12) | GLOBAL2_EEPROM_OP_BUSY)
+#define GLOBAL2_EEPROM_OP_READ		((4 << 12) | GLOBAL2_EEPROM_OP_BUSY)
+#define GLOBAL2_EEPROM_OP_LOAD		BIT(11)
+#define GLOBAL2_EEPROM_OP_WRITE_EN	BIT(10)
+#define GLOBAL2_EEPROM_OP_ADDR_MASK	0xff
 #define GLOBAL2_EEPROM_DATA	0x15
 #define GLOBAL2_PTP_AVB_OP	0x16
 #define GLOBAL2_PTP_AVB_DATA	0x17
@@ -303,6 +346,25 @@
 #define GLOBAL2_WDOG_CONTROL	0x1b
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
+
+struct mv88e6xxx_atu_entry {
+	u16	fid;
+	u8	state;
+	bool	trunk;
+	u16	portv_trunkid;
+	u8	mac[ETH_ALEN];
+};
+
+struct mv88e6xxx_vtu_stu_entry {
+	/* VTU only */
+	u16	vid;
+	u16	fid;
+
+	/* VTU and STU */
+	u8	sid;
+	bool	valid;
+	u8	data[DSA_MAX_PORTS];
+};
 
 struct mv88e6xxx_priv_state {
 	/* When using multi-chip addressing, this mutex protects
@@ -342,9 +404,9 @@ struct mv88e6xxx_priv_state {
 
 	/* hw bridging */
 
-	u32 fid_mask;
-	u8 fid[DSA_MAX_PORTS];
-	u16 bridge_mask[DSA_MAX_PORTS];
+	DECLARE_BITMAP(fid_bitmap, VLAN_N_VID);	/* FIDs 1 to 4095 available */
+	u16 fid[DSA_MAX_PORTS];			/* per (non-bridged) port FID */
+	u16 bridge_mask[DSA_MAX_PORTS];		/* br groups (indexed by FID) */
 
 	unsigned long port_state_update_mask;
 	u8 port_state[DSA_MAX_PORTS];
@@ -386,10 +448,15 @@ void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 				 uint64_t *data);
 int mv88e6xxx_get_sset_count(struct dsa_switch *ds);
 int mv88e6xxx_get_sset_count_basic(struct dsa_switch *ds);
+void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
+			   struct phy_device *phydev);
 int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port);
 void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 			struct ethtool_regs *regs, void *_p);
-int  mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp);
+int mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp);
+int mv88e6xxx_get_temp_limit(struct dsa_switch *ds, int *temp);
+int mv88e6xxx_set_temp_limit(struct dsa_switch *ds, int temp);
+int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm);
 int mv88e6xxx_eeprom_load_wait(struct dsa_switch *ds);
 int mv88e6xxx_eeprom_busy_wait(struct dsa_switch *ds);
 int mv88e6xxx_phy_read_indirect(struct dsa_switch *ds, int addr, int regnum);
@@ -401,15 +468,23 @@ int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
+int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *vid);
+int mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 vid);
+int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
+			    bool untagged);
+int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid);
+int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
+			   unsigned long *ports, unsigned long *untagged);
 int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 			   const unsigned char *addr, u16 vid);
 int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 			   const unsigned char *addr, u16 vid);
 int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
-			       unsigned char *addr, bool *is_static);
+			       unsigned char *addr, u16 *vid, bool *is_static);
 int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg);
 int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
 			     int reg, int val);
+
 extern struct dsa_switch_driver mv88e6131_switch_driver;
 extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;
 extern struct dsa_switch_driver mv88e6352_switch_driver;

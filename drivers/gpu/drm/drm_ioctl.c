@@ -480,7 +480,7 @@ static int drm_version(struct drm_device *dev, void *data,
  * indicated permissions. If so, returns zero. Otherwise returns an
  * error code suitable for ioctl return.
  */
-static int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
+int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 {
 	/* ROOT_ONLY is only for CAP_SYS_ADMIN */
 	if (unlikely((flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)))
@@ -508,6 +508,7 @@ static int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_ioctl_permit);
 
 #define DRM_IOCTL_DEF(ioctl, _func, _flags)	\
 	[DRM_IOCTL_NR(ioctl)] = {		\
@@ -519,7 +520,8 @@ static int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 
 /** Ioctl table */
 static const struct drm_ioctl_desc drm_ioctls[] = {
-	DRM_IOCTL_DEF(DRM_IOCTL_VERSION, drm_version, DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_VERSION, drm_version,
+		      DRM_UNLOCKED|DRM_RENDER_ALLOW|DRM_CONTROL_ALLOW),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_UNIQUE, drm_getunique, 0),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_MAGIC, drm_getmagic, 0),
 	DRM_IOCTL_DEF(DRM_IOCTL_IRQ_BUSID, drm_irq_by_busid, DRM_MASTER|DRM_ROOT_ONLY),

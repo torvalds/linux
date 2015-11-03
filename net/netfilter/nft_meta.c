@@ -166,11 +166,13 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			goto err;
 		*dest = out->group;
 		break;
+#ifdef CONFIG_CGROUP_NET_CLASSID
 	case NFT_META_CGROUP:
 		if (skb->sk == NULL || !sk_fullsock(skb->sk))
 			goto err;
 		*dest = skb->sk->sk_classid;
 		break;
+#endif
 	default:
 		WARN_ON(1);
 		goto err;
@@ -246,7 +248,9 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 	case NFT_META_CPU:
 	case NFT_META_IIFGROUP:
 	case NFT_META_OIFGROUP:
+#ifdef CONFIG_CGROUP_NET_CLASSID
 	case NFT_META_CGROUP:
+#endif
 		len = sizeof(u32);
 		break;
 	case NFT_META_IIFNAME:

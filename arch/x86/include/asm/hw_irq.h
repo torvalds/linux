@@ -182,10 +182,10 @@ extern char irq_entries_start[];
 #define trace_irq_entries_start irq_entries_start
 #endif
 
-#define VECTOR_UNDEFINED	(-1)
-#define VECTOR_RETRIGGERED	(-2)
+#define VECTOR_UNUSED		NULL
+#define VECTOR_RETRIGGERED	((void *)~0UL)
 
-typedef int vector_irq_t[NR_VECTORS];
+typedef struct irq_desc* vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
 
 #endif /* !ASSEMBLY_ */

@@ -34,6 +34,12 @@
 #define PSTR_RETRIES	100
 #define PSTR_DELAY_US	10
 
+static inline
+struct rmobile_pm_domain *to_rmobile_pd(struct generic_pm_domain *d)
+{
+	return container_of(d, struct rmobile_pm_domain, genpd);
+}
+
 static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 {
 	struct rmobile_pm_domain *rmobile_pd = to_rmobile_pd(genpd);
@@ -42,7 +48,7 @@ static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 	if (rmobile_pd->bit_shift == ~0)
 		return -EBUSY;
 
-	mask = 1 << rmobile_pd->bit_shift;
+	mask = BIT(rmobile_pd->bit_shift);
 	if (rmobile_pd->suspend) {
 		int ret = rmobile_pd->suspend();
 
@@ -79,7 +85,7 @@ static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd,
 	if (rmobile_pd->bit_shift == ~0)
 		return 0;
 
-	mask = 1 << rmobile_pd->bit_shift;
+	mask = BIT(rmobile_pd->bit_shift);
 	if (__raw_readl(rmobile_pd->base + PSTR) & mask)
 		goto out;
 
@@ -162,43 +168,6 @@ static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 	genpd->detach_dev		= rmobile_pd_detach_dev;
 	__rmobile_pd_power_up(rmobile_pd, false);
 }
-
-#ifdef CONFIG_ARCH_SHMOBILE_LEGACY
-
-void rmobile_init_domains(struct rmobile_pm_domain domains[], int num)
-{
-	int j;
-
-	for (j = 0; j < num; j++)
-		rmobile_init_pm_domain(&domains[j]);
-}
-
-void rmobile_add_device_to_domain_td(const char *domain_name,
-				     struct platform_device *pdev,
-				     struct gpd_timing_data *td)
-{
-	struct device *dev = &pdev->dev;
-
-	__pm_genpd_name_add_device(domain_name, dev, td);
-}
-
-void rmobile_add_devices_to_domains(struct pm_domain_device data[],
-				    int size)
-{
-	struct gpd_timing_data latencies = {
-		.stop_latency_ns = DEFAULT_DEV_LATENCY_NS,
-		.start_latency_ns = DEFAULT_DEV_LATENCY_NS,
-		.save_state_latency_ns = DEFAULT_DEV_LATENCY_NS,
-		.restore_state_latency_ns = DEFAULT_DEV_LATENCY_NS,
-	};
-	int j;
-
-	for (j = 0; j < size; j++)
-		rmobile_add_device_to_domain_td(data[j].domain_name,
-						data[j].pdev, &latencies);
-}
-
-#else /* !CONFIG_ARCH_SHMOBILE_LEGACY */
 
 static int rmobile_pd_suspend_busy(void)
 {
@@ -430,5 +399,3 @@ static int __init rmobile_init_pm_domains(void)
 }
 
 core_initcall(rmobile_init_pm_domains);
-
-#endif /* !CONFIG_ARCH_SHMOBILE_LEGACY */

@@ -90,11 +90,11 @@ patch.
 
 Make sure your patch does not include any extra files which do not
 belong in a patch submission.  Make sure to review your patch -after-
-generated it with diff(1), to ensure accuracy.
+generating it with diff(1), to ensure accuracy.
 
 If your changes produce a lot of deltas, you need to split them into
 individual patches which modify things in logical stages; see section
-#3.  This will facilitate easier reviewing by other kernel developers,
+#3.  This will facilitate review by other kernel developers,
 very important if you want your patch accepted.
 
 If you're using git, "git rebase -i" can help you with this process.  If
@@ -267,7 +267,7 @@ You should always copy the appropriate subsystem maintainer(s) on any patch
 to code that they maintain; look through the MAINTAINERS file and the
 source code revision history to see who those maintainers are.  The
 script scripts/get_maintainer.pl can be very useful at this step.  If you
-cannot find a maintainer for the subsystem your are working on, Andrew
+cannot find a maintainer for the subsystem you are working on, Andrew
 Morton (akpm@linux-foundation.org) serves as a maintainer of last resort.
 
 You should also normally choose at least one mailing list to receive a copy
@@ -291,7 +291,7 @@ sending him e-mail.
 
 If you have a patch that fixes an exploitable security bug, send that patch
 to security@kernel.org.  For severe bugs, a short embargo may be considered
-to allow distrbutors to get the patch out to users; in such cases,
+to allow distributors to get the patch out to users; in such cases,
 obviously, the patch should not be sent to any public lists.
 
 Patches that fix a severe bug in a released kernel should be directed
@@ -340,7 +340,7 @@ on the changes you are submitting.  It is important for a kernel
 developer to be able to "quote" your changes, using standard e-mail
 tools, so that they may comment on specific portions of your code.
 
-For this reason, all patches should be submitting e-mail "inline".
+For this reason, all patches should be submitted by e-mail "inline".
 WARNING:  Be wary of your editor's word-wrap corrupting your patch,
 if you choose to cut-n-paste your patch.
 
@@ -739,7 +739,7 @@ interest on a single line; it should look something like:
 
       git://jdelvare.pck.nerim.net/jdelvare-2.6 i2c-for-linus
 
-  to get these changes:"
+  to get these changes:
 
 A pull request should also include an overall message saying what will be
 included in the request, a "git shortlog" listing of the patches
@@ -796,7 +796,7 @@ NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <https://lkml.org/lkml/2005/7/11/336>
 
 Kernel Documentation/CodingStyle:
-  <http://users.sosdg.org/~qiyong/lxr/source/Documentation/CodingStyle>
+  <Documentation/CodingStyle>
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>

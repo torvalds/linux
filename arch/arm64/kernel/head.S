@@ -62,13 +62,8 @@
 /*
  * Initial memory map attributes.
  */
-#ifndef CONFIG_SMP
-#define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF
-#define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF
-#else
 #define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF | PTE_SHARED
 #define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S
-#endif
 
 #ifdef CONFIG_ARM64_64K_PAGES
 #define MM_MMUFLAGS	PTE_ATTRINDX(MT_NORMAL) | PTE_FLAGS
@@ -528,6 +523,11 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
 #endif
 
+	/* EL2 debug */
+	mrs	x0, pmcr_el0			// Disable debug access traps
+	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
+	msr	mdcr_el2, x0			// all PMU counters from EL1
+
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
 
@@ -574,7 +574,6 @@ ENTRY(__boot_cpu_mode)
 	.long	BOOT_CPU_MODE_EL1
 	.popsection
 
-#ifdef CONFIG_SMP
 	/*
 	 * This provides a "holding pen" for platforms to hold all secondary
 	 * cores are held until we're ready for them to initialise.
@@ -622,7 +621,6 @@ ENTRY(__secondary_switched)
 	mov	x29, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
-#endif	/* CONFIG_SMP */
 
 /*
  * Enable the MMU.
@@ -640,6 +638,14 @@ __enable_mmu:
 	msr	ttbr1_el1, x26			// load TTBR1
 	isb
 	msr	sctlr_el1, x0
+	isb
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
 	isb
 	br	x27
 ENDPROC(__enable_mmu)

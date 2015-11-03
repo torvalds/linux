@@ -51,40 +51,36 @@ void enable_mfgpt0_counter(void)
 }
 EXPORT_SYMBOL(enable_mfgpt0_counter);
 
-static void init_mfgpt_timer(enum clock_event_mode mode,
-			     struct clock_event_device *evt)
+static int mfgpt_timer_set_periodic(struct clock_event_device *evt)
 {
 	raw_spin_lock(&mfgpt_lock);
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		outw(COMPARE, MFGPT0_CMP2);	/* set comparator2 */
-		outw(0, MFGPT0_CNT);	/* set counter to 0 */
-		enable_mfgpt0_counter();
-		break;
+	outw(COMPARE, MFGPT0_CMP2);	/* set comparator2 */
+	outw(0, MFGPT0_CNT);		/* set counter to 0 */
+	enable_mfgpt0_counter();
 
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-		if (evt->mode == CLOCK_EVT_MODE_PERIODIC ||
-		    evt->mode == CLOCK_EVT_MODE_ONESHOT)
-			disable_mfgpt0_counter();
-		break;
-
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* The oneshot mode have very high deviation, Not use it! */
-		break;
-
-	case CLOCK_EVT_MODE_RESUME:
-		/* Nothing to do here */
-		break;
-	}
 	raw_spin_unlock(&mfgpt_lock);
+	return 0;
+}
+
+static int mfgpt_timer_shutdown(struct clock_event_device *evt)
+{
+	if (clockevent_state_periodic(evt) || clockevent_state_oneshot(evt)) {
+		raw_spin_lock(&mfgpt_lock);
+		disable_mfgpt0_counter();
+		raw_spin_unlock(&mfgpt_lock);
+	}
+
+	return 0;
 }
 
 static struct clock_event_device mfgpt_clockevent = {
 	.name = "mfgpt",
 	.features = CLOCK_EVT_FEAT_PERIODIC,
-	.set_mode = init_mfgpt_timer,
+
+	/* The oneshot mode have very high deviation, don't use it! */
+	.set_state_shutdown = mfgpt_timer_shutdown,
+	.set_state_periodic = mfgpt_timer_set_periodic,
 	.irq = CS5536_MFGPT_INTR,
 };
 

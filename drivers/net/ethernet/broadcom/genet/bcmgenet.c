@@ -907,9 +907,8 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 	}
 
 	bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
-
 	if (mode == GENET_POWER_PASSIVE)
-		bcmgenet_mii_reset(priv->dev);
+		bcmgenet_phy_power_set(priv->dev, true);
 }
 
 /* ioctl handle special commands that are not present in ethtool. */
@@ -1725,7 +1724,7 @@ static int init_umac(struct bcmgenet_priv *priv)
 	int0_enable |= UMAC_IRQ_TXDMA_DONE;
 
 	/* Monitor cable plug/unplugged event for internal PHY */
-	if (phy_is_internal(priv->phydev)) {
+	if (priv->internal_phy) {
 		int0_enable |= UMAC_IRQ_LINK_EVENT;
 	} else if (priv->ext_phy) {
 		int0_enable |= UMAC_IRQ_LINK_EVENT;
@@ -2126,6 +2125,8 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 	int ret = 0;
 	int timeout = 0;
 	u32 reg;
+	u32 dma_ctrl;
+	int i;
 
 	/* Disable TDMA to stop add more frames in TX DMA */
 	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
@@ -2168,6 +2169,20 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 		netdev_warn(priv->dev, "Timed out while disabling RX DMA\n");
 		ret = -ETIMEDOUT;
 	}
+
+	dma_ctrl = 0;
+	for (i = 0; i < priv->hw_params->rx_queues; i++)
+		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
+	reg = bcmgenet_rdma_readl(priv, DMA_CTRL);
+	reg &= ~dma_ctrl;
+	bcmgenet_rdma_writel(priv, reg, DMA_CTRL);
+
+	dma_ctrl = 0;
+	for (i = 0; i < priv->hw_params->tx_queues; i++)
+		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
+	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
+	reg &= ~dma_ctrl;
+	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
 
 	return ret;
 }
@@ -2388,6 +2403,23 @@ static irqreturn_t bcmgenet_wol_isr(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void bcmgenet_poll_controller(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	/* Invoke the main RX/TX interrupt handler */
+	disable_irq(priv->irq0);
+	bcmgenet_isr0(priv->irq0, priv);
+	enable_irq(priv->irq0);
+
+	/* And the interrupt handler for RX/TX priority queues */
+	disable_irq(priv->irq1);
+	bcmgenet_isr1(priv->irq1, priv);
+	enable_irq(priv->irq1);
+}
+#endif
 
 static void bcmgenet_umac_reset(struct bcmgenet_priv *priv)
 {
@@ -2626,13 +2658,12 @@ static int bcmgenet_open(struct net_device *dev)
 	netif_dbg(priv, ifup, dev, "bcmgenet_open\n");
 
 	/* Turn on the clock */
-	if (!IS_ERR(priv->clk))
-		clk_prepare_enable(priv->clk);
+	clk_prepare_enable(priv->clk);
 
 	/* If this is an internal GPHY, power it back on now, before UniMAC is
 	 * brought out of reset as absolutely no UniMAC activity is allowed
 	 */
-	if (phy_is_internal(priv->phydev))
+	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
 	/* take MAC out of reset */
@@ -2651,7 +2682,7 @@ static int bcmgenet_open(struct net_device *dev)
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
-	if (phy_is_internal(priv->phydev)) {
+	if (priv->internal_phy) {
 		reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 		reg |= EXT_ENERGY_DET_MASK;
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
@@ -2687,23 +2718,24 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_irq0;
 	}
 
-	/* Re-configure the port multiplexer towards the PHY device */
-	bcmgenet_mii_config(priv->dev, false);
-
-	phy_connect_direct(dev, priv->phydev, bcmgenet_mii_setup,
-			   priv->phy_interface);
+	ret = bcmgenet_mii_probe(dev);
+	if (ret) {
+		netdev_err(dev, "failed to connect to PHY\n");
+		goto err_irq1;
+	}
 
 	bcmgenet_netif_start(dev);
 
 	return 0;
 
+err_irq1:
+	free_irq(priv->irq1, priv);
 err_irq0:
-	free_irq(priv->irq0, dev);
+	free_irq(priv->irq0, priv);
 err_fini_dma:
 	bcmgenet_fini_dma(priv);
 err_clk_disable:
-	if (!IS_ERR(priv->clk))
-		clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 
@@ -2757,11 +2789,10 @@ static int bcmgenet_close(struct net_device *dev)
 	free_irq(priv->irq0, priv);
 	free_irq(priv->irq1, priv);
 
-	if (phy_is_internal(priv->phydev))
+	if (priv->internal_phy)
 		ret = bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
 
-	if (!IS_ERR(priv->clk))
-		clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	return ret;
 }
@@ -2820,8 +2851,6 @@ static void bcmgenet_timeout(struct net_device *dev)
 
 	netif_dbg(priv, tx_err, dev, "bcmgenet_timeout\n");
 
-	bcmgenet_disable_tx_napi(priv);
-
 	for (q = 0; q < priv->hw_params->tx_queues; q++)
 		bcmgenet_dump_tx_queue(&priv->tx_rings[q]);
 	bcmgenet_dump_tx_queue(&priv->tx_rings[DESC_INDEX]);
@@ -2836,8 +2865,6 @@ static void bcmgenet_timeout(struct net_device *dev)
 	/* Re-enable TX interrupts if disabled */
 	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
 	bcmgenet_intrl2_1_writel(priv, int1_enable, INTRL2_CPU_MASK_CLEAR);
-
-	bcmgenet_enable_tx_napi(priv);
 
 	dev->trans_start = jiffies;
 
@@ -2941,6 +2968,9 @@ static const struct net_device_ops bcmgenet_netdev_ops = {
 	.ndo_set_mac_address	= bcmgenet_set_mac_addr,
 	.ndo_do_ioctl		= bcmgenet_ioctl,
 	.ndo_set_features	= bcmgenet_set_features,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= bcmgenet_poll_controller,
+#endif
 };
 
 /* Array of GENET hardware parameters/characteristics */
@@ -3125,6 +3155,7 @@ static const struct of_device_id bcmgenet_match[] = {
 	{ .compatible = "brcm,genet-v4", .data = (void *)GENET_V4 },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, bcmgenet_match);
 
 static int bcmgenet_probe(struct platform_device *pdev)
 {
@@ -3214,11 +3245,12 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		priv->version = pd->genet_version;
 
 	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
-	if (IS_ERR(priv->clk))
+	if (IS_ERR(priv->clk)) {
 		dev_warn(&priv->pdev->dev, "failed to get enet clock\n");
+		priv->clk = NULL;
+	}
 
-	if (!IS_ERR(priv->clk))
-		clk_prepare_enable(priv->clk);
+	clk_prepare_enable(priv->clk);
 
 	bcmgenet_set_hw_params(priv);
 
@@ -3229,8 +3261,10 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	INIT_WORK(&priv->bcmgenet_irq_work, bcmgenet_irq_task);
 
 	priv->clk_wol = devm_clk_get(&priv->pdev->dev, "enet-wol");
-	if (IS_ERR(priv->clk_wol))
+	if (IS_ERR(priv->clk_wol)) {
 		dev_warn(&priv->pdev->dev, "failed to get enet-wol clock\n");
+		priv->clk_wol = NULL;
+	}
 
 	priv->clk_eee = devm_clk_get(&priv->pdev->dev, "enet-eee");
 	if (IS_ERR(priv->clk_eee)) {
@@ -3256,8 +3290,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	netif_carrier_off(dev);
 
 	/* Turn off the main clock, WOL clock is handled separately */
-	if (!IS_ERR(priv->clk))
-		clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	err = register_netdev(dev);
 	if (err)
@@ -3266,8 +3299,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	return err;
 
 err_clk_disable:
-	if (!IS_ERR(priv->clk))
-		clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk);
 err:
 	free_netdev(dev);
 	return err;
@@ -3319,7 +3351,7 @@ static int bcmgenet_suspend(struct device *d)
 	if (device_may_wakeup(d) && priv->wolopts) {
 		ret = bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
 		clk_prepare_enable(priv->clk_wol);
-	} else if (phy_is_internal(priv->phydev)) {
+	} else if (priv->internal_phy) {
 		ret = bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
 	}
 
@@ -3348,7 +3380,7 @@ static int bcmgenet_resume(struct device *d)
 	/* If this is an internal GPHY, power it back on now, before UniMAC is
 	 * brought out of reset as absolutely no UniMAC activity is allowed
 	 */
-	if (phy_is_internal(priv->phydev))
+	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
 	bcmgenet_umac_reset(priv);
@@ -3363,14 +3395,14 @@ static int bcmgenet_resume(struct device *d)
 
 	phy_init_hw(priv->phydev);
 	/* Speed settings must be restored */
-	bcmgenet_mii_config(priv->dev, false);
+	bcmgenet_mii_config(priv->dev);
 
 	/* disable ethernet MAC while updating its registers */
 	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
-	if (phy_is_internal(priv->phydev)) {
+	if (priv->internal_phy) {
 		reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 		reg |= EXT_ENERGY_DET_MASK;
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);

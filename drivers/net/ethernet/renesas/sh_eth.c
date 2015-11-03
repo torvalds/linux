@@ -3089,10 +3089,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	ndev->dma = -1;
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		ret = -ENODEV;
+	if (ret < 0)
 		goto out_release;
-	}
 	ndev->irq = ret;
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);

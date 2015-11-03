@@ -1186,13 +1186,23 @@ static int vpfe_initialize_device(struct vpfe_device *vpfe)
 static int vpfe_release(struct file *file)
 {
 	struct vpfe_device *vpfe = video_drvdata(file);
+	bool fh_singular;
 	int ret;
 
 	mutex_lock(&vpfe->lock);
 
-	if (v4l2_fh_is_singular_file(file))
-		vpfe_ccdc_close(&vpfe->ccdc, vpfe->pdev);
+	/* Save the singular status before we call the clean-up helper */
+	fh_singular = v4l2_fh_is_singular_file(file);
+
+	/* the release helper will cleanup any on-going streaming */
 	ret = _vb2_fop_release(file, NULL);
+
+	/*
+	 * If this was the last open file.
+	 * Then de-initialize hw module.
+	 */
+	if (fh_singular)
+		vpfe_ccdc_close(&vpfe->ccdc, vpfe->pdev);
 
 	mutex_unlock(&vpfe->lock);
 
@@ -1565,7 +1575,7 @@ static int vpfe_s_fmt(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
-	ret = vpfe_try_fmt(file, priv, fmt);
+	ret = vpfe_try_fmt(file, priv, &format);
 	if (ret)
 		return ret;
 

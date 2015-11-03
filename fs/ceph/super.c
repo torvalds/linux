@@ -479,7 +479,7 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 	if (fsopt->max_readdir_bytes != CEPH_MAX_READDIR_BYTES_DEFAULT)
 		seq_printf(m, ",readdir_max_bytes=%d", fsopt->max_readdir_bytes);
 	if (strcmp(fsopt->snapdir_name, CEPH_SNAPDIRNAME_DEFAULT))
-		seq_printf(m, ",snapdirname=%s", fsopt->snapdir_name);
+		seq_show_option(m, "snapdirname", fsopt->snapdir_name);
 
 	return 0;
 }
@@ -708,6 +708,7 @@ static void ceph_umount_begin(struct super_block *sb)
 	if (!fsc)
 		return;
 	fsc->mount_state = CEPH_MOUNT_SHUTDOWN;
+	ceph_mdsc_force_umount(fsc->mdsc);
 	return;
 }
 

@@ -1335,11 +1335,10 @@ static DECLARE_TLV_DB_SCALE(dax_dig_gain_tlv, -6300, 100, 1);
 static DECLARE_TLV_DB_SCALE(hs_ear_dig_gain_tlv, -100, 100, 1);
 /* -1dB = Mute */
 
-static const unsigned int hs_gain_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(hs_gain_tlv,
 	0, 3, TLV_DB_SCALE_ITEM(-3200, 400, 0),
-	4, 15, TLV_DB_SCALE_ITEM(-1800, 200, 0),
-};
+	4, 15, TLV_DB_SCALE_ITEM(-1800, 200, 0)
+);
 
 static DECLARE_TLV_DB_SCALE(mic_gain_tlv, 0, 100, 0);
 

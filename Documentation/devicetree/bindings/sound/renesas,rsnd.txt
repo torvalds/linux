@@ -18,6 +18,12 @@ Required properties:
 - rcar_sound,src		: Should contain SRC feature.
 				  The number of SRC subnode should be same as HW.
 				  see below for detail.
+- rcar_sound,ctu		: Should contain CTU feature.
+				  The number of CTU subnode should be same as HW.
+				  see below for detail.
+- rcar_sound,mix		: Should contain MIX feature.
+				  The number of MIX subnode should be same as HW.
+				  see below for detail.
 - rcar_sound,dvc		: Should contain DVC feature.
 				  The number of DVC subnode should be same as HW.
 				  see below for detail.
@@ -88,6 +94,22 @@ rcar_sound: sound@ec500000 {
 			dmas = <&audma0 0xbe>;
 			dma-names = "tx";
 		};
+	};
+
+	rcar_sound,mix {
+		mix0: mix@0 { };
+		mix1: mix@1 { };
+	};
+
+	rcar_sound,ctu {
+		ctu00: ctu@0 { };
+		ctu01: ctu@1 { };
+		ctu02: ctu@2 { };
+		ctu03: ctu@3 { };
+		ctu10: ctu@4 { };
+		ctu11: ctu@5 { };
+		ctu12: ctu@6 { };
+		ctu13: ctu@7 { };
 	};
 
 	rcar_sound,src {

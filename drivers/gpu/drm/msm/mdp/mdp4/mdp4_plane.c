@@ -26,6 +26,7 @@ struct mdp4_plane {
 
 	enum mdp4_pipe pipe;
 
+	uint32_t caps;
 	uint32_t nformats;
 	uint32_t formats[32];
 
@@ -74,7 +75,7 @@ static void mdp4_plane_destroy(struct drm_plane *plane)
 }
 
 /* helper to install properties which are common to planes and crtcs */
-void mdp4_plane_install_properties(struct drm_plane *plane,
+static void mdp4_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj)
 {
 	// XXX
@@ -220,12 +221,14 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 	uint32_t op_mode = 0;
 	uint32_t phasex_step = MDP4_VG_PHASE_STEP_DEFAULT;
 	uint32_t phasey_step = MDP4_VG_PHASE_STEP_DEFAULT;
-	enum mdp4_frame_format frame_type = mdp4_get_frame_format(fb);
+	enum mdp4_frame_format frame_type;
 
 	if (!(crtc && fb)) {
 		DBG("%s: disabled!", mdp4_plane->name);
 		return 0;
 	}
+
+	frame_type = mdp4_get_frame_format(fb);
 
 	/* src values are in Q16 fixed point, convert to integer: */
 	src_x = src_x >> 16;
@@ -380,9 +383,11 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 
 	mdp4_plane->pipe = pipe_id;
 	mdp4_plane->name = pipe_names[pipe_id];
+	mdp4_plane->caps = mdp4_pipe_caps(pipe_id);
 
-	mdp4_plane->nformats = mdp4_get_formats(pipe_id, mdp4_plane->formats,
-			ARRAY_SIZE(mdp4_plane->formats));
+	mdp4_plane->nformats = mdp_get_formats(mdp4_plane->formats,
+			ARRAY_SIZE(mdp4_plane->formats),
+			!pipe_supports_yuv(mdp4_plane->caps));
 
 	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp4_plane_funcs,

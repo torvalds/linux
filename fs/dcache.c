@@ -2718,7 +2718,7 @@ struct dentry *d_ancestor(struct dentry *p1, struct dentry *p2)
  * This helper attempts to cope with remotely renamed directories
  *
  * It assumes that the caller is already holding
- * dentry->d_parent->d_inode->i_mutex, inode->i_lock and rename_lock
+ * dentry->d_parent->d_inode->i_mutex, and rename_lock
  *
  * Note: If ever the locking in lock_rename() changes, then please
  * remember to update this too...
@@ -2744,7 +2744,6 @@ out_unalias:
 	__d_move(alias, dentry, false);
 	ret = 0;
 out_err:
-	spin_unlock(&inode->i_lock);
 	if (m2)
 		mutex_unlock(m2);
 	if (m1)
@@ -2790,10 +2789,11 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 	if (S_ISDIR(inode->i_mode)) {
 		struct dentry *new = __d_find_any_alias(inode);
 		if (unlikely(new)) {
+			/* The reference to new ensures it remains an alias */
+			spin_unlock(&inode->i_lock);
 			write_seqlock(&rename_lock);
 			if (unlikely(d_ancestor(new, dentry))) {
 				write_sequnlock(&rename_lock);
-				spin_unlock(&inode->i_lock);
 				dput(new);
 				new = ERR_PTR(-ELOOP);
 				pr_warn_ratelimited(
@@ -2812,7 +2812,6 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 			} else {
 				__d_move(new, dentry, false);
 				write_sequnlock(&rename_lock);
-				spin_unlock(&inode->i_lock);
 				security_d_instantiate(new, inode);
 			}
 			iput(inode);
@@ -2926,6 +2925,13 @@ restart:
 
 		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
 			struct mount *parent = ACCESS_ONCE(mnt->mnt_parent);
+			/* Escaped? */
+			if (dentry != vfsmnt->mnt_root) {
+				bptr = *buffer;
+				blen = *buflen;
+				error = 3;
+				break;
+			}
 			/* Global root? */
 			if (mnt != parent) {
 				dentry = ACCESS_ONCE(mnt->mnt_mountpoint);
@@ -3442,22 +3448,15 @@ void __init vfs_caches_init_early(void)
 	inode_init_early();
 }
 
-void __init vfs_caches_init(unsigned long mempages)
+void __init vfs_caches_init(void)
 {
-	unsigned long reserve;
-
-	/* Base hash sizes on available memory, with a reserve equal to
-           150% of current kernel size */
-
-	reserve = min((mempages - nr_free_pages()) * 3/2, mempages - 1);
-	mempages -= reserve;
-
 	names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 
 	dcache_init();
 	inode_init();
-	files_init(mempages);
+	files_init();
+	files_maxfiles_init();
 	mnt_init();
 	bdev_cache_init();
 	chrdev_init();

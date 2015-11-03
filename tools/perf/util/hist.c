@@ -151,6 +151,12 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	hists__new_col_len(hists, HISTC_LOCAL_WEIGHT, 12);
 	hists__new_col_len(hists, HISTC_GLOBAL_WEIGHT, 12);
 
+	if (h->srcline)
+		hists__new_col_len(hists, HISTC_SRCLINE, strlen(h->srcline));
+
+	if (h->srcfile)
+		hists__new_col_len(hists, HISTC_SRCFILE, strlen(h->srcfile));
+
 	if (h->transaction)
 		hists__new_col_len(hists, HISTC_TRANSACTION,
 				   hist_entry__transaction_len());
@@ -618,7 +624,8 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 	 * and not events sampled. Thus we use a pseudo period of 1.
 	 */
 	he = __hists__add_entry(hists, al, iter->parent, &bi[i], NULL,
-				1, 1, 0, true);
+				1, bi->flags.cycles ? bi->flags.cycles : 1,
+				0, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -760,6 +767,7 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 	struct hist_entry **he_cache = iter->priv;
 	struct hist_entry *he;
 	struct hist_entry he_tmp = {
+		.hists = evsel__hists(evsel),
 		.cpu = al->cpu,
 		.thread = al->thread,
 		.comm = thread__comm(al->thread),
@@ -944,6 +952,8 @@ void hist_entry__delete(struct hist_entry *he)
 
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
+	if (he->srcfile && he->srcfile[0])
+		free(he->srcfile);
 	free_callchain(he->callchain);
 	free(he);
 }
@@ -1099,13 +1109,14 @@ void hists__inc_stats(struct hists *hists, struct hist_entry *h)
 
 static void __hists__insert_output_entry(struct rb_root *entries,
 					 struct hist_entry *he,
-					 u64 min_callchain_hits)
+					 u64 min_callchain_hits,
+					 bool use_callchain)
 {
 	struct rb_node **p = &entries->rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
 
-	if (symbol_conf.use_callchain)
+	if (use_callchain)
 		callchain_param.sort(&he->sorted_chain, he->callchain,
 				      min_callchain_hits, &callchain_param);
 
@@ -1129,6 +1140,13 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 	struct rb_node *next;
 	struct hist_entry *n;
 	u64 min_callchain_hits;
+	struct perf_evsel *evsel = hists_to_evsel(hists);
+	bool use_callchain;
+
+	if (evsel && !symbol_conf.show_ref_callgraph)
+		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
+	else
+		use_callchain = symbol_conf.use_callchain;
 
 	min_callchain_hits = hists->stats.total_period * (callchain_param.min_percent / 100);
 
@@ -1147,7 +1165,7 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 		n = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&n->rb_node_in);
 
-		__hists__insert_output_entry(&hists->entries, n, min_callchain_hits);
+		__hists__insert_output_entry(&hists->entries, n, min_callchain_hits, use_callchain);
 		hists__inc_stats(hists, n);
 
 		if (!n->filtered)
@@ -1414,6 +1432,39 @@ int hists__link(struct hists *leader, struct hists *other)
 	return 0;
 }
 
+void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
+			  struct perf_sample *sample, bool nonany_branch_mode)
+{
+	struct branch_info *bi;
+
+	/* If we have branch cycles always annotate them. */
+	if (bs && bs->nr && bs->entries[0].flags.cycles) {
+		int i;
+
+		bi = sample__resolve_bstack(sample, al);
+		if (bi) {
+			struct addr_map_symbol *prev = NULL;
+
+			/*
+			 * Ignore errors, still want to process the
+			 * other entries.
+			 *
+			 * For non standard branch modes always
+			 * force no IPC (prev == NULL)
+			 *
+			 * Note that perf stores branches reversed from
+			 * program order!
+			 */
+			for (i = bs->nr - 1; i >= 0; i--) {
+				addr_map_symbol__account_cycles(&bi[i].from,
+					nonany_branch_mode ? NULL : prev,
+					bi[i].flags.cycles);
+				prev = &bi[i].to;
+			}
+			free(bi);
+		}
+	}
+}
 
 size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp)
 {

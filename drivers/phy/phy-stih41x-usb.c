@@ -112,7 +112,7 @@ static int stih41x_usb_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops stih41x_usb_phy_ops = {
+static const struct phy_ops stih41x_usb_phy_ops = {
 	.init		= stih41x_usb_phy_init,
 	.power_on	= stih41x_usb_phy_power_on,
 	.power_off	= stih41x_usb_phy_power_off,

@@ -22,11 +22,11 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "ram.h"
 
 #include <core/client.h>
-#include <core/device.h>
-#include <core/engctx.h>
 #include <core/enum.h>
+#include <engine/fifo.h>
 
 int
 nv50_fb_memtype[0x80] = {
@@ -40,130 +40,139 @@ nv50_fb_memtype[0x80] = {
 	1, 0, 2, 0, 1, 0, 2, 0, 1, 1, 2, 2, 1, 1, 0, 0
 };
 
-bool
-nv50_fb_memtype_valid(struct nvkm_fb *pfb, u32 memtype)
+static int
+nv50_fb_ram_new(struct nvkm_fb *base, struct nvkm_ram **pram)
+{
+	struct nv50_fb *fb = nv50_fb(base);
+	return fb->func->ram_new(&fb->base, pram);
+}
+
+static bool
+nv50_fb_memtype_valid(struct nvkm_fb *fb, u32 memtype)
 {
 	return nv50_fb_memtype[(memtype & 0xff00) >> 8] != 0;
 }
 
 static const struct nvkm_enum vm_dispatch_subclients[] = {
-	{ 0x00000000, "GRCTX", NULL },
-	{ 0x00000001, "NOTIFY", NULL },
-	{ 0x00000002, "QUERY", NULL },
-	{ 0x00000003, "COND", NULL },
-	{ 0x00000004, "M2M_IN", NULL },
-	{ 0x00000005, "M2M_OUT", NULL },
-	{ 0x00000006, "M2M_NOTIFY", NULL },
+	{ 0x00000000, "GRCTX" },
+	{ 0x00000001, "NOTIFY" },
+	{ 0x00000002, "QUERY" },
+	{ 0x00000003, "COND" },
+	{ 0x00000004, "M2M_IN" },
+	{ 0x00000005, "M2M_OUT" },
+	{ 0x00000006, "M2M_NOTIFY" },
 	{}
 };
 
 static const struct nvkm_enum vm_ccache_subclients[] = {
-	{ 0x00000000, "CB", NULL },
-	{ 0x00000001, "TIC", NULL },
-	{ 0x00000002, "TSC", NULL },
+	{ 0x00000000, "CB" },
+	{ 0x00000001, "TIC" },
+	{ 0x00000002, "TSC" },
 	{}
 };
 
 static const struct nvkm_enum vm_prop_subclients[] = {
-	{ 0x00000000, "RT0", NULL },
-	{ 0x00000001, "RT1", NULL },
-	{ 0x00000002, "RT2", NULL },
-	{ 0x00000003, "RT3", NULL },
-	{ 0x00000004, "RT4", NULL },
-	{ 0x00000005, "RT5", NULL },
-	{ 0x00000006, "RT6", NULL },
-	{ 0x00000007, "RT7", NULL },
-	{ 0x00000008, "ZETA", NULL },
-	{ 0x00000009, "LOCAL", NULL },
-	{ 0x0000000a, "GLOBAL", NULL },
-	{ 0x0000000b, "STACK", NULL },
-	{ 0x0000000c, "DST2D", NULL },
+	{ 0x00000000, "RT0" },
+	{ 0x00000001, "RT1" },
+	{ 0x00000002, "RT2" },
+	{ 0x00000003, "RT3" },
+	{ 0x00000004, "RT4" },
+	{ 0x00000005, "RT5" },
+	{ 0x00000006, "RT6" },
+	{ 0x00000007, "RT7" },
+	{ 0x00000008, "ZETA" },
+	{ 0x00000009, "LOCAL" },
+	{ 0x0000000a, "GLOBAL" },
+	{ 0x0000000b, "STACK" },
+	{ 0x0000000c, "DST2D" },
 	{}
 };
 
 static const struct nvkm_enum vm_pfifo_subclients[] = {
-	{ 0x00000000, "PUSHBUF", NULL },
-	{ 0x00000001, "SEMAPHORE", NULL },
+	{ 0x00000000, "PUSHBUF" },
+	{ 0x00000001, "SEMAPHORE" },
 	{}
 };
 
 static const struct nvkm_enum vm_bar_subclients[] = {
-	{ 0x00000000, "FB", NULL },
-	{ 0x00000001, "IN", NULL },
+	{ 0x00000000, "FB" },
+	{ 0x00000001, "IN" },
 	{}
 };
 
 static const struct nvkm_enum vm_client[] = {
-	{ 0x00000000, "STRMOUT", NULL },
+	{ 0x00000000, "STRMOUT" },
 	{ 0x00000003, "DISPATCH", vm_dispatch_subclients },
-	{ 0x00000004, "PFIFO_WRITE", NULL },
+	{ 0x00000004, "PFIFO_WRITE" },
 	{ 0x00000005, "CCACHE", vm_ccache_subclients },
-	{ 0x00000006, "PMSPPP", NULL },
-	{ 0x00000007, "CLIPID", NULL },
-	{ 0x00000008, "PFIFO_READ", NULL },
-	{ 0x00000009, "VFETCH", NULL },
-	{ 0x0000000a, "TEXTURE", NULL },
+	{ 0x00000006, "PMSPPP" },
+	{ 0x00000007, "CLIPID" },
+	{ 0x00000008, "PFIFO_READ" },
+	{ 0x00000009, "VFETCH" },
+	{ 0x0000000a, "TEXTURE" },
 	{ 0x0000000b, "PROP", vm_prop_subclients },
-	{ 0x0000000c, "PVP", NULL },
-	{ 0x0000000d, "PBSP", NULL },
-	{ 0x0000000e, "PCRYPT", NULL },
-	{ 0x0000000f, "PCOUNTER", NULL },
-	{ 0x00000011, "PDAEMON", NULL },
+	{ 0x0000000c, "PVP" },
+	{ 0x0000000d, "PBSP" },
+	{ 0x0000000e, "PCRYPT" },
+	{ 0x0000000f, "PCOUNTER" },
+	{ 0x00000011, "PDAEMON" },
 	{}
 };
 
 static const struct nvkm_enum vm_engine[] = {
-	{ 0x00000000, "PGRAPH", NULL, NVDEV_ENGINE_GR },
-	{ 0x00000001, "PVP", NULL, NVDEV_ENGINE_VP },
-	{ 0x00000004, "PEEPHOLE", NULL },
-	{ 0x00000005, "PFIFO", vm_pfifo_subclients, NVDEV_ENGINE_FIFO },
+	{ 0x00000000, "PGRAPH" },
+	{ 0x00000001, "PVP" },
+	{ 0x00000004, "PEEPHOLE" },
+	{ 0x00000005, "PFIFO", vm_pfifo_subclients },
 	{ 0x00000006, "BAR", vm_bar_subclients },
-	{ 0x00000008, "PMSPPP", NULL, NVDEV_ENGINE_MSPPP },
-	{ 0x00000008, "PMPEG", NULL, NVDEV_ENGINE_MPEG },
-	{ 0x00000009, "PBSP", NULL, NVDEV_ENGINE_BSP },
-	{ 0x0000000a, "PCRYPT", NULL, NVDEV_ENGINE_CIPHER },
-	{ 0x0000000b, "PCOUNTER", NULL },
-	{ 0x0000000c, "SEMAPHORE_BG", NULL },
-	{ 0x0000000d, "PCE0", NULL, NVDEV_ENGINE_CE0 },
-	{ 0x0000000e, "PDAEMON", NULL },
+	{ 0x00000008, "PMSPPP" },
+	{ 0x00000008, "PMPEG" },
+	{ 0x00000009, "PBSP" },
+	{ 0x0000000a, "PCRYPT" },
+	{ 0x0000000b, "PCOUNTER" },
+	{ 0x0000000c, "SEMAPHORE_BG" },
+	{ 0x0000000d, "PCE0" },
+	{ 0x0000000e, "PDAEMON" },
 	{}
 };
 
 static const struct nvkm_enum vm_fault[] = {
-	{ 0x00000000, "PT_NOT_PRESENT", NULL },
-	{ 0x00000001, "PT_TOO_SHORT", NULL },
-	{ 0x00000002, "PAGE_NOT_PRESENT", NULL },
-	{ 0x00000003, "PAGE_SYSTEM_ONLY", NULL },
-	{ 0x00000004, "PAGE_READ_ONLY", NULL },
-	{ 0x00000006, "NULL_DMAOBJ", NULL },
-	{ 0x00000007, "WRONG_MEMTYPE", NULL },
-	{ 0x0000000b, "VRAM_LIMIT", NULL },
-	{ 0x0000000f, "DMAOBJ_LIMIT", NULL },
+	{ 0x00000000, "PT_NOT_PRESENT" },
+	{ 0x00000001, "PT_TOO_SHORT" },
+	{ 0x00000002, "PAGE_NOT_PRESENT" },
+	{ 0x00000003, "PAGE_SYSTEM_ONLY" },
+	{ 0x00000004, "PAGE_READ_ONLY" },
+	{ 0x00000006, "NULL_DMAOBJ" },
+	{ 0x00000007, "WRONG_MEMTYPE" },
+	{ 0x0000000b, "VRAM_LIMIT" },
+	{ 0x0000000f, "DMAOBJ_LIMIT" },
 	{}
 };
 
 static void
-nv50_fb_intr(struct nvkm_subdev *subdev)
+nv50_fb_intr(struct nvkm_fb *base)
 {
-	struct nvkm_device *device = nv_device(subdev);
-	struct nvkm_engine *engine;
-	struct nv50_fb_priv *priv = (void *)subdev;
-	const struct nvkm_enum *en, *cl;
-	struct nvkm_object *engctx = NULL;
-	u32 trap[6], idx, chan;
+	struct nv50_fb *fb = nv50_fb(base);
+	struct nvkm_subdev *subdev = &fb->base.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_fifo *fifo = device->fifo;
+	struct nvkm_fifo_chan *chan;
+	const struct nvkm_enum *en, *re, *cl, *sc;
+	u32 trap[6], idx, inst;
 	u8 st0, st1, st2, st3;
+	unsigned long flags;
 	int i;
 
-	idx = nv_rd32(priv, 0x100c90);
+	idx = nvkm_rd32(device, 0x100c90);
 	if (!(idx & 0x80000000))
 		return;
 	idx &= 0x00ffffff;
 
 	for (i = 0; i < 6; i++) {
-		nv_wr32(priv, 0x100c90, idx | i << 24);
-		trap[i] = nv_rd32(priv, 0x100c94);
+		nvkm_wr32(device, 0x100c90, idx | i << 24);
+		trap[i] = nvkm_rd32(device, 0x100c94);
 	}
-	nv_wr32(priv, 0x100c90, idx | 0x80000000);
+	nvkm_wr32(device, 0x100c90, idx | 0x80000000);
 
 	/* decode status bits into something more useful */
 	if (device->chipset  < 0xa3 ||
@@ -178,143 +187,103 @@ nv50_fb_intr(struct nvkm_subdev *subdev)
 		st2 = (trap[0] & 0x00ff0000) >> 16;
 		st3 = (trap[0] & 0xff000000) >> 24;
 	}
-	chan = (trap[2] << 16) | trap[1];
+	inst = ((trap[2] << 16) | trap[1]) << 12;
 
 	en = nvkm_enum_find(vm_engine, st0);
-
-	if (en && en->data2) {
-		const struct nvkm_enum *orig_en = en;
-		while (en->name && en->value == st0 && en->data2) {
-			engine = nvkm_engine(subdev, en->data2);
-			/*XXX: clean this up */
-			if (!engine && en->data2 == NVDEV_ENGINE_BSP)
-				engine = nvkm_engine(subdev, NVDEV_ENGINE_MSVLD);
-			if (!engine && en->data2 == NVDEV_ENGINE_CIPHER)
-				engine = nvkm_engine(subdev, NVDEV_ENGINE_SEC);
-			if (!engine && en->data2 == NVDEV_ENGINE_VP)
-				engine = nvkm_engine(subdev, NVDEV_ENGINE_MSPDEC);
-			if (engine) {
-				engctx = nvkm_engctx_get(engine, chan);
-				if (engctx)
-					break;
-			}
-			en++;
-		}
-		if (!engctx)
-			en = orig_en;
-	}
-
-	nv_error(priv, "trapped %s at 0x%02x%04x%04x on channel 0x%08x [%s] ",
-		 (trap[5] & 0x00000100) ? "read" : "write",
-		 trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, chan,
-		 nvkm_client_name(engctx));
-
-	nvkm_engctx_put(engctx);
-
-	if (en)
-		pr_cont("%s/", en->name);
-	else
-		pr_cont("%02x/", st0);
-
+	re = nvkm_enum_find(vm_fault , st1);
 	cl = nvkm_enum_find(vm_client, st2);
-	if (cl)
-		pr_cont("%s/", cl->name);
-	else
-		pr_cont("%02x/", st2);
+	if      (cl && cl->data) sc = nvkm_enum_find(cl->data, st3);
+	else if (en && en->data) sc = nvkm_enum_find(en->data, st3);
+	else                     sc = NULL;
 
-	if      (cl && cl->data) cl = nvkm_enum_find(cl->data, st3);
-	else if (en && en->data) cl = nvkm_enum_find(en->data, st3);
-	else                     cl = NULL;
-	if (cl)
-		pr_cont("%s", cl->name);
-	else
-		pr_cont("%02x", st3);
-
-	pr_cont(" reason: ");
-	en = nvkm_enum_find(vm_fault, st1);
-	if (en)
-		pr_cont("%s\n", en->name);
-	else
-		pr_cont("0x%08x\n", st1);
+	chan = nvkm_fifo_chan_inst(fifo, inst, &flags);
+	nvkm_error(subdev, "trapped %s at %02x%04x%04x on channel %d [%08x %s] "
+			   "engine %02x [%s] client %02x [%s] "
+			   "subclient %02x [%s] reason %08x [%s]\n",
+		   (trap[5] & 0x00000100) ? "read" : "write",
+		   trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff,
+		   chan ? chan->chid : -1, inst,
+		   chan ? chan->object.client->name : "unknown",
+		   st0, en ? en->name : "",
+		   st2, cl ? cl->name : "", st3, sc ? sc->name : "",
+		   st1, re ? re->name : "");
+	nvkm_fifo_chan_put(fifo, flags, &chan);
 }
 
-int
-nv50_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+static void
+nv50_fb_init(struct nvkm_fb *base)
 {
-	struct nvkm_device *device = nv_device(parent);
-	struct nv50_fb_priv *priv;
-	int ret;
-
-	ret = nvkm_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (priv->r100c08_page) {
-		priv->r100c08 = dma_map_page(nv_device_base(device),
-					     priv->r100c08_page, 0, PAGE_SIZE,
-					     DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(nv_device_base(device), priv->r100c08))
-			return -EFAULT;
-	} else {
-		nv_warn(priv, "failed 0x100c08 page alloc\n");
-	}
-
-	nv_subdev(priv)->intr = nv50_fb_intr;
-	return 0;
-}
-
-void
-nv50_fb_dtor(struct nvkm_object *object)
-{
-	struct nvkm_device *device = nv_device(object);
-	struct nv50_fb_priv *priv = (void *)object;
-
-	if (priv->r100c08_page) {
-		dma_unmap_page(nv_device_base(device), priv->r100c08, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
-		__free_page(priv->r100c08_page);
-	}
-
-	nvkm_fb_destroy(&priv->base);
-}
-
-int
-nv50_fb_init(struct nvkm_object *object)
-{
-	struct nv50_fb_impl *impl = (void *)object->oclass;
-	struct nv50_fb_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_fb_init(&priv->base);
-	if (ret)
-		return ret;
+	struct nv50_fb *fb = nv50_fb(base);
+	struct nvkm_device *device = fb->base.subdev.device;
 
 	/* Not a clue what this is exactly.  Without pointing it at a
 	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
 	 * cause IOMMU "read from address 0" errors (rh#561267)
 	 */
-	nv_wr32(priv, 0x100c08, priv->r100c08 >> 8);
+	nvkm_wr32(device, 0x100c08, fb->r100c08 >> 8);
 
 	/* This is needed to get meaningful information from 100c90
 	 * on traps. No idea what these values mean exactly. */
-	nv_wr32(priv, 0x100c90, impl->trap);
+	nvkm_wr32(device, 0x100c90, fb->func->trap);
+}
+
+static void *
+nv50_fb_dtor(struct nvkm_fb *base)
+{
+	struct nv50_fb *fb = nv50_fb(base);
+	struct nvkm_device *device = fb->base.subdev.device;
+
+	if (fb->r100c08_page) {
+		dma_unmap_page(device->dev, fb->r100c08, PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
+		__free_page(fb->r100c08_page);
+	}
+
+	return fb;
+}
+
+static const struct nvkm_fb_func
+nv50_fb_ = {
+	.dtor = nv50_fb_dtor,
+	.init = nv50_fb_init,
+	.intr = nv50_fb_intr,
+	.ram_new = nv50_fb_ram_new,
+	.memtype_valid = nv50_fb_memtype_valid,
+};
+
+int
+nv50_fb_new_(const struct nv50_fb_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_fb **pfb)
+{
+	struct nv50_fb *fb;
+
+	if (!(fb = kzalloc(sizeof(*fb), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_fb_ctor(&nv50_fb_, device, index, &fb->base);
+	fb->func = func;
+	*pfb = &fb->base;
+
+	fb->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (fb->r100c08_page) {
+		fb->r100c08 = dma_map_page(device->dev, fb->r100c08_page, 0,
+					   PAGE_SIZE, DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(device->dev, fb->r100c08))
+			return -EFAULT;
+	} else {
+		nvkm_warn(&fb->base.subdev, "failed 100c08 page alloc\n");
+	}
+
 	return 0;
 }
 
-struct nvkm_oclass *
-nv50_fb_oclass = &(struct nv50_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x50),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_fb_ctor,
-		.dtor = nv50_fb_dtor,
-		.init = nv50_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv50_fb_memtype_valid,
-	.base.ram = &nv50_ram_oclass,
+static const struct nv50_fb_func
+nv50_fb = {
+	.ram_new = nv50_ram_new,
 	.trap = 0x000707ff,
-}.base.base;
+};
+
+int
+nv50_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nv50_fb_new_(&nv50_fb, device, index, pfb);
+}

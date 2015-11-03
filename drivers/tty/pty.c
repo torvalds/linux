@@ -26,6 +26,12 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 
+#undef TTY_DEBUG_HANGUP
+#ifdef TTY_DEBUG_HANGUP
+# define tty_debug_hangup(tty, f, args...)	tty_debug(tty, f, ##args)
+#else
+# define tty_debug_hangup(tty, f, args...)	do {} while (0)
+#endif
 
 #ifdef CONFIG_UNIX98_PTYS
 static struct tty_driver *ptm_driver;
@@ -778,6 +784,8 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	retval = ptm_driver->ops->open(tty, filp);
 	if (retval)
 		goto err_release;
+
+	tty_debug_hangup(tty, "(tty count=%d)\n", tty->count);
 
 	tty_unlock(tty);
 	return 0;

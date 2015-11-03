@@ -11,7 +11,6 @@
 #ifndef __LINUX_CLK_PROVIDER_H
 #define __LINUX_CLK_PROVIDER_H
 
-#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of.h>
 
@@ -33,9 +32,32 @@
 #define CLK_GET_ACCURACY_NOCACHE BIT(8) /* do not use the cached clk accuracy */
 #define CLK_RECALC_NEW_RATES	BIT(9) /* recalc rates after notifications */
 
+struct clk;
 struct clk_hw;
 struct clk_core;
 struct dentry;
+
+/**
+ * struct clk_rate_request - Structure encoding the clk constraints that
+ * a clock user might require.
+ *
+ * @rate:		Requested clock rate. This field will be adjusted by
+ *			clock drivers according to hardware capabilities.
+ * @min_rate:		Minimum rate imposed by clk users.
+ * @max_rate:		Maximum rate a imposed by clk users.
+ * @best_parent_rate:	The best parent rate a parent can provide to fulfill the
+ *			requested constraints.
+ * @best_parent_hw:	The most appropriate parent clock that fulfills the
+ *			requested constraints.
+ *
+ */
+struct clk_rate_request {
+	unsigned long rate;
+	unsigned long min_rate;
+	unsigned long max_rate;
+	unsigned long best_parent_rate;
+	struct clk_hw *best_parent_hw;
+};
 
 /**
  * struct clk_ops -  Callback operations for hardware clocks; these are to
@@ -176,12 +198,8 @@ struct clk_ops {
 					unsigned long parent_rate);
 	long		(*round_rate)(struct clk_hw *hw, unsigned long rate,
 					unsigned long *parent_rate);
-	long		(*determine_rate)(struct clk_hw *hw,
-					  unsigned long rate,
-					  unsigned long min_rate,
-					  unsigned long max_rate,
-					  unsigned long *best_parent_rate,
-					  struct clk_hw **best_parent_hw);
+	int		(*determine_rate)(struct clk_hw *hw,
+					  struct clk_rate_request *req);
 	int		(*set_parent)(struct clk_hw *hw, u8 index);
 	u8		(*get_parent)(struct clk_hw *hw);
 	int		(*set_rate)(struct clk_hw *hw, unsigned long rate,
@@ -343,6 +361,9 @@ struct clk_div_table {
  *	to the closest integer instead of the up one.
  * CLK_DIVIDER_READ_ONLY - The divider settings are preconfigured and should
  *	not be changed by the clock framework.
+ * CLK_DIVIDER_MAX_AT_ZERO - For dividers which are like CLK_DIVIDER_ONE_BASED
+ *	except when the value read from the register is zero, the divisor is
+ *	2^width of the field.
  */
 struct clk_divider {
 	struct clk_hw	hw;
@@ -360,6 +381,7 @@ struct clk_divider {
 #define CLK_DIVIDER_HIWORD_MASK		BIT(3)
 #define CLK_DIVIDER_ROUND_CLOSEST	BIT(4)
 #define CLK_DIVIDER_READ_ONLY		BIT(5)
+#define CLK_DIVIDER_MAX_AT_ZERO		BIT(6)
 
 extern const struct clk_ops clk_divider_ops;
 
@@ -550,6 +572,23 @@ struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
 void of_gpio_clk_gate_setup(struct device_node *node);
 
 /**
+ * struct clk_gpio_mux - gpio controlled clock multiplexer
+ *
+ * @hw:		see struct clk_gpio
+ * @gpiod:	gpio descriptor to select the parent of this clock multiplexer
+ *
+ * Clock with a gpio control for selecting the parent clock.
+ * Implements .get_parent, .set_parent and .determine_rate
+ */
+
+extern const struct clk_ops clk_gpio_mux_ops;
+struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
+		const char * const *parent_names, u8 num_parents, unsigned gpio,
+		bool active_low, unsigned long flags);
+
+void of_gpio_mux_clk_setup(struct device_node *node);
+
+/**
  * clk_register - allocate a new clock, register it and return an opaque cookie
  * @dev: device that is registering this clock
  * @hw: link to hardware-specific clock data
@@ -568,31 +607,27 @@ void devm_clk_unregister(struct device *dev, struct clk *clk);
 
 /* helper functions */
 const char *__clk_get_name(struct clk *clk);
+const char *clk_hw_get_name(const struct clk_hw *hw);
 struct clk_hw *__clk_get_hw(struct clk *clk);
-u8 __clk_get_num_parents(struct clk *clk);
-struct clk *__clk_get_parent(struct clk *clk);
-struct clk *clk_get_parent_by_index(struct clk *clk, u8 index);
+unsigned int clk_hw_get_num_parents(const struct clk_hw *hw);
+struct clk_hw *clk_hw_get_parent(const struct clk_hw *hw);
+struct clk_hw *clk_hw_get_parent_by_index(const struct clk_hw *hw,
+					  unsigned int index);
 unsigned int __clk_get_enable_count(struct clk *clk);
-unsigned long __clk_get_rate(struct clk *clk);
+unsigned long clk_hw_get_rate(const struct clk_hw *hw);
 unsigned long __clk_get_flags(struct clk *clk);
-bool __clk_is_prepared(struct clk *clk);
+unsigned long clk_hw_get_flags(const struct clk_hw *hw);
+bool clk_hw_is_prepared(const struct clk_hw *hw);
 bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
-long __clk_mux_determine_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long min_rate,
-			      unsigned long max_rate,
-			      unsigned long *best_parent_rate,
-			      struct clk_hw **best_parent_p);
-unsigned long __clk_determine_rate(struct clk_hw *core,
-				   unsigned long rate,
-				   unsigned long min_rate,
-				   unsigned long max_rate);
-long __clk_mux_determine_rate_closest(struct clk_hw *hw, unsigned long rate,
-			      unsigned long min_rate,
-			      unsigned long max_rate,
-			      unsigned long *best_parent_rate,
-			      struct clk_hw **best_parent_p);
+int __clk_mux_determine_rate(struct clk_hw *hw,
+			     struct clk_rate_request *req);
+int __clk_determine_rate(struct clk_hw *core, struct clk_rate_request *req);
+int __clk_mux_determine_rate_closest(struct clk_hw *hw,
+				     struct clk_rate_request *req);
 void clk_hw_reparent(struct clk_hw *hw, struct clk_hw *new_parent);
+void clk_hw_set_rate_range(struct clk_hw *hw, unsigned long min_rate,
+			   unsigned long max_rate);
 
 static inline void __clk_hw_set_clk(struct clk_hw *dst, struct clk_hw *src)
 {
@@ -603,7 +638,7 @@ static inline void __clk_hw_set_clk(struct clk_hw *dst, struct clk_hw *src)
 /*
  * FIXME clock api without lock protection
  */
-unsigned long __clk_round_rate(struct clk *clk, unsigned long rate);
+unsigned long clk_hw_round_rate(struct clk_hw *hw, unsigned long rate);
 
 struct of_device_id;
 

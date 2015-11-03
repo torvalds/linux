@@ -276,8 +276,9 @@ static inline unsigned long viper_irq_pending(void)
 			viper_irq_enabled_mask;
 }
 
-static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void viper_irq_handler(struct irq_desc *desc)
 {
+	unsigned int irq;
 	unsigned long pending;
 
 	pending = viper_irq_pending();
@@ -313,7 +314,7 @@ static void __init viper_init_irq(void)
 		isa_irq = viper_bit_to_irq(level);
 		irq_set_chip_and_handler(isa_irq, &viper_irq_chip,
 					 handle_edge_irq);
-		set_irq_flags(isa_irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(isa_irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	irq_set_chained_handler(gpio_to_irq(VIPER_CPLD_GPIO),

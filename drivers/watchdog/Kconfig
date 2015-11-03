@@ -188,6 +188,15 @@ config AT91SAM9X_WATCHDOG
 	  Watchdog timer embedded into AT91SAM9X and AT91CAP9 chips. This will
 	  reboot your system when the timeout is reached.
 
+config SAMA5D4_WATCHDOG
+	tristate "Atmel SAMA5D4 Watchdog Timer"
+	depends on ARCH_AT91
+	select WATCHDOG_CORE
+	help
+	  Atmel SAMA5D4 watchdog timer is embedded into SAMA5D4 chips.
+	  Its Watchdog Timer Mode Register can be written more than once.
+	  This will reboot your system when the timeout is reached.
+
 config CADENCE_WATCHDOG
 	tristate "Cadence Watchdog Timer"
 	depends on HAS_IOMEM
@@ -558,6 +567,17 @@ config DIGICOLOR_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called digicolor_wdt.
 
+config LPC18XX_WATCHDOG
+	tristate "LPC18xx/43xx Watchdog"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here if to include support for the watchdog timer
+	  in NXP LPC SoCs family, which includes LPC18xx/LPC43xx
+	  processors.
+	  To compile this driver as a module, choose M here: the
+	  module will be called lpc18xx_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
@@ -797,7 +817,9 @@ config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
 	depends on (X86 || IA64) && PCI
 	select WATCHDOG_CORE
-	select LPC_ICH
+	depends on I2C || I2C=n
+	select LPC_ICH if !EXPERT
+	select I2C_I801 if !EXPERT && I2C
 	---help---
 	  Hardware driver for the intel TCO timer based watchdog devices.
 	  These drivers are included in the Intel 82801 I/O Controller
@@ -1333,7 +1355,7 @@ config MPC5200_WDT
 
 config 8xxx_WDT
 	tristate "MPC8xxx Platform Watchdog Timer"
-	depends on PPC_8xx || PPC_83xx || PPC_86xx
+	depends on PPC_8xx || PPC_83xx || PPC_86xx || PPC_MPC512x
 	select WATCHDOG_CORE
 	help
 	  This driver is for a SoC level watchdog that exists on some

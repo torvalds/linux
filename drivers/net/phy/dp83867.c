@@ -123,12 +123,8 @@ static int dp83867_of_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	ret = of_property_read_u32(of_node, "ti,fifo-depth",
+	return of_property_read_u32(of_node, "ti,fifo-depth",
 				   &dp83867->fifo_depth);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 #else
 static int dp83867_of_init(struct phy_device *phydev)
@@ -164,7 +160,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	if ((phydev->interface >= PHY_INTERFACE_MODE_RGMII_ID) ||
+	if ((phydev->interface >= PHY_INTERFACE_MODE_RGMII_ID) &&
 	    (phydev->interface <= PHY_INTERFACE_MODE_RGMII_RXID)) {
 		val = phy_read_mmd_indirect(phydev, DP83867_RGMIICTL,
 					    DP83867_DEVADDR, phydev->addr);

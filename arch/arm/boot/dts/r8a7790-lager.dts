@@ -174,7 +174,7 @@
 			  1800000 0>;
 	};
 
-	sound {
+	rsnd_ak4643: sound {
 		compatible = "simple-audio-card";
 
 		simple-audio-card,format = "left_j";
@@ -548,7 +548,7 @@
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";

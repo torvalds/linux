@@ -245,7 +245,6 @@ struct task_group {
 
 #ifdef	CONFIG_SMP
 	atomic_long_t load_avg;
-	atomic_t runnable_avg;
 #endif
 #endif
 
@@ -366,27 +365,20 @@ struct cfs_rq {
 
 #ifdef CONFIG_SMP
 	/*
-	 * CFS Load tracking
-	 * Under CFS, load is tracked on a per-entity basis and aggregated up.
-	 * This allows for the description of both thread and group usage (in
-	 * the FAIR_GROUP_SCHED case).
-	 * runnable_load_avg is the sum of the load_avg_contrib of the
-	 * sched_entities on the rq.
-	 * blocked_load_avg is similar to runnable_load_avg except that its
-	 * the blocked sched_entities on the rq.
-	 * utilization_load_avg is the sum of the average running time of the
-	 * sched_entities on the rq.
+	 * CFS load tracking
 	 */
-	unsigned long runnable_load_avg, blocked_load_avg, utilization_load_avg;
-	atomic64_t decay_counter;
-	u64 last_decay;
-	atomic_long_t removed_load;
+	struct sched_avg avg;
+	u64 runnable_load_sum;
+	unsigned long runnable_load_avg;
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	unsigned long tg_load_avg_contrib;
+#endif
+	atomic_long_t removed_load_avg, removed_util_avg;
+#ifndef CONFIG_64BIT
+	u64 load_last_update_time_copy;
+#endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	/* Required to track per-cpu representation of a task_group */
-	u32 tg_runnable_contrib;
-	unsigned long tg_load_contrib;
-
 	/*
 	 *   h_load = weight * f(tg)
 	 *
@@ -595,8 +587,6 @@ struct rq {
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
 	struct list_head leaf_cfs_rq_list;
-
-	struct sched_avg avg;
 #endif /* CONFIG_FAIR_GROUP_SCHED */
 
 	/*
@@ -1065,9 +1055,6 @@ static inline int task_on_rq_migrating(struct task_struct *p)
 #ifndef prepare_arch_switch
 # define prepare_arch_switch(next)	do { } while (0)
 #endif
-#ifndef finish_arch_switch
-# define finish_arch_switch(prev)	do { } while (0)
-#endif
 #ifndef finish_arch_post_lock_switch
 # define finish_arch_post_lock_switch()	do { } while (0)
 #endif
@@ -1268,6 +1255,8 @@ extern void trigger_load_balance(struct rq *rq);
 extern void idle_enter_fair(struct rq *this_rq);
 extern void idle_exit_fair(struct rq *this_rq);
 
+extern void set_cpus_allowed_common(struct task_struct *p, const struct cpumask *new_mask);
+
 #else
 
 static inline void idle_enter_fair(struct rq *rq) { }
@@ -1319,7 +1308,7 @@ extern void init_dl_task_timer(struct sched_dl_entity *dl_se);
 
 unsigned long to_ratio(u64 period, u64 runtime);
 
-extern void init_task_runnable_average(struct task_struct *p);
+extern void init_entity_runnable_average(struct sched_entity *se);
 
 static inline void add_nr_running(struct rq *rq, unsigned count)
 {

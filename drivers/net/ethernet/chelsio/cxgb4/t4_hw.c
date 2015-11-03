@@ -37,6 +37,7 @@
 #include "t4_regs.h"
 #include "t4_values.h"
 #include "t4fw_api.h"
+#include "t4fw_version.h"
 
 /**
  *	t4_wait_op_done_val - wait until an operation is completed
@@ -343,6 +344,43 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 {
 	return t4_wr_mbox_meat_timeout(adap, mbox, cmd, size, rpl, sleep_ok,
 				       FW_CMD_MAX_TIMEOUT);
+}
+
+static int t4_edc_err_read(struct adapter *adap, int idx)
+{
+	u32 edc_ecc_err_addr_reg;
+	u32 rdata_reg;
+
+	if (is_t4(adap->params.chip)) {
+		CH_WARN(adap, "%s: T4 NOT supported.\n", __func__);
+		return 0;
+	}
+	if (idx != 0 && idx != 1) {
+		CH_WARN(adap, "%s: idx %d NOT supported.\n", __func__, idx);
+		return 0;
+	}
+
+	edc_ecc_err_addr_reg = EDC_T5_REG(EDC_H_ECC_ERR_ADDR_A, idx);
+	rdata_reg = EDC_T5_REG(EDC_H_BIST_STATUS_RDATA_A, idx);
+
+	CH_WARN(adap,
+		"edc%d err addr 0x%x: 0x%x.\n",
+		idx, edc_ecc_err_addr_reg,
+		t4_read_reg(adap, edc_ecc_err_addr_reg));
+	CH_WARN(adap,
+		"bist: 0x%x, status %llx %llx %llx %llx %llx %llx %llx %llx %llx.\n",
+		rdata_reg,
+		(unsigned long long)t4_read_reg64(adap, rdata_reg),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 8),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 16),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 24),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 32),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 40),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 48),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 56),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 64));
+
+	return 0;
 }
 
 /**
@@ -1322,9 +1360,10 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 	};
 
 	static const unsigned int t6_reg_ranges[] = {
-		0x1008, 0x114c,
+		0x1008, 0x1124,
+		0x1138, 0x114c,
 		0x1180, 0x11b4,
-		0x11fc, 0x1250,
+		0x11fc, 0x1254,
 		0x1280, 0x133c,
 		0x1800, 0x18fc,
 		0x3000, 0x302c,
@@ -1345,18 +1384,18 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x5a80, 0x5a9c,
 		0x5b94, 0x5bfc,
 		0x5c10, 0x5ec0,
-		0x5ec8, 0x5ec8,
+		0x5ec8, 0x5ecc,
 		0x6000, 0x6040,
-		0x6058, 0x6154,
+		0x6058, 0x619c,
 		0x7700, 0x7798,
 		0x77c0, 0x7880,
 		0x78cc, 0x78fc,
 		0x7b00, 0x7c54,
 		0x7d00, 0x7efc,
-		0x8dc0, 0x8de0,
+		0x8dc0, 0x8de4,
 		0x8df8, 0x8e84,
 		0x8ea0, 0x8f88,
-		0x8fb8, 0x911c,
+		0x8fb8, 0x9124,
 		0x9400, 0x9470,
 		0x9600, 0x971c,
 		0x9800, 0x9808,
@@ -1371,20 +1410,21 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x9f00, 0x9f6c,
 		0x9f80, 0xa020,
 		0xd004, 0xd03c,
+		0xd100, 0xd118,
+		0xd200, 0xd31c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xf008,
 		0x11000, 0x11014,
-		0x11048, 0x11110,
-		0x11118, 0x1117c,
-		0x11190, 0x11260,
+		0x11048, 0x1117c,
+		0x11190, 0x11270,
 		0x11300, 0x1130c,
-		0x12000, 0x1205c,
+		0x12000, 0x1206c,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
 		0x1908c, 0x19124,
 		0x19150, 0x191b0,
 		0x191d0, 0x191e8,
-		0x19238, 0x192b8,
+		0x19238, 0x192bc,
 		0x193f8, 0x19474,
 		0x19490, 0x194cc,
 		0x194f0, 0x194f8,
@@ -1461,12 +1501,11 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x1ff00, 0x1ff84,
 		0x1ffc0, 0x1ffc8,
 		0x30000, 0x30070,
-		0x30100, 0x3015c,
-		0x30190, 0x301d0,
-		0x30200, 0x30318,
+		0x30100, 0x301d0,
+		0x30200, 0x30320,
 		0x30400, 0x3052c,
 		0x30540, 0x3061c,
-		0x30800, 0x3088c,
+		0x30800, 0x30890,
 		0x308c0, 0x30908,
 		0x30910, 0x309b8,
 		0x30a00, 0x30a04,
@@ -1539,12 +1578,11 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x33c24, 0x33c50,
 		0x33cf0, 0x33cfc,
 		0x34000, 0x34070,
-		0x34100, 0x3415c,
-		0x34190, 0x341d0,
-		0x34200, 0x34318,
+		0x34100, 0x341d0,
+		0x34200, 0x34320,
 		0x34400, 0x3452c,
 		0x34540, 0x3461c,
-		0x34800, 0x3488c,
+		0x34800, 0x34890,
 		0x348c0, 0x34908,
 		0x34910, 0x349b8,
 		0x34a00, 0x34a04,
@@ -2126,6 +2164,61 @@ int t4_get_exprom_version(struct adapter *adap, u32 *vers)
 		 FW_HDR_FW_VER_MINOR_V(hdr->hdr_ver[1]) |
 		 FW_HDR_FW_VER_MICRO_V(hdr->hdr_ver[2]) |
 		 FW_HDR_FW_VER_BUILD_V(hdr->hdr_ver[3]));
+	return 0;
+}
+
+/**
+ *	t4_check_fw_version - check if the FW is supported with this driver
+ *	@adap: the adapter
+ *
+ *	Checks if an adapter's FW is compatible with the driver.  Returns 0
+ *	if there's exact match, a negative error if the version could not be
+ *	read or there's a major version mismatch
+ */
+int t4_check_fw_version(struct adapter *adap)
+{
+	int ret, major, minor, micro;
+	int exp_major, exp_minor, exp_micro;
+	unsigned int chip_version = CHELSIO_CHIP_VERSION(adap->params.chip);
+
+	ret = t4_get_fw_version(adap, &adap->params.fw_vers);
+	if (ret)
+		return ret;
+
+	major = FW_HDR_FW_VER_MAJOR_G(adap->params.fw_vers);
+	minor = FW_HDR_FW_VER_MINOR_G(adap->params.fw_vers);
+	micro = FW_HDR_FW_VER_MICRO_G(adap->params.fw_vers);
+
+	switch (chip_version) {
+	case CHELSIO_T4:
+		exp_major = T4FW_MIN_VERSION_MAJOR;
+		exp_minor = T4FW_MIN_VERSION_MINOR;
+		exp_micro = T4FW_MIN_VERSION_MICRO;
+		break;
+	case CHELSIO_T5:
+		exp_major = T5FW_MIN_VERSION_MAJOR;
+		exp_minor = T5FW_MIN_VERSION_MINOR;
+		exp_micro = T5FW_MIN_VERSION_MICRO;
+		break;
+	case CHELSIO_T6:
+		exp_major = T6FW_MIN_VERSION_MAJOR;
+		exp_minor = T6FW_MIN_VERSION_MINOR;
+		exp_micro = T6FW_MIN_VERSION_MICRO;
+		break;
+	default:
+		dev_err(adap->pdev_dev, "Unsupported chip type, %x\n",
+			adap->chip);
+		return -EINVAL;
+	}
+
+	if (major < exp_major || (major == exp_major && minor < exp_minor) ||
+	    (major == exp_major && minor == exp_minor && micro < exp_micro)) {
+		dev_err(adap->pdev_dev,
+			"Card has firmware version %u.%u.%u, minimum "
+			"supported firmware is %u.%u.%u.\n", major, minor,
+			micro, exp_major, exp_minor, exp_micro);
+		return -EFAULT;
+	}
 	return 0;
 }
 
@@ -3281,6 +3374,8 @@ static void mem_intr_handler(struct adapter *adapter, int idx)
 	if (v & ECC_CE_INT_CAUSE_F) {
 		u32 cnt = ECC_CECNT_G(t4_read_reg(adapter, cnt_addr));
 
+		t4_edc_err_read(adapter, idx);
+
 		t4_write_reg(adapter, cnt_addr, ECC_CECNT_V(ECC_CECNT_M));
 		if (printk_ratelimit())
 			dev_warn(adapter->pdev_dev,
@@ -3488,7 +3583,9 @@ int t4_slow_intr_handler(struct adapter *adapter)
 void t4_intr_enable(struct adapter *adapter)
 {
 	u32 val = 0;
-	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
+	u32 whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	u32 pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
 		val = ERR_DROPPED_DB_F | ERR_EGR_CTXT_PRIO_F | DBFIFO_HP_INT_F;
@@ -3513,7 +3610,9 @@ void t4_intr_enable(struct adapter *adapter)
  */
 void t4_intr_disable(struct adapter *adapter)
 {
-	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
+	u32 whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	u32 pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE_A), 0);
 	t4_set_reg_field(adapter, PL_INT_MAP0_A, 1 << pf, 0);
@@ -3687,6 +3786,11 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
 	return 0;
 }
 
+static unsigned int t4_use_ldst(struct adapter *adap)
+{
+	return (adap->flags & FW_OK) || !adap->use_bd;
+}
+
 /**
  *	t4_fw_tp_pio_rw - Access TP PIO through LDST
  *	@adap: the adapter
@@ -3730,7 +3834,7 @@ static void t4_fw_tp_pio_rw(struct adapter *adap, u32 *vals, unsigned int nregs,
  */
 void t4_read_rss_key(struct adapter *adap, u32 *key)
 {
-	if (adap->flags & FW_OK)
+	if (t4_use_ldst(adap))
 		t4_fw_tp_pio_rw(adap, key, 10, TP_RSS_SECRET_KEY0_A, 1);
 	else
 		t4_read_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
@@ -3760,7 +3864,7 @@ void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
 	    (vrt & KEYEXTEND_F) && (KEYMODE_G(vrt) == 3))
 		rss_key_addr_cnt = 32;
 
-	if (adap->flags & FW_OK)
+	if (t4_use_ldst(adap))
 		t4_fw_tp_pio_rw(adap, (void *)key, 10, TP_RSS_SECRET_KEY0_A, 0);
 	else
 		t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
@@ -3789,7 +3893,7 @@ void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
 void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
 			   u32 *valp)
 {
-	if (adapter->flags & FW_OK)
+	if (t4_use_ldst(adapter))
 		t4_fw_tp_pio_rw(adapter, valp, 1,
 				TP_RSS_PF0_CONFIG_A + index, 1);
 	else
@@ -3829,7 +3933,7 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 
 	/* Grab the VFL/VFH values ...
 	 */
-	if (adapter->flags & FW_OK) {
+	if (t4_use_ldst(adapter)) {
 		t4_fw_tp_pio_rw(adapter, vfl, 1, TP_RSS_VFL_CONFIG_A, 1);
 		t4_fw_tp_pio_rw(adapter, vfh, 1, TP_RSS_VFH_CONFIG_A, 1);
 	} else {
@@ -3850,7 +3954,7 @@ u32 t4_read_rss_pf_map(struct adapter *adapter)
 {
 	u32 pfmap;
 
-	if (adapter->flags & FW_OK)
+	if (t4_use_ldst(adapter))
 		t4_fw_tp_pio_rw(adapter, &pfmap, 1, TP_RSS_PF_MAP_A, 1);
 	else
 		t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
@@ -3868,7 +3972,7 @@ u32 t4_read_rss_pf_mask(struct adapter *adapter)
 {
 	u32 pfmask;
 
-	if (adapter->flags & FW_OK)
+	if (t4_use_ldst(adapter))
 		t4_fw_tp_pio_rw(adapter, &pfmask, 1, TP_RSS_PF_MSK_A, 1);
 	else
 		t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
@@ -3924,43 +4028,25 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
  */
 void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
 {
-	/* T6 and later has 2 channels */
-	if (adap->params.arch.nchan == NCHAN) {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->mac_in_errs, 12, TP_MIB_MAC_IN_ERR_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tnl_cong_drops, 8,
-				 TP_MIB_TNL_CNG_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tnl_tx_drops, 4,
-				 TP_MIB_TNL_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->ofld_vlan_drops, 4,
-				 TP_MIB_OFD_VLN_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tcp6_in_errs, 4,
-				 TP_MIB_TCP_V6IN_ERR_0_A);
-	} else {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->mac_in_errs, 2, TP_MIB_MAC_IN_ERR_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->hdr_in_errs, 2, TP_MIB_HDR_IN_ERR_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tcp_in_errs, 2, TP_MIB_TCP_IN_ERR_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tnl_cong_drops, 2,
-				 TP_MIB_TNL_CNG_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->ofld_chan_drops, 2,
-				 TP_MIB_OFD_CHN_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tnl_tx_drops, 2, TP_MIB_TNL_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->ofld_vlan_drops, 2,
-				 TP_MIB_OFD_VLN_DROP_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-				 st->tcp6_in_errs, 2, TP_MIB_TCP_V6IN_ERR_0_A);
-	}
+	int nchan = adap->params.arch.nchan;
+
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->mac_in_errs, nchan, TP_MIB_MAC_IN_ERR_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->hdr_in_errs, nchan, TP_MIB_HDR_IN_ERR_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->tcp_in_errs, nchan, TP_MIB_TCP_IN_ERR_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->tnl_cong_drops, nchan, TP_MIB_TNL_CNG_DROP_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->ofld_chan_drops, nchan, TP_MIB_OFD_CHN_DROP_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->tnl_tx_drops, nchan, TP_MIB_TNL_DROP_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->ofld_vlan_drops, nchan, TP_MIB_OFD_VLN_DROP_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 st->tcp6_in_errs, nchan, TP_MIB_TCP_V6IN_ERR_0_A);
+
 	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
 			 &st->ofld_no_neigh, 2, TP_MIB_OFD_ARP_DROP_A);
 }
@@ -3974,16 +4060,13 @@ void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
  */
 void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
 {
-	/* T6 and later has 2 channels */
-	if (adap->params.arch.nchan == NCHAN) {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
-				 8, TP_MIB_CPL_IN_REQ_0_A);
-	} else {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
-				 2, TP_MIB_CPL_IN_REQ_0_A);
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->rsp,
-				 2, TP_MIB_CPL_OUT_RSP_0_A);
-	}
+	int nchan = adap->params.arch.nchan;
+
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
+			 nchan, TP_MIB_CPL_IN_REQ_0_A);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->rsp,
+			 nchan, TP_MIB_CPL_OUT_RSP_0_A);
+
 }
 
 /**
@@ -4234,6 +4317,119 @@ void t4_get_chan_txrate(struct adapter *adap, u64 *nic_rate, u64 *ofld_rate)
 	if (adap->params.arch.nchan == NCHAN) {
 		ofld_rate[2] = chan_rate(adap, OFDRATE2_G(v));
 		ofld_rate[3] = chan_rate(adap, OFDRATE3_G(v));
+	}
+}
+
+/**
+ *	t4_set_trace_filter - configure one of the tracing filters
+ *	@adap: the adapter
+ *	@tp: the desired trace filter parameters
+ *	@idx: which filter to configure
+ *	@enable: whether to enable or disable the filter
+ *
+ *	Configures one of the tracing filters available in HW.  If @enable is
+ *	%0 @tp is not examined and may be %NULL. The user is responsible to
+ *	set the single/multiple trace mode by writing to MPS_TRC_CFG_A register
+ */
+int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
+			int idx, int enable)
+{
+	int i, ofst = idx * 4;
+	u32 data_reg, mask_reg, cfg;
+	u32 multitrc = TRCMULTIFILTER_F;
+
+	if (!enable) {
+		t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A_A + ofst, 0);
+		return 0;
+	}
+
+	cfg = t4_read_reg(adap, MPS_TRC_CFG_A);
+	if (cfg & TRCMULTIFILTER_F) {
+		/* If multiple tracers are enabled, then maximum
+		 * capture size is 2.5KB (FIFO size of a single channel)
+		 * minus 2 flits for CPL_TRACE_PKT header.
+		 */
+		if (tp->snap_len > ((10 * 1024 / 4) - (2 * 8)))
+			return -EINVAL;
+	} else {
+		/* If multiple tracers are disabled, to avoid deadlocks
+		 * maximum packet capture size of 9600 bytes is recommended.
+		 * Also in this mode, only trace0 can be enabled and running.
+		 */
+		multitrc = 0;
+		if (tp->snap_len > 9600 || idx)
+			return -EINVAL;
+	}
+
+	if (tp->port > (is_t4(adap->params.chip) ? 11 : 19) || tp->invert > 1 ||
+	    tp->skip_len > TFLENGTH_M || tp->skip_ofst > TFOFFSET_M ||
+	    tp->min_len > TFMINPKTSIZE_M)
+		return -EINVAL;
+
+	/* stop the tracer we'll be changing */
+	t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A_A + ofst, 0);
+
+	idx *= (MPS_TRC_FILTER1_MATCH_A - MPS_TRC_FILTER0_MATCH_A);
+	data_reg = MPS_TRC_FILTER0_MATCH_A + idx;
+	mask_reg = MPS_TRC_FILTER0_DONT_CARE_A + idx;
+
+	for (i = 0; i < TRACE_LEN / 4; i++, data_reg += 4, mask_reg += 4) {
+		t4_write_reg(adap, data_reg, tp->data[i]);
+		t4_write_reg(adap, mask_reg, ~tp->mask[i]);
+	}
+	t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_B_A + ofst,
+		     TFCAPTUREMAX_V(tp->snap_len) |
+		     TFMINPKTSIZE_V(tp->min_len));
+	t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A_A + ofst,
+		     TFOFFSET_V(tp->skip_ofst) | TFLENGTH_V(tp->skip_len) |
+		     (is_t4(adap->params.chip) ?
+		     TFPORT_V(tp->port) | TFEN_F | TFINVERTMATCH_V(tp->invert) :
+		     T5_TFPORT_V(tp->port) | T5_TFEN_F |
+		     T5_TFINVERTMATCH_V(tp->invert)));
+
+	return 0;
+}
+
+/**
+ *	t4_get_trace_filter - query one of the tracing filters
+ *	@adap: the adapter
+ *	@tp: the current trace filter parameters
+ *	@idx: which trace filter to query
+ *	@enabled: non-zero if the filter is enabled
+ *
+ *	Returns the current settings of one of the HW tracing filters.
+ */
+void t4_get_trace_filter(struct adapter *adap, struct trace_params *tp, int idx,
+			 int *enabled)
+{
+	u32 ctla, ctlb;
+	int i, ofst = idx * 4;
+	u32 data_reg, mask_reg;
+
+	ctla = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A_A + ofst);
+	ctlb = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_B_A + ofst);
+
+	if (is_t4(adap->params.chip)) {
+		*enabled = !!(ctla & TFEN_F);
+		tp->port =  TFPORT_G(ctla);
+		tp->invert = !!(ctla & TFINVERTMATCH_F);
+	} else {
+		*enabled = !!(ctla & T5_TFEN_F);
+		tp->port = T5_TFPORT_G(ctla);
+		tp->invert = !!(ctla & T5_TFINVERTMATCH_F);
+	}
+	tp->snap_len = TFCAPTUREMAX_G(ctlb);
+	tp->min_len = TFMINPKTSIZE_G(ctlb);
+	tp->skip_ofst = TFOFFSET_G(ctla);
+	tp->skip_len = TFLENGTH_G(ctla);
+
+	ofst = (MPS_TRC_FILTER1_MATCH_A - MPS_TRC_FILTER0_MATCH_A) * idx;
+	data_reg = MPS_TRC_FILTER0_MATCH_A + ofst;
+	mask_reg = MPS_TRC_FILTER0_DONT_CARE_A + ofst;
+
+	for (i = 0; i < TRACE_LEN / 4; i++, data_reg += 4, mask_reg += 4) {
+		tp->mask[i] = ~t4_read_reg(adap, mask_reg);
+		tp->data[i] = t4_read_reg(adap, data_reg) & tp->mask[i];
 	}
 }
 
@@ -6294,7 +6490,7 @@ int t4_init_tp_params(struct adapter *adap)
 	/* Cache the adapter's Compressed Filter Mode and global Incress
 	 * Configuration.
 	 */
-	if (adap->flags & FW_OK) {
+	if (t4_use_ldst(adap)) {
 		t4_fw_tp_pio_rw(adap, &adap->params.tp.vlan_pri_map, 1,
 				TP_VLAN_PRI_MAP_A, 1);
 		t4_fw_tp_pio_rw(adap, &adap->params.tp.ingress_config, 1,

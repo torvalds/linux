@@ -588,6 +588,8 @@ i40e_status i40e_get_dcb_config(struct i40e_hw *hw)
 		if (!ret) {
 			/* CEE mode */
 			hw->local_dcbx_config.dcbx_mode = I40E_DCBX_MODE_CEE;
+			hw->local_dcbx_config.tlv_status =
+					le16_to_cpu(cee_v1_cfg.tlv_status);
 			i40e_cee_to_dcb_v1_config(&cee_v1_cfg,
 						  &hw->local_dcbx_config);
 		}
@@ -597,6 +599,8 @@ i40e_status i40e_get_dcb_config(struct i40e_hw *hw)
 		if (!ret) {
 			/* CEE mode */
 			hw->local_dcbx_config.dcbx_mode = I40E_DCBX_MODE_CEE;
+			hw->local_dcbx_config.tlv_status =
+					le32_to_cpu(cee_cfg.tlv_status);
 			i40e_cee_to_dcb_config(&cee_cfg,
 					       &hw->local_dcbx_config);
 		}

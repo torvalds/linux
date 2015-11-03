@@ -357,9 +357,16 @@ int v4l2_m2m_reqbufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		     struct v4l2_requestbuffers *reqbufs)
 {
 	struct vb2_queue *vq;
+	int ret;
 
 	vq = v4l2_m2m_get_vq(m2m_ctx, reqbufs->type);
-	return vb2_reqbufs(vq, reqbufs);
+	ret = vb2_reqbufs(vq, reqbufs);
+	/* If count == 0, then the owner has released all buffers and he
+	   is no longer owner of the queue. Otherwise we have an owner. */
+	if (ret == 0)
+		vq->owner = reqbufs->count ? file->private_data : NULL;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_reqbufs);
 
@@ -874,18 +881,8 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamoff);
 int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct v4l2_fh *fh = file->private_data;
-	struct v4l2_m2m_ctx *m2m_ctx = fh->m2m_ctx;
-	int ret;
 
-	if (m2m_ctx->q_lock && mutex_lock_interruptible(m2m_ctx->q_lock))
-		return -ERESTARTSYS;
-
-	ret = v4l2_m2m_mmap(file, m2m_ctx, vma);
-
-	if (m2m_ctx->q_lock)
-		mutex_unlock(m2m_ctx->q_lock);
-
-	return ret;
+	return v4l2_m2m_mmap(file, fh->m2m_ctx, vma);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_fop_mmap);
 

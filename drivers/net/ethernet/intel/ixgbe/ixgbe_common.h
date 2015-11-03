@@ -113,6 +113,7 @@ s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
 				 u32 length, u32 timeout, bool return_data);
 void ixgbe_clear_tx_pending(struct ixgbe_hw *hw);
+bool ixgbe_mng_present(struct ixgbe_hw *hw);
 bool ixgbe_mng_enabled(struct ixgbe_hw *hw);
 
 void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw, int num_pb,

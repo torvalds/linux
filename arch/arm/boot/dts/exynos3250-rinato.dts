@@ -107,6 +107,21 @@
 		min-microvolt = <1100000>;
 		max-microvolt = <2700000>;
 	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			cooling-maps {
+				map0 {
+					/* Corresponds to 500MHz */
+					cooling-device = <&cpu0 5 5>;
+				};
+				map1 {
+					/* Corresponds to 200MHz */
+					cooling-device = <&cpu0 8 8>;
+				};
+			};
+		};
+	};
 };
 
 &adc {
@@ -130,6 +145,10 @@
 		pulldown-ohm = <100000>;
 		io-channels = <&adc 1>;
 	};
+};
+
+&cpu0 {
+	cpu0-supply = <&buck2_reg>;
 };
 
 &exynos_usbphy {
@@ -182,7 +201,7 @@
 
 		display-timings {
 			timing-0 {
-				clock-frequency = <0>;
+				clock-frequency = <4600000>;
 				hactive = <320>;
 				vactive = <320>;
 				hfront-porch = <1>;

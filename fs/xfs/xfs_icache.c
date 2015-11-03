@@ -412,6 +412,8 @@ xfs_iget(
 	if (!ino || XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
 		return -EINVAL;
 
+	XFS_STATS_INC(xs_ig_attempts);
+
 	/* get the perag structure and ensure that it's inode capable */
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ino));
 	agino = XFS_INO_TO_AGINO(mp, ino);

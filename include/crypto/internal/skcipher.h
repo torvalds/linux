@@ -107,5 +107,20 @@ static inline u32 ablkcipher_request_flags(struct ablkcipher_request *req)
 	return req->base.flags;
 }
 
+static inline void *crypto_skcipher_ctx(struct crypto_skcipher *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline void *skcipher_request_ctx(struct skcipher_request *req)
+{
+	return req->__ctx;
+}
+
+static inline u32 skcipher_request_flags(struct skcipher_request *req)
+{
+	return req->base.flags;
+}
+
 #endif	/* _CRYPTO_INTERNAL_SKCIPHER_H */
 

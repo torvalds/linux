@@ -418,7 +418,7 @@ static int func_map_init(struct pevent *pevent)
 }
 
 static struct func_map *
-find_func(struct pevent *pevent, unsigned long long addr)
+__find_func(struct pevent *pevent, unsigned long long addr)
 {
 	struct func_map *func;
 	struct func_map key;
@@ -432,6 +432,71 @@ find_func(struct pevent *pevent, unsigned long long addr)
 		       sizeof(*pevent->func_map), func_bcmp);
 
 	return func;
+}
+
+struct func_resolver {
+	pevent_func_resolver_t *func;
+	void		       *priv;
+	struct func_map	       map;
+};
+
+/**
+ * pevent_set_function_resolver - set an alternative function resolver
+ * @pevent: handle for the pevent
+ * @resolver: function to be used
+ * @priv: resolver function private state.
+ *
+ * Some tools may have already a way to resolve kernel functions, allow them to
+ * keep using it instead of duplicating all the entries inside
+ * pevent->funclist.
+ */
+int pevent_set_function_resolver(struct pevent *pevent,
+				 pevent_func_resolver_t *func, void *priv)
+{
+	struct func_resolver *resolver = malloc(sizeof(*resolver));
+
+	if (resolver == NULL)
+		return -1;
+
+	resolver->func = func;
+	resolver->priv = priv;
+
+	free(pevent->func_resolver);
+	pevent->func_resolver = resolver;
+
+	return 0;
+}
+
+/**
+ * pevent_reset_function_resolver - reset alternative function resolver
+ * @pevent: handle for the pevent
+ *
+ * Stop using whatever alternative resolver was set, use the default
+ * one instead.
+ */
+void pevent_reset_function_resolver(struct pevent *pevent)
+{
+	free(pevent->func_resolver);
+	pevent->func_resolver = NULL;
+}
+
+static struct func_map *
+find_func(struct pevent *pevent, unsigned long long addr)
+{
+	struct func_map *map;
+
+	if (!pevent->func_resolver)
+		return __find_func(pevent, addr);
+
+	map = &pevent->func_resolver->map;
+	map->mod  = NULL;
+	map->addr = addr;
+	map->func = pevent->func_resolver->func(pevent->func_resolver->priv,
+						&map->addr, &map->mod);
+	if (map->func == NULL)
+		return NULL;
+
+	return map;
 }
 
 /**
@@ -1680,6 +1745,9 @@ process_cond(struct event_format *event, struct print_arg *top, char **tok)
 	type = process_arg(event, left, &token);
 
  again:
+	if (type == EVENT_ERROR)
+		goto out_free;
+
 	/* Handle other operations in the arguments */
 	if (type == EVENT_OP && strcmp(token, ":") != 0) {
 		type = process_op(event, left, &token);
@@ -1939,6 +2007,12 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 			goto out_warn_free;
 
 		type = process_arg_token(event, right, tok, type);
+		if (type == EVENT_ERROR) {
+			free_arg(right);
+			/* token was freed in process_arg_token() via *tok */
+			token = NULL;
+			goto out_free;
+		}
 
 		if (right->type == PRINT_OP &&
 		    get_op_prio(arg->op.op) < get_op_prio(right->op.op)) {
@@ -3721,7 +3795,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 	struct format_field *field;
 	struct printk_map *printk;
 	long long val, fval;
-	unsigned long addr;
+	unsigned long long addr;
 	char *str;
 	unsigned char *hex;
 	int print;
@@ -3754,13 +3828,30 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		 */
 		if (!(field->flags & FIELD_IS_ARRAY) &&
 		    field->size == pevent->long_size) {
-			addr = *(unsigned long *)(data + field->offset);
+
+			/* Handle heterogeneous recording and processing
+			 * architectures
+			 *
+			 * CASE I:
+			 * Traces recorded on 32-bit devices (32-bit
+			 * addressing) and processed on 64-bit devices:
+			 * In this case, only 32 bits should be read.
+			 *
+			 * CASE II:
+			 * Traces recorded on 64 bit devices and processed
+			 * on 32-bit devices:
+			 * In this case, 64 bits must be read.
+			 */
+			addr = (pevent->long_size == 8) ?
+				*(unsigned long long *)(data + field->offset) :
+				(unsigned long long)*(unsigned int *)(data + field->offset);
+
 			/* Check if it matches a print format */
 			printk = find_printk(pevent, addr);
 			if (printk)
 				trace_seq_puts(s, printk->printk);
 			else
-				trace_seq_printf(s, "%lx", addr);
+				trace_seq_printf(s, "%llx", addr);
 			break;
 		}
 		str = malloc(len + 1);
@@ -4754,6 +4845,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case 'z':
 			case 'Z':
 			case '0' ... '9':
+			case '-':
 				goto cont_process;
 			case 'p':
 				if (pevent->long_size == 4)
@@ -6564,6 +6656,7 @@ void pevent_free(struct pevent *pevent)
 	free(pevent->trace_clock);
 	free(pevent->events);
 	free(pevent->sort_events);
+	free(pevent->func_resolver);
 
 	free(pevent);
 }

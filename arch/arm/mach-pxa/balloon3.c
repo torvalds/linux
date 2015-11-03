@@ -496,18 +496,18 @@ static struct irq_chip balloon3_irq_chip = {
 	.irq_unmask	= balloon3_unmask_irq,
 };
 
-static void balloon3_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void balloon3_irq_handler(struct irq_desc *desc)
 {
 	unsigned long pending = __raw_readl(BALLOON3_INT_CONTROL_REG) &
 					balloon3_irq_enabled;
 	do {
-		/* clear useless edge notification */
-		if (desc->irq_data.chip->irq_ack) {
-			struct irq_data *d;
+		struct irq_data *d = irq_desc_get_irq_data(desc);
+		struct irq_chip *chip = irq_desc_get_chip(desc);
+		unsigned int irq;
 
-			d = irq_get_irq_data(BALLOON3_AUX_NIRQ);
-			desc->irq_data.chip->irq_ack(d);
-		}
+		/* clear useless edge notification */
+		if (chip->irq_ack)
+			chip->irq_ack(d);
 
 		while (pending) {
 			irq = BALLOON3_IRQ(0) + __ffs(pending);
@@ -528,7 +528,7 @@ static void __init balloon3_init_irq(void)
 	for (irq = BALLOON3_IRQ(0); irq <= BALLOON3_IRQ(7); irq++) {
 		irq_set_chip_and_handler(irq, &balloon3_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	irq_set_chained_handler(BALLOON3_AUX_NIRQ, balloon3_irq_handler);

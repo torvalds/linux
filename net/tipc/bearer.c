@@ -343,7 +343,7 @@ restart:
 static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b_ptr)
 {
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
-	tipc_link_delete_list(net, b_ptr->identity);
+	tipc_node_delete_links(net, b_ptr->identity);
 	tipc_disc_reset(net, b_ptr);
 	return 0;
 }
@@ -361,7 +361,7 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b_ptr)
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	b_ptr->media->disable_media(b_ptr);
 
-	tipc_link_delete_list(net, b_ptr->identity);
+	tipc_node_delete_links(net, b_ptr->identity);
 	if (b_ptr->link_req)
 		tipc_disc_delete(b_ptr->link_req);
 
@@ -467,6 +467,32 @@ void tipc_bearer_send(struct net *net, u32 bearer_id, struct sk_buff *buf,
 	b_ptr = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
 	if (likely(b_ptr))
 		b_ptr->media->send_msg(net, buf, b_ptr, dest);
+	rcu_read_unlock();
+}
+
+/* tipc_bearer_xmit() -send buffer to destination over bearer
+ */
+void tipc_bearer_xmit(struct net *net, u32 bearer_id,
+		      struct sk_buff_head *xmitq,
+		      struct tipc_media_addr *dst)
+{
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_bearer *b;
+	struct sk_buff *skb, *tmp;
+
+	if (skb_queue_empty(xmitq))
+		return;
+
+	rcu_read_lock();
+	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
+	if (likely(b)) {
+		skb_queue_walk_safe(xmitq, skb, tmp) {
+			__skb_dequeue(xmitq);
+			b->media->send_msg(net, skb, b, dst);
+			/* Until we remove cloning in tipc_l2_send_msg(): */
+			kfree_skb(skb);
+		}
+	}
 	rcu_read_unlock();
 }
 

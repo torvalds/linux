@@ -544,6 +544,8 @@ int notrace notify_die(enum die_val val, const char *str,
 		.signr	= sig,
 
 	};
+	RCU_LOCKDEP_WARN(!rcu_is_watching(),
+			   "notify_die called but RCU thinks we're quiescent");
 	return atomic_notifier_call_chain(&die_chain, val, &args);
 }
 NOKPROBE_SYMBOL(notify_die);

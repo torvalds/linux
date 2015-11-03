@@ -222,6 +222,25 @@ enum rf_tx_num {
 #define	WOL_REASON_REALWOW_V2_WAKEUPPKT	BIT(9)
 #define	WOL_REASON_REALWOW_V2_ACKLOST	BIT(10)
 
+struct rtlwifi_firmware_header {
+	__le16 signature;
+	u8 category;
+	u8 function;
+	__le16 version;
+	u8 subversion;
+	u8 rsvd1;
+	u8 month;
+	u8 date;
+	u8 hour;
+	u8 minute;
+	__le16 ramcodeSize;
+	__le16 rsvd2;
+	__le32 svnindex;
+	__le32 rsvd3;
+	__le32 rsvd4;
+	__le32 rsvd5;
+};
+
 struct txpower_info_2g {
 	u8 index_cck_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
 	u8 index_bw40_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
@@ -2064,15 +2083,11 @@ struct rtl_tcb_desc {
 	bool tx_enable_sw_calc_duration;
 };
 
-struct rtl92c_firmware_header;
-
 struct rtl_wow_pattern {
 	u8 type;
 	u16 crc;
 	u32 mask[4];
 };
-
-struct rtl8723e_firmware_header;
 
 struct rtl_hal_ops {
 	int (*init_sw_vars) (struct ieee80211_hw *hw);
@@ -2177,7 +2192,7 @@ struct rtl_hal_ops {
 	void (*fill_h2c_cmd) (struct ieee80211_hw *hw, u8 element_id,
 			      u32 cmd_len, u8 *p_cmdbuffer);
 	bool (*get_btc_status) (void);
-	bool (*is_fw_header)(struct rtl8723e_firmware_header *hdr);
+	bool (*is_fw_header)(struct rtlwifi_firmware_header *hdr);
 	u32 (*rx_command_packet)(struct ieee80211_hw *hw,
 				 struct rtl_stats status, struct sk_buff *skb);
 	void (*add_wowlan_pattern)(struct ieee80211_hw *hw,

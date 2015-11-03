@@ -37,7 +37,7 @@ void hw_de_init(struct lynx_accel *accel)
 {
 	/* setup 2d engine registers */
 	u32 reg, clr;
-	
+
 	write_dpr(accel, DE_MASKS, 0xFFFFFFFF);
 
 	/* dpr1c */
@@ -82,7 +82,7 @@ void hw_de_init(struct lynx_accel *accel)
 void hw_set2dformat(struct lynx_accel *accel, int fmt)
 {
 	u32 reg;
-	
+
 	/* fmt=0,1,2 for 8,16,32,bpp on sm718/750/502 */
 	reg = read_dpr(accel, DE_STRETCH_FORMAT);
 	reg = FIELD_VALUE(reg, DE_STRETCH_FORMAT, PIXEL_FORMAT, fmt);
@@ -96,11 +96,10 @@ int hw_fillrect(struct lynx_accel *accel,
 {
 	u32 deCtrl;
 
-	if(accel->de_wait() != 0)
-	{
+	if (accel->de_wait() != 0) {
 		/* int time wait and always busy,seems hardware
 		 * got something error */
-		pr_debug("%s:De engine always bussy\n", __func__);
+		pr_debug("De engine always busy\n");
 		return -1;
 	}
 
@@ -151,112 +150,102 @@ unsigned int width,
 unsigned int height, /* width and height of rectangle in pixel value */
 unsigned int rop2)   /* ROP value */
 {
-    unsigned int nDirection, de_ctrl;
-    int opSign;
-    nDirection = LEFT_TO_RIGHT;
+	unsigned int nDirection, de_ctrl;
+	int opSign;
+
+	nDirection = LEFT_TO_RIGHT;
 	/* Direction of ROP2 operation: 1 = Left to Right, (-1) = Right to Left */
-    opSign = 1;
-    de_ctrl = 0;
+	opSign = 1;
+	de_ctrl = 0;
 
-    /* If source and destination are the same surface, need to check for overlay cases */
-    if (sBase == dBase && sPitch == dPitch)
-    {
-        /* Determine direction of operation */
-        if (sy < dy)
-        {
-            /* +----------+
-               |S         |
-               |   +----------+
-               |   |      |   |
-               |   |      |   |
-               +---|------+   |
-                   |         D|
-                   +----------+ */
+	/* If source and destination are the same surface, need to check for overlay cases */
+	if (sBase == dBase && sPitch == dPitch) {
+		/* Determine direction of operation */
+		if (sy < dy) {
+			/* +----------+
+			   |S         |
+			   |   +----------+
+			   |   |      |   |
+			   |   |      |   |
+			   +---|------+   |
+			   |         D|
+			   +----------+ */
 
-            nDirection = BOTTOM_TO_TOP;
-        }
-        else if (sy > dy)
-        {
-            /* +----------+
-               |D         |
-               |   +----------+
-               |   |      |   |
-               |   |      |   |
-               +---|------+   |
-                   |         S|
-                   +----------+ */
+			nDirection = BOTTOM_TO_TOP;
+		} else if (sy > dy) {
+			/* +----------+
+			   |D         |
+			   |   +----------+
+			   |   |      |   |
+			   |   |      |   |
+			   +---|------+   |
+			   |         S|
+			   +----------+ */
 
-            nDirection = TOP_TO_BOTTOM;
-        }
-        else
-        {
-            /* sy == dy */
+			nDirection = TOP_TO_BOTTOM;
+		} else {
+			/* sy == dy */
 
-            if (sx <= dx)
-            {
-                /* +------+---+------+
-                   |S     |   |     D|
-                   |      |   |      |
-                   |      |   |      |
-                   |      |   |      |
-                   +------+---+------+ */
+			if (sx <= dx) {
+				/* +------+---+------+
+				   |S     |   |     D|
+				   |      |   |      |
+				   |      |   |      |
+				   |      |   |      |
+				   +------+---+------+ */
 
-                nDirection = RIGHT_TO_LEFT;
-            }
-            else
-            {
-                /* sx > dx */
+				nDirection = RIGHT_TO_LEFT;
+			} else {
+			/* sx > dx */
 
-                /* +------+---+------+
-                   |D     |   |     S|
-                   |      |   |      |
-                   |      |   |      |
-                   |      |   |      |
-                   +------+---+------+ */
+				/* +------+---+------+
+				   |D     |   |     S|
+				   |      |   |      |
+				   |      |   |      |
+				   |      |   |      |
+				   +------+---+------+ */
 
-                nDirection = LEFT_TO_RIGHT;
-            }
-        }
-    }
+				nDirection = LEFT_TO_RIGHT;
+			}
+		}
+	}
 
-    if ((nDirection == BOTTOM_TO_TOP) || (nDirection == RIGHT_TO_LEFT))
-    {
-        sx += width - 1;
-        sy += height - 1;
-        dx += width - 1;
-        dy += height - 1;
-        opSign = (-1);
-    }
+	if ((nDirection == BOTTOM_TO_TOP) || (nDirection == RIGHT_TO_LEFT)) {
+		sx += width - 1;
+		sy += height - 1;
+		dx += width - 1;
+		dy += height - 1;
+		opSign = (-1);
+	}
 
-    /* Note:
-       DE_FOREGROUND are DE_BACKGROUND are don't care.
-       DE_COLOR_COMPARE and DE_COLOR_COMPARE_MAKS are set by set deSetTransparency().
-    */
+	/* Note:
+	   DE_FOREGROUND are DE_BACKGROUND are don't care.
+	  DE_COLOR_COMPARE and DE_COLOR_COMPARE_MAKS are set by set deSetTransparency().
+	 */
 
-    /* 2D Source Base.
-       It is an address offset (128 bit aligned) from the beginning of frame buffer.
-    */
-    write_dpr(accel, DE_WINDOW_SOURCE_BASE, sBase); /* dpr40 */
+	/* 2D Source Base.
+	 It is an address offset (128 bit aligned) from the beginning of frame buffer.
+	 */
+	write_dpr(accel, DE_WINDOW_SOURCE_BASE, sBase); /* dpr40 */
 
-    /* 2D Destination Base.
-       It is an address offset (128 bit aligned) from the beginning of frame buffer.
-    */
-    write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase); /* dpr44 */
+	/* 2D Destination Base.
+	 It is an address offset (128 bit aligned) from the beginning of frame buffer.
+	 */
+	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase); /* dpr44 */
 
 #if 0
     /* Program pitch (distance between the 1st points of two adjacent lines).
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	if(Bpp == 3){
+	if (Bpp == 3) {
 			sx *= 3;
 			dx *= 3;
 			width *= 3;
 		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
 				FIELD_VALUE(0, DE_PITCH, SOURCE,      sPitch)); /* dpr10 */
-	}
-	else
+	} else
 #endif
 	{
 		write_dpr(accel, DE_PITCH,
@@ -267,54 +256,53 @@ unsigned int rop2)   /* ROP value */
     /* Screen Window width in Pixels.
        2D engine uses this value to calculate the linear address in frame buffer for a given point.
     */
-    write_dpr(accel, DE_WINDOW_WIDTH,
-        FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/Bpp)) |
-        FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (sPitch/Bpp))); /* dpr3c */
+	write_dpr(accel, DE_WINDOW_WIDTH,
+	FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/Bpp)) |
+	FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (sPitch/Bpp))); /* dpr3c */
 
-	if (accel->de_wait() != 0){
+	if (accel->de_wait() != 0)
 		return -1;
+
+	{
+
+	write_dpr(accel, DE_SOURCE,
+		  FIELD_SET(0, DE_SOURCE, WRAP, DISABLE) |
+		  FIELD_VALUE(0, DE_SOURCE, X_K1, sx)   |
+		  FIELD_VALUE(0, DE_SOURCE, Y_K2, sy)); /* dpr0 */
+	write_dpr(accel, DE_DESTINATION,
+		  FIELD_SET(0, DE_DESTINATION, WRAP, DISABLE) |
+		  FIELD_VALUE(0, DE_DESTINATION, X,    dx)  |
+		  FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
+	write_dpr(accel, DE_DIMENSION,
+		  FIELD_VALUE(0, DE_DIMENSION, X,    width) |
+		  FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
+
+	de_ctrl = FIELD_VALUE(0, DE_CONTROL, ROP, rop2) |
+		  FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2) |
+		  FIELD_SET(0, DE_CONTROL, COMMAND, BITBLT) |
+		  ((nDirection == RIGHT_TO_LEFT) ?
+		  FIELD_SET(0, DE_CONTROL, DIRECTION, RIGHT_TO_LEFT)
+		  : FIELD_SET(0, DE_CONTROL, DIRECTION, LEFT_TO_RIGHT)) |
+		  FIELD_SET(0, DE_CONTROL, STATUS, START);
+	write_dpr(accel, DE_CONTROL, de_ctrl); /* dpr0c */
+
 	}
 
-    {
-
-        write_dpr(accel, DE_SOURCE,
-            FIELD_SET  (0, DE_SOURCE, WRAP, DISABLE) |
-            FIELD_VALUE(0, DE_SOURCE, X_K1, sx)   |
-            FIELD_VALUE(0, DE_SOURCE, Y_K2, sy)); /* dpr0 */
-        write_dpr(accel, DE_DESTINATION,
-            FIELD_SET  (0, DE_DESTINATION, WRAP, DISABLE) |
-            FIELD_VALUE(0, DE_DESTINATION, X,    dx)  |
-            FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
-        write_dpr(accel, DE_DIMENSION,
-            FIELD_VALUE(0, DE_DIMENSION, X,    width) |
-            FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
-
-        de_ctrl =
-            FIELD_VALUE(0, DE_CONTROL, ROP, rop2) |
-            FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2) |
-            FIELD_SET(0, DE_CONTROL, COMMAND, BITBLT) |
-            ((nDirection == RIGHT_TO_LEFT) ?
-            FIELD_SET(0, DE_CONTROL, DIRECTION, RIGHT_TO_LEFT)
-            : FIELD_SET(0, DE_CONTROL, DIRECTION, LEFT_TO_RIGHT)) |
-            FIELD_SET(0, DE_CONTROL, STATUS, START);
-		write_dpr(accel, DE_CONTROL, de_ctrl); /* dpr0c */
-    }
-
-    return 0;
+	return 0;
 }
 
 static unsigned int deGetTransparency(struct lynx_accel *accel)
 {
-    unsigned int de_ctrl;
+	unsigned int de_ctrl;
 
-    de_ctrl = read_dpr(accel, DE_CONTROL);
+	de_ctrl = read_dpr(accel, DE_CONTROL);
 
-    de_ctrl &=
-        FIELD_MASK(DE_CONTROL_TRANSPARENCY_MATCH) |
-        FIELD_MASK(DE_CONTROL_TRANSPARENCY_SELECT)|
-        FIELD_MASK(DE_CONTROL_TRANSPARENCY);
+	de_ctrl &=
+		   FIELD_MASK(DE_CONTROL_TRANSPARENCY_MATCH) |
+		   FIELD_MASK(DE_CONTROL_TRANSPARENCY_SELECT)|
+		   FIELD_MASK(DE_CONTROL_TRANSPARENCY);
 
-    return de_ctrl;
+	return de_ctrl;
 }
 
 int hw_imageblit(struct lynx_accel *accel,
@@ -332,38 +320,36 @@ int hw_imageblit(struct lynx_accel *accel,
 		 u32 bColor,   /* Background color (corresponding to a 0 in the monochrome data */
 		 u32 rop2)     /* ROP value */
 {
-    unsigned int ulBytesPerScan;
-    unsigned int ul4BytesPerScan;
-    unsigned int ulBytesRemain;
-    unsigned int de_ctrl = 0;
-    unsigned char ajRemain[4];
-    int i, j;
+	unsigned int ulBytesPerScan;
+	unsigned int ul4BytesPerScan;
+	unsigned int ulBytesRemain;
+	unsigned int de_ctrl = 0;
+	unsigned char ajRemain[4];
+	int i, j;
 
-    startBit &= 7; /* Just make sure the start bit is within legal range */
-    ulBytesPerScan = (width + startBit + 7) / 8;
-    ul4BytesPerScan = ulBytesPerScan & ~3;
-    ulBytesRemain = ulBytesPerScan & 3;
+	startBit &= 7; /* Just make sure the start bit is within legal range */
+	ulBytesPerScan = (width + startBit + 7) / 8;
+	ul4BytesPerScan = ulBytesPerScan & ~3;
+	ulBytesRemain = ulBytesPerScan & 3;
 
-	if(accel->de_wait() != 0)
-    {
-        return -1;
-    }
+	if (accel->de_wait() != 0)
+		return -1;
 
-    /* 2D Source Base.
-       Use 0 for HOST Blt.
-    */
-    write_dpr(accel, DE_WINDOW_SOURCE_BASE, 0);
+	/* 2D Source Base.
+	 Use 0 for HOST Blt.
+	 */
+	write_dpr(accel, DE_WINDOW_SOURCE_BASE, 0);
 
-    /* 2D Destination Base.
-       It is an address offset (128 bit aligned) from the beginning of frame buffer.
-    */
-    write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase);
+	/* 2D Destination Base.
+	 It is an address offset (128 bit aligned) from the beginning of frame buffer.
+	 */
+	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase);
 #if 0
     /* Program pitch (distance between the 1st points of two adjacent lines).
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	if(bytePerPixel == 3 ){
+	if (bytePerPixel == 3) {
 		dx *= 3;
 		width *= 3;
 		startBit *= 3;
@@ -371,8 +357,7 @@ int hw_imageblit(struct lynx_accel *accel,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
 				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch)); /* dpr10 */
 
-	}
-	else
+	} else
 #endif
 	{
 		write_dpr(accel, DE_PITCH,
@@ -380,30 +365,30 @@ int hw_imageblit(struct lynx_accel *accel,
 				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch/bytePerPixel)); /* dpr10 */
 	}
 
-    /* Screen Window width in Pixels.
-       2D engine uses this value to calculate the linear address in frame buffer for a given point.
-    */
-    write_dpr(accel, DE_WINDOW_WIDTH,
-        FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/bytePerPixel)) |
-        FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (dPitch/bytePerPixel)));
+	/* Screen Window width in Pixels.
+	 2D engine uses this value to calculate the linear address in frame buffer for a given point.
+	 */
+	write_dpr(accel, DE_WINDOW_WIDTH,
+		  FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/bytePerPixel)) |
+		  FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (dPitch/bytePerPixel)));
 
-    /* Note: For 2D Source in Host Write, only X_K1_MONO field is needed, and Y_K2 field is not used.
-             For mono bitmap, use startBit for X_K1. */
-    write_dpr(accel, DE_SOURCE,
-        FIELD_SET  (0, DE_SOURCE, WRAP, DISABLE)       |
-        FIELD_VALUE(0, DE_SOURCE, X_K1_MONO, startBit)); /* dpr00 */
+	 /* Note: For 2D Source in Host Write, only X_K1_MONO field is needed, and Y_K2 field is not used.
+	    For mono bitmap, use startBit for X_K1. */
+	write_dpr(accel, DE_SOURCE,
+		  FIELD_SET(0, DE_SOURCE, WRAP, DISABLE)       |
+		  FIELD_VALUE(0, DE_SOURCE, X_K1_MONO, startBit)); /* dpr00 */
 
-    write_dpr(accel, DE_DESTINATION,
-        FIELD_SET  (0, DE_DESTINATION, WRAP, DISABLE) |
-        FIELD_VALUE(0, DE_DESTINATION, X,    dx)    |
-        FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
+	write_dpr(accel, DE_DESTINATION,
+		  FIELD_SET(0, DE_DESTINATION, WRAP, DISABLE) |
+		  FIELD_VALUE(0, DE_DESTINATION, X,    dx)    |
+		  FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
 
-    write_dpr(accel, DE_DIMENSION,
-        FIELD_VALUE(0, DE_DIMENSION, X,    width) |
-        FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
+	write_dpr(accel, DE_DIMENSION,
+		  FIELD_VALUE(0, DE_DIMENSION, X,    width) |
+		  FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
 
-    write_dpr(accel, DE_FOREGROUND, fColor);
-    write_dpr(accel, DE_BACKGROUND, bColor);
+	write_dpr(accel, DE_FOREGROUND, fColor);
+	write_dpr(accel, DE_BACKGROUND, bColor);
 
 	de_ctrl = FIELD_VALUE(0, DE_CONTROL, ROP, rop2)         |
 		FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2)    |
@@ -413,24 +398,20 @@ int hw_imageblit(struct lynx_accel *accel,
 
 	write_dpr(accel, DE_CONTROL, de_ctrl | deGetTransparency(accel));
 
-    /* Write MONO data (line by line) to 2D Engine data port */
-    for (i=0; i<height; i++)
-    {
-        /* For each line, send the data in chunks of 4 bytes */
-        for (j=0; j<(ul4BytesPerScan/4); j++)
-        {
-            write_dpPort(accel, *(unsigned int *)(pSrcbuf + (j * 4)));
-        }
+	/* Write MONO data (line by line) to 2D Engine data port */
+	for (i = 0; i < height; i++) {
+		/* For each line, send the data in chunks of 4 bytes */
+		for (j = 0; j < (ul4BytesPerScan/4); j++)
+			write_dpPort(accel, *(unsigned int *)(pSrcbuf + (j * 4)));
 
-        if (ulBytesRemain)
-        {
-            memcpy(ajRemain, pSrcbuf+ul4BytesPerScan, ulBytesRemain);
-            write_dpPort(accel, *(unsigned int *)ajRemain);
-        }
+		if (ulBytesRemain) {
+			memcpy(ajRemain, pSrcbuf+ul4BytesPerScan, ulBytesRemain);
+			write_dpPort(accel, *(unsigned int *)ajRemain);
+		}
 
-        pSrcbuf += srcDelta;
-    }
+		pSrcbuf += srcDelta;
+	}
 
-    return 0;
+	    return 0;
 }
 

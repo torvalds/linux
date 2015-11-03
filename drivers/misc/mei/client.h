@@ -219,6 +219,14 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 
 void mei_host_client_init(struct work_struct *work);
 
+u8 mei_cl_notify_fop2req(enum mei_cb_file_ops fop);
+enum mei_cb_file_ops mei_cl_notify_req2fop(u8 request);
+int mei_cl_notify_request(struct mei_cl *cl, struct file *file, u8 request);
+int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
+		      struct mei_cl_cb *cmpl_list);
+int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev);
+void mei_cl_notify(struct mei_cl *cl);
+
 void mei_cl_all_disconnect(struct mei_device *dev);
 void mei_cl_all_wakeup(struct mei_device *dev);
 void mei_cl_all_write_clear(struct mei_device *dev);

@@ -1568,6 +1568,7 @@ int fcntl_getlease(struct file *filp)
  * 			    desired lease.
  * @dentry:	dentry to check
  * @arg:	type of lease that we're trying to acquire
+ * @flags:	current lock flags
  *
  * Check to see if there's an existing open fd on this file that would
  * conflict with the lease we're trying to set.

@@ -658,6 +658,8 @@ struct ravb_desc {
 	__le32 dptr;	/* Descriptor pointer */
 };
 
+#define DPTR_ALIGN	4	/* Required descriptor pointer alignment */
+
 enum DIE_DT {
 	/* Frame data */
 	DT_FMID		= 0x40,
@@ -739,6 +741,7 @@ enum RAVB_QUEUE {
 #define RX_QUEUE_OFFSET	4
 #define NUM_RX_QUEUE	2
 #define NUM_TX_QUEUE	2
+#define NUM_TX_DESC	2	/* TX descriptors per packet */
 
 struct ravb_tstamp_skb {
 	struct list_head list;
@@ -777,9 +780,9 @@ struct ravb_private {
 	dma_addr_t tx_desc_dma[NUM_TX_QUEUE];
 	struct ravb_ex_rx_desc *rx_ring[NUM_RX_QUEUE];
 	struct ravb_tx_desc *tx_ring[NUM_TX_QUEUE];
+	void *tx_align[NUM_TX_QUEUE];
 	struct sk_buff **rx_skb[NUM_RX_QUEUE];
 	struct sk_buff **tx_skb[NUM_TX_QUEUE];
-	void **tx_buffers[NUM_TX_QUEUE];
 	u32 rx_over_errors;
 	u32 rx_fifo_errors;
 	struct net_device_stats stats[NUM_RX_QUEUE];

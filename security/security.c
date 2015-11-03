@@ -56,18 +56,13 @@ int __init security_init(void)
 	pr_info("Security Framework initialized\n");
 
 	/*
-	 * Always load the capability module.
+	 * Load minor LSMs, with the capability module always first.
 	 */
 	capability_add_hooks();
-#ifdef CONFIG_SECURITY_YAMA_STACKED
-	/*
-	 * If Yama is configured for stacking load it next.
-	 */
 	yama_add_hooks();
-#endif
+
 	/*
-	 * Load the chosen module if there is one.
-	 * This will also find yama if it is stacking
+	 * Load all the remaining security modules.
 	 */
 	do_security_initcalls();
 
@@ -380,8 +375,8 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 		return 0;
 
 	if (!initxattrs)
-		return call_int_hook(inode_init_security, 0, inode, dir, qstr,
-							 NULL, NULL, NULL);
+		return call_int_hook(inode_init_security, -EOPNOTSUPP, inode,
+				     dir, qstr, NULL, NULL, NULL);
 	memset(new_xattrs, 0, sizeof(new_xattrs));
 	lsm_xattr = new_xattrs;
 	ret = call_int_hook(inode_init_security, -EOPNOTSUPP, inode, dir, qstr,
@@ -409,8 +404,8 @@ int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_init_security, 0, inode, dir, qstr,
-				name, value, len);
+	return call_int_hook(inode_init_security, -EOPNOTSUPP, inode, dir,
+			     qstr, name, value, len);
 }
 EXPORT_SYMBOL(security_old_inode_init_security);
 
@@ -776,7 +771,7 @@ static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
 	 * ditto if it's not on noexec mount, except that on !MMU we need
 	 * NOMMU_MAP_EXEC (== VM_MAYEXEC) in this case
 	 */
-	if (!(file->f_path.mnt->mnt_flags & MNT_NOEXEC)) {
+	if (!path_noexec(&file->f_path)) {
 #ifndef CONFIG_MMU
 		if (file->f_op->mmap_capabilities) {
 			unsigned caps = file->f_op->mmap_capabilities(file);
@@ -1281,7 +1276,8 @@ int security_socket_getpeersec_stream(struct socket *sock, char __user *optval,
 
 int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
-	return call_int_hook(socket_getpeersec_dgram, 0, sock, skb, secid);
+	return call_int_hook(socket_getpeersec_dgram, -ENOPROTOOPT, sock,
+			     skb, secid);
 }
 EXPORT_SYMBOL(security_socket_getpeersec_dgram);
 

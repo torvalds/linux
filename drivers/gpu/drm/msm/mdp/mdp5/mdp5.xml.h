@@ -8,17 +8,17 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2014-12-05 15:34:49)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2015-03-24 22:05:22)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2352 bytes, from 2015-04-12 15:02:42)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  35083 bytes, from 2015-04-12 15:04:03)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  22094 bytes, from 2015-05-12 12:45:23)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2013-08-11 19:26:32)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2014-10-31 16:48:57)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2013-07-05 19:21:12)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  29012 bytes, from 2015-05-12 12:45:23)
-- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2015-05-12 12:45:23)
+- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2576 bytes, from 2015-07-09 22:10:24)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  36021 bytes, from 2015-07-09 22:10:24)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  26057 bytes, from 2015-08-14 21:47:57)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  29154 bytes, from 2015-08-10 21:25:43)
+- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2015-05-20 20:03:14)
 
 Copyright (C) 2013-2015 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -381,49 +381,49 @@ static inline uint32_t REG_MDP5_CTL_LAYER(uint32_t i0, uint32_t i1) { return 0x0
 static inline uint32_t REG_MDP5_CTL_LAYER_REG(uint32_t i0, uint32_t i1) { return 0x00000000 + __offset_CTL(i0) + __offset_LAYER(i1); }
 #define MDP5_CTL_LAYER_REG_VIG0__MASK				0x00000007
 #define MDP5_CTL_LAYER_REG_VIG0__SHIFT				0
-static inline uint32_t MDP5_CTL_LAYER_REG_VIG0(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_VIG0(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_VIG0__SHIFT) & MDP5_CTL_LAYER_REG_VIG0__MASK;
 }
 #define MDP5_CTL_LAYER_REG_VIG1__MASK				0x00000038
 #define MDP5_CTL_LAYER_REG_VIG1__SHIFT				3
-static inline uint32_t MDP5_CTL_LAYER_REG_VIG1(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_VIG1(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_VIG1__SHIFT) & MDP5_CTL_LAYER_REG_VIG1__MASK;
 }
 #define MDP5_CTL_LAYER_REG_VIG2__MASK				0x000001c0
 #define MDP5_CTL_LAYER_REG_VIG2__SHIFT				6
-static inline uint32_t MDP5_CTL_LAYER_REG_VIG2(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_VIG2(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_VIG2__SHIFT) & MDP5_CTL_LAYER_REG_VIG2__MASK;
 }
 #define MDP5_CTL_LAYER_REG_RGB0__MASK				0x00000e00
 #define MDP5_CTL_LAYER_REG_RGB0__SHIFT				9
-static inline uint32_t MDP5_CTL_LAYER_REG_RGB0(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_RGB0(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_RGB0__SHIFT) & MDP5_CTL_LAYER_REG_RGB0__MASK;
 }
 #define MDP5_CTL_LAYER_REG_RGB1__MASK				0x00007000
 #define MDP5_CTL_LAYER_REG_RGB1__SHIFT				12
-static inline uint32_t MDP5_CTL_LAYER_REG_RGB1(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_RGB1(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_RGB1__SHIFT) & MDP5_CTL_LAYER_REG_RGB1__MASK;
 }
 #define MDP5_CTL_LAYER_REG_RGB2__MASK				0x00038000
 #define MDP5_CTL_LAYER_REG_RGB2__SHIFT				15
-static inline uint32_t MDP5_CTL_LAYER_REG_RGB2(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_RGB2(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_RGB2__SHIFT) & MDP5_CTL_LAYER_REG_RGB2__MASK;
 }
 #define MDP5_CTL_LAYER_REG_DMA0__MASK				0x001c0000
 #define MDP5_CTL_LAYER_REG_DMA0__SHIFT				18
-static inline uint32_t MDP5_CTL_LAYER_REG_DMA0(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_DMA0(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_DMA0__SHIFT) & MDP5_CTL_LAYER_REG_DMA0__MASK;
 }
 #define MDP5_CTL_LAYER_REG_DMA1__MASK				0x00e00000
 #define MDP5_CTL_LAYER_REG_DMA1__SHIFT				21
-static inline uint32_t MDP5_CTL_LAYER_REG_DMA1(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_DMA1(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_DMA1__SHIFT) & MDP5_CTL_LAYER_REG_DMA1__MASK;
 }
@@ -431,13 +431,13 @@ static inline uint32_t MDP5_CTL_LAYER_REG_DMA1(enum mdp_mixer_stage_id val)
 #define MDP5_CTL_LAYER_REG_CURSOR_OUT				0x02000000
 #define MDP5_CTL_LAYER_REG_VIG3__MASK				0x1c000000
 #define MDP5_CTL_LAYER_REG_VIG3__SHIFT				26
-static inline uint32_t MDP5_CTL_LAYER_REG_VIG3(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_VIG3(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_VIG3__SHIFT) & MDP5_CTL_LAYER_REG_VIG3__MASK;
 }
 #define MDP5_CTL_LAYER_REG_RGB3__MASK				0xe0000000
 #define MDP5_CTL_LAYER_REG_RGB3__SHIFT				29
-static inline uint32_t MDP5_CTL_LAYER_REG_RGB3(enum mdp_mixer_stage_id val)
+static inline uint32_t MDP5_CTL_LAYER_REG_RGB3(uint32_t val)
 {
 	return ((val) << MDP5_CTL_LAYER_REG_RGB3__SHIFT) & MDP5_CTL_LAYER_REG_RGB3__MASK;
 }
@@ -498,6 +498,44 @@ static inline uint32_t REG_MDP5_CTL_FLUSH(uint32_t i0) { return 0x00000018 + __o
 static inline uint32_t REG_MDP5_CTL_START(uint32_t i0) { return 0x0000001c + __offset_CTL(i0); }
 
 static inline uint32_t REG_MDP5_CTL_PACK_3D(uint32_t i0) { return 0x00000020 + __offset_CTL(i0); }
+
+static inline uint32_t __offset_LAYER_EXT(uint32_t idx)
+{
+	switch (idx) {
+		case 0: return 0x00000040;
+		case 1: return 0x00000044;
+		case 2: return 0x00000048;
+		case 3: return 0x0000004c;
+		case 4: return 0x00000050;
+		case 5: return 0x00000054;
+		default: return INVALID_IDX(idx);
+	}
+}
+static inline uint32_t REG_MDP5_CTL_LAYER_EXT(uint32_t i0, uint32_t i1) { return 0x00000000 + __offset_CTL(i0) + __offset_LAYER_EXT(i1); }
+
+static inline uint32_t REG_MDP5_CTL_LAYER_EXT_REG(uint32_t i0, uint32_t i1) { return 0x00000000 + __offset_CTL(i0) + __offset_LAYER_EXT(i1); }
+#define MDP5_CTL_LAYER_EXT_REG_VIG0_BIT3			0x00000001
+#define MDP5_CTL_LAYER_EXT_REG_VIG1_BIT3			0x00000004
+#define MDP5_CTL_LAYER_EXT_REG_VIG2_BIT3			0x00000010
+#define MDP5_CTL_LAYER_EXT_REG_VIG3_BIT3			0x00000040
+#define MDP5_CTL_LAYER_EXT_REG_RGB0_BIT3			0x00000100
+#define MDP5_CTL_LAYER_EXT_REG_RGB1_BIT3			0x00000400
+#define MDP5_CTL_LAYER_EXT_REG_RGB2_BIT3			0x00001000
+#define MDP5_CTL_LAYER_EXT_REG_RGB3_BIT3			0x00004000
+#define MDP5_CTL_LAYER_EXT_REG_DMA0_BIT3			0x00010000
+#define MDP5_CTL_LAYER_EXT_REG_DMA1_BIT3			0x00040000
+#define MDP5_CTL_LAYER_EXT_REG_CURSOR0__MASK			0x00f00000
+#define MDP5_CTL_LAYER_EXT_REG_CURSOR0__SHIFT			20
+static inline uint32_t MDP5_CTL_LAYER_EXT_REG_CURSOR0(enum mdp_mixer_stage_id val)
+{
+	return ((val) << MDP5_CTL_LAYER_EXT_REG_CURSOR0__SHIFT) & MDP5_CTL_LAYER_EXT_REG_CURSOR0__MASK;
+}
+#define MDP5_CTL_LAYER_EXT_REG_CURSOR1__MASK			0x3c000000
+#define MDP5_CTL_LAYER_EXT_REG_CURSOR1__SHIFT			26
+static inline uint32_t MDP5_CTL_LAYER_EXT_REG_CURSOR1(enum mdp_mixer_stage_id val)
+{
+	return ((val) << MDP5_CTL_LAYER_EXT_REG_CURSOR1__SHIFT) & MDP5_CTL_LAYER_EXT_REG_CURSOR1__MASK;
+}
 
 static inline uint32_t __offset_PIPE(enum mdp5_pipe idx)
 {
@@ -803,11 +841,11 @@ static inline uint32_t MDP5_PIPE_SRC_FORMAT_UNPACK_COUNT(uint32_t val)
 }
 #define MDP5_PIPE_SRC_FORMAT_UNPACK_TIGHT			0x00020000
 #define MDP5_PIPE_SRC_FORMAT_UNPACK_ALIGN_MSB			0x00040000
-#define MDP5_PIPE_SRC_FORMAT_NUM_PLANES__MASK			0x00180000
-#define MDP5_PIPE_SRC_FORMAT_NUM_PLANES__SHIFT			19
-static inline uint32_t MDP5_PIPE_SRC_FORMAT_NUM_PLANES(enum mdp_fetch_type val)
+#define MDP5_PIPE_SRC_FORMAT_FETCH_TYPE__MASK			0x00180000
+#define MDP5_PIPE_SRC_FORMAT_FETCH_TYPE__SHIFT			19
+static inline uint32_t MDP5_PIPE_SRC_FORMAT_FETCH_TYPE(enum mdp_fetch_type val)
 {
-	return ((val) << MDP5_PIPE_SRC_FORMAT_NUM_PLANES__SHIFT) & MDP5_PIPE_SRC_FORMAT_NUM_PLANES__MASK;
+	return ((val) << MDP5_PIPE_SRC_FORMAT_FETCH_TYPE__SHIFT) & MDP5_PIPE_SRC_FORMAT_FETCH_TYPE__MASK;
 }
 #define MDP5_PIPE_SRC_FORMAT_CHROMA_SAMP__MASK			0x01800000
 #define MDP5_PIPE_SRC_FORMAT_CHROMA_SAMP__SHIFT			23
@@ -897,41 +935,41 @@ static inline uint32_t MDP5_PIPE_DECIMATION_HORZ(uint32_t val)
 static inline uint32_t REG_MDP5_PIPE_SCALE_CONFIG(enum mdp5_pipe i0) { return 0x00000204 + __offset_PIPE(i0); }
 #define MDP5_PIPE_SCALE_CONFIG_SCALEX_EN			0x00000001
 #define MDP5_PIPE_SCALE_CONFIG_SCALEY_EN			0x00000002
-#define MDP5_PIPE_SCALE_CONFIG_SCALEX_MIN_FILTER__MASK		0x00000300
-#define MDP5_PIPE_SCALE_CONFIG_SCALEX_MIN_FILTER__SHIFT		8
-static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEX_MIN_FILTER(enum mdp5_scale_filter val)
+#define MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0__MASK	0x00000300
+#define MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0__SHIFT	8
+static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0(enum mdp5_scale_filter val)
 {
-	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEX_MIN_FILTER__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEX_MIN_FILTER__MASK;
+	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0__MASK;
 }
-#define MDP5_PIPE_SCALE_CONFIG_SCALEY_MIN_FILTER__MASK		0x00000c00
-#define MDP5_PIPE_SCALE_CONFIG_SCALEY_MIN_FILTER__SHIFT		10
-static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEY_MIN_FILTER(enum mdp5_scale_filter val)
+#define MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0__MASK	0x00000c00
+#define MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0__SHIFT	10
+static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0(enum mdp5_scale_filter val)
 {
-	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEY_MIN_FILTER__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEY_MIN_FILTER__MASK;
+	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0__MASK;
 }
-#define MDP5_PIPE_SCALE_CONFIG_SCALEX_CR_FILTER__MASK		0x00003000
-#define MDP5_PIPE_SCALE_CONFIG_SCALEX_CR_FILTER__SHIFT		12
-static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEX_CR_FILTER(enum mdp5_scale_filter val)
+#define MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2__MASK	0x00003000
+#define MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2__SHIFT	12
+static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2(enum mdp5_scale_filter val)
 {
-	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEX_CR_FILTER__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEX_CR_FILTER__MASK;
+	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2__MASK;
 }
-#define MDP5_PIPE_SCALE_CONFIG_SCALEY_CR_FILTER__MASK		0x0000c000
-#define MDP5_PIPE_SCALE_CONFIG_SCALEY_CR_FILTER__SHIFT		14
-static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEY_CR_FILTER(enum mdp5_scale_filter val)
+#define MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2__MASK	0x0000c000
+#define MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2__SHIFT	14
+static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2(enum mdp5_scale_filter val)
 {
-	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEY_CR_FILTER__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEY_CR_FILTER__MASK;
+	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2__MASK;
 }
-#define MDP5_PIPE_SCALE_CONFIG_SCALEX_MAX_FILTER__MASK		0x00030000
-#define MDP5_PIPE_SCALE_CONFIG_SCALEX_MAX_FILTER__SHIFT		16
-static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEX_MAX_FILTER(enum mdp5_scale_filter val)
+#define MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3__MASK	0x00030000
+#define MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3__SHIFT	16
+static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3(enum mdp5_scale_filter val)
 {
-	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEX_MAX_FILTER__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEX_MAX_FILTER__MASK;
+	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3__MASK;
 }
-#define MDP5_PIPE_SCALE_CONFIG_SCALEY_MAX_FILTER__MASK		0x000c0000
-#define MDP5_PIPE_SCALE_CONFIG_SCALEY_MAX_FILTER__SHIFT		18
-static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEY_MAX_FILTER(enum mdp5_scale_filter val)
+#define MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3__MASK	0x000c0000
+#define MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3__SHIFT	18
+static inline uint32_t MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3(enum mdp5_scale_filter val)
 {
-	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEY_MAX_FILTER__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEY_MAX_FILTER__MASK;
+	return ((val) << MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3__SHIFT) & MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3__MASK;
 }
 
 static inline uint32_t REG_MDP5_PIPE_SCALE_PHASE_STEP_X(enum mdp5_pipe i0) { return 0x00000210 + __offset_PIPE(i0); }
@@ -984,9 +1022,22 @@ static inline uint32_t REG_MDP5_LM_BORDER_COLOR_0(uint32_t i0) { return 0x000000
 
 static inline uint32_t REG_MDP5_LM_BORDER_COLOR_1(uint32_t i0) { return 0x00000010 + __offset_LM(i0); }
 
-static inline uint32_t REG_MDP5_LM_BLEND(uint32_t i0, uint32_t i1) { return 0x00000020 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t __offset_BLEND(uint32_t idx)
+{
+	switch (idx) {
+		case 0: return 0x00000020;
+		case 1: return 0x00000050;
+		case 2: return 0x00000080;
+		case 3: return 0x000000b0;
+		case 4: return 0x00000230;
+		case 5: return 0x00000260;
+		case 6: return 0x00000290;
+		default: return INVALID_IDX(idx);
+	}
+}
+static inline uint32_t REG_MDP5_LM_BLEND(uint32_t i0, uint32_t i1) { return 0x00000000 + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_OP_MODE(uint32_t i0, uint32_t i1) { return 0x00000020 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_OP_MODE(uint32_t i0, uint32_t i1) { return 0x00000000 + __offset_LM(i0) + __offset_BLEND(i1); }
 #define MDP5_LM_BLEND_OP_MODE_FG_ALPHA__MASK			0x00000003
 #define MDP5_LM_BLEND_OP_MODE_FG_ALPHA__SHIFT			0
 static inline uint32_t MDP5_LM_BLEND_OP_MODE_FG_ALPHA(enum mdp_alpha_type val)
@@ -1008,25 +1059,25 @@ static inline uint32_t MDP5_LM_BLEND_OP_MODE_BG_ALPHA(enum mdp_alpha_type val)
 #define MDP5_LM_BLEND_OP_MODE_BG_INV_MOD_ALPHA			0x00001000
 #define MDP5_LM_BLEND_OP_MODE_BG_TRANSP_EN			0x00002000
 
-static inline uint32_t REG_MDP5_LM_BLEND_FG_ALPHA(uint32_t i0, uint32_t i1) { return 0x00000024 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_FG_ALPHA(uint32_t i0, uint32_t i1) { return 0x00000004 + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_BG_ALPHA(uint32_t i0, uint32_t i1) { return 0x00000028 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_BG_ALPHA(uint32_t i0, uint32_t i1) { return 0x00000008 + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_FG_TRANSP_LOW0(uint32_t i0, uint32_t i1) { return 0x0000002c + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_FG_TRANSP_LOW0(uint32_t i0, uint32_t i1) { return 0x0000000c + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_FG_TRANSP_LOW1(uint32_t i0, uint32_t i1) { return 0x00000030 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_FG_TRANSP_LOW1(uint32_t i0, uint32_t i1) { return 0x00000010 + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_FG_TRANSP_HIGH0(uint32_t i0, uint32_t i1) { return 0x00000034 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_FG_TRANSP_HIGH0(uint32_t i0, uint32_t i1) { return 0x00000014 + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_FG_TRANSP_HIGH1(uint32_t i0, uint32_t i1) { return 0x00000038 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_FG_TRANSP_HIGH1(uint32_t i0, uint32_t i1) { return 0x00000018 + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_BG_TRANSP_LOW0(uint32_t i0, uint32_t i1) { return 0x0000003c + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_BG_TRANSP_LOW0(uint32_t i0, uint32_t i1) { return 0x0000001c + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_BG_TRANSP_LOW1(uint32_t i0, uint32_t i1) { return 0x00000040 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_BG_TRANSP_LOW1(uint32_t i0, uint32_t i1) { return 0x00000020 + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_BG_TRANSP_HIGH0(uint32_t i0, uint32_t i1) { return 0x00000044 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_BG_TRANSP_HIGH0(uint32_t i0, uint32_t i1) { return 0x00000024 + __offset_LM(i0) + __offset_BLEND(i1); }
 
-static inline uint32_t REG_MDP5_LM_BLEND_BG_TRANSP_HIGH1(uint32_t i0, uint32_t i1) { return 0x00000048 + __offset_LM(i0) + 0x30*i1; }
+static inline uint32_t REG_MDP5_LM_BLEND_BG_TRANSP_HIGH1(uint32_t i0, uint32_t i1) { return 0x00000028 + __offset_LM(i0) + __offset_BLEND(i1); }
 
 static inline uint32_t REG_MDP5_LM_CURSOR_IMG_SIZE(uint32_t i0) { return 0x000000e0 + __offset_LM(i0); }
 #define MDP5_LM_CURSOR_IMG_SIZE_SRC_W__MASK			0x0000ffff
@@ -1260,6 +1311,13 @@ static inline uint32_t REG_MDP5_PP_FBC_LOSSY_MODE(uint32_t i0) { return 0x000000
 static inline uint32_t __offset_WB(uint32_t idx)
 {
 	switch (idx) {
+#if 0  /* TEMPORARY until patch that adds wb.base[] is merged */
+		case 0: return (mdp5_cfg->wb.base[0]);
+		case 1: return (mdp5_cfg->wb.base[1]);
+		case 2: return (mdp5_cfg->wb.base[2]);
+		case 3: return (mdp5_cfg->wb.base[3]);
+		case 4: return (mdp5_cfg->wb.base[4]);
+#endif
 		default: return INVALID_IDX(idx);
 	}
 }

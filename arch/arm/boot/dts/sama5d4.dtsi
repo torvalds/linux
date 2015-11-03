@@ -957,8 +957,8 @@
 				compatible = "atmel,at91sam9x5-tcb";
 				reg = <0xf801c000 0x100>;
 				interrupts = <40 IRQ_TYPE_LEVEL_HIGH 0>;
-				clocks = <&tcb0_clk>;
-				clock-names = "t0_clk";
+				clocks = <&tcb0_clk>, <&clk32k>;
+				clock-names = "t0_clk", "slow_clk";
 			};
 
 			macb0: ethernet@f8020000 {
@@ -1185,29 +1185,20 @@
 				compatible = "atmel,at91sam9x5-tcb";
 				reg = <0xfc020000 0x100>;
 				interrupts = <41 IRQ_TYPE_LEVEL_HIGH 0>;
-				clocks = <&tcb1_clk>;
-				clock-names = "t0_clk";
+				clocks = <&tcb1_clk>, <&clk32k>;
+				clock-names = "t0_clk", "slow_clk";
 			};
 
 			adc0: adc@fc034000 {
 				compatible = "atmel,at91sam9x5-adc";
 				reg = <0xfc034000 0x100>;
 				interrupts = <44 IRQ_TYPE_LEVEL_HIGH 5>;
-				pinctrl-names = "default";
-				pinctrl-0 = <
-					/* external trigger is conflict with USBA_VBUS */
-					&pinctrl_adc0_ad0
-					&pinctrl_adc0_ad1
-					&pinctrl_adc0_ad2
-					&pinctrl_adc0_ad3
-					&pinctrl_adc0_ad4
-					>;
 				clocks = <&adc_clk>,
 					 <&adc_op_clk>;
 				clock-names = "adc_clk", "adc_op_clk";
 				atmel,adc-channels-used = <0x01f>;
 				atmel,adc-startup-time = <40>;
-				atmel,adc-use-external;
+				atmel,adc-use-external-triggers;
 				atmel,adc-vref = <3000>;
 				atmel,adc-res = <8 10>;
 				atmel,adc-sample-hold-time = <11>;
@@ -1277,13 +1268,15 @@
 			};
 
 			rstc@fc068600 {
-				compatible = "atmel,at91sam9g45-rstc";
+				compatible = "atmel,sama5d3-rstc", "atmel,at91sam9g45-rstc";
 				reg = <0xfc068600 0x10>;
+				clocks = <&clk32k>;
 			};
 
 			shdwc@fc068610 {
 				compatible = "atmel,at91sam9x5-shdwc";
 				reg = <0xfc068610 0x10>;
+				clocks = <&clk32k>;
 			};
 
 			pit: timer@fc068630 {
@@ -1296,6 +1289,7 @@
 			watchdog@fc068640 {
 				compatible = "atmel,at91sam9260-wdt";
 				reg = <0xfc068640 0x10>;
+				clocks = <&clk32k>;
 				status = "disabled";
 			};
 
@@ -1329,6 +1323,7 @@
 				compatible = "atmel,at91rm9200-rtc";
 				reg = <0xfc0686b0 0x30>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&clk32k>;
 			};
 
 			dbgu: serial@fc069000 {

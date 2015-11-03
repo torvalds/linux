@@ -31,7 +31,7 @@ static void __init imx7d_init_irq(void)
 	irqchip_init();
 }
 
-static const char *imx7d_dt_compat[] __initconst = {
+static const char *const imx7d_dt_compat[] __initconst = {
 	"fsl,imx7d",
 	NULL,
 };

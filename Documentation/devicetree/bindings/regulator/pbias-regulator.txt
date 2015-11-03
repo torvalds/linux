@@ -2,7 +2,12 @@ PBIAS internal regulator for SD card dual voltage i/o pads on OMAP SoCs.
 
 Required properties:
 - compatible:
-  - "ti,pbias-omap" for OMAP2, OMAP3, OMAP4, OMAP5, DRA7.
+  - should be "ti,pbias-dra7" for DRA7
+  - should be "ti,pbias-omap2" for OMAP2
+  - should be "ti,pbias-omap3" for OMAP3
+  - should be "ti,pbias-omap4" for OMAP4
+  - should be "ti,pbias-omap5" for OMAP5
+  - "ti,pbias-omap" is deprecated
 - reg: pbias register offset from syscon base and size of pbias register.
 - syscon : phandle of the system control module
 - regulator-name : should be

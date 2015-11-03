@@ -29,26 +29,31 @@ struct ci_hdrc_imx_platform_flag {
 };
 
 static const struct ci_hdrc_imx_platform_flag imx27_usb_data = {
+		CI_HDRC_DISABLE_STREAMING,
 };
 
 static const struct ci_hdrc_imx_platform_flag imx28_usb_data = {
 	.flags = CI_HDRC_IMX28_WRITE_FIX |
-		CI_HDRC_TURN_VBUS_EARLY_ON,
+		CI_HDRC_TURN_VBUS_EARLY_ON |
+		CI_HDRC_DISABLE_STREAMING,
 };
 
 static const struct ci_hdrc_imx_platform_flag imx6q_usb_data = {
 	.flags = CI_HDRC_SUPPORTS_RUNTIME_PM |
-		CI_HDRC_TURN_VBUS_EARLY_ON,
+		CI_HDRC_TURN_VBUS_EARLY_ON |
+		CI_HDRC_DISABLE_STREAMING,
 };
 
 static const struct ci_hdrc_imx_platform_flag imx6sl_usb_data = {
 	.flags = CI_HDRC_SUPPORTS_RUNTIME_PM |
-		CI_HDRC_TURN_VBUS_EARLY_ON,
+		CI_HDRC_TURN_VBUS_EARLY_ON |
+		CI_HDRC_DISABLE_HOST_STREAMING,
 };
 
 static const struct ci_hdrc_imx_platform_flag imx6sx_usb_data = {
 	.flags = CI_HDRC_SUPPORTS_RUNTIME_PM |
-		CI_HDRC_TURN_VBUS_EARLY_ON,
+		CI_HDRC_TURN_VBUS_EARLY_ON |
+		CI_HDRC_DISABLE_HOST_STREAMING,
 };
 
 static const struct of_device_id ci_hdrc_imx_dt_ids[] = {
@@ -56,7 +61,7 @@ static const struct of_device_id ci_hdrc_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx27-usb", .data = &imx27_usb_data},
 	{ .compatible = "fsl,imx6q-usb", .data = &imx6q_usb_data},
 	{ .compatible = "fsl,imx6sl-usb", .data = &imx6sl_usb_data},
-	{ .compatible = "fsl,imx6sx-usb", .data = &imx6sl_usb_data},
+	{ .compatible = "fsl,imx6sx-usb", .data = &imx6sx_usb_data},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ci_hdrc_imx_dt_ids);
@@ -104,7 +109,7 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	misc_pdev = of_find_device_by_node(args.np);
 	of_node_put(args.np);
 
-	if (!misc_pdev)
+	if (!misc_pdev || !platform_get_drvdata(misc_pdev))
 		return ERR_PTR(-EPROBE_DEFER);
 
 	data->dev = &misc_pdev->dev;
@@ -126,7 +131,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	struct ci_hdrc_platform_data pdata = {
 		.name		= dev_name(&pdev->dev),
 		.capoffset	= DEF_CAPOFFSET,
-		.flags		= CI_HDRC_DISABLE_STREAMING,
+		.flags		= CI_HDRC_SET_NON_ZERO_TTHA,
 	};
 	int ret;
 	const struct of_device_id *of_id =

@@ -76,11 +76,6 @@ static int is_qp0(enum ib_qp_type qp_type)
 	return qp_type == IB_QPT_SMI;
 }
 
-static int is_qp1(enum ib_qp_type qp_type)
-{
-	return qp_type == IB_QPT_GSI;
-}
-
 static int is_sqp(enum ib_qp_type qp_type)
 {
 	return is_qp0(qp_type) || is_qp1(qp_type);
@@ -930,8 +925,6 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			err = create_kernel_qp(dev, init_attr, qp, &in, &inlen);
 			if (err)
 				mlx5_ib_dbg(dev, "err %d\n", err);
-			else
-				qp->pa_lkey = to_mpd(pd)->pa_lkey;
 		}
 
 		if (err)
@@ -2050,7 +2043,7 @@ static void set_frwr_pages(struct mlx5_wqe_data_seg *dseg,
 		mfrpl->mapped_page_list[i] = cpu_to_be64(page_list[i] | perm);
 	dseg->addr = cpu_to_be64(mfrpl->map);
 	dseg->byte_count = cpu_to_be32(ALIGN(sizeof(u64) * wr->wr.fast_reg.page_list_len, 64));
-	dseg->lkey = cpu_to_be32(pd->pa_lkey);
+	dseg->lkey = cpu_to_be32(pd->ibpd.local_dma_lkey);
 }
 
 static __be32 send_ieth(struct ib_send_wr *wr)

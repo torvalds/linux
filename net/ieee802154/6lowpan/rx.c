@@ -15,36 +15,14 @@
 
 #include "6lowpan_i.h"
 
-static int lowpan_give_skb_to_devices(struct sk_buff *skb,
-				      struct net_device *dev)
+static int lowpan_give_skb_to_device(struct sk_buff *skb,
+				     struct net_device *dev)
 {
-	struct lowpan_dev_record *entry;
-	struct sk_buff *skb_cp;
-	int stat = NET_RX_SUCCESS;
-
+	skb->dev = dev->ieee802154_ptr->lowpan_dev;
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->pkt_type = PACKET_HOST;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(entry, &lowpan_devices, list)
-		if (lowpan_dev_info(entry->ldev)->real_dev == skb->dev) {
-			skb_cp = skb_copy(skb, GFP_ATOMIC);
-			if (!skb_cp) {
-				kfree_skb(skb);
-				rcu_read_unlock();
-				return NET_RX_DROP;
-			}
-
-			skb_cp->dev = entry->ldev;
-			stat = netif_rx(skb_cp);
-			if (stat == NET_RX_DROP)
-				break;
-		}
-	rcu_read_unlock();
-
-	consume_skb(skb);
-
-	return stat;
+	return netif_rx(skb);
 }
 
 static int
@@ -89,6 +67,10 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct ieee802154_hdr hdr;
 	int ret;
 
+	if (dev->type != ARPHRD_IEEE802154 ||
+	    !dev->ieee802154_ptr->lowpan_dev)
+		goto drop;
+
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		goto drop;
@@ -99,9 +81,6 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop_skb;
 
-	if (dev->type != ARPHRD_IEEE802154)
-		goto drop_skb;
-
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)
 		goto drop_skb;
 
@@ -109,7 +88,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (skb->data[0] == LOWPAN_DISPATCH_IPV6) {
 		/* Pull off the 1-byte of 6lowpan header. */
 		skb_pull(skb, 1);
-		return lowpan_give_skb_to_devices(skb, NULL);
+		return lowpan_give_skb_to_device(skb, dev);
 	} else {
 		switch (skb->data[0] & 0xe0) {
 		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
@@ -117,7 +96,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 			if (ret < 0)
 				goto drop_skb;
 
-			return lowpan_give_skb_to_devices(skb, NULL);
+			return lowpan_give_skb_to_device(skb, dev);
 		case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
 			ret = lowpan_frag_rcv(skb, LOWPAN_DISPATCH_FRAG1);
 			if (ret == 1) {
@@ -125,7 +104,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 				if (ret < 0)
 					goto drop_skb;
 
-				return lowpan_give_skb_to_devices(skb, NULL);
+				return lowpan_give_skb_to_device(skb, dev);
 			} else if (ret == -1) {
 				return NET_RX_DROP;
 			} else {
@@ -138,7 +117,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 				if (ret < 0)
 					goto drop_skb;
 
-				return lowpan_give_skb_to_devices(skb, NULL);
+				return lowpan_give_skb_to_device(skb, dev);
 			} else if (ret == -1) {
 				return NET_RX_DROP;
 			} else {

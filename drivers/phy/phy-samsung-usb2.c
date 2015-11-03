@@ -71,7 +71,7 @@ static int samsung_usb2_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops samsung_usb2_phy_ops = {
+static const struct phy_ops samsung_usb2_phy_ops = {
 	.power_on	= samsung_usb2_phy_power_on,
 	.power_off	= samsung_usb2_phy_power_off,
 	.owner		= THIS_MODULE,

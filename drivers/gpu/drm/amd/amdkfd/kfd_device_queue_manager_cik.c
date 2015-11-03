@@ -23,6 +23,7 @@
 
 #include "kfd_device_queue_manager.h"
 #include "cik_regs.h"
+#include "oss/oss_2_4_sh_mask.h"
 
 static bool set_cache_memory_policy_cik(struct device_queue_manager *dqm,
 				   struct qcm_process_device *qpd,
@@ -135,13 +136,16 @@ static int register_process_cik(struct device_queue_manager *dqm,
 static void init_sdma_vm(struct device_queue_manager *dqm, struct queue *q,
 				struct qcm_process_device *qpd)
 {
-	uint32_t value = SDMA_ATC;
+	uint32_t value = (1 << SDMA0_RLC0_VIRTUAL_ADDR__ATC__SHIFT);
 
 	if (q->process->is_32bit_user_mode)
-		value |= SDMA_VA_PTR32 | get_sh_mem_bases_32(qpd_to_pdd(qpd));
+		value |= (1 << SDMA0_RLC0_VIRTUAL_ADDR__PTR32__SHIFT) |
+				get_sh_mem_bases_32(qpd_to_pdd(qpd));
 	else
-		value |= SDMA_VA_SHARED_BASE(get_sh_mem_bases_nybble_64(
-							qpd_to_pdd(qpd)));
+		value |= ((get_sh_mem_bases_nybble_64(qpd_to_pdd(qpd))) <<
+				SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE__SHIFT) &
+				SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE_MASK;
+
 	q->properties.sdma_vm_addr = value;
 }
 

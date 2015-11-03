@@ -593,14 +593,9 @@ static void ttusb_dec_process_packet(struct ttusb_dec *dec)
 
 static void swap_bytes(u8 *b, int length)
 {
-	u8 c;
-
 	length -= length % 2;
-	for (; length; b += 2, length -= 2) {
-		c = *b;
-		*b = *(b + 1);
-		*(b + 1) = c;
-	}
+	for (; length; b += 2, length -= 2)
+		swap(*b, *(b + 1));
 }
 
 static void ttusb_dec_process_urb_frame(struct ttusb_dec *dec, u8 *b,

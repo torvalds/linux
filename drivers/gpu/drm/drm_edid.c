@@ -3413,7 +3413,7 @@ struct drm_connector *drm_select_eld(struct drm_encoder *encoder,
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	drm_for_each_connector(connector, dev)
 		if (connector->encoder == encoder && connector->eld[0])
 			return connector;
 
@@ -3802,7 +3802,7 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 	struct drm_display_mode *mode;
 	struct drm_device *dev = connector->dev;
 
-	count = sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
+	count = ARRAY_SIZE(drm_dmt_modes);
 	if (hdisplay < 0)
 		hdisplay = 0;
 	if (vdisplay < 0)

@@ -51,13 +51,13 @@
 static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg,
 			    int radix);
 
-# define PASSERT(env, page, expr)				       \
-  do {								    \
-	  if (unlikely(!(expr))) {				      \
-		  CL_PAGE_DEBUG(D_ERROR, (env), (page), #expr "\n");    \
-		  LASSERT(0);					   \
-	  }							     \
-  } while (0)
+# define PASSERT(env, page, expr)					   \
+	do {								   \
+		if (unlikely(!(expr))) {				   \
+			CL_PAGE_DEBUG(D_ERROR, (env), (page), #expr "\n"); \
+			LASSERT(0);					   \
+		}							   \
+	} while (0)
 
 # define PINVRNT(env, page, exp) \
 	((void)sizeof(env), (void)sizeof(page), (void)sizeof !!(exp))
@@ -169,6 +169,7 @@ int cl_page_gang_lookup(const struct lu_env *env, struct cl_object *obj,
 	while ((nr = radix_tree_gang_lookup(&hdr->coh_tree, (void **)pvec,
 					    idx, CLT_PVEC_SIZE)) > 0) {
 		int end_of_region = 0;
+
 		idx = pvec[nr - 1]->cp_index + 1;
 		for (i = 0, j = 0; i < nr; ++i) {
 			page = pvec[i];
@@ -286,6 +287,7 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 			GFP_NOFS);
 	if (page != NULL) {
 		int result = 0;
+
 		atomic_set(&page->cp_ref, 1);
 		if (type == CPT_CACHEABLE) /* for radix tree */
 			atomic_inc(&page->cp_ref);
@@ -352,8 +354,10 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 	       idx, PFID(&hdr->coh_lu.loh_fid), vmpage, vmpage->private, type);
 	/* fast path. */
 	if (type == CPT_CACHEABLE) {
-		/* vmpage lock is used to protect the child/parent
-		 * relationship */
+		/*
+		 * vmpage lock is used to protect the child/parent
+		 * relationship
+		 */
 		KLASSERT(PageLocked(vmpage));
 		/*
 		 * cl_vmpage_page() can be called here without any locks as
@@ -372,9 +376,8 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 						       idx) == page));
 	}
 
-	if (page != NULL) {
+	if (page != NULL)
 		return page;
-	}
 
 	/* allocate and initialize cl_page */
 	page = cl_page_alloc(env, o, idx, vmpage, type);
@@ -1189,9 +1192,6 @@ int cl_page_prep(const struct lu_env *env, struct cl_io *io,
 	if (result == 0)
 		cl_page_io_start(env, pg, crt);
 
-	KLASSERT(ergo(crt == CRT_WRITE && pg->cp_type == CPT_CACHEABLE,
-		      equi(result == 0,
-			   PageWriteback(cl_page_vmpage(env, pg)))));
 	CL_PAGE_HEADER(D_TRACE, env, pg, "%d %d\n", crt, result);
 	return result;
 }
@@ -1425,7 +1425,7 @@ void cl_page_clip(const struct lu_env *env, struct cl_page *pg,
 	CL_PAGE_HEADER(D_TRACE, env, pg, "%d %d\n", from, to);
 	CL_PAGE_INVOID(env, pg, CL_PAGE_OP(cpo_clip),
 		       (const struct lu_env *,
-			const struct cl_page_slice *,int, int),
+			const struct cl_page_slice *, int, int),
 		       from, to);
 }
 EXPORT_SYMBOL(cl_page_clip);

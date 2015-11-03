@@ -31,8 +31,8 @@
 				compatible = "atmel,at91sam9x5-tcb";
 				reg = <0xf8014000 0x100>;
 				interrupts = <27 IRQ_TYPE_LEVEL_HIGH 0>;
-				clocks = <&tcb1_clk>;
-				clock-names = "t0_clk";
+				clocks = <&tcb1_clk>, <&clk32k>;
+				clock-names = "t0_clk", "slow_clk";
 			};
 		};
 	};

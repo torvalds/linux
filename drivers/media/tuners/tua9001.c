@@ -267,7 +267,6 @@ MODULE_DEVICE_TABLE(i2c, tua9001_id_table);
 
 static struct i2c_driver tua9001_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tua9001",
 		.suppress_bind_attrs = true,
 	},

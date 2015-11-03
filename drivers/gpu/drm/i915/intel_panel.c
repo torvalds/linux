@@ -32,7 +32,10 @@
 
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
+#include <linux/pwm.h>
 #include "intel_drv.h"
+
+#define CRC_PMIC_PWM_PERIOD_NS	21333
 
 void
 intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
@@ -544,6 +547,15 @@ static u32 bxt_get_backlight(struct intel_connector *connector)
 	return I915_READ(BXT_BLC_PWM_DUTY1);
 }
 
+static u32 pwm_get_backlight(struct intel_connector *connector)
+{
+	struct intel_panel *panel = &connector->panel;
+	int duty_ns;
+
+	duty_ns = pwm_get_duty_cycle(panel->backlight.pwm);
+	return DIV_ROUND_UP(duty_ns * 100, CRC_PMIC_PWM_PERIOD_NS);
+}
+
 static u32 intel_panel_get_backlight(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
@@ -630,6 +642,14 @@ static void bxt_set_backlight(struct intel_connector *connector, u32 level)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	I915_WRITE(BXT_BLC_PWM_DUTY1, level);
+}
+
+static void pwm_set_backlight(struct intel_connector *connector, u32 level)
+{
+	struct intel_panel *panel = &connector->panel;
+	int duty_ns = DIV_ROUND_UP(level * CRC_PMIC_PWM_PERIOD_NS, 100);
+
+	pwm_config(panel->backlight.pwm, duty_ns, CRC_PMIC_PWM_PERIOD_NS);
 }
 
 static void
@@ -767,6 +787,16 @@ static void bxt_disable_backlight(struct intel_connector *connector)
 
 	tmp = I915_READ(BXT_BLC_PWM_CTL1);
 	I915_WRITE(BXT_BLC_PWM_CTL1, tmp & ~BXT_BLC_PWM_ENABLE);
+}
+
+static void pwm_disable_backlight(struct intel_connector *connector)
+{
+	struct intel_panel *panel = &connector->panel;
+
+	/* Disable the backlight */
+	pwm_config(panel->backlight.pwm, 0, CRC_PMIC_PWM_PERIOD_NS);
+	usleep_range(2000, 3000);
+	pwm_disable(panel->backlight.pwm);
 }
 
 void intel_panel_disable_backlight(struct intel_connector *connector)
@@ -1008,6 +1038,14 @@ static void bxt_enable_backlight(struct intel_connector *connector)
 	I915_WRITE(BXT_BLC_PWM_CTL1, pwm_ctl);
 	POSTING_READ(BXT_BLC_PWM_CTL1);
 	I915_WRITE(BXT_BLC_PWM_CTL1, pwm_ctl | BXT_BLC_PWM_ENABLE);
+}
+
+static void pwm_enable_backlight(struct intel_connector *connector)
+{
+	struct intel_panel *panel = &connector->panel;
+
+	pwm_enable(panel->backlight.pwm);
+	intel_panel_actually_set_backlight(connector, panel->backlight.level);
 }
 
 void intel_panel_enable_backlight(struct intel_connector *connector)
@@ -1386,6 +1424,40 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	return 0;
 }
 
+static int pwm_setup_backlight(struct intel_connector *connector,
+			       enum pipe pipe)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct intel_panel *panel = &connector->panel;
+	int retval;
+
+	/* Get the PWM chip for backlight control */
+	panel->backlight.pwm = pwm_get(dev->dev, "pwm_backlight");
+	if (IS_ERR(panel->backlight.pwm)) {
+		DRM_ERROR("Failed to own the pwm chip\n");
+		panel->backlight.pwm = NULL;
+		return -ENODEV;
+	}
+
+	retval = pwm_config(panel->backlight.pwm, CRC_PMIC_PWM_PERIOD_NS,
+			    CRC_PMIC_PWM_PERIOD_NS);
+	if (retval < 0) {
+		DRM_ERROR("Failed to configure the pwm chip\n");
+		pwm_put(panel->backlight.pwm);
+		panel->backlight.pwm = NULL;
+		return retval;
+	}
+
+	panel->backlight.min = 0; /* 0% */
+	panel->backlight.max = 100; /* 100% */
+	panel->backlight.level = DIV_ROUND_UP(
+				 pwm_get_duty_cycle(panel->backlight.pwm) * 100,
+				 CRC_PMIC_PWM_PERIOD_NS);
+	panel->backlight.enabled = panel->backlight.level != 0;
+
+	return 0;
+}
+
 int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 {
 	struct drm_device *dev = connector->dev;
@@ -1429,6 +1501,10 @@ void intel_panel_destroy_backlight(struct drm_connector *connector)
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_panel *panel = &intel_connector->panel;
 
+	/* dispose of the pwm */
+	if (panel->backlight.pwm)
+		pwm_put(panel->backlight.pwm);
+
 	panel->backlight.present = false;
 }
 
@@ -1456,11 +1532,19 @@ void intel_panel_init_backlight_funcs(struct drm_device *dev)
 		dev_priv->display.set_backlight = pch_set_backlight;
 		dev_priv->display.get_backlight = pch_get_backlight;
 	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->display.setup_backlight = vlv_setup_backlight;
-		dev_priv->display.enable_backlight = vlv_enable_backlight;
-		dev_priv->display.disable_backlight = vlv_disable_backlight;
-		dev_priv->display.set_backlight = vlv_set_backlight;
-		dev_priv->display.get_backlight = vlv_get_backlight;
+		if (dev_priv->vbt.has_mipi) {
+			dev_priv->display.setup_backlight = pwm_setup_backlight;
+			dev_priv->display.enable_backlight = pwm_enable_backlight;
+			dev_priv->display.disable_backlight = pwm_disable_backlight;
+			dev_priv->display.set_backlight = pwm_set_backlight;
+			dev_priv->display.get_backlight = pwm_get_backlight;
+		} else {
+			dev_priv->display.setup_backlight = vlv_setup_backlight;
+			dev_priv->display.enable_backlight = vlv_enable_backlight;
+			dev_priv->display.disable_backlight = vlv_disable_backlight;
+			dev_priv->display.set_backlight = vlv_set_backlight;
+			dev_priv->display.get_backlight = vlv_get_backlight;
+		}
 	} else if (IS_GEN4(dev)) {
 		dev_priv->display.setup_backlight = i965_setup_backlight;
 		dev_priv->display.enable_backlight = i965_enable_backlight;

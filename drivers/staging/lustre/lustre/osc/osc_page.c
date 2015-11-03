@@ -471,7 +471,7 @@ static int osc_page_flush(const struct lu_env *env,
 			  struct cl_io *io)
 {
 	struct osc_page *opg = cl2osc_page(slice);
-	int rc = 0;
+	int rc;
 
 	rc = osc_flush_async_page(env, io, opg);
 	return rc;

@@ -100,6 +100,8 @@
 #define AUART_CTRL2_TXE				(1 << 8)
 #define AUART_CTRL2_UARTEN			(1 << 0)
 
+#define AUART_LINECTRL_BAUD_DIV_MAX		0x003fffc0
+#define AUART_LINECTRL_BAUD_DIV_MIN		0x000000ec
 #define AUART_LINECTRL_BAUD_DIVINT_SHIFT	16
 #define AUART_LINECTRL_BAUD_DIVINT_MASK		0xffff0000
 #define AUART_LINECTRL_BAUD_DIVINT(v)		(((v) & 0xffff) << 16)
@@ -659,7 +661,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 {
 	struct mxs_auart_port *s = to_auart_port(u);
 	u32 bm, ctrl, ctrl2, div;
-	unsigned int cflag, baud;
+	unsigned int cflag, baud, baud_min, baud_max;
 
 	cflag = termios->c_cflag;
 
@@ -752,7 +754,9 @@ static void mxs_auart_settermios(struct uart_port *u,
 	}
 
 	/* set baud rate */
-	baud = uart_get_baud_rate(u, termios, old, 0, u->uartclk);
+	baud_min = DIV_ROUND_UP(u->uartclk * 32, AUART_LINECTRL_BAUD_DIV_MAX);
+	baud_max = u->uartclk * 32 / AUART_LINECTRL_BAUD_DIV_MIN;
+	baud = uart_get_baud_rate(u, termios, old, baud_min, baud_max);
 	div = u->uartclk * 32 / baud;
 	ctrl |= AUART_LINECTRL_BAUD_DIVFRAC(div & 0x3F);
 	ctrl |= AUART_LINECTRL_BAUD_DIVINT(div >> 6);
@@ -842,7 +846,7 @@ static irqreturn_t mxs_auart_irq_handle(int irq, void *context)
 	return IRQ_HANDLED;
 }
 
-static void mxs_auart_reset(struct uart_port *u)
+static void mxs_auart_reset_deassert(struct uart_port *u)
 {
 	int i;
 	unsigned int reg;
@@ -858,6 +862,30 @@ static void mxs_auart_reset(struct uart_port *u)
 	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_CLR);
 }
 
+static void mxs_auart_reset_assert(struct uart_port *u)
+{
+	int i;
+	u32 reg;
+
+	reg = readl(u->membase + AUART_CTRL0);
+	/* if already in reset state, keep it untouched */
+	if (reg & AUART_CTRL0_SFTRST)
+		return;
+
+	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_CLR);
+	writel(AUART_CTRL0_SFTRST, u->membase + AUART_CTRL0_SET);
+
+	for (i = 0; i < 1000; i++) {
+		reg = readl(u->membase + AUART_CTRL0);
+		/* reset is finished when the clock is gated */
+		if (reg & AUART_CTRL0_CLKGATE)
+			return;
+		udelay(10);
+	}
+
+	dev_err(u->dev, "Failed to reset the unit.");
+}
+
 static int mxs_auart_startup(struct uart_port *u)
 {
 	int ret;
@@ -867,7 +895,13 @@ static int mxs_auart_startup(struct uart_port *u)
 	if (ret)
 		return ret;
 
-	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_CLR);
+	if (uart_console(u)) {
+		writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_CLR);
+	} else {
+		/* reset the unit to a well known state */
+		mxs_auart_reset_assert(u);
+		mxs_auart_reset_deassert(u);
+	}
 
 	writel(AUART_CTRL2_UARTEN, u->membase + AUART_CTRL2_SET);
 
@@ -899,12 +933,14 @@ static void mxs_auart_shutdown(struct uart_port *u)
 	if (auart_dma_enabled(s))
 		mxs_auart_dma_exit(s);
 
-	writel(AUART_CTRL2_UARTEN, u->membase + AUART_CTRL2_CLR);
-
-	writel(AUART_INTR_RXIEN | AUART_INTR_RTIEN | AUART_INTR_CTSMIEN,
-			u->membase + AUART_INTR_CLR);
-
-	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_SET);
+	if (uart_console(u)) {
+		writel(AUART_CTRL2_UARTEN, u->membase + AUART_CTRL2_CLR);
+		writel(AUART_INTR_RXIEN | AUART_INTR_RTIEN | AUART_INTR_CTSMIEN,
+				u->membase + AUART_INTR_CLR);
+		writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_SET);
+	} else {
+		mxs_auart_reset_assert(u);
+	}
 
 	clk_disable_unprepare(s->clk);
 }
@@ -1291,7 +1327,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 
 	auart_port[s->port.line] = s;
 
-	mxs_auart_reset(&s->port);
+	mxs_auart_reset_deassert(&s->port);
 
 	ret = uart_add_one_port(&auart_driver, &s->port);
 	if (ret)

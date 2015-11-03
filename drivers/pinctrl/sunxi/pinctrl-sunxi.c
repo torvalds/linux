@@ -588,7 +588,6 @@ static void sunxi_pinctrl_irq_release_resources(struct irq_data *d)
 static int sunxi_pinctrl_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct sunxi_pinctrl *pctl = irq_data_get_irq_chip_data(d);
-	struct irq_desc *desc = container_of(d, struct irq_desc, irq_data);
 	u32 reg = sunxi_irq_cfg_reg(d->hwirq);
 	u8 index = sunxi_irq_cfg_offset(d->hwirq);
 	unsigned long flags;
@@ -615,15 +614,14 @@ static int sunxi_pinctrl_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	if (type & IRQ_TYPE_LEVEL_MASK) {
-		d->chip = &sunxi_pinctrl_level_irq_chip;
-		desc->handle_irq = handle_fasteoi_irq;
-	} else {
-		d->chip = &sunxi_pinctrl_edge_irq_chip;
-		desc->handle_irq = handle_edge_irq;
-	}
-
 	spin_lock_irqsave(&pctl->lock, flags);
+
+	if (type & IRQ_TYPE_LEVEL_MASK)
+		irq_set_chip_handler_name_locked(d, &sunxi_pinctrl_level_irq_chip,
+						 handle_fasteoi_irq, NULL);
+	else
+		irq_set_chip_handler_name_locked(d, &sunxi_pinctrl_edge_irq_chip,
+						 handle_edge_irq, NULL);
 
 	regval = readl(pctl->membase + reg);
 	regval &= ~(IRQ_CFG_IRQ_MASK << index);
@@ -685,6 +683,7 @@ static void sunxi_pinctrl_irq_ack_unmask(struct irq_data *d)
 }
 
 static struct irq_chip sunxi_pinctrl_edge_irq_chip = {
+	.name		= "sunxi_pio_edge",
 	.irq_ack	= sunxi_pinctrl_irq_ack,
 	.irq_mask	= sunxi_pinctrl_irq_mask,
 	.irq_unmask	= sunxi_pinctrl_irq_unmask,
@@ -695,6 +694,7 @@ static struct irq_chip sunxi_pinctrl_edge_irq_chip = {
 };
 
 static struct irq_chip sunxi_pinctrl_level_irq_chip = {
+	.name		= "sunxi_pio_level",
 	.irq_eoi	= sunxi_pinctrl_irq_ack,
 	.irq_mask	= sunxi_pinctrl_irq_mask,
 	.irq_unmask	= sunxi_pinctrl_irq_unmask,
@@ -709,10 +709,42 @@ static struct irq_chip sunxi_pinctrl_level_irq_chip = {
 			  IRQCHIP_EOI_IF_HANDLED,
 };
 
-static void sunxi_pinctrl_irq_handler(unsigned irq, struct irq_desc *desc)
+static int sunxi_pinctrl_irq_of_xlate(struct irq_domain *d,
+				      struct device_node *node,
+				      const u32 *intspec,
+				      unsigned int intsize,
+				      unsigned long *out_hwirq,
+				      unsigned int *out_type)
 {
-	struct irq_chip *chip = irq_get_chip(irq);
-	struct sunxi_pinctrl *pctl = irq_get_handler_data(irq);
+	struct sunxi_desc_function *desc;
+	int pin, base;
+
+	if (intsize < 3)
+		return -EINVAL;
+
+	base = PINS_PER_BANK * intspec[0];
+	pin = base + intspec[1];
+
+	desc = sunxi_pinctrl_desc_find_function_by_pin(d->host_data,
+						       pin, "irq");
+	if (!desc)
+		return -EINVAL;
+
+	*out_hwirq = desc->irqbank * PINS_PER_BANK + desc->irqnum;
+	*out_type = intspec[2];
+
+	return 0;
+}
+
+static struct irq_domain_ops sunxi_pinctrl_irq_domain_ops = {
+	.xlate		= sunxi_pinctrl_irq_of_xlate,
+};
+
+static void sunxi_pinctrl_irq_handler(struct irq_desc *desc)
+{
+	unsigned int irq = irq_desc_get_irq(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct sunxi_pinctrl *pctl = irq_desc_get_handler_data(desc);
 	unsigned long bank, reg, val;
 
 	for (bank = 0; bank < pctl->desc->irq_banks; bank++)
@@ -983,8 +1015,8 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 
 	pctl->domain = irq_domain_add_linear(node,
 					     pctl->desc->irq_banks * IRQ_PER_BANK,
-					     &irq_domain_simple_ops,
-					     NULL);
+					     &sunxi_pinctrl_irq_domain_ops,
+					     pctl);
 	if (!pctl->domain) {
 		dev_err(&pdev->dev, "Couldn't register IRQ domain\n");
 		ret = -ENOMEM;

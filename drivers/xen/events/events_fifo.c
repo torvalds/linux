@@ -111,7 +111,7 @@ static int init_control_block(int cpu,
 	for (i = 0; i < EVTCHN_FIFO_MAX_QUEUES; i++)
 		q->head[i] = 0;
 
-	init_control.control_gfn = virt_to_mfn(control_block);
+	init_control.control_gfn = virt_to_gfn(control_block);
 	init_control.offset      = 0;
 	init_control.vcpu        = cpu;
 
@@ -167,7 +167,7 @@ static int evtchn_fifo_setup(struct irq_info *info)
 		/* Mask all events in this page before adding it. */
 		init_array_page(array_page);
 
-		expand_array.array_gfn = virt_to_mfn(array_page);
+		expand_array.array_gfn = virt_to_gfn(array_page);
 
 		ret = HYPERVISOR_event_channel_op(EVTCHNOP_expand_array, &expand_array);
 		if (ret < 0)

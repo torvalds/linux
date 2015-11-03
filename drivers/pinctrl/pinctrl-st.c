@@ -1460,10 +1460,10 @@ static void __gpio_irq_handler(struct st_gpio_bank *bank)
 	}
 }
 
-static void st_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void st_gpio_irq_handler(struct irq_desc *desc)
 {
 	/* interrupt dedicated per bank */
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct st_gpio_bank *bank = gpio_chip_to_bank(gc);
 
@@ -1472,10 +1472,10 @@ static void st_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void st_gpio_irqmux_handler(unsigned irq, struct irq_desc *desc)
+static void st_gpio_irqmux_handler(struct irq_desc *desc)
 {
-	struct irq_chip *chip = irq_get_chip(irq);
-	struct st_pinctrl *info = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct st_pinctrl *info = irq_desc_get_handler_data(desc);
 	unsigned long status;
 	int n;
 

@@ -30,13 +30,12 @@
 #include <linux/percpu.h>
 #include <linux/slab.h>
 
+#include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic-v3.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/exception.h>
-
-#include "irqchip.h"
 
 #define ITS_FLAGS_CMDQ_NEEDS_FLUSHING		(1 << 0)
 
@@ -54,14 +53,12 @@ struct its_collection {
 
 /*
  * The ITS structure - contains most of the infrastructure, with the
- * msi_controller, the command queue, the collections, and the list of
- * devices writing to it.
+ * top-level MSI domain, the command queue, the collections, and the
+ * list of devices writing to it.
  */
 struct its_node {
 	raw_spinlock_t		lock;
 	struct list_head	entry;
-	struct msi_controller	msi_chip;
-	struct irq_domain	*domain;
 	void __iomem		*base;
 	unsigned long		phys_base;
 	struct its_cmd_block	*cmd_base;
@@ -643,26 +640,6 @@ static struct irq_chip its_irq_chip = {
 	.irq_compose_msi_msg	= its_irq_compose_msi_msg,
 };
 
-static void its_mask_msi_irq(struct irq_data *d)
-{
-	pci_msi_mask_irq(d);
-	irq_chip_mask_parent(d);
-}
-
-static void its_unmask_msi_irq(struct irq_data *d)
-{
-	pci_msi_unmask_irq(d);
-	irq_chip_unmask_parent(d);
-}
-
-static struct irq_chip its_msi_irq_chip = {
-	.name			= "ITS-MSI",
-	.irq_unmask		= its_unmask_msi_irq,
-	.irq_mask		= its_mask_msi_irq,
-	.irq_eoi		= irq_chip_eoi_parent,
-	.irq_write_msi_msg	= pci_msi_domain_write_msg,
-};
-
 /*
  * How we allocate LPIs:
  *
@@ -741,6 +718,9 @@ static unsigned long *its_lpi_alloc_chunks(int nr_irqs, int *base, int *nr_ids)
 
 out:
 	spin_unlock(&lpi_lock);
+
+	if (!bitmap)
+		*base = *nr_ids = 0;
 
 	return bitmap;
 }
@@ -831,7 +811,7 @@ static void its_free_tables(struct its_node *its)
 	}
 }
 
-static int its_alloc_tables(struct its_node *its)
+static int its_alloc_tables(const char *node_name, struct its_node *its)
 {
 	int err;
 	int i;
@@ -874,7 +854,7 @@ static int its_alloc_tables(struct its_node *its)
 			if (order >= MAX_ORDER) {
 				order = MAX_ORDER - 1;
 				pr_warn("%s: Device Table too large, reduce its page order to %u\n",
-					its->msi_chip.of_node->full_name, order);
+					node_name, order);
 			}
 		}
 
@@ -921,8 +901,10 @@ retry_baser:
 			 * non-cacheable as well.
 			 */
 			shr = tmp & GITS_BASER_SHAREABILITY_MASK;
-			if (!shr)
+			if (!shr) {
 				cache = GITS_BASER_nC;
+				__flush_dcache_area(base, alloc_size);
+			}
 			goto retry_baser;
 		}
 
@@ -944,7 +926,7 @@ retry_baser:
 
 		if (val != tmp) {
 			pr_err("ITS: %s: GITS_BASER%d doesn't stick: %lx %lx\n",
-			       its->msi_chip.of_node->full_name, i,
+			       node_name, i,
 			       (unsigned long) val, (unsigned long) tmp);
 			err = -ENXIO;
 			goto out_free;
@@ -1163,6 +1145,8 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 		return NULL;
 	}
 
+	__flush_dcache_area(itt, sz);
+
 	dev->its = its;
 	dev->itt = itt;
 	dev->nr_ites = nr_ites;
@@ -1209,83 +1193,48 @@ static int its_alloc_device_irq(struct its_device *dev, irq_hw_number_t *hwirq)
 	return 0;
 }
 
-struct its_pci_alias {
-	struct pci_dev	*pdev;
-	u32		dev_id;
-	u32		count;
-};
-
-static int its_pci_msi_vec_count(struct pci_dev *pdev)
-{
-	int msi, msix;
-
-	msi = max(pci_msi_vec_count(pdev), 0);
-	msix = max(pci_msix_vec_count(pdev), 0);
-
-	return max(msi, msix);
-}
-
-static int its_get_pci_alias(struct pci_dev *pdev, u16 alias, void *data)
-{
-	struct its_pci_alias *dev_alias = data;
-
-	dev_alias->dev_id = alias;
-	if (pdev != dev_alias->pdev)
-		dev_alias->count += its_pci_msi_vec_count(dev_alias->pdev);
-
-	return 0;
-}
-
 static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 			   int nvec, msi_alloc_info_t *info)
 {
-	struct pci_dev *pdev;
 	struct its_node *its;
 	struct its_device *its_dev;
-	struct its_pci_alias dev_alias;
+	struct msi_domain_info *msi_info;
+	u32 dev_id;
 
-	if (!dev_is_pci(dev))
-		return -EINVAL;
+	/*
+	 * We ignore "dev" entierely, and rely on the dev_id that has
+	 * been passed via the scratchpad. This limits this domain's
+	 * usefulness to upper layers that definitely know that they
+	 * are built on top of the ITS.
+	 */
+	dev_id = info->scratchpad[0].ul;
 
-	pdev = to_pci_dev(dev);
-	dev_alias.pdev = pdev;
-	dev_alias.count = nvec;
+	msi_info = msi_get_domain_info(domain);
+	its = msi_info->data;
 
-	pci_for_each_dma_alias(pdev, its_get_pci_alias, &dev_alias);
-	its = domain->parent->host_data;
-
-	its_dev = its_find_device(its, dev_alias.dev_id);
+	its_dev = its_find_device(its, dev_id);
 	if (its_dev) {
 		/*
 		 * We already have seen this ID, probably through
 		 * another alias (PCI bridge of some sort). No need to
 		 * create the device.
 		 */
-		dev_dbg(dev, "Reusing ITT for devID %x\n", dev_alias.dev_id);
+		pr_debug("Reusing ITT for devID %x\n", dev_id);
 		goto out;
 	}
 
-	its_dev = its_create_device(its, dev_alias.dev_id, dev_alias.count);
+	its_dev = its_create_device(its, dev_id, nvec);
 	if (!its_dev)
 		return -ENOMEM;
 
-	dev_dbg(&pdev->dev, "ITT %d entries, %d bits\n",
-		dev_alias.count, ilog2(dev_alias.count));
+	pr_debug("ITT %d entries, %d bits\n", nvec, ilog2(nvec));
 out:
 	info->scratchpad[0].ptr = its_dev;
-	info->scratchpad[1].ptr = dev;
 	return 0;
 }
 
-static struct msi_domain_ops its_pci_msi_ops = {
+static struct msi_domain_ops its_msi_domain_ops = {
 	.msi_prepare	= its_msi_prepare,
-};
-
-static struct msi_domain_info its_pci_msi_domain_info = {
-	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		   MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX),
-	.ops	= &its_pci_msi_ops,
-	.chip	= &its_msi_irq_chip,
 };
 
 static int its_irq_gic_domain_alloc(struct irq_domain *domain,
@@ -1323,9 +1272,9 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 		irq_domain_set_hwirq_and_chip(domain, virq + i,
 					      hwirq, &its_irq_chip, its_dev);
-		dev_dbg(info->scratchpad[1].ptr, "ID:%d pID:%d vID:%d\n",
-			(int)(hwirq - its_dev->event_map.lpi_base),
-			(int)hwirq, virq + i);
+		pr_debug("ID:%d pID:%d vID:%d\n",
+			 (int)(hwirq - its_dev->event_map.lpi_base),
+			 (int) hwirq, virq + i);
 	}
 
 	return 0;
@@ -1426,6 +1375,7 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	struct resource res;
 	struct its_node *its;
 	void __iomem *its_base;
+	struct irq_domain *inner_domain;
 	u32 val;
 	u64 baser, tmp;
 	int err;
@@ -1469,7 +1419,6 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	INIT_LIST_HEAD(&its->its_device_list);
 	its->base = its_base;
 	its->phys_base = res.start;
-	its->msi_chip.of_node = node;
 	its->ite_size = ((readl_relaxed(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
 
 	its->cmd_base = kzalloc(ITS_CMD_QUEUE_SZ, GFP_KERNEL);
@@ -1479,7 +1428,7 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	}
 	its->cmd_write = its->cmd_base;
 
-	err = its_alloc_tables(its);
+	err = its_alloc_tables(node->full_name, its);
 	if (err)
 		goto out_free_cmd;
 
@@ -1515,26 +1464,27 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	writeq_relaxed(0, its->base + GITS_CWRITER);
 	writel_relaxed(GITS_CTLR_ENABLE, its->base + GITS_CTLR);
 
-	if (of_property_read_bool(its->msi_chip.of_node, "msi-controller")) {
-		its->domain = irq_domain_add_tree(NULL, &its_domain_ops, its);
-		if (!its->domain) {
+	if (of_property_read_bool(node, "msi-controller")) {
+		struct msi_domain_info *info;
+
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		if (!info) {
 			err = -ENOMEM;
 			goto out_free_tables;
 		}
 
-		its->domain->parent = parent;
-
-		its->msi_chip.domain = pci_msi_create_irq_domain(node,
-								 &its_pci_msi_domain_info,
-								 its->domain);
-		if (!its->msi_chip.domain) {
+		inner_domain = irq_domain_add_tree(node, &its_domain_ops, its);
+		if (!inner_domain) {
 			err = -ENOMEM;
-			goto out_free_domains;
+			kfree(info);
+			goto out_free_tables;
 		}
 
-		err = of_pci_msi_chip_add(&its->msi_chip);
-		if (err)
-			goto out_free_domains;
+		inner_domain->parent = parent;
+		inner_domain->bus_token = DOMAIN_BUS_NEXUS;
+		info->ops = &its_msi_domain_ops;
+		info->data = its;
+		inner_domain->host_data = info;
 	}
 
 	spin_lock(&its_lock);
@@ -1543,11 +1493,6 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 
 	return 0;
 
-out_free_domains:
-	if (its->msi_chip.domain)
-		irq_domain_remove(its->msi_chip.domain);
-	if (its->domain)
-		irq_domain_remove(its->domain);
 out_free_tables:
 	its_free_tables(its);
 out_free_cmd:

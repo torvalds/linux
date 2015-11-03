@@ -1,7 +1,7 @@
 /*
  * vsp1_drv.c  --  R-Car VSP1 Driver
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -403,7 +403,10 @@ static int vsp1_pm_suspend(struct device *dev)
 	if (vsp1->ref_count == 0)
 		return 0;
 
+	vsp1_pipelines_suspend(vsp1);
+
 	clk_disable_unprepare(vsp1->clock);
+
 	return 0;
 }
 
@@ -413,10 +416,14 @@ static int vsp1_pm_resume(struct device *dev)
 
 	WARN_ON(mutex_is_locked(&vsp1->lock));
 
-	if (vsp1->ref_count)
+	if (vsp1->ref_count == 0)
 		return 0;
 
-	return clk_prepare_enable(vsp1->clock);
+	clk_prepare_enable(vsp1->clock);
+
+	vsp1_pipelines_resume(vsp1);
+
+	return 0;
 }
 #endif
 

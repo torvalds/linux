@@ -386,14 +386,14 @@ static bool bcm2835_spi_can_dma(struct spi_master *master,
 	/* otherwise we only allow transfers within the same page
 	 * to avoid wasting time on dma_mapping when it is not practical
 	 */
-	if (((size_t)tfr->tx_buf & PAGE_MASK) + tfr->len > PAGE_SIZE) {
+	if (((size_t)tfr->tx_buf & (PAGE_SIZE - 1)) + tfr->len > PAGE_SIZE) {
 		dev_warn_once(&spi->dev,
 			      "Unaligned spi tx-transfer bridging page\n");
 		return false;
 	}
-	if (((size_t)tfr->rx_buf & PAGE_MASK) + tfr->len > PAGE_SIZE) {
+	if (((size_t)tfr->rx_buf & (PAGE_SIZE - 1)) + tfr->len > PAGE_SIZE) {
 		dev_warn_once(&spi->dev,
-			      "Unaligned spi tx-transfer bridging page\n");
+			      "Unaligned spi rx-transfer bridging page\n");
 		return false;
 	}
 
@@ -480,7 +480,7 @@ static int bcm2835_spi_transfer_one_poll(struct spi_master *master,
 					 struct spi_device *spi,
 					 struct spi_transfer *tfr,
 					 u32 cs,
-					 unsigned long xfer_time_us)
+					 unsigned long long xfer_time_us)
 {
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
 	unsigned long timeout;
@@ -531,7 +531,8 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 {
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
 	unsigned long spi_hz, clk_hz, cdiv;
-	unsigned long spi_used_hz, xfer_time_us;
+	unsigned long spi_used_hz;
+	unsigned long long xfer_time_us;
 	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
 
 	/* set clock */
@@ -553,13 +554,11 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 	spi_used_hz = cdiv ? (clk_hz / cdiv) : (clk_hz / 65536);
 	bcm2835_wr(bs, BCM2835_SPI_CLK, cdiv);
 
-	/* handle all the modes */
+	/* handle all the 3-wire mode */
 	if ((spi->mode & SPI_3WIRE) && (tfr->rx_buf))
 		cs |= BCM2835_SPI_CS_REN;
-	if (spi->mode & SPI_CPOL)
-		cs |= BCM2835_SPI_CS_CPOL;
-	if (spi->mode & SPI_CPHA)
-		cs |= BCM2835_SPI_CS_CPHA;
+	else
+		cs &= ~BCM2835_SPI_CS_REN;
 
 	/* for gpio_cs set dummy CS so that no HW-CS get changed
 	 * we can not run this in bcm2835_spi_set_cs, as it does
@@ -575,9 +574,10 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 	bs->rx_len = tfr->len;
 
 	/* calculate the estimated time in us the transfer runs */
-	xfer_time_us = tfr->len
+	xfer_time_us = (unsigned long long)tfr->len
 		* 9 /* clocks/byte - SPI-HW waits 1 clock after each byte */
-		* 1000000 / spi_used_hz;
+		* 1000000;
+	do_div(xfer_time_us, spi_used_hz);
 
 	/* for short requests run polling*/
 	if (xfer_time_us <= BCM2835_SPI_POLLING_LIMIT_US)
@@ -590,6 +590,25 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 
 	/* run in interrupt-mode */
 	return bcm2835_spi_transfer_one_irq(master, spi, tfr, cs);
+}
+
+static int bcm2835_spi_prepare_message(struct spi_master *master,
+				       struct spi_message *msg)
+{
+	struct spi_device *spi = msg->spi;
+	struct bcm2835_spi *bs = spi_master_get_devdata(master);
+	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
+
+	cs &= ~(BCM2835_SPI_CS_CPOL | BCM2835_SPI_CS_CPHA);
+
+	if (spi->mode & SPI_CPOL)
+		cs |= BCM2835_SPI_CS_CPOL;
+	if (spi->mode & SPI_CPHA)
+		cs |= BCM2835_SPI_CS_CPHA;
+
+	bcm2835_wr(bs, BCM2835_SPI_CS, cs);
+
+	return 0;
 }
 
 static void bcm2835_spi_handle_err(struct spi_master *master,
@@ -739,6 +758,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	master->set_cs = bcm2835_spi_set_cs;
 	master->transfer_one = bcm2835_spi_transfer_one;
 	master->handle_err = bcm2835_spi_handle_err;
+	master->prepare_message = bcm2835_spi_prepare_message;
 	master->dev.of_node = pdev->dev.of_node;
 
 	bs = spi_master_get_devdata(master);

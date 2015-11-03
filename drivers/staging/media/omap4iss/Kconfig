@@ -1,5 +1,5 @@
 config VIDEO_OMAP4
-	bool "OMAP 4 Camera support"
+	tristate "OMAP 4 Camera support"
 	depends on VIDEO_V4L2=y && VIDEO_V4L2_SUBDEV_API && I2C=y && ARCH_OMAP4
 	depends on HAS_DMA
 	select MFD_SYSCON

@@ -74,7 +74,7 @@ static struct ath_ps_ops ath9k_htc_ps_ops = {
 
 static int ath9k_htc_wait_for_target(struct ath9k_htc_priv *priv)
 {
-	int time_left;
+	unsigned long time_left;
 
 	if (atomic_read(&priv->htc->tgt_ready) > 0) {
 		atomic_dec(&priv->htc->tgt_ready);

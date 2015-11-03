@@ -8,7 +8,7 @@
  * Copyright (C) 1998 Ingo Molnar
  * Copyright (C) 2013 Mark Salter <msalter@redhat.com>
  *
- * Adapted from arch/x86_64 version.
+ * Adapted from arch/x86 version.
  *
  */
 

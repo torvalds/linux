@@ -121,7 +121,6 @@ kiblnd_get_idle_tx(lnet_ni_t *ni, lnet_nid_t target)
 	LASSERT(tx->tx_conn == NULL);
 	LASSERT(tx->tx_lntmsg[0] == NULL);
 	LASSERT(tx->tx_lntmsg[1] == NULL);
-	LASSERT(tx->tx_u.pmr == NULL);
 	LASSERT(tx->tx_nfrags == 0);
 
 	return tx;
@@ -575,7 +574,7 @@ kiblnd_fmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, int nob)
 	cpt = tx->tx_pool->tpo_pool.po_owner->ps_cpt;
 
 	fps = net->ibn_fmr_ps[cpt];
-	rc = kiblnd_fmr_pool_map(fps, pages, npages, 0, &tx->tx_u.fmr);
+	rc = kiblnd_fmr_pool_map(fps, pages, npages, 0, &tx->fmr);
 	if (rc != 0) {
 		CERROR("Can't map %d pages: %d\n", npages, rc);
 		return rc;
@@ -583,47 +582,11 @@ kiblnd_fmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, int nob)
 
 	/* If rd is not tx_rd, it's going to get sent to a peer, who will need
 	 * the rkey */
-	rd->rd_key = (rd != tx->tx_rd) ? tx->tx_u.fmr.fmr_pfmr->fmr->rkey :
-					 tx->tx_u.fmr.fmr_pfmr->fmr->lkey;
+	rd->rd_key = (rd != tx->tx_rd) ? tx->fmr.fmr_pfmr->fmr->rkey :
+					 tx->fmr.fmr_pfmr->fmr->lkey;
 	rd->rd_frags[0].rf_addr &= ~hdev->ibh_page_mask;
 	rd->rd_frags[0].rf_nob = nob;
 	rd->rd_nfrags = 1;
-
-	return 0;
-}
-
-static int
-kiblnd_pmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, int nob)
-{
-	kib_hca_dev_t *hdev;
-	kib_pmr_poolset_t *pps;
-	__u64 iova;
-	int cpt;
-	int rc;
-
-	LASSERT(tx->tx_pool != NULL);
-	LASSERT(tx->tx_pool->tpo_pool.po_owner != NULL);
-
-	hdev = tx->tx_pool->tpo_hdev;
-
-	iova = rd->rd_frags[0].rf_addr & ~hdev->ibh_page_mask;
-
-	cpt = tx->tx_pool->tpo_pool.po_owner->ps_cpt;
-
-	pps = net->ibn_pmr_ps[cpt];
-	rc = kiblnd_pmr_pool_map(pps, hdev, rd, &iova, &tx->tx_u.pmr);
-	if (rc != 0) {
-		CERROR("Failed to create MR by phybuf: %d\n", rc);
-		return rc;
-	}
-
-	/* If rd is not tx_rd, it's going to get sent to a peer, who will need
-	 * the rkey */
-	rd->rd_key = (rd != tx->tx_rd) ? tx->tx_u.pmr->pmr_mr->rkey :
-					 tx->tx_u.pmr->pmr_mr->lkey;
-	rd->rd_nfrags = 1;
-	rd->rd_frags[0].rf_addr = iova;
-	rd->rd_frags[0].rf_nob = nob;
 
 	return 0;
 }
@@ -635,13 +598,9 @@ kiblnd_unmap_tx(lnet_ni_t *ni, kib_tx_t *tx)
 
 	LASSERT(net != NULL);
 
-	if (net->ibn_fmr_ps != NULL && tx->tx_u.fmr.fmr_pfmr != NULL) {
-		kiblnd_fmr_pool_unmap(&tx->tx_u.fmr, tx->tx_status);
-		tx->tx_u.fmr.fmr_pfmr = NULL;
-
-	} else if (net->ibn_pmr_ps != NULL && tx->tx_u.pmr != NULL) {
-		kiblnd_pmr_pool_unmap(tx->tx_u.pmr);
-		tx->tx_u.pmr = NULL;
+	if (net->ibn_fmr_ps && tx->fmr.fmr_pfmr) {
+		kiblnd_fmr_pool_unmap(&tx->fmr, tx->tx_status);
+		tx->fmr.fmr_pfmr = NULL;
 	}
 
 	if (tx->tx_nfrags != 0) {
@@ -687,8 +646,6 @@ kiblnd_map_tx(lnet_ni_t *ni, kib_tx_t *tx,
 
 	if (net->ibn_fmr_ps != NULL)
 		return kiblnd_fmr_map_tx(net, tx, rd, nob);
-	else if (net->ibn_pmr_ps != NULL)
-		return kiblnd_pmr_map_tx(net, tx, rd, nob);
 
 	return -EINVAL;
 }
@@ -3133,8 +3090,7 @@ kiblnd_connd(void *arg)
 		dropped_lock = 0;
 
 		if (!list_empty(&kiblnd_data.kib_connd_zombies)) {
-			conn = list_entry(kiblnd_data. \
-					      kib_connd_zombies.next,
+			conn = list_entry(kiblnd_data.kib_connd_zombies.next,
 					      kib_conn_t, ibc_list);
 			list_del(&conn->ibc_list);
 

@@ -38,11 +38,11 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 			   struct batadv_tvlv_gateway_data *gateway);
 void batadv_gw_node_delete(struct batadv_priv *bat_priv,
 			   struct batadv_orig_node *orig_node);
-void batadv_gw_node_purge(struct batadv_priv *bat_priv);
+void batadv_gw_node_free(struct batadv_priv *bat_priv);
 int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset);
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv, struct sk_buff *skb);
 enum batadv_dhcp_recipient
 batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
-			     uint8_t *chaddr);
+			     u8 *chaddr);
 
 #endif /* _NET_BATMAN_ADV_GATEWAY_CLIENT_H_ */

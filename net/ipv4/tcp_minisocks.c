@@ -147,8 +147,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		if (!th->fin ||
 		    TCP_SKB_CB(skb)->end_seq != tcptw->tw_rcv_nxt + 1) {
 kill_with_rst:
-			inet_twsk_deschedule(tw);
-			inet_twsk_put(tw);
+			inet_twsk_deschedule_put(tw);
 			return TCP_TW_RST;
 		}
 
@@ -163,9 +162,9 @@ kill_with_rst:
 		if (tcp_death_row.sysctl_tw_recycle &&
 		    tcptw->tw_ts_recent_stamp &&
 		    tcp_tw_remember_stamp(tw))
-			inet_twsk_schedule(tw, tw->tw_timeout);
+			inet_twsk_reschedule(tw, tw->tw_timeout);
 		else
-			inet_twsk_schedule(tw, TCP_TIMEWAIT_LEN);
+			inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
 		return TCP_TW_ACK;
 	}
 
@@ -198,12 +197,11 @@ kill_with_rst:
 			 */
 			if (sysctl_tcp_rfc1337 == 0) {
 kill:
-				inet_twsk_deschedule(tw);
-				inet_twsk_put(tw);
+				inet_twsk_deschedule_put(tw);
 				return TCP_TW_SUCCESS;
 			}
 		}
-		inet_twsk_schedule(tw, TCP_TIMEWAIT_LEN);
+		inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
 
 		if (tmp_opt.saw_tstamp) {
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
@@ -253,7 +251,7 @@ kill:
 		 * Do not reschedule in the last case.
 		 */
 		if (paws_reject || th->ack)
-			inet_twsk_schedule(tw, TCP_TIMEWAIT_LEN);
+			inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
 
 		return tcp_timewait_check_oow_rate_limit(
 			tw, skb, LINUX_MIB_TCPACKSKIPPEDTIMEWAIT);
@@ -324,9 +322,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		} while (0);
 #endif
 
-		/* Linkage updates. */
-		__inet_twsk_hashdance(tw, sk, &tcp_hashinfo);
-
 		/* Get the TIME_WAIT timeout firing. */
 		if (timeo < rto)
 			timeo = rto;
@@ -340,6 +335,8 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		}
 
 		inet_twsk_schedule(tw, timeo);
+		/* Linkage updates. */
+		__inet_twsk_hashdance(tw, sk, &tcp_hashinfo);
 		inet_twsk_put(tw);
 	} else {
 		/* Sorry, if we're out of memory, just CLOSE this

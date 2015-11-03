@@ -37,7 +37,7 @@ static int iio_trig_periodic_rtc_set_state(struct iio_trigger *trig, bool state)
 	if (trig_info->frequency == 0 && state)
 		return -EINVAL;
 	dev_dbg(&trig_info->rtc->dev, "trigger frequency is %u\n",
-			trig_info->frequency);
+		trig_info->frequency);
 	ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, state);
 	if (ret == 0)
 		trig_info->state = state;
@@ -74,8 +74,9 @@ static ssize_t iio_trig_periodic_write_freq(struct device *dev,
 		if (ret == 0 && trig_info->state && trig_info->frequency == 0)
 			ret = rtc_irq_set_state(trig_info->rtc,
 						&trig_info->task, 1);
-	} else
+	} else {
 		ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, 0);
+	}
 	if (ret)
 		goto error_ret;
 

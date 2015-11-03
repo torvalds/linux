@@ -450,4 +450,7 @@ Fw Mode/SubMode Mask
 #define QCA6174_BOARD_DATA_SZ     8192
 #define QCA6174_BOARD_EXT_DATA_SZ 0
 
+#define QCA99X0_BOARD_DATA_SZ	  12288
+#define QCA99X0_BOARD_EXT_DATA_SZ 0
+
 #endif /* __TARGADDRS_H__ */

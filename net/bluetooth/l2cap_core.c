@@ -7113,8 +7113,10 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		else
 			role = HCI_ROLE_MASTER;
 
-		hcon = hci_connect_le(hdev, dst, dst_type, chan->sec_level,
-				      HCI_LE_CONN_TIMEOUT, role);
+		hcon = hci_connect_le_scan(hdev, dst, dst_type,
+					   chan->sec_level,
+					   HCI_LE_CONN_TIMEOUT,
+					   role);
 	} else {
 		u8 auth_type = l2cap_get_auth_type(chan);
 		hcon = hci_connect_acl(hdev, dst, chan->sec_level, auth_type);

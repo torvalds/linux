@@ -194,7 +194,6 @@ MODULE_DEVICE_TABLE(i2c, vp27smpx_id);
 
 static struct i2c_driver vp27smpx_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "vp27smpx",
 	},
 	.probe		= vp27smpx_probe,

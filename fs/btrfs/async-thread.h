@@ -69,7 +69,7 @@ BTRFS_WORK_HELPER_PROTO(scrubparity_helper);
 
 struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 					      unsigned int flags,
-					      int max_active,
+					      int limit_active,
 					      int thresh);
 void btrfs_init_work(struct btrfs_work *work, btrfs_work_func_t helper,
 		     btrfs_func_t func,

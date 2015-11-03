@@ -330,11 +330,7 @@ static int htcpld_setup_chip_irq(
 		irq_set_chip_and_handler(irq, &htcpld_muxed_chip,
 					 handle_simple_irq);
 		irq_set_chip_data(irq, chip);
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-#else
-		irq_set_probe(irq);
-#endif
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	return ret;

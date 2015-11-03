@@ -203,7 +203,8 @@ sfw_deactivate_session(void)
 	sfw_batch_t *tsb;
 	sfw_test_case_t *tsc;
 
-	if (sn == NULL) return;
+	if (sn == NULL)
+		return;
 
 	LASSERT(!sn->sn_timer_active);
 
@@ -613,7 +614,8 @@ sfw_destroy_test_instance(sfw_test_instance_t *tsi)
 	srpc_client_rpc_t *rpc;
 	sfw_test_unit_t *tsu;
 
-	if (!tsi->tsi_is_client) goto clean;
+	if (!tsi->tsi_is_client)
+		goto clean;
 
 	tsi->tsi_ops->tso_fini(tsi);
 
@@ -1700,7 +1702,8 @@ sfw_startup(void)
 
 	for (i = 0; ; i++) {
 		sv = &sfw_services[i];
-		if (sv->sv_name == NULL) break;
+		if (sv->sv_name == NULL)
+			break;
 
 		sv->sv_bulk_ready = NULL;
 		sv->sv_handler    = sfw_handle_server_rpc;
@@ -1717,7 +1720,8 @@ sfw_startup(void)
 		}
 
 		/* about to sfw_shutdown, no need to add buffer */
-		if (error) continue;
+		if (error)
+			continue;
 
 		rc = srpc_service_add_buffers(sv, sv->sv_wi_total);
 		if (rc != 0) {

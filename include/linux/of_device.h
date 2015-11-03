@@ -59,7 +59,7 @@ void of_dma_configure(struct device *dev, struct device_node *np);
 #else /* CONFIG_OF */
 
 static inline int of_driver_match_device(struct device *dev,
-					 struct device_driver *drv)
+					 const struct device_driver *drv)
 {
 	return 0;
 }

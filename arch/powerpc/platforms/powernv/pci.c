@@ -61,7 +61,7 @@ int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	if (pdev->no_64bit_msi && !phb->msi32_support)
 		return -ENODEV;
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		if (!entry->msi_attrib.is_64 && !phb->msi32_support) {
 			pr_warn("%s: Supports only 64-bit MSIs\n",
 				pci_name(pdev));
@@ -99,17 +99,18 @@ void pnv_teardown_msi_irqs(struct pci_dev *pdev)
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	struct pnv_phb *phb = hose->private_data;
 	struct msi_desc *entry;
+	irq_hw_number_t hwirq;
 
 	if (WARN_ON(!phb))
 		return;
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		if (entry->irq == NO_IRQ)
 			continue;
+		hwirq = virq_to_hw(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
-		msi_bitmap_free_hwirqs(&phb->msi_bmp,
-			virq_to_hw(entry->irq) - phb->msi_base, 1);
 		irq_dispose_mapping(entry->irq);
+		msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq - phb->msi_base, 1);
 	}
 }
 #endif /* CONFIG_PCI_MSI */
@@ -759,17 +760,6 @@ void pnv_pci_dma_dev_setup(struct pci_dev *pdev)
 
 	if (phb && phb->dma_dev_setup)
 		phb->dma_dev_setup(phb, pdev);
-}
-
-u64 pnv_pci_dma_get_required_mask(struct pci_dev *pdev)
-{
-	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	struct pnv_phb *phb = hose->private_data;
-
-	if (phb && phb->dma_get_required_mask)
-		return phb->dma_get_required_mask(phb, pdev);
-
-	return __dma_get_required_mask(&pdev->dev);
 }
 
 void pnv_pci_shutdown(void)

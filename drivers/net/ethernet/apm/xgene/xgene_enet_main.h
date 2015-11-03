@@ -40,8 +40,12 @@
 #define XGENE_DRV_VERSION	"v1.0"
 #define XGENE_ENET_MAX_MTU	1536
 #define SKB_BUFFER_SIZE		(XGENE_ENET_MAX_MTU - NET_IP_ALIGN)
+#define BUFLEN_16K	(16 * 1024)
 #define NUM_PKT_BUF	64
 #define NUM_BUFPOOL	32
+#define MAX_EXP_BUFFS	256
+#define XGENE_ENET_MSS	1448
+#define XGENE_MIN_ENET_FRAME_SIZE	60
 
 #define START_CPU_BUFNUM_0	0
 #define START_ETH_BUFNUM_0	2
@@ -79,6 +83,7 @@ struct xgene_enet_desc_ring {
 	u16 num;
 	u16 head;
 	u16 tail;
+	u16 exp_buf_tail;
 	u16 slots;
 	u16 irq;
 	char irq_name[IRQ_ID_SIZE];
@@ -93,6 +98,7 @@ struct xgene_enet_desc_ring {
 	u8 nbufpool;
 	struct sk_buff *(*rx_skb);
 	struct sk_buff *(*cp_skb);
+	dma_addr_t *frag_dma_addr;
 	enum xgene_enet_ring_cfgsize cfgsize;
 	struct xgene_enet_desc_ring *cp_ring;
 	struct xgene_enet_desc_ring *buf_pool;
@@ -102,6 +108,7 @@ struct xgene_enet_desc_ring {
 		struct xgene_enet_raw_desc *raw_desc;
 		struct xgene_enet_raw_desc16 *raw_desc16;
 	};
+	__le64 *exp_bufs;
 };
 
 struct xgene_mac_ops {
@@ -112,6 +119,7 @@ struct xgene_mac_ops {
 	void (*tx_disable)(struct xgene_enet_pdata *pdata);
 	void (*rx_disable)(struct xgene_enet_pdata *pdata);
 	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
+	void (*set_mss)(struct xgene_enet_pdata *pdata);
 	void (*link_state)(struct work_struct *work);
 };
 
@@ -170,6 +178,7 @@ struct xgene_enet_pdata {
 	u8 eth_bufnum;
 	u8 bp_bufnum;
 	u16 ring_num;
+	u32 mss;
 };
 
 struct xgene_indirect_ctl {
@@ -203,6 +212,9 @@ static inline u64 xgene_enet_get_field_value(int pos, int len, u64 src)
 
 #define GET_VAL(field, src) \
 		xgene_enet_get_field_value(field ## _POS, field ## _LEN, src)
+
+#define GET_BIT(field, src) \
+		xgene_enet_get_field_value(field ## _POS, 1, src)
 
 static inline struct device *ndev_to_dev(struct net_device *ndev)
 {

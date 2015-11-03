@@ -248,8 +248,16 @@ efw_probe(struct fw_unit *unit,
 	err = get_hardware_info(efw);
 	if (err < 0)
 		goto error;
+	/* AudioFire8 (since 2009) and AudioFirePre8 */
 	if (entry->model_id == MODEL_ECHO_AUDIOFIRE_9)
 		efw->is_af9 = true;
+	/* These models uses the same firmware. */
+	if (entry->model_id == MODEL_ECHO_AUDIOFIRE_2 ||
+	    entry->model_id == MODEL_ECHO_AUDIOFIRE_4 ||
+	    entry->model_id == MODEL_ECHO_AUDIOFIRE_9 ||
+	    entry->model_id == MODEL_GIBSON_RIP ||
+	    entry->model_id == MODEL_GIBSON_GOLDTOP)
+		efw->is_fireworks3 = true;
 
 	snd_efw_proc_init(efw);
 

@@ -8,13 +8,13 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    364 bytes, from 2013-11-30 14:47:15)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2014-06-02 15:21:30)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  10551 bytes, from 2014-11-13 22:44:30)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14895 bytes, from 2015-04-19 15:23:28)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  66709 bytes, from 2015-04-12 18:16:35)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  60633 bytes, from 2015-05-20 14:48:19)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    364 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1453 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  10551 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14968 bytes, from 2015-05-20 20:12:27)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  67120 bytes, from 2015-08-14 23:22:03)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  63785 bytes, from 2015-08-14 18:27:06)
 
 Copyright (C) 2013-2015 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -67,7 +67,7 @@ enum vgt_event_type {
 
 enum pc_di_primtype {
 	DI_PT_NONE = 0,
-	DI_PT_POINTLIST_A2XX = 1,
+	DI_PT_POINTLIST_PSIZE = 1,
 	DI_PT_LINELIST = 2,
 	DI_PT_LINESTRIP = 3,
 	DI_PT_TRILIST = 4,
@@ -75,7 +75,7 @@ enum pc_di_primtype {
 	DI_PT_TRISTRIP = 6,
 	DI_PT_LINELOOP = 7,
 	DI_PT_RECTLIST = 8,
-	DI_PT_POINTLIST_A3XX = 9,
+	DI_PT_POINTLIST = 9,
 	DI_PT_LINE_ADJ = 10,
 	DI_PT_LINESTRIP_ADJ = 11,
 	DI_PT_TRI_ADJ = 12,

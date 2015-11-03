@@ -14,6 +14,7 @@
 #include <linux/filter.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
+#include <sys/types.h>
 #include <sys/user.h>
 #include <linux/prctl.h>
 #include <linux/ptrace.h>
@@ -82,7 +83,13 @@ struct seccomp_data {
 };
 #endif
 
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 #define syscall_arg(_n) (offsetof(struct seccomp_data, args[_n]))
+#elif __BYTE_ORDER == __BIG_ENDIAN
+#define syscall_arg(_n) (offsetof(struct seccomp_data, args[_n]) + sizeof(__u32))
+#else
+#error "wut? Unknown __BYTE_ORDER?!"
+#endif
 
 #define SIBLING_EXIT_UNKILLED	0xbadbeef
 #define SIBLING_EXIT_FAILURE	0xbadface
@@ -1199,6 +1206,14 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define ARCH_REGS	struct user_pt_regs
 # define SYSCALL_NUM	regs[8]
 # define SYSCALL_RET	regs[0]
+#elif defined(__powerpc__)
+# define ARCH_REGS	struct pt_regs
+# define SYSCALL_NUM	gpr[0]
+# define SYSCALL_RET	gpr[3]
+#elif defined(__s390__)
+# define ARCH_REGS     s390_regs
+# define SYSCALL_NUM   gprs[2]
+# define SYSCALL_RET   gprs[2]
 #else
 # error "Do not know how to find your architecture's registers and syscalls"
 #endif
@@ -1232,7 +1247,8 @@ void change_syscall(struct __test_metadata *_metadata,
 	ret = ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &iov);
 	EXPECT_EQ(0, ret);
 
-#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(__powerpc__) || defined(__s390__)
 	{
 		regs.SYSCALL_NUM = syscall;
 	}
@@ -1270,17 +1286,21 @@ void tracer_syscall(struct __test_metadata *_metadata, pid_t tracee,
 	ret = ptrace(PTRACE_GETEVENTMSG, tracee, NULL, &msg);
 	EXPECT_EQ(0, ret);
 
+	/* Validate and take action on expected syscalls. */
 	switch (msg) {
 	case 0x1002:
 		/* change getpid to getppid. */
+		EXPECT_EQ(__NR_getpid, get_syscall(_metadata, tracee));
 		change_syscall(_metadata, tracee, __NR_getppid);
 		break;
 	case 0x1003:
 		/* skip gettid. */
+		EXPECT_EQ(__NR_gettid, get_syscall(_metadata, tracee));
 		change_syscall(_metadata, tracee, -1);
 		break;
 	case 0x1004:
 		/* do nothing (allow getppid) */
+		EXPECT_EQ(__NR_getppid, get_syscall(_metadata, tracee));
 		break;
 	default:
 		EXPECT_EQ(0, msg) {
@@ -1396,6 +1416,10 @@ TEST_F(TRACE_syscall, syscall_dropped)
 #  define __NR_seccomp 383
 # elif defined(__aarch64__)
 #  define __NR_seccomp 277
+# elif defined(__powerpc__)
+#  define __NR_seccomp 358
+# elif defined(__s390__)
+#  define __NR_seccomp 348
 # else
 #  warning "seccomp syscall number unknown for this architecture"
 #  define __NR_seccomp 0xffff
@@ -1440,6 +1464,9 @@ TEST(seccomp_syscall)
 
 	/* Reject insane operation. */
 	ret = seccomp(-1, 0, &prog);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
 	EXPECT_EQ(EINVAL, errno) {
 		TH_LOG("Did not reject crazy op value!");
 	}
@@ -1488,6 +1515,9 @@ TEST(seccomp_syscall_mode_lock)
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
 	EXPECT_EQ(0, ret) {
 		TH_LOG("Could not install filter!");
 	}
@@ -1522,6 +1552,9 @@ TEST(TSYNC_first)
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FLAG_FILTER_TSYNC,
 		      &prog);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
 	EXPECT_EQ(0, ret) {
 		TH_LOG("Could not install initial filter with TSYNC!");
 	}
@@ -1681,6 +1714,9 @@ TEST_F(TSYNC, siblings_fail_prctl)
 
 	/* Check prctl failure detection by requesting sib 0 diverge. */
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
 	ASSERT_EQ(0, ret) {
 		TH_LOG("setting filter failed");
 	}
@@ -1718,6 +1754,9 @@ TEST_F(TSYNC, two_siblings_with_ancestor)
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &self->root_prog);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support SECCOMP_SET_MODE_FILTER!");
 	}
@@ -1792,6 +1831,9 @@ TEST_F(TSYNC, two_siblings_with_no_filter)
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FLAG_FILTER_TSYNC,
 		      &self->apply_prog);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Could install filter on all threads!");
 	}
@@ -1820,6 +1862,9 @@ TEST_F(TSYNC, two_siblings_with_one_divergence)
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &self->root_prog);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support SECCOMP_SET_MODE_FILTER!");
 	}
@@ -1877,6 +1922,9 @@ TEST_F(TSYNC, two_siblings_not_under_filter)
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &self->root_prog);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support SECCOMP_SET_MODE_FILTER!");
 	}

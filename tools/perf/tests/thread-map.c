@@ -20,6 +20,8 @@ int test__thread_map(void)
 	TEST_ASSERT_VAL("wrong comm",
 			thread_map__comm(map, 0) &&
 			!strcmp(thread_map__comm(map, 0), "perf"));
+	TEST_ASSERT_VAL("wrong refcnt",
+			atomic_read(&map->refcnt) == 1);
 	thread_map__put(map);
 
 	/* test dummy pid */
@@ -33,6 +35,8 @@ int test__thread_map(void)
 	TEST_ASSERT_VAL("wrong comm",
 			thread_map__comm(map, 0) &&
 			!strcmp(thread_map__comm(map, 0), "dummy"));
+	TEST_ASSERT_VAL("wrong refcnt",
+			atomic_read(&map->refcnt) == 1);
 	thread_map__put(map);
 	return 0;
 }

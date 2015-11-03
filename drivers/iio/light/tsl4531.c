@@ -247,7 +247,6 @@ static struct i2c_driver tsl4531_driver = {
 	.driver = {
 		.name   = TSL4531_DRV_NAME,
 		.pm	= TSL4531_PM_OPS,
-		.owner  = THIS_MODULE,
 	},
 	.probe  = tsl4531_probe,
 	.remove = tsl4531_remove,

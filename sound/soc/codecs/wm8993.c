@@ -41,7 +41,7 @@ static const char *wm8993_supply_names[WM8993_NUM_SUPPLIES] = {
 	"SPKVDD",
 };
 
-static struct reg_default wm8993_reg_defaults[] = {
+static const struct reg_default wm8993_reg_defaults[] = {
 	{ 1,   0x0000 },     /* R1   - Power Management (1) */
 	{ 2,   0x6000 },     /* R2   - Power Management (2) */
 	{ 3,   0x0000 },     /* R3   - Power Management (3) */
@@ -628,11 +628,10 @@ static const DECLARE_TLV_DB_SCALE(sidetone_tlv, -3600, 300, 0);
 static const DECLARE_TLV_DB_SCALE(drc_comp_threash, -4500, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_comp_amp, -2250, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_min_tlv, -1800, 600, 0);
-static const unsigned int drc_max_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(drc_max_tlv,
 	0, 2, TLV_DB_SCALE_ITEM(1200, 600, 0),
-	3, 3, TLV_DB_SCALE_ITEM(3600, 0, 0),
-};
+	3, 3, TLV_DB_SCALE_ITEM(3600, 0, 0)
+);
 static const DECLARE_TLV_DB_SCALE(drc_qr_tlv, 1200, 600, 0);
 static const DECLARE_TLV_DB_SCALE(drc_startup_tlv, -1800, 300, 0);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
@@ -1595,7 +1594,7 @@ static int wm8993_resume(struct snd_soc_codec *codec)
 #endif
 
 /* Tune DC servo configuration */
-static struct reg_default wm8993_regmap_patch[] = {
+static const struct reg_sequence wm8993_regmap_patch[] = {
 	{ 0x44, 3 },
 	{ 0x56, 3 },
 	{ 0x44, 0 },
@@ -1742,7 +1741,6 @@ MODULE_DEVICE_TABLE(i2c, wm8993_i2c_id);
 static struct i2c_driver wm8993_i2c_driver = {
 	.driver = {
 		.name = "wm8993",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm8993_i2c_probe,
 	.remove =   wm8993_i2c_remove,

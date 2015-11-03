@@ -846,6 +846,17 @@ struct ipvs_master_sync_state {
 /* How much time to keep dests in trash */
 #define IP_VS_DEST_TRASH_PERIOD		(120 * HZ)
 
+struct ipvs_sync_daemon_cfg {
+	union nf_inet_addr	mcast_group;
+	int			syncid;
+	u16			sync_maxlen;
+	u16			mcast_port;
+	u8			mcast_af;
+	u8			mcast_ttl;
+	/* multicast interface name */
+	char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
+};
+
 /* IPVS in network namespace */
 struct netns_ipvs {
 	int			gen;		/* Generation */
@@ -961,15 +972,10 @@ struct netns_ipvs {
 	spinlock_t		sync_buff_lock;
 	struct task_struct	**backup_threads;
 	int			threads_mask;
-	int			send_mesg_maxlen;
-	int			recv_mesg_maxlen;
 	volatile int		sync_state;
-	volatile int		master_syncid;
-	volatile int		backup_syncid;
 	struct mutex		sync_mutex;
-	/* multicast interface name */
-	char			master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
-	char			backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
+	struct ipvs_sync_daemon_cfg	mcfg;	/* Master Configuration */
+	struct ipvs_sync_daemon_cfg	bcfg;	/* Backup Configuration */
 	/* net name space ptr */
 	struct net		*net;            /* Needed by timer routines */
 	/* Number of heterogeneous destinations, needed becaus heterogeneous
@@ -1408,7 +1414,8 @@ static inline void ip_vs_dest_put_and_free(struct ip_vs_dest *dest)
 /* IPVS sync daemon data and function prototypes
  * (from ip_vs_sync.c)
  */
-int start_sync_thread(struct net *net, int state, char *mcast_ifn, __u8 syncid);
+int start_sync_thread(struct net *net, struct ipvs_sync_daemon_cfg *cfg,
+		      int state);
 int stop_sync_thread(struct net *net, int state);
 void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp, int pkts);
 

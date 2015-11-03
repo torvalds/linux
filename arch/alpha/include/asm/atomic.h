@@ -29,13 +29,13 @@
  * branch back to restart the operation.
  */
 
-#define ATOMIC_OP(op)							\
+#define ATOMIC_OP(op, asm_op)						\
 static __inline__ void atomic_##op(int i, atomic_t * v)			\
 {									\
 	unsigned long temp;						\
 	__asm__ __volatile__(						\
 	"1:	ldl_l %0,%1\n"						\
-	"	" #op "l %0,%2,%0\n"					\
+	"	" #asm_op " %0,%2,%0\n"					\
 	"	stl_c %0,%1\n"						\
 	"	beq %0,2f\n"						\
 	".subsection 2\n"						\
@@ -45,15 +45,15 @@ static __inline__ void atomic_##op(int i, atomic_t * v)			\
 	:"Ir" (i), "m" (v->counter));					\
 }									\
 
-#define ATOMIC_OP_RETURN(op)						\
+#define ATOMIC_OP_RETURN(op, asm_op)					\
 static inline int atomic_##op##_return(int i, atomic_t *v)		\
 {									\
 	long temp, result;						\
 	smp_mb();							\
 	__asm__ __volatile__(						\
 	"1:	ldl_l %0,%1\n"						\
-	"	" #op "l %0,%3,%2\n"					\
-	"	" #op "l %0,%3,%0\n"					\
+	"	" #asm_op " %0,%3,%2\n"					\
+	"	" #asm_op " %0,%3,%0\n"					\
 	"	stl_c %0,%1\n"						\
 	"	beq %0,2f\n"						\
 	".subsection 2\n"						\
@@ -65,13 +65,13 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 	return result;							\
 }
 
-#define ATOMIC64_OP(op)							\
+#define ATOMIC64_OP(op, asm_op)						\
 static __inline__ void atomic64_##op(long i, atomic64_t * v)		\
 {									\
 	unsigned long temp;						\
 	__asm__ __volatile__(						\
 	"1:	ldq_l %0,%1\n"						\
-	"	" #op "q %0,%2,%0\n"					\
+	"	" #asm_op " %0,%2,%0\n"					\
 	"	stq_c %0,%1\n"						\
 	"	beq %0,2f\n"						\
 	".subsection 2\n"						\
@@ -81,15 +81,15 @@ static __inline__ void atomic64_##op(long i, atomic64_t * v)		\
 	:"Ir" (i), "m" (v->counter));					\
 }									\
 
-#define ATOMIC64_OP_RETURN(op)						\
+#define ATOMIC64_OP_RETURN(op, asm_op)					\
 static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)	\
 {									\
 	long temp, result;						\
 	smp_mb();							\
 	__asm__ __volatile__(						\
 	"1:	ldq_l %0,%1\n"						\
-	"	" #op "q %0,%3,%2\n"					\
-	"	" #op "q %0,%3,%0\n"					\
+	"	" #asm_op " %0,%3,%2\n"					\
+	"	" #asm_op " %0,%3,%0\n"					\
 	"	stq_c %0,%1\n"						\
 	"	beq %0,2f\n"						\
 	".subsection 2\n"						\
@@ -101,14 +101,26 @@ static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)	\
 	return result;							\
 }
 
-#define ATOMIC_OPS(opg)							\
-	ATOMIC_OP(opg)							\
-	ATOMIC_OP_RETURN(opg)						\
-	ATOMIC64_OP(opg)						\
-	ATOMIC64_OP_RETURN(opg)
+#define ATOMIC_OPS(op)							\
+	ATOMIC_OP(op, op##l)						\
+	ATOMIC_OP_RETURN(op, op##l)					\
+	ATOMIC64_OP(op, op##q)						\
+	ATOMIC64_OP_RETURN(op, op##q)
 
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
+
+#define atomic_andnot atomic_andnot
+#define atomic64_andnot atomic64_andnot
+
+ATOMIC_OP(and, and)
+ATOMIC_OP(andnot, bic)
+ATOMIC_OP(or, bis)
+ATOMIC_OP(xor, xor)
+ATOMIC64_OP(and, and)
+ATOMIC64_OP(andnot, bic)
+ATOMIC64_OP(or, bis)
+ATOMIC64_OP(xor, xor)
 
 #undef ATOMIC_OPS
 #undef ATOMIC64_OP_RETURN

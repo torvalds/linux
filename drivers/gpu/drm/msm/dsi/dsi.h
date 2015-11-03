@@ -27,21 +27,10 @@
 #define DSI_1	1
 #define DSI_MAX	2
 
-#define DSI_CLOCK_MASTER	DSI_0
-#define DSI_CLOCK_SLAVE		DSI_1
-
-#define DSI_LEFT		DSI_0
-#define DSI_RIGHT		DSI_1
-
-/* According to the current drm framework sequence, take the encoder of
- * DSI_1 as master encoder
- */
-#define DSI_ENCODER_MASTER	DSI_1
-#define DSI_ENCODER_SLAVE	DSI_0
-
 enum msm_dsi_phy_type {
 	MSM_DSI_PHY_28NM_HPM,
 	MSM_DSI_PHY_28NM_LP,
+	MSM_DSI_PHY_20NM,
 	MSM_DSI_PHY_MAX
 };
 
@@ -65,13 +54,21 @@ struct msm_dsi {
 	struct drm_device *dev;
 	struct platform_device *pdev;
 
+	/* connector managed by us when we're connected to a drm_panel */
 	struct drm_connector *connector;
+	/* internal dsi bridge attached to MDP interface */
 	struct drm_bridge *bridge;
 
 	struct mipi_dsi_host *host;
 	struct msm_dsi_phy *phy;
+
+	/*
+	 * panel/external_bridge connected to dsi bridge output, only one of the
+	 * two can be valid at a time
+	 */
 	struct drm_panel *panel;
-	unsigned long panel_flags;
+	struct drm_bridge *external_bridge;
+	unsigned long device_flags;
 
 	struct device *phy_dev;
 	bool phy_enabled;
@@ -86,6 +83,7 @@ struct msm_dsi {
 struct drm_bridge *msm_dsi_manager_bridge_init(u8 id);
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge);
 struct drm_connector *msm_dsi_manager_connector_init(u8 id);
+struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id);
 int msm_dsi_manager_phy_enable(int id,
 		const unsigned long bit_rate, const unsigned long esc_rate,
 		u32 *clk_pre, u32 *clk_post);
@@ -96,6 +94,11 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 
 /* msm dsi */
+static inline bool msm_dsi_device_connected(struct msm_dsi *msm_dsi)
+{
+	return msm_dsi->panel || msm_dsi->external_bridge;
+}
+
 struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi);
 
 /* dsi pll */
@@ -106,6 +109,8 @@ struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 void msm_dsi_pll_destroy(struct msm_dsi_pll *pll);
 int msm_dsi_pll_get_clk_provider(struct msm_dsi_pll *pll,
 	struct clk **byte_clk_provider, struct clk **pixel_clk_provider);
+void msm_dsi_pll_save_state(struct msm_dsi_pll *pll);
+int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll);
 #else
 static inline struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 			 enum msm_dsi_phy_type type, int id) {
@@ -118,6 +123,13 @@ static inline int msm_dsi_pll_get_clk_provider(struct msm_dsi_pll *pll,
 	struct clk **byte_clk_provider, struct clk **pixel_clk_provider)
 {
 	return -ENODEV;
+}
+static inline void msm_dsi_pll_save_state(struct msm_dsi_pll *pll)
+{
+}
+static inline int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll)
+{
+	return 0;
 }
 #endif
 
@@ -140,6 +152,7 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 					struct drm_display_mode *mode);
 struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host,
 					unsigned long *panel_flags);
+struct drm_bridge *msm_dsi_host_get_bridge(struct mipi_dsi_host *host);
 int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer);
 void msm_dsi_host_unregister(struct mipi_dsi_host *host);
 int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
@@ -153,9 +166,9 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi);
 struct msm_dsi_phy;
 void msm_dsi_phy_driver_register(void);
 void msm_dsi_phy_driver_unregister(void);
-int msm_dsi_phy_enable(struct msm_dsi_phy *phy, bool is_dual_panel,
+int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	const unsigned long bit_rate, const unsigned long esc_rate);
-int msm_dsi_phy_disable(struct msm_dsi_phy *phy);
+void msm_dsi_phy_disable(struct msm_dsi_phy *phy);
 void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
 					u32 *clk_pre, u32 *clk_post);
 struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy);

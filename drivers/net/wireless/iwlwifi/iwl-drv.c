@@ -372,6 +372,30 @@ static int iwl_store_cscheme(struct iwl_fw *fw, const u8 *data, const u32 len)
 	return 0;
 }
 
+static int iwl_store_gscan_capa(struct iwl_fw *fw, const u8 *data,
+				const u32 len)
+{
+	struct iwl_fw_gscan_capabilities *fw_capa = (void *)data;
+	struct iwl_gscan_capabilities *capa = &fw->gscan_capa;
+
+	if (len < sizeof(*fw_capa))
+		return -EINVAL;
+
+	capa->max_scan_cache_size = le32_to_cpu(fw_capa->max_scan_cache_size);
+	capa->max_scan_buckets = le32_to_cpu(fw_capa->max_scan_buckets);
+	capa->max_ap_cache_per_scan =
+		le32_to_cpu(fw_capa->max_ap_cache_per_scan);
+	capa->max_rssi_sample_size = le32_to_cpu(fw_capa->max_rssi_sample_size);
+	capa->max_scan_reporting_threshold =
+		le32_to_cpu(fw_capa->max_scan_reporting_threshold);
+	capa->max_hotlist_aps = le32_to_cpu(fw_capa->max_hotlist_aps);
+	capa->max_significant_change_aps =
+		le32_to_cpu(fw_capa->max_significant_change_aps);
+	capa->max_bssid_history_entries =
+		le32_to_cpu(fw_capa->max_bssid_history_entries);
+	return 0;
+}
+
 /*
  * Gets uCode section from tlv.
  */
@@ -573,13 +597,15 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	size_t len = ucode_raw->size;
 	const u8 *data;
 	u32 tlv_len;
+	u32 usniffer_img;
 	enum iwl_ucode_tlv_type tlv_type;
 	const u8 *tlv_data;
 	char buildstr[25];
-	u32 build;
+	u32 build, paging_mem_size;
 	int num_of_cpus;
 	bool usniffer_images = false;
 	bool usniffer_req = false;
+	bool gscan_capa = false;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(drv, "uCode has invalid length: %zd\n", len);
@@ -955,11 +981,45 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 					    IWL_UCODE_REGULAR_USNIFFER,
 					    tlv_len);
 			break;
+		case IWL_UCODE_TLV_PAGING:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			paging_mem_size = le32_to_cpup((__le32 *)tlv_data);
+
+			IWL_DEBUG_FW(drv,
+				     "Paging: paging enabled (size = %u bytes)\n",
+				     paging_mem_size);
+
+			if (paging_mem_size > MAX_PAGING_IMAGE_SIZE) {
+				IWL_ERR(drv,
+					"Paging: driver supports up to %lu bytes for paging image\n",
+					MAX_PAGING_IMAGE_SIZE);
+				return -EINVAL;
+			}
+
+			if (paging_mem_size & (FW_PAGING_SIZE - 1)) {
+				IWL_ERR(drv,
+					"Paging: image isn't multiple %lu\n",
+					FW_PAGING_SIZE);
+				return -EINVAL;
+			}
+
+			drv->fw.img[IWL_UCODE_REGULAR].paging_mem_size =
+				paging_mem_size;
+			usniffer_img = IWL_UCODE_REGULAR_USNIFFER;
+			drv->fw.img[usniffer_img].paging_mem_size =
+				paging_mem_size;
+			break;
 		case IWL_UCODE_TLV_SDIO_ADMA_ADDR:
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
 			drv->fw.sdio_adma_addr =
 				le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_FW_GSCAN_CAPA:
+			if (iwl_store_gscan_capa(&drv->fw, tlv_data, tlv_len))
+				goto invalid_tlv_len;
+			gscan_capa = true;
 			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
@@ -978,6 +1038,16 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		iwl_print_hex_dump(drv, IWL_DL_FW, (u8 *)data, len);
 		return -EINVAL;
 	}
+
+	/*
+	 * If ucode advertises that it supports GSCAN but GSCAN
+	 * capabilities TLV is not present, warn and continue without GSCAN.
+	 */
+	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT) &&
+	    WARN(!gscan_capa,
+		 "GSCAN is supported but capabilities TLV is unavailable\n"))
+		__clear_bit((__force long)IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT,
+			    capa->_capa);
 
 	return 0;
 

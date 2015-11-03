@@ -32,7 +32,7 @@
 #ifndef __AMDGPU_DRM_H__
 #define __AMDGPU_DRM_H__
 
-#include <drm/drm.h>
+#include "drm.h"
 
 #define DRM_AMDGPU_GEM_CREATE		0x00
 #define DRM_AMDGPU_GEM_MMAP		0x01
@@ -614,6 +614,8 @@ struct drm_amdgpu_info_device {
 	uint32_t vram_type;
 	/** video memory bit width*/
 	uint32_t vram_bit_width;
+	/* vce harvesting instance */
+	uint32_t vce_harvest_config;
 };
 
 struct drm_amdgpu_info_hw_ip {

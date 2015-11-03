@@ -428,7 +428,8 @@ static int ts72xx_wdt_probe(struct platform_device *pdev)
 
 static int ts72xx_wdt_remove(struct platform_device *pdev)
 {
-	return misc_deregister(&ts72xx_wdt_miscdev);
+	misc_deregister(&ts72xx_wdt_miscdev);
+	return 0;
 }
 
 static struct platform_driver ts72xx_wdt_driver = {

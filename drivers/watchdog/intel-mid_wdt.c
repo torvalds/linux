@@ -137,6 +137,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	wdt_dev->min_timeout = MID_WDT_TIMEOUT_MIN;
 	wdt_dev->max_timeout = MID_WDT_TIMEOUT_MAX;
 	wdt_dev->timeout = MID_WDT_DEFAULT_TIMEOUT;
+	wdt_dev->parent = &pdev->dev;
 
 	watchdog_set_drvdata(wdt_dev, &pdev->dev);
 	platform_set_drvdata(pdev, wdt_dev);

@@ -328,6 +328,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	struct btrfs_device *prev_dev;
 	u32 blocksize;
 	u64 length;
+	int real_stripes;
 	int nzones = 0;
 	int i;
 	unsigned long index = logical >> PAGE_CACHE_SHIFT;
@@ -369,7 +370,8 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 		goto error;
 	}
 
-	for (nzones = 0; nzones < bbio->num_stripes; ++nzones) {
+	real_stripes = bbio->num_stripes - bbio->num_tgtdevs;
+	for (nzones = 0; nzones < real_stripes; ++nzones) {
 		struct reada_zone *zone;
 
 		dev = bbio->stripes[nzones].dev;

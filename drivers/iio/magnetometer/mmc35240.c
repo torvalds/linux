@@ -202,8 +202,8 @@ static int mmc35240_hw_set(struct mmc35240_data *data, bool set)
 		coil_bit = MMC35240_CTRL0_RESET_BIT;
 
 	return regmap_update_bits(data->regmap, MMC35240_REG_CTRL0,
-				  MMC35240_CTRL0_REFILL_BIT,
-				  coil_bit);
+				  coil_bit, coil_bit);
+
 }
 
 static int mmc35240_init(struct mmc35240_data *data)
@@ -222,14 +222,15 @@ static int mmc35240_init(struct mmc35240_data *data)
 
 	/*
 	 * make sure we restore sensor characteristics, by doing
-	 * a RESET/SET sequence
+	 * a SET/RESET sequence, the axis polarity being naturally
+	 * aligned after RESET
 	 */
-	ret = mmc35240_hw_set(data, false);
+	ret = mmc35240_hw_set(data, true);
 	if (ret < 0)
 		return ret;
 	usleep_range(MMC53240_WAIT_SET_RESET, MMC53240_WAIT_SET_RESET + 1);
 
-	ret = mmc35240_hw_set(data, true);
+	ret = mmc35240_hw_set(data, false);
 	if (ret < 0)
 		return ret;
 
@@ -315,31 +316,31 @@ static int mmc35240_read_measurement(struct mmc35240_data *data, __le16 buf[3])
 static int mmc35240_raw_to_mgauss(struct mmc35240_data *data, int index,
 				  __le16 buf[], int *val)
 {
-	int raw_x, raw_y, raw_z;
-	int sens_x, sens_y, sens_z;
+	int raw[3];
+	int sens[3];
 	int nfo;
 
-	raw_x = le16_to_cpu(buf[AXIS_X]);
-	raw_y = le16_to_cpu(buf[AXIS_Y]);
-	raw_z = le16_to_cpu(buf[AXIS_Z]);
+	raw[AXIS_X] = le16_to_cpu(buf[AXIS_X]);
+	raw[AXIS_Y] = le16_to_cpu(buf[AXIS_Y]);
+	raw[AXIS_Z] = le16_to_cpu(buf[AXIS_Z]);
 
-	sens_x = mmc35240_props_table[data->res].sens[AXIS_X];
-	sens_y = mmc35240_props_table[data->res].sens[AXIS_Y];
-	sens_z = mmc35240_props_table[data->res].sens[AXIS_Z];
+	sens[AXIS_X] = mmc35240_props_table[data->res].sens[AXIS_X];
+	sens[AXIS_Y] = mmc35240_props_table[data->res].sens[AXIS_Y];
+	sens[AXIS_Z] = mmc35240_props_table[data->res].sens[AXIS_Z];
 
 	nfo = mmc35240_props_table[data->res].nfo;
 
 	switch (index) {
 	case AXIS_X:
-		*val = (raw_x - nfo) * 1000 / sens_x;
+		*val = (raw[AXIS_X] - nfo) * 1000 / sens[AXIS_X];
 		break;
 	case AXIS_Y:
-		*val = (raw_y - nfo) * 1000 / sens_y -
-			(raw_z - nfo)  * 1000 / sens_z;
+		*val = (raw[AXIS_Y] - nfo) * 1000 / sens[AXIS_Y] -
+			(raw[AXIS_Z] - nfo)  * 1000 / sens[AXIS_Z];
 		break;
 	case AXIS_Z:
-		*val = (raw_y - nfo) * 1000 / sens_y +
-			(raw_z - nfo) * 1000 / sens_z;
+		*val = (raw[AXIS_Y] - nfo) * 1000 / sens[AXIS_Y] +
+			(raw[AXIS_Z] - nfo) * 1000 / sens[AXIS_Z];
 		break;
 	default:
 		return -EINVAL;
@@ -503,6 +504,7 @@ static int mmc35240_probe(struct i2c_client *client,
 	}
 
 	data = iio_priv(indio_dev);
+	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	data->regmap = regmap;
 	data->res = MMC35240_16_BITS_SLOW;
@@ -557,6 +559,12 @@ static const struct dev_pm_ops mmc35240_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mmc35240_suspend, mmc35240_resume)
 };
 
+static const struct of_device_id mmc35240_of_match[] = {
+	{ .compatible = "memsic,mmc35240", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, mmc35240_of_match);
+
 static const struct acpi_device_id mmc35240_acpi_match[] = {
 	{"MMC35240", 0},
 	{ },
@@ -572,6 +580,7 @@ MODULE_DEVICE_TABLE(i2c, mmc35240_id);
 static struct i2c_driver mmc35240_driver = {
 	.driver = {
 		.name = MMC35240_DRV_NAME,
+		.of_match_table = mmc35240_of_match,
 		.pm = &mmc35240_pm_ops,
 		.acpi_match_table = ACPI_PTR(mmc35240_acpi_match),
 	},

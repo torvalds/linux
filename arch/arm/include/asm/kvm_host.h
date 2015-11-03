@@ -29,20 +29,17 @@
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
-#if defined(CONFIG_KVM_ARM_MAX_VCPUS)
-#define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
-#else
-#define KVM_MAX_VCPUS 0
-#endif
-
 #define KVM_USER_MEM_SLOTS 32
 #define KVM_PRIVATE_MEM_SLOTS 4
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #define KVM_HAVE_ONE_REG
+#define KVM_HALT_POLL_NS_DEFAULT 500000
 
 #define KVM_VCPU_MAX_FEATURES 2
 
 #include <kvm/arm_vgic.h>
+
+#define KVM_MAX_VCPUS VGIC_V2_MAX_CPUS
 
 u32 *kvm_vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num, u32 mode);
 int __attribute_const__ kvm_target_cpu(void);
@@ -148,6 +145,7 @@ struct kvm_vm_stat {
 
 struct kvm_vcpu_stat {
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 };
 
@@ -230,5 +228,10 @@ static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+
+static inline void kvm_arm_init_debug(void) {}
+static inline void kvm_arm_setup_debug(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arm_clear_debug(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu) {}
 
 #endif /* __ARM_KVM_HOST_H__ */

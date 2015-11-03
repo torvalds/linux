@@ -19,6 +19,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
 #include <linux/export.h>
+#include <asm/cache.h>
 #include <asm/cacheflush.h>
 
 /*
@@ -53,6 +54,20 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 {
 	void *paddr, *kvaddr;
 
+	/*
+	 * IOC relies on all data (even coherent DMA data) being in cache
+	 * Thus allocate normal cached memory
+	 *
+	 * The gains with IOC are two pronged:
+	 *   -For streaming data, elides needs for cache maintenance, saving
+	 *    cycles in flush code, and bus bandwidth as all the lines of a
+	 *    buffer need to be flushed out to memory
+	 *   -For coherent data, Read/Write to buffers terminate early in cache
+	 *   (vs. always going to memory - thus are faster)
+	 */
+	if (is_isa_arcv2() && ioc_exists)
+		return dma_alloc_noncoherent(dev, size, dma_handle, gfp);
+
 	/* This is linear addr (0x8000_0000 based) */
 	paddr = alloc_pages_exact(size, gfp);
 	if (!paddr)
@@ -85,6 +100,9 @@ EXPORT_SYMBOL(dma_alloc_coherent);
 void dma_free_coherent(struct device *dev, size_t size, void *kvaddr,
 		       dma_addr_t dma_handle)
 {
+	if (is_isa_arcv2() && ioc_exists)
+		return dma_free_noncoherent(dev, size, kvaddr, dma_handle);
+
 	iounmap((void __force __iomem *)kvaddr);
 
 	free_pages_exact((void *)dma_handle, size);

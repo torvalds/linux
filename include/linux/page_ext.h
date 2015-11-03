@@ -26,6 +26,10 @@ enum page_ext_flags {
 	PAGE_EXT_DEBUG_POISON,		/* Page is poisoned */
 	PAGE_EXT_DEBUG_GUARD,
 	PAGE_EXT_OWNER,
+#if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+	PAGE_EXT_YOUNG,
+	PAGE_EXT_IDLE,
+#endif
 };
 
 /*

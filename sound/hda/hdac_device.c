@@ -372,6 +372,36 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_refresh_widgets);
 
+/**
+ * snd_hdac_refresh_widget_sysfs - Reset the codec widgets and reinit the
+ * codec sysfs
+ * @codec: the codec object
+ *
+ * first we need to remove sysfs, then refresh widgets and lastly
+ * recreate it
+ */
+int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec)
+{
+	int ret;
+
+	if (device_is_registered(&codec->dev))
+		hda_widget_sysfs_exit(codec);
+	ret = snd_hdac_refresh_widgets(codec);
+	if (ret) {
+		dev_err(&codec->dev, "failed to refresh widget: %d\n", ret);
+		return ret;
+	}
+	if (device_is_registered(&codec->dev)) {
+		ret = hda_widget_sysfs_init(codec);
+		if (ret) {
+			dev_err(&codec->dev, "failed to init sysfs: %d\n", ret);
+			return ret;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_refresh_widget_sysfs);
+
 /* return CONNLIST_LEN parameter of the given widget */
 static unsigned int get_num_conns(struct hdac_device *codec, hda_nid_t nid)
 {
@@ -501,23 +531,27 @@ EXPORT_SYMBOL_GPL(snd_hdac_get_connections);
  * This function calls the runtime PM helper to power up the given codec.
  * Unlike snd_hdac_power_up_pm(), you should call this only for the code
  * path that isn't included in PM path.  Otherwise it gets stuck.
+ *
+ * Returns zero if successful, or a negative error code.
  */
-void snd_hdac_power_up(struct hdac_device *codec)
+int snd_hdac_power_up(struct hdac_device *codec)
 {
-	pm_runtime_get_sync(&codec->dev);
+	return pm_runtime_get_sync(&codec->dev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_up);
 
 /**
  * snd_hdac_power_down - power down the codec
  * @codec: the codec object
+ *
+ * Returns zero if successful, or a negative error code.
  */
-void snd_hdac_power_down(struct hdac_device *codec)
+int snd_hdac_power_down(struct hdac_device *codec)
 {
 	struct device *dev = &codec->dev;
 
 	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	return pm_runtime_put_autosuspend(dev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_down);
 
@@ -529,11 +563,14 @@ EXPORT_SYMBOL_GPL(snd_hdac_power_down);
  * which may be called by PM suspend/resume again.  OTOH, if a power-up
  * call must wake up the sleeper (e.g. in a kctl callback), use
  * snd_hdac_power_up() instead.
+ *
+ * Returns zero if successful, or a negative error code.
  */
-void snd_hdac_power_up_pm(struct hdac_device *codec)
+int snd_hdac_power_up_pm(struct hdac_device *codec)
 {
 	if (!atomic_inc_not_zero(&codec->in_pm))
-		snd_hdac_power_up(codec);
+		return snd_hdac_power_up(codec);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_up_pm);
 
@@ -543,11 +580,14 @@ EXPORT_SYMBOL_GPL(snd_hdac_power_up_pm);
  *
  * Like snd_hdac_power_up_pm(), this function is used in a recursive
  * code path like init code which may be called by PM suspend/resume again.
+ *
+ * Returns zero if successful, or a negative error code.
  */
-void snd_hdac_power_down_pm(struct hdac_device *codec)
+int snd_hdac_power_down_pm(struct hdac_device *codec)
 {
 	if (atomic_dec_if_positive(&codec->in_pm) < 0)
-		snd_hdac_power_down(codec);
+		return snd_hdac_power_down(codec);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_down_pm);
 #endif

@@ -701,6 +701,12 @@ static int cros_ec_spi_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cros_ec_spi_pm_ops, cros_ec_spi_suspend,
 			 cros_ec_spi_resume);
 
+static const struct of_device_id cros_ec_spi_of_match[] = {
+	{ .compatible = "google,cros-ec-spi", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, cros_ec_spi_of_match);
+
 static const struct spi_device_id cros_ec_spi_id[] = {
 	{ "cros-ec-spi", 0 },
 	{ }
@@ -710,6 +716,7 @@ MODULE_DEVICE_TABLE(spi, cros_ec_spi_id);
 static struct spi_driver cros_ec_driver_spi = {
 	.driver	= {
 		.name	= "cros-ec-spi",
+		.of_match_table = of_match_ptr(cros_ec_spi_of_match),
 		.owner	= THIS_MODULE,
 		.pm	= &cros_ec_spi_pm_ops,
 	},

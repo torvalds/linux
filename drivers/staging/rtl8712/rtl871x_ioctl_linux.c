@@ -203,14 +203,12 @@ static inline char *translate_scan(struct _adapter *padapter,
 	}
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
-	if ((r8712_is_cckratesonly_included((u8 *)&pnetwork->network.
-	     SupportedRates)) == true) {
+	if (r8712_is_cckratesonly_included(pnetwork->network.rates)) {
 		if (ht_cap == true)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bn");
 		else
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11b");
-	} else if ((r8712_is_cckrates_included((u8 *)&pnetwork->network.
-		    SupportedRates)) == true) {
+	} else if (r8712_is_cckrates_included(pnetwork->network.rates)) {
 		if (ht_cap == true)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bgn");
 		else
@@ -270,9 +268,9 @@ static inline char *translate_scan(struct _adapter *padapter,
 	iwe.u.bitrate.disabled = 0;
 	iwe.u.bitrate.value = 0;
 	i = 0;
-	while (pnetwork->network.SupportedRates[i] != 0) {
+	while (pnetwork->network.rates[i] != 0) {
 		/* Bit rate given in 500 kb/s units */
-		iwe.u.bitrate.value = (pnetwork->network.SupportedRates[i++] &
+		iwe.u.bitrate.value = (pnetwork->network.rates[i++] &
 				      0x7F) * 500000;
 		current_val = iwe_stream_add_value(info, start, current_val,
 			      stop, &iwe, IW_EV_PARAM_LEN);
@@ -634,8 +632,8 @@ static int r8711_wx_get_name(struct net_device *dev,
 	char *p;
 	u8 ht_cap = false;
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
-	struct ndis_wlan_bssid_ex  *pcur_bss = &pmlmepriv->cur_network.network;
-	NDIS_802_11_RATES_EX *prates = NULL;
+	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
+	u8 *prates;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE) ==
 	    true) {
@@ -644,15 +642,15 @@ static int r8711_wx_get_name(struct net_device *dev,
 				 &ht_ielen, pcur_bss->IELength - 12);
 		if (p && ht_ielen > 0)
 			ht_cap = true;
-		prates = &pcur_bss->SupportedRates;
-		if (r8712_is_cckratesonly_included((u8 *)prates) == true) {
+		prates = pcur_bss->rates;
+		if (r8712_is_cckratesonly_included(prates) == true) {
 			if (ht_cap == true)
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11bn");
 			else
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11b");
-		} else if ((r8712_is_cckrates_included((u8 *)prates)) == true) {
+		} else if ((r8712_is_cckrates_included(prates)) == true) {
 			if (ht_cap == true)
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11bgn");
@@ -723,7 +721,7 @@ static int r8711_wx_get_freq(struct net_device *dev,
 {
 	struct _adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct ndis_wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
+	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
 		wrqu->freq.m = ieee80211_wlan_frequencies[
@@ -1111,7 +1109,7 @@ static int r8711_wx_get_wap(struct net_device *dev,
 {
 	struct _adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct ndis_wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
+	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
 
 	wrqu->ap_addr.sa_family = ARPHRD_ETHER;
 	if (check_fwstate(pmlmepriv, _FW_LINKED | WIFI_ADHOC_MASTER_STATE |
@@ -1327,7 +1325,7 @@ static int r8711_wx_get_essid(struct net_device *dev,
 {
 	struct _adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct ndis_wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
+	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
 	u32 len, ret = 0;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE)) {
@@ -1419,7 +1417,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 {
 	struct _adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct ndis_wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
+	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
 	struct ieee80211_ht_cap *pht_capie;
 	unsigned char rf_type = padapter->registrypriv.rf_config;
 	int i;
@@ -1444,9 +1442,9 @@ static int r8711_wx_get_rate(struct net_device *dev,
 				    (IEEE80211_HT_CAP_SGI_20 |
 				    IEEE80211_HT_CAP_SGI_40)) ? 1 : 0;
 		}
-		while ((pcur_bss->SupportedRates[i] != 0) &&
-			(pcur_bss->SupportedRates[i] != 0xFF)) {
-			rate = pcur_bss->SupportedRates[i] & 0x7F;
+		while ((pcur_bss->rates[i] != 0) &&
+			(pcur_bss->rates[i] != 0xFF)) {
+			rate = pcur_bss->rates[i] & 0x7F;
 			if (rate > max_rate)
 				max_rate = rate;
 			wrqu->bitrate.fixed = 0;	/* no auto select */

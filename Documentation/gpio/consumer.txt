@@ -39,6 +39,9 @@ device that displays digits), an additional index argument can be specified:
 					  const char *con_id, unsigned int idx,
 					  enum gpiod_flags flags)
 
+For a more detailed description of the con_id parameter in the DeviceTree case
+see Documentation/gpio/board.txt
+
 The flags parameter is used to optionally specify a direction and initial value
 for the GPIO. Values can be:
 
@@ -235,6 +238,39 @@ The active-low state of a GPIO can also be queried using the following call:
 
 Note that these functions should only be used with great moderation ; a driver
 should not have to care about the physical line level.
+
+
+The active-low property
+-----------------------
+
+As a driver should not have to care about the physical line level, all of the
+gpiod_set_value_xxx() or gpiod_set_array_value_xxx() functions operate with
+the *logical* value. With this they take the active-low property into account.
+This means that they check whether the GPIO is configured to be active-low,
+and if so, they manipulate the passed value before the physical line level is
+driven.
+
+With this, all the gpiod_set_(array)_value_xxx() functions interpret the
+parameter "value" as "active" ("1") or "inactive" ("0"). The physical line
+level will be driven accordingly.
+
+As an example, if the active-low property for a dedicated GPIO is set, and the
+gpiod_set_(array)_value_xxx() passes "active" ("1"), the physical line level
+will be driven low.
+
+To summarize:
+
+Function (example)               active-low proporty  physical line
+gpiod_set_raw_value(desc, 0);        don't care           low
+gpiod_set_raw_value(desc, 1);        don't care           high
+gpiod_set_value(desc, 0);       default (active-high)     low
+gpiod_set_value(desc, 1);       default (active-high)     high
+gpiod_set_value(desc, 0);             active-low          high
+gpiod_set_value(desc, 1);             active-low          low
+
+Please note again that the set_raw/get_raw functions should be avoided as much
+as possible, especially by drivers which should not care about the actual
+physical line level and worry about the logical value instead.
 
 
 Set multiple GPIO outputs with a single function call

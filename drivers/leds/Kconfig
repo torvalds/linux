@@ -43,7 +43,7 @@ config LEDS_AAT1290
 	tristate "LED support for the AAT1290"
 	depends on LEDS_CLASS_FLASH
 	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	depends on OF
 	depends on PINCTRL
 	help
@@ -170,6 +170,7 @@ config LEDS_SUNFIRE
 
 config LEDS_IPAQ_MICRO
 	tristate "LED Support for the Compaq iPAQ h3xxx"
+	depends on LEDS_CLASS
 	depends on MFD_IPAQ_MICRO
 	help
 	  Choose this option if you want to use the notification LED on
@@ -229,7 +230,7 @@ config LEDS_LP55XX_COMMON
 	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
 	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
 	select FW_LOADER
-	select FW_LOADER_USER_HELPER_FALLBACK
+	select FW_LOADER_USER_HELPER
 	help
 	  This option supports common operations for LP5521/5523/55231/5562/8501
 	  devices.
@@ -419,7 +420,7 @@ config LEDS_INTEL_SS4200
 config LEDS_LT3593
 	tristate "LED driver for LT3593 controllers"
 	depends on LEDS_CLASS
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This option enables support for LEDs driven by a Linear Technology
 	  LT3593 controller. This controller uses a special one-wire pulse
@@ -455,12 +456,16 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD || MACH_ARMADA_370
 	default y
 	help
-	  This option enable support for the dual-GPIO LED found on the
-	  Network Space v2 board (and parents). This include Internet Space v2,
-	  Network Space (Max) v2 and d2 Network v2 boards.
+	  This option enables support for the dual-GPIO LEDs found on the
+	  following LaCie/Seagate boards:
+
+		Network Space v2 (and parents: Max, Mini)
+		Internet Space v2
+		d2 Network v2
+		n090401 (Seagate NAS 4-Bay)
 
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
@@ -543,7 +548,8 @@ config LEDS_MENF21BMC
 
 config LEDS_KTD2692
 	tristate "LED support for KTD2692 flash LED controller"
-	depends on LEDS_CLASS_FLASH && GPIOLIB && OF
+	depends on LEDS_CLASS_FLASH && OF
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  This option enables support for KTD2692 LED flash connected
 	  through ExpressWire interface.
@@ -559,6 +565,17 @@ config LEDS_BLINKM
 	help
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
+
+config LEDS_POWERNV
+	tristate "LED support for PowerNV Platform"
+	depends on LEDS_CLASS
+	depends on PPC_POWERNV
+	depends on OF
+	help
+	  This option enables support for the system LEDs present on
+	  PowerNV platforms. Say 'y' to enable this support in kernel.
+	  To compile this driver as a module, choose 'm' here: the module
+	  will be called leds-powernv.
 
 config LEDS_SYSCON
 	bool "LED support for LEDs on system controllers"
@@ -577,14 +594,6 @@ config LEDS_VERSATILE
 	help
 	  This option enabled support for the LEDs on the ARM Versatile
 	  and RealView boards. Say Y to enabled these.
-
-config LEDS_PM8941_WLED
-	tristate "LED support for the Qualcomm PM8941 WLED block"
-	depends on LEDS_CLASS
-	select REGMAP
-	help
-	  This option enables support for the 'White' LED block
-	  on Qualcomm PM8941 PMICs.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

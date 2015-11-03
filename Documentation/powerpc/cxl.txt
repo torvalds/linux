@@ -133,7 +133,7 @@ User API
     The following file operations are supported on both slave and
     master devices.
 
-    A userspace library libcxl is avaliable here:
+    A userspace library libcxl is available here:
 	https://github.com/ibm-capi/libcxl
     This provides a C interface to this kernel API.
 

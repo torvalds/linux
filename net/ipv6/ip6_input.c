@@ -45,6 +45,7 @@
 #include <net/addrconf.h>
 #include <net/xfrm.h>
 #include <net/inet_ecn.h>
+#include <net/dst_metadata.h>
 
 int ip6_rcv_finish(struct sock *sk, struct sk_buff *skb)
 {
@@ -55,7 +56,7 @@ int ip6_rcv_finish(struct sock *sk, struct sk_buff *skb)
 		if (ipprot && ipprot->early_demux)
 			ipprot->early_demux(skb);
 	}
-	if (!skb_dst(skb))
+	if (!skb_valid_dst(skb))
 		ip6_route_input(skb);
 
 	return dst_input(skb);
@@ -98,7 +99,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	 * arrived via the sending interface (ethX), because of the
 	 * nature of scoping architecture. --yoshfuji
 	 */
-	IP6CB(skb)->iif = skb_dst(skb) ? ip6_dst_idev(skb_dst(skb))->dev->ifindex : dev->ifindex;
+	IP6CB(skb)->iif = skb_valid_dst(skb) ? ip6_dst_idev(skb_dst(skb))->dev->ifindex : dev->ifindex;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*hdr))))
 		goto err;

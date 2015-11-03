@@ -26,6 +26,12 @@
 
 #undef TTY_DEBUG_WAIT_UNTIL_SENT
 
+#ifdef TTY_DEBUG_WAIT_UNTIL_SENT
+# define tty_debug_wait_until_sent(tty, f, args...)    tty_debug(tty, f, ##args)
+#else
+# define tty_debug_wait_until_sent(tty, f, args...)    do {} while (0)
+#endif
+
 #undef	DEBUG
 
 /*
@@ -210,9 +216,8 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 {
-#ifdef TTY_DEBUG_WAIT_UNTIL_SENT
-	printk(KERN_DEBUG "%s wait until sent...\n", tty_name(tty));
-#endif
+	tty_debug_wait_until_sent(tty, "\n");
+
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 

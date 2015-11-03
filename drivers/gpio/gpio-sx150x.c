@@ -706,4 +706,3 @@ module_exit(sx150x_exit);
 MODULE_AUTHOR("Gregory Bean <gbean@codeaurora.org>");
 MODULE_DESCRIPTION("Driver for Semtech SX150X I2C GPIO Expanders");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("i2c:sx150x");

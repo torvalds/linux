@@ -22,15 +22,22 @@
 #include <asm/setup.h>
 
 static int l2_line_sz;
+int ioc_exists;
+volatile int slc_enable = 1, ioc_enable = 1;
 
 void (*_cache_line_loop_ic_fn)(unsigned long paddr, unsigned long vaddr,
 			       unsigned long sz, const int cacheop);
+
+void (*__dma_cache_wback_inv)(unsigned long start, unsigned long sz);
+void (*__dma_cache_inv)(unsigned long start, unsigned long sz);
+void (*__dma_cache_wback)(unsigned long start, unsigned long sz);
 
 char *arc_cache_mumbojumbo(int c, char *buf, int len)
 {
 	int n = 0;
 	struct cpuinfo_arc_cache *p;
 
+#define IS_USED_RUN(v)		((v) ? "" : "(disabled) ")
 #define PR_CACHE(p, cfg, str)						\
 	if (!(p)->ver)							\
 		n += scnprintf(buf + n, len - n, str"\t\t: N/A\n");	\
@@ -45,10 +52,18 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	PR_CACHE(&cpuinfo_arc700[c].icache, CONFIG_ARC_HAS_ICACHE, "I-Cache");
 	PR_CACHE(&cpuinfo_arc700[c].dcache, CONFIG_ARC_HAS_DCACHE, "D-Cache");
 
+	if (!is_isa_arcv2())
+                return buf;
+
 	p = &cpuinfo_arc700[c].slc;
 	if (p->ver)
 		n += scnprintf(buf + n, len - n,
-			"SLC\t\t: %uK, %uB Line\n", p->sz_k, p->line_len);
+			       "SLC\t\t: %uK, %uB Line%s\n",
+			       p->sz_k, p->line_len, IS_USED_RUN(slc_enable));
+
+	if (ioc_exists)
+		n += scnprintf(buf + n, len - n, "IOC\t\t:%s\n",
+				IS_USED_RUN(ioc_enable));
 
 	return buf;
 }
@@ -58,18 +73,9 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
  * the cpuinfo structure for later use.
  * No Validation done here, simply read/convert the BCRs
  */
-void read_decode_cache_bcr(void)
+static void read_decode_cache_bcr_arcv2(int cpu)
 {
-	struct cpuinfo_arc_cache *p_ic, *p_dc, *p_slc;
-	unsigned int cpu = smp_processor_id();
-	struct bcr_cache {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
-#else
-		unsigned int ver:8, config:4, sz:4, line_len:4, pad:12;
-#endif
-	} ibcr, dbcr;
-
+	struct cpuinfo_arc_cache *p_slc = &cpuinfo_arc700[cpu].slc;
 	struct bcr_generic sbcr;
 
 	struct bcr_slc_cfg {
@@ -79,6 +85,39 @@ void read_decode_cache_bcr(void)
 		unsigned int sz:4, lsz:2, way:2, pad:24;
 #endif
 	} slc_cfg;
+
+	struct bcr_clust_cfg {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		unsigned int pad:7, c:1, num_entries:8, num_cores:8, ver:8;
+#else
+		unsigned int ver:8, num_cores:8, num_entries:8, c:1, pad:7;
+#endif
+	} cbcr;
+
+	READ_BCR(ARC_REG_SLC_BCR, sbcr);
+	if (sbcr.ver) {
+		READ_BCR(ARC_REG_SLC_CFG, slc_cfg);
+		p_slc->ver = sbcr.ver;
+		p_slc->sz_k = 128 << slc_cfg.sz;
+		l2_line_sz = p_slc->line_len = (slc_cfg.lsz == 0) ? 128 : 64;
+	}
+
+	READ_BCR(ARC_REG_CLUSTER_BCR, cbcr);
+	if (cbcr.c && ioc_enable)
+		ioc_exists = 1;
+}
+
+void read_decode_cache_bcr(void)
+{
+	struct cpuinfo_arc_cache *p_ic, *p_dc;
+	unsigned int cpu = smp_processor_id();
+	struct bcr_cache {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
+#else
+		unsigned int ver:8, config:4, sz:4, line_len:4, pad:12;
+#endif
+	} ibcr, dbcr;
 
 	p_ic = &cpuinfo_arc700[cpu].icache;
 	READ_BCR(ARC_REG_IC_BCR, ibcr);
@@ -122,17 +161,8 @@ dc_chk:
 	p_dc->ver = dbcr.ver;
 
 slc_chk:
-	if (!is_isa_arcv2())
-		return;
-
-	p_slc = &cpuinfo_arc700[cpu].slc;
-	READ_BCR(ARC_REG_SLC_BCR, sbcr);
-	if (sbcr.ver) {
-		READ_BCR(ARC_REG_SLC_CFG, slc_cfg);
-		p_slc->ver = sbcr.ver;
-		p_slc->sz_k = 128 << slc_cfg.sz;
-		l2_line_sz = p_slc->line_len = (slc_cfg.lsz == 0) ? 128 : 64;
-	}
+	if (is_isa_arcv2())
+                read_decode_cache_bcr_arcv2(cpu);
 }
 
 /*
@@ -516,11 +546,6 @@ noinline void slc_op(unsigned long paddr, unsigned long sz, const int op)
 #endif
 }
 
-static inline int need_slc_flush(void)
-{
-	return is_isa_arcv2() && l2_line_sz;
-}
-
 /***********************************************************
  * Exported APIs
  */
@@ -569,30 +594,74 @@ void flush_dcache_page(struct page *page)
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
-void dma_cache_wback_inv(unsigned long start, unsigned long sz)
+/*
+ * DMA ops for systems with L1 cache only
+ * Make memory coherent with L1 cache by flushing/invalidating L1 lines
+ */
+static void __dma_cache_wback_inv_l1(unsigned long start, unsigned long sz)
 {
 	__dc_line_op_k(start, sz, OP_FLUSH_N_INV);
+}
 
-	if (need_slc_flush())
-		slc_op(start, sz, OP_FLUSH_N_INV);
+static void __dma_cache_inv_l1(unsigned long start, unsigned long sz)
+{
+	__dc_line_op_k(start, sz, OP_INV);
+}
+
+static void __dma_cache_wback_l1(unsigned long start, unsigned long sz)
+{
+	__dc_line_op_k(start, sz, OP_FLUSH);
+}
+
+/*
+ * DMA ops for systems with both L1 and L2 caches, but without IOC
+ * Both L1 and L2 lines need to be explicity flushed/invalidated
+ */
+static void __dma_cache_wback_inv_slc(unsigned long start, unsigned long sz)
+{
+	__dc_line_op_k(start, sz, OP_FLUSH_N_INV);
+	slc_op(start, sz, OP_FLUSH_N_INV);
+}
+
+static void __dma_cache_inv_slc(unsigned long start, unsigned long sz)
+{
+	__dc_line_op_k(start, sz, OP_INV);
+	slc_op(start, sz, OP_INV);
+}
+
+static void __dma_cache_wback_slc(unsigned long start, unsigned long sz)
+{
+	__dc_line_op_k(start, sz, OP_FLUSH);
+	slc_op(start, sz, OP_FLUSH);
+}
+
+/*
+ * DMA ops for systems with IOC
+ * IOC hardware snoops all DMA traffic keeping the caches consistent with
+ * memory - eliding need for any explicit cache maintenance of DMA buffers
+ */
+static void __dma_cache_wback_inv_ioc(unsigned long start, unsigned long sz) {}
+static void __dma_cache_inv_ioc(unsigned long start, unsigned long sz) {}
+static void __dma_cache_wback_ioc(unsigned long start, unsigned long sz) {}
+
+/*
+ * Exported DMA API
+ */
+void dma_cache_wback_inv(unsigned long start, unsigned long sz)
+{
+	__dma_cache_wback_inv(start, sz);
 }
 EXPORT_SYMBOL(dma_cache_wback_inv);
 
 void dma_cache_inv(unsigned long start, unsigned long sz)
 {
-	__dc_line_op_k(start, sz, OP_INV);
-
-	if (need_slc_flush())
-		slc_op(start, sz, OP_INV);
+	__dma_cache_inv(start, sz);
 }
 EXPORT_SYMBOL(dma_cache_inv);
 
 void dma_cache_wback(unsigned long start, unsigned long sz)
 {
-	__dc_line_op_k(start, sz, OP_FLUSH);
-
-	if (need_slc_flush())
-		slc_op(start, sz, OP_FLUSH);
+	__dma_cache_wback(start, sz);
 }
 EXPORT_SYMBOL(dma_cache_wback);
 
@@ -847,5 +916,42 @@ void arc_cache_init(void)
 			else if (!dc->alias && handled)
 				panic("Disable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
 		}
+	}
+
+	if (is_isa_arcv2() && l2_line_sz && !slc_enable) {
+
+		/* IM set : flush before invalidate */
+		write_aux_reg(ARC_REG_SLC_CTRL,
+			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_IM);
+
+		write_aux_reg(ARC_REG_SLC_INVALIDATE, 1);
+
+		/* Important to wait for flush to complete */
+		while (read_aux_reg(ARC_REG_SLC_CTRL) & SLC_CTRL_BUSY);
+		write_aux_reg(ARC_REG_SLC_CTRL,
+			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_DISABLE);
+	}
+
+	if (is_isa_arcv2() && ioc_exists) {
+		/* IO coherency base - 0x8z */
+		write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
+		/* IO coherency aperture size - 512Mb: 0x8z-0xAz */
+		write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, 0x11);
+		/* Enable partial writes */
+		write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
+		/* Enable IO coherency */
+		write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
+
+		__dma_cache_wback_inv = __dma_cache_wback_inv_ioc;
+		__dma_cache_inv = __dma_cache_inv_ioc;
+		__dma_cache_wback = __dma_cache_wback_ioc;
+	} else if (is_isa_arcv2() && l2_line_sz && slc_enable) {
+		__dma_cache_wback_inv = __dma_cache_wback_inv_slc;
+		__dma_cache_inv = __dma_cache_inv_slc;
+		__dma_cache_wback = __dma_cache_wback_slc;
+	} else {
+		__dma_cache_wback_inv = __dma_cache_wback_inv_l1;
+		__dma_cache_inv = __dma_cache_inv_l1;
+		__dma_cache_wback = __dma_cache_wback_l1;
 	}
 }

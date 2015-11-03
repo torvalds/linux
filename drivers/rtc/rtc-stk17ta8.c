@@ -254,7 +254,7 @@ static ssize_t stk17ta8_nvram_read(struct file *filp, struct kobject *kobj,
 	void __iomem *ioaddr = pdata->ioaddr;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < RTC_OFFSET; count++, size--)
+	for (count = 0; count < size; count++)
 		*buf++ = readb(ioaddr + pos++);
 	return count;
 }
@@ -269,7 +269,7 @@ static ssize_t stk17ta8_nvram_write(struct file *filp, struct kobject *kobj,
 	void __iomem *ioaddr = pdata->ioaddr;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < RTC_OFFSET; count++, size--)
+	for (count = 0; count < size; count++)
 		writeb(*buf++, ioaddr + pos++);
 	return count;
 }

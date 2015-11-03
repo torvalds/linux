@@ -131,10 +131,11 @@ xfs_mount_validate_sb(
 		if (xfs_sb_has_compat_feature(sbp,
 					XFS_SB_FEAT_COMPAT_UNKNOWN)) {
 			xfs_warn(mp,
-"Superblock has unknown compatible features (0x%x) enabled.\n"
-"Using a more recent kernel is recommended.",
+"Superblock has unknown compatible features (0x%x) enabled.",
 				(sbp->sb_features_compat &
 						XFS_SB_FEAT_COMPAT_UNKNOWN));
+			xfs_warn(mp,
+"Using a more recent kernel is recommended.");
 		}
 
 		if (xfs_sb_has_ro_compat_feature(sbp,
@@ -145,18 +146,21 @@ xfs_mount_validate_sb(
 						XFS_SB_FEAT_RO_COMPAT_UNKNOWN));
 			if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
 				xfs_warn(mp,
-"Attempted to mount read-only compatible filesystem read-write.\n"
+"Attempted to mount read-only compatible filesystem read-write.");
+				xfs_warn(mp,
 "Filesystem can only be safely mounted read only.");
+
 				return -EINVAL;
 			}
 		}
 		if (xfs_sb_has_incompat_feature(sbp,
 					XFS_SB_FEAT_INCOMPAT_UNKNOWN)) {
 			xfs_warn(mp,
-"Superblock has unknown incompatible features (0x%x) enabled.\n"
-"Filesystem can not be safely mounted by this kernel.",
+"Superblock has unknown incompatible features (0x%x) enabled.",
 				(sbp->sb_features_incompat &
 						XFS_SB_FEAT_INCOMPAT_UNKNOWN));
+			xfs_warn(mp,
+"Filesystem can not be safely mounted by this kernel.");
 			return -EINVAL;
 		}
 	}
@@ -181,9 +185,6 @@ xfs_mount_validate_sb(
 	 */
 	if (xfs_sb_version_hassparseinodes(sbp)) {
 		uint32_t	align;
-
-		xfs_alert(mp,
-	"EXPERIMENTAL sparse inode feature enabled. Use at your own risk!");
 
 		align = XFS_INODES_PER_CHUNK * sbp->sb_inodesize
 				>> sbp->sb_blocklog;
@@ -398,6 +399,14 @@ __xfs_sb_from_disk(
 	to->sb_spino_align = be32_to_cpu(from->sb_spino_align);
 	to->sb_pquotino = be64_to_cpu(from->sb_pquotino);
 	to->sb_lsn = be64_to_cpu(from->sb_lsn);
+	/*
+	 * sb_meta_uuid is only on disk if it differs from sb_uuid and the
+	 * feature flag is set; if not set we keep it only in memory.
+	 */
+	if (xfs_sb_version_hasmetauuid(to))
+		uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
+	else
+		uuid_copy(&to->sb_meta_uuid, &from->sb_uuid);
 	/* Convert on-disk flags to in-memory flags? */
 	if (convert_xquota)
 		xfs_sb_quota_from_disk(to);
@@ -539,6 +548,8 @@ xfs_sb_to_disk(
 				cpu_to_be32(from->sb_features_log_incompat);
 		to->sb_spino_align = cpu_to_be32(from->sb_spino_align);
 		to->sb_lsn = cpu_to_be64(from->sb_lsn);
+		if (xfs_sb_version_hasmetauuid(from))
+			uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
 	}
 }
 

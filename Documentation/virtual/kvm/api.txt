@@ -2671,7 +2671,7 @@ handled.
 4.87 KVM_SET_GUEST_DEBUG
 
 Capability: KVM_CAP_SET_GUEST_DEBUG
-Architectures: x86, s390, ppc
+Architectures: x86, s390, ppc, arm64
 Type: vcpu ioctl
 Parameters: struct kvm_guest_debug (in)
 Returns: 0 on success; -1 on error
@@ -2693,8 +2693,8 @@ when running. Common control bits are:
 The top 16 bits of the control field are architecture specific control
 flags which can include the following:
 
-  - KVM_GUESTDBG_USE_SW_BP:     using software breakpoints [x86]
-  - KVM_GUESTDBG_USE_HW_BP:     using hardware breakpoints [x86, s390]
+  - KVM_GUESTDBG_USE_SW_BP:     using software breakpoints [x86, arm64]
+  - KVM_GUESTDBG_USE_HW_BP:     using hardware breakpoints [x86, s390, arm64]
   - KVM_GUESTDBG_INJECT_DB:     inject DB type exception [x86]
   - KVM_GUESTDBG_INJECT_BP:     inject BP type exception [x86]
   - KVM_GUESTDBG_EXIT_PENDING:  trigger an immediate guest exit [s390]
@@ -2708,6 +2708,11 @@ updated to the correct (supplied) values.
 
 The second part of the structure is architecture specific and
 typically contains a set of debug registers.
+
+For arm64 the number of debug registers is implementation defined and
+can be determined by querying the KVM_CAP_GUEST_DEBUG_HW_BPS and
+KVM_CAP_GUEST_DEBUG_HW_WPS capabilities which return a positive number
+indicating the number of supported registers.
 
 When debug events exit the main run loop with the reason
 KVM_EXIT_DEBUG with the kvm_debug_exit_arch part of the kvm_run
@@ -3111,11 +3116,13 @@ data_offset describes where the data is located (KVM_EXIT_IO_OUT) or
 where kvm expects application code to place the data for the next
 KVM_RUN invocation (KVM_EXIT_IO_IN).  Data format is a packed array.
 
+		/* KVM_EXIT_DEBUG */
 		struct {
 			struct kvm_debug_exit_arch arch;
 		} debug;
 
-Unused.
+If the exit_reason is KVM_EXIT_DEBUG, then a vcpu is processing a debug event
+for which architecture specific information is returned.
 
 		/* KVM_EXIT_MMIO */
 		struct {
@@ -3277,6 +3284,7 @@ should put the acknowledged interrupt vector into the 'epr' field.
 		struct {
 #define KVM_SYSTEM_EVENT_SHUTDOWN       1
 #define KVM_SYSTEM_EVENT_RESET          2
+#define KVM_SYSTEM_EVENT_CRASH          3
 			__u32 type;
 			__u64 flags;
 		} system_event;
@@ -3296,6 +3304,10 @@ Valid values for 'type' are:
   KVM_SYSTEM_EVENT_RESET -- the guest has requested a reset of the VM.
    As with SHUTDOWN, userspace can choose to ignore the request, or
    to schedule the reset to occur in the future and may call KVM_RUN again.
+  KVM_SYSTEM_EVENT_CRASH -- the guest crash occurred and the guest
+   has requested a crash condition maintenance. Userspace can choose
+   to ignore the request, or to gather VM memory core dump and/or
+   reset/shutdown of the VM.
 
 		/* Fix the size of the union. */
 		char padding[256];

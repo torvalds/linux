@@ -202,7 +202,8 @@ static int get_compat_cmd(struct comedi_cmd __user *cmd,
 	err |= __get_user(temp.uint, &cmd32->stop_arg);
 	err |= __put_user(temp.uint, &cmd->stop_arg);
 	err |= __get_user(temp.uptr, &cmd32->chanlist);
-	err |= __put_user(compat_ptr(temp.uptr), &cmd->chanlist);
+	err |= __put_user((unsigned int __force *)compat_ptr(temp.uptr),
+			&cmd->chanlist);
 	err |= __get_user(temp.uint, &cmd32->chanlist_len);
 	err |= __put_user(temp.uint, &cmd->chanlist_len);
 	err |= __get_user(temp.uptr, &cmd32->data);

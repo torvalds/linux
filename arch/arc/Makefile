@@ -36,8 +36,16 @@ cflags-$(atleast_gcc44)			+= -fsection-anchors
 cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
 cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
 
+ifdef CONFIG_ISA_ARCV2
+
 ifndef CONFIG_ARC_HAS_LL64
-cflags-$(CONFIG_ISA_ARCV2)		+= -mno-ll64
+cflags-y				+= -mno-ll64
+endif
+
+ifndef CONFIG_ARC_HAS_DIV_REM
+cflags-y				+= -mno-div-rem
+endif
+
 endif
 
 cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables

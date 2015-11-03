@@ -117,7 +117,7 @@ extern unsigned char rpc_default_fiq_start, rpc_default_fiq_end;
 
 void __init rpc_init_irq(void)
 {
-	unsigned int irq, flags;
+	unsigned int irq, clr, set = 0;
 
 	iomd_writeb(0, IOMD_IRQMASKA);
 	iomd_writeb(0, IOMD_IRQMASKB);
@@ -128,37 +128,37 @@ void __init rpc_init_irq(void)
 		&rpc_default_fiq_end - &rpc_default_fiq_start);
 
 	for (irq = 0; irq < NR_IRQS; irq++) {
-		flags = IRQF_VALID;
+		clr = IRQ_NOREQUEST;
 
 		if (irq <= 6 || (irq >= 9 && irq <= 15))
-			flags |= IRQF_PROBE;
+			clr |= IRQ_NOPROBE;
 
 		if (irq == 21 || (irq >= 16 && irq <= 19) ||
 		    irq == IRQ_KEYBOARDTX)
-			flags |= IRQF_NOAUTOEN;
+			set |= IRQ_NOAUTOEN;
 
 		switch (irq) {
 		case 0 ... 7:
 			irq_set_chip_and_handler(irq, &iomd_a_chip,
 						 handle_level_irq);
-			set_irq_flags(irq, flags);
+			irq_modify_status(irq, clr, set);
 			break;
 
 		case 8 ... 15:
 			irq_set_chip_and_handler(irq, &iomd_b_chip,
 						 handle_level_irq);
-			set_irq_flags(irq, flags);
+			irq_modify_status(irq, clr, set);
 			break;
 
 		case 16 ... 21:
 			irq_set_chip_and_handler(irq, &iomd_dma_chip,
 						 handle_level_irq);
-			set_irq_flags(irq, flags);
+			irq_modify_status(irq, clr, set);
 			break;
 
 		case 64 ... 71:
 			irq_set_chip(irq, &iomd_fiq_chip);
-			set_irq_flags(irq, IRQF_VALID);
+			irq_modify_status(irq, clr, set);
 			break;
 		}
 	}

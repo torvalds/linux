@@ -64,6 +64,7 @@
 #include <linux/hugetlb.h>
 #include <linux/freezer.h>
 #include <linux/bootmem.h>
+#include <linux/fault-inject.h>
 
 #include <asm/futex.h>
 
@@ -258,6 +259,66 @@ static unsigned long __read_mostly futex_hashsize;
 
 static struct futex_hash_bucket *futex_queues;
 
+/*
+ * Fault injections for futexes.
+ */
+#ifdef CONFIG_FAIL_FUTEX
+
+static struct {
+	struct fault_attr attr;
+
+	u32 ignore_private;
+} fail_futex = {
+	.attr = FAULT_ATTR_INITIALIZER,
+	.ignore_private = 0,
+};
+
+static int __init setup_fail_futex(char *str)
+{
+	return setup_fault_attr(&fail_futex.attr, str);
+}
+__setup("fail_futex=", setup_fail_futex);
+
+static bool should_fail_futex(bool fshared)
+{
+	if (fail_futex.ignore_private && !fshared)
+		return false;
+
+	return should_fail(&fail_futex.attr, 1);
+}
+
+#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+
+static int __init fail_futex_debugfs(void)
+{
+	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+	struct dentry *dir;
+
+	dir = fault_create_debugfs_attr("fail_futex", NULL,
+					&fail_futex.attr);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
+
+	if (!debugfs_create_bool("ignore-private", mode, dir,
+				 &fail_futex.ignore_private)) {
+		debugfs_remove_recursive(dir);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+late_initcall(fail_futex_debugfs);
+
+#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+
+#else
+static inline bool should_fail_futex(bool fshared)
+{
+	return false;
+}
+#endif /* CONFIG_FAIL_FUTEX */
+
 static inline void futex_get_mm(union futex_key *key)
 {
 	atomic_inc(&key->private.mm->mm_count);
@@ -413,6 +474,9 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
 	if (unlikely(!access_ok(rw, uaddr, sizeof(u32))))
 		return -EFAULT;
 
+	if (unlikely(should_fail_futex(fshared)))
+		return -EFAULT;
+
 	/*
 	 * PROCESS_PRIVATE futexes are fast.
 	 * As the mm cannot disappear under us and the 'key' only needs
@@ -428,6 +492,10 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
 	}
 
 again:
+	/* Ignore any VERIFY_READ mapping (futex common case) */
+	if (unlikely(should_fail_futex(fshared)))
+		return -EFAULT;
+
 	err = get_user_pages_fast(address, 1, 1, &page);
 	/*
 	 * If write access is not required (eg. FUTEX_WAIT), try
@@ -516,7 +584,7 @@ again:
 		 * A RO anonymous page will never change and thus doesn't make
 		 * sense for futex operations.
 		 */
-		if (ro) {
+		if (unlikely(should_fail_futex(fshared)) || ro) {
 			err = -EFAULT;
 			goto out;
 		}
@@ -974,6 +1042,9 @@ static int lock_pi_update_atomic(u32 __user *uaddr, u32 uval, u32 newval)
 {
 	u32 uninitialized_var(curval);
 
+	if (unlikely(should_fail_futex(true)))
+		return -EFAULT;
+
 	if (unlikely(cmpxchg_futex_value_locked(&curval, uaddr, uval, newval)))
 		return -EFAULT;
 
@@ -1015,10 +1086,16 @@ static int futex_lock_pi_atomic(u32 __user *uaddr, struct futex_hash_bucket *hb,
 	if (get_futex_value_locked(&uval, uaddr))
 		return -EFAULT;
 
+	if (unlikely(should_fail_futex(true)))
+		return -EFAULT;
+
 	/*
 	 * Detect deadlocks.
 	 */
 	if ((unlikely((uval & FUTEX_TID_MASK) == vpid)))
+		return -EDEADLK;
+
+	if ((unlikely(should_fail_futex(true))))
 		return -EDEADLK;
 
 	/*
@@ -1154,6 +1231,9 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this,
 	 * owner died bit, because we are the owner.
 	 */
 	newval = FUTEX_WAITERS | task_pid_vnr(new_owner);
+
+	if (unlikely(should_fail_futex(true)))
+		ret = -EFAULT;
 
 	if (cmpxchg_futex_value_locked(&curval, uaddr, uval, newval))
 		ret = -EFAULT;
@@ -1455,6 +1535,9 @@ static int futex_proxy_trylock_atomic(u32 __user *pifutex,
 	int ret, vpid;
 
 	if (get_futex_value_locked(&curval, pifutex))
+		return -EFAULT;
+
+	if (unlikely(should_fail_futex(true)))
 		return -EFAULT;
 
 	/*
@@ -2268,8 +2351,11 @@ static long futex_wait_restart(struct restart_block *restart)
 /*
  * Userspace tried a 0 -> TID atomic transition of the futex value
  * and failed. The kernel side here does the whole locking operation:
- * if there are waiters then it will block, it does PI, etc. (Due to
- * races the kernel might see a 0 value of the futex too.)
+ * if there are waiters then it will block as a consequence of relying
+ * on rt-mutexes, it does PI, etc. (Due to races the kernel might see
+ * a 0 value of the futex too.).
+ *
+ * Also serves as futex trylock_pi()'ing, and due semantics.
  */
 static int futex_lock_pi(u32 __user *uaddr, unsigned int flags,
 			 ktime_t *time, int trylock)
@@ -2300,6 +2386,10 @@ retry_private:
 
 	ret = futex_lock_pi_atomic(uaddr, hb, &q.key, &q.pi_state, current, 0);
 	if (unlikely(ret)) {
+		/*
+		 * Atomic work succeeded and we got the lock,
+		 * or failed. Either way, we do _not_ block.
+		 */
 		switch (ret) {
 		case 1:
 			/* We got the lock. */
@@ -2530,7 +2620,7 @@ int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
  * futex_wait_requeue_pi() - Wait on uaddr and take uaddr2
  * @uaddr:	the futex we initially wait on (non-pi)
  * @flags:	futex flags (FLAGS_SHARED, FLAGS_CLOCKRT, etc.), they must be
- * 		the same type, no requeueing from private to shared, etc.
+ *		the same type, no requeueing from private to shared, etc.
  * @val:	the expected value of uaddr
  * @abs_time:	absolute timeout
  * @bitset:	32 bit wakeup bitset set by userspace, defaults to all
@@ -3005,6 +3095,8 @@ SYSCALL_DEFINE6(futex, u32 __user *, uaddr, int, op, u32, val,
 	if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_LOCK_PI ||
 		      cmd == FUTEX_WAIT_BITSET ||
 		      cmd == FUTEX_WAIT_REQUEUE_PI)) {
+		if (unlikely(should_fail_futex(!(op & FUTEX_PRIVATE_FLAG))))
+			return -EFAULT;
 		if (copy_from_user(&ts, utime, sizeof(ts)) != 0)
 			return -EFAULT;
 		if (!timespec_valid(&ts))

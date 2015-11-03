@@ -9,6 +9,7 @@
  *
  * Data sheet:
  *  http://www.meas-spec.com/downloads/MS5611-01BA03.pdf
+ *  http://www.meas-spec.com/downloads/MS5607-02BA03.pdf
  *
  */
 
@@ -50,7 +51,8 @@ static int ms5611_read_prom(struct iio_dev *indio_dev)
 	struct ms5611_state *st = iio_priv(indio_dev);
 
 	for (i = 0; i < MS5611_PROM_WORDS_NB; i++) {
-		ret = st->read_prom_word(&indio_dev->dev, i, &st->prom[i]);
+		ret = st->read_prom_word(&indio_dev->dev,
+					 i, &st->chip_info->prom[i]);
 		if (ret < 0) {
 			dev_err(&indio_dev->dev,
 				"failed to read prom at %d\n", i);
@@ -58,7 +60,7 @@ static int ms5611_read_prom(struct iio_dev *indio_dev)
 		}
 	}
 
-	if (!ms5611_prom_is_valid(st->prom, MS5611_PROM_WORDS_NB)) {
+	if (!ms5611_prom_is_valid(st->chip_info->prom, MS5611_PROM_WORDS_NB)) {
 		dev_err(&indio_dev->dev, "PROM integrity check failed\n");
 		return -ENODEV;
 	}
@@ -70,22 +72,30 @@ static int ms5611_read_temp_and_pressure(struct iio_dev *indio_dev,
 					 s32 *temp, s32 *pressure)
 {
 	int ret;
-	s32 t, p;
-	s64 off, sens, dt;
 	struct ms5611_state *st = iio_priv(indio_dev);
 
-	ret = st->read_adc_temp_and_pressure(&indio_dev->dev, &t, &p);
+	ret = st->read_adc_temp_and_pressure(&indio_dev->dev, temp, pressure);
 	if (ret < 0) {
 		dev_err(&indio_dev->dev,
 			"failed to read temperature and pressure\n");
 		return ret;
 	}
 
-	dt = t - (st->prom[5] << 8);
-	off = ((s64)st->prom[2] << 16) + ((st->prom[4] * dt) >> 7);
-	sens = ((s64)st->prom[1] << 15) + ((st->prom[3] * dt) >> 8);
+	return st->chip_info->temp_and_pressure_compensate(st->chip_info,
+							   temp, pressure);
+}
 
-	t = 2000 + ((st->prom[6] * dt) >> 23);
+static int ms5611_temp_and_pressure_compensate(struct ms5611_chip_info *chip_info,
+					       s32 *temp, s32 *pressure)
+{
+	s32 t = *temp, p = *pressure;
+	s64 off, sens, dt;
+
+	dt = t - (chip_info->prom[5] << 8);
+	off = ((s64)chip_info->prom[2] << 16) + ((chip_info->prom[4] * dt) >> 7);
+	sens = ((s64)chip_info->prom[1] << 15) + ((chip_info->prom[3] * dt) >> 8);
+
+	t = 2000 + ((chip_info->prom[6] * dt) >> 23);
 	if (t < 2000) {
 		s64 off2, sens2, t2;
 
@@ -98,6 +108,42 @@ static int ms5611_read_temp_and_pressure(struct iio_dev *indio_dev,
 
 			off2 += 7 * tmp;
 			sens2 += (11 * tmp) >> 1;
+		}
+
+		t -= t2;
+		off -= off2;
+		sens -= sens2;
+	}
+
+	*temp = t;
+	*pressure = (((p * sens) >> 21) - off) >> 15;
+
+	return 0;
+}
+
+static int ms5607_temp_and_pressure_compensate(struct ms5611_chip_info *chip_info,
+					       s32 *temp, s32 *pressure)
+{
+	s32 t = *temp, p = *pressure;
+	s64 off, sens, dt;
+
+	dt = t - (chip_info->prom[5] << 8);
+	off = ((s64)chip_info->prom[2] << 17) + ((chip_info->prom[4] * dt) >> 6);
+	sens = ((s64)chip_info->prom[1] << 16) + ((chip_info->prom[3] * dt) >> 7);
+
+	t = 2000 + ((chip_info->prom[6] * dt) >> 23);
+	if (t < 2000) {
+		s64 off2, sens2, t2;
+
+		t2 = (dt * dt) >> 31;
+		off2 = (61 * (t - 2000) * (t - 2000)) >> 4;
+		sens2 = off2 << 1;
+
+		if (t < -1500) {
+			s64 tmp = (t + 1500) * (t + 1500);
+
+			off2 += 15 * tmp;
+			sens2 += (8 * tmp);
 		}
 
 		t -= t2;
@@ -160,16 +206,23 @@ static int ms5611_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static struct ms5611_chip_info chip_info_tbl[] = {
+	[MS5611] = {
+		.temp_and_pressure_compensate = ms5611_temp_and_pressure_compensate,
+	},
+	[MS5607] = {
+		.temp_and_pressure_compensate = ms5607_temp_and_pressure_compensate,
+	}
+};
+
 static const struct iio_chan_spec ms5611_channels[] = {
 	{
 		.type = IIO_PRESSURE,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
-			BIT(IIO_CHAN_INFO_SCALE)
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
 	},
 	{
 		.type = IIO_TEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
-			BIT(IIO_CHAN_INFO_SCALE)
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
 	}
 };
 
@@ -189,12 +242,13 @@ static int ms5611_init(struct iio_dev *indio_dev)
 	return ms5611_read_prom(indio_dev);
 }
 
-int ms5611_probe(struct iio_dev *indio_dev, struct device *dev)
+int ms5611_probe(struct iio_dev *indio_dev, struct device *dev, int type)
 {
 	int ret;
 	struct ms5611_state *st = iio_priv(indio_dev);
 
 	mutex_init(&st->lock);
+	st->chip_info = &chip_info_tbl[type];
 	indio_dev->dev.parent = dev;
 	indio_dev->name = dev->driver->name;
 	indio_dev->info = &ms5611_info;

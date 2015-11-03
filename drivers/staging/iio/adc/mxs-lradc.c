@@ -1,5 +1,5 @@
 /*
- * Freescale i.MX28 LRADC driver
+ * Freescale MXS LRADC driver
  *
  * Copyright (c) 2012 DENX Software Engineering, GmbH.
  * Marek Vasut <marex@denx.de>
@@ -15,34 +15,30 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/err.h>
-#include <linux/interrupt.h>
+#include <linux/bitops.h>
+#include <linux/clk.h>
+#include <linux/completion.h>
 #include <linux/device.h>
+#include <linux/err.h>
+#include <linux/input.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
-#include <linux/io.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/wait.h>
-#include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/stmp_device.h>
-#include <linux/bitops.h>
-#include <linux/completion.h>
-#include <linux/delay.h>
-#include <linux/input.h>
-#include <linux/clk.h>
+#include <linux/sysfs.h>
 
-#include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/iio/sysfs.h>
 
 #define DRIVER_NAME		"mxs-lradc"
 
@@ -65,14 +61,14 @@
  * Once the pen touches the touchscreen, the touchscreen switches from
  * IRQ-driven mode to polling mode to prevent interrupt storm. The polling
  * is realized by worker thread, which is called every 20 or so milliseconds.
- * This gives the touchscreen enough fluence and does not strain the system
+ * This gives the touchscreen enough fluency and does not strain the system
  * too much.
  */
 #define LRADC_TS_SAMPLE_DELAY_MS	5
 
 /*
  * The LRADC reads the following amount of samples from each touchscreen
- * channel and the driver then computes avarage of these.
+ * channel and the driver then computes average of these.
  */
 #define LRADC_TS_SAMPLE_AMOUNT		4
 
@@ -238,7 +234,7 @@ struct mxs_lradc {
 	 * CH5 -- Touch screen YNLR
 	 * CH6 -- Touch screen WIPER (5-wire only)
 	 *
-	 * The bitfields below represents which parts of the LRADC block are
+	 * The bit fields below represents which parts of the LRADC block are
 	 * switched into special mode of operation. These channels can not
 	 * be sampled as regular LRADC channels. The driver will refuse any
 	 * attempt to sample these channels.
@@ -252,7 +248,7 @@ struct mxs_lradc {
 	struct input_dev	*ts_input;
 
 	enum mxs_lradc_id	soc;
-	enum lradc_ts_plate	cur_plate; /* statemachine */
+	enum lradc_ts_plate	cur_plate; /* state machine */
 	bool			ts_valid;
 	unsigned		ts_x_pos;
 	unsigned		ts_y_pos;
@@ -812,7 +808,7 @@ static int mxs_lradc_read_single(struct iio_dev *iio_dev, int chan, int *val)
 	int ret;
 
 	/*
-	 * See if there is no buffered operation in progess. If there is, simply
+	 * See if there is no buffered operation in progress. If there is, simply
 	 * bail out. This can be improved to support both buffered and raw IO at
 	 * the same time, yet the code becomes horribly complicated. Therefore I
 	 * applied KISS principle here.
@@ -1369,7 +1365,7 @@ static const struct iio_buffer_setup_ops mxs_lradc_buffer_ops = {
  * Driver initialization
  */
 
-#define MXS_ADC_CHAN(idx, chan_type) {				\
+#define MXS_ADC_CHAN(idx, chan_type, name) {			\
 	.type = (chan_type),					\
 	.indexed = 1,						\
 	.scan_index = (idx),					\
@@ -1382,17 +1378,18 @@ static const struct iio_buffer_setup_ops mxs_lradc_buffer_ops = {
 		.realbits = LRADC_RESOLUTION,			\
 		.storagebits = 32,				\
 	},							\
+	.datasheet_name = (name),				\
 }
 
-static const struct iio_chan_spec mxs_lradc_chan_spec[] = {
-	MXS_ADC_CHAN(0, IIO_VOLTAGE),
-	MXS_ADC_CHAN(1, IIO_VOLTAGE),
-	MXS_ADC_CHAN(2, IIO_VOLTAGE),
-	MXS_ADC_CHAN(3, IIO_VOLTAGE),
-	MXS_ADC_CHAN(4, IIO_VOLTAGE),
-	MXS_ADC_CHAN(5, IIO_VOLTAGE),
-	MXS_ADC_CHAN(6, IIO_VOLTAGE),
-	MXS_ADC_CHAN(7, IIO_VOLTAGE),	/* VBATT */
+static const struct iio_chan_spec mx23_lradc_chan_spec[] = {
+	MXS_ADC_CHAN(0, IIO_VOLTAGE, "LRADC0"),
+	MXS_ADC_CHAN(1, IIO_VOLTAGE, "LRADC1"),
+	MXS_ADC_CHAN(2, IIO_VOLTAGE, "LRADC2"),
+	MXS_ADC_CHAN(3, IIO_VOLTAGE, "LRADC3"),
+	MXS_ADC_CHAN(4, IIO_VOLTAGE, "LRADC4"),
+	MXS_ADC_CHAN(5, IIO_VOLTAGE, "LRADC5"),
+	MXS_ADC_CHAN(6, IIO_VOLTAGE, "VDDIO"),
+	MXS_ADC_CHAN(7, IIO_VOLTAGE, "VBATT"),
 	/* Combined Temperature sensors */
 	{
 		.type = IIO_TEMP,
@@ -1403,6 +1400,7 @@ static const struct iio_chan_spec mxs_lradc_chan_spec[] = {
 				      BIT(IIO_CHAN_INFO_SCALE),
 		.channel = 8,
 		.scan_type = {.sign = 'u', .realbits = 18, .storagebits = 32,},
+		.datasheet_name = "TEMP_DIE",
 	},
 	/* Hidden channel to keep indexes */
 	{
@@ -1411,12 +1409,48 @@ static const struct iio_chan_spec mxs_lradc_chan_spec[] = {
 		.scan_index = -1,
 		.channel = 9,
 	},
-	MXS_ADC_CHAN(10, IIO_VOLTAGE),	/* VDDIO */
-	MXS_ADC_CHAN(11, IIO_VOLTAGE),	/* VTH */
-	MXS_ADC_CHAN(12, IIO_VOLTAGE),	/* VDDA */
-	MXS_ADC_CHAN(13, IIO_VOLTAGE),	/* VDDD */
-	MXS_ADC_CHAN(14, IIO_VOLTAGE),	/* VBG */
-	MXS_ADC_CHAN(15, IIO_VOLTAGE),	/* VDD5V */
+	MXS_ADC_CHAN(10, IIO_VOLTAGE, NULL),
+	MXS_ADC_CHAN(11, IIO_VOLTAGE, NULL),
+	MXS_ADC_CHAN(12, IIO_VOLTAGE, "USB_DP"),
+	MXS_ADC_CHAN(13, IIO_VOLTAGE, "USB_DN"),
+	MXS_ADC_CHAN(14, IIO_VOLTAGE, "VBG"),
+	MXS_ADC_CHAN(15, IIO_VOLTAGE, "VDD5V"),
+};
+
+static const struct iio_chan_spec mx28_lradc_chan_spec[] = {
+	MXS_ADC_CHAN(0, IIO_VOLTAGE, "LRADC0"),
+	MXS_ADC_CHAN(1, IIO_VOLTAGE, "LRADC1"),
+	MXS_ADC_CHAN(2, IIO_VOLTAGE, "LRADC2"),
+	MXS_ADC_CHAN(3, IIO_VOLTAGE, "LRADC3"),
+	MXS_ADC_CHAN(4, IIO_VOLTAGE, "LRADC4"),
+	MXS_ADC_CHAN(5, IIO_VOLTAGE, "LRADC5"),
+	MXS_ADC_CHAN(6, IIO_VOLTAGE, "LRADC6"),
+	MXS_ADC_CHAN(7, IIO_VOLTAGE, "VBATT"),
+	/* Combined Temperature sensors */
+	{
+		.type = IIO_TEMP,
+		.indexed = 1,
+		.scan_index = 8,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				      BIT(IIO_CHAN_INFO_OFFSET) |
+				      BIT(IIO_CHAN_INFO_SCALE),
+		.channel = 8,
+		.scan_type = {.sign = 'u', .realbits = 18, .storagebits = 32,},
+		.datasheet_name = "TEMP_DIE",
+	},
+	/* Hidden channel to keep indexes */
+	{
+		.type = IIO_TEMP,
+		.indexed = 1,
+		.scan_index = -1,
+		.channel = 9,
+	},
+	MXS_ADC_CHAN(10, IIO_VOLTAGE, "VDDIO"),
+	MXS_ADC_CHAN(11, IIO_VOLTAGE, "VTH"),
+	MXS_ADC_CHAN(12, IIO_VOLTAGE, "VDDA"),
+	MXS_ADC_CHAN(13, IIO_VOLTAGE, "VDDD"),
+	MXS_ADC_CHAN(14, IIO_VOLTAGE, "VBG"),
+	MXS_ADC_CHAN(15, IIO_VOLTAGE, "VDD5V"),
 };
 
 static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
@@ -1612,9 +1646,15 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	iio->dev.parent = &pdev->dev;
 	iio->info = &mxs_lradc_iio_info;
 	iio->modes = INDIO_DIRECT_MODE;
-	iio->channels = mxs_lradc_chan_spec;
-	iio->num_channels = ARRAY_SIZE(mxs_lradc_chan_spec);
 	iio->masklength = LRADC_MAX_TOTAL_CHANS;
+
+	if (lradc->soc == IMX23_LRADC) {
+		iio->channels = mx23_lradc_chan_spec;
+		iio->num_channels = ARRAY_SIZE(mx23_lradc_chan_spec);
+	} else {
+		iio->channels = mx28_lradc_chan_spec;
+		iio->num_channels = ARRAY_SIZE(mx28_lradc_chan_spec);
+	}
 
 	ret = iio_triggered_buffer_setup(iio, &iio_pollfunc_store_time,
 				&mxs_lradc_trigger_handler,
@@ -1707,6 +1747,6 @@ static struct platform_driver mxs_lradc_driver = {
 module_platform_driver(mxs_lradc_driver);
 
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
-MODULE_DESCRIPTION("Freescale i.MX28 LRADC driver");
+MODULE_DESCRIPTION("Freescale MXS LRADC driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRIVER_NAME);

@@ -32,6 +32,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <rdma/ib_smi.h>
 
 #include "qib.h"
 #include "qib_mad.h"

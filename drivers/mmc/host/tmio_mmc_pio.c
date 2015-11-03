@@ -83,6 +83,8 @@ static int tmio_mmc_next_sg(struct tmio_mmc_host *host)
 	return --host->sg_len;
 }
 
+#define CMDREQ_TIMEOUT	5000
+
 #ifdef CONFIG_MMC_DEBUG
 
 #define STATUS_TO_TEXT(a, status, i) \
@@ -230,7 +232,7 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 	 */
 	if (IS_ERR_OR_NULL(mrq)
 	    || time_is_after_jiffies(host->last_req_ts +
-		msecs_to_jiffies(2000))) {
+		msecs_to_jiffies(CMDREQ_TIMEOUT))) {
 		spin_unlock_irqrestore(&host->lock, flags);
 		return;
 	}
@@ -818,7 +820,7 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	ret = tmio_mmc_start_command(host, mrq->cmd);
 	if (!ret) {
 		schedule_delayed_work(&host->delayed_reset_work,
-				      msecs_to_jiffies(2000));
+				      msecs_to_jiffies(CMDREQ_TIMEOUT));
 		return;
 	}
 

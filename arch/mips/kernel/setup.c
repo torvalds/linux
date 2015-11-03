@@ -338,7 +338,7 @@ static void __init bootmem_init(void)
 		if (end <= reserved_end)
 			continue;
 #ifdef CONFIG_BLK_DEV_INITRD
-		/* mapstart should be after initrd_end */
+		/* Skip zones before initrd and initrd itself */
 		if (initrd_end && end <= (unsigned long)PFN_UP(__pa(initrd_end)))
 			continue;
 #endif
@@ -370,6 +370,14 @@ static void __init bootmem_init(void)
 #endif
 		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 	}
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	/*
+	 * mapstart should be after initrd_end
+	 */
+	if (initrd_end)
+		mapstart = max(mapstart, (unsigned long)PFN_UP(__pa(initrd_end)));
+#endif
 
 	/*
 	 * Initialize the boot-time allocator with low memory only.
@@ -476,7 +484,7 @@ static void __init bootmem_init(void)
  *  o bootmem_init()
  *  o sparse_init()
  *  o paging_init()
- *  o dma_continguous_reserve()
+ *  o dma_contiguous_reserve()
  *
  * At this stage the bootmem allocator is ready to use.
  *

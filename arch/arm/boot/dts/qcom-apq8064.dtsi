@@ -6,7 +6,6 @@
 #include <dt-bindings/clock/qcom,mmcc-msm8960.h>
 #include <dt-bindings/soc/qcom,gsbi.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-
 / {
 	model = "Qualcomm APQ8064";
 	compatible = "qcom,apq8064";
@@ -127,6 +126,13 @@
 					function = "gsbi3";
 				};
 			};
+
+			uart_pins: uart_pins {
+				mux {
+					pins = "gpio14", "gpio15", "gpio16", "gpio17";
+					function = "gsbi6";
+				};
+			};
 		};
 
 		intc: interrupt-controller@2000000 {
@@ -243,13 +249,13 @@
 		gsbi3: gsbi@16200000 {
 			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <3>;
 			reg = <0x16200000 0x100>;
 			clocks = <&gcc GSBI3_H_CLK>;
 			clock-names = "iface";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-
 			i2c3: i2c@16280000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				reg = <0x16280000 0x1000>;
@@ -257,6 +263,28 @@
 				clocks = <&gcc GSBI3_QUP_CLK>,
 					 <&gcc GSBI3_H_CLK>;
 				clock-names = "core", "iface";
+			};
+		};
+
+		gsbi6: gsbi@16500000 {
+			status = "disabled";
+			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <6>;
+			reg = <0x16500000 0x03>;
+			clocks = <&gcc GSBI6_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			gsbi6_serial: serial@16540000 {
+				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+				reg = <0x16540000 0x100>,
+				      <0x16500000 0x03>;
+				interrupts = <0 156 0x0>;
+				clocks = <&gcc GSBI6_UART_CLK>, <&gcc GSBI6_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
 			};
 		};
 
@@ -287,6 +315,53 @@
 			compatible = "qcom,ssbi";
 			reg = <0x00500000 0x1000>;
 			qcom,controller-type = "pmic-arbiter";
+
+			pmicintc: pmic@0 {
+				compatible = "qcom,pm8921";
+				interrupt-parent = <&tlmm_pinmux>;
+				interrupts = <74 8>;
+				#interrupt-cells = <2>;
+				interrupt-controller;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pm8921_gpio: gpio@150 {
+
+					compatible = "qcom,pm8921-gpio";
+					reg = <0x150>;
+					interrupts = <192 1>, <193 1>, <194 1>,
+						     <195 1>, <196 1>, <197 1>,
+						     <198 1>, <199 1>, <200 1>,
+						     <201 1>, <202 1>, <203 1>,
+						     <204 1>, <205 1>, <206 1>,
+						     <207 1>, <208 1>, <209 1>,
+						     <210 1>, <211 1>, <212 1>,
+						     <213 1>, <214 1>, <215 1>,
+						     <216 1>, <217 1>, <218 1>,
+						     <219 1>, <220 1>, <221 1>,
+						     <222 1>, <223 1>, <224 1>,
+						     <225 1>, <226 1>, <227 1>,
+						     <228 1>, <229 1>, <230 1>,
+						     <231 1>, <232 1>, <233 1>,
+						     <234 1>, <235 1>;
+
+					gpio-controller;
+					#gpio-cells = <2>;
+
+				};
+
+				pm8921_mpps: mpps@50 {
+					compatible = "qcom,pm8921-mpp";
+					reg = <0x50>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupts =
+					<128 1>, <129 1>, <130 1>, <131 1>,
+					<132 1>, <133 1>, <134 1>, <135 1>,
+					<136 1>, <137 1>, <138 1>, <139 1>;
+				};
+
+			};
 		};
 
 		gcc: clock-controller@900000 {
@@ -448,14 +523,6 @@
 		};
 
 		/* Temporary fixed regulator */
-		vsdcc_fixed: vsdcc-regulator {
-			compatible = "regulator-fixed";
-			regulator-name = "SDCC Power";
-			regulator-min-microvolt = <2700000>;
-			regulator-max-microvolt = <2700000>;
-			regulator-always-on;
-		};
-
 		sdcc1bam:dma@12402000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12402000 0x8000>;
@@ -505,7 +572,6 @@
 				non-removable;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
-				vmmc-supply = <&vsdcc_fixed>;
 				dmas = <&sdcc1bam 2>, <&sdcc1bam 1>;
 				dma-names = "tx", "rx";
 			};
@@ -524,7 +590,6 @@
 				cap-mmc-highspeed;
 				max-frequency	= <192000000>;
 				no-1-8-v;
-				vmmc-supply = <&vsdcc_fixed>;
 				dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
 				dma-names = "tx", "rx";
 			};
@@ -542,8 +607,6 @@
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 				max-frequency	= <48000000>;
-				vmmc-supply = <&vsdcc_fixed>;
-				vqmmc-supply = <&vsdcc_fixed>;
 				dmas = <&sdcc4bam 2>, <&sdcc4bam 1>;
 				dma-names = "tx", "rx";
 				pinctrl-names = "default";

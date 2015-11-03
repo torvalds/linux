@@ -19,7 +19,6 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/key.h>
-#include <linux/key.h>
 #include <linux/list.h>
 #include <linux/mempool.h>
 #include <linux/random.h>
@@ -328,6 +327,10 @@ int _ext4_fname_disk_to_usr(struct inode *inode,
 			oname->len = iname->len;
 			return oname->len;
 		}
+	}
+	if (iname->len < EXT4_CRYPTO_BLOCK_SIZE) {
+		EXT4_ERROR_INODE(inode, "encrypted inode too small");
+		return -EUCLEAN;
 	}
 	if (EXT4_I(inode)->i_crypt_info)
 		return ext4_fname_decrypt(inode, iname, oname);

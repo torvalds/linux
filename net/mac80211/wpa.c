@@ -516,30 +516,33 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx,
 			return RX_DROP_UNUSABLE;
 	}
 
-	ccmp_hdr2pn(pn, skb->data + hdrlen);
+	if (!(status->flag & RX_FLAG_PN_VALIDATED)) {
+		ccmp_hdr2pn(pn, skb->data + hdrlen);
 
-	queue = rx->security_idx;
+		queue = rx->security_idx;
 
-	if (memcmp(pn, key->u.ccmp.rx_pn[queue], IEEE80211_CCMP_PN_LEN) <= 0) {
-		key->u.ccmp.replays++;
-		return RX_DROP_UNUSABLE;
-	}
-
-	if (!(status->flag & RX_FLAG_DECRYPTED)) {
-		u8 aad[2 * AES_BLOCK_SIZE];
-		u8 b_0[AES_BLOCK_SIZE];
-		/* hardware didn't decrypt/verify MIC */
-		ccmp_special_blocks(skb, pn, b_0, aad);
-
-		if (ieee80211_aes_ccm_decrypt(
-			    key->u.ccmp.tfm, b_0, aad,
-			    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN,
-			    data_len,
-			    skb->data + skb->len - mic_len, mic_len))
+		if (memcmp(pn, key->u.ccmp.rx_pn[queue],
+			   IEEE80211_CCMP_PN_LEN) <= 0) {
+			key->u.ccmp.replays++;
 			return RX_DROP_UNUSABLE;
-	}
+		}
 
-	memcpy(key->u.ccmp.rx_pn[queue], pn, IEEE80211_CCMP_PN_LEN);
+		if (!(status->flag & RX_FLAG_DECRYPTED)) {
+			u8 aad[2 * AES_BLOCK_SIZE];
+			u8 b_0[AES_BLOCK_SIZE];
+			/* hardware didn't decrypt/verify MIC */
+			ccmp_special_blocks(skb, pn, b_0, aad);
+
+			if (ieee80211_aes_ccm_decrypt(
+				    key->u.ccmp.tfm, b_0, aad,
+				    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN,
+				    data_len,
+				    skb->data + skb->len - mic_len, mic_len))
+				return RX_DROP_UNUSABLE;
+		}
+
+		memcpy(key->u.ccmp.rx_pn[queue], pn, IEEE80211_CCMP_PN_LEN);
+	}
 
 	/* Remove CCMP header and MIC */
 	if (pskb_trim(skb, skb->len - mic_len))
@@ -739,30 +742,34 @@ ieee80211_crypto_gcmp_decrypt(struct ieee80211_rx_data *rx)
 			return RX_DROP_UNUSABLE;
 	}
 
-	gcmp_hdr2pn(pn, skb->data + hdrlen);
+	if (!(status->flag & RX_FLAG_PN_VALIDATED)) {
+		gcmp_hdr2pn(pn, skb->data + hdrlen);
 
-	queue = rx->security_idx;
+		queue = rx->security_idx;
 
-	if (memcmp(pn, key->u.gcmp.rx_pn[queue], IEEE80211_GCMP_PN_LEN) <= 0) {
-		key->u.gcmp.replays++;
-		return RX_DROP_UNUSABLE;
-	}
-
-	if (!(status->flag & RX_FLAG_DECRYPTED)) {
-		u8 aad[2 * AES_BLOCK_SIZE];
-		u8 j_0[AES_BLOCK_SIZE];
-		/* hardware didn't decrypt/verify MIC */
-		gcmp_special_blocks(skb, pn, j_0, aad);
-
-		if (ieee80211_aes_gcm_decrypt(
-			    key->u.gcmp.tfm, j_0, aad,
-			    skb->data + hdrlen + IEEE80211_GCMP_HDR_LEN,
-			    data_len,
-			    skb->data + skb->len - IEEE80211_GCMP_MIC_LEN))
+		if (memcmp(pn, key->u.gcmp.rx_pn[queue],
+			   IEEE80211_GCMP_PN_LEN) <= 0) {
+			key->u.gcmp.replays++;
 			return RX_DROP_UNUSABLE;
-	}
+		}
 
-	memcpy(key->u.gcmp.rx_pn[queue], pn, IEEE80211_GCMP_PN_LEN);
+		if (!(status->flag & RX_FLAG_DECRYPTED)) {
+			u8 aad[2 * AES_BLOCK_SIZE];
+			u8 j_0[AES_BLOCK_SIZE];
+			/* hardware didn't decrypt/verify MIC */
+			gcmp_special_blocks(skb, pn, j_0, aad);
+
+			if (ieee80211_aes_gcm_decrypt(
+				    key->u.gcmp.tfm, j_0, aad,
+				    skb->data + hdrlen + IEEE80211_GCMP_HDR_LEN,
+				    data_len,
+				    skb->data + skb->len -
+				    IEEE80211_GCMP_MIC_LEN))
+				return RX_DROP_UNUSABLE;
+		}
+
+		memcpy(key->u.gcmp.rx_pn[queue], pn, IEEE80211_GCMP_PN_LEN);
+	}
 
 	/* Remove GCMP header and MIC */
 	if (pskb_trim(skb, skb->len - IEEE80211_GCMP_MIC_LEN))

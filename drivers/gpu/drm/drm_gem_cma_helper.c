@@ -289,20 +289,15 @@ int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
 {
 	struct drm_gem_object *gem_obj;
 
-	mutex_lock(&drm->struct_mutex);
-
 	gem_obj = drm_gem_object_lookup(drm, file_priv, handle);
 	if (!gem_obj) {
 		dev_err(drm->dev, "failed to lookup GEM object\n");
-		mutex_unlock(&drm->struct_mutex);
 		return -EINVAL;
 	}
 
 	*offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
 
-	drm_gem_object_unreference(gem_obj);
-
-	mutex_unlock(&drm->struct_mutex);
+	drm_gem_object_unreference_unlocked(gem_obj);
 
 	return 0;
 }
@@ -381,10 +376,7 @@ void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj,
 			  struct seq_file *m)
 {
 	struct drm_gem_object *obj = &cma_obj->base;
-	struct drm_device *dev = obj->dev;
 	uint64_t off;
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	off = drm_vma_node_start(&obj->vma_node);
 

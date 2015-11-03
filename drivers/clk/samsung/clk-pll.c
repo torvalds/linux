@@ -12,6 +12,8 @@
 #include <linux/errno.h>
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
+#include <linux/clkdev.h>
 #include "clk.h"
 #include "clk-pll.h"
 
@@ -180,7 +182,7 @@ static int samsung_pll35xx_set_rate(struct clk_hw *hw, unsigned long drate,
 	rate = samsung_get_pll_settings(pll, drate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
-			drate, __clk_get_name(hw->clk));
+			drate, clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -288,7 +290,7 @@ static int samsung_pll36xx_set_rate(struct clk_hw *hw, unsigned long drate,
 	rate = samsung_get_pll_settings(pll, drate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
-			drate, __clk_get_name(hw->clk));
+			drate, clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -403,7 +405,7 @@ static int samsung_pll45xx_set_rate(struct clk_hw *hw, unsigned long drate,
 	rate = samsung_get_pll_settings(pll, drate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
-			drate, __clk_get_name(hw->clk));
+			drate, clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -455,7 +457,7 @@ static int samsung_pll45xx_set_rate(struct clk_hw *hw, unsigned long drate,
 
 		if (ktime_to_ms(delta) > PLL_TIMEOUT_MS) {
 			pr_err("%s: could not lock PLL %s\n",
-					__func__, __clk_get_name(hw->clk));
+					__func__, clk_hw_get_name(hw));
 			return -EFAULT;
 		}
 
@@ -554,7 +556,7 @@ static int samsung_pll46xx_set_rate(struct clk_hw *hw, unsigned long drate,
 	rate = samsung_get_pll_settings(pll, drate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
-			drate, __clk_get_name(hw->clk));
+			drate, clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -614,7 +616,7 @@ static int samsung_pll46xx_set_rate(struct clk_hw *hw, unsigned long drate,
 
 		if (ktime_to_ms(delta) > PLL_TIMEOUT_MS) {
 			pr_err("%s: could not lock PLL %s\n",
-					__func__, __clk_get_name(hw->clk));
+					__func__, clk_hw_get_name(hw));
 			return -EFAULT;
 		}
 
@@ -772,7 +774,7 @@ static int samsung_s3c2410_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	rate = samsung_get_pll_settings(pll, drate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
-			drate, __clk_get_name(hw->clk));
+			drate, clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -1013,7 +1015,7 @@ static int samsung_pll2550xx_set_rate(struct clk_hw *hw, unsigned long drate,
 	rate = samsung_get_pll_settings(pll, drate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
-			drate, __clk_get_name(hw->clk));
+			drate, clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -1111,7 +1113,7 @@ static int samsung_pll2650xx_set_rate(struct clk_hw *hw, unsigned long drate,
 	rate = samsung_get_pll_settings(pll, drate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
-			drate, __clk_get_name(hw->clk));
+			drate, clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 

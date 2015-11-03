@@ -985,3 +985,12 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs
 
 	return -1;
 }
+
+bool arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,
+				struct pt_regs *regs)
+{
+	if (ctx == RP_CHECK_CALL) /* sp was just decremented by "call" insn */
+		return regs->sp < ret->stack;
+	else
+		return regs->sp <= ret->stack;
+}

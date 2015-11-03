@@ -83,9 +83,9 @@ static int syscon_led_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	map = syscon_node_to_regmap(parent->of_node);
-	if (!map) {
+	if (IS_ERR(map)) {
 		dev_err(dev, "no regmap for syscon LED parent\n");
-		return -ENODEV;
+		return PTR_ERR(map);
 	}
 
 	sled = devm_kzalloc(dev, sizeof(*sled), GFP_KERNEL);

@@ -641,6 +641,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			IWL_UCODE_TLV_CAPA_TDLS_SUPPORT)) {
 		IWL_DEBUG_TDLS(mvm, "TDLS supported\n");
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+		ieee80211_hw_set(hw, TDLS_WIDER_BW);
 	}
 
 	if (fw_has_capa(&mvm->fw->ucode_capa,
@@ -648,6 +649,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		IWL_DEBUG_TDLS(mvm, "TDLS channel switch supported\n");
 		hw->wiphy->features |= NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
 	}
+
+	hw->netdev_features |= mvm->cfg->features;
+	if (!iwl_mvm_is_csum_supported(mvm))
+		hw->netdev_features &= ~NETIF_F_RXCSUM;
 
 	ret = ieee80211_register_hw(mvm->hw);
 	if (ret)
@@ -1120,8 +1125,13 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	u32 file_len, fifo_data_len = 0;
 	u32 smem_len = mvm->cfg->smem_len;
 	u32 sram2_len = mvm->cfg->dccm2_len;
+	bool monitor_dump_only = false;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (mvm->fw_dump_trig &&
+	    mvm->fw_dump_trig->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY)
+		monitor_dump_only = true;
 
 	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
 	if (!fw_error_dump)
@@ -1174,6 +1184,20 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		   fifo_data_len +
 		   sizeof(*dump_info);
 
+	/* Make room for the SMEM, if it exists */
+	if (smem_len)
+		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + smem_len;
+
+	/* Make room for the secondary SRAM, if it exists */
+	if (sram2_len)
+		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + sram2_len;
+
+	/* If we only want a monitor dump, reset the file length */
+	if (monitor_dump_only) {
+		file_len = sizeof(*dump_file) + sizeof(*dump_data) +
+			   sizeof(*dump_info);
+	}
+
 	/*
 	 * In 8000 HW family B-step include the ICCM (which resides separately)
 	 */
@@ -1185,14 +1209,6 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (mvm->fw_dump_desc)
 		file_len += sizeof(*dump_data) + sizeof(*dump_trig) +
 			    mvm->fw_dump_desc->len;
-
-	/* Make room for the SMEM, if it exists */
-	if (smem_len)
-		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + smem_len;
-
-	/* Make room for the secondary SRAM, if it exists */
-	if (sram2_len)
-		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + sram2_len;
 
 	dump_file = vzalloc(file_len);
 	if (!dump_file) {
@@ -1239,6 +1255,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
+	/* In case we only want monitor dump, skip to dump trasport data */
+	if (monitor_dump_only)
+		goto dump_trans_data;
+
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
 	dump_data->len = cpu_to_le32(sram_len + sizeof(*dump_mem));
 	dump_mem = (void *)dump_data->data;
@@ -1282,7 +1302,9 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 					 dump_mem->data, IWL8260_ICCM_LEN);
 	}
 
-	fw_error_dump->trans_ptr = iwl_trans_dump_data(mvm->trans);
+dump_trans_data:
+	fw_error_dump->trans_ptr = iwl_trans_dump_data(mvm->trans,
+						       mvm->fw_dump_trig);
 	fw_error_dump->op_mode_len = file_len;
 	if (fw_error_dump->trans_ptr)
 		file_len += fw_error_dump->trans_ptr->len;
@@ -1291,6 +1313,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	dev_coredumpm(mvm->trans->dev, THIS_MODULE, fw_error_dump, 0,
 		      GFP_KERNEL, iwl_mvm_read_coredump, iwl_mvm_free_coredump);
 
+	mvm->fw_dump_trig = NULL;
 	clear_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status);
 }
 
@@ -1433,21 +1456,8 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 
 static void iwl_mvm_resume_complete(struct iwl_mvm *mvm)
 {
-	bool exit_now;
-
 	if (!iwl_mvm_is_d0i3_supported(mvm))
 		return;
-
-	mutex_lock(&mvm->d0i3_suspend_mutex);
-	__clear_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
-	exit_now = __test_and_clear_bit(D0I3_PENDING_WAKEUP,
-					&mvm->d0i3_suspend_flags);
-	mutex_unlock(&mvm->d0i3_suspend_mutex);
-
-	if (exit_now) {
-		IWL_DEBUG_RPM(mvm, "Run deferred d0i3 exit\n");
-		_iwl_mvm_exit_d0i3(mvm);
-	}
 
 	if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND)
 		if (!wait_event_timeout(mvm->d0i3_exit_waitq,
@@ -1585,20 +1595,23 @@ static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				s16 tx_power)
 {
 	struct iwl_dev_tx_power_cmd cmd = {
-		.set_mode = 0,
-		.mac_context_id =
+		.v2.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC),
+		.v2.mac_context_id =
 			cpu_to_le32(iwl_mvm_vif_from_mac80211(vif)->id),
-		.pwr_restriction = cpu_to_le16(8 * tx_power),
+		.v2.pwr_restriction = cpu_to_le16(8 * tx_power),
 	};
+	int len = sizeof(cmd);
 
 	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_TX_POWER_DEV))
 		return iwl_mvm_set_tx_power_old(mvm, vif, tx_power);
 
 	if (tx_power == IWL_DEFAULT_MAX_TX_POWER)
-		cmd.pwr_restriction = cpu_to_le16(IWL_DEV_MAX_TX_POWER);
+		cmd.v2.pwr_restriction = cpu_to_le16(IWL_DEV_MAX_TX_POWER);
 
-	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0,
-				    sizeof(cmd), &cmd);
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_TX_POWER_CHAIN))
+		len = sizeof(cmd.v2);
+
+	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
 }
 
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
@@ -1663,6 +1676,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		iwl_mvm_vif_dbgfs_register(mvm, vif);
 		goto out_unlock;
 	}
+
+	mvmvif->features |= hw->netdev_features;
 
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
 	if (ret)
@@ -2880,9 +2895,10 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-		/* fall-through */
-	case WLAN_CIPHER_SUITE_CCMP:
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		WARN_ON_ONCE(!ieee80211_hw_check(hw, MFP_CAPABLE));
@@ -3025,7 +3041,7 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 	int res, time_reg = DEVICE_SYSTEM_TIME_REG;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->hs_time_event_data;
-	static const u8 time_event_response[] = { HOT_SPOT_CMD };
+	static const u16 time_event_response[] = { HOT_SPOT_CMD };
 	struct iwl_notification_wait wait_time_event;
 	struct iwl_hs20_roc_req aux_roc_req = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),

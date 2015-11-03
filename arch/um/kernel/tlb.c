@@ -291,7 +291,7 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 		/* We are under mmap_sem, release it such that current can terminate */
 		up_write(&current->mm->mmap_sem);
 		force_sig(SIGKILL, current);
-		do_signal();
+		do_signal(&current->thread.regs);
 	}
 }
 

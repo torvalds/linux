@@ -1,0 +1,32 @@
+#
+# Mellanox switch drivers configuration
+#
+
+config MLXSW_CORE
+	tristate "Mellanox Technologies Switch ASICs support"
+	---help---
+	  This driver supports Mellanox Technologies Switch ASICs family.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mlxsw_core.
+
+config MLXSW_PCI
+	tristate "PCI bus implementation for Mellanox Technologies Switch ASICs"
+	depends on PCI && HAS_DMA && HAS_IOMEM && MLXSW_CORE
+	default m
+	---help---
+	  This is PCI bus implementation for Mellanox Technologies Switch ASICs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mlxsw_pci.
+
+config MLXSW_SWITCHX2
+	tristate "Mellanox Technologies SwitchX-2 support"
+	depends on MLXSW_CORE && NET_SWITCHDEV
+	default m
+	---help---
+	  This driver supports Mellanox Technologies SwitchX-2 Ethernet
+	  Switch ASICs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mlxsw_switchx2.

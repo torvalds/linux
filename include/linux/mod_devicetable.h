@@ -253,7 +253,7 @@ struct pcmcia_device_id {
 
 	__u32 		prod_id_hash[4];
 
-	/* not matched against in kernelspace*/
+	/* not matched against in kernelspace */
 	const char *	prod_id[4];
 
 	/* not matched against */

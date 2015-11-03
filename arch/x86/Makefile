@@ -39,6 +39,16 @@ ifdef CONFIG_X86_NEED_RELOCS
         LDFLAGS_vmlinux := --emit-relocs
 endif
 
+#
+# Prevent GCC from generating any FP code by mistake.
+#
+# This must happen before we try the -mpreferred-stack-boundary, see:
+#
+#    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53383
+#
+KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow
+KBUILD_CFLAGS += $(call cc-option,-mno-avx,)
+
 ifeq ($(CONFIG_X86_32),y)
         BITS := 32
         UTS_MACHINE := i386
@@ -167,9 +177,6 @@ KBUILD_CFLAGS += -pipe
 KBUILD_CFLAGS += -Wno-sign-compare
 #
 KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
-# prevent gcc from generating any FP code by mistake
-KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow
-KBUILD_CFLAGS += $(call cc-option,-mno-avx,)
 
 KBUILD_CFLAGS += $(mflags-y)
 KBUILD_AFLAGS += $(mflags-y)
@@ -211,6 +218,8 @@ drivers-$(CONFIG_OPROFILE) += arch/x86/oprofile/
 drivers-$(CONFIG_PM) += arch/x86/power/
 
 drivers-$(CONFIG_FB) += arch/x86/video/
+
+drivers-$(CONFIG_RAS) += arch/x86/ras/
 
 ####
 # boot loader support. Several targets are kept for legacy purposes

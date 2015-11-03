@@ -88,6 +88,19 @@ void percpu_down_read(struct percpu_rw_semaphore *brw)
 	__up_read(&brw->rw_sem);
 }
 
+int percpu_down_read_trylock(struct percpu_rw_semaphore *brw)
+{
+	if (unlikely(!update_fast_ctr(brw, +1))) {
+		if (!__down_read_trylock(&brw->rw_sem))
+			return 0;
+		atomic_inc(&brw->slow_read_ctr);
+		__up_read(&brw->rw_sem);
+	}
+
+	rwsem_acquire_read(&brw->rw_sem.dep_map, 0, 1, _RET_IP_);
+	return 1;
+}
+
 void percpu_up_read(struct percpu_rw_semaphore *brw)
 {
 	rwsem_release(&brw->rw_sem.dep_map, 1, _RET_IP_);

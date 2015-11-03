@@ -157,22 +157,6 @@ void __init inet_initpeers(void)
 	INIT_DEFERRABLE_WORK(&gc_work, inetpeer_gc_worker);
 }
 
-static int addr_compare(const struct inetpeer_addr *a,
-			const struct inetpeer_addr *b)
-{
-	int i, n = (a->family == AF_INET ? 1 : 4);
-
-	for (i = 0; i < n; i++) {
-		if (a->addr.a6[i] == b->addr.a6[i])
-			continue;
-		if ((__force u32)a->addr.a6[i] < (__force u32)b->addr.a6[i])
-			return -1;
-		return 1;
-	}
-
-	return 0;
-}
-
 #define rcu_deref_locked(X, BASE)				\
 	rcu_dereference_protected(X, lockdep_is_held(&(BASE)->lock.lock))
 
@@ -188,7 +172,7 @@ static int addr_compare(const struct inetpeer_addr *a,
 	*stackptr++ = &_base->root;				\
 	for (u = rcu_deref_locked(_base->root, _base);		\
 	     u != peer_avl_empty;) {				\
-		int cmp = addr_compare(_daddr, &u->daddr);	\
+		int cmp = inetpeer_addr_cmp(_daddr, &u->daddr);	\
 		if (cmp == 0)					\
 			break;					\
 		if (cmp == -1)					\
@@ -215,7 +199,7 @@ static struct inet_peer *lookup_rcu(const struct inetpeer_addr *daddr,
 	int count = 0;
 
 	while (u != peer_avl_empty) {
-		int cmp = addr_compare(daddr, &u->daddr);
+		int cmp = inetpeer_addr_cmp(daddr, &u->daddr);
 		if (cmp == 0) {
 			/* Before taking a reference, check if this entry was
 			 * deleted (refcnt=-1)

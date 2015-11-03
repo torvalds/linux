@@ -1860,13 +1860,13 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 static bool gfs2_rgrp_congested(const struct gfs2_rgrpd *rgd, int loops)
 {
 	const struct gfs2_glock *gl = rgd->rd_gl;
-	const struct gfs2_sbd *sdp = gl->gl_sbd;
+	const struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_lkstats *st;
-	s64 r_dcount, l_dcount;
-	s64 l_srttb, a_srttb = 0;
+	u64 r_dcount, l_dcount;
+	u64 l_srttb, a_srttb = 0;
 	s64 srttb_diff;
-	s64 sqr_diff;
-	s64 var;
+	u64 sqr_diff;
+	u64 var;
 	int cpu, nonzero = 0;
 
 	preempt_disable();

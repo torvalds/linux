@@ -392,7 +392,6 @@ static irqreturn_t men_z135_intr(int irq, void *data)
 	struct men_z135_port *uart = (struct men_z135_port *)data;
 	struct uart_port *port = &uart->port;
 	bool handled = false;
-	unsigned long flags;
 	int irq_id;
 
 	uart->stat_reg = ioread32(port->membase + MEN_Z135_STAT_REG);
@@ -401,7 +400,7 @@ static irqreturn_t men_z135_intr(int irq, void *data)
 	if (!irq_id)
 		goto out;
 
-	spin_lock_irqsave(&port->lock, flags);
+	spin_lock(&port->lock);
 	/* It's save to write to IIR[7:6] RXC[9:8] */
 	iowrite8(irq_id, port->membase + MEN_Z135_STAT_REG);
 
@@ -427,7 +426,7 @@ static irqreturn_t men_z135_intr(int irq, void *data)
 		handled = true;
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	spin_unlock(&port->lock);
 out:
 	return IRQ_RETVAL(handled);
 }
@@ -717,7 +716,7 @@ static void men_z135_set_termios(struct uart_port *port,
 
 	baud = uart_get_baud_rate(port, termios, old, 0, uart_freq / 16);
 
-	spin_lock(&port->lock);
+	spin_lock_irq(&port->lock);
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);
 
@@ -725,7 +724,7 @@ static void men_z135_set_termios(struct uart_port *port,
 	iowrite32(bd_reg, port->membase + MEN_Z135_BAUD_REG);
 
 	uart_update_timeout(port, termios->c_cflag, baud);
-	spin_unlock(&port->lock);
+	spin_unlock_irq(&port->lock);
 }
 
 static const char *men_z135_type(struct uart_port *port)
@@ -840,7 +839,6 @@ static int men_z135_probe(struct mcb_device *mdev,
 	uart->port.membase = NULL;
 	uart->mdev = mdev;
 
-	spin_lock_init(&uart->port.lock);
 	spin_lock_init(&uart->lock);
 
 	err = uart_add_one_port(&men_z135_driver, &uart->port);

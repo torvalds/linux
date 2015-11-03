@@ -212,14 +212,26 @@ static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
 {
 	struct ion_system_heap *sys_heap;
 	int nr_total = 0;
-	int i;
+	int i, nr_freed;
+	int only_scan = 0;
 
 	sys_heap = container_of(heap, struct ion_system_heap, heap);
+
+	if (!nr_to_scan)
+		only_scan = 1;
 
 	for (i = 0; i < num_orders; i++) {
 		struct ion_page_pool *pool = sys_heap->pools[i];
 
-		nr_total += ion_page_pool_shrink(pool, gfp_mask, nr_to_scan);
+		nr_freed = ion_page_pool_shrink(pool, gfp_mask, nr_to_scan);
+		nr_total += nr_freed;
+
+		if (!only_scan) {
+			nr_to_scan -= nr_freed;
+			/* shrink completed */
+			if (nr_to_scan <= 0)
+				break;
+		}
 	}
 
 	return nr_total;

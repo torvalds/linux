@@ -276,6 +276,12 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	moved_len = move_page_tables(vma, old_addr, new_vma, new_addr, old_len,
 				     need_rmap_locks);
 	if (moved_len < old_len) {
+		err = -ENOMEM;
+	} else if (vma->vm_ops && vma->vm_ops->mremap) {
+		err = vma->vm_ops->mremap(new_vma);
+	}
+
+	if (unlikely(err)) {
 		/*
 		 * On error, move entries back from new area to old,
 		 * which will succeed since page tables still there,
@@ -286,16 +292,8 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 		vma = new_vma;
 		old_len = new_len;
 		old_addr = new_addr;
-		new_addr = -ENOMEM;
+		new_addr = err;
 	} else {
-		if (vma->vm_file && vma->vm_file->f_op->mremap) {
-			err = vma->vm_file->f_op->mremap(vma->vm_file, new_vma);
-			if (err < 0) {
-				move_page_tables(new_vma, new_addr, vma,
-						 old_addr, moved_len, true);
-				return err;
-			}
-		}
 		arch_remap(mm, old_addr, old_addr + old_len,
 			   new_addr, new_addr + new_len);
 	}
@@ -348,6 +346,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma = find_vma(mm, addr);
+	unsigned long pgoff;
 
 	if (!vma || vma->vm_start > addr)
 		return ERR_PTR(-EFAULT);
@@ -359,17 +358,17 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
 	if (old_len > vma->vm_end - addr)
 		return ERR_PTR(-EFAULT);
 
-	/* Need to be careful about a growing mapping */
-	if (new_len > old_len) {
-		unsigned long pgoff;
+	if (new_len == old_len)
+		return vma;
 
-		if (vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP))
-			return ERR_PTR(-EFAULT);
-		pgoff = (addr - vma->vm_start) >> PAGE_SHIFT;
-		pgoff += vma->vm_pgoff;
-		if (pgoff + (new_len >> PAGE_SHIFT) < pgoff)
-			return ERR_PTR(-EINVAL);
-	}
+	/* Need to be careful about a growing mapping */
+	pgoff = (addr - vma->vm_start) >> PAGE_SHIFT;
+	pgoff += vma->vm_pgoff;
+	if (pgoff + (new_len >> PAGE_SHIFT) < pgoff)
+		return ERR_PTR(-EINVAL);
+
+	if (vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP))
+		return ERR_PTR(-EFAULT);
 
 	if (vma->vm_flags & VM_LOCKED) {
 		unsigned long locked, lock_limit;
@@ -408,13 +407,8 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
 	if (new_len > TASK_SIZE || new_addr > TASK_SIZE - new_len)
 		goto out;
 
-	/* Check if the location we're moving into overlaps the
-	 * old location at all, and fail if it does.
-	 */
-	if ((new_addr <= addr) && (new_addr+new_len) > addr)
-		goto out;
-
-	if ((addr <= new_addr) && (addr+old_len) > new_addr)
+	/* Ensure the old/new locations do not overlap */
+	if (addr + old_len > new_addr && new_addr + new_len > addr)
 		goto out;
 
 	ret = do_munmap(mm, new_addr, new_len);
@@ -580,8 +574,10 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 		ret = move_vma(vma, addr, old_len, new_len, new_addr, &locked);
 	}
 out:
-	if (ret & ~PAGE_MASK)
+	if (ret & ~PAGE_MASK) {
 		vm_unacct_memory(charged);
+		locked = 0;
+	}
 	up_write(&current->mm->mmap_sem);
 	if (locked && new_len > old_len)
 		mm_populate(new_addr + old_len, new_len - old_len);

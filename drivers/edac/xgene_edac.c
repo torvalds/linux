@@ -1168,7 +1168,6 @@ static struct platform_driver xgene_edac_driver = {
 	.remove = xgene_edac_remove,
 	.driver = {
 		.name = "xgene-edac",
-		.owner = THIS_MODULE,
 		.of_match_table = xgene_edac_of_match,
 	},
 };

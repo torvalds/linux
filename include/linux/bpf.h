@@ -10,6 +10,7 @@
 #include <uapi/linux/bpf.h>
 #include <linux/workqueue.h>
 #include <linux/file.h>
+#include <linux/perf_event.h>
 
 struct bpf_map;
 
@@ -24,6 +25,10 @@ struct bpf_map_ops {
 	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
 	int (*map_update_elem)(struct bpf_map *map, void *key, void *value, u64 flags);
 	int (*map_delete_elem)(struct bpf_map *map, void *key);
+
+	/* funcs called by prog_array and perf_event_array map */
+	void *(*map_fd_get_ptr) (struct bpf_map *map, int fd);
+	void (*map_fd_put_ptr) (void *ptr);
 };
 
 struct bpf_map {
@@ -142,13 +147,13 @@ struct bpf_array {
 	bool owner_jited;
 	union {
 		char value[0] __aligned(8);
-		struct bpf_prog *prog[0] __aligned(8);
+		void *ptrs[0] __aligned(8);
 	};
 };
 #define MAX_TAIL_CALL_CNT 32
 
 u64 bpf_tail_call(u64 ctx, u64 r2, u64 index, u64 r4, u64 r5);
-void bpf_prog_array_map_clear(struct bpf_map *map);
+void bpf_fd_array_map_clear(struct bpf_map *map);
 bool bpf_prog_array_compatible(struct bpf_array *array, const struct bpf_prog *fp);
 const struct bpf_func_proto *bpf_get_trace_printk_proto(void);
 
@@ -185,6 +190,7 @@ extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
 extern const struct bpf_func_proto bpf_map_update_elem_proto;
 extern const struct bpf_func_proto bpf_map_delete_elem_proto;
 
+extern const struct bpf_func_proto bpf_perf_event_read_proto;
 extern const struct bpf_func_proto bpf_get_prandom_u32_proto;
 extern const struct bpf_func_proto bpf_get_smp_processor_id_proto;
 extern const struct bpf_func_proto bpf_tail_call_proto;
@@ -192,5 +198,7 @@ extern const struct bpf_func_proto bpf_ktime_get_ns_proto;
 extern const struct bpf_func_proto bpf_get_current_pid_tgid_proto;
 extern const struct bpf_func_proto bpf_get_current_uid_gid_proto;
 extern const struct bpf_func_proto bpf_get_current_comm_proto;
+extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
+extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
 
 #endif /* _LINUX_BPF_H */

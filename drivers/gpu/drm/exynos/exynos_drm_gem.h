@@ -20,35 +20,6 @@
 #define IS_NONCONTIG_BUFFER(f)		(f & EXYNOS_BO_NONCONTIG)
 
 /*
- * exynos drm gem buffer structure.
- *
- * @cookie: cookie returned by dma_alloc_attrs
- * @kvaddr: kernel virtual address to allocated memory region.
- * *userptr: user space address.
- * @dma_addr: bus address(accessed by dma) to allocated memory region.
- *	- this address could be physical address without IOMMU and
- *	device address with IOMMU.
- * @write: whether pages will be written to by the caller.
- * @pages: Array of backing pages.
- * @sgt: sg table to transfer page data.
- * @size: size of allocated memory region.
- * @pfnmap: indicate whether memory region from userptr is mmaped with
- *	VM_PFNMAP or not.
- */
-struct exynos_drm_gem_buf {
-	void 			*cookie;
-	void __iomem		*kvaddr;
-	unsigned long		userptr;
-	dma_addr_t		dma_addr;
-	struct dma_attrs	dma_attrs;
-	unsigned int		write;
-	struct page		**pages;
-	struct sg_table		*sgt;
-	unsigned long		size;
-	bool			pfnmap;
-};
-
-/*
  * exynos drm buffer structure.
  *
  * @base: a gem object.
@@ -59,28 +30,36 @@ struct exynos_drm_gem_buf {
  *	by user request or at framebuffer creation.
  *	continuous memory region allocated by user request
  *	or at framebuffer creation.
+ * @flags: indicate memory type to allocated buffer and cache attruibute.
  * @size: size requested from user, in bytes and this size is aligned
  *	in page unit.
- * @flags: indicate memory type to allocated buffer and cache attruibute.
+ * @cookie: cookie returned by dma_alloc_attrs
+ * @kvaddr: kernel virtual address to allocated memory region.
+ * @dma_addr: bus address(accessed by dma) to allocated memory region.
+ *	- this address could be physical address without IOMMU and
+ *	device address with IOMMU.
+ * @pages: Array of backing pages.
+ * @sgt: Imported sg_table.
  *
  * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
  */
 struct exynos_drm_gem_obj {
-	struct drm_gem_object		base;
-	struct exynos_drm_gem_buf	*buffer;
-	unsigned long			size;
-	unsigned int			flags;
+	struct drm_gem_object	base;
+	unsigned int		flags;
+	unsigned long		size;
+	void			*cookie;
+	void __iomem		*kvaddr;
+	dma_addr_t		dma_addr;
+	struct dma_attrs	dma_attrs;
+	struct page		**pages;
+	struct sg_table		*sgt;
 };
 
 struct page **exynos_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
 
 /* destroy a buffer with gem object */
 void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj);
-
-/* create a private gem object and initialize it. */
-struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
-						      unsigned long size);
 
 /* create a new buffer with gem object */
 struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
@@ -176,5 +155,14 @@ int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
 void exynos_gem_unmap_sgt_from_dma(struct drm_device *drm_dev,
 				struct sg_table *sgt,
 				enum dma_data_direction dir);
+
+/* low-level interface prime helpers */
+struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj);
+struct drm_gem_object *
+exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
+				     struct dma_buf_attachment *attach,
+				     struct sg_table *sgt);
+void *exynos_drm_gem_prime_vmap(struct drm_gem_object *obj);
+void exynos_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 
 #endif

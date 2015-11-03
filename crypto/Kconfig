@@ -48,6 +48,8 @@ config CRYPTO_AEAD
 config CRYPTO_AEAD2
 	tristate
 	select CRYPTO_ALGAPI2
+	select CRYPTO_NULL2
+	select CRYPTO_RNG2
 
 config CRYPTO_BLKCIPHER
 	tristate
@@ -150,11 +152,15 @@ config CRYPTO_GF128MUL
 
 config CRYPTO_NULL
 	tristate "Null algorithms"
-	select CRYPTO_ALGAPI
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_HASH
+	select CRYPTO_NULL2
 	help
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
+
+config CRYPTO_NULL2
+	tristate
+	select CRYPTO_ALGAPI2
+	select CRYPTO_BLKCIPHER2
+	select CRYPTO_HASH2
 
 config CRYPTO_PCRYPT
 	tristate "Parallel crypto engine"
@@ -200,6 +206,7 @@ config CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_HASH
+	select CRYPTO_NULL
 	help
 	  Authenc: Combined mode wrapper for IPsec.
 	  This is required for IPSec.
@@ -469,6 +476,18 @@ config CRYPTO_POLY1305
 	  Poly1305 is an authenticator algorithm designed by Daniel J. Bernstein.
 	  It is used for the ChaCha20-Poly1305 AEAD, specified in RFC7539 for use
 	  in IETF protocols. This is the portable C implementation of Poly1305.
+
+config CRYPTO_POLY1305_X86_64
+	tristate "Poly1305 authenticator algorithm (x86_64/SSE2/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_POLY1305
+	help
+	  Poly1305 authenticator algorithm, RFC7539.
+
+	  Poly1305 is an authenticator algorithm designed by Daniel J. Bernstein.
+	  It is used for the ChaCha20-Poly1305 AEAD, specified in RFC7539 for use
+	  in IETF protocols. This is the x86_64 assembler implementation using SIMD
+	  instructions.
 
 config CRYPTO_MD4
 	tristate "MD4 digest algorithm"
@@ -1213,6 +1232,21 @@ config CRYPTO_CHACHA20
 	  See also:
 	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
 
+config CRYPTO_CHACHA20_X86_64
+	tristate "ChaCha20 cipher algorithm (x86_64/SSSE3/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_CHACHA20
+	help
+	  ChaCha20 cipher algorithm, RFC7539.
+
+	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
+	  Bernstein and further specified in RFC7539 for use in IETF protocols.
+	  This is the x86_64 assembler implementation using SIMD instructions.
+
+	  See also:
+	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
+
 config CRYPTO_SEED
 	tristate "SEED cipher algorithm"
 	select CRYPTO_ALGAPI
@@ -1601,5 +1635,6 @@ config CRYPTO_HASH_INFO
 
 source "drivers/crypto/Kconfig"
 source crypto/asymmetric_keys/Kconfig
+source certs/Kconfig
 
 endif	# if CRYPTO

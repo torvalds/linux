@@ -305,6 +305,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 /* SoC card */
 static struct snd_soc_card snd_soc_card_chtrt5645 = {
 	.name = "chtrt5645",
+	.owner = THIS_MODULE,
 	.dai_link = cht_dailink,
 	.num_links = ARRAY_SIZE(cht_dailink),
 	.dapm_widgets = cht_dapm_widgets,
@@ -317,6 +318,7 @@ static struct snd_soc_card snd_soc_card_chtrt5645 = {
 
 static struct snd_soc_card snd_soc_card_chtrt5650 = {
 	.name = "chtrt5650",
+	.owner = THIS_MODULE,
 	.dai_link = cht_dailink,
 	.num_links = ARRAY_SIZE(cht_dailink),
 	.dapm_widgets = cht_dapm_widgets,

@@ -1838,7 +1838,7 @@ Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter,
 
 static void rtl8723a_cal_txdesc_chksum(struct tx_desc *ptxdesc)
 {
-	u16 *usPtr = (u16 *) ptxdesc;
+	__le16 *usPtr = (__le16 *)ptxdesc;
 	u32 count = 16;		/*  (32 bytes / 2 bytes per XOR) => 16 times */
 	u32 index;
 	u16 checksum = 0;
@@ -1847,7 +1847,7 @@ static void rtl8723a_cal_txdesc_chksum(struct tx_desc *ptxdesc)
 	ptxdesc->txdw7 &= cpu_to_le32(0xffff0000);
 
 	for (index = 0; index < count; index++)
-		checksum ^= le16_to_cpu(*(usPtr + index));
+		checksum ^= le16_to_cpu(usPtr[index]);
 
 	ptxdesc->txdw7 |= cpu_to_le32(checksum & 0x0000ffff);
 }

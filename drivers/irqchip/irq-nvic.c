@@ -21,12 +21,11 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 
 #include <asm/v7m.h>
 #include <asm/exception.h>
-
-#include "irqchip.h"
 
 #define NVIC_ISER		0x000
 #define NVIC_ICER		0x080

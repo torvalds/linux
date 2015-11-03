@@ -20,7 +20,8 @@ config ANDROID_TIMED_OUTPUT
 
 config ANDROID_TIMED_GPIO
 	tristate "Android timed gpio driver"
-	depends on GPIOLIB && ANDROID_TIMED_OUTPUT
+	depends on GPIOLIB || COMPILE_TEST
+	depends on ANDROID_TIMED_OUTPUT
 	default n
         ---help---
 	  Unlike generic gpio is to allow programs to access and manipulate gpio

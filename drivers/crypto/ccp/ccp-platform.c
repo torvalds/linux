@@ -216,6 +216,7 @@ static const struct acpi_device_id ccp_acpi_match[] = {
 	{ "AMDI0C00", 0 },
 	{ },
 };
+MODULE_DEVICE_TABLE(acpi, ccp_acpi_match);
 #endif
 
 #ifdef CONFIG_OF
@@ -223,6 +224,7 @@ static const struct of_device_id ccp_of_match[] = {
 	{ .compatible = "amd,ccp-seattle-v1a" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ccp_of_match);
 #endif
 
 static struct platform_driver ccp_platform_driver = {

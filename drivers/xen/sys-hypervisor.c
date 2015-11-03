@@ -20,6 +20,9 @@
 #include <xen/xenbus.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>
+#ifdef CONFIG_XEN_HAVE_VPMU
+#include <xen/interface/xenpmu.h>
+#endif
 
 #define HYPERVISOR_ATTR_RO(_name) \
 static struct hyp_sysfs_attr  _name##_attr = __ATTR_RO(_name)
@@ -368,6 +371,126 @@ static void xen_properties_destroy(void)
 	sysfs_remove_group(hypervisor_kobj, &xen_properties_group);
 }
 
+#ifdef CONFIG_XEN_HAVE_VPMU
+struct pmu_mode {
+	const char *name;
+	uint32_t mode;
+};
+
+static struct pmu_mode pmu_modes[] = {
+	{"off", XENPMU_MODE_OFF},
+	{"self", XENPMU_MODE_SELF},
+	{"hv", XENPMU_MODE_HV},
+	{"all", XENPMU_MODE_ALL}
+};
+
+static ssize_t pmu_mode_store(struct hyp_sysfs_attr *attr,
+			      const char *buffer, size_t len)
+{
+	int ret;
+	struct xen_pmu_params xp;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pmu_modes); i++) {
+		if (strncmp(buffer, pmu_modes[i].name, len - 1) == 0) {
+			xp.val = pmu_modes[i].mode;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(pmu_modes))
+		return -EINVAL;
+
+	xp.version.maj = XENPMU_VER_MAJ;
+	xp.version.min = XENPMU_VER_MIN;
+	ret = HYPERVISOR_xenpmu_op(XENPMU_mode_set, &xp);
+	if (ret)
+		return ret;
+
+	return len;
+}
+
+static ssize_t pmu_mode_show(struct hyp_sysfs_attr *attr, char *buffer)
+{
+	int ret;
+	struct xen_pmu_params xp;
+	int i;
+	uint32_t mode;
+
+	xp.version.maj = XENPMU_VER_MAJ;
+	xp.version.min = XENPMU_VER_MIN;
+	ret = HYPERVISOR_xenpmu_op(XENPMU_mode_get, &xp);
+	if (ret)
+		return ret;
+
+	mode = (uint32_t)xp.val;
+	for (i = 0; i < ARRAY_SIZE(pmu_modes); i++) {
+		if (mode == pmu_modes[i].mode)
+			return sprintf(buffer, "%s\n", pmu_modes[i].name);
+	}
+
+	return -EINVAL;
+}
+HYPERVISOR_ATTR_RW(pmu_mode);
+
+static ssize_t pmu_features_store(struct hyp_sysfs_attr *attr,
+				  const char *buffer, size_t len)
+{
+	int ret;
+	uint32_t features;
+	struct xen_pmu_params xp;
+
+	ret = kstrtou32(buffer, 0, &features);
+	if (ret)
+		return ret;
+
+	xp.val = features;
+	xp.version.maj = XENPMU_VER_MAJ;
+	xp.version.min = XENPMU_VER_MIN;
+	ret = HYPERVISOR_xenpmu_op(XENPMU_feature_set, &xp);
+	if (ret)
+		return ret;
+
+	return len;
+}
+
+static ssize_t pmu_features_show(struct hyp_sysfs_attr *attr, char *buffer)
+{
+	int ret;
+	struct xen_pmu_params xp;
+
+	xp.version.maj = XENPMU_VER_MAJ;
+	xp.version.min = XENPMU_VER_MIN;
+	ret = HYPERVISOR_xenpmu_op(XENPMU_feature_get, &xp);
+	if (ret)
+		return ret;
+
+	return sprintf(buffer, "0x%x\n", (uint32_t)xp.val);
+}
+HYPERVISOR_ATTR_RW(pmu_features);
+
+static struct attribute *xen_pmu_attrs[] = {
+	&pmu_mode_attr.attr,
+	&pmu_features_attr.attr,
+	NULL
+};
+
+static const struct attribute_group xen_pmu_group = {
+	.name = "pmu",
+	.attrs = xen_pmu_attrs,
+};
+
+static int __init xen_pmu_init(void)
+{
+	return sysfs_create_group(hypervisor_kobj, &xen_pmu_group);
+}
+
+static void xen_pmu_destroy(void)
+{
+	sysfs_remove_group(hypervisor_kobj, &xen_pmu_group);
+}
+#endif
+
 static int __init hyper_sysfs_init(void)
 {
 	int ret;
@@ -390,7 +513,15 @@ static int __init hyper_sysfs_init(void)
 	ret = xen_properties_init();
 	if (ret)
 		goto prop_out;
-
+#ifdef CONFIG_XEN_HAVE_VPMU
+	if (xen_initial_domain()) {
+		ret = xen_pmu_init();
+		if (ret) {
+			xen_properties_destroy();
+			goto prop_out;
+		}
+	}
+#endif
 	goto out;
 
 prop_out:
@@ -407,6 +538,9 @@ out:
 
 static void __exit hyper_sysfs_exit(void)
 {
+#ifdef CONFIG_XEN_HAVE_VPMU
+	xen_pmu_destroy();
+#endif
 	xen_properties_destroy();
 	xen_compilation_destroy();
 	xen_sysfs_uuid_destroy();

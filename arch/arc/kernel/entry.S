@@ -42,7 +42,7 @@ ENTRY(ret_from_fork)
 	; when the forked child comes here from the __switch_to function
 	; r0 has the last task pointer.
 	; put last task in scheduler queue
-	bl   @schedule_tail
+	jl   @schedule_tail
 
 	ld   r9, [sp, PT_status32]
 	brne r9, 0, 1f
@@ -320,7 +320,7 @@ resume_user_mode_begin:
 	; --- (Slow Path #1) task preemption ---
 	bbit0  r9, TIF_NEED_RESCHED, .Lchk_pend_signals
 	mov    blink, resume_user_mode_begin  ; tail-call to U mode ret chks
-	b      @schedule 	; BTST+Bnz causes relo error in link
+	j      @schedule 	; BTST+Bnz causes relo error in link
 
 .Lchk_pend_signals:
 	IRQ_ENABLE	r10
@@ -381,7 +381,7 @@ resume_kernel_mode:
 	bbit0  r9, TIF_NEED_RESCHED, .Lrestore_regs
 
 	; Invoke PREEMPTION
-	bl      preempt_schedule_irq
+	jl      preempt_schedule_irq
 
 	; preempt_schedule_irq() always returns with IRQ disabled
 #endif

@@ -699,8 +699,10 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 
 	/* ... and the buffers queue... */
 	dma->alloc_ctx = vb2_dma_contig_init_ctx(dma->xdev->dev);
-	if (IS_ERR(dma->alloc_ctx))
+	if (IS_ERR(dma->alloc_ctx)) {
+		ret = PTR_ERR(dma->alloc_ctx);
 		goto error;
+	}
 
 	/* Don't enable VB2_READ and VB2_WRITE, as using the read() and write()
 	 * V4L2 APIs would be inefficient. Testing on the command line with a

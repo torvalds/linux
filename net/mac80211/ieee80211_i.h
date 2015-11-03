@@ -84,13 +84,13 @@ struct ieee80211_local;
 #define IEEE80211_DEAUTH_FRAME_LEN	(24 /* hdr */ + 2 /* reason */)
 
 struct ieee80211_fragment_entry {
-	unsigned long first_frag_time;
-	unsigned int seq;
-	unsigned int rx_queue;
-	unsigned int last_frag;
-	unsigned int extra_len;
 	struct sk_buff_head skb_list;
-	int ccmp; /* Whether fragments were encrypted with CCMP */
+	unsigned long first_frag_time;
+	u16 seq;
+	u16 extra_len;
+	u16 last_frag;
+	u8 rx_queue;
+	bool ccmp; /* Whether fragments were encrypted with CCMP */
 	u8 last_pn[6]; /* PN of the last fragment if CCMP was used */
 };
 
@@ -181,7 +181,6 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 
 /**
  * enum ieee80211_packet_rx_flags - packet RX flags
- * @IEEE80211_RX_FRAGMENTED: fragmented frame
  * @IEEE80211_RX_AMSDU: a-MSDU packet
  * @IEEE80211_RX_MALFORMED_ACTION_FRM: action frame is malformed
  * @IEEE80211_RX_DEFERRED_RELEASE: frame was subjected to receive reordering
@@ -190,7 +189,6 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
  * @rx_flags field of &struct ieee80211_rx_status.
  */
 enum ieee80211_packet_rx_flags {
-	IEEE80211_RX_FRAGMENTED			= BIT(2),
 	IEEE80211_RX_AMSDU			= BIT(3),
 	IEEE80211_RX_MALFORMED_ACTION_FRM	= BIT(4),
 	IEEE80211_RX_DEFERRED_RELEASE		= BIT(5),
@@ -202,8 +200,6 @@ enum ieee80211_packet_rx_flags {
  * @IEEE80211_RX_CMNTR: received on cooked monitor already
  * @IEEE80211_RX_BEACON_REPORTED: This frame was already reported
  *	to cfg80211_report_obss_beacon().
- * @IEEE80211_RX_REORDER_TIMER: this frame is released by the
- *	reorder buffer timeout timer, not the normal RX path
  *
  * These flags are used across handling multiple interfaces
  * for a single frame.
@@ -211,10 +207,10 @@ enum ieee80211_packet_rx_flags {
 enum ieee80211_rx_flags {
 	IEEE80211_RX_CMNTR		= BIT(0),
 	IEEE80211_RX_BEACON_REPORTED	= BIT(1),
-	IEEE80211_RX_REORDER_TIMER	= BIT(2),
 };
 
 struct ieee80211_rx_data {
+	struct napi_struct *napi;
 	struct sk_buff *skb;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -725,6 +721,7 @@ struct ieee80211_if_mesh {
  *	back to wireless media and to the local net stack.
  * @IEEE80211_SDATA_DISCONNECT_RESUME: Disconnect after resume.
  * @IEEE80211_SDATA_IN_DRIVER: indicates interface was added to driver
+ * @IEEE80211_SDATA_MU_MIMO_OWNER: indicates interface owns MU-MIMO capability
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
@@ -732,6 +729,7 @@ enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
 	IEEE80211_SDATA_IN_DRIVER		= BIT(5),
+	IEEE80211_SDATA_MU_MIMO_OWNER		= BIT(6),
 };
 
 /**
@@ -903,6 +901,9 @@ struct ieee80211_sub_if_data {
 	bool rc_has_mcs_mask[IEEE80211_NUM_BANDS];
 	u8  rc_rateidx_mcs_mask[IEEE80211_NUM_BANDS][IEEE80211_HT_MCS_MASK_LEN];
 
+	bool rc_has_vht_mcs_mask[IEEE80211_NUM_BANDS];
+	u16 rc_rateidx_vht_mcs_mask[IEEE80211_NUM_BANDS][NL80211_VHT_NSS_MAX];
+
 	union {
 		struct ieee80211_if_ap ap;
 		struct ieee80211_if_wds wds;
@@ -1010,7 +1011,6 @@ enum sdata_queue_type {
 	IEEE80211_SDATA_QUEUE_AGG_STOP		= 2,
 	IEEE80211_SDATA_QUEUE_RX_AGG_START	= 3,
 	IEEE80211_SDATA_QUEUE_RX_AGG_STOP	= 4,
-	IEEE80211_SDATA_QUEUE_TDLS_CHSW		= 5,
 };
 
 enum {
@@ -1286,7 +1286,6 @@ struct ieee80211_local {
 	unsigned int rx_handlers_queued;
 	unsigned int rx_handlers_drop_nullfunc;
 	unsigned int rx_handlers_drop_defrag;
-	unsigned int rx_handlers_drop_short;
 	unsigned int tx_expand_skb_head;
 	unsigned int tx_expand_skb_head_cloned;
 	unsigned int rx_expand_skb_head_defrag;
@@ -1348,14 +1347,16 @@ struct ieee80211_local {
 
 	struct ieee80211_sub_if_data __rcu *p2p_sdata;
 
-	struct napi_struct *napi;
-
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
 	struct cfg80211_chan_def monitor_chandef;
 
 	/* extended capabilities provided by mac80211 */
 	u8 ext_capa[8];
+
+	/* TDLS channel switch */
+	struct work_struct tdls_chsw_work;
+	struct sk_buff_head skb_queue_tdls_chsw;
 };
 
 static inline struct ieee80211_sub_if_data *
@@ -1715,6 +1716,8 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 enum ieee80211_band band, bool nss_only);
 void ieee80211_apply_vhtcap_overrides(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_sta_vht_cap *vht_cap);
+void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,
+				     u16 vht_mask[NL80211_VHT_NSS_MAX]);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
@@ -1763,8 +1766,6 @@ static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 
 /* utility functions/constants */
 extern const void *const mac80211_wiphy_privid; /* for wiphy privid */
-u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
-			enum nl80211_iftype type);
 int ieee80211_frame_duration(enum ieee80211_band band, size_t len,
 			     int rate, int erp, int short_preamble,
 			     int shift);
@@ -2042,6 +2043,9 @@ int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 				 enum ieee80211_chanctx_mode chanmode,
 				 u8 radar_detect);
 int ieee80211_max_num_channels(struct ieee80211_local *local);
+enum nl80211_chan_width ieee80211_get_sta_bw(struct ieee80211_sta *sta);
+void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
+				       struct ieee80211_chanctx *ctx);
 
 /* TDLS */
 int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
@@ -2058,8 +2062,8 @@ int ieee80211_tdls_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 void ieee80211_tdls_cancel_channel_switch(struct wiphy *wiphy,
 					  struct net_device *dev,
 					  const u8 *addr);
-void ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
-					   struct sk_buff *skb);
+void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata);
+void ieee80211_tdls_chsw_work(struct work_struct *wk);
 
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 

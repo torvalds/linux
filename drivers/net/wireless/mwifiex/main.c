@@ -276,6 +276,7 @@ process_start:
 		     !adapter->pm_wakeup_fw_try) &&
 		    (is_command_pending(adapter) ||
 		     !skb_queue_empty(&adapter->tx_data_q) ||
+		     !mwifiex_bypass_txlist_empty(adapter) ||
 		     !mwifiex_wmm_lists_empty(adapter))) {
 			adapter->pm_wakeup_fw_try = true;
 			mod_timer(&adapter->wakeup_timer, jiffies + (HZ*3));
@@ -299,9 +300,16 @@ process_start:
 
 			if ((!adapter->scan_chan_gap_enabled &&
 			     adapter->scan_processing) || adapter->data_sent ||
+			     mwifiex_is_tdls_chan_switching
+			     (mwifiex_get_priv(adapter,
+					       MWIFIEX_BSS_ROLE_STA)) ||
 			    (mwifiex_wmm_lists_empty(adapter) &&
+			     mwifiex_bypass_txlist_empty(adapter) &&
 			     skb_queue_empty(&adapter->tx_data_q))) {
 				if (adapter->cmd_sent || adapter->curr_cmd ||
+					!mwifiex_is_send_cmd_allowed
+						(mwifiex_get_priv(adapter,
+						MWIFIEX_BSS_ROLE_STA)) ||
 				    (!is_command_pending(adapter)))
 					break;
 			}
@@ -342,7 +350,9 @@ process_start:
 			continue;
 		}
 
-		if (!adapter->cmd_sent && !adapter->curr_cmd) {
+		if (!adapter->cmd_sent && !adapter->curr_cmd &&
+		    mwifiex_is_send_cmd_allowed
+		    (mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
 			if (mwifiex_exec_next_cmd(adapter) == -1) {
 				ret = -1;
 				break;
@@ -365,7 +375,25 @@ process_start:
 
 		if ((adapter->scan_chan_gap_enabled ||
 		     !adapter->scan_processing) &&
-		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter)) {
+		    !adapter->data_sent &&
+		    !mwifiex_bypass_txlist_empty(adapter) &&
+		    !mwifiex_is_tdls_chan_switching
+			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
+			mwifiex_process_bypass_tx(adapter);
+			if (adapter->hs_activated) {
+				adapter->is_hs_configured = false;
+				mwifiex_hs_activated_event
+					(mwifiex_get_priv
+					 (adapter, MWIFIEX_BSS_ROLE_ANY),
+					 false);
+			}
+		}
+
+		if ((adapter->scan_chan_gap_enabled ||
+		     !adapter->scan_processing) &&
+		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter) &&
+		    !mwifiex_is_tdls_chan_switching
+			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
 			mwifiex_wmm_process_tx(adapter);
 			if (adapter->hs_activated) {
 				adapter->is_hs_configured = false;
@@ -379,6 +407,7 @@ process_start:
 		if (adapter->delay_null_pkt && !adapter->cmd_sent &&
 		    !adapter->curr_cmd && !is_command_pending(adapter) &&
 		    (mwifiex_wmm_lists_empty(adapter) &&
+		     mwifiex_bypass_txlist_empty(adapter) &&
 		     skb_queue_empty(&adapter->tx_data_q))) {
 			if (!mwifiex_send_null_packet
 			    (mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
@@ -649,6 +678,26 @@ mwifiex_close(struct net_device *dev)
 	return 0;
 }
 
+static bool
+mwifiex_bypass_tx_queue(struct mwifiex_private *priv,
+			struct sk_buff *skb)
+{
+	struct ethhdr *eth_hdr = (struct ethhdr *)skb->data;
+
+	if (ntohs(eth_hdr->h_proto) == ETH_P_PAE ||
+	    mwifiex_is_skb_mgmt_frame(skb) ||
+	    (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA &&
+	     ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
+	     (ntohs(eth_hdr->h_proto) == ETH_P_TDLS))) {
+		mwifiex_dbg(priv->adapter, DATA,
+			    "bypass txqueue; eth type %#x, mgmt %d\n",
+			     ntohs(eth_hdr->h_proto),
+			     mwifiex_is_skb_mgmt_frame(skb));
+		return true;
+	}
+
+	return false;
+}
 /*
  * Add buffer into wmm tx queue and queue work to transmit it.
  */
@@ -666,8 +715,14 @@ int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
 		}
 	}
 
-	atomic_inc(&priv->adapter->tx_pending);
-	mwifiex_wmm_add_buf_txqueue(priv, skb);
+	if (mwifiex_bypass_tx_queue(priv, skb)) {
+		atomic_inc(&priv->adapter->tx_pending);
+		atomic_inc(&priv->adapter->bypass_tx_pending);
+		mwifiex_wmm_add_buf_bypass_txqueue(priv, skb);
+	 } else {
+		atomic_inc(&priv->adapter->tx_pending);
+		mwifiex_wmm_add_buf_txqueue(priv, skb);
+	 }
 
 	mwifiex_queue_main_work(priv->adapter);
 

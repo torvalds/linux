@@ -29,6 +29,8 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Robert Jennings <rcj@linux.vnet.ibm.com>");
 MODULE_DESCRIPTION("842 H/W Compression driver for IBM Power processors");
+MODULE_ALIAS_CRYPTO("842");
+MODULE_ALIAS_CRYPTO("842-nx");
 
 static struct nx842_constraints nx842_pseries_constraints = {
 	.alignment =	DDE_BUFFER_ALIGN,
@@ -99,11 +101,6 @@ struct nx842_workmem {
 #define NX842_HW_PAGE_SIZE	(4096)
 #define NX842_HW_PAGE_MASK	(~(NX842_HW_PAGE_SIZE-1))
 
-enum nx842_status {
-	UNAVAILABLE,
-	AVAILABLE
-};
-
 struct ibm_nx842_counters {
 	atomic64_t comp_complete;
 	atomic64_t comp_failed;
@@ -121,7 +118,6 @@ static struct nx842_devdata {
 	unsigned int max_sg_len;
 	unsigned int max_sync_size;
 	unsigned int max_sync_sg;
-	enum nx842_status status;
 } __rcu *devdata;
 static DEFINE_SPINLOCK(devdata_mutex);
 
@@ -230,9 +226,12 @@ static int nx842_validate_result(struct device *dev,
 	switch (csb->completion_code) {
 	case 0:	/* Completed without error */
 		break;
-	case 64: /* Target bytes > Source bytes during compression */
+	case 64: /* Compression ok, but output larger than input */
+		dev_dbg(dev, "%s: output size larger than input size\n",
+					__func__);
+		break;
 	case 13: /* Output buffer too small */
-		dev_dbg(dev, "%s: Compression output larger than input\n",
+		dev_dbg(dev, "%s: Out of space in output buffer\n",
 					__func__);
 		return -ENOSPC;
 	case 66: /* Input data contains an illegal template field */
@@ -537,41 +536,36 @@ static int nx842_OF_set_defaults(struct nx842_devdata *devdata)
 		devdata->max_sync_size = 0;
 		devdata->max_sync_sg = 0;
 		devdata->max_sg_len = 0;
-		devdata->status = UNAVAILABLE;
 		return 0;
 	} else
 		return -ENOENT;
 }
 
 /**
- * nx842_OF_upd_status -- Update the device info from OF status prop
+ * nx842_OF_upd_status -- Check the device info from OF status prop
  *
  * The status property indicates if the accelerator is enabled.  If the
  * device is in the OF tree it indicates that the hardware is present.
  * The status field indicates if the device is enabled when the status
  * is 'okay'.  Otherwise the device driver will be disabled.
  *
- * @devdata - struct nx842_devdata to update
  * @prop - struct property point containing the maxsyncop for the update
  *
  * Returns:
  *  0 - Device is available
- *  -EINVAL - Device is not available
+ *  -ENODEV - Device is not available
  */
-static int nx842_OF_upd_status(struct nx842_devdata *devdata,
-					struct property *prop) {
-	int ret = 0;
+static int nx842_OF_upd_status(struct property *prop)
+{
 	const char *status = (const char *)prop->value;
 
-	if (!strncmp(status, "okay", (size_t)prop->length)) {
-		devdata->status = AVAILABLE;
-	} else {
-		dev_info(devdata->dev, "%s: status '%s' is not 'okay'\n",
-				__func__, status);
-		devdata->status = UNAVAILABLE;
-	}
+	if (!strncmp(status, "okay", (size_t)prop->length))
+		return 0;
+	if (!strncmp(status, "disabled", (size_t)prop->length))
+		return -ENODEV;
+	dev_info(devdata->dev, "%s: unknown status '%s'\n", __func__, status);
 
-	return ret;
+	return -EINVAL;
 }
 
 /**
@@ -735,6 +729,10 @@ static int nx842_OF_upd(struct property *new_prop)
 	int ret = 0;
 	unsigned long flags;
 
+	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
+	if (!new_devdata)
+		return -ENOMEM;
+
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
@@ -744,14 +742,8 @@ static int nx842_OF_upd(struct property *new_prop)
 	if (!old_devdata || !of_node) {
 		pr_err("%s: device is not available\n", __func__);
 		spin_unlock_irqrestore(&devdata_mutex, flags);
+		kfree(new_devdata);
 		return -ENODEV;
-	}
-
-	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
-	if (!new_devdata) {
-		dev_err(old_devdata->dev, "%s: Could not allocate memory for device data\n", __func__);
-		ret = -ENOMEM;
-		goto error_out;
 	}
 
 	memcpy(new_devdata, old_devdata, sizeof(*old_devdata));
@@ -777,7 +769,7 @@ static int nx842_OF_upd(struct property *new_prop)
 		goto out;
 
 	/* Perform property updates */
-	ret = nx842_OF_upd_status(new_devdata, status);
+	ret = nx842_OF_upd_status(status);
 	if (ret)
 		goto error_out;
 
@@ -970,12 +962,42 @@ static struct nx842_driver nx842_pseries_driver = {
 	.decompress =	nx842_pseries_decompress,
 };
 
-static int __init nx842_probe(struct vio_dev *viodev,
-				  const struct vio_device_id *id)
+static int nx842_pseries_crypto_init(struct crypto_tfm *tfm)
+{
+	return nx842_crypto_init(tfm, &nx842_pseries_driver);
+}
+
+static struct crypto_alg nx842_pseries_alg = {
+	.cra_name		= "842",
+	.cra_driver_name	= "842-nx",
+	.cra_priority		= 300,
+	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
+	.cra_ctxsize		= sizeof(struct nx842_crypto_ctx),
+	.cra_module		= THIS_MODULE,
+	.cra_init		= nx842_pseries_crypto_init,
+	.cra_exit		= nx842_crypto_exit,
+	.cra_u			= { .compress = {
+	.coa_compress		= nx842_crypto_compress,
+	.coa_decompress		= nx842_crypto_decompress } }
+};
+
+static int nx842_probe(struct vio_dev *viodev,
+		       const struct vio_device_id *id)
 {
 	struct nx842_devdata *old_devdata, *new_devdata = NULL;
 	unsigned long flags;
 	int ret = 0;
+
+	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
+	if (!new_devdata)
+		return -ENOMEM;
+
+	new_devdata->counters = kzalloc(sizeof(*new_devdata->counters),
+			GFP_NOFS);
+	if (!new_devdata->counters) {
+		kfree(new_devdata);
+		return -ENOMEM;
+	}
 
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
@@ -989,21 +1011,6 @@ static int __init nx842_probe(struct vio_dev *viodev,
 
 	dev_set_drvdata(&viodev->dev, NULL);
 
-	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
-	if (!new_devdata) {
-		dev_err(&viodev->dev, "%s: Could not allocate memory for device data\n", __func__);
-		ret = -ENOMEM;
-		goto error_unlock;
-	}
-
-	new_devdata->counters = kzalloc(sizeof(*new_devdata->counters),
-			GFP_NOFS);
-	if (!new_devdata->counters) {
-		dev_err(&viodev->dev, "%s: Could not allocate memory for performance counters\n", __func__);
-		ret = -ENOMEM;
-		goto error_unlock;
-	}
-
 	new_devdata->vdev = viodev;
 	new_devdata->dev = &viodev->dev;
 	nx842_OF_set_defaults(new_devdata);
@@ -1016,9 +1023,12 @@ static int __init nx842_probe(struct vio_dev *viodev,
 	of_reconfig_notifier_register(&nx842_of_nb);
 
 	ret = nx842_OF_upd(NULL);
-	if (ret && ret != -ENODEV) {
-		dev_err(&viodev->dev, "could not parse device tree. %d\n", ret);
-		ret = -1;
+	if (ret)
+		goto error;
+
+	ret = crypto_register_alg(&nx842_pseries_alg);
+	if (ret) {
+		dev_err(&viodev->dev, "could not register comp alg: %d\n", ret);
 		goto error;
 	}
 
@@ -1043,13 +1053,15 @@ error:
 	return ret;
 }
 
-static int __exit nx842_remove(struct vio_dev *viodev)
+static int nx842_remove(struct vio_dev *viodev)
 {
 	struct nx842_devdata *old_devdata;
 	unsigned long flags;
 
 	pr_info("Removing IBM Power 842 compression device\n");
 	sysfs_remove_group(&viodev->dev.kobj, &nx842_attribute_group);
+
+	crypto_unregister_alg(&nx842_pseries_alg);
 
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
@@ -1074,17 +1086,15 @@ static struct vio_device_id nx842_vio_driver_ids[] = {
 static struct vio_driver nx842_vio_driver = {
 	.name = KBUILD_MODNAME,
 	.probe = nx842_probe,
-	.remove = __exit_p(nx842_remove),
+	.remove = nx842_remove,
 	.get_desired_dma = nx842_get_desired_dma,
 	.id_table = nx842_vio_driver_ids,
 };
 
-static int __init nx842_init(void)
+static int __init nx842_pseries_init(void)
 {
 	struct nx842_devdata *new_devdata;
 	int ret;
-
-	pr_info("Registering IBM Power 842 compression driver\n");
 
 	if (!of_find_compatible_node(NULL, NULL, "ibm,compression"))
 		return -ENODEV;
@@ -1095,7 +1105,6 @@ static int __init nx842_init(void)
 		pr_err("Could not allocate memory for device data\n");
 		return -ENOMEM;
 	}
-	new_devdata->status = UNAVAILABLE;
 	RCU_INIT_POINTER(devdata, new_devdata);
 
 	ret = vio_register_driver(&nx842_vio_driver);
@@ -1106,24 +1115,18 @@ static int __init nx842_init(void)
 		return ret;
 	}
 
-	if (!nx842_platform_driver_set(&nx842_pseries_driver)) {
-		vio_unregister_driver(&nx842_vio_driver);
-		kfree(new_devdata);
-		return -EEXIST;
-	}
-
 	return 0;
 }
 
-module_init(nx842_init);
+module_init(nx842_pseries_init);
 
-static void __exit nx842_exit(void)
+static void __exit nx842_pseries_exit(void)
 {
 	struct nx842_devdata *old_devdata;
 	unsigned long flags;
 
-	pr_info("Exiting IBM Power 842 compression driver\n");
-	nx842_platform_driver_unset(&nx842_pseries_driver);
+	crypto_unregister_alg(&nx842_pseries_alg);
+
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
@@ -1136,5 +1139,5 @@ static void __exit nx842_exit(void)
 	vio_unregister_driver(&nx842_vio_driver);
 }
 
-module_exit(nx842_exit);
+module_exit(nx842_pseries_exit);
 

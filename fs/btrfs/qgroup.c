@@ -376,7 +376,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 		qgroup = find_qgroup_rb(fs_info, found_key.offset);
 		if ((qgroup && found_key.type == BTRFS_QGROUP_INFO_KEY) ||
 		    (!qgroup && found_key.type == BTRFS_QGROUP_LIMIT_KEY)) {
-			btrfs_err(fs_info, "inconsitent qgroup config");
+			btrfs_err(fs_info, "inconsistent qgroup config");
 			flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 		}
 		if (!qgroup) {
@@ -1651,6 +1651,11 @@ static int qgroup_update_counters(struct btrfs_fs_info *fs_info,
 				/* Exclusive -> exclusive, nothing changed */
 			}
 		}
+
+		/* For exclusive extent, free its reserved bytes too */
+		if (nr_old_roots == 0 && nr_new_roots == 1 &&
+		    cur_new_count == nr_new_roots)
+			qg->reserved -= num_bytes;
 		if (dirty)
 			qgroup_dirty(fs_info, qg);
 	}

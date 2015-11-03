@@ -185,6 +185,7 @@ static struct snd_soc_dai_link byt_dailink[] = {
 /* SoC card */
 static struct snd_soc_card snd_soc_card_byt = {
 	.name = "baytrailcraudio",
+	.owner = THIS_MODULE,
 	.dai_link = byt_dailink,
 	.num_links = ARRAY_SIZE(byt_dailink),
 	.dapm_widgets = byt_dapm_widgets,

@@ -23,6 +23,7 @@
 
 #include "../codecs/sgtl5000.h"
 #include "../codecs/wm8962.h"
+#include "../codecs/wm8960.h"
 
 #define RX 0
 #define TX 1
@@ -407,6 +408,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	struct fsl_asoc_card_priv *priv;
 	struct i2c_client *codec_dev;
 	struct clk *codec_clk;
+	const char *codec_dai_name;
 	u32 width;
 	int ret;
 
@@ -459,6 +461,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 
 	/* Diversify the card configurations */
 	if (of_device_is_compatible(np, "fsl,imx-audio-cs42888")) {
+		codec_dai_name = "cs42888";
 		priv->card.set_bias_level = NULL;
 		priv->cpu_priv.sysclk_freq[TX] = priv->codec_priv.mclk_freq;
 		priv->cpu_priv.sysclk_freq[RX] = priv->codec_priv.mclk_freq;
@@ -467,17 +470,26 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->cpu_priv.slot_width = 32;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-sgtl5000")) {
+		codec_dai_name = "sgtl5000";
 		priv->codec_priv.mclk_id = SGTL5000_SYSCLK;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-wm8962")) {
+		codec_dai_name = "wm8962";
 		priv->card.set_bias_level = fsl_asoc_card_set_bias_level;
 		priv->codec_priv.mclk_id = WM8962_SYSCLK_MCLK;
 		priv->codec_priv.fll_id = WM8962_SYSCLK_FLL;
 		priv->codec_priv.pll_id = WM8962_FLL;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
+	} else if (of_device_is_compatible(np, "fsl,imx-audio-wm8960")) {
+		codec_dai_name = "wm8960-hifi";
+		priv->card.set_bias_level = fsl_asoc_card_set_bias_level;
+		priv->codec_priv.fll_id = WM8960_SYSCLK_AUTO;
+		priv->codec_priv.pll_id = WM8960_SYSCLK_AUTO;
+		priv->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
 	} else {
 		dev_err(&pdev->dev, "unknown Device Tree compatible\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto asrc_fail;
 	}
 
 	/* Common settings for corresponding Freescale CPU DAI driver */
@@ -521,7 +533,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	/* Normal DAI Link */
 	priv->dai_link[0].cpu_of_node = cpu_np;
 	priv->dai_link[0].codec_of_node = codec_np;
-	priv->dai_link[0].codec_dai_name = codec_dev->name;
+	priv->dai_link[0].codec_dai_name = codec_dai_name;
 	priv->dai_link[0].platform_of_node = cpu_np;
 	priv->dai_link[0].dai_fmt = priv->dai_fmt;
 	priv->card.num_links = 1;
@@ -530,7 +542,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		/* DPCM DAI Links only if ASRC exsits */
 		priv->dai_link[1].cpu_of_node = asrc_np;
 		priv->dai_link[1].platform_of_node = asrc_np;
-		priv->dai_link[2].codec_dai_name = codec_dev->name;
+		priv->dai_link[2].codec_dai_name = codec_dai_name;
 		priv->dai_link[2].codec_of_node = codec_np;
 		priv->dai_link[2].cpu_of_node = cpu_np;
 		priv->dai_link[2].dai_fmt = priv->dai_fmt;
@@ -578,6 +590,7 @@ static const struct of_device_id fsl_asoc_card_dt_ids[] = {
 	{ .compatible = "fsl,imx-audio-cs42888", },
 	{ .compatible = "fsl,imx-audio-sgtl5000", },
 	{ .compatible = "fsl,imx-audio-wm8962", },
+	{ .compatible = "fsl,imx-audio-wm8960", },
 	{}
 };
 

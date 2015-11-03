@@ -758,9 +758,9 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned type)
 	writel(value, reg);
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	else if (type & IRQ_TYPE_LEVEL_MASK)
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
@@ -836,11 +836,11 @@ static void intel_gpio_community_irq_handler(struct gpio_chip *gc,
 	}
 }
 
-static void intel_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void intel_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int i;
 
 	chained_irq_enter(chip, desc);

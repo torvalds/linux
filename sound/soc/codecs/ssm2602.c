@@ -75,11 +75,10 @@ static const struct soc_enum ssm2602_enum[] = {
 			ssm2602_deemph),
 };
 
-static const unsigned int ssm260x_outmix_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(ssm260x_outmix_tlv,
 	0, 47, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 0),
-	48, 127, TLV_DB_SCALE_ITEM(-7400, 100, 0),
-};
+	48, 127, TLV_DB_SCALE_ITEM(-7400, 100, 0)
+);
 
 static const DECLARE_TLV_DB_SCALE(ssm260x_inpga_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(ssm260x_sidetone_tlv, -1500, 300, 0);

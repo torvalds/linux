@@ -486,7 +486,6 @@ MODULE_DEVICE_TABLE(i2c, sec_pmic_id);
 static struct i2c_driver sec_pmic_driver = {
 	.driver = {
 		   .name = "sec_pmic",
-		   .owner = THIS_MODULE,
 		   .pm = &sec_pmic_pm_ops,
 		   .of_match_table = of_match_ptr(sec_dt_match),
 	},

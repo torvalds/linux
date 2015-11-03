@@ -1170,13 +1170,10 @@ void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
 	}
 
 	for (i = 0; i < sta_cnt; i++) {
-		if (PWDB_rssi[i] != (0)) {
-			if (pHalData->fw_ractrl) {
-				/*  Report every sta's RSSI to FW */
-			} else {
-				ODM_RA_SetRSSI_8188E(
-				&(pHalData->odmpriv), (PWDB_rssi[i]&0xFF), (u8)((PWDB_rssi[i]>>16) & 0xFF));
-			}
+		if (PWDB_rssi[i] != 0) {
+			ODM_RA_SetRSSI_8188E(&pHalData->odmpriv,
+					     PWDB_rssi[i] & 0xFF,
+					     (PWDB_rssi[i] >> 16) & 0xFF);
 		}
 	}
 

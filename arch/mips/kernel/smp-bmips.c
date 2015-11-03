@@ -284,7 +284,7 @@ static irqreturn_t bmips5000_ipi_interrupt(int irq, void *dev_id)
 	if (action == 0)
 		scheduler_ipi();
 	else
-		smp_call_function_interrupt();
+		generic_smp_call_function_interrupt();
 
 	return IRQ_HANDLED;
 }
@@ -336,7 +336,7 @@ static irqreturn_t bmips43xx_ipi_interrupt(int irq, void *dev_id)
 	if (action & SMP_RESCHEDULE_YOURSELF)
 		scheduler_ipi();
 	if (action & SMP_CALL_FUNCTION)
-		smp_call_function_interrupt();
+		generic_smp_call_function_interrupt();
 
 	return IRQ_HANDLED;
 }

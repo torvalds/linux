@@ -31,6 +31,7 @@
 struct ddi_buf_trans {
 	u32 trans1;	/* balance leg enable, de-emph level */
 	u32 trans2;	/* vref sel, vswing */
+	u8 i_boost;	/* SKL: I_boost; valid: 0x0, 0x1, 0x3, 0x7 */
 };
 
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share
@@ -38,134 +39,213 @@ struct ddi_buf_trans {
  * automatically adapt to HDMI connections as well
  */
 static const struct ddi_buf_trans hsw_ddi_translations_dp[] = {
-	{ 0x00FFFFFF, 0x0006000E },
-	{ 0x00D75FFF, 0x0005000A },
-	{ 0x00C30FFF, 0x00040006 },
-	{ 0x80AAAFFF, 0x000B0000 },
-	{ 0x00FFFFFF, 0x0005000A },
-	{ 0x00D75FFF, 0x000C0004 },
-	{ 0x80C30FFF, 0x000B0000 },
-	{ 0x00FFFFFF, 0x00040006 },
-	{ 0x80D75FFF, 0x000B0000 },
+	{ 0x00FFFFFF, 0x0006000E, 0x0 },
+	{ 0x00D75FFF, 0x0005000A, 0x0 },
+	{ 0x00C30FFF, 0x00040006, 0x0 },
+	{ 0x80AAAFFF, 0x000B0000, 0x0 },
+	{ 0x00FFFFFF, 0x0005000A, 0x0 },
+	{ 0x00D75FFF, 0x000C0004, 0x0 },
+	{ 0x80C30FFF, 0x000B0000, 0x0 },
+	{ 0x00FFFFFF, 0x00040006, 0x0 },
+	{ 0x80D75FFF, 0x000B0000, 0x0 },
 };
 
 static const struct ddi_buf_trans hsw_ddi_translations_fdi[] = {
-	{ 0x00FFFFFF, 0x0007000E },
-	{ 0x00D75FFF, 0x000F000A },
-	{ 0x00C30FFF, 0x00060006 },
-	{ 0x00AAAFFF, 0x001E0000 },
-	{ 0x00FFFFFF, 0x000F000A },
-	{ 0x00D75FFF, 0x00160004 },
-	{ 0x00C30FFF, 0x001E0000 },
-	{ 0x00FFFFFF, 0x00060006 },
-	{ 0x00D75FFF, 0x001E0000 },
+	{ 0x00FFFFFF, 0x0007000E, 0x0 },
+	{ 0x00D75FFF, 0x000F000A, 0x0 },
+	{ 0x00C30FFF, 0x00060006, 0x0 },
+	{ 0x00AAAFFF, 0x001E0000, 0x0 },
+	{ 0x00FFFFFF, 0x000F000A, 0x0 },
+	{ 0x00D75FFF, 0x00160004, 0x0 },
+	{ 0x00C30FFF, 0x001E0000, 0x0 },
+	{ 0x00FFFFFF, 0x00060006, 0x0 },
+	{ 0x00D75FFF, 0x001E0000, 0x0 },
 };
 
 static const struct ddi_buf_trans hsw_ddi_translations_hdmi[] = {
 					/* Idx	NT mV d	T mV d	db	*/
-	{ 0x00FFFFFF, 0x0006000E },	/* 0:	400	400	0	*/
-	{ 0x00E79FFF, 0x000E000C },	/* 1:	400	500	2	*/
-	{ 0x00D75FFF, 0x0005000A },	/* 2:	400	600	3.5	*/
-	{ 0x00FFFFFF, 0x0005000A },	/* 3:	600	600	0	*/
-	{ 0x00E79FFF, 0x001D0007 },	/* 4:	600	750	2	*/
-	{ 0x00D75FFF, 0x000C0004 },	/* 5:	600	900	3.5	*/
-	{ 0x00FFFFFF, 0x00040006 },	/* 6:	800	800	0	*/
-	{ 0x80E79FFF, 0x00030002 },	/* 7:	800	1000	2	*/
-	{ 0x00FFFFFF, 0x00140005 },	/* 8:	850	850	0	*/
-	{ 0x00FFFFFF, 0x000C0004 },	/* 9:	900	900	0	*/
-	{ 0x00FFFFFF, 0x001C0003 },	/* 10:	950	950	0	*/
-	{ 0x80FFFFFF, 0x00030002 },	/* 11:	1000	1000	0	*/
+	{ 0x00FFFFFF, 0x0006000E, 0x0 },/* 0:	400	400	0	*/
+	{ 0x00E79FFF, 0x000E000C, 0x0 },/* 1:	400	500	2	*/
+	{ 0x00D75FFF, 0x0005000A, 0x0 },/* 2:	400	600	3.5	*/
+	{ 0x00FFFFFF, 0x0005000A, 0x0 },/* 3:	600	600	0	*/
+	{ 0x00E79FFF, 0x001D0007, 0x0 },/* 4:	600	750	2	*/
+	{ 0x00D75FFF, 0x000C0004, 0x0 },/* 5:	600	900	3.5	*/
+	{ 0x00FFFFFF, 0x00040006, 0x0 },/* 6:	800	800	0	*/
+	{ 0x80E79FFF, 0x00030002, 0x0 },/* 7:	800	1000	2	*/
+	{ 0x00FFFFFF, 0x00140005, 0x0 },/* 8:	850	850	0	*/
+	{ 0x00FFFFFF, 0x000C0004, 0x0 },/* 9:	900	900	0	*/
+	{ 0x00FFFFFF, 0x001C0003, 0x0 },/* 10:	950	950	0	*/
+	{ 0x80FFFFFF, 0x00030002, 0x0 },/* 11:	1000	1000	0	*/
 };
 
 static const struct ddi_buf_trans bdw_ddi_translations_edp[] = {
-	{ 0x00FFFFFF, 0x00000012 },
-	{ 0x00EBAFFF, 0x00020011 },
-	{ 0x00C71FFF, 0x0006000F },
-	{ 0x00AAAFFF, 0x000E000A },
-	{ 0x00FFFFFF, 0x00020011 },
-	{ 0x00DB6FFF, 0x0005000F },
-	{ 0x00BEEFFF, 0x000A000C },
-	{ 0x00FFFFFF, 0x0005000F },
-	{ 0x00DB6FFF, 0x000A000C },
+	{ 0x00FFFFFF, 0x00000012, 0x0 },
+	{ 0x00EBAFFF, 0x00020011, 0x0 },
+	{ 0x00C71FFF, 0x0006000F, 0x0 },
+	{ 0x00AAAFFF, 0x000E000A, 0x0 },
+	{ 0x00FFFFFF, 0x00020011, 0x0 },
+	{ 0x00DB6FFF, 0x0005000F, 0x0 },
+	{ 0x00BEEFFF, 0x000A000C, 0x0 },
+	{ 0x00FFFFFF, 0x0005000F, 0x0 },
+	{ 0x00DB6FFF, 0x000A000C, 0x0 },
 };
 
 static const struct ddi_buf_trans bdw_ddi_translations_dp[] = {
-	{ 0x00FFFFFF, 0x0007000E },
-	{ 0x00D75FFF, 0x000E000A },
-	{ 0x00BEFFFF, 0x00140006 },
-	{ 0x80B2CFFF, 0x001B0002 },
-	{ 0x00FFFFFF, 0x000E000A },
-	{ 0x00DB6FFF, 0x00160005 },
-	{ 0x80C71FFF, 0x001A0002 },
-	{ 0x00F7DFFF, 0x00180004 },
-	{ 0x80D75FFF, 0x001B0002 },
+	{ 0x00FFFFFF, 0x0007000E, 0x0 },
+	{ 0x00D75FFF, 0x000E000A, 0x0 },
+	{ 0x00BEFFFF, 0x00140006, 0x0 },
+	{ 0x80B2CFFF, 0x001B0002, 0x0 },
+	{ 0x00FFFFFF, 0x000E000A, 0x0 },
+	{ 0x00DB6FFF, 0x00160005, 0x0 },
+	{ 0x80C71FFF, 0x001A0002, 0x0 },
+	{ 0x00F7DFFF, 0x00180004, 0x0 },
+	{ 0x80D75FFF, 0x001B0002, 0x0 },
 };
 
 static const struct ddi_buf_trans bdw_ddi_translations_fdi[] = {
-	{ 0x00FFFFFF, 0x0001000E },
-	{ 0x00D75FFF, 0x0004000A },
-	{ 0x00C30FFF, 0x00070006 },
-	{ 0x00AAAFFF, 0x000C0000 },
-	{ 0x00FFFFFF, 0x0004000A },
-	{ 0x00D75FFF, 0x00090004 },
-	{ 0x00C30FFF, 0x000C0000 },
-	{ 0x00FFFFFF, 0x00070006 },
-	{ 0x00D75FFF, 0x000C0000 },
+	{ 0x00FFFFFF, 0x0001000E, 0x0 },
+	{ 0x00D75FFF, 0x0004000A, 0x0 },
+	{ 0x00C30FFF, 0x00070006, 0x0 },
+	{ 0x00AAAFFF, 0x000C0000, 0x0 },
+	{ 0x00FFFFFF, 0x0004000A, 0x0 },
+	{ 0x00D75FFF, 0x00090004, 0x0 },
+	{ 0x00C30FFF, 0x000C0000, 0x0 },
+	{ 0x00FFFFFF, 0x00070006, 0x0 },
+	{ 0x00D75FFF, 0x000C0000, 0x0 },
 };
 
 static const struct ddi_buf_trans bdw_ddi_translations_hdmi[] = {
 					/* Idx	NT mV d	T mV df	db	*/
-	{ 0x00FFFFFF, 0x0007000E },	/* 0:	400	400	0	*/
-	{ 0x00D75FFF, 0x000E000A },	/* 1:	400	600	3.5	*/
-	{ 0x00BEFFFF, 0x00140006 },	/* 2:	400	800	6	*/
-	{ 0x00FFFFFF, 0x0009000D },	/* 3:	450	450	0	*/
-	{ 0x00FFFFFF, 0x000E000A },	/* 4:	600	600	0	*/
-	{ 0x00D7FFFF, 0x00140006 },	/* 5:	600	800	2.5	*/
-	{ 0x80CB2FFF, 0x001B0002 },	/* 6:	600	1000	4.5	*/
-	{ 0x00FFFFFF, 0x00140006 },	/* 7:	800	800	0	*/
-	{ 0x80E79FFF, 0x001B0002 },	/* 8:	800	1000	2	*/
-	{ 0x80FFFFFF, 0x001B0002 },	/* 9:	1000	1000	0	*/
+	{ 0x00FFFFFF, 0x0007000E, 0x0 },/* 0:	400	400	0	*/
+	{ 0x00D75FFF, 0x000E000A, 0x0 },/* 1:	400	600	3.5	*/
+	{ 0x00BEFFFF, 0x00140006, 0x0 },/* 2:	400	800	6	*/
+	{ 0x00FFFFFF, 0x0009000D, 0x0 },/* 3:	450	450	0	*/
+	{ 0x00FFFFFF, 0x000E000A, 0x0 },/* 4:	600	600	0	*/
+	{ 0x00D7FFFF, 0x00140006, 0x0 },/* 5:	600	800	2.5	*/
+	{ 0x80CB2FFF, 0x001B0002, 0x0 },/* 6:	600	1000	4.5	*/
+	{ 0x00FFFFFF, 0x00140006, 0x0 },/* 7:	800	800	0	*/
+	{ 0x80E79FFF, 0x001B0002, 0x0 },/* 8:	800	1000	2	*/
+	{ 0x80FFFFFF, 0x001B0002, 0x0 },/* 9:	1000	1000	0	*/
 };
 
+/* Skylake H and S */
 static const struct ddi_buf_trans skl_ddi_translations_dp[] = {
-	{ 0x00000018, 0x000000a2 },
-	{ 0x00004014, 0x0000009B },
-	{ 0x00006012, 0x00000088 },
-	{ 0x00008010, 0x00000087 },
-	{ 0x00000018, 0x0000009B },
-	{ 0x00004014, 0x00000088 },
-	{ 0x00006012, 0x00000087 },
-	{ 0x00000018, 0x00000088 },
-	{ 0x00004014, 0x00000087 },
+	{ 0x00002016, 0x000000A0, 0x0 },
+	{ 0x00005012, 0x0000009B, 0x0 },
+	{ 0x00007011, 0x00000088, 0x0 },
+	{ 0x00009010, 0x000000C7, 0x0 },
+	{ 0x00002016, 0x0000009B, 0x0 },
+	{ 0x00005012, 0x00000088, 0x0 },
+	{ 0x00007011, 0x000000C7, 0x0 },
+	{ 0x00002016, 0x000000DF, 0x0 },
+	{ 0x00005012, 0x000000C7, 0x0 },
 };
 
-/* eDP 1.4 low vswing translation parameters */
+/* Skylake U */
+static const struct ddi_buf_trans skl_u_ddi_translations_dp[] = {
+	{ 0x0000201B, 0x000000A2, 0x0 },
+	{ 0x00005012, 0x00000088, 0x0 },
+	{ 0x00007011, 0x00000087, 0x0 },
+	{ 0x80009010, 0x000000C7, 0x1 },	/* Uses I_boost level 0x1 */
+	{ 0x0000201B, 0x0000009D, 0x0 },
+	{ 0x00005012, 0x000000C7, 0x0 },
+	{ 0x00007011, 0x000000C7, 0x0 },
+	{ 0x00002016, 0x00000088, 0x0 },
+	{ 0x00005012, 0x000000C7, 0x0 },
+};
+
+/* Skylake Y */
+static const struct ddi_buf_trans skl_y_ddi_translations_dp[] = {
+	{ 0x00000018, 0x000000A2, 0x0 },
+	{ 0x00005012, 0x00000088, 0x0 },
+	{ 0x00007011, 0x00000087, 0x0 },
+	{ 0x80009010, 0x000000C7, 0x3 },	/* Uses I_boost level 0x3 */
+	{ 0x00000018, 0x0000009D, 0x0 },
+	{ 0x00005012, 0x000000C7, 0x0 },
+	{ 0x00007011, 0x000000C7, 0x0 },
+	{ 0x00000018, 0x00000088, 0x0 },
+	{ 0x00005012, 0x000000C7, 0x0 },
+};
+
+/*
+ * Skylake H and S
+ * eDP 1.4 low vswing translation parameters
+ */
 static const struct ddi_buf_trans skl_ddi_translations_edp[] = {
-	{ 0x00000018, 0x000000a8 },
-	{ 0x00002016, 0x000000ab },
-	{ 0x00006012, 0x000000a2 },
-	{ 0x00008010, 0x00000088 },
-	{ 0x00000018, 0x000000ab },
-	{ 0x00004014, 0x000000a2 },
-	{ 0x00006012, 0x000000a6 },
-	{ 0x00000018, 0x000000a2 },
-	{ 0x00005013, 0x0000009c },
-	{ 0x00000018, 0x00000088 },
+	{ 0x00000018, 0x000000A8, 0x0 },
+	{ 0x00004013, 0x000000A9, 0x0 },
+	{ 0x00007011, 0x000000A2, 0x0 },
+	{ 0x00009010, 0x0000009C, 0x0 },
+	{ 0x00000018, 0x000000A9, 0x0 },
+	{ 0x00006013, 0x000000A2, 0x0 },
+	{ 0x00007011, 0x000000A6, 0x0 },
+	{ 0x00000018, 0x000000AB, 0x0 },
+	{ 0x00007013, 0x0000009F, 0x0 },
+	{ 0x00000018, 0x000000DF, 0x0 },
 };
 
+/*
+ * Skylake U
+ * eDP 1.4 low vswing translation parameters
+ */
+static const struct ddi_buf_trans skl_u_ddi_translations_edp[] = {
+	{ 0x00000018, 0x000000A8, 0x0 },
+	{ 0x00004013, 0x000000A9, 0x0 },
+	{ 0x00007011, 0x000000A2, 0x0 },
+	{ 0x00009010, 0x0000009C, 0x0 },
+	{ 0x00000018, 0x000000A9, 0x0 },
+	{ 0x00006013, 0x000000A2, 0x0 },
+	{ 0x00007011, 0x000000A6, 0x0 },
+	{ 0x00002016, 0x000000AB, 0x0 },
+	{ 0x00005013, 0x0000009F, 0x0 },
+	{ 0x00000018, 0x000000DF, 0x0 },
+};
 
+/*
+ * Skylake Y
+ * eDP 1.4 low vswing translation parameters
+ */
+static const struct ddi_buf_trans skl_y_ddi_translations_edp[] = {
+	{ 0x00000018, 0x000000A8, 0x0 },
+	{ 0x00004013, 0x000000AB, 0x0 },
+	{ 0x00007011, 0x000000A4, 0x0 },
+	{ 0x00009010, 0x000000DF, 0x0 },
+	{ 0x00000018, 0x000000AA, 0x0 },
+	{ 0x00006013, 0x000000A4, 0x0 },
+	{ 0x00007011, 0x0000009D, 0x0 },
+	{ 0x00000018, 0x000000A0, 0x0 },
+	{ 0x00006012, 0x000000DF, 0x0 },
+	{ 0x00000018, 0x0000008A, 0x0 },
+};
+
+/* Skylake U, H and S */
 static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
-	{ 0x00000018, 0x000000ac },
-	{ 0x00005012, 0x0000009d },
-	{ 0x00007011, 0x00000088 },
-	{ 0x00000018, 0x000000a1 },
-	{ 0x00000018, 0x00000098 },
-	{ 0x00004013, 0x00000088 },
-	{ 0x00006012, 0x00000087 },
-	{ 0x00000018, 0x000000df },
-	{ 0x00003015, 0x00000087 },
-	{ 0x00003015, 0x000000c7 },
-	{ 0x00000018, 0x000000c7 },
+	{ 0x00000018, 0x000000AC, 0x0 },
+	{ 0x00005012, 0x0000009D, 0x0 },
+	{ 0x00007011, 0x00000088, 0x0 },
+	{ 0x00000018, 0x000000A1, 0x0 },
+	{ 0x00000018, 0x00000098, 0x0 },
+	{ 0x00004013, 0x00000088, 0x0 },
+	{ 0x00006012, 0x00000087, 0x0 },
+	{ 0x00000018, 0x000000DF, 0x0 },
+	{ 0x00003015, 0x00000087, 0x0 },	/* Default */
+	{ 0x00003015, 0x000000C7, 0x0 },
+	{ 0x00000018, 0x000000C7, 0x0 },
+};
+
+/* Skylake Y */
+static const struct ddi_buf_trans skl_y_ddi_translations_hdmi[] = {
+	{ 0x00000018, 0x000000A1, 0x0 },
+	{ 0x00005012, 0x000000DF, 0x0 },
+	{ 0x00007011, 0x00000084, 0x0 },
+	{ 0x00000018, 0x000000A4, 0x0 },
+	{ 0x00000018, 0x0000009D, 0x0 },
+	{ 0x00004013, 0x00000080, 0x0 },
+	{ 0x00006013, 0x000000C7, 0x0 },
+	{ 0x00000018, 0x0000008A, 0x0 },
+	{ 0x00003015, 0x000000C7, 0x0 },	/* Default */
+	{ 0x80003015, 0x000000C7, 0x7 },	/* Uses I_boost level 0x7 */
+	{ 0x00000018, 0x000000C7, 0x0 },
 };
 
 struct bxt_ddi_buf_trans {
@@ -181,16 +261,16 @@ struct bxt_ddi_buf_trans {
  */
 static const struct bxt_ddi_buf_trans bxt_ddi_translations_dp[] = {
 					/* Idx	NT mV diff	db  */
-	{ 52,  0,    0, 128, true  },	/* 0:	400		0   */
-	{ 78,  0,    0, 85,  false },	/* 1:	400		3.5 */
-	{ 104, 0,    0, 64,  false },	/* 2:	400		6   */
-	{ 154, 0,    0, 43,  false },	/* 3:	400		9.5 */
-	{ 77,  0,    0, 128, false },	/* 4:	600		0   */
-	{ 116, 0,    0, 85,  false },	/* 5:	600		3.5 */
-	{ 154, 0,    0, 64,  false },	/* 6:	600		6   */
-	{ 102, 0,    0, 128, false },	/* 7:	800		0   */
-	{ 154, 0,    0, 85,  false },	/* 8:	800		3.5 */
-	{ 154, 0x9A, 1, 128, false },  /* 9:	1200		0   */
+	{ 52,  0x9A, 0, 128, true  },	/* 0:	400		0   */
+	{ 78,  0x9A, 0, 85,  false },	/* 1:	400		3.5 */
+	{ 104, 0x9A, 0, 64,  false },	/* 2:	400		6   */
+	{ 154, 0x9A, 0, 43,  false },	/* 3:	400		9.5 */
+	{ 77,  0x9A, 0, 128, false },	/* 4:	600		0   */
+	{ 116, 0x9A, 0, 85,  false },	/* 5:	600		3.5 */
+	{ 154, 0x9A, 0, 64,  false },	/* 6:	600		6   */
+	{ 102, 0x9A, 0, 128, false },	/* 7:	800		0   */
+	{ 154, 0x9A, 0, 85,  false },	/* 8:	800		3.5 */
+	{ 154, 0x9A, 1, 128, false },	/* 9:	1200		0   */
 };
 
 /* BSpec has 2 recommended values - entries 0 and 8.
@@ -198,17 +278,20 @@ static const struct bxt_ddi_buf_trans bxt_ddi_translations_dp[] = {
  */
 static const struct bxt_ddi_buf_trans bxt_ddi_translations_hdmi[] = {
 					/* Idx	NT mV diff	db  */
-	{ 52,  0,    0, 128, false },	/* 0:	400		0   */
-	{ 52,  0,    0, 85,  false },	/* 1:	400		3.5 */
-	{ 52,  0,    0, 64,  false },	/* 2:	400		6   */
-	{ 42,  0,    0, 43,  false },	/* 3:	400		9.5 */
-	{ 77,  0,    0, 128, false },	/* 4:	600		0   */
-	{ 77,  0,    0, 85,  false },	/* 5:	600		3.5 */
-	{ 77,  0,    0, 64,  false },	/* 6:	600		6   */
-	{ 102, 0,    0, 128, false },	/* 7:	800		0   */
-	{ 102, 0,    0, 85,  false },	/* 8:	800		3.5 */
+	{ 52,  0x9A, 0, 128, false },	/* 0:	400		0   */
+	{ 52,  0x9A, 0, 85,  false },	/* 1:	400		3.5 */
+	{ 52,  0x9A, 0, 64,  false },	/* 2:	400		6   */
+	{ 42,  0x9A, 0, 43,  false },	/* 3:	400		9.5 */
+	{ 77,  0x9A, 0, 128, false },	/* 4:	600		0   */
+	{ 77,  0x9A, 0, 85,  false },	/* 5:	600		3.5 */
+	{ 77,  0x9A, 0, 64,  false },	/* 6:	600		6   */
+	{ 102, 0x9A, 0, 128, false },	/* 7:	800		0   */
+	{ 102, 0x9A, 0, 85,  false },	/* 8:	800		3.5 */
 	{ 154, 0x9A, 1, 128, true },	/* 9:	1200		0   */
 };
+
+static void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
+				    enum port port, int type);
 
 static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
 				 struct intel_digital_port **dig_port,
@@ -249,6 +332,77 @@ intel_dig_port_supports_hdmi(const struct intel_digital_port *intel_dig_port)
 	return intel_dig_port->hdmi.hdmi_reg;
 }
 
+static const struct ddi_buf_trans *skl_get_buf_trans_dp(struct drm_device *dev,
+							int *n_entries)
+{
+	const struct ddi_buf_trans *ddi_translations;
+
+	if (IS_SKL_ULX(dev)) {
+		ddi_translations = skl_y_ddi_translations_dp;
+		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
+	} else if (IS_SKL_ULT(dev)) {
+		ddi_translations = skl_u_ddi_translations_dp;
+		*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
+	} else {
+		ddi_translations = skl_ddi_translations_dp;
+		*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
+	}
+
+	return ddi_translations;
+}
+
+static const struct ddi_buf_trans *skl_get_buf_trans_edp(struct drm_device *dev,
+							 int *n_entries)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct ddi_buf_trans *ddi_translations;
+
+	if (IS_SKL_ULX(dev)) {
+		if (dev_priv->edp_low_vswing) {
+			ddi_translations = skl_y_ddi_translations_edp;
+			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
+		} else {
+			ddi_translations = skl_y_ddi_translations_dp;
+			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
+		}
+	} else if (IS_SKL_ULT(dev)) {
+		if (dev_priv->edp_low_vswing) {
+			ddi_translations = skl_u_ddi_translations_edp;
+			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
+		} else {
+			ddi_translations = skl_u_ddi_translations_dp;
+			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
+		}
+	} else {
+		if (dev_priv->edp_low_vswing) {
+			ddi_translations = skl_ddi_translations_edp;
+			*n_entries = ARRAY_SIZE(skl_ddi_translations_edp);
+		} else {
+			ddi_translations = skl_ddi_translations_dp;
+			*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
+		}
+	}
+
+	return ddi_translations;
+}
+
+static const struct ddi_buf_trans *
+skl_get_buf_trans_hdmi(struct drm_device *dev,
+		       int *n_entries)
+{
+	const struct ddi_buf_trans *ddi_translations;
+
+	if (IS_SKL_ULX(dev)) {
+		ddi_translations = skl_y_ddi_translations_hdmi;
+		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_hdmi);
+	} else {
+		ddi_translations = skl_ddi_translations_hdmi;
+		*n_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
+	}
+
+	return ddi_translations;
+}
+
 /*
  * Starting with Haswell, DDI port buffers must be programmed with correct
  * values in advance. The buffer values are different for FDI and DP modes,
@@ -261,6 +415,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
+	u32 iboost_bit = 0;
 	int i, n_hdmi_entries, n_dp_entries, n_edp_entries, hdmi_default_entry,
 	    size;
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
@@ -280,19 +435,17 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		return;
 	} else if (IS_SKYLAKE(dev)) {
 		ddi_translations_fdi = NULL;
-		ddi_translations_dp = skl_ddi_translations_dp;
-		n_dp_entries = ARRAY_SIZE(skl_ddi_translations_dp);
-		if (dev_priv->edp_low_vswing) {
-			ddi_translations_edp = skl_ddi_translations_edp;
-			n_edp_entries = ARRAY_SIZE(skl_ddi_translations_edp);
-		} else {
-			ddi_translations_edp = skl_ddi_translations_dp;
-			n_edp_entries = ARRAY_SIZE(skl_ddi_translations_dp);
-		}
-
-		ddi_translations_hdmi = skl_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
-		hdmi_default_entry = 7;
+		ddi_translations_dp =
+				skl_get_buf_trans_dp(dev, &n_dp_entries);
+		ddi_translations_edp =
+				skl_get_buf_trans_edp(dev, &n_edp_entries);
+		ddi_translations_hdmi =
+				skl_get_buf_trans_hdmi(dev, &n_hdmi_entries);
+		hdmi_default_entry = 8;
+		/* If we're boosting the current, set bit 31 of trans1 */
+		if (dev_priv->vbt.ddi_port_info[port].hdmi_boost_level ||
+		    dev_priv->vbt.ddi_port_info[port].dp_boost_level)
+			iboost_bit = 1<<31;
 	} else if (IS_BROADWELL(dev)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
@@ -353,7 +506,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 	}
 
 	for (i = 0, reg = DDI_BUF_TRANS(port); i < size; i++) {
-		I915_WRITE(reg, ddi_translations[i].trans1);
+		I915_WRITE(reg, ddi_translations[i].trans1 | iboost_bit);
 		reg += 4;
 		I915_WRITE(reg, ddi_translations[i].trans2);
 		reg += 4;
@@ -368,7 +521,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		hdmi_level = hdmi_default_entry;
 
 	/* Entry 9 is for HDMI: */
-	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans1);
+	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans1 | iboost_bit);
 	reg += 4;
 	I915_WRITE(reg, ddi_translations_hdmi[hdmi_level].trans2);
 	reg += 4;
@@ -625,11 +778,11 @@ intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
 	(void) (&__a == &__b);			\
 	__a > __b ? (__a - __b) : (__b - __a); })
 
-struct wrpll_rnp {
+struct hsw_wrpll_rnp {
 	unsigned p, n2, r2;
 };
 
-static unsigned wrpll_get_budget_for_freq(int clock)
+static unsigned hsw_wrpll_get_budget_for_freq(int clock)
 {
 	unsigned budget;
 
@@ -703,9 +856,9 @@ static unsigned wrpll_get_budget_for_freq(int clock)
 	return budget;
 }
 
-static void wrpll_update_rnp(uint64_t freq2k, unsigned budget,
-			     unsigned r2, unsigned n2, unsigned p,
-			     struct wrpll_rnp *best)
+static void hsw_wrpll_update_rnp(uint64_t freq2k, unsigned budget,
+				 unsigned r2, unsigned n2, unsigned p,
+				 struct hsw_wrpll_rnp *best)
 {
 	uint64_t a, b, c, d, diff, diff_best;
 
@@ -762,8 +915,7 @@ static void wrpll_update_rnp(uint64_t freq2k, unsigned budget,
 	/* Otherwise a < c && b >= d, do nothing */
 }
 
-static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
-				     int reg)
+static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv, int reg)
 {
 	int refclk = LC_FREQ;
 	int n, p, r;
@@ -856,6 +1008,26 @@ static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	return dco_freq / (p0 * p1 * p2 * 5);
 }
 
+static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
+{
+	int dotclock;
+
+	if (pipe_config->has_pch_encoder)
+		dotclock = intel_dotclock_calculate(pipe_config->port_clock,
+						    &pipe_config->fdi_m_n);
+	else if (pipe_config->has_dp_encoder)
+		dotclock = intel_dotclock_calculate(pipe_config->port_clock,
+						    &pipe_config->dp_m_n);
+	else if (pipe_config->has_hdmi_sink && pipe_config->pipe_bpp == 36)
+		dotclock = pipe_config->port_clock * 2 / 3;
+	else
+		dotclock = pipe_config->port_clock;
+
+	if (pipe_config->pixel_multiplier)
+		dotclock /= pipe_config->pixel_multiplier;
+
+	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
+}
 
 static void skl_ddi_clock_get(struct intel_encoder *encoder,
 				struct intel_crtc_state *pipe_config)
@@ -902,12 +1074,7 @@ static void skl_ddi_clock_get(struct intel_encoder *encoder,
 
 	pipe_config->port_clock = link_clock;
 
-	if (pipe_config->has_dp_encoder)
-		pipe_config->base.adjusted_mode.crtc_clock =
-			intel_dotclock_calculate(pipe_config->port_clock,
-						 &pipe_config->dp_m_n);
-	else
-		pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
+	ddi_dotclock_get(pipe_config);
 }
 
 static void hsw_ddi_clock_get(struct intel_encoder *encoder,
@@ -929,10 +1096,10 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 		link_clock = 270000;
 		break;
 	case PORT_CLK_SEL_WRPLL1:
-		link_clock = intel_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL1);
+		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL1);
 		break;
 	case PORT_CLK_SEL_WRPLL2:
-		link_clock = intel_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL2);
+		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL2);
 		break;
 	case PORT_CLK_SEL_SPLL:
 		pll = I915_READ(SPLL_CTL) & SPLL_PLL_FREQ_MASK;
@@ -954,23 +1121,32 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 
 	pipe_config->port_clock = link_clock * 2;
 
-	if (pipe_config->has_pch_encoder)
-		pipe_config->base.adjusted_mode.crtc_clock =
-			intel_dotclock_calculate(pipe_config->port_clock,
-						 &pipe_config->fdi_m_n);
-	else if (pipe_config->has_dp_encoder)
-		pipe_config->base.adjusted_mode.crtc_clock =
-			intel_dotclock_calculate(pipe_config->port_clock,
-						 &pipe_config->dp_m_n);
-	else
-		pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
+	ddi_dotclock_get(pipe_config);
 }
 
 static int bxt_calc_pll_link(struct drm_i915_private *dev_priv,
 				enum intel_dpll_id dpll)
 {
-	/* FIXME formula not available in bspec */
-	return 0;
+	struct intel_shared_dpll *pll;
+	struct intel_dpll_hw_state *state;
+	intel_clock_t clock;
+
+	/* For DDI ports we always use a shared PLL. */
+	if (WARN_ON(dpll == DPLL_ID_PRIVATE))
+		return 0;
+
+	pll = &dev_priv->shared_dplls[dpll];
+	state = &pll->config.hw_state;
+
+	clock.m1 = 2;
+	clock.m2 = (state->pll0 & PORT_PLL_M2_MASK) << 22;
+	if (state->pll3 & PORT_PLL_M2_FRAC_ENABLE)
+		clock.m2 |= state->pll2 & PORT_PLL_M2_FRAC_MASK;
+	clock.n = (state->pll1 & PORT_PLL_N_MASK) >> PORT_PLL_N_SHIFT;
+	clock.p1 = (state->ebb0 & PORT_PLL_P1_MASK) >> PORT_PLL_P1_SHIFT;
+	clock.p2 = (state->ebb0 & PORT_PLL_P2_MASK) >> PORT_PLL_P2_SHIFT;
+
+	return chv_calc_dpll_params(100000, &clock);
 }
 
 static void bxt_ddi_clock_get(struct intel_encoder *encoder,
@@ -980,16 +1156,9 @@ static void bxt_ddi_clock_get(struct intel_encoder *encoder,
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	uint32_t dpll = port;
 
-	pipe_config->port_clock =
-		bxt_calc_pll_link(dev_priv, dpll);
+	pipe_config->port_clock = bxt_calc_pll_link(dev_priv, dpll);
 
-	if (pipe_config->has_dp_encoder)
-		pipe_config->base.adjusted_mode.crtc_clock =
-			intel_dotclock_calculate(pipe_config->port_clock,
-							&pipe_config->dp_m_n);
-	else
-		pipe_config->base.adjusted_mode.crtc_clock =
-							pipe_config->port_clock;
+	ddi_dotclock_get(pipe_config);
 }
 
 void intel_ddi_clock_get(struct intel_encoder *encoder,
@@ -1011,12 +1180,12 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 {
 	uint64_t freq2k;
 	unsigned p, n2, r2;
-	struct wrpll_rnp best = { 0, 0, 0 };
+	struct hsw_wrpll_rnp best = { 0, 0, 0 };
 	unsigned budget;
 
 	freq2k = clock / 100;
 
-	budget = wrpll_get_budget_for_freq(clock);
+	budget = hsw_wrpll_get_budget_for_freq(clock);
 
 	/* Special case handling for 540 pixel clock: bypass WR PLL entirely
 	 * and directly pass the LC PLL to it. */
@@ -1060,8 +1229,8 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 		     n2++) {
 
 			for (p = P_MIN; p <= P_MAX; p += P_INC)
-				wrpll_update_rnp(freq2k, budget,
-						 r2, n2, p, &best);
+				hsw_wrpll_update_rnp(freq2k, budget,
+						     r2, n2, p, &best);
 		}
 	}
 
@@ -1105,6 +1274,102 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 	return true;
 }
 
+struct skl_wrpll_context {
+	uint64_t min_deviation;		/* current minimal deviation */
+	uint64_t central_freq;		/* chosen central freq */
+	uint64_t dco_freq;		/* chosen dco freq */
+	unsigned int p;			/* chosen divider */
+};
+
+static void skl_wrpll_context_init(struct skl_wrpll_context *ctx)
+{
+	memset(ctx, 0, sizeof(*ctx));
+
+	ctx->min_deviation = U64_MAX;
+}
+
+/* DCO freq must be within +1%/-6%  of the DCO central freq */
+#define SKL_DCO_MAX_PDEVIATION	100
+#define SKL_DCO_MAX_NDEVIATION	600
+
+static void skl_wrpll_try_divider(struct skl_wrpll_context *ctx,
+				  uint64_t central_freq,
+				  uint64_t dco_freq,
+				  unsigned int divider)
+{
+	uint64_t deviation;
+
+	deviation = div64_u64(10000 * abs_diff(dco_freq, central_freq),
+			      central_freq);
+
+	/* positive deviation */
+	if (dco_freq >= central_freq) {
+		if (deviation < SKL_DCO_MAX_PDEVIATION &&
+		    deviation < ctx->min_deviation) {
+			ctx->min_deviation = deviation;
+			ctx->central_freq = central_freq;
+			ctx->dco_freq = dco_freq;
+			ctx->p = divider;
+		}
+	/* negative deviation */
+	} else if (deviation < SKL_DCO_MAX_NDEVIATION &&
+		   deviation < ctx->min_deviation) {
+		ctx->min_deviation = deviation;
+		ctx->central_freq = central_freq;
+		ctx->dco_freq = dco_freq;
+		ctx->p = divider;
+	}
+}
+
+static void skl_wrpll_get_multipliers(unsigned int p,
+				      unsigned int *p0 /* out */,
+				      unsigned int *p1 /* out */,
+				      unsigned int *p2 /* out */)
+{
+	/* even dividers */
+	if (p % 2 == 0) {
+		unsigned int half = p / 2;
+
+		if (half == 1 || half == 2 || half == 3 || half == 5) {
+			*p0 = 2;
+			*p1 = 1;
+			*p2 = half;
+		} else if (half % 2 == 0) {
+			*p0 = 2;
+			*p1 = half / 2;
+			*p2 = 2;
+		} else if (half % 3 == 0) {
+			*p0 = 3;
+			*p1 = half / 3;
+			*p2 = 2;
+		} else if (half % 7 == 0) {
+			*p0 = 7;
+			*p1 = half / 7;
+			*p2 = 2;
+		}
+	} else if (p == 3 || p == 9) {  /* 3, 5, 7, 9, 15, 21, 35 */
+		*p0 = 3;
+		*p1 = 1;
+		*p2 = p / 3;
+	} else if (p == 5 || p == 7) {
+		*p0 = p;
+		*p1 = 1;
+		*p2 = 1;
+	} else if (p == 15) {
+		*p0 = 3;
+		*p1 = 1;
+		*p2 = 5;
+	} else if (p == 21) {
+		*p0 = 7;
+		*p1 = 1;
+		*p2 = 3;
+	} else if (p == 35) {
+		*p0 = 7;
+		*p1 = 1;
+		*p2 = 5;
+	}
+}
+
 struct skl_wrpll_params {
 	uint32_t        dco_fraction;
 	uint32_t        dco_integer;
@@ -1115,7 +1380,74 @@ struct skl_wrpll_params {
 	uint32_t        central_freq;
 };
 
-static void
+static void skl_wrpll_params_populate(struct skl_wrpll_params *params,
+				      uint64_t afe_clock,
+				      uint64_t central_freq,
+				      uint32_t p0, uint32_t p1, uint32_t p2)
+{
+	uint64_t dco_freq;
+
+	switch (central_freq) {
+	case 9600000000ULL:
+		params->central_freq = 0;
+		break;
+	case 9000000000ULL:
+		params->central_freq = 1;
+		break;
+	case 8400000000ULL:
+		params->central_freq = 3;
+	}
+
+	switch (p0) {
+	case 1:
+		params->pdiv = 0;
+		break;
+	case 2:
+		params->pdiv = 1;
+		break;
+	case 3:
+		params->pdiv = 2;
+		break;
+	case 7:
+		params->pdiv = 4;
+		break;
+	default:
+		WARN(1, "Incorrect PDiv\n");
+	}
+
+	switch (p2) {
+	case 5:
+		params->kdiv = 0;
+		break;
+	case 2:
+		params->kdiv = 1;
+		break;
+	case 3:
+		params->kdiv = 2;
+		break;
+	case 1:
+		params->kdiv = 3;
+		break;
+	default:
+		WARN(1, "Incorrect KDiv\n");
+	}
+
+	params->qdiv_ratio = p1;
+	params->qdiv_mode = (params->qdiv_ratio == 1) ? 0 : 1;
+
+	dco_freq = p0 * p1 * p2 * afe_clock;
+
+	/*
+	 * Intermediate values are in Hz.
+	 * Divide by MHz to match bsepc
+	 */
+	params->dco_integer = div_u64(dco_freq, 24 * MHz(1));
+	params->dco_fraction =
+		div_u64((div_u64(dco_freq, 24) -
+			 params->dco_integer * MHz(1)) * 0x8000, MHz(1));
+}
+
+static bool
 skl_ddi_calculate_wrpll(int clock /* in Hz */,
 			struct skl_wrpll_params *wrpll_params)
 {
@@ -1123,142 +1455,70 @@ skl_ddi_calculate_wrpll(int clock /* in Hz */,
 	uint64_t dco_central_freq[3] = {8400000000ULL,
 					9000000000ULL,
 					9600000000ULL};
-	uint32_t min_dco_deviation = 400;
-	uint32_t min_dco_index = 3;
-	uint32_t P0[4] = {1, 2, 3, 7};
-	uint32_t P2[4] = {1, 2, 3, 5};
-	bool found = false;
-	uint32_t candidate_p = 0;
-	uint32_t candidate_p0[3] = {0}, candidate_p1[3] = {0};
-	uint32_t candidate_p2[3] = {0};
-	uint32_t dco_central_freq_deviation[3];
-	uint32_t i, P1, k, dco_count;
-	bool retry_with_odd = false;
-	uint64_t dco_freq;
+	static const int even_dividers[] = {  4,  6,  8, 10, 12, 14, 16, 18, 20,
+					     24, 28, 30, 32, 36, 40, 42, 44,
+					     48, 52, 54, 56, 60, 64, 66, 68,
+					     70, 72, 76, 78, 80, 84, 88, 90,
+					     92, 96, 98 };
+	static const int odd_dividers[] = { 3, 5, 7, 9, 15, 21, 35 };
+	static const struct {
+		const int *list;
+		int n_dividers;
+	} dividers[] = {
+		{ even_dividers, ARRAY_SIZE(even_dividers) },
+		{ odd_dividers, ARRAY_SIZE(odd_dividers) },
+	};
+	struct skl_wrpll_context ctx;
+	unsigned int dco, d, i;
+	unsigned int p0, p1, p2;
 
-	/* Determine P0, P1 or P2 */
-	for (dco_count = 0; dco_count < 3; dco_count++) {
-		found = false;
-		candidate_p =
-			div64_u64(dco_central_freq[dco_count], afe_clock);
-		if (retry_with_odd == false)
-			candidate_p = (candidate_p % 2 == 0 ?
-				candidate_p : candidate_p + 1);
+	skl_wrpll_context_init(&ctx);
 
-		for (P1 = 1; P1 < candidate_p; P1++) {
-			for (i = 0; i < 4; i++) {
-				if (!(P0[i] != 1 || P1 == 1))
-					continue;
+	for (d = 0; d < ARRAY_SIZE(dividers); d++) {
+		for (dco = 0; dco < ARRAY_SIZE(dco_central_freq); dco++) {
+			for (i = 0; i < dividers[d].n_dividers; i++) {
+				unsigned int p = dividers[d].list[i];
+				uint64_t dco_freq = p * afe_clock;
 
-				for (k = 0; k < 4; k++) {
-					if (P1 != 1 && P2[k] != 2)
-						continue;
-
-					if (candidate_p == P0[i] * P1 * P2[k]) {
-						/* Found possible P0, P1, P2 */
-						found = true;
-						candidate_p0[dco_count] = P0[i];
-						candidate_p1[dco_count] = P1;
-						candidate_p2[dco_count] = P2[k];
-						goto found;
-					}
-
-				}
+				skl_wrpll_try_divider(&ctx,
+						      dco_central_freq[dco],
+						      dco_freq,
+						      p);
+				/*
+				 * Skip the remaining dividers if we're sure to
+				 * have found the definitive divider, we can't
+				 * improve a 0 deviation.
+				 */
+				if (ctx.min_deviation == 0)
+					goto skip_remaining_dividers;
 			}
 		}
 
-found:
-		if (found) {
-			dco_central_freq_deviation[dco_count] =
-				div64_u64(10000 *
-					  abs_diff((candidate_p * afe_clock),
-						   dco_central_freq[dco_count]),
-					  dco_central_freq[dco_count]);
-
-			if (dco_central_freq_deviation[dco_count] <
-				min_dco_deviation) {
-				min_dco_deviation =
-					dco_central_freq_deviation[dco_count];
-				min_dco_index = dco_count;
-			}
-		}
-
-		if (min_dco_index > 2 && dco_count == 2) {
-			retry_with_odd = true;
-			dco_count = 0;
-		}
-	}
-
-	if (min_dco_index > 2) {
-		WARN(1, "No valid values found for the given pixel clock\n");
-	} else {
-		wrpll_params->central_freq = dco_central_freq[min_dco_index];
-
-		switch (dco_central_freq[min_dco_index]) {
-		case 9600000000ULL:
-			wrpll_params->central_freq = 0;
-			break;
-		case 9000000000ULL:
-			wrpll_params->central_freq = 1;
-			break;
-		case 8400000000ULL:
-			wrpll_params->central_freq = 3;
-		}
-
-		switch (candidate_p0[min_dco_index]) {
-		case 1:
-			wrpll_params->pdiv = 0;
-			break;
-		case 2:
-			wrpll_params->pdiv = 1;
-			break;
-		case 3:
-			wrpll_params->pdiv = 2;
-			break;
-		case 7:
-			wrpll_params->pdiv = 4;
-			break;
-		default:
-			WARN(1, "Incorrect PDiv\n");
-		}
-
-		switch (candidate_p2[min_dco_index]) {
-		case 5:
-			wrpll_params->kdiv = 0;
-			break;
-		case 2:
-			wrpll_params->kdiv = 1;
-			break;
-		case 3:
-			wrpll_params->kdiv = 2;
-			break;
-		case 1:
-			wrpll_params->kdiv = 3;
-			break;
-		default:
-			WARN(1, "Incorrect KDiv\n");
-		}
-
-		wrpll_params->qdiv_ratio = candidate_p1[min_dco_index];
-		wrpll_params->qdiv_mode =
-			(wrpll_params->qdiv_ratio == 1) ? 0 : 1;
-
-		dco_freq = candidate_p0[min_dco_index] *
-			candidate_p1[min_dco_index] *
-			candidate_p2[min_dco_index] * afe_clock;
-
+skip_remaining_dividers:
 		/*
-		 * Intermediate values are in Hz.
-		 * Divide by MHz to match bsepc
+		 * If a solution is found with an even divider, prefer
+		 * this one.
 		 */
-		wrpll_params->dco_integer = div_u64(dco_freq, (24 * MHz(1)));
-		wrpll_params->dco_fraction =
-			div_u64(((div_u64(dco_freq, 24) -
-				  wrpll_params->dco_integer * MHz(1)) * 0x8000), MHz(1));
-
+		if (d == 0 && ctx.p)
+			break;
 	}
-}
 
+	if (!ctx.p) {
+		DRM_DEBUG_DRIVER("No valid divider found for %dHz\n", clock);
+		return false;
+	}
+
+	/*
+	 * gcc incorrectly analyses that these can be used without being
+	 * initialized. To be fair, it's hard to guess.
+	 */
+	p0 = p1 = p2 = 0;
+	skl_wrpll_get_multipliers(ctx.p, &p0, &p1, &p2);
+	skl_wrpll_params_populate(wrpll_params, afe_clock, ctx.central_freq,
+				  p0, p1, p2);
+
+	return true;
+}
 
 static bool
 skl_ddi_pll_select(struct intel_crtc *intel_crtc,
@@ -1281,7 +1541,8 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 
 		ctrl1 |= DPLL_CTRL1_HDMI_MODE(0);
 
-		skl_ddi_calculate_wrpll(clock * 1000, &wrpll_params);
+		if (!skl_ddi_calculate_wrpll(clock * 1000, &wrpll_params))
+			return false;
 
 		cfgcr1 = DPLL_CFGCR1_FREQ_ENABLE |
 			 DPLL_CFGCR1_DCO_FRACTION(wrpll_params.dco_fraction) |
@@ -1293,17 +1554,14 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 			 DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
 			 wrpll_params.central_freq;
 	} else if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
-		struct drm_encoder *encoder = &intel_encoder->base;
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		switch (intel_dp->link_bw) {
-		case DP_LINK_BW_1_62:
+		switch (crtc_state->port_clock / 2) {
+		case 81000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810, 0);
 			break;
-		case DP_LINK_BW_2_7:
+		case 135000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1350, 0);
 			break;
-		case DP_LINK_BW_5_4:
+		case 270000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2700, 0);
 			break;
 		}
@@ -1334,6 +1592,7 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 
 /* bxt clock parameters */
 struct bxt_clk_div {
+	int clock;
 	uint32_t p1;
 	uint32_t p2;
 	uint32_t m2_int;
@@ -1343,14 +1602,14 @@ struct bxt_clk_div {
 };
 
 /* pre-calculated values for DP linkrates */
-static struct bxt_clk_div bxt_dp_clk_val[7] = {
-	/* 162 */ {4, 2, 32, 1677722, 1, 1},
-	/* 270 */ {4, 1, 27,       0, 0, 1},
-	/* 540 */ {2, 1, 27,       0, 0, 1},
-	/* 216 */ {3, 2, 32, 1677722, 1, 1},
-	/* 243 */ {4, 1, 24, 1258291, 1, 1},
-	/* 324 */ {4, 1, 32, 1677722, 1, 1},
-	/* 432 */ {3, 1, 32, 1677722, 1, 1}
+static const struct bxt_clk_div bxt_dp_clk_val[] = {
+	{162000, 4, 2, 32, 1677722, 1, 1},
+	{270000, 4, 1, 27,       0, 0, 1},
+	{540000, 2, 1, 27,       0, 0, 1},
+	{216000, 3, 2, 32, 1677722, 1, 1},
+	{243000, 4, 1, 24, 1258291, 1, 1},
+	{324000, 4, 1, 32, 1677722, 1, 1},
+	{432000, 3, 1, 32, 1677722, 1, 1}
 };
 
 static bool
@@ -1363,7 +1622,7 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 	struct bxt_clk_div clk_div = {0};
 	int vco = 0;
 	uint32_t prop_coef, int_coef, gain_ctl, targ_cnt;
-	uint32_t dcoampovr_en_h, dco_amp, lanestagger;
+	uint32_t lanestagger;
 
 	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 		intel_clock_t best_clock;
@@ -1390,29 +1649,19 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 		vco = best_clock.vco;
 	} else if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
 			intel_encoder->type == INTEL_OUTPUT_EDP) {
-		struct drm_encoder *encoder = &intel_encoder->base;
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		int i;
 
-		switch (intel_dp->link_bw) {
-		case DP_LINK_BW_1_62:
-			clk_div = bxt_dp_clk_val[0];
-			break;
-		case DP_LINK_BW_2_7:
-			clk_div = bxt_dp_clk_val[1];
-			break;
-		case DP_LINK_BW_5_4:
-			clk_div = bxt_dp_clk_val[2];
-			break;
-		default:
-			clk_div = bxt_dp_clk_val[0];
-			DRM_ERROR("Unknown link rate\n");
+		clk_div = bxt_dp_clk_val[0];
+		for (i = 0; i < ARRAY_SIZE(bxt_dp_clk_val); ++i) {
+			if (bxt_dp_clk_val[i].clock == clock) {
+				clk_div = bxt_dp_clk_val[i];
+				break;
+			}
 		}
 		vco = clock * 10 / 2 * clk_div.p1 * clk_div.p2;
 	}
 
-	dco_amp = 15;
-	dcoampovr_en_h = 0;
-	if (vco >= 6200000 && vco <= 6480000) {
+	if (vco >= 6200000 && vco <= 6700000) {
 		prop_coef = 4;
 		int_coef = 9;
 		gain_ctl = 3;
@@ -1423,8 +1672,6 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 		int_coef = 11;
 		gain_ctl = 3;
 		targ_cnt = 9;
-		if (vco >= 4800000 && vco < 5400000)
-			dcoampovr_en_h = 1;
 	} else if (vco == 5400000) {
 		prop_coef = 3;
 		int_coef = 8;
@@ -1466,10 +1713,13 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 
 	crtc_state->dpll_hw_state.pll8 = targ_cnt;
 
-	if (dcoampovr_en_h)
-		crtc_state->dpll_hw_state.pll10 = PORT_PLL_DCO_AMP_OVR_EN_H;
+	crtc_state->dpll_hw_state.pll9 = 5 << PORT_PLL_LOCK_THRESHOLD_SHIFT;
 
-	crtc_state->dpll_hw_state.pll10 |= PORT_PLL_DCO_AMP(dco_amp);
+	crtc_state->dpll_hw_state.pll10 =
+		PORT_PLL_DCO_AMP(PORT_PLL_DCO_AMP_DEFAULT)
+		| PORT_PLL_DCO_AMP_OVR_EN_H;
+
+	crtc_state->dpll_hw_state.ebb4 = PORT_PLL_10BIT_CLK_ENABLE;
 
 	crtc_state->dpll_hw_state.pcsdw12 =
 		LANESTAGGER_STRAP_OVRD | lanestagger;
@@ -1799,8 +2049,65 @@ void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc)
 			   TRANS_CLK_SEL_DISABLED);
 }
 
-void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
-			     enum port port, int type)
+static void skl_ddi_set_iboost(struct drm_device *dev, u32 level,
+			       enum port port, int type)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct ddi_buf_trans *ddi_translations;
+	uint8_t iboost;
+	uint8_t dp_iboost, hdmi_iboost;
+	int n_entries;
+	u32 reg;
+
+	/* VBT may override standard boost values */
+	dp_iboost = dev_priv->vbt.ddi_port_info[port].dp_boost_level;
+	hdmi_iboost = dev_priv->vbt.ddi_port_info[port].hdmi_boost_level;
+
+	if (type == INTEL_OUTPUT_DISPLAYPORT) {
+		if (dp_iboost) {
+			iboost = dp_iboost;
+		} else {
+			ddi_translations = skl_get_buf_trans_dp(dev, &n_entries);
+			iboost = ddi_translations[port].i_boost;
+		}
+	} else if (type == INTEL_OUTPUT_EDP) {
+		if (dp_iboost) {
+			iboost = dp_iboost;
+		} else {
+			ddi_translations = skl_get_buf_trans_edp(dev, &n_entries);
+			iboost = ddi_translations[port].i_boost;
+		}
+	} else if (type == INTEL_OUTPUT_HDMI) {
+		if (hdmi_iboost) {
+			iboost = hdmi_iboost;
+		} else {
+			ddi_translations = skl_get_buf_trans_hdmi(dev, &n_entries);
+			iboost = ddi_translations[port].i_boost;
+		}
+	} else {
+		return;
+	}
+
+	/* Make sure that the requested I_boost is valid */
+	if (iboost && iboost != 0x1 && iboost != 0x3 && iboost != 0x7) {
+		DRM_ERROR("Invalid I_boost value %u\n", iboost);
+		return;
+	}
+
+	reg = I915_READ(DISPIO_CR_TX_BMU_CR0);
+	reg &= ~BALANCE_LEG_MASK(port);
+	reg &= ~(1 << (BALANCE_LEG_DISABLE_SHIFT + port));
+
+	if (iboost)
+		reg |= iboost << BALANCE_LEG_SHIFT(port);
+	else
+		reg |= 1 << (BALANCE_LEG_DISABLE_SHIFT + port);
+
+	I915_WRITE(DISPIO_CR_TX_BMU_CR0, reg);
+}
+
+static void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
+				    enum port port, int type)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct bxt_ddi_buf_trans *ddi_translations;
@@ -1858,6 +2165,73 @@ void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
 	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
 	val |= TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT;
 	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
+}
+
+static uint32_t translate_signal_level(int signal_levels)
+{
+	uint32_t level;
+
+	switch (signal_levels) {
+	default:
+		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level: 0x%x\n",
+			      signal_levels);
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_0:
+		level = 0;
+		break;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_1:
+		level = 1;
+		break;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_2:
+		level = 2;
+		break;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0 | DP_TRAIN_PRE_EMPH_LEVEL_3:
+		level = 3;
+		break;
+
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_0:
+		level = 4;
+		break;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_1:
+		level = 5;
+		break;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1 | DP_TRAIN_PRE_EMPH_LEVEL_2:
+		level = 6;
+		break;
+
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_0:
+		level = 7;
+		break;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_1:
+		level = 8;
+		break;
+
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3 | DP_TRAIN_PRE_EMPH_LEVEL_0:
+		level = 9;
+		break;
+	}
+
+	return level;
+}
+
+uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dport->base.base.dev;
+	struct intel_encoder *encoder = &dport->base;
+	uint8_t train_set = intel_dp->train_set[0];
+	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
+					 DP_TRAIN_PRE_EMPHASIS_MASK);
+	enum port port = dport->port;
+	uint32_t level;
+
+	level = translate_signal_level(signal_levels);
+
+	if (IS_SKYLAKE(dev))
+		skl_ddi_set_iboost(dev, level, port, encoder->type);
+	else if (IS_BROXTON(dev))
+		bxt_ddi_vswing_sequence(dev, level, port, encoder->type);
+
+	return DDI_BUF_TRANS_SELECT(level);
 }
 
 static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
@@ -2404,7 +2778,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 
 	temp = I915_READ(BXT_PORT_PLL(port, 9));
 	temp &= ~PORT_PLL_LOCK_THRESHOLD_MASK;
-	temp |= (5 << 1);
+	temp |= pll->config.hw_state.pll9;
 	I915_WRITE(BXT_PORT_PLL(port, 9), temp);
 
 	temp = I915_READ(BXT_PORT_PLL(port, 10));
@@ -2417,8 +2791,8 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	temp = I915_READ(BXT_PORT_PLL_EBB_4(port));
 	temp |= PORT_PLL_RECALIBRATE;
 	I915_WRITE(BXT_PORT_PLL_EBB_4(port), temp);
-	/* Enable 10 bit clock */
-	temp |= PORT_PLL_10BIT_CLK_ENABLE;
+	temp &= ~PORT_PLL_10BIT_CLK_ENABLE;
+	temp |= pll->config.hw_state.ebb4;
 	I915_WRITE(BXT_PORT_PLL_EBB_4(port), temp);
 
 	/* Enable PLL */
@@ -2469,13 +2843,38 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 		return false;
 
 	hw_state->ebb0 = I915_READ(BXT_PORT_PLL_EBB_0(port));
+	hw_state->ebb0 &= PORT_PLL_P1_MASK | PORT_PLL_P2_MASK;
+
+	hw_state->ebb4 = I915_READ(BXT_PORT_PLL_EBB_4(port));
+	hw_state->ebb4 &= PORT_PLL_10BIT_CLK_ENABLE;
+
 	hw_state->pll0 = I915_READ(BXT_PORT_PLL(port, 0));
+	hw_state->pll0 &= PORT_PLL_M2_MASK;
+
 	hw_state->pll1 = I915_READ(BXT_PORT_PLL(port, 1));
+	hw_state->pll1 &= PORT_PLL_N_MASK;
+
 	hw_state->pll2 = I915_READ(BXT_PORT_PLL(port, 2));
+	hw_state->pll2 &= PORT_PLL_M2_FRAC_MASK;
+
 	hw_state->pll3 = I915_READ(BXT_PORT_PLL(port, 3));
+	hw_state->pll3 &= PORT_PLL_M2_FRAC_ENABLE;
+
 	hw_state->pll6 = I915_READ(BXT_PORT_PLL(port, 6));
+	hw_state->pll6 &= PORT_PLL_PROP_COEFF_MASK |
+			  PORT_PLL_INT_COEFF_MASK |
+			  PORT_PLL_GAIN_CTL_MASK;
+
 	hw_state->pll8 = I915_READ(BXT_PORT_PLL(port, 8));
+	hw_state->pll8 &= PORT_PLL_TARGET_CNT_MASK;
+
+	hw_state->pll9 = I915_READ(BXT_PORT_PLL(port, 9));
+	hw_state->pll9 &= PORT_PLL_LOCK_THRESHOLD_MASK;
+
 	hw_state->pll10 = I915_READ(BXT_PORT_PLL(port, 10));
+	hw_state->pll10 &= PORT_PLL_DCO_AMP_OVR_EN_H |
+			   PORT_PLL_DCO_AMP_MASK;
+
 	/*
 	 * While we write to the group register to program all lanes at once we
 	 * can read only lane registers. We configure all lanes the same way, so
@@ -2486,6 +2885,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_DRIVER("lane stagger config different for lane 01 (%08x) and 23 (%08x)\n",
 				 hw_state->pcsdw12,
 				 I915_READ(BXT_PORT_PCS_DW12_LN23(port)));
+	hw_state->pcsdw12 &= LANE_STAGGER_MASK | LANESTAGGER_STRAP_OVRD;
 
 	return true;
 }
@@ -2510,7 +2910,6 @@ void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t val = I915_READ(LCPLL_CTL);
-	int cdclk_freq;
 
 	if (IS_SKYLAKE(dev))
 		skl_shared_dplls_init(dev_priv);
@@ -2519,10 +2918,10 @@ void intel_ddi_pll_init(struct drm_device *dev)
 	else
 		hsw_shared_dplls_init(dev_priv);
 
-	cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-	DRM_DEBUG_KMS("CDCLK running at %dKHz\n", cdclk_freq);
-
 	if (IS_SKYLAKE(dev)) {
+		int cdclk_freq;
+
+		cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
 		dev_priv->skl_boot_cdclk = cdclk_freq;
 		if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE))
 			DRM_ERROR("LCPLL1 is disabled\n");
@@ -2616,20 +3015,6 @@ void intel_ddi_fdi_disable(struct drm_crtc *crtc)
 	val = I915_READ(_FDI_RXA_CTL);
 	val &= ~FDI_RX_PLL_ENABLE;
 	I915_WRITE(_FDI_RXA_CTL, val);
-}
-
-static void intel_ddi_hot_plug(struct intel_encoder *intel_encoder)
-{
-	struct intel_digital_port *intel_dig_port = enc_to_dig_port(&intel_encoder->base);
-	int type = intel_dig_port->base.type;
-
-	if (type != INTEL_OUTPUT_DISPLAYPORT &&
-	    type != INTEL_OUTPUT_EDP &&
-	    type != INTEL_OUTPUT_UNKNOWN) {
-		return;
-	}
-
-	intel_dp_hot_plug(intel_encoder);
 }
 
 void intel_ddi_get_config(struct intel_encoder *encoder,
@@ -2793,10 +3178,9 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
 	init_dp = dev_priv->vbt.ddi_port_info[port].supports_dp;
 	if (!init_dp && !init_hdmi) {
-		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible, assuming it is\n",
+		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible, respect it\n",
 			      port_name(port));
-		init_hdmi = true;
-		init_dp = true;
+		return;
 	}
 
 	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
@@ -2825,14 +3209,13 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = 0;
-	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
 	if (init_dp) {
 		if (!intel_ddi_init_dp_connector(intel_dig_port))
 			goto err;
 
 		intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
-		dev_priv->hpd_irq_port[port] = intel_dig_port;
+		dev_priv->hotplug.irq_port[port] = intel_dig_port;
 	}
 
 	/* In theory we don't need the encoder->type check, but leave it just in

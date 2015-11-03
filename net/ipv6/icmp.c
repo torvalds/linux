@@ -329,7 +329,7 @@ static struct dst_entry *icmpv6_route_lookup(struct net *net,
 	struct flowi6 fl2;
 	int err;
 
-	err = ip6_dst_lookup(sk, &dst, fl6);
+	err = ip6_dst_lookup(net, sk, &dst, fl6);
 	if (err)
 		return ERR_PTR(err);
 
@@ -361,7 +361,7 @@ static struct dst_entry *icmpv6_route_lookup(struct net *net,
 	if (err)
 		goto relookup_failed;
 
-	err = ip6_dst_lookup(sk, &dst2, &fl2);
+	err = ip6_dst_lookup(net, sk, &dst2, &fl2);
 	if (err)
 		goto relookup_failed;
 
@@ -591,7 +591,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
 
-	err = ip6_dst_lookup(sk, &dst, &fl6);
+	err = ip6_dst_lookup(net, sk, &dst, &fl6);
 	if (err)
 		goto out;
 	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), sk, 0);

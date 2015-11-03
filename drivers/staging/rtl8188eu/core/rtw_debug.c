@@ -219,6 +219,7 @@ int proc_get_ht_option(char *page, char **start,
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
 	int len = 0;
+
 	len += snprintf(page + len, count - len, "ht_option=%d\n", pmlmepriv->htpriv.ht_option);
 	*eof = 1;
 	return len;
@@ -588,6 +589,7 @@ int proc_set_rx_signal(struct file *file, const char __user *buffer,
 
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 		int num = sscanf(tmp, "%u %u", &is_signal_dbg, &signal_strength);
+
 		is_signal_dbg = is_signal_dbg == 0 ? 0 : 1;
 		if (is_signal_dbg && num != 2)
 			return count;
@@ -917,7 +919,7 @@ int proc_get_best_channel(char *page, char **start,
 		/*  5G */
 		if (pmlmeext->channel_set[i].ChannelNum >= 36 &&
 		    pmlmeext->channel_set[i].ChannelNum < 140) {
-			 /*  Find primary channel */
+			/*  Find primary channel */
 			if (((pmlmeext->channel_set[i].ChannelNum - 36) % 8 == 0) &&
 			    (pmlmeext->channel_set[i].rx_count < pmlmeext->channel_set[index_5G].rx_count)) {
 				index_5G = i;
@@ -927,7 +929,7 @@ int proc_get_best_channel(char *page, char **start,
 
 		if (pmlmeext->channel_set[i].ChannelNum >= 149 &&
 		    pmlmeext->channel_set[i].ChannelNum < 165) {
-			 /*  find primary channel */
+			/*  find primary channel */
 			if (((pmlmeext->channel_set[i].ChannelNum - 149) % 8 == 0) &&
 			    (pmlmeext->channel_set[i].rx_count < pmlmeext->channel_set[index_5G].rx_count)) {
 				index_5G = i;

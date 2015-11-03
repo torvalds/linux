@@ -422,6 +422,8 @@ static struct wlcore_conf wl18xx_conf = {
 		.num_probe_reqs			= 2,
 		.rssi_threshold			= -90,
 		.snr_threshold			= 0,
+		.num_short_intervals		= SCAN_MAX_SHORT_INTERVALS,
+		.long_interval			= 30000,
 	},
 	.ht = {
 		.rx_ba_win_size = 32,
@@ -1026,8 +1028,8 @@ static int wl18xx_boot(struct wl1271 *wl)
 		CHANNEL_SWITCH_COMPLETE_EVENT_ID |
 		DFS_CHANNELS_CONFIG_COMPLETE_EVENT |
 		SMART_CONFIG_SYNC_EVENT_ID |
-		SMART_CONFIG_DECODE_EVENT_ID;
-;
+		SMART_CONFIG_DECODE_EVENT_ID |
+		TIME_SYNC_EVENT_ID;
 
 	wl->ap_event_mask = MAX_TX_FAILURE_EVENT_ID;
 
@@ -1156,6 +1158,11 @@ static int wl18xx_hw_init(struct wl1271 *wl)
 
 	/* set the default amount of spare blocks in the bitmap */
 	ret = wl18xx_set_host_cfg_bitmap(wl, WL18XX_TX_HW_BLOCK_SPARE);
+	if (ret < 0)
+		return ret;
+
+	/* set the dynamic fw traces bitmap */
+	ret = wl18xx_acx_dynamic_fw_traces(wl);
 	if (ret < 0)
 		return ret;
 
@@ -1797,7 +1804,7 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_2ghz = {
 
 static const struct ieee80211_iface_limit wl18xx_iface_limits[] = {
 	{
-		.max = 3,
+		.max = 2,
 		.types = BIT(NL80211_IFTYPE_STATION),
 	},
 	{
@@ -1806,12 +1813,58 @@ static const struct ieee80211_iface_limit wl18xx_iface_limits[] = {
 			 BIT(NL80211_IFTYPE_P2P_GO) |
 			 BIT(NL80211_IFTYPE_P2P_CLIENT),
 	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
+	},
 };
 
 static const struct ieee80211_iface_limit wl18xx_iface_ap_limits[] = {
 	{
 		.max = 2,
 		.types = BIT(NL80211_IFTYPE_AP),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
+	},
+};
+
+static const struct ieee80211_iface_limit wl18xx_iface_ap_cl_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_CLIENT),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
+	},
+};
+
+static const struct ieee80211_iface_limit wl18xx_iface_ap_go_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_GO),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
 	},
 };
 

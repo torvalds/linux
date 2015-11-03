@@ -25,11 +25,26 @@
 extern struct files_struct init_files;
 extern struct fs_struct init_fs;
 
+#ifdef CONFIG_CGROUPS
+#define INIT_GROUP_RWSEM(sig)						\
+	.group_rwsem = __RWSEM_INITIALIZER(sig.group_rwsem),
+#else
+#define INIT_GROUP_RWSEM(sig)
+#endif
+
 #ifdef CONFIG_CPUSETS
 #define INIT_CPUSET_SEQ(tsk)							\
 	.mems_allowed_seq = SEQCNT_ZERO(tsk.mems_allowed_seq),
 #else
 #define INIT_CPUSET_SEQ(tsk)
+#endif
+
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+#define INIT_PREV_CPUTIME(x)	.prev_cputime = {			\
+	.lock = __RAW_SPIN_LOCK_UNLOCKED(x.prev_cputime.lock),		\
+},
+#else
+#define INIT_PREV_CPUTIME(x)
 #endif
 
 #define INIT_SIGNALS(sig) {						\
@@ -46,8 +61,10 @@ extern struct fs_struct init_fs;
 		.cputime_atomic	= INIT_CPUTIME_ATOMIC,			\
 		.running	= 0,					\
 	},								\
+	INIT_PREV_CPUTIME(sig)						\
 	.cred_guard_mutex =						\
 		 __MUTEX_INITIALIZER(sig.cred_guard_mutex),		\
+	INIT_GROUP_RWSEM(sig)						\
 }
 
 extern struct nsproxy init_nsproxy;
@@ -246,6 +263,7 @@ extern struct task_group root_task_group;
 	INIT_TASK_RCU_TASKS(tsk)					\
 	INIT_CPUSET_SEQ(tsk)						\
 	INIT_RT_MUTEXES(tsk)						\
+	INIT_PREV_CPUTIME(tsk)						\
 	INIT_VTIME(tsk)							\
 	INIT_NUMA_BALANCING(tsk)					\
 	INIT_KASAN(tsk)							\

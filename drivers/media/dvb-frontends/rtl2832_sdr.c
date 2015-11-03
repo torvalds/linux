@@ -1538,7 +1538,6 @@ static int rtl2832_sdr_remove(struct platform_device *pdev)
 static struct platform_driver rtl2832_sdr_driver = {
 	.driver = {
 		.name   = "rtl2832_sdr",
-		.owner  = THIS_MODULE,
 	},
 	.probe          = rtl2832_sdr_probe,
 	.remove         = rtl2832_sdr_remove,

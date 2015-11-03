@@ -75,13 +75,15 @@ static int get_stripe(struct dm_target *ti, struct stripe_c *sc,
 {
 	unsigned long long start;
 	char dummy;
+	int ret;
 
 	if (sscanf(argv[1], "%llu%c", &start, &dummy) != 1)
 		return -EINVAL;
 
-	if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table),
-			  &sc->stripe[stripe].dev))
-		return -ENXIO;
+	ret = dm_get_device(ti, argv[0], dm_table_get_mode(ti->table),
+			    &sc->stripe[stripe].dev);
+	if (ret)
+		return ret;
 
 	sc->stripe[stripe].physical_start = start;
 
@@ -273,7 +275,7 @@ static int stripe_map_range(struct stripe_c *sc, struct bio *bio,
 		return DM_MAPIO_REMAPPED;
 	} else {
 		/* The range doesn't map to the target stripe */
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		return DM_MAPIO_SUBMITTED;
 	}
 }
@@ -412,26 +414,6 @@ static void stripe_io_hints(struct dm_target *ti,
 	blk_limits_io_opt(limits, chunk_size * sc->stripes);
 }
 
-static int stripe_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-			struct bio_vec *biovec, int max_size)
-{
-	struct stripe_c *sc = ti->private;
-	sector_t bvm_sector = bvm->bi_sector;
-	uint32_t stripe;
-	struct request_queue *q;
-
-	stripe_map_sector(sc, bvm_sector, &stripe, &bvm_sector);
-
-	q = bdev_get_queue(sc->stripe[stripe].dev->bdev);
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = sc->stripe[stripe].dev->bdev;
-	bvm->bi_sector = sc->stripe[stripe].physical_start + bvm_sector;
-
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static struct target_type stripe_target = {
 	.name   = "striped",
 	.version = {1, 5, 1},
@@ -443,7 +425,6 @@ static struct target_type stripe_target = {
 	.status = stripe_status,
 	.iterate_devices = stripe_iterate_devices,
 	.io_hints = stripe_io_hints,
-	.merge  = stripe_merge,
 };
 
 int __init dm_stripe_init(void)

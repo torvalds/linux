@@ -38,6 +38,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
@@ -1171,6 +1173,13 @@ static int ivtvfb_init_card(struct ivtv *itv)
 {
 	int rc;
 
+#ifdef CONFIG_X86_64
+	if (pat_enabled()) {
+		pr_warn("ivtvfb needs PAT disabled, boot with nopat kernel parameter\n");
+		return -ENODEV;
+	}
+#endif
+
 	if (itv->osd_info) {
 		IVTVFB_ERR("Card %d already initialised\n", ivtvfb_card_id);
 		return -EBUSY;
@@ -1265,12 +1274,6 @@ static int __init ivtvfb_init(void)
 	int registered = 0;
 	int err;
 
-#ifdef CONFIG_X86_64
-	if (WARN(pat_enabled(),
-		 "ivtvfb needs PAT disabled, boot with nopat kernel parameter\n")) {
-		return -ENODEV;
-	}
-#endif
 
 	if (ivtvfb_card_id < -1 || ivtvfb_card_id >= IVTV_MAX_CARDS) {
 		printk(KERN_ERR "ivtvfb:  ivtvfb_card_id parameter is out of range (valid range: -1 - %d)\n",

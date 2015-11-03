@@ -196,11 +196,10 @@ static struct sa1111_dev_info sa1111_devices[] = {
  * active IRQs causes the interrupt output to pulse, the upper levels
  * will call us again if there are more interrupts to process.
  */
-static void
-sa1111_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void sa1111_irq_handler(struct irq_desc *desc)
 {
 	unsigned int stat0, stat1, i;
-	struct sa1111 *sachip = irq_get_handler_data(irq);
+	struct sa1111 *sachip = irq_desc_get_handler_data(desc);
 	void __iomem *mapbase = sachip->base + SA1111_INTC;
 
 	stat0 = sa1111_readl(mapbase + SA1111_INTSTATCLR0);
@@ -213,7 +212,7 @@ sa1111_irq_handler(unsigned int irq, struct irq_desc *desc)
 	sa1111_writel(stat1, mapbase + SA1111_INTSTATCLR1);
 
 	if (stat0 == 0 && stat1 == 0) {
-		do_bad_IRQ(irq, desc);
+		do_bad_IRQ(desc);
 		return;
 	}
 
@@ -486,7 +485,7 @@ static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
 		irq_set_chip_and_handler(irq, &sa1111_low_chip,
 					 handle_edge_irq);
 		irq_set_chip_data(irq, sachip);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	for (i = AUDXMTDMADONEA; i <= IRQ_S1_BVD1_STSCHG; i++) {
@@ -494,7 +493,7 @@ static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
 		irq_set_chip_and_handler(irq, &sa1111_high_chip,
 					 handle_edge_irq);
 		irq_set_chip_data(irq, sachip);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	/*

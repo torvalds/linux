@@ -4,8 +4,6 @@
  * Copyright 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
  */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/of.h>
@@ -15,7 +13,7 @@ static DEFINE_SPINLOCK(clklock);
 
 static void __init h8300_div_clk_setup(struct device_node *node)
 {
-	unsigned int num_parents;
+	int num_parents;
 	struct clk *clk;
 	const char *clk_name = node->name;
 	const char *parent_name;

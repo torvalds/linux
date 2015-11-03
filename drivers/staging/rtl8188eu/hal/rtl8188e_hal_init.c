@@ -128,7 +128,7 @@ static void rtl8188e_free_hal_data(struct adapter *padapter)
 	padapter->HalData = NULL;
 }
 
-static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
+static void ReadChipVersion8188E(struct adapter *padapter)
 {
 	u32				value32;
 	struct HAL_VERSION		ChipVersion;
@@ -137,41 +137,17 @@ static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
 	pHalData = GET_HAL_DATA(padapter);
 
 	value32 = usb_read32(padapter, REG_SYS_CFG);
-	ChipVersion.ICType = CHIP_8188E;
 	ChipVersion.ChipType = ((value32 & RTL_ID) ? TEST_CHIP : NORMAL_CHIP);
-
-	ChipVersion.RFType = RF_TYPE_1T1R;
 	ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
 	ChipVersion.CUTVersion = (value32 & CHIP_VER_RTL_MASK)>>CHIP_VER_RTL_SHIFT; /*  IC version (CUT) */
-
-	/*  For regulator mode. by tynli. 2011.01.14 */
-	pHalData->RegulatorMode = ((value32 & TRP_BT_EN) ? RT_LDO_REGULATOR : RT_SWITCHING_REGULATOR);
-
-	ChipVersion.ROMVer = 0;	/*  ROM code version. */
 
 	dump_chip_info(ChipVersion);
 
 	pHalData->VersionID = ChipVersion;
-
-	if (IS_1T2R(ChipVersion)) {
-		pHalData->rf_type = RF_1T2R;
-		pHalData->NumTotalRFPath = 2;
-	} else if (IS_2T2R(ChipVersion)) {
-		pHalData->rf_type = RF_2T2R;
-		pHalData->NumTotalRFPath = 2;
-	} else{
-		pHalData->rf_type = RF_1T1R;
-		pHalData->NumTotalRFPath = 1;
-	}
+	pHalData->rf_type = RF_1T1R;
+	pHalData->NumTotalRFPath = 1;
 
 	MSG_88E("RF_Type is %x!!\n", pHalData->rf_type);
-
-	return ChipVersion;
-}
-
-static void rtl8188e_read_chip_version(struct adapter *padapter)
-{
-	ReadChipVersion8188E(padapter);
 }
 
 static void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
@@ -220,7 +196,7 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->dm_init = &rtl8188e_init_dm_priv;
 
-	pHalFunc->read_chip_version = &rtl8188e_read_chip_version;
+	pHalFunc->read_chip_version = &ReadChipVersion8188E;
 
 	pHalFunc->set_bwmode_handler = &phy_set_bw_mode;
 	pHalFunc->set_channel_handler = &phy_sw_chnl;
@@ -232,7 +208,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->AntDivBeforeLinkHandler = &AntDivBeforeLink8188E;
 	pHalFunc->AntDivCompareHandler = &AntDivCompare8188E;
 	pHalFunc->read_rfreg = &phy_query_rf_reg;
-	pHalFunc->write_rfreg = &phy_set_rf_reg;
 
 	pHalFunc->sreset_init_value = &sreset_init_value;
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;

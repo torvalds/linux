@@ -134,11 +134,11 @@
 
 #define pte_iterate_hashed_end() } while(0)
 
-#ifdef CONFIG_PPC_HAS_HASH_64K
-#define pte_pagesize_index(mm, addr, pte)	get_slice_psize(mm, addr)
-#else
+/*
+ * We expect this to be called only for user addresses or kernel virtual
+ * addresses other than the linear mapping.
+ */
 #define pte_pagesize_index(mm, addr, pte)	MMU_PAGE_4K
-#endif
 
 #endif /* __real_pte */
 

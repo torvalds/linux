@@ -30,6 +30,15 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	evm_3v3_sd: fixedregulator-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_3v3_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&pcf_gpio_21 5 GPIO_ACTIVE_HIGH>;
+	};
+
 	extcon_usb1: extcon_usb1 {
 		compatible = "linux,extcon-usb-gpio";
 		id-gpio = <&pcf_gpio_21 1 GPIO_ACTIVE_HIGH>;
@@ -286,6 +295,7 @@
 					regulator-name = "ldo1";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
 					regulator-boot-on;
 				};
 
@@ -343,6 +353,12 @@
 		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+
+		cpsw_sel_s0 {
+			gpio-hog;
+			gpios = <4 GPIO_ACTIVE_HIGH>;
+			output-low;
+		};
 	};
 };
 
@@ -491,14 +507,15 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_default>;
-
-	vmmc-supply = <&ldo1_reg>;
+	vmmc-supply = <&evm_3v3_sd>;
+	vmmc_aux-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	/*
 	 * SDCD signal is not being used here - using the fact that GPIO mode
 	 * is a viable alternative
 	 */
 	cd-gpios = <&gpio6 27 0>;
+	max-frequency = <192000000>;
 };
 
 &mmc2 {
@@ -510,6 +527,7 @@
 	vmmc-supply = <&evm_3v3>;
 	bus-width = <8>;
 	ti,non-removable;
+	max-frequency = <192000000>;
 };
 
 &dra7_pmx_core {
@@ -571,9 +589,10 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
+	slaves = <1>;
 };
 
-&cpsw_emac1 {
+&cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <3>;
 	phy-mode = "rgmii";
 };
@@ -582,7 +601,6 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
-	active_slave = <1>;
 };
 
 &dcan1 {

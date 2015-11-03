@@ -527,6 +527,10 @@ static int xs_local_send_request(struct rpc_task *task)
 			      true, &sent);
 	dprintk("RPC:       %s(%u) = %d\n",
 			__func__, xdr->len - req->rq_bytes_sent, status);
+
+	if (status == -EAGAIN && sock_writeable(transport->inet))
+		status = -ENOBUFS;
+
 	if (likely(sent > 0) || status == 0) {
 		req->rq_bytes_sent += sent;
 		req->rq_xmit_bytes_sent += sent;
@@ -539,6 +543,7 @@ static int xs_local_send_request(struct rpc_task *task)
 
 	switch (status) {
 	case -ENOBUFS:
+		break;
 	case -EAGAIN:
 		status = xs_nospace(task);
 		break;
@@ -588,6 +593,9 @@ static int xs_udp_send_request(struct rpc_task *task)
 	/* firewall is blocking us, don't return -EAGAIN or we end up looping */
 	if (status == -EPERM)
 		goto process_status;
+
+	if (status == -EAGAIN && sock_writeable(transport->inet))
+		status = -ENOBUFS;
 
 	if (sent > 0 || status == 0) {
 		req->rq_xmit_bytes_sent += sent;
@@ -669,9 +677,6 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		dprintk("RPC:       xs_tcp_send_request(%u) = %d\n",
 				xdr->len - req->rq_bytes_sent, status);
 
-		if (unlikely(sent == 0 && status < 0))
-			break;
-
 		/* If we've sent the entire packet, immediately
 		 * reset the count of bytes sent. */
 		req->rq_bytes_sent += sent;
@@ -681,18 +686,21 @@ static int xs_tcp_send_request(struct rpc_task *task)
 			return 0;
 		}
 
-		if (sent != 0)
-			continue;
-		status = -EAGAIN;
-		break;
+		if (status < 0)
+			break;
+		if (sent == 0) {
+			status = -EAGAIN;
+			break;
+		}
 	}
+	if (status == -EAGAIN && sk_stream_is_writeable(transport->inet))
+		status = -ENOBUFS;
 
 	switch (status) {
 	case -ENOTSOCK:
 		status = -ENOTCONN;
 		/* Should we call xs_close() here? */
 		break;
-	case -ENOBUFS:
 	case -EAGAIN:
 		status = xs_nospace(task);
 		break;
@@ -703,6 +711,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	case -ECONNREFUSED:
 	case -ENOTCONN:
 	case -EADDRINUSE:
+	case -ENOBUFS:
 	case -EPIPE:
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
 	}
@@ -768,7 +777,6 @@ static void xs_sock_mark_closed(struct rpc_xprt *xprt)
 	xs_sock_reset_connection_flags(xprt);
 	/* Mark transport as closed and wake up all pending tasks */
 	xprt_disconnect_done(xprt);
-	xprt_force_disconnect(xprt);
 }
 
 /**
@@ -813,6 +821,8 @@ static void xs_reset_transport(struct sock_xprt *transport)
 	if (atomic_read(&transport->xprt.swapper))
 		sk_clear_memalloc(sk);
 
+	kernel_sock_shutdown(sock, SHUT_RDWR);
+
 	write_lock_bh(&sk->sk_callback_lock);
 	transport->inet = NULL;
 	transport->sock = NULL;
@@ -820,6 +830,7 @@ static void xs_reset_transport(struct sock_xprt *transport)
 	sk->sk_user_data = NULL;
 
 	xs_restore_old_callbacks(transport, sk);
+	xprt_clear_connected(xprt);
 	write_unlock_bh(&sk->sk_callback_lock);
 	xs_sock_reset_connection_flags(xprt);
 
@@ -869,8 +880,11 @@ static void xs_xprt_free(struct rpc_xprt *xprt)
  */
 static void xs_destroy(struct rpc_xprt *xprt)
 {
+	struct sock_xprt *transport = container_of(xprt,
+			struct sock_xprt, xprt);
 	dprintk("RPC:       xs_destroy xprt %p\n", xprt);
 
+	cancel_delayed_work_sync(&transport->connect_worker);
 	xs_close(xprt);
 	xs_xprt_free(xprt);
 	module_put(THIS_MODULE);
@@ -1423,6 +1437,7 @@ out:
 static void xs_tcp_state_change(struct sock *sk)
 {
 	struct rpc_xprt *xprt;
+	struct sock_xprt *transport;
 
 	read_lock_bh(&sk->sk_callback_lock);
 	if (!(xprt = xprt_from_sock(sk)))
@@ -1434,13 +1449,12 @@ static void xs_tcp_state_change(struct sock *sk)
 			sock_flag(sk, SOCK_ZAPPED),
 			sk->sk_shutdown);
 
+	transport = container_of(xprt, struct sock_xprt, xprt);
 	trace_rpc_socket_state_change(xprt, sk->sk_socket);
 	switch (sk->sk_state) {
 	case TCP_ESTABLISHED:
 		spin_lock(&xprt->transport_lock);
 		if (!xprt_test_and_set_connected(xprt)) {
-			struct sock_xprt *transport = container_of(xprt,
-					struct sock_xprt, xprt);
 
 			/* Reset TCP record info */
 			transport->tcp_offset = 0;
@@ -1449,6 +1463,8 @@ static void xs_tcp_state_change(struct sock *sk)
 			transport->tcp_flags =
 				TCP_RCV_COPY_FRAGHDR | TCP_RCV_COPY_XID;
 			xprt->connect_cookie++;
+			clear_bit(XPRT_SOCK_CONNECTING, &transport->sock_state);
+			xprt_clear_connecting(xprt);
 
 			xprt_wake_pending_tasks(xprt, -EAGAIN);
 		}
@@ -1484,6 +1500,9 @@ static void xs_tcp_state_change(struct sock *sk)
 		smp_mb__after_atomic();
 		break;
 	case TCP_CLOSE:
+		if (test_and_clear_bit(XPRT_SOCK_CONNECTING,
+					&transport->sock_state))
+			xprt_clear_connecting(xprt);
 		xs_sock_mark_closed(xprt);
 	}
  out:
@@ -1857,7 +1876,7 @@ static int xs_local_finish_connecting(struct rpc_xprt *xprt,
 		sk->sk_data_ready = xs_local_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
 		sk->sk_error_report = xs_error_report;
-		sk->sk_allocation = GFP_ATOMIC;
+		sk->sk_allocation = GFP_NOIO;
 
 		xprt_clear_connected(xprt);
 
@@ -2042,7 +2061,7 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		sk->sk_user_data = xprt;
 		sk->sk_data_ready = xs_udp_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
-		sk->sk_allocation = GFP_ATOMIC;
+		sk->sk_allocation = GFP_NOIO;
 
 		xprt_set_connected(xprt);
 
@@ -2144,7 +2163,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		sk->sk_state_change = xs_tcp_state_change;
 		sk->sk_write_space = xs_tcp_write_space;
 		sk->sk_error_report = xs_error_report;
-		sk->sk_allocation = GFP_ATOMIC;
+		sk->sk_allocation = GFP_NOIO;
 
 		/* socket options */
 		sock_reset_flag(sk, SOCK_LINGER);
@@ -2167,6 +2186,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	/* Tell the socket layer to start connecting... */
 	xprt->stat.connect_count++;
 	xprt->stat.connect_start = jiffies;
+	set_bit(XPRT_SOCK_CONNECTING, &transport->sock_state);
 	ret = kernel_connect(sock, xs_addr(xprt), xprt->addrlen, O_NONBLOCK);
 	switch (ret) {
 	case 0:
@@ -2228,7 +2248,6 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	case -EINPROGRESS:
 	case -EALREADY:
 		xprt_unlock_connect(xprt, transport);
-		xprt_clear_connecting(xprt);
 		return;
 	case -EINVAL:
 		/* Happens, for instance, if the user specified a link
@@ -2270,13 +2289,14 @@ static void xs_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 
 	WARN_ON_ONCE(!xprt_lock_connect(xprt, task, transport));
 
-	/* Start by resetting any existing state */
-	xs_reset_transport(transport);
-
-	if (transport->sock != NULL && !RPC_IS_SOFTCONN(task)) {
+	if (transport->sock != NULL) {
 		dprintk("RPC:       xs_connect delayed xprt %p for %lu "
 				"seconds\n",
 				xprt, xprt->reestablish_timeout / HZ);
+
+		/* Start by resetting any existing state */
+		xs_reset_transport(transport);
+
 		queue_delayed_work(rpciod_workqueue,
 				   &transport->connect_worker,
 				   xprt->reestablish_timeout);

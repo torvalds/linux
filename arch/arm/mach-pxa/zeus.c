@@ -105,8 +105,9 @@ static inline unsigned long zeus_irq_pending(void)
 	return __raw_readw(ZEUS_CPLD_ISA_IRQ) & zeus_irq_enabled_mask;
 }
 
-static void zeus_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void zeus_irq_handler(struct irq_desc *desc)
 {
+	unsigned int irq;
 	unsigned long pending;
 
 	pending = zeus_irq_pending();
@@ -151,7 +152,7 @@ static void __init zeus_init_irq(void)
 		isa_irq = zeus_bit_to_irq(level);
 		irq_set_chip_and_handler(isa_irq, &zeus_irq_chip,
 					 handle_edge_irq);
-		set_irq_flags(isa_irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(isa_irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	irq_set_irq_type(gpio_to_irq(ZEUS_ISA_GPIO), IRQ_TYPE_EDGE_RISING);

@@ -12,11 +12,11 @@ run_tests: all
 	$(RUN_TESTS)
 
 define INSTALL_RULE
-	mkdir -p $(INSTALL_PATH)
-	@for TEST_DIR in $(TEST_DIRS); do\
-		cp -r $$TEST_DIR $(INSTALL_PATH); \
-	done;
-	install -t $(INSTALL_PATH) $(TEST_PROGS) $(TEST_PROGS_EXTENDED) $(TEST_FILES)
+	@if [ "X$(TEST_PROGS)$(TEST_PROGS_EXTENDED)$(TEST_FILES)" != "X" ]; then					\
+		mkdir -p ${INSTALL_PATH};										\
+		echo "rsync -a $(TEST_DIRS) $(TEST_PROGS) $(TEST_PROGS_EXTENDED) $(TEST_FILES) $(INSTALL_PATH)/";	\
+		rsync -a $(TEST_DIRS) $(TEST_PROGS) $(TEST_PROGS_EXTENDED) $(TEST_FILES) $(INSTALL_PATH)/;		\
+	fi
 endef
 
 install: all

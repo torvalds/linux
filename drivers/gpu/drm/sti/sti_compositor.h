@@ -12,13 +12,13 @@
 #include <linux/clk.h>
 #include <linux/kernel.h>
 
-#include "sti_layer.h"
 #include "sti_mixer.h"
+#include "sti_plane.h"
 
 #define WAIT_NEXT_VSYNC_MS      50 /*ms*/
 
-#define STI_MAX_LAYER 8
 #define STI_MAX_MIXER 2
+#define STI_MAX_VID   1
 
 enum sti_compositor_subdev_type {
 	STI_MIXER_MAIN_SUBDEV,
@@ -59,11 +59,9 @@ struct sti_compositor_data {
  * @rst_main: reset control of the main path
  * @rst_aux: reset control of the aux path
  * @mixer: array of mixers
+ * @vid: array of vids
  * @vtg_main: vtg for main data path
  * @vtg_aux: vtg for auxillary data path
- * @layer: array of layers
- * @nb_mixers: number of mixers for this compositor
- * @nb_layers: number of layers (GDP,VID,...) for this compositor
  * @vtg_vblank_nb: callback for VTG VSYNC notification
  */
 struct sti_compositor {
@@ -77,11 +75,9 @@ struct sti_compositor {
 	struct reset_control *rst_main;
 	struct reset_control *rst_aux;
 	struct sti_mixer *mixer[STI_MAX_MIXER];
+	struct sti_vid *vid[STI_MAX_VID];
 	struct sti_vtg *vtg_main;
 	struct sti_vtg *vtg_aux;
-	struct sti_layer *layer[STI_MAX_LAYER];
-	int nb_mixers;
-	int nb_layers;
 	struct notifier_block vtg_vblank_nb;
 };
 

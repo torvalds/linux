@@ -286,7 +286,7 @@ static inline __u64 attr_pack(unsigned int ia_valid)
 		sa_valid |= MDS_ATTR_KILL_SGID;
 	if (ia_valid & ATTR_CTIME_SET)
 		sa_valid |= MDS_ATTR_CTIME_SET;
-	if (ia_valid & ATTR_FROM_OPEN)
+	if (ia_valid & ATTR_OPEN)
 		sa_valid |= MDS_ATTR_FROM_OPEN;
 	if (ia_valid & ATTR_BLOCKS)
 		sa_valid |= MDS_ATTR_BLOCKS;

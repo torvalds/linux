@@ -4,6 +4,7 @@
 #include <asm/sigcontext.h>
 #include <asm/siginfo.h>
 #include <asm/ucontext.h>
+#include <linux/compat.h>
 
 #ifdef CONFIG_X86_32
 #define sigframe_ia32		sigframe
@@ -68,6 +69,15 @@ struct rt_sigframe {
 };
 
 #ifdef CONFIG_X86_X32_ABI
+
+struct ucontext_x32 {
+	unsigned int	  uc_flags;
+	unsigned int 	  uc_link;
+	compat_stack_t	  uc_stack;
+	unsigned int	  uc__pad0;     /* needed for alignment */
+	struct sigcontext uc_mcontext;  /* the 64-bit sigcontext type */
+	compat_sigset_t	  uc_sigmask;	/* mask last for extensibility */
+};
 
 struct rt_sigframe_x32 {
 	u64 pretcode;

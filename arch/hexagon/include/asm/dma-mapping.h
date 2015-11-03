@@ -31,11 +31,9 @@
 
 struct device;
 extern int bad_dma_address;
+#define DMA_ERROR_CODE bad_dma_address
 
 extern struct dma_map_ops *dma_ops;
-
-#define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
-#define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
@@ -45,8 +43,8 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return dma_ops;
 }
 
+#define HAVE_ARCH_DMA_SUPPORTED 1
 extern int dma_supported(struct device *dev, u64 mask);
-extern int dma_set_mask(struct device *dev, u64 mask);
 extern int dma_is_consistent(struct device *dev, dma_addr_t dma_handle);
 extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 			   enum dma_data_direction direction);
@@ -58,49 +56,6 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 	if (!dev->dma_mask)
 		return 0;
 	return addr + size - 1 <= *dev->dma_mask;
-}
-
-static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	if (dma_ops->mapping_error)
-		return dma_ops->mapping_error(dev, dma_addr);
-
-	return (dma_addr == bad_dma_address);
-}
-
-#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
-
-static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-				    dma_addr_t *dma_handle, gfp_t flag,
-				    struct dma_attrs *attrs)
-{
-	void *ret;
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
-	BUG_ON(!dma_ops);
-
-	ret = ops->alloc(dev, size, dma_handle, flag, attrs);
-
-	debug_dma_alloc_coherent(dev, size, *dma_handle, ret);
-
-	return ret;
-}
-
-#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				  void *cpu_addr, dma_addr_t dma_handle,
-				  struct dma_attrs *attrs)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	BUG_ON(!dma_ops);
-
-	dma_ops->free(dev, size, cpu_addr, dma_handle, attrs);
-
-	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
 }
 
 #endif

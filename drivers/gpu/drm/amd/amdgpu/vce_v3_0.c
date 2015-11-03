@@ -32,9 +32,11 @@
 #include "vid.h"
 #include "vce/vce_3_0_d.h"
 #include "vce/vce_3_0_sh_mask.h"
-#include "oss/oss_2_0_d.h"
-#include "oss/oss_2_0_sh_mask.h"
+#include "oss/oss_3_0_d.h"
+#include "oss/oss_3_0_sh_mask.h"
 #include "gca/gfx_8_0_d.h"
+#include "smu/smu_7_1_2_d.h"
+#include "smu/smu_7_1_2_sh_mask.h"
 
 #define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
 #define GRBM_GFX_INDEX__VCE_INSTANCE_MASK	0x10
@@ -112,6 +114,10 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (idx = 0; idx < 2; ++idx) {
+
+		if (adev->vce.harvest_config & (1 << idx))
+			continue;
+
 		if(idx == 0)
 			WREG32_P(mmGRBM_GFX_INDEX, 0,
 				~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
@@ -190,9 +196,58 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 	return 0;
 }
 
+#define ixVCE_HARVEST_FUSE_MACRO__ADDRESS     0xC0014074
+#define VCE_HARVEST_FUSE_MACRO__SHIFT       27
+#define VCE_HARVEST_FUSE_MACRO__MASK        0x18000000
+
+static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
+{
+	u32 tmp;
+	unsigned ret;
+
+	/* Fiji is single pipe */
+	if (adev->asic_type == CHIP_FIJI) {
+		ret = AMDGPU_VCE_HARVEST_VCE1;
+		return ret;
+	}
+
+	/* Tonga and CZ are dual or single pipe */
+	if (adev->flags & AMD_IS_APU)
+		tmp = (RREG32_SMC(ixVCE_HARVEST_FUSE_MACRO__ADDRESS) &
+		       VCE_HARVEST_FUSE_MACRO__MASK) >>
+			VCE_HARVEST_FUSE_MACRO__SHIFT;
+	else
+		tmp = (RREG32_SMC(ixCC_HARVEST_FUSES) &
+		       CC_HARVEST_FUSES__VCE_DISABLE_MASK) >>
+			CC_HARVEST_FUSES__VCE_DISABLE__SHIFT;
+
+	switch (tmp) {
+	case 1:
+		ret = AMDGPU_VCE_HARVEST_VCE0;
+		break;
+	case 2:
+		ret = AMDGPU_VCE_HARVEST_VCE1;
+		break;
+	case 3:
+		ret = AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1;
+		break;
+	default:
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static int vce_v3_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->vce.harvest_config = vce_v3_0_get_harvest_config(adev);
+
+	if ((adev->vce.harvest_config &
+	     (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1)) ==
+	    (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1))
+		return -ENOENT;
 
 	vce_v3_0_set_ring_funcs(adev);
 	vce_v3_0_set_irq_funcs(adev);
@@ -371,17 +426,41 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
 static bool vce_v3_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 mask = 0;
+	int idx;
 
-	return !(RREG32(mmSRBM_STATUS2) & SRBM_STATUS2__VCE_BUSY_MASK);
+	for (idx = 0; idx < 2; ++idx) {
+		if (adev->vce.harvest_config & (1 << idx))
+			continue;
+
+		if (idx == 0)
+			mask |= SRBM_STATUS2__VCE0_BUSY_MASK;
+		else
+			mask |= SRBM_STATUS2__VCE1_BUSY_MASK;
+	}
+
+	return !(RREG32(mmSRBM_STATUS2) & mask);
 }
 
 static int vce_v3_0_wait_for_idle(void *handle)
 {
 	unsigned i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 mask = 0;
+	int idx;
+
+	for (idx = 0; idx < 2; ++idx) {
+		if (adev->vce.harvest_config & (1 << idx))
+			continue;
+
+		if (idx == 0)
+			mask |= SRBM_STATUS2__VCE0_BUSY_MASK;
+		else
+			mask |= SRBM_STATUS2__VCE1_BUSY_MASK;
+	}
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (!(RREG32(mmSRBM_STATUS2) & SRBM_STATUS2__VCE_BUSY_MASK))
+		if (!(RREG32(mmSRBM_STATUS2) & mask))
 			return 0;
 	}
 	return -ETIMEDOUT;
@@ -390,9 +469,21 @@ static int vce_v3_0_wait_for_idle(void *handle)
 static int vce_v3_0_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 mask = 0;
+	int idx;
 
-	WREG32_P(mmSRBM_SOFT_RESET, SRBM_SOFT_RESET__SOFT_RESET_VCE_MASK,
-			~SRBM_SOFT_RESET__SOFT_RESET_VCE_MASK);
+	for (idx = 0; idx < 2; ++idx) {
+		if (adev->vce.harvest_config & (1 << idx))
+			continue;
+
+		if (idx == 0)
+			mask |= SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK;
+		else
+			mask |= SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK;
+	}
+	WREG32_P(mmSRBM_SOFT_RESET, mask,
+		 ~(SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK |
+		   SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK));
 	mdelay(5);
 
 	return vce_v3_0_start(adev);
@@ -553,6 +644,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_funcs = {
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
 	.is_lockup = amdgpu_ring_test_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)

@@ -13,6 +13,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -20,8 +21,6 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-
-#include "irqchip.h"
 
 struct mtk_sysirq_chip_data {
 	spinlock_t lock;

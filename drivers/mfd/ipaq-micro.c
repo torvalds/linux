@@ -53,8 +53,8 @@ static void ipaq_micro_trigger_tx(struct ipaq_micro *micro)
 	tx->buf[bp++] = checksum;
 	tx->len = bp;
 	tx->index = 0;
-	print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_OFFSET, 16, 1,
-		       tx->buf, tx->len, true);
+	print_hex_dump_debug("data: ", DUMP_PREFIX_OFFSET, 16, 1,
+			     tx->buf, tx->len, true);
 
 	/* Enable interrupt */
 	val = readl(micro->base + UTCR3);
@@ -242,7 +242,7 @@ static u16 ipaq_micro_to_u16(u8 *data)
 	return data[1] << 8 | data[0];
 }
 
-static void ipaq_micro_eeprom_dump(struct ipaq_micro *micro)
+static void __init ipaq_micro_eeprom_dump(struct ipaq_micro *micro)
 {
 	u8 dump[256];
 	char *str;
@@ -250,7 +250,7 @@ static void ipaq_micro_eeprom_dump(struct ipaq_micro *micro)
 	ipaq_micro_eeprom_read(micro, 0, 128, dump);
 	str = ipaq_micro_str(dump, 10);
 	if (str) {
-		dev_info(micro->dev, "HM version %s\n", str);
+		dev_info(micro->dev, "HW version %s\n", str);
 		kfree(str);
 	}
 	str = ipaq_micro_str(dump+10, 40);
@@ -281,8 +281,8 @@ static void ipaq_micro_eeprom_dump(struct ipaq_micro *micro)
 	dev_info(micro->dev, "RAM size: %u KiB\n", ipaq_micro_to_u16(dump+92));
 	dev_info(micro->dev, "screen: %u x %u\n",
 		 ipaq_micro_to_u16(dump+94), ipaq_micro_to_u16(dump+96));
-	print_hex_dump(KERN_DEBUG, "eeprom: ", DUMP_PREFIX_OFFSET, 16, 1,
-		       dump, 256, true);
+	print_hex_dump_debug("eeprom: ", DUMP_PREFIX_OFFSET, 16, 1,
+			     dump, 256, true);
 
 }
 
@@ -386,7 +386,7 @@ static int micro_resume(struct device *dev)
 	return 0;
 }
 
-static int micro_probe(struct platform_device *pdev)
+static int __init micro_probe(struct platform_device *pdev)
 {
 	struct ipaq_micro *micro;
 	struct resource *res;
@@ -448,21 +448,6 @@ static int micro_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int micro_remove(struct platform_device *pdev)
-{
-	struct ipaq_micro *micro = platform_get_drvdata(pdev);
-	u32 val;
-
-	mfd_remove_devices(&pdev->dev);
-
-	val = readl(micro->base + UTCR3);
-	val &= ~(UTCR3_RXE | UTCR3_RIE); /* disable receive interrupt */
-	val &= ~(UTCR3_TXE | UTCR3_TIE); /* disable transmit interrupt */
-	writel(val, micro->base + UTCR3);
-
-	return 0;
-}
-
 static const struct dev_pm_ops micro_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(NULL, micro_resume)
 };
@@ -471,12 +456,7 @@ static struct platform_driver micro_device_driver = {
 	.driver   = {
 		.name	= "ipaq-h3xxx-micro",
 		.pm	= &micro_dev_pm_ops,
+		.suppress_bind_attrs = true,
 	},
-	.probe    = micro_probe,
-	.remove   = micro_remove,
-	/* .shutdown = micro_suspend, // FIXME */
 };
-module_platform_driver(micro_device_driver);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("driver for iPAQ Atmel micro core and backlight");
+builtin_platform_driver_probe(micro_device_driver, micro_probe);

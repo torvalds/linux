@@ -60,17 +60,15 @@ static void symbol_int_callback(struct urb *urb)
 
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
+	/*
+	 * Data from the device comes with a 1 byte header:
+	 *
+	 * <size of data> <data>...
+	 */
 	if (urb->actual_length > 1) {
-		data_length = urb->actual_length - 1;
-
-		/*
-		 * Data from the device comes with a 1 byte header:
-		 *
-		 * <size of data>data...
-		 * 	This is real data to be sent to the tty layer
-		 * we pretty much just ignore the size and send everything
-		 * else to the tty layer.
-		 */
+		data_length = data[0];
+		if (data_length > (urb->actual_length - 1))
+			data_length = urb->actual_length - 1;
 		tty_insert_flip_string(&port->port, &data[1], data_length);
 		tty_flip_buffer_push(&port->port);
 	} else {
@@ -94,7 +92,7 @@ exit:
 
 static int symbol_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	struct symbol_private *priv = usb_get_serial_data(port->serial);
+	struct symbol_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int result = 0;
 
@@ -120,7 +118,7 @@ static void symbol_close(struct usb_serial_port *port)
 static void symbol_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct symbol_private *priv = usb_get_serial_data(port->serial);
+	struct symbol_private *priv = usb_get_serial_port_data(port);
 
 	spin_lock_irq(&priv->lock);
 	priv->throttled = true;
@@ -130,7 +128,7 @@ static void symbol_throttle(struct tty_struct *tty)
 static void symbol_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct symbol_private *priv = usb_get_serial_data(port->serial);
+	struct symbol_private *priv = usb_get_serial_port_data(port);
 	int result;
 	bool was_throttled;
 

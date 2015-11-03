@@ -48,6 +48,12 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 
 	phb = pci_bus_to_host(dev->bus);
 	afu = (struct cxl_afu *)phb->private_data;
+
+	if (!cxl_adapter_link_ok(afu->adapter)) {
+		dev_warn(&dev->dev, "%s: Device link is down, refusing to enable AFU\n", __func__);
+		return false;
+	}
+
 	set_dma_ops(&dev->dev, &dma_direct_ops);
 	set_dma_offset(&dev->dev, PAGE_OFFSET);
 
@@ -138,6 +144,26 @@ static int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
 	return 0;
 }
 
+
+static inline bool cxl_config_link_ok(struct pci_bus *bus)
+{
+	struct pci_controller *phb;
+	struct cxl_afu *afu;
+
+	/* Config space IO is based on phb->cfg_addr, which is based on
+	 * afu_desc_mmio. This isn't safe to read/write when the link
+	 * goes down, as EEH tears down MMIO space.
+	 *
+	 * Check if the link is OK before proceeding.
+	 */
+
+	phb = pci_bus_to_host(bus);
+	if (phb == NULL)
+		return false;
+	afu = (struct cxl_afu *)phb->private_data;
+	return cxl_adapter_link_ok(afu->adapter);
+}
+
 static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 				int offset, int len, u32 *val)
 {
@@ -149,6 +175,9 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 				  &mask, &shift);
 	if (rc)
 		return rc;
+
+	if (!cxl_config_link_ok(bus))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Can only read 32 bits */
 	*val = (in_le32(ioaddr) >> shift) & mask;
@@ -166,6 +195,9 @@ static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 				  &mask, &shift);
 	if (rc)
 		return rc;
+
+	if (!cxl_config_link_ok(bus))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Can only write 32 bits so do read-modify-write */
 	mask <<= shift;
@@ -240,6 +272,14 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 	return 0;
 }
 
+void cxl_pci_vphb_reconfigure(struct cxl_afu *afu)
+{
+	/* When we are reconfigured, the AFU's MMIO space is unmapped
+	 * and remapped. We need to reflect this in the PHB's view of
+	 * the world.
+	 */
+	afu->phb->cfg_addr = afu->afu_desc_mmio + afu->crs_offset;
+}
 
 void cxl_pci_vphb_remove(struct cxl_afu *afu)
 {

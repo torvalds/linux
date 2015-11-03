@@ -14,11 +14,14 @@ config CRYPTO_DEV_NX_ENCRYPT
 config CRYPTO_DEV_NX_COMPRESS
 	tristate "Compression acceleration support"
 	default y
+	select CRYPTO_ALGAPI
+	select 842_DECOMPRESS
 	help
 	  Support for PowerPC Nest (NX) compression acceleration. This
 	  module supports acceleration for compressing memory with the 842
-	  algorithm.  One of the platform drivers must be selected also.
-	  If you choose 'M' here, this module will be called nx_compress.
+	  algorithm using the cryptographic API.  One of the platform
+	  drivers must be selected also.  If you choose 'M' here, this
+	  module will be called nx_compress.
 
 if CRYPTO_DEV_NX_COMPRESS
 
@@ -41,15 +44,5 @@ config CRYPTO_DEV_NX_COMPRESS_POWERNV
 	  module supports acceleration for compressing memory with the 842
 	  algorithm.  This supports NX hardware on the PowerNV platform.
 	  If you choose 'M' here, this module will be called nx_compress_powernv.
-
-config CRYPTO_DEV_NX_COMPRESS_CRYPTO
-	tristate "Compression acceleration cryptographic interface"
-	select CRYPTO_ALGAPI
-	select 842_DECOMPRESS
-	default y
-	help
-	  Support for PowerPC Nest (NX) accelerators using the cryptographic
-	  API.  If you choose 'M' here, this module will be called
-	  nx_compress_crypto.
 
 endif

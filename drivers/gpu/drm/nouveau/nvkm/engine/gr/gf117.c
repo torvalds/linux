@@ -24,6 +24,8 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <nvif/class.h>
+
 /*******************************************************************************
  * PGRAPH register lists
  ******************************************************************************/
@@ -118,19 +120,27 @@ gf117_gr_gpccs_ucode = {
 	.data.size = sizeof(gf117_grgpc_data),
 };
 
-struct nvkm_oclass *
-gf117_gr_oclass = &(struct gf100_gr_oclass) {
-	.base.handle = NV_ENGINE(GR, 0xd7),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_ctor,
-		.dtor = gf100_gr_dtor,
-		.init = gf100_gr_init,
-		.fini = _nvkm_gr_fini,
-	},
-	.cclass = &gf117_grctx_oclass,
-	.sclass = gf110_gr_sclass,
+static const struct gf100_gr_func
+gf117_gr = {
+	.init = gf100_gr_init,
 	.mmio = gf117_gr_pack_mmio,
 	.fecs.ucode = &gf117_gr_fecs_ucode,
 	.gpccs.ucode = &gf117_gr_gpccs_ucode,
 	.ppc_nr = 1,
-}.base;
+	.grctx = &gf117_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, FERMI_MEMORY_TO_MEMORY_FORMAT_A },
+		{ -1, -1, FERMI_A, &gf100_fermi },
+		{ -1, -1, FERMI_B, &gf100_fermi },
+		{ -1, -1, FERMI_C, &gf100_fermi },
+		{ -1, -1, FERMI_COMPUTE_A },
+		{}
+	}
+};
+
+int
+gf117_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+{
+	return gf100_gr_new_(&gf117_gr, device, index, pgr);
+}

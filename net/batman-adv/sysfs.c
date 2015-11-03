@@ -457,7 +457,7 @@ static ssize_t batadv_show_gw_bwidth(struct kobject *kobj,
 				     struct attribute *attr, char *buff)
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
-	uint32_t down, up;
+	u32 down, up;
 
 	down = atomic_read(&bat_priv->gw.bandwidth_down);
 	up = atomic_read(&bat_priv->gw.bandwidth_up);
@@ -512,7 +512,7 @@ static ssize_t batadv_store_isolation_mark(struct kobject *kobj,
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	uint32_t mark, mask;
+	u32 mark, mask;
 	char *mask_ptr;
 
 	/* parse the mask if it has been specified, otherwise assume the mask is

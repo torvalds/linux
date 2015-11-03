@@ -67,8 +67,8 @@ struct nfsd4_callback {
 	struct rpc_message cb_msg;
 	struct nfsd4_callback_ops *cb_ops;
 	struct work_struct cb_work;
+	int cb_seq_status;
 	int cb_status;
-	bool cb_update_seq_nr;
 	bool cb_need_restart;
 };
 

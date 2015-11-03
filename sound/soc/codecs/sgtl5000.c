@@ -406,11 +406,10 @@ static int dac_put_volsw(struct snd_kcontrol *kcontrol,
 static const DECLARE_TLV_DB_SCALE(capture_6db_attenuate, -600, 600, 0);
 
 /* tlv for mic gain, 0db 20db 30db 40db */
-static const unsigned int mic_gain_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(mic_gain_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
-	1, 3, TLV_DB_SCALE_ITEM(2000, 1000, 0),
-};
+	1, 3, TLV_DB_SCALE_ITEM(2000, 1000, 0)
+);
 
 /* tlv for hp volume, -51.5db to 12.0db, step .5db */
 static const DECLARE_TLV_DB_SCALE(headphone_volume, -5150, 50, 0);
@@ -1601,7 +1600,6 @@ MODULE_DEVICE_TABLE(of, sgtl5000_dt_ids);
 static struct i2c_driver sgtl5000_i2c_driver = {
 	.driver = {
 		   .name = "sgtl5000",
-		   .owner = THIS_MODULE,
 		   .of_match_table = sgtl5000_dt_ids,
 		   },
 	.probe = sgtl5000_i2c_probe,

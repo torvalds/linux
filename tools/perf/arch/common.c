@@ -128,7 +128,7 @@ static const char *normalize_arch(char *arch)
 	return arch;
 }
 
-static int perf_session_env__lookup_binutils_path(struct perf_session_env *env,
+static int perf_session_env__lookup_binutils_path(struct perf_env *env,
 						  const char *name,
 						  const char **path)
 {
@@ -206,7 +206,7 @@ out_error:
 	return -1;
 }
 
-int perf_session_env__lookup_objdump(struct perf_session_env *env)
+int perf_session_env__lookup_objdump(struct perf_env *env)
 {
 	/*
 	 * For live mode, env->arch will be NULL and we can use

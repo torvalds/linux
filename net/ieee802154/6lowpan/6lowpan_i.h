@@ -5,6 +5,7 @@
 
 #include <net/ieee802154_netdev.h>
 #include <net/inet_frag.h>
+#include <net/6lowpan.h>
 
 struct lowpan_create_arg {
 	u16 tag;
@@ -37,25 +38,17 @@ static inline u32 ieee802154_addr_hash(const struct ieee802154_addr *a)
 	}
 }
 
-struct lowpan_dev_record {
-	struct net_device *ldev;
-	struct list_head list;
-};
-
 /* private device info */
 struct lowpan_dev_info {
 	struct net_device	*real_dev; /* real WPAN device ptr */
-	struct mutex		dev_list_mtx; /* mutex for list ops */
 	u16			fragment_tag;
 };
 
 static inline struct
 lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
 {
-	return netdev_priv(dev);
+	return (struct lowpan_dev_info *)lowpan_priv(dev)->priv;
 }
-
-extern struct list_head lowpan_devices;
 
 int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type);
 void lowpan_net_frag_exit(void);

@@ -188,8 +188,12 @@ void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk);
 void ip_rt_send_redirect(struct sk_buff *skb);
 
 unsigned int inet_addr_type(struct net *net, __be32 addr);
+unsigned int inet_addr_type_table(struct net *net, __be32 addr, u32 tb_id);
 unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 				__be32 addr);
+unsigned int inet_addr_type_dev_table(struct net *net,
+				      const struct net_device *dev,
+				      __be32 addr);
 void ip_rt_multicast_event(struct in_device *);
 int ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
 void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
@@ -249,6 +253,9 @@ static inline void ip_route_connect_init(struct flowi4 *fl4, __be32 dst, __be32 
 
 	if (inet_sk(sk)->transparent)
 		flow_flags |= FLOWI_FLAG_ANYSRC;
+
+	if (netif_index_is_vrf(sock_net(sk), oif))
+		flow_flags |= FLOWI_FLAG_VRFSRC | FLOWI_FLAG_SKIP_NH_OIF;
 
 	flowi4_init_output(fl4, oif, sk->sk_mark, tos, RT_SCOPE_UNIVERSE,
 			   protocol, flow_flags, dst, src, dport, sport);

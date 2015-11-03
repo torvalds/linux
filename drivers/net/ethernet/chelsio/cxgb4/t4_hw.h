@@ -47,7 +47,6 @@ enum {
 	TCB_SIZE       = 128,   /* TCB size */
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
-	L2T_SIZE       = 4096,  /* # of L2T entries */
 	PM_NSTATS      = 5,     /* # of PM stats */
 	MBOX_LEN       = 64,    /* mailbox size in bytes */
 	TRACE_LEN      = 112,   /* length of trace data and mask */

@@ -331,7 +331,7 @@ void mei_stop(struct mei_device *dev)
 
 	mei_cancel_work(dev);
 
-	mei_nfc_host_exit(dev);
+	mei_cl_bus_remove_devices(dev);
 
 	mutex_lock(&dev->device_lock);
 
@@ -390,6 +390,7 @@ void mei_device_init(struct mei_device *dev,
 	INIT_LIST_HEAD(&dev->me_clients);
 	mutex_init(&dev->device_lock);
 	init_rwsem(&dev->me_clients_rwsem);
+	mutex_init(&dev->cl_bus_lock);
 	init_waitqueue_head(&dev->wait_hw_ready);
 	init_waitqueue_head(&dev->wait_pg);
 	init_waitqueue_head(&dev->wait_hbm_start);

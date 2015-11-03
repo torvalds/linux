@@ -45,7 +45,7 @@ static void rtl8192_parse_pci_configuration(struct pci_dev *pdev,
 	pci_write_config_byte(pdev, 0x70f, tmp);
 }
 
-bool rtl8192_pci_findadapter(struct pci_dev *pdev, struct net_device *dev)
+bool rtl92e_check_adapter(struct pci_dev *pdev, struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	u16 VenderID;

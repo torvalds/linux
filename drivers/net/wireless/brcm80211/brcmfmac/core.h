@@ -21,6 +21,7 @@
 #ifndef BRCMFMAC_CORE_H
 #define BRCMFMAC_CORE_H
 
+#include <net/cfg80211.h>
 #include "fweh.h"
 
 #define TOE_TX_CSUM_OL		0x00000001
@@ -117,6 +118,8 @@ struct brcmf_pub {
 
 	/* Multicast data packets sent to dongle */
 	unsigned long tx_multicast;
+
+	struct mac_address addresses[BRCMF_MAX_IFS];
 
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 

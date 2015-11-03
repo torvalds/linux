@@ -223,8 +223,6 @@ static int m25p_probe(struct spi_device *spi)
 	 */
 	if (data && data->type)
 		flash_name = data->type;
-	else if (!strcmp(spi->modalias, "spi-nor"))
-		flash_name = NULL; /* auto-detect */
 	else
 		flash_name = spi->modalias;
 
@@ -289,19 +287,25 @@ static const struct spi_device_id m25p_ids[] = {
 	{"m25p40-nonjedec"},	{"m25p80-nonjedec"},	{"m25p16-nonjedec"},
 	{"m25p32-nonjedec"},	{"m25p64-nonjedec"},	{"m25p128-nonjedec"},
 
-	/*
-	 * Generic support for SPI NOR that can be identified by the JEDEC READ
-	 * ID opcode (0x9F). Use this, if possible.
-	 */
-	{"spi-nor"},
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, m25p_ids);
+
+static const struct of_device_id m25p_of_table[] = {
+	/*
+	 * Generic compatibility for SPI NOR that can be identified by the
+	 * JEDEC READ ID opcode (0x9F). Use this, if possible.
+	 */
+	{ .compatible = "jedec,spi-nor" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, m25p_of_table);
 
 static struct spi_driver m25p80_driver = {
 	.driver = {
 		.name	= "m25p80",
 		.owner	= THIS_MODULE,
+		.of_match_table = m25p_of_table,
 	},
 	.id_table	= m25p_ids,
 	.probe	= m25p_probe,

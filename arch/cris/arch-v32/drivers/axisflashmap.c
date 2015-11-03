@@ -313,6 +313,7 @@ static int __init init_axis_flash(void)
 	size_t len;
 	int ram_rootfs_partition = -1; /* -1 => no RAM rootfs partition */
 	int part;
+	struct mtd_partition *partition;
 
 	/* We need a root fs. If it resides in RAM, we need to use an
 	 * MTDRAM device, so it must be enabled in the kernel config,
@@ -329,7 +330,7 @@ static int __init init_axis_flash(void)
 
 	main_mtd = flash_probe();
 	if (main_mtd)
-		printk(KERN_INFO "%s: 0x%08x bytes of NOR flash memory.\n",
+		printk(KERN_INFO "%s: 0x%08llx bytes of NOR flash memory.\n",
 		       main_mtd->name, main_mtd->size);
 
 #ifdef CONFIG_ETRAX_NANDFLASH
@@ -388,10 +389,10 @@ static int __init init_axis_flash(void)
 #endif
 
 	if (main_mtd) {
+		loff_t ptable_sector = CONFIG_ETRAX_PTABLE_SECTOR;
 		main_mtd->owner = THIS_MODULE;
 		axisflash_mtd = main_mtd;
 
-		loff_t ptable_sector = CONFIG_ETRAX_PTABLE_SECTOR;
 
 		/* First partition (rescue) is always set to the default. */
 		pidx++;
@@ -517,7 +518,7 @@ static int __init init_axis_flash(void)
 	/* Decide whether to use default partition table. */
 	/* Only use default table if we actually have a device (main_mtd) */
 
-	struct mtd_partition *partition = &axis_partitions[0];
+	partition = &axis_partitions[0];
 	if (main_mtd && !ptable_ok) {
 		memcpy(axis_partitions, axis_default_partitions,
 		       sizeof(axis_default_partitions));
@@ -580,7 +581,7 @@ static int __init init_axis_flash(void)
 			printk(KERN_INFO "axisflashmap: Adding RAM partition "
 			       "for rootfs image.\n");
 			err = mtdram_init_device(mtd_ram,
-						 (void *)partition[part].offset,
+						 (void *)(u_int32_t)partition[part].offset,
 						 partition[part].size,
 						 partition[part].name);
 			if (err)

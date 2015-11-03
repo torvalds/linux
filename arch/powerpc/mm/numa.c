@@ -225,7 +225,7 @@ static void initialize_distance_lookup_table(int nid,
 	for (i = 0; i < distance_ref_points_depth; i++) {
 		const __be32 *entry;
 
-		entry = &associativity[be32_to_cpu(distance_ref_points[i])];
+		entry = &associativity[be32_to_cpu(distance_ref_points[i]) - 1];
 		distance_lookup_table[nid][i] = of_read_number(entry, 1);
 	}
 }
@@ -248,8 +248,12 @@ static int associativity_to_nid(const __be32 *associativity)
 		nid = -1;
 
 	if (nid > 0 &&
-	    of_read_number(associativity, 1) >= distance_ref_points_depth)
-		initialize_distance_lookup_table(nid, associativity);
+		of_read_number(associativity, 1) >= distance_ref_points_depth) {
+		/*
+		 * Skip the length field and send start of associativity array
+		 */
+		initialize_distance_lookup_table(nid, associativity + 1);
+	}
 
 out:
 	return nid;
@@ -507,6 +511,12 @@ static int of_drconf_to_nid_single(struct of_drconf_cell *drmem,
 
 		if (nid == 0xffff || nid >= MAX_NUMNODES)
 			nid = default_nid;
+
+		if (nid > 0) {
+			index = drmem->aa_index * aa->array_sz;
+			initialize_distance_lookup_table(nid,
+							&aa->arrays[index]);
+		}
 	}
 
 	return nid;

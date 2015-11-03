@@ -154,7 +154,7 @@ static inline void mxc_init_imx_uart(void)
 	imx31_add_imx_uart0(&uart_pdata);
 }
 
-static void mx31ads_expio_irq_handler(u32 irq, struct irq_desc *desc)
+static void mx31ads_expio_irq_handler(struct irq_desc *desc)
 {
 	u32 imr_val;
 	u32 int_valid;
@@ -238,7 +238,7 @@ static void __init mx31ads_init_expio(void)
 
 	for (i = irq_base; i < irq_base + MXC_MAX_EXP_IO_LINES; i++) {
 		irq_set_chip_and_handler(i, &expio_irq_chip, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 	irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_4));
 	irq_set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);

@@ -1,6 +1,6 @@
 #
 # Platform drivers
-#	All drivers here are currently for webcam support
+#	Most drivers here are currently for webcam support
 
 menuconfig V4L_PLATFORM_DRIVERS
 	bool "V4L platform devices"
@@ -86,7 +86,7 @@ config VIDEO_M32R_AR_M64278
 config VIDEO_OMAP3
 	tristate "OMAP 3 Camera support"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP3
-	depends on HAS_DMA
+	depends on HAS_DMA && OF
 	depends on OMAP_IOMMU
 	select ARM_DMA_USE_IOMMU
 	select VIDEOBUF2_DMA_CONTIG
@@ -231,6 +231,18 @@ config VIDEO_SH_VEU
 	    Support for the Video Engine Unit (VEU) on SuperH and
 	    SH-Mobile SoCs.
 
+config VIDEO_RENESAS_JPU
+	tristate "Renesas JPEG Processing Unit"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	---help---
+	  This is a V4L2 driver for the Renesas JPEG Processing Unit.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called rcar_jpu.
+
 config VIDEO_RENESAS_VSP1
 	tristate "Renesas VSP1 Video Processing Engine"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAS_DMA
@@ -280,3 +292,14 @@ config VIDEO_VIM2M
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
 endif #V4L_TEST_DRIVERS
+
+menuconfig DVB_PLATFORM_DRIVERS
+	bool "DVB platform devices"
+	depends on MEDIA_DIGITAL_TV_SUPPORT
+	default n
+	---help---
+	  Say Y here to enable support for platform-specific Digital TV drivers.
+
+if DVB_PLATFORM_DRIVERS
+source "drivers/media/platform/sti/c8sectpfe/Kconfig"
+endif #DVB_PLATFORM_DRIVERS

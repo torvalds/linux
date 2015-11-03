@@ -112,11 +112,12 @@ int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 static
 void iwl_mvm_beacon_filter_set_cqm_params(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
-					  struct iwl_beacon_filter_cmd *cmd)
+					  struct iwl_beacon_filter_cmd *cmd,
+					  bool d0i3)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif->bss_conf.cqm_rssi_thold) {
+	if (vif->bss_conf.cqm_rssi_thold && !d0i3) {
 		cmd->bf_energy_delta =
 			cpu_to_le32(vif->bss_conf.cqm_rssi_hyst);
 		/* fw uses an absolute value for this */
@@ -287,27 +288,6 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	return true;
 }
 
-static int iwl_mvm_power_get_skip_over_dtim(int dtimper, int bi)
-{
-	int numerator;
-	int dtim_interval = dtimper * bi;
-
-	if (WARN_ON(!dtim_interval))
-		return 0;
-
-	if (dtimper == 1) {
-		if (bi > 100)
-			numerator = 408;
-		else
-			numerator = 510;
-	} else if (dtimper < 10) {
-		numerator = 612;
-	} else {
-		return 0;
-	}
-	return max(1, (numerator / dtim_interval));
-}
-
 static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -357,8 +337,8 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
-	if (!vif->bss_conf.ps || iwl_mvm_vif_low_latency(mvmvif) ||
-	    !mvmvif->pm_enabled)
+	if (!vif->bss_conf.ps || !mvmvif->pm_enabled ||
+	    (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p))
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
@@ -377,11 +357,8 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	if (!radar_detect && (dtimper < 10) &&
 	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP ||
 	     mvm->cur_ucode == IWL_UCODE_WOWLAN)) {
-		cmd->skip_dtim_periods =
-			iwl_mvm_power_get_skip_over_dtim(dtimper, bi);
-		if (cmd->skip_dtim_periods)
-			cmd->flags |=
-				cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		cmd->skip_dtim_periods = 3;
 	}
 
 	if (mvm->cur_ucode != IWL_UCODE_WOWLAN) {
@@ -509,9 +486,8 @@ static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
 		       ETH_ALEN);
 }
 
-int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
-					     struct iwl_rx_cmd_buffer *rxb,
-					     struct iwl_device_cmd *cmd)
+void iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
+					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_uapsd_misbehaving_ap_notif *notif = (void *)pkt->data;
@@ -520,8 +496,6 @@ int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_power_uapsd_misbehav_ap_iterator, &ap_sta_id);
-
-	return 0;
 }
 
 struct iwl_power_vifs {
@@ -810,7 +784,7 @@ static int _iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 	    vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
-	iwl_mvm_beacon_filter_set_cqm_params(mvm, vif, cmd);
+	iwl_mvm_beacon_filter_set_cqm_params(mvm, vif, cmd, d0i3);
 	if (!d0i3)
 		iwl_mvm_beacon_filter_debugfs_parameters(vif, cmd);
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, cmd, cmd_flags);

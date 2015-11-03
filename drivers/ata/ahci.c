@@ -351,6 +351,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	/* JMicron 362B and 362C have an AHCI function with IDE class code */
 	{ PCI_VDEVICE(JMICRON, 0x2362), board_ahci_ign_iferr },
 	{ PCI_VDEVICE(JMICRON, 0x236f), board_ahci_ign_iferr },
+	/* May need to update quirk_jmicron_async_suspend() for additions */
 
 	/* ATI */
 	{ PCI_VDEVICE(ATI, 0x4380), board_ahci_sb600 }, /* ATI SB600 */
@@ -1450,18 +1451,6 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ahci_pci_bar = AHCI_PCI_BAR_ENMOTUS;
 	else if (pdev->vendor == 0x177d && pdev->device == 0xa01c)
 		ahci_pci_bar = AHCI_PCI_BAR_CAVIUM;
-
-	/*
-	 * The JMicron chip 361/363 contains one SATA controller and one
-	 * PATA controller,for powering on these both controllers, we must
-	 * follow the sequence one by one, otherwise one of them can not be
-	 * powered on successfully, so here we disable the async suspend
-	 * method for these chips.
-	 */
-	if (pdev->vendor == PCI_VENDOR_ID_JMICRON &&
-		(pdev->device == PCI_DEVICE_ID_JMICRON_JMB363 ||
-		pdev->device == PCI_DEVICE_ID_JMICRON_JMB361))
-		device_disable_async_suspend(&pdev->dev);
 
 	/* acquire resources */
 	rc = pcim_enable_device(pdev);

@@ -3756,6 +3756,14 @@ static int mtip_init_cmd(void *data, struct request *rq, unsigned int hctx_idx,
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
 	u32 host_cap_64 = readl(dd->mmio + HOST_CAP) & HOST_CAP_64;
 
+	/*
+	 * For flush requests, request_idx starts at the end of the
+	 * tag space.  Since we don't support FLUSH/FUA, simply return
+	 * 0 as there's nothing to be done.
+	 */
+	if (request_idx >= MTIP_MAX_COMMAND_SLOTS)
+		return 0;
+
 	cmd->command = dmam_alloc_coherent(&dd->pdev->dev, CMD_DMA_ALLOC_SZ,
 			&cmd->command_dma, GFP_KERNEL);
 	if (!cmd->command)

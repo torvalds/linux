@@ -226,22 +226,7 @@ static void hpet_reserve_platform_timers(unsigned int id) { }
  */
 static unsigned long hpet_freq;
 
-static void hpet_legacy_set_mode(enum clock_event_mode mode,
-			  struct clock_event_device *evt);
-static int hpet_legacy_next_event(unsigned long delta,
-			   struct clock_event_device *evt);
-
-/*
- * The hpet clock event device
- */
-static struct clock_event_device hpet_clockevent = {
-	.name		= "hpet",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= hpet_legacy_set_mode,
-	.set_next_event = hpet_legacy_next_event,
-	.irq		= 0,
-	.rating		= 50,
-};
+static struct clock_event_device hpet_clockevent;
 
 static void hpet_stop_counter(void)
 {
@@ -306,64 +291,74 @@ static void hpet_legacy_clockevent_register(void)
 	printk(KERN_DEBUG "hpet clockevent registered\n");
 }
 
-static void hpet_set_mode(enum clock_event_mode mode,
-			  struct clock_event_device *evt, int timer)
+static int hpet_set_periodic(struct clock_event_device *evt, int timer)
 {
 	unsigned int cfg, cmp, now;
 	uint64_t delta;
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		hpet_stop_counter();
-		delta = ((uint64_t)(NSEC_PER_SEC/HZ)) * evt->mult;
-		delta >>= evt->shift;
-		now = hpet_readl(HPET_COUNTER);
-		cmp = now + (unsigned int) delta;
-		cfg = hpet_readl(HPET_Tn_CFG(timer));
-		cfg |= HPET_TN_ENABLE | HPET_TN_PERIODIC |
-		       HPET_TN_SETVAL | HPET_TN_32BIT;
-		hpet_writel(cfg, HPET_Tn_CFG(timer));
-		hpet_writel(cmp, HPET_Tn_CMP(timer));
-		udelay(1);
-		/*
-		 * HPET on AMD 81xx needs a second write (with HPET_TN_SETVAL
-		 * cleared) to T0_CMP to set the period. The HPET_TN_SETVAL
-		 * bit is automatically cleared after the first write.
-		 * (See AMD-8111 HyperTransport I/O Hub Data Sheet,
-		 * Publication # 24674)
-		 */
-		hpet_writel((unsigned int) delta, HPET_Tn_CMP(timer));
-		hpet_start_counter();
-		hpet_print_config();
-		break;
+	hpet_stop_counter();
+	delta = ((uint64_t)(NSEC_PER_SEC / HZ)) * evt->mult;
+	delta >>= evt->shift;
+	now = hpet_readl(HPET_COUNTER);
+	cmp = now + (unsigned int)delta;
+	cfg = hpet_readl(HPET_Tn_CFG(timer));
+	cfg |= HPET_TN_ENABLE | HPET_TN_PERIODIC | HPET_TN_SETVAL |
+	       HPET_TN_32BIT;
+	hpet_writel(cfg, HPET_Tn_CFG(timer));
+	hpet_writel(cmp, HPET_Tn_CMP(timer));
+	udelay(1);
+	/*
+	 * HPET on AMD 81xx needs a second write (with HPET_TN_SETVAL
+	 * cleared) to T0_CMP to set the period. The HPET_TN_SETVAL
+	 * bit is automatically cleared after the first write.
+	 * (See AMD-8111 HyperTransport I/O Hub Data Sheet,
+	 * Publication # 24674)
+	 */
+	hpet_writel((unsigned int)delta, HPET_Tn_CMP(timer));
+	hpet_start_counter();
+	hpet_print_config();
 
-	case CLOCK_EVT_MODE_ONESHOT:
-		cfg = hpet_readl(HPET_Tn_CFG(timer));
-		cfg &= ~HPET_TN_PERIODIC;
-		cfg |= HPET_TN_ENABLE | HPET_TN_32BIT;
-		hpet_writel(cfg, HPET_Tn_CFG(timer));
-		break;
+	return 0;
+}
 
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		cfg = hpet_readl(HPET_Tn_CFG(timer));
-		cfg &= ~HPET_TN_ENABLE;
-		hpet_writel(cfg, HPET_Tn_CFG(timer));
-		break;
+static int hpet_set_oneshot(struct clock_event_device *evt, int timer)
+{
+	unsigned int cfg;
 
-	case CLOCK_EVT_MODE_RESUME:
-		if (timer == 0) {
-			hpet_enable_legacy_int();
-		} else {
-			struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
-			irq_domain_activate_irq(irq_get_irq_data(hdev->irq));
-			disable_irq(hdev->irq);
-			irq_set_affinity(hdev->irq, cpumask_of(hdev->cpu));
-			enable_irq(hdev->irq);
-		}
-		hpet_print_config();
-		break;
+	cfg = hpet_readl(HPET_Tn_CFG(timer));
+	cfg &= ~HPET_TN_PERIODIC;
+	cfg |= HPET_TN_ENABLE | HPET_TN_32BIT;
+	hpet_writel(cfg, HPET_Tn_CFG(timer));
+
+	return 0;
+}
+
+static int hpet_shutdown(struct clock_event_device *evt, int timer)
+{
+	unsigned int cfg;
+
+	cfg = hpet_readl(HPET_Tn_CFG(timer));
+	cfg &= ~HPET_TN_ENABLE;
+	hpet_writel(cfg, HPET_Tn_CFG(timer));
+
+	return 0;
+}
+
+static int hpet_resume(struct clock_event_device *evt, int timer)
+{
+	if (!timer) {
+		hpet_enable_legacy_int();
+	} else {
+		struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
+
+		irq_domain_activate_irq(irq_get_irq_data(hdev->irq));
+		disable_irq(hdev->irq);
+		irq_set_affinity(hdev->irq, cpumask_of(hdev->cpu));
+		enable_irq(hdev->irq);
 	}
+	hpet_print_config();
+
+	return 0;
 }
 
 static int hpet_next_event(unsigned long delta,
@@ -403,10 +398,24 @@ static int hpet_next_event(unsigned long delta,
 	return res < HPET_MIN_CYCLES ? -ETIME : 0;
 }
 
-static void hpet_legacy_set_mode(enum clock_event_mode mode,
-			struct clock_event_device *evt)
+static int hpet_legacy_shutdown(struct clock_event_device *evt)
 {
-	hpet_set_mode(mode, evt, 0);
+	return hpet_shutdown(evt, 0);
+}
+
+static int hpet_legacy_set_oneshot(struct clock_event_device *evt)
+{
+	return hpet_set_oneshot(evt, 0);
+}
+
+static int hpet_legacy_set_periodic(struct clock_event_device *evt)
+{
+	return hpet_set_periodic(evt, 0);
+}
+
+static int hpet_legacy_resume(struct clock_event_device *evt)
+{
+	return hpet_resume(evt, 0);
 }
 
 static int hpet_legacy_next_event(unsigned long delta,
@@ -414,6 +423,22 @@ static int hpet_legacy_next_event(unsigned long delta,
 {
 	return hpet_next_event(delta, evt, 0);
 }
+
+/*
+ * The hpet clock event device
+ */
+static struct clock_event_device hpet_clockevent = {
+	.name			= "hpet",
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.set_state_periodic	= hpet_legacy_set_periodic,
+	.set_state_oneshot	= hpet_legacy_set_oneshot,
+	.set_state_shutdown	= hpet_legacy_shutdown,
+	.tick_resume		= hpet_legacy_resume,
+	.set_next_event		= hpet_legacy_next_event,
+	.irq			= 0,
+	.rating			= 50,
+};
 
 /*
  * HPET MSI Support
@@ -426,7 +451,7 @@ static struct irq_domain *hpet_domain;
 
 void hpet_msi_unmask(struct irq_data *data)
 {
-	struct hpet_dev *hdev = data->handler_data;
+	struct hpet_dev *hdev = irq_data_get_irq_handler_data(data);
 	unsigned int cfg;
 
 	/* unmask it */
@@ -437,7 +462,7 @@ void hpet_msi_unmask(struct irq_data *data)
 
 void hpet_msi_mask(struct irq_data *data)
 {
-	struct hpet_dev *hdev = data->handler_data;
+	struct hpet_dev *hdev = irq_data_get_irq_handler_data(data);
 	unsigned int cfg;
 
 	/* mask it */
@@ -459,11 +484,32 @@ void hpet_msi_read(struct hpet_dev *hdev, struct msi_msg *msg)
 	msg->address_hi = 0;
 }
 
-static void hpet_msi_set_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int hpet_msi_shutdown(struct clock_event_device *evt)
 {
 	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
-	hpet_set_mode(mode, evt, hdev->num);
+
+	return hpet_shutdown(evt, hdev->num);
+}
+
+static int hpet_msi_set_oneshot(struct clock_event_device *evt)
+{
+	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
+
+	return hpet_set_oneshot(evt, hdev->num);
+}
+
+static int hpet_msi_set_periodic(struct clock_event_device *evt)
+{
+	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
+
+	return hpet_set_periodic(evt, hdev->num);
+}
+
+static int hpet_msi_resume(struct clock_event_device *evt)
+{
+	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
+
+	return hpet_resume(evt, hdev->num);
 }
 
 static int hpet_msi_next_event(unsigned long delta,
@@ -523,10 +569,14 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 
 	evt->rating = 110;
 	evt->features = CLOCK_EVT_FEAT_ONESHOT;
-	if (hdev->flags & HPET_DEV_PERI_CAP)
+	if (hdev->flags & HPET_DEV_PERI_CAP) {
 		evt->features |= CLOCK_EVT_FEAT_PERIODIC;
+		evt->set_state_periodic = hpet_msi_set_periodic;
+	}
 
-	evt->set_mode = hpet_msi_set_mode;
+	evt->set_state_shutdown = hpet_msi_shutdown;
+	evt->set_state_oneshot = hpet_msi_set_oneshot;
+	evt->tick_resume = hpet_msi_resume;
 	evt->set_next_event = hpet_msi_next_event;
 	evt->cpumask = cpumask_of(hdev->cpu);
 
@@ -735,7 +785,7 @@ static int hpet_clocksource_register(void)
 
 	/* Verify whether hpet counter works */
 	t1 = hpet_readl(HPET_COUNTER);
-	rdtscll(start);
+	start = rdtsc();
 
 	/*
 	 * We don't know the TSC frequency yet, but waiting for
@@ -745,7 +795,7 @@ static int hpet_clocksource_register(void)
 	 */
 	do {
 		rep_nop();
-		rdtscll(now);
+		now = rdtsc();
 	} while ((now - start) < 200000UL);
 
 	if (t1 == hpet_readl(HPET_COUNTER)) {

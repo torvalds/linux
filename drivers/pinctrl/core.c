@@ -231,8 +231,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 
 	pindesc = pin_desc_get(pctldev, number);
 	if (pindesc != NULL) {
-		pr_err("pin %d already registered on %s\n", number,
-		       pctldev->desc->name);
+		dev_err(pctldev->dev, "pin %d already registered\n", number);
 		return -EINVAL;
 	}
 
@@ -349,6 +348,9 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio)
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_gpio_range *range = NULL;
 	struct gpio_chip *chip = gpio_to_chip(gpio);
+
+	if (WARN(!chip, "no gpio_chip for gpio%i?", gpio))
+		return false;
 
 	mutex_lock(&pinctrldev_list_mutex);
 

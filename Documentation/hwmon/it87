@@ -38,6 +38,10 @@ Supported chips:
     Prefix: 'it8728'
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Not publicly available
+  * IT8732F
+    Prefix: 'it8732'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not publicly available
   * IT8771E
     Prefix: 'it8771'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -111,9 +115,9 @@ Description
 -----------
 
 This driver implements support for the IT8603E, IT8620E, IT8623E, IT8705F,
-IT8712F, IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E,
-IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E, and SiS950
-chips.
+IT8712F, IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8732F,
+IT8758E, IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E, and
+SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
@@ -137,10 +141,10 @@ The IT8716F, IT8718F, IT8720F, IT8721F/IT8758E and later IT8712F revisions
 have support for 2 additional fans. The additional fans are supported by the
 driver.
 
-The IT8716F, IT8718F, IT8720F, IT8721F/IT8758E, IT8781F, IT8782F, IT8783E/F,
-and late IT8712F and IT8705F also have optional 16-bit tachometer counters
-for fans 1 to 3. This is better (no more fan clock divider mess) but not
-compatible with the older chips and revisions. The 16-bit tachometer mode
+The IT8716F, IT8718F, IT8720F, IT8721F/IT8758E, IT8732F, IT8781F, IT8782F,
+IT8783E/F, and late IT8712F and IT8705F also have optional 16-bit tachometer
+counters for fans 1 to 3. This is better (no more fan clock divider mess) but
+not compatible with the older chips and revisions. The 16-bit tachometer mode
 is enabled by the driver when one of the above chips is detected.
 
 The IT8726F is just bit enhanced IT8716F with additional hardware
@@ -159,6 +163,9 @@ IT8728F. It only supports 16-bit fan mode.
 
 The IT8790E supports up to 3 fans. 16-bit fan mode is always enabled.
 
+The IT8732F supports a closed-loop mode for fan control, but this is not
+currently implemented by the driver.
+
 Temperatures are measured in degrees Celsius. An alarm is triggered once
 when the Overtemperature Shutdown limit is crossed.
 
@@ -173,12 +180,14 @@ is done.
 Voltage sensors (also known as IN sensors) report their values in volts. An
 alarm is triggered if the voltage has crossed a programmable minimum or
 maximum limit. Note that minimum in this case always means 'closest to
-zero'; this is important for negative voltage measurements. All voltage
-inputs can measure voltages between 0 and 4.08 volts, with a resolution of
-0.016 volt (except IT8603E, IT8721F/IT8758E and IT8728F: 0.012 volt.) The
-battery voltage in8 does not have limit registers.
+zero'; this is important for negative voltage measurements. On most chips, all
+voltage inputs can measure voltages between 0 and 4.08 volts, with a resolution
+of 0.016 volt.  IT8603E, IT8721F/IT8758E and IT8728F can measure between 0 and
+3.06 volts, with a resolution of 0.012 volt.  IT8732F can measure between 0 and
+2.8 volts with a resolution of 0.0109 volt.  The battery voltage in8 does not
+have limit registers.
 
-On the IT8603E, IT8721F/IT8758E, IT8781F, IT8782F, and IT8783E/F, some
+On the IT8603E, IT8721F/IT8758E, IT8732F, IT8781F, IT8782F, and IT8783E/F, some
 voltage inputs are internal and scaled inside the chip:
 * in3 (optional)
 * in7 (optional for IT8781F, IT8782F, and IT8783E/F)

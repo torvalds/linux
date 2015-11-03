@@ -59,10 +59,9 @@ enum {
 #include "debug.h"
 #include "settings.h"
 
-extern int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
-		unsigned long flags);
-extern void __disable_irq(struct irq_desc *desc, unsigned int irq);
-extern void __enable_irq(struct irq_desc *desc, unsigned int irq);
+extern int __irq_set_trigger(struct irq_desc *desc, unsigned long flags);
+extern void __disable_irq(struct irq_desc *desc);
+extern void __enable_irq(struct irq_desc *desc);
 
 extern int irq_startup(struct irq_desc *desc, bool resend);
 extern void irq_shutdown(struct irq_desc *desc);
@@ -86,7 +85,7 @@ irqreturn_t handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *act
 irqreturn_t handle_irq_event(struct irq_desc *desc);
 
 /* Resending of interrupts :*/
-void check_irq_resend(struct irq_desc *desc, unsigned int irq);
+void check_irq_resend(struct irq_desc *desc);
 bool irq_wait_for_poll(struct irq_desc *desc);
 void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action);
 
@@ -187,7 +186,7 @@ static inline bool irqd_has_set(struct irq_data *d, unsigned int mask)
 	return __irqd_to_state(d) & mask;
 }
 
-static inline void kstat_incr_irqs_this_cpu(unsigned int irq, struct irq_desc *desc)
+static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 {
 	__this_cpu_inc(*desc->kstat_irqs);
 	__this_cpu_inc(kstat.irqs_sum);
@@ -195,7 +194,7 @@ static inline void kstat_incr_irqs_this_cpu(unsigned int irq, struct irq_desc *d
 
 static inline int irq_desc_get_node(struct irq_desc *desc)
 {
-	return irq_data_get_node(&desc->irq_data);
+	return irq_common_data_get_node(&desc->irq_common_data);
 }
 
 #ifdef CONFIG_PM_SLEEP

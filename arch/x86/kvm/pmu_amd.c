@@ -133,8 +133,6 @@ static int amd_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	/* MSR_K7_PERFCTRn */
 	pmc = get_gp_pmc(pmu, msr, MSR_K7_PERFCTR0);
 	if (pmc) {
-		if (!msr_info->host_initiated)
-			data = (s64)data;
 		pmc->counter += data - pmc_read_counter(pmc);
 		return 0;
 	}

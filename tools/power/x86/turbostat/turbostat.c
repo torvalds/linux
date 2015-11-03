@@ -71,8 +71,11 @@ unsigned int extra_msr_offset32;
 unsigned int extra_msr_offset64;
 unsigned int extra_delta_offset32;
 unsigned int extra_delta_offset64;
+unsigned int aperf_mperf_multiplier = 1;
 int do_smi;
 double bclk;
+double base_hz;
+double tsc_tweak = 1.0;
 unsigned int show_pkg;
 unsigned int show_core;
 unsigned int show_cpu;
@@ -372,7 +375,7 @@ void print_header(void)
 		if (do_rapl & RAPL_GFX)
 			outp += sprintf(outp, "   GFX_J");
 		if (do_rapl & RAPL_DRAM)
-			outp += sprintf(outp, "   RAM_W");
+			outp += sprintf(outp, "   RAM_J");
 		if (do_rapl & RAPL_PKG_PERF_STATUS)
 			outp += sprintf(outp, "   PKG_%%");
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
@@ -502,7 +505,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* %Busy */
 	if (has_aperf) {
 		if (!skip_c0)
-			outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc);
+			outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc/tsc_tweak);
 		else
 			outp += sprintf(outp, "********");
 	}
@@ -510,7 +513,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* Bzy_MHz */
 	if (has_aperf)
 		outp += sprintf(outp, "%8.0f",
-			1.0 * t->tsc / units * t->aperf / t->mperf / interval_float);
+			1.0 * t->tsc * tsc_tweak / units * t->aperf / t->mperf / interval_float);
 
 	/* TSC_MHz */
 	outp += sprintf(outp, "%8.0f", 1.0 * t->tsc/units/interval_float);
@@ -984,6 +987,8 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return -3;
 		if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
 			return -4;
+		t->aperf = t->aperf * aperf_mperf_multiplier;
+		t->mperf = t->mperf * aperf_mperf_multiplier;
 	}
 
 	if (do_smi) {
@@ -1149,6 +1154,19 @@ int slv_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCLRSV, PCLRSV, PCL__4, PCLRSV,
 int amt_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCL__2, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int phi_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 
+
+static void
+calculate_tsc_tweak()
+{
+	unsigned long long msr;
+	unsigned int base_ratio;
+
+	get_msr(base_cpu, MSR_NHM_PLATFORM_INFO, &msr);
+	base_ratio = (msr >> 8) & 0xFF;
+	base_hz = base_ratio * bclk * 1000000;
+	tsc_tweak = base_hz / tsc_hz;
+}
+
 static void
 dump_nhm_platform_info(void)
 {
@@ -1157,7 +1175,7 @@ dump_nhm_platform_info(void)
 
 	get_msr(base_cpu, MSR_NHM_PLATFORM_INFO, &msr);
 
-	fprintf(stderr, "cpu0: MSR_NHM_PLATFORM_INFO: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu%d: MSR_NHM_PLATFORM_INFO: 0x%08llx\n", base_cpu, msr);
 
 	ratio = (msr >> 40) & 0xFF;
 	fprintf(stderr, "%d * %.0f = %.0f MHz max efficiency frequency\n",
@@ -1168,8 +1186,8 @@ dump_nhm_platform_info(void)
 		ratio, bclk, ratio * bclk);
 
 	get_msr(base_cpu, MSR_IA32_POWER_CTL, &msr);
-	fprintf(stderr, "cpu0: MSR_IA32_POWER_CTL: 0x%08llx (C1E auto-promotion: %sabled)\n",
-		msr, msr & 0x2 ? "EN" : "DIS");
+	fprintf(stderr, "cpu%d: MSR_IA32_POWER_CTL: 0x%08llx (C1E auto-promotion: %sabled)\n",
+		base_cpu, msr, msr & 0x2 ? "EN" : "DIS");
 
 	return;
 }
@@ -1182,7 +1200,7 @@ dump_hsw_turbo_ratio_limits(void)
 
 	get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT2, &msr);
 
-	fprintf(stderr, "cpu0: MSR_TURBO_RATIO_LIMIT2: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu%d: MSR_TURBO_RATIO_LIMIT2: 0x%08llx\n", base_cpu, msr);
 
 	ratio = (msr >> 8) & 0xFF;
 	if (ratio)
@@ -1204,7 +1222,7 @@ dump_ivt_turbo_ratio_limits(void)
 
 	get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT1, &msr);
 
-	fprintf(stderr, "cpu0: MSR_TURBO_RATIO_LIMIT1: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu%d: MSR_TURBO_RATIO_LIMIT1: 0x%08llx\n", base_cpu, msr);
 
 	ratio = (msr >> 56) & 0xFF;
 	if (ratio)
@@ -1256,7 +1274,7 @@ dump_nhm_turbo_ratio_limits(void)
 
 	get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT, &msr);
 
-	fprintf(stderr, "cpu0: MSR_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu%d: MSR_TURBO_RATIO_LIMIT: 0x%08llx\n", base_cpu, msr);
 
 	ratio = (msr >> 56) & 0xFF;
 	if (ratio)
@@ -1312,8 +1330,8 @@ dump_knl_turbo_ratio_limits(void)
 
 	get_msr(base_cpu, MSR_NHM_TURBO_RATIO_LIMIT, &msr);
 
-	fprintf(stderr, "cpu0: MSR_NHM_TURBO_RATIO_LIMIT: 0x%08llx\n",
-	msr);
+	fprintf(stderr, "cpu%d: MSR_NHM_TURBO_RATIO_LIMIT: 0x%08llx\n",
+		base_cpu, msr);
 
 	/**
 	 * Turbo encoding in KNL is as follows:
@@ -1371,7 +1389,7 @@ dump_nhm_cst_cfg(void)
 #define SNB_C1_AUTO_UNDEMOTE              (1UL << 27)
 #define SNB_C3_AUTO_UNDEMOTE              (1UL << 28)
 
-	fprintf(stderr, "cpu0: MSR_NHM_SNB_PKG_CST_CFG_CTL: 0x%08llx", msr);
+	fprintf(stderr, "cpu%d: MSR_NHM_SNB_PKG_CST_CFG_CTL: 0x%08llx", base_cpu, msr);
 
 	fprintf(stderr, " (%s%s%s%s%slocked: pkg-cstate-limit=%d: %s)\n",
 		(msr & SNB_C3_AUTO_UNDEMOTE) ? "UNdemote-C3, " : "",
@@ -1382,6 +1400,49 @@ dump_nhm_cst_cfg(void)
 		(unsigned int)msr & 7,
 		pkg_cstate_limit_strings[pkg_cstate_limit]);
 	return;
+}
+
+static void
+dump_config_tdp(void)
+{
+	unsigned long long msr;
+
+	get_msr(base_cpu, MSR_CONFIG_TDP_NOMINAL, &msr);
+	fprintf(stderr, "cpu%d: MSR_CONFIG_TDP_NOMINAL: 0x%08llx", base_cpu, msr);
+	fprintf(stderr, " (base_ratio=%d)\n", (unsigned int)msr & 0xEF);
+
+	get_msr(base_cpu, MSR_CONFIG_TDP_LEVEL_1, &msr);
+	fprintf(stderr, "cpu%d: MSR_CONFIG_TDP_LEVEL_1: 0x%08llx (", base_cpu, msr);
+	if (msr) {
+		fprintf(stderr, "PKG_MIN_PWR_LVL1=%d ", (unsigned int)(msr >> 48) & 0xEFFF);
+		fprintf(stderr, "PKG_MAX_PWR_LVL1=%d ", (unsigned int)(msr >> 32) & 0xEFFF);
+		fprintf(stderr, "LVL1_RATIO=%d ", (unsigned int)(msr >> 16) & 0xEF);
+		fprintf(stderr, "PKG_TDP_LVL1=%d", (unsigned int)(msr) & 0xEFFF);
+	}
+	fprintf(stderr, ")\n");
+
+	get_msr(base_cpu, MSR_CONFIG_TDP_LEVEL_2, &msr);
+	fprintf(stderr, "cpu%d: MSR_CONFIG_TDP_LEVEL_2: 0x%08llx (", base_cpu, msr);
+	if (msr) {
+		fprintf(stderr, "PKG_MIN_PWR_LVL2=%d ", (unsigned int)(msr >> 48) & 0xEFFF);
+		fprintf(stderr, "PKG_MAX_PWR_LVL2=%d ", (unsigned int)(msr >> 32) & 0xEFFF);
+		fprintf(stderr, "LVL2_RATIO=%d ", (unsigned int)(msr >> 16) & 0xEF);
+		fprintf(stderr, "PKG_TDP_LVL2=%d", (unsigned int)(msr) & 0xEFFF);
+	}
+	fprintf(stderr, ")\n");
+
+	get_msr(base_cpu, MSR_CONFIG_TDP_CONTROL, &msr);
+	fprintf(stderr, "cpu%d: MSR_CONFIG_TDP_CONTROL: 0x%08llx (", base_cpu, msr);
+	if ((msr) & 0x3)
+		fprintf(stderr, "TDP_LEVEL=%d ", (unsigned int)(msr) & 0x3);
+	fprintf(stderr, " lock=%d", (unsigned int)(msr >> 31) & 1);
+	fprintf(stderr, ")\n");
+	
+	get_msr(base_cpu, MSR_TURBO_ACTIVATION_RATIO, &msr);
+	fprintf(stderr, "cpu%d: MSR_TURBO_ACTIVATION_RATIO: 0x%08llx (", base_cpu, msr);
+	fprintf(stderr, "MAX_NON_TURBO_RATIO=%d", (unsigned int)(msr) & 0xEF);
+	fprintf(stderr, " lock=%d", (unsigned int)(msr >> 31) & 1);
+	fprintf(stderr, ")\n");
 }
 
 void free_all_buffers(void)
@@ -1873,6 +1934,34 @@ int has_knl_turbo_ratio_limit(unsigned int family, unsigned int model)
 		return 0;
 	}
 }
+int has_config_tdp(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+
+	if (family != 6)
+		return 0;
+
+	switch (model) {
+	case 0x3A:	/* IVB */
+	case 0x3C:	/* HSW */
+	case 0x3F:	/* HSX */
+	case 0x45:	/* HSW */
+	case 0x46:	/* HSW */
+	case 0x3D:	/* BDW */
+	case 0x47:	/* BDW */
+	case 0x4F:	/* BDX */
+	case 0x56:	/* BDX-DE */
+	case 0x4E:	/* SKL */
+	case 0x5E:	/* SKL */
+
+	case 0x57:	/* Knights Landing */
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 static void
 dump_cstate_pstate_config_info(family, model)
 {
@@ -1892,6 +1981,9 @@ dump_cstate_pstate_config_info(family, model)
 
 	if (has_knl_turbo_ratio_limit(family, model))
 		dump_knl_turbo_ratio_limits();
+
+	if (has_config_tdp(family, model))
+		dump_config_tdp();
 
 	dump_nhm_cst_cfg();
 }
@@ -2467,6 +2559,13 @@ int is_knl(unsigned int family, unsigned int model)
 	return 0;
 }
 
+unsigned int get_aperf_mperf_multiplier(unsigned int family, unsigned int model)
+{
+	if (is_knl(family, model))
+		return 1024;
+	return 1;
+}
+
 #define SLM_BCLK_FREQS 5
 double slm_freq_table[SLM_BCLK_FREQS] = { 83.3, 100.0, 133.3, 116.7, 80.0};
 
@@ -2668,6 +2767,9 @@ void process_cpuid()
 		}
 	}
 
+	if (has_aperf)
+		aperf_mperf_multiplier = get_aperf_mperf_multiplier(family, model);
+
 	do_nhm_platform_info = do_nhm_cstates = do_smi = probe_nhm_msrs(family, model);
 	do_snb_cstates = has_snb_msrs(family, model);
 	do_pc2 = do_snb_cstates && (pkg_cstate_limit >= PCL__2);
@@ -2685,6 +2787,9 @@ void process_cpuid()
 
 	if (debug)
 		dump_cstate_pstate_config_info();
+
+	if (has_skl_msrs(family, model))
+		calculate_tsc_tweak();
 
 	return;
 }
@@ -3014,7 +3119,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(stderr, "turbostat version 4.7 27-May, 2015"
+	fprintf(stderr, "turbostat version 4.8 26-Sep, 2015"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
@@ -3042,7 +3147,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt_long_only(argc, argv, "C:c:Ddhi:JM:m:PpST:v",
+	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:PpST:v",
 				long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'C':

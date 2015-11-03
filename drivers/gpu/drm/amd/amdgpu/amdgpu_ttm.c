@@ -228,7 +228,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	struct amdgpu_device *adev;
 	struct amdgpu_ring *ring;
 	uint64_t old_start, new_start;
-	struct amdgpu_fence *fence;
+	struct fence *fence;
 	int r;
 
 	adev = amdgpu_get_adev(bo->bdev);
@@ -269,9 +269,9 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 			       new_mem->num_pages * PAGE_SIZE, /* bytes */
 			       bo->resv, &fence);
 	/* FIXME: handle copy error */
-	r = ttm_bo_move_accel_cleanup(bo, &fence->base,
+	r = ttm_bo_move_accel_cleanup(bo, fence,
 				      evict, no_wait_gpu, new_mem);
-	amdgpu_fence_unref(&fence);
+	fence_put(fence);
 	return r;
 }
 
@@ -859,8 +859,9 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	amdgpu_ttm_set_active_vram_size(adev, adev->mc.visible_vram_size);
 
 	r = amdgpu_bo_create(adev, 256 * 1024, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM, 0,
-			     NULL, &adev->stollen_vga_memory);
+			     AMDGPU_GEM_DOMAIN_VRAM,
+			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			     NULL, NULL, &adev->stollen_vga_memory);
 	if (r) {
 		return r;
 	}
@@ -987,46 +988,48 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		       uint64_t dst_offset,
 		       uint32_t byte_count,
 		       struct reservation_object *resv,
-		       struct amdgpu_fence **fence)
+		       struct fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_sync sync;
 	uint32_t max_bytes;
 	unsigned num_loops, num_dw;
+	struct amdgpu_ib *ib;
 	unsigned i;
 	int r;
-
-	/* sync other rings */
-	amdgpu_sync_create(&sync);
-	if (resv) {
-		r = amdgpu_sync_resv(adev, &sync, resv, false);
-		if (r) {
-			DRM_ERROR("sync failed (%d).\n", r);
-			amdgpu_sync_free(adev, &sync, NULL);
-			return r;
-		}
-	}
 
 	max_bytes = adev->mman.buffer_funcs->copy_max_bytes;
 	num_loops = DIV_ROUND_UP(byte_count, max_bytes);
 	num_dw = num_loops * adev->mman.buffer_funcs->copy_num_dw;
 
-	/* for fence and sync */
-	num_dw += 64 + AMDGPU_NUM_SYNCS * 8;
+	/* for IB padding */
+	while (num_dw & 0x7)
+		num_dw++;
 
-	r = amdgpu_ring_lock(ring, num_dw);
+	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
+	if (!ib)
+		return -ENOMEM;
+
+	r = amdgpu_ib_get(ring, NULL, num_dw * 4, ib);
 	if (r) {
-		DRM_ERROR("ring lock failed (%d).\n", r);
-		amdgpu_sync_free(adev, &sync, NULL);
+		kfree(ib);
 		return r;
 	}
 
-	amdgpu_sync_rings(&sync, ring);
+	ib->length_dw = 0;
+
+	if (resv) {
+		r = amdgpu_sync_resv(adev, &ib->sync, resv,
+				     AMDGPU_FENCE_OWNER_UNDEFINED);
+		if (r) {
+			DRM_ERROR("sync failed (%d).\n", r);
+			goto error_free;
+		}
+	}
 
 	for (i = 0; i < num_loops; i++) {
 		uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
 
-		amdgpu_emit_copy_buffer(adev, ring, src_offset, dst_offset,
+		amdgpu_emit_copy_buffer(adev, ib, src_offset, dst_offset,
 					cur_size_in_bytes);
 
 		src_offset += cur_size_in_bytes;
@@ -1034,17 +1037,24 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		byte_count -= cur_size_in_bytes;
 	}
 
-	r = amdgpu_fence_emit(ring, AMDGPU_FENCE_OWNER_MOVE, fence);
-	if (r) {
-		amdgpu_ring_unlock_undo(ring);
-		amdgpu_sync_free(adev, &sync, NULL);
-		return r;
+	amdgpu_vm_pad_ib(adev, ib);
+	WARN_ON(ib->length_dw > num_dw);
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
+						 &amdgpu_vm_free_job,
+						 AMDGPU_FENCE_OWNER_MOVE,
+						 fence);
+	if (r)
+		goto error_free;
+
+	if (!amdgpu_enable_scheduler) {
+		amdgpu_ib_free(adev, ib);
+		kfree(ib);
 	}
-
-	amdgpu_ring_unlock_commit(ring);
-	amdgpu_sync_free(adev, &sync, *fence);
-
 	return 0;
+error_free:
+	amdgpu_ib_free(adev, ib);
+	kfree(ib);
+	return r;
 }
 
 #if defined(CONFIG_DEBUG_FS)

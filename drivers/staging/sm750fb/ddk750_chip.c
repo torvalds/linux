@@ -268,7 +268,7 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 #endif
 
 
-	if (pInitParam->powerMode != 0 )
+	if (pInitParam->powerMode != 0)
 		pInitParam->powerMode = 0;
 	setPowerMode(pInitParam->powerMode);
 
@@ -464,17 +464,18 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 		RN = N * request;
 		quo = RN / input;
 		rem = RN % input;/* rem always small than 14318181 */
-		fl_quo = (rem * 10000 /input);
+		fl_quo = (rem * 10000 / input);
 
 		for (d = xcnt - 1; d >= 0; d--) {
 			X = xparm[d].value;
 			M = quo*X;
 			M += fl_quo * X / 10000;
 			/* round step */
-			M += (fl_quo*X % 10000)>5000?1:0;
+			M += (fl_quo*X % 10000) > 5000?1:0;
 			if (M < 256 && M > 0) {
 				unsigned int diff;
-				tmpClock = pll->inputFreq *M / N / X;
+
+				tmpClock = pll->inputFreq * M / N / X;
 				diff = absDiff(tmpClock, request_orig);
 				if (diff < miniDiff) {
 					pll->M = M;
@@ -599,9 +600,9 @@ unsigned int formatPllReg(pll_value_t *pPLL)
        On returning a 32 bit number, the value can be applied to any PLL in the calling function.
     */
 	ulPllReg =
-	FIELD_SET(  0, PANEL_PLL_CTRL, BYPASS, OFF)
-	| FIELD_SET(  0, PANEL_PLL_CTRL, POWER,  ON)
-	| FIELD_SET(  0, PANEL_PLL_CTRL, INPUT,  OSC)
+	FIELD_SET(0, PANEL_PLL_CTRL, BYPASS, OFF)
+	| FIELD_SET(0, PANEL_PLL_CTRL, POWER,  ON)
+	| FIELD_SET(0, PANEL_PLL_CTRL, INPUT,  OSC)
 #ifndef VALIDATION_CHIP
 	| FIELD_VALUE(0, PANEL_PLL_CTRL, POD,    pPLL->POD)
 #endif
