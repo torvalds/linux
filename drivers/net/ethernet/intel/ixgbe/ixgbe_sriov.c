@@ -452,11 +452,27 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
 			     u32 vf)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
+	int err;
+
 	/* VLAN 0 is a special case, don't allow it to be removed */
 	if (!vid && !add)
 		return 0;
 
-	return adapter->hw.mac.ops.set_vfta(&adapter->hw, vid, vf, (bool)add);
+	/* If VLAN overlaps with one the PF is currently monitoring make
+	 * sure that we are able to allocate a VLVF entry.  This may be
+	 * redundant but it guarantees PF will maintain visibility to
+	 * the VLAN.
+	 */
+	if (add && test_bit(vid, adapter->active_vlans)) {
+		err = hw->mac.ops.set_vfta(hw, vid, VMDQ_P(0), true, false);
+		if (err)
+			return err;
+	}
+
+	err = hw->mac.ops.set_vfta(hw, vid, vf, !!add, false);
+
+	return err;
 }
 
 static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)

@@ -2999,15 +2999,20 @@ s32 ixgbe_init_uta_tables_generic(struct ixgbe_hw *hw)
  *  return the VLVF index where this VLAN id should be placed
  *
  **/
-static s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan)
+static s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan, bool vlvf_bypass)
 {
+	s32 regindex, first_empty_slot;
 	u32 bits = 0;
-	u32 first_empty_slot = 0;
-	s32 regindex;
 
 	/* short cut the special case */
 	if (vlan == 0)
 		return 0;
+
+	/* if vlvf_bypass is set we don't want to use an empty slot, we
+	 * will simply bypass the VLVF if there are no entries present in the
+	 * VLVF that contain our VLAN
+	 */
+	first_empty_slot = vlvf_bypass ? IXGBE_ERR_NO_SPACE : 0;
 
 	/*
 	  * Search for the vlan id in the VLVF entries. Save off the first empty
@@ -3044,11 +3049,12 @@ static s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan)
  *  @vlan: VLAN id to write to VLAN filter
  *  @vind: VMDq output index that maps queue to VLAN id in VFVFB
  *  @vlan_on: boolean flag to turn on/off VLAN in VFVF
+ *  @vlvf_bypass: boolean flag indicating updating default pool is okay
  *
  *  Turn on/off specified VLAN in the VLAN filter table.
  **/
 s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
-			   bool vlan_on)
+			   bool vlan_on, bool vlvf_bypass)
 {
 	u32 regidx, vfta_delta, vfta, bits;
 	s32 vlvf_index;
@@ -3090,9 +3096,12 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	if (!(IXGBE_READ_REG(hw, IXGBE_VT_CTL) & IXGBE_VT_CTL_VT_ENABLE))
 		goto vfta_update;
 
-	vlvf_index = ixgbe_find_vlvf_slot(hw, vlan);
-	if (vlvf_index < 0)
+	vlvf_index = ixgbe_find_vlvf_slot(hw, vlan, vlvf_bypass);
+	if (vlvf_index < 0) {
+		if (vlvf_bypass)
+			goto vfta_update;
 		return vlvf_index;
+	}
 
 	bits = IXGBE_READ_REG(hw, IXGBE_VLVFB(vlvf_index * 2 + vind / 32));
 

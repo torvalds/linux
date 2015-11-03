@@ -3899,7 +3899,7 @@ static int ixgbe_vlan_rx_add_vid(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* add VID to filter table */
-	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), true);
+	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), true, true);
 	set_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -3912,7 +3912,7 @@ static int ixgbe_vlan_rx_kill_vid(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* remove VID from filter table */
-	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), false);
+	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), false, true);
 	clear_bit(vid, adapter->active_vlans);
 
 	return 0;
