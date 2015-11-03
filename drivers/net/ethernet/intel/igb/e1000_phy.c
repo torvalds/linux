@@ -1734,8 +1734,7 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 			goto out;
 
 		/* Get cable length from PHY Cable Diagnostics Control Reg */
-		ret_val = phy->ops.read_reg(hw, (I347AT4_PCDL + phy->addr),
-					    &phy_data);
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL, &phy_data);
 		if (ret_val)
 			goto out;
 
