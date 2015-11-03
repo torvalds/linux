@@ -20,6 +20,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -787,9 +788,12 @@ static int decode_evnt(struct dp83640_private *dp83640,
 	return parsed;
 }
 
+#define DP83640_PACKET_HASH_OFFSET	20
+#define DP83640_PACKET_HASH_LEN		10
+
 static int match(struct sk_buff *skb, unsigned int type, struct rxts *rxts)
 {
-	u16 *seqid;
+	u16 *seqid, hash;
 	unsigned int offset = 0;
 	u8 *msgtype, *data = skb_mac_header(skb);
 
@@ -819,11 +823,19 @@ static int match(struct sk_buff *skb, unsigned int type, struct rxts *rxts)
 		msgtype = data + offset + OFF_PTP_CONTROL;
 	else
 		msgtype = data + offset;
+	if (rxts->msgtype != (*msgtype & 0xf))
+		return 0;
 
 	seqid = (u16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
+	if (rxts->seqid != ntohs(*seqid))
+		return 0;
 
-	return rxts->msgtype == (*msgtype & 0xf) &&
-		rxts->seqid   == ntohs(*seqid);
+	hash = ether_crc(DP83640_PACKET_HASH_LEN,
+			 data + offset + DP83640_PACKET_HASH_OFFSET) >> 20;
+	if (rxts->hash != hash)
+		return 0;
+
+	return 1;
 }
 
 static void decode_rxts(struct dp83640_private *dp83640,
