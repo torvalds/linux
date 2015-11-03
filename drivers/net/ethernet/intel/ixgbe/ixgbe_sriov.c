@@ -455,10 +455,6 @@ static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
 	struct ixgbe_hw *hw = &adapter->hw;
 	int err;
 
-	/* VLAN 0 is a special case, don't allow it to be removed */
-	if (!vid && !add)
-		return 0;
-
 	/* If VLAN overlaps with one the PF is currently monitoring make
 	 * sure that we are able to allocate a VLVF entry.  This may be
 	 * redundant but it guarantees PF will maintain visibility to
@@ -589,13 +585,75 @@ static void ixgbe_clear_vmvir(struct ixgbe_adapter *adapter, u32 vf)
 
 	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), 0);
 }
+
+static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 i;
+
+	/* post increment loop, covers VLVF_ENTRIES - 1 to 0 */
+	for (i = IXGBE_VLVF_ENTRIES; i--;) {
+		u32 word = IXGBE_VLVFB(i * 2 + vf / 32);
+		u32 bits[2], vlvfb, vid, vfta, vlvf;
+		u32 mask = 1 << (vf / 32);
+
+		vlvfb = IXGBE_READ_REG(hw, word);
+
+		/* if our bit isn't set we can skip it */
+		if (!(vlvfb & mask))
+			continue;
+
+		/* clear our bit from vlvfb */
+		vlvfb ^= mask;
+
+		/* create 64b mask to chedk to see if we should clear VLVF */
+		bits[word % 2] = vlvfb;
+		bits[(word % 2) ^ 1] = IXGBE_READ_REG(hw, word ^ 1);
+
+		/* if promisc is enabled, PF will be present, leave VFTA */
+		if (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC) {
+			bits[VMDQ_P(0) / 32] &= ~(1 << (VMDQ_P(0) % 32));
+
+			if (bits[0] || bits[1])
+				goto update_vlvfb;
+			goto update_vlvf;
+		}
+
+		/* if other pools are present, just remove ourselves */
+		if (bits[0] || bits[1])
+			goto update_vlvfb;
+
+		/* if we cannot determine VLAN just remove ourselves */
+		vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(i));
+		if (!vlvf)
+			goto update_vlvfb;
+
+		vid = vlvf & VLAN_VID_MASK;
+		mask = 1 << (vid % 32);
+
+		/* clear bit from VFTA */
+		vfta = IXGBE_READ_REG(hw, IXGBE_VFTA(vid / 32));
+		if (vfta & mask)
+			IXGBE_WRITE_REG(hw, IXGBE_VFTA(vid / 32), vfta ^ mask);
+update_vlvf:
+		/* clear POOL selection enable */
+		IXGBE_WRITE_REG(hw, IXGBE_VLVF(i), 0);
+update_vlvfb:
+		/* clear pool bits */
+		IXGBE_WRITE_REG(hw, IXGBE_VLVFB(word), vlvfb);
+	}
+}
+
 static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
 	u8 num_tcs = netdev_get_num_tc(adapter->netdev);
 
-	/* add PF assigned VLAN or VLAN 0 */
+	/* remove VLAN filters beloning to this VF */
+	ixgbe_clear_vf_vlans(adapter, vf);
+
+	/* add back PF assigned VLAN or VLAN 0 */
 	ixgbe_set_vf_vlan(adapter, true, vfinfo->pf_vlan, vf);
 
 	/* reset offloads to defaults */
@@ -857,6 +915,10 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 		       vf);
 		return -1;
 	}
+
+	/* VLAN 0 is a special case, don't allow it to be removed */
+	if (!vid && !add)
+		return 0;
 
 	err = ixgbe_set_vf_vlan(adapter, add, vid, vf);
 	if (err)
@@ -1251,6 +1313,9 @@ static int ixgbe_enable_port_vlan(struct ixgbe_adapter *adapter, int vf,
 	if (err)
 		goto out;
 
+	/* Revoke tagless access via VLAN 0 */
+	ixgbe_set_vf_vlan(adapter, false, 0, vf);
+
 	ixgbe_set_vmvir(adapter, vlan, qos, vf);
 	ixgbe_set_vmolr(hw, vf, false);
 	if (adapter->vfinfo[vf].spoofchk_enabled)
@@ -1284,6 +1349,8 @@ static int ixgbe_disable_port_vlan(struct ixgbe_adapter *adapter, int vf)
 
 	err = ixgbe_set_vf_vlan(adapter, false,
 				adapter->vfinfo[vf].pf_vlan, vf);
+	/* Restore tagless access via VLAN 0 */
+	ixgbe_set_vf_vlan(adapter, true, 0, vf);
 	ixgbe_clear_vmvir(adapter, vf);
 	ixgbe_set_vmolr(hw, vf, true);
 	hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
