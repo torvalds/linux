@@ -31,7 +31,31 @@
 static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 {
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
-	return amdgpu_sync_get_fence(&job->ibs->sync);
+	struct amdgpu_sync *sync = &job->ibs->sync;
+	struct amdgpu_vm *vm = job->ibs->vm;
+
+	struct fence *fence = amdgpu_sync_get_fence(sync);
+
+	if (fence == NULL && vm && !job->ibs->grabbed_vmid) {
+		struct amdgpu_ring *ring = job->ibs->ring;
+		struct amdgpu_device *adev = ring->adev;
+		int r;
+
+		mutex_lock(&adev->vm_manager.lock);
+		r = amdgpu_vm_grab_id(vm, ring, sync);
+		if (r) {
+			DRM_ERROR("Error getting VM ID (%d)\n", r);
+		} else {
+			fence = &job->base.s_fence->base;
+			amdgpu_vm_fence(ring->adev, vm, fence);
+			job->ibs->grabbed_vmid = true;
+		}
+		mutex_unlock(&adev->vm_manager.lock);
+
+		fence = amdgpu_sync_get_fence(sync);
+	}
+
+	return fence;
 }
 
 static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)

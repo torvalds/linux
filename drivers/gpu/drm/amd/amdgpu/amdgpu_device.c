@@ -1456,6 +1456,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
 	mutex_init(&adev->ring_lock);
+	mutex_init(&adev->vm_manager.lock);
 	atomic_set(&adev->irq.ih.lock, 0);
 	mutex_init(&adev->gem.mutex);
 	mutex_init(&adev->pm.mutex);

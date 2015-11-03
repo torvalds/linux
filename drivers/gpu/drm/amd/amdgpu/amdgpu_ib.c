@@ -142,19 +142,15 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		return -EINVAL;
 	}
 
+	if (vm && !ibs->grabbed_vmid) {
+		dev_err(adev->dev, "VM IB without ID\n");
+		return -EINVAL;
+	}
+
 	r = amdgpu_ring_lock(ring, (256 + AMDGPU_NUM_SYNCS * 8) * num_ibs);
 	if (r) {
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
-	}
-
-	if (vm) {
-		/* grab a vm id if necessary */
-		r = amdgpu_vm_grab_id(ibs->vm, ibs->ring, &ibs->sync);
-		if (r) {
-			amdgpu_ring_unlock_undo(ring);
-			return r;
-		}
 	}
 
 	r = amdgpu_sync_wait(&ibs->sync);
@@ -206,9 +202,6 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		amdgpu_ring_emit_fence(ring, addr, ib->sequence,
 				       AMDGPU_FENCE_FLAG_64BIT);
 	}
-
-	if (ib->vm)
-		amdgpu_vm_fence(adev, ib->vm, &ib->fence->base);
 
 	amdgpu_ring_unlock_commit(ring);
 	return 0;

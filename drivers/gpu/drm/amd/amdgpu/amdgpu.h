@@ -777,6 +777,7 @@ struct amdgpu_ib {
 	struct amdgpu_ring		*ring;
 	struct amdgpu_fence		*fence;
 	struct amdgpu_user_fence        *user;
+	bool				grabbed_vmid;
 	struct amdgpu_vm		*vm;
 	struct amdgpu_ctx		*ctx;
 	struct amdgpu_sync		sync;
@@ -925,6 +926,9 @@ struct amdgpu_vm {
 };
 
 struct amdgpu_vm_manager {
+	/* protecting IDs */
+	struct mutex				lock;
+
 	struct {
 		struct fence	*active;
 		atomic_long_t	owner;
