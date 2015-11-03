@@ -27,6 +27,7 @@
 #define DRIVER_AUTHOR   "Antonios Motakis <a.motakis@virtualopensystems.com>"
 #define DRIVER_DESC     "VFIO platform base module"
 
+static LIST_HEAD(reset_list);
 static DEFINE_MUTEX(driver_lock);
 
 static const struct vfio_platform_reset_combo reset_lookup_table[] = {
@@ -577,6 +578,32 @@ struct vfio_platform_device *vfio_platform_remove_common(struct device *dev)
 	return vdev;
 }
 EXPORT_SYMBOL_GPL(vfio_platform_remove_common);
+
+void __vfio_platform_register_reset(struct vfio_platform_reset_node *node)
+{
+	mutex_lock(&driver_lock);
+	list_add(&node->link, &reset_list);
+	mutex_unlock(&driver_lock);
+}
+EXPORT_SYMBOL_GPL(__vfio_platform_register_reset);
+
+void vfio_platform_unregister_reset(const char *compat,
+				    vfio_platform_reset_fn_t fn)
+{
+	struct vfio_platform_reset_node *iter, *temp;
+
+	mutex_lock(&driver_lock);
+	list_for_each_entry_safe(iter, temp, &reset_list, link) {
+		if (!strcmp(iter->compat, compat) && (iter->reset == fn)) {
+			list_del(&iter->link);
+			break;
+		}
+	}
+
+	mutex_unlock(&driver_lock);
+
+}
+EXPORT_SYMBOL_GPL(vfio_platform_unregister_reset);
 
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL v2");

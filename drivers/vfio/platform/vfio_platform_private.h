@@ -71,6 +71,15 @@ struct vfio_platform_device {
 	int	(*reset)(struct vfio_platform_device *vdev);
 };
 
+typedef int (*vfio_platform_reset_fn_t)(struct vfio_platform_device *vdev);
+
+struct vfio_platform_reset_node {
+	struct list_head link;
+	char *compat;
+	struct module *owner;
+	vfio_platform_reset_fn_t reset;
+};
+
 struct vfio_platform_reset_combo {
 	const char *compat;
 	const char *reset_function_name;
@@ -89,5 +98,16 @@ extern int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
 					uint32_t flags, unsigned index,
 					unsigned start, unsigned count,
 					void *data);
+
+extern void __vfio_platform_register_reset(struct vfio_platform_reset_node *n);
+extern void vfio_platform_unregister_reset(const char *compat,
+					   vfio_platform_reset_fn_t fn);
+#define vfio_platform_register_reset(__compat, __reset)		\
+static struct vfio_platform_reset_node __reset ## _node = {	\
+	.owner = THIS_MODULE,					\
+	.compat = __compat,					\
+	.reset = __reset,					\
+};								\
+__vfio_platform_register_reset(&__reset ## _node)
 
 #endif /* VFIO_PLATFORM_PRIVATE_H */
