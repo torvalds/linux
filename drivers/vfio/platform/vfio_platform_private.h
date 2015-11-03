@@ -57,6 +57,7 @@ struct vfio_platform_device {
 	int				refcnt;
 	struct mutex			igate;
 	struct module			*parent_module;
+	const char			*compat;
 
 	/*
 	 * These fields should be filled by the bus specific binder
