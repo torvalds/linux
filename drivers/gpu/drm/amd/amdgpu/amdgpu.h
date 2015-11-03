@@ -389,7 +389,6 @@ struct amdgpu_clock {
  * Fences.
  */
 struct amdgpu_fence_driver {
-	struct amdgpu_ring		*ring;
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
 	/* sync_seq is protected by ring emission lock */
@@ -398,7 +397,7 @@ struct amdgpu_fence_driver {
 	bool				initialized;
 	struct amdgpu_irq_src		*irq_src;
 	unsigned			irq_type;
-	struct delayed_work             lockup_work;
+	struct timer_list		fallback_timer;
 	wait_queue_head_t		fence_queue;
 };
 
