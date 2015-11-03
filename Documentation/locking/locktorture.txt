@@ -52,6 +52,9 @@ torture_type	  Type of lock to torture. By default, only spinlocks will
 
 		     o "mutex_lock": mutex_lock() and mutex_unlock() pairs.
 
+		     o "rtmutex_lock": rtmutex_lock() and rtmutex_unlock()
+				       pairs. Kernel must have CONFIG_RT_MUTEX=y.
+
 		     o "rwsem_lock": read/write down() and up() semaphore pairs.
 
 torture_runnable  Start locktorture at boot time in the case where the

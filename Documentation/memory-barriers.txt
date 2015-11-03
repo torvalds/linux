@@ -1710,6 +1710,17 @@ There are some more advanced barrier functions:
      operations" subsection for information on where to use these.
 
 
+ (*) lockless_dereference();
+     This can be thought of as a pointer-fetch wrapper around the
+     smp_read_barrier_depends() data-dependency barrier.
+
+     This is also similar to rcu_dereference(), but in cases where
+     object lifetime is handled by some mechanism other than RCU, for
+     example, when the objects removed only when the system goes down.
+     In addition, lockless_dereference() is used in some data structures
+     that can be used both with and without RCU.
+
+
  (*) dma_wmb();
  (*) dma_rmb();
 
@@ -1789,7 +1800,6 @@ The Linux kernel has a number of locking constructs:
  (*) mutexes
  (*) semaphores
  (*) R/W semaphores
- (*) RCU
 
 In all cases there are variants on "ACQUIRE" operations and "RELEASE" operations
 for each construct.  These operations all imply certain barriers:
