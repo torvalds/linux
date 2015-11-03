@@ -28,10 +28,10 @@ static void free_hd(struct kref *kref)
 	mutex_unlock(&hd_mutex);
 }
 
-struct gb_host_device *greybus_create_hd(struct gb_hd_driver *driver,
-					      struct device *parent,
-					      size_t buffer_size_max,
-					      size_t num_cports)
+struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
+					struct device *parent,
+					size_t buffer_size_max,
+					size_t num_cports)
 {
 	struct gb_host_device *hd;
 
@@ -94,9 +94,9 @@ struct gb_host_device *greybus_create_hd(struct gb_hd_driver *driver,
 
 	return hd;
 }
-EXPORT_SYMBOL_GPL(greybus_create_hd);
+EXPORT_SYMBOL_GPL(gb_hd_create);
 
-void greybus_remove_hd(struct gb_host_device *hd)
+void gb_hd_remove(struct gb_host_device *hd)
 {
 	/*
 	 * Tear down all interfaces, modules, and the endo that is associated
@@ -112,4 +112,4 @@ void greybus_remove_hd(struct gb_host_device *hd)
 
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }
-EXPORT_SYMBOL_GPL(greybus_remove_hd);
+EXPORT_SYMBOL_GPL(gb_hd_remove);

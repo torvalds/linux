@@ -548,7 +548,7 @@ static void ap_disconnect(struct usb_interface *interface)
 
 	usb_set_intfdata(interface, NULL);
 	udev = es2->usb_dev;
-	greybus_remove_hd(es2->hd);
+	gb_hd_remove(es2->hd);
 	kfree(es2->cport_to_ep);
 
 	usb_put_dev(udev);
@@ -807,8 +807,8 @@ static int ap_probe(struct usb_interface *interface,
 		return num_cports;
 	}
 
-	hd = greybus_create_hd(&es2_driver, &udev->dev, ES2_GBUF_MSG_SIZE_MAX,
-			       num_cports);
+	hd = gb_hd_create(&es2_driver, &udev->dev, ES2_GBUF_MSG_SIZE_MAX,
+				num_cports);
 	if (IS_ERR(hd)) {
 		usb_put_dev(udev);
 		return PTR_ERR(hd);

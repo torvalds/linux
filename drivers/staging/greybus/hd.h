@@ -48,10 +48,10 @@ struct gb_host_device {
 	unsigned long hd_priv[0] __aligned(sizeof(s64));
 };
 
-struct gb_host_device *greybus_create_hd(struct gb_hd_driver *driver,
-					      struct device *parent,
-					      size_t buffer_size_max,
-					      size_t num_cports);
-void greybus_remove_hd(struct gb_host_device *hd);
+struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
+					struct device *parent,
+					size_t buffer_size_max,
+					size_t num_cports);
+void gb_hd_remove(struct gb_host_device *hd);
 
 #endif	/* __HD_H */
