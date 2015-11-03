@@ -14,6 +14,9 @@ lib_source += lib/posix-host.c
 LDFLAGS += -lpthread -lrt
 source += $(wildcard *.c)
 execs =  cpfromfs
+else ifeq ($(shell $(LD) -r -print-output-format),pe-i386)
+lib_source += lib/nt-host.c
+KOPT="KALLSYMS_EXTRA_PASS=1"
 endif
 
 lib_objs = $(patsubst %.c,%.o, $(lib_source)) lib/lkl.o
@@ -27,7 +30,7 @@ lib/liblkl.a: $(lib_objs)
 
 lib/lkl.o:
 	$(MAKE) -C ../.. ARCH=lkl defconfig
-	$(MAKE) -C ../.. ARCH=lkl install INSTALL_PATH=$(PWD)
+	$(MAKE) -C ../.. ARCH=lkl $(KOPT) install INSTALL_PATH=$(PWD)
 
 %: %.o
 	$(CC) -o $@ $^ $(LDFLAGS)

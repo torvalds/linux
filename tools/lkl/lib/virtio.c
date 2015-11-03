@@ -350,8 +350,8 @@ int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max)
 		lkl_host_ops.mem_free(dev->queue);
 
 	avail = sizeof(lkl_virtio_devs) - (devs - lkl_virtio_devs);
-	devs += snprintf(devs, avail, " virtio_mmio.device=%d@%p:%d",
-			 mmio_size, dev, dev->irq);
+	devs += snprintf(devs, avail, " virtio_mmio.device=%d@0x%lx:%d",
+			 mmio_size, (uintptr_t)dev, dev->irq);
 
 	return ret;
 }

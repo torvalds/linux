@@ -4,10 +4,17 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdint.h>
+#ifndef __MINGW32__
+#include <argp.h>
+#endif
 #include <lkl.h>
 #include <lkl_host.h>
+#ifndef __MINGW32__
 #include <sys/stat.h>
 #include <fcntl.h>
+#else
+#include <windows.h>
+#endif
 
 static struct cl_args {
 	int printk;
@@ -60,6 +67,7 @@ static void do_test(char *name, int (*fn)(char *, int))
 
 #define sleep_ns 87654321
 
+#ifndef __MINGW32__
 int test_nanosleep(char *str, int len)
 {
 	struct lkl_timespec ts = {
@@ -84,6 +92,7 @@ int test_nanosleep(char *str, int len)
 
 	return 0;
 }
+#endif
 
 int test_getpid(char *str, int len)
 {
@@ -270,8 +279,14 @@ static int disk_id = -1;
 
 int test_disk_add(char *str, int len)
 {
+#ifdef __MINGW32__
+	bs.handle = CreateFile(cla.disk_filename, GENERIC_READ | GENERIC_WRITE,
+			       0, NULL, OPEN_EXISTING, 0, NULL);
+	if (!bs.handle)
+#else
 	bs.fd = open(cla.disk_filename, O_RDWR);
 	if (bs.fd < 0)
+#endif
 		goto out_unlink;
 
 	disk_id = lkl_disk_add(bs);
@@ -281,9 +296,18 @@ int test_disk_add(char *str, int len)
 	goto out;
 
 out_close:
+#ifdef __MINGW32__
+	CloseHandle(bs.handle);
+#else
 	close(bs.fd);
+#endif
+
 out_unlink:
+#ifdef __MINGW32__
+	DeleteFile(cla.disk_filename);
+#else
 	unlink(cla.disk_filename);
+#endif
 
 out:
 	snprintf(str, len, "%x %d", bs.fd, disk_id);
@@ -472,7 +496,9 @@ int main(int argc, char **argv)
 	TEST(fstat64);
 	TEST(mkdir);
 	TEST(stat64);
+#ifndef __MINGW32__
 	TEST(nanosleep);
+#endif
 	TEST(mount);
 	TEST(chdir);
 	TEST(opendir);

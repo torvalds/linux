@@ -81,6 +81,14 @@ void virtio_dev_complete(struct virtio_dev_req *req, uint32_t len);
 #define container_of(ptr, type, member) \
 	(type *)((char *)(ptr) - __builtin_offsetof(type, member))
 
+#ifndef __MINGW32__
 #include <endian.h>
+#else
+#define le32toh(x) (x)
+#define le16toh(x) (x)
+#define htole32(x) (x)
+#define htole16(x) (x)
+#define le64toh(x) (x)
+#endif
 
 #endif /* _LKL_LIB_VIRTIO_H */

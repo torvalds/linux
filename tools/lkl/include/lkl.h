@@ -23,11 +23,12 @@ const char *lkl_strerror(int err);
 /**
  * lkl_disk_backstore - host dependend disk backstore
  *
- * @fd - an open file descriptor that can be used by preadv/pwritev; used by
- * POSIX hosts
+ * @fd - a POSIX file descriptor that can be used by preadv/pwritev
+ * @handle - an NT file handle that can be used by ReadFile/WriteFile
  */
 union lkl_disk_backstore {
 	int fd;
+	void *handle;
 };
 
 /**
