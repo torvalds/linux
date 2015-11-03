@@ -442,12 +442,12 @@ static void mlx5e_disable_rq(struct mlx5e_rq *rq)
 
 static int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq)
 {
+	unsigned long exp_time = jiffies + msecs_to_jiffies(20000);
 	struct mlx5e_channel *c = rq->channel;
 	struct mlx5e_priv *priv = c->priv;
 	struct mlx5_wq_ll *wq = &rq->wq;
-	int i;
 
-	for (i = 0; i < 1000; i++) {
+	while (time_before(jiffies, exp_time)) {
 		if (wq->cur_sz >= priv->params.min_rx_wqes)
 			return 0;
 
