@@ -22,6 +22,8 @@
 #define DRIVER_AUTHOR "Qualcomm Inc"
 #define DRIVER_DESC "Qualcomm USB Serial driver"
 
+#define QUECTEL_EC20_PID	0x9215
+
 /* standard device layouts supported by this driver */
 enum qcserial_layouts {
 	QCSERIAL_G2K = 0,	/* Gobi 2000 */
@@ -169,6 +171,38 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
+static int handle_quectel_ec20(struct device *dev, int ifnum)
+{
+	int altsetting = 0;
+
+	/*
+	 * Quectel EC20 Mini PCIe LTE module layout:
+	 * 0: DM/DIAG (use libqcdm from ModemManager for communication)
+	 * 1: NMEA
+	 * 2: AT-capable modem port
+	 * 3: Modem interface
+	 * 4: NDIS
+	 */
+	switch (ifnum) {
+	case 0:
+		dev_dbg(dev, "Quectel EC20 DM/DIAG interface found\n");
+		break;
+	case 1:
+		dev_dbg(dev, "Quectel EC20 NMEA GPS interface found\n");
+		break;
+	case 2:
+	case 3:
+		dev_dbg(dev, "Quectel EC20 Modem port found\n");
+		break;
+	case 4:
+		/* Don't claim the QMI/net interface */
+		altsetting = -1;
+		break;
+	}
+
+	return altsetting;
+}
+
 static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 {
 	struct usb_host_interface *intf = serial->interface->cur_altsetting;
@@ -237,6 +271,12 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			altsetting = -1;
 		break;
 	case QCSERIAL_G2K:
+		/* handle non-standard layouts */
+		if (nintf == 5 && id->idProduct == QUECTEL_EC20_PID) {
+			altsetting = handle_quectel_ec20(dev, ifnum);
+			goto done;
+		}
+
 		/*
 		 * Gobi 2K+ USB layout:
 		 * 0: QMI/net
