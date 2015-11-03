@@ -271,7 +271,7 @@ struct stack_trace;
 extern unsigned stack_trace_index[];
 extern struct stack_trace stack_trace_max;
 extern unsigned long stack_trace_max_size;
-extern arch_spinlock_t max_stack_lock;
+extern arch_spinlock_t stack_trace_max_lock;
 
 extern int stack_tracer_enabled;
 void stack_trace_print(void);

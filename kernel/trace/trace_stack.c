@@ -31,7 +31,7 @@ struct stack_trace stack_trace_max = {
 };
 
 unsigned long stack_trace_max_size;
-arch_spinlock_t max_stack_lock =
+arch_spinlock_t stack_trace_max_lock =
 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 static DEFINE_PER_CPU(int, trace_active);
@@ -65,7 +65,7 @@ void stack_trace_print(void)
 
 /*
  * When arch-specific code overides this function, the following
- * data should be filled up, assuming max_stack_lock is held to
+ * data should be filled up, assuming stack_trace_max_lock is held to
  * prevent concurrent updates.
  *     stack_trace_index[]
  *     stack_trace_max
@@ -92,7 +92,7 @@ check_stack(unsigned long ip, unsigned long *stack)
 		return;
 
 	local_irq_save(flags);
-	arch_spin_lock(&max_stack_lock);
+	arch_spin_lock(&stack_trace_max_lock);
 
 	/* In case another CPU set the tracer_frame on us */
 	if (unlikely(!frame_size))
@@ -175,7 +175,7 @@ check_stack(unsigned long ip, unsigned long *stack)
 	}
 
  out:
-	arch_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&stack_trace_max_lock);
 	local_irq_restore(flags);
 }
 
@@ -246,9 +246,9 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	cpu = smp_processor_id();
 	per_cpu(trace_active, cpu)++;
 
-	arch_spin_lock(&max_stack_lock);
+	arch_spin_lock(&stack_trace_max_lock);
 	*ptr = val;
-	arch_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&stack_trace_max_lock);
 
 	per_cpu(trace_active, cpu)--;
 	local_irq_restore(flags);
@@ -291,7 +291,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	cpu = smp_processor_id();
 	per_cpu(trace_active, cpu)++;
 
-	arch_spin_lock(&max_stack_lock);
+	arch_spin_lock(&stack_trace_max_lock);
 
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
@@ -303,7 +303,7 @@ static void t_stop(struct seq_file *m, void *p)
 {
 	int cpu;
 
-	arch_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&stack_trace_max_lock);
 
 	cpu = smp_processor_id();
 	per_cpu(trace_active, cpu)--;
