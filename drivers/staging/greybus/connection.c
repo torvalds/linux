@@ -510,7 +510,7 @@ int gb_connection_bind_protocol(struct gb_connection *connection)
 				   connection->major,
 				   connection->minor);
 	if (!protocol) {
-		dev_warn(&connection->bundle->dev,
+		dev_warn(connection->hd->parent,
 				"protocol 0x%02hhx version %hhu.%hhu not found\n",
 				connection->protocol_id,
 				connection->major, connection->minor);
