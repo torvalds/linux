@@ -192,8 +192,10 @@ static void nfcmrvl_nci_uart_tx_done(struct nci_uart *nu)
 	** up. we set BREAK. Once we will be ready to send again we will remove
 	** it.
 	*/
-	if (priv->config.break_control && nu->tty->ops->break_ctl)
+	if (priv->config.break_control && nu->tty->ops->break_ctl) {
 		nu->tty->ops->break_ctl(nu->tty, -1);
+		usleep_range(1000, 3000);
+	}
 }
 
 static struct nci_uart nfcmrvl_nci_uart = {
