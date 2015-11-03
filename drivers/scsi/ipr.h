@@ -849,6 +849,16 @@ struct ipr_inquiry_page0 {
 	u8 page[IPR_INQUIRY_PAGE0_ENTRIES];
 }__attribute__((packed));
 
+struct ipr_inquiry_pageC4 {
+	u8 peri_qual_dev_type;
+	u8 page_code;
+	u8 reserved1;
+	u8 len;
+	u8 cache_cap[4];
+#define IPR_CAP_SYNC_CACHE		0x08
+	u8 reserved2[20];
+} __packed;
+
 struct ipr_hostrcb_device_data_entry {
 	struct ipr_vpd vpd;
 	struct ipr_res_addr dev_res_addr;
@@ -1322,6 +1332,7 @@ struct ipr_misc_cbs {
 	struct ipr_inquiry_page0 page0_data;
 	struct ipr_inquiry_page3 page3_data;
 	struct ipr_inquiry_cap cap;
+	struct ipr_inquiry_pageC4 pageC4_data;
 	struct ipr_mode_pages mode_pages;
 	struct ipr_supported_device supp_dev;
 };
