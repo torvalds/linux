@@ -123,7 +123,8 @@ gb_connection_create_range(struct greybus_host_device *hd,
 	 * about holding the connection lock.
 	 */
 	if (bundle && gb_connection_intf_find(bundle->intf, cport_id)) {
-		dev_err(parent, "cport 0x%04hx already connected\n", cport_id);
+		dev_err(&bundle->dev, "cport 0x%04hx already connected\n",
+				cport_id);
 		return NULL;
 	}
 
