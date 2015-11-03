@@ -1565,7 +1565,7 @@ static void edma_tc_set_pm_state(struct edma_tc *tc, bool enable)
 	struct platform_device *tc_pdev;
 	int ret;
 
-	if (!tc)
+	if (!IS_ENABLED(CONFIG_OF) || !tc)
 		return;
 
 	tc_pdev = of_find_device_by_node(tc->node);
