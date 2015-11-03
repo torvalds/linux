@@ -225,8 +225,10 @@ static int __switchdev_port_attr_set(struct net_device *dev,
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
 
-	if (ops && ops->switchdev_port_attr_set)
-		return ops->switchdev_port_attr_set(dev, attr, trans);
+	if (ops && ops->switchdev_port_attr_set) {
+		err = ops->switchdev_port_attr_set(dev, attr, trans);
+		goto done;
+	}
 
 	if (attr->flags & SWITCHDEV_F_NO_RECURSE)
 		goto done;
@@ -238,9 +240,6 @@ static int __switchdev_port_attr_set(struct net_device *dev,
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
 		err = __switchdev_port_attr_set(lower_dev, attr, trans);
-		if (err == -EOPNOTSUPP &&
-		    attr->flags & SWITCHDEV_F_SKIP_EOPNOTSUPP)
-			continue;
 		if (err)
 			break;
 	}
