@@ -6363,15 +6363,19 @@ static int ipr_queuecommand(struct Scsi_Host *shost,
 	ipr_cmd->scsi_cmd = scsi_cmd;
 	ipr_cmd->done = ipr_scsi_eh_done;
 
-	if (ipr_is_gscsi(res) || ipr_is_vset_device(res)) {
+	if (ipr_is_gscsi(res)) {
 		if (scsi_cmd->underflow == 0)
 			ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
 
-		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_LINK_DESC;
-		if (ipr_is_gscsi(res) && res->reset_occurred) {
+		if (res->reset_occurred) {
 			res->reset_occurred = 0;
 			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_DELAY_AFTER_RST;
 		}
+	}
+
+	if (ipr_is_gscsi(res) || ipr_is_vset_device(res)) {
+		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_LINK_DESC;
+
 		ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_ALIGNED_BFR;
 		if (scsi_cmd->flags & SCMD_TAGGED)
 			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_SIMPLE_TASK;
