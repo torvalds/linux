@@ -315,7 +315,7 @@ typedef enum {
 	SW_TRIGGER_ABORT,
 } TX_ABORT_OPTION_T;
 
-enum WID_TYPE {
+enum wid_type {
 	WID_CHAR		= 0,
 	WID_SHORT		= 1,
 	WID_INT			= 2,
