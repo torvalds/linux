@@ -404,8 +404,10 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	measured_us = cpuidle_get_last_residency(dev);
 
 	/* Deduct exit latency */
-	if (measured_us > target->exit_latency)
+	if (measured_us > 2 * target->exit_latency)
 		measured_us -= target->exit_latency;
+	else
+		measured_us /= 2;
 
 	/* Make sure our coefficients do not exceed unity */
 	if (measured_us > data->next_timer_us)
