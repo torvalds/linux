@@ -236,7 +236,7 @@ static int tpd_probe(struct platform_device *pdev)
 		return r;
 
 
-	gpio = devm_gpiod_get_index(&pdev->dev, NULL, 0,
+	gpio = devm_gpiod_get_index_optional(&pdev->dev, NULL, 0,
 		 GPIOD_OUT_LOW);
 	if (IS_ERR(gpio))
 		goto err_gpio;
