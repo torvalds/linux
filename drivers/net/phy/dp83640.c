@@ -1398,6 +1398,7 @@ static bool dp83640_rxtstamp(struct phy_device *phydev,
 		return false;
 
 	spin_lock_irqsave(&dp83640->rx_lock, flags);
+	prune_rx_ts(dp83640);
 	list_for_each_safe(this, next, &dp83640->rxts) {
 		rxts = list_entry(this, struct rxts, list);
 		if (match(skb, type, rxts)) {
