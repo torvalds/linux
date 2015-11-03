@@ -1622,15 +1622,48 @@ static void pci_init_capabilities(struct pci_dev *dev)
 	pci_enable_acs(dev);
 }
 
+/*
+ * This is the equivalent of pci_host_bridge_msi_domain that acts on
+ * devices. Firmware interfaces that can select the MSI domain on a
+ * per-device basis should be called from here.
+ */
+static struct irq_domain *pci_dev_msi_domain(struct pci_dev *dev)
+{
+	struct irq_domain *d;
+
+	/*
+	 * If a domain has been set through the pcibios_add_device
+	 * callback, then this is the one (platform code knows best).
+	 */
+	d = dev_get_msi_domain(&dev->dev);
+	if (d)
+		return d;
+
+	/*
+	 * Let's see if we have a firmware interface able to provide
+	 * the domain.
+	 */
+	d = pci_msi_get_device_domain(dev);
+	if (d)
+		return d;
+
+	return NULL;
+}
+
 static void pci_set_msi_domain(struct pci_dev *dev)
 {
+	struct irq_domain *d;
+
 	/*
-	 * If no domain has been set through the pcibios_add_device
-	 * callback, inherit the default from the bus device.
+	 * If the platform or firmware interfaces cannot supply a
+	 * device-specific MSI domain, then inherit the default domain
+	 * from the host bridge itself.
 	 */
-	if (!dev_get_msi_domain(&dev->dev))
-		dev_set_msi_domain(&dev->dev,
-				   dev_get_msi_domain(&dev->bus->dev));
+	d = pci_dev_msi_domain(dev);
+	if (!d)
+		d = dev_get_msi_domain(&dev->bus->dev);
+
+	dev_set_msi_domain(&dev->dev, d);
 }
 
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)

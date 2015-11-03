@@ -235,11 +235,11 @@ static void msi_domain_update_chip_ops(struct msi_domain_info *info)
 
 /**
  * msi_create_irq_domain - Create a MSI interrupt domain
- * @of_node:	Optional device-tree node of the interrupt controller
+ * @fwnode:	Optional fwnode of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  */
-struct irq_domain *msi_create_irq_domain(struct device_node *node,
+struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 					 struct msi_domain_info *info,
 					 struct irq_domain *parent)
 {
@@ -248,8 +248,8 @@ struct irq_domain *msi_create_irq_domain(struct device_node *node,
 	if (info->flags & MSI_FLAG_USE_DEF_CHIP_OPS)
 		msi_domain_update_chip_ops(info);
 
-	return irq_domain_add_hierarchy(parent, 0, 0, node, &msi_domain_ops,
-					info);
+	return irq_domain_create_hierarchy(parent, 0, 0, fwnode,
+					   &msi_domain_ops, info);
 }
 
 /**

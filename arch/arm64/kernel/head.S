@@ -498,6 +498,8 @@ CPU_LE(	bic	x0, x0, #(3 << 24)	)	// Clear the EE and E0E bits for EL1
 	orr	x0, x0, #ICC_SRE_EL2_ENABLE	// Set ICC_SRE_EL2.Enable==1
 	msr_s	ICC_SRE_EL2, x0
 	isb					// Make sure SRE is now set
+	mrs_s	x0, ICC_SRE_EL2			// Read SRE back,
+	tbz	x0, #0, 3f			// and check that it sticks
 	msr_s	ICH_HCR_EL2, xzr		// Reset ICC_HCR_EL2 to defaults
 
 3:

@@ -177,54 +177,57 @@ static struct irq_chip exynos_pmu_chip = {
 #endif
 };
 
-static int exynos_pmu_domain_xlate(struct irq_domain *domain,
-				   struct device_node *controller,
-				   const u32 *intspec,
-				   unsigned int intsize,
-				   unsigned long *out_hwirq,
-				   unsigned int *out_type)
+static int exynos_pmu_domain_translate(struct irq_domain *d,
+				       struct irq_fwspec *fwspec,
+				       unsigned long *hwirq,
+				       unsigned int *type)
 {
-	if (domain->of_node != controller)
-		return -EINVAL;	/* Shouldn't happen, really... */
-	if (intsize != 3)
-		return -EINVAL;	/* Not GIC compliant */
-	if (intspec[0] != 0)
-		return -EINVAL;	/* No PPI should point to this domain */
+	if (is_of_node(fwspec->fwnode)) {
+		if (fwspec->param_count != 3)
+			return -EINVAL;
 
-	*out_hwirq = intspec[1];
-	*out_type = intspec[2];
-	return 0;
+		/* No PPI should point to this domain */
+		if (fwspec->param[0] != 0)
+			return -EINVAL;
+
+		*hwirq = fwspec->param[1];
+		*type = fwspec->param[2];
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static int exynos_pmu_domain_alloc(struct irq_domain *domain,
 				   unsigned int virq,
 				   unsigned int nr_irqs, void *data)
 {
-	struct of_phandle_args *args = data;
-	struct of_phandle_args parent_args;
+	struct irq_fwspec *fwspec = data;
+	struct irq_fwspec parent_fwspec;
 	irq_hw_number_t hwirq;
 	int i;
 
-	if (args->args_count != 3)
+	if (fwspec->param_count != 3)
 		return -EINVAL;	/* Not GIC compliant */
-	if (args->args[0] != 0)
+	if (fwspec->param[0] != 0)
 		return -EINVAL;	/* No PPI should point to this domain */
 
-	hwirq = args->args[1];
+	hwirq = fwspec->param[1];
 
 	for (i = 0; i < nr_irqs; i++)
 		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
 					      &exynos_pmu_chip, NULL);
 
-	parent_args = *args;
-	parent_args.np = domain->parent->of_node;
-	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &parent_args);
+	parent_fwspec = *fwspec;
+	parent_fwspec.fwnode = domain->parent->fwnode;
+	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
+					    &parent_fwspec);
 }
 
 static const struct irq_domain_ops exynos_pmu_domain_ops = {
-	.xlate	= exynos_pmu_domain_xlate,
-	.alloc	= exynos_pmu_domain_alloc,
-	.free	= irq_domain_free_irqs_common,
+	.translate	= exynos_pmu_domain_translate,
+	.alloc		= exynos_pmu_domain_alloc,
+	.free		= irq_domain_free_irqs_common,
 };
 
 static int __init exynos_pmu_irq_init(struct device_node *node,

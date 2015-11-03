@@ -51,6 +51,19 @@
 
 #include "irq-gic-common.h"
 
+#ifdef CONFIG_ARM64
+#include <asm/cpufeature.h>
+
+static void gic_check_cpu_features(void)
+{
+	WARN_TAINT_ONCE(cpus_have_cap(ARM64_HAS_SYSREG_GIC_CPUIF),
+			TAINT_CPU_OUT_OF_SPEC,
+			"GICv3 system registers enabled, broken firmware!\n");
+}
+#else
+#define gic_check_cpu_features()	do { } while(0)
+#endif
+
 union gic_base {
 	void __iomem *common_base;
 	void __percpu * __iomem *percpu_base;
@@ -903,28 +916,39 @@ static void gic_irq_domain_unmap(struct irq_domain *d, unsigned int irq)
 {
 }
 
-static int gic_irq_domain_xlate(struct irq_domain *d,
-				struct device_node *controller,
-				const u32 *intspec, unsigned int intsize,
-				unsigned long *out_hwirq, unsigned int *out_type)
+static int gic_irq_domain_translate(struct irq_domain *d,
+				    struct irq_fwspec *fwspec,
+				    unsigned long *hwirq,
+				    unsigned int *type)
 {
-	unsigned long ret = 0;
+	if (is_of_node(fwspec->fwnode)) {
+		if (fwspec->param_count < 3)
+			return -EINVAL;
 
-	if (d->of_node != controller)
-		return -EINVAL;
-	if (intsize < 3)
-		return -EINVAL;
+		/* Get the interrupt number and add 16 to skip over SGIs */
+		*hwirq = fwspec->param[1] + 16;
 
-	/* Get the interrupt number and add 16 to skip over SGIs */
-	*out_hwirq = intspec[1] + 16;
+		/*
+		 * For SPIs, we need to add 16 more to get the GIC irq
+		 * ID number
+		 */
+		if (!fwspec->param[0])
+			*hwirq += 16;
 
-	/* For SPIs, we need to add 16 more to get the GIC irq ID number */
-	if (!intspec[0])
-		*out_hwirq += 16;
+		*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
+		return 0;
+	}
 
-	*out_type = intspec[2] & IRQ_TYPE_SENSE_MASK;
+	if (fwspec->fwnode->type == FWNODE_IRQCHIP) {
+		if(fwspec->param_count != 2)
+			return -EINVAL;
 
-	return ret;
+		*hwirq = fwspec->param[0];
+		*type = fwspec->param[1];
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 #ifdef CONFIG_SMP
@@ -952,10 +976,9 @@ static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	int i, ret;
 	irq_hw_number_t hwirq;
 	unsigned int type = IRQ_TYPE_NONE;
-	struct of_phandle_args *irq_data = arg;
+	struct irq_fwspec *fwspec = arg;
 
-	ret = gic_irq_domain_xlate(domain, irq_data->np, irq_data->args,
-				   irq_data->args_count, &hwirq, &type);
+	ret = gic_irq_domain_translate(domain, fwspec, &hwirq, &type);
 	if (ret)
 		return ret;
 
@@ -966,7 +989,7 @@ static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 }
 
 static const struct irq_domain_ops gic_irq_domain_hierarchy_ops = {
-	.xlate = gic_irq_domain_xlate,
+	.translate = gic_irq_domain_translate,
 	.alloc = gic_irq_domain_alloc,
 	.free = irq_domain_free_irqs_top,
 };
@@ -974,18 +997,19 @@ static const struct irq_domain_ops gic_irq_domain_hierarchy_ops = {
 static const struct irq_domain_ops gic_irq_domain_ops = {
 	.map = gic_irq_domain_map,
 	.unmap = gic_irq_domain_unmap,
-	.xlate = gic_irq_domain_xlate,
 };
 
 static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 			   void __iomem *dist_base, void __iomem *cpu_base,
-			   u32 percpu_offset, struct device_node *node)
+			   u32 percpu_offset, struct fwnode_handle *handle)
 {
 	irq_hw_number_t hwirq_base;
 	struct gic_chip_data *gic;
 	int gic_irqs, irq_base, i;
 
 	BUG_ON(gic_nr >= MAX_GIC_NR);
+
+	gic_check_cpu_features();
 
 	gic = &gic_data[gic_nr];
 #ifdef CONFIG_GIC_NON_BANKED
@@ -1031,11 +1055,11 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 		gic_irqs = 1020;
 	gic->gic_irqs = gic_irqs;
 
-	if (node) {		/* DT case */
-		gic->domain = irq_domain_add_linear(node, gic_irqs,
-						    &gic_irq_domain_hierarchy_ops,
-						    gic);
-	} else {		/* Non-DT case */
+	if (handle) {		/* DT/ACPI */
+		gic->domain = irq_domain_create_linear(handle, gic_irqs,
+						       &gic_irq_domain_hierarchy_ops,
+						       gic);
+	} else {		/* Legacy support */
 		/*
 		 * For primary GICs, skip over SGIs.
 		 * For secondary GICs, skip over PPIs, too.
@@ -1058,7 +1082,7 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 			irq_base = irq_start;
 		}
 
-		gic->domain = irq_domain_add_legacy(node, gic_irqs, irq_base,
+		gic->domain = irq_domain_add_legacy(NULL, gic_irqs, irq_base,
 					hwirq_base, &gic_irq_domain_ops, gic);
 	}
 
@@ -1087,17 +1111,15 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 	gic_pm_init(gic);
 }
 
-void __init gic_init_bases(unsigned int gic_nr, int irq_start,
-			   void __iomem *dist_base, void __iomem *cpu_base,
-			   u32 percpu_offset, struct device_node *node)
+void __init gic_init(unsigned int gic_nr, int irq_start,
+		     void __iomem *dist_base, void __iomem *cpu_base)
 {
 	/*
 	 * Non-DT/ACPI systems won't run a hypervisor, so let's not
 	 * bother with these...
 	 */
 	static_key_slow_dec(&supports_deactivate);
-	__gic_init_bases(gic_nr, irq_start, dist_base, cpu_base,
-			 percpu_offset, node);
+	__gic_init_bases(gic_nr, irq_start, dist_base, cpu_base, 0, NULL);
 }
 
 #ifdef CONFIG_OF
@@ -1168,7 +1190,8 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 	if (of_property_read_u32(node, "cpu-offset", &percpu_offset))
 		percpu_offset = 0;
 
-	__gic_init_bases(gic_cnt, -1, dist_base, cpu_base, percpu_offset, node);
+	__gic_init_bases(gic_cnt, -1, dist_base, cpu_base, percpu_offset,
+			 &node->fwnode);
 	if (!gic_cnt)
 		gic_init_physaddr(node);
 
@@ -1191,6 +1214,7 @@ IRQCHIP_DECLARE(cortex_a9_gic, "arm,cortex-a9-gic", gic_of_init);
 IRQCHIP_DECLARE(cortex_a7_gic, "arm,cortex-a7-gic", gic_of_init);
 IRQCHIP_DECLARE(msm_8660_qgic, "qcom,msm-8660-qgic", gic_of_init);
 IRQCHIP_DECLARE(msm_qgic2, "qcom,msm-qgic2", gic_of_init);
+IRQCHIP_DECLARE(pl390, "arm,pl390", gic_of_init);
 
 #endif
 
@@ -1242,6 +1266,7 @@ int __init
 gic_v2_acpi_init(struct acpi_table_header *table)
 {
 	void __iomem *cpu_base, *dist_base;
+	struct fwnode_handle *domain_handle;
 	int count;
 
 	/* Collect CPU base addresses */
@@ -1292,14 +1317,19 @@ gic_v2_acpi_init(struct acpi_table_header *table)
 		static_key_slow_dec(&supports_deactivate);
 
 	/*
-	 * Initialize zero GIC instance (no multi-GIC support). Also, set GIC
-	 * as default IRQ domain to allow for GSI registration and GSI to IRQ
-	 * number translation (see acpi_register_gsi() and acpi_gsi_to_irq()).
+	 * Initialize GIC instance zero (no multi-GIC support).
 	 */
-	__gic_init_bases(0, -1, dist_base, cpu_base, 0, NULL);
-	irq_set_default_host(gic_data[0].domain);
+	domain_handle = irq_domain_alloc_fwnode(dist_base);
+	if (!domain_handle) {
+		pr_err("Unable to allocate domain handle\n");
+		iounmap(cpu_base);
+		iounmap(dist_base);
+		return -ENOMEM;
+	}
 
-	acpi_irq_model = ACPI_IRQ_MODEL_GIC;
+	__gic_init_bases(0, -1, dist_base, cpu_base, 0, domain_handle);
+
+	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, domain_handle);
 	return 0;
 }
 #endif

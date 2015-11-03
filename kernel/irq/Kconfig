@@ -30,6 +30,10 @@ config GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 config GENERIC_PENDING_IRQ
 	bool
 
+# Support for generic irq migrating off cpu before the cpu is offline.
+config GENERIC_IRQ_MIGRATION
+	bool
+
 # Alpha specific irq affinity mechanism
 config AUTO_IRQ_AFFINITY
        bool

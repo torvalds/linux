@@ -657,7 +657,7 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 		"intspec[0] 0x%1x intspec[1] 0x%02x intspec[2] 0x%02x\n",
 		intspec[0], intspec[1], intspec[2]);
 
-	if (d->of_node != controller)
+	if (irq_domain_get_of_node(d) != controller)
 		return -EINVAL;
 	if (intsize != 4)
 		return -EINVAL;
