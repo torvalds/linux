@@ -117,6 +117,20 @@ static u32 setup_cfg2_yuv_swap(struct atmel_isi *isi,
 		case MEDIA_BUS_FMT_YVYU8_2X8:
 			return ISI_CFG2_YCC_SWAP_MODE_1;
 		}
+	} else if (xlate->host_fmt->fourcc == V4L2_PIX_FMT_RGB565) {
+		/*
+		 * Preview path is enabled, it will convert UYVY to RGB format.
+		 * But if sensor output format is not UYVY, we need to set
+		 * YCC_SWAP_MODE to convert it as UYVY.
+		 */
+		switch (xlate->code) {
+		case MEDIA_BUS_FMT_VYUY8_2X8:
+			return ISI_CFG2_YCC_SWAP_MODE_1;
+		case MEDIA_BUS_FMT_YUYV8_2X8:
+			return ISI_CFG2_YCC_SWAP_MODE_2;
+		case MEDIA_BUS_FMT_YVYU8_2X8:
+			return ISI_CFG2_YCC_SWAP_MODE_3;
+		}
 	}
 
 	/*
