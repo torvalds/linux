@@ -41,11 +41,8 @@ void __iomem *pci_iomap_range(struct pci_dev *dev,
 		len = maxlen;
 	if (flags & IORESOURCE_IO)
 		return __pci_ioport_map(dev, start, len);
-	if (flags & IORESOURCE_MEM) {
-		if (flags & IORESOURCE_CACHEABLE)
-			return ioremap(start, len);
-		return ioremap_nocache(start, len);
-	}
+	if (flags & IORESOURCE_MEM)
+		return ioremap(start, len);
 	/* What? */
 	return NULL;
 }

@@ -186,7 +186,7 @@ static int int3400_thermal_run_osc(acpi_handle handle,
 }
 
 static int int3400_thermal_get_temp(struct thermal_zone_device *thermal,
-			unsigned long *temp)
+			int *temp)
 {
 	*temp = 20 * 1000; /* faked temp sensor with 20C */
 	return 0;

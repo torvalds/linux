@@ -149,9 +149,20 @@ static inline pending_ring_idx_t pending_index(unsigned i)
 	return i & (MAX_PENDING_REQS-1);
 }
 
-bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue, int needed)
+static int xenvif_rx_ring_slots_needed(struct xenvif *vif)
+{
+	if (vif->gso_mask)
+		return DIV_ROUND_UP(vif->dev->gso_max_size, PAGE_SIZE) + 1;
+	else
+		return DIV_ROUND_UP(vif->dev->mtu, PAGE_SIZE);
+}
+
+static bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue)
 {
 	RING_IDX prod, cons;
+	int needed;
+
+	needed = xenvif_rx_ring_slots_needed(queue->vif);
 
 	do {
 		prod = queue->rx.sring->req_prod;
@@ -314,7 +325,7 @@ static void xenvif_gop_frag_copy(struct xenvif_queue *queue, struct sk_buff *skb
 		} else {
 			copy_gop->source.domid = DOMID_SELF;
 			copy_gop->source.u.gmfn =
-				virt_to_mfn(page_address(page));
+				virt_to_gfn(page_address(page));
 		}
 		copy_gop->source.offset = offset;
 
@@ -513,7 +524,7 @@ static void xenvif_rx_action(struct xenvif_queue *queue)
 
 	skb_queue_head_init(&rxq);
 
-	while (xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX)
+	while (xenvif_rx_ring_slots_available(queue)
 	       && (skb = xenvif_rx_dequeue(queue)) != NULL) {
 		queue->last_rx_time = jiffies;
 
@@ -1395,7 +1406,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 		queue->tx_copy_ops[*copy_ops].source.offset = txreq.offset;
 
 		queue->tx_copy_ops[*copy_ops].dest.u.gmfn =
-			virt_to_mfn(skb->data);
+			virt_to_gfn(skb->data);
 		queue->tx_copy_ops[*copy_ops].dest.domid = DOMID_SELF;
 		queue->tx_copy_ops[*copy_ops].dest.offset =
 			offset_in_page(skb->data);
@@ -1938,8 +1949,7 @@ static bool xenvif_rx_queue_stalled(struct xenvif_queue *queue)
 	prod = queue->rx.sring->req_prod;
 	cons = queue->rx.req_cons;
 
-	return !queue->stalled
-		&& prod - cons < XEN_NETBK_RX_SLOTS_MAX
+	return !queue->stalled && prod - cons < 1
 		&& time_after(jiffies,
 			      queue->last_rx_time + queue->vif->stall_timeout);
 }
@@ -1951,14 +1961,13 @@ static bool xenvif_rx_queue_ready(struct xenvif_queue *queue)
 	prod = queue->rx.sring->req_prod;
 	cons = queue->rx.req_cons;
 
-	return queue->stalled
-		&& prod - cons >= XEN_NETBK_RX_SLOTS_MAX;
+	return queue->stalled && prod - cons >= 1;
 }
 
 static bool xenvif_have_rx_work(struct xenvif_queue *queue)
 {
 	return (!skb_queue_empty(&queue->rx_queue)
-		&& xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX))
+		&& xenvif_rx_ring_slots_available(queue))
 		|| (queue->vif->stall_timeout &&
 		    (xenvif_rx_queue_stalled(queue)
 		     || xenvif_rx_queue_ready(queue)))
@@ -2105,8 +2114,11 @@ static int __init netback_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	/* Allow as many queues as there are CPUs, by default */
-	xenvif_max_queues = num_online_cpus();
+	/* Allow as many queues as there are CPUs if user has not
+	 * specified a value.
+	 */
+	if (xenvif_max_queues == 0)
+		xenvif_max_queues = num_online_cpus();
 
 	if (fatal_skb_slots < XEN_NETBK_LEGACY_SLOTS_MAX) {
 		pr_info("fatal_skb_slots too small (%d), bump it to XEN_NETBK_LEGACY_SLOTS_MAX (%d)\n",

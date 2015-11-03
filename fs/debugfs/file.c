@@ -435,8 +435,8 @@ struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_atomic_t);
 
-static ssize_t read_file_bool(struct file *file, char __user *user_buf,
-			      size_t count, loff_t *ppos)
+ssize_t debugfs_read_file_bool(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
 {
 	char buf[3];
 	u32 *val = file->private_data;
@@ -449,9 +449,10 @@ static ssize_t read_file_bool(struct file *file, char __user *user_buf,
 	buf[2] = 0x00;
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
 }
+EXPORT_SYMBOL_GPL(debugfs_read_file_bool);
 
-static ssize_t write_file_bool(struct file *file, const char __user *user_buf,
-			       size_t count, loff_t *ppos)
+ssize_t debugfs_write_file_bool(struct file *file, const char __user *user_buf,
+				size_t count, loff_t *ppos)
 {
 	char buf[32];
 	size_t buf_size;
@@ -468,10 +469,11 @@ static ssize_t write_file_bool(struct file *file, const char __user *user_buf,
 
 	return count;
 }
+EXPORT_SYMBOL_GPL(debugfs_write_file_bool);
 
 static const struct file_operations fops_bool = {
-	.read =		read_file_bool,
-	.write =	write_file_bool,
+	.read =		debugfs_read_file_bool,
+	.write =	debugfs_write_file_bool,
 	.open =		simple_open,
 	.llseek =	default_llseek,
 };

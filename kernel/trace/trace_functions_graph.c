@@ -715,13 +715,13 @@ trace_print_graph_duration(unsigned long long duration, struct trace_seq *s)
 
 		snprintf(nsecs_str, slen, "%03lu", nsecs_rem);
 		trace_seq_printf(s, ".%s", nsecs_str);
-		len += strlen(nsecs_str);
+		len += strlen(nsecs_str) + 1;
 	}
 
 	trace_seq_puts(s, " us ");
 
 	/* Print remaining spaces to fit the row's width */
-	for (i = len; i < 7; i++)
+	for (i = len; i < 8; i++)
 		trace_seq_putc(s, ' ');
 }
 

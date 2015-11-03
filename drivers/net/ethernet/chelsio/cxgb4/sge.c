@@ -807,7 +807,7 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
 	 * message or, if we're doing a Large Send Offload, an LSO CPL message
 	 * with an embedded TX Packet Write CPL message.
 	 */
-	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1) + 4;
+	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1);
 	if (skb_shinfo(skb)->gso_size)
 		flits += (sizeof(struct fw_eth_tx_pkt_wr) +
 			  sizeof(struct cpl_tx_pkt_lso_core) +

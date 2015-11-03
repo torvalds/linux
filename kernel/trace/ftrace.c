@@ -630,13 +630,18 @@ static int function_stat_show(struct seq_file *m, void *v)
 		goto out;
 	}
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	avg = rec->time;
+	do_div(avg, rec->counter);
+	if (tracing_thresh && (avg < tracing_thresh))
+		goto out;
+#endif
+
 	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
 	seq_printf(m, "  %-30.30s  %10lu", str, rec->counter);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	seq_puts(m, "    ");
-	avg = rec->time;
-	do_div(avg, rec->counter);
 
 	/* Sample standard deviation (s^2) */
 	if (rec->counter <= 1)

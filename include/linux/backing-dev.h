@@ -286,7 +286,7 @@ static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi
 	 * %current's blkcg equals the effective blkcg of its memcg.  No
 	 * need to use the relatively expensive cgroup_get_e_css().
 	 */
-	if (likely(wb && wb->blkcg_css == task_css(current, blkio_cgrp_id)))
+	if (likely(wb && wb->blkcg_css == task_css(current, io_cgrp_id)))
 		return wb;
 	return NULL;
 }
@@ -402,7 +402,7 @@ static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
 }
 
 struct wb_iter {
-	int			start_blkcg_id;
+	int			start_memcg_id;
 	struct radix_tree_iter	tree_iter;
 	void			**slot;
 };
@@ -414,9 +414,9 @@ static inline struct bdi_writeback *__wb_iter_next(struct wb_iter *iter,
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
-	if (iter->start_blkcg_id >= 0) {
-		iter->slot = radix_tree_iter_init(titer, iter->start_blkcg_id);
-		iter->start_blkcg_id = -1;
+	if (iter->start_memcg_id >= 0) {
+		iter->slot = radix_tree_iter_init(titer, iter->start_memcg_id);
+		iter->start_memcg_id = -1;
 	} else {
 		iter->slot = radix_tree_next_slot(iter->slot, titer, 0);
 	}
@@ -430,30 +430,30 @@ static inline struct bdi_writeback *__wb_iter_next(struct wb_iter *iter,
 
 static inline struct bdi_writeback *__wb_iter_init(struct wb_iter *iter,
 						   struct backing_dev_info *bdi,
-						   int start_blkcg_id)
+						   int start_memcg_id)
 {
-	iter->start_blkcg_id = start_blkcg_id;
+	iter->start_memcg_id = start_memcg_id;
 
-	if (start_blkcg_id)
+	if (start_memcg_id)
 		return __wb_iter_next(iter, bdi);
 	else
 		return &bdi->wb;
 }
 
 /**
- * bdi_for_each_wb - walk all wb's of a bdi in ascending blkcg ID order
+ * bdi_for_each_wb - walk all wb's of a bdi in ascending memcg ID order
  * @wb_cur: cursor struct bdi_writeback pointer
  * @bdi: bdi to walk wb's of
  * @iter: pointer to struct wb_iter to be used as iteration buffer
- * @start_blkcg_id: blkcg ID to start iteration from
+ * @start_memcg_id: memcg ID to start iteration from
  *
  * Iterate @wb_cur through the wb's (bdi_writeback's) of @bdi in ascending
- * blkcg ID order starting from @start_blkcg_id.  @iter is struct wb_iter
+ * memcg ID order starting from @start_memcg_id.  @iter is struct wb_iter
  * to be used as temp storage during iteration.  rcu_read_lock() must be
  * held throughout iteration.
  */
-#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id)		\
-	for ((wb_cur) = __wb_iter_init(iter, bdi, start_blkcg_id);	\
+#define bdi_for_each_wb(wb_cur, bdi, iter, start_memcg_id)		\
+	for ((wb_cur) = __wb_iter_init(iter, bdi, start_memcg_id);	\
 	     (wb_cur); (wb_cur) = __wb_iter_next(iter, bdi))
 
 #else	/* CONFIG_CGROUP_WRITEBACK */

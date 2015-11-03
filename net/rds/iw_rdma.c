@@ -667,11 +667,12 @@ static int rds_iw_init_fastreg(struct rds_iw_mr_pool *pool,
 	struct ib_mr *mr;
 	int err;
 
-	mr = ib_alloc_fast_reg_mr(rds_iwdev->pd, pool->max_message_size);
+	mr = ib_alloc_mr(rds_iwdev->pd, IB_MR_TYPE_MEM_REG,
+			 pool->max_message_size);
 	if (IS_ERR(mr)) {
 		err = PTR_ERR(mr);
 
-		printk(KERN_WARNING "RDS/IW: ib_alloc_fast_reg_mr failed (err=%d)\n", err);
+		printk(KERN_WARNING "RDS/IW: ib_alloc_mr failed (err=%d)\n", err);
 		return err;
 	}
 

@@ -61,4 +61,15 @@ config I2C_MUX_PINCTRL
 	  This driver can also be built as a module. If so, the module will be
 	  called pinctrl-i2cmux.
 
+config I2C_MUX_REG
+	tristate "Register-based I2C multiplexer"
+	help
+	  If you say yes to this option, support will be included for a
+	  register based I2C multiplexer. This driver provides access to
+	  I2C busses connected through a MUX, which is controlled
+	  by a single register.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-mux-reg.
+
 endmenu

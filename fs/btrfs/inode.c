@@ -6909,8 +6909,7 @@ out:
 
 	trace_btrfs_get_extent(root, em);
 
-	if (path)
-		btrfs_free_path(path);
+	btrfs_free_path(path);
 	if (trans) {
 		ret = btrfs_end_transaction(trans, root);
 		if (!err)

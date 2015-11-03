@@ -133,7 +133,7 @@ static DEFINE_SPINLOCK(port_lock);
 static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS);
 
 static void ib_umad_add_one(struct ib_device *device);
-static void ib_umad_remove_one(struct ib_device *device);
+static void ib_umad_remove_one(struct ib_device *device, void *client_data);
 
 static void ib_umad_release_dev(struct kobject *kobj)
 {
@@ -1322,9 +1322,9 @@ free:
 	kobject_put(&umad_dev->kobj);
 }
 
-static void ib_umad_remove_one(struct ib_device *device)
+static void ib_umad_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ib_umad_device *umad_dev = ib_get_client_data(device, &umad_client);
+	struct ib_umad_device *umad_dev = client_data;
 	int i;
 
 	if (!umad_dev)

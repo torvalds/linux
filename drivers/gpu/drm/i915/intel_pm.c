@@ -955,8 +955,6 @@ enum vlv_wm_level {
 	VLV_WM_LEVEL_PM2,
 	VLV_WM_LEVEL_PM5,
 	VLV_WM_LEVEL_DDR_DVFS,
-	CHV_WM_NUM_LEVELS,
-	VLV_WM_NUM_LEVELS = 1,
 };
 
 /* latency must be in 0.1us units. */
@@ -982,9 +980,13 @@ static void vlv_setup_wm_latency(struct drm_device *dev)
 	/* all latencies in usec */
 	dev_priv->wm.pri_latency[VLV_WM_LEVEL_PM2] = 3;
 
+	dev_priv->wm.max_level = VLV_WM_LEVEL_PM2;
+
 	if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->wm.pri_latency[VLV_WM_LEVEL_PM5] = 12;
 		dev_priv->wm.pri_latency[VLV_WM_LEVEL_DDR_DVFS] = 33;
+
+		dev_priv->wm.max_level = VLV_WM_LEVEL_DDR_DVFS;
 	}
 }
 
@@ -1137,10 +1139,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 	memset(wm_state, 0, sizeof(*wm_state));
 
 	wm_state->cxsr = crtc->pipe != PIPE_C && crtc->wm.cxsr_allowed;
-	if (IS_CHERRYVIEW(dev))
-		wm_state->num_levels = CHV_WM_NUM_LEVELS;
-	else
-		wm_state->num_levels = VLV_WM_NUM_LEVELS;
+	wm_state->num_levels = to_i915(dev)->wm.max_level + 1;
 
 	wm_state->num_active_planes = 0;
 
@@ -1220,7 +1219,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 	}
 
 	/* clear any (partially) filled invalid levels */
-	for (level = wm_state->num_levels; level < CHV_WM_NUM_LEVELS; level++) {
+	for (level = wm_state->num_levels; level < to_i915(dev)->wm.max_level + 1; level++) {
 		memset(&wm_state->wm[level], 0, sizeof(wm_state->wm[level]));
 		memset(&wm_state->sr[level], 0, sizeof(wm_state->sr[level]));
 	}
@@ -1324,10 +1323,7 @@ static void vlv_merge_wm(struct drm_device *dev,
 	struct intel_crtc *crtc;
 	int num_active_crtcs = 0;
 
-	if (IS_CHERRYVIEW(dev))
-		wm->level = VLV_WM_LEVEL_DDR_DVFS;
-	else
-		wm->level = VLV_WM_LEVEL_PM2;
+	wm->level = to_i915(dev)->wm.max_level;
 	wm->cxsr = true;
 
 	for_each_intel_crtc(dev, crtc) {
@@ -4083,9 +4079,29 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 		if (val & DSP_MAXFIFO_PM5_ENABLE)
 			wm->level = VLV_WM_LEVEL_PM5;
 
+		/*
+		 * If DDR DVFS is disabled in the BIOS, Punit
+		 * will never ack the request. So if that happens
+		 * assume we don't have to enable/disable DDR DVFS
+		 * dynamically. To test that just set the REQ_ACK
+		 * bit to poke the Punit, but don't change the
+		 * HIGH/LOW bits so that we don't actually change
+		 * the current state.
+		 */
 		val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
-		if ((val & FORCE_DDR_HIGH_FREQ) == 0)
-			wm->level = VLV_WM_LEVEL_DDR_DVFS;
+		val |= FORCE_DDR_FREQ_REQ_ACK;
+		vlv_punit_write(dev_priv, PUNIT_REG_DDR_SETUP2, val);
+
+		if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2) &
+			      FORCE_DDR_FREQ_REQ_ACK) == 0, 3)) {
+			DRM_DEBUG_KMS("Punit not acking DDR DVFS request, "
+				      "assuming DDR DVFS is disabled\n");
+			dev_priv->wm.max_level = VLV_WM_LEVEL_PM5;
+		} else {
+			val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
+			if ((val & FORCE_DDR_HIGH_FREQ) == 0)
+				wm->level = VLV_WM_LEVEL_DDR_DVFS;
+		}
 
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	}

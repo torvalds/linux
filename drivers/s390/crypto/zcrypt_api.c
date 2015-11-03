@@ -1206,16 +1206,8 @@ static void sprinthx(unsigned char *title, struct seq_file *m,
 static void sprinthx4(unsigned char *title, struct seq_file *m,
 		      unsigned int *array, unsigned int len)
 {
-	int r;
-
 	seq_printf(m, "\n%s\n", title);
-	for (r = 0; r < len; r++) {
-		if ((r % 8) == 0)
-			seq_printf(m, "    ");
-		seq_printf(m, "%08X ", array[r]);
-		if ((r % 8) == 7)
-			seq_putc(m, '\n');
-	}
+	seq_hex_dump(m, "    ", DUMP_PREFIX_NONE, 32, 4, array, len, false);
 	seq_putc(m, '\n');
 }
 

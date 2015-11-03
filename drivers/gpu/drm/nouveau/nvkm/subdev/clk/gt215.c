@@ -326,7 +326,7 @@ gt215_clk_pre(struct nvkm_clk *clk, unsigned long *flags)
 		return -EIO;
 
 	if (nvkm_msec(device, 2000,
-		u32 tmp = nvkm_rd32(device, 0x002504) & 0x0000003f;
+		u32 tmp = nvkm_rd32(device, 0x00251c) & 0x0000003f;
 		if (tmp == 0x0000003f)
 			break;
 	) < 0)

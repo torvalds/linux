@@ -4,7 +4,6 @@ CFLAGS = -Wall
 BINARIES = compaction_test
 BINARIES += hugepage-mmap
 BINARIES += hugepage-shm
-BINARIES += hugetlbfstest
 BINARIES += map_hugetlb
 BINARIES += thuge-gen
 BINARIES += transhuge-stress

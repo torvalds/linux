@@ -3035,7 +3035,7 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 
-	iter->buffer_iter = kzalloc(sizeof(*iter->buffer_iter) * num_possible_cpus(),
+	iter->buffer_iter = kcalloc(nr_cpu_ids, sizeof(*iter->buffer_iter),
 				    GFP_KERNEL);
 	if (!iter->buffer_iter)
 		goto release;
@@ -6990,7 +6990,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 	trace_init_global_iter(&iter);
 
 	for_each_tracing_cpu(cpu) {
-		atomic_inc(&per_cpu_ptr(iter.tr->trace_buffer.data, cpu)->disabled);
+		atomic_inc(&per_cpu_ptr(iter.trace_buffer->data, cpu)->disabled);
 	}
 
 	old_userobj = trace_flags & TRACE_ITER_SYM_USEROBJ;

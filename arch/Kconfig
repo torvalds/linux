@@ -2,6 +2,9 @@
 # General architecture dependent options
 #
 
+config KEXEC_CORE
+	bool
+
 config OPROFILE
 	tristate "OProfile system profiling"
 	depends on PROFILING

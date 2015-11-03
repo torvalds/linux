@@ -266,6 +266,7 @@ static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 }
 
 int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen);
+size_t kernfs_path_len(struct kernfs_node *kn);
 char * __must_check kernfs_path(struct kernfs_node *kn, char *buf,
 				size_t buflen);
 void pr_cont_kernfs_name(struct kernfs_node *kn);
@@ -331,6 +332,9 @@ static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 
 static inline int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 { return -ENOSYS; }
+
+static inline size_t kernfs_path_len(struct kernfs_node *kn)
+{ return 0; }
 
 static inline char * __must_check kernfs_path(struct kernfs_node *kn, char *buf,
 					      size_t buflen)

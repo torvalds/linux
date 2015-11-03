@@ -65,7 +65,7 @@ static noinline void __init kmalloc_node_oob_right(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_large_oob_rigth(void)
+static noinline void __init kmalloc_large_oob_right(void)
 {
 	char *ptr;
 	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
@@ -114,7 +114,7 @@ static noinline void __init kmalloc_oob_krealloc_less(void)
 		kfree(ptr1);
 		return;
 	}
-	ptr2[size1] = 'x';
+	ptr2[size2] = 'x';
 	kfree(ptr2);
 }
 
@@ -259,7 +259,7 @@ static int __init kmalloc_tests_init(void)
 	kmalloc_oob_right();
 	kmalloc_oob_left();
 	kmalloc_node_oob_right();
-	kmalloc_large_oob_rigth();
+	kmalloc_large_oob_right();
 	kmalloc_oob_krealloc_more();
 	kmalloc_oob_krealloc_less();
 	kmalloc_oob_16();

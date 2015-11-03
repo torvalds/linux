@@ -40,13 +40,6 @@ struct armada38x_rtc {
 	void __iomem	    *regs;
 	void __iomem	    *regs_soc;
 	spinlock_t	    lock;
-	/*
-	 * While setting the time, the RTC TIME register should not be
-	 * accessed. Setting the RTC time involves sleeping during
-	 * 100ms, so a mutex instead of a spinlock is used to protect
-	 * it
-	 */
-	struct mutex	    mutex_time;
 	int		    irq;
 };
 
@@ -64,9 +57,9 @@ static void rtc_delayed_write(u32 val, struct armada38x_rtc *rtc, int offset)
 static int armada38x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct armada38x_rtc *rtc = dev_get_drvdata(dev);
-	unsigned long time, time_check;
+	unsigned long time, time_check, flags;
 
-	mutex_lock(&rtc->mutex_time);
+	spin_lock_irqsave(&rtc->lock, flags);
 	time = readl(rtc->regs + RTC_TIME);
 	/*
 	 * WA for failing time set attempts. As stated in HW ERRATA if
@@ -77,7 +70,7 @@ static int armada38x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if ((time_check - time) > 1)
 		time_check = readl(rtc->regs + RTC_TIME);
 
-	mutex_unlock(&rtc->mutex_time);
+	spin_unlock_irqrestore(&rtc->lock, flags);
 
 	rtc_time_to_tm(time_check, tm);
 
@@ -88,23 +81,23 @@ static int armada38x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct armada38x_rtc *rtc = dev_get_drvdata(dev);
 	int ret = 0;
-	unsigned long time;
+	unsigned long time, flags;
 
 	ret = rtc_tm_to_time(tm, &time);
 
 	if (ret)
 		goto out;
 	/*
-	 * Setting the RTC time not always succeeds. According to the
-	 * errata we need to first write on the status register and
-	 * then wait for 100ms before writing to the time register to be
-	 * sure that the data will be taken into account.
+	 * According to errata FE-3124064, Write to RTC TIME register
+	 * may fail. As a workaround, after writing to RTC TIME
+	 * register, issue a dummy write of 0x0 twice to RTC Status
+	 * register.
 	 */
-	mutex_lock(&rtc->mutex_time);
-	rtc_delayed_write(0, rtc, RTC_STATUS);
-	msleep(100);
+	spin_lock_irqsave(&rtc->lock, flags);
 	rtc_delayed_write(time, rtc, RTC_TIME);
-	mutex_unlock(&rtc->mutex_time);
+	rtc_delayed_write(0, rtc, RTC_STATUS);
+	rtc_delayed_write(0, rtc, RTC_STATUS);
+	spin_unlock_irqrestore(&rtc->lock, flags);
 
 out:
 	return ret;
@@ -229,7 +222,6 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&rtc->lock);
-	mutex_init(&rtc->mutex_time);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rtc");
 	rtc->regs = devm_ioremap_resource(&pdev->dev, res);
@@ -303,6 +295,7 @@ static const struct of_device_id armada38x_rtc_of_match_table[] = {
 	{ .compatible = "marvell,armada-380-rtc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, armada38x_rtc_of_match_table);
 #endif
 
 static struct platform_driver armada38x_rtc_driver = {

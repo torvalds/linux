@@ -16,7 +16,6 @@
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
-#include <net/switchdev.h>
 #include <uapi/linux/if_bridge.h>
 
 #include "br_private.h"

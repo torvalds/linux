@@ -358,7 +358,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_RESOURCE_STREAMER 36
 
 typedef struct drm_i915_getparam {
-	s32 param;
+	__s32 param;
 	/*
 	 * WARNING: Using pointers instead of fixed-size u64 means we need to write
 	 * compat32 code. Don't repeat this mistake.

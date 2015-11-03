@@ -172,6 +172,7 @@ scsi_mod-$(CONFIG_SYSCTL)	+= scsi_sysctl.o
 scsi_mod-$(CONFIG_SCSI_PROC_FS)	+= scsi_proc.o
 scsi_mod-y			+= scsi_trace.o scsi_logging.o
 scsi_mod-$(CONFIG_PM)		+= scsi_pm.o
+scsi_mod-$(CONFIG_SCSI_DH)	+= scsi_dh.o
 
 hv_storvsc-y			:= storvsc_drv.o
 

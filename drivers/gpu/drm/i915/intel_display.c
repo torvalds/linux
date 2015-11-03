@@ -6305,7 +6305,7 @@ static void intel_connector_check_state(struct intel_connector *connector)
 		      connector->base.name);
 
 	if (connector->get_hw_state(connector)) {
-		struct drm_encoder *encoder = &connector->encoder->base;
+		struct intel_encoder *encoder = connector->encoder;
 		struct drm_connector_state *conn_state = connector->base.state;
 
 		I915_STATE_WARN(!crtc,
@@ -6317,13 +6317,13 @@ static void intel_connector_check_state(struct intel_connector *connector)
 		I915_STATE_WARN(!crtc->state->active,
 		      "connector is active, but attached crtc isn't\n");
 
-		if (!encoder)
+		if (!encoder || encoder->type == INTEL_OUTPUT_DP_MST)
 			return;
 
-		I915_STATE_WARN(conn_state->best_encoder != encoder,
+		I915_STATE_WARN(conn_state->best_encoder != &encoder->base,
 			"atomic encoder doesn't match attached encoder\n");
 
-		I915_STATE_WARN(conn_state->crtc != encoder->crtc,
+		I915_STATE_WARN(conn_state->crtc != encoder->base.crtc,
 			"attached encoder crtc differs from connector crtc\n");
 	} else {
 		I915_STATE_WARN(crtc && crtc->state->active,

@@ -120,6 +120,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
 	struct ieee80211_sta_vht_cap own_cap;
 	u32 cap_info, i;
+	bool have_80mhz;
 
 	memset(vht_cap, 0, sizeof(*vht_cap));
 
@@ -127,6 +128,20 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (!vht_cap_ie || !sband->vht_cap.vht_supported)
+		return;
+
+	/* Allow VHT if at least one channel on the sband supports 80 MHz */
+	have_80mhz = false;
+	for (i = 0; i < sband->n_channels; i++) {
+		if (sband->channels[i].flags & (IEEE80211_CHAN_DISABLED |
+						IEEE80211_CHAN_NO_80MHZ))
+			continue;
+
+		have_80mhz = true;
+		break;
+	}
+
+	if (!have_80mhz)
 		return;
 
 	/*

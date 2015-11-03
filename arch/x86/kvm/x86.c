@@ -5943,6 +5943,7 @@ static void process_smi_save_seg_32(struct kvm_vcpu *vcpu, char *buf, int n)
 	put_smstate(u32, buf, offset, process_smi_get_segment_flags(&seg));
 }
 
+#ifdef CONFIG_X86_64
 static void process_smi_save_seg_64(struct kvm_vcpu *vcpu, char *buf, int n)
 {
 	struct kvm_segment seg;
@@ -5958,6 +5959,7 @@ static void process_smi_save_seg_64(struct kvm_vcpu *vcpu, char *buf, int n)
 	put_smstate(u32, buf, offset + 4, seg.limit);
 	put_smstate(u64, buf, offset + 8, seg.base);
 }
+#endif
 
 static void process_smi_save_state_32(struct kvm_vcpu *vcpu, char *buf)
 {

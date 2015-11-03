@@ -2625,7 +2625,7 @@ static void restore_regulatory_settings(bool reset_user)
 	 * settings, user regulatory settings takes precedence.
 	 */
 	if (is_an_alpha2(alpha2))
-		regulatory_hint_user(user_alpha2, NL80211_USER_REG_HINT_USER);
+		regulatory_hint_user(alpha2, NL80211_USER_REG_HINT_USER);
 
 	spin_lock(&reg_requests_lock);
 	list_splice_tail_init(&tmp_reg_req_list, &reg_requests_list);

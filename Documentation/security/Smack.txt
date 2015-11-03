@@ -28,6 +28,10 @@ Smack kernels use the CIPSO IP option. Some network
 configurations are intolerant of IP options and can impede
 access to systems that use them as Smack does.
 
+Smack is used in the Tizen operating system. Please
+go to http://wiki.tizen.org for information about how
+Smack is used in Tizen.
+
 The current git repository for Smack user space is:
 
 	git://github.com/smack-team/smack.git
@@ -108,6 +112,8 @@ in the smackfs filesystem. This pseudo-filesystem is mounted
 on /sys/fs/smackfs.
 
 access
+	Provided for backward compatibility. The access2 interface
+	is preferred and should be used instead.
 	This interface reports whether a subject with the specified
 	Smack label has a particular access to an object with a
 	specified Smack label. Write a fixed format access rule to
@@ -136,6 +142,8 @@ change-rule
 	those in the fourth string. If there is no such rule it will be
 	created using the access specified in the third and the fourth strings.
 cipso
+	Provided for backward compatibility. The cipso2 interface
+	is preferred and should be used instead.
 	This interface allows a specific CIPSO header to be assigned
 	to a Smack label. The format accepted on write is:
 		"%24s%4d%4d"["%4d"]...
@@ -157,7 +165,19 @@ direct
 doi
 	This contains the CIPSO domain of interpretation used in
 	network packets.
+ipv6host
+	This interface allows specific IPv6 internet addresses to be
+	treated as single label hosts. Packets are sent to single
+	label hosts only from processes that have Smack write access
+	to the host label. All packets received from single label hosts
+	are given the specified label. The format accepted on write is:
+		"%h:%h:%h:%h:%h:%h:%h:%h label" or
+		"%h:%h:%h:%h:%h:%h:%h:%h/%d label".
+	The "::" address shortcut is not supported.
+	If label is "-DELETE" a matched entry will be deleted.
 load
+	Provided for backward compatibility. The load2 interface
+	is preferred and should be used instead.
 	This interface allows access control rules in addition to
 	the system defined rules to be specified. The format accepted
 	on write is:
@@ -181,6 +201,8 @@ load2
 	permissions that are not allowed. The string "r-x--" would
 	specify read and execute access.
 load-self
+	Provided for backward compatibility. The load-self2 interface
+	is preferred and should be used instead.
 	This interface allows process specific access rules to be
 	defined. These rules are only consulted if access would
 	otherwise be permitted, and are intended to provide additional
@@ -205,6 +227,8 @@ netlabel
 	received from single label hosts are given the specified
 	label. The format accepted on write is:
 		"%d.%d.%d.%d label" or "%d.%d.%d.%d/%d label".
+	If the label specified is "-CIPSO" the address is treated
+	as a host that supports CIPSO headers.
 onlycap
 	This contains labels processes must have for CAP_MAC_ADMIN
 	and CAP_MAC_OVERRIDE to be effective. If this file is empty
@@ -232,7 +256,8 @@ unconfined
 	is dangerous and can ruin the proper labeling of your system.
 	It should never be used in production.
 
-You can add access rules in /etc/smack/accesses. They take the form:
+If you are using the smackload utility
+you can add access rules in /etc/smack/accesses. They take the form:
 
     subjectlabel objectlabel access
 

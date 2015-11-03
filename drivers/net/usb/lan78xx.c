@@ -1049,8 +1049,7 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 {
 	struct mii_if_info *mii = &dev->mii;
 	struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
-	u16 ladv, radv;
-	int ret;
+	int ladv, radv, ret;
 	u32 buf;
 
 	/* clear PHY interrupt status */
@@ -1104,12 +1103,12 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 		}
 
 		ladv = lan78xx_mdio_read(dev->net, mii->phy_id, MII_ADVERTISE);
-		if (unlikely(ladv < 0))
-			return -EIO;
+		if (ladv < 0)
+			return ladv;
 
 		radv = lan78xx_mdio_read(dev->net, mii->phy_id, MII_LPA);
-		if (unlikely(radv < 0))
-			return -EIO;
+		if (radv < 0)
+			return radv;
 
 		netif_dbg(dev, link, dev->net,
 			  "speed: %u duplex: %d anadv: 0x%04x anlpa: 0x%04x",

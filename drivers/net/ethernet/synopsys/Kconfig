@@ -20,7 +20,7 @@ config SYNOPSYS_DWC_ETH_QOS
 	select PHYLIB
 	select CRC32
 	select MII
-	depends on OF
+	depends on OF && HAS_DMA
 	---help---
 	  This driver supports the DWC Ethernet QoS from Synopsys
 

@@ -166,15 +166,6 @@ static int alpha_noop_supported(struct device *dev, u64 mask)
 	return mask < 0x00ffffffUL ? 0 : 1;
 }
 
-static int alpha_noop_set_mask(struct device *dev, u64 mask)
-{
-	if (!dev->dma_mask || !dma_supported(dev, mask))
-		return -EIO;
-
-	*dev->dma_mask = mask;
-	return 0;
-}
-
 struct dma_map_ops alpha_noop_ops = {
 	.alloc			= alpha_noop_alloc_coherent,
 	.free			= alpha_noop_free_coherent,
@@ -182,7 +173,6 @@ struct dma_map_ops alpha_noop_ops = {
 	.map_sg			= alpha_noop_map_sg,
 	.mapping_error		= alpha_noop_mapping_error,
 	.dma_supported		= alpha_noop_supported,
-	.set_dma_mask		= alpha_noop_set_mask,
 };
 
 struct dma_map_ops *dma_ops = &alpha_noop_ops;

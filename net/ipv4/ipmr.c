@@ -233,7 +233,6 @@ static const struct fib_rules_ops __net_initconst ipmr_rules_ops_template = {
 	.match		= ipmr_rule_match,
 	.configure	= ipmr_rule_configure,
 	.compare	= ipmr_rule_compare,
-	.default_pref	= fib_default_rule_pref,
 	.fill		= ipmr_rule_fill,
 	.nlgroup	= RTNLGRP_IPV4_RULE,
 	.policy		= ipmr_rule_policy,

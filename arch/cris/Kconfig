@@ -36,6 +36,17 @@ config FORCE_MAX_ZONEORDER
 	int
 	default 6
 
+config TRACE_IRQFLAGS_SUPPORT
+	depends on ETRAX_ARCH_V32
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	depends on ETRAX_ARCH_V32
+	def_bool y
+
 config CRIS
 	bool
 	default y
@@ -58,6 +69,7 @@ config CRIS
 	select CLKSRC_MMIO if ETRAX_ARCH_V32
 	select GENERIC_CLOCKEVENTS if ETRAX_ARCH_V32
 	select GENERIC_SCHED_CLOCK if ETRAX_ARCH_V32
+	select HAVE_DEBUG_BUGVERBOSE if ETRAX_ARCH_V32
 
 config HZ
 	int

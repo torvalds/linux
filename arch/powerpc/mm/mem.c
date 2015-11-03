@@ -113,7 +113,7 @@ int memory_add_physaddr_to_nid(u64 start)
 }
 #endif
 
-int arch_add_memory(int nid, u64 start, u64 size)
+int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 {
 	struct pglist_data *pgdata;
 	struct zone *zone;
@@ -128,7 +128,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 
 	/* this should work for most non-highmem platforms */
 	zone = pgdata->node_zones +
-		zone_for_memory(nid, start, size, 0);
+		zone_for_memory(nid, start, size, 0, for_device);
 
 	return __add_pages(nid, zone, start_pfn, nr_pages);
 }

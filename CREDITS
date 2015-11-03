@@ -2992,6 +2992,10 @@ S: 2200 Mission College Blvd
 S: Santa Clara, CA 95052
 S: USA
 
+N: Anil Ravindranath
+E: anil_ravindranath@pmc-sierra.com
+D: PMC-Sierra MaxRAID driver
+
 N: Eric S. Raymond
 E: esr@thyrsus.com
 W: http://www.tuxedo.org/~esr/

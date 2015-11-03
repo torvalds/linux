@@ -248,6 +248,8 @@ struct ceph_connection {
 	int in_base_pos;     /* bytes read */
 	__le64 in_temp_ack;  /* for reading an ack */
 
+	struct timespec last_keepalive_ack;
+
 	struct delayed_work work;	    /* send|recv work */
 	unsigned long       delay;          /* current delay interval */
 };
@@ -285,6 +287,8 @@ extern void ceph_msg_revoke(struct ceph_msg *msg);
 extern void ceph_msg_revoke_incoming(struct ceph_msg *msg);
 
 extern void ceph_con_keepalive(struct ceph_connection *con);
+extern bool ceph_con_keepalive_expired(struct ceph_connection *con,
+				       unsigned long interval);
 
 extern void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
 				size_t length, size_t alignment);

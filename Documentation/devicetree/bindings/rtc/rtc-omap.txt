@@ -16,6 +16,8 @@ Required properties:
 Optional properties:
 - system-power-controller: whether the rtc is controlling the system power
   through pmic_power_en
+- clocks: Any internal or external clocks feeding in to rtc
+- clock-names: Corresponding names of the clocks
 
 Example:
 
@@ -26,4 +28,6 @@ rtc@1c23000 {
 		      19>;
 	interrupt-parent = <&intc>;
 	system-power-controller;
+	clocks = <&clk_32k_rtc>, <&clk_32768_ck>;
+	clock-names = "ext-clk", "int-clk";
 };

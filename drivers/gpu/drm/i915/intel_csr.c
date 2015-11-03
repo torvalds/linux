@@ -350,7 +350,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	}
 	csr->mmio_count = dmc_header->mmio_count;
 	for (i = 0; i < dmc_header->mmio_count; i++) {
-		if (dmc_header->mmioaddr[i] < CSR_MMIO_START_RANGE &&
+		if (dmc_header->mmioaddr[i] < CSR_MMIO_START_RANGE ||
 			dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
 			DRM_ERROR(" Firmware has wrong mmio address 0x%x\n",
 						dmc_header->mmioaddr[i]);

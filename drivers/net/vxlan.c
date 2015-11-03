@@ -1223,7 +1223,6 @@ drop:
 static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct metadata_dst *tun_dst = NULL;
-	struct ip_tunnel_info *info;
 	struct vxlan_sock *vs;
 	struct vxlanhdr *vxh;
 	u32 flags, vni;
@@ -1270,8 +1269,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		if (!tun_dst)
 			goto drop;
 
-		info = &tun_dst->u.tun_info;
-		md = ip_tunnel_info_opts(info);
+		md = ip_tunnel_info_opts(&tun_dst->u.tun_info);
 	} else {
 		memset(md, 0, sizeof(*md));
 	}
@@ -1286,7 +1284,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		md->gbp = ntohs(gbp->policy_id);
 
 		if (tun_dst)
-			info->key.tun_flags |= TUNNEL_VXLAN_OPT;
+			tun_dst->u.tun_info.key.tun_flags |= TUNNEL_VXLAN_OPT;
 
 		if (gbp->dont_learn)
 			md->gbp |= VXLAN_GBP_DONT_LEARN;

@@ -358,6 +358,7 @@ static int __init coh901327_probe(struct platform_device *pdev)
 	if (ret < 0)
 		coh901327_wdt.timeout = 60;
 
+	coh901327_wdt.parent = &pdev->dev;
 	ret = watchdog_register_device(&coh901327_wdt);
 	if (ret == 0)
 		dev_info(&pdev->dev,

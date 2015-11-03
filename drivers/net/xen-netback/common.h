@@ -200,11 +200,6 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	struct xenvif_stats stats;
 };
 
-/* Maximum number of Rx slots a to-guest packet may use, including the
- * slot needed for GSO meta-data.
- */
-#define XEN_NETBK_RX_SLOTS_MAX (MAX_SKB_FRAGS + 1)
-
 enum state_bit_shift {
 	/* This bit marks that the vif is connected */
 	VIF_STATUS_CONNECTED,
@@ -316,11 +311,6 @@ void xenvif_kick_thread(struct xenvif_queue *queue);
 int xenvif_dealloc_kthread(void *data);
 
 void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
-
-/* Determine whether the needed number of slots (req) are available,
- * and set req_event if not.
- */
-bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue, int needed);
 
 void xenvif_carrier_on(struct xenvif *vif);
 

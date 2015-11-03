@@ -123,7 +123,7 @@ static int __init cbe_ptcal_enable_on_node(int nid, int order)
 
 	area->nid = nid;
 	area->order = order;
-	area->pages = alloc_pages_exact_node(area->nid,
+	area->pages = __alloc_pages_node(area->nid,
 						GFP_KERNEL|__GFP_THISNODE,
 						area->order);
 

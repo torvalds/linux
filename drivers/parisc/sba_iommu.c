@@ -1854,14 +1854,9 @@ sba_proc_bitmap_info(struct seq_file *m, void *p)
 {
 	struct sba_device *sba_dev = sba_list;
 	struct ioc *ioc = &sba_dev->ioc[0];	/* FIXME: Multi-IOC support! */
-	unsigned int *res_ptr = (unsigned int *)ioc->res_map;
-	int i;
 
-	for (i = 0; i < (ioc->res_size/sizeof(unsigned int)); ++i, ++res_ptr) {
-		if ((i & 7) == 0)
-			seq_puts(m, "\n   ");
-		seq_printf(m, " %08x", *res_ptr);
-	}
+	seq_hex_dump(m, "   ", DUMP_PREFIX_NONE, 32, 4, ioc->res_map,
+		     ioc->res_size, false);
 	seq_putc(m, '\n');
 
 	return 0;

@@ -117,7 +117,7 @@ __frwr_recovery_worker(struct work_struct *work)
 	if (ib_dereg_mr(r->r.frmr.fr_mr))
 		goto out_fail;
 
-	r->r.frmr.fr_mr = ib_alloc_fast_reg_mr(pd, depth);
+	r->r.frmr.fr_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, depth);
 	if (IS_ERR(r->r.frmr.fr_mr))
 		goto out_fail;
 
@@ -148,7 +148,7 @@ __frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, struct ib_device *device,
 	struct rpcrdma_frmr *f = &r->r.frmr;
 	int rc;
 
-	f->fr_mr = ib_alloc_fast_reg_mr(pd, depth);
+	f->fr_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, depth);
 	if (IS_ERR(f->fr_mr))
 		goto out_mr_err;
 	f->fr_pgl = ib_alloc_fast_reg_page_list(device, depth);
@@ -158,7 +158,7 @@ __frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, struct ib_device *device,
 
 out_mr_err:
 	rc = PTR_ERR(f->fr_mr);
-	dprintk("RPC:       %s: ib_alloc_fast_reg_mr status %i\n",
+	dprintk("RPC:       %s: ib_alloc_mr status %i\n",
 		__func__, rc);
 	return rc;
 

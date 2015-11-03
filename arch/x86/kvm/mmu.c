@@ -3309,13 +3309,14 @@ walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 
 	walk_shadow_page_lockless_begin(vcpu);
 
-	for (shadow_walk_init(&iterator, vcpu, addr), root = iterator.level;
+	for (shadow_walk_init(&iterator, vcpu, addr),
+		 leaf = root = iterator.level;
 	     shadow_walk_okay(&iterator);
 	     __shadow_walk_next(&iterator, spte)) {
-		leaf = iterator.level;
 		spte = mmu_spte_get_lockless(iterator.sptep);
 
 		sptes[leaf - 1] = spte;
+		leaf--;
 
 		if (!is_shadow_present_pte(spte))
 			break;
@@ -3329,7 +3330,7 @@ walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 	if (reserved) {
 		pr_err("%s: detect reserved bits on spte, addr 0x%llx, dump hierarchy:\n",
 		       __func__, addr);
-		while (root >= leaf) {
+		while (root > leaf) {
 			pr_err("------ spte 0x%llx level %d.\n",
 			       sptes[root - 1], root);
 			root--;

@@ -43,7 +43,7 @@
 #include "sa.h"
 
 static void mcast_add_one(struct ib_device *device);
-static void mcast_remove_one(struct ib_device *device);
+static void mcast_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client mcast_client = {
 	.name   = "ib_multicast",
@@ -840,13 +840,12 @@ static void mcast_add_one(struct ib_device *device)
 	ib_register_event_handler(&dev->event_handler);
 }
 
-static void mcast_remove_one(struct ib_device *device)
+static void mcast_remove_one(struct ib_device *device, void *client_data)
 {
-	struct mcast_device *dev;
+	struct mcast_device *dev = client_data;
 	struct mcast_port *port;
 	int i;
 
-	dev = ib_get_client_data(device, &mcast_client);
 	if (!dev)
 		return;
 

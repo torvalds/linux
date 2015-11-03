@@ -356,8 +356,8 @@ static void free_pasid_states(struct device_state *dev_state)
 		free_pasid_states_level2(dev_state->states);
 	else if (dev_state->pasid_levels == 1)
 		free_pasid_states_level1(dev_state->states);
-	else if (dev_state->pasid_levels != 0)
-		BUG();
+	else
+		BUG_ON(dev_state->pasid_levels != 0);
 
 	free_page((unsigned long)dev_state->states);
 }

@@ -242,6 +242,7 @@ struct kvm_vcpu {
 	int sigset_active;
 	sigset_t sigset;
 	struct kvm_vcpu_stat stat;
+	unsigned int halt_poll_ns;
 
 #ifdef CONFIG_HAS_IOMEM
 	int mmio_needed;

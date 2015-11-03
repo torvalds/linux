@@ -113,37 +113,24 @@ static struct regmap_bus regmap_spi = {
 	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
-/**
- * regmap_init_spi(): Initialise register map
- *
- * @spi: Device that will be interacted with
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer to
- * a struct regmap.
- */
-struct regmap *regmap_init_spi(struct spi_device *spi,
-			       const struct regmap_config *config)
+struct regmap *__regmap_init_spi(struct spi_device *spi,
+				 const struct regmap_config *config,
+				 struct lock_class_key *lock_key,
+				 const char *lock_name)
 {
-	return regmap_init(&spi->dev, &regmap_spi, &spi->dev, config);
+	return __regmap_init(&spi->dev, &regmap_spi, &spi->dev, config,
+			     lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(regmap_init_spi);
+EXPORT_SYMBOL_GPL(__regmap_init_spi);
 
-/**
- * devm_regmap_init_spi(): Initialise register map
- *
- * @spi: Device that will be interacted with
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer
- * to a struct regmap.  The map will be automatically freed by the
- * device management code.
- */
-struct regmap *devm_regmap_init_spi(struct spi_device *spi,
-				    const struct regmap_config *config)
+struct regmap *__devm_regmap_init_spi(struct spi_device *spi,
+				      const struct regmap_config *config,
+				      struct lock_class_key *lock_key,
+				      const char *lock_name)
 {
-	return devm_regmap_init(&spi->dev, &regmap_spi, &spi->dev, config);
+	return __devm_regmap_init(&spi->dev, &regmap_spi, &spi->dev, config,
+				  lock_key, lock_name);
 }
-EXPORT_SYMBOL_GPL(devm_regmap_init_spi);
+EXPORT_SYMBOL_GPL(__devm_regmap_init_spi);
 
 MODULE_LICENSE("GPL");

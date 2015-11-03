@@ -918,8 +918,6 @@ int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
 				mbx->req.arg = NULL;
 				return -ENOMEM;
 			}
-			memset(mbx->req.arg, 0, sizeof(u32) * mbx->req.num);
-			memset(mbx->rsp.arg, 0, sizeof(u32) * mbx->rsp.num);
 			temp = adapter->ahw->fw_hal_version << 29;
 			mbx->req.arg[0] = (type | (mbx->req.num << 16) | temp);
 			mbx->cmd_op = type;

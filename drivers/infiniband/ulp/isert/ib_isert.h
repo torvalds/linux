@@ -209,7 +209,6 @@ struct isert_device {
 	int			refcount;
 	struct ib_device	*ib_device;
 	struct ib_pd		*pd;
-	struct ib_mr		*mr;
 	struct isert_comp	*comps;
 	int                     comps_used;
 	struct list_head	dev_node;

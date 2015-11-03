@@ -100,7 +100,6 @@ struct rds_ib_connection {
 	/* alphabet soup, IBTA style */
 	struct rdma_cm_id	*i_cm_id;
 	struct ib_pd		*i_pd;
-	struct ib_mr		*i_mr;
 	struct ib_cq		*i_send_cq;
 	struct ib_cq		*i_recv_cq;
 
@@ -173,7 +172,6 @@ struct rds_ib_device {
 	struct list_head	conn_list;
 	struct ib_device	*dev;
 	struct ib_pd		*pd;
-	struct ib_mr		*mr;
 	struct rds_ib_mr_pool	*mr_pool;
 	unsigned int		fmr_max_remaps;
 	unsigned int		max_fmrs;

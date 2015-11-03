@@ -98,6 +98,7 @@ struct mmc_data;
  * @irq_flags: The flags to be passed to request_irq.
  * @irq: The irq value to be passed to request_irq.
  * @sdio_id0: Number of slot0 in the SDIO interrupt registers.
+ * @dto_timer: Timer for broken data transfer over scheme.
  *
  * Locking
  * =======
@@ -153,11 +154,7 @@ struct dw_mci {
 	dma_addr_t		sg_dma;
 	void			*sg_cpu;
 	const struct dw_mci_dma_ops	*dma_ops;
-#ifdef CONFIG_MMC_DW_IDMAC
 	unsigned int		ring_size;
-#else
-	struct dw_mci_dma_data	*dma_data;
-#endif
 	u32			cmd_status;
 	u32			data_status;
 	u32			stop_cmdr;
@@ -204,6 +201,7 @@ struct dw_mci {
 	int			sdio_id0;
 
 	struct timer_list       cmd11_timer;
+	struct timer_list       dto_timer;
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -226,6 +224,8 @@ struct dw_mci_dma_ops {
 #define DW_MCI_QUIRK_HIGHSPEED			BIT(2)
 /* Unreliable card detection */
 #define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
+/* Timer for broken data transfer over scheme */
+#define DW_MCI_QUIRK_BROKEN_DTO			BIT(4)
 
 struct dma_pdata;
 
@@ -259,7 +259,6 @@ struct dw_mci_board {
 
 	struct dw_mci_dma_ops *dma_ops;
 	struct dma_pdata *data;
-	struct block_settings *blk_settings;
 };
 
 #endif /* LINUX_MMC_DW_MMC_H */

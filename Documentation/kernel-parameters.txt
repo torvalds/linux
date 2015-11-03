@@ -4106,6 +4106,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			plus one apbt timer for broadcast timer.
 			x86_intel_mid_timer=apbt_only | lapic_and_apbt
 
+	xen_512gb_limit		[KNL,X86-64,XEN]
+			Restricts the kernel running paravirtualized under Xen
+			to use only up to 512 GB of RAM. The reason to do so is
+			crash analysis tools and Xen tools for doing domain
+			save/restore/migration must be enabled to handle larger
+			domains.
+
 	xen_emul_unplug=		[HW,X86,XEN]
 			Unplug Xen emulated devices
 			Format: [unplug0,][unplug1]

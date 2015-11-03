@@ -9094,7 +9094,7 @@ static void perf_event_init_cpu(int cpu)
 	mutex_unlock(&swhash->hlist_mutex);
 }
 
-#if defined CONFIG_HOTPLUG_CPU || defined CONFIG_KEXEC
+#if defined CONFIG_HOTPLUG_CPU || defined CONFIG_KEXEC_CORE
 static void __perf_event_exit_context(void *__info)
 {
 	struct remove_event re = { .detach_group = true };

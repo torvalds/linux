@@ -173,6 +173,11 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 		return;
 	}
 
+	/* MST encoders are bound to a crtc, not to a connector,
+	 * force the mapping here for get_hw_state.
+	 */
+	found->encoder = encoder;
+
 	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
 	intel_mst->port = found->port;
 
@@ -400,7 +405,7 @@ static const struct drm_encoder_funcs intel_dp_mst_enc_funcs = {
 
 static bool intel_dp_mst_get_hw_state(struct intel_connector *connector)
 {
-	if (connector->encoder) {
+	if (connector->encoder && connector->base.state->crtc) {
 		enum pipe pipe;
 		if (!connector->encoder->get_hw_state(connector->encoder, &pipe))
 			return false;

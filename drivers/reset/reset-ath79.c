@@ -89,6 +89,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	if (IS_ERR(ath79_reset->base))
 		return PTR_ERR(ath79_reset->base);
 
+	spin_lock_init(&ath79_reset->lock);
 	ath79_reset->rcdev.ops = &ath79_reset_ops;
 	ath79_reset->rcdev.owner = THIS_MODULE;
 	ath79_reset->rcdev.of_node = pdev->dev.of_node;

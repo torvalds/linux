@@ -393,7 +393,7 @@ config DM_MULTIPATH
 	# of SCSI_DH if the latter isn't defined but if
 	# it is, DM_MULTIPATH must depend on it.  We get a build
 	# error if SCSI_DH=m and DM_MULTIPATH=y
-	depends on SCSI_DH || !SCSI_DH
+	depends on !SCSI_DH || SCSI
 	---help---
 	  Allow volume managers to support multipath hardware.
 

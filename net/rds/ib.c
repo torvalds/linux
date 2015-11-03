@@ -99,8 +99,6 @@ static void rds_ib_dev_free(struct work_struct *work)
 
 	if (rds_ibdev->mr_pool)
 		rds_ib_destroy_mr_pool(rds_ibdev->mr_pool);
-	if (rds_ibdev->mr)
-		ib_dereg_mr(rds_ibdev->mr);
 	if (rds_ibdev->pd)
 		ib_dealloc_pd(rds_ibdev->pd);
 
@@ -164,12 +162,6 @@ static void rds_ib_add_one(struct ib_device *device)
 		goto put_dev;
 	}
 
-	rds_ibdev->mr = ib_get_dma_mr(rds_ibdev->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(rds_ibdev->mr)) {
-		rds_ibdev->mr = NULL;
-		goto put_dev;
-	}
-
 	rds_ibdev->mr_pool = rds_ib_create_mr_pool(rds_ibdev);
 	if (IS_ERR(rds_ibdev->mr_pool)) {
 		rds_ibdev->mr_pool = NULL;
@@ -230,11 +222,10 @@ struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device)
  *
  * This can be called at any time and can be racing with any other RDS path.
  */
-static void rds_ib_remove_one(struct ib_device *device)
+static void rds_ib_remove_one(struct ib_device *device, void *client_data)
 {
-	struct rds_ib_device *rds_ibdev;
+	struct rds_ib_device *rds_ibdev = client_data;
 
-	rds_ibdev = ib_get_client_data(device, &rds_ib_client);
 	if (!rds_ibdev)
 		return;
 

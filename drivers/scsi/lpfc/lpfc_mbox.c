@@ -2284,7 +2284,7 @@ lpfc_mbx_cmpl_rdp_page_a2(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 			(struct lpfc_rdp_context *)(mbox->context2);
 
 	if (bf_get(lpfc_mqe_status, &mbox->u.mqe))
-		goto error;
+		goto error_mbuf_free;
 
 	lpfc_sli_bemem_bcopy(mp->virt, &rdp_context->page_a2,
 				DMP_SFF_PAGE_A2_SIZE);
@@ -2299,13 +2299,14 @@ lpfc_mbx_cmpl_rdp_page_a2(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_link_stat;
 	mbox->context2 = (struct lpfc_rdp_context *) rdp_context;
 	if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT) == MBX_NOT_FINISHED)
-		goto error;
+		goto error_cmd_free;
 
 	return;
 
-error:
+error_mbuf_free:
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
+error_cmd_free:
 	lpfc_sli4_mbox_cmd_free(phba, mbox);
 	rdp_context->cmpl(phba, rdp_context, FAILURE);
 }

@@ -997,7 +997,7 @@ static void ion_vm_close(struct vm_area_struct *vma)
 	mutex_unlock(&buffer->lock);
 }
 
-static struct vm_operations_struct ion_vma_ops = {
+static const struct vm_operations_struct ion_vma_ops = {
 	.open = ion_vm_open,
 	.close = ion_vm_close,
 	.fault = ion_vm_fault,

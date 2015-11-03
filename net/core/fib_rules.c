@@ -44,7 +44,7 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 }
 EXPORT_SYMBOL(fib_default_rule_add);
 
-u32 fib_default_rule_pref(struct fib_rules_ops *ops)
+static u32 fib_default_rule_pref(struct fib_rules_ops *ops)
 {
 	struct list_head *pos;
 	struct fib_rule *rule;
@@ -60,7 +60,6 @@ u32 fib_default_rule_pref(struct fib_rules_ops *ops)
 
 	return 0;
 }
-EXPORT_SYMBOL(fib_default_rule_pref);
 
 static void notify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
@@ -299,8 +298,8 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh)
 	}
 	rule->fr_net = net;
 
-	if (tb[FRA_PRIORITY])
-		rule->pref = nla_get_u32(tb[FRA_PRIORITY]);
+	rule->pref = tb[FRA_PRIORITY] ? nla_get_u32(tb[FRA_PRIORITY])
+	                              : fib_default_rule_pref(ops);
 
 	if (tb[FRA_IIFNAME]) {
 		struct net_device *dev;
@@ -349,9 +348,6 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh)
 		rule->suppress_ifgroup = nla_get_u32(tb[FRA_SUPPRESS_IFGROUP]);
 	else
 		rule->suppress_ifgroup = -1;
-
-	if (!tb[FRA_PRIORITY] && ops->default_pref)
-		rule->pref = ops->default_pref(ops);
 
 	err = -EINVAL;
 	if (tb[FRA_GOTO]) {

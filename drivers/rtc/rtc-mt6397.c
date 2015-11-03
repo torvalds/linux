@@ -373,15 +373,42 @@ static int mtk_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int mt6397_rtc_suspend(struct device *dev)
+{
+	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(rtc->irq);
+
+	return 0;
+}
+
+static int mt6397_rtc_resume(struct device *dev)
+{
+	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(rtc->irq);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(mt6397_pm_ops, mt6397_rtc_suspend,
+			mt6397_rtc_resume);
+
 static const struct of_device_id mt6397_rtc_of_match[] = {
 	{ .compatible = "mediatek,mt6397-rtc", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt6397_rtc_of_match);
 
 static struct platform_driver mtk_rtc_driver = {
 	.driver = {
 		.name = "mt6397-rtc",
 		.of_match_table = mt6397_rtc_of_match,
+		.pm = &mt6397_pm_ops,
 	},
 	.probe	= mtk_rtc_probe,
 	.remove = mtk_rtc_remove,

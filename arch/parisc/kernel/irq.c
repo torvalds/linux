@@ -507,8 +507,8 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	struct pt_regs *old_regs;
 	unsigned long eirr_val;
 	int irq, cpu = smp_processor_id();
-#ifdef CONFIG_SMP
 	struct irq_data *irq_data;
+#ifdef CONFIG_SMP
 	cpumask_t dest;
 #endif
 
@@ -521,8 +521,13 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 		goto set_out;
 	irq = eirr_to_irq(eirr_val);
 
-#ifdef CONFIG_SMP
 	irq_data = irq_get_irq_data(irq);
+
+	/* Filter out spurious interrupts, mostly from serial port at bootup */
+	if (unlikely(!irq_desc_has_action(irq_data_to_desc(irq_data))))
+		goto set_out;
+
+#ifdef CONFIG_SMP
 	cpumask_copy(&dest, irq_data_get_affinity_mask(irq_data));
 	if (irqd_is_per_cpu(irq_data) &&
 	    !cpumask_test_cpu(smp_processor_id(), &dest)) {

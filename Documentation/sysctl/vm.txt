@@ -349,7 +349,7 @@ zone[i]'s protection[j] is calculated by following expression.
 
 (i < j):
   zone[i]->protection[j]
-  = (total sums of present_pages from zone[i+1] to zone[j] on the node)
+  = (total sums of managed_pages from zone[i+1] to zone[j] on the node)
     / lowmem_reserve_ratio[i];
 (i = j):
    (should not be protected. = 0;
@@ -360,7 +360,7 @@ The default values of lowmem_reserve_ratio[i] are
     256 (if zone[i] means DMA or DMA32 zone)
     32  (others).
 As above expression, they are reciprocal number of ratio.
-256 means 1/256. # of protection pages becomes about "0.39%" of total present
+256 means 1/256. # of protection pages becomes about "0.39%" of total managed
 pages of higher zones on the node.
 
 If you would like to protect more pages, smaller values are effective.

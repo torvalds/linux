@@ -10,3 +10,5 @@ recordmcount
 docproc
 sortextable
 asn1_compiler
+extract-cert
+sign-file

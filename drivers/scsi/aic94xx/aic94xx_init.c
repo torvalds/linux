@@ -100,12 +100,7 @@ static int asd_map_memio(struct asd_ha_struct *asd_ha)
 				   pci_name(asd_ha->pcidev));
 			goto Err;
 		}
-		if (io_handle->flags & IORESOURCE_CACHEABLE)
-			io_handle->addr = ioremap(io_handle->start,
-						  io_handle->len);
-		else
-			io_handle->addr = ioremap_nocache(io_handle->start,
-							  io_handle->len);
+		io_handle->addr = ioremap(io_handle->start, io_handle->len);
 		if (!io_handle->addr) {
 			asd_printk("couldn't map MBAR%d of %s\n", i==0?0:1,
 				   pci_name(asd_ha->pcidev));

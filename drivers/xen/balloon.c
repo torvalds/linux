@@ -441,7 +441,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	/* Update direct mapping, invalidate P2M, and add to balloon. */
 	for (i = 0; i < nr_pages; i++) {
 		pfn = frame_list[i];
-		frame_list[i] = pfn_to_mfn(pfn);
+		frame_list[i] = pfn_to_gfn(pfn);
 		page = pfn_to_page(pfn);
 
 #ifdef CONFIG_XEN_HAVE_PVMMU
@@ -638,9 +638,9 @@ static int __init balloon_init(void)
 	 * regions (see arch/x86/xen/setup.c).
 	 */
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++)
-		if (xen_extra_mem[i].size)
-			balloon_add_region(PFN_UP(xen_extra_mem[i].start),
-					   PFN_DOWN(xen_extra_mem[i].size));
+		if (xen_extra_mem[i].n_pfns)
+			balloon_add_region(xen_extra_mem[i].start_pfn,
+					   xen_extra_mem[i].n_pfns);
 
 	return 0;
 }

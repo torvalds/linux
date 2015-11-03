@@ -525,4 +525,7 @@ config ARCH_HAS_SG_CHAIN
 config ARCH_HAS_PMEM_API
 	bool
 
+config ARCH_HAS_MMIO_FLUSH
+	bool
+
 endmenu

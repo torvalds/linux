@@ -608,9 +608,6 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
 
 	qp->prev = vma;
 
-	if (vma->vm_flags & VM_PFNMAP)
-		return 1;
-
 	if (flags & MPOL_MF_LAZY) {
 		/* Similar to task_numa_work, skip inaccessible VMAs */
 		if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
@@ -945,7 +942,7 @@ static struct page *new_node_page(struct page *page, unsigned long node, int **x
 		return alloc_huge_page_node(page_hstate(compound_head(page)),
 					node);
 	else
-		return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE |
+		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
 						    __GFP_THISNODE, 0);
 }
 
@@ -2001,7 +1998,7 @@ retry_cpuset:
 		nmask = policy_nodemask(gfp, pol);
 		if (!nmask || node_isset(hpage_node, *nmask)) {
 			mpol_cond_put(pol);
-			page = alloc_pages_exact_node(hpage_node,
+			page = __alloc_pages_node(hpage_node,
 						gfp | __GFP_THISNODE, order);
 			goto out;
 		}

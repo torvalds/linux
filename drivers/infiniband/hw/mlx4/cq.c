@@ -638,7 +638,7 @@ static void mlx4_ib_poll_sw_comp(struct mlx4_ib_cq *cq, int num_entries,
 	 * simulated FLUSH_ERR completions
 	 */
 	list_for_each_entry(qp, &cq->send_qp_list, cq_send_list) {
-		mlx4_ib_qp_sw_comp(qp, num_entries, wc, npolled, 1);
+		mlx4_ib_qp_sw_comp(qp, num_entries, wc + *npolled, npolled, 1);
 		if (*npolled >= num_entries)
 			goto out;
 	}

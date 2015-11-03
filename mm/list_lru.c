@@ -99,8 +99,8 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
 	struct list_lru_one *l;
 
 	spin_lock(&nlru->lock);
-	l = list_lru_from_kmem(nlru, item);
 	if (list_empty(item)) {
+		l = list_lru_from_kmem(nlru, item);
 		list_add_tail(item, &l->list);
 		l->nr_items++;
 		spin_unlock(&nlru->lock);
@@ -118,8 +118,8 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
 	struct list_lru_one *l;
 
 	spin_lock(&nlru->lock);
-	l = list_lru_from_kmem(nlru, item);
 	if (!list_empty(item)) {
+		l = list_lru_from_kmem(nlru, item);
 		list_del_init(item);
 		l->nr_items--;
 		spin_unlock(&nlru->lock);

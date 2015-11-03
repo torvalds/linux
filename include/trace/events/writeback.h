@@ -131,6 +131,66 @@ DEFINE_EVENT(writeback_dirty_inode_template, writeback_dirty_inode,
 	TP_ARGS(inode, flags)
 );
 
+#ifdef CREATE_TRACE_POINTS
+#ifdef CONFIG_CGROUP_WRITEBACK
+
+static inline size_t __trace_wb_cgroup_size(struct bdi_writeback *wb)
+{
+	return kernfs_path_len(wb->memcg_css->cgroup->kn) + 1;
+}
+
+static inline void __trace_wb_assign_cgroup(char *buf, struct bdi_writeback *wb)
+{
+	struct cgroup *cgrp = wb->memcg_css->cgroup;
+	char *path;
+
+	path = cgroup_path(cgrp, buf, kernfs_path_len(cgrp->kn) + 1);
+	WARN_ON_ONCE(path != buf);
+}
+
+static inline size_t __trace_wbc_cgroup_size(struct writeback_control *wbc)
+{
+	if (wbc->wb)
+		return __trace_wb_cgroup_size(wbc->wb);
+	else
+		return 2;
+}
+
+static inline void __trace_wbc_assign_cgroup(char *buf,
+					     struct writeback_control *wbc)
+{
+	if (wbc->wb)
+		__trace_wb_assign_cgroup(buf, wbc->wb);
+	else
+		strcpy(buf, "/");
+}
+
+#else	/* CONFIG_CGROUP_WRITEBACK */
+
+static inline size_t __trace_wb_cgroup_size(struct bdi_writeback *wb)
+{
+	return 2;
+}
+
+static inline void __trace_wb_assign_cgroup(char *buf, struct bdi_writeback *wb)
+{
+	strcpy(buf, "/");
+}
+
+static inline size_t __trace_wbc_cgroup_size(struct writeback_control *wbc)
+{
+	return 2;
+}
+
+static inline void __trace_wbc_assign_cgroup(char *buf,
+					     struct writeback_control *wbc)
+{
+	strcpy(buf, "/");
+}
+
+#endif	/* CONFIG_CGROUP_WRITEBACK */
+#endif	/* CREATE_TRACE_POINTS */
+
 DECLARE_EVENT_CLASS(writeback_write_inode_template,
 
 	TP_PROTO(struct inode *inode, struct writeback_control *wbc),
@@ -141,6 +201,7 @@ DECLARE_EVENT_CLASS(writeback_write_inode_template,
 		__array(char, name, 32)
 		__field(unsigned long, ino)
 		__field(int, sync_mode)
+		__dynamic_array(char, cgroup, __trace_wbc_cgroup_size(wbc))
 	),
 
 	TP_fast_assign(
@@ -148,12 +209,14 @@ DECLARE_EVENT_CLASS(writeback_write_inode_template,
 			dev_name(inode_to_bdi(inode)->dev), 32);
 		__entry->ino		= inode->i_ino;
 		__entry->sync_mode	= wbc->sync_mode;
+		__trace_wbc_assign_cgroup(__get_str(cgroup), wbc);
 	),
 
-	TP_printk("bdi %s: ino=%lu sync_mode=%d",
+	TP_printk("bdi %s: ino=%lu sync_mode=%d cgroup=%s",
 		__entry->name,
 		__entry->ino,
-		__entry->sync_mode
+		__entry->sync_mode,
+		__get_str(cgroup)
 	)
 );
 
@@ -172,8 +235,8 @@ DEFINE_EVENT(writeback_write_inode_template, writeback_write_inode,
 );
 
 DECLARE_EVENT_CLASS(writeback_work_class,
-	TP_PROTO(struct backing_dev_info *bdi, struct wb_writeback_work *work),
-	TP_ARGS(bdi, work),
+	TP_PROTO(struct bdi_writeback *wb, struct wb_writeback_work *work),
+	TP_ARGS(wb, work),
 	TP_STRUCT__entry(
 		__array(char, name, 32)
 		__field(long, nr_pages)
@@ -183,10 +246,11 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		__field(int, range_cyclic)
 		__field(int, for_background)
 		__field(int, reason)
+		__dynamic_array(char, cgroup, __trace_wb_cgroup_size(wb))
 	),
 	TP_fast_assign(
 		strncpy(__entry->name,
-			bdi->dev ? dev_name(bdi->dev) : "(unknown)", 32);
+			wb->bdi->dev ? dev_name(wb->bdi->dev) : "(unknown)", 32);
 		__entry->nr_pages = work->nr_pages;
 		__entry->sb_dev = work->sb ? work->sb->s_dev : 0;
 		__entry->sync_mode = work->sync_mode;
@@ -194,9 +258,10 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		__entry->range_cyclic = work->range_cyclic;
 		__entry->for_background	= work->for_background;
 		__entry->reason = work->reason;
+		__trace_wb_assign_cgroup(__get_str(cgroup), wb);
 	),
 	TP_printk("bdi %s: sb_dev %d:%d nr_pages=%ld sync_mode=%d "
-		  "kupdate=%d range_cyclic=%d background=%d reason=%s",
+		  "kupdate=%d range_cyclic=%d background=%d reason=%s cgroup=%s",
 		  __entry->name,
 		  MAJOR(__entry->sb_dev), MINOR(__entry->sb_dev),
 		  __entry->nr_pages,
@@ -204,13 +269,14 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		  __entry->for_kupdate,
 		  __entry->range_cyclic,
 		  __entry->for_background,
-		  __print_symbolic(__entry->reason, WB_WORK_REASON)
+		  __print_symbolic(__entry->reason, WB_WORK_REASON),
+		  __get_str(cgroup)
 	)
 );
 #define DEFINE_WRITEBACK_WORK_EVENT(name) \
 DEFINE_EVENT(writeback_work_class, name, \
-	TP_PROTO(struct backing_dev_info *bdi, struct wb_writeback_work *work), \
-	TP_ARGS(bdi, work))
+	TP_PROTO(struct bdi_writeback *wb, struct wb_writeback_work *work), \
+	TP_ARGS(wb, work))
 DEFINE_WRITEBACK_WORK_EVENT(writeback_queue);
 DEFINE_WRITEBACK_WORK_EVENT(writeback_exec);
 DEFINE_WRITEBACK_WORK_EVENT(writeback_start);
@@ -230,6 +296,30 @@ TRACE_EVENT(writeback_pages_written,
 );
 
 DECLARE_EVENT_CLASS(writeback_class,
+	TP_PROTO(struct bdi_writeback *wb),
+	TP_ARGS(wb),
+	TP_STRUCT__entry(
+		__array(char, name, 32)
+		__dynamic_array(char, cgroup, __trace_wb_cgroup_size(wb))
+	),
+	TP_fast_assign(
+		strncpy(__entry->name, dev_name(wb->bdi->dev), 32);
+		__trace_wb_assign_cgroup(__get_str(cgroup), wb);
+	),
+	TP_printk("bdi %s: cgroup=%s",
+		  __entry->name,
+		  __get_str(cgroup)
+	)
+);
+#define DEFINE_WRITEBACK_EVENT(name) \
+DEFINE_EVENT(writeback_class, name, \
+	TP_PROTO(struct bdi_writeback *wb), \
+	TP_ARGS(wb))
+
+DEFINE_WRITEBACK_EVENT(writeback_nowork);
+DEFINE_WRITEBACK_EVENT(writeback_wake_background);
+
+TRACE_EVENT(writeback_bdi_register,
 	TP_PROTO(struct backing_dev_info *bdi),
 	TP_ARGS(bdi),
 	TP_STRUCT__entry(
@@ -239,17 +329,9 @@ DECLARE_EVENT_CLASS(writeback_class,
 		strncpy(__entry->name, dev_name(bdi->dev), 32);
 	),
 	TP_printk("bdi %s",
-		  __entry->name
+		__entry->name
 	)
 );
-#define DEFINE_WRITEBACK_EVENT(name) \
-DEFINE_EVENT(writeback_class, name, \
-	TP_PROTO(struct backing_dev_info *bdi), \
-	TP_ARGS(bdi))
-
-DEFINE_WRITEBACK_EVENT(writeback_nowork);
-DEFINE_WRITEBACK_EVENT(writeback_wake_background);
-DEFINE_WRITEBACK_EVENT(writeback_bdi_register);
 
 DECLARE_EVENT_CLASS(wbc_class,
 	TP_PROTO(struct writeback_control *wbc, struct backing_dev_info *bdi),
@@ -265,6 +347,7 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__field(int, range_cyclic)
 		__field(long, range_start)
 		__field(long, range_end)
+		__dynamic_array(char, cgroup, __trace_wbc_cgroup_size(wbc))
 	),
 
 	TP_fast_assign(
@@ -278,11 +361,12 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__entry->range_cyclic	= wbc->range_cyclic;
 		__entry->range_start	= (long)wbc->range_start;
 		__entry->range_end	= (long)wbc->range_end;
+		__trace_wbc_assign_cgroup(__get_str(cgroup), wbc);
 	),
 
 	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d "
 		"bgrd=%d reclm=%d cyclic=%d "
-		"start=0x%lx end=0x%lx",
+		"start=0x%lx end=0x%lx cgroup=%s",
 		__entry->name,
 		__entry->nr_to_write,
 		__entry->pages_skipped,
@@ -292,7 +376,9 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__entry->for_reclaim,
 		__entry->range_cyclic,
 		__entry->range_start,
-		__entry->range_end)
+		__entry->range_end,
+		__get_str(cgroup)
+	)
 )
 
 #define DEFINE_WBC_EVENT(name) \
@@ -312,6 +398,7 @@ TRACE_EVENT(writeback_queue_io,
 		__field(long,		age)
 		__field(int,		moved)
 		__field(int,		reason)
+		__dynamic_array(char, cgroup, __trace_wb_cgroup_size(wb))
 	),
 	TP_fast_assign(
 		unsigned long *older_than_this = work->older_than_this;
@@ -321,13 +408,15 @@ TRACE_EVENT(writeback_queue_io,
 				  (jiffies - *older_than_this) * 1000 / HZ : -1;
 		__entry->moved	= moved;
 		__entry->reason	= work->reason;
+		__trace_wb_assign_cgroup(__get_str(cgroup), wb);
 	),
-	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d reason=%s",
+	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d reason=%s cgroup=%s",
 		__entry->name,
 		__entry->older,	/* older_than_this in jiffies */
 		__entry->age,	/* older_than_this in relative milliseconds */
 		__entry->moved,
-		__print_symbolic(__entry->reason, WB_WORK_REASON)
+		__print_symbolic(__entry->reason, WB_WORK_REASON),
+		__get_str(cgroup)
 	)
 );
 
@@ -381,11 +470,11 @@ TRACE_EVENT(global_dirty_state,
 
 TRACE_EVENT(bdi_dirty_ratelimit,
 
-	TP_PROTO(struct backing_dev_info *bdi,
+	TP_PROTO(struct bdi_writeback *wb,
 		 unsigned long dirty_rate,
 		 unsigned long task_ratelimit),
 
-	TP_ARGS(bdi, dirty_rate, task_ratelimit),
+	TP_ARGS(wb, dirty_rate, task_ratelimit),
 
 	TP_STRUCT__entry(
 		__array(char,		bdi, 32)
@@ -395,36 +484,39 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 		__field(unsigned long,	dirty_ratelimit)
 		__field(unsigned long,	task_ratelimit)
 		__field(unsigned long,	balanced_dirty_ratelimit)
+		__dynamic_array(char, cgroup, __trace_wb_cgroup_size(wb))
 	),
 
 	TP_fast_assign(
-		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
-		__entry->write_bw	= KBps(bdi->wb.write_bandwidth);
-		__entry->avg_write_bw	= KBps(bdi->wb.avg_write_bandwidth);
+		strlcpy(__entry->bdi, dev_name(wb->bdi->dev), 32);
+		__entry->write_bw	= KBps(wb->write_bandwidth);
+		__entry->avg_write_bw	= KBps(wb->avg_write_bandwidth);
 		__entry->dirty_rate	= KBps(dirty_rate);
-		__entry->dirty_ratelimit = KBps(bdi->wb.dirty_ratelimit);
+		__entry->dirty_ratelimit = KBps(wb->dirty_ratelimit);
 		__entry->task_ratelimit	= KBps(task_ratelimit);
 		__entry->balanced_dirty_ratelimit =
-					KBps(bdi->wb.balanced_dirty_ratelimit);
+					KBps(wb->balanced_dirty_ratelimit);
+		__trace_wb_assign_cgroup(__get_str(cgroup), wb);
 	),
 
 	TP_printk("bdi %s: "
 		  "write_bw=%lu awrite_bw=%lu dirty_rate=%lu "
 		  "dirty_ratelimit=%lu task_ratelimit=%lu "
-		  "balanced_dirty_ratelimit=%lu",
+		  "balanced_dirty_ratelimit=%lu cgroup=%s",
 		  __entry->bdi,
 		  __entry->write_bw,		/* write bandwidth */
 		  __entry->avg_write_bw,	/* avg write bandwidth */
 		  __entry->dirty_rate,		/* bdi dirty rate */
 		  __entry->dirty_ratelimit,	/* base ratelimit */
 		  __entry->task_ratelimit, /* ratelimit with position control */
-		  __entry->balanced_dirty_ratelimit /* the balanced ratelimit */
+		  __entry->balanced_dirty_ratelimit, /* the balanced ratelimit */
+		  __get_str(cgroup)
 	)
 );
 
 TRACE_EVENT(balance_dirty_pages,
 
-	TP_PROTO(struct backing_dev_info *bdi,
+	TP_PROTO(struct bdi_writeback *wb,
 		 unsigned long thresh,
 		 unsigned long bg_thresh,
 		 unsigned long dirty,
@@ -437,7 +529,7 @@ TRACE_EVENT(balance_dirty_pages,
 		 long pause,
 		 unsigned long start_time),
 
-	TP_ARGS(bdi, thresh, bg_thresh, dirty, bdi_thresh, bdi_dirty,
+	TP_ARGS(wb, thresh, bg_thresh, dirty, bdi_thresh, bdi_dirty,
 		dirty_ratelimit, task_ratelimit,
 		dirtied, period, pause, start_time),
 
@@ -456,11 +548,12 @@ TRACE_EVENT(balance_dirty_pages,
 		__field(	 long,	pause)
 		__field(unsigned long,	period)
 		__field(	 long,	think)
+		__dynamic_array(char, cgroup, __trace_wb_cgroup_size(wb))
 	),
 
 	TP_fast_assign(
 		unsigned long freerun = (thresh + bg_thresh) / 2;
-		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
+		strlcpy(__entry->bdi, dev_name(wb->bdi->dev), 32);
 
 		__entry->limit		= global_wb_domain.dirty_limit;
 		__entry->setpoint	= (global_wb_domain.dirty_limit +
@@ -478,6 +571,7 @@ TRACE_EVENT(balance_dirty_pages,
 		__entry->period		= period * 1000 / HZ;
 		__entry->pause		= pause * 1000 / HZ;
 		__entry->paused		= (jiffies - start_time) * 1000 / HZ;
+		__trace_wb_assign_cgroup(__get_str(cgroup), wb);
 	),
 
 
@@ -486,7 +580,7 @@ TRACE_EVENT(balance_dirty_pages,
 		  "bdi_setpoint=%lu bdi_dirty=%lu "
 		  "dirty_ratelimit=%lu task_ratelimit=%lu "
 		  "dirtied=%u dirtied_pause=%u "
-		  "paused=%lu pause=%ld period=%lu think=%ld",
+		  "paused=%lu pause=%ld period=%lu think=%ld cgroup=%s",
 		  __entry->bdi,
 		  __entry->limit,
 		  __entry->setpoint,
@@ -500,7 +594,8 @@ TRACE_EVENT(balance_dirty_pages,
 		  __entry->paused,	/* ms */
 		  __entry->pause,	/* ms */
 		  __entry->period,	/* ms */
-		  __entry->think	/* ms */
+		  __entry->think,	/* ms */
+		  __get_str(cgroup)
 	  )
 );
 
@@ -514,6 +609,8 @@ TRACE_EVENT(writeback_sb_inodes_requeue,
 		__field(unsigned long, ino)
 		__field(unsigned long, state)
 		__field(unsigned long, dirtied_when)
+		__dynamic_array(char, cgroup,
+				__trace_wb_cgroup_size(inode_to_wb(inode)))
 	),
 
 	TP_fast_assign(
@@ -522,14 +619,16 @@ TRACE_EVENT(writeback_sb_inodes_requeue,
 		__entry->ino		= inode->i_ino;
 		__entry->state		= inode->i_state;
 		__entry->dirtied_when	= inode->dirtied_when;
+		__trace_wb_assign_cgroup(__get_str(cgroup), inode_to_wb(inode));
 	),
 
-	TP_printk("bdi %s: ino=%lu state=%s dirtied_when=%lu age=%lu",
+	TP_printk("bdi %s: ino=%lu state=%s dirtied_when=%lu age=%lu cgroup=%s",
 		  __entry->name,
 		  __entry->ino,
 		  show_inode_state(__entry->state),
 		  __entry->dirtied_when,
-		  (jiffies - __entry->dirtied_when) / HZ
+		  (jiffies - __entry->dirtied_when) / HZ,
+		  __get_str(cgroup)
 	)
 );
 
@@ -585,6 +684,7 @@ DECLARE_EVENT_CLASS(writeback_single_inode_template,
 		__field(unsigned long, writeback_index)
 		__field(long, nr_to_write)
 		__field(unsigned long, wrote)
+		__dynamic_array(char, cgroup, __trace_wbc_cgroup_size(wbc))
 	),
 
 	TP_fast_assign(
@@ -596,10 +696,11 @@ DECLARE_EVENT_CLASS(writeback_single_inode_template,
 		__entry->writeback_index = inode->i_mapping->writeback_index;
 		__entry->nr_to_write	= nr_to_write;
 		__entry->wrote		= nr_to_write - wbc->nr_to_write;
+		__trace_wbc_assign_cgroup(__get_str(cgroup), wbc);
 	),
 
 	TP_printk("bdi %s: ino=%lu state=%s dirtied_when=%lu age=%lu "
-		  "index=%lu to_write=%ld wrote=%lu",
+		  "index=%lu to_write=%ld wrote=%lu cgroup=%s",
 		  __entry->name,
 		  __entry->ino,
 		  show_inode_state(__entry->state),
@@ -607,7 +708,8 @@ DECLARE_EVENT_CLASS(writeback_single_inode_template,
 		  (jiffies - __entry->dirtied_when) / HZ,
 		  __entry->writeback_index,
 		  __entry->nr_to_write,
-		  __entry->wrote
+		  __entry->wrote,
+		  __get_str(cgroup)
 	)
 );
 

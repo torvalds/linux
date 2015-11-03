@@ -187,6 +187,28 @@ bool cpuidle_state_is_coupled(struct cpuidle_driver *drv, int state)
 }
 
 /**
+ * cpuidle_coupled_state_verify - check if the coupled states are correctly set.
+ * @drv: struct cpuidle_driver for the platform
+ *
+ * Returns 0 for valid state values, a negative error code otherwise:
+ *  * -EINVAL if any coupled state(safe_state_index) is wrongly set.
+ */
+int cpuidle_coupled_state_verify(struct cpuidle_driver *drv)
+{
+	int i;
+
+	for (i = drv->state_count - 1; i >= 0; i--) {
+		if (cpuidle_state_is_coupled(drv, i) &&
+		    (drv->safe_state_index == i ||
+		     drv->safe_state_index < 0 ||
+		     drv->safe_state_index >= drv->state_count))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
  * cpuidle_coupled_set_ready - mark a cpu as ready
  * @coupled: the struct coupled that contains the current cpu
  */

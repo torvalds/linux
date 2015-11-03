@@ -394,7 +394,6 @@ static struct platform_device *devices[] __initdata = {
 	&pxa_device_asoc_ssp3,
 	&pxa_device_asoc_ssp4,
 	&pxa_device_asoc_platform,
-	&sa1100_device_rtc,
 	&pxa_device_rtc,
 	&pxa3xx_device_ssp1,
 	&pxa3xx_device_ssp2,

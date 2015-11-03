@@ -117,10 +117,11 @@ out_filt:
 	return err;
 }
 
-static void __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
-			   u16 vid)
+static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
+			  u16 vid)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+	int err = 0;
 
 	/* If driver uses VLAN ndo ops, use 8021q to delete vid
 	 * on device, otherwise try switchdev ops to delete vid.
@@ -137,8 +138,12 @@ static void __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
 			},
 		};
 
-		switchdev_port_obj_del(dev, &vlan_obj);
+		err = switchdev_port_obj_del(dev, &vlan_obj);
+		if (err == -EOPNOTSUPP)
+			err = 0;
 	}
+
+	return err;
 }
 
 static int __vlan_del(struct net_port_vlans *v, u16 vid)
@@ -151,7 +156,11 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 
 	if (v->port_idx) {
 		struct net_bridge_port *p = v->parent.port;
-		__vlan_vid_del(p->dev, p->br, vid);
+		int err;
+
+		err = __vlan_vid_del(p->dev, p->br, vid);
+		if (err)
+			return err;
 	}
 
 	clear_bit(vid, v->vlan_bitmap);

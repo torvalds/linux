@@ -2468,6 +2468,10 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	    rssi_hyst == bss_conf->cqm_rssi_hyst)
 		return 0;
 
+	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER &&
+	    !(sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI))
+		return -EOPNOTSUPP;
+
 	bss_conf->cqm_rssi_thold = rssi_thold;
 	bss_conf->cqm_rssi_hyst = rssi_hyst;
 

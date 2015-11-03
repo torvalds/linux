@@ -444,6 +444,7 @@ done:
 static void nfnetlink_rcv(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
+	u_int16_t res_id;
 	int msglen;
 
 	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
@@ -468,7 +469,12 @@ static void nfnetlink_rcv(struct sk_buff *skb)
 
 		nfgenmsg = nlmsg_data(nlh);
 		skb_pull(skb, msglen);
-		nfnetlink_rcv_batch(skb, nlh, nfgenmsg->res_id);
+		/* Work around old nft using host byte order */
+		if (nfgenmsg->res_id == NFNL_SUBSYS_NFTABLES)
+			res_id = NFNL_SUBSYS_NFTABLES;
+		else
+			res_id = ntohs(nfgenmsg->res_id);
+		nfnetlink_rcv_batch(skb, nlh, res_id);
 	} else {
 		netlink_rcv_skb(skb, &nfnetlink_rcv_msg);
 	}

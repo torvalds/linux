@@ -19,7 +19,7 @@
 struct ovs_conntrack_info;
 enum ovs_key_attr;
 
-#if defined(CONFIG_OPENVSWITCH_CONNTRACK)
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 void ovs_ct_init(struct net *);
 void ovs_ct_exit(struct net *);
 bool ovs_ct_verify(struct net *, enum ovs_key_attr attr);
@@ -82,5 +82,5 @@ static inline int ovs_ct_put_key(const struct sw_flow_key *key,
 }
 
 static inline void ovs_ct_free_action(const struct nlattr *a) { }
-#endif
+#endif /* CONFIG_NF_CONNTRACK */
 #endif /* ovs_conntrack.h */

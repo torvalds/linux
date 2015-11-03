@@ -821,7 +821,7 @@ cas2_action:
 	/* 64bit CAS */
 #ifdef CONFIG_64BIT
 19:	ldd,ma	0(%sr3,%r26), %r29
-	sub,=	%r29, %r25, %r0
+	sub,*=	%r29, %r25, %r0
 	b,n	cas2_end
 20:	std,ma	%r24, 0(%sr3,%r26)
 	copy	%r0, %r28

@@ -325,7 +325,7 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 	phy_addr = phy_fixed_addr++;
 	spin_unlock(&phy_fixed_addr_lock);
 
-	ret = fixed_phy_add(PHY_POLL, phy_addr, status, link_gpio);
+	ret = fixed_phy_add(irq, phy_addr, status, link_gpio);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

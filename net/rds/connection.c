@@ -70,7 +70,8 @@ static struct hlist_head *rds_conn_bucket(__be32 laddr, __be32 faddr)
 } while (0)
 
 /* rcu read lock must be held or the connection spinlock */
-static struct rds_connection *rds_conn_lookup(struct hlist_head *head,
+static struct rds_connection *rds_conn_lookup(struct net *net,
+					      struct hlist_head *head,
 					      __be32 laddr, __be32 faddr,
 					      struct rds_transport *trans)
 {
@@ -78,7 +79,7 @@ static struct rds_connection *rds_conn_lookup(struct hlist_head *head,
 
 	hlist_for_each_entry_rcu(conn, head, c_hash_node) {
 		if (conn->c_faddr == faddr && conn->c_laddr == laddr &&
-				conn->c_trans == trans) {
+		    conn->c_trans == trans && net == rds_conn_net(conn)) {
 			ret = conn;
 			break;
 		}
@@ -132,7 +133,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	if (!is_outgoing && otrans->t_type == RDS_TRANS_TCP)
 		goto new_conn;
 	rcu_read_lock();
-	conn = rds_conn_lookup(head, laddr, faddr, trans);
+	conn = rds_conn_lookup(net, head, laddr, faddr, trans);
 	if (conn && conn->c_loopback && conn->c_trans != &rds_loop_transport &&
 	    laddr == faddr && !is_outgoing) {
 		/* This is a looped back IB connection, and we're
@@ -189,6 +190,12 @@ new_conn:
 		}
 	}
 
+	if (trans == NULL) {
+		kmem_cache_free(rds_conn_slab, conn);
+		conn = ERR_PTR(-ENODEV);
+		goto out;
+	}
+
 	conn->c_trans = trans;
 
 	ret = trans->conn_alloc(conn, gfp);
@@ -239,7 +246,7 @@ new_conn:
 		if (!is_outgoing && otrans->t_type == RDS_TRANS_TCP)
 			found = NULL;
 		else
-			found = rds_conn_lookup(head, laddr, faddr, trans);
+			found = rds_conn_lookup(net, head, laddr, faddr, trans);
 		if (found) {
 			trans->conn_free(conn->c_transport_data);
 			kmem_cache_free(rds_conn_slab, conn);

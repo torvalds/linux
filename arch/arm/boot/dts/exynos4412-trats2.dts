@@ -288,6 +288,10 @@
 	status = "okay";
 };
 
+&cpu0 {
+	cpu0-supply = <&buck2_reg>;
+};
+
 &csis_0 {
 	status = "okay";
 	vddcore-supply = <&ldo8_reg>;

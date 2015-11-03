@@ -19,8 +19,6 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"PNP0600"},		/* Generic ESDI/IDE/ATA compatible hard disk controller */
 	/* floppy */
 	{"PNP0700"},
-	/* ipmi_si */
-	{"IPI0001"},
 	/* tpm_inf_pnp */
 	{"IFX0101"},		/* Infineon TPMs */
 	{"IFX0102"},		/* Infineon TPMs */

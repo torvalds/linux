@@ -283,7 +283,7 @@ static const char *const bpf_class_string[] = {
 	[BPF_ALU64] = "alu64",
 };
 
-static const char *const bpf_alu_string[] = {
+static const char *const bpf_alu_string[16] = {
 	[BPF_ADD >> 4]  = "+=",
 	[BPF_SUB >> 4]  = "-=",
 	[BPF_MUL >> 4]  = "*=",
@@ -307,7 +307,7 @@ static const char *const bpf_ldst_string[] = {
 	[BPF_DW >> 3] = "u64",
 };
 
-static const char *const bpf_jmp_string[] = {
+static const char *const bpf_jmp_string[16] = {
 	[BPF_JA >> 4]   = "jmp",
 	[BPF_JEQ >> 4]  = "==",
 	[BPF_JGT >> 4]  = ">",

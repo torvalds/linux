@@ -1816,11 +1816,13 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	struct fec_enet_private *fep = bus->priv;
 	struct device *dev = &fep->pdev->dev;
 	unsigned long time_left;
-	int ret = 0;
+	int ret;
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		return ret;
+	else
+		ret = 0;
 
 	fep->mii_timeout = 0;
 	reinit_completion(&fep->mdio_done);
@@ -3028,6 +3030,14 @@ fec_set_mac_address(struct net_device *ndev, void *p)
 			return -EADDRNOTAVAIL;
 		memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
 	}
+
+	/* Add netif status check here to avoid system hang in below case:
+	 * ifconfig ethx down; ifconfig ethx hw ether xx:xx:xx:xx:xx:xx;
+	 * After ethx down, fec all clocks are gated off and then register
+	 * access causes system hang.
+	 */
+	if (!netif_running(ndev))
+		return 0;
 
 	writel(ndev->dev_addr[3] | (ndev->dev_addr[2] << 8) |
 		(ndev->dev_addr[1] << 16) | (ndev->dev_addr[0] << 24),

@@ -200,7 +200,7 @@ static int xen_hvm_console_init(void)
 {
 	int r;
 	uint64_t v = 0;
-	unsigned long mfn;
+	unsigned long gfn;
 	struct xencons_info *info;
 
 	if (!xen_hvm_domain())
@@ -217,7 +217,7 @@ static int xen_hvm_console_init(void)
 	}
 	/*
 	 * If the toolstack (or the hypervisor) hasn't set these values, the
-	 * default value is 0. Even though mfn = 0 and evtchn = 0 are
+	 * default value is 0. Even though gfn = 0 and evtchn = 0 are
 	 * theoretically correct values, in practice they never are and they
 	 * mean that a legacy toolstack hasn't initialized the pv console correctly.
 	 */
@@ -229,8 +229,8 @@ static int xen_hvm_console_init(void)
 	r = hvm_get_parameter(HVM_PARAM_CONSOLE_PFN, &v);
 	if (r < 0 || v == 0)
 		goto err;
-	mfn = v;
-	info->intf = xen_remap(mfn << PAGE_SHIFT, PAGE_SIZE);
+	gfn = v;
+	info->intf = xen_remap(gfn << PAGE_SHIFT, PAGE_SIZE);
 	if (info->intf == NULL)
 		goto err;
 	info->vtermno = HVC_COOKIE;
@@ -265,7 +265,8 @@ static int xen_pv_console_init(void)
 		return 0;
 	}
 	info->evtchn = xen_start_info->console.domU.evtchn;
-	info->intf = mfn_to_virt(xen_start_info->console.domU.mfn);
+	/* GFN == MFN for PV guest */
+	info->intf = gfn_to_virt(xen_start_info->console.domU.mfn);
 	info->vtermno = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
@@ -374,7 +375,6 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	int ret, evtchn, devid, ref, irq;
 	struct xenbus_transaction xbt;
 	grant_ref_t gref_head;
-	unsigned long mfn;
 
 	ret = xenbus_alloc_evtchn(dev, &evtchn);
 	if (ret)
@@ -389,10 +389,6 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 			irq, &domU_hvc_ops, 256);
 	if (IS_ERR(info->hvc))
 		return PTR_ERR(info->hvc);
-	if (xen_pv_domain())
-		mfn = virt_to_mfn(info->intf);
-	else
-		mfn = __pa(info->intf) >> PAGE_SHIFT;
 	ret = gnttab_alloc_grant_references(1, &gref_head);
 	if (ret < 0)
 		return ret;
@@ -401,7 +397,7 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	if (ref < 0)
 		return ref;
 	gnttab_grant_foreign_access_ref(ref, info->xbdev->otherend_id,
-			mfn, 0);
+					virt_to_gfn(info->intf), 0);
 
  again:
 	ret = xenbus_transaction_start(&xbt);

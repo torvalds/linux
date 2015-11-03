@@ -115,8 +115,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		ret = -EAGAIN;
 	}
 out:
-	if (path)
-		btrfs_free_path(path);
+	btrfs_free_path(path);
 	if (ret == -EAGAIN) {
 		if (root->defrag_max.objectid > root->defrag_progress.objectid)
 			goto done;

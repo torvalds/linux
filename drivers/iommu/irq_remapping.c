@@ -84,7 +84,7 @@ void set_irq_remapping_broken(void)
 bool irq_remapping_cap(enum irq_remap_cap cap)
 {
 	if (!remap_ops || disable_irq_post)
-		return 0;
+		return false;
 
 	return (remap_ops->capability & (1 << cap));
 }
