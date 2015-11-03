@@ -2037,6 +2037,19 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 			continue;
 
 		priv->phy_node = of_parse_phandle(slave_node, "phy-handle", 0);
+		if (of_phy_is_fixed_link(slave_node)) {
+			struct phy_device *pd;
+
+			ret = of_phy_register_fixed_link(slave_node);
+			if (ret)
+				return ret;
+			pd = of_phy_find_device(slave_node);
+			if (!pd)
+				return -ENODEV;
+			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
+				 PHY_ID_FMT, pd->bus->id, pd->phy_id);
+			goto no_phy_slave;
+		}
 		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if ((parp == NULL) || (lenp != (sizeof(void *) * 2))) {
 			dev_err(&pdev->dev, "Missing slave[%d] phy_id property\n", i);
