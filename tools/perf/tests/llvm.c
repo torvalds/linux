@@ -36,7 +36,7 @@ static int test__bpf_parsing(void *obj_buf, size_t obj_buf_sz)
 static int test__bpf_parsing(void *obj_buf __maybe_unused,
 			     size_t obj_buf_sz __maybe_unused)
 {
-	fprintf(stderr, " (skip bpf parsing)");
+	pr_debug("Skip bpf parsing\n");
 	return 0;
 }
 #endif
@@ -55,7 +55,7 @@ int test__llvm(void)
 	 * and clang is not found in $PATH, and this is not perf test -v
 	 */
 	if (verbose == 0 && !llvm_param.user_set_param && llvm__search_clang()) {
-		fprintf(stderr, " (no clang, try 'perf test -v LLVM')");
+		pr_debug("No clang and no verbosive, skip this test\n");
 		return TEST_SKIP;
 	}
 
@@ -86,11 +86,8 @@ int test__llvm(void)
 	err = llvm__compile_bpf("-", &obj_buf, &obj_buf_sz);
 
 	verbose = old_verbose;
-	if (err) {
-		if (!verbose)
-			fprintf(stderr, " (use -v to see error message)");
-		return -1;
-	}
+	if (err)
+		return TEST_FAIL;
 
 	err = test__bpf_parsing(obj_buf, obj_buf_sz);
 	free(obj_buf);
