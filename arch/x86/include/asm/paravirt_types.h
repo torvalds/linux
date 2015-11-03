@@ -402,10 +402,8 @@ extern struct pv_lock_ops pv_lock_ops;
 	__visible extern const char start_##ops##_##name[], end_##ops##_##name[];	\
 	asm(NATIVE_LABEL("start_", ops, name) code NATIVE_LABEL("end_", ops, name))
 
-unsigned paravirt_patch_nop(void);
 unsigned paravirt_patch_ident_32(void *insnbuf, unsigned len);
 unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len);
-unsigned paravirt_patch_ignore(unsigned len);
 unsigned paravirt_patch_call(void *insnbuf,
 			     const void *target, u16 tgt_clobbers,
 			     unsigned long addr, u16 site_clobbers,

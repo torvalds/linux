@@ -74,16 +74,6 @@ void __init default_banner(void)
 /* Undefined instruction for dealing with missing ops pointers. */
 static const unsigned char ud2a[] = { 0x0f, 0x0b };
 
-unsigned paravirt_patch_nop(void)
-{
-	return 0;
-}
-
-unsigned paravirt_patch_ignore(unsigned len)
-{
-	return len;
-}
-
 struct branch {
 	unsigned char opcode;
 	u32 delta;
@@ -152,8 +142,7 @@ unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
 		/* If there's no function, patch it with a ud2a (BUG) */
 		ret = paravirt_patch_insns(insnbuf, len, ud2a, ud2a+sizeof(ud2a));
 	else if (opfunc == _paravirt_nop)
-		/* If the operation is a nop, then nop the callsite */
-		ret = paravirt_patch_nop();
+		ret = 0;
 
 	/* identity functions just return their single argument */
 	else if (opfunc == _paravirt_ident_32)
