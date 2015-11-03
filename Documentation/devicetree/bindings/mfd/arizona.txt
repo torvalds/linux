@@ -1,4 +1,4 @@
-Wolfson Arizona class audio SoCs
+Cirrus Logic/Wolfson Microelectronics Arizona class audio SoCs
 
 These devices are audio SoCs with extensive digital capabilites and a range
 of analogue I/O.
@@ -6,12 +6,14 @@ of analogue I/O.
 Required properties:
 
   - compatible : One of the following chip-specific strings:
+        "cirrus,cs47l24"
         "wlf,wm5102"
         "wlf,wm5110"
         "wlf,wm8280"
         "wlf,wm8997"
         "wlf,wm8998"
         "wlf,wm1814"
+        "wlf,wm1831"
 
   - reg : I2C slave address when connected using I2C, chip select number when
     using SPI.
@@ -41,6 +43,10 @@ Required properties:
 
   - SPKVDD-supply : Speaker driver power supply (wm8997)
 
+  - DCVDD-supply : Main power supply (cs47l24, wm1831)
+
+  - MICVDD-supply : Microphone power supply (cs47l24, wm1831)
+
 Optional properties:
 
   - wlf,reset : GPIO specifier for the GPIO controlling /RESET
@@ -69,6 +75,7 @@ Optional properties:
   - DCVDD-supply, MICVDD-supply : Power supplies, only need to be specified if
     they are being externally supplied. As covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
+    (wm5102, wm5110, wm8280, wm8997, wm8998, wm1814)
 
 Also see child specific device properties:
   Regulator - ../regulator/arizona-regulator.txt
