@@ -33,8 +33,7 @@ struct nouveau_abi16 {
 	u64 handles;
 };
 
-struct nouveau_drm;
-struct nouveau_abi16 *nouveau_abi16_get(struct drm_file *, struct drm_device *);
+struct nouveau_abi16 *nouveau_abi16_get(struct drm_file *);
 int  nouveau_abi16_put(struct nouveau_abi16 *, int);
 void nouveau_abi16_fini(struct nouveau_abi16 *);
 s32  nouveau_abi16_swclass(struct nouveau_drm *);
