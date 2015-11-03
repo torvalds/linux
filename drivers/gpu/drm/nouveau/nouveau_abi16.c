@@ -32,11 +32,10 @@
 #include "nouveau_chan.h"
 #include "nouveau_abi16.h"
 
-struct nouveau_abi16 *
-nouveau_abi16_get(struct drm_file *file_priv)
+static struct nouveau_abi16 *
+nouveau_abi16(struct drm_file *file_priv)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	mutex_lock(&cli->mutex);
 	if (!cli->abi16) {
 		struct nouveau_abi16 *abi16;
 		cli->abi16 = abi16 = kzalloc(sizeof(*abi16), GFP_KERNEL);
@@ -59,10 +58,19 @@ nouveau_abi16_get(struct drm_file *file_priv)
 			kfree(cli->abi16);
 			cli->abi16 = NULL;
 		}
-
-		mutex_unlock(&cli->mutex);
 	}
 	return cli->abi16;
+}
+
+struct nouveau_abi16 *
+nouveau_abi16_get(struct drm_file *file_priv)
+{
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	mutex_lock(&cli->mutex);
+	if (nouveau_abi16(file_priv))
+		return cli->abi16;
+	mutex_unlock(&cli->mutex);
+	return NULL;
 }
 
 int
