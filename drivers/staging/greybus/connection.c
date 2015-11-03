@@ -489,14 +489,6 @@ void gb_connection_latency_tag_disable(struct gb_connection *connection)
 }
 EXPORT_SYMBOL_GPL(gb_connection_latency_tag_disable);
 
-void gb_hd_connections_exit(struct greybus_host_device *hd)
-{
-	struct gb_connection *connection;
-
-	list_for_each_entry(connection, &hd->connections, hd_links)
-		gb_connection_destroy(connection);
-}
-
 int gb_connection_bind_protocol(struct gb_connection *connection)
 {
 	struct gb_protocol *protocol;

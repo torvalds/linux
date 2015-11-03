@@ -242,12 +242,6 @@ void greybus_remove_hd(struct greybus_host_device *hd)
 	if (hd->initial_svc_connection)
 		gb_connection_destroy(hd->initial_svc_connection);
 
-	/*
-	 * Make sure there are no leftovers that can potentially corrupt sysfs.
-	 */
-	if (WARN_ON(!list_empty(&hd->connections)))
-		gb_hd_connections_exit(hd);
-
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }
 EXPORT_SYMBOL_GPL(greybus_remove_hd);
