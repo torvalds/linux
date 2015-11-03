@@ -53,6 +53,28 @@ xfs_xattr_get(struct dentry *dentry, const char *name,
 	return asize;
 }
 
+void
+xfs_forget_acl(
+	struct inode		*inode,
+	const char		*name,
+	int			xflags)
+{
+	/*
+	 * Invalidate any cached ACLs if the user has bypassed the ACL
+	 * interface. We don't validate the content whatsoever so it is caller
+	 * responsibility to provide data in valid format and ensure i_mode is
+	 * consistent.
+	 */
+	if (xflags & ATTR_ROOT) {
+#ifdef CONFIG_XFS_POSIX_ACL
+		if (!strcmp(name, SGI_ACL_FILE))
+			forget_cached_acl(inode, ACL_TYPE_ACCESS);
+		else if (!strcmp(name, SGI_ACL_DEFAULT))
+			forget_cached_acl(inode, ACL_TYPE_DEFAULT);
+#endif
+	}
+}
+
 static int
 xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags, int xflags)
@@ -73,20 +95,8 @@ xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		return xfs_attr_remove(ip, (unsigned char *)name, xflags);
 	error = xfs_attr_set(ip, (unsigned char *)name,
 				(void *)value, size, xflags);
-	/*
-	 * Invalidate any cached ACLs if the user has bypassed the ACL
-	 * interface. We don't validate the content whatsoever so it is caller
-	 * responsibility to provide data in valid format and ensure i_mode is
-	 * consistent.
-	 */
-#ifdef CONFIG_XFS_POSIX_ACL
-	if (!error && (xflags & ATTR_ROOT)) {
-		if (!strcmp(name, SGI_ACL_FILE))
-			forget_cached_acl(VFS_I(ip), ACL_TYPE_ACCESS);
-		else if (!strcmp(name, SGI_ACL_DEFAULT))
-			forget_cached_acl(VFS_I(ip), ACL_TYPE_DEFAULT);
-	}
-#endif
+	if (!error)
+		xfs_forget_acl(d_inode(dentry), name, xflags);
 
 	return error;
 }
