@@ -67,8 +67,6 @@ static struct nfcmrvl_if_ops uart_ops = {
 	.nci_update_config = nfcmrvl_uart_nci_update_config
 };
 
-#ifdef CONFIG_OF
-
 static int nfcmrvl_uart_parse_dt(struct device_node *node,
 				 struct nfcmrvl_platform_data *pdata)
 {
@@ -101,16 +99,6 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 
 	return 0;
 }
-
-#else
-
-static int nfcmrvl_uart_parse_dt(struct device_node *node,
-				 struct nfcmrvl_platform_data *pdata)
-{
-	return -ENODEV;
-}
-
-#endif
 
 /*
 ** NCI UART OPS
