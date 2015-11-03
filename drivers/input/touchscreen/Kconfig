@@ -939,10 +939,14 @@ config TOUCHSCREEN_TSC_SERIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called tsc40.
 
+config TOUCHSCREEN_TSC200X_CORE
+	tristate
+
 config TOUCHSCREEN_TSC2005
 	tristate "TSC2005 based touchscreens"
 	depends on SPI_MASTER
 	select REGMAP_SPI
+	select TOUCHSCREEN_TSC200X_CORE
 	help
 	  Say Y here if you have a TSC2005 based touchscreen.
 
