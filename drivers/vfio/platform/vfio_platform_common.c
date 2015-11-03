@@ -144,8 +144,12 @@ static void vfio_platform_release(void *device_data)
 	mutex_lock(&driver_lock);
 
 	if (!(--vdev->refcnt)) {
-		if (vdev->reset)
+		if (vdev->reset) {
+			dev_info(vdev->device, "reset\n");
 			vdev->reset(vdev);
+		} else {
+			dev_warn(vdev->device, "no reset function found!\n");
+		}
 		vfio_platform_regions_cleanup(vdev);
 		vfio_platform_irq_cleanup(vdev);
 	}
@@ -174,8 +178,12 @@ static int vfio_platform_open(void *device_data)
 		if (ret)
 			goto err_irq;
 
-		if (vdev->reset)
+		if (vdev->reset) {
+			dev_info(vdev->device, "reset\n");
 			vdev->reset(vdev);
+		} else {
+			dev_warn(vdev->device, "no reset function found!\n");
+		}
 	}
 
 	vdev->refcnt++;
@@ -550,6 +558,8 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 		pr_err("VFIO: cannot retrieve compat for %s\n", vdev->name);
 		return -EINVAL;
 	}
+
+	vdev->device = dev;
 
 	group = iommu_group_get(dev);
 	if (!group) {
