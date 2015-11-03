@@ -152,10 +152,6 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 	nu->drv_data = priv;
 	nu->ndev = priv->ndev;
 
-	/* Set BREAK */
-	if (priv->config.break_control && nu->tty->ops->break_ctl)
-		nu->tty->ops->break_ctl(nu->tty, -1);
-
 	return 0;
 }
 
@@ -174,6 +170,9 @@ static void nfcmrvl_nci_uart_tx_start(struct nci_uart *nu)
 {
 	struct nfcmrvl_private *priv = (struct nfcmrvl_private *)nu->drv_data;
 
+	if (priv->ndev->nfc_dev->fw_download_in_progress)
+		return;
+
 	/* Remove BREAK to wake up the NFCC */
 	if (priv->config.break_control && nu->tty->ops->break_ctl) {
 		nu->tty->ops->break_ctl(nu->tty, 0);
@@ -184,6 +183,9 @@ static void nfcmrvl_nci_uart_tx_start(struct nci_uart *nu)
 static void nfcmrvl_nci_uart_tx_done(struct nci_uart *nu)
 {
 	struct nfcmrvl_private *priv = (struct nfcmrvl_private *)nu->drv_data;
+
+	if (priv->ndev->nfc_dev->fw_download_in_progress)
+		return;
 
 	/*
 	** To ensure that if the NFCC goes in DEEP SLEEP sate we can wake him
