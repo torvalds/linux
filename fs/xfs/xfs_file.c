@@ -1477,7 +1477,7 @@ xfs_file_llseek(
  *
  * mmap_sem (MM)
  *   sb_start_pagefault(vfs, freeze)
- *     i_mmap_lock (XFS - truncate serialisation)
+ *     i_mmaplock (XFS - truncate serialisation)
  *       page_lock (MM)
  *         i_lock (XFS - extent map serialisation)
  */
@@ -1545,6 +1545,13 @@ xfs_filemap_fault(
 	return ret;
 }
 
+/*
+ * Similar to xfs_filemap_fault(), the DAX fault path can call into here on
+ * both read and write faults. Hence we need to handle both cases. There is no
+ * ->pmd_mkwrite callout for huge pages, so we have a single function here to
+ * handle both cases here. @flags carries the information on the type of fault
+ * occuring.
+ */
 STATIC int
 xfs_filemap_pmd_fault(
 	struct vm_area_struct	*vma,
@@ -1561,13 +1568,18 @@ xfs_filemap_pmd_fault(
 
 	trace_xfs_filemap_pmd_fault(ip);
 
-	sb_start_pagefault(inode->i_sb);
-	file_update_time(vma->vm_file);
+	if (flags & FAULT_FLAG_WRITE) {
+		sb_start_pagefault(inode->i_sb);
+		file_update_time(vma->vm_file);
+	}
+
 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
 	ret = __dax_pmd_fault(vma, addr, pmd, flags, xfs_get_blocks_dax_fault,
 			      NULL);
 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-	sb_end_pagefault(inode->i_sb);
+
+	if (flags & FAULT_FLAG_WRITE)
+		sb_end_pagefault(inode->i_sb);
 
 	return ret;
 }
