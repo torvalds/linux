@@ -167,6 +167,23 @@ Example:
 	};
 
 -----------------------------------------------------------------------
+Hisilicon HiP05 PCIe-SAS system controller
+
+Required properties:
+- compatible : "hisilicon,pcie-sas-subctrl", "syscon";
+- reg : Register address and size
+
+The HiP05 PCIe-SAS system controller is shared by PCIe and SAS controllers in
+HiP05 Soc to implement some basic configurations.
+
+Example:
+	/* for HiP05 PCIe-SAS system */
+	pcie_sas: system_controller@0xb0000000 {
+		compatible = "hisilicon,pcie-sas-subctrl", "syscon";
+		reg = <0xb0000000 0x10000>;
+	};
+
+-----------------------------------------------------------------------
 Hisilicon CPU controller
 
 Required properties:
