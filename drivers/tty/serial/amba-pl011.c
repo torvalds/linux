@@ -1576,10 +1576,15 @@ static int pl011_hwinit(struct uart_port *port)
 	return 0;
 }
 
+static bool pl011_split_lcrh(const struct uart_amba_port *uap)
+{
+	return uap->lcrh_rx != uap->lcrh_tx;
+}
+
 static void pl011_write_lcr_h(struct uart_amba_port *uap, unsigned int lcr_h)
 {
 	pl011_write(lcr_h, uap, uap->lcrh_rx);
-	if (uap->lcrh_rx != uap->lcrh_tx) {
+	if (pl011_split_lcrh(uap)) {
 		int i;
 		/*
 		 * Wait 10 PCLKs before writing LCRH_TX register,
@@ -1713,7 +1718,7 @@ static void pl011_disable_uart(struct uart_amba_port *uap)
 	 * disable break condition and fifos
 	 */
 	pl011_shutdown_channel(uap, uap->lcrh_rx);
-	if (uap->lcrh_rx != uap->lcrh_tx)
+	if (pl011_split_lcrh(uap))
 		pl011_shutdown_channel(uap, uap->lcrh_tx);
 }
 
