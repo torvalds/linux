@@ -288,8 +288,6 @@ static void ring_buffer_producer(void)
 		/* the completions must be visible before the finish var */
 		smp_wmb();
 		reader_finish = 1;
-		/* finish var visible before waking up the consumer */
-		smp_wmb();
 		wake_up_process(consumer);
 		wait_for_completion(&read_done);
 	}
