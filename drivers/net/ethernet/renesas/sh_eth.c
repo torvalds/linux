@@ -1416,7 +1416,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 		if (txdesc->status & cpu_to_edmac(mdp, TD_TACT))
 			break;
 		/* TACT bit must be checked before all the following reads */
-		rmb();
+		dma_rmb();
 		netif_info(mdp, tx_done, ndev,
 			   "tx entry %d status 0x%08x\n",
 			   entry, edmac_to_cpu(mdp, txdesc->status));
@@ -1458,7 +1458,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	rxdesc = &mdp->rx_ring[entry];
 	while (!(rxdesc->status & cpu_to_edmac(mdp, RD_RACT))) {
 		/* RACT bit must be checked before all the following reads */
-		rmb();
+		dma_rmb();
 		desc_status = edmac_to_cpu(mdp, rxdesc->status);
 		pkt_len = rxdesc->frame_length;
 
@@ -1544,7 +1544,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			skb_checksum_none_assert(skb);
 			rxdesc->addr = dma_addr;
 		}
-		wmb(); /* RACT bit must be set after all the above writes */
+		dma_wmb(); /* RACT bit must be set after all the above writes */
 		if (entry >= mdp->num_rx_ring - 1)
 			rxdesc->status |=
 				cpu_to_edmac(mdp, RD_RACT | RD_RFP | RD_RDLE);
@@ -2403,7 +2403,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 	txdesc->buffer_length = skb->len;
 
-	wmb(); /* TACT bit must be set after all the above writes */
+	dma_wmb(); /* TACT bit must be set after all the above writes */
 	if (entry >= mdp->num_tx_ring - 1)
 		txdesc->status |= cpu_to_edmac(mdp, TD_TACT | TD_TDLE);
 	else
