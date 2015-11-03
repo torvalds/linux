@@ -1018,6 +1018,7 @@ struct cifs_fid {
 	__u64 persistent_fid;	/* persist file id for smb2 */
 	__u64 volatile_fid;	/* volatile file id for smb2 */
 	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for smb2 */
+	__u8 create_guid[16];
 #endif
 	struct cifs_pending_open *pending_open;
 	unsigned int epoch;
