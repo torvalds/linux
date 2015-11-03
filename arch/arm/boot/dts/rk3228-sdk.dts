@@ -48,6 +48,10 @@
 	status = "okay";
 };
 
+&nandc {
+	status = "okay";
+};
+
 /*
  * Due to not have the software of PWM for remotectrl.
  * We can _*HACK*_ do that as the following.
