@@ -38,6 +38,7 @@
 #include <asm/mach/pci.h>
 #include <asm/fixmap.h>
 
+#include "fault.h"
 #include "mm.h"
 #include "tcm.h"
 
@@ -1363,6 +1364,9 @@ static void __init devicemaps_init(const struct machine_desc *mdesc)
 	 */
 	local_flush_tlb_all();
 	flush_cache_all();
+
+	/* Enable asynchronous aborts */
+	early_abt_enable();
 }
 
 static void __init kmap_init(void)

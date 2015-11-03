@@ -47,7 +47,7 @@ struct machine_desc {
 	unsigned		l2c_aux_val;	/* L2 cache aux value	*/
 	unsigned		l2c_aux_mask;	/* L2 cache aux mask	*/
 	void			(*l2c_write_sec)(unsigned long, unsigned);
-	struct smp_operations	*smp;		/* SMP operations	*/
+	const struct smp_operations	*smp;	/* SMP operations	*/
 	bool			(*smp_init)(void);
 	void			(*fixup)(struct tag *, char **);
 	void			(*dt_fixup)(void);
