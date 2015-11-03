@@ -21,6 +21,8 @@
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
 
+#define TILCDC_VBLANK_SAFETY_THRESHOLD_US 1000
+
 struct tilcdc_crtc {
 	struct drm_crtc base;
 
@@ -29,8 +31,12 @@ struct tilcdc_crtc {
 	int dpms;
 	wait_queue_head_t frame_done_wq;
 	bool frame_done;
+	spinlock_t irq_lock;
+
+	ktime_t last_vblank;
 
 	struct drm_framebuffer *curr_fb;
+	struct drm_framebuffer *next_fb;
 
 	/* for deferred fb unref's: */
 	struct drm_flip_work unref_work;
@@ -146,6 +152,8 @@ static int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	int r;
 	unsigned long flags;
+	s64 tdiff;
+	ktime_t next_vblank;
 
 	r = tilcdc_verify_fb(crtc, fb);
 	if (r)
@@ -162,12 +170,21 @@ static int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 
 	pm_runtime_get_sync(dev->dev);
 
+	spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
 
-	set_scanout(crtc, fb);
+	next_vblank = ktime_add_us(tilcdc_crtc->last_vblank,
+		1000000 / crtc->hwmode.vrefresh);
 
-	spin_lock_irqsave(&dev->event_lock, flags);
+	tdiff = ktime_to_us(ktime_sub(next_vblank, ktime_get()));
+
+	if (tdiff >= TILCDC_VBLANK_SAFETY_THRESHOLD_US)
+		set_scanout(crtc, fb);
+	else
+		tilcdc_crtc->next_fb = fb;
+
 	tilcdc_crtc->event = event;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
 
 	pm_runtime_put_sync(dev->dev);
 
@@ -210,6 +227,12 @@ void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		pm_runtime_put_sync(dev->dev);
+
+		if (tilcdc_crtc->next_fb) {
+			drm_flip_work_queue(&tilcdc_crtc->unref_work,
+					    tilcdc_crtc->next_fb);
+			tilcdc_crtc->next_fb = NULL;
+		}
 
 		if (tilcdc_crtc->curr_fb) {
 			drm_flip_work_queue(&tilcdc_crtc->unref_work,
@@ -651,19 +674,39 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 
 	if (stat & LCDC_END_OF_FRAME0) {
 		unsigned long flags;
+		bool skip_event = false;
+		ktime_t now;
+
+		now = ktime_get();
 
 		drm_flip_work_commit(&tilcdc_crtc->unref_work, priv->wq);
 
-		drm_handle_vblank(dev, 0);
+		spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
 
-		spin_lock_irqsave(&dev->event_lock, flags);
+		tilcdc_crtc->last_vblank = now;
 
-		if (tilcdc_crtc->event) {
-			drm_send_vblank_event(dev, 0, tilcdc_crtc->event);
-			tilcdc_crtc->event = NULL;
+		if (tilcdc_crtc->next_fb) {
+			set_scanout(crtc, tilcdc_crtc->next_fb);
+			tilcdc_crtc->next_fb = NULL;
+			skip_event = true;
 		}
 
-		spin_unlock_irqrestore(&dev->event_lock, flags);
+		spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
+
+		drm_handle_vblank(dev, 0);
+
+		if (!skip_event) {
+			struct drm_pending_vblank_event *event;
+
+			spin_lock_irqsave(&dev->event_lock, flags);
+
+			event = tilcdc_crtc->event;
+			tilcdc_crtc->event = NULL;
+			if (event)
+				drm_send_vblank_event(dev, 0, event);
+
+			spin_unlock_irqrestore(&dev->event_lock, flags);
+		}
 	}
 
 	if (priv->rev == 2) {
@@ -696,6 +739,8 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 
 	drm_flip_work_init(&tilcdc_crtc->unref_work,
 			"unref", unref_worker);
+
+	spin_lock_init(&tilcdc_crtc->irq_lock);
 
 	ret = drm_crtc_init(dev, crtc, &tilcdc_crtc_funcs);
 	if (ret < 0)
