@@ -26,8 +26,8 @@ static int libbpf_##name(const char *fmt, ...)	\
 	return ret;				\
 }
 
-DEFINE_PRINT_FN(warning, 0)
-DEFINE_PRINT_FN(info, 0)
+DEFINE_PRINT_FN(warning, 1)
+DEFINE_PRINT_FN(info, 1)
 DEFINE_PRINT_FN(debug, 1)
 
 struct bpf_prog_priv {
