@@ -131,6 +131,7 @@ xfs_iomap_write_direct(
 	uint		qblocks, resblks, resrtextents;
 	int		committed;
 	int		error;
+	int		bmapi_flags = XFS_BMAPI_PREALLOC;
 
 	error = xfs_qm_dqattach(ip, 0);
 	if (error)
@@ -177,6 +178,23 @@ xfs_iomap_write_direct(
 	 * Allocate and setup the transaction
 	 */
 	tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
+
+	/*
+	 * For DAX, we do not allocate unwritten extents, but instead we zero
+	 * the block before we commit the transaction.  Ideally we'd like to do
+	 * this outside the transaction context, but if we commit and then crash
+	 * we may not have zeroed the blocks and this will be exposed on
+	 * recovery of the allocation. Hence we must zero before commit.
+	 * Further, if we are mapping unwritten extents here, we need to zero
+	 * and convert them to written so that we don't need an unwritten extent
+	 * callback for DAX. This also means that we need to be able to dip into
+	 * the reserve block pool if there is no space left but we need to do
+	 * unwritten extent conversion.
+	 */
+	if (IS_DAX(VFS_I(ip))) {
+		bmapi_flags = XFS_BMAPI_CONVERT | XFS_BMAPI_ZERO;
+		tp->t_flags |= XFS_TRANS_RESERVE;
+	}
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
 				  resblks, resrtextents);
 	/*
@@ -202,8 +220,8 @@ xfs_iomap_write_direct(
 	xfs_bmap_init(&free_list, &firstfsb);
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
-				XFS_BMAPI_PREALLOC, &firstfsb, 0,
-				imap, &nimaps, &free_list);
+				bmapi_flags, &firstfsb, 0, imap,
+				&nimaps, &free_list);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -213,6 +231,7 @@ xfs_iomap_write_direct(
 	error = xfs_bmap_finish(&tp, &free_list, &committed);
 	if (error)
 		goto out_bmap_cancel;
+
 	error = xfs_trans_commit(tp);
 	if (error)
 		goto out_unlock;

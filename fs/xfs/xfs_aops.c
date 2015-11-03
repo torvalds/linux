@@ -1284,15 +1284,12 @@ xfs_map_direct(
 
 	trace_xfs_gbmap_direct(XFS_I(inode), offset, size, type, imap);
 
-	/* XXX: preparation for removing unwritten extents in DAX */
-#if 0
 	if (dax_fault) {
 		ASSERT(type == XFS_IO_OVERWRITE);
 		trace_xfs_gbmap_direct_none(XFS_I(inode), offset, size, type,
 					    imap);
 		return;
 	}
-#endif
 
 	if (bh_result->b_private) {
 		ioend = bh_result->b_private;
@@ -1420,10 +1417,12 @@ __xfs_get_blocks(
 	if (error)
 		goto out_unlock;
 
+	/* for DAX, we convert unwritten extents directly */
 	if (create &&
 	    (!nimaps ||
 	     (imap.br_startblock == HOLESTARTBLOCK ||
-	      imap.br_startblock == DELAYSTARTBLOCK))) {
+	      imap.br_startblock == DELAYSTARTBLOCK) ||
+	     (IS_DAX(inode) && ISUNWRITTEN(&imap)))) {
 		if (direct || xfs_get_extsz_hint(ip)) {
 			/*
 			 * Drop the ilock in preparation for starting the block
@@ -1466,6 +1465,12 @@ __xfs_get_blocks(
 	} else {
 		trace_xfs_get_blocks_notfound(ip, offset, size);
 		goto out_unlock;
+	}
+
+	if (IS_DAX(inode) && create) {
+		ASSERT(!ISUNWRITTEN(&imap));
+		/* zeroing is not needed at a higher layer */
+		new = 0;
 	}
 
 	/* trim mapping down to size requested */
