@@ -132,7 +132,6 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
 			       (*fence)->seq,
 			       AMDGPU_FENCE_FLAG_INT);
-	trace_amdgpu_fence_emit(ring->adev->ddev, ring->idx, (*fence)->seq);
 	return 0;
 }
 
