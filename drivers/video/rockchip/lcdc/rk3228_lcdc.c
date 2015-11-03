@@ -674,7 +674,7 @@ static int vop_post_cfg(struct rk_lcdc_driver *dev_drv)
 		post_v_fac = 0x1000;
 	}
 
-	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+	if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		post_dsp_vact_st = screen->post_dsp_sty / 2 +
 					screen->mode.vsync_len +
 					screen->mode.upper_margin;
@@ -1020,7 +1020,7 @@ static int vop_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			vop_msk_reg(vop_dev, WIN0_SRC_ALPHA_CTRL + off, val);
 		}
 
-		if (dev_drv->cur_screen->mode.vmode == FB_VMODE_INTERLACED) {
+		if (dev_drv->cur_screen->mode.vmode & FB_VMODE_INTERLACED) {
 			if (win->area[0].yact == 2 * win->area[0].ysize)
 				val = V_WIN0_YRGB_DEFLICK(0) |
 					V_WIN0_CBR_DEFLICK(0);
@@ -1184,7 +1184,7 @@ static int vop_config_timing(struct rk_lcdc_driver *dev_drv)
 	    V_DSP_HACT_ST(hsync_len + left_margin);
 	vop_msk_reg(vop_dev, DSP_HACT_ST_END, val);
 
-	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+	if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		/* First Field Timing */
 		val = V_DSP_VS_END(vsync_len) |
 		    V_DSP_VTOTAL(2 * (vsync_len + upper_margin +
@@ -1674,7 +1674,7 @@ static int vop_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 	u8 yuv_fmt = 0;
 
 	srcW = win->area[0].xact;
-	if ((screen->mode.vmode == FB_VMODE_INTERLACED) &&
+	if ((screen->mode.vmode & FB_VMODE_INTERLACED) &&
 	    (win->area[0].yact == 2 * win->area[0].ysize)) {
 		srcH = win->area[0].yact / 2;
 		yrgb_vsd_bil_gt2 = 1;
@@ -1852,7 +1852,7 @@ static int vop_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 
 	if (win->mirror_en == 1)
 		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
-	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+	if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		/* interlace mode must bill */
 		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
 		win->cbr_vsd_mode = SCALE_DOWN_BIL;
@@ -2106,7 +2106,7 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 
 	if (screen->y_mirror && mirror_en)
 		pr_err("not support both win and global mirror\n");
-	if (screen->mode.vmode == FB_VMODE_NONINTERLACED) {
+	if (screen->mode.vmode & FB_VMODE_NONINTERLACED) {
 		if ((!mirror_en) && (!screen->y_mirror))
 			pos = area->ypos + screen->mode.upper_margin +
 				screen->mode.vsync_len;
@@ -2114,7 +2114,7 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 			pos = screen->mode.yres - area->ypos -
 				area->ysize + screen->mode.upper_margin +
 				screen->mode.vsync_len;
-	} else if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+	} else if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		pos = area->ypos / 2 + screen->mode.upper_margin +
 			screen->mode.vsync_len;
 		area->ysize /= 2;

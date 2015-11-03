@@ -626,7 +626,7 @@ static int rk3036_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		    v_HASP(screen->mode.hsync_len + left_margin);
 		lcdc_writel(lcdc_dev, DSP_HACT_ST_END, val);
 
-		if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+		if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 			/*First Field Timing*/
 			lcdc_writel(lcdc_dev, DSP_VTOTAL_VS_END,
 				    v_VSYNC(screen->mode.vsync_len) |
@@ -821,7 +821,7 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 
 	win->area[0].dsp_stx = win->post_cfg.xpos + screen->mode.left_margin +
 				screen->mode.hsync_len;
-	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+	if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		win->post_cfg.ysize /= 2;
 		win->area[0].dsp_sty = win->post_cfg.ypos/2 +
 					screen->mode.upper_margin +

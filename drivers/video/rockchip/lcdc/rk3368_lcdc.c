@@ -578,7 +578,7 @@ static int rk3368_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
 		post_v_fac = 0x1000;
 	}
 
-	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+	if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		post_dsp_vact_st = screen->post_dsp_sty / 2 +
 					screen->mode.vsync_len +
 					screen->mode.upper_margin;
@@ -968,7 +968,7 @@ static int rk3368_init_fbdc_config(struct rk_lcdc_driver *dev_drv, int win_id)
 	u8 mb_w_size, mb_h_size;
 	struct rk_screen *screen = dev_drv->cur_screen;
 
-	if (screen->mode.flag == FB_VMODE_INTERLACED) {
+	if (screen->mode.flag & FB_VMODE_INTERLACED) {
 		dev_err(lcdc_dev->dev, "unsupport fbdc+interlace!\n");
 		return 0;
 	}
@@ -1258,7 +1258,7 @@ static int rk3368_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 				     mask, val);
 		}
 
-		if (dev_drv->cur_screen->mode.vmode == FB_VMODE_INTERLACED) {
+		if (dev_drv->cur_screen->mode.vmode & FB_VMODE_INTERLACED) {
 			mask = m_WIN0_YRGB_DEFLICK | m_WIN0_CBR_DEFLICK;
 			if (win->area[0].yact == 2 * win->area[0].ysize)
 				val = v_WIN0_YRGB_DEFLICK(0) |
@@ -1620,7 +1620,7 @@ static int rk3368_config_timing(struct rk_lcdc_driver *dev_drv)
 	    v_DSP_HACT_ST(hsync_len + left_margin);
 	lcdc_msk_reg(lcdc_dev, DSP_HACT_ST_END, mask, val);
 
-	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+	if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		/* First Field Timing */
 		mask = m_DSP_VS_PW | m_DSP_VTOTAL;
 		val = v_DSP_VS_PW(vsync_len) |
@@ -2435,7 +2435,7 @@ static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win,
 	u8 yuv_fmt = 0;
 
 	srcW = win->area[0].xact;
-	if ((screen->mode.vmode == FB_VMODE_INTERLACED) &&
+	if ((screen->mode.vmode & FB_VMODE_INTERLACED) &&
 	    (win->area[0].yact == 2 * win->area[0].ysize)) {
 		srcH = win->area[0].yact / 2;
 		yrgb_vsd_bil_gt2 = 1;
@@ -2621,7 +2621,7 @@ static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win,
 	if (win->mirror_en == 1)
 		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
 
-	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+	if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		/*interlace mode must bill */
 		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
 		win->cbr_vsd_mode = SCALE_DOWN_BIL;
@@ -2878,7 +2878,7 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 
 	if (screen->y_mirror && mirror_en)
 		pr_err("not support both win and global mirror\n");
-	if (screen->mode.vmode == FB_VMODE_NONINTERLACED) {
+	if (screen->mode.vmode & FB_VMODE_NONINTERLACED) {
 		if ((!mirror_en) && (!screen->y_mirror))
 			pos = area->ypos + screen->mode.upper_margin +
 				screen->mode.vsync_len;
@@ -2886,7 +2886,7 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 			pos = screen->mode.yres - area->ypos -
 				area->ysize + screen->mode.upper_margin +
 				screen->mode.vsync_len;
-	} else if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+	} else if (screen->mode.vmode & FB_VMODE_INTERLACED) {
 		pos = area->ypos / 2 + screen->mode.upper_margin +
 			screen->mode.vsync_len;
 		area->ysize /= 2;
@@ -3084,7 +3084,7 @@ static int win_2_3_set_par(struct lcdc_device *lcdc_dev,
 						  &win->area[i]);
 			if (((win->area[i].xact != win->area[i].xsize) ||
 			     (win->area[i].yact != win->area[i].ysize)) &&
-			     (screen->mode.vmode == FB_VMODE_NONINTERLACED)) {
+			     (screen->mode.vmode & FB_VMODE_NONINTERLACED)) {
 				pr_err("win[%d]->area[%d],not support scale\n",
 				       win->id, i);
 				pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
@@ -4049,7 +4049,7 @@ static int rk3368_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 	struct rk_lcdc_win *win = NULL;
 	u32 line_scane_num, dsp_vs_st_f1;
 
-	if (lcdc_dev->driver.cur_screen->mode.vmode == FB_VMODE_INTERLACED) {
+	if (lcdc_dev->driver.cur_screen->mode.vmode & FB_VMODE_INTERLACED) {
 		dsp_vs_st_f1 = lcdc_readl(lcdc_dev, DSP_VS_ST_END_F1) >> 16;
 		for (i = 0; i < 1000; i++) {
 			line_scane_num =
@@ -4776,7 +4776,7 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 #endif
 		lcdc_dev->driver.vsync_info.timestamp = timestamp;
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
-		if ((screen->mode.vmode == FB_VMODE_NONINTERLACED) ||
+		if ((screen->mode.vmode & FB_VMODE_NONINTERLACED) ||
 		    (line_scane_num >= dsp_vs_st_f1)) {
 			lcdc_dev->driver.vsync_info.timestamp = timestamp;
 			wake_up_interruptible_all(
