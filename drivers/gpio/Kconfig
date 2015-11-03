@@ -496,8 +496,12 @@ menu "Port-mapped I/O GPIO drivers"
 
 config GPIO_104_IDIO_16
 	tristate "ACCES 104-IDIO-16 GPIO support"
+	select GPIOLIB_IRQCHIP
 	help
-	  Enables GPIO support for the ACCES 104-IDIO-16 family.
+	  Enables GPIO support for the ACCES 104-IDIO-16 family. The base port
+	  address for the device may be set via the idio_16_base module
+	  parameter. The interrupt line number for the device may be set via the
+	  idio_16_irq module parameter.
 
 config GPIO_F7188X
 	tristate "F71869, F71869A, F71882FG and F71889F GPIO support"

@@ -11,11 +11,14 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  */
+#include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/interrupt.h>
+#include <linux/irqdesc.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -25,20 +28,27 @@
 static unsigned idio_16_base;
 module_param(idio_16_base, uint, 0);
 MODULE_PARM_DESC(idio_16_base, "ACCES 104-IDIO-16 base address");
+static unsigned idio_16_irq;
+module_param(idio_16_irq, uint, 0);
+MODULE_PARM_DESC(idio_16_irq, "ACCES 104-IDIO-16 interrupt line number");
 
 /**
  * struct idio_16_gpio - GPIO device private data structure
  * @chip:	instance of the gpio_chip
- * @lock:	synchronization lock to prevent gpio_set race conditions
+ * @lock:	synchronization lock to prevent I/O race conditions
+ * @irq_mask:	I/O bits affected by interrupts
  * @base:	base port address of the GPIO device
  * @extent:	extent of port address region of the GPIO device
+ * @irq:	Interrupt line number
  * @out_state:	output bits state
  */
 struct idio_16_gpio {
 	struct gpio_chip chip;
 	spinlock_t lock;
+	unsigned long irq_mask;
 	unsigned base;
 	unsigned extent;
+	unsigned irq;
 	unsigned out_state;
 };
 
@@ -105,6 +115,87 @@ static void idio_16_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	spin_unlock_irqrestore(&idio16gpio->lock, flags);
 }
 
+static void idio_16_irq_ack(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct idio_16_gpio *const idio16gpio = to_idio16gpio(chip);
+	unsigned long flags;
+
+	spin_lock_irqsave(&idio16gpio->lock, flags);
+
+	outb(0, idio16gpio->base + 1);
+
+	spin_unlock_irqrestore(&idio16gpio->lock, flags);
+}
+
+static void idio_16_irq_mask(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct idio_16_gpio *const idio16gpio = to_idio16gpio(chip);
+	const unsigned long mask = BIT(irqd_to_hwirq(data));
+	unsigned long flags;
+
+	idio16gpio->irq_mask &= ~mask;
+
+	if (!idio16gpio->irq_mask) {
+		spin_lock_irqsave(&idio16gpio->lock, flags);
+
+		outb(0, idio16gpio->base + 2);
+
+		spin_unlock_irqrestore(&idio16gpio->lock, flags);
+	}
+}
+
+static void idio_16_irq_unmask(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct idio_16_gpio *const idio16gpio = to_idio16gpio(chip);
+	const unsigned long mask = BIT(irqd_to_hwirq(data));
+	const unsigned long prev_irq_mask = idio16gpio->irq_mask;
+	unsigned long flags;
+
+	idio16gpio->irq_mask |= mask;
+
+	if (!prev_irq_mask) {
+		spin_lock_irqsave(&idio16gpio->lock, flags);
+
+		outb(0, idio16gpio->base + 1);
+		inb(idio16gpio->base + 2);
+
+		spin_unlock_irqrestore(&idio16gpio->lock, flags);
+	}
+}
+
+static int idio_16_irq_set_type(struct irq_data *data, unsigned flow_type)
+{
+	/* The only valid irq types are none and both-edges */
+	if (flow_type != IRQ_TYPE_NONE &&
+		(flow_type & IRQ_TYPE_EDGE_BOTH) != IRQ_TYPE_EDGE_BOTH)
+		return -EINVAL;
+
+	return 0;
+}
+
+static struct irq_chip idio_16_irqchip = {
+	.name = "104-idio-16",
+	.irq_ack = idio_16_irq_ack,
+	.irq_mask = idio_16_irq_mask,
+	.irq_unmask = idio_16_irq_unmask,
+	.irq_set_type = idio_16_irq_set_type
+};
+
+static irqreturn_t idio_16_irq_handler(int irq, void *dev_id)
+{
+	struct idio_16_gpio *const idio16gpio = dev_id;
+	struct gpio_chip *const chip = &idio16gpio->chip;
+	int gpio;
+
+	for_each_set_bit(gpio, &idio16gpio->irq_mask, chip->ngpio)
+		generic_handle_irq(irq_find_mapping(chip->irqdomain, gpio));
+
+	return IRQ_HANDLED;
+}
+
 static int __init idio_16_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -113,6 +204,7 @@ static int __init idio_16_probe(struct platform_device *pdev)
 
 	const unsigned BASE = idio_16_base;
 	const unsigned EXTENT = 8;
+	const unsigned IRQ = idio_16_irq;
 	const char *const NAME = dev_name(dev);
 
 	idio16gpio = devm_kzalloc(dev, sizeof(*idio16gpio), GFP_KERNEL);
@@ -138,6 +230,7 @@ static int __init idio_16_probe(struct platform_device *pdev)
 	idio16gpio->chip.set = idio_16_gpio_set;
 	idio16gpio->base = BASE;
 	idio16gpio->extent = EXTENT;
+	idio16gpio->irq = IRQ;
 	idio16gpio->out_state = 0xFFFF;
 
 	spin_lock_init(&idio16gpio->lock);
@@ -150,8 +243,24 @@ static int __init idio_16_probe(struct platform_device *pdev)
 		goto err_gpio_register;
 	}
 
+	err = gpiochip_irqchip_add(&idio16gpio->chip, &idio_16_irqchip, 0,
+		handle_edge_irq, IRQ_TYPE_NONE);
+	if (err) {
+		dev_err(dev, "Could not add irqchip (%d)\n", err);
+		goto err_gpiochip_irqchip_add;
+	}
+
+	err = request_irq(IRQ, idio_16_irq_handler, 0, NAME, idio16gpio);
+	if (err) {
+		dev_err(dev, "IRQ handler registering failed (%d)\n", err);
+		goto err_request_irq;
+	}
+
 	return 0;
 
+err_request_irq:
+err_gpiochip_irqchip_add:
+	gpiochip_remove(&idio16gpio->chip);
 err_gpio_register:
 	release_region(BASE, EXTENT);
 err_lock_io_port:
@@ -162,6 +271,7 @@ static int idio_16_remove(struct platform_device *pdev)
 {
 	struct idio_16_gpio *const idio16gpio = platform_get_drvdata(pdev);
 
+	free_irq(idio16gpio->irq, idio16gpio);
 	gpiochip_remove(&idio16gpio->chip);
 	release_region(idio16gpio->base, idio16gpio->extent);
 
