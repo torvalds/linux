@@ -651,6 +651,15 @@
 		cru_reset_offset = <2>;
 	};
 
+	nandc: nandc@30030000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0x30030000 0x4000>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		nandc_id = <0>;
+		clocks = <&clk_nandc>, <&clk_gates1 0>, <&clk_gates11 3>;
+		clock-names = "clk_nandc", "g_clk_nandc", "hclk_nandc";
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3228-pinctrl";
 		rockchip,grf = <&grf>;
