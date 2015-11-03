@@ -57,7 +57,8 @@ static int
 xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags, int xflags)
 {
-	struct xfs_inode *ip = XFS_I(d_inode(dentry));
+	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
+	int			error;
 
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
@@ -70,8 +71,24 @@ xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 
 	if (!value)
 		return xfs_attr_remove(ip, (unsigned char *)name, xflags);
-	return xfs_attr_set(ip, (unsigned char *)name,
+	error = xfs_attr_set(ip, (unsigned char *)name,
 				(void *)value, size, xflags);
+	/*
+	 * Invalidate any cached ACLs if the user has bypassed the ACL
+	 * interface. We don't validate the content whatsoever so it is caller
+	 * responsibility to provide data in valid format and ensure i_mode is
+	 * consistent.
+	 */
+#ifdef CONFIG_XFS_POSIX_ACL
+	if (!error && (xflags & ATTR_ROOT)) {
+		if (!strcmp(name, SGI_ACL_FILE))
+			forget_cached_acl(VFS_I(ip), ACL_TYPE_ACCESS);
+		else if (!strcmp(name, SGI_ACL_DEFAULT))
+			forget_cached_acl(VFS_I(ip), ACL_TYPE_DEFAULT);
+	}
+#endif
+
+	return error;
 }
 
 static const struct xattr_handler xfs_xattr_user_handler = {
