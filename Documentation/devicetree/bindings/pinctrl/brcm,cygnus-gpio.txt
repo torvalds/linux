@@ -3,8 +3,8 @@ Broadcom Cygnus GPIO/PINCONF Controller
 Required properties:
 
 - compatible:
-    Must be "brcm,cygnus-ccm-gpio", "brcm,cygnus-asiu-gpio", or
-    "brcm,cygnus-crmu-gpio"
+    Must be "brcm,cygnus-ccm-gpio", "brcm,cygnus-asiu-gpio",
+    "brcm,cygnus-crmu-gpio" or "brcm,iproc-gpio"
 
 - reg:
     Define the base and range of the I/O address space that contains the Cygnus
@@ -26,9 +26,13 @@ Optional properties:
 - interrupt-controller:
     Specifies that the node is an interrupt controller
 
-- pinmux:
-    Specifies the phandle to the IOMUX device, where pins can be individually
-muxed to GPIO
+- gpio-ranges:
+    Specifies the mapping between gpio controller and pin-controllers pins.
+    This requires 4 fields in cells defined as -
+    1. Phandle of pin-controller.
+    2. GPIO base pin offset.
+    3  Pin-control base pin offset.
+    4. number of gpio pins which are linearly mapped from pin base.
 
 Supported generic PINCONF properties in child nodes:
 
@@ -78,6 +82,8 @@ Example:
 		gpio-controller;
 		interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
+		gpio-ranges = <&pinctrl 0 42 1>,
+				<&pinctrl 1 44 3>;
 	};
 
 	/*

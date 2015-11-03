@@ -148,6 +148,15 @@
 #define SDMMC_SET_FIFOTH(m, r, t)	(((m) & 0x7) << 28 | \
 					 ((r) & 0xFFF) << 16 | \
 					 ((t) & 0xFFF))
+/* HCON register defines */
+#define DMA_INTERFACE_IDMA		(0x0)
+#define DMA_INTERFACE_DWDMA		(0x1)
+#define DMA_INTERFACE_GDMA		(0x2)
+#define DMA_INTERFACE_NODMA		(0x3)
+#define SDMMC_GET_TRANS_MODE(x)		(((x)>>16) & 0x3)
+#define SDMMC_GET_SLOT_NUM(x)		((((x)>>1) & 0x1F) + 1)
+#define SDMMC_GET_HDATA_WIDTH(x)	(((x)>>7) & 0x7)
+#define SDMMC_GET_ADDR_CONFIG(x)	(((x)>>27) & 0x1)
 /* Internal DMAC interrupt defines */
 #define SDMMC_IDMAC_INT_AI		BIT(9)
 #define SDMMC_IDMAC_INT_NI		BIT(8)
@@ -163,7 +172,7 @@
 /* Version ID register define */
 #define SDMMC_GET_VERID(x)		((x) & 0xFFFF)
 /* Card read threshold */
-#define SDMMC_SET_RD_THLD(v, x)		(((v) & 0x1FFF) << 16 | (x))
+#define SDMMC_SET_RD_THLD(v, x)		(((v) & 0xFFF) << 16 | (x))
 #define SDMMC_UHS_18V			BIT(0)
 /* All ctrl reset bits */
 #define SDMMC_CTRL_ALL_RESET_FLAGS \
@@ -281,7 +290,7 @@ struct dw_mci_drv_data {
 	void		(*prepare_command)(struct dw_mci *host, u32 *cmdr);
 	void		(*set_ios)(struct dw_mci *host, struct mmc_ios *ios);
 	int		(*parse_dt)(struct dw_mci *host);
-	int		(*execute_tuning)(struct dw_mci_slot *slot);
+	int		(*execute_tuning)(struct dw_mci_slot *slot, u32 opcode);
 	int		(*prepare_hs400_tuning)(struct dw_mci *host,
 						struct mmc_ios *ios);
 	int		(*switch_voltage)(struct mmc_host *mmc,

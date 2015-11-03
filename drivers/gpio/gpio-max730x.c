@@ -236,7 +236,6 @@ int __max730x_remove(struct device *dev)
 	ts->write(dev, 0x04, 0x00);
 	gpiochip_remove(&ts->chip);
 	mutex_destroy(&ts->lock);
-	kfree(ts);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__max730x_remove);

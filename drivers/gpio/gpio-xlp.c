@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/chained_irq.h>
 
 /*
  * XLP GPIO has multiple 32 bit registers for each feature where each register
@@ -208,25 +209,28 @@ static struct irq_chip xlp_gpio_irq_chip = {
 	.flags		= IRQCHIP_ONESHOT_SAFE,
 };
 
-static irqreturn_t xlp_gpio_generic_handler(int irq, void *data)
+static void xlp_gpio_generic_handler(struct irq_desc *desc)
 {
-	struct xlp_gpio_priv *priv = data;
+	struct xlp_gpio_priv *priv = irq_desc_get_handler_data(desc);
+	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	int gpio, regoff;
 	u32 gpio_stat;
 
 	regoff = -1;
 	gpio_stat = 0;
+
+	chained_irq_enter(irqchip, desc);
 	for_each_set_bit(gpio, priv->gpio_enabled_mask, XLP_MAX_NR_GPIO) {
 		if (regoff != gpio / XLP_GPIO_REGSZ) {
 			regoff = gpio / XLP_GPIO_REGSZ;
 			gpio_stat = readl(priv->gpio_intr_stat + regoff * 4);
 		}
+
 		if (gpio_stat & BIT(gpio % XLP_GPIO_REGSZ))
 			generic_handle_irq(irq_find_mapping(
 						priv->chip.irqdomain, gpio));
 	}
-
-	return IRQ_HANDLED;
+	chained_irq_exit(irqchip, desc);
 }
 
 static int xlp_gpio_dir_output(struct gpio_chip *gc, unsigned gpio, int state)
@@ -378,12 +382,6 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gc->get = xlp_gpio_get;
 
 	spin_lock_init(&priv->lock);
-
-	err = devm_request_irq(&pdev->dev, irq, xlp_gpio_generic_handler,
-			IRQ_TYPE_NONE, pdev->name, priv);
-	if (err)
-		return err;
-
 	irq_base = irq_alloc_descs(-1, XLP_GPIO_IRQ_BASE, gc->ngpio, 0);
 	if (irq_base < 0) {
 		dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
@@ -400,6 +398,9 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Could not connect irqchip to gpiochip!\n");
 		goto out_gpio_remove;
 	}
+
+	gpiochip_set_chained_irqchip(gc, &xlp_gpio_irq_chip, irq,
+			xlp_gpio_generic_handler);
 
 	dev_info(&pdev->dev, "registered %d GPIOs\n", gc->ngpio);
 
