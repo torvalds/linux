@@ -58,7 +58,7 @@ static void _rtl88e_fw_block_write(struct adapter *adapt,
 				   const u8 *buffer, u32 size)
 {
 	u32 blk_sz = sizeof(u32);
-	const u8 *buf_ptr;
+	const u8 *byte_buffer;
 	const u32 *pu4BytePtr = (u32 *)buffer;
 	u32 i, offset, blk_cnt, remain;
 
@@ -70,9 +70,9 @@ static void _rtl88e_fw_block_write(struct adapter *adapt,
 	for (i = 0; i < blk_cnt; i++, offset += blk_sz)
 		usb_write32(adapt, offset, pu4BytePtr[i]);
 
-	buf_ptr = buffer + blk_cnt * blk_sz;
+	byte_buffer = buffer + blk_cnt * blk_sz;
 	for (i = 0; i < remain; i++, offset++)
-		usb_write8(adapt, offset, buf_ptr[i]);
+		usb_write8(adapt, offset, byte_buffer[i]);
 }
 
 static void _rtl88e_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
