@@ -348,6 +348,33 @@ config ARM64_ERRATUM_843419
 
 	  If unsure, say Y.
 
+config CAVIUM_ERRATUM_22375
+	bool "Cavium erratum 22375, 24313"
+	default y
+	help
+	  Enable workaround for erratum 22375, 24313.
+
+	  This implements two gicv3-its errata workarounds for ThunderX. Both
+	  with small impact affecting only ITS table allocation.
+
+	    erratum 22375: only alloc 8MB table size
+	    erratum 24313: ignore memory access type
+
+	  The fixes are in ITS initialization and basically ignore memory access
+	  type and table size provided by the TYPER and BASER registers.
+
+	  If unsure, say Y.
+
+config CAVIUM_ERRATUM_23154
+	bool "Cavium erratum 23154: Access to ICC_IAR1_EL1 is not sync'ed"
+	default y
+	help
+	  The gicv3 of ThunderX requires a modified version for
+	  reading the IAR status to ensure data synchronization
+	  (access to icc_iar1_el1 is not sync'ed before and after).
+
+	  If unsure, say Y.
+
 endmenu
 
 

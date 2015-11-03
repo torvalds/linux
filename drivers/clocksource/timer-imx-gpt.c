@@ -305,13 +305,14 @@ static int __init mxc_clockevent_init(struct imx_timer *imxtm)
 	struct irqaction *act = &imxtm->act;
 
 	ced->name = "mxc_timer1";
-	ced->features = CLOCK_EVT_FEAT_ONESHOT;
+	ced->features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_DYNIRQ;
 	ced->set_state_shutdown = mxc_shutdown;
 	ced->set_state_oneshot = mxc_set_oneshot;
 	ced->tick_resume = mxc_shutdown;
 	ced->set_next_event = imxtm->gpt->set_next_event;
 	ced->rating = 200;
 	ced->cpumask = cpumask_of(0);
+	ced->irq = imxtm->irq;
 	clockevents_config_and_register(ced, clk_get_rate(imxtm->clk_per),
 					0xff, 0xfffffffe);
 

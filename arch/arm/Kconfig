@@ -820,6 +820,7 @@ config ARCH_VIRT
 	bool "Dummy Virtual Machine" if ARCH_MULTI_V7
 	select ARM_AMBA
 	select ARM_GIC
+	select ARM_GIC_V3
 	select ARM_PSCI
 	select HAVE_ARM_ARCH_TIMER
 
@@ -1411,7 +1412,6 @@ config HAVE_ARM_ARCH_TIMER
 
 config HAVE_ARM_TWD
 	bool
-	depends on SMP
 	select CLKSRC_OF if OF
 	help
 	  This options enables support for the ARM timer and watchdog unit
@@ -1471,6 +1471,8 @@ choice
 
 	config VMSPLIT_3G
 		bool "3G/1G user/kernel split"
+	config VMSPLIT_3G_OPT
+		bool "3G/1G user/kernel split (for full 1G low memory)"
 	config VMSPLIT_2G
 		bool "2G/2G user/kernel split"
 	config VMSPLIT_1G
@@ -1482,6 +1484,7 @@ config PAGE_OFFSET
 	default PHYS_OFFSET if !MMU
 	default 0x40000000 if VMSPLIT_1G
 	default 0x80000000 if VMSPLIT_2G
+	default 0xB0000000 if VMSPLIT_3G_OPT
 	default 0xC0000000
 
 config NR_CPUS
@@ -1696,8 +1699,9 @@ config HIGHMEM
 	  If unsure, say n.
 
 config HIGHPTE
-	bool "Allocate 2nd-level pagetables from highmem"
+	bool "Allocate 2nd-level pagetables from highmem" if EXPERT
 	depends on HIGHMEM
+	default y
 	help
 	  The VM uses one page of physical memory for each page table.
 	  For systems with a lot of processes, this can use a lot of

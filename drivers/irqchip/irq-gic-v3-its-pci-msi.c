@@ -42,7 +42,6 @@ static struct irq_chip its_msi_irq_chip = {
 
 struct its_pci_alias {
 	struct pci_dev	*pdev;
-	u32		dev_id;
 	u32		count;
 };
 
@@ -60,7 +59,6 @@ static int its_get_pci_alias(struct pci_dev *pdev, u16 alias, void *data)
 {
 	struct its_pci_alias *dev_alias = data;
 
-	dev_alias->dev_id = alias;
 	if (pdev != dev_alias->pdev)
 		dev_alias->count += its_pci_msi_vec_count(pdev);
 
@@ -86,7 +84,7 @@ static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 	pci_for_each_dma_alias(pdev, its_get_pci_alias, &dev_alias);
 
 	/* ITS specific DeviceID, as the core ITS ignores dev. */
-	info->scratchpad[0].ul = dev_alias.dev_id;
+	info->scratchpad[0].ul = pci_msi_domain_get_msi_rid(domain, pdev);
 
 	return msi_info->ops->msi_prepare(domain->parent,
 					  dev, dev_alias.count, info);
@@ -125,7 +123,8 @@ static int __init its_pci_msi_init(void)
 			continue;
 		}
 
-		if (!pci_msi_create_irq_domain(np, &its_pci_msi_domain_info,
+		if (!pci_msi_create_irq_domain(of_node_to_fwnode(np),
+					       &its_pci_msi_domain_info,
 					       parent)) {
 			pr_err("%s: unable to create PCI domain\n",
 			       np->full_name);

@@ -181,40 +181,42 @@ static struct irq_chip imx_gpc_chip = {
 #endif
 };
 
-static int imx_gpc_domain_xlate(struct irq_domain *domain,
-				struct device_node *controller,
-				const u32 *intspec,
-				unsigned int intsize,
-				unsigned long *out_hwirq,
-				unsigned int *out_type)
+static int imx_gpc_domain_translate(struct irq_domain *d,
+				    struct irq_fwspec *fwspec,
+				    unsigned long *hwirq,
+				    unsigned int *type)
 {
-	if (domain->of_node != controller)
-		return -EINVAL;	/* Shouldn't happen, really... */
-	if (intsize != 3)
-		return -EINVAL;	/* Not GIC compliant */
-	if (intspec[0] != 0)
-		return -EINVAL;	/* No PPI should point to this domain */
+	if (is_of_node(fwspec->fwnode)) {
+		if (fwspec->param_count != 3)
+			return -EINVAL;
 
-	*out_hwirq = intspec[1];
-	*out_type = intspec[2];
-	return 0;
+		/* No PPI should point to this domain */
+		if (fwspec->param[0] != 0)
+			return -EINVAL;
+
+		*hwirq = fwspec->param[1];
+		*type = fwspec->param[2];
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static int imx_gpc_domain_alloc(struct irq_domain *domain,
 				  unsigned int irq,
 				  unsigned int nr_irqs, void *data)
 {
-	struct of_phandle_args *args = data;
-	struct of_phandle_args parent_args;
+	struct irq_fwspec *fwspec = data;
+	struct irq_fwspec parent_fwspec;
 	irq_hw_number_t hwirq;
 	int i;
 
-	if (args->args_count != 3)
+	if (fwspec->param_count != 3)
 		return -EINVAL;	/* Not GIC compliant */
-	if (args->args[0] != 0)
+	if (fwspec->param[0] != 0)
 		return -EINVAL;	/* No PPI should point to this domain */
 
-	hwirq = args->args[1];
+	hwirq = fwspec->param[1];
 	if (hwirq >= GPC_MAX_IRQS)
 		return -EINVAL;	/* Can't deal with this */
 
@@ -222,15 +224,16 @@ static int imx_gpc_domain_alloc(struct irq_domain *domain,
 		irq_domain_set_hwirq_and_chip(domain, irq + i, hwirq + i,
 					      &imx_gpc_chip, NULL);
 
-	parent_args = *args;
-	parent_args.np = domain->parent->of_node;
-	return irq_domain_alloc_irqs_parent(domain, irq, nr_irqs, &parent_args);
+	parent_fwspec = *fwspec;
+	parent_fwspec.fwnode = domain->parent->fwnode;
+	return irq_domain_alloc_irqs_parent(domain, irq, nr_irqs,
+					    &parent_fwspec);
 }
 
 static const struct irq_domain_ops imx_gpc_domain_ops = {
-	.xlate	= imx_gpc_domain_xlate,
-	.alloc	= imx_gpc_domain_alloc,
-	.free	= irq_domain_free_irqs_common,
+	.translate	= imx_gpc_domain_translate,
+	.alloc		= imx_gpc_domain_alloc,
+	.free		= irq_domain_free_irqs_common,
 };
 
 static int __init imx_gpc_init(struct device_node *node,

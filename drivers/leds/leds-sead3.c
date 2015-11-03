@@ -59,6 +59,7 @@ static int sead3_led_remove(struct platform_device *pdev)
 {
 	led_classdev_unregister(&sead3_pled);
 	led_classdev_unregister(&sead3_fled);
+
 	return 0;
 }
 

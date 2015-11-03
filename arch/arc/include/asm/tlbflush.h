@@ -17,6 +17,8 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page);
 void local_flush_tlb_kernel_range(unsigned long start, unsigned long end);
 void local_flush_tlb_range(struct vm_area_struct *vma,
 			   unsigned long start, unsigned long end);
+void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			       unsigned long end);
 
 #ifndef CONFIG_SMP
 #define flush_tlb_range(vma, s, e)	local_flush_tlb_range(vma, s, e)
@@ -24,6 +26,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma,
 #define flush_tlb_kernel_range(s, e)	local_flush_tlb_kernel_range(s, e)
 #define flush_tlb_all()			local_flush_tlb_all()
 #define flush_tlb_mm(mm)		local_flush_tlb_mm(mm)
+#define flush_pmd_tlb_range(vma, s, e)	local_flush_pmd_tlb_range(vma, s, e)
 #else
 extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 							 unsigned long end);
@@ -31,5 +34,7 @@ extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long page);
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
 extern void flush_tlb_all(void);
 extern void flush_tlb_mm(struct mm_struct *mm);
+extern void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
+
 #endif /* CONFIG_SMP */
 #endif

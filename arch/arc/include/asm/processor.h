@@ -114,7 +114,12 @@ extern unsigned int get_wchan(struct task_struct *p);
  * -----------------------------------------------------------------------------
  */
 #define VMALLOC_START	0x70000000
-#define VMALLOC_SIZE	(PAGE_OFFSET - VMALLOC_START)
+
+/*
+ * 1 PGDIR_SIZE each for fixmap/pkmap, 2 PGDIR_SIZE gutter
+ * See asm/highmem.h for details
+ */
+#define VMALLOC_SIZE	(PAGE_OFFSET - VMALLOC_START - PGDIR_SIZE * 4)
 #define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
 
 #define USER_KERNEL_GUTTER    0x10000000

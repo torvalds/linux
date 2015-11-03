@@ -108,57 +108,17 @@ static void gic_redist_wait_for_rwp(void)
 	gic_do_wait_for_rwp(gic_data_rdist_rd_base());
 }
 
-/* Low level accessors */
+#ifdef CONFIG_ARM64
+static DEFINE_STATIC_KEY_FALSE(is_cavium_thunderx);
+
 static u64 __maybe_unused gic_read_iar(void)
 {
-	u64 irqstat;
-
-	asm volatile("mrs_s %0, " __stringify(ICC_IAR1_EL1) : "=r" (irqstat));
-	return irqstat;
+	if (static_branch_unlikely(&is_cavium_thunderx))
+		return gic_read_iar_cavium_thunderx();
+	else
+		return gic_read_iar_common();
 }
-
-static void __maybe_unused gic_write_pmr(u64 val)
-{
-	asm volatile("msr_s " __stringify(ICC_PMR_EL1) ", %0" : : "r" (val));
-}
-
-static void __maybe_unused gic_write_ctlr(u64 val)
-{
-	asm volatile("msr_s " __stringify(ICC_CTLR_EL1) ", %0" : : "r" (val));
-	isb();
-}
-
-static void __maybe_unused gic_write_grpen1(u64 val)
-{
-	asm volatile("msr_s " __stringify(ICC_GRPEN1_EL1) ", %0" : : "r" (val));
-	isb();
-}
-
-static void __maybe_unused gic_write_sgi1r(u64 val)
-{
-	asm volatile("msr_s " __stringify(ICC_SGI1R_EL1) ", %0" : : "r" (val));
-}
-
-static void gic_enable_sre(void)
-{
-	u64 val;
-
-	asm volatile("mrs_s %0, " __stringify(ICC_SRE_EL1) : "=r" (val));
-	val |= ICC_SRE_EL1_SRE;
-	asm volatile("msr_s " __stringify(ICC_SRE_EL1) ", %0" : : "r" (val));
-	isb();
-
-	/*
-	 * Need to check that the SRE bit has actually been set. If
-	 * not, it means that SRE is disabled at EL2. We're going to
-	 * die painfully, and there is nothing we can do about it.
-	 *
-	 * Kindly inform the luser.
-	 */
-	asm volatile("mrs_s %0, " __stringify(ICC_SRE_EL1) : "=r" (val));
-	if (!(val & ICC_SRE_EL1_SRE))
-		pr_err("GIC: unable to set SRE (disabled at EL2), panic ahead\n");
-}
+#endif
 
 static void gic_enable_redist(bool enable)
 {
@@ -359,11 +319,11 @@ static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
 	return 0;
 }
 
-static u64 gic_mpidr_to_affinity(u64 mpidr)
+static u64 gic_mpidr_to_affinity(unsigned long mpidr)
 {
 	u64 aff;
 
-	aff = (MPIDR_AFFINITY_LEVEL(mpidr, 3) << 32 |
+	aff = ((u64)MPIDR_AFFINITY_LEVEL(mpidr, 3) << 32 |
 	       MPIDR_AFFINITY_LEVEL(mpidr, 2) << 16 |
 	       MPIDR_AFFINITY_LEVEL(mpidr, 1) << 8  |
 	       MPIDR_AFFINITY_LEVEL(mpidr, 0));
@@ -373,7 +333,7 @@ static u64 gic_mpidr_to_affinity(u64 mpidr)
 
 static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 {
-	u64 irqnr;
+	u32 irqnr;
 
 	do {
 		irqnr = gic_read_iar();
@@ -432,12 +392,12 @@ static void __init gic_dist_init(void)
 	 */
 	affinity = gic_mpidr_to_affinity(cpu_logical_map(smp_processor_id()));
 	for (i = 32; i < gic_data.irq_nr; i++)
-		writeq_relaxed(affinity, base + GICD_IROUTER + i * 8);
+		gic_write_irouter(affinity, base + GICD_IROUTER + i * 8);
 }
 
 static int gic_populate_rdist(void)
 {
-	u64 mpidr = cpu_logical_map(smp_processor_id());
+	unsigned long mpidr = cpu_logical_map(smp_processor_id());
 	u64 typer;
 	u32 aff;
 	int i;
@@ -463,15 +423,14 @@ static int gic_populate_rdist(void)
 		}
 
 		do {
-			typer = readq_relaxed(ptr + GICR_TYPER);
+			typer = gic_read_typer(ptr + GICR_TYPER);
 			if ((typer >> 32) == aff) {
 				u64 offset = ptr - gic_data.redist_regions[i].redist_base;
 				gic_data_rdist_rd_base() = ptr;
 				gic_data_rdist()->phys_base = gic_data.redist_regions[i].phys_base + offset;
-				pr_info("CPU%d: found redistributor %llx region %d:%pa\n",
-					smp_processor_id(),
-					(unsigned long long)mpidr,
-					i, &gic_data_rdist()->phys_base);
+				pr_info("CPU%d: found redistributor %lx region %d:%pa\n",
+					smp_processor_id(), mpidr, i,
+					&gic_data_rdist()->phys_base);
 				return 0;
 			}
 
@@ -486,15 +445,22 @@ static int gic_populate_rdist(void)
 	}
 
 	/* We couldn't even deal with ourselves... */
-	WARN(true, "CPU%d: mpidr %llx has no re-distributor!\n",
-	     smp_processor_id(), (unsigned long long)mpidr);
+	WARN(true, "CPU%d: mpidr %lx has no re-distributor!\n",
+	     smp_processor_id(), mpidr);
 	return -ENODEV;
 }
 
 static void gic_cpu_sys_reg_init(void)
 {
-	/* Enable system registers */
-	gic_enable_sre();
+	/*
+	 * Need to check that the SRE bit has actually been set. If
+	 * not, it means that SRE is disabled at EL2. We're going to
+	 * die painfully, and there is nothing we can do about it.
+	 *
+	 * Kindly inform the luser.
+	 */
+	if (!gic_enable_sre())
+		pr_err("GIC: unable to set SRE (disabled at EL2), panic ahead\n");
 
 	/* Set priority mask register */
 	gic_write_pmr(DEFAULT_PMR_VALUE);
@@ -557,10 +523,10 @@ static struct notifier_block gic_cpu_notifier = {
 };
 
 static u16 gic_compute_target_list(int *base_cpu, const struct cpumask *mask,
-				   u64 cluster_id)
+				   unsigned long cluster_id)
 {
 	int cpu = *base_cpu;
-	u64 mpidr = cpu_logical_map(cpu);
+	unsigned long mpidr = cpu_logical_map(cpu);
 	u16 tlist = 0;
 
 	while (cpu < nr_cpu_ids) {
@@ -621,7 +587,7 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 	smp_wmb();
 
 	for_each_cpu(cpu, mask) {
-		u64 cluster_id = cpu_logical_map(cpu) & ~0xffUL;
+		unsigned long cluster_id = cpu_logical_map(cpu) & ~0xffUL;
 		u16 tlist;
 
 		tlist = gic_compute_target_list(&cpu, mask, cluster_id);
@@ -657,7 +623,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	reg = gic_dist_base(d) + GICD_IROUTER + (gic_irq(d) * 8);
 	val = gic_mpidr_to_affinity(cpu_logical_map(cpu));
 
-	writeq_relaxed(val, reg);
+	gic_write_irouter(val, reg);
 
 	/*
 	 * If the interrupt was enabled, enabled it again. Otherwise,
@@ -771,32 +737,34 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static int gic_irq_domain_xlate(struct irq_domain *d,
-				struct device_node *controller,
-				const u32 *intspec, unsigned int intsize,
-				unsigned long *out_hwirq, unsigned int *out_type)
+static int gic_irq_domain_translate(struct irq_domain *d,
+				    struct irq_fwspec *fwspec,
+				    unsigned long *hwirq,
+				    unsigned int *type)
 {
-	if (d->of_node != controller)
-		return -EINVAL;
-	if (intsize < 3)
-		return -EINVAL;
+	if (is_of_node(fwspec->fwnode)) {
+		if (fwspec->param_count < 3)
+			return -EINVAL;
 
-	switch(intspec[0]) {
-	case 0:			/* SPI */
-		*out_hwirq = intspec[1] + 32;
-		break;
-	case 1:			/* PPI */
-		*out_hwirq = intspec[1] + 16;
-		break;
-	case GIC_IRQ_TYPE_LPI:	/* LPI */
-		*out_hwirq = intspec[1];
-		break;
-	default:
-		return -EINVAL;
+		switch (fwspec->param[0]) {
+		case 0:			/* SPI */
+			*hwirq = fwspec->param[1] + 32;
+			break;
+		case 1:			/* PPI */
+			*hwirq = fwspec->param[1] + 16;
+			break;
+		case GIC_IRQ_TYPE_LPI:	/* LPI */
+			*hwirq = fwspec->param[1];
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
+		return 0;
 	}
 
-	*out_type = intspec[2] & IRQ_TYPE_SENSE_MASK;
-	return 0;
+	return -EINVAL;
 }
 
 static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
@@ -805,10 +773,9 @@ static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	int i, ret;
 	irq_hw_number_t hwirq;
 	unsigned int type = IRQ_TYPE_NONE;
-	struct of_phandle_args *irq_data = arg;
+	struct irq_fwspec *fwspec = arg;
 
-	ret = gic_irq_domain_xlate(domain, irq_data->np, irq_data->args,
-				   irq_data->args_count, &hwirq, &type);
+	ret = gic_irq_domain_translate(domain, fwspec, &hwirq, &type);
 	if (ret)
 		return ret;
 
@@ -831,10 +798,18 @@ static void gic_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 }
 
 static const struct irq_domain_ops gic_irq_domain_ops = {
-	.xlate = gic_irq_domain_xlate,
+	.translate = gic_irq_domain_translate,
 	.alloc = gic_irq_domain_alloc,
 	.free = gic_irq_domain_free,
 };
+
+static void gicv3_enable_quirks(void)
+{
+#ifdef CONFIG_ARM64
+	if (cpus_have_cap(ARM64_WORKAROUND_CAVIUM_23154))
+		static_branch_enable(&is_cavium_thunderx);
+#endif
+}
 
 static int __init gic_of_init(struct device_node *node, struct device_node *parent)
 {
@@ -900,6 +875,8 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 	gic_data.redist_regions = rdist_regs;
 	gic_data.nr_redist_regions = nr_redist_regions;
 	gic_data.redist_stride = redist_stride;
+
+	gicv3_enable_quirks();
 
 	/*
 	 * Find out how many interrupts are supported.

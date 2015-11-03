@@ -617,15 +617,18 @@ struct task_cputime_atomic {
 /**
  * struct thread_group_cputimer - thread group interval timer counts
  * @cputime_atomic:	atomic thread group interval timers.
- * @running:		non-zero when there are timers running and
- * 			@cputime receives updates.
+ * @running:		true when there are timers running and
+ *			@cputime_atomic receives updates.
+ * @checking_timer:	true when a thread in the group is in the
+ *			process of checking for thread group timers.
  *
  * This structure contains the version of task_cputime, above, that is
  * used for thread group CPU timer calculations.
  */
 struct thread_group_cputimer {
 	struct task_cputime_atomic cputime_atomic;
-	int running;
+	bool running;
+	bool checking_timer;
 };
 
 #include <linux/rwsem.h>

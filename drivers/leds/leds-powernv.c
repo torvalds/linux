@@ -262,15 +262,19 @@ static int powernv_led_classdev(struct platform_device *pdev,
 		while ((cur = of_prop_next_string(p, cur)) != NULL) {
 			powernv_led = devm_kzalloc(dev, sizeof(*powernv_led),
 						   GFP_KERNEL);
-			if (!powernv_led)
+			if (!powernv_led) {
+				of_node_put(np);
 				return -ENOMEM;
+			}
 
 			powernv_led->common = powernv_led_common;
 			powernv_led->loc_code = (char *)np->name;
 
 			rc = powernv_led_create(dev, powernv_led, cur);
-			if (rc)
+			if (rc) {
+				of_node_put(np);
 				return rc;
+			}
 		} /* while end */
 	}
 
