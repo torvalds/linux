@@ -1250,13 +1250,28 @@ xfs_vm_releasepage(
  * the DIO. There is only going to be one reference to the ioend and its life
  * cycle is constrained by the DIO completion code. hence we don't need
  * reference counting here.
+ *
+ * Note that for DIO, an IO to the highest supported file block offset (i.e.
+ * 2^63 - 1FSB bytes) will result in the offset + count overflowing a signed 64
+ * bit variable. Hence if we see this overflow, we have to assume that the IO is
+ * extending the file size. We won't know for sure until IO completion is run
+ * and the actual max write offset is communicated to the IO completion
+ * routine.
+ *
+ * For DAX page faults, we are preparing to never see unwritten extents here,
+ * nor should we ever extend the inode size. Hence we will soon have nothing to
+ * do here for this case, ensuring we don't have to provide an IO completion
+ * callback to free an ioend that we don't actually need for a fault into the
+ * page at offset (2^63 - 1FSB) bytes.
  */
+
 static void
 xfs_map_direct(
 	struct inode		*inode,
 	struct buffer_head	*bh_result,
 	struct xfs_bmbt_irec	*imap,
-	xfs_off_t		offset)
+	xfs_off_t		offset,
+	bool			dax_fault)
 {
 	struct xfs_ioend	*ioend;
 	xfs_off_t		size = bh_result->b_size;
@@ -1268,6 +1283,16 @@ xfs_map_direct(
 		type = XFS_IO_OVERWRITE;
 
 	trace_xfs_gbmap_direct(XFS_I(inode), offset, size, type, imap);
+
+	/* XXX: preparation for removing unwritten extents in DAX */
+#if 0
+	if (dax_fault) {
+		ASSERT(type == XFS_IO_OVERWRITE);
+		trace_xfs_gbmap_direct_none(XFS_I(inode), offset, size, type,
+					    imap);
+		return;
+	}
+#endif
 
 	if (bh_result->b_private) {
 		ioend = bh_result->b_private;
@@ -1283,7 +1308,8 @@ xfs_map_direct(
 					      ioend->io_size, ioend->io_type,
 					      imap);
 	} else if (type == XFS_IO_UNWRITTEN ||
-		   offset + size > i_size_read(inode)) {
+		   offset + size > i_size_read(inode) ||
+		   offset + size < 0) {
 		ioend = xfs_alloc_ioend(inode, type);
 		ioend->io_offset = offset;
 		ioend->io_size = size;
@@ -1345,7 +1371,8 @@ __xfs_get_blocks(
 	sector_t		iblock,
 	struct buffer_head	*bh_result,
 	int			create,
-	bool			direct)
+	bool			direct,
+	bool			dax_fault)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1458,7 +1485,8 @@ __xfs_get_blocks(
 			set_buffer_unwritten(bh_result);
 		/* direct IO needs special help */
 		if (create && direct)
-			xfs_map_direct(inode, bh_result, &imap, offset);
+			xfs_map_direct(inode, bh_result, &imap, offset,
+				       dax_fault);
 	}
 
 	/*
@@ -1505,7 +1533,7 @@ xfs_get_blocks(
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_blocks(inode, iblock, bh_result, create, false);
+	return __xfs_get_blocks(inode, iblock, bh_result, create, false, false);
 }
 
 int
@@ -1515,7 +1543,17 @@ xfs_get_blocks_direct(
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_blocks(inode, iblock, bh_result, create, true);
+	return __xfs_get_blocks(inode, iblock, bh_result, create, true, false);
+}
+
+int
+xfs_get_blocks_dax_fault(
+	struct inode		*inode,
+	sector_t		iblock,
+	struct buffer_head	*bh_result,
+	int			create)
+{
+	return __xfs_get_blocks(inode, iblock, bh_result, create, true, true);
 }
 
 static void
