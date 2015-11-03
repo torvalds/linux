@@ -3403,6 +3403,7 @@ static const struct pci_error_handlers nvme_err_handler = {
 
 static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, 0x2001) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, nvme_id_table);
