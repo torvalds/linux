@@ -3055,7 +3055,7 @@ static int _regulator_get_voltage(struct regulator_dev *rdev)
 	} else if (rdev->desc->fixed_uV && (rdev->desc->n_voltages == 1)) {
 		ret = rdev->desc->fixed_uV;
 	} else if (rdev->supply) {
-		ret = regulator_get_voltage(rdev->supply);
+		ret = _regulator_get_voltage(rdev->supply->rdev);
 	} else {
 		return -EINVAL;
 	}
@@ -3078,11 +3078,11 @@ int regulator_get_voltage(struct regulator *regulator)
 {
 	int ret;
 
-	mutex_lock(&regulator->rdev->mutex);
+	regulator_lock_supply(regulator->rdev);
 
 	ret = _regulator_get_voltage(regulator->rdev);
 
-	mutex_unlock(&regulator->rdev->mutex);
+	regulator_unlock_supply(regulator->rdev);
 
 	return ret;
 }
