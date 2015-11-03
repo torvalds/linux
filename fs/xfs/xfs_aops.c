@@ -1657,45 +1657,6 @@ xfs_end_io_direct_write(
 	__xfs_end_io_direct_write(inode, ioend, offset, size);
 }
 
-/*
- * For DAX we need a mapping buffer callback for unwritten extent conversion
- * when page faults allocate blocks and then zero them. Note that in this
- * case the mapping indicated by the ioend may extend beyond EOF. We most
- * definitely do not want to extend EOF here, so we trim back the ioend size to
- * EOF.
- */
-#ifdef CONFIG_FS_DAX
-void
-xfs_end_io_dax_write(
-	struct buffer_head	*bh,
-	int			uptodate)
-{
-	struct xfs_ioend	*ioend = bh->b_private;
-	struct inode		*inode = ioend->io_inode;
-	ssize_t			size = ioend->io_size;
-
-	ASSERT(IS_DAX(ioend->io_inode));
-
-	/* if there was an error zeroing, then don't convert it */
-	if (!uptodate)
-		ioend->io_error = -EIO;
-
-	/*
-	 * Trim update to EOF, so we don't extend EOF during unwritten extent
-	 * conversion of partial EOF blocks.
-	 */
-	spin_lock(&XFS_I(inode)->i_flags_lock);
-	if (ioend->io_offset + size > i_size_read(inode))
-		size = i_size_read(inode) - ioend->io_offset;
-	spin_unlock(&XFS_I(inode)->i_flags_lock);
-
-	__xfs_end_io_direct_write(inode, ioend, ioend->io_offset, size);
-
-}
-#else
-void xfs_end_io_dax_write(struct buffer_head *bh, int uptodate) { }
-#endif
-
 static inline ssize_t
 xfs_vm_do_dio(
 	struct inode		*inode,
