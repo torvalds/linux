@@ -2047,8 +2047,7 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 {
 	struct net_device *netdev;
 	struct mlx5e_priv *priv;
-	int nch = min_t(int, mdev->priv.eq_table.num_comp_vectors,
-			MLX5E_MAX_NUM_CHANNELS);
+	int nch = mlx5e_get_max_num_channels(mdev);
 	int err;
 
 	if (mlx5e_check_required_hca_cap(mdev))
