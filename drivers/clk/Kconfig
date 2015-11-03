@@ -190,7 +190,7 @@ config COMMON_CLK_PWM
 config COMMON_CLK_PXA
 	def_bool COMMON_CLK && ARCH_PXA
 	---help---
-	  Sypport for the Marvell PXA SoC.
+	  Support for the Marvell PXA SoC.
 
 config COMMON_CLK_CDCE706
 	tristate "Clock driver for TI CDCE706 clock synthesizer"
