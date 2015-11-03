@@ -194,6 +194,9 @@ void nfcmrvl_nci_unregister_dev(struct nfcmrvl_private *priv)
 
 	nfcmrvl_fw_dnld_deinit(priv);
 
+	if (priv->config.reset_n_io)
+		devm_gpio_free(priv->dev, priv->config.reset_n_io);
+
 	nci_unregister_device(ndev);
 	nci_free_device(ndev);
 	kfree(priv);
