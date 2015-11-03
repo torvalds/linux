@@ -2943,8 +2943,6 @@ static int bond_slave_netdev_event(unsigned long event,
 	struct slave *slave = bond_slave_get_rtnl(slave_dev), *primary;
 	struct bonding *bond;
 	struct net_device *bond_dev;
-	u32 old_speed;
-	u8 old_duplex;
 
 	/* A netdev event can be generated while enslaving a device
 	 * before netdev_rx_handler_register is called in which case
@@ -2965,17 +2963,9 @@ static int bond_slave_netdev_event(unsigned long event,
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		old_speed = slave->speed;
-		old_duplex = slave->duplex;
-
 		bond_update_speed_duplex(slave);
-
-		if (BOND_MODE(bond) == BOND_MODE_8023AD) {
-			if (old_speed != slave->speed)
-				bond_3ad_adapter_speed_changed(slave);
-			if (old_duplex != slave->duplex)
-				bond_3ad_adapter_duplex_changed(slave);
-		}
+		if (BOND_MODE(bond) == BOND_MODE_8023AD)
+			bond_3ad_adapter_speed_duplex_changed(slave);
 		/* Fallthrough */
 	case NETDEV_DOWN:
 		/* Refresh slave-array if applicable!
