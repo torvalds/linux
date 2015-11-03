@@ -362,6 +362,10 @@ static irqreturn_t iss_isr(int irq, void *_iss)
 	return IRQ_HANDLED;
 }
 
+static const struct media_device_ops iss_media_ops = {
+	.link_notify = v4l2_pipeline_link_notify,
+};
+
 /* -----------------------------------------------------------------------------
  * Pipeline stream management
  */
@@ -988,7 +992,7 @@ static int iss_register_entities(struct iss_device *iss)
 	strlcpy(iss->media_dev.model, "TI OMAP4 ISS",
 		sizeof(iss->media_dev.model));
 	iss->media_dev.hw_revision = iss->revision;
-	iss->media_dev.link_notify = v4l2_pipeline_link_notify;
+	iss->media_dev.ops = &iss_media_ops;
 	ret = media_device_register(&iss->media_dev);
 	if (ret < 0) {
 		dev_err(iss->dev, "Media device registration failed (%d)\n",

@@ -808,17 +808,18 @@ int __media_entity_setup_link(struct media_link *link, u32 flags)
 
 	mdev = source->graph_obj.mdev;
 
-	if (mdev->link_notify) {
-		ret = mdev->link_notify(link, flags,
-					MEDIA_DEV_NOTIFY_PRE_LINK_CH);
+	if (mdev->ops && mdev->ops->link_notify) {
+		ret = mdev->ops->link_notify(link, flags,
+					     MEDIA_DEV_NOTIFY_PRE_LINK_CH);
 		if (ret < 0)
 			return ret;
 	}
 
 	ret = __media_entity_setup_link_notify(link, flags);
 
-	if (mdev->link_notify)
-		mdev->link_notify(link, flags, MEDIA_DEV_NOTIFY_POST_LINK_CH);
+	if (mdev->ops && mdev->ops->link_notify)
+		mdev->ops->link_notify(link, flags,
+				       MEDIA_DEV_NOTIFY_POST_LINK_CH);
 
 	return ret;
 }
