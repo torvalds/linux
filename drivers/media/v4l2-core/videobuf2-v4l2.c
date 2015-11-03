@@ -783,6 +783,97 @@ void vb2_queue_release(struct vb2_queue *q)
 EXPORT_SYMBOL_GPL(vb2_queue_release);
 
 /**
+ * vb2_core_poll() - implements poll userspace operation
+ * @q:		videobuf2 queue
+ * @file:	file argument passed to the poll file operation handler
+ * @wait:	wait argument passed to the poll file operation handler
+ *
+ * This function implements poll file operation handler for a driver.
+ * For CAPTURE queues, if a buffer is ready to be dequeued, the userspace will
+ * be informed that the file descriptor of a video device is available for
+ * reading.
+ * For OUTPUT queues, if a buffer is ready to be dequeued, the file descriptor
+ * will be reported as available for writing.
+ *
+ * The return values from this function are intended to be directly returned
+ * from poll handler in driver.
+ */
+unsigned int vb2_core_poll(struct vb2_queue *q, struct file *file,
+		poll_table *wait)
+{
+	unsigned long req_events = poll_requested_events(wait);
+	struct vb2_buffer *vb = NULL;
+	unsigned long flags;
+
+	if (!q->is_output && !(req_events & (POLLIN | POLLRDNORM)))
+		return 0;
+	if (q->is_output && !(req_events & (POLLOUT | POLLWRNORM)))
+		return 0;
+
+	/*
+	 * Start file I/O emulator only if streaming API has not been used yet.
+	 */
+	if (q->num_buffers == 0 && !vb2_fileio_is_active(q)) {
+		if (!q->is_output && (q->io_modes & VB2_READ) &&
+				(req_events & (POLLIN | POLLRDNORM))) {
+			if (__vb2_init_fileio(q, 1))
+				return POLLERR;
+		}
+		if (q->is_output && (q->io_modes & VB2_WRITE) &&
+				(req_events & (POLLOUT | POLLWRNORM))) {
+			if (__vb2_init_fileio(q, 0))
+				return POLLERR;
+			/*
+			 * Write to OUTPUT queue can be done immediately.
+			 */
+			return POLLOUT | POLLWRNORM;
+		}
+	}
+
+	/*
+	 * There is nothing to wait for if the queue isn't streaming, or if the
+	 * error flag is set.
+	 */
+	if (!vb2_is_streaming(q) || q->error)
+		return POLLERR;
+
+	/*
+	 * For output streams you can call write() as long as there are fewer
+	 * buffers queued than there are buffers available.
+	 */
+	if (q->is_output && q->fileio && q->queued_count < q->num_buffers)
+		return POLLOUT | POLLWRNORM;
+
+	if (list_empty(&q->done_list)) {
+		/*
+		 * If the last buffer was dequeued from a capture queue,
+		 * return immediately. DQBUF will return -EPIPE.
+		 */
+		if (q->last_buffer_dequeued)
+			return POLLIN | POLLRDNORM;
+
+		poll_wait(file, &q->done_wq, wait);
+	}
+
+	/*
+	 * Take first buffer available for dequeuing.
+	 */
+	spin_lock_irqsave(&q->done_lock, flags);
+	if (!list_empty(&q->done_list))
+		vb = list_first_entry(&q->done_list, struct vb2_buffer,
+					done_entry);
+	spin_unlock_irqrestore(&q->done_lock, flags);
+
+	if (vb && (vb->state == VB2_BUF_STATE_DONE
+			|| vb->state == VB2_BUF_STATE_ERROR)) {
+		return (q->is_output) ?
+				POLLOUT | POLLWRNORM :
+				POLLIN | POLLRDNORM;
+	}
+	return 0;
+}
+
+/**
  * vb2_poll() - implements poll userspace operation
  * @q:		videobuf2 queue
  * @file:	file argument passed to the poll file operation handler
@@ -805,9 +896,7 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 {
 	struct video_device *vfd = video_devdata(file);
 	unsigned long req_events = poll_requested_events(wait);
-	struct vb2_buffer *vb = NULL;
 	unsigned int res = 0;
-	unsigned long flags;
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
 		struct v4l2_fh *fh = file->private_data;
@@ -818,79 +907,15 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 			poll_wait(file, &fh->wait, wait);
 	}
 
-	if (!q->is_output && !(req_events & (POLLIN | POLLRDNORM)))
-		return res;
-	if (q->is_output && !(req_events & (POLLOUT | POLLWRNORM)))
-		return res;
-
-	/*
-	 * Start file I/O emulator only if streaming API has not been used yet.
-	 */
-	if (q->num_buffers == 0 && !vb2_fileio_is_active(q)) {
-		if (!q->is_output && (q->io_modes & VB2_READ) &&
-				(req_events & (POLLIN | POLLRDNORM))) {
-			if (__vb2_init_fileio(q, 1))
-				return res | POLLERR;
-		}
-		if (q->is_output && (q->io_modes & VB2_WRITE) &&
-				(req_events & (POLLOUT | POLLWRNORM))) {
-			if (__vb2_init_fileio(q, 0))
-				return res | POLLERR;
-			/*
-			 * Write to OUTPUT queue can be done immediately.
-			 */
-			return res | POLLOUT | POLLWRNORM;
-		}
-	}
-
-	/*
-	 * There is nothing to wait for if the queue isn't streaming, or if the
-	 * error flag is set.
-	 */
-	if (!vb2_is_streaming(q) || q->error)
-		return res | POLLERR;
 	/*
 	 * For compatibility with vb1: if QBUF hasn't been called yet, then
 	 * return POLLERR as well. This only affects capture queues, output
 	 * queues will always initialize waiting_for_buffers to false.
 	 */
-	if (q->waiting_for_buffers)
-		return res | POLLERR;
+	if (q->waiting_for_buffers && (req_events & (POLLIN | POLLRDNORM)))
+		return POLLERR;
 
-	/*
-	 * For output streams you can call write() as long as there are fewer
-	 * buffers queued than there are buffers available.
-	 */
-	if (q->is_output && q->fileio && q->queued_count < q->num_buffers)
-		return res | POLLOUT | POLLWRNORM;
-
-	if (list_empty(&q->done_list)) {
-		/*
-		 * If the last buffer was dequeued from a capture queue,
-		 * return immediately. DQBUF will return -EPIPE.
-		 */
-		if (q->last_buffer_dequeued)
-			return res | POLLIN | POLLRDNORM;
-
-		poll_wait(file, &q->done_wq, wait);
-	}
-
-	/*
-	 * Take first buffer available for dequeuing.
-	 */
-	spin_lock_irqsave(&q->done_lock, flags);
-	if (!list_empty(&q->done_list))
-		vb = list_first_entry(&q->done_list, struct vb2_buffer,
-					done_entry);
-	spin_unlock_irqrestore(&q->done_lock, flags);
-
-	if (vb && (vb->state == VB2_BUF_STATE_DONE
-			|| vb->state == VB2_BUF_STATE_ERROR)) {
-		return (q->is_output) ?
-				res | POLLOUT | POLLWRNORM :
-				res | POLLIN | POLLRDNORM;
-	}
-	return res;
+	return res | vb2_core_poll(q, file, wait);
 }
 EXPORT_SYMBOL_GPL(vb2_poll);
 
