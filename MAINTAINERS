@@ -11671,6 +11671,7 @@ F:	drivers/input/touchscreen/wm831x-ts.c
 F:	drivers/input/touchscreen/wm97*.c
 F:	drivers/mfd/arizona*
 F:	drivers/mfd/wm*.c
+F:	drivers/mfd/cs47l24*
 F:	drivers/power/wm83*.c
 F:	drivers/rtc/rtc-wm83*.c
 F:	drivers/regulator/wm8*.c
@@ -11684,6 +11685,7 @@ F:	include/linux/wm97xx.h
 F:	include/sound/wm????.h
 F:	sound/soc/codecs/arizona.?
 F:	sound/soc/codecs/wm*
+F:	sound/soc/codecs/cs47l24*
 
 WORKQUEUE
 M:	Tejun Heo <tj@kernel.org>
