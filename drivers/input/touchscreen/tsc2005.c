@@ -26,7 +26,7 @@
 
 static int tsc2005_cmd(struct device *dev, u8 cmd)
 {
-	u8 tx = TSC2005_CMD | TSC2005_CMD_12BIT | cmd;
+	u8 tx = TSC200X_CMD | TSC200X_CMD_12BIT | cmd;
 	struct spi_transfer xfer = {
 		.tx_buf         = &tx,
 		.len            = 1,
