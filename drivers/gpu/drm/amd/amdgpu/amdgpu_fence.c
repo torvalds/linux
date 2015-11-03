@@ -342,6 +342,7 @@ static bool amdgpu_fence_enable_signaling(struct fence *f)
 	fence->fence_wake.func = amdgpu_fence_check_signaled;
 	__add_wait_queue(&ring->fence_drv.fence_queue, &fence->fence_wake);
 	fence_get(f);
+	amdgpu_fence_schedule_check(ring);
 	FENCE_TRACE(&fence->base, "armed on ring %i!\n", ring->idx);
 	return true;
 }
@@ -367,6 +368,7 @@ static int amdgpu_fence_ring_wait_seq(struct amdgpu_ring *ring, uint64_t seq)
 	if (atomic64_read(&ring->fence_drv.last_seq) >= seq)
 		return 0;
 
+	amdgpu_fence_schedule_check(ring);
 	wait_event(ring->fence_drv.fence_queue, (
 		   (signaled = amdgpu_fence_seq_signaled(ring, seq))));
 
