@@ -65,11 +65,10 @@ static void _rtl88e_fw_block_write(struct adapter *adapt,
 	blk_cnt = size / blk_sz;
 	remain = size % blk_sz;
 
-	offset = 0;
+	offset = FW_8192C_START_ADDRESS;
 
 	for (i = 0; i < blk_cnt; i++) {
-		usb_write32(adapt, (FW_8192C_START_ADDRESS + offset),
-				pu4BytePtr[i]);
+		usb_write32(adapt, offset, pu4BytePtr[i]);
 		offset += blk_sz;
 	}
 
