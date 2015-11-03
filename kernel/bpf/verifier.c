@@ -214,7 +214,7 @@ static DEFINE_MUTEX(bpf_verifier_lock);
  * verbose() is used to dump the verification trace to the log, so the user
  * can figure out what's wrong with the program
  */
-static void verbose(const char *fmt, ...)
+static __printf(1, 2) void verbose(const char *fmt, ...)
 {
 	va_list args;
 
