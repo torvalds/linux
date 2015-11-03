@@ -833,9 +833,7 @@ posix_acl_xattr_list(struct dentry *dentry, char *list, size_t list_size,
 	size_t size;
 
 	if (!IS_POSIXACL(d_backing_inode(dentry)))
-		return -EOPNOTSUPP;
-	if (d_is_symlink(dentry))
-		return -EOPNOTSUPP;
+		return 0;
 
 	if (type == ACL_TYPE_ACCESS)
 		xname = POSIX_ACL_XATTR_ACCESS;
