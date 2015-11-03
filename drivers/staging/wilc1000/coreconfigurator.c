@@ -609,7 +609,6 @@ s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 					wids[counter].id,
 					wids[counter].val,
 					wids[counter].size);
-
 		}
 	} else if (mode == SET_CFG) {
 		for (counter = 0; counter < count; counter++) {
