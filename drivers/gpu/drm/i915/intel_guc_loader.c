@@ -504,7 +504,9 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 			guc_fw->guc_fw_major_found, guc_fw->guc_fw_minor_found,
 			guc_fw->guc_fw_major_wanted, guc_fw->guc_fw_minor_wanted);
 
+	mutex_lock(&dev->struct_mutex);
 	obj = i915_gem_object_create_from_data(dev, fw->data, fw->size);
+	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR_OR_NULL(obj)) {
 		err = obj ? PTR_ERR(obj) : -ENOMEM;
 		goto fail;
@@ -540,8 +542,6 @@ fail:
  * @dev:	drm device
  *
  * Called early during driver load, but after GEM is initialised.
- * The device struct_mutex must be held by the caller, as we're
- * going to allocate a GEM object to hold the firmware image.
  *
  * The firmware will be transferred to the GuC's memory later,
  * when intel_guc_ucode_load() is called.
@@ -598,9 +598,11 @@ void intel_guc_ucode_fini(struct drm_device *dev)
 	direct_interrupts_to_host(dev_priv);
 	i915_guc_submission_fini(dev);
 
+	mutex_lock(&dev->struct_mutex);
 	if (guc_fw->guc_fw_obj)
 		drm_gem_object_unreference(&guc_fw->guc_fw_obj->base);
 	guc_fw->guc_fw_obj = NULL;
+	mutex_unlock(&dev->struct_mutex);
 
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_NONE;
 }
