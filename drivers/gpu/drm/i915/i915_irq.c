@@ -749,7 +749,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	 * problem.  We may need to extend this to include other platforms,
 	 * but so far testing only shows the problem on HSW.
 	 */
-	if (IS_HASWELL(dev) && !position) {
+	if (HAS_DDI(dev) && !position) {
 		int i, temp;
 
 		for (i = 0; i < 100; i++) {
