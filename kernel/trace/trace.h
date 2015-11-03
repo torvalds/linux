@@ -71,9 +71,6 @@ enum trace_type {
 		tstruct							\
 	}
 
-#undef TP_ARGS
-#define TP_ARGS(args...)	args
-
 #undef FTRACE_ENTRY_DUP
 #define FTRACE_ENTRY_DUP(name, name_struct, id, tstruct, printk, filter)
 
