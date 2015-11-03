@@ -1140,10 +1140,10 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
-int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
+int ieee80211_request_sched_scan_stop(struct ieee80211_local *local)
 {
-	struct ieee80211_local *local = sdata->local;
-	int ret = 0;
+	struct ieee80211_sub_if_data *sched_scan_sdata;
+	int ret = -ENOENT;
 
 	mutex_lock(&local->mtx);
 
@@ -1155,8 +1155,10 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 	/* We don't want to restart sched scan anymore. */
 	RCU_INIT_POINTER(local->sched_scan_req, NULL);
 
-	if (rcu_access_pointer(local->sched_scan_sdata)) {
-		ret = drv_sched_scan_stop(local, sdata);
+	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
+						lockdep_is_held(&local->mtx));
+	if (sched_scan_sdata) {
+		ret = drv_sched_scan_stop(local, sched_scan_sdata);
 		if (!ret)
 			RCU_INIT_POINTER(local->sched_scan_sdata, NULL);
 	}

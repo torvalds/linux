@@ -66,36 +66,8 @@ static inline int drv_get_et_sset_count(struct ieee80211_sub_if_data *sdata,
 	return rv;
 }
 
-static inline int drv_start(struct ieee80211_local *local)
-{
-	int ret;
-
-	might_sleep();
-
-	trace_drv_start(local);
-	local->started = true;
-	smp_mb();
-	ret = local->ops->start(&local->hw);
-	trace_drv_return_int(local, ret);
-	return ret;
-}
-
-static inline void drv_stop(struct ieee80211_local *local)
-{
-	might_sleep();
-
-	trace_drv_stop(local);
-	local->ops->stop(&local->hw);
-	trace_drv_return_void(local);
-
-	/* sync away all work on the tasklet before clearing started */
-	tasklet_disable(&local->tasklet);
-	tasklet_enable(&local->tasklet);
-
-	barrier();
-
-	local->started = false;
-}
+int drv_start(struct ieee80211_local *local);
+void drv_stop(struct ieee80211_local *local);
 
 #ifdef CONFIG_PM
 static inline int drv_suspend(struct ieee80211_local *local,
@@ -871,6 +843,8 @@ static inline int drv_add_chanctx(struct ieee80211_local *local,
 {
 	int ret = -EOPNOTSUPP;
 
+	might_sleep();
+
 	trace_drv_add_chanctx(local, ctx);
 	if (local->ops->add_chanctx)
 		ret = local->ops->add_chanctx(&local->hw, &ctx->conf);
@@ -884,6 +858,8 @@ static inline int drv_add_chanctx(struct ieee80211_local *local,
 static inline void drv_remove_chanctx(struct ieee80211_local *local,
 				      struct ieee80211_chanctx *ctx)
 {
+	might_sleep();
+
 	if (WARN_ON(!ctx->driver_present))
 		return;
 
@@ -898,6 +874,8 @@ static inline void drv_change_chanctx(struct ieee80211_local *local,
 				      struct ieee80211_chanctx *ctx,
 				      u32 changed)
 {
+	might_sleep();
+
 	trace_drv_change_chanctx(local, ctx, changed);
 	if (local->ops->change_chanctx) {
 		WARN_ON_ONCE(!ctx->driver_present);
@@ -931,6 +909,8 @@ static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 					    struct ieee80211_sub_if_data *sdata,
 					    struct ieee80211_chanctx *ctx)
 {
+	might_sleep();
+
 	if (!check_sdata_in_driver(sdata))
 		return;
 
@@ -952,6 +932,8 @@ static inline int drv_start_ap(struct ieee80211_local *local,
 			       struct ieee80211_sub_if_data *sdata)
 {
 	int ret = 0;
+
+	might_sleep();
 
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
