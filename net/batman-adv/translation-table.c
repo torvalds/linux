@@ -3339,7 +3339,10 @@ bool batadv_is_ap_isolated(struct batadv_priv *bat_priv, u8 *src, u8 *dst,
 	bool ret = false;
 
 	vlan = batadv_softif_vlan_get(bat_priv, vid);
-	if (!vlan || !atomic_read(&vlan->ap_isolation))
+	if (!vlan)
+		return false;
+
+	if (!atomic_read(&vlan->ap_isolation))
 		goto out;
 
 	tt_local_entry = batadv_tt_local_hash_find(bat_priv, dst, vid);
