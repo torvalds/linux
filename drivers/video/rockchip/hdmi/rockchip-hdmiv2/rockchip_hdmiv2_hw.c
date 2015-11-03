@@ -833,7 +833,7 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 		     v_FC_VSYNC_POL(vsync_pol) | v_FC_HSYNC_POL(hsync_pol) |
 		     v_FC_DE_POL(de_pol) | v_FC_HDMI_DVI(vpara->sink_hdmi) |
 		     v_FC_INTERLACE_MODE(mode->vmode));
-	if (mode->vmode == FB_VMODE_INTERLACED &&
+	if ((mode->vmode & FB_VMODE_INTERLACED) &&
 	    vpara->format_3d != HDMI_3D_FRAME_PACKING)
 		hdmi_msk_reg(hdmi_dev, FC_INVIDCONF,
 			     m_FC_VBLANK, v_FC_VBLANK(1));

@@ -373,13 +373,13 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 					continue;
 				if ((feature & SUPPORT_1080I) == 0 &&
 				    hdmi_mode[i].mode.xres == 1920 &&
-				    hdmi_mode[i].mode.vmode ==
-				    FB_VMODE_INTERLACED)
+				    (hdmi_mode[i].mode.vmode &
+				     FB_VMODE_INTERLACED))
 					continue;
 				if ((feature & SUPPORT_480I_576I) == 0 &&
 				    hdmi_mode[i].mode.xres == 720 &&
-				    hdmi_mode[i].mode.vmode ==
-				    FB_VMODE_INTERLACED)
+				    hdmi_mode[i].mode.vmode &
+				     FB_VMODE_INTERLACED)
 					continue;
 				vic = modelist->vic;
 				modelist->vic = hdmi_mode[i].vic;
@@ -493,7 +493,7 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 				   just list common hdmi foramt. */
 				if (mode->xres > 3840 ||
 				    mode->refresh < 50 ||
-				    mode->vmode == FB_VMODE_INTERLACED ||
+				    (mode->vmode & FB_VMODE_INTERLACED) ||
 				    hdmi_mode[i].vic & HDMI_VIDEO_DMT)
 					continue;
 			}
@@ -508,11 +508,11 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 				continue;
 			if ((feature & SUPPORT_1080I) == 0 &&
 			    mode->xres == 1920 &&
-			    mode->vmode == FB_VMODE_INTERLACED)
+			    (mode->vmode & FB_VMODE_INTERLACED))
 				continue;
 			if ((feature & SUPPORT_480I_576I) == 0 &&
 			    mode->xres == 720 &&
-			    mode->vmode == FB_VMODE_INTERLACED)
+			    (mode->vmode & FB_VMODE_INTERLACED))
 				continue;
 			hdmi_add_videomode(mode, head);
 		}
@@ -633,11 +633,11 @@ void hdmi_init_modelist(struct hdmi *hdmi)
 			continue;
 		if ((feature & SUPPORT_1080I) == 0 &&
 		    hdmi_mode[i].mode.xres == 1920 &&
-		    hdmi_mode[i].mode.vmode == FB_VMODE_INTERLACED)
+		    (hdmi_mode[i].mode.vmode & FB_VMODE_INTERLACED))
 			continue;
 		if ((feature & SUPPORT_480I_576I) == 0 &&
 		    hdmi_mode[i].mode.xres == 720 &&
-		    hdmi_mode[i].mode.vmode == FB_VMODE_INTERLACED)
+		    (hdmi_mode[i].mode.vmode & FB_VMODE_INTERLACED))
 			continue;
 		hdmi_add_videomode(&(hdmi_mode[i].mode), head);
 	}
