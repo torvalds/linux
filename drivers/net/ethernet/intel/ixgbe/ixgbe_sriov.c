@@ -472,6 +472,17 @@ static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
 
 	err = hw->mac.ops.set_vfta(hw, vid, vf, !!add, false);
 
+	if (add && !err)
+		return err;
+
+	/* If we failed to add the VF VLAN or we are removing the VF VLAN
+	 * we may need to drop the PF pool bit in order to allow us to free
+	 * up the VLVF resources.
+	 */
+	if (test_bit(vid, adapter->active_vlans) ||
+	    (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC))
+		ixgbe_update_pf_promisc_vlvf(adapter, vid);
+
 	return err;
 }
 
@@ -830,40 +841,14 @@ static int ixgbe_set_vf_mac_addr(struct ixgbe_adapter *adapter,
 	return ixgbe_set_vf_mac(adapter, vf, new_mac) < 0;
 }
 
-static int ixgbe_find_vlvf_entry(struct ixgbe_hw *hw, u32 vlan)
-{
-	u32 vlvf;
-	s32 regindex;
-
-	/* short cut the special case */
-	if (vlan == 0)
-		return 0;
-
-	/* Search for the vlan id in the VLVF entries */
-	for (regindex = 1; regindex < IXGBE_VLVF_ENTRIES; regindex++) {
-		vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(regindex));
-		if ((vlvf & VLAN_VID_MASK) == vlan)
-			break;
-	}
-
-	/* Return a negative value if not found */
-	if (regindex >= IXGBE_VLVF_ENTRIES)
-		regindex = -1;
-
-	return regindex;
-}
-
 static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 				 u32 *msgbuf, u32 vf)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
-	int add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
-	int vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
-	int err;
-	s32 reg_ndx;
-	u32 vlvf;
-	u32 bits;
+	u32 add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
+	u32 vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
 	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	int err;
 
 	if (adapter->vfinfo[vf].pf_vlan || tcs) {
 		e_warn(drv,
@@ -873,54 +858,19 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 		return -1;
 	}
 
+	err = ixgbe_set_vf_vlan(adapter, add, vid, vf);
+	if (err)
+		return err;
+
+	if (adapter->vfinfo[vf].spoofchk_enabled)
+		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
+
 	if (add)
 		adapter->vfinfo[vf].vlan_count++;
 	else if (adapter->vfinfo[vf].vlan_count)
 		adapter->vfinfo[vf].vlan_count--;
 
-	/* in case of promiscuous mode any VLAN filter set for a VF must
-	 * also have the PF pool added to it.
-	 */
-	if (add && adapter->netdev->flags & IFF_PROMISC)
-		err = ixgbe_set_vf_vlan(adapter, add, vid, VMDQ_P(0));
-
-	err = ixgbe_set_vf_vlan(adapter, add, vid, vf);
-	if (!err && adapter->vfinfo[vf].spoofchk_enabled)
-		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
-
-	/* Go through all the checks to see if the VLAN filter should
-	 * be wiped completely.
-	 */
-	if (!add && adapter->netdev->flags & IFF_PROMISC) {
-		reg_ndx = ixgbe_find_vlvf_entry(hw, vid);
-		if (reg_ndx < 0)
-			return err;
-		vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(reg_ndx));
-		/* See if any other pools are set for this VLAN filter
-		 * entry other than the PF.
-		 */
-		if (VMDQ_P(0) < 32) {
-			bits = IXGBE_READ_REG(hw, IXGBE_VLVFB(reg_ndx * 2));
-			bits &= ~(1 << VMDQ_P(0));
-			bits |= IXGBE_READ_REG(hw,
-					       IXGBE_VLVFB(reg_ndx * 2 + 1));
-		} else {
-			bits = IXGBE_READ_REG(hw,
-					      IXGBE_VLVFB(reg_ndx * 2 + 1));
-			bits &= ~(1 << (VMDQ_P(0) - 32));
-			bits |= IXGBE_READ_REG(hw, IXGBE_VLVFB(reg_ndx * 2));
-		}
-
-		/* If the filter was removed then ensure PF pool bit
-		 * is cleared if the PF only added itself to the pool
-		 * because the PF is in promiscuous mode.
-		 */
-		if ((vlvf & VLAN_VID_MASK) == vid &&
-		    !test_bit(vid, adapter->active_vlans) && !bits)
-			ixgbe_set_vf_vlan(adapter, add, vid, VMDQ_P(0));
-	}
-
-	return err;
+	return 0;
 }
 
 static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,

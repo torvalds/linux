@@ -3908,6 +3908,50 @@ static int ixgbe_vlan_rx_add_vid(struct net_device *netdev,
 	return 0;
 }
 
+static int ixgbe_find_vlvf_entry(struct ixgbe_hw *hw, u32 vlan)
+{
+	u32 vlvf;
+	int idx;
+
+	/* short cut the special case */
+	if (vlan == 0)
+		return 0;
+
+	/* Search for the vlan id in the VLVF entries */
+	for (idx = IXGBE_VLVF_ENTRIES; --idx;) {
+		vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(idx));
+		if ((vlvf & VLAN_VID_MASK) == vlan)
+			break;
+	}
+
+	return idx;
+}
+
+void ixgbe_update_pf_promisc_vlvf(struct ixgbe_adapter *adapter, u32 vid)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 bits, word;
+	int idx;
+
+	idx = ixgbe_find_vlvf_entry(hw, vid);
+	if (!idx)
+		return;
+
+	/* See if any other pools are set for this VLAN filter
+	 * entry other than the PF.
+	 */
+	word = idx * 2 + (VMDQ_P(0) / 32);
+	bits = ~(1 << (VMDQ_P(0)) % 32);
+	bits &= IXGBE_READ_REG(hw, IXGBE_VLVFB(word));
+
+	/* Disable the filter so this falls into the default pool. */
+	if (!bits && !IXGBE_READ_REG(hw, IXGBE_VLVFB(word ^ 1))) {
+		if (!(adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC))
+			IXGBE_WRITE_REG(hw, IXGBE_VLVFB(word), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VLVF(idx), 0);
+	}
+}
+
 static int ixgbe_vlan_rx_kill_vid(struct net_device *netdev,
 				  __be16 proto, u16 vid)
 {
@@ -3915,7 +3959,11 @@ static int ixgbe_vlan_rx_kill_vid(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* remove VID from filter table */
-	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), false, true);
+	if (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC)
+		ixgbe_update_pf_promisc_vlvf(adapter, vid);
+	else
+		hw->mac.ops.set_vfta(hw, vid, VMDQ_P(0), false, true);
+
 	clear_bit(vid, adapter->active_vlans);
 
 	return 0;
