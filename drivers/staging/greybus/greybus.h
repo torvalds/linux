@@ -57,16 +57,6 @@
 #define CPORT_ID_MAX	4095		/* UniPro max id is 4095 */
 #define CPORT_ID_BAD	U16_MAX
 
-/* For SP1 hardware, we are going to "hardcode" each device to have all logical
- * blocks in order to be able to address them as one unified "unit".  Then
- * higher up layers will then be able to talk to them as one logical block and
- * properly know how they are hooked together (i.e. which i2c port is on the
- * same module as the gpio pins, etc.)
- *
- * So, put the "private" data structures here in greybus.h and link to them off
- * of the "main" gb_module structure.
- */
-
 struct greybus_host_device;
 
 /* Greybus "Host driver" structure, needed by a host controller driver to be
