@@ -103,13 +103,37 @@ static u32 isi_readl(struct atmel_isi *isi, u32 reg)
 	return readl(isi->regs + reg);
 }
 
+static u32 setup_cfg2_yuv_swap(struct atmel_isi *isi,
+		const struct soc_camera_format_xlate *xlate)
+{
+	if (xlate->host_fmt->fourcc == V4L2_PIX_FMT_YUYV) {
+		/* all convert to YUYV */
+		switch (xlate->code) {
+		case MEDIA_BUS_FMT_VYUY8_2X8:
+			return ISI_CFG2_YCC_SWAP_MODE_3;
+		case MEDIA_BUS_FMT_UYVY8_2X8:
+			return ISI_CFG2_YCC_SWAP_MODE_2;
+		case MEDIA_BUS_FMT_YVYU8_2X8:
+			return ISI_CFG2_YCC_SWAP_MODE_1;
+		}
+	}
+
+	/*
+	 * By default, no swap for the codec path of Atmel ISI. So codec
+	 * output is same as sensor's output.
+	 * For instance, if sensor's output is YUYV, then codec outputs YUYV.
+	 * And if sensor's output is UYVY, then codec outputs UYVY.
+	 */
+	return ISI_CFG2_YCC_SWAP_DEFAULT;
+}
+
 static void configure_geometry(struct atmel_isi *isi, u32 width,
-			u32 height, u32 code)
+		u32 height, const struct soc_camera_format_xlate *xlate)
 {
 	u32 cfg2;
 
 	/* According to sensor's output format to set cfg2 */
-	switch (code) {
+	switch (xlate->code) {
 	default:
 	/* Grey */
 	case MEDIA_BUS_FMT_Y8_1X8:
@@ -117,16 +141,11 @@ static void configure_geometry(struct atmel_isi *isi, u32 width,
 		break;
 	/* YUV */
 	case MEDIA_BUS_FMT_VYUY8_2X8:
-		cfg2 = ISI_CFG2_YCC_SWAP_MODE_3 | ISI_CFG2_COL_SPACE_YCbCr;
-		break;
 	case MEDIA_BUS_FMT_UYVY8_2X8:
-		cfg2 = ISI_CFG2_YCC_SWAP_MODE_2 | ISI_CFG2_COL_SPACE_YCbCr;
-		break;
 	case MEDIA_BUS_FMT_YVYU8_2X8:
-		cfg2 = ISI_CFG2_YCC_SWAP_MODE_1 | ISI_CFG2_COL_SPACE_YCbCr;
-		break;
 	case MEDIA_BUS_FMT_YUYV8_2X8:
-		cfg2 = ISI_CFG2_YCC_SWAP_DEFAULT | ISI_CFG2_COL_SPACE_YCbCr;
+		cfg2 = ISI_CFG2_COL_SPACE_YCbCr |
+				setup_cfg2_yuv_swap(isi, xlate);
 		break;
 	/* RGB, TODO */
 	}
@@ -411,7 +430,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	isi_writel(isi, ISI_INTDIS, (u32)~0UL);
 
 	configure_geometry(isi, icd->user_width, icd->user_height,
-				icd->current_fmt->code);
+				icd->current_fmt);
 
 	spin_lock_irq(&isi->lock);
 	/* Clear any pending interrupt */
