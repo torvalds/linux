@@ -547,4 +547,5 @@ int __init gb_endo_init(void)
 
 void gb_endo_exit(void)
 {
+	ida_destroy(&greybus_endo_id_map);
 }
