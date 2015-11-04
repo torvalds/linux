@@ -238,6 +238,18 @@ err_kill_urbs:
 	return ret;
 }
 
+static void es2_cport_in_disable(struct es2_ap_dev *es2,
+				struct es2_cport_in *cport_in)
+{
+	struct urb *urb;
+	int i;
+
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
+		urb = cport_in->urb[i];
+		usb_kill_urb(urb);
+	}
+}
+
 static struct urb *next_free_urb(struct es2_ap_dev *es2, gfp_t gfp_mask)
 {
 	struct urb *urb = NULL;
@@ -547,6 +559,9 @@ static void ap_disconnect(struct usb_interface *interface)
 	if (!es2)
 		return;
 
+	for (i = 0; i < NUM_BULKS; ++i)
+		es2_cport_in_disable(es2, &es2->cport_in[i]);
+
 	usb_log_disable(es2);
 
 	/* Tear down everything! */
@@ -569,7 +584,6 @@ static void ap_disconnect(struct usb_interface *interface)
 
 			if (!urb)
 				break;
-			usb_kill_urb(urb);
 			usb_free_urb(urb);
 			kfree(cport_in->buffer[i]);
 			cport_in->buffer[i] = NULL;
