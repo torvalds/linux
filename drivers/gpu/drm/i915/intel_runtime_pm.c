@@ -1632,6 +1632,7 @@ static struct i915_power_well vlv_power_wells[] = {
 		.always_on = 1,
 		.domains = VLV_ALWAYS_ON_POWER_DOMAINS,
 		.ops = &i9xx_always_on_power_well_ops,
+		.data = PUNIT_POWER_WELL_ALWAYS_ON,
 	},
 	{
 		.name = "display",
@@ -1733,6 +1734,7 @@ static struct i915_power_well skl_power_wells[] = {
 		.always_on = 1,
 		.domains = SKL_DISPLAY_ALWAYS_ON_POWER_DOMAINS,
 		.ops = &i9xx_always_on_power_well_ops,
+		.data = SKL_DISP_PW_ALWAYS_ON,
 	},
 	{
 		.name = "power well 1",
