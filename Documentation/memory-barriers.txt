@@ -637,7 +637,8 @@ as follows:
 	b = p;  /* BUG: Compiler and CPU can both reorder!!! */
 
 Finally, the READ_ONCE_CTRL() includes an smp_read_barrier_depends()
-that DEC Alpha needs in order to respect control depedencies.
+that DEC Alpha needs in order to respect control depedencies. Alternatively
+use one of atomic{,64}_read_ctrl().
 
 So don't leave out the READ_ONCE_CTRL().
 
@@ -796,9 +797,9 @@ site: https://www.cl.cam.ac.uk/~pes20/ppcmem/index.html.
 
 In summary:
 
-  (*) Control dependencies must be headed by READ_ONCE_CTRL().
-      Or, as a much less preferable alternative, interpose
-      smp_read_barrier_depends() between a READ_ONCE() and the
+  (*) Control dependencies must be headed by READ_ONCE_CTRL(),
+      atomic{,64}_read_ctrl(). Or, as a much less preferable alternative,
+      interpose smp_read_barrier_depends() between a READ_ONCE() and the
       control-dependent write.
 
   (*) Control dependencies can order prior loads against later stores.
@@ -820,10 +821,10 @@ In summary:
       and WRITE_ONCE() can help to preserve the needed conditional.
 
   (*) Control dependencies require that the compiler avoid reordering the
-      dependency into nonexistence.  Careful use of READ_ONCE_CTRL()
-      or smp_read_barrier_depends() can help to preserve your control
-      dependency.  Please see the Compiler Barrier section for more
-      information.
+      dependency into nonexistence.  Careful use of READ_ONCE_CTRL(),
+      atomic{,64}_read_ctrl() or smp_read_barrier_depends() can help to
+      preserve your control dependency.  Please see the Compiler Barrier
+      section for more information.
 
   (*) Control dependencies pair normally with other types of barriers.
 
