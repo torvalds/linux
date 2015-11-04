@@ -223,3 +223,24 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRa
 
 	return phm_dispatch_table(hwmgr, &(hwmgr->start_thermal_controller), temperature_range, NULL);
 }
+
+
+bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
+{
+	if (hwmgr == NULL || hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration(hwmgr);
+}
+
+
+int phm_check_states_equal(struct pp_hwmgr *hwmgr,
+				 const struct pp_hw_power_state *pstate1,
+				 const struct pp_hw_power_state *pstate2,
+				 bool *equal)
+{
+	if (hwmgr == NULL || hwmgr->hwmgr_func->check_states_equal == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->check_states_equal(hwmgr, pstate1, pstate2, equal);
+}

@@ -322,6 +322,7 @@ struct phm_clocks {
 	uint32_t num_of_entries;
 	uint32_t clock[MAX_NUM_CLOCKS];
 };
+
 extern int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate);
 extern int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate);
@@ -345,5 +346,12 @@ extern int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hw
 extern int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info);
 extern int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *temperature_range);
 extern int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr);
+extern bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr);
+
+extern int phm_check_states_equal(struct pp_hwmgr *hwmgr,
+				 const struct pp_hw_power_state *pstate1,
+				 const struct pp_hw_power_state *pstate2,
+				 bool *equal);
+
 #endif /* _HARDWARE_MANAGER_H_ */
 

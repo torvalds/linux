@@ -307,6 +307,11 @@ struct pp_hwmgr_func {
 	int (*uninitialize_thermal_controller)(struct pp_hwmgr *hwmgr);
 	int (*register_internal_thermal_interrupt)(struct pp_hwmgr *hwmgr,
 					const void *thermal_interrupt_info);
+	bool (*check_smc_update_required_for_display_configuration)(struct pp_hwmgr *hwmgr);
+	int (*check_states_equal)(struct pp_hwmgr *hwmgr,
+					const struct pp_hw_power_state *pstate1,
+					const struct pp_hw_power_state *pstate2,
+					bool *equal);
 };
 
 struct pp_table_func {
