@@ -225,7 +225,9 @@ cfs_wi_scheduler (void *arg)
 
 	/* CPT affinity scheduler? */
 	if (sched->ws_cptab != NULL)
-		cfs_cpt_bind(sched->ws_cptab, sched->ws_cpt);
+		if (cfs_cpt_bind(sched->ws_cptab, sched->ws_cpt) != 0)
+			CWARN("Failed to bind %s on CPT %d\n",
+			      sched->ws_name, sched->ws_cpt);
 
 	spin_lock(&cfs_wi_data.wi_glock);
 
