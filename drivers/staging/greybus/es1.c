@@ -359,18 +359,10 @@ static int check_urb_status(struct urb *urb)
 	return -EAGAIN;
 }
 
-static void ap_disconnect(struct usb_interface *interface)
+static void es1_destroy(struct es1_ap_dev *es1)
 {
-	struct es1_ap_dev *es1;
 	struct usb_device *udev;
 	int i;
-
-	es1 = usb_get_intfdata(interface);
-	if (!es1)
-		return;
-
-	for (i = 0; i < NUM_CPORT_IN_URB; ++i)
-		usb_kill_urb(es1->cport_in_urb[i]);
 
 	debugfs_remove(apb1_log_enable_dentry);
 	usb_log_disable(es1);
@@ -397,11 +389,21 @@ static void ap_disconnect(struct usb_interface *interface)
 		es1->cport_in_buffer[i] = NULL;
 	}
 
-	usb_set_intfdata(interface, NULL);
 	udev = es1->usb_dev;
 	gb_hd_remove(es1->hd);
 
 	usb_put_dev(udev);
+}
+
+static void ap_disconnect(struct usb_interface *interface)
+{
+	struct es1_ap_dev *es1 = usb_get_intfdata(interface);
+	int i;
+
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i)
+		usb_kill_urb(es1->cport_in_urb[i]);
+
+	es1_destroy(es1);
 }
 
 static void cport_in_callback(struct urb *urb)
@@ -693,12 +695,16 @@ static int ap_probe(struct usb_interface *interface,
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
 		retval = usb_submit_urb(es1->cport_in_urb[i], GFP_KERNEL);
 		if (retval)
-			goto error;
+			goto err_kill_in_urbs;
 	}
 
 	return 0;
+
+err_kill_in_urbs:
+	for (--i; i >= 0; --i)
+		usb_kill_urb(es1->cport_in_urb[i]);
 error:
-	ap_disconnect(interface);
+	es1_destroy(es1);
 
 	return retval;
 }
