@@ -78,19 +78,6 @@ config SCLP_VT220_CONSOLE
 	  Include support for using an IBM SCLP VT220-compatible terminal as a
 	  Linux system console.
 
-config SCLP_CPI
-	def_tristate m
-	prompt "Control-Program Identification"
-	depends on S390
-	help
-	  This option enables the hardware console interface for system
-	  identification. This is commonly used for workload management and
-	  gives you a nice name for the system on the service element.
-	  Please select this option as a module since built-in operation is
-	  completely untested.
-	  You should only select this option if you know what you are doing,
-	  need this feature and intend to run your kernel in LPAR.
-
 config SCLP_ASYNC
 	def_tristate m
 	prompt "Support for Call Home via Asynchronous SCLP Records"
