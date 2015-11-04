@@ -665,7 +665,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 				   (u8 *) __LC_PER_ACCESS_ID);
 	}
 
-	if (nullifying && vcpu->arch.sie_block->icptcode == ICPT_INST)
+	if (nullifying && !(pgm_info.flags & KVM_S390_PGM_FLAGS_NO_REWIND))
 		kvm_s390_rewind_psw(vcpu, ilen);
 
 	/* bit 1+2 of the target are the ilc, so we can directly use ilen */

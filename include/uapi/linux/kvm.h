@@ -545,6 +545,7 @@ struct kvm_s390_pgm_info {
 #define KVM_S390_PGM_FLAGS_ILC_0	0x02
 #define KVM_S390_PGM_FLAGS_ILC_1	0x04
 #define KVM_S390_PGM_FLAGS_ILC_MASK	0x06
+#define KVM_S390_PGM_FLAGS_NO_REWIND	0x08
 	__u8 flags;
 	__u8 pad[2];
 };

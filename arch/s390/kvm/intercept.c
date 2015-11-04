@@ -140,6 +140,8 @@ static int inject_prog_on_prog_intercept(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_pgm_info pgm_info = {
 		.code = vcpu->arch.sie_block->iprcc,
+		/* the PSW has already been rewound */
+		.flags = KVM_S390_PGM_FLAGS_NO_REWIND,
 	};
 
 	switch (vcpu->arch.sie_block->iprcc & ~PGM_PER) {
