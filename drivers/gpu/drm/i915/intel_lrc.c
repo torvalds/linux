@@ -190,16 +190,16 @@
 #define GEN8_CTX_L3LLC_COHERENT (1<<5)
 #define GEN8_CTX_PRIVILEGE (1<<8)
 
-#define ASSIGN_CTX_PDP(ppgtt, reg_state, n) { \
+#define ASSIGN_CTX_PDP(ppgtt, reg_state, n) do { \
 	const u64 _addr = i915_page_dir_dma_addr((ppgtt), (n));	\
 	reg_state[CTX_PDP ## n ## _UDW+1] = upper_32_bits(_addr); \
 	reg_state[CTX_PDP ## n ## _LDW+1] = lower_32_bits(_addr); \
-}
+} while (0)
 
-#define ASSIGN_CTX_PML4(ppgtt, reg_state) { \
+#define ASSIGN_CTX_PML4(ppgtt, reg_state) do { \
 	reg_state[CTX_PDP0_UDW + 1] = upper_32_bits(px_dma(&ppgtt->pml4)); \
 	reg_state[CTX_PDP0_LDW + 1] = lower_32_bits(px_dma(&ppgtt->pml4)); \
-}
+} while (0)
 
 enum {
 	ADVANCED_CONTEXT = 0,
