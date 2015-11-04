@@ -390,16 +390,6 @@ config RTC_DRV_X1205
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-x1205.
 
-config RTC_DRV_PALMAS
-	tristate "TI Palmas RTC driver"
-	depends on MFD_PALMAS
-	help
-	  If you say yes here you get support for the RTC of TI PALMA series PMIC
-	  chips.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-palma.
-
 config RTC_DRV_PCF2127
 	tristate "NXP PCF2127"
 	help
@@ -418,6 +408,14 @@ config RTC_DRV_PCF8523
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf8523.
 
+config RTC_DRV_PCF85063
+	tristate "NXP PCF85063"
+	help
+	  If you say yes here you get support for the PCF85063 RTC chip
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-pcf85063.
+
 config RTC_DRV_PCF8563
 	tristate "Philips PCF8563/Epson RTC8564"
 	help
@@ -427,14 +425,6 @@ config RTC_DRV_PCF8563
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf8563.
-
-config RTC_DRV_PCF85063
-	tristate "nxp PCF85063"
-	help
-	  If you say yes here you get support for the PCF85063 RTC chip
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-pcf85063.
 
 config RTC_DRV_PCF8583
 	tristate "Philips PCF8583"
@@ -499,6 +489,16 @@ config RTC_DRV_TWL4030
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-twl.
+
+config RTC_DRV_PALMAS
+	tristate "TI Palmas RTC driver"
+	depends on MFD_PALMAS
+	help
+	  If you say yes here you get support for the RTC of TI PALMA series PMIC
+	  chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-palma.
 
 config RTC_DRV_TPS6586X
 	tristate "TI TPS6586X RTC driver"
@@ -690,15 +690,6 @@ config RTC_DRV_DS1390
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1390.
 
-config RTC_DRV_MAX6902
-	tristate "Maxim MAX6902"
-	help
-	  If you say yes here you will get support for the
-	  Maxim MAX6902 SPI RTC chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-max6902.
-
 config RTC_DRV_R9701
 	tristate "Epson RTC-9701JE"
 	help
@@ -708,6 +699,23 @@ config RTC_DRV_R9701
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-r9701.
 
+config RTC_DRV_RX4581
+	tristate "Epson RX-4581"
+	help
+	  If you say yes here you will get support for the Epson RX-4581.
+
+	  This driver can also be built as a module. If so the module
+	  will be called rtc-rx4581.
+
+config RTC_DRV_RX6110
+	tristate "Epson RX-6110"
+	select REGMAP_SPI
+	help
+	  If you say yes here you will get support for the Epson RX-6610.
+
+	  This driver can also be built as a module. If so the module
+	  will be called rtc-rx6110.
+
 config RTC_DRV_RS5C348
 	tristate "Ricoh RS5C348A/B"
 	help
@@ -716,6 +724,15 @@ config RTC_DRV_RS5C348
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rs5c348.
+
+config RTC_DRV_MAX6902
+	tristate "Maxim MAX6902"
+	help
+	  If you say yes here you will get support for the
+	  Maxim MAX6902 SPI RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max6902.
 
 config RTC_DRV_DS3234
 	tristate "Maxim/Dallas DS3234"
@@ -734,23 +751,6 @@ config RTC_DRV_PCF2123
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf2123.
-
-config RTC_DRV_RX4581
-	tristate "Epson RX-4581"
-	help
-	  If you say yes here you will get support for the Epson RX-4581.
-
-	  This driver can also be built as a module. If so the module
-	  will be called rtc-rx4581.
-
-config RTC_DRV_RX6110
-	tristate "Epson RX-6110"
-	select REGMAP_SPI
-	help
-	  If you say yes here you will get support for the Epson RX-6610.
-
-	  This driver can also be built as a module. If so the module
-	  will be called rtc-rx6110.
 
 config RTC_DRV_MCP795
 	tristate "Microchip MCP795"
