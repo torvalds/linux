@@ -85,6 +85,8 @@ struct htable {
 };
 
 #define hbucket(h, i)		((h)->bucket[i])
+#define ext_size(n, dsize)	\
+	(sizeof(struct hbucket) + (n) * (dsize))
 
 #ifndef IPSET_NET_COUNT
 #define IPSET_NET_COUNT		1
@@ -519,7 +521,7 @@ mtype_expire(struct ip_set *set, struct htype *h)
 				d++;
 			}
 			tmp->pos = d;
-			set->ext_size -= AHASH_INIT_SIZE * dsize;
+			set->ext_size -= ext_size(AHASH_INIT_SIZE, dsize);
 			rcu_assign_pointer(hbucket(t, i), tmp);
 			kfree_rcu(n, rcu);
 		}
@@ -625,7 +627,7 @@ retry:
 					goto cleanup;
 				}
 				m->size = AHASH_INIT_SIZE;
-				extsize = sizeof(*m) + AHASH_INIT_SIZE * dsize;
+				extsize = ext_size(AHASH_INIT_SIZE, dsize);
 				RCU_INIT_POINTER(hbucket(t, key), m);
 			} else if (m->pos >= m->size) {
 				struct hbucket *ht;
@@ -645,7 +647,7 @@ retry:
 				memcpy(ht, m, sizeof(struct hbucket) +
 					      m->size * dsize);
 				ht->size = m->size + AHASH_INIT_SIZE;
-				extsize += AHASH_INIT_SIZE * dsize;
+				extsize += ext_size(AHASH_INIT_SIZE, dsize);
 				kfree(m);
 				m = ht;
 				RCU_INIT_POINTER(hbucket(t, key), ht);
@@ -727,7 +729,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		if (!n)
 			return -ENOMEM;
 		n->size = AHASH_INIT_SIZE;
-		set->ext_size += sizeof(*n) + AHASH_INIT_SIZE * set->dsize;
+		set->ext_size += ext_size(AHASH_INIT_SIZE, set->dsize);
 		goto copy_elem;
 	}
 	for (i = 0; i < n->pos; i++) {
@@ -791,7 +793,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		memcpy(n, old, sizeof(struct hbucket) +
 		       old->size * set->dsize);
 		n->size = old->size + AHASH_INIT_SIZE;
-		set->ext_size += AHASH_INIT_SIZE * set->dsize;
+		set->ext_size += ext_size(AHASH_INIT_SIZE, set->dsize);
 	}
 
 copy_elem:
@@ -883,7 +885,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 				k++;
 		}
 		if (n->pos == 0 && k == 0) {
-			set->ext_size -= sizeof(*n) + n->size * dsize;
+			set->ext_size -= ext_size(n->size, dsize);
 			rcu_assign_pointer(hbucket(t, key), NULL);
 			kfree_rcu(n, rcu);
 		} else if (k >= AHASH_INIT_SIZE) {
@@ -902,7 +904,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 				k++;
 			}
 			tmp->pos = k;
-			set->ext_size -= AHASH_INIT_SIZE * dsize;
+			set->ext_size -= ext_size(AHASH_INIT_SIZE, dsize);
 			rcu_assign_pointer(hbucket(t, key), tmp);
 			kfree_rcu(n, rcu);
 		}
