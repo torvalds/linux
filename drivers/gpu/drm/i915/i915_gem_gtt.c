@@ -910,14 +910,13 @@ static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
 	enum vgt_g2v_type msg;
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned int offset = vgtif_reg(pdp0_lo);
 	int i;
 
 	if (USES_FULL_48BIT_PPGTT(dev)) {
 		u64 daddr = px_dma(&ppgtt->pml4);
 
-		I915_WRITE(offset, lower_32_bits(daddr));
-		I915_WRITE(offset + 4, upper_32_bits(daddr));
+		I915_WRITE(vgtif_reg(pdp[0].lo), lower_32_bits(daddr));
+		I915_WRITE(vgtif_reg(pdp[0].hi), upper_32_bits(daddr));
 
 		msg = (create ? VGT_G2V_PPGTT_L4_PAGE_TABLE_CREATE :
 				VGT_G2V_PPGTT_L4_PAGE_TABLE_DESTROY);
@@ -925,10 +924,8 @@ static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
 		for (i = 0; i < GEN8_LEGACY_PDPES; i++) {
 			u64 daddr = i915_page_dir_dma_addr(ppgtt, i);
 
-			I915_WRITE(offset, lower_32_bits(daddr));
-			I915_WRITE(offset + 4, upper_32_bits(daddr));
-
-			offset += 8;
+			I915_WRITE(vgtif_reg(pdp[i].lo), lower_32_bits(daddr));
+			I915_WRITE(vgtif_reg(pdp[i].hi), upper_32_bits(daddr));
 		}
 
 		msg = (create ? VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE :

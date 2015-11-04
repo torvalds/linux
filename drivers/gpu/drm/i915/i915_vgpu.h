@@ -92,14 +92,10 @@ struct vgt_if {
 	uint32_t g2v_notify;
 	uint32_t rsv6[7];
 
-	uint32_t pdp0_lo;
-	uint32_t pdp0_hi;
-	uint32_t pdp1_lo;
-	uint32_t pdp1_hi;
-	uint32_t pdp2_lo;
-	uint32_t pdp2_hi;
-	uint32_t pdp3_lo;
-	uint32_t pdp3_hi;
+	struct {
+		uint32_t lo;
+		uint32_t hi;
+	} pdp[4];
 
 	uint32_t execlist_context_descriptor_lo;
 	uint32_t execlist_context_descriptor_hi;
