@@ -299,7 +299,7 @@ static int sdi_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(mgr, dssdev);
+		dss_mgr_disconnect(mgr->id, dssdev);
 		return r;
 	}
 
@@ -317,7 +317,7 @@ static void sdi_disconnect(struct omap_dss_device *dssdev,
 	omapdss_output_unset_device(dssdev);
 
 	if (dssdev->manager)
-		dss_mgr_disconnect(dssdev->manager, dssdev);
+		dss_mgr_disconnect(dssdev->manager->id, dssdev);
 }
 
 static const struct omapdss_sdi_ops sdi_ops = {

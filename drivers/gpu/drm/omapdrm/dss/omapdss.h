@@ -84,7 +84,7 @@ void dss_uninstall_mgr_ops(void);
 
 int dss_mgr_connect(enum omap_channel channel,
 		struct omap_dss_device *dst);
-void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
+void dss_mgr_disconnect(enum omap_channel channel,
 		struct omap_dss_device *dst);
 void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings);

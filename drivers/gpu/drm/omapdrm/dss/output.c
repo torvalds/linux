@@ -195,10 +195,10 @@ int dss_mgr_connect(enum omap_channel channel,
 }
 EXPORT_SYMBOL(dss_mgr_connect);
 
-void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
+void dss_mgr_disconnect(enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	dss_mgr_ops->disconnect(mgr->id, dst);
+	dss_mgr_ops->disconnect(channel, dst);
 }
 EXPORT_SYMBOL(dss_mgr_disconnect);
 
