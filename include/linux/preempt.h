@@ -26,7 +26,6 @@
  *         SOFTIRQ_MASK:	0x0000ff00
  *         HARDIRQ_MASK:	0x000f0000
  *             NMI_MASK:	0x00100000
- *       PREEMPT_ACTIVE:	0x00200000
  * PREEMPT_NEED_RESCHED:	0x80000000
  */
 #define PREEMPT_BITS	8
@@ -52,10 +51,6 @@
 #define NMI_OFFSET	(1UL << NMI_SHIFT)
 
 #define SOFTIRQ_DISABLE_OFFSET	(2 * SOFTIRQ_OFFSET)
-
-#define PREEMPT_ACTIVE_BITS	1
-#define PREEMPT_ACTIVE_SHIFT	(NMI_SHIFT + NMI_BITS)
-#define PREEMPT_ACTIVE	(__IRQ_MASK(PREEMPT_ACTIVE_BITS) << PREEMPT_ACTIVE_SHIFT)
 
 /* We use the MSB mostly because its available */
 #define PREEMPT_NEED_RESCHED	0x80000000
@@ -126,8 +121,7 @@
  * Check whether we were atomic before we did preempt_disable():
  * (used by the scheduler)
  */
-#define in_atomic_preempt_off() \
-		((preempt_count() & ~PREEMPT_ACTIVE) != PREEMPT_DISABLE_OFFSET)
+#define in_atomic_preempt_off() (preempt_count() != PREEMPT_DISABLE_OFFSET)
 
 #if defined(CONFIG_DEBUG_PREEMPT) || defined(CONFIG_PREEMPT_TRACER)
 extern void preempt_count_add(int val);
@@ -145,18 +139,6 @@ extern void preempt_count_sub(int val);
 
 #define preempt_count_inc() preempt_count_add(1)
 #define preempt_count_dec() preempt_count_sub(1)
-
-#define preempt_active_enter() \
-do { \
-	preempt_count_add(PREEMPT_ACTIVE + PREEMPT_DISABLE_OFFSET); \
-	barrier(); \
-} while (0)
-
-#define preempt_active_exit() \
-do { \
-	barrier(); \
-	preempt_count_sub(PREEMPT_ACTIVE + PREEMPT_DISABLE_OFFSET); \
-} while (0)
 
 #ifdef CONFIG_PREEMPT_COUNT
 
