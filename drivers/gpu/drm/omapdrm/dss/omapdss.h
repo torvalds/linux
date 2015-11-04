@@ -61,21 +61,21 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channel);
 
 struct dss_mgr_ops {
-	int (*connect)(struct omap_overlay_manager *mgr,
+	int (*connect)(enum omap_channel channel,
 		struct omap_dss_device *dst);
-	void (*disconnect)(struct omap_overlay_manager *mgr,
+	void (*disconnect)(enum omap_channel channel,
 		struct omap_dss_device *dst);
 
-	void (*start_update)(struct omap_overlay_manager *mgr);
-	int (*enable)(struct omap_overlay_manager *mgr);
-	void (*disable)(struct omap_overlay_manager *mgr);
-	void (*set_timings)(struct omap_overlay_manager *mgr,
+	void (*start_update)(enum omap_channel channel);
+	int (*enable)(enum omap_channel channel);
+	void (*disable)(enum omap_channel channel);
+	void (*set_timings)(enum omap_channel channel,
 			const struct omap_video_timings *timings);
-	void (*set_lcd_config)(struct omap_overlay_manager *mgr,
+	void (*set_lcd_config)(enum omap_channel channel,
 			const struct dss_lcd_mgr_config *config);
-	int (*register_framedone_handler)(struct omap_overlay_manager *mgr,
+	int (*register_framedone_handler)(enum omap_channel channel,
 			void (*handler)(void *), void *data);
-	void (*unregister_framedone_handler)(struct omap_overlay_manager *mgr,
+	void (*unregister_framedone_handler)(enum omap_channel channel,
 			void (*handler)(void *), void *data);
 };
 

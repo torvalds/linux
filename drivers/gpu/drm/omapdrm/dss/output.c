@@ -191,59 +191,59 @@ EXPORT_SYMBOL(dss_uninstall_mgr_ops);
 int dss_mgr_connect(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dst)
 {
-	return dss_mgr_ops->connect(mgr, dst);
+	return dss_mgr_ops->connect(mgr->id, dst);
 }
 EXPORT_SYMBOL(dss_mgr_connect);
 
 void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dst)
 {
-	dss_mgr_ops->disconnect(mgr, dst);
+	dss_mgr_ops->disconnect(mgr->id, dst);
 }
 EXPORT_SYMBOL(dss_mgr_disconnect);
 
 void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings)
 {
-	dss_mgr_ops->set_timings(mgr, timings);
+	dss_mgr_ops->set_timings(mgr->id, timings);
 }
 EXPORT_SYMBOL(dss_mgr_set_timings);
 
 void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
 		const struct dss_lcd_mgr_config *config)
 {
-	dss_mgr_ops->set_lcd_config(mgr, config);
+	dss_mgr_ops->set_lcd_config(mgr->id, config);
 }
 EXPORT_SYMBOL(dss_mgr_set_lcd_config);
 
 int dss_mgr_enable(struct omap_overlay_manager *mgr)
 {
-	return dss_mgr_ops->enable(mgr);
+	return dss_mgr_ops->enable(mgr->id);
 }
 EXPORT_SYMBOL(dss_mgr_enable);
 
 void dss_mgr_disable(struct omap_overlay_manager *mgr)
 {
-	dss_mgr_ops->disable(mgr);
+	dss_mgr_ops->disable(mgr->id);
 }
 EXPORT_SYMBOL(dss_mgr_disable);
 
 void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 {
-	dss_mgr_ops->start_update(mgr);
+	dss_mgr_ops->start_update(mgr->id);
 }
 EXPORT_SYMBOL(dss_mgr_start_update);
 
 int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
 		void (*handler)(void *), void *data)
 {
-	return dss_mgr_ops->register_framedone_handler(mgr, handler, data);
+	return dss_mgr_ops->register_framedone_handler(mgr->id, handler, data);
 }
 EXPORT_SYMBOL(dss_mgr_register_framedone_handler);
 
 void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
 		void (*handler)(void *), void *data)
 {
-	dss_mgr_ops->unregister_framedone_handler(mgr, handler, data);
+	dss_mgr_ops->unregister_framedone_handler(mgr->id, handler, data);
 }
 EXPORT_SYMBOL(dss_mgr_unregister_framedone_handler);
