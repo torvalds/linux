@@ -410,10 +410,9 @@ static int ti_qspi_start_transfer_one(struct spi_master *master,
 
 	mutex_unlock(&qspi->list_lock);
 
+	ti_qspi_write(qspi, qspi->cmd | QSPI_INVAL, QSPI_SPI_CMD_REG);
 	m->status = status;
 	spi_finalize_current_message(master);
-
-	ti_qspi_write(qspi, qspi->cmd | QSPI_INVAL, QSPI_SPI_CMD_REG);
 
 	return status;
 }
