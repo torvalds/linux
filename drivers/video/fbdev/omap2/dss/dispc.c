@@ -251,6 +251,11 @@ struct color_conv_coef {
 	int full_range;
 };
 
+static unsigned long dispc_fclk_rate(void);
+static unsigned long dispc_core_clk_rate(void);
+static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel);
+static unsigned long dispc_mgr_pclk_rate(enum omap_channel channel);
+
 static unsigned long dispc_plane_pclk_rate(enum omap_plane plane);
 static unsigned long dispc_plane_lclk_rate(enum omap_plane plane);
 
@@ -2952,7 +2957,7 @@ static void dispc_mgr_set_lcd_type_tft(enum omap_channel channel)
 	mgr_fld_write(channel, DISPC_MGR_FLD_STNTFT, 1);
 }
 
-void dispc_set_loadmode(enum omap_dss_load_mode mode)
+static void dispc_set_loadmode(enum omap_dss_load_mode mode)
 {
 	REG_FLD_MOD(DISPC_CONFIG, mode, 2, 1);
 }
@@ -3311,7 +3316,7 @@ static void dispc_mgr_get_lcd_divisor(enum omap_channel channel, int *lck_div,
 	*pck_div = FLD_GET(l, 7, 0);
 }
 
-unsigned long dispc_fclk_rate(void)
+static unsigned long dispc_fclk_rate(void)
 {
 	struct dss_pll *pll;
 	unsigned long r = 0;
@@ -3342,7 +3347,7 @@ unsigned long dispc_fclk_rate(void)
 	return r;
 }
 
-unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
+static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 {
 	struct dss_pll *pll;
 	int lcd;
@@ -3383,7 +3388,7 @@ unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 	}
 }
 
-unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
+static unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
 {
 	unsigned long r;
 
@@ -3408,7 +3413,7 @@ void dispc_set_tv_pclk(unsigned long pclk)
 	dispc.tv_pclk_rate = pclk;
 }
 
-unsigned long dispc_core_clk_rate(void)
+static unsigned long dispc_core_clk_rate(void)
 {
 	return dispc.core_clk_rate;
 }

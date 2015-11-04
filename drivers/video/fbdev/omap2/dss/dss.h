@@ -378,7 +378,6 @@ void dispc_lcd_enable_signal(bool enable);
 void dispc_pck_free_enable(bool enable);
 void dispc_enable_fifomerge(bool enable);
 void dispc_enable_gamma_table(bool enable);
-void dispc_set_loadmode(enum omap_dss_load_mode mode);
 
 typedef bool (*dispc_div_calc_func)(int lckd, int pckd, unsigned long lck,
 		unsigned long pck, void *data);
@@ -388,7 +387,6 @@ bool dispc_div_calc(unsigned long dispc,
 
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings);
-unsigned long dispc_fclk_rate(void);
 int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 		struct dispc_clock_info *cinfo);
 
@@ -398,9 +396,6 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
 		bool manual_update);
 
-unsigned long dispc_mgr_lclk_rate(enum omap_channel channel);
-unsigned long dispc_mgr_pclk_rate(enum omap_channel channel);
-unsigned long dispc_core_clk_rate(void);
 void dispc_mgr_set_clock_div(enum omap_channel channel,
 		const struct dispc_clock_info *cinfo);
 int dispc_mgr_get_clock_div(enum omap_channel channel,
