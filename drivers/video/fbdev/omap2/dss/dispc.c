@@ -1205,6 +1205,17 @@ static void dispc_init_fifos(void)
 
 		dispc_ovl_set_fifo_threshold(i, low, high);
 	}
+
+	if (dispc.feat->has_writeback) {
+		u32 low, high;
+		const bool use_fifomerge = false;
+		const bool manual_update = false;
+
+		dispc_ovl_compute_fifo_thresholds(OMAP_DSS_WB, &low, &high,
+			use_fifomerge, manual_update);
+
+		dispc_ovl_set_fifo_threshold(OMAP_DSS_WB, low, high);
+	}
 }
 
 static u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
