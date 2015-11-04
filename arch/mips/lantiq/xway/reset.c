@@ -40,6 +40,10 @@
 #define RCU_GFS_ADD2_XRX330	0x00AC
 #define RCU_GFS_ADD3_XRX330	0x0264
 
+/* xbar BE flag */
+#define RCU_AHB_ENDIAN          0x004C
+#define RCU_VR9_BE_AHB1S        0x00000008
+
 /* reboot bit */
 #define RCU_RD_GPHY0_XRX200	BIT(31)
 #define RCU_RD_SRST		BIT(30)
@@ -368,6 +372,10 @@ static int __init mips_reboot_setup(void)
 	if (of_machine_is_compatible("lantiq,ar9") ||
 	    of_machine_is_compatible("lantiq,vr9"))
 		ltq_usb_init();
+
+	if (of_machine_is_compatible("lantiq,vr9"))
+		ltq_rcu_w32(ltq_rcu_r32(RCU_AHB_ENDIAN) | RCU_VR9_BE_AHB1S,
+			    RCU_AHB_ENDIAN);
 
 	_machine_restart = ltq_machine_restart;
 	_machine_halt = ltq_machine_halt;
