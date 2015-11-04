@@ -461,7 +461,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&dpi->lock);
 
-	dss_mgr_disable(mgr);
+	dss_mgr_disable(mgr->id);
 
 	if (dpi->pll) {
 		dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);

@@ -218,7 +218,7 @@ static void sdi_display_disable(struct omap_dss_device *dssdev)
 {
 	struct omap_overlay_manager *mgr = sdi.output.manager;
 
-	dss_mgr_disable(mgr);
+	dss_mgr_disable(mgr->id);
 
 	dss_sdi_disable();
 

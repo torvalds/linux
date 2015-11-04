@@ -499,7 +499,7 @@ static void venc_power_off(struct omap_dss_device *dssdev)
 	venc_write_reg(VENC_OUTPUT_CONTROL, 0);
 	dss_set_dac_pwrdn_bgz(0);
 
-	dss_mgr_disable(mgr);
+	dss_mgr_disable(mgr->id);
 
 	regulator_disable(venc.vdda_dac_reg);
 

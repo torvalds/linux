@@ -3910,7 +3910,7 @@ static void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel
 		dsi_if_enable(dsidev, true);
 	}
 
-	dss_mgr_disable(mgr);
+	dss_mgr_disable(mgr->id);
 
 	dsi_display_uninit_dispc(dsidev, mgr);
 }

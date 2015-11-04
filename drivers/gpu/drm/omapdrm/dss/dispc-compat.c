@@ -379,7 +379,7 @@ static void dispc_error_worker(struct work_struct *work)
 					"with video overlays disabled\n",
 					mgr->name);
 
-			dss_mgr_disable(mgr);
+			dss_mgr_disable(mgr->id);
 
 			for (j = 0; j < omap_dss_get_num_overlays(); ++j) {
 				struct omap_overlay *ovl;
@@ -400,7 +400,7 @@ static void dispc_error_worker(struct work_struct *work)
 			struct omap_overlay_manager *mgr;
 
 			mgr = omap_dss_get_overlay_manager(i);
-			dss_mgr_disable(mgr);
+			dss_mgr_disable(mgr->id);
 		}
 	}
 

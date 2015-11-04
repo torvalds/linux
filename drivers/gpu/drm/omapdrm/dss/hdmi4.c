@@ -233,7 +233,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	return 0;
 
 err_vid_enable:
-	dss_mgr_disable(mgr);
+	dss_mgr_disable(mgr->id);
 err_mgr_enable:
 	hdmi_wp_set_phy_pwr(&hdmi.wp, HDMI_PHYPWRCMD_OFF);
 err_phy_pwr:
@@ -253,7 +253,7 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 
 	hdmi_wp_video_stop(&hdmi.wp);
 
-	dss_mgr_disable(mgr);
+	dss_mgr_disable(mgr->id);
 
 	hdmi_wp_set_phy_pwr(&hdmi.wp, HDMI_PHYPWRCMD_OFF);
 
