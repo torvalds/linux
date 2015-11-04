@@ -64,7 +64,7 @@ void nfnl_unlock(__u8 subsys_id)
 EXPORT_SYMBOL_GPL(nfnl_unlock);
 
 #ifdef CONFIG_PROVE_LOCKING
-int lockdep_nfnl_is_held(u8 subsys_id)
+bool lockdep_nfnl_is_held(u8 subsys_id)
 {
 	return lockdep_is_held(&table[subsys_id].mutex);
 }

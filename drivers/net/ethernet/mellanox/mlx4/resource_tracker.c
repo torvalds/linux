@@ -1238,8 +1238,10 @@ static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 	return 0;
 
 undo:
-	for (--i; i >= base; --i)
+	for (--i; i >= 0; --i) {
 		rb_erase(&res_arr[i]->node, root);
+		list_del_init(&res_arr[i]->list);
+	}
 
 	spin_unlock_irq(mlx4_tlock(dev));
 

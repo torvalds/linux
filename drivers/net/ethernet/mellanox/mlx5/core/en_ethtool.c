@@ -345,9 +345,8 @@ static void mlx5e_get_channels(struct net_device *dev,
 			       struct ethtool_channels *ch)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int ncv = priv->mdev->priv.eq_table.num_comp_vectors;
 
-	ch->max_combined   = ncv;
+	ch->max_combined   = mlx5e_get_max_num_channels(priv->mdev);
 	ch->combined_count = priv->params.num_channels;
 }
 
@@ -355,7 +354,7 @@ static int mlx5e_set_channels(struct net_device *dev,
 			      struct ethtool_channels *ch)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int ncv = priv->mdev->priv.eq_table.num_comp_vectors;
+	int ncv = mlx5e_get_max_num_channels(priv->mdev);
 	unsigned int count = ch->combined_count;
 	bool was_opened;
 	int err = 0;

@@ -327,8 +327,8 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 
 		ret = dsa_slave_create(ds, parent, i, pd->port_names[i]);
 		if (ret < 0) {
-			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s)\n",
-				   index, i, pd->port_names[i]);
+			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s): %d\n",
+				   index, i, pd->port_names[i], ret);
 			ret = 0;
 		}
 	}

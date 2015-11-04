@@ -84,6 +84,15 @@ enum qca6174_chip_id_rev {
 #define QCA99X0_HW_2_0_BOARD_DATA_FILE "board.bin"
 #define QCA99X0_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
+/* QCA9377 1.0 definitions */
+#define QCA9377_HW_1_0_DEV_VERSION     0x05020001
+#define QCA9377_HW_1_0_CHIP_ID_REV     0x1
+#define QCA9377_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA9377/hw1.0"
+#define QCA9377_HW_1_0_FW_FILE         "firmware.bin"
+#define QCA9377_HW_1_0_OTP_FILE        "otp.bin"
+#define QCA9377_HW_1_0_BOARD_DATA_FILE "board.bin"
+#define QCA9377_HW_1_0_PATCH_LOAD_ADDR	0x1234
+
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
 #define ATH10K_FW_API3_FILE		"firmware-3.bin"
 
@@ -94,9 +103,13 @@ enum qca6174_chip_id_rev {
 #define ATH10K_FW_API5_FILE		"firmware-5.bin"
 
 #define ATH10K_FW_UTF_FILE		"utf.bin"
+#define ATH10K_FW_UTF_API2_FILE		"utf-2.bin"
 
 /* includes also the null byte */
 #define ATH10K_FIRMWARE_MAGIC               "QCA-ATH10K"
+#define ATH10K_BOARD_MAGIC                  "QCA-ATH10K-BOARD"
+
+#define ATH10K_BOARD_API2_FILE         "board-2.bin"
 
 #define REG_DUMP_COUNT_QCA988X 60
 
@@ -159,10 +172,21 @@ enum ath10k_fw_htt_op_version {
 	ATH10K_FW_HTT_OP_VERSION_MAX,
 };
 
+enum ath10k_bd_ie_type {
+	/* contains sub IEs of enum ath10k_bd_ie_board_type */
+	ATH10K_BD_IE_BOARD = 0,
+};
+
+enum ath10k_bd_ie_board_type {
+	ATH10K_BD_IE_BOARD_NAME = 0,
+	ATH10K_BD_IE_BOARD_DATA = 1,
+};
+
 enum ath10k_hw_rev {
 	ATH10K_HW_QCA988X,
 	ATH10K_HW_QCA6174,
 	ATH10K_HW_QCA99X0,
+	ATH10K_HW_QCA9377,
 };
 
 struct ath10k_hw_regs {
@@ -215,6 +239,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 #define QCA_REV_988X(ar) ((ar)->hw_rev == ATH10K_HW_QCA988X)
 #define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
 #define QCA_REV_99X0(ar) ((ar)->hw_rev == ATH10K_HW_QCA99X0)
+#define QCA_REV_9377(ar) ((ar)->hw_rev == ATH10K_HW_QCA9377)
 
 /* Known pecularities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
@@ -412,16 +437,6 @@ enum ath10k_hw_rate_cck {
 
 /* Number of Copy Engines supported */
 #define CE_COUNT ar->hw_values->ce_count
-
-/*
- * Total number of PCIe MSI interrupts requested for all interrupt sources.
- * PCIe standard forces this to be a power of 2.
- * Some Host OS's limit MSI requests that can be granted to 8
- * so for now we abide by this limit and avoid requesting more
- * than that.
- */
-#define MSI_NUM_REQUEST_LOG2	3
-#define MSI_NUM_REQUEST		(1<<MSI_NUM_REQUEST_LOG2)
 
 /*
  * Granted MSIs are assigned as follows:

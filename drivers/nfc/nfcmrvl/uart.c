@@ -50,10 +50,21 @@ static int nfcmrvl_uart_nci_send(struct nfcmrvl_private *priv,
 	return nu->ops.send(nu, skb);
 }
 
+static void nfcmrvl_uart_nci_update_config(struct nfcmrvl_private *priv,
+					   const void *param)
+{
+	struct nci_uart *nu = priv->drv_data;
+	const struct nfcmrvl_fw_uart_config *config = param;
+
+	nci_uart_set_config(nu, le32_to_cpu(config->baudrate),
+			    config->flow_control);
+}
+
 static struct nfcmrvl_if_ops uart_ops = {
 	.nci_open = nfcmrvl_uart_nci_open,
 	.nci_close = nfcmrvl_uart_nci_close,
 	.nci_send = nfcmrvl_uart_nci_send,
+	.nci_update_config = nfcmrvl_uart_nci_update_config
 };
 
 #ifdef CONFIG_OF
@@ -64,9 +75,13 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 	struct device_node *matched_node;
 	int ret;
 
-	matched_node = of_find_compatible_node(node, NULL, "mrvl,nfc-uart");
-	if (!matched_node)
-		return -ENODEV;
+	matched_node = of_find_compatible_node(node, NULL, "marvell,nfc-uart");
+	if (!matched_node) {
+		matched_node = of_find_compatible_node(node, NULL,
+						       "mrvl,nfc-uart");
+		if (!matched_node)
+			return -ENODEV;
+	}
 
 	ret = nfcmrvl_parse_dt(matched_node, pdata);
 	if (ret < 0) {
@@ -127,11 +142,12 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 		pdata = &config;
 	}
 
-	priv = nfcmrvl_nci_register_dev(nu, &uart_ops, nu->tty->dev, pdata);
+	priv = nfcmrvl_nci_register_dev(NFCMRVL_PHY_UART, nu, &uart_ops,
+					nu->tty->dev, pdata);
 	if (IS_ERR(priv))
 		return PTR_ERR(priv);
 
-	priv->phy = NFCMRVL_PHY_UART;
+	priv->support_fw_dnld = true;
 
 	nu->drv_data = priv;
 	nu->ndev = priv->ndev;

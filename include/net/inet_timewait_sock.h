@@ -70,6 +70,7 @@ struct inet_timewait_sock {
 #define tw_dport		__tw_common.skc_dport
 #define tw_num			__tw_common.skc_num
 #define tw_cookie		__tw_common.skc_cookie
+#define tw_dr			__tw_common.skc_tw_dr
 
 	int			tw_timeout;
 	volatile unsigned char	tw_substate;
@@ -88,7 +89,6 @@ struct inet_timewait_sock {
 	kmemcheck_bitfield_end(flags);
 	struct timer_list	tw_timer;
 	struct inet_bind_bucket	*tw_tb;
-	struct inet_timewait_death_row *tw_dr;
 };
 #define tw_tclass tw_tos
 

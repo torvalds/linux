@@ -89,6 +89,7 @@ MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
 static const struct iwl_op_mode_ops iwl_mvm_ops;
+static const struct iwl_op_mode_ops iwl_mvm_ops_mq;
 
 struct iwl_mvm_mod_params iwlmvm_mod_params = {
 	.power_scheme = IWL_POWER_SCHEME_BPS,
@@ -222,7 +223,6 @@ struct iwl_rx_handlers {
  * called from a worker with mvm->mutex held.
  */
 static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
-	RX_HANDLER(REPLY_RX_PHY_CMD, iwl_mvm_rx_rx_phy_cmd, false),
 	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, false),
 	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, false),
 
@@ -257,6 +257,8 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION,
 		   iwl_mvm_power_uapsd_misbehaving_ap_notif, false),
 	RX_HANDLER(DTS_MEASUREMENT_NOTIFICATION, iwl_mvm_temp_notif, true),
+	RX_HANDLER_GRP(PHY_OPS_GROUP, DTS_MEASUREMENT_NOTIF_WIDE,
+		       iwl_mvm_temp_notif, true),
 
 	RX_HANDLER(TDLS_CHANNEL_SWITCH_NOTIFICATION, iwl_mvm_rx_tdls_notif,
 		   true),
@@ -271,6 +273,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 static const char *const iwl_mvm_cmd_strings[REPLY_MAX + 1] = {
 	CMD(MVM_ALIVE),
 	CMD(REPLY_ERROR),
+	CMD(ECHO_CMD),
 	CMD(INIT_COMPLETE_NOTIF),
 	CMD(PHY_CONTEXT_CMD),
 	CMD(MGMT_MCAST_KEY),
@@ -422,7 +425,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		hw->max_tx_aggregation_subframes = cfg->max_tx_agg_size;
 
 	op_mode = hw->priv;
-	op_mode->ops = &iwl_mvm_ops;
 
 	mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	mvm->dev = trans->dev;
@@ -430,6 +432,15 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->cfg = cfg;
 	mvm->fw = fw;
 	mvm->hw = hw;
+
+	if (iwl_mvm_has_new_rx_api(mvm)) {
+		op_mode->ops = &iwl_mvm_ops_mq;
+	} else {
+		op_mode->ops = &iwl_mvm_ops;
+
+		if (WARN_ON(trans->num_rx_queues > 1))
+			goto out_free;
+	}
 
 	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
 
@@ -451,6 +462,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_LIST_HEAD(&mvm->aux_roc_te_list);
 	INIT_LIST_HEAD(&mvm->async_handlers_list);
 	spin_lock_init(&mvm->time_event_lock);
+	spin_lock_init(&mvm->queue_info_lock);
 
 	INIT_WORK(&mvm->async_handlers_wk, iwl_mvm_async_handlers_wk);
 	INIT_WORK(&mvm->roc_done_wk, iwl_mvm_roc_done_wk);
@@ -618,6 +630,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	kfree(mvm->d3_resume_sram);
 	if (mvm->nd_config) {
 		kfree(mvm->nd_config->match_sets);
+		kfree(mvm->nd_config->scan_plans);
 		kfree(mvm->nd_config);
 		mvm->nd_config = NULL;
 	}
@@ -717,18 +730,11 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 	}
 }
 
-static void iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
-				struct napi_struct *napi,
-				struct iwl_rx_cmd_buffer *rxb)
+static void iwl_mvm_rx_common(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb,
+			      struct iwl_rx_packet *pkt)
 {
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	u8 i;
-
-	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD)) {
-		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
-		return;
-	}
+	int i;
 
 	iwl_mvm_rx_check_trigger(mvm, pkt);
 
@@ -768,40 +774,84 @@ static void iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 	}
 }
 
+static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
+		       struct napi_struct *napi,
+		       struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
+		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
+	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
+		iwl_mvm_rx_rx_phy_cmd(mvm, rxb);
+	else
+		iwl_mvm_rx_common(mvm, rxb, pkt);
+}
+
+static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
+			  struct napi_struct *napi,
+			  struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
+		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
+	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
+		iwl_mvm_rx_rx_phy_cmd(mvm, rxb);
+	else
+		iwl_mvm_rx_common(mvm, rxb, pkt);
+}
+
 static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	int mq = mvm->queue_to_mac80211[queue];
+	unsigned long mq;
+	int q;
 
-	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
+	spin_lock_bh(&mvm->queue_info_lock);
+	mq = mvm->queue_info[queue].hw_queue_to_mac80211;
+	spin_unlock_bh(&mvm->queue_info_lock);
+
+	if (WARN_ON_ONCE(!mq))
 		return;
 
-	if (atomic_inc_return(&mvm->mac80211_queue_stop_count[mq]) > 1) {
-		IWL_DEBUG_TX_QUEUES(mvm,
-				    "queue %d (mac80211 %d) already stopped\n",
-				    queue, mq);
-		return;
+	for_each_set_bit(q, &mq, IEEE80211_MAX_QUEUES) {
+		if (atomic_inc_return(&mvm->mac80211_queue_stop_count[q]) > 1) {
+			IWL_DEBUG_TX_QUEUES(mvm,
+					    "queue %d (mac80211 %d) already stopped\n",
+					    queue, q);
+			continue;
+		}
+
+		ieee80211_stop_queue(mvm->hw, q);
 	}
-
-	ieee80211_stop_queue(mvm->hw, mq);
 }
 
 static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	int mq = mvm->queue_to_mac80211[queue];
+	unsigned long mq;
+	int q;
 
-	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
+	spin_lock_bh(&mvm->queue_info_lock);
+	mq = mvm->queue_info[queue].hw_queue_to_mac80211;
+	spin_unlock_bh(&mvm->queue_info_lock);
+
+	if (WARN_ON_ONCE(!mq))
 		return;
 
-	if (atomic_dec_return(&mvm->mac80211_queue_stop_count[mq]) > 0) {
-		IWL_DEBUG_TX_QUEUES(mvm,
-				    "queue %d (mac80211 %d) still stopped\n",
-				    queue, mq);
-		return;
+	for_each_set_bit(q, &mq, IEEE80211_MAX_QUEUES) {
+		if (atomic_dec_return(&mvm->mac80211_queue_stop_count[q]) > 0) {
+			IWL_DEBUG_TX_QUEUES(mvm,
+					    "queue %d (mac80211 %d) still stopped\n",
+					    queue, q);
+			continue;
+		}
+
+		ieee80211_wake_queue(mvm->hw, q);
 	}
-
-	ieee80211_wake_queue(mvm->hw, mq);
 }
 
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
@@ -1146,12 +1196,17 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	/* make sure we have no running tx while configuring the seqno */
 	synchronize_net();
 
-	iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd, &d0i3_iter_data);
-	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
-				   sizeof(wowlan_config_cmd),
-				   &wowlan_config_cmd);
-	if (ret)
-		return ret;
+	/* configure wowlan configuration only if needed */
+	if (mvm->d0i3_ap_sta_id != IWL_MVM_STATION_COUNT) {
+		iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd,
+					&d0i3_iter_data);
+
+		ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
+					   sizeof(wowlan_config_cmd),
+					   &wowlan_config_cmd);
+		if (ret)
+			return ret;
+	}
 
 	return iwl_mvm_send_cmd_pdu(mvm, D3_CONFIG_CMD,
 				    flags | CMD_MAKE_TRANS_IDLE,
@@ -1258,7 +1313,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	};
 	struct iwl_wowlan_status *status;
 	int ret;
-	u32 handled_reasons, wakeup_reasons;
+	u32 handled_reasons, wakeup_reasons = 0;
 	__le16 *qos_seq = NULL;
 
 	mutex_lock(&mvm->mutex);
@@ -1289,6 +1344,9 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	}
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
+
+	IWL_DEBUG_INFO(mvm, "d0i3 exit completed (wakeup reasons: 0x%x)\n",
+		       wakeup_reasons);
 
 	/* qos_seq might point inside resp_pkt, so free it only now */
 	if (get_status_cmd.resp_pkt)
@@ -1339,17 +1397,38 @@ int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 	return _iwl_mvm_exit_d0i3(mvm);
 }
 
+#define IWL_MVM_COMMON_OPS					\
+	/* these could be differentiated */			\
+	.queue_full = iwl_mvm_stop_sw_queue,			\
+	.queue_not_full = iwl_mvm_wake_sw_queue,		\
+	.hw_rf_kill = iwl_mvm_set_hw_rfkill_state,		\
+	.free_skb = iwl_mvm_free_skb,				\
+	.nic_error = iwl_mvm_nic_error,				\
+	.cmd_queue_full = iwl_mvm_cmd_queue_full,		\
+	.nic_config = iwl_mvm_nic_config,			\
+	.enter_d0i3 = iwl_mvm_enter_d0i3,			\
+	.exit_d0i3 = iwl_mvm_exit_d0i3,				\
+	/* as we only register one, these MUST be common! */	\
+	.start = iwl_op_mode_mvm_start,				\
+	.stop = iwl_op_mode_mvm_stop
+
 static const struct iwl_op_mode_ops iwl_mvm_ops = {
-	.start = iwl_op_mode_mvm_start,
-	.stop = iwl_op_mode_mvm_stop,
-	.rx = iwl_mvm_rx_dispatch,
-	.queue_full = iwl_mvm_stop_sw_queue,
-	.queue_not_full = iwl_mvm_wake_sw_queue,
-	.hw_rf_kill = iwl_mvm_set_hw_rfkill_state,
-	.free_skb = iwl_mvm_free_skb,
-	.nic_error = iwl_mvm_nic_error,
-	.cmd_queue_full = iwl_mvm_cmd_queue_full,
-	.nic_config = iwl_mvm_nic_config,
-	.enter_d0i3 = iwl_mvm_enter_d0i3,
-	.exit_d0i3 = iwl_mvm_exit_d0i3,
+	IWL_MVM_COMMON_OPS,
+	.rx = iwl_mvm_rx,
+};
+
+static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
+			      struct napi_struct *napi,
+			      struct iwl_rx_cmd_buffer *rxb,
+			      unsigned int queue)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
+}
+
+static const struct iwl_op_mode_ops iwl_mvm_ops_mq = {
+	IWL_MVM_COMMON_OPS,
+	.rx = iwl_mvm_rx_mq,
+	.rx_rss = iwl_mvm_rx_mq_rss,
 };

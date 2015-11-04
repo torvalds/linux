@@ -940,6 +940,7 @@ static const char * const devlog_level_strings[] = {
 
 static const char * const devlog_facility_strings[] = {
 	[FW_DEVLOG_FACILITY_CORE]	= "CORE",
+	[FW_DEVLOG_FACILITY_CF]         = "CF",
 	[FW_DEVLOG_FACILITY_SCHED]	= "SCHED",
 	[FW_DEVLOG_FACILITY_TIMER]	= "TIMER",
 	[FW_DEVLOG_FACILITY_RES]	= "RES",
@@ -1128,18 +1129,26 @@ static const struct file_operations devlog_fops = {
 static int mbox_show(struct seq_file *seq, void *v)
 {
 	static const char * const owner[] = { "none", "FW", "driver",
-					      "unknown" };
+					      "unknown", "<unread>" };
 
 	int i;
 	unsigned int mbox = (uintptr_t)seq->private & 7;
 	struct adapter *adap = seq->private - mbox;
 	void __iomem *addr = adap->regs + PF_REG(mbox, CIM_PF_MAILBOX_DATA_A);
-	unsigned int ctrl_reg = (is_t4(adap->params.chip)
-				 ? CIM_PF_MAILBOX_CTRL_A
-				 : CIM_PF_MAILBOX_CTRL_SHADOW_COPY_A);
-	void __iomem *ctrl = adap->regs + PF_REG(mbox, ctrl_reg);
 
-	i = MBOWNER_G(readl(ctrl));
+	/* For T4 we don't have a shadow copy of the Mailbox Control register.
+	 * And since reading that real register causes a side effect of
+	 * granting ownership, we're best of simply not reading it at all.
+	 */
+	if (is_t4(adap->params.chip)) {
+		i = 4; /* index of "<unread>" */
+	} else {
+		unsigned int ctrl_reg = CIM_PF_MAILBOX_CTRL_SHADOW_COPY_A;
+		void __iomem *ctrl = adap->regs + PF_REG(mbox, ctrl_reg);
+
+		i = MBOWNER_G(readl(ctrl));
+	}
+
 	seq_printf(seq, "mailbox owned by %s\n\n", owner[i]);
 
 	for (i = 0; i < MBOX_LEN; i += 8)

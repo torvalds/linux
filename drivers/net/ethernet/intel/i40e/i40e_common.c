@@ -51,7 +51,9 @@ static i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_QSFP_B:
 		case I40E_DEV_ID_QSFP_C:
 		case I40E_DEV_ID_10G_BASE_T:
+		case I40E_DEV_ID_10G_BASE_T4:
 		case I40E_DEV_ID_20G_KR2:
+		case I40E_DEV_ID_20G_KR2_A:
 			hw->mac.type = I40E_MAC_XL710;
 			break;
 		case I40E_DEV_ID_SFP_X722:
@@ -85,7 +87,7 @@ static i40e_status i40e_set_mac_type(struct i40e_hw *hw)
  * @hw: pointer to the HW structure
  * @aq_err: the AQ error code to convert
  **/
-char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
+const char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
 {
 	switch (aq_err) {
 	case I40E_AQ_RC_OK:
@@ -145,7 +147,7 @@ char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
  * @hw: pointer to the HW structure
  * @stat_err: the status error code to convert
  **/
-char *i40e_stat_str(struct i40e_hw *hw, i40e_status stat_err)
+const char *i40e_stat_str(struct i40e_hw *hw, i40e_status stat_err)
 {
 	switch (stat_err) {
 	case 0:
@@ -329,25 +331,11 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 			len = buf_len;
 		/* write the full 16-byte chunks */
 		for (i = 0; i < (len - 16); i += 16)
-			i40e_debug(hw, mask,
-				   "\t0x%04X  %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
-				   i, buf[i], buf[i + 1], buf[i + 2],
-				   buf[i + 3], buf[i + 4], buf[i + 5],
-				   buf[i + 6], buf[i + 7], buf[i + 8],
-				   buf[i + 9], buf[i + 10], buf[i + 11],
-				   buf[i + 12], buf[i + 13], buf[i + 14],
-				   buf[i + 15]);
+			i40e_debug(hw, mask, "\t0x%04X  %16ph\n", i, buf + i);
 		/* write whatever's left over without overrunning the buffer */
-		if (i < len) {
-			char d_buf[80];
-			int j = 0;
-
-			memset(d_buf, 0, sizeof(d_buf));
-			j += sprintf(d_buf, "\t0x%04X ", i);
-			while (i < len)
-				j += sprintf(&d_buf[j], " %02X", buf[i++]);
-			i40e_debug(hw, mask, "%s\n", d_buf);
-		}
+		if (i < len)
+			i40e_debug(hw, mask, "\t0x%04X  %*ph\n",
+					     i, len - i, buf + i);
 	}
 }
 
@@ -441,9 +429,6 @@ static i40e_status i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
 					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
 					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
 
-	cmd_resp->addr_high = cpu_to_le32(high_16_bits((u64)lut));
-	cmd_resp->addr_low = cpu_to_le32(lower_32_bits((u64)lut));
-
 	status = i40e_asq_send_command(hw, &desc, lut, lut_size, NULL);
 
 	return status;
@@ -518,8 +503,6 @@ static i40e_status i40e_aq_get_set_rss_key(struct i40e_hw *hw,
 					  I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT) &
 					  I40E_AQC_SET_RSS_KEY_VSI_ID_MASK));
 	cmd_resp->vsi_id |= cpu_to_le16((u16)I40E_AQC_SET_RSS_KEY_VSI_VALID);
-	cmd_resp->addr_high = cpu_to_le32(high_16_bits((u64)key));
-	cmd_resp->addr_low = cpu_to_le32(lower_32_bits((u64)key));
 
 	status = i40e_asq_send_command(hw, &desc, key, key_size, NULL);
 
@@ -961,6 +944,9 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 	else
 		hw->pf_id = (u8)(func_rid & 0x7);
 
+	if (hw->mac.type == I40E_MAC_X722)
+		hw->flags |= I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE;
+
 	status = i40e_init_nvm(hw);
 	return status;
 }
@@ -1038,7 +1024,7 @@ i40e_status i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 	status = i40e_aq_mac_address_read(hw, &flags, &addrs, NULL);
 
 	if (flags & I40E_AQC_LAN_ADDR_VALID)
-		memcpy(mac_addr, &addrs.pf_lan_mac, sizeof(addrs.pf_lan_mac));
+		ether_addr_copy(mac_addr, addrs.pf_lan_mac);
 
 	return status;
 }
@@ -1061,7 +1047,7 @@ i40e_status i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 		return status;
 
 	if (flags & I40E_AQC_PORT_ADDR_VALID)
-		memcpy(mac_addr, &addrs.port_mac, sizeof(addrs.port_mac));
+		ether_addr_copy(mac_addr, addrs.port_mac);
 	else
 		status = I40E_ERR_INVALID_MAC_ADDR;
 
@@ -1119,7 +1105,7 @@ i40e_status i40e_get_san_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 		return status;
 
 	if (flags & I40E_AQC_SAN_ADDR_VALID)
-		memcpy(mac_addr, &addrs.pf_san_mac, sizeof(addrs.pf_san_mac));
+		ether_addr_copy(mac_addr, addrs.pf_san_mac);
 	else
 		status = I40E_ERR_INVALID_MAC_ADDR;
 
@@ -1260,7 +1246,7 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	grst_del = (rd32(hw, I40E_GLGEN_RSTCTL) &
 		    I40E_GLGEN_RSTCTL_GRSTDEL_MASK) >>
 		    I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
-	for (cnt = 0; cnt < grst_del + 2; cnt++) {
+	for (cnt = 0; cnt < grst_del + 10; cnt++) {
 		reg = rd32(hw, I40E_GLGEN_RSTAT);
 		if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
 			break;
@@ -1620,6 +1606,9 @@ i40e_status i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
 	if (hw->aq.asq_last_status == I40E_AQ_RC_EIO)
 		status = I40E_ERR_UNKNOWN_PHY;
 
+	if (report_init)
+		hw->phy.phy_types = le32_to_cpu(abilities->phy_type);
+
 	return status;
 }
 
@@ -1720,14 +1709,14 @@ enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
 			*aq_failures |= I40E_SET_FC_AQ_FAIL_SET;
 	}
 	/* Update the link info */
-	status = i40e_aq_get_link_info(hw, true, NULL, NULL);
+	status = i40e_update_link_info(hw);
 	if (status) {
 		/* Wait a little bit (on 40G cards it sometimes takes a really
 		 * long time for link to come back from the atomic reset)
 		 * and try once more
 		 */
 		msleep(1000);
-		status = i40e_aq_get_link_info(hw, true, NULL, NULL);
+		status = i40e_update_link_info(hw);
 	}
 	if (status)
 		*aq_failures |= I40E_SET_FC_AQ_FAIL_UPDATE;
@@ -2238,27 +2227,54 @@ i40e_status i40e_aq_send_driver_version(struct i40e_hw *hw,
 /**
  * i40e_get_link_status - get status of the HW network link
  * @hw: pointer to the hw struct
+ * @link_up: pointer to bool (true/false = linkup/linkdown)
  *
- * Returns true if link is up, false if link is down.
+ * Variable link_up true if link is up, false if link is down.
+ * The variable link_up is invalid if returned value of status != 0
  *
  * Side effect: LinkStatusEvent reporting becomes enabled
  **/
-bool i40e_get_link_status(struct i40e_hw *hw)
+i40e_status i40e_get_link_status(struct i40e_hw *hw, bool *link_up)
 {
 	i40e_status status = 0;
-	bool link_status = false;
 
 	if (hw->phy.get_link_info) {
-		status = i40e_aq_get_link_info(hw, true, NULL, NULL);
+		status = i40e_update_link_info(hw);
 
 		if (status)
-			goto i40e_get_link_status_exit;
+			i40e_debug(hw, I40E_DEBUG_LINK, "get link failed: status %d\n",
+				   status);
 	}
 
-	link_status = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
+	*link_up = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
 
-i40e_get_link_status_exit:
-	return link_status;
+	return status;
+}
+
+/**
+ * i40e_updatelink_status - update status of the HW network link
+ * @hw: pointer to the hw struct
+ **/
+i40e_status i40e_update_link_info(struct i40e_hw *hw)
+{
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	i40e_status status = 0;
+
+	status = i40e_aq_get_link_info(hw, true, NULL, NULL);
+	if (status)
+		return status;
+
+	if (hw->phy.link_info.link_info & I40E_AQ_MEDIA_AVAILABLE) {
+		status = i40e_aq_get_phy_capabilities(hw, false, false,
+						      &abilities, NULL);
+		if (status)
+			return status;
+
+		memcpy(hw->phy.link_info.module_type, &abilities.module_type,
+		       sizeof(hw->phy.link_info.module_type));
+	}
+
+	return status;
 }
 
 /**
@@ -2365,6 +2381,7 @@ i40e_status i40e_aq_get_veb_parameters(struct i40e_hw *hw,
 		*vebs_free = le16_to_cpu(cmd_resp->vebs_free);
 	if (floating) {
 		u16 flags = le16_to_cpu(cmd_resp->veb_flags);
+
 		if (flags & I40E_AQC_ADD_VEB_FLOATING)
 			*floating = true;
 		else
@@ -3779,7 +3796,7 @@ i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 	}
 
 	if (mac_addr)
-		memcpy(cmd->mac, mac_addr, ETH_ALEN);
+		ether_addr_copy(cmd->mac, mac_addr);
 
 	cmd->etype = cpu_to_le16(ethtype);
 	cmd->flags = cpu_to_le16(flags);
@@ -3795,6 +3812,28 @@ i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 	}
 
 	return status;
+}
+
+/**
+ * i40e_add_filter_to_drop_tx_flow_control_frames- filter to drop flow control
+ * @hw: pointer to the hw struct
+ * @seid: VSI seid to add ethertype filter from
+ **/
+#define I40E_FLOW_CONTROL_ETHTYPE 0x8808
+void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
+						    u16 seid)
+{
+	u16 flag = I40E_AQC_ADD_CONTROL_PACKET_FLAGS_IGNORE_MAC |
+		   I40E_AQC_ADD_CONTROL_PACKET_FLAGS_DROP |
+		   I40E_AQC_ADD_CONTROL_PACKET_FLAGS_TX;
+	u16 ethtype = I40E_FLOW_CONTROL_ETHTYPE;
+	i40e_status status;
+
+	status = i40e_aq_add_rem_control_packet_filter(hw, NULL, ethtype, flag,
+						       seid, 0, true, NULL,
+						       NULL);
+	if (status)
+		hw_dbg(hw, "Ethtype Filter Add failed: Error pruning Tx flow control frames\n");
 }
 
 /**

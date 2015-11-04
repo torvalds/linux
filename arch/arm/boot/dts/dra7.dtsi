@@ -1448,6 +1448,7 @@
 				     <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
 			ranges;
+			syscon = <&scm_conf>;
 			status = "disabled";
 
 			davinci_mdio: mdio@48485000 {

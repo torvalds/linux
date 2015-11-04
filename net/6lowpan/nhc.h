@@ -8,8 +8,6 @@
 #include <net/6lowpan.h>
 #include <net/ipv6.h>
 
-#define LOWPAN_NHC_MAX_ID_LEN	1
-
 /**
  * LOWPAN_NHC - helper macro to generate nh id fields and lowpan_nhc struct
  *
@@ -88,19 +86,16 @@ struct lowpan_nhc *lowpan_nhc_by_nexthdr(u8 nexthdr);
 
 /**
  * lowpan_nhc_check_compression - checks if we support compression format. If
- *	we support the nhc by nexthdr field, the 6LoWPAN iphc NHC bit will be
- *	set. If we don't support nexthdr will be added as inline data to the
- *	6LoWPAN header.
+ *	we support the nhc by nexthdr field, the function will return 0. If we
+ *	don't support the nhc by nexthdr this function will return -ENOENT.
  *
  * @skb: skb of 6LoWPAN header to read nhc and replace header.
  * @hdr: ipv6hdr to check the nexthdr value
  * @hc_ptr: pointer for 6LoWPAN header which should increment at the end of
  *	    replaced header.
- * @iphc0: iphc0 pointer to set the 6LoWPAN NHC bit
  */
 int lowpan_nhc_check_compression(struct sk_buff *skb,
-				 const struct ipv6hdr *hdr, u8 **hc_ptr,
-				 u8 *iphc0);
+				 const struct ipv6hdr *hdr, u8 **hc_ptr);
 
 /**
  * lowpan_nhc_do_compression - calling compress callback for nhc
@@ -121,7 +116,8 @@ int lowpan_nhc_do_compression(struct sk_buff *skb, const struct ipv6hdr *hdr,
  * @dev: netdevice for print logging information.
  * @hdr: ipv6hdr for setting nexthdr value.
  */
-int lowpan_nhc_do_uncompression(struct sk_buff *skb, struct net_device *dev,
+int lowpan_nhc_do_uncompression(struct sk_buff *skb,
+				const struct net_device *dev,
 				struct ipv6hdr *hdr);
 
 /**

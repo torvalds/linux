@@ -95,6 +95,18 @@ cfg802154_rdev_by_wpan_phy_idx(int wpan_phy_idx)
 	return result;
 }
 
+struct wpan_phy *wpan_phy_idx_to_wpan_phy(int wpan_phy_idx)
+{
+	struct cfg802154_registered_device *rdev;
+
+	ASSERT_RTNL();
+
+	rdev = cfg802154_rdev_by_wpan_phy_idx(wpan_phy_idx);
+	if (!rdev)
+		return NULL;
+	return &rdev->wpan_phy;
+}
+
 struct wpan_phy *
 wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size)
 {

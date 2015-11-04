@@ -219,32 +219,6 @@ struct mvm_statistics_bt_activity {
 	__le32 lo_priority_rx_denied_cnt;
 } __packed;  /* STATISTICS_BT_ACTIVITY_API_S_VER_1 */
 
-struct mvm_statistics_general_v5 {
-	__le32 radio_temperature;
-	__le32 radio_voltage;
-	struct mvm_statistics_dbg dbg;
-	__le32 sleep_time;
-	__le32 slots_out;
-	__le32 slots_idle;
-	__le32 ttl_timestamp;
-	struct mvm_statistics_div slow_div;
-	__le32 rx_enable_counter;
-	/*
-	 * num_of_sos_states:
-	 *  count the number of times we have to re-tune
-	 *  in order to get out of bad PHY status
-	 */
-	__le32 num_of_sos_states;
-	__le32 beacon_filtered;
-	__le32 missed_beacons;
-	__s8 beacon_filter_average_energy;
-	__s8 beacon_filter_reason;
-	__s8 beacon_filter_current_energy;
-	__s8 beacon_filter_reserved;
-	__le32 beacon_filter_delta_time;
-	struct mvm_statistics_bt_activity bt_activity;
-} __packed; /* STATISTICS_GENERAL_API_S_VER_5 */
-
 struct mvm_statistics_general_v8 {
 	__le32 radio_temperature;
 	__le32 radio_voltage;
@@ -263,10 +237,10 @@ struct mvm_statistics_general_v8 {
 	__le32 num_of_sos_states;
 	__le32 beacon_filtered;
 	__le32 missed_beacons;
-	__s8 beacon_filter_average_energy;
-	__s8 beacon_filter_reason;
-	__s8 beacon_filter_current_energy;
-	__s8 beacon_filter_reserved;
+	u8 beacon_filter_average_energy;
+	u8 beacon_filter_reason;
+	u8 beacon_filter_current_energy;
+	u8 beacon_filter_reserved;
 	__le32 beacon_filter_delta_time;
 	struct mvm_statistics_bt_activity bt_activity;
 	__le64 rx_time;
@@ -292,13 +266,6 @@ struct mvm_statistics_rx {
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
  * STATISTICS_CMD (0x9c), below.
  */
-
-struct iwl_notif_statistics_v8 {
-	__le32 flag;
-	struct mvm_statistics_rx rx;
-	struct mvm_statistics_tx tx;
-	struct mvm_statistics_general_v5 general;
-} __packed; /* STATISTICS_NTFY_API_S_VER_8 */
 
 struct iwl_notif_statistics_v10 {
 	__le32 flag;

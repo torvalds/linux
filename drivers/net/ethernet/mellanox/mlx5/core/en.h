@@ -617,5 +617,11 @@ static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
 	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, NULL, cq->wq.cc);
 }
 
+static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
+{
+	return min_t(int, mdev->priv.eq_table.num_comp_vectors,
+		     MLX5E_MAX_NUM_CHANNELS);
+}
+
 extern const struct ethtool_ops mlx5e_ethtool_ops;
 u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev);

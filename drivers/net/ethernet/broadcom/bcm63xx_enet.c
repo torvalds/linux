@@ -1333,7 +1333,6 @@ static void bcm_enet_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, "bcm63xx", sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = BCM_ENET_STATS_LEN;
 }
 
 static int bcm_enet_get_sset_count(struct net_device *netdev,
@@ -2602,7 +2601,6 @@ static void bcm_enetsw_get_drvinfo(struct net_device *netdev,
 	strncpy(drvinfo->version, bcm_enet_driver_version, 32);
 	strncpy(drvinfo->fw_version, "N/A", 32);
 	strncpy(drvinfo->bus_info, "bcm63xx", 32);
-	drvinfo->n_stats = BCM_ENETSW_STATS_LEN;
 }
 
 static void bcm_enetsw_get_ethtool_stats(struct net_device *netdev,

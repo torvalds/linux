@@ -1373,6 +1373,12 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 				}
 			}
 			spin_unlock_bh(&p->tid_rx_lock);
+			seq_printf(s,
+				   "Rx invalid frame: non-data %lu, short %lu, large %lu\n",
+				   p->stats.rx_non_data_frame,
+				   p->stats.rx_short_frame,
+				   p->stats.rx_large_frame);
+
 			seq_puts(s, "Rx/MCS:");
 			for (mcs = 0; mcs < ARRAY_SIZE(p->stats.rx_per_mcs);
 			     mcs++)
