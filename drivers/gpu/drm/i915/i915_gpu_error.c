@@ -873,7 +873,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		ering->rc_psmi = I915_READ(ring->mmio_base + 0x50);
+		ering->rc_psmi = I915_READ(RING_PSMI_CTL(ring->mmio_base));
 		ering->fault_reg = I915_READ(RING_FAULT_REG(ring));
 		if (INTEL_INFO(dev)->gen >= 8)
 			gen8_record_semaphore_state(dev_priv, error, ring, ering);
