@@ -535,9 +535,6 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 			ralink_soc = MT762X_SOC_MT7620N;
 			name = "MT7620N";
 			soc_info->compatible = "ralink,mt7620n-soc";
-#ifdef CONFIG_PCI
-			panic("mt7620n is only supported for non pci kernels");
-#endif
 		}
 	} else if (n0 == MT7620_CHIP_NAME0 && n1 == MT7628_CHIP_NAME1) {
 		u32 efuse = __raw_readl(sysc + SYSC_REG_EFUSE_CFG);
