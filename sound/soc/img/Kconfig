@@ -34,3 +34,11 @@ config SND_SOC_IMG_SPDIF_IN
 	help
 	  Say Y or M if you want to add support for SPDIF input driver for
 	  Imagination Technologies SPDIF input device.
+
+config SND_SOC_IMG_SPDIF_OUT
+	tristate "Imagination SPDIF Output Device Driver"
+	depends on SND_SOC_IMG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for SPDIF out driver for
+	  Imagination Technologies SPDIF out device.
