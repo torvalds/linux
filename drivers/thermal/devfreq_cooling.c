@@ -397,7 +397,7 @@ static int devfreq_cooling_gen_tables(struct devfreq_cooling_device *dfc)
 		power_table = kcalloc(num_opps, sizeof(*power_table),
 				      GFP_KERNEL);
 		if (!power_table)
-			ret = -ENOMEM;
+			return -ENOMEM;
 	}
 
 	freq_table = kcalloc(num_opps, sizeof(*freq_table),
