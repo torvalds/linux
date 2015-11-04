@@ -275,7 +275,6 @@ static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 static void hpsa_command_resubmit_worker(struct work_struct *work);
 static u32 lockup_detected(struct ctlr_info *h);
 static int detect_controller_lockup(struct ctlr_info *h);
-static int is_ext_target(struct ctlr_info *h, struct hpsa_scsi_dev_t *device);
 
 static inline struct ctlr_info *sdev_to_hba(struct scsi_device *sdev)
 {
@@ -776,7 +775,7 @@ static ssize_t path_info_show(struct device *dev,
 				hdev->bus, hdev->target, hdev->lun,
 				scsi_device_type(hdev->devtype));
 
-		if (is_ext_target(h, hdev) ||
+		if (hdev->external ||
 			hdev->devtype == TYPE_RAID ||
 			is_logical_device(hdev)) {
 			output_len += snprintf(path[i] + output_len,
@@ -3034,6 +3033,35 @@ out:
 	return rc;
 }
 
+static int hpsa_bmic_id_controller(struct ctlr_info *h,
+	struct bmic_identify_controller *buf, size_t bufsize)
+{
+	int rc = IO_OK;
+	struct CommandList *c;
+	struct ErrorInfo *ei;
+
+	c = cmd_alloc(h);
+
+	rc = fill_cmd(c, BMIC_IDENTIFY_CONTROLLER, h, buf, bufsize,
+		0, RAID_CTLR_LUNID, TYPE_CMD);
+	if (rc)
+		goto out;
+
+	rc = hpsa_scsi_do_simple_cmd_with_retry(h, c,
+		PCI_DMA_FROMDEVICE, NO_TIMEOUT);
+	if (rc)
+		goto out;
+	ei = c->err_info;
+	if (ei->CommandStatus != 0 && ei->CommandStatus != CMD_DATA_UNDERRUN) {
+		hpsa_scsi_interpret_error(h, c);
+		rc = -1;
+	}
+out:
+	cmd_free(h, c);
+	return rc;
+}
+
+
 static int hpsa_bmic_id_physical_device(struct ctlr_info *h,
 		unsigned char scsi3addr[], u16 bmic_device_index,
 		struct bmic_identify_physical_device *buf, size_t bufsize)
@@ -3510,27 +3538,6 @@ static void hpsa_update_device_supports_aborts(struct ctlr_info *h,
 	}
 }
 
-static unsigned char *ext_target_model[] = {
-	"MSA2012",
-	"MSA2024",
-	"MSA2312",
-	"MSA2324",
-	"P2000 G3 SAS",
-	"MSA 2040 SAS",
-	NULL,
-};
-
-static int is_ext_target(struct ctlr_info *h, struct hpsa_scsi_dev_t *device)
-{
-	int i;
-
-	for (i = 0; ext_target_model[i]; i++)
-		if (strncmp(device->model, ext_target_model[i],
-			strlen(ext_target_model[i])) == 0)
-			return 1;
-	return 0;
-}
-
 /*
  * Helper function to assign bus, target, lun mapping of devices.
  * Logical drive target and lun are assigned at this time, but
@@ -3554,7 +3561,7 @@ static void figure_bus_target_lun(struct ctlr_info *h,
 		return;
 	}
 	/* It's a logical device */
-	if (is_ext_target(h, device)) {
+	if (device->external) {
 		hpsa_set_bus_target_lun(device,
 			HPSA_EXTERNAL_RAID_VOLUME_BUS, (lunid >> 16) & 0x3fff,
 			lunid & 0x00ff);
@@ -3588,7 +3595,7 @@ static int add_ext_target_dev(struct ctlr_info *h,
 	if (!is_logical_dev_addr_mode(lunaddrbytes))
 		return 0; /* It's the logical targets that may lack lun 0. */
 
-	if (!is_ext_target(h, tmpdevice))
+	if (!tmpdevice->external)
 		return 0; /* Only external target devices have this problem. */
 
 	if (tmpdevice->lun == 0) /* if lun is 0, then we have a lun 0. */
@@ -3645,6 +3652,27 @@ static int hpsa_get_pdisk_of_ioaccel2(struct ctlr_info *h,
 		}
 	spin_unlock_irqrestore(&h->devlock, flags);
 	return 0;
+}
+
+static int  figure_external_status(struct ctlr_info *h, int raid_ctlr_position,
+	int i, int nphysicals, int nlocal_logicals)
+{
+	/* In report logicals, local logicals are listed first,
+	* then any externals.
+	*/
+	int logicals_start = nphysicals + (raid_ctlr_position == 0);
+
+	if (i == raid_ctlr_position)
+		return 0;
+
+	if (i < logicals_start)
+		return 0;
+
+	/* i is in logicals range, but still within local logicals */
+	if ((i - nphysicals - (raid_ctlr_position == 0)) < nlocal_logicals)
+		return 0;
+
+	return 1; /* it's an external lun */
 }
 
 /*
@@ -3770,6 +3798,32 @@ static void hpsa_get_path_info(struct hpsa_scsi_dev_t *this_device,
 		sizeof(this_device->bay));
 }
 
+/* get number of local logical disks. */
+static int hpsa_set_local_logical_count(struct ctlr_info *h,
+	struct bmic_identify_controller *id_ctlr,
+	u32 *nlocals)
+{
+	int rc;
+
+	if (!id_ctlr) {
+		dev_warn(&h->pdev->dev, "%s: id_ctlr buffer is NULL.\n",
+			__func__);
+		return -ENOMEM;
+	}
+	memset(id_ctlr, 0, sizeof(*id_ctlr));
+	rc = hpsa_bmic_id_controller(h, id_ctlr, sizeof(*id_ctlr));
+	if (!rc)
+		if (id_ctlr->configured_logical_drive_count < 256)
+			*nlocals = id_ctlr->configured_logical_drive_count;
+		else
+			*nlocals = le16_to_cpu(
+					id_ctlr->extended_logical_unit_count);
+	else
+		*nlocals = -1;
+	return rc;
+}
+
+
 static void hpsa_update_scsi_devices(struct ctlr_info *h)
 {
 	/* the idea here is we could get notified
@@ -3785,8 +3839,10 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 	struct ReportExtendedLUNdata *physdev_list = NULL;
 	struct ReportLUNdata *logdev_list = NULL;
 	struct bmic_identify_physical_device *id_phys = NULL;
+	struct bmic_identify_controller *id_ctlr = NULL;
 	u32 nphysicals = 0;
 	u32 nlogicals = 0;
+	u32 nlocal_logicals = 0;
 	u32 ndev_allocated = 0;
 	struct hpsa_scsi_dev_t **currentsd, *this_device, *tmpdevice;
 	int ncurrent = 0;
@@ -3800,9 +3856,10 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 	logdev_list = kzalloc(sizeof(*logdev_list), GFP_KERNEL);
 	tmpdevice = kzalloc(sizeof(*tmpdevice), GFP_KERNEL);
 	id_phys = kzalloc(sizeof(*id_phys), GFP_KERNEL);
+	id_ctlr = kzalloc(sizeof(*id_ctlr), GFP_KERNEL);
 
 	if (!currentsd || !physdev_list || !logdev_list ||
-		!tmpdevice || !id_phys) {
+		!tmpdevice || !id_phys || !id_ctlr) {
 		dev_err(&h->pdev->dev, "out of memory\n");
 		goto out;
 	}
@@ -3814,6 +3871,13 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 			logdev_list, &nlogicals)) {
 		h->drv_req_rescan = 1;
 		goto out;
+	}
+
+	/* Set number of local logicals (non PTRAID) */
+	if (hpsa_set_local_logical_count(h, id_ctlr, &nlocal_logicals)) {
+		dev_warn(&h->pdev->dev,
+			"%s: Can't determine number of local logical devices.\n",
+			__func__);
 	}
 
 	/* We might see up to the maximum number of logical and physical disks
@@ -3878,6 +3942,11 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 				"Inquiry failed, skipping device.\n");
 			continue;
 		}
+
+		/* Determine if this is a lun from an external target array */
+		tmpdevice->external =
+			figure_external_status(h, raid_ctlr_position, i,
+						nphysicals, nlocal_logicals);
 
 		figure_bus_target_lun(h, lunaddrbytes, tmpdevice);
 		hpsa_update_device_supports_aborts(h, tmpdevice, lunaddrbytes);
@@ -3962,6 +4031,7 @@ out:
 	kfree(currentsd);
 	kfree(physdev_list);
 	kfree(logdev_list);
+	kfree(id_ctlr);
 	kfree(id_phys);
 }
 
@@ -6414,6 +6484,23 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			c->Request.CDB[7] = (size >> 16) & 0xFF;
 			c->Request.CDB[8] = (size >> 8) & 0XFF;
 			break;
+		case BMIC_IDENTIFY_CONTROLLER:
+			c->Request.CDBLen = 10;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_READ);
+			c->Request.Timeout = 0;
+			c->Request.CDB[0] = BMIC_READ;
+			c->Request.CDB[1] = 0;
+			c->Request.CDB[2] = 0;
+			c->Request.CDB[3] = 0;
+			c->Request.CDB[4] = 0;
+			c->Request.CDB[5] = 0;
+			c->Request.CDB[6] = BMIC_IDENTIFY_CONTROLLER;
+			c->Request.CDB[7] = (size >> 16) & 0xFF;
+			c->Request.CDB[8] = (size >> 8) & 0XFF;
+			c->Request.CDB[9] = 0;
+			break;
+
 		default:
 			dev_warn(&h->pdev->dev, "unknown command 0x%c\n", cmd);
 			BUG();

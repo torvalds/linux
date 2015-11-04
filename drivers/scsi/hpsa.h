@@ -77,6 +77,7 @@ struct hpsa_scsi_dev_t {
 	struct hpsa_scsi_dev_t *phys_disk[RAID_MAP_MAX_ENTRIES];
 	int nphysical_disks;
 	int supports_aborts;
+	int external;   /* 1-from external array 0-not <0-unknown */
 };
 
 struct reply_queue_buffer {
