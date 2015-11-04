@@ -412,52 +412,6 @@ int ccw_device_resume(struct ccw_device *cdev)
 	return cio_resume(sch);
 }
 
-/*
- * Pass interrupt to device driver.
- */
-int
-ccw_device_call_handler(struct ccw_device *cdev)
-{
-	unsigned int stctl;
-	int ending_status;
-
-	/*
-	 * we allow for the device action handler if .
-	 *  - we received ending status
-	 *  - the action handler requested to see all interrupts
-	 *  - we received an intermediate status
-	 *  - fast notification was requested (primary status)
-	 *  - unsolicited interrupts
-	 */
-	stctl = scsw_stctl(&cdev->private->irb.scsw);
-	ending_status = (stctl & SCSW_STCTL_SEC_STATUS) ||
-		(stctl == (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND)) ||
-		(stctl == SCSW_STCTL_STATUS_PEND);
-	if (!ending_status &&
-	    !cdev->private->options.repall &&
-	    !(stctl & SCSW_STCTL_INTER_STATUS) &&
-	    !(cdev->private->options.fast &&
-	      (stctl & SCSW_STCTL_PRIM_STATUS)))
-		return 0;
-
-	/* Clear pending timers for device driver initiated I/O. */
-	if (ending_status)
-		ccw_device_set_timeout(cdev, 0);
-	/*
-	 * Now we are ready to call the device driver interrupt handler.
-	 */
-	if (cdev->handler)
-		cdev->handler(cdev, cdev->private->intparm,
-			      &cdev->private->irb);
-
-	/*
-	 * Clear the old and now useless interrupt response block.
-	 */
-	memset(&cdev->private->irb, 0, sizeof(struct irb));
-
-	return 1;
-}
-
 /**
  * ccw_device_get_ciw() - Search for CIW command in extended sense data.
  * @cdev: ccw device to inspect
@@ -500,67 +454,6 @@ __u8 ccw_device_get_path_mask(struct ccw_device *cdev)
 
 	sch = to_subchannel(cdev->dev.parent);
 	return sch->lpm;
-}
-
-struct stlck_data {
-	struct completion done;
-	int rc;
-};
-
-void ccw_device_stlck_done(struct ccw_device *cdev, void *data, int rc)
-{
-	struct stlck_data *sdata = data;
-
-	sdata->rc = rc;
-	complete(&sdata->done);
-}
-
-/*
- * Perform unconditional reserve + release.
- */
-int ccw_device_stlck(struct ccw_device *cdev)
-{
-	struct subchannel *sch = to_subchannel(cdev->dev.parent);
-	struct stlck_data data;
-	u8 *buffer;
-	int rc;
-
-	/* Check if steal lock operation is valid for this device. */
-	if (cdev->drv) {
-		if (!cdev->private->options.force)
-			return -EINVAL;
-	}
-	buffer = kzalloc(64, GFP_DMA | GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-	init_completion(&data.done);
-	data.rc = -EIO;
-	spin_lock_irq(sch->lock);
-	rc = cio_enable_subchannel(sch, (u32) (addr_t) sch);
-	if (rc)
-		goto out_unlock;
-	/* Perform operation. */
-	cdev->private->state = DEV_STATE_STEAL_LOCK;
-	ccw_device_stlck_start(cdev, &data, &buffer[0], &buffer[32]);
-	spin_unlock_irq(sch->lock);
-	/* Wait for operation to finish. */
-	if (wait_for_completion_interruptible(&data.done)) {
-		/* Got a signal. */
-		spin_lock_irq(sch->lock);
-		ccw_request_cancel(cdev);
-		spin_unlock_irq(sch->lock);
-		wait_for_completion(&data.done);
-	}
-	rc = data.rc;
-	/* Check results. */
-	spin_lock_irq(sch->lock);
-	cio_disable_subchannel(sch);
-	cdev->private->state = DEV_STATE_BOXED;
-out_unlock:
-	spin_unlock_irq(sch->lock);
-	kfree(buffer);
-
-	return rc;
 }
 
 /**

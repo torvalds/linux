@@ -22,7 +22,7 @@
 #include <linux/kvm.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/api.h>
 #include <asm/isc.h>
 
 #define KVM_MAX_VCPUS 64

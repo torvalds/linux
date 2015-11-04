@@ -472,8 +472,7 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 	unsigned long long z1, z2, z3;
 	int rc, copied;
 
-	if (crt->outputdatalength < crt->inputdatalength ||
-	    (crt->inputdatalength & 1))
+	if (crt->outputdatalength < crt->inputdatalength)
 		return -EINVAL;
 	/*
 	 * As long as outputdatalength is big enough, we can set the
