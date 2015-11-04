@@ -3455,6 +3455,7 @@ static void dispc_dump_regs(struct seq_file *s)
 		[OMAP_DSS_VIDEO1]	= "VID1",
 		[OMAP_DSS_VIDEO2]	= "VID2",
 		[OMAP_DSS_VIDEO3]	= "VID3",
+		[OMAP_DSS_WB]		= "WB",
 	};
 	const char **p_names;
 
@@ -3545,6 +3546,35 @@ static void dispc_dump_regs(struct seq_file *s)
 			DUMPREG(i, DISPC_OVL_TABLE_BA);
 			continue;
 		}
+
+		DUMPREG(i, DISPC_OVL_FIR);
+		DUMPREG(i, DISPC_OVL_PICTURE_SIZE);
+		DUMPREG(i, DISPC_OVL_ACCU0);
+		DUMPREG(i, DISPC_OVL_ACCU1);
+		if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+			DUMPREG(i, DISPC_OVL_BA0_UV);
+			DUMPREG(i, DISPC_OVL_BA1_UV);
+			DUMPREG(i, DISPC_OVL_FIR2);
+			DUMPREG(i, DISPC_OVL_ACCU2_0);
+			DUMPREG(i, DISPC_OVL_ACCU2_1);
+		}
+		if (dss_has_feature(FEAT_ATTR2))
+			DUMPREG(i, DISPC_OVL_ATTRIBUTES2);
+	}
+
+	if (dss_feat_get_num_wbs()) {
+		i = OMAP_DSS_WB;
+		DUMPREG(i, DISPC_OVL_BA0);
+		DUMPREG(i, DISPC_OVL_BA1);
+		DUMPREG(i, DISPC_OVL_SIZE);
+		DUMPREG(i, DISPC_OVL_ATTRIBUTES);
+		DUMPREG(i, DISPC_OVL_FIFO_THRESHOLD);
+		DUMPREG(i, DISPC_OVL_FIFO_SIZE_STATUS);
+		DUMPREG(i, DISPC_OVL_ROW_INC);
+		DUMPREG(i, DISPC_OVL_PIXEL_INC);
+
+		if (dss_has_feature(FEAT_MFLAG))
+			DUMPREG(i, DISPC_OVL_MFLAG_THRESHOLD);
 
 		DUMPREG(i, DISPC_OVL_FIR);
 		DUMPREG(i, DISPC_OVL_PICTURE_SIZE);
