@@ -1384,6 +1384,25 @@ static void dispc_init_mflag(void)
 
 		dispc_ovl_set_mflag_threshold(i, low, high);
 	}
+
+	if (dispc.feat->has_writeback) {
+		u32 size = dispc_ovl_get_fifo_size(OMAP_DSS_WB);
+		u32 unit = dss_feat_get_buffer_size_unit();
+		u32 low, high;
+
+		dispc_ovl_set_mflag(OMAP_DSS_WB, true);
+
+		/*
+		 * Simulation team suggests below thesholds:
+		 * HT = fifosize * 5 / 8;
+		 * LT = fifosize * 4 / 8;
+		 */
+
+		low = size * 4 / 8 / unit;
+		high = size * 5 / 8 / unit;
+
+		dispc_ovl_set_mflag_threshold(OMAP_DSS_WB, low, high);
+	}
 }
 
 static void dispc_ovl_set_fir(enum omap_plane plane,
