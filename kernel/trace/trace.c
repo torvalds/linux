@@ -214,12 +214,10 @@ __setup("alloc_snapshot", boot_alloc_snapshot);
 
 
 static char trace_boot_options_buf[MAX_TRACER_SIZE] __initdata;
-static char *trace_boot_options __initdata;
 
 static int __init set_trace_boot_options(char *str)
 {
 	strlcpy(trace_boot_options_buf, str, MAX_TRACER_SIZE);
-	trace_boot_options = trace_boot_options_buf;
 	return 0;
 }
 __setup("trace_options=", set_trace_boot_options);
@@ -1223,13 +1221,15 @@ static inline int run_tracer_selftest(struct tracer *type)
 
 static void add_tracer_options(struct trace_array *tr, struct tracer *t);
 
+static void __init apply_trace_boot_options(void);
+
 /**
  * register_tracer - register a tracer with the ftrace system.
  * @type - the plugin for the tracer
  *
  * Register a new plugin tracer.
  */
-int register_tracer(struct tracer *type)
+int __init register_tracer(struct tracer *type)
 {
 	struct tracer *t;
 	int ret = 0;
@@ -1288,6 +1288,9 @@ int register_tracer(struct tracer *type)
 	/* Do we want this tracer to start on bootup? */
 	tracing_set_tracer(&global_trace, type->name);
 	default_bootup_tracer = NULL;
+
+	apply_trace_boot_options();
+
 	/* disable other selftests, since this will break it. */
 	tracing_selftest_disabled = true;
 #ifdef CONFIG_FTRACE_STARTUP_TEST
@@ -3589,6 +3592,7 @@ static int trace_set_options(struct trace_array *tr, char *option)
 	int neg = 0;
 	int ret = -ENODEV;
 	int i;
+	size_t orig_len = strlen(option);
 
 	cmp = strstrip(option);
 
@@ -3612,7 +3616,35 @@ static int trace_set_options(struct trace_array *tr, char *option)
 
 	mutex_unlock(&trace_types_lock);
 
+	/*
+	 * If the first trailing whitespace is replaced with '\0' by strstrip,
+	 * turn it back into a space.
+	 */
+	if (orig_len > strlen(option))
+		option[strlen(option)] = ' ';
+
 	return ret;
+}
+
+static void __init apply_trace_boot_options(void)
+{
+	char *buf = trace_boot_options_buf;
+	char *option;
+
+	while (true) {
+		option = strsep(&buf, ",");
+
+		if (!option)
+			break;
+		if (!*option)
+			continue;
+
+		trace_set_options(&global_trace, option);
+
+		/* Put back the comma to allow this to be called again */
+		if (buf)
+			*(buf - 1) = ',';
+	}
 }
 
 static ssize_t
@@ -7248,12 +7280,7 @@ __init static int tracer_alloc_buffers(void)
 	INIT_LIST_HEAD(&global_trace.events);
 	list_add(&global_trace.list, &ftrace_trace_arrays);
 
-	while (trace_boot_options) {
-		char *option;
-
-		option = strsep(&trace_boot_options, ",");
-		trace_set_options(&global_trace, option);
-	}
+	apply_trace_boot_options();
 
 	register_snapshot_cmd();
 
