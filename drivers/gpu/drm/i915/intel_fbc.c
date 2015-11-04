@@ -376,8 +376,6 @@ static void intel_fbc_cancel_work(struct drm_i915_private *dev_priv)
 	if (dev_priv->fbc.fbc_work == NULL)
 		return;
 
-	DRM_DEBUG_KMS("cancelling pending FBC enable\n");
-
 	/* Synchronisation is provided by struct_mutex and checking of
 	 * dev_priv->fbc.fbc_work, so we can perform the cancellation
 	 * entirely asynchronously.
