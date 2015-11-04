@@ -461,8 +461,7 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
  */
 static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 {
-	struct iser_conn *iser_conn = container_of(ib_conn, struct iser_conn,
-						   ib_conn);
+	struct iser_conn *iser_conn = to_iser_conn(ib_conn);
 	struct iser_device	*device;
 	struct ib_device_attr *dev_attr;
 	struct ib_qp_init_attr	init_attr;
@@ -1166,9 +1165,8 @@ static void
 iser_handle_comp_error(struct ib_conn *ib_conn,
 		       struct ib_wc *wc)
 {
+	struct iser_conn *iser_conn = to_iser_conn(ib_conn);
 	void *wr_id = (void *)(uintptr_t)wc->wr_id;
-	struct iser_conn *iser_conn = container_of(ib_conn, struct iser_conn,
-						   ib_conn);
 
 	if (wc->status != IB_WC_WR_FLUSH_ERR)
 		if (iser_conn->iscsi_conn)

@@ -731,4 +731,10 @@ iser_tx_next_wr(struct iser_tx_desc *tx_desc)
 	return cur_wr;
 }
 
+static inline struct iser_conn *
+to_iser_conn(struct ib_conn *ib_conn)
+{
+	return container_of(ib_conn, struct iser_conn, ib_conn);
+}
+
 #endif

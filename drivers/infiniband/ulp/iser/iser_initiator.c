@@ -559,8 +559,7 @@ void iser_rcv_completion(struct iser_rx_desc *rx_desc,
 			 unsigned long rx_xfer_len,
 			 struct ib_conn *ib_conn)
 {
-	struct iser_conn *iser_conn = container_of(ib_conn, struct iser_conn,
-						   ib_conn);
+	struct iser_conn *iser_conn = to_iser_conn(ib_conn);
 	struct iscsi_hdr *hdr;
 	char *data;
 	u64 rx_dma;
