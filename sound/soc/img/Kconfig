@@ -1,0 +1,12 @@
+config SND_SOC_IMG
+	bool "Audio support for Imagination Technologies designs"
+	help
+	  Audio support for Imagination Technologies audio hardware
+
+config SND_SOC_IMG_I2S_IN
+	tristate "Imagination I2S Input Device Driver"
+	depends on SND_SOC_IMG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for I2S in driver for
+	  Imagination Technologies I2S in device.
