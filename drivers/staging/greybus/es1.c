@@ -650,7 +650,7 @@ static int ap_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	/* Allocate buffers for our cport in messages and start them up */
+	/* Allocate buffers for our cport in messages */
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
 		struct urb *urb;
 		u8 *buffer;
@@ -668,9 +668,6 @@ static int ap_probe(struct usb_interface *interface,
 				  cport_in_callback, hd);
 		es1->cport_in_urb[i] = urb;
 		es1->cport_in_buffer[i] = buffer;
-		retval = usb_submit_urb(urb, GFP_KERNEL);
-		if (retval)
-			goto error;
 	}
 
 	/* Allocate urbs for our CPort OUT messages */
@@ -689,6 +686,13 @@ static int ap_probe(struct usb_interface *interface,
 							(S_IWUSR | S_IRUGO),
 							gb_debugfs_get(), es1,
 							&apb1_log_enable_fops);
+
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
+		retval = usb_submit_urb(es1->cport_in_urb[i], GFP_KERNEL);
+		if (retval)
+			goto error;
+	}
+
 	return 0;
 error:
 	ap_disconnect(interface);
