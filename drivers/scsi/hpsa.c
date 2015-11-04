@@ -3671,8 +3671,6 @@ static void hpsa_get_ioaccel_drive_info(struct ctlr_info *h,
 				DRIVE_CMDS_RESERVED_FOR_FW;
 	else
 		dev->queue_depth = DRIVE_QUEUE_DEPTH; /* conservative */
-	atomic_set(&dev->ioaccel_cmds_out, 0);
-	atomic_set(&dev->reset_cmds_out, 0);
 }
 
 static void hpsa_get_path_info(struct hpsa_scsi_dev_t *this_device,
