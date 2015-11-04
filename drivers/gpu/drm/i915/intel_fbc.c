@@ -46,6 +46,11 @@ static inline bool fbc_supported(struct drm_i915_private *dev_priv)
 	return dev_priv->fbc.enable_fbc != NULL;
 }
 
+static inline bool fbc_on_pipe_a_only(struct drm_i915_private *dev_priv)
+{
+	return IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8;
+}
+
 /*
  * In some platforms where the CRTC's x:0/y:0 coordinates doesn't match the
  * frontbuffer's x:0/y:0 coordinates we lie to the hardware about the plane's
@@ -486,10 +491,6 @@ static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 {
 	struct drm_crtc *crtc = NULL, *tmp_crtc;
 	enum pipe pipe;
-	bool pipe_a_only = false;
-
-	if (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8)
-		pipe_a_only = true;
 
 	for_each_pipe(dev_priv, pipe) {
 		tmp_crtc = dev_priv->pipe_to_crtc_mapping[pipe];
@@ -498,7 +499,7 @@ static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 		    to_intel_plane_state(tmp_crtc->primary->state)->visible)
 			crtc = tmp_crtc;
 
-		if (pipe_a_only)
+		if (fbc_on_pipe_a_only(dev_priv))
 			break;
 	}
 
@@ -1057,7 +1058,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 		dev_priv->fbc.possible_framebuffer_bits |=
 				INTEL_FRONTBUFFER_PRIMARY(pipe);
 
-		if (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8)
+		if (fbc_on_pipe_a_only(dev_priv))
 			break;
 	}
 
