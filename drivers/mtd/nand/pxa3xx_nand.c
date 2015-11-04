@@ -1936,12 +1936,18 @@ static int pxa3xx_nand_suspend(struct device *dev)
 		return -EAGAIN;
 	}
 
+	clk_disable(info->clk);
 	return 0;
 }
 
 static int pxa3xx_nand_resume(struct device *dev)
 {
 	struct pxa3xx_nand_info *info = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_enable(info->clk);
+	if (ret < 0)
+		return ret;
 
 	/* We don't want to handle interrupt without calling mtd routine */
 	disable_int(info, NDCR_INT_MASK);
