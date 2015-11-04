@@ -801,6 +801,7 @@ static const struct omap_dss_features omap5_dss_features = {
 
 	.num_mgrs = 4,
 	.num_ovls = 4,
+	.num_wbs = 1,
 	.supported_displays = omap5_dss_supported_displays,
 	.supported_outputs = omap5_dss_supported_outputs,
 	.supported_color_modes = omap4_dss_supported_color_modes,
