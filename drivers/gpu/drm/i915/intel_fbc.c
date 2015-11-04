@@ -182,7 +182,8 @@ static bool g4x_fbc_enabled(struct drm_i915_private *dev_priv)
 	return I915_READ(DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
-static void intel_fbc_nuke(struct drm_i915_private *dev_priv)
+/* This function forces a CFB recompression through the nuke operation. */
+static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(MSG_FBC_REND_STATE, FBC_REND_NUKE);
 	POSTING_READ(MSG_FBC_REND_STATE);
@@ -231,7 +232,7 @@ static void ilk_fbc_enable(struct intel_crtc *crtc)
 		I915_WRITE(DPFC_CPU_FENCE_OFFSET, y_offset);
 	}
 
-	intel_fbc_nuke(dev_priv);
+	intel_fbc_recompress(dev_priv);
 
 	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(crtc->plane));
 }
@@ -310,7 +311,7 @@ static void gen7_fbc_enable(struct intel_crtc *crtc)
 		   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
 	I915_WRITE(DPFC_CPU_FENCE_OFFSET, get_crtc_fence_y_offset(crtc));
 
-	intel_fbc_nuke(dev_priv);
+	intel_fbc_recompress(dev_priv);
 
 	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(crtc->plane));
 }
