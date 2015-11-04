@@ -303,6 +303,7 @@ struct apic {
 				      unsigned int *apicid);
 
 	/* ipi */
+	void (*send_IPI)(int cpu, int vector);
 	void (*send_IPI_mask)(const struct cpumask *mask, int vector);
 	void (*send_IPI_mask_allbutself)(const struct cpumask *mask,
 					 int vector);

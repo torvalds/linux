@@ -115,6 +115,18 @@ static atomic_t stopping_cpu = ATOMIC_INIT(-1);
 static bool smp_no_nmi_ipi = false;
 
 /*
+ * Helper wrapper: not all apic definitions support sending to
+ * a single CPU, so we fall back to sending to a mask.
+ */
+static void send_IPI_cpu(int cpu, int vector)
+{
+	if (apic->send_IPI)
+		apic->send_IPI(cpu, vector);
+	else
+		apic->send_IPI_mask(cpumask_of(cpu), vector);
+}
+
+/*
  * this function sends a 'reschedule' IPI to another CPU.
  * it goes straight through and wastes no time serializing
  * anything. Worst case is that we lose a reschedule ...
@@ -125,12 +137,12 @@ static void native_smp_send_reschedule(int cpu)
 		WARN_ON(1);
 		return;
 	}
-	apic->send_IPI_mask(cpumask_of(cpu), RESCHEDULE_VECTOR);
+	send_IPI_cpu(cpu, RESCHEDULE_VECTOR);
 }
 
 void native_send_call_func_single_ipi(int cpu)
 {
-	apic->send_IPI_mask(cpumask_of(cpu), CALL_FUNCTION_SINGLE_VECTOR);
+	send_IPI_cpu(cpu, CALL_FUNCTION_SINGLE_VECTOR);
 }
 
 void native_send_call_func_ipi(const struct cpumask *mask)
