@@ -26,6 +26,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
+#include <asm/ptrace.h>
 
 #define ARCH_OFFSET	4
 
@@ -364,7 +365,7 @@ ENTRY(startup_kdump)
 	bras	%r13,0f
 	.fill	16,4,0x0
 0:	lmh	%r0,%r15,0(%r13)	# clear high-order half of gprs
-	sam31				# switch to 31 bit addressing mode
+	sam64				# switch to 64 bit addressing mode
 	basr	%r13,0			# get base
 .LPG0:
 	xc	0x200(256),0x200	# partially clear lowcore
@@ -395,7 +396,7 @@ ENTRY(startup_kdump)
 	jnz	1b
 	j	4f
 2:	l	%r15,.Lstack-.LPG0(%r13)
-	ahi	%r15,-96
+	ahi	%r15,-STACK_FRAME_OVERHEAD
 	la	%r2,.Lals_string-.LPG0(%r13)
 	l	%r3,.Lsclp_print-.LPG0(%r13)
 	basr	%r14,%r3
@@ -429,8 +430,7 @@ ENTRY(startup_kdump)
 	.long 1, 0xc0000000
 #endif
 4:
-	/* Continue with 64bit startup code in head64.S */
-	sam64				# switch to 64 bit mode
+	/* Continue with startup code in head64.S */
 	jg	startup_continue
 
 	.align	8
