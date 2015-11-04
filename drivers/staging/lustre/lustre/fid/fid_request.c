@@ -462,7 +462,7 @@ static void __exit fid_mod_exit(void)
 		ldebugfs_remove(&seq_debugfs_dir);
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre FID Module");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1.0");

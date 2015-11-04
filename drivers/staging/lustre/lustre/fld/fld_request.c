@@ -501,7 +501,7 @@ static void __exit fld_mod_exit(void)
 		ldebugfs_remove(&fld_debugfs_dir);
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre FLD");
 MODULE_LICENSE("GPL");
 

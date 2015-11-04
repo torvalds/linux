@@ -1725,7 +1725,7 @@ static void /*__exit*/ mgc_exit(void)
 	class_unregister_type(LUSTRE_MGC_NAME);
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Management Client");
 MODULE_LICENSE("GPL");
 
