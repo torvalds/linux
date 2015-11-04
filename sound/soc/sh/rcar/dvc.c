@@ -171,7 +171,7 @@ static int rsnd_dvc_init(struct rsnd_mod *mod,
 	/* ch0/ch1 Volume */
 	rsnd_dvc_volume_update(io, mod);
 
-	rsnd_adg_set_cmd_timsel_gen2(mod, io);
+	rsnd_dvc_initialize_unlock(mod);
 
 	return 0;
 }
@@ -181,26 +181,6 @@ static int rsnd_dvc_quit(struct rsnd_mod *mod,
 			 struct rsnd_priv *priv)
 {
 	rsnd_mod_power_off(mod);
-
-	return 0;
-}
-
-static int rsnd_dvc_start(struct rsnd_mod *mod,
-			  struct rsnd_dai_stream *io,
-			  struct rsnd_priv *priv)
-{
-	rsnd_dvc_initialize_unlock(mod);
-
-	rsnd_mod_write(mod, CMD_CTRL, 0x10);
-
-	return 0;
-}
-
-static int rsnd_dvc_stop(struct rsnd_mod *mod,
-			 struct rsnd_dai_stream *io,
-			 struct rsnd_priv *priv)
-{
-	rsnd_mod_write(mod, CMD_CTRL, 0);
 
 	return 0;
 }
@@ -278,8 +258,6 @@ static struct rsnd_mod_ops rsnd_dvc_ops = {
 	.remove		= rsnd_dvc_remove_,
 	.init		= rsnd_dvc_init,
 	.quit		= rsnd_dvc_quit,
-	.start		= rsnd_dvc_start,
-	.stop		= rsnd_dvc_stop,
 	.pcm_new	= rsnd_dvc_pcm_new,
 };
 

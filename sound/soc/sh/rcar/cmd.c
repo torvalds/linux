@@ -81,7 +81,25 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 
 	rsnd_mod_write(mod, CMD_ROUTE_SLCT, data);
 
+	rsnd_adg_set_cmd_timsel_gen2(mod, io);
+
+	return 0;
+}
+
+static int rsnd_cmd_start(struct rsnd_mod *mod,
+			  struct rsnd_dai_stream *io,
+			  struct rsnd_priv *priv)
+{
 	rsnd_mod_write(mod, CMD_CTRL, 0x10);
+
+	return 0;
+}
+
+static int rsnd_cmd_stop(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
+			 struct rsnd_priv *priv)
+{
+	rsnd_mod_write(mod, CMD_CTRL, 0);
 
 	return 0;
 }
@@ -89,6 +107,8 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 static struct rsnd_mod_ops rsnd_cmd_ops = {
 	.name	= CMD_NAME,
 	.init	= rsnd_cmd_init,
+	.start	= rsnd_cmd_start,
+	.stop	= rsnd_cmd_stop,
 };
 
 int rsnd_cmd_attach(struct rsnd_dai_stream *io, int id)
