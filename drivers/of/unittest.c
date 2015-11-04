@@ -530,18 +530,14 @@ static void __init of_unittest_changeset(void)
 	unittest(!of_changeset_add_property(&chgset, parent, ppadd), "fail add prop\n");
 	unittest(!of_changeset_update_property(&chgset, parent, ppupdate), "fail update prop\n");
 	unittest(!of_changeset_remove_property(&chgset, parent, ppremove), "fail remove prop\n");
-	mutex_lock(&of_mutex);
 	unittest(!of_changeset_apply(&chgset), "apply failed\n");
-	mutex_unlock(&of_mutex);
 
 	/* Make sure node names are constructed correctly */
 	unittest((np = of_find_node_by_path("/testcase-data/changeset/n2/n21")),
 		 "'%s' not added\n", n21->full_name);
 	of_node_put(np);
 
-	mutex_lock(&of_mutex);
 	unittest(!of_changeset_revert(&chgset), "revert failed\n");
-	mutex_unlock(&of_mutex);
 
 	of_changeset_destroy(&chgset);
 #endif
