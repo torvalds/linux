@@ -711,11 +711,12 @@ EXPORT_SYMBOL_GPL(vfio_device_get_from_dev);
 static struct vfio_device *vfio_device_get_from_name(struct vfio_group *group,
 						     char *buf)
 {
-	struct vfio_device *device;
+	struct vfio_device *it, *device = NULL;
 
 	mutex_lock(&group->device_lock);
-	list_for_each_entry(device, &group->device_list, group_next) {
-		if (!strcmp(dev_name(device->dev), buf)) {
+	list_for_each_entry(it, &group->device_list, group_next) {
+		if (!strcmp(dev_name(it->dev), buf)) {
+			device = it;
 			vfio_device_get(device);
 			break;
 		}
