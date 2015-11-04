@@ -974,6 +974,10 @@ void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 				return;
 			}
 			break;
+		case OMAP_DSS_CHANNEL_WB:
+			chan = 0;
+			chan2 = 3;
+			break;
 		default:
 			BUG();
 			return;
@@ -1023,6 +1027,8 @@ static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane plane)
 		return OMAP_DSS_CHANNEL_LCD2;
 	case 2:
 		return OMAP_DSS_CHANNEL_LCD3;
+	case 3:
+		return OMAP_DSS_CHANNEL_WB;
 	}
 }
 
