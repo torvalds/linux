@@ -372,6 +372,7 @@ static void ap_disconnect(struct usb_interface *interface)
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i)
 		usb_kill_urb(es1->cport_in_urb[i]);
 
+	debugfs_remove(apb1_log_enable_dentry);
 	usb_log_disable(es1);
 
 	/* Tear down everything! */
