@@ -703,6 +703,7 @@ static bool hp_bnb2011_with_dock(struct hda_codec *codec)
 static bool hp_blike_system(u32 subsystem_id)
 {
 	switch (subsystem_id) {
+	case 0x103c1473: /* HP ProBook 6550b */
 	case 0x103c1520:
 	case 0x103c1521:
 	case 0x103c1523:
