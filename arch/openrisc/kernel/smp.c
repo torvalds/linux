@@ -18,6 +18,7 @@
 #include <asm/cpuinfo.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
+#include <asm/cacheflush.h>
 #include <asm/time.h>
 
 static void (*smp_cross_call)(const struct cpumask *, unsigned int);
@@ -239,3 +240,17 @@ void flush_tlb_range(struct vm_area_struct *vma,
 {
 	on_each_cpu(ipi_flush_tlb_all, NULL, 1);
 }
+
+/* Instruction cache invalidate - performed on each cpu */
+static void ipi_icache_page_inv(void *arg)
+{
+	struct page *page = arg;
+
+	local_icache_page_inv(page);
+}
+
+void smp_icache_page_inv(struct page *page)
+{
+	on_each_cpu(ipi_icache_page_inv, page, 1);
+}
+EXPORT_SYMBOL(smp_icache_page_inv);

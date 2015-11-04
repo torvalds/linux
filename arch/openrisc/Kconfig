@@ -77,6 +77,17 @@ config OR1K_1200
 
 endchoice
 
+config DCACHE_WRITETHROUGH
+	bool "Have write through data caches"
+	default n
+	help
+	  Select this if your implementation features write through data caches.
+	  Selecting 'N' here will allow the kernel to force flushing of data
+	  caches at relevant times. Most OpenRISC implementations support write-
+	  through data caches.
+
+	  If unsure say N here
+
 config OPENRISC_BUILTIN_DTB
         string "Builtin DTB"
         default ""
