@@ -48,7 +48,6 @@ static struct mm_struct efi_mm = {
 	.mmap_sem		= __RWSEM_INITIALIZER(efi_mm.mmap_sem),
 	.page_table_lock	= __SPIN_LOCK_UNLOCKED(efi_mm.page_table_lock),
 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
-	INIT_MM_CONTEXT(efi_mm)
 };
 
 static int __init is_normal_ram(efi_memory_desc_t *md)
@@ -335,9 +334,9 @@ static void efi_set_pgd(struct mm_struct *mm)
 	else
 		cpu_switch_mm(mm->pgd, mm);
 
-	flush_tlb_all();
+	local_flush_tlb_all();
 	if (icache_is_aivivt())
-		__flush_icache_all();
+		__local_flush_icache_all();
 }
 
 void efi_virtmap_load(void)

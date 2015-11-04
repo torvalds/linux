@@ -32,6 +32,7 @@
 
 #include <asm/cputype.h>
 #include <asm/fixmap.h>
+#include <asm/kernel-pgtable.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
@@ -80,19 +81,55 @@ static void split_pmd(pmd_t *pmd, pte_t *pte)
 	do {
 		/*
 		 * Need to have the least restrictive permissions available
-		 * permissions will be fixed up later
+		 * permissions will be fixed up later. Default the new page
+		 * range as contiguous ptes.
 		 */
-		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
+		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC_CONT));
 		pfn++;
 	} while (pte++, i++, i < PTRS_PER_PTE);
 }
 
+/*
+ * Given a PTE with the CONT bit set, determine where the CONT range
+ * starts, and clear the entire range of PTE CONT bits.
+ */
+static void clear_cont_pte_range(pte_t *pte, unsigned long addr)
+{
+	int i;
+
+	pte -= CONT_RANGE_OFFSET(addr);
+	for (i = 0; i < CONT_PTES; i++) {
+		set_pte(pte, pte_mknoncont(*pte));
+		pte++;
+	}
+	flush_tlb_all();
+}
+
+/*
+ * Given a range of PTEs set the pfn and provided page protection flags
+ */
+static void __populate_init_pte(pte_t *pte, unsigned long addr,
+				unsigned long end, phys_addr_t phys,
+				pgprot_t prot)
+{
+	unsigned long pfn = __phys_to_pfn(phys);
+
+	do {
+		/* clear all the bits except the pfn, then apply the prot */
+		set_pte(pte, pfn_pte(pfn, prot));
+		pte++;
+		pfn++;
+		addr += PAGE_SIZE;
+	} while (addr != end);
+}
+
 static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
-				  unsigned long end, unsigned long pfn,
+				  unsigned long end, phys_addr_t phys,
 				  pgprot_t prot,
 				  void *(*alloc)(unsigned long size))
 {
 	pte_t *pte;
+	unsigned long next;
 
 	if (pmd_none(*pmd) || pmd_sect(*pmd)) {
 		pte = alloc(PTRS_PER_PTE * sizeof(pte_t));
@@ -105,9 +142,27 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
-		set_pte(pte, pfn_pte(pfn, prot));
-		pfn++;
-	} while (pte++, addr += PAGE_SIZE, addr != end);
+		next = min(end, (addr + CONT_SIZE) & CONT_MASK);
+		if (((addr | next | phys) & ~CONT_MASK) == 0) {
+			/* a block of CONT_PTES  */
+			__populate_init_pte(pte, addr, next, phys,
+					    prot | __pgprot(PTE_CONT));
+		} else {
+			/*
+			 * If the range being split is already inside of a
+			 * contiguous range but this PTE isn't going to be
+			 * contiguous, then we want to unmark the adjacent
+			 * ranges, then update the portion of the range we
+			 * are interrested in.
+			 */
+			 clear_cont_pte_range(pte, addr);
+			 __populate_init_pte(pte, addr, next, phys, prot);
+		}
+
+		pte += (next - addr) >> PAGE_SHIFT;
+		phys += next - addr;
+		addr = next;
+	} while (addr != end);
 }
 
 void split_pud(pud_t *old_pud, pmd_t *pmd)
@@ -168,8 +223,7 @@ static void alloc_init_pmd(struct mm_struct *mm, pud_t *pud,
 				}
 			}
 		} else {
-			alloc_init_pte(pmd, addr, next, __phys_to_pfn(phys),
-				       prot, alloc);
+			alloc_init_pte(pmd, addr, next, phys, prot, alloc);
 		}
 		phys += next - addr;
 	} while (pmd++, addr = next, addr != end);
@@ -353,14 +407,11 @@ static void __init map_mem(void)
 	 * memory addressable from the initial direct kernel mapping.
 	 *
 	 * The initial direct kernel mapping, located at swapper_pg_dir, gives
-	 * us PUD_SIZE (4K pages) or PMD_SIZE (64K pages) memory starting from
-	 * PHYS_OFFSET (which must be aligned to 2MB as per
-	 * Documentation/arm64/booting.txt).
+	 * us PUD_SIZE (with SECTION maps) or PMD_SIZE (without SECTION maps,
+	 * memory starting from PHYS_OFFSET (which must be aligned to 2MB as
+	 * per Documentation/arm64/booting.txt).
 	 */
-	if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
-		limit = PHYS_OFFSET + PMD_SIZE;
-	else
-		limit = PHYS_OFFSET + PUD_SIZE;
+	limit = PHYS_OFFSET + SWAPPER_INIT_MAP_SIZE;
 	memblock_set_current_limit(limit);
 
 	/* map all the memory banks */
@@ -371,21 +422,24 @@ static void __init map_mem(void)
 		if (start >= end)
 			break;
 
-#ifndef CONFIG_ARM64_64K_PAGES
-		/*
-		 * For the first memory bank align the start address and
-		 * current memblock limit to prevent create_mapping() from
-		 * allocating pte page tables from unmapped memory.
-		 * When 64K pages are enabled, the pte page table for the
-		 * first PGDIR_SIZE is already present in swapper_pg_dir.
-		 */
-		if (start < limit)
-			start = ALIGN(start, PMD_SIZE);
-		if (end < limit) {
-			limit = end & PMD_MASK;
-			memblock_set_current_limit(limit);
+		if (ARM64_SWAPPER_USES_SECTION_MAPS) {
+			/*
+			 * For the first memory bank align the start address and
+			 * current memblock limit to prevent create_mapping() from
+			 * allocating pte page tables from unmapped memory. With
+			 * the section maps, if the first block doesn't end on section
+			 * size boundary, create_mapping() will try to allocate a pte
+			 * page, which may be returned from an unmapped area.
+			 * When section maps are not used, the pte page table for the
+			 * current limit is already present in swapper_pg_dir.
+			 */
+			if (start < limit)
+				start = ALIGN(start, SECTION_SIZE);
+			if (end < limit) {
+				limit = end & SECTION_MASK;
+				memblock_set_current_limit(limit);
+			}
 		}
-#endif
 		__map_memblock(start, end);
 	}
 
@@ -456,7 +510,7 @@ void __init paging_init(void)
 	 * point to zero page to avoid speculatively fetching new entries.
 	 */
 	cpu_set_reserved_ttbr0();
-	flush_tlb_all();
+	local_flush_tlb_all();
 	cpu_set_default_tcr_t0sz();
 }
 
@@ -498,12 +552,12 @@ int kern_addr_valid(unsigned long addr)
 	return pfn_valid(pte_pfn(*pte));
 }
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-#ifdef CONFIG_ARM64_64K_PAGES
+#if !ARM64_SWAPPER_USES_SECTION_MAPS
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
 	return vmemmap_populate_basepages(start, end, node);
 }
-#else	/* !CONFIG_ARM64_64K_PAGES */
+#else	/* !ARM64_SWAPPER_USES_SECTION_MAPS */
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
 	unsigned long addr = start;
@@ -638,7 +692,7 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 {
 	const u64 dt_virt_base = __fix_to_virt(FIX_FDT);
 	pgprot_t prot = PAGE_KERNEL | PTE_RDONLY;
-	int granularity, size, offset;
+	int size, offset;
 	void *dt_virt;
 
 	/*
@@ -664,24 +718,15 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 	 */
 	BUILD_BUG_ON(dt_virt_base % SZ_2M);
 
-	if (IS_ENABLED(CONFIG_ARM64_64K_PAGES)) {
-		BUILD_BUG_ON(__fix_to_virt(FIX_FDT_END) >> PMD_SHIFT !=
-			     __fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT);
+	BUILD_BUG_ON(__fix_to_virt(FIX_FDT_END) >> SWAPPER_TABLE_SHIFT !=
+		     __fix_to_virt(FIX_BTMAP_BEGIN) >> SWAPPER_TABLE_SHIFT);
 
-		granularity = PAGE_SIZE;
-	} else {
-		BUILD_BUG_ON(__fix_to_virt(FIX_FDT_END) >> PUD_SHIFT !=
-			     __fix_to_virt(FIX_BTMAP_BEGIN) >> PUD_SHIFT);
-
-		granularity = PMD_SIZE;
-	}
-
-	offset = dt_phys % granularity;
+	offset = dt_phys % SWAPPER_BLOCK_SIZE;
 	dt_virt = (void *)dt_virt_base + offset;
 
 	/* map the first chunk so we can read the size from the header */
-	create_mapping(round_down(dt_phys, granularity), dt_virt_base,
-		       granularity, prot);
+	create_mapping(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
+		       SWAPPER_BLOCK_SIZE, prot);
 
 	if (fdt_check_header(dt_virt) != 0)
 		return NULL;
@@ -690,9 +735,9 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 	if (size > MAX_FDT_SIZE)
 		return NULL;
 
-	if (offset + size > granularity)
-		create_mapping(round_down(dt_phys, granularity), dt_virt_base,
-			       round_up(offset + size, granularity), prot);
+	if (offset + size > SWAPPER_BLOCK_SIZE)
+		create_mapping(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
+			       round_up(offset + size, SWAPPER_BLOCK_SIZE), prot);
 
 	memblock_reserve(dt_phys, size);
 
