@@ -608,7 +608,7 @@ static inline int is_logical_dev_addr_mode(unsigned char scsi3addr[])
 }
 
 static const char * const raid_label[] = { "0", "4", "1(+0)", "5", "5+1", "6",
-	"1(+0)ADM", "UNKNOWN"
+	"1(+0)ADM", "UNKNOWN", "PHYS DRV"
 };
 #define HPSA_RAID_0	0
 #define HPSA_RAID_4	1
@@ -617,7 +617,8 @@ static const char * const raid_label[] = { "0", "4", "1(+0)", "5", "5+1", "6",
 #define HPSA_RAID_51	4
 #define HPSA_RAID_6	5	/* also used for RAID 60 */
 #define HPSA_RAID_ADM	6	/* also used for RAID 1+0 ADM */
-#define RAID_UNKNOWN (ARRAY_SIZE(raid_label) - 1)
+#define RAID_UNKNOWN (ARRAY_SIZE(raid_label) - 2)
+#define PHYSICAL_DRIVE (ARRAY_SIZE(raid_label) - 1)
 
 static inline bool is_logical_device(struct hpsa_scsi_dev_t *device)
 {
@@ -1143,18 +1144,52 @@ static int hpsa_find_target_lun(struct ctlr_info *h,
 static void hpsa_show_dev_msg(const char *level, struct ctlr_info *h,
 	struct hpsa_scsi_dev_t *dev, char *description)
 {
+#define LABEL_SIZE 25
+	char label[LABEL_SIZE];
+
 	if (h == NULL || h->pdev == NULL || h->scsi_host == NULL)
 		return;
 
+	switch (dev->devtype) {
+	case TYPE_RAID:
+		snprintf(label, LABEL_SIZE, "controller");
+		break;
+	case TYPE_ENCLOSURE:
+		snprintf(label, LABEL_SIZE, "enclosure");
+		break;
+	case TYPE_DISK:
+		if (dev->external)
+			snprintf(label, LABEL_SIZE, "external");
+		else if (!is_logical_dev_addr_mode(dev->scsi3addr))
+			snprintf(label, LABEL_SIZE, "%s",
+				raid_label[PHYSICAL_DRIVE]);
+		else
+			snprintf(label, LABEL_SIZE, "RAID-%s",
+				dev->raid_level > RAID_UNKNOWN ? "?" :
+				raid_label[dev->raid_level]);
+		break;
+	case TYPE_ROM:
+		snprintf(label, LABEL_SIZE, "rom");
+		break;
+	case TYPE_TAPE:
+		snprintf(label, LABEL_SIZE, "tape");
+		break;
+	case TYPE_MEDIUM_CHANGER:
+		snprintf(label, LABEL_SIZE, "changer");
+		break;
+	default:
+		snprintf(label, LABEL_SIZE, "UNKNOWN");
+		break;
+	}
+
 	dev_printk(level, &h->pdev->dev,
-			"scsi %d:%d:%d:%d: %s %s %.8s %.16s RAID-%s SSDSmartPathCap%c En%c Exp=%d\n",
+			"scsi %d:%d:%d:%d: %s %s %.8s %.16s %s SSDSmartPathCap%c En%c Exp=%d\n",
 			h->scsi_host->host_no, dev->bus, dev->target, dev->lun,
 			description,
 			scsi_device_type(dev->devtype),
 			dev->vendor,
 			dev->model,
-			dev->raid_level > RAID_UNKNOWN ?
-				"RAID-?" : raid_label[dev->raid_level],
+			label,
 			dev->offload_config ? '+' : '-',
 			dev->offload_enabled ? '+' : '-',
 			dev->expose_device);
