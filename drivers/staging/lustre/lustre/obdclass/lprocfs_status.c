@@ -665,15 +665,18 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		seq_printf(m, "%s%s", j ? ", " : "", nidstr);
 		j++;
 	}
-	libcfs_nid2str_r(imp->imp_connection->c_peer.nid,
-			 nidstr, sizeof(nidstr));
+	if (imp->imp_connection != NULL)
+		libcfs_nid2str_r(imp->imp_connection->c_peer.nid,
+				 nidstr, sizeof(nidstr));
+	else
+		strncpy(nidstr, "<none>", sizeof(nidstr));
 	seq_printf(m,
 		      "]\n"
 		      "       current_connection: %s\n"
 		      "       connection_attempts: %u\n"
 		      "       generation: %u\n"
 		      "       in-progress_invalidations: %u\n",
-		      imp->imp_connection == NULL ? "<none>" : nidstr,
+		      nidstr,
 		      imp->imp_conn_cnt,
 		      imp->imp_generation,
 		      atomic_read(&imp->imp_inval_count));
