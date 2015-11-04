@@ -5702,16 +5702,10 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
 		DRM_ERROR("DBuf power disable timeout\n");
 
-	/*
-	 * DMC assumes ownership of LCPLL and will get confused if we touch it.
-	 */
-	if (dev_priv->csr.dmc_payload) {
-		/* disable DPLL0 */
-		I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) &
-					~LCPLL_PLL_ENABLE);
-		if (wait_for(!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK), 1))
-			DRM_ERROR("Couldn't disable DPLL0\n");
-	}
+	/* disable DPLL0 */
+	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) & ~LCPLL_PLL_ENABLE);
+	if (wait_for(!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK), 1))
+		DRM_ERROR("Couldn't disable DPLL0\n");
 }
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
