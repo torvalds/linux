@@ -190,6 +190,8 @@ void maps__remove(struct maps *maps, struct map *map);
 struct map *maps__find(struct maps *maps, u64 addr);
 struct map *maps__first(struct maps *maps);
 struct map *map__next(struct map *map);
+struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
+                                         struct map **mapp, symbol_filter_t filter);
 void map_groups__init(struct map_groups *mg, struct machine *machine);
 void map_groups__exit(struct map_groups *mg);
 int map_groups__clone(struct map_groups *mg,

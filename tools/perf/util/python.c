@@ -67,6 +67,7 @@ static char pyrf_mmap_event__doc[] = PyDoc_STR("perf mmap event object.");
 static PyMemberDef pyrf_mmap_event__members[] = {
 	sample_members
 	member_def(perf_event_header, type, T_UINT, "event type"),
+	member_def(perf_event_header, misc, T_UINT, "event misc"),
 	member_def(mmap_event, pid, T_UINT, "event pid"),
 	member_def(mmap_event, tid, T_UINT, "event tid"),
 	member_def(mmap_event, start, T_ULONGLONG, "start of the map"),
@@ -297,6 +298,43 @@ static PyTypeObject pyrf_sample_event__type = {
 	.tp_repr	= (reprfunc)pyrf_sample_event__repr,
 };
 
+static char pyrf_context_switch_event__doc[] = PyDoc_STR("perf context_switch event object.");
+
+static PyMemberDef pyrf_context_switch_event__members[] = {
+	sample_members
+	member_def(perf_event_header, type, T_UINT, "event type"),
+	member_def(context_switch_event, next_prev_pid, T_UINT, "next/prev pid"),
+	member_def(context_switch_event, next_prev_tid, T_UINT, "next/prev tid"),
+	{ .name = NULL, },
+};
+
+static PyObject *pyrf_context_switch_event__repr(struct pyrf_event *pevent)
+{
+	PyObject *ret;
+	char *s;
+
+	if (asprintf(&s, "{ type: context_switch, next_prev_pid: %u, next_prev_tid: %u, switch_out: %u }",
+		     pevent->event.context_switch.next_prev_pid,
+		     pevent->event.context_switch.next_prev_tid,
+		     !!(pevent->event.header.misc & PERF_RECORD_MISC_SWITCH_OUT)) < 0) {
+		ret = PyErr_NoMemory();
+	} else {
+		ret = PyString_FromString(s);
+		free(s);
+	}
+	return ret;
+}
+
+static PyTypeObject pyrf_context_switch_event__type = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	.tp_name	= "perf.context_switch_event",
+	.tp_basicsize	= sizeof(struct pyrf_event),
+	.tp_flags	= Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
+	.tp_doc		= pyrf_context_switch_event__doc,
+	.tp_members	= pyrf_context_switch_event__members,
+	.tp_repr	= (reprfunc)pyrf_context_switch_event__repr,
+};
+
 static int pyrf_event__setup_types(void)
 {
 	int err;
@@ -306,6 +344,7 @@ static int pyrf_event__setup_types(void)
 	pyrf_lost_event__type.tp_new =
 	pyrf_read_event__type.tp_new =
 	pyrf_sample_event__type.tp_new =
+	pyrf_context_switch_event__type.tp_new =
 	pyrf_throttle_event__type.tp_new = PyType_GenericNew;
 	err = PyType_Ready(&pyrf_mmap_event__type);
 	if (err < 0)
@@ -328,6 +367,9 @@ static int pyrf_event__setup_types(void)
 	err = PyType_Ready(&pyrf_sample_event__type);
 	if (err < 0)
 		goto out;
+	err = PyType_Ready(&pyrf_context_switch_event__type);
+	if (err < 0)
+		goto out;
 out:
 	return err;
 }
@@ -342,6 +384,8 @@ static PyTypeObject *pyrf_event__type[] = {
 	[PERF_RECORD_FORK]	 = &pyrf_task_event__type,
 	[PERF_RECORD_READ]	 = &pyrf_read_event__type,
 	[PERF_RECORD_SAMPLE]	 = &pyrf_sample_event__type,
+	[PERF_RECORD_SWITCH]	 = &pyrf_context_switch_event__type,
+	[PERF_RECORD_SWITCH_CPU_WIDE]  = &pyrf_context_switch_event__type,
 };
 
 static PyObject *pyrf_event__new(union perf_event *event)
@@ -349,8 +393,10 @@ static PyObject *pyrf_event__new(union perf_event *event)
 	struct pyrf_event *pevent;
 	PyTypeObject *ptype;
 
-	if (event->header.type < PERF_RECORD_MMAP ||
-	    event->header.type > PERF_RECORD_SAMPLE)
+	if ((event->header.type < PERF_RECORD_MMAP ||
+	     event->header.type > PERF_RECORD_SAMPLE) &&
+	    !(event->header.type == PERF_RECORD_SWITCH ||
+	      event->header.type == PERF_RECORD_SWITCH_CPU_WIDE))
 		return NULL;
 
 	ptype = pyrf_event__type[event->header.type];
@@ -528,6 +574,7 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 		"exclude_hv",
 		"exclude_idle",
 		"mmap",
+		"context_switch",
 		"comm",
 		"freq",
 		"inherit_stat",
@@ -553,6 +600,7 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 	    exclude_hv = 0,
 	    exclude_idle = 0,
 	    mmap = 0,
+	    context_switch = 0,
 	    comm = 0,
 	    freq = 1,
 	    inherit_stat = 0,
@@ -565,13 +613,13 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 	int idx = 0;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-					 "|iKiKKiiiiiiiiiiiiiiiiiiiiiKK", kwlist,
+					 "|iKiKKiiiiiiiiiiiiiiiiiiiiiiKK", kwlist,
 					 &attr.type, &attr.config, &attr.sample_freq,
 					 &sample_period, &attr.sample_type,
 					 &attr.read_format, &disabled, &inherit,
 					 &pinned, &exclusive, &exclude_user,
 					 &exclude_kernel, &exclude_hv, &exclude_idle,
-					 &mmap, &comm, &freq, &inherit_stat,
+					 &mmap, &context_switch, &comm, &freq, &inherit_stat,
 					 &enable_on_exec, &task, &watermark,
 					 &precise_ip, &mmap_data, &sample_id_all,
 					 &attr.wakeup_events, &attr.bp_type,
@@ -595,6 +643,7 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 	attr.exclude_hv	    = exclude_hv;
 	attr.exclude_idle   = exclude_idle;
 	attr.mmap	    = mmap;
+	attr.context_switch = context_switch;
 	attr.comm	    = comm;
 	attr.freq	    = freq;
 	attr.inherit_stat   = inherit_stat;
@@ -1019,6 +1068,8 @@ static struct {
 	PERF_CONST(RECORD_LOST_SAMPLES),
 	PERF_CONST(RECORD_SWITCH),
 	PERF_CONST(RECORD_SWITCH_CPU_WIDE),
+
+	PERF_CONST(RECORD_MISC_SWITCH_OUT),
 	{ .name = NULL, },
 };
 

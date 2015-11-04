@@ -25,6 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/hash.h>
 #include <linux/log2.h>
+#include <linux/err.h>
 
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx);
 static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx);
@@ -164,6 +165,13 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 	__perf_evlist__propagate_maps(evlist, entry);
 }
 
+void perf_evlist__remove(struct perf_evlist *evlist, struct perf_evsel *evsel)
+{
+	evsel->evlist = NULL;
+	list_del_init(&evsel->node);
+	evlist->nr_entries -= 1;
+}
+
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
 				   struct list_head *list)
 {
@@ -197,6 +205,20 @@ void perf_evlist__set_leader(struct perf_evlist *evlist)
 	}
 }
 
+void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr)
+{
+	attr->precise_ip = 3;
+
+	while (attr->precise_ip != 0) {
+		int fd = sys_perf_event_open(attr, 0, -1, -1, 0);
+		if (fd != -1) {
+			close(fd);
+			break;
+		}
+		--attr->precise_ip;
+	}
+}
+
 int perf_evlist__add_default(struct perf_evlist *evlist)
 {
 	struct perf_event_attr attr = {
@@ -207,13 +229,15 @@ int perf_evlist__add_default(struct perf_evlist *evlist)
 
 	event_attr_init(&attr);
 
+	perf_event_attr__set_max_precise_ip(&attr);
+
 	evsel = perf_evsel__new(&attr);
 	if (evsel == NULL)
 		goto error;
 
-	/* use strdup() because free(evsel) assumes name is allocated */
-	evsel->name = strdup("cycles");
-	if (!evsel->name)
+	/* use asprintf() because free(evsel) assumes name is allocated */
+	if (asprintf(&evsel->name, "cycles%.*s",
+		     attr.precise_ip ? attr.precise_ip + 1 : 0, ":ppp") < 0)
 		goto error_free;
 
 	perf_evlist__add(evlist, evsel);
@@ -293,7 +317,7 @@ int perf_evlist__add_newtp(struct perf_evlist *evlist,
 {
 	struct perf_evsel *evsel = perf_evsel__newtp(sys, name);
 
-	if (evsel == NULL)
+	if (IS_ERR(evsel))
 		return -1;
 
 	evsel->handler = handler;
@@ -612,6 +636,21 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 
 	if (!perf_evlist__sample_id_all(evlist))
 		return perf_evlist__first(evlist);
+
+	return NULL;
+}
+
+struct perf_evsel *perf_evlist__id2evsel_strict(struct perf_evlist *evlist,
+						u64 id)
+{
+	struct perf_sample_id *sid;
+
+	if (!id)
+		return NULL;
+
+	sid = perf_evlist__id2sid(evlist, id);
+	if (sid)
+		return sid->evsel;
 
 	return NULL;
 }

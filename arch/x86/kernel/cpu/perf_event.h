@@ -196,7 +196,7 @@ struct cpu_hw_events {
 
 	int			n_excl; /* the number of exclusive events */
 
-	unsigned int		group_flag;
+	unsigned int		txn_flags;
 	int			is_fake;
 
 	/*

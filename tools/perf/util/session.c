@@ -138,6 +138,8 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 			perf_session__set_id_hdr_size(session);
 			perf_session__set_comm_exec(session);
 		}
+	} else  {
+		session->machines.host.env = &perf_env;
 	}
 
 	if (!file || perf_data_file__is_write(file)) {
@@ -170,30 +172,13 @@ static void perf_session__delete_threads(struct perf_session *session)
 	machine__delete_threads(&session->machines.host);
 }
 
-static void perf_session_env__exit(struct perf_env *env)
-{
-	zfree(&env->hostname);
-	zfree(&env->os_release);
-	zfree(&env->version);
-	zfree(&env->arch);
-	zfree(&env->cpu_desc);
-	zfree(&env->cpuid);
-
-	zfree(&env->cmdline);
-	zfree(&env->cmdline_argv);
-	zfree(&env->sibling_cores);
-	zfree(&env->sibling_threads);
-	zfree(&env->numa_nodes);
-	zfree(&env->pmu_mappings);
-}
-
 void perf_session__delete(struct perf_session *session)
 {
 	auxtrace__free(session);
 	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
-	perf_session_env__exit(&session->header.env);
+	perf_env__exit(&session->header.env);
 	machines__exit(&session->machines);
 	if (session->file)
 		perf_data_file__close(session->file);
@@ -1079,11 +1064,11 @@ static int machines__deliver_event(struct machines *machines,
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		dump_sample(evsel, event, sample);
 		if (evsel == NULL) {
 			++evlist->stats.nr_unknown_id;
 			return 0;
 		}
+		dump_sample(evsel, event, sample);
 		if (machine == NULL) {
 			++evlist->stats.nr_unprocessable_samples;
 			return 0;
@@ -1116,6 +1101,9 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_UNTHROTTLE:
 		return tool->unthrottle(tool, event, sample, machine);
 	case PERF_RECORD_AUX:
+		if (tool->aux == perf_event__process_aux &&
+		    (event->aux.flags & PERF_AUX_FLAG_TRUNCATED))
+			evlist->stats.total_aux_lost += 1;
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
 		return tool->itrace_start(tool, event, sample, machine);
@@ -1323,7 +1311,7 @@ struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 	return machine__findnew_thread(&session->machines.host, -1, pid);
 }
 
-static struct thread *perf_session__register_idle_thread(struct perf_session *session)
+struct thread *perf_session__register_idle_thread(struct perf_session *session)
 {
 	struct thread *thread;
 
@@ -1359,6 +1347,13 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 				    stats->nr_events[PERF_RECORD_SAMPLE] + stats->total_lost_samples,
 				    drop_rate * 100.0);
 		}
+	}
+
+	if (session->tool->aux == perf_event__process_aux &&
+	    stats->total_aux_lost != 0) {
+		ui__warning("AUX data lost %" PRIu64 " times out of %u!\n\n",
+			    stats->total_aux_lost,
+			    stats->nr_events[PERF_RECORD_AUX]);
 	}
 
 	if (stats->nr_unknown_events != 0) {
@@ -1805,7 +1800,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 
 		if (thread__resolve_callchain(al->thread, evsel,
 					      sample, NULL, NULL,
-					      PERF_MAX_STACK_DEPTH) != 0) {
+					      stack_depth) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");
 			return;

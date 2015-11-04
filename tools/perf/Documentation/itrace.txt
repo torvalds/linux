@@ -6,6 +6,7 @@
 		e	synthesize error events
 		d	create a debug log
 		g	synthesize a call chain (use with i or x)
+		l	synthesize last branch entries (use with i or x)
 
 	The default is all events i.e. the same as --itrace=ibxe
 
@@ -20,3 +21,6 @@
 
 	Also the call chain size (default 16, max. 1024) for instructions or
 	transactions events can be specified.
+
+	Also the number of last branch entries (default 64, max. 1024) for
+	instructions or transactions events can be specified.

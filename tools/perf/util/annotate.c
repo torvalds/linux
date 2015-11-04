@@ -548,8 +548,11 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
-	if (addr < sym->start || addr >= sym->end)
+	if (addr < sym->start || addr >= sym->end) {
+		pr_debug("%s(%d): ERANGE! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 "\n",
+		       __func__, __LINE__, sym->name, sym->start, addr, sym->end);
 		return -ERANGE;
+	}
 
 	offset = addr - sym->start;
 	h = annotation__histogram(notes, evidx);

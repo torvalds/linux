@@ -5,6 +5,7 @@ libperf-y += build-id.o
 libperf-y += config.o
 libperf-y += ctype.o
 libperf-y += db-export.o
+libperf-y += env.o
 libperf-y += environment.o
 libperf-y += event.o
 libperf-y += evlist.o
@@ -86,6 +87,7 @@ libperf-$(CONFIG_AUXTRACE) += intel-bts.o
 libperf-y += parse-branch-options.o
 libperf-y += parse-regs-options.o
 
+libperf-$(CONFIG_LIBBPF) += bpf-loader.o
 libperf-$(CONFIG_LIBELF) += symbol-elf.o
 libperf-$(CONFIG_LIBELF) += probe-file.o
 libperf-$(CONFIG_LIBELF) += probe-event.o
