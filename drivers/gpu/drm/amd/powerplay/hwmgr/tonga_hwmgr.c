@@ -5935,6 +5935,66 @@ int tonga_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+bool tonga_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	bool is_update_required = false;
+	struct cgs_display_info info = {0,0,NULL};
+
+	cgs_get_active_displays_info(hwmgr->device, &info);
+
+	if (data->display_timing.num_existing_displays != info.display_count)
+		is_update_required = true;
+/* TO DO NEED TO GET DEEP SLEEP CLOCK FROM DAL
+	if (phm_cap_enabled(hwmgr->hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {
+		cgs_get_min_clock_settings(hwmgr->device, &min_clocks);
+		if(min_clocks.engineClockInSR != data->display_timing.minClockInSR)
+			is_update_required = true;
+*/
+	return is_update_required;
+}
+
+static inline bool tonga_are_power_levels_equal(const struct tonga_performance_level *pl1,
+							   const struct tonga_performance_level *pl2)
+{
+	return ((pl1->memory_clock == pl2->memory_clock) &&
+		  (pl1->engine_clock == pl2->engine_clock) &&
+		  (pl1->pcie_gen == pl2->pcie_gen) &&
+		  (pl1->pcie_lane == pl2->pcie_lane));
+}
+
+int tonga_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *pstate1, const struct pp_hw_power_state *pstate2, bool *equal)
+{
+	const struct tonga_power_state *psa = cast_const_phw_tonga_power_state(pstate1);
+	const struct tonga_power_state *psb = cast_const_phw_tonga_power_state(pstate2);
+	int i;
+
+	if (pstate1 == NULL || pstate2 == NULL || equal == NULL)
+		return -EINVAL;
+
+	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
+	if (psa->performance_level_count != psb->performance_level_count) {
+		*equal = false;
+		return 0;
+	}
+
+	for (i = 0; i < psa->performance_level_count; i++) {
+		if (!tonga_are_power_levels_equal(&(psa->performance_levels[i]), &(psb->performance_levels[i]))) {
+			/* If we have found even one performance level pair that is different the states are different. */
+			*equal = false;
+			return 0;
+		}
+	}
+
+	/* If all performance levels are the same try to use the UVD clocks to break the tie.*/
+	*equal = ((psa->uvd_clocks.VCLK == psb->uvd_clocks.VCLK) && (psa->uvd_clocks.DCLK == psb->uvd_clocks.DCLK));
+	*equal &= ((psa->vce_clocks.EVCLK == psb->vce_clocks.EVCLK) && (psa->vce_clocks.ECCLK == psb->vce_clocks.ECCLK));
+	*equal &= (psa->sclk_threshold == psb->sclk_threshold);
+	*equal &= (psa->acp_clk == psb->acp_clk);
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.backend_init = &tonga_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
@@ -5968,6 +6028,8 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.set_fan_speed_rpm = tonga_fan_ctrl_set_fan_speed_rpm,
 	.uninitialize_thermal_controller = tonga_thermal_ctrl_uninitialize_thermal_controller,
 	.register_internal_thermal_interrupt = tonga_register_internal_thermal_interrupt,
+	.check_smc_update_required_for_display_configuration = tonga_check_smc_update_required_for_display_configuration,
+	.check_states_equal = tonga_check_states_equal,
 };
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
