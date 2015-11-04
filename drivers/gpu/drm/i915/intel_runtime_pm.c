@@ -1888,7 +1888,7 @@ void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 	intel_display_set_init_power(dev_priv, true);
 }
 
-static void intel_power_domains_resume(struct drm_i915_private *dev_priv)
+static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
@@ -2044,7 +2044,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 
 	/* For now, we need the power well to be always enabled. */
 	intel_display_set_init_power(dev_priv, true);
-	intel_power_domains_resume(dev_priv);
+	intel_power_domains_sync_hw(dev_priv);
 	power_domains->initializing = false;
 }
 
