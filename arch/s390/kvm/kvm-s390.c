@@ -1292,7 +1292,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 static inline void save_fpu_to(struct fpu *dst)
 {
 	dst->fpc = current->thread.fpu.fpc;
-	dst->flags = current->thread.fpu.flags;
 	dst->regs = current->thread.fpu.regs;
 }
 
@@ -1303,7 +1302,6 @@ static inline void save_fpu_to(struct fpu *dst)
 static inline void load_fpu_from(struct fpu *from)
 {
 	current->thread.fpu.fpc = from->fpc;
-	current->thread.fpu.flags = from->flags;
 	current->thread.fpu.regs = from->regs;
 }
 
@@ -1315,15 +1313,12 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	if (test_kvm_facility(vcpu->kvm, 129)) {
 		current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
-		current->thread.fpu.flags = FPU_USE_VX;
 		/*
 		 * Use the register save area in the SIE-control block
 		 * for register restore and save in kvm_arch_vcpu_put()
 		 */
 		current->thread.fpu.vxrs =
 			(__vector128 *)&vcpu->run->s.regs.vrs;
-		/* Always enable the vector extension for KVM */
-		__ctl_set_vx();
 	} else
 		load_fpu_from(&vcpu->arch.guest_fpregs);
 
@@ -2326,7 +2321,6 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 		 * registers and the FPC value and store them in the
 		 * guest_fpregs structure.
 		 */
-		WARN_ON(!is_vx_task(current));	  /* XXX remove later */
 		vcpu->arch.guest_fpregs.fpc = current->thread.fpu.fpc;
 		convert_vx_to_fp(vcpu->arch.guest_fpregs.fprs,
 				 current->thread.fpu.vxrs);

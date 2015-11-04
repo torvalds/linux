@@ -104,7 +104,12 @@ Header notes:
 - The flags field (introduced in v3.17) is a little-endian 64-bit field
   composed as follows:
   Bit 0:	Kernel endianness.  1 if BE, 0 if LE.
-  Bits 1-63:	Reserved.
+  Bit 1-2:	Kernel Page size.
+			0 - Unspecified.
+			1 - 4K
+			2 - 16K
+			3 - 64K
+  Bits 3-63:	Reserved.
 
 - When image_size is zero, a bootloader should attempt to keep as much
   memory as possible free for use by the kernel immediately after the
