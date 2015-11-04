@@ -1436,7 +1436,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 
 	chip->ngpio = pctrl->community->ngpios;
 	chip->label = dev_name(pctrl->dev);
-	chip->dev = pctrl->dev;
+	chip->parent = pctrl->dev;
 	chip->base = -1;
 
 	ret = gpiochip_add(chip);

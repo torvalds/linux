@@ -131,7 +131,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	if ((trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) &&
 	    (trigger & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)))
 	{
-		dev_err(gc->dev,
+		dev_err(gc->parent,
 			"trying to configure line %d for both level and edge "
 			"detection, choose one!\n",
 			offset);
@@ -158,7 +158,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 		else
 			gpioiev &= ~bit;
 		irq_set_handler_locked(d, handle_level_irq);
-		dev_dbg(gc->dev, "line %d: IRQ on %s level\n",
+		dev_dbg(gc->parent, "line %d: IRQ on %s level\n",
 			offset,
 			polarity ? "HIGH" : "LOW");
 	} else if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
@@ -167,7 +167,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 		/* Select both edges, setting this makes GPIOEV be ignored */
 		gpioibe |= bit;
 		irq_set_handler_locked(d, handle_edge_irq);
-		dev_dbg(gc->dev, "line %d: IRQ on both edges\n", offset);
+		dev_dbg(gc->parent, "line %d: IRQ on both edges\n", offset);
 	} else if ((trigger & IRQ_TYPE_EDGE_RISING) ||
 		   (trigger & IRQ_TYPE_EDGE_FALLING)) {
 		bool rising = trigger & IRQ_TYPE_EDGE_RISING;
@@ -182,7 +182,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 		else
 			gpioiev &= ~bit;
 		irq_set_handler_locked(d, handle_edge_irq);
-		dev_dbg(gc->dev, "line %d: IRQ on %s edge\n",
+		dev_dbg(gc->parent, "line %d: IRQ on %s edge\n",
 			offset,
 			rising ? "RISING" : "FALLING");
 	} else {
@@ -191,7 +191,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 		gpioibe &= ~bit;
 		gpioiev &= ~bit;
 		irq_set_handler_locked(d, handle_bad_irq);
-		dev_warn(gc->dev, "no trigger selected for line %d\n",
+		dev_warn(gc->parent, "no trigger selected for line %d\n",
 			 offset);
 	}
 
@@ -316,7 +316,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	chip->gc.set = pl061_set_value;
 	chip->gc.ngpio = PL061_GPIO_NR;
 	chip->gc.label = dev_name(dev);
-	chip->gc.dev = dev;
+	chip->gc.parent = dev;
 	chip->gc.owner = THIS_MODULE;
 
 	ret = gpiochip_add(&chip->gc);

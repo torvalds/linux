@@ -244,7 +244,7 @@ static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
 	int ret;
 
 	chip->label		= DRIVER_NAME;
-	chip->dev		= pmap->dev;
+	chip->parent		= pmap->dev;
 	chip->request		= gpiochip_generic_request;
 	chip->free		= gpiochip_generic_free;
 	chip->direction_input	= dc_gpio_direction_input;

@@ -268,7 +268,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 
 	gc->label = dev_name(&pdev->dev);
 	gc->owner = THIS_MODULE;
-	gc->dev = &pdev->dev;
+	gc->parent = &pdev->dev;
 	gc->direction_input = timbgpio_gpio_direction_input;
 	gc->get = timbgpio_gpio_get;
 	gc->direction_output = timbgpio_gpio_direction_output;

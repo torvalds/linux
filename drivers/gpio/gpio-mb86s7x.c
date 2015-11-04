@@ -187,7 +187,7 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	gchip->gc.label = dev_name(&pdev->dev);
 	gchip->gc.ngpio = 32;
 	gchip->gc.owner = THIS_MODULE;
-	gchip->gc.dev = &pdev->dev;
+	gchip->gc.parent = &pdev->dev;
 	gchip->gc.base = -1;
 
 	platform_set_drvdata(pdev, gchip);

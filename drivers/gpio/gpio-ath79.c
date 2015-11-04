@@ -177,7 +177,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ctrl->lock);
 	memcpy(&ctrl->chip, &ath79_gpio_chip, sizeof(ctrl->chip));
-	ctrl->chip.dev = &pdev->dev;
+	ctrl->chip.parent = &pdev->dev;
 	ctrl->chip.ngpio = ath79_gpio_count;
 	if (oe_inverted) {
 		ctrl->chip.direction_input = ar934x_gpio_direction_input;

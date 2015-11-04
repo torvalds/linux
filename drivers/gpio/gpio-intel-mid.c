@@ -392,7 +392,7 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 
 	priv->reg_base = pcim_iomap_table(pdev)[0];
 	priv->chip.label = dev_name(&pdev->dev);
-	priv->chip.dev = &pdev->dev;
+	priv->chip.parent = &pdev->dev;
 	priv->chip.request = intel_gpio_request;
 	priv->chip.direction_input = intel_gpio_direction_input;
 	priv->chip.direction_output = intel_gpio_direction_output;

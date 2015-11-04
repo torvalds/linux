@@ -290,7 +290,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	altera_gc->mmchip.gc.get		= altera_gpio_get;
 	altera_gc->mmchip.gc.set		= altera_gpio_set;
 	altera_gc->mmchip.gc.owner		= THIS_MODULE;
-	altera_gc->mmchip.gc.dev		= &pdev->dev;
+	altera_gc->mmchip.gc.parent		= &pdev->dev;
 
 	ret = of_mm_gpiochip_add(node, &altera_gc->mmchip);
 	if (ret) {

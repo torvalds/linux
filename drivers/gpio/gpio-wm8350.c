@@ -124,7 +124,7 @@ static int wm8350_gpio_probe(struct platform_device *pdev)
 	wm8350_gpio->wm8350 = wm8350;
 	wm8350_gpio->gpio_chip = template_chip;
 	wm8350_gpio->gpio_chip.ngpio = 13;
-	wm8350_gpio->gpio_chip.dev = &pdev->dev;
+	wm8350_gpio->gpio_chip.parent = &pdev->dev;
 	if (pdata && pdata->gpio_base)
 		wm8350_gpio->gpio_chip.base = pdata->gpio_base;
 	else

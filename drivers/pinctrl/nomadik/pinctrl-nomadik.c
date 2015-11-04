@@ -438,7 +438,7 @@ nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned offset)
 			       nmk_chip->addr + NMK_GPIO_FIMSC);
 	}
 
-	dev_dbg(nmk_chip->chip.dev, "%d: clearing interrupt mask\n", gpio);
+	dev_dbg(nmk_chip->chip.parent, "%d: clearing interrupt mask\n", gpio);
 }
 
 static void nmk_write_masked(void __iomem *reg, u32 mask, u32 value)
@@ -1188,7 +1188,7 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	chip->base = id * NMK_GPIO_PER_CHIP;
 	chip->ngpio = NMK_GPIO_PER_CHIP;
 	chip->label = dev_name(&gpio_pdev->dev);
-	chip->dev = &gpio_pdev->dev;
+	chip->parent = &gpio_pdev->dev;
 
 	res = platform_get_resource(gpio_pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -1890,7 +1890,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 			if (slpm_val)
 				val = slpm_val - 1;
 
-			dev_dbg(nmk_chip->chip.dev,
+			dev_dbg(nmk_chip->chip.parent,
 				"pin %d: sleep pull %s, dir %s, val %s\n",
 				pin,
 				slpm_pull ? pullnames[pull] : "same",
@@ -1899,7 +1899,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 				slpm_val ? (val ? "high" : "low") : "same");
 		}
 
-		dev_dbg(nmk_chip->chip.dev,
+		dev_dbg(nmk_chip->chip.parent,
 			"pin %d [%#lx]: pull %s, slpm %s (%s%s), lowemi %s\n",
 			pin, cfg, pullnames[pull], slpmnames[slpm],
 			output ? "output " : "input",

@@ -116,7 +116,7 @@ static int mc33880_probe(struct spi_device *spi)
 	mc->chip.base = pdata->base;
 	mc->chip.ngpio = PIN_NUMBER;
 	mc->chip.can_sleep = true;
-	mc->chip.dev = &spi->dev;
+	mc->chip.parent = &spi->dev;
 	mc->chip.owner = THIS_MODULE;
 
 	mc->port_config = 0x00;

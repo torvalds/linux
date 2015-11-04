@@ -205,7 +205,7 @@ static int lp3943_gpio_probe(struct platform_device *pdev)
 
 	lp3943_gpio->lp3943 = lp3943;
 	lp3943_gpio->chip = lp3943_gpio_chip;
-	lp3943_gpio->chip.dev = &pdev->dev;
+	lp3943_gpio->chip.parent = &pdev->dev;
 
 	platform_set_drvdata(pdev, lp3943_gpio);
 

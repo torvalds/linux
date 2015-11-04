@@ -171,7 +171,7 @@ static int sch_gpio_probe(struct platform_device *pdev)
 	sch->iobase = res->start;
 	sch->chip = sch_gpio_chip;
 	sch->chip.label = dev_name(&pdev->dev);
-	sch->chip.dev = &pdev->dev;
+	sch->chip.parent = &pdev->dev;
 
 	switch (pdev->id) {
 	case PCI_DEVICE_ID_INTEL_SCH_LPC:

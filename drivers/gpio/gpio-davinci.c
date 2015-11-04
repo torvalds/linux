@@ -179,8 +179,8 @@ static int davinci_gpio_of_xlate(struct gpio_chip *gc,
 			     const struct of_phandle_args *gpiospec,
 			     u32 *flags)
 {
-	struct davinci_gpio_controller *chips = dev_get_drvdata(gc->dev);
-	struct davinci_gpio_platform_data *pdata = dev_get_platdata(gc->dev);
+	struct davinci_gpio_controller *chips = dev_get_drvdata(gc->parent);
+	struct davinci_gpio_platform_data *pdata = dev_get_platdata(gc->parent);
 
 	if (gpiospec->args[0] > pdata->ngpio)
 		return -EINVAL;

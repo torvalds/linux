@@ -811,7 +811,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 	sgpio->chip.gc.of_node = np;
 	sgpio->chip.gc.of_xlate = sirfsoc_gpio_of_xlate;
 	sgpio->chip.gc.of_gpio_n_cells = 2;
-	sgpio->chip.gc.dev = &pdev->dev;
+	sgpio->chip.gc.parent = &pdev->dev;
 	sgpio->chip.regs = regs;
 
 	err = gpiochip_add(&sgpio->chip.gc);

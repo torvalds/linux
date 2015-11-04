@@ -246,7 +246,7 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 	gc->to_irq = gpio_pin_to_irq;
 
 	gc->label = pfc->info->name;
-	gc->dev = pfc->dev;
+	gc->parent = pfc->dev;
 	gc->owner = THIS_MODULE;
 	gc->base = 0;
 	gc->ngpio = pfc->nr_gpio_pins;

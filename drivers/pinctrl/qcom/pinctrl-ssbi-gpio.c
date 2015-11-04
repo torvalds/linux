@@ -730,7 +730,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 
 	pctrl->chip = pm8xxx_gpio_template;
 	pctrl->chip.base = -1;
-	pctrl->chip.dev = &pdev->dev;
+	pctrl->chip.parent = &pdev->dev;
 	pctrl->chip.of_node = pdev->dev.of_node;
 	pctrl->chip.of_gpio_n_cells = 2;
 	pctrl->chip.label = dev_name(pctrl->dev);

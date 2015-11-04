@@ -305,7 +305,7 @@ static int xgpio_probe(struct platform_device *pdev)
 	}
 
 	chip->mmchip.gc.ngpio = chip->gpio_width[0] + chip->gpio_width[1];
-	chip->mmchip.gc.dev = &pdev->dev;
+	chip->mmchip.gc.parent = &pdev->dev;
 	chip->mmchip.gc.direction_input = xgpio_dir_in;
 	chip->mmchip.gc.direction_output = xgpio_dir_out;
 	chip->mmchip.gc.get = xgpio_get;

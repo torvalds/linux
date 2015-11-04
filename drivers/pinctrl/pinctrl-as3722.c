@@ -582,7 +582,7 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	as_pci->gpio_chip = as3722_gpio_chip;
-	as_pci->gpio_chip.dev = &pdev->dev;
+	as_pci->gpio_chip.parent = &pdev->dev;
 	as_pci->gpio_chip.of_node = pdev->dev.parent->of_node;
 	ret = gpiochip_add(&as_pci->gpio_chip);
 	if (ret < 0) {

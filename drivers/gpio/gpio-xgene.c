@@ -188,7 +188,7 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 	gpio->chip.ngpio = XGENE_MAX_GPIOS;
 
 	spin_lock_init(&gpio->lock);
-	gpio->chip.dev = &pdev->dev;
+	gpio->chip.parent = &pdev->dev;
 	gpio->chip.direction_input = xgene_gpio_dir_in;
 	gpio->chip.direction_output = xgene_gpio_dir_out;
 	gpio->chip.get = xgene_gpio_get;

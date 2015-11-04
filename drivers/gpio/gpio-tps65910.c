@@ -146,7 +146,7 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	tps65910_gpio->gpio_chip.direction_output = tps65910_gpio_output;
 	tps65910_gpio->gpio_chip.set	= tps65910_gpio_set;
 	tps65910_gpio->gpio_chip.get	= tps65910_gpio_get;
-	tps65910_gpio->gpio_chip.dev = &pdev->dev;
+	tps65910_gpio->gpio_chip.parent = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
 	tps65910_gpio->gpio_chip.of_node = tps65910->dev->of_node;
 #endif

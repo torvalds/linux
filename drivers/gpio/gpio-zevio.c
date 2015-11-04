@@ -185,7 +185,7 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 
 	/* Copy our reference */
 	controller->chip.gc = zevio_gpio_chip;
-	controller->chip.gc.dev = &pdev->dev;
+	controller->chip.gc.parent = &pdev->dev;
 
 	status = of_mm_gpiochip_add(pdev->dev.of_node, &(controller->chip));
 	if (status) {
@@ -199,7 +199,7 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	for (i = 0; i < controller->chip.gc.ngpio; i += 8)
 		zevio_gpio_port_set(controller, i, ZEVIO_GPIO_INT_MASK, 0xFF);
 
-	dev_dbg(controller->chip.gc.dev, "ZEVIO GPIO controller set up!\n");
+	dev_dbg(controller->chip.gc.parent, "ZEVIO GPIO controller set up!\n");
 
 	return 0;
 }

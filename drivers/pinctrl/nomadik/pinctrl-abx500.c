@@ -986,7 +986,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 		param = pinconf_to_config_param(configs[i]);
 		argument = pinconf_to_config_argument(configs[i]);
 
-		dev_dbg(chip->dev, "pin %d [%#lx]: %s %s\n",
+		dev_dbg(chip->parent, "pin %d [%#lx]: %s %s\n",
 			pin, configs[i],
 			(param == PIN_CONFIG_OUTPUT) ? "output " : "input",
 			(param == PIN_CONFIG_OUTPUT) ?
@@ -1077,7 +1077,8 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			dev_err(chip->dev, "illegal configuration requested\n");
+			dev_err(chip->parent,
+				"illegal configuration requested\n");
 		}
 	} /* for each config */
 out:
@@ -1172,7 +1173,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	pct->dev = &pdev->dev;
 	pct->parent = dev_get_drvdata(pdev->dev.parent);
 	pct->chip = abx500gpio_chip;
-	pct->chip.dev = &pdev->dev;
+	pct->chip.parent = &pdev->dev;
 	pct->chip.base = -1; /* Dynamic allocation */
 
 	match = of_match_device(abx500_gpio_match, &pdev->dev);

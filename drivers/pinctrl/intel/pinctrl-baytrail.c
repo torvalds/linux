@@ -598,7 +598,7 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	gc->dbg_show = byt_gpio_dbg_show;
 	gc->base = -1;
 	gc->can_sleep = false;
-	gc->dev = dev;
+	gc->parent = dev;
 
 #ifdef CONFIG_PM_SLEEP
 	vg->saved_context = devm_kcalloc(&pdev->dev, gc->ngpio,

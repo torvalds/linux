@@ -245,7 +245,7 @@ static int zx_gpio_probe(struct platform_device *pdev)
 	chip->gc.base = ZX_GPIO_NR * id;
 	chip->gc.ngpio = ZX_GPIO_NR;
 	chip->gc.label = dev_name(dev);
-	chip->gc.dev = dev;
+	chip->gc.parent = dev;
 	chip->gc.owner = THIS_MODULE;
 
 	ret = gpiochip_add(&chip->gc);

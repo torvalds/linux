@@ -321,7 +321,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 		ei->chip[i].dev = &(pdev->dev);
 		chip = &(ei->chip[i].chip);
 		chip->label           = "htc-egpio";
-		chip->dev             = &pdev->dev;
+		chip->parent          = &pdev->dev;
 		chip->owner           = THIS_MODULE;
 		chip->get             = egpio_get;
 		chip->set             = egpio_set;

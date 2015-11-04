@@ -367,7 +367,7 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->base = chip->gpio_start;
 	gc->ngpio = gpios;
 	gc->label = chip->client->name;
-	gc->dev = &chip->client->dev;
+	gc->parent = &chip->client->dev;
 	gc->owner = THIS_MODULE;
 	gc->names = chip->names;
 }

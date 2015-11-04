@@ -605,7 +605,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	if (chip->names && chip->names[offset])
 		ioname = chip->names[offset];
 
-	dev = device_create_with_groups(&gpio_class, chip->dev,
+	dev = device_create_with_groups(&gpio_class, chip->parent,
 					MKDEV(0, 0), data, gpio_groups,
 					ioname ? ioname : "gpio%u",
 					desc_to_gpio(desc));
@@ -730,7 +730,8 @@ int gpiochip_sysfs_register(struct gpio_chip *chip)
 		return 0;
 
 	/* use chip->base for the ID; it's already known to be unique */
-	dev = device_create_with_groups(&gpio_class, chip->dev, MKDEV(0, 0),
+	dev = device_create_with_groups(&gpio_class, chip->parent,
+					MKDEV(0, 0),
 					chip, gpiochip_groups,
 					"gpiochip%d", chip->base);
 	if (IS_ERR(dev))

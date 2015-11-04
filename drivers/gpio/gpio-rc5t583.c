@@ -132,7 +132,7 @@ static int rc5t583_gpio_probe(struct platform_device *pdev)
 	rc5t583_gpio->gpio_chip.to_irq = rc5t583_gpio_to_irq,
 	rc5t583_gpio->gpio_chip.ngpio = RC5T583_MAX_GPIO,
 	rc5t583_gpio->gpio_chip.can_sleep = true,
-	rc5t583_gpio->gpio_chip.dev = &pdev->dev;
+	rc5t583_gpio->gpio_chip.parent = &pdev->dev;
 	rc5t583_gpio->gpio_chip.base = -1;
 	rc5t583_gpio->rc5t583 = rc5t583;
 

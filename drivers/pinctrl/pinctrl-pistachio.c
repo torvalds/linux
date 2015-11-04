@@ -1388,7 +1388,7 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 		bank->pctl = pctl;
 		bank->base = pctl->base + GPIO_BANK_BASE(i);
 
-		bank->gpio_chip.dev = pctl->dev;
+		bank->gpio_chip.parent = pctl->dev;
 		bank->gpio_chip.of_node = child;
 		ret = gpiochip_add(&bank->gpio_chip);
 		if (ret < 0) {
