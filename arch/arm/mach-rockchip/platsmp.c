@@ -42,6 +42,7 @@ static int ncores;
 #define PMU_PWRDN_SCU		4
 
 static struct regmap *pmu;
+static int has_pmu = true;
 
 static int pmu_power_domain_is_on(int pd)
 {
@@ -89,19 +90,22 @@ static int pmu_set_power_domain(int pd, bool on)
 	if (!IS_ERR(rstc) && !on)
 		reset_control_assert(rstc);
 
-	ret = regmap_update_bits(pmu, PMU_PWRDN_CON, BIT(pd), val);
-	if (ret < 0) {
-		pr_err("%s: could not update power domain\n", __func__);
-		return ret;
-	}
-
-	ret = -1;
-	while (ret != on) {
-		ret = pmu_power_domain_is_on(pd);
+	if (has_pmu) {
+		ret = regmap_update_bits(pmu, PMU_PWRDN_CON, BIT(pd), val);
 		if (ret < 0) {
-			pr_err("%s: could not read power domain state\n",
+			pr_err("%s: could not update power domain\n",
 			       __func__);
 			return ret;
+		}
+
+		ret = -1;
+		while (ret != on) {
+			ret = pmu_power_domain_is_on(pd);
+			if (ret < 0) {
+				pr_err("%s: could not read power domain state\n",
+				       __func__);
+				return ret;
+			}
 		}
 	}
 
@@ -122,7 +126,7 @@ static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
 
-	if (!sram_base_addr || !pmu) {
+	if (!sram_base_addr || (has_pmu && !pmu)) {
 		pr_err("%s: sram or pmu missing for cpu boot\n", __func__);
 		return -ENXIO;
 	}
@@ -275,7 +279,7 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 		return;
 	}
 
-	if (rockchip_smp_prepare_pmu())
+	if (has_pmu && rockchip_smp_prepare_pmu())
 		return;
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
@@ -318,6 +322,13 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 		pmu_set_power_domain(0 + i, false);
 }
 
+static void __init rk3036_smp_prepare_cpus(unsigned int max_cpus)
+{
+	has_pmu = false;
+
+	rockchip_smp_prepare_cpus(max_cpus);
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 static int rockchip_cpu_kill(unsigned int cpu)
 {
@@ -340,6 +351,15 @@ static void rockchip_cpu_die(unsigned int cpu)
 }
 #endif
 
+static struct smp_operations rk3036_smp_ops __initdata = {
+	.smp_prepare_cpus	= rk3036_smp_prepare_cpus,
+	.smp_boot_secondary	= rockchip_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_kill		= rockchip_cpu_kill,
+	.cpu_die		= rockchip_cpu_die,
+#endif
+};
+
 static struct smp_operations rockchip_smp_ops __initdata = {
 	.smp_prepare_cpus	= rockchip_smp_prepare_cpus,
 	.smp_boot_secondary	= rockchip_boot_secondary,
@@ -349,4 +369,5 @@ static struct smp_operations rockchip_smp_ops __initdata = {
 #endif
 };
 
+CPU_METHOD_OF_DECLARE(rk3036_smp, "rockchip,rk3036-smp", &rk3036_smp_ops);
 CPU_METHOD_OF_DECLARE(rk3066_smp, "rockchip,rk3066-smp", &rockchip_smp_ops);
