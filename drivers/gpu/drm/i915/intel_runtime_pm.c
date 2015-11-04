@@ -961,10 +961,12 @@ static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_pr
 						 int power_well_id)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	struct i915_power_well *power_well;
 	int i;
 
-	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
+	for (i = 0; i < power_domains->power_well_count; i++) {
+		struct i915_power_well *power_well;
+
+		power_well = &power_domains->power_wells[i];
 		if (power_well->data == power_well_id)
 			return power_well;
 	}
