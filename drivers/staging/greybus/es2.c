@@ -848,8 +848,7 @@ static int ap_probe(struct usb_interface *interface,
 				endpoint->bEndpointAddress);
 		}
 	}
-	if ((bulk_in == 0) ||
-	    (bulk_out == 0)) {
+	if (bulk_in != NUM_BULKS || bulk_out != NUM_BULKS) {
 		dev_err(&udev->dev, "Not enough endpoints found in device, aborting!\n");
 		goto error;
 	}
