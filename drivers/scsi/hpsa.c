@@ -3681,19 +3681,18 @@ static u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position,
 /* get physical drive ioaccel handle and queue depth */
 static void hpsa_get_ioaccel_drive_info(struct ctlr_info *h,
 		struct hpsa_scsi_dev_t *dev,
-		u8 *lunaddrbytes,
+		struct ReportExtendedLUNdata *rlep, int rle_index,
 		struct bmic_identify_physical_device *id_phys)
 {
 	int rc;
-	struct ext_report_lun_entry *rle =
-		(struct ext_report_lun_entry *) lunaddrbytes;
+	struct ext_report_lun_entry *rle = &rlep->LUN[rle_index];
 
 	dev->ioaccel_handle = rle->ioaccel_handle;
-	if (PHYS_IOACCEL(lunaddrbytes) && dev->ioaccel_handle)
+	if ((rle->device_flags & 0x08) && dev->ioaccel_handle)
 		dev->hba_ioaccel_enabled = 1;
 	memset(id_phys, 0, sizeof(*id_phys));
-	rc = hpsa_bmic_id_physical_device(h, lunaddrbytes,
-			GET_BMIC_DRIVE_NUMBER(lunaddrbytes), id_phys,
+	rc = hpsa_bmic_id_physical_device(h, &rle->lunid[0],
+			GET_BMIC_DRIVE_NUMBER(&rle->lunid[0]), id_phys,
 			sizeof(*id_phys));
 	if (!rc)
 		/* Reserve space for FW operations */
@@ -3707,11 +3706,12 @@ static void hpsa_get_ioaccel_drive_info(struct ctlr_info *h,
 }
 
 static void hpsa_get_path_info(struct hpsa_scsi_dev_t *this_device,
-	u8 *lunaddrbytes,
+	struct ReportExtendedLUNdata *rlep, int rle_index,
 	struct bmic_identify_physical_device *id_phys)
 {
-	if (PHYS_IOACCEL(lunaddrbytes)
-		&& this_device->ioaccel_handle)
+	struct ext_report_lun_entry *rle = &rlep->LUN[rle_index];
+
+	if ((rle->device_flags & 0x08) && this_device->ioaccel_handle)
 		this_device->hba_ioaccel_enabled = 1;
 
 	memcpy(&this_device->active_path_index,
@@ -3811,6 +3811,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 	for (i = 0; i < nphysicals + nlogicals + 1; i++) {
 		u8 *lunaddrbytes, is_OBDR = 0;
 		int rc = 0;
+		int phys_dev_index = i - (raid_ctlr_position == 0);
 
 		/* Figure out where the LUN ID info is coming from */
 		lunaddrbytes = figure_lunaddrbytes(h, raid_ctlr_position,
@@ -3819,7 +3820,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 		/* skip masked non-disk devices */
 		if (MASKED_DEVICE(lunaddrbytes))
 			if (i < nphysicals + (raid_ctlr_position == 0) &&
-				NON_DISK_PHYS_DEV(lunaddrbytes))
+				(physdev_list->
+				LUN[phys_dev_index].device_flags & 0x01))
 				continue;
 
 		/* Get device type, vendor, model, device id */
@@ -3884,9 +3886,9 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 				/* Never use RAID mapper in HBA mode. */
 				this_device->offload_enabled = 0;
 				hpsa_get_ioaccel_drive_info(h, this_device,
-					lunaddrbytes, id_phys);
-				hpsa_get_path_info(this_device, lunaddrbytes,
-							id_phys);
+					physdev_list, phys_dev_index, id_phys);
+				hpsa_get_path_info(this_device,
+					physdev_list, phys_dev_index, id_phys);
 			}
 			ncurrent++;
 			break;
