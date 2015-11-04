@@ -487,6 +487,22 @@ static void set_no_fbc_reason(struct drm_i915_private *dev_priv,
 	DRM_DEBUG_KMS("Disabling FBC: %s\n", reason);
 }
 
+static bool crtc_is_valid(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+
+	if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A)
+		return false;
+
+	if (!intel_crtc_active(&crtc->base))
+		return false;
+
+	if (!to_intel_plane_state(crtc->base.primary->state)->visible)
+		return false;
+
+	return true;
+}
+
 static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 {
 	struct drm_crtc *crtc = NULL, *tmp_crtc;
@@ -495,12 +511,8 @@ static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 	for_each_pipe(dev_priv, pipe) {
 		tmp_crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
-		if (intel_crtc_active(tmp_crtc) &&
-		    to_intel_plane_state(tmp_crtc->primary->state)->visible)
+		if (crtc_is_valid(to_intel_crtc(tmp_crtc)))
 			crtc = tmp_crtc;
-
-		if (fbc_on_pipe_a_only(dev_priv))
-			break;
 	}
 
 	if (!crtc)
