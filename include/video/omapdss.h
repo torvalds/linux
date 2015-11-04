@@ -87,6 +87,7 @@ enum omap_channel {
 	OMAP_DSS_CHANNEL_DIGIT	= 1,
 	OMAP_DSS_CHANNEL_LCD2	= 2,
 	OMAP_DSS_CHANNEL_LCD3	= 3,
+	OMAP_DSS_CHANNEL_WB	= 4,
 };
 
 enum omap_color_mode {
