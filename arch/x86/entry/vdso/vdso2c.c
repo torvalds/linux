@@ -98,10 +98,10 @@ struct vdso_sym required_syms[] = {
 		"VDSO_FAKE_SECTION_TABLE_END", false
 	},
 	{"VDSO32_NOTE_MASK", true},
-	{"VDSO32_SYSENTER_RETURN", true},
 	{"__kernel_vsyscall", true},
 	{"__kernel_sigreturn", true},
 	{"__kernel_rt_sigreturn", true},
+	{"int80_landing_pad", true},
 };
 
 __attribute__((format(printf, 1, 2))) __attribute__((noreturn))

@@ -54,9 +54,6 @@ void common(void) {
 	OFFSET(IA32_SIGCONTEXT_ip, sigcontext_ia32, ip);
 
 	BLANK();
-	OFFSET(TI_sysenter_return, thread_info, sysenter_return);
-
-	BLANK();
 	OFFSET(IA32_RT_SIGFRAME_sigcontext, rt_sigframe_ia32, uc.uc_mcontext);
 #endif
 
