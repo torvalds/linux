@@ -1663,6 +1663,15 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h,
 	int nadded, nremoved;
 	struct Scsi_Host *sh = NULL;
 
+	/*
+	 * A reset can cause a device status to change
+	 * re-schedule the scan to see what happened.
+	 */
+	if (h->reset_in_progress) {
+		h->drv_req_rescan = 1;
+		return;
+	}
+
 	added = kzalloc(sizeof(*added) * HPSA_MAX_DEVICES, GFP_KERNEL);
 	removed = kzalloc(sizeof(*removed) * HPSA_MAX_DEVICES, GFP_KERNEL);
 
@@ -1771,6 +1780,10 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h,
 		goto free_and_out;
 
 	sh = h->scsi_host;
+	if (sh == NULL) {
+		dev_warn(&h->pdev->dev, "%s: scsi_host is null\n", __func__);
+		goto free_and_out;
+	}
 	/* Notify scsi mid layer of any removed devices */
 	for (i = 0; i < nremoved; i++) {
 		if (removed[i] == NULL)
@@ -5234,12 +5247,15 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 
 	hpsa_show_dev_msg(KERN_WARNING, h, dev, "resetting");
 
+	h->reset_in_progress = 1;
+
 	/* send a reset to the SCSI LUN which the command was sent to */
 	rc = hpsa_do_reset(h, dev, dev->scsi3addr, HPSA_RESET_TYPE_LUN,
 			   DEFAULT_REPLY_QUEUE);
 	snprintf(msg, sizeof(msg), "reset %s",
 		 rc == 0 ? "completed successfully" : "failed");
 	hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
+	h->reset_in_progress = 0;
 	return rc == 0 ? SUCCESS : FAILED;
 }
 
