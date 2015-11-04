@@ -2,7 +2,7 @@
 #define _UAPI_ASM_X86_MCE_H
 
 #include <linux/types.h>
-#include <asm/ioctls.h>
+#include <linux/ioctl.h>
 
 /* Fields are zero when not available */
 struct mce {

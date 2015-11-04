@@ -693,14 +693,12 @@ void free_initmem(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
-#ifdef CONFIG_MICROCODE_EARLY
 	/*
 	 * Remember, initrd memory may contain microcode or other useful things.
 	 * Before we lose initrd mem, we need to find a place to hold them
 	 * now that normal virtual memory is enabled.
 	 */
 	save_microcode_in_initrd();
-#endif
 
 	/*
 	 * end could be not aligned, and We can not align that,
