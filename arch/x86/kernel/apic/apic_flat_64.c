@@ -230,17 +230,6 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 
-static void physflat_send_IPI_mask(const struct cpumask *cpumask, int vector)
-{
-	default_send_IPI_mask_sequence_phys(cpumask, vector);
-}
-
-static void physflat_send_IPI_mask_allbutself(const struct cpumask *cpumask,
-					      int vector)
-{
-	default_send_IPI_mask_allbutself_phys(cpumask, vector);
-}
-
 static void physflat_send_IPI_allbutself(int vector)
 {
 	default_send_IPI_mask_allbutself_phys(cpu_online_mask, vector);
@@ -248,7 +237,7 @@ static void physflat_send_IPI_allbutself(int vector)
 
 static void physflat_send_IPI_all(int vector)
 {
-	physflat_send_IPI_mask(cpu_online_mask, vector);
+	default_send_IPI_mask_sequence_phys(cpu_online_mask, vector);
 }
 
 static int physflat_probe(void)
@@ -292,8 +281,8 @@ static struct apic apic_physflat =  {
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
-	.send_IPI_mask			= physflat_send_IPI_mask,
-	.send_IPI_mask_allbutself	= physflat_send_IPI_mask_allbutself,
+	.send_IPI_mask			= default_send_IPI_mask_sequence_phys,
+	.send_IPI_mask_allbutself	= default_send_IPI_mask_allbutself_phys,
 	.send_IPI_allbutself		= physflat_send_IPI_allbutself,
 	.send_IPI_all			= physflat_send_IPI_all,
 	.send_IPI_self			= apic_send_IPI_self,
