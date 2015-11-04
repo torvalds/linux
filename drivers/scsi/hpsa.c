@@ -3512,38 +3512,37 @@ static int is_ext_target(struct ctlr_info *h, struct hpsa_scsi_dev_t *device)
 	return 0;
 }
 
-/* Helper function to assign bus, target, lun mapping of devices.
- * Puts non-external target logical volumes on bus 0, external target logical
- * volumes on bus 1, physical devices on bus 2. and the hba on bus 3.
+/*
+ * Helper function to assign bus, target, lun mapping of devices.
  * Logical drive target and lun are assigned at this time, but
  * physical device lun and target assignment are deferred (assigned
  * in hpsa_find_target_lun, called by hpsa_scsi_add_entry.)
- */
+*/
 static void figure_bus_target_lun(struct ctlr_info *h,
 	u8 *lunaddrbytes, struct hpsa_scsi_dev_t *device)
 {
-	u32 lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
+	u32 lunid = get_unaligned_le32(lunaddrbytes);
 
 	if (!is_logical_dev_addr_mode(lunaddrbytes)) {
 		/* physical device, target and lun filled in later */
 		if (is_hba_lunid(lunaddrbytes))
-			hpsa_set_bus_target_lun(device, 3, 0, lunid & 0x3fff);
+			hpsa_set_bus_target_lun(device,
+					HPSA_HBA_BUS, 0, lunid & 0x3fff);
 		else
 			/* defer target, lun assignment for physical devices */
-			hpsa_set_bus_target_lun(device, 2, -1, -1);
+			hpsa_set_bus_target_lun(device,
+					HPSA_PHYSICAL_DEVICE_BUS, -1, -1);
 		return;
 	}
 	/* It's a logical device */
 	if (is_ext_target(h, device)) {
-		/* external target way, put logicals on bus 1
-		 * and match target/lun numbers box
-		 * reports, other smart array, bus 0, target 0, match lunid
-		 */
 		hpsa_set_bus_target_lun(device,
-			1, (lunid >> 16) & 0x3fff, lunid & 0x00ff);
+			HPSA_EXTERNAL_RAID_VOLUME_BUS, (lunid >> 16) & 0x3fff,
+			lunid & 0x00ff);
 		return;
 	}
-	hpsa_set_bus_target_lun(device, 0, 0, lunid & 0x3fff);
+	hpsa_set_bus_target_lun(device, HPSA_RAID_VOLUME_BUS,
+				0, lunid & 0x3fff);
 }
 
 /*

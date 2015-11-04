@@ -367,6 +367,11 @@ struct offline_device_entry {
 #define IOACCEL2_INBOUND_POSTQ_64_LOW	0xd0
 #define IOACCEL2_INBOUND_POSTQ_64_HI	0xd4
 
+#define HPSA_PHYSICAL_DEVICE_BUS	0
+#define HPSA_RAID_VOLUME_BUS		1
+#define HPSA_EXTERNAL_RAID_VOLUME_BUS	2
+#define HPSA_HBA_BUS			3
+
 /*
 	Send the command to the hardware
 */
