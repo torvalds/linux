@@ -1882,6 +1882,8 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	uint32_t val;
 
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
 	/* enable PCH reset handshake */
 	val = I915_READ(HSW_NDE_RSTWRN_OPT);
 	I915_WRITE(HSW_NDE_RSTWRN_OPT, val | RESET_PCH_HANDSHAKE_ENABLE);
@@ -1903,6 +1905,8 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	skl_uninit_cdclk(dev_priv);
 
