@@ -562,6 +562,7 @@ static void ap_disconnect(struct usb_interface *interface)
 	for (i = 0; i < NUM_BULKS; ++i)
 		es2_cport_in_disable(es2, &es2->cport_in[i]);
 
+	debugfs_remove(es2->apb_log_enable_dentry);
 	usb_log_disable(es2);
 
 	/* Tear down everything! */
