@@ -31,24 +31,41 @@ static void rsnd_mix_soft_reset(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, MIX_SWRSR, 1);
 }
 
-#define rsnd_mix_initialize_lock(mod)	__rsnd_mix_initialize_lock(mod, 1)
-#define rsnd_mix_initialize_unlock(mod)	__rsnd_mix_initialize_lock(mod, 0)
-static void __rsnd_mix_initialize_lock(struct rsnd_mod *mod, u32 enable)
+static void rsnd_mix_volume_parameter(struct rsnd_dai_stream *io,
+				      struct rsnd_mod *mod)
 {
-	rsnd_mod_write(mod, MIX_MIXIR, enable);
+	rsnd_mod_write(mod, MIX_MDBAR, 0);
+	rsnd_mod_write(mod, MIX_MDBBR, 0);
+	rsnd_mod_write(mod, MIX_MDBCR, 0);
+	rsnd_mod_write(mod, MIX_MDBDR, 0);
+}
+
+static void rsnd_mix_volume_init(struct rsnd_dai_stream *io,
+				 struct rsnd_mod *mod)
+{
+	rsnd_mod_write(mod, MIX_MIXIR, 1);
+
+	/* General Information */
+	rsnd_mod_write(mod, MIX_ADINR, rsnd_get_adinr_chan(mod, io));
+
+	/* volume step */
+	rsnd_mod_write(mod, MIX_MIXMR, 0);
+	rsnd_mod_write(mod, MIX_MVPDR, 0);
+
+	/* common volume parameter */
+	rsnd_mix_volume_parameter(io, mod);
+
+	rsnd_mod_write(mod, MIX_MIXIR, 0);
 }
 
 static void rsnd_mix_volume_update(struct rsnd_dai_stream *io,
 				  struct rsnd_mod *mod)
 {
-
 	/* Disable MIX dB setting */
 	rsnd_mod_write(mod, MIX_MDBER, 0);
 
-	rsnd_mod_write(mod, MIX_MDBAR, 0);
-	rsnd_mod_write(mod, MIX_MDBBR, 0);
-	rsnd_mod_write(mod, MIX_MDBCR, 0);
-	rsnd_mod_write(mod, MIX_MDBDR, 0);
+	/* common volume parameter */
+	rsnd_mix_volume_parameter(io, mod);
 
 	/* Enable MIX dB setting */
 	rsnd_mod_write(mod, MIX_MDBER, 1);
@@ -69,17 +86,9 @@ static int rsnd_mix_init(struct rsnd_mod *mod,
 
 	rsnd_mix_soft_reset(mod);
 
-	rsnd_mix_initialize_lock(mod);
-
-	rsnd_mod_write(mod, MIX_ADINR, rsnd_get_adinr_chan(mod, io));
-
-	/* volume step */
-	rsnd_mod_write(mod, MIX_MIXMR, 0);
-	rsnd_mod_write(mod, MIX_MVPDR, 0);
+	rsnd_mix_volume_init(io, mod);
 
 	rsnd_mix_volume_update(io, mod);
-
-	rsnd_mix_initialize_unlock(mod);
 
 	return 0;
 }
