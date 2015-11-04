@@ -443,6 +443,11 @@ static inline void intel_ring_emit(struct intel_engine_cs *ring,
 	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
 	ringbuf->tail += 4;
 }
+static inline void intel_ring_emit_reg(struct intel_engine_cs *ring,
+				       u32 reg)
+{
+	intel_ring_emit(ring, reg);
+}
 static inline void intel_ring_advance(struct intel_engine_cs *ring)
 {
 	struct intel_ringbuffer *ringbuf = ring->buffer;

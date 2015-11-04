@@ -556,7 +556,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 				if (signaller == ring)
 					continue;
 
-				intel_ring_emit(ring, RING_PSMI_CTL(signaller->mmio_base));
+				intel_ring_emit_reg(ring, RING_PSMI_CTL(signaller->mmio_base));
 				intel_ring_emit(ring, _MASKED_BIT_ENABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 			}
 		}
@@ -581,7 +581,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 				if (signaller == ring)
 					continue;
 
-				intel_ring_emit(ring, RING_PSMI_CTL(signaller->mmio_base));
+				intel_ring_emit_reg(ring, RING_PSMI_CTL(signaller->mmio_base));
 				intel_ring_emit(ring, _MASKED_BIT_DISABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 			}
 		}

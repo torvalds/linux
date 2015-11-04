@@ -667,10 +667,10 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 		return ret;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit(ring, GEN8_RING_PDP_UDW(ring, entry));
+	intel_ring_emit_reg(ring, GEN8_RING_PDP_UDW(ring, entry));
 	intel_ring_emit(ring, upper_32_bits(addr));
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit(ring, GEN8_RING_PDP_LDW(ring, entry));
+	intel_ring_emit_reg(ring, GEN8_RING_PDP_LDW(ring, entry));
 	intel_ring_emit(ring, lower_32_bits(addr));
 	intel_ring_advance(ring);
 
@@ -1668,9 +1668,9 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 		return ret;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(2));
-	intel_ring_emit(ring, RING_PP_DIR_DCLV(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_DCLV(ring));
 	intel_ring_emit(ring, PP_DIR_DCLV_2G);
-	intel_ring_emit(ring, RING_PP_DIR_BASE(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_BASE(ring));
 	intel_ring_emit(ring, get_pd_offset(ppgtt));
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -1705,9 +1705,9 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 		return ret;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(2));
-	intel_ring_emit(ring, RING_PP_DIR_DCLV(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_DCLV(ring));
 	intel_ring_emit(ring, PP_DIR_DCLV_2G);
-	intel_ring_emit(ring, RING_PP_DIR_BASE(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_BASE(ring));
 	intel_ring_emit(ring, get_pd_offset(ppgtt));
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);

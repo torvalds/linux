@@ -11110,7 +11110,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	 */
 	if (ring->id == RCS) {
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit(ring, DERRMR);
+		intel_ring_emit_reg(ring, DERRMR);
 		intel_ring_emit(ring, ~(DERRMR_PIPEA_PRI_FLIP_DONE |
 					DERRMR_PIPEB_PRI_FLIP_DONE |
 					DERRMR_PIPEC_PRI_FLIP_DONE));
@@ -11120,7 +11120,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		else
 			intel_ring_emit(ring, MI_STORE_REGISTER_MEM |
 					      MI_SRM_LRM_GLOBAL_GTT);
-		intel_ring_emit(ring, DERRMR);
+		intel_ring_emit_reg(ring, DERRMR);
 		intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
 		if (IS_GEN8(dev)) {
 			intel_ring_emit(ring, 0);

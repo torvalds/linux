@@ -4591,7 +4591,7 @@ int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice)
 	 */
 	for (i = 0; i < GEN7_L3LOG_SIZE / 4; i++) {
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit(ring, GEN7_L3LOG(slice, i));
+		intel_ring_emit_reg(ring, GEN7_L3LOG(slice, i));
 		intel_ring_emit(ring, remap_info[i]);
 	}
 

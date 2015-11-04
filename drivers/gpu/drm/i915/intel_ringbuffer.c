@@ -731,7 +731,7 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(w->count));
 	for (i = 0; i < w->count; i++) {
-		intel_ring_emit(ring, w->reg[i].addr);
+		intel_ring_emit_reg(ring, w->reg[i].addr);
 		intel_ring_emit(ring, w->reg[i].value);
 	}
 	intel_ring_emit(ring, MI_NOOP);
@@ -1313,7 +1313,7 @@ static int gen6_signal(struct drm_i915_gem_request *signaller_req,
 		if (mbox_reg != GEN6_NOSYNC) {
 			u32 seqno = i915_gem_request_get_seqno(signaller_req);
 			intel_ring_emit(signaller, MI_LOAD_REGISTER_IMM(1));
-			intel_ring_emit(signaller, mbox_reg);
+			intel_ring_emit_reg(signaller, mbox_reg);
 			intel_ring_emit(signaller, seqno);
 		}
 	}

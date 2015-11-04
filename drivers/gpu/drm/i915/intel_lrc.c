@@ -919,7 +919,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 
 		intel_logical_ring_emit(ringbuf, MI_NOOP);
 		intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(1));
-		intel_logical_ring_emit(ringbuf, INSTPM);
+		intel_logical_ring_emit_reg(ringbuf, INSTPM);
 		intel_logical_ring_emit(ringbuf, instp_mask << 16 | instp_mode);
 		intel_logical_ring_advance(ringbuf);
 
@@ -1094,7 +1094,7 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 
 	intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(w->count));
 	for (i = 0; i < w->count; i++) {
-		intel_logical_ring_emit(ringbuf, w->reg[i].addr);
+		intel_logical_ring_emit_reg(ringbuf, w->reg[i].addr);
 		intel_logical_ring_emit(ringbuf, w->reg[i].value);
 	}
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
@@ -1537,9 +1537,9 @@ static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
 	for (i = GEN8_LEGACY_PDPES - 1; i >= 0; i--) {
 		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
 
-		intel_logical_ring_emit(ringbuf, GEN8_RING_PDP_UDW(ring, i));
+		intel_logical_ring_emit_reg(ringbuf, GEN8_RING_PDP_UDW(ring, i));
 		intel_logical_ring_emit(ringbuf, upper_32_bits(pd_daddr));
-		intel_logical_ring_emit(ringbuf, GEN8_RING_PDP_LDW(ring, i));
+		intel_logical_ring_emit_reg(ringbuf, GEN8_RING_PDP_LDW(ring, i));
 		intel_logical_ring_emit(ringbuf, lower_32_bits(pd_daddr));
 	}
 

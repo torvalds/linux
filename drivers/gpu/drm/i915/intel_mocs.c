@@ -210,7 +210,7 @@ static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 				MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES));
 
 	for (index = 0; index < table->size; index++) {
-		intel_logical_ring_emit(ringbuf, mocs_register(ring, index));
+		intel_logical_ring_emit_reg(ringbuf, mocs_register(ring, index));
 		intel_logical_ring_emit(ringbuf,
 					table->table[index].control_value);
 	}
@@ -224,7 +224,7 @@ static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 	 * that value to all the used entries.
 	 */
 	for (; index < GEN9_NUM_MOCS_ENTRIES; index++) {
-		intel_logical_ring_emit(ringbuf, mocs_register(ring, index));
+		intel_logical_ring_emit_reg(ringbuf, mocs_register(ring, index));
 		intel_logical_ring_emit(ringbuf, table->table[0].control_value);
 	}
 
@@ -272,7 +272,7 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 		value = (table->table[count].l3cc_value & 0xffff) |
 			((table->table[count + 1].l3cc_value & 0xffff) << 16);
 
-		intel_logical_ring_emit(ringbuf, GEN9_LNCFCMOCS(i));
+		intel_logical_ring_emit_reg(ringbuf, GEN9_LNCFCMOCS(i));
 		intel_logical_ring_emit(ringbuf, value);
 	}
 
@@ -289,7 +289,7 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 	 * they are reserved by the hardware.
 	 */
 	for (; i < GEN9_NUM_MOCS_ENTRIES / 2; i++) {
-		intel_logical_ring_emit(ringbuf, GEN9_LNCFCMOCS(i));
+		intel_logical_ring_emit_reg(ringbuf, GEN9_LNCFCMOCS(i));
 		intel_logical_ring_emit(ringbuf, value);
 
 		value = filler;
