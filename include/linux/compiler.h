@@ -299,22 +299,6 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 	__u.__val;					\
 })
 
-/**
- * READ_ONCE_CTRL - Read a value heading a control dependency
- * @x: The value to be read, heading the control dependency
- *
- * Control dependencies are tricky.  See Documentation/memory-barriers.txt
- * for important information on how to use them.  Note that in many cases,
- * use of smp_load_acquire() will be much simpler.  Control dependencies
- * should be avoided except on the hottest of hotpaths.
- */
-#define READ_ONCE_CTRL(x) \
-({ \
-	typeof(x) __val = READ_ONCE(x); \
-	smp_read_barrier_depends(); /* Enforce control dependency. */ \
-	__val; \
-})
-
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */

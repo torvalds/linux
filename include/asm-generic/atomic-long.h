@@ -43,7 +43,6 @@ static inline long atomic_long_read##mo(const atomic_long_t *l)		\
 }
 ATOMIC_LONG_READ_OP()
 ATOMIC_LONG_READ_OP(_acquire)
-ATOMIC_LONG_READ_OP(_ctrl)
 
 #undef ATOMIC_LONG_READ_OP
 
