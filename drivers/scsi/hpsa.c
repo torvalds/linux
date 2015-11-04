@@ -1983,7 +1983,7 @@ static int hpsa_map_ioaccel2_sg_chain_block(struct ctlr_info *h,
 	u32 chain_size;
 
 	chain_block = h->ioaccel2_cmd_sg_list[c->cmdindex];
-	chain_size = le32_to_cpu(cp->data_len);
+	chain_size = le32_to_cpu(cp->sg[0].length);
 	temp64 = pci_map_single(h->pdev, chain_block, chain_size,
 				PCI_DMA_TODEVICE);
 	if (dma_mapping_error(&h->pdev->dev, temp64)) {
@@ -2004,7 +2004,7 @@ static void hpsa_unmap_ioaccel2_sg_chain_block(struct ctlr_info *h,
 
 	chain_sg = cp->sg;
 	temp64 = le64_to_cpu(chain_sg->address);
-	chain_size = le32_to_cpu(cp->data_len);
+	chain_size = le32_to_cpu(cp->sg[0].length);
 	pci_unmap_single(h->pdev, temp64, chain_size, PCI_DMA_TODEVICE);
 }
 
@@ -4315,6 +4315,7 @@ static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 	/* fill in sg elements */
 	if (use_sg > h->ioaccel_maxsg) {
 		cp->sg_count = 1;
+		cp->sg[0].length = cpu_to_le32(use_sg * sizeof(cp->sg[0]));
 		if (hpsa_map_ioaccel2_sg_chain_block(h, cp, c)) {
 			atomic_dec(&phys_disk->ioaccel_cmds_out);
 			scsi_dma_unmap(cmd);
