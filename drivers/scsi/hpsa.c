@@ -4012,19 +4012,14 @@ static int fixup_ioaccel_cdb(u8 *cdb, int *cdb_len)
 	case READ_6:
 	case READ_12:
 		if (*cdb_len == 6) {
-			block = (((u32) cdb[2]) << 8) | cdb[3];
+			block = get_unaligned_be16(&cdb[2]);
 			block_cnt = cdb[4];
+			if (block_cnt == 0)
+				block_cnt = 256;
 		} else {
 			BUG_ON(*cdb_len != 12);
-			block = (((u32) cdb[2]) << 24) |
-				(((u32) cdb[3]) << 16) |
-				(((u32) cdb[4]) << 8) |
-				cdb[5];
-			block_cnt =
-				(((u32) cdb[6]) << 24) |
-				(((u32) cdb[7]) << 16) |
-				(((u32) cdb[8]) << 8) |
-				cdb[9];
+			block = get_unaligned_be32(&cdb[2]);
+			block_cnt = get_unaligned_be32(&cdb[6]);
 		}
 		if (block_cnt > 0xffff)
 			return IO_ACCEL_INELIGIBLE;
@@ -4410,9 +4405,7 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 	case WRITE_6:
 		is_write = 1;
 	case READ_6:
-		first_block =
-			(((u64) cmd->cmnd[2]) << 8) |
-			cmd->cmnd[3];
+		first_block = get_unaligned_be16(&cmd->cmnd[2]);
 		block_cnt = cmd->cmnd[4];
 		if (block_cnt == 0)
 			block_cnt = 256;
