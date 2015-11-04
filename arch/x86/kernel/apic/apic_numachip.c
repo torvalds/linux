@@ -276,6 +276,7 @@ static const struct apic apic_numachip1 __refconst = {
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
+	.send_IPI			= numachip_send_IPI_one,
 	.send_IPI_mask			= numachip_send_IPI_mask,
 	.send_IPI_mask_allbutself	= numachip_send_IPI_mask_allbutself,
 	.send_IPI_allbutself		= numachip_send_IPI_allbutself,
@@ -327,6 +328,7 @@ static const struct apic apic_numachip2 __refconst = {
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
+	.send_IPI			= numachip_send_IPI_one,
 	.send_IPI_mask			= numachip_send_IPI_mask,
 	.send_IPI_mask_allbutself	= numachip_send_IPI_mask_allbutself,
 	.send_IPI_allbutself		= numachip_send_IPI_allbutself,
