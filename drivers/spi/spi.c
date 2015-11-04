@@ -270,15 +270,24 @@ EXPORT_SYMBOL_GPL(spi_bus_type);
 static int spi_drv_probe(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+	struct spi_device		*spi = to_spi_device(dev);
 	int ret;
 
 	ret = of_clk_set_defaults(dev->of_node, false);
 	if (ret)
 		return ret;
 
+	if (dev->of_node) {
+		spi->irq = of_irq_get(dev->of_node, 0);
+		if (spi->irq == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		if (spi->irq < 0)
+			spi->irq = 0;
+	}
+
 	ret = dev_pm_domain_attach(dev, true);
 	if (ret != -EPROBE_DEFER) {
-		ret = sdrv->probe(to_spi_device(dev));
+		ret = sdrv->probe(spi);
 		if (ret)
 			dev_pm_domain_detach(dev, true);
 	}
@@ -597,7 +606,7 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 	if (spi->mode & SPI_CS_HIGH)
 		enable = !enable;
 
-	if (spi->cs_gpio >= 0)
+	if (gpio_is_valid(spi->cs_gpio))
 		gpio_set_value(spi->cs_gpio, !enable);
 	else if (spi->master->set_cs)
 		spi->master->set_cs(spi, !enable);
@@ -1433,9 +1442,6 @@ of_register_spi_device(struct spi_master *master, struct device_node *nc)
 	}
 	spi->max_speed_hz = value;
 
-	/* IRQ */
-	spi->irq = irq_of_parse_and_map(nc, 0);
-
 	/* Store a pointer to the node in the device structure */
 	of_node_get(nc);
 	spi->dev.of_node = nc;
@@ -1949,7 +1955,7 @@ static int __spi_validate_bits_per_word(struct spi_master *master, u8 bits_per_w
 int spi_setup(struct spi_device *spi)
 {
 	unsigned	bad_bits, ugly_bits;
-	int		status = 0;
+	int		status;
 
 	/* check mode to prevent that DUAL and QUAD set at the same time
 	 */
@@ -1986,8 +1992,9 @@ int spi_setup(struct spi_device *spi)
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
 
-	if (__spi_validate_bits_per_word(spi->master, spi->bits_per_word))
-		return -EINVAL;
+	status = __spi_validate_bits_per_word(spi->master, spi->bits_per_word);
+	if (status)
+		return status;
 
 	if (!spi->max_speed_hz)
 		spi->max_speed_hz = spi->master->max_speed_hz;
