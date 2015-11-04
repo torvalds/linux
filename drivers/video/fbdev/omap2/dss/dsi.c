@@ -3833,7 +3833,7 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 	u16 word_count;
 	int r;
 
-	if (out == NULL || out->manager == NULL) {
+	if (out->manager == NULL) {
 		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
 	}

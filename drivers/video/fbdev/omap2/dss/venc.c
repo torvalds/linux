@@ -503,7 +503,7 @@ static int venc_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&venc.venc_lock);
 
-	if (out == NULL || out->manager == NULL) {
+	if (out->manager == NULL) {
 		DSSERR("Failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err0;

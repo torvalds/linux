@@ -880,7 +880,7 @@ static int rfbi_display_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *out = &rfbi.output;
 	int r;
 
-	if (out == NULL || out->manager == NULL) {
+	if (out->manager == NULL) {
 		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
 	}
