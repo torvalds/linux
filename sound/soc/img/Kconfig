@@ -18,3 +18,11 @@ config SND_SOC_IMG_I2S_OUT
 	help
 	  Say Y or M if you want to add support for I2S out driver for
 	  Imagination Technologies I2S out device.
+
+config SND_SOC_IMG_PARALLEL_OUT
+	tristate "Imagination Parallel Output Device Driver"
+	depends on SND_SOC_IMG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for parallel out driver for
+	  Imagination Technologies parallel out device.
