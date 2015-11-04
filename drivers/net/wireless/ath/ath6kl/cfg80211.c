@@ -2217,7 +2217,7 @@ static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 
 	/* enter / leave wow suspend on first vif always */
 	first_vif = ath6kl_vif_first(ar);
-	if (WARN_ON(unlikely(!first_vif)) ||
+	if (WARN_ON(!first_vif) ||
 	    !ath6kl_cfg80211_ready(first_vif))
 		return -EIO;
 
@@ -2297,7 +2297,7 @@ static int ath6kl_wow_resume(struct ath6kl *ar)
 	int ret;
 
 	vif = ath6kl_vif_first(ar);
-	if (WARN_ON(unlikely(!vif)) ||
+	if (WARN_ON(!vif) ||
 	    !ath6kl_cfg80211_ready(vif))
 		return -EIO;
 
@@ -3231,6 +3231,15 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 					wait, buf, len, no_cck);
 }
 
+static int ath6kl_get_antenna(struct wiphy *wiphy,
+			      u32 *tx_ant, u32 *rx_ant)
+{
+	struct ath6kl *ar = wiphy_priv(wiphy);
+	*tx_ant = ar->hw.tx_ant;
+	*rx_ant = ar->hw.rx_ant;
+	return 0;
+}
+
 static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
 				       u16 frame_type, bool reg)
@@ -3312,7 +3321,7 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 	}
 
 	/* fw uses seconds, also make sure that it's >0 */
-	interval = max_t(u16, 1, request->interval / 1000);
+	interval = max_t(u16, 1, request->scan_plans[0].interval);
 
 	ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx,
 				  interval, interval,
@@ -3447,6 +3456,7 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.cancel_remain_on_channel = ath6kl_cancel_remain_on_channel,
 	.mgmt_tx = ath6kl_mgmt_tx,
 	.mgmt_frame_register = ath6kl_mgmt_frame_register,
+	.get_antenna = ath6kl_get_antenna,
 	.sched_scan_start = ath6kl_cfg80211_sscan_start,
 	.sched_scan_stop = ath6kl_cfg80211_sscan_stop,
 	.set_bitrate_mask = ath6kl_cfg80211_set_bitrate,
@@ -3634,6 +3644,127 @@ void ath6kl_cfg80211_vif_cleanup(struct ath6kl_vif *vif)
 	ar->num_vif--;
 }
 
+static const char ath6kl_gstrings_sta_stats[][ETH_GSTRING_LEN] = {
+	/* Common stats names used by many drivers. */
+	"tx_pkts_nic", "tx_bytes_nic", "rx_pkts_nic", "rx_bytes_nic",
+
+	/* TX stats. */
+	"d_tx_ucast_pkts", "d_tx_bcast_pkts",
+	"d_tx_ucast_bytes", "d_tx_bcast_bytes",
+	"d_tx_rts_ok", "d_tx_error", "d_tx_fail",
+	"d_tx_retry", "d_tx_multi_retry", "d_tx_rts_fail",
+	"d_tx_tkip_counter_measures",
+
+	/* RX Stats. */
+	"d_rx_ucast_pkts", "d_rx_ucast_rate", "d_rx_bcast_pkts",
+	"d_rx_ucast_bytes", "d_rx_bcast_bytes", "d_rx_frag_pkt",
+	"d_rx_error", "d_rx_crc_err", "d_rx_keycache_miss",
+	"d_rx_decrypt_crc_err", "d_rx_duplicate_frames",
+	"d_rx_mic_err", "d_rx_tkip_format_err", "d_rx_ccmp_format_err",
+	"d_rx_ccmp_replay_err",
+
+	/* Misc stats. */
+	"d_beacon_miss", "d_num_connects", "d_num_disconnects",
+	"d_beacon_avg_rssi", "d_arp_received", "d_arp_matched",
+	"d_arp_replied"
+};
+
+#define ATH6KL_STATS_LEN	ARRAY_SIZE(ath6kl_gstrings_sta_stats)
+
+static int ath6kl_get_sset_count(struct net_device *dev, int sset)
+{
+	int rv = 0;
+
+	if (sset == ETH_SS_STATS)
+		rv += ATH6KL_STATS_LEN;
+
+	if (rv == 0)
+		return -EOPNOTSUPP;
+	return rv;
+}
+
+static void ath6kl_get_stats(struct net_device *dev,
+			    struct ethtool_stats *stats,
+			    u64 *data)
+{
+	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl *ar = vif->ar;
+	int i = 0;
+	struct target_stats *tgt_stats;
+
+	memset(data, 0, sizeof(u64) * ATH6KL_STATS_LEN);
+
+	ath6kl_read_tgt_stats(ar, vif);
+
+	tgt_stats = &vif->target_stats;
+
+	data[i++] = tgt_stats->tx_ucast_pkt + tgt_stats->tx_bcast_pkt;
+	data[i++] = tgt_stats->tx_ucast_byte + tgt_stats->tx_bcast_byte;
+	data[i++] = tgt_stats->rx_ucast_pkt + tgt_stats->rx_bcast_pkt;
+	data[i++] = tgt_stats->rx_ucast_byte + tgt_stats->rx_bcast_byte;
+
+	data[i++] = tgt_stats->tx_ucast_pkt;
+	data[i++] = tgt_stats->tx_bcast_pkt;
+	data[i++] = tgt_stats->tx_ucast_byte;
+	data[i++] = tgt_stats->tx_bcast_byte;
+	data[i++] = tgt_stats->tx_rts_success_cnt;
+	data[i++] = tgt_stats->tx_err;
+	data[i++] = tgt_stats->tx_fail_cnt;
+	data[i++] = tgt_stats->tx_retry_cnt;
+	data[i++] = tgt_stats->tx_mult_retry_cnt;
+	data[i++] = tgt_stats->tx_rts_fail_cnt;
+	data[i++] = tgt_stats->tkip_cnter_measures_invoked;
+
+	data[i++] = tgt_stats->rx_ucast_pkt;
+	data[i++] = tgt_stats->rx_ucast_rate;
+	data[i++] = tgt_stats->rx_bcast_pkt;
+	data[i++] = tgt_stats->rx_ucast_byte;
+	data[i++] = tgt_stats->rx_bcast_byte;
+	data[i++] = tgt_stats->rx_frgment_pkt;
+	data[i++] = tgt_stats->rx_err;
+	data[i++] = tgt_stats->rx_crc_err;
+	data[i++] = tgt_stats->rx_key_cache_miss;
+	data[i++] = tgt_stats->rx_decrypt_err;
+	data[i++] = tgt_stats->rx_dupl_frame;
+	data[i++] = tgt_stats->tkip_local_mic_fail;
+	data[i++] = tgt_stats->tkip_fmt_err;
+	data[i++] = tgt_stats->ccmp_fmt_err;
+	data[i++] = tgt_stats->ccmp_replays;
+
+	data[i++] = tgt_stats->cs_bmiss_cnt;
+	data[i++] = tgt_stats->cs_connect_cnt;
+	data[i++] = tgt_stats->cs_discon_cnt;
+	data[i++] = tgt_stats->cs_ave_beacon_rssi;
+	data[i++] = tgt_stats->arp_received;
+	data[i++] = tgt_stats->arp_matched;
+	data[i++] = tgt_stats->arp_replied;
+
+	if (i !=  ATH6KL_STATS_LEN) {
+		WARN_ON_ONCE(1);
+		ath6kl_err("ethtool stats error, i: %d  STATS_LEN: %d\n",
+			   i, (int)ATH6KL_STATS_LEN);
+	}
+}
+
+/* These stats are per NIC, not really per vdev, so we just ignore dev. */
+static void ath6kl_get_strings(struct net_device *dev, u32 sset, u8 *data)
+{
+	int sz_sta_stats = 0;
+
+	if (sset == ETH_SS_STATS) {
+		sz_sta_stats = sizeof(ath6kl_gstrings_sta_stats);
+		memcpy(data, ath6kl_gstrings_sta_stats, sz_sta_stats);
+	}
+}
+
+static const struct ethtool_ops ath6kl_ethtool_ops = {
+	.get_drvinfo = cfg80211_get_drvinfo,
+	.get_link = ethtool_op_get_link,
+	.get_strings = ath6kl_get_strings,
+	.get_ethtool_stats = ath6kl_get_stats,
+	.get_sset_count = ath6kl_get_sset_count,
+};
+
 struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 					  unsigned char name_assign_type,
 					  enum nl80211_iftype type,
@@ -3678,6 +3809,8 @@ struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 
 	if (ath6kl_cfg80211_vif_init(vif))
 		goto err;
+
+	netdev_set_default_ethtool_ops(ndev, &ath6kl_ethtool_ops);
 
 	if (register_netdevice(ndev))
 		goto err;
@@ -3786,6 +3919,9 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 		ath6kl_band_2ghz.ht_cap.ht_supported = false;
 		ath6kl_band_5ghz.ht_cap.cap = 0;
 		ath6kl_band_5ghz.ht_cap.ht_supported = false;
+
+		if (ht)
+			ath6kl_err("Firmware lacks RSN-CAP-OVERRIDE, so HT (802.11n) is disabled.");
 	}
 
 	if (test_bit(ATH6KL_FW_CAPABILITY_64BIT_RATES,
@@ -3794,10 +3930,17 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 		ath6kl_band_5ghz.ht_cap.mcs.rx_mask[0] = 0xff;
 		ath6kl_band_2ghz.ht_cap.mcs.rx_mask[1] = 0xff;
 		ath6kl_band_5ghz.ht_cap.mcs.rx_mask[1] = 0xff;
+		ar->hw.tx_ant = 2;
+		ar->hw.rx_ant = 2;
 	} else {
 		ath6kl_band_2ghz.ht_cap.mcs.rx_mask[0] = 0xff;
 		ath6kl_band_5ghz.ht_cap.mcs.rx_mask[0] = 0xff;
+		ar->hw.tx_ant = 1;
+		ar->hw.rx_ant = 1;
 	}
+
+	wiphy->available_antennas_tx = ar->hw.tx_ant;
+	wiphy->available_antennas_rx = ar->hw.rx_ant;
 
 	if (band_2gig)
 		wiphy->bands[IEEE80211_BAND_2GHZ] = &ath6kl_band_2ghz;

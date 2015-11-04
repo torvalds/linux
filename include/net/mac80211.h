@@ -5,6 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -481,7 +482,9 @@ struct ieee80211_event {
  *	Note that with TDLS this can be the case (channel is HT, protection must
  *	be used from this field) even when the BSS association isn't using HT.
  * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
- *	implies disabled
+ *	implies disabled. As with the cfg80211 callback, a change here should
+ *	cause an event to be sent indicating where the current value is in
+ *	relation to the newly configured threshold.
  * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
  * @arp_addr_list: List of IPv4 addresses for hardware ARP filtering. The
  *	may filter ARP queries targeted for other addresses than listed here.
@@ -1240,11 +1243,6 @@ enum ieee80211_smps_mode {
  * @flags: configuration flags defined above
  *
  * @listen_interval: listen interval in units of beacon interval
- * @max_sleep_period: the maximum number of beacon intervals to sleep for
- *	before checking the beacon for a TIM bit (managed mode only); this
- *	value will be only achievable between DTIM frames, the hardware
- *	needs to check for the multicast traffic bit in DTIM beacons.
- *	This variable is valid only when the CONF_PS flag is set.
  * @ps_dtim_period: The DTIM period of the AP we're connected to, for use
  *	in power saving. Power saving will not be enabled until a beacon
  *	has been received and the DTIM period is known.
@@ -1274,7 +1272,6 @@ enum ieee80211_smps_mode {
 struct ieee80211_conf {
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
-	int max_sleep_period;
 
 	u16 listen_interval;
 	u8 ps_dtim_period;
@@ -1360,6 +1357,8 @@ enum ieee80211_vif_flags {
  * @debugfs_dir: debugfs dentry, can be used by drivers to create own per
  *	interface debug files. Note that it will be NULL for the virtual
  *	monitor interface (if that is requested.)
+ * @probe_req_reg: probe requests should be reported to mac80211 for this
+ *	interface.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
  * @txq: the multicast data TX queue (if driver uses the TXQ abstraction)
@@ -1383,6 +1382,8 @@ struct ieee80211_vif {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *debugfs_dir;
 #endif
+
+	unsigned int probe_req_reg;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
@@ -1494,10 +1495,8 @@ enum ieee80211_key_flags {
  * 	- Temporal Authenticator Rx MIC Key (64 bits)
  * @icv_len: The ICV length for this key type
  * @iv_len: The IV length for this key type
- * @drv_priv: pointer for driver use
  */
 struct ieee80211_key_conf {
-	void *drv_priv;
 	atomic64_t tx_pn;
 	u32 cipher;
 	u8 icv_len;
@@ -1680,6 +1679,7 @@ struct ieee80211_sta_rates {
  * @tdls: indicates whether the STA is a TDLS peer
  * @tdls_initiator: indicates the STA is an initiator of the TDLS link. Only
  *	valid if the STA is a TDLS peer in the first place.
+ * @mfp: indicates whether the STA uses management frame protection or not.
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction)
  */
 struct ieee80211_sta {
@@ -1697,6 +1697,7 @@ struct ieee80211_sta {
 	struct ieee80211_sta_rates __rcu *rates;
 	bool tdls;
 	bool tdls_initiator;
+	bool mfp;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS];
 
@@ -1894,6 +1895,12 @@ struct ieee80211_txq {
  * @IEEE80211_HW_TDLS_WIDER_BW: The device/driver supports wider bandwidth
  *	than then BSS bandwidth for a TDLS link on the base channel.
  *
+ * @IEEE80211_HW_SUPPORTS_AMSDU_IN_AMPDU: The driver supports receiving A-MSDUs
+ *	within A-MPDU.
+ *
+ * @IEEE80211_HW_BEACON_TX_STATUS: The device/driver provides TX status
+ *	for sent beacons.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -1927,6 +1934,8 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_CLONED_SKBS,
 	IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS,
 	IEEE80211_HW_TDLS_WIDER_BW,
+	IEEE80211_HW_SUPPORTS_AMSDU_IN_AMPDU,
+	IEEE80211_HW_BEACON_TX_STATUS,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -2827,6 +2836,13 @@ enum ieee80211_reconfig_type {
  *	See the section "Frame filtering" for more information.
  *	This callback must be implemented and can sleep.
  *
+ * @config_iface_filter: Configure the interface's RX filter.
+ *	This callback is optional and is used to configure which frames
+ *	should be passed to mac80211. The filter_flags is the combination
+ *	of FIF_* flags. The changed_flags is a bit mask that indicates
+ *	which flags are changed.
+ *	This callback can sleep.
+ *
  * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
  * 	must be set or cleared for a given STA. Must be atomic.
  *
@@ -3016,6 +3032,9 @@ enum ieee80211_reconfig_type {
  *	buffer size of 8. Correct ways to retransmit #1 would be:
  *	 - TX:       1 or 18 or 81
  *	Even "189" would be wrong since 1 could be lost again.
+ *	The @amsdu parameter is valid when the action is set to
+ *	%IEEE80211_AMPDU_TX_OPERATIONAL and indicates the peer's ability
+ *	to receive A-MSDU within A-MPDU.
  *
  *	Returns a negative error code on failure.
  *	The callback can sleep.
@@ -3153,18 +3172,24 @@ enum ieee80211_reconfig_type {
  *	The callback is optional and can sleep.
  *
  * @add_chanctx: Notifies device driver about new channel context creation.
+ *	This callback may sleep.
  * @remove_chanctx: Notifies device driver about channel context destruction.
+ *	This callback may sleep.
  * @change_chanctx: Notifies device driver about channel context changes that
  *	may happen when combining different virtual interfaces on the same
  *	channel context with different settings
+ *	This callback may sleep.
  * @assign_vif_chanctx: Notifies device driver about channel context being bound
  *	to vif. Possible use is for hw queue remapping.
+ *	This callback may sleep.
  * @unassign_vif_chanctx: Notifies device driver about channel context being
  *	unbound from vif.
+ *	This callback may sleep.
  * @switch_vif_chanctx: switch a number of vifs from one chanctx to
  *	another, as specified in the list of
  *	@ieee80211_vif_chanctx_switch passed to the driver, according
  *	to the mode defined in &ieee80211_chanctx_switch_mode.
+ *	This callback may sleep.
  *
  * @start_ap: Start operation on the AP interface, this is called after all the
  *	information in bss_conf is set and beacon can be retrieved. A channel
@@ -3266,6 +3291,10 @@ struct ieee80211_ops {
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
 				 u64 multicast);
+	void (*config_iface_filter)(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    unsigned int filter_flags,
+				    unsigned int changed_flags);
 	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		       bool set);
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -3349,7 +3378,7 @@ struct ieee80211_ops {
 			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			    u8 buf_size);
+			    u8 buf_size, bool amsdu);
 	int (*get_survey)(struct ieee80211_hw *hw, int idx,
 		struct survey_info *survey);
 	void (*rfkill_poll)(struct ieee80211_hw *hw);

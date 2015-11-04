@@ -75,7 +75,7 @@ struct rds_iw_mr_pool {
 	int			max_pages;
 };
 
-static int rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all);
+static void rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all);
 static void rds_iw_mr_pool_flush_worker(struct work_struct *work);
 static int rds_iw_init_fastreg(struct rds_iw_mr_pool *pool, struct rds_iw_mr *ibmr);
 static int rds_iw_map_fastreg(struct rds_iw_mr_pool *pool,
@@ -479,14 +479,13 @@ void rds_iw_sync_mr(void *trans_private, int direction)
  * If the number of MRs allocated exceeds the limit, we also try
  * to free as many MRs as needed to get back to this limit.
  */
-static int rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all)
+static void rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all)
 {
 	struct rds_iw_mr *ibmr, *next;
 	LIST_HEAD(unmap_list);
 	LIST_HEAD(kill_list);
 	unsigned long flags;
 	unsigned int nfreed = 0, ncleaned = 0, unpinned = 0;
-	int ret = 0;
 
 	rds_iw_stats_inc(s_iw_rdma_mr_pool_flush);
 
@@ -538,7 +537,6 @@ static int rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all)
 	atomic_sub(nfreed, &pool->item_count);
 
 	mutex_unlock(&pool->flush_lock);
-	return ret;
 }
 
 static void rds_iw_mr_pool_flush_worker(struct work_struct *work)

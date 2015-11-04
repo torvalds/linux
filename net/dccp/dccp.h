@@ -229,7 +229,7 @@ void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 int dccp_retransmit_skb(struct sock *sk);
 
 void dccp_send_ack(struct sock *sk);
-void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+void dccp_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 			 struct request_sock *rsk);
 
 void dccp_send_sync(struct sock *sk, const u64 seq,
@@ -270,15 +270,17 @@ int dccp_reqsk_init(struct request_sock *rq, struct dccp_sock const *dp,
 
 int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 
-struct sock *dccp_create_openreq_child(struct sock *sk,
+struct sock *dccp_create_openreq_child(const struct sock *sk,
 				       const struct request_sock *req,
 				       const struct sk_buff *skb);
 
 int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
 
-struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
+struct sock *dccp_v4_request_recv_sock(const struct sock *sk, struct sk_buff *skb,
 				       struct request_sock *req,
-				       struct dst_entry *dst);
+				       struct dst_entry *dst,
+				       struct request_sock *req_unhash,
+				       bool *own_req);
 struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 			    struct request_sock *req);
 
@@ -293,7 +295,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized);
 void dccp_destroy_sock(struct sock *sk);
 
 void dccp_close(struct sock *sk, long timeout);
-struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
+struct sk_buff *dccp_make_response(const struct sock *sk, struct dst_entry *dst,
 				   struct request_sock *req);
 
 int dccp_connect(struct sock *sk);
@@ -325,13 +327,13 @@ void dccp_send_close(struct sock *sk, const int active);
 int dccp_invalid_packet(struct sk_buff *skb);
 u32 dccp_sample_rtt(struct sock *sk, long delta);
 
-static inline int dccp_bad_service_code(const struct sock *sk,
+static inline bool dccp_bad_service_code(const struct sock *sk,
 					const __be32 service)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
 
 	if (dp->dccps_service == service)
-		return 0;
+		return false;
 	return !dccp_list_has_service(dp->dccps_service_list, service);
 }
 

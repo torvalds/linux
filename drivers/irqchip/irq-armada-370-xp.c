@@ -56,9 +56,6 @@
 
 #define ARMADA_370_XP_MAX_PER_CPU_IRQS		(28)
 
-#define ARMADA_370_XP_TIMER0_PER_CPU_IRQ	(5)
-#define ARMADA_370_XP_FABRIC_IRQ		(3)
-
 #define IPI_DOORBELL_START                      (0)
 #define IPI_DOORBELL_END                        (8)
 #define IPI_DOORBELL_MASK                       0xFF
@@ -81,13 +78,10 @@ static phys_addr_t msi_doorbell_addr;
 
 static inline bool is_percpu_irq(irq_hw_number_t irq)
 {
-	switch (irq) {
-	case ARMADA_370_XP_TIMER0_PER_CPU_IRQ:
-	case ARMADA_370_XP_FABRIC_IRQ:
+	if (irq <= ARMADA_370_XP_MAX_PER_CPU_IRQS)
 		return true;
-	default:
-		return false;
-	}
+
+	return false;
 }
 
 /*
@@ -550,7 +544,7 @@ static void armada_370_xp_mpic_resume(void)
 		if (virq == 0)
 			continue;
 
-		if (irq != ARMADA_370_XP_TIMER0_PER_CPU_IRQ)
+		if (!is_percpu_irq(irq))
 			writel(irq, per_cpu_int_base +
 			       ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
 		else

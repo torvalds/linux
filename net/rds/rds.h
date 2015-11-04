@@ -7,6 +7,7 @@
 #include <rdma/rdma_cm.h>
 #include <linux/mutex.h>
 #include <linux/rds.h>
+#include <linux/rhashtable.h>
 
 #include "info.h"
 
@@ -86,7 +87,9 @@ struct rds_connection {
 	struct hlist_node	c_hash_node;
 	__be32			c_laddr;
 	__be32			c_faddr;
-	unsigned int		c_loopback:1;
+	unsigned int		c_loopback:1,
+				c_outgoing:1,
+				c_pad_to_32:30;
 	struct rds_connection	*c_passive;
 
 	struct rds_cong_map	*c_lcong;
@@ -472,7 +475,8 @@ struct rds_sock {
 	 * bound_addr used for both incoming and outgoing, no INADDR_ANY
 	 * support.
 	 */
-	struct hlist_node	rs_bound_node;
+	struct rhash_head	rs_bound_node;
+	u64			rs_bound_key;
 	__be32			rs_bound_addr;
 	__be32			rs_conn_addr;
 	__be16			rs_bound_port;
@@ -603,6 +607,8 @@ extern wait_queue_head_t rds_poll_waitq;
 int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
 void rds_remove_bound(struct rds_sock *rs);
 struct rds_sock *rds_find_bound(__be32 addr, __be16 port);
+int rds_bind_lock_init(void);
+void rds_bind_lock_destroy(void);
 
 /* cong.c */
 int rds_cong_get_maps(struct rds_connection *conn);

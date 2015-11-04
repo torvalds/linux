@@ -40,6 +40,7 @@
 #include "item.h"
 
 #define PCI_DEVICE_ID_MELLANOX_SWITCHX2	0xc738
+#define PCI_DEVICE_ID_MELLANOX_SPECTRUM	0xcb84
 #define MLXSW_PCI_BAR0_SIZE		(1024 * 1024) /* 1MB */
 #define MLXSW_PCI_PAGE_SIZE		4096
 
@@ -71,9 +72,7 @@
 #define MLXSW_PCI_DOORBELL(offset, type_offset, num)	\
 	((offset) + (type_offset) + (num) * 4)
 
-#define MLXSW_PCI_RDQS_COUNT	24
-#define MLXSW_PCI_SDQS_COUNT	24
-#define MLXSW_PCI_CQS_COUNT	(MLXSW_PCI_RDQS_COUNT + MLXSW_PCI_SDQS_COUNT)
+#define MLXSW_PCI_CQS_MAX	96
 #define MLXSW_PCI_EQS_COUNT	2
 #define MLXSW_PCI_EQ_ASYNC_NUM	0
 #define MLXSW_PCI_EQ_COMP_NUM	1

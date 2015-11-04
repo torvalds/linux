@@ -100,7 +100,7 @@ config DECLANCE
 	  DEPCA series.  (This chipset is better known via the NE2100 cards.)
 
 config HPLANCE
-	bool "HP on-board LANCE support"
+	tristate "HP on-board LANCE support"
 	depends on DIO
 	select CRC32
 	---help---

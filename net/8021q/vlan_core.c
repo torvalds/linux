@@ -206,7 +206,10 @@ static int __vlan_vid_add(struct vlan_info *vlan_info, __be16 proto, u16 vid,
 		return -ENOMEM;
 
 	if (vlan_hw_filter_capable(dev, vid_info)) {
-		err =  ops->ndo_vlan_rx_add_vid(dev, proto, vid);
+		if (netif_device_present(dev))
+			err = ops->ndo_vlan_rx_add_vid(dev, proto, vid);
+		else
+			err = -ENODEV;
 		if (err) {
 			kfree(vid_info);
 			return err;
@@ -264,7 +267,10 @@ static void __vlan_vid_del(struct vlan_info *vlan_info,
 	int err;
 
 	if (vlan_hw_filter_capable(dev, vid_info)) {
-		err = ops->ndo_vlan_rx_kill_vid(dev, proto, vid);
+		if (netif_device_present(dev))
+			err = ops->ndo_vlan_rx_kill_vid(dev, proto, vid);
+		else
+			err = -ENODEV;
 		if (err) {
 			pr_warn("failed to kill vid %04x/%d for device %s\n",
 				proto, vid, dev->name);

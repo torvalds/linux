@@ -266,7 +266,7 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		if (beacon_diff > beacon_int)
 			beacon_diff = 0;
 
-		autowake_timeout = (conf->max_sleep_period * beacon_int) - beacon_diff;
+		autowake_timeout = (conf->ps_dtim_period * beacon_int) - beacon_diff;
 		queue_delayed_work(rt2x00dev->workqueue,
 				   &rt2x00dev->autowakeup_work,
 				   autowake_timeout - 15);

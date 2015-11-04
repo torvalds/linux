@@ -24,8 +24,8 @@ enum proto_addr_mode {
 
 
 struct brcmf_proto {
-	int (*hdrpull)(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
-		       struct sk_buff *skb);
+	int (*hdrpull)(struct brcmf_pub *drvr, bool do_fws,
+		       struct sk_buff *skb, struct brcmf_if **ifp);
 	int (*query_dcmd)(struct brcmf_pub *drvr, int ifidx, uint cmd,
 			  void *buf, uint len);
 	int (*set_dcmd)(struct brcmf_pub *drvr, int ifidx, uint cmd, void *buf,
@@ -46,9 +46,19 @@ int brcmf_proto_attach(struct brcmf_pub *drvr);
 void brcmf_proto_detach(struct brcmf_pub *drvr);
 
 static inline int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws,
-				      u8 *ifidx, struct sk_buff *skb)
+				      struct sk_buff *skb,
+				      struct brcmf_if **ifp)
 {
-	return drvr->proto->hdrpull(drvr, do_fws, ifidx, skb);
+	struct brcmf_if *tmp = NULL;
+
+	/* assure protocol is always called with
+	 * non-null initialized pointer.
+	 */
+	if (ifp)
+		*ifp = NULL;
+	else
+		ifp = &tmp;
+	return drvr->proto->hdrpull(drvr, do_fws, skb, ifp);
 }
 static inline int brcmf_proto_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 					 uint cmd, void *buf, uint len)

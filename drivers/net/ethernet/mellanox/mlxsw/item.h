@@ -171,15 +171,21 @@ static inline void __mlxsw_item_set64(char *buf, struct mlxsw_item *item,
 }
 
 static inline void __mlxsw_item_memcpy_from(char *buf, char *dst,
-					    struct mlxsw_item *item)
+					    struct mlxsw_item *item,
+					    unsigned short index)
 {
-	memcpy(dst, &buf[item->offset], item->size.bytes);
+	unsigned int offset = __mlxsw_item_offset(item, index, sizeof(char));
+
+	memcpy(dst, &buf[offset], item->size.bytes);
 }
 
-static inline void __mlxsw_item_memcpy_to(char *buf, char *src,
-					  struct mlxsw_item *item)
+static inline void __mlxsw_item_memcpy_to(char *buf, const char *src,
+					  struct mlxsw_item *item,
+					  unsigned short index)
 {
-	memcpy(&buf[item->offset], src, item->size.bytes);
+	unsigned int offset = __mlxsw_item_offset(item, index, sizeof(char));
+
+	memcpy(&buf[offset], src, item->size.bytes);
 }
 
 static inline u16
@@ -373,12 +379,40 @@ static struct mlxsw_item __ITEM_NAME(_type, _cname, _iname) = {			\
 static inline void								\
 mlxsw_##_type##_##_cname##_##_iname##_memcpy_from(char *buf, char *dst)		\
 {										\
-	__mlxsw_item_memcpy_from(buf, dst, &__ITEM_NAME(_type, _cname, _iname));\
+	__mlxsw_item_memcpy_from(buf, dst,					\
+				 &__ITEM_NAME(_type, _cname, _iname), 0);	\
 }										\
 static inline void								\
-mlxsw_##_type##_##_cname##_##_iname##_memcpy_to(char *buf, char *src)		\
+mlxsw_##_type##_##_cname##_##_iname##_memcpy_to(char *buf, const char *src)	\
 {										\
-	__mlxsw_item_memcpy_to(buf, src, &__ITEM_NAME(_type, _cname, _iname));	\
+	__mlxsw_item_memcpy_to(buf, src,					\
+			       &__ITEM_NAME(_type, _cname, _iname), 0);		\
+}
+
+#define MLXSW_ITEM_BUF_INDEXED(_type, _cname, _iname, _offset, _sizebytes,	\
+			       _step, _instepoffset)				\
+static struct mlxsw_item __ITEM_NAME(_type, _cname, _iname) = {			\
+	.offset = _offset,							\
+	.step = _step,								\
+	.in_step_offset = _instepoffset,					\
+	.size = {.bytes = _sizebytes,},						\
+	.name = #_type "_" #_cname "_" #_iname,					\
+};										\
+static inline void								\
+mlxsw_##_type##_##_cname##_##_iname##_memcpy_from(char *buf,			\
+						  unsigned short index,		\
+						  char *dst)			\
+{										\
+	__mlxsw_item_memcpy_from(buf, dst,					\
+				 &__ITEM_NAME(_type, _cname, _iname), index);	\
+}										\
+static inline void								\
+mlxsw_##_type##_##_cname##_##_iname##_memcpy_to(char *buf,			\
+						unsigned short index,		\
+						const char *src)		\
+{										\
+	__mlxsw_item_memcpy_to(buf, src,					\
+			       &__ITEM_NAME(_type, _cname, _iname), index);	\
 }
 
 #define MLXSW_ITEM_BIT_ARRAY(_type, _cname, _iname, _offset, _sizebytes,	\

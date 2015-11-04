@@ -87,6 +87,7 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 	trans->cfg = cfg;
 	trans->ops = ops;
 	trans->dev_cmd_headroom = dev_cmd_headroom;
+	trans->num_rx_queues = 1;
 
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
 		 "iwl_cmd_pool:%s", dev_name(trans->dev));

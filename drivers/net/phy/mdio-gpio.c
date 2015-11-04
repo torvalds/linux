@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/mdio-gpio.h>
+#include <linux/platform_data/mdio-gpio.h>
 
 #include <linux/of_gpio.h>
 #include <linux/of_mdio.h>

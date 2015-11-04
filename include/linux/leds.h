@@ -283,6 +283,13 @@ static inline void led_trigger_register_simple(const char *name,
 static inline void led_trigger_unregister_simple(struct led_trigger *trigger) {}
 static inline void led_trigger_event(struct led_trigger *trigger,
 				enum led_brightness event) {}
+static inline void led_trigger_blink(struct led_trigger *trigger,
+				      unsigned long *delay_on,
+				      unsigned long *delay_off) {}
+static inline void led_trigger_blink_oneshot(struct led_trigger *trigger,
+				      unsigned long *delay_on,
+				      unsigned long *delay_off,
+				      int invert) {}
 static inline void led_trigger_set_default(struct led_classdev *led_cdev) {}
 static inline void led_trigger_set(struct led_classdev *led_cdev,
 				struct led_trigger *trigger) {}

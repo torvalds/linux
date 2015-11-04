@@ -384,6 +384,14 @@ tcp_mem - vector of 3 INTEGERs: min, pressure, max
 	Defaults are calculated at boot time from amount of available
 	memory.
 
+tcp_min_rtt_wlen - INTEGER
+	The window length of the windowed min filter to track the minimum RTT.
+	A shorter window lets a flow more quickly pick up new (higher)
+	minimum RTT when it is moved to a longer path (e.g., due to traffic
+	engineering). A longer window makes the filter more resistant to RTT
+	inflations such as transient congestion. The unit is seconds.
+	Default: 300
+
 tcp_moderate_rcvbuf - BOOLEAN
 	If set, TCP performs receive buffer auto-tuning, attempting to
 	automatically size the buffer (no greater than tcp_rmem[2]) to
@@ -424,6 +432,15 @@ tcp_orphan_retries - INTEGER
 	If your machine is a loaded WEB server,
 	you should think about lowering this value, such sockets
 	may consume significant resources. Cf. tcp_max_orphans.
+
+tcp_recovery - INTEGER
+	This value is a bitmap to enable various experimental loss recovery
+	features.
+
+	RACK: 0x1 enables the RACK loss detection for fast detection of lost
+	      retransmissions and tail drops.
+
+	Default: 0x1
 
 tcp_reordering - INTEGER
 	Initial reordering level of packets in a TCP stream.
@@ -1199,7 +1216,8 @@ tag - INTEGER
 xfrm4_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv4
 	destination cache entries.  At twice this value the system will
-	refuse new allocations.
+	refuse new allocations. The value must be set below the flowcache
+	limit (4096 * number of online cpus) to take effect.
 
 igmp_link_local_mcast_reports - BOOLEAN
 	Enable IGMP reports for link local multicast groups in the
@@ -1645,7 +1663,8 @@ ratelimit - INTEGER
 xfrm6_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv6
 	destination cache entries.  At twice this value the system will
-	refuse new allocations.
+	refuse new allocations. The value must be set below the flowcache
+	limit (4096 * number of online cpus) to take effect.
 
 
 IPv6 Update by:

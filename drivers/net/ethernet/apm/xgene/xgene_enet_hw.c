@@ -107,7 +107,8 @@ static void xgene_enet_set_ring_state(struct xgene_enet_desc_ring *ring)
 {
 	xgene_enet_ring_set_type(ring);
 
-	if (xgene_enet_ring_owner(ring->id) == RING_OWNER_ETH0)
+	if (xgene_enet_ring_owner(ring->id) == RING_OWNER_ETH0 ||
+	    xgene_enet_ring_owner(ring->id) == RING_OWNER_ETH1)
 		xgene_enet_ring_set_recombbuf(ring);
 
 	xgene_enet_ring_init(ring);
@@ -460,6 +461,7 @@ static void xgene_gmac_reset(struct xgene_enet_pdata *pdata)
 
 static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 {
+	struct device *dev = &pdata->pdev->dev;
 	u32 value, mc2;
 	u32 intf_ctl, rgmii;
 	u32 icm0, icm2;
@@ -489,7 +491,12 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 	default:
 		ENET_INTERFACE_MODE2_SET(&mc2, 2);
 		intf_ctl |= ENET_GHD_MODE;
-		CFG_TXCLK_MUXSEL0_SET(&rgmii, 4);
+
+		if (dev->of_node) {
+			CFG_TXCLK_MUXSEL0_SET(&rgmii, pdata->tx_delay);
+			CFG_RXCLK_MUXSEL0_SET(&rgmii, pdata->rx_delay);
+		}
+
 		xgene_enet_rd_csr(pdata, DEBUG_REG_ADDR, &value);
 		value |= CFG_BYPASS_UNISEC_TX | CFG_BYPASS_UNISEC_RX;
 		xgene_enet_wr_csr(pdata, DEBUG_REG_ADDR, value);

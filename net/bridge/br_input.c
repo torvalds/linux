@@ -26,38 +26,44 @@
 br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
 EXPORT_SYMBOL(br_should_route_hook);
 
+static int
+br_netif_receive_skb(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	return netif_receive_skb(skb);
+}
+
 static int br_pass_frame_up(struct sk_buff *skb)
 {
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
 	struct net_bridge *br = netdev_priv(brdev);
+	struct net_bridge_vlan_group *vg;
 	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
-	struct net_port_vlans *pv;
 
 	u64_stats_update_begin(&brstats->syncp);
 	brstats->rx_packets++;
 	brstats->rx_bytes += skb->len;
 	u64_stats_update_end(&brstats->syncp);
 
+	vg = br_vlan_group_rcu(br);
 	/* Bridge is just like any other port.  Make sure the
 	 * packet is allowed except in promisc modue when someone
 	 * may be running packet capture.
 	 */
-	pv = br_get_vlan_info(br);
 	if (!(brdev->flags & IFF_PROMISC) &&
-	    !br_allowed_egress(br, pv, skb)) {
+	    !br_allowed_egress(vg, skb)) {
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
 
 	indev = skb->dev;
 	skb->dev = brdev;
-	skb = br_handle_vlan(br, pv, skb);
+	skb = br_handle_vlan(br, vg, skb);
 	if (!skb)
 		return NET_RX_DROP;
 
-	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, NULL, skb,
-		       indev, NULL,
-		       netif_receive_skb_sk);
+	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
+		       dev_net(indev), NULL, skb, indev, NULL,
+		       br_netif_receive_skb);
 }
 
 static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
@@ -120,7 +126,7 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 }
 
 /* note: already called with rcu_read_lock */
-int br_handle_frame_finish(struct sock *sk, struct sk_buff *skb)
+int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
@@ -134,7 +140,7 @@ int br_handle_frame_finish(struct sock *sk, struct sk_buff *skb)
 	if (!p || p->state == BR_STATE_DISABLED)
 		goto drop;
 
-	if (!br_allowed_ingress(p->br, nbp_get_vlan_info(p), skb, &vid))
+	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &vid))
 		goto out;
 
 	/* insert into forwarding database after filtering to avoid spoofing */
@@ -208,7 +214,7 @@ drop:
 EXPORT_SYMBOL_GPL(br_handle_frame_finish);
 
 /* note: already called with rcu_read_lock */
-static int br_handle_local_finish(struct sock *sk, struct sk_buff *skb)
+static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	u16 vid = 0;
@@ -278,8 +284,9 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		}
 
 		/* Deliver packet to local host only */
-		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, NULL, skb,
-			    skb->dev, NULL, br_handle_local_finish)) {
+		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
+			    dev_net(skb->dev), NULL, skb, skb->dev, NULL,
+			    br_handle_local_finish)) {
 			return RX_HANDLER_CONSUMED; /* consumed by filter */
 		} else {
 			*pskb = skb;
@@ -303,8 +310,8 @@ forward:
 		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
-		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, NULL, skb,
-			skb->dev, NULL,
+		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
+			dev_net(skb->dev), NULL, skb, skb->dev, NULL,
 			br_handle_frame_finish);
 		break;
 	default:

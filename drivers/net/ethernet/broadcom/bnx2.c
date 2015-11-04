@@ -813,6 +813,46 @@ bnx2_alloc_rx_mem(struct bnx2 *bp)
 }
 
 static void
+bnx2_free_stats_blk(struct net_device *dev)
+{
+	struct bnx2 *bp = netdev_priv(dev);
+
+	if (bp->status_blk) {
+		dma_free_coherent(&bp->pdev->dev, bp->status_stats_size,
+				  bp->status_blk,
+				  bp->status_blk_mapping);
+		bp->status_blk = NULL;
+		bp->stats_blk = NULL;
+	}
+}
+
+static int
+bnx2_alloc_stats_blk(struct net_device *dev)
+{
+	int status_blk_size;
+	void *status_blk;
+	struct bnx2 *bp = netdev_priv(dev);
+
+	/* Combine status and statistics blocks into one allocation. */
+	status_blk_size = L1_CACHE_ALIGN(sizeof(struct status_block));
+	if (bp->flags & BNX2_FLAG_MSIX_CAP)
+		status_blk_size = L1_CACHE_ALIGN(BNX2_MAX_MSIX_HW_VEC *
+						 BNX2_SBLK_MSIX_ALIGN_SIZE);
+	bp->status_stats_size = status_blk_size +
+				sizeof(struct statistics_block);
+	status_blk = dma_zalloc_coherent(&bp->pdev->dev, bp->status_stats_size,
+					 &bp->status_blk_mapping, GFP_KERNEL);
+	if (status_blk == NULL)
+		return -ENOMEM;
+
+	bp->status_blk = status_blk;
+	bp->stats_blk = status_blk + status_blk_size;
+	bp->stats_blk_mapping = bp->status_blk_mapping + status_blk_size;
+
+	return 0;
+}
+
+static void
 bnx2_free_mem(struct bnx2 *bp)
 {
 	int i;
@@ -829,37 +869,19 @@ bnx2_free_mem(struct bnx2 *bp)
 			bp->ctx_blk[i] = NULL;
 		}
 	}
-	if (bnapi->status_blk.msi) {
-		dma_free_coherent(&bp->pdev->dev, bp->status_stats_size,
-				  bnapi->status_blk.msi,
-				  bp->status_blk_mapping);
+
+	if (bnapi->status_blk.msi)
 		bnapi->status_blk.msi = NULL;
-		bp->stats_blk = NULL;
-	}
 }
 
 static int
 bnx2_alloc_mem(struct bnx2 *bp)
 {
-	int i, status_blk_size, err;
+	int i, err;
 	struct bnx2_napi *bnapi;
-	void *status_blk;
-
-	/* Combine status and statistics blocks into one allocation. */
-	status_blk_size = L1_CACHE_ALIGN(sizeof(struct status_block));
-	if (bp->flags & BNX2_FLAG_MSIX_CAP)
-		status_blk_size = L1_CACHE_ALIGN(BNX2_MAX_MSIX_HW_VEC *
-						 BNX2_SBLK_MSIX_ALIGN_SIZE);
-	bp->status_stats_size = status_blk_size +
-				sizeof(struct statistics_block);
-
-	status_blk = dma_zalloc_coherent(&bp->pdev->dev, bp->status_stats_size,
-					 &bp->status_blk_mapping, GFP_KERNEL);
-	if (status_blk == NULL)
-		goto alloc_mem_err;
 
 	bnapi = &bp->bnx2_napi[0];
-	bnapi->status_blk.msi = status_blk;
+	bnapi->status_blk.msi = bp->status_blk;
 	bnapi->hw_tx_cons_ptr =
 		&bnapi->status_blk.msi->status_tx_quick_consumer_index0;
 	bnapi->hw_rx_cons_ptr =
@@ -870,7 +892,7 @@ bnx2_alloc_mem(struct bnx2 *bp)
 
 			bnapi = &bp->bnx2_napi[i];
 
-			sblk = (status_blk + BNX2_SBLK_MSIX_ALIGN_SIZE * i);
+			sblk = (bp->status_blk + BNX2_SBLK_MSIX_ALIGN_SIZE * i);
 			bnapi->status_blk.msix = sblk;
 			bnapi->hw_tx_cons_ptr =
 				&sblk->status_tx_quick_consumer_index;
@@ -879,10 +901,6 @@ bnx2_alloc_mem(struct bnx2 *bp)
 			bnapi->int_num = i << 24;
 		}
 	}
-
-	bp->stats_blk = status_blk + status_blk_size;
-
-	bp->stats_blk_mapping = bp->status_blk_mapping + status_blk_size;
 
 	if (BNX2_CHIP(bp) == BNX2_CHIP_5709) {
 		bp->ctx_pages = 0x2000 / BNX2_PAGE_SIZE;
@@ -8330,6 +8348,11 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	bp->phy_addr = 1;
 
+	/* allocate stats_blk */
+	rc = bnx2_alloc_stats_blk(dev);
+	if (rc)
+		goto err_out_unmap;
+
 	/* Disable WOL support if we are running on a SERDES chip. */
 	if (BNX2_CHIP(bp) == BNX2_CHIP_5709)
 		bnx2_get_5709_media(bp);
@@ -8453,6 +8476,8 @@ err_out_disable:
 	pci_disable_device(pdev);
 
 err_out:
+	kfree(bp->temp_stats_blk);
+
 	return rc;
 }
 
@@ -8586,6 +8611,7 @@ error:
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 err_free:
+	bnx2_free_stats_blk(dev);
 	free_netdev(dev);
 	return rc;
 }
@@ -8603,6 +8629,7 @@ bnx2_remove_one(struct pci_dev *pdev)
 
 	pci_iounmap(bp->pdev, bp->regview);
 
+	bnx2_free_stats_blk(dev);
 	kfree(bp->temp_stats_blk);
 
 	if (bp->flags & BNX2_FLAG_AER_ENABLED) {

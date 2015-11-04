@@ -1,7 +1,7 @@
 /*
  * Marvell NFC driver: major functions
  *
- * Copyright (C) 2014, Marvell International Ltd.
+ * Copyright (C) 2014-2015 Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -25,8 +25,6 @@
 #include <net/nfc/nci_core.h>
 #include "nfcmrvl.h"
 
-#define VERSION "1.0"
-
 static int nfcmrvl_nci_open(struct nci_dev *ndev)
 {
 	struct nfcmrvl_private *priv = nci_get_drvdata(ndev);
@@ -34,6 +32,9 @@ static int nfcmrvl_nci_open(struct nci_dev *ndev)
 
 	if (test_and_set_bit(NFCMRVL_NCI_RUNNING, &priv->flags))
 		return 0;
+
+	/* Reset possible fault of previous session */
+	clear_bit(NFCMRVL_PHY_ERROR, &priv->flags);
 
 	err = priv->if_ops->nci_open(priv);
 
@@ -63,9 +64,6 @@ static int nfcmrvl_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 
 	skb->dev = (void *)ndev;
 
-	if (!test_bit(NFCMRVL_NCI_RUNNING, &priv->flags))
-		return -EBUSY;
-
 	if (priv->config.hci_muxed) {
 		unsigned char *hdr;
 		unsigned char len = skb->len;
@@ -88,21 +86,30 @@ static int nfcmrvl_nci_setup(struct nci_dev *ndev)
 	return 0;
 }
 
+static int nfcmrvl_nci_fw_download(struct nci_dev *ndev,
+				   const char *firmware_name)
+{
+	return nfcmrvl_fw_dnld_start(ndev, firmware_name);
+}
+
 static struct nci_ops nfcmrvl_nci_ops = {
 	.open = nfcmrvl_nci_open,
 	.close = nfcmrvl_nci_close,
 	.send = nfcmrvl_nci_send,
 	.setup = nfcmrvl_nci_setup,
+	.fw_download = nfcmrvl_nci_fw_download,
 };
 
-struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
+struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
+				void *drv_data,
 				struct nfcmrvl_if_ops *ops,
 				struct device *dev,
 				struct nfcmrvl_platform_data *pdata)
 {
 	struct nfcmrvl_private *priv;
 	int rc;
-	int headroom = 0;
+	int headroom;
+	int tailroom;
 	u32 protocols;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -112,6 +119,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 	priv->drv_data = drv_data;
 	priv->if_ops = ops;
 	priv->dev = dev;
+	priv->phy = phy;
 
 	memcpy(&priv->config, pdata, sizeof(*pdata));
 
@@ -124,8 +132,14 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 			nfc_err(dev, "failed to request reset_n io\n");
 	}
 
+	if (phy == NFCMRVL_PHY_SPI) {
+		headroom = NCI_SPI_HDR_LEN;
+		tailroom = 1;
+	} else
+		headroom = tailroom = 0;
+
 	if (priv->config.hci_muxed)
-		headroom = NFCMRVL_HCI_EVENT_HEADER_SIZE;
+		headroom += NFCMRVL_HCI_EVENT_HEADER_SIZE;
 
 	protocols = NFC_PROTO_JEWEL_MASK
 		| NFC_PROTO_MIFARE_MASK
@@ -136,7 +150,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 		| NFC_PROTO_NFC_DEP_MASK;
 
 	priv->ndev = nci_allocate_device(&nfcmrvl_nci_ops, protocols,
-					 headroom, 0);
+					 headroom, tailroom);
 	if (!priv->ndev) {
 		nfc_err(dev, "nci_allocate_device failed\n");
 		rc = -ENOMEM;
@@ -145,18 +159,26 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 
 	nci_set_drvdata(priv->ndev, priv);
 
-	nfcmrvl_chip_reset(priv);
-
 	rc = nci_register_device(priv->ndev);
 	if (rc) {
 		nfc_err(dev, "nci_register_device failed %d\n", rc);
-		nci_free_device(priv->ndev);
-		goto error;
+		goto error_free_dev;
+	}
+
+	/* Ensure that controller is powered off */
+	nfcmrvl_chip_halt(priv);
+
+	rc = nfcmrvl_fw_dnld_init(priv);
+	if (rc) {
+		nfc_err(dev, "failed to initialize FW download %d\n", rc);
+		goto error_free_dev;
 	}
 
 	nfc_info(dev, "registered with nci successfully\n");
 	return priv;
 
+error_free_dev:
+	nci_free_device(priv->ndev);
 error:
 	kfree(priv);
 	return ERR_PTR(rc);
@@ -166,6 +188,11 @@ EXPORT_SYMBOL_GPL(nfcmrvl_nci_register_dev);
 void nfcmrvl_nci_unregister_dev(struct nfcmrvl_private *priv)
 {
 	struct nci_dev *ndev = priv->ndev;
+
+	if (priv->ndev->nfc_dev->fw_download_in_progress)
+		nfcmrvl_fw_dnld_abort(priv);
+
+	nfcmrvl_fw_dnld_deinit(priv);
 
 	nci_unregister_device(ndev);
 	nci_free_device(ndev);
@@ -187,6 +214,11 @@ int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, struct sk_buff *skb)
 		}
 	}
 
+	if (priv->ndev->nfc_dev->fw_download_in_progress) {
+		nfcmrvl_fw_dnld_recv_frame(priv, skb);
+		return 0;
+	}
+
 	if (test_bit(NFCMRVL_NCI_RUNNING, &priv->flags))
 		nci_recv_frame(priv->ndev, skb);
 	else {
@@ -201,10 +233,8 @@ EXPORT_SYMBOL_GPL(nfcmrvl_nci_recv_frame);
 
 void nfcmrvl_chip_reset(struct nfcmrvl_private *priv)
 {
-	/*
-	 * This function does not take care if someone is using the device.
-	 * To be improved.
-	 */
+	/* Reset possible fault of previous session */
+	clear_bit(NFCMRVL_PHY_ERROR, &priv->flags);
 
 	if (priv->config.reset_n_io) {
 		nfc_info(priv->dev, "reset the chip\n");
@@ -213,6 +243,12 @@ void nfcmrvl_chip_reset(struct nfcmrvl_private *priv)
 		gpio_set_value(priv->config.reset_n_io, 1);
 	} else
 		nfc_info(priv->dev, "no reset available on this interface\n");
+}
+
+void nfcmrvl_chip_halt(struct nfcmrvl_private *priv)
+{
+	if (priv->config.reset_n_io)
+		gpio_set_value(priv->config.reset_n_io, 0);
 }
 
 #ifdef CONFIG_OF
@@ -252,6 +288,5 @@ int nfcmrvl_parse_dt(struct device_node *node,
 EXPORT_SYMBOL_GPL(nfcmrvl_parse_dt);
 
 MODULE_AUTHOR("Marvell International Ltd.");
-MODULE_DESCRIPTION("Marvell NFC driver ver " VERSION);
-MODULE_VERSION(VERSION);
+MODULE_DESCRIPTION("Marvell NFC driver");
 MODULE_LICENSE("GPL v2");

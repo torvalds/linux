@@ -833,6 +833,7 @@ struct mlx4_dev {
 	struct mlx4_quotas	quotas;
 	struct radix_tree_root	qp_table_tree;
 	u8			rev_id;
+	u8			port_random_macs;
 	char			board_id[MLX4_BOARD_ID_LEN];
 	int			numa_node;
 	int			oper_log_mgm_entry_size;

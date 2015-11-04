@@ -90,6 +90,18 @@ static inline void nci_push_data_hdr(struct nci_dev *ndev,
 	nci_pbf_set((__u8 *)hdr, pbf);
 }
 
+int nci_conn_max_data_pkt_payload_size(struct nci_dev *ndev, __u8 conn_id)
+{
+	struct nci_conn_info *conn_info;
+
+	conn_info = nci_get_conn_info_by_conn_id(ndev, conn_id);
+	if (!conn_info)
+		return -EPROTO;
+
+	return conn_info->max_pkt_payload_len;
+}
+EXPORT_SYMBOL(nci_conn_max_data_pkt_payload_size);
+
 static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 				   __u8 conn_id,
 				   struct sk_buff *skb) {
@@ -203,6 +215,7 @@ free_exit:
 exit:
 	return rc;
 }
+EXPORT_SYMBOL(nci_send_data);
 
 /* ----------------- NCI RX Data ----------------- */
 

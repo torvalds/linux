@@ -31,6 +31,8 @@
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/acpi.h>
+#include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -43,19 +45,45 @@
 #define STATE_FIRMWARE_LOADED	2
 #define STATE_FIRMWARE_FAILED	3
 #define STATE_BOOTING		4
+#define STATE_LPM_ENABLED	5
+#define STATE_TX_ACTIVE		6
+#define STATE_SUSPENDED		7
+#define STATE_LPM_TRANSACTION	8
+
+#define HCI_LPM_WAKE_PKT 0xf0
+#define HCI_LPM_PKT 0xf1
+#define HCI_LPM_MAX_SIZE 10
+#define HCI_LPM_HDR_SIZE HCI_EVENT_HDR_SIZE
+
+#define LPM_OP_TX_NOTIFY 0x00
+#define LPM_OP_SUSPEND_ACK 0x02
+#define LPM_OP_RESUME_ACK 0x03
+
+#define LPM_SUSPEND_DELAY_MS 1000
+
+struct hci_lpm_pkt {
+	__u8 opcode;
+	__u8 dlen;
+	__u8 data[0];
+} __packed;
 
 struct intel_device {
 	struct list_head list;
 	struct platform_device *pdev;
 	struct gpio_desc *reset;
+	struct hci_uart *hu;
+	struct mutex hu_lock;
+	int irq;
 };
 
 static LIST_HEAD(intel_device_list);
-static DEFINE_SPINLOCK(intel_device_list_lock);
+static DEFINE_MUTEX(intel_device_list_lock);
 
 struct intel_data {
 	struct sk_buff *rx_skb;
 	struct sk_buff_head txq;
+	struct work_struct busy_work;
+	struct hci_uart *hu;
 	unsigned long flags;
 };
 
@@ -101,16 +129,177 @@ static int intel_wait_booting(struct hci_uart *hu)
 				  msecs_to_jiffies(1000));
 
 	if (err == 1) {
-		BT_ERR("%s: Device boot interrupted", hu->hdev->name);
+		bt_dev_err(hu->hdev, "Device boot interrupted");
 		return -EINTR;
 	}
 
 	if (err) {
-		BT_ERR("%s: Device boot timeout", hu->hdev->name);
+		bt_dev_err(hu->hdev, "Device boot timeout");
 		return -ETIMEDOUT;
 	}
 
 	return err;
+}
+
+#ifdef CONFIG_PM
+static int intel_wait_lpm_transaction(struct hci_uart *hu)
+{
+	struct intel_data *intel = hu->priv;
+	int err;
+
+	err = wait_on_bit_timeout(&intel->flags, STATE_LPM_TRANSACTION,
+				  TASK_INTERRUPTIBLE,
+				  msecs_to_jiffies(1000));
+
+	if (err == 1) {
+		bt_dev_err(hu->hdev, "LPM transaction interrupted");
+		return -EINTR;
+	}
+
+	if (err) {
+		bt_dev_err(hu->hdev, "LPM transaction timeout");
+		return -ETIMEDOUT;
+	}
+
+	return err;
+}
+
+static int intel_lpm_suspend(struct hci_uart *hu)
+{
+	static const u8 suspend[] = { 0x01, 0x01, 0x01 };
+	struct intel_data *intel = hu->priv;
+	struct sk_buff *skb;
+
+	if (!test_bit(STATE_LPM_ENABLED, &intel->flags) ||
+	    test_bit(STATE_SUSPENDED, &intel->flags))
+		return 0;
+
+	if (test_bit(STATE_TX_ACTIVE, &intel->flags))
+		return -EAGAIN;
+
+	bt_dev_dbg(hu->hdev, "Suspending");
+
+	skb = bt_skb_alloc(sizeof(suspend), GFP_KERNEL);
+	if (!skb) {
+		bt_dev_err(hu->hdev, "Failed to alloc memory for LPM packet");
+		return -ENOMEM;
+	}
+
+	memcpy(skb_put(skb, sizeof(suspend)), suspend, sizeof(suspend));
+	bt_cb(skb)->pkt_type = HCI_LPM_PKT;
+
+	set_bit(STATE_LPM_TRANSACTION, &intel->flags);
+
+	/* LPM flow is a priority, enqueue packet at list head */
+	skb_queue_head(&intel->txq, skb);
+	hci_uart_tx_wakeup(hu);
+
+	intel_wait_lpm_transaction(hu);
+	/* Even in case of failure, continue and test the suspended flag */
+
+	clear_bit(STATE_LPM_TRANSACTION, &intel->flags);
+
+	if (!test_bit(STATE_SUSPENDED, &intel->flags)) {
+		bt_dev_err(hu->hdev, "Device suspend error");
+		return -EINVAL;
+	}
+
+	bt_dev_dbg(hu->hdev, "Suspended");
+
+	hci_uart_set_flow_control(hu, true);
+
+	return 0;
+}
+
+static int intel_lpm_resume(struct hci_uart *hu)
+{
+	struct intel_data *intel = hu->priv;
+	struct sk_buff *skb;
+
+	if (!test_bit(STATE_LPM_ENABLED, &intel->flags) ||
+	    !test_bit(STATE_SUSPENDED, &intel->flags))
+		return 0;
+
+	bt_dev_dbg(hu->hdev, "Resuming");
+
+	hci_uart_set_flow_control(hu, false);
+
+	skb = bt_skb_alloc(0, GFP_KERNEL);
+	if (!skb) {
+		bt_dev_err(hu->hdev, "Failed to alloc memory for LPM packet");
+		return -ENOMEM;
+	}
+
+	bt_cb(skb)->pkt_type = HCI_LPM_WAKE_PKT;
+
+	set_bit(STATE_LPM_TRANSACTION, &intel->flags);
+
+	/* LPM flow is a priority, enqueue packet at list head */
+	skb_queue_head(&intel->txq, skb);
+	hci_uart_tx_wakeup(hu);
+
+	intel_wait_lpm_transaction(hu);
+	/* Even in case of failure, continue and test the suspended flag */
+
+	clear_bit(STATE_LPM_TRANSACTION, &intel->flags);
+
+	if (test_bit(STATE_SUSPENDED, &intel->flags)) {
+		bt_dev_err(hu->hdev, "Device resume error");
+		return -EINVAL;
+	}
+
+	bt_dev_dbg(hu->hdev, "Resumed");
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
+static int intel_lpm_host_wake(struct hci_uart *hu)
+{
+	static const u8 lpm_resume_ack[] = { LPM_OP_RESUME_ACK, 0x00 };
+	struct intel_data *intel = hu->priv;
+	struct sk_buff *skb;
+
+	hci_uart_set_flow_control(hu, false);
+
+	clear_bit(STATE_SUSPENDED, &intel->flags);
+
+	skb = bt_skb_alloc(sizeof(lpm_resume_ack), GFP_KERNEL);
+	if (!skb) {
+		bt_dev_err(hu->hdev, "Failed to alloc memory for LPM packet");
+		return -ENOMEM;
+	}
+
+	memcpy(skb_put(skb, sizeof(lpm_resume_ack)), lpm_resume_ack,
+	       sizeof(lpm_resume_ack));
+	bt_cb(skb)->pkt_type = HCI_LPM_PKT;
+
+	/* LPM flow is a priority, enqueue packet at list head */
+	skb_queue_head(&intel->txq, skb);
+	hci_uart_tx_wakeup(hu);
+
+	bt_dev_dbg(hu->hdev, "Resumed by controller");
+
+	return 0;
+}
+
+static irqreturn_t intel_irq(int irq, void *dev_id)
+{
+	struct intel_device *idev = dev_id;
+
+	dev_info(&idev->pdev->dev, "hci_intel irq\n");
+
+	mutex_lock(&idev->hu_lock);
+	if (idev->hu)
+		intel_lpm_host_wake(idev->hu);
+	mutex_unlock(&idev->hu_lock);
+
+	/* Host/Controller are now LPM resumed, trigger a new delayed suspend */
+	pm_runtime_get(&idev->pdev->dev);
+	pm_runtime_mark_last_busy(&idev->pdev->dev);
+	pm_runtime_put_autosuspend(&idev->pdev->dev);
+
+	return IRQ_HANDLED;
 }
 
 static int intel_set_power(struct hci_uart *hu, bool powered)
@@ -118,7 +307,7 @@ static int intel_set_power(struct hci_uart *hu, bool powered)
 	struct list_head *p;
 	int err = -ENODEV;
 
-	spin_lock(&intel_device_list_lock);
+	mutex_lock(&intel_device_list_lock);
 
 	list_for_each(p, &intel_device_list) {
 		struct intel_device *idev = list_entry(p, struct intel_device,
@@ -139,11 +328,71 @@ static int intel_set_power(struct hci_uart *hu, bool powered)
 			hu, dev_name(&idev->pdev->dev), powered);
 
 		gpiod_set_value(idev->reset, powered);
+
+		/* Provide to idev a hu reference which is used to run LPM
+		 * transactions (lpm suspend/resume) from PM callbacks.
+		 * hu needs to be protected against concurrent removing during
+		 * these PM ops.
+		 */
+		mutex_lock(&idev->hu_lock);
+		idev->hu = powered ? hu : NULL;
+		mutex_unlock(&idev->hu_lock);
+
+		if (idev->irq < 0)
+			break;
+
+		if (powered && device_can_wakeup(&idev->pdev->dev)) {
+			err = devm_request_threaded_irq(&idev->pdev->dev,
+							idev->irq, NULL,
+							intel_irq,
+							IRQF_ONESHOT,
+							"bt-host-wake", idev);
+			if (err) {
+				BT_ERR("hu %p, unable to allocate irq-%d",
+				       hu, idev->irq);
+				break;
+			}
+
+			device_wakeup_enable(&idev->pdev->dev);
+
+			pm_runtime_set_active(&idev->pdev->dev);
+			pm_runtime_use_autosuspend(&idev->pdev->dev);
+			pm_runtime_set_autosuspend_delay(&idev->pdev->dev,
+							 LPM_SUSPEND_DELAY_MS);
+			pm_runtime_enable(&idev->pdev->dev);
+		} else if (!powered && device_may_wakeup(&idev->pdev->dev)) {
+			devm_free_irq(&idev->pdev->dev, idev->irq, idev);
+			device_wakeup_disable(&idev->pdev->dev);
+
+			pm_runtime_disable(&idev->pdev->dev);
+		}
 	}
 
-	spin_unlock(&intel_device_list_lock);
+	mutex_unlock(&intel_device_list_lock);
 
 	return err;
+}
+
+static void intel_busy_work(struct work_struct *work)
+{
+	struct list_head *p;
+	struct intel_data *intel = container_of(work, struct intel_data,
+						busy_work);
+
+	/* Link is busy, delay the suspend */
+	mutex_lock(&intel_device_list_lock);
+	list_for_each(p, &intel_device_list) {
+		struct intel_device *idev = list_entry(p, struct intel_device,
+						       list);
+
+		if (intel->hu->tty->dev->parent == idev->pdev->dev.parent) {
+			pm_runtime_get(&idev->pdev->dev);
+			pm_runtime_mark_last_busy(&idev->pdev->dev);
+			pm_runtime_put_autosuspend(&idev->pdev->dev);
+			break;
+		}
+	}
+	mutex_unlock(&intel_device_list_lock);
 }
 
 static int intel_open(struct hci_uart *hu)
@@ -157,6 +406,9 @@ static int intel_open(struct hci_uart *hu)
 		return -ENOMEM;
 
 	skb_queue_head_init(&intel->txq);
+	INIT_WORK(&intel->busy_work, intel_busy_work);
+
+	intel->hu = hu;
 
 	hu->priv = intel;
 
@@ -171,6 +423,8 @@ static int intel_close(struct hci_uart *hu)
 	struct intel_data *intel = hu->priv;
 
 	BT_DBG("hu %p", hu);
+
+	cancel_work_sync(&intel->busy_work);
 
 	intel_set_power(hu, false);
 
@@ -237,11 +491,11 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	if (err && err != ETIMEDOUT)
 		return err;
 
-	BT_INFO("%s: Change controller speed to %d", hdev->name, speed);
+	bt_dev_info(hdev, "Change controller speed to %d", speed);
 
 	speed_cmd[3] = intel_convert_speed(speed);
 	if (speed_cmd[3] == 0xff) {
-		BT_ERR("%s: Unsupported speed", hdev->name);
+		bt_dev_err(hdev, "Unsupported speed");
 		return -EINVAL;
 	}
 
@@ -250,16 +504,15 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	 */
 	skb = __hci_cmd_sync(hdev, 0xfc05, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Reading Intel version information failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		bt_dev_err(hdev, "Reading Intel version information failed (%ld)",
+			   PTR_ERR(skb));
 		return PTR_ERR(skb);
 	}
 	kfree_skb(skb);
 
 	skb = bt_skb_alloc(sizeof(speed_cmd), GFP_KERNEL);
 	if (!skb) {
-		BT_ERR("%s: Failed to allocate memory for baudrate packet",
-		       hdev->name);
+		bt_dev_err(hdev, "Failed to alloc memory for baudrate packet");
 		return -ENOMEM;
 	}
 
@@ -284,11 +537,14 @@ static int intel_setup(struct hci_uart *hu)
 {
 	static const u8 reset_param[] = { 0x00, 0x01, 0x00, 0x01,
 					  0x00, 0x08, 0x04, 0x00 };
+	static const u8 lpm_param[] = { 0x03, 0x07, 0x01, 0x0b };
 	struct intel_data *intel = hu->priv;
+	struct intel_device *idev = NULL;
 	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
 	struct intel_version *ver;
 	struct intel_boot_params *params;
+	struct list_head *p;
 	const struct firmware *fw;
 	const u8 *fw_ptr;
 	char fwname[64];
@@ -299,8 +555,9 @@ static int intel_setup(struct hci_uart *hu)
 	int speed_change = 0;
 	int err;
 
-	BT_DBG("%s", hdev->name);
+	bt_dev_dbg(hdev, "start intel_setup");
 
+	hu->hdev->set_diag = btintel_set_diag;
 	hu->hdev->set_bdaddr = btintel_set_bdaddr;
 
 	calltime = ktime_get();
@@ -335,21 +592,21 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	skb = __hci_cmd_sync(hdev, 0xfc05, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Reading Intel version information failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		bt_dev_err(hdev, "Reading Intel version information failed (%ld)",
+			   PTR_ERR(skb));
 		return PTR_ERR(skb);
 	}
 
 	if (skb->len != sizeof(*ver)) {
-		BT_ERR("%s: Intel version event size mismatch", hdev->name);
+		bt_dev_err(hdev, "Intel version event size mismatch");
 		kfree_skb(skb);
 		return -EILSEQ;
 	}
 
 	ver = (struct intel_version *)skb->data;
 	if (ver->status) {
-		BT_ERR("%s: Intel version command failure (%02x)",
-		       hdev->name, ver->status);
+		bt_dev_err(hdev, "Intel version command failure (%02x)",
+			   ver->status);
 		err = -bt_to_errno(ver->status);
 		kfree_skb(skb);
 		return err;
@@ -359,8 +616,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * for now only accept this single value.
 	 */
 	if (ver->hw_platform != 0x37) {
-		BT_ERR("%s: Unsupported Intel hardware platform (%u)",
-		       hdev->name, ver->hw_platform);
+		bt_dev_err(hdev, "Unsupported Intel hardware platform (%u)",
+			   ver->hw_platform);
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -371,8 +628,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * when newer hardware variants come along.
 	 */
 	if (ver->hw_variant != 0x0b) {
-		BT_ERR("%s: Unsupported Intel hardware variant (%u)",
-		       hdev->name, ver->hw_variant);
+		bt_dev_err(hdev, "Unsupported Intel hardware variant (%u)",
+			   ver->hw_variant);
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -403,8 +660,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * choice is to return an error and abort the device initialization.
 	 */
 	if (ver->fw_variant != 0x06) {
-		BT_ERR("%s: Unsupported Intel firmware variant (%u)",
-		       hdev->name, ver->fw_variant);
+		bt_dev_err(hdev, "Unsupported Intel firmware variant (%u)",
+			   ver->fw_variant);
 		kfree_skb(skb);
 		return -ENODEV;
 	}
@@ -416,33 +673,33 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	skb = __hci_cmd_sync(hdev, 0xfc0d, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Reading Intel boot parameters failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		bt_dev_err(hdev, "Reading Intel boot parameters failed (%ld)",
+			   PTR_ERR(skb));
 		return PTR_ERR(skb);
 	}
 
 	if (skb->len != sizeof(*params)) {
-		BT_ERR("%s: Intel boot parameters size mismatch", hdev->name);
+		bt_dev_err(hdev, "Intel boot parameters size mismatch");
 		kfree_skb(skb);
 		return -EILSEQ;
 	}
 
 	params = (struct intel_boot_params *)skb->data;
 	if (params->status) {
-		BT_ERR("%s: Intel boot parameters command failure (%02x)",
-		       hdev->name, params->status);
+		bt_dev_err(hdev, "Intel boot parameters command failure (%02x)",
+			   params->status);
 		err = -bt_to_errno(params->status);
 		kfree_skb(skb);
 		return err;
 	}
 
-	BT_INFO("%s: Device revision is %u", hdev->name,
-		le16_to_cpu(params->dev_revid));
+	bt_dev_info(hdev, "Device revision is %u",
+		    le16_to_cpu(params->dev_revid));
 
-	BT_INFO("%s: Secure boot is %s", hdev->name,
-		params->secure_boot ? "enabled" : "disabled");
+	bt_dev_info(hdev, "Secure boot is %s",
+		    params->secure_boot ? "enabled" : "disabled");
 
-	BT_INFO("%s: Minimum firmware build %u week %u %u", hdev->name,
+	bt_dev_info(hdev, "Minimum firmware build %u week %u %u",
 		params->min_fw_build_nn, params->min_fw_build_cw,
 		2000 + params->min_fw_build_yy);
 
@@ -451,8 +708,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * that this bootloader does not send them, then abort the setup.
 	 */
 	if (params->limited_cce != 0x00) {
-		BT_ERR("%s: Unsupported Intel firmware loading method (%u)",
-		       hdev->name, params->limited_cce);
+		bt_dev_err(hdev, "Unsupported Intel firmware loading method (%u)",
+			   params->limited_cce);
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -461,7 +718,7 @@ static int intel_setup(struct hci_uart *hu)
 	 * also be no valid address for the operational firmware.
 	 */
 	if (!bacmp(&params->otp_bdaddr, BDADDR_ANY)) {
-		BT_INFO("%s: No device address configured", hdev->name);
+		bt_dev_info(hdev, "No device address configured");
 		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
 	}
 
@@ -476,19 +733,23 @@ static int intel_setup(struct hci_uart *hu)
 
 	err = request_firmware(&fw, fwname, &hdev->dev);
 	if (err < 0) {
-		BT_ERR("%s: Failed to load Intel firmware file (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Failed to load Intel firmware file (%d)",
+			   err);
 		kfree_skb(skb);
 		return err;
 	}
 
-	BT_INFO("%s: Found device firmware: %s", hdev->name, fwname);
+	bt_dev_info(hdev, "Found device firmware: %s", fwname);
+
+	/* Save the DDC file name for later */
+	snprintf(fwname, sizeof(fwname), "intel/ibt-11-%u.ddc",
+		 le16_to_cpu(params->dev_revid));
 
 	kfree_skb(skb);
 
 	if (fw->size < 644) {
-		BT_ERR("%s: Invalid size of firmware file (%zu)",
-		       hdev->name, fw->size);
+		bt_dev_err(hdev, "Invalid size of firmware file (%zu)",
+			   fw->size);
 		err = -EBADF;
 		goto done;
 	}
@@ -500,8 +761,7 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	err = btintel_secure_send(hdev, 0x00, 128, fw->data);
 	if (err < 0) {
-		BT_ERR("%s: Failed to send firmware header (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Failed to send firmware header (%d)", err);
 		goto done;
 	}
 
@@ -510,8 +770,8 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	err = btintel_secure_send(hdev, 0x03, 256, fw->data + 128);
 	if (err < 0) {
-		BT_ERR("%s: Failed to send firmware public key (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Failed to send firmware public key (%d)",
+			   err);
 		goto done;
 	}
 
@@ -520,8 +780,8 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	err = btintel_secure_send(hdev, 0x02, 256, fw->data + 388);
 	if (err < 0) {
-		BT_ERR("%s: Failed to send firmware signature (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Failed to send firmware signature (%d)",
+			   err);
 		goto done;
 	}
 
@@ -533,8 +793,8 @@ static int intel_setup(struct hci_uart *hu)
 
 		frag_len += sizeof(*cmd) + cmd->plen;
 
-		BT_DBG("%s: patching %td/%zu", hdev->name,
-		       (fw_ptr - fw->data), fw->size);
+		bt_dev_dbg(hdev, "Patching %td/%zu", (fw_ptr - fw->data),
+			   fw->size);
 
 		/* The parameter length of the secure send command requires
 		 * a 4 byte alignment. It happens so that the firmware file
@@ -552,8 +812,8 @@ static int intel_setup(struct hci_uart *hu)
 		 */
 		err = btintel_secure_send(hdev, 0x01, frag_len, fw_ptr);
 		if (err < 0) {
-			BT_ERR("%s: Failed to send firmware data (%d)",
-			       hdev->name, err);
+			bt_dev_err(hdev, "Failed to send firmware data (%d)",
+				   err);
 			goto done;
 		}
 
@@ -563,7 +823,7 @@ static int intel_setup(struct hci_uart *hu)
 
 	set_bit(STATE_FIRMWARE_LOADED, &intel->flags);
 
-	BT_INFO("%s: Waiting for firmware download to complete", hdev->name);
+	bt_dev_info(hdev, "Waiting for firmware download to complete");
 
 	/* Before switching the device into operational mode and with that
 	 * booting the loaded firmware, wait for the bootloader notification
@@ -580,19 +840,19 @@ static int intel_setup(struct hci_uart *hu)
 				  TASK_INTERRUPTIBLE,
 				  msecs_to_jiffies(5000));
 	if (err == 1) {
-		BT_ERR("%s: Firmware loading interrupted", hdev->name);
+		bt_dev_err(hdev, "Firmware loading interrupted");
 		err = -EINTR;
 		goto done;
 	}
 
 	if (err) {
-		BT_ERR("%s: Firmware loading timeout", hdev->name);
+		bt_dev_err(hdev, "Firmware loading timeout");
 		err = -ETIMEDOUT;
 		goto done;
 	}
 
 	if (test_bit(STATE_FIRMWARE_FAILED, &intel->flags)) {
-		BT_ERR("%s: Firmware loading failed", hdev->name);
+		bt_dev_err(hdev, "Firmware loading failed");
 		err = -ENOEXEC;
 		goto done;
 	}
@@ -601,7 +861,7 @@ static int intel_setup(struct hci_uart *hu)
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 
-	BT_INFO("%s: Firmware loaded in %llu usecs", hdev->name, duration);
+	bt_dev_info(hdev, "Firmware loaded in %llu usecs", duration);
 
 done:
 	release_firmware(fw);
@@ -634,7 +894,7 @@ done:
 	 * 1 second. However if that happens, then just fail the setup
 	 * since something went wrong.
 	 */
-	BT_INFO("%s: Waiting for device to boot", hdev->name);
+	bt_dev_info(hdev, "Waiting for device to boot");
 
 	err = intel_wait_booting(hu);
 	if (err)
@@ -646,7 +906,39 @@ done:
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 
-	BT_INFO("%s: Device booted in %llu usecs", hdev->name, duration);
+	bt_dev_info(hdev, "Device booted in %llu usecs", duration);
+
+	/* Enable LPM if matching pdev with wakeup enabled */
+	mutex_lock(&intel_device_list_lock);
+	list_for_each(p, &intel_device_list) {
+		struct intel_device *dev = list_entry(p, struct intel_device,
+						      list);
+		if (hu->tty->dev->parent == dev->pdev->dev.parent) {
+			if (device_may_wakeup(&dev->pdev->dev))
+				idev = dev;
+			break;
+		}
+	}
+	mutex_unlock(&intel_device_list_lock);
+
+	if (!idev)
+		goto no_lpm;
+
+	bt_dev_info(hdev, "Enabling LPM");
+
+	skb = __hci_cmd_sync(hdev, 0xfc8b, sizeof(lpm_param), lpm_param,
+			     HCI_CMD_TIMEOUT);
+	if (IS_ERR(skb)) {
+		bt_dev_err(hdev, "Failed to enable LPM");
+		goto no_lpm;
+	}
+	kfree_skb(skb);
+
+	set_bit(STATE_LPM_ENABLED, &intel->flags);
+
+no_lpm:
+	/* Ignore errors, device can work without DDC parameters */
+	btintel_load_ddc_config(hdev, fwname);
 
 	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_CMD_TIMEOUT);
 	if (IS_ERR(skb))
@@ -659,7 +951,7 @@ done:
 			return err;
 	}
 
-	BT_INFO("%s: Setup complete", hdev->name);
+	bt_dev_info(hdev, "Setup complete");
 
 	clear_bit(STATE_BOOTLOADER, &intel->flags);
 
@@ -708,10 +1000,71 @@ recv:
 	return hci_recv_frame(hdev, skb);
 }
 
+static void intel_recv_lpm_notify(struct hci_dev *hdev, int value)
+{
+	struct hci_uart *hu = hci_get_drvdata(hdev);
+	struct intel_data *intel = hu->priv;
+
+	bt_dev_dbg(hdev, "TX idle notification (%d)", value);
+
+	if (value) {
+		set_bit(STATE_TX_ACTIVE, &intel->flags);
+		schedule_work(&intel->busy_work);
+	} else {
+		clear_bit(STATE_TX_ACTIVE, &intel->flags);
+	}
+}
+
+static int intel_recv_lpm(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_lpm_pkt *lpm = (void *)skb->data;
+	struct hci_uart *hu = hci_get_drvdata(hdev);
+	struct intel_data *intel = hu->priv;
+
+	switch (lpm->opcode) {
+	case LPM_OP_TX_NOTIFY:
+		if (lpm->dlen < 1) {
+			bt_dev_err(hu->hdev, "Invalid LPM notification packet");
+			break;
+		}
+		intel_recv_lpm_notify(hdev, lpm->data[0]);
+		break;
+	case LPM_OP_SUSPEND_ACK:
+		set_bit(STATE_SUSPENDED, &intel->flags);
+		if (test_and_clear_bit(STATE_LPM_TRANSACTION, &intel->flags)) {
+			smp_mb__after_atomic();
+			wake_up_bit(&intel->flags, STATE_LPM_TRANSACTION);
+		}
+		break;
+	case LPM_OP_RESUME_ACK:
+		clear_bit(STATE_SUSPENDED, &intel->flags);
+		if (test_and_clear_bit(STATE_LPM_TRANSACTION, &intel->flags)) {
+			smp_mb__after_atomic();
+			wake_up_bit(&intel->flags, STATE_LPM_TRANSACTION);
+		}
+		break;
+	default:
+		bt_dev_err(hdev, "Unknown LPM opcode (%02x)", lpm->opcode);
+		break;
+	}
+
+	kfree_skb(skb);
+
+	return 0;
+}
+
+#define INTEL_RECV_LPM \
+	.type = HCI_LPM_PKT, \
+	.hlen = HCI_LPM_HDR_SIZE, \
+	.loff = 1, \
+	.lsize = 1, \
+	.maxlen = HCI_LPM_MAX_SIZE
+
 static const struct h4_recv_pkt intel_recv_pkts[] = {
-	{ H4_RECV_ACL,   .recv = hci_recv_frame },
-	{ H4_RECV_SCO,   .recv = hci_recv_frame },
-	{ H4_RECV_EVENT, .recv = intel_recv_event },
+	{ H4_RECV_ACL,    .recv = hci_recv_frame   },
+	{ H4_RECV_SCO,    .recv = hci_recv_frame   },
+	{ H4_RECV_EVENT,  .recv = intel_recv_event },
+	{ INTEL_RECV_LPM, .recv = intel_recv_lpm   },
 };
 
 static int intel_recv(struct hci_uart *hu, const void *data, int count)
@@ -726,7 +1079,7 @@ static int intel_recv(struct hci_uart *hu, const void *data, int count)
 				    ARRAY_SIZE(intel_recv_pkts));
 	if (IS_ERR(intel->rx_skb)) {
 		int err = PTR_ERR(intel->rx_skb);
-		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		bt_dev_err(hu->hdev, "Frame reassembly failed (%d)", err);
 		intel->rx_skb = NULL;
 		return err;
 	}
@@ -737,8 +1090,26 @@ static int intel_recv(struct hci_uart *hu, const void *data, int count)
 static int intel_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 {
 	struct intel_data *intel = hu->priv;
+	struct list_head *p;
 
 	BT_DBG("hu %p skb %p", hu, skb);
+
+	/* Be sure our controller is resumed and potential LPM transaction
+	 * completed before enqueuing any packet.
+	 */
+	mutex_lock(&intel_device_list_lock);
+	list_for_each(p, &intel_device_list) {
+		struct intel_device *idev = list_entry(p, struct intel_device,
+						       list);
+
+		if (hu->tty->dev->parent == idev->pdev->dev.parent) {
+			pm_runtime_get_sync(&idev->pdev->dev);
+			pm_runtime_mark_last_busy(&idev->pdev->dev);
+			pm_runtime_put_autosuspend(&idev->pdev->dev);
+			break;
+		}
+	}
+	mutex_unlock(&intel_device_list_lock);
 
 	skb_queue_tail(&intel->txq, skb);
 
@@ -777,6 +1148,7 @@ static struct sk_buff *intel_dequeue(struct hci_uart *hu)
 static const struct hci_uart_proto intel_proto = {
 	.id		= HCI_UART_INTEL,
 	.name		= "Intel",
+	.manufacturer	= 2,
 	.init_speed	= 115200,
 	.oper_speed	= 3000000,
 	.open		= intel_open,
@@ -795,23 +1167,60 @@ static const struct acpi_device_id intel_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, intel_acpi_match);
+#endif
 
-static int intel_acpi_probe(struct intel_device *idev)
+#ifdef CONFIG_PM
+static int intel_suspend_device(struct device *dev)
 {
-	const struct acpi_device_id *id;
+	struct intel_device *idev = dev_get_drvdata(dev);
 
-	id = acpi_match_device(intel_acpi_match, &idev->pdev->dev);
-	if (!id)
-		return -ENODEV;
+	mutex_lock(&idev->hu_lock);
+	if (idev->hu)
+		intel_lpm_suspend(idev->hu);
+	mutex_unlock(&idev->hu_lock);
 
 	return 0;
 }
-#else
-static int intel_acpi_probe(struct intel_device *idev)
+
+static int intel_resume_device(struct device *dev)
 {
-	return -ENODEV;
+	struct intel_device *idev = dev_get_drvdata(dev);
+
+	mutex_lock(&idev->hu_lock);
+	if (idev->hu)
+		intel_lpm_resume(idev->hu);
+	mutex_unlock(&idev->hu_lock);
+
+	return 0;
 }
 #endif
+
+#ifdef CONFIG_PM_SLEEP
+static int intel_suspend(struct device *dev)
+{
+	struct intel_device *idev = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(idev->irq);
+
+	return intel_suspend_device(dev);
+}
+
+static int intel_resume(struct device *dev)
+{
+	struct intel_device *idev = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(idev->irq);
+
+	return intel_resume_device(dev);
+}
+#endif
+
+static const struct dev_pm_ops intel_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(intel_suspend, intel_resume)
+	SET_RUNTIME_PM_OPS(intel_suspend_device, intel_resume_device, NULL)
+};
 
 static int intel_probe(struct platform_device *pdev)
 {
@@ -821,15 +1230,9 @@ static int intel_probe(struct platform_device *pdev)
 	if (!idev)
 		return -ENOMEM;
 
-	idev->pdev = pdev;
+	mutex_init(&idev->hu_lock);
 
-	if (ACPI_HANDLE(&pdev->dev)) {
-		int err = intel_acpi_probe(idev);
-		if (err)
-			return err;
-	} else {
-		return -ENODEV;
-	}
+	idev->pdev = pdev;
 
 	idev->reset = devm_gpiod_get_optional(&pdev->dev, "reset",
 					      GPIOD_OUT_LOW);
@@ -838,14 +1241,40 @@ static int intel_probe(struct platform_device *pdev)
 		return PTR_ERR(idev->reset);
 	}
 
+	idev->irq = platform_get_irq(pdev, 0);
+	if (idev->irq < 0) {
+		struct gpio_desc *host_wake;
+
+		dev_err(&pdev->dev, "No IRQ, falling back to gpio-irq\n");
+
+		host_wake = devm_gpiod_get_optional(&pdev->dev, "host-wake",
+						    GPIOD_IN);
+		if (IS_ERR(host_wake)) {
+			dev_err(&pdev->dev, "Unable to retrieve IRQ\n");
+			goto no_irq;
+		}
+
+		idev->irq = gpiod_to_irq(host_wake);
+		if (idev->irq < 0) {
+			dev_err(&pdev->dev, "No corresponding irq for gpio\n");
+			goto no_irq;
+		}
+	}
+
+	/* Only enable wake-up/irq when controller is powered */
+	device_set_wakeup_capable(&pdev->dev, true);
+	device_wakeup_disable(&pdev->dev);
+
+no_irq:
 	platform_set_drvdata(pdev, idev);
 
 	/* Place this instance on the device list */
-	spin_lock(&intel_device_list_lock);
+	mutex_lock(&intel_device_list_lock);
 	list_add_tail(&idev->list, &intel_device_list);
-	spin_unlock(&intel_device_list_lock);
+	mutex_unlock(&intel_device_list_lock);
 
-	dev_info(&pdev->dev, "registered.\n");
+	dev_info(&pdev->dev, "registered, gpio(%d)/irq(%d).\n",
+		 desc_to_gpio(idev->reset), idev->irq);
 
 	return 0;
 }
@@ -854,9 +1283,11 @@ static int intel_remove(struct platform_device *pdev)
 {
 	struct intel_device *idev = platform_get_drvdata(pdev);
 
-	spin_lock(&intel_device_list_lock);
+	device_wakeup_disable(&pdev->dev);
+
+	mutex_lock(&intel_device_list_lock);
 	list_del(&idev->list);
-	spin_unlock(&intel_device_list_lock);
+	mutex_unlock(&intel_device_list_lock);
 
 	dev_info(&pdev->dev, "unregistered.\n");
 
@@ -869,6 +1300,7 @@ static struct platform_driver intel_driver = {
 	.driver = {
 		.name = "hci_intel",
 		.acpi_match_table = ACPI_PTR(intel_acpi_match),
+		.pm = &intel_pm_ops,
 	},
 };
 

@@ -176,16 +176,33 @@ static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 	struct iwl_dts_measurement_cmd cmd = {
 		.flags = cpu_to_le32(DTS_TRIGGER_CMD_FLAGS_TEMP),
 	};
+	struct iwl_ext_dts_measurement_cmd extcmd = {
+		.control_mode = cpu_to_le32(DTS_AUTOMATIC),
+	};
+	u32 cmdid;
 
-	return iwl_mvm_send_cmd_pdu(mvm, CMD_DTS_MEASUREMENT_TRIGGER, 0,
-				    sizeof(cmd), &cmd);
+	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_WIDE_CMD_HDR))
+		cmdid = iwl_cmd_id(CMD_DTS_MEASUREMENT_TRIGGER_WIDE,
+				   PHY_OPS_GROUP, 0);
+	else
+		cmdid = CMD_DTS_MEASUREMENT_TRIGGER;
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE))
+		return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0, sizeof(cmd), &cmd);
+
+	return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0, sizeof(extcmd), &extcmd);
 }
 
 int iwl_mvm_get_temp(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_temp_notif;
-	static const u16 temp_notif[] = { DTS_MEASUREMENT_NOTIFICATION };
+	static u16 temp_notif[] = { WIDE_ID(PHY_OPS_GROUP,
+					    DTS_MEASUREMENT_NOTIF_WIDE) };
 	int ret, temp;
+
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_WIDE_CMD_HDR))
+		temp_notif[0] = DTS_MEASUREMENT_NOTIFICATION;
 
 	lockdep_assert_held(&mvm->mutex);
 

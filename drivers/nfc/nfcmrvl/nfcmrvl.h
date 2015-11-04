@@ -1,7 +1,7 @@
 /**
  * Marvell NFC driver
  *
- * Copyright (C) 2014, Marvell International Ltd.
+ * Copyright (C) 2014-2015, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -21,8 +21,11 @@
 
 #include <linux/platform_data/nfcmrvl.h>
 
+#include "fw_dnld.h"
+
 /* Define private flags: */
 #define NFCMRVL_NCI_RUNNING			1
+#define NFCMRVL_PHY_ERROR			2
 
 #define NFCMRVL_EXT_COEX_ID			0xE0
 #define NFCMRVL_NOT_ALLOWED_ID			0xE1
@@ -37,6 +40,8 @@
 */
 
 #define NFCMRVL_PB_BAIL_OUT			0x11
+#define NFCMRVL_PROP_REF_CLOCK			0xF0
+#define NFCMRVL_PROP_SET_HI_CONFIG		0xF1
 
 /*
 ** HCI defines
@@ -52,8 +57,9 @@
 enum nfcmrvl_phy {
 	NFCMRVL_PHY_USB		= 0,
 	NFCMRVL_PHY_UART	= 1,
+	NFCMRVL_PHY_I2C		= 2,
+	NFCMRVL_PHY_SPI		= 3,
 };
-
 
 struct nfcmrvl_private {
 
@@ -62,7 +68,14 @@ struct nfcmrvl_private {
 	/* Platform configuration */
 	struct nfcmrvl_platform_data config;
 
+	/* Parent dev */
 	struct nci_dev *ndev;
+
+	/* FW download context */
+	struct nfcmrvl_fw_dnld fw_dnld;
+
+	/* FW download support */
+	bool support_fw_dnld;
 
 	/*
 	** PHY related information
@@ -82,17 +95,21 @@ struct nfcmrvl_if_ops {
 	int (*nci_open) (struct nfcmrvl_private *priv);
 	int (*nci_close) (struct nfcmrvl_private *priv);
 	int (*nci_send) (struct nfcmrvl_private *priv, struct sk_buff *skb);
+	void (*nci_update_config)(struct nfcmrvl_private *priv,
+				  const void *param);
 };
 
 void nfcmrvl_nci_unregister_dev(struct nfcmrvl_private *priv);
 int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, struct sk_buff *skb);
-struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
+struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
+				void *drv_data,
 				struct nfcmrvl_if_ops *ops,
 				struct device *dev,
 				struct nfcmrvl_platform_data *pdata);
 
 
 void nfcmrvl_chip_reset(struct nfcmrvl_private *priv);
+void nfcmrvl_chip_halt(struct nfcmrvl_private *priv);
 
 int nfcmrvl_parse_dt(struct device_node *node,
 		     struct nfcmrvl_platform_data *pdata);

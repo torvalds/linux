@@ -678,7 +678,8 @@ static int hci_activate_target(struct nfc_dev *nfc_dev,
 }
 
 static void hci_deactivate_target(struct nfc_dev *nfc_dev,
-				  struct nfc_target *target)
+				  struct nfc_target *target,
+				  u8 mode)
 {
 }
 

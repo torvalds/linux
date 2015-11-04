@@ -17,27 +17,17 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
+static const struct mv88e6xxx_switch_id mv88e6171_table[] = {
+	{ PORT_SWITCH_ID_6171, "Marvell 88E6171" },
+	{ PORT_SWITCH_ID_6175, "Marvell 88E6175" },
+	{ PORT_SWITCH_ID_6350, "Marvell 88E6350" },
+	{ PORT_SWITCH_ID_6351, "Marvell 88E6351" },
+};
+
 static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 {
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
-	int ret;
-
-	if (bus == NULL)
-		return NULL;
-
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
-	if (ret >= 0) {
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6171)
-			return "Marvell 88E6171";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6175)
-			return "Marvell 88E6175";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6350)
-			return "Marvell 88E6350";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6351)
-			return "Marvell 88E6351";
-	}
-
-	return NULL;
+	return mv88e6xxx_lookup_name(host_dev, sw_addr, mv88e6171_table,
+				     ARRAY_SIZE(mv88e6171_table));
 }
 
 static int mv88e6171_setup_global(struct dsa_switch *ds)
@@ -104,7 +94,6 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 	.set_addr		= mv88e6xxx_set_addr_indirect,
 	.phy_read		= mv88e6xxx_phy_read_indirect,
 	.phy_write		= mv88e6xxx_phy_write_indirect,
-	.poll_link		= mv88e6xxx_poll_link,
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
 	.get_sset_count		= mv88e6xxx_get_sset_count,
@@ -114,17 +103,16 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 #endif
 	.get_regs_len		= mv88e6xxx_get_regs_len,
 	.get_regs		= mv88e6xxx_get_regs,
-	.port_join_bridge       = mv88e6xxx_join_bridge,
-	.port_leave_bridge      = mv88e6xxx_leave_bridge,
 	.port_stp_update        = mv88e6xxx_port_stp_update,
 	.port_pvid_get		= mv88e6xxx_port_pvid_get,
-	.port_pvid_set		= mv88e6xxx_port_pvid_set,
+	.port_vlan_prepare	= mv88e6xxx_port_vlan_prepare,
 	.port_vlan_add		= mv88e6xxx_port_vlan_add,
 	.port_vlan_del		= mv88e6xxx_port_vlan_del,
 	.vlan_getnext		= mv88e6xxx_vlan_getnext,
+	.port_fdb_prepare	= mv88e6xxx_port_fdb_prepare,
 	.port_fdb_add		= mv88e6xxx_port_fdb_add,
 	.port_fdb_del		= mv88e6xxx_port_fdb_del,
-	.port_fdb_getnext	= mv88e6xxx_port_fdb_getnext,
+	.port_fdb_dump		= mv88e6xxx_port_fdb_dump,
 };
 
 MODULE_ALIAS("platform:mv88e6171");

@@ -464,6 +464,8 @@ MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_sg_rq, 0x10, 0, 8);
  * passed in this command must be pinned.
  */
 
+#define MLXSW_CMD_MAP_FA_VPM_ENTRIES_MAX 32
+
 static inline int mlxsw_cmd_map_fa(struct mlxsw_core *mlxsw_core,
 				   char *in_mbox, u32 vpm_entries_count)
 {
@@ -568,7 +570,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile, set_max_vlan_groups, 0x0C, 6, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_max_regions, 0x0C, 7, 1);
 
-/* cmd_mbox_config_profile_set_fid_based
+/* cmd_mbox_config_profile_set_flood_mode
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
@@ -649,12 +651,8 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_vlan_groups, 0x28, 0, 12);
 MLXSW_ITEM32(cmd_mbox, config_profile, max_regions, 0x2C, 0, 16);
 
 /* cmd_mbox_config_profile_max_flood_tables
- * Maximum number of Flooding Tables. Flooding Tables are associated to
- * the different packet types for the different switch partitions.
- * Note that the table size depends on the fid_based mode.
- * In SwitchX silicon, tables are split equally between the switch
- * partitions. e.g. for 2 swids and 8 tables, the first 4 are associated
- * with swid-1 and the last 4 are associated with swid-2.
+ * Maximum number of single-entry flooding tables. Different flooding tables
+ * can be associated with different packet types.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_flood_tables, 0x30, 16, 4);
 
@@ -665,14 +663,41 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_flood_tables, 0x30, 16, 4);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_vid_flood_tables, 0x30, 8, 4);
 
-/* cmd_mbox_config_profile_fid_based
- * FID Based Flood Mode
- * 00 Do not use FID to offset the index into the Port Group Table/Multicast ID
- * 01 Use FID to offset the index to the Port Group Table (pgi)
- * 10 Use FID to offset the index to the Port Group Table (pgi) and
- * the Multicast ID
+/* cmd_mbox_config_profile_flood_mode
+ * Flooding mode to use.
+ * 0-2 - Backward compatible modes for SwitchX devices.
+ * 3 - Mixed mode, where:
+ * max_flood_tables indicates the number of single-entry tables.
+ * max_vid_flood_tables indicates the number of per-VID tables.
+ * max_fid_offset_flood_tables indicates the number of FID-offset tables.
+ * max_fid_flood_tables indicates the number of per-FID tables.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 2);
+
+/* cmd_mbox_config_profile_max_fid_offset_flood_tables
+ * Maximum number of FID-offset flooding tables.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile,
+	     max_fid_offset_flood_tables, 0x34, 24, 4);
+
+/* cmd_mbox_config_profile_fid_offset_flood_table_size
+ * The size (number of entries) of each FID-offset flood table.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile,
+	     fid_offset_flood_table_size, 0x34, 0, 16);
+
+/* cmd_mbox_config_profile_max_fid_flood_tables
+ * Maximum number of per-FID flooding tables.
+ *
+ * Note: This flooding tables cover special FIDs only (vFIDs), starting at
+ * FID value 4K and higher.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, max_fid_flood_tables, 0x38, 24, 4);
+
+/* cmd_mbox_config_profile_fid_flood_table_size
+ * The size (number of entries) of each per-FID table.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, fid_flood_table_size, 0x38, 0, 16);
 
 /* cmd_mbox_config_profile_max_ib_mc
  * Maximum number of multicast FDB records for InfiniBand

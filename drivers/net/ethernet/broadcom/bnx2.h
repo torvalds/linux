@@ -6928,6 +6928,7 @@ struct bnx2 {
 
 	dma_addr_t		status_blk_mapping;
 
+	void *status_blk;
 	struct statistics_block	*stats_blk;
 	struct statistics_block	*temp_stats_blk;
 	dma_addr_t		stats_blk_mapping;
