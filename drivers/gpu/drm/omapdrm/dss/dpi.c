@@ -359,7 +359,7 @@ static int dpi_set_mode(struct dpi_data *dpi)
 		t->pixelclock = pck;
 	}
 
-	dss_mgr_set_timings(mgr, t);
+	dss_mgr_set_timings(mgr->id, t);
 
 	return 0;
 }

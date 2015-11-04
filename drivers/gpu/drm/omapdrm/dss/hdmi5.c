@@ -234,7 +234,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	dispc_enable_gamma_table(0);
 
 	/* tv size */
-	dss_mgr_set_timings(mgr, p);
+	dss_mgr_set_timings(mgr->id, p);
 
 	r = dss_mgr_enable(mgr);
 	if (r)

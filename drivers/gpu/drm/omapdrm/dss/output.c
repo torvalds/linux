@@ -202,10 +202,10 @@ void dss_mgr_disconnect(enum omap_channel channel,
 }
 EXPORT_SYMBOL(dss_mgr_disconnect);
 
-void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
+void dss_mgr_set_timings(enum omap_channel channel,
 		const struct omap_video_timings *timings)
 {
-	dss_mgr_ops->set_timings(mgr->id, timings);
+	dss_mgr_ops->set_timings(channel, timings);
 }
 EXPORT_SYMBOL(dss_mgr_set_timings);
 

@@ -469,7 +469,7 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, l);
 
-	dss_mgr_set_timings(mgr, &venc.timings);
+	dss_mgr_set_timings(mgr->id, &venc.timings);
 
 	r = regulator_enable(venc.vdda_dac_reg);
 	if (r)

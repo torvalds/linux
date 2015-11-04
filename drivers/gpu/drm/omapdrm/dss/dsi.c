@@ -3980,7 +3980,7 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 		msecs_to_jiffies(250));
 	BUG_ON(r == 0);
 
-	dss_mgr_set_timings(mgr, &dsi->timings);
+	dss_mgr_set_timings(mgr->id, &dsi->timings);
 
 	dss_mgr_start_update(mgr);
 
@@ -4140,7 +4140,7 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 	dsi->timings.de_level = OMAPDSS_SIG_ACTIVE_HIGH;
 	dsi->timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
 
-	dss_mgr_set_timings(mgr, &dsi->timings);
+	dss_mgr_set_timings(mgr->id, &dsi->timings);
 
 	r = dsi_configure_dispc_clocks(dsidev);
 	if (r)

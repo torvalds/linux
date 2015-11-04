@@ -169,7 +169,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	}
 
 
-	dss_mgr_set_timings(out->manager, t);
+	dss_mgr_set_timings(out->manager->id, t);
 
 	r = dss_set_fck_rate(fck);
 	if (r)
