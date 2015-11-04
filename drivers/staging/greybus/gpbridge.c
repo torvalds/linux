@@ -53,15 +53,9 @@ static int __init gpbridge_init(void)
 		pr_err("error initializing hid protocol\n");
 		goto error_hid;
 	}
-	if (gb_audio_protocol_init()) {
-		pr_err("error initializing audio protocols\n");
-		goto error_audio;
-	}
 
 	return 0;
 
-error_audio:
-	gb_hid_protocol_exit();
 error_hid:
 	gb_spi_protocol_exit();
 error_spi:
@@ -83,7 +77,6 @@ module_init(gpbridge_init);
 
 static void __exit gpbridge_exit(void)
 {
-	gb_audio_protocol_exit();
 	gb_hid_protocol_exit();
 	gb_spi_protocol_exit();
 	gb_i2c_protocol_exit();

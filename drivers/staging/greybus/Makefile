@@ -21,11 +21,7 @@ gb-phy-y :=	gpbridge.o	\
 		hid.o	\
 		i2c.o	\
 		spi.o	\
-		usb.o	\
-		audio.o		\
-		audio-pcm.o	\
-		audio-dai.o	\
-		audio-gb-cmds.o
+		usb.o
 
 # Prefix all modules with gb-
 gb-vibrator-y := vibrator.o
