@@ -34,7 +34,7 @@ struct access_method {
 };
 
 struct hpsa_scsi_dev_t {
-	int devtype;
+	unsigned int devtype;
 	int bus, target, lun;		/* as presented to the OS */
 	unsigned char scsi3addr[8];	/* as presented to the HW */
 #define RAID_CTLR_LUNID "\0\0\0\0\0\0\0\0"
