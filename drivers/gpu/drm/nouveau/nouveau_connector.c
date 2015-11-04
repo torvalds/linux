@@ -56,6 +56,10 @@ MODULE_PARM_DESC(duallink, "Allow dual-link TMDS (default: enabled)");
 int nouveau_duallink = 1;
 module_param_named(duallink, nouveau_duallink, int, 0400);
 
+MODULE_PARM_DESC(hdmimhz, "Force a maximum HDMI pixel clock (in MHz)");
+int nouveau_hdmimhz = 0;
+module_param_named(hdmimhz, nouveau_hdmimhz, int, 0400);
+
 struct nouveau_encoder *
 find_encoder(struct drm_connector *connector, int type)
 {
@@ -809,12 +813,23 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 }
 
 static unsigned
-get_tmds_link_bandwidth(struct drm_connector *connector)
+get_tmds_link_bandwidth(struct drm_connector *connector, bool hdmi)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct dcb_output *dcb = nv_connector->detected_encoder->dcb;
 
+	if (hdmi) {
+		if (nouveau_hdmimhz > 0)
+			return nouveau_hdmimhz * 1000;
+		/* Note: these limits are conservative, some Fermi's
+		 * can do 297 MHz. Unclear how this can be determined.
+		 */
+		if (drm->device.info.family >= NV_DEVICE_INFO_V0_KEPLER)
+			return 297000;
+		if (drm->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
+			return 225000;
+	}
 	if (dcb->location != DCB_LOC_ON_CHIP ||
 	    drm->device.info.chipset >= 0x46)
 		return 165000;
@@ -835,6 +850,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	unsigned min_clock = 25000, max_clock = min_clock;
 	unsigned clock = mode->clock;
+	bool hdmi;
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_LVDS:
@@ -847,8 +863,10 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		max_clock = 400000;
 		break;
 	case DCB_OUTPUT_TMDS:
-		max_clock = get_tmds_link_bandwidth(connector);
-		if (nouveau_duallink && nv_encoder->dcb->duallink_possible)
+		hdmi = drm_detect_hdmi_monitor(nv_connector->edid);
+		max_clock = get_tmds_link_bandwidth(connector, hdmi);
+		if (!hdmi && nouveau_duallink &&
+		    nv_encoder->dcb->duallink_possible)
 			max_clock *= 2;
 		break;
 	case DCB_OUTPUT_ANALOG:
