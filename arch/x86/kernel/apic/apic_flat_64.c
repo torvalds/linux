@@ -281,6 +281,7 @@ static struct apic apic_physflat =  {
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
+	.send_IPI			= default_send_IPI_single_phys,
 	.send_IPI_mask			= default_send_IPI_mask_sequence_phys,
 	.send_IPI_mask_allbutself	= default_send_IPI_mask_allbutself_phys,
 	.send_IPI_allbutself		= physflat_send_IPI_allbutself,
