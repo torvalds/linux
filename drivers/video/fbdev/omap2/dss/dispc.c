@@ -1057,6 +1057,8 @@ static void dispc_configure_burst_sizes(void)
 	/* Configure burst size always to maximum size */
 	for (i = 0; i < dss_feat_get_num_ovls(); ++i)
 		dispc_ovl_set_burst_size(i, burst_size);
+	if (dispc.feat->has_writeback)
+		dispc_ovl_set_burst_size(OMAP_DSS_WB, burst_size);
 }
 
 static u32 dispc_ovl_get_burst_size(enum omap_plane plane)
