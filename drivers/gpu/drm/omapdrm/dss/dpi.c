@@ -378,7 +378,7 @@ static void dpi_config_lcd_manager(struct dpi_data *dpi)
 
 	dpi->mgr_config.lcden_sig_polarity = 0;
 
-	dss_mgr_set_lcd_config(mgr, &dpi->mgr_config);
+	dss_mgr_set_lcd_config(mgr->id, &dpi->mgr_config);
 }
 
 static int dpi_display_enable(struct omap_dss_device *dssdev)

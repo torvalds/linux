@@ -88,7 +88,7 @@ void dss_mgr_disconnect(enum omap_channel channel,
 		struct omap_dss_device *dst);
 void dss_mgr_set_timings(enum omap_channel channel,
 		const struct omap_video_timings *timings);
-void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+void dss_mgr_set_lcd_config(enum omap_channel channel,
 		const struct dss_lcd_mgr_config *config);
 int dss_mgr_enable(struct omap_overlay_manager *mgr);
 void dss_mgr_disable(struct omap_overlay_manager *mgr);

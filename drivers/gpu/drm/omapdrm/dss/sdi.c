@@ -124,7 +124,7 @@ static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 	sdi.mgr_config.video_port_width = 24;
 	sdi.mgr_config.lcden_sig_polarity = 1;
 
-	dss_mgr_set_lcd_config(mgr, &sdi.mgr_config);
+	dss_mgr_set_lcd_config(mgr->id, &sdi.mgr_config);
 }
 
 static int sdi_display_enable(struct omap_dss_device *dssdev)

@@ -4151,7 +4151,7 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 			dsi_get_pixel_size(dsi->pix_fmt);
 	dsi->mgr_config.lcden_sig_polarity = 0;
 
-	dss_mgr_set_lcd_config(mgr, &dsi->mgr_config);
+	dss_mgr_set_lcd_config(mgr->id, &dsi->mgr_config);
 
 	return 0;
 err1:

@@ -209,10 +209,10 @@ void dss_mgr_set_timings(enum omap_channel channel,
 }
 EXPORT_SYMBOL(dss_mgr_set_timings);
 
-void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+void dss_mgr_set_lcd_config(enum omap_channel channel,
 		const struct dss_lcd_mgr_config *config)
 {
-	dss_mgr_ops->set_lcd_config(mgr->id, config);
+	dss_mgr_ops->set_lcd_config(channel, config);
 }
 EXPORT_SYMBOL(dss_mgr_set_lcd_config);
 
