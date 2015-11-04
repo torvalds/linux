@@ -107,7 +107,7 @@
 
 /* CCCFG register */
 #define GET_NUM_DMACH(x)	(x & 0x7) /* bits 0-2 */
-#define GET_NUM_QDMACH(x)	(x & 0x70 >> 4) /* bits 4-6 */
+#define GET_NUM_QDMACH(x)	((x & 0x70) >> 4) /* bits 4-6 */
 #define GET_NUM_PAENTRY(x)	((x & 0x7000) >> 12) /* bits 12-14 */
 #define GET_NUM_EVQUE(x)	((x & 0x70000) >> 16) /* bits 16-18 */
 #define GET_NUM_REGN(x)		((x & 0x300000) >> 20) /* bits 20-21 */
