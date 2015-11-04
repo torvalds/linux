@@ -50,7 +50,6 @@
 	compatible = "atmel,sama5d4-xplained", "atmel,sama5d4", "atmel,sama5";
 
 	chosen {
-		bootargs = "ignore_loglevel earlyprintk";
 		stdout-path = "serial0:115200n8";
 	};
 
