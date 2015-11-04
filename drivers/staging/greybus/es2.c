@@ -550,7 +550,6 @@ static int check_urb_status(struct urb *urb)
 static void es2_destroy(struct es2_ap_dev *es2)
 {
 	struct usb_device *udev;
-	int *cport_to_ep;
 	int bulk_in;
 	int i;
 
@@ -583,11 +582,11 @@ static void es2_destroy(struct es2_ap_dev *es2)
 		}
 	}
 
+	kfree(es2->cport_to_ep);
+
 	udev = es2->usb_dev;
-	cport_to_ep = es2->cport_to_ep;
 	gb_hd_put(es2->hd);
 
-	kfree(cport_to_ep);
 	usb_put_dev(udev);
 }
 
