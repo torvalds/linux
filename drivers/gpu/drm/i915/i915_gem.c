@@ -4574,7 +4574,6 @@ int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice)
 	struct intel_engine_cs *ring = req->ring;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg_base = GEN7_L3LOG_BASE + (slice * 0x200);
 	u32 *remap_info = dev_priv->l3_parity.remap_info[slice];
 	int i, ret;
 
@@ -4590,10 +4589,10 @@ int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice)
 	 * here because no other code should access these registers other than
 	 * at initialization time.
 	 */
-	for (i = 0; i < GEN7_L3LOG_SIZE; i += 4) {
+	for (i = 0; i < GEN7_L3LOG_SIZE / 4; i++) {
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit(ring, reg_base + i);
-		intel_ring_emit(ring, remap_info[i/4]);
+		intel_ring_emit(ring, GEN7_L3LOG(slice, i));
+		intel_ring_emit(ring, remap_info[i]);
 	}
 
 	intel_ring_advance(ring);

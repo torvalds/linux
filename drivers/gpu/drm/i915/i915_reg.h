@@ -6987,8 +6987,7 @@ enum skl_disp_power_wells {
 #define   GEN9_GAPS_TSV_CREDIT_DISABLE  (1<<7)
 
 /* IVYBRIDGE DPF */
-#define GEN7_L3CDERRST1			0xB008 /* L3CD Error Status 1 */
-#define HSW_L3CDERRST11			0xB208 /* L3CD Error Status register 1 slice 1 */
+#define GEN7_L3CDERRST1(slice)		(0xB008 + (slice) * 0x200) /* L3CD Error Status 1 */
 #define   GEN7_L3CDERRST1_ROW_MASK	(0x7ff<<14)
 #define   GEN7_PARITY_ERROR_VALID	(1<<13)
 #define   GEN7_L3CDERRST1_BANK_MASK	(3<<11)
@@ -7001,8 +7000,7 @@ enum skl_disp_power_wells {
 		((reg & GEN7_L3CDERRST1_SUBBANK_MASK) >> 8)
 #define   GEN7_L3CDERRST1_ENABLE	(1<<7)
 
-#define GEN7_L3LOG_BASE			0xB070
-#define HSW_L3LOG_BASE_SLICE1		0xB270
+#define GEN7_L3LOG(slice, i)		(0xB070 + (slice) * 0x200 + (i) * 4)
 #define GEN7_L3LOG_SIZE			0x80
 
 #define GEN7_HALF_SLICE_CHICKEN1	0xe100 /* IVB GT1 + VLV */

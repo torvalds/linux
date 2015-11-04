@@ -1194,7 +1194,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 
 		dev_priv->l3_parity.which_slice &= ~(1<<slice);
 
-		reg = GEN7_L3CDERRST1 + (slice * 0x200);
+		reg = GEN7_L3CDERRST1(slice);
 
 		error_status = I915_READ(reg);
 		row = GEN7_PARITY_ERROR_ROW(error_status);
