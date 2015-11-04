@@ -1138,6 +1138,9 @@ static int hpsa_find_target_lun(struct ctlr_info *h,
 static inline void hpsa_show_dev_msg(const char *level, struct ctlr_info *h,
 	struct hpsa_scsi_dev_t *dev, char *description)
 {
+	if (h == NULL || h->pdev == NULL || h->scsi_host == NULL)
+		return;
+
 	dev_printk(level, &h->pdev->dev,
 			"scsi %d:%d:%d:%d: %s %s %.8s %.16s RAID-%s SSDSmartPathCap%c En%c Exp=%d\n",
 			h->scsi_host->host_no, dev->bus, dev->target, dev->lun,
