@@ -275,6 +275,7 @@ static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 static void hpsa_command_resubmit_worker(struct work_struct *work);
 static u32 lockup_detected(struct ctlr_info *h);
 static int detect_controller_lockup(struct ctlr_info *h);
+static void hpsa_disable_rld_caching(struct ctlr_info *h);
 static int hpsa_luns_changed(struct ctlr_info *h);
 
 static inline struct ctlr_info *sdev_to_hba(struct scsi_device *sdev)
@@ -6380,6 +6381,24 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			c->Request.CDB[8] = (size >> 8) & 0xFF;
 			c->Request.CDB[9] = size & 0xFF;
 			break;
+		case BMIC_SENSE_DIAG_OPTIONS:
+			c->Request.CDBLen = 16;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_READ);
+			c->Request.Timeout = 0;
+			/* Spec says this should be BMIC_WRITE */
+			c->Request.CDB[0] = BMIC_READ;
+			c->Request.CDB[6] = BMIC_SENSE_DIAG_OPTIONS;
+			break;
+		case BMIC_SET_DIAG_OPTIONS:
+			c->Request.CDBLen = 16;
+			c->Request.type_attr_dir =
+					TYPE_ATTR_DIR(cmd_type,
+						ATTR_SIMPLE, XFER_WRITE);
+			c->Request.Timeout = 0;
+			c->Request.CDB[0] = BMIC_WRITE;
+			c->Request.CDB[6] = BMIC_SET_DIAG_OPTIONS;
+			break;
 		case HPSA_CACHE_FLUSH:
 			c->Request.CDBLen = 12;
 			c->Request.type_attr_dir =
@@ -8080,6 +8099,7 @@ static void hpsa_rescan_ctlr_worker(struct work_struct *work)
 		hpsa_scan_start(h->scsi_host);
 		scsi_host_put(h->scsi_host);
 	} else if (h->discovery_polling) {
+		hpsa_disable_rld_caching(h);
 		if (hpsa_luns_changed(h)) {
 			struct Scsi_Host *sh = NULL;
 
@@ -8415,6 +8435,71 @@ out:
 			"error flushing cache on controller\n");
 	cmd_free(h, c);
 	kfree(flush_buf);
+}
+
+/* Make controller gather fresh report lun data each time we
+ * send down a report luns request
+ */
+static void hpsa_disable_rld_caching(struct ctlr_info *h)
+{
+	u32 *options;
+	struct CommandList *c;
+	int rc;
+
+	/* Don't bother trying to set diag options if locked up */
+	if (unlikely(h->lockup_detected))
+		return;
+
+	options = kzalloc(sizeof(*options), GFP_KERNEL);
+	if (!options) {
+		dev_err(&h->pdev->dev,
+			"Error: failed to disable rld caching, during alloc.\n");
+		return;
+	}
+
+	c = cmd_alloc(h);
+
+	/* first, get the current diag options settings */
+	if (fill_cmd(c, BMIC_SENSE_DIAG_OPTIONS, h, options, 4, 0,
+		RAID_CTLR_LUNID, TYPE_CMD))
+		goto errout;
+
+	rc = hpsa_scsi_do_simple_cmd_with_retry(h, c,
+		PCI_DMA_FROMDEVICE, NO_TIMEOUT);
+	if ((rc != 0) || (c->err_info->CommandStatus != 0))
+		goto errout;
+
+	/* Now, set the bit for disabling the RLD caching */
+	*options |= HPSA_DIAG_OPTS_DISABLE_RLD_CACHING;
+
+	if (fill_cmd(c, BMIC_SET_DIAG_OPTIONS, h, options, 4, 0,
+		RAID_CTLR_LUNID, TYPE_CMD))
+		goto errout;
+
+	rc = hpsa_scsi_do_simple_cmd_with_retry(h, c,
+		PCI_DMA_TODEVICE, NO_TIMEOUT);
+	if ((rc != 0)  || (c->err_info->CommandStatus != 0))
+		goto errout;
+
+	/* Now verify that it got set: */
+	if (fill_cmd(c, BMIC_SENSE_DIAG_OPTIONS, h, options, 4, 0,
+		RAID_CTLR_LUNID, TYPE_CMD))
+		goto errout;
+
+	rc = hpsa_scsi_do_simple_cmd_with_retry(h, c,
+		PCI_DMA_FROMDEVICE, NO_TIMEOUT);
+	if ((rc != 0)  || (c->err_info->CommandStatus != 0))
+		goto errout;
+
+	if (*options && HPSA_DIAG_OPTS_DISABLE_RLD_CACHING)
+		goto out;
+
+errout:
+	dev_err(&h->pdev->dev,
+			"Error: failed to disable report lun data caching.\n");
+out:
+	cmd_free(h, c);
+	kfree(options);
 }
 
 static void hpsa_shutdown(struct pci_dev *pdev)
