@@ -33,7 +33,7 @@
 #include <linux/dvb/dmx.h>
 
 /**
- * DOC: Digital TV Demux API
+ * DOC: Digital TV Demux
  *
  * The kernel demux API defines a driver-internal interface for registering
  * low-level, hardware specific driver to a hardware independent demux layer.
@@ -231,7 +231,7 @@ struct dmx_section_feed {
 };
 
 /**
- * DOC: Demux Callback API
+ * DOC: Demux Callback
  *
  * This kernel-space API comprises the callback functions that deliver filtered
  * data to the demux client. Unlike the other DVB kABIs, these functions are
