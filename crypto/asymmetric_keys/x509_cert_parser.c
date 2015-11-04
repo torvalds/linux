@@ -546,9 +546,9 @@ int x509_decode_time(time64_t *_t,  size_t hdrlen,
 	if (year < 1970 ||
 	    mon < 1 || mon > 12 ||
 	    day < 1 || day > mon_len ||
-	    hour < 0 || hour > 23 ||
-	    min < 0 || min > 59 ||
-	    sec < 0 || sec > 59)
+	    hour > 23 ||
+	    min > 59 ||
+	    sec > 59)
 		goto invalid_time;
 	
 	*_t = mktime64(year, mon, day, hour, min, sec);

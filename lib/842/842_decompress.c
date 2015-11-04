@@ -285,6 +285,7 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 	struct sw842_param p;
 	int ret;
 	u64 op, rep, tmp, bytes, total;
+	u64 crc;
 
 	p.in = (u8 *)in;
 	p.bit = 0;
@@ -374,6 +375,22 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 			break;
 		}
 	} while (op != OP_END);
+
+	/*
+	 * crc(0:31) is saved in compressed data starting with the
+	 * next bit after End of stream template.
+	 */
+	ret = next_bits(&p, &crc, CRC_BITS);
+	if (ret)
+		return ret;
+
+	/*
+	 * Validate CRC saved in compressed data.
+	 */
+	if (crc != (u64)crc32_be(0, out, total - p.olen)) {
+		pr_debug("CRC mismatch for decompression\n");
+		return -EINVAL;
+	}
 
 	if (unlikely((total - p.olen) > UINT_MAX))
 		return -ENOSPC;

@@ -97,24 +97,21 @@ static int rsa_enc(struct akcipher_request *req)
 		goto err_free_c;
 	}
 
-	m = mpi_read_raw_data(req->src, req->src_len);
-	if (!m) {
-		ret = -ENOMEM;
+	ret = -ENOMEM;
+	m = mpi_read_raw_from_sgl(req->src, req->src_len);
+	if (!m)
 		goto err_free_c;
-	}
 
 	ret = _rsa_enc(pkey, c, m);
 	if (ret)
 		goto err_free_m;
 
-	ret = mpi_read_buffer(c, req->dst, req->dst_len, &req->dst_len, &sign);
+	ret = mpi_write_to_sgl(c, req->dst, &req->dst_len, &sign);
 	if (ret)
 		goto err_free_m;
 
-	if (sign < 0) {
+	if (sign < 0)
 		ret = -EBADMSG;
-		goto err_free_m;
-	}
 
 err_free_m:
 	mpi_free(m);
@@ -145,25 +142,21 @@ static int rsa_dec(struct akcipher_request *req)
 		goto err_free_m;
 	}
 
-	c = mpi_read_raw_data(req->src, req->src_len);
-	if (!c) {
-		ret = -ENOMEM;
+	ret = -ENOMEM;
+	c = mpi_read_raw_from_sgl(req->src, req->src_len);
+	if (!c)
 		goto err_free_m;
-	}
 
 	ret = _rsa_dec(pkey, m, c);
 	if (ret)
 		goto err_free_c;
 
-	ret = mpi_read_buffer(m, req->dst, req->dst_len, &req->dst_len, &sign);
+	ret = mpi_write_to_sgl(m, req->dst, &req->dst_len, &sign);
 	if (ret)
 		goto err_free_c;
 
-	if (sign < 0) {
+	if (sign < 0)
 		ret = -EBADMSG;
-		goto err_free_c;
-	}
-
 err_free_c:
 	mpi_free(c);
 err_free_m:
@@ -193,24 +186,21 @@ static int rsa_sign(struct akcipher_request *req)
 		goto err_free_s;
 	}
 
-	m = mpi_read_raw_data(req->src, req->src_len);
-	if (!m) {
-		ret = -ENOMEM;
+	ret = -ENOMEM;
+	m = mpi_read_raw_from_sgl(req->src, req->src_len);
+	if (!m)
 		goto err_free_s;
-	}
 
 	ret = _rsa_sign(pkey, s, m);
 	if (ret)
 		goto err_free_m;
 
-	ret = mpi_read_buffer(s, req->dst, req->dst_len, &req->dst_len, &sign);
+	ret = mpi_write_to_sgl(s, req->dst, &req->dst_len, &sign);
 	if (ret)
 		goto err_free_m;
 
-	if (sign < 0) {
+	if (sign < 0)
 		ret = -EBADMSG;
-		goto err_free_m;
-	}
 
 err_free_m:
 	mpi_free(m);
@@ -241,7 +231,8 @@ static int rsa_verify(struct akcipher_request *req)
 		goto err_free_m;
 	}
 
-	s = mpi_read_raw_data(req->src, req->src_len);
+	ret = -ENOMEM;
+	s = mpi_read_raw_from_sgl(req->src, req->src_len);
 	if (!s) {
 		ret = -ENOMEM;
 		goto err_free_m;
@@ -251,14 +242,12 @@ static int rsa_verify(struct akcipher_request *req)
 	if (ret)
 		goto err_free_s;
 
-	ret = mpi_read_buffer(m, req->dst, req->dst_len, &req->dst_len, &sign);
+	ret = mpi_write_to_sgl(m, req->dst, &req->dst_len, &sign);
 	if (ret)
 		goto err_free_s;
 
-	if (sign < 0) {
+	if (sign < 0)
 		ret = -EBADMSG;
-		goto err_free_s;
-	}
 
 err_free_s:
 	mpi_free(s);
@@ -282,13 +271,13 @@ static int rsa_check_key_length(unsigned int len)
 	return -EINVAL;
 }
 
-static int rsa_setkey(struct crypto_akcipher *tfm, const void *key,
-		      unsigned int keylen)
+static int rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
+			   unsigned int keylen)
 {
 	struct rsa_key *pkey = akcipher_tfm_ctx(tfm);
 	int ret;
 
-	ret = rsa_parse_key(pkey, key, keylen);
+	ret = rsa_parse_pub_key(pkey, key, keylen);
 	if (ret)
 		return ret;
 
@@ -297,6 +286,30 @@ static int rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 		ret = -EINVAL;
 	}
 	return ret;
+}
+
+static int rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
+			    unsigned int keylen)
+{
+	struct rsa_key *pkey = akcipher_tfm_ctx(tfm);
+	int ret;
+
+	ret = rsa_parse_priv_key(pkey, key, keylen);
+	if (ret)
+		return ret;
+
+	if (rsa_check_key_length(mpi_get_size(pkey->n) << 3)) {
+		rsa_free_key(pkey);
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
+static int rsa_max_size(struct crypto_akcipher *tfm)
+{
+	struct rsa_key *pkey = akcipher_tfm_ctx(tfm);
+
+	return pkey->n ? mpi_get_size(pkey->n) : -EINVAL;
 }
 
 static void rsa_exit_tfm(struct crypto_akcipher *tfm)
@@ -311,7 +324,9 @@ static struct akcipher_alg rsa = {
 	.decrypt = rsa_dec,
 	.sign = rsa_sign,
 	.verify = rsa_verify,
-	.setkey = rsa_setkey,
+	.set_priv_key = rsa_set_priv_key,
+	.set_pub_key = rsa_set_pub_key,
+	.max_size = rsa_max_size,
 	.exit = rsa_exit_tfm,
 	.base = {
 		.cra_name = "rsa",

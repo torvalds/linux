@@ -174,19 +174,19 @@
 
 #define CESA_SA_DESC_MAC_DATA(offset)					\
 	cpu_to_le32(CESA_SA_DATA_SRAM_OFFSET + (offset))
-#define CESA_SA_DESC_MAC_DATA_MSK		GENMASK(15, 0)
+#define CESA_SA_DESC_MAC_DATA_MSK		cpu_to_le32(GENMASK(15, 0))
 
 #define CESA_SA_DESC_MAC_TOTAL_LEN(total_len)	cpu_to_le32((total_len) << 16)
-#define CESA_SA_DESC_MAC_TOTAL_LEN_MSK		GENMASK(31, 16)
+#define CESA_SA_DESC_MAC_TOTAL_LEN_MSK		cpu_to_le32(GENMASK(31, 16))
 
 #define CESA_SA_DESC_MAC_SRC_TOTAL_LEN_MAX	0xffff
 
 #define CESA_SA_DESC_MAC_DIGEST(offset)					\
 	cpu_to_le32(CESA_SA_MAC_DIG_SRAM_OFFSET + (offset))
-#define CESA_SA_DESC_MAC_DIGEST_MSK		GENMASK(15, 0)
+#define CESA_SA_DESC_MAC_DIGEST_MSK		cpu_to_le32(GENMASK(15, 0))
 
 #define CESA_SA_DESC_MAC_FRAG_LEN(frag_len)	cpu_to_le32((frag_len) << 16)
-#define CESA_SA_DESC_MAC_FRAG_LEN_MSK		GENMASK(31, 16)
+#define CESA_SA_DESC_MAC_FRAG_LEN_MSK		cpu_to_le32(GENMASK(31, 16))
 
 #define CESA_SA_DESC_MAC_IV(offset)					\
 	cpu_to_le32((CESA_SA_MAC_IIV_SRAM_OFFSET + (offset)) |		\
@@ -219,14 +219,14 @@
  * to be executed.
  */
 struct mv_cesa_sec_accel_desc {
-	u32 config;
-	u32 enc_p;
-	u32 enc_len;
-	u32 enc_key_p;
-	u32 enc_iv;
-	u32 mac_src_p;
-	u32 mac_digest;
-	u32 mac_iv;
+	__le32 config;
+	__le32 enc_p;
+	__le32 enc_len;
+	__le32 enc_key_p;
+	__le32 enc_iv;
+	__le32 mac_src_p;
+	__le32 mac_digest;
+	__le32 mac_iv;
 };
 
 /**
@@ -293,11 +293,13 @@ struct mv_cesa_op_ctx {
  * operation.
  */
 struct mv_cesa_tdma_desc {
-	u32 byte_cnt;
-	u32 src;
-	u32 dst;
-	u32 next_dma;
-	u32 cur_dma;
+	__le32 byte_cnt;
+	__le32 src;
+	__le32 dst;
+	__le32 next_dma;
+
+	/* Software state */
+	dma_addr_t cur_dma;
 	struct mv_cesa_tdma_desc *next;
 	union {
 		struct mv_cesa_op_ctx *op;
@@ -612,7 +614,8 @@ struct mv_cesa_ahash_req {
 	u64 len;
 	int src_nents;
 	bool last_req;
-	__be32 state[8];
+	bool algo_le;
+	u32 state[8];
 };
 
 /* CESA functions */
@@ -626,7 +629,7 @@ static inline void mv_cesa_update_op_cfg(struct mv_cesa_op_ctx *op,
 	op->desc.config |= cpu_to_le32(cfg);
 }
 
-static inline u32 mv_cesa_get_op_cfg(struct mv_cesa_op_ctx *op)
+static inline u32 mv_cesa_get_op_cfg(const struct mv_cesa_op_ctx *op)
 {
 	return le32_to_cpu(op->desc.config);
 }
@@ -676,13 +679,19 @@ static inline void mv_cesa_set_int_mask(struct mv_cesa_engine *engine,
 	if (int_mask == engine->int_mask)
 		return;
 
-	writel(int_mask, engine->regs + CESA_SA_INT_MSK);
+	writel_relaxed(int_mask, engine->regs + CESA_SA_INT_MSK);
 	engine->int_mask = int_mask;
 }
 
 static inline u32 mv_cesa_get_int_mask(struct mv_cesa_engine *engine)
 {
 	return engine->int_mask;
+}
+
+static inline bool mv_cesa_mac_op_is_first_frag(const struct mv_cesa_op_ctx *op)
+{
+	return (mv_cesa_get_op_cfg(op) & CESA_SA_DESC_CFG_FRAG_MSK) ==
+		CESA_SA_DESC_CFG_FIRST_FRAG;
 }
 
 int mv_cesa_queue_req(struct crypto_async_request *req);
@@ -789,10 +798,8 @@ int mv_cesa_dma_add_data_transfer(struct mv_cesa_tdma_chain *chain,
 				  dma_addr_t dst, dma_addr_t src, u32 size,
 				  u32 flags, gfp_t gfp_flags);
 
-int mv_cesa_dma_add_dummy_launch(struct mv_cesa_tdma_chain *chain,
-				 u32 flags);
-
-int mv_cesa_dma_add_dummy_end(struct mv_cesa_tdma_chain *chain, u32 flags);
+int mv_cesa_dma_add_dummy_launch(struct mv_cesa_tdma_chain *chain, gfp_t flags);
+int mv_cesa_dma_add_dummy_end(struct mv_cesa_tdma_chain *chain, gfp_t flags);
 
 int mv_cesa_dma_add_op_transfers(struct mv_cesa_tdma_chain *chain,
 				 struct mv_cesa_dma_iter *dma_iter,
