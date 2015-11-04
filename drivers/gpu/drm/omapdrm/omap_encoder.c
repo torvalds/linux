@@ -110,8 +110,6 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 	struct omap_dss_driver *dssdrv = dssdev->driver;
 	int ret;
 
-	dssdev->src->manager = omap_dss_get_overlay_manager(channel);
-
 	if (dssdrv->check_timings) {
 		ret = dssdrv->check_timings(dssdev, timings);
 	} else {
