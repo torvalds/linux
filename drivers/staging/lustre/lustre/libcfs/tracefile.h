@@ -196,14 +196,6 @@ extern union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS];
 struct page_collection {
 	struct list_head	pc_pages;
 	/*
-	 * spin-lock protecting ->pc_pages. It is taken by smp_call_function()
-	 * call-back functions. XXX nikita: Which is horrible: all processors
-	 * receive NMI at the same time only to be serialized by this
-	 * lock. Probably ->pc_pages should be replaced with an array of
-	 * NR_CPUS elements accessed locklessly.
-	 */
-	spinlock_t	pc_lock;
-	/*
 	 * if this flag is set, collect_pages() will spill both
 	 * ->tcd_daemon_pages and ->tcd_pages to the ->pc_pages. Otherwise,
 	 * only ->tcd_pages are spilled.
