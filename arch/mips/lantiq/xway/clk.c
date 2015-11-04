@@ -88,8 +88,9 @@ unsigned long ltq_ar9_fpi_hz(void)
 	unsigned long sys = ltq_ar9_sys_hz();
 
 	if (ltq_cgu_r32(CGU_SYS) & BIT(0))
-		return sys;
-	return sys >> 1;
+		return sys / 3;
+	else
+		return sys / 2;
 }
 
 unsigned long ltq_ar9_cpu_hz(void)
