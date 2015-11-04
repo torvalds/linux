@@ -190,7 +190,12 @@
 #define GEN8_CTX_L3LLC_COHERENT (1<<5)
 #define GEN8_CTX_PRIVILEGE (1<<8)
 
-#define ASSIGN_CTX_PDP(ppgtt, reg_state, n) do { \
+#define ASSIGN_CTX_REG(reg_state, pos, reg, val) do { \
+	(reg_state)[(pos)+0] = (reg); \
+	(reg_state)[(pos)+1] = (val); \
+} while (0)
+
+#define ASSIGN_CTX_PDP(ppgtt, reg_state, n) do {		\
 	const u64 _addr = i915_page_dir_dma_addr((ppgtt), (n));	\
 	reg_state[CTX_PDP ## n ## _UDW+1] = upper_32_bits(_addr); \
 	reg_state[CTX_PDP ## n ## _LDW+1] = lower_32_bits(_addr); \
@@ -2240,46 +2245,31 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	 * only for the first context restore: on a subsequent save, the GPU will
 	 * recreate this batchbuffer with new values (including all the missing
 	 * MI_LOAD_REGISTER_IMM commands that we are not initializing here). */
-	if (ring->id == RCS)
-		reg_state[CTX_LRI_HEADER_0] = MI_LOAD_REGISTER_IMM(14);
-	else
-		reg_state[CTX_LRI_HEADER_0] = MI_LOAD_REGISTER_IMM(11);
-	reg_state[CTX_LRI_HEADER_0] |= MI_LRI_FORCE_POSTED;
-	reg_state[CTX_CONTEXT_CONTROL] = RING_CONTEXT_CONTROL(ring);
-	reg_state[CTX_CONTEXT_CONTROL+1] =
-		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
-				   CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-				   CTX_CTRL_RS_CTX_ENABLE);
-	reg_state[CTX_RING_HEAD] = RING_HEAD(ring->mmio_base);
-	reg_state[CTX_RING_HEAD+1] = 0;
-	reg_state[CTX_RING_TAIL] = RING_TAIL(ring->mmio_base);
-	reg_state[CTX_RING_TAIL+1] = 0;
-	reg_state[CTX_RING_BUFFER_START] = RING_START(ring->mmio_base);
+	reg_state[CTX_LRI_HEADER_0] =
+		MI_LOAD_REGISTER_IMM(ring->id == RCS ? 14 : 11) | MI_LRI_FORCE_POSTED;
+	ASSIGN_CTX_REG(reg_state, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(ring),
+		       _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
+					  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
+					  CTX_CTRL_RS_CTX_ENABLE));
+	ASSIGN_CTX_REG(reg_state, CTX_RING_HEAD, RING_HEAD(ring->mmio_base), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_RING_TAIL, RING_TAIL(ring->mmio_base), 0);
 	/* Ring buffer start address is not known until the buffer is pinned.
 	 * It is written to the context image in execlists_update_context()
 	 */
-	reg_state[CTX_RING_BUFFER_CONTROL] = RING_CTL(ring->mmio_base);
-	reg_state[CTX_RING_BUFFER_CONTROL+1] =
-			((ringbuf->size - PAGE_SIZE) & RING_NR_PAGES) | RING_VALID;
-	reg_state[CTX_BB_HEAD_U] = RING_BBADDR_UDW(ring->mmio_base);
-	reg_state[CTX_BB_HEAD_U+1] = 0;
-	reg_state[CTX_BB_HEAD_L] = RING_BBADDR(ring->mmio_base);
-	reg_state[CTX_BB_HEAD_L+1] = 0;
-	reg_state[CTX_BB_STATE] = RING_BBSTATE(ring->mmio_base);
-	reg_state[CTX_BB_STATE+1] = RING_BB_PPGTT;
-	reg_state[CTX_SECOND_BB_HEAD_U] = RING_SBBADDR_UDW(ring->mmio_base);
-	reg_state[CTX_SECOND_BB_HEAD_U+1] = 0;
-	reg_state[CTX_SECOND_BB_HEAD_L] = RING_SBBADDR(ring->mmio_base);
-	reg_state[CTX_SECOND_BB_HEAD_L+1] = 0;
-	reg_state[CTX_SECOND_BB_STATE] = RING_SBBSTATE(ring->mmio_base);
-	reg_state[CTX_SECOND_BB_STATE+1] = 0;
+	ASSIGN_CTX_REG(reg_state, CTX_RING_BUFFER_START, RING_START(ring->mmio_base), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_RING_BUFFER_CONTROL, RING_CTL(ring->mmio_base),
+		       ((ringbuf->size - PAGE_SIZE) & RING_NR_PAGES) | RING_VALID);
+	ASSIGN_CTX_REG(reg_state, CTX_BB_HEAD_U, RING_BBADDR_UDW(ring->mmio_base), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_BB_HEAD_L, RING_BBADDR(ring->mmio_base), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_BB_STATE, RING_BBSTATE(ring->mmio_base),
+		       RING_BB_PPGTT);
+	ASSIGN_CTX_REG(reg_state, CTX_SECOND_BB_HEAD_U, RING_SBBADDR_UDW(ring->mmio_base), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_SECOND_BB_HEAD_L, RING_SBBADDR(ring->mmio_base), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_SECOND_BB_STATE, RING_SBBSTATE(ring->mmio_base), 0);
 	if (ring->id == RCS) {
-		reg_state[CTX_BB_PER_CTX_PTR] = RING_BB_PER_CTX_PTR(ring->mmio_base);
-		reg_state[CTX_BB_PER_CTX_PTR+1] = 0;
-		reg_state[CTX_RCS_INDIRECT_CTX] = RING_INDIRECT_CTX(ring->mmio_base);
-		reg_state[CTX_RCS_INDIRECT_CTX+1] = 0;
-		reg_state[CTX_RCS_INDIRECT_CTX_OFFSET] = RING_INDIRECT_CTX_OFFSET(ring->mmio_base);
-		reg_state[CTX_RCS_INDIRECT_CTX_OFFSET+1] = 0;
+		ASSIGN_CTX_REG(reg_state, CTX_BB_PER_CTX_PTR, RING_BB_PER_CTX_PTR(ring->mmio_base), 0);
+		ASSIGN_CTX_REG(reg_state, CTX_RCS_INDIRECT_CTX, RING_INDIRECT_CTX(ring->mmio_base), 0);
+		ASSIGN_CTX_REG(reg_state, CTX_RCS_INDIRECT_CTX_OFFSET, RING_INDIRECT_CTX_OFFSET(ring->mmio_base), 0);
 		if (ring->wa_ctx.obj) {
 			struct i915_ctx_workarounds *wa_ctx = &ring->wa_ctx;
 			uint32_t ggtt_offset = i915_gem_obj_ggtt_offset(wa_ctx->obj);
@@ -2296,18 +2286,17 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 				0x01;
 		}
 	}
-	reg_state[CTX_LRI_HEADER_1] = MI_LOAD_REGISTER_IMM(9);
-	reg_state[CTX_LRI_HEADER_1] |= MI_LRI_FORCE_POSTED;
-	reg_state[CTX_CTX_TIMESTAMP] = RING_CTX_TIMESTAMP(ring->mmio_base);
-	reg_state[CTX_CTX_TIMESTAMP+1] = 0;
-	reg_state[CTX_PDP3_UDW] = GEN8_RING_PDP_UDW(ring, 3);
-	reg_state[CTX_PDP3_LDW] = GEN8_RING_PDP_LDW(ring, 3);
-	reg_state[CTX_PDP2_UDW] = GEN8_RING_PDP_UDW(ring, 2);
-	reg_state[CTX_PDP2_LDW] = GEN8_RING_PDP_LDW(ring, 2);
-	reg_state[CTX_PDP1_UDW] = GEN8_RING_PDP_UDW(ring, 1);
-	reg_state[CTX_PDP1_LDW] = GEN8_RING_PDP_LDW(ring, 1);
-	reg_state[CTX_PDP0_UDW] = GEN8_RING_PDP_UDW(ring, 0);
-	reg_state[CTX_PDP0_LDW] = GEN8_RING_PDP_LDW(ring, 0);
+	reg_state[CTX_LRI_HEADER_1] = MI_LOAD_REGISTER_IMM(9) | MI_LRI_FORCE_POSTED;
+	ASSIGN_CTX_REG(reg_state, CTX_CTX_TIMESTAMP, RING_CTX_TIMESTAMP(ring->mmio_base), 0);
+	/* PDP values well be assigned later if needed */
+	ASSIGN_CTX_REG(reg_state, CTX_PDP3_UDW, GEN8_RING_PDP_UDW(ring, 3), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_PDP3_LDW, GEN8_RING_PDP_LDW(ring, 3), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_PDP2_UDW, GEN8_RING_PDP_UDW(ring, 2), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_PDP2_LDW, GEN8_RING_PDP_LDW(ring, 2), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_PDP1_UDW, GEN8_RING_PDP_UDW(ring, 1), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_PDP1_LDW, GEN8_RING_PDP_LDW(ring, 1), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_PDP0_UDW, GEN8_RING_PDP_UDW(ring, 0), 0);
+	ASSIGN_CTX_REG(reg_state, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(ring, 0), 0);
 
 	if (USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
 		/* 64b PPGTT (48bit canonical)
@@ -2329,8 +2318,8 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 
 	if (ring->id == RCS) {
 		reg_state[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
-		reg_state[CTX_R_PWR_CLK_STATE] = GEN8_R_PWR_CLK_STATE;
-		reg_state[CTX_R_PWR_CLK_STATE+1] = make_rpcs(dev);
+		ASSIGN_CTX_REG(reg_state, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
+			       make_rpcs(dev));
 	}
 
 	kunmap_atomic(reg_state);
