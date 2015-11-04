@@ -713,10 +713,12 @@ static void dispc_setup_color_conv_coef(void)
 	int i;
 	int num_ovl = dss_feat_get_num_ovls();
 	const struct color_conv_coef ctbl_bt601_5_ovl = {
+		/* YUV -> RGB */
 		298, 409, 0, 298, -208, -100, 298, 0, 517, 0,
 	};
 	const struct color_conv_coef ctbl_bt601_5_wb = {
-		66, 112, -38, 129, -94, -74, 25, -18, 112, 0,
+		/* RGB -> YUV */
+		66, 129, 25, 112, -94, -18, -38, -74, 112, 0,
 	};
 
 	for (i = 1; i < num_ovl; i++)
