@@ -1047,17 +1047,17 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 {
 	struct ib_recv_wr rx_wr, *rx_wr_failed;
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
-	struct ib_sge	  sge;
+	struct iser_login_desc *desc = &iser_conn->login_desc;
 	int ib_ret;
 
-	sge.addr   = iser_conn->login_resp_dma;
-	sge.length = ISER_RX_LOGIN_SIZE;
-	sge.lkey   = ib_conn->device->pd->local_dma_lkey;
+	desc->sge.addr = desc->rsp_dma;
+	desc->sge.length = ISER_RX_LOGIN_SIZE;
+	desc->sge.lkey = ib_conn->device->pd->local_dma_lkey;
 
-	rx_wr.wr_id   = (uintptr_t)iser_conn->login_resp_buf;
-	rx_wr.sg_list = &sge;
+	rx_wr.wr_id = (uintptr_t)desc;
+	rx_wr.sg_list = &desc->sge;
 	rx_wr.num_sge = 1;
-	rx_wr.next    = NULL;
+	rx_wr.next = NULL;
 
 	ib_conn->post_recv_buf_count++;
 	ib_ret	= ib_post_recv(ib_conn->qp, &rx_wr, &rx_wr_failed);

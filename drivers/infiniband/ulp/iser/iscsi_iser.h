@@ -326,6 +326,25 @@ struct iser_rx_desc {
 	char		             pad[ISER_RX_PAD_SIZE];
 } __attribute__((packed));
 
+
+/**
+ * struct iser_login_desc - iSER login descriptor
+ *
+ * @req:           pointer to login request buffer
+ * @resp:          pointer to login response buffer
+ * @req_dma:       DMA address of login request buffer
+ * @rsp_dma:      DMA address of login response buffer
+ * @sge:           IB sge for login post recv
+ */
+struct iser_login_desc {
+	void                         *req;
+	void                         *rsp;
+	u64                          req_dma;
+	u64                          rsp_dma;
+	struct ib_sge                sge;
+} __attribute__((packed));
+
+
 struct iser_conn;
 struct ib_conn;
 struct iscsi_iser_task;
@@ -514,11 +533,7 @@ struct ib_conn {
  * @up_completion:    connection establishment completed
  *                    (state is ISER_CONN_UP)
  * @conn_list:        entry in ig conn list
- * @login_buf:        login data buffer (stores login parameters)
- * @login_req_buf:    login request buffer
- * @login_req_dma:    login request buffer dma address
- * @login_resp_buf:   login response buffer
- * @login_resp_dma:   login response buffer dma address
+ * @login_desc:       login descriptor
  * @rx_desc_head:     head of rx_descs cyclic buffer
  * @rx_descs:         rx buffers array (cyclic buffer)
  * @num_rx_descs:     number of rx descriptors
@@ -541,10 +556,7 @@ struct iser_conn {
 	struct completion	     ib_completion;
 	struct completion	     up_completion;
 	struct list_head	     conn_list;
-
-	char  			     *login_buf;
-	char			     *login_req_buf, *login_resp_buf;
-	u64			     login_req_dma, login_resp_dma;
+	struct iser_login_desc       login_desc;
 	unsigned int 		     rx_desc_head;
 	struct iser_rx_desc	     *rx_descs;
 	u32                          num_rx_descs;
