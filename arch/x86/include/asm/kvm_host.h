@@ -1261,4 +1261,8 @@ bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
 
 void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 		     struct kvm_lapic_irq *irq);
+
+static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+
 #endif /* _ASM_X86_KVM_HOST_H */

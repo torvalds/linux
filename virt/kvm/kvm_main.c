@@ -2021,6 +2021,8 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 		} while (single_task_running() && ktime_before(cur, stop));
 	}
 
+	kvm_arch_vcpu_blocking(vcpu);
+
 	for (;;) {
 		prepare_to_wait(&vcpu->wq, &wait, TASK_INTERRUPTIBLE);
 
@@ -2034,6 +2036,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	finish_wait(&vcpu->wq, &wait);
 	cur = ktime_get();
 
+	kvm_arch_vcpu_unblocking(vcpu);
 out:
 	block_ns = ktime_to_ns(cur) - ktime_to_ns(start);
 
