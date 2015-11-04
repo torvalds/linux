@@ -1389,8 +1389,10 @@ static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 
 static int pxa3xx_nand_config_ident(struct pxa3xx_nand_info *info)
 {
+	struct pxa3xx_nand_host *host = info->host[info->cs];
 	struct platform_device *pdev = info->pdev;
 	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	const struct nand_sdr_timings *timings;
 
 	/* Configure default flash values */
 	info->chunk_size = PAGE_CHUNK_SIZE;
@@ -1399,6 +1401,12 @@ static int pxa3xx_nand_config_ident(struct pxa3xx_nand_info *info)
 	info->reg_ndcr |= NDCR_RD_ID_CNT(READ_ID_BYTES);
 	info->reg_ndcr |= NDCR_SPARE_EN;
 
+	/* use the common timing to make a try */
+	timings = onfi_async_timing_mode_to_sdr_timings(0);
+	if (IS_ERR(timings))
+		return PTR_ERR(timings);
+
+	pxa3xx_nand_set_sdr_timing(host, timings);
 	return 0;
 }
 
@@ -1491,32 +1499,6 @@ static void pxa3xx_nand_free_buff(struct pxa3xx_nand_info *info)
 	kfree(info->data_buff);
 }
 
-static int pxa3xx_nand_sensing(struct pxa3xx_nand_host *host)
-{
-	struct pxa3xx_nand_info *info = host->info_data;
-	struct mtd_info *mtd;
-	struct nand_chip *chip;
-	const struct nand_sdr_timings *timings;
-	int ret;
-
-	mtd = info->host[info->cs]->mtd;
-	chip = mtd->priv;
-
-	/* use the common timing to make a try */
-	timings = onfi_async_timing_mode_to_sdr_timings(0);
-	if (IS_ERR(timings))
-		return PTR_ERR(timings);
-
-	pxa3xx_nand_set_sdr_timing(host, timings);
-
-	chip->cmdfunc(mtd, NAND_CMD_RESET, 0, 0);
-	ret = chip->waitfunc(mtd, chip);
-	if (ret & NAND_STATUS_FAIL)
-		return -ENODEV;
-
-	return 0;
-}
-
 static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 			struct nand_ecc_ctrl *ecc,
 			int strength, int ecc_stepsize, int page_size)
@@ -1602,13 +1584,6 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 		ret = pxa3xx_nand_config_ident(info);
 		if (ret)
 			return ret;
-		ret = pxa3xx_nand_sensing(host);
-		if (ret) {
-			dev_info(&info->pdev->dev,
-				 "There is no chip on cs %d!\n",
-				 info->cs);
-			return ret;
-		}
 	}
 
 	if (info->reg_ndcr & NDCR_DWIDTH_M)
