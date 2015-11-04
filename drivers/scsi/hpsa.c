@@ -734,7 +734,6 @@ static ssize_t host_show_hp_ssd_smart_path_enabled(struct device *dev,
 }
 
 #define MAX_PATHS 8
-#define PATH_STRING_LEN 50
 
 static ssize_t path_info_show(struct device *dev,
 	     struct device_attribute *attr, char *buf)
@@ -750,9 +749,7 @@ static ssize_t path_info_show(struct device *dev,
 	u8 path_map_index = 0;
 	char *active;
 	unsigned char phys_connector[2];
-	unsigned char path[MAX_PATHS][PATH_STRING_LEN];
 
-	memset(path, 0, MAX_PATHS * PATH_STRING_LEN);
 	sdev = to_scsi_device(dev);
 	h = sdev_to_hba(sdev);
 	spin_lock_irqsave(&h->devlock, flags);
@@ -772,8 +769,9 @@ static ssize_t path_info_show(struct device *dev,
 		else
 			continue;
 
-		output_len = snprintf(path[i],
-				PATH_STRING_LEN, "[%d:%d:%d:%d] %20.20s ",
+		output_len += scnprintf(buf + output_len,
+				PAGE_SIZE - output_len,
+				"[%d:%d:%d:%d] %20.20s ",
 				h->scsi_host->host_no,
 				hdev->bus, hdev->target, hdev->lun,
 				scsi_device_type(hdev->devtype));
@@ -781,9 +779,9 @@ static ssize_t path_info_show(struct device *dev,
 		if (hdev->external ||
 			hdev->devtype == TYPE_RAID ||
 			is_logical_device(hdev)) {
-			output_len += snprintf(path[i] + output_len,
-						PATH_STRING_LEN, "%s\n",
-						active);
+			output_len += snprintf(buf + output_len,
+						PAGE_SIZE - output_len,
+						"%s\n", active);
 			continue;
 		}
 
@@ -795,35 +793,33 @@ static ssize_t path_info_show(struct device *dev,
 		if (phys_connector[1] < '0')
 			phys_connector[1] = '0';
 		if (hdev->phys_connector[i] > 0)
-			output_len += snprintf(path[i] + output_len,
-				PATH_STRING_LEN,
+			output_len += snprintf(buf + output_len,
+				PAGE_SIZE - output_len,
 				"PORT: %.2s ",
 				phys_connector);
 		if (hdev->devtype == TYPE_DISK && hdev->expose_device) {
 			if (box == 0 || box == 0xFF) {
-				output_len += snprintf(path[i] + output_len,
-					PATH_STRING_LEN,
+				output_len += snprintf(buf + output_len,
+					PAGE_SIZE - output_len,
 					"BAY: %hhu %s\n",
 					bay, active);
 			} else {
-				output_len += snprintf(path[i] + output_len,
-					PATH_STRING_LEN,
+				output_len += snprintf(buf + output_len,
+					PAGE_SIZE - output_len,
 					"BOX: %hhu BAY: %hhu %s\n",
 					box, bay, active);
 			}
 		} else if (box != 0 && box != 0xFF) {
-			output_len += snprintf(path[i] + output_len,
-				PATH_STRING_LEN, "BOX: %hhu %s\n",
+			output_len += snprintf(buf + output_len,
+				PAGE_SIZE - output_len, "BOX: %hhu %s\n",
 				box, active);
 		} else
-			output_len += snprintf(path[i] + output_len,
-				PATH_STRING_LEN, "%s\n", active);
+			output_len += snprintf(buf + output_len,
+				PAGE_SIZE - output_len, "%s\n", active);
 	}
 
 	spin_unlock_irqrestore(&h->devlock, flags);
-	return snprintf(buf, output_len+1, "%s%s%s%s%s%s%s%s",
-		path[0], path[1], path[2], path[3],
-		path[4], path[5], path[6], path[7]);
+	return output_len;
 }
 
 static DEVICE_ATTR(raid_level, S_IRUGO, raid_level_show, NULL);
