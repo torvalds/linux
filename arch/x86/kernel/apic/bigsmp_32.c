@@ -175,6 +175,7 @@ static struct apic apic_bigsmp = {
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
+	.send_IPI			= default_send_IPI_single_phys,
 	.send_IPI_mask			= default_send_IPI_mask_sequence_phys,
 	.send_IPI_mask_allbutself	= NULL,
 	.send_IPI_allbutself		= bigsmp_send_IPI_allbutself,
