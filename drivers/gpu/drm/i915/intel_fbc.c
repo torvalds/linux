@@ -503,7 +503,7 @@ static struct drm_crtc *intel_fbc_find_crtc(struct drm_i915_private *dev_priv)
 			break;
 	}
 
-	if (!crtc || crtc->primary->fb == NULL)
+	if (!crtc)
 		return NULL;
 
 	return crtc;
