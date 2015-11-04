@@ -33,6 +33,29 @@ struct access_method {
 	unsigned long (*command_completed)(struct ctlr_info *h, u8 q);
 };
 
+/* for SAS hosts and SAS expanders */
+struct hpsa_sas_node {
+	struct device *parent_dev;
+	struct list_head port_list_head;
+};
+
+struct hpsa_sas_port {
+	struct list_head port_list_entry;
+	u64 sas_address;
+	struct sas_port *port;
+	int next_phy_index;
+	struct list_head phy_list_head;
+	struct hpsa_sas_node *parent_node;
+	struct sas_rphy *rphy;
+};
+
+struct hpsa_sas_phy {
+	struct list_head phy_list_entry;
+	struct sas_phy *phy;
+	struct hpsa_sas_port *parent_port;
+	bool added_to_port;
+};
+
 struct hpsa_scsi_dev_t {
 	unsigned int devtype;
 	int bus, target, lun;		/* as presented to the OS */
@@ -41,6 +64,7 @@ struct hpsa_scsi_dev_t {
 	u8 expose_device;
 #define RAID_CTLR_LUNID "\0\0\0\0\0\0\0\0"
 	unsigned char device_id[16];    /* from inquiry pg. 0x83 */
+	u64 sas_address;
 	unsigned char vendor[8];        /* bytes 8-15 of inquiry data */
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
@@ -77,6 +101,7 @@ struct hpsa_scsi_dev_t {
 	struct hpsa_scsi_dev_t *phys_disk[RAID_MAP_MAX_ENTRIES];
 	int nphysical_disks;
 	int supports_aborts;
+	struct hpsa_sas_port *sas_port;
 	int external;   /* 1-from external array 0-not <0-unknown */
 };
 
@@ -134,6 +159,7 @@ struct ctlr_info {
 	char    *product_name;
 	struct pci_dev *pdev;
 	u32	board_id;
+	u64	sas_address;
 	void __iomem *vaddr;
 	unsigned long paddr;
 	int 	nr_cmds; /* Number of commands allowed on this controller */
@@ -272,6 +298,7 @@ struct ctlr_info {
 	wait_queue_head_t event_sync_wait_queue;
 	struct mutex reset_mutex;
 	u8 reset_in_progress;
+	struct hpsa_sas_node *sas_host;
 };
 
 struct offline_device_entry {

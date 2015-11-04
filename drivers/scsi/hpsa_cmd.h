@@ -290,6 +290,7 @@ struct SenseSubsystem_info {
 #define BMIC_SET_DIAG_OPTIONS 0xF4
 #define BMIC_SENSE_DIAG_OPTIONS 0xF5
 #define HPSA_DIAG_OPTS_DISABLE_RLD_CACHING 0x40000000
+#define BMIC_SENSE_SUBSYSTEM_INFORMATION 0x66
 
 /* Command List Structure */
 union SCSI3Addr {
@@ -826,6 +827,19 @@ struct bmic_identify_physical_device {
 	__le32 misc_drive_flags;
 	__le16 dek_index;
 	u8     padding[112];
+};
+
+struct bmic_sense_subsystem_info {
+	u8	primary_slot_number;
+	u8	reserved[3];
+	u8	chasis_serial_number[32];
+	u8	primary_world_wide_id[8];
+	u8	primary_array_serial_number[32]; /* NULL terminated */
+	u8	primary_cache_serial_number[32]; /* NULL terminated */
+	u8	reserved_2[8];
+	u8	secondary_array_serial_number[32];
+	u8	secondary_cache_serial_number[32];
+	u8	pad[332];
 };
 
 #pragma pack()
