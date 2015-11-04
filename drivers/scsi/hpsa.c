@@ -230,6 +230,7 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 	int cmd_type);
 static void hpsa_free_cmd_pool(struct ctlr_info *h);
 #define VPD_PAGE (1 << 8)
+#define HPSA_SIMPLE_ERROR_BITS 0x03
 
 static int hpsa_scsi_queue_command(struct Scsi_Host *h, struct scsi_cmnd *cmd);
 static void hpsa_scan_start(struct Scsi_Host *);
@@ -6434,16 +6435,6 @@ static inline void finish_cmd(struct CommandList *c)
 		complete_scsi_command(c);
 	else if (c->cmd_type == CMD_IOCTL_PEND || c->cmd_type == IOACCEL2_TMF)
 		complete(c->waiting);
-}
-
-
-static inline u32 hpsa_tag_discard_error_bits(struct ctlr_info *h, u32 tag)
-{
-#define HPSA_PERF_ERROR_BITS ((1 << DIRECT_LOOKUP_SHIFT) - 1)
-#define HPSA_SIMPLE_ERROR_BITS 0x03
-	if (unlikely(!(h->transMethod & CFGTBL_Trans_Performant)))
-		return tag & ~HPSA_SIMPLE_ERROR_BITS;
-	return tag & ~HPSA_PERF_ERROR_BITS;
 }
 
 /* process completion of an indexed ("direct lookup") command */
