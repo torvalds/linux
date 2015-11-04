@@ -7495,6 +7495,7 @@ enum skl_disp_power_wells {
 
 /* GEN9 DC */
 #define DC_STATE_EN			0x45504
+#define  DC_STATE_DISABLE		0
 #define  DC_STATE_EN_UPTO_DC5		(1<<0)
 #define  DC_STATE_EN_DC9		(1<<3)
 #define  DC_STATE_EN_UPTO_DC6		(2<<0)
