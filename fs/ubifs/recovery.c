@@ -1331,8 +1331,7 @@ void ubifs_destroy_size_tree(struct ubifs_info *c)
 	struct size_entry *e, *n;
 
 	rbtree_postorder_for_each_entry_safe(e, n, &c->size_tree, rb) {
-		if (e->inode)
-			iput(e->inode);
+		iput(e->inode);
 		kfree(e);
 	}
 
@@ -1533,8 +1532,7 @@ int ubifs_recover_size(struct ubifs_info *c)
 				err = fix_size_in_place(c, e);
 				if (err)
 					return err;
-				if (e->inode)
-					iput(e->inode);
+				iput(e->inode);
 			}
 		}
 
