@@ -908,6 +908,8 @@ static inline u16 DISPC_MFLAG_THRESHOLD_OFFSET(enum omap_plane plane)
 		return 0x0868;
 	case OMAP_DSS_VIDEO3:
 		return 0x086c;
+	case OMAP_DSS_WB:
+		return 0x0870;
 	default:
 		BUG();
 		return 0;
