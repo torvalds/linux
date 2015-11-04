@@ -1592,7 +1592,7 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 		goto KEEP_CONFIG;
 
 	/* Set a default chunk size */
-	info->chunk_size = 512;
+	info->chunk_size = PAGE_CHUNK_SIZE;
 
 	ret = pxa3xx_nand_config_flash(info);
 	if (ret)
