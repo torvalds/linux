@@ -3752,6 +3752,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 	int ncurrent = 0;
 	int i, n_ext_target_devs, ndevs_to_allocate;
 	int raid_ctlr_position;
+	bool physical_device;
 	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
 
 	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_DEVICES, GFP_KERNEL);
@@ -3812,16 +3813,16 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 		int rc = 0;
 		int phys_dev_index = i - (raid_ctlr_position == 0);
 
+		physical_device = i < nphysicals + (raid_ctlr_position == 0);
+
 		/* Figure out where the LUN ID info is coming from */
 		lunaddrbytes = figure_lunaddrbytes(h, raid_ctlr_position,
 			i, nphysicals, nlogicals, physdev_list, logdev_list);
 
 		/* skip masked non-disk devices */
-		if (MASKED_DEVICE(lunaddrbytes))
-			if (i < nphysicals + (raid_ctlr_position == 0) &&
-				(physdev_list->
-				LUN[phys_dev_index].device_flags & 0x01))
-				continue;
+		if (MASKED_DEVICE(lunaddrbytes) && physical_device &&
+			(physdev_list->LUN[phys_dev_index].device_flags & 0x01))
+			continue;
 
 		/* Get device type, vendor, model, device id */
 		rc = hpsa_update_device_info(h, lunaddrbytes, tmpdevice,
@@ -3857,10 +3858,13 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 		}
 
 		*this_device = *tmpdevice;
+		this_device->physical_device = physical_device;
 
-		/* do not expose masked devices */
-		if (MASKED_DEVICE(lunaddrbytes) &&
-			i < nphysicals + (raid_ctlr_position == 0))
+		/*
+		 * Expose all devices except for physical devices that
+		 * are masked.
+		 */
+		if (MASKED_DEVICE(lunaddrbytes) && this_device->physical_device)
 			this_device->expose_device = 0;
 		else
 			this_device->expose_device = 1;
@@ -3878,7 +3882,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 				ncurrent++;
 			break;
 		case TYPE_DISK:
-			if (i < nphysicals + (raid_ctlr_position == 0)) {
+			if (this_device->physical_device) {
 				/* The disk is in HBA mode. */
 				/* Never use RAID mapper in HBA mode. */
 				this_device->offload_enabled = 0;
