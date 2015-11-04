@@ -7506,6 +7506,28 @@ struct btrfs_dio_data {
 	u64 reserve;
 };
 
+static void adjust_dio_outstanding_extents(struct inode *inode,
+					   struct btrfs_dio_data *dio_data,
+					   const u64 len)
+{
+	unsigned num_extents;
+
+	num_extents = (unsigned) div64_u64(len + BTRFS_MAX_EXTENT_SIZE - 1,
+					   BTRFS_MAX_EXTENT_SIZE);
+	/*
+	 * If we have an outstanding_extents count still set then we're
+	 * within our reservation, otherwise we need to adjust our inode
+	 * counter appropriately.
+	 */
+	if (dio_data->outstanding_extents) {
+		dio_data->outstanding_extents -= num_extents;
+	} else {
+		spin_lock(&BTRFS_I(inode)->lock);
+		BTRFS_I(inode)->outstanding_extents += num_extents;
+		spin_unlock(&BTRFS_I(inode)->lock);
+	}
+}
+
 static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result, int create)
 {
@@ -7541,8 +7563,11 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	 * If this errors out it's because we couldn't invalidate pagecache for
 	 * this range and we need to fallback to buffered.
 	 */
-	if (lock_extent_direct(inode, lockstart, lockend, &cached_state, create))
-		return -ENOTBLK;
+	if (lock_extent_direct(inode, lockstart, lockend, &cached_state,
+			       create)) {
+		ret = -ENOTBLK;
+		goto err;
+	}
 
 	em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
 	if (IS_ERR(em)) {
@@ -7660,19 +7685,7 @@ unlock:
 		if (start + len > i_size_read(inode))
 			i_size_write(inode, start + len);
 
-		/*
-		 * If we have an outstanding_extents count still set then we're
-		 * within our reservation, otherwise we need to adjust our inode
-		 * counter appropriately.
-		 */
-		if (dio_data->outstanding_extents) {
-			(dio_data->outstanding_extents)--;
-		} else {
-			spin_lock(&BTRFS_I(inode)->lock);
-			BTRFS_I(inode)->outstanding_extents++;
-			spin_unlock(&BTRFS_I(inode)->lock);
-		}
-
+		adjust_dio_outstanding_extents(inode, dio_data, len);
 		btrfs_free_reserved_data_space(inode, start, len);
 		WARN_ON(dio_data->reserve < len);
 		dio_data->reserve -= len;
@@ -7699,8 +7712,17 @@ unlock:
 unlock_err:
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 			 unlock_bits, 1, 0, &cached_state, GFP_NOFS);
+err:
 	if (dio_data)
 		current->journal_info = dio_data;
+	/*
+	 * Compensate the delalloc release we do in btrfs_direct_IO() when we
+	 * write less data then expected, so that we don't underflow our inode's
+	 * outstanding extents counter.
+	 */
+	if (create && dio_data)
+		adjust_dio_outstanding_extents(inode, dio_data, len);
+
 	return ret;
 }
 
