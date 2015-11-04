@@ -262,6 +262,7 @@ struct ctlr_info {
 	spinlock_t offline_device_lock;
 	struct list_head offline_device_list;
 	int	acciopath_status;
+	int	drv_req_rescan;
 	int	raid_offload_debug;
 	int	needs_abort_tags_swizzled;
 	struct workqueue_struct *resubmit_wq;

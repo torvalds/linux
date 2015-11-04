@@ -1810,6 +1810,7 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h,
 		 * since it didn't get added to scsi mid layer
 		 */
 		fixup_botched_add(h, added[i]);
+		h->drv_req_rescan = 1;
 	}
 
 free_and_out:
@@ -3751,9 +3752,13 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 	}
 	memset(lunzerobits, 0, sizeof(lunzerobits));
 
+	h->drv_req_rescan = 0; /* cancel scheduled rescan - we're doing it. */
+
 	if (hpsa_gather_lun_info(h, physdev_list, &nphysicals,
-			logdev_list, &nlogicals))
+			logdev_list, &nlogicals)) {
+		h->drv_req_rescan = 1;
 		goto out;
+	}
 
 	/* We might see up to the maximum number of logical and physical disks
 	 * plus external target devices, and a device for the local RAID
@@ -3774,6 +3779,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 		if (!currentsd[i]) {
 			dev_warn(&h->pdev->dev, "out of memory at %s:%d\n",
 				__FILE__, __LINE__);
+			h->drv_req_rescan = 1;
 			goto out;
 		}
 		ndev_allocated++;
@@ -3801,8 +3807,10 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 
 		/* Get device type, vendor, model, device id */
 		if (hpsa_update_device_info(h, lunaddrbytes, tmpdevice,
-							&is_OBDR))
+							&is_OBDR)) {
+			h->drv_req_rescan = 1;
 			continue; /* skip it if we can't talk to it. */
+		}
 		figure_bus_target_lun(h, lunaddrbytes, tmpdevice);
 		hpsa_update_device_supports_aborts(h, tmpdevice, lunaddrbytes);
 		this_device = currentsd[ncurrent];
@@ -7862,6 +7870,11 @@ static void hpsa_ack_ctlr_events(struct ctlr_info *h)
  */
 static int hpsa_ctlr_needs_rescan(struct ctlr_info *h)
 {
+	if (h->drv_req_rescan) {
+		h->drv_req_rescan = 0;
+		return 1;
+	}
+
 	if (!(h->fw_support & MISC_FW_EVENT_NOTIFY))
 		return 0;
 
