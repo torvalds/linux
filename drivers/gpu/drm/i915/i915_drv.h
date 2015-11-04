@@ -3350,7 +3350,6 @@ extern void intel_set_rps(struct drm_device *dev, u8 val);
 extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);
 extern void intel_detect_pch(struct drm_device *dev);
-extern int intel_trans_dp_port_sel(struct drm_crtc *crtc);
 extern int intel_enable_rc6(const struct drm_device *dev);
 
 extern bool i915_semaphore_is_enabled(struct drm_device *dev);

@@ -5063,25 +5063,6 @@ put_power:
 	return ret;
 }
 
-/* Return which DP Port should be selected for Transcoder DP control */
-int
-intel_trans_dp_port_sel(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_encoder *intel_encoder;
-	struct intel_dp *intel_dp;
-
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
-		intel_dp = enc_to_intel_dp(&intel_encoder->base);
-
-		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
-		    intel_encoder->type == INTEL_OUTPUT_EDP)
-			return intel_dp->output_reg;
-	}
-
-	return -1;
-}
-
 /* check the VBT to see whether the eDP is on another port */
 bool intel_dp_is_edp(struct drm_device *dev, enum port port)
 {

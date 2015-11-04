@@ -4078,6 +4078,22 @@ static void ivybridge_update_fdi_bc_bifurcation(struct intel_crtc *intel_crtc)
 	}
 }
 
+/* Return which DP Port should be selected for Transcoder DP control */
+static enum port
+intel_trans_dp_port_sel(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_encoder *encoder;
+
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+		    encoder->type == INTEL_OUTPUT_EDP)
+			return enc_to_dig_port(&encoder->base)->port;
+	}
+
+	return -1;
+}
+
 /*
  * Enable PCH resources required for PCH ports:
  *   - PCH PLLs
@@ -4156,13 +4172,13 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 			temp |= TRANS_DP_VSYNC_ACTIVE_HIGH;
 
 		switch (intel_trans_dp_port_sel(crtc)) {
-		case PCH_DP_B:
+		case PORT_B:
 			temp |= TRANS_DP_PORT_SEL_B;
 			break;
-		case PCH_DP_C:
+		case PORT_C:
 			temp |= TRANS_DP_PORT_SEL_C;
 			break;
-		case PCH_DP_D:
+		case PORT_D:
 			temp |= TRANS_DP_PORT_SEL_D;
 			break;
 		default:
