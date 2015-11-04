@@ -438,7 +438,8 @@ static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
 
 	intel_fbc_cancel_work(dev_priv);
 
-	dev_priv->fbc.disable_fbc(dev_priv);
+	if (dev_priv->fbc.enabled)
+		dev_priv->fbc.disable_fbc(dev_priv);
 	dev_priv->fbc.crtc = NULL;
 }
 
