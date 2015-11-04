@@ -1782,6 +1782,34 @@ static struct i915_power_well skl_power_wells[] = {
 	},
 };
 
+void skl_pw1_misc_io_init(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_well *well;
+
+	if (!IS_SKYLAKE(dev_priv))
+		return;
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
+	intel_power_well_enable(dev_priv, well);
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_MISC_IO);
+	intel_power_well_enable(dev_priv, well);
+}
+
+void skl_pw1_misc_io_fini(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_well *well;
+
+	if (!IS_SKYLAKE(dev_priv))
+		return;
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
+	intel_power_well_disable(dev_priv, well);
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_MISC_IO);
+	intel_power_well_disable(dev_priv, well);
+}
+
 static struct i915_power_well bxt_power_wells[] = {
 	{
 		.name = "always-on",

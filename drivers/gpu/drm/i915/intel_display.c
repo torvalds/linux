@@ -5713,7 +5713,8 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 			DRM_ERROR("Couldn't disable DPLL0\n");
 	}
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+	/* disable PG1 and Misc I/O */
+	skl_pw1_misc_io_fini(dev_priv);
 }
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
@@ -5726,7 +5727,7 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 	I915_WRITE(HSW_NDE_RSTWRN_OPT, val | RESET_PCH_HANDSHAKE_ENABLE);
 
 	/* enable PG1 and Misc I/O */
-	intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
+	skl_pw1_misc_io_init(dev_priv);
 
 	/* DPLL0 not enabled (happens on early BIOS versions) */
 	if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE)) {
