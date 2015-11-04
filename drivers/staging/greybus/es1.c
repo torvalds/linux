@@ -369,6 +369,9 @@ static void ap_disconnect(struct usb_interface *interface)
 	if (!es1)
 		return;
 
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i)
+		usb_kill_urb(es1->cport_in_urb[i]);
+
 	usb_log_disable(es1);
 
 	/* Tear down everything! */
@@ -377,7 +380,6 @@ static void ap_disconnect(struct usb_interface *interface)
 
 		if (!urb)
 			break;
-		usb_kill_urb(urb);
 		usb_free_urb(urb);
 		es1->cport_out_urb[i] = NULL;
 		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
