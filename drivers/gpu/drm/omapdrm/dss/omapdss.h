@@ -82,7 +82,7 @@ struct dss_mgr_ops {
 int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops);
 void dss_uninstall_mgr_ops(void);
 
-int dss_mgr_connect(struct omap_overlay_manager *mgr,
+int dss_mgr_connect(enum omap_channel channel,
 		struct omap_dss_device *dst);
 void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dst);

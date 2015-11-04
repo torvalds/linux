@@ -188,10 +188,10 @@ void dss_uninstall_mgr_ops(void)
 }
 EXPORT_SYMBOL(dss_uninstall_mgr_ops);
 
-int dss_mgr_connect(struct omap_overlay_manager *mgr,
+int dss_mgr_connect(enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	return dss_mgr_ops->connect(mgr->id, dst);
+	return dss_mgr_ops->connect(channel, dst);
 }
 EXPORT_SYMBOL(dss_mgr_connect);
 

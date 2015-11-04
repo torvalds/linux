@@ -291,7 +291,7 @@ static int sdi_connect(struct omap_dss_device *dssdev,
 	if (!mgr)
 		return -ENODEV;
 
-	r = dss_mgr_connect(mgr, dssdev);
+	r = dss_mgr_connect(mgr->id, dssdev);
 	if (r)
 		return r;
 
