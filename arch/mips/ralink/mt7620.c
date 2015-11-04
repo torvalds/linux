@@ -37,9 +37,6 @@
 #define PMU1_CFG		0x8C
 #define DIG_SW_SEL		BIT(25)
 
-/* is this a MT7620 or a MT7628 */
-enum mt762x_soc_type mt762x_soc;
-
 /* EFUSE bits */
 #define EFUSE_MT7688		0x100000
 
@@ -235,8 +232,8 @@ static struct rt2880_pmx_group mt7628an_pinmux_data[] = {
 
 static inline int is_mt76x8(void)
 {
-	return mt762x_soc == MT762X_SOC_MT7628AN ||
-	       mt762x_soc == MT762X_SOC_MT7688;
+	return ralink_soc == MT762X_SOC_MT7628AN ||
+	       ralink_soc == MT762X_SOC_MT7688;
 }
 
 static __init u32
@@ -511,11 +508,11 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 
 	if (n0 == MT7620_CHIP_NAME0 && n1 == MT7620_CHIP_NAME1) {
 		if (bga) {
-			mt762x_soc = MT762X_SOC_MT7620A;
+			ralink_soc = MT762X_SOC_MT7620A;
 			name = "MT7620A";
 			soc_info->compatible = "ralink,mt7620a-soc";
 		} else {
-			mt762x_soc = MT762X_SOC_MT7620N;
+			ralink_soc = MT762X_SOC_MT7620N;
 			name = "MT7620N";
 			soc_info->compatible = "ralink,mt7620n-soc";
 #ifdef CONFIG_PCI
@@ -526,10 +523,10 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		u32 efuse = __raw_readl(sysc + SYSC_REG_EFUSE_CFG);
 
 		if (efuse & EFUSE_MT7688) {
-			mt762x_soc = MT762X_SOC_MT7688;
+			ralink_soc = MT762X_SOC_MT7688;
 			name = "MT7688";
 		} else {
-			mt762x_soc = MT762X_SOC_MT7628AN;
+			ralink_soc = MT762X_SOC_MT7628AN;
 			name = "MT7628AN";
 		}
 		soc_info->compatible = "ralink,mt7628an-soc";
