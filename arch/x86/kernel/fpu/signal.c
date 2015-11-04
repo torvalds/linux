@@ -107,7 +107,7 @@ static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
 	 * header as well as change any contents in the memory layout.
 	 * xrestore as part of sigreturn will capture all the changes.
 	 */
-	xfeatures |= XSTATE_FPSSE;
+	xfeatures |= XFEATURE_MASK_FPSSE;
 
 	err |= __put_user(xfeatures, (__u32 *)&x->header.xfeatures);
 
@@ -207,7 +207,7 @@ sanitize_restored_xstate(struct task_struct *tsk,
 		 * layout and not enabled by the OS.
 		 */
 		if (fx_only)
-			header->xfeatures = XSTATE_FPSSE;
+			header->xfeatures = XFEATURE_MASK_FPSSE;
 		else
 			header->xfeatures &= (xfeatures_mask & xfeatures);
 	}
@@ -230,7 +230,7 @@ static inline int copy_user_to_fpregs_zeroing(void __user *buf, u64 xbv, int fx_
 {
 	if (use_xsave()) {
 		if ((unsigned long)buf % 64 || fx_only) {
-			u64 init_bv = xfeatures_mask & ~XSTATE_FPSSE;
+			u64 init_bv = xfeatures_mask & ~XFEATURE_MASK_FPSSE;
 			copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
 			return copy_user_to_fxregs(buf);
 		} else {
