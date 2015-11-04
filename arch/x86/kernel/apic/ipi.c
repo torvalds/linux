@@ -65,6 +65,14 @@ void default_send_IPI_mask_allbutself_phys(const struct cpumask *mask,
 	local_irq_restore(flags);
 }
 
+/*
+ * Helper function for APICs which insist on cpumasks
+ */
+void default_send_IPI_single(int cpu, int vector)
+{
+	apic->send_IPI_mask(cpumask_of(cpu), vector);
+}
+
 #ifdef CONFIG_X86_32
 
 void default_send_IPI_mask_sequence_logical(const struct cpumask *mask,
