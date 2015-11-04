@@ -341,7 +341,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	cg->chip.base = -1;
 	cg->chip.ngpio = CRYSTALCOVE_VGPIO_NUM;
 	cg->chip.can_sleep = true;
-	cg->chip.dev = dev;
+	cg->chip.parent = dev;
 	cg->chip.dbg_show = crystalcove_gpio_dbg_show;
 	cg->regmap = pmic->regmap;
 

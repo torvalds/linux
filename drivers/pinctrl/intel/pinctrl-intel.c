@@ -872,7 +872,7 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 
 	pctrl->chip.ngpio = pctrl->soc->npins;
 	pctrl->chip.label = dev_name(pctrl->dev);
-	pctrl->chip.dev = pctrl->dev;
+	pctrl->chip.parent = pctrl->dev;
 	pctrl->chip.base = -1;
 
 	ret = gpiochip_add(&pctrl->chip);

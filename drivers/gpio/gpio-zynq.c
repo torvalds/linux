@@ -592,7 +592,7 @@ static int zynq_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	int ret;
 
-	ret = pm_runtime_get_sync(chip->dev);
+	ret = pm_runtime_get_sync(chip->parent);
 
 	/*
 	 * If the device is already active pm_runtime_get() will return 1 on
@@ -603,7 +603,7 @@ static int zynq_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void zynq_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	pm_runtime_put(chip->dev);
+	pm_runtime_put(chip->parent);
 }
 
 static const struct dev_pm_ops zynq_gpio_dev_pm_ops = {
@@ -698,7 +698,7 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	chip = &gpio->chip;
 	chip->label = gpio->p_data->label;
 	chip->owner = THIS_MODULE;
-	chip->dev = &pdev->dev;
+	chip->parent = &pdev->dev;
 	chip->get = zynq_gpio_get_value;
 	chip->set = zynq_gpio_set_value;
 	chip->request = zynq_gpio_request;

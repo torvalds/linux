@@ -258,7 +258,7 @@ static int wm831x_gpio_probe(struct platform_device *pdev)
 	wm831x_gpio->wm831x = wm831x;
 	wm831x_gpio->gpio_chip = template_chip;
 	wm831x_gpio->gpio_chip.ngpio = wm831x->num_gpio;
-	wm831x_gpio->gpio_chip.dev = &pdev->dev;
+	wm831x_gpio->gpio_chip.parent = &pdev->dev;
 	if (pdata && pdata->gpio_base)
 		wm831x_gpio->gpio_chip.base = pdata->gpio_base;
 	else

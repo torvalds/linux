@@ -603,7 +603,7 @@ static int max732x_setup_gpio(struct max732x_chip *chip,
 	gc->base = gpio_start;
 	gc->ngpio = port;
 	gc->label = chip->client->name;
-	gc->dev = &chip->client->dev;
+	gc->parent = &chip->client->dev;
 	gc->owner = THIS_MODULE;
 
 	return port;
@@ -649,7 +649,7 @@ static int max732x_probe(struct i2c_client *client,
 	chip->client = client;
 
 	nr_port = max732x_setup_gpio(chip, id, pdata->gpio_base);
-	chip->gpio_chip.dev = &client->dev;
+	chip->gpio_chip.parent = &client->dev;
 
 	addr_a = (client->addr & 0x0f) | 0x60;
 	addr_b = (client->addr & 0x0f) | 0x50;

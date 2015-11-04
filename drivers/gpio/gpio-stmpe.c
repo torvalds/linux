@@ -356,7 +356,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	stmpe_gpio->stmpe = stmpe;
 	stmpe_gpio->chip = template_chip;
 	stmpe_gpio->chip.ngpio = stmpe->num_gpios;
-	stmpe_gpio->chip.dev = &pdev->dev;
+	stmpe_gpio->chip.parent = &pdev->dev;
 	stmpe_gpio->chip.of_node = np;
 	stmpe_gpio->chip.base = -1;
 

@@ -637,7 +637,7 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 
 	gpio->chip = u300_gpio_chip;
 	gpio->chip.ngpio = U300_GPIO_NUM_PORTS * U300_GPIO_PINS_PER_PORT;
-	gpio->chip.dev = &pdev->dev;
+	gpio->chip.parent = &pdev->dev;
 	gpio->chip.base = 0;
 	gpio->dev = &pdev->dev;
 

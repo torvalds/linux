@@ -4696,7 +4696,7 @@ static void rt5677_init_gpio(struct i2c_client *i2c)
 
 	rt5677->gpio_chip = rt5677_template_chip;
 	rt5677->gpio_chip.ngpio = RT5677_GPIO_NUM;
-	rt5677->gpio_chip.dev = &i2c->dev;
+	rt5677->gpio_chip.parent = &i2c->dev;
 	rt5677->gpio_chip.base = -1;
 
 	ret = gpiochip_add(&rt5677->gpio_chip);

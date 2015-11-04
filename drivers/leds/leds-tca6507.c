@@ -651,7 +651,7 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 	tca->gpio.owner = THIS_MODULE;
 	tca->gpio.direction_output = tca6507_gpio_direction_output;
 	tca->gpio.set = tca6507_gpio_set_value;
-	tca->gpio.dev = &client->dev;
+	tca->gpio.parent = &client->dev;
 #ifdef CONFIG_OF_GPIO
 	tca->gpio.of_node = of_node_get(client->dev.of_node);
 #endif

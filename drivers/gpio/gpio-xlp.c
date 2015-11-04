@@ -373,7 +373,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gc->owner = THIS_MODULE;
 	gc->label = dev_name(&pdev->dev);
 	gc->base = 0;
-	gc->dev = &pdev->dev;
+	gc->parent = &pdev->dev;
 	gc->ngpio = ngpio;
 	gc->of_node = pdev->dev.of_node;
 	gc->direction_output = xlp_gpio_dir_output;

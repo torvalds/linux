@@ -760,7 +760,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	}
 
 	state->chip = pmic_gpio_gpio_template;
-	state->chip.dev = dev;
+	state->chip.parent = dev;
 	state->chip.base = -1;
 	state->chip.ngpio = npins;
 	state->chip.label = dev_name(dev);

@@ -6012,7 +6012,7 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	chip->label = kstrdup(np->name, GFP_KERNEL);
 	chip->of_node = np;
 	chip->of_gpio_n_cells = 2;
-	chip->dev = &pdev->dev;
+	chip->parent = &pdev->dev;
 
 	/* Add gpio chip to system */
 	ret = gpiochip_add(chip);

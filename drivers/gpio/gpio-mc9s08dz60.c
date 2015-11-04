@@ -99,7 +99,7 @@ static int mc9s08dz60_probe(struct i2c_client *client,
 
 	mc9s->chip.label = client->name;
 	mc9s->chip.base = -1;
-	mc9s->chip.dev = &client->dev;
+	mc9s->chip.parent = &client->dev;
 	mc9s->chip.owner = THIS_MODULE;
 	mc9s->chip.ngpio = GPIO_NUM;
 	mc9s->chip.can_sleep = true;

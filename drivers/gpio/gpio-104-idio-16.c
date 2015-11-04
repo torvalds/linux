@@ -127,7 +127,7 @@ static int __init idio_16_probe(struct platform_device *pdev)
 	}
 
 	idio16gpio->chip.label = NAME;
-	idio16gpio->chip.dev = dev;
+	idio16gpio->chip.parent = dev;
 	idio16gpio->chip.owner = THIS_MODULE;
 	idio16gpio->chip.base = -1;
 	idio16gpio->chip.ngpio = 32;

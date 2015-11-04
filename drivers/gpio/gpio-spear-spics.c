@@ -164,7 +164,7 @@ static int spics_gpio_probe(struct platform_device *pdev)
 	spics->chip.get = spics_get_value;
 	spics->chip.set = spics_set_value;
 	spics->chip.label = dev_name(&pdev->dev);
-	spics->chip.dev = &pdev->dev;
+	spics->chip.parent = &pdev->dev;
 	spics->chip.owner = THIS_MODULE;
 	spics->last_off = -1;
 

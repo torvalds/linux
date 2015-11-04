@@ -914,7 +914,7 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 		gc = &bank->gpio_chip;
 		gc->base = drvdata->pin_base + bank->pin_base;
 		gc->ngpio = bank->nr_pins;
-		gc->dev = &pdev->dev;
+		gc->parent = &pdev->dev;
 		gc->of_node = bank->of_node;
 		gc->label = bank->name;
 

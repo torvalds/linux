@@ -260,7 +260,7 @@ static int wm8994_gpio_probe(struct platform_device *pdev)
 	wm8994_gpio->wm8994 = wm8994;
 	wm8994_gpio->gpio_chip = template_chip;
 	wm8994_gpio->gpio_chip.ngpio = WM8994_GPIO_MAX;
-	wm8994_gpio->gpio_chip.dev = &pdev->dev;
+	wm8994_gpio->gpio_chip.parent = &pdev->dev;
 	if (pdata && pdata->gpio_base)
 		wm8994_gpio->gpio_chip.base = pdata->gpio_base;
 	else

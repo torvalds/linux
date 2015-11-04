@@ -108,7 +108,7 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 
 	pdev->dev.platform_data = chip;
 	chip->label = "octeon-gpio";
-	chip->dev = &pdev->dev;
+	chip->parent = &pdev->dev;
 	chip->owner = THIS_MODULE;
 	chip->base = 0;
 	chip->can_sleep = false;

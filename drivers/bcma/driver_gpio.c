@@ -188,7 +188,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
 	chip->owner		= THIS_MODULE;
-	chip->dev		= bcma_bus_get_host_dev(bus);
+	chip->parent		= bcma_bus_get_host_dev(bus);
 #if IS_BUILTIN(CONFIG_OF)
 	if (cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC)
 		chip->of_node	= cc->core->dev.of_node;

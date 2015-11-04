@@ -3380,7 +3380,7 @@ static void wm8962_init_gpio(struct snd_soc_codec *codec)
 
 	wm8962->gpio_chip = wm8962_template_chip;
 	wm8962->gpio_chip.ngpio = WM8962_MAX_GPIO;
-	wm8962->gpio_chip.dev = codec->dev;
+	wm8962->gpio_chip.parent = codec->dev;
 
 	if (pdata->gpio_base)
 		wm8962->gpio_chip.base = pdata->gpio_base;

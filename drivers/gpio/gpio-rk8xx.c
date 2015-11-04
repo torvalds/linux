@@ -50,7 +50,7 @@ struct rk8xx_gpio_info {
 static int rk8xx_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	int err;
-	struct rk8xx_gpio_info *gi = dev_get_drvdata(chip->dev);
+	struct rk8xx_gpio_info *gi = dev_get_drvdata(chip->parent);
 
 	/* iomux */
 	if (gi->gpio_reg[offset].fun_msk) {
@@ -59,7 +59,7 @@ static int rk8xx_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 					 gi->gpio_reg[offset].fun_msk,
 					 gi->gpio_reg[offset].fun_msk);
 		if (err) {
-			dev_err(chip->dev, "set gpio%d func fail: %d\n",
+			dev_err(chip->parent, "set gpio%d func fail: %d\n",
 				offset, err);
 			return err;
 		}
@@ -72,7 +72,7 @@ static int rk8xx_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 					 gi->gpio_reg[offset].dir_msk,
 					 0);
 		if (err) {
-			dev_err(chip->dev, "set gpio%d input fail: %d\n",
+			dev_err(chip->parent, "set gpio%d input fail: %d\n",
 				offset, err);
 			return err;
 		}
@@ -85,7 +85,7 @@ static int rk8xx_gpio_direction_output(struct gpio_chip *chip,
 				       unsigned offset, int value)
 {
 	int err;
-	struct rk8xx_gpio_info *gi = dev_get_drvdata(chip->dev);
+	struct rk8xx_gpio_info *gi = dev_get_drvdata(chip->parent);
 
 	/* iomux */
 	if (gi->gpio_reg[offset].fun_msk) {
@@ -94,7 +94,7 @@ static int rk8xx_gpio_direction_output(struct gpio_chip *chip,
 					 gi->gpio_reg[offset].fun_msk,
 					 gi->gpio_reg[offset].fun_msk);
 		if (err) {
-			dev_err(chip->dev, "set gpio%d func fail: %d\n",
+			dev_err(chip->parent, "set gpio%d func fail: %d\n",
 				offset, err);
 			return err;
 		}
@@ -107,7 +107,7 @@ static int rk8xx_gpio_direction_output(struct gpio_chip *chip,
 					 gi->gpio_reg[offset].dir_msk,
 					 gi->gpio_reg[offset].dir_msk);
 		if (err) {
-			dev_err(chip->dev,
+			dev_err(chip->parent,
 				"set gpio%d output fail: %d\n", offset, err);
 			return err;
 		}
@@ -124,7 +124,7 @@ static int rk8xx_gpio_direction_output(struct gpio_chip *chip,
 					 gi->gpio_reg[offset].val_msk,
 					 0);
 	if (err) {
-		dev_err(chip->dev, "set gpio%d value fail: %d\n", offset, err);
+		dev_err(chip->parent, "set gpio%d value fail: %d\n", offset, err);
 		return err;
 	}
 
@@ -135,11 +135,11 @@ static int rk8xx_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 {
 	int err;
 	unsigned int val;
-	struct rk8xx_gpio_info *gi = dev_get_drvdata(chip->dev);
+	struct rk8xx_gpio_info *gi = dev_get_drvdata(chip->parent);
 
 	err = regmap_read(gi->rk8xx->regmap, gi->gpio_reg[offset].reg, &val);
 	if (err) {
-		dev_err(chip->dev, "get gpio%d value fail: %d\n", offset, err);
+		dev_err(chip->parent, "get gpio%d value fail: %d\n", offset, err);
 		return err;
 	}
 
@@ -150,7 +150,7 @@ static void rk8xx_gpio_set_value(struct gpio_chip *chip,
 				 unsigned offset, int value)
 {
 	int err;
-	struct rk8xx_gpio_info *gi = dev_get_drvdata(chip->dev);
+	struct rk8xx_gpio_info *gi = dev_get_drvdata(chip->parent);
 
 	if (value)
 		err = regmap_update_bits(gi->rk8xx->regmap,
@@ -163,7 +163,7 @@ static void rk8xx_gpio_set_value(struct gpio_chip *chip,
 					 gi->gpio_reg[offset].val_msk,
 					 0);
 	if (err)
-		dev_err(chip->dev, "set gpio%d value fail: %d\n", offset, err);
+		dev_err(chip->parent, "set gpio%d value fail: %d\n", offset, err);
 }
 
 /* rk805: two gpio: output only */
@@ -224,7 +224,7 @@ static int rk8xx_gpio_probe(struct platform_device *pdev)
 	gi->rk8xx = rk8xx;
 	gi->gpio_chip.base = -1;
 	gi->gpio_chip.can_sleep = true;
-	gi->gpio_chip.dev = &pdev->dev;
+	gi->gpio_chip.parent = &pdev->dev;
 	gi->gpio_chip.ngpio = gi->gpio_nr;
 	gi->gpio_chip.label = pdev->name;
 	gi->gpio_chip.get = rk8xx_gpio_get_value;

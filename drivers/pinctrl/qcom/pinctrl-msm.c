@@ -796,7 +796,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	chip->base = 0;
 	chip->ngpio = ngpio;
 	chip->label = dev_name(pctrl->dev);
-	chip->dev = pctrl->dev;
+	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;
 	chip->of_node = pctrl->dev->of_node;
 

@@ -473,7 +473,7 @@ static void sx150x_init_chip(struct sx150x_chip *chip,
 
 	chip->client                     = client;
 	chip->dev_cfg                    = &sx150x_devices[driver_data];
-	chip->gpio_chip.dev              = &client->dev;
+	chip->gpio_chip.parent              = &client->dev;
 	chip->gpio_chip.label            = client->name;
 	chip->gpio_chip.direction_input  = sx150x_gpio_direction_input;
 	chip->gpio_chip.direction_output = sx150x_gpio_direction_output;

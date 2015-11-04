@@ -139,7 +139,7 @@ static int xway_stp_request(struct gpio_chip *gc, unsigned gpio)
 		container_of(gc, struct xway_stp, gc);
 
 	if ((gpio < 8) && (chip->reserved & BIT(gpio))) {
-		dev_err(gc->dev, "GPIO %d is driven by hardware\n", gpio);
+		dev_err(gc->parent, "GPIO %d is driven by hardware\n", gpio);
 		return -ENODEV;
 	}
 
@@ -214,7 +214,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 	if (IS_ERR(chip->virt))
 		return PTR_ERR(chip->virt);
 
-	chip->gc.dev = &pdev->dev;
+	chip->gc.parent = &pdev->dev;
 	chip->gc.label = "stp-xway";
 	chip->gc.direction_output = xway_stp_dir_out;
 	chip->gc.set = xway_stp_set;

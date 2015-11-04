@@ -377,7 +377,7 @@ static void dln2_irq_bus_unlock(struct irq_data *irqd)
 
 		ret = dln2_gpio_set_event_cfg(dln2, pin, type, 0);
 		if (ret)
-			dev_err(dln2->gpio.dev, "failed to set event\n");
+			dev_err(dln2->gpio.parent, "failed to set event\n");
 	}
 
 	mutex_unlock(&dln2->irq_lock);
@@ -406,19 +406,19 @@ static void dln2_gpio_event(struct platform_device *pdev, u16 echo,
 	struct dln2_gpio *dln2 = platform_get_drvdata(pdev);
 
 	if (len < sizeof(*event)) {
-		dev_err(dln2->gpio.dev, "short event message\n");
+		dev_err(dln2->gpio.parent, "short event message\n");
 		return;
 	}
 
 	pin = le16_to_cpu(event->pin);
 	if (pin >= dln2->gpio.ngpio) {
-		dev_err(dln2->gpio.dev, "out of bounds pin %d\n", pin);
+		dev_err(dln2->gpio.parent, "out of bounds pin %d\n", pin);
 		return;
 	}
 
 	irq = irq_find_mapping(dln2->gpio.irqdomain, pin);
 	if (!irq) {
-		dev_err(dln2->gpio.dev, "pin %d not mapped to IRQ\n", pin);
+		dev_err(dln2->gpio.parent, "pin %d not mapped to IRQ\n", pin);
 		return;
 	}
 
@@ -462,7 +462,7 @@ static int dln2_gpio_probe(struct platform_device *pdev)
 	dln2->pdev = pdev;
 
 	dln2->gpio.label = "dln2";
-	dln2->gpio.dev = dev;
+	dln2->gpio.parent = dev;
 	dln2->gpio.owner = THIS_MODULE;
 	dln2->gpio.base = -1;
 	dln2->gpio.ngpio = pins;

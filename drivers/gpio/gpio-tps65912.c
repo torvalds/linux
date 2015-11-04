@@ -104,7 +104,7 @@ static int tps65912_gpio_probe(struct platform_device *pdev)
 
 	tps65912_gpio->tps65912 = tps65912;
 	tps65912_gpio->gpio_chip = template_chip;
-	tps65912_gpio->gpio_chip.dev = &pdev->dev;
+	tps65912_gpio->gpio_chip.parent = &pdev->dev;
 	if (pdata && pdata->gpio_base)
 		tps65912_gpio->gpio_chip.base = pdata->gpio_base;
 

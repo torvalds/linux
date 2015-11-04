@@ -282,7 +282,7 @@ static void ichx_gpiolib_setup(struct gpio_chip *chip)
 {
 	chip->owner = THIS_MODULE;
 	chip->label = DRV_NAME;
-	chip->dev = &ichx_priv.dev->dev;
+	chip->parent = &ichx_priv.dev->dev;
 
 	/* Allow chip-specific overrides of request()/get() */
 	chip->request = ichx_priv.desc->request ?

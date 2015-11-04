@@ -698,7 +698,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 	mvchip->soc_variant = soc_variant;
 	mvchip->chip.label = dev_name(&pdev->dev);
-	mvchip->chip.dev = &pdev->dev;
+	mvchip->chip.parent = &pdev->dev;
 	mvchip->chip.request = gpiochip_generic_request;
 	mvchip->chip.free = gpiochip_generic_free;
 	mvchip->chip.direction_input = mvebu_gpio_direction_input;

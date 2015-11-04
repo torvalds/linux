@@ -59,7 +59,7 @@ struct ttl_module {
 
 static int ttl_get_value(struct gpio_chip *gpio, unsigned offset)
 {
-	struct ttl_module *mod = dev_get_drvdata(gpio->dev);
+	struct ttl_module *mod = dev_get_drvdata(gpio->parent);
 	u8 *shadow;
 	int ret;
 
@@ -81,7 +81,7 @@ static int ttl_get_value(struct gpio_chip *gpio, unsigned offset)
 
 static void ttl_set_value(struct gpio_chip *gpio, unsigned offset, int value)
 {
-	struct ttl_module *mod = dev_get_drvdata(gpio->dev);
+	struct ttl_module *mod = dev_get_drvdata(gpio->parent);
 	void __iomem *port;
 	u8 *shadow;
 
@@ -172,7 +172,7 @@ static int ttl_probe(struct platform_device *pdev)
 
 	/* Initialize the GPIO data structures */
 	gpio = &mod->gpio;
-	gpio->dev = &pdev->dev;
+	gpio->parent = &pdev->dev;
 	gpio->label = pdev->name;
 	gpio->get = ttl_get_value;
 	gpio->set = ttl_set_value;

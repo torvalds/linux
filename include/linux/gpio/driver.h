@@ -20,7 +20,7 @@ struct seq_file;
 /**
  * struct gpio_chip - abstract a GPIO controller
  * @label: for diagnostics
- * @dev: optional device providing the GPIOs
+ * @parent: optional parent device providing the GPIOs
  * @cdev: class device used by sysfs interface (may be NULL)
  * @owner: helps prevent removal of modules exporting active GPIOs
  * @list: links gpio_chips together for traversal
@@ -89,7 +89,7 @@ struct seq_file;
  */
 struct gpio_chip {
 	const char		*label;
-	struct device		*dev;
+	struct device		*parent;
 	struct device		*cdev;
 	struct module		*owner;
 	struct list_head        list;
