@@ -40,6 +40,12 @@
 /* is this a MT7620 or a MT7628 */
 enum mt762x_soc_type mt762x_soc;
 
+/* EFUSE bits */
+#define EFUSE_MT7688		0x100000
+
+/* DRAM type bit */
+#define DRAM_TYPE_MT7628_MASK	0x1
+
 /* does the board have sdram or ddram */
 static int dram_type;
 
@@ -227,6 +233,12 @@ static struct rt2880_pmx_group mt7628an_pinmux_data[] = {
 	{ 0 }
 };
 
+static inline int is_mt76x8(void)
+{
+	return mt762x_soc == MT762X_SOC_MT7628AN ||
+	       mt762x_soc == MT762X_SOC_MT7688;
+}
+
 static __init u32
 mt7620_calc_rate(u32 ref_rate, u32 mul, u32 div)
 {
@@ -381,7 +393,7 @@ void __init ralink_clk_init(void)
 #define RINT(x)		((x) / 1000000)
 #define RFRAC(x)	(((x) / 1000) % 1000)
 
-	if (mt762x_soc == MT762X_SOC_MT7628AN) {
+	if (is_mt76x8()) {
 		if (xtal_rate == MHZ(40))
 			cpu_rate = MHZ(580);
 		else
@@ -511,8 +523,15 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 #endif
 		}
 	} else if (n0 == MT7620_CHIP_NAME0 && n1 == MT7628_CHIP_NAME1) {
-		mt762x_soc = MT762X_SOC_MT7628AN;
-		name = "MT7628AN";
+		u32 efuse = __raw_readl(sysc + SYSC_REG_EFUSE_CFG);
+
+		if (efuse & EFUSE_MT7688) {
+			mt762x_soc = MT762X_SOC_MT7688;
+			name = "MT7688";
+		} else {
+			mt762x_soc = MT762X_SOC_MT7628AN;
+			name = "MT7628AN";
+		}
 		soc_info->compatible = "ralink,mt7628an-soc";
 	} else {
 		panic("mt762x: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
@@ -525,10 +544,14 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		(rev & CHIP_REV_ECO_MASK));
 
 	cfg0 = __raw_readl(sysc + SYSC_REG_SYSTEM_CONFIG0);
-	dram_type = (cfg0 >> SYSCFG0_DRAM_TYPE_SHIFT) & SYSCFG0_DRAM_TYPE_MASK;
+	if (is_mt76x8())
+		dram_type = cfg0 & DRAM_TYPE_MT7628_MASK;
+	else
+		dram_type = (cfg0 >> SYSCFG0_DRAM_TYPE_SHIFT) &
+			    SYSCFG0_DRAM_TYPE_MASK;
 
 	soc_info->mem_base = MT7620_DRAM_BASE;
-	if (mt762x_soc == MT762X_SOC_MT7628AN)
+	if (is_mt76x8())
 		mt7628_dram_init(soc_info);
 	else
 		mt7620_dram_init(soc_info);
@@ -541,7 +564,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	pr_info("Digital PMU set to %s control\n",
 		(pmu1 & DIG_SW_SEL) ? ("sw") : ("hw"));
 
-	if (mt762x_soc == MT762X_SOC_MT7628AN)
+	if (is_mt76x8())
 		rt2880_pinmux_data = mt7628an_pinmux_data;
 	else
 		rt2880_pinmux_data = mt7620a_pinmux_data;
