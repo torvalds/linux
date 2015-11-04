@@ -707,6 +707,7 @@ static int intel_fbc_calculate_cfb_size(struct intel_crtc *crtc)
 	if (INTEL_INFO(dev_priv)->gen >= 7)
 		lines = min(lines, 2048);
 
+	/* Hardware needs the full buffer stride, not just the active area. */
 	return lines * fb->pitches[0];
 }
 
