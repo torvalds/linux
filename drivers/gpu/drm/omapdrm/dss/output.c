@@ -216,9 +216,9 @@ void dss_mgr_set_lcd_config(enum omap_channel channel,
 }
 EXPORT_SYMBOL(dss_mgr_set_lcd_config);
 
-int dss_mgr_enable(struct omap_overlay_manager *mgr)
+int dss_mgr_enable(enum omap_channel channel)
 {
-	return dss_mgr_ops->enable(mgr->id);
+	return dss_mgr_ops->enable(channel);
 }
 EXPORT_SYMBOL(dss_mgr_enable);
 

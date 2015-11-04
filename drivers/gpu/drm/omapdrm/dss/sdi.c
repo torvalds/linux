@@ -196,7 +196,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 		goto err_sdi_enable;
 	mdelay(2);
 
-	r = dss_mgr_enable(out->manager);
+	r = dss_mgr_enable(out->manager->id);
 	if (r)
 		goto err_mgr_enable;
 

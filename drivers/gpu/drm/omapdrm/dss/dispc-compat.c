@@ -390,7 +390,7 @@ static void dispc_error_worker(struct work_struct *work)
 					ovl->disable(ovl);
 			}
 
-			dss_mgr_enable(mgr);
+			dss_mgr_enable(mgr->id);
 		}
 	}
 

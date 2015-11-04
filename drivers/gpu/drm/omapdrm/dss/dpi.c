@@ -429,7 +429,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mdelay(2);
 
-	r = dss_mgr_enable(out->manager);
+	r = dss_mgr_enable(out->manager->id);
 	if (r)
 		goto err_mgr_enable;
 

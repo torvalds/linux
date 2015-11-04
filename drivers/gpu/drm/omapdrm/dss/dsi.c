@@ -3876,7 +3876,7 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 		dsi_if_enable(dsidev, true);
 	}
 
-	r = dss_mgr_enable(mgr);
+	r = dss_mgr_enable(mgr->id);
 	if (r)
 		goto err_mgr_enable;
 
