@@ -5713,7 +5713,7 @@ enum skl_disp_power_wells {
 			_ID(id, _PS_HPHASE_1B, _PS_HPHASE_2B))
 #define SKL_PS_ECC_STAT(pipe, id)  _PIPE(pipe,     \
 			_ID(id, _PS_ECC_STAT_1A, _PS_ECC_STAT_2A),   \
-			_ID(id, _PS_ECC_STAT_1B, _PS_ECC_STAT_2B)
+			_ID(id, _PS_ECC_STAT_1B, _PS_ECC_STAT_2B))
 
 /* legacy palette */
 #define _LGC_PALETTE_A           0x4a000
