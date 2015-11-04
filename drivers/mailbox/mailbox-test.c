@@ -221,11 +221,10 @@ static void mbox_test_receive_message(struct mbox_client *client, void *message)
 
 	spin_lock_irqsave(&tdev->lock, flags);
 	if (tdev->mmio) {
+		memcpy_fromio(tdev->rx_buffer, tdev->mmio, MBOX_MAX_MSG_LEN);
 		print_hex_dump(KERN_INFO, "Client: Received [MMIO]: ",
 			       DUMP_PREFIX_ADDRESS, MBOX_BYTES_PER_LINE, 1,
-			       __io_virt(tdev->mmio), MBOX_MAX_MSG_LEN, true);
-		memcpy_fromio(tdev->rx_buffer, tdev->mmio, MBOX_MAX_MSG_LEN);
-
+			       tdev->rx_buffer, MBOX_MAX_MSG_LEN, true);
 	} else if (message) {
 		print_hex_dump(KERN_INFO, "Client: Received [API]: ",
 			       DUMP_PREFIX_ADDRESS, MBOX_BYTES_PER_LINE, 1,
