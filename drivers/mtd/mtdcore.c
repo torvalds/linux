@@ -616,7 +616,8 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	 * does cause problems with parse_mtd_partitions() above (e.g.,
 	 * cmdlineparts will register partitions more than once).
 	 */
-	WARN_ONCE(mtd->reboot_notifier.notifier_call, "MTD already registered\n");
+	WARN_ONCE(mtd->_reboot && mtd->reboot_notifier.notifier_call,
+		  "MTD already registered\n");
 	if (mtd->_reboot && !mtd->reboot_notifier.notifier_call) {
 		mtd->reboot_notifier.notifier_call = mtd_reboot_notifier;
 		register_reboot_notifier(&mtd->reboot_notifier);
