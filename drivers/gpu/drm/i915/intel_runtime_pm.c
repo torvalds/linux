@@ -304,16 +304,6 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_AUDIO) |			\
 	BIT(POWER_DOMAIN_VGA) |				\
 	BIT(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_POWERWELL_1_POWER_DOMAINS (		\
-	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
-	BIT(POWER_DOMAIN_PLLS) |			\
-	BIT(POWER_DOMAIN_PIPE_A) |			\
-	BIT(POWER_DOMAIN_TRANSCODER_EDP) |		\
-	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_A_2_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_A_4_LANES) |		\
-	BIT(POWER_DOMAIN_AUX_A) |			\
-	BIT(POWER_DOMAIN_INIT))
 #define SKL_DISPLAY_DDI_A_E_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_A_2_LANES) |		\
 	BIT(POWER_DOMAIN_PORT_DDI_A_4_LANES) |		\
@@ -331,18 +321,13 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |		\
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |		\
 	BIT(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_MISC_IO_POWER_DOMAINS (		\
-	SKL_DISPLAY_POWERWELL_1_POWER_DOMAINS |		\
-	BIT(POWER_DOMAIN_PLLS) |			\
-	BIT(POWER_DOMAIN_INIT))
 #define SKL_DISPLAY_ALWAYS_ON_POWER_DOMAINS (		\
-	(POWER_DOMAIN_MASK & ~(SKL_DISPLAY_POWERWELL_1_POWER_DOMAINS |	\
+	(POWER_DOMAIN_MASK & ~(				\
 	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
 	SKL_DISPLAY_DDI_A_E_POWER_DOMAINS |		\
 	SKL_DISPLAY_DDI_B_POWER_DOMAINS |		\
 	SKL_DISPLAY_DDI_C_POWER_DOMAINS |		\
-	SKL_DISPLAY_DDI_D_POWER_DOMAINS |		\
-	SKL_DISPLAY_MISC_IO_POWER_DOMAINS)) |		\
+	SKL_DISPLAY_DDI_D_POWER_DOMAINS)) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
@@ -661,14 +646,9 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 		}
 	} else {
 		if (enable_requested) {
-			if (IS_SKYLAKE(dev) &&
-				(power_well->data == SKL_DISP_PW_1))
-				DRM_DEBUG_KMS("Not Disabling PW1, dmc will handle\n");
-			else {
-				I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
-				POSTING_READ(HSW_PWR_WELL_DRIVER);
-				DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
-			}
+			I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
+			POSTING_READ(HSW_PWR_WELL_DRIVER);
+			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
 
 			if (GEN9_ENABLE_DC5(dev) &&
 				power_well->data == SKL_DISP_PW_2)
@@ -1740,13 +1720,15 @@ static struct i915_power_well skl_power_wells[] = {
 	},
 	{
 		.name = "power well 1",
-		.domains = SKL_DISPLAY_POWERWELL_1_POWER_DOMAINS,
+		/* Handled by the DMC firmware */
+		.domains = 0,
 		.ops = &skl_power_well_ops,
 		.data = SKL_DISP_PW_1,
 	},
 	{
 		.name = "MISC IO power well",
-		.domains = SKL_DISPLAY_MISC_IO_POWER_DOMAINS,
+		/* Handled by the DMC firmware */
+		.domains = 0,
 		.ops = &skl_power_well_ops,
 		.data = SKL_DISP_PW_MISC_IO,
 	},
