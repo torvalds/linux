@@ -2286,7 +2286,7 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 		goto out;
 
 	err = 0;
-	while (!err) {
+	while (!err && !btrfs_fs_closing(fs_info)) {
 		trans = btrfs_start_transaction(fs_info->fs_root, 0);
 		if (IS_ERR(trans)) {
 			err = PTR_ERR(trans);
@@ -2307,7 +2307,8 @@ out:
 	btrfs_free_path(path);
 
 	mutex_lock(&fs_info->qgroup_rescan_lock);
-	fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
+	if (!btrfs_fs_closing(fs_info))
+		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 
 	if (err > 0 &&
 	    fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT) {
@@ -2336,7 +2337,9 @@ out:
 	}
 	btrfs_end_transaction(trans, fs_info->quota_root);
 
-	if (err >= 0) {
+	if (btrfs_fs_closing(fs_info)) {
+		btrfs_info(fs_info, "qgroup scan paused");
+	} else if (err >= 0) {
 		btrfs_info(fs_info, "qgroup scan completed%s",
 			err > 0 ? " (inconsistency flag cleared)" : "");
 	} else {
