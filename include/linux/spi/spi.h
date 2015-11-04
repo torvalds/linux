@@ -254,7 +254,7 @@ static inline struct spi_driver *to_spi_driver(struct device_driver *drv)
 	return drv ? container_of(drv, struct spi_driver, driver) : NULL;
 }
 
-extern int spi_register_driver(struct spi_driver *sdrv);
+extern int __spi_register_driver(struct module *owner, struct spi_driver *sdrv);
 
 /**
  * spi_unregister_driver - reverse effect of spi_register_driver
@@ -266,6 +266,10 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
 	if (sdrv)
 		driver_unregister(&sdrv->driver);
 }
+
+/* use a define to avoid include chaining to get THIS_MODULE */
+#define spi_register_driver(driver) \
+	__spi_register_driver(THIS_MODULE, driver)
 
 /**
  * module_spi_driver() - Helper macro for registering a SPI driver

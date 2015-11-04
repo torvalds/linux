@@ -64,7 +64,6 @@ MODULE_DEVICE_TABLE(spi, bmp085_id);
 
 static struct spi_driver bmp085_spi_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= BMP085_NAME,
 		.of_match_table = bmp085_of_match
 	},

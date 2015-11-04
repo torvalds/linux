@@ -1196,7 +1196,6 @@ MODULE_DEVICE_TABLE(spi, sca3000_id);
 static struct spi_driver sca3000_driver = {
 	.driver = {
 		.name = "sca3000",
-		.owner = THIS_MODULE,
 	},
 	.probe = sca3000_probe,
 	.remove = sca3000_remove,

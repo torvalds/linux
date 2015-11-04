@@ -1152,7 +1152,6 @@ MODULE_DEVICE_TABLE(of, cc2520_of_ids);
 static struct spi_driver cc2520_driver = {
 	.driver = {
 		.name = "cc2520",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(cc2520_of_ids),
 	},
 	.id_table = cc2520_ids,

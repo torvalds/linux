@@ -184,7 +184,6 @@ MODULE_DEVICE_TABLE(spi, adc128_id);
 static struct spi_driver adc128_driver = {
 	.driver = {
 		.name = "adc128s052",
-		.owner = THIS_MODULE,
 	},
 	.probe = adc128_probe,
 	.remove = adc128_remove,

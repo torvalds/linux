@@ -375,14 +375,15 @@ static void spi_drv_shutdown(struct device *dev)
 }
 
 /**
- * spi_register_driver - register a SPI driver
+ * __spi_register_driver - register a SPI driver
  * @sdrv: the driver to register
  * Context: can sleep
  *
  * Return: zero on success, else a negative error code.
  */
-int spi_register_driver(struct spi_driver *sdrv)
+int __spi_register_driver(struct module *owner, struct spi_driver *sdrv)
 {
+	sdrv->driver.owner = owner;
 	sdrv->driver.bus = &spi_bus_type;
 	if (sdrv->probe)
 		sdrv->driver.probe = spi_drv_probe;
@@ -392,7 +393,7 @@ int spi_register_driver(struct spi_driver *sdrv)
 		sdrv->driver.shutdown = spi_drv_shutdown;
 	return driver_register(&sdrv->driver);
 }
-EXPORT_SYMBOL_GPL(spi_register_driver);
+EXPORT_SYMBOL_GPL(__spi_register_driver);
 
 /*-------------------------------------------------------------------------*/
 

@@ -443,7 +443,6 @@ MODULE_DEVICE_TABLE(spi, as3935_id);
 static struct spi_driver as3935_driver = {
 	.driver = {
 		.name	= "as3935",
-		.owner	= THIS_MODULE,
 		.pm	= AS3935_PM_OPS,
 	},
 	.probe		= as3935_probe,

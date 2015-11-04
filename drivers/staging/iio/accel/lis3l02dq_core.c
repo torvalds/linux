@@ -800,7 +800,6 @@ static int lis3l02dq_remove(struct spi_device *spi)
 static struct spi_driver lis3l02dq_driver = {
 	.driver = {
 		.name = "lis3l02dq",
-		.owner = THIS_MODULE,
 	},
 	.probe = lis3l02dq_probe,
 	.remove = lis3l02dq_remove,

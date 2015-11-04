@@ -344,10 +344,6 @@ void pxa2xx_spi_dma_release(struct driver_data *drv_data)
 	}
 }
 
-void pxa2xx_spi_dma_resume(struct driver_data *drv_data)
-{
-}
-
 int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
 					   struct spi_device *spi,
 					   u8 bits_per_word, u32 *burst_code,

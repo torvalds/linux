@@ -583,7 +583,6 @@ static int flexfb_remove_pdev(struct platform_device *pdev)
 static struct spi_driver flexfb_spi_driver = {
 	.driver = {
 		.name   = DRVNAME,
-		.owner  = THIS_MODULE,
 	},
 	.probe  = flexfb_probe_spi,
 	.remove = flexfb_remove_spi,

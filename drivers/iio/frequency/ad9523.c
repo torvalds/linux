@@ -1027,7 +1027,6 @@ MODULE_DEVICE_TABLE(spi, ad9523_id);
 static struct spi_driver ad9523_driver = {
 	.driver = {
 		.name	= "ad9523",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad9523_probe,
 	.remove		= ad9523_remove,
