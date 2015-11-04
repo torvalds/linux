@@ -143,7 +143,7 @@ extern void __audit_inode_child(const struct inode *parent,
 extern void __audit_seccomp(unsigned long syscall, long signr, int code);
 extern void __audit_ptrace(struct task_struct *t);
 
-static inline int audit_dummy_context(void)
+static inline bool audit_dummy_context(void)
 {
 	void *p = current->audit_context;
 	return !p || *(int *)p;
@@ -345,9 +345,9 @@ static inline void audit_syscall_entry(int major, unsigned long a0,
 { }
 static inline void audit_syscall_exit(void *pt_regs)
 { }
-static inline int audit_dummy_context(void)
+static inline bool audit_dummy_context(void)
 {
-	return 1;
+	return true;
 }
 static inline struct filename *audit_reusename(const __user char *name)
 {
