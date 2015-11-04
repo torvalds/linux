@@ -3042,16 +3042,16 @@ early_enable_events(struct trace_array *tr, bool disable_first)
 
 		if (!token)
 			break;
-		if (!*token)
-			continue;
 
-		/* Restarting syscalls requires that we stop them first */
-		if (disable_first)
-			ftrace_set_clr_event(tr, token, 0);
+		if (*token) {
+			/* Restarting syscalls requires that we stop them first */
+			if (disable_first)
+				ftrace_set_clr_event(tr, token, 0);
 
-		ret = ftrace_set_clr_event(tr, token, 1);
-		if (ret)
-			pr_warn("Failed to enable trace event: %s\n", token);
+			ret = ftrace_set_clr_event(tr, token, 1);
+			if (ret)
+				pr_warn("Failed to enable trace event: %s\n", token);
+		}
 
 		/* Put back the comma to allow this to be called again */
 		if (buf)

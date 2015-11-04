@@ -3636,10 +3636,9 @@ static void __init apply_trace_boot_options(void)
 
 		if (!option)
 			break;
-		if (!*option)
-			continue;
 
-		trace_set_options(&global_trace, option);
+		if (*option)
+			trace_set_options(&global_trace, option);
 
 		/* Put back the comma to allow this to be called again */
 		if (buf)
