@@ -56,7 +56,7 @@ static inline int save_fsave_header(struct task_struct *tsk, void __user *buf)
 	if (use_fxsr()) {
 		struct xregs_state *xsave = &tsk->thread.fpu.state.xsave;
 		struct user_i387_ia32_struct env;
-		struct _fpstate_ia32 __user *fp = buf;
+		struct _fpstate_32 __user *fp = buf;
 
 		convert_from_fxsr(&env, tsk);
 
@@ -165,7 +165,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_get(current, NULL, 0,
 			sizeof(struct user_i387_ia32_struct), NULL,
-			(struct _fpstate_ia32 __user *) buf) ? -1 : 1;
+			(struct _fpstate_32 __user *) buf) ? -1 : 1;
 
 	if (fpregs_active()) {
 		/* Save the live register state to the user directly. */

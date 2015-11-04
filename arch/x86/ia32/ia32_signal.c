@@ -26,7 +26,7 @@
 #include <asm/ptrace.h>
 #include <asm/ia32_unistd.h>
 #include <asm/user32.h>
-#include <asm/sigcontext32.h>
+#include <uapi/asm/sigcontext.h>
 #include <asm/proto.h>
 #include <asm/vdso.h>
 #include <asm/sigframe.h>
@@ -68,7 +68,7 @@
 }
 
 static int ia32_restore_sigcontext(struct pt_regs *regs,
-				   struct sigcontext_ia32 __user *sc)
+				   struct sigcontext_32 __user *sc)
 {
 	unsigned int tmpflags, err = 0;
 	void __user *buf;
@@ -170,7 +170,7 @@ badframe:
  * Set up a signal frame.
  */
 
-static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
+static int ia32_setup_sigcontext(struct sigcontext_32 __user *sc,
 				 void __user *fpstate,
 				 struct pt_regs *regs, unsigned int mask)
 {
@@ -234,7 +234,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		unsigned long fx_aligned, math_size;
 
 		sp = fpu__alloc_mathframe(sp, 1, &fx_aligned, &math_size);
-		*fpstate = (struct _fpstate_ia32 __user *) sp;
+		*fpstate = (struct _fpstate_32 __user *) sp;
 		if (copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
 				    math_size) < 0)
 			return (void __user *) -1L;
