@@ -209,6 +209,35 @@ static int unmap_cport(struct es2_ap_dev *es2, u16 cport_id)
 }
 #endif
 
+static int es2_cport_in_enable(struct es2_ap_dev *es2,
+				struct es2_cport_in *cport_in)
+{
+	struct urb *urb;
+	int ret;
+	int i;
+
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
+		urb = cport_in->urb[i];
+
+		ret = usb_submit_urb(urb, GFP_KERNEL);
+		if (ret) {
+			dev_err(&es2->usb_dev->dev,
+					"failed to submit in-urb: %d\n", ret);
+			goto err_kill_urbs;
+		}
+	}
+
+	return 0;
+
+err_kill_urbs:
+	for (--i; i >= 0; --i) {
+		urb = cport_in->urb[i];
+		usb_kill_urb(urb);
+	}
+
+	return ret;
+}
+
 static struct urb *next_free_urb(struct es2_ap_dev *es2, gfp_t gfp_mask)
 {
 	struct urb *urb = NULL;
@@ -853,7 +882,7 @@ static int ap_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	/* Allocate buffers for our cport in messages and start them up */
+	/* Allocate buffers for our cport in messages */
 	for (bulk_in = 0; bulk_in < NUM_BULKS; bulk_in++) {
 		struct es2_cport_in *cport_in = &es2->cport_in[bulk_in];
 
@@ -875,9 +904,6 @@ static int ap_probe(struct usb_interface *interface,
 					  cport_in_callback, hd);
 			cport_in->urb[i] = urb;
 			cport_in->buffer[i] = buffer;
-			retval = usb_submit_urb(urb, GFP_KERNEL);
-			if (retval)
-				goto error;
 		}
 	}
 
@@ -898,6 +924,13 @@ static int ap_probe(struct usb_interface *interface,
 							(S_IWUSR | S_IRUGO),
 							gb_debugfs_get(), es2,
 							&apb_log_enable_fops);
+
+	for (i = 0; i < NUM_BULKS; ++i) {
+		retval = es2_cport_in_enable(es2, &es2->cport_in[i]);
+		if (retval)
+			goto error;
+	}
+
 	return 0;
 error:
 	ap_disconnect(interface);
