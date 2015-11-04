@@ -60,8 +60,8 @@ DCDC2		: DC-DC buck	: vin2-supply
 DCDC3		: DC-DC	buck	: vin3-supply
 DCDC4		: DC-DC	buck	: vin4-supply
 DCDC5		: DC-DC	buck	: vin5-supply
-DC1SW		: On/Off Switch	: dcdc1-supply		: DCDC1 secondary output
-DC5LDO		: LDO		: dcdc5-supply		: input from DCDC5
+DC1SW		: On/Off Switch	:			: DCDC1 secondary output
+DC5LDO		: LDO		:			: input from DCDC5
 ALDO1		: LDO		: aldoin-supply		: shared supply
 ALDO2		: LDO		: aldoin-supply		: shared supply
 ALDO3		: LDO		: aldoin-supply		: shared supply

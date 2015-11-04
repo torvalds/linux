@@ -196,10 +196,10 @@ static const struct regulator_desc axp22x_regulators[] = {
 	AXP_DESC(AXP22X, DCDC5, "dcdc5", "vin5", 1000, 2550, 50,
 		 AXP22X_DCDC5_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL1, BIT(5)),
 	/* secondary switchable output of DCDC1 */
-	AXP_DESC_SW(AXP22X, DC1SW, "dc1sw", "dcdc1", 1600, 3400, 100,
+	AXP_DESC_SW(AXP22X, DC1SW, "dc1sw", NULL, 1600, 3400, 100,
 		    AXP22X_DCDC1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(7)),
 	/* LDO regulator internally chained to DCDC5 */
-	AXP_DESC(AXP22X, DC5LDO, "dc5ldo", "dcdc5", 700, 1400, 100,
+	AXP_DESC(AXP22X, DC5LDO, "dc5ldo", NULL, 700, 1400, 100,
 		 AXP22X_DC5LDO_V_OUT, 0x7, AXP22X_PWR_OUT_CTRL1, BIT(0)),
 	AXP_DESC(AXP22X, ALDO1, "aldo1", "aldoin", 700, 3300, 100,
 		 AXP22X_ALDO1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL1, BIT(6)),
@@ -350,6 +350,8 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	};
 	int ret, i, nregulators;
 	u32 workmode;
+	const char *axp22x_dc1_name = axp22x_regulators[AXP22X_DCDC1].name;
+	const char *axp22x_dc5_name = axp22x_regulators[AXP22X_DCDC5].name;
 
 	switch (axp20x->variant) {
 	case AXP202_ID:
@@ -371,8 +373,37 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	axp20x_regulator_parse_dt(pdev);
 
 	for (i = 0; i < nregulators; i++) {
-		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
-					       &config);
+		const struct regulator_desc *desc = &regulators[i];
+		struct regulator_desc *new_desc;
+
+		/*
+		 * Regulators DC1SW and DC5LDO are connected internally,
+		 * so we have to handle their supply names separately.
+		 *
+		 * We always register the regulators in proper sequence,
+		 * so the supply names are correctly read. See the last
+		 * part of this loop to see where we save the DT defined
+		 * name.
+		 */
+		if (regulators == axp22x_regulators) {
+			if (i == AXP22X_DC1SW) {
+				new_desc = devm_kzalloc(&pdev->dev,
+							sizeof(*desc),
+							GFP_KERNEL);
+				*new_desc = regulators[i];
+				new_desc->supply_name = axp22x_dc1_name;
+				desc = new_desc;
+			} else if (i == AXP22X_DC5LDO) {
+				new_desc = devm_kzalloc(&pdev->dev,
+							sizeof(*desc),
+							GFP_KERNEL);
+				*new_desc = regulators[i];
+				new_desc->supply_name = axp22x_dc5_name;
+				desc = new_desc;
+			}
+		}
+
+		rdev = devm_regulator_register(&pdev->dev, desc, &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "Failed to register %s\n",
 				regulators[i].name);
@@ -387,6 +418,21 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 			if (axp20x_set_dcdc_workmode(rdev, i, workmode))
 				dev_err(&pdev->dev, "Failed to set workmode on %s\n",
 					rdev->desc->name);
+		}
+
+		/*
+		 * Save AXP22X DCDC1 / DCDC5 regulator names for later.
+		 */
+		if (regulators == axp22x_regulators) {
+			/* Can we use rdev->constraints->name instead? */
+			if (i == AXP22X_DCDC1)
+				of_property_read_string(rdev->dev.of_node,
+							"regulator-name",
+							&axp22x_dc1_name);
+			else if (i == AXP22X_DCDC5)
+				of_property_read_string(rdev->dev.of_node,
+							"regulator-name",
+							&axp22x_dc5_name);
 		}
 	}
 
