@@ -2857,6 +2857,8 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 	l = dispc_read_reg(DISPC_OVL_ATTRIBUTES(plane));
 	l = FLD_MOD(l, truncation, 10, 10);	/* TRUNCATIONENABLE */
 	l = FLD_MOD(l, mem_to_mem, 19, 19);	/* WRITEBACKMODE */
+	if (mem_to_mem)
+		l = FLD_MOD(l, 1, 26, 24);	/* CAPTUREMODE */
 	dispc_write_reg(DISPC_OVL_ATTRIBUTES(plane), l);
 
 	return r;
