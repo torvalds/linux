@@ -2261,24 +2261,24 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	reg_state[CTX_RING_BUFFER_CONTROL] = RING_CTL(ring->mmio_base);
 	reg_state[CTX_RING_BUFFER_CONTROL+1] =
 			((ringbuf->size - PAGE_SIZE) & RING_NR_PAGES) | RING_VALID;
-	reg_state[CTX_BB_HEAD_U] = ring->mmio_base + 0x168;
+	reg_state[CTX_BB_HEAD_U] = RING_BBADDR_UDW(ring->mmio_base);
 	reg_state[CTX_BB_HEAD_U+1] = 0;
-	reg_state[CTX_BB_HEAD_L] = ring->mmio_base + 0x140;
+	reg_state[CTX_BB_HEAD_L] = RING_BBADDR(ring->mmio_base);
 	reg_state[CTX_BB_HEAD_L+1] = 0;
-	reg_state[CTX_BB_STATE] = ring->mmio_base + 0x110;
-	reg_state[CTX_BB_STATE+1] = (1<<5);
-	reg_state[CTX_SECOND_BB_HEAD_U] = ring->mmio_base + 0x11c;
+	reg_state[CTX_BB_STATE] = RING_BBSTATE(ring->mmio_base);
+	reg_state[CTX_BB_STATE+1] = RING_BB_PPGTT;
+	reg_state[CTX_SECOND_BB_HEAD_U] = RING_SBBADDR_UDW(ring->mmio_base);
 	reg_state[CTX_SECOND_BB_HEAD_U+1] = 0;
-	reg_state[CTX_SECOND_BB_HEAD_L] = ring->mmio_base + 0x114;
+	reg_state[CTX_SECOND_BB_HEAD_L] = RING_SBBADDR(ring->mmio_base);
 	reg_state[CTX_SECOND_BB_HEAD_L+1] = 0;
-	reg_state[CTX_SECOND_BB_STATE] = ring->mmio_base + 0x118;
+	reg_state[CTX_SECOND_BB_STATE] = RING_SBBSTATE(ring->mmio_base);
 	reg_state[CTX_SECOND_BB_STATE+1] = 0;
 	if (ring->id == RCS) {
-		reg_state[CTX_BB_PER_CTX_PTR] = ring->mmio_base + 0x1c0;
+		reg_state[CTX_BB_PER_CTX_PTR] = RING_BB_PER_CTX_PTR(ring->mmio_base);
 		reg_state[CTX_BB_PER_CTX_PTR+1] = 0;
-		reg_state[CTX_RCS_INDIRECT_CTX] = ring->mmio_base + 0x1c4;
+		reg_state[CTX_RCS_INDIRECT_CTX] = RING_INDIRECT_CTX(ring->mmio_base);
 		reg_state[CTX_RCS_INDIRECT_CTX+1] = 0;
-		reg_state[CTX_RCS_INDIRECT_CTX_OFFSET] = ring->mmio_base + 0x1c8;
+		reg_state[CTX_RCS_INDIRECT_CTX_OFFSET] = RING_INDIRECT_CTX_OFFSET(ring->mmio_base);
 		reg_state[CTX_RCS_INDIRECT_CTX_OFFSET+1] = 0;
 		if (ring->wa_ctx.obj) {
 			struct i915_ctx_workarounds *wa_ctx = &ring->wa_ctx;
@@ -2298,7 +2298,7 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	}
 	reg_state[CTX_LRI_HEADER_1] = MI_LOAD_REGISTER_IMM(9);
 	reg_state[CTX_LRI_HEADER_1] |= MI_LRI_FORCE_POSTED;
-	reg_state[CTX_CTX_TIMESTAMP] = ring->mmio_base + 0x3a8;
+	reg_state[CTX_CTX_TIMESTAMP] = RING_CTX_TIMESTAMP(ring->mmio_base);
 	reg_state[CTX_CTX_TIMESTAMP+1] = 0;
 	reg_state[CTX_PDP3_UDW] = GEN8_RING_PDP_UDW(ring, 3);
 	reg_state[CTX_PDP3_LDW] = GEN8_RING_PDP_LDW(ring, 3);

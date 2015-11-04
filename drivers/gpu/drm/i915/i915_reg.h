@@ -1653,8 +1653,16 @@ enum skl_disp_power_wells {
 #define HWSTAM		0x02098
 #define DMA_FADD_I8XX	0x020d0
 #define RING_BBSTATE(base)	((base)+0x110)
+#define   RING_BB_PPGTT		(1 << 5)
+#define RING_SBBADDR(base)	((base)+0x114) /* hsw+ */
+#define RING_SBBSTATE(base)	((base)+0x118) /* hsw+ */
+#define RING_SBBADDR_UDW(base)	((base)+0x11c) /* gen8+ */
 #define RING_BBADDR(base)	((base)+0x140)
 #define RING_BBADDR_UDW(base)	((base)+0x168) /* gen8+ */
+#define RING_BB_PER_CTX_PTR(base)	((base)+0x1c0) /* gen8+ */
+#define RING_INDIRECT_CTX(base)		((base)+0x1c4) /* gen8+ */
+#define RING_INDIRECT_CTX_OFFSET(base)	((base)+0x1c8) /* gen8+ */
+#define RING_CTX_TIMESTAMP(base)	((base)+0x3a8) /* gen8+ */
 
 #define ERROR_GEN6	0x040a0
 #define GEN7_ERR_INT	0x44040
