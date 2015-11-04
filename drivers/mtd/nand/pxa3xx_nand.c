@@ -1387,34 +1387,43 @@ static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 	return NAND_STATUS_READY;
 }
 
-static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info)
+static int pxa3xx_nand_config_ident(struct pxa3xx_nand_info *info)
 {
 	struct platform_device *pdev = info->pdev;
 	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct pxa3xx_nand_host *host = info->host[info->cs];
-	struct mtd_info *mtd = host->mtd;
-	struct nand_chip *chip = mtd->priv;
 
-	/* configure default flash values */
+	/* Configure default flash values */
+	info->chunk_size = PAGE_CHUNK_SIZE;
 	info->reg_ndcr = 0x0; /* enable all interrupts */
 	info->reg_ndcr |= (pdata->enable_arbiter) ? NDCR_ND_ARB_EN : 0;
 	info->reg_ndcr |= NDCR_RD_ID_CNT(READ_ID_BYTES);
-	info->reg_ndcr |= NDCR_SPARE_EN; /* enable spare by default */
-	info->reg_ndcr |= (host->col_addr_cycles == 2) ? NDCR_RA_START : 0;
-	info->reg_ndcr |= (chip->page_shift == 6) ? NDCR_PG_PER_BLK : 0;
-	info->reg_ndcr |= (mtd->writesize == 2048) ? NDCR_PAGE_SZ : 0;
+	info->reg_ndcr |= NDCR_SPARE_EN;
 
 	return 0;
 }
 
+static void pxa3xx_nand_config_tail(struct pxa3xx_nand_info *info)
+{
+	struct pxa3xx_nand_host *host = info->host[info->cs];
+	struct mtd_info *mtd = host->mtd;
+	struct nand_chip *chip = mtd->priv;
+
+	info->reg_ndcr |= (host->col_addr_cycles == 2) ? NDCR_RA_START : 0;
+	info->reg_ndcr |= (chip->page_shift == 6) ? NDCR_PG_PER_BLK : 0;
+	info->reg_ndcr |= (mtd->writesize == 2048) ? NDCR_PAGE_SZ : 0;
+}
+
 static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
 {
+	struct platform_device *pdev = info->pdev;
+	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	uint32_t ndcr = nand_readl(info, NDCR);
 
 	/* Set an initial chunk size */
 	info->chunk_size = ndcr & NDCR_PAGE_SZ ? 2048 : 512;
 	info->reg_ndcr = ndcr &
 		~(NDCR_INT_MASK | NDCR_ND_ARB_EN | NFCV1_NDCR_ARB_CNTL);
+	info->reg_ndcr |= (pdata->enable_arbiter) ? NDCR_ND_ARB_EN : 0;
 	info->ndtr0cs0 = nand_readl(info, NDTR0CS0);
 	info->ndtr1cs0 = nand_readl(info, NDTR1CS0);
 	return 0;
@@ -1591,10 +1600,7 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 	if (pdata->keep_config && !pxa3xx_nand_detect_config(info))
 		goto KEEP_CONFIG;
 
-	/* Set a default chunk size */
-	info->chunk_size = PAGE_CHUNK_SIZE;
-
-	ret = pxa3xx_nand_config_flash(info);
+	ret = pxa3xx_nand_config_ident(info);
 	if (ret)
 		return ret;
 
@@ -1607,7 +1613,6 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 	}
 
 KEEP_CONFIG:
-	info->reg_ndcr |= (pdata->enable_arbiter) ? NDCR_ND_ARB_EN : 0;
 	if (info->reg_ndcr & NDCR_DWIDTH_M)
 		chip->options |= NAND_BUSWIDTH_16;
 
@@ -1692,6 +1697,10 @@ KEEP_CONFIG:
 		host->row_addr_cycles = 3;
 	else
 		host->row_addr_cycles = 2;
+
+	if (!pdata->keep_config)
+		pxa3xx_nand_config_tail(info);
+
 	return nand_scan_tail(mtd);
 }
 
