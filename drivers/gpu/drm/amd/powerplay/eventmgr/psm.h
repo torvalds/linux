@@ -25,6 +25,7 @@
 #include "eventmanagement.h"
 #include "eventmanager.h"
 #include "power_state.h"
+#include "hardwaremanager.h"
 
 int psm_get_ui_state(struct pp_eventmgr *eventmgr, enum PP_StateUILabel ui_label, unsigned long *state_id);
 
