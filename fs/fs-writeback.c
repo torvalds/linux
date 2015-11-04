@@ -779,8 +779,8 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 				  bool skip_if_busy)
 {
 	struct bdi_writeback *last_wb = NULL;
-	struct bdi_writeback *wb = list_entry_rcu(&bdi->wb_list,
-						struct bdi_writeback, bdi_node);
+	struct bdi_writeback *wb = list_entry(&bdi->wb_list,
+					      struct bdi_writeback, bdi_node);
 
 	might_sleep();
 restart:

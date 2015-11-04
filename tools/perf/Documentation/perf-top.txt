@@ -160,9 +160,10 @@ Default is to monitor all CPUS.
 -g::
 	Enables call-graph (stack chain/backtrace) recording.
 
---call-graph::
+--call-graph [mode,type,min[,limit],order[,key][,branch]]::
 	Setup and enable call-graph (stack chain/backtrace) recording,
-	implies -g.
+	implies -g.  See `--call-graph` section in perf-record and
+	perf-report man pages for details.
 
 --children::
 	Accumulate callchain of children to parent entry so that then can

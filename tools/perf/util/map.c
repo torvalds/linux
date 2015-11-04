@@ -235,7 +235,7 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
  */
 bool __map__is_kernel(const struct map *map)
 {
-	return map->groups->machine->vmlinux_maps[map->type] == map;
+	return __machine__kernel_map(map->groups->machine, map->type) == map;
 }
 
 static void map__exit(struct map *map)
@@ -553,13 +553,9 @@ struct symbol *map_groups__find_symbol(struct map_groups *mg,
 	return NULL;
 }
 
-struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
-					       enum map_type type,
-					       const char *name,
-					       struct map **mapp,
-					       symbol_filter_t filter)
+struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
+					 struct map **mapp, symbol_filter_t filter)
 {
-	struct maps *maps = &mg->maps[type];
 	struct symbol *sym;
 	struct rb_node *nd;
 
@@ -580,6 +576,17 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 	sym = NULL;
 out:
 	pthread_rwlock_unlock(&maps->lock);
+	return sym;
+}
+
+struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
+					       enum map_type type,
+					       const char *name,
+					       struct map **mapp,
+					       symbol_filter_t filter)
+{
+	struct symbol *sym = maps__find_symbol_by_name(&mg->maps[type], name, mapp, filter);
+
 	return sym;
 }
 

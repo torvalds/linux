@@ -1087,7 +1087,8 @@ static struct pci_driver snbep_uncore_pci_driver = {
 static int snbep_pci2phy_map_init(int devid)
 {
 	struct pci_dev *ubox_dev = NULL;
-	int i, bus, nodeid;
+	int i, bus, nodeid, segment;
+	struct pci2phy_map *map;
 	int err = 0;
 	u32 config = 0;
 
@@ -1106,16 +1107,27 @@ static int snbep_pci2phy_map_init(int devid)
 		err = pci_read_config_dword(ubox_dev, 0x54, &config);
 		if (err)
 			break;
+
+		segment = pci_domain_nr(ubox_dev->bus);
+		raw_spin_lock(&pci2phy_map_lock);
+		map = __find_pci2phy_map(segment);
+		if (!map) {
+			raw_spin_unlock(&pci2phy_map_lock);
+			err = -ENOMEM;
+			break;
+		}
+
 		/*
 		 * every three bits in the Node ID mapping register maps
 		 * to a particular node.
 		 */
 		for (i = 0; i < 8; i++) {
 			if (nodeid == ((config >> (3 * i)) & 0x7)) {
-				uncore_pcibus_to_physid[bus] = i;
+				map->pbus_to_physid[bus] = i;
 				break;
 			}
 		}
+		raw_spin_unlock(&pci2phy_map_lock);
 	}
 
 	if (!err) {
@@ -1123,13 +1135,17 @@ static int snbep_pci2phy_map_init(int devid)
 		 * For PCI bus with no UBOX device, find the next bus
 		 * that has UBOX device and use its mapping.
 		 */
-		i = -1;
-		for (bus = 255; bus >= 0; bus--) {
-			if (uncore_pcibus_to_physid[bus] >= 0)
-				i = uncore_pcibus_to_physid[bus];
-			else
-				uncore_pcibus_to_physid[bus] = i;
+		raw_spin_lock(&pci2phy_map_lock);
+		list_for_each_entry(map, &pci2phy_map_head, list) {
+			i = -1;
+			for (bus = 255; bus >= 0; bus--) {
+				if (map->pbus_to_physid[bus] >= 0)
+					i = map->pbus_to_physid[bus];
+				else
+					map->pbus_to_physid[bus] = i;
+			}
 		}
+		raw_spin_unlock(&pci2phy_map_lock);
 	}
 
 	pci_dev_put(ubox_dev);
@@ -2444,7 +2460,7 @@ static struct intel_uncore_type *bdx_pci_uncores[] = {
 	NULL,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(bdx_uncore_pci_ids) = {
+static const struct pci_device_id bdx_uncore_pci_ids[] = {
 	{ /* Home Agent 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f30),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_HA, 0),

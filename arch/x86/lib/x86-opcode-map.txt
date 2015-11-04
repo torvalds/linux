@@ -353,8 +353,12 @@ AVXcode: 1
 17: vmovhps Mq,Vq (v1) | vmovhpd Mq,Vq (66),(v1)
 18: Grp16 (1A)
 19:
-1a: BNDCL Ev,Gv | BNDCU Ev,Gv | BNDMOV Gv,Ev | BNDLDX Gv,Ev,Gv
-1b: BNDCN Ev,Gv | BNDMOV Ev,Gv | BNDMK Gv,Ev | BNDSTX Ev,GV,Gv
+# Intel SDM opcode map does not list MPX instructions. For now using Gv for
+# bnd registers and Ev for everything else is OK because the instruction
+# decoder does not use the information except as an indication that there is
+# a ModR/M byte.
+1a: BNDCL Gv,Ev (F3) | BNDCU Gv,Ev (F2) | BNDMOV Gv,Ev (66) | BNDLDX Gv,Ev
+1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
 1c:
 1d:
 1e:
@@ -732,6 +736,12 @@ bd: vfnmadd231ss/d Vx,Hx,Wx (66),(v),(v1)
 be: vfnmsub231ps/d Vx,Hx,Wx (66),(v)
 bf: vfnmsub231ss/d Vx,Hx,Wx (66),(v),(v1)
 # 0x0f 0x38 0xc0-0xff
+c8: sha1nexte Vdq,Wdq
+c9: sha1msg1 Vdq,Wdq
+ca: sha1msg2 Vdq,Wdq
+cb: sha256rnds2 Vdq,Wdq
+cc: sha256msg1 Vdq,Wdq
+cd: sha256msg2 Vdq,Wdq
 db: VAESIMC Vdq,Wdq (66),(v1)
 dc: VAESENC Vdq,Hdq,Wdq (66),(v1)
 dd: VAESENCLAST Vdq,Hdq,Wdq (66),(v1)
@@ -790,6 +800,7 @@ AVXcode: 3
 61: vpcmpestri Vdq,Wdq,Ib (66),(v1)
 62: vpcmpistrm Vdq,Wdq,Ib (66),(v1)
 63: vpcmpistri Vdq,Wdq,Ib (66),(v1)
+cc: sha1rnds4 Vdq,Wdq,Ib
 df: VAESKEYGEN Vdq,Wdq,Ib (66),(v1)
 f0: RORX Gy,Ey,Ib (F2),(v)
 EndTable
@@ -874,7 +885,7 @@ GrpTable: Grp7
 2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B) | XEND (101)(11B) | XTEST (110)(11B)
 3: LIDT Ms
 4: SMSW Mw/Rv
-5:
+5: rdpkru (110),(11B) | wrpkru (111),(11B)
 6: LMSW Ew
 7: INVLPG Mb | SWAPGS (o64),(000),(11B) | RDTSCP (001),(11B)
 EndTable
@@ -888,6 +899,9 @@ EndTable
 
 GrpTable: Grp9
 1: CMPXCHG8B/16B Mq/Mdq
+3: xrstors
+4: xsavec
+5: xsaves
 6: VMPTRLD Mq | VMCLEAR Mq (66) | VMXON Mq (F3) | RDRAND Rv (11B)
 7: VMPTRST Mq | VMPTRST Mq (F3) | RDSEED Rv (11B)
 EndTable
@@ -932,8 +946,8 @@ GrpTable: Grp15
 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
 4: XSAVE
 5: XRSTOR | lfence (11B)
-6: XSAVEOPT | mfence (11B)
-7: clflush | sfence (11B)
+6: XSAVEOPT | clwb (66) | mfence (11B)
+7: clflush | clflushopt (66) | sfence (11B) | pcommit (66),(11B)
 EndTable
 
 GrpTable: Grp16

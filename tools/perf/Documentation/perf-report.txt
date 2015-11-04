@@ -29,7 +29,7 @@ OPTIONS
 --show-nr-samples::
 	Show the number of samples for each symbol
 
---showcpuutilization::
+--show-cpu-utilization::
         Show sample percentage for different cpu modes.
 
 -T::
@@ -68,7 +68,7 @@ OPTIONS
 --sort=::
 	Sort histogram entries by given key(s) - multiple keys can be specified
 	in CSV format.  Following sort keys are available:
-	pid, comm, dso, symbol, parent, cpu, srcline, weight, local_weight.
+	pid, comm, dso, symbol, parent, cpu, socket, srcline, weight, local_weight.
 
 	Each key has following meaning:
 
@@ -79,6 +79,7 @@ OPTIONS
 	- parent: name of function matched to the parent regex filter. Unmatched
 	entries are displayed as "[other]".
 	- cpu: cpu number the task ran at the time of sample
+	- socket: processor socket number the task ran at the time of sample
 	- srcline: filename and line number executed at the time of sample.  The
 	DWARF debugging info must be provided.
 	- srcfile: file name of the source file of the same. Requires dwarf
@@ -168,30 +169,40 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
--g [type,min[,limit],order[,key][,branch]]::
---call-graph::
-        Display call chains using type, min percent threshold, optional print
-	limit and order.
-	type can be either:
+-g::
+--call-graph=<print_type,threshold[,print_limit],order,sort_key,branch>::
+        Display call chains using type, min percent threshold, print limit,
+	call order, sort key and branch.  Note that ordering of parameters is not
+	fixed so any parement can be given in an arbitraty order.  One exception
+	is the print_limit which should be preceded by threshold.
+
+	print_type can be either:
 	- flat: single column, linear exposure of call chains.
-	- graph: use a graph tree, displaying absolute overhead rates.
+	- graph: use a graph tree, displaying absolute overhead rates. (default)
 	- fractal: like graph, but displays relative rates. Each branch of
-		 the tree is considered as a new profiled object. +
+		 the tree is considered as a new profiled object.
+	- none: disable call chain display.
+
+	threshold is a percentage value which specifies a minimum percent to be
+	included in the output call graph.  Default is 0.5 (%).
+
+	print_limit is only applied when stdio interface is used.  It's to limit
+	number of call graph entries in a single hist entry.  Note that it needs
+	to be given after threshold (but not necessarily consecutive).
+	Default is 0 (unlimited).
 
 	order can be either:
 	- callee: callee based call graph.
 	- caller: inverted caller based call graph.
+	Default is 'caller' when --children is used, otherwise 'callee'.
 
-	key can be:
-	- function: compare on functions
+	sort_key can be:
+	- function: compare on functions (default)
 	- address: compare on individual code addresses
 
 	branch can be:
-	- branch: include last branch information in callgraph
-	when available. Usually more convenient to use --branch-history
-	for this.
-
-	Default: fractal,0.5,callee,function.
+	- branch: include last branch information in callgraph when available.
+	          Usually more convenient to use --branch-history for this.
 
 --children::
 	Accumulate callchain of children to parent entry so that then can
@@ -204,6 +215,8 @@ OPTIONS
 	beyond the specified depth will be ignored. This is a trade-off
 	between information loss and faster processing especially for
 	workloads that can have a very long callchain stack.
+	Note that when using the --itrace option the synthesized callchain size
+	will override this value if the synthesized callchain size is bigger.
 
 	Default: 127
 
@@ -348,6 +361,9 @@ include::itrace.txt[]
 	disable the callgraph.
 	This option extends the perf report to show reference callgraphs,
 	which collected by reference event, in no callgraph event.
+
+--socket-filter::
+	Only report the samples on the processor socket that match with this filter
 
 include::callchain-overhead-calculation.txt[]
 

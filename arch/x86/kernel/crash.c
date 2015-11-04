@@ -75,8 +75,6 @@ struct crash_memmap_data {
 	unsigned int type;
 };
 
-int in_crash_kexec;
-
 /*
  * This is used to VMCLEAR all VMCSs loaded on the
  * processor. And when loading kvm_intel module, the
@@ -132,7 +130,6 @@ static void kdump_nmi_callback(int cpu, struct pt_regs *regs)
 
 static void kdump_nmi_shootdown_cpus(void)
 {
-	in_crash_kexec = 1;
 	nmi_shootdown_cpus(kdump_nmi_callback);
 
 	disable_local_APIC();

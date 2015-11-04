@@ -54,7 +54,7 @@
 #define ATOMIC_INIT(i)	{ (i) }
 
 #define atomic_read(v)			READ_ONCE((v)->counter)
-#define atomic_set(v, i)		(((v)->counter) = (i))
+#define atomic_set(v, i)		WRITE_ONCE(((v)->counter), (i))
 #define atomic_xchg(v, new)		xchg(&((v)->counter), (new))
 #define atomic_cmpxchg(v, old, new)	cmpxchg(&((v)->counter), (old), (new))
 

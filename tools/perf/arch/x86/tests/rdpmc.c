@@ -5,10 +5,9 @@
 #include <linux/types.h>
 #include "perf.h"
 #include "debug.h"
-#include "tests.h"
+#include "tests/tests.h"
 #include "cloexec.h"
-
-#if defined(__x86_64__) || defined(__i386__)
+#include "arch-tests.h"
 
 static u64 rdpmc(unsigned int counter)
 {
@@ -173,5 +172,3 @@ int test__rdpmc(void)
 
 	return 0;
 }
-
-#endif

@@ -1149,7 +1149,7 @@ static int __init parse_crashkernel_simple(char *cmdline,
 	if (*cur == '@')
 		*crash_base = memparse(cur+1, &cur);
 	else if (*cur != ' ' && *cur != '\0') {
-		pr_warn("crashkernel: unrecognized char\n");
+		pr_warn("crashkernel: unrecognized char: %c\n", *cur);
 		return -EINVAL;
 	}
 
@@ -1186,12 +1186,12 @@ static int __init parse_crashkernel_suffix(char *cmdline,
 
 	/* check with suffix */
 	if (strncmp(cur, suffix, strlen(suffix))) {
-		pr_warn("crashkernel: unrecognized char\n");
+		pr_warn("crashkernel: unrecognized char: %c\n", *cur);
 		return -EINVAL;
 	}
 	cur += strlen(suffix);
 	if (*cur != ' ' && *cur != '\0') {
-		pr_warn("crashkernel: unrecognized char\n");
+		pr_warn("crashkernel: unrecognized char: %c\n", *cur);
 		return -EINVAL;
 	}
 

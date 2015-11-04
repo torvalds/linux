@@ -140,33 +140,67 @@ struct hw_perf_event {
 		};
 #endif
 	};
+	/*
+	 * If the event is a per task event, this will point to the task in
+	 * question. See the comment in perf_event_alloc().
+	 */
 	struct task_struct		*target;
-	int				state;
-	local64_t			prev_count;
-	u64				sample_period;
-	u64				last_period;
-	local64_t			period_left;
-	u64                             interrupts_seq;
-	u64				interrupts;
-
-	u64				freq_time_stamp;
-	u64				freq_count_stamp;
-#endif
-};
 
 /*
- * hw_perf_event::state flags
+ * hw_perf_event::state flags; used to track the PERF_EF_* state.
  */
 #define PERF_HES_STOPPED	0x01 /* the counter is stopped */
 #define PERF_HES_UPTODATE	0x02 /* event->count up-to-date */
 #define PERF_HES_ARCH		0x04
+
+	int				state;
+
+	/*
+	 * The last observed hardware counter value, updated with a
+	 * local64_cmpxchg() such that pmu::read() can be called nested.
+	 */
+	local64_t			prev_count;
+
+	/*
+	 * The period to start the next sample with.
+	 */
+	u64				sample_period;
+
+	/*
+	 * The period we started this sample with.
+	 */
+	u64				last_period;
+
+	/*
+	 * However much is left of the current period; note that this is
+	 * a full 64bit value and allows for generation of periods longer
+	 * than hardware might allow.
+	 */
+	local64_t			period_left;
+
+	/*
+	 * State for throttling the event, see __perf_event_overflow() and
+	 * perf_adjust_freq_unthr_context().
+	 */
+	u64                             interrupts_seq;
+	u64				interrupts;
+
+	/*
+	 * State for freq target events, see __perf_event_overflow() and
+	 * perf_adjust_freq_unthr_context().
+	 */
+	u64				freq_time_stamp;
+	u64				freq_count_stamp;
+#endif
+};
 
 struct perf_event;
 
 /*
  * Common implementation detail of pmu::{start,commit,cancel}_txn
  */
-#define PERF_EVENT_TXN 0x1
+#define PERF_PMU_TXN_ADD  0x1		/* txn to add/schedule event on PMU */
+#define PERF_PMU_TXN_READ 0x2		/* txn to read event group from PMU */
 
 /**
  * pmu::capabilities flags
@@ -210,7 +244,19 @@ struct pmu {
 
 	/*
 	 * Try and initialize the event for this PMU.
-	 * Should return -ENOENT when the @event doesn't match this PMU.
+	 *
+	 * Returns:
+	 *  -ENOENT	-- @event is not for this PMU
+	 *
+	 *  -ENODEV	-- @event is for this PMU but PMU not present
+	 *  -EBUSY	-- @event is for this PMU but PMU temporarily unavailable
+	 *  -EINVAL	-- @event is for this PMU but @event is not valid
+	 *  -EOPNOTSUPP -- @event is for this PMU, @event is valid, but not supported
+	 *  -EACCESS	-- @event is for this PMU, @event is valid, but no privilidges
+	 *
+	 *  0		-- @event is for this PMU and valid
+	 *
+	 * Other error return values are allowed.
 	 */
 	int (*event_init)		(struct perf_event *event);
 
@@ -221,27 +267,61 @@ struct pmu {
 	void (*event_mapped)		(struct perf_event *event); /*optional*/
 	void (*event_unmapped)		(struct perf_event *event); /*optional*/
 
+	/*
+	 * Flags for ->add()/->del()/ ->start()/->stop(). There are
+	 * matching hw_perf_event::state flags.
+	 */
 #define PERF_EF_START	0x01		/* start the counter when adding    */
 #define PERF_EF_RELOAD	0x02		/* reload the counter when starting */
 #define PERF_EF_UPDATE	0x04		/* update the counter when stopping */
 
 	/*
-	 * Adds/Removes a counter to/from the PMU, can be done inside
-	 * a transaction, see the ->*_txn() methods.
+	 * Adds/Removes a counter to/from the PMU, can be done inside a
+	 * transaction, see the ->*_txn() methods.
+	 *
+	 * The add/del callbacks will reserve all hardware resources required
+	 * to service the event, this includes any counter constraint
+	 * scheduling etc.
+	 *
+	 * Called with IRQs disabled and the PMU disabled on the CPU the event
+	 * is on.
+	 *
+	 * ->add() called without PERF_EF_START should result in the same state
+	 *  as ->add() followed by ->stop().
+	 *
+	 * ->del() must always PERF_EF_UPDATE stop an event. If it calls
+	 *  ->stop() that must deal with already being stopped without
+	 *  PERF_EF_UPDATE.
 	 */
 	int  (*add)			(struct perf_event *event, int flags);
 	void (*del)			(struct perf_event *event, int flags);
 
 	/*
-	 * Starts/Stops a counter present on the PMU. The PMI handler
-	 * should stop the counter when perf_event_overflow() returns
-	 * !0. ->start() will be used to continue.
+	 * Starts/Stops a counter present on the PMU.
+	 *
+	 * The PMI handler should stop the counter when perf_event_overflow()
+	 * returns !0. ->start() will be used to continue.
+	 *
+	 * Also used to change the sample period.
+	 *
+	 * Called with IRQs disabled and the PMU disabled on the CPU the event
+	 * is on -- will be called from NMI context with the PMU generates
+	 * NMIs.
+	 *
+	 * ->stop() with PERF_EF_UPDATE will read the counter and update
+	 *  period/count values like ->read() would.
+	 *
+	 * ->start() with PERF_EF_RELOAD will reprogram the the counter
+	 *  value, must be preceded by a ->stop() with PERF_EF_UPDATE.
 	 */
 	void (*start)			(struct perf_event *event, int flags);
 	void (*stop)			(struct perf_event *event, int flags);
 
 	/*
 	 * Updates the counter value of the event.
+	 *
+	 * For sampling capable PMUs this will also update the software period
+	 * hw_perf_event::period_left field.
 	 */
 	void (*read)			(struct perf_event *event);
 
@@ -252,20 +332,26 @@ struct pmu {
 	 *
 	 * Start the transaction, after this ->add() doesn't need to
 	 * do schedulability tests.
+	 *
+	 * Optional.
 	 */
-	void (*start_txn)		(struct pmu *pmu); /* optional */
+	void (*start_txn)		(struct pmu *pmu, unsigned int txn_flags);
 	/*
 	 * If ->start_txn() disabled the ->add() schedulability test
 	 * then ->commit_txn() is required to perform one. On success
 	 * the transaction is closed. On error the transaction is kept
 	 * open until ->cancel_txn() is called.
+	 *
+	 * Optional.
 	 */
-	int  (*commit_txn)		(struct pmu *pmu); /* optional */
+	int  (*commit_txn)		(struct pmu *pmu);
 	/*
 	 * Will cancel the transaction, assumes ->del() is called
 	 * for each successful ->add() during the transaction.
+	 *
+	 * Optional.
 	 */
-	void (*cancel_txn)		(struct pmu *pmu); /* optional */
+	void (*cancel_txn)		(struct pmu *pmu);
 
 	/*
 	 * Will return the value for perf_event_mmap_page::index for this event,

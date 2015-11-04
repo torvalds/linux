@@ -7,7 +7,7 @@
 #include <linux/bitmap.h>
 #include <linux/types.h>
 #include "event.h"
-
+#include "env.h"
 
 enum {
 	HEADER_RESERVED		= 0,	/* always cleared */
@@ -65,31 +65,6 @@ struct perf_header;
 
 int perf_file_header__read(struct perf_file_header *header,
 			   struct perf_header *ph, int fd);
-
-struct perf_env {
-	char			*hostname;
-	char			*os_release;
-	char			*version;
-	char			*arch;
-	int			nr_cpus_online;
-	int			nr_cpus_avail;
-	char			*cpu_desc;
-	char			*cpuid;
-	unsigned long long	total_mem;
-
-	int			nr_cmdline;
-	int			nr_sibling_cores;
-	int			nr_sibling_threads;
-	int			nr_numa_nodes;
-	int			nr_pmu_mappings;
-	int			nr_groups;
-	char			*cmdline;
-	const char		**cmdline_argv;
-	char			*sibling_cores;
-	char			*sibling_threads;
-	char			*numa_nodes;
-	char			*pmu_mappings;
-};
 
 struct perf_header {
 	enum perf_header_version	version;

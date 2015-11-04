@@ -128,8 +128,9 @@ perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- m
 
 -I msecs::
 --interval-print msecs::
-	Print count deltas every N milliseconds (minimum: 100ms)
-	example: perf stat -I 1000 -e cycles -a sleep 5
+Print count deltas every N milliseconds (minimum: 10ms)
+The overhead percentage could be high in some cases, for instance with small, sub 100ms intervals.  Use with caution.
+	example: 'perf stat -I 1000 -e cycles -a sleep 5'
 
 --per-socket::
 Aggregate counts per processor socket for system-wide mode measurements.  This
