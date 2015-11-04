@@ -585,7 +585,7 @@ static void es2_destroy(struct es2_ap_dev *es2)
 
 	udev = es2->usb_dev;
 	cport_to_ep = es2->cport_to_ep;
-	gb_hd_remove(es2->hd);
+	gb_hd_put(es2->hd);
 
 	kfree(cport_to_ep);
 	usb_put_dev(udev);
@@ -598,6 +598,8 @@ static void ap_disconnect(struct usb_interface *interface)
 
 	for (i = 0; i < NUM_BULKS; ++i)
 		es2_cport_in_disable(es2, &es2->cport_in[i]);
+
+	gb_hd_del(es2->hd);
 
 	es2_destroy(es2);
 }
@@ -942,6 +944,10 @@ static int ap_probe(struct usb_interface *interface,
 							gb_debugfs_get(), es2,
 							&apb_log_enable_fops);
 
+	retval = gb_hd_add(hd);
+	if (retval)
+		goto error;
+
 	for (i = 0; i < NUM_BULKS; ++i) {
 		retval = es2_cport_in_enable(es2, &es2->cport_in[i]);
 		if (retval)
@@ -953,6 +959,7 @@ static int ap_probe(struct usb_interface *interface,
 err_disable_cport_in:
 	for (--i; i >= 0; --i)
 		es2_cport_in_disable(es2, &es2->cport_in[i]);
+	gb_hd_del(hd);
 error:
 	es2_destroy(es2);
 

@@ -77,6 +77,12 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	hd->buffer_size_max = buffer_size_max;
 	hd->num_cports = num_cports;
 
+	return hd;
+}
+EXPORT_SYMBOL_GPL(gb_hd_create);
+
+int gb_hd_add(struct gb_host_device *hd)
+{
 	/*
 	 * Initialize AP's SVC protocol connection:
 	 *
@@ -87,16 +93,14 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	 * time we will create a fully initialized svc-connection, as we need
 	 * endo-id and AP's interface id for that.
 	 */
-	if (!gb_ap_svc_connection_create(hd)) {
-		kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (!gb_ap_svc_connection_create(hd))
+		return -ENOMEM;
 
-	return hd;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(gb_hd_create);
+EXPORT_SYMBOL_GPL(gb_hd_add);
 
-void gb_hd_remove(struct gb_host_device *hd)
+void gb_hd_del(struct gb_host_device *hd)
 {
 	/*
 	 * Tear down all interfaces, modules, and the endo that is associated
@@ -109,7 +113,11 @@ void gb_hd_remove(struct gb_host_device *hd)
 	/* Is the SVC still using the partially uninitialized connection ? */
 	if (hd->initial_svc_connection)
 		gb_connection_destroy(hd->initial_svc_connection);
+}
+EXPORT_SYMBOL_GPL(gb_hd_del);
 
+void gb_hd_put(struct gb_host_device *hd)
+{
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }
-EXPORT_SYMBOL_GPL(gb_hd_remove);
+EXPORT_SYMBOL_GPL(gb_hd_put);

@@ -390,7 +390,7 @@ static void es1_destroy(struct es1_ap_dev *es1)
 	}
 
 	udev = es1->usb_dev;
-	gb_hd_remove(es1->hd);
+	gb_hd_put(es1->hd);
 
 	usb_put_dev(udev);
 }
@@ -402,6 +402,8 @@ static void ap_disconnect(struct usb_interface *interface)
 
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i)
 		usb_kill_urb(es1->cport_in_urb[i]);
+
+	gb_hd_del(es1->hd);
 
 	es1_destroy(es1);
 }
@@ -692,6 +694,10 @@ static int ap_probe(struct usb_interface *interface,
 							gb_debugfs_get(), es1,
 							&apb1_log_enable_fops);
 
+	retval = gb_hd_add(hd);
+	if (retval)
+		goto error;
+
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
 		retval = usb_submit_urb(es1->cport_in_urb[i], GFP_KERNEL);
 		if (retval)
@@ -703,6 +709,7 @@ static int ap_probe(struct usb_interface *interface,
 err_kill_in_urbs:
 	for (--i; i >= 0; --i)
 		usb_kill_urb(es1->cport_in_urb[i]);
+	gb_hd_del(hd);
 error:
 	es1_destroy(es1);
 

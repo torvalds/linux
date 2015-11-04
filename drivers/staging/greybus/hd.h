@@ -52,6 +52,8 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 					struct device *parent,
 					size_t buffer_size_max,
 					size_t num_cports);
-void gb_hd_remove(struct gb_host_device *hd);
+int gb_hd_add(struct gb_host_device *hd);
+void gb_hd_del(struct gb_host_device *hd);
+void gb_hd_put(struct gb_host_device *hd);
 
 #endif	/* __HD_H */
