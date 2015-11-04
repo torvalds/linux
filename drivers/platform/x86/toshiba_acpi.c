@@ -2665,6 +2665,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	ret = toshiba_function_keys_get(dev, &dev->special_functions);
 	dev->kbd_function_keys_supported = !ret;
 
+	dev->hotkey_event_type = 0;
 	if (toshiba_acpi_setup_keyboard(dev))
 		pr_info("Unable to activate hotkeys\n");
 
