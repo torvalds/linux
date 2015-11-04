@@ -26,3 +26,11 @@ config SND_SOC_IMG_PARALLEL_OUT
 	help
 	  Say Y or M if you want to add support for parallel out driver for
 	  Imagination Technologies parallel out device.
+
+config SND_SOC_IMG_SPDIF_IN
+	tristate "Imagination SPDIF Input Device Driver"
+	depends on SND_SOC_IMG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for SPDIF input driver for
+	  Imagination Technologies SPDIF input device.
