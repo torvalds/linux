@@ -89,16 +89,11 @@ static void mfree_all_stainfo(struct sta_priv *pstapriv)
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
 }
 
-
-static void mfree_sta_priv_lock(struct	sta_priv *pstapriv)
-{
-	 mfree_all_stainfo(pstapriv); /* be done before free sta_hash_lock */
-}
-
 u32 _r8712_free_sta_priv(struct sta_priv *pstapriv)
 {
 	if (pstapriv) {
-		mfree_sta_priv_lock(pstapriv);
+		/* be done before free sta_hash_lock */
+		mfree_all_stainfo(pstapriv);
 		kfree(pstapriv->pallocated_stainfo_buf);
 	}
 	return _SUCCESS;
