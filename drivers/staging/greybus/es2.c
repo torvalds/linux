@@ -547,20 +547,12 @@ static int check_urb_status(struct urb *urb)
 	return -EAGAIN;
 }
 
-static void ap_disconnect(struct usb_interface *interface)
+static void es2_destroy(struct es2_ap_dev *es2)
 {
-	struct es2_ap_dev *es2;
 	struct usb_device *udev;
 	int *cport_to_ep;
 	int bulk_in;
 	int i;
-
-	es2 = usb_get_intfdata(interface);
-	if (!es2)
-		return;
-
-	for (i = 0; i < NUM_BULKS; ++i)
-		es2_cport_in_disable(es2, &es2->cport_in[i]);
 
 	debugfs_remove(es2->apb_log_enable_dentry);
 	usb_log_disable(es2);
@@ -591,13 +583,23 @@ static void ap_disconnect(struct usb_interface *interface)
 		}
 	}
 
-	usb_set_intfdata(interface, NULL);
 	udev = es2->usb_dev;
 	cport_to_ep = es2->cport_to_ep;
 	gb_hd_remove(es2->hd);
 
 	kfree(cport_to_ep);
 	usb_put_dev(udev);
+}
+
+static void ap_disconnect(struct usb_interface *interface)
+{
+	struct es2_ap_dev *es2 = usb_get_intfdata(interface);
+	int i;
+
+	for (i = 0; i < NUM_BULKS; ++i)
+		es2_cport_in_disable(es2, &es2->cport_in[i]);
+
+	es2_destroy(es2);
 }
 
 static void cport_in_callback(struct urb *urb)
@@ -943,12 +945,16 @@ static int ap_probe(struct usb_interface *interface,
 	for (i = 0; i < NUM_BULKS; ++i) {
 		retval = es2_cport_in_enable(es2, &es2->cport_in[i]);
 		if (retval)
-			goto error;
+			goto err_disable_cport_in;
 	}
 
 	return 0;
+
+err_disable_cport_in:
+	for (--i; i >= 0; --i)
+		es2_cport_in_disable(es2, &es2->cport_in[i]);
 error:
-	ap_disconnect(interface);
+	es2_destroy(es2);
 
 	return retval;
 }
