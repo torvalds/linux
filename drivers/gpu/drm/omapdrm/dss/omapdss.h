@@ -58,6 +58,8 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool replication, const struct omap_video_timings *mgr_timings,
 		bool mem_to_mem);
 
+enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channel);
+
 struct dss_mgr_ops {
 	int (*connect)(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dst);

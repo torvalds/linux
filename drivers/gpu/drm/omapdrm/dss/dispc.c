@@ -2910,6 +2910,12 @@ bool dispc_ovl_enabled(enum omap_plane plane)
 }
 EXPORT_SYMBOL(dispc_ovl_enabled);
 
+enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channel)
+{
+	return dss_feat_get_supported_outputs(channel);
+}
+EXPORT_SYMBOL(dispc_mgr_get_supported_outputs);
+
 void dispc_mgr_enable(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_ENABLE, enable);

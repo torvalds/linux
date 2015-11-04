@@ -112,7 +112,7 @@ static int omap_crtc_dss_connect(struct omap_overlay_manager *mgr,
 	if (mgr->output)
 		return -EINVAL;
 
-	if ((mgr->supported_outputs & dst->id) == 0)
+	if ((dispc_mgr_get_supported_outputs(mgr->id) & dst->id) == 0)
 		return -EINVAL;
 
 	dst->manager = mgr;
