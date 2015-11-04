@@ -12,6 +12,7 @@
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\
+		"-DLINUX_VERSION_CODE=$LINUX_VERSION_CODE "	\
 		"$CLANG_OPTIONS $KERNEL_INC_OPTIONS "		\
 		"-Wno-unused-value -Wno-pointer-sign "		\
 		"-working-directory $WORKING_DIR "		\
@@ -324,11 +325,33 @@ get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 	pr_debug("include option is set to %s\n", *kbuild_include_opts);
 }
 
+static unsigned long
+fetch_kernel_version(void)
+{
+	struct utsname utsname;
+	int version, patchlevel, sublevel, err;
+
+	if (uname(&utsname))
+		return 0;
+
+	err = sscanf(utsname.release, "%d.%d.%d",
+		     &version, &patchlevel, &sublevel);
+
+	if (err != 3) {
+		pr_debug("Unablt to get kernel version from uname '%s'\n",
+			 utsname.release);
+		return 0;
+	}
+
+	return (version << 16) + (patchlevel << 8) + sublevel;
+}
+
 int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		      size_t *p_obj_buf_sz)
 {
 	int err, nr_cpus_avail;
 	char clang_path[PATH_MAX], nr_cpus_avail_str[64];
+	char linux_version_code_str[64];
 	const char *clang_opt = llvm_param.clang_opt;
 	const char *template = llvm_param.clang_bpf_cmd_template;
 	char *kbuild_dir = NULL, *kbuild_include_opts = NULL;
@@ -365,7 +388,11 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	snprintf(nr_cpus_avail_str, sizeof(nr_cpus_avail_str), "%d",
 		 nr_cpus_avail);
 
+	snprintf(linux_version_code_str, sizeof(linux_version_code_str),
+		 "0x%lx", fetch_kernel_version());
+
 	force_set_env("NR_CPUS", nr_cpus_avail_str);
+	force_set_env("LINUX_VERSION_CODE", linux_version_code_str);
 	force_set_env("CLANG_EXEC", clang_path);
 	force_set_env("CLANG_OPTIONS", clang_opt);
 	force_set_env("KERNEL_INC_OPTIONS", kbuild_include_opts);
