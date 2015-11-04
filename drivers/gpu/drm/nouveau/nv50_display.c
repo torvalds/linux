@@ -774,7 +774,6 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	 */
 	if (nv_connector && ( nv_connector->underscan == UNDERSCAN_ON ||
 			     (nv_connector->underscan == UNDERSCAN_AUTO &&
-			      nv_connector->edid &&
 			      drm_detect_hdmi_monitor(nv_connector->edid)))) {
 		u32 bX = nv_connector->underscan_hborder;
 		u32 bY = nv_connector->underscan_vborder;
