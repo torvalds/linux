@@ -15040,9 +15040,6 @@ void intel_modeset_init(struct drm_device *dev)
 	i915_disable_vga(dev);
 	intel_setup_outputs(dev);
 
-	/* Just in case the BIOS is doing something questionable. */
-	intel_fbc_disable(dev_priv);
-
 	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(dev);
 	drm_modeset_unlock_all(dev);

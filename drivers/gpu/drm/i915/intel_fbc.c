@@ -1038,9 +1038,9 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	enum pipe pipe;
 
 	mutex_init(&dev_priv->fbc.lock);
+	dev_priv->fbc.enabled = false;
 
 	if (!HAS_FBC(dev_priv)) {
-		dev_priv->fbc.enabled = false;
 		dev_priv->fbc.no_fbc_reason = "unsupported by this chipset";
 		return;
 	}
@@ -1074,5 +1074,9 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 		I915_WRITE(FBC_CONTROL, 500 << FBC_CTL_INTERVAL_SHIFT);
 	}
 
-	dev_priv->fbc.enabled = dev_priv->fbc.fbc_enabled(dev_priv);
+	/* We still don't have any sort of hardware state readout for FBC, so
+	 * disable it in case the BIOS enabled it to make sure software matches
+	 * the hardware state. */
+	if (dev_priv->fbc.fbc_enabled(dev_priv))
+		dev_priv->fbc.disable_fbc(dev_priv);
 }
