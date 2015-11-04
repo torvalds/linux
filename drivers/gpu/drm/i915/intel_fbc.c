@@ -823,8 +823,8 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
  */
 static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 {
-	struct drm_crtc *crtc = NULL;
-	struct intel_crtc *intel_crtc;
+	struct drm_crtc *drm_crtc = NULL;
+	struct intel_crtc *crtc;
 	struct drm_framebuffer *fb;
 	struct drm_i915_gem_object *obj;
 	const struct drm_display_mode *adjusted_mode;
@@ -854,8 +854,8 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	 *   - new fb is too large to fit in compressed buffer
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
-	crtc = intel_fbc_find_crtc(dev_priv);
-	if (!crtc) {
+	drm_crtc = intel_fbc_find_crtc(dev_priv);
+	if (!drm_crtc) {
 		set_no_fbc_reason(dev_priv, "no output");
 		goto out_disable;
 	}
@@ -865,10 +865,10 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 
-	intel_crtc = to_intel_crtc(crtc);
-	fb = crtc->primary->fb;
+	crtc = to_intel_crtc(drm_crtc);
+	fb = crtc->base.primary->fb;
 	obj = intel_fb_obj(fb);
-	adjusted_mode = &intel_crtc->config->base.adjusted_mode;
+	adjusted_mode = &crtc->config->base.adjusted_mode;
 
 	if ((adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
@@ -876,13 +876,13 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 
-	if (!intel_fbc_hw_tracking_covers_screen(intel_crtc)) {
+	if (!intel_fbc_hw_tracking_covers_screen(crtc)) {
 		set_no_fbc_reason(dev_priv, "mode too large for compression");
 		goto out_disable;
 	}
 
 	if ((INTEL_INFO(dev_priv)->gen < 4 || HAS_DDI(dev_priv)) &&
-	    intel_crtc->plane != PLANE_A) {
+	    crtc->plane != PLANE_A) {
 		set_no_fbc_reason(dev_priv, "FBC unsupported on plane");
 		goto out_disable;
 	}
@@ -896,7 +896,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_G4X(dev_priv) &&
-	    crtc->primary->state->rotation != BIT(DRM_ROTATE_0)) {
+	    crtc->base.primary->state->rotation != BIT(DRM_ROTATE_0)) {
 		set_no_fbc_reason(dev_priv, "rotation unsupported");
 		goto out_disable;
 	}
@@ -919,13 +919,13 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
 	if ((IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) &&
-	    ilk_pipe_pixel_rate(intel_crtc->config) >=
+	    ilk_pipe_pixel_rate(crtc->config) >=
 	    dev_priv->cdclk_freq * 95 / 100) {
 		set_no_fbc_reason(dev_priv, "pixel rate is too big");
 		goto out_disable;
 	}
 
-	if (intel_fbc_setup_cfb(intel_crtc)) {
+	if (intel_fbc_setup_cfb(crtc)) {
 		set_no_fbc_reason(dev_priv, "not enough stolen memory");
 		goto out_disable;
 	}
@@ -935,9 +935,9 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	 * cannot be unpinned (and have its GTT offset and fence revoked)
 	 * without first being decoupled from the scanout and FBC disabled.
 	 */
-	if (dev_priv->fbc.crtc == intel_crtc &&
+	if (dev_priv->fbc.crtc == crtc &&
 	    dev_priv->fbc.fb_id == fb->base.id &&
-	    dev_priv->fbc.y == crtc->y)
+	    dev_priv->fbc.y == crtc->base.y)
 		return;
 
 	if (intel_fbc_enabled(dev_priv)) {
@@ -968,7 +968,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		__intel_fbc_disable(dev_priv);
 	}
 
-	intel_fbc_schedule_enable(intel_crtc);
+	intel_fbc_schedule_enable(crtc);
 	dev_priv->fbc.no_fbc_reason = "FBC enabled (not necessarily active)";
 	return;
 
