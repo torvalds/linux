@@ -5908,7 +5908,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
-	ret = handle_mmio_page_fault_common(vcpu, gpa, true);
+	ret = handle_mmio_page_fault(vcpu, gpa, true);
 	if (likely(ret == RET_MMIO_PF_EMULATE))
 		return x86_emulate_instruction(vcpu, gpa, 0, NULL, 0) ==
 					      EMULATE_DONE;
