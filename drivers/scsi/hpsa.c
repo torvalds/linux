@@ -2737,9 +2737,8 @@ static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr,
 
 
 	/* fill_cmd can't fail here, no data buffer to map. */
-	(void) fill_cmd(c, HPSA_DEVICE_RESET_MSG, h, NULL, 0, 0,
+	(void) fill_cmd(c, reset_type, h, NULL, 0, 0,
 			scsi3addr, TYPE_MSG);
-	c->Request.CDB[1] = reset_type; /* fill_cmd defaults to LUN reset */
 	rc = hpsa_scsi_do_simple_cmd(h, c, reply_queue, NO_TIMEOUT);
 	if (rc) {
 		dev_warn(&h->pdev->dev, "Failed to send reset command\n");
@@ -5207,6 +5206,7 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	int rc;
 	struct ctlr_info *h;
 	struct hpsa_scsi_dev_t *dev;
+	u8 reset_type;
 	char msg[48];
 
 	/* find the controller to which the command to be aborted was sent */
@@ -5245,15 +5245,23 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	if (is_hba_lunid(dev->scsi3addr))
 		return SUCCESS;
 
-	hpsa_show_dev_msg(KERN_WARNING, h, dev, "resetting");
+	if (is_logical_dev_addr_mode(dev->scsi3addr))
+		reset_type = HPSA_DEVICE_RESET_MSG;
+	else
+		reset_type = HPSA_PHYS_TARGET_RESET;
+
+	sprintf(msg, "resetting %s",
+		reset_type == HPSA_DEVICE_RESET_MSG ? "logical " : "physical ");
+	hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 
 	h->reset_in_progress = 1;
 
 	/* send a reset to the SCSI LUN which the command was sent to */
-	rc = hpsa_do_reset(h, dev, dev->scsi3addr, HPSA_RESET_TYPE_LUN,
+	rc = hpsa_do_reset(h, dev, dev->scsi3addr, reset_type,
 			   DEFAULT_REPLY_QUEUE);
-	snprintf(msg, sizeof(msg), "reset %s",
-		 rc == 0 ? "completed successfully" : "failed");
+	sprintf(msg, "reset %s %s",
+		reset_type == HPSA_DEVICE_RESET_MSG ? "logical " : "physical ",
+		rc == 0 ? "completed successfully" : "failed");
 	hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 	h->reset_in_progress = 0;
 	return rc == 0 ? SUCCESS : FAILED;
@@ -6370,6 +6378,20 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 	} else if (cmd_type == TYPE_MSG) {
 		switch (cmd) {
 
+		case  HPSA_PHYS_TARGET_RESET:
+			c->Request.CDBLen = 16;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_NONE);
+			c->Request.Timeout = 0; /* Don't time out */
+			memset(&c->Request.CDB[0], 0, sizeof(c->Request.CDB));
+			c->Request.CDB[0] = HPSA_RESET;
+			c->Request.CDB[1] = HPSA_TARGET_RESET_TYPE;
+			/* Physical target reset needs no control bytes 4-7*/
+			c->Request.CDB[4] = 0x00;
+			c->Request.CDB[5] = 0x00;
+			c->Request.CDB[6] = 0x00;
+			c->Request.CDB[7] = 0x00;
+			break;
 		case  HPSA_DEVICE_RESET_MSG:
 			c->Request.CDBLen = 16;
 			c->Request.type_attr_dir =
