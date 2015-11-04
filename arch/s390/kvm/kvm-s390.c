@@ -2181,7 +2181,7 @@ static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 	rc = read_guest(vcpu, psw->addr, 0, &opcode, 1);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
-	psw->addr = __rewind_psw(*psw, -insn_length(opcode));
+	kvm_s390_forward_psw(vcpu, insn_length(opcode));
 
 	return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 }

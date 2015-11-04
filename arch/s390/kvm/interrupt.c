@@ -335,23 +335,6 @@ static void set_intercept_indicators(struct kvm_vcpu *vcpu)
 	set_intercept_indicators_stop(vcpu);
 }
 
-static u16 get_ilc(struct kvm_vcpu *vcpu)
-{
-	switch (vcpu->arch.sie_block->icptcode) {
-	case ICPT_INST:
-	case ICPT_INSTPROGI:
-	case ICPT_OPEREXC:
-	case ICPT_PARTEXEC:
-	case ICPT_IOINST:
-		/* last instruction only stored for these icptcodes */
-		return insn_length(vcpu->arch.sie_block->ipa >> 8);
-	case ICPT_PROGI:
-		return vcpu->arch.sie_block->pgmilc;
-	default:
-		return 0;
-	}
-}
-
 static int __must_check __deliver_cpu_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
@@ -588,7 +571,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_pgm_info pgm_info;
 	int rc = 0, nullifying = false;
-	u16 ilc = get_ilc(vcpu);
+	u16 ilen = kvm_s390_get_ilen(vcpu);
 
 	spin_lock(&li->lock);
 	pgm_info = li->irq.pgm;
@@ -596,8 +579,8 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	memset(&li->irq.pgm, 0, sizeof(pgm_info));
 	spin_unlock(&li->lock);
 
-	VCPU_EVENT(vcpu, 3, "deliver: program irq code 0x%x, ilc:%d",
-		   pgm_info.code, ilc);
+	VCPU_EVENT(vcpu, 3, "deliver: program irq code 0x%x, ilen:%d",
+		   pgm_info.code, ilen);
 	vcpu->stat.deliver_program_int++;
 	trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, KVM_S390_PROGRAM_INT,
 					 pgm_info.code, 0);
@@ -682,9 +665,10 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	}
 
 	if (nullifying && vcpu->arch.sie_block->icptcode == ICPT_INST)
-		kvm_s390_rewind_psw(vcpu, ilc);
+		kvm_s390_rewind_psw(vcpu, ilen);
 
-	rc |= put_guest_lc(vcpu, ilc, (u16 *) __LC_PGM_ILC);
+	/* bit 1+2 of the target are the ilc, so we can directly use ilen */
+	rc |= put_guest_lc(vcpu, ilen, (u16 *) __LC_PGM_ILC);
 	rc |= put_guest_lc(vcpu, vcpu->arch.sie_block->gbea,
 				 (u64 *) __LC_LAST_BREAK);
 	rc |= put_guest_lc(vcpu, pgm_info.code,

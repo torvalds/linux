@@ -38,17 +38,32 @@ static const intercept_handler_t instruction_handlers[256] = {
 	[0xeb] = kvm_s390_handle_eb,
 };
 
-void kvm_s390_rewind_psw(struct kvm_vcpu *vcpu, int ilc)
+u8 kvm_s390_get_ilen(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_sie_block *sie_block = vcpu->arch.sie_block;
+	u8 ilen = 0;
 
-	/* Use the length of the EXECUTE instruction if necessary */
-	if (sie_block->icptstatus & 1) {
-		ilc = (sie_block->icptstatus >> 4) & 0x6;
-		if (!ilc)
-			ilc = 4;
+	switch (vcpu->arch.sie_block->icptcode) {
+	case ICPT_INST:
+	case ICPT_INSTPROGI:
+	case ICPT_OPEREXC:
+	case ICPT_PARTEXEC:
+	case ICPT_IOINST:
+		/* instruction only stored for these icptcodes */
+		ilen = insn_length(vcpu->arch.sie_block->ipa >> 8);
+		/* Use the length of the EXECUTE instruction if necessary */
+		if (sie_block->icptstatus & 1) {
+			ilen = (sie_block->icptstatus >> 4) & 0x6;
+			if (!ilen)
+				ilen = 4;
+		}
+		break;
+	case ICPT_PROGI:
+		/* bit 1+2 of pgmilc are the ilc, so we directly get ilen */
+		ilen = vcpu->arch.sie_block->pgmilc & 0x6;
+		break;
 	}
-	sie_block->gpsw.addr = __rewind_psw(sie_block->gpsw, ilc);
+	return ilen;
 }
 
 static int handle_noop(struct kvm_vcpu *vcpu)
@@ -318,7 +333,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 	if (rc != 0)
 		return rc;
 
-	kvm_s390_rewind_psw(vcpu, 4);
+	kvm_s390_retry_instr(vcpu);
 
 	return 0;
 }

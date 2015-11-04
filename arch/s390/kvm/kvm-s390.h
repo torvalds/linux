@@ -19,6 +19,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <asm/facility.h>
+#include <asm/processor.h>
 
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
@@ -212,8 +213,22 @@ int kvm_s390_reinject_io_int(struct kvm *kvm,
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
 
 /* implemented in intercept.c */
-void kvm_s390_rewind_psw(struct kvm_vcpu *vcpu, int ilc);
+u8 kvm_s390_get_ilen(struct kvm_vcpu *vcpu);
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
+static inline void kvm_s390_rewind_psw(struct kvm_vcpu *vcpu, int ilen)
+{
+	struct kvm_s390_sie_block *sie_block = vcpu->arch.sie_block;
+
+	sie_block->gpsw.addr = __rewind_psw(sie_block->gpsw, ilen);
+}
+static inline void kvm_s390_forward_psw(struct kvm_vcpu *vcpu, int ilen)
+{
+	kvm_s390_rewind_psw(vcpu, -ilen);
+}
+static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
+{
+	kvm_s390_rewind_psw(vcpu, kvm_s390_get_ilen(vcpu));
+}
 
 /* implemented in priv.c */
 int is_valid_psw(psw_t *psw);
