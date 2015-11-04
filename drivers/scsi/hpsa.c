@@ -1135,7 +1135,7 @@ static int hpsa_find_target_lun(struct ctlr_info *h,
 	return !found;
 }
 
-static inline void hpsa_show_dev_msg(const char *level, struct ctlr_info *h,
+static void hpsa_show_dev_msg(const char *level, struct ctlr_info *h,
 	struct hpsa_scsi_dev_t *dev, char *description)
 {
 	if (h == NULL || h->pdev == NULL || h->scsi_host == NULL)
@@ -1419,6 +1419,9 @@ static int hpsa_scsi_find_entry(struct hpsa_scsi_dev_t *needle,
 #define DEVICE_CHANGED 1
 #define DEVICE_SAME 2
 #define DEVICE_UPDATED 3
+	if (needle == NULL)
+		return DEVICE_NOT_FOUND;
+
 	for (i = 0; i < haystack_size; i++) {
 		if (haystack[i] == NULL) /* previously removed. */
 			continue;
@@ -1581,6 +1584,8 @@ static void hpsa_figure_phys_disk_ptrs(struct ctlr_info *h,
 		if (!logical_drive->offload_config)
 			continue;
 		for (j = 0; j < ndevices; j++) {
+			if (dev[j] == NULL)
+				continue;
 			if (dev[j]->devtype != TYPE_DISK)
 				continue;
 			if (is_logical_dev_addr_mode(dev[j]->scsi3addr))
@@ -1624,6 +1629,8 @@ static void hpsa_update_log_drive_phys_drive_ptrs(struct ctlr_info *h,
 	int i;
 
 	for (i = 0; i < ndevices; i++) {
+		if (dev[i] == NULL)
+			continue;
 		if (dev[i]->devtype != TYPE_DISK)
 			continue;
 		if (!is_logical_dev_addr_mode(dev[i]->scsi3addr))
@@ -1737,8 +1744,11 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h,
 	/* Now that h->dev[]->phys_disk[] is coherent, we can enable
 	 * any logical drives that need it enabled.
 	 */
-	for (i = 0; i < h->ndevices; i++)
+	for (i = 0; i < h->ndevices; i++) {
+		if (h->dev[i] == NULL)
+			continue;
 		h->dev[i]->offload_enabled = h->dev[i]->offload_to_be_enabled;
+	}
 
 	spin_unlock_irqrestore(&h->devlock, flags);
 
@@ -1763,6 +1773,8 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h,
 	sh = h->scsi_host;
 	/* Notify scsi mid layer of any removed devices */
 	for (i = 0; i < nremoved; i++) {
+		if (removed[i] == NULL)
+			continue;
 		if (removed[i]->expose_state & HPSA_SCSI_ADD) {
 			struct scsi_device *sdev =
 				scsi_device_lookup(sh, removed[i]->bus,
@@ -1786,18 +1798,18 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h,
 
 	/* Notify scsi mid layer of any added devices */
 	for (i = 0; i < nadded; i++) {
+		if (added[i] == NULL)
+			continue;
 		if (!(added[i]->expose_state & HPSA_SCSI_ADD))
 			continue;
 		if (scsi_add_device(sh, added[i]->bus,
 			added[i]->target, added[i]->lun) == 0)
 			continue;
-		hpsa_show_dev_msg(KERN_WARNING, h, added[i],
-					"addition failed, device not added.");
+		dev_warn(&h->pdev->dev, "addition failed, device not added.");
 		/* now we have to remove it from h->dev,
 		 * since it didn't get added to scsi mid layer
 		 */
 		fixup_botched_add(h, added[i]);
-		added[i] = NULL;
 	}
 
 free_and_out:
