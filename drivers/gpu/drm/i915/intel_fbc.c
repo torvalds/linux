@@ -955,7 +955,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	}
 
 	intel_fbc_schedule_enable(intel_crtc);
-	dev_priv->fbc.no_fbc_reason = "FBC enabled (not necessarily active)\n";
+	dev_priv->fbc.no_fbc_reason = "FBC enabled (not necessarily active)";
 	return;
 
 out_disable:
