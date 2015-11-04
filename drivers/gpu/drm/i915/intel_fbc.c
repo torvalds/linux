@@ -806,20 +806,8 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
  * __intel_fbc_update - enable/disable FBC as needed, unlocked
  * @dev_priv: i915 device instance
  *
- * Set up the framebuffer compression hardware at mode set time.  We
- * enable it if possible:
- *   - plane A only (on pre-965)
- *   - no pixel mulitply/line duplication
- *   - no alpha buffer discard
- *   - no dual wide
- *   - framebuffer <= max_hdisplay in width, max_vdisplay in height
- *
- * We can't assume that any compression will take place (worst case),
- * so the compressed buffer has to be the same size as the uncompressed
- * one.  It also must reside (along with the line length buffer) in
- * stolen memory.
- *
- * We need to enable/disable FBC on a global basis.
+ * This function completely reevaluates the status of FBC, then enables,
+ * disables or maintains it on the same state.
  */
 static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 {
@@ -831,7 +819,6 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 
 	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
 
-	/* disable framebuffer compression in vGPU */
 	if (intel_vgpu_active(dev_priv->dev))
 		i915.enable_fbc = 0;
 
@@ -845,15 +832,6 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 
-	/*
-	 * If FBC is already on, we just have to verify that we can
-	 * keep it that way...
-	 * Need to disable if:
-	 *   - more than one pipe is active
-	 *   - changing FBC params (stride, fence, mode)
-	 *   - new fb is too large to fit in compressed buffer
-	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
-	 */
 	drm_crtc = intel_fbc_find_crtc(dev_priv);
 	if (!drm_crtc) {
 		set_no_fbc_reason(dev_priv, "no output");
