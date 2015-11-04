@@ -2477,7 +2477,7 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 	if (width == out_width && height == out_height)
 		return 0;
 
-	if (pclk == 0 || mgr_timings->pixelclock == 0) {
+	if (!mem_to_mem && (pclk == 0 || mgr_timings->pixelclock == 0)) {
 		DSSERR("cannot calculate scaling settings: pclk is zero\n");
 		return -EINVAL;
 	}
