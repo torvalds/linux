@@ -889,12 +889,6 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 
-	/* If the kernel debugger is active, always disable compression */
-	if (in_dbg_master()) {
-		set_no_fbc_reason(dev_priv, "Kernel debugger is active");
-		goto out_disable;
-	}
-
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
 	if ((IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) &&
 	    ilk_pipe_pixel_rate(crtc->config) >=
