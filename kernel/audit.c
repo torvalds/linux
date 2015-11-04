@@ -407,16 +407,33 @@ static void audit_printk_skb(struct sk_buff *skb)
 static void kauditd_send_skb(struct sk_buff *skb)
 {
 	int err;
+	int attempts = 0;
+#define AUDITD_RETRIES 5
+
+restart:
 	/* take a reference in case we can't send it and we want to hold it */
 	skb_get(skb);
 	err = netlink_unicast(audit_sock, skb, audit_nlk_portid, 0);
 	if (err < 0) {
-		BUG_ON(err != -ECONNREFUSED); /* Shouldn't happen */
+		pr_err("netlink_unicast sending to audit_pid=%d returned error: %d\n",
+		       audit_pid, err);
 		if (audit_pid) {
-			pr_err("*NO* daemon at audit_pid=%d\n", audit_pid);
-			audit_log_lost("auditd disappeared");
-			audit_pid = 0;
-			audit_sock = NULL;
+			if (err == -ECONNREFUSED || err == -EPERM
+			    || ++attempts >= AUDITD_RETRIES) {
+				char s[32];
+
+				snprintf(s, sizeof(s), "audit_pid=%d reset", audit_pid);
+				audit_log_lost(s);
+				audit_pid = 0;
+				audit_sock = NULL;
+			} else {
+				pr_warn("re-scheduling(#%d) write to audit_pid=%d\n",
+					attempts, audit_pid);
+				set_current_state(TASK_INTERRUPTIBLE);
+				schedule();
+				__set_current_state(TASK_RUNNING);
+				goto restart;
+			}
 		}
 		/* we might get lucky and get this in the next auditd */
 		audit_hold_skb(skb);
