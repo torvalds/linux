@@ -2859,7 +2859,22 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 	l = FLD_MOD(l, mem_to_mem, 19, 19);	/* WRITEBACKMODE */
 	if (mem_to_mem)
 		l = FLD_MOD(l, 1, 26, 24);	/* CAPTUREMODE */
+	else
+		l = FLD_MOD(l, 0, 26, 24);	/* CAPTUREMODE */
 	dispc_write_reg(DISPC_OVL_ATTRIBUTES(plane), l);
+
+	if (mem_to_mem) {
+		/* WBDELAYCOUNT */
+		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES2(plane), 0, 7, 0);
+	} else {
+		int wbdelay;
+
+		wbdelay = min(mgr_timings->vfp + mgr_timings->vsw +
+			mgr_timings->vbp, 255);
+
+		/* WBDELAYCOUNT */
+		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES2(plane), wbdelay, 7, 0);
+	}
 
 	return r;
 }
