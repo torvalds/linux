@@ -510,6 +510,7 @@ static void ap_disconnect(struct usb_interface *interface)
 {
 	struct es2_ap_dev *es2;
 	struct usb_device *udev;
+	int *cport_to_ep;
 	int bulk_in;
 	int i;
 
@@ -548,9 +549,10 @@ static void ap_disconnect(struct usb_interface *interface)
 
 	usb_set_intfdata(interface, NULL);
 	udev = es2->usb_dev;
+	cport_to_ep = es2->cport_to_ep;
 	gb_hd_remove(es2->hd);
-	kfree(es2->cport_to_ep);
 
+	kfree(cport_to_ep);
 	usb_put_dev(udev);
 }
 
