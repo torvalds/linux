@@ -1426,7 +1426,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 				return ret;
 		}
 
-		if (!HAS_PCH_SPLIT(dev))
+		if (HAS_GMCH_DISPLAY(dev))
 			intel_gmch_panel_fitting(intel_crtc, pipe_config,
 						 intel_connector->panel.fitting_mode);
 		else
