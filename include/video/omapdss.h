@@ -867,8 +867,6 @@ void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
 
 int dss_feat_get_num_mgrs(void);
 int dss_feat_get_num_ovls(void);
-enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel);
-enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel);
 enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
 
 

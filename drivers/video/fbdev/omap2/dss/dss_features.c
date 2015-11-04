@@ -835,13 +835,11 @@ enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel
 {
 	return omap_current_dss_features->supported_displays[channel];
 }
-EXPORT_SYMBOL(dss_feat_get_supported_displays);
 
 enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel)
 {
 	return omap_current_dss_features->supported_outputs[channel];
 }
-EXPORT_SYMBOL(dss_feat_get_supported_outputs);
 
 enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane)
 {
