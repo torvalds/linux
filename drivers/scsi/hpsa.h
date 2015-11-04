@@ -262,6 +262,8 @@ struct ctlr_info {
 	int	acciopath_status;
 	int	drv_req_rescan;
 	int	raid_offload_debug;
+	int     discovery_polling;
+	struct  ReportLUNdata *lastlogicals;
 	int	needs_abort_tags_swizzled;
 	struct workqueue_struct *resubmit_wq;
 	struct workqueue_struct *rescan_ctlr_wq;
