@@ -4746,37 +4746,37 @@ enum skl_disp_power_wells {
 #define I965_CURSOR_DFT_WM	8
 
 /* Watermark register definitions for SKL */
-#define CUR_WM_A_0		0x70140
-#define CUR_WM_B_0		0x71140
-#define PLANE_WM_1_A_0		0x70240
-#define PLANE_WM_1_B_0		0x71240
-#define PLANE_WM_2_A_0		0x70340
-#define PLANE_WM_2_B_0		0x71340
-#define PLANE_WM_TRANS_1_A_0	0x70268
-#define PLANE_WM_TRANS_1_B_0	0x71268
-#define PLANE_WM_TRANS_2_A_0	0x70368
-#define PLANE_WM_TRANS_2_B_0	0x71368
-#define CUR_WM_TRANS_A_0	0x70168
-#define CUR_WM_TRANS_B_0	0x71168
+#define _CUR_WM_A_0		0x70140
+#define _CUR_WM_B_0		0x71140
+#define _PLANE_WM_1_A_0		0x70240
+#define _PLANE_WM_1_B_0		0x71240
+#define _PLANE_WM_2_A_0		0x70340
+#define _PLANE_WM_2_B_0		0x71340
+#define _PLANE_WM_TRANS_1_A_0	0x70268
+#define _PLANE_WM_TRANS_1_B_0	0x71268
+#define _PLANE_WM_TRANS_2_A_0	0x70368
+#define _PLANE_WM_TRANS_2_B_0	0x71368
+#define _CUR_WM_TRANS_A_0	0x70168
+#define _CUR_WM_TRANS_B_0	0x71168
 #define   PLANE_WM_EN		(1 << 31)
 #define   PLANE_WM_LINES_SHIFT	14
 #define   PLANE_WM_LINES_MASK	0x1f
 #define   PLANE_WM_BLOCKS_MASK	0x3ff
 
-#define CUR_WM_0(pipe) _PIPE(pipe, CUR_WM_A_0, CUR_WM_B_0)
-#define CUR_WM(pipe, level) (CUR_WM_0(pipe) + ((4) * (level)))
-#define CUR_WM_TRANS(pipe) _PIPE(pipe, CUR_WM_TRANS_A_0, CUR_WM_TRANS_B_0)
+#define _CUR_WM_0(pipe) _PIPE(pipe, _CUR_WM_A_0, _CUR_WM_B_0)
+#define CUR_WM(pipe, level) (_CUR_WM_0(pipe) + ((4) * (level)))
+#define CUR_WM_TRANS(pipe) _PIPE(pipe, _CUR_WM_TRANS_A_0, _CUR_WM_TRANS_B_0)
 
-#define _PLANE_WM_1(pipe) _PIPE(pipe, PLANE_WM_1_A_0, PLANE_WM_1_B_0)
-#define _PLANE_WM_2(pipe) _PIPE(pipe, PLANE_WM_2_A_0, PLANE_WM_2_B_0)
+#define _PLANE_WM_1(pipe) _PIPE(pipe, _PLANE_WM_1_A_0, _PLANE_WM_1_B_0)
+#define _PLANE_WM_2(pipe) _PIPE(pipe, _PLANE_WM_2_A_0, _PLANE_WM_2_B_0)
 #define _PLANE_WM_BASE(pipe, plane)	\
 			_PLANE(plane, _PLANE_WM_1(pipe), _PLANE_WM_2(pipe))
 #define PLANE_WM(pipe, plane, level)	\
 			(_PLANE_WM_BASE(pipe, plane) + ((4) * (level)))
 #define _PLANE_WM_TRANS_1(pipe)	\
-			_PIPE(pipe, PLANE_WM_TRANS_1_A_0, PLANE_WM_TRANS_1_B_0)
+			_PIPE(pipe, _PLANE_WM_TRANS_1_A_0, _PLANE_WM_TRANS_1_B_0)
 #define _PLANE_WM_TRANS_2(pipe)	\
-			_PIPE(pipe, PLANE_WM_TRANS_2_A_0, PLANE_WM_TRANS_2_B_0)
+			_PIPE(pipe, _PLANE_WM_TRANS_2_A_0, _PLANE_WM_TRANS_2_B_0)
 #define PLANE_WM_TRANS(pipe, plane)	\
 		_PLANE(plane, _PLANE_WM_TRANS_1(pipe), _PLANE_WM_TRANS_2(pipe))
 
@@ -6258,74 +6258,74 @@ enum skl_disp_power_wells {
 #define TVIDEO_DIP_GCP(pipe) _PIPE(pipe, _VIDEO_DIP_GCP_A, _VIDEO_DIP_GCP_B)
 
 /* Per-transcoder DIP controls (VLV) */
-#define VLV_VIDEO_DIP_CTL_A		(VLV_DISPLAY_BASE + 0x60200)
-#define VLV_VIDEO_DIP_DATA_A		(VLV_DISPLAY_BASE + 0x60208)
-#define VLV_VIDEO_DIP_GDCP_PAYLOAD_A	(VLV_DISPLAY_BASE + 0x60210)
+#define _VLV_VIDEO_DIP_CTL_A		(VLV_DISPLAY_BASE + 0x60200)
+#define _VLV_VIDEO_DIP_DATA_A		(VLV_DISPLAY_BASE + 0x60208)
+#define _VLV_VIDEO_DIP_GDCP_PAYLOAD_A	(VLV_DISPLAY_BASE + 0x60210)
 
-#define VLV_VIDEO_DIP_CTL_B		(VLV_DISPLAY_BASE + 0x61170)
-#define VLV_VIDEO_DIP_DATA_B		(VLV_DISPLAY_BASE + 0x61174)
-#define VLV_VIDEO_DIP_GDCP_PAYLOAD_B	(VLV_DISPLAY_BASE + 0x61178)
+#define _VLV_VIDEO_DIP_CTL_B		(VLV_DISPLAY_BASE + 0x61170)
+#define _VLV_VIDEO_DIP_DATA_B		(VLV_DISPLAY_BASE + 0x61174)
+#define _VLV_VIDEO_DIP_GDCP_PAYLOAD_B	(VLV_DISPLAY_BASE + 0x61178)
 
-#define CHV_VIDEO_DIP_CTL_C		(VLV_DISPLAY_BASE + 0x611f0)
-#define CHV_VIDEO_DIP_DATA_C		(VLV_DISPLAY_BASE + 0x611f4)
-#define CHV_VIDEO_DIP_GDCP_PAYLOAD_C	(VLV_DISPLAY_BASE + 0x611f8)
+#define _CHV_VIDEO_DIP_CTL_C		(VLV_DISPLAY_BASE + 0x611f0)
+#define _CHV_VIDEO_DIP_DATA_C		(VLV_DISPLAY_BASE + 0x611f4)
+#define _CHV_VIDEO_DIP_GDCP_PAYLOAD_C	(VLV_DISPLAY_BASE + 0x611f8)
 
 #define VLV_TVIDEO_DIP_CTL(pipe) \
-	_PIPE3((pipe), VLV_VIDEO_DIP_CTL_A, \
-	       VLV_VIDEO_DIP_CTL_B, CHV_VIDEO_DIP_CTL_C)
+	_PIPE3((pipe), _VLV_VIDEO_DIP_CTL_A, \
+	       _VLV_VIDEO_DIP_CTL_B, _CHV_VIDEO_DIP_CTL_C)
 #define VLV_TVIDEO_DIP_DATA(pipe) \
-	_PIPE3((pipe), VLV_VIDEO_DIP_DATA_A, \
-	       VLV_VIDEO_DIP_DATA_B, CHV_VIDEO_DIP_DATA_C)
+	_PIPE3((pipe), _VLV_VIDEO_DIP_DATA_A, \
+	       _VLV_VIDEO_DIP_DATA_B, _CHV_VIDEO_DIP_DATA_C)
 #define VLV_TVIDEO_DIP_GCP(pipe) \
-	_PIPE3((pipe), VLV_VIDEO_DIP_GDCP_PAYLOAD_A, \
-		VLV_VIDEO_DIP_GDCP_PAYLOAD_B, CHV_VIDEO_DIP_GDCP_PAYLOAD_C)
+	_PIPE3((pipe), _VLV_VIDEO_DIP_GDCP_PAYLOAD_A, \
+		_VLV_VIDEO_DIP_GDCP_PAYLOAD_B, _CHV_VIDEO_DIP_GDCP_PAYLOAD_C)
 
 /* Haswell DIP controls */
-#define HSW_VIDEO_DIP_CTL_A		0x60200
-#define HSW_VIDEO_DIP_AVI_DATA_A	0x60220
-#define HSW_VIDEO_DIP_VS_DATA_A		0x60260
-#define HSW_VIDEO_DIP_SPD_DATA_A	0x602A0
-#define HSW_VIDEO_DIP_GMP_DATA_A	0x602E0
-#define HSW_VIDEO_DIP_VSC_DATA_A	0x60320
-#define HSW_VIDEO_DIP_AVI_ECC_A		0x60240
-#define HSW_VIDEO_DIP_VS_ECC_A		0x60280
-#define HSW_VIDEO_DIP_SPD_ECC_A		0x602C0
-#define HSW_VIDEO_DIP_GMP_ECC_A		0x60300
-#define HSW_VIDEO_DIP_VSC_ECC_A		0x60344
-#define HSW_VIDEO_DIP_GCP_A		0x60210
+#define _HSW_VIDEO_DIP_CTL_A		0x60200
+#define _HSW_VIDEO_DIP_AVI_DATA_A	0x60220
+#define _HSW_VIDEO_DIP_VS_DATA_A	0x60260
+#define _HSW_VIDEO_DIP_SPD_DATA_A	0x602A0
+#define _HSW_VIDEO_DIP_GMP_DATA_A	0x602E0
+#define _HSW_VIDEO_DIP_VSC_DATA_A	0x60320
+#define _HSW_VIDEO_DIP_AVI_ECC_A	0x60240
+#define _HSW_VIDEO_DIP_VS_ECC_A		0x60280
+#define _HSW_VIDEO_DIP_SPD_ECC_A	0x602C0
+#define _HSW_VIDEO_DIP_GMP_ECC_A	0x60300
+#define _HSW_VIDEO_DIP_VSC_ECC_A	0x60344
+#define _HSW_VIDEO_DIP_GCP_A		0x60210
 
-#define HSW_VIDEO_DIP_CTL_B		0x61200
-#define HSW_VIDEO_DIP_AVI_DATA_B	0x61220
-#define HSW_VIDEO_DIP_VS_DATA_B		0x61260
-#define HSW_VIDEO_DIP_SPD_DATA_B	0x612A0
-#define HSW_VIDEO_DIP_GMP_DATA_B	0x612E0
-#define HSW_VIDEO_DIP_VSC_DATA_B	0x61320
-#define HSW_VIDEO_DIP_BVI_ECC_B		0x61240
-#define HSW_VIDEO_DIP_VS_ECC_B		0x61280
-#define HSW_VIDEO_DIP_SPD_ECC_B		0x612C0
-#define HSW_VIDEO_DIP_GMP_ECC_B		0x61300
-#define HSW_VIDEO_DIP_VSC_ECC_B		0x61344
-#define HSW_VIDEO_DIP_GCP_B		0x61210
+#define _HSW_VIDEO_DIP_CTL_B		0x61200
+#define _HSW_VIDEO_DIP_AVI_DATA_B	0x61220
+#define _HSW_VIDEO_DIP_VS_DATA_B	0x61260
+#define _HSW_VIDEO_DIP_SPD_DATA_B	0x612A0
+#define _HSW_VIDEO_DIP_GMP_DATA_B	0x612E0
+#define _HSW_VIDEO_DIP_VSC_DATA_B	0x61320
+#define _HSW_VIDEO_DIP_BVI_ECC_B	0x61240
+#define _HSW_VIDEO_DIP_VS_ECC_B		0x61280
+#define _HSW_VIDEO_DIP_SPD_ECC_B	0x612C0
+#define _HSW_VIDEO_DIP_GMP_ECC_B	0x61300
+#define _HSW_VIDEO_DIP_VSC_ECC_B	0x61344
+#define _HSW_VIDEO_DIP_GCP_B		0x61210
 
 #define HSW_TVIDEO_DIP_CTL(trans) \
-	 _TRANSCODER2(trans, HSW_VIDEO_DIP_CTL_A)
+	 _TRANSCODER2(trans, _HSW_VIDEO_DIP_CTL_A)
 #define HSW_TVIDEO_DIP_AVI_DATA(trans, i) \
-	(_TRANSCODER2(trans, HSW_VIDEO_DIP_AVI_DATA_A) + (i) * 4)
+	(_TRANSCODER2(trans, _HSW_VIDEO_DIP_AVI_DATA_A) + (i) * 4)
 #define HSW_TVIDEO_DIP_VS_DATA(trans, i) \
-	(_TRANSCODER2(trans, HSW_VIDEO_DIP_VS_DATA_A) + (i) * 4)
+	(_TRANSCODER2(trans, _HSW_VIDEO_DIP_VS_DATA_A) + (i) * 4)
 #define HSW_TVIDEO_DIP_SPD_DATA(trans, i) \
-	(_TRANSCODER2(trans, HSW_VIDEO_DIP_SPD_DATA_A) + (i) * 4)
+	(_TRANSCODER2(trans, _HSW_VIDEO_DIP_SPD_DATA_A) + (i) * 4)
 #define HSW_TVIDEO_DIP_GCP(trans) \
-	_TRANSCODER2(trans, HSW_VIDEO_DIP_GCP_A)
+	_TRANSCODER2(trans, _HSW_VIDEO_DIP_GCP_A)
 #define HSW_TVIDEO_DIP_VSC_DATA(trans, i) \
-	(_TRANSCODER2(trans, HSW_VIDEO_DIP_VSC_DATA_A) + (i) * 4)
+	(_TRANSCODER2(trans, _HSW_VIDEO_DIP_VSC_DATA_A) + (i) * 4)
 
-#define HSW_STEREO_3D_CTL_A	0x70020
+#define _HSW_STEREO_3D_CTL_A	0x70020
 #define   S3D_ENABLE		(1<<31)
-#define HSW_STEREO_3D_CTL_B	0x71020
+#define _HSW_STEREO_3D_CTL_B	0x71020
 
 #define HSW_STEREO_3D_CTL(trans) \
-	_PIPE2(trans, HSW_STEREO_3D_CTL_A)
+	_PIPE2(trans, _HSW_STEREO_3D_CTL_A)
 
 #define _PCH_TRANS_HTOTAL_B          0xe1000
 #define _PCH_TRANS_HBLANK_B          0xe1004
@@ -6548,27 +6548,27 @@ enum skl_disp_power_wells {
 #define  LVDS_DETECTED	(1 << 1)
 
 /* vlv has 2 sets of panel control regs. */
-#define PIPEA_PP_STATUS         (VLV_DISPLAY_BASE + 0x61200)
-#define PIPEA_PP_CONTROL        (VLV_DISPLAY_BASE + 0x61204)
-#define PIPEA_PP_ON_DELAYS      (VLV_DISPLAY_BASE + 0x61208)
+#define _PIPEA_PP_STATUS	(VLV_DISPLAY_BASE + 0x61200)
+#define _PIPEA_PP_CONTROL	(VLV_DISPLAY_BASE + 0x61204)
+#define _PIPEA_PP_ON_DELAYS	(VLV_DISPLAY_BASE + 0x61208)
 #define  PANEL_PORT_SELECT_VLV(port)	((port) << 30)
-#define PIPEA_PP_OFF_DELAYS     (VLV_DISPLAY_BASE + 0x6120c)
-#define PIPEA_PP_DIVISOR        (VLV_DISPLAY_BASE + 0x61210)
+#define _PIPEA_PP_OFF_DELAYS	(VLV_DISPLAY_BASE + 0x6120c)
+#define _PIPEA_PP_DIVISOR	(VLV_DISPLAY_BASE + 0x61210)
 
-#define PIPEB_PP_STATUS         (VLV_DISPLAY_BASE + 0x61300)
-#define PIPEB_PP_CONTROL        (VLV_DISPLAY_BASE + 0x61304)
-#define PIPEB_PP_ON_DELAYS      (VLV_DISPLAY_BASE + 0x61308)
-#define PIPEB_PP_OFF_DELAYS     (VLV_DISPLAY_BASE + 0x6130c)
-#define PIPEB_PP_DIVISOR        (VLV_DISPLAY_BASE + 0x61310)
+#define _PIPEB_PP_STATUS	(VLV_DISPLAY_BASE + 0x61300)
+#define _PIPEB_PP_CONTROL	(VLV_DISPLAY_BASE + 0x61304)
+#define _PIPEB_PP_ON_DELAYS	(VLV_DISPLAY_BASE + 0x61308)
+#define _PIPEB_PP_OFF_DELAYS	(VLV_DISPLAY_BASE + 0x6130c)
+#define _PIPEB_PP_DIVISOR	(VLV_DISPLAY_BASE + 0x61310)
 
-#define VLV_PIPE_PP_STATUS(pipe) _PIPE(pipe, PIPEA_PP_STATUS, PIPEB_PP_STATUS)
-#define VLV_PIPE_PP_CONTROL(pipe) _PIPE(pipe, PIPEA_PP_CONTROL, PIPEB_PP_CONTROL)
+#define VLV_PIPE_PP_STATUS(pipe) _PIPE(pipe, _PIPEA_PP_STATUS, _PIPEB_PP_STATUS)
+#define VLV_PIPE_PP_CONTROL(pipe) _PIPE(pipe, _PIPEA_PP_CONTROL, _PIPEB_PP_CONTROL)
 #define VLV_PIPE_PP_ON_DELAYS(pipe) \
-		_PIPE(pipe, PIPEA_PP_ON_DELAYS, PIPEB_PP_ON_DELAYS)
+		_PIPE(pipe, _PIPEA_PP_ON_DELAYS, _PIPEB_PP_ON_DELAYS)
 #define VLV_PIPE_PP_OFF_DELAYS(pipe) \
-		_PIPE(pipe, PIPEA_PP_OFF_DELAYS, PIPEB_PP_OFF_DELAYS)
+		_PIPE(pipe, _PIPEA_PP_OFF_DELAYS, _PIPEB_PP_OFF_DELAYS)
 #define VLV_PIPE_PP_DIVISOR(pipe) \
-		_PIPE(pipe, PIPEA_PP_DIVISOR, PIPEB_PP_DIVISOR)
+		_PIPE(pipe, _PIPEA_PP_DIVISOR, _PIPEB_PP_DIVISOR)
 
 #define PCH_PP_STATUS		0xc7200
 #define PCH_PP_CONTROL		0xc7204
@@ -6653,10 +6653,10 @@ enum skl_disp_power_wells {
 #define  SDVO_PORT_TO_PIPE_CHV(val)	(((val) & (3<<24)) >> 24)
 #define  DP_PORT_TO_PIPE_CHV(val)	(((val) & (3<<16)) >> 16)
 
-#define TRANS_DP_CTL_A		0xe0300
-#define TRANS_DP_CTL_B		0xe1300
-#define TRANS_DP_CTL_C		0xe2300
-#define TRANS_DP_CTL(pipe)	_PIPE(pipe, TRANS_DP_CTL_A, TRANS_DP_CTL_B)
+#define _TRANS_DP_CTL_A		0xe0300
+#define _TRANS_DP_CTL_B		0xe1300
+#define _TRANS_DP_CTL_C		0xe2300
+#define TRANS_DP_CTL(pipe)	_PIPE(pipe, _TRANS_DP_CTL_A, _TRANS_DP_CTL_B)
 #define  TRANS_DP_OUTPUT_ENABLE	(1<<31)
 #define  TRANS_DP_PORT_SEL_B	(0<<29)
 #define  TRANS_DP_PORT_SEL_C	(1<<29)
@@ -7199,11 +7199,11 @@ enum skl_disp_power_wells {
 #define  SKL_FUSE_PG2_DIST_STATUS              (1<<25)
 
 /* Per-pipe DDI Function Control */
-#define TRANS_DDI_FUNC_CTL_A		0x60400
-#define TRANS_DDI_FUNC_CTL_B		0x61400
-#define TRANS_DDI_FUNC_CTL_C		0x62400
-#define TRANS_DDI_FUNC_CTL_EDP		0x6F400
-#define TRANS_DDI_FUNC_CTL(tran) _TRANSCODER2(tran, TRANS_DDI_FUNC_CTL_A)
+#define _TRANS_DDI_FUNC_CTL_A		0x60400
+#define _TRANS_DDI_FUNC_CTL_B		0x61400
+#define _TRANS_DDI_FUNC_CTL_C		0x62400
+#define _TRANS_DDI_FUNC_CTL_EDP		0x6F400
+#define TRANS_DDI_FUNC_CTL(tran) _TRANSCODER2(tran, _TRANS_DDI_FUNC_CTL_A)
 
 #define  TRANS_DDI_FUNC_ENABLE		(1<<31)
 /* Those bits are ignored by pipe EDP since it can only connect to DDI A */
@@ -7233,9 +7233,9 @@ enum skl_disp_power_wells {
 #define  TRANS_DDI_BFI_ENABLE		(1<<4)
 
 /* DisplayPort Transport Control */
-#define DP_TP_CTL_A			0x64040
-#define DP_TP_CTL_B			0x64140
-#define DP_TP_CTL(port) _PORT(port, DP_TP_CTL_A, DP_TP_CTL_B)
+#define _DP_TP_CTL_A			0x64040
+#define _DP_TP_CTL_B			0x64140
+#define DP_TP_CTL(port) _PORT(port, _DP_TP_CTL_A, _DP_TP_CTL_B)
 #define  DP_TP_CTL_ENABLE			(1<<31)
 #define  DP_TP_CTL_MODE_SST			(0<<27)
 #define  DP_TP_CTL_MODE_MST			(1<<27)
@@ -7251,9 +7251,9 @@ enum skl_disp_power_wells {
 #define  DP_TP_CTL_SCRAMBLE_DISABLE		(1<<7)
 
 /* DisplayPort Transport Status */
-#define DP_TP_STATUS_A			0x64044
-#define DP_TP_STATUS_B			0x64144
-#define DP_TP_STATUS(port) _PORT(port, DP_TP_STATUS_A, DP_TP_STATUS_B)
+#define _DP_TP_STATUS_A			0x64044
+#define _DP_TP_STATUS_B			0x64144
+#define DP_TP_STATUS(port) _PORT(port, _DP_TP_STATUS_A, _DP_TP_STATUS_B)
 #define  DP_TP_STATUS_IDLE_DONE			(1<<25)
 #define  DP_TP_STATUS_ACT_SENT			(1<<24)
 #define  DP_TP_STATUS_MODE_STATUS_MST		(1<<23)
@@ -7263,9 +7263,9 @@ enum skl_disp_power_wells {
 #define  DP_TP_STATUS_PAYLOAD_MAPPING_VC0	(3 << 0)
 
 /* DDI Buffer Control */
-#define DDI_BUF_CTL_A				0x64000
-#define DDI_BUF_CTL_B				0x64100
-#define DDI_BUF_CTL(port) _PORT(port, DDI_BUF_CTL_A, DDI_BUF_CTL_B)
+#define _DDI_BUF_CTL_A				0x64000
+#define _DDI_BUF_CTL_B				0x64100
+#define DDI_BUF_CTL(port) _PORT(port, _DDI_BUF_CTL_A, _DDI_BUF_CTL_B)
 #define  DDI_BUF_CTL_ENABLE			(1<<31)
 #define  DDI_BUF_TRANS_SELECT(n)	((n) << 24)
 #define  DDI_BUF_EMP_MASK			(0xf<<24)
@@ -7278,10 +7278,10 @@ enum skl_disp_power_wells {
 #define  DDI_INIT_DISPLAY_DETECTED		(1<<0)
 
 /* DDI Buffer Translations */
-#define DDI_BUF_TRANS_A				0x64E00
-#define DDI_BUF_TRANS_B				0x64E60
-#define DDI_BUF_TRANS_LO(port, i) (_PORT(port, DDI_BUF_TRANS_A, DDI_BUF_TRANS_B) + (i) * 8)
-#define DDI_BUF_TRANS_HI(port, i) (_PORT(port, DDI_BUF_TRANS_A, DDI_BUF_TRANS_B) + (i) * 8 + 4)
+#define _DDI_BUF_TRANS_A		0x64E00
+#define _DDI_BUF_TRANS_B		0x64E60
+#define DDI_BUF_TRANS_LO(port, i)	 (_PORT(port, _DDI_BUF_TRANS_A, _DDI_BUF_TRANS_B) + (i) * 8)
+#define DDI_BUF_TRANS_HI(port, i)	 (_PORT(port, _DDI_BUF_TRANS_A, _DDI_BUF_TRANS_B) + (i) * 8 + 4)
 
 /* Sideband Interface (SBI) is programmed indirectly, via
  * SBI_ADDR, which contains the register offset; and SBI_DATA,
@@ -7336,9 +7336,9 @@ enum skl_disp_power_wells {
 #define  SPLL_PLL_FREQ_MASK		(3<<26)
 
 /* WRPLL */
-#define WRPLL_CTL1			0x46040
-#define WRPLL_CTL2			0x46060
-#define WRPLL_CTL(pll)			_PIPE(pll, WRPLL_CTL1, WRPLL_CTL2)
+#define _WRPLL_CTL1			0x46040
+#define _WRPLL_CTL2			0x46060
+#define WRPLL_CTL(pll)			_PIPE(pll, _WRPLL_CTL1, _WRPLL_CTL2)
 #define  WRPLL_PLL_ENABLE		(1<<31)
 #define  WRPLL_PLL_SSC			(1<<28)
 #define  WRPLL_PLL_NON_SSC		(2<<28)
@@ -7355,9 +7355,9 @@ enum skl_disp_power_wells {
 #define  WRPLL_DIVIDER_FB_MASK		(0xff<<16)
 
 /* Port clock selection */
-#define PORT_CLK_SEL_A			0x46100
-#define PORT_CLK_SEL_B			0x46104
-#define PORT_CLK_SEL(port) _PORT(port, PORT_CLK_SEL_A, PORT_CLK_SEL_B)
+#define _PORT_CLK_SEL_A			0x46100
+#define _PORT_CLK_SEL_B			0x46104
+#define PORT_CLK_SEL(port) _PORT(port, _PORT_CLK_SEL_A, _PORT_CLK_SEL_B)
 #define  PORT_CLK_SEL_LCPLL_2700	(0<<29)
 #define  PORT_CLK_SEL_LCPLL_1350	(1<<29)
 #define  PORT_CLK_SEL_LCPLL_810		(2<<29)
@@ -7369,18 +7369,18 @@ enum skl_disp_power_wells {
 #define  PORT_CLK_SEL_MASK		(7<<29)
 
 /* Transcoder clock selection */
-#define TRANS_CLK_SEL_A			0x46140
-#define TRANS_CLK_SEL_B			0x46144
-#define TRANS_CLK_SEL(tran) _TRANSCODER(tran, TRANS_CLK_SEL_A, TRANS_CLK_SEL_B)
+#define _TRANS_CLK_SEL_A		0x46140
+#define _TRANS_CLK_SEL_B		0x46144
+#define TRANS_CLK_SEL(tran) _TRANSCODER(tran, _TRANS_CLK_SEL_A, _TRANS_CLK_SEL_B)
 /* For each transcoder, we need to select the corresponding port clock */
 #define  TRANS_CLK_SEL_DISABLED		(0x0<<29)
 #define  TRANS_CLK_SEL_PORT(x)		(((x)+1)<<29)
 
-#define TRANSA_MSA_MISC			0x60410
-#define TRANSB_MSA_MISC			0x61410
-#define TRANSC_MSA_MISC			0x62410
-#define TRANS_EDP_MSA_MISC		0x6f410
-#define TRANS_MSA_MISC(tran) _TRANSCODER2(tran, TRANSA_MSA_MISC)
+#define _TRANSA_MSA_MISC		0x60410
+#define _TRANSB_MSA_MISC		0x61410
+#define _TRANSC_MSA_MISC		0x62410
+#define _TRANS_EDP_MSA_MISC		0x6f410
+#define TRANS_MSA_MISC(tran) _TRANSCODER2(tran, _TRANSA_MSA_MISC)
 
 #define  TRANS_MSA_SYNC_CLK		(1<<0)
 #define  TRANS_MSA_6_BPC		(0<<5)
@@ -7458,17 +7458,17 @@ enum skl_disp_power_wells {
 #define  DPLL_LOCK(id) (1<<((id)*8))
 
 /* DPLL cfg */
-#define DPLL1_CFGCR1	0x6C040
-#define DPLL2_CFGCR1	0x6C048
-#define DPLL3_CFGCR1	0x6C050
+#define _DPLL1_CFGCR1	0x6C040
+#define _DPLL2_CFGCR1	0x6C048
+#define _DPLL3_CFGCR1	0x6C050
 #define  DPLL_CFGCR1_FREQ_ENABLE	(1<<31)
 #define  DPLL_CFGCR1_DCO_FRACTION_MASK	(0x7fff<<9)
 #define  DPLL_CFGCR1_DCO_FRACTION(x)	((x)<<9)
 #define  DPLL_CFGCR1_DCO_INTEGER_MASK	(0x1ff)
 
-#define DPLL1_CFGCR2	0x6C044
-#define DPLL2_CFGCR2	0x6C04C
-#define DPLL3_CFGCR2	0x6C054
+#define _DPLL1_CFGCR2	0x6C044
+#define _DPLL2_CFGCR2	0x6C04C
+#define _DPLL3_CFGCR2	0x6C054
 #define  DPLL_CFGCR2_QDIV_RATIO_MASK	(0xff<<8)
 #define  DPLL_CFGCR2_QDIV_RATIO(x)	((x)<<8)
 #define  DPLL_CFGCR2_QDIV_MODE(x)	((x)<<7)
@@ -7486,8 +7486,8 @@ enum skl_disp_power_wells {
 #define  DPLL_CFGCR2_PDIV_7 (4<<2)
 #define  DPLL_CFGCR2_CENTRAL_FREQ_MASK	(3)
 
-#define DPLL_CFGCR1(id) (DPLL1_CFGCR1 + ((id) - SKL_DPLL1) * 8)
-#define DPLL_CFGCR2(id) (DPLL1_CFGCR2 + ((id) - SKL_DPLL1) * 8)
+#define DPLL_CFGCR1(id)	_PIPE((id) - SKL_DPLL1, _DPLL1_CFGCR1, _DPLL2_CFGCR2)
+#define DPLL_CFGCR2(id)	_PIPE((id) - SKL_DPLL1, _DPLL1_CFGCR2, _DPLL2_CFGCR2)
 
 /* BXT display engine PLL */
 #define BXT_DE_PLL_CTL			0x6d000
@@ -7518,10 +7518,10 @@ enum skl_disp_power_wells {
 #define  D_COMP_COMP_DISABLE		(1<<0)
 
 /* Pipe WM_LINETIME - watermark line time */
-#define PIPE_WM_LINETIME_A		0x45270
-#define PIPE_WM_LINETIME_B		0x45274
-#define PIPE_WM_LINETIME(pipe) _PIPE(pipe, PIPE_WM_LINETIME_A, \
-					   PIPE_WM_LINETIME_B)
+#define _PIPE_WM_LINETIME_A		0x45270
+#define _PIPE_WM_LINETIME_B		0x45274
+#define PIPE_WM_LINETIME(pipe) _PIPE(pipe, _PIPE_WM_LINETIME_A, \
+					   _PIPE_WM_LINETIME_B)
 #define   PIPE_WM_LINETIME_MASK			(0x1ff)
 #define   PIPE_WM_LINETIME_TIME(x)		((x))
 #define   PIPE_WM_LINETIME_IPS_LINETIME_MASK	(0x1ff<<16)
