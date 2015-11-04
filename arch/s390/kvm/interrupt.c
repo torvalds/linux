@@ -571,7 +571,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_pgm_info pgm_info;
 	int rc = 0, nullifying = false;
-	u16 ilen = kvm_s390_get_ilen(vcpu);
+	u16 ilen;
 
 	spin_lock(&li->lock);
 	pgm_info = li->irq.pgm;
@@ -579,6 +579,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	memset(&li->irq.pgm, 0, sizeof(pgm_info));
 	spin_unlock(&li->lock);
 
+	ilen = pgm_info.flags & KVM_S390_PGM_FLAGS_ILC_MASK;
 	VCPU_EVENT(vcpu, 3, "deliver: program irq code 0x%x, ilen:%d",
 		   pgm_info.code, ilen);
 	vcpu->stat.deliver_program_int++;
@@ -1043,8 +1044,16 @@ static int __inject_prog(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_PROGRAM_INT,
 				   irq->u.pgm.code, 0);
 
+	if (!(irq->u.pgm.flags & KVM_S390_PGM_FLAGS_ILC_VALID)) {
+		/* auto detection if no valid ILC was given */
+		irq->u.pgm.flags &= ~KVM_S390_PGM_FLAGS_ILC_MASK;
+		irq->u.pgm.flags |= kvm_s390_get_ilen(vcpu);
+		irq->u.pgm.flags |= KVM_S390_PGM_FLAGS_ILC_VALID;
+	}
+
 	if (irq->u.pgm.code == PGM_PER) {
 		li->irq.pgm.code |= PGM_PER;
+		li->irq.pgm.flags = irq->u.pgm.flags;
 		/* only modify PER related information */
 		li->irq.pgm.per_address = irq->u.pgm.per_address;
 		li->irq.pgm.per_code = irq->u.pgm.per_code;
@@ -1053,6 +1062,7 @@ static int __inject_prog(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	} else if (!(irq->u.pgm.code & PGM_PER)) {
 		li->irq.pgm.code = (li->irq.pgm.code & PGM_PER) |
 				   irq->u.pgm.code;
+		li->irq.pgm.flags = irq->u.pgm.flags;
 		/* only modify non-PER information */
 		li->irq.pgm.trans_exc_code = irq->u.pgm.trans_exc_code;
 		li->irq.pgm.mon_code = irq->u.pgm.mon_code;
