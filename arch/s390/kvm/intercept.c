@@ -136,11 +136,11 @@ static int handle_instruction(struct kvm_vcpu *vcpu)
 	return -EOPNOTSUPP;
 }
 
-static void __extract_prog_irq(struct kvm_vcpu *vcpu,
-			       struct kvm_s390_pgm_info *pgm_info)
+static int inject_prog_on_prog_intercept(struct kvm_vcpu *vcpu)
 {
-	memset(pgm_info, 0, sizeof(struct kvm_s390_pgm_info));
-	pgm_info->code = vcpu->arch.sie_block->iprcc;
+	struct kvm_s390_pgm_info pgm_info = {
+		.code = vcpu->arch.sie_block->iprcc,
+	};
 
 	switch (vcpu->arch.sie_block->iprcc & ~PGM_PER) {
 	case PGM_AFX_TRANSLATION:
@@ -153,7 +153,7 @@ static void __extract_prog_irq(struct kvm_vcpu *vcpu,
 	case PGM_PRIMARY_AUTHORITY:
 	case PGM_SECONDARY_AUTHORITY:
 	case PGM_SPACE_SWITCH:
-		pgm_info->trans_exc_code = vcpu->arch.sie_block->tecmc;
+		pgm_info.trans_exc_code = vcpu->arch.sie_block->tecmc;
 		break;
 	case PGM_ALEN_TRANSLATION:
 	case PGM_ALE_SEQUENCE:
@@ -161,7 +161,7 @@ static void __extract_prog_irq(struct kvm_vcpu *vcpu,
 	case PGM_ASTE_SEQUENCE:
 	case PGM_ASTE_VALIDITY:
 	case PGM_EXTENDED_AUTHORITY:
-		pgm_info->exc_access_id = vcpu->arch.sie_block->eai;
+		pgm_info.exc_access_id = vcpu->arch.sie_block->eai;
 		break;
 	case PGM_ASCE_TYPE:
 	case PGM_PAGE_TRANSLATION:
@@ -169,32 +169,33 @@ static void __extract_prog_irq(struct kvm_vcpu *vcpu,
 	case PGM_REGION_SECOND_TRANS:
 	case PGM_REGION_THIRD_TRANS:
 	case PGM_SEGMENT_TRANSLATION:
-		pgm_info->trans_exc_code = vcpu->arch.sie_block->tecmc;
-		pgm_info->exc_access_id  = vcpu->arch.sie_block->eai;
-		pgm_info->op_access_id  = vcpu->arch.sie_block->oai;
+		pgm_info.trans_exc_code = vcpu->arch.sie_block->tecmc;
+		pgm_info.exc_access_id  = vcpu->arch.sie_block->eai;
+		pgm_info.op_access_id  = vcpu->arch.sie_block->oai;
 		break;
 	case PGM_MONITOR:
-		pgm_info->mon_class_nr = vcpu->arch.sie_block->mcn;
-		pgm_info->mon_code = vcpu->arch.sie_block->tecmc;
+		pgm_info.mon_class_nr = vcpu->arch.sie_block->mcn;
+		pgm_info.mon_code = vcpu->arch.sie_block->tecmc;
 		break;
 	case PGM_VECTOR_PROCESSING:
 	case PGM_DATA:
-		pgm_info->data_exc_code = vcpu->arch.sie_block->dxc;
+		pgm_info.data_exc_code = vcpu->arch.sie_block->dxc;
 		break;
 	case PGM_PROTECTION:
-		pgm_info->trans_exc_code = vcpu->arch.sie_block->tecmc;
-		pgm_info->exc_access_id  = vcpu->arch.sie_block->eai;
+		pgm_info.trans_exc_code = vcpu->arch.sie_block->tecmc;
+		pgm_info.exc_access_id  = vcpu->arch.sie_block->eai;
 		break;
 	default:
 		break;
 	}
 
 	if (vcpu->arch.sie_block->iprcc & PGM_PER) {
-		pgm_info->per_code = vcpu->arch.sie_block->perc;
-		pgm_info->per_atmid = vcpu->arch.sie_block->peratmid;
-		pgm_info->per_address = vcpu->arch.sie_block->peraddr;
-		pgm_info->per_access_id = vcpu->arch.sie_block->peraid;
+		pgm_info.per_code = vcpu->arch.sie_block->perc;
+		pgm_info.per_atmid = vcpu->arch.sie_block->peratmid;
+		pgm_info.per_address = vcpu->arch.sie_block->peraddr;
+		pgm_info.per_access_id = vcpu->arch.sie_block->peraid;
 	}
+	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
 }
 
 /*
@@ -223,7 +224,6 @@ static int handle_itdb(struct kvm_vcpu *vcpu)
 
 static int handle_prog(struct kvm_vcpu *vcpu)
 {
-	struct kvm_s390_pgm_info pgm_info;
 	psw_t psw;
 	int rc;
 
@@ -249,8 +249,7 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	if (rc)
 		return rc;
 
-	__extract_prog_irq(vcpu, &pgm_info);
-	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
+	return inject_prog_on_prog_intercept(vcpu);
 }
 
 /**
