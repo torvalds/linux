@@ -18,6 +18,16 @@
 #include <asm/proto.h>
 #include <asm/ipi.h>
 
+void default_send_IPI_single_phys(int cpu, int vector)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__default_send_IPI_dest_field(per_cpu(x86_cpu_to_apicid, cpu),
+				      vector, APIC_DEST_PHYSICAL);
+	local_irq_restore(flags);
+}
+
 void default_send_IPI_mask_sequence_phys(const struct cpumask *mask, int vector)
 {
 	unsigned long query_cpu;
