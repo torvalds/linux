@@ -813,11 +813,10 @@ ERRORHANDLER:
 	return result;
 }
 
-static s32 Handle_wait_msg_q_empty(void)
+static void Handle_wait_msg_q_empty(void)
 {
 	g_wilc_initialized = 0;
 	up(&hif_sema_wait_response);
-	return 0;
 }
 
 static s32 Handle_Scan(struct host_if_drv *hif_drv,
