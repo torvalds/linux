@@ -1225,7 +1225,7 @@ struct amdgpu_job {
 	struct amdgpu_device	*adev;
 	struct amdgpu_ib	*ibs;
 	uint32_t		num_ibs;
-	struct mutex            job_lock;
+	void			*owner;
 	struct amdgpu_user_fence uf;
 	int (*free_job)(struct amdgpu_job *job);
 };

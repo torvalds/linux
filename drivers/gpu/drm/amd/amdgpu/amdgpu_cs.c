@@ -845,8 +845,9 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		goto out;
 
 	if (amdgpu_enable_scheduler && parser.num_ibs) {
-		struct amdgpu_job *job;
 		struct amdgpu_ring * ring = parser.ibs->ring;
+		struct amd_sched_fence *fence;
+		struct amdgpu_job *job;
 
 		job = kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
 		if (!job) {
@@ -859,37 +860,41 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		job->adev = parser.adev;
 		job->ibs = parser.ibs;
 		job->num_ibs = parser.num_ibs;
-		job->base.owner = parser.filp;
-		mutex_init(&job->job_lock);
+		job->owner = parser.filp;
+		job->free_job = amdgpu_cs_free_job;
+
 		if (job->ibs[job->num_ibs - 1].user) {
 			job->uf = parser.uf;
 			job->ibs[job->num_ibs - 1].user = &job->uf;
 			parser.uf.bo = NULL;
 		}
 
-		parser.ibs = NULL;
-		parser.num_ibs = 0;
-
-		job->free_job = amdgpu_cs_free_job;
-		mutex_lock(&job->job_lock);
-		r = amd_sched_entity_push_job(&job->base);
-		if (r) {
-			mutex_unlock(&job->job_lock);
+		fence = amd_sched_fence_create(job->base.s_entity,
+					       parser.filp);
+		if (!fence) {
+			r = -ENOMEM;
 			amdgpu_cs_free_job(job);
 			kfree(job);
 			goto out;
 		}
-		cs->out.handle =
-			amdgpu_ctx_add_fence(parser.ctx, ring,
-					     &job->base.s_fence->base);
+		job->base.s_fence = fence;
+		fence_get(&fence->base);
+
+		cs->out.handle = amdgpu_ctx_add_fence(parser.ctx, ring,
+						      &fence->base);
 		job->ibs[job->num_ibs - 1].sequence = cs->out.handle;
 
-		list_sort(NULL, &parser.validated, cmp_size_smaller_first);
-		ttm_eu_fence_buffer_objects(&parser.ticket,
-				&parser.validated,
-				&job->base.s_fence->base);
+		parser.ibs = NULL;
+		parser.num_ibs = 0;
+
 		trace_amdgpu_cs_ioctl(job);
-		mutex_unlock(&job->job_lock);
+		amd_sched_entity_push_job(&job->base);
+
+		list_sort(NULL, &parser.validated, cmp_size_smaller_first);
+		ttm_eu_fence_buffer_objects(&parser.ticket, &parser.validated,
+					    &fence->base);
+		fence_put(&fence->base);
+
 		amdgpu_cs_parser_fini_late(&parser);
 		mutex_unlock(&vm->mutex);
 		return 0;
