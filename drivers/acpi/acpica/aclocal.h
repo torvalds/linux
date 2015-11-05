@@ -83,10 +83,8 @@ union acpi_parse_object;
 #define ACPI_MTX_EVENTS                 3	/* Data for ACPI events */
 #define ACPI_MTX_CACHES                 4	/* Internal caches, general purposes */
 #define ACPI_MTX_MEMORY                 5	/* Debug memory tracking lists */
-#define ACPI_MTX_DEBUG_CMD_COMPLETE     6	/* AML debugger */
-#define ACPI_MTX_DEBUG_CMD_READY        7	/* AML debugger */
 
-#define ACPI_MAX_MUTEX                  7
+#define ACPI_MAX_MUTEX                  5
 #define ACPI_NUM_MUTEX                  ACPI_MAX_MUTEX+1
 
 /* Lock structure for reader/writer interfaces */
@@ -110,6 +108,14 @@ struct acpi_rw_lock {
 /* This Thread ID means that the mutex is not in use (unlocked) */
 
 #define ACPI_MUTEX_NOT_ACQUIRED         (acpi_thread_id) 0
+
+/* This Thread ID means an invalid thread ID */
+
+#ifdef ACPI_OS_INVALID_THREAD_ID
+#define ACPI_INVALID_THREAD_ID          ACPI_OS_INVALID_THREAD_ID
+#else
+#define ACPI_INVALID_THREAD_ID          ((acpi_thread_id) 0xFFFFFFFF)
+#endif
 
 /* Table for the global mutexes */
 
@@ -287,13 +293,17 @@ acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
 #define ACPI_BTYPE_BUFFER_FIELD         0x00002000
 #define ACPI_BTYPE_DDB_HANDLE           0x00004000
 #define ACPI_BTYPE_DEBUG_OBJECT         0x00008000
-#define ACPI_BTYPE_REFERENCE            0x00010000
+#define ACPI_BTYPE_REFERENCE_OBJECT     0x00010000	/* From Index(), ref_of(), etc (type6_opcodes) */
 #define ACPI_BTYPE_RESOURCE             0x00020000
+#define ACPI_BTYPE_NAMED_REFERENCE      0x00040000	/* Generic unresolved Name or Namepath */
 
 #define ACPI_BTYPE_COMPUTE_DATA         (ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING | ACPI_BTYPE_BUFFER)
 
 #define ACPI_BTYPE_DATA                 (ACPI_BTYPE_COMPUTE_DATA  | ACPI_BTYPE_PACKAGE)
-#define ACPI_BTYPE_DATA_REFERENCE       (ACPI_BTYPE_DATA | ACPI_BTYPE_REFERENCE | ACPI_BTYPE_DDB_HANDLE)
+
+	/* Used by Copy, de_ref_of, Store, Printf, Fprintf */
+
+#define ACPI_BTYPE_DATA_REFERENCE       (ACPI_BTYPE_DATA | ACPI_BTYPE_REFERENCE_OBJECT | ACPI_BTYPE_DDB_HANDLE)
 #define ACPI_BTYPE_DEVICE_OBJECTS       (ACPI_BTYPE_DEVICE | ACPI_BTYPE_THERMAL | ACPI_BTYPE_PROCESSOR)
 #define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF	/* ARG or LOCAL */
 #define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
@@ -848,7 +858,7 @@ struct acpi_parse_state {
 #define ACPI_PARSEOP_PARAMLIST          0x02
 #define ACPI_PARSEOP_EMPTY_TERMLIST     0x04
 #define ACPI_PARSEOP_PREDEF_CHECKED     0x08
-#define ACPI_PARSEOP_SPECIAL            0x10
+#define ACPI_PARSEOP_CLOSING_PAREN      0x10
 #define ACPI_PARSEOP_COMPOUND           0x20
 #define ACPI_PARSEOP_ASSIGNMENT         0x40
 

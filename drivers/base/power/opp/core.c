@@ -11,131 +11,14 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/cpu.h>
-#include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/device.h>
-#include <linux/list.h>
-#include <linux/rculist.h>
-#include <linux/rcupdate.h>
-#include <linux/pm_opp.h>
 #include <linux/of.h>
 #include <linux/export.h>
 
-/*
- * Internal data structure organization with the OPP layer library is as
- * follows:
- * dev_opp_list (root)
- *	|- device 1 (represents voltage domain 1)
- *	|	|- opp 1 (availability, freq, voltage)
- *	|	|- opp 2 ..
- *	...	...
- *	|	`- opp n ..
- *	|- device 2 (represents the next voltage domain)
- *	...
- *	`- device m (represents mth voltage domain)
- * device 1, 2.. are represented by dev_opp structure while each opp
- * is represented by the opp structure.
- */
-
-/**
- * struct dev_pm_opp - Generic OPP description structure
- * @node:	opp list node. The nodes are maintained throughout the lifetime
- *		of boot. It is expected only an optimal set of OPPs are
- *		added to the library by the SoC framework.
- *		RCU usage: opp list is traversed with RCU locks. node
- *		modification is possible realtime, hence the modifications
- *		are protected by the dev_opp_list_lock for integrity.
- *		IMPORTANT: the opp nodes should be maintained in increasing
- *		order.
- * @dynamic:	not-created from static DT entries.
- * @available:	true/false - marks if this OPP as available or not
- * @turbo:	true if turbo (boost) OPP
- * @rate:	Frequency in hertz
- * @u_volt:	Target voltage in microvolts corresponding to this OPP
- * @u_volt_min:	Minimum voltage in microvolts corresponding to this OPP
- * @u_volt_max:	Maximum voltage in microvolts corresponding to this OPP
- * @u_amp:	Maximum current drawn by the device in microamperes
- * @clock_latency_ns: Latency (in nanoseconds) of switching to this OPP's
- *		frequency from any other OPP's frequency.
- * @dev_opp:	points back to the device_opp struct this opp belongs to
- * @rcu_head:	RCU callback head used for deferred freeing
- * @np:		OPP's device node.
- *
- * This structure stores the OPP information for a given device.
- */
-struct dev_pm_opp {
-	struct list_head node;
-
-	bool available;
-	bool dynamic;
-	bool turbo;
-	unsigned long rate;
-
-	unsigned long u_volt;
-	unsigned long u_volt_min;
-	unsigned long u_volt_max;
-	unsigned long u_amp;
-	unsigned long clock_latency_ns;
-
-	struct device_opp *dev_opp;
-	struct rcu_head rcu_head;
-
-	struct device_node *np;
-};
-
-/**
- * struct device_list_opp - devices managed by 'struct device_opp'
- * @node:	list node
- * @dev:	device to which the struct object belongs
- * @rcu_head:	RCU callback head used for deferred freeing
- *
- * This is an internal data structure maintaining the list of devices that are
- * managed by 'struct device_opp'.
- */
-struct device_list_opp {
-	struct list_head node;
-	const struct device *dev;
-	struct rcu_head rcu_head;
-};
-
-/**
- * struct device_opp - Device opp structure
- * @node:	list node - contains the devices with OPPs that
- *		have been registered. Nodes once added are not modified in this
- *		list.
- *		RCU usage: nodes are not modified in the list of device_opp,
- *		however addition is possible and is secured by dev_opp_list_lock
- * @srcu_head:	notifier head to notify the OPP availability changes.
- * @rcu_head:	RCU callback head used for deferred freeing
- * @dev_list:	list of devices that share these OPPs
- * @opp_list:	list of opps
- * @np:		struct device_node pointer for opp's DT node.
- * @shared_opp: OPP is shared between multiple devices.
- *
- * This is an internal data structure maintaining the link to opps attached to
- * a device. This structure is not meant to be shared to users as it is
- * meant for book keeping and private to OPP library.
- *
- * Because the opp structures can be used from both rcu and srcu readers, we
- * need to wait for the grace period of both of them before freeing any
- * resources. And so we have used kfree_rcu() from within call_srcu() handlers.
- */
-struct device_opp {
-	struct list_head node;
-
-	struct srcu_notifier_head srcu_head;
-	struct rcu_head rcu_head;
-	struct list_head dev_list;
-	struct list_head opp_list;
-
-	struct device_node *np;
-	unsigned long clock_latency_ns_max;
-	bool shared_opp;
-	struct dev_pm_opp *suspend_opp;
-};
+#include "opp.h"
 
 /*
  * The root of the list of all devices. All device_opp structures branch off
@@ -200,7 +83,7 @@ static struct device_opp *_managed_opp(const struct device_node *np)
  * is a RCU protected pointer. This means that device_opp is valid as long
  * as we are under RCU lock.
  */
-static struct device_opp *_find_device_opp(struct device *dev)
+struct device_opp *_find_device_opp(struct device *dev)
 {
 	struct device_opp *dev_opp;
 
@@ -579,8 +462,8 @@ static void _remove_list_dev(struct device_list_opp *list_dev,
 		  _kfree_list_dev_rcu);
 }
 
-static struct device_list_opp *_add_list_dev(const struct device *dev,
-					     struct device_opp *dev_opp)
+struct device_list_opp *_add_list_dev(const struct device *dev,
+				      struct device_opp *dev_opp)
 {
 	struct device_list_opp *list_dev;
 
@@ -828,8 +711,8 @@ static int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
  * The opp is made available by default and it can be controlled using
  * dev_pm_opp_enable/disable functions and may be removed by dev_pm_opp_remove.
  *
- * NOTE: "dynamic" parameter impacts OPPs added by the of_init_opp_table and
- * freed by of_free_opp_table.
+ * NOTE: "dynamic" parameter impacts OPPs added by the dev_pm_opp_of_add_table
+ * and freed by dev_pm_opp_of_remove_table.
  *
  * Locking: The internal device_opp and opp structures are RCU protected.
  * Hence this function internally uses RCU updater strategy with mutex locks
@@ -1220,7 +1103,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
 
 #ifdef CONFIG_OF
 /**
- * of_free_opp_table() - Free OPP table entries created from static DT entries
+ * dev_pm_opp_of_remove_table() - Free OPP table entries created from static DT
+ *				  entries
  * @dev:	device pointer used to lookup device OPPs.
  *
  * Free OPPs created using static entries present in DT.
@@ -1231,7 +1115,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex cannot be locked.
  */
-void of_free_opp_table(struct device *dev)
+void dev_pm_opp_of_remove_table(struct device *dev)
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *opp, *tmp;
@@ -1266,91 +1150,34 @@ void of_free_opp_table(struct device *dev)
 unlock:
 	mutex_unlock(&dev_opp_list_lock);
 }
-EXPORT_SYMBOL_GPL(of_free_opp_table);
+EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 
-void of_cpumask_free_opp_table(cpumask_var_t cpumask)
+/* Returns opp descriptor node for a device, caller must do of_node_put() */
+struct device_node *_of_get_opp_desc_node(struct device *dev)
 {
-	struct device *cpu_dev;
-	int cpu;
-
-	WARN_ON(cpumask_empty(cpumask));
-
-	for_each_cpu(cpu, cpumask) {
-		cpu_dev = get_cpu_device(cpu);
-		if (!cpu_dev) {
-			pr_err("%s: failed to get cpu%d device\n", __func__,
-			       cpu);
-			continue;
-		}
-
-		of_free_opp_table(cpu_dev);
-	}
-}
-EXPORT_SYMBOL_GPL(of_cpumask_free_opp_table);
-
-/* Returns opp descriptor node from its phandle. Caller must do of_node_put() */
-static struct device_node *
-_of_get_opp_desc_node_from_prop(struct device *dev, const struct property *prop)
-{
-	struct device_node *opp_np;
-
-	opp_np = of_find_node_by_phandle(be32_to_cpup(prop->value));
-	if (!opp_np) {
-		dev_err(dev, "%s: Prop: %s contains invalid opp desc phandle\n",
-			__func__, prop->name);
-		return ERR_PTR(-EINVAL);
-	}
-
-	return opp_np;
-}
-
-/* Returns opp descriptor node for a device. Caller must do of_node_put() */
-static struct device_node *_of_get_opp_desc_node(struct device *dev)
-{
-	const struct property *prop;
-
-	prop = of_find_property(dev->of_node, "operating-points-v2", NULL);
-	if (!prop)
-		return ERR_PTR(-ENODEV);
-	if (!prop->value)
-		return ERR_PTR(-ENODATA);
-
 	/*
 	 * TODO: Support for multiple OPP tables.
 	 *
 	 * There should be only ONE phandle present in "operating-points-v2"
 	 * property.
 	 */
-	if (prop->length != sizeof(__be32)) {
-		dev_err(dev, "%s: Invalid opp desc phandle\n", __func__);
-		return ERR_PTR(-EINVAL);
-	}
 
-	return _of_get_opp_desc_node_from_prop(dev, prop);
+	return of_parse_phandle(dev->of_node, "operating-points-v2", 0);
 }
 
 /* Initializes OPP tables based on new bindings */
-static int _of_init_opp_table_v2(struct device *dev,
-				 const struct property *prop)
+static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 {
-	struct device_node *opp_np, *np;
+	struct device_node *np;
 	struct device_opp *dev_opp;
 	int ret = 0, count = 0;
-
-	if (!prop->value)
-		return -ENODATA;
-
-	/* Get opp node */
-	opp_np = _of_get_opp_desc_node_from_prop(dev, prop);
-	if (IS_ERR(opp_np))
-		return PTR_ERR(opp_np);
 
 	dev_opp = _managed_opp(opp_np);
 	if (dev_opp) {
 		/* OPPs are already managed */
 		if (!_add_list_dev(dev, dev_opp))
 			ret = -ENOMEM;
-		goto put_opp_np;
+		return ret;
 	}
 
 	/* We have opp-list node now, iterate over it and add OPPs */
@@ -1366,10 +1193,8 @@ static int _of_init_opp_table_v2(struct device *dev,
 	}
 
 	/* There should be one of more OPP defined */
-	if (WARN_ON(!count)) {
-		ret = -ENOENT;
-		goto put_opp_np;
-	}
+	if (WARN_ON(!count))
+		return -ENOENT;
 
 	dev_opp = _find_device_opp(dev);
 	if (WARN_ON(IS_ERR(dev_opp))) {
@@ -1380,19 +1205,16 @@ static int _of_init_opp_table_v2(struct device *dev,
 	dev_opp->np = opp_np;
 	dev_opp->shared_opp = of_property_read_bool(opp_np, "opp-shared");
 
-	of_node_put(opp_np);
 	return 0;
 
 free_table:
-	of_free_opp_table(dev);
-put_opp_np:
-	of_node_put(opp_np);
+	dev_pm_opp_of_remove_table(dev);
 
 	return ret;
 }
 
 /* Initializes OPP tables based on old-deprecated bindings */
-static int _of_init_opp_table_v1(struct device *dev)
+static int _of_add_opp_table_v1(struct device *dev)
 {
 	const struct property *prop;
 	const __be32 *val;
@@ -1429,7 +1251,7 @@ static int _of_init_opp_table_v1(struct device *dev)
 }
 
 /**
- * of_init_opp_table() - Initialize opp table from device tree
+ * dev_pm_opp_of_add_table() - Initialize opp table from device tree
  * @dev:	device pointer used to lookup device OPPs.
  *
  * Register the initial OPP table with the OPP library for given device.
@@ -1451,153 +1273,28 @@ static int _of_init_opp_table_v1(struct device *dev)
  * -ENODATA	when empty 'operating-points' property is found
  * -EINVAL	when invalid entries are found in opp-v2 table
  */
-int of_init_opp_table(struct device *dev)
+int dev_pm_opp_of_add_table(struct device *dev)
 {
-	const struct property *prop;
+	struct device_node *opp_np;
+	int ret;
 
 	/*
 	 * OPPs have two version of bindings now. The older one is deprecated,
 	 * try for the new binding first.
 	 */
-	prop = of_find_property(dev->of_node, "operating-points-v2", NULL);
-	if (!prop) {
+	opp_np = _of_get_opp_desc_node(dev);
+	if (!opp_np) {
 		/*
 		 * Try old-deprecated bindings for backward compatibility with
 		 * older dtbs.
 		 */
-		return _of_init_opp_table_v1(dev);
+		return _of_add_opp_table_v1(dev);
 	}
 
-	return _of_init_opp_table_v2(dev, prop);
-}
-EXPORT_SYMBOL_GPL(of_init_opp_table);
-
-int of_cpumask_init_opp_table(cpumask_var_t cpumask)
-{
-	struct device *cpu_dev;
-	int cpu, ret = 0;
-
-	WARN_ON(cpumask_empty(cpumask));
-
-	for_each_cpu(cpu, cpumask) {
-		cpu_dev = get_cpu_device(cpu);
-		if (!cpu_dev) {
-			pr_err("%s: failed to get cpu%d device\n", __func__,
-			       cpu);
-			continue;
-		}
-
-		ret = of_init_opp_table(cpu_dev);
-		if (ret) {
-			pr_err("%s: couldn't find opp table for cpu:%d, %d\n",
-			       __func__, cpu, ret);
-
-			/* Free all other OPPs */
-			of_cpumask_free_opp_table(cpumask);
-			break;
-		}
-	}
+	ret = _of_add_opp_table_v2(dev, opp_np);
+	of_node_put(opp_np);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(of_cpumask_init_opp_table);
-
-/* Required only for V1 bindings, as v2 can manage it from DT itself */
-int set_cpus_sharing_opps(struct device *cpu_dev, cpumask_var_t cpumask)
-{
-	struct device_list_opp *list_dev;
-	struct device_opp *dev_opp;
-	struct device *dev;
-	int cpu, ret = 0;
-
-	rcu_read_lock();
-
-	dev_opp = _find_device_opp(cpu_dev);
-	if (IS_ERR(dev_opp)) {
-		ret = -EINVAL;
-		goto out_rcu_read_unlock;
-	}
-
-	for_each_cpu(cpu, cpumask) {
-		if (cpu == cpu_dev->id)
-			continue;
-
-		dev = get_cpu_device(cpu);
-		if (!dev) {
-			dev_err(cpu_dev, "%s: failed to get cpu%d device\n",
-				__func__, cpu);
-			continue;
-		}
-
-		list_dev = _add_list_dev(dev, dev_opp);
-		if (!list_dev) {
-			dev_err(dev, "%s: failed to add list-dev for cpu%d device\n",
-				__func__, cpu);
-			continue;
-		}
-	}
-out_rcu_read_unlock:
-	rcu_read_unlock();
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(set_cpus_sharing_opps);
-
-/*
- * Works only for OPP v2 bindings.
- *
- * cpumask should be already set to mask of cpu_dev->id.
- * Returns -ENOENT if operating-points-v2 bindings aren't supported.
- */
-int of_get_cpus_sharing_opps(struct device *cpu_dev, cpumask_var_t cpumask)
-{
-	struct device_node *np, *tmp_np;
-	struct device *tcpu_dev;
-	int cpu, ret = 0;
-
-	/* Get OPP descriptor node */
-	np = _of_get_opp_desc_node(cpu_dev);
-	if (IS_ERR(np)) {
-		dev_dbg(cpu_dev, "%s: Couldn't find opp node: %ld\n", __func__,
-			PTR_ERR(np));
-		return -ENOENT;
-	}
-
-	/* OPPs are shared ? */
-	if (!of_property_read_bool(np, "opp-shared"))
-		goto put_cpu_node;
-
-	for_each_possible_cpu(cpu) {
-		if (cpu == cpu_dev->id)
-			continue;
-
-		tcpu_dev = get_cpu_device(cpu);
-		if (!tcpu_dev) {
-			dev_err(cpu_dev, "%s: failed to get cpu%d device\n",
-				__func__, cpu);
-			ret = -ENODEV;
-			goto put_cpu_node;
-		}
-
-		/* Get OPP descriptor node */
-		tmp_np = _of_get_opp_desc_node(tcpu_dev);
-		if (IS_ERR(tmp_np)) {
-			dev_err(tcpu_dev, "%s: Couldn't find opp node: %ld\n",
-				__func__, PTR_ERR(tmp_np));
-			ret = PTR_ERR(tmp_np);
-			goto put_cpu_node;
-		}
-
-		/* CPUs are sharing opp node */
-		if (np == tmp_np)
-			cpumask_set_cpu(cpu, cpumask);
-
-		of_node_put(tmp_np);
-	}
-
-put_cpu_node:
-	of_node_put(np);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(of_get_cpus_sharing_opps);
+EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
 #endif

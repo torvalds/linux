@@ -134,7 +134,7 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 	if (is_of_node(fwnode))
 		return of_property_read_bool(to_of_node(fwnode), propname);
 	else if (is_acpi_node(fwnode))
-		return !acpi_dev_prop_get(to_acpi_node(fwnode), propname, NULL);
+		return !acpi_node_prop_get(fwnode, propname, NULL);
 
 	return !!pset_prop_get(to_pset(fwnode), propname);
 }
@@ -287,6 +287,28 @@ int device_property_read_string(struct device *dev, const char *propname,
 }
 EXPORT_SYMBOL_GPL(device_property_read_string);
 
+/**
+ * device_property_match_string - find a string in an array and return index
+ * @dev: Device to get the property of
+ * @propname: Name of the property holding the array
+ * @string: String to look for
+ *
+ * Find a given string in a string array and if it is found return the
+ * index back.
+ *
+ * Return: %0 if the property was found (success),
+ *	   %-EINVAL if given arguments are not valid,
+ *	   %-ENODATA if the property does not have a value,
+ *	   %-EPROTO if the property is not an array of strings,
+ *	   %-ENXIO if no suitable firmware interface is present.
+ */
+int device_property_match_string(struct device *dev, const char *propname,
+				 const char *string)
+{
+	return fwnode_property_match_string(dev_fwnode(dev), propname, string);
+}
+EXPORT_SYMBOL_GPL(device_property_match_string);
+
 #define OF_DEV_PROP_READ_ARRAY(node, propname, type, val, nval) \
 	(val) ? of_property_read_##type##_array((node), (propname), (val), (nval)) \
 	      : of_property_count_elems_of_size((node), (propname), sizeof(type))
@@ -298,8 +320,8 @@ EXPORT_SYMBOL_GPL(device_property_read_string);
 		_ret_ = OF_DEV_PROP_READ_ARRAY(to_of_node(_fwnode_), _propname_, \
 					       _type_, _val_, _nval_); \
 	else if (is_acpi_node(_fwnode_)) \
-		_ret_ = acpi_dev_prop_read(to_acpi_node(_fwnode_), _propname_, \
-					   _proptype_, _val_, _nval_); \
+		_ret_ = acpi_node_prop_read(_fwnode_, _propname_, _proptype_, \
+					    _val_, _nval_); \
 	else if (is_pset(_fwnode_)) \
 		_ret_ = pset_prop_read_array(to_pset(_fwnode_), _propname_, \
 					     _proptype_, _val_, _nval_); \
@@ -440,8 +462,8 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 						      propname, val, nval) :
 			of_property_count_strings(to_of_node(fwnode), propname);
 	else if (is_acpi_node(fwnode))
-		return acpi_dev_prop_read(to_acpi_node(fwnode), propname,
-					  DEV_PROP_STRING, val, nval);
+		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
+					   val, nval);
 	else if (is_pset(fwnode))
 		return pset_prop_read_array(to_pset(fwnode), propname,
 					    DEV_PROP_STRING, val, nval);
@@ -470,13 +492,59 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 	if (is_of_node(fwnode))
 		return of_property_read_string(to_of_node(fwnode), propname, val);
 	else if (is_acpi_node(fwnode))
-		return acpi_dev_prop_read(to_acpi_node(fwnode), propname,
-					  DEV_PROP_STRING, val, 1);
+		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
+					   val, 1);
 
 	return pset_prop_read_array(to_pset(fwnode), propname,
 				    DEV_PROP_STRING, val, 1);
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string);
+
+/**
+ * fwnode_property_match_string - find a string in an array and return index
+ * @fwnode: Firmware node to get the property of
+ * @propname: Name of the property holding the array
+ * @string: String to look for
+ *
+ * Find a given string in a string array and if it is found return the
+ * index back.
+ *
+ * Return: %0 if the property was found (success),
+ *	   %-EINVAL if given arguments are not valid,
+ *	   %-ENODATA if the property does not have a value,
+ *	   %-EPROTO if the property is not an array of strings,
+ *	   %-ENXIO if no suitable firmware interface is present.
+ */
+int fwnode_property_match_string(struct fwnode_handle *fwnode,
+	const char *propname, const char *string)
+{
+	const char **values;
+	int nval, ret, i;
+
+	nval = fwnode_property_read_string_array(fwnode, propname, NULL, 0);
+	if (nval < 0)
+		return nval;
+
+	values = kcalloc(nval, sizeof(*values), GFP_KERNEL);
+	if (!values)
+		return -ENOMEM;
+
+	ret = fwnode_property_read_string_array(fwnode, propname, values, nval);
+	if (ret < 0)
+		goto out;
+
+	ret = -ENODATA;
+	for (i = 0; i < nval; i++) {
+		if (!strcmp(values[i], string)) {
+			ret = i;
+			break;
+		}
+	}
+out:
+	kfree(values);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(fwnode_property_match_string);
 
 /**
  * device_get_next_child_node - Return the next child node handle for a device
@@ -493,11 +561,7 @@ struct fwnode_handle *device_get_next_child_node(struct device *dev,
 		if (node)
 			return &node->fwnode;
 	} else if (IS_ENABLED(CONFIG_ACPI)) {
-		struct acpi_device *node;
-
-		node = acpi_get_next_child(dev, to_acpi_node(child));
-		if (node)
-			return acpi_fwnode_handle(node);
+		return acpi_get_next_subnode(dev, child);
 	}
 	return NULL;
 }

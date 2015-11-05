@@ -2,6 +2,14 @@ menu "Clock Source drivers"
 
 config CLKSRC_OF
 	bool
+	select CLKSRC_PROBE
+
+config CLKSRC_ACPI
+	bool
+	select CLKSRC_PROBE
+
+config CLKSRC_PROBE
+	bool
 
 config CLKSRC_I8253
 	bool
@@ -123,6 +131,7 @@ config CLKSRC_STM32
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
+	select CLKSRC_ACPI if ACPI
 
 config ARM_ARCH_TIMER_EVTSTREAM
 	bool "Support for ARM architected timer event stream generation"

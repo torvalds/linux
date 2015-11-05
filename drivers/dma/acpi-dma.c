@@ -21,6 +21,7 @@
 #include <linux/ioport.h>
 #include <linux/acpi.h>
 #include <linux/acpi_dma.h>
+#include <linux/property.h>
 
 static LIST_HEAD(acpi_dma_list);
 static DEFINE_MUTEX(acpi_dma_lock);
@@ -413,21 +414,29 @@ EXPORT_SYMBOL_GPL(acpi_dma_request_slave_chan_by_index);
  * translate the names "tx" and "rx" here based on the most common case where
  * the first FixedDMA descriptor is TX and second is RX.
  *
+ * If the device has "dma-names" property the FixedDMA descriptor indices
+ * are retrieved based on those. Otherwise the function falls back using
+ * hardcoded indices.
+ *
  * Return:
  * Pointer to appropriate dma channel on success or an error pointer.
  */
 struct dma_chan *acpi_dma_request_slave_chan_by_name(struct device *dev,
 		const char *name)
 {
-	size_t index;
+	int index;
 
-	if (!strcmp(name, "tx"))
-		index = 0;
-	else if (!strcmp(name, "rx"))
-		index = 1;
-	else
-		return ERR_PTR(-ENODEV);
+	index = device_property_match_string(dev, "dma-names", name);
+	if (index < 0) {
+		if (!strcmp(name, "tx"))
+			index = 0;
+		else if (!strcmp(name, "rx"))
+			index = 1;
+		else
+			return ERR_PTR(-ENODEV);
+	}
 
+	dev_dbg(dev, "found DMA channel \"%s\" at index %d\n", name, index);
 	return acpi_dma_request_slave_chan_by_index(dev, index);
 }
 EXPORT_SYMBOL_GPL(acpi_dma_request_slave_chan_by_name);

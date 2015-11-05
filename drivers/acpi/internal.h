@@ -21,7 +21,7 @@
 #define PREFIX "ACPI: "
 
 acpi_status acpi_os_initialize1(void);
-int init_acpi_device_notify(void);
+void init_acpi_device_notify(void);
 int acpi_scan_init(void);
 void acpi_pci_root_init(void);
 void acpi_pci_link_init(void);
@@ -179,13 +179,13 @@ static inline int acpi_sleep_init(void) { return -ENXIO; }
 #endif
 
 #ifdef CONFIG_ACPI_SLEEP
-int acpi_sleep_proc_init(void);
+void acpi_sleep_proc_init(void);
 int suspend_nvs_alloc(void);
 void suspend_nvs_free(void);
 int suspend_nvs_save(void);
 void suspend_nvs_restore(void);
 #else
-static inline int acpi_sleep_proc_init(void) { return 0; }
+static inline void acpi_sleep_proc_init(void) {}
 static inline int suspend_nvs_alloc(void) { return 0; }
 static inline void suspend_nvs_free(void) {}
 static inline int suspend_nvs_save(void) { return 0; }
