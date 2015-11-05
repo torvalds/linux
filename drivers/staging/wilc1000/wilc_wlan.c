@@ -2052,7 +2052,7 @@ _fail_:
 
 }
 
-u16 Set_machw_change_vir_if(struct net_device *dev, bool bValue)
+u16 set_machw_change_vir_if(struct net_device *dev, bool bValue)
 {
 	u16 ret;
 	u32 reg;
