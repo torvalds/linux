@@ -2498,9 +2498,6 @@ int _mmc_detect_card_removed(struct mmc_host *host)
 {
 	int ret;
 
-	if (host->caps & MMC_CAP_NONREMOVABLE)
-		return 0;
-
 	if (!host->card || mmc_card_removed(host->card))
 		return 1;
 
@@ -2535,6 +2532,9 @@ int mmc_detect_card_removed(struct mmc_host *host)
 
 	if (!card)
 		return 1;
+
+	if (host->caps & MMC_CAP_NONREMOVABLE)
+		return 0;
 
 	ret = mmc_card_removed(card);
 	/*
