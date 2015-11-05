@@ -1462,6 +1462,8 @@ struct btrfs_qgroup_extent_record
 	struct btrfs_qgroup_extent_record *entry;
 	u64 bytenr = record->bytenr;
 
+	assert_spin_locked(&delayed_refs->lock);
+
 	while (*p) {
 		parent_node = *p;
 		entry = rb_entry(parent_node, struct btrfs_qgroup_extent_record,
