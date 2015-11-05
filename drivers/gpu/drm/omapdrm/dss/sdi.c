@@ -136,7 +136,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	unsigned long pck;
 	int r;
 
-	if (out->manager == NULL) {
+	if (!out->dispc_channel_connected) {
 		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
 	}
