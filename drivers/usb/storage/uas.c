@@ -49,18 +49,18 @@ struct uas_dev_info {
 };
 
 enum {
-	SUBMIT_STATUS_URB	= (1 << 1),
-	ALLOC_DATA_IN_URB	= (1 << 2),
-	SUBMIT_DATA_IN_URB	= (1 << 3),
-	ALLOC_DATA_OUT_URB	= (1 << 4),
-	SUBMIT_DATA_OUT_URB	= (1 << 5),
-	ALLOC_CMD_URB		= (1 << 6),
-	SUBMIT_CMD_URB		= (1 << 7),
-	COMMAND_INFLIGHT        = (1 << 8),
-	DATA_IN_URB_INFLIGHT    = (1 << 9),
-	DATA_OUT_URB_INFLIGHT   = (1 << 10),
-	COMMAND_ABORTED         = (1 << 11),
-	IS_IN_WORK_LIST         = (1 << 12),
+	SUBMIT_STATUS_URB	= BIT(1),
+	ALLOC_DATA_IN_URB	= BIT(2),
+	SUBMIT_DATA_IN_URB	= BIT(3),
+	ALLOC_DATA_OUT_URB	= BIT(4),
+	SUBMIT_DATA_OUT_URB	= BIT(5),
+	ALLOC_CMD_URB		= BIT(6),
+	SUBMIT_CMD_URB		= BIT(7),
+	COMMAND_INFLIGHT        = BIT(8),
+	DATA_IN_URB_INFLIGHT    = BIT(9),
+	DATA_OUT_URB_INFLIGHT   = BIT(10),
+	COMMAND_ABORTED         = BIT(11),
+	IS_IN_WORK_LIST         = BIT(12),
 };
 
 /* Overrides scsi_pointer */
