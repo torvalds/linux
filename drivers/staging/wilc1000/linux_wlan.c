@@ -1124,8 +1124,9 @@ int mac_open(struct net_device *ndev)
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		PRINT_ER("Error: Wrong MAC address\n");
-		ret = -EINVAL;
-		goto _err_;
+		wilc_deinit_host_int(ndev);
+		wilc1000_wlan_deinit(ndev);
+		return -EINVAL;
 	}
 
 	wilc_mgmt_frame_register(nic->wilc_netdev->ieee80211_ptr->wiphy,
@@ -1140,11 +1141,6 @@ int mac_open(struct net_device *ndev)
 	wl->open_ifcs++;
 	nic->mac_opened = 1;
 	return 0;
-
-_err_:
-	wilc_deinit_host_int(ndev);
-	wilc1000_wlan_deinit(ndev);
-	return ret;
 }
 
 struct net_device_stats *mac_stats(struct net_device *dev)
