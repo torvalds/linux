@@ -1531,13 +1531,22 @@ static int (*intel_get_gpu_reset(struct drm_device *dev))(struct drm_device *)
 
 int intel_gpu_reset(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int (*reset)(struct drm_device *);
+	int ret;
 
 	reset = intel_get_gpu_reset(dev);
 	if (reset == NULL)
 		return -ENODEV;
 
-	return reset(dev);
+	/* If the power well sleeps during the reset, the reset
+	 * request may be dropped and never completes (causing -EIO).
+	 */
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	ret = reset(dev);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+
+	return ret;
 }
 
 bool intel_has_gpu_reset(struct drm_device *dev)
