@@ -4011,8 +4011,6 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 	if (!(buf & DP_TEST_CRC_SUPPORTED))
 		return -ENOTTY;
 
-	intel_dp->sink_crc.last_count = buf & DP_TEST_COUNT_MASK;
-
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0)
 		return -EIO;
 
@@ -4037,7 +4035,6 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	u8 buf;
 	int count, ret;
 	int attempts = 6;
-	bool old_equal_new;
 
 	ret = intel_dp_sink_crc_start(intel_dp);
 	if (ret)
@@ -4053,35 +4050,17 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 		}
 		count = buf & DP_TEST_COUNT_MASK;
 
-		/*
-		 * Count might be reset during the loop. In this case
-		 * last known count needs to be reset as well.
-		 */
-		if (count == 0)
-			intel_dp->sink_crc.last_count = 0;
-
-		if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0) {
-			ret = -EIO;
-			goto stop;
-		}
-
-		old_equal_new = (count == intel_dp->sink_crc.last_count &&
-				 !memcmp(intel_dp->sink_crc.last_crc, crc,
-					 6 * sizeof(u8)));
-
-	} while (--attempts && (count == 0 || old_equal_new));
-
-	intel_dp->sink_crc.last_count = buf & DP_TEST_COUNT_MASK;
-	memcpy(intel_dp->sink_crc.last_crc, crc, 6 * sizeof(u8));
+	} while (--attempts && count == 0);
 
 	if (attempts == 0) {
-		if (old_equal_new) {
-			DRM_DEBUG_KMS("Unreliable Sink CRC counter: Current returned CRC is identical to the previous one\n");
-		} else {
-			DRM_ERROR("Panel is unable to calculate any CRC after 6 vblanks\n");
-			ret = -ETIMEDOUT;
-			goto stop;
-		}
+		DRM_ERROR("Panel is unable to calculate any CRC after 6 vblanks\n");
+		ret = -ETIMEDOUT;
+		goto stop;
+	}
+
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0) {
+		ret = -EIO;
+		goto stop;
 	}
 
 stop:
