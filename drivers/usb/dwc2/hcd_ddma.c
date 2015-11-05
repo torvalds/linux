@@ -524,14 +524,15 @@ static void dwc2_fill_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 	dma_desc->status = qh->n_bytes[idx] << HOST_DMA_ISOC_NBYTES_SHIFT &
 			   HOST_DMA_ISOC_NBYTES_MASK;
 
+	qh->ntd++;
+	qtd->isoc_frame_index_last++;
+
 #ifdef ISOC_URB_GIVEBACK_ASAP
 	/* Set IOC for each descriptor corresponding to last frame of URB */
 	if (qtd->isoc_frame_index_last == qtd->urb->packet_count)
 		dma_desc->status |= HOST_DMA_IOC;
 #endif
 
-	qh->ntd++;
-	qtd->isoc_frame_index_last++;
 }
 
 static void dwc2_init_isoc_dma_desc(struct dwc2_hsotg *hsotg,
