@@ -1292,8 +1292,6 @@ static inline int bnxt_has_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr)
 	return TX_CMP_VALID(txcmp, raw_cons);
 }
 
-#define CAG_LEGACY_INT_STATUS	0x2014
-
 static irqreturn_t bnxt_inta(int irq, void *dev_instance)
 {
 	struct bnxt_napi *bnapi = dev_instance;
@@ -1305,7 +1303,7 @@ static irqreturn_t bnxt_inta(int irq, void *dev_instance)
 	prefetch(&cpr->cp_desc_ring[CP_RING(cons)][CP_IDX(cons)]);
 
 	if (!bnxt_has_work(bp, cpr)) {
-		int_status = readl(bp->bar0 + CAG_LEGACY_INT_STATUS);
+		int_status = readl(bp->bar0 + BNXT_CAG_REG_LEGACY_INT_STATUS);
 		/* return if erroneous interrupt */
 		if (!(int_status & (0x10000 << cpr->cp_ring_struct.fw_ring_id)))
 			return IRQ_NONE;
@@ -4527,10 +4525,25 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	return rc;
 }
 
+/* Common routine to pre-map certain register block to different GRC window.
+ * A PF has 16 4K windows and a VF has 4 4K windows. However, only 15 windows
+ * in PF and 3 windows in VF that can be customized to map in different
+ * register blocks.
+ */
+static void bnxt_preset_reg_win(struct bnxt *bp)
+{
+	if (BNXT_PF(bp)) {
+		/* CAG registers map to GRC window #4 */
+		writel(BNXT_CAG_REG_BASE,
+		       bp->bar0 + BNXT_GRCPF_REG_WINDOW_BASE_OUT + 12);
+	}
+}
+
 static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
 
+	bnxt_preset_reg_win(bp);
 	netif_carrier_off(bp->dev);
 	if (irq_re_init) {
 		rc = bnxt_setup_int_mode(bp);

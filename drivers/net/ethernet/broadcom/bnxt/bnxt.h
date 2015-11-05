@@ -841,6 +841,10 @@ struct bnxt_queue_info {
 	u8	queue_profile;
 };
 
+#define BNXT_GRCPF_REG_WINDOW_BASE_OUT	0x400
+#define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
+#define BNXT_CAG_REG_BASE		0x300000
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
