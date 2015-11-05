@@ -278,6 +278,7 @@ static void dwc2_release_channel_ddma(struct dwc2_hsotg *hsotg,
 			hsotg->non_periodic_channels--;
 	} else {
 		dwc2_update_frame_list(hsotg, qh, 0);
+		hsotg->available_host_channels++;
 	}
 
 	/*
