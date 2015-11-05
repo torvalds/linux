@@ -79,12 +79,13 @@ static int digsig_verify_rsa(struct key *key,
 	unsigned char *out1 = NULL;
 	const char *m;
 	MPI in = NULL, res = NULL, pkey[2];
-	uint8_t *p, *datap, *endp;
-	struct user_key_payload *ukp;
+	uint8_t *p, *datap;
+	const uint8_t *endp;
+	const struct user_key_payload *ukp;
 	struct pubkey_hdr *pkh;
 
 	down_read(&key->sem);
-	ukp = key->payload.data;
+	ukp = user_key_payload(key);
 
 	if (ukp->datalen < sizeof(*pkh))
 		goto err1;

@@ -711,7 +711,6 @@ static struct i2c_driver tpm_tis_i2c_driver = {
 	.remove = tpm_tis_i2c_remove,
 	.driver = {
 		   .name = "tpm_i2c_infineon",
-		   .owner = THIS_MODULE,
 		   .pm = &tpm_tis_i2c_ops,
 		   .of_match_table = of_match_ptr(tpm_tis_i2c_of_match),
 		   },

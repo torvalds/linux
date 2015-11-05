@@ -258,7 +258,6 @@ static SIMPLE_DEV_PM_OPS(st33zp24_i2c_ops, st33zp24_pm_suspend,
 
 static struct i2c_driver st33zp24_i2c_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = TPM_ST33_I2C,
 		.pm = &st33zp24_i2c_ops,
 		.of_match_table = of_match_ptr(of_st33zp24_i2c_match),

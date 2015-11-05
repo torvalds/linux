@@ -666,6 +666,30 @@ int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
 }
 
 /**
+ * tpm_is_tpm2 - is the chip a TPM2 chip?
+ * @chip_num:	tpm idx # or ANY
+ *
+ * Returns < 0 on error, and 1 or 0 on success depending whether the chip
+ * is a TPM2 chip.
+ */
+int tpm_is_tpm2(u32 chip_num)
+{
+	struct tpm_chip *chip;
+	int rc;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL)
+		return -ENODEV;
+
+	rc = (chip->flags & TPM_CHIP_FLAG_TPM2) != 0;
+
+	tpm_chip_put(chip);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_is_tpm2);
+
+/**
  * tpm_pcr_read - read a pcr value
  * @chip_num:	tpm idx # or ANY
  * @pcr_idx:	pcr idx to retrieve
@@ -1020,6 +1044,58 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 	return total ? total : -EIO;
 }
 EXPORT_SYMBOL_GPL(tpm_get_random);
+
+/**
+ * tpm_seal_trusted() - seal a trusted key
+ * @chip_num: A specific chip number for the request or TPM_ANY_NUM
+ * @options: authentication values and other options
+ * @payload: the key data in clear and encrypted form
+ *
+ * Returns < 0 on error and 0 on success. At the moment, only TPM 2.0 chips
+ * are supported.
+ */
+int tpm_seal_trusted(u32 chip_num, struct trusted_key_payload *payload,
+		     struct trusted_key_options *options)
+{
+	struct tpm_chip *chip;
+	int rc;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL || !(chip->flags & TPM_CHIP_FLAG_TPM2))
+		return -ENODEV;
+
+	rc = tpm2_seal_trusted(chip, payload, options);
+
+	tpm_chip_put(chip);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_seal_trusted);
+
+/**
+ * tpm_unseal_trusted() - unseal a trusted key
+ * @chip_num: A specific chip number for the request or TPM_ANY_NUM
+ * @options: authentication values and other options
+ * @payload: the key data in clear and encrypted form
+ *
+ * Returns < 0 on error and 0 on success. At the moment, only TPM 2.0 chips
+ * are supported.
+ */
+int tpm_unseal_trusted(u32 chip_num, struct trusted_key_payload *payload,
+		       struct trusted_key_options *options)
+{
+	struct tpm_chip *chip;
+	int rc;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL || !(chip->flags & TPM_CHIP_FLAG_TPM2))
+		return -ENODEV;
+
+	rc = tpm2_unseal_trusted(chip, payload, options);
+
+	tpm_chip_put(chip);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_unseal_trusted);
 
 static int __init tpm_init(void)
 {
