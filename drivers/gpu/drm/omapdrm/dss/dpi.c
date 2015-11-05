@@ -516,7 +516,7 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	if (timings->x_res % 8 != 0)
 		return -EINVAL;
 
-	if (mgr && !dispc_mgr_timings_ok(mgr->id, timings))
+	if (!dispc_mgr_timings_ok(mgr->id, timings))
 		return -EINVAL;
 
 	if (timings->pixelclock == 0)
