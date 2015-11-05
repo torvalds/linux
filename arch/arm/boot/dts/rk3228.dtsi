@@ -6,6 +6,7 @@
 
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <rk3228_dram_default_timing.dtsi>
 
 / {
 	compatible = "rockchip,rk3228";
@@ -138,6 +139,13 @@
 			compatible = "rockchip,ion-heap";
 			rockchip,ion_heap = <0>;
 		};
+	};
+
+	dram: dram {
+		compatible = "rockchip,rk3228-dram";
+		status = "okay";
+		dram_freq = <600000000>;
+		rockchip,dram_timing = <&dram_timing>;
 	};
 
 	rockchip_clocks_init: clocks-init{
