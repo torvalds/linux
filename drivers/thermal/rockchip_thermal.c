@@ -237,15 +237,19 @@ static int rk_tsadcv2_code_to_temp(u32 code, int *temp)
 }
 
 /**
- * rk_tsadcv2_initialize - initialize TASDC Controller
- * (1) Set TSADCV2_AUTO_PERIOD, configure the interleave between
- * every two accessing of TSADC in normal operation.
- * (2) Set TSADCV2_AUTO_PERIOD_HT, configure the interleave between
- * every two accessing of TSADC after the temperature is higher
- * than COM_SHUT or COM_INT.
- * (3) Set TSADCV2_HIGH_INT_DEBOUNCE and TSADC_HIGHT_TSHUT_DEBOUNCE,
- * if the temperature is higher than COMP_INT or COMP_SHUT for
- * "debounce" times, TSADC controller will generate interrupt or TSHUT.
+ * rk_tsadcv2_initialize - initialize TASDC Controller.
+ *
+ * (1) Set TSADC_V2_AUTO_PERIOD:
+ *     Configure the interleave between every two accessing of
+ *     TSADC in normal operation.
+ *
+ * (2) Set TSADCV2_AUTO_PERIOD_HT:
+ *     Configure the interleave between every two accessing of
+ *     TSADC after the temperature is higher than COM_SHUT or COM_INT.
+ *
+ * (3) Set TSADCV2_HIGH_INT_DEBOUNCE and TSADC_HIGHT_TSHUT_DEBOUNCE:
+ *     If the temperature is higher than COMP_INT or COMP_SHUT for
+ *     "debounce" times, TSADC controller will generate interrupt or TSHUT.
  */
 static void rk_tsadcv2_initialize(void __iomem *regs,
 				  enum tshut_polarity tshut_polarity)
