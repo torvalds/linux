@@ -53,7 +53,7 @@ struct wm_adsp {
 
 	int fw;
 	int fw_ver;
-	u32 running;
+	bool running;
 
 	struct list_head ctl_list;
 

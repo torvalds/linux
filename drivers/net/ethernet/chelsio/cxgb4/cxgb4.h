@@ -771,8 +771,8 @@ struct adapter {
 	bool tid_release_task_busy;
 
 	struct dentry *debugfs_root;
-	u32 use_bd;     /* Use SGE Back Door intfc for reading SGE Contexts */
-	u32 trace_rss;	/* 1 implies that different RSS flit per filter is
+	bool use_bd;     /* Use SGE Back Door intfc for reading SGE Contexts */
+	bool trace_rss;	/* 1 implies that different RSS flit per filter is
 			 * used per filter else if 0 default RSS flit is
 			 * used for all 4 filters.
 			 */

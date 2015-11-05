@@ -676,15 +676,15 @@ static void b43_add_dynamic_debug(struct b43_wldev *dev)
 		e->dyn_debug_dentries[id] = d;		\
 				} while (0)
 
-	add_dyn_dbg("debug_xmitpower", B43_DBG_XMITPOWER, 0);
-	add_dyn_dbg("debug_dmaoverflow", B43_DBG_DMAOVERFLOW, 0);
-	add_dyn_dbg("debug_dmaverbose", B43_DBG_DMAVERBOSE, 0);
-	add_dyn_dbg("debug_pwork_fast", B43_DBG_PWORK_FAST, 0);
-	add_dyn_dbg("debug_pwork_stop", B43_DBG_PWORK_STOP, 0);
-	add_dyn_dbg("debug_lo", B43_DBG_LO, 0);
-	add_dyn_dbg("debug_firmware", B43_DBG_FIRMWARE, 0);
-	add_dyn_dbg("debug_keys", B43_DBG_KEYS, 0);
-	add_dyn_dbg("debug_verbose_stats", B43_DBG_VERBOSESTATS, 0);
+	add_dyn_dbg("debug_xmitpower", B43_DBG_XMITPOWER, false);
+	add_dyn_dbg("debug_dmaoverflow", B43_DBG_DMAOVERFLOW, false);
+	add_dyn_dbg("debug_dmaverbose", B43_DBG_DMAVERBOSE, false);
+	add_dyn_dbg("debug_pwork_fast", B43_DBG_PWORK_FAST, false);
+	add_dyn_dbg("debug_pwork_stop", B43_DBG_PWORK_STOP, false);
+	add_dyn_dbg("debug_lo", B43_DBG_LO, false);
+	add_dyn_dbg("debug_firmware", B43_DBG_FIRMWARE, false);
+	add_dyn_dbg("debug_keys", B43_DBG_KEYS, false);
+	add_dyn_dbg("debug_verbose_stats", B43_DBG_VERBOSESTATS, false);
 
 #undef add_dyn_dbg
 }

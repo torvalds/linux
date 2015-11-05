@@ -738,7 +738,7 @@ struct ath10k {
 	bool monitor_started;
 	unsigned int filter_flags;
 	unsigned long dev_flags;
-	u32 dfs_block_radar_events;
+	bool dfs_block_radar_events;
 
 	/* protected by conf_mutex */
 	bool radar_enabled;
