@@ -81,13 +81,17 @@ static struct device_opp *_managed_opp(const struct device_node *np)
  * Return: pointer to 'struct device_opp' if found, otherwise -ENODEV or
  * -EINVAL based on type of error.
  *
- * Locking: This function must be called under rcu_read_lock(). device_opp
- * is a RCU protected pointer. This means that device_opp is valid as long
- * as we are under RCU lock.
+ * Locking: For readers, this function must be called under rcu_read_lock().
+ * device_opp is a RCU protected pointer, which means that device_opp is valid
+ * as long as we are under RCU lock.
+ *
+ * For Writers, this function must be called with dev_opp_list_lock held.
  */
 struct device_opp *_find_device_opp(struct device *dev)
 {
 	struct device_opp *dev_opp;
+
+	opp_rcu_lockdep_assert();
 
 	if (IS_ERR_OR_NULL(dev)) {
 		pr_err("%s: Invalid parameters\n", __func__);
