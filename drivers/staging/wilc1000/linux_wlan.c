@@ -358,7 +358,7 @@ struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	return NULL;
 }
 
-int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID)
+int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid)
 {
 	int i = 0;
 	int ret = -1;
@@ -370,7 +370,7 @@ int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID)
 
 	for (i = 0; i < wilc->vif_num; i++)
 		if (wilc->vif[i].ndev == wilc_netdev) {
-			memcpy(wilc->vif[i].bssid, pBSSID, 6);
+			memcpy(wilc->vif[i].bssid, bssid, 6);
 			ret = 0;
 			break;
 		}

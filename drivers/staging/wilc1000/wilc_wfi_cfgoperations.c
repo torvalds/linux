@@ -505,8 +505,6 @@ int WILC_WFI_Set_PMKSA(u8 *bssid, struct wilc_priv *priv)
 
 
 }
-int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID);
-
 
 /**
  *  @brief      CfgConnectResult
