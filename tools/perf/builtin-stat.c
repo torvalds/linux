@@ -1310,6 +1310,19 @@ static const char * const recort_usage[] = {
 	NULL,
 };
 
+static void init_features(struct perf_session *session)
+{
+	int feat;
+
+	for (feat = HEADER_FIRST_FEATURE; feat < HEADER_LAST_FEATURE; feat++)
+		perf_header__set_feat(&session->header, feat);
+
+	perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
+	perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
+	perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
+	perf_header__clear_feat(&session->header, HEADER_AUXTRACE);
+}
+
 static int __cmd_record(int argc, const char **argv)
 {
 	struct perf_session *session;
@@ -1330,6 +1343,8 @@ static int __cmd_record(int argc, const char **argv)
 	/* No pipe support ATM */
 	if (perf_stat.file.is_pipe)
 		return -EINVAL;
+
+	init_features(session);
 
 	session->evlist   = evsel_list;
 	perf_stat.session = session;

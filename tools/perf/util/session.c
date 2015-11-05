@@ -37,6 +37,9 @@ static int perf_session__open(struct perf_session *session)
 	if (perf_data_file__is_pipe(file))
 		return 0;
 
+	if (perf_header__has_feat(&session->header, HEADER_STAT))
+		return 0;
+
 	if (!perf_evlist__valid_sample_type(session->evlist)) {
 		pr_err("non matching sample_type\n");
 		return -1;
