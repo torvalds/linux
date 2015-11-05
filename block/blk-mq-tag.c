@@ -75,6 +75,10 @@ void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool include_reserve)
 	struct blk_mq_bitmap_tags *bt;
 	int i, wake_index;
 
+	/*
+	 * Make sure all changes prior to this are visible from other CPUs.
+	 */
+	smp_mb();
 	bt = &tags->bitmap_tags;
 	wake_index = atomic_read(&bt->wake_index);
 	for (i = 0; i < BT_WAIT_QUEUES; i++) {

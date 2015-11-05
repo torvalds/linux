@@ -437,7 +437,7 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 		       struct block_device *bdev,
 		       struct blk_user_trace_setup *buts)
 {
-	struct blk_trace *old_bt, *bt = NULL;
+	struct blk_trace *bt = NULL;
 	struct dentry *dir = NULL;
 	int ret;
 
@@ -519,11 +519,8 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	bt->trace_state = Blktrace_setup;
 
 	ret = -EBUSY;
-	old_bt = xchg(&q->blk_trace, bt);
-	if (old_bt) {
-		(void) xchg(&q->blk_trace, old_bt);
+	if (cmpxchg(&q->blk_trace, NULL, bt))
 		goto err;
-	}
 
 	if (atomic_inc_return(&blk_probes_ref) == 1)
 		blk_register_tracepoints();
@@ -1481,7 +1478,7 @@ static int blk_trace_remove_queue(struct request_queue *q)
 static int blk_trace_setup_queue(struct request_queue *q,
 				 struct block_device *bdev)
 {
-	struct blk_trace *old_bt, *bt = NULL;
+	struct blk_trace *bt = NULL;
 	int ret = -ENOMEM;
 
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
@@ -1497,12 +1494,9 @@ static int blk_trace_setup_queue(struct request_queue *q,
 
 	blk_trace_setup_lba(bt, bdev);
 
-	old_bt = xchg(&q->blk_trace, bt);
-	if (old_bt != NULL) {
-		(void)xchg(&q->blk_trace, old_bt);
-		ret = -EBUSY;
+	ret = -EBUSY;
+	if (cmpxchg(&q->blk_trace, NULL, bt))
 		goto free_bt;
-	}
 
 	if (atomic_inc_return(&blk_probes_ref) == 1)
 		blk_register_tracepoints();
