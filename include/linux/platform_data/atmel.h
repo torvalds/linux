@@ -19,12 +19,6 @@
 #include <linux/serial.h>
 #include <linux/platform_data/macb.h>
 
-/*
- * at91: 6 USARTs and one DBGU port (SAM9260)
- * avr32: 4
- */
-#define ATMEL_MAX_UART	7
-
  /* Compact Flash */
 struct at91_cf_data {
 	int	irq_pin;		/* I/O IRQ */
