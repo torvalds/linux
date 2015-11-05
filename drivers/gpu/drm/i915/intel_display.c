@@ -5734,6 +5734,14 @@ int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	uint32_t cdctl = I915_READ(CDCLK_CTL);
 	int freq = dev_priv->skl_boot_cdclk;
 
+	/*
+	 * check if the pre-os intialized the display
+	 * There is SWF18 scratchpad register defined which is set by the
+	 * pre-os which can be used by the OS drivers to check the status
+	 */
+	if ((I915_READ(SWF_ILK(0x18)) & 0x00FFFFFF) == 0)
+		goto sanitize;
+
 	/* Is PLL enabled and locked ? */
 	if (!((lcpll1 & LCPLL_PLL_ENABLE) && (lcpll1 & LCPLL_PLL_LOCK)))
 		goto sanitize;

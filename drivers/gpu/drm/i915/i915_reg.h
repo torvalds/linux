@@ -5005,6 +5005,7 @@ enum skl_disp_power_wells {
 #define SWF0(i)	(dev_priv->info.display_mmio_offset + 0x70410 + (i) * 4)
 #define SWF1(i)	(dev_priv->info.display_mmio_offset + 0x71410 + (i) * 4)
 #define SWF3(i)	(dev_priv->info.display_mmio_offset + 0x72414 + (i) * 4)
+#define SWF_ILK(i)	(0x4F000 + (i) * 4)
 
 /* Pipe B */
 #define _PIPEBDSL		(dev_priv->info.display_mmio_offset + 0x71000)
