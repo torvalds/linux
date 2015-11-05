@@ -542,6 +542,7 @@ static int linux_wlan_start_firmware(struct net_device *dev)
 
 	return 0;
 }
+
 static int linux_wlan_firmware_download(struct net_device *dev)
 {
 	perInterface_wlan_t *nic;
@@ -880,6 +881,7 @@ static int wlan_deinit_locks(struct net_device *dev)
 
 	return 0;
 }
+
 void linux_to_wlan(wilc_wlan_inp_t *nwi, struct wilc *nic)
 {
 	PRINT_D(INIT_DBG, "Linux to Wlan services ...\n");
