@@ -852,10 +852,11 @@ retry:
 
 		if (extras) {
 			rc = rpcrdma_ep_post_extra_recv(r_xprt, extras);
-			if (rc)
+			if (rc) {
 				pr_warn("%s: rpcrdma_ep_post_extra_recv: %i\n",
 					__func__, rc);
 				rc = 0;
+			}
 		}
 	}
 
