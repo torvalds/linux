@@ -477,12 +477,11 @@ int linux_wlan_get_firmware(struct net_device *dev)
 	nic = netdev_priv(dev);
 	wilc = nic->wilc;
 
-	if (nic->iftype == AP_MODE)
+	if (nic->iftype == AP_MODE) {
 		firmware = AP_FIRMWARE;
-	else if (nic->iftype == STATION_MODE)
+	} else if (nic->iftype == STATION_MODE) {
 		firmware = STA_FIRMWARE;
-
-	else {
+	} else {
 		PRINT_D(INIT_DBG, "Get P2P_CONCURRENCY_FIRMWARE\n");
 		firmware = P2P_CONCURRENCY_FIRMWARE;
 	}
