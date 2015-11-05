@@ -1219,7 +1219,7 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	perInterface_wlan_t *nic;
 	struct tx_complete_data *tx_data = NULL;
 	int queue_count;
-	char *pu8UdpBuffer;
+	char *udp_buf;
 	struct iphdr *ih;
 	struct ethhdr *eth_h;
 	struct wilc *wilc;
@@ -1252,10 +1252,11 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	ih = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
 
-	pu8UdpBuffer = (char *)ih + sizeof(struct iphdr);
-	if ((pu8UdpBuffer[1] == 68 && pu8UdpBuffer[3] == 67) ||
-	    (pu8UdpBuffer[1] == 67 && pu8UdpBuffer[3] == 68))
-		PRINT_D(GENERIC_DBG, "DHCP Message transmitted, type:%x %x %x\n", pu8UdpBuffer[248], pu8UdpBuffer[249], pu8UdpBuffer[250]);
+	udp_buf = (char *)ih + sizeof(struct iphdr);
+	if ((udp_buf[1] == 68 && udp_buf[3] == 67) ||
+	    (udp_buf[1] == 67 && udp_buf[3] == 68))
+		PRINT_D(GENERIC_DBG, "DHCP Message transmitted, type:%x %x %x\n",
+			udp_buf[248], udp_buf[249], udp_buf[250]);
 
 	PRINT_D(TX_DBG, "Sending packet - Size = %d - Address = %p - SKB = %p\n", tx_data->size, tx_data->buff, tx_data->skb);
 	PRINT_D(TX_DBG, "Adding tx packet to TX Queue\n");
