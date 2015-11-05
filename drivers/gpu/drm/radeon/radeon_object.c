@@ -221,6 +221,12 @@ int radeon_bo_create(struct radeon_device *rdev,
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 
+	/* Write-combined CPU mappings of GTT cause GPU hangs with RV6xx
+	 * See https://bugs.freedesktop.org/show_bug.cgi?id=91268
+	 */
+	if (rdev->family >= CHIP_RV610 && rdev->family <= CHIP_RV635)
+		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
+
 #ifdef CONFIG_X86_32
 	/* XXX: Write-combined CPU mappings of GTT seem broken on 32-bit
 	 * See https://bugs.freedesktop.org/show_bug.cgi?id=84627
