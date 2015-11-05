@@ -211,6 +211,41 @@ static void amd_sched_entity_wakeup(struct fence *f, struct fence_cb *cb)
 	amd_sched_wakeup(entity->sched);
 }
 
+static bool amd_sched_entity_add_dependency_cb(struct amd_sched_entity *entity)
+{
+	struct amd_gpu_scheduler *sched = entity->sched;
+	struct fence * fence = entity->dependency;
+	struct amd_sched_fence *s_fence;
+
+	if (fence->context == entity->fence_context) {
+		/* We can ignore fences from ourself */
+		fence_put(entity->dependency);
+		return false;
+	}
+
+	s_fence = to_amd_sched_fence(fence);
+	if (s_fence && s_fence->sched == sched) {
+		/* Fence is from the same scheduler */
+		if (test_bit(AMD_SCHED_FENCE_SCHEDULED_BIT, &fence->flags)) {
+			/* Ignore it when it is already scheduled */
+			fence_put(entity->dependency);
+			return false;
+		}
+
+		/* Wait for fence to be scheduled */
+		entity->cb.func = amd_sched_entity_wakeup;
+		list_add_tail(&entity->cb.node, &s_fence->scheduled_cb);
+		return true;
+	}
+
+	if (!fence_add_callback(entity->dependency, &entity->cb,
+				amd_sched_entity_wakeup))
+		return true;
+
+	fence_put(entity->dependency);
+	return false;
+}
+
 static struct amd_sched_job *
 amd_sched_entity_pop_job(struct amd_sched_entity *entity)
 {
@@ -223,20 +258,9 @@ amd_sched_entity_pop_job(struct amd_sched_entity *entity)
 	if (!kfifo_out_peek(&entity->job_queue, &sched_job, sizeof(sched_job)))
 		return NULL;
 
-	while ((entity->dependency = sched->ops->dependency(sched_job))) {
-
-		if (entity->dependency->context == entity->fence_context) {
-			/* We can ignore fences from ourself */
-			fence_put(entity->dependency);
-			continue;
-		}
-
-		if (fence_add_callback(entity->dependency, &entity->cb,
-				       amd_sched_entity_wakeup))
-			fence_put(entity->dependency);
-		else
+	while ((entity->dependency = sched->ops->dependency(sched_job)))
+		if (amd_sched_entity_add_dependency_cb(entity))
 			return NULL;
-	}
 
 	return sched_job;
 }
@@ -400,6 +424,7 @@ static int amd_sched_main(void *param)
 
 		atomic_inc(&sched->hw_rq_count);
 		fence = sched->ops->run_job(sched_job);
+		amd_sched_fence_scheduled(s_fence);
 		if (fence) {
 			r = fence_add_callback(fence, &s_fence->cb,
 					       amd_sched_process_job);
