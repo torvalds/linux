@@ -668,6 +668,70 @@
 		clock-names = "clk_nandc", "g_clk_nandc", "hclk_nandc";
 	};
 
+	otg: usb@30040000 {
+		compatible = "rockchip,rk3228_usb20_otg";
+		reg = <0x30040000 0x40000>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates1 5>, <&clk_gates11 12>;
+		clock-names = "clk_usbphy0", "hclk_usb0";
+		resets = <&reset RK3228_RST_USBOTG0>, <&reset RK3228_RST_UTMI0>,
+				<&reset RK3228_RST_OTGC0>;
+		reset-names = "otg_ahb", "otg_phy", "otg_controller";
+		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
+		rockchip,usb-mode = <0>;
+	};
+
+	ehci0: usb@30080000 {
+		compatible = "generic-ehci";
+		reg = <0x30080000 0x20000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates1 6>, <&clk_gates11 6>;
+		clock-names = "clk_usbphy1", "hclk_host0";
+		resets = <&reset RK3228_RST_USBHOST0>, <&reset RK3228_RST_UTMI1>,
+				<&reset RK3228_RST_HOST_CTRL0>;
+		reset-names = "host_ahb", "host_phy", "host_controller";
+	};
+
+	ohci0: usb@300a0000 {
+		compatible = "generic-ohci";
+		reg = <0x300a0000 0x20000>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	ehci1: usb@300c0000 {
+		compatible = "generic-ehci";
+		reg = <0x300c0000 0x20000>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates1 6>, <&clk_gates11 8>;
+		clock-names = "clk_usbphy1", "hclk_host0";
+		resets = <&reset RK3228_RST_USBHOST1>, <&reset RK3228_RST_UTMI2>,
+				<&reset RK3228_RST_HOST_CTRL1>;
+		reset-names = "host_ahb", "host_phy", "host_controller";
+	};
+
+	ohci1: usb@300e0000 {
+		compatible = "generic-ohci";
+		reg = <0x300e0000 0x20000>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	ehci2: usb@30100000 {
+		compatible = "generic-ehci";
+		reg = <0x30100000 0x20000>;
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates1 6>, <&clk_gates11 10>;
+		clock-names = "clk_usbphy1", "hclk_host0";
+		resets = <&reset RK3228_RST_USBHOST2>, <&reset RK3228_RST_UTMI3>,
+				<&reset RK3228_RST_HOST_CTRL2>;
+		reset-names = "host_ahb", "host_phy", "host_controller";
+	};
+
+	ohci2: usb@30120000 {
+		compatible = "generic-ohci";
+		reg = <0x30120000 0x20000>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3228-pinctrl";
 		rockchip,grf = <&grf>;
