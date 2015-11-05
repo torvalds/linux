@@ -31,18 +31,11 @@
 #include "linux_wlan_spi.h"
 #endif
 
-#if defined(CUSTOMER_PLATFORM)
-/*
- TODO : Write power control functions as customer platform.
- */
-#else
-
  #define _linux_wlan_device_power_on()		{}
  #define _linux_wlan_device_power_off()		{}
 
  #define _linux_wlan_device_detection()		{}
  #define _linux_wlan_device_removal()		{}
-#endif
 
 extern bool g_obtainingIP;
 extern void resolve_disconnect_aberration(void *drvHandler);
@@ -278,15 +271,7 @@ static int init_irq(struct net_device *dev)
 	/*GPIO request*/
 	if ((gpio_request(GPIO_NUM, "WILC_INTR") == 0) &&
 	    (gpio_direction_input(GPIO_NUM) == 0)) {
-#if defined(CUSTOMER_PLATFORM)
-/*
- TODO : save the registerd irq number to the private wilc context in kernel.
- *
- * ex) nic->dev_irq_num = gpio_to_irq(GPIO_NUM);
- */
-#else
 		wl->dev_irq_num = gpio_to_irq(GPIO_NUM);
-#endif
 	} else {
 		ret = -1;
 		PRINT_ER("could not obtain gpio for WILC_INTR\n");
