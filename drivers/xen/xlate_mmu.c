@@ -38,31 +38,28 @@
 #include <xen/interface/xen.h>
 #include <xen/interface/memory.h>
 
-/* map fgfn of domid to lpfn in the current domain */
-static int map_foreign_page(unsigned long lpfn, unsigned long fgfn,
-			    unsigned int domid)
+typedef void (*xen_gfn_fn_t)(unsigned long gfn, void *data);
+
+/* Break down the pages in 4KB chunk and call fn for each gfn */
+static void xen_for_each_gfn(struct page **pages, unsigned nr_gfn,
+			     xen_gfn_fn_t fn, void *data)
 {
-	int rc;
-	struct xen_add_to_physmap_range xatp = {
-		.domid = DOMID_SELF,
-		.foreign_domid = domid,
-		.size = 1,
-		.space = XENMAPSPACE_gmfn_foreign,
-	};
-	xen_ulong_t idx = fgfn;
-	xen_pfn_t gpfn = lpfn;
-	int err = 0;
+	unsigned long xen_pfn = 0;
+	struct page *page;
+	int i;
 
-	set_xen_guest_handle(xatp.idxs, &idx);
-	set_xen_guest_handle(xatp.gpfns, &gpfn);
-	set_xen_guest_handle(xatp.errs, &err);
-
-	rc = HYPERVISOR_memory_op(XENMEM_add_to_physmap_range, &xatp);
-	return rc < 0 ? rc : err;
+	for (i = 0; i < nr_gfn; i++) {
+		if ((i % XEN_PFN_PER_PAGE) == 0) {
+			page = pages[i / XEN_PFN_PER_PAGE];
+			xen_pfn = page_to_xen_pfn(page);
+		}
+		fn(pfn_to_gfn(xen_pfn++), data);
+	}
 }
 
 struct remap_data {
 	xen_pfn_t *fgfn; /* foreign domain's gfn */
+	int nr_fgfn; /* Number of foreign gfn left to map */
 	pgprot_t prot;
 	domid_t  domid;
 	struct vm_area_struct *vma;
@@ -71,24 +68,71 @@ struct remap_data {
 	struct xen_remap_gfn_info *info;
 	int *err_ptr;
 	int mapped;
+
+	/* Hypercall parameters */
+	int h_errs[XEN_PFN_PER_PAGE];
+	xen_ulong_t h_idxs[XEN_PFN_PER_PAGE];
+	xen_pfn_t h_gpfns[XEN_PFN_PER_PAGE];
+
+	int h_iter;	/* Iterator */
 };
+
+static void setup_hparams(unsigned long gfn, void *data)
+{
+	struct remap_data *info = data;
+
+	info->h_idxs[info->h_iter] = *info->fgfn;
+	info->h_gpfns[info->h_iter] = gfn;
+	info->h_errs[info->h_iter] = 0;
+
+	info->h_iter++;
+	info->fgfn++;
+}
 
 static int remap_pte_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
 			void *data)
 {
 	struct remap_data *info = data;
 	struct page *page = info->pages[info->index++];
-	unsigned long pfn = page_to_pfn(page);
-	pte_t pte = pte_mkspecial(pfn_pte(pfn, info->prot));
-	int rc;
+	pte_t pte = pte_mkspecial(pfn_pte(page_to_pfn(page), info->prot));
+	int rc, nr_gfn;
+	uint32_t i;
+	struct xen_add_to_physmap_range xatp = {
+		.domid = DOMID_SELF,
+		.foreign_domid = info->domid,
+		.space = XENMAPSPACE_gmfn_foreign,
+	};
 
-	rc = map_foreign_page(pfn, *info->fgfn, info->domid);
-	*info->err_ptr++ = rc;
-	if (!rc) {
-		set_pte_at(info->vma->vm_mm, addr, ptep, pte);
-		info->mapped++;
+	nr_gfn = min_t(typeof(info->nr_fgfn), XEN_PFN_PER_PAGE, info->nr_fgfn);
+	info->nr_fgfn -= nr_gfn;
+
+	info->h_iter = 0;
+	xen_for_each_gfn(&page, nr_gfn, setup_hparams, info);
+	BUG_ON(info->h_iter != nr_gfn);
+
+	set_xen_guest_handle(xatp.idxs, info->h_idxs);
+	set_xen_guest_handle(xatp.gpfns, info->h_gpfns);
+	set_xen_guest_handle(xatp.errs, info->h_errs);
+	xatp.size = nr_gfn;
+
+	rc = HYPERVISOR_memory_op(XENMEM_add_to_physmap_range, &xatp);
+
+	/* info->err_ptr expect to have one error status per Xen PFN */
+	for (i = 0; i < nr_gfn; i++) {
+		int err = (rc < 0) ? rc : info->h_errs[i];
+
+		*(info->err_ptr++) = err;
+		if (!err)
+			info->mapped++;
 	}
-	info->fgfn++;
+
+	/*
+	 * Note: The hypercall will return 0 in most of the case if even if
+	 * all the fgmfn are not mapped. We still have to update the pte
+	 * as the userspace may decide to continue.
+	 */
+	if (!rc)
+		set_pte_at(info->vma->vm_mm, addr, ptep, pte);
 
 	return 0;
 }
@@ -102,13 +146,14 @@ int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 {
 	int err;
 	struct remap_data data;
-	unsigned long range = nr << PAGE_SHIFT;
+	unsigned long range = DIV_ROUND_UP(nr, XEN_PFN_PER_PAGE) << PAGE_SHIFT;
 
 	/* Kept here for the purpose of making sure code doesn't break
 	   x86 PVOPS */
 	BUG_ON(!((vma->vm_flags & (VM_PFNMAP | VM_IO)) == (VM_PFNMAP | VM_IO)));
 
 	data.fgfn = gfn;
+	data.nr_fgfn = nr;
 	data.prot  = prot;
 	data.domid = domid;
 	data.vma   = vma;
@@ -123,21 +168,20 @@ int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(xen_xlate_remap_gfn_array);
 
+static void unmap_gfn(unsigned long gfn, void *data)
+{
+	struct xen_remove_from_physmap xrp;
+
+	xrp.domid = DOMID_SELF;
+	xrp.gpfn = gfn;
+	(void)HYPERVISOR_memory_op(XENMEM_remove_from_physmap, &xrp);
+}
+
 int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 			      int nr, struct page **pages)
 {
-	int i;
+	xen_for_each_gfn(pages, nr, unmap_gfn, NULL);
 
-	for (i = 0; i < nr; i++) {
-		struct xen_remove_from_physmap xrp;
-		unsigned long pfn;
-
-		pfn = page_to_pfn(pages[i]);
-
-		xrp.domid = DOMID_SELF;
-		xrp.gpfn = pfn;
-		(void)HYPERVISOR_memory_op(XENMEM_remove_from_physmap, &xrp);
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xen_xlate_unmap_gfn_range);
