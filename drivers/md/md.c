@@ -1962,12 +1962,9 @@ int md_integrity_register(struct mddev *mddev)
 	 * All component devices are integrity capable and have matching
 	 * profiles, register the common profile for the md device.
 	 */
-	if (blk_integrity_register(mddev->gendisk,
-			bdev_get_integrity(reference->bdev)) != 0) {
-		printk(KERN_ERR "md: failed to register integrity for %s\n",
-			mdname(mddev));
-		return -EINVAL;
-	}
+	blk_integrity_register(mddev->gendisk,
+			       bdev_get_integrity(reference->bdev));
+
 	printk(KERN_NOTICE "md: data integrity enabled on %s\n", mdname(mddev));
 	if (bioset_integrity_create(mddev->bio_set, BIO_POOL_SIZE)) {
 		printk(KERN_ERR "md: failed to create integrity pool for %s\n",
@@ -1997,6 +1994,7 @@ void md_integrity_add_rdev(struct md_rdev *rdev, struct mddev *mddev)
 	if (bi_rdev && blk_integrity_compare(mddev->gendisk,
 					     rdev->bdev->bd_disk) >= 0)
 		return;
+	WARN_ON_ONCE(!mddev->suspended);
 	printk(KERN_NOTICE "disabling data integrity on %s\n", mdname(mddev));
 	blk_integrity_unregister(mddev->gendisk);
 }
@@ -5542,7 +5540,6 @@ static int do_md_stop(struct mddev *mddev, int mode,
 		if (mddev->hold_active == UNTIL_STOP)
 			mddev->hold_active = 0;
 	}
-	blk_integrity_unregister(disk);
 	md_new_event(mddev);
 	sysfs_notify_dirent_safe(mddev->sysfs_state);
 	return 0;

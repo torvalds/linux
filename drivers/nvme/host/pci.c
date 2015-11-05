@@ -538,7 +538,7 @@ static void nvme_dif_remap(struct request *req,
 	virt = bip_get_seed(bip);
 	phys = nvme_block_nr(ns, blk_rq_pos(req));
 	nlb = (blk_rq_bytes(req) >> ns->lba_shift);
-	ts = ns->disk->integrity->tuple_size;
+	ts = ns->disk->queue->integrity.tuple_size;
 
 	for (i = 0; i < nlb; i++, virt++, phys++) {
 		pi = (struct t10_pi_tuple *)p;
@@ -548,36 +548,20 @@ static void nvme_dif_remap(struct request *req,
 	kunmap_atomic(pmap);
 }
 
-static int nvme_noop_verify(struct blk_integrity_iter *iter)
-{
-	return 0;
-}
-
-static int nvme_noop_generate(struct blk_integrity_iter *iter)
-{
-	return 0;
-}
-
-struct blk_integrity nvme_meta_noop = {
-	.name			= "NVME_META_NOOP",
-	.generate_fn		= nvme_noop_generate,
-	.verify_fn		= nvme_noop_verify,
-};
-
 static void nvme_init_integrity(struct nvme_ns *ns)
 {
 	struct blk_integrity integrity;
 
 	switch (ns->pi_type) {
 	case NVME_NS_DPS_PI_TYPE3:
-		integrity = t10_pi_type3_crc;
+		integrity.profile = &t10_pi_type3_crc;
 		break;
 	case NVME_NS_DPS_PI_TYPE1:
 	case NVME_NS_DPS_PI_TYPE2:
-		integrity = t10_pi_type1_crc;
+		integrity.profile = &t10_pi_type1_crc;
 		break;
 	default:
-		integrity = nvme_meta_noop;
+		integrity.profile = NULL;
 		break;
 	}
 	integrity.tuple_size = ns->ms;
@@ -2052,6 +2036,7 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 	pi_type = ns->ms == sizeof(struct t10_pi_tuple) ?
 					id->dps & NVME_NS_DPS_PI_MASK : 0;
 
+	blk_mq_freeze_queue(disk->queue);
 	if (blk_get_integrity(disk) && (ns->pi_type != pi_type ||
 				ns->ms != old_ms ||
 				bs != queue_logical_block_size(disk->queue) ||
@@ -2061,8 +2046,7 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 	ns->pi_type = pi_type;
 	blk_queue_logical_block_size(ns->queue, bs);
 
-	if (ns->ms && !blk_get_integrity(disk) && (disk->flags & GENHD_FL_UP) &&
-								!ns->ext)
+	if (ns->ms && !ns->ext)
 		nvme_init_integrity(ns);
 
 	if ((ns->ms && !(ns->ms == 8 && ns->pi_type) &&
@@ -2074,6 +2058,7 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 
 	if (dev->oncs & NVME_CTRL_ONCS_DSM)
 		nvme_config_discard(ns);
+	blk_mq_unfreeze_queue(disk->queue);
 
 	kfree(id);
 	return 0;
@@ -2429,11 +2414,8 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 
 	if (kill)
 		blk_set_queue_dying(ns->queue);
-	if (ns->disk->flags & GENHD_FL_UP) {
-		if (blk_get_integrity(ns->disk))
-			blk_integrity_unregister(ns->disk);
+	if (ns->disk->flags & GENHD_FL_UP)
 		del_gendisk(ns->disk);
-	}
 	if (kill || !blk_queue_dying(ns->queue)) {
 		blk_mq_abort_requeue_list(ns->queue);
 		blk_cleanup_queue(ns->queue);
