@@ -1,68 +1,52 @@
 /*
-
-comedi/drivers/adl_pci9111.c
-
-Hardware driver for PCI9111 ADLink cards:
-
-PCI-9111HR
-
-Copyright (C) 2002-2005 Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-*/
+ * adl_pci9111.c
+ * Hardware driver for PCI9111 ADLink cards: PCI-9111HR
+ * Copyright (C) 2002-2005 Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-Driver: adl_pci9111
-Description: Adlink PCI-9111HR
-Author: Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
-Devices: [ADLink] PCI-9111HR (adl_pci9111)
-Status: experimental
-
-Supports:
-
-	- ai_insn read
-	- ao_insn read/write
-	- di_insn read
-	- do_insn read/write
-	- ai_do_cmd mode with the following sources:
-
-	- start_src		TRIG_NOW
-	- scan_begin_src	TRIG_FOLLOW	TRIG_TIMER	TRIG_EXT
-	- convert_src				TRIG_TIMER	TRIG_EXT
-	- scan_end_src		TRIG_COUNT
-	- stop_src		TRIG_COUNT	TRIG_NONE
-
-The scanned channels must be consecutive and start from 0. They must
-all have the same range and aref.
-
-Configuration options: not applicable, uses PCI auto config
-*/
+ * Driver: adl_pci9111
+ * Description: Adlink PCI-9111HR
+ * Devices: [ADLink] PCI-9111HR (adl_pci9111)
+ * Author: Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
+ * Status: experimental
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ *
+ * Supports:
+ * - ai_insn read
+ * - ao_insn read/write
+ * - di_insn read
+ * - do_insn read/write
+ * - ai_do_cmd mode with the following sources:
+ *	- start_src		TRIG_NOW
+ *	- scan_begin_src	TRIG_FOLLOW	TRIG_TIMER	TRIG_EXT
+ *	- convert_src				TRIG_TIMER	TRIG_EXT
+ *	- scan_end_src		TRIG_COUNT
+ *	- stop_src		TRIG_COUNT	TRIG_NONE
+ *
+ * The scanned channels must be consecutive and start from 0. They must
+ * all have the same range and aref.
+ */
 
 /*
-CHANGELOG:
-
-2005/02/17 Extend AI streaming capabilities. Now, scan_begin_arg can be
-a multiple of chanlist_len*convert_arg.
-2002/02/19 Fixed the two's complement conversion in pci9111_(hr_)ai_get_data.
-2002/02/18 Added external trigger support for analog input.
-
-TODO:
-
-	- Really test implemented functionality.
-	- Add support for the PCI-9111DG with a probe routine to identify
-	  the card type (perhaps with the help of the channel number readback
-	  of the A/D Data register).
-	- Add external multiplexer support.
-
-*/
+ * TODO:
+ * - Really test implemented functionality.
+ * - Add support for the PCI-9111DG with a probe routine to identify
+ *   the card type (perhaps with the help of the channel number readback
+ *   of the A/D Data register).
+ * - Add external multiplexer support.
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -89,23 +73,24 @@ TODO:
 #define PCI9111_EDIO_REG		0x04
 #define PCI9111_AI_CHANNEL_REG		0x06
 #define PCI9111_AI_RANGE_STAT_REG	0x08
-#define PCI9111_AI_STAT_AD_BUSY		(1 << 7)
-#define PCI9111_AI_STAT_FF_FF		(1 << 6)
-#define PCI9111_AI_STAT_FF_HF		(1 << 5)
-#define PCI9111_AI_STAT_FF_EF		(1 << 4)
-#define PCI9111_AI_RANGE_MASK		(7 << 0)
+#define PCI9111_AI_STAT_AD_BUSY		BIT(7)
+#define PCI9111_AI_STAT_FF_FF		BIT(6)
+#define PCI9111_AI_STAT_FF_HF		BIT(5)
+#define PCI9111_AI_STAT_FF_EF		BIT(4)
+#define PCI9111_AI_RANGE(x)		(((x) & 0x7) << 0)
+#define PCI9111_AI_RANGE_MASK		PCI9111_AI_RANGE(7)
 #define PCI9111_AI_TRIG_CTRL_REG	0x0a
-#define PCI9111_AI_TRIG_CTRL_TRGEVENT	(1 << 5)
-#define PCI9111_AI_TRIG_CTRL_POTRG	(1 << 4)
-#define PCI9111_AI_TRIG_CTRL_PTRG	(1 << 3)
-#define PCI9111_AI_TRIG_CTRL_ETIS	(1 << 2)
-#define PCI9111_AI_TRIG_CTRL_TPST	(1 << 1)
-#define PCI9111_AI_TRIG_CTRL_ASCAN	(1 << 0)
+#define PCI9111_AI_TRIG_CTRL_TRGEVENT	BIT(5)
+#define PCI9111_AI_TRIG_CTRL_POTRG	BIT(4)
+#define PCI9111_AI_TRIG_CTRL_PTRG	BIT(3)
+#define PCI9111_AI_TRIG_CTRL_ETIS	BIT(2)
+#define PCI9111_AI_TRIG_CTRL_TPST	BIT(1)
+#define PCI9111_AI_TRIG_CTRL_ASCAN	BIT(0)
 #define PCI9111_INT_CTRL_REG		0x0c
-#define PCI9111_INT_CTRL_ISC2		(1 << 3)
-#define PCI9111_INT_CTRL_FFEN		(1 << 2)
-#define PCI9111_INT_CTRL_ISC1		(1 << 1)
-#define PCI9111_INT_CTRL_ISC0		(1 << 0)
+#define PCI9111_INT_CTRL_ISC2		BIT(3)
+#define PCI9111_INT_CTRL_FFEN		BIT(2)
+#define PCI9111_INT_CTRL_ISC1		BIT(1)
+#define PCI9111_INT_CTRL_ISC0		BIT(0)
 #define PCI9111_SOFT_TRIG_REG		0x0e
 #define PCI9111_8254_BASE_REG		0x40
 #define PCI9111_INT_CLR_REG		0x48
@@ -139,21 +124,21 @@ struct pci9111_private_data {
 };
 
 static void plx9050_interrupt_control(unsigned long io_base,
-				      bool LINTi1_enable,
-				      bool LINTi1_active_high,
-				      bool LINTi2_enable,
-				      bool LINTi2_active_high,
+				      bool int1_enable,
+				      bool int1_active_high,
+				      bool int2_enable,
+				      bool int2_active_high,
 				      bool interrupt_enable)
 {
 	int flags = 0;
 
-	if (LINTi1_enable)
+	if (int1_enable)
 		flags |= PLX9052_INTCSR_LI1ENAB;
-	if (LINTi1_active_high)
+	if (int1_active_high)
 		flags |= PLX9052_INTCSR_LI1POL;
-	if (LINTi2_enable)
+	if (int2_enable)
 		flags |= PLX9052_INTCSR_LI2ENAB;
-	if (LINTi2_active_high)
+	if (int2_active_high)
 		flags |= PLX9052_INTCSR_LI2POL;
 
 	if (interrupt_enable)
@@ -363,6 +348,7 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	struct pci9111_private_data *dev_private = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int last_chan = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
 	unsigned int trig = 0;
 
 	/*  Set channel scan limit */
@@ -374,11 +360,8 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 
 	outb(last_chan, dev->iobase + PCI9111_AI_CHANNEL_REG);
 
-	/*  Set gain */
-	/*  This is the same gain on every channel */
-
-	outb(CR_RANGE(cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
-	     dev->iobase + PCI9111_AI_RANGE_STAT_REG);
+	/*  Set gain - all channels use the same range */
+	outb(PCI9111_AI_RANGE(range0), dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
 	/*  Set timer pacer */
 	dev_private->scan_delay = 0;
@@ -434,14 +417,14 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 {
 	struct pci9111_private_data *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned short *buf = devpriv->ai_bounce_buffer;
 	unsigned int samples;
 
 	samples = comedi_nsamples_left(s, PCI9111_FIFO_HALF_SIZE);
-	insw(dev->iobase + PCI9111_AI_FIFO_REG,
-	     devpriv->ai_bounce_buffer, samples);
+	insw(dev->iobase + PCI9111_AI_FIFO_REG, buf, samples);
 
 	if (devpriv->scan_delay < 1) {
-		comedi_buf_write_samples(s, devpriv->ai_bounce_buffer, samples);
+		comedi_buf_write_samples(s, buf, samples);
 	} else {
 		unsigned int pos = 0;
 		unsigned int to_read;
@@ -454,9 +437,7 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 				if (to_read > samples - pos)
 					to_read = samples - pos;
 
-				comedi_buf_write_samples(s,
-						devpriv->ai_bounce_buffer + pos,
-						to_read);
+				comedi_buf_write_samples(s, buf + pos, to_read);
 			} else {
 				to_read = devpriv->chunk_num_samples -
 					  devpriv->chunk_counter;
@@ -571,7 +552,7 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 
 	status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 	if ((status & PCI9111_AI_RANGE_MASK) != range) {
-		outb(range & PCI9111_AI_RANGE_MASK,
+		outb(PCI9111_AI_RANGE(range),
 		     dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 	}
 

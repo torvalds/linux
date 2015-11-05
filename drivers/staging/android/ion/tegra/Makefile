@@ -1,1 +1,1 @@
-obj-y += tegra_ion.o
+obj-$(CONFIG_ION_TEGRA) += tegra_ion.o

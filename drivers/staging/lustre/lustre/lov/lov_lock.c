@@ -144,7 +144,7 @@ static struct cl_lock *lov_sublock_alloc(const struct lu_env *env,
 
 	LASSERT(idx < lck->lls_nr);
 
-	OBD_SLAB_ALLOC_PTR_GFP(link, lov_lock_link_kmem, GFP_NOFS);
+	link = kmem_cache_alloc(lov_lock_link_kmem, GFP_NOFS | __GFP_ZERO);
 	if (link != NULL) {
 		struct lov_sublock_env *subenv;
 		struct lov_lock_sub  *lls;
@@ -173,7 +173,7 @@ static struct cl_lock *lov_sublock_alloc(const struct lu_env *env,
 		if (!IS_ERR(sublock))
 			*out = link;
 		else
-			OBD_SLAB_FREE_PTR(link, lov_lock_link_kmem);
+			kmem_cache_free(lov_lock_link_kmem, link);
 	} else
 		sublock = ERR_PTR(-ENOMEM);
 	return sublock;
@@ -227,6 +227,7 @@ static int lov_sublock_lock(const struct lu_env *env,
 			result = CLO_REPEAT;
 		} else if (lsep) {
 			struct lov_sublock_env *subenv;
+
 			subenv = lov_sublock_env_get(env, parent, lls);
 			if (IS_ERR(subenv)) {
 				lov_sublock_unlock(env, sublock,
@@ -443,7 +444,7 @@ static void lov_lock_fini(const struct lu_env *env,
 			LASSERT(lck->lls_sub[i].sub_lock == NULL);
 		kvfree(lck->lls_sub);
 	}
-	OBD_SLAB_FREE_PTR(lck, lov_lock_kmem);
+	kmem_cache_free(lov_lock_kmem, lck);
 }
 
 static int lov_lock_enqueue_wait(const struct lu_env *env,
@@ -517,7 +518,7 @@ static int lov_sublock_fill(const struct lu_env *env, struct cl_lock *parent,
 		    lck->lls_sub[idx].sub_lock == NULL) {
 			lov_sublock_adopt(env, lck, sublock, idx, link);
 		} else {
-			OBD_SLAB_FREE_PTR(link, lov_lock_link_kmem);
+			kmem_cache_free(lov_lock_link_kmem, link);
 			/* other thread allocated sub-lock, or enqueue is no
 			 * longer going on */
 			cl_lock_mutex_put(env, parent);
@@ -676,7 +677,6 @@ static int lov_lock_unuse(const struct lu_env *env,
 	cl_lock_closure_fini(closure);
 	return result;
 }
-
 
 static void lov_lock_cancel(const struct lu_env *env,
 			   const struct cl_lock_slice *slice)
@@ -981,6 +981,7 @@ static int lov_lock_fits_into(const struct lu_env *env,
 		result = cl_lock_ext_match(&lov->lls_orig, need);
 	else if (lov->lls_nr == 1) {
 		struct cl_lock_descr *got = &lov->lls_sub[0].sub_got;
+
 		result = lov_lock_stripe_is_matching(env,
 						     cl2lov(slice->cls_obj),
 						     lov->lls_sub[0].sub_stripe,
@@ -1026,7 +1027,7 @@ void lov_lock_unlink(const struct lu_env *env,
 	lck->lls_nr_filled--;
 	lu_ref_del(&parent->cll_reference, "lov-child", sub->lss_cl.cls_lock);
 	cl_lock_put(env, parent);
-	OBD_SLAB_FREE_PTR(link, lov_lock_link_kmem);
+	kmem_cache_free(lov_lock_link_kmem, link);
 }
 
 struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
@@ -1138,7 +1139,7 @@ int lov_lock_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	struct lov_lock *lck;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lck, lov_lock_kmem, GFP_NOFS);
+	lck = kmem_cache_alloc(lov_lock_kmem, GFP_NOFS | __GFP_ZERO);
 	if (lck != NULL) {
 		cl_lock_slice_add(lock, &lck->lls_cl, obj, &lov_lock_ops);
 		result = lov_lock_sub_init(env, lck, io);
@@ -1151,7 +1152,8 @@ static void lov_empty_lock_fini(const struct lu_env *env,
 				struct cl_lock_slice *slice)
 {
 	struct lov_lock *lck = cl2lov_lock(slice);
-	OBD_SLAB_FREE_PTR(lck, lov_lock_kmem);
+
+	kmem_cache_free(lov_lock_kmem, lck);
 }
 
 static int lov_empty_lock_print(const struct lu_env *env, void *cookie,
@@ -1173,7 +1175,7 @@ int lov_lock_init_empty(const struct lu_env *env, struct cl_object *obj,
 	struct lov_lock *lck;
 	int result = -ENOMEM;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lck, lov_lock_kmem, GFP_NOFS);
+	lck = kmem_cache_alloc(lov_lock_kmem, GFP_NOFS | __GFP_ZERO);
 	if (lck != NULL) {
 		cl_lock_slice_add(lock, &lck->lls_cl, obj, &lov_empty_lock_ops);
 		lck->lls_orig = lock->cll_descr;
@@ -1192,6 +1194,5 @@ static struct cl_lock_closure *lov_closure_get(const struct lu_env *env,
 	cl_lock_closure_init(env, closure, parent, 1);
 	return closure;
 }
-
 
 /** @} lov */

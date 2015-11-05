@@ -6740,6 +6740,12 @@ W:	http://linuxtv.org
 S:	Maintained
 F:	drivers/media/radio/radio-maxiradio*
 
+MCP4531 MICROCHIP DIGITAL POTENTIOMETER DRIVER
+M:	Peter Rosin <peda@axentia.se>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/potentiometer/mcp4531.c
+
 MEDIA DRIVERS FOR RENESAS - VSP1
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
@@ -6974,6 +6980,13 @@ T:	git git://openfabrics.org/~eli/connect-ib.git
 S:	Supported
 F:	include/linux/mlx5/
 F:	drivers/infiniband/hw/mlx5/
+
+MELEXIS MLX90614 DRIVER
+M:	Crt Mori <cmo@melexis.com>
+L:	linux-iio@vger.kernel.org
+W:	http://www.melexis.com
+S:	Supported
+F:	drivers/iio/temperature/mlx90614.c
 
 MN88472 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
@@ -10069,9 +10082,11 @@ F:	drivers/staging/vt665?/
 
 STAGING - WILC1000 WIFI DRIVER
 M:	Johnny Kim <johnny.kim@atmel.com>
-M:	Rachel Kim <rachel.kim@atmel.com>
-M:	Dean Lee <dean.lee@atmel.com>
+M:	Austin Shin <austin.shin@atmel.com>
 M:	Chris Park <chris.park@atmel.com>
+M:	Tony Cho <tony.cho@atmel.com>
+M:	Glen Lee <glen.lee@atmel.com>
+M:	Leo Kim <leo.kim@atmel.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
 F:	drivers/staging/wilc1000/

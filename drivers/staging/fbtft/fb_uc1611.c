@@ -72,8 +72,6 @@ static int init_display(struct fbtft_par *par)
 {
 	int ret;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* Set CS active high */
 	par->spi->mode |= SPI_CS_HIGH;
 	ret = spi_setup(par->spi);
@@ -115,10 +113,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		      "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n",
-		      __func__, xs, ys, xe, ye);
-
 	switch (par->info->var.rotate) {
 	case 90:
 	case 270:
@@ -156,8 +150,6 @@ static int blank(struct fbtft_par *par, bool on)
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* par->info->fix.visual = FB_VISUAL_PSEUDOCOLOR; */
 	par->info->var.grayscale = 1;
 	par->info->var.red.offset    = 0;
@@ -229,7 +221,7 @@ static int set_var(struct fbtft_par *par)
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u8 *vmem8 = (u8 *)(par->info->screen_base);
+	u8 *vmem8 = (u8 *)(par->info->screen_buffer);
 	u8 *buf8 = (u8 *)(par->txbuf.buf);
 	u16 *buf16 = (u16 *)(par->txbuf.buf);
 	int line_length = par->info->fix.line_length;
@@ -237,8 +229,6 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	int y_end = (offset + len - 1) / line_length;
 	int x, y, i;
 	int ret = 0;
-
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
 
 	switch (par->pdata->display.buswidth) {
 	case 8:

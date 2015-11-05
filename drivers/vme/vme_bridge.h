@@ -75,10 +75,13 @@ struct vme_lm_resource {
 	int monitors;
 };
 
-struct vme_bus_error {
+struct vme_error_handler {
 	struct list_head list;
-	unsigned long long address;
-	u32 attributes;
+	unsigned long long start;	/* Beginning of error window */
+	unsigned long long end;		/* End of error window */
+	unsigned long long first_error;	/* Address of the first error */
+	u32 aspace;			/* Address space of error window*/
+	unsigned num_errors;		/* Number of errors */
 };
 
 struct vme_callback {
@@ -106,8 +109,10 @@ struct vme_bridge {
 	struct list_head dma_resources;
 	struct list_head lm_resources;
 
-	struct list_head vme_errors;	/* List for errors generated on VME */
-	struct list_head devices;	/* List of devices on this bridge */
+	/* List for registered errors handlers */
+	struct list_head vme_error_handlers;
+	/* List of devices on this bridge */
+	struct list_head devices;
 
 	/* Bridge Info - XXX Move to private structure? */
 	struct device *parent;	/* Parent device (eg. pdev->dev for PCI) */
@@ -166,9 +171,15 @@ struct vme_bridge {
 		void *vaddr, dma_addr_t dma);
 };
 
+void vme_bus_error_handler(struct vme_bridge *bridge,
+			   unsigned long long address, int am);
 void vme_irq_handler(struct vme_bridge *, int, int);
 
 int vme_register_bridge(struct vme_bridge *);
 void vme_unregister_bridge(struct vme_bridge *);
+struct vme_error_handler *vme_register_error_handler(
+	struct vme_bridge *bridge, u32 aspace,
+	unsigned long long address, size_t len);
+void vme_unregister_error_handler(struct vme_error_handler *handler);
 
 #endif /* _VME_BRIDGE_H_ */

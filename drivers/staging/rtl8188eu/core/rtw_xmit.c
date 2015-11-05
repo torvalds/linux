@@ -21,6 +21,7 @@
 
 #include <osdep_service.h>
 #include <drv_types.h>
+#include <mon.h>
 #include <wifi.h>
 #include <osdep_intf.h>
 #include <linux/vmalloc.h>
@@ -1099,6 +1100,9 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 		mem_start = (unsigned char *)round_up(addr, 4) + hw_hdr_offset;
 		memcpy(mem_start, pbuf_start + hw_hdr_offset, pattrib->hdrlen);
 	}
+
+	/* Frame is about to be encrypted. Forward it to the monitor first. */
+	rtl88eu_mon_xmit_hook(padapter->pmondev, pxmitframe, frg_len);
 
 	if (xmitframe_addmic(padapter, pxmitframe) == _FAIL) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("xmitframe_addmic(padapter, pxmitframe) == _FAIL\n"));

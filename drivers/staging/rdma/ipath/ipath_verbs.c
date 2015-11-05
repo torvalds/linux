@@ -739,9 +739,9 @@ static void ipath_ib_timer(struct ipath_ibdev *dev)
 			dev->ipath_spkts = tc - dev->ipath_spkts;
 			dev->ipath_rpkts = td - dev->ipath_rpkts;
 			dev->ipath_xmit_wait = te - dev->ipath_xmit_wait;
-		}
-		else
+		} else {
 			dev->pma_sample_interval--;
+		}
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 
@@ -1956,9 +1956,8 @@ static int enable_timer(struct ipath_devdata *dd)
 				 dd->ipath_gpio_mask);
 	}
 
-	init_timer(&dd->verbs_timer);
-	dd->verbs_timer.function = __verbs_timer;
-	dd->verbs_timer.data = (unsigned long)dd;
+	setup_timer(&dd->verbs_timer, __verbs_timer, (unsigned long)dd);
+
 	dd->verbs_timer.expires = jiffies + 1;
 	add_timer(&dd->verbs_timer);
 
@@ -2025,8 +2024,8 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev = &idev->ibdev;
 
 	if (dd->ipath_sdma_descq_cnt) {
-		tx = kmalloc(dd->ipath_sdma_descq_cnt * sizeof *tx,
-			     GFP_KERNEL);
+		tx = kmalloc_array(dd->ipath_sdma_descq_cnt, sizeof *tx,
+				   GFP_KERNEL);
 		if (tx == NULL) {
 			ret = -ENOMEM;
 			goto err_tx;
@@ -2059,7 +2058,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	 * the LKEY).  The remaining bits act as a generation number or tag.
 	 */
 	idev->lk_table.max = 1 << ib_ipath_lkey_table_size;
-	idev->lk_table.table = kzalloc(idev->lk_table.max *
+	idev->lk_table.table = kcalloc(idev->lk_table.max,
 				       sizeof(*idev->lk_table.table),
 				       GFP_KERNEL);
 	if (idev->lk_table.table == NULL) {

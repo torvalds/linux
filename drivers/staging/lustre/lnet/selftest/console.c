@@ -40,7 +40,6 @@
  * Author: Liang Zhen <liangzhen@clusterfs.com>
  */
 
-
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../../include/linux/lnet/lib-lnet.h"
 #include "console.h"
@@ -308,7 +307,7 @@ lstcon_group_ndlink_release(lstcon_group_t *grp, lstcon_ndlink_t *ndl)
 {
 	list_del_init(&ndl->ndl_link);
 	lstcon_ndlink_release(ndl);
-	grp->grp_nnode --;
+	grp->grp_nnode--;
 }
 
 static void
@@ -320,7 +319,7 @@ lstcon_group_ndlink_move(lstcon_group_t *old,
 
 	list_del(&ndl->ndl_hlink);
 	list_del(&ndl->ndl_link);
-	old->grp_nnode --;
+	old->grp_nnode--;
 
 	list_add_tail(&ndl->ndl_hlink, &new->grp_ndl_hash[idx]);
 	list_add_tail(&ndl->ndl_link, &new->grp_ndl_list);
@@ -527,7 +526,7 @@ lstcon_group_add(char *name)
 	lstcon_group_t *grp;
 	int rc;
 
-	rc = (lstcon_group_find(name, &grp) == 0)? -EEXIST: 0;
+	rc = (lstcon_group_find(name, &grp) == 0) ? -EEXIST : 0;
 	if (rc != 0) {
 		/* find a group with same name */
 		lstcon_group_put(grp);
@@ -816,7 +815,7 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t *gents_p,
 		LST_NODE_STATE_COUNTER(ndl->ndl_node, gentp);
 
 	rc = copy_to_user(gents_p, gentp,
-			      sizeof(lstcon_ndlist_ent_t)) ? -EFAULT: 0;
+			      sizeof(lstcon_ndlist_ent_t)) ? -EFAULT : 0;
 
 	LIBCFS_FREE(gentp, sizeof(lstcon_ndlist_ent_t));
 
@@ -847,7 +846,7 @@ lstcon_batch_add(char *name)
 	int i;
 	int rc;
 
-	rc = (lstcon_batch_find(name, &bat) == 0)? -EEXIST: 0;
+	rc = (lstcon_batch_find(name, &bat) == 0) ? -EEXIST : 0;
 	if (rc != 0) {
 		CDEBUG(D_NET, "Batch %s already exists\n", name);
 		return rc;
@@ -911,7 +910,7 @@ lstcon_batch_list(int index, int len, char *name_up)
 	list_for_each_entry(bat, &console_session.ses_bat_list, bat_link) {
 		if (index-- == 0) {
 			return copy_to_user(name_up, bat->bat_name, len) ?
-			       -EFAULT: 0;
+			       -EFAULT : 0;
 		}
 	}
 
@@ -956,7 +955,7 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t *ent_up, int server,
 				  &test->tes_dst_grp->grp_ndl_list;
 
 	if (dents_up != NULL) {
-		rc = lstcon_nodes_getent((server ? srvlst: clilst),
+		rc = lstcon_nodes_getent((server ? srvlst : clilst),
 					 index_p, ndent_p, dents_up);
 		return rc;
 	}
@@ -1683,7 +1682,7 @@ int
 lstcon_session_match(lst_sid_t sid)
 {
 	return (console_session.ses_id.ses_nid   == sid.ses_nid &&
-		console_session.ses_id.ses_stamp == sid.ses_stamp) ?  1: 0;
+		console_session.ses_id.ses_stamp == sid.ses_stamp) ?  1 : 0;
 }
 
 static void
@@ -2004,7 +2003,7 @@ lstcon_console_init(void)
 	console_session.ses_expired	  = 0;
 	console_session.ses_feats_updated = 0;
 	console_session.ses_features	  = LST_FEATS_MASK;
-	console_session.ses_laststamp	  = get_seconds();
+	console_session.ses_laststamp	  = ktime_get_real_seconds();
 
 	mutex_init(&console_session.ses_mutex);
 
@@ -2020,7 +2019,6 @@ lstcon_console_init(void)
 
 	for (i = 0; i < LST_GLOBAL_HASHSIZE; i++)
 		INIT_LIST_HEAD(&console_session.ses_ndl_hash[i]);
-
 
 	/* initialize acceptor service table */
 	lstcon_init_acceptor_service();

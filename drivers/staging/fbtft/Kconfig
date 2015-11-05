@@ -141,6 +141,16 @@ config FB_TFT_ST7735R
 	help
 	  Generic Framebuffer support for ST7735R
 
+config FB_TFT_ST7789V
+	tristate "FB driver for the ST7789V LCD Controller"
+	depends on FB_TFT
+	help
+	  This enables generic framebuffer support for the Sitronix ST7789V
+	  display controller. The controller is intended for small color
+	  displays with a resolution of up to 320x240 pixels.
+
+	  Say Y if you have such a display that utilizes this controller.
+
 config FB_TFT_TINYLCD
 	tristate "FB driver for tinylcd.com display"
 	depends on FB_TFT

@@ -249,13 +249,13 @@ int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 		goto Exit;
 	}
 	firmware_buf = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	fw_size = fw->size;
+	release_firmware(fw);
 	if (!firmware_buf) {
 		rtStatus = _FAIL;
 		goto Exit;
 	}
 	buf = firmware_buf;
-	fw_size = fw->size;
-	release_firmware(fw);
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
 	pFwHdr = (struct rt_8723a_firmware_hdr *)firmware_buf;
@@ -1497,29 +1497,6 @@ void Hal_EfuseParseIDCode(struct rtw_adapter *padapter, u8 *hwinfo)
 		 "EEPROM ID = 0x%04x\n", EEPROMId);
 }
 
-static void Hal_EEValueCheck(u8 EEType, void *pInValue, void *pOutValue)
-{
-	switch (EEType) {
-	case EETYPE_TX_PWR:
-	{
-		u8 *pIn, *pOut;
-		pIn = (u8 *) pInValue;
-		pOut = (u8 *) pOutValue;
-		if (*pIn <= 63)
-			*pOut = *pIn;
-		else {
-			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-				 "EETYPE_TX_PWR, value =%d is invalid, set to default = 0x%x\n",
-				 *pIn, EEPROM_Default_TxPowerLevel);
-			*pOut = EEPROM_Default_TxPowerLevel;
-		}
-	}
-		break;
-	default:
-		break;
-	}
-}
-
 static void
 Hal_ReadPowerValueFromPROM_8723A(struct txpowerinfo *pwrInfo,
 				 u8 *PROMContent, bool AutoLoadFail)
@@ -1555,16 +1532,19 @@ Hal_ReadPowerValueFromPROM_8723A(struct txpowerinfo *pwrInfo,
 		for (group = 0; group < MAX_CHNL_GROUP; group++) {
 			eeAddr =
 			    EEPROM_CCK_TX_PWR_INX_8723A + (rfPath * 3) + group;
-			/* pwrInfo->CCKIndex[rfPath][group] =
-			   PROMContent[eeAddr]; */
-			Hal_EEValueCheck(EETYPE_TX_PWR, &PROMContent[eeAddr],
-					 &pwrInfo->CCKIndex[rfPath][group]);
+
+			pwrInfo->CCKIndex[rfPath][group] = PROMContent[eeAddr];
+			if (pwrInfo->CCKIndex[rfPath][group] > 63)
+				pwrInfo->CCKIndex[rfPath][group] =
+					EEPROM_Default_TxPowerLevel;
+
 			eeAddr = EEPROM_HT40_1S_TX_PWR_INX_8723A +
 				(rfPath * 3) + group;
-			/* pwrInfo->HT40_1SIndex[rfPath][group] =
-			   PROMContent[eeAddr]; */
-			Hal_EEValueCheck(EETYPE_TX_PWR, &PROMContent[eeAddr],
-					 &pwrInfo->HT40_1SIndex[rfPath][group]);
+			pwrInfo->HT40_1SIndex[rfPath][group] =
+				PROMContent[eeAddr];
+			if (pwrInfo->HT40_1SIndex[rfPath][group] > 63)
+				pwrInfo->HT40_1SIndex[rfPath][group] =
+					EEPROM_Default_TxPowerLevel;
 		}
 	}
 

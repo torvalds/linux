@@ -924,9 +924,6 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 	return 0;
 }
 
-/* SBus Master broadcast address */
-#define SBUS_MASTER_BROADCAST 0xfd
-
 /*
  * Write the SBus request register
  *
@@ -1239,34 +1236,20 @@ int load_firmware(struct hfi1_devdata *dd)
 {
 	int ret;
 
-	if (fw_sbus_load || fw_fabric_serdes_load) {
+	if (fw_fabric_serdes_load) {
 		ret = acquire_hw_mutex(dd);
 		if (ret)
 			return ret;
 
 		set_sbus_fast_mode(dd);
 
-		/*
-		 * The SBus contains part of the fabric firmware and so must
-		 * also be downloaded.
-		 */
-		if (fw_sbus_load) {
-			turn_off_spicos(dd, SPICO_SBUS);
-			ret = load_sbus_firmware(dd, &fw_sbus);
-			if (ret)
-				goto clear;
-		}
+		set_serdes_broadcast(dd, all_fabric_serdes_broadcast,
+				fabric_serdes_broadcast[dd->hfi1_id],
+				fabric_serdes_addrs[dd->hfi1_id],
+				NUM_FABRIC_SERDES);
+		turn_off_spicos(dd, SPICO_FABRIC);
+		ret = load_fabric_serdes_firmware(dd, &fw_fabric);
 
-		if (fw_fabric_serdes_load) {
-			set_serdes_broadcast(dd, all_fabric_serdes_broadcast,
-					fabric_serdes_broadcast[dd->hfi1_id],
-					fabric_serdes_addrs[dd->hfi1_id],
-					NUM_FABRIC_SERDES);
-			turn_off_spicos(dd, SPICO_FABRIC);
-			ret = load_fabric_serdes_firmware(dd, &fw_fabric);
-		}
-
-clear:
 		clear_sbus_fast_mode(dd);
 		release_hw_mutex(dd);
 		if (ret)
@@ -1585,7 +1568,7 @@ int load_pcie_firmware(struct hfi1_devdata *dd)
 	/* both firmware loads below use the SBus */
 	set_sbus_fast_mode(dd);
 
-	if (fw_sbus_load) {
+	if (fw_sbus_load && (dd->flags & HFI1_DO_INIT_ASIC)) {
 		turn_off_spicos(dd, SPICO_SBUS);
 		ret = load_sbus_firmware(dd, &fw_sbus);
 		if (ret)
@@ -1614,6 +1597,10 @@ done:
  */
 void read_guid(struct hfi1_devdata *dd)
 {
+	/* Take the DC out of reset to get a valid GUID value */
+	write_csr(dd, CCE_DC_CTRL, 0);
+	(void) read_csr(dd, CCE_DC_CTRL);
+
 	dd->base_guid = read_csr(dd, DC_DC8051_CFG_LOCAL_GUID);
 	dd_dev_info(dd, "GUID %llx",
 		(unsigned long long)dd->base_guid);

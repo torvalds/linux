@@ -335,7 +335,6 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	}
 
 	init_rwsem(&cli->cl_sem);
-	mutex_init(&cli->cl_mgc_mutex);
 	cli->cl_conn_count = 0;
 	memcpy(server_uuid.uuid, lustre_cfg_buf(lcfg, 2),
 	       min_t(unsigned int, LUSTRE_CFG_BUFLEN(lcfg, 2),
@@ -627,7 +626,6 @@ out_disconnect:
 }
 EXPORT_SYMBOL(client_disconnect_export);
 
-
 /**
  * Packs current SLV and Limit into \a req.
  */
@@ -814,42 +812,6 @@ int ldlm_error2errno(ldlm_error_t error)
 	return result;
 }
 EXPORT_SYMBOL(ldlm_error2errno);
-
-/**
- * Dual to ldlm_error2errno(): maps errno values back to ldlm_error_t.
- */
-ldlm_error_t ldlm_errno2error(int err_no)
-{
-	int error;
-
-	switch (err_no) {
-	case 0:
-		error = ELDLM_OK;
-		break;
-	case -ESTALE:
-		error = ELDLM_LOCK_CHANGED;
-		break;
-	case -ENAVAIL:
-		error = ELDLM_LOCK_ABORTED;
-		break;
-	case -ESRCH:
-		error = ELDLM_LOCK_REPLACED;
-		break;
-	case -ENOENT:
-		error = ELDLM_NO_LOCK_DATA;
-		break;
-	case -EEXIST:
-		error = ELDLM_NAMESPACE_EXISTS;
-		break;
-	case -EBADF:
-		error = ELDLM_BAD_NAMESPACE;
-		break;
-	default:
-		error = err_no;
-	}
-	return error;
-}
-EXPORT_SYMBOL(ldlm_errno2error);
 
 #if LUSTRE_TRACKS_LOCK_EXP_REFS
 void ldlm_dump_export_locks(struct obd_export *exp)

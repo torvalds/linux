@@ -90,7 +90,7 @@ void speakup_register_var(struct var_t *var)
 	struct st_var_header *p_header;
 
 	BUG_ON(!var || var->var_id < 0 || var->var_id >= MAXVARS);
-	if (var_ptrs[0] == NULL) {
+	if (!var_ptrs[0]) {
 		for (i = 0; i < MAXVARS; i++) {
 			p_header = &var_headers[i];
 			var_ptrs[p_header->var_id] = p_header;
@@ -130,7 +130,7 @@ struct st_var_header *spk_get_var_header(enum var_id_t var_id)
 	if (var_id < 0 || var_id >= MAXVARS)
 		return NULL;
 	p_header = var_ptrs[var_id];
-	if (p_header->data == NULL)
+	if (!p_header->data)
 		return NULL;
 	return p_header;
 }
@@ -163,7 +163,7 @@ struct punc_var_t *spk_get_punc_var(enum var_id_t var_id)
 	struct punc_var_t *where;
 
 	where = punc_vars;
-	while ((where->var_id != -1) && (rv == NULL)) {
+	while ((where->var_id != -1) && (!rv)) {
 		if (where->var_id == var_id)
 			rv = where;
 		else
@@ -183,7 +183,7 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	char *cp;
 	struct var_t *var_data = var->data;
 
-	if (var_data == NULL)
+	if (!var_data)
 		return -ENODATA;
 
 	if (how == E_NEW_DEFAULT) {
@@ -221,9 +221,9 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	if (var_data->u.n.multiplier != 0)
 		val *= var_data->u.n.multiplier;
 	val += var_data->u.n.offset;
-	if (var->var_id < FIRST_SYNTH_VAR || synth == NULL)
+	if (var->var_id < FIRST_SYNTH_VAR || !synth)
 		return ret;
-	if (synth->synth_adjust != NULL) {
+	if (synth->synth_adjust) {
 		int status = synth->synth_adjust(var);
 
 		return (status != 0) ? status : ret;
@@ -247,7 +247,7 @@ int spk_set_string_var(const char *page, struct st_var_header *var, int len)
 {
 	struct var_t *var_data = var->data;
 
-	if (var_data == NULL)
+	if (!var_data)
 		return -ENODATA;
 	if (len > MAXVARLEN)
 		return -E2BIG;
@@ -288,7 +288,7 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 			if (*cp < SPACE)
 				break;
 			if (mask < PUNC) {
-				if (!(spk_chartab[*cp]&PUNC))
+				if (!(spk_chartab[*cp] & PUNC))
 					break;
 			} else if (spk_chartab[*cp]&B_NUM)
 				break;
@@ -313,7 +313,7 @@ char *spk_strlwr(char *s)
 {
 	char *p;
 
-	if (s == NULL)
+	if (!s)
 		return NULL;
 
 	for (p = s; *p; p++)
@@ -323,7 +323,7 @@ char *spk_strlwr(char *s)
 
 char *spk_s2uchar(char *start, char *dest)
 {
-	int val = 0;
+	int val;
 
 	val = simple_strtoul(skip_spaces(start), &start, 10);
 	if (*start == ',')

@@ -127,7 +127,8 @@ void r8712_recv_indicatepkt(struct _adapter *padapter,
 	skb->protocol = eth_type_trans(skb, padapter->pnetdev);
 	netif_rx(skb);
 	precv_frame->u.hdr.pkt = NULL; /* pointers to NULL before
-					* r8712_free_recvframe() */
+					* r8712_free_recvframe()
+					*/
 	r8712_free_recvframe(precv_frame, pfree_recv_queue);
 	return;
 _recv_indicatepkt_drop:

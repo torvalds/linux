@@ -183,7 +183,7 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 	switch (resource_indicator) {
 	case C2_RES_IND_QP:{
 
-		struct c2_qp *qp = (struct c2_qp *)resource_user_context;
+		struct c2_qp *qp = resource_user_context;
 		struct iw_cm_id *cm_id = qp->cm_id;
 		struct c2wr_ae_active_connect_results *res;
 
@@ -273,7 +273,7 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 		struct c2wr_ae_connection_request *req =
 			&wr->ae.ae_connection_request;
 		struct iw_cm_id *cm_id =
-			(struct iw_cm_id *)resource_user_context;
+			resource_user_context;
 
 		pr_debug("C2_RES_IND_EP event_id=%d\n", event_id);
 		if (event_id != CCAE_CONNECTION_REQUEST) {
@@ -303,7 +303,7 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 
 	case C2_RES_IND_CQ:{
 		struct c2_cq *cq =
-		    (struct c2_cq *) resource_user_context;
+		    resource_user_context;
 
 		pr_debug("IB_EVENT_CQ_ERR\n");
 		ib_event.device = &c2dev->ibdev;

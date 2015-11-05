@@ -44,6 +44,28 @@ st_sensors_write_data_with_mask_error:
 	return err;
 }
 
+int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
+				  unsigned reg, unsigned writeval,
+				  unsigned *readval)
+{
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	u8 readdata;
+	int err;
+
+	if (!readval)
+		return sdata->tf->write_byte(&sdata->tb, sdata->dev,
+					     (u8)reg, (u8)writeval);
+
+	err = sdata->tf->read_byte(&sdata->tb, sdata->dev, (u8)reg, &readdata);
+	if (err < 0)
+		return err;
+
+	*readval = (unsigned)readdata;
+
+	return 0;
+}
+EXPORT_SYMBOL(st_sensors_debugfs_reg_access);
+
 static int st_sensors_match_odr(struct st_sensor_settings *sensor_settings,
 			unsigned int odr, struct st_sensor_odr_avl *odr_out)
 {

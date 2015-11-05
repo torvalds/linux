@@ -268,7 +268,7 @@ static void efuse_read_phymap_from_txpktbuf(
 			aaa = le16_to_cpup((__le16 *)&lo32);
 			len = le16_to_cpu(*((__le16 *)&lo32));
 
-			limit = (len-2 < limit) ? len-2 : limit;
+			limit = min_t(u16, len-2, limit);
 
 			DBG_88E("%s len:%u, lenbak:%u, aaa:%u, aaabak:%u\n", __func__, len, lenbak, aaa, aaabak);
 
@@ -396,7 +396,7 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 
 	memset((void *)tmpdata, 0xff, PGPKT_DATA_SIZE);
 
-	if (!(word_en&BIT0)) {
+	if (!(word_en & BIT(0))) {
 		tmpaddr = start_addr;
 		efuse_OneByteWrite(pAdapter, start_addr++, data[0]);
 		efuse_OneByteWrite(pAdapter, start_addr++, data[1]);
@@ -404,9 +404,9 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 		efuse_OneByteRead(pAdapter, tmpaddr, &tmpdata[0]);
 		efuse_OneByteRead(pAdapter, tmpaddr+1, &tmpdata[1]);
 		if ((data[0] != tmpdata[0]) || (data[1] != tmpdata[1]))
-			badworden &= (~BIT0);
+			badworden &= (~BIT(0));
 	}
-	if (!(word_en&BIT1)) {
+	if (!(word_en & BIT(1))) {
 		tmpaddr = start_addr;
 		efuse_OneByteWrite(pAdapter, start_addr++, data[2]);
 		efuse_OneByteWrite(pAdapter, start_addr++, data[3]);
@@ -414,9 +414,9 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 		efuse_OneByteRead(pAdapter, tmpaddr, &tmpdata[2]);
 		efuse_OneByteRead(pAdapter, tmpaddr+1, &tmpdata[3]);
 		if ((data[2] != tmpdata[2]) || (data[3] != tmpdata[3]))
-			badworden &= (~BIT1);
+			badworden &= (~BIT(1));
 	}
-	if (!(word_en&BIT2)) {
+	if (!(word_en & BIT(2))) {
 		tmpaddr = start_addr;
 		efuse_OneByteWrite(pAdapter, start_addr++, data[4]);
 		efuse_OneByteWrite(pAdapter, start_addr++, data[5]);
@@ -424,9 +424,9 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 		efuse_OneByteRead(pAdapter, tmpaddr, &tmpdata[4]);
 		efuse_OneByteRead(pAdapter, tmpaddr+1, &tmpdata[5]);
 		if ((data[4] != tmpdata[4]) || (data[5] != tmpdata[5]))
-			badworden &= (~BIT2);
+			badworden &= (~BIT(2));
 	}
-	if (!(word_en&BIT3)) {
+	if (!(word_en & BIT(3))) {
 		tmpaddr = start_addr;
 		efuse_OneByteWrite(pAdapter, start_addr++, data[6]);
 		efuse_OneByteWrite(pAdapter, start_addr++, data[7]);
@@ -434,7 +434,7 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 		efuse_OneByteRead(pAdapter, tmpaddr, &tmpdata[6]);
 		efuse_OneByteRead(pAdapter, tmpaddr+1, &tmpdata[7]);
 		if ((data[6] != tmpdata[6]) || (data[7] != tmpdata[7]))
-			badworden &= (~BIT3);
+			badworden &= (~BIT(3));
 	}
 	return badworden;
 }
@@ -738,18 +738,18 @@ static bool wordEnMatched(struct pgpkt *pTargetPkt, struct pgpkt *pCurPkt,
 	u8 match_word_en = 0x0F;	/*  default all words are disabled */
 
 	/*  check if the same words are enabled both target and current PG packet */
-	if (((pTargetPkt->word_en & BIT0) == 0) &&
-	    ((pCurPkt->word_en & BIT0) == 0))
-		match_word_en &= ~BIT0;				/*  enable word 0 */
-	if (((pTargetPkt->word_en & BIT1) == 0) &&
-	    ((pCurPkt->word_en & BIT1) == 0))
-		match_word_en &= ~BIT1;				/*  enable word 1 */
-	if (((pTargetPkt->word_en & BIT2) == 0) &&
-	    ((pCurPkt->word_en & BIT2) == 0))
-		match_word_en &= ~BIT2;				/*  enable word 2 */
-	if (((pTargetPkt->word_en & BIT3) == 0) &&
-	    ((pCurPkt->word_en & BIT3) == 0))
-		match_word_en &= ~BIT3;				/*  enable word 3 */
+	if (((pTargetPkt->word_en & BIT(0)) == 0) &&
+	    ((pCurPkt->word_en & BIT(0)) == 0))
+		match_word_en &= ~BIT(0);				/*  enable word 0 */
+	if (((pTargetPkt->word_en & BIT(1)) == 0) &&
+	    ((pCurPkt->word_en & BIT(1)) == 0))
+		match_word_en &= ~BIT(1);				/*  enable word 1 */
+	if (((pTargetPkt->word_en & BIT(2)) == 0) &&
+	    ((pCurPkt->word_en & BIT(2)) == 0))
+		match_word_en &= ~BIT(2);				/*  enable word 2 */
+	if (((pTargetPkt->word_en & BIT(3)) == 0) &&
+	    ((pCurPkt->word_en & BIT(3)) == 0))
+		match_word_en &= ~BIT(3);				/*  enable word 3 */
 
 	*pWden = match_word_en;
 
@@ -961,19 +961,19 @@ u8 efuse_OneByteWrite(struct adapter *pAdapter, u16 addr, u8 data)
  */
 void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
 {
-	if (!(word_en&BIT(0))) {
+	if (!(word_en & BIT(0))) {
 		targetdata[0] = sourdata[0];
 		targetdata[1] = sourdata[1];
 	}
-	if (!(word_en&BIT(1))) {
+	if (!(word_en & BIT(1))) {
 		targetdata[2] = sourdata[2];
 		targetdata[3] = sourdata[3];
 	}
-	if (!(word_en&BIT(2))) {
+	if (!(word_en & BIT(2))) {
 		targetdata[4] = sourdata[4];
 		targetdata[5] = sourdata[5];
 	}
-	if (!(word_en&BIT(3))) {
+	if (!(word_en & BIT(3))) {
 		targetdata[6] = sourdata[6];
 		targetdata[7] = sourdata[7];
 	}

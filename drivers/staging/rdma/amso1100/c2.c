@@ -548,7 +548,7 @@ static irqreturn_t c2_interrupt(int irq, void *dev_id)
 {
 	unsigned int netisr0, dmaisr;
 	int handled = 0;
-	struct c2_dev *c2dev = (struct c2_dev *) dev_id;
+	struct c2_dev *c2dev = dev_id;
 
 	/* Process CCILNET interrupts */
 	netisr0 = readl(c2dev->regs + C2_NISR0);
@@ -675,11 +675,11 @@ static int c2_up(struct net_device *netdev)
 
 	return 0;
 
-      bail1:
+bail1:
 	c2_rx_clean(c2_port);
 	kfree(c2_port->rx_ring.start);
 
-      bail0:
+bail0:
 	pci_free_consistent(c2dev->pcidev, c2_port->mem_size, c2_port->mem,
 			    c2_port->dma);
 

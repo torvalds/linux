@@ -106,12 +106,11 @@ static void mdunlink_iterate_helper(lnet_handle_md_t *bd_mds, int count)
 		LNetMDUnlink(bd_mds[i]);
 }
 
-
 /**
  * Register bulk at the sender for later transfer.
  * Returns 0 on success or error code.
  */
-int ptlrpc_register_bulk(struct ptlrpc_request *req)
+static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 {
 	struct ptlrpc_bulk_desc *desc = req->rq_bulk;
 	lnet_process_id_t peer;
@@ -232,7 +231,6 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 
 	return 0;
 }
-EXPORT_SYMBOL(ptlrpc_register_bulk);
 
 /**
  * Disconnect a bulk desc from the network. Idempotent. Not
@@ -252,7 +250,7 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 	/* Let's setup deadline for reply unlink. */
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK) &&
 	    async && req->rq_bulk_deadline == 0)
-		req->rq_bulk_deadline = get_seconds() + LONG_UNLINK;
+		req->rq_bulk_deadline = ktime_get_real_seconds() + LONG_UNLINK;
 
 	if (ptlrpc_client_bulk_active(req) == 0)	/* completed or */
 		return 1;				/* never registered */
@@ -303,7 +301,7 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 {
 	struct ptlrpc_service_part *svcpt = req->rq_rqbd->rqbd_svcpt;
 	struct ptlrpc_service *svc = svcpt->scp_service;
-	int service_time = max_t(int, get_seconds() -
+	int service_time = max_t(int, ktime_get_real_seconds() -
 				 req->rq_arrival_time.tv_sec, 1);
 
 	if (!(flags & PTLRPC_REPLY_EARLY) &&
@@ -328,8 +326,7 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 	/* Report service time estimate for future client reqs, but report 0
 	 * (to be ignored by client) if it's a error reply during recovery.
 	 * (bz15815) */
-	if (req->rq_type == PTL_RPC_MSG_ERR &&
-	    (req->rq_export == NULL || req->rq_export->exp_obd->obd_recovering))
+	if (req->rq_type == PTL_RPC_MSG_ERR && !req->rq_export)
 		lustre_msg_set_timeout(req->rq_repmsg, 0);
 	else
 		lustre_msg_set_timeout(req->rq_repmsg,
@@ -337,9 +334,8 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 
 	if (req->rq_reqmsg &&
 	    !(lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT)) {
-		CDEBUG(D_ADAPTTO, "No early reply support: flags=%#x req_flags=%#x magic=%d:%x/%x len=%d\n",
+		CDEBUG(D_ADAPTTO, "No early reply support: flags=%#x req_flags=%#x magic=%x/%x len=%d\n",
 		       flags, lustre_msg_get_flags(req->rq_reqmsg),
-		       lustre_msg_is_v1(req->rq_reqmsg),
 		       lustre_msg_get_magic(req->rq_reqmsg),
 		       lustre_msg_get_magic(req->rq_repmsg), req->rq_replen);
 	}
@@ -422,7 +418,7 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 	if (unlikely(rc))
 		goto out;
 
-	req->rq_sent = get_seconds();
+	req->rq_sent = ktime_get_real_seconds();
 
 	rc = ptl_send_buf(&rs->rs_md_h, rs->rs_repbuf, rs->rs_repdata_len,
 			  (rs->rs_difficult && !rs->rs_no_ack) ?
@@ -601,7 +597,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		/* Manage remote for early replies */
 		reply_md.options = PTLRPC_MD_OPTIONS | LNET_MD_OP_PUT |
 			LNET_MD_MANAGE_REMOTE |
-			LNET_MD_TRUNCATE; /* allow to make EOVERFLOW error */;
+			LNET_MD_TRUNCATE; /* allow to make EOVERFLOW error */
 		reply_md.user_ptr = &request->rq_reply_cbid;
 		reply_md.eq_handle = ptlrpc_eq_h;
 
@@ -633,8 +629,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_PTLRPC_DELAY_SEND, request->rq_timeout + 5);
 
-	do_gettimeofday(&request->rq_arrival_time);
-	request->rq_sent = get_seconds();
+	ktime_get_real_ts64(&request->rq_arrival_time);
+	request->rq_sent = ktime_get_real_seconds();
 	/* We give the server rq_timeout secs to process the req, and
 	   add the network latency for our local timeout. */
 	request->rq_deadline = request->rq_sent + request->rq_timeout +

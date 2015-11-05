@@ -43,8 +43,6 @@
 #ifndef _LUSTRE_FIEMAP_H
 #define _LUSTRE_FIEMAP_H
 
-
-
 struct ll_fiemap_extent {
 	__u64 fe_logical;  /* logical offset in bytes for the start of
 			    * the extent from the beginning of the file */
@@ -93,7 +91,6 @@ struct ll_user_fiemap {
 #define FIEMAP_EXTENT_MERGED	    0x00001000 /* File does not natively
 						    * support extents. Result
 						    * merged for efficiency. */
-
 
 static inline size_t fiemap_count_to_size(size_t extent_count)
 {

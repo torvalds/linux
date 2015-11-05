@@ -294,7 +294,7 @@ static void vpfe_detach_irq(struct vpfe_device *vpfe_dev)
  */
 static int vpfe_attach_irq(struct vpfe_device *vpfe_dev)
 {
-	int ret = 0;
+	int ret;
 
 	ret = request_irq(vpfe_dev->ccdc_irq0, vpfe_isr, 0,
 			  "vpfe_capture0", vpfe_dev);
