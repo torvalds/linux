@@ -102,8 +102,6 @@ static struct omap_dss_device *omap_crtc_output[8];
 static int omap_crtc_dss_connect(enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	struct omap_overlay_manager *mgr = omap_dss_get_overlay_manager(channel);
-
 	if (omap_crtc_output[channel])
 		return -EINVAL;
 
@@ -113,22 +111,14 @@ static int omap_crtc_dss_connect(enum omap_channel channel,
 	omap_crtc_output[channel] = dst;
 	dst->dispc_channel_connected = true;
 
-	dst->manager = mgr;
-	mgr->output = dst;
-
 	return 0;
 }
 
 static void omap_crtc_dss_disconnect(enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	struct omap_overlay_manager *mgr = omap_dss_get_overlay_manager(channel);
-
 	omap_crtc_output[channel] = NULL;
 	dst->dispc_channel_connected = false;
-
-	mgr->output->manager = NULL;
-	mgr->output = NULL;
 }
 
 static void omap_crtc_dss_start_update(enum omap_channel channel)
