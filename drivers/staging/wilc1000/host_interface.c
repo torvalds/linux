@@ -397,22 +397,23 @@ static s32 Handle_SetOperationMode(struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 Handle_set_IPAddress(struct host_if_drv *hif_drv, u8 *pu8IPAddr, u8 idx)
+s32 Handle_set_IPAddress(struct host_if_drv *hif_drv, u8 *ip_addr, u8 idx)
 {
 	s32 result = 0;
 	struct wid wid;
 	char firmwareIPAddress[4] = {0};
 
-	if (pu8IPAddr[0] < 192)
-		pu8IPAddr[0] = 0;
+	if (ip_addr[0] < 192)
+		ip_addr[0] = 0;
 
-	PRINT_INFO(HOSTINF_DBG, "Indx = %d, Handling set  IP = %pI4\n", idx, pu8IPAddr);
+	PRINT_INFO(HOSTINF_DBG, "Indx = %d, Handling set  IP = %pI4\n",
+		   idx, ip_addr);
 
-	memcpy(set_ip[idx], pu8IPAddr, IP_ALEN);
+	memcpy(set_ip[idx], ip_addr, IP_ALEN);
 
 	wid.id = (u16)WID_IP_ADDRESS;
 	wid.type = WID_STR;
-	wid.val = (u8 *)pu8IPAddr;
+	wid.val = (u8 *)ip_addr;
 	wid.size = IP_ALEN;
 
 	result = send_config_pkt(SET_CFG, &wid, 1,
