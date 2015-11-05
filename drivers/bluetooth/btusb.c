@@ -1372,6 +1372,8 @@ static void btusb_work(struct work_struct *work)
 		}
 
 		if (data->isoc_altsetting != new_alts) {
+			unsigned long flags;
+
 			clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
 			usb_kill_anchored_urbs(&data->isoc_anchor);
 
@@ -1384,10 +1386,10 @@ static void btusb_work(struct work_struct *work)
 			 * Clear outstanding fragment when selecting a new
 			 * alternate setting.
 			 */
-			spin_lock(&data->rxlock);
+			spin_lock_irqsave(&data->rxlock, flags);
 			kfree_skb(data->sco_skb);
 			data->sco_skb = NULL;
-			spin_unlock(&data->rxlock);
+			spin_unlock_irqrestore(&data->rxlock, flags);
 
 			if (__set_isoc_interface(hdev, new_alts) < 0)
 				return;
