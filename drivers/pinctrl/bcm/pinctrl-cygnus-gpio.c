@@ -638,8 +638,7 @@ static int cygnus_gpio_register_pinconf(struct cygnus_gpio *chip)
 
 static void cygnus_gpio_unregister_pinconf(struct cygnus_gpio *chip)
 {
-	if (chip->pctl)
-		pinctrl_unregister(chip->pctl);
+	pinctrl_unregister(chip->pctl);
 }
 
 struct cygnus_gpio_data {
