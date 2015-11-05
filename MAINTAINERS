@@ -3409,6 +3409,16 @@ F:	drivers/devfreq/
 F:	include/linux/devfreq.h
 F:	Documentation/devicetree/bindings/devfreq/
 
+DEVICE FREQUENCY EVENT (DEVFREQ-EVENT)
+M:	Chanwoo Choi <cw00.choi@samsung.com>
+L:	linux-pm@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mzx/devfreq.git
+S:	Supported
+F:	drivers/devfreq/event/
+F:	drivers/devfreq/devfreq-event.c
+F:	include/linux/devfreq-event.h
+F:	Documentation/devicetree/bindings/devfreq/event/
+
 DEVICE NUMBER REGISTRY
 M:	Torben Mathiasen <device@lanana.org>
 W:	http://lanana.org/docs/device-list/index.html
