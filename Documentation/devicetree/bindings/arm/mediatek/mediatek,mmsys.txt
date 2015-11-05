@@ -1,0 +1,22 @@
+Mediatek mmsys controller
+============================
+
+The Mediatek mmsys controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be:
+	- "mediatek,mt8173-mmsys", "syscon"
+- #clock-cells: Must be 1
+
+The mmsys controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+mmsys: clock-controller@14000000 {
+	compatible = "mediatek,mt8173-mmsys", "syscon";
+	reg = <0 0x14000000 0 0x1000>;
+	#clock-cells = <1>;
+};

@@ -22,6 +22,7 @@
 #include "clk-rcg.h"
 #include "clk-regmap.h"
 #include "reset.h"
+#include "gdsc.h"
 
 struct qcom_cc {
 	struct qcom_reset_controller reset;
@@ -72,6 +73,21 @@ qcom_cc_map(struct platform_device *pdev, const struct qcom_cc_desc *desc)
 }
 EXPORT_SYMBOL_GPL(qcom_cc_map);
 
+static void qcom_cc_del_clk_provider(void *data)
+{
+	of_clk_del_provider(data);
+}
+
+static void qcom_cc_reset_unregister(void *data)
+{
+	reset_controller_unregister(data);
+}
+
+static void qcom_cc_gdsc_unregister(void *data)
+{
+	gdsc_unregister(data);
+}
+
 int qcom_cc_really_probe(struct platform_device *pdev,
 			 const struct qcom_cc_desc *desc, struct regmap *regmap)
 {
@@ -110,6 +126,8 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
+	devm_add_action(dev, qcom_cc_del_clk_provider, pdev->dev.of_node);
+
 	reset = &cc->reset;
 	reset->rcdev.of_node = dev->of_node;
 	reset->rcdev.ops = &qcom_reset_ops;
@@ -117,13 +135,24 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	reset->rcdev.nr_resets = desc->num_resets;
 	reset->regmap = regmap;
 	reset->reset_map = desc->resets;
-	platform_set_drvdata(pdev, &reset->rcdev);
 
 	ret = reset_controller_register(&reset->rcdev);
 	if (ret)
-		of_clk_del_provider(dev->of_node);
+		return ret;
 
-	return ret;
+	devm_add_action(dev, qcom_cc_reset_unregister, &reset->rcdev);
+
+	if (desc->gdscs && desc->num_gdscs) {
+		ret = gdsc_register(dev, desc->gdscs, desc->num_gdscs,
+				    &reset->rcdev, regmap);
+		if (ret)
+			return ret;
+	}
+
+	devm_add_action(dev, qcom_cc_gdsc_unregister, dev);
+
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_cc_really_probe);
 
@@ -138,12 +167,5 @@ int qcom_cc_probe(struct platform_device *pdev, const struct qcom_cc_desc *desc)
 	return qcom_cc_really_probe(pdev, desc, regmap);
 }
 EXPORT_SYMBOL_GPL(qcom_cc_probe);
-
-void qcom_cc_remove(struct platform_device *pdev)
-{
-	of_clk_del_provider(pdev->dev.of_node);
-	reset_controller_unregister(platform_get_drvdata(pdev));
-}
-EXPORT_SYMBOL_GPL(qcom_cc_remove);
 
 MODULE_LICENSE("GPL v2");

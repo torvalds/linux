@@ -283,7 +283,7 @@ static const struct berlin2_gate_data bg2q_gates[] __initconst = {
 	{ "usb2",	"perif",	13 },
 	{ "usb3",	"perif",	14 },
 	{ "pbridge",	"perif",	15, CLK_IGNORE_UNUSED },
-	{ "sdio",	"perif",	16, CLK_IGNORE_UNUSED },
+	{ "sdio",	"perif",	16 },
 	{ "nfc",	"perif",	18 },
 	{ "pcie",	"perif",	22 },
 };

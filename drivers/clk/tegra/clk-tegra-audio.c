@@ -125,18 +125,29 @@ static struct tegra_audio2x_clk_initdata audio2x_clks[] = {
 
 void __init tegra_audio_clk_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
-			struct tegra_clk_pll_params *pll_a_params)
+			struct tegra_audio_clk_info *audio_info,
+			unsigned int num_plls)
 {
 	struct clk *clk;
 	struct clk **dt_clk;
 	int i;
 
-	/* PLLA */
-	dt_clk = tegra_lookup_dt_id(tegra_clk_pll_a, tegra_clks);
-	if (dt_clk) {
-		clk = tegra_clk_register_pll("pll_a", "pll_p_out1", clk_base,
-				pmc_base, 0, pll_a_params, NULL);
-		*dt_clk = clk;
+	if (!audio_info || num_plls < 1) {
+		pr_err("No audio data passed to tegra_audio_clk_init\n");
+		WARN_ON(1);
+		return;
+	}
+
+	for (i = 0; i < num_plls; i++) {
+		struct tegra_audio_clk_info *info = &audio_info[i];
+
+		dt_clk = tegra_lookup_dt_id(info->clk_id, tegra_clks);
+		if (dt_clk) {
+			clk = tegra_clk_register_pll(info->name, info->parent,
+					clk_base, pmc_base, 0, info->pll_params,
+					NULL);
+			*dt_clk = clk;
+		}
 	}
 
 	/* PLLA_OUT0 */

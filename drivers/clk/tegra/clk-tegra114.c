@@ -933,6 +933,10 @@ static u32 mux_pllm_pllc2_c_c3_pllp_plla_idx[] = {
 	[0] = 0, [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 6,
 };
 
+static struct tegra_audio_clk_info tegra114_audio_plls[] = {
+	{ "pll_a", &pll_a_params, tegra_clk_pll_a, "pll_p_out1" },
+};
+
 static struct clk **clks;
 
 static unsigned long osc_freq;
@@ -1481,7 +1485,9 @@ static void __init tegra114_clock_init(struct device_node *np)
 	tegra114_fixed_clk_init(clk_base);
 	tegra114_pll_init(clk_base, pmc_base);
 	tegra114_periph_clk_init(clk_base, pmc_base);
-	tegra_audio_clk_init(clk_base, pmc_base, tegra114_clks, &pll_a_params);
+	tegra_audio_clk_init(clk_base, pmc_base, tegra114_clks,
+			     tegra114_audio_plls,
+			     ARRAY_SIZE(tegra114_audio_plls));
 	tegra_pmc_clk_init(pmc_base, tegra114_clks);
 	tegra_super_clk_gen4_init(clk_base, pmc_base, tegra114_clks,
 					&pll_x_params);

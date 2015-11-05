@@ -157,7 +157,7 @@ out:
  * _of_clk_init - PLL initialisation via DT
  * @node: device tree node for this clock
  * @pllctrl: If true, lower 6 bits of multiplier is in pllm register of
- *		pll controller, else it is in the control regsiter0(bit 11-6)
+ *		pll controller, else it is in the control register0(bit 11-6)
  */
 static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
 {
