@@ -56,8 +56,12 @@ static int req_run(struct hci_request *req, hci_req_complete_t complete,
 		return -ENODATA;
 
 	skb = skb_peek_tail(&req->cmd_q);
-	bt_cb(skb)->hci.req_complete = complete;
-	bt_cb(skb)->hci.req_complete_skb = complete_skb;
+	if (complete) {
+		bt_cb(skb)->hci.req_complete = complete;
+	} else if (complete_skb) {
+		bt_cb(skb)->hci.req_complete_skb = complete_skb;
+		bt_cb(skb)->hci.req_flags |= HCI_REQ_SKB;
+	}
 
 	spin_lock_irqsave(&hdev->cmd_q.lock, flags);
 	skb_queue_splice_tail(&req->cmd_q, &hdev->cmd_q);
@@ -128,7 +132,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 	}
 
 	if (skb_queue_empty(&req->cmd_q))
-		bt_cb(skb)->hci.req_start = true;
+		bt_cb(skb)->hci.req_flags |= HCI_REQ_START;
 
 	bt_cb(skb)->hci.req_event = event;
 
