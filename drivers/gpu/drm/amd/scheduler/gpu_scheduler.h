@@ -30,6 +30,9 @@
 struct amd_gpu_scheduler;
 struct amd_sched_rq;
 
+extern struct kmem_cache *sched_fence_slab;
+extern atomic_t sched_fence_slab_ref;
+
 /**
  * A scheduler entity is a wrapper around a job queue or a group
  * of other entities. Entities take turns emitting jobs from their 
