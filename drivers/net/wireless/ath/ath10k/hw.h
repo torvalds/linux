@@ -22,6 +22,12 @@
 
 #define ATH10K_FW_DIR			"ath10k"
 
+#define QCA988X_2_0_DEVICE_ID   (0x003c)
+#define QCA6164_2_1_DEVICE_ID   (0x0041)
+#define QCA6174_2_1_DEVICE_ID   (0x003e)
+#define QCA99X0_2_0_DEVICE_ID   (0x0040)
+#define QCA9377_1_0_DEVICE_ID   (0x0042)
+
 /* QCA988X 1.0 definitions (unsupported) */
 #define QCA988X_HW_1_0_CHIP_ID_REV	0x0
 
