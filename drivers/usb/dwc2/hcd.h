@@ -340,6 +340,8 @@ struct dwc2_qtd {
 	u8 isoc_split_pos;
 	u16 isoc_frame_index;
 	u16 isoc_split_offset;
+	u16 isoc_td_last;
+	u16 isoc_td_first;
 	u32 ssplit_out_xfer_count;
 	u8 error_count;
 	u8 n_desc;

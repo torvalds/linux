@@ -547,11 +547,32 @@ static void dwc2_init_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 {
 	struct dwc2_qtd *qtd;
 	u32 max_xfer_size;
-	u16 idx, inc, n_desc, ntd_max = 0;
+	u16 idx, inc, n_desc = 0, ntd_max = 0;
+	u16 cur_idx;
+	u16 next_idx;
 
 	idx = qh->td_last;
 	inc = qh->interval;
-	n_desc = 0;
+	hsotg->frame_number = dwc2_hcd_get_frame_number(hsotg);
+	cur_idx = dwc2_frame_list_idx(hsotg->frame_number);
+	next_idx = dwc2_desclist_idx_inc(qh->td_last, inc, qh->dev_speed);
+
+	/*
+	 * Ensure current frame number didn't overstep last scheduled
+	 * descriptor. If it happens, the only way to recover is to move
+	 * qh->td_last to current frame number + 1.
+	 * So that next isoc descriptor will be scheduled on frame number + 1
+	 * and not on a past frame.
+	 */
+	if (dwc2_frame_idx_num_gt(cur_idx, next_idx) || (cur_idx == next_idx)) {
+		if (inc < 32) {
+			dev_vdbg(hsotg->dev,
+				 "current frame number overstep last descriptor\n");
+			qh->td_last = dwc2_desclist_idx_inc(cur_idx, inc,
+							    qh->dev_speed);
+			idx = qh->td_last;
+		}
+	}
 
 	if (qh->interval) {
 		ntd_max = (dwc2_max_desc_num(qh) + qh->interval - 1) /
@@ -564,6 +585,12 @@ static void dwc2_init_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 			MAX_ISOC_XFER_SIZE_HS : MAX_ISOC_XFER_SIZE_FS;
 
 	list_for_each_entry(qtd, &qh->qtd_list, qtd_list_entry) {
+		if (qtd->in_process &&
+		    qtd->isoc_frame_index_last ==
+		    qtd->urb->packet_count)
+			continue;
+
+		qtd->isoc_td_first = idx;
 		while (qh->ntd < ntd_max && qtd->isoc_frame_index_last <
 						qtd->urb->packet_count) {
 			dwc2_fill_host_isoc_dma_desc(hsotg, qtd, qh,
@@ -571,6 +598,7 @@ static void dwc2_init_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 			idx = dwc2_desclist_idx_inc(idx, inc, qh->dev_speed);
 			n_desc++;
 		}
+		qtd->isoc_td_last = idx;
 		qtd->in_process = 1;
 	}
 
