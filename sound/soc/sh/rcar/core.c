@@ -1227,6 +1227,7 @@ static int rsnd_remove(struct platform_device *pdev)
 		rsnd_mix_remove,
 		rsnd_dvc_remove,
 		rsnd_cmd_remove,
+		rsnd_adg_remove,
 	};
 	int ret = 0, i;
 

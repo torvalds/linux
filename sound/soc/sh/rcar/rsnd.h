@@ -405,6 +405,8 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate);
 int rsnd_adg_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
+void rsnd_adg_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
 int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
 				  struct rsnd_mod *mod,
 				  unsigned int src_rate,
