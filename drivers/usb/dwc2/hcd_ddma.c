@@ -360,6 +360,8 @@ err0:
  */
 void dwc2_hcd_qh_free_ddma(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
+	unsigned long flags;
+
 	dwc2_desc_list_free(hsotg, qh);
 
 	/*
@@ -369,8 +371,10 @@ void dwc2_hcd_qh_free_ddma(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	 * when it comes here from endpoint disable routine
 	 * channel remains assigned.
 	 */
+	spin_lock_irqsave(&hsotg->lock, flags);
 	if (qh->channel)
 		dwc2_release_channel_ddma(hsotg, qh);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
 
 	if ((qh->ep_type == USB_ENDPOINT_XFER_ISOC ||
 	     qh->ep_type == USB_ENDPOINT_XFER_INT) &&
