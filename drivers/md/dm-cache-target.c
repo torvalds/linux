@@ -2309,8 +2309,7 @@ static void destroy(struct cache *cache)
 {
 	unsigned i;
 
-	if (cache->migration_pool)
-		mempool_destroy(cache->migration_pool);
+	mempool_destroy(cache->migration_pool);
 
 	if (cache->all_io_ds)
 		dm_deferred_set_destroy(cache->all_io_ds);

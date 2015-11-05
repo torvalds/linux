@@ -1410,7 +1410,7 @@ static struct dm_cache_policy *mq_create(dm_cblock_t cache_size,
 	mq->generation_period = max((unsigned) from_cblock(cache_size), 1024U);
 
 	mq->nr_buckets = next_power(from_cblock(cache_size) / 2, 16);
-	mq->hash_bits = ffs(mq->nr_buckets) - 1;
+	mq->hash_bits = __ffs(mq->nr_buckets);
 	mq->table = vzalloc(sizeof(*mq->table) * mq->nr_buckets);
 	if (!mq->table)
 		goto bad_alloc_table;
