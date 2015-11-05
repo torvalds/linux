@@ -1494,7 +1494,7 @@ void do_submit(struct work_struct *ws)
 	}
 }
 
-void drbd_make_request(struct request_queue *q, struct bio *bio)
+blk_qc_t drbd_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct drbd_device *device = (struct drbd_device *) q->queuedata;
 	unsigned long start_jif;
@@ -1510,6 +1510,7 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
 
 	inc_ap_bio(device);
 	__drbd_make_request(device, bio, start_jif);
+	return BLK_QC_T_NONE;
 }
 
 void request_timer_fn(unsigned long data)
