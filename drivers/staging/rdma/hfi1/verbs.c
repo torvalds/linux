@@ -2152,11 +2152,40 @@ void hfi1_schedule_send(struct hfi1_qp *qp)
 void hfi1_cnp_rcv(struct hfi1_packet *packet)
 {
 	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	struct hfi1_ib_header *hdr = packet->hdr;
+	struct hfi1_qp *qp = packet->qp;
+	u32 lqpn, rqpn = 0;
+	u16 rlid = 0;
+	u8 sl, sc5, sc4_bit, svc_type;
+	bool sc4_set = has_sc4_bit(packet);
 
-	if (packet->qp->ibqp.qp_type == IB_QPT_UC)
-		hfi1_uc_rcv(packet);
-	else if (packet->qp->ibqp.qp_type == IB_QPT_UD)
-		hfi1_ud_rcv(packet);
-	else
+	switch (packet->qp->ibqp.qp_type) {
+	case IB_QPT_UC:
+		rlid = qp->remote_ah_attr.dlid;
+		rqpn = qp->remote_qpn;
+		svc_type = IB_CC_SVCTYPE_UC;
+		break;
+	case IB_QPT_RC:
+		rlid = qp->remote_ah_attr.dlid;
+		rqpn = qp->remote_qpn;
+		svc_type = IB_CC_SVCTYPE_RC;
+		break;
+	case IB_QPT_SMI:
+	case IB_QPT_GSI:
+	case IB_QPT_UD:
+		svc_type = IB_CC_SVCTYPE_UD;
+		break;
+	default:
 		ibp->n_pkt_drops++;
+		return;
+	}
+
+	sc4_bit = sc4_set << 4;
+	sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
+	sc5 |= sc4_bit;
+	sl = ibp->sc_to_sl[sc5];
+	lqpn = qp->ibqp.qp_num;
+
+	process_becn(ppd, sl, rlid, lqpn, rqpn, svc_type);
 }

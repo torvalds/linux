@@ -1978,7 +1978,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	}
 
 	psn = be32_to_cpu(ohdr->bth[2]);
-	opcode = bth0 >> 24;
+	opcode = (bth0 >> 24) & 0xff;
 
 	/*
 	 * Process responses (ACKs) before anything else.  Note that the
@@ -2391,19 +2391,19 @@ void hfi1_rc_hdrerr(
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	int diff;
 	u32 opcode;
-	u32 psn;
+	u32 psn, bth0;
 
 	/* Check for GRH */
 	ohdr = &hdr->u.oth;
 	if (has_grh)
 		ohdr = &hdr->u.l.oth;
 
-	opcode = be32_to_cpu(ohdr->bth[0]);
-	if (hfi1_ruc_check_hdr(ibp, hdr, has_grh, qp, opcode))
+	bth0 = be32_to_cpu(ohdr->bth[0]);
+	if (hfi1_ruc_check_hdr(ibp, hdr, has_grh, qp, bth0))
 		return;
 
 	psn = be32_to_cpu(ohdr->bth[2]);
-	opcode >>= 24;
+	opcode = (bth0 >> 24) & 0xff;
 
 	/* Only deal with RDMA Writes for now */
 	if (opcode < IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST) {

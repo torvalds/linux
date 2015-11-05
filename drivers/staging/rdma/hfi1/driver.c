@@ -436,59 +436,58 @@ static inline void init_packet(struct hfi1_ctxtdata *rcd,
 
 #ifndef CONFIG_PRESCAN_RXQ
 static void prescan_rxq(struct hfi1_packet *packet) {}
-#else /* CONFIG_PRESCAN_RXQ */
+#else /* !CONFIG_PRESCAN_RXQ */
 static int prescan_receive_queue;
 
 static void process_ecn(struct hfi1_qp *qp, struct hfi1_ib_header *hdr,
 			struct hfi1_other_headers *ohdr,
-			u64 rhf, struct ib_grh *grh)
+			u64 rhf, u32 bth1, struct ib_grh *grh)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	u32 bth1;
+	u32 rqpn = 0;
+	u16 rlid;
 	u8 sc5, svc_type;
-	int is_fecn, is_becn;
 
 	switch (qp->ibqp.qp_type) {
+	case IB_QPT_SMI:
+	case IB_QPT_GSI:
 	case IB_QPT_UD:
+		rlid = be16_to_cpu(hdr->lrh[3]);
+		rqpn = be32_to_cpu(ohdr->u.ud.deth[1]) & HFI1_QPN_MASK;
 		svc_type = IB_CC_SVCTYPE_UD;
 		break;
-	case IB_QPT_UC:	/* LATER */
-	case IB_QPT_RC:	/* LATER */
+	case IB_QPT_UC:
+		rlid = qp->remote_ah_attr.dlid;
+		rqpn = qp->remote_qpn;
+		svc_type = IB_CC_SVCTYPE_UC;
+		break;
+	case IB_QPT_RC:
+		rlid = qp->remote_ah_attr.dlid;
+		rqpn = qp->remote_qpn;
+		svc_type = IB_CC_SVCTYPE_RC;
+		break;
 	default:
 		return;
 	}
-
-	is_fecn = (be32_to_cpu(ohdr->bth[1]) >> HFI1_FECN_SHIFT) &
-			HFI1_FECN_MASK;
-	is_becn = (be32_to_cpu(ohdr->bth[1]) >> HFI1_BECN_SHIFT) &
-			HFI1_BECN_MASK;
 
 	sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
 	if (rhf_dc_info(rhf))
 		sc5 |= 0x10;
 
-	if (is_fecn) {
-		u32 src_qpn = be32_to_cpu(ohdr->u.ud.deth[1]) & HFI1_QPN_MASK;
+	if (bth1 & HFI1_FECN_SMASK) {
 		u16 pkey = (u16)be32_to_cpu(ohdr->bth[0]);
 		u16 dlid = be16_to_cpu(hdr->lrh[1]);
-		u16 slid = be16_to_cpu(hdr->lrh[3]);
 
-		return_cnp(ibp, qp, src_qpn, pkey, dlid, slid, sc5, grh);
+		return_cnp(ibp, qp, rqpn, pkey, dlid, rlid, sc5, grh);
 	}
 
-	if (is_becn) {
+	if (bth1 & HFI1_BECN_SMASK) {
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-		u32 lqpn =  be32_to_cpu(ohdr->bth[1]) & HFI1_QPN_MASK;
+		u32 lqpn = bth1 & HFI1_QPN_MASK;
 		u8 sl = ibp->sc_to_sl[sc5];
 
-		process_becn(ppd, sl, 0, lqpn, 0, svc_type);
+		process_becn(ppd, sl, rlid, lqpn, rqpn, svc_type);
 	}
-
-	/* turn off BECN, or FECN */
-	bth1 = be32_to_cpu(ohdr->bth[1]);
-	bth1 &= ~(HFI1_FECN_MASK << HFI1_FECN_SHIFT);
-	bth1 &= ~(HFI1_BECN_MASK << HFI1_BECN_SHIFT);
-	ohdr->bth[1] = cpu_to_be32(bth1);
 }
 
 struct ps_mdata {
@@ -508,7 +507,6 @@ static inline void init_ps_mdata(struct ps_mdata *mdata,
 	mdata->rcd = rcd;
 	mdata->rsize = packet->rsize;
 	mdata->maxcnt = packet->maxcnt;
-
 	mdata->ps_head = packet->rhqoff;
 
 	if (HFI1_CAP_IS_KSET(DMA_RTAIL)) {
@@ -564,7 +562,7 @@ static void prescan_rxq(struct hfi1_packet *packet)
 		struct hfi1_other_headers *ohdr;
 		struct ib_grh *grh = NULL;
 		u64 rhf = rhf_to_cpu(rhf_addr);
-		u32 etype = rhf_rcv_type(rhf), qpn;
+		u32 etype = rhf_rcv_type(rhf), qpn, bth1;
 		int is_ecn = 0;
 		u8 lnh;
 
@@ -586,15 +584,13 @@ static void prescan_rxq(struct hfi1_packet *packet)
 		} else
 			goto next; /* just in case */
 
-		is_ecn |= be32_to_cpu(ohdr->bth[1]) &
-			(HFI1_FECN_MASK << HFI1_FECN_SHIFT);
-		is_ecn |= be32_to_cpu(ohdr->bth[1]) &
-			(HFI1_BECN_MASK << HFI1_BECN_SHIFT);
+		bth1 = be32_to_cpu(ohdr->bth[1]);
+		is_ecn = !!(bth1 & (HFI1_FECN_SMASK | HFI1_BECN_SMASK));
 
 		if (!is_ecn)
 			goto next;
 
-		qpn = be32_to_cpu(ohdr->bth[1]) & HFI1_QPN_MASK;
+		qpn = bth1 & HFI1_QPN_MASK;
 		rcu_read_lock();
 		qp = hfi1_lookup_qpn(ibp, qpn);
 
@@ -603,8 +599,12 @@ static void prescan_rxq(struct hfi1_packet *packet)
 			goto next;
 		}
 
-		process_ecn(qp, hdr, ohdr, rhf, grh);
+		process_ecn(qp, hdr, ohdr, rhf, bth1, grh);
 		rcu_read_unlock();
+
+		/* turn off BECN, FECN */
+		bth1 &= ~(HFI1_FECN_SMASK | HFI1_BECN_SMASK);
+		ohdr->bth[1] = cpu_to_be32(bth1);
 next:
 		update_ps_mdata(&mdata);
 	}
