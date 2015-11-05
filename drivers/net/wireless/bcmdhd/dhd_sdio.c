@@ -1869,6 +1869,11 @@ static int dhdsdio_txpkt_preprocess(dhd_bus_t *bus, void *pkt, int chan, int txs
 		PKTALIGN(osh, tmp_pkt, PKTLEN(osh, pkt), DHD_SDALIGN);
 		bcopy(PKTDATA(osh, pkt), PKTDATA(osh, tmp_pkt), PKTLEN(osh, pkt));
 		*new_pkt = tmp_pkt;
+                /*
+		 * pull back sdpcm_hdrlen length from old skb as new skb here
+		 * is passed to postprocessing
+                 */
+		PKTPULL(osh, pkt, sdpcm_hdrlen);
 		pkt = tmp_pkt;
 	}
 
