@@ -1628,6 +1628,32 @@ static int __cmd_record(int argc, const char **argv)
 	return argc;
 }
 
+static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
+				    union perf_event *event,
+				    struct perf_session *session)
+{
+	struct stat_round_event *round = &event->stat_round;
+	struct perf_evsel *counter;
+	struct timespec tsh, *ts = NULL;
+	const char **argv = session->header.env.cmdline_argv;
+	int argc = session->header.env.nr_cmdline;
+
+	evlist__for_each(evsel_list, counter)
+		perf_stat_process_counter(&stat_config, counter);
+
+	if (round->type == PERF_STAT_ROUND_TYPE__FINAL)
+		update_stats(&walltime_nsecs_stats, round->time);
+
+	if (stat_config.interval && round->time) {
+		tsh.tv_sec  = round->time / NSECS_PER_SEC;
+		tsh.tv_nsec = round->time % NSECS_PER_SEC;
+		ts = &tsh;
+	}
+
+	print_counters(ts, argc, argv);
+	return 0;
+}
+
 static
 int process_stat_config_event(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
@@ -1713,6 +1739,8 @@ static struct perf_stat perf_stat = {
 		.thread_map	= process_thread_map_event,
 		.cpu_map	= process_cpu_map_event,
 		.stat_config	= process_stat_config_event,
+		.stat		= perf_event__process_stat_event,
+		.stat_round	= process_stat_round_event,
 	},
 };
 
