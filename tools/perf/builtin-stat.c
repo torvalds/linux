@@ -317,9 +317,18 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 	workload_exec_errno = info->si_value.sival_int;
 }
 
-static int perf_stat_synthesize_config(void)
+static int perf_stat_synthesize_config(bool is_pipe)
 {
 	int err;
+
+	if (is_pipe) {
+		err = perf_event__synthesize_attrs(NULL, perf_stat.session,
+						   process_synthesized_event);
+		if (err < 0) {
+			pr_err("Couldn't synthesize attrs.\n");
+			return err;
+		}
+	}
 
 	err = perf_event__synthesize_thread_map2(NULL, evsel_list->threads,
 						process_synthesized_event,
@@ -388,6 +397,7 @@ static int __run_perf_stat(int argc, const char **argv)
 	size_t l;
 	int status = 0;
 	const bool forks = (argc > 0);
+	bool is_pipe = STAT_RECORD ? perf_stat.file.is_pipe : false;
 
 	if (interval) {
 		ts.tv_sec  = interval / 1000;
@@ -398,7 +408,7 @@ static int __run_perf_stat(int argc, const char **argv)
 	}
 
 	if (forks) {
-		if (perf_evlist__prepare_workload(evsel_list, &target, argv, false,
+		if (perf_evlist__prepare_workload(evsel_list, &target, argv, is_pipe,
 						  workload_exec_failed_signal) < 0) {
 			perror("failed to prepare workload");
 			return -1;
@@ -457,12 +467,17 @@ static int __run_perf_stat(int argc, const char **argv)
 	if (STAT_RECORD) {
 		int err, fd = perf_data_file__fd(&perf_stat.file);
 
-		err = perf_session__write_header(perf_stat.session, evsel_list,
-						 fd, false);
+		if (is_pipe) {
+			err = perf_header__write_pipe(perf_data_file__fd(&perf_stat.file));
+		} else {
+			err = perf_session__write_header(perf_stat.session, evsel_list,
+							 fd, false);
+		}
+
 		if (err < 0)
 			return err;
 
-		err = perf_stat_synthesize_config();
+		err = perf_stat_synthesize_config(is_pipe);
 		if (err < 0)
 			return err;
 	}
@@ -970,6 +985,10 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	struct perf_evsel *counter;
 	char buf[64], *prefix = NULL;
 
+	/* Do not print anything if we record to the pipe. */
+	if (STAT_RECORD && perf_stat.file.is_pipe)
+		return;
+
 	if (interval)
 		print_interval(prefix = buf, ts);
 	else
@@ -1402,10 +1421,6 @@ static int __cmd_record(int argc, const char **argv)
 		return -1;
 	}
 
-	/* No pipe support ATM */
-	if (perf_stat.file.is_pipe)
-		return -EINVAL;
-
 	init_features(session);
 
 	session->evlist   = evsel_list;
@@ -1636,8 +1651,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 				   "older tools may produce warnings about this file\n.");
 		}
 
-		perf_stat.session->header.data_size += perf_stat.bytes_written;
-		perf_session__write_header(perf_stat.session, evsel_list, fd, true);
+		if (!perf_stat.file.is_pipe) {
+			perf_stat.session->header.data_size += perf_stat.bytes_written;
+			perf_session__write_header(perf_stat.session, evsel_list, fd, true);
+		}
 
 		perf_session__delete(perf_stat.session);
 	}
