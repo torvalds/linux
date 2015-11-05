@@ -1534,15 +1534,9 @@ int wilc_netdev_init(struct wilc **wilc)
 		nic = netdev_priv(ndev);
 		memset(nic, 0, sizeof(perInterface_wlan_t));
 
-		if (i == 0) {
-		#if defined(NM73131)
-			strcpy(ndev->name, "wilc_eth%d");
-		#elif defined(PLAT_CLM9722)
-			strcpy(ndev->name, "eth%d");
-		#else
+		if (i == 0)
 			strcpy(ndev->name, "wlan%d");
-		#endif
-		} else
+		else
 			strcpy(ndev->name, "p2p%d");
 
 		nic->u8IfIdx = g_linux_wlan->vif_num;
