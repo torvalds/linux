@@ -1168,13 +1168,17 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 	struct device_opp *dev_opp;
 	int ret = 0, count = 0;
 
+	mutex_lock(&dev_opp_list_lock);
+
 	dev_opp = _managed_opp(opp_np);
 	if (dev_opp) {
 		/* OPPs are already managed */
 		if (!_add_list_dev(dev, dev_opp))
 			ret = -ENOMEM;
+		mutex_unlock(&dev_opp_list_lock);
 		return ret;
 	}
+	mutex_unlock(&dev_opp_list_lock);
 
 	/* We have opp-list node now, iterate over it and add OPPs */
 	for_each_available_child_of_node(opp_np, np) {
@@ -1192,14 +1196,19 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 	if (WARN_ON(!count))
 		return -ENOENT;
 
+	mutex_lock(&dev_opp_list_lock);
+
 	dev_opp = _find_device_opp(dev);
 	if (WARN_ON(IS_ERR(dev_opp))) {
 		ret = PTR_ERR(dev_opp);
+		mutex_unlock(&dev_opp_list_lock);
 		goto free_table;
 	}
 
 	dev_opp->np = opp_np;
 	dev_opp->shared_opp = of_property_read_bool(opp_np, "opp-shared");
+
+	mutex_unlock(&dev_opp_list_lock);
 
 	return 0;
 
