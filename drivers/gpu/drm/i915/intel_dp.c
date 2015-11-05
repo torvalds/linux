@@ -3949,6 +3949,7 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
 	u8 buf;
 	int ret = 0;
@@ -3966,6 +3967,7 @@ static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 		goto out;
 	}
 
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 	intel_dp->sink_crc.started = false;
  out:
 	hsw_enable_ips(intel_crtc);
@@ -3975,6 +3977,7 @@ static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
 	u8 buf;
 	int ret;
@@ -4004,6 +4007,7 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 		return -EIO;
 	}
 
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 	intel_dp->sink_crc.started = true;
 	return 0;
 }
