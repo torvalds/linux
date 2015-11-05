@@ -316,8 +316,7 @@ static void sdi_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_output_unset_device(dssdev);
 
-	if (dssdev->manager)
-		dss_mgr_disconnect(dssdev->manager->id, dssdev);
+	dss_mgr_disconnect(dssdev->manager->id, dssdev);
 }
 
 static const struct omapdss_sdi_ops sdi_ops = {

@@ -500,8 +500,7 @@ static void hdmi_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_output_unset_device(dssdev);
 
-	if (dssdev->manager)
-		dss_mgr_disconnect(dssdev->manager->id, dssdev);
+	dss_mgr_disconnect(dssdev->manager->id, dssdev);
 }
 
 static int hdmi_read_edid(struct omap_dss_device *dssdev,
