@@ -166,9 +166,11 @@ struct rx_cmp {
 #define RX_CMP_HASH_VALID(rxcmp)				\
 	((rxcmp)->rx_cmp_len_flags_type & cpu_to_le32(RX_CMP_FLAGS_RSS_VALID))
 
+#define RSS_PROFILE_ID_MASK	0x1f
+
 #define RX_CMP_HASH_TYPE(rxcmp)					\
-	((le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_RSS_HASH_TYPE) >>\
-	 RX_CMP_RSS_HASH_TYPE_SHIFT)
+	(((le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_RSS_HASH_TYPE) >>\
+	  RX_CMP_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
 
 struct rx_cmp_ext {
 	__le32 rx_cmp_flags2;
@@ -282,9 +284,9 @@ struct rx_tpa_start_cmp {
 	 cpu_to_le32(RX_TPA_START_CMP_FLAGS_RSS_VALID))
 
 #define TPA_START_HASH_TYPE(rx_tpa_start)				\
-	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
-	  RX_TPA_START_CMP_RSS_HASH_TYPE) >>				\
-	 RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT)
+	(((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
+	   RX_TPA_START_CMP_RSS_HASH_TYPE) >>				\
+	  RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
 
 #define TPA_START_AGG_ID(rx_tpa_start)					\
 	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
@@ -839,6 +841,10 @@ struct bnxt_queue_info {
 	u8	queue_profile;
 };
 
+#define BNXT_GRCPF_REG_WINDOW_BASE_OUT	0x400
+#define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
+#define BNXT_CAG_REG_BASE		0x300000
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
@@ -959,11 +965,11 @@ struct bnxt {
 #define BNXT_RX_MASK_SP_EVENT		0
 #define BNXT_RX_NTP_FLTR_SP_EVENT	1
 #define BNXT_LINK_CHNG_SP_EVENT		2
-#define BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT	4
-#define BNXT_VXLAN_ADD_PORT_SP_EVENT	8
-#define BNXT_VXLAN_DEL_PORT_SP_EVENT	16
-#define BNXT_RESET_TASK_SP_EVENT	32
-#define BNXT_RST_RING_SP_EVENT		64
+#define BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT	3
+#define BNXT_VXLAN_ADD_PORT_SP_EVENT	4
+#define BNXT_VXLAN_DEL_PORT_SP_EVENT	5
+#define BNXT_RESET_TASK_SP_EVENT	6
+#define BNXT_RST_RING_SP_EVENT		7
 
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
