@@ -107,7 +107,7 @@ static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 	if (!nskb)
 		return;
 
-	bt_cb(nskb)->pkt_type = HCI_3WIRE_LINK_PKT;
+	hci_skb_pkt_type(nskb) = HCI_3WIRE_LINK_PKT;
 
 	memcpy(skb_put(nskb, len), data, len);
 
@@ -360,7 +360,7 @@ static void h5_complete_rx_pkt(struct hci_uart *hu)
 	case HCI_EVENT_PKT:
 	case HCI_ACLDATA_PKT:
 	case HCI_SCODATA_PKT:
-		bt_cb(h5->rx_skb)->pkt_type = H5_HDR_PKT_TYPE(hdr);
+		hci_skb_pkt_type(h5->rx_skb) = H5_HDR_PKT_TYPE(hdr);
 
 		/* Remove Three-wire header */
 		skb_pull(h5->rx_skb, 4);
@@ -562,7 +562,7 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		return 0;
 	}
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_ACLDATA_PKT:
 	case HCI_COMMAND_PKT:
 		skb_queue_tail(&h5->rel, skb);
@@ -573,7 +573,7 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_ERR("Unknown packet type %u", bt_cb(skb)->pkt_type);
+		BT_ERR("Unknown packet type %u", hci_skb_pkt_type(skb));
 		kfree_skb(skb);
 		break;
 	}
@@ -642,7 +642,7 @@ static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
 	if (!nskb)
 		return NULL;
 
-	bt_cb(nskb)->pkt_type = pkt_type;
+	hci_skb_pkt_type(nskb) = pkt_type;
 
 	h5_slip_delim(nskb);
 
@@ -697,7 +697,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 
 	skb = skb_dequeue(&h5->unrel);
 	if (skb) {
-		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
+		nskb = h5_prepare_pkt(hu, hci_skb_pkt_type(skb),
 				      skb->data, skb->len);
 		if (nskb) {
 			kfree_skb(skb);
@@ -715,7 +715,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 
 	skb = skb_dequeue(&h5->rel);
 	if (skb) {
-		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
+		nskb = h5_prepare_pkt(hu, hci_skb_pkt_type(skb),
 				      skb->data, skb->len);
 		if (nskb) {
 			__skb_queue_tail(&h5->unack, skb);

@@ -437,22 +437,22 @@ static int btusb_recv_intr(struct btusb_data *data, void *buffer, int count)
 				break;
 			}
 
-			bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
-			bt_cb(skb)->expect = HCI_EVENT_HDR_SIZE;
+			hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
+			hci_skb_expect(skb) = HCI_EVENT_HDR_SIZE;
 		}
 
-		len = min_t(uint, bt_cb(skb)->expect, count);
+		len = min_t(uint, hci_skb_expect(skb), count);
 		memcpy(skb_put(skb, len), buffer, len);
 
 		count -= len;
 		buffer += len;
-		bt_cb(skb)->expect -= len;
+		hci_skb_expect(skb) -= len;
 
 		if (skb->len == HCI_EVENT_HDR_SIZE) {
 			/* Complete event header */
-			bt_cb(skb)->expect = hci_event_hdr(skb)->plen;
+			hci_skb_expect(skb) = hci_event_hdr(skb)->plen;
 
-			if (skb_tailroom(skb) < bt_cb(skb)->expect) {
+			if (skb_tailroom(skb) < hci_skb_expect(skb)) {
 				kfree_skb(skb);
 				skb = NULL;
 
@@ -461,7 +461,7 @@ static int btusb_recv_intr(struct btusb_data *data, void *buffer, int count)
 			}
 		}
 
-		if (bt_cb(skb)->expect == 0) {
+		if (!hci_skb_expect(skb)) {
 			/* Complete frame */
 			data->recv_event(data->hdev, skb);
 			skb = NULL;
@@ -492,24 +492,24 @@ static int btusb_recv_bulk(struct btusb_data *data, void *buffer, int count)
 				break;
 			}
 
-			bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-			bt_cb(skb)->expect = HCI_ACL_HDR_SIZE;
+			hci_skb_pkt_type(skb) = HCI_ACLDATA_PKT;
+			hci_skb_expect(skb) = HCI_ACL_HDR_SIZE;
 		}
 
-		len = min_t(uint, bt_cb(skb)->expect, count);
+		len = min_t(uint, hci_skb_expect(skb), count);
 		memcpy(skb_put(skb, len), buffer, len);
 
 		count -= len;
 		buffer += len;
-		bt_cb(skb)->expect -= len;
+		hci_skb_expect(skb) -= len;
 
 		if (skb->len == HCI_ACL_HDR_SIZE) {
 			__le16 dlen = hci_acl_hdr(skb)->dlen;
 
 			/* Complete ACL header */
-			bt_cb(skb)->expect = __le16_to_cpu(dlen);
+			hci_skb_expect(skb) = __le16_to_cpu(dlen);
 
-			if (skb_tailroom(skb) < bt_cb(skb)->expect) {
+			if (skb_tailroom(skb) < hci_skb_expect(skb)) {
 				kfree_skb(skb);
 				skb = NULL;
 
@@ -518,7 +518,7 @@ static int btusb_recv_bulk(struct btusb_data *data, void *buffer, int count)
 			}
 		}
 
-		if (bt_cb(skb)->expect == 0) {
+		if (!hci_skb_expect(skb)) {
 			/* Complete frame */
 			hci_recv_frame(data->hdev, skb);
 			skb = NULL;
@@ -549,22 +549,22 @@ static int btusb_recv_isoc(struct btusb_data *data, void *buffer, int count)
 				break;
 			}
 
-			bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
-			bt_cb(skb)->expect = HCI_SCO_HDR_SIZE;
+			hci_skb_pkt_type(skb) = HCI_SCODATA_PKT;
+			hci_skb_expect(skb) = HCI_SCO_HDR_SIZE;
 		}
 
-		len = min_t(uint, bt_cb(skb)->expect, count);
+		len = min_t(uint, hci_skb_expect(skb), count);
 		memcpy(skb_put(skb, len), buffer, len);
 
 		count -= len;
 		buffer += len;
-		bt_cb(skb)->expect -= len;
+		hci_skb_expect(skb) -= len;
 
 		if (skb->len == HCI_SCO_HDR_SIZE) {
 			/* Complete SCO header */
-			bt_cb(skb)->expect = hci_sco_hdr(skb)->dlen;
+			hci_skb_expect(skb) = hci_sco_hdr(skb)->dlen;
 
-			if (skb_tailroom(skb) < bt_cb(skb)->expect) {
+			if (skb_tailroom(skb) < hci_skb_expect(skb)) {
 				kfree_skb(skb);
 				skb = NULL;
 
@@ -573,7 +573,7 @@ static int btusb_recv_isoc(struct btusb_data *data, void *buffer, int count)
 			}
 		}
 
-		if (bt_cb(skb)->expect == 0) {
+		if (!hci_skb_expect(skb)) {
 			/* Complete frame */
 			hci_recv_frame(data->hdev, skb);
 			skb = NULL;
@@ -1257,7 +1257,7 @@ static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s", hdev->name);
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		urb = alloc_ctrl_urb(hdev, skb);
 		if (IS_ERR(urb))
@@ -1853,7 +1853,7 @@ static int inject_cmd_complete(struct hci_dev *hdev, __u16 opcode)
 
 	*skb_put(skb, 1) = 0x00;
 
-	bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
+	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
 
 	return hci_recv_frame(hdev, skb);
 }
@@ -1945,7 +1945,7 @@ static int btusb_send_frame_intel(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s", hdev->name);
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		if (test_bit(BTUSB_BOOTLOADER, &data->flags)) {
 			struct hci_command_hdr *cmd = (void *)skb->data;

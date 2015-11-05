@@ -324,7 +324,7 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 			return -ENOMEM;
 		}
 
-		bt_cb(skb)->pkt_type = pkt_type;
+		hci_skb_pkt_type(skb) = pkt_type;
 
 		data->reassembly = skb;
 	} else {
@@ -469,9 +469,10 @@ static int bfusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	unsigned char buf[3];
 	int sent = 0, size, count;
 
-	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb, bt_cb(skb)->pkt_type, skb->len);
+	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb,
+	       hci_skb_pkt_type(skb), skb->len);
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		break;
@@ -484,7 +485,7 @@ static int bfusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
 	count = skb->len;
 
