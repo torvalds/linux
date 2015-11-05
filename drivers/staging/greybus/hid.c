@@ -474,4 +474,6 @@ static struct gb_protocol hid_protocol = {
 	.request_recv		= gb_hid_irq_handler,
 };
 
-gb_builtin_protocol_driver(hid_protocol);
+gb_protocol_driver(&hid_protocol);
+
+MODULE_LICENSE("GPL v2");

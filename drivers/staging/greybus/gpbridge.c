@@ -49,15 +49,9 @@ static int __init gpbridge_init(void)
 		pr_err("error initializing spi protocol\n");
 		goto error_spi;
 	}
-	if (gb_hid_protocol_init()) {
-		pr_err("error initializing hid protocol\n");
-		goto error_hid;
-	}
 
 	return 0;
 
-error_hid:
-	gb_spi_protocol_exit();
 error_spi:
 	gb_i2c_protocol_exit();
 error_i2c:
@@ -77,7 +71,6 @@ module_init(gpbridge_init);
 
 static void __exit gpbridge_exit(void)
 {
-	gb_hid_protocol_exit();
 	gb_spi_protocol_exit();
 	gb_i2c_protocol_exit();
 	gb_usb_protocol_exit();

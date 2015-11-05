@@ -18,7 +18,6 @@ gb-phy-y :=	gpbridge.o	\
 		uart.o	\
 		pwm.o	\
 		gpio.o	\
-		hid.o	\
 		i2c.o	\
 		spi.o	\
 		usb.o
@@ -29,6 +28,7 @@ gb-battery-y := battery.o
 gb-loopback-y := loopback.o
 gb-light-y := light.o
 gb-raw-y := raw.o
+gb-hid-y := hid.o
 gb-es1-y := es1.o
 gb-es2-y := es2.o
 gb-db3-y := db3-platform.o
@@ -39,6 +39,7 @@ obj-m += gb-vibrator.o
 obj-m += gb-battery.o
 obj-m += gb-loopback.o
 obj-m += gb-light.o
+obj-m += gb-hid.o
 obj-m += gb-raw.o
 obj-m += gb-es1.o
 obj-m += gb-es2.o
