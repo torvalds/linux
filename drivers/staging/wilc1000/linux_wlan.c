@@ -333,14 +333,14 @@ void linux_wlan_mac_indicate(struct wilc *wilc, int flag)
 
 struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 {
-	u8 *bssid, *Bssid1;
+	u8 *bssid, *bssid1;
 	int i = 0;
 
 	bssid = mac_header + 10;
-	Bssid1 = mac_header + 4;
+	bssid1 = mac_header + 4;
 
 	for (i = 0; i < wilc->vif_num; i++)
-		if (!memcmp(Bssid1, wilc->vif[i].bssid, ETH_ALEN) ||
+		if (!memcmp(bssid1, wilc->vif[i].bssid, ETH_ALEN) ||
 		    !memcmp(bssid, wilc->vif[i].bssid, ETH_ALEN))
 			return wilc->vif[i].ndev;
 
@@ -348,9 +348,9 @@ struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	for (i = 0; i < 25; i++)
 		PRINT_D(INIT_DBG, "%02x ", mac_header[i]);
 	bssid = mac_header + 18;
-	Bssid1 = mac_header + 12;
+	bssid1 = mac_header + 12;
 	for (i = 0; i < wilc->vif_num; i++)
-		if (!memcmp(Bssid1, wilc->vif[i].bssid, ETH_ALEN) ||
+		if (!memcmp(bssid1, wilc->vif[i].bssid, ETH_ALEN) ||
 		    !memcmp(bssid, wilc->vif[i].bssid, ETH_ALEN))
 			return wilc->vif[i].ndev;
 
