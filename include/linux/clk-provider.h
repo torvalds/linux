@@ -44,7 +44,7 @@ struct dentry;
  * @rate:		Requested clock rate. This field will be adjusted by
  *			clock drivers according to hardware capabilities.
  * @min_rate:		Minimum rate imposed by clk users.
- * @max_rate:		Maximum rate a imposed by clk users.
+ * @max_rate:		Maximum rate imposed by clk users.
  * @best_parent_rate:	The best parent rate a parent can provide to fulfill the
  *			requested constraints.
  * @best_parent_hw:	The most appropriate parent clock that fulfills the
