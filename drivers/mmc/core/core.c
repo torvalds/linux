@@ -2567,11 +2567,6 @@ void mmc_rescan(struct work_struct *work)
 		container_of(work, struct mmc_host, detect.work);
 	int i;
 
-	if (host->trigger_card_event && host->ops->card_event) {
-		host->ops->card_event(host);
-		host->trigger_card_event = false;
-	}
-
 	if (host->rescan_disable)
 		return;
 
@@ -2579,6 +2574,11 @@ void mmc_rescan(struct work_struct *work)
 	if ((host->caps & MMC_CAP_NONREMOVABLE) && host->rescan_entered)
 		return;
 	host->rescan_entered = 1;
+
+	if (host->trigger_card_event && host->ops->card_event) {
+		host->ops->card_event(host);
+		host->trigger_card_event = false;
+	}
 
 	mmc_bus_get(host);
 
