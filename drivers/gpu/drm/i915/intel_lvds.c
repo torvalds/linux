@@ -1164,8 +1164,7 @@ out:
 	DRM_DEBUG_KMS("detected %s-link lvds configuration\n",
 		      lvds_encoder->is_dual_link ? "dual" : "single");
 
-	lvds_encoder->a3_power = I915_READ(lvds_encoder->reg) &
-				 LVDS_A3_POWER_MASK;
+	lvds_encoder->a3_power = lvds & LVDS_A3_POWER_MASK;
 
 	lvds_connector->lid_notifier.notifier_call = intel_lid_notify;
 	if (acpi_lid_notifier_register(&lvds_connector->lid_notifier)) {
