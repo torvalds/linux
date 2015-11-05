@@ -1093,7 +1093,7 @@ int mac_open(struct net_device *ndev)
 	wl = nic->wilc;
 
 #ifdef WILC_SPI
-	if (!wl|| !wl->wilc_spidev) {
+	if (!wl || !wl->wilc_spidev) {
 		netdev_err(ndev, "wilc1000: SPI device not ready\n");
 		return -ENODEV;
 	}
@@ -1495,8 +1495,7 @@ void wl_wlan_cleanup(struct wilc *wilc)
 	if (wilc && wilc->firmware)
 		release_firmware(wilc->firmware);
 
-	if (wilc&&
-	   (wilc->vif[0].ndev || wilc->vif[1].ndev)) {
+	if (wilc && (wilc->vif[0].ndev || wilc->vif[1].ndev)) {
 		linux_wlan_lock_timeout(&close_exit_sync, 12 * 1000);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
