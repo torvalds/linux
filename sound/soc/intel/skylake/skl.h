@@ -68,6 +68,8 @@ struct skl {
 
 	struct skl_dsp_resource resource;
 	struct list_head ppl_list;
+
+	const char *fw_name;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)

@@ -139,7 +139,8 @@ void skl_dsp_free(struct sst_dsp *dsp);
 
 int skl_dsp_boot(struct sst_dsp *ctx);
 int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
+		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
+		struct skl_sst **dsp);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
 #endif /*__SKL_SST_DSP_H__*/

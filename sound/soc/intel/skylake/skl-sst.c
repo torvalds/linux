@@ -77,7 +77,7 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 	init_waitqueue_head(&skl->boot_wait);
 
 	if (ctx->fw == NULL) {
-		ret = request_firmware(&ctx->fw, "dsp_fw_release.bin", ctx->dev);
+		ret = request_firmware(&ctx->fw, ctx->fw_name, ctx->dev);
 		if (ret < 0) {
 			dev_err(ctx->dev, "Request firmware failed %d\n", ret);
 			skl_dsp_disable_core(ctx);
@@ -223,7 +223,7 @@ static struct sst_dsp_device skl_dev = {
 };
 
 int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
+		const char *fw_name, struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
 {
 	struct skl_sst *skl;
 	struct sst_dsp *sst;
@@ -244,6 +244,7 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	sst = skl->dsp;
 
+	sst->fw_name = fw_name;
 	sst->addr.lpe = mmio_base;
 	sst->addr.shim = mmio_base;
 	sst_dsp_mailbox_init(sst, (SKL_ADSP_SRAM0_BASE + SKL_ADSP_W0_STAT_SZ),

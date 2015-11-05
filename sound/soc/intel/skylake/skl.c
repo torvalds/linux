@@ -264,6 +264,7 @@ static int skl_machine_device_register(struct skl *skl, void *driver_data)
 		dev_err(bus->dev, "No matching machine driver found\n");
 		return -ENODEV;
 	}
+	skl->fw_name = mach->fw_filename;
 
 	pdev = platform_device_alloc(mach->drv_name, -1);
 	if (pdev == NULL) {
