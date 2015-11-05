@@ -231,6 +231,18 @@ static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+#define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
+
+static int
+perf_evsel__write_stat_event(struct perf_evsel *counter, u32 cpu, u32 thread,
+			     struct perf_counts_values *count)
+{
+	struct perf_sample_id *sid = SID(counter, cpu, thread);
+
+	return perf_event__synthesize_stat(NULL, cpu, thread, sid->id, count,
+					   process_synthesized_event, NULL);
+}
+
 /*
  * Read out the results of a single counter:
  * do not aggregate counts across CPUs in system-wide mode
@@ -254,6 +266,13 @@ static int read_counter(struct perf_evsel *counter)
 			count = perf_counts(counter->counts, cpu, thread);
 			if (perf_evsel__read(counter, cpu, thread, count))
 				return -1;
+
+			if (STAT_RECORD) {
+				if (perf_evsel__write_stat_event(counter, cpu, thread, count)) {
+					pr_err("failed to write stat event\n");
+					return -1;
+				}
+			}
 		}
 	}
 
