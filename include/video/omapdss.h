@@ -770,6 +770,7 @@ struct omap_dss_device {
 
 	/* DISPC channel for this output */
 	enum omap_channel dispc_channel;
+	bool dispc_channel_connected;
 
 	/* output instance */
 	enum omap_dss_output_id id;

@@ -111,6 +111,7 @@ static int omap_crtc_dss_connect(enum omap_channel channel,
 		return -EINVAL;
 
 	omap_crtc_output[channel] = dst;
+	dst->dispc_channel_connected = true;
 
 	dst->manager = mgr;
 	mgr->output = dst;
@@ -124,6 +125,7 @@ static void omap_crtc_dss_disconnect(enum omap_channel channel,
 	struct omap_overlay_manager *mgr = omap_dss_get_overlay_manager(channel);
 
 	omap_crtc_output[channel] = NULL;
+	dst->dispc_channel_connected = false;
 
 	mgr->output->manager = NULL;
 	mgr->output = NULL;
