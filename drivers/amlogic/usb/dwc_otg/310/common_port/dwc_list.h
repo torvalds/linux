@@ -384,17 +384,17 @@ struct {								\
 #define DWC_TAILQ_PREV(elm, headname, field)				\
 	(*(((struct headname *)((elm)->field.tqe_prev))->tqh_last))
 #define DWC_TAILQ_EMPTY(head)						\
-	(TAILQ_FIRST(head) == TAILQ_END(head))
+	(DWC_TAILQ_FIRST(head) == DWC_TAILQ_END(head))
 
 #define DWC_TAILQ_FOREACH(var, head, field)				\
-	for((var) = TAILQ_FIRST(head);					\
-	    (var) != TAILQ_END(head);					\
-	    (var) = TAILQ_NEXT(var, field))
+	for ((var) = DWC_TAILQ_FIRST(head);				\
+	    (var) != DWC_TAILQ_END(head);				\
+	    (var) = DWC_TAILQ_NEXT(var, field))
 
 #define DWC_TAILQ_FOREACH_REVERSE(var, head, headname, field)		\
-	for((var) = TAILQ_LAST(head, headname);				\
-	    (var) != TAILQ_END(head);					\
-	    (var) = TAILQ_PREV(var, headname, field))
+	for ((var) = DWC_TAILQ_LAST(head, headname);			\
+	    (var) != DWC_TAILQ_END(head);				\
+	    (var) = DWC_TAILQ_PREV(var, headname, field))
 
 /*
  * Tail queue functions.

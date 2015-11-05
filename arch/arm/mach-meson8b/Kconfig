@@ -24,6 +24,13 @@ config MESON_TRUSTZONE
 	default n
 	help
 		Enable ARM Trustzone secure extension
+
+config MESON_GIC_FIQ
+	bool "MESON support GIC FIQ"
+	default n
+	depends on FIQ
+	help
+	    support GIC FIQ
 endif # ARCH_MESON8
 
 

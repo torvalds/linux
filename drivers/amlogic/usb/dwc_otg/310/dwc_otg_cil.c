@@ -2444,9 +2444,9 @@ void dwc_otg_hc_init(dwc_otg_core_if_t * core_if, dwc_hc_t * hc)
 	hcchar.b.epnum = hc->ep_num;
 	hcchar.b.epdir = hc->ep_is_in;
 	hcchar.b.lspddev = (hc->speed == DWC_OTG_EP_SPEED_LOW);
-	if((hc->ep_type == DWC_OTG_EP_TYPE_INTR) && hc->do_split && (hc->speed == DWC_OTG_EP_SPEED_FULL))
-		hcchar.b.eptype = DWC_OTG_EP_TYPE_BULK;
-	else
+	//if((hc->ep_type == DWC_OTG_EP_TYPE_INTR) && hc->do_split && (hc->speed == DWC_OTG_EP_SPEED_FULL))
+	//	hcchar.b.eptype = DWC_OTG_EP_TYPE_BULK;
+	//else
 	hcchar.b.eptype = hc->ep_type;
 	hcchar.b.mps = hc->max_packet;
 

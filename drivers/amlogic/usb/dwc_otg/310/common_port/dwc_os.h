@@ -960,6 +960,8 @@ extern void DWC_TASK_FREE(dwc_tasklet_t *task);
 extern void DWC_TASK_SCHEDULE(dwc_tasklet_t *task);
 #define dwc_task_schedule DWC_TASK_SCHEDULE
 
+extern void DWC_TASK_HI_SCHEDULE(dwc_tasklet_t *task);
+#define dwc_task_hi_schedule DWC_TASK_HI_SCHEDULE
 
 /** @name Timer
  *

@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
-
+#include <asm/fiq.h>
 #include <trace/events/irq.h>
 
 #include "internals.h"
@@ -454,7 +454,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 		goto out;
 	}
 
-	if (desc->istate & IRQS_ONESHOT)
+	if ((irq!=get_fiq_index()) && (desc->istate & IRQS_ONESHOT))
 		mask_irq(desc);
 
 	preflow_handler(desc);

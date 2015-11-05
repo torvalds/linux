@@ -25,6 +25,8 @@ $(DWC_OTG_NAME)-objs	+= dwc_otg_cil.o dwc_otg_cil_intr.o
 $(DWC_OTG_NAME)-objs	+= dwc_otg_pcd_linux.o dwc_otg_pcd.o dwc_otg_pcd_intr.o 
 $(DWC_OTG_NAME)-objs	+= dwc_otg_hcd.o dwc_otg_hcd_linux.o dwc_otg_hcd_intr.o dwc_otg_hcd_queue.o dwc_otg_hcd_ddma.o
 $(DWC_OTG_NAME)-objs	+= dwc_otg_adp.o
+$(DWC_OTG_NAME)-objs	+= dwc_otg_fiq_fsm.o
+$(DWC_OTG_NAME)-objs	+= dwc_otg_fiq_stub.o
 ifneq ($(CFI),)
 $(DWC_OTG_NAME)-objs	+= dwc_otg_cfi.o
 endif

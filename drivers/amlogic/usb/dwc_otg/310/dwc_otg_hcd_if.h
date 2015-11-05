@@ -79,8 +79,6 @@ struct dwc_otg_hcd_function_ops {
 	dwc_otg_hcd_hub_info_from_urb_cb_t hub_info;
 	dwc_otg_hcd_speed_from_urb_cb_t speed;
 	dwc_otg_hcd_complete_urb_cb_t complete;
-	dwc_otg_hcd_complete_urb_cb_t complete_in_tasklet;
-	dwc_otg_hcd_complete_urb_cb_t hcd_isoc_complete;
 	dwc_otg_hcd_get_b_hnp_enable get_b_hnp_enable;
 };
 /** @} */
@@ -114,6 +112,11 @@ extern void dwc_otg_hcd_remove(dwc_otg_hcd_t * hcd);
  * Return 0 if interrupt is not handled
  */
 extern int32_t dwc_otg_hcd_handle_intr(dwc_otg_hcd_t * dwc_otg_hcd);
+
+/** This function is used to handle the fast interrupt
+ *
+ */
+extern void __attribute__ ((naked)) dwc_otg_hcd_handle_fiq(void);
 
 /**
  * Returns private data set by

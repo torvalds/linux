@@ -47,6 +47,9 @@
 #include <asm/exception.h>
 #include <asm/smp_plat.h>
 
+#ifdef CONFIG_MESON_GIC_FIQ
+#include <mach/am_regs.h>
+#endif
 #include "irqchip.h"
 
 union gic_base {
@@ -80,6 +83,9 @@ static DEFINE_RAW_SPINLOCK(irq_controller_lock);
  */
 #define NR_GIC_CPU_IF 8
 static u8 gic_cpu_map[NR_GIC_CPU_IF] __read_mostly;
+#ifdef CONFIG_MESON_GIC_FIQ
+static int gic_fiq_enable __read_mostly;
+#endif
 
 /*
  * Supported arch specific GIC irq extension.
@@ -99,6 +105,9 @@ struct irq_chip gic_arch_extn = {
 #endif
 
 static struct gic_chip_data gic_data[MAX_GIC_NR] __read_mostly;
+#ifdef CONFIG_MESON_GIC_FIQ
+static int gic_fiq_enable __read_mostly;
+#endif
 
 #ifdef CONFIG_GIC_NON_BANKED
 static void __iomem *gic_get_percpu_base(union gic_base *base)
@@ -294,7 +303,7 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 	do {
 		irqstat = readl_relaxed(cpu_base + GIC_CPU_INTACK);
 		irqnr = irqstat & ~0x1c00;
-
+		
 		if (likely(irqnr > 15 && irqnr < 1021)) {
 			irqnr = irq_find_mapping(gic->domain, irqnr);
 			handle_IRQ(irqnr, regs);
@@ -421,7 +430,21 @@ static void __init gic_dist_init(struct gic_chip_data *gic)
 	for (i = 32; i < gic_irqs; i += 32)
 		writel_relaxed(0xffffffff, base + GIC_DIST_ENABLE_CLEAR + i * 4 / 32);
 
-	writel_relaxed(1, base + GIC_DIST_CTRL);
+#ifdef CONFIG_MESON_GIC_FIQ
+	if(gic_fiq_enable == 1)
+		writel_relaxed(3, base + GIC_DIST_CTRL);
+	else
+		writel_relaxed(1, base + GIC_DIST_CTRL);
+#else
+		writel_relaxed(1, base + GIC_DIST_CTRL);
+#endif
+}
+
+void  gic_set_fiq_fake(unsigned fiq,irq_flow_handler_t handle)
+{
+	if((fiq>=32) && (fiq<=1020)){
+		irq_set_chip_and_handler(fiq, &gic_chip, handle);
+	}
 }
 
 static void __cpuinit gic_cpu_init(struct gic_chip_data *gic)
@@ -430,7 +453,20 @@ static void __cpuinit gic_cpu_init(struct gic_chip_data *gic)
 	void __iomem *base = gic_data_cpu_base(gic);
 	unsigned int cpu_mask, cpu = smp_processor_id();
 	int i;
+#ifdef CONFIG_MESON_GIC_FIQ
+/*********************************************
+* suspend/resume need save&restore GIC FIQ setting
+*********************************************/
+	unsigned int it_lines_number;
+	unsigned cmd;
+	char c=0;
+	unsigned temp;
 
+	if(gic_fiq_enable == 1){
+		cmd = readl_relaxed((const volatile void *)P_AO_RTI_STATUS_REG1);
+		c = (char)cmd;
+	}
+#endif
 	/*
 	 * Get what the GIC says our CPU mask is.
 	 */
@@ -453,14 +489,51 @@ static void __cpuinit gic_cpu_init(struct gic_chip_data *gic)
 	writel_relaxed(0xffff0000, dist_base + GIC_DIST_ENABLE_CLEAR);
 	writel_relaxed(0x0000ffff, dist_base + GIC_DIST_ENABLE_SET);
 
+#ifdef CONFIG_MESON_GIC_FIQ
+	if(gic_fiq_enable == 1){
+	   /* Set the Per-CPU interrupts 15-8 as Secure and the rest
+	     * as Non-secure */
+	     it_lines_number = readl_relaxed(dist_base + GIC_DIST_CTR) & 0x1f;
+	    writel_relaxed(0xffff00ff, dist_base + GIC_DIST_IGROUP);
+
+	    if(c != 'r'){
+			/*  Set ALL interrupts as non-secure interrupts */
+		    for(i = 1; i <= it_lines_number; i++) {
+		    	   temp = readl_relaxed(dist_base + GIC_DIST_IGROUP + i * 4);
+		    	   if(temp == 0)
+		        		writel_relaxed(0xffffffff, dist_base + GIC_DIST_IGROUP + i * 4);
+			}
+		}
+		/*
+		 * Set priority on PPI and SGI interrupts
+		 */
+		for (i = 0; i < 32; i += 4){
+			temp = readl_relaxed(dist_base + GIC_DIST_PRI + i * 4 / 4);
+			if(temp == 0)
+				writel_relaxed(0xa0a0a0a0, dist_base + GIC_DIST_PRI + i * 4 / 4);
+		}
+	}
+	else{
+		for (i = 0; i < 32; i += 4)
+		writel_relaxed(0xa0a0a0a0, dist_base + GIC_DIST_PRI + i * 4 / 4);
+	}
+#else
 	/*
 	 * Set priority on PPI and SGI interrupts
 	 */
 	for (i = 0; i < 32; i += 4)
 		writel_relaxed(0xa0a0a0a0, dist_base + GIC_DIST_PRI + i * 4 / 4);
+#endif
 
 	writel_relaxed(0xf0, base + GIC_CPU_PRIMASK);
+#ifdef CONFIG_MESON_GIC_FIQ
+	if(gic_fiq_enable == 1)
+		writel_relaxed(0xf, base + GIC_CPU_CTRL);   //??GICC_ACTR maybe  set 0
+	else
+		writel_relaxed(1, base + GIC_CPU_CTRL);
+#else
 	writel_relaxed(1, base + GIC_CPU_CTRL);
+#endif
 }
 
 #ifdef CONFIG_CPU_PM
@@ -538,7 +611,14 @@ static void gic_dist_restore(unsigned int gic_nr)
 		writel_relaxed(gic_data[gic_nr].saved_spi_enable[i],
 			dist_base + GIC_DIST_ENABLE_SET + i * 4);
 
+#ifdef CONFIG_MESON_GIC_FIQ
+	if(gic_fiq_enable == 1)
+		writel_relaxed(3, dist_base + GIC_DIST_CTRL);
+	else
+		writel_relaxed(1, dist_base + GIC_DIST_CTRL);
+#else
 	writel_relaxed(1, dist_base + GIC_DIST_CTRL);
+#endif
 }
 
 static void gic_cpu_save(unsigned int gic_nr)
@@ -595,7 +675,14 @@ static void gic_cpu_restore(unsigned int gic_nr)
 		writel_relaxed(0xa0a0a0a0, dist_base + GIC_DIST_PRI + i * 4);
 
 	writel_relaxed(0xf0, cpu_base + GIC_CPU_PRIMASK);
+#ifdef CONFIG_MESON_GIC_FIQ
+	if(gic_fiq_enable == 1)
+		writel_relaxed(0xf, cpu_base + GIC_CPU_CTRL);
+	else
+		writel_relaxed(1, cpu_base + GIC_CPU_CTRL);
+#else
 	writel_relaxed(1, cpu_base + GIC_CPU_CTRL);
+#endif
 }
 
 static int gic_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
@@ -669,7 +756,14 @@ void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 	dsb();
 
 	/* this always happens on GIC0 */
+#ifdef CONFIG_MESON_GIC_FIQ
+	if(gic_fiq_enable == 1)
+		writel_relaxed(map << 16 | 1<<15 | irq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
+	else
+		writel_relaxed(map << 16 | irq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
+#else
 	writel_relaxed(map << 16 | irq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
+#endif
 }
 #endif
 
@@ -854,6 +948,13 @@ int __init gic_of_init(struct device_node *node, struct device_node *parent)
 
 	if (of_property_read_u32(node, "cpu-offset", &percpu_offset))
 		percpu_offset = 0;
+		
+#ifdef CONFIG_MESON_GIC_FIQ
+	if(of_property_read_bool(node, "gic_fiq_enable"))
+		gic_fiq_enable=1;
+	else
+		gic_fiq_enable = 0;
+#endif		
 
 	gic_init_bases(gic_cnt, -1, dist_base, cpu_base, percpu_offset, node);
 
@@ -869,5 +970,12 @@ IRQCHIP_DECLARE(cortex_a9_gic, "arm,cortex-a9-gic", gic_of_init);
 IRQCHIP_DECLARE(cortex_a7_gic, "arm,cortex-a7-gic", gic_of_init);
 IRQCHIP_DECLARE(msm_8660_qgic, "qcom,msm-8660-qgic", gic_of_init);
 IRQCHIP_DECLARE(msm_qgic2, "qcom,msm-qgic2", gic_of_init);
+
+#ifdef CONFIG_MESON_GIC_FIQ
+int get_gic_fiq_enable_flag(void)
+{
+	return gic_fiq_enable;
+}
+#endif
 
 #endif

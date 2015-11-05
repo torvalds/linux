@@ -50,7 +50,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/version.h>
 #include <asm/io.h>
+#include <asm/fiq.h>
 #include <linux/usb.h>
+#include <linux/io.h>
+#include <mach/am_regs.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
 #include <../drivers/usb/core/hcd.h>
 #else
@@ -61,6 +64,12 @@
 #include "dwc_otg_dbg.h"
 #include "dwc_otg_driver.h"
 #include "dwc_otg_hcd.h"
+
+extern unsigned char  _dwc_otg_fiq_stub, _dwc_otg_fiq_stub_end;
+
+DEFINE_PER_CPU(void *, fiq_stack_cpu);
+static DEFINE_MUTEX(fiq_lock);
+
 /**
  * Gets the endpoint number from a _bEndpointAddress argument. The endpoint is
  * qualified with its direction (possible 32 endpoints per device).
@@ -69,6 +78,8 @@
 						     ((_bEndpointAddress_ & USB_DIR_IN) != 0) << 4)
 
 static const char dwc_otg_hcd_name[] = "dwc_otg_hcd";
+
+extern bool fiq_enable;
 
 /** @name Linux HC Driver API Functions */
 /** @{ */
@@ -223,77 +234,6 @@ static void free_bus_bandwidth(struct usb_hcd *hcd, uint32_t bw,
 		hcd_to_bus(hcd)->bandwidth_int_reqs--;
 	}
 }
-int _hcd_isoc_complete(dwc_otg_hcd_t * hcd,void *urb_handle,
-		     dwc_otg_hcd_urb_t * dwc_otg_urb, int32_t status)
-{
-	struct urb *urb = (struct urb *)urb_handle;
-
-	if(dwc_otg_urb->qh_state == URB_STATE_DQUEUE)
-		status = -ENOENT;
-
-	urb->actual_length = dwc_otg_urb->actual_length;
-	/* Convert status value. */
-	switch (status) {
-	case -DWC_E_PROTOCOL:
-		status = -EPROTO;
-		break;
-	case -DWC_E_IN_PROGRESS:
-		status = -EINPROGRESS;
-		break;
-	case -DWC_E_PIPE:
-		status = -EPIPE;
-		break;
-	case -DWC_E_IO:
-		status = -EIO;
-		break;
-	case -DWC_E_TIMEOUT:
-		status = -ETIMEDOUT;
-		break;
-	case -DWC_E_OVERFLOW:
-		status = -EOVERFLOW;
-		break;
-	default:
-		if (status) {
-			printk(KERN_DEBUG "%s:Uknown urb status %d\n",__func__, status);
-
-		}
-	}
-
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-		int i;
-
-		urb->error_count = dwc_otg_hcd_urb_get_error_count(dwc_otg_urb);
-		for (i = 0; i < urb->number_of_packets; ++i) {
-			urb->iso_frame_desc[i].actual_length = dwc_otg_urb->iso_descs[i].actual_length;
-			urb->iso_frame_desc[i].status = dwc_otg_urb->iso_descs[i].status;
-		}
-	}
-
-	urb->status = status;
-
-	if (!status) {
-		if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-		    (urb->actual_length < urb->transfer_buffer_length)) {
-			urb->status = -EREMOTEIO;
-		}
-	}
-
-	if ((usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) ||
-	    (usb_pipetype(urb->pipe) == PIPE_INTERRUPT)) {
-		struct usb_host_endpoint *ep = dwc_urb_to_endpoint(urb);
-		if (ep) {
-			free_bus_bandwidth(dwc_otg_hcd_to_hcd(hcd),
-					   dwc_otg_hcd_get_ep_bandwidth(hcd,
-									ep->hcpriv),
-					   urb);
-		}
-	}
-	
-	
-	DWC_FREE(dwc_otg_urb);
-
-	return 0;
-}
 /**
  * Sets the final status of an URB and returns it to the device driver. Any
  * required cleanup of the URB is performed.
@@ -302,6 +242,8 @@ static int _complete(dwc_otg_hcd_t * hcd, void *urb_handle,
 		     dwc_otg_hcd_urb_t * dwc_otg_urb, int32_t status)
 {
 	struct urb *urb = (struct urb *)urb_handle;
+	urb_tq_entry_t *new_entry;
+	int rc = 0;
 #ifdef DEBUG
 	if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
 		DWC_PRINTF("%s: urb %p, device %d, ep %d %s, status=%d\n",
@@ -317,7 +259,7 @@ static int _complete(dwc_otg_hcd_t * hcd, void *urb_handle,
 		}
 	}
 #endif
-
+	new_entry = DWC_ALLOC_ATOMIC(sizeof(urb_tq_entry_t));
 	urb->actual_length = dwc_otg_hcd_urb_get_actual_length(dwc_otg_urb);
 	/* Convert status value. */
 	switch (status) {
@@ -363,108 +305,6 @@ static int _complete(dwc_otg_hcd_t * hcd, void *urb_handle,
 	}
 
 	urb->status = status;
-	if (!status) {
-		if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-		    (urb->actual_length < urb->transfer_buffer_length)) {
-			urb->status = -EREMOTEIO;
-		}
-	}
-
-	if ((usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) ||
-	    (usb_pipetype(urb->pipe) == PIPE_INTERRUPT)) {
-		struct usb_host_endpoint *ep = dwc_urb_to_endpoint(urb);
-		if (ep) {
-			free_bus_bandwidth(dwc_otg_hcd_to_hcd(hcd),
-					   dwc_otg_hcd_get_ep_bandwidth(hcd,
-									ep->hcpriv),
-					   urb);
-		}
-	}
-#if 0
-	usb_hcd_unlink_urb_from_ep(dwc_otg_hcd_to_hcd(hcd), urb);
-#endif
-	DWC_FREE(dwc_otg_urb);
-	dwc_otg_urb = NULL;
-
-	DWC_SPINUNLOCK(hcd->lock);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb);
-#else
-	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb, status);
-#endif
-	DWC_SPINLOCK(hcd->lock);
-
-	return 0;
-}
-
-/*copy from _complete,not use spinlock*/
-/**
- * Sets the final status of an URB and returns it to the device driver. Any
- * required cleanup of the URB is performed.
- */
-int _complete_in_tasklet(dwc_otg_hcd_t * hcd, void *urb_handle,
-		     dwc_otg_hcd_urb_t * dwc_otg_urb, int32_t status)
-{
-	struct urb *urb = (struct urb *)urb_handle;
-#if 0
-#ifdef DEBUG
-	if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
-		DWC_PRINTF("%s: urb %p, device %d, ep %d %s, status=%d\n",
-			   __func__, urb, usb_pipedevice(urb->pipe),
-			   usb_pipeendpoint(urb->pipe),
-			   usb_pipein(urb->pipe) ? "IN" : "OUT", status);
-		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-			int i;
-			for (i = 0; i < urb->number_of_packets; i++) {
-				DWC_PRINTF("  ISO Desc %d status: %d\n",
-					   i, urb->iso_frame_desc[i].status);
-			}
-		}
-	}
-#endif
-
-	urb->actual_length = dwc_otg_hcd_urb_get_actual_length(dwc_otg_urb);
-	/* Convert status value. */
-	switch (status) {
-	case -DWC_E_PROTOCOL:
-		status = -EPROTO;
-		break;
-	case -DWC_E_IN_PROGRESS:
-		status = -EINPROGRESS;
-		break;
-	case -DWC_E_PIPE:
-		status = -EPIPE;
-		break;
-	case -DWC_E_IO:
-		status = -EIO;
-		break;
-	case -DWC_E_TIMEOUT:
-		status = -ETIMEDOUT;
-		break;
-	case -DWC_E_OVERFLOW:
-		status = -EOVERFLOW;
-		break;
-	default:
-		if (status) {
-			DWC_PRINTF("Uknown urb status %d\n", status);
-
-		}
-	}
-
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-		int i;
-
-		urb->error_count = dwc_otg_hcd_urb_get_error_count(dwc_otg_urb);
-		for (i = 0; i < urb->number_of_packets; ++i) {
-			urb->iso_frame_desc[i].actual_length =
-			    dwc_otg_hcd_urb_get_iso_desc_actual_length
-			    (dwc_otg_urb, i);
-			urb->iso_frame_desc[i].status =
-			    dwc_otg_hcd_urb_get_iso_desc_status(dwc_otg_urb, i);
-		}
-	}
-
-	urb->status = status;
 	urb->hcpriv = NULL;
 	if (!status) {
 		if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
@@ -483,19 +323,37 @@ int _complete_in_tasklet(dwc_otg_hcd_t * hcd, void *urb_handle,
 					   urb);
 		}
 	}
-#if 0
-	usb_hcd_unlink_urb_from_ep(dwc_otg_hcd_to_hcd(hcd), urb);
-#endif
 	DWC_FREE(dwc_otg_urb);
+	if (!new_entry) {
+		DWC_ERROR("dwc_otg_hcd: complete: cannot allocate URB TQ entry\n");
+		urb->status = -EPROTO;
+		/* don't schedule the tasklet -
+		 * directly return the packet here with error. */
+#if 0
+	        usb_hcd_unlink_urb_from_ep(dwc_otg_hcd_to_hcd(hcd), urb);
 #endif
-	//DWC_SPINUNLOCK(hcd->lock);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb);
-#else
-		usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb, urb->status); 
-#endif
-	//DWC_SPINLOCK(hcd->lock);
 
+	        DWC_SPINUNLOCK(hcd->lock);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+	        usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb);
+#else
+		usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb, urb->status);
+#endif
+	        DWC_SPINLOCK(hcd->lock);
+	} else {
+		new_entry->urb = urb;
+#if 0
+		rc = usb_hcd_check_unlink_urb(dwc_otg_hcd_to_hcd(hcd), urb, urb->status);
+		if(0 == rc) {
+			usb_hcd_unlink_urb_from_ep(dwc_otg_hcd_to_hcd(hcd), urb);
+		}
+#endif
+		if(0 == rc) {
+			DWC_TAILQ_INSERT_TAIL(&hcd->completed_urb_list, new_entry,
+						urb_tq_entries);
+			DWC_TASK_HI_SCHEDULE(hcd->completion_tasklet);
+		}
+	}
 	return 0;
 }
 
@@ -505,10 +363,24 @@ static struct dwc_otg_hcd_function_ops hcd_fops = {
 	.hub_info = _hub_info,
 	.speed = _speed,
 	.complete = _complete,
-	.complete_in_tasklet = _complete_in_tasklet,
-	.hcd_isoc_complete = _hcd_isoc_complete,
+	//.complete_in_tasklet = _complete_in_tasklet,
+	//.hcd_isoc_complete = _hcd_isoc_complete,
 	.get_b_hnp_enable = _get_b_hnp_enable,
 };
+
+static struct fiq_handler fh = {
+  .name = "usb_fiq",
+};
+
+extern void __fiq_ll_setup(long r8, long r9, long fp, void *sp);
+static void fiq_setup_helper(void *regs)
+{
+	struct pt_regs *fiq_regs = regs;
+
+	__fiq_ll_setup(fiq_regs->ARM_r8, fiq_regs->ARM_r9, fiq_regs->ARM_fp,
+			__get_cpu_var(fiq_stack_cpu) + THREAD_START_SP);
+}
+
 
 /**
  * Initializes the HCD. This function allocates memory for and initializes the
@@ -531,8 +403,10 @@ int hcd_init(
 #elif  defined(PCI_INTERFACE)
 	dwc_otg_device_t *otg_dev = pci_get_drvdata(_dev);
 #endif
-
 	int retval = 0;
+	int irqno;
+	struct pt_regs regs;
+	int cpu;
 
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
 	
@@ -589,6 +463,74 @@ int hcd_init(
 		goto error2;
 	}
 
+	if (fiq_enable && dwc_otg_hcd->core_if->use_fiq_flag)
+	{
+		if (claim_fiq(&fh)) {
+			DWC_ERROR("Can't claim FIQ");
+			goto error2;
+		}
+
+		DWC_WARN("FIQ at 0x%08x", (fiq_fsm_enable ? (int)&dwc_otg_fiq_fsm : (int)&dwc_otg_fiq_nop));
+		DWC_WARN("FIQ ASM at 0x%08x length %d", (int)&_dwc_otg_fiq_stub, (int)(&_dwc_otg_fiq_stub_end - &_dwc_otg_fiq_stub));
+
+		memset(&regs,0,sizeof(regs));
+
+		regs.ARM_r8 = (long) dwc_otg_hcd->fiq_state;
+		if (fiq_fsm_enable) {
+			regs.ARM_r9 = dwc_otg_hcd->core_if->core_params->host_channels;
+			//regs.ARM_r10 = dwc_otg_hcd->dma;
+			regs.ARM_fp = (long) dwc_otg_fiq_fsm;
+			DWC_WARN("FIQ r8=0x%08x r9=0x%08x", (unsigned int)regs.ARM_r8,(unsigned int)regs.ARM_r9);
+		} else {
+			regs.ARM_fp = (long) dwc_otg_fiq_nop;
+		}
+
+		mutex_lock(&fiq_lock);
+
+		for_each_possible_cpu(cpu) {
+			void *stack;
+			stack = (void *) __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+			if (WARN_ON(!stack)) {
+				retval = -ENOMEM;
+				mutex_unlock(&fiq_lock);
+				goto error3;
+			}
+			per_cpu(fiq_stack_cpu, cpu) = stack;
+		}
+
+		on_each_cpu(fiq_setup_helper, &regs, true);
+		set_fiq_handler((void *) &_dwc_otg_fiq_stub, &_dwc_otg_fiq_stub_end - &_dwc_otg_fiq_stub);
+
+		mutex_unlock(&fiq_lock);
+
+//		__show_regs(&regs);
+
+		//Set the mphi periph to  the required registers
+		//dwc_otg_hcd->fiq_state->mphi_regs.base    = otg_dev->os_dep.mphi_base;
+		//dwc_otg_hcd->fiq_state->mphi_regs.ctrl    = otg_dev->os_dep.mphi_base + 0x4c;
+		//dwc_otg_hcd->fiq_state->mphi_regs.outdda  = otg_dev->os_dep.mphi_base + 0x28;
+		//dwc_otg_hcd->fiq_state->mphi_regs.outddb  = otg_dev->os_dep.mphi_base + 0x2c;
+		//dwc_otg_hcd->fiq_state->mphi_regs.intstat = otg_dev->os_dep.mphi_base + 0x50;
+		dwc_otg_hcd->fiq_state->dwc_regs_base = otg_dev->os_dep.base;
+		//DWC_WARN("MPHI regs_base at 0x%08x", (int)dwc_otg_hcd->fiq_state->mphi_regs.base);
+		//Enable mphi peripheral
+		//writel((1<<31),dwc_otg_hcd->fiq_state->mphi_regs.ctrl);
+#ifdef DEBUG
+		//if (readl(dwc_otg_hcd->fiq_state->mphi_regs.ctrl) & 0x80000000)
+		//	DWC_WARN("MPHI periph has been enabled");
+		//else
+		//	DWC_WARN("MPHI periph has NOT been enabled");
+#endif
+		//clear Timer D register
+		aml_clr_reg32_mask(P_ISA_TIMER_MUX, ((3<<6)|(1<<15)|(1<<19)));
+		aml_set_reg32_mask(P_ISA_TIMER_MUX,	((0<<6) | (0<<15) | (1<<19)));
+		printk("enable fiq %d\n",_dev->irq);
+		set_fiq_init(_dev->irq,(long)dwc_otg_hcd);
+		local_fiq_enable();		
+
+	}
+
+
 	otg_dev->hcd->otg_dev = otg_dev;
 	hcd->self.otg_port = dwc_otg_hcd_otg_port(dwc_otg_hcd);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33) //don't support for LM(with 2.6.20.1 kernel)
@@ -601,19 +543,30 @@ int hcd_init(
 //	if (otg_dev->core_if->otg_ver)
 //		hcd->self.is_hnp_cap = dwc_otg_get_hnpcapable(otg_dev->core_if);
 #endif
+	if (fiq_enable && dwc_otg_hcd->core_if->use_fiq_flag)
+		irqno = MESON_USB_FIQ_BRIDGE;
+	else
+		irqno = _dev->irq;
 	/*
 	 * Finish generic HCD initialization and start the HCD. This function
 	 * allocates the DMA buffer pool, registers the USB bus, requests the
 	 * IRQ line, and calls hcd_start method.
 	 */
-	retval = usb_add_hcd(hcd, _dev->irq, IRQF_SHARED | IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irqno, IRQF_SHARED | IRQF_DISABLED);
 	if (retval < 0) {
-		goto error2;
+		goto error3;
 	}
 
 	dwc_otg_hcd_set_priv_data(dwc_otg_hcd, hcd);
 	return 0;
 
+error3:
+	mutex_lock(&fiq_lock);
+	for_each_possible_cpu(cpu) {
+		__free_pages(per_cpu(fiq_stack_cpu, cpu), THREAD_SIZE_ORDER);
+		per_cpu(fiq_stack_cpu, cpu) = NULL;
+	}
+	mutex_unlock(&fiq_lock);
 error2:
 	usb_put_hcd(hcd);
 error1:
@@ -742,8 +695,12 @@ int hcd_resume(struct usb_hcd *hcd)
 /** Returns the current frame number. */
 static int get_frame_number(struct usb_hcd *hcd)
 {
+	hprt0_data_t hprt0;
 	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
-
+	hprt0.d32 = DWC_READ_REG32(dwc_otg_hcd->core_if->host_if->hprt0);
+	if (hprt0.b.prtspd == DWC_HPRT0_PRTSPD_HIGH_SPEED)
+		return dwc_otg_hcd_get_frame_number(dwc_otg_hcd) >> 3;
+	else
 	return dwc_otg_hcd_get_frame_number(dwc_otg_hcd);
 }
 
@@ -871,16 +828,15 @@ static int urb_enqueue(struct usb_hcd *hcd,
 				     usb_maxpacket(urb->dev, urb->pipe,
 						   !(usb_pipein(urb->pipe))));
 
-	buf = urb->transfer_buffer;
-	if (hcd->self.uses_dma) {
-		/*
-		 * Calculate virtual address from physical address,
-		 * because some class driver may not fill transfer_buffer.
-		 * In Buffer DMA mode virual address is used,
-		 * when handling non DWORD aligned buffers.
-		 */
-		buf = phys_to_virt(urb->transfer_dma);
+	if (hcd->self.uses_dma && (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP) &&
+			!urb->transfer_buffer)
+	{
+		DWC_ERROR("dwc_otg_hcd: urb->transfer_buffer not set. Bailing out.\n");
+		DWC_FREE(dwc_otg_urb);
+		return -EINVAL;
 	}
+
+	buf = urb->transfer_buffer;
 
 	if (!(urb->transfer_flags & URB_NO_INTERRUPT))
 		flags |= URB_GIVEBACK_ASAP;
@@ -955,10 +911,6 @@ static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	if(unlikely(retval))
 		goto EXIT;
 #endif
-	if(usb_pipeint(urb->pipe) && (dwc_otg_hcd->ssplit_lock == usb_pipedevice(urb->pipe))){
-		DWC_DEBUGPL(DBG_HCD, "addr=%d(%p)\n",usb_pipedevice(urb->pipe),urb->hcpriv);
-		dwc_otg_hcd->ssplit_lock = 0;	
-	}
 		
 	if(urb->hcpriv == NULL){
 		DWC_WARN("urb->hcpriv == NULL! urb = %p status=%d\n",urb,status);
@@ -1001,8 +953,6 @@ static void endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 		    "endpoint=%d,is_intr=%d\n", ep->desc.bEndpointAddress,
 		    dwc_ep_addr_to_endpoint(ep->desc.bEndpointAddress),
 			usb_endpoint_xfer_int(&ep->desc));
-	if(usb_endpoint_xfer_int(&ep->desc))
-		dwc_otg_hcd->ssplit_lock = 0;
 	dwc_otg_hcd_endpoint_disable(dwc_otg_hcd, ep->hcpriv, 250);
 	ep->hcpriv = NULL;
 }
@@ -1016,9 +966,6 @@ static void endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
 
 	DWC_SPINLOCK_IRQSAVE(dwc_otg_hcd->lock, &flags);
-	
-	if(usb_endpoint_xfer_int(&ep->desc))
-		dwc_otg_hcd->ssplit_lock = 0;
 
 	if (ep->hcpriv) {
 		dwc_otg_hcd_endpoint_reset(dwc_otg_hcd, ep->hcpriv);

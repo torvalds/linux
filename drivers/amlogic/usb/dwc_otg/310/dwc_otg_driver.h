@@ -46,6 +46,7 @@
 struct dwc_otg_pcd;
 struct dwc_otg_hcd;
 
+#define MESON_USB_FIQ_BRIDGE	INT_TIMER_D
 /**
  * This structure is a wrapper that encapsulates the driver components used to
  * manage a single DWC_otg controller.

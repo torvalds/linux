@@ -193,7 +193,7 @@
 
 
 /* All interrupts are FIQ capable */
-#define FIQ_START                   AM_IRQ0(0)
+#define FIQ_START                   0
 extern void request_fiq(unsigned fiq, void (*isr)(void));
 extern void free_fiq(unsigned fiq, void (*isr)(void));
 

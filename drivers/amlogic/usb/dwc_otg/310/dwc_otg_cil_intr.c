@@ -1518,7 +1518,7 @@ static int32_t dwc_otg_handle_lpm_intr(dwc_otg_core_if_t * core_if)
 /**
  * This function returns the Core Interrupt register.
  */
-static inline uint32_t dwc_otg_read_common_intr(dwc_otg_core_if_t * core_if)
+static inline uint32_t dwc_otg_read_common_intr(dwc_otg_core_if_t * core_if, gintmsk_data_t *reenable_gintmsk, dwc_otg_hcd_t *hcd)
 {
 	gahbcfg_data_t gahbcfg = {.d32 = 0 };
 	gintsts_data_t gintsts;
@@ -1535,26 +1535,45 @@ static inline uint32_t dwc_otg_read_common_intr(dwc_otg_core_if_t * core_if)
 	gintmsk_common.b.lpmtranrcvd = 1;
 #endif
 	gintmsk_common.b.restoredone = 1;
+	if(dwc_otg_is_device_mode(core_if))
+	{
 	/** @todo: The port interrupt occurs while in device
          * mode. Added code to CIL to clear the interrupt for now!
          */
 	gintmsk_common.b.portintr = 1;
-
+	}
 	gintsts.d32 = DWC_READ_REG32(&core_if->core_global_regs->gintsts);
 	gintmsk.d32 = DWC_READ_REG32(&core_if->core_global_regs->gintmsk);
+	if(fiq_enable && core_if->use_fiq_flag) {
+		local_fiq_disable();
+		/* Pull in the interrupts that the FIQ has masked */
+		gintmsk.d32 |= ~(hcd->fiq_state->gintmsk_saved.d32);
+		gintmsk.d32 |= gintmsk_common.d32;
+		/* for the upstairs function to reenable - have to read it here in case FIQ triggers again */
+		reenable_gintmsk->d32 = gintmsk.d32;
+		local_fiq_enable();
+	}
+
 	gahbcfg.d32 = DWC_READ_REG32(&core_if->core_global_regs->gahbcfg);
 
 #ifdef DEBUG
 	/* if any common interrupts set */
 	if (gintsts.d32 & gintmsk_common.d32) {
-		DWC_DEBUGPL(DBG_ANY, "gintsts=%08x  gintmsk=%08x\n",
+		DWC_DEBUGPL(DBG_ANY, "common_intr: gintsts=%08x  gintmsk=%08x\n",
 			    gintsts.d32, gintmsk.d32);
 	}
 #endif
+	if (!(fiq_enable&&core_if->use_fiq_flag)){
 	if (gahbcfg.b.glblintrmsk)	
 		return ((gintsts.d32 & gintmsk.d32) & gintmsk_common.d32);
 	else
 		return 0;
+	} else {
+		/* Our IRQ kicker is no longer the USB hardware, it's the MPHI interface.
+		 * Can't trust the global interrupt mask bit in this case.
+		 */
+		return ((gintsts.d32 & gintmsk.d32) & gintmsk_common.d32);
+	}
 
 }
 
@@ -1586,7 +1605,7 @@ int32_t dwc_otg_handle_common_intr(void *dev)
 {
 	int retval = 0;
 	gintsts_data_t gintsts;
-	gintsts_data_t gintsts_tmp;
+	gintmsk_data_t gintmsk_reenable = { .d32 = 0 };
 	gpwrdn_data_t gpwrdn = {.d32 = 0 };
 	dwc_otg_device_t *otg_dev = dev;
 	dwc_otg_core_if_t *core_if = otg_dev->core_if;
@@ -1614,7 +1633,10 @@ int32_t dwc_otg_handle_common_intr(void *dev)
 	}
 
 	if (core_if->hibernation_suspend <= 0) {
-		gintsts.d32 = dwc_otg_read_common_intr(core_if);
+		/* read_common will have to poke the FIQ's saved mask. We must then clear this mask at the end
+		 * of this handler - god only knows why it's done like this
+		 */
+		gintsts.d32 = dwc_otg_read_common_intr(core_if, &gintmsk_reenable, otg_dev->hcd);
 
 		if (gintsts.b.modemismatch) {
 			retval |= dwc_otg_handle_mode_mismatch_intr(core_if);
@@ -1626,15 +1648,7 @@ int32_t dwc_otg_handle_common_intr(void *dev)
 			retval |= dwc_otg_handle_conn_id_status_change_intr(core_if);
 		}
 		if (gintsts.b.disconnect) {
-			if (gintsts.b.portintr && dwc_otg_is_host_mode(core_if))
 				retval |= dwc_otg_handle_disconnect_intr(core_if);
-			else
-			{
-				gintsts_tmp.d32 = 0;
-				gintsts_tmp.b.disconnect = 1;
-				DWC_WRITE_REG32(&core_if->core_global_regs->gintsts, gintsts_tmp.d32);
-				retval |= 1;
-			}
 		}
 		if (gintsts.b.sessreqintr) {
 			retval |= dwc_otg_handle_session_req_intr(core_if);
@@ -1718,8 +1732,17 @@ int32_t dwc_otg_handle_common_intr(void *dev)
 			gintsts.b.portintr = 1;
 			DWC_WRITE_REG32(&core_if->core_global_regs->gintsts,gintsts.d32);
 			retval |= 1;
+			gintmsk_reenable.b.portintr = 1;
 
 		}
+		/* Did we actually handle anything? if so, unmask the interrupt */
+//		fiq_print(FIQDBG_INT, otg_dev->hcd->fiq_state, "CILOUT %1d", retval);
+//		fiq_print(FIQDBG_INT, otg_dev->hcd->fiq_state, "%08x", gintsts.d32);
+//		fiq_print(FIQDBG_INT, otg_dev->hcd->fiq_state, "%08x", gintmsk_reenable.d32);
+		if (retval && fiq_enable &&core_if->use_fiq_flag) {
+			DWC_WRITE_REG32(&core_if->core_global_regs->gintmsk, gintmsk_reenable.d32);
+		}
+
 	} else {
 		DWC_DEBUGPL(DBG_ANY, "gpwrdn=%08x\n", gpwrdn.d32);
 

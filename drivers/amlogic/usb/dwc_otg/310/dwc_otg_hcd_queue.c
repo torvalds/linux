@@ -42,6 +42,8 @@
 #include "dwc_otg_hcd.h"
 #include "dwc_otg_regs.h"
 
+extern bool microframe_schedule;
+
 /** 
  * Free each QTD in the QH's QTD-list then free the QH.  QH should already be
  * removed from a list.  QTD list should already be empty if called from URB
@@ -153,7 +155,6 @@ static uint32_t calc_bus_time(int speed, int is_in, int is_isoc, int bytecount)
  * 	      to initialize the QH. 
  */
 #define SCHEDULE_SLOP 10
-#define SCHEDULE_SPLIT_SLOP	10 
 void qh_init(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh, dwc_otg_hcd_urb_t * urb)
 {
 	char *speed, *type;
@@ -178,6 +179,10 @@ void qh_init(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh, dwc_otg_hcd_urb_t * urb)
 
 	hcd->fops->hub_info(hcd, urb->priv, &hub_addr, &hub_port);
 	qh->do_split = 0;
+	if (microframe_schedule)
+		qh->speed = dev_speed;
+
+	qh->nak_frame = 0xffff;
 
 	if (((dev_speed == USB_SPEED_LOW) ||
 	     (dev_speed == USB_SPEED_FULL)) &&
@@ -187,6 +192,7 @@ void qh_init(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh, dwc_otg_hcd_urb_t * urb)
 			    dwc_otg_hcd_get_ep_num(&urb->pipe_info), hub_addr,
 			    hub_port);
 		qh->do_split = 1;
+		qh->skip_count = 0;
 	}
 
 	if (qh->ep_type == UE_INTERRUPT || qh->ep_type == UE_ISOCHRONOUS) {
@@ -221,10 +227,6 @@ void qh_init(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh, dwc_otg_hcd_urb_t * urb)
 			qh->start_split_frame = qh->sched_frame;
 		}
 
-	}else if(qh->do_split){
-		qh->interval = SCHEDULE_SPLIT_SLOP;
-		qh->sched_frame = dwc_frame_num_inc(hcd->frame_number,
-					     SCHEDULE_SPLIT_SLOP);		
 	}
 
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD QH Initialized\n");
@@ -317,6 +319,8 @@ dwc_otg_qh_t *dwc_otg_hcd_qh_create(dwc_otg_hcd_t * hcd,
 	return qh;
 }
 
+/* microframe_schedule=0 start */
+
 /**
  * Checks that a channel is available for a periodic transfer.
  *
@@ -385,6 +389,162 @@ static int check_periodic_bandwidth(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh)
 	return status;
 }
 
+/* microframe_schedule=0 end */
+
+/**
+ * Microframe scheduler
+ * track the total use in hcd->frame_usecs
+ * keep each qh use in qh->frame_usecs
+ * when surrendering the qh then donate the time back
+ */
+const unsigned short max_uframe_usecs[]={ 100, 100, 100, 100, 100, 100, 30, 0 };
+
+/*
+ * called from dwc_otg_hcd.c:dwc_otg_hcd_init
+ */
+int init_hcd_usecs(dwc_otg_hcd_t *_hcd)
+{
+	int i;
+	for (i=0; i<8; i++) {
+		_hcd->frame_usecs[i] = max_uframe_usecs[i];
+	}
+	return 0;
+}
+
+static int find_single_uframe(dwc_otg_hcd_t * _hcd, dwc_otg_qh_t * _qh)
+{
+	int i;
+	unsigned short utime;
+	int t_left;
+	int ret;
+	int done;
+
+	ret = -1;
+	utime = _qh->usecs;
+	t_left = utime;
+	i = 0;
+	done = 0;
+	while (done == 0) {
+		/* At the start _hcd->frame_usecs[i] = max_uframe_usecs[i]; */
+		if (utime <= _hcd->frame_usecs[i]) {
+			_hcd->frame_usecs[i] -= utime;
+			_qh->frame_usecs[i] += utime;
+			t_left -= utime;
+			ret = i;
+			done = 1;
+			return ret;
+		} else {
+			i++;
+			if (i == 8) {
+				done = 1;
+				ret = -1;
+			}
+		}
+	}
+	return ret;
+ }
+
+/*
+ * use this for FS apps that can span multiple uframes
+  */
+static int find_multi_uframe(dwc_otg_hcd_t * _hcd, dwc_otg_qh_t * _qh)
+{
+	int i;
+	int j;
+	unsigned short utime;
+	int t_left;
+	int ret;
+	int done;
+	unsigned short xtime;
+
+	ret = -1;
+	utime = _qh->usecs;
+	t_left = utime;
+	i = 0;
+	done = 0;
+loop:
+	while (done == 0) {
+		if(_hcd->frame_usecs[i] <= 0) {
+			i++;
+			if (i == 8) {
+				done = 1;
+				ret = -1;
+			}
+			goto loop;
+		}
+
+		/*
+		 * we need n consecutive slots
+		 * so use j as a start slot j plus j+1 must be enough time (for now)
+		 */
+		xtime= _hcd->frame_usecs[i];
+		for (j = i+1 ; j < 8 ; j++ ) {
+                       /*
+                        * if we add this frame remaining time to xtime we may
+                        * be OK, if not we need to test j for a complete frame
+                        */
+                       if ((xtime+_hcd->frame_usecs[j]) < utime) {
+                               if (_hcd->frame_usecs[j] < max_uframe_usecs[j]) {
+                                       j = 8;
+                                       ret = -1;
+                                       continue;
+                               }
+                       }
+                       if (xtime >= utime) {
+                               ret = i;
+                               j = 8;  /* stop loop with a good value ret */
+                               continue;
+                       }
+                       /* add the frame time to x time */
+                       xtime += _hcd->frame_usecs[j];
+		       /* we must have a fully available next frame or break */
+		       if ((xtime < utime)
+				       && (_hcd->frame_usecs[j] == max_uframe_usecs[j])) {
+			       ret = -1;
+			       j = 8;  /* stop loop with a bad value ret */
+			       continue;
+		       }
+		}
+		if (ret >= 0) {
+			t_left = utime;
+			for (j = i; (t_left>0) && (j < 8); j++ ) {
+				t_left -= _hcd->frame_usecs[j];
+				if ( t_left <= 0 ) {
+					_qh->frame_usecs[j] += _hcd->frame_usecs[j] + t_left;
+					_hcd->frame_usecs[j]= -t_left;
+					ret = i;
+					done = 1;
+				} else {
+					_qh->frame_usecs[j] += _hcd->frame_usecs[j];
+					_hcd->frame_usecs[j] = 0;
+				}
+			}
+		} else {
+			i++;
+			if (i == 8) {
+				done = 1;
+				ret = -1;
+			}
+		}
+	}
+	return ret;
+}
+
+static int find_uframe(dwc_otg_hcd_t * _hcd, dwc_otg_qh_t * _qh)
+{
+	int ret;
+	ret = -1;
+
+	if (_qh->speed == USB_SPEED_HIGH) {
+		/* if this is a hs transaction we need a full frame */
+		ret = find_single_uframe(_hcd, _qh);
+	} else {
+		/* if this is a fs transaction we may need a sequence of frames */
+		ret = find_multi_uframe(_hcd, _qh);
+	}
+	return ret;
+}
+
 /**
  * Checks that the max transfer size allowed in a host channel is large enough
  * to handle the maximum data transfer in a single (micro)frame for a periodic
@@ -415,6 +575,8 @@ static int check_max_xfer_size(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh)
 	return status;
 }
 
+
+
 /**
  * Schedules an interrupt or isochronous transfer in the periodic schedule.
  *
@@ -427,8 +589,27 @@ static int check_max_xfer_size(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh)
 static int schedule_periodic(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh)
 {
 	int status = 0;
-	uint16_t frame_number;
 
+	if (microframe_schedule) {
+		int frame;
+		status = find_uframe(hcd, qh);
+		frame = -1;
+		if (status == 0) {
+			frame = 7;
+		} else {
+			if (status > 0 )
+				frame = status-1;
+		}
+
+		/* Set the new frame up */
+		if (frame > -1) {
+			qh->sched_frame &= ~0x7;
+			qh->sched_frame |= (frame & 7);
+		}
+
+		if (status != -1)
+			status = 0;
+	} else {
 	status = periodic_channel_available(hcd);
 	if (status) {
 		DWC_INFO("%s: No host channel available for periodic " "transfer.\n", __func__);	//NOTICE
@@ -436,45 +617,42 @@ static int schedule_periodic(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh)
 	}
 
 	status = check_periodic_bandwidth(hcd, qh);
+	}
 	if (status) {
 		DWC_INFO("%s: Insufficient periodic bandwidth for " "periodic transfer.\n", __func__);	//NOTICE
 		return status;
 	}
-
 	status = check_max_xfer_size(hcd, qh);
 	if (status) {
 		DWC_INFO("%s: Channel max transfer size too small " "for periodic transfer.\n", __func__);	//NOTICE
 		return status;
 	}
-	
-	frame_number = dwc_otg_hcd_get_frame_number(hcd);
-	if((qh->ep_type == UE_INTERRUPT) && !(qh->ep_is_in)){
-		//if(((frame_sched - frame_number) > _qh->interval) || dwc_frame_num_le(frame_number,DWC_HFNUM_MAX_FRNUM + frame_sched)){
-			qh->sched_frame = dwc_frame_num_inc(frame_number, SCHEDULE_SLOP);
-		//}//fix it in future
-	}
-
-	 if((qh->ep_type == UE_INTERRUPT) && !qh->do_split &&
-    		!dwc_frame_num_le(qh->sched_frame,dwc_frame_num_inc(frame_number,qh->interval)))    
-            qh->sched_frame = dwc_frame_num_inc(frame_number, qh->interval);
 
 	if (hcd->core_if->dma_desc_enable) {
 		/* Don't rely on SOF and start in ready schedule */
 		DWC_LIST_INSERT_TAIL(&hcd->periodic_sched_ready, &qh->qh_list_entry);
 	}
 	else {
+		if(fiq_enable &&hcd->core_if->use_fiq_flag && (DWC_LIST_EMPTY(&hcd->periodic_sched_inactive) || dwc_frame_num_le(qh->sched_frame, hcd->fiq_state->next_sched_frame)))
+		{
+			hcd->fiq_state->next_sched_frame = qh->sched_frame;
+
+		}
 	/* Always start in the inactive schedule. */
 	DWC_LIST_INSERT_TAIL(&hcd->periodic_sched_inactive, &qh->qh_list_entry);
 	}
 
+	if (!microframe_schedule) {
 	/* Reserve the periodic channel. */
 	hcd->periodic_channels++;
+	}
 
 	/* Update claimed usecs per (micro)frame. */
 	hcd->periodic_usecs += qh->usecs;
 
 	return status;
 }
+
 
 /**
  * This function adds a QH to either the non periodic or periodic schedule if
@@ -519,13 +697,21 @@ int dwc_otg_hcd_qh_add(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh)
  */
 static void deschedule_periodic(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh)
 {
+	int i;
 	DWC_LIST_REMOVE_INIT(&qh->qh_list_entry);
-
-	/* Release the periodic channel reservation. */
-	hcd->periodic_channels--;
 
 	/* Update claimed usecs per (micro)frame. */
 	hcd->periodic_usecs -= qh->usecs;
+
+	if (!microframe_schedule) {
+	/* Release the periodic channel reservation. */
+	hcd->periodic_channels--;
+	} else {
+		for (i = 0; i < 8; i++) {
+			hcd->frame_usecs[i] += qh->frame_usecs[i];
+			qh->frame_usecs[i] = 0;
+		}
+	}
 }
 
 /** 
@@ -552,7 +738,7 @@ void dwc_otg_hcd_qh_remove(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh)
 	} else {
 		deschedule_periodic(hcd, qh);
 		hcd->periodic_qh_count--;
-		if( !hcd->periodic_qh_count ) {
+		if( !hcd->periodic_qh_count && !(fiq_fsm_enable &&hcd->core_if->use_fiq_flag)) {
 			intr_mask.b.sofintr = 1;
 				DWC_MODIFY_REG32(&hcd->core_if->core_global_regs->gintmsk,
 									intr_mask.d32, 0);
@@ -632,10 +818,16 @@ void dwc_otg_hcd_qh_deactivate(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh,
 			 * Remove from periodic_sched_queued and move to
 			 * appropriate queue.
 			 */
-			if (qh->sched_frame == frame_number) {
+			if ((microframe_schedule && dwc_frame_num_le(qh->sched_frame, frame_number)) ||
+			(!microframe_schedule && qh->sched_frame == frame_number)) {
 				DWC_LIST_MOVE_HEAD(&hcd->periodic_sched_ready,
 						   &qh->qh_list_entry);
 			} else {
+				if(fiq_enable && hcd->core_if->use_fiq_flag && !dwc_frame_num_le(hcd->fiq_state->next_sched_frame, qh->sched_frame))
+				{
+					hcd->fiq_state->next_sched_frame = qh->sched_frame;
+				}
+
 				DWC_LIST_MOVE_HEAD
 				    (&hcd->periodic_sched_inactive,
 				     &qh->qh_list_entry);
@@ -692,7 +884,6 @@ void dwc_otg_hcd_qtd_init(dwc_otg_qtd_t * qtd, dwc_otg_hcd_urb_t * urb)
 
 	/* Store the qtd ptr in the urb to reference what QTD. */
 	urb->qtd = qtd;
-	urb->qh_state = URB_STATE_IDLE;
 	return;
 }
 
@@ -726,6 +917,9 @@ int dwc_otg_hcd_qtd_add(dwc_otg_qtd_t * qtd,
 		if (*qh == NULL) {
 			retval = -1;
 			goto done;
+		} else {
+			if (fiq_enable && hcd->core_if->use_fiq_flag)
+				hcd->fiq_state->kick_np_queues = 1;
 		}
 	}
 //	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags); 
