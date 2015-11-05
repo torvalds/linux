@@ -217,24 +217,18 @@ static inline int nsec_counter(struct perf_evsel *evsel)
 	return 0;
 }
 
-static int perf_stat__write(struct perf_stat *stat, void *bf, size_t size)
-{
-	if (perf_data_file__write(stat->session->file, bf, size) < 0) {
-		pr_err("failed to write perf data, error: %m\n");
-		return -1;
-	}
-
-	stat->bytes_written += size;
-	return 0;
-}
-
-static int process_synthesized_event(struct perf_tool *tool,
+static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
 				     struct machine *machine __maybe_unused)
 {
-	struct perf_stat *stat = (void *)tool;
-	return perf_stat__write(stat, event, event->header.size);
+	if (perf_data_file__write(&perf_stat.file, event, event->header.size) < 0) {
+		pr_err("failed to write perf data, error: %m\n");
+		return -1;
+	}
+
+	perf_stat.bytes_written += event->header.size;
+	return 0;
 }
 
 /*
@@ -323,6 +317,35 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 	workload_exec_errno = info->si_value.sival_int;
 }
 
+static int perf_stat_synthesize_config(void)
+{
+	int err;
+
+	err = perf_event__synthesize_thread_map2(NULL, evsel_list->threads,
+						process_synthesized_event,
+						NULL);
+	if (err < 0) {
+		pr_err("Couldn't synthesize thread map.\n");
+		return err;
+	}
+
+	err = perf_event__synthesize_cpu_map(NULL, evsel_list->cpus,
+					     process_synthesized_event, NULL);
+	if (err < 0) {
+		pr_err("Couldn't synthesize thread map.\n");
+		return err;
+	}
+
+	err = perf_event__synthesize_stat_config(NULL, &stat_config,
+						 process_synthesized_event, NULL);
+	if (err < 0) {
+		pr_err("Couldn't synthesize config.\n");
+		return err;
+	}
+
+	return 0;
+}
+
 static int __run_perf_stat(int argc, const char **argv)
 {
 	int interval = stat_config.interval;
@@ -401,6 +424,10 @@ static int __run_perf_stat(int argc, const char **argv)
 
 		err = perf_session__write_header(perf_stat.session, evsel_list,
 						 fd, false);
+		if (err < 0)
+			return err;
+
+		err = perf_stat_synthesize_config();
 		if (err < 0)
 			return err;
 	}
@@ -1560,7 +1587,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		 * a saner message about no samples being in the perf.data file.
 		 *
 		 * This also serves to suppress a warning about f_header.data.size == 0
-		 * in header.c.  -acme
+		 * in header.c at the moment 'perf stat record' gets introduced, which
+		 * is not really needed once we start adding the stat specific PERF_RECORD_
+		 * records, but the need to suppress the kptr_restrict messages in older
+		 * tools remain  -acme
 		 */
 		int fd = perf_data_file__fd(&perf_stat.file);
 		int err = perf_event__synthesize_kernel_mmap((void *)&perf_stat,
