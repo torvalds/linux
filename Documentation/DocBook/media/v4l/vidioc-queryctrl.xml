@@ -101,8 +101,9 @@ prematurely end the enumeration).</para></footnote></para>
 next supported non-compound control, or <errorcode>EINVAL</errorcode>
 if there is none. In addition, the <constant>V4L2_CTRL_FLAG_NEXT_COMPOUND</constant>
 flag can be specified to enumerate all compound controls (i.e. controls
-with type &ge; <constant>V4L2_CTRL_COMPOUND_TYPES</constant>). Specify both
-<constant>V4L2_CTRL_FLAG_NEXT_CTRL</constant> and
+with type &ge; <constant>V4L2_CTRL_COMPOUND_TYPES</constant> and/or array
+control, in other words controls that contain more than one value).
+Specify both <constant>V4L2_CTRL_FLAG_NEXT_CTRL</constant> and
 <constant>V4L2_CTRL_FLAG_NEXT_COMPOUND</constant> in order to enumerate
 all controls, compound or not. Drivers which do not support these flags yet
 always return <errorcode>EINVAL</errorcode>.</para>
@@ -422,7 +423,7 @@ the array to zero.</entry>
 	    <entry>any</entry>
 	    <entry>An integer-valued control ranging from minimum to
 maximum inclusive. The step value indicates the increment between
-values which are actually different on the hardware.</entry>
+values.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CTRL_TYPE_BOOLEAN</constant></entry>
@@ -518,7 +519,7 @@ Older drivers which do not support this feature return an
 	    <entry>any</entry>
 	    <entry>An unsigned 8-bit valued control ranging from minimum to
 maximum inclusive. The step value indicates the increment between
-values which are actually different on the hardware.
+values.
 </entry>
 	  </row>
 	  <row>
@@ -528,7 +529,17 @@ values which are actually different on the hardware.
 	    <entry>any</entry>
 	    <entry>An unsigned 16-bit valued control ranging from minimum to
 maximum inclusive. The step value indicates the increment between
-values which are actually different on the hardware.
+values.
+</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_TYPE_U32</constant></entry>
+	    <entry>any</entry>
+	    <entry>any</entry>
+	    <entry>any</entry>
+	    <entry>An unsigned 32-bit valued control ranging from minimum to
+maximum inclusive. The step value indicates the increment between
+values.
 </entry>
 	  </row>
 	</tbody>

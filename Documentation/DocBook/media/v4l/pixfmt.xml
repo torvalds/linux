@@ -540,6 +540,10 @@ colorspaces except for BT.2020 which uses limited range R'G'B' quantization.</pa
 	    <entry>See <xref linkend="col-bt2020" />.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_COLORSPACE_DCI_P3</constant></entry>
+	    <entry>See <xref linkend="col-dcip3" />.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_COLORSPACE_SMPTE240M</constant></entry>
 	    <entry>See <xref linkend="col-smpte-240m" />.</entry>
 	  </row>
@@ -600,6 +604,14 @@ colorspaces except for BT.2020 which uses limited range R'G'B' quantization.</pa
 	  <row>
 	    <entry><constant>V4L2_XFER_FUNC_NONE</constant></entry>
 	    <entry>Do not use a transfer function (i.e. use linear RGB values).</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_XFER_FUNC_DCI_P3</constant></entry>
+	    <entry>Use the DCI-P3 transfer function.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_XFER_FUNC_SMPTE2084</constant></entry>
+	    <entry>Use the SMPTE 2084 transfer function.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -1154,6 +1166,68 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 clamped to the range [-0.5&hellip;0.5]. The Yc'CbcCrc quantization is limited range.</para>
     </section>
 
+    <section id="col-dcip3">
+      <title>Colorspace DCI-P3 (<constant>V4L2_COLORSPACE_DCI_P3</constant>)</title>
+      <para>The <xref linkend="smpte431" /> standard defines the colorspace used by cinema
+projectors that use the DCI-P3 colorspace.
+The default transfer function is <constant>V4L2_XFER_FUNC_DCI_P3</constant>.
+The default Y'CbCr encoding is <constant>V4L2_YCBCR_ENC_709</constant>. Note that this
+colorspace does not specify a Y'CbCr encoding since it is not meant to be encoded
+to Y'CbCr. So this default Y'CbCr encoding was picked because it is the HDTV
+encoding. The default Y'CbCr quantization is limited range. The chromaticities of
+the primary colors and the white reference are:</para>
+      <table frame="none">
+        <title>DCI-P3 Chromaticities</title>
+        <tgroup cols="3" align="left">
+          &cs-str;
+    	<thead>
+    	  <row>
+    	    <entry>Color</entry>
+    	    <entry>x</entry>
+    	    <entry>y</entry>
+    	  </row>
+    	</thead>
+          <tbody valign="top">
+            <row>
+              <entry>Red</entry>
+              <entry>0.6800</entry>
+              <entry>0.3200</entry>
+            </row>
+            <row>
+              <entry>Green</entry>
+              <entry>0.2650</entry>
+              <entry>0.6900</entry>
+            </row>
+            <row>
+              <entry>Blue</entry>
+              <entry>0.1500</entry>
+              <entry>0.0600</entry>
+            </row>
+            <row>
+              <entry>White Reference</entry>
+              <entry>0.3140</entry>
+              <entry>0.3510</entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
+      <variablelist>
+	<varlistentry>
+          <term>Transfer function:</term>
+	  <listitem>
+            <para>L' = L<superscript>1/2.6</superscript></para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+          <term>Inverse Transfer function:</term>
+	  <listitem>
+            <para>L = L'<superscript>2.6</superscript></para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+      <para>Y'CbCr encoding is not specified. V4L2 defaults to Rec. 709.</para>
+    </section>
+
     <section id="col-smpte-240m">
       <title>Colorspace SMPTE 240M (<constant>V4L2_COLORSPACE_SMPTE240M</constant>)</title>
       <para>The <xref linkend="smpte240m" /> standard was an interim standard used during
@@ -1402,6 +1476,41 @@ and <constant>V4L2_QUANTIZATION_FULL_RANGE</constant>.</para>
 
   </section>
 
+  <section>
+    <title>Detailed Transfer Function Descriptions</title>
+    <section id="xf-smpte-2084">
+      <title>Transfer Function SMPTE 2084 (<constant>V4L2_XFER_FUNC_SMPTE2084</constant>)</title>
+      <para>The <xref linkend="smpte2084" /> standard defines the transfer function used by
+High Dynamic Range content.</para>
+      <variablelist>
+	<varlistentry>
+          <term>Constants:</term>
+	  <listitem>
+            <para>m1 = (2610 / 4096) / 4</para>
+            <para>m2 = (2523 / 4096) * 128</para>
+            <para>c1 = 3424 / 4096</para>
+            <para>c2 = (2413 / 4096) * 32</para>
+            <para>c3 = (2392 / 4096) * 32</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+          <term>Transfer function:</term>
+	  <listitem>
+            <para>L' = ((c1 + c2 * L<superscript>m1</superscript>) / (1 + c3 * L<superscript>m1</superscript>))<superscript>m2</superscript></para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+          <term>Inverse Transfer function:</term>
+	  <listitem>
+            <para>L = (max(L'<superscript>1/m2</superscript> - c1, 0) / (c2 - c3 * L'<superscript>1/m2</superscript>))<superscript>1/m1</superscript></para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+    </section>
+  </section>
+
   <section id="pixfmt-indexed">
     <title>Indexed Format</title>
 
@@ -1623,7 +1732,7 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
   <section id="sdr-formats">
     <title>SDR Formats</title>
 
-    <para>These formats are used for <link linkend="sdr">SDR Capture</link>
+    <para>These formats are used for <link linkend="sdr">SDR</link>
 interface only.</para>
 
     &sub-sdr-cu08;

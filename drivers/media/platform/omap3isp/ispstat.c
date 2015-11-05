@@ -235,7 +235,7 @@ static int isp_stat_buf_queue(struct ispstat *stat)
 	if (!stat->active_buf)
 		return STAT_NO_BUF;
 
-	ktime_get_ts(&stat->active_buf->ts);
+	v4l2_get_timestamp(&stat->active_buf->ts);
 
 	stat->active_buf->buf_size = stat->buf_size;
 	if (isp_stat_buf_check_magic(stat, stat->active_buf)) {
@@ -496,8 +496,7 @@ int omap3isp_stat_request_statistics(struct ispstat *stat,
 		return PTR_ERR(buf);
 	}
 
-	data->ts.tv_sec = buf->ts.tv_sec;
-	data->ts.tv_usec = buf->ts.tv_nsec / NSEC_PER_USEC;
+	data->ts = buf->ts;
 	data->config_counter = buf->config_counter;
 	data->frame_number = buf->frame_number;
 	data->buf_size = buf->buf_size;

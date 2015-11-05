@@ -287,7 +287,7 @@ iss_video_check_format(struct iss_video *video, struct iss_video_fh *vfh)
  */
 
 static int iss_video_queue_setup(struct vb2_queue *vq,
-				 const struct v4l2_format *fmt,
+				 const void *parg,
 				 unsigned int *count, unsigned int *num_planes,
 				 unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -310,7 +310,8 @@ static int iss_video_queue_setup(struct vb2_queue *vq,
 
 static void iss_video_buf_cleanup(struct vb2_buffer *vb)
 {
-	struct iss_buffer *buffer = container_of(vb, struct iss_buffer, vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct iss_buffer *buffer = container_of(vbuf, struct iss_buffer, vb);
 
 	if (buffer->iss_addr)
 		buffer->iss_addr = 0;
@@ -318,8 +319,9 @@ static void iss_video_buf_cleanup(struct vb2_buffer *vb)
 
 static int iss_video_buf_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct iss_video_fh *vfh = vb2_get_drv_priv(vb->vb2_queue);
-	struct iss_buffer *buffer = container_of(vb, struct iss_buffer, vb);
+	struct iss_buffer *buffer = container_of(vbuf, struct iss_buffer, vb);
 	struct iss_video *video = vfh->video;
 	unsigned long size = vfh->format.fmt.pix.sizeimage;
 	dma_addr_t addr;
@@ -341,9 +343,10 @@ static int iss_video_buf_prepare(struct vb2_buffer *vb)
 
 static void iss_video_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct iss_video_fh *vfh = vb2_get_drv_priv(vb->vb2_queue);
 	struct iss_video *video = vfh->video;
-	struct iss_buffer *buffer = container_of(vb, struct iss_buffer, vb);
+	struct iss_buffer *buffer = container_of(vbuf, struct iss_buffer, vb);
 	struct iss_pipeline *pipe = to_iss_pipeline(&video->video.entity);
 	unsigned long flags;
 	bool empty;
@@ -419,7 +422,6 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	enum iss_pipeline_state state;
 	struct iss_buffer *buf;
 	unsigned long flags;
-	struct timespec ts;
 
 	spin_lock_irqsave(&video->qlock, flags);
 	if (WARN_ON(list_empty(&video->dmaqueue))) {
@@ -432,9 +434,7 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	list_del(&buf->list);
 	spin_unlock_irqrestore(&video->qlock, flags);
 
-	ktime_get_ts(&ts);
-	buf->vb.v4l2_buf.timestamp.tv_sec = ts.tv_sec;
-	buf->vb.v4l2_buf.timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+	v4l2_get_timestamp(&buf->vb.timestamp);
 
 	/* Do frame number propagation only if this is the output video node.
 	 * Frame number either comes from the CSI receivers or it gets
@@ -443,12 +443,12 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	 * first, so the input number might lag behind by 1 in some cases.
 	 */
 	if (video == pipe->output && !pipe->do_propagation)
-		buf->vb.v4l2_buf.sequence =
+		buf->vb.sequence =
 			atomic_inc_return(&pipe->frame_number);
 	else
-		buf->vb.v4l2_buf.sequence = atomic_read(&pipe->frame_number);
+		buf->vb.sequence = atomic_read(&pipe->frame_number);
 
-	vb2_buffer_done(&buf->vb, pipe->error ?
+	vb2_buffer_done(&buf->vb.vb2_buf, pipe->error ?
 			VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 	pipe->error = false;
 
@@ -479,7 +479,7 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	buf = list_first_entry(&video->dmaqueue, struct iss_buffer,
 			       list);
 	spin_unlock_irqrestore(&video->qlock, flags);
-	buf->vb.state = VB2_BUF_STATE_ACTIVE;
+	buf->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
 	return buf;
 }
 
@@ -502,7 +502,7 @@ void omap4iss_video_cancel_stream(struct iss_video *video)
 		buf = list_first_entry(&video->dmaqueue, struct iss_buffer,
 				       list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	vb2_queue_error(video->queue);

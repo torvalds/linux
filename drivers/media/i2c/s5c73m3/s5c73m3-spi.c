@@ -31,6 +31,7 @@ static const struct of_device_id s5c73m3_spi_ids[] = {
 	{ .compatible = "samsung,s5c73m3" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, s5c73m3_spi_ids);
 
 enum spi_direction {
 	SPI_DIR_RX,

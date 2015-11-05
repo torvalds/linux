@@ -1896,6 +1896,8 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 		&rtl28xxu_props, "MSI DIGIVOX Micro HD", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_COMPRO, 0x0620,
 		&rtl28xxu_props, "Compro VideoMate U620F", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_COMPRO, 0x0650,
+		&rtl28xxu_props, "Compro VideoMate U650F", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, 0xd394,
 		&rtl28xxu_props, "MaxMedia HU394-T", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_LEADTEK, 0x6a03,

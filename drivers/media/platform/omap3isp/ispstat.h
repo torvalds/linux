@@ -39,7 +39,7 @@ struct ispstat_buffer {
 	struct sg_table sgt;
 	void *virt_addr;
 	dma_addr_t dma_addr;
-	struct timespec ts;
+	struct timeval ts;
 	u32 buf_size;
 	u32 frame_number;
 	u16 config_counter;
