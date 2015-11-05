@@ -1865,7 +1865,7 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 		/* Want to send all IO via FW path */
 		pRAID_Context->VirtualDiskTgtId = cpu_to_le16(device_id);
 		pRAID_Context->configSeqNum = 0;
-		io_request->DevHandle = le16_to_cpu(0xFFFF);
+		io_request->DevHandle = cpu_to_le16(0xFFFF);
 	}
 
 	cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
