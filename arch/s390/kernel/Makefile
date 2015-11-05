@@ -34,8 +34,10 @@ CFLAGS_sysinfo.o += -w
 #
 CFLAGS_REMOVE_sclp.o = $(CC_FLAGS_FTRACE)
 ifneq ($(CC_FLAGS_MARCH),-march=z900)
-CFLAGS_REMOVE_sclp.o += $(CC_FLAGS_MARCH)
-CFLAGS_sclp.o	+= -march=z900
+CFLAGS_REMOVE_sclp.o	+= $(CC_FLAGS_MARCH)
+CFLAGS_sclp.o		+= -march=z900
+AFLAGS_REMOVE_head.o	+= $(CC_FLAGS_MARCH)
+AFLAGS_head.o		+= -march=z900
 endif
 GCOV_PROFILE_sclp.o := n
 
