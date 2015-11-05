@@ -1776,6 +1776,13 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 					(const char **) stat_usage,
 					PARSE_OPT_STOP_AT_NON_OPTION);
 
+	if (csv_sep) {
+		csv_output = true;
+		if (!strcmp(csv_sep, "\\t"))
+			csv_sep = "\t";
+	} else
+		csv_sep = DEFAULT_SEPARATOR;
+
 	if (argc && !strncmp(argv[0], "rec", 3)) {
 		argc = __cmd_record(argc, argv);
 		if (argc < 0)
@@ -1825,13 +1832,6 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	stat_config.output = output;
-
-	if (csv_sep) {
-		csv_output = true;
-		if (!strcmp(csv_sep, "\\t"))
-			csv_sep = "\t";
-	} else
-		csv_sep = DEFAULT_SEPARATOR;
 
 	/*
 	 * let the spreadsheet do the pretty-printing
