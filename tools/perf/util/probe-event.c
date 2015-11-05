@@ -1905,6 +1905,9 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 			sym = __find_kernel_function(addr, &map);
 		}
 	}
+
+	/* ret may has be overwritten so reset it */
+	ret = -ENOENT;
 	if (!sym)
 		goto out;
 
