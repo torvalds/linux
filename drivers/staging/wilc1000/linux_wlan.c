@@ -1290,11 +1290,11 @@ static void wilc_set_multicast_list(struct net_device *dev)
 
 	struct netdev_hw_addr *ha;
 	struct wilc_priv *priv;
-	struct host_if_drv *pstrWFIDrv;
+	struct host_if_drv *hif_drv;
 	int i = 0;
 
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
-	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	hif_drv = (struct host_if_drv *)priv->hWILCWFIDrv;
 
 	if (!dev)
 		return;
@@ -1314,14 +1314,14 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	if ((dev->flags & IFF_ALLMULTI) || (dev->mc.count) > WILC_MULTICAST_TABLE_SIZE) {
 		PRINT_D(INIT_DBG, "Disable multicast filter, retrive all multicast packets\n");
 		/* get all multicast packets */
-		host_int_setup_multicast_filter(pstrWFIDrv, false, 0);
+		host_int_setup_multicast_filter(hif_drv, false, 0);
 		return;
 	}
 
 	/* No multicast?  Just get our own stuff */
 	if ((dev->mc.count) == 0) {
 		PRINT_D(INIT_DBG, "Enable multicast filter, retrive directed packets only.\n");
-		host_int_setup_multicast_filter(pstrWFIDrv, true, 0);
+		host_int_setup_multicast_filter(hif_drv, true, 0);
 		return;
 	}
 
@@ -1339,7 +1339,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 		i++;
 	}
 
-	host_int_setup_multicast_filter(pstrWFIDrv, true, (dev->mc.count));
+	host_int_setup_multicast_filter(hif_drv, true, (dev->mc.count));
 
 	return;
 
