@@ -384,6 +384,7 @@ err:
 	if (login->login_complete) {
 		if (conn->rx_thread && conn->rx_thread_active) {
 			send_sig(SIGINT, conn->rx_thread, 1);
+			complete(&conn->rx_login_comp);
 			kthread_stop(conn->rx_thread);
 		}
 		if (conn->tx_thread && conn->tx_thread_active) {
