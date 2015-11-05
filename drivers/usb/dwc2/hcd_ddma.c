@@ -1161,6 +1161,21 @@ void dwc2_hcd_complete_xfer_ddma(struct dwc2_hsotg *hsotg,
 		/* Release the channel if halted or session completed */
 		if (halt_status != DWC2_HC_XFER_COMPLETE ||
 		    list_empty(&qh->qtd_list)) {
+			struct dwc2_qtd *qtd, *qtd_tmp;
+
+			/*
+			 * Kill all remainings QTDs since channel has been
+			 * halted.
+			 */
+			list_for_each_entry_safe(qtd, qtd_tmp,
+						 &qh->qtd_list,
+						 qtd_list_entry) {
+				dwc2_host_complete(hsotg, qtd,
+						   -ECONNRESET);
+				dwc2_hcd_qtd_unlink_and_free(hsotg,
+							     qtd, qh);
+			}
+
 			/* Halt the channel if session completed */
 			if (halt_status == DWC2_HC_XFER_COMPLETE)
 				dwc2_hc_halt(hsotg, chan, halt_status);
@@ -1170,7 +1185,12 @@ void dwc2_hcd_complete_xfer_ddma(struct dwc2_hsotg *hsotg,
 			/* Keep in assigned schedule to continue transfer */
 			list_move(&qh->qh_list_entry,
 				  &hsotg->periodic_sched_assigned);
-			continue_isoc_xfer = 1;
+			/*
+			 * If channel has been halted during giveback of urb
+			 * then prevent any new scheduling.
+			 */
+			if (!chan->halt_status)
+				continue_isoc_xfer = 1;
 		}
 		/*
 		 * Todo: Consider the case when period exceeds FrameList size.
