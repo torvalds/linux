@@ -1033,7 +1033,10 @@ static int dwc2_process_non_isoc_desc(struct dwc2_hsotg *hsotg,
 	failed = dwc2_update_non_isoc_urb_state_ddma(hsotg, chan, qtd, dma_desc,
 						     halt_status, n_bytes,
 						     xfer_done);
-	if (failed || (*xfer_done && urb->status != -EINPROGRESS)) {
+	if (*xfer_done && urb->status != -EINPROGRESS)
+		failed = 1;
+
+	if (failed) {
 		dwc2_host_complete(hsotg, qtd, urb->status);
 		dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
 		dev_vdbg(hsotg->dev, "failed=%1x xfer_done=%1x status=%08x\n",
