@@ -233,13 +233,12 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 	unsigned bpw, hz;
 	u32 cfg, stat;
 
-	bpw = spi->bits_per_word;
-	hz = spi->max_speed_hz;
 	if (t) {
-		if (t->bits_per_word)
-			bpw = t->bits_per_word;
-		if (t->speed_hz)
-			hz = t->speed_hz;
+		bpw = t->bits_per_word;
+		hz = t->speed_hz;
+	} else {
+		bpw = spi->bits_per_word;
+		hz = spi->max_speed_hz;
 	}
 
 	if (!hz)

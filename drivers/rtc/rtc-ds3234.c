@@ -159,7 +159,6 @@ static int ds3234_probe(struct spi_device *spi)
 static struct spi_driver ds3234_driver = {
 	.driver = {
 		.name	 = "ds3234",
-		.owner	= THIS_MODULE,
 	},
 	.probe	 = ds3234_probe,
 };

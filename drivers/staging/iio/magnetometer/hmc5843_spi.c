@@ -88,7 +88,6 @@ static struct spi_driver hmc5843_driver = {
 		.driver = {
 				.name = "hmc5843",
 				.pm = HMC5843_PM_OPS,
-				.owner = THIS_MODULE,
 		},
 		.id_table = hmc5843_id,
 		.probe = hmc5843_spi_probe,

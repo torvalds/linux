@@ -896,7 +896,6 @@ MODULE_DEVICE_TABLE(spi, adis16480_ids);
 static struct spi_driver adis16480_driver = {
 	.driver = {
 		.name = "adis16480",
-		.owner = THIS_MODULE,
 	},
 	.id_table = adis16480_ids,
 	.probe = adis16480_probe,

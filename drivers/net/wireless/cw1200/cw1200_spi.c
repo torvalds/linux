@@ -467,7 +467,6 @@ static struct spi_driver spi_driver = {
 	.remove		= cw1200_spi_disconnect,
 	.driver = {
 		.name		= "cw1200_wlan_spi",
-		.owner          = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm		= &cw1200_pm_ops,
 #endif

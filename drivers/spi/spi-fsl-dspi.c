@@ -409,9 +409,6 @@ static int dspi_transfer_one_message(struct spi_master *master,
 				SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF);
 		regmap_write(dspi->regmap, SPI_CTAR(dspi->cs),
 				dspi->cur_chip->ctar_val);
-		if (transfer->speed_hz)
-			regmap_write(dspi->regmap, SPI_CTAR(dspi->cs),
-					dspi->cur_chip->ctar_val);
 
 		trans_mode = dspi->devtype_data->trans_mode;
 		switch (trans_mode) {
