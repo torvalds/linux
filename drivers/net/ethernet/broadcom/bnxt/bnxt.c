@@ -5307,7 +5307,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	struct bnxt_ntuple_filter *fltr, *new_fltr;
 	struct flow_keys *fkeys;
 	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
-	int rc = 0, idx;
+	int rc = 0, idx, bit_id;
 	struct hlist_head *head;
 
 	if (skb->encapsulation)
@@ -5345,14 +5345,15 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	rcu_read_unlock();
 
 	spin_lock_bh(&bp->ntp_fltr_lock);
-	new_fltr->sw_id = bitmap_find_free_region(bp->ntp_fltr_bmap,
-						  BNXT_NTP_FLTR_MAX_FLTR, 0);
-	if (new_fltr->sw_id < 0) {
+	bit_id = bitmap_find_free_region(bp->ntp_fltr_bmap,
+					 BNXT_NTP_FLTR_MAX_FLTR, 0);
+	if (bit_id < 0) {
 		spin_unlock_bh(&bp->ntp_fltr_lock);
 		rc = -ENOMEM;
 		goto err_free;
 	}
 
+	new_fltr->sw_id = (u16)bit_id;
 	new_fltr->flow_id = flow_id;
 	new_fltr->rxq = rxq_index;
 	hlist_add_head_rcu(&new_fltr->hash, head);
