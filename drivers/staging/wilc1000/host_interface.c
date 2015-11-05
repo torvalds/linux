@@ -496,14 +496,14 @@ static s32 Handle_SetMacAddress(struct host_if_drv *hif_drv,
 }
 
 static s32 Handle_GetMacAddress(struct host_if_drv *hif_drv,
-				struct get_mac_addr *pstrHostIfGetMacAddress)
+				struct get_mac_addr *get_mac_addr)
 {
 	s32 result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_MAC_ADDR;
 	wid.type = WID_STR;
-	wid.val = pstrHostIfGetMacAddress->mac_addr;
+	wid.val = get_mac_addr->mac_addr;
 	wid.size = ETH_ALEN;
 
 	result = send_config_pkt(GET_CFG, &wid, 1,
