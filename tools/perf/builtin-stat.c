@@ -1326,6 +1326,101 @@ static void perf_stat__exit_aggr_mode(void)
 	cpus_aggr_map = NULL;
 }
 
+static inline int perf_env__get_cpu(struct perf_env *env, struct cpu_map *map, int idx)
+{
+	int cpu;
+
+	if (idx > map->nr)
+		return -1;
+
+	cpu = map->map[idx];
+
+	if (cpu >= env->nr_cpus_online)
+		return -1;
+
+	return cpu;
+}
+
+static int perf_env__get_socket(struct cpu_map *map, int idx, void *data)
+{
+	struct perf_env *env = data;
+	int cpu = perf_env__get_cpu(env, map, idx);
+
+	return cpu == -1 ? -1 : env->cpu[cpu].socket_id;
+}
+
+static int perf_env__get_core(struct cpu_map *map, int idx, void *data)
+{
+	struct perf_env *env = data;
+	int core = -1, cpu = perf_env__get_cpu(env, map, idx);
+
+	if (cpu != -1) {
+		int socket_id = env->cpu[cpu].socket_id;
+
+		/*
+		 * Encode socket in upper 16 bits
+		 * core_id is relative to socket, and
+		 * we need a global id. So we combine
+		 * socket + core id.
+		 */
+		core = (socket_id << 16) | (env->cpu[cpu].core_id & 0xffff);
+	}
+
+	return core;
+}
+
+static int perf_env__build_socket_map(struct perf_env *env, struct cpu_map *cpus,
+				      struct cpu_map **sockp)
+{
+	return cpu_map__build_map(cpus, sockp, perf_env__get_socket, env);
+}
+
+static int perf_env__build_core_map(struct perf_env *env, struct cpu_map *cpus,
+				    struct cpu_map **corep)
+{
+	return cpu_map__build_map(cpus, corep, perf_env__get_core, env);
+}
+
+static int perf_stat__get_socket_file(struct cpu_map *map, int idx)
+{
+	return perf_env__get_socket(map, idx, &perf_stat.session->header.env);
+}
+
+static int perf_stat__get_core_file(struct cpu_map *map, int idx)
+{
+	return perf_env__get_core(map, idx, &perf_stat.session->header.env);
+}
+
+static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
+{
+	struct perf_env *env = &st->session->header.env;
+
+	switch (stat_config.aggr_mode) {
+	case AGGR_SOCKET:
+		if (perf_env__build_socket_map(env, evsel_list->cpus, &aggr_map)) {
+			perror("cannot build socket map");
+			return -1;
+		}
+		aggr_get_id = perf_stat__get_socket_file;
+		break;
+	case AGGR_CORE:
+		if (perf_env__build_core_map(env, evsel_list->cpus, &aggr_map)) {
+			perror("cannot build core map");
+			return -1;
+		}
+		aggr_get_id = perf_stat__get_core_file;
+		break;
+	case AGGR_NONE:
+	case AGGR_GLOBAL:
+	case AGGR_THREAD:
+	case AGGR_UNSET:
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 /*
  * Add default attributes, if there were no attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
@@ -1538,7 +1633,15 @@ int process_stat_config_event(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
 			      struct perf_session *session __maybe_unused)
 {
+	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
+
 	perf_event__read_stat_config(&stat_config, &event->stat_config);
+
+	if (perf_stat.file.is_pipe)
+		perf_stat_init_aggr_mode();
+	else
+		perf_stat_init_aggr_mode_file(st);
+
 	return 0;
 }
 
