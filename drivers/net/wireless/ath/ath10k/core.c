@@ -138,8 +138,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		},
 	},
 	{
-		.id = QCA9377_HW_1_0_DEV_VERSION,
-		.name = "qca9377 hw1.0",
+		.id = QCA9377_HW_1_1_DEV_VERSION,
+		.name = "qca9377 hw1.1",
 		.patch_load_addr = QCA9377_HW_1_0_PATCH_LOAD_ADDR,
 		.uart_pin = 7,
 		.otp_exe_param = 0,

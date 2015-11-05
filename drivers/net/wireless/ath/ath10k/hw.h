@@ -42,6 +42,8 @@
 #define QCA6174_HW_3_0_VERSION		0x05020000
 #define QCA6174_HW_3_2_VERSION		0x05030000
 
+#define QCA9377_HW_1_1_DEV_VERSION	0x05020001
+
 enum qca6174_pci_rev {
 	QCA6174_PCI_REV_1_1 = 0x11,
 	QCA6174_PCI_REV_1_3 = 0x13,
@@ -58,6 +60,10 @@ enum qca6174_chip_id_rev {
 	QCA6174_HW_3_0_CHIP_ID_REV = 8,
 	QCA6174_HW_3_1_CHIP_ID_REV = 9,
 	QCA6174_HW_3_2_CHIP_ID_REV = 10,
+};
+
+enum qca9377_chip_id_rev {
+	QCA9377_HW_1_1_CHIP_ID_REV = 0x1,
 };
 
 #define QCA6174_HW_2_1_FW_DIR		"ath10k/QCA6174/hw2.1"
@@ -85,8 +91,6 @@ enum qca6174_chip_id_rev {
 #define QCA99X0_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9377 1.0 definitions */
-#define QCA9377_HW_1_0_DEV_VERSION     0x05020001
-#define QCA9377_HW_1_0_CHIP_ID_REV     0x1
 #define QCA9377_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA9377/hw1.0"
 #define QCA9377_HW_1_0_FW_FILE         "firmware.bin"
 #define QCA9377_HW_1_0_OTP_FILE        "otp.bin"
