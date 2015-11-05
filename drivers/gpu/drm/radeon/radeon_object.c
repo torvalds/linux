@@ -241,8 +241,9 @@ int radeon_bo_create(struct radeon_device *rdev,
 #warning Please enable CONFIG_MTRR and CONFIG_X86_PAT for better performance \
 	 thanks to write-combining
 
-	DRM_INFO_ONCE("Please enable CONFIG_MTRR and CONFIG_X86_PAT for "
-		      "better performance thanks to write-combining\n");
+	if (bo->flags & RADEON_GEM_GTT_WC)
+		DRM_INFO_ONCE("Please enable CONFIG_MTRR and CONFIG_X86_PAT for "
+			      "better performance thanks to write-combining\n");
 	bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 #endif
 
