@@ -911,7 +911,6 @@ int wlan_initialize_threads(struct net_device *dev)
 {
 	perInterface_wlan_t *nic;
 	struct wilc *wilc;
-	int ret = 0;
 
 	nic = netdev_priv(dev);
 	wilc = nic->wilc;
@@ -922,16 +921,12 @@ int wlan_initialize_threads(struct net_device *dev)
 				     "K_TXQ_TASK");
 	if (!wilc->txq_thread) {
 		PRINT_ER("couldn't create TXQ thread\n");
-		ret = -ENOBUFS;
-		goto _fail_2;
+		wilc->close = 0;
+		return -ENOBUFS;
 	}
 	down(&wilc->txq_thread_started);
 
 	return 0;
-
-_fail_2:
-	wilc->close = 0;
-	return ret;
 }
 
 static void wlan_deinitialize_threads(struct net_device *dev)
