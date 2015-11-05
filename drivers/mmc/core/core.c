@@ -2576,7 +2576,9 @@ void mmc_rescan(struct work_struct *work)
 	host->rescan_entered = 1;
 
 	if (host->trigger_card_event && host->ops->card_event) {
+		mmc_claim_host(host);
 		host->ops->card_event(host);
+		mmc_release_host(host);
 		host->trigger_card_event = false;
 	}
 
@@ -2611,15 +2613,14 @@ void mmc_rescan(struct work_struct *work)
 	 */
 	mmc_bus_put(host);
 
+	mmc_claim_host(host);
 	if (!(host->caps & MMC_CAP_NONREMOVABLE) && host->ops->get_cd &&
 			host->ops->get_cd(host) == 0) {
-		mmc_claim_host(host);
 		mmc_power_off(host);
 		mmc_release_host(host);
 		goto out;
 	}
 
-	mmc_claim_host(host);
 	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
 		if (!mmc_rescan_try_freq(host, max(freqs[i], host->f_min)))
 			break;
