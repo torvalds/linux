@@ -1047,7 +1047,7 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 		return budget;
 	/* all work done, exit the polling mode */
 	napi_complete_done(napi, work_done);
-	if (adapter->rx_itr_setting & 1)
+	if (adapter->rx_itr_setting == 1)
 		ixgbevf_set_itr(q_vector);
 	if (!test_bit(__IXGBEVF_DOWN, &adapter->state) &&
 	    !test_bit(__IXGBEVF_REMOVING, &adapter->state))
@@ -1250,8 +1250,9 @@ static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector)
 		new_itr = IXGBE_20K_ITR;
 		break;
 	case bulk_latency:
-	default:
 		new_itr = IXGBE_12K_ITR;
+		break;
+	default:
 		break;
 	}
 
