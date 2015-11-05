@@ -93,7 +93,7 @@ void dss_mgr_set_lcd_config(enum omap_channel channel,
 int dss_mgr_enable(enum omap_channel channel);
 void dss_mgr_disable(enum omap_channel channel);
 void dss_mgr_start_update(enum omap_channel channel);
-int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
+int dss_mgr_register_framedone_handler(enum omap_channel channel,
 		void (*handler)(void *), void *data);
 void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
 		void (*handler)(void *), void *data);

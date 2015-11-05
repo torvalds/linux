@@ -4115,7 +4115,7 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 			OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC);
 
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE) {
-		r = dss_mgr_register_framedone_handler(mgr,
+		r = dss_mgr_register_framedone_handler(mgr->id,
 				dsi_framedone_irq_callback, dsidev);
 		if (r) {
 			DSSERR("can't register FRAMEDONE handler\n");
