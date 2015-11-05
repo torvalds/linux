@@ -166,9 +166,11 @@ struct rx_cmp {
 #define RX_CMP_HASH_VALID(rxcmp)				\
 	((rxcmp)->rx_cmp_len_flags_type & cpu_to_le32(RX_CMP_FLAGS_RSS_VALID))
 
+#define RSS_PROFILE_ID_MASK	0x1f
+
 #define RX_CMP_HASH_TYPE(rxcmp)					\
-	((le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_RSS_HASH_TYPE) >>\
-	 RX_CMP_RSS_HASH_TYPE_SHIFT)
+	(((le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_RSS_HASH_TYPE) >>\
+	  RX_CMP_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
 
 struct rx_cmp_ext {
 	__le32 rx_cmp_flags2;
@@ -282,9 +284,9 @@ struct rx_tpa_start_cmp {
 	 cpu_to_le32(RX_TPA_START_CMP_FLAGS_RSS_VALID))
 
 #define TPA_START_HASH_TYPE(rx_tpa_start)				\
-	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
-	  RX_TPA_START_CMP_RSS_HASH_TYPE) >>				\
-	 RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT)
+	(((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
+	   RX_TPA_START_CMP_RSS_HASH_TYPE) >>				\
+	  RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
 
 #define TPA_START_AGG_ID(rx_tpa_start)					\
 	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
