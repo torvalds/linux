@@ -940,17 +940,51 @@ static void dwc2_complete_isoc_xfer_ddma(struct dwc2_hsotg *hsotg,
 	list_for_each_entry_safe(qtd, qtd_tmp, &qh->qtd_list, qtd_list_entry) {
 		if (!qtd->in_process)
 			break;
+
+		/*
+		 * Ensure idx corresponds to descriptor where first urb of this
+		 * qtd was added. In fact, during isoc desc init, dwc2 may skip
+		 * an index if current frame number is already over this index.
+		 */
+		if (idx != qtd->isoc_td_first) {
+			dev_vdbg(hsotg->dev,
+				 "try to complete %d instead of %d\n",
+				 idx, qtd->isoc_td_first);
+			idx = qtd->isoc_td_first;
+		}
+
 		do {
+			struct dwc2_qtd *qtd_next;
+			u16 cur_idx;
+
 			rc = dwc2_cmpl_host_isoc_dma_desc(hsotg, chan, qtd, qh,
 							  idx);
 			if (rc < 0)
 				return;
 			idx = dwc2_desclist_idx_inc(idx, qh->interval,
 						    chan->speed);
-			if (rc == DWC2_CMPL_STOP)
-				goto stop_scan;
+			if (!rc)
+				continue;
+
 			if (rc == DWC2_CMPL_DONE)
 				break;
+
+			/* rc == DWC2_CMPL_STOP */
+
+			if (qh->interval >= 32)
+				goto stop_scan;
+
+			qh->td_first = idx;
+			cur_idx = dwc2_frame_list_idx(hsotg->frame_number);
+			qtd_next = list_first_entry(&qh->qtd_list,
+						    struct dwc2_qtd,
+						    qtd_list_entry);
+			if (dwc2_frame_idx_num_gt(cur_idx,
+						  qtd_next->isoc_td_last))
+				break;
+
+			goto stop_scan;
+
 		} while (idx != qh->td_first);
 	}
 
