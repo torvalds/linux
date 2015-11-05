@@ -849,48 +849,6 @@ void omapdss_set_is_initialized(bool set);
 struct device_node *dss_of_port_get_parent_device(struct device_node *port);
 u32 dss_of_port_get_port_number(struct device_node *port);
 
-u32 dispc_read_irqstatus(void);
-void dispc_clear_irqstatus(u32 mask);
-u32 dispc_read_irqenable(void);
-void dispc_write_irqenable(u32 mask);
-
-int dispc_request_irq(irq_handler_t handler, void *dev_id);
-void dispc_free_irq(void *dev_id);
-
-int dispc_runtime_get(void);
-void dispc_runtime_put(void);
-
-int dispc_get_num_ovls(void);
-int dispc_get_num_mgrs(void);
-
-void dispc_mgr_enable(enum omap_channel channel, bool enable);
-u32 dispc_mgr_get_vsync_irq(enum omap_channel channel);
-u32 dispc_mgr_get_framedone_irq(enum omap_channel channel);
-u32 dispc_mgr_get_sync_lost_irq(enum omap_channel channel);
-bool dispc_mgr_go_busy(enum omap_channel channel);
-void dispc_mgr_go(enum omap_channel channel);
-void dispc_mgr_set_lcd_config(enum omap_channel channel,
-		const struct dss_lcd_mgr_config *config);
-void dispc_mgr_set_timings(enum omap_channel channel,
-		const struct videomode *vm);
-void dispc_mgr_setup(enum omap_channel channel,
-		const struct omap_overlay_manager_info *info);
-enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channel);
-u32 dispc_mgr_gamma_size(enum omap_channel channel);
-void dispc_mgr_set_gamma(enum omap_channel channel,
-			 const struct drm_color_lut *lut,
-			 unsigned int length);
-
-int dispc_ovl_enable(enum omap_plane plane, bool enable);
-bool dispc_ovl_enabled(enum omap_plane plane);
-void dispc_ovl_set_channel_out(enum omap_plane plane,
-		enum omap_channel channel);
-int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
-		bool replication, const struct videomode *vm, bool mem_to_mem);
-enum omap_color_mode dispc_ovl_get_color_modes(enum omap_plane plane);
-
-enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channel);
-
 struct dss_mgr_ops {
 	int (*connect)(enum omap_channel channel,
 		struct omap_dss_device *dst);
