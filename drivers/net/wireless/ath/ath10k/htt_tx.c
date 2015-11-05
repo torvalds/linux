@@ -688,8 +688,15 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	skb_cb->htt.txbuf->cmd_tx.len = __cpu_to_le16(msdu->len);
 	skb_cb->htt.txbuf->cmd_tx.id = __cpu_to_le16(msdu_id);
 	skb_cb->htt.txbuf->cmd_tx.frags_paddr = __cpu_to_le32(frags_paddr);
-	skb_cb->htt.txbuf->cmd_tx.peerid = __cpu_to_le16(HTT_INVALID_PEERID);
-	skb_cb->htt.txbuf->cmd_tx.freq = __cpu_to_le16(skb_cb->htt.freq);
+	if (ath10k_mac_tx_frm_has_freq(ar)) {
+		skb_cb->htt.txbuf->cmd_tx.offchan_tx.peerid =
+				__cpu_to_le16(HTT_INVALID_PEERID);
+		skb_cb->htt.txbuf->cmd_tx.offchan_tx.freq =
+				__cpu_to_le16(skb_cb->htt.freq);
+	} else {
+		skb_cb->htt.txbuf->cmd_tx.peerid =
+				__cpu_to_le32(HTT_INVALID_PEERID);
+	}
 
 	trace_ath10k_htt_tx(ar, msdu_id, msdu->len, vdev_id, tid);
 	ath10k_dbg(ar, ATH10K_DBG_HTT,

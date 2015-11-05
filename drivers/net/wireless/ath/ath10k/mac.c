@@ -3287,7 +3287,7 @@ static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
 	}
 }
 
-static bool ath10k_mac_tx_frm_has_freq(struct ath10k *ar)
+bool ath10k_mac_tx_frm_has_freq(struct ath10k *ar)
 {
 	/* FIXME: Not really sure since when the behaviour changed. At some
 	 * point new firmware stopped requiring creation of peer entries for
@@ -3296,7 +3296,8 @@ static bool ath10k_mac_tx_frm_has_freq(struct ath10k *ar)
 	 * because that's when the `freq` was introduced to TX_FRM HTT command.
 	 */
 	return (ar->htt.target_version_major >= 3 &&
-		ar->htt.target_version_minor >= 4);
+		ar->htt.target_version_minor >= 4 &&
+		ar->htt.op_version == ATH10K_FW_HTT_OP_VERSION_TLV);
 }
 
 static int ath10k_mac_tx_wmi_mgmt(struct ath10k *ar, struct sk_buff *skb)
