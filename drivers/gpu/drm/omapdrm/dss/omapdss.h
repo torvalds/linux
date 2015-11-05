@@ -95,7 +95,7 @@ void dss_mgr_disable(enum omap_channel channel);
 void dss_mgr_start_update(enum omap_channel channel);
 int dss_mgr_register_framedone_handler(enum omap_channel channel,
 		void (*handler)(void *), void *data);
-void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
+void dss_mgr_unregister_framedone_handler(enum omap_channel channel,
 		void (*handler)(void *), void *data);
 
 #endif /* __OMAP_DRM_DSS_H */

@@ -4156,7 +4156,7 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 	return 0;
 err1:
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE)
-		dss_mgr_unregister_framedone_handler(mgr,
+		dss_mgr_unregister_framedone_handler(mgr->id,
 				dsi_framedone_irq_callback, dsidev);
 err:
 	dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
@@ -4169,7 +4169,7 @@ static void dsi_display_uninit_dispc(struct platform_device *dsidev,
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE)
-		dss_mgr_unregister_framedone_handler(mgr,
+		dss_mgr_unregister_framedone_handler(mgr->id,
 				dsi_framedone_irq_callback, dsidev);
 
 	dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);

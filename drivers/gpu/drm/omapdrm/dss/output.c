@@ -241,9 +241,9 @@ int dss_mgr_register_framedone_handler(enum omap_channel channel,
 }
 EXPORT_SYMBOL(dss_mgr_register_framedone_handler);
 
-void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
+void dss_mgr_unregister_framedone_handler(enum omap_channel channel,
 		void (*handler)(void *), void *data)
 {
-	dss_mgr_ops->unregister_framedone_handler(mgr->id, handler, data);
+	dss_mgr_ops->unregister_framedone_handler(channel, handler, data);
 }
 EXPORT_SYMBOL(dss_mgr_unregister_framedone_handler);
