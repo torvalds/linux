@@ -3953,6 +3953,8 @@ static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
 	u8 buf;
 	int ret = 0;
+	int count = 0;
+	int attempts = 10;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0) {
 		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
@@ -3967,7 +3969,22 @@ static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 		goto out;
 	}
 
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
+	do {
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+
+		if (drm_dp_dpcd_readb(&intel_dp->aux,
+				      DP_TEST_SINK_MISC, &buf) < 0) {
+			ret = -EIO;
+			goto out;
+		}
+		count = buf & DP_TEST_COUNT_MASK;
+	} while (--attempts && count);
+
+	if (attempts == 0) {
+		DRM_ERROR("TIMEOUT: Sink CRC counter is not zeroed\n");
+		ret = -ETIMEDOUT;
+	}
+
 	intel_dp->sink_crc.started = false;
  out:
 	hsw_enable_ips(intel_crtc);
