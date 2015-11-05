@@ -344,7 +344,6 @@ MODULE_DEVICE_TABLE(spi, ak4104_id_table);
 static struct spi_driver ak4104_spi_driver = {
 	.driver  = {
 		.name   = "ak4104",
-		.owner  = THIS_MODULE,
 		.of_match_table = ak4104_of_match,
 	},
 	.id_table = ak4104_id_table,

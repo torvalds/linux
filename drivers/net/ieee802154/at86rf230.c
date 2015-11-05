@@ -1816,7 +1816,6 @@ static struct spi_driver at86rf230_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(at86rf230_of_match),
 		.name	= "at86rf230",
-		.owner	= THIS_MODULE,
 	},
 	.probe      = at86rf230_probe,
 	.remove     = at86rf230_remove,

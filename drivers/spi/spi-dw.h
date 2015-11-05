@@ -225,6 +225,12 @@ static inline void spi_reset_chip(struct dw_spi *dws)
 	spi_enable_chip(dws, 1);
 }
 
+static inline void spi_shutdown_chip(struct dw_spi *dws)
+{
+	spi_enable_chip(dws, 0);
+	spi_set_clk(dws, 0);
+}
+
 /*
  * Each SPI slave device to work with dw_api controller should
  * has such a structure claiming its working mode (poll or PIO/DMA),

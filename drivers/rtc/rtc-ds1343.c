@@ -731,7 +731,6 @@ static SIMPLE_DEV_PM_OPS(ds1343_pm, ds1343_suspend, ds1343_resume);
 static struct spi_driver ds1343_driver = {
 	.driver = {
 		.name = "ds1343",
-		.owner = THIS_MODULE,
 		.pm = &ds1343_pm,
 	},
 	.probe = ds1343_probe,

@@ -54,7 +54,7 @@ struct netup_dma {
 	u8			num;
 	spinlock_t		lock;
 	struct netup_unidvb_dev	*ndev;
-	struct netup_dma_regs	*regs;
+	struct netup_dma_regs __iomem *regs;
 	u32			ring_buffer_size;
 	u8			*addr_virt;
 	dma_addr_t		addr_phys;
@@ -82,7 +82,7 @@ struct netup_i2c {
 	wait_queue_head_t		wq;
 	struct i2c_adapter		adap;
 	struct netup_unidvb_dev		*dev;
-	struct netup_i2c_regs		*regs;
+	struct netup_i2c_regs __iomem	*regs;
 	struct i2c_msg			*msg;
 	enum netup_i2c_state		state;
 	u32				xmit_size;

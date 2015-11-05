@@ -244,7 +244,7 @@ static int bcm590xx_get_enable_register(int id)
 			break;
 		case BCM590XX_REG_VBUS:
 			reg = BCM590XX_OTG_CTRL;
-		};
+		}
 
 
 	return reg;

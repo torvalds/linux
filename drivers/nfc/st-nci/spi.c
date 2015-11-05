@@ -384,7 +384,6 @@ MODULE_DEVICE_TABLE(of, of_st_nci_spi_match);
 
 static struct spi_driver st_nci_spi_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = ST_NCI_SPI_DRIVER_NAME,
 		.of_match_table = of_match_ptr(of_st_nci_spi_match),
 	},

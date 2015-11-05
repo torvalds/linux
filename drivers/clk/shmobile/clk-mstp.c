@@ -214,7 +214,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 			break;
 
 		if (clkidx >= MSTP_MAX_CLOCKS) {
-			pr_err("%s: invalid clock %s %s index %u)\n",
+			pr_err("%s: invalid clock %s %s index %u\n",
 			       __func__, np->name, name, clkidx);
 			continue;
 		}

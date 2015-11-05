@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/math64.h>
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-common.h>
@@ -40,7 +41,7 @@ struct vivid_format {
 };
 
 /* format descriptions for capture and preview */
-static struct vivid_format formats[] = {
+static const struct vivid_format formats[] = {
 	{
 		.pixelformat	= V4L2_SDR_FMT_CU8,
 		.buffersize	= SDR_CAP_SAMPLES_PER_BUF * 2,
@@ -114,11 +115,11 @@ static void vivid_thread_sdr_cap_tick(struct vivid_dev *dev)
 	spin_unlock(&dev->slock);
 
 	if (sdr_cap_buf) {
-		sdr_cap_buf->vb.v4l2_buf.sequence = dev->sdr_cap_seq_count;
+		sdr_cap_buf->vb.sequence = dev->sdr_cap_seq_count;
 		vivid_sdr_cap_process(dev, sdr_cap_buf);
-		v4l2_get_timestamp(&sdr_cap_buf->vb.v4l2_buf.timestamp);
-		sdr_cap_buf->vb.v4l2_buf.timestamp.tv_sec += dev->time_wrap_offset;
-		vb2_buffer_done(&sdr_cap_buf->vb, dev->dqbuf_error ?
+		v4l2_get_timestamp(&sdr_cap_buf->vb.timestamp);
+		sdr_cap_buf->vb.timestamp.tv_sec += dev->time_wrap_offset;
+		vb2_buffer_done(&sdr_cap_buf->vb.vb2_buf, dev->dqbuf_error ?
 				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 		dev->dqbuf_error = false;
 	}
@@ -161,7 +162,8 @@ static int vivid_thread_sdr_cap(void *data)
 		/* Calculate the number of jiffies since we started streaming */
 		jiffies_since_start = cur_jiffies - dev->jiffies_sdr_cap;
 		/* Get the number of buffers streamed since the start */
-		buffers_since_start = (u64)jiffies_since_start * dev->sdr_adc_freq +
+		buffers_since_start =
+			(u64)jiffies_since_start * dev->sdr_adc_freq +
 				      (HZ * SDR_CAP_SAMPLES_PER_BUF) / 2;
 		do_div(buffers_since_start, HZ * SDR_CAP_SAMPLES_PER_BUF);
 
@@ -176,7 +178,8 @@ static int vivid_thread_sdr_cap(void *data)
 			dev->sdr_cap_seq_offset = buffers_since_start;
 			buffers_since_start = 0;
 		}
-		dev->sdr_cap_seq_count = buffers_since_start + dev->sdr_cap_seq_offset;
+		dev->sdr_cap_seq_count =
+			buffers_since_start + dev->sdr_cap_seq_offset;
 
 		vivid_thread_sdr_cap_tick(dev);
 		mutex_unlock(&dev->mutex);
@@ -210,7 +213,7 @@ static int vivid_thread_sdr_cap(void *data)
 	return 0;
 }
 
-static int sdr_cap_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int sdr_cap_queue_setup(struct vb2_queue *vq, const void *parg,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], void *alloc_ctxs[])
 {
@@ -247,8 +250,9 @@ static int sdr_cap_buf_prepare(struct vb2_buffer *vb)
 
 static void sdr_cap_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct vivid_buffer *buf = container_of(vb, struct vivid_buffer, vb);
+	struct vivid_buffer *buf = container_of(vbuf, struct vivid_buffer, vb);
 
 	dprintk(dev, 1, "%s\n", __func__);
 
@@ -282,7 +286,8 @@ static int sdr_cap_start_streaming(struct vb2_queue *vq, unsigned count)
 
 		list_for_each_entry_safe(buf, tmp, &dev->sdr_cap_active, list) {
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 	}
 	return err;
@@ -299,9 +304,10 @@ static void sdr_cap_stop_streaming(struct vb2_queue *vq)
 	while (!list_empty(&dev->sdr_cap_active)) {
 		struct vivid_buffer *buf;
 
-		buf = list_entry(dev->sdr_cap_active.next, struct vivid_buffer, list);
+		buf = list_entry(dev->sdr_cap_active.next,
+				struct vivid_buffer, list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	/* shutdown control thread */
@@ -321,7 +327,8 @@ const struct vb2_ops vivid_sdr_cap_qops = {
 	.wait_finish		= vb2_ops_wait_finish,
 };
 
-int vivid_sdr_enum_freq_bands(struct file *file, void *fh, struct v4l2_frequency_band *band)
+int vivid_sdr_enum_freq_bands(struct file *file, void *fh,
+		struct v4l2_frequency_band *band)
 {
 	switch (band->tuner) {
 	case 0:
@@ -339,7 +346,8 @@ int vivid_sdr_enum_freq_bands(struct file *file, void *fh, struct v4l2_frequency
 	}
 }
 
-int vivid_sdr_g_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
+int vivid_sdr_g_frequency(struct file *file, void *fh,
+		struct v4l2_frequency *vf)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
@@ -357,7 +365,8 @@ int vivid_sdr_g_frequency(struct file *file, void *fh, struct v4l2_frequency *vf
 	}
 }
 
-int vivid_sdr_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *vf)
+int vivid_sdr_s_frequency(struct file *file, void *fh,
+		const struct v4l2_frequency *vf)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	unsigned freq = vf->frequency;
@@ -403,14 +412,16 @@ int vivid_sdr_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	case 0:
 		strlcpy(vt->name, "ADC", sizeof(vt->name));
 		vt->type = V4L2_TUNER_ADC;
-		vt->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
+		vt->capability =
+			V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		vt->rangelow = bands_adc[0].rangelow;
 		vt->rangehigh = bands_adc[2].rangehigh;
 		return 0;
 	case 1:
 		strlcpy(vt->name, "RF", sizeof(vt->name));
 		vt->type = V4L2_TUNER_RF;
-		vt->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
+		vt->capability =
+			V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		vt->rangelow = bands_fm[0].rangelow;
 		vt->rangehigh = bands_fm[0].rangehigh;
 		return 0;
@@ -488,47 +499,42 @@ int vidioc_try_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f)
 #define FIXP_N    (15)
 #define FIXP_FRAC (1 << FIXP_N)
 #define FIXP_2PI  ((int)(2 * 3.141592653589 * FIXP_FRAC))
+#define M_100000PI (3.14159 * 100000)
 
 void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 {
-	u8 *vbuf = vb2_plane_vaddr(&buf->vb, 0);
+	u8 *vbuf = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 	unsigned long i;
-	unsigned long plane_size = vb2_plane_size(&buf->vb, 0);
+	unsigned long plane_size = vb2_plane_size(&buf->vb.vb2_buf, 0);
+	s64 s64tmp;
 	s32 src_phase_step;
 	s32 mod_phase_step;
 	s32 fixp_i;
 	s32 fixp_q;
 
-	/*
-	 * TODO: Generated beep tone goes very crackly when sample rate is
-	 * increased to ~1Msps or more. That is because of huge rounding error
-	 * of phase angle caused by used cosine implementation.
-	 */
-
 	/* calculate phase step */
 	#define BEEP_FREQ 1000 /* 1kHz beep */
 	src_phase_step = DIV_ROUND_CLOSEST(FIXP_2PI * BEEP_FREQ,
-			dev->sdr_adc_freq);
+					   dev->sdr_adc_freq);
 
 	for (i = 0; i < plane_size; i += 2) {
 		mod_phase_step = fixp_cos32_rad(dev->sdr_fixp_src_phase,
 						FIXP_2PI) >> (31 - FIXP_N);
 
 		dev->sdr_fixp_src_phase += src_phase_step;
-		dev->sdr_fixp_mod_phase += mod_phase_step / 4;
+		s64tmp = (s64) mod_phase_step * dev->sdr_fm_deviation;
+		dev->sdr_fixp_mod_phase += div_s64(s64tmp, M_100000PI);
 
 		/*
-		 * Transfer phases to [0 / 2xPI] in order to avoid variable
+		 * Transfer phase angle to [0, 2xPI] in order to avoid variable
 		 * overflow and make it suitable for cosine implementation
 		 * used, which does not support negative angles.
 		 */
-		while (dev->sdr_fixp_mod_phase < FIXP_2PI)
-			dev->sdr_fixp_mod_phase += FIXP_2PI;
-		while (dev->sdr_fixp_mod_phase > FIXP_2PI)
-			dev->sdr_fixp_mod_phase -= FIXP_2PI;
+		dev->sdr_fixp_src_phase %= FIXP_2PI;
+		dev->sdr_fixp_mod_phase %= FIXP_2PI;
 
-		while (dev->sdr_fixp_src_phase > FIXP_2PI)
-			dev->sdr_fixp_src_phase -= FIXP_2PI;
+		if (dev->sdr_fixp_mod_phase < 0)
+			dev->sdr_fixp_mod_phase += FIXP_2PI;
 
 		fixp_i = fixp_cos32_rad(dev->sdr_fixp_mod_phase, FIXP_2PI);
 		fixp_q = fixp_sin32_rad(dev->sdr_fixp_mod_phase, FIXP_2PI);
@@ -540,7 +546,7 @@ void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 
 		switch (dev->sdr_pixelformat) {
 		case V4L2_SDR_FMT_CU8:
-			/* convert 'fixp float' to u8 */
+			/* convert 'fixp float' to u8 [0, +255] */
 			/* u8 = X * 127.5 + 127.5; X is float [-1.0, +1.0] */
 			fixp_i = fixp_i * 1275 + FIXP_FRAC * 1275;
 			fixp_q = fixp_q * 1275 + FIXP_FRAC * 1275;
@@ -548,9 +554,10 @@ void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 			*vbuf++ = DIV_ROUND_CLOSEST(fixp_q, FIXP_FRAC * 10);
 			break;
 		case V4L2_SDR_FMT_CS8:
-			/* convert 'fixp float' to s8 */
-			fixp_i = fixp_i * 1275;
-			fixp_q = fixp_q * 1275;
+			/* convert 'fixp float' to s8 [-128, +127] */
+			/* s8 = X * 127.5 - 0.5; X is float [-1.0, +1.0] */
+			fixp_i = fixp_i * 1275 - FIXP_FRAC * 5;
+			fixp_q = fixp_q * 1275 - FIXP_FRAC * 5;
 			*vbuf++ = DIV_ROUND_CLOSEST(fixp_i, FIXP_FRAC * 10);
 			*vbuf++ = DIV_ROUND_CLOSEST(fixp_q, FIXP_FRAC * 10);
 			break;

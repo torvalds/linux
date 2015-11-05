@@ -2750,13 +2750,9 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	rc = md_enqueue(sbi->ll_md_exp, &einfo, NULL,
 			op_data, &lockh, &flock, 0, NULL /* req */, flags);
 
-	if ((file_lock->fl_flags & FL_FLOCK) &&
-	    (rc == 0 || file_lock->fl_type == F_UNLCK))
-		rc2  = flock_lock_file_wait(file, file_lock);
-	if ((file_lock->fl_flags & FL_POSIX) &&
-	    (rc == 0 || file_lock->fl_type == F_UNLCK) &&
+	if ((rc == 0 || file_lock->fl_type == F_UNLCK) &&
 	    !(flags & LDLM_FL_TEST_LOCK))
-		rc2  = posix_lock_file_wait(file, file_lock);
+		rc2  = locks_lock_file_wait(file, file_lock);
 
 	if (rc2 && file_lock->fl_type != F_UNLCK) {
 		einfo.ei_mode = LCK_NL;

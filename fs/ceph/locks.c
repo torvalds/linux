@@ -228,12 +228,12 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 	err = ceph_lock_message(CEPH_LOCK_FLOCK, CEPH_MDS_OP_SETFILELOCK,
 				file, lock_cmd, wait, fl);
 	if (!err) {
-		err = flock_lock_file_wait(file, fl);
+		err = locks_lock_file_wait(file, fl);
 		if (err) {
 			ceph_lock_message(CEPH_LOCK_FLOCK,
 					  CEPH_MDS_OP_SETFILELOCK,
 					  file, CEPH_LOCK_UNLOCK, 0, fl);
-			dout("got %d on flock_lock_file_wait, undid lock", err);
+			dout("got %d on locks_lock_file_wait, undid lock", err);
 		}
 	}
 	return err;

@@ -1183,13 +1183,13 @@ static int si5351_dt_parse(struct i2c_client *client,
 		if (of_property_read_u32(child, "reg", &num)) {
 			dev_err(&client->dev, "missing reg property of %s\n",
 				child->name);
-			return -EINVAL;
+			goto put_child;
 		}
 
 		if (num >= 8 ||
 		    (variant == SI5351_VARIANT_A3 && num >= 3)) {
 			dev_err(&client->dev, "invalid clkout %d\n", num);
-			return -EINVAL;
+			goto put_child;
 		}
 
 		if (!of_property_read_u32(child, "silabs,multisynth-source",
@@ -1207,7 +1207,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 				dev_err(&client->dev,
 					"invalid parent %d for multisynth %d\n",
 					val, num);
-				return -EINVAL;
+				goto put_child;
 			}
 		}
 
@@ -1230,7 +1230,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 					dev_err(&client->dev,
 						"invalid parent %d for clkout %d\n",
 						val, num);
-					return -EINVAL;
+					goto put_child;
 				}
 				pdata->clkout[num].clkout_src =
 					SI5351_CLKOUT_SRC_CLKIN;
@@ -1239,7 +1239,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 				dev_err(&client->dev,
 					"invalid parent %d for clkout %d\n",
 					val, num);
-				return -EINVAL;
+				goto put_child;
 			}
 		}
 
@@ -1256,7 +1256,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 				dev_err(&client->dev,
 					"invalid drive strength %d for clkout %d\n",
 					val, num);
-				return -EINVAL;
+				goto put_child;
 			}
 		}
 
@@ -1283,7 +1283,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 				dev_err(&client->dev,
 					"invalid disable state %d for clkout %d\n",
 					val, num);
-				return -EINVAL;
+				goto put_child;
 			}
 		}
 
@@ -1296,6 +1296,9 @@ static int si5351_dt_parse(struct i2c_client *client,
 	client->dev.platform_data = pdata;
 
 	return 0;
+put_child:
+	of_node_put(child);
+	return -EINVAL;
 }
 #else
 static int si5351_dt_parse(struct i2c_client *client, enum si5351_variant variant)

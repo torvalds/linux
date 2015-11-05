@@ -1353,6 +1353,7 @@ int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(pm_genpd_add_subdomain);
 
 /**
  * pm_genpd_remove_subdomain - Remove a subdomain from an I/O PM domain.
@@ -1400,6 +1401,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(pm_genpd_remove_subdomain);
 
 /* Default device callbacks for generic PM domains. */
 

@@ -517,6 +517,7 @@ int check_syslog_permissions(int type, int source)
 ok:
 	return security_syslog(type);
 }
+EXPORT_SYMBOL_GPL(check_syslog_permissions);
 
 static void append_char(char **pp, char *e, char c)
 {

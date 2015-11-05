@@ -297,7 +297,6 @@ static struct spi_driver ad7303_driver = {
 	.driver = {
 		.name = "ad7303",
 		.of_match_table = of_match_ptr(ad7303_spi_of_match),
-		.owner = THIS_MODULE,
 	},
 	.probe = ad7303_probe,
 	.remove = ad7303_remove,

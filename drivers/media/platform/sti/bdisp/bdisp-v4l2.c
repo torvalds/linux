@@ -180,7 +180,7 @@ static struct bdisp_frame *ctx_get_frame(struct bdisp_ctx *ctx,
 
 static void bdisp_job_finish(struct bdisp_ctx *ctx, int vb_state)
 {
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 
 	if (WARN(!ctx || !ctx->fh.m2m_ctx, "Null hardware context\n"))
 		return;
@@ -191,10 +191,10 @@ static void bdisp_job_finish(struct bdisp_ctx *ctx, int vb_state)
 	dst_vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 
 	if (src_vb && dst_vb) {
-		dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
-		dst_vb->v4l2_buf.timecode = src_vb->v4l2_buf.timecode;
-		dst_vb->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-		dst_vb->v4l2_buf.flags |= src_vb->v4l2_buf.flags &
+		dst_vb->timestamp = src_vb->timestamp;
+		dst_vb->timecode = src_vb->timecode;
+		dst_vb->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+		dst_vb->flags |= src_vb->flags &
 					  V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 		v4l2_m2m_buf_done(src_vb, vb_state);
@@ -281,23 +281,23 @@ static int bdisp_get_addr(struct bdisp_ctx *ctx, struct vb2_buffer *vb,
 static int bdisp_get_bufs(struct bdisp_ctx *ctx)
 {
 	struct bdisp_frame *src, *dst;
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 	int ret;
 
 	src = &ctx->src;
 	dst = &ctx->dst;
 
 	src_vb = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
-	ret = bdisp_get_addr(ctx, src_vb, src, src->paddr);
+	ret = bdisp_get_addr(ctx, &src_vb->vb2_buf, src, src->paddr);
 	if (ret)
 		return ret;
 
 	dst_vb = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
-	ret = bdisp_get_addr(ctx, dst_vb, dst, dst->paddr);
+	ret = bdisp_get_addr(ctx, &dst_vb->vb2_buf, dst, dst->paddr);
 	if (ret)
 		return ret;
 
-	dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+	dst_vb->timestamp = src_vb->timestamp;
 
 	return 0;
 }
@@ -438,10 +438,11 @@ static void bdisp_ctrls_delete(struct bdisp_ctx *ctx)
 }
 
 static int bdisp_queue_setup(struct vb2_queue *vq,
-			     const struct v4l2_format *fmt,
+			     const void *parg,
 			     unsigned int *nb_buf, unsigned int *nb_planes,
 			     unsigned int sizes[], void *allocators[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct bdisp_ctx *ctx = vb2_get_drv_priv(vq);
 	struct bdisp_frame *frame = ctx_get_frame(ctx, vq->type);
 
@@ -483,6 +484,7 @@ static int bdisp_buf_prepare(struct vb2_buffer *vb)
 
 static void bdisp_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct bdisp_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
 	/* return to V4L2 any 0-size buffer so it can be dequeued by user */
@@ -493,13 +495,13 @@ static void bdisp_buf_queue(struct vb2_buffer *vb)
 	}
 
 	if (ctx->fh.m2m_ctx)
-		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vb);
+		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
 
 static int bdisp_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct bdisp_ctx *ctx = q->drv_priv;
-	struct vb2_buffer *buf;
+	struct vb2_v4l2_buffer *buf;
 	int ret = pm_runtime_get_sync(ctx->bdisp_dev->dev);
 
 	if (ret < 0) {

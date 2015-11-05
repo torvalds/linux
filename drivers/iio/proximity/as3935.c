@@ -450,7 +450,6 @@ static struct spi_driver as3935_driver = {
 	.driver = {
 		.name	= "as3935",
 		.of_match_table = of_match_ptr(as3935_of_match),
-		.owner	= THIS_MODULE,
 		.pm	= AS3935_PM_OPS,
 	},
 	.probe		= as3935_probe,

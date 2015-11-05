@@ -410,11 +410,14 @@ err_out:
 	 * If the symlink path is stored into inline_data, there is no
 	 * performance regression.
 	 */
-	if (!err)
+	if (!err) {
 		filemap_write_and_wait_range(inode->i_mapping, 0, p_len - 1);
 
-	if (IS_DIRSYNC(dir))
-		f2fs_sync_fs(sbi->sb, 1);
+		if (IS_DIRSYNC(dir))
+			f2fs_sync_fs(sbi->sb, 1);
+	} else {
+		f2fs_unlink(dir, dentry);
+	}
 
 	kfree(sd);
 	f2fs_fname_crypto_free_buffer(&disk_link);
@@ -947,8 +950,13 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 
 	/* Symlink is encrypted */
 	sd = (struct f2fs_encrypted_symlink_data *)caddr;
-	cstr.name = sd->encrypted_path;
 	cstr.len = le16_to_cpu(sd->len);
+	cstr.name = kmalloc(cstr.len, GFP_NOFS);
+	if (!cstr.name) {
+		res = -ENOMEM;
+		goto errout;
+	}
+	memcpy(cstr.name, sd->encrypted_path, cstr.len);
 
 	/* this is broken symlink case */
 	if (cstr.name[0] == 0 && cstr.len == 0) {
@@ -970,6 +978,8 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 	if (res < 0)
 		goto errout;
 
+	kfree(cstr.name);
+
 	paddr = pstr.name;
 
 	/* Null-terminate the name */
@@ -979,6 +989,7 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 	page_cache_release(cpage);
 	return *cookie = paddr;
 errout:
+	kfree(cstr.name);
 	f2fs_fname_crypto_free_buffer(&pstr);
 	kunmap(cpage);
 	page_cache_release(cpage);

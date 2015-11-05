@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/list.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-vmalloc.h>
 
 #include "netup_unidvb.h"
@@ -110,7 +111,7 @@ struct netup_dma_regs {
 } __packed __aligned(1);
 
 struct netup_unidvb_buffer {
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head	list;
 	u32			size;
 };
@@ -189,12 +190,10 @@ static void netup_unidvb_dma_enable(struct netup_dma *dma, int enable)
 		"%s(): DMA%d enable %d\n", __func__, dma->num, enable);
 	if (enable) {
 		writel(BIT_DMA_RUN, &dma->regs->ctrlstat_set);
-		writew(irq_mask,
-			(u16 *)(dma->ndev->bmmio0 + REG_IMASK_SET));
+		writew(irq_mask, dma->ndev->bmmio0 + REG_IMASK_SET);
 	} else {
 		writel(BIT_DMA_RUN, &dma->regs->ctrlstat_clear);
-		writew(irq_mask,
-			(u16 *)(dma->ndev->bmmio0 + REG_IMASK_CLEAR));
+		writew(irq_mask, dma->ndev->bmmio0 + REG_IMASK_CLEAR);
 	}
 }
 
@@ -278,7 +277,7 @@ static irqreturn_t netup_unidvb_isr(int irq, void *dev_id)
 }
 
 static int netup_unidvb_queue_setup(struct vb2_queue *vq,
-				    const struct v4l2_format *fmt,
+				    const void *parg,
 				    unsigned int *nbuffers,
 				    unsigned int *nplanes,
 				    unsigned int sizes[],
@@ -300,7 +299,8 @@ static int netup_unidvb_queue_setup(struct vb2_queue *vq,
 static int netup_unidvb_buf_prepare(struct vb2_buffer *vb)
 {
 	struct netup_dma *dma = vb2_get_drv_priv(vb->vb2_queue);
-	struct netup_unidvb_buffer *buf = container_of(vb,
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct netup_unidvb_buffer *buf = container_of(vbuf,
 				struct netup_unidvb_buffer, vb);
 
 	dev_dbg(&dma->ndev->pci_dev->dev, "%s(): buf 0x%p\n", __func__, buf);
@@ -312,7 +312,8 @@ static void netup_unidvb_buf_queue(struct vb2_buffer *vb)
 {
 	unsigned long flags;
 	struct netup_dma *dma = vb2_get_drv_priv(vb->vb2_queue);
-	struct netup_unidvb_buffer *buf = container_of(vb,
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct netup_unidvb_buffer *buf = container_of(vbuf,
 				struct netup_unidvb_buffer, vb);
 
 	dev_dbg(&dma->ndev->pci_dev->dev, "%s(): %p\n", __func__, buf);
@@ -509,7 +510,7 @@ static int netup_unidvb_ring_copy(struct netup_dma *dma,
 {
 	u32 copy_bytes, ring_bytes;
 	u32 buff_bytes = NETUP_DMA_PACKETS_COUNT * 188 - buf->size;
-	u8 *p = vb2_plane_vaddr(&buf->vb, 0);
+	u8 *p = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 	struct netup_unidvb_dev *ndev = dma->ndev;
 
 	if (p == NULL) {
@@ -522,7 +523,7 @@ static int netup_unidvb_ring_copy(struct netup_dma *dma,
 		ring_bytes = dma->ring_buffer_size - dma->data_offset;
 		copy_bytes = (ring_bytes > buff_bytes) ?
 			buff_bytes : ring_bytes;
-		memcpy_fromio(p, dma->addr_virt + dma->data_offset, copy_bytes);
+		memcpy_fromio(p, (u8 __iomem *)(dma->addr_virt + dma->data_offset), copy_bytes);
 		p += copy_bytes;
 		buf->size += copy_bytes;
 		buff_bytes -= copy_bytes;
@@ -535,7 +536,7 @@ static int netup_unidvb_ring_copy(struct netup_dma *dma,
 		ring_bytes = dma->data_size;
 		copy_bytes = (ring_bytes > buff_bytes) ?
 				buff_bytes : ring_bytes;
-		memcpy_fromio(p, dma->addr_virt + dma->data_offset, copy_bytes);
+		memcpy_fromio(p, (u8 __iomem *)(dma->addr_virt + dma->data_offset), copy_bytes);
 		buf->size += copy_bytes;
 		dma->data_size -= copy_bytes;
 		dma->data_offset += copy_bytes;
@@ -579,9 +580,9 @@ static void netup_unidvb_dma_worker(struct work_struct *work)
 			dev_dbg(&ndev->pci_dev->dev,
 				"%s(): buffer %p done, size %d\n",
 				__func__, buf, buf->size);
-			v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-			vb2_set_plane_payload(&buf->vb, 0, buf->size);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+			v4l2_get_timestamp(&buf->vb.timestamp);
+			vb2_set_plane_payload(&buf->vb.vb2_buf, 0, buf->size);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		}
 	}
 work_done:
@@ -599,7 +600,7 @@ static void netup_unidvb_queue_cleanup(struct netup_dma *dma)
 		buf = list_first_entry(&dma->free_buffers,
 			struct netup_unidvb_buffer, list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&dma->lock, flags);
 }
@@ -641,10 +642,10 @@ static int netup_unidvb_dma_init(struct netup_unidvb_dev *ndev, int num)
 		__func__, num, dma->addr_virt,
 		(unsigned long long)dma->addr_phys,
 		dma->ring_buffer_size);
-	memset_io(dma->addr_virt, 0, dma->ring_buffer_size);
+	memset_io((u8 __iomem *)dma->addr_virt, 0, dma->ring_buffer_size);
 	dma->addr_last = dma->addr_phys;
 	dma->high_addr = (u32)(dma->addr_phys & 0xC0000000);
-	dma->regs = (struct netup_dma_regs *)(num == 0 ?
+	dma->regs = (struct netup_dma_regs __iomem *)(num == 0 ?
 		ndev->bmmio0 + NETUP_DMA0_ADDR :
 		ndev->bmmio0 + NETUP_DMA1_ADDR);
 	writel((NETUP_DMA_BLOCKS_COUNT << 24) |

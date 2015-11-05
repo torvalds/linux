@@ -1084,10 +1084,10 @@ static void load_dmem_segment(struct c8sectpfei *fei, Elf32_Phdr *phdr,
 		seg_num, phdr->p_paddr, phdr->p_filesz,
 		dst, phdr->p_memsz);
 
-	memcpy((void __iomem *)dst, (void *)fw->data + phdr->p_offset,
+	memcpy((void __force *)dst, (void *)fw->data + phdr->p_offset,
 		phdr->p_filesz);
 
-	memset((void __iomem *)dst + phdr->p_filesz, 0,
+	memset((void __force *)dst + phdr->p_filesz, 0,
 		phdr->p_memsz - phdr->p_filesz);
 }
 

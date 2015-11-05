@@ -192,7 +192,6 @@ static struct spi_driver adc128_driver = {
 	.driver = {
 		.name = "adc128s052",
 		.of_match_table = of_match_ptr(adc128_of_match),
-		.owner = THIS_MODULE,
 	},
 	.probe = adc128_probe,
 	.remove = adc128_remove,
