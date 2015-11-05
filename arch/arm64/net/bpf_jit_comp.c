@@ -269,6 +269,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		break;
 	case BPF_ALU | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_DIV | BPF_X:
+	case BPF_ALU | BPF_MOD | BPF_X:
+	case BPF_ALU64 | BPF_MOD | BPF_X:
 	{
 		const u8 r0 = bpf2a64[BPF_REG_0];
 
@@ -281,16 +283,19 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		check_imm26(jmp_offset);
 		emit(A64_B(jmp_offset), ctx);
 		/* else */
-		emit(A64_UDIV(is64, dst, dst, src), ctx);
+		switch (BPF_OP(code)) {
+		case BPF_DIV:
+			emit(A64_UDIV(is64, dst, dst, src), ctx);
+			break;
+		case BPF_MOD:
+			ctx->tmp_used = 1;
+			emit(A64_UDIV(is64, tmp, dst, src), ctx);
+			emit(A64_MUL(is64, tmp, tmp, src), ctx);
+			emit(A64_SUB(is64, dst, dst, tmp), ctx);
+			break;
+		}
 		break;
 	}
-	case BPF_ALU | BPF_MOD | BPF_X:
-	case BPF_ALU64 | BPF_MOD | BPF_X:
-		ctx->tmp_used = 1;
-		emit(A64_UDIV(is64, tmp, dst, src), ctx);
-		emit(A64_MUL(is64, tmp, tmp, src), ctx);
-		emit(A64_SUB(is64, dst, dst, tmp), ctx);
-		break;
 	case BPF_ALU | BPF_LSH | BPF_X:
 	case BPF_ALU64 | BPF_LSH | BPF_X:
 		emit(A64_LSLV(is64, dst, dst, src), ctx);
