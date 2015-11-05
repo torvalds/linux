@@ -1300,7 +1300,7 @@
 			};
 
 			watchdog@fc068640 {
-				compatible = "atmel,at91sam9260-wdt";
+				compatible = "atmel,sama5d4-wdt";
 				reg = <0xfc068640 0x10>;
 				clocks = <&clk32k>;
 				status = "disabled";
