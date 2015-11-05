@@ -65,6 +65,9 @@ startup_64:
 	 * tables and then reload them.
 	 */
 
+	/* Sanitize CPU configuration */
+	call verify_cpu
+
 	/*
 	 * Compute the delta between the address I am compiled to run at and the
 	 * address I am actually running at.
@@ -173,6 +176,9 @@ ENTRY(secondary_startup_64)
 	 * to have any identity mapped pages in the kernel page table
 	 * after the boot processor executes this code.
 	 */
+
+	/* Sanitize CPU configuration */
+	call verify_cpu
 
 	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
 1:
@@ -287,6 +293,8 @@ ENTRY(secondary_startup_64)
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space
 	lretq
+
+#include "verify_cpu.S"
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*
