@@ -11,6 +11,7 @@ SYNOPSIS
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] <command>
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] record [-o file] -- <command> [<options>]
+'perf stat' report [-i file]
 
 DESCRIPTION
 -----------
@@ -25,6 +26,9 @@ OPTIONS
 
 record::
 	See STAT RECORD.
+
+report::
+	See STAT REPORT.
 
 -e::
 --event=::
@@ -169,6 +173,14 @@ Stores stat data into perf data file.
 -o file::
 --output file::
 Output file name.
+
+STAT REPORT
+-----------
+Reads and reports stat data from perf data file.
+
+-i file::
+--input file::
+Input file name.
 
 
 EXAMPLES

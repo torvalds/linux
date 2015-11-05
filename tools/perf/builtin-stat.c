@@ -60,6 +60,8 @@
 #include "util/thread_map.h"
 #include "util/counts.h"
 #include "util/session.h"
+#include "util/tool.h"
+#include "asm/bug.h"
 
 #include <stdlib.h>
 #include <sys/prctl.h>
@@ -132,6 +134,7 @@ struct perf_stat {
 	struct perf_data_file	 file;
 	struct perf_session	*session;
 	u64			 bytes_written;
+	struct perf_tool	 tool;
 };
 
 static struct perf_stat		perf_stat;
@@ -1041,8 +1044,8 @@ static void print_header(int argc, const char **argv)
 		else if (target.cpu_list)
 			fprintf(output, "\'CPU(s) %s", target.cpu_list);
 		else if (!target__has_task(&target)) {
-			fprintf(output, "\'%s", argv[0]);
-			for (i = 1; i < argc; i++)
+			fprintf(output, "\'%s", argv ? argv[0] : "pipe");
+			for (i = 1; argv && (i < argc); i++)
 				fprintf(output, " %s", argv[i]);
 		} else if (target.pid)
 			fprintf(output, "process id \'%s", target.pid);
@@ -1527,6 +1530,55 @@ static int __cmd_record(int argc, const char **argv)
 	return argc;
 }
 
+static const char * const report_usage[] = {
+	"perf stat report [<options>]",
+	NULL,
+};
+
+static struct perf_stat perf_stat = {
+	.tool = {
+		.attr		= perf_event__process_attr,
+	},
+};
+
+static int __cmd_report(int argc, const char **argv)
+{
+	struct perf_session *session;
+	const struct option options[] = {
+	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+	OPT_END()
+	};
+	struct stat st;
+	int ret;
+
+	argc = parse_options(argc, argv, options, report_usage, 0);
+
+	if (!input_name || !strlen(input_name)) {
+		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
+			input_name = "-";
+		else
+			input_name = "perf.data";
+	}
+
+	perf_stat.file.path = input_name;
+	perf_stat.file.mode = PERF_DATA_MODE_READ;
+
+	session = perf_session__new(&perf_stat.file, false, &perf_stat.tool);
+	if (session == NULL)
+		return -1;
+
+	perf_stat.session  = session;
+	stat_config.output = stderr;
+	evsel_list         = session->evlist;
+
+	ret = perf_session__process_events(session);
+	if (ret)
+		return ret;
+
+	perf_session__delete(session);
+	return 0;
+}
+
 int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const stat_usage[] = {
@@ -1537,7 +1589,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	const char *mode;
 	FILE *output = stderr;
 	unsigned int interval;
-	const char * const stat_subcommands[] = { "record" };
+	const char * const stat_subcommands[] = { "record", "report" };
 
 	setlocale(LC_ALL, "");
 
@@ -1553,7 +1605,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		argc = __cmd_record(argc, argv);
 		if (argc < 0)
 			return -1;
-	}
+	} else if (argc && !strncmp(argv[0], "rep", 3))
+		return __cmd_report(argc, argv);
 
 	interval = stat_config.interval;
 
