@@ -1952,6 +1952,9 @@ static void nvme_free_ns(struct kref *kref)
 {
 	struct nvme_ns *ns = container_of(kref, struct nvme_ns, kref);
 
+	if (ns->type == NVME_NS_LIGHTNVM)
+		nvme_nvm_unregister(ns->queue, ns->disk->disk_name);
+
 	spin_lock(&dev_list_lock);
 	ns->disk->private_data = NULL;
 	spin_unlock(&dev_list_lock);
@@ -2021,6 +2024,16 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 		return -ENODEV;
 	}
 
+	if (nvme_nvm_ns_supported(ns, id) && ns->type != NVME_NS_LIGHTNVM) {
+		if (nvme_nvm_register(ns->queue, disk->disk_name)) {
+			dev_warn(dev->dev,
+				"%s: LightNVM init failure\n", __func__);
+			kfree(id);
+			return -ENODEV;
+		}
+		ns->type = NVME_NS_LIGHTNVM;
+	}
+
 	old_ms = ns->ms;
 	lbaf = id->flbas & NVME_NS_FLBAS_LBA_MASK;
 	ns->lba_shift = id->lbaf[lbaf].ds;
@@ -2052,7 +2065,9 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 								!ns->ext)
 		nvme_init_integrity(ns);
 
-	if (ns->ms && !(ns->ms == 8 && ns->pi_type) && !blk_get_integrity(disk))
+	if ((ns->ms && !(ns->ms == 8 && ns->pi_type) &&
+						!blk_get_integrity(disk)) ||
+						ns->type == NVME_NS_LIGHTNVM)
 		set_capacity(disk, 0);
 	else
 		set_capacity(disk, le64_to_cpup(&id->nsze) << (ns->lba_shift - 9));
@@ -2175,17 +2190,19 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 		goto out_free_disk;
 
 	kref_get(&dev->kref);
-	add_disk(ns->disk);
-	if (ns->ms) {
-		struct block_device *bd = bdget_disk(ns->disk, 0);
-		if (!bd)
-			return;
-		if (blkdev_get(bd, FMODE_READ, NULL)) {
-			bdput(bd);
-			return;
+	if (ns->type != NVME_NS_LIGHTNVM) {
+		add_disk(ns->disk);
+		if (ns->ms) {
+			struct block_device *bd = bdget_disk(ns->disk, 0);
+			if (!bd)
+				return;
+			if (blkdev_get(bd, FMODE_READ, NULL)) {
+				bdput(bd);
+				return;
+			}
+			blkdev_reread_part(bd);
+			blkdev_put(bd, FMODE_READ);
 		}
-		blkdev_reread_part(bd);
-		blkdev_put(bd, FMODE_READ);
 	}
 	return;
  out_free_disk:

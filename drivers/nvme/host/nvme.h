@@ -22,6 +22,11 @@
 extern unsigned char nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
+enum {
+	NVME_NS_LBA		= 0,
+	NVME_NS_LIGHTNVM	= 1,
+};
+
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
  */
@@ -84,6 +89,7 @@ struct nvme_ns {
 	u16 ms;
 	bool ext;
 	u8 pi_type;
+	int type;
 	u64 mode_select_num_blocks;
 	u32 mode_select_block_len;
 };
@@ -129,5 +135,9 @@ struct sg_io_hdr;
 int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr);
 int nvme_sg_io32(struct nvme_ns *ns, unsigned long arg);
 int nvme_sg_get_version_num(int __user *ip);
+
+int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id);
+int nvme_nvm_register(struct request_queue *q, char *disk_name);
+void nvme_nvm_unregister(struct request_queue *q, char *disk_name);
 
 #endif /* _NVME_H */
