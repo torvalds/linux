@@ -155,7 +155,7 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 			struct lu_device_type *ldt)
 {
 	struct obd_type *type;
-	int rc = 0;
+	int rc;
 
 	/* sanity check */
 	LASSERT(strnlen(name, CLASS_MAX_NAME) < CLASS_MAX_NAME);
