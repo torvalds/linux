@@ -23,12 +23,21 @@
 #define to_ipu_plane(x)	container_of(x, struct ipu_plane, base)
 
 static const uint32_t ipu_plane_formats[] = {
+	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ABGR1555,
 	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_BGRA8888,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_YUV420,
@@ -175,8 +184,15 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		ipu_dp_set_window_pos(ipu_plane->dp, crtc_x, crtc_y);
 		/* Enable local alpha on partial plane */
 		switch (fb->pixel_format) {
+		case DRM_FORMAT_ARGB1555:
+		case DRM_FORMAT_ABGR1555:
+		case DRM_FORMAT_RGBA5551:
+		case DRM_FORMAT_BGRA5551:
+		case DRM_FORMAT_ARGB4444:
 		case DRM_FORMAT_ARGB8888:
 		case DRM_FORMAT_ABGR8888:
+		case DRM_FORMAT_RGBA8888:
+		case DRM_FORMAT_BGRA8888:
 			ipu_dp_set_global_alpha(ipu_plane->dp, false, 0, false);
 			break;
 		default:

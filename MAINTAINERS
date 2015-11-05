@@ -3618,6 +3618,7 @@ M:	Philipp Zabel <p.zabel@pengutronix.de>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/imx/
+F:	drivers/gpu/ipu-v3/
 F:	Documentation/devicetree/bindings/drm/imx/
 
 DRM DRIVERS FOR NVIDIA TEGRA
