@@ -46,7 +46,7 @@
 
 extern bool g_obtainingIP;
 extern void resolve_disconnect_aberration(void *drvHandler);
-extern u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
+extern u8 multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 extern struct timer_list hDuringIpTimer;
 
 static int linux_wlan_device_power(int on_off)
@@ -1343,9 +1343,14 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	/* Store all of the multicast addresses in the hardware filter */
 	netdev_for_each_mc_addr(ha, dev)
 	{
-		memcpy(gau8MulticastMacAddrList[i], ha->addr, ETH_ALEN);
+		memcpy(multicast_mac_addr_list[i], ha->addr, ETH_ALEN);
 		PRINT_D(INIT_DBG, "Entry[%d]: %x:%x:%x:%x:%x:%x\n", i,
-			gau8MulticastMacAddrList[i][0], gau8MulticastMacAddrList[i][1], gau8MulticastMacAddrList[i][2], gau8MulticastMacAddrList[i][3], gau8MulticastMacAddrList[i][4], gau8MulticastMacAddrList[i][5]);
+			multicast_mac_addr_list[i][0],
+			multicast_mac_addr_list[i][1],
+			multicast_mac_addr_list[i][2],
+			multicast_mac_addr_list[i][3],
+			multicast_mac_addr_list[i][4],
+			multicast_mac_addr_list[i][5]);
 		i++;
 	}
 
