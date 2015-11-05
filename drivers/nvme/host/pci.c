@@ -12,7 +12,6 @@
  * more details.
  */
 
-#include <linux/nvme.h>
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
@@ -42,6 +41,9 @@
 #include <linux/types.h>
 #include <scsi/sg.h>
 #include <asm-generic/io-64-nonatomic-lo-hi.h>
+
+#include <uapi/linux/nvme_ioctl.h>
+#include "nvme.h"
 
 #define NVME_MINORS		(1U << MINORBITS)
 #define NVME_Q_DEPTH		1024
@@ -84,9 +86,10 @@ static wait_queue_head_t nvme_kthread_wait;
 
 static struct class *nvme_class;
 
-static void nvme_reset_failed_dev(struct work_struct *ws);
+static int __nvme_reset(struct nvme_dev *dev);
 static int nvme_reset(struct nvme_dev *dev);
 static int nvme_process_cq(struct nvme_queue *nvmeq);
+static void nvme_dead_ctrl(struct nvme_dev *dev);
 
 struct async_cmd_info {
 	struct kthread_work work;
@@ -1283,18 +1286,13 @@ static void nvme_abort_req(struct request *req)
 	struct nvme_command cmd;
 
 	if (!nvmeq->qid || cmd_rq->aborted) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&dev_list_lock, flags);
-		if (work_busy(&dev->reset_work))
-			goto out;
-		list_del_init(&dev->node);
-		dev_warn(dev->dev, "I/O %d QID %d timeout, reset controller\n",
-							req->tag, nvmeq->qid);
-		dev->reset_workfn = nvme_reset_failed_dev;
-		queue_work(nvme_workq, &dev->reset_work);
- out:
-		spin_unlock_irqrestore(&dev_list_lock, flags);
+		spin_lock(&dev_list_lock);
+		if (!__nvme_reset(dev)) {
+			dev_warn(dev->dev,
+				 "I/O %d QID %d timeout, reset controller\n",
+				 req->tag, nvmeq->qid);
+		}
+		spin_unlock(&dev_list_lock);
 		return;
 	}
 
@@ -1949,6 +1947,20 @@ static int nvme_compat_ioctl(struct block_device *bdev, fmode_t mode,
 #define nvme_compat_ioctl	NULL
 #endif
 
+static void nvme_free_dev(struct kref *kref);
+static void nvme_free_ns(struct kref *kref)
+{
+	struct nvme_ns *ns = container_of(kref, struct nvme_ns, kref);
+
+	spin_lock(&dev_list_lock);
+	ns->disk->private_data = NULL;
+	spin_unlock(&dev_list_lock);
+
+	kref_put(&ns->dev->kref, nvme_free_dev);
+	put_disk(ns->disk);
+	kfree(ns);
+}
+
 static int nvme_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret = 0;
@@ -1958,21 +1970,17 @@ static int nvme_open(struct block_device *bdev, fmode_t mode)
 	ns = bdev->bd_disk->private_data;
 	if (!ns)
 		ret = -ENXIO;
-	else if (!kref_get_unless_zero(&ns->dev->kref))
+	else if (!kref_get_unless_zero(&ns->kref))
 		ret = -ENXIO;
 	spin_unlock(&dev_list_lock);
 
 	return ret;
 }
 
-static void nvme_free_dev(struct kref *kref);
-
 static void nvme_release(struct gendisk *disk, fmode_t mode)
 {
 	struct nvme_ns *ns = disk->private_data;
-	struct nvme_dev *dev = ns->dev;
-
-	kref_put(&dev->kref, nvme_free_dev);
+	kref_put(&ns->kref, nvme_free_ns);
 }
 
 static int nvme_getgeo(struct block_device *bd, struct hd_geometry *geo)
@@ -2079,14 +2087,11 @@ static int nvme_kthread(void *data)
 
 			if ((dev->subsystem && (csts & NVME_CSTS_NSSRO)) ||
 							csts & NVME_CSTS_CFS) {
-				if (work_busy(&dev->reset_work))
-					continue;
-				list_del_init(&dev->node);
-				dev_warn(dev->dev,
-					"Failed status: %x, reset controller\n",
-					readl(&dev->bar->csts));
-				dev->reset_workfn = nvme_reset_failed_dev;
-				queue_work(nvme_workq, &dev->reset_work);
+				if (!__nvme_reset(dev)) {
+					dev_warn(dev->dev,
+						"Failed status: %x, reset controller\n",
+						readl(&dev->bar->csts));
+				}
 				continue;
 			}
 			for (i = 0; i < dev->queue_count; i++) {
@@ -2132,6 +2137,7 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	if (!disk)
 		goto out_free_queue;
 
+	kref_init(&ns->kref);
 	ns->ns_id = nsid;
 	ns->disk = disk;
 	ns->lba_shift = 9; /* set to a default value for 512 until disk is validated */
@@ -2168,6 +2174,7 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	if (nvme_revalidate_disk(ns->disk))
 		goto out_free_disk;
 
+	kref_get(&dev->kref);
 	add_disk(ns->disk);
 	if (ns->ms) {
 		struct block_device *bd = bdget_disk(ns->disk, 0);
@@ -2190,6 +2197,13 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	kfree(ns);
 }
 
+/*
+ * Create I/O queues.  Failing to create an I/O queue is not an issue,
+ * we can continue with less than the desired amount of queues, and
+ * even a controller without I/O queues an still be used to issue
+ * admin commands.  This might be useful to upgrade a buggy firmware
+ * for example.
+ */
 static void nvme_create_io_queues(struct nvme_dev *dev)
 {
 	unsigned i;
@@ -2199,8 +2213,10 @@ static void nvme_create_io_queues(struct nvme_dev *dev)
 			break;
 
 	for (i = dev->online_queues; i <= dev->queue_count - 1; i++)
-		if (nvme_create_queue(dev->queues[i], i))
+		if (nvme_create_queue(dev->queues[i], i)) {
+			nvme_free_queues(dev, i);
 			break;
+		}
 }
 
 static int set_queue_count(struct nvme_dev *dev, int count)
@@ -2363,18 +2379,6 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	return result;
 }
 
-static void nvme_free_namespace(struct nvme_ns *ns)
-{
-	list_del(&ns->list);
-
-	spin_lock(&dev_list_lock);
-	ns->disk->private_data = NULL;
-	spin_unlock(&dev_list_lock);
-
-	put_disk(ns->disk);
-	kfree(ns);
-}
-
 static int ns_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct nvme_ns *nsa = container_of(a, struct nvme_ns, list);
@@ -2416,7 +2420,9 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 	if (kill || !blk_queue_dying(ns->queue)) {
 		blk_mq_abort_requeue_list(ns->queue);
 		blk_cleanup_queue(ns->queue);
-        }
+	}
+	list_del_init(&ns->list);
+	kref_put(&ns->kref, nvme_free_ns);
 }
 
 static void nvme_scan_namespaces(struct nvme_dev *dev, unsigned nn)
@@ -2427,18 +2433,14 @@ static void nvme_scan_namespaces(struct nvme_dev *dev, unsigned nn)
 	for (i = 1; i <= nn; i++) {
 		ns = nvme_find_ns(dev, i);
 		if (ns) {
-			if (revalidate_disk(ns->disk)) {
+			if (revalidate_disk(ns->disk))
 				nvme_ns_remove(ns);
-				nvme_free_namespace(ns);
-			}
 		} else
 			nvme_alloc_ns(dev, i);
 	}
 	list_for_each_entry_safe(ns, next, &dev->namespaces, list) {
-		if (ns->ns_id > nn) {
+		if (ns->ns_id > nn)
 			nvme_ns_remove(ns);
-			nvme_free_namespace(ns);
-		}
 	}
 	list_sort(NULL, &dev->namespaces, ns_cmp);
 }
@@ -2828,9 +2830,9 @@ static void nvme_dev_shutdown(struct nvme_dev *dev)
 
 static void nvme_dev_remove(struct nvme_dev *dev)
 {
-	struct nvme_ns *ns;
+	struct nvme_ns *ns, *next;
 
-	list_for_each_entry(ns, &dev->namespaces, list)
+	list_for_each_entry_safe(ns, next, &dev->namespaces, list)
 		nvme_ns_remove(ns);
 }
 
@@ -2886,21 +2888,12 @@ static void nvme_release_instance(struct nvme_dev *dev)
 	spin_unlock(&dev_list_lock);
 }
 
-static void nvme_free_namespaces(struct nvme_dev *dev)
-{
-	struct nvme_ns *ns, *next;
-
-	list_for_each_entry_safe(ns, next, &dev->namespaces, list)
-		nvme_free_namespace(ns);
-}
-
 static void nvme_free_dev(struct kref *kref)
 {
 	struct nvme_dev *dev = container_of(kref, struct nvme_dev, kref);
 
 	put_device(dev->dev);
 	put_device(dev->device);
-	nvme_free_namespaces(dev);
 	nvme_release_instance(dev);
 	if (dev->tagset.tags)
 		blk_mq_free_tag_set(&dev->tagset);
@@ -2974,14 +2967,15 @@ static const struct file_operations nvme_dev_fops = {
 	.compat_ioctl	= nvme_dev_ioctl,
 };
 
-static int nvme_dev_start(struct nvme_dev *dev)
+static void nvme_probe_work(struct work_struct *work)
 {
-	int result;
+	struct nvme_dev *dev = container_of(work, struct nvme_dev, probe_work);
 	bool start_thread = false;
+	int result;
 
 	result = nvme_dev_map(dev);
 	if (result)
-		return result;
+		goto out;
 
 	result = nvme_configure_admin_queue(dev);
 	if (result)
@@ -3016,7 +3010,20 @@ static int nvme_dev_start(struct nvme_dev *dev)
 		goto free_tags;
 
 	dev->event_limit = 1;
-	return result;
+
+	/*
+	 * Keep the controller around but remove all namespaces if we don't have
+	 * any working I/O queue.
+	 */
+	if (dev->online_queues < 2) {
+		dev_warn(dev->dev, "IO queues not created\n");
+		nvme_dev_remove(dev);
+	} else {
+		nvme_unfreeze_queues(dev);
+		nvme_dev_add(dev);
+	}
+
+	return;
 
  free_tags:
 	nvme_dev_remove_admin(dev);
@@ -3028,7 +3035,9 @@ static int nvme_dev_start(struct nvme_dev *dev)
 	nvme_dev_list_remove(dev);
  unmap:
 	nvme_dev_unmap(dev);
-	return result;
+ out:
+	if (!work_busy(&dev->reset_work))
+		nvme_dead_ctrl(dev);
 }
 
 static int nvme_remove_dead_ctrl(void *arg)
@@ -3039,33 +3048,6 @@ static int nvme_remove_dead_ctrl(void *arg)
 	if (pci_get_drvdata(pdev))
 		pci_stop_and_remove_bus_device_locked(pdev);
 	kref_put(&dev->kref, nvme_free_dev);
-	return 0;
-}
-
-static void nvme_remove_disks(struct work_struct *ws)
-{
-	struct nvme_dev *dev = container_of(ws, struct nvme_dev, reset_work);
-
-	nvme_free_queues(dev, 1);
-	nvme_dev_remove(dev);
-}
-
-static int nvme_dev_resume(struct nvme_dev *dev)
-{
-	int ret;
-
-	ret = nvme_dev_start(dev);
-	if (ret)
-		return ret;
-	if (dev->online_queues < 2) {
-		spin_lock(&dev_list_lock);
-		dev->reset_workfn = nvme_remove_disks;
-		queue_work(nvme_workq, &dev->reset_work);
-		spin_unlock(&dev_list_lock);
-	} else {
-		nvme_unfreeze_queues(dev);
-		nvme_dev_add(dev);
-	}
 	return 0;
 }
 
@@ -3081,8 +3063,9 @@ static void nvme_dead_ctrl(struct nvme_dev *dev)
 	}
 }
 
-static void nvme_dev_reset(struct nvme_dev *dev)
+static void nvme_reset_work(struct work_struct *ws)
 {
+	struct nvme_dev *dev = container_of(ws, struct nvme_dev, reset_work);
 	bool in_probe = work_busy(&dev->probe_work);
 
 	nvme_dev_shutdown(dev);
@@ -3102,31 +3085,24 @@ static void nvme_dev_reset(struct nvme_dev *dev)
 	schedule_work(&dev->probe_work);
 }
 
-static void nvme_reset_failed_dev(struct work_struct *ws)
+static int __nvme_reset(struct nvme_dev *dev)
 {
-	struct nvme_dev *dev = container_of(ws, struct nvme_dev, reset_work);
-	nvme_dev_reset(dev);
-}
-
-static void nvme_reset_workfn(struct work_struct *work)
-{
-	struct nvme_dev *dev = container_of(work, struct nvme_dev, reset_work);
-	dev->reset_workfn(work);
+	if (work_pending(&dev->reset_work))
+		return -EBUSY;
+	list_del_init(&dev->node);
+	queue_work(nvme_workq, &dev->reset_work);
+	return 0;
 }
 
 static int nvme_reset(struct nvme_dev *dev)
 {
-	int ret = -EBUSY;
+	int ret;
 
 	if (!dev->admin_q || blk_queue_dying(dev->admin_q))
 		return -ENODEV;
 
 	spin_lock(&dev_list_lock);
-	if (!work_pending(&dev->reset_work)) {
-		dev->reset_workfn = nvme_reset_failed_dev;
-		queue_work(nvme_workq, &dev->reset_work);
-		ret = 0;
-	}
+	ret = __nvme_reset(dev);
 	spin_unlock(&dev_list_lock);
 
 	if (!ret) {
@@ -3153,7 +3129,6 @@ static ssize_t nvme_sysfs_reset(struct device *dev,
 }
 static DEVICE_ATTR(reset_controller, S_IWUSR, NULL, nvme_sysfs_reset);
 
-static void nvme_async_probe(struct work_struct *work);
 static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int node, result = -ENOMEM;
@@ -3176,8 +3151,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto free;
 
 	INIT_LIST_HEAD(&dev->namespaces);
-	dev->reset_workfn = nvme_reset_failed_dev;
-	INIT_WORK(&dev->reset_work, nvme_reset_workfn);
+	INIT_WORK(&dev->reset_work, nvme_reset_work);
 	dev->dev = get_device(&pdev->dev);
 	pci_set_drvdata(pdev, dev);
 	result = nvme_set_instance(dev);
@@ -3205,7 +3179,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	INIT_LIST_HEAD(&dev->node);
 	INIT_WORK(&dev->scan_work, nvme_dev_scan);
-	INIT_WORK(&dev->probe_work, nvme_async_probe);
+	INIT_WORK(&dev->probe_work, nvme_probe_work);
 	schedule_work(&dev->probe_work);
 	return 0;
 
@@ -3225,14 +3199,6 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return result;
 }
 
-static void nvme_async_probe(struct work_struct *work)
-{
-	struct nvme_dev *dev = container_of(work, struct nvme_dev, probe_work);
-
-	if (nvme_dev_resume(dev) && !work_busy(&dev->reset_work))
-		nvme_dead_ctrl(dev);
-}
-
 static void nvme_reset_notify(struct pci_dev *pdev, bool prepare)
 {
 	struct nvme_dev *dev = pci_get_drvdata(pdev);
@@ -3240,7 +3206,7 @@ static void nvme_reset_notify(struct pci_dev *pdev, bool prepare)
 	if (prepare)
 		nvme_dev_shutdown(dev);
 	else
-		nvme_dev_resume(dev);
+		schedule_work(&dev->probe_work);
 }
 
 static void nvme_shutdown(struct pci_dev *pdev)
@@ -3294,10 +3260,7 @@ static int nvme_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct nvme_dev *ndev = pci_get_drvdata(pdev);
 
-	if (nvme_dev_resume(ndev) && !work_busy(&ndev->reset_work)) {
-		ndev->reset_workfn = nvme_reset_failed_dev;
-		queue_work(nvme_workq, &ndev->reset_work);
-	}
+	schedule_work(&ndev->probe_work);
 	return 0;
 }
 #endif

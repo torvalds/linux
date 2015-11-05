@@ -17,7 +17,6 @@
  * each command is translated.
  */
 
-#include <linux/nvme.h>
 #include <linux/bio.h>
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
@@ -45,6 +44,7 @@
 #include <scsi/sg.h>
 #include <scsi/scsi.h>
 
+#include "nvme.h"
 
 static int sg_version_num = 30534;	/* 2 digits for each component */
 
