@@ -47,6 +47,9 @@
  * that the the relevant GPU caches have been flushed.
  */
 
+static struct kmem_cache *amdgpu_fence_slab;
+static atomic_t amdgpu_fence_slab_ref = ATOMIC_INIT(0);
+
 /**
  * amdgpu_fence_write - write a fence value
  *
@@ -100,7 +103,7 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
 	struct amdgpu_device *adev = ring->adev;
 
 	/* we are protected by the ring emission mutex */
-	*fence = kmalloc(sizeof(struct amdgpu_fence), GFP_KERNEL);
+	*fence = kmem_cache_alloc(amdgpu_fence_slab, GFP_KERNEL);
 	if ((*fence) == NULL) {
 		return -ENOMEM;
 	}
@@ -522,6 +525,13 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
  */
 int amdgpu_fence_driver_init(struct amdgpu_device *adev)
 {
+	if (atomic_inc_return(&amdgpu_fence_slab_ref) == 1) {
+		amdgpu_fence_slab = kmem_cache_create(
+			"amdgpu_fence", sizeof(struct amdgpu_fence), 0,
+			SLAB_HWCACHE_ALIGN, NULL);
+		if (!amdgpu_fence_slab)
+			return -ENOMEM;
+	}
 	if (amdgpu_debugfs_fence_init(adev))
 		dev_err(adev->dev, "fence debugfs file creation failed\n");
 
@@ -540,6 +550,8 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	if (atomic_dec_and_test(&amdgpu_fence_slab_ref))
+		kmem_cache_destroy(amdgpu_fence_slab);
 	mutex_lock(&adev->ring_lock);
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
@@ -745,13 +757,19 @@ static bool amdgpu_fence_enable_signaling(struct fence *f)
 	return true;
 }
 
+static void amdgpu_fence_release(struct fence *f)
+{
+	struct amdgpu_fence *fence = to_amdgpu_fence(f);
+	kmem_cache_free(amdgpu_fence_slab, fence);
+}
+
 const struct fence_ops amdgpu_fence_ops = {
 	.get_driver_name = amdgpu_fence_get_driver_name,
 	.get_timeline_name = amdgpu_fence_get_timeline_name,
 	.enable_signaling = amdgpu_fence_enable_signaling,
 	.signaled = amdgpu_fence_is_signaled,
 	.wait = fence_default_wait,
-	.release = NULL,
+	.release = amdgpu_fence_release,
 };
 
 /*
