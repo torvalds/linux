@@ -1109,7 +1109,7 @@ int mac_open(struct net_device *ndev)
 
 	set_machw_change_vir_if(ndev, false);
 
-	host_int_get_MacAddress(priv->hWILCWFIDrv, mac_add);
+	hif_get_mac_address(priv->hWILCWFIDrv, mac_add);
 	PRINT_D(INIT_DBG, "Mac address: %pM\n", mac_add);
 
 	for (i = 0; i < wl->vif_num; i++) {
