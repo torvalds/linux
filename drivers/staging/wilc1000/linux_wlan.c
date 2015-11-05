@@ -331,7 +331,7 @@ void linux_wlan_mac_indicate(struct wilc *wilc, int flag)
 	}
 }
 
-struct net_device *GetIfHandler(struct wilc *wilc, u8 *pMacHeader)
+struct net_device *get_if_handler(struct wilc *wilc, u8 *pMacHeader)
 {
 	u8 *Bssid, *Bssid1;
 	int i = 0;
@@ -1422,7 +1422,7 @@ void frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 	struct net_device *wilc_netdev;
 	perInterface_wlan_t *nic;
 
-	wilc_netdev = GetIfHandler(wilc, buff);
+	wilc_netdev = get_if_handler(wilc, buff);
 	if (!wilc_netdev)
 		return;
 
