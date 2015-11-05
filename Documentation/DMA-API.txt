@@ -340,7 +340,7 @@ accessed sg->address and sg->length as shown above.
 
 	void
 	dma_unmap_sg(struct device *dev, struct scatterlist *sg,
-		int nhwentries, enum dma_data_direction direction)
+		int nents, enum dma_data_direction direction)
 
 Unmap the previously mapped scatter/gather list.  All the parameters
 must be the same as those and passed in to the scatter/gather mapping
@@ -356,10 +356,10 @@ void
 dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle, size_t size,
 			   enum dma_data_direction direction)
 void
-dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
+dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
 		    enum dma_data_direction direction)
 void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
+dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
 		       enum dma_data_direction direction)
 
 Synchronise a single contiguous or scatter/gather mapping for the CPU

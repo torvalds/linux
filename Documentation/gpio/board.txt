@@ -21,8 +21,8 @@ exact way to do it depends on the GPIO controller providing the GPIOs, see the
 device tree bindings for your controller.
 
 GPIOs mappings are defined in the consumer device's node, in a property named
-either <function>-gpios or <function>-gpio, where <function> is the function
-the driver will request through gpiod_get(). For example:
+<function>-gpios, where <function> is the function the driver will request
+through gpiod_get(). For example:
 
 	foo_device {
 		compatible = "acme,foo";
@@ -31,8 +31,12 @@ the driver will request through gpiod_get(). For example:
 			    <&gpio 16 GPIO_ACTIVE_HIGH>, /* green */
 			    <&gpio 17 GPIO_ACTIVE_HIGH>; /* blue */
 
-		power-gpio = <&gpio 1 GPIO_ACTIVE_LOW>;
+		power-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
 	};
+
+Properties named <function>-gpio are also considered valid and old bindings use
+it but are only supported for compatibility reasons and should not be used for
+newer bindings since it has been deprecated.
 
 This property will make GPIOs 15, 16 and 17 available to the driver under the
 "led" function, and GPIO 1 as the "power" GPIO:

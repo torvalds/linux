@@ -3528,13 +3528,15 @@ M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-doc@vger.kernel.org
 S:	Maintained
 F:	Documentation/
+F:	scripts/docproc.c
+F:	scripts/kernel-doc*
 X:	Documentation/ABI/
 X:	Documentation/devicetree/
 X:	Documentation/acpi
 X:	Documentation/power
 X:	Documentation/spi
 X:	Documentation/DocBook/media
-T:	git git://git.lwn.net/linux-2.6.git docs-next
+T:	git git://git.lwn.net/linux.git docs-next
 
 DOUBLETALK DRIVER
 M:	"James R. Van Zandt" <jrv@vanzandt.mv.com>

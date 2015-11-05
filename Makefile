@@ -1336,7 +1336,7 @@ $(help-board-dirs): help-%:
 # Documentation targets
 # ---------------------------------------------------------------------------
 %docs: scripts_basic FORCE
-	$(Q)$(MAKE) $(build)=scripts build_docproc
+	$(Q)$(MAKE) $(build)=scripts build_docproc build_check-lc_ctype
 	$(Q)$(MAKE) $(build)=Documentation/DocBook $@
 
 else # KBUILD_EXTMOD

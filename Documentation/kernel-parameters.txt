@@ -790,8 +790,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			is passed, kernel could allocate physical memory region
 			above 4G, that cause second kernel crash on system
 			that require some amount of low memory, e.g. swiotlb
-			requires at least 64M+32K low memory.  Kernel would
-			try to allocate 72M below 4G automatically.
+			requires at least 64M+32K low memory, also enough extra
+			low memory is needed to make sure DMA buffers for 32-bit
+			devices won't run out. Kernel would try to allocate at
+			at least 256M below 4G automatically.
 			This one let user to specify own low range under 4G
 			for second kernel instead.
 			0: to disable low allocation.
@@ -971,6 +973,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			which are not unmapped.
 
 	earlycon=	[KNL] Output early console device and options.
+
+			When used with no options, the early console is
+			determined by the stdout-path property in device
+			tree's chosen node.
 
 		cdns,<addr>
 			Start an early, polled-mode console on a cadence serial
@@ -2340,11 +2346,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nmi_watchdog=	[KNL,BUGS=X86] Debugging features for SMP kernels
 			Format: [panic,][nopanic,][num]
 			Valid num: 0 or 1
-			0 - turn nmi_watchdog off
-			1 - turn nmi_watchdog on
+			0 - turn hardlockup detector in nmi_watchdog off
+			1 - turn hardlockup detector in nmi_watchdog on
 			When panic is specified, panic when an NMI watchdog
 			timeout occurs (or 'nopanic' to override the opposite
-			default).
+			default). To disable both hard and soft lockup detectors,
+			please see 'nowatchdog'.
 			This is useful when you use a panic=... timeout and
 			need the box quickly up again.
 
