@@ -509,14 +509,10 @@ static inline void init_ps_mdata(struct ps_mdata *mdata,
 	mdata->rsize = packet->rsize;
 	mdata->maxcnt = packet->maxcnt;
 
-	if (rcd->ps_state.initialized == 0) {
-		mdata->ps_head = packet->rhqoff;
-		rcd->ps_state.initialized++;
-	} else
-		mdata->ps_head = rcd->ps_state.ps_head;
+	mdata->ps_head = packet->rhqoff;
 
 	if (HFI1_CAP_IS_KSET(DMA_RTAIL)) {
-		mdata->ps_tail = packet->hdrqtail;
+		mdata->ps_tail = get_rcvhdrtail(rcd);
 		mdata->ps_seq = 0; /* not used with DMA_RTAIL */
 	} else {
 		mdata->ps_tail = 0; /* used only with DMA_RTAIL*/
@@ -533,12 +529,9 @@ static inline int ps_done(struct ps_mdata *mdata, u64 rhf)
 
 static inline void update_ps_mdata(struct ps_mdata *mdata)
 {
-	struct hfi1_ctxtdata *rcd = mdata->rcd;
-
 	mdata->ps_head += mdata->rsize;
-	if (mdata->ps_head > mdata->maxcnt)
+	if (mdata->ps_head >= mdata->maxcnt)
 		mdata->ps_head = 0;
-	rcd->ps_state.ps_head = mdata->ps_head;
 	if (!HFI1_CAP_IS_KSET(DMA_RTAIL)) {
 		if (++mdata->ps_seq > 13)
 			mdata->ps_seq = 1;

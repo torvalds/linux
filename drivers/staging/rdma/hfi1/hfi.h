@@ -139,15 +139,6 @@ extern const struct pci_error_handlers hfi1_pci_err_handler;
 struct hfi1_opcode_stats_perctx;
 #endif
 
-/*
- * struct ps_state keeps state associated with RX queue "prescanning"
- * (prescanning for FECNs, and BECNs), if prescanning is in use.
- */
-struct ps_state {
-	u32 ps_head;
-	int initialized;
-};
-
 struct ctxt_eager_bufs {
 	ssize_t size;            /* total size of eager buffers */
 	u32 count;               /* size of buffers array */
@@ -301,10 +292,6 @@ struct hfi1_ctxtdata {
 	struct task_struct *progress;
 	struct list_head sdma_queues;
 	spinlock_t sdma_qlock;
-
-#ifdef CONFIG_PRESCAN_RXQ
-	struct ps_state ps_state;
-#endif /* CONFIG_PRESCAN_RXQ */
 
 	/*
 	 * The interrupt handler for a particular receive context can vary
