@@ -24,6 +24,7 @@ config SND_SST_IPC_PCI
 config SND_SST_IPC_ACPI
 	tristate
 	select SND_SST_IPC
+	select SND_SOC_INTEL_SST
 	depends on ACPI
 
 config SND_SOC_INTEL_SST

@@ -25,4 +25,9 @@ struct sst_acpi_mach {
 	const char *drv_name;
 	/* firmware file name */
 	const char *fw_filename;
+
+	/* board name */
+	const char *board;
+	void (*machine_quirk)(void);
+	void *pdata;
 };
