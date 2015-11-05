@@ -738,10 +738,6 @@ enum link_m_n_set {
 	M2_N2
 };
 
-struct sink_crc {
-	bool started;
-};
-
 struct intel_dp {
 	uint32_t output_reg;
 	uint32_t aux_ch_ctl_reg;
@@ -759,7 +755,6 @@ struct intel_dp {
 	/* sink rates as reported by DP_SUPPORTED_LINK_RATES */
 	uint8_t num_sink_rates;
 	int sink_rates[DP_MAX_SUPPORTED_RATES];
-	struct sink_crc sink_crc;
 	struct drm_dp_aux aux;
 	uint8_t train_set[4];
 	int panel_power_up_delay;

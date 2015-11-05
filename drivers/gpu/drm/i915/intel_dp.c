@@ -3985,7 +3985,6 @@ static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 		ret = -ETIMEDOUT;
 	}
 
-	intel_dp->sink_crc.started = false;
  out:
 	hsw_enable_ips(intel_crtc);
 	return ret;
@@ -3999,12 +3998,6 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 	u8 buf;
 	int ret;
 
-	if (intel_dp->sink_crc.started) {
-		ret = intel_dp_sink_crc_stop(intel_dp);
-		if (ret)
-			return ret;
-	}
-
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0)
 		return -EIO;
 
@@ -4013,6 +4006,12 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0)
 		return -EIO;
+
+	if (buf & DP_TEST_SINK_START) {
+		ret = intel_dp_sink_crc_stop(intel_dp);
+		if (ret)
+			return ret;
+	}
 
 	hsw_disable_ips(intel_crtc);
 
@@ -4023,7 +4022,6 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 	}
 
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
-	intel_dp->sink_crc.started = true;
 	return 0;
 }
 
