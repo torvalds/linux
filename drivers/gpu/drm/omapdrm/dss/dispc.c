@@ -4359,6 +4359,42 @@ static void dispc_errata_i734_wa(void)
 	REG_FLD_MOD(DISPC_CONFIG, gatestate, 8, 4);
 }
 
+static const struct dispc_ops dispc_ops = {
+	.read_irqstatus = dispc_read_irqstatus,
+	.clear_irqstatus = dispc_clear_irqstatus,
+	.read_irqenable = dispc_read_irqenable,
+	.write_irqenable = dispc_write_irqenable,
+
+	.request_irq = dispc_request_irq,
+	.free_irq = dispc_free_irq,
+
+	.runtime_get = dispc_runtime_get,
+	.runtime_put = dispc_runtime_put,
+
+	.get_num_ovls = dispc_get_num_ovls,
+	.get_num_mgrs = dispc_get_num_mgrs,
+
+	.mgr_enable = dispc_mgr_enable,
+	.mgr_is_enabled = dispc_mgr_is_enabled,
+	.mgr_get_vsync_irq = dispc_mgr_get_vsync_irq,
+	.mgr_get_framedone_irq = dispc_mgr_get_framedone_irq,
+	.mgr_get_sync_lost_irq = dispc_mgr_get_sync_lost_irq,
+	.mgr_go_busy = dispc_mgr_go_busy,
+	.mgr_go = dispc_mgr_go,
+	.mgr_set_lcd_config = dispc_mgr_set_lcd_config,
+	.mgr_set_timings = dispc_mgr_set_timings,
+	.mgr_setup = dispc_mgr_setup,
+	.mgr_get_supported_outputs = dispc_mgr_get_supported_outputs,
+	.mgr_gamma_size = dispc_mgr_gamma_size,
+	.mgr_set_gamma = dispc_mgr_set_gamma,
+
+	.ovl_enable = dispc_ovl_enable,
+	.ovl_enabled = dispc_ovl_enabled,
+	.ovl_set_channel_out = dispc_ovl_set_channel_out,
+	.ovl_setup = dispc_ovl_setup,
+	.ovl_get_color_modes = dispc_ovl_get_color_modes,
+};
+
 /* DISPC HW IP initialisation */
 static int dispc_bind(struct device *dev, struct device *master, void *data)
 {
@@ -4431,6 +4467,8 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 
 	dispc_runtime_put();
 
+	dispc_set_ops(&dispc_ops);
+
 	dss_debugfs_create_file("dispc", dispc_dump_regs);
 
 	return 0;
@@ -4443,6 +4481,8 @@ err_runtime_get:
 static void dispc_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
+	dispc_set_ops(NULL);
+
 	pm_runtime_disable(dev);
 
 	dispc_errata_i734_wa_fini();
