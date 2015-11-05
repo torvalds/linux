@@ -401,7 +401,7 @@ s32 Handle_set_IPAddress(struct host_if_drv *hif_drv, u8 *ip_addr, u8 idx)
 {
 	s32 result = 0;
 	struct wid wid;
-	char firmwareIPAddress[4] = {0};
+	char firmware_ip_addr[4] = {0};
 
 	if (ip_addr[0] < 192)
 		ip_addr[0] = 0;
@@ -419,7 +419,7 @@ s32 Handle_set_IPAddress(struct host_if_drv *hif_drv, u8 *ip_addr, u8 idx)
 	result = send_config_pkt(SET_CFG, &wid, 1,
 				 get_id_from_handler(hif_drv));
 
-	host_int_get_ipaddress(hif_drv, firmwareIPAddress, idx);
+	host_int_get_ipaddress(hif_drv, firmware_ip_addr, idx);
 
 	if (result) {
 		PRINT_ER("Failed to set IP address\n");
