@@ -1327,7 +1327,7 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 		goto put_and_exit;
 	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
 	if (*own_req)
-		tcp_move_syn(newtp, req_unhash);
+		tcp_move_syn(newtp, req);
 
 	return newsk;
 

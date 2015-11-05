@@ -1141,7 +1141,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	}
 	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
 	if (*own_req) {
-		tcp_move_syn(newtp, req_unhash);
+		tcp_move_syn(newtp, req);
 
 		/* Clone pktoptions received with SYN, if we own the req */
 		if (ireq->pktopts) {
