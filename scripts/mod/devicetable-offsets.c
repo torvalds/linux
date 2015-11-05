@@ -185,6 +185,7 @@ int main(void)
 	DEVID(mei_cl_device_id);
 	DEVID_FIELD(mei_cl_device_id, name);
 	DEVID_FIELD(mei_cl_device_id, uuid);
+	DEVID_FIELD(mei_cl_device_id, version);
 
 	DEVID(rio_device_id);
 	DEVID_FIELD(rio_device_id, did);
