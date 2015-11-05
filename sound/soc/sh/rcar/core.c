@@ -127,6 +127,9 @@ MODULE_DEVICE_TABLE(of, rsnd_of_match);
 #define rsnd_info_id(priv, io, name) \
 	((io)->info->name - priv->info->name##_info)
 
+/*
+ *	rsnd_mod functions
+ */
 void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 {
 	if (mod->type != type) {
@@ -138,9 +141,6 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 	}
 }
 
-/*
- *	rsnd_mod functions
- */
 char *rsnd_mod_name(struct rsnd_mod *mod)
 {
 	if (!mod || !mod->ops)
