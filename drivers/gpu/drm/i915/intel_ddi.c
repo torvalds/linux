@@ -3234,6 +3234,20 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 					  (DDI_BUF_PORT_REVERSAL |
 					   DDI_A_4_LANES);
 
+	/*
+	 * Bspec says that DDI_A_4_LANES is the only supported configuration
+	 * for Broxton.  Yet some BIOS fail to set this bit on port A if eDP
+	 * wasn't lit up at boot.  Force this bit on in our internal
+	 * configuration so that we use the proper lane count for our
+	 * calculations.
+	 */
+	if (IS_BROXTON(dev) && port == PORT_A) {
+		if (!(intel_dig_port->saved_port_bits & DDI_A_4_LANES)) {
+			DRM_DEBUG_KMS("BXT BIOS forgot to set DDI_A_4_LANES for port A; fixing\n");
+			intel_dig_port->saved_port_bits |= DDI_A_4_LANES;
+		}
+	}
+
 	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = 0;
