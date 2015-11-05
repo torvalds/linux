@@ -320,8 +320,8 @@ static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_dss_device *dssdev = NULL;
-	int num_ovls = dss_feat_get_num_ovls();
-	int num_mgrs = dss_feat_get_num_mgrs();
+	int num_ovls = dispc_get_num_ovls();
+	int num_mgrs = dispc_get_num_mgrs();
 	int num_crtcs;
 	int i, id = 0;
 	int ret;

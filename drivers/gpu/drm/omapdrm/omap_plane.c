@@ -352,7 +352,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	omap_plane->nformats = omap_framebuffer_get_formats(
 			omap_plane->formats, ARRAY_SIZE(omap_plane->formats),
-			dss_feat_get_supported_color_modes(id));
+			dispc_ovl_get_color_modes(id));
 	omap_plane->id = id;
 	omap_plane->name = plane_names[id];
 

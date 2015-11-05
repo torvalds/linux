@@ -249,7 +249,7 @@ static const u32 omap_underflow_irqs[] = {
 int omap_drm_irq_install(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	unsigned int num_mgrs = dss_feat_get_num_mgrs();
+	unsigned int num_mgrs = dispc_get_num_mgrs();
 	unsigned int max_planes;
 	unsigned int i;
 	int ret;

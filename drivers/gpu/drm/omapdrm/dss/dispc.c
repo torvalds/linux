@@ -1135,6 +1135,18 @@ static u32 dispc_ovl_get_burst_size(enum omap_plane plane)
 	return unit * 8;
 }
 
+enum omap_color_mode dispc_ovl_get_color_modes(enum omap_plane plane)
+{
+	return dss_feat_get_supported_color_modes(plane);
+}
+EXPORT_SYMBOL(dispc_ovl_get_color_modes);
+
+int dispc_get_num_ovls(void)
+{
+	return dss_feat_get_num_ovls();
+}
+EXPORT_SYMBOL(dispc_get_num_ovls);
+
 static void dispc_mgr_enable_cpr(enum omap_channel channel, bool enable)
 {
 	if (channel == OMAP_DSS_CHANNEL_DIGIT)
@@ -2966,6 +2978,12 @@ void dispc_pck_free_enable(bool enable)
 
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 27, 27);
 }
+
+int dispc_get_num_mgrs(void)
+{
+	return dss_feat_get_num_mgrs();
+}
+EXPORT_SYMBOL(dispc_get_num_mgrs);
 
 static void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable)
 {
