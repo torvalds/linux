@@ -36,6 +36,7 @@ struct trusted_key_options {
 	uint32_t pcrinfo_len;
 	unsigned char pcrinfo[MAX_PCRINFO_SIZE];
 	int pcrlock;
+	uint32_t hash;
 };
 
 extern struct key_type key_type_trusted;

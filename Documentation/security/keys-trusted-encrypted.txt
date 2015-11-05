@@ -38,6 +38,9 @@ Usage:
        pcrlock=	  pcr number to be extended to "lock" blob
        migratable= 0|1 indicating permission to reseal to new PCR values,
                    default 1 (resealing allowed)
+       hash=      hash algorithm name as a string. For TPM 1.x the only
+                  allowed value is sha1. For TPM 2.x the allowed values
+		  are sha1, sha256, sha384, sha512 and sm3-256.
 
 "keyctl print" returns an ascii hex copy of the sealed key, which is in standard
 TPM_STORED_DATA format.  The key length for new keys are always in bytes.
