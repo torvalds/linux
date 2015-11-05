@@ -279,6 +279,12 @@ nvkm_device_pci_10de_0fe3[] = {
 };
 
 static const struct nvkm_device_pci_vendor
+nvkm_device_pci_10de_0fe4[] = {
+	{ 0x144d, 0xc740, NULL, { .War00C800_0 = true } },
+	{}
+};
+
+static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_104b[] = {
 	{ 0x1043, 0x844c, "GeForce GT 625" },
 	{ 0x1043, 0x846b, "GeForce GT 625" },
@@ -1376,7 +1382,7 @@ nvkm_device_pci_10de[] = {
 	{ 0x0fe1, "GeForce GT 730M" },
 	{ 0x0fe2, "GeForce GT 745M" },
 	{ 0x0fe3, "GeForce GT 745M", nvkm_device_pci_10de_0fe3 },
-	{ 0x0fe4, "GeForce GT 750M" },
+	{ 0x0fe4, "GeForce GT 750M", nvkm_device_pci_10de_0fe4 },
 	{ 0x0fe9, "GeForce GT 750M" },
 	{ 0x0fea, "GeForce GT 755M" },
 	{ 0x0fec, "GeForce 710A" },
