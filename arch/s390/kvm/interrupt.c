@@ -1110,6 +1110,10 @@ static int __inject_sigp_emergency(struct kvm_vcpu *vcpu,
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_INT_EMERGENCY,
 				   irq->u.emerg.code, 0);
 
+	/* sending vcpu invalid */
+	if (kvm_get_vcpu_by_id(vcpu->kvm, irq->u.emerg.code) == NULL)
+		return -EINVAL;
+
 	set_bit(irq->u.emerg.code, li->sigp_emerg_pending);
 	set_bit(IRQ_PEND_EXT_EMERGENCY, &li->pending_irqs);
 	atomic_or(CPUSTAT_EXT_INT, li->cpuflags);
