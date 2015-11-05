@@ -11,6 +11,8 @@
 #ifndef __LINUX_MFD_AXP20X_H
 #define __LINUX_MFD_AXP20X_H
 
+#include <linux/regmap.h>
+
 enum {
 	AXP152_ID = 0,
 	AXP202_ID,
@@ -437,5 +439,27 @@ struct axp288_extcon_pdata {
 	/* GPIO pin control to switch D+/D- lines b/w PMIC and SOC */
 	struct gpio_desc *gpio_mux_cntl;
 };
+
+/* generic helper function for reading 9-16 bit wide regs */
+static inline int axp20x_read_variable_width(struct regmap *regmap,
+	unsigned int reg, unsigned int width)
+{
+	unsigned int reg_val, result;
+	int err;
+
+	err = regmap_read(regmap, reg, &reg_val);
+	if (err)
+		return err;
+
+	result = reg_val << (width - 8);
+
+	err = regmap_read(regmap, reg + 1, &reg_val);
+	if (err)
+		return err;
+
+	result |= reg_val;
+
+	return result;
+}
 
 #endif /* __LINUX_MFD_AXP20X_H */
