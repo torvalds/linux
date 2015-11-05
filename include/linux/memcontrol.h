@@ -213,6 +213,9 @@ struct mem_cgroup {
 	/* OOM-Killer disable */
 	int		oom_kill_disable;
 
+	/* handle for "memory.events" */
+	struct cgroup_file events_file;
+
 	/* protect arrays of thresholds */
 	struct mutex thresholds_lock;
 
@@ -285,6 +288,7 @@ static inline void mem_cgroup_events(struct mem_cgroup *memcg,
 		       unsigned int nr)
 {
 	this_cpu_add(memcg->stat->events[idx], nr);
+	cgroup_file_notify(&memcg->events_file);
 }
 
 bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg);
@@ -346,9 +350,7 @@ ino_t page_cgroup_ino(struct page *page);
 
 static inline bool mem_cgroup_disabled(void)
 {
-	if (memory_cgrp_subsys.disabled)
-		return true;
-	return false;
+	return !cgroup_subsys_enabled(memory_cgrp_subsys);
 }
 
 /*
