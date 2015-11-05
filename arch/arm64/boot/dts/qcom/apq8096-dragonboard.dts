@@ -18,4 +18,5 @@
 / {
 	model = "Qualcomm Technologies, Inc. APQ 8096 DragonBoard";
 	compatible = "qcom,apq8096-dragonboard";
+	qcom,board-id = <10 0>;
 };
