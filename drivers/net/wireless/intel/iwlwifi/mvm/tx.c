@@ -788,13 +788,43 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		if (tid != IWL_TID_NON_QOS) {
 			struct iwl_mvm_tid_data *tid_data =
 				&mvmsta->tid_data[tid];
+			bool send_eosp_ndp = false;
 
 			spin_lock_bh(&mvmsta->lock);
 			tid_data->next_reclaimed = next_reclaimed;
 			IWL_DEBUG_TX_REPLY(mvm, "Next reclaimed packet:%d\n",
 					   next_reclaimed);
 			iwl_mvm_check_ratid_empty(mvm, sta, tid);
+
+			if (mvmsta->sleep_tx_count) {
+				mvmsta->sleep_tx_count--;
+				if (mvmsta->sleep_tx_count &&
+				    !iwl_mvm_tid_queued(tid_data)) {
+					/*
+					 * The number of frames in the queue
+					 * dropped to 0 even if we sent less
+					 * frames than we thought we had on the
+					 * Tx queue.
+					 * This means we had holes in the BA
+					 * window that we just filled, ask
+					 * mac80211 to send EOSP since the
+					 * firmware won't know how to do that.
+					 * Send NDP and the firmware will send
+					 * EOSP notification that will trigger
+					 * a call to ieee80211_sta_eosp().
+					 */
+					send_eosp_ndp = true;
+				}
+			}
+
 			spin_unlock_bh(&mvmsta->lock);
+			if (send_eosp_ndp) {
+				iwl_mvm_sta_modify_sleep_tx_count(mvm, sta,
+					IEEE80211_FRAME_RELEASE_UAPSD,
+					1, tid, false, false);
+				mvmsta->sleep_tx_count = 0;
+				ieee80211_send_eosp_nullfunc(sta, tid);
+			}
 		}
 
 		if (mvmsta->next_status_eosp) {
