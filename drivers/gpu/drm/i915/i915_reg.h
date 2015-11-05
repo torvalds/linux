@@ -8165,12 +8165,12 @@ enum skl_disp_power_wells {
 #define _PALETTE_B (dev_priv->info.display_mmio_offset + 0xa800)
 
 /* MOCS (Memory Object Control State) registers */
-#define GEN9_LNCFCMOCS0		0xb020	/* L3 Cache Control base */
+#define GEN9_LNCFCMOCS(i)	(0xb020 + (i) * 4)	/* L3 Cache Control */
 
-#define GEN9_GFX_MOCS_0		0xc800	/* Graphics MOCS base register*/
-#define GEN9_MFX0_MOCS_0	0xc900	/* Media 0 MOCS base register*/
-#define GEN9_MFX1_MOCS_0	0xca00	/* Media 1 MOCS base register*/
-#define GEN9_VEBOX_MOCS_0	0xcb00	/* Video MOCS base register*/
-#define GEN9_BLT_MOCS_0		0xcc00	/* Blitter MOCS base register*/
+#define GEN9_GFX_MOCS(i)	(0xc800 + (i) * 4)	/* Graphics MOCS registers */
+#define GEN9_MFX0_MOCS(i)	(0xc900 + (i) * 4)	/* Media 0 MOCS registers */
+#define GEN9_MFX1_MOCS(i)	(0xca00 + (i) * 4)	/* Media 1 MOCS registers */
+#define GEN9_VEBOX_MOCS(i)	(0xcb00 + (i) * 4)	/* Video MOCS registers */
+#define GEN9_BLT_MOCS(i)	(0xcc00 + (i) * 4)	/* Blitter MOCS registers */
 
 #endif /* _I915_REG_H_ */
