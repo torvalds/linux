@@ -640,6 +640,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	list_for_each_entry(w_module, &s_pipe->w_list, node) {
 		dst_module = w_module->w->priv;
 
+		skl_tplg_free_pipe_mcps(skl, dst_module);
 		if (src_module == NULL) {
 			src_module = dst_module;
 			continue;
@@ -673,7 +674,6 @@ static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 
 	src_mconfig = w->priv;
 
-	skl_tplg_free_pipe_mcps(skl, src_mconfig);
 	/* Stop the pipe since this is a mixin module */
 	ret = skl_stop_pipe(ctx, src_mconfig->pipe);
 	if (ret)
