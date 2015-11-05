@@ -108,9 +108,8 @@ static int sunxi_reset_init(struct device_node *np)
 	data->rcdev.nr_resets = size * 32;
 	data->rcdev.ops = &sunxi_reset_ops;
 	data->rcdev.of_node = np;
-	reset_controller_register(&data->rcdev);
 
-	return 0;
+	return reset_controller_register(&data->rcdev);
 
 err_alloc:
 	kfree(data);

@@ -121,9 +121,8 @@ static int zynq_reset_probe(struct platform_device *pdev)
 	priv->rcdev.nr_resets = resource_size(res) / 4 * BITS_PER_LONG;
 	priv->rcdev.ops = &zynq_reset_ops;
 	priv->rcdev.of_node = pdev->dev.of_node;
-	reset_controller_register(&priv->rcdev);
 
-	return 0;
+	return reset_controller_register(&priv->rcdev);
 }
 
 static int zynq_reset_remove(struct platform_device *pdev)
