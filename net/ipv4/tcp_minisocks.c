@@ -551,9 +551,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->rack.mstamp.v64 = 0;
 		newtp->rack.advanced = 0;
 
-		newtp->saved_syn = req->saved_syn;
-		req->saved_syn = NULL;
-
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 	}
 	return newsk;
