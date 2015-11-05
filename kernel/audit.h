@@ -301,7 +301,7 @@ extern int audit_exe_compare(struct task_struct *tsk, struct audit_fsnotify_mark
 #ifdef CONFIG_AUDIT_TREE
 extern struct audit_chunk *audit_tree_lookup(const struct inode *);
 extern void audit_put_chunk(struct audit_chunk *);
-extern int audit_tree_match(struct audit_chunk *, struct audit_tree *);
+extern bool audit_tree_match(struct audit_chunk *, struct audit_tree *);
 extern int audit_make_tree(struct audit_krule *, char *, u32);
 extern int audit_add_tree_rule(struct audit_krule *);
 extern int audit_remove_tree_rule(struct audit_krule *);
