@@ -111,6 +111,13 @@ struct r1conf {
 	 * the new thread here until we fully activate the array.
 	 */
 	struct md_thread	*thread;
+
+	/* Keep track of cluster resync window to send to other
+	 * nodes.
+	 */
+	sector_t		cluster_sync_low;
+	sector_t		cluster_sync_high;
+
 };
 
 /*
