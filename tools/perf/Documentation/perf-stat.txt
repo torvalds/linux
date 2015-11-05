@@ -10,6 +10,7 @@ SYNOPSIS
 [verse]
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] <command>
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
+'perf stat' [-e <EVENT> | --event=EVENT] [-a] record [-o file] -- <command> [<options>]
 
 DESCRIPTION
 -----------
@@ -22,6 +23,8 @@ OPTIONS
 <command>...::
 	Any command you can specify in a shell.
 
+record::
+	See STAT RECORD.
 
 -e::
 --event=::
@@ -158,6 +161,15 @@ filter out the startup phase of the program, which is often very different.
 --transaction::
 
 Print statistics of transactional execution if supported.
+
+STAT RECORD
+-----------
+Stores stat data into perf data file.
+
+-o file::
+--output file::
+Output file name.
+
 
 EXAMPLES
 --------
