@@ -1736,6 +1736,7 @@ static const char * const report_usage[] = {
 static struct perf_stat perf_stat = {
 	.tool = {
 		.attr		= perf_event__process_attr,
+		.event_update	= perf_event__process_event_update,
 		.thread_map	= process_thread_map_event,
 		.cpu_map	= process_cpu_map_event,
 		.stat_config	= process_stat_config_event,
