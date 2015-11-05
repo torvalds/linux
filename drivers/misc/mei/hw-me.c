@@ -150,7 +150,7 @@ static inline u32 mei_me_d0i3c_read(const struct mei_device *dev)
 	u32 reg;
 
 	reg = mei_me_reg_read(to_me_hw(dev), H_D0I3C);
-	trace_mei_reg_read(dev->dev, "H_D0I3C", H_CSR, reg);
+	trace_mei_reg_read(dev->dev, "H_D0I3C", H_D0I3C, reg);
 
 	return reg;
 }
@@ -163,7 +163,7 @@ static inline u32 mei_me_d0i3c_read(const struct mei_device *dev)
  */
 static inline void mei_me_d0i3c_write(struct mei_device *dev, u32 reg)
 {
-	trace_mei_reg_write(dev->dev, "H_D0I3C", H_CSR, reg);
+	trace_mei_reg_write(dev->dev, "H_D0I3C", H_D0I3C, reg);
 	mei_me_reg_write(to_me_hw(dev), H_D0I3C, reg);
 }
 

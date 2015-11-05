@@ -351,13 +351,12 @@ static int acpi_platform_notify_remove(struct device *dev)
 	return 0;
 }
 
-int __init init_acpi_device_notify(void)
+void __init init_acpi_device_notify(void)
 {
 	if (platform_notify || platform_notify_remove) {
 		printk(KERN_ERR PREFIX "Can't use platform_notify\n");
-		return 0;
+		return;
 	}
 	platform_notify = acpi_platform_notify;
 	platform_notify_remove = acpi_platform_notify_remove;
-	return 0;
 }

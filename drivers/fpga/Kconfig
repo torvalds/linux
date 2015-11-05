@@ -1,0 +1,29 @@
+#
+# FPGA framework configuration
+#
+
+menu "FPGA Configuration Support"
+
+config FPGA
+	tristate "FPGA Configuration Framework"
+	help
+	  Say Y here if you want support for configuring FPGAs from the
+	  kernel.  The FPGA framework adds a FPGA manager class and FPGA
+	  manager drivers.
+
+if FPGA
+
+config FPGA_MGR_SOCFPGA
+	tristate "Altera SOCFPGA FPGA Manager"
+	depends on ARCH_SOCFPGA
+	help
+	  FPGA manager driver support for Altera SOCFPGA.
+
+config FPGA_MGR_ZYNQ_FPGA
+	tristate "Xilinx Zynq FPGA"
+	help
+	  FPGA manager driver support for Xilinx Zynq FPGAs.
+
+endif # FPGA
+
+endmenu

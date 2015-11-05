@@ -16,7 +16,8 @@
 
 #define pr_fmt(fmt) "timed_output: " fmt
 
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/fs.h>
@@ -106,15 +107,4 @@ static int __init timed_output_init(void)
 {
 	return create_timed_output_class();
 }
-
-static void __exit timed_output_exit(void)
-{
-	class_destroy(timed_output_class);
-}
-
-module_init(timed_output_init);
-module_exit(timed_output_exit);
-
-MODULE_AUTHOR("Mike Lockwood <lockwood@android.com>");
-MODULE_DESCRIPTION("timed output class driver");
-MODULE_LICENSE("GPL");
+device_initcall(timed_output_init);

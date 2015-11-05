@@ -2245,8 +2245,7 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	struct u132 *u132 = hcd_to_u132(hcd);
 	if (irqs_disabled()) {
 		if (__GFP_WAIT & mem_flags) {
-			printk(KERN_ERR "invalid context for function that migh"
-				"t sleep\n");
+			printk(KERN_ERR "invalid context for function that might sleep\n");
 			return -EINVAL;
 		}
 	}

@@ -1200,11 +1200,9 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) &&
 	    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
-			struct eapol *eap = (struct eapol *)(skb->data +
-				24);
-			netdev_dbg(ieee->dev,
-				   "RX: IEEE 802.1X EAPOL frame: %s\n",
-				   eap_get_type(eap->type));
+		struct eapol *eap = (struct eapol *)(skb->data + 24);
+		netdev_dbg(ieee->dev, "RX: IEEE 802.1X EAPOL frame: %s\n",
+			   eap_get_type(eap->type));
 	}
 
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) && !ieee->open_wep &&
@@ -1532,7 +1530,7 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 {
 	int ret = 0;
 
-	if ((NULL == ieee) || (NULL == skb) || (NULL == rx_stats)) {
+	if (!ieee || !skb || !rx_stats) {
 		pr_info("%s: Input parameters NULL!\n", __func__);
 		goto rx_dropped;
 	}
@@ -2556,7 +2554,7 @@ static inline int is_beacon(u16 fc)
 
 static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 {
-	if (MAX_CHANNEL_NUMBER < channel) {
+	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}
@@ -2569,7 +2567,7 @@ static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 
 int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel)
 {
-	if (MAX_CHANNEL_NUMBER < channel) {
+	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}

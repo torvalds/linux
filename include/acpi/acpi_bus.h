@@ -129,7 +129,7 @@ static inline struct acpi_hotplug_profile *to_acpi_hotplug_profile(
 struct acpi_scan_handler {
 	const struct acpi_device_id *ids;
 	struct list_head list_node;
-	bool (*match)(char *idstr, const struct acpi_device_id **matchid);
+	bool (*match)(const char *idstr, const struct acpi_device_id **matchid);
 	int (*attach)(struct acpi_device *dev, const struct acpi_device_id *id);
 	void (*detach)(struct acpi_device *dev);
 	void (*bind)(struct device *phys_dev);
@@ -227,7 +227,7 @@ typedef char acpi_device_class[20];
 
 struct acpi_hardware_id {
 	struct list_head list;
-	char *id;
+	const char *id;
 };
 
 struct acpi_pnp_type {
@@ -343,6 +343,7 @@ struct acpi_device_data {
 	const union acpi_object *pointer;
 	const union acpi_object *properties;
 	const union acpi_object *of_compatible;
+	struct list_head subnodes;
 };
 
 struct acpi_gpio_mapping;
@@ -376,6 +377,17 @@ struct acpi_device {
 	struct list_head physical_node_list;
 	struct mutex physical_node_lock;
 	void (*remove)(struct acpi_device *);
+};
+
+/* Non-device subnode */
+struct acpi_data_node {
+	const char *name;
+	acpi_handle handle;
+	struct fwnode_handle fwnode;
+	struct acpi_device_data data;
+	struct list_head sibling;
+	struct kobject kobj;
+	struct completion kobj_done;
 };
 
 static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
@@ -413,13 +425,30 @@ static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
 
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
+	return fwnode && (fwnode->type == FWNODE_ACPI
+		|| fwnode->type == FWNODE_ACPI_DATA);
+}
+
+static inline bool is_acpi_device_node(struct fwnode_handle *fwnode)
+{
 	return fwnode && fwnode->type == FWNODE_ACPI;
 }
 
-static inline struct acpi_device *to_acpi_node(struct fwnode_handle *fwnode)
+static inline struct acpi_device *to_acpi_device_node(struct fwnode_handle *fwnode)
 {
-	return is_acpi_node(fwnode) ?
+	return is_acpi_device_node(fwnode) ?
 		container_of(fwnode, struct acpi_device, fwnode) : NULL;
+}
+
+static inline bool is_acpi_data_node(struct fwnode_handle *fwnode)
+{
+	return fwnode && fwnode->type == FWNODE_ACPI_DATA;
+}
+
+static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwnode)
+{
+	return is_acpi_data_node(fwnode) ?
+		container_of(fwnode, struct acpi_data_node, fwnode) : NULL;
 }
 
 static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)

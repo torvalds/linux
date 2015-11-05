@@ -274,8 +274,8 @@ config SERIAL_8250_ACORN
 
 config SERIAL_8250_FSL
 	bool
-	depends on SERIAL_8250_CONSOLE && PPC_UDBG_16550
-	default PPC
+	depends on SERIAL_8250_CONSOLE
+	default PPC || ARM || ARM64
 
 config SERIAL_8250_DW
 	tristate "Support for Synopsys DesignWare 8250 quirks"
@@ -294,11 +294,12 @@ config SERIAL_8250_EM
 
 config SERIAL_8250_RT288X
 	bool "Ralink RT288x/RT305x/RT3662/RT3883 serial port support"
-	depends on SERIAL_8250 && (SOC_RT288X || SOC_RT305X || SOC_RT3883 || SOC_MT7620)
+	depends on SERIAL_8250
+	default y if MIPS_ALCHEMY || SOC_RT288X || SOC_RT305X || SOC_RT3883 || SOC_MT7620
 	help
-	  If you have a Ralink RT288x/RT305x SoC based board and want to use the
-	  serial port, say Y to this option. The driver can handle up to 2 serial
-	  ports. If unsure, say N.
+	  Selecting this option will add support for the alternate register
+	  layout used by Ralink RT288x/RT305x, Alchemy Au1xxx, and some others.
+	  If unsure, say N.
 
 config SERIAL_8250_OMAP
 	tristate "Support for OMAP internal UART (8250 based driver)"
@@ -337,7 +338,7 @@ config SERIAL_8250_FINTEK
 	  through the PNP driver. If unsure, say N.
 
 config SERIAL_8250_LPC18XX
-	bool "NXP LPC18xx/43xx serial port support"
+	tristate "NXP LPC18xx/43xx serial port support"
 	depends on SERIAL_8250 && OF && (ARCH_LPC18XX || COMPILE_TEST)
 	default ARCH_LPC18XX
 	help
@@ -366,3 +367,13 @@ config SERIAL_8250_INGENIC
 	help
 	  If you have a system using an Ingenic SoC and wish to make use of
 	  its UARTs, say Y to this option. If unsure, say N.
+
+config SERIAL_8250_MID
+	tristate "Support for serial ports on Intel MID platforms"
+	depends on SERIAL_8250 && PCI
+	select HSU_DMA if SERIAL_8250_DMA
+	select HSU_DMA_PCI if X86_INTEL_MID
+	help
+	  Selecting this option will enable handling of the extra features
+	  present on the UART found on Intel Medfield SOC and various other
+	  Intel platforms.

@@ -12,7 +12,6 @@
 #ifndef _ASM_ACPI_H
 #define _ASM_ACPI_H
 
-#include <linux/irqchip/arm-gic-acpi.h>
 #include <linux/mm.h>
 #include <linux/psci.h>
 

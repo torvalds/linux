@@ -189,7 +189,7 @@ static struct s3c_hwmon_pdata smartq_hwmon_pdata __initdata = {
 	},
 };
 
-static struct s3c_hsotg_plat smartq_hsotg_pdata;
+static struct dwc2_hsotg_plat smartq_hsotg_pdata;
 
 static int __init smartq_lcd_setup_gpio(void)
 {
@@ -382,7 +382,7 @@ void __init smartq_map_io(void)
 void __init smartq_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
-	s3c_hsotg_set_platdata(&smartq_hsotg_pdata);
+	dwc2_hsotg_set_platdata(&smartq_hsotg_pdata);
 	s3c_hwmon_set_platdata(&smartq_hwmon_pdata);
 	s3c_sdhci1_set_platdata(&smartq_internal_hsmmc_pdata);
 	s3c_sdhci2_set_platdata(&smartq_internal_hsmmc_pdata);

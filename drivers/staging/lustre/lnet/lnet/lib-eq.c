@@ -318,7 +318,6 @@ LNetEQWait(lnet_handle_eq_t eventq, lnet_event_t *event)
 }
 EXPORT_SYMBOL(LNetEQWait);
 
-
 static int
 lnet_eq_wait_locked(int *timeout_ms)
 __must_hold(&the_lnet.ln_eq_wait_lock)
@@ -341,12 +340,9 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 		schedule();
 
 	} else {
-		struct timeval tv;
-
-		now = cfs_time_current();
-		schedule_timeout(cfs_time_seconds(tms) / 1000);
-		cfs_duration_usec(cfs_time_sub(cfs_time_current(), now), &tv);
-		tms -= (int)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
+		now = jiffies;
+		schedule_timeout(msecs_to_jiffies(tms));
+		tms -= jiffies_to_msecs(jiffies - now);
 		if (tms < 0) /* no more wait but may have new event */
 			tms = 0;
 	}
@@ -359,8 +355,6 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 
 	return wait;
 }
-
-
 
 /**
  * Block the calling process until there's an event from a set of EQs or

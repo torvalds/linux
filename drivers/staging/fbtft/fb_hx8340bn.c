@@ -17,10 +17,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -39,11 +35,9 @@
 #define DEFAULT_GAMMA	"1 3 0E 5 0 2 09 0 6 1 7 1 0 2 2\n" \
 			"3 3 17 8 4 7 05 7 6 0 3 1 6 0 0 "
 
-
 static bool emulate;
 module_param(emulate, bool, 0);
 MODULE_PARM_DESC(emulate, "Force emulation in 9-bit mode");
-
 
 static int init_display(struct fbtft_par *par)
 {
@@ -117,9 +111,9 @@ static int set_var(struct fbtft_par *par)
 {
 	/* MADCTL - Memory data access control */
 	/* RGB/BGR can be set with H/W pin SRGB and MADCTL BGR bit */
-#define MY (1 << 7)
-#define MX (1 << 6)
-#define MV (1 << 5)
+#define MY BIT(7)
+#define MX BIT(6)
+#define MV BIT(5)
 	switch (par->info->var.rotate) {
 	case 0:
 		write_reg(par, 0x36, par->bgr << 3);
@@ -145,7 +139,7 @@ static int set_var(struct fbtft_par *par)
     OP0 OP1 CP0 CP1 CP2 CP3 CP4 MP0 MP1 MP2 MP3 MP4 MP5 CGM0 CGM1
     ON0 ON1 CN0 CN1 CN2 CN3 CN4 MN0 MN1 MN2 MN3 MN4 MN5 XXXX  GC
 */
-#define CURVE(num, idx)  curves[num*par->gamma.num_values + idx]
+#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long mask[] = {
@@ -192,7 +186,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 }
 #undef CURVE
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -208,6 +201,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "himax,hx8340bn", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

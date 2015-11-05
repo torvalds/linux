@@ -355,9 +355,9 @@ ksocknal_lib_recv_kiov(ksock_conn_t *conn)
 			LASSERT(i < niov);
 
 			/* Dang! have to kmap again because I have nowhere to
-                         * stash the mapped address.  But by doing it while the
-                         * page is still mapped, the kernel just bumps the map
-                         * count and returns me the address it stashed. */
+			 * stash the mapped address.  But by doing it while the
+			 * page is still mapped, the kernel just bumps the map
+			 * count and returns me the address it stashed. */
 			base = kmap(kiov[i].kiov_page) + kiov[i].kiov_offset;
 			fragnob = kiov[i].kiov_len;
 			if (fragnob > sum)

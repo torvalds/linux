@@ -37,9 +37,21 @@ enum conn_async_state {
 	ASYNC_CONN_FLUSH_WORK	/* async work flush in progress  */
 };
 
+/*
+ * File operations for anonymous inode file associated with a SCIF endpoint,
+ * used in kernel mode SCIF poll. Kernel mode SCIF poll calls portions of the
+ * poll API in the kernel and these take in a struct file *. Since a struct
+ * file is not available to kernel mode SCIF, it uses an anonymous file for
+ * this purpose.
+ */
+const struct file_operations scif_anon_fops = {
+	.owner = THIS_MODULE,
+};
+
 scif_epd_t scif_open(void)
 {
 	struct scif_endpt *ep;
+	int err;
 
 	might_sleep();
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
@@ -50,15 +62,22 @@ scif_epd_t scif_open(void)
 	if (!ep->qp_info.qp)
 		goto err_qp_alloc;
 
+	err = scif_anon_inode_getfile(ep);
+	if (err)
+		goto err_anon_inode;
+
 	spin_lock_init(&ep->lock);
 	mutex_init(&ep->sendlock);
 	mutex_init(&ep->recvlock);
 
+	scif_rma_ep_init(ep);
 	ep->state = SCIFEP_UNBOUND;
 	dev_dbg(scif_info.mdev.this_device,
 		"SCIFAPI open: ep %p success\n", ep);
 	return ep;
 
+err_anon_inode:
+	kfree(ep->qp_info.qp);
 err_qp_alloc:
 	kfree(ep);
 err_ep_alloc:
@@ -166,8 +185,11 @@ int scif_close(scif_epd_t epd)
 
 	switch (oldstate) {
 	case SCIFEP_ZOMBIE:
+		dev_err(scif_info.mdev.this_device,
+			"SCIFAPI close: zombie state unexpected\n");
 	case SCIFEP_DISCONNECTED:
 		spin_unlock(&ep->lock);
+		scif_unregister_all_windows(epd);
 		/* Remove from the disconnected list */
 		mutex_lock(&scif_info.connlock);
 		list_for_each_safe(pos, tmpq, &scif_info.disconnected) {
@@ -189,6 +211,7 @@ int scif_close(scif_epd_t epd)
 	case SCIFEP_CLOSING:
 	{
 		spin_unlock(&ep->lock);
+		scif_unregister_all_windows(epd);
 		scif_disconnect_ep(ep);
 		break;
 	}
@@ -200,7 +223,7 @@ int scif_close(scif_epd_t epd)
 		struct scif_endpt *aep;
 
 		spin_unlock(&ep->lock);
-		spin_lock(&scif_info.eplock);
+		mutex_lock(&scif_info.eplock);
 
 		/* remove from listen list */
 		list_for_each_safe(pos, tmpq, &scif_info.listen) {
@@ -222,7 +245,7 @@ int scif_close(scif_epd_t epd)
 					break;
 				}
 			}
-			spin_unlock(&scif_info.eplock);
+			mutex_unlock(&scif_info.eplock);
 			mutex_lock(&scif_info.connlock);
 			list_for_each_safe(pos, tmpq, &scif_info.connected) {
 				tmpep = list_entry(pos,
@@ -242,13 +265,13 @@ int scif_close(scif_epd_t epd)
 			}
 			mutex_unlock(&scif_info.connlock);
 			scif_teardown_ep(aep);
-			spin_lock(&scif_info.eplock);
+			mutex_lock(&scif_info.eplock);
 			scif_add_epd_to_zombie_list(aep, SCIF_EPLOCK_HELD);
 			ep->acceptcnt--;
 		}
 
 		spin_lock(&ep->lock);
-		spin_unlock(&scif_info.eplock);
+		mutex_unlock(&scif_info.eplock);
 
 		/* Remove and reject any pending connection requests. */
 		while (ep->conreqcnt) {
@@ -279,6 +302,7 @@ int scif_close(scif_epd_t epd)
 	}
 	}
 	scif_put_port(ep->port.port);
+	scif_anon_inode_fput(ep);
 	scif_teardown_ep(ep);
 	scif_add_epd_to_zombie_list(ep, !SCIF_EPLOCK_HELD);
 	return 0;
@@ -409,9 +433,9 @@ int scif_listen(scif_epd_t epd, int backlog)
 	scif_teardown_ep(ep);
 	ep->qp_info.qp = NULL;
 
-	spin_lock(&scif_info.eplock);
+	mutex_lock(&scif_info.eplock);
 	list_add_tail(&ep->list, &scif_info.listen);
-	spin_unlock(&scif_info.eplock);
+	mutex_unlock(&scif_info.eplock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(scif_listen);
@@ -450,6 +474,13 @@ static int scif_conn_func(struct scif_endpt *ep)
 	struct scifmsg msg;
 	struct device *spdev;
 
+	err = scif_reserve_dma_chan(ep);
+	if (err) {
+		dev_err(&ep->remote_dev->sdev->dev,
+			"%s %d err %d\n", __func__, __LINE__, err);
+		ep->state = SCIFEP_BOUND;
+		goto connect_error_simple;
+	}
 	/* Initiate the first part of the endpoint QP setup */
 	err = scif_setup_qp_connect(ep->qp_info.qp, &ep->qp_info.qp_offset,
 				    SCIF_ENDPT_QP_SIZE, ep->remote_dev);
@@ -558,8 +589,10 @@ void scif_conn_handler(struct work_struct *work)
 			list_del(&ep->conn_list);
 		}
 		spin_unlock(&scif_info.nb_connect_lock);
-		if (ep)
+		if (ep) {
 			ep->conn_err = scif_conn_func(ep);
+			wake_up_interruptible(&ep->conn_pend_wq);
+		}
 	} while (ep);
 }
 
@@ -660,6 +693,7 @@ int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block)
 	ep->remote_dev = &scif_dev[dst->node];
 	ep->qp_info.qp->magic = SCIFEP_MAGIC;
 	if (ep->conn_async_state == ASYNC_CONN_INPROGRESS) {
+		init_waitqueue_head(&ep->conn_pend_wq);
 		spin_lock(&scif_info.nb_connect_lock);
 		list_add_tail(&ep->conn_list, &scif_info.nb_connect_list);
 		spin_unlock(&scif_info.nb_connect_lock);
@@ -782,11 +816,24 @@ retry_connection:
 	cep->remote_dev = &scif_dev[peer->node];
 	cep->remote_ep = conreq->msg.payload[0];
 
+	scif_rma_ep_init(cep);
+
+	err = scif_reserve_dma_chan(cep);
+	if (err) {
+		dev_err(scif_info.mdev.this_device,
+			"%s %d err %d\n", __func__, __LINE__, err);
+		goto scif_accept_error_qpalloc;
+	}
+
 	cep->qp_info.qp = kzalloc(sizeof(*cep->qp_info.qp), GFP_KERNEL);
 	if (!cep->qp_info.qp) {
 		err = -ENOMEM;
 		goto scif_accept_error_qpalloc;
 	}
+
+	err = scif_anon_inode_getfile(cep);
+	if (err)
+		goto scif_accept_error_anon_inode;
 
 	cep->qp_info.qp->magic = SCIFEP_MAGIC;
 	spdev = scif_get_peer_dev(cep->remote_dev);
@@ -858,6 +905,8 @@ retry:
 	spin_unlock(&cep->lock);
 	return 0;
 scif_accept_error_map:
+	scif_anon_inode_fput(cep);
+scif_accept_error_anon_inode:
 	scif_teardown_ep(cep);
 scif_accept_error_qpalloc:
 	kfree(cep);
@@ -1247,6 +1296,134 @@ int scif_recv(scif_epd_t epd, void *msg, int len, int flags)
 }
 EXPORT_SYMBOL_GPL(scif_recv);
 
+static inline void _scif_poll_wait(struct file *f, wait_queue_head_t *wq,
+				   poll_table *p, struct scif_endpt *ep)
+{
+	/*
+	 * Because poll_wait makes a GFP_KERNEL allocation, give up the lock
+	 * and regrab it afterwards. Because the endpoint state might have
+	 * changed while the lock was given up, the state must be checked
+	 * again after re-acquiring the lock. The code in __scif_pollfd(..)
+	 * does this.
+	 */
+	spin_unlock(&ep->lock);
+	poll_wait(f, wq, p);
+	spin_lock(&ep->lock);
+}
+
+unsigned int
+__scif_pollfd(struct file *f, poll_table *wait, struct scif_endpt *ep)
+{
+	unsigned int mask = 0;
+
+	dev_dbg(scif_info.mdev.this_device,
+		"SCIFAPI pollfd: ep %p %s\n", ep, scif_ep_states[ep->state]);
+
+	spin_lock(&ep->lock);
+
+	/* Endpoint is waiting for a non-blocking connect to complete */
+	if (ep->conn_async_state == ASYNC_CONN_INPROGRESS) {
+		_scif_poll_wait(f, &ep->conn_pend_wq, wait, ep);
+		if (ep->conn_async_state == ASYNC_CONN_INPROGRESS) {
+			if (ep->state == SCIFEP_CONNECTED ||
+			    ep->state == SCIFEP_DISCONNECTED ||
+			    ep->conn_err)
+				mask |= POLLOUT;
+			goto exit;
+		}
+	}
+
+	/* Endpoint is listening for incoming connection requests */
+	if (ep->state == SCIFEP_LISTENING) {
+		_scif_poll_wait(f, &ep->conwq, wait, ep);
+		if (ep->state == SCIFEP_LISTENING) {
+			if (ep->conreqcnt)
+				mask |= POLLIN;
+			goto exit;
+		}
+	}
+
+	/* Endpoint is connected or disconnected */
+	if (ep->state == SCIFEP_CONNECTED || ep->state == SCIFEP_DISCONNECTED) {
+		if (poll_requested_events(wait) & POLLIN)
+			_scif_poll_wait(f, &ep->recvwq, wait, ep);
+		if (poll_requested_events(wait) & POLLOUT)
+			_scif_poll_wait(f, &ep->sendwq, wait, ep);
+		if (ep->state == SCIFEP_CONNECTED ||
+		    ep->state == SCIFEP_DISCONNECTED) {
+			/* Data can be read without blocking */
+			if (scif_rb_count(&ep->qp_info.qp->inbound_q, 1))
+				mask |= POLLIN;
+			/* Data can be written without blocking */
+			if (scif_rb_space(&ep->qp_info.qp->outbound_q))
+				mask |= POLLOUT;
+			/* Return POLLHUP if endpoint is disconnected */
+			if (ep->state == SCIFEP_DISCONNECTED)
+				mask |= POLLHUP;
+			goto exit;
+		}
+	}
+
+	/* Return POLLERR if the endpoint is in none of the above states */
+	mask |= POLLERR;
+exit:
+	spin_unlock(&ep->lock);
+	return mask;
+}
+
+/**
+ * scif_poll() - Kernel mode SCIF poll
+ * @ufds: Array of scif_pollepd structures containing the end points
+ *	  and events to poll on
+ * @nfds: Size of the ufds array
+ * @timeout_msecs: Timeout in msecs, -ve implies infinite timeout
+ *
+ * The code flow in this function is based on do_poll(..) in select.c
+ *
+ * Returns the number of endpoints which have pending events or 0 in
+ * the event of a timeout. If a signal is used for wake up, -EINTR is
+ * returned.
+ */
+int
+scif_poll(struct scif_pollepd *ufds, unsigned int nfds, long timeout_msecs)
+{
+	struct poll_wqueues table;
+	poll_table *pt;
+	int i, mask, count = 0, timed_out = timeout_msecs == 0;
+	u64 timeout = timeout_msecs < 0 ? MAX_SCHEDULE_TIMEOUT
+		: msecs_to_jiffies(timeout_msecs);
+
+	poll_initwait(&table);
+	pt = &table.pt;
+	while (1) {
+		for (i = 0; i < nfds; i++) {
+			pt->_key = ufds[i].events | POLLERR | POLLHUP;
+			mask = __scif_pollfd(ufds[i].epd->anon,
+					     pt, ufds[i].epd);
+			mask &= ufds[i].events | POLLERR | POLLHUP;
+			if (mask) {
+				count++;
+				pt->_qproc = NULL;
+			}
+			ufds[i].revents = mask;
+		}
+		pt->_qproc = NULL;
+		if (!count) {
+			count = table.error;
+			if (signal_pending(current))
+				count = -EINTR;
+		}
+		if (count || timed_out)
+			break;
+
+		if (!schedule_timeout_interruptible(timeout))
+			timed_out = 1;
+	}
+	poll_freewait(&table);
+	return count;
+}
+EXPORT_SYMBOL_GPL(scif_poll);
+
 int scif_get_node_ids(u16 *nodes, int len, u16 *self)
 {
 	int online = 0;
@@ -1274,3 +1451,46 @@ int scif_get_node_ids(u16 *nodes, int len, u16 *self)
 	return online;
 }
 EXPORT_SYMBOL_GPL(scif_get_node_ids);
+
+static int scif_add_client_dev(struct device *dev, struct subsys_interface *si)
+{
+	struct scif_client *client =
+		container_of(si, struct scif_client, si);
+	struct scif_peer_dev *spdev =
+		container_of(dev, struct scif_peer_dev, dev);
+
+	if (client->probe)
+		client->probe(spdev);
+	return 0;
+}
+
+static void scif_remove_client_dev(struct device *dev,
+				   struct subsys_interface *si)
+{
+	struct scif_client *client =
+		container_of(si, struct scif_client, si);
+	struct scif_peer_dev *spdev =
+		container_of(dev, struct scif_peer_dev, dev);
+
+	if (client->remove)
+		client->remove(spdev);
+}
+
+void scif_client_unregister(struct scif_client *client)
+{
+	subsys_interface_unregister(&client->si);
+}
+EXPORT_SYMBOL_GPL(scif_client_unregister);
+
+int scif_client_register(struct scif_client *client)
+{
+	struct subsys_interface *si = &client->si;
+
+	si->name = client->name;
+	si->subsys = &scif_peer_bus;
+	si->add_dev = scif_add_client_dev;
+	si->remove_dev = scif_remove_client_dev;
+
+	return subsys_interface_register(&client->si);
+}
+EXPORT_SYMBOL_GPL(scif_client_register);

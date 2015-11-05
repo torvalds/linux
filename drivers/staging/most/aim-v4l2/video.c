@@ -29,9 +29,9 @@
 
 #include "mostcore.h"
 
-
 #define V4L2_AIM_MAX_INPUT  1
 
+static struct most_aim aim_info;
 
 struct most_video_dev {
 	struct most_interface *iface;
@@ -59,11 +59,8 @@ struct aim_fh {
 	u32 offs;
 };
 
-
 static struct list_head video_devices = LIST_HEAD_INIT(video_devices);
 static struct spinlock list_lock;
-static struct most_aim aim_info;
-
 
 static inline bool data_ready(struct most_video_dev *mdev)
 {
@@ -74,7 +71,6 @@ static inline struct mbo *get_top_mbo(struct most_video_dev *mdev)
 {
 	return list_first_entry(&mdev->pending_mbos, struct mbo, list);
 }
-
 
 static int aim_vdev_open(struct file *filp)
 {
@@ -92,7 +88,7 @@ static int aim_vdev_open(struct file *filp)
 		return -EINVAL;
 	}
 
-	fh = kzalloc(sizeof(struct aim_fh), GFP_KERNEL);
+	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (!fh)
 		return -ENOMEM;
 
@@ -108,7 +104,7 @@ static int aim_vdev_open(struct file *filp)
 
 	v4l2_fh_add(&fh->fh);
 
-	ret = most_start_channel(mdev->iface, mdev->ch_idx);
+	ret = most_start_channel(mdev->iface, mdev->ch_idx, &aim_info);
 	if (ret) {
 		pr_err("most_start_channel() failed\n");
 		goto err_rm;
@@ -152,7 +148,7 @@ static int aim_vdev_close(struct file *filp)
 		spin_lock(&mdev->list_lock);
 	}
 	spin_unlock(&mdev->list_lock);
-	most_stop_channel(mdev->iface, mdev->ch_idx);
+	most_stop_channel(mdev->iface, mdev->ch_idx, &aim_info);
 	mdev->mute = false;
 
 	v4l2_fh_del(&fh->fh);
@@ -243,28 +239,6 @@ static void aim_set_format_struct(struct v4l2_format *f)
 static int aim_set_format(struct most_video_dev *mdev, unsigned int cmd,
 			  struct v4l2_format *format)
 {
-#if 0
-	u32 const pixfmt = format->fmt.pix.pixelformat;
-	const char *fmt;
-
-	if (pixfmt != V4L2_PIX_FMT_MPEG) {
-		if (cmd == VIDIOC_TRY_FMT)
-			fmt = KERN_ERR "try %c%c%c%c failed\n";
-		else
-			fmt = KERN_ERR "set %c%c%c%c failed\n";
-	} else {
-		if (cmd == VIDIOC_TRY_FMT)
-			fmt = KERN_ERR "try %c%c%c%c\n";
-		else
-			fmt = KERN_ERR "set %c%c%c%c\n";
-	}
-	printk(fmt,
-	       (pixfmt) & 255,
-	       (pixfmt >> 8) & 255,
-	       (pixfmt >> 16) & 255,
-	       (pixfmt >> 24) & 255);
-#endif
-
 	if (format->fmt.pix.pixelformat != V4L2_PIX_FMT_MPEG)
 		return -EINVAL;
 
@@ -275,7 +249,6 @@ static int aim_set_format(struct most_video_dev *mdev, unsigned int cmd,
 
 	return 0;
 }
-
 
 static int vidioc_querycap(struct file *file, void  *priv,
 			   struct v4l2_capability *cap)
@@ -430,7 +403,7 @@ static struct most_video_dev *get_aim_dev(
 		}
 	}
 	spin_unlock(&list_lock);
-	return 0;
+	return NULL;
 }
 
 static int aim_rx_data(struct mbo *mbo)
@@ -495,7 +468,6 @@ static void aim_unregister_videodev(struct most_video_dev *mdev)
 
 	video_unregister_device(mdev->vdev);
 }
-
 
 static void aim_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 {
@@ -590,14 +562,16 @@ static int aim_disconnect_channel(struct most_interface *iface,
 	return 0;
 }
 
+static struct most_aim aim_info = {
+	.name = "v4l",
+	.probe_channel = aim_probe_channel,
+	.disconnect_channel = aim_disconnect_channel,
+	.rx_completion = aim_rx_data,
+};
+
 static int __init aim_init(void)
 {
 	spin_lock_init(&list_lock);
-
-	aim_info.name = "v4l";
-	aim_info.probe_channel = aim_probe_channel;
-	aim_info.disconnect_channel = aim_disconnect_channel;
-	aim_info.rx_completion = aim_rx_data;
 	return most_register_aim(&aim_info);
 }
 

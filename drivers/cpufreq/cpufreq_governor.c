@@ -348,29 +348,21 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy,
 	set_sampling_rate(dbs_data, max(dbs_data->min_sampling_rate,
 					latency * LATENCY_MULTIPLIER));
 
-	if (!have_governor_per_policy()) {
-		if (WARN_ON(cpufreq_get_global_kobject())) {
-			ret = -EINVAL;
-			goto cdata_exit;
-		}
+	if (!have_governor_per_policy())
 		cdata->gdbs_data = dbs_data;
-	}
 
 	ret = sysfs_create_group(get_governor_parent_kobj(policy),
 				 get_sysfs_attr(dbs_data));
 	if (ret)
-		goto put_kobj;
+		goto reset_gdbs_data;
 
 	policy->governor_data = dbs_data;
 
 	return 0;
 
-put_kobj:
-	if (!have_governor_per_policy()) {
+reset_gdbs_data:
+	if (!have_governor_per_policy())
 		cdata->gdbs_data = NULL;
-		cpufreq_put_global_kobject();
-	}
-cdata_exit:
 	cdata->exit(dbs_data, !policy->governor->initialized);
 free_common_dbs_info:
 	free_common_dbs_info(policy, cdata);
@@ -394,10 +386,8 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy,
 		sysfs_remove_group(get_governor_parent_kobj(policy),
 				   get_sysfs_attr(dbs_data));
 
-		if (!have_governor_per_policy()) {
+		if (!have_governor_per_policy())
 			cdata->gdbs_data = NULL;
-			cpufreq_put_global_kobject();
-		}
 
 		cdata->exit(dbs_data, policy->governor->initialized == 1);
 		kfree(dbs_data);
@@ -463,7 +453,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 			cdata->get_cpu_dbs_info_s(cpu);
 
 		cs_dbs_info->down_skip = 0;
-		cs_dbs_info->enable = 1;
 		cs_dbs_info->requested_freq = policy->cur;
 	} else {
 		struct od_ops *od_ops = cdata->gov_ops;
@@ -482,9 +471,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 static int cpufreq_governor_stop(struct cpufreq_policy *policy,
 				 struct dbs_data *dbs_data)
 {
-	struct common_dbs_data *cdata = dbs_data->cdata;
-	unsigned int cpu = policy->cpu;
-	struct cpu_dbs_info *cdbs = cdata->get_cpu_cdbs(cpu);
+	struct cpu_dbs_info *cdbs = dbs_data->cdata->get_cpu_cdbs(policy->cpu);
 	struct cpu_common_dbs_info *shared = cdbs->shared;
 
 	/* State should be equivalent to START */
@@ -492,13 +479,6 @@ static int cpufreq_governor_stop(struct cpufreq_policy *policy,
 		return -EBUSY;
 
 	gov_cancel_work(dbs_data, policy);
-
-	if (cdata->governor == GOV_CONSERVATIVE) {
-		struct cs_cpu_dbs_info_s *cs_dbs_info =
-			cdata->get_cpu_dbs_info_s(cpu);
-
-		cs_dbs_info->enable = 0;
-	}
 
 	shared->policy = NULL;
 	mutex_destroy(&shared->timer_mutex);

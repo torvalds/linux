@@ -157,12 +157,6 @@ static int ni_tio_output_cmd(struct comedi_subdevice *s)
 	dev_err(counter->counter_dev->dev->class_dev,
 		"output commands not yet implemented.\n");
 	return -ENOTSUPP;
-
-	counter->mite_chan->dir = COMEDI_OUTPUT;
-	mite_prep_dma(counter->mite_chan, 32, 32);
-	ni_tio_configure_dma(counter, true, false);
-	mite_dma_arm(counter->mite_chan);
-	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
 
 static int ni_tio_cmd_setup(struct comedi_subdevice *s)

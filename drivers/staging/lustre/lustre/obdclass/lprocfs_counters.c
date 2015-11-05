@@ -41,9 +41,6 @@
 #include "../include/lprocfs_status.h"
 #include "../include/obd_support.h"
 
-struct lprocfs_stats *obd_memory = NULL;
-EXPORT_SYMBOL(obd_memory);
-
 void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 {
 	struct lprocfs_counter		*percpu_cntr;
@@ -74,9 +71,6 @@ void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 		 * ldlm_pool_shrink(), which calls lprocfs_counter_add().
 		 * LU-1727.
 		 *
-		 * Only obd_memory uses LPROCFS_STATS_FLAG_IRQ_SAFE
-		 * flag, because it needs accurate counting lest memory leak
-		 * check reports error.
 		 */
 		if (in_interrupt() &&
 		    (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0)
@@ -124,9 +118,6 @@ void lprocfs_counter_sub(struct lprocfs_stats *stats, int idx, long amount)
 		 * softirq context here, use separate counter for that.
 		 * bz20650.
 		 *
-		 * Only obd_memory uses LPROCFS_STATS_FLAG_IRQ_SAFE
-		 * flag, because it needs accurate counting lest memory leak
-		 * check reports error.
 		 */
 		if (in_interrupt() &&
 		    (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0)

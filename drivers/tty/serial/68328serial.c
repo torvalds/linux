@@ -560,8 +560,8 @@ static void rs_fair_output(void)
 	struct m68k_serial *info = &m68k_soft[0];
 	char c;
 
-	if (info == 0) return;
-	if (info->xmit_buf == 0) return;
+	if (info == NULL) return;
+	if (info->xmit_buf == NULL) return;
 
 	local_irq_save(flags);
 	left = info->xmit_cnt;
@@ -1071,7 +1071,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		wake_up_interruptible(&port->open_wait);
 	}
 	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&port->close_wait);
 	local_irq_restore(flags);
 }
 

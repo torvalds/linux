@@ -1279,7 +1279,6 @@ static int btt_blk_init(struct btt *btt)
 
 static void btt_blk_cleanup(struct btt *btt)
 {
-	blk_integrity_unregister(btt->btt_disk);
 	del_gendisk(btt->btt_disk);
 	put_disk(btt->btt_disk);
 	blk_cleanup_queue(btt->btt_queue);

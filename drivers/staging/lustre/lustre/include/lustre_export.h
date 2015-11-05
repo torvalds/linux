@@ -147,14 +147,6 @@ struct obd_export {
 	/** To link all exports on an obd device */
 	struct list_head		exp_obd_chain;
 	struct hlist_node	  exp_uuid_hash; /** uuid-export hash*/
-	struct hlist_node	  exp_nid_hash; /** nid-export hash */
-	/**
-	 * All exports eligible for ping evictor are linked into a list
-	 * through this field in "most time since last request on this export"
-	 * order
-	 * protected by obd_dev_lock
-	 */
-	struct list_head		exp_obd_chain_timed;
 	/** Obd device of this export */
 	struct obd_device	*exp_obd;
 	/**
@@ -179,8 +171,6 @@ struct obd_export {
 	spinlock_t		  exp_uncommitted_replies_lock;
 	/** Last committed transno for this export */
 	__u64		     exp_last_committed;
-	/** When was last request received */
-	unsigned long		exp_last_request_time;
 	/** On replay all requests waiting for replay are linked here */
 	struct list_head		exp_req_replay_queue;
 	/**
@@ -193,30 +183,15 @@ struct obd_export {
 	struct obd_connect_data   exp_connect_data;
 	enum obd_option	   exp_flags;
 	unsigned long	     exp_failed:1,
-				  exp_in_recovery:1,
 				  exp_disconnected:1,
 				  exp_connecting:1,
-				  /** VBR: export missed recovery */
-				  exp_delayed:1,
-				  /** VBR: failed version checking */
-				  exp_vbr_failed:1,
-				  exp_req_replay_needed:1,
-				  exp_lock_replay_needed:1,
-				  exp_need_sync:1,
 				  exp_flvr_changed:1,
-				  exp_flvr_adapt:1,
-				  exp_libclient:1, /* liblustre client? */
-				  /* client timed out and tried to reconnect,
-				   * but couldn't because of active rpcs */
-				  exp_abort_active_req:1,
-				  /* if to swap nidtbl entries for 2.2 clients.
-				   * Only used by the MGS to fix LU-1644. */
-				  exp_need_mne_swab:1;
+				  exp_flvr_adapt:1;
 	/* also protected by exp_lock */
 	enum lustre_sec_part      exp_sp_peer;
 	struct sptlrpc_flavor     exp_flvr;	     /* current */
 	struct sptlrpc_flavor     exp_flvr_old[2];      /* about-to-expire */
-	unsigned long		exp_flvr_expire[2];   /* seconds */
+	time64_t		  exp_flvr_expire[2];   /* seconds */
 
 	/** protects exp_hp_rpcs */
 	spinlock_t		  exp_rpc_lock;
@@ -263,13 +238,6 @@ static inline int exp_max_brw_size(struct obd_export *exp)
 static inline int exp_connect_multibulk(struct obd_export *exp)
 {
 	return exp_max_brw_size(exp) > ONE_MB_BRW_SIZE;
-}
-
-static inline int exp_expired(struct obd_export *exp, long age)
-{
-	LASSERT(exp->exp_delayed);
-	return time_before(cfs_time_add(exp->exp_last_request_time, age),
-			   get_seconds());
 }
 
 static inline int exp_connect_cancelset(struct obd_export *exp)
@@ -369,7 +337,6 @@ static inline bool imp_connect_disp_stripe(struct obd_import *imp)
 }
 
 struct obd_export *class_conn2export(struct lustre_handle *conn);
-struct obd_device *class_conn2obd(struct lustre_handle *conn);
 
 /** @} export */
 

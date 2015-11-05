@@ -1,0 +1,24 @@
+#
+# Industrial I/O generic buffer implementations
+#
+# When adding new entries keep the list in alphabetical order
+
+config IIO_BUFFER_CB
+	tristate "IIO callback buffer used for push in-kernel interfaces"
+	help
+	  Should be selected by any drivers that do in-kernel push
+	  usage.  That is, those where the data is pushed to the consumer.
+
+config IIO_KFIFO_BUF
+	tristate "Industrial I/O buffering based on kfifo"
+	help
+	  A simple fifo based on kfifo.  Note that this currently provides
+	  no buffer events so it is up to userspace to work out how
+	  often to read from the buffer.
+
+config IIO_TRIGGERED_BUFFER
+	tristate
+	select IIO_TRIGGER
+	select IIO_KFIFO_BUF
+	help
+	  Provides helper functions for setting up triggered buffers.

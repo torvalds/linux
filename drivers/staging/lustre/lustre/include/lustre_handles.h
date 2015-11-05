@@ -50,7 +50,6 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-
 struct portals_handle_ops {
 	void (*hop_addref)(void *object);
 	void (*hop_free)(void *object, int size);
@@ -78,6 +77,7 @@ struct portals_handle {
 	unsigned int			h_size:31;
 	unsigned int			h_in:1;
 };
+
 #define RCU2HANDLE(rcu)    container_of(rcu, struct portals_handle, h_rcu)
 
 /* handles.c */
@@ -86,7 +86,6 @@ struct portals_handle {
 void class_handle_hash(struct portals_handle *,
 		       struct portals_handle_ops *ops);
 void class_handle_unhash(struct portals_handle *);
-void class_handle_hash_back(struct portals_handle *);
 void *class_handle2object(__u64 cookie);
 void class_handle_free_cb(struct rcu_head *rcu);
 int class_handle_init(void);

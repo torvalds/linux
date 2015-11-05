@@ -319,7 +319,7 @@ __tty_ldisc_lock_nested(struct tty_struct *tty, unsigned long timeout)
 
 static inline void __tty_ldisc_unlock(struct tty_struct *tty)
 {
-	return ldsem_up_write(&tty->ldisc_sem);
+	ldsem_up_write(&tty->ldisc_sem);
 }
 
 static int __lockfunc

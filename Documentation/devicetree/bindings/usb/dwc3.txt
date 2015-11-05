@@ -35,11 +35,16 @@ Optional properties:
 			LTSSM during USB3 Compliance mode.
  - snps,dis_u3_susphy_quirk: when set core will disable USB3 suspend phy.
  - snps,dis_u2_susphy_quirk: when set core will disable USB2 suspend phy.
+ - snps,dis_enblslpm_quirk: when set clears the enblslpm in GUSB2PHYCFG,
+			disabling the suspend signal to the PHY.
  - snps,is-utmi-l1-suspend: true when DWC3 asserts output signal
 			utmi_l1_suspend_n, false when asserts utmi_sleep_n
  - snps,hird-threshold: HIRD threshold
  - snps,hsphy_interface: High-Speed PHY interface selection between "utmi" for
    UTMI+ and "ulpi" for ULPI when the DWC_USB3_HSPHY_INTERFACE has value 3.
+ - snps,quirk-frame-length-adjustment: Value for GFLADJ_30MHZ field of GFLADJ
+	register for post-silicon frame length adjustment when the
+	fladj_30mhz_sdbnd signal is invalid or incorrect.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 

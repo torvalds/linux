@@ -146,7 +146,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	struct inode *root = NULL;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct obd_device *obd;
-	struct obd_capa *oc = NULL;
 	struct obd_statfs *osfs = NULL;
 	struct ptlrpc_request *request = NULL;
 	struct obd_connect_data *data = NULL;
@@ -182,7 +181,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	data->ocd_connect_flags = OBD_CONNECT_IBITS    | OBD_CONNECT_NODEVOH  |
 				  OBD_CONNECT_ATTRFID  |
 				  OBD_CONNECT_VERSION  | OBD_CONNECT_BRW_SIZE |
-				  OBD_CONNECT_MDS_CAPA | OBD_CONNECT_OSS_CAPA |
 				  OBD_CONNECT_CANCELSET | OBD_CONNECT_FID     |
 				  OBD_CONNECT_AT       | OBD_CONNECT_LOV_V3   |
 				  OBD_CONNECT_RMT_CLIENT | OBD_CONNECT_VBR    |
@@ -334,16 +332,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		}
 	}
 
-	if (data->ocd_connect_flags & OBD_CONNECT_MDS_CAPA) {
-		LCONSOLE_INFO("client enabled MDS capability!\n");
-		sbi->ll_flags |= LL_SBI_MDS_CAPA;
-	}
-
-	if (data->ocd_connect_flags & OBD_CONNECT_OSS_CAPA) {
-		LCONSOLE_INFO("client enabled OSS capability!\n");
-		sbi->ll_flags |= LL_SBI_OSS_CAPA;
-	}
-
 	if (data->ocd_connect_flags & OBD_CONNECT_64BITHASH)
 		sbi->ll_flags |= LL_SBI_64BIT_HASH;
 
@@ -445,7 +433,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	mutex_unlock(&sbi->ll_lco.lco_lock);
 
 	fid_zero(&sbi->ll_root_fid);
-	err = md_getstatus(sbi->ll_md_exp, &sbi->ll_root_fid, &oc);
+	err = md_getstatus(sbi->ll_md_exp, &sbi->ll_root_fid);
 	if (err) {
 		CERROR("cannot mds_connect: rc = %d\n", err);
 		goto out_lock_cn_cb;
@@ -466,7 +454,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	/* make root inode
 	 * XXX: move this to after cbd setup? */
-	valid = OBD_MD_FLGETATTR | OBD_MD_FLBLOCKS | OBD_MD_FLMDSCAPA;
+	valid = OBD_MD_FLGETATTR | OBD_MD_FLBLOCKS;
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
 		valid |= OBD_MD_FLRMTPERM;
 	else if (sbi->ll_flags & LL_SBI_ACL)
@@ -480,12 +468,9 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	op_data->op_fid1 = sbi->ll_root_fid;
 	op_data->op_mode = 0;
-	op_data->op_capa1 = oc;
 	op_data->op_valid = valid;
 
 	err = md_getattr(sbi->ll_md_exp, op_data, &request);
-	if (oc)
-		capa_put(oc);
 	kfree(op_data);
 	if (err) {
 		CERROR("%s: md_getattr failed for root: rc = %d\n",
@@ -615,32 +600,6 @@ int ll_get_default_mdsize(struct ll_sb_info *sbi, int *lmmsize)
 			 KEY_DEFAULT_EASIZE, &size, lmmsize, NULL);
 	if (rc)
 		CERROR("Get default mdsize error rc %d\n", rc);
-
-	return rc;
-}
-
-int ll_get_max_cookiesize(struct ll_sb_info *sbi, int *lmmsize)
-{
-	int size, rc;
-
-	size = sizeof(int);
-	rc = obd_get_info(NULL, sbi->ll_md_exp, sizeof(KEY_MAX_COOKIESIZE),
-			  KEY_MAX_COOKIESIZE, &size, lmmsize, NULL);
-	if (rc)
-		CERROR("Get max cookiesize error rc %d\n", rc);
-
-	return rc;
-}
-
-int ll_get_default_cookiesize(struct ll_sb_info *sbi, int *lmmsize)
-{
-	int size, rc;
-
-	size = sizeof(int);
-	rc = obd_get_info(NULL, sbi->ll_md_exp, sizeof(KEY_DEFAULT_COOKIESIZE),
-			  KEY_DEFAULT_COOKIESIZE, &size, lmmsize, NULL);
-	if (rc)
-		CERROR("Get default cookiesize error rc %d\n", rc);
 
 	return rc;
 }
@@ -838,9 +797,7 @@ void ll_lli_init(struct ll_inode_info *lli)
 	/* Do not set lli_fid, it has been initialized already. */
 	fid_zero(&lli->lli_pfid);
 	INIT_LIST_HEAD(&lli->lli_close_list);
-	INIT_LIST_HEAD(&lli->lli_oss_capas);
 	atomic_set(&lli->lli_open_count, 0);
-	lli->lli_mds_capa = NULL;
 	lli->lli_rmtperm_time = 0;
 	lli->lli_pending_och = NULL;
 	lli->lli_mds_read_och = NULL;
@@ -994,8 +951,6 @@ void ll_put_super(struct super_block *sb)
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p - %s\n", sb, profilenm);
 
-	ll_print_capa_stat(sbi);
-
 	cfg.cfg_instance = sb;
 	lustre_end_log(sb, profilenm, &cfg);
 
@@ -1126,7 +1081,6 @@ void ll_clear_inode(struct inode *inode)
 #endif
 	lli->lli_inode_magic = LLI_INODE_DEAD;
 
-	ll_clear_inode_capas(inode);
 	if (!S_ISDIR(inode->i_mode))
 		LASSERT(list_empty(&lli->lli_agl_list));
 
@@ -1183,7 +1137,7 @@ static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 	}
 
 	ia_valid = op_data->op_attr.ia_valid;
-	/* inode size will be in ll_setattr_ost, can't do it now since dirty
+	/* inode size will be in cl_setattr_ost, can't do it now since dirty
 	 * cache is not cleared yet. */
 	op_data->op_attr.ia_valid &= ~(TIMES_SET_FLAGS | ATTR_SIZE);
 	rc = simple_setattr(dentry, &op_data->op_attr);
@@ -1219,37 +1173,15 @@ static int ll_setattr_done_writing(struct inode *inode,
 	ll_pack_inode2opdata(inode, op_data, NULL);
 
 	rc = md_done_writing(ll_i2sbi(inode)->ll_md_exp, op_data, mod);
-	if (rc == -EAGAIN) {
+	if (rc == -EAGAIN)
 		/* MDS has instructed us to obtain Size-on-MDS attribute
 		 * from OSTs and send setattr to back to MDS. */
 		rc = ll_som_update(inode, op_data);
-	} else if (rc) {
+	else if (rc)
 		CERROR("inode %lu mdc truncate failed: rc = %d\n",
 		       inode->i_ino, rc);
-	}
 	return rc;
 }
-
-static int ll_setattr_ost(struct inode *inode, struct iattr *attr)
-{
-	struct obd_capa *capa;
-	int rc;
-
-	if (attr->ia_valid & ATTR_SIZE)
-		capa = ll_osscapa_get(inode, CAPA_OPC_OSS_TRUNC);
-	else
-		capa = ll_mdscapa_get(inode);
-
-	rc = cl_setattr_ost(inode, attr, capa);
-
-	if (attr->ia_valid & ATTR_SIZE)
-		ll_truncate_free_capa(capa);
-	else
-		capa_put(capa);
-
-	return rc;
-}
-
 
 /* If this inode has objects allocated to it (lsm != NULL), then the OST
  * object(s) determine the file size and mtime.  Otherwise, the MDS will
@@ -1325,9 +1257,9 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	}
 
 	if (attr->ia_valid & (ATTR_MTIME | ATTR_CTIME))
-		CDEBUG(D_INODE, "setting mtime %lu, ctime %lu, now = %lu\n",
+		CDEBUG(D_INODE, "setting mtime %lu, ctime %lu, now = %llu\n",
 		       LTIME_S(attr->ia_mtime), LTIME_S(attr->ia_ctime),
-		       get_seconds());
+		       (s64)ktime_get_real_seconds());
 
 	/* If we are changing file size, file content is modified, flag it. */
 	if (attr->ia_valid & ATTR_SIZE) {
@@ -1413,19 +1345,18 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 * time de-synchronization between MDT inode and OST objects */
 		if (attr->ia_valid & ATTR_SIZE)
 			down_write(&lli->lli_trunc_sem);
-		rc = ll_setattr_ost(inode, attr);
+		rc = cl_setattr_ost(inode, attr);
 		if (attr->ia_valid & ATTR_SIZE)
 			up_write(&lli->lli_trunc_sem);
 	}
 out:
-	if (op_data) {
-		if (op_data->op_ioepoch) {
-			rc1 = ll_setattr_done_writing(inode, op_data, mod);
-			if (!rc)
-				rc = rc1;
-		}
-		ll_finish_md_op_data(op_data);
+	if (op_data->op_ioepoch) {
+		rc1 = ll_setattr_done_writing(inode, op_data, mod);
+		if (!rc)
+			rc = rc1;
 	}
+	ll_finish_md_op_data(op_data);
+
 	if (!S_ISDIR(inode->i_mode)) {
 		mutex_lock(&inode->i_mutex);
 		if ((attr->ia_valid & ATTR_SIZE) && !hsm_import)
@@ -1517,6 +1448,7 @@ int ll_statfs_internal(struct super_block *sb, struct obd_statfs *osfs,
 
 	return rc;
 }
+
 int ll_statfs(struct dentry *de, struct kstatfs *sfs)
 {
 	struct super_block *sb = de->d_sb;
@@ -1706,15 +1638,6 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 			inode->i_blocks = body->blocks;
 	}
 
-	if (body->valid & OBD_MD_FLMDSCAPA) {
-		LASSERT(md->mds_capa);
-		ll_add_capa(inode, md->mds_capa);
-	}
-	if (body->valid & OBD_MD_FLOSSCAPA) {
-		LASSERT(md->oss_capa);
-		ll_add_capa(inode, md->oss_capa);
-	}
-
 	if (body->valid & OBD_MD_TSTATE) {
 		if (body->t_state & MS_RESTORE)
 			lli->lli_flags |= LLIF_FILE_RESTORING;
@@ -1825,7 +1748,7 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 	}
 	case FSFILT_IOC_SETFLAGS: {
 		struct lov_stripe_md *lsm;
-		struct obd_info oinfo = { { { 0 } } };
+		struct obd_info oinfo = { };
 		struct md_op_data *op_data;
 
 		if (get_user(flags, (int *)arg))
@@ -1853,7 +1776,8 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 			return 0;
 		}
 
-		OBDO_ALLOC(oinfo.oi_oa);
+		oinfo.oi_oa = kmem_cache_alloc(obdo_cachep,
+					       GFP_NOFS | __GFP_ZERO);
 		if (!oinfo.oi_oa) {
 			ccc_inode_lsm_put(inode, lsm);
 			return -ENOMEM;
@@ -1863,11 +1787,9 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 		oinfo.oi_oa->o_flags = flags;
 		oinfo.oi_oa->o_valid = OBD_MD_FLID | OBD_MD_FLFLAGS |
 				       OBD_MD_FLGROUP;
-		oinfo.oi_capa = ll_mdscapa_get(inode);
 		obdo_set_parent_fid(oinfo.oi_oa, &ll_i2info(inode)->lli_fid);
 		rc = obd_setattr_rqset(sbi->ll_dt_exp, &oinfo, NULL);
-		capa_put(oinfo.oi_capa);
-		OBDO_FREE(oinfo.oi_oa);
+		kmem_cache_free(obdo_cachep, oinfo.oi_oa);
 		ccc_inode_lsm_put(inode, lsm);
 
 		if (rc && rc != -EPERM && rc != -EACCES)
@@ -1974,6 +1896,47 @@ int ll_remount_fs(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+/**
+ * Cleanup the open handle that is cached on MDT-side.
+ *
+ * For open case, the client side open handling thread may hit error
+ * after the MDT grant the open. Under such case, the client should
+ * send close RPC to the MDT as cleanup; otherwise, the open handle
+ * on the MDT will be leaked there until the client umount or evicted.
+ *
+ * In further, if someone unlinked the file, because the open handle
+ * holds the reference on such file/object, then it will block the
+ * subsequent threads that want to locate such object via FID.
+ *
+ * \param[in] sb	super block for this file-system
+ * \param[in] open_req	pointer to the original open request
+ */
+void ll_open_cleanup(struct super_block *sb, struct ptlrpc_request *open_req)
+{
+	struct mdt_body			*body;
+	struct md_op_data		*op_data;
+	struct ptlrpc_request		*close_req = NULL;
+	struct obd_export		*exp	   = ll_s2sbi(sb)->ll_md_exp;
+
+	body = req_capsule_server_get(&open_req->rq_pill, &RMF_MDT_BODY);
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	if (!op_data) {
+		CWARN("%s: cannot allocate op_data to release open handle for "
+		      DFID "\n",
+		      ll_get_fsname(sb, NULL, 0), PFID(&body->fid1));
+
+		return;
+	}
+
+	op_data->op_fid1 = body->fid1;
+	op_data->op_ioepoch = body->ioepoch;
+	op_data->op_handle = body->handle;
+	op_data->op_mod_time = get_seconds();
+	md_close(exp, op_data, NULL, &close_req);
+	ptlrpc_req_finished(close_req);
+	ll_finish_md_op_data(op_data);
+}
+
 int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 		  struct super_block *sb, struct lookup_intent *it)
 {
@@ -1986,7 +1949,7 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 	rc = md_get_lustre_md(sbi->ll_md_exp, req, sbi->ll_dt_exp,
 			      sbi->ll_md_exp, &md);
 	if (rc)
-		return rc;
+		goto cleanup;
 
 	if (*inode) {
 		ll_update_inode(*inode, &md);
@@ -2048,6 +2011,11 @@ out:
 	if (md.lsm != NULL)
 		obd_free_memmd(sbi->ll_dt_exp, &md.lsm);
 	md_free_lustre_md(sbi->ll_md_exp, &md);
+
+cleanup:
+	if (rc != 0 && it && it->it_op & IT_OPEN)
+		ll_open_cleanup(sb ? sb : (*inode)->i_sb, req);
+
 	return rc;
 }
 
@@ -2160,20 +2128,16 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 
 	ll_i2gids(op_data->op_suppgids, i1, i2);
 	op_data->op_fid1 = *ll_inode2fid(i1);
-	op_data->op_capa1 = ll_mdscapa_get(i1);
 
-	if (i2) {
+	if (i2)
 		op_data->op_fid2 = *ll_inode2fid(i2);
-		op_data->op_capa2 = ll_mdscapa_get(i2);
-	} else {
+	else
 		fid_zero(&op_data->op_fid2);
-		op_data->op_capa2 = NULL;
-	}
 
 	op_data->op_name = name;
 	op_data->op_namelen = namelen;
 	op_data->op_mode = mode;
-	op_data->op_mod_time = get_seconds();
+	op_data->op_mod_time = ktime_get_real_seconds();
 	op_data->op_fsuid = from_kuid(&init_user_ns, current_fsuid());
 	op_data->op_fsgid = from_kgid(&init_user_ns, current_fsgid());
 	op_data->op_cap = cfs_curproc_cap_pack();
@@ -2197,11 +2161,10 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 		if (likely(!lli->lli_has_smd && !fid_is_zero(&lli->lli_pfid)))
 			op_data->op_fid1 = lli->lli_pfid;
 		spin_unlock(&lli->lli_lock);
-		/** We ignore parent's capability temporary. */
 	}
 
 	/* When called by ll_setattr_raw, file is i1. */
-	if (LLIF_DATA_MODIFIED & ll_i2info(i1)->lli_flags)
+	if (ll_i2info(i1)->lli_flags & LLIF_DATA_MODIFIED)
 		op_data->op_bias |= MDS_DATA_MODIFIED;
 
 	return op_data;
@@ -2209,8 +2172,6 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 
 void ll_finish_md_op_data(struct md_op_data *op_data)
 {
-	capa_put(op_data->op_capa1);
-	capa_put(op_data->op_capa2);
 	kfree(op_data);
 }
 

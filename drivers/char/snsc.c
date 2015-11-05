@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/poll.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <asm/sn/io.h>
@@ -461,5 +461,4 @@ scdrv_init(void)
 	}
 	return 0;
 }
-
-module_init(scdrv_init);
+device_initcall(scdrv_init);

@@ -47,11 +47,11 @@ static u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
 	request = 0x05;
 	requesttype = 0x01; /* read_in */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
-	return (u8)(le32_to_cpu(data)&0x0ff);
+	return (u8)(le32_to_cpu(data) & 0x0ff);
 }
 
 static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
@@ -67,11 +67,11 @@ static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
 	request = 0x05;
 	requesttype = 0x01; /* read_in */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
-	return (u16)(le32_to_cpu(data)&0xffff);
+	return (u16)(le32_to_cpu(data) & 0xffff);
 }
 
 static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
@@ -87,7 +87,7 @@ static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
 	request = 0x05;
 	requesttype = 0x01; /* read_in */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
@@ -107,10 +107,10 @@ static void usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 	request = 0x05;
 	requesttype = 0x00; /* write_out */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
 	data = val;
-	data = cpu_to_le32(data&0x000000ff);
+	data = cpu_to_le32(data & 0x000000ff);
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
 }
@@ -128,10 +128,10 @@ static void usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 	request = 0x05;
 	requesttype = 0x00; /* write_out */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
 	data = val;
-	data = cpu_to_le32(data&0x0000ffff);
+	data = cpu_to_le32(data & 0x0000ffff);
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
 }
@@ -149,7 +149,7 @@ static void usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 	request = 0x05;
 	requesttype = 0x00; /* write_out */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 	data = cpu_to_le32(val);
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,

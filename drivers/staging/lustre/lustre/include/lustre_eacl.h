@@ -70,7 +70,6 @@ typedef struct {
 #define CFS_ACL_XATTR_COUNT(size, prefix) \
 	(((size) - sizeof(prefix ## _header)) / sizeof(prefix ## _entry))
 
-
 extern ext_acl_xattr_header *
 lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size);
 extern int
@@ -80,10 +79,6 @@ extern void
 lustre_posix_acl_xattr_free(posix_acl_xattr_header *header, int size);
 extern void
 lustre_ext_acl_xattr_free(ext_acl_xattr_header *header);
-extern int
-lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
-			     ext_acl_xattr_header *ext_header,
-			     posix_acl_xattr_header **out);
 extern ext_acl_xattr_header *
 lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 			   ext_acl_xattr_header *ext_header);

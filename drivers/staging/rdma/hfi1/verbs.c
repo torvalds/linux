@@ -129,6 +129,9 @@ static void verbs_sdma_complete(
 	int status,
 	int drained);
 
+/* Length of buffer to create verbs txreq cache name */
+#define TXREQ_NAME_LEN 24
+
 /*
  * Note that it is OK to post send work requests in the SQE and ERR
  * states; hfi1_do_send() will process them and generate error
@@ -597,6 +600,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	u32 tlen = packet->tlen;
 	struct hfi1_pportdata *ppd = rcd->ppd;
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
+	unsigned long flags;
 	u32 qp_num;
 	int lnh;
 	u8 opcode;
@@ -639,10 +643,10 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {
 			packet->qp = p->qp;
-			spin_lock(&packet->qp->r_lock);
+			spin_lock_irqsave(&packet->qp->r_lock, flags);
 			if (likely((qp_ok(opcode, packet))))
 				opcode_handler_tbl[opcode](packet);
-			spin_unlock(&packet->qp->r_lock);
+			spin_unlock_irqrestore(&packet->qp->r_lock, flags);
 		}
 		/*
 		 * Notify hfi1_multicast_detach() if it is waiting for us
@@ -657,10 +661,10 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 			rcu_read_unlock();
 			goto drop;
 		}
-		spin_lock(&packet->qp->r_lock);
+		spin_lock_irqsave(&packet->qp->r_lock, flags);
 		if (likely((qp_ok(opcode, packet))))
 			opcode_handler_tbl[opcode](packet);
-		spin_unlock(&packet->qp->r_lock);
+		spin_unlock_irqrestore(&packet->qp->r_lock, flags);
 		rcu_read_unlock();
 	}
 	return;
@@ -1199,6 +1203,7 @@ pio_bail:
 	}
 	return 0;
 }
+
 /*
  * egress_pkey_matches_entry - return 1 if the pkey matches ent (ent
  * being an entry from the ingress partition key table), return 0
@@ -1884,7 +1889,7 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 
 static void verbs_txreq_kmem_cache_ctor(void *obj)
 {
-	struct verbs_txreq *tx = (struct verbs_txreq *)obj;
+	struct verbs_txreq *tx = obj;
 
 	memset(tx, 0, sizeof(*tx));
 }
@@ -1903,6 +1908,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	int ret;
 	size_t lcpysz = IB_DEVICE_NAME_MAX;
 	u16 descq_cnt;
+	char buf[TXREQ_NAME_LEN];
 
 	ret = hfi1_qp_init(dev);
 	if (ret)
@@ -1956,8 +1962,9 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	descq_cnt = sdma_get_descq_cnt();
 
+	snprintf(buf, sizeof(buf), "hfi1_%u_vtxreq_cache", dd->unit);
 	/* SLAB_HWCACHE_ALIGN for AHG */
-	dev->verbs_txreq_cache = kmem_cache_create("hfi1_vtxreq_cache",
+	dev->verbs_txreq_cache = kmem_cache_create(buf,
 						   sizeof(struct verbs_txreq),
 						   0, SLAB_HWCACHE_ALIGN,
 						   verbs_txreq_kmem_cache_ctor);

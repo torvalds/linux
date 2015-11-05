@@ -185,8 +185,11 @@ static void ion_system_heap_free(struct ion_buffer *buffer)
 	struct scatterlist *sg;
 	int i;
 
-	/* uncached pages come from the page pools, zero them before returning
-	   for security purposes (other allocations are zerod at alloc time */
+	/*
+	 *  uncached pages come from the page pools, zero them before returning
+	 *  for security purposes (other allocations are zerod at
+	 *  alloc time
+	 */
 	if (!cached && !(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE))
 		ion_heap_buffer_zero(buffer);
 

@@ -8,15 +8,9 @@
 
 
 
-#if defined (NM73131_0_BOARD)
-#define SDIO_MODALIAS "wilc_sdio"
-#else
 #define SDIO_MODALIAS "wilc1000_sdio"
-#endif
 
-#if defined (NM73131_0_BOARD)
- #define MAX_SPEED 50000000
-#elif defined(CUSTOMER_PLATFORM)
+#if defined(CUSTOMER_PLATFORM)
 /* TODO : User have to stable bus clock as user's environment. */
  #ifdef MAX_BUS_SPEED
  #define MAX_SPEED MAX_BUS_SPEED
@@ -27,11 +21,12 @@
  #define MAX_SPEED (6 * 1000000) /* Max 50M */
 #endif
 
+struct wilc_sdio {
+	struct sdio_func *func;
+	struct wilc *wilc;
+};
 
 struct sdio_func *local_sdio_func;
-extern linux_wlan_t *g_linux_wlan;
-extern int wilc_netdev_init(void);
-extern void wilc_handle_isr(void);
 
 static unsigned int sdio_default_speed;
 
@@ -40,14 +35,19 @@ static unsigned int sdio_default_speed;
 
 static const struct sdio_device_id wilc_sdio_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_WILC, SDIO_DEVICE_ID_WILC) },
+	{ },
 };
 
 
 static void wilc_sdio_interrupt(struct sdio_func *func)
 {
+	struct wilc_sdio *wl_sdio;
+
+	wl_sdio = sdio_get_drvdata(func);
+
 #ifndef WILC_SDIO_IRQ_GPIO
 	sdio_release_host(func);
-	wilc_handle_isr();
+	wilc_handle_isr(wl_sdio->wilc);
 	sdio_claim_host(func);
 #endif
 }
@@ -116,25 +116,26 @@ int linux_sdio_cmd53(sdio_cmd53_t *cmd)
 	return 1;
 }
 
-volatile int probe; /* COMPLEMENT_BOOT */
 static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
-	PRINT_D(INIT_DBG, "probe function\n");
+	struct wilc_sdio *wl_sdio;
+	struct wilc *wilc;
 
-#ifdef COMPLEMENT_BOOT
-	if (local_sdio_func != NULL) {
-		local_sdio_func = func;
-		probe = 1;
-		PRINT_D(INIT_DBG, "local_sdio_func isn't NULL\n");
-		return 0;
-	}
-#endif
+	PRINT_D(INIT_DBG, "probe function\n");
+	wl_sdio = kzalloc(sizeof(struct wilc_sdio), GFP_KERNEL);
+	if (!wl_sdio)
+		return -ENOMEM;
+
 	PRINT_D(INIT_DBG, "Initializing netdev\n");
 	local_sdio_func = func;
-	if (wilc_netdev_init()) {
+	if (wilc_netdev_init(&wilc)) {
 		PRINT_ER("Couldn't initialize netdev\n");
+		kfree(wl_sdio);
 		return -1;
 	}
+	wl_sdio->func = func;
+	wl_sdio->wilc = wilc;
+	sdio_set_drvdata(func, wl_sdio);
 
 	printk("Driver Initializing success\n");
 	return 0;
@@ -142,10 +143,11 @@ static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id 
 
 static void linux_sdio_remove(struct sdio_func *func)
 {
-	/**
-	 *      TODO
-	 **/
+	struct wilc_sdio *wl_sdio;
 
+	wl_sdio = sdio_get_drvdata(func);
+	wl_wlan_cleanup();
+	kfree(wl_sdio);
 }
 
 struct sdio_driver wilc_bus = {
@@ -194,6 +196,7 @@ void disable_sdio_interrupt(void)
 static int linux_sdio_set_speed(int speed)
 {
 	struct mmc_ios ios;
+
 	sdio_claim_host(local_sdio_func);
 
 	memcpy((void *)&ios, (void *)&local_sdio_func->card->host->ios, sizeof(struct mmc_ios));

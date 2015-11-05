@@ -214,7 +214,6 @@ static struct attribute *ad5504_ev_attributes[] = {
 
 static struct attribute_group ad5504_ev_attribute_group = {
 	.attrs = ad5504_ev_attributes,
-	.name = "events",
 };
 
 static irqreturn_t ad5504_event_handler(int irq, void *private)

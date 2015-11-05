@@ -71,6 +71,7 @@ static ssize_t lov_stripesize_seq_write(struct file *file,
 	desc->ld_default_stripe_size = val;
 	return count;
 }
+
 LPROC_SEQ_FOPS(lov_stripesize);
 
 static int lov_stripeoffset_seq_show(struct seq_file *m, void *v)
@@ -102,6 +103,7 @@ static ssize_t lov_stripeoffset_seq_write(struct file *file,
 	desc->ld_default_stripe_offset = val;
 	return count;
 }
+
 LPROC_SEQ_FOPS(lov_stripeoffset);
 
 static int lov_stripetype_seq_show(struct seq_file *m, void *v)
@@ -133,6 +135,7 @@ static ssize_t lov_stripetype_seq_write(struct file *file,
 	desc->ld_pattern = val;
 	return count;
 }
+
 LPROC_SEQ_FOPS(lov_stripetype);
 
 static int lov_stripecount_seq_show(struct seq_file *m, void *v)
@@ -164,6 +167,7 @@ static ssize_t lov_stripecount_seq_write(struct file *file,
 	desc->ld_default_stripe_count = val;
 	return count;
 }
+
 LPROC_SEQ_FOPS(lov_stripecount);
 
 static ssize_t numobd_show(struct kobject *kobj, struct attribute *attr,
@@ -200,6 +204,7 @@ static int lov_desc_uuid_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, "%s\n", lov->desc.ld_uuid.uuid);
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(lov_desc_uuid);
 
 static void *lov_tgt_seq_start(struct seq_file *p, loff_t *pos)

@@ -579,7 +579,7 @@ static inline int  musb_platform_recover(struct musb *musb)
 static inline int musb_platform_get_vbus_status(struct musb *musb)
 {
 	if (!musb->ops->vbus_status)
-		return 0;
+		return -EINVAL;
 
 	return musb->ops->vbus_status(musb);
 }

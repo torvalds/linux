@@ -396,7 +396,6 @@ int __init dove_init_pmu(void)
 
 		__pmu_domain_register(domain, np);
 	}
-	pm_genpd_poweroff_unused();
 
 	/* Loss of the interrupt controller is not a fatal error. */
 	parent_irq = irq_of_parse_and_map(pmu->of_node, 0);

@@ -1548,7 +1548,7 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 	}
 }
 
-static int XGIfb_has_VB(struct xgifb_video_info *xgifb_info)
+static bool XGIfb_has_VB(struct xgifb_video_info *xgifb_info)
 {
 	u8 vb_chipid;
 
@@ -1562,9 +1562,9 @@ static int XGIfb_has_VB(struct xgifb_video_info *xgifb_info)
 		break;
 	default:
 		xgifb_info->hasVB = HASVB_NONE;
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static void XGIfb_get_VB_type(struct xgifb_video_info *xgifb_info)

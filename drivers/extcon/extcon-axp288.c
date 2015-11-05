@@ -102,9 +102,9 @@ enum axp288_extcon_irq {
 };
 
 static const unsigned int axp288_extcon_cables[] = {
-	EXTCON_SLOW_CHARGER,
-	EXTCON_CHARGE_DOWNSTREAM,
-	EXTCON_FAST_CHARGER,
+	EXTCON_CHG_USB_SDP,
+	EXTCON_CHG_USB_CDP,
+	EXTCON_CHG_USB_DCP,
 	EXTCON_NONE,
 };
 
@@ -192,18 +192,18 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 		dev_dbg(info->dev, "sdp cable is connecetd\n");
 		notify_otg = true;
 		notify_charger = true;
-		cable = EXTCON_SLOW_CHARGER;
+		cable = EXTCON_CHG_USB_SDP;
 		break;
 	case DET_STAT_CDP:
 		dev_dbg(info->dev, "cdp cable is connecetd\n");
 		notify_otg = true;
 		notify_charger = true;
-		cable = EXTCON_CHARGE_DOWNSTREAM;
+		cable = EXTCON_CHG_USB_CDP;
 		break;
 	case DET_STAT_DCP:
 		dev_dbg(info->dev, "dcp cable is connecetd\n");
 		notify_charger = true;
-		cable = EXTCON_FAST_CHARGER;
+		cable = EXTCON_CHG_USB_DCP;
 		break;
 	default:
 		dev_warn(info->dev,
@@ -309,7 +309,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	}
 
 	/* Get otg transceiver phy */
-	info->otg = usb_get_phy(USB_PHY_TYPE_USB2);
+	info->otg = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
 	if (IS_ERR(info->otg)) {
 		dev_err(&pdev->dev, "failed to get otg transceiver\n");
 		return PTR_ERR(info->otg);
@@ -318,11 +318,11 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	/* Set up gpio control for USB Mux */
 	if (info->pdata->gpio_mux_cntl) {
 		gpio = desc_to_gpio(info->pdata->gpio_mux_cntl);
-		ret = gpio_request(gpio, "USB_MUX");
+		ret = devm_gpio_request(&pdev->dev, gpio, "USB_MUX");
 		if (ret < 0) {
 			dev_err(&pdev->dev,
 				"failed to request the gpio=%d\n", gpio);
-			goto gpio_req_failed;
+			return ret;
 		}
 		gpiod_direction_output(info->pdata->gpio_mux_cntl,
 						EXTCON_GPIO_MUX_SEL_PMIC);
@@ -335,7 +335,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"failed to get virtual interrupt=%d\n", pirq);
 			ret = info->irq[i];
-			goto gpio_req_failed;
+			return ret;
 		}
 
 		ret = devm_request_threaded_irq(&pdev->dev, info->irq[i],
@@ -345,7 +345,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "failed to request interrupt=%d\n",
 							info->irq[i]);
-			goto gpio_req_failed;
+			return ret;
 		}
 	}
 
@@ -353,23 +353,10 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	axp288_extcon_enable_irq(info);
 
 	return 0;
-
-gpio_req_failed:
-	usb_put_phy(info->otg);
-	return ret;
-}
-
-static int axp288_extcon_remove(struct platform_device *pdev)
-{
-	struct axp288_extcon_info *info = platform_get_drvdata(pdev);
-
-	usb_put_phy(info->otg);
-	return 0;
 }
 
 static struct platform_driver axp288_extcon_driver = {
 	.probe = axp288_extcon_probe,
-	.remove = axp288_extcon_remove,
 	.driver = {
 		.name = "axp288_extcon",
 	},

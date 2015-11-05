@@ -118,6 +118,7 @@ static int llog_client_open(const struct lu_env *env,
 
 	if (name) {
 		char *tmp;
+
 		tmp = req_capsule_client_sized_get(&req->rq_pill, &RMF_NAME,
 						   strlen(name) + 1);
 		LASSERT(tmp);
@@ -141,41 +142,6 @@ out:
 	ptlrpc_req_finished(req);
 	return rc;
 }
-
-static int llog_client_destroy(const struct lu_env *env,
-			       struct llog_handle *loghandle)
-{
-	struct obd_import *imp;
-	struct ptlrpc_request *req = NULL;
-	struct llogd_body *body;
-	int rc;
-
-	LLOG_CLIENT_ENTRY(loghandle->lgh_ctxt, imp);
-	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_DESTROY,
-					LUSTRE_LOG_VERSION,
-					LLOG_ORIGIN_HANDLE_DESTROY);
-	if (req == NULL) {
-		rc = -ENOMEM;
-		goto err_exit;
-	}
-
-	body = req_capsule_client_get(&req->rq_pill, &RMF_LLOGD_BODY);
-	body->lgd_logid = loghandle->lgh_id;
-	body->lgd_llh_flags = loghandle->lgh_hdr->llh_flags;
-
-	if (!(body->lgd_llh_flags & LLOG_F_IS_PLAIN))
-		CERROR("%s: wrong llog flags %x\n", imp->imp_obd->obd_name,
-		       body->lgd_llh_flags);
-
-	ptlrpc_request_set_replen(req);
-	rc = ptlrpc_queue_wait(req);
-
-	ptlrpc_req_finished(req);
-err_exit:
-	LLOG_CLIENT_EXIT(loghandle->lgh_ctxt, imp);
-	return rc;
-}
-
 
 static int llog_client_next_block(const struct lu_env *env,
 				  struct llog_handle *loghandle,
@@ -360,7 +326,6 @@ struct llog_operations llog_client_ops = {
 	.lop_prev_block		= llog_client_prev_block,
 	.lop_read_header	= llog_client_read_header,
 	.lop_open		= llog_client_open,
-	.lop_destroy		= llog_client_destroy,
 	.lop_close		= llog_client_close,
 };
 EXPORT_SYMBOL(llog_client_ops);

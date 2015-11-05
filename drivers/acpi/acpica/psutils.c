@@ -205,7 +205,6 @@ u8 acpi_ps_is_leading_char(u32 c)
 /*
  * Get op's name (4-byte name segment) or 0 if unnamed
  */
-#ifdef ACPI_FUTURE_USAGE
 u32 acpi_ps_get_name(union acpi_parse_object * op)
 {
 
@@ -219,7 +218,6 @@ u32 acpi_ps_get_name(union acpi_parse_object * op)
 
 	return (op->named.name);
 }
-#endif				/*  ACPI_FUTURE_USAGE  */
 
 /*
  * Set op's name

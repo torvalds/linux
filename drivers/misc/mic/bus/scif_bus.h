@@ -46,6 +46,8 @@ struct scif_hw_dev_id {
  * @rdp - Remote device page
  * @dma_ch - Array of DMA channels
  * @num_dma_ch - Number of DMA channels available
+ * @card_rel_da - Set to true if DMA addresses programmed in the DMA engine
+ *		are relative to the card point of view
  */
 struct scif_hw_dev {
 	struct scif_hw_ops *hw_ops;
@@ -59,6 +61,7 @@ struct scif_hw_dev {
 	void __iomem *rdp;
 	struct dma_chan **dma_ch;
 	int num_dma_ch;
+	bool card_rel_da;
 };
 
 /**
@@ -114,7 +117,8 @@ scif_register_device(struct device *pdev, int id,
 		     struct scif_hw_ops *hw_ops, u8 dnode, u8 snode,
 		     struct mic_mw *mmio, struct mic_mw *aper,
 		     void *dp, void __iomem *rdp,
-		     struct dma_chan **chan, int num_chan);
+		     struct dma_chan **chan, int num_chan,
+		     bool card_rel_da);
 void scif_unregister_device(struct scif_hw_dev *sdev);
 
 static inline struct scif_hw_dev *dev_to_scif(struct device *dev)
