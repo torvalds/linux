@@ -61,6 +61,7 @@ struct skl {
 
 	unsigned int init_failed:1; /* delayed init failed */
 	struct platform_device *dmic_dev;
+	struct platform_device *i2s_dev;
 
 	void *nhlt; /* nhlt ptr */
 	struct skl_sst *skl_sst; /* sst skl ctx */

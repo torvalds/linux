@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <sound/pcm.h>
+#include "../common/sst-acpi.h"
 #include "skl.h"
 
 /*
@@ -249,6 +250,42 @@ static int skl_free(struct hdac_ext_bus *ebus)
 	snd_hdac_ext_bus_exit(ebus);
 
 	return 0;
+}
+
+static int skl_machine_device_register(struct skl *skl, void *driver_data)
+{
+	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct platform_device *pdev;
+	struct sst_acpi_mach *mach = driver_data;
+	int ret;
+
+	mach = sst_acpi_find_machine(mach);
+	if (mach == NULL) {
+		dev_err(bus->dev, "No matching machine driver found\n");
+		return -ENODEV;
+	}
+
+	pdev = platform_device_alloc(mach->drv_name, -1);
+	if (pdev == NULL) {
+		dev_err(bus->dev, "platform device alloc failed\n");
+		return -EIO;
+	}
+
+	ret = platform_device_add(pdev);
+	if (ret) {
+		dev_err(bus->dev, "failed to add machine device\n");
+		platform_device_put(pdev);
+		return -EIO;
+	}
+	skl->i2s_dev = pdev;
+
+	return 0;
+}
+
+static void skl_machine_device_unregister(struct skl *skl)
+{
+	if (skl->i2s_dev)
+		platform_device_unregister(skl->i2s_dev);
 }
 
 static int skl_dmic_device_register(struct skl *skl)
@@ -479,10 +516,15 @@ static int skl_probe(struct pci_dev *pci,
 
 	/* check if dsp is there */
 	if (ebus->ppcap) {
+		err = skl_machine_device_register(skl,
+				  (void *)pci_id->driver_data);
+		if (err < 0)
+			goto out_free;
+
 		err = skl_init_dsp(skl);
 		if (err < 0) {
 			dev_dbg(bus->dev, "error failed to register dsp\n");
-			goto out_free;
+			goto out_mach_free;
 		}
 	}
 	if (ebus->mlcap)
@@ -517,6 +559,8 @@ out_dmic_free:
 	skl_dmic_device_unregister(skl);
 out_dsp_free:
 	skl_free_dsp(skl);
+out_mach_free:
+	skl_machine_device_unregister(skl);
 out_free:
 	skl->init_failed = 1;
 	skl_free(ebus);
@@ -534,15 +578,22 @@ static void skl_remove(struct pci_dev *pci)
 	pci_dev_put(pci);
 	skl_platform_unregister(&pci->dev);
 	skl_free_dsp(skl);
+	skl_machine_device_unregister(skl);
 	skl_dmic_device_unregister(skl);
 	skl_free(ebus);
 	dev_set_drvdata(&pci->dev, NULL);
 }
 
+static struct sst_acpi_mach sst_skl_devdata[] = {
+	{ "INT343A", "skl_alc286s_i2s", "intel/dsp_fw_release.bin", NULL, NULL, NULL },
+	{}
+};
+
 /* PCI IDs */
 static const struct pci_device_id skl_ids[] = {
 	/* Sunrise Point-LP */
-	{ PCI_DEVICE(0x8086, 0x9d70), 0},
+	{ PCI_DEVICE(0x8086, 0x9d70),
+		.driver_data = (unsigned long)&sst_skl_devdata},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, skl_ids);
