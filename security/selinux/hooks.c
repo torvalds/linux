@@ -4931,11 +4931,23 @@ static unsigned int selinux_ipv4_output(void *priv,
 	return selinux_ip_output(skb, PF_INET);
 }
 
+/* SYNACK messages might be attached to request sockets.
+ * To get back to sk_security, we need to look at the listener.
+ */
+static struct sock *selinux_skb_sk(const struct sk_buff *skb)
+{
+	struct sock *sk = skb->sk;
+
+	if (sk && sk->sk_state == TCP_NEW_SYN_RECV)
+		sk = inet_reqsk(sk)->rsk_listener;
+	return sk;
+}
+
 static unsigned int selinux_ip_postroute_compat(struct sk_buff *skb,
 						int ifindex,
 						u16 family)
 {
-	struct sock *sk = skb->sk;
+	struct sock *sk = selinux_skb_sk(skb);
 	struct sk_security_struct *sksec;
 	struct common_audit_data ad;
 	struct lsm_network_audit net = {0,};
@@ -4990,7 +5002,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 	if (!secmark_active && !peerlbl_active)
 		return NF_ACCEPT;
 
-	sk = skb->sk;
+	sk = selinux_skb_sk(skb);
 
 #ifdef CONFIG_XFRM
 	/* If skb->dst->xfrm is non-NULL then the packet is undergoing an IPsec
@@ -5035,8 +5047,6 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 		u32 skb_sid;
 		struct sk_security_struct *sksec;
 
-		if (sk->sk_state == TCP_NEW_SYN_RECV)
-			sk = inet_reqsk(sk)->rsk_listener;
 		sksec = sk->sk_security;
 		if (selinux_skb_peerlbl_sid(skb, family, &skb_sid))
 			return NF_DROP;
