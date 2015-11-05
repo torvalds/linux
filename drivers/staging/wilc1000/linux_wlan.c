@@ -553,14 +553,13 @@ static int linux_wlan_firmware_download(struct net_device *dev)
 
 	if (!wilc->firmware) {
 		PRINT_ER("Firmware buffer is NULL\n");
-		ret = -ENOBUFS;
-		goto _FAIL_;
+		return -ENOBUFS;
 	}
 	PRINT_D(INIT_DBG, "Downloading Firmware ...\n");
 	ret = wilc_wlan_firmware_download(wilc->firmware->data,
 					  wilc->firmware->size);
 	if (ret < 0)
-		goto _FAIL_;
+		return ret;
 
 	PRINT_D(INIT_DBG, "Freeing FW buffer ...\n");
 	PRINT_D(INIT_DBG, "Releasing firmware\n");
@@ -568,8 +567,7 @@ static int linux_wlan_firmware_download(struct net_device *dev)
 
 	PRINT_D(INIT_DBG, "Download Succeeded\n");
 
-_FAIL_:
-	return ret;
+	return 0;
 }
 
 static int linux_wlan_init_test_config(struct net_device *dev, struct wilc *p_nic)
