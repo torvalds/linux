@@ -124,7 +124,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 	struct wilc_priv *priv;
 	struct host_if_drv *hif_drv;
 	struct net_device *dev;
-	u8 *pIP_Add_buff;
+	u8 *ip_addr_buf;
 	perInterface_wlan_t *nic;
 	u8 null_ip[4] = {0};
 	char wlan_dev_name[5] = "wlan0";
@@ -177,9 +177,11 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 
 		PRINT_D(GENERIC_DBG, "[%s] Up IP\n", dev_iface->ifa_label);
 
-		pIP_Add_buff = (char *) (&(dev_iface->ifa_address));
-		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d\n", pIP_Add_buff[0], pIP_Add_buff[1], pIP_Add_buff[2], pIP_Add_buff[3]);
-		host_int_setup_ipaddress(hif_drv, pIP_Add_buff, nic->u8IfIdx);
+		ip_addr_buf = (char *)&dev_iface->ifa_address;
+		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d\n",
+			ip_addr_buf[0], ip_addr_buf[1],
+			ip_addr_buf[2], ip_addr_buf[3]);
+		host_int_setup_ipaddress(hif_drv, ip_addr_buf, nic->u8IfIdx);
 
 		break;
 
@@ -199,10 +201,12 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 
 		PRINT_D(GENERIC_DBG, "[%s] Down IP\n", dev_iface->ifa_label);
 
-		pIP_Add_buff = null_ip;
-		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d\n", pIP_Add_buff[0], pIP_Add_buff[1], pIP_Add_buff[2], pIP_Add_buff[3]);
+		ip_addr_buf = null_ip;
+		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d\n",
+			ip_addr_buf[0], ip_addr_buf[1],
+			ip_addr_buf[2], ip_addr_buf[3]);
 
-		host_int_setup_ipaddress(hif_drv, pIP_Add_buff, nic->u8IfIdx);
+		host_int_setup_ipaddress(hif_drv, ip_addr_buf, nic->u8IfIdx);
 
 		break;
 
