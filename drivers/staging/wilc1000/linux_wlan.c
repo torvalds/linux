@@ -1344,7 +1344,7 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	u32 size = 0, length = 0;
 	perInterface_wlan_t *nic;
 	struct wilc_priv *priv;
-	s32 s32Error = 0;
+	s32 ret = 0;
 	struct wilc *wilc;
 
 	nic = netdev_priv(ndev);
@@ -1368,8 +1368,9 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 
 			if (strncasecmp(buff, "RSSI", length) == 0) {
 				priv = wiphy_priv(nic->wilc_netdev->ieee80211_ptr->wiphy);
-				s32Error = host_int_get_rssi(priv->hWILCWFIDrv, &(rssi));
-				if (s32Error)
+				ret = host_int_get_rssi(priv->hWILCWFIDrv,
+							&rssi);
+				if (ret)
 					PRINT_ER("Failed to send get rssi param's message queue ");
 				PRINT_INFO(GENERIC_DBG, "RSSI :%d\n", rssi);
 
@@ -1379,7 +1380,7 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 
 				if (copy_to_user(wrq->u.data.pointer, buff, size)) {
 					PRINT_ER("%s: failed to copy data to user buffer\n", __func__);
-					s32Error = -EFAULT;
+					ret = -EFAULT;
 					goto done;
 				}
 			}
@@ -1390,7 +1391,7 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	default:
 	{
 		PRINT_INFO(GENERIC_DBG, "Command - %d - has been received\n", cmd);
-		s32Error = -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
 		goto done;
 	}
 	}
@@ -1399,7 +1400,7 @@ done:
 
 	kfree(buff);
 
-	return s32Error;
+	return ret;
 }
 
 void frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
