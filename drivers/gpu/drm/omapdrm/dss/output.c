@@ -228,9 +228,9 @@ void dss_mgr_disable(enum omap_channel channel)
 }
 EXPORT_SYMBOL(dss_mgr_disable);
 
-void dss_mgr_start_update(struct omap_overlay_manager *mgr)
+void dss_mgr_start_update(enum omap_channel channel)
 {
-	dss_mgr_ops->start_update(mgr->id);
+	dss_mgr_ops->start_update(channel);
 }
 EXPORT_SYMBOL(dss_mgr_start_update);
 

@@ -3982,7 +3982,7 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 
 	dss_mgr_set_timings(mgr->id, &dsi->timings);
 
-	dss_mgr_start_update(mgr);
+	dss_mgr_start_update(mgr->id);
 
 	if (dsi->te_enabled) {
 		/* disable LP_RX_TO, so that we can receive TE.  Time to wait
