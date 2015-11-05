@@ -138,6 +138,7 @@ struct perf_stat {
 	bool			 maps_allocated;
 	struct cpu_map		*cpus;
 	struct thread_map	*threads;
+	enum aggr_mode		 aggr_mode;
 };
 
 static struct perf_stat		perf_stat;
@@ -1663,6 +1664,15 @@ int process_stat_config_event(struct perf_tool *tool __maybe_unused,
 
 	perf_event__read_stat_config(&stat_config, &event->stat_config);
 
+	if (cpu_map__empty(st->cpus)) {
+		if (st->aggr_mode != AGGR_UNSET)
+			pr_warning("warning: processing task data, aggregation mode not set\n");
+		return 0;
+	}
+
+	if (st->aggr_mode != AGGR_UNSET)
+		stat_config.aggr_mode = st->aggr_mode;
+
 	if (perf_stat.file.is_pipe)
 		perf_stat_init_aggr_mode();
 	else
@@ -1743,6 +1753,7 @@ static struct perf_stat perf_stat = {
 		.stat		= perf_event__process_stat_event,
 		.stat_round	= process_stat_round_event,
 	},
+	.aggr_mode = AGGR_UNSET,
 };
 
 static int __cmd_report(int argc, const char **argv)
@@ -1750,6 +1761,12 @@ static int __cmd_report(int argc, const char **argv)
 	struct perf_session *session;
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+	OPT_SET_UINT(0, "per-socket", &perf_stat.aggr_mode,
+		     "aggregate counts per processor socket", AGGR_SOCKET),
+	OPT_SET_UINT(0, "per-core", &perf_stat.aggr_mode,
+		     "aggregate counts per physical processor core", AGGR_CORE),
+	OPT_SET_UINT('A', "no-aggr", &perf_stat.aggr_mode,
+		     "disable CPU count aggregation", AGGR_NONE),
 	OPT_END()
 	};
 	struct stat st;

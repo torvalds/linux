@@ -182,6 +182,16 @@ Reads and reports stat data from perf data file.
 --input file::
 Input file name.
 
+--per-socket::
+Aggregate counts per processor socket for system-wide mode measurements.
+
+--per-core::
+Aggregate counts per physical processor for system-wide mode measurements.
+
+-A::
+--no-aggr::
+Do not aggregate counts across all monitored CPUs.
+
 
 EXAMPLES
 --------
