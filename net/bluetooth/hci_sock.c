@@ -120,13 +120,13 @@ static bool is_filtered_packet(struct sock *sk, struct sk_buff *skb)
 	/* Apply filter */
 	flt = &hci_pi(sk)->filter;
 
-	flt_type = bt_cb(skb)->pkt_type & HCI_FLT_TYPE_BITS;
+	flt_type = hci_skb_pkt_type(skb) & HCI_FLT_TYPE_BITS;
 
 	if (!test_bit(flt_type, &flt->type_mask))
 		return true;
 
 	/* Extra filter for event packets only */
-	if (bt_cb(skb)->pkt_type != HCI_EVENT_PKT)
+	if (hci_skb_pkt_type(skb) != HCI_EVENT_PKT)
 		return false;
 
 	flt_event = (*(__u8 *)skb->data & HCI_FLT_EVENT_BITS);
@@ -170,19 +170,19 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 			continue;
 
 		if (hci_pi(sk)->channel == HCI_CHANNEL_RAW) {
-			if (bt_cb(skb)->pkt_type != HCI_COMMAND_PKT &&
-			    bt_cb(skb)->pkt_type != HCI_EVENT_PKT &&
-			    bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
-			    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT)
+			if (hci_skb_pkt_type(skb) != HCI_COMMAND_PKT &&
+			    hci_skb_pkt_type(skb) != HCI_EVENT_PKT &&
+			    hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
+			    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT)
 				continue;
 			if (is_filtered_packet(sk, skb))
 				continue;
 		} else if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
 			if (!bt_cb(skb)->incoming)
 				continue;
-			if (bt_cb(skb)->pkt_type != HCI_EVENT_PKT &&
-			    bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
-			    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT)
+			if (hci_skb_pkt_type(skb) != HCI_EVENT_PKT &&
+			    hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
+			    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT)
 				continue;
 		} else {
 			/* Don't send frame to other channel types */
@@ -196,7 +196,7 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 				continue;
 
 			/* Put type byte before the data */
-			memcpy(skb_push(skb_copy, 1), &bt_cb(skb)->pkt_type, 1);
+			memcpy(skb_push(skb_copy, 1), &hci_skb_pkt_type(skb), 1);
 		}
 
 		nskb = skb_clone(skb_copy, GFP_ATOMIC);
@@ -262,7 +262,7 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("hdev %p len %d", hdev, skb->len);
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		opcode = cpu_to_le16(HCI_MON_COMMAND_PKT);
 		break;
@@ -447,7 +447,7 @@ static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 	bt_cb(skb)->incoming = 1;
 	__net_timestamp(skb);
 
-	bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
+	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
 	hci_send_to_sock(hdev, skb);
 	kfree_skb(skb);
 }
@@ -1211,7 +1211,7 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		goto drop;
 	}
 
-	bt_cb(skb)->pkt_type = *((unsigned char *) skb->data);
+	hci_skb_pkt_type(skb) = *((unsigned char *) skb->data);
 	skb_pull(skb, 1);
 
 	if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
@@ -1220,16 +1220,16 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		 *
 		 * However check that the packet type is valid.
 		 */
-		if (bt_cb(skb)->pkt_type != HCI_COMMAND_PKT &&
-		    bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
-		    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT) {
+		if (hci_skb_pkt_type(skb) != HCI_COMMAND_PKT &&
+		    hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
+		    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT) {
 			err = -EINVAL;
 			goto drop;
 		}
 
 		skb_queue_tail(&hdev->raw_q, skb);
 		queue_work(hdev->workqueue, &hdev->tx_work);
-	} else if (bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
+	} else if (hci_skb_pkt_type(skb) == HCI_COMMAND_PKT) {
 		u16 opcode = get_unaligned_le16(skb->data);
 		u16 ogf = hci_opcode_ogf(opcode);
 		u16 ocf = hci_opcode_ocf(opcode);
@@ -1260,8 +1260,8 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			goto drop;
 		}
 
-		if (bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
-		    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT) {
+		if (hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
+		    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT) {
 			err = -EINVAL;
 			goto drop;
 		}

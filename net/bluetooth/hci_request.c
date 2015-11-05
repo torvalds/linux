@@ -98,8 +98,8 @@ struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	BT_DBG("skb len %d", skb->len);
 
-	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
-	bt_cb(skb)->hci.opcode = opcode;
+	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
+	hci_skb_opcode(skb) = opcode;
 
 	return skb;
 }
