@@ -1395,6 +1395,19 @@ static bool __snapshotted_since(struct dm_thin_device *td, uint32_t time)
 	return td->snapshotted_time > time;
 }
 
+static void unpack_lookup_result(struct dm_thin_device *td, __le64 value,
+				 struct dm_thin_lookup_result *result)
+{
+	uint64_t block_time = 0;
+	dm_block_t exception_block;
+	uint32_t exception_time;
+
+	block_time = le64_to_cpu(value);
+	unpack_block_time(block_time, &exception_block, &exception_time);
+	result->block = exception_block;
+	result->shared = __snapshotted_since(td, exception_time);
+}
+
 int dm_thin_find_block(struct dm_thin_device *td, dm_block_t block,
 		       int can_issue_io, struct dm_thin_lookup_result *result)
 {
@@ -1416,23 +1429,36 @@ int dm_thin_find_block(struct dm_thin_device *td, dm_block_t block,
 		info = &pmd->nb_info;
 
 	r = dm_btree_lookup(info, pmd->root, keys, &value);
-	if (!r) {
-		uint64_t block_time = 0;
-		dm_block_t exception_block;
-		uint32_t exception_time;
-
-		block_time = le64_to_cpu(value);
-		unpack_block_time(block_time, &exception_block,
-				  &exception_time);
-		result->block = exception_block;
-		result->shared = __snapshotted_since(td, exception_time);
-	}
+	if (!r)
+		unpack_lookup_result(td, value, result);
 
 	up_read(&pmd->root_lock);
 	return r;
 }
 
-/* FIXME: write a more efficient one in btree */
+static int dm_thin_find_next_mapped_block(struct dm_thin_device *td, dm_block_t block,
+					  dm_block_t *vblock,
+					  struct dm_thin_lookup_result *result)
+{
+	int r;
+	__le64 value;
+	struct dm_pool_metadata *pmd = td->pmd;
+	dm_block_t keys[2] = { td->id, block };
+
+	down_read(&pmd->root_lock);
+	if (pmd->fail_io) {
+		up_read(&pmd->root_lock);
+		return -EINVAL;
+	}
+
+	r = dm_btree_lookup_next(&pmd->info, pmd->root, keys, vblock, &value);
+	if (!r)
+		unpack_lookup_result(td, value, result);
+
+	up_read(&pmd->root_lock);
+	return r;
+}
+
 int dm_thin_find_mapped_range(struct dm_thin_device *td,
 			      dm_block_t begin, dm_block_t end,
 			      dm_block_t *thin_begin, dm_block_t *thin_end,
@@ -1445,21 +1471,11 @@ int dm_thin_find_mapped_range(struct dm_thin_device *td,
 	if (end < begin)
 		return -ENODATA;
 
-	/*
-	 * Find first mapped block.
-	 */
-	while (begin < end) {
-		r = dm_thin_find_block(td, begin, true, &lookup);
-		if (r) {
-			if (r != -ENODATA)
-				return r;
-		} else
-			break;
+	r = dm_thin_find_next_mapped_block(td, begin, &begin, &lookup);
+	if (r)
+		return r;
 
-		begin++;
-	}
-
-	if (begin == end)
+	if (begin >= end)
 		return -ENODATA;
 
 	*thin_begin = begin;
