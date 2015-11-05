@@ -348,14 +348,17 @@ static struct amd_sched_entity *
 amd_sched_select_entity(struct amd_gpu_scheduler *sched)
 {
 	struct amd_sched_entity *entity;
+	int i;
 
 	if (!amd_sched_ready(sched))
 		return NULL;
 
 	/* Kernel run queue has higher priority than normal run queue*/
-	entity = amd_sched_rq_select_entity(&sched->kernel_rq);
-	if (entity == NULL)
-		entity = amd_sched_rq_select_entity(&sched->sched_rq);
+	for (i = 0; i < AMD_SCHED_MAX_PRIORITY; i++) {
+		entity = amd_sched_rq_select_entity(&sched->sched_rq[i]);
+		if (entity)
+			break;
+	}
 
 	return entity;
 }
@@ -477,12 +480,13 @@ int amd_sched_init(struct amd_gpu_scheduler *sched,
 		   struct amd_sched_backend_ops *ops,
 		   unsigned hw_submission, long timeout, const char *name)
 {
+	int i;
 	sched->ops = ops;
 	sched->hw_submission_limit = hw_submission;
 	sched->name = name;
 	sched->timeout = timeout;
-	amd_sched_rq_init(&sched->sched_rq);
-	amd_sched_rq_init(&sched->kernel_rq);
+	for (i = 0; i < AMD_SCHED_MAX_PRIORITY; i++)
+		amd_sched_rq_init(&sched->sched_rq[i]);
 
 	init_waitqueue_head(&sched->wake_up_worker);
 	init_waitqueue_head(&sched->job_scheduled);

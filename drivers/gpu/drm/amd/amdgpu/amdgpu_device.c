@@ -1528,7 +1528,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 	}
 
-	r = amdgpu_ctx_init(adev, true, &adev->kernel_ctx);
+	r = amdgpu_ctx_init(adev, AMD_SCHED_PRIORITY_KERNEL, &adev->kernel_ctx);
 	if (r) {
 		dev_err(adev->dev, "failed to create kernel context (%d).\n", r);
 		return r;

@@ -25,7 +25,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 
-int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
+int amdgpu_ctx_init(struct amdgpu_device *adev, enum amd_sched_priority pri,
 		    struct amdgpu_ctx *ctx)
 {
 	unsigned i, j;
@@ -42,10 +42,9 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
 		/* create context entity for each ring */
 		for (i = 0; i < adev->num_rings; i++) {
 			struct amd_sched_rq *rq;
-			if (kernel)
-				rq = &adev->rings[i]->sched.kernel_rq;
-			else
-				rq = &adev->rings[i]->sched.sched_rq;
+			if (pri >= AMD_SCHED_MAX_PRIORITY)
+				return -EINVAL;
+			rq = &adev->rings[i]->sched.sched_rq[pri];
 			r = amd_sched_entity_init(&adev->rings[i]->sched,
 						  &ctx->rings[i].entity,
 						  rq, amdgpu_sched_jobs);
@@ -103,7 +102,7 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 		return r;
 	}
 	*id = (uint32_t)r;
-	r = amdgpu_ctx_init(adev, false, ctx);
+	r = amdgpu_ctx_init(adev, AMD_SCHED_PRIORITY_NORMAL, ctx);
 	mutex_unlock(&mgr->lock);
 
 	return r;

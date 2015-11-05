@@ -1044,7 +1044,7 @@ struct amdgpu_ctx_mgr {
 	struct idr		ctx_handles;
 };
 
-int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
+int amdgpu_ctx_init(struct amdgpu_device *adev, enum amd_sched_priority pri,
 		    struct amdgpu_ctx *ctx);
 void amdgpu_ctx_fini(struct amdgpu_ctx *ctx);
 
