@@ -38,7 +38,6 @@
  #define _linux_wlan_device_removal()		{}
 
 extern bool g_obtainingIP;
-extern void resolve_disconnect_aberration(void *drvHandler);
 extern u8 multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 extern struct timer_list hDuringIpTimer;
 

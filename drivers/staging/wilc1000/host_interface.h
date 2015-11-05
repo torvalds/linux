@@ -420,5 +420,5 @@ void host_int_freeJoinParams(void *pJoinParams);
 
 s32 host_int_get_statistics(struct host_if_drv *hWFIDrv,
 			    struct rf_info *pstrStatistics);
-
+void resolve_disconnect_aberration(struct host_if_drv *hif_drv);
 #endif
