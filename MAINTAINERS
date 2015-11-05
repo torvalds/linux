@@ -3403,8 +3403,11 @@ DEVICE FREQUENCY (DEVFREQ)
 M:	MyungJoo Ham <myungjoo.ham@samsung.com>
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 L:	linux-pm@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mzx/devfreq.git
 S:	Maintained
 F:	drivers/devfreq/
+F:	include/linux/devfreq.h
+F:	Documentation/devicetree/bindings/devfreq/
 
 DEVICE NUMBER REGISTRY
 M:	Torben Mathiasen <device@lanana.org>
