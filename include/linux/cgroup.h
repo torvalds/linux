@@ -88,6 +88,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 int cgroup_add_dfl_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_add_legacy_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cftype *cfts);
+void cgroup_file_notify(struct cgroup_file *cfile);
 
 char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
 int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry);
@@ -514,19 +515,6 @@ static inline void pr_cont_cgroup_name(struct cgroup *cgrp)
 static inline void pr_cont_cgroup_path(struct cgroup *cgrp)
 {
 	pr_cont_kernfs_path(cgrp->kn);
-}
-
-/**
- * cgroup_file_notify - generate a file modified event for a cgroup_file
- * @cfile: target cgroup_file
- *
- * @cfile must have been obtained by setting cftype->file_offset.
- */
-static inline void cgroup_file_notify(struct cgroup_file *cfile)
-{
-	/* might not have been created due to one of the CFTYPE selector flags */
-	if (cfile->kn)
-		kernfs_notify(cfile->kn);
 }
 
 #else /* !CONFIG_CGROUPS */
