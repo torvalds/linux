@@ -21,20 +21,11 @@
 #include <linux/platform_device.h>
 
 #include "sst-dsp.h"
+#include "sst-acpi.h"
 
 #define SST_LPT_DSP_DMA_ADDR_OFFSET	0x0F0000
 #define SST_WPT_DSP_DMA_ADDR_OFFSET	0x0FE000
 #define SST_LPT_DSP_DMA_SIZE		(1024 - 1)
-
-/* Descriptor for SST ASoC machine driver */
-struct sst_acpi_mach {
-	/* ACPI ID for the matching machine driver. Audio codec for instance */
-	const u8 id[ACPI_ID_LEN];
-	/* machine driver name */
-	const char *drv_name;
-	/* firmware file name */
-	const char *fw_filename;
-};
 
 /* Descriptor for setting up SST platform data */
 struct sst_acpi_desc {
@@ -86,28 +77,6 @@ static void sst_acpi_fw_cb(const struct firmware *fw, void *context)
 	}
 
 	return;
-}
-
-static acpi_status sst_acpi_mach_match(acpi_handle handle, u32 level,
-				       void *context, void **ret)
-{
-	*(bool *)context = true;
-	return AE_OK;
-}
-
-static struct sst_acpi_mach *sst_acpi_find_machine(
-	struct sst_acpi_mach *machines)
-{
-	struct sst_acpi_mach *mach;
-	bool found = false;
-
-	for (mach = machines; mach->id[0]; mach++)
-		if (ACPI_SUCCESS(acpi_get_devices(mach->id,
-						  sst_acpi_mach_match,
-						  &found, NULL)) && found)
-			return mach;
-
-	return NULL;
 }
 
 static int sst_acpi_probe(struct platform_device *pdev)
