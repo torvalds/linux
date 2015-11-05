@@ -231,6 +231,16 @@ static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+static int write_stat_round_event(u64 time, u64 type)
+{
+	return perf_event__synthesize_stat_round(NULL, time, type,
+						 process_synthesized_event,
+						 NULL);
+}
+
+#define WRITE_STAT_ROUND_EVENT(time, interval) \
+	write_stat_round_event(time, PERF_STAT_ROUND_TYPE__ ## interval)
+
 #define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
 
 static int
@@ -305,6 +315,11 @@ static void process_interval(void)
 
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	diff_timespec(&rs, &ts, &ref_time);
+
+	if (STAT_RECORD) {
+		if (WRITE_STAT_ROUND_EVENT(rs.tv_sec * NSECS_PER_SEC + rs.tv_nsec, INTERVAL))
+			pr_err("failed to write stat round event\n");
+	}
 
 	print_counters(&rs, 0, NULL);
 }
@@ -1668,6 +1683,11 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		if (err) {
 			pr_warning("Couldn't synthesize the kernel mmap record, harmless, "
 				   "older tools may produce warnings about this file\n.");
+		}
+
+		if (!interval) {
+			if (WRITE_STAT_ROUND_EVENT(walltime_nsecs_stats.max, FINAL))
+				pr_err("failed to write stat round event\n");
 		}
 
 		if (!perf_stat.file.is_pipe) {
