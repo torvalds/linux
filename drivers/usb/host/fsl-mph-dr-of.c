@@ -351,6 +351,7 @@ static const struct of_device_id fsl_usb2_mph_dr_of_match[] = {
 #endif
 	{},
 };
+MODULE_DEVICE_TABLE(of, fsl_usb2_mph_dr_of_match);
 
 static struct platform_driver fsl_usb2_mph_dr_driver = {
 	.driver = {

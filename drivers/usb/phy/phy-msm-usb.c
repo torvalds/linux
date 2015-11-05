@@ -1529,7 +1529,7 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	if (IS_ERR(motg->phy_rst))
 		motg->phy_rst = NULL;
 
-	pdata->mode = of_usb_get_dr_mode(node);
+	pdata->mode = usb_get_dr_mode(&pdev->dev);
 	if (pdata->mode == USB_DR_MODE_UNKNOWN)
 		pdata->mode = USB_DR_MODE_OTG;
 

@@ -1913,7 +1913,7 @@ static void defect7374_disable_data_eps(struct net2280 *dev)
 
 	for (i = 1; i < 5; i++) {
 		ep = &dev->ep[i];
-		writel(0, &ep->cfg->ep_cfg);
+		writel(i, &ep->cfg->ep_cfg);
 	}
 
 	/* CSROUT, CSRIN, PCIOUT, PCIIN, STATIN, RCIN */
