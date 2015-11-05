@@ -34,6 +34,8 @@
 #define DM_VERITY_OPT_LOGGING		"ignore_corruption"
 #define DM_VERITY_OPT_RESTART		"restart_on_corruption"
 
+#define DM_VERITY_OPTS_MAX		1
+
 static unsigned dm_verity_prefetch_cluster = DM_VERITY_DEFAULT_PREFETCH_SIZE;
 
 module_param_named(prefetch_cluster, dm_verity_prefetch_cluster, uint, S_IRUGO | S_IWUSR);
@@ -721,6 +723,44 @@ static void verity_dtr(struct dm_target *ti)
 	kfree(v);
 }
 
+static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v)
+{
+	int r;
+	unsigned argc;
+	struct dm_target *ti = v->ti;
+	const char *arg_name;
+
+	static struct dm_arg _args[] = {
+		{0, DM_VERITY_OPTS_MAX, "Invalid number of feature args"},
+	};
+
+	r = dm_read_arg_group(_args, as, &argc, &ti->error);
+	if (r)
+		return -EINVAL;
+
+	if (!argc)
+		return 0;
+
+	do {
+		arg_name = dm_shift_arg(as);
+		argc--;
+
+		if (!strcasecmp(arg_name, DM_VERITY_OPT_LOGGING)) {
+			v->mode = DM_VERITY_MODE_LOGGING;
+			continue;
+
+		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_RESTART)) {
+			v->mode = DM_VERITY_MODE_RESTART;
+			continue;
+		}
+
+		ti->error = "Unrecognized verity feature request";
+		return -EINVAL;
+	} while (argc && !r);
+
+	return r;
+}
+
 /*
  * Target parameters:
  *	<version>	The current format is version 1.
@@ -739,17 +779,12 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
 	struct dm_verity *v;
 	struct dm_arg_set as;
-	const char *opt_string;
-	unsigned int num, opt_params;
+	unsigned int num;
 	unsigned long long num_ll;
 	int r;
 	int i;
 	sector_t hash_position;
 	char dummy;
-
-	static struct dm_arg _args[] = {
-		{0, 1, "Invalid number of feature args"},
-	};
 
 	v = kzalloc(sizeof(struct dm_verity), GFP_KERNEL);
 	if (!v) {
@@ -895,29 +930,9 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		as.argc = argc;
 		as.argv = argv;
 
-		r = dm_read_arg_group(_args, &as, &opt_params, &ti->error);
-		if (r)
+		r = verity_parse_opt_args(&as, v);
+		if (r < 0)
 			goto bad;
-
-		while (opt_params) {
-			opt_params--;
-			opt_string = dm_shift_arg(&as);
-			if (!opt_string) {
-				ti->error = "Not enough feature arguments";
-				r = -EINVAL;
-				goto bad;
-			}
-
-			if (!strcasecmp(opt_string, DM_VERITY_OPT_LOGGING))
-				v->mode = DM_VERITY_MODE_LOGGING;
-			else if (!strcasecmp(opt_string, DM_VERITY_OPT_RESTART))
-				v->mode = DM_VERITY_MODE_RESTART;
-			else {
-				ti->error = "Invalid feature arguments";
-				r = -EINVAL;
-				goto bad;
-			}
-		}
 	}
 
 	v->hash_per_block_bits =
