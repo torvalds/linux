@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/mutex.h>
+#include <linux/regmap.h>
 #include <linux/gpio.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -25,73 +25,18 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6105x.h>
 
-int tps6105x_set(struct tps6105x *tps6105x, u8 reg, u8 value)
-{
-	int ret;
-
-	ret = mutex_lock_interruptible(&tps6105x->lock);
-	if (ret)
-		return ret;
-	ret = i2c_smbus_write_byte_data(tps6105x->client, reg, value);
-	mutex_unlock(&tps6105x->lock);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL(tps6105x_set);
-
-int tps6105x_get(struct tps6105x *tps6105x, u8 reg, u8 *buf)
-{
-	int ret;
-
-	ret = mutex_lock_interruptible(&tps6105x->lock);
-	if (ret)
-		return ret;
-	ret = i2c_smbus_read_byte_data(tps6105x->client, reg);
-	mutex_unlock(&tps6105x->lock);
-	if (ret < 0)
-		return ret;
-
-	*buf = ret;
-	return 0;
-}
-EXPORT_SYMBOL(tps6105x_get);
-
-/*
- * Masks off the bits in the mask and sets the bits in the bitvalues
- * parameter in one atomic operation
- */
-int tps6105x_mask_and_set(struct tps6105x *tps6105x, u8 reg,
-			  u8 bitmask, u8 bitvalues)
-{
-	int ret;
-	u8 regval;
-
-	ret = mutex_lock_interruptible(&tps6105x->lock);
-	if (ret)
-		return ret;
-	ret = i2c_smbus_read_byte_data(tps6105x->client, reg);
-	if (ret < 0)
-		goto fail;
-	regval = ret;
-	regval = (~bitmask & regval) | (bitmask & bitvalues);
-	ret = i2c_smbus_write_byte_data(tps6105x->client, reg, regval);
-fail:
-	mutex_unlock(&tps6105x->lock);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL(tps6105x_mask_and_set);
+static struct regmap_config tps6105x_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = TPS6105X_REG_3,
+};
 
 static int tps6105x_startup(struct tps6105x *tps6105x)
 {
 	int ret;
-	u8 regval;
+	unsigned int regval;
 
-	ret = tps6105x_get(tps6105x, TPS6105X_REG_0, &regval);
+	ret = regmap_read(tps6105x->regmap, TPS6105X_REG_0, &regval);
 	if (ret)
 		return ret;
 	switch (regval >> TPS6105X_REG0_MODE_SHIFT) {
@@ -145,11 +90,14 @@ static int tps6105x_probe(struct i2c_client *client,
 	if (!tps6105x)
 		return -ENOMEM;
 
+	tps6105x->regmap = devm_regmap_init_i2c(client, &tps6105x_regmap_config);
+	if (IS_ERR(tps6105x->regmap))
+		return PTR_ERR(tps6105x->regmap);
+
 	i2c_set_clientdata(client, tps6105x);
 	tps6105x->client = client;
 	pdata = dev_get_platdata(&client->dev);
 	tps6105x->pdata = pdata;
-	mutex_init(&tps6105x->lock);
 
 	ret = tps6105x_startup(tps6105x);
 	if (ret) {
@@ -198,7 +146,7 @@ static int tps6105x_remove(struct i2c_client *client)
 	mfd_remove_devices(&client->dev);
 
 	/* Put chip in shutdown mode */
-	tps6105x_mask_and_set(tps6105x, TPS6105X_REG_0,
+	regmap_update_bits(tps6105x->regmap, TPS6105X_REG_0,
 		TPS6105X_REG0_MODE_MASK,
 		TPS6105X_MODE_SHUTDOWN << TPS6105X_REG0_MODE_SHIFT);
 

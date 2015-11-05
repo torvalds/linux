@@ -698,7 +698,7 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 		rdata->initdata = da9063_matches[i].init_data;
 
 		n++;
-	};
+	}
 
 	*da9063_reg_matches = da9063_matches;
 	return pdata;
