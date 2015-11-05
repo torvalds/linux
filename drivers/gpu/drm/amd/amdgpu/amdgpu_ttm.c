@@ -1041,7 +1041,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	WARN_ON(ib->length_dw > num_dw);
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
 						 &amdgpu_vm_free_job,
-						 AMDGPU_FENCE_OWNER_MOVE,
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
 						 fence);
 	if (r)
 		goto error_free;

@@ -135,7 +135,7 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync)
 {
-	struct amdgpu_fence *best[AMDGPU_MAX_RINGS] = {};
+	struct fence *best[AMDGPU_MAX_RINGS] = {};
 	struct amdgpu_vm_id *vm_id = &vm->ids[ring->idx];
 	struct amdgpu_device *adev = ring->adev;
 
@@ -154,7 +154,8 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 	/* skip over VMID 0, since it is the system VM */
 	for (i = 1; i < adev->vm_manager.nvm; ++i) {
-		struct amdgpu_fence *fence = adev->vm_manager.active[i];
+		struct fence *fence = adev->vm_manager.active[i];
+		struct amdgpu_ring *fring;
 
 		if (fence == NULL) {
 			/* found a free one */
@@ -163,21 +164,23 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			return 0;
 		}
 
-		if (amdgpu_fence_is_earlier(fence, best[fence->ring->idx])) {
-			best[fence->ring->idx] = fence;
-			choices[fence->ring == ring ? 0 : 1] = i;
+		fring = amdgpu_ring_from_fence(fence);
+		if (best[fring->idx] == NULL ||
+		    fence_is_later(best[fring->idx], fence)) {
+			best[fring->idx] = fence;
+			choices[fring == ring ? 0 : 1] = i;
 		}
 	}
 
 	for (i = 0; i < 2; ++i) {
 		if (choices[i]) {
-			struct amdgpu_fence *fence;
+			struct fence *fence;
 
 			fence  = adev->vm_manager.active[choices[i]];
 			vm_id->id = choices[i];
 
 			trace_amdgpu_vm_grab_id(choices[i], ring->idx);
-			return amdgpu_sync_fence(ring->adev, sync, &fence->base);
+			return amdgpu_sync_fence(ring->adev, sync, fence);
 		}
 	}
 
@@ -246,11 +249,11 @@ void amdgpu_vm_fence(struct amdgpu_device *adev,
 	unsigned ridx = fence->ring->idx;
 	unsigned vm_id = vm->ids[ridx].id;
 
-	amdgpu_fence_unref(&adev->vm_manager.active[vm_id]);
-	adev->vm_manager.active[vm_id] = amdgpu_fence_ref(fence);
+	fence_put(adev->vm_manager.active[vm_id]);
+	adev->vm_manager.active[vm_id] = fence_get(&fence->base);
 
-	amdgpu_fence_unref(&vm->ids[ridx].last_id_use);
-	vm->ids[ridx].last_id_use = amdgpu_fence_ref(fence);
+	fence_put(vm->ids[ridx].last_id_use);
+	vm->ids[ridx].last_id_use = fence_get(&fence->base);
 }
 
 /**
@@ -1313,7 +1316,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		fence_put(vm->ids[i].flushed_updates);
-		amdgpu_fence_unref(&vm->ids[i].last_id_use);
+		fence_put(vm->ids[i].last_id_use);
 	}
 
 	mutex_destroy(&vm->mutex);

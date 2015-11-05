@@ -405,7 +405,6 @@ struct amdgpu_fence_driver {
 /* some special values for the owner field */
 #define AMDGPU_FENCE_OWNER_UNDEFINED	((void*)0ul)
 #define AMDGPU_FENCE_OWNER_VM		((void*)1ul)
-#define AMDGPU_FENCE_OWNER_MOVE		((void*)2ul)
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
@@ -447,56 +446,10 @@ int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
-signed long amdgpu_fence_wait_any(struct fence **array,
-				  uint32_t count,
-				  bool intr,
-				  signed long t);
-struct amdgpu_fence *amdgpu_fence_ref(struct amdgpu_fence *fence);
-void amdgpu_fence_unref(struct amdgpu_fence **fence);
-
 bool amdgpu_fence_need_sync(struct amdgpu_fence *fence,
 			    struct amdgpu_ring *ring);
 void amdgpu_fence_note_sync(struct amdgpu_fence *fence,
 			    struct amdgpu_ring *ring);
-
-static inline struct amdgpu_fence *amdgpu_fence_later(struct amdgpu_fence *a,
-						      struct amdgpu_fence *b)
-{
-	if (!a) {
-		return b;
-	}
-
-	if (!b) {
-		return a;
-	}
-
-	BUG_ON(a->ring != b->ring);
-
-	if (a->seq > b->seq) {
-		return a;
-	} else {
-		return b;
-	}
-}
-
-static inline bool amdgpu_fence_is_earlier(struct amdgpu_fence *a,
-					   struct amdgpu_fence *b)
-{
-	if (!a) {
-		return false;
-	}
-
-	if (!b) {
-		return true;
-	}
-
-	BUG_ON(a->ring != b->ring);
-
-	return a->seq < b->seq;
-}
-
-int amdgpu_user_fence_emit(struct amdgpu_ring *ring, struct amdgpu_user_fence *user,
-			   void *owner, struct amdgpu_fence **fence);
 
 /*
  * TTM.
@@ -708,7 +661,7 @@ void amdgpu_semaphore_free(struct amdgpu_device *adev,
  */
 struct amdgpu_sync {
 	struct amdgpu_semaphore *semaphores[AMDGPU_NUM_SYNCS];
-	struct amdgpu_fence	*sync_to[AMDGPU_MAX_RINGS];
+	struct fence		*sync_to[AMDGPU_MAX_RINGS];
 	DECLARE_HASHTABLE(fences, 4);
 	struct fence	        *last_vm_update;
 };
@@ -974,7 +927,7 @@ struct amdgpu_vm_id {
 	/* last flushed PD/PT update */
 	struct fence	        *flushed_updates;
 	/* last use of vmid */
-	struct amdgpu_fence	*last_id_use;
+	struct fence		*last_id_use;
 };
 
 struct amdgpu_vm {
@@ -1007,7 +960,7 @@ struct amdgpu_vm {
 };
 
 struct amdgpu_vm_manager {
-	struct amdgpu_fence		*active[AMDGPU_NUM_VM];
+	struct fence			*active[AMDGPU_NUM_VM];
 	uint32_t			max_pfn;
 	/* number of VMIDs */
 	unsigned			nvm;
@@ -1235,6 +1188,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     struct amdgpu_irq_src *irq_src, unsigned irq_type,
 		     enum amdgpu_ring_type ring_type);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
+struct amdgpu_ring *amdgpu_ring_from_fence(struct fence *f);
 
 /*
  * CS.
@@ -1758,11 +1712,11 @@ void amdgpu_test_syncing(struct amdgpu_device *adev);
 int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr);
 void amdgpu_mn_unregister(struct amdgpu_bo *bo);
 #else
-static int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
+static inline int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 {
 	return -ENODEV;
 }
-static void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}
+static inline void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}
 #endif
 
 /*

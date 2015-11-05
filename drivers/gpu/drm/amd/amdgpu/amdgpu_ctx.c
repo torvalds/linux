@@ -69,6 +69,9 @@ void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 	struct amdgpu_device *adev = ctx->adev;
 	unsigned i, j;
 
+	if (!adev)
+		return;
+
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		for (j = 0; j < AMDGPU_CTX_MAX_CS_PENDING; ++j)
 			fence_put(ctx->rings[i].fences[j]);

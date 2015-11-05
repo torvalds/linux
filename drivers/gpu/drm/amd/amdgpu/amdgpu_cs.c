@@ -876,8 +876,10 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		struct amdgpu_job *job;
 		struct amdgpu_ring * ring =  parser->ibs->ring;
 		job = kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
-		if (!job)
-			return -ENOMEM;
+		if (!job) {
+			r = -ENOMEM;
+			goto out;
+		}
 		job->base.sched = &ring->sched;
 		job->base.s_entity = &parser->ctx->rings[ring->idx].entity;
 		job->adev = parser->adev;

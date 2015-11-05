@@ -965,7 +965,7 @@ static int gmc_v7_0_sw_fini(void *handle)
 
 	if (adev->vm_manager.enabled) {
 		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			amdgpu_fence_unref(&adev->vm_manager.active[i]);
+			fence_put(adev->vm_manager.active[i]);
 		gmc_v7_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}
@@ -1015,7 +1015,7 @@ static int gmc_v7_0_suspend(void *handle)
 
 	if (adev->vm_manager.enabled) {
 		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			amdgpu_fence_unref(&adev->vm_manager.active[i]);
+			fence_put(adev->vm_manager.active[i]);
 		gmc_v7_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}

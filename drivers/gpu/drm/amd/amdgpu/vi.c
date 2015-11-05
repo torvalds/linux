@@ -1413,17 +1413,18 @@ static int vi_common_early_init(void *handle)
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = 0x1;
-		if (amdgpu_smc_load_fw && smc_enabled)
-			adev->firmware.smu_load = true;
 		break;
 	case CHIP_FIJI:
+		adev->has_uvd = true;
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x3c;
+		break;
 	case CHIP_TONGA:
 		adev->has_uvd = true;
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x14;
-		if (amdgpu_smc_load_fw && smc_enabled)
-			adev->firmware.smu_load = true;
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
@@ -1432,13 +1433,14 @@ static int vi_common_early_init(void *handle)
 		/* Disable UVD pg */
 		adev->pg_flags = /* AMDGPU_PG_SUPPORT_UVD | */AMDGPU_PG_SUPPORT_VCE;
 		adev->external_rev_id = adev->rev_id + 0x1;
-		if (amdgpu_smc_load_fw && smc_enabled)
-			adev->firmware.smu_load = true;
 		break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	if (amdgpu_smc_load_fw && smc_enabled)
+		adev->firmware.smu_load = true;
 
 	return 0;
 }

@@ -95,7 +95,8 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
 {
 	amdgpu_sync_free(adev, &ib->sync, &ib->fence->base);
 	amdgpu_sa_bo_free(adev, &ib->sa_bo, &ib->fence->base);
-	amdgpu_fence_unref(&ib->fence);
+	if (ib->fence)
+		fence_put(&ib->fence->base);
 }
 
 /**
