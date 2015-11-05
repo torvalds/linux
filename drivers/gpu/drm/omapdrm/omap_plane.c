@@ -76,6 +76,7 @@ static void omap_plane_cleanup_fb(struct drm_plane *plane,
 static void omap_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
+	struct omap_drm_private *priv = plane->dev->dev_private;
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct drm_plane_state *state = plane->state;
 	struct omap_plane_state *omap_state = to_omap_plane_state(state);
@@ -123,25 +124,26 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	DBG("%d,%d %pad %pad", info.pos_x, info.pos_y,
 			&info.paddr, &info.p_uv_addr);
 
-	dispc_ovl_set_channel_out(omap_plane->id,
+	priv->dispc_ops->ovl_set_channel_out(omap_plane->id,
 				  omap_crtc_channel(state->crtc));
 
 	/* and finally, update omapdss: */
-	ret = dispc_ovl_setup(omap_plane->id, &info, false,
+	ret = priv->dispc_ops->ovl_setup(omap_plane->id, &info, false,
 			      omap_crtc_timings(state->crtc), false);
 	if (ret) {
 		dev_err(plane->dev->dev, "Failed to setup plane %s\n",
 			omap_plane->name);
-		dispc_ovl_enable(omap_plane->id, false);
+		priv->dispc_ops->ovl_enable(omap_plane->id, false);
 		return;
 	}
 
-	dispc_ovl_enable(omap_plane->id, true);
+	priv->dispc_ops->ovl_enable(omap_plane->id, true);
 }
 
 static void omap_plane_atomic_disable(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+	struct omap_drm_private *priv = plane->dev->dev_private;
 	struct omap_plane_state *omap_state = to_omap_plane_state(plane->state);
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 
@@ -149,7 +151,7 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
 
-	dispc_ovl_enable(omap_plane->id, false);
+	priv->dispc_ops->ovl_enable(omap_plane->id, false);
 }
 
 static int omap_plane_atomic_check(struct drm_plane *plane,
@@ -340,6 +342,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 		int id, enum drm_plane_type type,
 		u32 possible_crtcs)
 {
+	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
 	int ret;
@@ -352,7 +355,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	omap_plane->nformats = omap_framebuffer_get_formats(
 			omap_plane->formats, ARRAY_SIZE(omap_plane->formats),
-			dispc_ovl_get_color_modes(id));
+			priv->dispc_ops->ovl_get_color_modes(id));
 	omap_plane->id = id;
 	omap_plane->name = plane_names[id];
 

@@ -93,7 +93,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	struct drm_atomic_state *old_state = commit->state;
 
 	/* Apply the atomic update. */
-	dispc_runtime_get();
+	priv->dispc_ops->runtime_get();
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
@@ -117,7 +117,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 
-	dispc_runtime_put();
+	priv->dispc_ops->runtime_put();
 
 	drm_atomic_state_put(old_state);
 
@@ -320,8 +320,8 @@ static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_dss_device *dssdev = NULL;
-	int num_ovls = dispc_get_num_ovls();
-	int num_mgrs = dispc_get_num_mgrs();
+	int num_ovls = priv->dispc_ops->get_num_ovls();
+	int num_mgrs = priv->dispc_ops->get_num_mgrs();
 	int num_crtcs;
 	int i, id = 0;
 	int ret;
@@ -781,6 +781,8 @@ static int pdev_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_disconnect_dssdevs;
 	}
+
+	priv->dispc_ops = dispc_get_ops();
 
 	priv->omaprev = pdata->omaprev;
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);

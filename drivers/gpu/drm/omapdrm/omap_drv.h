@@ -59,6 +59,8 @@ int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
 struct omap_drm_private {
 	uint32_t omaprev;
 
+	const struct dispc_ops *dispc_ops;
+
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
 
