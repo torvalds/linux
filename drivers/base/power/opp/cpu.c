@@ -156,7 +156,7 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask)
 out_rcu_read_unlock:
 	rcu_read_unlock();
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_sharing_cpus);
 
