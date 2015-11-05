@@ -1218,7 +1218,7 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	perInterface_wlan_t *nic;
 	struct tx_complete_data *tx_data = NULL;
-	int QueueCount;
+	int queue_count;
 	char *pu8UdpBuffer;
 	struct iphdr *ih;
 	struct ethhdr *eth_h;
@@ -1262,11 +1262,11 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	nic->netstats.tx_packets++;
 	nic->netstats.tx_bytes += tx_data->size;
 	tx_data->pBssid = wilc->vif[nic->u8IfIdx].bssid;
-	QueueCount = wilc_wlan_txq_add_net_pkt(ndev, (void *)tx_data,
-					       tx_data->buff, tx_data->size,
-					       linux_wlan_tx_complete);
+	queue_count = wilc_wlan_txq_add_net_pkt(ndev, (void *)tx_data,
+						tx_data->buff, tx_data->size,
+						linux_wlan_tx_complete);
 
-	if (QueueCount > FLOW_CONTROL_UPPER_THRESHOLD) {
+	if (queue_count > FLOW_CONTROL_UPPER_THRESHOLD) {
 		netif_stop_queue(wilc->vif[0].ndev);
 		netif_stop_queue(wilc->vif[1].ndev);
 	}
