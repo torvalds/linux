@@ -214,12 +214,11 @@ void c8sectpfe_tuner_unregister_frontend(struct c8sectpfe *c8sectpfe,
 			dvb_frontend_detach(tsin->frontend);
 		}
 
-		if (tsin && tsin->i2c_adapter)
+		if (tsin)
 			i2c_put_adapter(tsin->i2c_adapter);
 
 		if (tsin && tsin->i2c_client) {
-			if (tsin->i2c_client->dev.driver->owner)
-				module_put(tsin->i2c_client->dev.driver->owner);
+			module_put(tsin->i2c_client->dev.driver->owner);
 			i2c_unregister_device(tsin->i2c_client);
 		}
 	}
