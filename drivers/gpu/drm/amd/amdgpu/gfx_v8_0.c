@@ -268,7 +268,6 @@ static const u32 fiji_mgcg_cgcg_init[] =
 	mmCGTT_CP_CLK_CTRL, 0xffffffff, 0x00000100,
 	mmCGTT_CPC_CLK_CTRL, 0xffffffff, 0x00000100,
 	mmCGTT_CPF_CLK_CTRL, 0xffffffff, 0x40000100,
-	mmCGTT_DRM_CLK_CTRL0, 0xffffffff, 0x00600100,
 	mmCGTT_GDS_CLK_CTRL, 0xffffffff, 0x00000100,
 	mmCGTT_IA_CLK_CTRL, 0xffffffff, 0x06000100,
 	mmCGTT_PA_CLK_CTRL, 0xffffffff, 0x00000100,
@@ -296,10 +295,6 @@ static const u32 fiji_mgcg_cgcg_init[] =
 	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96e00200,
 	mmCP_RB_WPTR_POLL_CNTL, 0xffffffff, 0x00900100,
 	mmRLC_CGCG_CGLS_CTRL, 0xffffffff, 0x0020003c,
-	mmPCIE_INDEX, 0xffffffff, 0x0140001c,
-	mmPCIE_DATA, 0x000f0000, 0x00000000,
-	mmCGTT_DRM_CLK_CTRL0, 0xff000fff, 0x00000100,
-	mmHDP_XDP_CGTT_BLK_CTRL, 0xc0000fff, 0x00000104,
 	mmCP_MEM_SLP_CNTL, 0x00000001, 0x00000001,
 };
 
