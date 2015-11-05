@@ -22,7 +22,6 @@
 #include <linux/of.h>
 
 #include "omapdss.h"
-#include "dss.h"
 
 static LIST_HEAD(output_list);
 static DEFINE_MUTEX(output_lock);
