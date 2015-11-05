@@ -1430,7 +1430,7 @@ int mac_close(struct net_device *ndev)
 {
 	struct wilc_priv *priv;
 	perInterface_wlan_t *nic;
-	struct host_if_drv *pstrWFIDrv;
+	struct host_if_drv *hif_drv;
 	struct wilc *wl;
 
 	nic = netdev_priv(ndev);
@@ -1449,7 +1449,7 @@ int mac_close(struct net_device *ndev)
 		return 0;
 	}
 
-	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	hif_drv = (struct host_if_drv *)priv->hWILCWFIDrv;
 
 	PRINT_D(GENERIC_DBG, "Mac close\n");
 
@@ -1458,8 +1458,8 @@ int mac_close(struct net_device *ndev)
 		return 0;
 	}
 
-	if (!pstrWFIDrv) {
-		PRINT_ER("pstrWFIDrv = NULL\n");
+	if (!hif_drv) {
+		PRINT_ER("hif_drv = NULL\n");
 		return 0;
 	}
 
