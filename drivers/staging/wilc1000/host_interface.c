@@ -466,7 +466,7 @@ s32 Handle_get_IPAddress(struct host_if_drv *hif_drv, u8 idx)
 }
 
 static s32 Handle_SetMacAddress(struct host_if_drv *hif_drv,
-				struct set_mac_addr *pstrHostIfSetMacAddress)
+				struct set_mac_addr *set_mac_addr)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -476,7 +476,7 @@ static s32 Handle_SetMacAddress(struct host_if_drv *hif_drv,
 		PRINT_ER("No buffer to send mac address\n");
 		return -EFAULT;
 	}
-	memcpy(mac_buf, pstrHostIfSetMacAddress->mac_addr, ETH_ALEN);
+	memcpy(mac_buf, set_mac_addr->mac_addr, ETH_ALEN);
 
 	wid.id = (u16)WID_MAC_ADDR;
 	wid.type = WID_STR;
