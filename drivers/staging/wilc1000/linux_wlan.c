@@ -529,19 +529,18 @@ static int linux_wlan_start_firmware(struct net_device *dev)
 	ret = wilc_wlan_start();
 	if (ret < 0) {
 		PRINT_ER("Failed to start Firmware\n");
-		goto _fail_;
+		return ret;
 	}
 
 	PRINT_D(INIT_DBG, "Waiting for Firmware to get ready ...\n");
 	ret = linux_wlan_lock_timeout(&wilc->sync_event, 5000);
 	if (ret) {
 		PRINT_D(INIT_DBG, "Firmware start timed out");
-		goto _fail_;
+		return ret;
 	}
 	PRINT_D(INIT_DBG, "Firmware successfully started\n");
 
-_fail_:
-	return ret;
+	return 0;
 }
 static int linux_wlan_firmware_download(struct net_device *dev)
 {
