@@ -325,10 +325,8 @@ static inline struct sk_buff *bt_skb_alloc(unsigned int len, gfp_t how)
 	struct sk_buff *skb;
 
 	skb = alloc_skb(len + BT_SKB_RESERVE, how);
-	if (skb) {
+	if (skb)
 		skb_reserve(skb, BT_SKB_RESERVE);
-		bt_cb(skb)->incoming  = 0;
-	}
 	return skb;
 }
 
@@ -338,10 +336,8 @@ static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk,
 	struct sk_buff *skb;
 
 	skb = sock_alloc_send_skb(sk, len + BT_SKB_RESERVE, nb, err);
-	if (skb) {
+	if (skb)
 		skb_reserve(skb, BT_SKB_RESERVE);
-		bt_cb(skb)->incoming  = 0;
-	}
 
 	if (!skb && *err)
 		return NULL;
