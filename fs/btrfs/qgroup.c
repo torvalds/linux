@@ -2198,7 +2198,6 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	int slot;
 	int ret;
 
-	path->leave_spinning = 1;
 	mutex_lock(&fs_info->qgroup_rescan_lock);
 	ret = btrfs_search_slot_for_read(fs_info->extent_root,
 					 &fs_info->qgroup_rescan_progress,
