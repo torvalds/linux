@@ -88,7 +88,7 @@ static int gfrm_raw_event(struct hid_device *hdev, struct hid_report *report,
 	return (ret < 0) ? ret : -1;
 }
 
-static void gfrm_input_configured(struct hid_device *hid, struct hid_input *hidinput)
+static int gfrm_input_configured(struct hid_device *hid, struct hid_input *hidinput)
 {
 	/*
 	 * Enable software autorepeat with:
@@ -96,6 +96,7 @@ static void gfrm_input_configured(struct hid_device *hid, struct hid_input *hidi
 	 * - repeat period: 100 msec
 	 */
 	input_enable_softrepeat(hidinput->input, 400, 100);
+	return 0;
 }
 
 static int gfrm_probe(struct hid_device *hdev, const struct hid_device_id *id)
