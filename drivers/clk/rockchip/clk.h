@@ -2,6 +2,9 @@
  * Copyright (c) 2014 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
  *
+ * Copyright (c) 2015 Rockchip Electronics Co. Ltd.
+ * Author: Xing Zheng <zhengxing@rock-chips.com>
+ *
  * based on
  *
  * samsung/clk.h
@@ -74,8 +77,21 @@ struct clk;
 #define RK3368_EMMC_CON1		0x41c
 
 enum rockchip_pll_type {
+	pll_rk3036,
 	pll_rk3066,
 };
+
+#define RK3036_PLL_RATE(_rate, _refdiv, _fbdiv, _postdiv1,	\
+			_postdiv2, _dsmpd, _frac)		\
+{								\
+	.rate	= _rate##U,					\
+	.fbdiv = _fbdiv,					\
+	.postdiv1 = _postdiv1,					\
+	.refdiv = _refdiv,					\
+	.postdiv2 = _postdiv2,					\
+	.dsmpd = _dsmpd,					\
+	.frac = _frac,						\
+}
 
 #define RK3066_PLL_RATE(_rate, _nr, _nf, _no)	\
 {						\
@@ -101,6 +117,13 @@ struct rockchip_pll_rate_table {
 	unsigned int nf;
 	unsigned int no;
 	unsigned int nb;
+	/* for RK3036 */
+	unsigned int fbdiv;
+	unsigned int postdiv1;
+	unsigned int refdiv;
+	unsigned int postdiv2;
+	unsigned int dsmpd;
+	unsigned int frac;
 };
 
 /**
