@@ -1449,6 +1449,11 @@ static int __cmd_record(int argc, const char **argv)
 	if (output_name)
 		file->path = output_name;
 
+	if (run_count != 1 || forever) {
+		pr_err("Cannot use -r option with perf stat record.\n");
+		return -1;
+	}
+
 	session = perf_session__new(file, false, NULL);
 	if (session == NULL) {
 		pr_err("Perf session creation failed.\n");
