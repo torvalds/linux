@@ -534,9 +534,9 @@ void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 	evsel->id[evsel->ids++] = id;
 }
 
-static int perf_evlist__id_add_fd(struct perf_evlist *evlist,
-				  struct perf_evsel *evsel,
-				  int cpu, int thread, int fd)
+int perf_evlist__id_add_fd(struct perf_evlist *evlist,
+			   struct perf_evsel *evsel,
+			   int cpu, int thread, int fd)
 {
 	u64 read_data[4] = { 0, };
 	int id_idx = 1; /* The first entry is the counter value */
