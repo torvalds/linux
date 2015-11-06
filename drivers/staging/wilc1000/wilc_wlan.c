@@ -1111,7 +1111,6 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 #else
 		buffer = kmalloc(size, GFP_KERNEL);
 		if (!buffer) {
-			wilc_debug(N_ERR, "[wilc isr]: fail alloc host memory...drop the packets (%d)\n", size);
 			usleep_range(100 * 1000, 100 * 1000);
 			goto _end_;
 		}
