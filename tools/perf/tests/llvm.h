@@ -5,9 +5,11 @@
 #include <stdbool.h> /* for bool */
 
 extern const char test_llvm__bpf_base_prog[];
+extern const char test_llvm__bpf_test_kbuild_prog[];
 
 enum test_llvm__testcase {
 	LLVM_TESTCASE_BASE,
+	LLVM_TESTCASE_KBUILD,
 	__LLVM_TESTCASE_MAX,
 };
 

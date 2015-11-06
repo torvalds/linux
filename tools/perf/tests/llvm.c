@@ -40,6 +40,10 @@ static struct {
 		.source = test_llvm__bpf_base_prog,
 		.desc = "Basic BPF llvm compiling test",
 	},
+	[LLVM_TESTCASE_KBUILD] = {
+		.source = test_llvm__bpf_test_kbuild_prog,
+		.desc = "Test kbuild searching",
+	},
 };
 
 
