@@ -82,6 +82,7 @@ everspin	Everspin Technologies, Inc.
 excito	Excito
 fcs	Fairchild Semiconductor
 firefly	Firefly
+focaltech	FocalTech Systems Co.,Ltd
 fsl	Freescale Semiconductor
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.

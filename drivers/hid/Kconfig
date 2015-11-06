@@ -257,6 +257,12 @@ config HID_GEMBIRD
 	---help---
 	Support for Gembird JPD-DualForce 2.
 
+config HID_GFRM
+	tristate "Google Fiber TV Box remote control support"
+	depends on HID
+	---help---
+	Support for Google Fiber TV Box remote controls
+
 config HID_HOLTEK
 	tristate "Holtek HID devices"
 	depends on USB_HID

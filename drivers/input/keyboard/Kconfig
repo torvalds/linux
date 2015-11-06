@@ -516,7 +516,7 @@ config KEYBOARD_SAMSUNG
 	  module will be called samsung-keypad.
 
 config KEYBOARD_GOLDFISH_EVENTS
-	depends on GOLDFISH
+	depends on GOLDFISH || COMPILE_TEST
 	tristate "Generic Input Event device for Goldfish"
 	help
 	  Say Y here to get an input event device for the Goldfish virtual
