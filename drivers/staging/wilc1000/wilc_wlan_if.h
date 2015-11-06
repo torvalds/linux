@@ -76,11 +76,6 @@ typedef struct {
 	int io_type;
 	int (*io_init)(void *);
 	void (*io_deinit)(void *);
-	union {
-		struct {
-			int (*spi_max_speed)(void);
-		} spi;
-	} u;
 } wilc_wlan_io_func_t;
 
 #define WILC_MAC_INDICATE_STATUS	0x1
