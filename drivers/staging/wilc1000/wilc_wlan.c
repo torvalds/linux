@@ -1457,11 +1457,10 @@ static int wilc_wlan_cfg_commit(int type, u32 drvHandler)
 	int seq_no = p->cfg_seq_no % 256;
 	int driver_handler = (u32)drvHandler;
 
-	if (type == WILC_CFG_SET) {
+	if (type == WILC_CFG_SET)
 		cfg->wid_header[0] = 'W';
-	} else {
+	else
 		cfg->wid_header[0] = 'Q';
-	}
 	cfg->wid_header[1] = seq_no;
 	cfg->wid_header[2] = (u8)total_len;
 	cfg->wid_header[3] = (u8)(total_len >> 8);
