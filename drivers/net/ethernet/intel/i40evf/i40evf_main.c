@@ -1205,7 +1205,8 @@ static int i40evf_set_interrupt_capability(struct i40evf_adapter *adapter)
 	err = i40evf_acquire_msix_vectors(adapter, v_budget);
 
 out:
-	adapter->netdev->real_num_tx_queues = pairs;
+	netif_set_real_num_rx_queues(adapter->netdev, pairs);
+	netif_set_real_num_tx_queues(adapter->netdev, pairs);
 	return err;
 }
 
