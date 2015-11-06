@@ -55,6 +55,10 @@
 	status = "okay";
 };
 
+&rpmsg{
+	status = "okay";
+};
+
 &uart2 {
 	status = "disabled";
 };
