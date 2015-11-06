@@ -201,23 +201,20 @@ _next:
 
 		if (rtw_cmd_filter(pcmdpriv, pcmd) == _FAIL) {
 			pcmd->res = H2C_DROPPED;
-			goto post_process;
-		}
-
-		if (pcmd->cmdcode < ARRAY_SIZE(wlancmds)) {
-			cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
-
-			if (cmd_hdl) {
-				ret = cmd_hdl(pcmd->padapter, pcmd->parmbuf);
-				pcmd->res = ret;
-			}
 		} else {
-			pcmd->res = H2C_PARAMETERS_ERROR;
+			if (pcmd->cmdcode < ARRAY_SIZE(wlancmds)) {
+			    cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
+
+				if (cmd_hdl) {
+					ret = cmd_hdl(pcmd->padapter, pcmd->parmbuf);
+					pcmd->res = ret;
+				}
+			} else {
+				pcmd->res = H2C_PARAMETERS_ERROR;
+			}
+
+			cmd_hdl = NULL;
 		}
-
-		cmd_hdl = NULL;
-
-post_process:
 
 		/* call callback function for post-processed */
 		if (pcmd->cmdcode < ARRAY_SIZE(rtw_cmd_callback)) {
