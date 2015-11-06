@@ -517,8 +517,8 @@ static s32 handle_get_mac_address(struct host_if_drv *hif_drv,
 	return result;
 }
 
-static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
-			   struct cfg_param_attr *cfg_param_attr)
+static s32 handle_cfg_param(struct host_if_drv *hif_drv,
+			    struct cfg_param_attr *cfg_param_attr)
 {
 	s32 result = 0;
 	struct wid strWIDList[32];
@@ -2888,8 +2888,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_CFG_PARAMS:
-
-			Handle_CfgParam(msg.drv, &msg.body.cfg_info);
+			handle_cfg_param(msg.drv, &msg.body.cfg_info);
 			break;
 
 		case HOST_IF_MSG_SET_CHANNEL:
