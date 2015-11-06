@@ -2008,13 +2008,12 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
 	unsigned long nr_reclaimed;
 	bool may_swap = true;
 	bool drained = false;
-	int ret = 0;
 
 	if (mem_cgroup_is_root(memcg))
-		goto done;
+		return 0;
 retry:
 	if (consume_stock(memcg, nr_pages))
-		goto done;
+		return 0;
 
 	if (!do_swap_account ||
 	    !page_counter_try_charge(&memcg->memsw, batch, &counter)) {
@@ -2042,7 +2041,7 @@ retry:
 	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
 		     fatal_signal_pending(current) ||
 		     current->flags & PF_EXITING))
-		goto bypass;
+		goto force;
 
 	if (unlikely(task_in_memcg_oom(current)))
 		goto nomem;
@@ -2088,10 +2087,10 @@ retry:
 		goto retry;
 
 	if (gfp_mask & __GFP_NOFAIL)
-		goto bypass;
+		goto force;
 
 	if (fatal_signal_pending(current))
-		goto bypass;
+		goto force;
 
 	mem_cgroup_events(mem_over_limit, MEMCG_OOM, 1);
 
@@ -2099,8 +2098,18 @@ retry:
 nomem:
 	if (!(gfp_mask & __GFP_NOFAIL))
 		return -ENOMEM;
-bypass:
-	return -EINTR;
+force:
+	/*
+	 * The allocation either can't fail or will lead to more memory
+	 * being freed very soon.  Allow memory usage go over the limit
+	 * temporarily by force charging it.
+	 */
+	page_counter_charge(&memcg->memory, nr_pages);
+	if (do_swap_account)
+		page_counter_charge(&memcg->memsw, nr_pages);
+	css_get_many(&memcg->css, nr_pages);
+
+	return 0;
 
 done_restock:
 	css_get_many(&memcg->css, batch);
@@ -2123,8 +2132,8 @@ done_restock:
 			break;
 		}
 	} while ((memcg = parent_mem_cgroup(memcg)));
-done:
-	return ret;
+
+	return 0;
 }
 
 static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
@@ -2216,28 +2225,7 @@ int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp,
 		return ret;
 
 	ret = try_charge(memcg, gfp, nr_pages);
-	if (ret == -EINTR)  {
-		/*
-		 * try_charge() chose to bypass to root due to OOM kill or
-		 * fatal signal.  Since our only options are to either fail
-		 * the allocation or charge it to this cgroup, do it as a
-		 * temporary condition. But we can't fail. From a kmem/slab
-		 * perspective, the cache has already been selected, by
-		 * mem_cgroup_kmem_get_cache(), so it is too late to change
-		 * our minds.
-		 *
-		 * This condition will only trigger if the task entered
-		 * memcg_charge_kmem in a sane state, but was OOM-killed
-		 * during try_charge() above. Tasks that were already dying
-		 * when the allocation triggers should have been already
-		 * directed to the root cgroup in memcontrol.h
-		 */
-		page_counter_charge(&memcg->memory, nr_pages);
-		if (do_swap_account)
-			page_counter_charge(&memcg->memsw, nr_pages);
-		css_get_many(&memcg->css, nr_pages);
-		ret = 0;
-	} else if (ret)
+	if (ret)
 		page_counter_uncharge(&memcg->kmem, nr_pages);
 
 	return ret;
@@ -4438,22 +4426,10 @@ static int mem_cgroup_do_precharge(unsigned long count)
 		mc.precharge += count;
 		return ret;
 	}
-	if (ret == -EINTR) {
-		cancel_charge(root_mem_cgroup, count);
-		return ret;
-	}
 
 	/* Try charges one by one with reclaim */
 	while (count--) {
 		ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_NORETRY, 1);
-		/*
-		 * In case of failure, any residual charges against
-		 * mc.to will be dropped by mem_cgroup_clear_mc()
-		 * later on.  However, cancel any charges that are
-		 * bypassed to root right away or they'll be lost.
-		 */
-		if (ret == -EINTR)
-			cancel_charge(root_mem_cgroup, 1);
 		if (ret)
 			return ret;
 		mc.precharge++;
@@ -5358,11 +5334,6 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 	ret = try_charge(memcg, gfp_mask, nr_pages);
 
 	css_put(&memcg->css);
-
-	if (ret == -EINTR) {
-		memcg = root_mem_cgroup;
-		ret = 0;
-	}
 out:
 	*memcgp = memcg;
 	return ret;
