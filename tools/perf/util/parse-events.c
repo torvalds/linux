@@ -642,9 +642,10 @@ int parse_events_load_bpf(struct parse_events_evlist *data,
 			snprintf(errbuf, sizeof(errbuf),
 				 "BPF support is not compiled");
 		else
-			snprintf(errbuf, sizeof(errbuf),
-				 "BPF object file '%s' is invalid",
-				 bpf_file_name);
+			bpf__strerror_prepare_load(bpf_file_name,
+						   source,
+						   -err, errbuf,
+						   sizeof(errbuf));
 
 		data->error->help = strdup("(add -v to see detail)");
 		data->error->str = strdup(errbuf);

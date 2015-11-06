@@ -8,8 +8,20 @@
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <string.h>
+#include <bpf/libbpf.h>
 #include "probe-event.h"
 #include "debug.h"
+
+enum bpf_loader_errno {
+	__BPF_LOADER_ERRNO__START = __LIBBPF_ERRNO__START - 100,
+	/* Invalid config string */
+	BPF_LOADER_ERRNO__CONFIG = __BPF_LOADER_ERRNO__START,
+	BPF_LOADER_ERRNO__GROUP,	/* Invalid group name */
+	BPF_LOADER_ERRNO__EVENTNAME,	/* Event name is missing */
+	BPF_LOADER_ERRNO__INTERNAL,	/* BPF loader internal error */
+	BPF_LOADER_ERRNO__COMPILE,	/* Error when compiling BPF scriptlet */
+	__BPF_LOADER_ERRNO__END,
+};
 
 struct bpf_object;
 #define PERF_BPF_PROBE_GROUP "perf_bpf_probe"
@@ -19,6 +31,8 @@ typedef int (*bpf_prog_iter_callback_t)(struct probe_trace_event *tev,
 
 #ifdef HAVE_LIBBPF_SUPPORT
 struct bpf_object *bpf__prepare_load(const char *filename, bool source);
+int bpf__strerror_prepare_load(const char *filename, bool source,
+			       int err, char *buf, size_t size);
 
 void bpf__clear(void);
 
@@ -65,6 +79,15 @@ __bpf_strerror(char *buf, size_t size)
 		size);
 	buf[size - 1] = '\0';
 	return 0;
+}
+
+static inline
+int bpf__strerror_prepare_load(const char *filename __maybe_unused,
+			       bool source __maybe_unused,
+			       int err __maybe_unused,
+			       char *buf, size_t size)
+{
+	return __bpf_strerror(buf, size);
 }
 
 static inline int
