@@ -79,7 +79,6 @@ typedef struct {
 	union {
 		struct {
 			int (*spi_max_speed)(void);
-			int (*spi_trx)(u8 *, u8 *, u32);
 		} spi;
 	} u;
 } wilc_wlan_io_func_t;
