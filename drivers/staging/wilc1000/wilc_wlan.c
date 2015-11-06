@@ -256,8 +256,6 @@ static inline int add_tcp_pending_ack(u32 ack, u32 session_index,
 		pending_acks_info[pending_base + pending_acks].session_index = session_index;
 		txqe->tcp_PendingAck_index = pending_base + pending_acks;
 		pending_acks++;
-	} else {
-
 	}
 	return 0;
 }
@@ -1630,7 +1628,6 @@ u32 wilc_get_chipid(u8 update)
 			} else {
 				tempchipid = 0x1002b2;
 			}
-		} else {
 		}
 
 		chipid = tempchipid;
