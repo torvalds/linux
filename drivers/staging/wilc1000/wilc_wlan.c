@@ -196,7 +196,7 @@ u32 total_acks = 0, dropped_acks = 0;
 struct ack_session_info;
 struct ack_session_info {
 	u32 seq_num;
-	u32 Bigger_Ack_num;
+	u32 bigger_ack_num;
 	u16 src_port;
 	u16 dst_port;
 	u16 status;
@@ -230,7 +230,7 @@ static inline int Init_TCP_tracking(void)
 static inline int add_TCP_track_session(u32 src_prt, u32 dst_prt, u32 seq)
 {
 	Acks_keep_track_info[Opened_TCP_session].seq_num = seq;
-	Acks_keep_track_info[Opened_TCP_session].Bigger_Ack_num = 0;
+	Acks_keep_track_info[Opened_TCP_session].bigger_ack_num = 0;
 	Acks_keep_track_info[Opened_TCP_session].src_port = src_prt;
 	Acks_keep_track_info[Opened_TCP_session].dst_port = dst_prt;
 	Opened_TCP_session++;
@@ -241,8 +241,8 @@ static inline int add_TCP_track_session(u32 src_prt, u32 dst_prt, u32 seq)
 
 static inline int Update_TCP_track_session(u32 index, u32 Ack)
 {
-	if (Ack > Acks_keep_track_info[index].Bigger_Ack_num)
-		Acks_keep_track_info[index].Bigger_Ack_num = Ack;
+	if (Ack > Acks_keep_track_info[index].bigger_ack_num)
+		Acks_keep_track_info[index].bigger_ack_num = Ack;
 	return 0;
 }
 
@@ -347,7 +347,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 
 	spin_lock_irqsave(&wilc->txq_spinlock, p->txq_spinlock_flags);
 	for (i = PendingAcks_arrBase; i < (PendingAcks_arrBase + Pending_Acks); i++) {
-		if (Pending_Acks_info[i].ack_num < Acks_keep_track_info[Pending_Acks_info[i].Session_index].Bigger_Ack_num) {
+		if (Pending_Acks_info[i].ack_num < Acks_keep_track_info[Pending_Acks_info[i].Session_index].bigger_ack_num) {
 			struct txq_entry_t *tqe;
 
 			PRINT_D(TCP_ENH, "DROP ACK: %u\n", Pending_Acks_info[i].ack_num);
