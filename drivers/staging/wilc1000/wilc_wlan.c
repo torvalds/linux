@@ -306,22 +306,25 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 					(u32)ip_hdr_ptr[3];
 			data_offset = ((u32)tcp_hdr_ptr[12] & 0xf0) >> 2;
 			if (total_length == (IHL + data_offset)) {
-				u32 seq_no, Ack_no;
+				u32 seq_no, ack_no;
 
 				seq_no	= (((u32)tcp_hdr_ptr[4]) << 24) + (((u32)tcp_hdr_ptr[5]) << 16) + (((u32)tcp_hdr_ptr[6]) << 8) + ((u32)tcp_hdr_ptr[7]);
 
-				Ack_no	= (((u32)tcp_hdr_ptr[8]) << 24) + (((u32)tcp_hdr_ptr[9]) << 16) + (((u32)tcp_hdr_ptr[10]) << 8) + ((u32)tcp_hdr_ptr[11]);
+				ack_no = ((u32)tcp_hdr_ptr[8] << 24) +
+					 ((u32)tcp_hdr_ptr[9] << 16) +
+					 ((u32)tcp_hdr_ptr[10] << 8) +
+					 (u32)tcp_hdr_ptr[11];
 
 				for (i = 0; i < tcp_session; i++) {
 					if (ack_session_info[i].seq_num == seq_no) {
-						update_tcp_session(i, Ack_no);
+						update_tcp_session(i, ack_no);
 						break;
 					}
 				}
 				if (i == tcp_session)
 					add_tcp_session(0, 0, seq_no);
 
-				add_tcp_pending_ack(Ack_no, i, tqe);
+				add_tcp_pending_ack(ack_no, i, tqe);
 			}
 
 		} else {
