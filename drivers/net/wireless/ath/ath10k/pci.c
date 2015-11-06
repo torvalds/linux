@@ -108,7 +108,7 @@ static void ath10k_pci_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_pci_htt_tx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_pci_htt_rx_cb(struct ath10k_ce_pipe *ce_state);
 
-static const struct ce_attr host_ce_config_wlan[] = {
+static struct ce_attr host_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.flags = CE_ATTR_FLAGS,
@@ -213,7 +213,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 };
 
 /* Target firmware's Copy Engine configuration. */
-static const struct ce_pipe_config target_ce_config_wlan[] = {
+static struct ce_pipe_config target_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.pipenum = __cpu_to_le32(0),
@@ -326,7 +326,7 @@ static const struct ce_pipe_config target_ce_config_wlan[] = {
  * This table is derived from the CE_PCI TABLE, above.
  * It is passed to the Target at startup for use by firmware.
  */
-static const struct service_to_pipe target_service_to_ce_map_wlan[] = {
+static struct service_to_pipe target_service_to_ce_map_wlan[] = {
 	{
 		__cpu_to_le32(ATH10K_HTC_SVC_ID_WMI_DATA_VO),
 		__cpu_to_le32(PIPEDIR_OUT),	/* out = UL = host -> target */
@@ -2023,6 +2023,29 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 	return 0;
 }
 
+static void ath10k_pci_override_ce_config(struct ath10k *ar)
+{
+	struct ce_attr *attr;
+	struct ce_pipe_config *config;
+
+	/* For QCA6174 we're overriding the Copy Engine 5 configuration,
+	 * since it is currently used for other feature.
+	 */
+
+	/* Override Host's Copy Engine 5 configuration */
+	attr = &host_ce_config_wlan[5];
+	attr->src_sz_max = 0;
+	attr->dest_nentries = 0;
+
+	/* Override Target firmware's Copy Engine configuration */
+	config = &target_ce_config_wlan[5];
+	config->pipedir = __cpu_to_le32(PIPEDIR_OUT);
+	config->nbytes_max = __cpu_to_le32(2048);
+
+	/* Map from service/endpoint to Copy Engine */
+	target_service_to_ce_map_wlan[15].pipenum = __cpu_to_le32(1);
+}
+
 static int ath10k_pci_alloc_pipes(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -3015,6 +3038,9 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		ath10k_err(ar, "failed to claim device: %d\n", ret);
 		goto err_core_destroy;
 	}
+
+	if (QCA_REV_6174(ar))
+		ath10k_pci_override_ce_config(ar);
 
 	ret = ath10k_pci_alloc_pipes(ar);
 	if (ret) {
