@@ -1186,8 +1186,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 		return;
 	}
 
-	netdev_for_each_mc_addr(ha, dev)
-	{
+	netdev_for_each_mc_addr(ha, dev) {
 		memcpy(multicast_mac_addr_list[i], ha->addr, ETH_ALEN);
 		PRINT_D(INIT_DBG, "Entry[%d]: %x:%x:%x:%x:%x:%x\n", i,
 			multicast_mac_addr_list[i][0],
