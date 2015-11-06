@@ -1516,7 +1516,7 @@ int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
 	return ret_size;
 }
 
-int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
+int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drv_handler)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
 	u32 offset;
@@ -1536,7 +1536,7 @@ int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 	if (commit) {
 		p->cfg_frame_in_use = 1;
 
-		if (wilc_wlan_cfg_commit(WILC_CFG_QUERY, drvHandler))
+		if (wilc_wlan_cfg_commit(WILC_CFG_QUERY, drv_handler))
 			ret_size = 0;
 
 		if (linux_wlan_lock_timeout(&g_linux_wlan->cfg_event,
