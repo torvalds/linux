@@ -945,9 +945,7 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 		free_irq(irq, domain);
 	}
 
-	if (smmu_domain->pgtbl_ops)
-		free_io_pgtable_ops(smmu_domain->pgtbl_ops);
-
+	free_io_pgtable_ops(smmu_domain->pgtbl_ops);
 	__arm_smmu_free_bitmap(smmu->context_map, cfg->cbndx);
 }
 
