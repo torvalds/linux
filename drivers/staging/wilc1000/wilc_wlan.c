@@ -345,7 +345,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 	perInterface_wlan_t *nic;
 	struct wilc *wilc;
 	u32 i = 0;
-	u32 Dropped = 0;
+	u32 dropped = 0;
 	wilc_wlan_dev_t *p = &g_wlan;
 
 	nic = netdev_priv(dev);
@@ -366,7 +366,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 				if (tqe->tx_complete_func)
 					tqe->tx_complete_func(tqe->priv, tqe->status);
 				kfree(tqe);
-				Dropped++;
+				dropped++;
 			}
 		}
 	}
@@ -380,9 +380,9 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 
 	spin_unlock_irqrestore(&wilc->txq_spinlock, p->txq_spinlock_flags);
 
-	while (Dropped > 0) {
+	while (dropped > 0) {
 		linux_wlan_lock_timeout(&wilc->txq_event, 1);
-		Dropped--;
+		dropped--;
 	}
 
 	return 1;
