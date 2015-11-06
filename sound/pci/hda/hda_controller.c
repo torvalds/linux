@@ -1045,6 +1045,7 @@ int azx_bus_init(struct azx *chip, const char *model,
 	mutex_init(&bus->prepare_mutex);
 	bus->pci = chip->pci;
 	bus->modelname = model;
+	bus->mixer_assigned = -1;
 	bus->core.snoop = azx_snoop(chip);
 	if (chip->get_position[0] != azx_get_pos_lpib ||
 	    chip->get_position[1] != azx_get_pos_lpib)
@@ -1058,6 +1059,9 @@ int azx_bus_init(struct azx *chip, const char *model,
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
 		bus->needs_damn_long_delay = 1;
 	}
+
+	if (chip->driver_caps & AZX_DCAPS_4K_BDLE_BOUNDARY)
+		bus->core.align_bdle_4k = true;
 
 	/* AMD chipsets often cause the communication stalls upon certain
 	 * sequence like the pin-detection.  It seems that forcing the synced

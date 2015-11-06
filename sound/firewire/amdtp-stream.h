@@ -4,6 +4,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <sound/asound.h>
 #include "packets-buffer.h"
 
@@ -80,100 +81,78 @@ enum cip_sfc {
 	CIP_SFC_COUNT
 };
 
-#define AMDTP_IN_PCM_FORMAT_BITS	SNDRV_PCM_FMTBIT_S32
-
-#define AMDTP_OUT_PCM_FORMAT_BITS	(SNDRV_PCM_FMTBIT_S16 | \
-					 SNDRV_PCM_FMTBIT_S32)
-
-
-/*
- * This module supports maximum 64 PCM channels for one PCM stream
- * This is for our convenience.
- */
-#define AMDTP_MAX_CHANNELS_FOR_PCM	64
-
-/*
- * AMDTP packet can include channels for MIDI conformant data.
- * Each MIDI conformant data channel includes 8 MPX-MIDI data stream.
- * Each MPX-MIDI data stream includes one data stream from/to MIDI ports.
- *
- * This module supports maximum 1 MIDI conformant data channels.
- * Then this AMDTP packets can transfer maximum 8 MIDI data streams.
- */
-#define AMDTP_MAX_CHANNELS_FOR_MIDI	1
-
 struct fw_unit;
 struct fw_iso_context;
 struct snd_pcm_substream;
 struct snd_pcm_runtime;
-struct snd_rawmidi_substream;
 
 enum amdtp_stream_direction {
 	AMDTP_OUT_STREAM = 0,
 	AMDTP_IN_STREAM
 };
 
+struct amdtp_stream;
+typedef unsigned int (*amdtp_stream_process_data_blocks_t)(
+						struct amdtp_stream *s,
+						__be32 *buffer,
+						unsigned int data_blocks,
+						unsigned int *syt);
 struct amdtp_stream {
 	struct fw_unit *unit;
 	enum cip_flags flags;
 	enum amdtp_stream_direction direction;
-	struct fw_iso_context *context;
 	struct mutex mutex;
 
-	enum cip_sfc sfc;
-	unsigned int data_block_quadlets;
-	unsigned int pcm_channels;
-	unsigned int midi_ports;
-	void (*transfer_samples)(struct amdtp_stream *s,
-				 struct snd_pcm_substream *pcm,
-				 __be32 *buffer, unsigned int frames);
-	u8 pcm_positions[AMDTP_MAX_CHANNELS_FOR_PCM];
-	u8 midi_position;
-
-	unsigned int syt_interval;
-	unsigned int transfer_delay;
-	unsigned int source_node_id_field;
+	/* For packet processing. */
+	struct fw_iso_context *context;
 	struct iso_packets_buffer buffer;
-
-	struct snd_pcm_substream *pcm;
-	struct tasklet_struct period_tasklet;
-
 	int packet_index;
+
+	/* For CIP headers. */
+	unsigned int source_node_id_field;
+	unsigned int data_block_quadlets;
 	unsigned int data_block_counter;
-
-	unsigned int data_block_state;
-
-	unsigned int last_syt_offset;
-	unsigned int syt_offset_state;
-
-	unsigned int pcm_buffer_pointer;
-	unsigned int pcm_period_pointer;
-	bool pointer_flush;
-	bool double_pcm_frames;
-
-	struct snd_rawmidi_substream *midi[AMDTP_MAX_CHANNELS_FOR_MIDI * 8];
-	int midi_fifo_limit;
-	int midi_fifo_used[AMDTP_MAX_CHANNELS_FOR_MIDI * 8];
-
+	unsigned int fmt;
+	unsigned int fdf;
 	/* quirk: fixed interval of dbc between previos/current packets. */
 	unsigned int tx_dbc_interval;
 	/* quirk: indicate the value of dbc field in a first packet. */
 	unsigned int tx_first_dbc;
 
+	/* Internal flags. */
+	enum cip_sfc sfc;
+	unsigned int syt_interval;
+	unsigned int transfer_delay;
+	unsigned int data_block_state;
+	unsigned int last_syt_offset;
+	unsigned int syt_offset_state;
+
+	/* For a PCM substream processing. */
+	struct snd_pcm_substream *pcm;
+	struct tasklet_struct period_tasklet;
+	unsigned int pcm_buffer_pointer;
+	unsigned int pcm_period_pointer;
+	bool pointer_flush;
+
+	/* To wait for first packet. */
 	bool callbacked;
 	wait_queue_head_t callback_wait;
 	struct amdtp_stream *sync_slave;
+
+	/* For backends to process data blocks. */
+	void *protocol;
+	amdtp_stream_process_data_blocks_t process_data_blocks;
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
-		      enum amdtp_stream_direction dir,
-		      enum cip_flags flags);
+		      enum amdtp_stream_direction dir, enum cip_flags flags,
+		      unsigned int fmt,
+		      amdtp_stream_process_data_blocks_t process_data_blocks,
+		      unsigned int protocol_size);
 void amdtp_stream_destroy(struct amdtp_stream *s);
 
-void amdtp_stream_set_parameters(struct amdtp_stream *s,
-				 unsigned int rate,
-				 unsigned int pcm_channels,
-				 unsigned int midi_ports);
+int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
+				unsigned int data_block_quadlets);
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s);
 
 int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed);
@@ -182,8 +161,7 @@ void amdtp_stream_stop(struct amdtp_stream *s);
 
 int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime);
-void amdtp_stream_set_pcm_format(struct amdtp_stream *s,
-				 snd_pcm_format_t format);
+
 void amdtp_stream_pcm_prepare(struct amdtp_stream *s);
 unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s);
 void amdtp_stream_pcm_abort(struct amdtp_stream *s);
@@ -238,24 +216,6 @@ static inline void amdtp_stream_pcm_trigger(struct amdtp_stream *s,
 					    struct snd_pcm_substream *pcm)
 {
 	ACCESS_ONCE(s->pcm) = pcm;
-}
-
-/**
- * amdtp_stream_midi_trigger - start/stop playback/capture with a MIDI device
- * @s: the AMDTP stream
- * @port: index of MIDI port
- * @midi: the MIDI device to be started, or %NULL to stop the current device
- *
- * Call this function on a running isochronous stream to enable the actual
- * transmission of MIDI data.  This function should be called from the MIDI
- * device's .trigger callback.
- */
-static inline void amdtp_stream_midi_trigger(struct amdtp_stream *s,
-					     unsigned int port,
-					     struct snd_rawmidi_substream *midi)
-{
-	if (port < s->midi_ports)
-		ACCESS_ONCE(s->midi[port]) = midi;
 }
 
 static inline bool cip_sfc_is_base_44100(enum cip_sfc sfc)

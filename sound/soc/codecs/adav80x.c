@@ -728,8 +728,8 @@ static int adav80x_dai_startup(struct snd_pcm_substream *substream,
 	if (!snd_soc_codec_is_active(codec) || !adav80x->rate)
 		return 0;
 
-	return snd_pcm_hw_constraint_minmax(substream->runtime,
-			SNDRV_PCM_HW_PARAM_RATE, adav80x->rate, adav80x->rate);
+	return snd_pcm_hw_constraint_single(substream->runtime,
+			SNDRV_PCM_HW_PARAM_RATE, adav80x->rate);
 }
 
 static void adav80x_dai_shutdown(struct snd_pcm_substream *substream,

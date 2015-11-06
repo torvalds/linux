@@ -809,6 +809,7 @@ static const struct of_device_id pxa_ssp_of_ids[] = {
 	{ .compatible = "mrvl,pxa-ssp-dai" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, pxa_ssp_of_ids);
 #endif
 
 static int asoc_ssp_probe(struct platform_device *pdev)

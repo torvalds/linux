@@ -44,16 +44,16 @@ int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
 static void release_resources(struct snd_dice *dice,
 			      struct fw_iso_resources *resources)
 {
-	unsigned int channel;
+	__be32 channel;
 
 	/* Reset channel number */
 	channel = cpu_to_be32((u32)-1);
 	if (resources == &dice->tx_resources)
 		snd_dice_transaction_write_tx(dice, TX_ISOCHRONOUS,
-					      &channel, 4);
+					      &channel, sizeof(channel));
 	else
 		snd_dice_transaction_write_rx(dice, RX_ISOCHRONOUS,
-					      &channel, 4);
+					      &channel, sizeof(channel));
 
 	fw_iso_resources_free(resources);
 }
@@ -62,7 +62,7 @@ static int keep_resources(struct snd_dice *dice,
 			  struct fw_iso_resources *resources,
 			  unsigned int max_payload_bytes)
 {
-	unsigned int channel;
+	__be32 channel;
 	int err;
 
 	err = fw_iso_resources_allocate(resources, max_payload_bytes,
@@ -74,10 +74,10 @@ static int keep_resources(struct snd_dice *dice,
 	channel = cpu_to_be32(resources->channel);
 	if (resources == &dice->tx_resources)
 		err = snd_dice_transaction_write_tx(dice, TX_ISOCHRONOUS,
-						    &channel, 4);
+						    &channel, sizeof(channel));
 	else
 		err = snd_dice_transaction_write_rx(dice, RX_ISOCHRONOUS,
-						    &channel, 4);
+						    &channel, sizeof(channel));
 	if (err < 0)
 		release_resources(dice, resources);
 end:
@@ -100,6 +100,7 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 {
 	struct fw_iso_resources *resources;
 	unsigned int i, mode, pcm_chs, midi_ports;
+	bool double_pcm_frames;
 	int err;
 
 	err = snd_dice_stream_get_rate_mode(dice, rate, &mode);
@@ -125,21 +126,24 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 	 * For this quirk, blocking mode is required and PCM buffer size should
 	 * be aligned to SYT_INTERVAL.
 	 */
-	if (mode > 1) {
+	double_pcm_frames = mode > 1;
+	if (double_pcm_frames) {
 		rate /= 2;
 		pcm_chs *= 2;
-		stream->double_pcm_frames = true;
-	} else {
-		stream->double_pcm_frames = false;
 	}
 
-	amdtp_stream_set_parameters(stream, rate, pcm_chs, midi_ports);
-	if (mode > 1) {
+	err = amdtp_am824_set_parameters(stream, rate, pcm_chs, midi_ports,
+					 double_pcm_frames);
+	if (err < 0)
+		goto end;
+
+	if (double_pcm_frames) {
 		pcm_chs /= 2;
 
 		for (i = 0; i < pcm_chs; i++) {
-			stream->pcm_positions[i] = i * 2;
-			stream->pcm_positions[i + pcm_chs] = i * 2 + 1;
+			amdtp_am824_set_pcm_position(stream, i, i * 2);
+			amdtp_am824_set_pcm_position(stream, i + pcm_chs,
+						     i * 2 + 1);
 		}
 	}
 
@@ -302,7 +306,7 @@ static int init_stream(struct snd_dice *dice, struct amdtp_stream *stream)
 		goto end;
 	resources->channels_mask = 0x00000000ffffffffuLL;
 
-	err = amdtp_stream_init(stream, dice->unit, dir, CIP_BLOCKING);
+	err = amdtp_am824_init(stream, dice->unit, dir, CIP_BLOCKING);
 	if (err < 0) {
 		amdtp_stream_destroy(stream);
 		fw_iso_resources_destroy(resources);
