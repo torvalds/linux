@@ -208,14 +208,6 @@ static inline int ldlm_pool_t2gsp(unsigned int t)
 }
 
 /**
- * Returns current \a pl limit.
- */
-static __u32 ldlm_pool_get_limit(struct ldlm_pool *pl)
-{
-	return atomic_read(&pl->pl_limit);
-}
-
-/**
  * Sets passed \a limit to \a pl.
  */
 static void ldlm_pool_set_limit(struct ldlm_pool *pl, __u32 limit)
@@ -452,7 +444,7 @@ static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 	spin_lock(&pl->pl_lock);
 	slv = pl->pl_server_lock_volume;
 	clv = pl->pl_client_lock_volume;
-	limit = ldlm_pool_get_limit(pl);
+	limit = atomic_read(&pl->pl_limit);
 	granted = atomic_read(&pl->pl_granted);
 	grant_rate = atomic_read(&pl->pl_grant_rate);
 	cancel_rate = atomic_read(&pl->pl_cancel_rate);
