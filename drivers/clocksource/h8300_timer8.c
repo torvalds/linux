@@ -12,13 +12,14 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/clockchips.h>
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/irq.h>
 
@@ -39,10 +40,10 @@
 #define RELATIVE 0
 #define ABSOLUTE 1
 
+#define SCALE 64
+
 struct timer8_priv {
-	struct platform_device *pdev;
 	struct clock_event_device ced;
-	struct irqaction irqaction;
 	unsigned long mapbase;
 	raw_spinlock_t lock;
 	unsigned long flags;
@@ -111,7 +112,7 @@ static void timer8_set_next(struct timer8_priv *p, unsigned long delta)
 
 static int timer8_enable(struct timer8_priv *p)
 {
-	p->rate = clk_get_rate(p->pclk) / 64;
+	p->rate = clk_get_rate(p->pclk) / SCALE;
 	ctrl_outw(0xffff, p->mapbase + TCORA);
 	ctrl_outw(0x0000, p->mapbase + _8TCNT);
 	ctrl_outw(0x0c02, p->mapbase + _8TCR);
@@ -179,7 +180,7 @@ static int timer8_clock_event_periodic(struct clock_event_device *ced)
 {
 	struct timer8_priv *p = ced_to_priv(ced);
 
-	dev_info(&p->pdev->dev, "used for periodic clock events\n");
+	pr_info("%s: used for periodic clock events\n", ced->name);
 	timer8_stop(p);
 	timer8_clock_event_start(p, PERIODIC);
 
@@ -190,7 +191,7 @@ static int timer8_clock_event_oneshot(struct clock_event_device *ced)
 {
 	struct timer8_priv *p = ced_to_priv(ced);
 
-	dev_info(&p->pdev->dev, "used for oneshot clock events\n");
+	pr_info("%s: used for oneshot clock events\n", ced->name);
 	timer8_stop(p);
 	timer8_clock_event_start(p, ONESHOT);
 
@@ -208,110 +209,61 @@ static int timer8_clock_event_next(unsigned long delta,
 	return 0;
 }
 
-static int timer8_setup(struct timer8_priv *p,
-			struct platform_device *pdev)
+static struct timer8_priv timer8_priv = {
+	.ced = {
+		.name = "h8300_8timer",
+		.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+		.rating = 200,
+		.set_next_event = timer8_clock_event_next,
+		.set_state_shutdown = timer8_clock_event_shutdown,
+		.set_state_periodic = timer8_clock_event_periodic,
+		.set_state_oneshot = timer8_clock_event_oneshot,
+	},
+};
+
+static void __init h8300_8timer_init(struct device_node *node)
 {
-	struct resource *res;
+	void __iomem *base;
 	int irq;
-	int ret;
+	int ret = 0;
+	int rate;
+	struct clk *clk;
 
-	p->pdev = pdev;
-
-	res = platform_get_resource(p->pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&p->pdev->dev, "failed to get I/O memory\n");
-		return -ENXIO;
+	clk = of_clk_get(node, 0);
+	if (IS_ERR(clk)) {
+		pr_err("failed to get clock for clockevent\n");
+		return;
 	}
 
-	irq = platform_get_irq(p->pdev, 0);
+	base = of_iomap(node, 0);
+	if (!base) {
+		pr_err("failed to map registers for clockevent\n");
+		goto free_clk;
+	}
+
+	irq = irq_of_parse_and_map(node, 0);
 	if (irq < 0) {
-		dev_err(&p->pdev->dev, "failed to get irq\n");
-		return -ENXIO;
+		pr_err("failed to get irq for clockevent\n");
+		goto unmap_reg;
 	}
 
-	p->mapbase = res->start;
+	timer8_priv.mapbase = (unsigned long)base;
+	timer8_priv.pclk = clk;
 
-	p->irqaction.name = dev_name(&p->pdev->dev);
-	p->irqaction.handler = timer8_interrupt;
-	p->irqaction.dev_id = p;
-	p->irqaction.flags = IRQF_TIMER;
-
-	p->pclk = clk_get(&p->pdev->dev, "fck");
-	if (IS_ERR(p->pclk)) {
-		dev_err(&p->pdev->dev, "can't get clk\n");
-		return PTR_ERR(p->pclk);
-	}
-
-	p->ced.name = pdev->name;
-	p->ced.features = CLOCK_EVT_FEAT_PERIODIC |
-		CLOCK_EVT_FEAT_ONESHOT;
-	p->ced.rating = 200;
-	p->ced.cpumask = cpumask_of(0);
-	p->ced.set_next_event = timer8_clock_event_next;
-	p->ced.set_state_shutdown = timer8_clock_event_shutdown;
-	p->ced.set_state_periodic = timer8_clock_event_periodic;
-	p->ced.set_state_oneshot = timer8_clock_event_oneshot;
-
-	ret = setup_irq(irq, &p->irqaction);
+	ret = request_irq(irq, timer8_interrupt,
+			  IRQF_TIMER, timer8_priv.ced.name, &timer8_priv);
 	if (ret < 0) {
-		dev_err(&p->pdev->dev,
-			"failed to request irq %d\n", irq);
-		return ret;
+		pr_err("failed to request irq %d for clockevent\n", irq);
+		goto unmap_reg;
 	}
-	clockevents_register_device(&p->ced);
-	platform_set_drvdata(pdev, p);
+	rate = clk_get_rate(clk) / SCALE;
+	clockevents_config_and_register(&timer8_priv.ced, rate, 1, 0x0000ffff);
+	return;
 
-	return 0;
+unmap_reg:
+	iounmap(base);
+free_clk:
+	clk_put(clk);
 }
 
-static int timer8_probe(struct platform_device *pdev)
-{
-	struct timer8_priv *p = platform_get_drvdata(pdev);
-
-	if (p) {
-		dev_info(&pdev->dev, "kept as earlytimer\n");
-		return 0;
-	}
-
-	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-
-	return timer8_setup(p, pdev);
-}
-
-static int timer8_remove(struct platform_device *pdev)
-{
-	return -EBUSY;
-}
-
-static const struct of_device_id timer8_of_table[] __maybe_unused = {
-	{ .compatible = "renesas,8bit-timer" },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(of, timer8_of_table);
-static struct platform_driver timer8_driver = {
-	.probe		= timer8_probe,
-	.remove		= timer8_remove,
-	.driver		= {
-		.name	= "h8300-8timer",
-		.of_match_table = of_match_ptr(timer8_of_table),
-	}
-};
-
-static int __init timer8_init(void)
-{
-	return platform_driver_register(&timer8_driver);
-}
-
-static void __exit timer8_exit(void)
-{
-	platform_driver_unregister(&timer8_driver);
-}
-
-subsys_initcall(timer8_init);
-module_exit(timer8_exit);
-MODULE_AUTHOR("Yoshinori Sato");
-MODULE_DESCRIPTION("H8/300 8bit Timer Driver");
-MODULE_LICENSE("GPL v2");
+CLOCKSOURCE_OF_DECLARE(h8300_8bit, "renesas,8bit-timer", h8300_8timer_init);

@@ -17,6 +17,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/segment.h>
 #include <asm/irq.h>
@@ -47,9 +49,7 @@
 #define ABSOLUTE 1
 
 struct timer16_priv {
-	struct platform_device *pdev;
 	struct clocksource cs;
-	struct irqaction irqaction;
 	unsigned long total_cycles;
 	unsigned long mapbase;
 	unsigned long mapcommon;
@@ -144,110 +144,77 @@ static void timer16_disable(struct clocksource *cs)
 	p->cs_enabled = false;
 }
 
+static struct timer16_priv timer16_priv = {
+	.cs = {
+		.name = "h8300_16timer",
+		.rating = 200,
+		.read = timer16_clocksource_read,
+		.enable = timer16_enable,
+		.disable = timer16_disable,
+		.mask = CLOCKSOURCE_MASK(sizeof(unsigned long) * 8),
+		.flags = CLOCK_SOURCE_IS_CONTINUOUS,
+	},
+};
+
 #define REG_CH   0
 #define REG_COMM 1
 
-static int timer16_setup(struct timer16_priv *p, struct platform_device *pdev)
+static void __init h8300_16timer_init(struct device_node *node)
 {
-	struct resource *res[2];
+	void __iomem *base[2];
 	int ret, irq;
 	unsigned int ch;
+	struct clk *clk;
 
-	p->pdev = pdev;
-
-	res[REG_CH] = platform_get_resource(p->pdev,
-					    IORESOURCE_MEM, REG_CH);
-	res[REG_COMM] = platform_get_resource(p->pdev,
-					      IORESOURCE_MEM, REG_COMM);
-	if (!res[REG_CH] || !res[REG_COMM]) {
-		dev_err(&p->pdev->dev, "failed to get I/O memory\n");
-		return -ENXIO;
+	clk = of_clk_get(node, 0);
+	if (IS_ERR(clk)) {
+		pr_err("failed to get clock for clocksource\n");
+		return;
 	}
-	irq = platform_get_irq(p->pdev, 0);
+
+	base[REG_CH] = of_iomap(node, 0);
+	if (!base[REG_CH]) {
+		pr_err("failed to map registers for clocksource\n");
+		goto free_clk;
+	}
+
+	base[REG_COMM] = of_iomap(node, 1);
+	if (!base[REG_COMM]) {
+		pr_err("failed to map registers for clocksource\n");
+		goto unmap_ch;
+	}
+
+	irq = irq_of_parse_and_map(node, 0);
 	if (irq < 0) {
-		dev_err(&p->pdev->dev, "failed to get irq\n");
-		return irq;
+		pr_err("failed to get irq for clockevent\n");
+		goto unmap_comm;
 	}
 
-	p->clk = clk_get(&p->pdev->dev, "fck");
-	if (IS_ERR(p->clk)) {
-		dev_err(&p->pdev->dev, "can't get clk\n");
-		return PTR_ERR(p->clk);
-	}
-	of_property_read_u32(p->pdev->dev.of_node, "renesas,channel", &ch);
+	of_property_read_u32(node, "renesas,channel", &ch);
 
-	p->pdev = pdev;
-	p->mapbase = res[REG_CH]->start;
-	p->mapcommon = res[REG_COMM]->start;
-	p->enb = 1 << ch;
-	p->imfa = 1 << ch;
-	p->imiea = 1 << (4 + ch);
-	p->cs.name = pdev->name;
-	p->cs.rating = 200;
-	p->cs.read = timer16_clocksource_read;
-	p->cs.enable = timer16_enable;
-	p->cs.disable = timer16_disable;
-	p->cs.mask = CLOCKSOURCE_MASK(sizeof(unsigned long) * 8);
-	p->cs.flags = CLOCK_SOURCE_IS_CONTINUOUS;
+	timer16_priv.mapbase = (unsigned long)base[REG_CH];
+	timer16_priv.mapcommon = (unsigned long)base[REG_COMM];
+	timer16_priv.enb = 1 << ch;
+	timer16_priv.imfa = 1 << ch;
+	timer16_priv.imiea = 1 << (4 + ch);
 
 	ret = request_irq(irq, timer16_interrupt,
-			  IRQF_TIMER, pdev->name, p);
+			  IRQF_TIMER, timer16_priv.cs.name, &timer16_priv);
 	if (ret < 0) {
-		dev_err(&p->pdev->dev, "failed to request irq %d\n", irq);
-		return ret;
+		pr_err("failed to request irq %d of clocksource\n", irq);
+		goto unmap_comm;
 	}
 
-	clocksource_register_hz(&p->cs, clk_get_rate(p->clk) / 8);
+	clocksource_register_hz(&timer16_priv.cs,
+				clk_get_rate(timer16_priv.clk) / 8);
+	return;
 
-	return 0;
+unmap_comm:
+	iounmap(base[REG_COMM]);
+unmap_ch:
+	iounmap(base[REG_CH]);
+free_clk:
+	clk_put(clk);
 }
 
-static int timer16_probe(struct platform_device *pdev)
-{
-	struct timer16_priv *p = platform_get_drvdata(pdev);
-
-	if (p) {
-		dev_info(&pdev->dev, "kept as earlytimer\n");
-		return 0;
-	}
-
-	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-
-	return timer16_setup(p, pdev);
-}
-
-static int timer16_remove(struct platform_device *pdev)
-{
-	return -EBUSY;
-}
-
-static const struct of_device_id timer16_of_table[] = {
-	{ .compatible = "renesas,16bit-timer" },
-	{ }
-};
-static struct platform_driver timer16_driver = {
-	.probe		= timer16_probe,
-	.remove		= timer16_remove,
-	.driver		= {
-		.name	= "h8300h-16timer",
-		.of_match_table = of_match_ptr(timer16_of_table),
-	}
-};
-
-static int __init timer16_init(void)
-{
-	return platform_driver_register(&timer16_driver);
-}
-
-static void __exit timer16_exit(void)
-{
-	platform_driver_unregister(&timer16_driver);
-}
-
-subsys_initcall(timer16_init);
-module_exit(timer16_exit);
-MODULE_AUTHOR("Yoshinori Sato");
-MODULE_DESCRIPTION("H8/300H 16bit Timer Driver");
-MODULE_LICENSE("GPL v2");
+CLOCKSOURCE_OF_DECLARE(h8300_16bit, "renesas,16bit-timer", h8300_16timer_init);
