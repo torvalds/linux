@@ -996,8 +996,7 @@ restart:
 		rxb = rxq->queue[i];
 		rxq->queue[i] = NULL;
 
-		IWL_DEBUG_RX(trans, "rxbuf: HW = %d, SW = %d (%p)\n",
-			     r, i, rxb);
+		IWL_DEBUG_RX(trans, "rxbuf: HW = %d, SW = %d\n", r, i);
 		iwl_pcie_rx_handle_rb(trans, rxb, emergency);
 
 		i = (i + 1) & RX_QUEUE_MASK;
