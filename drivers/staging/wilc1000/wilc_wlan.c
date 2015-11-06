@@ -246,14 +246,14 @@ static inline int update_tcp_session(u32 index, u32 ack)
 	return 0;
 }
 
-static inline int add_tcp_pending_ack(u32 ack, u32 Session_index,
+static inline int add_tcp_pending_ack(u32 ack, u32 session_index,
 				       struct txq_entry_t *txqe)
 {
 	total_acks++;
 	if (pending_acks < MAX_PENDING_ACKS) {
 		pending_acks_info[pending_base + pending_acks].ack_num = ack;
 		pending_acks_info[pending_base + pending_acks].txqe = txqe;
-		pending_acks_info[pending_base + pending_acks].session_index = Session_index;
+		pending_acks_info[pending_base + pending_acks].session_index = session_index;
 		txqe->tcp_PendingAck_index = pending_base + pending_acks;
 		pending_acks++;
 	} else {
