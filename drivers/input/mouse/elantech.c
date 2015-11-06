@@ -1357,6 +1357,13 @@ static const struct dmi_system_id no_hw_res_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "U2442"),
 		},
 	},
+	{
+		/* Fujitsu LIFEBOOK U745 does not work with crc_enabled == 0 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK U745"),
+		},
+	},
 #endif
 	{ }
 };
