@@ -347,8 +347,8 @@ static s32 handle_set_channel(struct host_if_drv *hif_drv,
 	return result;
 }
 
-static s32 Handle_SetWfiDrvHandler(struct host_if_drv *hif_drv,
-				    struct drv_handler *hif_drv_handler)
+static s32 handle_set_wfi_drv_handler(struct host_if_drv *hif_drv,
+				      struct drv_handler *hif_drv_handler)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -2970,8 +2970,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_SET_WFIDRV_HANDLER:
-			Handle_SetWfiDrvHandler(msg.drv,
-						&msg.body.drv);
+			handle_set_wfi_drv_handler(msg.drv, &msg.body.drv);
 			break;
 
 		case HOST_IF_MSG_SET_OPERATION_MODE:
