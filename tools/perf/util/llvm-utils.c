@@ -4,7 +4,6 @@
  */
 
 #include <stdio.h>
-#include <sys/utsname.h>
 #include "util.h"
 #include "debug.h"
 #include "llvm-utils.h"
@@ -216,18 +215,19 @@ static int detect_kbuild_dir(char **kbuild_dir)
 	const char *suffix_dir = "";
 
 	char *autoconf_path;
-	struct utsname utsname;
 
 	int err;
 
 	if (!test_dir) {
-		err = uname(&utsname);
-		if (err) {
-			pr_warning("uname failed: %s\n", strerror(errno));
-			return -EINVAL;
-		}
+		/* _UTSNAME_LENGTH is 65 */
+		char release[128];
 
-		test_dir = utsname.release;
+		err = fetch_kernel_version(NULL, release,
+					   sizeof(release));
+		if (err)
+			return -EINVAL;
+
+		test_dir = release;
 		prefix_dir = "/lib/modules/";
 		suffix_dir = "/build";
 	}
@@ -325,38 +325,18 @@ get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 	pr_debug("include option is set to %s\n", *kbuild_include_opts);
 }
 
-static unsigned long
-fetch_kernel_version(void)
-{
-	struct utsname utsname;
-	int version, patchlevel, sublevel, err;
-
-	if (uname(&utsname))
-		return 0;
-
-	err = sscanf(utsname.release, "%d.%d.%d",
-		     &version, &patchlevel, &sublevel);
-
-	if (err != 3) {
-		pr_debug("Unablt to get kernel version from uname '%s'\n",
-			 utsname.release);
-		return 0;
-	}
-
-	return (version << 16) + (patchlevel << 8) + sublevel;
-}
-
 int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		      size_t *p_obj_buf_sz)
 {
+	size_t obj_buf_sz;
+	void *obj_buf = NULL;
 	int err, nr_cpus_avail;
-	char clang_path[PATH_MAX], nr_cpus_avail_str[64];
+	unsigned int kernel_version;
 	char linux_version_code_str[64];
 	const char *clang_opt = llvm_param.clang_opt;
-	const char *template = llvm_param.clang_bpf_cmd_template;
+	char clang_path[PATH_MAX], nr_cpus_avail_str[64];
 	char *kbuild_dir = NULL, *kbuild_include_opts = NULL;
-	void *obj_buf = NULL;
-	size_t obj_buf_sz;
+	const char *template = llvm_param.clang_bpf_cmd_template;
 
 	if (!template)
 		template = CLANG_BPF_CMD_DEFAULT_TEMPLATE;
@@ -388,8 +368,11 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	snprintf(nr_cpus_avail_str, sizeof(nr_cpus_avail_str), "%d",
 		 nr_cpus_avail);
 
+	if (fetch_kernel_version(&kernel_version, NULL, 0))
+		kernel_version = 0;
+
 	snprintf(linux_version_code_str, sizeof(linux_version_code_str),
-		 "0x%lx", fetch_kernel_version());
+		 "0x%x", kernel_version);
 
 	force_set_env("NR_CPUS", nr_cpus_avail_str);
 	force_set_env("LINUX_VERSION_CODE", linux_version_code_str);

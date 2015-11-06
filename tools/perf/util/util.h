@@ -350,4 +350,7 @@ static inline char *asprintf_expr_not_in_ints(const char *var, size_t nints, int
 
 int get_stack_size(const char *str, unsigned long *_size);
 
+int fetch_kernel_version(unsigned int *puint,
+			 char *str, size_t str_sz);
+
 #endif /* GIT_COMPAT_UTIL_H */
