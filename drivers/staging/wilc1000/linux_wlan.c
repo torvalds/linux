@@ -264,9 +264,11 @@ static int init_irq(struct net_device *dev)
 		PRINT_ER("could not obtain gpio for WILC_INTR\n");
 	}
 
-	if ((ret != -1) && (request_threaded_irq(wl->dev_irq_num, isr_uh_routine, isr_bh_routine,
-						  IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-						  "WILC_IRQ", dev)) < 0) {
+	if (ret != -1 && request_threaded_irq(wl->dev_irq_num,
+					      isr_uh_routine,
+					      isr_bh_routine,
+					      IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					      "WILC_IRQ", dev) < 0) {
 		PRINT_ER("Failed to request IRQ for GPIO: %d\n", GPIO_NUM);
 		ret = -1;
 	} else {
@@ -1472,8 +1474,7 @@ void wl_wlan_cleanup(struct wilc *wilc)
 	int i = 0;
 	perInterface_wlan_t *nic[NUM_CONCURRENT_IFC];
 
-	if (wilc &&
-	   (wilc->vif[0].ndev || wilc->vif[1].ndev)) {
+	if (wilc && (wilc->vif[0].ndev || wilc->vif[1].ndev)) {
 		unregister_inetaddr_notifier(&g_dev_notifier);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
