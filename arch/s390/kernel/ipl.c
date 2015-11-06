@@ -687,21 +687,14 @@ static ssize_t reipl_fcp_scpdata_write(struct file *filp, struct kobject *kobj,
 				       struct bin_attribute *attr,
 				       char *buf, loff_t off, size_t count)
 {
+	size_t scpdata_len = count;
 	size_t padding;
-	size_t scpdata_len;
 
-	if (off < 0)
+
+	if (off)
 		return -EINVAL;
 
-	if (off >= DIAG308_SCPDATA_SIZE)
-		return -ENOSPC;
-
-	if (count > DIAG308_SCPDATA_SIZE - off)
-		count = DIAG308_SCPDATA_SIZE - off;
-
-	memcpy(reipl_block_fcp->ipl_info.fcp.scp_data, buf + off, count);
-	scpdata_len = off + count;
-
+	memcpy(reipl_block_fcp->ipl_info.fcp.scp_data, buf, count);
 	if (scpdata_len % 8) {
 		padding = 8 - (scpdata_len % 8);
 		memset(reipl_block_fcp->ipl_info.fcp.scp_data + scpdata_len,
@@ -717,7 +710,7 @@ static ssize_t reipl_fcp_scpdata_write(struct file *filp, struct kobject *kobj,
 }
 static struct bin_attribute sys_reipl_fcp_scp_data_attr =
 	__BIN_ATTR(scp_data, (S_IRUGO | S_IWUSR), reipl_fcp_scpdata_read,
-		   reipl_fcp_scpdata_write, PAGE_SIZE);
+		   reipl_fcp_scpdata_write, DIAG308_SCPDATA_SIZE);
 
 static struct bin_attribute *reipl_fcp_bin_attrs[] = {
 	&sys_reipl_fcp_scp_data_attr,
