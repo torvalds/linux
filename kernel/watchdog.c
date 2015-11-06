@@ -683,33 +683,35 @@ static struct smp_hotplug_thread watchdog_threads = {
  * be parked and the watchdog threads of other CPUs can still be runnable.
  * Callers are expected to handle this special condition as appropriate in
  * their context.
+ *
+ * This function may only be called in a context that is protected against
+ * races with CPU hotplug - for example, via get_online_cpus().
  */
 static int watchdog_park_threads(void)
 {
 	int cpu, ret = 0;
 
-	get_online_cpus();
 	for_each_watchdog_cpu(cpu) {
 		ret = kthread_park(per_cpu(softlockup_watchdog, cpu));
 		if (ret)
 			break;
 	}
-	put_online_cpus();
 
 	return ret;
 }
 
 /*
  * unpark all watchdog threads that are specified in 'watchdog_cpumask'
+ *
+ * This function may only be called in a context that is protected against
+ * races with CPU hotplug - for example, via get_online_cpus().
  */
 static void watchdog_unpark_threads(void)
 {
 	int cpu;
 
-	get_online_cpus();
 	for_each_watchdog_cpu(cpu)
 		kthread_unpark(per_cpu(softlockup_watchdog, cpu));
-	put_online_cpus();
 }
 
 /*
