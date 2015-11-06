@@ -2021,6 +2021,7 @@ struct ocfs2_orphan_filldir_priv {
 	struct dir_context	ctx;
 	struct inode		*head;
 	struct ocfs2_super	*osb;
+	enum ocfs2_orphan_reco_type orphan_reco_type;
 };
 
 static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
@@ -2034,6 +2035,12 @@ static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 	if (name_len == 1 && !strncmp(".", name, 1))
 		return 0;
 	if (name_len == 2 && !strncmp("..", name, 2))
+		return 0;
+
+	/* do not include dio entry in case of orphan scan */
+	if ((p->orphan_reco_type == ORPHAN_NO_NEED_TRUNCATE) &&
+			(!strncmp(name, OCFS2_DIO_ORPHAN_PREFIX,
+			OCFS2_DIO_ORPHAN_PREFIX_LEN)))
 		return 0;
 
 	/* Skip bad inodes so that recovery can continue */
@@ -2060,14 +2067,16 @@ static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 
 static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 			       int slot,
-			       struct inode **head)
+			       struct inode **head,
+			       enum ocfs2_orphan_reco_type orphan_reco_type)
 {
 	int status;
 	struct inode *orphan_dir_inode = NULL;
 	struct ocfs2_orphan_filldir_priv priv = {
 		.ctx.actor = ocfs2_orphan_filldir,
 		.osb = osb,
-		.head = *head
+		.head = *head,
+		.orphan_reco_type = orphan_reco_type
 	};
 
 	orphan_dir_inode = ocfs2_get_system_file_inode(osb,
@@ -2170,7 +2179,7 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 	trace_ocfs2_recover_orphans(slot);
 
 	ocfs2_mark_recovering_orphan_dir(osb, slot);
-	ret = ocfs2_queue_orphans(osb, slot, &inode);
+	ret = ocfs2_queue_orphans(osb, slot, &inode, orphan_reco_type);
 	ocfs2_clear_recovering_orphan_dir(osb, slot);
 
 	/* Error here should be noted, but we want to continue with as
