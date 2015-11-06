@@ -413,8 +413,8 @@ struct drm_i915_reg_descriptor {
 };
 
 /* Convenience macro for adding 32-bit registers. */
-#define REG32(address, ...)                             \
-	{ .addr = address, __VA_ARGS__ }
+#define REG32(_reg, ...) \
+	{ .addr = (_reg), __VA_ARGS__ }
 
 /*
  * Convenience macro for adding 64-bit registers.
@@ -423,8 +423,13 @@ struct drm_i915_reg_descriptor {
  * access commands only allow 32-bit accesses. Hence, we have to include
  * entries for both halves of the 64-bit registers.
  */
-#define REG64(addr)                                     \
-	REG32(addr), REG32(addr + sizeof(u32))
+#define REG64(_reg) \
+	{ .addr = _reg }, \
+	{ .addr = _reg ## _UDW }
+
+#define REG64_IDX(_reg, idx) \
+	{ .addr = _reg(idx) }, \
+	{ .addr = _reg ## _UDW(idx) }
 
 static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG64(GPGPU_THREADS_DISPATCHED),
@@ -451,14 +456,14 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG32(GEN7_GPGPU_DISPATCHDIMX),
 	REG32(GEN7_GPGPU_DISPATCHDIMY),
 	REG32(GEN7_GPGPU_DISPATCHDIMZ),
-	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(0)),
-	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(1)),
-	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(2)),
-	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(3)),
-	REG64(GEN7_SO_PRIM_STORAGE_NEEDED(0)),
-	REG64(GEN7_SO_PRIM_STORAGE_NEEDED(1)),
-	REG64(GEN7_SO_PRIM_STORAGE_NEEDED(2)),
-	REG64(GEN7_SO_PRIM_STORAGE_NEEDED(3)),
+	REG64_IDX(GEN7_SO_NUM_PRIMS_WRITTEN, 0),
+	REG64_IDX(GEN7_SO_NUM_PRIMS_WRITTEN, 1),
+	REG64_IDX(GEN7_SO_NUM_PRIMS_WRITTEN, 2),
+	REG64_IDX(GEN7_SO_NUM_PRIMS_WRITTEN, 3),
+	REG64_IDX(GEN7_SO_PRIM_STORAGE_NEEDED, 0),
+	REG64_IDX(GEN7_SO_PRIM_STORAGE_NEEDED, 1),
+	REG64_IDX(GEN7_SO_PRIM_STORAGE_NEEDED, 2),
+	REG64_IDX(GEN7_SO_PRIM_STORAGE_NEEDED, 3),
 	REG32(GEN7_SO_WRITE_OFFSET(0)),
 	REG32(GEN7_SO_WRITE_OFFSET(1)),
 	REG32(GEN7_SO_WRITE_OFFSET(2)),

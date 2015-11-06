@@ -378,7 +378,9 @@
 #define   MI_BATCH_RESOURCE_STREAMER (1<<10)
 
 #define MI_PREDICATE_SRC0	(0x2400)
+#define MI_PREDICATE_SRC0_UDW	(0x2400 + 4)
 #define MI_PREDICATE_SRC1	(0x2408)
+#define MI_PREDICATE_SRC1_UDW	(0x2408 + 4)
 
 #define MI_PREDICATE_RESULT_2	(0x2214)
 #define  LOWER_SLICE_ENABLED	(1<<0)
@@ -512,22 +514,36 @@
 #define BCS_SWCTRL 0x22200
 
 #define GPGPU_THREADS_DISPATCHED        0x2290
+#define GPGPU_THREADS_DISPATCHED_UDW	(0x2290 + 4)
 #define HS_INVOCATION_COUNT             0x2300
+#define HS_INVOCATION_COUNT_UDW		(0x2300 + 4)
 #define DS_INVOCATION_COUNT             0x2308
+#define DS_INVOCATION_COUNT_UDW		(0x2308 + 4)
 #define IA_VERTICES_COUNT               0x2310
+#define IA_VERTICES_COUNT_UDW		(0x2310 + 4)
 #define IA_PRIMITIVES_COUNT             0x2318
+#define IA_PRIMITIVES_COUNT_UDW		(0x2318 + 4)
 #define VS_INVOCATION_COUNT             0x2320
+#define VS_INVOCATION_COUNT_UDW		(0x2320 + 4)
 #define GS_INVOCATION_COUNT             0x2328
+#define GS_INVOCATION_COUNT_UDW		(0x2328 + 4)
 #define GS_PRIMITIVES_COUNT             0x2330
+#define GS_PRIMITIVES_COUNT_UDW		(0x2330 + 4)
 #define CL_INVOCATION_COUNT             0x2338
+#define CL_INVOCATION_COUNT_UDW		(0x2338 + 4)
 #define CL_PRIMITIVES_COUNT             0x2340
+#define CL_PRIMITIVES_COUNT_UDW		(0x2340 + 4)
 #define PS_INVOCATION_COUNT             0x2348
+#define PS_INVOCATION_COUNT_UDW		(0x2348 + 4)
 #define PS_DEPTH_COUNT                  0x2350
+#define PS_DEPTH_COUNT_UDW		(0x2350 + 4)
 
 /* There are the 4 64-bit counter registers, one for each stream output */
-#define GEN7_SO_NUM_PRIMS_WRITTEN(n) (0x5200 + (n) * 8)
+#define GEN7_SO_NUM_PRIMS_WRITTEN(n)		(0x5200 + (n) * 8)
+#define GEN7_SO_NUM_PRIMS_WRITTEN_UDW(n)	(0x5200 + (n) * 8 + 4)
 
-#define GEN7_SO_PRIM_STORAGE_NEEDED(n)  (0x5240 + (n) * 8)
+#define GEN7_SO_PRIM_STORAGE_NEEDED(n)		(0x5240 + (n) * 8)
+#define GEN7_SO_PRIM_STORAGE_NEEDED_UDW(n)	(0x5240 + (n) * 8 + 4)
 
 #define GEN7_3DPRIM_END_OFFSET          0x2420
 #define GEN7_3DPRIM_START_VERTEX        0x2430
