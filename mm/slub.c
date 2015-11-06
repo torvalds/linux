@@ -1328,16 +1328,15 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
 
 	flags |= __GFP_NOTRACK;
 
-	if (memcg_charge_slab(s, flags, order))
-		return NULL;
-
 	if (node == NUMA_NO_NODE)
 		page = alloc_pages(flags, order);
 	else
 		page = __alloc_pages_node(node, flags, order);
 
-	if (!page)
-		memcg_uncharge_slab(s, order);
+	if (page && memcg_charge_slab(page, flags, order, s)) {
+		__free_pages(page, order);
+		page = NULL;
+	}
 
 	return page;
 }
@@ -1476,8 +1475,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 	page_mapcount_reset(page);
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += pages;
-	__free_pages(page, order);
-	memcg_uncharge_slab(s, order);
+	__free_kmem_pages(page, order);
 }
 
 #define need_reserve_slab_rcu						\
