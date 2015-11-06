@@ -451,12 +451,8 @@ EXPORT_SYMBOL(kmem_cache_create);
 static int shutdown_cache(struct kmem_cache *s,
 		struct list_head *release, bool *need_rcu_barrier)
 {
-	if (__kmem_cache_shutdown(s) != 0) {
-		printk(KERN_ERR "kmem_cache_destroy %s: "
-		       "Slab cache still has objects\n", s->name);
-		dump_stack();
+	if (__kmem_cache_shutdown(s) != 0)
 		return -EBUSY;
-	}
 
 	if (s->flags & SLAB_DESTROY_BY_RCU)
 		*need_rcu_barrier = true;
@@ -722,8 +718,13 @@ void kmem_cache_destroy(struct kmem_cache *s)
 
 	err = shutdown_memcg_caches(s, &release, &need_rcu_barrier);
 	if (!err)
-		shutdown_cache(s, &release, &need_rcu_barrier);
+		err = shutdown_cache(s, &release, &need_rcu_barrier);
 
+	if (err) {
+		pr_err("kmem_cache_destroy %s: "
+		       "Slab cache still has objects\n", s->name);
+		dump_stack();
+	}
 out_unlock:
 	mutex_unlock(&slab_mutex);
 
