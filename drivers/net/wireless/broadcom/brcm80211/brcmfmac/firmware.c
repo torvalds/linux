@@ -449,8 +449,7 @@ static void brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 
 	if (raw_nvram)
 		bcm47xx_nvram_release_contents(data);
-	if (fw)
-		release_firmware(fw);
+	release_firmware(fw);
 	if (!nvram && !(fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL))
 		goto fail;
 
