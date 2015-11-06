@@ -320,6 +320,14 @@ int migrate_page_move_mapping(struct address_space *mapping,
 		/* Anonymous page without mapping */
 		if (page_count(page) != expected_count)
 			return -EAGAIN;
+
+		/* No turning back from here */
+		set_page_memcg(newpage, page_memcg(page));
+		newpage->index = page->index;
+		newpage->mapping = page->mapping;
+		if (PageSwapBacked(page))
+			SetPageSwapBacked(newpage);
+
 		return MIGRATEPAGE_SUCCESS;
 	}
 
@@ -355,8 +363,15 @@ int migrate_page_move_mapping(struct address_space *mapping,
 	}
 
 	/*
-	 * Now we know that no one else is looking at the page.
+	 * Now we know that no one else is looking at the page:
+	 * no turning back from here.
 	 */
+	set_page_memcg(newpage, page_memcg(page));
+	newpage->index = page->index;
+	newpage->mapping = page->mapping;
+	if (PageSwapBacked(page))
+		SetPageSwapBacked(newpage);
+
 	get_page(newpage);	/* add cache reference */
 	if (PageSwapCache(page)) {
 		SetPageSwapCache(newpage);
@@ -403,12 +418,6 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
 	int expected_count;
 	void **pslot;
 
-	if (!mapping) {
-		if (page_count(page) != 1)
-			return -EAGAIN;
-		return MIGRATEPAGE_SUCCESS;
-	}
-
 	spin_lock_irq(&mapping->tree_lock);
 
 	pslot = radix_tree_lookup_slot(&mapping->page_tree,
@@ -426,6 +435,9 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
 		return -EAGAIN;
 	}
 
+	set_page_memcg(newpage, page_memcg(page));
+	newpage->index = page->index;
+	newpage->mapping = page->mapping;
 	get_page(newpage);
 
 	radix_tree_replace_slot(pslot, newpage);
@@ -730,21 +742,6 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
 
-	/* Prepare mapping for the new page.*/
-	newpage->index = page->index;
-	newpage->mapping = page->mapping;
-	if (PageSwapBacked(page))
-		SetPageSwapBacked(newpage);
-
-	/*
-	 * Indirectly called below, migrate_page_copy() copies PG_dirty and thus
-	 * needs newpage's memcg set to transfer memcg dirty page accounting.
-	 * So perform memcg migration in two steps:
-	 * 1. set newpage->mem_cgroup (here)
-	 * 2. clear page->mem_cgroup (below)
-	 */
-	set_page_memcg(newpage, page_memcg(page));
-
 	mapping = page_mapping(page);
 	if (!mapping)
 		rc = migrate_page(mapping, newpage, page, mode);
@@ -767,9 +764,6 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 		set_page_memcg(page, NULL);
 		if (!PageAnon(page))
 			page->mapping = NULL;
-	} else {
-		set_page_memcg(newpage, NULL);
-		newpage->mapping = NULL;
 	}
 	return rc;
 }
@@ -971,10 +965,9 @@ out:
 	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
 	 * during isolation.
 	 */
-	if (put_new_page) {
-		ClearPageSwapBacked(newpage);
+	if (put_new_page)
 		put_new_page(newpage, private);
-	} else if (unlikely(__is_movable_balloon_page(newpage))) {
+	else if (unlikely(__is_movable_balloon_page(newpage))) {
 		/* drop our reference, page already in the balloon */
 		put_page(newpage);
 	} else
