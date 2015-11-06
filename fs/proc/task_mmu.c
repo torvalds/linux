@@ -70,6 +70,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 		ptes >> 10,
 		pmds >> 10,
 		swap << (PAGE_SHIFT-10));
+	hugetlb_report_usage(m, mm);
 }
 
 unsigned long task_vsize(struct mm_struct *mm)

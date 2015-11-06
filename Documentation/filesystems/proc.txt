@@ -175,6 +175,7 @@ read the file /proc/PID/status:
   VmLib:      1412 kB
   VmPTE:        20 kb
   VmSwap:        0 kB
+  HugetlbPages:          0 kB
   Threads:        1
   SigQ:   0/28578
   SigPnd: 0000000000000000
@@ -238,6 +239,7 @@ Table 1-2: Contents of the status files (as of 4.1)
  VmPTE                       size of page table entries
  VmPMD                       size of second level page tables
  VmSwap                      size of swap usage (the number of referred swapents)
+ HugetlbPages                size of hugetlb memory portions
  Threads                     number of threads
  SigQ                        number of signals queued/max. number for queue
  SigPnd                      bitmap of pending signals for the thread
