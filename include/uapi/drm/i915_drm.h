@@ -1079,6 +1079,12 @@ struct drm_i915_gem_context_destroy {
 };
 
 struct drm_i915_reg_read {
+	/*
+	 * Register offset.
+	 * For 64bit wide registers where the upper 32bits don't immediately
+	 * follow the lower 32bits, the offset of the lower 32bits must
+	 * be specified
+	 */
 	__u64 offset;
 	__u64 val; /* Return value */
 };

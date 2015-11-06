@@ -1261,12 +1261,14 @@ void intel_uncore_fini(struct drm_device *dev)
 #define GEN_RANGE(l, h) GENMASK(h, l)
 
 static const struct register_whitelist {
-	uint64_t offset;
+	uint32_t offset_ldw, offset_udw;
 	uint32_t size;
 	/* supported gens, 0x10 for 4, 0x30 for 4 and 5, etc. */
 	uint32_t gen_bitmask;
 } whitelist[] = {
-	{ RING_TIMESTAMP(RENDER_RING_BASE), 8, GEN_RANGE(4, 9) },
+	{ .offset_ldw = RING_TIMESTAMP(RENDER_RING_BASE),
+	  .offset_udw = RING_TIMESTAMP_UDW(RENDER_RING_BASE),
+	  .size = 8, .gen_bitmask = GEN_RANGE(4, 9) },
 };
 
 int i915_reg_read_ioctl(struct drm_device *dev,
@@ -1276,11 +1278,11 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 	struct drm_i915_reg_read *reg = data;
 	struct register_whitelist const *entry = whitelist;
 	unsigned size;
-	u64 offset;
+	uint32_t offset_ldw, offset_udw;
 	int i, ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(whitelist); i++, entry++) {
-		if (entry->offset == (reg->offset & -entry->size) &&
+		if (entry->offset_ldw == (reg->offset & -entry->size) &&
 		    (1 << INTEL_INFO(dev)->gen & entry->gen_bitmask))
 			break;
 	}
@@ -1292,27 +1294,28 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 	 * be naturally aligned (and those that are not so aligned merely
 	 * limit the available flags for that register).
 	 */
-	offset = entry->offset;
+	offset_ldw = entry->offset_ldw;
+	offset_udw = entry->offset_udw;
 	size = entry->size;
-	size |= reg->offset ^ offset;
+	size |= reg->offset ^ offset_ldw;
 
 	intel_runtime_pm_get(dev_priv);
 
 	switch (size) {
 	case 8 | 1:
-		reg->val = I915_READ64_2x32(offset, offset+4);
+		reg->val = I915_READ64_2x32(offset_ldw, offset_udw);
 		break;
 	case 8:
-		reg->val = I915_READ64(offset);
+		reg->val = I915_READ64(offset_ldw);
 		break;
 	case 4:
-		reg->val = I915_READ(offset);
+		reg->val = I915_READ(offset_ldw);
 		break;
 	case 2:
-		reg->val = I915_READ16(offset);
+		reg->val = I915_READ16(offset_ldw);
 		break;
 	case 1:
-		reg->val = I915_READ8(offset);
+		reg->val = I915_READ8(offset_ldw);
 		break;
 	default:
 		ret = -EINVAL;

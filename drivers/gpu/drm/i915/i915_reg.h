@@ -1573,7 +1573,8 @@ enum skl_disp_power_wells {
 #define RING_NOPID(base)	((base)+0x94)
 #define RING_IMR(base)		((base)+0xa8)
 #define RING_HWSTAM(base)	((base)+0x98)
-#define RING_TIMESTAMP(base)	((base)+0x358)
+#define RING_TIMESTAMP(base)		((base)+0x358)
+#define RING_TIMESTAMP_UDW(base)	((base)+0x358 + 4)
 #define   TAIL_ADDR		0x001FFFF8
 #define   HEAD_WRAP_COUNT	0xFFE00000
 #define   HEAD_WRAP_ONE		0x00200000
