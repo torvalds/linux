@@ -219,7 +219,7 @@ struct ack_session_info ack_session_info[2 * MAX_TCP_SESSION];
 struct pending_acks_info pending_acks_info[MAX_PENDING_ACKS];
 
 u32 pending_base;
-u32 Opened_TCP_session;
+u32 tcp_session;
 u32 Pending_Acks;
 
 static inline int Init_TCP_tracking(void)
@@ -229,13 +229,13 @@ static inline int Init_TCP_tracking(void)
 
 static inline int add_TCP_track_session(u32 src_prt, u32 dst_prt, u32 seq)
 {
-	ack_session_info[Opened_TCP_session].seq_num = seq;
-	ack_session_info[Opened_TCP_session].bigger_ack_num = 0;
-	ack_session_info[Opened_TCP_session].src_port = src_prt;
-	ack_session_info[Opened_TCP_session].dst_port = dst_prt;
-	Opened_TCP_session++;
+	ack_session_info[tcp_session].seq_num = seq;
+	ack_session_info[tcp_session].bigger_ack_num = 0;
+	ack_session_info[tcp_session].src_port = src_prt;
+	ack_session_info[tcp_session].dst_port = dst_prt;
+	tcp_session++;
 
-	PRINT_D(TCP_ENH, "TCP Session %d to Ack %d\n", Opened_TCP_session, seq);
+	PRINT_D(TCP_ENH, "TCP Session %d to Ack %d\n", tcp_session, seq);
 	return 0;
 }
 
@@ -312,13 +312,13 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 
 				Ack_no	= (((u32)tcp_hdr_ptr[8]) << 24) + (((u32)tcp_hdr_ptr[9]) << 16) + (((u32)tcp_hdr_ptr[10]) << 8) + ((u32)tcp_hdr_ptr[11]);
 
-				for (i = 0; i < Opened_TCP_session; i++) {
+				for (i = 0; i < tcp_session; i++) {
 					if (ack_session_info[i].seq_num == seq_no) {
 						Update_TCP_track_session(i, Ack_no);
 						break;
 					}
 				}
-				if (i == Opened_TCP_session)
+				if (i == tcp_session)
 					add_TCP_track_session(0, 0, seq_no);
 
 				add_TCP_Pending_Ack(Ack_no, i, tqe);
@@ -365,7 +365,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 		}
 	}
 	Pending_Acks = 0;
-	Opened_TCP_session = 0;
+	tcp_session = 0;
 
 	if (pending_base == 0)
 		pending_base = MAX_TCP_SESSION;
