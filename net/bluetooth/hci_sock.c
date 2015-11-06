@@ -1242,6 +1242,11 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			goto drop;
 		}
 
+		/* Since the opcode has already been extracted here, store
+		 * a copy of the value for later use by the drivers.
+		 */
+		hci_skb_opcode(skb) = opcode;
+
 		if (ogf == 0x3f) {
 			skb_queue_tail(&hdev->raw_q, skb);
 			queue_work(hdev->workqueue, &hdev->tx_work);
