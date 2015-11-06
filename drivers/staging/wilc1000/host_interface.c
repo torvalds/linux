@@ -4560,12 +4560,11 @@ int host_int_add_station(struct host_if_drv *hif_drv,
 
 	memcpy(add_sta_info, sta_param, sizeof(struct add_sta_param));
 	if (add_sta_info->rates_len > 0) {
-		u8 *rates = kmemdup(sta_param->rates,
-				    add_sta_info->rates_len,
-				    GFP_KERNEL);
-		if (!rates)
+		add_sta_info->rates = kmemdup(sta_param->rates,
+				      add_sta_info->rates_len,
+				      GFP_KERNEL);
+		if (!add_sta_info->rates)
 			return -ENOMEM;
-		add_sta_info->rates = rates;
 	}
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
