@@ -992,7 +992,7 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
  *
  ********************************************/
 
-wilc_hif_func_t hif_sdio = {
+struct wilc_hif_func hif_sdio = {
 	sdio_init,
 	sdio_deinit,
 	sdio_read_reg,

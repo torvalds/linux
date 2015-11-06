@@ -236,7 +236,7 @@ struct rxq_entry_t {
  *
  ********************************************/
 
-typedef struct {
+struct wilc_hif_func {
 	int (*hif_init)(wilc_wlan_inp_t *, wilc_debug_func);
 	int (*hif_deinit)(void *);
 	int (*hif_read_reg)(u32, u32 *);
@@ -253,7 +253,7 @@ typedef struct {
 	int (*hif_sync_ext)(int);
 	void (*hif_set_max_bus_speed)(void);
 	void (*hif_set_default_bus_speed)(void);
-} wilc_hif_func_t;
+};
 
 /********************************************
  *

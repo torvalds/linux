@@ -2,14 +2,14 @@
 #include "wilc_wfi_netdevice.h"
 #include "wilc_wlan_cfg.h"
 
-extern wilc_hif_func_t hif_sdio;
-extern wilc_hif_func_t hif_spi;
+extern struct wilc_hif_func hif_sdio;
+extern struct wilc_hif_func hif_spi;
 u32 wilc_get_chipid(u8 update);
 
 typedef struct {
 	int quit;
 	wilc_wlan_io_func_t io_func;
-	wilc_hif_func_t hif_func;
+	struct wilc_hif_func hif_func;
 	int cfg_frame_in_use;
 	struct wilc_cfg_frame cfg_frame;
 	u32 cfg_frame_offset;
@@ -1665,7 +1665,7 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 			goto _fail_;
 		}
 		memcpy((void *)&g_wlan.hif_func, &hif_sdio,
-		       sizeof(wilc_hif_func_t));
+		       sizeof(struct wilc_hif_func));
 	} else {
 		if ((inp->io_func.io_type & 0x1) == HIF_SPI) {
 			if (!hif_spi.hif_init(inp, wilc_debug)) {
@@ -1673,7 +1673,7 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 				goto _fail_;
 			}
 			memcpy((void *)&g_wlan.hif_func, &hif_spi,
-			       sizeof(wilc_hif_func_t));
+			       sizeof(struct wilc_hif_func));
 		} else {
 			ret = -EIO;
 			goto _fail_;
