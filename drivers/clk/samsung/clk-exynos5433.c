@@ -5038,9 +5038,9 @@ static struct samsung_mux_clock cam1_mux_clks[] __initdata = {
 	MUX(CLK_MOUT_ACLK_CAM1_333_USER, "mout_aclk_cam1_333_user",
 			mout_aclk_cam1_333_user_p, MUX_SEL_CAM10, 8, 1),
 	MUX(CLK_MOUT_ACLK_CAM1_400_USER, "mout_aclk_cam1_400_user",
-			mout_aclk_cam1_400_user_p, MUX_SEL_CAM01, 4, 1),
+			mout_aclk_cam1_400_user_p, MUX_SEL_CAM10, 4, 1),
 	MUX(CLK_MOUT_ACLK_CAM1_552_USER, "mout_aclk_cam1_552_user",
-			mout_aclk_cam1_552_user_p, MUX_SEL_CAM01, 0, 1),
+			mout_aclk_cam1_552_user_p, MUX_SEL_CAM10, 0, 1),
 
 	/* MUX_SEL_CAM11 */
 	MUX(CLK_MOUT_PHYCLK_RXBYTECLKHS0_S2B_USER,
