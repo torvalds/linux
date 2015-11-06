@@ -36,6 +36,10 @@
 	status = "disabled";
 };
 
+&ocram {
+	reg = <0x00901000 0xf000>;
+};
+
 &qspi1 {
 	status = "disabled";
 };
