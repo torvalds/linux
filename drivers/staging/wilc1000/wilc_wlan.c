@@ -244,7 +244,7 @@ static inline int update_tcp_session(u32 index, u32 ack)
 }
 
 static inline int add_tcp_pending_ack(u32 ack, u32 session_index,
-				       struct txq_entry_t *txqe)
+				      struct txq_entry_t *txqe)
 {
 	total_acks++;
 	if (pending_acks < MAX_PENDING_ACKS) {
