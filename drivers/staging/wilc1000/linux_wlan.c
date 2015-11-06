@@ -888,8 +888,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, struct wilc *nic)
 {
 	PRINT_D(INIT_DBG, "Linux to Wlan services ...\n");
 
-	nwi->os_context.os_private = (void *)nic;
-
 #ifdef WILC_SDIO
 	nwi->io_func.io_type = HIF_SDIO;
 #else

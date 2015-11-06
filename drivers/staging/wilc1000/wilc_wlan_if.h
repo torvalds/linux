@@ -84,11 +84,6 @@ typedef struct {
 #define WILC_MAC_INDICATE_SCAN		0x2
 
 typedef struct {
-	void *os_private;
-} wilc_wlan_os_context_t;
-
-typedef struct {
-	wilc_wlan_os_context_t os_context;
 	wilc_wlan_io_func_t io_func;
 } wilc_wlan_inp_t;
 
