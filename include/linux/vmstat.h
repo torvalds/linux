@@ -247,7 +247,6 @@ static inline void __dec_zone_page_state(struct page *page,
 
 #define set_pgdat_percpu_threshold(pgdat, callback) { }
 
-static inline void refresh_cpu_vm_stats(int cpu) { }
 static inline void refresh_zone_stat_thresholds(void) { }
 static inline void cpu_vm_stats_fold(int cpu) { }
 
