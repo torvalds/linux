@@ -4544,7 +4544,7 @@ int host_int_add_station(struct host_if_drv *hif_drv,
 {
 	int result = 0;
 	struct host_if_msg msg;
-	struct add_sta_param *pstrAddStationMsg = &msg.body.add_sta_info;
+	struct add_sta_param *add_sta_info = &msg.body.add_sta_info;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4558,16 +4558,16 @@ int host_int_add_station(struct host_if_drv *hif_drv,
 	msg.id = HOST_IF_MSG_ADD_STATION;
 	msg.drv = hif_drv;
 
-	memcpy(pstrAddStationMsg, sta_param, sizeof(struct add_sta_param));
-	if (pstrAddStationMsg->rates_len > 0) {
-		u8 *rates = kmalloc(pstrAddStationMsg->rates_len, GFP_KERNEL);
+	memcpy(add_sta_info, sta_param, sizeof(struct add_sta_param));
+	if (add_sta_info->rates_len > 0) {
+		u8 *rates = kmalloc(add_sta_info->rates_len, GFP_KERNEL);
 
 		if (!rates)
 			return -ENOMEM;
 
 		memcpy(rates, sta_param->rates,
-		       pstrAddStationMsg->rates_len);
-		pstrAddStationMsg->rates = rates;
+		       add_sta_info->rates_len);
+		add_sta_info->rates = rates;
 	}
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
