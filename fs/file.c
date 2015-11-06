@@ -60,8 +60,31 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 #define BITBIT_SIZE(nr)	(BITBIT_NR(nr) * sizeof(long))
 
 /*
- * Expand the fdset in the files_struct.  Called with the files spinlock
- * held for write.
+ * Copy 'count' fd bits from the old table to the new table and clear the extra
+ * space if any.  This does not copy the file pointers.  Called with the files
+ * spinlock held for write.
+ */
+static void copy_fd_bitmaps(struct fdtable *nfdt, struct fdtable *ofdt,
+			    unsigned int count)
+{
+	unsigned int cpy, set;
+
+	cpy = count / BITS_PER_BYTE;
+	set = (nfdt->max_fds - count) / BITS_PER_BYTE;
+	memcpy(nfdt->open_fds, ofdt->open_fds, cpy);
+	memset((char *)nfdt->open_fds + cpy, 0, set);
+	memcpy(nfdt->close_on_exec, ofdt->close_on_exec, cpy);
+	memset((char *)nfdt->close_on_exec + cpy, 0, set);
+
+	cpy = BITBIT_SIZE(count);
+	set = BITBIT_SIZE(nfdt->max_fds) - cpy;
+	memcpy(nfdt->full_fds_bits, ofdt->full_fds_bits, cpy);
+	memset((char *)nfdt->full_fds_bits + cpy, 0, set);
+}
+
+/*
+ * Copy all file descriptors from the old table to the new, expanded table and
+ * clear the extra space.  Called with the files spinlock held for write.
  */
 static void copy_fdtable(struct fdtable *nfdt, struct fdtable *ofdt)
 {
@@ -72,19 +95,9 @@ static void copy_fdtable(struct fdtable *nfdt, struct fdtable *ofdt)
 	cpy = ofdt->max_fds * sizeof(struct file *);
 	set = (nfdt->max_fds - ofdt->max_fds) * sizeof(struct file *);
 	memcpy(nfdt->fd, ofdt->fd, cpy);
-	memset((char *)(nfdt->fd) + cpy, 0, set);
+	memset((char *)nfdt->fd + cpy, 0, set);
 
-	cpy = ofdt->max_fds / BITS_PER_BYTE;
-	set = (nfdt->max_fds - ofdt->max_fds) / BITS_PER_BYTE;
-	memcpy(nfdt->open_fds, ofdt->open_fds, cpy);
-	memset((char *)(nfdt->open_fds) + cpy, 0, set);
-	memcpy(nfdt->close_on_exec, ofdt->close_on_exec, cpy);
-	memset((char *)(nfdt->close_on_exec) + cpy, 0, set);
-
-	cpy = BITBIT_SIZE(ofdt->max_fds);
-	set = BITBIT_SIZE(nfdt->max_fds) - cpy;
-	memcpy(nfdt->full_fds_bits, ofdt->full_fds_bits, cpy);
-	memset(cpy+(char *)nfdt->full_fds_bits, 0, set);
+	copy_fd_bitmaps(nfdt, ofdt, ofdt->max_fds);
 }
 
 static struct fdtable * alloc_fdtable(unsigned int nr)
@@ -277,7 +290,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 {
 	struct files_struct *newf;
 	struct file **old_fds, **new_fds;
-	int open_files, size, i;
+	int open_files, i;
 	struct fdtable *old_fdt, *new_fdt;
 
 	*errorp = -ENOMEM;
@@ -334,12 +347,10 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 		open_files = count_open_files(old_fdt);
 	}
 
+	copy_fd_bitmaps(new_fdt, old_fdt, open_files);
+
 	old_fds = old_fdt->fd;
 	new_fds = new_fdt->fd;
-
-	memcpy(new_fdt->open_fds, old_fdt->open_fds, open_files / 8);
-	memcpy(new_fdt->close_on_exec, old_fdt->close_on_exec, open_files / 8);
-	memcpy(new_fdt->full_fds_bits, old_fdt->full_fds_bits, BITBIT_SIZE(open_files));
 
 	for (i = open_files; i != 0; i--) {
 		struct file *f = *old_fds++;
@@ -358,19 +369,8 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	}
 	spin_unlock(&oldf->file_lock);
 
-	/* compute the remainder to be cleared */
-	size = (new_fdt->max_fds - open_files) * sizeof(struct file *);
-
-	/* This is long word aligned thus could use a optimized version */
-	memset(new_fds, 0, size);
-
-	if (new_fdt->max_fds > open_files) {
-		int left = (new_fdt->max_fds - open_files) / 8;
-		int start = open_files / BITS_PER_LONG;
-
-		memset(&new_fdt->open_fds[start], 0, left);
-		memset(&new_fdt->close_on_exec[start], 0, left);
-	}
+	/* clear the remainder */
+	memset(new_fds, 0, (new_fdt->max_fds - open_files) * sizeof(struct file *));
 
 	rcu_assign_pointer(newf->fdt, new_fdt);
 
