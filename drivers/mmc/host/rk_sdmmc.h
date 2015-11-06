@@ -252,7 +252,7 @@ static const struct sdmmc_reg dw_mci_regs[] = {
 /* Version ID register define */
 #define SDMMC_GET_VERID(x)		((x) & 0xFFFF)
 /* Card read threshold */
-#define SDMMC_SET_RD_THLD(v, x)		(((v) & 0x1FFF) << 16 | (x))
+#define SDMMC_SET_RD_THLD(v, x)		(((v) & 0xFFF) << 16 | (x))
 
 /* Register access macros */
 #define mci_readl(dev, reg)			\
