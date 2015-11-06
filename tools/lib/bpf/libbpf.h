@@ -10,6 +10,26 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <linux/err.h>
+
+enum libbpf_errno {
+	__LIBBPF_ERRNO__START = 4000,
+
+	/* Something wrong in libelf */
+	LIBBPF_ERRNO__LIBELF = __LIBBPF_ERRNO__START,
+	LIBBPF_ERRNO__FORMAT,	/* BPF object format invalid */
+	LIBBPF_ERRNO__KVERSION,	/* Incorrect or no 'version' section */
+	LIBBPF_ERRNO__ENDIAN,	/* Endian missmatch */
+	LIBBPF_ERRNO__INTERNAL,	/* Internal error in libbpf */
+	LIBBPF_ERRNO__RELOC,	/* Relocation failed */
+	LIBBPF_ERRNO__LOAD,	/* Load program failure for unknown reason */
+	LIBBPF_ERRNO__VERIFY,	/* Kernel verifier blocks program loading */
+	LIBBPF_ERRNO__PROG2BIG,	/* Program too big */
+	LIBBPF_ERRNO__KVER,	/* Incorrect kernel version */
+	__LIBBPF_ERRNO__END,
+};
+
+int libbpf_strerror(int err, char *buf, size_t size);
 
 /*
  * In include/linux/compiler-gcc.h, __printf is defined. However

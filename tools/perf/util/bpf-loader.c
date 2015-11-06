@@ -59,9 +59,9 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 	} else
 		obj = bpf_object__open(filename);
 
-	if (!obj) {
+	if (IS_ERR(obj)) {
 		pr_debug("bpf: failed to load %s\n", filename);
-		return ERR_PTR(-EINVAL);
+		return obj;
 	}
 
 	return obj;
@@ -96,9 +96,9 @@ config_bpf_program(struct bpf_program *prog)
 	int err;
 
 	config_str = bpf_program__title(prog, false);
-	if (!config_str) {
+	if (IS_ERR(config_str)) {
 		pr_debug("bpf: unable to get title for program\n");
-		return -EINVAL;
+		return PTR_ERR(config_str);
 	}
 
 	priv = calloc(sizeof(*priv), 1);
@@ -308,13 +308,34 @@ int bpf__foreach_tev(struct bpf_object *obj,
 	return 0;
 }
 
+static int
+bpf_loader_strerror(int err, char *buf, size_t size)
+{
+	char sbuf[STRERR_BUFSIZE];
+	const char *msg;
+
+	if (!buf || !size)
+		return -1;
+
+	err = err > 0 ? err : -err;
+
+	if (err >= __LIBBPF_ERRNO__START)
+		return libbpf_strerror(err, buf, size);
+
+	msg = strerror_r(err, sbuf, sizeof(sbuf));
+	snprintf(buf, size, "%s", msg);
+	buf[size - 1] = '\0';
+	return 0;
+}
+
 #define bpf__strerror_head(err, buf, size) \
 	char sbuf[STRERR_BUFSIZE], *emsg;\
 	if (!size)\
 		return 0;\
 	if (err < 0)\
 		err = -err;\
-	emsg = strerror_r(err, sbuf, sizeof(sbuf));\
+	bpf_loader_strerror(err, sbuf, sizeof(sbuf));\
+	emsg = sbuf;\
 	switch (err) {\
 	default:\
 		scnprintf(buf, size, "%s", emsg);\
@@ -345,8 +366,6 @@ int bpf__strerror_load(struct bpf_object *obj __maybe_unused,
 		       int err, char *buf, size_t size)
 {
 	bpf__strerror_head(err, buf, size);
-	bpf__strerror_entry(EINVAL, "%s: Are you root and runing a CONFIG_BPF_SYSCALL kernel?",
-			    emsg)
 	bpf__strerror_end(buf, size);
 	return 0;
 }
