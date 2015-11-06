@@ -11,7 +11,7 @@ typedef struct {
 	wilc_wlan_io_func_t io_func;
 	wilc_hif_func_t hif_func;
 	int cfg_frame_in_use;
-	wilc_cfg_frame_t cfg_frame;
+	struct wilc_cfg_frame cfg_frame;
 	u32 cfg_frame_offset;
 	int cfg_seq_no;
 
@@ -1462,7 +1462,7 @@ void wilc_wlan_cleanup(struct net_device *dev)
 static int wilc_wlan_cfg_commit(int type, u32 drv_handler)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
-	wilc_cfg_frame_t *cfg = &p->cfg_frame;
+	struct wilc_cfg_frame *cfg = &p->cfg_frame;
 	int total_len = p->cfg_frame_offset + 4 + DRIVER_HANDLER_SIZE;
 	int seq_no = p->cfg_seq_no % 256;
 	int driver_handler = (u32)drv_handler;
