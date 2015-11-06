@@ -11,6 +11,11 @@
 	gpio-keys {
 		status = "disabled";
 	};
+
+	m4_tcm: tcml@007f8000 {
+		compatible = "fsl, m4_tcml";
+		reg = <0x007f8000 0x8000>;
+	};
 };
 
 &adc1 {
