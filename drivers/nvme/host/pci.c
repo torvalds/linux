@@ -41,7 +41,7 @@
 #include <linux/types.h>
 #include <linux/pr.h>
 #include <scsi/sg.h>
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <asm/unaligned.h>
 
 #include <uapi/linux/nvme_ioctl.h>

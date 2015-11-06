@@ -78,7 +78,7 @@
 #include <asm/processor.h>
 #include "intel_ips.h"
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #define PCI_DEVICE_ID_INTEL_THERMAL_SENSOR 0x3b32
 

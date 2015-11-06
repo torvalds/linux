@@ -36,7 +36,7 @@
 #include <net/ip_fib.h>
 #include <net/netevent.h>
 #include <net/arp.h>
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <generated/utsrelease.h>
 
 #include "rocker.h"

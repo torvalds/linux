@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/drbd.h>
 #include <linux/slab.h>
-#include <asm/kmap_types.h>
+#include <linux/highmem.h>
 
 #include "drbd_int.h"
 
