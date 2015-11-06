@@ -1,5 +1,9 @@
 /*
- * Copyright (c) 2006, Intel Corporation.
+ * Copyright © 2006-2015, Intel Corporation.
+ *
+ * Authors: Ashok Raj <ashok.raj@intel.com>
+ *          Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
+ *          David Woodhouse <David.Woodhouse@intel.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -13,10 +17,6 @@
  * You should have received a copy of the GNU General Public License along with
  * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
  * Place - Suite 330, Boston, MA 02111-1307 USA.
- *
- * Copyright (C) 2006-2008 Intel Corporation
- * Author: Ashok Raj <ashok.raj@intel.com>
- * Author: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
  */
 
 #ifndef _INTEL_IOMMU_H_
@@ -25,7 +25,10 @@
 #include <linux/types.h>
 #include <linux/iova.h>
 #include <linux/io.h>
+#include <linux/idr.h>
 #include <linux/dma_remapping.h>
+#include <linux/mmu_notifier.h>
+#include <linux/list.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
 
@@ -57,16 +60,21 @@
 #define DMAR_IQA_REG	0x90	/* Invalidation queue addr register */
 #define DMAR_ICS_REG	0x9c	/* Invalidation complete status register */
 #define DMAR_IRTA_REG	0xb8    /* Interrupt remapping table addr register */
+#define DMAR_PQH_REG	0xc0	/* Page request queue head register */
+#define DMAR_PQT_REG	0xc8	/* Page request queue tail register */
+#define DMAR_PQA_REG	0xd0	/* Page request queue address register */
+#define DMAR_PRS_REG	0xdc	/* Page request status register */
+#define DMAR_PECTL_REG	0xe0	/* Page request event control register */
+#define	DMAR_PEDATA_REG	0xe4	/* Page request event interrupt data register */
+#define	DMAR_PEADDR_REG	0xe8	/* Page request event interrupt addr register */
+#define	DMAR_PEUADDR_REG 0xec	/* Page request event Upper address register */
 
 #define OFFSET_STRIDE		(9)
-/*
-#define dmar_readl(dmar, reg) readl(dmar + reg)
-#define dmar_readq(dmar, reg) ({ \
-		u32 lo, hi; \
-		lo = readl(dmar + reg); \
-		hi = readl(dmar + reg + 4); \
-		(((u64) hi) << 32) + lo; })
-*/
+
+#ifdef CONFIG_64BIT
+#define dmar_readq(a) readq(a)
+#define dmar_writeq(a,v) writeq(v,a)
+#else
 static inline u64 dmar_readq(void __iomem *addr)
 {
 	u32 lo, hi;
@@ -80,6 +88,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 	writel((u32)val, addr);
 	writel((u32)(val >> 32), addr + 4);
 }
+#endif
 
 #define DMAR_VER_MAJOR(v)		(((v) & 0xf0) >> 4)
 #define DMAR_VER_MINOR(v)		((v) & 0x0f)
@@ -123,7 +132,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define ecap_srs(e)		((e >> 31) & 0x1)
 #define ecap_ers(e)		((e >> 30) & 0x1)
 #define ecap_prs(e)		((e >> 29) & 0x1)
-/* PASID support used to be on bit 28 */
+#define ecap_broken_pasid(e)	((e >> 28) & 0x1)
 #define ecap_dis(e)		((e >> 27) & 0x1)
 #define ecap_nest(e)		((e >> 26) & 0x1)
 #define ecap_mts(e)		((e >> 25) & 0x1)
@@ -253,6 +262,11 @@ enum {
 #define QI_DIOTLB_TYPE		0x3
 #define QI_IEC_TYPE		0x4
 #define QI_IWD_TYPE		0x5
+#define QI_EIOTLB_TYPE		0x6
+#define QI_PC_TYPE		0x7
+#define QI_DEIOTLB_TYPE		0x8
+#define QI_PGRP_RESP_TYPE	0x9
+#define QI_PSTRM_RESP_TYPE	0xa
 
 #define QI_IEC_SELECTIVE	(((u64)1) << 4)
 #define QI_IEC_IIDEX(idx)	(((u64)(idx & 0xffff) << 32))
@@ -279,6 +293,53 @@ enum {
 #define QI_DEV_IOTLB_ADDR(addr)	((u64)(addr) & VTD_PAGE_MASK)
 #define QI_DEV_IOTLB_SIZE	1
 #define QI_DEV_IOTLB_MAX_INVS	32
+
+#define QI_PC_PASID(pasid)	(((u64)pasid) << 32)
+#define QI_PC_DID(did)		(((u64)did) << 16)
+#define QI_PC_GRAN(gran)	(((u64)gran) << 4)
+
+#define QI_PC_ALL_PASIDS	(QI_PC_TYPE | QI_PC_GRAN(0))
+#define QI_PC_PASID_SEL		(QI_PC_TYPE | QI_PC_GRAN(1))
+
+#define QI_EIOTLB_ADDR(addr)	((u64)(addr) & VTD_PAGE_MASK)
+#define QI_EIOTLB_GL(gl)	(((u64)gl) << 7)
+#define QI_EIOTLB_IH(ih)	(((u64)ih) << 6)
+#define QI_EIOTLB_AM(am)	(((u64)am))
+#define QI_EIOTLB_PASID(pasid) 	(((u64)pasid) << 32)
+#define QI_EIOTLB_DID(did)	(((u64)did) << 16)
+#define QI_EIOTLB_GRAN(gran) 	(((u64)gran) << 4)
+
+#define QI_DEV_EIOTLB_ADDR(a)	((u64)(a) & VTD_PAGE_MASK)
+#define QI_DEV_EIOTLB_SIZE	(((u64)1) << 11)
+#define QI_DEV_EIOTLB_GLOB(g)	((u64)g)
+#define QI_DEV_EIOTLB_PASID(p)	(((u64)p) << 32)
+#define QI_DEV_EIOTLB_SID(sid)	((u64)((sid) & 0xffff) << 32)
+#define QI_DEV_EIOTLB_QDEP(qd)	(((qd) & 0x1f) << 16)
+#define QI_DEV_EIOTLB_MAX_INVS	32
+
+#define QI_PGRP_IDX(idx)	(((u64)(idx)) << 55)
+#define QI_PGRP_PRIV(priv)	(((u64)(priv)) << 32)
+#define QI_PGRP_RESP_CODE(res)	((u64)(res))
+#define QI_PGRP_PASID(pasid)	(((u64)(pasid)) << 32)
+#define QI_PGRP_DID(did)	(((u64)(did)) << 16)
+#define QI_PGRP_PASID_P(p)	(((u64)(p)) << 4)
+
+#define QI_PSTRM_ADDR(addr)	(((u64)(addr)) & VTD_PAGE_MASK)
+#define QI_PSTRM_DEVFN(devfn)	(((u64)(devfn)) << 4)
+#define QI_PSTRM_RESP_CODE(res)	((u64)(res))
+#define QI_PSTRM_IDX(idx)	(((u64)(idx)) << 55)
+#define QI_PSTRM_PRIV(priv)	(((u64)(priv)) << 32)
+#define QI_PSTRM_BUS(bus)	(((u64)(bus)) << 24)
+#define QI_PSTRM_PASID(pasid)	(((u64)(pasid)) << 4)
+
+#define QI_RESP_SUCCESS		0x0
+#define QI_RESP_INVALID		0x1
+#define QI_RESP_FAILURE		0xf
+
+#define QI_GRAN_ALL_ALL			0
+#define QI_GRAN_NONG_ALL		1
+#define QI_GRAN_NONG_PASID		2
+#define QI_GRAN_PSI_PASID		3
 
 struct qi_desc {
 	u64 low, high;
@@ -327,6 +388,10 @@ enum {
 #define VTD_FLAG_TRANS_PRE_ENABLED	(1 << 0)
 #define VTD_FLAG_IRQ_REMAP_PRE_ENABLED	(1 << 1)
 
+struct pasid_entry;
+struct pasid_state_entry;
+struct page_req_dsc;
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64 		reg_phys; /* physical address of hw register set */
@@ -338,7 +403,7 @@ struct intel_iommu {
 	int		seq_id;	/* sequence id of the iommu */
 	int		agaw; /* agaw of this iommu */
 	int		msagaw; /* max sagaw of this iommu */
-	unsigned int 	irq;
+	unsigned int 	irq, pr_irq;
 	u16		segment;     /* PCI segment# */
 	unsigned char 	name[13];    /* Device Name */
 
@@ -349,6 +414,18 @@ struct intel_iommu {
 	struct root_entry *root_entry; /* virtual address */
 
 	struct iommu_flush flush;
+#endif
+#ifdef CONFIG_INTEL_IOMMU_SVM
+	/* These are large and need to be contiguous, so we allocate just
+	 * one for now. We'll maybe want to rethink that if we truly give
+	 * devices away to userspace processes (e.g. for DPDK) and don't
+	 * want to trust that userspace will use *only* the PASID it was
+	 * told to. But while it's all driver-arbitrated, we're fine. */
+	struct pasid_entry *pasid_table;
+	struct pasid_state_entry *pasid_state_table;
+	struct page_req_dsc *prq;
+	unsigned char prq_name[16];    /* Name for PRQ interrupt */
+	struct idr pasid_idr;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
 	u32 *iommu_state; /* Store iommu states between suspend and resume.*/
@@ -388,6 +465,38 @@ extern void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 qdep,
 extern int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
 extern int dmar_ir_support(void);
+
+#ifdef CONFIG_INTEL_IOMMU_SVM
+extern int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu);
+extern int intel_svm_free_pasid_tables(struct intel_iommu *iommu);
+extern int intel_svm_enable_prq(struct intel_iommu *iommu);
+extern int intel_svm_finish_prq(struct intel_iommu *iommu);
+
+struct svm_dev_ops;
+
+struct intel_svm_dev {
+	struct list_head list;
+	struct rcu_head rcu;
+	struct device *dev;
+	struct svm_dev_ops *ops;
+	int users;
+	u16 did;
+	u16 dev_iotlb:1;
+	u16 sid, qdep;
+};
+
+struct intel_svm {
+	struct mmu_notifier notifier;
+	struct mm_struct *mm;
+	struct intel_iommu *iommu;
+	int flags;
+	int pasid;
+	struct list_head devs;
+};
+
+extern int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sdev);
+extern struct intel_iommu *intel_svm_device_to_iommu(struct device *dev);
+#endif
 
 extern const struct attribute_group *intel_iommu_groups[];
 
