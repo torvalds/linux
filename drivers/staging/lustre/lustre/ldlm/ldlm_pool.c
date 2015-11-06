@@ -208,14 +208,6 @@ static inline int ldlm_pool_t2gsp(unsigned int t)
 }
 
 /**
- * Sets passed \a limit to \a pl.
- */
-static void ldlm_pool_set_limit(struct ldlm_pool *pl, __u32 limit)
-{
-	atomic_set(&pl->pl_limit, limit);
-}
-
-/**
  * Recalculates next stats on passed \a pl.
  *
  * \pre ->pl_lock is locked.
@@ -257,7 +249,7 @@ static void ldlm_cli_pool_pop_slv(struct ldlm_pool *pl)
 	LASSERT(obd != NULL);
 	read_lock(&obd->obd_pool_lock);
 	pl->pl_server_lock_volume = obd->obd_pool_slv;
-	ldlm_pool_set_limit(pl, obd->obd_pool_limit);
+	atomic_set(&pl->pl_limit, obd->obd_pool_limit);
 	read_unlock(&obd->obd_pool_lock);
 }
 
@@ -678,7 +670,7 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 	snprintf(pl->pl_name, sizeof(pl->pl_name), "ldlm-pool-%s-%d",
 		 ldlm_ns_name(ns), idx);
 
-	ldlm_pool_set_limit(pl, 1);
+	atomic_set(&pl->pl_limit, 1);
 	pl->pl_server_lock_volume = 0;
 	pl->pl_ops = &ldlm_cli_pool_ops;
 	pl->pl_recalc_period = LDLM_POOL_CLI_DEF_RECALC_PERIOD;
