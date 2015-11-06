@@ -56,6 +56,7 @@ void bpf_object__close(struct bpf_object *object);
 int bpf_object__load(struct bpf_object *obj);
 int bpf_object__unload(struct bpf_object *obj);
 const char *bpf_object__get_name(struct bpf_object *obj);
+unsigned int bpf_object__get_kversion(struct bpf_object *obj);
 
 struct bpf_object *bpf_object__next(struct bpf_object *prev);
 #define bpf_object__for_each_safe(pos, tmp)			\

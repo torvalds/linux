@@ -1055,6 +1055,14 @@ bpf_object__get_name(struct bpf_object *obj)
 	return obj->path;
 }
 
+unsigned int
+bpf_object__get_kversion(struct bpf_object *obj)
+{
+	if (!obj)
+		return 0;
+	return obj->kern_version;
+}
+
 struct bpf_program *
 bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
 {
