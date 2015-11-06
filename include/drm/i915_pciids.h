@@ -279,12 +279,19 @@
 #define INTEL_SKL_GT3_IDS(info) \
 	INTEL_VGA_DEVICE(0x1926, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x192B, info), /* Halo GT3 */ \
-	INTEL_VGA_DEVICE(0x192A, info) /* SRV GT3 */ \
+	INTEL_VGA_DEVICE(0x192A, info)  /* SRV GT3 */
 
-#define INTEL_SKL_IDS(info) \
+#define INTEL_SKL_GT4_IDS(info) \
+	INTEL_VGA_DEVICE(0x1932, info), /* DT GT4 */ \
+	INTEL_VGA_DEVICE(0x193B, info), /* Halo GT4 */ \
+	INTEL_VGA_DEVICE(0x193D, info), /* WKS GT4 */ \
+	INTEL_VGA_DEVICE(0x193A, info)  /* SRV GT4 */
+
+#define INTEL_SKL_IDS(info)	 \
 	INTEL_SKL_GT1_IDS(info), \
 	INTEL_SKL_GT2_IDS(info), \
-	INTEL_SKL_GT3_IDS(info)
+	INTEL_SKL_GT3_IDS(info), \
+	INTEL_SKL_GT4_IDS(info)
 
 #define INTEL_BXT_IDS(info) \
 	INTEL_VGA_DEVICE(0x0A84, info), \
