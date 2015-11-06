@@ -727,13 +727,8 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 	struct address_space *mapping;
 	int rc;
 
-	/*
-	 * Block others from accessing the page when we get around to
-	 * establishing additional references. We are the only one
-	 * holding a reference to the new page at this point.
-	 */
-	if (!trylock_page(newpage))
-		BUG();
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
 
 	/* Prepare mapping for the new page.*/
 	newpage->index = page->index;
@@ -774,9 +769,6 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 			remove_migration_ptes(page, newpage);
 		page->mapping = NULL;
 	}
-
-	unlock_page(newpage);
-
 	return rc;
 }
 
@@ -861,6 +853,17 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 		}
 	}
 
+	/*
+	 * Block others from accessing the new page when we get around to
+	 * establishing additional references. We are usually the only one
+	 * holding a reference to newpage at this point. We used to have a BUG
+	 * here if trylock_page(newpage) fails, but would like to allow for
+	 * cases where there might be a race with the previous use of newpage.
+	 * This is much like races on refcount of oldpage: just don't BUG().
+	 */
+	if (unlikely(!trylock_page(newpage)))
+		goto out_unlock;
+
 	if (unlikely(isolated_balloon_page(page))) {
 		/*
 		 * A ballooned page does not need any special attention from
@@ -870,7 +873,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 		 * the page migration right away (proteced by page lock).
 		 */
 		rc = balloon_page_migrate(newpage, page, mode);
-		goto out_unlock;
+		goto out_unlock_both;
 	}
 
 	/*
@@ -889,30 +892,27 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 		VM_BUG_ON_PAGE(PageAnon(page), page);
 		if (page_has_private(page)) {
 			try_to_free_buffers(page);
-			goto out_unlock;
+			goto out_unlock_both;
 		}
-		goto skip_unmap;
-	}
-
-	/* Establish migration ptes or remove ptes */
-	if (page_mapped(page)) {
+	} else if (page_mapped(page)) {
+		/* Establish migration ptes */
 		try_to_unmap(page,
 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
 		page_was_mapped = 1;
 	}
 
-skip_unmap:
 	if (!page_mapped(page))
 		rc = move_to_new_page(newpage, page, page_was_mapped, mode);
 
 	if (rc && page_was_mapped)
 		remove_migration_ptes(page, page);
 
+out_unlock_both:
+	unlock_page(newpage);
+out_unlock:
 	/* Drop an anon_vma reference if we took one */
 	if (anon_vma)
 		put_anon_vma(anon_vma);
-
-out_unlock:
 	unlock_page(page);
 out:
 	return rc;
@@ -1056,6 +1056,9 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 	if (PageAnon(hpage))
 		anon_vma = page_get_anon_vma(hpage);
 
+	if (unlikely(!trylock_page(new_hpage)))
+		goto put_anon;
+
 	if (page_mapped(hpage)) {
 		try_to_unmap(hpage,
 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
@@ -1068,6 +1071,9 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 	if (rc != MIGRATEPAGE_SUCCESS && page_was_mapped)
 		remove_migration_ptes(hpage, hpage);
 
+	unlock_page(new_hpage);
+
+put_anon:
 	if (anon_vma)
 		put_anon_vma(anon_vma);
 
