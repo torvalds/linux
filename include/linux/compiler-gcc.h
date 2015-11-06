@@ -211,7 +211,7 @@
 #endif
 
 
-#if GCC_VERSION >= 40900
+#if GCC_VERSION >= 40900 && !defined(__CHECKER__)
 /*
  * __assume_aligned(n, k): Tell the optimizer that the returned
  * pointer can be assumed to be k modulo n. The second argument is
