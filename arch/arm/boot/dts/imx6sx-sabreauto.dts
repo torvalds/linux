@@ -230,6 +230,16 @@
 		VLC-supply = <&reg_audio>;
 	};
 
+	egalax_ts@04 {
+		compatible = "eeti,egalax_ts";
+		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_egalax_int>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <22 2>;
+		wakeup-gpios = <&gpio6 22 GPIO_ACTIVE_HIGH>;
+	};
+
 	si4763: si4763@63 {
 		compatible = "si4761";
 		reg = <0x63>;
@@ -408,6 +418,12 @@
 				MX6SX_PAD_SD1_CMD__AUDMUX_AUD5_RXC    0x130b0
 				MX6SX_PAD_SD1_CLK__AUDMUX_AUD5_RXFS   0x130b0
 				MX6SX_PAD_SD1_DATA3__AUDMUX_AUD5_RXD  0x130b0
+			>;
+		};
+
+		pinctrl_egalax_int: egalax_intgrp {
+			fsl,pins = <
+				MX6SX_PAD_SD4_RESET_B__GPIO6_IO_22      0x80000000
 			>;
 		};
 
