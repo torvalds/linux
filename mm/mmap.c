@@ -2138,10 +2138,6 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
 	if (security_vm_enough_memory_mm(mm, grow))
 		return -ENOMEM;
 
-	/* Ok, everything looks good - let it rip */
-	if (vma->vm_flags & VM_LOCKED)
-		mm->locked_vm += grow;
-	vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
 	return 0;
 }
 
@@ -2202,6 +2198,10 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 				 * against concurrent vma expansions.
 				 */
 				spin_lock(&vma->vm_mm->page_table_lock);
+				if (vma->vm_flags & VM_LOCKED)
+					vma->vm_mm->locked_vm += grow;
+				vm_stat_account(vma->vm_mm, vma->vm_flags,
+						vma->vm_file, grow);
 				anon_vma_interval_tree_pre_update_vma(vma);
 				vma->vm_end = address;
 				anon_vma_interval_tree_post_update_vma(vma);
@@ -2273,6 +2273,10 @@ int expand_downwards(struct vm_area_struct *vma,
 				 * against concurrent vma expansions.
 				 */
 				spin_lock(&vma->vm_mm->page_table_lock);
+				if (vma->vm_flags & VM_LOCKED)
+					vma->vm_mm->locked_vm += grow;
+				vm_stat_account(vma->vm_mm, vma->vm_flags,
+						vma->vm_file, grow);
 				anon_vma_interval_tree_pre_update_vma(vma);
 				vma->vm_start = address;
 				vma->vm_pgoff -= grow;
