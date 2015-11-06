@@ -272,10 +272,6 @@ struct wilc_cfg_frame {
 };
 
 typedef struct {
-	int (*wlan_tx)(u8 *, u32, wilc_tx_complete_func_t);
-} wilc_wlan_cfg_func_t;
-
-typedef struct {
 	int type;
 	u32 seq_no;
 } wilc_cfg_rsp_t;
