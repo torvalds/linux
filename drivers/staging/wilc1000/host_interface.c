@@ -4576,7 +4576,7 @@ s32 host_int_add_station(struct host_if_drv *hif_drv,
 	return result;
 }
 
-int host_int_del_station(struct host_if_drv *hif_drv, const u8 *pu8MacAddr)
+int host_int_del_station(struct host_if_drv *hif_drv, const u8 *mac_addr)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4594,10 +4594,10 @@ int host_int_del_station(struct host_if_drv *hif_drv, const u8 *pu8MacAddr)
 	msg.id = HOST_IF_MSG_DEL_STATION;
 	msg.drv = hif_drv;
 
-	if (!pu8MacAddr)
+	if (!mac_addr)
 		eth_broadcast_addr(pstrDelStationMsg->mac_addr);
 	else
-		memcpy(pstrDelStationMsg->mac_addr, pu8MacAddr, ETH_ALEN);
+		memcpy(pstrDelStationMsg->mac_addr, mac_addr, ETH_ALEN);
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
