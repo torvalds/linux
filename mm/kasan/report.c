@@ -91,7 +91,7 @@ static void print_error_description(struct kasan_access_info *info)
 		break;
 	}
 
-	pr_err("BUG: KASan: %s in %pS at addr %p\n",
+	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
 		bug_type, (void *)info->ip,
 		info->access_addr);
 	pr_err("%s of size %zu by task %s/%d\n",
@@ -224,7 +224,7 @@ static void kasan_report_error(struct kasan_access_info *info)
 			bug_type = "user-memory-access";
 		else
 			bug_type = "wild-memory-access";
-		pr_err("BUG: KASan: %s on address %p\n",
+		pr_err("BUG: KASAN: %s on address %p\n",
 			bug_type, info->access_addr);
 		pr_err("%s of size %zu by task %s/%d\n",
 			info->is_write ? "Write" : "Read",
