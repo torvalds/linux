@@ -146,8 +146,8 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 #define KDETH_OM_MAX_SIZE  (1 << ((KDETH_OM_LARGE / KDETH_OM_SMALL) + 1))
 
 /* Last packet in the request */
-#define TXREQ_FLAGS_REQ_LAST_PKT   (1 << 0)
-#define TXREQ_FLAGS_IOVEC_LAST_PKT (1 << 0)
+#define TXREQ_FLAGS_REQ_LAST_PKT BIT(0)
+#define TXREQ_FLAGS_IOVEC_LAST_PKT BIT(0)
 
 #define SDMA_REQ_IN_USE     0
 #define SDMA_REQ_FOR_THREAD 1
@@ -156,9 +156,9 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 #define SDMA_REQ_HAS_ERROR  4
 #define SDMA_REQ_DONE_ERROR 5
 
-#define SDMA_PKT_Q_INACTIVE (1 << 0)
-#define SDMA_PKT_Q_ACTIVE   (1 << 1)
-#define SDMA_PKT_Q_DEFERRED (1 << 2)
+#define SDMA_PKT_Q_INACTIVE BIT(0)
+#define SDMA_PKT_Q_ACTIVE   BIT(1)
+#define SDMA_PKT_Q_DEFERRED BIT(2)
 
 /*
  * Maximum retry attempts to submit a TX request
