@@ -1353,8 +1353,7 @@ static void wacom_clean_inputs(struct wacom *wacom)
 		else
 			input_free_device(wacom->wacom_wac.pad_input);
 	}
-	if (wacom->remote_dir)
-		kobject_put(wacom->remote_dir);
+	kobject_put(wacom->remote_dir);
 	wacom->wacom_wac.pen_input = NULL;
 	wacom->wacom_wac.touch_input = NULL;
 	wacom->wacom_wac.pad_input = NULL;
