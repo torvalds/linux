@@ -340,7 +340,7 @@ err_kms:
  * imx_drm_add_crtc - add a new crtc
  */
 int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
-		struct imx_drm_crtc **new_crtc,
+		struct imx_drm_crtc **new_crtc, struct drm_plane *primary_plane,
 		const struct imx_drm_crtc_helper_funcs *imx_drm_helper_funcs,
 		struct device_node *port)
 {
@@ -379,7 +379,7 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 	drm_crtc_helper_add(crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
 
-	drm_crtc_init(drm, crtc,
+	drm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
 
 	return 0;

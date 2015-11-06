@@ -349,7 +349,6 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 	int dp = -EINVAL;
 	int ret;
-	int id;
 
 	ret = ipu_get_resources(ipu_crtc, pdata);
 	if (ret) {
@@ -358,18 +357,19 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		return ret;
 	}
 
+	if (pdata->dp >= 0)
+		dp = IPU_DP_FLOW_SYNC_BG;
+	ipu_crtc->plane[0] = ipu_plane_init(drm, ipu, pdata->dma[0], dp, 0,
+					    DRM_PLANE_TYPE_PRIMARY);
+
 	ret = imx_drm_add_crtc(drm, &ipu_crtc->base, &ipu_crtc->imx_crtc,
-			&ipu_crtc_helper_funcs, ipu_crtc->dev->of_node);
+			&ipu_crtc->plane[0]->base, &ipu_crtc_helper_funcs,
+			ipu_crtc->dev->of_node);
 	if (ret) {
 		dev_err(ipu_crtc->dev, "adding crtc failed with %d.\n", ret);
 		goto err_put_resources;
 	}
 
-	if (pdata->dp >= 0)
-		dp = IPU_DP_FLOW_SYNC_BG;
-	id = imx_drm_crtc_id(ipu_crtc->imx_crtc);
-	ipu_crtc->plane[0] = ipu_plane_init(ipu_crtc->base.dev, ipu,
-					    pdata->dma[0], dp, BIT(id), true);
 	ret = ipu_plane_get_resources(ipu_crtc->plane[0]);
 	if (ret) {
 		dev_err(ipu_crtc->dev, "getting plane 0 resources failed with %d.\n",
@@ -379,10 +379,10 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 
 	/* If this crtc is using the DP, add an overlay plane */
 	if (pdata->dp >= 0 && pdata->dma[1] > 0) {
-		ipu_crtc->plane[1] = ipu_plane_init(ipu_crtc->base.dev, ipu,
-						    pdata->dma[1],
-						    IPU_DP_FLOW_SYNC_FG,
-						    BIT(id), false);
+		ipu_crtc->plane[1] = ipu_plane_init(drm, ipu, pdata->dma[1],
+						IPU_DP_FLOW_SYNC_FG,
+						drm_crtc_mask(&ipu_crtc->base),
+						DRM_PLANE_TYPE_OVERLAY);
 		if (IS_ERR(ipu_crtc->plane[1]))
 			ipu_crtc->plane[1] = NULL;
 	}
