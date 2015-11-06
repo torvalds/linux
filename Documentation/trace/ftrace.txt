@@ -204,6 +204,12 @@ of ftrace. Here is a list of some of the key files:
 
 	Have the function tracer only trace a single thread.
 
+  set_event_pid:
+
+	Have the events only trace a task with a PID listed in this file.
+	Note, sched_switch and sched_wake_up will also trace events
+	listed in this file.
+
   set_graph_function:
 
 	Set a "trigger" function where tracing should start
@@ -2436,6 +2442,23 @@ The following commands are supported:
   '!':
 
    echo '!writeback*:mod:ext3' >> set_ftrace_filter
+
+  Mod command supports module globbing. Disable tracing for all
+  functions except a specific module:
+
+   echo '!*:mod:!ext3' >> set_ftrace_filter
+
+  Disable tracing for all modules, but still trace kernel:
+
+   echo '!*:mod:*' >> set_ftrace_filter
+
+  Enable filter only for kernel:
+
+   echo '*write*:mod:!*' >> set_ftrace_filter
+
+  Enable filter for module globbing:
+
+   echo '*write*:mod:*snd*' >> set_ftrace_filter
 
 - traceon/traceoff
   These commands turn tracing on and off when the specified
