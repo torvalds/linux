@@ -81,6 +81,7 @@ static inline void release_bus(BUS_RELEASE_T release)
 static void wilc_wlan_txq_remove(struct txq_entry_t *tqe)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
+
 	if (tqe == p->txq_head)	{
 		p->txq_head = tqe->next;
 		if (p->txq_head)
@@ -500,6 +501,7 @@ static struct txq_entry_t *wilc_wlan_txq_get_next(struct wilc *wilc,
 						  struct txq_entry_t *tqe)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
 	tqe = tqe->next;
