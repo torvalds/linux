@@ -239,19 +239,19 @@ static inline int add_tcp_session(u32 src_prt, u32 dst_prt, u32 seq)
 	return 0;
 }
 
-static inline int update_tcp_session(u32 index, u32 Ack)
+static inline int update_tcp_session(u32 index, u32 ack)
 {
-	if (Ack > ack_session_info[index].bigger_ack_num)
-		ack_session_info[index].bigger_ack_num = Ack;
+	if (ack > ack_session_info[index].bigger_ack_num)
+		ack_session_info[index].bigger_ack_num = ack;
 	return 0;
 }
 
-static inline int add_tcp_pending_ack(u32 Ack, u32 Session_index,
+static inline int add_tcp_pending_ack(u32 ack, u32 Session_index,
 				       struct txq_entry_t *txqe)
 {
 	total_acks++;
 	if (pending_acks < MAX_PENDING_ACKS) {
-		pending_acks_info[pending_base + pending_acks].ack_num = Ack;
+		pending_acks_info[pending_base + pending_acks].ack_num = ack;
 		pending_acks_info[pending_base + pending_acks].txqe = txqe;
 		pending_acks_info[pending_base + pending_acks].session_index = Session_index;
 		txqe->tcp_PendingAck_index = pending_base + pending_acks;
