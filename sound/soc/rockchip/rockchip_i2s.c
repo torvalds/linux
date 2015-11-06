@@ -41,6 +41,7 @@ struct rk_i2s_dev {
 */
 	bool tx_start;
 	bool rx_start;
+	bool is_master_mode;
 };
 
 static int i2s_runtime_suspend(struct device *dev)
@@ -174,9 +175,11 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_CBS_CFS:
 		/* Set source clock in Master mode */
 		val = I2S_CKR_MSS_MASTER;
+		i2s->is_master_mode = true;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		val = I2S_CKR_MSS_SLAVE;
+		i2s->is_master_mode = false;
 		break;
 	default:
 		return -EINVAL;
@@ -228,6 +231,26 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct rk_i2s_dev *i2s = to_info(dai);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	unsigned int val = 0;
+	unsigned int mclk_rate, bclk_rate, div_bclk, div_lrck;
+
+	if (i2s->is_master_mode) {
+		mclk_rate = clk_get_rate(i2s->mclk);
+		bclk_rate = 2 * 32 * params_rate(params);
+		if (bclk_rate && mclk_rate % bclk_rate)
+			return -EINVAL;
+
+		div_bclk = mclk_rate / bclk_rate;
+		div_lrck = bclk_rate / params_rate(params);
+		regmap_update_bits(i2s->regmap, I2S_CKR,
+				   I2S_CKR_MDIV_MASK,
+				   I2S_CKR_MDIV(div_bclk));
+
+		regmap_update_bits(i2s->regmap, I2S_CKR,
+				   I2S_CKR_TSD_MASK |
+				   I2S_CKR_RSD_MASK,
+				   I2S_CKR_TSD(div_lrck) |
+				   I2S_CKR_RSD(div_lrck));
+	}
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
