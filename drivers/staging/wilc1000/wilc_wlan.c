@@ -1194,7 +1194,7 @@ int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size)
 
 	dma_buffer = kmalloc(blksz, GFP_KERNEL);
 	if (!dma_buffer) {
-		ret = -5;
+		ret = -EIO;
 		PRINT_ER("Can't allocate buffer for firmware download IO error\n ");
 		goto _fail_1;
 	}
@@ -1229,7 +1229,7 @@ int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size)
 		release_bus(RELEASE_ONLY);
 
 		if (!ret) {
-			ret = -5;
+			ret = -EIO;
 			PRINT_ER("Can't download firmware IO error\n ");
 			goto _fail_;
 		}
@@ -1263,7 +1263,7 @@ int wilc_wlan_start(void)
 	if (!ret) {
 		wilc_debug(N_ERR, "[wilc start]: fail write reg vmm_core_cfg...\n");
 		release_bus(RELEASE_ONLY);
-		ret = -5;
+		ret = -EIO;
 		return ret;
 	}
 	reg = 0;
@@ -1298,7 +1298,7 @@ int wilc_wlan_start(void)
 	if (!ret) {
 		wilc_debug(N_ERR, "[wilc start]: fail write WILC_GP_REG_1 ...\n");
 		release_bus(RELEASE_ONLY);
-		ret = -5;
+		ret = -EIO;
 		return ret;
 	}
 
@@ -1308,7 +1308,7 @@ int wilc_wlan_start(void)
 	if (!ret) {
 		wilc_debug(N_ERR, "[wilc start]: fail read reg 0x1000 ...\n");
 		release_bus(RELEASE_ONLY);
-		ret = -5;
+		ret = -EIO;
 		return ret;
 	}
 
@@ -1661,7 +1661,7 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 
 	if ((inp->io_func.io_type & 0x1) == HIF_SDIO) {
 		if (!hif_sdio.hif_init(inp, wilc_debug)) {
-			ret = -5;
+			ret = -EIO;
 			goto _fail_;
 		}
 		memcpy((void *)&g_wlan.hif_func, &hif_sdio,
@@ -1669,19 +1669,19 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 	} else {
 		if ((inp->io_func.io_type & 0x1) == HIF_SPI) {
 			if (!hif_spi.hif_init(inp, wilc_debug)) {
-				ret = -5;
+				ret = -EIO;
 				goto _fail_;
 			}
 			memcpy((void *)&g_wlan.hif_func, &hif_spi,
 			       sizeof(wilc_hif_func_t));
 		} else {
-			ret = -5;
+			ret = -EIO;
 			goto _fail_;
 		}
 	}
 
 	if (!wilc_wlan_cfg_init(wilc_debug)) {
-		ret = -105;
+		ret = -ENOBUFS;
 		goto _fail_;
 	}
 
@@ -1690,7 +1690,7 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 	PRINT_D(TX_DBG, "g_wlan.tx_buffer = %p\n", g_wlan.tx_buffer);
 
 	if (!g_wlan.tx_buffer) {
-		ret = -105;
+		ret = -ENOBUFS;
 		PRINT_ER("Can't allocate Tx Buffer");
 		goto _fail_;
 	}
@@ -1700,14 +1700,14 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 		g_wlan.rx_buffer = kmalloc(LINUX_RX_SIZE, GFP_KERNEL);
 	PRINT_D(TX_DBG, "g_wlan.rx_buffer =%p\n", g_wlan.rx_buffer);
 	if (!g_wlan.rx_buffer) {
-		ret = -105;
+		ret = -ENOBUFS;
 		PRINT_ER("Can't allocate Rx Buffer");
 		goto _fail_;
 	}
 #endif
 
 	if (!init_chip(dev)) {
-		ret = -5;
+		ret = -EIO;
 		goto _fail_;
 	}
 #ifdef	TCP_ACK_FILTER
