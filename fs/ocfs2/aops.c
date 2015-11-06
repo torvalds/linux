@@ -864,6 +864,7 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 		is_overwrite = ocfs2_is_overwrite(osb, inode, offset);
 		if (is_overwrite < 0) {
 			mlog_errno(is_overwrite);
+			ret = is_overwrite;
 			ocfs2_inode_unlock(inode, 1);
 			goto clean_orphan;
 		}
