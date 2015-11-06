@@ -216,7 +216,7 @@ struct ack_session_info *Alloc_head;
 #define MAX_TCP_SESSION		25
 #define MAX_PENDING_ACKS		256
 struct ack_session_info ack_session_info[2 * MAX_TCP_SESSION];
-struct pending_acks_info Pending_Acks_info[MAX_PENDING_ACKS];
+struct pending_acks_info pending_acks_info[MAX_PENDING_ACKS];
 
 u32 PendingAcks_arrBase;
 u32 Opened_TCP_session;
@@ -250,9 +250,9 @@ static inline int add_TCP_Pending_Ack(u32 Ack, u32 Session_index, struct txq_ent
 {
 	total_acks++;
 	if (Pending_Acks < MAX_PENDING_ACKS) {
-		Pending_Acks_info[PendingAcks_arrBase + Pending_Acks].ack_num = Ack;
-		Pending_Acks_info[PendingAcks_arrBase + Pending_Acks].txqe = txqe;
-		Pending_Acks_info[PendingAcks_arrBase + Pending_Acks].session_index = Session_index;
+		pending_acks_info[PendingAcks_arrBase + Pending_Acks].ack_num = Ack;
+		pending_acks_info[PendingAcks_arrBase + Pending_Acks].txqe = txqe;
+		pending_acks_info[PendingAcks_arrBase + Pending_Acks].session_index = Session_index;
 		txqe->tcp_PendingAck_index = PendingAcks_arrBase + Pending_Acks;
 		Pending_Acks++;
 	} else {
@@ -347,11 +347,12 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 
 	spin_lock_irqsave(&wilc->txq_spinlock, p->txq_spinlock_flags);
 	for (i = PendingAcks_arrBase; i < (PendingAcks_arrBase + Pending_Acks); i++) {
-		if (Pending_Acks_info[i].ack_num < ack_session_info[Pending_Acks_info[i].session_index].bigger_ack_num) {
+		if (pending_acks_info[i].ack_num < ack_session_info[pending_acks_info[i].session_index].bigger_ack_num) {
 			struct txq_entry_t *tqe;
 
-			PRINT_D(TCP_ENH, "DROP ACK: %u\n", Pending_Acks_info[i].ack_num);
-			tqe = Pending_Acks_info[i].txqe;
+			PRINT_D(TCP_ENH, "DROP ACK: %u\n",
+				pending_acks_info[i].ack_num);
+			tqe = pending_acks_info[i].txqe;
 			if (tqe) {
 				wilc_wlan_txq_remove(tqe);
 				dropped_acks++;
@@ -910,7 +911,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *pu32TxqCount)
 					tqe->tx_complete_func(tqe->priv, tqe->status);
 				#ifdef TCP_ACK_FILTER
 				if (tqe->tcp_PendingAck_index != NOT_TCP_ACK)
-					Pending_Acks_info[tqe->tcp_PendingAck_index].txqe = NULL;
+					pending_acks_info[tqe->tcp_PendingAck_index].txqe = NULL;
 				#endif
 				kfree(tqe);
 			} else {
