@@ -14,7 +14,6 @@
 
 typedef struct {
 	void *os_context;
-	int (*spi_trx)(u8 *, u8 *, u32);
 	int (*spi_max_speed)(void);
 	wilc_debug_func dPrint;
 	int crc_off;
@@ -408,7 +407,7 @@ static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 	}
 	rix = len;
 
-	if (!g_spi.spi_trx(wb, rb, len2)) {
+	if (!linux_spi_write_read(wb, rb, len2)) {
 		PRINT_ER("[wilc spi]: Failed cmd write, bus error...\n");
 		result = N_FAIL;
 		return result;
@@ -976,7 +975,6 @@ static int wilc_spi_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 	} else {
 		return 0;
 	}
-	g_spi.spi_trx = inp->io_func.u.spi.spi_trx;
 	g_spi.spi_max_speed = inp->io_func.u.spi.spi_max_speed;
 
 	/**
