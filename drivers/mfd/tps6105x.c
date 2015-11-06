@@ -64,19 +64,34 @@ static int tps6105x_startup(struct tps6105x *tps6105x)
 }
 
 /*
- * MFD cells - we have one cell which is selected operation
- * mode, and we always have a GPIO cell.
+ * MFD cells - we always have a GPIO cell and we have one cell
+ * which is selected operation mode.
  */
-static struct mfd_cell tps6105x_cells[] = {
-	{
-		/* name will be runtime assigned */
-		.id = -1,
-	},
-	{
-		.name = "tps6105x-gpio",
-		.id = -1,
-	},
+static struct mfd_cell tps6105x_gpio_cell = {
+	.name = "tps6105x-gpio",
 };
+
+static struct mfd_cell tps6105x_leds_cell = {
+	.name = "tps6105x-leds",
+};
+
+static struct mfd_cell tps6105x_flash_cell = {
+	.name = "tps6105x-flash",
+};
+
+static struct mfd_cell tps6105x_regulator_cell = {
+	.name = "tps6105x-regulator",
+};
+
+static int tps6105x_add_device(struct tps6105x *tps6105x,
+			       struct mfd_cell *cell)
+{
+	cell->platform_data = tps6105x;
+	cell->pdata_size = sizeof(*tps6105x);
+
+	return mfd_add_devices(&tps6105x->client->dev,
+			       PLATFORM_DEVID_AUTO, cell, 1, NULL, 0, NULL);
+}
 
 static int tps6105x_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -84,7 +99,12 @@ static int tps6105x_probe(struct i2c_client *client,
 	struct tps6105x			*tps6105x;
 	struct tps6105x_platform_data	*pdata;
 	int ret;
-	int i;
+
+	pdata = dev_get_platdata(&client->dev);
+	if (!pdata) {
+		dev_err(&client->dev, "missing platform data\n");
+		return -ENODEV;
+	}
 
 	tps6105x = devm_kmalloc(&client->dev, sizeof(*tps6105x), GFP_KERNEL);
 	if (!tps6105x)
@@ -96,7 +116,6 @@ static int tps6105x_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, tps6105x);
 	tps6105x->client = client;
-	pdata = dev_get_platdata(&client->dev);
 	tps6105x->pdata = pdata;
 
 	ret = tps6105x_startup(tps6105x);
@@ -105,38 +124,33 @@ static int tps6105x_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	/* Remove warning texts when you implement new cell drivers */
+	ret = tps6105x_add_device(tps6105x, &tps6105x_gpio_cell);
+	if (ret)
+		return ret;
+
 	switch (pdata->mode) {
 	case TPS6105X_MODE_SHUTDOWN:
 		dev_info(&client->dev,
 			 "present, not used for anything, only GPIO\n");
 		break;
 	case TPS6105X_MODE_TORCH:
-		tps6105x_cells[0].name = "tps6105x-leds";
-		dev_warn(&client->dev,
-			 "torch mode is unsupported\n");
+		ret = tps6105x_add_device(tps6105x, &tps6105x_leds_cell);
 		break;
 	case TPS6105X_MODE_TORCH_FLASH:
-		tps6105x_cells[0].name = "tps6105x-flash";
-		dev_warn(&client->dev,
-			 "flash mode is unsupported\n");
+		ret = tps6105x_add_device(tps6105x, &tps6105x_flash_cell);
 		break;
 	case TPS6105X_MODE_VOLTAGE:
-		tps6105x_cells[0].name ="tps6105x-regulator";
+		ret = tps6105x_add_device(tps6105x, &tps6105x_regulator_cell);
 		break;
 	default:
+		dev_warn(&client->dev, "invalid mode: %d\n", pdata->mode);
 		break;
 	}
 
-	/* Set up and register the platform devices. */
-	for (i = 0; i < ARRAY_SIZE(tps6105x_cells); i++) {
-		/* One state holder for all drivers, this is simple */
-		tps6105x_cells[i].platform_data = tps6105x;
-		tps6105x_cells[i].pdata_size = sizeof(*tps6105x);
-	}
+	if (ret)
+		mfd_remove_devices(&client->dev);
 
-	return mfd_add_devices(&client->dev, 0, tps6105x_cells,
-			       ARRAY_SIZE(tps6105x_cells), NULL, 0, NULL);
+	return ret;
 }
 
 static int tps6105x_remove(struct i2c_client *client)

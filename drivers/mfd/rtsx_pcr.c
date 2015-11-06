@@ -55,6 +55,7 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 	{ PCI_DEVICE(0x10EC, 0x5229), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5289), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5227), PCI_CLASS_OTHERS << 16, 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x522A), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5249), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5287), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5286), PCI_CLASS_OTHERS << 16, 0xFF0000 },
@@ -571,11 +572,7 @@ static int rtsx_pci_set_pull_ctl(struct rtsx_pcr *pcr, const u32 *tbl)
 		tbl++;
 	}
 
-	err = rtsx_pci_send_cmd(pcr, 100);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return rtsx_pci_send_cmd(pcr, 100);
 }
 
 int rtsx_pci_card_pull_ctl_enable(struct rtsx_pcr *pcr, int card)
@@ -1100,6 +1097,10 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 
 	case 0x5227:
 		rts5227_init_params(pcr);
+		break;
+
+	case 0x522A:
+		rts522a_init_params(pcr);
 		break;
 
 	case 0x5249:

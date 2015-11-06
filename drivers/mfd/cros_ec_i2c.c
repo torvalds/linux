@@ -344,6 +344,12 @@ static int cros_ec_i2c_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cros_ec_i2c_pm_ops, cros_ec_i2c_suspend,
 			  cros_ec_i2c_resume);
 
+static const struct of_device_id cros_ec_i2c_of_match[] = {
+	{ .compatible = "google,cros-ec-i2c", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, cros_ec_i2c_of_match);
+
 static const struct i2c_device_id cros_ec_i2c_id[] = {
 	{ "cros-ec-i2c", 0 },
 	{ }
@@ -353,6 +359,7 @@ MODULE_DEVICE_TABLE(i2c, cros_ec_i2c_id);
 static struct i2c_driver cros_ec_driver = {
 	.driver	= {
 		.name	= "cros-ec-i2c",
+		.of_match_table = of_match_ptr(cros_ec_i2c_of_match),
 		.pm	= &cros_ec_i2c_pm_ops,
 	},
 	.probe		= cros_ec_i2c_probe,
