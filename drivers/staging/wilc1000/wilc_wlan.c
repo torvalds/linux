@@ -389,16 +389,16 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 }
 #endif
 
-bool EnableTCPAckFilter = false;
+bool enabled = false;
 
 void Enable_TCP_ACK_Filter(bool value)
 {
-	EnableTCPAckFilter = value;
+	enabled = value;
 }
 
 bool is_TCP_ACK_Filter_Enabled(void)
 {
-	return EnableTCPAckFilter;
+	return enabled;
 }
 
 static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
