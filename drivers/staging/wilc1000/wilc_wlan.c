@@ -202,11 +202,11 @@ struct ack_session_info {
 	u16 status;
 };
 
-typedef struct {
+struct pending_acks_info {
 	u32 ack_num;
 	u32 Session_index;
 	struct txq_entry_t  *txqe;
-} Pending_Acks_info_t;
+};
 
 struct ack_session_info *Free_head;
 struct ack_session_info *Alloc_head;
@@ -216,7 +216,7 @@ struct ack_session_info *Alloc_head;
 #define MAX_TCP_SESSION		25
 #define MAX_PENDING_ACKS		256
 struct ack_session_info Acks_keep_track_info[2 * MAX_TCP_SESSION];
-Pending_Acks_info_t Pending_Acks_info[MAX_PENDING_ACKS];
+struct pending_acks_info Pending_Acks_info[MAX_PENDING_ACKS];
 
 u32 PendingAcks_arrBase;
 u32 Opened_TCP_session;
