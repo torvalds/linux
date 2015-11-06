@@ -93,7 +93,7 @@ void linux_spi_deinit(void *vp)
 
 
 
-int linux_spi_init(void *vp)
+int linux_spi_init(void)
 {
 	int ret = 1;
 	static int called;

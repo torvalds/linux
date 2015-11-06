@@ -1566,7 +1566,7 @@ int wilc_netdev_init(struct wilc **wilc)
 	}
 
 	#ifndef WILC_SDIO
-	if (!linux_spi_init(&g_linux_wlan->wilc_spidev)) {
+	if (!linux_spi_init()) {
 		PRINT_ER("Can't initialize SPI\n");
 		return -1;
 	}
