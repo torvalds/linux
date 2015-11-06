@@ -242,7 +242,7 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 	adapter->current_op = I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES;
 	len = sizeof(struct i40e_virtchnl_vsi_queue_config_info) +
 		       (sizeof(struct i40e_virtchnl_queue_pair_info) * pairs);
-	vqci = kzalloc(len, GFP_ATOMIC);
+	vqci = kzalloc(len, GFP_KERNEL);
 	if (!vqci)
 		return;
 
@@ -353,7 +353,7 @@ void i40evf_map_queues(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_irq_map_info) +
 	      (adapter->num_msix_vectors *
 		sizeof(struct i40e_virtchnl_vector_map));
-	vimi = kzalloc(len, GFP_ATOMIC);
+	vimi = kzalloc(len, GFP_KERNEL);
 	if (!vimi)
 		return;
 
@@ -421,7 +421,7 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 		more = true;
 	}
 
-	veal = kzalloc(len, GFP_ATOMIC);
+	veal = kzalloc(len, GFP_KERNEL);
 	if (!veal)
 		return;
 
@@ -483,7 +483,7 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 		      (count * sizeof(struct i40e_virtchnl_ether_addr));
 		more = true;
 	}
-	veal = kzalloc(len, GFP_ATOMIC);
+	veal = kzalloc(len, GFP_KERNEL);
 	if (!veal)
 		return;
 
@@ -547,7 +547,7 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 		      (count * sizeof(u16));
 		more = true;
 	}
-	vvfl = kzalloc(len, GFP_ATOMIC);
+	vvfl = kzalloc(len, GFP_KERNEL);
 	if (!vvfl)
 		return;
 
@@ -609,7 +609,7 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 		      (count * sizeof(u16));
 		more = true;
 	}
-	vvfl = kzalloc(len, GFP_ATOMIC);
+	vvfl = kzalloc(len, GFP_KERNEL);
 	if (!vvfl)
 		return;
 
