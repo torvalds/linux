@@ -104,5 +104,5 @@ long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count)
 	pagefault_enable();
 	set_fs(old_fs);
 
-	return ret < 0 ? ret : src - unsafe_addr;
+	return ret ? -EFAULT : src - unsafe_addr;
 }
