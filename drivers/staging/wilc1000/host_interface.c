@@ -271,7 +271,6 @@ static struct host_if_drv *join_req_drv;
 
 static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo);
 
-extern void chip_sleep_manually(u32 u32SleepTime);
 extern int linux_wlan_get_num_conn_ifcs(void);
 
 static int add_handler_in_list(struct host_if_drv *handler)
@@ -2906,7 +2905,7 @@ static int hostIFthread(void *pvArg)
 			PRINT_D(HOSTINF_DBG, "scan completed successfully\n");
 
 			if (!linux_wlan_get_num_conn_ifcs())
-				chip_sleep_manually(INFINITE_SLEEP_TIME);
+				chip_sleep_manually();
 
 			Handle_ScanDone(msg.drv, SCAN_EVENT_DONE);
 

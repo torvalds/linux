@@ -680,7 +680,7 @@ static inline void chip_wakeup(void)
 	chip_ps_state = CHIP_WAKEDUP;
 }
 #endif
-void chip_sleep_manually(u32 u32SleepTime)
+void chip_sleep_manually(void)
 {
 	if (chip_ps_state != CHIP_WAKEDUP)
 		return;
