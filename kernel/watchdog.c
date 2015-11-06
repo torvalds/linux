@@ -707,6 +707,11 @@ int lockup_detector_suspend(void)
 
 	if (ret == 0)
 		watchdog_suspended++;
+	else {
+		watchdog_disable_all_cpus();
+		pr_err("Failed to suspend lockup detectors, disabled\n");
+		watchdog_enabled = 0;
+	}
 
 	mutex_unlock(&watchdog_proc_mutex);
 
