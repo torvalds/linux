@@ -288,7 +288,7 @@ static int imx_set_trip_temp(struct thermal_zone_device *tz, int trip,
 	if (trip == IMX_TRIP_CRITICAL)
 		return -EPERM;
 
-	if (temp > IMX_TEMP_PASSIVE)
+	if (temp < 0 || temp > IMX_TEMP_PASSIVE)
 		return -EINVAL;
 
 	data->temp_passive = temp;
@@ -487,14 +487,6 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	if (data->irq < 0)
 		return data->irq;
 
-	ret = devm_request_threaded_irq(&pdev->dev, data->irq,
-			imx_thermal_alarm_irq, imx_thermal_alarm_irq_thread,
-			0, "imx_thermal", data);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to request alarm irq: %d\n", ret);
-		return ret;
-	}
-
 	platform_set_drvdata(pdev, data);
 
 	ret = imx_get_sensor_data(pdev);
@@ -570,6 +562,17 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	regmap_write(map, TEMPSENSE0 + REG_CLR, TEMPSENSE0_POWER_DOWN);
 	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_MEASURE_TEMP);
+
+	ret = devm_request_threaded_irq(&pdev->dev, data->irq,
+			imx_thermal_alarm_irq, imx_thermal_alarm_irq_thread,
+			0, "imx_thermal", data);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to request alarm irq: %d\n", ret);
+		clk_disable_unprepare(data->thermal_clk);
+		thermal_zone_device_unregister(data->tz);
+		cpufreq_cooling_unregister(data->cdev);
+		return ret;
+	}
 
 	data->irq_enabled = true;
 	data->mode = THERMAL_DEVICE_ENABLED;
