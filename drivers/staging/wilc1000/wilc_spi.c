@@ -13,7 +13,6 @@
 #include "linux_wlan_spi.h"
 
 typedef struct {
-	void *os_context;
 	wilc_debug_func dPrint;
 	int crc_off;
 	int nint;
@@ -965,7 +964,6 @@ static int wilc_spi_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 	memset(&g_spi, 0, sizeof(wilc_spi_t));
 
 	g_spi.dPrint = func;
-	g_spi.os_context = inp->os_context.os_private;
 	if (!linux_spi_init()) {
 		PRINT_ER("[wilc spi]: Failed io init bus...\n");
 		return 0;

@@ -15,7 +15,6 @@
 #define WILC_SDIO_BLOCK_SIZE 512
 
 typedef struct {
-	void *os_context;
 	u32 block_size;
 	wilc_debug_func dPrint;
 	int nint;
@@ -560,7 +559,6 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 	memset(&g_sdio, 0, sizeof(wilc_sdio_t));
 
 	g_sdio.dPrint = func;
-	g_sdio.os_context = inp->os_context.os_private;
 
 	if (!linux_sdio_init()) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed io init bus...\n");
