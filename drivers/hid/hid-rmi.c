@@ -1173,7 +1173,7 @@ static int rmi_populate(struct hid_device *hdev)
 	return 0;
 }
 
-static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
+static int rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 {
 	struct rmi_data *data = hid_get_drvdata(hdev);
 	struct input_dev *input = hi->input;
@@ -1185,10 +1185,10 @@ static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	hid_dbg(hdev, "Opening low level driver\n");
 	ret = hid_hw_open(hdev);
 	if (ret)
-		return;
+		return ret;
 
 	if (!(data->device_flags & RMI_DEVICE))
-		return;
+		return 0;
 
 	/* Allow incoming hid reports */
 	hid_device_io_start(hdev);
@@ -1228,7 +1228,9 @@ static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 0x0f, 0, 0);
 	input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 0x0f, 0, 0);
 
-	input_mt_init_slots(input, data->max_fingers, INPUT_MT_POINTER);
+	ret = input_mt_init_slots(input, data->max_fingers, INPUT_MT_POINTER);
+	if (ret < 0)
+		goto exit;
 
 	if (data->button_count) {
 		__set_bit(EV_KEY, input->evbit);
@@ -1244,6 +1246,7 @@ static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 exit:
 	hid_device_io_stop(hdev);
 	hid_hw_close(hdev);
+	return ret;
 }
 
 static int rmi_input_mapping(struct hid_device *hdev,
