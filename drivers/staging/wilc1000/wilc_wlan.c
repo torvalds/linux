@@ -298,14 +298,14 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 
 		if (protocol == 0x06) {
 			u8 *tcp_hdr_ptr;
-			u32 IHL, total_length, Data_offset;
+			u32 IHL, total_length, data_offset;
 
 			tcp_hdr_ptr = &ip_hdr_ptr[IP_HDR_LEN];
 			IHL = (ip_hdr_ptr[0] & 0xf) << 2;
 			total_length = ((u32)ip_hdr_ptr[2] << 8) +
 					(u32)ip_hdr_ptr[3];
-			Data_offset = (((u32)tcp_hdr_ptr[12] & 0xf0) >> 2);
-			if (total_length == (IHL + Data_offset)) {
+			data_offset = ((u32)tcp_hdr_ptr[12] & 0xf0) >> 2;
+			if (total_length == (IHL + data_offset)) {
 				u32 seq_no, Ack_no;
 
 				seq_no	= (((u32)tcp_hdr_ptr[4]) << 24) + (((u32)tcp_hdr_ptr[5]) << 16) + (((u32)tcp_hdr_ptr[6]) << 8) + ((u32)tcp_hdr_ptr[7]);
