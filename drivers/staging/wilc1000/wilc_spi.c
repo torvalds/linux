@@ -966,11 +966,9 @@ static int wilc_spi_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 
 	g_spi.dPrint = func;
 	g_spi.os_context = inp->os_context.os_private;
-	if (inp->io_func.io_init) {
-		if (!inp->io_func.io_init(g_spi.os_context)) {
-			PRINT_ER("[wilc spi]: Failed io init bus...\n");
-			return 0;
-		}
+	if (!linux_spi_init(g_spi.os_context)) {
+		PRINT_ER("[wilc spi]: Failed io init bus...\n");
+		return 0;
 	} else {
 		return 0;
 	}

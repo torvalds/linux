@@ -892,11 +892,9 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, struct wilc *nic)
 
 #ifdef WILC_SDIO
 	nwi->io_func.io_type = HIF_SDIO;
-	nwi->io_func.io_init = linux_sdio_init;
 	nwi->io_func.io_deinit = linux_sdio_deinit;
 #else
 	nwi->io_func.io_type = HIF_SPI;
-	nwi->io_func.io_init = linux_spi_init;
 	nwi->io_func.io_deinit = linux_spi_deinit;
 #endif
 }

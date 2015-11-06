@@ -74,7 +74,6 @@ typedef struct {
 
 typedef struct {
 	int io_type;
-	int (*io_init)(void *);
 	void (*io_deinit)(void *);
 } wilc_wlan_io_func_t;
 
