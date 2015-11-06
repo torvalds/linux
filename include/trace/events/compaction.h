@@ -16,7 +16,8 @@
 	EM( COMPACT_PARTIAL,		"partial")		\
 	EM( COMPACT_COMPLETE,		"complete")		\
 	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
-	EMe(COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")
+	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
+	EMe(COMPACT_CONTENDED,		"contended")
 
 #ifdef CONFIG_ZONE_DMA
 #define IFDEF_ZONE_DMA(X) X

@@ -1202,7 +1202,7 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
 	unsigned long watermark;
 
 	if (cc->contended || fatal_signal_pending(current))
-		return COMPACT_PARTIAL;
+		return COMPACT_CONTENDED;
 
 	/* Compaction run completes if the migrate and free scanner meet */
 	if (compact_scanners_met(cc)) {
@@ -1393,7 +1393,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 
 		switch (isolate_migratepages(zone, cc)) {
 		case ISOLATE_ABORT:
-			ret = COMPACT_PARTIAL;
+			ret = COMPACT_CONTENDED;
 			putback_movable_pages(&cc->migratepages);
 			cc->nr_migratepages = 0;
 			goto out;
@@ -1424,7 +1424,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 			 * and we want compact_finished() to detect it
 			 */
 			if (err == -ENOMEM && !compact_scanners_met(cc)) {
-				ret = COMPACT_PARTIAL;
+				ret = COMPACT_CONTENDED;
 				goto out;
 			}
 		}
@@ -1476,6 +1476,9 @@ out:
 
 	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
 				cc->free_pfn, end_pfn, sync, ret);
+
+	if (ret == COMPACT_CONTENDED)
+		ret = COMPACT_PARTIAL;
 
 	return ret;
 }
