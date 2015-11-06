@@ -220,7 +220,7 @@ struct pending_acks_info pending_acks_info[MAX_PENDING_ACKS];
 
 u32 pending_base;
 u32 tcp_session;
-u32 Pending_Acks;
+u32 pending_acks;
 
 static inline int Init_TCP_tracking(void)
 {
@@ -249,12 +249,12 @@ static inline int Update_TCP_track_session(u32 index, u32 Ack)
 static inline int add_TCP_Pending_Ack(u32 Ack, u32 Session_index, struct txq_entry_t  *txqe)
 {
 	total_acks++;
-	if (Pending_Acks < MAX_PENDING_ACKS) {
-		pending_acks_info[pending_base + Pending_Acks].ack_num = Ack;
-		pending_acks_info[pending_base + Pending_Acks].txqe = txqe;
-		pending_acks_info[pending_base + Pending_Acks].session_index = Session_index;
-		txqe->tcp_PendingAck_index = pending_base + Pending_Acks;
-		Pending_Acks++;
+	if (pending_acks < MAX_PENDING_ACKS) {
+		pending_acks_info[pending_base + pending_acks].ack_num = Ack;
+		pending_acks_info[pending_base + pending_acks].txqe = txqe;
+		pending_acks_info[pending_base + pending_acks].session_index = Session_index;
+		txqe->tcp_PendingAck_index = pending_base + pending_acks;
+		pending_acks++;
 	} else {
 
 	}
@@ -346,7 +346,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 	wilc = nic->wilc;
 
 	spin_lock_irqsave(&wilc->txq_spinlock, p->txq_spinlock_flags);
-	for (i = pending_base; i < (pending_base + Pending_Acks); i++) {
+	for (i = pending_base; i < (pending_base + pending_acks); i++) {
 		if (pending_acks_info[i].ack_num < ack_session_info[pending_acks_info[i].session_index].bigger_ack_num) {
 			struct txq_entry_t *tqe;
 
@@ -364,7 +364,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 			}
 		}
 	}
-	Pending_Acks = 0;
+	pending_acks = 0;
 	tcp_session = 0;
 
 	if (pending_base == 0)
