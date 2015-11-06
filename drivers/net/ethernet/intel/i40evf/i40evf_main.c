@@ -2615,8 +2615,7 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	netdev = alloc_etherdev_mq(sizeof(struct i40evf_adapter),
-				   MAX_TX_QUEUES);
+	netdev = alloc_etherdev_mq(sizeof(struct i40evf_adapter), MAX_QUEUES);
 	if (!netdev) {
 		err = -ENOMEM;
 		goto err_alloc_etherdev;
