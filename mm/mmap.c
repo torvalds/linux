@@ -1412,13 +1412,13 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 		unsigned long, fd, unsigned long, pgoff)
 {
 	struct file *file = NULL;
-	unsigned long retval = -EBADF;
+	unsigned long retval;
 
 	if (!(flags & MAP_ANONYMOUS)) {
 		audit_mmap_fd(fd, flags);
 		file = fget(fd);
 		if (!file)
-			goto out;
+			return -EBADF;
 		if (is_file_hugepages(file))
 			len = ALIGN(len, huge_page_size(hstate_file(file)));
 		retval = -EINVAL;
@@ -1453,7 +1453,6 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 out_fput:
 	if (file)
 		fput(file);
-out:
 	return retval;
 }
 
