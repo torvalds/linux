@@ -193,8 +193,8 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 u32 total_acks = 0, dropped_acks = 0;
 
 #ifdef	TCP_ACK_FILTER
-struct Ack_session_info;
-struct Ack_session_info {
+struct ack_session_info;
+struct ack_session_info {
 	u32 Ack_seq_num;
 	u32 Bigger_Ack_num;
 	u16 src_port;
@@ -208,14 +208,14 @@ typedef struct {
 	struct txq_entry_t  *txqe;
 } Pending_Acks_info_t;
 
-struct Ack_session_info *Free_head;
-struct Ack_session_info *Alloc_head;
+struct ack_session_info *Free_head;
+struct ack_session_info *Alloc_head;
 
 #define NOT_TCP_ACK			(-1)
 
 #define MAX_TCP_SESSION		25
 #define MAX_PENDING_ACKS		256
-struct Ack_session_info Acks_keep_track_info[2 * MAX_TCP_SESSION];
+struct ack_session_info Acks_keep_track_info[2 * MAX_TCP_SESSION];
 Pending_Acks_info_t Pending_Acks_info[MAX_PENDING_ACKS];
 
 u32 PendingAcks_arrBase;
