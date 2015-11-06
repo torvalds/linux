@@ -1236,7 +1236,7 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 		return 0;
 	}
 
-	tx_data = kmalloc(sizeof(struct tx_complete_data), GFP_ATOMIC);
+	tx_data = kmalloc(sizeof(*tx_data), GFP_ATOMIC);
 	if (!tx_data) {
 		PRINT_ER("Failed to allocate memory for tx_data structure\n");
 		dev_kfree_skb(skb);
