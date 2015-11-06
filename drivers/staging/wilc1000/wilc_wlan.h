@@ -1,11 +1,7 @@
 #ifndef WILC_WLAN_H
 #define WILC_WLAN_H
 
-
-
 #define ISWILC1000(id)			((id & 0xfffff000) == 0x100000 ? 1 : 0)
-
-
 /********************************************
  *
  *      Mac eth header length
@@ -140,8 +136,6 @@
 #else
 #define WILC_PLL_TO		2
 #endif
-
-
 #define ABORT_INT		BIT(31)
 
 /*******************************************/
@@ -203,8 +197,6 @@
 
 #define ENABLE_RX_VMM		(SEL_VMM_TBL1 | EN_VMM)
 #define ENABLE_TX_VMM		(SEL_VMM_TBL0 | EN_VMM)
-
-
 /*time for expiring the semaphores of cfg packets*/
 #define CFG_PKTS_TIMEOUT	2000
 /********************************************
