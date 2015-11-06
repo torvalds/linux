@@ -68,6 +68,7 @@ static inline void acquire_bus(BUS_ACQUIRE_T acquire)
 			chip_wakeup();
 	}
 }
+
 static inline void release_bus(BUS_RELEASE_T release)
 {
 	#ifdef WILC_OPTIMIZE_SLEEP_INT
@@ -224,6 +225,7 @@ static inline int Init_TCP_tracking(void)
 {
 	return 0;
 }
+
 static inline int add_TCP_track_session(u32 src_prt, u32 dst_prt, u32 seq)
 {
 	Acks_keep_track_info[Opened_TCP_session].Ack_seq_num = seq;
@@ -242,6 +244,7 @@ static inline int Update_TCP_track_session(u32 index, u32 Ack)
 		Acks_keep_track_info[index].Bigger_Ack_num = Ack;
 	return 0;
 }
+
 static inline int add_TCP_Pending_Ack(u32 Ack, u32 Session_index, struct txq_entry_t  *txqe)
 {
 	Statisitcs_totalAcks++;
@@ -1045,6 +1048,7 @@ static void wilc_unknown_isr_ext(void)
 {
 	g_wlan.hif_func.hif_clear_int_ext(0);
 }
+
 static void wilc_pllupdate_isr_ext(u32 int_stats)
 {
 	int trials = 10;
@@ -1507,6 +1511,7 @@ int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
 
 	return ret_size;
 }
+
 int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
@@ -1562,6 +1567,7 @@ void wilc_bus_set_default_speed(void)
 {
 	g_wlan.hif_func.hif_set_default_bus_speed();
 }
+
 u32 init_chip(struct net_device *dev)
 {
 	u32 chipid;
