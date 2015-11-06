@@ -1023,7 +1023,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 						has_packet = 1;
 					}
 				} else {
-					wilc_cfg_rsp_t rsp;
+					struct wilc_cfg_rsp rsp;
 
 					wilc_wlan_cfg_indicate_rx(&buffer[pkt_offset + offset], pkt_len, &rsp);
 					if (rsp.type == WILC_CFG_RSP) {

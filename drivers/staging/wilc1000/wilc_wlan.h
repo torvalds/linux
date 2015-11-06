@@ -271,10 +271,10 @@ struct wilc_cfg_frame {
 	u8 frame[MAX_CFG_FRAME_SIZE];
 };
 
-typedef struct {
+struct wilc_cfg_rsp {
 	int type;
 	u32 seq_no;
-} wilc_cfg_rsp_t;
+};
 
 int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size);
 int wilc_wlan_start(void);
