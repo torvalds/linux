@@ -176,6 +176,10 @@ To use 'vim' with mutt:
 if you want to include the patch inline.
 (a)ttach works fine without "set paste".
 
+You can also generate patches with 'git format-patch' and then use Mutt
+to send them:
+    $ mutt -H 0001-some-bug-fix.patch
+
 Config options:
 It should work with default settings.
 However, it's a good idea to set the "send_charset" to:
