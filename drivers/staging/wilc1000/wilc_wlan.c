@@ -2,8 +2,11 @@
 #include "wilc_wfi_netdevice.h"
 #include "wilc_wlan_cfg.h"
 
+#ifdef WILC_SDIO
 extern struct wilc_hif_func hif_sdio;
+#else
 extern struct wilc_hif_func hif_spi;
+#endif
 u32 wilc_get_chipid(u8 update);
 
 typedef struct {
@@ -1659,26 +1662,21 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 	memcpy((void *)&g_wlan.io_func, (void *)&inp->io_func,
 	       sizeof(wilc_wlan_io_func_t));
 
-	if ((inp->io_func.io_type & 0x1) == HIF_SDIO) {
-		if (!hif_sdio.hif_init(inp, wilc_debug)) {
-			ret = -EIO;
-			goto _fail_;
-		}
-		memcpy((void *)&g_wlan.hif_func, &hif_sdio,
-		       sizeof(struct wilc_hif_func));
-	} else {
-		if ((inp->io_func.io_type & 0x1) == HIF_SPI) {
-			if (!hif_spi.hif_init(inp, wilc_debug)) {
-				ret = -EIO;
-				goto _fail_;
-			}
-			memcpy((void *)&g_wlan.hif_func, &hif_spi,
-			       sizeof(struct wilc_hif_func));
-		} else {
-			ret = -EIO;
-			goto _fail_;
-		}
+#ifdef WILC_SDIO
+	if (!hif_sdio.hif_init(inp, wilc_debug)) {
+		ret = -EIO;
+		goto _fail_;
 	}
+	memcpy((void *)&g_wlan.hif_func, &hif_sdio,
+	       sizeof(struct wilc_hif_func));
+#else
+	if (!hif_spi.hif_init(inp, wilc_debug)) {
+		ret = -EIO;
+		goto _fail_;
+	}
+	memcpy((void *)&g_wlan.hif_func, &hif_spi,
+	       sizeof(struct wilc_hif_func));
+#endif
 
 	if (!wilc_wlan_cfg_init(wilc_debug)) {
 		ret = -ENOBUFS;
