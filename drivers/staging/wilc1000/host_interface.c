@@ -323,7 +323,7 @@ static struct host_if_drv *get_handler_from_id(int id)
 	return wfidrv_list[id];
 }
 
-static s32 Handle_SetChannel(struct host_if_drv *hif_drv,
+static s32 handle_set_channel(struct host_if_drv *hif_drv,
 			      struct channel_attr *hif_set_ch)
 {
 	s32 result = 0;
@@ -2893,7 +2893,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_SET_CHANNEL:
-			Handle_SetChannel(msg.drv, &msg.body.channel_info);
+			handle_set_channel(msg.drv, &msg.body.channel_info);
 			break;
 
 		case HOST_IF_MSG_DISCONNECT:
