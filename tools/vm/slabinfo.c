@@ -53,43 +53,43 @@ struct aliasinfo {
 	struct slabinfo *slab;
 } aliasinfo[MAX_ALIASES];
 
-int slabs = 0;
-int actual_slabs = 0;
-int aliases = 0;
-int alias_targets = 0;
-int highest_node = 0;
+int slabs;
+int actual_slabs;
+int aliases;
+int alias_targets;
+int highest_node;
 
 char buffer[4096];
 
-int show_empty = 0;
-int show_report = 0;
-int show_alias = 0;
-int show_slab = 0;
+int show_empty;
+int show_report;
+int show_alias;
+int show_slab;
 int skip_zero = 1;
-int show_numa = 0;
-int show_track = 0;
-int show_first_alias = 0;
-int validate = 0;
-int shrink = 0;
-int show_inverted = 0;
-int show_single_ref = 0;
-int show_totals = 0;
-int sort_size = 0;
-int sort_active = 0;
-int set_debug = 0;
-int show_ops = 0;
-int show_activity = 0;
+int show_numa;
+int show_track;
+int show_first_alias;
+int validate;
+int shrink;
+int show_inverted;
+int show_single_ref;
+int show_totals;
+int sort_size;
+int sort_active;
+int set_debug;
+int show_ops;
+int show_activity;
 int output_lines = -1;
 int sort_loss;
 int extended_totals;
 int show_bytes;
 
 /* Debug options */
-int sanity = 0;
-int redzone = 0;
-int poison = 0;
-int tracking = 0;
-int tracing = 0;
+int sanity;
+int redzone;
+int poison;
+int tracking;
+int tracing;
 
 int page_size;
 
