@@ -474,6 +474,24 @@ void oom_killer_enable(void)
 	oom_killer_disabled = false;
 }
 
+/*
+ * task->mm can be NULL if the task is the exited group leader.  So to
+ * determine whether the task is using a particular mm, we examine all the
+ * task's threads: if one of those is using this mm then this task was also
+ * using it.
+ */
+static bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
+{
+	struct task_struct *t;
+
+	for_each_thread(p, t) {
+		struct mm_struct *t_mm = READ_ONCE(t->mm);
+		if (t_mm)
+			return t_mm == mm;
+	}
+	return false;
+}
+
 #define K(x) ((x) << (PAGE_SHIFT-10))
 /*
  * Must be called while holding a reference to p, which will be released upon
@@ -521,7 +539,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
 		list_for_each_entry(child, &t->children, sibling) {
 			unsigned int child_points;
 
-			if (child->mm == p->mm)
+			if (process_shares_mm(child, p->mm))
 				continue;
 			/*
 			 * oom_badness() returns 0 if the thread is unkillable
@@ -575,7 +593,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
 	 */
 	rcu_read_lock();
 	for_each_process(p) {
-		if (p->mm != mm)
+		if (!process_shares_mm(p, mm))
 			continue;
 		if (same_thread_group(p, victim))
 			continue;
