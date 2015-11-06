@@ -231,7 +231,8 @@ out_unlock:
 	if (res < 0 && fl->fl_type != F_UNLCK) {
 		fl_type = fl->fl_type;
 		fl->fl_type = F_UNLCK;
-		res = locks_lock_file_wait(filp, fl);
+		/* Even if this fails we want to return the remote error */
+		locks_lock_file_wait(filp, fl);
 		fl->fl_type = fl_type;
 	}
 out:
