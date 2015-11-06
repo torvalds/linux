@@ -837,10 +837,6 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 	return PCI_PROBE_NORMAL;
 }
 
-#ifndef CONFIG_PCI
-void pSeries_final_fixup(void) { }
-#endif
-
 struct pci_controller_ops pseries_pci_controller_ops = {
 	.probe_mode		= pSeries_pci_probe_mode,
 };

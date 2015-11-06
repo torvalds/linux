@@ -1204,6 +1204,8 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 {
 	u32 real_ev = event;
 	u8 ev_type = 0;
+	int ret;
+
 	dprintk("sony_nc_notify, event: 0x%.2x\n", event);
 
 	if (event >= 0x90) {
@@ -1225,13 +1227,12 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 		case 0x0100:
 		case 0x0127:
 			ev_type = HOTKEY;
-			real_ev = sony_nc_hotkeys_decode(event, handle);
+			ret = sony_nc_hotkeys_decode(event, handle);
 
-			if (real_ev > 0)
-				sony_laptop_report_input_event(real_ev);
-			else
-				/* restore the original event for reporting */
-				real_ev = event;
+			if (ret > 0) {
+				sony_laptop_report_input_event(ret);
+				real_ev = ret;
+			}
 
 			break;
 

@@ -247,7 +247,7 @@ int evm_init_key(void)
 		return -ENOENT;
 
 	down_read(&evm_key->sem);
-	ekp = evm_key->payload.data;
+	ekp = evm_key->payload.data[0];
 	if (ekp->decrypted_datalen > MAX_KEY_SIZE) {
 		rc = -EINVAL;
 		goto out;

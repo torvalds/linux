@@ -1581,7 +1581,7 @@ static struct blkcg_policy_data *cfq_cpd_alloc(gfp_t gfp)
 static void cfq_cpd_init(struct blkcg_policy_data *cpd)
 {
 	struct cfq_group_data *cgd = cpd_to_cfqgd(cpd);
-	unsigned int weight = cgroup_on_dfl(blkcg_root.css.cgroup) ?
+	unsigned int weight = cgroup_subsys_on_dfl(io_cgrp_subsys) ?
 			      CGROUP_WEIGHT_DFL : CFQ_WEIGHT_LEGACY_DFL;
 
 	if (cpd_to_blkcg(cpd) == &blkcg_root)
@@ -1599,7 +1599,7 @@ static void cfq_cpd_free(struct blkcg_policy_data *cpd)
 static void cfq_cpd_bind(struct blkcg_policy_data *cpd)
 {
 	struct blkcg *blkcg = cpd_to_blkcg(cpd);
-	bool on_dfl = cgroup_on_dfl(blkcg_root.css.cgroup);
+	bool on_dfl = cgroup_subsys_on_dfl(io_cgrp_subsys);
 	unsigned int weight = on_dfl ? CGROUP_WEIGHT_DFL : CFQ_WEIGHT_LEGACY_DFL;
 
 	if (blkcg == &blkcg_root)

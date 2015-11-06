@@ -1,6 +1,6 @@
 config TCG_TIS_ST33ZP24
 	tristate "STMicroelectronics TPM Interface Specification 1.2 Interface"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	---help---
 	  STMicroelectronics ST33ZP24 core driver. It implements the core
 	  TPM1.2 logic and hooks into the TPM kernel APIs. Physical layers will

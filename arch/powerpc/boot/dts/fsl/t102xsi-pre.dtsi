@@ -59,6 +59,12 @@
 		sdhc = &sdhc;
 
 		crypto = &crypto;
+
+		fman0 = &fman0;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
 	};
 
 	cpus {

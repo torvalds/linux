@@ -336,28 +336,28 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 	return -EOPNOTSUPP;
 }
 
-static const intercept_handler_t intercept_funcs[] = {
-	[0x00 >> 2] = handle_noop,
-	[0x04 >> 2] = handle_instruction,
-	[0x08 >> 2] = handle_prog,
-	[0x10 >> 2] = handle_noop,
-	[0x14 >> 2] = handle_external_interrupt,
-	[0x18 >> 2] = handle_noop,
-	[0x1C >> 2] = kvm_s390_handle_wait,
-	[0x20 >> 2] = handle_validity,
-	[0x28 >> 2] = handle_stop,
-	[0x38 >> 2] = handle_partial_execution,
-};
-
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t func;
-	u8 code = vcpu->arch.sie_block->icptcode;
-
-	if (code & 3 || (code >> 2) >= ARRAY_SIZE(intercept_funcs))
+	switch (vcpu->arch.sie_block->icptcode) {
+	case 0x00:
+	case 0x10:
+	case 0x18:
+		return handle_noop(vcpu);
+	case 0x04:
+		return handle_instruction(vcpu);
+	case 0x08:
+		return handle_prog(vcpu);
+	case 0x14:
+		return handle_external_interrupt(vcpu);
+	case 0x1c:
+		return kvm_s390_handle_wait(vcpu);
+	case 0x20:
+		return handle_validity(vcpu);
+	case 0x28:
+		return handle_stop(vcpu);
+	case 0x38:
+		return handle_partial_execution(vcpu);
+	default:
 		return -EOPNOTSUPP;
-	func = intercept_funcs[code >> 2];
-	if (func)
-		return func(vcpu);
-	return -EOPNOTSUPP;
+	}
 }

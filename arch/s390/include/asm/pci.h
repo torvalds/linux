@@ -62,6 +62,8 @@ struct zpci_bar_struct {
 	u8		size;		/* order 2 exponent */
 };
 
+struct s390_domain;
+
 /* Private data per function */
 struct zpci_dev {
 	struct pci_dev	*pdev;
@@ -118,6 +120,8 @@ struct zpci_dev {
 
 	struct dentry	*debugfs_dev;
 	struct dentry	*debugfs_perf;
+
+	struct s390_domain *s390_domain; /* s390 IOMMU domain data */
 };
 
 static inline bool zdev_enabled(struct zpci_dev *zdev)

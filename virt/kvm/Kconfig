@@ -46,4 +46,7 @@ config KVM_GENERIC_DIRTYLOG_READ_PROTECT
 
 config KVM_COMPAT
        def_bool y
-       depends on COMPAT && !S390
+       depends on KVM && COMPAT && !S390
+
+config HAVE_KVM_IRQ_BYPASS
+       bool

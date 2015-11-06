@@ -856,7 +856,6 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 		return;
 
 	default:
-		printk(KERN_ERR PFX "Unknown netevent %ld", event);
 		return;
 	}
 
