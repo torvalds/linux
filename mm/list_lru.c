@@ -63,6 +63,16 @@ list_lru_from_memcg_idx(struct list_lru_node *nlru, int idx)
 	return &nlru->lru;
 }
 
+static __always_inline struct mem_cgroup *mem_cgroup_from_kmem(void *ptr)
+{
+	struct page *page;
+
+	if (!memcg_kmem_enabled())
+		return NULL;
+	page = virt_to_head_page(ptr);
+	return page->mem_cgroup;
+}
+
 static inline struct list_lru_one *
 list_lru_from_kmem(struct list_lru_node *nlru, void *ptr)
 {
