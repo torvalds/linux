@@ -625,7 +625,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		unlock_page(page);
 		put_page(page);
 
-		if (stable_node->hlist.first)
+		if (!hlist_empty(&stable_node->hlist))
 			ksm_pages_sharing--;
 		else
 			ksm_pages_shared--;
