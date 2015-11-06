@@ -17,6 +17,9 @@
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 
+/* From DT binding */
+#define PM8941_WLED_DEFAULT_BRIGHTNESS		2048
+
 #define PM8941_WLED_REG_VAL_BASE		0x40
 #define  PM8941_WLED_REG_VAL_MAX		0xFFF
 
@@ -373,6 +376,7 @@ static int pm8941_wled_probe(struct platform_device *pdev)
 	struct backlight_device *bl;
 	struct pm8941_wled *wled;
 	struct regmap *regmap;
+	u32 val;
 	int rc;
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
@@ -395,16 +399,17 @@ static int pm8941_wled_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
+	val = PM8941_WLED_DEFAULT_BRIGHTNESS;
+	of_property_read_u32(pdev->dev.of_node, "default-brightness", &val);
+
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
+	props.brightness = val;
 	props.max_brightness = PM8941_WLED_REG_VAL_MAX;
 	bl = devm_backlight_device_register(&pdev->dev, wled->name,
 					    &pdev->dev, wled,
 					    &pm8941_wled_ops, &props);
-	if (IS_ERR(bl))
-		return PTR_ERR(bl);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(bl);
 };
 
 static const struct of_device_id pm8941_wled_match_table[] = {

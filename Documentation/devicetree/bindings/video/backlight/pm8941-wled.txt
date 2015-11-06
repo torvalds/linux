@@ -5,6 +5,8 @@ Required properties:
 - reg: slave address
 
 Optional properties:
+- default-brightness: brightness value on boot, value from: 0-4095
+	default: 2048
 - label: The name of the backlight device
 - qcom,cs-out: bool; enable current sink output
 - qcom,cabc: bool; enable content adaptive backlight control
