@@ -562,7 +562,7 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 	g_sdio.dPrint = func;
 	g_sdio.os_context = inp->os_context.os_private;
 
-	if (!linux_sdio_init(g_sdio.os_context)) {
+	if (!linux_sdio_init()) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed io init bus...\n");
 		return 0;
 	} else {

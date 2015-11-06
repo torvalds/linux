@@ -214,7 +214,7 @@ static int linux_sdio_get_speed(void)
 	return local_sdio_func->card->host->ios.clock;
 }
 
-int linux_sdio_init(void *pv)
+int linux_sdio_init(void)
 {
 
 	/**
