@@ -562,8 +562,6 @@ EXPORT_SYMBOL_GPL(rtsx_pci_write_ppbuf);
 
 static int rtsx_pci_set_pull_ctl(struct rtsx_pcr *pcr, const u32 *tbl)
 {
-	int err;
-
 	rtsx_pci_init_cmd(pcr);
 
 	while (*tbl & 0xFFFF0000) {
