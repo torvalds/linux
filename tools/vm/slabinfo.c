@@ -82,6 +82,7 @@ int show_activity = 0;
 int output_lines = -1;
 int sort_loss;
 int extended_totals;
+int show_bytes;
 
 /* Debug options */
 int sanity = 0;
@@ -130,6 +131,7 @@ static void usage(void)
 		"-N|--lines=K           Show the first K slabs\n"
 		"-L|--Loss              Sort by loss\n"
 		"-X|--Xtotals           Show extended summary information\n"
+		"-B|--Bytes             Show size in bytes\n"
 		"\nValid debug options (FZPUT may be combined)\n"
 		"a / A          Switch on all debug options (=FZUP)\n"
 		"-              Switch off all debug options\n"
@@ -231,15 +233,17 @@ static int store_size(char *buffer, unsigned long value)
 	char trailer = 0;
 	int n;
 
-	if (value > 1000000000UL) {
-		divisor = 100000000UL;
-		trailer = 'G';
-	} else if (value > 1000000UL) {
-		divisor = 100000UL;
-		trailer = 'M';
-	} else if (value > 1000UL) {
-		divisor = 100;
-		trailer = 'K';
+	if (!show_bytes) {
+		if (value > 1000000000UL) {
+			divisor = 100000000UL;
+			trailer = 'G';
+		} else if (value > 1000000UL) {
+			divisor = 100000UL;
+			trailer = 'M';
+		} else if (value > 1000UL) {
+			divisor = 100;
+			trailer = 'K';
+		}
 	}
 
 	value /= divisor;
@@ -303,11 +307,12 @@ int line = 0;
 static void first_line(void)
 {
 	if (show_activity)
-		printf("Name                   Objects      Alloc       Free   %%Fast Fallb O CmpX   UL\n");
+		printf("Name                   Objects      Alloc       Free"
+			"   %%Fast Fallb O CmpX   UL\n");
 	else
-		printf("Name                   Objects Objsize    %s "
+		printf("Name                   Objects Objsize           %s "
 			"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n",
-			sort_loss ? "Loss" : "Space");
+			sort_loss ? " Loss" : "Space");
 }
 
 /*
@@ -516,7 +521,7 @@ static void report(struct slabinfo *s)
 	if (strcmp(s->name, "*") == 0)
 		return;
 
-	printf("\nSlabcache: %-20s  Aliases: %2d Order : %2d Objects: %lu\n",
+	printf("\nSlabcache: %-15s  Aliases: %2d Order : %2d Objects: %lu\n",
 		s->name, s->aliases, s->order, s->objects);
 	if (s->hwcache_align)
 		printf("** Hardware cacheline aligned\n");
@@ -618,7 +623,7 @@ static void slabcache(struct slabinfo *s)
 			s->order_fallback, s->order, s->cmpxchg_double_fail,
 			s->cmpxchg_double_cpu_fail);
 	} else {
-		printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
+		printf("%-21s %8ld %7d %15s %14s %4d %1d %3ld %3ld %s\n",
 			s->name, s->objects, s->object_size, size_str, dist_str,
 			s->objs_per_slab, s->order,
 			s->slabs ? (s->partial * 100) / s->slabs : 100,
@@ -933,84 +938,88 @@ static void totals(void)
 
 	printf("Slabcache Totals\n");
 	printf("----------------\n");
-	printf("Slabcaches : %3d      Aliases  : %3d->%-3d Active: %3d\n",
+	printf("Slabcaches : %15d   Aliases  : %11d->%-3d  Active:    %3d\n",
 			slabs, aliases, alias_targets, used_slabs);
 
 	store_size(b1, total_size);store_size(b2, total_waste);
 	store_size(b3, total_waste * 100 / total_used);
-	printf("Memory used: %6s   # Loss   : %6s   MRatio:%6s%%\n", b1, b2, b3);
+	printf("Memory used: %15s   # Loss   : %15s   MRatio:%6s%%\n", b1, b2, b3);
 
 	store_size(b1, total_objects);store_size(b2, total_partobj);
 	store_size(b3, total_partobj * 100 / total_objects);
-	printf("# Objects  : %6s   # PartObj: %6s   ORatio:%6s%%\n", b1, b2, b3);
+	printf("# Objects  : %15s   # PartObj: %15s   ORatio:%6s%%\n", b1, b2, b3);
 
 	printf("\n");
-	printf("Per Cache    Average         Min         Max       Total\n");
-	printf("---------------------------------------------------------\n");
+	printf("Per Cache         Average              "
+		"Min              Max            Total\n");
+	printf("---------------------------------------"
+		"-------------------------------------\n");
 
 	store_size(b1, avg_objects);store_size(b2, min_objects);
 	store_size(b3, max_objects);store_size(b4, total_objects);
-	printf("#Objects  %10s  %10s  %10s  %10s\n",
+	printf("#Objects  %15s  %15s  %15s  %15s\n",
 			b1,	b2,	b3,	b4);
 
 	store_size(b1, avg_slabs);store_size(b2, min_slabs);
 	store_size(b3, max_slabs);store_size(b4, total_slabs);
-	printf("#Slabs    %10s  %10s  %10s  %10s\n",
+	printf("#Slabs    %15s  %15s  %15s  %15s\n",
 			b1,	b2,	b3,	b4);
 
 	store_size(b1, avg_partial);store_size(b2, min_partial);
 	store_size(b3, max_partial);store_size(b4, total_partial);
-	printf("#PartSlab %10s  %10s  %10s  %10s\n",
+	printf("#PartSlab %15s  %15s  %15s  %15s\n",
 			b1,	b2,	b3,	b4);
 	store_size(b1, avg_ppart);store_size(b2, min_ppart);
 	store_size(b3, max_ppart);
 	store_size(b4, total_partial * 100  / total_slabs);
-	printf("%%PartSlab%10s%% %10s%% %10s%% %10s%%\n",
+	printf("%%PartSlab%15s%% %15s%% %15s%% %15s%%\n",
 			b1,	b2,	b3,	b4);
 
 	store_size(b1, avg_partobj);store_size(b2, min_partobj);
 	store_size(b3, max_partobj);
 	store_size(b4, total_partobj);
-	printf("PartObjs  %10s  %10s  %10s  %10s\n",
+	printf("PartObjs  %15s  %15s  %15s  %15s\n",
 			b1,	b2,	b3,	b4);
 
 	store_size(b1, avg_ppartobj);store_size(b2, min_ppartobj);
 	store_size(b3, max_ppartobj);
 	store_size(b4, total_partobj * 100 / total_objects);
-	printf("%% PartObj%10s%% %10s%% %10s%% %10s%%\n",
+	printf("%% PartObj%15s%% %15s%% %15s%% %15s%%\n",
 			b1,	b2,	b3,	b4);
 
 	store_size(b1, avg_size);store_size(b2, min_size);
 	store_size(b3, max_size);store_size(b4, total_size);
-	printf("Memory    %10s  %10s  %10s  %10s\n",
+	printf("Memory    %15s  %15s  %15s  %15s\n",
 			b1,	b2,	b3,	b4);
 
 	store_size(b1, avg_used);store_size(b2, min_used);
 	store_size(b3, max_used);store_size(b4, total_used);
-	printf("Used      %10s  %10s  %10s  %10s\n",
+	printf("Used      %15s  %15s  %15s  %15s\n",
 			b1,	b2,	b3,	b4);
 
 	store_size(b1, avg_waste);store_size(b2, min_waste);
 	store_size(b3, max_waste);store_size(b4, total_waste);
-	printf("Loss      %10s  %10s  %10s  %10s\n",
+	printf("Loss      %15s  %15s  %15s  %15s\n",
 			b1,	b2,	b3,	b4);
 
 	printf("\n");
-	printf("Per Object   Average         Min         Max\n");
-	printf("---------------------------------------------\n");
+	printf("Per Object        Average              "
+		"Min              Max\n");
+	printf("---------------------------------------"
+		"--------------------\n");
 
 	store_size(b1, avg_memobj);store_size(b2, min_memobj);
 	store_size(b3, max_memobj);
-	printf("Memory    %10s  %10s  %10s\n",
+	printf("Memory    %15s  %15s  %15s\n",
 			b1,	b2,	b3);
 	store_size(b1, avg_objsize);store_size(b2, min_objsize);
 	store_size(b3, max_objsize);
-	printf("User      %10s  %10s  %10s\n",
+	printf("User      %15s  %15s  %15s\n",
 			b1,	b2,	b3);
 
 	store_size(b1, avg_objwaste);store_size(b2, min_objwaste);
 	store_size(b3, max_objwaste);
-	printf("Loss      %10s  %10s  %10s\n",
+	printf("Loss      %15s  %15s  %15s\n",
 			b1,	b2,	b3);
 }
 
@@ -1112,7 +1121,7 @@ static void alias(void)
 			active = a->slab->name;
 		}
 		else
-			printf("%-20s -> %s\n", a->name, a->slab->name);
+			printf("%-15s -> %s\n", a->name, a->slab->name);
 	}
 	if (active)
 		printf("\n");
@@ -1296,14 +1305,14 @@ static void xtotals(void)
 	rename_slabs();
 
 	printf("\nSlabs sorted by size\n");
-	printf("----------------------\n");
+	printf("--------------------\n");
 	sort_loss = 0;
 	sort_size = 1;
 	sort_slabs();
 	output_slabs();
 
 	printf("\nSlabs sorted by loss\n");
-	printf("----------------------\n");
+	printf("--------------------\n");
 	line = 0;
 	sort_loss = 1;
 	sort_size = 0;
@@ -1335,6 +1344,7 @@ struct option opts[] = {
 	{ "lines", required_argument, NULL, 'N'},
 	{ "Loss", no_argument, NULL, 'L'},
 	{ "Xtotals", no_argument, NULL, 'X'},
+	{ "Bytes", no_argument, NULL, 'B'},
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -1346,7 +1356,7 @@ int main(int argc, char *argv[])
 
 	page_size = getpagesize();
 
-	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LX",
+	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXB",
 						opts, NULL)) != -1)
 		switch (c) {
 		case '1':
@@ -1422,6 +1432,10 @@ int main(int argc, char *argv[])
 			if (output_lines == -1)
 				output_lines = 1;
 			extended_totals = 1;
+			show_bytes = 1;
+			break;
+		case 'B':
+			show_bytes = 1;
 			break;
 		default:
 			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
