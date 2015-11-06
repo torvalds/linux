@@ -377,13 +377,11 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
 static void dump_header(struct oom_control *oc, struct task_struct *p,
 			struct mem_cgroup *memcg)
 {
-	task_lock(current);
 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
 		"oom_score_adj=%hd\n",
 		current->comm, oc->gfp_mask, oc->order,
 		current->signal->oom_score_adj);
-	cpuset_print_task_mems_allowed(current);
-	task_unlock(current);
+	cpuset_print_current_mems_allowed();
 	dump_stack();
 	if (memcg)
 		mem_cgroup_print_oom_info(memcg, p);
@@ -509,10 +507,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
 	if (__ratelimit(&oom_rs))
 		dump_header(oc, p, memcg);
 
-	task_lock(p);
 	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
 		message, task_pid_nr(p), p->comm, points);
-	task_unlock(p);
 
 	/*
 	 * If any of p's children has a different mm and is eligible for kill,
@@ -586,10 +582,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
 			if (fatal_signal_pending(p))
 				continue;
 
-			task_lock(p);	/* Protect ->comm from prctl() */
 			pr_info("Kill process %d (%s) sharing same memory\n",
 				task_pid_nr(p), p->comm);
-			task_unlock(p);
 			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
 		}
 	rcu_read_unlock();
