@@ -494,8 +494,8 @@ static s32 handle_set_mac_address(struct host_if_drv *hif_drv,
 	return result;
 }
 
-static s32 Handle_GetMacAddress(struct host_if_drv *hif_drv,
-				struct get_mac_addr *get_mac_addr)
+static s32 handle_get_mac_address(struct host_if_drv *hif_drv,
+				  struct get_mac_addr *get_mac_addr)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -2995,7 +2995,8 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_GET_MAC_ADDRESS:
-			Handle_GetMacAddress(msg.drv, &msg.body.get_mac_info);
+			handle_get_mac_address(msg.drv,
+					       &msg.body.get_mac_info);
 			break;
 
 		case HOST_IF_MSG_REMAIN_ON_CHAN:
