@@ -283,12 +283,16 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		r = 0;
 		break;
 	case KVM_CAP_S390_VECTOR_REGISTERS:
-		if (MACHINE_HAS_VX) {
+		mutex_lock(&kvm->lock);
+		if (atomic_read(&kvm->online_vcpus)) {
+			r = -EBUSY;
+		} else if (MACHINE_HAS_VX) {
 			set_kvm_facility(kvm->arch.model.fac->mask, 129);
 			set_kvm_facility(kvm->arch.model.fac->list, 129);
 			r = 0;
 		} else
 			r = -EINVAL;
+		mutex_unlock(&kvm->lock);
 		break;
 	case KVM_CAP_S390_USER_STSI:
 		kvm->arch.user_stsi = 1;
