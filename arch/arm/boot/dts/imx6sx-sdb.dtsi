@@ -416,6 +416,23 @@
 	};
 };
 
+&i2c2 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+
+	egalax_ts@04 {
+		compatible = "eeti,egalax_ts";
+		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_egalax_int>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <19 2>;
+		wakeup-gpios = <&gpio4 19 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &i2c3 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
@@ -682,6 +699,12 @@
 			>;
 		};
 
+		pinctrl_egalax_int: egalax_intgrp {
+			fsl,pins = <
+				MX6SX_PAD_QSPI1A_DATA3__GPIO4_IO_19 0x80000000
+			>;
+		};
+
 		pinctrl_enet1: enet1grp {
 			fsl,pins = <
 				MX6SX_PAD_ENET1_MDIO__ENET1_MDIO	0xa0b1
@@ -736,6 +759,13 @@
 			fsl,pins = <
 				MX6SX_PAD_GPIO1_IO01__I2C1_SDA		0x4001b8b1
 				MX6SX_PAD_GPIO1_IO00__I2C1_SCL		0x4001b8b1
+			>;
+		};
+
+		pinctrl_i2c2: i2c2grp {
+			fsl,pins = <
+				MX6SX_PAD_GPIO1_IO03__I2C2_SDA 0x4001b8b1
+				MX6SX_PAD_GPIO1_IO02__I2C2_SCL 0x4001b8b1
 			>;
 		};
 
