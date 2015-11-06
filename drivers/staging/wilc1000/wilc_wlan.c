@@ -308,7 +308,10 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 			if (total_length == (IHL + data_offset)) {
 				u32 seq_no, ack_no;
 
-				seq_no	= (((u32)tcp_hdr_ptr[4]) << 24) + (((u32)tcp_hdr_ptr[5]) << 16) + (((u32)tcp_hdr_ptr[6]) << 8) + ((u32)tcp_hdr_ptr[7]);
+				seq_no = ((u32)tcp_hdr_ptr[4] << 24) +
+					 ((u32)tcp_hdr_ptr[5] << 16) +
+					 ((u32)tcp_hdr_ptr[6] << 8) +
+					 (u32)tcp_hdr_ptr[7];
 
 				ack_no = ((u32)tcp_hdr_ptr[8] << 24) +
 					 ((u32)tcp_hdr_ptr[9] << 16) +
