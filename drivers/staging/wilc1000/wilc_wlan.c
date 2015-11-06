@@ -396,7 +396,7 @@ void enable_tcp_ack_filter(bool value)
 	enabled = value;
 }
 
-bool is_TCP_ACK_Filter_Enabled(void)
+bool is_tcp_ack_filter_enabled(void)
 {
 	return enabled;
 }
@@ -456,7 +456,7 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	PRINT_D(TX_DBG, "Adding mgmt packet at the Queue tail\n");
 #ifdef TCP_ACK_FILTER
 	tqe->tcp_PendingAck_index = NOT_TCP_ACK;
-	if (is_TCP_ACK_Filter_Enabled())
+	if (is_tcp_ack_filter_enabled())
 		tcp_process(dev, tqe);
 #endif
 	wilc_wlan_txq_add_to_tail(dev, tqe);
