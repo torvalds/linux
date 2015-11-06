@@ -289,7 +289,7 @@ static int is_softlockup(unsigned long touch_ts)
 {
 	unsigned long now = get_timestamp();
 
-	if (watchdog_enabled & SOFT_WATCHDOG_ENABLED) {
+	if ((watchdog_enabled & SOFT_WATCHDOG_ENABLED) && watchdog_thresh){
 		/* Warn about unreasonable delays. */
 		if (time_after(now, touch_ts + get_softlockup_thresh()))
 			return now - touch_ts;
