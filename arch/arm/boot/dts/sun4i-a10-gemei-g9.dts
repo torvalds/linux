@@ -112,7 +112,7 @@
 };
 
 &lradc {
-	vref-supply = <&reg_vcc3v0>;
+	vref-supply = <&reg_ldo2>;
 
 	status = "okay";
 
