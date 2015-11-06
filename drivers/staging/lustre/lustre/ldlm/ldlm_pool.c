@@ -176,11 +176,6 @@ enum {
 	LDLM_POOL_LAST_STAT
 };
 
-static inline struct ldlm_namespace *ldlm_pl2ns(struct ldlm_pool *pl)
-{
-	return container_of(pl, struct ldlm_namespace, ns_pool);
-}
-
 /**
  * Calculates suggested grant_step in % of available locks for passed
  * \a period. This is later used in grant_plan calculations.
@@ -254,7 +249,8 @@ static void ldlm_pool_recalc_stats(struct ldlm_pool *pl)
 }
 
 /**
- * Sets SLV and Limit from ldlm_pl2ns(pl)->ns_obd tp passed \a pl.
+ * Sets SLV and Limit from container_of(pl, struct ldlm_namespace,
+ * ns_pool)->ns_obd tp passed \a pl.
  */
 static void ldlm_cli_pool_pop_slv(struct ldlm_pool *pl)
 {
@@ -264,7 +260,8 @@ static void ldlm_cli_pool_pop_slv(struct ldlm_pool *pl)
 	 * Get new SLV and Limit from obd which is updated with coming
 	 * RPCs.
 	 */
-	obd = ldlm_pl2ns(pl)->ns_obd;
+	obd = container_of(pl, struct ldlm_namespace,
+			   ns_pool)->ns_obd;
 	LASSERT(obd != NULL);
 	read_lock(&obd->obd_pool_lock);
 	pl->pl_server_lock_volume = obd->obd_pool_slv;
@@ -304,7 +301,8 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	/*
 	 * Do not cancel locks in case lru resize is disabled for this ns.
 	 */
-	if (!ns_connect_lru_resize(ldlm_pl2ns(pl))) {
+	if (!ns_connect_lru_resize(container_of(pl, struct ldlm_namespace,
+						ns_pool))) {
 		ret = 0;
 		goto out;
 	}
@@ -315,7 +313,8 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	 * It may be called when SLV has changed much, this is why we do not
 	 * take into account pl->pl_recalc_time here.
 	 */
-	ret = ldlm_cancel_lru(ldlm_pl2ns(pl), 0, LCF_ASYNC, LDLM_CANCEL_LRUR);
+	ret = ldlm_cancel_lru(container_of(pl, struct ldlm_namespace, ns_pool),
+			      0, LCF_ASYNC, LDLM_CANCEL_LRUR);
 
 out:
 	spin_lock(&pl->pl_lock);
@@ -341,7 +340,7 @@ static int ldlm_cli_pool_shrink(struct ldlm_pool *pl,
 	struct ldlm_namespace *ns;
 	int unused;
 
-	ns = ldlm_pl2ns(pl);
+	ns = container_of(pl, struct ldlm_namespace, ns_pool);
 
 	/*
 	 * Do not cancel locks in case lru resize is disabled for this ns.
@@ -558,7 +557,8 @@ static struct kobj_type ldlm_pl_ktype = {
 
 static int ldlm_pool_sysfs_init(struct ldlm_pool *pl)
 {
-	struct ldlm_namespace *ns = ldlm_pl2ns(pl);
+	struct ldlm_namespace *ns = container_of(pl, struct ldlm_namespace,
+						 ns_pool);
 	int err;
 
 	init_completion(&pl->pl_kobj_unregister);
@@ -570,7 +570,8 @@ static int ldlm_pool_sysfs_init(struct ldlm_pool *pl)
 
 static int ldlm_pool_debugfs_init(struct ldlm_pool *pl)
 {
-	struct ldlm_namespace *ns = ldlm_pl2ns(pl);
+	struct ldlm_namespace *ns = container_of(pl, struct ldlm_namespace,
+						 ns_pool);
 	struct dentry *debugfs_ns_parent;
 	struct lprocfs_vars pool_vars[2];
 	char *var_name = NULL;
