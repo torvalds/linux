@@ -361,6 +361,10 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		dp = IPU_DP_FLOW_SYNC_BG;
 	ipu_crtc->plane[0] = ipu_plane_init(drm, ipu, pdata->dma[0], dp, 0,
 					    DRM_PLANE_TYPE_PRIMARY);
+	if (IS_ERR(ipu_crtc->plane[0])) {
+		ret = PTR_ERR(ipu_crtc->plane[0]);
+		goto err_put_resources;
+	}
 
 	ret = imx_drm_add_crtc(drm, &ipu_crtc->base, &ipu_crtc->imx_crtc,
 			&ipu_crtc->plane[0]->base, &ipu_crtc_helper_funcs,
