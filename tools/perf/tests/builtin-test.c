@@ -196,7 +196,7 @@ static bool perf_test__matches(struct test *test, int curr, int argc, const char
 			continue;
 		}
 
-		if (strstr(test->desc, argv[i]))
+		if (strcasestr(test->desc, argv[i]))
 			return true;
 	}
 
