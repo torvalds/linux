@@ -195,7 +195,7 @@ u32 total_acks = 0, dropped_acks = 0;
 #ifdef	TCP_ACK_FILTER
 struct ack_session_info;
 struct ack_session_info {
-	u32 Ack_seq_num;
+	u32 seq_num;
 	u32 Bigger_Ack_num;
 	u16 src_port;
 	u16 dst_port;
@@ -229,7 +229,7 @@ static inline int Init_TCP_tracking(void)
 
 static inline int add_TCP_track_session(u32 src_prt, u32 dst_prt, u32 seq)
 {
-	Acks_keep_track_info[Opened_TCP_session].Ack_seq_num = seq;
+	Acks_keep_track_info[Opened_TCP_session].seq_num = seq;
 	Acks_keep_track_info[Opened_TCP_session].Bigger_Ack_num = 0;
 	Acks_keep_track_info[Opened_TCP_session].src_port = src_prt;
 	Acks_keep_track_info[Opened_TCP_session].dst_port = dst_prt;
@@ -313,7 +313,7 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 				Ack_no	= (((u32)tcp_hdr_ptr[8]) << 24) + (((u32)tcp_hdr_ptr[9]) << 16) + (((u32)tcp_hdr_ptr[10]) << 8) + ((u32)tcp_hdr_ptr[11]);
 
 				for (i = 0; i < Opened_TCP_session; i++) {
-					if (Acks_keep_track_info[i].Ack_seq_num == seq_no) {
+					if (Acks_keep_track_info[i].seq_num == seq_no) {
 						Update_TCP_track_session(i, Ack_no);
 						break;
 					}
