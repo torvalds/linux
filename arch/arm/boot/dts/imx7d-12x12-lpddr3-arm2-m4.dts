@@ -47,6 +47,10 @@
 	status = "disabled";
 };
 
+&ocram {
+	reg = <0x00901000 0xf000>;
+};
+
 &rpmsg{
 	status = "okay";
 };
