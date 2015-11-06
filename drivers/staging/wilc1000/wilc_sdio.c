@@ -17,7 +17,6 @@
 typedef struct {
 	void *os_context;
 	u32 block_size;
-	int (*sdio_cmd53)(sdio_cmd53_t *);
 	int (*sdio_set_max_speed)(void);
 	int (*sdio_set_default_speed)(void);
 	wilc_debug_func dPrint;
@@ -257,7 +256,7 @@ static int sdio_write_reg(u32 addr, u32 data)
 		cmd.buffer = (u8 *)&data;
 		cmd.block_size = g_sdio.block_size; /* johnny : prevent it from setting unexpected value */
 
-		if (!g_sdio.sdio_cmd53(&cmd)) {
+		if (!linux_sdio_cmd53(&cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53, write reg (%08x)...\n", addr);
 			goto _fail_;
 		}
@@ -320,7 +319,7 @@ static int sdio_write(u32 addr, u8 *buf, u32 size)
 			if (!sdio_set_func0_csa_address(addr))
 				goto _fail_;
 		}
-		if (!g_sdio.sdio_cmd53(&cmd)) {
+		if (!linux_sdio_cmd53(&cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block send...\n", addr);
 			goto _fail_;
 		}
@@ -341,7 +340,7 @@ static int sdio_write(u32 addr, u8 *buf, u32 size)
 			if (!sdio_set_func0_csa_address(addr))
 				goto _fail_;
 		}
-		if (!g_sdio.sdio_cmd53(&cmd)) {
+		if (!linux_sdio_cmd53(&cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], bytes send...\n", addr);
 			goto _fail_;
 		}
@@ -384,7 +383,7 @@ static int sdio_read_reg(u32 addr, u32 *data)
 
 		cmd.block_size = g_sdio.block_size; /* johnny : prevent it from setting unexpected value */
 
-		if (!g_sdio.sdio_cmd53(&cmd)) {
+		if (!linux_sdio_cmd53(&cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53, read reg (%08x)...\n", addr);
 			goto _fail_;
 		}
@@ -451,7 +450,7 @@ static int sdio_read(u32 addr, u8 *buf, u32 size)
 			if (!sdio_set_func0_csa_address(addr))
 				goto _fail_;
 		}
-		if (!g_sdio.sdio_cmd53(&cmd)) {
+		if (!linux_sdio_cmd53(&cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block read...\n", addr);
 			goto _fail_;
 		}
@@ -472,7 +471,7 @@ static int sdio_read(u32 addr, u8 *buf, u32 size)
 			if (!sdio_set_func0_csa_address(addr))
 				goto _fail_;
 		}
-		if (!g_sdio.sdio_cmd53(&cmd)) {
+		if (!linux_sdio_cmd53(&cmd)) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], bytes read...\n", addr);
 			goto _fail_;
 		}
@@ -574,7 +573,6 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 		return 0;
 	}
 
-	g_sdio.sdio_cmd53	= inp->io_func.u.sdio.sdio_cmd53;
 	g_sdio.sdio_set_max_speed	= inp->io_func.u.sdio.sdio_set_max_speed;
 	g_sdio.sdio_set_default_speed	= inp->io_func.u.sdio.sdio_set_default_speed;
 
