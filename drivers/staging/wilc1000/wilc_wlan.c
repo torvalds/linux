@@ -1132,7 +1132,7 @@ _end_:
 			offset += size;
 			p->rx_buffer_offset = offset;
 #endif
-			rqe = kmalloc(sizeof(struct rxq_entry_t), GFP_KERNEL);
+			rqe = kmalloc(sizeof(*rqe), GFP_KERNEL);
 			if (rqe) {
 				rqe->buffer = buffer;
 				rqe->buffer_size = size;
