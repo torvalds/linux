@@ -695,7 +695,7 @@ void chip_sleep_manually(void)
 	release_bus(RELEASE_ONLY);
 }
 
-int wilc_wlan_handle_txq(struct net_device *dev, u32 *pu32TxqCount)
+int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	int i, entries = 0;
@@ -949,7 +949,7 @@ _end_:
 
 	p->txq_exit = 1;
 	PRINT_D(TX_DBG, "THREAD: Exiting txq\n");
-	*pu32TxqCount = p->txq_entries;
+	*txq_count = p->txq_entries;
 	return ret;
 }
 

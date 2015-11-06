@@ -300,7 +300,7 @@ int wilc_wlan_start(void);
 int wilc_wlan_stop(void);
 int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 			      u32 buffer_size, wilc_tx_complete_func_t func);
-int wilc_wlan_handle_txq(struct net_device *dev, u32 *pu32TxqCount);
+int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count);
 void wilc_handle_isr(void *wilc);
 void wilc_wlan_cleanup(struct net_device *dev);
 int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
