@@ -1715,7 +1715,7 @@ _fail_:
 	return ret;
 }
 
-u16 set_machw_change_vir_if(struct net_device *dev, bool bValue)
+u16 set_machw_change_vir_if(struct net_device *dev, bool value)
 {
 	u16 ret;
 	u32 reg;
@@ -1730,7 +1730,7 @@ u16 set_machw_change_vir_if(struct net_device *dev, bool bValue)
 	if (!ret)
 		PRINT_ER("Error while Reading reg WILC_CHANGING_VIR_IF\n");
 
-	if (bValue)
+	if (value)
 		reg |= BIT(31);
 	else
 		reg &= ~BIT(31);
