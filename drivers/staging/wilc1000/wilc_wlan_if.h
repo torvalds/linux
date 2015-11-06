@@ -78,7 +78,6 @@ typedef struct {
 	void (*io_deinit)(void *);
 	union {
 		struct {
-			int (*sdio_cmd52)(sdio_cmd52_t *);
 			int (*sdio_cmd53)(sdio_cmd53_t *);
 			int (*sdio_set_max_speed)(void);
 			int (*sdio_set_default_speed)(void);

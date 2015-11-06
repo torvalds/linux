@@ -894,7 +894,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, struct wilc *nic)
 	nwi->io_func.io_type = HIF_SDIO;
 	nwi->io_func.io_init = linux_sdio_init;
 	nwi->io_func.io_deinit = linux_sdio_deinit;
-	nwi->io_func.u.sdio.sdio_cmd52 = linux_sdio_cmd52;
 	nwi->io_func.u.sdio.sdio_cmd53 = linux_sdio_cmd53;
 	nwi->io_func.u.sdio.sdio_set_max_speed = linux_sdio_set_max_speed;
 	nwi->io_func.u.sdio.sdio_set_default_speed = linux_sdio_set_default_speed;
