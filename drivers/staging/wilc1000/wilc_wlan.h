@@ -231,7 +231,7 @@ struct txq_entry_t {
 	struct txq_entry_t *next;
 	struct txq_entry_t *prev;
 	int type;
-	int tcp_PendingAck_index;
+	int index;
 	u8 *buffer;
 	int buffer_size;
 	void *priv;

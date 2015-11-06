@@ -251,7 +251,7 @@ static inline int add_tcp_pending_ack(u32 ack, u32 session_index,
 		pending_acks_info[pending_base + pending_acks].ack_num = ack;
 		pending_acks_info[pending_base + pending_acks].txqe = txqe;
 		pending_acks_info[pending_base + pending_acks].session_index = session_index;
-		txqe->tcp_PendingAck_index = pending_base + pending_acks;
+		txqe->index = pending_base + pending_acks;
 		pending_acks++;
 	}
 	return 0;
@@ -422,7 +422,7 @@ static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 	tqe->tx_complete_func = NULL;
 	tqe->priv = NULL;
 #ifdef TCP_ACK_FILTER
-	tqe->tcp_PendingAck_index = NOT_TCP_ACK;
+	tqe->index = NOT_TCP_ACK;
 #endif
 	PRINT_D(TX_DBG, "Adding the config packet at the Queue tail\n");
 
@@ -452,7 +452,7 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 
 	PRINT_D(TX_DBG, "Adding mgmt packet at the Queue tail\n");
 #ifdef TCP_ACK_FILTER
-	tqe->tcp_PendingAck_index = NOT_TCP_ACK;
+	tqe->index = NOT_TCP_ACK;
 	if (is_tcp_ack_filter_enabled())
 		tcp_process(dev, tqe);
 #endif
@@ -479,7 +479,7 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	tqe->tx_complete_func = func;
 	tqe->priv = priv;
 #ifdef TCP_ACK_FILTER
-	tqe->tcp_PendingAck_index = NOT_TCP_ACK;
+	tqe->index = NOT_TCP_ACK;
 #endif
 	PRINT_D(TX_DBG, "Adding Network packet at the Queue tail\n");
 	wilc_wlan_txq_add_to_tail(dev, tqe);
@@ -911,8 +911,8 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 				if (tqe->tx_complete_func)
 					tqe->tx_complete_func(tqe->priv, tqe->status);
 				#ifdef TCP_ACK_FILTER
-				if (tqe->tcp_PendingAck_index != NOT_TCP_ACK)
-					pending_acks_info[tqe->tcp_PendingAck_index].txqe = NULL;
+				if (tqe->index != NOT_TCP_ACK)
+					pending_acks_info[tqe->index].txqe = NULL;
 				#endif
 				kfree(tqe);
 			} else {
