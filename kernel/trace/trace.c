@@ -100,8 +100,6 @@ static DEFINE_PER_CPU(bool, trace_cmdline_save);
  */
 static int tracing_disabled = 1;
 
-DEFINE_PER_CPU(int, ftrace_cpu_disabled);
-
 cpumask_var_t __read_mostly	tracing_buffer_mask;
 
 /*
@@ -1774,10 +1772,6 @@ trace_function(struct trace_array *tr,
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
-
-	/* If we are reading the ring buffer, don't trace */
-	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
-		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
 					  flags, pc);
