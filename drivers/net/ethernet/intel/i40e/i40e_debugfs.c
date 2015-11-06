@@ -1138,7 +1138,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		spin_lock_bh(&vsi->mac_filter_list_lock);
 		f = i40e_add_filter(vsi, ma, vlan, false, false);
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
-		ret = i40e_sync_vsi_filters(vsi, true);
+		ret = i40e_sync_vsi_filters(vsi);
 		if (f && !ret)
 			dev_info(&pf->pdev->dev,
 				 "add macaddr: %pM vlan=%d added to VSI %d\n",
@@ -1177,7 +1177,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		spin_lock_bh(&vsi->mac_filter_list_lock);
 		i40e_del_filter(vsi, ma, vlan, false, false);
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
-		ret = i40e_sync_vsi_filters(vsi, true);
+		ret = i40e_sync_vsi_filters(vsi);
 		if (!ret)
 			dev_info(&pf->pdev->dev,
 				 "del macaddr: %pM vlan=%d removed from VSI %d\n",

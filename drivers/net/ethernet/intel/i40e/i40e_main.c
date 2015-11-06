@@ -1859,13 +1859,12 @@ static void i40e_cleanup_add_list(struct list_head *add_list)
 /**
  * i40e_sync_vsi_filters - Update the VSI filter list to the HW
  * @vsi: ptr to the VSI
- * @grab_rtnl: whether RTNL needs to be grabbed
  *
  * Push any outstanding VSI filter changes through the AdminQ.
  *
  * Returns 0 or error value
  **/
-int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
+int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 {
 	struct list_head tmp_del_list, tmp_add_list;
 	struct i40e_mac_filter *f, *ftmp, *fclone;
@@ -2169,8 +2168,15 @@ static void i40e_sync_filters_subtask(struct i40e_pf *pf)
 
 	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v] &&
-		    (pf->vsi[v]->flags & I40E_VSI_FLAG_FILTER_CHANGED))
-			i40e_sync_vsi_filters(pf->vsi[v], true);
+		    (pf->vsi[v]->flags & I40E_VSI_FLAG_FILTER_CHANGED)) {
+			int ret = i40e_sync_vsi_filters(pf->vsi[v]);
+
+			if (ret) {
+				/* come back and try again later */
+				pf->flags |= I40E_FLAG_FILTER_SYNC;
+				break;
+			}
+		}
 	}
 }
 
@@ -9219,7 +9225,7 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 				f->is_vf, f->is_netdev);
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
-	i40e_sync_vsi_filters(vsi, false);
+	i40e_sync_vsi_filters(vsi);
 
 	i40e_vsi_delete(vsi);
 	i40e_vsi_free_q_vectors(vsi);
