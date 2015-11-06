@@ -1866,6 +1866,7 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 	int status;
 	unsigned int backoff;
 	unsigned int total_backoff = 0;
+	char wq_name[O2NM_MAX_NAME_LEN];
 
 	BUG_ON(!dlm);
 
@@ -1895,7 +1896,8 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
-	dlm->dlm_worker = create_singlethread_workqueue("dlm_wq");
+	snprintf(wq_name, O2NM_MAX_NAME_LEN, "dlm_wq-%s", dlm->name);
+	dlm->dlm_worker = create_singlethread_workqueue(wq_name);
 	if (!dlm->dlm_worker) {
 		status = -ENOMEM;
 		mlog_errno(status);
