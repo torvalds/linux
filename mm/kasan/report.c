@@ -50,15 +50,26 @@ static const void *find_first_bad_addr(const void *addr, size_t size)
 static void print_error_description(struct kasan_access_info *info)
 {
 	const char *bug_type = "unknown-crash";
-	u8 shadow_val;
+	u8 *shadow_addr;
 
 	info->first_bad_addr = find_first_bad_addr(info->access_addr,
 						info->access_size);
 
-	shadow_val = *(u8 *)kasan_mem_to_shadow(info->first_bad_addr);
+	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
 
-	switch (shadow_val) {
+	/*
+	 * If shadow byte value is in [0, KASAN_SHADOW_SCALE_SIZE) we can look
+	 * at the next shadow byte to determine the type of the bad access.
+	 */
+	if (*shadow_addr > 0 && *shadow_addr <= KASAN_SHADOW_SCALE_SIZE - 1)
+		shadow_addr++;
+
+	switch (*shadow_addr) {
 	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
+		/*
+		 * In theory it's still possible to see these shadow values
+		 * due to a data race in the kernel code.
+		 */
 		bug_type = "out-of-bounds";
 		break;
 	case KASAN_PAGE_REDZONE:
