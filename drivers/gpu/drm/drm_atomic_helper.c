@@ -2184,7 +2184,7 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_dpms);
  */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
 {
-	if (crtc->state && crtc->state->mode_blob)
+	if (crtc->state)
 		drm_property_unreference_blob(crtc->state->mode_blob);
 	kfree(crtc->state);
 	crtc->state = kzalloc(sizeof(*crtc->state), GFP_KERNEL);
@@ -2252,8 +2252,7 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_duplicate_state);
 void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
 					    struct drm_crtc_state *state)
 {
-	if (state->mode_blob)
-		drm_property_unreference_blob(state->mode_blob);
+	drm_property_unreference_blob(state->mode_blob);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_crtc_destroy_state);
 
