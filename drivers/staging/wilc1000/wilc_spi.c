@@ -11,6 +11,7 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 #include "linux_wlan_spi.h"
+#include "wilc_wfi_netdevice.h"
 
 typedef struct {
 	wilc_debug_func dPrint;
@@ -945,7 +946,7 @@ static int wilc_spi_sync(void)
 	return 1;
 }
 
-static int wilc_spi_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
+static int wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 {
 	u32 reg;
 	u32 chipid;

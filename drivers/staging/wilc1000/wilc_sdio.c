@@ -11,6 +11,7 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 #include "linux_wlan_sdio.h"
+#include "wilc_wfi_netdevice.h"
 
 #define WILC_SDIO_BLOCK_SIZE 512
 
@@ -550,7 +551,7 @@ static int sdio_sync(void)
 	return 1;
 }
 
-static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
+static int sdio_init(struct wilc *wilc, wilc_debug_func func)
 {
 	sdio_cmd52_t cmd;
 	int loop;
