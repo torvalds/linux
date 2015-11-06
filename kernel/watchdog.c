@@ -719,6 +719,7 @@ int lockup_detector_suspend(void)
 {
 	int ret = 0;
 
+	get_online_cpus();
 	mutex_lock(&watchdog_proc_mutex);
 	/*
 	 * Multiple suspend requests can be active in parallel (counted by
@@ -759,6 +760,7 @@ void lockup_detector_resume(void)
 		watchdog_unpark_threads();
 
 	mutex_unlock(&watchdog_proc_mutex);
+	put_online_cpus();
 }
 
 static int update_watchdog_all_cpus(void)
