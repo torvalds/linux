@@ -413,7 +413,7 @@ static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 		return 0;
 	}
 
-	tqe = kmalloc(sizeof(struct txq_entry_t), GFP_ATOMIC);
+	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
 	if (!tqe) {
 		PRINT_ER("Failed to allocate memory\n");
 		return 0;
@@ -443,7 +443,7 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	if (p->quit)
 		return 0;
 
-	tqe = kmalloc(sizeof(struct txq_entry_t), GFP_ATOMIC);
+	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
 
 	if (!tqe)
 		return 0;
@@ -472,7 +472,7 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	if (p->quit)
 		return 0;
 
-	tqe = kmalloc(sizeof(struct txq_entry_t), GFP_KERNEL);
+	tqe = kmalloc(sizeof(*tqe), GFP_KERNEL);
 
 	if (!tqe)
 		return 0;
