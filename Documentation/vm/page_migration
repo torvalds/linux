@@ -99,12 +99,10 @@ Steps:
 4. The new page is prepped with some settings from the old page so that
    accesses to the new page will discover a page with the correct settings.
 
-5. All the page table references to the page are converted
-   to migration entries or dropped (nonlinear vmas).
-   This decrease the mapcount of a page. If the resulting
-   mapcount is not zero then we do not migrate the page.
-   All user space processes that attempt to access the page
-   will now wait on the page lock.
+5. All the page table references to the page are converted to migration
+   entries. This decreases the mapcount of a page. If the resulting
+   mapcount is not zero then we do not migrate the page. All user space
+   processes that attempt to access the page will now wait on the page lock.
 
 6. The radix tree lock is taken. This will cause all processes trying
    to access the page via the mapping to block on the radix tree spinlock.

@@ -552,62 +552,16 @@ different reverse map mechanisms.
      is really unevictable or not.  In this case, try_to_unmap_anon() will
      return SWAP_AGAIN.
 
- (*) try_to_unmap_file() - linear mappings
+ (*) try_to_unmap_file()
 
      Unmapping of a mapped file page works the same as for anonymous mappings,
      except that the scan visits all VMAs that map the page's index/page offset
-     in the page's mapping's reverse map priority search tree.  It also visits
-     each VMA in the page's mapping's non-linear list, if the list is
-     non-empty.
+     in the page's mapping's reverse map interval search tree.
 
      As for anonymous pages, on encountering a VM_LOCKED VMA for a mapped file
      page, try_to_unmap_file() will attempt to acquire the associated
      mm_struct's mmap semaphore to mlock the page, returning SWAP_MLOCK if this
      is successful, and SWAP_AGAIN, if not.
-
- (*) try_to_unmap_file() - non-linear mappings
-
-     If a page's mapping contains a non-empty non-linear mapping VMA list, then
-     try_to_un{map|lock}() must also visit each VMA in that list to determine
-     whether the page is mapped in a VM_LOCKED VMA.  Again, the scan must visit
-     all VMAs in the non-linear list to ensure that the pages is not/should not
-     be mlocked.
-
-     If a VM_LOCKED VMA is found in the list, the scan could terminate.
-     However, there is no easy way to determine whether the page is actually
-     mapped in a given VMA - either for unmapping or testing whether the
-     VM_LOCKED VMA actually pins the page.
-
-     try_to_unmap_file() handles non-linear mappings by scanning a certain
-     number of pages - a "cluster" - in each non-linear VMA associated with the
-     page's mapping, for each file mapped page that vmscan tries to unmap.  If
-     this happens to unmap the page we're trying to unmap, try_to_unmap() will
-     notice this on return (page_mapcount(page) will be 0) and return
-     SWAP_SUCCESS.  Otherwise, it will return SWAP_AGAIN, causing vmscan to
-     recirculate this page.  We take advantage of the cluster scan in
-     try_to_unmap_cluster() as follows:
-
-	For each non-linear VMA, try_to_unmap_cluster() attempts to acquire the
-	mmap semaphore of the associated mm_struct for read without blocking.
-
-	If this attempt is successful and the VMA is VM_LOCKED,
-	try_to_unmap_cluster() will retain the mmap semaphore for the scan;
-	otherwise it drops it here.
-
-	Then, for each page in the cluster, if we're holding the mmap semaphore
-	for a locked VMA, try_to_unmap_cluster() calls mlock_vma_page() to
-	mlock the page.  This call is a no-op if the page is already locked,
-	but will mlock any pages in the non-linear mapping that happen to be
-	unlocked.
-
-	If one of the pages so mlocked is the page passed in to try_to_unmap(),
-	try_to_unmap_cluster() will return SWAP_MLOCK, rather than the default
-	SWAP_AGAIN.  This will allow vmscan to cull the page, rather than
-	recirculating it on the inactive list.
-
-	Again, if try_to_unmap_cluster() cannot acquire the VMA's mmap sem, it
-	returns SWAP_AGAIN, indicating that the page is mapped by a VM_LOCKED
-	VMA, but couldn't be mlocked.
 
 
 try_to_munlock() REVERSE MAP SCAN
@@ -625,22 +579,15 @@ introduced a variant of try_to_unmap() called try_to_munlock().
 try_to_munlock() calls the same functions as try_to_unmap() for anonymous and
 mapped file pages with an additional argument specifying unlock versus unmap
 processing.  Again, these functions walk the respective reverse maps looking
-for VM_LOCKED VMAs.  When such a VMA is found for anonymous pages and file
-pages mapped in linear VMAs, as in the try_to_unmap() case, the functions
-attempt to acquire the associated mmap semaphore, mlock the page via
-mlock_vma_page() and return SWAP_MLOCK.  This effectively undoes the
+for VM_LOCKED VMAs.  When such a VMA is found, as in the try_to_unmap() case,
+the functions attempt to acquire the associated mmap semaphore, mlock the page
+via mlock_vma_page() and return SWAP_MLOCK.  This effectively undoes the
 pre-clearing of the page's PG_mlocked done by munlock_vma_page.
 
 If try_to_unmap() is unable to acquire a VM_LOCKED VMA's associated mmap
 semaphore, it will return SWAP_AGAIN.  This will allow shrink_page_list() to
 recycle the page on the inactive list and hope that it has better luck with the
 page next time.
-
-For file pages mapped into non-linear VMAs, the try_to_munlock() logic works
-slightly differently.  On encountering a VM_LOCKED non-linear VMA that might
-map the page, try_to_munlock() returns SWAP_AGAIN without actually mlocking the
-page.  munlock_vma_page() will just leave the page unlocked and let vmscan deal
-with it - the usual fallback position.
 
 Note that try_to_munlock()'s reverse map walk must visit every VMA in a page's
 reverse map to determine that a page is NOT mapped into any VM_LOCKED VMA.
