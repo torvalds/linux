@@ -14,7 +14,6 @@
 
 typedef struct {
 	void *os_context;
-	int (*spi_max_speed)(void);
 	wilc_debug_func dPrint;
 	int crc_off;
 	int nint;
@@ -975,7 +974,6 @@ static int wilc_spi_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 	} else {
 		return 0;
 	}
-	g_spi.spi_max_speed = inp->io_func.u.spi.spi_max_speed;
 
 	/**
 	 *      configure protocol
@@ -1025,7 +1023,7 @@ static int wilc_spi_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 
 static void wilc_spi_max_bus_speed(void)
 {
-	g_spi.spi_max_speed();
+	linux_spi_set_max_speed();
 }
 
 static void wilc_spi_default_bus_speed(void)
