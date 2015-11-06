@@ -579,6 +579,9 @@ struct i40e_q_vector {
 
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 
+#define I40E_Q_VECTOR_HUNG_DETECT 0 /* Bit Index for hung detection logic */
+	unsigned long hung_detected; /* Set/Reset for hung_detection logic */
+
 	cpumask_t affinity_mask;
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[I40E_INT_NAME_STR_LEN];

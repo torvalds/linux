@@ -127,17 +127,24 @@ void i40evf_free_tx_resources(struct i40e_ring *tx_ring)
 }
 
 /**
- * i40e_get_head - Retrieve head from head writeback
- * @tx_ring:  tx ring to fetch head of
+ * i40evf_get_tx_pending - how many Tx descriptors not processed
+ * @tx_ring: the ring of descriptors
  *
- * Returns value of Tx ring head based on value stored
- * in head write-back location
+ * Since there is no access to the ring head register
+ * in XL710, we need to use our local copies
  **/
-static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
+u32 i40evf_get_tx_pending(struct i40e_ring *ring)
 {
-	void *head = (struct i40e_tx_desc *)tx_ring->desc + tx_ring->count;
+	u32 head, tail;
 
-	return le32_to_cpu(*(volatile __le32 *)head);
+	head = i40e_get_head(ring);
+	tail = readl(ring->tail);
+
+	if (head != tail)
+		return (head < tail) ?
+			tail - head : (tail + ring->count - head);
+
+	return 0;
 }
 
 #define WB_STRIDE 0x3
