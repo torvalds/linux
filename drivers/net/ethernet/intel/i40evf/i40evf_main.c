@@ -259,7 +259,7 @@ static void i40evf_fire_sw_int(struct i40evf_adapter *adapter, u32 mask)
 {
 	struct i40e_hw *hw = &adapter->hw;
 	int i;
-	uint32_t dyn_ctl;
+	u32 dyn_ctl;
 
 	if (mask & 1) {
 		dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTL01);
