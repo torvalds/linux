@@ -316,8 +316,7 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 	if (mode && memcmp(&state->mode, mode, sizeof(*mode)) == 0)
 		return 0;
 
-	if (state->mode_blob)
-		drm_property_unreference_blob(state->mode_blob);
+	drm_property_unreference_blob(state->mode_blob);
 	state->mode_blob = NULL;
 
 	if (mode) {
@@ -363,8 +362,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 	if (blob == state->mode_blob)
 		return 0;
 
-	if (state->mode_blob)
-		drm_property_unreference_blob(state->mode_blob);
+	drm_property_unreference_blob(state->mode_blob);
 	state->mode_blob = NULL;
 
 	memset(&state->mode, 0, sizeof(state->mode));
@@ -420,8 +418,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		struct drm_property_blob *mode =
 			drm_property_lookup_blob(dev, val);
 		ret = drm_atomic_set_mode_prop_for_crtc(state, mode);
-		if (mode)
-			drm_property_unreference_blob(mode);
+		drm_property_unreference_blob(mode);
 		return ret;
 	}
 	else if (crtc->funcs->atomic_set_property)
