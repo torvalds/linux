@@ -1491,10 +1491,6 @@ int iwl_pcie_alloc_ict(struct iwl_trans *trans)
 		return -EINVAL;
 	}
 
-	IWL_DEBUG_ISR(trans, "ict dma addr %Lx ict vir addr %p\n",
-		      (unsigned long long)trans_pcie->ict_tbl_dma,
-		      trans_pcie->ict_tbl);
-
 	return 0;
 }
 
