@@ -1139,11 +1139,11 @@ static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	 * the gyroscope values to corresponding axes so we need a
 	 * modified one.
 	 */
-	if ((sc->quirks & DUALSHOCK4_CONTROLLER_USB) && *rsize == 467) {
+	if (sc->quirks & DUALSHOCK4_CONTROLLER_USB) {
 		hid_info(hdev, "Using modified Dualshock 4 report descriptor with gyroscope axes\n");
 		rdesc = dualshock4_usb_rdesc;
 		*rsize = sizeof(dualshock4_usb_rdesc);
-	} else if ((sc->quirks & DUALSHOCK4_CONTROLLER_BT) && *rsize == 357) {
+	} else if (sc->quirks & DUALSHOCK4_CONTROLLER_BT) {
 		hid_info(hdev, "Using modified Dualshock 4 Bluetooth report descriptor\n");
 		rdesc = dualshock4_bt_rdesc;
 		*rsize = sizeof(dualshock4_bt_rdesc);
