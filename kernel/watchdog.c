@@ -731,10 +731,17 @@ void lockup_detector_resume(void)
 	mutex_unlock(&watchdog_proc_mutex);
 }
 
-static void update_watchdog_all_cpus(void)
+static int update_watchdog_all_cpus(void)
 {
-	watchdog_park_threads();
+	int ret;
+
+	ret = watchdog_park_threads();
+	if (ret)
+		return ret;
+
 	watchdog_unpark_threads();
+
+	return 0;
 }
 
 static int watchdog_enable_all_cpus(void)
@@ -753,8 +760,16 @@ static int watchdog_enable_all_cpus(void)
 		 * Enable/disable the lockup detectors or
 		 * change the sample period 'on the fly'.
 		 */
-		update_watchdog_all_cpus();
+		err = update_watchdog_all_cpus();
+
+		if (err) {
+			watchdog_disable_all_cpus();
+			pr_err("Failed to update lockup detectors, disabled\n");
+		}
 	}
+
+	if (err)
+		watchdog_enabled = 0;
 
 	return err;
 }
@@ -851,12 +866,13 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 		} while (cmpxchg(&watchdog_enabled, old, new) != old);
 
 		/*
-		 * Update the run state of the lockup detectors.
-		 * Restore 'watchdog_enabled' on failure.
+		 * Update the run state of the lockup detectors. There is _no_
+		 * need to check the value returned by proc_watchdog_update()
+		 * and to restore the previous value of 'watchdog_enabled' as
+		 * both lockup detectors are disabled if proc_watchdog_update()
+		 * returns an error.
 		 */
 		err = proc_watchdog_update();
-		if (err)
-			watchdog_enabled = old;
 	}
 out:
 	mutex_unlock(&watchdog_proc_mutex);
