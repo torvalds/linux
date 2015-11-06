@@ -178,6 +178,10 @@ static void hci_connect_le_scan_remove(struct hci_conn *conn)
 	hci_dev_hold(conn->hdev);
 	hci_conn_get(conn);
 
+	/* Even though we hold a reference to the hdev, many other
+	 * things might get cleaned up meanwhile, including the hdev's
+	 * own workqueue, so we can't use that for scheduling.
+	 */
 	schedule_work(&conn->le_scan_cleanup);
 }
 
