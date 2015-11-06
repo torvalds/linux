@@ -70,7 +70,6 @@ int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
 int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
 			     const char *knl_str, char *append);
 int cfs_trace_allocate_string_buffer(char **str, int nob);
-void cfs_trace_free_string_buffer(char *str, int nob);
 int cfs_trace_dump_debug_buffer_usrstr(void __user *usr_str, int usr_str_nob);
 int cfs_trace_daemon_command(char *str);
 int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob);
