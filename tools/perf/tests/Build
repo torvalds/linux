@@ -32,6 +32,7 @@ perf-y += parse-no-sample-id-all.o
 perf-y += kmod-path.o
 perf-y += thread-map.o
 perf-y += llvm.o llvm-src-base.o llvm-src-kbuild.o
+perf-y += bpf.o
 perf-y += topology.o
 
 $(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c

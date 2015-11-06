@@ -34,6 +34,9 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source);
 int bpf__strerror_prepare_load(const char *filename, bool source,
 			       int err, char *buf, size_t size);
 
+struct bpf_object *bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz,
+					    const char *name);
+
 void bpf__clear(void);
 
 int bpf__probe(struct bpf_object *obj);
@@ -52,6 +55,13 @@ bpf__prepare_load(const char *filename __maybe_unused,
 		  bool source __maybe_unused)
 {
 	pr_debug("ERROR: eBPF object loading is disabled during compiling.\n");
+	return ERR_PTR(-ENOTSUP);
+}
+
+static inline struct bpf_object *
+bpf__prepare_load_buffer(void *obj_buf __maybe_unused,
+					   size_t obj_buf_sz __maybe_unused)
+{
 	return ERR_PTR(-ENOTSUP);
 }
 

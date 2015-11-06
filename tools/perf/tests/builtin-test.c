@@ -166,6 +166,10 @@ static struct test generic_tests[] = {
 		.func = test_session_topology,
 	},
 	{
+		.desc = "Test BPF filter",
+		.func = test__bpf,
+	},
+	{
 		.func = NULL,
 	},
 };

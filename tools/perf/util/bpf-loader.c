@@ -34,10 +34,32 @@ struct bpf_prog_priv {
 	struct perf_probe_event pev;
 };
 
+static bool libbpf_initialized;
+
+struct bpf_object *
+bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz, const char *name)
+{
+	struct bpf_object *obj;
+
+	if (!libbpf_initialized) {
+		libbpf_set_print(libbpf_warning,
+				 libbpf_info,
+				 libbpf_debug);
+		libbpf_initialized = true;
+	}
+
+	obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, name);
+	if (IS_ERR(obj)) {
+		pr_debug("bpf: failed to load buffer\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return obj;
+}
+
 struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 {
 	struct bpf_object *obj;
-	static bool libbpf_initialized;
 
 	if (!libbpf_initialized) {
 		libbpf_set_print(libbpf_warning,
