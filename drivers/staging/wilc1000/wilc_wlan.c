@@ -204,7 +204,7 @@ struct ack_session_info {
 
 struct pending_acks_info {
 	u32 ack_num;
-	u32 Session_index;
+	u32 session_index;
 	struct txq_entry_t  *txqe;
 };
 
@@ -252,7 +252,7 @@ static inline int add_TCP_Pending_Ack(u32 Ack, u32 Session_index, struct txq_ent
 	if (Pending_Acks < MAX_PENDING_ACKS) {
 		Pending_Acks_info[PendingAcks_arrBase + Pending_Acks].ack_num = Ack;
 		Pending_Acks_info[PendingAcks_arrBase + Pending_Acks].txqe = txqe;
-		Pending_Acks_info[PendingAcks_arrBase + Pending_Acks].Session_index = Session_index;
+		Pending_Acks_info[PendingAcks_arrBase + Pending_Acks].session_index = Session_index;
 		txqe->tcp_PendingAck_index = PendingAcks_arrBase + Pending_Acks;
 		Pending_Acks++;
 	} else {
@@ -347,7 +347,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 
 	spin_lock_irqsave(&wilc->txq_spinlock, p->txq_spinlock_flags);
 	for (i = PendingAcks_arrBase; i < (PendingAcks_arrBase + Pending_Acks); i++) {
-		if (Pending_Acks_info[i].ack_num < Acks_keep_track_info[Pending_Acks_info[i].Session_index].bigger_ack_num) {
+		if (Pending_Acks_info[i].ack_num < Acks_keep_track_info[Pending_Acks_info[i].session_index].bigger_ack_num) {
 			struct txq_entry_t *tqe;
 
 			PRINT_D(TCP_ENH, "DROP ACK: %u\n", Pending_Acks_info[i].ack_num);
