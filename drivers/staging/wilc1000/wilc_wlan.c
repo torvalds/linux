@@ -1678,7 +1678,7 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 		goto _fail_;
 	}
 
-#if defined (MEMORY_STATIC)
+#if defined(MEMORY_STATIC)
 	if (!g_wlan.rx_buffer)
 		g_wlan.rx_buffer = kmalloc(LINUX_RX_SIZE, GFP_KERNEL);
 	PRINT_D(TX_DBG, "g_wlan.rx_buffer =%p\n", g_wlan.rx_buffer);
