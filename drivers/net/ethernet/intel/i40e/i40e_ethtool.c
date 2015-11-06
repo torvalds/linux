@@ -231,6 +231,7 @@ static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
 	"LinkPolling",
 	"flow-director-atr",
 	"veb-stats",
+	"packet-split",
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_priv_flags_strings)
@@ -2709,6 +2710,8 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 		I40E_PRIV_FLAGS_FD_ATR : 0;
 	ret_flags |= pf->flags & I40E_FLAG_VEB_STATS_ENABLED ?
 		I40E_PRIV_FLAGS_VEB_STATS : 0;
+	ret_flags |= pf->flags & I40E_FLAG_RX_PS_ENABLED ?
+		I40E_PRIV_FLAGS_PS : 0;
 
 	return ret_flags;
 }
@@ -2723,6 +2726,26 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
+	bool reset_required = false;
+
+	/* NOTE: MFP is not settable */
+
+	/* allow the user to control the method of receive
+	 * buffer DMA, whether the packet is split at header
+	 * boundaries into two separate buffers.  In some cases
+	 * one routine or the other will perform better.
+	 */
+	if ((flags & I40E_PRIV_FLAGS_PS) &&
+	    !(pf->flags & I40E_FLAG_RX_PS_ENABLED)) {
+		pf->flags |= I40E_FLAG_RX_PS_ENABLED;
+		pf->flags &= ~I40E_FLAG_RX_1BUF_ENABLED;
+		reset_required = true;
+	} else if (!(flags & I40E_PRIV_FLAGS_PS) &&
+		   (pf->flags & I40E_FLAG_RX_PS_ENABLED)) {
+		pf->flags &= ~I40E_FLAG_RX_PS_ENABLED;
+		pf->flags |= I40E_FLAG_RX_1BUF_ENABLED;
+		reset_required = true;
+	}
 
 	if (flags & I40E_PRIV_FLAGS_LINKPOLL_FLAG)
 		pf->flags |= I40E_FLAG_LINK_POLLING_ENABLED;
@@ -2744,6 +2767,10 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 		pf->flags |= I40E_FLAG_VEB_STATS_ENABLED;
 	else
 		pf->flags &= ~I40E_FLAG_VEB_STATS_ENABLED;
+
+	/* if needed, issue reset to cause things to take effect */
+	if (reset_required)
+		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED));
 
 	return 0;
 }
