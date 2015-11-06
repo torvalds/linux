@@ -227,7 +227,7 @@ static inline int init_tcp_tracking(void)
 	return 0;
 }
 
-static inline int add_TCP_track_session(u32 src_prt, u32 dst_prt, u32 seq)
+static inline int add_tcp_session(u32 src_prt, u32 dst_prt, u32 seq)
 {
 	ack_session_info[tcp_session].seq_num = seq;
 	ack_session_info[tcp_session].bigger_ack_num = 0;
@@ -319,7 +319,7 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 					}
 				}
 				if (i == tcp_session)
-					add_TCP_track_session(0, 0, seq_no);
+					add_tcp_session(0, 0, seq_no);
 
 				add_TCP_Pending_Ack(Ack_no, i, tqe);
 			}
