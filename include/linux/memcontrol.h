@@ -401,6 +401,8 @@ static inline int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
 	return inactive * inactive_ratio < active;
 }
 
+void mem_cgroup_handle_over_high(void);
+
 void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
 				struct task_struct *p);
 
@@ -617,6 +619,10 @@ static inline struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page)
 }
 
 static inline void mem_cgroup_end_page_stat(struct mem_cgroup *memcg)
+{
+}
+
+static inline void mem_cgroup_handle_over_high(void)
 {
 }
 
