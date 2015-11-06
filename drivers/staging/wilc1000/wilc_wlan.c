@@ -222,7 +222,7 @@ u32 pending_base;
 u32 tcp_session;
 u32 pending_acks;
 
-static inline int Init_TCP_tracking(void)
+static inline int init_tcp_tracking(void)
 {
 	return 0;
 }
@@ -1697,7 +1697,7 @@ int wilc_wlan_init(struct net_device *dev, wilc_wlan_inp_t *inp)
 		goto _fail_;
 	}
 #ifdef	TCP_ACK_FILTER
-	Init_TCP_tracking();
+	init_tcp_tracking();
 #endif
 
 	return 1;
