@@ -654,6 +654,12 @@ static struct smp_hotplug_thread watchdog_threads = {
 
 /*
  * park all watchdog threads that are specified in 'watchdog_cpumask'
+ *
+ * This function returns an error if kthread_park() of a watchdog thread
+ * fails. In this situation, the watchdog threads of some CPUs can already
+ * be parked and the watchdog threads of other CPUs can still be runnable.
+ * Callers are expected to handle this special condition as appropriate in
+ * their context.
  */
 static int watchdog_park_threads(void)
 {
@@ -664,10 +670,6 @@ static int watchdog_park_threads(void)
 		ret = kthread_park(per_cpu(softlockup_watchdog, cpu));
 		if (ret)
 			break;
-	}
-	if (ret) {
-		for_each_watchdog_cpu(cpu)
-			kthread_unpark(per_cpu(softlockup_watchdog, cpu));
 	}
 	put_online_cpus();
 
