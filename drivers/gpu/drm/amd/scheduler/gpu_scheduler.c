@@ -285,7 +285,6 @@ int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 	if (!fence)
 		return -ENOMEM;
 
-	fence_get(&fence->base);
 	sched_job->s_fence = fence;
 
 	wait_event(entity->sched->job_scheduled,

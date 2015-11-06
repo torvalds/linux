@@ -64,7 +64,6 @@ err:
 		job->free_job(job);
 
 	mutex_unlock(&job->job_lock);
-	fence_put(&job->base.s_fence->base);
 	kfree(job);
 	return fence ? &fence->base : NULL;
 }
