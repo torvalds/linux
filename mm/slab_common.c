@@ -384,7 +384,7 @@ struct kmem_cache *
 kmem_cache_create(const char *name, size_t size, size_t align,
 		  unsigned long flags, void (*ctor)(void *))
 {
-	struct kmem_cache *s;
+	struct kmem_cache *s = NULL;
 	const char *cache_name;
 	int err;
 
@@ -396,7 +396,6 @@ kmem_cache_create(const char *name, size_t size, size_t align,
 
 	err = kmem_cache_sanity_check(name, size);
 	if (err) {
-		s = NULL;	/* suppress uninit var warning */
 		goto out_unlock;
 	}
 
