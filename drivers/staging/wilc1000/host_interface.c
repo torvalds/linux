@@ -371,8 +371,8 @@ static s32 handle_set_wfi_drv_handler(struct host_if_drv *hif_drv,
 	return result;
 }
 
-static s32 Handle_SetOperationMode(struct host_if_drv *hif_drv,
-				    struct op_mode *hif_op_mode)
+static s32 handle_set_operation_mode(struct host_if_drv *hif_drv,
+				     struct op_mode *hif_op_mode)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -2974,7 +2974,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_SET_OPERATION_MODE:
-			Handle_SetOperationMode(msg.drv, &msg.body.mode);
+			handle_set_operation_mode(msg.drv, &msg.body.mode);
 			break;
 
 		case HOST_IF_MSG_SET_IPADDRESS:
