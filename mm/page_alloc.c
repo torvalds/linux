@@ -4900,8 +4900,7 @@ static __meminit void zone_pcp_init(struct zone *zone)
 
 int __meminit init_currently_empty_zone(struct zone *zone,
 					unsigned long zone_start_pfn,
-					unsigned long size,
-					enum memmap_context context)
+					unsigned long size)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int ret;
@@ -5413,8 +5412,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
 
 		set_pageblock_order();
 		setup_usemap(pgdat, zone, zone_start_pfn, size);
-		ret = init_currently_empty_zone(zone, zone_start_pfn,
-						size, MEMMAP_EARLY);
+		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
 		BUG_ON(ret);
 		memmap_init(size, nid, j, zone_start_pfn);
 		zone_start_pfn += size;
