@@ -65,12 +65,15 @@
 /*
  * TODO:
  *   2x cameras via CSI
- *   audio
+ *   audio input
  *   AXP battery management
  *   NAND
  *   OTG
  *   Touchscreen - gt801_2plus1 @ i2c adapter 2 @ 0x48
  */
+&codec {
+	status = "okay";
+};
 
 &cpu0 {
 	cpu-supply = <&reg_dcdc2>;
