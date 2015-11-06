@@ -1104,9 +1104,9 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 		if (LINUX_RX_SIZE - offset < size)
 			offset = 0;
 
-		if (p->rx_buffer)
+		if (p->rx_buffer) {
 			buffer = &p->rx_buffer[offset];
-		else {
+		} else {
 			wilc_debug(N_ERR, "[wilc isr]: fail Rx Buffer is NULL...drop the packets (%d)\n", size);
 			goto _end_;
 		}
