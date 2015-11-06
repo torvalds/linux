@@ -9,6 +9,35 @@
 #include <linux/tracepoint.h>
 #include <trace/events/gfpflags.h>
 
+#define COMPACTION_STATUS					\
+	EM( COMPACT_DEFERRED,		"deferred")		\
+	EM( COMPACT_SKIPPED,		"skipped")		\
+	EM( COMPACT_CONTINUE,		"continue")		\
+	EM( COMPACT_PARTIAL,		"partial")		\
+	EM( COMPACT_COMPLETE,		"complete")		\
+	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
+	EMe(COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")
+
+/*
+ * First define the enums in the above macros to be exported to userspace
+ * via TRACE_DEFINE_ENUM().
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+COMPACTION_STATUS
+
+/*
+ * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * that will be printed in the output.
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	{a, b},
+#define EMe(a, b)	{a, b}
+
 DECLARE_EVENT_CLASS(mm_compaction_isolate_template,
 
 	TP_PROTO(
@@ -161,7 +190,7 @@ TRACE_EVENT(mm_compaction_end,
 		__entry->free_pfn,
 		__entry->zone_end,
 		__entry->sync ? "sync" : "async",
-		compaction_status_string[__entry->status])
+		__print_symbolic(__entry->status, COMPACTION_STATUS))
 );
 
 TRACE_EVENT(mm_compaction_try_to_compact_pages,
@@ -217,7 +246,7 @@ DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
 		__entry->nid,
 		__entry->name,
 		__entry->order,
-		compaction_status_string[__entry->ret])
+		__print_symbolic(__entry->ret, COMPACTION_STATUS))
 );
 
 DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_finished,
