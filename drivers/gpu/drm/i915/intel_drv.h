@@ -1297,7 +1297,7 @@ void intel_dvo_init(struct drm_device *dev);
 /* legacy fbdev emulation in intel_fbdev.c */
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 extern int intel_fbdev_init(struct drm_device *dev);
-extern void intel_fbdev_initial_config(void *data, async_cookie_t cookie);
+extern void intel_fbdev_initial_config_async(struct drm_device *dev);
 extern void intel_fbdev_fini(struct drm_device *dev);
 extern void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous);
 extern void intel_fbdev_output_poll_changed(struct drm_device *dev);
@@ -1308,7 +1308,7 @@ static inline int intel_fbdev_init(struct drm_device *dev)
 	return 0;
 }
 
-static inline void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
+static inline void intel_fbdev_initial_config_async(struct drm_device *dev)
 {
 }
 
