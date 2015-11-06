@@ -17,7 +17,6 @@
 typedef struct {
 	void *os_context;
 	u32 block_size;
-	int (*sdio_set_max_speed)(void);
 	int (*sdio_set_default_speed)(void);
 	wilc_debug_func dPrint;
 	int nint;
@@ -573,7 +572,6 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 		return 0;
 	}
 
-	g_sdio.sdio_set_max_speed	= inp->io_func.u.sdio.sdio_set_max_speed;
 	g_sdio.sdio_set_default_speed	= inp->io_func.u.sdio.sdio_set_default_speed;
 
 	/**
@@ -678,7 +676,7 @@ _fail_:
 
 static void sdio_set_max_speed(void)
 {
-	g_sdio.sdio_set_max_speed();
+	linux_sdio_set_max_speed();
 }
 
 static void sdio_set_default_speed(void)
