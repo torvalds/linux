@@ -208,9 +208,6 @@ struct pending_acks_info {
 	struct txq_entry_t  *txqe;
 };
 
-struct ack_session_info *Free_head;
-struct ack_session_info *Alloc_head;
-
 #define NOT_TCP_ACK			(-1)
 
 #define MAX_TCP_SESSION		25
