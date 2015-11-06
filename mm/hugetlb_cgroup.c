@@ -186,7 +186,8 @@ again:
 	}
 	rcu_read_unlock();
 
-	ret = page_counter_try_charge(&h_cg->hugepage[idx], nr_pages, &counter);
+	if (!page_counter_try_charge(&h_cg->hugepage[idx], nr_pages, &counter))
+		ret = -ENOMEM;
 	css_put(&h_cg->css);
 done:
 	*ptr = h_cg;

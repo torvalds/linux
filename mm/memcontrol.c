@@ -2016,8 +2016,8 @@ retry:
 		return 0;
 
 	if (!do_swap_account ||
-	    !page_counter_try_charge(&memcg->memsw, batch, &counter)) {
-		if (!page_counter_try_charge(&memcg->memory, batch, &counter))
+	    page_counter_try_charge(&memcg->memsw, batch, &counter)) {
+		if (page_counter_try_charge(&memcg->memory, batch, &counter))
 			goto done_restock;
 		if (do_swap_account)
 			page_counter_uncharge(&memcg->memsw, batch);
@@ -2381,14 +2381,13 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
 {
 	unsigned int nr_pages = 1 << order;
 	struct page_counter *counter;
-	int ret = 0;
+	int ret;
 
 	if (!memcg_kmem_is_active(memcg))
 		return 0;
 
-	ret = page_counter_try_charge(&memcg->kmem, nr_pages, &counter);
-	if (ret)
-		return ret;
+	if (!page_counter_try_charge(&memcg->kmem, nr_pages, &counter))
+		return -ENOMEM;
 
 	ret = try_charge(memcg, gfp, nr_pages);
 	if (ret) {
