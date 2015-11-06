@@ -461,10 +461,6 @@ static int shutdown_cache(struct kmem_cache *s,
 	if (s->flags & SLAB_DESTROY_BY_RCU)
 		*need_rcu_barrier = true;
 
-#ifdef CONFIG_MEMCG_KMEM
-	if (!is_root_cache(s))
-		list_del(&s->memcg_params.list);
-#endif
 	list_move(&s->list, release);
 	return 0;
 }
@@ -597,6 +593,18 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 	put_online_cpus();
 }
 
+static int __shutdown_memcg_cache(struct kmem_cache *s,
+		struct list_head *release, bool *need_rcu_barrier)
+{
+	BUG_ON(is_root_cache(s));
+
+	if (shutdown_cache(s, release, need_rcu_barrier))
+		return -EBUSY;
+
+	list_del(&s->memcg_params.list);
+	return 0;
+}
+
 void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 {
 	LIST_HEAD(release);
@@ -614,7 +622,7 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 		 * The cgroup is about to be freed and therefore has no charges
 		 * left. Hence, all its caches must be empty by now.
 		 */
-		BUG_ON(shutdown_cache(s, &release, &need_rcu_barrier));
+		BUG_ON(__shutdown_memcg_cache(s, &release, &need_rcu_barrier));
 	}
 	mutex_unlock(&slab_mutex);
 
@@ -622,6 +630,68 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 	put_online_cpus();
 
 	release_caches(&release, need_rcu_barrier);
+}
+
+static int shutdown_memcg_caches(struct kmem_cache *s,
+		struct list_head *release, bool *need_rcu_barrier)
+{
+	struct memcg_cache_array *arr;
+	struct kmem_cache *c, *c2;
+	LIST_HEAD(busy);
+	int i;
+
+	BUG_ON(!is_root_cache(s));
+
+	/*
+	 * First, shutdown active caches, i.e. caches that belong to online
+	 * memory cgroups.
+	 */
+	arr = rcu_dereference_protected(s->memcg_params.memcg_caches,
+					lockdep_is_held(&slab_mutex));
+	for_each_memcg_cache_index(i) {
+		c = arr->entries[i];
+		if (!c)
+			continue;
+		if (__shutdown_memcg_cache(c, release, need_rcu_barrier))
+			/*
+			 * The cache still has objects. Move it to a temporary
+			 * list so as not to try to destroy it for a second
+			 * time while iterating over inactive caches below.
+			 */
+			list_move(&c->memcg_params.list, &busy);
+		else
+			/*
+			 * The cache is empty and will be destroyed soon. Clear
+			 * the pointer to it in the memcg_caches array so that
+			 * it will never be accessed even if the root cache
+			 * stays alive.
+			 */
+			arr->entries[i] = NULL;
+	}
+
+	/*
+	 * Second, shutdown all caches left from memory cgroups that are now
+	 * offline.
+	 */
+	list_for_each_entry_safe(c, c2, &s->memcg_params.list,
+				 memcg_params.list)
+		__shutdown_memcg_cache(c, release, need_rcu_barrier);
+
+	list_splice(&busy, &s->memcg_params.list);
+
+	/*
+	 * A cache being destroyed must be empty. In particular, this means
+	 * that all per memcg caches attached to it must be empty too.
+	 */
+	if (!list_empty(&s->memcg_params.list))
+		return -EBUSY;
+	return 0;
+}
+#else
+static inline int shutdown_memcg_caches(struct kmem_cache *s,
+		struct list_head *release, bool *need_rcu_barrier)
+{
+	return 0;
 }
 #endif /* CONFIG_MEMCG_KMEM */
 
@@ -634,15 +704,12 @@ void slab_kmem_cache_release(struct kmem_cache *s)
 
 void kmem_cache_destroy(struct kmem_cache *s)
 {
-	struct kmem_cache *c, *c2;
 	LIST_HEAD(release);
 	bool need_rcu_barrier = false;
-	bool busy = false;
+	int err;
 
 	if (unlikely(!s))
 		return;
-
-	BUG_ON(!is_root_cache(s));
 
 	get_online_cpus();
 	get_online_mems();
@@ -653,12 +720,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	if (s->refcount)
 		goto out_unlock;
 
-	for_each_memcg_cache_safe(c, c2, s) {
-		if (shutdown_cache(c, &release, &need_rcu_barrier))
-			busy = true;
-	}
-
-	if (!busy)
+	err = shutdown_memcg_caches(s, &release, &need_rcu_barrier);
+	if (!err)
 		shutdown_cache(s, &release, &need_rcu_barrier);
 
 out_unlock:

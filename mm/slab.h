@@ -181,10 +181,6 @@ bool __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 	list_for_each_entry(iter, &(root)->memcg_params.list, \
 			    memcg_params.list)
 
-#define for_each_memcg_cache_safe(iter, tmp, root) \
-	list_for_each_entry_safe(iter, tmp, &(root)->memcg_params.list, \
-				 memcg_params.list)
-
 static inline bool is_root_cache(struct kmem_cache *s)
 {
 	return s->memcg_params.is_root_cache;
@@ -265,8 +261,6 @@ extern void slab_init_memcg_params(struct kmem_cache *);
 
 #define for_each_memcg_cache(iter, root) \
 	for ((void)(iter), (void)(root); 0; )
-#define for_each_memcg_cache_safe(iter, tmp, root) \
-	for ((void)(iter), (void)(tmp), (void)(root); 0; )
 
 static inline bool is_root_cache(struct kmem_cache *s)
 {
