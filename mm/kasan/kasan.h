@@ -54,9 +54,6 @@ struct kasan_global {
 #endif
 };
 
-void kasan_report_error(struct kasan_access_info *info);
-void kasan_report_user_access(struct kasan_access_info *info);
-
 static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
 {
 	return (void *)(((unsigned long)shadow_addr - KASAN_SHADOW_OFFSET)
