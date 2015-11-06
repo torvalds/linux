@@ -239,12 +239,6 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	return rc;
 }
 
-static void ll_check_page(struct inode *dir, struct page *page)
-{
-	/* XXX: check page format later */
-	SetPageChecked(page);
-}
-
 void ll_release_page(struct page *page, int remove)
 {
 	kunmap(page);
@@ -432,7 +426,8 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		goto fail;
 	}
 	if (!PageChecked(page))
-		ll_check_page(dir, page);
+		/* XXX: check page format later */
+		SetPageChecked(page);
 	if (PageError(page)) {
 		CERROR("page error: "DFID" at %llu: rc %d\n",
 		       PFID(ll_inode2fid(dir)), hash, -5);
