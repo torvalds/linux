@@ -3052,8 +3052,8 @@ static int special_mapping_fault(struct vm_area_struct *vma,
 static struct vm_area_struct *__install_special_mapping(
 	struct mm_struct *mm,
 	unsigned long addr, unsigned long len,
-	unsigned long vm_flags, const struct vm_operations_struct *ops,
-	void *priv)
+	unsigned long vm_flags, void *priv,
+	const struct vm_operations_struct *ops)
 {
 	int ret;
 	struct vm_area_struct *vma;
@@ -3102,8 +3102,8 @@ struct vm_area_struct *_install_special_mapping(
 	unsigned long addr, unsigned long len,
 	unsigned long vm_flags, const struct vm_special_mapping *spec)
 {
-	return __install_special_mapping(mm, addr, len, vm_flags,
-					 &special_mapping_vmops, (void *)spec);
+	return __install_special_mapping(mm, addr, len, vm_flags, (void *)spec,
+					&special_mapping_vmops);
 }
 
 int install_special_mapping(struct mm_struct *mm,
@@ -3111,8 +3111,8 @@ int install_special_mapping(struct mm_struct *mm,
 			    unsigned long vm_flags, struct page **pages)
 {
 	struct vm_area_struct *vma = __install_special_mapping(
-		mm, addr, len, vm_flags, &legacy_special_mapping_vmops,
-		(void *)pages);
+		mm, addr, len, vm_flags, (void *)pages,
+		&legacy_special_mapping_vmops);
 
 	return PTR_ERR_OR_ZERO(vma);
 }
