@@ -79,6 +79,7 @@ int sort_active = 0;
 int set_debug = 0;
 int show_ops = 0;
 int show_activity = 0;
+int output_lines = -1;
 
 /* Debug options */
 int sanity = 0;
@@ -124,6 +125,7 @@ static void usage(void)
 		"-v|--validate          Validate slabs\n"
 		"-z|--zero              Include empty slabs\n"
 		"-1|--1ref              Single reference\n"
+		"-N|--lines=K           Show the first K slabs\n"
 		"\nValid debug options (FZPUT may be combined)\n"
 		"a / A          Switch on all debug options (=FZUP)\n"
 		"-              Switch off all debug options\n"
@@ -1242,11 +1244,14 @@ static void output_slabs(void)
 {
 	struct slabinfo *slab;
 
-	for (slab = slabinfo; slab < slabinfo + slabs; slab++) {
+	for (slab = slabinfo; (slab < slabinfo + slabs) &&
+			output_lines != 0; slab++) {
 
 		if (slab->alias)
 			continue;
 
+		if (output_lines != -1)
+			output_lines--;
 
 		if (show_numa)
 			slab_numa(slab, 0);
@@ -1285,6 +1290,7 @@ struct option opts[] = {
 	{ "validate", no_argument, NULL, 'v' },
 	{ "zero", no_argument, NULL, 'z' },
 	{ "1ref", no_argument, NULL, '1'},
+	{ "lines", required_argument, NULL, 'N'},
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -1296,7 +1302,7 @@ int main(int argc, char *argv[])
 
 	page_size = getpagesize();
 
-	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTS",
+	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:",
 						opts, NULL)) != -1)
 		switch (c) {
 		case '1':
@@ -1358,7 +1364,13 @@ int main(int argc, char *argv[])
 		case 'S':
 			sort_size = 1;
 			break;
-
+		case 'N':
+			if (optarg) {
+				output_lines = atoi(optarg);
+				if (output_lines < 1)
+					output_lines = 1;
+			}
+			break;
 		default:
 			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
 
