@@ -246,7 +246,8 @@ static inline int update_tcp_session(u32 index, u32 Ack)
 	return 0;
 }
 
-static inline int add_TCP_Pending_Ack(u32 Ack, u32 Session_index, struct txq_entry_t  *txqe)
+static inline int add_tcp_pending_ack(u32 Ack, u32 Session_index,
+				       struct txq_entry_t *txqe)
 {
 	total_acks++;
 	if (pending_acks < MAX_PENDING_ACKS) {
@@ -321,7 +322,7 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 				if (i == tcp_session)
 					add_tcp_session(0, 0, seq_no);
 
-				add_TCP_Pending_Ack(Ack_no, i, tqe);
+				add_tcp_pending_ack(Ack_no, i, tqe);
 			}
 
 		} else {
