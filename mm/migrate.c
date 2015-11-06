@@ -171,6 +171,9 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
 	else
 		page_add_file_rmap(new);
 
+	if (vma->vm_flags & VM_LOCKED)
+		mlock_vma_page(new);
+
 	/* No need to invalidate - it was non-present before */
 	update_mmu_cache(vma, addr, ptep);
 unlock:
@@ -537,7 +540,6 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 	cpupid = page_cpupid_xchg_last(page, -1);
 	page_cpupid_xchg_last(newpage, cpupid);
 
-	mlock_migrate_page(newpage, page);
 	ksm_migrate_page(newpage, page);
 	/*
 	 * Please do not reorder this without considering how mm/ksm.c's
@@ -1787,7 +1789,6 @@ fail_putback:
 			SetPageActive(page);
 		if (TestClearPageUnevictable(new_page))
 			SetPageUnevictable(page);
-		mlock_migrate_page(page, new_page);
 
 		unlock_page(new_page);
 		put_page(new_page);		/* Free it */
@@ -1829,6 +1830,7 @@ fail_putback:
 		goto fail_putback;
 	}
 
+	mlock_migrate_page(new_page, page);
 	mem_cgroup_migrate(page, new_page, false);
 
 	page_remove_rmap(page);
