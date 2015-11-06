@@ -74,7 +74,6 @@ typedef struct {
 
 typedef struct {
 	int io_type;
-	void (*io_deinit)(void *);
 } wilc_wlan_io_func_t;
 
 #define WILC_MAC_INDICATE_STATUS	0x1
