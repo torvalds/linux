@@ -464,8 +464,8 @@ s32 handle_get_ip_address(struct host_if_drv *hif_drv, u8 idx)
 	return result;
 }
 
-static s32 Handle_SetMacAddress(struct host_if_drv *hif_drv,
-				struct set_mac_addr *set_mac_addr)
+static s32 handle_set_mac_address(struct host_if_drv *hif_drv,
+				  struct set_mac_addr *set_mac_addr)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -2990,7 +2990,8 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_SET_MAC_ADDRESS:
-			Handle_SetMacAddress(msg.drv, &msg.body.set_mac_info);
+			handle_set_mac_address(msg.drv,
+					       &msg.body.set_mac_info);
 			break;
 
 		case HOST_IF_MSG_GET_MAC_ADDRESS:
