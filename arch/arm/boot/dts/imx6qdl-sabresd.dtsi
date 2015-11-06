@@ -421,6 +421,16 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
+	egalax_ts@04 {
+		compatible = "eeti,egalax_ts";
+		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c2_egalax_int>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <8 2>;
+		wakeup-gpios = <&gpio6 8 GPIO_ACTIVE_HIGH>;
+	};
+
 	max11801@48 {
 		compatible = "maxim,max11801";
 		reg = <0x48>;
@@ -560,9 +570,11 @@
 	egalax_ts@04 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c3_egalax_int>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <7 2>;
-		wakeup-gpios = <&gpio6 7 0>;
+		wakeup-gpios = <&gpio6 7 GPIO_ACTIVE_HIGH>;
 	};
 
 	isl29023@44 {
@@ -597,8 +609,6 @@
 				MX6QDL_PAD_NANDF_D2__GPIO2_IO02 0x80000000
 				MX6QDL_PAD_NANDF_D3__GPIO2_IO03 0x80000000
 				MX6QDL_PAD_GPIO_0__CCM_CLKO1    0x130b0
-				MX6QDL_PAD_NANDF_CLE__GPIO6_IO07 0x80000000
-				MX6QDL_PAD_NANDF_ALE__GPIO6_IO08 0x80000000
 				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x80000000
 				MX6QDL_PAD_EIM_D22__GPIO3_IO22  0x80000000
 				MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25 0x80000000
@@ -636,6 +646,18 @@
 				MX6QDL_PAD_KEY_ROW0__ECSPI1_MOSI	0x100b1
 				MX6QDL_PAD_KEY_COL0__ECSPI1_SCLK	0x100b1
 				MX6QDL_PAD_KEY_ROW1__GPIO4_IO09		0x1b0b0
+			>;
+		};
+
+		pinctrl_i2c2_egalax_int: egalax_i2c2_intgrp {
+			fsl,pins = <
+				MX6QDL_PAD_NANDF_ALE__GPIO6_IO08 0x80000000
+			>;
+		};
+
+		pinctrl_i2c3_egalax_int: egalax_i2c3_intgrp {
+			fsl,pins = <
+				MX6QDL_PAD_NANDF_CLE__GPIO6_IO07 0x80000000
 			>;
 		};
 
