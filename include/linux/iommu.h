@@ -81,6 +81,7 @@ struct iommu_domain {
 	iommu_fault_handler_t handler;
 	void *handler_token;
 	struct iommu_domain_geometry geometry;
+	void *iova_cookie;
 };
 
 enum iommu_cap {
@@ -167,7 +168,7 @@ struct iommu_ops {
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
 	int (*add_device)(struct device *dev);
 	void (*remove_device)(struct device *dev);
-	int (*device_group)(struct device *dev, unsigned int *groupid);
+	struct iommu_group *(*device_group)(struct device *dev);
 	int (*domain_get_attr)(struct iommu_domain *domain,
 			       enum iommu_attr attr, void *data);
 	int (*domain_set_attr)(struct iommu_domain *domain,
@@ -315,6 +316,11 @@ static inline size_t iommu_map_sg(struct iommu_domain *domain,
 {
 	return domain->ops->map_sg(domain, iova, sg, nents, prot);
 }
+
+/* PCI device grouping function */
+extern struct iommu_group *pci_device_group(struct device *dev);
+/* Generic device grouping function */
+extern struct iommu_group *generic_device_group(struct device *dev);
 
 #else /* CONFIG_IOMMU_API */
 

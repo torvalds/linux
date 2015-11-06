@@ -34,6 +34,7 @@
 #include <linux/mempool.h>
 #include <linux/memory.h>
 #include <linux/timer.h>
+#include <linux/io.h>
 #include <linux/iova.h>
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
@@ -2506,17 +2507,11 @@ static int iommu_domain_identity_map(struct dmar_domain *domain,
 				  DMA_PTE_READ|DMA_PTE_WRITE);
 }
 
-static int iommu_prepare_identity_map(struct device *dev,
-				      unsigned long long start,
-				      unsigned long long end)
+static int domain_prepare_identity_map(struct device *dev,
+				       struct dmar_domain *domain,
+				       unsigned long long start,
+				       unsigned long long end)
 {
-	struct dmar_domain *domain;
-	int ret;
-
-	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
-	if (!domain)
-		return -ENOMEM;
-
 	/* For _hardware_ passthrough, don't bother. But for software
 	   passthrough, we do it anyway -- it may indicate a memory
 	   range which is reserved in E820, so which didn't get set
@@ -2536,8 +2531,7 @@ static int iommu_prepare_identity_map(struct device *dev,
 			dmi_get_system_info(DMI_BIOS_VENDOR),
 			dmi_get_system_info(DMI_BIOS_VERSION),
 		     dmi_get_system_info(DMI_PRODUCT_VERSION));
-		ret = -EIO;
-		goto error;
+		return -EIO;
 	}
 
 	if (end >> agaw_to_width(domain->agaw)) {
@@ -2547,18 +2541,27 @@ static int iommu_prepare_identity_map(struct device *dev,
 		     dmi_get_system_info(DMI_BIOS_VENDOR),
 		     dmi_get_system_info(DMI_BIOS_VERSION),
 		     dmi_get_system_info(DMI_PRODUCT_VERSION));
-		ret = -EIO;
-		goto error;
+		return -EIO;
 	}
 
-	ret = iommu_domain_identity_map(domain, start, end);
+	return iommu_domain_identity_map(domain, start, end);
+}
+
+static int iommu_prepare_identity_map(struct device *dev,
+				      unsigned long long start,
+				      unsigned long long end)
+{
+	struct dmar_domain *domain;
+	int ret;
+
+	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
+	if (!domain)
+		return -ENOMEM;
+
+	ret = domain_prepare_identity_map(dev, domain, start, end);
 	if (ret)
-		goto error;
+		domain_exit(domain);
 
-	return 0;
-
- error:
-	domain_exit(domain);
 	return ret;
 }
 
@@ -2884,18 +2887,18 @@ static void intel_iommu_init_qi(struct intel_iommu *iommu)
 }
 
 static int copy_context_table(struct intel_iommu *iommu,
-			      struct root_entry __iomem *old_re,
+			      struct root_entry *old_re,
 			      struct context_entry **tbl,
 			      int bus, bool ext)
 {
 	int tbl_idx, pos = 0, idx, devfn, ret = 0, did;
-	struct context_entry __iomem *old_ce = NULL;
 	struct context_entry *new_ce = NULL, ce;
+	struct context_entry *old_ce = NULL;
 	struct root_entry re;
 	phys_addr_t old_ce_phys;
 
 	tbl_idx = ext ? bus * 2 : bus;
-	memcpy_fromio(&re, old_re, sizeof(re));
+	memcpy(&re, old_re, sizeof(re));
 
 	for (devfn = 0; devfn < 256; devfn++) {
 		/* First calculate the correct index */
@@ -2930,7 +2933,8 @@ static int copy_context_table(struct intel_iommu *iommu,
 			}
 
 			ret = -ENOMEM;
-			old_ce = ioremap_cache(old_ce_phys, PAGE_SIZE);
+			old_ce = memremap(old_ce_phys, PAGE_SIZE,
+					MEMREMAP_WB);
 			if (!old_ce)
 				goto out;
 
@@ -2942,7 +2946,7 @@ static int copy_context_table(struct intel_iommu *iommu,
 		}
 
 		/* Now copy the context entry */
-		memcpy_fromio(&ce, old_ce + idx, sizeof(ce));
+		memcpy(&ce, old_ce + idx, sizeof(ce));
 
 		if (!__context_present(&ce))
 			continue;
@@ -2978,7 +2982,7 @@ static int copy_context_table(struct intel_iommu *iommu,
 	__iommu_flush_cache(iommu, new_ce, VTD_PAGE_SIZE);
 
 out_unmap:
-	iounmap(old_ce);
+	memunmap(old_ce);
 
 out:
 	return ret;
@@ -2986,8 +2990,8 @@ out:
 
 static int copy_translation_tables(struct intel_iommu *iommu)
 {
-	struct root_entry __iomem *old_rt;
 	struct context_entry **ctxt_tbls;
+	struct root_entry *old_rt;
 	phys_addr_t old_rt_phys;
 	int ctxt_table_entries;
 	unsigned long flags;
@@ -3012,7 +3016,7 @@ static int copy_translation_tables(struct intel_iommu *iommu)
 	if (!old_rt_phys)
 		return -EINVAL;
 
-	old_rt = ioremap_cache(old_rt_phys, PAGE_SIZE);
+	old_rt = memremap(old_rt_phys, PAGE_SIZE, MEMREMAP_WB);
 	if (!old_rt)
 		return -ENOMEM;
 
@@ -3061,7 +3065,7 @@ static int copy_translation_tables(struct intel_iommu *iommu)
 	ret = 0;
 
 out_unmap:
-	iounmap(old_rt);
+	memunmap(old_rt);
 
 	return ret;
 }
@@ -3329,7 +3333,10 @@ static struct iova *intel_alloc_iova(struct device *dev,
 
 static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
 {
+	struct dmar_rmrr_unit *rmrr;
 	struct dmar_domain *domain;
+	struct device *i_dev;
+	int i, ret;
 
 	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
 	if (!domain) {
@@ -3337,6 +3344,23 @@ static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
 		       dev_name(dev));
 		return NULL;
 	}
+
+	/* We have a new domain - setup possible RMRRs for the device */
+	rcu_read_lock();
+	for_each_rmrr_units(rmrr) {
+		for_each_active_dev_scope(rmrr->devices, rmrr->devices_cnt,
+					  i, i_dev) {
+			if (i_dev != dev)
+				continue;
+
+			ret = domain_prepare_identity_map(dev, domain,
+							  rmrr->base_address,
+							  rmrr->end_address);
+			if (ret)
+				dev_err(dev, "Mapping reserved region failed\n");
+		}
+	}
+	rcu_read_unlock();
 
 	return domain;
 }
@@ -5084,6 +5108,7 @@ static const struct iommu_ops intel_iommu_ops = {
 	.iova_to_phys	= intel_iommu_iova_to_phys,
 	.add_device	= intel_iommu_add_device,
 	.remove_device	= intel_iommu_remove_device,
+	.device_group   = pci_device_group,
 	.pgsize_bitmap	= INTEL_IOMMU_PGSIZES,
 };
 
