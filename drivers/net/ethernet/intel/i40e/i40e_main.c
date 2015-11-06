@@ -27,7 +27,7 @@
 /* Local includes */
 #include "i40e.h"
 #include "i40e_diag.h"
-#ifdef CONFIG_I40E_VXLAN
+#if IS_ENABLED(CONFIG_VXLAN)
 #include <net/vxlan.h>
 #endif
 
@@ -5357,7 +5357,7 @@ int i40e_open(struct net_device *netdev)
 						       TCP_FLAG_CWR) >> 16);
 	wr32(&pf->hw, I40E_GLLAN_TSOMSK_L, be32_to_cpu(TCP_FLAG_CWR) >> 16);
 
-#ifdef CONFIG_I40E_VXLAN
+#if IS_ENABLED(CONFIG_VXLAN)
 	vxlan_get_rx_port(netdev);
 #endif
 
@@ -7053,7 +7053,7 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 	i40e_flush(hw);
 }
 
-#ifdef CONFIG_I40E_VXLAN
+#if IS_ENABLED(CONFIG_VXLAN)
 /**
  * i40e_sync_vxlan_filters_subtask - Sync the VSI filter list with HW
  * @pf: board private structure
@@ -7120,7 +7120,7 @@ static void i40e_service_task(struct work_struct *work)
 	i40e_watchdog_subtask(pf);
 	i40e_fdir_reinit_subtask(pf);
 	i40e_sync_filters_subtask(pf);
-#ifdef CONFIG_I40E_VXLAN
+#if IS_ENABLED(CONFIG_VXLAN)
 	i40e_sync_vxlan_filters_subtask(pf);
 #endif
 	i40e_clean_adminq_subtask(pf);
@@ -8496,7 +8496,7 @@ static int i40e_set_features(struct net_device *netdev,
 	return 0;
 }
 
-#ifdef CONFIG_I40E_VXLAN
+#if IS_ENABLED(CONFIG_VXLAN)
 /**
  * i40e_get_vxlan_port_idx - Lookup a possibly offloaded for Rx UDP port
  * @pf: board private structure
@@ -8816,7 +8816,7 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
 	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
 	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofchk,
-#ifdef CONFIG_I40E_VXLAN
+#if IS_ENABLED(CONFIG_VXLAN)
 	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
 #endif
