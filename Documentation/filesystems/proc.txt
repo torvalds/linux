@@ -433,8 +433,8 @@ Swap:                  0 kB
 SwapPss:               0 kB
 KernelPageSize:        4 kB
 MMUPageSize:           4 kB
-Locked:              374 kB
-VmFlags: rd ex mr mw me de
+Locked:                0 kB
+VmFlags: rd ex mr mw me dw
 
 the first of these lines shows the same information as is displayed for the
 mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
@@ -454,13 +454,13 @@ accessed.
 "Anonymous" shows the amount of memory that does not belong to any file.  Even
 a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
 and a page is modified, the file page is replaced by a private anonymous copy.
-"Swap" shows how much would-be-anonymous memory is also used, but out on
-swap.
-"SwapPss" shows proportional swap share of this mapping.
 "AnonHugePages" shows the ammount of memory backed by transparent hugepage.
 "Shared_Hugetlb" and "Private_Hugetlb" show the ammounts of memory backed by
 hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
 reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
+"Swap" shows how much would-be-anonymous memory is also used, but out on swap.
+"SwapPss" shows proportional swap share of this mapping.
+"Locked" indicates whether the mapping is locked in memory or not.
 
 "VmFlags" field deserves a separate description. This member represents the kernel
 flags associated with the particular virtual memory area in two letter encoded
@@ -823,9 +823,6 @@ varies by architecture and compile options.  The following is from a
 16GB PIII, which has highmem enabled.  You may not have all of these fields.
 
 > cat /proc/meminfo
-
-The "Locked" indicates whether the mapping is locked in memory or not.
-
 
 MemTotal:     16344972 kB
 MemFree:      13634064 kB
