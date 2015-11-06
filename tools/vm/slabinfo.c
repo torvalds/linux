@@ -81,6 +81,7 @@ int show_ops = 0;
 int show_activity = 0;
 int output_lines = -1;
 int sort_loss;
+int extended_totals;
 
 /* Debug options */
 int sanity = 0;
@@ -128,6 +129,7 @@ static void usage(void)
 		"-1|--1ref              Single reference\n"
 		"-N|--lines=K           Show the first K slabs\n"
 		"-L|--Loss              Sort by loss\n"
+		"-X|--Xtotals           Show extended summary information\n"
 		"\nValid debug options (FZPUT may be combined)\n"
 		"a / A          Switch on all debug options (=FZUP)\n"
 		"-              Switch off all debug options\n"
@@ -615,8 +617,7 @@ static void slabcache(struct slabinfo *s)
 			total_free ? (s->free_fastpath * 100 / total_free) : 0,
 			s->order_fallback, s->order, s->cmpxchg_double_fail,
 			s->cmpxchg_double_cpu_fail);
-	}
-	else
+	} else {
 		printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
 			s->name, s->objects, s->object_size, size_str, dist_str,
 			s->objs_per_slab, s->order,
@@ -624,6 +625,7 @@ static void slabcache(struct slabinfo *s)
 			s->slabs ? (s->objects * s->object_size * 100) /
 				(s->slabs * (page_size << s->order)) : 100,
 			flags);
+	}
 }
 
 /*
@@ -1256,15 +1258,16 @@ static void read_slab_dir(void)
 static void output_slabs(void)
 {
 	struct slabinfo *slab;
+	int lines = output_lines;
 
 	for (slab = slabinfo; (slab < slabinfo + slabs) &&
-			output_lines != 0; slab++) {
+			lines != 0; slab++) {
 
 		if (slab->alias)
 			continue;
 
-		if (output_lines != -1)
-			output_lines--;
+		if (lines != -1)
+			lines--;
 
 		if (show_numa)
 			slab_numa(slab, 0);
@@ -1283,6 +1286,30 @@ static void output_slabs(void)
 		else if (show_report)
 			report(slab);
 	}
+}
+
+static void xtotals(void)
+{
+	totals();
+
+	link_slabs();
+	rename_slabs();
+
+	printf("\nSlabs sorted by size\n");
+	printf("----------------------\n");
+	sort_loss = 0;
+	sort_size = 1;
+	sort_slabs();
+	output_slabs();
+
+	printf("\nSlabs sorted by loss\n");
+	printf("----------------------\n");
+	line = 0;
+	sort_loss = 1;
+	sort_size = 0;
+	sort_slabs();
+	output_slabs();
+	printf("\n");
 }
 
 struct option opts[] = {
@@ -1307,6 +1334,7 @@ struct option opts[] = {
 	{ "1ref", no_argument, NULL, '1'},
 	{ "lines", required_argument, NULL, 'N'},
 	{ "Loss", no_argument, NULL, 'L'},
+	{ "Xtotals", no_argument, NULL, 'X'},
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -1318,7 +1346,7 @@ int main(int argc, char *argv[])
 
 	page_size = getpagesize();
 
-	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:L",
+	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LX",
 						opts, NULL)) != -1)
 		switch (c) {
 		case '1':
@@ -1390,6 +1418,11 @@ int main(int argc, char *argv[])
 		case 'L':
 			sort_loss = 1;
 			break;
+		case 'X':
+			if (output_lines == -1)
+				output_lines = 1;
+			extended_totals = 1;
+			break;
 		default:
 			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
 
@@ -1409,12 +1442,13 @@ int main(int argc, char *argv[])
 		fatal("%s: Invalid pattern '%s' code %d\n",
 			argv[0], pattern_source, err);
 	read_slab_dir();
-	if (show_alias)
+	if (show_alias) {
 		alias();
-	else
-	if (show_totals)
+	} else if (extended_totals) {
+		xtotals();
+	} else if (show_totals) {
 		totals();
-	else {
+	} else {
 		link_slabs();
 		rename_slabs();
 		sort_slabs();
