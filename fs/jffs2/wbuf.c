@@ -1274,7 +1274,6 @@ int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 #ifdef CONFIG_JFFS2_FS_WBUF_VERIFY
 	c->wbuf_verify = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
 	if (!c->wbuf_verify) {
-		kfree(c->oobbuf);
 		kfree(c->wbuf);
 		return -ENOMEM;
 	}
