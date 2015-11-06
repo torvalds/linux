@@ -1163,7 +1163,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	clone_pgd_range(initial_page_table,
 			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
-			KERNEL_PGD_PTRS);
+			min(KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
 #endif
 
 	tboot_probe();
