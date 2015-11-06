@@ -589,6 +589,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 			ret = -EIO;
 			goto bail;
 		}
+		set_buffer_new(bh_result);
 		up_write(&OCFS2_I(inode)->ip_alloc_sem);
 	}
 
