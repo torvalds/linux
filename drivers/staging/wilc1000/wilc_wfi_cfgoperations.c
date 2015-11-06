@@ -1570,9 +1570,9 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 
 		if ((strStatistics.link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH) &&
 		    (strStatistics.link_speed != DEFAULT_LINK_SPEED))
-			Enable_TCP_ACK_Filter(true);
+			enable_tcp_ack_filter(true);
 		else if (strStatistics.link_speed != DEFAULT_LINK_SPEED)
-			Enable_TCP_ACK_Filter(false);
+			enable_tcp_ack_filter(false);
 
 		PRINT_D(CORECONFIG_DBG, "*** stats[%d][%d][%d][%d][%d]\n", sinfo->signal, sinfo->rx_packets, sinfo->tx_packets,
 			sinfo->tx_failed, sinfo->txrate.legacy);
