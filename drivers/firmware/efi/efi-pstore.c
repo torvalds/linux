@@ -399,6 +399,13 @@ static __init int efivars_pstore_init(void)
 
 static __exit void efivars_pstore_exit(void)
 {
+	if (!efi_pstore_info.bufsize)
+		return;
+
+	pstore_unregister(&efi_pstore_info);
+	kfree(efi_pstore_info.buf);
+	efi_pstore_info.buf = NULL;
+	efi_pstore_info.bufsize = 0;
 }
 
 module_init(efivars_pstore_init);
