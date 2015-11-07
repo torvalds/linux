@@ -18,8 +18,6 @@
 #include <linux/zpool.h>
 
 struct zpool {
-	char *type;
-
 	struct zpool_driver *driver;
 	void *pool;
 	const struct zpool_ops *ops;
@@ -73,6 +71,7 @@ int zpool_unregister_driver(struct zpool_driver *driver)
 }
 EXPORT_SYMBOL(zpool_unregister_driver);
 
+/* this assumes @type is null-terminated. */
 static struct zpool_driver *zpool_get_driver(char *type)
 {
 	struct zpool_driver *driver;
@@ -113,6 +112,8 @@ static void zpool_put_driver(struct zpool_driver *driver)
  * not be loaded, and calling @zpool_create_pool() with the pool type will
  * fail.
  *
+ * The @type string must be null-terminated.
+ *
  * Returns: true if @type pool is available, false if not
  */
 bool zpool_has_pool(char *type)
@@ -145,6 +146,8 @@ EXPORT_SYMBOL(zpool_has_pool);
  *
  * Implementations must guarantee this to be thread-safe.
  *
+ * The @type and @name strings must be null-terminated.
+ *
  * Returns: New zpool on success, NULL on failure.
  */
 struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
@@ -174,7 +177,6 @@ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
 		return NULL;
 	}
 
-	zpool->type = driver->type;
 	zpool->driver = driver;
 	zpool->pool = driver->create(name, gfp, ops, zpool);
 	zpool->ops = ops;
@@ -208,7 +210,7 @@ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
  */
 void zpool_destroy_pool(struct zpool *zpool)
 {
-	pr_debug("destroying pool type %s\n", zpool->type);
+	pr_debug("destroying pool type %s\n", zpool->driver->type);
 
 	spin_lock(&pools_lock);
 	list_del(&zpool->list);
@@ -228,9 +230,9 @@ void zpool_destroy_pool(struct zpool *zpool)
  *
  * Returns: The type of zpool.
  */
-char *zpool_get_type(struct zpool *zpool)
+const char *zpool_get_type(struct zpool *zpool)
 {
-	return zpool->type;
+	return zpool->driver->type;
 }
 
 /**
