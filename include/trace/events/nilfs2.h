@@ -42,6 +42,59 @@ TRACE_EVENT(nilfs2_collection_stage_transition,
 		      show_collection_stage(__entry->stage))
 );
 
+#ifndef TRACE_HEADER_MULTI_READ
+enum nilfs2_transaction_transition_state {
+	TRACE_NILFS2_TRANSACTION_BEGIN,
+	TRACE_NILFS2_TRANSACTION_COMMIT,
+	TRACE_NILFS2_TRANSACTION_ABORT,
+	TRACE_NILFS2_TRANSACTION_TRYLOCK,
+	TRACE_NILFS2_TRANSACTION_LOCK,
+	TRACE_NILFS2_TRANSACTION_UNLOCK,
+};
+#endif
+
+#define show_transaction_state(type)					\
+	__print_symbolic(type,						\
+			 { TRACE_NILFS2_TRANSACTION_BEGIN, "BEGIN" },	\
+			 { TRACE_NILFS2_TRANSACTION_COMMIT, "COMMIT" },	\
+			 { TRACE_NILFS2_TRANSACTION_ABORT, "ABORT" },	\
+			 { TRACE_NILFS2_TRANSACTION_TRYLOCK, "TRYLOCK" }, \
+			 { TRACE_NILFS2_TRANSACTION_LOCK, "LOCK" },	\
+			 { TRACE_NILFS2_TRANSACTION_UNLOCK, "UNLOCK" })
+
+TRACE_EVENT(nilfs2_transaction_transition,
+	    TP_PROTO(struct super_block *sb,
+		     struct nilfs_transaction_info *ti,
+		     int count,
+		     unsigned int flags,
+		     enum nilfs2_transaction_transition_state state),
+
+	    TP_ARGS(sb, ti, count, flags, state),
+
+	    TP_STRUCT__entry(
+		    __field(void *, sb)
+		    __field(void *, ti)
+		    __field(int, count)
+		    __field(unsigned int, flags)
+		    __field(int, state)
+	    ),
+
+	    TP_fast_assign(
+		    __entry->sb = sb;
+		    __entry->ti = ti;
+		    __entry->count = count;
+		    __entry->flags = flags;
+		    __entry->state = state;
+		    ),
+
+	    TP_printk("sb = %p ti = %p count = %d flags = %x state = %s",
+		      __entry->sb,
+		      __entry->ti,
+		      __entry->count,
+		      __entry->flags,
+		      show_transaction_state(__entry->state))
+);
+
 #endif /* _TRACE_NILFS2_H */
 
 /* This part must be outside protection */
