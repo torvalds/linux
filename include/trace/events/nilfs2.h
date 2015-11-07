@@ -95,6 +95,73 @@ TRACE_EVENT(nilfs2_transaction_transition,
 		      show_transaction_state(__entry->state))
 );
 
+TRACE_EVENT(nilfs2_segment_usage_check,
+	    TP_PROTO(struct inode *sufile,
+		     __u64 segnum,
+		     unsigned long cnt),
+
+	    TP_ARGS(sufile, segnum, cnt),
+
+	    TP_STRUCT__entry(
+		    __field(struct inode *, sufile)
+		    __field(__u64, segnum)
+		    __field(unsigned long, cnt)
+	    ),
+
+	    TP_fast_assign(
+		    __entry->sufile = sufile;
+		    __entry->segnum = segnum;
+		    __entry->cnt = cnt;
+		    ),
+
+	    TP_printk("sufile = %p segnum = %llu cnt = %lu",
+		      __entry->sufile,
+		      __entry->segnum,
+		      __entry->cnt)
+);
+
+TRACE_EVENT(nilfs2_segment_usage_allocated,
+	    TP_PROTO(struct inode *sufile,
+		     __u64 segnum),
+
+	    TP_ARGS(sufile, segnum),
+
+	    TP_STRUCT__entry(
+		    __field(struct inode *, sufile)
+		    __field(__u64, segnum)
+	    ),
+
+	    TP_fast_assign(
+		    __entry->sufile = sufile;
+		    __entry->segnum = segnum;
+		    ),
+
+	    TP_printk("sufile = %p segnum = %llu",
+		      __entry->sufile,
+		      __entry->segnum)
+);
+
+TRACE_EVENT(nilfs2_segment_usage_freed,
+	    TP_PROTO(struct inode *sufile,
+		     __u64 segnum),
+
+	    TP_ARGS(sufile, segnum),
+
+	    TP_STRUCT__entry(
+		    __field(struct inode *, sufile)
+		    __field(__u64, segnum)
+	    ),
+
+	    TP_fast_assign(
+		    __entry->sufile = sufile;
+		    __entry->segnum = segnum;
+		    ),
+
+	    TP_printk("sufile = %p segnum = %llu",
+		      __entry->sufile,
+		      __entry->segnum)
+);
+
 #endif /* _TRACE_NILFS2_H */
 
 /* This part must be outside protection */
