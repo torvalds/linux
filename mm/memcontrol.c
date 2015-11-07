@@ -2801,7 +2801,7 @@ static unsigned long tree_stat(struct mem_cgroup *memcg,
 	return val;
 }
 
-static inline unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+static unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
 {
 	unsigned long val;
 
