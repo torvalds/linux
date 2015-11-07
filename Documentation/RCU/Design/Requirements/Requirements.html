@@ -1,5 +1,5 @@
 <!-- DO NOT HAND EDIT. -->
-<!-- Instead, edit Requirements.htmlx and run 'sh htmlqqz.sh Requirements' -->
+<!-- Instead, edit Documentation/RCU/Design/Requirements/Requirements.htmlx and run 'sh htmlqqz.sh Documentation/RCU/Design/Requirements/Requirements' -->
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
         "http://www.w3.org/TR/html4/loose.dtd">
         <html>
@@ -1957,13 +1957,21 @@ the runqueue locks and the priority-inheritance locks
 in the middle of an outermost RCU read-side critical section unless either
 (1)&nbsp;it releases them before exiting that same
 RCU read-side critical section, or
-(2)&nbsp;preemption is disabled across
+(2)&nbsp;interrupts are disabled across
 that entire RCU read-side critical section.
 This same prohibition also applies (recursively!) to any lock that is acquired
 while holding any lock to which this prohibition applies.
 Adhering to this rule prevents preemptible RCU from invoking
 <tt>rcu_read_unlock_special()</tt> while either runqueue or
 priority-inheritance locks are held, thus avoiding deadlock.
+
+<p>
+Prior to v4.4, it was only necessary to disable preemption across
+RCU read-side critical sections that acquired scheduler locks.
+In v4.4, expedited grace periods started using IPIs, and these
+IPIs could force a <tt>rcu_read_unlock()</tt> to take the slowpath.
+Therefore, this expedited-grace-period change required disabling of
+interrupts, not just preemption.
 
 <p>
 For RCU's part, the preemptible-RCU <tt>rcu_read_unlock()</tt>
