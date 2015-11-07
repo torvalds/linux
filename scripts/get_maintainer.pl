@@ -845,6 +845,9 @@ Notes:
       Entries in this file can be any command line argument.
       This file is prepended to any additional command line arguments.
       Multiple lines and # comments are allowed.
+  Most options have both positive and negative forms.
+      The negative forms for --<foo> are --no<foo> and --no-<foo>.
+
 EOT
 }
 
