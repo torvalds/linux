@@ -1146,7 +1146,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
 				1 << PG_writeback);
 	}
 	VM_BUG_ON_PAGE(hugetlb_cgroup_from_page(page), page);
-	set_compound_page_dtor(page, NULL);
+	set_compound_page_dtor(page, NULL_COMPOUND_DTOR);
 	set_page_refcounted(page);
 	if (hstate_is_gigantic(h)) {
 		destroy_compound_gigantic_page(page, huge_page_order(h));
@@ -1242,7 +1242,7 @@ void free_huge_page(struct page *page)
 static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
 {
 	INIT_LIST_HEAD(&page->lru);
-	set_compound_page_dtor(page, free_huge_page);
+	set_compound_page_dtor(page, HUGETLB_PAGE_DTOR);
 	spin_lock(&hugetlb_lock);
 	set_hugetlb_cgroup(page, NULL);
 	h->nr_huge_pages++;
@@ -1294,7 +1294,7 @@ int PageHuge(struct page *page)
 		return 0;
 
 	page = compound_head(page);
-	return get_compound_page_dtor(page) == free_huge_page;
+	return page[1].compound_dtor == HUGETLB_PAGE_DTOR;
 }
 EXPORT_SYMBOL_GPL(PageHuge);
 
@@ -1568,7 +1568,7 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h,
 	if (page) {
 		INIT_LIST_HEAD(&page->lru);
 		r_nid = page_to_nid(page);
-		set_compound_page_dtor(page, free_huge_page);
+		set_compound_page_dtor(page, HUGETLB_PAGE_DTOR);
 		set_hugetlb_cgroup(page, NULL);
 		/*
 		 * We incremented the global counters already

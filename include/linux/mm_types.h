@@ -28,8 +28,6 @@ struct mem_cgroup;
 		IS_ENABLED(CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK))
 #define ALLOC_SPLIT_PTLOCKS	(SPINLOCK_SIZE > BITS_PER_LONG/8)
 
-typedef void compound_page_dtor(struct page *);
-
 /*
  * Each physical page in the system has a struct page associated with
  * it to keep track of whatever it is we are using the page for at the
@@ -136,8 +134,8 @@ struct page {
 						 */
 		/* First tail page of compound page */
 		struct {
-			compound_page_dtor *compound_dtor;
-			unsigned long compound_order;
+			unsigned short int compound_dtor;
+			unsigned short int compound_order;
 		};
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS

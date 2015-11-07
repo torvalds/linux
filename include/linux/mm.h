@@ -568,18 +568,32 @@ int split_free_page(struct page *page);
 /*
  * Compound pages have a destructor function.  Provide a
  * prototype for that function and accessor functions.
- * These are _only_ valid on the head of a PG_compound page.
+ * These are _only_ valid on the head of a compound page.
  */
+typedef void compound_page_dtor(struct page *);
+
+/* Keep the enum in sync with compound_page_dtors array in mm/page_alloc.c */
+enum compound_dtor_id {
+	NULL_COMPOUND_DTOR,
+	COMPOUND_PAGE_DTOR,
+#ifdef CONFIG_HUGETLB_PAGE
+	HUGETLB_PAGE_DTOR,
+#endif
+	NR_COMPOUND_DTORS,
+};
+extern compound_page_dtor * const compound_page_dtors[];
 
 static inline void set_compound_page_dtor(struct page *page,
-						compound_page_dtor *dtor)
+		enum compound_dtor_id compound_dtor)
 {
-	page[1].compound_dtor = dtor;
+	VM_BUG_ON_PAGE(compound_dtor >= NR_COMPOUND_DTORS, page);
+	page[1].compound_dtor = compound_dtor;
 }
 
 static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
 {
-	return page[1].compound_dtor;
+	VM_BUG_ON_PAGE(page[1].compound_dtor >= NR_COMPOUND_DTORS, page);
+	return compound_page_dtors[page[1].compound_dtor];
 }
 
 static inline int compound_order(struct page *page)
@@ -589,7 +603,7 @@ static inline int compound_order(struct page *page)
 	return page[1].compound_order;
 }
 
-static inline void set_compound_order(struct page *page, unsigned long order)
+static inline void set_compound_order(struct page *page, unsigned int order)
 {
 	page[1].compound_order = order;
 }

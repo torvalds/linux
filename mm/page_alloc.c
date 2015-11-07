@@ -229,6 +229,15 @@ static char * const zone_names[MAX_NR_ZONES] = {
 #endif
 };
 
+static void free_compound_page(struct page *page);
+compound_page_dtor * const compound_page_dtors[] = {
+	NULL,
+	free_compound_page,
+#ifdef CONFIG_HUGETLB_PAGE
+	free_huge_page,
+#endif
+};
+
 int min_free_kbytes = 1024;
 int user_min_free_kbytes = -1;
 
@@ -458,7 +467,7 @@ void prep_compound_page(struct page *page, unsigned long order)
 	int i;
 	int nr_pages = 1 << order;
 
-	set_compound_page_dtor(page, free_compound_page);
+	set_compound_page_dtor(page, COMPOUND_PAGE_DTOR);
 	set_compound_order(page, order);
 	__SetPageHead(page);
 	for (i = 1; i < nr_pages; i++) {
