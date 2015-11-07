@@ -335,39 +335,33 @@ void *nilfs_palloc_block_get_entry(const struct inode *inode, __u64 nr,
  */
 static int nilfs_palloc_find_available_slot(unsigned char *bitmap,
 					    unsigned long target,
-					    int bsize,
+					    unsigned bsize,
 					    spinlock_t *lock)
 {
-	int curr, pos, end, i;
+	int pos, end = bsize;
 
-	if (target > 0) {
-		end = (target + BITS_PER_LONG - 1) & ~(BITS_PER_LONG - 1);
-		if (end > bsize)
-			end = bsize;
-		pos = nilfs_find_next_zero_bit(bitmap, end, target);
-		if (pos < end && !nilfs_set_bit_atomic(lock, pos, bitmap))
-			return pos;
-	} else {
-		end = 0;
-	}
-
-	for (i = 0, curr = end;
-	     i < bsize;
-	     i += BITS_PER_LONG, curr += BITS_PER_LONG) {
-		/* wrap around */
-		if (curr >= bsize)
-			curr = 0;
-		while (*((unsigned long *)bitmap + curr / BITS_PER_LONG)
-		       != ~0UL) {
-			end = curr + BITS_PER_LONG;
-			if (end > bsize)
-				end = bsize;
-			pos = nilfs_find_next_zero_bit(bitmap, end, curr);
-			if (pos < end &&
-			    !nilfs_set_bit_atomic(lock, pos, bitmap))
+	if (likely(target < bsize)) {
+		pos = target;
+		do {
+			pos = nilfs_find_next_zero_bit(bitmap, end, pos);
+			if (pos >= end)
+				break;
+			if (!nilfs_set_bit_atomic(lock, pos, bitmap))
 				return pos;
-		}
+		} while (++pos < end);
+
+		end = target;
 	}
+
+	/* wrap around */
+	for (pos = 0; pos < end; pos++) {
+		pos = nilfs_find_next_zero_bit(bitmap, end, pos);
+		if (pos >= end)
+			break;
+		if (!nilfs_set_bit_atomic(lock, pos, bitmap))
+			return pos;
+	}
+
 	return -ENOSPC;
 }
 
