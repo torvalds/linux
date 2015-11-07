@@ -35,6 +35,8 @@
 #include <asm/tlbflush.h>
 #include <asm/shmparam.h>
 
+#include "internal.h"
+
 struct vfree_deferred {
 	struct llist_head list;
 	struct work_struct wq;
