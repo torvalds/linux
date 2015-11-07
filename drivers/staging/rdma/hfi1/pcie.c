@@ -467,8 +467,18 @@ static void tune_pcie_caps(struct hfi1_devdata *dd)
 {
 	struct pci_dev *parent;
 	u16 rc_mpss, rc_mps, ep_mpss, ep_mps;
-	u16 rc_mrrs, ep_mrrs, max_mrrs;
+	u16 rc_mrrs, ep_mrrs, max_mrrs, ectl;
 
+	/*
+	 * Turn on extended tags in DevCtl in case the BIOS has turned it off
+	 * to improve WFR SDMA bandwidth
+	 */
+	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL, &ectl);
+	if (!(ectl & PCI_EXP_DEVCTL_EXT_TAG)) {
+		dd_dev_info(dd, "Enabling PCIe extended tags\n");
+		ectl |= PCI_EXP_DEVCTL_EXT_TAG;
+		pcie_capability_write_word(dd->pcidev, PCI_EXP_DEVCTL, ectl);
+	}
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
 	if (!pci_is_root_bus(parent->bus)) {
