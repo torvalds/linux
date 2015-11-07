@@ -514,7 +514,7 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 	void *desc_kaddr, *bitmap_kaddr;
 	unsigned long group, maxgroup, ngroups;
 	unsigned long group_offset, maxgroup_offset;
-	unsigned long n, entries_per_group, groups_per_desc_block;
+	unsigned long n, entries_per_group;
 	unsigned long i, j;
 	spinlock_t *lock;
 	int pos, ret;
@@ -523,7 +523,6 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 	maxgroup = ngroups - 1;
 	group = nilfs_palloc_group(inode, req->pr_entry_nr, &group_offset);
 	entries_per_group = nilfs_palloc_entries_per_group(inode);
-	groups_per_desc_block = nilfs_palloc_groups_per_desc_block(inode);
 
 	for (i = 0; i < ngroups; i += n) {
 		if (group >= ngroups) {
