@@ -60,6 +60,7 @@
 #include "hfi.h"
 #include "device.h"
 #include "common.h"
+#include "trace.h"
 #include "mad.h"
 #include "sdma.h"
 #include "debugfs.h"
@@ -208,7 +209,7 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
 	if (rcd) {
 		u32 rcvtids, max_entries;
 
-		dd_dev_info(dd, "%s: setting up context %u\n", __func__, ctxt);
+		hfi1_cdbg(PROC, "setting up context %u\n", ctxt);
 
 		INIT_LIST_HEAD(&rcd->qp_wait_list);
 		rcd->ppd = ppd;
@@ -279,8 +280,9 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
 				   rcd->ctxt);
 			rcd->egrbufs.count = MAX_EAGER_ENTRIES;
 		}
-		dd_dev_info(dd, "ctxt%u: max Eager buffer RcvArray entries: %u\n",
-			    rcd->ctxt, rcd->egrbufs.count);
+		hfi1_cdbg(PROC,
+			  "ctxt%u: max Eager buffer RcvArray entries: %u\n",
+			  rcd->ctxt, rcd->egrbufs.count);
 
 		/*
 		 * Allocate array that will hold the eager buffer accounting
@@ -308,8 +310,8 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
 		 */
 		if (rcd->egrbufs.size < hfi1_max_mtu) {
 			rcd->egrbufs.size = __roundup_pow_of_two(hfi1_max_mtu);
-			dd_dev_info(dd,
-				    "ctxt%u: eager bufs size too small. Adjusting to %zu\n",
+			hfi1_cdbg(PROC,
+				  "ctxt%u: eager bufs size too small. Adjusting to %zu\n",
 				    rcd->ctxt, rcd->egrbufs.size);
 		}
 		rcd->egrbufs.rcvtid_size = HFI1_MAX_EAGER_BUFFER_SIZE;
@@ -1660,9 +1662,11 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 	rcd->egrbufs.numbufs = idx;
 	rcd->egrbufs.size = alloced_bytes;
 
-	dd_dev_info(dd, "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %zuKB\n",
-		rcd->ctxt, rcd->egrbufs.alloced, rcd->egrbufs.rcvtid_size,
-		rcd->egrbufs.size);
+	hfi1_cdbg(PROC,
+		  "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %zuKB\n",
+		  rcd->ctxt, rcd->egrbufs.alloced, rcd->egrbufs.rcvtid_size,
+		  rcd->egrbufs.size);
+
 
 	/*
 	 * Set the contexts rcv array head update threshold to the closest
@@ -1683,13 +1687,14 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 		rcd->expected_count = MAX_TID_PAIR_ENTRIES * 2;
 
 	rcd->expected_base = rcd->eager_base + egrtop;
-	dd_dev_info(dd, "ctxt%u: eager:%u, exp:%u, egrbase:%u, expbase:%u\n",
-		    rcd->ctxt, rcd->egrbufs.alloced, rcd->expected_count,
-		    rcd->eager_base, rcd->expected_base);
+	hfi1_cdbg(PROC, "ctxt%u: eager:%u, exp:%u, egrbase:%u, expbase:%u\n",
+		  rcd->ctxt, rcd->egrbufs.alloced, rcd->expected_count,
+		  rcd->eager_base, rcd->expected_base);
 
 	if (!hfi1_rcvbuf_validate(rcd->egrbufs.rcvtid_size, PT_EAGER, &order)) {
-		dd_dev_err(dd, "ctxt%u: current Eager buffer size is invalid %u\n",
-			   rcd->ctxt, rcd->egrbufs.rcvtid_size);
+		hfi1_cdbg(PROC,
+			  "ctxt%u: current Eager buffer size is invalid %u\n",
+			  rcd->ctxt, rcd->egrbufs.rcvtid_size);
 		ret = -EINVAL;
 		goto bail;
 	}

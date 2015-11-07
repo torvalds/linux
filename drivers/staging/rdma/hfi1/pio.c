@@ -815,15 +815,16 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 		}
 	}
 
-	dd_dev_info(dd,
-		"Send context %u(%u) %s group %u credits %u credit_ctrl 0x%llx threshold %u\n",
-		sw_index,
-		hw_context,
-		sc_type_name(type),
-		sc->group,
-		sc->credits,
-		sc->credit_ctrl,
-		thresh);
+	hfi1_cdbg(PIO,
+		  "Send context %u(%u) %s group %u credits %u credit_ctrl 0x%llx threshold %u\n",
+		  sw_index,
+		  hw_context,
+		  sc_type_name(type),
+		  sc->group,
+		  sc->credits,
+		  sc->credit_ctrl,
+		  thresh);
+
 
 	return sc;
 }

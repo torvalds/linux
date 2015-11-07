@@ -663,9 +663,9 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 	}
 
 	vma->vm_flags = flags;
-	dd_dev_info(dd,
-		    "%s: %u:%u type:%u io/vf:%d/%d, addr:0x%llx, len:%lu(%lu), flags:0x%lx\n",
-		    __func__, ctxt, subctxt, type, mapio, vmf, memaddr, memlen,
+	hfi1_cdbg(PROC,
+		  "%u:%u type:%u io/vf:%d/%d, addr:0x%llx, len:%lu(%lu), flags:0x%lx\n",
+		    ctxt, subctxt, type, mapio, vmf, memaddr, memlen,
 		    vma->vm_end - vma->vm_start, vma->vm_flags);
 	pfn = (unsigned long)(memaddr >> PAGE_SHIFT);
 	if (vmf) {
@@ -989,8 +989,8 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	if (!uctxt->sc)
 		return -ENOMEM;
 
-	dbg("allocated send context %u(%u)\n", uctxt->sc->sw_index,
-		uctxt->sc->hw_context);
+	hfi1_cdbg(PROC, "allocated send context %u(%u)\n", uctxt->sc->sw_index,
+		  uctxt->sc->hw_context);
 	ret = sc_enable(uctxt->sc);
 	if (ret)
 		return ret;
