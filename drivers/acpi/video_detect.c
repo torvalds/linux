@@ -233,6 +233,15 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1272633 */
+	 .callback = video_detect_force_video,
+	 .ident = "Dell XPS14 L421X",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "XPS L421X"),
+		},
+	},
+	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1163574 */
 	 .callback = video_detect_force_video,
 	 .ident = "Dell XPS15 L521X",
