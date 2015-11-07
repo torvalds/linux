@@ -476,7 +476,7 @@ static void
 mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 {
 	struct htable *t;
-	struct hbucket *n;
+	struct hbucket *n, *tmp;
 	struct mtype_elem *data;
 	u32 i, j, d;
 #ifdef IP_SET_HASH_WITH_NETS
@@ -511,9 +511,14 @@ mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 			}
 		}
 		if (d >= AHASH_INIT_SIZE) {
-			struct hbucket *tmp = kzalloc(sizeof(*tmp) +
-					(n->size - AHASH_INIT_SIZE) * dsize,
-					GFP_ATOMIC);
+			if (d >= n->size) {
+				rcu_assign_pointer(hbucket(t, i), NULL);
+				kfree_rcu(n, rcu);
+				continue;
+			}
+			tmp = kzalloc(sizeof(*tmp) +
+				      (n->size - AHASH_INIT_SIZE) * dsize,
+				      GFP_ATOMIC);
 			if (!tmp)
 				/* Still try to delete expired elements */
 				continue;
