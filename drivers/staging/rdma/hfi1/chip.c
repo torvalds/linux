@@ -9923,19 +9923,16 @@ static void init_chip(struct hfi1_devdata *dd)
 		setextled(dd, 0);
 	/*
 	 * Clear the QSFP reset.
-	 * A0 leaves the out lines floating on power on, then on an FLR
-	 * enforces a 0 on all out pins.  The driver does not touch
+	 * An FLR enforces a 0 on all out pins. The driver does not touch
 	 * ASIC_QSFPn_OUT otherwise.  This leaves RESET_N low and
-	 * anything  plugged constantly in reset, if it pays attention
+	 * anything plugged constantly in reset, if it pays attention
 	 * to RESET_N.
-	 * A prime example of this is SiPh. For now, set all pins high.
+	 * Prime examples of this are optical cables. Set all pins high.
 	 * I2CCLK and I2CDAT will change per direction, and INT_N and
 	 * MODPRS_N are input only and their value is ignored.
 	 */
-	if (is_a0(dd)) {
-		write_csr(dd, ASIC_QSFP1_OUT, 0x1f);
-		write_csr(dd, ASIC_QSFP2_OUT, 0x1f);
-	}
+	write_csr(dd, ASIC_QSFP1_OUT, 0x1f);
+	write_csr(dd, ASIC_QSFP2_OUT, 0x1f);
 }
 
 static void init_early_variables(struct hfi1_devdata *dd)
