@@ -698,7 +698,6 @@ static int xgene_enet_open(struct net_device *ndev)
 	else
 		schedule_delayed_work(&pdata->link_work, PHY_POLL_LINK_OFF);
 
-	netif_carrier_off(ndev);
 	netif_start_queue(ndev);
 
 	return ret;
