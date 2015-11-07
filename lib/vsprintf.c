@@ -1460,7 +1460,7 @@ static noinline_for_stack
 char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	      struct printf_spec spec)
 {
-	int default_width = 2 * sizeof(void *) + (spec.flags & SPECIAL ? 2 : 0);
+	const int default_width = 2 * sizeof(void *);
 
 	if (!ptr && *fmt != 'K') {
 		/*
