@@ -1297,7 +1297,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	solo_enc->vidq.ops = &solo_enc_video_qops;
 	solo_enc->vidq.mem_ops = &vb2_dma_sg_memops;
 	solo_enc->vidq.drv_priv = solo_enc;
-	solo_enc->vidq.gfp_flags = __GFP_DMA32;
+	solo_enc->vidq.gfp_flags = __GFP_DMA32 | __GFP_KSWAPD_RECLAIM;
 	solo_enc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	solo_enc->vidq.buf_struct_size = sizeof(struct solo_vb2_buf);
 	solo_enc->vidq.lock = &solo_enc->lock;

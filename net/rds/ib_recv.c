@@ -305,7 +305,7 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	gfp_t slab_mask = GFP_NOWAIT;
 	gfp_t page_mask = GFP_NOWAIT;
 
-	if (gfp & __GFP_WAIT) {
+	if (gfp & __GFP_DIRECT_RECLAIM) {
 		slab_mask = GFP_KERNEL;
 		page_mask = GFP_HIGHUSER;
 	}
@@ -379,7 +379,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 	struct ib_recv_wr *failed_wr;
 	unsigned int posted = 0;
 	int ret = 0;
-	bool can_wait = !!(gfp & __GFP_WAIT);
+	bool can_wait = !!(gfp & __GFP_DIRECT_RECLAIM);
 	u32 pos;
 
 	/* the goal here is to just make sure that someone, somewhere

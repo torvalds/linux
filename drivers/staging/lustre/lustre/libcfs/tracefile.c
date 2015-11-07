@@ -810,7 +810,7 @@ int cfs_trace_allocate_string_buffer(char **str, int nob)
 	if (nob > 2 * PAGE_CACHE_SIZE)	    /* string must be "sensible" */
 		return -EINVAL;
 
-	*str = kmalloc(nob, GFP_IOFS | __GFP_ZERO);
+	*str = kmalloc(nob, GFP_KERNEL | __GFP_ZERO);
 	if (*str == NULL)
 		return -ENOMEM;
 

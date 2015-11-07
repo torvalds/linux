@@ -361,7 +361,7 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
 
 	/*
 	 * bio_alloc() is guaranteed to return a bio when called with
-	 * __GFP_WAIT and we request a valid number of vectors.
+	 * __GFP_RECLAIM and we request a valid number of vectors.
 	 */
 	bio = bio_alloc(GFP_KERNEL, nr_vecs);
 

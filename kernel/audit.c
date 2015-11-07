@@ -1371,16 +1371,16 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	if (unlikely(audit_filter_type(type)))
 		return NULL;
 
-	if (gfp_mask & __GFP_WAIT) {
+	if (gfp_mask & __GFP_DIRECT_RECLAIM) {
 		if (audit_pid && audit_pid == current->pid)
-			gfp_mask &= ~__GFP_WAIT;
+			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
 		else
 			reserve = 0;
 	}
 
 	while (audit_backlog_limit
 	       && skb_queue_len(&audit_skb_queue) > audit_backlog_limit + reserve) {
-		if (gfp_mask & __GFP_WAIT && audit_backlog_wait_time) {
+		if (gfp_mask & __GFP_DIRECT_RECLAIM && audit_backlog_wait_time) {
 			long sleep_time;
 
 			sleep_time = timeout_start + audit_backlog_wait_time - jiffies;

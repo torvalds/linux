@@ -346,7 +346,7 @@ static struct osc_extent *osc_extent_alloc(struct osc_object *obj)
 {
 	struct osc_extent *ext;
 
-	ext = kmem_cache_alloc(osc_extent_kmem, GFP_IOFS | __GFP_ZERO);
+	ext = kmem_cache_alloc(osc_extent_kmem, GFP_NOFS | __GFP_ZERO);
 	if (ext == NULL)
 		return NULL;
 

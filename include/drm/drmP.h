@@ -822,7 +822,6 @@ struct drm_device {
 
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
-	sigset_t sigmask;
 
 	struct {
 		int context;

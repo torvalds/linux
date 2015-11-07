@@ -1245,7 +1245,7 @@ lnet_new_rtrbuf(lnet_rtrbufpool_t *rbp, int cpt)
 	for (i = 0; i < npages; i++) {
 		page = alloc_pages_node(
 				cfs_cpt_spread_node(lnet_cpt_table(), cpt),
-				__GFP_ZERO | GFP_IOFS, 0);
+				GFP_KERNEL | __GFP_ZERO, 0);
 		if (page == NULL) {
 			while (--i >= 0)
 				__free_page(rb->rb_kiov[i].kiov_page);

@@ -320,13 +320,13 @@ void * mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 	gfp_t gfp_temp;
 
 	VM_WARN_ON_ONCE(gfp_mask & __GFP_ZERO);
-	might_sleep_if(gfp_mask & __GFP_WAIT);
+	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
 
 	gfp_mask |= __GFP_NOMEMALLOC;	/* don't allocate emergency reserves */
 	gfp_mask |= __GFP_NORETRY;	/* don't loop in __alloc_pages */
 	gfp_mask |= __GFP_NOWARN;	/* failures are OK */
 
-	gfp_temp = gfp_mask & ~(__GFP_WAIT|__GFP_IO);
+	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
 
 repeat_alloc:
 
@@ -349,7 +349,7 @@ repeat_alloc:
 	}
 
 	/*
-	 * We use gfp mask w/o __GFP_WAIT or IO for the first round.  If
+	 * We use gfp mask w/o direct reclaim or IO for the first round.  If
 	 * alloc failed with that and @pool was empty, retry immediately.
 	 */
 	if (gfp_temp != gfp_mask) {
@@ -358,8 +358,8 @@ repeat_alloc:
 		goto repeat_alloc;
 	}
 
-	/* We must not sleep if !__GFP_WAIT */
-	if (!(gfp_mask & __GFP_WAIT)) {
+	/* We must not sleep if !__GFP_DIRECT_RECLAIM */
+	if (!(gfp_mask & __GFP_DIRECT_RECLAIM)) {
 		spin_unlock_irqrestore(&pool->lock, flags);
 		return NULL;
 	}

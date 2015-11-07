@@ -95,7 +95,7 @@ do {								    \
 do {									    \
 	LASSERT(!in_interrupt() ||					    \
 		((size) <= LIBCFS_VMALLOC_SIZE &&			    \
-		 ((mask) & __GFP_WAIT) == 0));				    \
+		 !gfpflags_allow_blocking(mask)));			    \
 } while (0)
 
 #define LIBCFS_ALLOC_POST(ptr, size)					    \

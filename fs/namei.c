@@ -4604,7 +4604,7 @@ EXPORT_SYMBOL(__page_symlink);
 int page_symlink(struct inode *inode, const char *symname, int len)
 {
 	return __page_symlink(inode, symname, len,
-			!(mapping_gfp_mask(inode->i_mapping) & __GFP_FS));
+			!mapping_gfp_constraint(inode->i_mapping, __GFP_FS));
 }
 EXPORT_SYMBOL(page_symlink);
 

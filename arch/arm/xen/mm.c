@@ -25,7 +25,7 @@
 unsigned long xen_get_swiotlb_free_pages(unsigned int order)
 {
 	struct memblock_region *reg;
-	gfp_t flags = __GFP_NOWARN;
+	gfp_t flags = __GFP_NOWARN|__GFP_KSWAPD_RECLAIM;
 
 	for_each_memblock(memory, reg) {
 		if (reg->base < (phys_addr_t)0xffffffff) {

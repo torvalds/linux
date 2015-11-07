@@ -6,7 +6,7 @@
  * Version 2.  See the file COPYING for more details.
  */
 
-#define pr_fmt(fmt)	"kexec: " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/capability.h>
 #include <linux/mm.h>
@@ -1027,7 +1027,7 @@ static int __init crash_notes_memory_init(void)
 
 	crash_notes = __alloc_percpu(size, align);
 	if (!crash_notes) {
-		pr_warn("Kexec: Memory allocation for saving cpu register states failed\n");
+		pr_warn("Memory allocation for saving cpu register states failed\n");
 		return -ENOMEM;
 	}
 	return 0;

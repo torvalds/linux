@@ -1560,7 +1560,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 	 * heavy filesystem activity makes these fail, and we can
 	 * use compound pages.
 	 */
-	gfp_flags = __GFP_WAIT | __GFP_IO | __GFP_COMP;
+	gfp_flags = __GFP_RECLAIM | __GFP_IO | __GFP_COMP;
 
 	/*
 	 * The minimum size of the eager buffers is a groups of MTU-sized

@@ -413,6 +413,8 @@ extern __printf(2, 3)
 char *kasprintf(gfp_t gfp, const char *fmt, ...);
 extern __printf(2, 0)
 char *kvasprintf(gfp_t gfp, const char *fmt, va_list args);
+extern __printf(2, 0)
+const char *kvasprintf_const(gfp_t gfp, const char *fmt, va_list args);
 
 extern __scanf(2, 3)
 int sscanf(const char *, const char *, ...);

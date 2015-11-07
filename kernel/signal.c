@@ -503,41 +503,6 @@ int unhandled_signal(struct task_struct *tsk, int sig)
 	return !tsk->ptrace;
 }
 
-/*
- * Notify the system that a driver wants to block all signals for this
- * process, and wants to be notified if any signals at all were to be
- * sent/acted upon.  If the notifier routine returns non-zero, then the
- * signal will be acted upon after all.  If the notifier routine returns 0,
- * then then signal will be blocked.  Only one block per process is
- * allowed.  priv is a pointer to private data that the notifier routine
- * can use to determine if the signal should be blocked or not.
- */
-void
-block_all_signals(int (*notifier)(void *priv), void *priv, sigset_t *mask)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	current->notifier_mask = mask;
-	current->notifier_data = priv;
-	current->notifier = notifier;
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-}
-
-/* Notify the system that blocking has ended. */
-
-void
-unblock_all_signals(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	current->notifier = NULL;
-	current->notifier_data = NULL;
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-}
-
 static void collect_signal(int sig, struct sigpending *list, siginfo_t *info)
 {
 	struct sigqueue *q, *first = NULL;
@@ -580,19 +545,8 @@ static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 {
 	int sig = next_signal(pending, mask);
 
-	if (sig) {
-		if (current->notifier) {
-			if (sigismember(current->notifier_mask, sig)) {
-				if (!(current->notifier)(current->notifier_data)) {
-					clear_thread_flag(TIF_SIGPENDING);
-					return 0;
-				}
-			}
-		}
-
+	if (sig)
 		collect_signal(sig, pending, info);
-	}
-
 	return sig;
 }
 
@@ -834,7 +788,7 @@ static bool prepare_signal(int sig, struct task_struct *p, bool force)
 	sigset_t flush;
 
 	if (signal->flags & (SIGNAL_GROUP_EXIT | SIGNAL_GROUP_COREDUMP)) {
-		if (signal->flags & SIGNAL_GROUP_COREDUMP)
+		if (!(signal->flags & SIGNAL_GROUP_EXIT))
 			return sig == SIGKILL;
 		/*
 		 * The process is in the middle of dying, nothing to do.
@@ -2483,9 +2437,6 @@ EXPORT_SYMBOL(force_sig);
 EXPORT_SYMBOL(send_sig);
 EXPORT_SYMBOL(send_sig_info);
 EXPORT_SYMBOL(sigprocmask);
-EXPORT_SYMBOL(block_all_signals);
-EXPORT_SYMBOL(unblock_all_signals);
-
 
 /*
  * System call entry points.

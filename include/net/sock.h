@@ -2041,7 +2041,7 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
  */
 static inline struct page_frag *sk_page_frag(struct sock *sk)
 {
-	if (sk->sk_allocation & __GFP_WAIT)
+	if (gfpflags_allow_blocking(sk->sk_allocation))
 		return &current->task_frag;
 
 	return &sk->sk_frag;

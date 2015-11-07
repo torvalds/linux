@@ -85,8 +85,8 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	}
 
 	mapping_set_gfp_mask(inode->i_mapping,
-			mapping_gfp_mask(inode->i_mapping) &
-			~(__GFP_FS | __GFP_HIGHMEM));
+			mapping_gfp_constraint(inode->i_mapping,
+			~(__GFP_FS | __GFP_HIGHMEM)));
 
 	return inode;
 }

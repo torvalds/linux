@@ -2046,7 +2046,7 @@ retry:
 	if (unlikely(task_in_memcg_oom(current)))
 		goto nomem;
 
-	if (!(gfp_mask & __GFP_WAIT))
+	if (!gfpflags_allow_blocking(gfp_mask))
 		goto nomem;
 
 	mem_cgroup_events(mem_over_limit, MEMCG_MAX, 1);
@@ -2120,7 +2120,7 @@ done_restock:
 	/*
 	 * If the hierarchy is above the normal consumption range, schedule
 	 * reclaim on returning to userland.  We can perform reclaim here
-	 * if __GFP_WAIT but let's always punt for simplicity and so that
+	 * if __GFP_RECLAIM but let's always punt for simplicity and so that
 	 * GFP_KERNEL can consistently be used during reclaim.  @memcg is
 	 * not recorded as it most likely matches current's and won't
 	 * change in the meantime.  As high limit is checked again before
@@ -2801,7 +2801,7 @@ static unsigned long tree_stat(struct mem_cgroup *memcg,
 	return val;
 }
 
-static inline unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+static unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
 {
 	unsigned long val;
 
@@ -4364,8 +4364,8 @@ static int mem_cgroup_do_precharge(unsigned long count)
 {
 	int ret;
 
-	/* Try a single bulk charge without reclaim first */
-	ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_WAIT, count);
+	/* Try a single bulk charge without reclaim first, kswapd may wake */
+	ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_DIRECT_RECLAIM, count);
 	if (!ret) {
 		mc.precharge += count;
 		return ret;
