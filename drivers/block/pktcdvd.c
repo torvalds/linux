@@ -2803,8 +2803,7 @@ out_new_dev:
 out_mem2:
 	put_disk(disk);
 out_mem:
-	if (pd->rb_pool)
-		mempool_destroy(pd->rb_pool);
+	mempool_destroy(pd->rb_pool);
 	kfree(pd);
 out_mutex:
 	mutex_unlock(&ctl_mutex);
