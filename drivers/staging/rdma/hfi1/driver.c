@@ -1156,20 +1156,20 @@ void handle_eflags(struct hfi1_packet *packet)
 	struct hfi1_ctxtdata *rcd = packet->rcd;
 	u32 rte = rhf_rcv_type_err(packet->rhf);
 
-	dd_dev_err(rcd->dd,
-		"receive context %d: rhf 0x%016llx, errs [ %s%s%s%s%s%s%s%s] rte 0x%x\n",
-		rcd->ctxt, packet->rhf,
-		packet->rhf & RHF_K_HDR_LEN_ERR ? "k_hdr_len " : "",
-		packet->rhf & RHF_DC_UNC_ERR ? "dc_unc " : "",
-		packet->rhf & RHF_DC_ERR ? "dc " : "",
-		packet->rhf & RHF_TID_ERR ? "tid " : "",
-		packet->rhf & RHF_LEN_ERR ? "len " : "",
-		packet->rhf & RHF_ECC_ERR ? "ecc " : "",
-		packet->rhf & RHF_VCRC_ERR ? "vcrc " : "",
-		packet->rhf & RHF_ICRC_ERR ? "icrc " : "",
-		rte);
-
 	rcv_hdrerr(rcd, rcd->ppd, packet);
+	if (rhf_err_flags(packet->rhf))
+		dd_dev_err(rcd->dd,
+			   "receive context %d: rhf 0x%016llx, errs [ %s%s%s%s%s%s%s%s] rte 0x%x\n",
+			   rcd->ctxt, packet->rhf,
+			   packet->rhf & RHF_K_HDR_LEN_ERR ? "k_hdr_len " : "",
+			   packet->rhf & RHF_DC_UNC_ERR ? "dc_unc " : "",
+			   packet->rhf & RHF_DC_ERR ? "dc " : "",
+			   packet->rhf & RHF_TID_ERR ? "tid " : "",
+			   packet->rhf & RHF_LEN_ERR ? "len " : "",
+			   packet->rhf & RHF_ECC_ERR ? "ecc " : "",
+			   packet->rhf & RHF_VCRC_ERR ? "vcrc " : "",
+			   packet->rhf & RHF_ICRC_ERR ? "icrc " : "",
+			   rte);
 }
 
 /*
