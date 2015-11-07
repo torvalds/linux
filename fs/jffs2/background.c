@@ -80,7 +80,6 @@ static int jffs2_garbage_collect_thread(void *_c)
 	siginitset(&hupmask, sigmask(SIGHUP));
 	allow_signal(SIGKILL);
 	allow_signal(SIGSTOP);
-	allow_signal(SIGCONT);
 	allow_signal(SIGHUP);
 
 	c->gc_task = current;
