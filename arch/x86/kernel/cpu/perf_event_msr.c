@@ -163,10 +163,9 @@ again:
 		goto again;
 
 	delta = now - prev;
-	if (unlikely(event->hw.event_base == MSR_SMI_COUNT)) {
-		delta <<= 32;
-		delta >>= 32; /* sign extend */
-	}
+	if (unlikely(event->hw.event_base == MSR_SMI_COUNT))
+		delta = sign_extend64(delta, 31);
+
 	local64_add(now - prev, &event->count);
 }
 
