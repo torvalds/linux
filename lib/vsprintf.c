@@ -1448,7 +1448,6 @@ int kptr_restrict __read_mostly;
  * - 'Cn' For a clock, it prints the name (Common Clock Framework) or address
  *        (legacy clock framework) of the clock
  * - 'Cr' For a clock, it prints the current rate of the clock
- * - 'n' For ignored argument
  *
  * ** Please update also Documentation/printk-formats.txt when making changes **
  *
@@ -1814,8 +1813,10 @@ qualifier:
  * @fmt: The format string to use
  * @args: Arguments for the format string
  *
- * This function follows C99 vsnprintf, but has some extensions:
- * %n is ignored
+ * This function generally follows C99 vsnprintf, but has some
+ * extensions and a few limitations:
+ *
+ * %n is unsupported
  * %p* is handled by pointer()
  *
  * See pointer() or Documentation/printk-formats.txt for more
