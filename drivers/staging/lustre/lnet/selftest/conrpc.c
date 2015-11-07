@@ -860,7 +860,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 			bulk->bk_iovs[i].kiov_offset = 0;
 			bulk->bk_iovs[i].kiov_len    = len;
 			bulk->bk_iovs[i].kiov_page   =
-				alloc_page(GFP_IOFS);
+				alloc_page(GFP_KERNEL);
 
 			if (bulk->bk_iovs[i].kiov_page == NULL) {
 				lstcon_rpc_put(*crpc);
