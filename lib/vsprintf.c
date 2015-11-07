@@ -2270,7 +2270,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 	char *str, *end;
 	const char *args = (const char *)bin_buf;
 
-	if (WARN_ON_ONCE((int) size < 0))
+	if (WARN_ON_ONCE(size > INT_MAX))
 		return 0;
 
 	str = buf;
