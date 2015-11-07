@@ -33,6 +33,13 @@ struct btrfs_qgroup_extent_record {
 	struct ulist *old_roots;
 };
 
+/*
+ * For qgroup event trace points only
+ */
+#define QGROUP_RESERVE		(1<<0)
+#define QGROUP_RELEASE		(1<<1)
+#define QGROUP_FREE		(1<<2)
+
 int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info);
 int btrfs_quota_disable(struct btrfs_trans_handle *trans,
@@ -71,9 +78,18 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 			 struct btrfs_fs_info *fs_info, u64 srcid, u64 objectid,
 			 struct btrfs_qgroup_inherit *inherit);
-int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes);
-void btrfs_qgroup_free(struct btrfs_root *root, u64 num_bytes);
-
+void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
+			       u64 ref_root, u64 num_bytes);
+/*
+ * TODO: Add proper trace point for it, as btrfs_qgroup_free() is
+ * called by everywhere, can't provide good trace for delayed ref case.
+ */
+static inline void btrfs_qgroup_free_delayed_ref(struct btrfs_fs_info *fs_info,
+						 u64 ref_root, u64 num_bytes)
+{
+	btrfs_qgroup_free_refroot(fs_info, ref_root, num_bytes);
+	trace_btrfs_qgroup_free_delayed_ref(ref_root, num_bytes);
+}
 void assert_qgroups_uptodate(struct btrfs_trans_handle *trans);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
@@ -81,4 +97,13 @@ int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
 			       u64 rfer, u64 excl);
 #endif
 
+/* New io_tree based accurate qgroup reserve API */
+int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len);
+int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len);
+int btrfs_qgroup_free_data(struct inode *inode, u64 start, u64 len);
+
+int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes);
+void btrfs_qgroup_free_meta_all(struct btrfs_root *root);
+void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes);
+void btrfs_qgroup_check_reserved_leak(struct inode *inode);
 #endif /* __BTRFS_QGROUP__ */
