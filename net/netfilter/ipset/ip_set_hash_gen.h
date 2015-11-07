@@ -72,8 +72,9 @@ struct hbucket {
 	DECLARE_BITMAP(used, AHASH_MAX_TUNED);
 	u8 size;		/* size of the array */
 	u8 pos;			/* position of the first free entry */
-	unsigned char value[0];	/* the array of the values */
-} __attribute__ ((aligned));
+	unsigned char value[0]	/* the array of the values */
+		__aligned(__alignof__(u64));
+};
 
 /* The hash table: the table size stored here in order to make resizing easy */
 struct htable {
@@ -1323,12 +1324,14 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 #endif
 		set->variant = &IPSET_TOKEN(HTYPE, 4_variant);
 		set->dsize = ip_set_elem_len(set, tb,
-				sizeof(struct IPSET_TOKEN(HTYPE, 4_elem)));
+			sizeof(struct IPSET_TOKEN(HTYPE, 4_elem)),
+			__alignof__(struct IPSET_TOKEN(HTYPE, 4_elem)));
 #ifndef IP_SET_PROTO_UNDEF
 	} else {
 		set->variant = &IPSET_TOKEN(HTYPE, 6_variant);
 		set->dsize = ip_set_elem_len(set, tb,
-				sizeof(struct IPSET_TOKEN(HTYPE, 6_elem)));
+			sizeof(struct IPSET_TOKEN(HTYPE, 6_elem)),
+			__alignof__(struct IPSET_TOKEN(HTYPE, 6_elem)));
 	}
 #endif
 	if (tb[IPSET_ATTR_TIMEOUT]) {
