@@ -2046,7 +2046,7 @@ retry:
 	if (unlikely(task_in_memcg_oom(current)))
 		goto nomem;
 
-	if (!(gfp_mask & __GFP_WAIT))
+	if (!gfpflags_allow_blocking(gfp_mask))
 		goto nomem;
 
 	mem_cgroup_events(mem_over_limit, MEMCG_MAX, 1);
@@ -4364,8 +4364,8 @@ static int mem_cgroup_do_precharge(unsigned long count)
 {
 	int ret;
 
-	/* Try a single bulk charge without reclaim first */
-	ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_WAIT, count);
+	/* Try a single bulk charge without reclaim first, kswapd may wake */
+	ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_DIRECT_RECLAIM, count);
 	if (!ret) {
 		mc.precharge += count;
 		return ret;

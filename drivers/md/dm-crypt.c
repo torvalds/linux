@@ -994,7 +994,7 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 	struct bio_vec *bvec;
 
 retry:
-	if (unlikely(gfp_mask & __GFP_WAIT))
+	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
 		mutex_lock(&cc->bio_alloc_lock);
 
 	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, cc->bs);
@@ -1010,7 +1010,7 @@ retry:
 		if (!page) {
 			crypt_free_buffer_pages(cc, clone);
 			bio_put(clone);
-			gfp_mask |= __GFP_WAIT;
+			gfp_mask |= __GFP_DIRECT_RECLAIM;
 			goto retry;
 		}
 
@@ -1027,7 +1027,7 @@ retry:
 	}
 
 return_clone:
-	if (unlikely(gfp_mask & __GFP_WAIT))
+	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
 		mutex_unlock(&cc->bio_alloc_lock);
 
 	return clone;

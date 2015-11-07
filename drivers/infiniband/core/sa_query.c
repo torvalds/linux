@@ -1083,7 +1083,7 @@ static void init_mad(struct ib_sa_mad *mad, struct ib_mad_agent *agent)
 
 static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 {
-	bool preload = !!(gfp_mask & __GFP_WAIT);
+	bool preload = gfpflags_allow_blocking(gfp_mask);
 	unsigned long flags;
 	int ret, id;
 

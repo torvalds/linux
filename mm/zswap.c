@@ -571,7 +571,7 @@ static struct zswap_pool *zswap_pool_find_get(char *type, char *compressor)
 static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 {
 	struct zswap_pool *pool;
-	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN;
+	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool) {
@@ -1011,7 +1011,8 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	/* store */
 	len = dlen + sizeof(struct zswap_header);
 	ret = zpool_malloc(entry->pool->zpool, len,
-			   __GFP_NORETRY | __GFP_NOWARN, &handle);
+			   __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM,
+			   &handle);
 	if (ret == -ENOSPC) {
 		zswap_reject_compress_poor++;
 		goto put_dstmem;

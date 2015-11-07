@@ -1058,7 +1058,7 @@ static int bdev_try_to_free_page(struct super_block *sb, struct page *page,
 		return 0;
 	if (journal)
 		return jbd2_journal_try_to_free_buffers(journal, page,
-							wait & ~__GFP_WAIT);
+						wait & ~__GFP_DIRECT_RECLAIM);
 	return try_to_free_buffers(page);
 }
 

@@ -1031,12 +1031,12 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 }
 
 /*
- * Construct gfp mask to allocate from a specific node but do not invoke reclaim
- * or warn about failures.
+ * Construct gfp mask to allocate from a specific node but do not direct reclaim
+ * or warn about failures. kswapd may still wake to reclaim in the background.
  */
 static inline gfp_t gfp_exact_node(gfp_t flags)
 {
-	return (flags | __GFP_THISNODE | __GFP_NOWARN) & ~__GFP_WAIT;
+	return (flags | __GFP_THISNODE | __GFP_NOWARN) & ~__GFP_DIRECT_RECLAIM;
 }
 #endif
 
@@ -2633,7 +2633,7 @@ static int cache_grow(struct kmem_cache *cachep,
 
 	offset *= cachep->colour_off;
 
-	if (local_flags & __GFP_WAIT)
+	if (gfpflags_allow_blocking(local_flags))
 		local_irq_enable();
 
 	/*
@@ -2663,7 +2663,7 @@ static int cache_grow(struct kmem_cache *cachep,
 
 	cache_init_objs(cachep, page);
 
-	if (local_flags & __GFP_WAIT)
+	if (gfpflags_allow_blocking(local_flags))
 		local_irq_disable();
 	check_irq_off();
 	spin_lock(&n->list_lock);
@@ -2677,7 +2677,7 @@ static int cache_grow(struct kmem_cache *cachep,
 opps1:
 	kmem_freepages(cachep, page);
 failed:
-	if (local_flags & __GFP_WAIT)
+	if (gfpflags_allow_blocking(local_flags))
 		local_irq_disable();
 	return 0;
 }
@@ -2869,7 +2869,7 @@ force_grow:
 static inline void cache_alloc_debugcheck_before(struct kmem_cache *cachep,
 						gfp_t flags)
 {
-	might_sleep_if(flags & __GFP_WAIT);
+	might_sleep_if(gfpflags_allow_blocking(flags));
 #if DEBUG
 	kmem_flagcheck(cachep, flags);
 #endif
@@ -3057,11 +3057,11 @@ retry:
 		 */
 		struct page *page;
 
-		if (local_flags & __GFP_WAIT)
+		if (gfpflags_allow_blocking(local_flags))
 			local_irq_enable();
 		kmem_flagcheck(cache, flags);
 		page = kmem_getpages(cache, local_flags, numa_mem_id());
-		if (local_flags & __GFP_WAIT)
+		if (gfpflags_allow_blocking(local_flags))
 			local_irq_disable();
 		if (page) {
 			/*

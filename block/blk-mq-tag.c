@@ -268,7 +268,7 @@ static int bt_get(struct blk_mq_alloc_data *data,
 	if (tag != -1)
 		return tag;
 
-	if (!(data->gfp & __GFP_WAIT))
+	if (!gfpflags_allow_blocking(data->gfp))
 		return -1;
 
 	bs = bt_wait_ptr(bt, hctx);

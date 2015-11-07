@@ -1617,7 +1617,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 			goto fail;
 		}
 		area->pages[i] = page;
-		if (gfp_mask & __GFP_WAIT)
+		if (gfpflags_allow_blocking(gfp_mask))
 			cond_resched();
 	}
 
