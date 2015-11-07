@@ -4774,13 +4774,25 @@ int read_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 *data)
  */
 static int write_lcb_via_8051(struct hfi1_devdata *dd, u32 addr, u64 data)
 {
+	u32 regno;
+	int ret;
 
-	if (acquire_lcb_access(dd, 0) == 0) {
-		write_csr(dd, addr, data);
-		release_lcb_access(dd, 0);
-		return 0;
+	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR ||
+	    (dd->dc8051_ver < dc8051_ver(0, 20))) {
+		if (acquire_lcb_access(dd, 0) == 0) {
+			write_csr(dd, addr, data);
+			release_lcb_access(dd, 0);
+			return 0;
+		}
+		return -EBUSY;
 	}
-	return -EBUSY;
+
+	/* register is an index of LCB registers: (offset - base) / 8 */
+	regno = (addr - DC_LCB_CFG_RUN) >> 3;
+	ret = do_8051_command(dd, HCMD_WRITE_LCB_CSR, regno, &data);
+	if (ret != HCMD_SUCCESS)
+		return -EBUSY;
+	return 0;
 }
 
 /*
@@ -4860,6 +4872,26 @@ static int do_8051_command(
 	 * If there is no timeout, then the 8051 command interface is
 	 * waiting for a command.
 	 */
+
+	/*
+	 * When writing a LCB CSR, out_data contains the full value to
+	 * to be written, while in_data contains the relative LCB
+	 * address in 7:0.  Do the work here, rather than the caller,
+	 * of distrubting the write data to where it needs to go:
+	 *
+	 * Write data
+	 *   39:00 -> in_data[47:8]
+	 *   47:40 -> DC8051_CFG_EXT_DEV_0.RETURN_CODE
+	 *   63:48 -> DC8051_CFG_EXT_DEV_0.RSP_DATA
+	 */
+	if (type == HCMD_WRITE_LCB_CSR) {
+		in_data |= ((*out_data) & 0xffffffffffull) << 8;
+		reg = ((((*out_data) >> 40) & 0xff) <<
+				DC_DC8051_CFG_EXT_DEV_0_RETURN_CODE_SHIFT)
+		      | ((((*out_data) >> 48) & 0xffff) <<
+				DC_DC8051_CFG_EXT_DEV_0_RSP_DATA_SHIFT);
+		write_csr(dd, DC_DC8051_CFG_EXT_DEV_0, reg);
+	}
 
 	/*
 	 * Do two writes: the first to stabilize the type and req_data, the

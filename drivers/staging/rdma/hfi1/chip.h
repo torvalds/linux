@@ -235,6 +235,7 @@
 #define HCMD_MISC		   0x05
 #define HCMD_READ_LCB_IDLE_MSG 0x06
 #define HCMD_READ_LCB_CSR      0x07
+#define HCMD_WRITE_LCB_CSR     0x08
 #define HCMD_INTERFACE_TEST	   0xff
 
 /* DC_DC8051_CFG_HOST_CMD_1.RETURN_CODE - 8051 host command return */
