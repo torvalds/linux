@@ -126,17 +126,17 @@ void start_kernel_secondary(void)
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
 
-	notify_cpu_starting(cpu);
-	set_cpu_online(cpu, true);
-
-	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
-
 	/* Some SMP H/w setup - for each cpu */
 	if (plat_smp_ops.init_per_cpu)
 		plat_smp_ops.init_per_cpu(cpu);
 
 	if (machine_desc->init_per_cpu)
 		machine_desc->init_per_cpu(cpu);
+
+	notify_cpu_starting(cpu);
+	set_cpu_online(cpu, true);
+
+	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
 	local_irq_enable();
 	preempt_disable();
