@@ -440,13 +440,12 @@ struct vmw_private {
 	spinlock_t waiter_lock;
 	int fence_queue_waiters; /* Protected by waiter_lock */
 	int goal_queue_waiters; /* Protected by waiter_lock */
-	int cmdbuf_waiters; /* Protected by irq_lock */
-	int error_waiters; /* Protected by irq_lock */
-	atomic_t fifo_queue_waiters;
+	int cmdbuf_waiters; /* Protected by waiter_lock */
+	int error_waiters; /* Protected by waiter_lock */
+	int fifo_queue_waiters; /* Protected by waiter_lock */
 	uint32_t last_read_seqno;
-	spinlock_t irq_lock;
 	struct vmw_fence_manager *fman;
-	uint32_t irq_mask;
+	uint32_t irq_mask; /* Updates protected by waiter_lock */
 
 	/*
 	 * Device state

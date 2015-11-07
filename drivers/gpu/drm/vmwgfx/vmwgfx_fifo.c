@@ -252,7 +252,6 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 			 unsigned long timeout)
 {
 	long ret = 1L;
-	unsigned long irq_flags;
 
 	if (likely(!vmw_fifo_is_full(dev_priv, bytes)))
 		return 0;
@@ -262,16 +261,8 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 		return vmw_fifo_wait_noirq(dev_priv, bytes,
 					   interruptible, timeout);
 
-	spin_lock(&dev_priv->waiter_lock);
-	if (atomic_add_return(1, &dev_priv->fifo_queue_waiters) > 0) {
-		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
-		outl(SVGA_IRQFLAG_FIFO_PROGRESS,
-		     dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-		dev_priv->irq_mask |= SVGA_IRQFLAG_FIFO_PROGRESS;
-		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
-	}
-	spin_unlock(&dev_priv->waiter_lock);
+	vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_FIFO_PROGRESS,
+			       &dev_priv->fifo_queue_waiters);
 
 	if (interruptible)
 		ret = wait_event_interruptible_timeout
@@ -287,14 +278,8 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 	else if (likely(ret > 0))
 		ret = 0;
 
-	spin_lock(&dev_priv->waiter_lock);
-	if (atomic_dec_and_test(&dev_priv->fifo_queue_waiters)) {
-		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
-		dev_priv->irq_mask &= ~SVGA_IRQFLAG_FIFO_PROGRESS;
-		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
-	}
-	spin_unlock(&dev_priv->waiter_lock);
+	vmw_generic_waiter_remove(dev_priv, SVGA_IRQFLAG_FIFO_PROGRESS,
+				  &dev_priv->fifo_queue_waiters);
 
 	return ret;
 }

@@ -643,7 +643,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	init_waitqueue_head(&dev_priv->fence_queue);
 	init_waitqueue_head(&dev_priv->fifo_queue);
 	dev_priv->fence_queue_waiters = 0;
-	atomic_set(&dev_priv->fifo_queue_waiters, 0);
+	dev_priv->fifo_queue_waiters = 0;
 
 	dev_priv->used_memory_size = 0;
 

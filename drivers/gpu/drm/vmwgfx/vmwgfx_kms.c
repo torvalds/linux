@@ -78,7 +78,7 @@ int vmw_cursor_update_image(struct vmw_private *dev_priv,
 	cmd->cursor.hotspotX = hotspotX;
 	cmd->cursor.hotspotY = hotspotY;
 
-	vmw_fifo_commit(dev_priv, cmd_size);
+	vmw_fifo_commit_flush(dev_priv, cmd_size);
 
 	return 0;
 }
