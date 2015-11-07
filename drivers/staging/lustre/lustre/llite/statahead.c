@@ -87,11 +87,6 @@ struct ll_sa_entry {
 static unsigned int sai_generation;
 static DEFINE_SPINLOCK(sai_generation_lock);
 
-static inline int ll_sa_entry_unhashed(struct ll_sa_entry *entry)
-{
-	return list_empty(&entry->se_hash);
-}
-
 /*
  * The entry only can be released by the caller, it is necessary to hold lock.
  */
@@ -331,7 +326,7 @@ static void ll_sa_entry_put(struct ll_statahead_info *sai,
 
 		LASSERT(list_empty(&entry->se_link));
 		LASSERT(list_empty(&entry->se_list));
-		LASSERT(ll_sa_entry_unhashed(entry));
+		LASSERT(list_empty(&entry->se_hash));
 
 		ll_sa_entry_cleanup(sai, entry);
 		iput(entry->se_inode);
@@ -346,7 +341,7 @@ do_sa_entry_fini(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 {
 	struct ll_inode_info *lli = ll_i2info(sai->sai_inode);
 
-	LASSERT(!ll_sa_entry_unhashed(entry));
+	LASSERT(!list_empty(&entry->se_hash));
 	LASSERT(!list_empty(&entry->se_link));
 
 	ll_sa_entry_unhash(sai, entry);
