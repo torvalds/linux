@@ -116,7 +116,7 @@ static void set_recommended_min_free_kbytes(void)
 	for_each_populated_zone(zone)
 		nr_zones++;
 
-	/* Make sure at least 2 hugepages are free for MIGRATE_RESERVE */
+	/* Ensure 2 pageblocks are free to assist fragmentation avoidance */
 	recommended_min = pageblock_nr_pages * nr_zones * 2;
 
 	/*

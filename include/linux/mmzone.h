@@ -39,8 +39,6 @@ enum {
 	MIGRATE_UNMOVABLE,
 	MIGRATE_MOVABLE,
 	MIGRATE_RECLAIMABLE,
-	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
-	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
 #ifdef CONFIG_CMA
 	/*
 	 * MIGRATE_CMA migration type is designed to mimic the way
@@ -62,6 +60,8 @@ enum {
 #endif
 	MIGRATE_TYPES
 };
+
+#define MIGRATE_PCPTYPES (MIGRATE_RECLAIMABLE+1)
 
 #ifdef CONFIG_CMA
 #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
@@ -428,12 +428,6 @@ struct zone {
 	unsigned long		present_pages;
 
 	const char		*name;
-
-	/*
-	 * Number of MIGRATE_RESERVE page block. To maintain for just
-	 * optimization. Protected by zone->lock.
-	 */
-	int			nr_migrate_reserve_block;
 
 #ifdef CONFIG_MEMORY_ISOLATION
 	/*
