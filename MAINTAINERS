@@ -5440,7 +5440,8 @@ S:	Supported
 F:	drivers/idle/intel_idle.c
 
 INTEL PSTATE DRIVER
-M:	Kristen Carlson Accardi <kristen@linux.intel.com>
+M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
+M:	Len Brown <lenb@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/cpufreq/intel_pstate.c
