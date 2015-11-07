@@ -341,7 +341,6 @@ static const char loop_dev_name[] = "fwloop";
 
 extern struct tty_driver *fwtty_driver;
 
-struct fwtty_port *fwtty_port_get(unsigned index);
 /*
  * Returns the max send async payload size in bytes based on the unit device
  * link speed. Self-limiting asynchronous bandwidth (via reducing the payload)

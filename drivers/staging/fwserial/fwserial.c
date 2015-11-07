@@ -828,7 +828,7 @@ static void fwtty_write_xchar(struct fwtty_port *port, char ch)
 	rcu_read_unlock();
 }
 
-struct fwtty_port *fwtty_port_get(unsigned index)
+static struct fwtty_port *fwtty_port_get(unsigned index)
 {
 	struct fwtty_port *port;
 
@@ -842,7 +842,6 @@ struct fwtty_port *fwtty_port_get(unsigned index)
 	mutex_unlock(&port_table_lock);
 	return port;
 }
-EXPORT_SYMBOL(fwtty_port_get);
 
 static int fwtty_ports_add(struct fw_serial *serial)
 {
