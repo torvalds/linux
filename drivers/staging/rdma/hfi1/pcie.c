@@ -949,17 +949,7 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	}
 
 retry:
-
-	if (therm) {
-		/*
-		 * toggle SPICO_ENABLE to get back to the state
-		 * just after the firmware load
-		 */
-		sbus_request(dd, SBUS_MASTER_BROADCAST, 0x01,
-			WRITE_SBUS_RECEIVER, 0x00000040);
-		sbus_request(dd, SBUS_MASTER_BROADCAST, 0x01,
-			WRITE_SBUS_RECEIVER, 0x00000140);
-	}
+	/* the SBus download will reset the spico for thermal */
 
 	/* step 3: download SBus Master firmware */
 	/* step 4: download PCIe Gen3 SerDes firmware */

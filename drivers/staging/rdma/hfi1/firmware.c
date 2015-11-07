@@ -1568,7 +1568,7 @@ int load_pcie_firmware(struct hfi1_devdata *dd)
 	/* both firmware loads below use the SBus */
 	set_sbus_fast_mode(dd);
 
-	if (fw_sbus_load && (dd->flags & HFI1_DO_INIT_ASIC)) {
+	if (fw_sbus_load) {
 		turn_off_spicos(dd, SPICO_SBUS);
 		ret = load_sbus_firmware(dd, &fw_sbus);
 		if (ret)
