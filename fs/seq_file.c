@@ -773,6 +773,8 @@ void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
 {
 	const u8 *ptr = buf;
 	int i, linelen, remaining = len;
+	char *buffer;
+	size_t size;
 	int ret;
 
 	if (rowsize != 16 && rowsize != 32)
@@ -794,15 +796,12 @@ void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
 			break;
 		}
 
+		size = seq_get_buf(m, &buffer);
 		ret = hex_dump_to_buffer(ptr + i, linelen, rowsize, groupsize,
-					 m->buf + m->count, m->size - m->count,
-					 ascii);
-		if (ret >= m->size - m->count) {
-			seq_set_overflow(m);
-		} else {
-			m->count += ret;
-			seq_putc(m, '\n');
-		}
+					 buffer, size, ascii);
+		seq_commit(m, ret < size ? ret : -1);
+
+		seq_putc(m, '\n');
 	}
 }
 EXPORT_SYMBOL(seq_hex_dump);
