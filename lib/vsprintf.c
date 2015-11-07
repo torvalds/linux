@@ -1772,14 +1772,14 @@ qualifier:
 
 	case 'n':
 		/*
-		 * Since %n poses a greater security risk than utility, treat
-		 * it as an invalid format specifier. Warn about its use so
-		 * that new instances don't get added.
+		 * Since %n poses a greater security risk than
+		 * utility, treat it as any other invalid or
+		 * unsupported format specifier.
 		 */
-		WARN_ONCE(1, "Please remove ignored %%n in '%s'\n", fmt);
 		/* Fall-through */
 
 	default:
+		WARN_ONCE(1, "Please remove unsupported %%%c in format string\n", *fmt);
 		spec->type = FORMAT_TYPE_INVALID;
 		return fmt - start;
 	}
@@ -1920,10 +1920,15 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			break;
 
 		case FORMAT_TYPE_INVALID:
-			if (str < end)
-				*str = '%';
-			++str;
-			break;
+			/*
+			 * Presumably the arguments passed gcc's type
+			 * checking, but there is no safe or sane way
+			 * for us to continue parsing the format and
+			 * fetching from the va_list; the remaining
+			 * specifiers and arguments would be out of
+			 * sync.
+			 */
+			goto out;
 
 		default:
 			switch (spec.type) {
@@ -1968,6 +1973,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		}
 	}
 
+out:
 	if (size > 0) {
 		if (str < end)
 			*str = '\0';
@@ -2165,9 +2171,10 @@ do {									\
 
 		switch (spec.type) {
 		case FORMAT_TYPE_NONE:
-		case FORMAT_TYPE_INVALID:
 		case FORMAT_TYPE_PERCENT_CHAR:
 			break;
+		case FORMAT_TYPE_INVALID:
+			goto out;
 
 		case FORMAT_TYPE_WIDTH:
 		case FORMAT_TYPE_PRECISION:
@@ -2229,6 +2236,7 @@ do {									\
 		}
 	}
 
+out:
 	return (u32 *)(PTR_ALIGN(str, sizeof(u32))) - bin_buf;
 #undef save_arg
 }
@@ -2351,11 +2359,13 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 			break;
 
 		case FORMAT_TYPE_PERCENT_CHAR:
-		case FORMAT_TYPE_INVALID:
 			if (str < end)
 				*str = '%';
 			++str;
 			break;
+
+		case FORMAT_TYPE_INVALID:
+			goto out;
 
 		default: {
 			unsigned long long num;
@@ -2399,6 +2409,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 		} /* switch(spec.type) */
 	} /* while(*fmt) */
 
+out:
 	if (size > 0) {
 		if (str < end)
 			*str = '\0';
