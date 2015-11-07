@@ -518,7 +518,7 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 			do_sa_entry_fini(sai, entry);
 
 		LASSERT(list_empty(&sai->sai_entries));
-		LASSERT(sa_received_empty(sai));
+		LASSERT(list_empty(&sai->sai_entries_received));
 		LASSERT(list_empty(&sai->sai_entries_stated));
 
 		LASSERT(atomic_read(&sai->sai_cache_count) == 0);
@@ -602,7 +602,7 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 	int		     rc    = 0;
 
 	spin_lock(&lli->lli_sa_lock);
-	if (unlikely(sa_received_empty(sai))) {
+	if (unlikely(list_empty(&sai->sai_entries_received))) {
 		spin_unlock(&lli->lli_sa_lock);
 		return;
 	}
@@ -738,7 +738,7 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 			 * for readpage and other tries to enqueue lock on child
 			 * with parent's lock held, for example: unlink. */
 			entry->se_handle = handle;
-			wakeup = sa_received_empty(sai);
+			wakeup = list_empty(&sai->sai_entries_received);
 			list_add_tail(&entry->se_list,
 					  &sai->sai_entries_received);
 		}
@@ -1120,13 +1120,13 @@ static int ll_statahead_thread(void *arg)
 keep_it:
 			l_wait_event(thread->t_ctl_waitq,
 				     !sa_sent_full(sai) ||
-				     !sa_received_empty(sai) ||
+				     !list_empty(&sai->sai_entries_received) ||
 				     !agl_list_empty(sai) ||
 				     !thread_is_running(thread),
 				     &lwi);
 
 interpret_it:
-			while (!sa_received_empty(sai))
+			while (!list_empty(&sai->sai_entries_received))
 				ll_post_statahead(sai);
 
 			if (unlikely(!thread_is_running(thread))) {
@@ -1148,7 +1148,7 @@ interpret_it:
 					ll_agl_trigger(&clli->lli_vfs_inode,
 						       sai);
 
-					if (!sa_received_empty(sai))
+					if (!list_empty(&sai->sai_entries_received))
 						goto interpret_it;
 
 					if (unlikely(
@@ -1179,12 +1179,12 @@ do_it:
 			ll_release_page(page, 0);
 			while (1) {
 				l_wait_event(thread->t_ctl_waitq,
-					     !sa_received_empty(sai) ||
+					     !list_empty(&sai->sai_entries_received) ||
 					     sai->sai_sent == sai->sai_replied ||
 					     !thread_is_running(thread),
 					     &lwi);
 
-				while (!sa_received_empty(sai))
+				while (!list_empty(&sai->sai_entries_received))
 					ll_post_statahead(sai);
 
 				if (unlikely(!thread_is_running(thread))) {
@@ -1193,7 +1193,7 @@ do_it:
 				}
 
 				if (sai->sai_sent == sai->sai_replied &&
-				    sa_received_empty(sai))
+				    list_empty(&sai->sai_entries_received))
 					break;
 			}
 
@@ -1246,12 +1246,12 @@ out:
 	}
 	ll_dir_chain_fini(&chain);
 	spin_lock(&plli->lli_sa_lock);
-	if (!sa_received_empty(sai)) {
+	if (!list_empty(&sai->sai_entries_received)) {
 		thread_set_flags(thread, SVC_STOPPING);
 		spin_unlock(&plli->lli_sa_lock);
 
 		/* To release the resources held by received entries. */
-		while (!sa_received_empty(sai))
+		while (!list_empty(&sai->sai_entries_received))
 			ll_post_statahead(sai);
 
 		spin_lock(&plli->lli_sa_lock);
