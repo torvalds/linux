@@ -445,15 +445,15 @@ out:
 /*
  * Higher-order pages are called "compound pages".  They are structured thusly:
  *
- * The first PAGE_SIZE page is called the "head page".
+ * The first PAGE_SIZE page is called the "head page" and have PG_head set.
  *
- * The remaining PAGE_SIZE pages are called "tail pages".
+ * The remaining PAGE_SIZE pages are called "tail pages". PageTail() is encoded
+ * in bit 0 of page->compound_head. The rest of bits is pointer to head page.
  *
- * All pages have PG_compound set.  All tail pages have their ->first_page
- * pointing at the head page.
+ * The first tail page's ->compound_dtor holds the offset in array of compound
+ * page destructors. See compound_page_dtors.
  *
- * The first tail page's ->lru.next holds the address of the compound page's
- * put_page() function.  Its ->lru.prev holds the order of allocation.
+ * The first tail page's ->compound_order holds the order of allocation.
  * This usage means that zero-order pages may not be compound.
  */
 
@@ -473,10 +473,7 @@ void prep_compound_page(struct page *page, unsigned long order)
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
 		set_page_count(p, 0);
-		p->first_page = page;
-		/* Make sure p->first_page is always valid for PageTail() */
-		smp_wmb();
-		__SetPageTail(p);
+		set_compound_head(p, page);
 	}
 }
 
@@ -854,17 +851,30 @@ static void free_one_page(struct zone *zone,
 
 static int free_tail_pages_check(struct page *head_page, struct page *page)
 {
-	if (!IS_ENABLED(CONFIG_DEBUG_VM))
-		return 0;
+	int ret = 1;
+
+	/*
+	 * We rely page->lru.next never has bit 0 set, unless the page
+	 * is PageTail(). Let's make sure that's true even for poisoned ->lru.
+	 */
+	BUILD_BUG_ON((unsigned long)LIST_POISON1 & 1);
+
+	if (!IS_ENABLED(CONFIG_DEBUG_VM)) {
+		ret = 0;
+		goto out;
+	}
 	if (unlikely(!PageTail(page))) {
 		bad_page(page, "PageTail not set", 0);
-		return 1;
+		goto out;
 	}
-	if (unlikely(page->first_page != head_page)) {
-		bad_page(page, "first_page not consistent", 0);
-		return 1;
+	if (unlikely(compound_head(page) != head_page)) {
+		bad_page(page, "compound_head not consistent", 0);
+		goto out;
 	}
-	return 0;
+	ret = 0;
+out:
+	clear_compound_head(page);
+	return ret;
 }
 
 static void __meminit __init_single_page(struct page *page, unsigned long pfn,
@@ -931,6 +941,10 @@ void __meminit reserve_bootmem_region(unsigned long start, unsigned long end)
 			struct page *page = pfn_to_page(start_pfn);
 
 			init_reserved_page(start_pfn);
+
+			/* Avoid false-positive PageTail() */
+			INIT_LIST_HEAD(&page->lru);
+
 			SetPageReserved(page);
 		}
 	}

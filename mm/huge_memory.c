@@ -1755,8 +1755,7 @@ static void __split_huge_page_refcount(struct page *page,
 				      (1L << PG_unevictable)));
 		page_tail->flags |= (1L << PG_dirty);
 
-		/* clear PageTail before overwriting first_page */
-		smp_wmb();
+		clear_compound_head(page_tail);
 
 		if (page_is_young(page))
 			set_page_young(page_tail);

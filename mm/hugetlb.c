@@ -1001,9 +1001,8 @@ static void destroy_compound_gigantic_page(struct page *page,
 	struct page *p = page + 1;
 
 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
-		__ClearPageTail(p);
+		clear_compound_head(p);
 		set_page_refcounted(p);
-		p->first_page = NULL;
 	}
 
 	set_compound_order(page, 0);
@@ -1276,10 +1275,7 @@ static void prep_compound_gigantic_page(struct page *page, unsigned long order)
 		 */
 		__ClearPageReserved(p);
 		set_page_count(p, 0);
-		p->first_page = page;
-		/* Make sure p->first_page is always valid for PageTail() */
-		smp_wmb();
-		__SetPageTail(p);
+		set_compound_head(p, page);
 	}
 }
 

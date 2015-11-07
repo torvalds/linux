@@ -430,46 +430,6 @@ static inline void compound_unlock_irqrestore(struct page *page,
 #endif
 }
 
-static inline struct page *compound_head_by_tail(struct page *tail)
-{
-	struct page *head = tail->first_page;
-
-	/*
-	 * page->first_page may be a dangling pointer to an old
-	 * compound page, so recheck that it is still a tail
-	 * page before returning.
-	 */
-	smp_rmb();
-	if (likely(PageTail(tail)))
-		return head;
-	return tail;
-}
-
-/*
- * Since either compound page could be dismantled asynchronously in THP
- * or we access asynchronously arbitrary positioned struct page, there
- * would be tail flag race. To handle this race, we should call
- * smp_rmb() before checking tail flag. compound_head_by_tail() did it.
- */
-static inline struct page *compound_head(struct page *page)
-{
-	if (unlikely(PageTail(page)))
-		return compound_head_by_tail(page);
-	return page;
-}
-
-/*
- * If we access compound page synchronously such as access to
- * allocated page, there is no need to handle tail flag race, so we can
- * check tail flag directly without any synchronization primitive.
- */
-static inline struct page *compound_head_fast(struct page *page)
-{
-	if (unlikely(PageTail(page)))
-		return page->first_page;
-	return page;
-}
-
 /*
  * The atomic page->_mapcount, starts from -1: so that transitions
  * both from it and to it can be tracked, using atomic_inc_and_test
@@ -518,7 +478,7 @@ static inline void get_huge_page_tail(struct page *page)
 	VM_BUG_ON_PAGE(!PageTail(page), page);
 	VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
 	VM_BUG_ON_PAGE(atomic_read(&page->_count) != 0, page);
-	if (compound_tail_refcounted(page->first_page))
+	if (compound_tail_refcounted(compound_head(page)))
 		atomic_inc(&page->_mapcount);
 }
 
@@ -541,13 +501,7 @@ static inline struct page *virt_to_head_page(const void *x)
 {
 	struct page *page = virt_to_page(x);
 
-	/*
-	 * We don't need to worry about synchronization of tail flag
-	 * when we call virt_to_head_page() since it is only called for
-	 * already allocated page and this page won't be freed until
-	 * this virt_to_head_page() is finished. So use _fast variant.
-	 */
-	return compound_head_fast(page);
+	return compound_head(page);
 }
 
 /*
@@ -1586,8 +1540,7 @@ static inline bool ptlock_init(struct page *page)
 	 * with 0. Make sure nobody took it in use in between.
 	 *
 	 * It can happen if arch try to use slab for page table allocation:
-	 * slab code uses page->slab_cache and page->first_page (for tail
-	 * pages), which share storage with page->ptl.
+	 * slab code uses page->slab_cache, which share storage with page->ptl.
 	 */
 	VM_BUG_ON_PAGE(*(unsigned long *)&page->ptl, page);
 	if (!ptlock_alloc(page))
