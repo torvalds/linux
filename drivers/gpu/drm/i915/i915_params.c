@@ -38,7 +38,7 @@ struct i915_params i915 __read_mostly = {
 	.enable_ppgtt = -1,
 	.enable_psr = 0,
 	.preliminary_hw_support = IS_ENABLED(CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT),
-	.disable_power_well = 1,
+	.disable_power_well = -1,
 	.enable_ips = 1,
 	.prefault_disable = 0,
 	.load_detect_test = 0,
@@ -127,7 +127,8 @@ MODULE_PARM_DESC(preliminary_hw_support,
 
 module_param_named_unsafe(disable_power_well, i915.disable_power_well, int, 0600);
 MODULE_PARM_DESC(disable_power_well,
-	"Disable the power well when possible (default: true)");
+	"Disable display power wells when possible "
+	"(-1=auto [default], 0=power wells always on, 1=power wells disabled when possible)");
 
 module_param_named_unsafe(enable_ips, i915.enable_ips, int, 0600);
 MODULE_PARM_DESC(enable_ips, "Enable IPS (default: true)");

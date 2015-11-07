@@ -1811,6 +1811,21 @@ static struct i915_power_well bxt_power_wells[] = {
 	}
 };
 
+static int
+sanitize_disable_power_well_option(const struct drm_i915_private *dev_priv,
+				   int disable_power_well)
+{
+	if (disable_power_well >= 0)
+		return !!disable_power_well;
+
+	if (IS_SKYLAKE(dev_priv)) {
+		DRM_DEBUG_KMS("Disabling display power well support\n");
+		return 0;
+	}
+
+	return 1;
+}
+
 #define set_power_wells(power_domains, __power_wells) ({		\
 	(power_domains)->power_wells = (__power_wells);			\
 	(power_domains)->power_well_count = ARRAY_SIZE(__power_wells);	\
@@ -1826,6 +1841,9 @@ static struct i915_power_well bxt_power_wells[] = {
 int intel_power_domains_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	i915.disable_power_well = sanitize_disable_power_well_option(dev_priv,
+						     i915.disable_power_well);
 
 	mutex_init(&power_domains->lock);
 

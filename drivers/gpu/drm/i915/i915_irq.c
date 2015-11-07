@@ -749,7 +749,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	 * problem.  We may need to extend this to include other platforms,
 	 * but so far testing only shows the problem on HSW.
 	 */
-	if (IS_HASWELL(dev) && !position) {
+	if (HAS_DDI(dev) && !position) {
 		int i, temp;
 
 		for (i = 0; i < 100; i++) {
@@ -4236,9 +4236,10 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 
 	/* Ignore TV since it's buggy */
 	i915_hotplug_interrupt_update_locked(dev_priv,
-				      (HOTPLUG_INT_EN_MASK
-				       | CRT_HOTPLUG_VOLTAGE_COMPARE_MASK),
-				      hotplug_en);
+					     HOTPLUG_INT_EN_MASK |
+					     CRT_HOTPLUG_VOLTAGE_COMPARE_MASK |
+					     CRT_HOTPLUG_ACTIVATION_PERIOD_64,
+					     hotplug_en);
 }
 
 static irqreturn_t i965_irq_handler(int irq, void *arg)
