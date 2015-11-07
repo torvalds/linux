@@ -342,7 +342,7 @@ static void zswap_entry_put(struct zswap_tree *tree,
 static struct zswap_entry *zswap_entry_find_get(struct rb_root *root,
 				pgoff_t offset)
 {
-	struct zswap_entry *entry = NULL;
+	struct zswap_entry *entry;
 
 	entry = zswap_rb_search(root, offset);
 	if (entry)
