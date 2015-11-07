@@ -2120,7 +2120,7 @@ done_restock:
 	/*
 	 * If the hierarchy is above the normal consumption range, schedule
 	 * reclaim on returning to userland.  We can perform reclaim here
-	 * if __GFP_WAIT but let's always punt for simplicity and so that
+	 * if __GFP_RECLAIM but let's always punt for simplicity and so that
 	 * GFP_KERNEL can consistently be used during reclaim.  @memcg is
 	 * not recorded as it most likely matches current's and won't
 	 * change in the meantime.  As high limit is checked again before

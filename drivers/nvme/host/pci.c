@@ -1025,11 +1025,13 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 	req->special = (void *)0;
 
 	if (buffer && bufflen) {
-		ret = blk_rq_map_kern(q, req, buffer, bufflen, __GFP_WAIT);
+		ret = blk_rq_map_kern(q, req, buffer, bufflen,
+				      __GFP_DIRECT_RECLAIM);
 		if (ret)
 			goto out;
 	} else if (ubuffer && bufflen) {
-		ret = blk_rq_map_user(q, req, NULL, ubuffer, bufflen, __GFP_WAIT);
+		ret = blk_rq_map_user(q, req, NULL, ubuffer, bufflen,
+				      __GFP_DIRECT_RECLAIM);
 		if (ret)
 			goto out;
 		bio = req->bio;
