@@ -620,12 +620,9 @@ static int c2_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 
 static int c2_reject(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
-	int err;
-
 	pr_debug("%s:%u\n", __func__, __LINE__);
 
-	err = c2_llp_reject(cm_id, pdata, pdata_len);
-	return err;
+	return c2_llp_reject(cm_id, pdata, pdata_len);
 }
 
 static int c2_service_create(struct iw_cm_id *cm_id, int backlog)
@@ -642,12 +639,9 @@ static int c2_service_create(struct iw_cm_id *cm_id, int backlog)
 
 static int c2_service_destroy(struct iw_cm_id *cm_id)
 {
-	int err;
 	pr_debug("%s:%u\n", __func__, __LINE__);
 
-	err = c2_llp_service_destroy(cm_id);
-
-	return err;
+	return c2_llp_service_destroy(cm_id);
 }
 
 static int c2_pseudo_up(struct net_device *netdev)
