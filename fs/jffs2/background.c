@@ -132,8 +132,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 			case SIGSTOP:
 				jffs2_dbg(1, "%s(): SIGSTOP received\n",
 					  __func__);
-				set_current_state(TASK_STOPPED);
-				schedule();
+				kernel_signal_stop();
 				break;
 
 			case SIGKILL:
