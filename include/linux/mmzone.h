@@ -337,12 +337,13 @@ struct zone {
 	unsigned long nr_reserved_highatomic;
 
 	/*
-	 * We don't know if the memory that we're going to allocate will be freeable
-	 * or/and it will be released eventually, so to avoid totally wasting several
-	 * GB of ram we must reserve some of the lower zone memory (otherwise we risk
-	 * to run OOM on the lower zones despite there's tons of freeable ram
-	 * on the higher zones). This array is recalculated at runtime if the
-	 * sysctl_lowmem_reserve_ratio sysctl changes.
+	 * We don't know if the memory that we're going to allocate will be
+	 * freeable or/and it will be released eventually, so to avoid totally
+	 * wasting several GB of ram we must reserve some of the lower zone
+	 * memory (otherwise we risk to run OOM on the lower zones despite
+	 * there being tons of freeable ram on the higher zones).  This array is
+	 * recalculated at runtime if the sysctl_lowmem_reserve_ratio sysctl
+	 * changes.
 	 */
 	long lowmem_reserve[MAX_NR_ZONES];
 
