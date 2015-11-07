@@ -133,13 +133,6 @@ static inline int agl_should_run(struct ll_statahead_info *sai,
 	return (inode != NULL && S_ISREG(inode->i_mode) && sai->sai_agl_valid);
 }
 
-static inline struct ll_inode_info *
-agl_first_entry(struct ll_statahead_info *sai)
-{
-	return list_entry(sai->sai_entries_agl.next,
-			      struct ll_inode_info, lli_agl_list);
-}
-
 static inline int sa_sent_full(struct ll_statahead_info *sai)
 {
 	return atomic_read(&sai->sai_cache_count) >= sai->sai_max;
@@ -973,7 +966,8 @@ static int ll_agl_thread(void *arg)
 		/* The statahead thread maybe help to process AGL entries,
 		 * so check whether list empty again. */
 		if (!agl_list_empty(sai)) {
-			clli = agl_first_entry(sai);
+			clli = list_entry(sai->sai_entries_agl.next,
+					  struct ll_inode_info, lli_agl_list);
 			list_del_init(&clli->lli_agl_list);
 			spin_unlock(&plli->lli_agl_lock);
 			ll_agl_trigger(&clli->lli_vfs_inode, sai);
@@ -985,7 +979,8 @@ static int ll_agl_thread(void *arg)
 	spin_lock(&plli->lli_agl_lock);
 	sai->sai_agl_valid = 0;
 	while (!agl_list_empty(sai)) {
-		clli = agl_first_entry(sai);
+		clli = list_entry(sai->sai_entries_agl.next,
+				  struct ll_inode_info, lli_agl_list);
 		list_del_init(&clli->lli_agl_list);
 		spin_unlock(&plli->lli_agl_lock);
 		clli->lli_agl_index = 0;
@@ -1146,7 +1141,8 @@ interpret_it:
 			if (sa_sent_full(sai)) {
 				spin_lock(&plli->lli_agl_lock);
 				while (!agl_list_empty(sai)) {
-					clli = agl_first_entry(sai);
+					clli = list_entry(sai->sai_entries_agl.next,
+							  struct ll_inode_info, lli_agl_list);
 					list_del_init(&clli->lli_agl_list);
 					spin_unlock(&plli->lli_agl_lock);
 					ll_agl_trigger(&clli->lli_vfs_inode,
@@ -1204,7 +1200,8 @@ do_it:
 			spin_lock(&plli->lli_agl_lock);
 			while (!agl_list_empty(sai) &&
 			       thread_is_running(thread)) {
-				clli = agl_first_entry(sai);
+				clli = list_entry(sai->sai_entries_agl.next,
+						  struct ll_inode_info, lli_agl_list);
 				list_del_init(&clli->lli_agl_list);
 				spin_unlock(&plli->lli_agl_lock);
 				ll_agl_trigger(&clli->lli_vfs_inode, sai);
