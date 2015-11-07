@@ -62,7 +62,7 @@ static void completion_pages(struct work_struct *work)
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
 
-		int ret = ext4_decrypt(ctx, page);
+		int ret = ext4_decrypt(page);
 		if (ret) {
 			WARN_ON_ONCE(1);
 			SetPageError(page);
