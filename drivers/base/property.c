@@ -598,18 +598,34 @@ unsigned int device_get_child_node_count(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(device_get_child_node_count);
 
-bool device_dma_is_coherent(struct device *dev)
+bool device_dma_supported(struct device *dev)
 {
-	bool coherent = false;
-
+	/* For DT, this is always supported.
+	 * For ACPI, this depends on CCA, which
+	 * is determined by the acpi_dma_supported().
+	 */
 	if (IS_ENABLED(CONFIG_OF) && dev->of_node)
-		coherent = of_dma_is_coherent(dev->of_node);
-	else
-		acpi_check_dma(ACPI_COMPANION(dev), &coherent);
+		return true;
 
-	return coherent;
+	return acpi_dma_supported(ACPI_COMPANION(dev));
 }
-EXPORT_SYMBOL_GPL(device_dma_is_coherent);
+EXPORT_SYMBOL_GPL(device_dma_supported);
+
+enum dev_dma_attr device_get_dma_attr(struct device *dev)
+{
+	enum dev_dma_attr attr = DEV_DMA_NOT_SUPPORTED;
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+		if (of_dma_is_coherent(dev->of_node))
+			attr = DEV_DMA_COHERENT;
+		else
+			attr = DEV_DMA_NON_COHERENT;
+	} else
+		attr = acpi_get_dma_attr(ACPI_COMPANION(dev));
+
+	return attr;
+}
+EXPORT_SYMBOL_GPL(device_get_dma_attr);
 
 /**
  * device_get_phy_mode - Get phy mode for given device
