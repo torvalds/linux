@@ -236,6 +236,26 @@ static int nilfs_palloc_get_block(struct inode *inode, unsigned long blkoff,
 }
 
 /**
+ * nilfs_palloc_delete_block - delete a block on the persistent allocator file
+ * @inode: inode of metadata file using this allocator
+ * @blkoff: block offset
+ * @prev: nilfs_bh_assoc struct of the last used buffer
+ * @lock: spin lock protecting @prev
+ */
+static int nilfs_palloc_delete_block(struct inode *inode, unsigned long blkoff,
+				     struct nilfs_bh_assoc *prev,
+				     spinlock_t *lock)
+{
+	spin_lock(lock);
+	if (prev->bh && blkoff == prev->blkoff) {
+		brelse(prev->bh);
+		prev->bh = NULL;
+	}
+	spin_unlock(lock);
+	return nilfs_mdt_delete_block(inode, blkoff);
+}
+
+/**
  * nilfs_palloc_get_desc_block - get buffer head of a group descriptor block
  * @inode: inode of metadata file using this allocator
  * @group: group number
@@ -274,6 +294,22 @@ static int nilfs_palloc_get_bitmap_block(struct inode *inode,
 }
 
 /**
+ * nilfs_palloc_delete_bitmap_block - delete a bitmap block
+ * @inode: inode of metadata file using this allocator
+ * @group: group number
+ */
+static int nilfs_palloc_delete_bitmap_block(struct inode *inode,
+					    unsigned long group)
+{
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	return nilfs_palloc_delete_block(inode,
+					 nilfs_palloc_bitmap_blkoff(inode,
+								    group),
+					 &cache->prev_bitmap, &cache->lock);
+}
+
+/**
  * nilfs_palloc_get_entry_block - get buffer head of an entry block
  * @inode: inode of metadata file using this allocator
  * @nr: serial number of the entry (e.g. inode number)
@@ -289,6 +325,20 @@ int nilfs_palloc_get_entry_block(struct inode *inode, __u64 nr,
 				      nilfs_palloc_entry_blkoff(inode, nr),
 				      create, NULL, bhp,
 				      &cache->prev_entry, &cache->lock);
+}
+
+/**
+ * nilfs_palloc_delete_entry_block - delete an entry block
+ * @inode: inode of metadata file using this allocator
+ * @nr: serial number of the entry
+ */
+static int nilfs_palloc_delete_entry_block(struct inode *inode, __u64 nr)
+{
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	return nilfs_palloc_delete_block(inode,
+					 nilfs_palloc_entry_blkoff(inode, nr),
+					 &cache->prev_entry, &cache->lock);
 }
 
 /**
