@@ -3316,7 +3316,7 @@ static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 
 static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
 {
-	return mapping_gfp_mask(mapping) & ~__GFP_FS;
+	return mapping_gfp_constraint(mapping, ~__GFP_FS);
 }
 
 /* extent-tree.c */

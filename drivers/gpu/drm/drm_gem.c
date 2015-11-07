@@ -491,7 +491,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 		 * __GFP_DMA32 to be set in mapping_gfp_mask(inode->i_mapping)
 		 * so shmem can relocate pages during swapin if required.
 		 */
-		BUG_ON((mapping_gfp_mask(mapping) & __GFP_DMA32) &&
+		BUG_ON(mapping_gfp_constraint(mapping, __GFP_DMA32) &&
 				(page_to_pfn(p) >= 0x00100000UL));
 	}
 
