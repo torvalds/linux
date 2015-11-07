@@ -47,6 +47,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/ib_cache.h>
 
 #include "ocrdma.h"
 #include "ocrdma_hw.h"
@@ -678,11 +679,33 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 	int dev_event = 0;
 	int type = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_TYPE_MASK) >>
 	    OCRDMA_AE_MCQE_EVENT_TYPE_SHIFT;
+	u16 qpid = cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPID_MASK;
+	u16 cqid = cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQID_MASK;
 
-	if (cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPVALID)
-		qp = dev->qp_tbl[cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPID_MASK];
-	if (cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQVALID)
-		cq = dev->cq_tbl[cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQID_MASK];
+	/*
+	 * Some FW version returns wrong qp or cq ids in CQEs.
+	 * Checking whether the IDs are valid
+	 */
+
+	if (cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPVALID) {
+		if (qpid < dev->attr.max_qp)
+			qp = dev->qp_tbl[qpid];
+		if (qp == NULL) {
+			pr_err("ocrdma%d:Async event - qpid %u is not valid\n",
+			       dev->id, qpid);
+			return;
+		}
+	}
+
+	if (cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQVALID) {
+		if (cqid < dev->attr.max_cq)
+			cq = dev->cq_tbl[cqid];
+		if (cq == NULL) {
+			pr_err("ocrdma%d:Async event - cqid %u is not valid\n",
+			       dev->id, cqid);
+			return;
+		}
+	}
 
 	memset(&ib_evt, 0, sizeof(ib_evt));
 
@@ -2448,6 +2471,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	int status;
 	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
 	union ib_gid sgid, zgid;
+	struct ib_gid_attr sgid_attr;
 	u32 vlan_id = 0xFFFF;
 	u8 mac_addr[6];
 	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
@@ -2466,10 +2490,14 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	cmd->flags |= OCRDMA_QP_PARA_FLOW_LBL_VALID;
 	memcpy(&cmd->params.dgid[0], &ah_attr->grh.dgid.raw[0],
 	       sizeof(cmd->params.dgid));
-	status = ocrdma_query_gid(&dev->ibdev, 1,
-			ah_attr->grh.sgid_index, &sgid);
-	if (status)
-		return status;
+
+	status = ib_get_cached_gid(&dev->ibdev, 1, ah_attr->grh.sgid_index,
+				   &sgid, &sgid_attr);
+	if (!status && sgid_attr.ndev) {
+		vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
+		memcpy(mac_addr, sgid_attr.ndev->dev_addr, ETH_ALEN);
+		dev_put(sgid_attr.ndev);
+	}
 
 	memset(&zgid, 0, sizeof(zgid));
 	if (!memcmp(&sgid, &zgid, sizeof(zgid)))
@@ -2486,17 +2514,15 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	ocrdma_cpu_to_le32(&cmd->params.dgid[0], sizeof(cmd->params.dgid));
 	ocrdma_cpu_to_le32(&cmd->params.sgid[0], sizeof(cmd->params.sgid));
 	cmd->params.vlan_dmac_b4_to_b5 = mac_addr[4] | (mac_addr[5] << 8);
-	if (attr_mask & IB_QP_VID) {
-		vlan_id = attrs->vlan_id;
-	} else if (dev->pfc_state) {
-		vlan_id = 0;
-		pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
-			dev->id);
-		pr_err("ocrdma%d:Using VLAN 0 for this connection\n",
-			dev->id);
-	}
 
 	if (vlan_id < 0x1000) {
+		if (dev->pfc_state) {
+			vlan_id = 0;
+			pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
+			       dev->id);
+			pr_err("ocrdma%d:Using VLAN 0 for this connection\n",
+			       dev->id);
+		}
 		cmd->params.vlan_dmac_b4_to_b5 |=
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;
 		cmd->flags |= OCRDMA_QP_PARA_VLAN_EN_VALID;

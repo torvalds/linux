@@ -193,7 +193,8 @@ enum rpcrdma_frmr_state {
 };
 
 struct rpcrdma_frmr {
-	struct ib_fast_reg_page_list	*fr_pgl;
+	struct scatterlist		*sg;
+	int				sg_nents;
 	struct ib_mr			*fr_mr;
 	enum rpcrdma_frmr_state		fr_state;
 	struct work_struct		fr_work;

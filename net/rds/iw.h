@@ -74,10 +74,13 @@ struct rds_iw_send_work {
 	struct rm_rdma_op	*s_op;
 	struct rds_iw_mapping	*s_mapping;
 	struct ib_mr		*s_mr;
-	struct ib_fast_reg_page_list *s_page_list;
 	unsigned char		s_remap_count;
 
-	struct ib_send_wr	s_wr;
+	union {
+		struct ib_send_wr	s_send_wr;
+		struct ib_rdma_wr	s_rdma_wr;
+		struct ib_reg_wr	s_reg_wr;
+	};
 	struct ib_sge		s_sge[RDS_IW_MAX_SGE];
 	unsigned long		s_queued;
 };
@@ -195,7 +198,7 @@ struct rds_iw_device {
 
 /* Magic WR_ID for ACKs */
 #define RDS_IW_ACK_WR_ID	((u64)0xffffffffffffffffULL)
-#define RDS_IW_FAST_REG_WR_ID	((u64)0xefefefefefefefefULL)
+#define RDS_IW_REG_WR_ID	((u64)0xefefefefefefefefULL)
 #define RDS_IW_LOCAL_INV_WR_ID	((u64)0xdfdfdfdfdfdfdfdfULL)
 
 struct rds_iw_statistics {

@@ -41,6 +41,9 @@
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+#include <net/addrconf.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
@@ -70,7 +73,7 @@ static const char * const ib_events[] = {
 	[IB_EVENT_GID_CHANGE]		= "GID changed",
 };
 
-const char *ib_event_msg(enum ib_event_type event)
+const char *__attribute_const__ ib_event_msg(enum ib_event_type event)
 {
 	size_t index = event;
 
@@ -104,7 +107,7 @@ static const char * const wc_statuses[] = {
 	[IB_WC_GENERAL_ERR]		= "general error",
 };
 
-const char *ib_wc_status_msg(enum ib_wc_status status)
+const char *__attribute_const__ ib_wc_status_msg(enum ib_wc_status status)
 {
 	size_t index = status;
 
@@ -308,6 +311,35 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(ib_create_ah);
 
+struct find_gid_index_context {
+	u16 vlan_id;
+};
+
+static bool find_gid_index(const union ib_gid *gid,
+			   const struct ib_gid_attr *gid_attr,
+			   void *context)
+{
+	struct find_gid_index_context *ctx =
+		(struct find_gid_index_context *)context;
+
+	if ((!!(ctx->vlan_id != 0xffff) == !is_vlan_dev(gid_attr->ndev)) ||
+	    (is_vlan_dev(gid_attr->ndev) &&
+	     vlan_dev_vlan_id(gid_attr->ndev) != ctx->vlan_id))
+		return false;
+
+	return true;
+}
+
+static int get_sgid_index_from_eth(struct ib_device *device, u8 port_num,
+				   u16 vlan_id, const union ib_gid *sgid,
+				   u16 *gid_index)
+{
+	struct find_gid_index_context context = {.vlan_id = vlan_id};
+
+	return ib_find_gid_by_filter(device, sgid, port_num, find_gid_index,
+				     &context, gid_index);
+}
+
 int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		       const struct ib_wc *wc, const struct ib_grh *grh,
 		       struct ib_ah_attr *ah_attr)
@@ -318,21 +350,30 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 
 	memset(ah_attr, 0, sizeof *ah_attr);
 	if (rdma_cap_eth_ah(device, port_num)) {
+		u16 vlan_id = wc->wc_flags & IB_WC_WITH_VLAN ?
+				wc->vlan_id : 0xffff;
+
 		if (!(wc->wc_flags & IB_WC_GRH))
 			return -EPROTOTYPE;
 
-		if (wc->wc_flags & IB_WC_WITH_SMAC &&
-		    wc->wc_flags & IB_WC_WITH_VLAN) {
-			memcpy(ah_attr->dmac, wc->smac, ETH_ALEN);
-			ah_attr->vlan_id = wc->vlan_id;
-		} else {
+		if (!(wc->wc_flags & IB_WC_WITH_SMAC) ||
+		    !(wc->wc_flags & IB_WC_WITH_VLAN)) {
 			ret = rdma_addr_find_dmac_by_grh(&grh->dgid, &grh->sgid,
-					ah_attr->dmac, &ah_attr->vlan_id);
+							 ah_attr->dmac,
+							 wc->wc_flags & IB_WC_WITH_VLAN ?
+							 NULL : &vlan_id,
+							 0);
 			if (ret)
 				return ret;
 		}
-	} else {
-		ah_attr->vlan_id = 0xffff;
+
+		ret = get_sgid_index_from_eth(device, port_num, vlan_id,
+					      &grh->dgid, &gid_index);
+		if (ret)
+			return ret;
+
+		if (wc->wc_flags & IB_WC_WITH_SMAC)
+			memcpy(ah_attr->dmac, wc->smac, ETH_ALEN);
 	}
 
 	ah_attr->dlid = wc->slid;
@@ -344,10 +385,13 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		ah_attr->ah_flags = IB_AH_GRH;
 		ah_attr->grh.dgid = grh->sgid;
 
-		ret = ib_find_cached_gid(device, &grh->dgid, &port_num,
-					 &gid_index);
-		if (ret)
-			return ret;
+		if (!rdma_cap_eth_ah(device, port_num)) {
+			ret = ib_find_cached_gid_by_port(device, &grh->dgid,
+							 port_num, NULL,
+							 &gid_index);
+			if (ret)
+				return ret;
+		}
 
 		ah_attr->grh.sgid_index = (u8) gid_index;
 		flow_class = be32_to_cpu(grh->version_tclass_flow);
@@ -617,9 +661,7 @@ EXPORT_SYMBOL(ib_create_qp);
 static const struct {
 	int			valid;
 	enum ib_qp_attr_mask	req_param[IB_QPT_MAX];
-	enum ib_qp_attr_mask	req_param_add_eth[IB_QPT_MAX];
 	enum ib_qp_attr_mask	opt_param[IB_QPT_MAX];
-	enum ib_qp_attr_mask	opt_param_add_eth[IB_QPT_MAX];
 } qp_state_table[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = {
 		[IB_QPS_RESET] = { .valid = 1 },
@@ -700,12 +742,6 @@ static const struct {
 						IB_QP_MAX_DEST_RD_ATOMIC	|
 						IB_QP_MIN_RNR_TIMER),
 			},
-			.req_param_add_eth = {
-				[IB_QPT_RC]  = (IB_QP_SMAC),
-				[IB_QPT_UC]  = (IB_QP_SMAC),
-				[IB_QPT_XRC_INI]  = (IB_QP_SMAC),
-				[IB_QPT_XRC_TGT]  = (IB_QP_SMAC)
-			},
 			.opt_param = {
 				 [IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
 						 IB_QP_QKEY),
@@ -726,21 +762,7 @@ static const struct {
 				 [IB_QPT_GSI] = (IB_QP_PKEY_INDEX		|
 						 IB_QP_QKEY),
 			 },
-			.opt_param_add_eth = {
-				[IB_QPT_RC]  = (IB_QP_ALT_SMAC			|
-						IB_QP_VID			|
-						IB_QP_ALT_VID),
-				[IB_QPT_UC]  = (IB_QP_ALT_SMAC			|
-						IB_QP_VID			|
-						IB_QP_ALT_VID),
-				[IB_QPT_XRC_INI]  = (IB_QP_ALT_SMAC			|
-						IB_QP_VID			|
-						IB_QP_ALT_VID),
-				[IB_QPT_XRC_TGT]  = (IB_QP_ALT_SMAC			|
-						IB_QP_VID			|
-						IB_QP_ALT_VID)
-			}
-		}
+		},
 	},
 	[IB_QPS_RTR]   = {
 		[IB_QPS_RESET] = { .valid = 1 },
@@ -962,13 +984,6 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 	req_param = qp_state_table[cur_state][next_state].req_param[type];
 	opt_param = qp_state_table[cur_state][next_state].opt_param[type];
 
-	if (ll == IB_LINK_LAYER_ETHERNET) {
-		req_param |= qp_state_table[cur_state][next_state].
-			req_param_add_eth[type];
-		opt_param |= qp_state_table[cur_state][next_state].
-			opt_param_add_eth[type];
-	}
-
 	if ((mask & req_param) != req_param)
 		return 0;
 
@@ -979,40 +994,52 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
-int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
-			    struct ib_qp_attr *qp_attr, int *qp_attr_mask)
+int ib_resolve_eth_dmac(struct ib_qp *qp,
+			struct ib_qp_attr *qp_attr, int *qp_attr_mask)
 {
 	int           ret = 0;
-	union ib_gid  sgid;
 
-	if ((*qp_attr_mask & IB_QP_AV)  &&
-	    (rdma_cap_eth_ah(qp->device, qp_attr->ah_attr.port_num))) {
-		ret = ib_query_gid(qp->device, qp_attr->ah_attr.port_num,
-				   qp_attr->ah_attr.grh.sgid_index, &sgid);
-		if (ret)
-			goto out;
+	if (*qp_attr_mask & IB_QP_AV) {
+		if (qp_attr->ah_attr.port_num < rdma_start_port(qp->device) ||
+		    qp_attr->ah_attr.port_num > rdma_end_port(qp->device))
+			return -EINVAL;
+
+		if (!rdma_cap_eth_ah(qp->device, qp_attr->ah_attr.port_num))
+			return 0;
+
 		if (rdma_link_local_addr((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw)) {
-			rdma_get_ll_mac((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw, qp_attr->ah_attr.dmac);
-			rdma_get_ll_mac((struct in6_addr *)sgid.raw, qp_attr->smac);
-			if (!(*qp_attr_mask & IB_QP_VID))
-				qp_attr->vlan_id = rdma_get_vlan_id(&sgid);
+			rdma_get_ll_mac((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw,
+					qp_attr->ah_attr.dmac);
 		} else {
-			ret = rdma_addr_find_dmac_by_grh(&sgid, &qp_attr->ah_attr.grh.dgid,
-					qp_attr->ah_attr.dmac, &qp_attr->vlan_id);
-			if (ret)
+			union ib_gid		sgid;
+			struct ib_gid_attr	sgid_attr;
+			int			ifindex;
+
+			ret = ib_query_gid(qp->device,
+					   qp_attr->ah_attr.port_num,
+					   qp_attr->ah_attr.grh.sgid_index,
+					   &sgid, &sgid_attr);
+
+			if (ret || !sgid_attr.ndev) {
+				if (!ret)
+					ret = -ENXIO;
 				goto out;
-			ret = rdma_addr_find_smac_by_sgid(&sgid, qp_attr->smac, NULL);
-			if (ret)
-				goto out;
+			}
+
+			ifindex = sgid_attr.ndev->ifindex;
+
+			ret = rdma_addr_find_dmac_by_grh(&sgid,
+							 &qp_attr->ah_attr.grh.dgid,
+							 qp_attr->ah_attr.dmac,
+							 NULL, ifindex);
+
+			dev_put(sgid_attr.ndev);
 		}
-		*qp_attr_mask |= IB_QP_SMAC;
-		if (qp_attr->vlan_id < 0xFFFF)
-			*qp_attr_mask |= IB_QP_VID;
 	}
 out:
 	return ret;
 }
-EXPORT_SYMBOL(ib_resolve_eth_l2_attrs);
+EXPORT_SYMBOL(ib_resolve_eth_dmac);
 
 
 int ib_modify_qp(struct ib_qp *qp,
@@ -1021,7 +1048,7 @@ int ib_modify_qp(struct ib_qp *qp,
 {
 	int ret;
 
-	ret = ib_resolve_eth_l2_attrs(qp, qp_attr, &qp_attr_mask);
+	ret = ib_resolve_eth_dmac(qp, qp_attr, &qp_attr_mask);
 	if (ret)
 		return ret;
 
@@ -1253,31 +1280,6 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 }
 EXPORT_SYMBOL(ib_alloc_mr);
 
-struct ib_fast_reg_page_list *ib_alloc_fast_reg_page_list(struct ib_device *device,
-							  int max_page_list_len)
-{
-	struct ib_fast_reg_page_list *page_list;
-
-	if (!device->alloc_fast_reg_page_list)
-		return ERR_PTR(-ENOSYS);
-
-	page_list = device->alloc_fast_reg_page_list(device, max_page_list_len);
-
-	if (!IS_ERR(page_list)) {
-		page_list->device = device;
-		page_list->max_page_list_len = max_page_list_len;
-	}
-
-	return page_list;
-}
-EXPORT_SYMBOL(ib_alloc_fast_reg_page_list);
-
-void ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list)
-{
-	page_list->device->free_fast_reg_page_list(page_list);
-}
-EXPORT_SYMBOL(ib_free_fast_reg_page_list);
-
 /* Memory windows */
 
 struct ib_mw *ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
@@ -1469,3 +1471,110 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 		mr->device->check_mr_status(mr, check_mask, mr_status) : -ENOSYS;
 }
 EXPORT_SYMBOL(ib_check_mr_status);
+
+/**
+ * ib_map_mr_sg() - Map the largest prefix of a dma mapped SG list
+ *     and set it the memory region.
+ * @mr:            memory region
+ * @sg:            dma mapped scatterlist
+ * @sg_nents:      number of entries in sg
+ * @page_size:     page vector desired page size
+ *
+ * Constraints:
+ * - The first sg element is allowed to have an offset.
+ * - Each sg element must be aligned to page_size (or physically
+ *   contiguous to the previous element). In case an sg element has a
+ *   non contiguous offset, the mapping prefix will not include it.
+ * - The last sg element is allowed to have length less than page_size.
+ * - If sg_nents total byte length exceeds the mr max_num_sge * page_size
+ *   then only max_num_sg entries will be mapped.
+ *
+ * Returns the number of sg elements that were mapped to the memory region.
+ *
+ * After this completes successfully, the  memory region
+ * is ready for registration.
+ */
+int ib_map_mr_sg(struct ib_mr *mr,
+		 struct scatterlist *sg,
+		 int sg_nents,
+		 unsigned int page_size)
+{
+	if (unlikely(!mr->device->map_mr_sg))
+		return -ENOSYS;
+
+	mr->page_size = page_size;
+
+	return mr->device->map_mr_sg(mr, sg, sg_nents);
+}
+EXPORT_SYMBOL(ib_map_mr_sg);
+
+/**
+ * ib_sg_to_pages() - Convert the largest prefix of a sg list
+ *     to a page vector
+ * @mr:            memory region
+ * @sgl:           dma mapped scatterlist
+ * @sg_nents:      number of entries in sg
+ * @set_page:      driver page assignment function pointer
+ *
+ * Core service helper for drivers to covert the largest
+ * prefix of given sg list to a page vector. The sg list
+ * prefix converted is the prefix that meet the requirements
+ * of ib_map_mr_sg.
+ *
+ * Returns the number of sg elements that were assigned to
+ * a page vector.
+ */
+int ib_sg_to_pages(struct ib_mr *mr,
+		   struct scatterlist *sgl,
+		   int sg_nents,
+		   int (*set_page)(struct ib_mr *, u64))
+{
+	struct scatterlist *sg;
+	u64 last_end_dma_addr = 0, last_page_addr = 0;
+	unsigned int last_page_off = 0;
+	u64 page_mask = ~((u64)mr->page_size - 1);
+	int i;
+
+	mr->iova = sg_dma_address(&sgl[0]);
+	mr->length = 0;
+
+	for_each_sg(sgl, sg, sg_nents, i) {
+		u64 dma_addr = sg_dma_address(sg);
+		unsigned int dma_len = sg_dma_len(sg);
+		u64 end_dma_addr = dma_addr + dma_len;
+		u64 page_addr = dma_addr & page_mask;
+
+		if (i && page_addr != dma_addr) {
+			if (last_end_dma_addr != dma_addr) {
+				/* gap */
+				goto done;
+
+			} else if (last_page_off + dma_len <= mr->page_size) {
+				/* chunk this fragment with the last */
+				mr->length += dma_len;
+				last_end_dma_addr += dma_len;
+				last_page_off += dma_len;
+				continue;
+			} else {
+				/* map starting from the next page */
+				page_addr = last_page_addr + mr->page_size;
+				dma_len -= mr->page_size - last_page_off;
+			}
+		}
+
+		do {
+			if (unlikely(set_page(mr, page_addr)))
+				goto done;
+			page_addr += mr->page_size;
+		} while (page_addr < end_dma_addr);
+
+		mr->length += dma_len;
+		last_end_dma_addr = end_dma_addr;
+		last_page_addr = end_dma_addr & page_mask;
+		last_page_off = end_dma_addr & ~page_mask;
+	}
+
+done:
+	return i;
+}
+EXPORT_SYMBOL(ib_sg_to_pages);

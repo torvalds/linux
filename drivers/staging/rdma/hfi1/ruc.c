@@ -481,8 +481,8 @@ again:
 		if (wqe->length == 0)
 			break;
 		if (unlikely(!hfi1_rkey_ok(qp, &qp->r_sge.sge, wqe->length,
-					   wqe->wr.wr.rdma.remote_addr,
-					   wqe->wr.wr.rdma.rkey,
+					   wqe->rdma_wr.remote_addr,
+					   wqe->rdma_wr.rkey,
 					   IB_ACCESS_REMOTE_WRITE)))
 			goto acc_err;
 		qp->r_sge.sg_list = NULL;
@@ -494,8 +494,8 @@ again:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_READ)))
 			goto inv_err;
 		if (unlikely(!hfi1_rkey_ok(qp, &sqp->s_sge.sge, wqe->length,
-					   wqe->wr.wr.rdma.remote_addr,
-					   wqe->wr.wr.rdma.rkey,
+					   wqe->rdma_wr.remote_addr,
+					   wqe->rdma_wr.rkey,
 					   IB_ACCESS_REMOTE_READ)))
 			goto acc_err;
 		release = 0;
@@ -512,18 +512,18 @@ again:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC)))
 			goto inv_err;
 		if (unlikely(!hfi1_rkey_ok(qp, &qp->r_sge.sge, sizeof(u64),
-					   wqe->wr.wr.atomic.remote_addr,
-					   wqe->wr.wr.atomic.rkey,
+					   wqe->atomic_wr.remote_addr,
+					   wqe->atomic_wr.rkey,
 					   IB_ACCESS_REMOTE_ATOMIC)))
 			goto acc_err;
 		/* Perform atomic OP and save result. */
 		maddr = (atomic64_t *) qp->r_sge.sge.vaddr;
-		sdata = wqe->wr.wr.atomic.compare_add;
+		sdata = wqe->atomic_wr.compare_add;
 		*(u64 *) sqp->s_sge.sge.vaddr =
 			(wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD) ?
 			(u64) atomic64_add_return(sdata, maddr) - sdata :
 			(u64) cmpxchg((u64 *) qp->r_sge.sge.vaddr,
-				      sdata, wqe->wr.wr.atomic.swap);
+				      sdata, wqe->atomic_wr.swap);
 		hfi1_put_mr(qp->r_sge.sge.mr);
 		qp->r_sge.num_sge = 0;
 		goto send_comp;
@@ -912,7 +912,7 @@ void hfi1_send_complete(struct hfi1_qp *qp, struct hfi1_swqe *wqe,
 	if (qp->ibqp.qp_type == IB_QPT_UD ||
 	    qp->ibqp.qp_type == IB_QPT_SMI ||
 	    qp->ibqp.qp_type == IB_QPT_GSI)
-		atomic_dec(&to_iah(wqe->wr.wr.ud.ah)->refcount);
+		atomic_dec(&to_iah(wqe->ud_wr.ah)->refcount);
 
 	/* See ch. 11.2.4.1 and 10.7.3.1 */
 	if (!(qp->s_flags & HFI1_S_SIGNAL_REQ_WR) ||

@@ -236,8 +236,8 @@ create_roce_custom_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	/* Create Flow Handle */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
-	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
+	if (!qp_flow) {
+		err = -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -311,8 +311,8 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	/* Create qp_flow */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
-	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
+	if (!qp_flow) {
+		err = -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;

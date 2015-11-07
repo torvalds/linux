@@ -155,6 +155,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[27] = "Port beacon support",
 		[28] = "RX-ALL support",
 		[29] = "802.1ad offload support",
+		[31] = "Modifying loopback source checks using UPDATE_QP support",
+		[32] = "Loopback source checks support",
 	};
 	int i;
 
@@ -964,6 +966,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(field32, outbox, QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET);
 	if (field32 & (1 << 16))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_UPDATE_QP;
+	if (field32 & (1 << 18))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB;
+	if (field32 & (1 << 19))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_LB_SRC_CHK;
 	if (field32 & (1 << 26))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_VLAN_CONTROL;
 	if (field32 & (1 << 20))
