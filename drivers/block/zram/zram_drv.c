@@ -365,6 +365,9 @@ static ssize_t comp_algorithm_store(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 	size_t sz;
 
+	if (!zcomp_available_algorithm(buf))
+		return -EINVAL;
+
 	down_write(&zram->init_lock);
 	if (init_done(zram)) {
 		up_write(&zram->init_lock);
@@ -377,9 +380,6 @@ static ssize_t comp_algorithm_store(struct device *dev,
 	sz = strlen(zram->compressor);
 	if (sz > 0 && zram->compressor[sz - 1] == '\n')
 		zram->compressor[sz - 1] = 0x00;
-
-	if (!zcomp_available_algorithm(zram->compressor))
-		len = -EINVAL;
 
 	up_write(&zram->init_lock);
 	return len;
