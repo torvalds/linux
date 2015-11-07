@@ -133,13 +133,6 @@ static inline int agl_should_run(struct ll_statahead_info *sai,
 	return (inode != NULL && S_ISREG(inode->i_mode) && sai->sai_agl_valid);
 }
 
-static inline struct ll_sa_entry *
-sa_first_received_entry(struct ll_statahead_info *sai)
-{
-	return list_entry(sai->sai_entries_received.next,
-			      struct ll_sa_entry, se_list);
-}
-
 static inline struct ll_inode_info *
 agl_first_entry(struct ll_statahead_info *sai)
 {
@@ -620,7 +613,8 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 		spin_unlock(&lli->lli_sa_lock);
 		return;
 	}
-	entry = sa_first_received_entry(sai);
+	entry = list_entry(sai->sai_entries_received.next,
+			   struct ll_sa_entry, se_list);
 	atomic_inc(&entry->se_refcount);
 	list_del_init(&entry->se_list);
 	spin_unlock(&lli->lli_sa_lock);
