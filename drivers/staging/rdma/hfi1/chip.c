@@ -9449,7 +9449,7 @@ static void reset_asic_csrs(struct hfi1_devdata *dd)
 	/* We might want to retain this state across FLR if we ever use it */
 	write_csr(dd, ASIC_CFG_DRV_STR, 0);
 
-	write_csr(dd, ASIC_CFG_THERM_POLL_EN, 0);
+	/* ASIC_CFG_THERM_POLL_EN leave alone */
 	/* ASIC_STS_THERM read-only */
 	/* ASIC_CFG_RESET leave alone */
 
@@ -10794,7 +10794,9 @@ static int thermal_init(struct hfi1_devdata *dd)
 
 	acquire_hw_mutex(dd);
 	dd_dev_info(dd, "Initializing thermal sensor\n");
-
+	/* Disable polling of thermal readings */
+	write_csr(dd, ASIC_CFG_THERM_POLL_EN, 0x0);
+	msleep(100);
 	/* Thermal Sensor Initialization */
 	/*    Step 1: Reset the Thermal SBus Receiver */
 	ret = sbus_request_slow(dd, SBUS_THERMAL, 0x0,
