@@ -1823,9 +1823,6 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
 	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
 			shrinker);
 
-	if (!pool->shrinker_enabled)
-		return 0;
-
 	for (i = zs_size_classes - 1; i >= 0; i--) {
 		class = pool->size_class[i];
 		if (!class)
