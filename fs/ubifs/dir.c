@@ -1186,6 +1186,9 @@ const struct inode_operations ubifs_dir_inode_operations = {
 	.getxattr    = ubifs_getxattr,
 	.listxattr   = ubifs_listxattr,
 	.removexattr = ubifs_removexattr,
+#ifdef CONFIG_UBIFS_ATIME_SUPPORT
+	.update_time = ubifs_update_time,
+#endif
 };
 
 const struct file_operations ubifs_dir_operations = {

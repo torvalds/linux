@@ -1354,6 +1354,47 @@ static inline int mctime_update_needed(const struct inode *inode,
 	return 0;
 }
 
+#ifdef CONFIG_UBIFS_ATIME_SUPPORT
+/**
+ * ubifs_update_time - update time of inode.
+ * @inode: inode to update
+ *
+ * This function updates time of the inode.
+ */
+int ubifs_update_time(struct inode *inode, struct timespec *time,
+			     int flags)
+{
+	struct ubifs_inode *ui = ubifs_inode(inode);
+	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	struct ubifs_budget_req req = { .dirtied_ino = 1,
+			.dirtied_ino_d = ALIGN(ui->data_len, 8) };
+	int iflags = I_DIRTY_TIME;
+	int err, release;
+
+	err = ubifs_budget_space(c, &req);
+	if (err)
+		return err;
+
+	mutex_lock(&ui->ui_mutex);
+	if (flags & S_ATIME)
+		inode->i_atime = *time;
+	if (flags & S_CTIME)
+		inode->i_ctime = *time;
+	if (flags & S_MTIME)
+		inode->i_mtime = *time;
+
+	if (!(inode->i_sb->s_flags & MS_LAZYTIME))
+		iflags |= I_DIRTY_SYNC;
+
+	release = ui->dirty;
+	__mark_inode_dirty(inode, iflags);
+	mutex_unlock(&ui->ui_mutex);
+	if (release)
+		ubifs_release_budget(c, &req);
+	return 0;
+}
+#endif
+
 /**
  * update_ctime - update mtime and ctime of an inode.
  * @inode: inode to update
@@ -1537,6 +1578,9 @@ static int ubifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (err)
 		return err;
 	vma->vm_ops = &ubifs_file_vm_ops;
+#ifdef CONFIG_UBIFS_ATIME_SUPPORT
+	file_accessed(file);
+#endif
 	return 0;
 }
 
@@ -1557,6 +1601,9 @@ const struct inode_operations ubifs_file_inode_operations = {
 	.getxattr    = ubifs_getxattr,
 	.listxattr   = ubifs_listxattr,
 	.removexattr = ubifs_removexattr,
+#ifdef CONFIG_UBIFS_ATIME_SUPPORT
+	.update_time = ubifs_update_time,
+#endif
 };
 
 const struct inode_operations ubifs_symlink_inode_operations = {
@@ -1568,6 +1615,9 @@ const struct inode_operations ubifs_symlink_inode_operations = {
 	.getxattr    = ubifs_getxattr,
 	.listxattr   = ubifs_listxattr,
 	.removexattr = ubifs_removexattr,
+#ifdef CONFIG_UBIFS_ATIME_SUPPORT
+	.update_time = ubifs_update_time,
+#endif
 };
 
 const struct file_operations ubifs_file_operations = {
