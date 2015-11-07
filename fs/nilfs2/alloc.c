@@ -673,22 +673,6 @@ void nilfs_palloc_abort_free_entry(struct inode *inode,
 }
 
 /**
- * nilfs_palloc_group_is_in - judge if an entry is in a group
- * @inode: inode of metadata file using this allocator
- * @group: group number
- * @nr: serial number of the entry (e.g. inode number)
- */
-static int
-nilfs_palloc_group_is_in(struct inode *inode, unsigned long group, __u64 nr)
-{
-	__u64 first, last;
-
-	first = group * nilfs_palloc_entries_per_group(inode);
-	last = first + nilfs_palloc_entries_per_group(inode) - 1;
-	return (nr >= first) && (nr <= last);
-}
-
-/**
  * nilfs_palloc_freev - deallocate a set of persistent objects
  * @inode: inode of metadata file using this allocator
  * @entry_nrs: array of entry numbers to be deallocated
@@ -701,6 +685,8 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 	unsigned char *bitmap;
 	void *desc_kaddr, *bitmap_kaddr;
 	unsigned long group, group_offset;
+	__u64 group_min_nr;
+	const unsigned long epg = nilfs_palloc_entries_per_group(inode);
 	spinlock_t *lock;
 	int i, j, n, ret;
 
@@ -715,6 +701,10 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 			brelse(desc_bh);
 			return ret;
 		}
+
+		/* Get the first entry number of the group */
+		group_min_nr = (__u64)group * epg;
+
 		desc_kaddr = kmap(desc_bh->b_page);
 		desc = nilfs_palloc_block_get_group_desc(
 			inode, group, desc_bh, desc_kaddr);
@@ -722,10 +712,10 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		bitmap = bitmap_kaddr + bh_offset(bitmap_bh);
 		lock = nilfs_mdt_bgl_lock(inode, group);
 		for (j = i, n = 0;
-		     (j < nitems) && nilfs_palloc_group_is_in(inode, group,
-							      entry_nrs[j]);
+		     j < nitems && entry_nrs[j] >= group_min_nr &&
+			     entry_nrs[j] < group_min_nr + epg;
 		     j++) {
-			nilfs_palloc_group(inode, entry_nrs[j], &group_offset);
+			group_offset = entry_nrs[j] - group_min_nr;
 			if (!nilfs_clear_bit_atomic(lock, group_offset,
 						    bitmap)) {
 				nilfs_warning(inode->i_sb, __func__,
