@@ -428,7 +428,7 @@ static void ll_agl_add(struct ll_statahead_info *sai,
 
 		igrab(inode);
 		spin_lock(&parent->lli_agl_lock);
-		if (agl_list_empty(sai))
+		if (list_empty(&sai->sai_entries_agl))
 			added = 1;
 		list_add_tail(&child->lli_agl_list, &sai->sai_entries_agl);
 		spin_unlock(&parent->lli_agl_lock);
@@ -522,7 +522,7 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 		LASSERT(list_empty(&sai->sai_entries_stated));
 
 		LASSERT(atomic_read(&sai->sai_cache_count) == 0);
-		LASSERT(agl_list_empty(sai));
+		LASSERT(list_empty(&sai->sai_entries_agl));
 
 		iput(inode);
 		kfree(sai);
@@ -955,7 +955,7 @@ static int ll_agl_thread(void *arg)
 
 	while (1) {
 		l_wait_event(thread->t_ctl_waitq,
-			     !agl_list_empty(sai) ||
+			     !list_empty(&sai->sai_entries_agl) ||
 			     !thread_is_running(thread),
 			     &lwi);
 
@@ -965,7 +965,7 @@ static int ll_agl_thread(void *arg)
 		spin_lock(&plli->lli_agl_lock);
 		/* The statahead thread maybe help to process AGL entries,
 		 * so check whether list empty again. */
-		if (!agl_list_empty(sai)) {
+		if (!list_empty(&sai->sai_entries_agl)) {
 			clli = list_entry(sai->sai_entries_agl.next,
 					  struct ll_inode_info, lli_agl_list);
 			list_del_init(&clli->lli_agl_list);
@@ -978,7 +978,7 @@ static int ll_agl_thread(void *arg)
 
 	spin_lock(&plli->lli_agl_lock);
 	sai->sai_agl_valid = 0;
-	while (!agl_list_empty(sai)) {
+	while (!list_empty(&sai->sai_entries_agl)) {
 		clli = list_entry(sai->sai_entries_agl.next,
 				  struct ll_inode_info, lli_agl_list);
 		list_del_init(&clli->lli_agl_list);
@@ -1121,7 +1121,7 @@ keep_it:
 			l_wait_event(thread->t_ctl_waitq,
 				     !sa_sent_full(sai) ||
 				     !list_empty(&sai->sai_entries_received) ||
-				     !agl_list_empty(sai) ||
+				     !list_empty(&sai->sai_entries_agl) ||
 				     !thread_is_running(thread),
 				     &lwi);
 
@@ -1140,7 +1140,7 @@ interpret_it:
 			 * to process the AGL entries. */
 			if (sa_sent_full(sai)) {
 				spin_lock(&plli->lli_agl_lock);
-				while (!agl_list_empty(sai)) {
+				while (!list_empty(&sai->sai_entries_agl)) {
 					clli = list_entry(sai->sai_entries_agl.next,
 							  struct ll_inode_info, lli_agl_list);
 					list_del_init(&clli->lli_agl_list);
@@ -1198,7 +1198,7 @@ do_it:
 			}
 
 			spin_lock(&plli->lli_agl_lock);
-			while (!agl_list_empty(sai) &&
+			while (!list_empty(&sai->sai_entries_agl) &&
 			       thread_is_running(thread)) {
 				clli = list_entry(sai->sai_entries_agl.next,
 						  struct ll_inode_info, lli_agl_list);
