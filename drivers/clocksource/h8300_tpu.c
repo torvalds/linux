@@ -20,16 +20,9 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
-#define TCR	0
-#define TMDR	1
-#define TIOR	2
-#define TER	4
-#define TSR	5
-#define TCNT	6
-#define TGRA	8
-#define TGRB	10
-#define TGRC	12
-#define TGRD	14
+#define TCR	0x0
+#define TSR	0x5
+#define TCNT	0x6
 
 struct tpu_priv {
 	struct clocksource cs;
