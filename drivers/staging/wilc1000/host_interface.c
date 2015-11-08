@@ -3277,7 +3277,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 			u8 gtk_key_len,	u8 index,
 			u32 key_rsc_len, const u8 *key_rsc,
 			const u8 *rx_mic, const u8 *tx_mic,
-			u8 mode, u8 u8Ciphermode)
+			u8 mode, u8 cipher_mode)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3306,7 +3306,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 
 	if (mode == AP_MODE) {
 		msg.body.key_info.action = ADDKEY_AP;
-		msg.body.key_info.attr.wpa.mode = u8Ciphermode;
+		msg.body.key_info.attr.wpa.mode = cipher_mode;
 	}
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;

@@ -321,7 +321,7 @@ int host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
 			u8 gtk_key_len,	u8 index,
 			u32 key_rsc_len, const u8 *key_rsc,
 			const u8 *rx_mic, const u8 *tx_mic,
-			u8 mode, u8 u8Ciphermode);
+			u8 mode, u8 cipher_mode);
 s32 host_int_add_tx_gtk(struct host_if_drv *hWFIDrv, u8 u8KeyLen,
 			u8 *pu8TxGtk, u8 u8KeyIdx);
 s32 host_int_set_pmkid_info(struct host_if_drv *hWFIDrv,
